@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -16,6 +16,10 @@ import (
 // and we need to know whether to check 32 or 64 bits of the result.
 // (Some libc functions that return 32 bits put junk in the upper 32 bits of AX.)
 
+// golang.org/x/sys linknames syscall_syscall
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscall syscall.syscall
 //go:nosplit
 func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
@@ -38,6 +42,17 @@ func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 }
 func syscallX()
 
+// golang.org/x/sys linknames syscall.syscall6
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
+// syscall.syscall6 is meant for package syscall (and x/sys),
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/tetratelabs/wazero
+//
+// See go.dev/issue/67401.
+//
 //go:linkname syscall_syscall6 syscall.syscall6
 //go:nosplit
 func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
@@ -49,6 +64,10 @@ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) 
 }
 func syscall6()
 
+// golang.org/x/sys linknames syscall.syscall9
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscall9 syscall.syscall9
 //go:nosplit
 //go:cgo_unsafe_args
@@ -71,6 +90,10 @@ func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 }
 func syscall6X()
 
+// golang.org/x/sys linknames syscall.syscallPtr
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscallPtr syscall.syscallPtr
 //go:nosplit
 func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
@@ -82,6 +105,10 @@ func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 }
 func syscallPtr()
 
+// golang.org/x/sys linknames syscall_rawSyscall
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_rawSyscall syscall.rawSyscall
 //go:nosplit
 func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
@@ -90,6 +117,10 @@ func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	return args.r1, args.r2, args.err
 }
 
+// golang.org/x/sys linknames syscall_rawSyscall6
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_rawSyscall6 syscall.rawSyscall6
 //go:nosplit
 func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
@@ -349,6 +380,15 @@ func nanotime1() int64 {
 }
 func nanotime_trampoline()
 
+// walltime should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname walltime
 //go:nosplit
 //go:cgo_unsafe_args
 func walltime() (int64, int32) {
@@ -549,6 +589,58 @@ func issetugid() int32 {
 }
 func issetugid_trampoline()
 
+// mach_vm_region is used to obtain virtual memory mappings for use by the
+// profiling system and is only exported to runtime/pprof. It is restricted
+// to obtaining mappings for the current process.
+//
+//go:linkname mach_vm_region runtime/pprof.mach_vm_region
+func mach_vm_region(address, region_size *uint64, info unsafe.Pointer) int32 {
+	// kern_return_t mach_vm_region(
+	// 	vm_map_read_t target_task,
+	// 	mach_vm_address_t *address,
+	// 	mach_vm_size_t *size,
+	// 	vm_region_flavor_t flavor,
+	// 	vm_region_info_t info,
+	// 	mach_msg_type_number_t *infoCnt,
+	// 	mach_port_t *object_name);
+	var count machMsgTypeNumber = _VM_REGION_BASIC_INFO_COUNT_64
+	var object_name machPort
+	args := struct {
+		address     *uint64
+		size        *uint64
+		flavor      machVMRegionFlavour
+		info        unsafe.Pointer
+		count       *machMsgTypeNumber
+		object_name *machPort
+	}{
+		address:     address,
+		size:        region_size,
+		flavor:      _VM_REGION_BASIC_INFO_64,
+		info:        info,
+		count:       &count,
+		object_name: &object_name,
+	}
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(mach_vm_region_trampoline)), unsafe.Pointer(&args))
+}
+func mach_vm_region_trampoline()
+
+//go:linkname proc_regionfilename runtime/pprof.proc_regionfilename
+func proc_regionfilename(pid int, address uint64, buf *byte, buflen int64) int32 {
+	args := struct {
+		pid     int
+		address uint64
+		buf     *byte
+		bufSize int64
+	}{
+		pid:     pid,
+		address: address,
+		buf:     buf,
+		bufSize: buflen,
+	}
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(proc_regionfilename_trampoline)), unsafe.Pointer(&args))
+}
+func proc_regionfilename_trampoline()
+
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 
@@ -574,6 +666,9 @@ func issetugid_trampoline()
 //go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
 
+//go:cgo_import_dynamic libc_proc_regionfilename proc_regionfilename "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_mach_task_self_ mach_task_self_ "/usr/lib/libSystem.B.dylib""
+//go:cgo_import_dynamic libc_mach_vm_region mach_vm_region "/usr/lib/libSystem.B.dylib""
 //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_clock_gettime clock_gettime "/usr/lib/libSystem.B.dylib"

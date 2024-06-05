@@ -83,9 +83,11 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/math"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -109,7 +111,7 @@ func arena_newArena() unsafe.Pointer {
 //go:linkname arena_arena_New arena.runtime_arena_arena_New
 func arena_arena_New(arena unsafe.Pointer, typ any) any {
 	t := (*_type)(efaceOf(&typ).data)
-	if t.Kind_&kindMask != kindPtr {
+	if t.Kind_&abi.KindMask != abi.Pointer {
 		throw("arena_New: non-pointer type")
 	}
 	te := (*ptrtype)(unsafe.Pointer(t)).Elem
@@ -143,12 +145,12 @@ func arena_heapify(s any) any {
 	var v unsafe.Pointer
 	e := efaceOf(&s)
 	t := e._type
-	switch t.Kind_ & kindMask {
-	case kindString:
+	switch t.Kind_ & abi.KindMask {
+	case abi.String:
 		v = stringStructOf((*string)(e.data)).str
-	case kindSlice:
+	case abi.Slice:
 		v = (*slice)(e.data).array
-	case kindPtr:
+	case abi.Pointer:
 		v = e.data
 	default:
 		panic("arena: Clone only supports pointers, slices, and strings")
@@ -160,13 +162,13 @@ func arena_heapify(s any) any {
 	}
 	// Heap-allocate storage for a copy.
 	var x any
-	switch t.Kind_ & kindMask {
-	case kindString:
+	switch t.Kind_ & abi.KindMask {
+	case abi.String:
 		s1 := s.(string)
 		s2, b := rawstring(len(s1))
 		copy(b, s1)
 		x = s2
-	case kindSlice:
+	case abi.Slice:
 		len := (*slice)(e.data).len
 		et := (*slicetype)(unsafe.Pointer(t)).Elem
 		sl := new(slice)
@@ -174,7 +176,7 @@ func arena_heapify(s any) any {
 		xe := efaceOf(&x)
 		xe._type = t
 		xe.data = unsafe.Pointer(sl)
-	case kindPtr:
+	case abi.Pointer:
 		et := (*ptrtype)(unsafe.Pointer(t)).Elem
 		e2 := newobject(et)
 		typedmemmove(et, e2, e.data)
@@ -217,6 +219,16 @@ func init() {
 		}
 	}
 	lockInit(&userArenaState.lock, lockRankUserArenaState)
+}
+
+// userArenaChunkReserveBytes returns the amount of additional bytes to reserve for
+// heap metadata.
+func userArenaChunkReserveBytes() uintptr {
+	// In the allocation headers experiment, we reserve the end of the chunk for
+	// a pointer/scalar bitmap. We also reserve space for a dummy _type that
+	// refers to the bitmap. The PtrBytes field of the dummy _type indicates how
+	// many of those bits are valid.
+	return userArenaChunkBytes/goarch.PtrSize/8 + unsafe.Sizeof(_type{})
 }
 
 type userArena struct {
@@ -281,11 +293,11 @@ func (a *userArena) slice(sl any, cap int) {
 	}
 	i := efaceOf(&sl)
 	typ := i._type
-	if typ.Kind_&kindMask != kindPtr {
+	if typ.Kind_&abi.KindMask != abi.Pointer {
 		panic("slice result of non-ptr type")
 	}
 	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
-	if typ.Kind_&kindMask != kindSlice {
+	if typ.Kind_&abi.KindMask != abi.Slice {
 		panic("slice of non-ptr-to-slice type")
 	}
 	typ = (*slicetype)(unsafe.Pointer(typ)).Elem
@@ -468,7 +480,7 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 	mp.mallocing = 1
 
 	var ptr unsafe.Pointer
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		// Allocate pointer-less objects from the tail end of the chunk.
 		v, ok := s.userArenaChunkFree.takeFromBack(size, typ.Align_)
 		if ok {
@@ -490,11 +502,11 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 		throw("arena chunk needs zeroing, but should already be zeroed")
 	}
 	// Set up heap bitmap and do extra accounting.
-	if typ.PtrBytes != 0 {
+	if typ.Pointers() {
 		if cap >= 0 {
-			userArenaHeapBitsSetSliceType(typ, cap, ptr, s.base())
+			userArenaHeapBitsSetSliceType(typ, cap, ptr, s)
 		} else {
-			userArenaHeapBitsSetType(typ, ptr, s.base())
+			userArenaHeapBitsSetType(typ, ptr, s)
 		}
 		c := getMCache(mp)
 		if c == nil {
@@ -521,44 +533,30 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
 	return ptr
 }
 
-// userArenaHeapBitsSetType is the equivalent of heapBitsSetType but for
-// non-slice-backing-store Go values allocated in a user arena chunk. It
-// sets up the heap bitmap for the value with type typ allocated at address ptr.
-// base is the base address of the arena chunk.
-func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
-	h := writeHeapBitsForAddr(uintptr(ptr))
-
-	// Our last allocation might have ended right at a noMorePtrs mark,
-	// which we would not have erased. We need to erase that mark here,
-	// because we're going to start adding new heap bitmap bits.
-	// We only need to clear one mark, because below we make sure to
-	// pad out the bits with zeroes and only write one noMorePtrs bit
-	// for each new object.
-	// (This is only necessary at noMorePtrs boundaries, as noMorePtrs
-	// marks within an object allocated with newAt will be erased by
-	// the normal writeHeapBitsForAddr mechanism.)
-	//
-	// Note that we skip this if this is the first allocation in the
-	// arena because there's definitely no previous noMorePtrs mark
-	// (in fact, we *must* do this, because we're going to try to back
-	// up a pointer to fix this up).
-	if uintptr(ptr)%(8*goarch.PtrSize*goarch.PtrSize) == 0 && uintptr(ptr) != base {
-		// Back up one pointer and rewrite that pointer. That will
-		// cause the writeHeapBits implementation to clear the
-		// noMorePtrs bit we need to clear.
-		r := heapBitsForAddr(uintptr(ptr)-goarch.PtrSize, goarch.PtrSize)
-		_, p := r.next()
-		b := uintptr(0)
-		if p == uintptr(ptr)-goarch.PtrSize {
-			b = 1
-		}
-		h = writeHeapBitsForAddr(uintptr(ptr) - goarch.PtrSize)
-		h = h.write(b, 1)
+// userArenaHeapBitsSetSliceType is the equivalent of heapBitsSetType but for
+// Go slice backing store values allocated in a user arena chunk. It sets up the
+// heap bitmap for n consecutive values with type typ allocated at address ptr.
+func userArenaHeapBitsSetSliceType(typ *_type, n int, ptr unsafe.Pointer, s *mspan) {
+	mem, overflow := math.MulUintptr(typ.Size_, uintptr(n))
+	if overflow || n < 0 || mem > maxAlloc {
+		panic(plainError("runtime: allocation size out of range"))
 	}
+	for i := 0; i < n; i++ {
+		userArenaHeapBitsSetType(typ, add(ptr, uintptr(i)*typ.Size_), s)
+	}
+}
+
+// userArenaHeapBitsSetType is the equivalent of heapSetType but for
+// non-slice-backing-store Go values allocated in a user arena chunk. It
+// sets up the type metadata for the value with type typ allocated at address ptr.
+// base is the base address of the arena chunk.
+func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
+	base := s.base()
+	h := s.writeUserArenaHeapBits(uintptr(ptr))
 
 	p := typ.GCData // start of 1-bit pointer mask (or GC program)
 	var gcProgBits uintptr
-	if typ.Kind_&kindGCProg != 0 {
+	if typ.Kind_&abi.KindGCProg != 0 {
 		// Expand gc program, using the object itself for storage.
 		gcProgBits = runGCProg(addb(p, 4), (*byte)(ptr))
 		p = (*byte)(ptr)
@@ -570,7 +568,13 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
 		if k > ptrBits {
 			k = ptrBits
 		}
-		h = h.write(readUintptr(addb(p, i/8)), k)
+		// N.B. On big endian platforms we byte swap the data that we
+		// read from GCData, which is always stored in little-endian order
+		// by the compiler. writeUserArenaHeapBits handles data in
+		// a platform-ordered way for efficiency, but stores back the
+		// data in little endian order, since we expose the bitmap through
+		// a dummy type.
+		h = h.write(s, readUintptr(addb(p, i/8)), k)
 	}
 	// Note: we call pad here to ensure we emit explicit 0 bits
 	// for the pointerless tail of the object. This ensures that
@@ -578,55 +582,164 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
 	// to clear. We don't need to do this to clear stale noMorePtrs
 	// markers from previous uses because arena chunk pointer bitmaps
 	// are always fully cleared when reused.
-	h = h.pad(typ.Size_ - typ.PtrBytes)
-	h.flush(uintptr(ptr), typ.Size_)
+	h = h.pad(s, typ.Size_-typ.PtrBytes)
+	h.flush(s, uintptr(ptr), typ.Size_)
 
-	if typ.Kind_&kindGCProg != 0 {
+	if typ.Kind_&abi.KindGCProg != 0 {
 		// Zero out temporary ptrmask buffer inside object.
 		memclrNoHeapPointers(ptr, (gcProgBits+7)/8)
 	}
 
+	// Update the PtrBytes value in the type information. After this
+	// point, the GC will observe the new bitmap.
+	s.largeType.PtrBytes = uintptr(ptr) - base + typ.PtrBytes
+
 	// Double-check that the bitmap was written out correctly.
-	//
-	// Derived from heapBitsSetType.
 	const doubleCheck = false
 	if doubleCheck {
-		size := typ.Size_
-		x := uintptr(ptr)
-		h := heapBitsForAddr(x, size)
-		for i := uintptr(0); i < size; i += goarch.PtrSize {
-			// Compute the pointer bit we want at offset i.
-			want := false
-			off := i % typ.Size_
-			if off < typ.PtrBytes {
-				j := off / goarch.PtrSize
-				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
-			}
-			if want {
-				var addr uintptr
-				h, addr = h.next()
-				if addr != x+i {
-					throw("userArenaHeapBitsSetType: pointer entry not correct")
-				}
-			}
-		}
-		if _, addr := h.next(); addr != 0 {
-			throw("userArenaHeapBitsSetType: extra pointer")
-		}
+		doubleCheckHeapPointersInterior(uintptr(ptr), uintptr(ptr), typ.Size_, typ.Size_, typ, &s.largeType, s)
 	}
 }
 
-// userArenaHeapBitsSetSliceType is the equivalent of heapBitsSetType but for
-// Go slice backing store values allocated in a user arena chunk. It sets up the
-// heap bitmap for n consecutive values with type typ allocated at address ptr.
-func userArenaHeapBitsSetSliceType(typ *_type, n int, ptr unsafe.Pointer, base uintptr) {
-	mem, overflow := math.MulUintptr(typ.Size_, uintptr(n))
-	if overflow || n < 0 || mem > maxAlloc {
-		panic(plainError("runtime: allocation size out of range"))
+type writeUserArenaHeapBits struct {
+	offset uintptr // offset in span that the low bit of mask represents the pointer state of.
+	mask   uintptr // some pointer bits starting at the address addr.
+	valid  uintptr // number of bits in buf that are valid (including low)
+	low    uintptr // number of low-order bits to not overwrite
+}
+
+func (s *mspan) writeUserArenaHeapBits(addr uintptr) (h writeUserArenaHeapBits) {
+	offset := addr - s.base()
+
+	// We start writing bits maybe in the middle of a heap bitmap word.
+	// Remember how many bits into the word we started, so we can be sure
+	// not to overwrite the previous bits.
+	h.low = offset / goarch.PtrSize % ptrBits
+
+	// round down to heap word that starts the bitmap word.
+	h.offset = offset - h.low*goarch.PtrSize
+
+	// We don't have any bits yet.
+	h.mask = 0
+	h.valid = h.low
+
+	return
+}
+
+// write appends the pointerness of the next valid pointer slots
+// using the low valid bits of bits. 1=pointer, 0=scalar.
+func (h writeUserArenaHeapBits) write(s *mspan, bits, valid uintptr) writeUserArenaHeapBits {
+	if h.valid+valid <= ptrBits {
+		// Fast path - just accumulate the bits.
+		h.mask |= bits << h.valid
+		h.valid += valid
+		return h
 	}
-	for i := 0; i < n; i++ {
-		userArenaHeapBitsSetType(typ, add(ptr, uintptr(i)*typ.Size_), base)
+	// Too many bits to fit in this word. Write the current word
+	// out and move on to the next word.
+
+	data := h.mask | bits<<h.valid       // mask for this word
+	h.mask = bits >> (ptrBits - h.valid) // leftover for next word
+	h.valid += valid - ptrBits           // have h.valid+valid bits, writing ptrBits of them
+
+	// Flush mask to the memory bitmap.
+	idx := h.offset / (ptrBits * goarch.PtrSize)
+	m := uintptr(1)<<h.low - 1
+	bitmap := s.heapBits()
+	bitmap[idx] = bswapIfBigEndian(bswapIfBigEndian(bitmap[idx])&m | data)
+	// Note: no synchronization required for this write because
+	// the allocator has exclusive access to the page, and the bitmap
+	// entries are all for a single page. Also, visibility of these
+	// writes is guaranteed by the publication barrier in mallocgc.
+
+	// Move to next word of bitmap.
+	h.offset += ptrBits * goarch.PtrSize
+	h.low = 0
+	return h
+}
+
+// Add padding of size bytes.
+func (h writeUserArenaHeapBits) pad(s *mspan, size uintptr) writeUserArenaHeapBits {
+	if size == 0 {
+		return h
 	}
+	words := size / goarch.PtrSize
+	for words > ptrBits {
+		h = h.write(s, 0, ptrBits)
+		words -= ptrBits
+	}
+	return h.write(s, 0, words)
+}
+
+// Flush the bits that have been written, and add zeros as needed
+// to cover the full object [addr, addr+size).
+func (h writeUserArenaHeapBits) flush(s *mspan, addr, size uintptr) {
+	offset := addr - s.base()
+
+	// zeros counts the number of bits needed to represent the object minus the
+	// number of bits we've already written. This is the number of 0 bits
+	// that need to be added.
+	zeros := (offset+size-h.offset)/goarch.PtrSize - h.valid
+
+	// Add zero bits up to the bitmap word boundary
+	if zeros > 0 {
+		z := ptrBits - h.valid
+		if z > zeros {
+			z = zeros
+		}
+		h.valid += z
+		zeros -= z
+	}
+
+	// Find word in bitmap that we're going to write.
+	bitmap := s.heapBits()
+	idx := h.offset / (ptrBits * goarch.PtrSize)
+
+	// Write remaining bits.
+	if h.valid != h.low {
+		m := uintptr(1)<<h.low - 1      // don't clear existing bits below "low"
+		m |= ^(uintptr(1)<<h.valid - 1) // don't clear existing bits above "valid"
+		bitmap[idx] = bswapIfBigEndian(bswapIfBigEndian(bitmap[idx])&m | h.mask)
+	}
+	if zeros == 0 {
+		return
+	}
+
+	// Advance to next bitmap word.
+	h.offset += ptrBits * goarch.PtrSize
+
+	// Continue on writing zeros for the rest of the object.
+	// For standard use of the ptr bits this is not required, as
+	// the bits are read from the beginning of the object. Some uses,
+	// like noscan spans, oblets, bulk write barriers, and cgocheck, might
+	// start mid-object, so these writes are still required.
+	for {
+		// Write zero bits.
+		idx := h.offset / (ptrBits * goarch.PtrSize)
+		if zeros < ptrBits {
+			bitmap[idx] = bswapIfBigEndian(bswapIfBigEndian(bitmap[idx]) &^ (uintptr(1)<<zeros - 1))
+			break
+		} else if zeros == ptrBits {
+			bitmap[idx] = 0
+			break
+		} else {
+			bitmap[idx] = 0
+			zeros -= ptrBits
+		}
+		h.offset += ptrBits * goarch.PtrSize
+	}
+}
+
+// bswapIfBigEndian swaps the byte order of the uintptr on goarch.BigEndian platforms,
+// and leaves it alone elsewhere.
+func bswapIfBigEndian(x uintptr) uintptr {
+	if goarch.BigEndian {
+		if goarch.PtrSize == 8 {
+			return uintptr(sys.Bswap64(uint64(x)))
+		}
+		return uintptr(sys.Bswap32(uint32(x)))
+	}
+	return x
 }
 
 // newUserArenaChunk allocates a user arena chunk, which maps to a single
@@ -670,7 +783,7 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 	// This may be racing with GC so do it atomically if there can be
 	// a race marking the bit.
 	if gcphase != _GCoff {
-		gcmarknewobject(span, span.base(), span.elemsize)
+		gcmarknewobject(span, span.base())
 	}
 
 	if raceenabled {
@@ -687,9 +800,10 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 		// TODO(mknyszek): Track individual objects.
 		rzSize := computeRZlog(span.elemsize)
 		span.elemsize -= rzSize
-		span.limit -= rzSize
-		span.userArenaChunkFree = makeAddrRange(span.base(), span.limit)
-		asanpoison(unsafe.Pointer(span.limit), span.npages*pageSize-span.elemsize)
+		span.largeType.Size_ = span.elemsize
+		rzStart := span.base() + span.elemsize
+		span.userArenaChunkFree = makeAddrRange(span.base(), rzStart)
+		asanpoison(unsafe.Pointer(rzStart), span.limit-rzStart)
 		asanunpoison(unsafe.Pointer(span.base()), span.elemsize)
 	}
 
@@ -714,10 +828,6 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 	}
 
 	if debug.malloc {
-		if debug.allocfreetrace != 0 {
-			tracealloc(unsafe.Pointer(span.base()), userArenaChunkBytes, nil)
-		}
-
 		if inittrace.active && inittrace.id == getg().goid {
 			// Init functions are executed sequentially in a single goroutine.
 			inittrace.bytes += uint64(userArenaChunkBytes)
@@ -790,7 +900,7 @@ func (s *mspan) setUserArenaChunkToFault() {
 	// the span gets off the quarantine list. The main reason is so that the
 	// amount of bytes allocated doesn't exceed how much is counted as
 	// "mapped ready," which could cause a deadlock in the pacer.
-	gcController.totalFree.Add(int64(s.npages * pageSize))
+	gcController.totalFree.Add(int64(s.elemsize))
 
 	// Update consistent stats to match.
 	//
@@ -800,11 +910,11 @@ func (s *mspan) setUserArenaChunkToFault() {
 	atomic.Xaddint64(&stats.committed, -int64(s.npages*pageSize))
 	atomic.Xaddint64(&stats.inHeap, -int64(s.npages*pageSize))
 	atomic.Xadd64(&stats.largeFreeCount, 1)
-	atomic.Xadd64(&stats.largeFree, int64(s.npages*pageSize))
+	atomic.Xadd64(&stats.largeFree, int64(s.elemsize))
 	memstats.heapStats.release()
 
 	// This counts as a free, so update heapLive.
-	gcController.update(-int64(s.npages*pageSize), 0)
+	gcController.update(-int64(s.elemsize), 0)
 
 	// Mark it as free for the race detector.
 	if raceenabled {
@@ -843,7 +953,7 @@ func freeUserArenaChunk(s *mspan, x unsafe.Pointer) {
 		throw("invalid user arena span size")
 	}
 
-	// Mark the region as free to various santizers immediately instead
+	// Mark the region as free to various sanitizers immediately instead
 	// of handling them at sweep time.
 	if raceenabled {
 		racefree(unsafe.Pointer(s.base()), s.elemsize)
@@ -922,7 +1032,7 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 			// some extra as a result of trying to find an aligned region.
 			//
 			// Divide it up and put it on the ready list.
-			for i := uintptr(userArenaChunkBytes); i < size; i += userArenaChunkBytes {
+			for i := userArenaChunkBytes; i < size; i += userArenaChunkBytes {
 				s := h.allocMSpanLocked()
 				s.init(uintptr(v)+i, userArenaChunkPages)
 				h.userArena.readyList.insertBack(s)
@@ -952,6 +1062,10 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 	spc := makeSpanClass(0, false)
 	h.initSpan(s, spanAllocHeap, spc, base, userArenaChunkPages)
 	s.isUserArenaChunk = true
+	s.elemsize -= userArenaChunkReserveBytes()
+	s.limit = s.base() + s.elemsize
+	s.freeindex = 1
+	s.allocCount = 1
 
 	// Account for this new arena chunk memory.
 	gcController.heapInUse.add(int64(userArenaChunkBytes))
@@ -962,22 +1076,15 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 	atomic.Xaddint64(&stats.committed, int64(userArenaChunkBytes))
 
 	// Model the arena as a single large malloc.
-	atomic.Xadd64(&stats.largeAlloc, int64(userArenaChunkBytes))
+	atomic.Xadd64(&stats.largeAlloc, int64(s.elemsize))
 	atomic.Xadd64(&stats.largeAllocCount, 1)
 	memstats.heapStats.release()
 
 	// Count the alloc in inconsistent, internal stats.
-	gcController.totalAlloc.Add(int64(userArenaChunkBytes))
+	gcController.totalAlloc.Add(int64(s.elemsize))
 
 	// Update heapLive.
-	gcController.update(int64(userArenaChunkBytes), 0)
-
-	// Put the large span in the mcentral swept list so that it's
-	// visible to the background sweeper.
-	h.central[spc].mcentral.fullSwept(h.sweepgen).push(s)
-	s.limit = s.base() + userArenaChunkBytes
-	s.freeindex = 1
-	s.allocCount = 1
+	gcController.update(int64(s.elemsize), 0)
 
 	// This must clear the entire heap bitmap so that it's safe
 	// to allocate noscan data without writing anything out.
@@ -998,6 +1105,18 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 	s.freeIndexForScan = 1
 
 	// Set up the range for allocation.
-	s.userArenaChunkFree = makeAddrRange(base, s.limit)
+	s.userArenaChunkFree = makeAddrRange(base, base+s.elemsize)
+
+	// Put the large span in the mcentral swept list so that it's
+	// visible to the background sweeper.
+	h.central[spc].mcentral.fullSwept(h.sweepgen).push(s)
+
+	// Set up an allocation header. Avoid write barriers here because this type
+	// is not a real type, and it exists in an invalid location.
+	*(*uintptr)(unsafe.Pointer(&s.largeType)) = uintptr(unsafe.Pointer(s.limit))
+	*(*uintptr)(unsafe.Pointer(&s.largeType.GCData)) = s.limit + unsafe.Sizeof(_type{})
+	s.largeType.PtrBytes = 0
+	s.largeType.Size_ = s.elemsize
+
 	return s
 }

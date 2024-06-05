@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !purego
+
 #include "textflag.h"
 
 // func cryptBlocks(c code, key, dst, src *byte, length int)
@@ -12,7 +14,7 @@ TEXT ·cryptBlocks(SB),NOSPLIT,$0-40
 	MOVD	length+32(FP), R5
 	MOVD	c+0(FP), R0
 loop:
-	WORD	$0xB92E0024 // cipher message (KM)
+	KM	R2, R4      // cipher message (KM)
 	BVS	loop        // branch back if interrupted
 	XOR	R0, R0
 	RET
@@ -29,7 +31,7 @@ TEXT ·cryptBlocksChain(SB),NOSPLIT,$48-48
 	MOVD	length+40(FP), R5
 	MOVD	c+0(FP), R0
 loop:
-	WORD	$0xB92F0024       // cipher message with chaining (KMC)
+	KMC	R2, R4            // cipher message with chaining (KMC)
 	BVS	loop              // branch back if interrupted
 	XOR	R0, R0
 	MVC	$16, 0(R1), 0(R8) // update iv
@@ -127,7 +129,7 @@ crypt:
 	MOVD	src_base+56(FP), R6 // src
 	MOVD	src_len+64(FP), R7  // len
 loop:
-	WORD	$0xB92D2046         // cipher message with counter (KMCTR)
+	KMCTR	R4, R2, R6          // cipher message with counter (KMCTR)
 	BVS	loop                // branch back if interrupted
 	RET
 crash:
@@ -145,7 +147,7 @@ TEXT ·ghash(SB),NOSPLIT,$32-40
 	STMG	R4, R7, (R1)
 	LMG	data+16(FP), R2, R3 // R2=base, R3=len
 loop:
-	WORD    $0xB93E0002 // compute intermediate message digest (KIMD)
+	KIMD	R0, R2      // compute intermediate message digest (KIMD)
 	BVS     loop        // branch back if interrupted
 	MVC     $16, (R1), (R8)
 	MOVD	$0, R0
@@ -180,7 +182,7 @@ TEXT ·kmaGCM(SB),NOSPLIT,$112-120
 	MVC	$8, 24(R8), 104(R1)
 
 kma:
-	WORD	$0xb9296024 // kma %r6,%r2,%r4
+	KMA	R2, R6, R4       // Cipher Message with Authentication
 	BVS	kma
 
 	MOVD	tag+104(FP), R2

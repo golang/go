@@ -59,7 +59,10 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-f(no-)builtin-[a-zA-Z0-9_]*`),
 	re(`-f(no-)?common`),
 	re(`-f(no-)?constant-cfstrings`),
+	re(`-fdebug-prefix-map=([^@]+)=([^@]+)`),
 	re(`-fdiagnostics-show-note-include-stack`),
+	re(`-ffile-prefix-map=([^@]+)=([^@]+)`),
+	re(`-fno-canonical-system-headers`),
 	re(`-f(no-)?eliminate-unused-debug-types`),
 	re(`-f(no-)?exceptions`),
 	re(`-f(no-)?fast-math`),
@@ -96,6 +99,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-m(no-)?v?aes`),
 	re(`-marm`),
 	re(`-m(no-)?avx[0-9a-z]*`),
+	re(`-mcmodel=[0-9a-z-]+`),
 	re(`-mfloat-abi=([^@\-].*)`),
 	re(`-mfpmath=[0-9a-z,+]*`),
 	re(`-m(no-)?avx[0-9a-z.]*`),
@@ -104,6 +108,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-mmacosx-(.+)`),
 	re(`-mios-simulator-version-min=(.+)`),
 	re(`-miphoneos-version-min=(.+)`),
+	re(`-mlarge-data-threshold=[0-9]+`),
 	re(`-mtvos-simulator-version-min=(.+)`),
 	re(`-mtvos-version-min=(.+)`),
 	re(`-mwatchos-simulator-version-min=(.+)`),
@@ -114,6 +119,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-mthumb(-interwork)?`),
 	re(`-mthreads`),
 	re(`-mwindows`),
+	re(`-no-canonical-prefixes`),
 	re(`--param=ssp-buffer-size=[0-9]*`),
 	re(`-pedantic(-errors)?`),
 	re(`-pipe`),
@@ -139,6 +145,12 @@ var validCompilerFlagsWithNextArg = []string{
 	"--sysroot",
 	"-target",
 	"-x",
+}
+
+var invalidLinkerFlags = []*lazyregexp.Regexp{
+	// On macOS this means the linker loads and executes the next argument.
+	// Have to exclude separately because -lfoo is allowed in general.
+	re(`-lto_library`),
 }
 
 var validLinkerFlags = []*lazyregexp.Regexp{
@@ -206,8 +218,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,-?-unresolved-symbols=[^,]+`),
 	re(`-Wl,--(no-)?warn-([^,]+)`),
 	re(`-Wl,-?-wrap[=,][^,@\-][^,]*`),
-	re(`-Wl,-z,(no)?execstack`),
-	re(`-Wl,-z,relro`),
+	re(`-Wl(,-z,(relro|now|(no)?execstack))+`),
 
 	re(`[a-zA-Z0-9_/].*\.(a|o|obj|dll|dylib|so|tbd)`), // direct linker inputs: x.o or libfoo.so (but not -foo.o or @foo.o)
 	re(`\./.*\.(a|o|obj|dll|dylib|so|tbd)`),
@@ -231,12 +242,12 @@ var validLinkerFlagsWithNextArg = []string{
 
 func checkCompilerFlags(name, source string, list []string) error {
 	checkOverrides := true
-	return checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
+	return checkFlags(name, source, list, nil, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
 }
 
 func checkLinkerFlags(name, source string, list []string) error {
 	checkOverrides := true
-	return checkFlags(name, source, list, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
+	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
 }
 
 // checkCompilerFlagsForInternalLink returns an error if 'list'
@@ -245,7 +256,7 @@ func checkLinkerFlags(name, source string, list []string) error {
 // external linker).
 func checkCompilerFlagsForInternalLink(name, source string, list []string) error {
 	checkOverrides := false
-	if err := checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides); err != nil {
+	if err := checkFlags(name, source, list, nil, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides); err != nil {
 		return err
 	}
 	// Currently the only flag on the allow list that causes problems
@@ -258,7 +269,7 @@ func checkCompilerFlagsForInternalLink(name, source string, list []string) error
 	return nil
 }
 
-func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, validNext []string, checkOverrides bool) error {
+func checkFlags(name, source string, list []string, invalid, valid []*lazyregexp.Regexp, validNext []string, checkOverrides bool) error {
 	// Let users override rules with $CGO_CFLAGS_ALLOW, $CGO_CFLAGS_DISALLOW, etc.
 	var (
 		allow    *regexp.Regexp
@@ -289,6 +300,11 @@ Args:
 		}
 		if allow != nil && allow.FindString(arg) == arg {
 			continue Args
+		}
+		for _, re := range invalid {
+			if re.FindString(arg) == arg { // must be complete match
+				goto Bad
+			}
 		}
 		for _, re := range valid {
 			if re.FindString(arg) == arg { // must be complete match

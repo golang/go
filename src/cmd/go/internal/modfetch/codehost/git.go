@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -154,7 +155,7 @@ type gitRepo struct {
 	refsErr error
 
 	localTagsOnce sync.Once
-	localTags     map[string]bool
+	localTags     sync.Map // map[string]bool
 }
 
 const (
@@ -166,7 +167,6 @@ const (
 
 // loadLocalTags loads tag references from the local git cache
 // into the map r.localTags.
-// Should only be called as r.localTagsOnce.Do(r.loadLocalTags).
 func (r *gitRepo) loadLocalTags(ctx context.Context) {
 	// The git protocol sends all known refs and ls-remote filters them on the client side,
 	// so we might as well record both heads and tags in one shot.
@@ -176,10 +176,9 @@ func (r *gitRepo) loadLocalTags(ctx context.Context) {
 		return
 	}
 
-	r.localTags = make(map[string]bool)
 	for _, line := range strings.Split(string(out), "\n") {
 		if line != "" {
-			r.localTags[line] = true
+			r.localTags.Store(line, true)
 		}
 	}
 }
@@ -430,7 +429,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 	// Maybe rev is a tag we already have locally.
 	// (Note that we're excluding branches, which can be stale.)
 	r.localTagsOnce.Do(func() { r.loadLocalTags(ctx) })
-	if r.localTags[rev] {
+	if _, ok := r.localTags.Load(rev); ok {
 		return r.statLocal(ctx, rev, "refs/tags/"+rev)
 	}
 
@@ -506,11 +505,18 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 	// Either way, try a local stat before falling back to network I/O.
 	if !didStatLocal {
 		if info, err := r.statLocal(ctx, rev, hash); err == nil {
-			if after, found := strings.CutPrefix(ref, "refs/tags/"); found {
-				// Make sure tag exists, so it will be in localTags next time the go command is run.
-				Run(ctx, r.dir, "git", "tag", after, hash)
+			tag, fromTag := strings.CutPrefix(ref, "refs/tags/")
+			if fromTag && !slices.Contains(info.Tags, tag) {
+				// The local repo includes the commit hash we want, but it is missing
+				// the corresponding tag. Add that tag and try again.
+				_, err := Run(ctx, r.dir, "git", "tag", tag, hash)
+				if err != nil {
+					return nil, err
+				}
+				r.localTags.Store(tag, true)
+				return r.statLocal(ctx, rev, ref)
 			}
-			return info, nil
+			return info, err
 		}
 	}
 
@@ -524,13 +530,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 	if r.fetchLevel <= fetchSome && ref != "" && hash != "" && !r.local {
 		r.fetchLevel = fetchSome
 		var refspec string
-		if ref != "" && ref != "HEAD" {
-			// If we do know the ref name, save the mapping locally
-			// so that (if it is a tag) it can show up in localTags
-			// on a future call. Also, some servers refuse to allow
-			// full hashes in ref specs, so prefer a ref name if known.
-			refspec = ref + ":" + ref
-		} else {
+		if ref == "HEAD" {
 			// Fetch the hash but give it a local name (refs/dummy),
 			// because that triggers the fetch behavior of creating any
 			// other known remote tags for the hash. We never use
@@ -538,13 +538,23 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 			// overwritten in the next command, and that's fine.
 			ref = hash
 			refspec = hash + ":refs/dummy"
+		} else {
+			// If we do know the ref name, save the mapping locally
+			// so that (if it is a tag) it can show up in localTags
+			// on a future call. Also, some servers refuse to allow
+			// full hashes in ref specs, so prefer a ref name if known.
+			refspec = ref + ":" + ref
 		}
 
 		release, err := base.AcquireNet()
 		if err != nil {
 			return nil, err
 		}
-		_, err = Run(ctx, r.dir, "git", "fetch", "-f", "--depth=1", r.remote, refspec)
+		// We explicitly set protocol.version=2 for this command to work around
+		// an apparent Git bug introduced in Git 2.21 (commit 61c771),
+		// which causes the handler for protocol version 1 to sometimes miss
+		// tags that point to the requested commit (see https://go.dev/issue/56881).
+		_, err = Run(ctx, r.dir, "git", "-c", "protocol.version=2", "fetch", "-f", "--depth=1", r.remote, refspec)
 		release()
 
 		if err == nil {

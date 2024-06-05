@@ -53,7 +53,7 @@ func (x *Float) Text(format byte, prec int) string {
 }
 
 // String formats x like x.Text('g', 10).
-// (String must be called explicitly, Float.Format does not support %s verb.)
+// (String must be called explicitly, [Float.Format] does not support %s verb.)
 func (x *Float) String() string {
 	return x.Text('g', 10)
 }
@@ -444,16 +444,9 @@ func (x *Float) fmtP(buf []byte) []byte {
 	return strconv.AppendInt(buf, int64(x.exp), 10)
 }
 
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 var _ fmt.Formatter = &floatZero // *Float must implement fmt.Formatter
 
-// Format implements fmt.Formatter. It accepts all the regular
+// Format implements [fmt.Formatter]. It accepts all the regular
 // formats for floating-point numbers ('b', 'e', 'E', 'f', 'F',
 // 'g', 'G', 'x') as well as 'p' and 'v'. See (*Float).Text for the
 // interpretation of 'p'. The 'v' format is handled like 'g'.

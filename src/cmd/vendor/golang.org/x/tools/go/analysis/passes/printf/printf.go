@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -511,13 +512,8 @@ func isFormatter(typ types.Type) bool {
 	sig := fn.Type().(*types.Signature)
 	return sig.Params().Len() == 2 &&
 		sig.Results().Len() == 0 &&
-		isNamed(sig.Params().At(0).Type(), "fmt", "State") &&
+		analysisutil.IsNamedType(sig.Params().At(0).Type(), "fmt", "State") &&
 		types.Identical(sig.Params().At(1).Type(), types.Typ[types.Rune])
-}
-
-func isNamed(T types.Type, pkgpath, name string) bool {
-	named, ok := T.(*types.Named)
-	return ok && named.Obj().Pkg().Path() == pkgpath && named.Obj().Name() == name
 }
 
 // formatState holds the parsed representation of a printf directive such as "%3.*[4]d".
@@ -964,6 +960,8 @@ func isStringer(sig *types.Signature) bool {
 // It is almost always a mistake to print a function value.
 func isFunctionValue(pass *analysis.Pass, e ast.Expr) bool {
 	if typ := pass.TypesInfo.Types[e].Type; typ != nil {
+		// Don't call Underlying: a named func type with a String method is ok.
+		// TODO(adonovan): it would be more precise to check isStringer.
 		_, ok := typ.(*types.Signature)
 		return ok
 	}
@@ -1015,7 +1013,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 		// Skip checking functions with unknown type.
 		return
 	}
-	if sig, ok := typ.(*types.Signature); ok {
+	if sig, ok := typ.Underlying().(*types.Signature); ok {
 		if !sig.Variadic() {
 			// Skip checking non-variadic functions.
 			return
@@ -1025,7 +1023,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 
 		typ := params.At(firstArg).Type()
 		typ = typ.(*types.Slice).Elem()
-		it, ok := typ.(*types.Interface)
+		it, ok := aliases.Unalias(typ).(*types.Interface)
 		if !ok || !it.Empty() {
 			// Skip variadic functions accepting non-interface{} args.
 			return

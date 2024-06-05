@@ -5,7 +5,9 @@
 package os
 
 var (
-	PollCopyFileRangeP = &pollCopyFileRange
-	PollSpliceFile     = &pollSplice
-	GetPollFDForTest   = getPollFD
+	PollCopyFileRangeP  = &pollCopyFileRange
+	PollSpliceFile      = &pollSplice
+	GetPollFDAndNetwork = getPollFDAndNetwork
+	CheckPidfdOnce      = checkPidfdOnce
+	PidDone             = pidDone
 )

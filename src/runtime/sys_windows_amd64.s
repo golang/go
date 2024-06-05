@@ -12,6 +12,10 @@
 #define TEB_TlsSlots 0x1480
 #define TEB_ArbitraryPtr 0x28
 
+TEXT runtime·asmstdcall_trampoline<ABIInternal>(SB),NOSPLIT,$0
+	MOVQ	AX, CX
+	JMP	runtime·asmstdcall(SB)
+
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT,$16
 	MOVQ	SP, AX
@@ -30,8 +34,11 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$16
 	SUBQ	$(const_maxArgs*8), SP	// room for args
 
 	// Fast version, do not store args on the stack.
-	CMPL	CX, $4
-	JLE	loadregs
+	CMPL	CX, $0;	JE	_0args
+	CMPL	CX, $1;	JE	_1args
+	CMPL	CX, $2;	JE	_2args
+	CMPL	CX, $3;	JE	_3args
+	CMPL	CX, $4;	JE	_4args
 
 	// Check we have enough room for args.
 	CMPL	CX, $const_maxArgs
@@ -44,20 +51,24 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$16
 	REP; MOVSQ
 	MOVQ	SP, SI
 
-loadregs:
 	// Load first 4 args into correspondent registers.
-	MOVQ	0(SI), CX
-	MOVQ	8(SI), DX
-	MOVQ	16(SI), R8
-	MOVQ	24(SI), R9
 	// Floating point arguments are passed in the XMM
 	// registers. Set them here in case any of the arguments
 	// are floating point values. For details see
-	//	https://msdn.microsoft.com/en-us/library/zthk2dkh.aspx
-	MOVQ	CX, X0
-	MOVQ	DX, X1
-	MOVQ	R8, X2
+	//	https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170
+_4args:
+	MOVQ	24(SI), R9
 	MOVQ	R9, X3
+_3args:
+	MOVQ	16(SI), R8
+	MOVQ	R8, X2
+_2args:
+	MOVQ	8(SI), DX
+	MOVQ	DX, X1
+_1args:
+	MOVQ	0(SI), CX
+	MOVQ	CX, X0
+_0args:
 
 	// Call stdcall function.
 	CALL	AX
@@ -92,7 +103,7 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
 // exception record and context pointers.
 // DX is the kind of sigtramp function.
 // Return value of sigtrampgo is stored in AX.
-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
+TEXT sigtramp<>(SB),NOSPLIT,$0-0
 	// Switch from the host ABI to the Go ABI.
 	PUSH_REGS_HOST_TO_ABI0()
 
@@ -144,6 +155,38 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
 	// PExceptionPointers already on CX
 	MOVQ	$const_callbackLastVCH, DX
 	JMP	sigtramp<>(SB)
+
+TEXT runtime·sehtramp(SB),NOSPLIT,$40-0
+	// CX: PEXCEPTION_RECORD ExceptionRecord
+	// DX: ULONG64 EstablisherFrame
+	// R8: PCONTEXT ContextRecord
+	// R9: PDISPATCHER_CONTEXT DispatcherContext
+	// Switch from the host ABI to the Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
+
+	get_tls(AX)
+	CMPQ	AX, $0
+	JNE	2(PC)
+	// This shouldn't happen, sehtramp is only attached to functions
+	// called from Go, and exception handlers are only called from
+	// the thread that threw the exception.
+	INT	$3
+
+	// Exception from Go thread, set R14.
+	MOVQ	g(AX), R14
+
+	ADJSP	$40
+	MOVQ	CX, 0(SP)
+	MOVQ	DX, 8(SP)
+	MOVQ	R8, 16(SP)
+	MOVQ	R9, 24(SP)
+	CALL	runtime·sehhandler(SB)
+	MOVL	32(SP), AX
+
+	ADJSP	$-40
+
+	POP_REGS_HOST_TO_ABI0()
+	RET
 
 TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
 	// Construct args vector for cgocallback().
@@ -233,47 +276,11 @@ TEXT runtime·settls(SB),NOSPLIT,$0
 	MOVQ	DI, 0(CX)(GS)
 	RET
 
-// Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g may be nil.
-// The function leaves room for 4 syscall parameters
-// (as per windows amd64 calling convention).
-TEXT runtime·usleep2(SB),NOSPLIT,$48-4
-	MOVLQSX	dt+0(FP), BX
-	MOVQ	SP, AX
-	ANDQ	$~15, SP	// alignment as per Windows requirement
-	MOVQ	AX, 40(SP)
-	LEAQ	32(SP), R8  // ptime
-	MOVQ	BX, (R8)
-	MOVQ	$-1, CX // handle
-	MOVQ	$0, DX // alertable
-	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
-	CALL	AX
-	MOVQ	40(SP), SP
-	RET
-
-// Runs on OS stack.
-TEXT runtime·switchtothread(SB),NOSPLIT,$0
-	MOVQ	SP, AX
-	ANDQ	$~15, SP	// alignment as per Windows requirement
-	SUBQ	$(48), SP	// room for SP and 4 args as per Windows requirement
-				// plus one extra word to keep stack 16 bytes aligned
-	MOVQ	AX, 32(SP)
-	MOVQ	runtime·_SwitchToThread(SB), AX
-	CALL	AX
-	MOVQ	32(SP), SP
-	RET
-
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
-	CMPB	runtime·useQPCTime(SB), $0
-	JNE	useQPC
 	MOVQ	$_INTERRUPT_TIME, DI
 	MOVQ	time_lo(DI), AX
 	IMULQ	$100, AX
 	MOVQ	AX, ret+0(FP)
-	RET
-useQPC:
-	JMP	runtime·nanotimeQPC(SB)
 	RET
 
 // func osSetupTLS(mp *m)

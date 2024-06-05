@@ -601,9 +601,49 @@
 (Or(64|32|16|8) x (Or(64|32|16|8) x y)) => (Or(64|32|16|8) x y)
 (Xor(64|32|16|8) x (Xor(64|32|16|8) x y)) => y
 
-// Unsigned comparisons to zero.
-(Less(64U|32U|16U|8U) _ (Const(64|32|16|8) [0])) => (ConstBool [false])
-(Leq(64U|32U|16U|8U) (Const(64|32|16|8) [0]) _)  => (ConstBool [true])
+// Fold comparisons with numeric bounds
+(Less(64|32|16|8)U _ (Const(64|32|16|8) [0]))  => (ConstBool [false])
+(Leq(64|32|16|8)U (Const(64|32|16|8) [0]) _)   => (ConstBool [true])
+(Less(64|32|16|8)U (Const(64|32|16|8) [-1]) _) => (ConstBool [false])
+(Leq(64|32|16|8)U _ (Const(64|32|16|8) [-1]))  => (ConstBool [true])
+(Less64 _ (Const64 [math.MinInt64])) => (ConstBool [false])
+(Less32 _ (Const32 [math.MinInt32])) => (ConstBool [false])
+(Less16 _ (Const16 [math.MinInt16])) => (ConstBool [false])
+(Less8  _ (Const8  [math.MinInt8 ])) => (ConstBool [false])
+(Leq64 (Const64 [math.MinInt64]) _)  => (ConstBool [true])
+(Leq32 (Const32 [math.MinInt32]) _)  => (ConstBool [true])
+(Leq16 (Const16 [math.MinInt16]) _)  => (ConstBool [true])
+(Leq8  (Const8  [math.MinInt8 ]) _)  => (ConstBool [true])
+(Less64 (Const64 [math.MaxInt64]) _) => (ConstBool [false])
+(Less32 (Const32 [math.MaxInt32]) _) => (ConstBool [false])
+(Less16 (Const16 [math.MaxInt16]) _) => (ConstBool [false])
+(Less8  (Const8  [math.MaxInt8 ]) _) => (ConstBool [false])
+(Leq64 _ (Const64 [math.MaxInt64]))  => (ConstBool [true])
+(Leq32 _ (Const32 [math.MaxInt32]))  => (ConstBool [true])
+(Leq16 _ (Const16 [math.MaxInt16]))  => (ConstBool [true])
+(Leq8  _ (Const8  [math.MaxInt8 ]))  => (ConstBool [true])
+
+// Canonicalize <= on numeric bounds and < near numeric bounds to ==
+(Leq(64|32|16|8)U x c:(Const(64|32|16|8) [0]))     => (Eq(64|32|16|8) x c)
+(Leq(64|32|16|8)U c:(Const(64|32|16|8) [-1]) x)    => (Eq(64|32|16|8) x c)
+(Less(64|32|16|8)U x (Const(64|32|16|8) <t> [1]))  => (Eq(64|32|16|8) x (Const(64|32|16|8) <t> [0]))
+(Less(64|32|16|8)U (Const(64|32|16|8) <t> [-2]) x) => (Eq(64|32|16|8) x (Const(64|32|16|8) <t> [-1]))
+(Leq64 x c:(Const64 [math.MinInt64])) => (Eq64 x c)
+(Leq32 x c:(Const32 [math.MinInt32])) => (Eq32 x c)
+(Leq16 x c:(Const16 [math.MinInt16])) => (Eq16 x c)
+(Leq8  x c:(Const8  [math.MinInt8 ])) => (Eq8  x c)
+(Leq64 c:(Const64 [math.MaxInt64]) x) => (Eq64 x c)
+(Leq32 c:(Const32 [math.MaxInt32]) x) => (Eq32 x c)
+(Leq16 c:(Const16 [math.MaxInt16]) x) => (Eq16 x c)
+(Leq8  c:(Const8  [math.MaxInt8 ]) x) => (Eq8  x c)
+(Less64 x (Const64 <t> [math.MinInt64+1])) => (Eq64 x (Const64 <t> [math.MinInt64]))
+(Less32 x (Const32 <t> [math.MinInt32+1])) => (Eq32 x (Const32 <t> [math.MinInt32]))
+(Less16 x (Const16 <t> [math.MinInt16+1])) => (Eq16 x (Const16 <t> [math.MinInt16]))
+(Less8  x (Const8  <t> [math.MinInt8 +1])) => (Eq8  x (Const8  <t> [math.MinInt8 ]))
+(Less64 (Const64 <t> [math.MaxInt64-1]) x) => (Eq64 x (Const64 <t> [math.MaxInt64]))
+(Less32 (Const32 <t> [math.MaxInt32-1]) x) => (Eq32 x (Const32 <t> [math.MaxInt32]))
+(Less16 (Const16 <t> [math.MaxInt16-1]) x) => (Eq16 x (Const16 <t> [math.MaxInt16]))
+(Less8  (Const8  <t> [math.MaxInt8 -1]) x) => (Eq8  x (Const8  <t> [math.MaxInt8 ]))
 
 // Ands clear bits. Ors set bits.
 // If a subsequent Or will set all the bits
@@ -694,8 +734,8 @@
 	=> x
 
 // Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
-        (Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) => (Const64F [math.Float64frombits(uint64(x))])
-        (Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x)))) => (Const32F [math.Float32frombits(uint32(x))])
+(Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) => (Const64F [math.Float64frombits(uint64(x))])
+(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x)))) => (Const32F [math.Float32frombits(uint32(x))])
 (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitInt(t1)   => (Const64  [int64(math.Float64bits(x))])
 (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)   => (Const32  [int32(math.Float32bits(x))])
 
@@ -704,7 +744,7 @@
 	(Store {t2} p2 _
 		mem:(Zero [n] p3 _)))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p3) mem)
 (Load <t1> op:(OffPtr [o1] p1)
@@ -712,7 +752,7 @@
 		(Store {t3} p3 _
 			mem:(Zero [n] p4 _))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	&& disjoint(op, t1.Size(), p3, t3.Size())
 	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p4) mem)
@@ -722,7 +762,7 @@
 			(Store {t4} p4 _
 				mem:(Zero [n] p5 _)))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	&& disjoint(op, t1.Size(), p3, t3.Size())
 	&& disjoint(op, t1.Size(), p4, t4.Size())
@@ -734,7 +774,7 @@
 				(Store {t5} p5 _
 					mem:(Zero [n] p6 _))))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6)
-	&& fe.CanSSA(t1)
+	&& CanSSA(t1)
 	&& disjoint(op, t1.Size(), p2, t2.Size())
 	&& disjoint(op, t1.Size(), p3, t3.Size())
 	&& disjoint(op, t1.Size(), p4, t4.Size())
@@ -848,28 +888,28 @@
 (StructSelect [2] (StructMake4 _ _ x _)) => x
 (StructSelect [3] (StructMake4 _ _ _ x)) => x
 
-(Load <t> _ _) && t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t) =>
+(Load <t> _ _) && t.IsStruct() && t.NumFields() == 0 && CanSSA(t) =>
   (StructMake0)
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 1 && CanSSA(t) =>
   (StructMake1
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 2 && CanSSA(t) =>
   (StructMake2
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 3 && CanSSA(t) =>
   (StructMake3
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)
     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 4 && CanSSA(t) =>
   (StructMake4
     (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)
     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)
     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
 
-(StructSelect [i] x:(Load <t> ptr mem)) && !fe.CanSSA(t) =>
+(StructSelect [i] x:(Load <t> ptr mem)) && !CanSSA(t) =>
   @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 
 (Store _ (StructMake0) mem) => mem
@@ -911,9 +951,9 @@
 (StructSelect [0] (IData x)) => (IData x)
 
 // un-SSAable values use mem->mem copies
-(Store {t} dst (Load src mem) mem) && !fe.CanSSA(t) =>
+(Store {t} dst (Load src mem) mem) && !CanSSA(t) =>
 	(Move {t} [t.Size()] dst src mem)
-(Store {t} dst (Load src mem) (VarDef {x} mem)) && !fe.CanSSA(t) =>
+(Store {t} dst (Load src mem) (VarDef {x} mem)) && !CanSSA(t) =>
 	(Move {t} [t.Size()] dst src (VarDef {x} mem))
 
 // array ops
@@ -922,7 +962,7 @@
 (Load <t> _ _) && t.IsArray() && t.NumElem() == 0 =>
   (ArrayMake0)
 
-(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) =>
+(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && CanSSA(t) =>
   (ArrayMake1 (Load <t.Elem()> ptr mem))
 
 (Store _ (ArrayMake0) mem) => mem
@@ -981,7 +1021,7 @@
     (ConstNil <typ.Uintptr>)
     (ConstNil <typ.BytePtr>))
 
-(NilCheck (GetG mem) mem) => mem
+(NilCheck ptr:(GetG mem) mem) => ptr
 
 (If (Not cond) yes no) => (If cond no yes)
 (If (ConstBool [c]) yes no) && c => (First yes no)
@@ -2055,19 +2095,19 @@
 	&& isSameCall(call.Aux, "runtime.newobject")
 	=> mem
 
-(NilCheck (SelectN [0] call:(StaticLECall _ _)) _)
+(NilCheck ptr:(SelectN [0] call:(StaticLECall _ _)) _)
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	=> (Invalid)
+	=> ptr
 
-(NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
+(NilCheck ptr:(OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	=> (Invalid)
+	=> ptr
 
 // Addresses of globals are always non-nil.
-(NilCheck          (Addr {_} (SB))    _) => (Invalid)
-(NilCheck (Convert (Addr {_} (SB)) _) _) => (Invalid)
+(NilCheck          ptr:(Addr {_} (SB))    _) => ptr
+(NilCheck ptr:(Convert (Addr {_} (SB)) _) _) => ptr
 
 // for late-expanded calls, recognize memequal applied to a single constant byte
 // Support is limited by 1, 2, 4, 8 byte sizes
@@ -2754,3 +2794,16 @@
 (Load <t> (OffPtr [off]              (Convert (Addr {sym} _) _)    ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
 (Load <t> (OffPtr [off] (ITab (IMake          (Addr {sym} _)    _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
 (Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {sym} _) _) _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+
+// Calling cmpstring a second time with the same arguments in the
+// same memory state can reuse the results of the first call.
+// See issue 61725.
+// Note that this could pretty easily generalize to any pure function.
+(SelectN [0] (StaticLECall {f} x y (SelectN [1] c:(StaticLECall {g} x y mem))))
+  && isSameCall(f, "runtime.cmpstring")
+  && isSameCall(g, "runtime.cmpstring")
+=> @c.Block (SelectN [0] <typ.Int> c)
+
+// If we don't use the result of cmpstring, might as well not call it.
+// Note that this could pretty easily generalize to any pure function.
+(SelectN [1] c:(StaticLECall {f} _ _ mem)) && c.Uses == 1 && isSameCall(f, "runtime.cmpstring") && clobber(c) => mem

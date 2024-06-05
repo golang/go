@@ -112,7 +112,7 @@ func testSehCallersEqual(t *testing.T, pcs []uintptr, want []string) {
 		}
 		name := fn.Name()
 		switch name {
-		case "runtime.deferCallSave", "runtime.runOpenDeferFrame", "runtime.panicmem":
+		case "runtime.panicmem":
 			// These functions are skipped as they appear inconsistently depending
 			// whether inlining is on or off.
 			continue

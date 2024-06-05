@@ -7,6 +7,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
+	"io"
 	"os"
 	"syscall"
 )
@@ -15,14 +17,43 @@ func gettid() int {
 	return syscall.Gettid()
 }
 
-func tidExists(tid int) (exists, supported bool) {
-	stat, err := os.ReadFile(fmt.Sprintf("/proc/self/task/%d/stat", tid))
-	if os.IsNotExist(err) {
-		return false, true
+func tidExists(tid int) (exists, supported bool, err error) {
+	// Open the magic proc status file for reading with the syscall package.
+	// We want to identify certain valid errors very precisely.
+	statusFile := fmt.Sprintf("/proc/self/task/%d/status", tid)
+	fd, err := syscall.Open(statusFile, syscall.O_RDONLY, 0)
+	if errno, ok := err.(syscall.Errno); ok {
+		if errno == syscall.ENOENT || errno == syscall.ESRCH {
+			return false, true, nil
+		}
+	}
+	if err != nil {
+		return false, false, err
+	}
+	status, err := io.ReadAll(os.NewFile(uintptr(fd), statusFile))
+	if err != nil {
+		return false, false, err
+	}
+	lines := bytes.Split(status, []byte{'\n'})
+	// Find the State line.
+	stateLineIdx := -1
+	for i, line := range lines {
+		if bytes.HasPrefix(line, []byte("State:")) {
+			stateLineIdx = i
+			break
+		}
+	}
+	if stateLineIdx < 0 {
+		// Malformed status file?
+		return false, false, fmt.Errorf("unexpected status file format: %s:\n%s", statusFile, status)
+	}
+	stateLine := bytes.SplitN(lines[stateLineIdx], []byte{':'}, 2)
+	if len(stateLine) != 2 {
+		// Malformed status file?
+		return false, false, fmt.Errorf("unexpected status file format: %s:\n%s", statusFile, status)
 	}
 	// Check if it's a zombie thread.
-	state := bytes.Fields(stat)[2]
-	return !(len(state) == 1 && state[0] == 'Z'), true
+	return !bytes.Contains(stateLine[1], []byte{'Z'}), true, nil
 }
 
 func getcwd() (string, error) {
@@ -44,11 +75,8 @@ func getcwd() (string, error) {
 
 func unshareFs() error {
 	err := syscall.Unshare(syscall.CLONE_FS)
-	if err != nil {
-		errno, ok := err.(syscall.Errno)
-		if ok && errno == syscall.EPERM {
-			return errNotPermitted
-		}
+	if testenv.SyscallIsNotSupported(err) {
+		return errNotPermitted
 	}
 	return err
 }

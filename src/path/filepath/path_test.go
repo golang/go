@@ -14,7 +14,6 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -67,6 +66,7 @@ var cleantests = []PathTest{
 	{"/abc/def/../../..", "/"},
 	{"abc/def/../../../ghi/jkl/../../../mno", "../../mno"},
 	{"/../abc", "/abc"},
+	{"a/../b:/../../c", `../c`},
 
 	// Combinations
 	{"abc/./../def", "def"},
@@ -89,6 +89,7 @@ var wincleantests = []PathTest{
 	{`c:\abc\def\..\..`, `c:\`},
 	{`c:\..\abc`, `c:\abc`},
 	{`c:..\abc`, `c:..\abc`},
+	{`c:\b:\..\..\..\d`, `c:\d`},
 	{`\`, `\`},
 	{`/`, `\`},
 	{`\\i\..\c$`, `\\i\..\c$`},
@@ -107,6 +108,8 @@ var wincleantests = []PathTest{
 	{`//abc`, `\\abc`},
 	{`///abc`, `\\\abc`},
 	{`//abc//`, `\\abc\\`},
+	{`\\?\C:\`, `\\?\C:\`},
+	{`\\?\C:\a`, `\\?\C:\a`},
 
 	// Don't allow cleaning to move an element with a colon to the start of the path.
 	{`a/../c:`, `.\c:`},
@@ -114,6 +117,9 @@ var wincleantests = []PathTest{
 	{`a/../c:/a`, `.\c:\a`},
 	{`a/../../c:`, `..\c:`},
 	{`foo:bar`, `foo:bar`},
+
+	// Don't allow cleaning to create a Root Local Device path like \??\a.
+	{`/a/../??/a`, `\.\??\a`},
 }
 
 func TestClean(t *testing.T) {
@@ -169,13 +175,34 @@ var islocaltests = []IsLocalTest{
 	{"a/", true},
 	{"a/.", true},
 	{"a/./b/./c", true},
+	{`a/../b:/../../c`, false},
 }
 
 var winislocaltests = []IsLocalTest{
 	{"NUL", false},
 	{"nul", false},
+	{"nul ", false},
 	{"nul.", false},
+	{"a/nul:", false},
+	{"a/nul : a", false},
+	{"com0", true},
 	{"com1", false},
+	{"com2", false},
+	{"com3", false},
+	{"com4", false},
+	{"com5", false},
+	{"com6", false},
+	{"com7", false},
+	{"com8", false},
+	{"com9", false},
+	{"com¹", false},
+	{"com²", false},
+	{"com³", false},
+	{"com¹ : a", false},
+	{"cOm1", false},
+	{"lpt1", false},
+	{"LPT1", false},
+	{"lpt³", false},
 	{"./nul", false},
 	{`\`, false},
 	{`\a`, false},
@@ -205,6 +232,73 @@ func TestIsLocal(t *testing.T) {
 	for _, test := range tests {
 		if got := filepath.IsLocal(test.path); got != test.isLocal {
 			t.Errorf("IsLocal(%q) = %v, want %v", test.path, got, test.isLocal)
+		}
+	}
+}
+
+type LocalizeTest struct {
+	path string
+	want string
+}
+
+var localizetests = []LocalizeTest{
+	{"", ""},
+	{".", "."},
+	{"..", ""},
+	{"a/..", ""},
+	{"/", ""},
+	{"/a", ""},
+	{"a\xffb", ""},
+	{"a/", ""},
+	{"a/./b", ""},
+	{"\x00", ""},
+	{"a", "a"},
+	{"a/b/c", "a/b/c"},
+}
+
+var plan9localizetests = []LocalizeTest{
+	{"#a", ""},
+	{`a\b:c`, `a\b:c`},
+}
+
+var unixlocalizetests = []LocalizeTest{
+	{"#a", "#a"},
+	{`a\b:c`, `a\b:c`},
+}
+
+var winlocalizetests = []LocalizeTest{
+	{"#a", "#a"},
+	{"c:", ""},
+	{`a\b`, ""},
+	{`a:b`, ""},
+	{`a/b:c`, ""},
+	{`NUL`, ""},
+	{`a/NUL`, ""},
+	{`./com1`, ""},
+	{`a/nul/b`, ""},
+}
+
+func TestLocalize(t *testing.T) {
+	tests := localizetests
+	switch runtime.GOOS {
+	case "plan9":
+		tests = append(tests, plan9localizetests...)
+	case "windows":
+		tests = append(tests, winlocalizetests...)
+		for i := range tests {
+			tests[i].want = filepath.FromSlash(tests[i].want)
+		}
+	default:
+		tests = append(tests, unixlocalizetests...)
+	}
+	for _, test := range tests {
+		got, err := filepath.Localize(test.path)
+		wantErr := "<nil>"
+		if test.want == "" {
+			wantErr = "error"
+		}
+		if got != test.want || ((err == nil) != (test.want != "")) {
+			t.Errorf("IsLocal(%q) = %q, %v want %q, %v", test.path, got, err, test.want, wantErr)
 		}
 	}
 }
@@ -380,6 +474,8 @@ var winjointests = []JoinTest{
 	{[]string{`\\a`, `b`, `c`}, `\\a\b\c`},
 	{[]string{`\\a\`, `b`, `c`}, `\\a\b\c`},
 	{[]string{`//`, `a`}, `\\a`},
+	{[]string{`a:\b\c`, `x\..\y:\..\..\z`}, `a:\b\z`},
+	{[]string{`\`, `??\a`}, `\.\??\a`},
 }
 
 func TestJoin(t *testing.T) {
@@ -556,23 +652,10 @@ func tempDirCanonical(t *testing.T) string {
 func TestWalk(t *testing.T) {
 	walk := func(root string, fn fs.WalkDirFunc) error {
 		return filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
-			return fn(path, &statDirEntry{info}, err)
+			return fn(path, fs.FileInfoToDirEntry(info), err)
 		})
 	}
 	testWalk(t, walk, 1)
-}
-
-type statDirEntry struct {
-	info fs.FileInfo
-}
-
-func (d *statDirEntry) Name() string               { return d.info.Name() }
-func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
-func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
-func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
-
-func (d *statDirEntry) String() string {
-	return fs.FormatDirEntry(d)
 }
 
 func TestWalkDir(t *testing.T) {
@@ -1056,6 +1139,8 @@ var winisabstests = []IsAbsTest{
 	{`\\host\share\`, true},
 	{`\\host\share\foo`, true},
 	{`//host/share/foo/bar`, true},
+	{`\\?\a\b\c`, true},
+	{`\??\a\b\c`, true},
 }
 
 func TestIsAbs(t *testing.T) {
@@ -1384,6 +1469,9 @@ func TestAbs(t *testing.T) {
 		}
 	}
 
+	// Make sure the global absTests slice is not
+	// modified by multiple invocations of TestAbs.
+	tests := absTests
 	if runtime.GOOS == "windows" {
 		vol := filepath.VolumeName(root)
 		var extra []string
@@ -1394,7 +1482,7 @@ func TestAbs(t *testing.T) {
 			path = vol + path
 			extra = append(extra, path)
 		}
-		absTests = append(absTests, extra...)
+		tests = append(slices.Clip(tests), extra...)
 	}
 
 	err = os.Chdir(absTestDirs[0])
@@ -1402,7 +1490,7 @@ func TestAbs(t *testing.T) {
 		t.Fatal("chdir failed: ", err)
 	}
 
-	for _, path := range absTests {
+	for _, path := range tests {
 		path = strings.ReplaceAll(path, "$", root)
 		info, err := os.Stat(path)
 		if err != nil {
@@ -1556,7 +1644,8 @@ type VolumeNameTest struct {
 var volumenametests = []VolumeNameTest{
 	{`c:/foo/bar`, `c:`},
 	{`c:`, `c:`},
-	{`2:`, ``},
+	{`c:\`, `c:`},
+	{`2:`, `2:`},
 	{``, ``},
 	{`\\\host`, `\\\host`},
 	{`\\\host\`, `\\\host`},
@@ -1576,12 +1665,26 @@ var volumenametests = []VolumeNameTest{
 	{`//host/share//foo///bar////baz`, `\\host\share`},
 	{`\\host\share\foo\..\bar`, `\\host\share`},
 	{`//host/share/foo/../bar`, `\\host\share`},
+	{`//.`, `\\.`},
+	{`//./`, `\\.\`},
 	{`//./NUL`, `\\.\NUL`},
+	{`//?`, `\\?`},
+	{`//?/`, `\\?\`},
 	{`//?/NUL`, `\\?\NUL`},
+	{`/??`, `\??`},
+	{`/??/`, `\??\`},
+	{`/??/NUL`, `\??\NUL`},
+	{`//./a/b`, `\\.\a`},
 	{`//./C:`, `\\.\C:`},
+	{`//./C:/`, `\\.\C:`},
 	{`//./C:/a/b/c`, `\\.\C:`},
 	{`//./UNC/host/share/a/b/c`, `\\.\UNC\host\share`},
 	{`//./UNC/host`, `\\.\UNC\host`},
+	{`//./UNC/host\`, `\\.\UNC\host\`},
+	{`//./UNC`, `\\.\UNC`},
+	{`//./UNC/`, `\\.\UNC\`},
+	{`\\?\x`, `\\?\x`},
+	{`\??\x`, `\??\x`},
 }
 
 func TestVolumeName(t *testing.T) {
@@ -1686,7 +1789,7 @@ func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sort.Strings(visited)
+	slices.Sort(visited)
 	want := []string{".", "link"}
 	if fmt.Sprintf("%q", visited) != fmt.Sprintf("%q", want) {
 		t.Errorf("unexpected paths visited %q, want %q", visited, want)
@@ -1849,5 +1952,43 @@ func TestIssue51617(t *testing.T) {
 	want := []string{".", "a", filepath.Join("a", "bad"), filepath.Join("a", "next")}
 	if !reflect.DeepEqual(saw, want) {
 		t.Errorf("got directories %v, want %v", saw, want)
+	}
+}
+
+func TestEscaping(t *testing.T) {
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+	chdir(t, dir1)
+
+	for _, p := range []string{
+		filepath.Join(dir2, "x"),
+	} {
+		if !filepath.IsLocal(p) {
+			continue
+		}
+		f, err := os.Create(p)
+		if err != nil {
+			f.Close()
+		}
+		ents, err := os.ReadDir(dir2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range ents {
+			t.Fatalf("found: %v", e.Name())
+		}
+	}
+}
+
+func TestEvalSymlinksTooManyLinks(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	dir := filepath.Join(t.TempDir(), "dir")
+	err := os.Symlink(dir, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = filepath.EvalSymlinks(dir)
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }

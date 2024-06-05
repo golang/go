@@ -40,6 +40,14 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 	if debug > 1 {
 		fmt.Printf("%s: rewriting for %s\n", f.pass.name, f.Name)
 	}
+	// if the number of rewrite iterations reaches itersLimit we will
+	// at that point turn on cycle detection. Instead of a fixed limit,
+	// size the limit according to func size to allow for cases such
+	// as the one in issue #66773.
+	itersLimit := f.NumBlocks()
+	if itersLimit < 20 {
+		itersLimit = 20
+	}
 	var iters int
 	var states map[string]bool
 	for {
@@ -154,7 +162,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 			break
 		}
 		iters++
-		if (iters > 1000 || debug >= 2) && change {
+		if (iters > itersLimit || debug >= 2) && change {
 			// We've done a suspiciously large number of rewrites (or we're in debug mode).
 			// As of Sep 2021, 90% of rewrites complete in 4 iterations or fewer
 			// and the maximum value encountered during make.bash is 12.
@@ -859,6 +867,9 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 			offset += base.AuxInt
 			base = base.Args[0]
 		}
+		if opcodeTable[base.Op].nilCheck {
+			base = base.Args[0]
+		}
 		return base, offset
 	}
 	p1, off1 := baseAndOffset(p1)
@@ -1183,6 +1194,12 @@ func min(x, y int64) int64 {
 	}
 	return y
 }
+func max(x, y int64) int64 {
+	if x > y {
+		return x
+	}
+	return y
+}
 
 func isConstZero(v *Value) bool {
 	switch v.Op {
@@ -1285,8 +1302,10 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpARM64MULW, OpARM64MNEGW, OpARM64UDIVW, OpARM64DIVW, OpARM64UMODW,
 		OpARM64MADDW, OpARM64MSUBW, OpARM64RORW, OpARM64RORWconst:
 		return true
-	case OpArg:
-		return x.Type.Size() == 4
+	case OpArg: // note: but not ArgIntReg
+		// amd64 always loads args from the stack unsigned.
+		// most other architectures load them sign/zero extended based on the type.
+		return x.Type.Size() == 4 && (x.Type.IsUnsigned() || x.Block.Func.Config.arch == "amd64")
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
@@ -1309,8 +1328,8 @@ func zeroUpper48Bits(x *Value, depth int) bool {
 	switch x.Op {
 	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
 		return true
-	case OpArg:
-		return x.Type.Size() == 2
+	case OpArg: // note: but not ArgIntReg
+		return x.Type.Size() == 2 && (x.Type.IsUnsigned() || x.Block.Func.Config.arch == "amd64")
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
@@ -1333,8 +1352,8 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 	switch x.Op {
 	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
 		return true
-	case OpArg:
-		return x.Type.Size() == 1
+	case OpArg: // note: but not ArgIntReg
+		return x.Type.Size() == 1 && (x.Type.IsUnsigned() || x.Block.Func.Config.arch == "amd64")
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
@@ -1478,7 +1497,7 @@ func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
 
 	// Determine boundaries and then decode them
 	if mask == 0 || ^mask == 0 || rotate >= nbits {
-		panic("Invalid PPC64 rotate mask")
+		panic(fmt.Sprintf("invalid PPC64 rotate mask: %x %d %d", uint64(mask), rotate, nbits))
 	} else if nbits == 32 {
 		mb = bits.LeadingZeros32(uint32(mask))
 		me = 32 - bits.TrailingZeros32(uint32(mask))
@@ -1497,6 +1516,25 @@ func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
 	}
 
 	return int64(me) | int64(mb<<8) | int64(rotate<<16) | int64(nbits<<24)
+}
+
+// Merge (RLDICL [encoded] (SRDconst [s] x)) into (RLDICL [new_encoded] x)
+// SRDconst on PPC64 is an extended mnemonic of RLDICL. If the input to an
+// RLDICL is an SRDconst, and the RLDICL does not rotate its value, the two
+// operations can be combined. This functions assumes the two opcodes can
+// be merged, and returns an encoded rotate+mask value of the combined RLDICL.
+func mergePPC64RLDICLandSRDconst(encoded, s int64) int64 {
+	mb := s
+	r := 64 - s
+	// A larger mb is a smaller mask.
+	if (encoded>>8)&0xFF < mb {
+		encoded = (encoded &^ 0xFF00) | mb<<8
+	}
+	// The rotate is expected to be 0.
+	if (encoded & 0xFF0000) != 0 {
+		panic("non-zero rotate")
+	}
+	return encoded | r<<16
 }
 
 // DecodePPC64RotateMask is the inverse operation of encodePPC64RotateMask.  The values returned as
@@ -1551,7 +1589,7 @@ func mergePPC64AndSrwi(m, s int64) int64 {
 	return encodePPC64RotateMask((32-s)&31, mask, 32)
 }
 
-// Test if a shift right feeding into a CLRLSLDI can be merged into RLWINM.
+// Test if a word shift right feeding into a CLRLSLDI can be merged into RLWINM.
 // Return the encoded RLWINM constant, or 0 if they cannot be merged.
 func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 	mask_1 := uint64(0xFFFFFFFF >> uint(srw))
@@ -1569,6 +1607,31 @@ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 		return 0
 	}
 	return encodePPC64RotateMask(int64(r_3), int64(mask_3), 32)
+}
+
+// Test if a doubleword shift right feeding into a CLRLSLDI can be merged into RLWINM.
+// Return the encoded RLWINM constant, or 0 if they cannot be merged.
+func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
+	mask_1 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(srd)
+	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+
+	// Rewrite mask to apply after the final left shift.
+	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(sld))
+
+	r_1 := 64 - srd
+	r_2 := GetPPC64Shiftsh(sld)
+	r_3 := (r_1 + r_2) & 63 // This can wrap.
+
+	if uint64(uint32(mask_3)) != mask_3 || mask_3 == 0 {
+		return 0
+	}
+	// This combine only works when selecting and shifting the lower 32 bits.
+	v1 := bits.RotateLeft64(0xFFFFFFFF00000000, int(r_3))
+	if v1&mask_3 != 0 {
+		return 0
+	}
+	return encodePPC64RotateMask(int64(r_3&31), int64(mask_3), 32)
 }
 
 // Test if a RLWINM feeding into a CLRLSLDI can be merged into RLWINM.  Return
@@ -1590,6 +1653,56 @@ func mergePPC64ClrlsldiRlwinm(sld int32, rlw int64) int64 {
 	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
 }
 
+// Test if RLWINM feeding into an ANDconst can be merged. Return the encoded RLWINM constant,
+// or 0 if they cannot be merged.
+func mergePPC64AndRlwinm(mask uint32, rlw int64) int64 {
+	r, _, _, mask_rlw := DecodePPC64RotateMask(rlw)
+	mask_out := (mask_rlw & uint64(mask))
+
+	// Verify the result is still a valid bitmask of <= 32 bits.
+	if !isPPC64WordRotateMask(int64(mask_out)) {
+		return 0
+	}
+	return encodePPC64RotateMask(r, int64(mask_out), 32)
+}
+
+// Test if AND feeding into an ANDconst can be merged. Return the encoded RLWINM constant,
+// or 0 if they cannot be merged.
+func mergePPC64RlwinmAnd(rlw int64, mask uint32) int64 {
+	r, _, _, mask_rlw := DecodePPC64RotateMask(rlw)
+
+	// Rotate the input mask, combine with the rlwnm mask, and test if it is still a valid rlwinm mask.
+	r_mask := bits.RotateLeft32(mask, int(r))
+
+	mask_out := (mask_rlw & uint64(r_mask))
+
+	// Verify the result is still a valid bitmask of <= 32 bits.
+	if !isPPC64WordRotateMask(int64(mask_out)) {
+		return 0
+	}
+	return encodePPC64RotateMask(r, int64(mask_out), 32)
+}
+
+// Test if RLWINM feeding into SRDconst can be merged. Return the encoded RLIWNM constant,
+// or 0 if they cannot be merged.
+func mergePPC64SldiRlwinm(sldi, rlw int64) int64 {
+	r_1, mb, me, mask_1 := DecodePPC64RotateMask(rlw)
+	if mb > me || mb < sldi {
+		// Wrapping masks cannot be merged as the upper 32 bits are effectively undefined in this case.
+		// Likewise, if mb is less than the shift amount, it cannot be merged.
+		return 0
+	}
+	// combine the masks, and adjust for the final left shift.
+	mask_3 := mask_1 << sldi
+	r_3 := (r_1 + sldi) & 31 // This can wrap.
+
+	// Verify the result is still a valid bitmask of <= 32 bits.
+	if uint64(uint32(mask_3)) != mask_3 {
+		return 0
+	}
+	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
+}
+
 // Compute the encoded RLWINM constant from combining (SLDconst [sld] (SRWconst [srw] x)),
 // or return 0 if they cannot be combined.
 func mergePPC64SldiSrw(sld, srw int64) int64 {
@@ -1600,6 +1713,63 @@ func mergePPC64SldiSrw(sld, srw int64) int64 {
 	mask_l := uint32(0xFFFFFFFF) >> uint(sld)
 	mask := (mask_r & mask_l) << uint(sld)
 	return encodePPC64RotateMask((32-srw+sld)&31, int64(mask), 32)
+}
+
+// Convert a PPC64 opcode from the Op to OpCC form. This converts (op x y)
+// to (Select0 (opCC x y)) without having to explicitly fixup every user
+// of op.
+//
+// E.g consider the case:
+// a = (ADD x y)
+// b = (CMPconst [0] a)
+// c = (OR a z)
+//
+// A rule like (CMPconst [0] (ADD x y)) => (CMPconst [0] (Select0 (ADDCC x y)))
+// would produce:
+// a  = (ADD x y)
+// a' = (ADDCC x y)
+// a” = (Select0 a')
+// b  = (CMPconst [0] a”)
+// c  = (OR a z)
+//
+// which makes it impossible to rewrite the second user. Instead the result
+// of this conversion is:
+// a' = (ADDCC x y)
+// a  = (Select0 a')
+// b  = (CMPconst [0] a)
+// c  = (OR a z)
+//
+// Which makes it trivial to rewrite b using a lowering rule.
+func convertPPC64OpToOpCC(op *Value) *Value {
+	ccOpMap := map[Op]Op{
+		OpPPC64ADD:      OpPPC64ADDCC,
+		OpPPC64ADDconst: OpPPC64ADDCCconst,
+		OpPPC64AND:      OpPPC64ANDCC,
+		OpPPC64ANDconst: OpPPC64ANDCCconst,
+		OpPPC64ANDN:     OpPPC64ANDNCC,
+		OpPPC64CNTLZD:   OpPPC64CNTLZDCC,
+		OpPPC64OR:       OpPPC64ORCC,
+		OpPPC64RLDICL:   OpPPC64RLDICLCC,
+		OpPPC64SUB:      OpPPC64SUBCC,
+		OpPPC64NEG:      OpPPC64NEGCC,
+		OpPPC64NOR:      OpPPC64NORCC,
+		OpPPC64XOR:      OpPPC64XORCC,
+	}
+	b := op.Block
+	opCC := b.NewValue0I(op.Pos, ccOpMap[op.Op], types.NewTuple(op.Type, types.TypeFlags), op.AuxInt)
+	opCC.AddArgs(op.Args...)
+	op.reset(OpSelect0)
+	op.AddArgs(opCC)
+	return op
+}
+
+// Try converting a RLDICL to ANDCC. If successful, return the mask otherwise 0.
+func convertPPC64RldiclAndccconst(sauxint int64) int64 {
+	r, _, _, mask := DecodePPC64RotateMask(sauxint)
+	if r != 0 || mask&0xFFFF != mask {
+		return 0
+	}
+	return int64(mask)
 }
 
 // Convenience function to rotate a 32 bit constant value by another constant.
@@ -2057,8 +2227,8 @@ func logicFlags32(x int32) flagConstant {
 
 func makeJumpTableSym(b *Block) *obj.LSym {
 	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.fe.Func().LSym.Name, b.ID))
-	s.Set(obj.AttrDuplicateOK, true)
-	s.Set(obj.AttrLocal, true)
+	// The jump table symbol is accessed only from the function symbol.
+	s.Set(obj.AttrStatic, true)
 	return s
 }
 
@@ -2070,7 +2240,7 @@ func canRotate(c *Config, bits int64) bool {
 		return false
 	}
 	switch c.arch {
-	case "386", "amd64", "arm64":
+	case "386", "amd64", "arm64", "riscv64":
 		return true
 	case "arm", "s390x", "ppc64", "ppc64le", "wasm", "loong64":
 		return bits >= 32
@@ -2126,4 +2296,12 @@ func isARM64addcon(v int64) bool {
 		v >>= 12
 	}
 	return v <= 0xFFF
+}
+
+// setPos sets the position of v to pos, then returns true.
+// Useful for setting the result of a rewrite's position to
+// something other than the default.
+func setPos(v *Value, pos src.XPos) bool {
+	v.Pos = pos
+	return true
 }

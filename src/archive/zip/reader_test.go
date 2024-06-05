@@ -570,6 +570,14 @@ var tests = []ZipTest{
 			},
 		},
 	},
+	// Issue 66869: Don't skip over an EOCDR with a truncated comment.
+	// The test file sneakily hides a second EOCDR before the first one;
+	// previously we would extract one file ("file") from this archive,
+	// while most other tools would reject the file or extract a different one ("FILE").
+	{
+		Name:  "comment-truncated.zip",
+		Error: ErrFormat,
+	},
 }
 
 func TestReader(t *testing.T) {
@@ -904,9 +912,7 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
 //	type zeros struct{}
 //
 //	func (zeros) Read(b []byte) (int, error) {
-//		for i := range b {
-//			b[i] = 0
-//		}
+//		clear(b)
 //		return len(b), nil
 //	}
 //
@@ -1186,7 +1192,7 @@ func TestIssue12449(t *testing.T) {
 		0x00, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 	// Read in the archive.
-	_, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
+	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		t.Errorf("Error reading the archive: %v", err)
 	}
@@ -1333,7 +1339,7 @@ func TestCVE202127919(t *testing.T) {
 		0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x39, 0x00,
 		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
-	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
+	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != ErrInsecurePath {
 		t.Fatalf("Error reading the archive: %v", err)
 	}
@@ -1559,7 +1565,7 @@ func TestCVE202141772(t *testing.T) {
 		0x00, 0x04, 0x00, 0x04, 0x00, 0x31, 0x01, 0x00,
 		0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
-	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
+	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != ErrInsecurePath {
 		t.Fatalf("Error reading the archive: %v", err)
 	}
@@ -1822,7 +1828,7 @@ func TestBaseOffsetPlusOverflow(t *testing.T) {
 		}
 	}()
 	// Previously, this would trigger a panic as we attempt to read from
-	// a io.SectionReader which would access a slice at a negative offset
+	// an io.SectionReader which would access a slice at a negative offset
 	// as the section reader offset & size were < 0.
 	NewReader(bytes.NewReader(data), int64(len(data))+1875)
 }

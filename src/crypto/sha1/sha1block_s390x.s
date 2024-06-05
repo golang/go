@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !purego
+
 #include "textflag.h"
 
 // func block(dig *digest, p []byte)
@@ -12,7 +14,7 @@ TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
 	CMPBEQ R4, $0, generic
 
 loop:
-	WORD $0xB93E0002 // KIMD R2
+	KIMD R0, R2      // compute intermediate message digest (KIMD)
 	BVS  loop        // continue if interrupted
 	RET
 

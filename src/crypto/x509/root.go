@@ -7,8 +7,18 @@ package x509
 import (
 	"internal/godebug"
 	"sync"
+	_ "unsafe" // for linkname
 )
 
+// systemRoots should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/breml/rootcerts
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname systemRoots
 var (
 	once           sync.Once
 	systemRootsMu  sync.RWMutex

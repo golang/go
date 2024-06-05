@@ -215,6 +215,7 @@ var tests = []test{
 			`type SimpleConstraint interface {`,
 			`type TildeConstraint interface {`,
 			`type StructConstraint interface {`,
+			`BUG: function body note`,
 		},
 		[]string{
 			`constThree`,

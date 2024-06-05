@@ -45,7 +45,7 @@ func fmtJSON(x any) string {
 	return string(js)
 }
 
-func TestConvertCPUProfileEmpty(t *testing.T) {
+func TestConvertCPUProfileNoSamples(t *testing.T) {
 	// A test server with mock cpu profile data.
 	var buf bytes.Buffer
 
@@ -86,31 +86,33 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		mprof := &profile.Profile{}
-		if err = mprof.ParseMemoryMap(bytes.NewReader(mmap)); err != nil {
-			t.Fatalf("parsing /proc/self/maps: %v", err)
-		}
-		if len(mprof.Mapping) < 2 {
+		var mappings []*profile.Mapping
+		id := uint64(1)
+		parseProcSelfMaps(mmap, func(lo, hi, offset uint64, file, buildID string) {
+			mappings = append(mappings, &profile.Mapping{
+				ID:      id,
+				Start:   lo,
+				Limit:   hi,
+				Offset:  offset,
+				File:    file,
+				BuildID: buildID,
+			})
+			id++
+		})
+		if len(mappings) < 2 {
 			// It is possible for a binary to only have 1 executable
 			// region of memory.
-			t.Skipf("need 2 or more mappings, got %v", len(mprof.Mapping))
+			t.Skipf("need 2 or more mappings, got %v", len(mappings))
 		}
-		addr1 = mprof.Mapping[0].Start
-		map1 = mprof.Mapping[0]
-		map1.BuildID, _ = elfBuildID(map1.File)
-		addr2 = mprof.Mapping[1].Start
-		map2 = mprof.Mapping[1]
-		map2.BuildID, _ = elfBuildID(map2.File)
-	case "windows":
+		addr1 = mappings[0].Start
+		map1 = mappings[0]
+		addr2 = mappings[1].Start
+		map2 = mappings[1]
+	case "windows", "darwin", "ios":
 		addr1 = uint64(abi.FuncPCABIInternal(f1))
 		addr2 = uint64(abi.FuncPCABIInternal(f2))
 
-		exe, err := os.Executable()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		start, end, err := readMainModuleMapping()
+		start, end, exe, buildID, err := readMainModuleMapping()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -120,7 +122,7 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 			Start:        start,
 			Limit:        end,
 			File:         exe,
-			BuildID:      peBuildID(exe),
+			BuildID:      buildID,
 			HasFunctions: true,
 		}
 		map2 = &profile.Mapping{
@@ -128,7 +130,7 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 			Start:        start,
 			Limit:        end,
 			File:         exe,
-			BuildID:      peBuildID(exe),
+			BuildID:      buildID,
 			HasFunctions: true,
 		}
 	case "js", "wasip1":

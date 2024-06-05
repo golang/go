@@ -5,10 +5,10 @@
 package trace
 
 import (
-	"cmd/internal/traceviewer"
 	"context"
 	"encoding/json"
 	"errors"
+	"internal/trace/traceviewer/format"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -47,7 +47,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, *Span) {
 		return ctx, nil
 	}
 	childSpan := &Span{t: tc.t, name: name, tid: tc.tid, start: time.Now()}
-	tc.t.writeEvent(&traceviewer.Event{
+	tc.t.writeEvent(&format.Event{
 		Name:  childSpan.name,
 		Time:  float64(childSpan.start.UnixNano()) / float64(time.Microsecond),
 		TID:   childSpan.tid,
@@ -77,7 +77,7 @@ func Flow(ctx context.Context, from *Span, to *Span) {
 	}
 
 	id := tc.t.getNextFlowID()
-	tc.t.writeEvent(&traceviewer.Event{
+	tc.t.writeEvent(&format.Event{
 		Name:     from.name + " -> " + to.name,
 		Category: "flow",
 		ID:       id,
@@ -85,7 +85,7 @@ func Flow(ctx context.Context, from *Span, to *Span) {
 		Phase:    phaseFlowStart,
 		TID:      from.tid,
 	})
-	tc.t.writeEvent(&traceviewer.Event{
+	tc.t.writeEvent(&format.Event{
 		Name:      from.name + " -> " + to.name,
 		Category:  "flow", // TODO(matloob): Add Category to Flow?
 		ID:        id,
@@ -110,7 +110,7 @@ func (s *Span) Done() {
 		return
 	}
 	s.end = time.Now()
-	s.t.writeEvent(&traceviewer.Event{
+	s.t.writeEvent(&format.Event{
 		Name:  s.name,
 		Time:  float64(s.end.UnixNano()) / float64(time.Microsecond),
 		TID:   s.tid,
@@ -121,11 +121,11 @@ func (s *Span) Done() {
 type tracer struct {
 	file chan traceFile // 1-buffered
 
-	nextTID    uint64
-	nextFlowID uint64
+	nextTID    atomic.Uint64
+	nextFlowID atomic.Uint64
 }
 
-func (t *tracer) writeEvent(ev *traceviewer.Event) error {
+func (t *tracer) writeEvent(ev *format.Event) error {
 	f := <-t.file
 	defer func() { t.file <- f }()
 	var err error
@@ -161,11 +161,11 @@ func (t *tracer) Close() error {
 }
 
 func (t *tracer) getNextTID() uint64 {
-	return atomic.AddUint64(&t.nextTID, 1)
+	return t.nextTID.Add(1)
 }
 
 func (t *tracer) getNextFlowID() uint64 {
-	return atomic.AddUint64(&t.nextFlowID, 1)
+	return t.nextFlowID.Add(1)
 }
 
 // traceKey is the context key for tracing information. It is unexported to prevent collisions with context keys defined in

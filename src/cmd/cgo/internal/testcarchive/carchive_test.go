@@ -1365,3 +1365,35 @@ func TestDeepStack(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestSharedObject(t *testing.T) {
+	// Test that we can put a Go c-archive into a C shared object.
+	globalSkip(t)
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+
+	t.Parallel()
+
+	if !testWork {
+		defer func() {
+			os.Remove("libgo_s.a")
+			os.Remove("libgo_s.h")
+			os.Remove("libgo_s.so")
+		}()
+	}
+
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo_s.a", "./libgo")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v\n%s", cmd.Args, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ccArgs := append(cc, "-shared", "-o", "libgo_s.so", "libgo_s.a")
+	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", ccArgs, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

@@ -7,6 +7,7 @@ package net
 import (
 	"errors"
 	"internal/itoa"
+	"internal/stringslite"
 	"os"
 )
 
@@ -70,7 +71,7 @@ func readInterface(i int) (*Interface, error) {
 	ifc.MTU = mtu
 
 	// Not a loopback device ("/dev/null") or packet interface (e.g. "pkt2")
-	if stringsHasPrefix(device, netdir+"/") {
+	if stringslite.HasPrefix(device, netdir+"/") {
 		deviceaddrf, err := open(device + "/addr")
 		if err != nil {
 			return nil, err

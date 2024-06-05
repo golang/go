@@ -54,6 +54,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"cmd/internal/telemetry"
 )
 
 var (
@@ -85,6 +87,7 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("doc: ")
+	telemetry.Start()
 	dirsInit()
 	err := do(os.Stdout, flag.CommandLine, os.Args[1:])
 	if err != nil {
@@ -105,6 +108,8 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	flagSet.BoolVar(&showSrc, "src", false, "show source code for symbol")
 	flagSet.BoolVar(&short, "short", false, "one-line representation for each symbol")
 	flagSet.Parse(args)
+	telemetry.Inc("doc/invocations")
+	telemetry.CountFlags("doc/flag:", *flag.CommandLine)
 	if chdir != "" {
 		if err := os.Chdir(chdir); err != nil {
 			return err
@@ -147,12 +152,6 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 			panic(e)
 		}()
 
-		// We have a package.
-		if showAll && symbol == "" {
-			pkg.allDoc()
-			return
-		}
-
 		switch {
 		case symbol == "":
 			pkg.packageDoc() // The package exists, so we got some output.
@@ -161,13 +160,10 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 			if pkg.symbolDoc(symbol) {
 				return
 			}
-		default:
-			if pkg.methodDoc(symbol, method) {
-				return
-			}
-			if pkg.fieldDoc(symbol, method) {
-				return
-			}
+		case pkg.printMethodDoc(symbol, method):
+			return
+		case pkg.printFieldDoc(symbol, method):
+			return
 		}
 	}
 }

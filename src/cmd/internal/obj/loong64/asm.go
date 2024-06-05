@@ -263,6 +263,7 @@ var optab = []Optab{
 	{ASLLV, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
 
 	{ASYSCALL, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
+	{ASYSCALL, C_ANDCON, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 
 	{ABEQ, C_REG, C_REG, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
 	{ABEQ, C_REG, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
@@ -349,19 +350,15 @@ var optab = []Optab{
 	{AWORD, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 40, 4, 0, 0},
 	{AWORD, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 61, 4, 0, 0},
 
+	{AMOVV, C_GOTADDR, C_NONE, C_NONE, C_REG, C_NONE, 65, 8, 0, 0},
+
 	{ATEQ, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
 	{ATEQ, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
 
-	{ABREAK, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0}, // really CACHE instruction
-	{ABREAK, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
-	{ABREAK, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
-	{ABREAK, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
-
 	{ARDTIMELW, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
-	{ARDTIMEHW, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
-	{ARDTIMED, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
+	{AAMSWAPW, C_REG, C_NONE, C_NONE, C_ZOREG, C_REG, 66, 4, 0, 0},
+	{ANOOP, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0},
 
-	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0},
 	{obj.APCALIGN, C_SCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_DCON, C_NONE, C_NONE, C_DCON, C_NONE, 0, 0, 0, 0},
@@ -375,6 +372,63 @@ var optab = []Optab{
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // same as AJMP
 
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0},
+}
+
+var atomicInst = map[obj.As]uint32{
+	AAMSWAPB:   0x070B8 << 15, // amswap.b
+	AAMSWAPH:   0x070B9 << 15, // amswap.h
+	AAMSWAPW:   0x070C0 << 15, // amswap.w
+	AAMSWAPV:   0x070C1 << 15, // amswap.d
+	AAMCASB:    0x070B0 << 15, // amcas.b
+	AAMCASH:    0x070B1 << 15, // amcas.h
+	AAMCASW:    0x070B2 << 15, // amcas.w
+	AAMCASV:    0x070B3 << 15, // amcas.d
+	AAMADDW:    0x070C2 << 15, // amadd.w
+	AAMADDV:    0x070C3 << 15, // amadd.d
+	AAMANDW:    0x070C4 << 15, // amand.w
+	AAMANDV:    0x070C5 << 15, // amand.d
+	AAMORW:     0x070C6 << 15, // amor.w
+	AAMORV:     0x070C7 << 15, // amor.d
+	AAMXORW:    0x070C8 << 15, // amxor.w
+	AAMXORV:    0x070C9 << 15, // amxor.d
+	AAMMAXW:    0x070CA << 15, // ammax.w
+	AAMMAXV:    0x070CB << 15, // ammax.d
+	AAMMINW:    0x070CC << 15, // ammin.w
+	AAMMINV:    0x070CD << 15, // ammin.d
+	AAMMAXWU:   0x070CE << 15, // ammax.wu
+	AAMMAXVU:   0x070CF << 15, // ammax.du
+	AAMMINWU:   0x070D0 << 15, // ammin.wu
+	AAMMINVU:   0x070D1 << 15, // ammin.du
+	AAMSWAPDBB: 0x070BC << 15, // amswap_db.b
+	AAMSWAPDBH: 0x070BD << 15, // amswap_db.h
+	AAMSWAPDBW: 0x070D2 << 15, // amswap_db.w
+	AAMSWAPDBV: 0x070D3 << 15, // amswap_db.d
+	AAMCASDBB:  0x070B4 << 15, // amcas_db.b
+	AAMCASDBH:  0x070B5 << 15, // amcas_db.h
+	AAMCASDBW:  0x070B6 << 15, // amcas_db.w
+	AAMCASDBV:  0x070B7 << 15, // amcas_db.d
+	AAMADDDBW:  0x070D4 << 15, // amadd_db.w
+	AAMADDDBV:  0x070D5 << 15, // amadd_db.d
+	AAMANDDBW:  0x070D6 << 15, // amand_db.w
+	AAMANDDBV:  0x070D7 << 15, // amand_db.d
+	AAMORDBW:   0x070D8 << 15, // amor_db.w
+	AAMORDBV:   0x070D9 << 15, // amor_db.d
+	AAMXORDBW:  0x070DA << 15, // amxor_db.w
+	AAMXORDBV:  0x070DB << 15, // amxor_db.d
+	AAMMAXDBW:  0x070DC << 15, // ammax_db.w
+	AAMMAXDBV:  0x070DD << 15, // ammax_db.d
+	AAMMINDBW:  0x070DE << 15, // ammin_db.w
+	AAMMINDBV:  0x070DF << 15, // ammin_db.d
+	AAMMAXDBWU: 0x070E0 << 15, // ammax_db.wu
+	AAMMAXDBVU: 0x070E1 << 15, // ammax_db.du
+	AAMMINDBWU: 0x070E2 << 15, // ammin_db.wu
+	AAMMINDBVU: 0x070E3 << 15, // ammin_db.du
+}
+
+func IsAtomicInst(as obj.As) bool {
+	_, ok := atomicInst[as]
+
+	return ok
 }
 
 // pcAlignPadLength returns the number of bytes required to align pc to alignedValue,
@@ -447,11 +501,8 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	// Run these passes until convergence.
-	bflag := 1
-	var otxt int64
-	var q *obj.Prog
-	for bflag != 0 {
-		bflag = 0
+	for {
+		rescan := false
 		pc = 0
 		prev := c.cursym.Func().Text
 		for p = prev.Link; p != nil; prev, p = p, p.Link {
@@ -466,7 +517,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// because pc will be adjusted if padding happens.
 			if p.Mark&branchLoopHead != 0 && pc&(loopAlign-1) != 0 &&
 				!(prev.As == obj.APCALIGN && prev.From.Offset >= loopAlign) {
-				q = c.newprog()
+				q := c.newprog()
 				prev.Link = q
 				q.Link = p
 				q.Pc = pc
@@ -482,18 +533,29 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				// since this loop iteration is for p.
 				pc += int64(pcAlignPadLength(ctxt, pc, loopAlign))
 				p.Pc = pc
+				rescan = true
 			}
 
 			// very large conditional branches
 			//
-			// if any procedure is large enough to
-			// generate a large SBRA branch, then
-			// generate extra passes putting branches
-			// around jmps to fix. this is rare.
+			// if any procedure is large enough to generate a large SBRA branch, then
+			// generate extra passes putting branches around jmps to fix. this is rare.
 			if o.type_ == 6 && p.To.Target() != nil {
-				otxt = p.To.Target().Pc - pc
-				if otxt < -(1<<17)+10 || otxt >= (1<<17)-10 {
-					q = c.newprog()
+				otxt := p.To.Target().Pc - pc
+
+				// On loong64, the immediate value field of the conditional branch instructions
+				// BFPT and BFPT is 21 bits, and the others are 16 bits. The jump target address
+				// is to logically shift the immediate value in the instruction code to the left
+				// by 2 bits and then sign extend.
+				bound := int64(1 << (18 - 1))
+
+				switch p.As {
+				case ABFPT, ABFPF:
+					bound = int64(1 << (23 - 1))
+				}
+
+				if otxt < -bound || otxt >= bound {
+					q := c.newprog()
 					q.Link = p.Link
 					p.Link = q
 					q.As = AJMP
@@ -508,7 +570,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.Pos = p.Pos
 					q.To.Type = obj.TYPE_BRANCH
 					q.To.SetTarget(q.Link.Link)
-					bflag = 1
+					rescan = true
 				}
 			}
 
@@ -530,7 +592,12 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		c.cursym.Size = pc
+
+		if !rescan {
+			break
+		}
 	}
+
 	pc += -pc & (FuncAlign - 1)
 	c.cursym.Size = pc
 
@@ -552,7 +619,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			v := pcAlignPadLength(c.ctxt, p.Pc, alignedValue)
 			for i = 0; i < int32(v/4); i++ {
 				// emit ANOOP instruction by the padding size
-				c.ctxt.Arch.ByteOrder.PutUint32(bp, c.oprrr(ANOOP))
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, OP_12IRR(c.opirr(AAND), 0, 0, 0))
 				bp = bp[4:]
 			}
 			continue
@@ -676,6 +743,9 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 				return C_SOREG
 			}
 			return C_LOREG
+
+		case obj.NAME_GOTREF:
+			return C_GOTADDR
 		}
 
 		return C_GOK
@@ -753,7 +823,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			if c.instoffset <= 0xfff {
 				return C_ANDCON
 			}
-			if c.instoffset&0xfff == 0 && isuint32(uint64(c.instoffset)) { // && (instoffset & (1<<31)) == 0)
+			if c.instoffset&0xfff == 0 && isuint32(uint64(c.instoffset)) { // && ((instoffset & (1<<31)) == 0)
 				return C_UCON
 			}
 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
@@ -1112,7 +1182,7 @@ func buildop(ctxt *obj.Link) {
 
 		case ASYSCALL:
 			opset(ADBAR, r0)
-			opset(ANOOP, r0)
+			opset(ABREAK, r0)
 
 		case ACMPEQF:
 			opset(ACMPGTF, r0)
@@ -1134,7 +1204,6 @@ func buildop(ctxt *obj.Link) {
 			AMOVD,
 			AMOVF,
 			AMOVV,
-			ABREAK,
 			ARFE,
 			AJAL,
 			AJMP,
@@ -1146,18 +1215,18 @@ func buildop(ctxt *obj.Link) {
 			ANEGW,
 			ANEGV,
 			AWORD,
-			ARDTIMELW,
-			ARDTIMEHW,
-			ARDTIMED,
 			obj.ANOP,
 			obj.ATEXT,
-			obj.AUNDEF,
 			obj.AFUNCDATA,
 			obj.APCALIGN,
 			obj.APCDATA,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
 			break
+
+		case ARDTIMELW:
+			opset(ARDTIMEHW, r0)
+			opset(ARDTIMED, r0)
 
 		case ACLO:
 			opset(ACLZ, r0)
@@ -1167,6 +1236,17 @@ func buildop(ctxt *obj.Link) {
 
 		case AMASKEQZ:
 			opset(AMASKNEZ, r0)
+
+		case ANOOP:
+			opset(obj.AUNDEF, r0)
+
+		case AAMSWAPW:
+			for i := range atomicInst {
+				if i == AAMSWAPW {
+					continue
+				}
+				opset(i, r0)
+			}
 		}
 	}
 }
@@ -1210,6 +1290,10 @@ func OP_12IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 
 func OP_IR(op uint32, i uint32, r2 uint32) uint32 {
 	return op | (i&0xFFFFF)<<5 | (r2&0x1F)<<0 // ui20, rd5
+}
+
+func OP_15I(op uint32, i uint32) uint32 {
+	return op | (i&0x7FFF)<<0
 }
 
 // Encoding for the 'b' or 'bl' instruction.
@@ -1277,7 +1361,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
 	case 5: // syscall
-		o1 = c.oprrr(p.As)
+		v := c.regoff(&p.From)
+		o1 = OP_15I(c.opi(p.As), uint32(v))
 
 	case 6: // beq r1,[r2],sbra
 		v := int32(0)
@@ -1421,7 +1506,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		} else { // ATNE
 			o1 = OP_16IRR(c.opirr(ABEQ), uint32(2), uint32(r), uint32(p.To.Reg))
 		}
-		o2 = c.oprrr(ABREAK) | (uint32(v) & 0x7FFF)
+		o2 = OP_15I(c.opi(ABREAK), uint32(v))
 
 	case 16: // sll $c,[r1],r2
 		v := c.regoff(&p.From)
@@ -1591,9 +1676,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		a := OP_TEN(8, 1326) // movfr2gr.d
 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
 
-	case 49: // undef
-		o1 = c.oprrr(ABREAK)
-
+	case 49:
+		if p.As == ANOOP {
+			// andi r0, r0, 0
+			o1 = OP_12IRR(c.opirr(AAND), 0, 0, 0)
+		} else {
+			// undef
+			o1 = OP_15I(c.opi(ABREAK), 0)
+		}
 	// relocation operations
 	case 50: // mov r,addr ==> pcalau12i + sw
 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
@@ -1602,7 +1692,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
 		rel.Add = p.To.Offset
-		rel.Type = objabi.R_ADDRLOONG64U
+		rel.Type = objabi.R_LOONG64_ADDR_HI
 
 		o2 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
 		rel2 := obj.Addrel(c.cursym)
@@ -1610,7 +1700,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel2.Siz = 4
 		rel2.Sym = p.To.Sym
 		rel2.Add = p.To.Offset
-		rel2.Type = objabi.R_ADDRLOONG64
+		rel2.Type = objabi.R_LOONG64_ADDR_LO
 
 	case 51: // mov addr,r ==> pcalau12i + lw
 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
@@ -1619,14 +1709,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRLOONG64U
+		rel.Type = objabi.R_LOONG64_ADDR_HI
 		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.From.Sym
 		rel2.Add = p.From.Offset
-		rel2.Type = objabi.R_ADDRLOONG64
+		rel2.Type = objabi.R_LOONG64_ADDR_LO
 
 	case 52: // mov $lext, r
 		// NOTE: this case does not use REGTMP. If it ever does,
@@ -1637,14 +1727,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRLOONG64U
+		rel.Type = objabi.R_LOONG64_ADDR_HI
 		o2 = OP_12IRR(c.opirr(add), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.From.Sym
 		rel2.Add = p.From.Offset
-		rel2.Type = objabi.R_ADDRLOONG64
+		rel2.Type = objabi.R_LOONG64_ADDR_LO
 
 	case 53: // mov r, tlsvar ==>  lu12i.w + ori + add r2, regtmp + sw o(regtmp)
 		// NOTE: this case does not use REGTMP. If it ever does,
@@ -1655,14 +1745,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
 		rel.Add = p.To.Offset
-		rel.Type = objabi.R_ADDRLOONG64TLSU
+		rel.Type = objabi.R_LOONG64_TLS_LE_HI
 		o2 = OP_12IRR(c.opirr(AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.To.Sym
 		rel2.Add = p.To.Offset
-		rel2.Type = objabi.R_ADDRLOONG64TLS
+		rel2.Type = objabi.R_LOONG64_TLS_LE_LO
 		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
 
@@ -1675,14 +1765,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRLOONG64TLSU
+		rel.Type = objabi.R_LOONG64_TLS_LE_HI
 		o2 = OP_12IRR(c.opirr(AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.From.Sym
 		rel2.Add = p.From.Offset
-		rel2.Type = objabi.R_ADDRLOONG64TLS
+		rel2.Type = objabi.R_LOONG64_TLS_LE_LO
 		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
 
@@ -1695,14 +1785,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRLOONG64TLSU
+		rel.Type = objabi.R_LOONG64_TLS_LE_HI
 		o2 = OP_12IRR(c.opirr(AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.From.Sym
 		rel2.Add = p.From.Offset
-		rel2.Type = objabi.R_ADDRLOONG64TLS
+		rel2.Type = objabi.R_LOONG64_TLS_LE_LO
 		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(p.To.Reg))
 
 	case 56: // mov r, tlsvar IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + st.d
@@ -1712,7 +1802,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
 		rel.Add = 0x0
-		rel.Type = objabi.R_LOONG64_TLS_IE_PCREL_HI
+		rel.Type = objabi.R_LOONG64_TLS_IE_HI
 		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
@@ -1730,7 +1820,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Add = 0x0
-		rel.Type = objabi.R_LOONG64_TLS_IE_PCREL_HI
+		rel.Type = objabi.R_LOONG64_TLS_IE_HI
 		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
@@ -1776,6 +1866,34 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 64: // movv c_reg, c_fcc0 ==> movgr2cf cd, rj
 		a := OP_TEN(8, 1334)
 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
+
+	case 65: // mov sym@GOT, r ==> pcalau12i + ld.d
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Type = objabi.R_LOONG64_GOT_HI
+		rel.Add = 0x0
+		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Sym = p.From.Sym
+		rel2.Type = objabi.R_LOONG64_GOT_LO
+		rel2.Add = 0x0
+
+	case 66: // am* From, To, RegTo2 ==> am* RegTo2, From, To
+		rk := p.From.Reg
+		rj := p.To.Reg
+		rd := p.RegTo2
+
+		// See section 2.2.7.1 of https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+		// for the register usage constraints.
+		if rd == rj || rd == rk {
+			c.ctxt.Diag("illegal register combination: %v\n", p)
+		}
+		o1 = OP_RRR(atomicInst[p.As], uint32(rk), uint32(rj), uint32(rd))
 	}
 
 	out[0] = o1
@@ -1884,10 +2002,6 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 	case AJAL:
 		return (0x13 << 26) | 1 // jirl r1, rj, 0
 
-	case ABREAK:
-		return 0x54 << 15
-	case ASYSCALL:
-		return 0x56 << 15
 	case ADIVF:
 		return 0x20d << 15
 	case ADIVD:
@@ -1961,12 +2075,6 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x4511 << 10
 	case ASQRTD:
 		return 0x4512 << 10
-
-	case ADBAR:
-		return 0x70e4 << 15
-	case ANOOP:
-		// andi r0, r0, 0
-		return 0x03400000
 	}
 
 	if a < 0 {
@@ -1992,6 +2100,21 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 	}
 
 	c.ctxt.Diag("bad rr opcode %v", a)
+	return 0
+}
+
+func (c *ctxt0) opi(a obj.As) uint32 {
+	switch a {
+	case ASYSCALL:
+		return 0x56 << 15
+	case ABREAK:
+		return 0x54 << 15
+	case ADBAR:
+		return 0x70e4 << 15
+	}
+
+	c.ctxt.Diag("bad ic opcode %v", a)
+
 	return 0
 }
 
@@ -2091,10 +2214,6 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x0be << 22
 	case AMOVVR:
 		return 0x0bf << 22
-
-	case ABREAK:
-		return 0x018 << 22
-
 	case -AMOVWL:
 		return 0x0b8 << 22
 	case -AMOVWR:

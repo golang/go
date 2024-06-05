@@ -338,16 +338,24 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 
 		if HasModRoot() {
 			vendorDir := VendorDir()
-			dir, vendorOK, _ := dirInModule(path, "", vendorDir, false)
-			if vendorOK {
+			dir, inVendorDir, _ := dirInModule(path, "", vendorDir, false)
+			if inVendorDir {
 				readVendorList(vendorDir)
-				// TODO(#60922): It's possible for a package to manually have been added to the
-				// vendor directory, causing the dirInModule to succeed, but no vendorPkgModule
-				// to exist, causing an empty module path to be reported. Do better checking
-				// here.
-				mods = append(mods, vendorPkgModule[path])
-				dirs = append(dirs, dir)
-				roots = append(roots, vendorDir)
+				// If vendorPkgModule does not contain an entry for path then it's probably either because
+				// vendor/modules.txt does not exist or the user manually added directories to the vendor directory.
+				// Go 1.23 and later require vendored packages to be present in modules.txt to be imported.
+				_, ok := vendorPkgModule[path]
+				if ok || (gover.Compare(MainModules.GoVersion(), gover.ExplicitModulesTxtImportVersion) < 0) {
+					mods = append(mods, vendorPkgModule[path])
+					dirs = append(dirs, dir)
+					roots = append(roots, vendorDir)
+				} else {
+					subCommand := "mod"
+					if inWorkspaceMode() {
+						subCommand = "work"
+					}
+					fmt.Fprintf(os.Stderr, "go: ignoring package %s which exists in the vendor directory but is missing from vendor/modules.txt. To sync the vendor directory run go %s vendor.\n", path, subCommand)
+				}
 			}
 		}
 
@@ -359,7 +367,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 			return module.Version{}, "", "", nil, mainErr
 		}
 
-		if len(dirs) == 0 {
+		if len(mods) == 0 {
 			return module.Version{}, "", "", nil, &ImportMissingError{Path: path}
 		}
 
@@ -706,7 +714,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// Now committed to returning dir (not "").
 
 	// Are there Go source files in the directory?
-	// We don't care about build tags, not even "+build ignore".
+	// We don't care about build tags, not even "go:build ignore".
 	// We're just looking for a plausible directory.
 	haveGoFiles, err = haveGoFilesCache.Do(dir, func() (bool, error) {
 		// modindex.GetPackage will return ErrNotIndexed for any directories which

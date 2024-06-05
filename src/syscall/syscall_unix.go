@@ -8,8 +8,10 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/asan"
 	"internal/bytealg"
 	"internal/itoa"
+	"internal/msan"
 	"internal/oserror"
 	"internal/race"
 	"runtime"
@@ -98,7 +100,7 @@ func (m *mmapper) Munmap(data []byte) (err error) {
 //		err = errno
 //	}
 //
-// Errno values can be tested against error values using errors.Is.
+// Errno values can be tested against error values using [errors.Is].
 // For example:
 //
 //	_, _, err := syscall.Syscall(...)
@@ -162,7 +164,7 @@ func errnoErr(e Errno) error {
 }
 
 // A Signal is a number describing a process signal.
-// It implements the os.Signal interface.
+// It implements the [os.Signal] interface.
 type Signal int
 
 func (s Signal) Signal() {}
@@ -187,11 +189,11 @@ func Read(fd int, p []byte) (n int, err error) {
 			race.Acquire(unsafe.Pointer(&ioSync))
 		}
 	}
-	if msanenabled && n > 0 {
-		msanWrite(unsafe.Pointer(&p[0]), n)
+	if msan.Enabled && n > 0 {
+		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
-	if asanenabled && n > 0 {
-		asanWrite(unsafe.Pointer(&p[0]), n)
+	if asan.Enabled && n > 0 {
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
@@ -211,11 +213,11 @@ func Write(fd int, p []byte) (n int, err error) {
 	if race.Enabled && n > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), n)
 	}
-	if msanenabled && n > 0 {
-		msanRead(unsafe.Pointer(&p[0]), n)
+	if msan.Enabled && n > 0 {
+		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
-	if asanenabled && n > 0 {
-		asanRead(unsafe.Pointer(&p[0]), n)
+	if asan.Enabled && n > 0 {
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
@@ -230,11 +232,11 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
 			race.Acquire(unsafe.Pointer(&ioSync))
 		}
 	}
-	if msanenabled && n > 0 {
-		msanWrite(unsafe.Pointer(&p[0]), n)
+	if msan.Enabled && n > 0 {
+		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
-	if asanenabled && n > 0 {
-		asanWrite(unsafe.Pointer(&p[0]), n)
+	if asan.Enabled && n > 0 {
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
@@ -247,17 +249,17 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
 	if race.Enabled && n > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), n)
 	}
-	if msanenabled && n > 0 {
-		msanRead(unsafe.Pointer(&p[0]), n)
+	if msan.Enabled && n > 0 {
+		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
-	if asanenabled && n > 0 {
-		asanRead(unsafe.Pointer(&p[0]), n)
+	if asan.Enabled && n > 0 {
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
 
 // For testing: clients can set this flag to force
-// creation of IPv6 sockets to return EAFNOSUPPORT.
+// creation of IPv6 sockets to return [EAFNOSUPPORT].
 var SocketDisableIPv6 bool
 
 type Sockaddr interface {

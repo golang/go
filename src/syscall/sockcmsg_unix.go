@@ -12,7 +12,7 @@ import (
 	"unsafe"
 )
 
-// CmsgLen returns the value to store in the Len field of the Cmsghdr
+// CmsgLen returns the value to store in the Len field of the [Cmsghdr]
 // structure, taking into account any necessary alignment.
 func CmsgLen(datalen int) int {
 	return cmsgAlignOf(SizeofCmsghdr) + datalen

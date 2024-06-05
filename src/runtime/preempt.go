@@ -55,6 +55,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/stringslite"
 )
 
 type suspendGState struct {
@@ -385,7 +386,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		// Not Go code.
 		return false, 0
 	}
-	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc, nil) == 0 {
+	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc) == 0 {
 		// We probably stopped at a half-executed CALL instruction,
 		// where the LR is updated but the PC has not. If we preempt
 		// here we'll see a seemingly self-recursive call, which is in
@@ -414,11 +415,11 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		return false, 0
 	}
 	// Check the inner-most name
-	u, uf := newInlineUnwinder(f, pc, nil)
+	u, uf := newInlineUnwinder(f, pc)
 	name := u.srcFunc(uf).name()
-	if hasPrefix(name, "runtime.") ||
-		hasPrefix(name, "runtime/internal/") ||
-		hasPrefix(name, "reflect.") {
+	if stringslite.HasPrefix(name, "runtime.") ||
+		stringslite.HasPrefix(name, "runtime/internal/") ||
+		stringslite.HasPrefix(name, "reflect.") {
 		// For now we never async preempt the runtime or
 		// anything closely tied to the runtime. Known issues
 		// include: various points in the scheduler ("don't

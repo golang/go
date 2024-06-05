@@ -136,7 +136,7 @@ func (r *resolver) declare(decl, data any, scope *ast.Scope, kind ast.ObjKind, i
 		obj.Decl = decl
 		obj.Data = data
 		// Identifiers (for receiver type parameters) are written to the scope, but
-		// never set as the resolved object. See issue #50956.
+		// never set as the resolved object. See go.dev/issue/50956.
 		if _, ok := decl.(*ast.Ident); !ok {
 			ident.Obj = obj
 		}
@@ -209,7 +209,7 @@ func (r *resolver) resolve(ident *ast.Ident, collectUnresolved bool) {
 			}
 			assert(obj.Name != "", "obj with no name")
 			// Identifiers (for receiver type parameters) are written to the scope,
-			// but never set as the resolved object. See issue #50956.
+			// but never set as the resolved object. See go.dev/issue/50956.
 			if _, ok := obj.Decl.(*ast.Ident); !ok {
 				ident.Obj = obj
 			}
@@ -285,7 +285,7 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 		}
 		for _, e := range n.Elts {
 			if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
-				// See issue #45160: try to resolve composite lit keys, but don't
+				// See go.dev/issue/45160: try to resolve composite lit keys, but don't
 				// collect them as unresolved if resolution failed. This replicates
 				// existing behavior when resolving during parsing.
 				if ident, _ := kv.Key.(*ast.Ident); ident != nil {

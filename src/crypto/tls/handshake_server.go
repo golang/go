@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"internal/byteorder"
 	"io"
 	"time"
 )
@@ -168,6 +169,11 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, error) {
 	c.in.version = c.vers
 	c.out.version = c.vers
 
+	if c.config.MinVersion == 0 && c.vers < VersionTLS12 {
+		tls10server.Value() // ensure godebug is initialized
+		tls10server.IncNonDefault()
+	}
+
 	return clientHello, nil
 }
 
@@ -242,7 +248,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 		hs.hello.scts = hs.cert.SignedCertificateTimestamps
 	}
 
-	hs.ecdheOk = supportsECDHE(c.config, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
+	hs.ecdheOk = supportsECDHE(c.config, c.vers, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
 
 	if hs.ecdheOk && len(hs.clientHello.supportedPoints) > 0 {
 		// Although omitting the ec_point_formats extension is permitted, some
@@ -313,10 +319,10 @@ func negotiateALPN(serverProtos, clientProtos []string, quic bool) (string, erro
 
 // supportsECDHE returns whether ECDHE key exchanges can be used with this
 // pre-TLS 1.3 client.
-func supportsECDHE(c *Config, supportedCurves []CurveID, supportedPoints []uint8) bool {
+func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, supportedPoints []uint8) bool {
 	supportsCurve := false
 	for _, curve := range supportedCurves {
-		if c.supportsCurve(curve) {
+		if c.supportsCurve(version, curve) {
 			supportsCurve = true
 			break
 		}
@@ -365,6 +371,15 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
 		return errors.New("tls: no cipher suite supported by both client and server")
 	}
 	c.cipherSuite = hs.suite.id
+
+	if c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
+		tlsrsakex.Value() // ensure godebug is initialized
+		tlsrsakex.IncNonDefault()
+	}
+	if c.config.CipherSuites == nil && !needFIPS() && tdesCiphers[hs.suite.id] {
+		tls3des.Value() // ensure godebug is initialized
+		tls3des.IncNonDefault()
+	}
 
 	for _, id := range hs.clientHello.cipherSuites {
 		if id == TLS_FALLBACK_SCSV {
@@ -577,6 +592,9 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		return err
 	}
 	if skx != nil {
+		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {
+			c.curveID = CurveID(byteorder.BeUint16(skx.key[1:]))
+		}
 		if _, err := hs.c.writeHandshakeRecord(skx, &hs.finishedHash); err != nil {
 			return err
 		}
@@ -802,10 +820,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	c := hs.c
 	m := new(newSessionTicketMsg)
 
-	state, err := c.sessionState()
-	if err != nil {
-		return err
-	}
+	state := c.sessionState()
 	state.secret = hs.masterSecret
 	if hs.sessionState != nil {
 		// If this is re-wrapping an old key, then keep
@@ -813,6 +828,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 		state.createdAt = hs.sessionState.createdAt
 	}
 	if c.config.WrapSession != nil {
+		var err error
 		m.ticket, err = c.config.WrapSession(c.connectionStateLocked(), state)
 		if err != nil {
 			return err
@@ -863,6 +879,13 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 		if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
 			c.sendAlert(alertBadCertificate)
 			return errors.New("tls: failed to parse client certificate: " + err.Error())
+		}
+		if certs[i].PublicKeyAlgorithm == x509.RSA {
+			n := certs[i].PublicKey.(*rsa.PublicKey).N.BitLen()
+			if max, ok := checkKeySize(n); !ok {
+				c.sendAlert(alertBadCertificate)
+				return fmt.Errorf("tls: client sent certificate containing RSA key larger than %d bits", max)
+			}
 		}
 	}
 

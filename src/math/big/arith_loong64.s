@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !math_big_pure_go,loong64
+//go:build !math_big_pure_go && loong64
 
 #include "textflag.h"
 

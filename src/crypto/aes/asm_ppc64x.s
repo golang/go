@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ppc64 || ppc64le
+//go:build (ppc64 || ppc64le) && !purego
 
 // Based on CRYPTOGAMS code with the following comment:
 // # ====================================================================
@@ -151,7 +151,7 @@ loop128:
 	VXOR	IN0, TMP, IN0       // vxor 1,1,6
 	VADDUWM	RCON, RCON, RCON    // vadduwm 4,4,4
 	VXOR	IN0, KEY, IN0       // vxor 1,1,3
-	BC	0x10, 0, loop128    // bdnz .Loop128
+	BDNZ	loop128
 
 	LVX	(PTR)(R0), RCON // lvx 4,0,6     Last two round keys
 
@@ -256,7 +256,7 @@ loop192:
 	STXVD2X	IN0, (R0+OUTDEC)
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
-	BC	0x10, 0, loop192                 // bdnz .Loop192
+	BDNZ	loop192
 
 	RET
 
@@ -289,7 +289,7 @@ loop256:
 	STXVD2X	IN0, (R0+OUTDEC)
 	ADD	$16, OUTENC, OUTENC
 	ADD	$-16, OUTDEC, OUTDEC
-	BC	0x12, 0, done                    // bdz .Ldone
+	BDZ	done
 
 	VSPLTW	$3, IN0, KEY        // vspltw 3,1,3
 	VSLDOI	$12, ZERO, IN1, TMP // vsldoi 6,0,2,12

@@ -581,6 +581,80 @@ func TestGarbageCollection(t *testing.T) {
 	}
 }
 
+// This table is used for allocation tests. We expect a specific allocation
+// behavior to be seen, depending on the number of arguments applied to various
+// JavaScript functions.
+// Note: All JavaScript functions return a JavaScript array, which will cause
+// one allocation to be created to track the Value.gcPtr for the Value finalizer.
+var allocTests = []struct {
+	argLen  int // The number of arguments to use for the syscall
+	expected int // The expected number of allocations
+}{
+	// For less than or equal to 16 arguments, we expect 1 alloction:
+	// - makeValue new(ref)
+	{0,  1},
+	{2,  1},
+	{15, 1},
+	{16, 1},
+	// For greater than 16 arguments, we expect 3 alloction:
+	// - makeValue: new(ref)
+	// - makeArgSlices: argVals = make([]Value, size)
+	// - makeArgSlices: argRefs = make([]ref, size)
+	{17, 3},
+	{32, 3},
+	{42, 3},
+}
+
+// TestCallAllocations ensures the correct allocation profile for Value.Call
+func TestCallAllocations(t *testing.T) {
+	for _, test := range allocTests {
+		args := make([]any, test.argLen)
+
+		tmpArray := js.Global().Get("Array").New(0)
+		numAllocs := testing.AllocsPerRun(100, func() {
+			tmpArray.Call("concat", args...)
+		});
+
+		if numAllocs != float64(test.expected) {
+			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
+		}
+	}
+}
+
+// TestInvokeAllocations ensures the correct allocation profile for Value.Invoke
+func TestInvokeAllocations(t *testing.T) {
+	for _, test := range allocTests {
+		args := make([]any, test.argLen)
+
+		tmpArray := js.Global().Get("Array").New(0)
+		concatFunc := tmpArray.Get("concat").Call("bind", tmpArray)
+		numAllocs := testing.AllocsPerRun(100, func() {
+			concatFunc.Invoke(args...)
+		});
+
+		if numAllocs != float64(test.expected) {
+			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
+		}
+	}
+}
+
+// TestNewAllocations ensures the correct allocation profile for Value.New
+func TestNewAllocations(t *testing.T) {
+	arrayConstructor := js.Global().Get("Array")
+
+	for _, test := range allocTests {
+		args := make([]any, test.argLen)
+
+		numAllocs := testing.AllocsPerRun(100, func() {
+			arrayConstructor.New(args...)
+		});
+
+		if numAllocs != float64(test.expected) {
+			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
+		}
+	}
+}
+
 // BenchmarkDOM is a simple benchmark which emulates a webapp making DOM operations.
 // It creates a div, and sets its id. Then searches by that id and sets some data.
 // Finally it removes that div.

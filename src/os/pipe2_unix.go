@@ -18,5 +18,5 @@ func Pipe() (r *File, w *File, err error) {
 		return nil, nil, NewSyscallError("pipe2", e)
 	}
 
-	return newFile(p[0], "|0", kindPipe), newFile(p[1], "|1", kindPipe), nil
+	return newFile(p[0], "|0", kindPipe, false), newFile(p[1], "|1", kindPipe, false), nil
 }

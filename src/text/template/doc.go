@@ -144,6 +144,13 @@ data, defined in detail in the corresponding sections that follow.
 		is executed; otherwise, dot is set to the value of the pipeline
 		and T1 is executed.
 
+	{{with pipeline}} T1 {{else with pipeline}} T0 {{end}}
+		To simplify the appearance of with-else chains, the else action
+		of a with may include another with directly; the effect is exactly
+		the same as writing
+			{{with pipeline}} T1 {{else}}{{with pipeline}} T0 {{end}}{{end}}
+
+
 Arguments
 
 An argument is a simple value, denoted by one of the following.
@@ -438,13 +445,13 @@ produce the text
 By construction, a template may reside in only one association. If it's
 necessary to have a template addressable from multiple associations, the
 template definition must be parsed multiple times to create distinct *Template
-values, or must be copied with the Clone or AddParseTree method.
+values, or must be copied with [Template.Clone] or [Template.AddParseTree].
 
 Parse may be called multiple times to assemble the various associated templates;
-see the ParseFiles and ParseGlob functions and methods for simple ways to parse
-related templates stored in files.
+see [ParseFiles], [ParseGlob], [Template.ParseFiles] and [Template.ParseGlob]
+for simple ways to parse related templates stored in files.
 
-A template may be executed directly or through ExecuteTemplate, which executes
+A template may be executed directly or through [Template.ExecuteTemplate], which executes
 an associated template identified by name. To invoke our example above, we
 might write,
 

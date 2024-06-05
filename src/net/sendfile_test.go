@@ -2,19 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"internal/poll"
 	"io"
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -25,6 +26,48 @@ const (
 	newtonLen    = 567198
 	newtonSHA256 = "d4a9ac22462b35e7821a4f2706c211093da678620a8f9997989ee7cf8d507bbd"
 )
+
+// expectSendfile runs f, and verifies that internal/poll.SendFile successfully handles
+// a write to wantConn during f's execution.
+//
+// On platforms where supportsSendfile is false, expectSendfile runs f but does not
+// expect a call to SendFile.
+func expectSendfile(t *testing.T, wantConn Conn, f func()) {
+	t.Helper()
+	if !supportsSendfile {
+		f()
+		return
+	}
+	orig := poll.TestHookDidSendFile
+	defer func() {
+		poll.TestHookDidSendFile = orig
+	}()
+	var (
+		called     bool
+		gotHandled bool
+		gotFD      *poll.FD
+	)
+	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
+		if called {
+			t.Error("internal/poll.SendFile called multiple times, want one call")
+		}
+		called = true
+		gotHandled = handled
+		gotFD = dstFD
+	}
+	f()
+	if !called {
+		t.Error("internal/poll.SendFile was not called, want it to be")
+		return
+	}
+	if !gotHandled {
+		t.Error("internal/poll.SendFile did not handle the write, want it to")
+		return
+	}
+	if &wantConn.(*TCPConn).fd.pfd != gotFD {
+		t.Error("internal.poll.SendFile called with unexpected FD")
+	}
+}
 
 func TestSendfile(t *testing.T) {
 	ln := newLocalListener(t, "tcp")
@@ -53,7 +96,17 @@ func TestSendfile(t *testing.T) {
 
 			// Return file data using io.Copy, which should use
 			// sendFile if available.
-			sbytes, err := io.Copy(conn, f)
+			var sbytes int64
+			switch runtime.GOOS {
+			case "windows":
+				// Windows is not using sendfile for some reason:
+				// https://go.dev/issue/67042
+				sbytes, err = io.Copy(conn, f)
+			default:
+				expectSendfile(t, conn, func() {
+					sbytes, err = io.Copy(conn, f)
+				})
+			}
 			if err != nil {
 				errc <- err
 				return
@@ -121,7 +174,9 @@ func TestSendfileParts(t *testing.T) {
 			for i := 0; i < 3; i++ {
 				// Return file data using io.CopyN, which should use
 				// sendFile if available.
-				_, err = io.CopyN(conn, f, 3)
+				expectSendfile(t, conn, func() {
+					_, err = io.CopyN(conn, f, 3)
+				})
 				if err != nil {
 					errc <- err
 					return
@@ -180,7 +235,9 @@ func TestSendfileSeeked(t *testing.T) {
 				return
 			}
 
-			_, err = io.CopyN(conn, f, sendSize)
+			expectSendfile(t, conn, func() {
+				_, err = io.CopyN(conn, f, sendSize)
+			})
 			if err != nil {
 				errc <- err
 				return
@@ -209,7 +266,7 @@ func TestSendfileSeeked(t *testing.T) {
 // Test that sendfile doesn't put a pipe into blocking mode.
 func TestSendfilePipe(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9", "windows":
+	case "plan9", "windows", "js", "wasip1":
 		// These systems don't support deadlines on pipes.
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
@@ -240,6 +297,10 @@ func TestSendfilePipe(t *testing.T) {
 			return
 		}
 		defer conn.Close()
+		// The comment above states that this should call into sendfile,
+		// but empirically it doesn't seem to do so at this time.
+		// If it does, or does on some platforms, this CopyN should be wrapped
+		// in expectSendfile.
 		_, err = io.CopyN(conn, r, 1)
 		if err != nil {
 			t.Error(err)
@@ -333,6 +394,10 @@ func TestSendfileOnWriteTimeoutExceeded(t *testing.T) {
 		}
 		defer f.Close()
 
+		// We expect this to use sendfile, but as of the time this comment was written
+		// poll.SendFile on an FD past its timeout can return an error indicating that
+		// it didn't handle the operation, resulting in a non-sendfile retry.
+		// So don't use expectSendfile here.
 		_, err = io.Copy(conn, f)
 		if errors.Is(err, os.ErrDeadlineExceeded) {
 			return nil
@@ -361,4 +426,167 @@ func TestSendfileOnWriteTimeoutExceeded(t *testing.T) {
 	if err := <-errc; err != nil {
 		t.Fatal(err)
 	}
+}
+
+func BenchmarkSendfileZeroBytes(b *testing.B) {
+	var (
+		wg          sync.WaitGroup
+		ctx, cancel = context.WithCancel(context.Background())
+	)
+
+	defer wg.Wait()
+
+	ln := newLocalListener(b, "tcp")
+	defer ln.Close()
+
+	tempFile, err := os.CreateTemp(b.TempDir(), "test.txt")
+	if err != nil {
+		b.Fatalf("failed to create temp file: %v", err)
+	}
+	defer tempFile.Close()
+
+	fileName := tempFile.Name()
+
+	dataSize := b.N
+	wg.Add(1)
+	go func(f *os.File) {
+		defer wg.Done()
+
+		for i := 0; i < dataSize; i++ {
+			if _, err := f.Write([]byte{1}); err != nil {
+				b.Errorf("failed to write: %v", err)
+				return
+			}
+			if i%1000 == 0 {
+				f.Sync()
+			}
+		}
+	}(tempFile)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	wg.Add(1)
+	go func(ln Listener, fileName string) {
+		defer wg.Done()
+
+		conn, err := ln.Accept()
+		if err != nil {
+			b.Errorf("failed to accept: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		f, err := os.OpenFile(fileName, os.O_RDONLY, 0660)
+		if err != nil {
+			b.Errorf("failed to open file: %v", err)
+			return
+		}
+		defer f.Close()
+
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+
+			if _, err := io.Copy(conn, f); err != nil {
+				b.Errorf("failed to copy: %v", err)
+				return
+			}
+		}
+	}(ln, fileName)
+
+	conn, err := Dial("tcp", ln.Addr().String())
+	if err != nil {
+		b.Fatalf("failed to dial: %v", err)
+	}
+	defer conn.Close()
+
+	n, err := io.CopyN(io.Discard, conn, int64(dataSize))
+	if err != nil {
+		b.Fatalf("failed to copy: %v", err)
+	}
+	if n != int64(dataSize) {
+		b.Fatalf("expected %d copied bytes, but got %d", dataSize, n)
+	}
+
+	cancel()
+}
+
+func BenchmarkSendFile(b *testing.B) {
+	if runtime.GOOS == "windows" {
+		// TODO(panjf2000): Windows has not yet implemented FileConn,
+		//		remove this when it's implemented in https://go.dev/issues/9503.
+		b.Skipf("skipping on %s", runtime.GOOS)
+	}
+
+	b.Run("file-to-tcp", func(b *testing.B) { benchmarkSendFile(b, "tcp") })
+	b.Run("file-to-unix", func(b *testing.B) { benchmarkSendFile(b, "unix") })
+}
+
+func benchmarkSendFile(b *testing.B, proto string) {
+	for i := 0; i <= 10; i++ {
+		size := 1 << (i + 10)
+		bench := sendFileBench{
+			proto:     proto,
+			chunkSize: size,
+		}
+		b.Run(strconv.Itoa(size), bench.benchSendFile)
+	}
+}
+
+type sendFileBench struct {
+	proto     string
+	chunkSize int
+}
+
+func (bench sendFileBench) benchSendFile(b *testing.B) {
+	fileSize := b.N * bench.chunkSize
+	f := createTempFile(b, fileSize)
+
+	client, server := spawnTestSocketPair(b, bench.proto)
+	defer server.Close()
+
+	cleanUp, err := startTestSocketPeer(b, client, "r", bench.chunkSize, fileSize)
+	if err != nil {
+		client.Close()
+		b.Fatal(err)
+	}
+	defer cleanUp(b)
+
+	b.ReportAllocs()
+	b.SetBytes(int64(bench.chunkSize))
+	b.ResetTimer()
+
+	// Data go from file to socket via sendfile(2).
+	sent, err := io.Copy(server, f)
+	if err != nil {
+		b.Fatalf("failed to copy data with sendfile, error: %v", err)
+	}
+	if sent != int64(fileSize) {
+		b.Fatalf("bytes sent mismatch, got: %d, want: %d", sent, fileSize)
+	}
+}
+
+func createTempFile(b *testing.B, size int) *os.File {
+	f, err := os.CreateTemp(b.TempDir(), "sendfile-bench")
+	if err != nil {
+		b.Fatalf("failed to create temporary file: %v", err)
+	}
+	b.Cleanup(func() {
+		f.Close()
+	})
+
+	data := make([]byte, size)
+	if _, err := f.Write(data); err != nil {
+		b.Fatalf("failed to create and feed the file: %v", err)
+	}
+	if err := f.Sync(); err != nil {
+		b.Fatalf("failed to save the file: %v", err)
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		b.Fatalf("failed to rewind the file: %v", err)
+	}
+
+	return f
 }

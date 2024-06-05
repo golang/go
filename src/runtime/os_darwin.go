@@ -41,7 +41,12 @@ func semasleep(ns int64) int32 {
 	if ns >= 0 {
 		start = nanotime()
 	}
-	mp := getg().m
+	g := getg()
+	mp := g.m
+	if g == mp.gsignal {
+		// sema sleep/wakeup are implemented with pthreads, which are not async-signal-safe on Darwin.
+		throw("semasleep on Darwin signal stack")
+	}
 	pthread_mutex_lock(&mp.mutex)
 	for {
 		if mp.count > 0 {
@@ -70,6 +75,9 @@ func semasleep(ns int64) int32 {
 
 //go:nosplit
 func semawakeup(mp *m) {
+	if g := getg(); g == g.m.gsignal {
+		throw("semawakeup on Darwin signal stack")
+	}
 	pthread_mutex_lock(&mp.mutex)
 	mp.count++
 	if mp.count > 0 {
@@ -81,7 +89,7 @@ func semawakeup(mp *m) {
 // The read and write file descriptors used by the sigNote functions.
 var sigNoteRead, sigNoteWrite int32
 
-// sigNoteSetup initializes an async-signal-safe note.
+// sigNoteSetup initializes a single, there-can-only-be-one, async-signal-safe note.
 //
 // The current implementation of notes on Darwin is not async-signal-safe,
 // because the functions pthread_mutex_lock, pthread_cond_signal, and
@@ -93,6 +101,7 @@ var sigNoteRead, sigNoteWrite int32
 // not support timed waits but is async-signal-safe.
 func sigNoteSetup(*note) {
 	if sigNoteRead != 0 || sigNoteWrite != 0 {
+		// Generalizing this would require avoiding the pipe-fork-closeonexec race, which entangles syscall.
 		throw("duplicate sigNoteSetup")
 	}
 	var errno int32
@@ -185,11 +194,11 @@ func getPageSize() uintptr {
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	closefd(fd)
-	extendRandom(r, int(n))
+	return int(n)
 }
 
 func goenvs() {
@@ -335,6 +344,7 @@ func unminit() {
 	if !(GOOS == "ios" && GOARCH == "arm64") {
 		unminitSignals()
 	}
+	getg().m.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned

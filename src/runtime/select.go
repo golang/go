@@ -173,7 +173,11 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 			continue
 		}
 
-		j := fastrandn(uint32(norder + 1))
+		if cas.c.timer != nil {
+			cas.c.timer.maybeRunChan()
+		}
+
+		j := cheaprandn(uint32(norder + 1))
 		pollorder[norder] = pollorder[j]
 		pollorder[j] = uint16(i)
 		norder++
@@ -315,6 +319,10 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 		} else {
 			c.recvq.enqueue(sg)
 		}
+
+		if c.timer != nil {
+			blockTimerChan(c)
+		}
 	}
 
 	// wait for someone to wake us up
@@ -351,6 +359,9 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 
 	for _, casei := range lockorder {
 		k = &scases[casei]
+		if k.c.timer != nil {
+			unblockTimerChan(k.c)
+		}
 		if sg == sglist {
 			// sg has already been dequeued by the G that woke us up.
 			casi = int(casei)

@@ -31,6 +31,7 @@ import (
 // include all packages within subdirectories as well.
 // These will be imported during bootstrap as bootstrap/name, like bootstrap/math/big.
 var bootstrapDirs = []string{
+	"cmp",
 	"cmd/asm",
 	"cmd/asm/internal/...",
 	"cmd/cgo",
@@ -46,10 +47,12 @@ var bootstrapDirs = []string{
 	"cmd/internal/notsha256",
 	"cmd/internal/obj/...",
 	"cmd/internal/objabi",
+	"cmd/internal/pgo",
 	"cmd/internal/pkgpath",
 	"cmd/internal/quoted",
 	"cmd/internal/src",
 	"cmd/internal/sys",
+	"cmd/internal/telemetry",
 	"cmd/link",
 	"cmd/link/internal/...",
 	"compress/flate",
@@ -61,14 +64,17 @@ var bootstrapDirs = []string{
 	"debug/pe",
 	"go/build/constraint",
 	"go/constant",
+	"go/version",
 	"internal/abi",
 	"internal/coverage",
+	"cmd/internal/cov/covcmd",
 	"internal/bisect",
 	"internal/buildcfg",
 	"internal/goarch",
 	"internal/godebugs",
 	"internal/goexperiment",
 	"internal/goroot",
+	"internal/gover",
 	"internal/goversion",
 	// internal/lazyregexp is provided by Go 1.17, which permits it to
 	// be imported by other packages in this list, but is not provided
@@ -85,10 +91,8 @@ var bootstrapDirs = []string{
 	"internal/unsafeheader",
 	"internal/xcoff",
 	"internal/zstd",
-	"math/big",
 	"math/bits",
 	"sort",
-	"strconv",
 }
 
 // File prefixes that are ignored by go/build anyway, and cause
@@ -109,6 +113,8 @@ var ignoreSuffixes = []string{
 	// with PGO. And as it is not a text file the import path
 	// rewrite will break it.
 	".pgo",
+	// Skip editor backup files.
+	"~",
 }
 
 var tryDirs = []string{
@@ -297,6 +303,11 @@ func rewriteBlock%s(b *Block) bool { panic("unused during bootstrap") }
 	return bootstrapFixImports(srcFile)
 }
 
+var (
+	importRE      = regexp.MustCompile(`\Aimport\s+(\.|[A-Za-z0-9_]+)?\s*"([^"]+)"\s*(//.*)?\n\z`)
+	importBlockRE = regexp.MustCompile(`\A\s*(?:(\.|[A-Za-z0-9_]+)?\s*"([^"]+)")?\s*(//.*)?\n\z`)
+)
+
 func bootstrapFixImports(srcFile string) string {
 	text := readfile(srcFile)
 	if !strings.Contains(srcFile, "/cmd/") && !strings.Contains(srcFile, `\cmd\`) {
@@ -304,7 +315,17 @@ func bootstrapFixImports(srcFile string) string {
 	}
 	lines := strings.SplitAfter(text, "\n")
 	inBlock := false
+	inComment := false
 	for i, line := range lines {
+		if strings.HasSuffix(line, "*/\n") {
+			inComment = false
+		}
+		if strings.HasSuffix(line, "/*\n") {
+			inComment = true
+		}
+		if inComment {
+			continue
+		}
 		if strings.HasPrefix(line, "import (") {
 			inBlock = true
 			continue
@@ -313,16 +334,56 @@ func bootstrapFixImports(srcFile string) string {
 			inBlock = false
 			continue
 		}
-		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
-			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"") || strings.HasPrefix(line, "\texec \"") || strings.HasPrefix(line, "\trtabi \"")) {
-			line = strings.Replace(line, `"cmd/`, `"bootstrap/cmd/`, -1)
-			for _, dir := range bootstrapDirs {
-				if strings.HasPrefix(dir, "cmd/") {
-					continue
-				}
-				line = strings.Replace(line, `"`+dir+`"`, `"bootstrap/`+dir+`"`, -1)
+
+		var m []string
+		if !inBlock {
+			if !strings.HasPrefix(line, "import ") {
+				continue
 			}
-			lines[i] = line
+			m = importRE.FindStringSubmatch(line)
+			if m == nil {
+				fatalf("%s:%d: invalid import declaration: %q", srcFile, i+1, line)
+			}
+		} else {
+			m = importBlockRE.FindStringSubmatch(line)
+			if m == nil {
+				fatalf("%s:%d: invalid import block line", srcFile, i+1)
+			}
+			if m[2] == "" {
+				continue
+			}
+		}
+
+		path := m[2]
+		if strings.HasPrefix(path, "cmd/") {
+			path = "bootstrap/" + path
+		} else {
+			for _, dir := range bootstrapDirs {
+				if path == dir {
+					path = "bootstrap/" + dir
+					break
+				}
+			}
+		}
+
+		// Rewrite use of internal/reflectlite to be plain reflect.
+		if path == "internal/reflectlite" {
+			lines[i] = strings.ReplaceAll(line, `"reflect"`, `reflectlite "reflect"`)
+			continue
+		}
+
+		// Otherwise, reject direct imports of internal packages,
+		// since that implies knowledge of internal details that might
+		// change from one bootstrap toolchain to the next.
+		// There are many internal packages that are listed in
+		// bootstrapDirs and made into bootstrap copies based on the
+		// current repo's source code. Those are fine; this is catching
+		// references to internal packages in the older bootstrap toolchain.
+		if strings.HasPrefix(path, "internal/") {
+			fatalf("%s:%d: bootstrap-copied source file cannot import %s", srcFile, i+1, path)
+		}
+		if path != m[2] {
+			lines[i] = strings.ReplaceAll(line, `"`+m[2]+`"`, `"`+path+`"`)
 		}
 	}
 

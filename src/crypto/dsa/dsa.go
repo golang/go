@@ -155,7 +155,7 @@ GeneratePrimes:
 }
 
 // GenerateKey generates a public&private key pair. The Parameters of the
-// PrivateKey must already be valid (see GenerateParameters).
+// [PrivateKey] must already be valid (see [GenerateParameters]).
 func GenerateKey(priv *PrivateKey, rand io.Reader) error {
 	if priv.P == nil || priv.Q == nil || priv.G == nil {
 		return errors.New("crypto/dsa: parameters not set up before generating key")
@@ -200,7 +200,7 @@ func fermatInverse(k, P *big.Int) *big.Int {
 // to the byte-length of the subgroup. This function does not perform that
 // truncation itself.
 //
-// Be aware that calling Sign with an attacker-controlled PrivateKey may
+// Be aware that calling Sign with an attacker-controlled [PrivateKey] may
 // require an arbitrary amount of CPU.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	randutil.MaybeReadByte(rand)

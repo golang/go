@@ -14,7 +14,7 @@ import (
 	"internal/coverage/uleb128"
 	"io"
 	"os"
-	"sort"
+	"slices"
 )
 
 // This package contains APIs and helpers for encoding initial portions
@@ -126,7 +126,7 @@ func (cfw *CoverageDataWriter) writeSegmentPreamble(args map[string]string, ws *
 	for k := range args {
 		akeys = append(akeys, k)
 	}
-	sort.Strings(akeys)
+	slices.Sort(akeys)
 
 	wrULEB128 := func(v uint) error {
 		cfw.tmp = cfw.tmp[:0]

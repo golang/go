@@ -8,14 +8,17 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/goarch"
+	"internal/testenv"
 	"math"
+	"os"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"unsafe"
 )
 
 func TestHmapSize(t *testing.T) {
@@ -385,8 +388,8 @@ func TestBigItems(t *testing.T) {
 		values[i] = v[37]
 		i++
 	}
-	sort.Strings(keys[:])
-	sort.Strings(values[:])
+	slices.Sort(keys[:])
+	slices.Sort(values[:])
 	for i := 0; i < 100; i++ {
 		if keys[i] != fmt.Sprintf("string%02d", i) {
 			t.Errorf("#%d: missing key: %v", i, keys[i])
@@ -1255,4 +1258,289 @@ func TestMapInterfaceKey(t *testing.T) {
 	if !m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] {
 		panic("array not found")
 	}
+}
+
+type panicStructKey struct {
+	sli []int
+}
+
+func (p panicStructKey) String() string {
+	return "panic"
+}
+
+type structKey struct {
+}
+
+func (structKey) String() string {
+	return "structKey"
+}
+
+func TestEmptyMapWithInterfaceKey(t *testing.T) {
+	var (
+		b    bool
+		i    int
+		i8   int8
+		i16  int16
+		i32  int32
+		i64  int64
+		ui   uint
+		ui8  uint8
+		ui16 uint16
+		ui32 uint32
+		ui64 uint64
+		uipt uintptr
+		f32  float32
+		f64  float64
+		c64  complex64
+		c128 complex128
+		a    [4]string
+		s    string
+		p    *int
+		up   unsafe.Pointer
+		ch   chan int
+		i0   any
+		i1   interface {
+			String() string
+		}
+		structKey structKey
+		i0Panic   any = []int{}
+		i1Panic   interface {
+			String() string
+		} = panicStructKey{}
+		panicStructKey = panicStructKey{}
+		sli            []int
+		me             = map[any]struct{}{}
+		mi             = map[interface {
+			String() string
+		}]struct{}{}
+	)
+	mustNotPanic := func(f func()) {
+		f()
+	}
+	mustPanic := func(f func()) {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("didn't panic")
+			}
+		}()
+		f()
+	}
+	mustNotPanic(func() {
+		_ = me[b]
+	})
+	mustNotPanic(func() {
+		_ = me[i]
+	})
+	mustNotPanic(func() {
+		_ = me[i8]
+	})
+	mustNotPanic(func() {
+		_ = me[i16]
+	})
+	mustNotPanic(func() {
+		_ = me[i32]
+	})
+	mustNotPanic(func() {
+		_ = me[i64]
+	})
+	mustNotPanic(func() {
+		_ = me[ui]
+	})
+	mustNotPanic(func() {
+		_ = me[ui8]
+	})
+	mustNotPanic(func() {
+		_ = me[ui16]
+	})
+	mustNotPanic(func() {
+		_ = me[ui32]
+	})
+	mustNotPanic(func() {
+		_ = me[ui64]
+	})
+	mustNotPanic(func() {
+		_ = me[uipt]
+	})
+	mustNotPanic(func() {
+		_ = me[f32]
+	})
+	mustNotPanic(func() {
+		_ = me[f64]
+	})
+	mustNotPanic(func() {
+		_ = me[c64]
+	})
+	mustNotPanic(func() {
+		_ = me[c128]
+	})
+	mustNotPanic(func() {
+		_ = me[a]
+	})
+	mustNotPanic(func() {
+		_ = me[s]
+	})
+	mustNotPanic(func() {
+		_ = me[p]
+	})
+	mustNotPanic(func() {
+		_ = me[up]
+	})
+	mustNotPanic(func() {
+		_ = me[ch]
+	})
+	mustNotPanic(func() {
+		_ = me[i0]
+	})
+	mustNotPanic(func() {
+		_ = me[i1]
+	})
+	mustNotPanic(func() {
+		_ = me[structKey]
+	})
+	mustPanic(func() {
+		_ = me[i0Panic]
+	})
+	mustPanic(func() {
+		_ = me[i1Panic]
+	})
+	mustPanic(func() {
+		_ = me[panicStructKey]
+	})
+	mustPanic(func() {
+		_ = me[sli]
+	})
+	mustPanic(func() {
+		_ = me[me]
+	})
+
+	mustNotPanic(func() {
+		_ = mi[structKey]
+	})
+	mustPanic(func() {
+		_ = mi[panicStructKey]
+	})
+}
+
+func TestLoadFactor(t *testing.T) {
+	for b := uint8(0); b < 20; b++ {
+		count := 13 * (1 << b) / 2 // 6.5
+		if b == 0 {
+			count = 8
+		}
+		if runtime.OverLoadFactor(count, b) {
+			t.Errorf("OverLoadFactor(%d,%d)=true, want false", count, b)
+		}
+		if !runtime.OverLoadFactor(count+1, b) {
+			t.Errorf("OverLoadFactor(%d,%d)=false, want true", count+1, b)
+		}
+	}
+}
+
+func TestMapKeys(t *testing.T) {
+	type key struct {
+		s   string
+		pad [128]byte // sizeof(key) > abi.MapMaxKeyBytes
+	}
+	m := map[key]int{{s: "a"}: 1, {s: "b"}: 2}
+	keys := make([]key, 0, len(m))
+	runtime.MapKeys(m, unsafe.Pointer(&keys))
+	for _, k := range keys {
+		if len(k.s) != 1 {
+			t.Errorf("len(k.s) == %d, want 1", len(k.s))
+		}
+	}
+}
+
+func TestMapValues(t *testing.T) {
+	type val struct {
+		s   string
+		pad [128]byte // sizeof(val) > abi.MapMaxElemBytes
+	}
+	m := map[int]val{1: {s: "a"}, 2: {s: "b"}}
+	vals := make([]val, 0, len(m))
+	runtime.MapValues(m, unsafe.Pointer(&vals))
+	for _, v := range vals {
+		if len(v.s) != 1 {
+			t.Errorf("len(v.s) == %d, want 1", len(v.s))
+		}
+	}
+}
+
+func computeHash() uintptr {
+	var v struct{}
+	return runtime.MemHash(unsafe.Pointer(&v), 0, unsafe.Sizeof(v))
+}
+
+func subprocessHash(t *testing.T, env string) uintptr {
+	t.Helper()
+
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestMemHashGlobalSeed$"))
+	cmd.Env = append(cmd.Env, "GO_TEST_SUBPROCESS_HASH=1")
+	if env != "" {
+		cmd.Env = append(cmd.Env, env)
+	}
+
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("cmd.Output got err %v want nil", err)
+	}
+
+	s := strings.TrimSpace(string(out))
+	h, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		t.Fatalf("Parse output %q got err %v want nil", s, err)
+	}
+	return uintptr(h)
+}
+
+// memhash has unique per-process seeds, so hashes should differ across
+// processes.
+//
+// Regression test for https://go.dev/issue/66885.
+func TestMemHashGlobalSeed(t *testing.T) {
+	if os.Getenv("GO_TEST_SUBPROCESS_HASH") != "" {
+		fmt.Println(computeHash())
+		os.Exit(0)
+		return
+	}
+
+	testenv.MustHaveExec(t)
+
+	// aeshash and memhashFallback use separate per-process seeds, so test
+	// both.
+	t.Run("aes", func(t *testing.T) {
+		if !*runtime.UseAeshash {
+			t.Skip("No AES")
+		}
+
+		h1 := subprocessHash(t, "")
+		t.Logf("%d", h1)
+		h2 := subprocessHash(t, "")
+		t.Logf("%d", h2)
+		h3 := subprocessHash(t, "")
+		t.Logf("%d", h3)
+
+		if h1 == h2 && h2 == h3 {
+			t.Errorf("got duplicate hash %d want unique", h1)
+		}
+	})
+
+	t.Run("noaes", func(t *testing.T) {
+		env := ""
+		if *runtime.UseAeshash {
+			env = "GODEBUG=cpu.aes=off"
+		}
+
+		h1 := subprocessHash(t, env)
+		t.Logf("%d", h1)
+		h2 := subprocessHash(t, env)
+		t.Logf("%d", h2)
+		h3 := subprocessHash(t, env)
+		t.Logf("%d", h3)
+
+		if h1 == h2 && h2 == h3 {
+			t.Errorf("got duplicate hash %d want unique", h1)
+		}
+	})
 }

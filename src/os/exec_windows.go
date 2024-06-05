@@ -8,13 +8,12 @@ import (
 	"errors"
 	"internal/syscall/windows"
 	"runtime"
-	"sync/atomic"
 	"syscall"
 	"time"
 )
 
 func (p *Process) wait() (ps *ProcessState, err error) {
-	handle := atomic.LoadUintptr(&p.handle)
+	handle := p.handle.Load()
 	s, e := syscall.WaitForSingleObject(syscall.Handle(handle), syscall.INFINITE)
 	switch s {
 	case syscall.WAIT_OBJECT_0:
@@ -40,7 +39,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 }
 
 func (p *Process) signal(sig Signal) error {
-	handle := atomic.LoadUintptr(&p.handle)
+	handle := p.handle.Load()
 	if handle == uintptr(syscall.InvalidHandle) {
 		return syscall.EINVAL
 	}
@@ -63,7 +62,7 @@ func (p *Process) signal(sig Signal) error {
 }
 
 func (p *Process) release() error {
-	handle := atomic.SwapUintptr(&p.handle, uintptr(syscall.InvalidHandle))
+	handle := p.handle.Swap(uintptr(syscall.InvalidHandle))
 	if handle == uintptr(syscall.InvalidHandle) {
 		return syscall.EINVAL
 	}

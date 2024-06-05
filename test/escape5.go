@@ -151,7 +151,7 @@ func f9() {
 func f10() {
 	// These don't escape but are too big for the stack
 	var x [1 << 30]byte         // ERROR "moved to heap: x"
-	var y = make([]byte, 1<<30) // ERROR "make\(\[\]byte, 1 << 30\) escapes to heap"
+	var y = make([]byte, 1<<30) // ERROR "make\(\[\]byte, 1073741824\) escapes to heap"
 	_ = x[0] + y[0]
 }
 

@@ -91,12 +91,6 @@ type Flags struct {
 	// to the outside world.
 	Arenas bool
 
-	// PageTrace enables GODEBUG=pagetrace=/path/to/result. This feature
-	// is a GOEXPERIMENT due to a security risk with setuid binaries:
-	// this compels the Go runtime to write to some arbitrary file, which
-	// may be exploited.
-	PageTrace bool
-
 	// CgoCheck2 enables an expensive cgo rule checker.
 	// When this experiment is enabled, cgo rule checks occur regardless
 	// of the GODEBUG=cgocheck setting provided at runtime.
@@ -109,4 +103,16 @@ type Flags struct {
 	// CacheProg adds support to cmd/go to use a child process to implement
 	// the build cache; see https://github.com/golang/go/issues/59719.
 	CacheProg bool
+
+	// NewInliner enables a new+improved version of the function
+	// inlining phase within the Go compiler.
+	NewInliner bool
+
+	// RangeFunc enables range over func.
+	RangeFunc bool
+
+	// AliasTypeParams enables type parameters for alias types.
+	// Requires that gotypesalias=1 is set with GODEBUG.
+	// This flag will be removed with Go 1.24.
+	AliasTypeParams bool
 }

@@ -27,8 +27,8 @@ func (check *Checker) labels(body *ast.BlockStmt) {
 		name := jmp.Label.Name
 		if alt := all.Lookup(name); alt != nil {
 			msg = "goto %s jumps into block"
-			alt.(*Label).used = true // avoid another error
 			code = JumpIntoBlock
+			alt.(*Label).used = true // avoid another error
 		} else {
 			msg = "label %s not declared"
 			code = UndeclaredLabel
@@ -138,8 +138,11 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 			if name := s.Label.Name; name != "_" {
 				lbl := NewLabel(s.Label.Pos(), check.pkg, name)
 				if alt := all.Insert(lbl); alt != nil {
-					check.softErrorf(lbl, DuplicateLabel, "label %s already declared", name)
-					check.reportAltDecl(alt)
+					err := check.newError(DuplicateLabel)
+					err.soft = true
+					err.addf(lbl, "label %s already declared", name)
+					err.addAltDecl(alt)
+					err.report()
 					// ok to continue
 				} else {
 					b.insert(s)

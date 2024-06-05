@@ -73,27 +73,41 @@ func cname(s string) string {
 	return s
 }
 
-// DiscardCgoDirectives processes the import C preamble, and discards
-// all #cgo CFLAGS and LDFLAGS directives, so they don't make their
-// way into _cgo_export.h.
-func (f *File) DiscardCgoDirectives() {
+// ProcessCgoDirectives processes the import C preamble:
+//  1. discards all #cgo CFLAGS, LDFLAGS, nocallback and noescape directives,
+//     so they don't make their way into _cgo_export.h.
+//  2. parse the nocallback and noescape directives.
+func (f *File) ProcessCgoDirectives() {
 	linesIn := strings.Split(f.Preamble, "\n")
 	linesOut := make([]string, 0, len(linesIn))
+	f.NoCallbacks = make(map[string]bool)
+	f.NoEscapes = make(map[string]bool)
 	for _, line := range linesIn {
 		l := strings.TrimSpace(line)
 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
 			linesOut = append(linesOut, line)
 		} else {
 			linesOut = append(linesOut, "")
+
+			// #cgo (nocallback|noescape) <function name>
+			if fields := strings.Fields(l); len(fields) == 3 {
+				directive := fields[1]
+				funcName := fields[2]
+				if directive == "nocallback" {
+					fatalf("#cgo nocallback disabled until Go 1.23")
+					f.NoCallbacks[funcName] = true
+				} else if directive == "noescape" {
+					fatalf("#cgo noescape disabled until Go 1.23")
+					f.NoEscapes[funcName] = true
+				}
+			}
 		}
 	}
 	f.Preamble = strings.Join(linesOut, "\n")
 }
 
-// addToFlag appends args to flag. All flags are later written out onto the
-// _cgo_flags file for the build system to use.
+// addToFlag appends args to flag.
 func (p *Package) addToFlag(flag string, args []string) {
-	p.CgoFlags[flag] = append(p.CgoFlags[flag], args...)
 	if flag == "CFLAGS" {
 		// We'll also need these when preprocessing for dwarf information.
 		// However, discard any -g options: we need to be able
@@ -103,6 +117,9 @@ func (p *Package) addToFlag(flag string, args []string) {
 				p.GccOptions = append(p.GccOptions, arg)
 			}
 		}
+	}
+	if flag == "LDFLAGS" {
+		p.LdFlags = append(p.LdFlags, args...)
 	}
 }
 
@@ -581,7 +598,7 @@ func (p *Package) loadDWARF(f *File, conv *typeConv, names []*Name) {
 			// As of https://reviews.llvm.org/D123534, clang
 			// now emits DW_TAG_variable DIEs that have
 			// no name (so as to be able to describe the
-			// type and source locations of constant strings
+			// type and source locations of constant strings)
 			// like the second arg in the call below:
 			//
 			//     myfunction(42, "foo")
@@ -907,7 +924,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 			if rtype != name.FuncType.Result.Go {
 				needsUnsafe = true
 			}
-			sb.WriteString(gofmtLine(rtype))
+			sb.WriteString(gofmt(rtype))
 			result = true
 		}
 
@@ -943,7 +960,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 				needsUnsafe = true
 			}
 			fmt.Fprintf(&sb, "var _cgo%d %s = %s; ", i,
-				gofmtLine(ptype), gofmtPos(arg, origArg.Pos()))
+				gofmt(ptype), gofmtPos(arg, origArg.Pos()))
 			continue
 		}
 
@@ -1665,7 +1682,7 @@ func (p *Package) rewriteName(f *File, r *Ref, addPosition bool) ast.Expr {
 // gofmtPos returns the gofmt-formatted string for an AST node,
 // with a comment setting the position before the node.
 func gofmtPos(n ast.Expr, pos token.Pos) string {
-	s := gofmtLine(n)
+	s := gofmt(n)
 	p := fset.Position(pos)
 	if p.Column == 0 {
 		return s

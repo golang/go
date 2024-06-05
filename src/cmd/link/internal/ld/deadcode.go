@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"fmt"
+	"internal/abi"
 	"internal/buildcfg"
 	"strings"
 	"unicode"
@@ -51,6 +52,7 @@ func (d *deadcodePass) init() {
 			s := loader.Sym(i)
 			d.mark(s, 0)
 		}
+		d.mark(d.ctxt.mainInittasks, 0)
 		return
 	}
 
@@ -123,6 +125,8 @@ func (d *deadcodePass) flood() {
 	for !d.wq.empty() {
 		symIdx := d.wq.pop()
 
+		// Methods may be called via reflection. Give up on static analysis,
+		// and mark all exported methods of all reachable types as reachable.
 		d.reflectSeen = d.reflectSeen || d.ldr.IsReflectMethod(symIdx)
 
 		isgotype := d.ldr.IsGoType(symIdx)
@@ -141,10 +145,26 @@ func (d *deadcodePass) flood() {
 		methods = methods[:0]
 		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At(i)
-			// When build with "-linkshared", we can't tell if the interface
-			// method in itab will be used or not. Ignore the weak attribute.
-			if r.Weak() && !(d.ctxt.linkShared && d.ldr.IsItab(symIdx)) {
-				continue
+			if r.Weak() {
+				convertWeakToStrong := false
+				// When build with "-linkshared", we can't tell if the
+				// interface method in itab will be used or not.
+				// Ignore the weak attribute.
+				if d.ctxt.linkShared && d.ldr.IsItab(symIdx) {
+					convertWeakToStrong = true
+				}
+				// If the program uses plugins, we can no longer treat
+				// relocs from pkg init functions to outlined map init
+				// fragments as weak, since doing so can cause package
+				// init clashes between the main program and the
+				// plugin. See #62430 for more details.
+				if d.ctxt.canUsePlugins && r.Type().IsDirectCall() {
+					convertWeakToStrong = true
+				}
+				if !convertWeakToStrong {
+					// skip this reloc
+					continue
+				}
 			}
 			t := r.Type()
 			switch t {
@@ -182,7 +202,7 @@ func (d *deadcodePass) flood() {
 				rs := r.Sym()
 				if d.ldr.IsItab(rs) {
 					// This relocation can also point at an itab, in which case it
-					// means "the _type field of that itab".
+					// means "the Type field of that itab".
 					rs = decodeItabType(d.ldr, d.ctxt.Arch, rs)
 				}
 				if !d.ldr.IsGoType(rs) && !d.ctxt.linkShared {
@@ -212,7 +232,7 @@ func (d *deadcodePass) flood() {
 				}
 				d.ifaceMethod[m] = true
 				continue
-			case objabi.R_USEGENERICIFACEMETHOD:
+			case objabi.R_USENAMEDMETHOD:
 				name := d.decodeGenericIfaceMethod(d.ldr, r.Sym())
 				if d.ctxt.Debugvlog > 1 {
 					d.ctxt.Logf("reached generic iface method: %s\n", name)
@@ -391,13 +411,20 @@ func (d *deadcodePass) markMethod(m methodref) {
 // against the interface method signatures, if it matches it is marked
 // as reachable. This is extremely conservative, but easy and correct.
 //
-// The third case is handled by looking to see if any of:
-//   - reflect.Value.Method or MethodByName is reachable
-//   - reflect.Type.Method or MethodByName is called (through the
-//     REFLECTMETHOD attribute marked by the compiler).
+// The third case is handled by looking for functions that compiler flagged
+// as REFLECTMETHOD. REFLECTMETHOD on a function F means that F does a method
+// lookup with reflection, but the compiler was not able to statically determine
+// the method name.
 //
-// If any of these happen, all bets are off and all exported methods
-// of reachable types are marked reachable.
+// All functions that call reflect.Value.Method or reflect.Type.Method are REFLECTMETHODs.
+// Functions that call reflect.Value.MethodByName or reflect.Type.MethodByName with
+// a non-constant argument are REFLECTMETHODs, too. If we find a REFLECTMETHOD,
+// we give up on static analysis, and mark all exported methods of all reachable
+// types as reachable.
+//
+// If the argument to MethodByName is a compile-time constant, the compiler
+// emits a relocation with the method name. Matching methods are kept in all
+// reachable types.
 //
 // Any unreached text symbols are removed from ctxt.Textp.
 func deadcode(ctxt *Link) {
@@ -406,9 +433,6 @@ func deadcode(ctxt *Link) {
 	d.init()
 	d.flood()
 
-	methSym := ldr.Lookup("reflect.Value.Method", abiInternalVer)
-	methByNameSym := ldr.Lookup("reflect.Value.MethodByName", abiInternalVer)
-
 	if ctxt.DynlinkingGo() {
 		// Exported methods may satisfy interfaces we don't know
 		// about yet when dynamically linking.
@@ -416,11 +440,6 @@ func deadcode(ctxt *Link) {
 	}
 
 	for {
-		// Methods might be called via reflection. Give up on
-		// static analysis, mark all exported methods of
-		// all reachable types as reachable.
-		d.reflectSeen = d.reflectSeen || (methSym != 0 && ldr.AttrReachable(methSym)) || (methByNameSym != 0 && ldr.AttrReachable(methByNameSym))
-
 		// Mark all methods that could satisfy a discovered
 		// interface as reachable. We recheck old marked interfaces
 		// as new types (with new methods) may have been discovered
@@ -493,7 +512,7 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
 	if p == nil {
 		panic(fmt.Sprintf("missing symbol %q", ldr.SymName(symIdx)))
 	}
-	if decodetypeKind(arch, p)&kindMask != kindInterface {
+	if decodetypeKind(arch, p) != abi.Interface {
 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
 	}
 	relocs := ldr.Relocs(symIdx)
@@ -514,22 +533,22 @@ func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, sym
 		panic(fmt.Sprintf("no methods on %q", ldr.SymName(symIdx)))
 	}
 	off := commonsize(arch) // reflect.rtype
-	switch decodetypeKind(arch, p) & kindMask {
-	case kindStruct: // reflect.structType
+	switch decodetypeKind(arch, p) {
+	case abi.Struct: // reflect.structType
 		off += 4 * arch.PtrSize
-	case kindPtr: // reflect.ptrType
+	case abi.Pointer: // reflect.ptrType
 		off += arch.PtrSize
-	case kindFunc: // reflect.funcType
+	case abi.Func: // reflect.funcType
 		off += arch.PtrSize // 4 bytes, pointer aligned
-	case kindSlice: // reflect.sliceType
+	case abi.Slice: // reflect.sliceType
 		off += arch.PtrSize
-	case kindArray: // reflect.arrayType
+	case abi.Array: // reflect.arrayType
 		off += 3 * arch.PtrSize
-	case kindChan: // reflect.chanType
+	case abi.Chan: // reflect.chanType
 		off += 2 * arch.PtrSize
-	case kindMap: // reflect.mapType
+	case abi.Map: // reflect.mapType
 		off += 4*arch.PtrSize + 8
-	case kindInterface: // reflect.interfaceType
+	case abi.Interface: // reflect.interfaceType
 		off += 3 * arch.PtrSize
 	default:
 		// just Sizeof(rtype)

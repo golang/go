@@ -24,7 +24,7 @@ type TCPAddr struct {
 	Zone string // IPv6 scoped addressing zone
 }
 
-// AddrPort returns the TCPAddr a as a netip.AddrPort.
+// AddrPort returns the [TCPAddr] a as a [netip.AddrPort].
 //
 // If a.Port does not fit in a uint16, it's silently truncated.
 //
@@ -79,7 +79,7 @@ func (a *TCPAddr) opAddr() Addr {
 // recommended, because it will return at most one of the host name's
 // IP addresses.
 //
-// See func Dial for a description of the network and address
+// See func [Dial] for a description of the network and address
 // parameters.
 func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	switch network {
@@ -96,7 +96,7 @@ func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	return addrs.forResolve(network, address).(*TCPAddr), nil
 }
 
-// TCPAddrFromAddrPort returns addr as a TCPAddr. If addr.IsValid() is false,
+// TCPAddrFromAddrPort returns addr as a [TCPAddr]. If addr.IsValid() is false,
 // then the returned TCPAddr will contain a nil IP field, indicating an
 // address family-agnostic unspecified address.
 func TCPAddrFromAddrPort(addr netip.AddrPort) *TCPAddr {
@@ -107,14 +107,49 @@ func TCPAddrFromAddrPort(addr netip.AddrPort) *TCPAddr {
 	}
 }
 
-// TCPConn is an implementation of the Conn interface for TCP network
+// TCPConn is an implementation of the [Conn] interface for TCP network
 // connections.
 type TCPConn struct {
 	conn
 }
 
+// KeepAliveConfig contains TCP keep-alive options.
+//
+// If the Idle, Interval, or Count fields are zero, a default value is chosen.
+// If a field is negative, the corresponding socket-level option will be left unchanged.
+//
+// Note that prior to Windows 10 version 1709, neither setting Idle and Interval
+// separately nor changing Count (which is usually 10) is supported.
+// Therefore, it's recommended to set both Idle and Interval to non-negative values
+// in conjunction with a -1 for Count on those old Windows if you intend to customize
+// the TCP keep-alive settings.
+// By contrast, if only one of Idle and Interval is set to a non-negative value,
+// the other will be set to the system default value, and ultimately,
+// set both Idle and Interval to negative values if you want to leave them unchanged.
+//
+// Note that Solaris and its derivatives do not support setting Interval to a non-negative value
+// and Count to a negative value, or vice-versa.
+type KeepAliveConfig struct {
+	// If Enable is true, keep-alive probes are enabled.
+	Enable bool
+
+	// Idle is the time that the connection must be idle before
+	// the first keep-alive probe is sent.
+	// If zero, a default value of 15 seconds is used.
+	Idle time.Duration
+
+	// Interval is the time between keep-alive probes.
+	// If zero, a default value of 15 seconds is used.
+	Interval time.Duration
+
+	// Count is the maximum number of keep-alive probes that
+	// can go unanswered before dropping a connection.
+	// If zero, a default value of 9 is used.
+	Count int
+}
+
 // SyscallConn returns a raw network connection.
-// This implements the syscall.Conn interface.
+// This implements the [syscall.Conn] interface.
 func (c *TCPConn) SyscallConn() (syscall.RawConn, error) {
 	if !c.ok() {
 		return nil, syscall.EINVAL
@@ -122,7 +157,7 @@ func (c *TCPConn) SyscallConn() (syscall.RawConn, error) {
 	return newRawConn(c.fd), nil
 }
 
-// ReadFrom implements the io.ReaderFrom ReadFrom method.
+// ReadFrom implements the [io.ReaderFrom] ReadFrom method.
 func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -130,6 +165,18 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
 	n, err := c.readFrom(r)
 	if err != nil && err != io.EOF {
 		err = &OpError{Op: "readfrom", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return n, err
+}
+
+// WriteTo implements the io.WriterTo WriteTo method.
+func (c *TCPConn) WriteTo(w io.Writer) (int64, error) {
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	n, err := c.writeTo(w)
+	if err != nil && err != io.EOF {
+		err = &OpError{Op: "writeto", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, err
 }
@@ -194,12 +241,16 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
 	return nil
 }
 
-// SetKeepAlivePeriod sets period between keep-alives.
+// SetKeepAlivePeriod sets the duration the connection needs to
+// remain idle before TCP starts sending keepalive probes.
+//
+// Note that calling this method on Windows prior to Windows 10 version 1709
+// will reset the KeepAliveInterval to the default system value, which is normally 1 second.
 func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	if err := setKeepAlivePeriod(c.fd, d); err != nil {
+	if err := setKeepAliveIdle(c.fd, d); err != nil {
 		return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return nil
@@ -235,22 +286,28 @@ func (c *TCPConn) MultipathTCP() (bool, error) {
 	return isUsingMultipathTCP(c.fd), nil
 }
 
-func newTCPConn(fd *netFD, keepAlive time.Duration, keepAliveHook func(time.Duration)) *TCPConn {
+func newTCPConn(fd *netFD, keepAliveIdle time.Duration, keepAliveCfg KeepAliveConfig, preKeepAliveHook func(*netFD), keepAliveHook func(KeepAliveConfig)) *TCPConn {
 	setNoDelay(fd, true)
-	if keepAlive == 0 {
-		keepAlive = defaultTCPKeepAlive
-	}
-	if keepAlive > 0 {
-		setKeepAlive(fd, true)
-		setKeepAlivePeriod(fd, keepAlive)
-		if keepAliveHook != nil {
-			keepAliveHook(keepAlive)
+	if !keepAliveCfg.Enable && keepAliveIdle >= 0 {
+		keepAliveCfg = KeepAliveConfig{
+			Enable: true,
+			Idle:   keepAliveIdle,
 		}
 	}
-	return &TCPConn{conn{fd}}
+	c := &TCPConn{conn{fd}}
+	if keepAliveCfg.Enable {
+		if preKeepAliveHook != nil {
+			preKeepAliveHook(fd)
+		}
+		c.SetKeepAliveConfig(keepAliveCfg)
+		if keepAliveHook != nil {
+			keepAliveHook(keepAliveCfg)
+		}
+	}
+	return c
 }
 
-// DialTCP acts like Dial for TCP networks.
+// DialTCP acts like [Dial] for TCP networks.
 //
 // The network must be a TCP network name; see func Dial for details.
 //
@@ -275,14 +332,14 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 }
 
 // TCPListener is a TCP network listener. Clients should typically
-// use variables of type Listener instead of assuming TCP.
+// use variables of type [Listener] instead of assuming TCP.
 type TCPListener struct {
 	fd *netFD
 	lc ListenConfig
 }
 
 // SyscallConn returns a raw network connection.
-// This implements the syscall.Conn interface.
+// This implements the [syscall.Conn] interface.
 //
 // The returned RawConn only supports calling Control. Read and
 // Write return an error.
@@ -306,8 +363,8 @@ func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
 	return c, nil
 }
 
-// Accept implements the Accept method in the Listener interface; it
-// waits for the next call and returns a generic Conn.
+// Accept implements the Accept method in the [Listener] interface; it
+// waits for the next call and returns a generic [Conn].
 func (l *TCPListener) Accept() (Conn, error) {
 	if !l.ok() {
 		return nil, syscall.EINVAL
@@ -331,7 +388,7 @@ func (l *TCPListener) Close() error {
 	return nil
 }
 
-// Addr returns the listener's network address, a *TCPAddr.
+// Addr returns the listener's network address, a [*TCPAddr].
 // The Addr returned is shared by all invocations of Addr, so
 // do not modify it.
 func (l *TCPListener) Addr() Addr { return l.fd.laddr }
@@ -342,13 +399,10 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	if !l.ok() {
 		return syscall.EINVAL
 	}
-	if err := l.fd.pfd.SetDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
-	}
-	return nil
+	return l.fd.SetDeadline(t)
 }
 
-// File returns a copy of the underlying os.File.
+// File returns a copy of the underlying [os.File].
 // It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
 //
@@ -366,7 +420,7 @@ func (l *TCPListener) File() (f *os.File, err error) {
 	return
 }
 
-// ListenTCP acts like Listen for TCP networks.
+// ListenTCP acts like [Listen] for TCP networks.
 //
 // The network must be a TCP network name; see func Dial for details.
 //

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build asan && linux && (arm64 || amd64 || riscv64 || ppc64le)
+//go:build asan && linux && (arm64 || amd64 || loong64 || riscv64 || ppc64le)
 
 package asan
 

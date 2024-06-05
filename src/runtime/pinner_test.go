@@ -522,3 +522,19 @@ func BenchmarkPinnerIsPinnedOnUnpinnedParallel(b *testing.B) {
 		}
 	})
 }
+
+// const string data is not in span.
+func TestPinnerConstStringData(t *testing.T) {
+	var pinner runtime.Pinner
+	str := "test-const-string"
+	p := unsafe.StringData(str)
+	addr := unsafe.Pointer(p)
+	if !runtime.IsPinned(addr) {
+		t.Fatal("not marked as pinned")
+	}
+	pinner.Pin(p)
+	pinner.Unpin()
+	if !runtime.IsPinned(addr) {
+		t.Fatal("not marked as pinned")
+	}
+}

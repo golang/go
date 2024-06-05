@@ -54,13 +54,13 @@ import (
 // The rules for which file descriptor-creating operations use the
 // ForkLock are as follows:
 //
-//   - Pipe. Use pipe2 if available. Otherwise, does not block,
+//   - [Pipe]. Use pipe2 if available. Otherwise, does not block,
 //     so use ForkLock.
-//   - Socket. Use SOCK_CLOEXEC if available. Otherwise, does not
+//   - [Socket]. Use SOCK_CLOEXEC if available. Otherwise, does not
 //     block, so use ForkLock.
-//   - Open. Use O_CLOEXEC if available. Otherwise, may block,
+//   - [Open]. Use [O_CLOEXEC] if available. Otherwise, may block,
 //     so live with the race.
-//   - Dup. Use F_DUPFD_CLOEXEC or dup3 if available. Otherwise,
+//   - [Dup]. Use [F_DUPFD_CLOEXEC] or dup3 if available. Otherwise,
 //     does not block, so use ForkLock.
 var ForkLock sync.RWMutex
 
@@ -68,7 +68,7 @@ var ForkLock sync.RWMutex
 // to NUL-terminated byte arrays. If any string contains a NUL byte
 // this function panics instead of returning an error.
 //
-// Deprecated: Use SlicePtrFromStrings instead.
+// Deprecated: Use [SlicePtrFromStrings] instead.
 func StringSlicePtr(ss []string) []*byte {
 	bb := make([]*byte, len(ss)+1)
 	for i := 0; i < len(ss); i++ {
@@ -80,7 +80,7 @@ func StringSlicePtr(ss []string) []*byte {
 
 // SlicePtrFromStrings converts a slice of strings to a slice of
 // pointers to NUL-terminated byte arrays. If any string contains
-// a NUL byte, it returns (nil, EINVAL).
+// a NUL byte, it returns (nil, [EINVAL]).
 func SlicePtrFromStrings(ss []string) ([]*byte, error) {
 	n := 0
 	for _, s := range ss {
@@ -107,6 +107,9 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 	if err != nil {
 		return err
 	}
+	if (flag&O_NONBLOCK != 0) == nonblocking {
+		return nil
+	}
 	if nonblocking {
 		flag |= O_NONBLOCK
 	} else {
@@ -117,7 +120,7 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 }
 
 // Credential holds user and group identities to be assumed
-// by a child process started by StartProcess.
+// by a child process started by [StartProcess].
 type Credential struct {
 	Uid         uint32   // User ID.
 	Gid         uint32   // Group ID.
@@ -126,7 +129,7 @@ type Credential struct {
 }
 
 // ProcAttr holds attributes that will be applied to a new process started
-// by StartProcess.
+// by [StartProcess].
 type ProcAttr struct {
 	Dir   string    // Current working directory.
 	Env   []string  // Environment.
@@ -246,7 +249,7 @@ func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	return forkExec(argv0, argv, attr)
 }
 
-// StartProcess wraps ForkExec for package os.
+// StartProcess wraps [ForkExec] for package os.
 func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
 	pid, err = forkExec(argv0, argv, attr)
 	return pid, 0, err
@@ -278,9 +281,9 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	}
 	runtime_BeforeExec()
 
-	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
-	if rlimOK && rlim.Cur != 0 {
-		Setrlimit(RLIMIT_NOFILE, &rlim)
+	rlim := origRlimitNofile.Load()
+	if rlim != nil {
+		Setrlimit(RLIMIT_NOFILE, rlim)
 	}
 
 	var err1 error
@@ -293,7 +296,7 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		// Similarly on Darwin.
 		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
-	} else if runtime.GOOS == "openbsd" && (runtime.GOARCH == "386" || runtime.GOARCH == "amd64" || runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	} else if runtime.GOOS == "openbsd" && runtime.GOARCH != "mips64" {
 		// Similarly on OpenBSD.
 		err1 = execveOpenBSD(argv0p, &argvp[0], &envvp[0])
 	} else {

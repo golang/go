@@ -8,7 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -597,7 +597,7 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 
 // crashing is the number of m's we have waited for when implementing
 // GOTRACEBACK=crash when a signal is received.
-var crashing int32
+var crashing atomic.Int32
 
 // testSigtrap and testSigusr1 are used by the runtime tests. If
 // non-nil, it is called on SIGTRAP/SIGUSR1. If it returns true, the
@@ -698,7 +698,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// the unwinding code.
 		gp.sig = sig
 		gp.sigcode0 = uintptr(c.sigcode())
-		gp.sigcode1 = uintptr(c.fault())
+		gp.sigcode1 = c.fault()
 		gp.sigpc = c.sigpc()
 
 		c.preparePanic(sig, gp)
@@ -730,7 +730,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	mp.throwing = throwTypeRuntime
 	mp.caughtsig.set(gp)
 
-	if crashing == 0 {
+	if crashing.Load() == 0 {
 		startpanic_m()
 	}
 
@@ -740,11 +740,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	if level > 0 {
 		goroutineheader(gp)
 		tracebacktrap(c.sigpc(), c.sigsp(), c.siglr(), gp)
-		if crashing > 0 && gp != mp.curg && mp.curg != nil && readgstatus(mp.curg)&^_Gscan == _Grunning {
+		if crashing.Load() > 0 && gp != mp.curg && mp.curg != nil && readgstatus(mp.curg)&^_Gscan == _Grunning {
 			// tracebackothers on original m skipped this one; trace it now.
 			goroutineheader(mp.curg)
 			traceback(^uintptr(0), ^uintptr(0), 0, mp.curg)
-		} else if crashing == 0 {
+		} else if crashing.Load() == 0 {
 			tracebackothers(gp)
 			print("\n")
 		}
@@ -752,21 +752,55 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if docrash {
-		crashing++
-		if crashing < mcount()-int32(extraMLength.Load()) {
+		var crashSleepMicros uint32 = 5000
+		var watchdogTimeoutMicros uint32 = 2000 * crashSleepMicros
+
+		isCrashThread := false
+		if crashing.CompareAndSwap(0, 1) {
+			isCrashThread = true
+		} else {
+			crashing.Add(1)
+		}
+		if crashing.Load() < mcount()-int32(extraMLength.Load()) {
 			// There are other m's that need to dump their stacks.
 			// Relay SIGQUIT to the next m by sending it to the current process.
 			// All m's that have already received SIGQUIT have signal masks blocking
 			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
-			// When the last m receives the SIGQUIT, it will fall through to the call to
-			// crash below. Just in case the relaying gets botched, each m involved in
+			// The first m will wait until all ms received the SIGQUIT, then crash/exit.
+			// Just in case the relaying gets botched, each m involved in
 			// the relay sleeps for 5 seconds and then does the crash/exit itself.
-			// In expected operation, the last m has received the SIGQUIT and run
-			// crash/exit and the process is gone, all long before any of the
-			// 5-second sleeps have finished.
+			// The faulting m is crashing first so it is the faulting thread in the core dump (see issue #63277):
+			// in expected operation, the first m will wait until the last m has received the SIGQUIT,
+			// and then run crash/exit and the process is gone.
+			// However, if it spends more than 10 seconds to send SIGQUIT to all ms,
+			// any of ms may crash/exit the process after waiting for 10 seconds.
 			print("\n-----\n\n")
 			raiseproc(_SIGQUIT)
-			usleep(5 * 1000 * 1000)
+		}
+		if isCrashThread {
+			// Sleep for short intervals so that we can crash quickly after all ms have received SIGQUIT.
+			// Reset the timer whenever we see more ms received SIGQUIT
+			// to make it have enough time to crash (see issue #64752).
+			timeout := watchdogTimeoutMicros
+			maxCrashing := crashing.Load()
+			for timeout > 0 && (crashing.Load() < mcount()-int32(extraMLength.Load())) {
+				usleep(crashSleepMicros)
+				timeout -= crashSleepMicros
+
+				if c := crashing.Load(); c > maxCrashing {
+					// We make progress, so reset the watchdog timeout
+					maxCrashing = c
+					timeout = watchdogTimeoutMicros
+				}
+			}
+		} else {
+			maxCrashing := int32(0)
+			c := crashing.Load()
+			for c > maxCrashing {
+				maxCrashing = c
+				usleep(watchdogTimeoutMicros)
+				c = crashing.Load()
+			}
 		}
 		printDebugLog()
 		crash()
@@ -788,7 +822,11 @@ func fatalsignal(sig uint32, c *sigctxt, gp *g, mp *m) *g {
 		exit(2)
 	}
 
-	print("PC=", hex(c.sigpc()), " m=", mp.id, " sigcode=", c.sigcode(), "\n")
+	print("PC=", hex(c.sigpc()), " m=", mp.id, " sigcode=", c.sigcode())
+	if sig == _SIGSEGV || sig == _SIGBUS {
+		print(" addr=", hex(c.fault()))
+	}
+	print("\n")
 	if mp.incgo && gp == mp.g0 && mp.curg != nil {
 		print("signal arrived during cgo execution\n")
 		// Switch to curg so that we get a traceback of the Go code
@@ -934,10 +972,17 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 	}
 
 	var handler uintptr
+	var flags int32
 	if sig >= _NSIG {
 		handler = _SIG_DFL
 	} else {
 		handler = atomic.Loaduintptr(&fwdSig[sig])
+		flags = sigtable[sig].flags
+	}
+
+	// If the signal is ignored, raising the signal is no-op.
+	if handler == _SIG_IGN || (handler == _SIG_DFL && flags&_SigIgn != 0) {
+		return
 	}
 
 	// Reset the signal handler and raise the signal.
@@ -1177,10 +1222,34 @@ func msigrestore(sigmask sigset) {
 }
 
 // sigsetAllExiting is used by sigblock(true) when a thread is
-// exiting. sigset_all is defined in OS specific code, and per GOOS
-// behavior may override this default for sigsetAllExiting: see
-// osinit().
-var sigsetAllExiting = sigset_all
+// exiting.
+var sigsetAllExiting = func() sigset {
+	res := sigset_all
+
+	// Apply GOOS-specific overrides here, rather than in osinit,
+	// because osinit may be called before sigsetAllExiting is
+	// initialized (#51913).
+	if GOOS == "linux" && iscgo {
+		// #42494 glibc and musl reserve some signals for
+		// internal use and require they not be blocked by
+		// the rest of a normal C runtime. When the go runtime
+		// blocks...unblocks signals, temporarily, the blocked
+		// interval of time is generally very short. As such,
+		// these expectations of *libc code are mostly met by
+		// the combined go+cgo system of threads. However,
+		// when go causes a thread to exit, via a return from
+		// mstart(), the combined runtime can deadlock if
+		// these signals are blocked. Thus, don't block these
+		// signals when exiting threads.
+		// - glibc: SIGCANCEL (32), SIGSETXID (33)
+		// - musl: SIGTIMER (32), SIGCANCEL (33), SIGSYNCCALL (34)
+		sigdelset(&res, 32)
+		sigdelset(&res, 33)
+		sigdelset(&res, 34)
+	}
+
+	return res
+}()
 
 // sigblock blocks signals in the current thread's signal mask.
 // This is used to block signals while setting up and tearing down g

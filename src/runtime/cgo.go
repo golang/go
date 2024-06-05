@@ -35,9 +35,28 @@ var (
 )
 
 // iscgo is set to true by the runtime/cgo package
+//
+// iscgo should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname iscgo
 var iscgo bool
 
 // set_crosscall2 is set by the runtime/cgo package
+// set_crosscall2 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname set_crosscall2
 var set_crosscall2 func()
 
 // cgoHasExtraM is set on startup when an extra M is created for cgo.
@@ -61,3 +80,11 @@ func cgoUse(any) { throw("cgoUse should not be called") }
 var cgoAlwaysFalse bool
 
 var cgo_yield = &_cgo_yield
+
+func cgoNoCallback(v bool) {
+	g := getg()
+	if g.nocgocallback && v {
+		panic("runtime: unexpected setting cgoNoCallback")
+	}
+	g.nocgocallback = v
+}

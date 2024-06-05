@@ -6,12 +6,18 @@ package cmp_test
 
 import (
 	"cmp"
+	"fmt"
 	"math"
+	"slices"
 	"sort"
+	"strings"
 	"testing"
+	"unsafe"
 )
 
 var negzero = math.Copysign(0, -1)
+var nonnilptr uintptr = uintptr(unsafe.Pointer(&negzero))
+var nilptr uintptr = uintptr(unsafe.Pointer(nil))
 
 var tests = []struct {
 	x, y    any
@@ -43,6 +49,9 @@ var tests = []struct {
 	{0.0, negzero, 0},
 	{negzero, 1.0, -1},
 	{negzero, -1.0, +1},
+	{nilptr, nonnilptr, -1},
+	{nonnilptr, nilptr, 1},
+	{nonnilptr, nonnilptr, 0},
 }
 
 func TestLess(t *testing.T) {
@@ -55,6 +64,8 @@ func TestLess(t *testing.T) {
 			b = cmp.Less(test.x.(string), test.y.(string))
 		case float64:
 			b = cmp.Less(test.x.(float64), test.y.(float64))
+		case uintptr:
+			b = cmp.Less(test.x.(uintptr), test.y.(uintptr))
 		}
 		if b != (test.compare < 0) {
 			t.Errorf("Less(%v, %v) == %t, want %t", test.x, test.y, b, test.compare < 0)
@@ -72,6 +83,8 @@ func TestCompare(t *testing.T) {
 			c = cmp.Compare(test.x.(string), test.y.(string))
 		case float64:
 			c = cmp.Compare(test.x.(float64), test.y.(float64))
+		case uintptr:
+			c = cmp.Compare(test.x.(uintptr), test.y.(uintptr))
 		}
 		if c != test.compare {
 			t.Errorf("Compare(%v, %v) == %d, want %d", test.x, test.y, c, test.compare)
@@ -92,4 +105,74 @@ func TestSort(t *testing.T) {
 			t.Errorf("Compare sort mismatch at %d in %v", i, input)
 		}
 	}
+}
+
+func TestOr(t *testing.T) {
+	cases := []struct {
+		in   []int
+		want int
+	}{
+		{nil, 0},
+		{[]int{0}, 0},
+		{[]int{1}, 1},
+		{[]int{0, 2}, 2},
+		{[]int{3, 0}, 3},
+		{[]int{4, 5}, 4},
+		{[]int{0, 6, 7}, 6},
+	}
+	for _, tc := range cases {
+		if got := cmp.Or(tc.in...); got != tc.want {
+			t.Errorf("cmp.Or(%v) = %v; want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+func ExampleOr() {
+	// Suppose we have some user input
+	// that may or may not be an empty string
+	userInput1 := ""
+	userInput2 := "some text"
+
+	fmt.Println(cmp.Or(userInput1, "default"))
+	fmt.Println(cmp.Or(userInput2, "default"))
+	fmt.Println(cmp.Or(userInput1, userInput2, "default"))
+	// Output:
+	// default
+	// some text
+	// some text
+}
+
+func ExampleOr_sort() {
+	type Order struct {
+		Product  string
+		Customer string
+		Price    float64
+	}
+	orders := []Order{
+		{"foo", "alice", 1.00},
+		{"bar", "bob", 3.00},
+		{"baz", "carol", 4.00},
+		{"foo", "alice", 2.00},
+		{"bar", "carol", 1.00},
+		{"foo", "bob", 4.00},
+	}
+	// Sort by customer first, product second, and last by higher price
+	slices.SortFunc(orders, func(a, b Order) int {
+		return cmp.Or(
+			strings.Compare(a.Customer, b.Customer),
+			strings.Compare(a.Product, b.Product),
+			cmp.Compare(b.Price, a.Price),
+		)
+	})
+	for _, order := range orders {
+		fmt.Printf("%s %s %.2f\n", order.Product, order.Customer, order.Price)
+	}
+
+	// Output:
+	// foo alice 2.00
+	// foo alice 1.00
+	// bar bob 3.00
+	// foo bob 4.00
+	// bar carol 1.00
+	// baz carol 4.00
 }

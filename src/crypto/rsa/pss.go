@@ -266,7 +266,7 @@ type PSSOptions struct {
 	Hash crypto.Hash
 }
 
-// HashFunc returns opts.Hash so that PSSOptions implements crypto.SignerOpts.
+// HashFunc returns opts.Hash so that [PSSOptions] implements [crypto.SignerOpts].
 func (opts *PSSOptions) HashFunc() crypto.Hash {
 	return opts.Hash
 }
@@ -338,6 +338,9 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 // result of hashing the input message using the given hash function. The opts
 // argument may be nil, in which case sensible defaults are used. opts.Hash is
 // ignored.
+//
+// The inputs are not considered confidential, and may leak through timing side
+// channels, or if an attacker has control of part of the inputs.
 func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts *PSSOptions) error {
 	if boring.Enabled {
 		bkey, err := boringPublicKey(pub)

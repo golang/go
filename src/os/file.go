@@ -6,9 +6,9 @@
 // functionality. The design is Unix-like, although the error handling is
 // Go-like; failing calls return values of type error rather than error numbers.
 // Often, more information is available within the error. For example,
-// if a call that takes a file name fails, such as Open or Stat, the error
+// if a call that takes a file name fails, such as [Open] or [Stat], the error
 // will include the failing file name when printed and will be of type
-// *PathError, which may be unpacked for more information.
+// [*PathError], which may be unpacked for more information.
 //
 // The os interface is intended to be uniform across all operating systems.
 // Features not generally available appear in the system-specific package syscall.
@@ -34,15 +34,19 @@
 //	}
 //	fmt.Printf("read %d bytes: %q\n", count, data[:count])
 //
-// Note: The maximum number of concurrent operations on a File may be limited by
-// the OS or the system. The number should be high, but exceeding it may degrade
-// performance or cause other issues.
+// # Concurrency
+//
+// The methods of [File] correspond to file system operations. All are
+// safe for concurrent use. The maximum number of concurrent
+// operations on a File may be limited by the OS or the system. The
+// number should be high, but exceeding it may degrade performance or
+// cause other issues.
 package os
 
 import (
 	"errors"
+	"internal/filepathlite"
 	"internal/poll"
-	"internal/safefilepath"
 	"internal/testlog"
 	"io"
 	"io/fs"
@@ -53,6 +57,8 @@ import (
 )
 
 // Name returns the name of the file as presented to Open.
+//
+// It is safe to call Name after [Close].
 func (f *File) Name() string { return f.name }
 
 // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
@@ -157,20 +163,26 @@ func (f *File) ReadFrom(r io.Reader) (n int64, err error) {
 	return n, f.wrapErr("write", e)
 }
 
-func genericReadFrom(f *File, r io.Reader) (int64, error) {
-	return io.Copy(fileWithoutReadFrom{f}, r)
+// noReadFrom can be embedded alongside another type to
+// hide the ReadFrom method of that other type.
+type noReadFrom struct{}
+
+// ReadFrom hides another ReadFrom method.
+// It should never be called.
+func (noReadFrom) ReadFrom(io.Reader) (int64, error) {
+	panic("can't happen")
 }
 
 // fileWithoutReadFrom implements all the methods of *File other
 // than ReadFrom. This is used to permit ReadFrom to call io.Copy
 // without leading to a recursive call to ReadFrom.
 type fileWithoutReadFrom struct {
+	noReadFrom
 	*File
 }
 
-// This ReadFrom method hides the *File ReadFrom method.
-func (fileWithoutReadFrom) ReadFrom(fileWithoutReadFrom) {
-	panic("unreachable")
+func genericReadFrom(f *File, r io.Reader) (int64, error) {
+	return io.Copy(fileWithoutReadFrom{File: f}, r)
 }
 
 // Write writes len(b) bytes from b to the File.
@@ -229,6 +241,40 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
+// WriteTo implements io.WriterTo.
+func (f *File) WriteTo(w io.Writer) (n int64, err error) {
+	if err := f.checkValid("read"); err != nil {
+		return 0, err
+	}
+	n, handled, e := f.writeTo(w)
+	if handled {
+		return n, f.wrapErr("read", e)
+	}
+	return genericWriteTo(f, w) // without wrapping
+}
+
+// noWriteTo can be embedded alongside another type to
+// hide the WriteTo method of that other type.
+type noWriteTo struct{}
+
+// WriteTo hides another WriteTo method.
+// It should never be called.
+func (noWriteTo) WriteTo(io.Writer) (int64, error) {
+	panic("can't happen")
+}
+
+// fileWithoutWriteTo implements all the methods of *File other
+// than WriteTo. This is used to permit WriteTo to call io.Copy
+// without leading to a recursive call to WriteTo.
+type fileWithoutWriteTo struct {
+	noWriteTo
+	*File
+}
+
+func genericWriteTo(f *File, w io.Writer) (int64, error) {
+	return io.Copy(w, fileWithoutWriteTo{File: f})
+}
+
 // Seek sets the offset for the next Read or Write on file to offset, interpreted
 // according to whence: 0 means relative to the origin of the file, 1 means
 // relative to the current offset, and 2 means relative to the end.
@@ -239,7 +285,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 		return 0, err
 	}
 	r, e := f.seek(offset, whence)
-	if e == nil && f.dirinfo != nil && r != 0 {
+	if e == nil && f.dirinfo.Load() != nil && r != 0 {
 		e = syscall.EISDIR
 	}
 	if e != nil {
@@ -297,6 +343,11 @@ func Chdir(dir string) error {
 		testlog.Open(dir) // observe likely non-existent directory
 		return &PathError{Op: "chdir", Path: dir, Err: e}
 	}
+	if runtime.GOOS == "windows" {
+		getwdCache.Lock()
+		getwdCache.dir = dir
+		getwdCache.Unlock()
+	}
 	if log := testlog.Logger(); log != nil {
 		wd, err := Getwd()
 		if err == nil {
@@ -340,6 +391,14 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	return f, nil
 }
 
+// openDir opens a file which is assumed to be a directory. As such, it skips
+// the syscalls that make the file descriptor non-blocking as these take time
+// and will fail on file descriptors for directories.
+func openDir(name string) (*File, error) {
+	testlog.Open(name)
+	return openDirNolog(name)
+}
+
 // lstat is overridden in tests.
 var lstat = Lstat
 
@@ -350,6 +409,15 @@ var lstat = Lstat
 // If there is an error, it will be of type *LinkError.
 func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)
+}
+
+// Readlink returns the destination of the named symbolic link.
+// If there is an error, it will be of type *PathError.
+//
+// If the link destination is relative, Readlink returns the relative path
+// without resolving it to an absolute one.
+func Readlink(name string) (string, error) {
+	return readlink(name)
 }
 
 // Many functions in package syscall return a count of -1 instead of 0.
@@ -627,7 +695,7 @@ type dirFS string
 func (dir dirFS) Open(name string) (fs.File, error) {
 	fullname, err := dir.join(name)
 	if err != nil {
-		return nil, &PathError{Op: "stat", Path: name, Err: err}
+		return nil, &PathError{Op: "open", Path: name, Err: err}
 	}
 	f, err := Open(fullname)
 	if err != nil {
@@ -650,7 +718,15 @@ func (dir dirFS) ReadFile(name string) ([]byte, error) {
 	if err != nil {
 		return nil, &PathError{Op: "readfile", Path: name, Err: err}
 	}
-	return ReadFile(fullname)
+	b, err := ReadFile(fullname)
+	if err != nil {
+		if e, ok := err.(*PathError); ok {
+			// See comment in dirFS.Open.
+			e.Path = name
+		}
+		return nil, err
+	}
+	return b, nil
 }
 
 // ReadDir reads the named directory, returning all its directory entries sorted
@@ -660,7 +736,15 @@ func (dir dirFS) ReadDir(name string) ([]DirEntry, error) {
 	if err != nil {
 		return nil, &PathError{Op: "readdir", Path: name, Err: err}
 	}
-	return ReadDir(fullname)
+	entries, err := ReadDir(fullname)
+	if err != nil {
+		if e, ok := err.(*PathError); ok {
+			// See comment in dirFS.Open.
+			e.Path = name
+		}
+		return nil, err
+	}
+	return entries, nil
 }
 
 func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
@@ -682,10 +766,7 @@ func (dir dirFS) join(name string) (string, error) {
 	if dir == "" {
 		return "", errors.New("os: DirFS with empty root")
 	}
-	if !fs.ValidPath(name) {
-		return "", ErrInvalid
-	}
-	name, err := safefilepath.FromFS(name)
+	name, err := filepathlite.Localize(name)
 	if err != nil {
 		return "", ErrInvalid
 	}

@@ -28,11 +28,13 @@ cp modules.txt.extra_replacement vendor/modules.txt
 cmpenv stderr extra_replacement_error.txt
 
 -- modules.txt.want --
+## workspace
 # example.com/p v1.0.0 => ./p
 ## explicit; go 1.21
 # example.com/q v1.0.0 => ./q
 ## explicit; go 1.21
 -- modules.txt.required_but_not_explicit --
+## workspace
 # example.com/p v1.0.0 => ./p
 ## go 1.21
 # example.com/q v1.0.0 => ./q
@@ -45,6 +47,7 @@ go: inconsistent vendoring in $GOPATH${/}src:
 	To sync the vendor directory, run:
 		go work vendor
 -- modules.txt.missing_replacement --
+## workspace
 # example.com/p v1.0.0
 ## explicit; go 1.21
 # example.com/q v1.0.0 => ./q
@@ -57,6 +60,7 @@ go: inconsistent vendoring in $GOPATH${/}src:
 	To sync the vendor directory, run:
 		go work vendor
 -- modules.txt.different_replacement --
+## workspace
 # example.com/p v1.0.0 => ./r
 ## explicit; go 1.21
 # example.com/q v1.0.0 => ./q
@@ -69,6 +73,7 @@ go: inconsistent vendoring in $GOPATH${/}src:
 	To sync the vendor directory, run:
 		go work vendor
 -- modules.txt.extra_explicit --
+## workspace
 # example.com/p v1.0.0 => ./p
 ## explicit; go 1.21
 # example.com/q v1.0.0 => ./q
@@ -84,6 +89,7 @@ go: inconsistent vendoring in $GOPATH${/}src:
 	To sync the vendor directory, run:
 		go work vendor
 -- modules.txt.extra_replacement --
+## workspace
 # example.com/p v1.0.0 => ./p
 ## explicit; go 1.21
 # example.com/q v1.0.0 => ./q

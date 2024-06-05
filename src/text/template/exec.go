@@ -94,7 +94,7 @@ type missingValType struct{}
 
 var missingVal = reflect.ValueOf(missingValType{})
 
-var missingValReflectType = reflect.TypeOf(missingValType{})
+var missingValReflectType = reflect.TypeFor[missingValType]()
 
 func isMissing(v reflect.Value) bool {
 	return v.IsValid() && v.Type() == missingValReflectType
@@ -201,8 +201,8 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
 //
-// If data is a reflect.Value, the template applies to the concrete
-// value that the reflect.Value holds, as in fmt.Print.
+// If data is a [reflect.Value], the template applies to the concrete
+// value that the reflect.Value holds, as in [fmt.Print].
 func (t *Template) Execute(wr io.Writer, data any) error {
 	return t.execute(wr, data)
 }
@@ -228,7 +228,7 @@ func (t *Template) execute(wr io.Writer, data any) (err error) {
 // DefinedTemplates returns a string listing the defined templates,
 // prefixed by the string "; defined templates are: ". If there are none,
 // it returns the empty string. For generating an error message here
-// and in html/template.
+// and in [html/template].
 func (t *Template) DefinedTemplates() string {
 	if t.common == nil {
 		return ""
@@ -408,8 +408,8 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			break
 		}
 		om := fmtsort.Sort(val)
-		for i, key := range om.Key {
-			oneIteration(key, om.Value[i])
+		for _, m := range om {
+			oneIteration(m.Key, m.Value)
 		}
 		return
 	case reflect.Chan:
@@ -479,7 +479,7 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value ref
 		value = s.evalCommand(dot, cmd, value) // previous value is this one's final arg.
 		// If the object has type interface{}, dig down one level to the thing inside.
 		if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
-			value = reflect.ValueOf(value.Interface()) // lovely!
+			value = value.Elem()
 		}
 	}
 	for _, variable := range pipe.Decl {
@@ -708,9 +708,9 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 }
 
 var (
-	errorType        = reflect.TypeOf((*error)(nil)).Elem()
-	fmtStringerType  = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
-	reflectValueType = reflect.TypeOf((*reflect.Value)(nil)).Elem()
+	errorType        = reflect.TypeFor[error]()
+	fmtStringerType  = reflect.TypeFor[fmt.Stringer]()
+	reflectValueType = reflect.TypeFor[reflect.Value]()
 )
 
 // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
@@ -734,9 +734,8 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 	} else if numIn != typ.NumIn() {
 		s.errorf("wrong number of args for %s: want %d got %d", name, typ.NumIn(), numIn)
 	}
-	if !goodFunc(typ) {
-		// TODO: This could still be a confusing error; maybe goodFunc should provide info.
-		s.errorf("can't call method/function %q with %d results", name, typ.NumOut())
+	if err := goodFunc(name, typ); err != nil {
+		s.errorf("%v", err)
 	}
 
 	unwrap := func(v reflect.Value) reflect.Value {
@@ -800,6 +799,15 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		}
 		argv[i] = s.validateType(final, t)
 	}
+
+	// Special case for the "call" builtin.
+	// Insert the name of the callee function as the first argument.
+	if isBuiltin && name == "call" {
+		calleeName := args[0].String()
+		argv = append([]reflect.Value{reflect.ValueOf(calleeName)}, argv...)
+		fun = reflect.ValueOf(call)
+	}
+
 	v, err := safeCall(fun, argv)
 	// If we have an error that is not nil, stop execution and return that
 	// error to the caller.

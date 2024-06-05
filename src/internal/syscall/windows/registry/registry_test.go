@@ -599,12 +599,6 @@ func TestInvalidValues(t *testing.T) {
 }
 
 func TestGetMUIStringValue(t *testing.T) {
-	if err := registry.LoadRegLoadMUIString(); err != nil {
-		t.Skip("regLoadMUIString not supported; skipping")
-	}
-	if err := procGetDynamicTimeZoneInformation.Find(); err != nil {
-		t.Skipf("%s not supported; skipping", procGetDynamicTimeZoneInformation.Name)
-	}
 	var dtzi DynamicTimezoneinformation
 	if _, err := GetDynamicTimeZoneInformation(&dtzi); err != nil {
 		t.Fatal(err)
@@ -653,9 +647,9 @@ type DynamicTimezoneinformation struct {
 }
 
 var (
-	kernel32DLL = syscall.NewLazyDLL("kernel32")
+	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	procGetDynamicTimeZoneInformation = kernel32DLL.NewProc("GetDynamicTimeZoneInformation")
+	procGetDynamicTimeZoneInformation = modkernel32.NewProc("GetDynamicTimeZoneInformation")
 )
 
 func GetDynamicTimeZoneInformation(dtzi *DynamicTimezoneinformation) (rc uint32, err error) {

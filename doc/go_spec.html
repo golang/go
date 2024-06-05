@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of July 25, 2023",
+	"Subtitle": "Language version go1.23 (June 4, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -10,7 +10,7 @@
 This is the reference manual for the Go programming language.
 The pre-Go1.18 version, without generics, can be found
 <a href="/doc/go1.17_spec.html">here</a>.
-For more information and other documents, see <a href="/">golang.org</a>.
+For more information and other documents, see <a href="/">go.dev</a>.
 </p>
 
 <p>
@@ -68,6 +68,14 @@ ellipsis <code>…</code> is also used elsewhere in the spec to informally denot
 enumerations or code snippets that are not further specified. The character <code>…</code>
 (as opposed to the three characters <code>...</code>) is not a token of the Go
 language.
+</p>
+
+<p>
+A link of the form [<a href="#Language_versions">Go 1.xx</a>] indicates that a described
+language feature (or some aspect of it) was changed or added with language version 1.xx and
+thus requires at minimum that language version to build.
+For details, see the <a href="#Language_versions">linked section</a>
+in the <a href="#Appendix">appendix</a>.
 </p>
 
 <h2 id="Source_code_representation">Source code representation</h2>
@@ -263,7 +271,8 @@ continue     for          import       return       var
 
 <p>
 The following character sequences represent <a href="#Operators">operators</a>
-(including <a href="#Assignment_statements">assignment operators</a>) and punctuation:
+(including <a href="#Assignment_statements">assignment operators</a>) and punctuation
+[<a href="#Go_1.18">Go 1.18</a>]:
 </p>
 <pre class="grammar">
 +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
@@ -281,7 +290,8 @@ An integer literal is a sequence of digits representing an
 <a href="#Constants">integer constant</a>.
 An optional prefix sets a non-decimal base: <code>0b</code> or <code>0B</code>
 for binary, <code>0</code>, <code>0o</code>, or <code>0O</code> for octal,
-and <code>0x</code> or <code>0X</code> for hexadecimal.
+and <code>0x</code> or <code>0X</code> for hexadecimal
+[<a href="#Go_1.13">Go 1.13</a>].
 A single <code>0</code> is considered a decimal zero.
 In hexadecimal literals, letters <code>a</code> through <code>f</code>
 and <code>A</code> through <code>F</code> represent values 10 through 15.
@@ -347,7 +357,8 @@ prefix, an integer part (hexadecimal digits), a radix point, a fractional part (
 and an exponent part (<code>p</code> or <code>P</code> followed by an optional sign and decimal digits).
 One of the integer part or the fractional part may be elided; the radix point may be elided as well,
 but the exponent part is required. (This syntax matches the one given in IEEE 754-2008 §5.12.3.)
-An exponent value exp scales the mantissa (integer and fractional part) by 2<sup>exp</sup>.
+An exponent value exp scales the mantissa (integer and fractional part) by 2<sup>exp</sup>
+[<a href="#Go_1.13">Go 1.13</a>].
 </p>
 
 <p>
@@ -411,7 +422,8 @@ It consists of an <a href="#Integer_literals">integer</a> or
 <a href="#Floating-point_literals">floating-point</a> literal
 followed by the lowercase letter <code>i</code>.
 The value of an imaginary literal is the value of the respective
-integer or floating-point literal multiplied by the imaginary unit <i>i</i>.
+integer or floating-point literal multiplied by the imaginary unit <i>i</i>
+[<a href="#Go_1.13">Go 1.13</a>]
 </p>
 
 <pre class="ebnf">
@@ -662,7 +674,7 @@ and are discussed in that section.
 
 <p>
 Numeric constants represent exact values of arbitrary precision and do not overflow.
-Consequently, there are no constants denoting the IEEE-754 negative zero, infinity,
+Consequently, there are no constants denoting the IEEE 754 negative zero, infinity,
 and not-a-number values.
 </p>
 
@@ -849,8 +861,8 @@ int16       the set of all signed 16-bit integers (-32768 to 32767)
 int32       the set of all signed 32-bit integers (-2147483648 to 2147483647)
 int64       the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
 
-float32     the set of all IEEE-754 32-bit floating-point numbers
-float64     the set of all IEEE-754 64-bit floating-point numbers
+float32     the set of all IEEE 754 32-bit floating-point numbers
+float64     the set of all IEEE 754 64-bit floating-point numbers
 
 complex64   the set of all complex numbers with float32 real and imaginary parts
 complex128  the set of all complex numbers with float64 real and imaginary parts
@@ -884,7 +896,7 @@ are required when different numeric types are mixed in an expression
 or assignment. For instance, <code>int32</code> and <code>int</code>
 are not the same type even though they may have the same size on a
 particular architecture.
-
+</p>
 
 <h3 id="String_types">String types</h3>
 
@@ -1340,6 +1352,7 @@ interface{}
 
 <p>
 For convenience, the predeclared type <code>any</code> is an alias for the empty interface.
+[<a href="#Go_1.18">Go 1.18</a>]
 </p>
 
 <p>
@@ -1375,13 +1388,15 @@ as the <code>File</code> interface.
 In a slightly more general form
 an interface <code>T</code> may use a (possibly qualified) interface type
 name <code>E</code> as an interface element. This is called
-<i>embedding</i> interface <code>E</code> in <code>T</code>.
+<i>embedding</i> interface <code>E</code> in <code>T</code>
+[<a href="#Go_1.14">Go 1.14</a>].
 The type set of <code>T</code> is the <i>intersection</i> of the type sets
 defined by <code>T</code>'s explicitly declared methods and the type sets
 of <code>T</code>’s embedded interfaces.
 In other words, the type set of <code>T</code> is the set of all types that implement all the
 explicitly declared methods of <code>T</code> and also all the methods of
-<code>E</code>.
+<code>E</code>
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre>
@@ -1420,7 +1435,8 @@ type ReadCloser interface {
 <p>
 In their most general form, an interface element may also be an arbitrary type term
 <code>T</code>, or a term of the form <code>~T</code> specifying the underlying type <code>T</code>,
-or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>.
+or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>
+[<a href="#Go_1.18">Go 1.18</a>].
 Together with method specifications, these elements enable the precise
 definition of an interface's type set as follows:
 </p>
@@ -1666,6 +1682,7 @@ maps grow to accommodate the number of items
 stored in them, with the exception of <code>nil</code> maps.
 A <code>nil</code> map is equivalent to an empty map except that no elements
 may be added.
+</p>
 
 <h3 id="Channel_types">Channel types</h3>
 
@@ -2303,7 +2320,9 @@ as an <a href="#Operands">operand</a>, and in <a href="#Assignment_statements">a
 
 <p>
 The following identifiers are implicitly declared in the
-<a href="#Blocks">universe block</a>:
+<a href="#Blocks">universe block</a>
+[<a href="#Go_1.18">Go 1.18</a>]
+[<a href="#Go_1.21">Go 1.21</a>]:
 </p>
 <pre class="grammar">
 Types:
@@ -2487,7 +2506,8 @@ TypeSpec = AliasDecl | TypeDef .
 <h4 id="Alias_declarations">Alias declarations</h4>
 
 <p>
-An alias declaration binds an identifier to the given type.
+An alias declaration binds an identifier to the given type
+[<a href="#Go_1.9">Go 1.9</a>].
 </p>
 
 <pre class="ebnf">
@@ -2636,7 +2656,8 @@ func (l *List[T]) Len() int  { … }
 A type parameter list declares the <i>type parameters</i> of a generic function or type declaration.
 The type parameter list looks like an ordinary <a href="#Function_types">function parameter list</a>
 except that the type parameter names must all be present and the list is enclosed
-in square brackets rather than parentheses.
+in square brackets rather than parentheses
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre class="ebnf">
@@ -2719,7 +2740,8 @@ type T6[P int] struct{ f *T6[P] }     // ok: reference to T6 is not in type para
 <p>
 A <i>type constraint</i> is an <a href="#Interface_types">interface</a> that defines the
 set of permissible type arguments for the respective type parameter and controls the
-operations supported by values of that type parameter.
+operations supported by values of that type parameter
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre class="ebnf">
@@ -2749,7 +2771,8 @@ other interfaces based on their type sets. But this should get us going for now.
 The <a href="#Predeclared_identifiers">predeclared</a>
 <a href="#Interface_types">interface type</a> <code>comparable</code>
 denotes the set of all non-interface types that are
-<a href="#Comparison_operators">strictly comparable</a>.
+<a href="#Comparison_operators">strictly comparable</a>
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <p>
@@ -2782,7 +2805,8 @@ if <code>T</code> is an element of the type set defined by <code>C</code>; i.e.,
 if <code>T</code> <a href="#Implementing_an_interface">implements</a> <code>C</code>.
 As an exception, a <a href="#Comparison_operators">strictly comparable</a>
 type constraint may also be satisfied by a <a href="#Comparison_operators">comparable</a>
-(not necessarily strictly comparable) type argument.
+(not necessarily strictly comparable) type argument
+[<a href="#Go_1.20">Go 1.20</a>].
 More precisely:
 </p>
 
@@ -3910,7 +3934,7 @@ For <code>a</code> of <a href="#Type_parameter_declarations">type parameter type
 	    that <code>P</code> is instantiated with, and the type of <code>a[x]</code> is
 	    the type of the (identical) element types.</li>
 	<li><code>a[x]</code> may not be assigned to if <code>P</code>'s type set
-	    includes string types.
+	    includes string types.</li>
 </ul>
 
 <p>
@@ -4306,7 +4330,7 @@ with the same underlying array.
 
 <p>
 A generic function or type is <i>instantiated</i> by substituting <i>type arguments</i>
-for the type parameters.
+for the type parameters [<a href="#Go_1.18">Go 1.18</a>].
 Instantiation proceeds in two steps:
 </p>
 
@@ -4491,7 +4515,7 @@ the type parameters of the functions that need to be instantiated
 and for which no explicit type arguments is provided.
 These type parameters are called <i>bound</i> type parameters.
 For instance, in the <code>dedup</code> example above, the type parameters
-<code>P</code> and <code>E</code> are bound to <code>dedup</code>.
+<code>S</code> and <code>E</code> are bound to <code>dedup</code>.
 An argument to a generic function call may be a generic function itself.
 The type parameters of that function are included in the set of bound
 type parameters.
@@ -4620,13 +4644,13 @@ Otherwise, type inference succeeds.
 <p>
 Type inference solves type equations through <i>type unification</i>.
 Type unification recursively compares the LHS and RHS types of an
-equation, where either or both types may be or contain type parameters,
+equation, where either or both types may be or contain bound type parameters,
 and looks for type arguments for those type parameters such that the LHS
 and RHS match (become identical or assignment-compatible, depending on
 context).
 To that effect, type inference maintains a map of bound type parameters
-to inferred type arguments.
-Initially, the type parameters are known but the map is empty.
+to inferred type arguments; this map is consulted and updated during type unification.
+Initially, the bound type parameters are known but the map is empty.
 During type unification, if a new type argument <code>A</code> is inferred,
 the respective mapping <code>P ➞ A</code> from type parameter to argument
 is added to the map.
@@ -4639,7 +4663,7 @@ Type inference succeeds if no unification step fails and the map has
 an entry for each type parameter.
 </p>
 
-</pre>
+<p>
 For example, given the type equation with the bound type parameter
 <code>P</code>
 </p>
@@ -4674,9 +4698,12 @@ no unification step failed, and the map is fully populated.
 
 <p>
 Unification uses a combination of <i>exact</i> and <i>loose</i>
-Unification (see Appendix) depending on whether two types have
-to be <a href="#Type_identity">identical</a> or simply
-<a href="#Assignability">assignment-compatible</a>:
+unification depending on whether two types have to be
+<a href="#Type_identity">identical</a>,
+<a href="#Assignability">assignment-compatible</a>, or
+only structurally equal.
+The respective <a href="#Type_unification_rules">type unification rules</a>
+are spelled out in detail in the <a href="#Appendix">Appendix</a>.
 </p>
 
 <p>
@@ -4756,6 +4783,7 @@ to the type of the other operand.
 
 <p>
 The right operand in a shift expression must have <a href="#Numeric_types">integer type</a>
+[<a href="#Go_1.13">Go 1.13</a>]
 or be an untyped constant <a href="#Representability">representable</a> by a
 value of type <code>uint</code>.
 If the left operand of a non-constant shift expression is an untyped constant,
@@ -4800,6 +4828,7 @@ As the  <code>++</code> and <code>--</code> operators form
 statements, not expressions, they fall
 outside the operator hierarchy.
 As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>.
+</p>
 <p>
 There are five precedence levels for binary operators.
 Multiplication operators bind strongest, followed by addition
@@ -4822,12 +4851,13 @@ For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
 </p>
 
 <pre>
-+x
-23 + 3*x[i]
-x &lt;= f()
-^a &gt;&gt; b
-f() || g()
-x == y+1 &amp;&amp; &lt;-chanInt &gt; 0
++x                         // x
+42 + a - b                 // (42 + a) - b
+23 + 3*x[i]                // 23 + (3 * x[i])
+x &lt;= f()                   // x &lt;= f()
+^a &gt;&gt; b                    // (^a) >> b
+f() || g()                 // f() || g()
+x == y+1 &amp;&amp; &lt;-chanInt &gt; 0  // (x == (y+1)) && ((<-chanInt) > 0)
 </pre>
 
 
@@ -4992,7 +5022,7 @@ For floating-point and complex numbers,
 <code>+x</code> is the same as <code>x</code>,
 while <code>-x</code> is the negation of <code>x</code>.
 The result of a floating-point or complex division by zero is not specified beyond the
-IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
+IEEE 754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
 occurs is implementation-specific.
 </p>
 
@@ -5082,7 +5112,7 @@ These terms and the result of the comparisons are defined as follows:
 
 	<li>
 	Floating-point types are comparable and ordered.
-	Two floating-point values are compared as defined by the IEEE-754 standard.
+	Two floating-point values are compared as defined by the IEEE 754 standard.
 	</li>
 
 	<li>
@@ -5204,7 +5234,7 @@ Specifically:
 <p>
 Logical operators apply to <a href="#Boolean_types">boolean</a> values
 and yield a result of the same type as the operands.
-The right operand is evaluated conditionally.
+The left operand is evaluated, and then the right if the condition requires it.
 </p>
 
 <pre class="grammar">
@@ -5421,7 +5451,8 @@ in any of these cases:
 	<code>x</code> is a string and <code>T</code> is a slice of bytes or runes.
 	</li>
 	<li>
-	<code>x</code> is a slice, <code>T</code> is an array or a pointer to an array,
+	<code>x</code> is a slice, <code>T</code> is an array [<a href="#Go_1.20">Go 1.20</a>]
+	or a pointer to an array [<a href="#Go_1.17">Go 1.17</a>],
 	and the slice and array types have <a href="#Type_identity">identical</a> element types.
 	</li>
 </ul>
@@ -5511,7 +5542,7 @@ When converting an integer or floating-point number to a floating-point type,
 or a <a href="#Numeric_types">complex number</a> to another complex type, the result value is rounded
 to the precision specified by the destination type.
 For instance, the value of a variable <code>x</code> of type <code>float32</code>
-may be stored using additional precision beyond that of an IEEE-754 32-bit number,
+may be stored using additional precision beyond that of an IEEE 754 32-bit number,
 but float32(x) represents the result of rounding <code>x</code>'s value to
 32-bit precision. Similarly, <code>x + 0.1</code> may use more than 32 bits
 of precision, but <code>float32(x + 0.1)</code> does not.
@@ -5566,7 +5597,7 @@ myString([]myRune{0x1f30e})              // "\U0001f30e" == "🌎"
 
 <li>
 Converting a value of a string type to a slice of bytes type
-yields a slice whose successive elements are the bytes of the string.
+yields a non-nil slice whose successive elements are the bytes of the string.
 
 <pre>
 []byte("hellø")             // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
@@ -5782,24 +5813,28 @@ determine the evaluation order of individual initialization expressions in
 Otherwise, when evaluating the <a href="#Operands">operands</a> of an
 expression, assignment, or
 <a href="#Return_statements">return statement</a>,
-all function calls, method calls, and
-communication operations are evaluated in lexical left-to-right
-order.
+all function calls, method calls,
+<a href="#Receive operator">receive operations</a>,
+and <a href="#Logical_operators">binary logical operations</a>
+are evaluated in lexical left-to-right order.
 </p>
 
 <p>
 For example, in the (function-local) assignment
 </p>
 <pre>
-y[f()], ok = g(h(), i()+x[j()], &lt;-c), k()
+y[f()], ok = g(z || h(), i()+x[j()], &lt;-c), k()
 </pre>
 <p>
 the function calls and communication happen in the order
-<code>f()</code>, <code>h()</code>, <code>i()</code>, <code>j()</code>,
+<code>f()</code>, <code>h()</code> (if <code>z</code>
+evaluates to false), <code>i()</code>, <code>j()</code>,
 <code>&lt;-c</code>, <code>g()</code>, and <code>k()</code>.
 However, the order of those events compared to the evaluation
 and indexing of <code>x</code> and the evaluation
-of <code>y</code> is not specified.
+of <code>y</code> and <code>z</code> is not specified,
+except as required lexically. For instance, <code>g</code>
+cannot be called before its arguments are evaluated.
 </p>
 
 <pre>
@@ -6507,7 +6542,6 @@ additionally it may specify an <i>init</i>
 and a <i>post</i> statement, such as an assignment,
 an increment or decrement statement. The init statement may be a
 <a href="#Short_variable_declarations">short variable declaration</a>, but the post statement must not.
-Variables declared by the init statement are re-used in each iteration.
 </p>
 
 <pre class="ebnf">
@@ -6539,12 +6573,55 @@ for cond { S() }    is the same as    for ; cond ; { S() }
 for      { S() }    is the same as    for true     { S() }
 </pre>
 
+<p>
+Each iteration has its own separate declared variable (or variables)
+[<a href="#Go_1.22">Go 1.22</a>].
+The variable used by the first iteration is declared by the init statement.
+The variable used by each subsequent iteration is declared implicitly before
+executing the post statement and initialized to the value of the previous
+iteration's variable at that moment.
+</p>
+
+<pre>
+var prints []func()
+for i := 0; i < 5; i++ {
+	prints = append(prints, func() { println(i) })
+	i++
+}
+for _, p := range prints {
+	p()
+}
+</pre>
+
+<p>
+prints
+</p>
+
+<pre>
+1
+3
+5
+</pre>
+
+<p>
+Prior to [<a href="#Go_1.22">Go 1.22</a>], iterations share one set of variables
+instead of having their own separate variables.
+In that case, the example above prints
+</p>
+
+<pre>
+6
+6
+6
+</pre>
+
 <h4 id="For_range">For statements with <code>range</code> clause</h4>
 
 <p>
 A "for" statement with a "range" clause
-iterates through all entries of an array, slice, string or map,
-or values received on a channel. For each entry it assigns <i>iteration values</i>
+iterates through all entries of an array, slice, string or map, values received on
+a channel, or integer values from zero to an upper limit [<a href="#Go_1.22">Go 1.22</a>].
+For each entry it assigns <i>iteration values</i>
 to corresponding <i>iteration variables</i> if present and then executes the block.
 </p>
 
@@ -6555,20 +6632,20 @@ RangeClause = [ ExpressionList "=" | IdentifierList ":=" ] "range" Expression .
 <p>
 The expression on the right in the "range" clause is called the <i>range expression</i>,
 its <a href="#Core_types">core type</a> must be
-an array, pointer to an array, slice, string, map, or channel permitting
-<a href="#Receive_operator">receive operations</a>.
+an array, pointer to an array, slice, string, map, channel permitting
+<a href="#Receive_operator">receive operations</a>, or an integer.
 As with an assignment, if present the operands on the left must be
 <a href="#Address_operators">addressable</a> or map index expressions; they
-denote the iteration variables. If the range expression is a channel, at most
-one iteration variable is permitted, otherwise there may be up to two.
+denote the iteration variables. If the range expression is a channel or integer,
+at most one iteration variable is permitted, otherwise there may be up to two.
 If the last iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
 the range clause is equivalent to the same clause without that identifier.
 </p>
 
 <p>
-The range expression <code>x</code> is evaluated once before beginning the loop,
-with one exception: if at most one iteration variable is present and
-<code>len(x)</code> is <a href="#Length_and_capacity">constant</a>,
+The range expression <code>x</code> is evaluated before beginning the loop,
+with one exception: if at most one iteration variable is present and <code>x</code> or
+<a href="#Length_and_capacity"><code>len(x)</code></a> is <a href="#Constants">constant</a>,
 the range expression is not evaluated.
 </p>
 
@@ -6579,12 +6656,16 @@ if the respective iteration variables are present:
 </p>
 
 <pre class="grammar">
-Range expression                          1st value          2nd value
+Range expression                                       1st value                2nd value
 
-array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
-string          s  string type            index    i  int    see below  rune
-map             m  map[K]V                key      k  K      m[k]       V
-channel         c  chan E, &lt;-chan E       element  e  E
+array or slice      a  [n]E, *[n]E, or []E             index    i  int          a[i]       E
+string              s  string type                     index    i  int          see below  rune
+map                 m  map[K]V                         key      k  K            m[k]       V
+channel             c  chan E, &lt;-chan E                element  e  E
+integer value       n  integer type, or untyped int    value    i  see below
+function, 0 values  f  func(func() bool)
+function, 1 value   f  func(func(V) bool)              value    v  V
+function, 2 values  f  func(func(K, V) bool)           key      k  K            v          V
 </pre>
 
 <ol>
@@ -6623,22 +6704,55 @@ For channels, the iteration values produced are the successive values sent on
 the channel until the channel is <a href="#Close">closed</a>. If the channel
 is <code>nil</code>, the range expression blocks forever.
 </li>
-</ol>
 
-<p>
-The iteration values are assigned to the respective
-iteration variables as in an <a href="#Assignment_statements">assignment statement</a>.
-</p>
+<li>
+For an integer value <code>n</code>, where <code>n</code> is of <a href="#Numeric_types">integer type</a>
+or an untyped <a href="#Constants">integer constant</a>, the iteration values 0 through <code>n-1</code>
+are produced in increasing order.
+If <code>n</code> is of integer type, the iteration values have that same type.
+Otherwise, the type of <code>n</code> is determined as if it were assigned to the
+iteration variable.
+Specifically:
+if the iteration variable is preexisting, the type of the iteration values is the type of the iteration
+variable, which must be of integer type.
+Otherwise, if the iteration variable is declared by the "range" clause or is absent,
+the type of the iteration values is the <a href="#Constants">default type</a> for <code>n</code>.
+If <code>n</code> &lt= 0, the loop does not run any iterations.
+</li>
+
+<li>
+For a function <code>f</code>, the iteration proceeds by calling <code>f</code>
+with a new, synthesized <code>yield</code> function as its argument.
+If <code>yield</code> is called before <code>f</code> returns,
+the arguments to <code>yield</code> become the iteration values
+for executing the loop body once.
+After each successive loop iteration, <code>yield</code> returns true
+and may be called again to continue the loop.
+As long as the loop body does not terminate, the "range" clause will continue
+to generate iteration values this way for each <code>yield</code> call until
+<code>f</code> returns.
+If the loop body terminates (such as by a <code>break</code> statement),
+<code>yield</code> returns false and must not be called again.
+The number of iteration variables must match the number and order of arguments
+to <code>yield</code>.
+</li>
+</ol>
 
 <p>
 The iteration variables may be declared by the "range" clause using a form of
 <a href="#Short_variable_declarations">short variable declaration</a>
 (<code>:=</code>).
-In this case their types are set to the types of the respective iteration values
-and their <a href="#Declarations_and_scope">scope</a> is the block of the "for"
-statement; they are re-used in each iteration.
-If the iteration variables are declared outside the "for" statement,
-after execution their values will be those of the last iteration.
+In this case their <a href="#Declarations_and_scope">scope</a> is the block of the "for" statement
+and each iteration has its own new variables [<a href="#Go_1.22">Go 1.22</a>]
+(see also <a href="#For_clause">"for" statements with a ForClause</a>).
+The variables have the types of their respective iteration values.
+</p>
+
+<p>
+If the iteration variables are not explicitly declared by the "range" clause,
+they must be preexisting.
+In this case, the iteration values are assigned to the respective variables
+as in an <a href="#Assignment_statements">assignment statement</a>.
 </p>
 
 <pre>
@@ -6675,6 +6789,59 @@ for w := range ch {
 
 // empty a channel
 for range ch {}
+
+// call f(0), f(1), ... f(9)
+for i := range 10 {
+	// type of i is int (default type for untyped constant 10)
+	f(i)
+}
+
+// invalid: 256 cannot be assigned to uint8
+var u uint8
+for u = range 256 {
+}
+
+// invalid: 1e3 is a floating-point constant
+for range 1e3 {
+}
+
+// fibo generates the Fibonacci sequence
+fibo := func(yield func(x int) bool) {
+	f0, f1 := 0, 1
+	for yield(f0) {
+		f0, f1 = f1, f0+f1
+	}
+}
+
+// print the Fibonacci numbers below 1000:
+for x := range fibo {
+	if x >= 1000 {
+		break
+	}
+	fmt.Printf("%d ", x)
+}
+// output: 0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987
+
+// iteration support for a recursive tree data structure
+type Tree[K cmp.Ordered, V any] struct {
+	left, right *Tree[K, V]
+	key         K
+	value       V
+}
+
+func (t *Tree[K, V]) walk(yield func(key K, val V) bool) bool {
+	return t == nil || t.left.walk(yield) && yield(t.key, t.value) && t.right.walk(yield)
+}
+
+func (t *Tree[K, V]) Walk(yield func(key K, val V) bool) {
+	t.walk(yield)
+}
+
+// walk tree t in-order
+var t Tree[string, int]
+for k, v := range t.Walk {
+	// process k, v
+}
 </pre>
 
 
@@ -7198,7 +7365,7 @@ The number of elements copied is the minimum of
 <code>len(src)</code> and <code>len(dst)</code>.
 As a special case, if the destination's core type is <code>[]byte</code>,
 <code>copy</code> also accepts a source argument with core type
-</a> <a href="#Core_types"><code>bytestring</code></a>.
+<a href="#Core_types"><code>bytestring</code></a>.
 This form copies the bytes from the byte slice or string into the byte slice.
 </p>
 
@@ -7226,7 +7393,8 @@ n3 := copy(b, "Hello, World!")  // n3 == 5, b is []byte("Hello")
 <p>
 The built-in function <code>clear</code> takes an argument of <a href="#Map_types">map</a>,
 <a href="#Slice_types">slice</a>, or <a href="#Type_parameter_declarations">type parameter</a> type,
-and deletes or zeroes out all elements.
+and deletes or zeroes out all elements
+[<a href="#Go_1.21">Go 1.21</a>].
 </p>
 
 <pre class="grammar">
@@ -7493,7 +7661,8 @@ The precise behavior is implementation-dependent.
 The built-in functions <code>min</code> and <code>max</code> compute the
 smallest&mdash;or largest, respectively&mdash;value of a fixed number of
 arguments of <a href="#Comparison_operators">ordered types</a>.
-There must be at least one argument.
+There must be at least one argument
+[<a href="#Go_1.21">Go 1.21</a>].
 </p>
 
 <p>
@@ -8209,8 +8378,8 @@ of if the general conversion rules take care of this.
 <p>
 A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
 value may not be <a href="#Address_operators">dereferenced</a>.
-Any pointer or value of <a href="#Underlying_types">underlying type</a> <code>uintptr</code> can be
-<a href="#Conversions">converted</a> to a type of underlying type <code>Pointer</code> and vice versa.
+Any pointer or value of <a href="#Core_types">core type</a> <code>uintptr</code> can be
+<a href="#Conversions">converted</a> to a type of core type <code>Pointer</code> and vice versa.
 The effect of converting between <code>Pointer</code> and <code>uintptr</code> is implementation-defined.
 </p>
 
@@ -8220,6 +8389,10 @@ bits = *(*uint64)(unsafe.Pointer(&amp;f))
 
 type ptr unsafe.Pointer
 bits = *(*uint64)(ptr(&amp;f))
+
+func f[P ~*B, B any](p P) uintptr {
+	return uintptr(unsafe.Pointer(p))
+}
 
 var p ptr = nil
 </pre>
@@ -8269,7 +8442,8 @@ of constant size.
 
 <p>
 The function <code>Add</code> adds <code>len</code> to <code>ptr</code>
-and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>.
+and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>
+[<a href="#Go_1.17">Go 1.17</a>].
 The <code>len</code> argument must be of <a href="#Numeric_types">integer type</a> or an untyped <a href="#Constants">constant</a>.
 A constant <code>len</code> argument must be <a href="#Representability">representable</a> by a value of type <code>int</code>;
 if it is an untyped constant it is given type <code>int</code>.
@@ -8289,7 +8463,8 @@ and whose length and capacity are <code>len</code>.
 <p>
 except that, as a special case, if <code>ptr</code>
 is <code>nil</code> and <code>len</code> is zero,
-<code>Slice</code> returns <code>nil</code>.
+<code>Slice</code> returns <code>nil</code>
+[<a href="#Go_1.17">Go 1.17</a>].
 </p>
 
 <p>
@@ -8298,14 +8473,16 @@ A constant <code>len</code> argument must be non-negative and <a href="#Represen
 if it is an untyped constant it is given type <code>int</code>.
 At run time, if <code>len</code> is negative,
 or if <code>ptr</code> is <code>nil</code> and <code>len</code> is not zero,
-a <a href="#Run_time_panics">run-time panic</a> occurs.
+a <a href="#Run_time_panics">run-time panic</a> occurs
+[<a href="#Go_1.17">Go 1.17</a>].
 </p>
 
 <p>
 The function <code>SliceData</code> returns a pointer to the underlying array of the <code>slice</code> argument.
 If the slice's capacity <code>cap(slice)</code> is not zero, that pointer is <code>&slice[:1][0]</code>.
 If <code>slice</code> is <code>nil</code>, the result is <code>nil</code>.
-Otherwise it  is a non-<code>nil</code> pointer to an unspecified memory address.
+Otherwise it  is a non-<code>nil</code> pointer to an unspecified memory address
+[<a href="#Go_1.20">Go 1.20</a>].
 </p>
 
 <p>
@@ -8314,12 +8491,14 @@ The function <code>String</code> returns a <code>string</code> value whose under
 The same requirements apply to the <code>ptr</code> and <code>len</code> argument as in the function
 <code>Slice</code>. If <code>len</code> is zero, the result is the empty string <code>""</code>.
 Since Go strings are immutable, the bytes passed to <code>String</code> must not be modified afterwards.
+[<a href="#Go_1.20">Go 1.20</a>]
 </p>
 
 <p>
 The function <code>StringData</code> returns a pointer to the underlying bytes of the <code>str</code> argument.
 For an empty string the return value is unspecified, and may be <code>nil</code>.
-Since Go strings are immutable, the bytes returned by <code>StringData</code> must not be modified.
+Since Go strings are immutable, the bytes returned by <code>StringData</code> must not be modified
+[<a href="#Go_1.20">Go 1.20</a>].
 </p>
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
@@ -8357,3 +8536,284 @@ The following minimal alignment properties are guaranteed:
 <p>
 A struct or array type has size zero if it contains no fields (or elements, respectively) that have a size greater than zero. Two distinct zero-size variables may have the same address in memory.
 </p>
+
+<h2 id="Appendix">Appendix</h2>
+
+<h3 id="Language_versions">Language versions</h3>
+
+<p>
+The <a href="/doc/go1compat">Go 1 compatibility guarantee</a> ensures that
+programs written to the Go 1 specification will continue to compile and run
+correctly, unchanged, over the lifetime of that specification.
+More generally, as adjustments are made and features added to the language,
+the compatibility guarantee ensures that a Go program that works with a
+specific Go language version will continue to work with any subsequent version.
+</p>
+
+<p>
+For instance, the ability to use the prefix <code>0b</code> for binary
+integer literals was introduced with Go 1.13, indicated
+by [<a href="#Go_1.13">Go 1.13</a>] in the section on
+<a href="#Integer_literals">integer literals</a>.
+Source code containing an integer literal such as <code>0b1011</code>
+will be rejected if the implied or required language version used by
+the compiler is older than Go 1.13.
+</p>
+
+<p>
+The following table describes the minimum language version required for
+features introduced after Go 1.
+</p>
+
+<h4 id="Go_1.9">Go 1.9</h4>
+<ul>
+<li>
+An <a href="#Alias_declarations">alias declaration</a> may be used to declare an alias name for a type.
+</li>
+</ul>
+
+<h4 id="Go_1.13">Go 1.13</h4>
+<ul>
+<li>
+<a href="#Integer_literals">Integer literals</a> may use the prefixes <code>0b</code>, <code>0B</code>, <code>0o</code>,
+and <code>0O</code> for binary, and octal literals, respectively.
+</li>
+<li>
+Hexadecimal <a href="#Floating-point_literals">floating-point literals</a> may be written using the prefixes
+<code>0x</code> and <code>0X</code>.
+</li>
+<li>
+The <a href="#Imaginary_literals">imaginary suffix</a> <code>i</code> may be used with any (binary, decimal, hexadecimal)
+integer or floating-point literal, not just decimal literals.
+</li>
+<li>
+The digits of any number literal may be <a href="#Integer_literals">separated</a> (grouped)
+using underscores <code>_</code>.
+</li>
+<li>
+The shift count in a <a href="#Operators">shift operation</a> may be a signed integer type.
+</li>
+</ul>
+
+<h4 id="Go_1.14">Go 1.14</h4>
+<ul>
+<li>
+Emdedding a method more than once through different <a href="#Embedded_interfaces">embedded interfaces</a>
+is not an error.
+</li>
+</ul>
+
+<h4 id="Go_1.17">Go 1.17</h4>
+<ul>
+<li>
+A slice may be <a href="#Conversions">converted</a> to an array pointer if the slice and array element
+types match, and the array is not longer than the slice.
+</li>
+<li>
+The built-in <a href="#Package_unsafe">package <code>unsafe</code></a> includes the new functions
+<code>Add</code> and <code>Slice</code>.
+</li>
+</ul>
+
+<h4 id="Go_1.18">Go 1.18</h4>
+<p>
+The 1.18 release adds polymorphic functions and types ("generics") to the language.
+Specifically:
+</p>
+<ul>
+<li>
+The set of <a href="#Operators_and_punctuation">operators and punctuation</a> includes the new token <code>~</code>.
+</li>
+<li>
+Function and type declarations may declare <a href="#Type_parameter_declarations">type parameters</a>.
+</li>
+<li>
+Interface types may <a href="#General_interfaces">embed arbitrary types</a> (not just type names of interfaces)
+as well as union and <code>~T</code> type elements.
+</li>
+<li>
+The set of <a href="#Predeclared_identifiers">predeclared</a> types includes the new types
+<code>any</code> and <code>comparable</code>.
+</li>
+</ul>
+
+<h4 id="Go_1.20">Go 1.20</h4>
+<ul>
+<li>
+A slice may be <a href="#Conversions">converted</a> to an array if the slice and array element
+types match and the array is not longer than the slice.
+</li>
+<li>
+The built-in <a href="#Package_unsafe">package <code>unsafe</code></a> includes the new functions
+<code>SliceData</code>, <code>String</code>, and <code>StringData</code>.
+</li>
+<li>
+<a href="#Comparison_operators">Comparable types</a> (such as ordinary interfaces) may satisfy
+<code>comparable</code> constraints, even if the type arguments are not strictly comparable.
+</li>
+</ul>
+
+<h4 id="Go_1.21">Go 1.21</h4>
+<ul>
+<li>
+The set of <a href="#Predeclared_identifiers">predeclared</a> functions includes the new functions
+<code>min</code>, <code>max</code>, and <code>clear</code>.
+</li>
+<li>
+<a href="#Type_inference">Type inference</a> uses the types of interface methods for inference.
+It also infers type arguments for generic functions assigned to variables or
+passed as arguments to other (possibly generic) functions.
+</li>
+</ul>
+
+<h4 id="Go_1.22">Go 1.22</h4>
+<ul>
+<li>
+In a <a href="#For_statements">"for" statement</a>, each iteration has its own set of iteration
+variables rather than sharing the same variables in each iteration.
+</li>
+<li>
+A "for" statement with <a href="#For_range">"range" clause</a> may iterate over
+integer values from zero to an upper limit.
+</li>
+</ul>
+
+<h3 id="Type_unification_rules">Type unification rules</h3>
+
+<p>
+The type unification rules describe if and how two types unify.
+The precise details are relevant for Go implementations,
+affect the specifics of error messages (such as whether
+a compiler reports a type inference or other error),
+and may explain why type inference fails in unusual code situations.
+But by and large these rules can be ignored when writing Go code:
+type inference is designed to mostly "work as expected",
+and the unification rules are fine-tuned accordingly.
+</p>
+
+<p>
+Type unification is controlled by a <i>matching mode</i>, which may
+be <i>exact</i> or <i>loose</i>.
+As unification recursively descends a composite type structure,
+the matching mode used for elements of the type, the <i>element matching mode</i>,
+remains the same as the matching mode except when two types are unified for
+<a href="#Assignability">assignability</a> (<code>≡<sub>A</sub></code>):
+in this case, the matching mode is <i>loose</i> at the top level but
+then changes to <i>exact</i> for element types, reflecting the fact
+that types don't have to be identical to be assignable.
+</p>
+
+<p>
+Two types that are not bound type parameters unify exactly if any of
+following conditions is true:
+</p>
+
+<ul>
+<li>
+	Both types are <a href="#Type_identity">identical</a>.
+</li>
+<li>
+	Both types have identical structure and their element types
+	unify exactly.
+</li>
+<li>
+	Exactly one type is an <a href="#Type_inference">unbound</a>
+	type parameter with a <a href="#Core_types">core type</a>,
+	and that core type unifies with the other type per the
+	unification rules for <code>≡<sub>A</sub></code>
+	(loose unification at the top level and exact unification
+	for element types).
+</li>
+</ul>
+
+<p>
+If both types are bound type parameters, they unify per the given
+matching modes if:
+</p>
+
+<ul>
+<li>
+	Both type parameters are identical.
+</li>
+<li>
+	At most one of the type parameters has a known type argument.
+	In this case, the type parameters are <i>joined</i>:
+	they both stand for the same type argument.
+	If neither type parameter has a known type argument yet,
+	a future type argument inferred for one the type parameters
+	is simultaneously inferred for both of them.
+</li>
+<li>
+	Both type parameters have a known type argument
+	and the type arguments unify per the given matching modes.
+</li>
+</ul>
+
+<p>
+A single bound type parameter <code>P</code> and another type <code>T</code> unify
+per the given matching modes if:
+</p>
+
+<ul>
+<li>
+	<code>P</code> doesn't have a known type argument.
+	In this case, <code>T</code> is inferred as the type argument for <code>P</code>.
+</li>
+<li>
+	<code>P</code> does have a known type argument <code>A</code>,
+	<code>A</code> and <code>T</code> unify per the given matching modes,
+	and one of the following conditions is true:
+	<ul>
+	<li>
+		Both <code>A</code> and <code>T</code> are interface types:
+		In this case, if both <code>A</code> and <code>T</code> are
+		also <a href="#Type_definitions">defined</a> types,
+		they must be <a href="#Type_identity">identical</a>.
+		Otherwise, if neither of them is a defined type, they must
+		have the same number of methods
+		(unification of <code>A</code> and <code>T</code> already
+		established that the methods match).
+	</li>
+	<li>
+		Neither <code>A</code> nor <code>T</code> are interface types:
+		In this case, if <code>T</code> is a defined type, <code>T</code>
+		replaces <code>A</code> as the inferred type argument for <code>P</code>.
+	</li>
+	</ul>
+</li>
+</ul>
+
+<p>
+Finally, two types that are not bound type parameters unify loosely
+(and per the element matching mode) if:
+</p>
+
+<ul>
+<li>
+	Both types unify exactly.
+</li>
+<li>
+	One type is a <a href="#Type_definitions">defined type</a>,
+	the other type is a type literal, but not an interface,
+	and their underlying types unify per the element matching mode.
+</li>
+<li>
+	Both types are interfaces (but not type parameters) with
+	identical <a href="#Interface_types">type terms</a>,
+	both or neither embed the predeclared type
+	<a href="#Predeclared_identifiers">comparable</a>,
+	corresponding method types unify exactly,
+	and the method set of one of the interfaces is a subset of
+	the method set of the other interface.
+</li>
+<li>
+	Only one type is an interface (but not a type parameter),
+	corresponding methods of the two types unify per the element matching mode,
+	and the method set of the interface is a subset of
+	the method set of the other type.
+</li>
+<li>
+	Both types have the same structure and their element types
+	unify per the element matching mode.
+</li>
+</ul>

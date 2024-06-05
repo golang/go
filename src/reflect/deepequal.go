@@ -39,7 +39,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 	hard := func(v1, v2 Value) bool {
 		switch v1.Kind() {
 		case Pointer:
-			if v1.typ().PtrBytes == 0 {
+			if !v1.typ().Pointers() {
 				// not-in-heap pointers can't be cyclic.
 				// At least, all of our current uses of runtime/internal/sys.NotInHeap
 				// have that property. The runtime ones aren't cyclic (and we don't use
@@ -142,9 +142,10 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
 		}
-		for _, k := range v1.MapKeys() {
-			val1 := v1.MapIndex(k)
-			val2 := v2.MapIndex(k)
+		iter := v1.MapRange()
+		for iter.Next() {
+			val1 := iter.Value()
+			val2 := v2.MapIndex(iter.Key())
 			if !val1.IsValid() || !val2.IsValid() || !deepValueEqual(val1, val2, visited) {
 				return false
 			}

@@ -11,6 +11,9 @@ import (
 
 // SendFile wraps the TransmitFile call.
 func SendFile(fd *FD, src syscall.Handle, n int64) (written int64, err error) {
+	defer func() {
+		TestHookDidSendFile(fd, 0, written, err, written > 0)
+	}()
 	if fd.kind == kindPipe {
 		// TransmitFile does not work with pipes
 		return 0, syscall.ESPIPE

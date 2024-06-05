@@ -5,7 +5,6 @@
 package slog
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -46,18 +45,18 @@ func Bool(key string, v bool) Attr {
 	return Attr{key, BoolValue(v)}
 }
 
-// Time returns an Attr for a time.Time.
+// Time returns an Attr for a [time.Time].
 // It discards the monotonic portion.
 func Time(key string, v time.Time) Attr {
 	return Attr{key, TimeValue(v)}
 }
 
-// Duration returns an Attr for a time.Duration.
+// Duration returns an Attr for a [time.Duration].
 func Duration(key string, v time.Duration) Attr {
 	return Attr{key, DurationValue(v)}
 }
 
-// Group returns an Attr for a Group Value.
+// Group returns an Attr for a Group [Value].
 // The first argument is the key; the remaining arguments
 // are converted to Attrs as in [Logger.Log].
 //
@@ -92,7 +91,7 @@ func (a Attr) Equal(b Attr) bool {
 }
 
 func (a Attr) String() string {
-	return fmt.Sprintf("%s=%s", a.Key, a.Value)
+	return a.Key + "=" + a.Value.String()
 }
 
 // isEmpty reports whether a has an empty key and a nil value.

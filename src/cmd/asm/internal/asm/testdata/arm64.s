@@ -557,47 +557,78 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVQ	65520(R10), F10 // 4afdff3d
 	FMOVQ	64(RSP), F11    // eb13c03d
 
-// large aligned offset, use two instructions(add+ldr/store).
+// medium offsets that either fit a single instruction or can use add+ldr/str
+	MOVD -4095(R17), R3                        // 3bfe3fd1630340f9
+	MOVD -391(R17), R3                         // 3b1e06d1630340f9
+	MOVD -257(R17), R3                         // 3b0604d1630340f9
+	MOVD -256(R17), R3                         // 230250f8
+	MOVD 255(R17), R3                          // 23f24ff8
+	MOVD 256(R17), R3                          // 238240f9
+	MOVD 257(R17), R3                          // 3b060491630340f9
+	MOVD 391(R17), R3                          // 3b1e0691630340f9
+	MOVD 4095(R17), R3                         // 3bfe3f91630340f9
+
+	MOVD R0, -4095(R17)                        // 3bfe3fd1600300f9
+	MOVD R0, -391(R17)                         // 3b1e06d1600300f9
+	MOVD R0, -257(R17)                         // 3b0604d1600300f9
+	MOVD R0, -256(R17)                         // 200210f8
+	MOVD R0, 255(R17)                          // 20f20ff8
+	MOVD R0, 256(R17)                          // 208200f9
+	MOVD R0, 257(R17)                          // 3b060491600300f9
+	MOVD R0, 391(R17)                          // 3b1e0691600300f9
+	MOVD R0, 4095(R17)                         // 3bfe3f91600300f9
+	MOVD R0, 4096(R17)                         // 200208f9
+	MOVD R3, -4095(R17)                        // 3bfe3fd1630300f9
+	MOVD R3, -391(R17)                         // 3b1e06d1630300f9
+	MOVD R3, -257(R17)                         // 3b0604d1630300f9
+	MOVD R3, -256(R17)                         // 230210f8
+	MOVD R3, 255(R17)                          // 23f20ff8
+	MOVD R3, 256(R17)                          // 238200f9
+	MOVD R3, 257(R17)                          // 3b060491630300f9
+	MOVD R3, 391(R17)                          // 3b1e0691630300f9
+	MOVD R3, 4095(R17)                         // 3bfe3f91630300f9
+
+// large aligned offset, use two instructions(add+ldr/str).
 	MOVB	R1, 0x1001(R2) 		// MOVB		R1, 4097(R2)		// 5b04409161070039
 	MOVB	R1, 0xffffff(R2)	// MOVB		R1, 16777215(R2)	// 5bfc7f9161ff3f39
 	MOVH	R1, 0x2002(R2)		// MOVH		R1, 8194(R2)		// 5b08409161070079
-	MOVH	R1, 0xfffffe(R2)	// MOVH		R1, 16777214(R2)	// 5bf87f9161ff3f79
+	MOVH	R1, 0x1000ffe(R2)	// MOVH		R1, 16781310(R2)	// 5bfc7f9161ff3f79
 	MOVW	R1, 0x4004(R2)		// MOVW		R1, 16388(R2)		// 5b104091610700b9
-	MOVW	R1, 0xfffffc(R2)	// MOVW		R1, 16777212(R2)	// 5bf07f9161ff3fb9
+	MOVW	R1, 0x1002ffc(R2)	// MOVW		R1, 16789500(R2)	// 5bfc7f9161ff3fb9
 	MOVD	R1, 0x8008(R2)		// MOVD		R1, 32776(R2)		// 5b204091610700f9
-	MOVD	R1, 0xfffff8(R2)	// MOVD		R1, 16777208(R2)	// 5be07f9161ff3ff9
+	MOVD	R1, 0x1006ff8(R2)	// MOVD		R1, 16805880(R2)	// 5bfc7f9161ff3ff9
 	FMOVS	F1, 0x4004(R2)		// FMOVS	F1, 16388(R2)		// 5b104091610700bd
-	FMOVS	F1, 0xfffffc(R2)	// FMOVS	F1, 16777212(R2)	// 5bf07f9161ff3fbd
+	FMOVS	F1, 0x1002ffc(R2)	// FMOVS	F1, 16789500(R2)	// 5bfc7f9161ff3fbd
 	FMOVD	F1, 0x8008(R2)		// FMOVD	F1, 32776(R2)		// 5b204091610700fd
-	FMOVD	F1, 0xfffff8(R2)	// FMOVD	F1, 16777208(R2)	// 5be07f9161ff3ffd
+	FMOVD	F1, 0x1006ff8(R2)	// FMOVD	F1, 16805880(R2)	// 5bfc7f9161ff3ffd
 
 	MOVB	0x1001(R1), R2 		// MOVB		4097(R1), R2		// 3b04409162078039
 	MOVB	0xffffff(R1), R2	// MOVB		16777215(R1), R2	// 3bfc7f9162ffbf39
 	MOVH	0x2002(R1), R2		// MOVH		8194(R1), R2		// 3b08409162078079
-	MOVH	0xfffffe(R1), R2	// MOVH		16777214(R1), R2	// 3bf87f9162ffbf79
+	MOVH	0x1000ffe(R1), R2	// MOVH		16781310(R1), R2	// 3bfc7f9162ffbf79
 	MOVW	0x4004(R1), R2		// MOVW		16388(R1), R2		// 3b104091620780b9
-	MOVW	0xfffffc(R1), R2	// MOVW		16777212(R1), R2	// 3bf07f9162ffbfb9
+	MOVW	0x1002ffc(R1), R2	// MOVW		16789500(R1), R2	// 3bfc7f9162ffbfb9
 	MOVD	0x8008(R1), R2		// MOVD		32776(R1), R2		// 3b204091620740f9
-	MOVD	0xfffff8(R1), R2	// MOVD		16777208(R1), R2	// 3be07f9162ff7ff9
+	MOVD	0x1006ff8(R1), R2	// MOVD		16805880(R1), R2	// 3bfc7f9162ff7ff9
 	FMOVS	0x4004(R1), F2		// FMOVS	16388(R1), F2		// 3b104091620740bd
-	FMOVS	0xfffffc(R1), F2	// FMOVS	16777212(R1), F2	// 3bf07f9162ff7fbd
+	FMOVS	0x1002ffc(R1), F2	// FMOVS	16789500(R1), F2	// 3bfc7f9162ff7fbd
 	FMOVD	0x8008(R1), F2		// FMOVD	32776(R1), F2		// 3b204091620740fd
-	FMOVD	0xfffff8(R1), F2	// FMOVD	16777208(R1), F2	// 3be07f9162ff7ffd
+	FMOVD	0x1006ff8(R1), F2	// FMOVD	16805880(R1), F2	// 3bfc7f9162ff7ffd
 
 // very large or unaligned offset uses constant pool.
 // the encoding cannot be checked as the address of the constant pool is unknown.
 // here we only test that they can be assembled.
 	MOVB	R1, 0x1000000(R2)	// MOVB		R1, 16777216(R2)
 	MOVB	R1, 0x44332211(R2)	// MOVB		R1, 1144201745(R2)
-	MOVH	R1, 0x1000000(R2)	// MOVH		R1, 16777216(R2)
+	MOVH	R1, 0x1001000(R2)	// MOVH		R1, 16781312(R2)
 	MOVH	R1, 0x44332211(R2)	// MOVH		R1, 1144201745(R2)
-	MOVW	R1, 0x1000000(R2)	// MOVW		R1, 16777216(R2)
+	MOVW	R1, 0x1003000(R2)	// MOVW		R1, 16789504(R2)
 	MOVW	R1, 0x44332211(R2)	// MOVW		R1, 1144201745(R2)
-	MOVD	R1, 0x1000000(R2)	// MOVD		R1, 16777216(R2)
+	MOVD	R1, 0x1007000(R2)	// MOVD		R1, 16805888(R2)
 	MOVD	R1, 0x44332211(R2)	// MOVD		R1, 1144201745(R2)
-	FMOVS	F1, 0x1000000(R2)	// FMOVS	F1, 16777216(R2)
+	FMOVS	F1, 0x1003000(R2)	// FMOVS	F1, 16789504(R2)
 	FMOVS	F1, 0x44332211(R2)	// FMOVS	F1, 1144201745(R2)
-	FMOVD	F1, 0x1000000(R2)	// FMOVD	F1, 16777216(R2)
+	FMOVD	F1, 0x1007000(R2)	// FMOVD	F1, 16805888(R2)
 	FMOVD	F1, 0x44332211(R2)	// FMOVD	F1, 1144201745(R2)
 
 	MOVB	0x1000000(R1), R2	// MOVB		16777216(R1), R2
@@ -950,6 +981,14 @@ again:
 	ADR	next, R11     // ADR R11 // 2b000010
 next:
 	NOP
+	ADR -2(PC), R10    // 0a000010
+	ADR 2(PC), R16     // 10000010
+	ADR -26(PC), R1    // 01000010
+	ADR 12(PC), R2     // 02000010
+	ADRP -2(PC), R10   // 0a000090
+	ADRP 2(PC), R16    // 10000090
+	ADRP -26(PC), R1   // 01000090
+	ADRP 12(PC), R2    // 02000090
 
 // LDP/STP
 	LDP	(R0), (R0, R1)      // 000440a9
@@ -972,6 +1011,7 @@ next:
 	LDP	-8(R0), (R1, R2)    // 01887fa9
 	LDP	x(SB), (R1, R2)
 	LDP	x+8(SB), (R1, R2)
+	LDP	8(R1), (ZR, R2)     // 3f8840a9
 	LDPW	-5(R0), (R1, R2)    // 1b1400d1610b4029
 	LDPW	(R0), (R1, R2)      // 01084029
 	LDPW	4(R0), (R1, R2)     // 01884029
@@ -989,6 +1029,7 @@ next:
 	LDPW	1024(RSP), (R1, R2) // fb031091610b4029
 	LDPW	x(SB), (R1, R2)
 	LDPW	x+8(SB), (R1, R2)
+	LDPW	8(R1), (ZR, R2)     // 3f084129
 	LDPSW	(R0), (R1, R2)      // 01084069
 	LDPSW	4(R0), (R1, R2)     // 01884069
 	LDPSW	-4(R0), (R1, R2)    // 01887f69
@@ -1005,6 +1046,7 @@ next:
 	LDPSW	1024(RSP), (R1, R2) // fb031091610b4069
 	LDPSW	x(SB), (R1, R2)
 	LDPSW	x+8(SB), (R1, R2)
+	LDPSW	8(R1), (ZR, R2)     // 3f084169
 	STP	(R3, R4), (R5)      // a31000a9
 	STP	(R3, R4), 8(R5)     // a39000a9
 	STP.W	(R3, R4), 8(R5)     // a39080a9

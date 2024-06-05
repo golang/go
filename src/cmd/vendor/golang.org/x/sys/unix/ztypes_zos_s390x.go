@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build zos && s390x
-// +build zos,s390x
 
 // Hand edited based on ztypes_linux_s390x.go
 // TODO: auto-generate.
@@ -26,10 +25,13 @@ const (
 	SizeofIPv6Mreq      = 20
 	SizeofICMPv6Filter  = 32
 	SizeofIPv6MTUInfo   = 32
+	SizeofInet4Pktinfo  = 8
+	SizeofInet6Pktinfo  = 20
 	SizeofLinger        = 8
 	SizeofSockaddrInet4 = 16
 	SizeofSockaddrInet6 = 28
 	SizeofTCPInfo       = 0x68
+	SizeofUcred         = 12
 )
 
 type (
@@ -70,12 +72,17 @@ type Utimbuf struct {
 }
 
 type Utsname struct {
-	Sysname    [65]byte
-	Nodename   [65]byte
-	Release    [65]byte
-	Version    [65]byte
-	Machine    [65]byte
-	Domainname [65]byte
+	Sysname  [16]byte
+	Nodename [32]byte
+	Release  [8]byte
+	Version  [8]byte
+	Machine  [16]byte
+}
+
+type Ucred struct {
+	Pid int32
+	Uid uint32
+	Gid uint32
 }
 
 type RawSockaddrInet4 struct {
@@ -326,7 +333,7 @@ type Statvfs_t struct {
 }
 
 type Statfs_t struct {
-	Type    uint32
+	Type    uint64
 	Bsize   uint64
 	Blocks  uint64
 	Bfree   uint64
@@ -337,6 +344,7 @@ type Statfs_t struct {
 	Namelen uint64
 	Frsize  uint64
 	Flags   uint64
+	_       [4]uint64
 }
 
 type direntLE struct {
@@ -412,4 +420,127 @@ type W_Mntent struct {
 	Owner        [8]byte
 	Quiesceowner [8]byte
 	_            [38]byte
+}
+
+type EpollEvent struct {
+	Events uint32
+	_      int32
+	Fd     int32
+	Pad    int32
+}
+
+type InotifyEvent struct {
+	Wd     int32
+	Mask   uint32
+	Cookie uint32
+	Len    uint32
+	Name   string
+}
+
+const (
+	SizeofInotifyEvent = 0x10
+)
+
+type ConsMsg2 struct {
+	Cm2Format       uint16
+	Cm2R1           uint16
+	Cm2Msglength    uint32
+	Cm2Msg          *byte
+	Cm2R2           [4]byte
+	Cm2R3           [4]byte
+	Cm2Routcde      *uint32
+	Cm2Descr        *uint32
+	Cm2Msgflag      uint32
+	Cm2Token        uint32
+	Cm2Msgid        *uint32
+	Cm2R4           [4]byte
+	Cm2DomToken     uint32
+	Cm2DomMsgid     *uint32
+	Cm2ModCartptr   *byte
+	Cm2ModConsidptr *byte
+	Cm2MsgCart      [8]byte
+	Cm2MsgConsid    [4]byte
+	Cm2R5           [12]byte
+}
+
+const (
+	CC_modify        = 1
+	CC_stop          = 2
+	CONSOLE_FORMAT_2 = 2
+	CONSOLE_FORMAT_3 = 3
+	CONSOLE_HRDCPY   = 0x80000000
+)
+
+type OpenHow struct {
+	Flags   uint64
+	Mode    uint64
+	Resolve uint64
+}
+
+const SizeofOpenHow = 0x18
+
+const (
+	RESOLVE_CACHED        = 0x20
+	RESOLVE_BENEATH       = 0x8
+	RESOLVE_IN_ROOT       = 0x10
+	RESOLVE_NO_MAGICLINKS = 0x2
+	RESOLVE_NO_SYMLINKS   = 0x4
+	RESOLVE_NO_XDEV       = 0x1
+)
+
+type Siginfo struct {
+	Signo int32
+	Errno int32
+	Code  int32
+	Pid   int32
+	Uid   uint32
+	_     [44]byte
+}
+
+type SysvIpcPerm struct {
+	Uid  uint32
+	Gid  uint32
+	Cuid uint32
+	Cgid uint32
+	Mode int32
+}
+
+type SysvShmDesc struct {
+	Perm   SysvIpcPerm
+	_      [4]byte
+	Lpid   int32
+	Cpid   int32
+	Nattch uint32
+	_      [4]byte
+	_      [4]byte
+	_      [4]byte
+	_      int32
+	_      uint8
+	_      uint8
+	_      uint16
+	_      *byte
+	Segsz  uint64
+	Atime  Time_t
+	Dtime  Time_t
+	Ctime  Time_t
+}
+
+type SysvShmDesc64 struct {
+	Perm   SysvIpcPerm
+	_      [4]byte
+	Lpid   int32
+	Cpid   int32
+	Nattch uint32
+	_      [4]byte
+	_      [4]byte
+	_      [4]byte
+	_      int32
+	_      byte
+	_      uint8
+	_      uint16
+	_      *byte
+	Segsz  uint64
+	Atime  int64
+	Dtime  int64
+	Ctime  int64
 }

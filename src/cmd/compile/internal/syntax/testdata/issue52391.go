@@ -13,5 +13,5 @@ type _ interface {
 	(int) | (string)
 	(int) | ~(string)
 	(/* ERROR unexpected ~ */ ~int)
-	(int /* ERROR unexpected \| */ | /* ERROR unexpected string */ string /* ERROR unexpected \) */ )
+	(int /* ERROR unexpected \| */ | /* ERROR unexpected name string */ string /* ERROR unexpected \) */ )
 }

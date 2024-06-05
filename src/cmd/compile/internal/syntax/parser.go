@@ -181,10 +181,9 @@ func commentText(s string) string {
 }
 
 func trailingDigits(text string) (uint, uint, bool) {
-	// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
-	i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
+	i := strings.LastIndexByte(text, ':') // look from right (Windows filenames may contain ':')
 	if i < 0 {
-		return 0, 0, false // no ":"
+		return 0, 0, false // no ':'
 	}
 	// i >= 0
 	n, err := strconv.ParseUint(text[i+1:], 10, 0)
@@ -268,7 +267,9 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
 	// determine token string
 	var tok string
 	switch p.tok {
-	case _Name, _Semi:
+	case _Name:
+		tok = "name " + p.lit
+	case _Semi:
 		tok = p.lit
 	case _Literal:
 		tok = "literal " + p.lit
@@ -799,6 +800,9 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 		f.Name = p.name()
 		f.TParamList, f.Type = p.funcType(context)
 	} else {
+		f.Name = NewName(p.pos(), "_")
+		f.Type = new(FuncType)
+		f.Type.pos = p.pos()
 		msg := "expected name or ("
 		if context != "" {
 			msg = "expected name"
@@ -885,7 +889,7 @@ func (p *parser) unaryExpr() Expr {
 			p.next()
 			// unaryExpr may have returned a parenthesized composite literal
 			// (see comment in operand) - remove parentheses if any
-			x.X = unparen(p.unaryExpr())
+			x.X = Unparen(p.unaryExpr())
 			return x
 		}
 
@@ -965,7 +969,7 @@ func (p *parser) callStmt() *CallStmt {
 	p.next()
 
 	x := p.pexpr(nil, p.tok == _Lparen) // keep_parens so we can report error below
-	if t := unparen(x); t != x {
+	if t := Unparen(x); t != x {
 		p.errorAt(x.Pos(), fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
 		// already progressed, no need to advance
 		x = t
@@ -1145,7 +1149,7 @@ loop:
 			}
 
 			// x[i:...
-			// For better error message, don't simply use p.want(_Colon) here (issue #47704).
+			// For better error message, don't simply use p.want(_Colon) here (go.dev/issue/47704).
 			if !p.got(_Colon) {
 				p.syntaxError("expected comma, : or ]")
 				p.advance(_Comma, _Colon, _Rbrack)
@@ -1190,7 +1194,7 @@ loop:
 		case _Lbrace:
 			// operand may have returned a parenthesized complit
 			// type; accept it but complain if we have a complit
-			t := unparen(x)
+			t := Unparen(x)
 			// determine if '{' belongs to a composite literal or a block statement
 			complit_ok := false
 			switch t.(type) {
@@ -2019,7 +2023,7 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 
 	// distribute parameter types (len(list) > 0)
 	if named == 0 && !requireNames {
-		// all unnamed => found names are named types
+		// all unnamed and we're not in a type parameter list => found names are named types
 		for _, par := range list {
 			if typ := par.Name; typ != nil {
 				par.Type = typ
@@ -2027,40 +2031,50 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 			}
 		}
 	} else if named != len(list) {
-		// some named => all must have names and types
-		var pos Pos  // left-most error position (or unknown)
-		var typ Expr // current type (from right to left)
+		// some named or we're in a type parameter list => all must be named
+		var errPos Pos // left-most error position (or unknown)
+		var typ Expr   // current type (from right to left)
 		for i := len(list) - 1; i >= 0; i-- {
 			par := list[i]
 			if par.Type != nil {
 				typ = par.Type
 				if par.Name == nil {
-					pos = StartPos(typ)
-					par.Name = NewName(pos, "_")
+					errPos = StartPos(typ)
+					par.Name = NewName(errPos, "_")
 				}
 			} else if typ != nil {
 				par.Type = typ
 			} else {
 				// par.Type == nil && typ == nil => we only have a par.Name
-				pos = par.Name.Pos()
+				errPos = par.Name.Pos()
 				t := p.badExpr()
-				t.pos = pos // correct position
+				t.pos = errPos // correct position
 				par.Type = t
 			}
 		}
-		if pos.IsKnown() {
+		if errPos.IsKnown() {
 			var msg string
 			if requireNames {
+				// Not all parameters are named because named != len(list).
+				// If named == typed we must have parameters that have no types,
+				// and they must be at the end of the parameter list, otherwise
+				// the types would have been filled in by the right-to-left sweep
+				// above and we wouldn't have an error. Since we are in a type
+				// parameter list, the missing types are constraints.
 				if named == typed {
-					pos = end // position error at closing ]
+					errPos = end // position error at closing ]
 					msg = "missing type constraint"
 				} else {
-					msg = "type parameters must be named"
+					msg = "missing type parameter name"
+					// go.dev/issue/60812
+					if len(list) == 1 {
+						msg += " or invalid array length"
+					}
 				}
 			} else {
 				msg = "mixed named and unnamed parameters"
 			}
-			p.syntaxErrorAt(pos, msg)
+			p.syntaxErrorAt(errPos, msg)
 		}
 	}
 
@@ -2320,7 +2334,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 			// asking for a '{' rather than a ';' here leads to a better error message
 			p.want(_Lbrace)
 			if p.tok != _Lbrace {
-				p.advance(_Lbrace, _Rbrace) // for better synchronization (e.g., issue #22581)
+				p.advance(_Lbrace, _Rbrace) // for better synchronization (e.g., go.dev/issue/22581)
 			}
 		}
 		if keyword == _For {
@@ -2812,8 +2826,8 @@ func (p *parser) typeList(strict bool) (x Expr, comma bool) {
 	return
 }
 
-// unparen removes all parentheses around an expression.
-func unparen(x Expr) Expr {
+// Unparen returns e with any enclosing parentheses stripped.
+func Unparen(x Expr) Expr {
 	for {
 		p, ok := x.(*ParenExpr)
 		if !ok {
@@ -2822,4 +2836,16 @@ func unparen(x Expr) Expr {
 		x = p.X
 	}
 	return x
+}
+
+// UnpackListExpr unpacks a *ListExpr into a []Expr.
+func UnpackListExpr(x Expr) []Expr {
+	switch x := x.(type) {
+	case nil:
+		return nil
+	case *ListExpr:
+		return x.ElemList
+	default:
+		return []Expr{x}
+	}
 }

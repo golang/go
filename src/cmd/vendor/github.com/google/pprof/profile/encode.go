@@ -258,10 +258,10 @@ func (p *Profile) postDecode() error {
 		// If this a main linux kernel mapping with a relocation symbol suffix
 		// ("[kernel.kallsyms]_text"), extract said suffix.
 		// It is fairly hacky to handle at this level, but the alternatives appear even worse.
-		if strings.HasPrefix(m.File, "[kernel.kallsyms]") {
-			m.KernelRelocationSymbol = strings.ReplaceAll(m.File, "[kernel.kallsyms]", "")
+		const prefix = "[kernel.kallsyms]"
+		if strings.HasPrefix(m.File, prefix) {
+			m.KernelRelocationSymbol = m.File[len(prefix):]
 		}
-
 	}
 
 	functions := make(map[uint64]*Function, len(p.Function))
@@ -530,6 +530,7 @@ func (p *Line) decoder() []decoder {
 func (p *Line) encode(b *buffer) {
 	encodeUint64Opt(b, 1, p.functionIDX)
 	encodeInt64Opt(b, 2, p.Line)
+	encodeInt64Opt(b, 3, p.Column)
 }
 
 var lineDecoder = []decoder{
@@ -538,6 +539,8 @@ var lineDecoder = []decoder{
 	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Line).functionIDX) },
 	// optional int64 line = 2
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Line).Line) },
+	// optional int64 column = 3
+	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Line).Column) },
 }
 
 func (p *Function) decoder() []decoder {

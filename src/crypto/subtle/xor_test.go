@@ -63,14 +63,6 @@ func TestXorBytesPanic(t *testing.T) {
 	})
 }
 
-func min(a, b []byte) int {
-	n := len(a)
-	if len(b) < n {
-		n = len(b)
-	}
-	return n
-}
-
 func BenchmarkXORBytes(b *testing.B) {
 	dst := make([]byte, 1<<15)
 	data0 := make([]byte, 1<<15)

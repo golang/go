@@ -6,7 +6,6 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
-	"fmt"
 	. "internal/types/errors"
 	"sort"
 	"strings"
@@ -58,7 +57,7 @@ func (s *_TypeSet) Method(i int) *Func { return s.methods[i] }
 
 // LookupMethod returns the index of and method with matching package and name, or (-1, nil).
 func (s *_TypeSet) LookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
-	return lookupMethod(s.methods, pkg, name, foldCase)
+	return methodIndex(s.methods, pkg, name, foldCase)
 }
 
 func (s *_TypeSet) String() string {
@@ -162,6 +161,10 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 	// set (and don't store it!), so that we still compute the full
 	// type set eventually. Instead, return the top type set and
 	// let any follow-on errors play out.
+	//
+	// TODO(gri) Consider recording when this happens and reporting
+	// it as an error (but only if there were no other errors so to
+	// to not have unnecessary follow-on errors).
 	if !ityp.complete {
 		return &topTypeSet
 	}
@@ -212,7 +215,6 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 	// we can get rid of the mpos map below and simply use the cloned method's
 	// position.
 
-	var todo []*Func
 	var seen objset
 	var allMethods []*Func
 	mpos := make(map[*Func]syntax.Pos) // method specification or method embedding position, for good error messages
@@ -222,36 +224,28 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			allMethods = append(allMethods, m)
 			mpos[m] = pos
 		case explicit:
-			if check == nil {
-				panic(fmt.Sprintf("%s: duplicate method %s", m.pos, m.name))
+			if check != nil {
+				err := check.newError(DuplicateDecl)
+				err.addf(atPos(pos), "duplicate method %s", m.name)
+				err.addf(atPos(mpos[other.(*Func)]), "other declaration of method %s", m.name)
+				err.report()
 			}
-			// check != nil
-			var err error_
-			err.code = DuplicateDecl
-			err.errorf(pos, "duplicate method %s", m.name)
-			err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
-			check.report(&err)
 		default:
 			// We have a duplicate method name in an embedded (not explicitly declared) method.
 			// Check method signatures after all types are computed (go.dev/issue/33656).
 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
 			// error here as well (even though we could do it eagerly) because it's the same
 			// error message.
-			if check == nil {
-				// check method signatures after all locally embedded interfaces are computed
-				todo = append(todo, m, other.(*Func))
-				break
+			if check != nil {
+				check.later(func() {
+					if pos.IsKnown() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+						err := check.newError(DuplicateDecl)
+						err.addf(atPos(pos), "duplicate method %s", m.name)
+						err.addf(atPos(mpos[other.(*Func)]), "other declaration of method %s", m.name)
+						err.report()
+					}
+				}).describef(atPos(pos), "duplicate method check for %s", m.name)
 			}
-			// check != nil
-			check.later(func() {
-				if !check.allowVersion(m.pkg, pos, go1_14) || !Identical(m.typ, other.Type()) {
-					var err error_
-					err.code = DuplicateDecl
-					err.errorf(pos, "duplicate method %s", m.name)
-					err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
-					check.report(&err)
-				}
-			}).describef(pos, "duplicate method check for %s", m.name)
 		}
 	}
 
@@ -263,9 +257,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 	allTerms := allTermlist
 	allComparable := false
 	for i, typ := range ityp.embeddeds {
-		// The embedding position is nil for imported interfaces
-		// and also for interface copies after substitution (but
-		// in that case we don't need to report errors again).
+		// The embedding position is nil for imported interfaces.
+		// We don't need to do version checks in those cases.
 		var pos syntax.Pos // embedding position
 		if ityp.embedPos != nil {
 			pos = (*ityp.embedPos)[i]
@@ -278,7 +271,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			assert(!isTypeParam(typ))
 			tset := computeInterfaceTypeSet(check, pos, u)
 			// If typ is local, an error was already reported where typ is specified/defined.
-			if check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(pos, go1_18, "embedding constraint interface %s", typ) {
+			if pos.IsKnown() && check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(atPos(pos), go1_18, "embedding constraint interface %s", typ) {
 				continue
 			}
 			comparable = tset.comparable
@@ -287,7 +280,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			}
 			terms = tset.terms
 		case *Union:
-			if check != nil && !check.verifyVersionf(pos, go1_18, "embedding interface element %s", u) {
+			if pos.IsKnown() && check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding interface element %s", u) {
 				continue
 			}
 			tset := computeUnionTypeSet(check, unionSets, pos, u)
@@ -298,10 +291,10 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			assert(len(tset.methods) == 0)
 			terms = tset.terms
 		default:
-			if u == Typ[Invalid] {
+			if !isValid(u) {
 				continue
 			}
-			if check != nil && !check.verifyVersionf(pos, go1_18, "embedding non-interface type %s", typ) {
+			if pos.IsKnown() && check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding non-interface type %s", typ) {
 				continue
 			}
 			terms = termlist{{false, typ}}
@@ -311,16 +304,6 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 		// Due to language restrictions, only embedded interfaces can add methods, they are handled
 		// separately. Here we only need to intersect the term lists and comparable bits.
 		allTerms, allComparable = intersectTermLists(allTerms, allComparable, terms, comparable)
-	}
-	ityp.embedPos = nil // not needed anymore (errors have been reported)
-
-	// process todo's (this only happens if check == nil)
-	for i := 0; i < len(todo); i += 2 {
-		m := todo[i]
-		other := todo[i+1]
-		if !Identical(m.typ, other.typ) {
-			panic(fmt.Sprintf("%s: duplicate method %s", m.pos, m.name))
-		}
 	}
 
 	ityp.tset.comparable = allComparable
@@ -406,7 +389,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos syn
 			// For now we don't permit type parameters as constraints.
 			assert(!isTypeParam(t.typ))
 			terms = computeInterfaceTypeSet(check, pos, ui).terms
-		} else if u == Typ[Invalid] {
+		} else if !isValid(u) {
 			continue
 		} else {
 			if t.tilde && !Identical(t.typ, u) {
@@ -421,7 +404,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos syn
 		allTerms = allTerms.union(terms)
 		if len(allTerms) > maxTermCount {
 			if check != nil {
-				check.errorf(pos, InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+				check.errorf(atPos(pos), InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
 			}
 			unionSets[utyp] = &invalidTypeSet
 			return unionSets[utyp]

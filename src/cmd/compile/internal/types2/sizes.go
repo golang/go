@@ -94,7 +94,7 @@ func (s *StdSizes) Alignof(T Type) (result int64) {
 			return s.WordSize
 		}
 	case *TypeParam, *Union:
-		unreachable()
+		panic("unreachable")
 	}
 	a := s.Sizeof(T) // may be 0 or negative
 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
@@ -112,15 +112,15 @@ func (s *StdSizes) Alignof(T Type) (result int64) {
 }
 
 func IsSyncAtomicAlign64(T Type) bool {
-	named, ok := T.(*Named)
-	if !ok {
+	named := asNamed(T)
+	if named == nil {
 		return false
 	}
 	obj := named.Obj()
 	return obj.Name() == "align64" &&
 		obj.Pkg() != nil &&
 		(obj.Pkg().Path() == "sync/atomic" ||
-			obj.Pkg().Path() == "runtime/internal/atomic")
+			obj.Pkg().Path() == "internal/runtime/atomic")
 }
 
 func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
@@ -221,13 +221,13 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		assert(!isTypeParam(T))
 		return s.WordSize * 2
 	case *TypeParam, *Union:
-		unreachable()
+		panic("unreachable")
 	}
 	return s.WordSize // catch-all
 }
 
 // common architecture word sizes and alignments
-var gcArchSizes = map[string]*StdSizes{
+var gcArchSizes = map[string]*gcSizes{
 	"386":      {4, 4},
 	"amd64":    {8, 8},
 	"amd64p32": {4, 8},
@@ -255,20 +255,17 @@ var gcArchSizes = map[string]*StdSizes{
 // "386", "amd64", "amd64p32", "arm", "arm64", "loong64", "mips", "mipsle",
 // "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "sparc64", "wasm".
 func SizesFor(compiler, arch string) Sizes {
-	var m map[string]*StdSizes
 	switch compiler {
 	case "gc":
-		m = gcArchSizes
+		if s := gcSizesFor(compiler, arch); s != nil {
+			return Sizes(s)
+		}
 	case "gccgo":
-		m = gccgoArchSizes
-	default:
-		return nil
+		if s, ok := gccgoArchSizes[arch]; ok {
+			return Sizes(s)
+		}
 	}
-	s, ok := m[arch]
-	if !ok {
-		return nil
-	}
-	return s
+	return nil
 }
 
 // stdSizes is used if Config.Sizes == nil.

@@ -21,9 +21,15 @@ func (v Element) String() string {
 	return hex.EncodeToString(v.Bytes())
 }
 
-// quickCheckConfig1024 will make each quickcheck test run (1024 * -quickchecks)
-// times. The default value of -quickchecks is 100.
-var quickCheckConfig1024 = &quick.Config{MaxCountScale: 1 << 10}
+// quickCheckConfig returns a quick.Config that scales the max count by the
+// given factor if the -short flag is not set.
+func quickCheckConfig(slowScale int) *quick.Config {
+	cfg := new(quick.Config)
+	if !testing.Short() {
+		cfg.MaxCountScale = float64(slowScale)
+	}
+	return cfg
+}
 
 func generateFieldElement(rand *mathrand.Rand) Element {
 	const maskLow52Bits = (1 << 52) - 1
@@ -114,7 +120,7 @@ func TestMultiplyDistributesOverAdd(t *testing.T) {
 		return t1.Equal(t2) == 1 && isInBounds(t1) && isInBounds(t2)
 	}
 
-	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig1024); err != nil {
+	if err := quick.Check(multiplyDistributesOverAdd, quickCheckConfig(1024)); err != nil {
 		t.Error(err)
 	}
 }
@@ -419,7 +425,7 @@ func TestMult32(t *testing.T) {
 		return t1.Equal(t2) == 1 && isInBounds(t1) && isInBounds(t2)
 	}
 
-	if err := quick.Check(mult32EquivalentToMul, quickCheckConfig1024); err != nil {
+	if err := quick.Check(mult32EquivalentToMul, quickCheckConfig(1024)); err != nil {
 		t.Error(err)
 	}
 }
@@ -498,7 +504,7 @@ func TestCarryPropagate(t *testing.T) {
 		return *t1 == *t2 && isInBounds(t2)
 	}
 
-	if err := quick.Check(asmLikeGeneric, quickCheckConfig1024); err != nil {
+	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
 		t.Error(err)
 	}
 
@@ -522,7 +528,7 @@ func TestFeSquare(t *testing.T) {
 		return t1 == t2 && isInBounds(&t2)
 	}
 
-	if err := quick.Check(asmLikeGeneric, quickCheckConfig1024); err != nil {
+	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
 		t.Error(err)
 	}
 }
@@ -546,7 +552,7 @@ func TestFeMul(t *testing.T) {
 			b1 == b2 && isInBounds(&b2)
 	}
 
-	if err := quick.Check(asmLikeGeneric, quickCheckConfig1024); err != nil {
+	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
 		t.Error(err)
 	}
 }

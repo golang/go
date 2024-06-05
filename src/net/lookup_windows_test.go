@@ -5,6 +5,7 @@
 package net
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,7 +14,7 @@ import (
 	"os/exec"
 	"reflect"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -65,8 +66,14 @@ func TestNSLookupMX(t *testing.T) {
 		if err != nil {
 			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
-		sort.Sort(byPrefAndHost(expected))
-		sort.Sort(byPrefAndHost(mx))
+		byPrefAndHost := func(a, b *MX) int {
+			if r := cmp.Compare(a.Pref, b.Pref); r != 0 {
+				return r
+			}
+			return strings.Compare(a.Host, b.Host)
+		}
+		slices.SortFunc(expected, byPrefAndHost)
+		slices.SortFunc(mx, byPrefAndHost)
 		if !reflect.DeepEqual(expected, mx) {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, toJson(expected), toJson(mx))
 		}
@@ -109,8 +116,11 @@ func TestNSLookupNS(t *testing.T) {
 		if err != nil {
 			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
-		sort.Sort(byHost(expected))
-		sort.Sort(byHost(ns))
+		byHost := func(a, b *NS) int {
+			return strings.Compare(a.Host, b.Host)
+		}
+		slices.SortFunc(expected, byHost)
+		slices.SortFunc(ns, byHost)
 		if !reflect.DeepEqual(expected, ns) {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", toJson(server), toJson(expected), ns)
 		}
@@ -132,8 +142,8 @@ func TestNSLookupTXT(t *testing.T) {
 		if err != nil {
 			t.Skipf("skipping failed nslookup %s test: %s", server, err)
 		}
-		sort.Strings(expected)
-		sort.Strings(txt)
+		slices.Sort(expected)
+		slices.Sort(txt)
 		if !reflect.DeepEqual(expected, txt) {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, toJson(expected), toJson(txt))
 		}
@@ -158,8 +168,8 @@ func TestLookupLocalPTR(t *testing.T) {
 	if err != nil {
 		t.Skipf("skipping failed lookup %s test: %s", addr.String(), err)
 	}
-	sort.Strings(expected)
-	sort.Strings(names)
+	slices.Sort(expected)
+	slices.Sort(names)
 	if !reflect.DeepEqual(expected, names) {
 		t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
 	}
@@ -189,30 +199,13 @@ func TestLookupPTR(t *testing.T) {
 			t.Logf("skipping failed lookup %s test: %s", addr, err)
 			continue
 		}
-		sort.Strings(expected)
-		sort.Strings(names)
+		slices.Sort(expected)
+		slices.Sort(names)
 		if !reflect.DeepEqual(expected, names) {
 			t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
 		}
 	}
 }
-
-type byPrefAndHost []*MX
-
-func (s byPrefAndHost) Len() int { return len(s) }
-func (s byPrefAndHost) Less(i, j int) bool {
-	if s[i].Pref != s[j].Pref {
-		return s[i].Pref < s[j].Pref
-	}
-	return s[i].Host < s[j].Host
-}
-func (s byPrefAndHost) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-type byHost []*NS
-
-func (s byHost) Len() int           { return len(s) }
-func (s byHost) Less(i, j int) bool { return s[i].Host < s[j].Host }
-func (s byHost) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func nslookup(qtype, name string) (string, error) {
 	var out strings.Builder

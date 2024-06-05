@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package api
+package main
 
 import (
 	"flag"
@@ -282,6 +282,25 @@ func TestIssue41358(t *testing.T) {
 		if strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "golang.org/x/") {
 			t.Fatalf("stdPackages contains unexpected package %s", pkg)
 		}
+	}
+}
+
+func TestIssue64958(t *testing.T) {
+	defer func() {
+		if x := recover(); x != nil {
+			t.Errorf("expected no panic; recovered %v", x)
+		}
+	}()
+
+	testenv.MustHaveGoBuild(t)
+
+	for _, context := range contexts {
+		w := NewWalker(context, "testdata/src/issue64958")
+		pkg, err := w.importFrom("p", "", 0)
+		if err != nil {
+			t.Errorf("expected no error importing; got %T", err)
+		}
+		w.export(pkg)
 	}
 }
 

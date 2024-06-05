@@ -9,6 +9,7 @@ package strings
 
 import (
 	"internal/bytealg"
+	"internal/stringslite"
 	"unicode"
 	"unicode/utf8"
 )
@@ -83,7 +84,7 @@ func LastIndex(s, substr string) int {
 	case n == 0:
 		return len(s)
 	case n == 1:
-		return LastIndexByte(s, substr[0])
+		return bytealg.LastIndexByteString(s, substr[0])
 	case n == len(s):
 		if substr == s {
 			return 0
@@ -115,7 +116,7 @@ func LastIndex(s, substr string) int {
 
 // IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
 func IndexByte(s string, c byte) int {
-	return bytealg.IndexByteString(s, c)
+	return stringslite.IndexByte(s, c)
 }
 
 // IndexRune returns the index of the first instance of the Unicode code point
@@ -227,12 +228,7 @@ func LastIndexAny(s, chars string) int {
 
 // LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
 func LastIndexByte(s string, c byte) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
+	return bytealg.LastIndexByteString(s, c)
 }
 
 // Generic split: splits after each instance of sep,
@@ -277,7 +273,7 @@ func genSplit(s, sep string, sepSave, n int) []string {
 //	n < 0: all substrings
 //
 // Edge cases for s and sep (for example, empty strings) are handled
-// as described in the documentation for Split.
+// as described in the documentation for [Split].
 //
 // To split around the first instance of a separator, see Cut.
 func SplitN(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
@@ -306,7 +302,7 @@ func SplitAfterN(s, sep string, n int) []string {
 // If sep is empty, Split splits after each UTF-8 sequence. If both s
 // and sep are empty, Split returns an empty slice.
 //
-// It is equivalent to SplitN with a count of -1.
+// It is equivalent to [SplitN] with a count of -1.
 //
 // To split around the first instance of a separator, see Cut.
 func Split(s, sep string) []string { return genSplit(s, sep, 0, -1) }
@@ -320,7 +316,7 @@ func Split(s, sep string) []string { return genSplit(s, sep, 0, -1) }
 // If sep is empty, SplitAfter splits after each UTF-8 sequence. If
 // both s and sep are empty, SplitAfter returns an empty slice.
 //
-// It is equivalent to SplitAfterN with a count of -1.
+// It is equivalent to [SplitAfterN] with a count of -1.
 func SplitAfter(s, sep string) []string {
 	return genSplit(s, sep, len(sep), -1)
 }
@@ -463,14 +459,14 @@ func Join(elems []string, sep string) string {
 	return b.String()
 }
 
-// HasPrefix tests whether the string s begins with prefix.
+// HasPrefix reports whether the string s begins with prefix.
 func HasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
+	return stringslite.HasPrefix(s, prefix)
 }
 
-// HasSuffix tests whether the string s ends with suffix.
+// HasSuffix reports whether the string s ends with suffix.
 func HasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+	return stringslite.HasSuffix(s, suffix)
 }
 
 // Map returns a copy of the string s with all its characters modified
@@ -526,7 +522,7 @@ func Map(mapping func(rune) rune, s string) string {
 			if r < utf8.RuneSelf {
 				b.WriteByte(byte(r))
 			} else {
-				// r is not a ASCII rune.
+				// r is not an ASCII rune.
 				b.WriteRune(r)
 			}
 		}
@@ -534,6 +530,27 @@ func Map(mapping func(rune) rune, s string) string {
 
 	return b.String()
 }
+
+// According to static analysis, spaces, dashes, zeros, equals, and tabs
+// are the most commonly repeated string literal,
+// often used for display on fixed-width terminal windows.
+// Pre-declare constants for these for O(1) repetition in the common-case.
+const (
+	repeatedSpaces = "" +
+		"                                                                " +
+		"                                                                "
+	repeatedDashes = "" +
+		"----------------------------------------------------------------" +
+		"----------------------------------------------------------------"
+	repeatedZeroes = "" +
+		"0000000000000000000000000000000000000000000000000000000000000000"
+	repeatedEquals = "" +
+		"================================================================" +
+		"================================================================"
+	repeatedTabs = "" +
+		"\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t" +
+		"\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
+)
 
 // Repeat returns a new string consisting of count copies of the string s.
 //
@@ -553,13 +570,30 @@ func Repeat(s string, count int) string {
 	if count < 0 {
 		panic("strings: negative Repeat count")
 	}
-	if len(s) >= maxInt/count {
+	if len(s) > maxInt/count {
 		panic("strings: Repeat output length overflow")
 	}
 	n := len(s) * count
 
 	if len(s) == 0 {
 		return ""
+	}
+
+	// Optimize for commonly repeated strings of relatively short length.
+	switch s[0] {
+	case ' ', '-', '0', '=', '\t':
+		switch {
+		case n <= len(repeatedSpaces) && HasPrefix(repeatedSpaces, s):
+			return repeatedSpaces[:n]
+		case n <= len(repeatedDashes) && HasPrefix(repeatedDashes, s):
+			return repeatedDashes[:n]
+		case n <= len(repeatedZeroes) && HasPrefix(repeatedZeroes, s):
+			return repeatedZeroes[:n]
+		case n <= len(repeatedEquals) && HasPrefix(repeatedEquals, s):
+			return repeatedEquals[:n]
+		case n <= len(repeatedTabs) && HasPrefix(repeatedTabs, s):
+			return repeatedTabs[:n]
+		}
 	}
 
 	// Past a certain chunk size it is counterproductive to use
@@ -909,7 +943,7 @@ func Trim(s, cutset string) string {
 // TrimLeft returns a slice of the string s with all leading
 // Unicode code points contained in cutset removed.
 //
-// To remove a prefix, use TrimPrefix instead.
+// To remove a prefix, use [TrimPrefix] instead.
 func TrimLeft(s, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -957,7 +991,7 @@ func trimLeftUnicode(s, cutset string) string {
 // TrimRight returns a slice of the string s, with all trailing
 // Unicode code points contained in cutset removed.
 //
-// To remove a suffix, use TrimSuffix instead.
+// To remove a suffix, use [TrimSuffix] instead.
 func TrimRight(s, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -1041,19 +1075,13 @@ func TrimSpace(s string) string {
 // TrimPrefix returns s without the provided leading prefix string.
 // If s doesn't start with prefix, s is returned unchanged.
 func TrimPrefix(s, prefix string) string {
-	if HasPrefix(s, prefix) {
-		return s[len(prefix):]
-	}
-	return s
+	return stringslite.TrimPrefix(s, prefix)
 }
 
 // TrimSuffix returns s without the provided trailing suffix string.
 // If s doesn't end with suffix, s is returned unchanged.
 func TrimSuffix(s, suffix string) string {
-	if HasSuffix(s, suffix) {
-		return s[:len(s)-len(suffix)]
-	}
-	return s
+	return stringslite.TrimSuffix(s, suffix)
 }
 
 // Replace returns a copy of the string s with the first n
@@ -1192,83 +1220,7 @@ hasUnicode:
 
 // Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
 func Index(s, substr string) int {
-	n := len(substr)
-	switch {
-	case n == 0:
-		return 0
-	case n == 1:
-		return IndexByte(s, substr[0])
-	case n == len(s):
-		if substr == s {
-			return 0
-		}
-		return -1
-	case n > len(s):
-		return -1
-	case n <= bytealg.MaxLen:
-		// Use brute force when s and substr both are small
-		if len(s) <= bytealg.MaxBruteForce {
-			return bytealg.IndexString(s, substr)
-		}
-		c0 := substr[0]
-		c1 := substr[1]
-		i := 0
-		t := len(s) - n + 1
-		fails := 0
-		for i < t {
-			if s[i] != c0 {
-				// IndexByte is faster than bytealg.IndexString, so use it as long as
-				// we're not getting lots of false positives.
-				o := IndexByte(s[i+1:t], c0)
-				if o < 0 {
-					return -1
-				}
-				i += o + 1
-			}
-			if s[i+1] == c1 && s[i:i+n] == substr {
-				return i
-			}
-			fails++
-			i++
-			// Switch to bytealg.IndexString when IndexByte produces too many false positives.
-			if fails > bytealg.Cutover(i) {
-				r := bytealg.IndexString(s[i:], substr)
-				if r >= 0 {
-					return r + i
-				}
-				return -1
-			}
-		}
-		return -1
-	}
-	c0 := substr[0]
-	c1 := substr[1]
-	i := 0
-	t := len(s) - n + 1
-	fails := 0
-	for i < t {
-		if s[i] != c0 {
-			o := IndexByte(s[i+1:t], c0)
-			if o < 0 {
-				return -1
-			}
-			i += o + 1
-		}
-		if s[i+1] == c1 && s[i:i+n] == substr {
-			return i
-		}
-		i++
-		fails++
-		if fails >= 4+i>>4 && i < t {
-			// See comment in ../bytes/bytes.go.
-			j := bytealg.IndexRabinKarp(s[i:], substr)
-			if j < 0 {
-				return -1
-			}
-			return i + j
-		}
-	}
-	return -1
+	return stringslite.Index(s, substr)
 }
 
 // Cut slices s around the first instance of sep,
@@ -1276,10 +1228,7 @@ func Index(s, substr string) int {
 // The found result reports whether sep appears in s.
 // If sep does not appear in s, cut returns s, "", false.
 func Cut(s, sep string) (before, after string, found bool) {
-	if i := Index(s, sep); i >= 0 {
-		return s[:i], s[i+len(sep):], true
-	}
-	return s, "", false
+	return stringslite.Cut(s, sep)
 }
 
 // CutPrefix returns s without the provided leading prefix string
@@ -1287,10 +1236,7 @@ func Cut(s, sep string) (before, after string, found bool) {
 // If s doesn't start with prefix, CutPrefix returns s, false.
 // If prefix is the empty string, CutPrefix returns s, true.
 func CutPrefix(s, prefix string) (after string, found bool) {
-	if !HasPrefix(s, prefix) {
-		return s, false
-	}
-	return s[len(prefix):], true
+	return stringslite.CutPrefix(s, prefix)
 }
 
 // CutSuffix returns s without the provided ending suffix string
@@ -1298,8 +1244,5 @@ func CutPrefix(s, prefix string) (after string, found bool) {
 // If s doesn't end with suffix, CutSuffix returns s, false.
 // If suffix is the empty string, CutSuffix returns s, true.
 func CutSuffix(s, suffix string) (before string, found bool) {
-	if !HasSuffix(s, suffix) {
-		return s, false
-	}
-	return s[:len(s)-len(suffix)], true
+	return stringslite.CutSuffix(s, suffix)
 }

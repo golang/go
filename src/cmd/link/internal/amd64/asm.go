@@ -469,7 +469,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	rs := r.Xsym
 	rt := r.Type
 
-	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_PCREL || rt == objabi.R_GOTPCREL || rt == objabi.R_CALL {
+	if !ldr.SymType(s).IsDWARF() {
 		if ldr.SymDynid(rs) < 0 {
 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
 			return false
@@ -577,7 +577,7 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 	return -1
 }
 
-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
 	if plt.Size() == 0 {
 		// pushq got+8(IP)
 		plt.AddUint8(0xff)

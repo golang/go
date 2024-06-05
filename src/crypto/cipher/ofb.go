@@ -18,7 +18,7 @@ type ofb struct {
 	outUsed int
 }
 
-// NewOFB returns a Stream that encrypts or decrypts using the block cipher b
+// NewOFB returns a [Stream] that encrypts or decrypts using the block cipher b
 // in output feedback mode. The initialization vector iv's length must be equal
 // to b's block size.
 func NewOFB(b Block, iv []byte) Stream {

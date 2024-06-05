@@ -1,6 +1,6 @@
 // errorcheck -0 -m -live -std
 
-// +build !windows,!js,!wasip1
+//go:build !windows && !js && !wasip1
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -22,7 +22,7 @@ import (
 	"unsafe"
 )
 
-func implicit(uintptr) // ERROR "assuming arg#1 is unsafe uintptr"
+func implicit(uintptr) // ERROR "assuming ~p0 is unsafe uintptr"
 
 //go:uintptrkeepalive
 //go:nosplit
@@ -47,13 +47,13 @@ func autotmpSyscall() { // ERROR "can inline autotmpSyscall"
 func localImplicit() { // ERROR "can inline localImplicit"
 	var t int
 	p := unsafe.Pointer(&t)
-	implicit(uintptr(p))           // ERROR "live at call to implicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+	implicit(uintptr(p)) // ERROR "live at call to implicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }
 
 func localExplicit() { // ERROR "can inline localExplicit"
 	var t int
 	p := unsafe.Pointer(&t)
-	explicit(uintptr(p))           // ERROR "live at call to explicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
+	explicit(uintptr(p)) // ERROR "live at call to explicit: .?autotmp" "stack object .autotmp_[0-9]+ unsafe.Pointer$"
 }
 
 func localSyscall() { // ERROR "can inline localSyscall"

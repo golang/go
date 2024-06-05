@@ -186,7 +186,7 @@ func verifyPrint(t *testing.T, filename string, ast1 *File) {
 	}
 	bytes2 := buf2.Bytes()
 
-	if bytes.Compare(bytes1, bytes2) != 0 {
+	if !bytes.Equal(bytes1, bytes2) {
 		fmt.Printf("--- %s ---\n", filename)
 		fmt.Printf("%s\n", bytes1)
 		fmt.Println()
@@ -372,5 +372,24 @@ func TestLineDirectives(t *testing.T) {
 		if col := pos.RelCol(); col != test.col {
 			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col)
 		}
+	}
+}
+
+// Test that typical uses of UnpackListExpr don't allocate.
+func TestUnpackListExprAllocs(t *testing.T) {
+	var x Expr = NewName(Pos{}, "x")
+	allocs := testing.AllocsPerRun(1000, func() {
+		list := UnpackListExpr(x)
+		if len(list) != 1 || list[0] != x {
+			t.Fatalf("unexpected result")
+		}
+	})
+
+	if allocs > 0 {
+		errorf := t.Errorf
+		if testenv.OptimizationOff() {
+			errorf = t.Logf // noopt builder disables inlining
+		}
+		errorf("UnpackListExpr allocated %v times", allocs)
 	}
 }

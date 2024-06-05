@@ -73,9 +73,6 @@ func (s *Signature) Recv() *Var { return s.recv }
 // TypeParams returns the type parameters of signature s, or nil.
 func (s *Signature) TypeParams() *TypeParamList { return s.tparams }
 
-// SetTypeParams sets the type parameters of signature s.
-func (s *Signature) SetTypeParams(tparams []*TypeParam) { s.tparams = bindTParams(tparams) }
-
 // RecvTypeParams returns the receiver type parameters of signature s, or nil.
 func (s *Signature) RecvTypeParams() *TypeParamList { return s.rparams }
 
@@ -108,9 +105,12 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
 		_, rname, rparams := check.unpackRecv(recvPar.Type, true)
 		if len(rparams) > 0 {
+			// The scope of the type parameter T in "func (r T[T]) f()"
+			// starts after f, not at "r"; see #52038.
+			scopePos := ftyp.Pos()
 			tparams := make([]*TypeParam, len(rparams))
 			for i, rparam := range rparams {
-				tparams[i] = check.declareTypeParam(rparam)
+				tparams[i] = check.declareTypeParam(rparam, scopePos)
 			}
 			sig.rparams = bindTParams(tparams)
 			// Blank identifiers don't get declared, so naive type-checking of the
@@ -136,7 +136,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
-				if recv, _ := check.genericType(rname, nil).(*Named); recv != nil {
+				if recv := asNamed(check.genericType(rname, nil)); recv != nil {
 					recvTParams = recv.TypeParams().list()
 				}
 			}
@@ -167,22 +167,26 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		check.collectTypeParams(&sig.tparams, tparams)
 	}
 
-	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
-	// declarations and then squash that scope into the parent scope (and report any redeclarations at
-	// that time).
+	// Use a temporary scope for all parameter declarations and then
+	// squash that scope into the parent scope (and report any
+	// redeclarations at that time).
+	//
+	// TODO(adonovan): now that each declaration has the correct
+	// scopePos, there should be no need for scope squashing.
+	// Audit to ensure all lookups honor scopePos and simplify.
 	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
-	var recvList []*Var // TODO(gri) remove the need for making a list here
+	scopePos := syntax.EndPos(ftyp) // all parameters' scopes start after the signature
+	var recvList []*Var             // TODO(gri) remove the need for making a list here
 	if recvPar != nil {
-		recvList, _ = check.collectParams(scope, []*syntax.Field{recvPar}, false) // use rewritten receiver type, if any
+		recvList, _ = check.collectParams(scope, []*syntax.Field{recvPar}, false, scopePos) // use rewritten receiver type, if any
 	}
-	params, variadic := check.collectParams(scope, ftyp.ParamList, true)
-	results, _ := check.collectParams(scope, ftyp.ResultList, false)
+	params, variadic := check.collectParams(scope, ftyp.ParamList, true, scopePos)
+	results, _ := check.collectParams(scope, ftyp.ResultList, false, scopePos)
 	scope.Squash(func(obj, alt Object) {
-		var err error_
-		err.code = DuplicateDecl
-		err.errorf(obj, "%s redeclared in this block", obj.Name())
-		err.recordAltDecl(alt)
-		check.report(&err)
+		err := check.newError(DuplicateDecl)
+		err.addf(obj, "%s redeclared in this block", obj.Name())
+		err.addAltDecl(alt)
+		err.report()
 	})
 
 	if recvPar != nil {
@@ -208,13 +212,14 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		check.later(func() {
 			// spec: "The receiver type must be of the form T or *T where T is a type name."
 			rtyp, _ := deref(recv.typ)
-			if rtyp == Typ[Invalid] {
+			atyp := Unalias(rtyp)
+			if !isValid(atyp) {
 				return // error was reported before
 			}
 			// spec: "The type denoted by T is called the receiver base type; it must not
 			// be a pointer or interface type and it must be declared in the same package
 			// as the method."
-			switch T := rtyp.(type) {
+			switch T := atyp.(type) {
 			case *Named:
 				// The receiver type may be an instantiated type referred to
 				// by an alias (which cannot have receiver parameters for now).
@@ -238,7 +243,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 				case *TypeParam:
 					// The underlying type of a receiver base type cannot be a
 					// type parameter: "type T[P any] P" is not a valid declaration.
-					unreachable()
+					panic("unreachable")
 				}
 				if cause != "" {
 					check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
@@ -258,7 +263,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 
 // collectParams declares the parameters of list in scope and returns the corresponding
 // variable list.
-func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadicOk bool) (params []*Var, variadic bool) {
+func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadicOk bool, scopePos syntax.Pos) (params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -293,7 +298,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadic
 				// ok to continue
 			}
 			par := NewParam(field.Name.Pos(), check.pkg, name, typ)
-			check.declare(scope, field.Name, par, scope.pos)
+			check.declare(scope, field.Name, par, scopePos)
 			params = append(params, par)
 			named = true
 		} else {

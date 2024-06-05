@@ -59,7 +59,7 @@ type InternalFuzzTarget struct {
 // by (*F).Add and entries in the testdata/fuzz/<FuzzTestName> directory. After
 // any necessary setup and calls to (*F).Add, the fuzz test must then call
 // (*F).Fuzz to provide the fuzz target. See the testing package documentation
-// for an example, and see the F.Fuzz and F.Add method documentation for
+// for an example, and see the [F.Fuzz] and [F.Add] method documentation for
 // details.
 //
 // *F methods can only be called before (*F).Fuzz. Once the test is
@@ -199,14 +199,14 @@ var supportedTypes = map[reflect.Type]bool{
 // the (*F).Fuzz function are (*F).Failed and (*F).Name.
 //
 // This function should be fast and deterministic, and its behavior should not
-// depend on shared state. No mutatable input arguments, or pointers to them,
+// depend on shared state. No mutable input arguments, or pointers to them,
 // should be retained between executions of the fuzz function, as the memory
 // backing them may be mutated during a subsequent invocation. ff must not
 // modify the underlying data of the arguments provided by the fuzzing engine.
 //
 // When fuzzing, F.Fuzz does not return until a problem is found, time runs out
 // (set with -fuzztime), or the test process is interrupted by a signal. F.Fuzz
-// should be called exactly once, unless F.Skip or F.Fail is called beforehand.
+// should be called exactly once, unless F.Skip or [F.Fail] is called beforehand.
 func (f *F) Fuzz(ff any) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")
@@ -636,6 +636,7 @@ func fRunner(f *F, fn func(*F)) {
 		// Unfortunately, recovering here adds stack frames, but the location of
 		// the original panic should still be
 		// clear.
+		f.checkRaces()
 		if f.Failed() {
 			numFailed.Add(1)
 		}
@@ -673,7 +674,7 @@ func fRunner(f *F, fn func(*F)) {
 			}
 			for root := &f.common; root.parent != nil; root = root.parent {
 				root.mu.Lock()
-				root.duration += time.Since(root.start)
+				root.duration += highPrecisionTimeSince(root.start)
 				d := root.duration
 				root.mu.Unlock()
 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
@@ -686,7 +687,7 @@ func fRunner(f *F, fn func(*F)) {
 		}
 
 		// No panic or inappropriate Goexit.
-		f.duration += time.Since(f.start)
+		f.duration += highPrecisionTimeSince(f.start)
 
 		if len(f.sub) > 0 {
 			// Unblock inputs that called T.Parallel while running the seed corpus.
@@ -699,9 +700,9 @@ func fRunner(f *F, fn func(*F)) {
 			for _, sub := range f.sub {
 				<-sub.signal
 			}
-			cleanupStart := time.Now()
+			cleanupStart := highPrecisionTimeNow()
 			err := f.runCleanup(recoverAndReturnPanic)
-			f.duration += time.Since(cleanupStart)
+			f.duration += highPrecisionTimeSince(cleanupStart)
 			if err != nil {
 				doPanic(err)
 			}
@@ -718,7 +719,8 @@ func fRunner(f *F, fn func(*F)) {
 		}
 	}()
 
-	f.start = time.Now()
+	f.start = highPrecisionTimeNow()
+	f.resetRaces()
 	fn(f)
 
 	// Code beyond this point will not be executed when FailNow or SkipNow

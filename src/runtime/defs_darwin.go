@@ -106,12 +106,17 @@ const (
 
 	EV_ADD       = C.EV_ADD
 	EV_DELETE    = C.EV_DELETE
+	EV_ENABLE    = C.EV_ENABLE
+	EV_DISABLE   = C.EV_DISABLE
 	EV_CLEAR     = C.EV_CLEAR
 	EV_RECEIPT   = C.EV_RECEIPT
 	EV_ERROR     = C.EV_ERROR
 	EV_EOF       = C.EV_EOF
 	EVFILT_READ  = C.EVFILT_READ
 	EVFILT_WRITE = C.EVFILT_WRITE
+	EVFILT_USER  = C.EVFILT_USER
+
+	NOTE_TRIGGER = C.NOTE_TRIGGER
 
 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
 
@@ -122,6 +127,9 @@ const (
 	O_NONBLOCK = C.O_NONBLOCK
 	O_CREAT    = C.O_CREAT
 	O_TRUNC    = C.O_TRUNC
+
+	VM_REGION_BASIC_INFO_COUNT_64 = C.VM_REGION_BASIC_INFO_COUNT_64
+	VM_REGION_BASIC_INFO_64       = C.VM_REGION_BASIC_INFO_64
 )
 
 type StackT C.struct_sigaltstack
@@ -163,3 +171,11 @@ type PthreadCond C.pthread_cond_t
 type PthreadCondAttr C.pthread_condattr_t
 
 type MachTimebaseInfo C.mach_timebase_info_data_t
+
+type MachPort C.mach_port_t
+type MachVMMapRead C.vm_map_read_t
+type MachVMAddress C.mach_vm_address_t
+type MachVMSize C.mach_vm_size_t
+type MachVMRegionFlavour C.vm_region_flavor_t
+type MachVMRegionInfo C.vm_region_info_t
+type MachMsgTypeNumber C.mach_msg_type_number_t

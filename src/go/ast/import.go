@@ -5,8 +5,9 @@
 package ast
 
 import (
+	"cmp"
 	"go/token"
-	"sort"
+	"slices"
 	"strconv"
 )
 
@@ -172,18 +173,20 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 	// Reassign the import paths to have the same position sequence.
 	// Reassign each comment to the spec on the same line.
 	// Sort the comments by new position.
-	sort.Slice(specs, func(i, j int) bool {
-		ipath := importPath(specs[i])
-		jpath := importPath(specs[j])
-		if ipath != jpath {
-			return ipath < jpath
+	slices.SortFunc(specs, func(a, b Spec) int {
+		ipath := importPath(a)
+		jpath := importPath(b)
+		r := cmp.Compare(ipath, jpath)
+		if r != 0 {
+			return r
 		}
-		iname := importName(specs[i])
-		jname := importName(specs[j])
-		if iname != jname {
-			return iname < jname
+		iname := importName(a)
+		jname := importName(b)
+		r = cmp.Compare(iname, jname)
+		if r != 0 {
+			return r
 		}
-		return importComment(specs[i]) < importComment(specs[j])
+		return cmp.Compare(importComment(a), importComment(b))
 	})
 
 	// Dedup. Thanks to our sorting, we can just consider
@@ -222,8 +225,8 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 		}
 	}
 
-	sort.Slice(comments, func(i, j int) bool {
-		return comments[i].Pos() < comments[j].Pos()
+	slices.SortFunc(comments, func(a, b *CommentGroup) int {
+		return cmp.Compare(a.Pos(), b.Pos())
 	})
 
 	return specs

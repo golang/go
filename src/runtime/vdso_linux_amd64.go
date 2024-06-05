@@ -4,6 +4,8 @@
 
 package runtime
 
+import _ "unsafe" // for linkname
+
 const (
 	// vdsoArrayMax is the byte-size of a maximally sized array on this architecture.
 	// See cmd/compile/internal/amd64/galign.go arch.MAXWIDTH initialization.
@@ -21,3 +23,6 @@ var (
 	vdsoGettimeofdaySym uintptr
 	vdsoClockgettimeSym uintptr
 )
+
+// vdsoGettimeofdaySym is accessed from the syscall package.
+//go:linkname vdsoGettimeofdaySym

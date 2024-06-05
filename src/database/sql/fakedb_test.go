@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -120,12 +120,7 @@ type table struct {
 }
 
 func (t *table) columnIndex(name string) int {
-	for n, nname := range t.colname {
-		if name == nname {
-			return n
-		}
-	}
-	return -1
+	return slices.Index(t.colname, name)
 }
 
 type row struct {
@@ -217,15 +212,6 @@ func init() {
 	Register("test", fdriver)
 }
 
-func contains(list []string, y string) bool {
-	for _, x := range list {
-		if x == y {
-			return true
-		}
-	}
-	return false
-}
-
 type Dummy struct {
 	driver.Driver
 }
@@ -235,7 +221,7 @@ func TestDrivers(t *testing.T) {
 	Register("test", fdriver)
 	Register("invalid", Dummy{})
 	all := Drivers()
-	if len(all) < 2 || !sort.StringsAreSorted(all) || !contains(all, "test") || !contains(all, "invalid") {
+	if len(all) < 2 || !slices.IsSorted(all) || !slices.Contains(all, "test") || !slices.Contains(all, "invalid") {
 		t.Fatalf("Drivers = %v, want sorted list with at least [invalid, test]", all)
 	}
 }
@@ -345,10 +331,8 @@ func (db *fakeDB) columnType(table, column string) (typ string, ok bool) {
 	if !ok {
 		return
 	}
-	for n, cname := range t.colname {
-		if cname == column {
-			return t.coltype[n], true
-		}
+	if i := slices.Index(t.colname, column); i != -1 {
+		return t.coltype[i], true
 	}
 	return "", false
 }
@@ -823,6 +807,15 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	return nil, fmt.Errorf("fakedb: unimplemented statement Exec command type of %q", s.cmd)
 }
 
+func valueFromPlaceholderName(args []driver.NamedValue, name string) driver.Value {
+	for i := range args {
+		if args[i].Name == name {
+			return args[i].Value
+		}
+	}
+	return nil
+}
+
 // When doInsert is true, add the row to the table.
 // When doInsert is false do prep-work and error checking, but don't
 // actually add the row to the table.
@@ -857,11 +850,8 @@ func (s *fakeStmt) execInsert(args []driver.NamedValue, doInsert bool) (driver.R
 				val = args[argPos].Value
 			} else {
 				// Assign value from argument placeholder name.
-				for _, a := range args {
-					if a.Name == strvalue[1:] {
-						val = a.Value
-						break
-					}
+				if v := valueFromPlaceholderName(args, strvalue[1:]); v != nil {
+					val = v
 				}
 			}
 			argPos++
@@ -997,12 +987,8 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				if wcol.Placeholder == "?" {
 					argValue = args[wcol.Ordinal-1].Value
 				} else {
-					// Assign arg value from placeholder name.
-					for _, a := range args {
-						if a.Name == wcol.Placeholder[1:] {
-							argValue = a.Value
-							break
-						}
+					if v := valueFromPlaceholderName(args, wcol.Placeholder[1:]); v != nil {
+						argValue = v
 					}
 				}
 				if fmt.Sprintf("%v", tcol) != fmt.Sprintf("%v", argValue) {
@@ -1251,33 +1237,33 @@ func converterForType(typ string) driver.ValueConverter {
 func colTypeToReflectType(typ string) reflect.Type {
 	switch typ {
 	case "bool":
-		return reflect.TypeOf(false)
+		return reflect.TypeFor[bool]()
 	case "nullbool":
-		return reflect.TypeOf(NullBool{})
+		return reflect.TypeFor[NullBool]()
 	case "int16":
-		return reflect.TypeOf(int16(0))
+		return reflect.TypeFor[int16]()
 	case "nullint16":
-		return reflect.TypeOf(NullInt16{})
+		return reflect.TypeFor[NullInt16]()
 	case "int32":
-		return reflect.TypeOf(int32(0))
+		return reflect.TypeFor[int32]()
 	case "nullint32":
-		return reflect.TypeOf(NullInt32{})
+		return reflect.TypeFor[NullInt32]()
 	case "string":
-		return reflect.TypeOf("")
+		return reflect.TypeFor[string]()
 	case "nullstring":
-		return reflect.TypeOf(NullString{})
+		return reflect.TypeFor[NullString]()
 	case "int64":
-		return reflect.TypeOf(int64(0))
+		return reflect.TypeFor[int64]()
 	case "nullint64":
-		return reflect.TypeOf(NullInt64{})
+		return reflect.TypeFor[NullInt64]()
 	case "float64":
-		return reflect.TypeOf(float64(0))
+		return reflect.TypeFor[float64]()
 	case "nullfloat64":
-		return reflect.TypeOf(NullFloat64{})
+		return reflect.TypeFor[NullFloat64]()
 	case "datetime":
-		return reflect.TypeOf(time.Time{})
+		return reflect.TypeFor[time.Time]()
 	case "any":
-		return reflect.TypeOf(new(any)).Elem()
+		return reflect.TypeFor[any]()
 	}
 	panic("invalid fakedb column type of " + typ)
 }

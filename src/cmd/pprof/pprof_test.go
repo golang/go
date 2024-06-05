@@ -76,8 +76,7 @@ func mustHaveDisasm(t *testing.T) {
 
 	// pprof can only disassemble PIE on some platforms.
 	// Skip the ones it can't handle yet.
-	if (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") ||
-		(runtime.GOOS == "android" && runtime.GOARCH == "arm") {
+	if runtime.GOOS == "android" && runtime.GOARCH == "arm" {
 		t.Skipf("skipping on %s/%s, issue 46639", runtime.GOOS, runtime.GOARCH)
 	}
 }

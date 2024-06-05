@@ -57,6 +57,8 @@ func TestEncode(t *testing.T) {
 	for _, p := range pairs {
 		got := StdEncoding.EncodeToString([]byte(p.decoded))
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, got, p.encoded)
+		dst := StdEncoding.AppendEncode([]byte("lead"), []byte(p.decoded))
+		testEqual(t, `AppendEncode("lead", %q) = %q, want %q`, p.decoded, string(dst), "lead"+p.encoded)
 	}
 }
 
@@ -90,6 +92,43 @@ func TestEncoderBuffering(t *testing.T) {
 	}
 }
 
+func TestDecoderBufferingWithPadding(t *testing.T) {
+	for bs := 0; bs <= 12; bs++ {
+		for _, s := range pairs {
+			decoder := NewDecoder(StdEncoding, strings.NewReader(s.encoded))
+			buf := make([]byte, len(s.decoded)+bs)
+
+			var n int
+			var err error
+			n, err = decoder.Read(buf)
+
+			if err != nil && err != io.EOF {
+				t.Errorf("Read from %q at pos %d = %d, unexpected error %v", s.encoded, len(s.decoded), n, err)
+			}
+			testEqual(t, "Decoding/%d of %q = %q, want %q\n", bs, s.encoded, string(buf[:n]), s.decoded)
+		}
+	}
+}
+
+func TestDecoderBufferingWithoutPadding(t *testing.T) {
+	for bs := 0; bs <= 12; bs++ {
+		for _, s := range pairs {
+			encoded := strings.TrimRight(s.encoded, "=")
+			decoder := NewDecoder(StdEncoding.WithPadding(NoPadding), strings.NewReader(encoded))
+			buf := make([]byte, len(s.decoded)+bs)
+
+			var n int
+			var err error
+			n, err = decoder.Read(buf)
+
+			if err != nil && err != io.EOF {
+				t.Errorf("Read from %q at pos %d = %d, unexpected error %v", encoded, len(s.decoded), n, err)
+			}
+			testEqual(t, "Decoding/%d of %q = %q, want %q\n", bs, encoded, string(buf[:n]), s.decoded)
+		}
+	}
+}
+
 func TestDecode(t *testing.T) {
 	for _, p := range pairs {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
@@ -99,13 +138,22 @@ func TestDecode(t *testing.T) {
 		if len(p.encoded) > 0 {
 			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='))
 		}
-		testEqual(t, "Decode(%q) = %q, want %q", p.encoded,
-			string(dbuf[0:count]),
-			p.decoded)
+		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded)
 
 		dbuf, err = StdEncoding.DecodeString(p.encoded)
 		testEqual(t, "DecodeString(%q) = error %v, want %v", p.encoded, err, error(nil))
 		testEqual(t, "DecodeString(%q) = %q, want %q", p.encoded, string(dbuf), p.decoded)
+
+		dst, err := StdEncoding.AppendDecode([]byte("lead"), []byte(p.encoded))
+		testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
+		testEqual(t, `AppendDecode("lead", %q) = %q, want %q`, p.encoded, string(dst), "lead"+p.decoded)
+
+		dst2, err := StdEncoding.AppendDecode(dst[:0:len(p.decoded)], []byte(p.encoded))
+		testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
+		testEqual(t, `AppendDecode("", %q) = %q, want %q`, p.encoded, string(dst2), p.decoded)
+		if len(dst) > 0 && len(dst2) > 0 && &dst[0] != &dst2[0] {
+			t.Errorf("unexpected capacity growth: got %d, want %d", cap(dst2), cap(dst))
+		}
 	}
 }
 

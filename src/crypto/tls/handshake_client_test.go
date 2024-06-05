@@ -7,13 +7,18 @@ package tls
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
-	"encoding/binary"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"internal/byteorder"
 	"io"
 	"math/big"
 	"net"
@@ -202,7 +207,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 		var serverInfo bytes.Buffer
 		for _, ext := range test.extensions {
 			pem.Encode(&serverInfo, &pem.Block{
-				Type:  fmt.Sprintf("SERVERINFO FOR EXTENSION %d", binary.BigEndian.Uint16(ext)),
+				Type:  fmt.Sprintf("SERVERINFO FOR EXTENSION %d", byteorder.BeUint16(ext)),
 				Bytes: ext,
 			})
 		}
@@ -659,6 +664,12 @@ func TestHandshakeClientHelloRetryRequest(t *testing.T) {
 		name:   "HelloRetryRequest",
 		args:   []string{"-cipher", "ECDHE-RSA-AES128-GCM-SHA256", "-curves", "P-256"},
 		config: config,
+		validate: func(cs ConnectionState) error {
+			if !cs.testingOnlyDidHRR {
+				return errors.New("expected HelloRetryRequest")
+			}
+			return nil
+		},
 	}
 
 	runClientTestTLS13(t, test)
@@ -917,7 +928,7 @@ func testResumption(t *testing.T, version uint16) {
 	}
 
 	getTicket := func() []byte {
-		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.ticket
+		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.session.ticket
 	}
 	deleteTicket := func() {
 		ticketKey := clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).sessionKey
@@ -1101,6 +1112,10 @@ func (c *serializingClientCache) Get(sessionKey string) (session *ClientSessionS
 }
 
 func (c *serializingClientCache) Put(sessionKey string, cs *ClientSessionState) {
+	if cs == nil {
+		c.ticket, c.state = nil, nil
+		return
+	}
 	ticket, state, err := cs.ResumptionState()
 	if err != nil {
 		c.t.Error(err)
@@ -2719,5 +2734,203 @@ func testTLS13OnlyClientHelloCipherSuite(t *testing.T, ciphers []uint16) {
 	}
 	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
 		t.Fatalf("handshake failed: %s", err)
+	}
+}
+
+// discardConn wraps a net.Conn but discards all writes, but reports that they happened.
+type discardConn struct {
+	net.Conn
+}
+
+func (dc *discardConn) Write(data []byte) (int, error) {
+	return len(data), nil
+}
+
+// largeRSAKeyCertPEM contains a 8193 bit RSA key
+const largeRSAKeyCertPEM = `-----BEGIN CERTIFICATE-----
+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
+u58=
+-----END CERTIFICATE-----`
+
+func TestHandshakeRSATooBig(t *testing.T) {
+	testCert, _ := pem.Decode([]byte(largeRSAKeyCertPEM))
+
+	c := &Conn{conn: &discardConn{}, config: testConfig.Clone()}
+
+	expectedErr := "tls: server sent certificate containing RSA key larger than 8192 bits"
+	err := c.verifyServerCertificate([][]byte{testCert.Bytes})
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("Conn.verifyServerCertificate unexpected error: want %q, got %q", expectedErr, err)
+	}
+
+	expectedErr = "tls: client sent certificate containing RSA key larger than 8192 bits"
+	err = c.processCertsFromClient(Certificate{Certificate: [][]byte{testCert.Bytes}})
+	if err == nil || err.Error() != expectedErr {
+		t.Errorf("Conn.processCertsFromClient unexpected error: want %q, got %q", expectedErr, err)
+	}
+}
+
+func TestTLS13ECHRejectionCallbacks(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test"},
+		DNSNames:     []string{"example.golang"},
+		NotBefore:    testConfig.Time().Add(-time.Hour),
+		NotAfter:     testConfig.Time().Add(time.Hour),
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+	serverConfig.Certificates = []Certificate{
+		{
+			Certificate: [][]byte{certDER},
+			PrivateKey:  k,
+		},
+	}
+	serverConfig.MinVersion = VersionTLS13
+	clientConfig.RootCAs = x509.NewCertPool()
+	clientConfig.RootCAs.AddCert(cert)
+	clientConfig.MinVersion = VersionTLS13
+	clientConfig.EncryptedClientHelloConfigList, _ = hex.DecodeString("0041fe0d003d0100200020204bed0a11fc0dde595a9b78d966b0011128eb83f65d3c91c1cc5ac786cd246f000400010001ff0e6578616d706c652e676f6c616e670000")
+	clientConfig.ServerName = "example.golang"
+
+	for _, tc := range []struct {
+		name        string
+		expectedErr string
+
+		verifyConnection                    func(ConnectionState) error
+		verifyPeerCertificate               func([][]byte, [][]*x509.Certificate) error
+		encryptedClientHelloRejectionVerify func(ConnectionState) error
+	}{
+		{
+			name:        "no callbacks",
+			expectedErr: "tls: server rejected ECH",
+		},
+		{
+			name: "EncryptedClientHelloRejectionVerify, no err",
+			encryptedClientHelloRejectionVerify: func(ConnectionState) error {
+				return nil
+			},
+			expectedErr: "tls: server rejected ECH",
+		},
+		{
+			name: "EncryptedClientHelloRejectionVerify, err",
+			encryptedClientHelloRejectionVerify: func(ConnectionState) error {
+				return errors.New("callback err")
+			},
+			// testHandshake returns the server side error, so we just need to
+			// check alertBadCertificate was sent
+			expectedErr: "callback err",
+		},
+		{
+			name: "VerifyConnection, err",
+			verifyConnection: func(ConnectionState) error {
+				return errors.New("callback err")
+			},
+			expectedErr: "tls: server rejected ECH",
+		},
+		{
+			name: "VerifyPeerCertificate, err",
+			verifyPeerCertificate: func([][]byte, [][]*x509.Certificate) error {
+				return errors.New("callback err")
+			},
+			expectedErr: "tls: server rejected ECH",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, s := localPipe(t)
+			done := make(chan error)
+
+			go func() {
+				serverErr := Server(s, serverConfig).Handshake()
+				s.Close()
+				done <- serverErr
+			}()
+
+			cConfig := clientConfig.Clone()
+			cConfig.VerifyConnection = tc.verifyConnection
+			cConfig.VerifyPeerCertificate = tc.verifyPeerCertificate
+			cConfig.EncryptedClientHelloRejectionVerify = tc.encryptedClientHelloRejectionVerify
+
+			clientErr := Client(c, cConfig).Handshake()
+			c.Close()
+
+			if tc.expectedErr == "" && clientErr != nil {
+				t.Fatalf("unexpected err: %s", clientErr)
+			} else if clientErr != nil && tc.expectedErr != clientErr.Error() {
+				t.Fatalf("unexpected err: got %q, want %q", clientErr, tc.expectedErr)
+			}
+		})
+	}
+}
+
+func TestECHTLS12Server(t *testing.T) {
+	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+
+	serverConfig.MaxVersion = VersionTLS12
+	clientConfig.MinVersion = 0
+
+	clientConfig.EncryptedClientHelloConfigList, _ = hex.DecodeString("0041fe0d003d0100200020204bed0a11fc0dde595a9b78d966b0011128eb83f65d3c91c1cc5ac786cd246f000400010001ff0e6578616d706c652e676f6c616e670000")
+
+	expectedErr := "server: tls: client offered only unsupported versions: [304]\nclient: remote error: tls: protocol version not supported"
+	_, _, err := testHandshake(t, clientConfig, serverConfig)
+	if err == nil || err.Error() != expectedErr {
+		t.Fatalf("unexpected handshake error: got %q, want %q", err, expectedErr)
 	}
 }

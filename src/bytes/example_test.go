@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"unicode"
 )
@@ -81,9 +81,9 @@ func ExampleBuffer_Next() {
 	var b bytes.Buffer
 	b.Grow(64)
 	b.Write([]byte("abcde"))
-	fmt.Printf("%s\n", string(b.Next(2)))
-	fmt.Printf("%s\n", string(b.Next(2)))
-	fmt.Printf("%s", string(b.Next(2)))
+	fmt.Printf("%s\n", b.Next(2))
+	fmt.Printf("%s\n", b.Next(2))
+	fmt.Printf("%s", b.Next(2))
 	// Output:
 	// ab
 	// cd
@@ -102,7 +102,7 @@ func ExampleBuffer_Read() {
 	fmt.Println(n)
 	fmt.Println(b.String())
 	fmt.Println(string(rdbuf))
-	// Output
+	// Output:
 	// 1
 	// bcde
 	// a
@@ -118,7 +118,7 @@ func ExampleBuffer_ReadByte() {
 	}
 	fmt.Println(c)
 	fmt.Println(b.String())
-	// Output
+	// Output:
 	// 97
 	// bcde
 }
@@ -165,11 +165,8 @@ func ExampleCompare_search() {
 	// Binary search to find a matching byte slice.
 	var needle []byte
 	var haystack [][]byte // Assume sorted
-	i := sort.Search(len(haystack), func(i int) bool {
-		// Return haystack[i] >= needle.
-		return bytes.Compare(haystack[i], needle) >= 0
-	})
-	if i < len(haystack) && bytes.Equal(haystack[i], needle) {
+	_, found := slices.BinarySearchFunc(haystack, needle, bytes.Compare)
+	if found {
 		// Found it!
 	}
 }
@@ -210,6 +207,17 @@ func ExampleContainsRune() {
 	// true
 	// true
 	// false
+}
+
+func ExampleContainsFunc() {
+	f := func(r rune) bool {
+		return r >= 'a' && r <= 'z'
+	}
+	fmt.Println(bytes.ContainsFunc([]byte("HELLO"), f))
+	fmt.Println(bytes.ContainsFunc([]byte("World"), f))
+	// Output:
+	// false
+	// true
 }
 
 func ExampleCount() {

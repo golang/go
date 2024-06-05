@@ -17,7 +17,7 @@ for normal archives both fields will be the same. For files requiring
 the ZIP64 format the 32 bit fields will be 0xffffffff and the 64 bit
 fields must be used instead.
 
-[ZIP specification]: https://www.pkware.com/appnote
+[ZIP specification]: https://support.pkware.com/pkzip/appnote
 */
 package zip
 
@@ -82,7 +82,7 @@ const (
 // FileHeader describes a file within a ZIP file.
 // See the [ZIP specification] for details.
 //
-// [ZIP specification]: https://www.pkware.com/appnote
+// [ZIP specification]: https://support.pkware.com/pkzip/appnote
 type FileHeader struct {
 	// Name is the name of the file.
 	//
@@ -143,9 +143,9 @@ type FileHeader struct {
 	// Deprecated: Use CompressedSize64 instead.
 	CompressedSize uint32
 
-	// UncompressedSize is the compressed size of the file in bytes.
+	// UncompressedSize is the uncompressed size of the file in bytes.
 	// If either the uncompressed or compressed size of the file
-	// does not fit in 32 bits, CompressedSize is set to ^uint32(0).
+	// does not fit in 32 bits, UncompressedSize is set to ^uint32(0).
 	//
 	// Deprecated: Use UncompressedSize64 instead.
 	UncompressedSize uint32
@@ -160,12 +160,12 @@ type FileHeader struct {
 	ExternalAttrs uint32 // Meaning depends on CreatorVersion
 }
 
-// FileInfo returns an fs.FileInfo for the FileHeader.
+// FileInfo returns an fs.FileInfo for the [FileHeader].
 func (h *FileHeader) FileInfo() fs.FileInfo {
 	return headerFileInfo{h}
 }
 
-// headerFileInfo implements fs.FileInfo.
+// headerFileInfo implements [fs.FileInfo].
 type headerFileInfo struct {
 	fh *FileHeader
 }
@@ -194,7 +194,7 @@ func (fi headerFileInfo) String() string {
 	return fs.FormatFileInfo(fi)
 }
 
-// FileInfoHeader creates a partially-populated FileHeader from an
+// FileInfoHeader creates a partially-populated [FileHeader] from an
 // fs.FileInfo.
 // Because fs.FileInfo's Name method returns only the base name of
 // the file it describes, it may be necessary to modify the Name field
@@ -245,7 +245,7 @@ func timeZone(offset time.Duration) *time.Location {
 
 // msDosTimeToTime converts an MS-DOS date and time into a time.Time.
 // The resolution is 2s.
-// See: https://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
+// See: https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime
 func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
 	return time.Date(
 		// date bits 0-4: day of month; 5-8: month; 9-15: years since 1980
@@ -265,7 +265,7 @@ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
 
 // timeToMsDosTime converts a time.Time to an MS-DOS date and time.
 // The resolution is 2s.
-// See: https://msdn.microsoft.com/en-us/library/ms724274(v=VS.85).aspx
+// See: https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-filetimetodosdatetime
 func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
 	fDate = uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9)
 	fTime = uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11)
@@ -273,17 +273,17 @@ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
 }
 
 // ModTime returns the modification time in UTC using the legacy
-// ModifiedDate and ModifiedTime fields.
+// [ModifiedDate] and [ModifiedTime] fields.
 //
-// Deprecated: Use Modified instead.
+// Deprecated: Use [Modified] instead.
 func (h *FileHeader) ModTime() time.Time {
 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
 }
 
-// SetModTime sets the Modified, ModifiedTime, and ModifiedDate fields
+// SetModTime sets the [Modified], [ModifiedTime], and [ModifiedDate] fields
 // to the given time in UTC.
 //
-// Deprecated: Use Modified instead.
+// Deprecated: Use [Modified] instead.
 func (h *FileHeader) SetModTime(t time.Time) {
 	t = t.UTC() // Convert to UTC for compatibility
 	h.Modified = t
@@ -309,7 +309,7 @@ const (
 	msdosReadOnly = 0x01
 )
 
-// Mode returns the permission and mode bits for the FileHeader.
+// Mode returns the permission and mode bits for the [FileHeader].
 func (h *FileHeader) Mode() (mode fs.FileMode) {
 	switch h.CreatorVersion >> 8 {
 	case creatorUnix, creatorMacOSX:
@@ -323,7 +323,7 @@ func (h *FileHeader) Mode() (mode fs.FileMode) {
 	return mode
 }
 
-// SetMode changes the permission and mode bits for the FileHeader.
+// SetMode changes the permission and mode bits for the [FileHeader].
 func (h *FileHeader) SetMode(mode fs.FileMode) {
 	h.CreatorVersion = h.CreatorVersion&0xff | creatorUnix<<8
 	h.ExternalAttrs = fileModeToUnixMode(mode) << 16

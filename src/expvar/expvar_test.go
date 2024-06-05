@@ -22,12 +22,12 @@ import (
 // RemoveAll removes all exported variables.
 // This is for tests only.
 func RemoveAll() {
-	varKeysMu.Lock()
-	defer varKeysMu.Unlock()
-	for _, k := range varKeys {
-		vars.Delete(k)
+	vars.keysMu.Lock()
+	defer vars.keysMu.Unlock()
+	for _, k := range vars.keys {
+		vars.m.Delete(k)
 	}
-	varKeys = nil
+	vars.keys = nil
 }
 
 func TestNil(t *testing.T) {
@@ -199,6 +199,9 @@ func TestMapDelete(t *testing.T) {
 	}
 
 	colors.Delete("red")
+	if v := colors.Get("red"); v != nil {
+		t.Errorf("removed red, Get should return nil; got %v", v)
+	}
 	n = 0
 	colors.Do(func(KeyValue) { n++ })
 	if n != 1 {
@@ -214,6 +217,9 @@ func TestMapDelete(t *testing.T) {
 
 	colors.Delete("blue")
 	colors.Delete("blue")
+	if v := colors.Get("blue"); v != nil {
+		t.Errorf("removed blue, Get should return nil; got %v", v)
+	}
 	n = 0
 	colors.Do(func(KeyValue) { n++ })
 	if n != 0 {
@@ -487,6 +493,28 @@ func TestHandler(t *testing.T) {
 	}
 }
 
+func BenchmarkMapString(b *testing.B) {
+	var m, m1, m2 Map
+	m.Set("map1", &m1)
+	m1.Add("a", 1)
+	m1.Add("z", 2)
+	m.Set("map2", &m2)
+	for i := 0; i < 9; i++ {
+		m2.Add(strconv.Itoa(i), int64(i))
+	}
+	var s1, s2 String
+	m.Set("str1", &s1)
+	s1.Set("hello, world!")
+	m.Set("str2", &s2)
+	s2.Set("fizz buzz")
+	b.ResetTimer()
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = m.String()
+	}
+}
+
 func BenchmarkRealworldExpvarUsage(b *testing.B) {
 	var (
 		bytesSent Int
@@ -621,4 +649,21 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
 		}(clients[p])
 	}
 	wg.Wait()
+}
+
+func TestAppendJSONQuote(t *testing.T) {
+	var b []byte
+	for i := 0; i < 128; i++ {
+		b = append(b, byte(i))
+	}
+	b = append(b, "\u2028\u2029"...)
+	got := string(appendJSONQuote(nil, string(b[:])))
+	want := `"` +
+		`\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008\t\n\u000b\u000c\r\u000e\u000f` +
+		`\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f` +
+		` !\"#$%\u0026'()*+,-./0123456789:;\u003c=\u003e?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_` +
+		"`" + `abcdefghijklmnopqrstuvwxyz{|}~` + "\x7f" + `\u2028\u2029"`
+	if got != want {
+		t.Errorf("appendJSONQuote mismatch:\ngot  %v\nwant %v", got, want)
+	}
 }

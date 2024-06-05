@@ -1,0 +1,1 @@
+pkg os, func CopyFS(string, fs.FS) error #62484

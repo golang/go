@@ -128,23 +128,6 @@ See also: go build, go install, go clean, go mod.
 	`,
 }
 
-// Note that this help text is a stopgap to make the module-aware get help text
-// available even in non-module settings. It should be deleted when the old get
-// is deleted. It should NOT be considered to set a precedent of having hierarchical
-// help names with dashes.
-var HelpModuleGet = &base.Command{
-	UsageLine: "module-get",
-	Short:     "module-aware go get",
-	Long: `
-The 'go get' command changes behavior depending on whether the
-go command is running in module-aware mode or legacy GOPATH mode.
-This help text, accessible as 'go help module-get' even in legacy GOPATH mode,
-describes 'go get' as it operates in module-aware mode.
-
-Usage: ` + CmdGet.UsageLine + `
-` + CmdGet.Long,
-}
-
 var HelpVCS = &base.Command{
 	UsageLine: "vcs",
 	Short:     "controlling version control with GOVCS",
@@ -225,7 +208,7 @@ variable for future go command invocations.
 }
 
 var (
-	getD        = CmdGet.Flag.Bool("d", true, "")
+	getD        = CmdGet.Flag.Bool("d", false, "")
 	getF        = CmdGet.Flag.Bool("f", false, "")
 	getFix      = CmdGet.Flag.Bool("fix", false, "")
 	getM        = CmdGet.Flag.Bool("m", false, "")
@@ -272,15 +255,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	default:
 		base.Fatalf("go: unknown upgrade flag -u=%s", getU.rawVersion)
 	}
-	// TODO(#43684): in the future (Go 1.20), warn that -d is a no-op.
-	if !*getD {
-		base.Fatalf("go: -d flag may not be disabled")
+	if *getD {
+		fmt.Fprintf(os.Stderr, "go: -d flag is a no-op\n")
 	}
 	if *getF {
-		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op when using modules\n")
+		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op\n")
 	}
 	if *getFix {
-		fmt.Fprintf(os.Stderr, "go: -fix flag is a no-op when using modules\n")
+		fmt.Fprintf(os.Stderr, "go: -fix flag is a no-op\n")
 	}
 	if *getM {
 		base.Fatalf("go: -m flag is no longer supported")
@@ -1690,7 +1672,6 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			base.Error(err)
 		}
 	}
-	base.ExitIfErrors()
 }
 
 // reportChanges logs version changes to os.Stderr.

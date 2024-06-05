@@ -240,9 +240,7 @@ func TestMemmoveAtomicity(t *testing.T) {
 				for i := range src {
 					src[i] = &x
 				}
-				for i := range dst {
-					dst[i] = nil
-				}
+				clear(dst)
 
 				var ready atomic.Uint32
 				go func() {
@@ -453,9 +451,7 @@ func BenchmarkGoMemclr(b *testing.B) {
 	benchmarkSizes(b, []int{5, 16, 64, 256}, func(b *testing.B, n int) {
 		x := make([]byte, n)
 		for i := 0; i < b.N; i++ {
-			for j := range x {
-				x[j] = 0
-			}
+			clear(x)
 		}
 	})
 }
@@ -488,9 +484,7 @@ func BenchmarkMemclrRange(b *testing.B) {
 		maxLen := 0
 
 		for _, clrLen := range t.data {
-			if clrLen > maxLen {
-				maxLen = clrLen
-			}
+			maxLen = max(maxLen, clrLen)
 			if clrLen < minLen || minLen == 0 {
 				minLen = clrLen
 			}

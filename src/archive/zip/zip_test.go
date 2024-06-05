@@ -8,13 +8,14 @@ package zip
 
 import (
 	"bytes"
+	"cmp"
 	"errors"
 	"fmt"
 	"hash"
 	"internal/testenv"
 	"io"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -198,13 +199,6 @@ func (r *rleBuffer) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func min(x, y int64) int64 {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 func memset(a []byte, b byte) {
 	if len(a) == 0 {
 		return
@@ -221,9 +215,8 @@ func (r *rleBuffer) ReadAt(p []byte, off int64) (n int, err error) {
 	if len(p) == 0 {
 		return
 	}
-	skipParts := sort.Search(len(r.buf), func(i int) bool {
-		part := &r.buf[i]
-		return part.off+part.n > off
+	skipParts, _ := slices.BinarySearchFunc(r.buf, off, func(rb repeatedByte, off int64) int {
+		return cmp.Compare(rb.off+rb.n, off)
 	})
 	parts := r.buf[skipParts:]
 	if len(parts) > 0 {
@@ -597,7 +590,7 @@ func testZip64(t testing.TB, size int64) *rleBuffer {
 	}
 
 	// read back zip file and check that we get to the end of it
-	r, err := NewReader(buf, int64(buf.Size()))
+	r, err := NewReader(buf, buf.Size())
 	if err != nil {
 		t.Fatal("reader:", err)
 	}
@@ -821,8 +814,6 @@ func TestSuffixSaver(t *testing.T) {
 type zeros struct{}
 
 func (zeros) Read(p []byte) (int, error) {
-	for i := range p {
-		p[i] = 0
-	}
+	clear(p)
 	return len(p), nil
 }

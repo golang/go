@@ -7,8 +7,6 @@ package windows
 import (
 	"syscall"
 	"unsafe"
-
-	"golang.org/x/sys/internal/unsafeheader"
 )
 
 const (
@@ -70,6 +68,7 @@ type UserInfo10 struct {
 //sys	NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) = netapi32.NetUserGetInfo
 //sys	NetGetJoinInformation(server *uint16, name **uint16, bufType *uint32) (neterr error) = netapi32.NetGetJoinInformation
 //sys	NetApiBufferFree(buf *byte) (neterr error) = netapi32.NetApiBufferFree
+//sys   NetUserEnum(serverName *uint16, level uint32, filter uint32, buf **byte, prefMaxLen uint32, entriesRead *uint32, totalEntries *uint32, resumeHandle *uint32) (neterr error) = netapi32.NetUserEnum
 
 const (
 	// do not reorder
@@ -1341,21 +1340,14 @@ func (selfRelativeSD *SECURITY_DESCRIPTOR) copySelfRelativeSecurityDescriptor() 
 		sdLen = min
 	}
 
-	var src []byte
-	h := (*unsafeheader.Slice)(unsafe.Pointer(&src))
-	h.Data = unsafe.Pointer(selfRelativeSD)
-	h.Len = sdLen
-	h.Cap = sdLen
-
+	src := unsafe.Slice((*byte)(unsafe.Pointer(selfRelativeSD)), sdLen)
+	// SECURITY_DESCRIPTOR has pointers in it, which means checkptr expects for it to
+	// be aligned properly. When we're copying a Windows-allocated struct to a
+	// Go-allocated one, make sure that the Go allocation is aligned to the
+	// pointer size.
 	const psize = int(unsafe.Sizeof(uintptr(0)))
-
-	var dst []byte
-	h = (*unsafeheader.Slice)(unsafe.Pointer(&dst))
 	alloc := make([]uintptr, (sdLen+psize-1)/psize)
-	h.Data = (*unsafeheader.Slice)(unsafe.Pointer(&alloc)).Data
-	h.Len = sdLen
-	h.Cap = sdLen
-
+	dst := unsafe.Slice((*byte)(unsafe.Pointer(&alloc[0])), sdLen)
 	copy(dst, src)
 	return (*SECURITY_DESCRIPTOR)(unsafe.Pointer(&dst[0]))
 }

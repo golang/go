@@ -97,7 +97,7 @@ func (e Errno) Timeout() bool {
 }
 
 // A Signal is a number describing a process signal.
-// It implements the os.Signal interface.
+// It implements the [os.Signal] interface.
 type Signal uint8
 
 const (
@@ -305,7 +305,7 @@ func (w WaitStatus) Continued() bool    { return false }
 func (w WaitStatus) StopSignal() Signal { return 0 }
 func (w WaitStatus) TrapCause() int     { return 0 }
 
-// Rusage is a placeholder to allow compilation of the os/exec package
+// Rusage is a placeholder to allow compilation of the [os/exec] package
 // because we need Go programs to be portable across platforms. WASI does
 // not have a mechanism to to spawn processes so there is no reason for an
 // application to take a dependency on this type.
@@ -314,7 +314,7 @@ type Rusage struct {
 	Stime Timeval
 }
 
-// ProcAttr is a placeholder to allow compilation of the os/exec package
+// ProcAttr is a placeholder to allow compilation of the [os/exec] package
 // because we need Go programs to be portable across platforms. WASI does
 // not have a mechanism to to spawn processes so there is no reason for an
 // application to take a dependency on this type.

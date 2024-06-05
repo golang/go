@@ -103,7 +103,7 @@ func (p *abiDesc) assignArg(t *_type) {
 		// registers and the stack.
 		panic("compileCallback: argument size is larger than uintptr")
 	}
-	if k := t.Kind_ & kindMask; GOARCH != "386" && (k == kindFloat32 || k == kindFloat64) {
+	if k := t.Kind_ & abi.KindMask; GOARCH != "386" && (k == abi.Float32 || k == abi.Float64) {
 		// In fastcall, floating-point arguments in
 		// the first four positions are passed in
 		// floating-point registers, which we don't
@@ -174,21 +174,21 @@ func (p *abiDesc) assignArg(t *_type) {
 //
 // Returns whether the assignment succeeded.
 func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
-	switch k := t.Kind_ & kindMask; k {
-	case kindBool, kindInt, kindInt8, kindInt16, kindInt32, kindUint, kindUint8, kindUint16, kindUint32, kindUintptr, kindPtr, kindUnsafePointer:
+	switch k := t.Kind_ & abi.KindMask; k {
+	case abi.Bool, abi.Int, abi.Int8, abi.Int16, abi.Int32, abi.Uint, abi.Uint8, abi.Uint16, abi.Uint32, abi.Uintptr, abi.Pointer, abi.UnsafePointer:
 		// Assign a register for all these types.
 		return p.assignReg(t.Size_, offset)
-	case kindInt64, kindUint64:
+	case abi.Int64, abi.Uint64:
 		// Only register-assign if the registers are big enough.
 		if goarch.PtrSize == 8 {
 			return p.assignReg(t.Size_, offset)
 		}
-	case kindArray:
+	case abi.Array:
 		at := (*arraytype)(unsafe.Pointer(t))
 		if at.Len == 1 {
 			return p.tryRegAssignArg(at.Elem, offset) // TODO fix when runtime is fully commoned up w/ abi.Type
 		}
-	case kindStruct:
+	case abi.Struct:
 		st := (*structtype)(unsafe.Pointer(t))
 		for i := range st.Fields {
 			f := &st.Fields[i]
@@ -269,7 +269,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		cdecl = false
 	}
 
-	if fn._type == nil || (fn._type.Kind_&kindMask) != kindFunc {
+	if fn._type == nil || (fn._type.Kind_&abi.KindMask) != abi.Func {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
@@ -290,7 +290,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 	if ft.OutSlice()[0].Size_ != goarch.PtrSize {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	if k := ft.OutSlice()[0].Kind_ & kindMask; k == kindFloat32 || k == kindFloat64 {
+	if k := ft.OutSlice()[0].Kind_ & abi.KindMask; k == abi.Float32 || k == abi.Float64 {
 		// In cdecl and stdcall, float results are returned in
 		// ST(0). In fastcall, they're returned in XMM0.
 		// Either way, it's not AX.
@@ -414,64 +414,39 @@ func callbackWrap(a *callbackArgs) {
 const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 
 //go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
-//go:nosplit
-//go:cgo_unsafe_args
 func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
-	lockOSThread()
-	c := &getg().m.syscall
-	c.fn = getLoadLibraryEx()
-	c.n = 3
-	args := struct {
-		lpFileName *uint16
-		hFile      uintptr // always 0
-		flags      uint32
-	}{filename, 0, _LOAD_LIBRARY_SEARCH_SYSTEM32}
-	c.args = uintptr(noescape(unsafe.Pointer(&args)))
-
-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	handle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_LoadLibraryExW)), uintptr(unsafe.Pointer(filename)), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
 	KeepAlive(filename)
-	handle = c.r1
-	if handle == 0 {
-		err = c.err
+	if handle != 0 {
+		err = 0
 	}
-	unlockOSThread() // not defer'd after the lockOSThread above to save stack frame size.
 	return
 }
 
+// golang.org/x/sys linknames syscall.loadlibrary
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_loadlibrary syscall.loadlibrary
-//go:nosplit
-//go:cgo_unsafe_args
 func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
-	lockOSThread()
-	defer unlockOSThread()
-	c := &getg().m.syscall
-	c.fn = getLoadLibrary()
-	c.n = 1
-	c.args = uintptr(noescape(unsafe.Pointer(&filename)))
-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	handle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_LoadLibraryW)), uintptr(unsafe.Pointer(filename)))
 	KeepAlive(filename)
-	handle = c.r1
-	if handle == 0 {
-		err = c.err
+	if handle != 0 {
+		err = 0
 	}
 	return
 }
 
+// golang.org/x/sys linknames syscall.getprocaddress
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_getprocaddress syscall.getprocaddress
-//go:nosplit
-//go:cgo_unsafe_args
 func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
-	lockOSThread()
-	defer unlockOSThread()
-	c := &getg().m.syscall
-	c.fn = getGetProcAddress()
-	c.n = 2
-	c.args = uintptr(noescape(unsafe.Pointer(&handle)))
-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	outhandle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_GetProcAddress)), handle, uintptr(unsafe.Pointer(procname)))
 	KeepAlive(procname)
-	outhandle = c.r1
-	if outhandle == 0 {
-		err = c.err
+	if outhandle != 0 {
+		err = 0
 	}
 	return
 }
@@ -479,37 +454,43 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
 //go:linkname syscall_Syscall syscall.Syscall
 //go:nosplit
 func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	return syscall_SyscallN(fn, a1, a2, a3)
+	args := [...]uintptr{a1, a2, a3}
+	return syscall_SyscallN(fn, args[:nargs]...)
 }
 
 //go:linkname syscall_Syscall6 syscall.Syscall6
 //go:nosplit
 func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6)
+	args := [...]uintptr{a1, a2, a3, a4, a5, a6}
+	return syscall_SyscallN(fn, args[:nargs]...)
 }
 
 //go:linkname syscall_Syscall9 syscall.Syscall9
 //go:nosplit
 func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
-	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+	args := [...]uintptr{a1, a2, a3, a4, a5, a6, a7, a8, a9}
+	return syscall_SyscallN(fn, args[:nargs]...)
 }
 
 //go:linkname syscall_Syscall12 syscall.Syscall12
 //go:nosplit
 func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
-	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
+	args := [...]uintptr{a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12}
+	return syscall_SyscallN(fn, args[:nargs]...)
 }
 
 //go:linkname syscall_Syscall15 syscall.Syscall15
 //go:nosplit
 func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
-	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
+	args := [...]uintptr{a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15}
+	return syscall_SyscallN(fn, args[:nargs]...)
 }
 
 //go:linkname syscall_Syscall18 syscall.Syscall18
 //go:nosplit
 func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
-	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
+	args := [...]uintptr{a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18}
+	return syscall_SyscallN(fn, args[:nargs]...)
 }
 
 // maxArgs should be divisible by 2, as Windows stack
@@ -521,26 +502,24 @@ const maxArgs = 42
 
 //go:linkname syscall_SyscallN syscall.SyscallN
 //go:nosplit
-func syscall_SyscallN(trap uintptr, args ...uintptr) (r1, r2, err uintptr) {
-	nargs := len(args)
-
-	// asmstdcall expects it can access the first 4 arguments
-	// to load them into registers.
-	var tmp [4]uintptr
-	switch {
-	case nargs < 4:
-		copy(tmp[:], args)
-		args = tmp[:]
-	case nargs > maxArgs:
+func syscall_SyscallN(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
+	if len(args) > maxArgs {
 		panic("runtime: SyscallN has too many arguments")
 	}
 
-	lockOSThread()
-	defer unlockOSThread()
-	c := &getg().m.syscall
-	c.fn = trap
-	c.n = uintptr(nargs)
-	c.args = uintptr(noescape(unsafe.Pointer(&args[0])))
+	// The cgocall parameters are stored in m instead of in
+	// the stack because the stack can move during fn if it
+	// calls back into Go.
+	c := &getg().m.winsyscall
+	c.fn = fn
+	c.n = uintptr(len(args))
+	if c.n != 0 {
+		c.args = uintptr(noescape(unsafe.Pointer(&args[0])))
+	}
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	// cgocall may reschedule us on to a different M,
+	// but it copies the return values into the new M's
+	// so we can read them from there.
+	c = &getg().m.winsyscall
 	return c.r1, c.r2, c.err
 }

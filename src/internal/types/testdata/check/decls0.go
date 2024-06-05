@@ -137,7 +137,7 @@ type (
 	}
 	I3 interface {
 		m1()
-		m1 /* ERROR "duplicate method" */ ()
+		m1 /* ERROR "duplicate method m1" */ ()
 	}
 	I4 interface {
 		m1(x, y, x /* ERROR "redeclared" */ float32)

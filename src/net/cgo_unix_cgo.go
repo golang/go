@@ -7,7 +7,7 @@
 package net
 
 /*
-#define _GNU_SOURCE
+#define _GNU_SOURCE 1
 
 #cgo CFLAGS: -fno-stack-protector
 #include <sys/types.h>
@@ -37,6 +37,7 @@ const (
 	_C_EAI_AGAIN    = C.EAI_AGAIN
 	_C_EAI_NODATA   = C.EAI_NODATA
 	_C_EAI_NONAME   = C.EAI_NONAME
+	_C_EAI_SERVICE  = C.EAI_SERVICE
 	_C_EAI_OVERFLOW = C.EAI_OVERFLOW
 	_C_EAI_SYSTEM   = C.EAI_SYSTEM
 	_C_IPPROTO_TCP  = C.IPPROTO_TCP
@@ -55,7 +56,6 @@ type (
 	_C_struct_sockaddr = C.struct_sockaddr
 )
 
-func _C_GoString(p *_C_char) string      { return C.GoString(p) }
 func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
 func _C_free(p unsafe.Pointer)           { C.free(p) }
 

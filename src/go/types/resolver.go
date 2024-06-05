@@ -146,6 +146,9 @@ func (check *Checker) importPackage(at positioner, path, dir string) *Package {
 
 	// no package yet => import it
 	if path == "C" && (check.conf.FakeImportC || check.conf.go115UsesCgo) {
+		if check.conf.FakeImportC && check.conf.go115UsesCgo {
+			check.error(at, BadImportPath, "cannot use FakeImportC and go115UsesCgo together")
+		}
 		imp = NewPackage("C", "C")
 		imp.fake = true // package scope is not populated
 		imp.cgo = check.conf.go115UsesCgo
@@ -327,8 +330,10 @@ func (check *Checker) collectObjects() {
 							// the object may be imported into more than one file scope
 							// concurrently. See go.dev/issue/32154.)
 							if alt := fileScope.Lookup(name); alt != nil {
-								check.errorf(d.spec.Name, DuplicateDecl, "%s redeclared in this block", alt.Name())
-								check.reportAltDecl(alt)
+								err := check.newError(DuplicateDecl)
+								err.addf(d.spec.Name, "%s redeclared in this block", alt.Name())
+								err.addAltDecl(alt)
+								err.report()
 							} else {
 								fileScope.insert(name, obj)
 								check.dotImportMap[dotImportKey{fileScope, name}] = pkgName
@@ -386,13 +391,12 @@ func (check *Checker) collectObjects() {
 					check.declarePkgObj(name, obj, di)
 				}
 			case typeDecl:
-				_ = d.spec.TypeParams.NumFields() != 0 && check.verifyVersionf(d.spec.TypeParams.List[0], go1_18, "type parameter")
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
 			case funcDecl:
 				name := d.decl.Name.Name
-				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil)
-				hasTParamError := false // avoid duplicate type parameter errors
+				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil) // signature set later
+				hasTParamError := false                           // avoid duplicate type parameter errors
 				if d.decl.Recv.NumFields() == 0 {
 					// regular function
 					if d.decl.Recv != nil {
@@ -459,14 +463,16 @@ func (check *Checker) collectObjects() {
 		for name, obj := range scope.elems {
 			if alt := pkg.scope.Lookup(name); alt != nil {
 				obj = resolve(name, obj)
+				err := check.newError(DuplicateDecl)
 				if pkg, ok := obj.(*PkgName); ok {
-					check.errorf(alt, DuplicateDecl, "%s already declared through import of %s", alt.Name(), pkg.Imported())
-					check.reportAltDecl(pkg)
+					err.addf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
+					err.addAltDecl(pkg)
 				} else {
-					check.errorf(alt, DuplicateDecl, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
-					// TODO(gri) dot-imported objects don't have a position; reportAltDecl won't print anything
-					check.reportAltDecl(obj)
+					err.addf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
+					// TODO(gri) dot-imported objects don't have a position; addAltDecl won't print anything
+					err.addAltDecl(obj)
 				}
+				err.report()
 			}
 		}
 	}
@@ -561,7 +567,7 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, fileScopes
 	for {
 		// Note: this differs from types2, but is necessary. The syntax parser
 		// strips unnecessary parens.
-		typ = unparen(typ)
+		typ = ast.Unparen(typ)
 
 		// check if we have a pointer type
 		if pexpr, _ := typ.(*ast.StarExpr); pexpr != nil {
@@ -570,7 +576,7 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, fileScopes
 				return false, nil
 			}
 			ptr = true
-			typ = unparen(pexpr.X) // continue with pointer base type
+			typ = ast.Unparen(pexpr.X) // continue with pointer base type
 		}
 
 		// typ must be a name, or a C.name cgo selector.
@@ -659,32 +665,54 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	// We process non-alias type declarations first, followed by alias declarations,
-	// and then everything else. This appears to avoid most situations where the type
-	// of an alias is needed before it is available.
-	// There may still be cases where this is not good enough (see also go.dev/issue/25838).
-	// In those cases Checker.ident will report an error ("invalid use of type alias").
-	var aliasList []*TypeName
-	var othersList []Object // everything that's not a type
-	// phase 1: non-alias type declarations
-	for _, obj := range objList {
-		if tname, _ := obj.(*TypeName); tname != nil {
-			if check.objMap[tname].tdecl.Assign.IsValid() {
-				aliasList = append(aliasList, tname)
-			} else {
-				check.objDecl(obj, nil)
-			}
-		} else {
-			othersList = append(othersList, obj)
+	if false && check.conf._EnableAlias {
+		// With Alias nodes we can process declarations in any order.
+		//
+		// TODO(adonovan): unfortunately, Alias nodes
+		// (GODEBUG=gotypesalias=1) don't entirely resolve
+		// problems with cycles. For example, in
+		// GOROOT/test/typeparam/issue50259.go,
+		//
+		// 	type T[_ any] struct{}
+		// 	type A T[B]
+		// 	type B = T[A]
+		//
+		// TypeName A has Type Named during checking, but by
+		// the time the unified export data is written out,
+		// its Type is Invalid.
+		//
+		// Investigate and reenable this branch.
+		for _, obj := range objList {
+			check.objDecl(obj, nil)
 		}
-	}
-	// phase 2: alias type declarations
-	for _, obj := range aliasList {
-		check.objDecl(obj, nil)
-	}
-	// phase 3: all other declarations
-	for _, obj := range othersList {
-		check.objDecl(obj, nil)
+	} else {
+		// Without Alias nodes, we process non-alias type declarations first, followed by
+		// alias declarations, and then everything else. This appears to avoid most situations
+		// where the type of an alias is needed before it is available.
+		// There may still be cases where this is not good enough (see also go.dev/issue/25838).
+		// In those cases Checker.ident will report an error ("invalid use of type alias").
+		var aliasList []*TypeName
+		var othersList []Object // everything that's not a type
+		// phase 1: non-alias type declarations
+		for _, obj := range objList {
+			if tname, _ := obj.(*TypeName); tname != nil {
+				if check.objMap[tname].tdecl.Assign.IsValid() {
+					aliasList = append(aliasList, tname)
+				} else {
+					check.objDecl(obj, nil)
+				}
+			} else {
+				othersList = append(othersList, obj)
+			}
+		}
+		// phase 2: alias type declarations
+		for _, obj := range aliasList {
+			check.objDecl(obj, nil)
+		}
+		// phase 3: all other declarations
+		for _, obj := range othersList {
+			check.objDecl(obj, nil)
+		}
 	}
 
 	// At this point we may have a non-empty check.methods map; this means that not all

@@ -1,0 +1,1 @@
+pkg go/types, method (*Alias) Rhs() Type #66559

@@ -298,7 +298,14 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
 	stk.Push("testmain")
 	deps := TestMainDeps // cap==len, so safe for append
-	for _, d := range LinkerDeps(p) {
+	if cover != nil && cfg.Experiment.CoverageRedesign {
+		deps = append(deps, "internal/coverage/cfile")
+	}
+	ldDeps, err := LinkerDeps(p)
+	if err != nil && pmain.Error == nil {
+		pmain.Error = &PackageError{Err: err}
+	}
+	for _, d := range ldDeps {
 		deps = append(deps, d)
 	}
 	for _, dep := range deps {
@@ -384,15 +391,15 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 				// it contains p's Go files), whereas pmain contains only
 				// test harness code (don't want to instrument it, and
 				// we don't want coverage hooks in the pkg init).
-				ptest.Internal.CoverMode = p.Internal.CoverMode
-				pmain.Internal.CoverMode = "testmain"
+				ptest.Internal.Cover.Mode = p.Internal.Cover.Mode
+				pmain.Internal.Cover.Mode = "testmain"
 			}
 			// Should we apply coverage analysis locally, only for this
 			// package and only for this test? Yes, if -cover is on but
 			// -coverpkg has not specified a list of packages for global
 			// coverage.
 			if cover.Local {
-				ptest.Internal.CoverMode = cover.Mode
+				ptest.Internal.Cover.Mode = cover.Mode
 
 				if !cfg.Experiment.CoverageRedesign {
 					var coverFiles []string
@@ -560,7 +567,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 }
 
 // isTestFunc tells whether fn has the type of a testing function. arg
-// specifies the parameter type we look for: B, M or T.
+// specifies the parameter type we look for: B, F, M or T.
 func isTestFunc(fn *ast.FuncDecl, arg string) bool {
 	if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
 		fn.Type.Params.List == nil ||
@@ -575,7 +582,7 @@ func isTestFunc(fn *ast.FuncDecl, arg string) bool {
 	// We can't easily check that the type is *testing.M
 	// because we don't know how testing has been imported,
 	// but at least check that it's *M or *something.M.
-	// Same applies for B and T.
+	// Same applies for B, F and T.
 	if name, ok := ptr.X.(*ast.Ident); ok && name.Name == arg {
 		return true
 	}
@@ -898,14 +905,14 @@ package main
 
 import (
 	"os"
-{{if .Cover}}
-	_ "unsafe"
-{{end}}
 {{if .TestMain}}
 	"reflect"
 {{end}}
 	"testing"
 	"testing/internal/testdeps"
+{{if .Cover}}
+	"internal/coverage/cfile"
+{{end}}
 
 {{if .ImportTest}}
 	{{if .NeedTest}}_test{{else}}_{{end}} {{.Package.ImportPath | printf "%q"}}
@@ -940,45 +947,18 @@ var examples = []testing.InternalExample{
 }
 
 func init() {
+{{if .Cover}}
+	testdeps.CoverMode = {{printf "%q" .Cover.Mode}}
+	testdeps.Covered = {{printf "%q" .Covered}}
+	testdeps.CoverSnapshotFunc = cfile.Snapshot
+	testdeps.CoverProcessTestDirFunc = cfile.ProcessCoverTestDir
+	testdeps.CoverMarkProfileEmittedFunc = cfile.MarkProfileEmitted
+
+{{end}}
 	testdeps.ImportPath = {{.ImportPath | printf "%q"}}
 }
 
-{{if .Cover}}
-
-//go:linkname runtime_coverage_processCoverTestDir runtime/coverage.processCoverTestDir
-func runtime_coverage_processCoverTestDir(dir string, cfile string, cmode string, cpkgs string) error
-
-//go:linkname testing_registerCover2 testing.registerCover2
-func testing_registerCover2(mode string, tearDown func(coverprofile string, gocoverdir string) (string, error), snapcov func() float64)
-
-//go:linkname runtime_coverage_markProfileEmitted runtime/coverage.markProfileEmitted
-func runtime_coverage_markProfileEmitted(val bool)
-
-//go:linkname runtime_coverage_snapshot runtime/coverage.snapshot
-func runtime_coverage_snapshot() float64
-
-func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
-	var err error
-	if gocoverdir == "" {
-		gocoverdir, err = os.MkdirTemp("", "gocoverdir")
-		if err != nil {
-			return "error setting GOCOVERDIR: bad os.MkdirTemp return", err
-		}
-		defer os.RemoveAll(gocoverdir)
-	}
-	runtime_coverage_markProfileEmitted(true)
-	cmode := {{printf "%q" .Cover.Mode}}
-	if err := runtime_coverage_processCoverTestDir(gocoverdir, coverprofile, cmode, {{printf "%q" .Covered}}); err != nil {
-		return "error generating coverage report", err
-	}
-	return "", nil
-}
-{{end}}
-
 func main() {
-{{if .Cover}}
-	testing_registerCover2({{printf "%q" .Cover.Mode}}, coverTearDown, runtime_coverage_snapshot)
-{{end}}
 	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, fuzzTargets, examples)
 {{with .TestMain}}
 	{{.Package}}.{{.Name}}(m)

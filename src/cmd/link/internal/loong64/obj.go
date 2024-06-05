@@ -29,8 +29,8 @@ func Init() (*sys.Arch, ld.Arch) {
 		Gentext:          gentext,
 
 		ELF: ld.ELFArch{
-			Linuxdynld:     "/lib64/ld.so.1",
-			LinuxdynldMusl: "/lib64/ld-musl-loongarch.so.1",
+			Linuxdynld:     "/lib64/ld-linux-loongarch-lp64d.so.1",
+			LinuxdynldMusl: "/lib/ld-musl-loongarch.so.1",
 			Freebsddynld:   "XXX",
 			Openbsddynld:   "XXX",
 			Netbsddynld:    "XXX",
@@ -53,11 +53,11 @@ func archinit(ctxt *ld.Link) {
 	case objabi.Hlinux: /* loong64 elf */
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
+		}
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
 		}
 	}
 }

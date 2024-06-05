@@ -30,6 +30,7 @@ func TestIs(t *testing.T) {
 		match  bool
 	}{
 		{nil, nil, true},
+		{nil, err1, false},
 		{err1, nil, false},
 		{err1, err1, true},
 		{erra, err1, true},
@@ -235,6 +236,27 @@ func TestAsValidation(t *testing.T) {
 			}
 			t.Errorf("As(err, %T(%v)) did not panic", tc, tc)
 		})
+	}
+}
+
+func BenchmarkIs(b *testing.B) {
+	err1 := errors.New("1")
+	err2 := multiErr{multiErr{multiErr{err1, errorT{"a"}}, errorT{"b"}}}
+
+	for i := 0; i < b.N; i++ {
+		if !errors.Is(err2, err1) {
+			b.Fatal("Is failed")
+		}
+	}
+}
+
+func BenchmarkAs(b *testing.B) {
+	err := multiErr{multiErr{multiErr{errors.New("a"), errorT{"a"}}, errorT{"b"}}}
+	for i := 0; i < b.N; i++ {
+		var target errorT
+		if !errors.As(err, &target) {
+			b.Fatal("As failed")
+		}
 	}
 }
 

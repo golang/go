@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin && !ios
-// +build darwin,!ios
+//go:build (darwin && !ios) || zos
 
 package unix
 

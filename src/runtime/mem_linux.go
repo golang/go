@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -116,6 +116,31 @@ func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
 	madvise(v, n, _MADV_NOHUGEPAGE)
 }
 
+func sysHugePageCollapseOS(v unsafe.Pointer, n uintptr) {
+	if uintptr(v)&(physPageSize-1) != 0 {
+		// The Linux implementation requires that the address
+		// addr be page-aligned, and allows length to be zero.
+		throw("unaligned sysHugePageCollapseOS")
+	}
+	if physHugePageSize == 0 {
+		return
+	}
+	// N.B. If you find yourself debugging this code, note that
+	// this call can fail with EAGAIN because it's best-effort.
+	// Also, when it returns an error, it's only for the last
+	// huge page in the region requested.
+	//
+	// It can also sometimes return EINVAL if the corresponding
+	// region hasn't been backed by physical memory. This is
+	// difficult to guarantee in general, and it also means
+	// there's no way to distinguish whether this syscall is
+	// actually available. Oops.
+	//
+	// Anyway, that's why this call just doesn't bother checking
+	// any errors.
+	madvise(v, n, _MADV_COLLAPSE)
+}
+
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //
@@ -125,7 +150,8 @@ func sysFreeOS(v unsafe.Pointer, n uintptr) {
 }
 
 func sysFaultOS(v unsafe.Pointer, n uintptr) {
-	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+	mprotect(v, n, _PROT_NONE)
+	madvise(v, n, _MADV_DONTNEED)
 }
 
 func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
@@ -144,5 +170,13 @@ func sysMapOS(v unsafe.Pointer, n uintptr) {
 	if p != v || err != 0 {
 		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
 		throw("runtime: cannot map pages in arena address space")
+	}
+
+	// Disable huge pages if the GODEBUG for it is set.
+	//
+	// Note that there are a few sysHugePage calls that can override this, but
+	// they're all for GC metadata.
+	if debug.disablethp != 0 {
+		sysNoHugePageOS(v, n)
 	}
 }

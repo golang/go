@@ -95,6 +95,29 @@ func (subst *subster) typ(typ Type) Type {
 	case *Basic:
 		// nothing to do
 
+	case *Alias:
+		// This code follows the code for *Named types closely.
+		// TODO(gri) try to factor better
+		orig := t.Origin()
+		n := orig.TypeParams().Len()
+		if n == 0 {
+			return t // type is not parameterized
+		}
+
+		// TODO(gri) do we need this for Alias types?
+		if t.TypeArgs().Len() != n {
+			return Typ[Invalid] // error reported elsewhere
+		}
+
+		// already instantiated
+		// For each (existing) type argument determine if it needs
+		// to be substituted; i.e., if it is or contains a type parameter
+		// that has a type argument for it.
+		targs, updated := subst.typeList(t.TypeArgs().list())
+		if updated {
+			return subst.check.newAliasInstance(subst.pos, t.orig, targs, subst.ctxt)
+		}
+
 	case *Array:
 		elem := subst.typOrNil(t.elem)
 		if elem != t.elem {
@@ -169,7 +192,9 @@ func (subst *subster) typ(typ Type) Type {
 		if mcopied || ecopied {
 			iface := subst.check.newInterface()
 			iface.embeddeds = embeddeds
+			iface.embedPos = t.embedPos
 			iface.implicit = t.implicit
+			assert(t.complete) // otherwise we are copying incomplete data
 			iface.complete = t.complete
 			// If we've changed the interface type, we may need to replace its
 			// receiver if the receiver type is the original interface. Receivers of
@@ -185,6 +210,11 @@ func (subst *subster) typ(typ Type) Type {
 			// need to create new interface methods to hold the instantiated
 			// receiver. This is handled by Named.expandUnderlying.
 			iface.methods, _ = replaceRecvType(methods, t, iface)
+
+			// If check != nil, check.newInterface will have saved the interface for later completion.
+			if subst.check == nil { // golang/go#61561: all newly created interfaces must be completed
+				iface.typeSet()
+			}
 			return iface
 		}
 
@@ -202,18 +232,6 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 	case *Named:
-		// dump is for debugging
-		dump := func(string, ...interface{}) {}
-		if subst.check != nil && subst.check.conf.Trace {
-			subst.check.indent++
-			defer func() {
-				subst.check.indent--
-			}()
-			dump = func(format string, args ...interface{}) {
-				subst.check.trace(subst.pos, format, args...)
-			}
-		}
-
 		// subst is called during expansion, so in this function we need to be
 		// careful not to call any methods that would cause t to be expanded: doing
 		// so would result in deadlock.
@@ -222,49 +240,31 @@ func (subst *subster) typ(typ Type) Type {
 		orig := t.Origin()
 		n := orig.TypeParams().Len()
 		if n == 0 {
-			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
 		}
 
-		var newTArgs []Type
 		if t.TypeArgs().Len() != n {
 			return Typ[Invalid] // error reported elsewhere
 		}
 
 		// already instantiated
-		dump(">>> %s already instantiated", t)
-		// For each (existing) type argument targ, determine if it needs
+		// For each (existing) type argument determine if it needs
 		// to be substituted; i.e., if it is or contains a type parameter
 		// that has a type argument for it.
-		for i, targ := range t.TypeArgs().list() {
-			dump(">>> %d targ = %s", i, targ)
-			new_targ := subst.typ(targ)
-			if new_targ != targ {
-				dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
-				if newTArgs == nil {
-					newTArgs = make([]Type, n)
-					copy(newTArgs, t.TypeArgs().list())
-				}
-				newTArgs[i] = new_targ
-			}
+		targs, updated := subst.typeList(t.TypeArgs().list())
+		if updated {
+			// Create a new instance and populate the context to avoid endless
+			// recursion. The position used here is irrelevant because validation only
+			// occurs on t (we don't call validType on named), but we use subst.pos to
+			// help with debugging.
+			return subst.check.instance(subst.pos, orig, targs, subst.expanding, subst.ctxt)
 		}
-
-		if newTArgs == nil {
-			dump(">>> nothing to substitute in %s", t)
-			return t // nothing to substitute
-		}
-
-		// Create a new instance and populate the context to avoid endless
-		// recursion. The position used here is irrelevant because validation only
-		// occurs on t (we don't call validType on named), but we use subst.pos to
-		// help with debugging.
-		return subst.check.instance(subst.pos, orig, newTArgs, subst.expanding, subst.ctxt)
 
 	case *TypeParam:
 		return subst.smap.lookup(t)
 
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
 	return typ
@@ -402,7 +402,7 @@ func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
 func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
 	out = in
 	for i, method := range in {
-		sig := method.Type().(*Signature)
+		sig := method.Signature()
 		if sig.recv != nil && sig.recv.Type() == old {
 			if !copied {
 				// Allocate a new methods slice before mutating for the first time.

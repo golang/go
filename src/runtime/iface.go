@@ -7,7 +7,8 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -31,6 +32,15 @@ func itabHashFunc(inter *interfacetype, typ *_type) uintptr {
 	return uintptr(inter.Type.Hash ^ typ.Hash)
 }
 
+// getitab should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname getitab
 func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	if len(inter.Methods) == 0 {
 		throw("internal error - misuse of itab")
@@ -65,19 +75,19 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 
 	// Entry doesn't exist yet. Make a new entry & add it.
 	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.Methods)-1)*goarch.PtrSize, 0, &memstats.other_sys))
-	m.inter = inter
-	m._type = typ
+	m.Inter = inter
+	m.Type = typ
 	// The hash is used in type switches. However, compiler statically generates itab's
 	// for all interface/type pairs used in switches (which are added to itabTable
 	// in itabsinit). The dynamically-generated itab's never participate in type switches,
 	// and thus the hash is irrelevant.
-	// Note: m.hash is _not_ the hash used for the runtime itabTable hash table.
-	m.hash = 0
-	m.init()
+	// Note: m.Hash is _not_ the hash used for the runtime itabTable hash table.
+	m.Hash = 0
+	itabInit(m, true)
 	itabAdd(m)
 	unlock(&itabLock)
 finish:
-	if m.fun[0] != 0 {
+	if m.Fun[0] != 0 {
 		return m
 	}
 	if canfail {
@@ -89,7 +99,7 @@ finish:
 	// The cached result doesn't record which
 	// interface function was missing, so initialize
 	// the itab again to get the missing function name.
-	panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: m.init()})
+	panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: itabInit(m, false)})
 }
 
 // find finds the given interface/type pair in t.
@@ -109,7 +119,7 @@ func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
 		if m == nil {
 			return nil
 		}
-		if m.inter == inter && m._type == typ {
+		if m.Inter == inter && m.Type == typ {
 			return m
 		}
 		h += i
@@ -160,7 +170,7 @@ func (t *itabTableType) add(m *itab) {
 	// See comment in find about the probe sequence.
 	// Insert new itab in the first empty spot in the probe sequence.
 	mask := t.size - 1
-	h := itabHashFunc(m.inter, m._type) & mask
+	h := itabHashFunc(m.Inter, m.Type) & mask
 	for i := uintptr(1); ; i++ {
 		p := (**itab)(add(unsafe.Pointer(&t.entries), h*goarch.PtrSize))
 		m2 := *p
@@ -185,13 +195,15 @@ func (t *itabTableType) add(m *itab) {
 	}
 }
 
-// init fills in the m.fun array with all the code pointers for
-// the m.inter/m._type pair. If the type does not implement the interface,
-// it sets m.fun[0] to 0 and returns the name of an interface function that is missing.
-// It is ok to call this multiple times on the same m, even concurrently.
-func (m *itab) init() string {
-	inter := m.inter
-	typ := m._type
+// itabInit fills in the m.Fun array with all the code pointers for
+// the m.Inter/m.Type pair. If the type does not implement the interface,
+// it sets m.Fun[0] to 0 and returns the name of an interface function that is missing.
+// If !firstTime, itabInit will not write anything to m.Fun (see issue 65962).
+// It is ok to call this multiple times on the same m, even concurrently
+// (although it will only be called once with firstTime==true).
+func itabInit(m *itab, firstTime bool) string {
+	inter := m.Inter
+	typ := m.Type
 	x := typ.Uncommon()
 
 	// both inter and typ have method sorted by name,
@@ -202,7 +214,7 @@ func (m *itab) init() string {
 	nt := int(x.Mcount)
 	xmhdr := (*[1 << 16]abi.Method)(add(unsafe.Pointer(x), uintptr(x.Moff)))[:nt:nt]
 	j := 0
-	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.fun[0]))[:ni:ni]
+	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.Fun[0]))[:ni:ni]
 	var fun0 unsafe.Pointer
 imethods:
 	for k := 0; k < ni; k++ {
@@ -224,23 +236,23 @@ imethods:
 					pkgPath = rtyp.nameOff(x.PkgPath).Name()
 				}
 				if tname.IsExported() || pkgPath == ipkg {
-					if m != nil {
-						ifn := rtyp.textOff(t.Ifn)
-						if k == 0 {
-							fun0 = ifn // we'll set m.fun[0] at the end
-						} else {
-							methods[k] = ifn
-						}
+					ifn := rtyp.textOff(t.Ifn)
+					if k == 0 {
+						fun0 = ifn // we'll set m.Fun[0] at the end
+					} else if firstTime {
+						methods[k] = ifn
 					}
 					continue imethods
 				}
 			}
 		}
 		// didn't find method
-		m.fun[0] = 0
+		// Leaves m.Fun[0] set to 0.
 		return iname
 	}
-	m.fun[0] = uintptr(fun0)
+	if firstTime {
+		m.Fun[0] = uintptr(fun0)
+	}
 	return ""
 }
 
@@ -268,7 +280,7 @@ func panicdottypeE(have, want, iface *_type) {
 func panicdottypeI(have *itab, want, iface *_type) {
 	var t *_type
 	if have != nil {
-		t = have._type
+		t = have.Type
 	}
 	panicdottypeE(t, want, iface)
 }
@@ -376,6 +388,15 @@ func convT32(val uint32) (x unsafe.Pointer) {
 	return
 }
 
+// convT64 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname convT64
 func convT64(val uint64) (x unsafe.Pointer) {
 	if val < uint64(len(staticuint64s)) {
 		x = unsafe.Pointer(&staticuint64s[val])
@@ -386,6 +407,15 @@ func convT64(val uint64) (x unsafe.Pointer) {
 	return
 }
 
+// convTstring should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname convTstring
 func convTstring(val string) (x unsafe.Pointer) {
 	if val == "" {
 		x = unsafe.Pointer(&zeroVal[0])
@@ -396,6 +426,15 @@ func convTstring(val string) (x unsafe.Pointer) {
 	return
 }
 
+// convTslice should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname convTslice
 func convTslice(val []byte) (x unsafe.Pointer) {
 	// Note: this must work for any element type, not just byte.
 	if (*slice)(unsafe.Pointer(&val)).array == nil {
@@ -407,45 +446,6 @@ func convTslice(val []byte) (x unsafe.Pointer) {
 	return
 }
 
-// convI2I returns the new itab to be used for the destination value
-// when converting a value with itab src to the dst interface.
-func convI2I(dst *interfacetype, src *itab) *itab {
-	if src == nil {
-		return nil
-	}
-	if src.inter == dst {
-		return src
-	}
-	return getitab(dst, src._type, false)
-}
-
-func assertI2I(inter *interfacetype, tab *itab) *itab {
-	if tab == nil {
-		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{nil, nil, &inter.Type, ""})
-	}
-	if tab.inter == inter {
-		return tab
-	}
-	return getitab(inter, tab._type, false)
-}
-
-func assertI2I2(inter *interfacetype, i iface) (r iface) {
-	tab := i.tab
-	if tab == nil {
-		return
-	}
-	if tab.inter != inter {
-		tab = getitab(inter, tab._type, true)
-		if tab == nil {
-			return
-		}
-	}
-	r.tab = tab
-	r.data = i.data
-	return
-}
-
 func assertE2I(inter *interfacetype, t *_type) *itab {
 	if t == nil {
 		// explicit conversions require non-nil interface value.
@@ -454,20 +454,221 @@ func assertE2I(inter *interfacetype, t *_type) *itab {
 	return getitab(inter, t, false)
 }
 
-func assertE2I2(inter *interfacetype, e eface) (r iface) {
-	t := e._type
+func assertE2I2(inter *interfacetype, t *_type) *itab {
 	if t == nil {
-		return
+		return nil
 	}
-	tab := getitab(inter, t, true)
-	if tab == nil {
-		return
-	}
-	r.tab = tab
-	r.data = e.data
-	return
+	return getitab(inter, t, true)
 }
 
+// typeAssert builds an itab for the concrete type t and the
+// interface type s.Inter. If the conversion is not possible it
+// panics if s.CanFail is false and returns nil if s.CanFail is true.
+func typeAssert(s *abi.TypeAssert, t *_type) *itab {
+	var tab *itab
+	if t == nil {
+		if !s.CanFail {
+			panic(&TypeAssertionError{nil, nil, &s.Inter.Type, ""})
+		}
+	} else {
+		tab = getitab(s.Inter, t, s.CanFail)
+	}
+
+	if !abi.UseInterfaceSwitchCache(GOARCH) {
+		return tab
+	}
+
+	// Maybe update the cache, so the next time the generated code
+	// doesn't need to call into the runtime.
+	if cheaprand()&1023 != 0 {
+		// Only bother updating the cache ~1 in 1000 times.
+		return tab
+	}
+	// Load the current cache.
+	oldC := (*abi.TypeAssertCache)(atomic.Loadp(unsafe.Pointer(&s.Cache)))
+
+	if cheaprand()&uint32(oldC.Mask) != 0 {
+		// As cache gets larger, choose to update it less often
+		// so we can amortize the cost of building a new cache.
+		return tab
+	}
+
+	// Make a new cache.
+	newC := buildTypeAssertCache(oldC, t, tab)
+
+	// Update cache. Use compare-and-swap so if multiple threads
+	// are fighting to update the cache, at least one of their
+	// updates will stick.
+	atomic_casPointer((*unsafe.Pointer)(unsafe.Pointer(&s.Cache)), unsafe.Pointer(oldC), unsafe.Pointer(newC))
+
+	return tab
+}
+
+func buildTypeAssertCache(oldC *abi.TypeAssertCache, typ *_type, tab *itab) *abi.TypeAssertCache {
+	oldEntries := unsafe.Slice(&oldC.Entries[0], oldC.Mask+1)
+
+	// Count the number of entries we need.
+	n := 1
+	for _, e := range oldEntries {
+		if e.Typ != 0 {
+			n++
+		}
+	}
+
+	// Figure out how big a table we need.
+	// We need at least one more slot than the number of entries
+	// so that we are guaranteed an empty slot (for termination).
+	newN := n * 2                         // make it at most 50% full
+	newN = 1 << sys.Len64(uint64(newN-1)) // round up to a power of 2
+
+	// Allocate the new table.
+	newSize := unsafe.Sizeof(abi.TypeAssertCache{}) + uintptr(newN-1)*unsafe.Sizeof(abi.TypeAssertCacheEntry{})
+	newC := (*abi.TypeAssertCache)(mallocgc(newSize, nil, true))
+	newC.Mask = uintptr(newN - 1)
+	newEntries := unsafe.Slice(&newC.Entries[0], newN)
+
+	// Fill the new table.
+	addEntry := func(typ *_type, tab *itab) {
+		h := int(typ.Hash) & (newN - 1)
+		for {
+			if newEntries[h].Typ == 0 {
+				newEntries[h].Typ = uintptr(unsafe.Pointer(typ))
+				newEntries[h].Itab = uintptr(unsafe.Pointer(tab))
+				return
+			}
+			h = (h + 1) & (newN - 1)
+		}
+	}
+	for _, e := range oldEntries {
+		if e.Typ != 0 {
+			addEntry((*_type)(unsafe.Pointer(e.Typ)), (*itab)(unsafe.Pointer(e.Itab)))
+		}
+	}
+	addEntry(typ, tab)
+
+	return newC
+}
+
+// Empty type assert cache. Contains one entry with a nil Typ (which
+// causes a cache lookup to fail immediately.)
+var emptyTypeAssertCache = abi.TypeAssertCache{Mask: 0}
+
+// interfaceSwitch compares t against the list of cases in s.
+// If t matches case i, interfaceSwitch returns the case index i and
+// an itab for the pair <t, s.Cases[i]>.
+// If there is no match, return N,nil, where N is the number
+// of cases.
+func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
+	cases := unsafe.Slice(&s.Cases[0], s.NCases)
+
+	// Results if we don't find a match.
+	case_ := len(cases)
+	var tab *itab
+
+	// Look through each case in order.
+	for i, c := range cases {
+		tab = getitab(c, t, true)
+		if tab != nil {
+			case_ = i
+			break
+		}
+	}
+
+	if !abi.UseInterfaceSwitchCache(GOARCH) {
+		return case_, tab
+	}
+
+	// Maybe update the cache, so the next time the generated code
+	// doesn't need to call into the runtime.
+	if cheaprand()&1023 != 0 {
+		// Only bother updating the cache ~1 in 1000 times.
+		// This ensures we don't waste memory on switches, or
+		// switch arguments, that only happen a few times.
+		return case_, tab
+	}
+	// Load the current cache.
+	oldC := (*abi.InterfaceSwitchCache)(atomic.Loadp(unsafe.Pointer(&s.Cache)))
+
+	if cheaprand()&uint32(oldC.Mask) != 0 {
+		// As cache gets larger, choose to update it less often
+		// so we can amortize the cost of building a new cache
+		// (that cost is linear in oldc.Mask).
+		return case_, tab
+	}
+
+	// Make a new cache.
+	newC := buildInterfaceSwitchCache(oldC, t, case_, tab)
+
+	// Update cache. Use compare-and-swap so if multiple threads
+	// are fighting to update the cache, at least one of their
+	// updates will stick.
+	atomic_casPointer((*unsafe.Pointer)(unsafe.Pointer(&s.Cache)), unsafe.Pointer(oldC), unsafe.Pointer(newC))
+
+	return case_, tab
+}
+
+// buildInterfaceSwitchCache constructs an interface switch cache
+// containing all the entries from oldC plus the new entry
+// (typ,case_,tab).
+func buildInterfaceSwitchCache(oldC *abi.InterfaceSwitchCache, typ *_type, case_ int, tab *itab) *abi.InterfaceSwitchCache {
+	oldEntries := unsafe.Slice(&oldC.Entries[0], oldC.Mask+1)
+
+	// Count the number of entries we need.
+	n := 1
+	for _, e := range oldEntries {
+		if e.Typ != 0 {
+			n++
+		}
+	}
+
+	// Figure out how big a table we need.
+	// We need at least one more slot than the number of entries
+	// so that we are guaranteed an empty slot (for termination).
+	newN := n * 2                         // make it at most 50% full
+	newN = 1 << sys.Len64(uint64(newN-1)) // round up to a power of 2
+
+	// Allocate the new table.
+	newSize := unsafe.Sizeof(abi.InterfaceSwitchCache{}) + uintptr(newN-1)*unsafe.Sizeof(abi.InterfaceSwitchCacheEntry{})
+	newC := (*abi.InterfaceSwitchCache)(mallocgc(newSize, nil, true))
+	newC.Mask = uintptr(newN - 1)
+	newEntries := unsafe.Slice(&newC.Entries[0], newN)
+
+	// Fill the new table.
+	addEntry := func(typ *_type, case_ int, tab *itab) {
+		h := int(typ.Hash) & (newN - 1)
+		for {
+			if newEntries[h].Typ == 0 {
+				newEntries[h].Typ = uintptr(unsafe.Pointer(typ))
+				newEntries[h].Case = case_
+				newEntries[h].Itab = uintptr(unsafe.Pointer(tab))
+				return
+			}
+			h = (h + 1) & (newN - 1)
+		}
+	}
+	for _, e := range oldEntries {
+		if e.Typ != 0 {
+			addEntry((*_type)(unsafe.Pointer(e.Typ)), e.Case, (*itab)(unsafe.Pointer(e.Itab)))
+		}
+	}
+	addEntry(typ, case_, tab)
+
+	return newC
+}
+
+// Empty interface switch cache. Contains one entry with a nil Typ (which
+// causes a cache lookup to fail immediately.)
+var emptyInterfaceSwitchCache = abi.InterfaceSwitchCache{Mask: 0}
+
+// reflect_ifaceE2I is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//   - github.com/modern-go/reflect2
+//   - github.com/v2pro/plz
+//
+// Do not remove or change the type signature.
+//
 //go:linkname reflect_ifaceE2I reflect.ifaceE2I
 func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
 	*dst = iface{assertE2I(inter, e._type), e.data}

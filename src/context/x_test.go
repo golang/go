@@ -201,6 +201,8 @@ func TestCanceledTimeout(t *testing.T) {
 type key1 int
 type key2 int
 
+func (k key2) String() string { return fmt.Sprintf("%[1]T(%[1]d)", k) }
+
 var k1 = key1(1)
 var k2 = key2(1) // same int as k1, different type
 var k3 = key2(3) // same type as k2, different int
@@ -224,12 +226,16 @@ func TestValues(t *testing.T) {
 	c1 := WithValue(Background(), k1, "c1k1")
 	check(c1, "c1", "c1k1", "", "")
 
-	if got, want := fmt.Sprint(c1), `context.Background.WithValue(type context_test.key1, val c1k1)`; got != want {
+	if got, want := fmt.Sprint(c1), `context.Background.WithValue(context_test.key1, c1k1)`; got != want {
 		t.Errorf("c.String() = %q want %q", got, want)
 	}
 
 	c2 := WithValue(c1, k2, "c2k2")
 	check(c2, "c2", "c1k1", "c2k2", "")
+
+	if got, want := fmt.Sprint(c2), `context.Background.WithValue(context_test.key1, c1k1).WithValue(context_test.key2(1), c2k2)`; got != want {
+		t.Errorf("c.String() = %q want %q", got, want)
+	}
 
 	c3 := WithValue(c2, k3, "c3k3")
 	check(c3, "c2", "c1k1", "c2k2", "c3k3")
@@ -408,8 +414,9 @@ func testLayers(t *testing.T, seed int64, testTimeout bool) {
 	t.Parallel()
 
 	r := rand.New(rand.NewSource(seed))
+	prefix := fmt.Sprintf("seed=%d", seed)
 	errorf := func(format string, a ...any) {
-		t.Errorf(fmt.Sprintf("seed=%d: %s", seed, format), a...)
+		t.Errorf(prefix+format, a...)
 	}
 	const (
 		minLayers = 30
@@ -867,6 +874,126 @@ func TestCustomContextPropagation(t *testing.T) {
 	}
 }
 
+// customCauseContext is a custom Context used to test context.Cause.
+type customCauseContext struct {
+	mu   sync.Mutex
+	done chan struct{}
+	err  error
+
+	cancelChild CancelFunc
+}
+
+func (ccc *customCauseContext) Deadline() (deadline time.Time, ok bool) {
+	return
+}
+
+func (ccc *customCauseContext) Done() <-chan struct{} {
+	ccc.mu.Lock()
+	defer ccc.mu.Unlock()
+	return ccc.done
+}
+
+func (ccc *customCauseContext) Err() error {
+	ccc.mu.Lock()
+	defer ccc.mu.Unlock()
+	return ccc.err
+}
+
+func (ccc *customCauseContext) Value(key any) any {
+	return nil
+}
+
+func (ccc *customCauseContext) cancel() {
+	ccc.mu.Lock()
+	ccc.err = Canceled
+	close(ccc.done)
+	cancelChild := ccc.cancelChild
+	ccc.mu.Unlock()
+
+	if cancelChild != nil {
+		cancelChild()
+	}
+}
+
+func (ccc *customCauseContext) setCancelChild(cancelChild CancelFunc) {
+	ccc.cancelChild = cancelChild
+}
+
+func TestCustomContextCause(t *testing.T) {
+	// Test if we cancel a custom context, Err and Cause return Canceled.
+	ccc := &customCauseContext{
+		done: make(chan struct{}),
+	}
+	ccc.cancel()
+	if got := ccc.Err(); got != Canceled {
+		t.Errorf("ccc.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ccc); got != Canceled {
+		t.Errorf("Cause(ccc) = %v, want %v", got, Canceled)
+	}
+
+	// Test that if we pass a custom context to WithCancelCause,
+	// and then cancel that child context with a cause,
+	// that the cause of the child canceled context is correct
+	// but that the parent custom context is not canceled.
+	ccc = &customCauseContext{
+		done: make(chan struct{}),
+	}
+	ctx, causeFunc := WithCancelCause(ccc)
+	cause := errors.New("TestCustomContextCause")
+	causeFunc(cause)
+	if got := ctx.Err(); got != Canceled {
+		t.Errorf("after CancelCauseFunc ctx.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ctx); got != cause {
+		t.Errorf("after CancelCauseFunc Cause(ctx) = %v, want %v", got, cause)
+	}
+	if got := ccc.Err(); got != nil {
+		t.Errorf("after CancelCauseFunc ccc.Err() = %v, want %v", got, nil)
+	}
+	if got := Cause(ccc); got != nil {
+		t.Errorf("after CancelCauseFunc Cause(ccc) = %v, want %v", got, nil)
+	}
+
+	// Test that if we now cancel the parent custom context,
+	// the cause of the child canceled context is still correct,
+	// and the parent custom context is canceled without a cause.
+	ccc.cancel()
+	if got := ctx.Err(); got != Canceled {
+		t.Errorf("after CancelCauseFunc ctx.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ctx); got != cause {
+		t.Errorf("after CancelCauseFunc Cause(ctx) = %v, want %v", got, cause)
+	}
+	if got := ccc.Err(); got != Canceled {
+		t.Errorf("after CancelCauseFunc ccc.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ccc); got != Canceled {
+		t.Errorf("after CancelCauseFunc Cause(ccc) = %v, want %v", got, Canceled)
+	}
+
+	// Test that if we associate a custom context with a child,
+	// then canceling the custom context cancels the child.
+	ccc = &customCauseContext{
+		done: make(chan struct{}),
+	}
+	ctx, cancelFunc := WithCancel(ccc)
+	ccc.setCancelChild(cancelFunc)
+	ccc.cancel()
+	if got := ctx.Err(); got != Canceled {
+		t.Errorf("after CancelCauseFunc ctx.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ctx); got != Canceled {
+		t.Errorf("after CancelCauseFunc Cause(ctx) = %v, want %v", got, Canceled)
+	}
+	if got := ccc.Err(); got != Canceled {
+		t.Errorf("after CancelCauseFunc ccc.Err() = %v, want %v", got, Canceled)
+	}
+	if got := Cause(ccc); got != Canceled {
+		t.Errorf("after CancelCauseFunc Cause(ccc) = %v, want %v", got, Canceled)
+	}
+}
+
 func TestAfterFuncCalledAfterCancel(t *testing.T) {
 	ctx, cancel := WithCancel(Background())
 	donec := make(chan struct{})
@@ -937,7 +1064,7 @@ func TestAfterFuncNotCalledAfterStop(t *testing.T) {
 	}
 }
 
-// This test verifies that cancelling a context does not block waiting for AfterFuncs to finish.
+// This test verifies that canceling a context does not block waiting for AfterFuncs to finish.
 func TestAfterFuncCalledAsynchronously(t *testing.T) {
 	ctx, cancel := WithCancel(Background())
 	donec := make(chan struct{})

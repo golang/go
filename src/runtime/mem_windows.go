@@ -97,6 +97,9 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
 func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
 }
 
+func sysHugePageCollapseOS(v unsafe.Pointer, n uintptr) {
+}
+
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //

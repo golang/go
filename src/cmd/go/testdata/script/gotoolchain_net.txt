@@ -1,6 +1,11 @@
 # This test only checks that basic network lookups work.
 # The full test of toolchain version selection is in gotoolchain.txt.
 
+# This test is sensitive to "new" Go experiments, so
+# update the environment to remove any existing GOEXPERIMENT
+# setting, see #62016 for more on this. 
+env GOEXPERIMENT=''
+
 env TESTGO_VERSION=go1.21actual
 
 # GOTOOLCHAIN from network, does not exist

@@ -13,7 +13,7 @@
  * $FreeBSD: src/sys/sparc64/include/elf.h,v 1.12 2003/09/25 01:10:26 peter Exp $
  * "System V ABI" (http://www.sco.com/developers/gabi/latest/ch4.eheader.html)
  * "ELF for the ARM® 64-bit Architecture (AArch64)" (ARM IHI 0056B)
- * "RISC-V ELF psABI specification" (https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc)
+ * "RISC-V ELF psABI specification" (https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc)
  * llvm/BinaryFormat/ELF.h - ELF constants and structures
  *
  * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
@@ -773,6 +773,7 @@ const (
 
 	PT_OPENBSD_RANDOMIZE ProgType = 0x65a3dbe6 /* Random data */
 	PT_OPENBSD_WXNEEDED  ProgType = 0x65a3dbe7 /* W^X violations */
+	PT_OPENBSD_NOBTCFI   ProgType = 0x65a3dbe8 /* No branch target CFI */
 	PT_OPENBSD_BOOTDATA  ProgType = 0x65a41be6 /* Boot arguments */
 
 	PT_SUNW_EH_FRAME ProgType = 0x6474e550 /* Frame unwind information */
@@ -1286,6 +1287,11 @@ const (
 	STT_HIOS    SymType = 12 /*   specific semantics. */
 	STT_LOPROC  SymType = 13 /* reserved range for processor */
 	STT_HIPROC  SymType = 15 /*   specific semantics. */
+
+	/* Non-standard symbol types. */
+	STT_RELC      SymType = 8  /* Complex relocation expression. */
+	STT_SRELC     SymType = 9  /* Signed complex relocation expression. */
+	STT_GNU_IFUNC SymType = 10 /* Indirect code object. */
 )
 
 var sttStrings = []intName{
@@ -1296,6 +1302,8 @@ var sttStrings = []intName{
 	{4, "STT_FILE"},
 	{5, "STT_COMMON"},
 	{6, "STT_TLS"},
+	{8, "STT_RELC"},
+	{9, "STT_SRELC"},
 	{10, "STT_LOOS"},
 	{12, "STT_HIOS"},
 	{13, "STT_LOPROC"},
@@ -2216,6 +2224,8 @@ const (
 	R_MIPS_TLS_TPREL64     R_MIPS = 48 /* TP-relative offset, 64 bit */
 	R_MIPS_TLS_TPREL_HI16  R_MIPS = 49 /* TP-relative offset, high 16 bits */
 	R_MIPS_TLS_TPREL_LO16  R_MIPS = 50 /* TP-relative offset, low 16 bits */
+
+	R_MIPS_PC32 R_MIPS = 248 /* 32 bit PC relative reference */
 )
 
 var rmipsStrings = []intName{
@@ -2267,6 +2277,7 @@ var rmipsStrings = []intName{
 	{48, "R_MIPS_TLS_TPREL64"},
 	{49, "R_MIPS_TLS_TPREL_HI16"},
 	{50, "R_MIPS_TLS_TPREL_LO16"},
+	{248, "R_MIPS_PC32"},
 }
 
 func (i R_MIPS) String() string   { return stringName(uint32(i), rmipsStrings, false) }
@@ -2365,6 +2376,15 @@ const (
 	R_LARCH_TLS_GD_HI20                R_LARCH = 98
 	R_LARCH_32_PCREL                   R_LARCH = 99
 	R_LARCH_RELAX                      R_LARCH = 100
+	R_LARCH_DELETE                     R_LARCH = 101
+	R_LARCH_ALIGN                      R_LARCH = 102
+	R_LARCH_PCREL20_S2                 R_LARCH = 103
+	R_LARCH_CFA                        R_LARCH = 104
+	R_LARCH_ADD6                       R_LARCH = 105
+	R_LARCH_SUB6                       R_LARCH = 106
+	R_LARCH_ADD_ULEB128                R_LARCH = 107
+	R_LARCH_SUB_ULEB128                R_LARCH = 108
+	R_LARCH_64_PCREL                   R_LARCH = 109
 )
 
 var rlarchStrings = []intName{
@@ -2457,6 +2477,15 @@ var rlarchStrings = []intName{
 	{98, "R_LARCH_TLS_GD_HI20"},
 	{99, "R_LARCH_32_PCREL"},
 	{100, "R_LARCH_RELAX"},
+	{101, "R_LARCH_DELETE"},
+	{102, "R_LARCH_ALIGN"},
+	{103, "R_LARCH_PCREL20_S2"},
+	{104, "R_LARCH_CFA"},
+	{105, "R_LARCH_ADD6"},
+	{106, "R_LARCH_SUB6"},
+	{107, "R_LARCH_ADD_ULEB128"},
+	{108, "R_LARCH_SUB_ULEB128"},
+	{109, "R_LARCH_64_PCREL"},
 }
 
 func (i R_LARCH) String() string   { return stringName(uint32(i), rlarchStrings, false) }

@@ -65,8 +65,8 @@ func (e *WriteError) Error() string {
 	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
 }
 
-// Resetter resets a ReadCloser returned by NewReader or NewReaderDict
-// to switch to a new underlying Reader. This permits reusing a ReadCloser
+// Resetter resets a ReadCloser returned by [NewReader] or [NewReaderDict]
+// to switch to a new underlying [Reader]. This permits reusing a ReadCloser
 // instead of allocating a new one.
 type Resetter interface {
 	// Reset discards any buffered data and resets the Resetter as if it was
@@ -255,9 +255,9 @@ func (h *huffmanDecoder) init(lengths []int) bool {
 	return true
 }
 
-// The actual read interface needed by NewReader.
+// The actual read interface needed by [NewReader].
 // If the passed in io.Reader does not also have ReadByte,
-// the NewReader will introduce its own buffering.
+// the [NewReader] will introduce its own buffering.
 type Reader interface {
 	io.Reader
 	io.ByteReader
@@ -798,12 +798,12 @@ func (f *decompressor) Reset(r io.Reader, dict []byte) error {
 
 // NewReader returns a new ReadCloser that can be used
 // to read the uncompressed version of r.
-// If r does not also implement io.ByteReader,
+// If r does not also implement [io.ByteReader],
 // the decompressor may read more data than necessary from r.
-// The reader returns io.EOF after the final block in the DEFLATE stream has
+// The reader returns [io.EOF] after the final block in the DEFLATE stream has
 // been encountered. Any trailing data after the final block is ignored.
 //
-// The ReadCloser returned by NewReader also implements Resetter.
+// The [io.ReadCloser] returned by NewReader also implements [Resetter].
 func NewReader(r io.Reader) io.ReadCloser {
 	fixedHuffmanDecoderInit()
 
@@ -816,13 +816,13 @@ func NewReader(r io.Reader) io.ReadCloser {
 	return &f
 }
 
-// NewReaderDict is like NewReader but initializes the reader
-// with a preset dictionary. The returned Reader behaves as if
+// NewReaderDict is like [NewReader] but initializes the reader
+// with a preset dictionary. The returned [Reader] behaves as if
 // the uncompressed data stream started with the given dictionary,
 // which has already been read. NewReaderDict is typically used
 // to read data compressed by NewWriterDict.
 //
-// The ReadCloser returned by NewReader also implements Resetter.
+// The ReadCloser returned by NewReaderDict also implements [Resetter].
 func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	fixedHuffmanDecoderInit()
 

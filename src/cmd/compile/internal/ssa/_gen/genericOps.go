@@ -285,6 +285,12 @@ var genericOps = []opData{
 	{name: "Abs", argLength: 1},      // absolute value arg0
 	{name: "Copysign", argLength: 2}, // copy sign from arg0 to arg1
 
+	// Float min/max implementation, if hardware is available.
+	{name: "Min64F", argLength: 2}, // min(arg0,arg1)
+	{name: "Min32F", argLength: 2}, // min(arg0,arg1)
+	{name: "Max64F", argLength: 2}, // max(arg0,arg1)
+	{name: "Max32F", argLength: 2}, // max(arg0,arg1)
+
 	// 3-input opcode.
 	// Fused-multiply-add, float64 only.
 	// When a*b+c is exactly zero (before rounding), then the result is +0 or -0.
@@ -471,7 +477,7 @@ var genericOps = []opData{
 	{name: "IsNonNil", argLength: 1, typ: "Bool"},        // arg0 != nil
 	{name: "IsInBounds", argLength: 2, typ: "Bool"},      // 0 <= arg0 < arg1. arg1 is guaranteed >= 0.
 	{name: "IsSliceInBounds", argLength: 2, typ: "Bool"}, // 0 <= arg0 <= arg1. arg1 is guaranteed >= 0.
-	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem. Panics if arg0 is nil. Returns void.
+	{name: "NilCheck", argLength: 2, nilCheck: true},     // arg0=ptr, arg1=mem. Panics if arg0 is nil. Returns the ptr unmodified.
 
 	// Pseudo-ops
 	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem
@@ -581,7 +587,7 @@ var genericOps = []opData{
 	{name: "MakeResult", argLength: -1},               // arg0 .. are components of a "Result" (like the result from a Call). The last arg should be memory (like the result from a call).
 
 	// Atomic operations used for semantically inlining sync/atomic and
-	// runtime/internal/atomic. Atomic loads return a new memory so that
+	// internal/runtime/atomic. Atomic loads return a new memory so that
 	// the loads are properly ordered with respect to other loads and
 	// stores.
 	{name: "AtomicLoad8", argLength: 2, typ: "(UInt8,Mem)"},                                    // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
@@ -603,25 +609,31 @@ var genericOps = []opData{
 	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
 	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
 	{name: "AtomicCompareAndSwapRel32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Lock release, reports whether store happens and new memory.
-	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                       // *arg0 &= arg1.  arg2=memory.  Returns memory.
-	{name: "AtomicAnd32", argLength: 3, typ: "Mem", hasSideEffects: true},                      // *arg0 &= arg1.  arg2=memory.  Returns memory.
-	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                        // *arg0 |= arg1.  arg2=memory.  Returns memory.
-	{name: "AtomicOr32", argLength: 3, typ: "Mem", hasSideEffects: true},                       // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicAnd8", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},              // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr8", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},               // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAnd64", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},            // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAnd32", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},            // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr64", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},             // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr32", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},             // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
 
 	// Atomic operation variants
 	// These variants have the same semantics as above atomic operations.
 	// But they are used for generating more efficient code on certain modern machines, with run-time CPU feature detection.
-	// Currently, they are used on ARM64 only.
+	// On ARM64, these are used when the LSE hardware feature is avaliable (either known at compile time or detected at runtime). If LSE is not avaliable,
+	// then the basic atomic oprations are used instead.
+	// These are not currently used on any other platform.
 	{name: "AtomicAdd32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
 	{name: "AtomicAdd64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
 	{name: "AtomicExchange32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
 	{name: "AtomicExchange64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
 	{name: "AtomicCompareAndSwap32Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
 	{name: "AtomicCompareAndSwap64Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
-	{name: "AtomicAnd8Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
-	{name: "AtomicAnd32Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                   // *arg0 &= arg1.  arg2=memory.  Returns memory.
-	{name: "AtomicOr8Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
-	{name: "AtomicOr32Variant", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicAnd8Variant", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},           // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr8Variant", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},            // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAnd64Variant", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},         // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr64Variant", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},          // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAnd32Variant", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},         // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr32Variant", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},          // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
 
 	// Publication barrier
 	{name: "PubBarrier", argLength: 1, hasSideEffects: true}, // Do data barrier. arg0=memory.
@@ -643,6 +655,8 @@ var genericOps = []opData{
 //    Plain                []            [next]
 //       If   [boolean Value]      [then, else]
 //    First                []   [always, never]
+//    Defer             [mem]  [nopanic, panic]                  (control opcode should be OpStaticCall to runtime.deferproc)
+// JumpTable   [integer Value]  [succ1,succ2,..]
 
 var genericBlocks = []blockData{
 	{name: "Plain"},                  // a single successor

@@ -13,7 +13,7 @@ import (
 )
 
 // A MethodSet is an ordered set of concrete or abstract (interface) methods;
-// a method is a MethodVal selection, and they are ordered by ascending m.Obj().Id().
+// a method is a [MethodVal] selection, and they are ordered by ascending m.Obj().Id().
 // The zero value for a MethodSet is a ready-to-use empty method set.
 type MethodSet struct {
 	list []*Selection
@@ -80,7 +80,7 @@ func NewMethodSet(T Type) *MethodSet {
 	// (spec: "The type denoted by T is called the receiver base type;
 	// it must not be a pointer or interface type and it must be declared
 	// in the same package as the method.").
-	if t, _ := T.(*Named); t != nil && isPointer(t) {
+	if t := asNamed(T); t != nil && isPointer(t) {
 		return &emptyMethodSet
 	}
 
@@ -117,7 +117,7 @@ func NewMethodSet(T Type) *MethodSet {
 
 			// If we have a named type, we may have associated methods.
 			// Look for those first.
-			if named, _ := typ.(*Named); named != nil {
+			if named := asNamed(typ); named != nil {
 				if alt := seen.lookup(named); alt != nil {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth

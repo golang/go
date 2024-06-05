@@ -98,12 +98,12 @@ which in turn are made up of memory operations.
 A <i>memory operation</i> is modeled by four details:
 </p>
 <ul>
-<li>its kind, indicating whether it is an ordinary data read, an ordinary data write,
-or a <i>synchronizing operation</i> such as an atomic data access,
-a mutex operation, or a channel operation,
-<li>its location in the program,
-<li>the memory location or variable being accessed, and
-<li>the values read or written by the operation.
+	<li>its kind, indicating whether it is an ordinary data read, an ordinary data write,
+    or a <i>synchronizing operation</i> such as an atomic data access,
+	a mutex operation, or a channel operation,</li>
+	<li>its location in the program,</li>
+	<li>the memory location or variable being accessed, and</li>
+	<li>the values read or written by the operation.</li>
 </ul>
 <p>
 Some memory operations are <i>read-like</i>, including read, atomic read, mutex lock, and channel receive.
@@ -159,10 +159,11 @@ union of the sequenced before and synchronized before relations.
 For an ordinary (non-synchronizing) data read <i>r</i> on a memory location <i>x</i>,
 <i>W</i>(<i>r</i>) must be a write <i>w</i> that is <i>visible</i> to <i>r</i>,
 where visible means that both of the following hold:
+</p>
 
 <ol>
-<li><i>w</i> happens before <i>r</i>.
-<li><i>w</i> does not happen before any other write <i>w'</i> (to <i>x</i>) that happens before <i>r</i>.
+	<li><i>w</i> happens before <i>r</i>.</li>
+	<li><i>w</i> does not happen before any other write <i>w'</i> (to <i>x</i>) that happens before <i>r</i>.</li>
 </ol>
 
 <p>
@@ -221,7 +222,7 @@ for programs that do contain races.
 </p>
 
 <p>
-First, any implementation can, upon detecting a data race,
+Any implementation can, upon detecting a data race,
 report the race and halt execution of the program.
 Implementations using ThreadSanitizer
 (accessed with “<code>go</code> <code>build</code> <code>-race</code>”)
@@ -229,7 +230,18 @@ do exactly this.
 </p>
 
 <p>
-Otherwise, a read <i>r</i> of a memory location <i>x</i>
+A read of an array, struct, or complex number
+may by implemented as a read of each individual sub-value
+(array element, struct field, or real/imaginary component),
+in any order.
+Similarly, a write of an array, struct, or complex number
+may be implemented as a write of each individual sub-value,
+in any order.
+</p>
+
+<p>
+A read <i>r</i> of a memory location <i>x</i>
+holding a value
 that is not larger than a machine word must observe
 some write <i>w</i> such that <i>r</i> does not happen before <i>w</i>
 and there is no write <i>w'</i> such that <i>w</i> happens before <i>w'</i>

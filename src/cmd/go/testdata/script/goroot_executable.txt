@@ -1,23 +1,20 @@
 [compiler:gccgo] skip
+[short] skip 'builds and links another cmd/go'
 
 mkdir $WORK/new/bin
 
-# In this test, we are specifically checking the logic for deriving
-# the value of GOROOT from runtime.GOROOT.
-# GOROOT_FINAL changes the default behavior of runtime.GOROOT,
-# and will thus cause the test to fail if it is set when our
-# new cmd/go is built.
-env GOROOT_FINAL=
-
+# $GOROOT/bin/go is whatever the user has already installed
+# (using make.bash or similar). We can't make assumptions about what
+# options it may have been built with, such as -trimpath or not.
+# Instead, we build a fresh copy of the binary with known settings.
 go build -o $WORK/new/bin/go$GOEXE cmd/go &
-go build -o $WORK/bin/check$GOEXE check.go &
+go build -trimpath -o $WORK/bin/check$GOEXE check.go &
 wait
 
 env TESTGOROOT=$GOROOT
 env GOROOT=
 
 # Relocated Executable
-# cp $TESTGOROOT/bin/go$GOEXE $WORK/new/bin/go$GOEXE
 exec $WORK/bin/check$GOEXE $WORK/new/bin/go$GOEXE $TESTGOROOT
 
 # Relocated Tree:

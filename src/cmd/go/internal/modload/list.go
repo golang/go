@@ -57,8 +57,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 				}
 				return nil, fmt.Errorf("parsing %s: %v", reuseFile, err)
 			}
-			if m.Origin == nil || !m.Origin.Checkable() {
-				// Nothing to check to validate reuse.
+			if m.Origin == nil {
 				continue
 			}
 			m.Reuse = true
@@ -110,7 +109,13 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 
 	if err == nil {
 		requirements = rs
-		if !ExplicitWriteGoMod {
+		// TODO(#61605): The extra ListU clause fixes a problem with Go 1.21rc3
+		// where "go mod tidy" and "go list -m -u all" fight over whether the go.sum
+		// should be considered up-to-date. The fix for now is to always treat the
+		// go.sum as up-to-date during list -m -u. Probably the right fix is more targeted,
+		// but in general list -u is looking up other checksums in the checksum database
+		// that won't be necessary later, so it makes sense not to write the go.sum back out.
+		if !ExplicitWriteGoMod && mode&ListU == 0 {
 			err = commitRequirements(ctx, WriteOpts{})
 		}
 	}

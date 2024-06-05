@@ -389,7 +389,7 @@ func collectMappingSources(p *profile.Profile, source string) plugin.MappingSour
 // set to the remote source URL by collectMappingSources back to empty string.
 func unsourceMappings(p *profile.Profile) {
 	for _, m := range p.Mapping {
-		if m.BuildID == "" {
+		if m.BuildID == "" && filepath.VolumeName(m.File) == "" {
 			if u, err := url.Parse(m.File); err == nil && u.IsAbs() {
 				m.File = ""
 			}
@@ -408,9 +408,13 @@ func locateBinaries(p *profile.Profile, s *source, obj plugin.ObjTool, ui plugin
 	}
 mapping:
 	for _, m := range p.Mapping {
+		var noVolumeFile string
 		var baseName string
+		var dirName string
 		if m.File != "" {
+			noVolumeFile = strings.TrimPrefix(m.File, filepath.VolumeName(m.File))
 			baseName = filepath.Base(m.File)
+			dirName = filepath.Dir(noVolumeFile)
 		}
 
 		for _, path := range filepath.SplitList(searchPath) {
@@ -420,7 +424,7 @@ mapping:
 				if matches, err := filepath.Glob(filepath.Join(path, m.BuildID, "*")); err == nil {
 					fileNames = append(fileNames, matches...)
 				}
-				fileNames = append(fileNames, filepath.Join(path, m.File, m.BuildID)) // perf path format
+				fileNames = append(fileNames, filepath.Join(path, noVolumeFile, m.BuildID)) // perf path format
 				// Llvm buildid protocol: the first two characters of the build id
 				// are used as directory, and the remaining part is in the filename.
 				// e.g. `/ab/cdef0123456.debug`
@@ -429,10 +433,13 @@ mapping:
 			if m.File != "" {
 				// Try both the basename and the full path, to support the same directory
 				// structure as the perf symfs option.
-				if baseName != "" {
-					fileNames = append(fileNames, filepath.Join(path, baseName))
-				}
-				fileNames = append(fileNames, filepath.Join(path, m.File))
+				fileNames = append(fileNames, filepath.Join(path, baseName))
+				fileNames = append(fileNames, filepath.Join(path, noVolumeFile))
+				// Other locations: use the same search paths as GDB, according to
+				// https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
+				fileNames = append(fileNames, filepath.Join(path, noVolumeFile+".debug"))
+				fileNames = append(fileNames, filepath.Join(path, dirName, ".debug", baseName+".debug"))
+				fileNames = append(fileNames, filepath.Join(path, "usr", "lib", "debug", dirName, baseName+".debug"))
 			}
 			for _, name := range fileNames {
 				if f, err := obj.Open(name, m.Start, m.Limit, m.Offset, m.KernelRelocationSymbol); err == nil {
@@ -461,8 +468,8 @@ mapping:
 			l.Mapping = m
 		}
 	}
-	// Replace executable filename/buildID with the overrides from source.
-	// Assumes the executable is the first Mapping entry.
+	// If configured, apply executable filename override and (maybe, see below)
+	// build ID override from source. Assume the executable is the first mapping.
 	if execName, buildID := s.ExecName, s.BuildID; execName != "" || buildID != "" {
 		m := p.Mapping[0]
 		if execName != "" {
@@ -470,7 +477,10 @@ mapping:
 			// the source override is most likely missing it.
 			m.File = execName
 		}
-		if buildID != "" {
+		// Only apply the build ID override if the build ID in the main mapping is
+		// missing. Overwriting the build ID in case it's present is very likely a
+		// wrong thing to do so we refuse to do that.
+		if buildID != "" && m.BuildID == "" {
 			m.BuildID = buildID
 		}
 	}
@@ -482,17 +492,23 @@ mapping:
 func fetch(source string, duration, timeout time.Duration, ui plugin.UI, tr http.RoundTripper) (p *profile.Profile, src string, err error) {
 	var f io.ReadCloser
 
-	if sourceURL, timeout := adjustURL(source, duration, timeout); sourceURL != "" {
-		ui.Print("Fetching profile over HTTP from " + sourceURL)
-		if duration > 0 {
-			ui.Print(fmt.Sprintf("Please wait... (%v)", duration))
+	// First determine whether the source is a file, if not, it will be treated as a URL.
+	if _, err = os.Stat(source); err == nil {
+		if isPerfFile(source) {
+			f, err = convertPerfData(source, ui)
+		} else {
+			f, err = os.Open(source)
 		}
-		f, err = fetchURL(sourceURL, timeout, tr)
-		src = sourceURL
-	} else if isPerfFile(source) {
-		f, err = convertPerfData(source, ui)
 	} else {
-		f, err = os.Open(source)
+		sourceURL, timeout := adjustURL(source, duration, timeout)
+		if sourceURL != "" {
+			ui.Print("Fetching profile over HTTP from " + sourceURL)
+			if duration > 0 {
+				ui.Print(fmt.Sprintf("Please wait... (%v)", duration))
+			}
+			f, err = fetchURL(sourceURL, timeout, tr)
+			src = sourceURL
+		}
 	}
 	if err == nil {
 		defer f.Close()

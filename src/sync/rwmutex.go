@@ -19,19 +19,18 @@ import (
 //
 // A RWMutex must not be copied after first use.
 //
-// If a goroutine holds a RWMutex for reading and another goroutine might
-// call Lock, no goroutine should expect to be able to acquire a read lock
-// until the initial read lock is released. In particular, this prohibits
-// recursive read locking. This is to ensure that the lock eventually becomes
-// available; a blocked Lock call excludes new readers from acquiring the
-// lock.
+// If any goroutine calls [RWMutex.Lock] while the lock is already held by
+// one or more readers, concurrent calls to [RWMutex.RLock] will block until
+// the writer has acquired (and released) the lock, to ensure that
+// the lock eventually becomes available to the writer.
+// Note that this prohibits recursive read-locking.
 //
 // In the terminology of the Go memory model,
-// the n'th call to Unlock “synchronizes before” the m'th call to Lock
-// for any n < m, just as for Mutex.
+// the n'th call to [RWMutex.Unlock] “synchronizes before” the m'th call to Lock
+// for any n < m, just as for [Mutex].
 // For any call to RLock, there exists an n such that
 // the n'th call to Unlock “synchronizes before” that call to RLock,
-// and the corresponding call to RUnlock “synchronizes before”
+// and the corresponding call to [RWMutex.RUnlock] “synchronizes before”
 // the n+1'th call to Lock.
 type RWMutex struct {
 	w           Mutex        // held if there are pending writers
@@ -60,7 +59,7 @@ const rwmutexMaxReaders = 1 << 30
 //
 // It should not be used for recursive read locking; a blocked Lock
 // call excludes new readers from acquiring the lock. See the
-// documentation on the RWMutex type.
+// documentation on the [RWMutex] type.
 func (rw *RWMutex) RLock() {
 	if race.Enabled {
 		_ = rw.w.state
@@ -104,7 +103,7 @@ func (rw *RWMutex) TryRLock() bool {
 	}
 }
 
-// RUnlock undoes a single RLock call;
+// RUnlock undoes a single [RWMutex.RLock] call;
 // it does not affect other simultaneous readers.
 // It is a run-time error if rw is not locked for reading
 // on entry to RUnlock.
@@ -192,9 +191,9 @@ func (rw *RWMutex) TryLock() bool {
 // Unlock unlocks rw for writing. It is a run-time error if rw is
 // not locked for writing on entry to Unlock.
 //
-// As with Mutexes, a locked RWMutex is not associated with a particular
-// goroutine. One goroutine may RLock (Lock) a RWMutex and then
-// arrange for another goroutine to RUnlock (Unlock) it.
+// As with Mutexes, a locked [RWMutex] is not associated with a particular
+// goroutine. One goroutine may [RWMutex.RLock] ([RWMutex.Lock]) a RWMutex and then
+// arrange for another goroutine to [RWMutex.RUnlock] ([RWMutex.Unlock]) it.
 func (rw *RWMutex) Unlock() {
 	if race.Enabled {
 		_ = rw.w.state
@@ -232,8 +231,8 @@ func syscall_hasWaitingReaders(rw *RWMutex) bool {
 	return r < 0 && r+rwmutexMaxReaders > 0
 }
 
-// RLocker returns a Locker interface that implements
-// the Lock and Unlock methods by calling rw.RLock and rw.RUnlock.
+// RLocker returns a [Locker] interface that implements
+// the [RWMutex.Lock] and [RWMutex.Unlock] methods by calling rw.RLock and rw.RUnlock.
 func (rw *RWMutex) RLocker() Locker {
 	return (*rlocker)(rw)
 }

@@ -24,7 +24,7 @@ var pathVar string = func() string {
 
 func TestLookPath(t *testing.T) {
 	testenv.MustHaveExec(t)
-	// Not parallel: uses os.Chdir and t.Setenv.
+	// Not parallel: uses Chdir and Setenv.
 
 	tmpDir := filepath.Join(t.TempDir(), "testdir")
 	if err := os.Mkdir(tmpDir, 0777); err != nil {
@@ -38,18 +38,7 @@ func TestLookPath(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tmpDir, executable), []byte{1, 2, 3}, 0777); err != nil {
 		t.Fatal(err)
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.Chdir(cwd); err != nil {
-			panic(err)
-		}
-	}()
-	if err = os.Chdir(tmpDir); err != nil {
-		t.Fatal(err)
-	}
+	chdir(t, tmpDir)
 	t.Setenv("PWD", tmpDir)
 	t.Logf(". is %#q", tmpDir)
 

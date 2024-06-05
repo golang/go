@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/cpu"
 	"internal/goexperiment"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	_ "unsafe" // for go:linkname
 )
 
@@ -712,7 +712,7 @@ func (c *gcControllerState) enlistWorker() {
 	}
 	myID := gp.m.p.ptr().id
 	for tries := 0; tries < 5; tries++ {
-		id := int32(fastrandn(uint32(gomaxprocs - 1)))
+		id := int32(cheaprandn(uint32(gomaxprocs - 1)))
 		if id >= myID {
 			id++
 		}
@@ -807,9 +807,11 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 
 	// Run the background mark worker.
 	gp := node.gp.ptr()
+	trace := traceAcquire()
 	casgstatus(gp, _Gwaiting, _Grunnable)
-	if traceEnabled() {
-		traceGoUnpark(gp, 0)
+	if trace.ok() {
+		trace.GoUnpark(gp, 0)
+		traceRelease(trace)
 	}
 	return gp, now
 }
@@ -828,8 +830,10 @@ func (c *gcControllerState) resetLive(bytesMarked uint64) {
 	c.triggered = ^uint64(0) // Reset triggered.
 
 	// heapLive was updated, so emit a trace event.
-	if traceEnabled() {
-		traceHeapAlloc(bytesMarked)
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.HeapAlloc(bytesMarked)
+		traceRelease(trace)
 	}
 }
 
@@ -856,10 +860,12 @@ func (c *gcControllerState) markWorkerStop(mode gcMarkWorkerMode, duration int64
 
 func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
 	if dHeapLive != 0 {
+		trace := traceAcquire()
 		live := gcController.heapLive.Add(dHeapLive)
-		if traceEnabled() {
+		if trace.ok() {
 			// gcController.heapLive changed.
-			traceHeapAlloc(live)
+			trace.HeapAlloc(live)
+			traceRelease(trace)
 		}
 	}
 	if gcBlackenEnabled == 0 {
@@ -1119,7 +1125,7 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	// increase in RSS. By capping us at a point >0, we're essentially
 	// saying that we're OK using more CPU during the GC to prevent
 	// this growth in RSS.
-	triggerLowerBound := uint64(((goal-c.heapMarked)/triggerRatioDen)*minTriggerRatioNum) + c.heapMarked
+	triggerLowerBound := ((goal-c.heapMarked)/triggerRatioDen)*minTriggerRatioNum + c.heapMarked
 	if minTrigger < triggerLowerBound {
 		minTrigger = triggerLowerBound
 	}
@@ -1133,13 +1139,11 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	// to reflect the costs of a GC with no work to do. With a large heap but
 	// very little scan work to perform, this gives us exactly as much runway
 	// as we would need, in the worst case.
-	maxTrigger := uint64(((goal-c.heapMarked)/triggerRatioDen)*maxTriggerRatioNum) + c.heapMarked
+	maxTrigger := ((goal-c.heapMarked)/triggerRatioDen)*maxTriggerRatioNum + c.heapMarked
 	if goal > defaultHeapMinimum && goal-defaultHeapMinimum > maxTrigger {
 		maxTrigger = goal - defaultHeapMinimum
 	}
-	if maxTrigger < minTrigger {
-		maxTrigger = minTrigger
-	}
+	maxTrigger = max(maxTrigger, minTrigger)
 
 	// Compute the trigger from our bounds and the runway stored by commit.
 	var trigger uint64
@@ -1149,12 +1153,8 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	} else {
 		trigger = goal - runway
 	}
-	if trigger < minTrigger {
-		trigger = minTrigger
-	}
-	if trigger > maxTrigger {
-		trigger = maxTrigger
-	}
+	trigger = max(trigger, minTrigger)
+	trigger = min(trigger, maxTrigger)
 	if trigger > goal {
 		print("trigger=", trigger, " heapGoal=", goal, "\n")
 		print("minTrigger=", minTrigger, " maxTrigger=", maxTrigger, "\n")
@@ -1377,7 +1377,7 @@ func (c *gcControllerState) needIdleMarkWorker() bool {
 	return n < max
 }
 
-// removeIdleMarkWorker must be called when an new idle mark worker stops executing.
+// removeIdleMarkWorker must be called when a new idle mark worker stops executing.
 func (c *gcControllerState) removeIdleMarkWorker() {
 	for {
 		old := c.idleMarkWorkers.Load()
@@ -1434,8 +1434,10 @@ func gcControllerCommit() {
 
 	// TODO(mknyszek): This isn't really accurate any longer because the heap
 	// goal is computed dynamically. Still useful to snapshot, but not as useful.
-	if traceEnabled() {
-		traceHeapGoal()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.HeapGoal()
+		traceRelease(trace)
 	}
 
 	trigger, heapGoal := gcController.trigger()

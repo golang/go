@@ -37,6 +37,11 @@ func TestEncode(t *testing.T) {
 		if string(dst) != test.enc {
 			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.enc)
 		}
+		dst = []byte("lead")
+		dst = AppendEncode(dst, test.dec)
+		if string(dst) != "lead"+test.enc {
+			t.Errorf("#%d: got: %#v want: %#v", i, dst, "lead"+test.enc)
+		}
 	}
 }
 
@@ -51,6 +56,13 @@ func TestDecode(t *testing.T) {
 			t.Errorf("#%d: bad return value: got:%d want:%d", i, n, len(dst))
 		} else if !bytes.Equal(dst, test.dec) {
 			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.dec)
+		}
+		dst = []byte("lead")
+		dst, err = AppendDecode(dst, []byte(test.enc))
+		if err != nil {
+			t.Errorf("#%d: AppendDecode error: %v", i, err)
+		} else if string(dst) != "lead"+string(test.dec) {
+			t.Errorf("#%d: got: %#v want: %#v", i, dst, "lead"+string(test.dec))
 		}
 	}
 }
@@ -258,6 +270,18 @@ func BenchmarkDecode(b *testing.B) {
 			b.SetBytes(int64(size))
 			for i := 0; i < b.N; i++ {
 				Decode(sink, src)
+			}
+		})
+	}
+}
+
+func BenchmarkDecodeString(b *testing.B) {
+	for _, size := range []int{256, 1024, 4096, 16384} {
+		src := strings.Repeat("2b744faa", size/8)
+		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
+			b.SetBytes(int64(size))
+			for i := 0; i < b.N; i++ {
+				sink, _ = DecodeString(src)
 			}
 		})
 	}

@@ -73,10 +73,10 @@ SIGTHAW, SIGLOST, SIGXRES, SIGJVM1, SIGJVM2, and any real time signals
 used on the system. Note that not all of these signals are available
 on all systems.
 
-If the program was started with SIGHUP or SIGINT ignored, and Notify
+If the program was started with SIGHUP or SIGINT ignored, and [Notify]
 is called for either signal, a signal handler will be installed for
-that signal and it will no longer be ignored. If, later, Reset or
-Ignore is called for that signal, or Stop is called on all channels
+that signal and it will no longer be ignored. If, later, [Reset] or
+[Ignore] is called for that signal, or [Stop] is called on all channels
 passed to Notify for that signal, the signal will once again be
 ignored. Reset will restore the system default behavior for the
 signal, while Ignore will cause the system to ignore the signal
@@ -146,8 +146,8 @@ Go behavior described above will not occur. This can be an issue with
 the SIGPROF signal in particular.
 
 The non-Go code should not change the signal mask on any threads
-created by the Go runtime. If the non-Go code starts new threads of
-its own, it may set the signal mask as it pleases.
+created by the Go runtime. If the non-Go code starts new threads
+itself, those threads may set the signal mask as they please.
 
 If the non-Go code starts a new thread, changes the signal mask, and
 then invokes a Go function in that thread, the Go runtime will

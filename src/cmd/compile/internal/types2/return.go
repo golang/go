@@ -16,7 +16,7 @@ import (
 func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
 	switch s := s.(type) {
 	default:
-		unreachable()
+		panic("unreachable")
 
 	case *syntax.DeclStmt, *syntax.EmptyStmt, *syntax.SendStmt,
 		*syntax.AssignStmt, *syntax.CallStmt:
@@ -27,7 +27,7 @@ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
 
 	case *syntax.ExprStmt:
 		// calling the predeclared (possibly parenthesized) panic() function is terminating
-		if call, ok := unparen(s.X).(*syntax.CallExpr); ok && check.isPanic[call] {
+		if call, ok := syntax.Unparen(s.X).(*syntax.CallExpr); ok && check.isPanic[call] {
 			return true
 		}
 
@@ -108,7 +108,7 @@ func (check *Checker) isTerminatingSwitch(body []*syntax.CaseClause, label strin
 func hasBreak(s syntax.Stmt, label string, implicit bool) bool {
 	switch s := s.(type) {
 	default:
-		unreachable()
+		panic("unreachable")
 
 	case *syntax.DeclStmt, *syntax.EmptyStmt, *syntax.ExprStmt,
 		*syntax.SendStmt, *syntax.AssignStmt, *syntax.CallStmt,

@@ -11,6 +11,8 @@ package unix
 // means only arm64 loong64 and riscv64 use the standard numbers.
 
 const (
-	getrandomTrap     uintptr = 278
-	copyFileRangeTrap uintptr = 285
+	getrandomTrap       uintptr = 278
+	copyFileRangeTrap   uintptr = 285
+	pidfdSendSignalTrap uintptr = 424
+	pidfdOpenTrap       uintptr = 434
 )

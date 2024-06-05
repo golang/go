@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -148,7 +148,7 @@ func (c *mcache) refill(spc spanClass) {
 	// Return the current cached span to the central lists.
 	s := c.alloc[spc]
 
-	if uintptr(s.allocCount) != s.nelems {
+	if s.allocCount != s.nelems {
 		throw("refill of span with free space remaining")
 	}
 	if s != &emptymspan {
@@ -184,7 +184,7 @@ func (c *mcache) refill(spc spanClass) {
 		throw("out of memory")
 	}
 
-	if uintptr(s.allocCount) == s.nelems {
+	if s.allocCount == s.nelems {
 		throw("span has no free space")
 	}
 
@@ -284,7 +284,7 @@ func (c *mcache) releaseAll() {
 				//
 				// If this span was cached before sweep, then gcController.heapLive was totally
 				// recomputed since caching this span, so we don't do this for stale spans.
-				dHeapLive -= int64(uintptr(s.nelems)-uintptr(s.allocCount)) * int64(s.elemsize)
+				dHeapLive -= int64(s.nelems-s.allocCount) * int64(s.elemsize)
 			}
 
 			// Release the span to the mcentral.

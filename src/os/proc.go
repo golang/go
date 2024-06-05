@@ -47,7 +47,7 @@ func Getegid() int { return syscall.Getegid() }
 
 // Getgroups returns a list of the numeric ids of groups that the caller belongs to.
 //
-// On Windows, it returns syscall.EWINDOWS. See the os/user package
+// On Windows, it returns [syscall.EWINDOWS]. See the [os/user] package
 // for a possible alternative.
 func Getgroups() ([]int, error) {
 	gids, e := syscall.Getgroups()

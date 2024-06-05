@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 // Test that Resolver.Dial can be a func returning an in-memory net.Conn
 // speaking DNS.
 
@@ -15,7 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 
@@ -99,7 +97,7 @@ func sortedIPStrings(ips []IP) []string {
 	for i, ip := range ips {
 		ret[i] = ip.String()
 	}
-	sort.Strings(ret)
+	slices.Sort(ret)
 	return ret
 }
 

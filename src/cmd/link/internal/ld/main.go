@@ -36,6 +36,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/quoted"
 	"cmd/internal/sys"
+	"cmd/internal/telemetry"
 	"cmd/link/internal/benchmark"
 	"flag"
 	"internal/buildcfg"
@@ -63,6 +64,7 @@ func init() {
 // Flags used by the linker. The exported flags are used by the architecture-specific packages.
 var (
 	flagBuildid = flag.String("buildid", "", "record `id` as Go toolchain build id")
+	flagBindNow = flag.Bool("bindnow", false, "mark a dynamically linked ELF object for immediate function binding")
 
 	flagOutfile    = flag.String("o", "", "write output to `file`")
 	flagPluginPath = flag.String("pluginpath", "", "full path name for plugin")
@@ -90,18 +92,20 @@ var (
 	flagF             = flag.Bool("f", false, "ignore version mismatch")
 	flagG             = flag.Bool("g", false, "disable go package data checks")
 	flagH             = flag.Bool("h", false, "halt on error")
-	flagN             = flag.Bool("n", false, "dump symbol table")
+	flagN             = flag.Bool("n", false, "no-op (deprecated)")
 	FlagS             = flag.Bool("s", false, "disable symbol table")
 	flag8             bool // use 64-bit addresses in symbol table
 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
+	flagCheckLinkname = flag.Bool("checklinkname", true, "check linkname symbol references")
 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
 	FlagDebugTextSize = flag.Int("debugtextsize", 0, "debug text section max size")
 	flagDebugNosplit  = flag.Bool("debugnosplit", false, "dump nosplit call graph")
 	FlagStrictDups    = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
-	FlagRound         = flag.Int("R", -1, "set address rounding `quantum`")
+	FlagRound         = flag.Int64("R", -1, "set address rounding `quantum`")
 	FlagTextAddr      = flag.Int64("T", -1, "set the start address of text symbols")
 	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
 	flagPruneWeakMap  = flag.Bool("pruneweakmap", true, "prune weak mapinit refs")
+	flagRandLayout    = flag.Int64("randlayout", 0, "randomize function layout")
 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
@@ -153,6 +157,8 @@ func (t *ternaryFlag) IsBoolFlag() bool { return true } // parse like a boolean 
 func Main(arch *sys.Arch, theArch Arch) {
 	log.SetPrefix("link: ")
 	log.SetFlags(0)
+	telemetry.Start()
+	telemetry.Inc("link/invocations")
 
 	thearch = theArch
 	ctxt := linknew(arch)
@@ -167,12 +173,12 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}
 	}
 
-	if final := gorootFinal(); final == "$GOROOT" {
-		// cmd/go sets GOROOT_FINAL to the dummy value "$GOROOT" when -trimpath is set,
-		// but runtime.GOROOT() should return the empty string, not a bogus value.
-		// (See https://go.dev/issue/51461.)
+	if buildcfg.GOROOT == "" {
+		// cmd/go clears the GOROOT variable when -trimpath is set,
+		// so omit it from the binary even if cmd/link itself has an
+		// embedded GOROOT value reported by runtime.GOROOT.
 	} else {
-		addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+		addstrdata1(ctxt, "runtime.defaultGOROOT="+buildcfg.GOROOT)
 	}
 
 	buildVersion := buildcfg.Version
@@ -190,7 +196,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	flag.Var(&ctxt.LinkMode, "linkmode", "set link `mode`")
 	flag.Var(&ctxt.BuildMode, "buildmode", "set build `mode`")
 	flag.BoolVar(&ctxt.compressDWARF, "compressdwarf", true, "compress DWARF if possible")
-	objabi.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
+	objabi.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF; use \"gobuildid\" to generate it from the Go build ID", addbuildinfo)
 	objabi.Flagfn1("L", "add specified `directory` to library path", func(a string) { Lflag(ctxt, a) })
 	objabi.AddVersionFlag() // -V
 	objabi.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
@@ -198,6 +204,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", ctxt.readImportCfg)
 
 	objabi.Flagparse(usage)
+	telemetry.CountFlags("link/flag:", *flag.CommandLine)
 
 	if ctxt.Debugvlog > 0 {
 		// dump symbol info on crash
@@ -236,6 +243,13 @@ func Main(arch *sys.Arch, theArch Arch) {
 		Exitf("dynamic linking required on %s; -d flag cannot be used", buildcfg.GOOS)
 	}
 
+	isPowerOfTwo := func(n int64) bool {
+		return n > 0 && n&(n-1) == 0
+	}
+	if *FlagRound != -1 && (*FlagRound < 4096 || !isPowerOfTwo(*FlagRound)) {
+		Exitf("invalid -R value 0x%x", *FlagRound)
+	}
+
 	checkStrictDups = *FlagStrictDups
 
 	switch flagW {
@@ -245,6 +259,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 		*FlagW = true
 	case ternaryFlagUnset:
 		*FlagW = *FlagS // -s implies -w if not explicitly set
+		if ctxt.IsDarwin() && ctxt.BuildMode == BuildModeCShared {
+			*FlagW = true // default to -w in c-shared mode on darwin, see #61229
+		}
 	}
 
 	if !buildcfg.Experiment.RegabiWrappers {
@@ -487,7 +504,12 @@ func startProfile() {
 		if err := pprof.StartCPUProfile(f); err != nil {
 			log.Fatalf("%v", err)
 		}
-		AtExit(pprof.StopCPUProfile)
+		AtExit(func() {
+			pprof.StopCPUProfile()
+			if err = f.Close(); err != nil {
+				log.Fatalf("error closing cpu profile: %v", err)
+			}
+		})
 	}
 	if *memprofile != "" {
 		if *memprofilerate != 0 {
@@ -506,6 +528,10 @@ func startProfile() {
 			const writeLegacyFormat = 1
 			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
 				log.Fatalf("%v", err)
+			}
+			// Close the file after writing the profile.
+			if err := f.Close(); err != nil {
+				log.Fatalf("could not close %v: %v", *memprofile, err)
 			}
 		})
 	}

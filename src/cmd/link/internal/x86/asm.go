@@ -421,7 +421,7 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 	return -1
 }
 
-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
 	if plt.Size() == 0 {
 		// pushl got+4
 		plt.AddUint8(0xff)

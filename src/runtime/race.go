@@ -93,8 +93,8 @@ const raceenabled = true
 // callerpc is a return PC of the function that calls this function,
 // pc is start PC of the function that calls this function.
 func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.Kind_ & kindMask
-	if kind == kindArray || kind == kindStruct {
+	kind := t.Kind_ & abi.KindMask
+	if kind == abi.Array || kind == abi.Struct {
 		// for composite objects we have to read every address
 		// because a write might happen to any subobject.
 		racereadrangepc(addr, t.Size_, callerpc, pc)
@@ -106,8 +106,8 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 }
 
 func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.Kind_ & kindMask
-	if kind == kindArray || kind == kindStruct {
+	kind := t.Kind_ & abi.KindMask
+	if kind == abi.Array || kind == abi.Struct {
 		// for composite objects we have to write every address
 		// because a write might happen to any subobject.
 		racewriterangepc(addr, t.Size_, callerpc, pc)
@@ -172,14 +172,14 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 	pc := ctx.pc
 	fi := findfunc(pc)
 	if fi.valid() {
-		u, uf := newInlineUnwinder(fi, pc, nil)
+		u, uf := newInlineUnwinder(fi, pc)
 		for ; uf.valid(); uf = u.next(uf) {
 			sf := u.srcFunc(uf)
 			if sf.funcID == abi.FuncIDWrapper && u.isInlined(uf) {
 				// Ignore wrappers, unless we're at the outermost frame of u.
 				// A non-inlined wrapper frame always means we have a physical
 				// frame consisting entirely of wrappers, in which case we'll
-				// take a outermost wrapper over nothing.
+				// take an outermost wrapper over nothing.
 				continue
 			}
 
@@ -223,6 +223,7 @@ type symbolizeDataContext struct {
 
 func raceSymbolizeData(ctx *symbolizeDataContext) {
 	if base, span, _ := findObject(ctx.addr, 0, 0); base != 0 {
+		// TODO: Does this need to handle malloc headers?
 		ctx.heap = 1
 		ctx.start = base
 		ctx.size = span.elemsize
@@ -322,6 +323,10 @@ var __tsan_report_count byte
 //go:cgo_import_static __tsan_go_atomic64_exchange
 //go:cgo_import_static __tsan_go_atomic32_fetch_add
 //go:cgo_import_static __tsan_go_atomic64_fetch_add
+//go:cgo_import_static __tsan_go_atomic32_fetch_and
+//go:cgo_import_static __tsan_go_atomic64_fetch_and
+//go:cgo_import_static __tsan_go_atomic32_fetch_or
+//go:cgo_import_static __tsan_go_atomic64_fetch_or
 //go:cgo_import_static __tsan_go_atomic32_compare_exchange
 //go:cgo_import_static __tsan_go_atomic64_compare_exchange
 
@@ -640,6 +645,36 @@ func abigen_sync_atomic_AddUint64(addr *uint64, delta uint64) (new uint64)
 
 //go:linkname abigen_sync_atomic_AddUintptr sync/atomic.AddUintptr
 func abigen_sync_atomic_AddUintptr(addr *uintptr, delta uintptr) (new uintptr)
+
+//go:linkname abigen_sync_atomic_AndInt32 sync/atomic.AndInt32
+func abigen_sync_atomic_AndInt32(addr *int32, mask int32) (old int32)
+
+//go:linkname abigen_sync_atomic_AndUint32 sync/atomic.AndUint32
+func abigen_sync_atomic_AndUint32(addr *uint32, mask uint32) (old uint32)
+
+//go:linkname abigen_sync_atomic_AndInt64 sync/atomic.AndInt64
+func abigen_sync_atomic_AndInt64(addr *int64, mask int64) (old int64)
+
+//go:linkname abigen_sync_atomic_AndUint64 sync/atomic.AndUint64
+func abigen_sync_atomic_AndUint64(addr *uint64, mask uint64) (old uint64)
+
+//go:linkname abigen_sync_atomic_AndUintptr sync/atomic.AndUintptr
+func abigen_sync_atomic_AndUintptr(addr *uintptr, mask uintptr) (old uintptr)
+
+//go:linkname abigen_sync_atomic_OrInt32 sync/atomic.OrInt32
+func abigen_sync_atomic_OrInt32(addr *int32, mask int32) (old int32)
+
+//go:linkname abigen_sync_atomic_OrUint32 sync/atomic.OrUint32
+func abigen_sync_atomic_OrUint32(addr *uint32, mask uint32) (old uint32)
+
+//go:linkname abigen_sync_atomic_OrInt64 sync/atomic.OrInt64
+func abigen_sync_atomic_OrInt64(addr *int64, mask int64) (old int64)
+
+//go:linkname abigen_sync_atomic_OrUint64 sync/atomic.OrUint64
+func abigen_sync_atomic_OrUint64(addr *uint64, mask uint64) (old uint64)
+
+//go:linkname abigen_sync_atomic_OrUintptr sync/atomic.OrUintptr
+func abigen_sync_atomic_OrUintptr(addr *uintptr, mask uintptr) (old uintptr)
 
 //go:linkname abigen_sync_atomic_CompareAndSwapInt32 sync/atomic.CompareAndSwapInt32
 func abigen_sync_atomic_CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)

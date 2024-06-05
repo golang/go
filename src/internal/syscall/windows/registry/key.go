@@ -31,7 +31,7 @@ import (
 
 const (
 	// Registry key security and access rights.
-	// See https://msdn.microsoft.com/en-us/library/windows/desktop/ms724878.aspx
+	// See https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-key-security-and-access-rights
 	// for details.
 	ALL_ACCESS         = 0xf003f
 	CREATE_LINK        = 0x00020
@@ -98,7 +98,7 @@ func (k Key) ReadSubKeyNames() ([]string, error) {
 
 	names := make([]string, 0)
 	// Registry key size limit is 255 bytes and described there:
-	// https://msdn.microsoft.com/library/windows/desktop/ms724872.aspx
+	// https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-element-size-limits
 	buf := make([]uint16, 256) //plus extra room for terminating zero byte
 loopItems:
 	for i := uint32(0); ; i++ {

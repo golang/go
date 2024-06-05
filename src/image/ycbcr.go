@@ -294,7 +294,7 @@ func (p *NYCbCrA) Opaque() bool {
 	return true
 }
 
-// NewNYCbCrA returns a new NYCbCrA image with the given bounds and subsample
+// NewNYCbCrA returns a new [NYCbCrA] image with the given bounds and subsample
 // ratio.
 func NewNYCbCrA(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *NYCbCrA {
 	w, h, cw, ch := yCbCrSize(r, subsampleRatio)

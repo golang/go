@@ -8,6 +8,7 @@ package os
 
 import (
 	"errors"
+	"internal/stringslite"
 	"runtime"
 )
 
@@ -25,13 +26,5 @@ func executable() (string, error) {
 
 	// When the executable has been deleted then Readlink returns a
 	// path appended with " (deleted)".
-	return stringsTrimSuffix(path, " (deleted)"), err
-}
-
-// stringsTrimSuffix is the same as strings.TrimSuffix.
-func stringsTrimSuffix(s, suffix string) string {
-	if len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix {
-		return s[:len(s)-len(suffix)]
-	}
-	return s
+	return stringslite.TrimSuffix(path, " (deleted)"), err
 }

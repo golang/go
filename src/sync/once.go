@@ -21,12 +21,12 @@ type Once struct {
 	// The hot path is inlined at every call site.
 	// Placing done first allows more compact instructions on some architectures (amd64/386),
 	// and fewer instructions (to calculate offset) on other architectures.
-	done uint32
+	done atomic.Uint32
 	m    Mutex
 }
 
 // Do calls the function f if and only if Do is being called for the
-// first time for this instance of Once. In other words, given
+// first time for this instance of [Once]. In other words, given
 //
 //	var once Once
 //
@@ -48,7 +48,7 @@ type Once struct {
 func (o *Once) Do(f func()) {
 	// Note: Here is an incorrect implementation of Do:
 	//
-	//	if atomic.CompareAndSwapUint32(&o.done, 0, 1) {
+	//	if o.done.CompareAndSwap(0, 1) {
 	//		f()
 	//	}
 	//
@@ -58,9 +58,9 @@ func (o *Once) Do(f func()) {
 	// call f, and the second would return immediately, without
 	// waiting for the first's call to f to complete.
 	// This is why the slow path falls back to a mutex, and why
-	// the atomic.StoreUint32 must be delayed until after f returns.
+	// the o.done.Store must be delayed until after f returns.
 
-	if atomic.LoadUint32(&o.done) == 0 {
+	if o.done.Load() == 0 {
 		// Outlined slow-path to allow inlining of the fast-path.
 		o.doSlow(f)
 	}
@@ -69,8 +69,8 @@ func (o *Once) Do(f func()) {
 func (o *Once) doSlow(f func()) {
 	o.m.Lock()
 	defer o.m.Unlock()
-	if o.done == 0 {
-		defer atomic.StoreUint32(&o.done, 1)
+	if o.done.Load() == 0 {
+		defer o.done.Store(1)
 		f()
 	}
 }

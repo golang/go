@@ -11,7 +11,6 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
-	"go/token"
 	. "internal/types/errors"
 )
 
@@ -27,7 +26,7 @@ const (
 	variable                     // operand is an addressable variable
 	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
 	value                        // operand is a computed value
-	nilvalue                     // operand is the nil value
+	nilvalue                     // operand is the nil value - only used by types2
 	commaok                      // like value, but operand may be used in a comma,ok expression
 	commaerr                     // like commaok, but second value is error, not boolean
 	cgofunc                      // operand is a cgo function
@@ -42,7 +41,7 @@ var operandModeString = [...]string{
 	variable:  "variable",
 	mapindex:  "map index expression",
 	value:     "value",
-	nilvalue:  "nil",
+	nilvalue:  "nil", // only used by types2
 	commaok:   "comma, ok expression",
 	commaerr:  "comma, error expression",
 	cgofunc:   "cgo function",
@@ -109,14 +108,20 @@ func (x *operand) Pos() syntax.Pos {
 // cgofunc    <expr> (               <mode>       of type <typ>)
 func operandString(x *operand, qf Qualifier) string {
 	// special-case nil
-	if x.mode == nilvalue {
-		switch x.typ {
-		case nil, Typ[Invalid]:
-			return "nil (with invalid type)"
-		case Typ[UntypedNil]:
+	if isTypes2 {
+		if x.mode == nilvalue {
+			switch x.typ {
+			case nil, Typ[Invalid]:
+				return "nil (with invalid type)"
+			case Typ[UntypedNil]:
+				return "nil"
+			default:
+				return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
+			}
+		}
+	} else { // go/types
+		if x.mode == value && x.typ == Typ[UntypedNil] {
 			return "nil"
-		default:
-			return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
 		}
 	}
 
@@ -124,7 +129,7 @@ func operandString(x *operand, qf Qualifier) string {
 
 	var expr string
 	if x.expr != nil {
-		expr = syntax.String(x.expr)
+		expr = ExprString(x.expr)
 	} else {
 		switch x.mode {
 		case builtin:
@@ -172,7 +177,7 @@ func operandString(x *operand, qf Qualifier) string {
 
 	// <typ>
 	if hasType {
-		if x.typ != Typ[Invalid] {
+		if isValid(x.typ) {
 			var intro string
 			if isGeneric(x.typ) {
 				intro = " of generic type "
@@ -181,7 +186,7 @@ func operandString(x *operand, qf Qualifier) string {
 			}
 			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
-			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
+			if tpar, _ := Unalias(x.typ).(*TypeParam); tpar != nil {
 				buf.WriteString(" constrained by ")
 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
 				// If we have the type set and it's empty, say so for better error messages.
@@ -221,10 +226,10 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 	case syntax.StringLit:
 		kind = UntypedString
 	default:
-		unreachable()
+		panic("unreachable")
 	}
 
-	val := constant.MakeFromLiteral(lit, kind2tok[k], 0)
+	val := makeFromLiteral(lit, k)
 	if val.Kind() == constant.Unknown {
 		x.mode = invalid
 		x.typ = Typ[Invalid]
@@ -236,7 +241,13 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 }
 
 // isNil reports whether x is the (untyped) nil value.
-func (x *operand) isNil() bool { return x.mode == nilvalue }
+func (x *operand) isNil() bool {
+	if isTypes2 {
+		return x.mode == nilvalue
+	} else { // go/types
+		return x.mode == value && x.typ == Typ[UntypedNil]
+	}
+}
 
 // assignableTo reports whether x is assignable to a variable of type T. If the
 // result is false and a non-nil cause is provided, it may be set to a more
@@ -245,11 +256,13 @@ func (x *operand) isNil() bool { return x.mode == nilvalue }
 // if assignableTo is invoked through an exported API call, i.e., when all
 // methods have been type-checked.
 func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Code) {
-	if x.mode == invalid || T == Typ[Invalid] {
+	if x.mode == invalid || !isValid(T) {
 		return true, 0 // avoid spurious errors
 	}
 
-	V := x.typ
+	origT := T
+	V := Unalias(x.typ)
+	T = Unalias(T)
 
 	// x's type is identical to T
 	if Identical(V, T) {
@@ -332,7 +345,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 		return false, IncompatibleAssign
 	}
 
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		if check != nil && cause != nil {
 			msg := check.sprintf(format, args...)
 			if *cause != "" {
@@ -375,7 +388,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 			x.typ = V.typ
 			ok, code = x.assignableTo(check, T, cause)
 			if !ok {
-				errorf("cannot assign %s (in %s) to %s", V.typ, Vp, T)
+				errorf("cannot assign %s (in %s) to %s", V.typ, Vp, origT)
 				return false
 			}
 			return true
@@ -384,13 +397,4 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 	}
 
 	return false, IncompatibleAssign
-}
-
-// kind2tok translates syntax.LitKinds into token.Tokens.
-var kind2tok = [...]token.Token{
-	syntax.IntLit:    token.INT,
-	syntax.FloatLit:  token.FLOAT,
-	syntax.ImagLit:   token.IMAG,
-	syntax.RuneLit:   token.CHAR,
-	syntax.StringLit: token.STRING,
 }

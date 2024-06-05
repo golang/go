@@ -4,7 +4,7 @@
 
 package errors
 
-//go:generate stringer -type Code codes.go
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -type Code codes.go
 
 type Code int
 
@@ -1004,12 +1004,12 @@ const (
 	//  }
 	InvalidIterVar
 
-	// InvalidRangeExpr occurs when the type of a range expression is not array,
-	// slice, string, map, or channel.
+	// InvalidRangeExpr occurs when the type of a range expression is not
+	// a valid type for use with a range loop.
 	//
 	// Example:
-	//  func f(i int) {
-	//  	for j := range i {
+	//  func f(f float64) {
+	//  	for j := range f {
 	//  		println(j)
 	//  	}
 	//  }
@@ -1474,4 +1474,12 @@ const (
 	//  var s, t []byte
 	//  var _ = max(s, t)
 	InvalidMinMaxOperand
+
+	// TooNew indicates that, through build tags or a go.mod file,
+	// a source file requires a version of Go that is newer than
+	// the logic of the type checker. As a consequence, the type
+	// checker may produce spurious errors or fail to report real
+	// errors. The solution is to rebuild the application with a
+	// newer Go release.
+	TooNew
 )

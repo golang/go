@@ -504,6 +504,48 @@ func TestIssue56724(t *testing.T) {
 	}
 }
 
+func TestBadRestartMarker(t *testing.T) {
+	b, err := os.ReadFile("../testdata/video-001.restart2.jpeg")
+	if err != nil {
+		t.Fatal(err)
+	} else if len(b) != 4855 {
+		t.Fatal("test image had unexpected length")
+	} else if (b[2816] != 0xff) || (b[2817] != 0xd1) {
+		t.Fatal("test image did not have FF D1 restart marker at expected offset")
+	}
+	prefix, suffix := b[:2816], b[2816:]
+
+	testCases := []string{
+		"PASS:",
+		"PASS:\x00",
+		"PASS:\x61",
+		"PASS:\x61\x62\x63\xff\x00\x64",
+		"PASS:\xff",
+		"PASS:\xff\x00",
+		"PASS:\xff\xff\xff\x00\xff\x00\x00\xff\xff\xff",
+
+		"FAIL:\xff\x03",
+		"FAIL:\xff\xd5",
+		"FAIL:\xff\xff\xd5",
+	}
+
+	for _, tc := range testCases {
+		want := tc[:5] == "PASS:"
+		infix := tc[5:]
+
+		data := []byte(nil)
+		data = append(data, prefix...)
+		data = append(data, infix...)
+		data = append(data, suffix...)
+		_, err := Decode(bytes.NewReader(data))
+		got := err == nil
+
+		if got != want {
+			t.Errorf("%q: got %v, want %v", tc, got, want)
+		}
+	}
+}
+
 func benchmarkDecode(b *testing.B, filename string) {
 	data, err := os.ReadFile(filename)
 	if err != nil {

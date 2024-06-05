@@ -16,6 +16,10 @@ import (
 // Typically, the Location represents the collection of time offsets
 // in use in a geographical area. For many Locations the time offset varies
 // depending on whether daylight savings time is in use at the time instant.
+//
+// Location is used to provide a time zone in a printed Time value and for
+// calculations involving intervals that may cross daylight savings time
+// boundaries.
 type Location struct {
 	name string
 	zone []zone
@@ -95,7 +99,7 @@ func (l *Location) get() *Location {
 }
 
 // String returns a descriptive name for the time zone information,
-// corresponding to the name argument to LoadLocation or FixedZone.
+// corresponding to the name argument to [LoadLocation] or [FixedZone].
 func (l *Location) String() string {
 	return l.get().name
 }
@@ -103,7 +107,7 @@ func (l *Location) String() string {
 var unnamedFixedZones []*Location
 var unnamedFixedZonesOnce sync.Once
 
-// FixedZone returns a Location that always uses
+// FixedZone returns a [Location] that always uses
 // the given zone name and offset (seconds east of UTC).
 func FixedZone(name string, offset int) *Location {
 	// Most calls to FixedZone have an unnamed zone with an offset by the hour.
@@ -184,7 +188,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
 	lo := 0
 	hi := len(tx)
 	for hi-lo > 1 {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		lim := tx[m].when
 		if sec < lim {
 			end = lim

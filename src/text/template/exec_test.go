@@ -75,12 +75,15 @@ type T struct {
 	PSI *[]int
 	NIL *int
 	// Function (not method)
-	BinaryFunc      func(string, string) string
-	VariadicFunc    func(...string) string
-	VariadicFuncInt func(int, ...string) string
-	NilOKFunc       func(*int) bool
-	ErrFunc         func() (string, error)
-	PanicFunc       func() string
+	BinaryFunc             func(string, string) string
+	VariadicFunc           func(...string) string
+	VariadicFuncInt        func(int, ...string) string
+	NilOKFunc              func(*int) bool
+	ErrFunc                func() (string, error)
+	PanicFunc              func() string
+	TooFewReturnCountFunc  func()
+	TooManyReturnCountFunc func() (string, error, int)
+	InvalidReturnTypeFunc  func() (string, bool)
 	// Template to test evaluation of templates.
 	Tmpl *Template
 	// Unexported field; cannot be accessed by template.
@@ -168,6 +171,9 @@ var tVal = &T{
 	NilOKFunc:                 func(s *int) bool { return s == nil },
 	ErrFunc:                   func() (string, error) { return "bla", nil },
 	PanicFunc:                 func() string { panic("test panic") },
+	TooFewReturnCountFunc:     func() {},
+	TooManyReturnCountFunc:    func() (string, error, int) { return "", nil, 0 },
+	InvalidReturnTypeFunc:     func() (string, bool) { return "", false },
 	Tmpl:                      Must(New("x").Parse("test template")), // "x" is the value of .X
 }
 
@@ -265,8 +271,8 @@ type execTest struct {
 // of the max int boundary.
 // We do it this way so the test doesn't depend on ints being 32 bits.
 var (
-	bigInt  = fmt.Sprintf("0x%x", int(1<<uint(reflect.TypeOf(0).Bits()-1)-1))
-	bigUint = fmt.Sprintf("0x%x", uint(1<<uint(reflect.TypeOf(0).Bits()-1)))
+	bigInt  = fmt.Sprintf("0x%x", int(1<<uint(reflect.TypeFor[int]().Bits()-1)-1))
+	bigUint = fmt.Sprintf("0x%x", uint(1<<uint(reflect.TypeFor[int]().Bits()-1)))
 )
 
 var execTests = []execTest{
@@ -569,6 +575,8 @@ var execTests = []execTest{
 	{"with $x struct.U.V", "{{with $x := $}}{{$x.U.V}}{{end}}", "v", tVal, true},
 	{"with variable and action", "{{with $x := $}}{{$y := $.U.V}}{{$y}}{{end}}", "v", tVal, true},
 	{"with on typed nil interface value", "{{with .NonEmptyInterfaceTypedNil}}TRUE{{ end }}", "", tVal, true},
+	{"with else with", "{{with 0}}{{.}}{{else with true}}{{.}}{{end}}", "true", tVal, true},
+	{"with else with chain", "{{with 0}}{{.}}{{else with false}}{{.}}{{else with `notempty`}}{{.}}{{end}}", "notempty", tVal, true},
 
 	// Range.
 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
@@ -1701,6 +1709,80 @@ func TestExecutePanicDuringCall(t *testing.T) {
 		if err == nil {
 			t.Errorf("%s: expected error; got none", tc.name)
 		} else if !strings.Contains(err.Error(), tc.wantErr) {
+			if *debug {
+				fmt.Printf("%s: test execute error: %s\n", tc.name, err)
+			}
+			t.Errorf("%s: expected error:\n%s\ngot:\n%s", tc.name, tc.wantErr, err)
+		}
+	}
+}
+
+func TestFunctionCheckDuringCall(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		data    any
+		wantErr string
+	}{{
+		name:    "call nothing",
+		input:   `{{call}}`,
+		data:    tVal,
+		wantErr: "wrong number of args for call: want at least 1 got 0",
+	},
+		{
+			name:    "call non-function",
+			input:   "{{call .True}}",
+			data:    tVal,
+			wantErr: "error calling call: non-function .True of type bool",
+		},
+		{
+			name:    "call func with wrong argument",
+			input:   "{{call .BinaryFunc 1}}",
+			data:    tVal,
+			wantErr: "error calling call: wrong number of args for .BinaryFunc: got 1 want 2",
+		},
+		{
+			name:    "call variadic func with wrong argument",
+			input:   `{{call .VariadicFuncInt}}`,
+			data:    tVal,
+			wantErr: "error calling call: wrong number of args for .VariadicFuncInt: got 0 want at least 1",
+		},
+		{
+			name:    "call too few return number func",
+			input:   `{{call .TooFewReturnCountFunc}}`,
+			data:    tVal,
+			wantErr: "error calling call: function .TooFewReturnCountFunc has 0 return values; should be 1 or 2",
+		},
+		{
+			name:    "call too many return number func",
+			input:   `{{call .TooManyReturnCountFunc}}`,
+			data:    tVal,
+			wantErr: "error calling call: function .TooManyReturnCountFunc has 3 return values; should be 1 or 2",
+		},
+		{
+			name:    "call invalid return type func",
+			input:   `{{call .InvalidReturnTypeFunc}}`,
+			data:    tVal,
+			wantErr: "error calling call: invalid function signature for .InvalidReturnTypeFunc: second return value should be error; is bool",
+		},
+		{
+			name:    "call pipeline",
+			input:   `{{call (len "test")}}`,
+			data:    nil,
+			wantErr: "error calling call: non-function len \"test\" of type int",
+		},
+	}
+
+	for _, tc := range tests {
+		b := new(bytes.Buffer)
+		tmpl, err := New("t").Parse(tc.input)
+		if err != nil {
+			t.Fatalf("parse error: %s", err)
+		}
+		err = tmpl.Execute(b, tc.data)
+		if err == nil {
+			t.Errorf("%s: expected error; got none", tc.name)
+		} else if tc.wantErr == "" || !strings.Contains(err.Error(), tc.wantErr) {
 			if *debug {
 				fmt.Printf("%s: test execute error: %s\n", tc.name, err)
 			}

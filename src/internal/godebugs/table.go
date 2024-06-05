@@ -25,15 +25,19 @@ type Info struct {
 // Note: After adding entries to this table, update the list in doc/godebug.md as well.
 // (Otherwise the test in this package will fail.)
 var All = []Info{
+	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1", Opaque: true},
 	{Name: "execerrdot", Package: "os/exec"},
 	{Name: "gocachehash", Package: "cmd/go"},
 	{Name: "gocachetest", Package: "cmd/go"},
 	{Name: "gocacheverify", Package: "cmd/go"},
+	{Name: "gotypesalias", Package: "go/types", Changed: 23, Old: "0"},
 	{Name: "http2client", Package: "net/http"},
 	{Name: "http2debug", Package: "net/http", Opaque: true},
 	{Name: "http2server", Package: "net/http"},
+	{Name: "httplaxcontentlength", Package: "net/http", Changed: 22, Old: "1"},
+	{Name: "httpmuxgo121", Package: "net/http", Changed: 22, Old: "1"},
 	{Name: "installgoroot", Package: "go/build"},
-	{Name: "jstmpllitinterp", Package: "html/template"},
+	{Name: "jstmpllitinterp", Package: "html/template", Opaque: true}, // bug #66217: remove Opaque
 	//{Name: "multipartfiles", Package: "mime/multipart"},
 	{Name: "multipartmaxheaders", Package: "mime/multipart"},
 	{Name: "multipartmaxparts", Package: "mime/multipart"},
@@ -42,8 +46,20 @@ var All = []Info{
 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
 	{Name: "randautoseed", Package: "math/rand"},
 	{Name: "tarinsecurepath", Package: "archive/tar"},
+	{Name: "tls10server", Package: "crypto/tls", Changed: 22, Old: "1"},
+	{Name: "tls3des", Package: "crypto/tls", Changed: 23, Old: "1"},
+	{Name: "tlskyber", Package: "crypto/tls", Changed: 23, Old: "0", Opaque: true},
+	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
+	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
+	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0"},
+	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
+	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
+	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
+	{Name: "x509seriallength", Package: "crypto/x509", Changed: 23, Old: "1"},
 	{Name: "x509sha1", Package: "crypto/x509"},
 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+	{Name: "x509usepolicies", Package: "crypto/x509"},
 	{Name: "zipinsecurepath", Package: "archive/zip"},
 }
 
@@ -53,7 +69,7 @@ func Lookup(name string) *Info {
 	lo := 0
 	hi := len(All)
 	for lo < hi {
-		m := lo + (hi-lo)>>1
+		m := int(uint(lo+hi) >> 1)
 		mid := All[m].Name
 		if name == mid {
 			return &All[m]

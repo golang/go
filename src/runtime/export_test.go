@@ -7,9 +7,10 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"internal/goos"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -28,6 +29,8 @@ var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 var Xadduintptr = atomic.Xadduintptr
+
+var ReadRandomFailed = &readRandomFailed
 
 var Fastlog2 = fastlog2
 
@@ -49,10 +52,17 @@ var MemclrNoHeapPointers = memclrNoHeapPointers
 
 var CgoCheckPointer = cgoCheckPointer
 
+const CrashStackImplemented = crashStackImplemented
+
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
 
+var MapKeys = keys
+var MapValues = values
+
 var LockPartialOrder = lockPartialOrder
+
+type TimeTimer = timeTimer
 
 type LockRank lockRank
 
@@ -72,7 +82,7 @@ func LFStackPush(head *uint64, node *LFNode) {
 }
 
 func LFStackPop(head *uint64) *LFNode {
-	return (*LFNode)(unsafe.Pointer((*lfstack)(head).pop()))
+	return (*LFNode)((*lfstack)(head).pop())
 }
 func LFNodeValidate(node *LFNode) {
 	lfnodeValidate((*lfnode)(unsafe.Pointer(node)))
@@ -228,130 +238,6 @@ var Write = write
 func Envs() []string     { return envs }
 func SetEnvs(e []string) { envs = e }
 
-// For benchmarking.
-
-// blockWrapper is a wrapper type that ensures a T is placed within a
-// large object. This is necessary for safely benchmarking things
-// that manipulate the heap bitmap, like heapBitsSetType.
-//
-// More specifically, allocating threads assume they're the sole writers
-// to their span's heap bits, which allows those writes to be non-atomic.
-// The heap bitmap is written byte-wise, so if one tried to call heapBitsSetType
-// on an existing object in a small object span, we might corrupt that
-// span's bitmap with a concurrent byte write to the heap bitmap. Large
-// object spans contain exactly one object, so we can be sure no other P
-// is going to be allocating from it concurrently, hence this wrapper type
-// which ensures we have a T in a large object span.
-type blockWrapper[T any] struct {
-	value T
-	_     [_MaxSmallSize]byte // Ensure we're a large object.
-}
-
-func BenchSetType[T any](n int, resetTimer func()) {
-	x := new(blockWrapper[T])
-
-	// Escape x to ensure it is allocated on the heap, as we are
-	// working on the heap bits here.
-	Escape(x)
-
-	// Grab the type.
-	var i any = *new(T)
-	e := *efaceOf(&i)
-	t := e._type
-
-	// Benchmark setting the type bits for just the internal T of the block.
-	benchSetType(n, resetTimer, 1, unsafe.Pointer(&x.value), t)
-}
-
-const maxArrayBlockWrapperLen = 32
-
-// arrayBlockWrapper is like blockWrapper, but the interior value is intended
-// to be used as a backing store for a slice.
-type arrayBlockWrapper[T any] struct {
-	value [maxArrayBlockWrapperLen]T
-	_     [_MaxSmallSize]byte // Ensure we're a large object.
-}
-
-// arrayLargeBlockWrapper is like arrayBlockWrapper, but the interior array
-// accommodates many more elements.
-type arrayLargeBlockWrapper[T any] struct {
-	value [1024]T
-	_     [_MaxSmallSize]byte // Ensure we're a large object.
-}
-
-func BenchSetTypeSlice[T any](n int, resetTimer func(), len int) {
-	// We have two separate cases here because we want to avoid
-	// tests on big types but relatively small slices to avoid generating
-	// an allocation that's really big. This will likely force a GC which will
-	// skew the test results.
-	var y unsafe.Pointer
-	if len <= maxArrayBlockWrapperLen {
-		x := new(arrayBlockWrapper[T])
-		// Escape x to ensure it is allocated on the heap, as we are
-		// working on the heap bits here.
-		Escape(x)
-		y = unsafe.Pointer(&x.value[0])
-	} else {
-		x := new(arrayLargeBlockWrapper[T])
-		Escape(x)
-		y = unsafe.Pointer(&x.value[0])
-	}
-
-	// Grab the type.
-	var i any = *new(T)
-	e := *efaceOf(&i)
-	t := e._type
-
-	// Benchmark setting the type for a slice created from the array
-	// of T within the arrayBlock.
-	benchSetType(n, resetTimer, len, y, t)
-}
-
-// benchSetType is the implementation of the BenchSetType* functions.
-// x must be len consecutive Ts allocated within a large object span (to
-// avoid a race on the heap bitmap).
-//
-// Note: this function cannot be generic. It would get its type from one of
-// its callers (BenchSetType or BenchSetTypeSlice) whose type parameters are
-// set by a call in the runtime_test package. That means this function and its
-// callers will get instantiated in the package that provides the type argument,
-// i.e. runtime_test. However, we call a function on the system stack. In race
-// mode the runtime package is usually left uninstrumented because e.g. g0 has
-// no valid racectx, but if we're instantiated in the runtime_test package,
-// we might accidentally cause runtime code to be incorrectly instrumented.
-func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type) {
-	// Compute the input sizes.
-	size := t.Size() * uintptr(len)
-
-	// Validate this function's invariant.
-	s := spanOfHeap(uintptr(x))
-	if s == nil {
-		panic("no heap span for input")
-	}
-	if s.spanclass.sizeclass() != 0 {
-		panic("span is not a large object span")
-	}
-
-	// Round up the size to the size class to make the benchmark a little more
-	// realistic. However, validate it, to make sure this is safe.
-	allocSize := roundupsize(size)
-	if s.npages*pageSize < allocSize {
-		panic("backing span not large enough for benchmark")
-	}
-
-	// Benchmark heapBitsSetType by calling it in a loop. This is safe because
-	// x is in a large object span.
-	resetTimer()
-	systemstack(func() {
-		for i := 0; i < n; i++ {
-			heapBitsSetType(uintptr(x), allocSize, size, t)
-		}
-	})
-
-	// Make sure x doesn't get freed, since we're taking a uintptr.
-	KeepAlive(x)
-}
-
 const PtrSize = goarch.PtrSize
 
 var ForceGCPeriod = &forcegcperiod
@@ -368,9 +254,9 @@ var ReadUnaligned32 = readUnaligned32
 var ReadUnaligned64 = readUnaligned64
 
 func CountPagesInUse() (pagesInUse, counted uintptr) {
-	stopTheWorld(stwForTestCountPagesInUse)
+	stw := stopTheWorld(stwForTestCountPagesInUse)
 
-	pagesInUse = uintptr(mheap_.pagesInUse.Load())
+	pagesInUse = mheap_.pagesInUse.Load()
 
 	for _, s := range mheap_.allspans {
 		if s.state.get() == mSpanInUse {
@@ -378,14 +264,14 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 		}
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 
 	return
 }
 
-func Fastrand() uint32          { return fastrand() }
-func Fastrand64() uint64        { return fastrand64() }
-func Fastrandn(n uint32) uint32 { return fastrandn(n) }
+func Fastrand() uint32          { return uint32(rand()) }
+func Fastrand64() uint64        { return rand() }
+func Fastrandn(n uint32) uint32 { return randn(n) }
 
 type ProfBuf profBuf
 
@@ -403,43 +289,64 @@ const (
 )
 
 func (p *ProfBuf) Read(mode profBufReadMode) ([]uint64, []unsafe.Pointer, bool) {
-	return (*profBuf)(p).read(profBufReadMode(mode))
+	return (*profBuf)(p).read(mode)
 }
 
 func (p *ProfBuf) Close() {
 	(*profBuf)(p).close()
 }
 
+type CPUStats = cpuStats
+
+func ReadCPUStats() CPUStats {
+	return work.cpuStats
+}
+
 func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
-	stopTheWorld(stwForTestReadMetricsSlow)
+	stw := stopTheWorld(stwForTestReadMetricsSlow)
 
 	// Initialize the metrics beforehand because this could
 	// allocate and skew the stats.
 	metricsLock()
 	initMetrics()
-	metricsUnlock()
 
 	systemstack(func() {
+		// Donate the racectx to g0. readMetricsLocked calls into the race detector
+		// via map access.
+		getg().racectx = getg().m.curg.racectx
+
+		// Read the metrics once before in case it allocates and skews the metrics.
+		// readMetricsLocked is designed to only allocate the first time it is called
+		// with a given slice of samples. In effect, this extra read tests that this
+		// remains true, since otherwise the second readMetricsLocked below could
+		// allocate before it returns.
+		readMetricsLocked(samplesp, len, cap)
+
 		// Read memstats first. It's going to flush
 		// the mcaches which readMetrics does not do, so
 		// going the other way around may result in
 		// inconsistent statistics.
 		readmemstats_m(memStats)
+
+		// Read metrics again. We need to be sure we're on the
+		// system stack with readmemstats_m so that we don't call into
+		// the stack allocator and adjust metrics between there and here.
+		readMetricsLocked(samplesp, len, cap)
+
+		// Undo the donation.
+		getg().racectx = 0
 	})
+	metricsUnlock()
 
-	// Read metrics off the system stack.
-	//
-	// The only part of readMetrics that could allocate
-	// and skew the stats is initMetrics.
-	readMetrics(samplesp, len, cap)
-
-	startTheWorld()
+	startTheWorld(stw)
 }
+
+var DoubleCheckReadMemStats = &doubleCheckReadMemStats
 
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
 func ReadMemStatsSlow() (base, slow MemStats) {
-	stopTheWorld(stwForTestReadMemStatsSlow)
+	stw := stopTheWorld(stwForTestReadMemStatsSlow)
 
 	// Run on the system stack to avoid stack growth allocation.
 	systemstack(func() {
@@ -485,15 +392,15 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		// Collect per-sizeclass free stats.
 		var smallFree uint64
 		for i := 0; i < _NumSizeClasses; i++ {
-			slow.Frees += uint64(m.smallFreeCount[i])
-			bySize[i].Frees += uint64(m.smallFreeCount[i])
-			bySize[i].Mallocs += uint64(m.smallFreeCount[i])
-			smallFree += uint64(m.smallFreeCount[i]) * uint64(class_to_size[i])
+			slow.Frees += m.smallFreeCount[i]
+			bySize[i].Frees += m.smallFreeCount[i]
+			bySize[i].Mallocs += m.smallFreeCount[i]
+			smallFree += m.smallFreeCount[i] * uint64(class_to_size[i])
 		}
-		slow.Frees += uint64(m.tinyAllocCount) + uint64(m.largeFreeCount)
+		slow.Frees += m.tinyAllocCount + m.largeFreeCount
 		slow.Mallocs += slow.Frees
 
-		slow.TotalAlloc = slow.Alloc + uint64(m.largeFree) + smallFree
+		slow.TotalAlloc = slow.Alloc + m.largeFree + smallFree
 
 		for i := range slow.BySize {
 			slow.BySize[i].Mallocs = bySize[i].Mallocs
@@ -516,7 +423,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		getg().m.mallocing--
 	})
 
-	startTheWorld()
+	startTheWorld(stw)
 	return
 }
 
@@ -554,6 +461,10 @@ type RWMutex struct {
 	rw rwmutex
 }
 
+func (rw *RWMutex) Init() {
+	rw.rw.init(lockRankTestR, lockRankTestRInternal, lockRankTestW)
+}
+
 func (rw *RWMutex) RLock() {
 	rw.rw.rlock()
 }
@@ -580,6 +491,10 @@ func MapBucketsCount(m map[int]int) int {
 func MapBucketsPointerIsNil(m map[int]int) bool {
 	h := *(**hmap)(unsafe.Pointer(&m))
 	return h.buckets == nil
+}
+
+func OverLoadFactor(count int, B uint8) bool {
+	return overLoadFactor(count, B)
 }
 
 func LockOSCounts() (external, internal uint32) {
@@ -681,6 +596,15 @@ func unexportedPanicForTesting(b []byte, i int) byte {
 
 func G0StackOverflow() {
 	systemstack(func() {
+		g0 := getg()
+		sp := getcallersp()
+		// The stack bounds for g0 stack is not always precise.
+		// Use an artificially small stack, to trigger a stack overflow
+		// without actually run out of the system stack (which may seg fault).
+		g0.stack.lo = sp - 4096 - stackSystem
+		g0.stackguard0 = g0.stack.lo + stackGuard
+		g0.stackguard1 = g0.stackguard0
+
 		stackOverflow(nil)
 	})
 }
@@ -702,7 +626,7 @@ func MapTombstoneCheck(m map[int]int) {
 		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.BucketSize)))
 		n := 0
 		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < bucketCnt; i++ {
+			for i := 0; i < abi.MapBucketCount; i++ {
 				if b.tophash[i] != emptyRest {
 					n++
 				}
@@ -710,7 +634,7 @@ func MapTombstoneCheck(m map[int]int) {
 		}
 		k := 0
 		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < bucketCnt; i++ {
+			for i := 0; i < abi.MapBucketCount; i++ {
 				if k < n && b.tophash[i] == emptyRest {
 					panic("early emptyRest")
 				}
@@ -789,7 +713,7 @@ func (b *PallocBits) PopcntRange(i, n uint) uint { return (*pageBits)(b).popcntR
 // SummarizeSlow is a slow but more obviously correct implementation
 // of (*pallocBits).summarize. Used for testing.
 func SummarizeSlow(b *PallocBits) PallocSum {
-	var start, max, end uint
+	var start, most, end uint
 
 	const N = uint(len(b)) * 64
 	for start < N && (*pageBits)(b).get(start) == 0 {
@@ -805,11 +729,9 @@ func SummarizeSlow(b *PallocBits) PallocSum {
 		} else {
 			run = 0
 		}
-		if run > max {
-			max = run
-		}
+		most = max(most, run)
 	}
-	return PackPallocSum(start, max, end)
+	return PackPallocSum(start, most, end)
 }
 
 // Expose non-trivial helpers for testing.
@@ -1285,7 +1207,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 }
 
 func PageCachePagesLeaked() (leaked uintptr) {
-	stopTheWorld(stwForTestPageCachePagesLeaked)
+	stw := stopTheWorld(stwForTestPageCachePagesLeaked)
 
 	// Walk over destroyed Ps and look for unflushed caches.
 	deadp := allp[len(allp):cap(allp)]
@@ -1297,8 +1219,20 @@ func PageCachePagesLeaked() (leaked uintptr) {
 		}
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 	return
+}
+
+type Mutex = mutex
+
+var Lock = lock
+var Unlock = unlock
+
+var MutexContended = mutexContended
+
+func SemRootLock(addr *uint32) *mutex {
+	root := semtable.rootFor(addr)
+	return &root.lock
 }
 
 var Semacquire = semacquire
@@ -1329,7 +1263,7 @@ func (t *SemTable) Enqueue(addr *uint32) {
 //
 // Returns true if there actually was a waiter to be dequeued.
 func (t *SemTable) Dequeue(addr *uint32) bool {
-	s, _ := t.semTable.rootFor(addr).dequeue(addr)
+	s, _, _ := t.semTable.rootFor(addr).dequeue(addr)
 	if s != nil {
 		releaseSudog(s)
 		return true
@@ -1362,7 +1296,7 @@ func FreeMSpan(s *MSpan) {
 
 func MSpanCountAlloc(ms *MSpan, bits []byte) int {
 	s := (*mspan)(ms)
-	s.nelems = uintptr(len(bits) * 8)
+	s.nelems = uint16(len(bits) * 8)
 	s.gcmarkBits = (*gcBits)(unsafe.Pointer(&bits[0]))
 	result := s.countAlloc()
 	s.gcmarkBits = nil
@@ -1819,10 +1753,6 @@ func (s *ScavengeIndex) SetEmpty(ci ChunkIdx) {
 	s.i.setEmpty(chunkIdx(ci))
 }
 
-func (s *ScavengeIndex) SetNoHugePage(ci ChunkIdx) bool {
-	return s.i.setNoHugePage(chunkIdx(ci))
-}
-
 func CheckPackScavChunkData(gen uint32, inUse, lastInUse uint16, flags uint8) bool {
 	sc0 := scavChunkData{
 		gen:            gen,
@@ -1852,7 +1782,7 @@ func NewUserArena() *UserArena {
 func (a *UserArena) New(out *any) {
 	i := efaceOf(out)
 	typ := i._type
-	if typ.Kind_&kindMask != kindPtr {
+	if typ.Kind_&abi.KindMask != abi.Pointer {
 		panic("new result of non-ptr type")
 	}
 	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
@@ -1885,24 +1815,8 @@ func UserArenaClone[T any](s T) T {
 
 var AlignUp = alignUp
 
-// BlockUntilEmptyFinalizerQueue blocks until either the finalizer
-// queue is emptied (and the finalizers have executed) or the timeout
-// is reached. Returns true if the finalizer queue was emptied.
 func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
-	start := nanotime()
-	for nanotime()-start < timeout {
-		lock(&finlock)
-		// We know the queue has been drained when both finq is nil
-		// and the finalizer g has stopped executing.
-		empty := finq == nil
-		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
-		unlock(&finlock)
-		if empty {
-			return true
-		}
-		Gosched()
-	}
-	return false
+	return blockUntilEmptyFinalizerQueue(timeout)
 }
 
 func FrameStartLine(f *Frame) int {
@@ -1921,6 +1835,8 @@ func FPCallers(pcBuf []uintptr) int {
 	return fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf)
 }
 
+const FramePointerEnabled = framepointer_enabled
+
 var (
 	IsPinned      = isPinned
 	GetPinCounter = pinnerGetPinCounter
@@ -1931,4 +1847,42 @@ func SetPinnerLeakPanic(f func()) {
 }
 func GetPinnerLeakPanic() func() {
 	return pinnerLeakPanic
+}
+
+var testUintptr uintptr
+
+func MyGenericFunc[T any]() {
+	systemstack(func() {
+		testUintptr = 4
+	})
+}
+
+func UnsafePoint(pc uintptr) bool {
+	fi := findfunc(pc)
+	v := pcdatavalue(fi, abi.PCDATA_UnsafePoint, pc)
+	switch v {
+	case abi.UnsafePointUnsafe:
+		return true
+	case abi.UnsafePointSafe:
+		return false
+	case abi.UnsafePointRestart1, abi.UnsafePointRestart2, abi.UnsafePointRestartAtEntry:
+		// These are all interruptible, they just encode a nonstandard
+		// way of recovering when interrupted.
+		return false
+	default:
+		var buf [20]byte
+		panic("invalid unsafe point code " + string(itoa(buf[:], uint64(v))))
+	}
+}
+
+type TraceMap struct {
+	traceMap
+}
+
+func (m *TraceMap) PutString(s string) (uint64, bool) {
+	return m.traceMap.put(unsafe.Pointer(unsafe.StringData(s)), uintptr(len(s)))
+}
+
+func (m *TraceMap) Reset() {
+	m.traceMap.reset()
 }

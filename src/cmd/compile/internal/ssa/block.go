@@ -31,6 +31,9 @@ type Block struct {
 	// After flagalloc, records whether flags are live at the end of the block.
 	FlagsLiveAtEnd bool
 
+	// A block that would be good to align (according to the optimizer's guesses)
+	Hotness Hotness
+
 	// Subsequent blocks, if any. The number and order depend on the block kind.
 	Succs []Edge
 
@@ -112,14 +115,7 @@ func (e Edge) String() string {
 }
 
 // BlockKind is the kind of SSA block.
-//
-//	  kind          controls        successors
-//	------------------------------------------
-//	  Exit      [return mem]                []
-//	 Plain                []            [next]
-//	    If   [boolean Value]      [then, else]
-//	 Defer             [mem]  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
-type BlockKind int16
+type BlockKind uint8
 
 // short form print
 func (b *Block) String() string {
@@ -275,8 +271,7 @@ func (b *Block) truncateValues(i int) {
 	b.Values = b.Values[:i]
 }
 
-// AddEdgeTo adds an edge from block b to block c. Used during building of the
-// SSA graph; do not use on an already-completed SSA graph.
+// AddEdgeTo adds an edge from block b to block c.
 func (b *Block) AddEdgeTo(c *Block) {
 	i := len(b.Succs)
 	j := len(c.Preds)
@@ -305,6 +300,8 @@ func (b *Block) removePred(i int) {
 // removeSucc removes the ith output edge from b.
 // It is the responsibility of the caller to remove
 // the corresponding predecessor edge.
+// Note that this potentially reorders successors of b, so it
+// must be used very carefully.
 func (b *Block) removeSucc(i int) {
 	n := len(b.Succs) - 1
 	if i != n {
@@ -331,6 +328,19 @@ func (b *Block) swapSuccessors() {
 	b.Likely *= -1
 }
 
+// Swaps b.Succs[x] and b.Succs[y].
+func (b *Block) swapSuccessorsByIdx(x, y int) {
+	if x == y {
+		return
+	}
+	ex := b.Succs[x]
+	ey := b.Succs[y]
+	b.Succs[x] = ey
+	b.Succs[y] = ex
+	ex.b.Preds[ex.i].i = y
+	ey.b.Preds[ey.i].i = x
+}
+
 // removePhiArg removes the ith arg from phi.
 // It must be called after calling b.removePred(i) to
 // adjust the corresponding phi value of the block:
@@ -347,7 +357,7 @@ func (b *Block) swapSuccessors() {
 func (b *Block) removePhiArg(phi *Value, i int) {
 	n := len(b.Preds)
 	if numPhiArgs := len(phi.Args); numPhiArgs-1 != n {
-		b.Fatalf("inconsistent state, num predecessors: %d, num phi args: %d", n, numPhiArgs)
+		b.Fatalf("inconsistent state for %v, num predecessors: %d, num phi args: %d", phi, n, numPhiArgs)
 	}
 	phi.Args[i].Uses--
 	phi.Args[i] = phi.Args[n]
@@ -385,10 +395,10 @@ func (b *Block) AuxIntString() string {
 		return fmt.Sprintf("%v", int8(b.AuxInt))
 	case "uint8":
 		return fmt.Sprintf("%v", uint8(b.AuxInt))
-	default: // type specified but not implemented - print as int64
-		return fmt.Sprintf("%v", b.AuxInt)
 	case "": // no aux int type
 		return ""
+	default: // type specified but not implemented - print as int64
+		return fmt.Sprintf("%v", b.AuxInt)
 	}
 }
 
@@ -418,4 +428,18 @@ const (
 	BranchUnlikely = BranchPrediction(-1)
 	BranchUnknown  = BranchPrediction(0)
 	BranchLikely   = BranchPrediction(+1)
+)
+
+type Hotness int8 // Could use negative numbers for specifically non-hot blocks, but don't, yet.
+const (
+	// These values are arranged in what seems to be order of increasing alignment importance.
+	// Currently only a few are relevant.  Implicitly, they are all in a loop.
+	HotNotFlowIn Hotness = 1 << iota // This block is only reached by branches
+	HotInitial                       // In the block order, the first one for a given loop.  Not necessarily topological header.
+	HotPgo                           // By PGO-based heuristics, this block occurs in a hot loop
+
+	HotNot                 = 0
+	HotInitialNotFlowIn    = HotInitial | HotNotFlowIn          // typically first block of a rotated loop, loop is entered with a branch (not to this block).  No PGO
+	HotPgoInitial          = HotPgo | HotInitial                // special case; single block loop, initial block is header block has a flow-in entry, but PGO says it is hot
+	HotPgoInitialNotFLowIn = HotPgo | HotInitial | HotNotFlowIn // PGO says it is hot, and the loop is rotated so flow enters loop with a branch
 )

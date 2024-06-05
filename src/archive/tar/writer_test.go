@@ -9,12 +9,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"testing/iotest"
 	"time"
 )
@@ -579,10 +581,10 @@ func TestPaxSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	hdr, err := FileInfoHeader(fileinfo, "")
-	hdr.Typeflag = TypeSymlink
 	if err != nil {
 		t.Fatalf("os.Stat:1 %v", err)
 	}
+	hdr.Typeflag = TypeSymlink
 	// Force a PAX long linkname to be written
 	longLinkname := strings.Repeat("1234567890/1234567890", 10)
 	hdr.Linkname = longLinkname
@@ -747,7 +749,7 @@ func TestPaxHeadersSorted(t *testing.T) {
 		bytes.Index(buf.Bytes(), []byte("foo=foo")),
 		bytes.Index(buf.Bytes(), []byte("qux=qux")),
 	}
-	if !sort.IntsAreSorted(indices) {
+	if !slices.IsSorted(indices) {
 		t.Fatal("PAX headers are not sorted")
 	}
 }
@@ -759,10 +761,10 @@ func TestUSTARLongName(t *testing.T) {
 		t.Fatal(err)
 	}
 	hdr, err := FileInfoHeader(fileinfo, "")
-	hdr.Typeflag = TypeDir
 	if err != nil {
 		t.Fatalf("os.Stat:1 %v", err)
 	}
+	hdr.Typeflag = TypeDir
 	// Force a PAX long name to be written. The name was taken from a practical example
 	// that fails and replaced ever char through numbers to anonymize the sample.
 	longName := "/0000_0000000/00000-000000000/0000_0000000/00000-0000000000000/0000_0000000/00000-0000000-00000000/0000_0000000/00000000/0000_0000000/000/0000_0000000/00000000v00/0000_0000000/000000/0000_0000000/0000000/0000_0000000/00000y-00/0000/0000/00000000/0x000000/"
@@ -1331,5 +1333,69 @@ func TestFileWriter(t *testing.T) {
 		if got := bb.String(); got != wantStr {
 			t.Fatalf("test %d, String() = %q, want %q", i, got, wantStr)
 		}
+	}
+}
+
+func TestWriterAddFS(t *testing.T) {
+	fsys := fstest.MapFS{
+		"file.go":              {Data: []byte("hello")},
+		"subfolder/another.go": {Data: []byte("world")},
+	}
+	var buf bytes.Buffer
+	tw := NewWriter(&buf)
+	if err := tw.AddFS(fsys); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that we can get the files back from the archive
+	tr := NewReader(&buf)
+
+	entries, err := fsys.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var curfname string
+	for _, entry := range entries {
+		curfname = entry.Name()
+		if entry.IsDir() {
+			curfname += "/"
+			continue
+		}
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data, err := io.ReadAll(tr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if hdr.Name != curfname {
+			t.Fatalf("got filename %v, want %v",
+				curfname, hdr.Name)
+		}
+
+		origdata := fsys[curfname].Data
+		if string(data) != string(origdata) {
+			t.Fatalf("got file content %v, want %v",
+				data, origdata)
+		}
+	}
+}
+
+func TestWriterAddFSNonRegularFiles(t *testing.T) {
+	fsys := fstest.MapFS{
+		"device":  {Data: []byte("hello"), Mode: 0755 | fs.ModeDevice},
+		"symlink": {Data: []byte("world"), Mode: 0755 | fs.ModeSymlink},
+	}
+	var buf bytes.Buffer
+	tw := NewWriter(&buf)
+	if err := tw.AddFS(fsys); err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }

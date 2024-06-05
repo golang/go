@@ -49,7 +49,7 @@ func dialStress(a net.Addr) {
 				Println("closed dial")
 			}()
 		}
-		// Don't run out of ephermeral ports too quickly:
+		// Don't run out of ephemeral ports too quickly:
 		time.Sleep(250 * time.Millisecond)
 	}
 }

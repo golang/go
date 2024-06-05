@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test cases for issue 31092: Better synchronization of
+// Test cases for go.dev/issue/31092: Better synchronization of
 // parser after seeing an := rather than an = in a const,
 // type, or variable declaration.
 

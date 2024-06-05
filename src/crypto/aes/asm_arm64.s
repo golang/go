@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !purego
+
 #include "textflag.h"
 DATA rotInvSRows<>+0x00(SB)/8, $0x080f0205040b0e01
 DATA rotInvSRows<>+0x08(SB)/8, $0x00070a0d0c030609

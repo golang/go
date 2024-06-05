@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -252,6 +252,7 @@ var isIPTests = map[string]bool{
 	"127.0.0.1":            true,
 	"1.2.3.4":              true,
 	"2001:4860:0:2001::68": true,
+	"::1%zone":             true,
 	"example.com":          false,
 	"1.1.1.300":            false,
 	"www.foo.bar.net":      false,
@@ -403,10 +404,15 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
 			if !cookie.Expires.After(now) {
 				continue
 			}
-			cs = append(cs, cookie.Name+"="+cookie.Value)
+
+			v := cookie.Value
+			if strings.ContainsAny(v, " ,") || cookie.Quoted {
+				v = `"` + v + `"`
+			}
+			cs = append(cs, cookie.Name+"="+v)
 		}
 	}
-	sort.Strings(cs)
+	slices.Sort(cs)
 	got := strings.Join(cs, " ")
 
 	// Make sure jar content matches our expectations.
@@ -420,7 +426,7 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
 		now = now.Add(1001 * time.Millisecond)
 		var s []string
 		for _, c := range jar.cookies(mustParseURL(query.toURL), now) {
-			s = append(s, c.Name+"="+c.Value)
+			s = append(s, c.String())
 		}
 		if got := strings.Join(s, " "); got != query.want {
 			t.Errorf("Test %q #%d\ngot  %q\nwant %q", test.description, i, got, query.want)
@@ -627,6 +633,32 @@ var basicsTests = [...]jarTest{
 			{"http://www.host.test", "a=1"},
 			{"http://www.host.test:8080/", "a=1"},
 			{"http://www.host.test:1234/", "a=1"},
+		},
+	},
+	{
+		"IPv6 zone is not treated as a host.",
+		"https://example.com/",
+		[]string{"a=1"},
+		"a=1",
+		[]query{
+			{"https://[::1%25.example.com]:80/", ""},
+		},
+	},
+	{
+		"Retrieval of cookies with quoted values", // issue #46443
+		"http://www.host.test/",
+		[]string{
+			`cookie-1="quoted"`,
+			`cookie-2="quoted with spaces"`,
+			`cookie-3="quoted,with,commas"`,
+			`cookie-4= ,`,
+		},
+		`cookie-1="quoted" cookie-2="quoted with spaces" cookie-3="quoted,with,commas" cookie-4=" ,"`,
+		[]query{
+			{
+				"http://www.host.test",
+				`cookie-1="quoted" cookie-2="quoted with spaces" cookie-3="quoted,with,commas" cookie-4=" ,"`,
+			},
 		},
 	},
 }

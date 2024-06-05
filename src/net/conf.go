@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
 	"errors"
 	"internal/bytealg"
 	"internal/godebug"
+	"internal/stringslite"
 	"io/fs"
 	"os"
 	"runtime"
@@ -153,7 +152,7 @@ func initConfVal() {
 	}
 }
 
-// goosPreferCgo reports whether the GOOS value passed in prefers
+// goosPrefersCgo reports whether the GOOS value passed in prefers
 // the cgo resolver.
 func goosPrefersCgo() bool {
 	switch runtime.GOOS {
@@ -185,7 +184,24 @@ func goosPrefersCgo() bool {
 // required to use the go resolver. The provided Resolver is optional.
 // This will report true if the cgo resolver is not available.
 func (c *conf) mustUseGoResolver(r *Resolver) bool {
-	return c.netGo || r.preferGo() || !cgoAvailable
+	if !cgoAvailable {
+		return true
+	}
+
+	if runtime.GOOS == "plan9" {
+		// TODO(bradfitz): for now we only permit use of the PreferGo
+		// implementation when there's a non-nil Resolver with a
+		// non-nil Dialer. This is a sign that the code is trying
+		// to use their DNS-speaking net.Conn (such as an in-memory
+		// DNS cache) and they don't want to actually hit the network.
+		// Once we add support for looking the default DNS servers
+		// from plan9, though, then we can relax this.
+		if r == nil || r.Dial == nil {
+			return false
+		}
+	}
+
+	return c.netGo || r.preferGo()
 }
 
 // addrLookupOrder determines which strategy to use to resolve addresses.
@@ -221,16 +237,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 		// Go resolver was explicitly requested
 		// or cgo resolver is not available.
 		// Figure out the order below.
-		switch c.goos {
-		case "windows":
-			// TODO(bradfitz): implement files-based
-			// lookup on Windows too? I guess /etc/hosts
-			// kinda exists on Windows. But for now, only
-			// do DNS.
-			fallbackOrder = hostLookupDNS
-		default:
-			fallbackOrder = hostLookupFilesDNS
-		}
+		fallbackOrder = hostLookupFilesDNS
 		canUseCgo = false
 	} else if c.netCgo {
 		// Cgo resolver was explicitly requested.
@@ -329,16 +336,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 	}
 
 	// Canonicalize the hostname by removing any trailing dot.
-	if stringsHasSuffix(hostname, ".") {
-		hostname = hostname[:len(hostname)-1]
-	}
-	if canUseCgo && stringsHasSuffixFold(hostname, ".local") {
-		// Per RFC 6762, the ".local" TLD is special. And
-		// because Go's native resolver doesn't do mDNS or
-		// similar local resolution mechanisms, assume that
-		// libc might (via Avahi, etc) and use cgo.
-		return hostLookupCgo, dnsConf
-	}
+	hostname = stringslite.TrimSuffix(hostname, ".")
 
 	nss := getSystemNSS()
 	srcs := nss.sources["hosts"]
@@ -397,10 +395,14 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 					return hostLookupCgo, dnsConf
 				}
 				continue
-			case hostname != "" && stringsHasPrefix(src.source, "mdns"):
-				// e.g. "mdns4", "mdns4_minimal"
-				// We already returned true before if it was *.local.
-				// libc wouldn't have found a hit on this anyway.
+			case hostname != "" && stringslite.HasPrefix(src.source, "mdns"):
+				if stringsHasSuffixFold(hostname, ".local") {
+					// Per RFC 6762, the ".local" TLD is special. And
+					// because Go's native resolver doesn't do mDNS or
+					// similar local resolution mechanisms, assume that
+					// libc might (via Avahi, etc) and use cgo.
+					return hostLookupCgo, dnsConf
+				}
 
 				// We don't parse mdns.allow files. They're rare. If one
 				// exists, it might list other TLDs (besides .local) or even
@@ -516,7 +518,7 @@ func isGateway(h string) bool {
 	return stringsEqualFold(h, "_gateway")
 }
 
-// isOutbound reports whether h should be considered a "outbound"
+// isOutbound reports whether h should be considered an "outbound"
 // name for the myhostname NSS module.
 func isOutbound(h string) bool {
 	return stringsEqualFold(h, "_outbound")

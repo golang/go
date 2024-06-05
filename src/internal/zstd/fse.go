@@ -208,7 +208,7 @@ func (r *Reader) buildFSE(off int, norm []int16, table []fseEntry, tableBits int
 // We use these for literal/match/length values.
 // Those require mapping the symbol to a baseline value,
 // and then reading zero or more bits and adding the value to the baseline.
-// Rather than looking thees up in separate tables,
+// Rather than looking these up in separate tables,
 // we convert the FSE table to an FSE baseline table.
 type fseBaselineEntry struct {
 	baseline uint32 // baseline for value that this entry represents

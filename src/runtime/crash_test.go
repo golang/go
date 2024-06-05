@@ -6,15 +6,20 @@ package runtime_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"internal/testenv"
+	traceparse "internal/trace"
+	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/trace"
 	"strings"
 	"sync"
 	"testing"
@@ -23,11 +28,34 @@ import (
 
 var toRemove []string
 
+const entrypointVar = "RUNTIME_TEST_ENTRYPOINT"
+
 func TestMain(m *testing.M) {
+	switch entrypoint := os.Getenv(entrypointVar); entrypoint {
+	case "crash":
+		crash()
+		panic("unreachable")
+	default:
+		log.Fatalf("invalid %s: %q", entrypointVar, entrypoint)
+	case "":
+		// fall through to normal behavior
+	}
+
+	_, coreErrBefore := os.Stat("core")
+
 	status := m.Run()
 	for _, file := range toRemove {
 		os.RemoveAll(file)
 	}
+
+	_, coreErrAfter := os.Stat("core")
+	if coreErrBefore != nil && coreErrAfter == nil {
+		fmt.Fprintln(os.Stderr, "runtime.test: some test left a core file behind")
+		if status == 0 {
+			status = 1
+		}
+	}
+
 	os.Exit(status)
 }
 
@@ -140,7 +168,23 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 		cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
 		t.Logf("running %v", cmd)
 		cmd.Dir = "testdata/" + binary
-		out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+		cmd = testenv.CleanCmdEnv(cmd)
+
+		// Add the rangefunc GOEXPERIMENT unconditionally since some tests depend on it.
+		// TODO(61405): Remove this once it's enabled by default.
+		edited := false
+		for i := range cmd.Env {
+			e := cmd.Env[i]
+			if _, vars, ok := strings.Cut(e, "GOEXPERIMENT="); ok {
+				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",rangefunc"
+				edited = true
+			}
+		}
+		if !edited {
+			cmd.Env = append(cmd.Env, "GOEXPERIMENT=rangefunc")
+		}
+
+		out, err := cmd.CombinedOutput()
 		if err != nil {
 			target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
 		} else {
@@ -762,11 +806,21 @@ func init() {
 		// We expect to crash, so exit 0 to indicate failure.
 		os.Exit(0)
 	}
+	if os.Getenv("GO_TEST_RUNTIME_NPE_READMEMSTATS") == "1" {
+		runtime.ReadMemStats(nil)
+		os.Exit(0)
+	}
+	if os.Getenv("GO_TEST_RUNTIME_NPE_FUNCMETHOD") == "1" {
+		var f *runtime.Func
+		_ = f.Entry()
+		os.Exit(0)
+	}
+
 }
 
 func TestRuntimePanic(t *testing.T) {
 	testenv.MustHaveExec(t)
-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestRuntimePanic"))
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestRuntimePanic$"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -777,22 +831,56 @@ func TestRuntimePanic(t *testing.T) {
 	}
 }
 
+func TestTracebackRuntimeFunction(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeFunction"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_READMEMSTATS=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.ReadMemStats"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
+func TestTracebackRuntimeMethod(t *testing.T) {
+	testenv.MustHaveExec(t)
+	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeMethod"))
+	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_FUNCMETHOD=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("child process did not fail")
+	} else if want := "runtime.(*Func).Entry"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("output did not contain expected string %q", want)
+	}
+}
+
 // Test that g0 stack overflows are handled gracefully.
 func TestG0StackOverflow(t *testing.T) {
 	testenv.MustHaveExec(t)
 
-	switch runtime.GOOS {
-	case "android", "darwin", "dragonfly", "freebsd", "ios", "linux", "netbsd", "openbsd":
-		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
+	if runtime.GOOS == "ios" {
+		testenv.SkipFlaky(t, 62671)
 	}
 
 	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestG0StackOverflow", "-test.v"))
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestG0StackOverflow$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
 		out, err := cmd.CombinedOutput()
+		t.Logf("output:\n%s", out)
 		// Don't check err since it's expected to crash.
 		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
 			t.Fatalf("%s\n(exit status %v)", out, err)
+		}
+		if runtime.CrashStackImplemented {
+			// check for a stack trace
+			want := "runtime.stackOverflow"
+			if n := strings.Count(string(out), want); n < 5 {
+				t.Errorf("output does not contain %q at least 5 times:\n%s", want, out)
+			}
+			return // it's not a signal-style traceback
 		}
 		// Check that it's a signal-style traceback.
 		if runtime.GOOS != "windows" {
@@ -804,6 +892,74 @@ func TestG0StackOverflow(t *testing.T) {
 	}
 
 	runtime.G0StackOverflow()
+}
+
+// For TestCrashWhileTracing: test a panic without involving the testing
+// harness, as we rely on stdout only containing trace output.
+func init() {
+	if os.Getenv("TEST_CRASH_WHILE_TRACING") == "1" {
+		trace.Start(os.Stdout)
+		trace.Log(context.Background(), "xyzzy-cat", "xyzzy-msg")
+		panic("yzzyx")
+	}
+}
+
+func TestCrashWhileTracing(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0]))
+	cmd.Env = append(cmd.Env, "TEST_CRASH_WHILE_TRACING=1")
+	stdOut, err := cmd.StdoutPipe()
+	var errOut bytes.Buffer
+	cmd.Stderr = &errOut
+
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("could not start subprocess: %v", err)
+	}
+	r, err := traceparse.NewReader(stdOut)
+	if err != nil {
+		t.Fatalf("could not create trace.NewReader: %v", err)
+	}
+	var seen, seenSync bool
+	i := 1
+loop:
+	for ; ; i++ {
+		ev, err := r.ReadEvent()
+		if err != nil {
+			// We may have a broken tail to the trace -- that's OK.
+			// We'll make sure we saw at least one complete generation.
+			if err != io.EOF {
+				t.Logf("error at event %d: %v", i, err)
+			}
+			break loop
+		}
+		switch ev.Kind() {
+		case traceparse.EventSync:
+			seenSync = true
+		case traceparse.EventLog:
+			v := ev.Log()
+			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
+				// Should we already stop reading here? More events may come, but
+				// we're not guaranteeing a fully unbroken trace until the last
+				// byte...
+				seen = true
+			}
+		}
+	}
+	if err := cmd.Wait(); err == nil {
+		t.Error("the process should have panicked")
+	}
+	if !seenSync {
+		t.Errorf("expected at least one full generation to have been emitted before the trace was considered broken")
+	}
+	if !seen {
+		t.Errorf("expected one matching log event matching, but none of the %d received trace events match", i)
+	}
+	t.Logf("stderr output:\n%s", errOut.String())
+	needle := "yzzyx\n"
+	if n := strings.Count(errOut.String(), needle); n != 1 {
+		t.Fatalf("did not find expected panic message %q\n(exit status %v)", needle, err)
+	}
 }
 
 // Test that panic message is not clobbered.
@@ -826,11 +982,11 @@ func TestPanicWhilePanicking(t *testing.T) {
 		Func string
 	}{
 		{
-			"panic while printing panic value: important error message",
+			"panic while printing panic value: important multi-line\n\terror message",
 			"ErrorPanic",
 		},
 		{
-			"panic while printing panic value: important stringer message",
+			"panic while printing panic value: important multi-line\n\tstringer message",
 			"StringerPanic",
 		},
 		{
@@ -846,7 +1002,7 @@ func TestPanicWhilePanicking(t *testing.T) {
 			"CircularPanic",
 		},
 		{
-			"important string message",
+			"important multi-line\n\tstring message",
 			"StringPanic",
 		},
 		{

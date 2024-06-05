@@ -61,11 +61,11 @@ func (t rtype) pkgpath() string {
 	if u := t.uncommon(); u != nil {
 		return t.nameOff(u.PkgPath).Name()
 	}
-	switch t.Kind_ & kindMask {
-	case kindStruct:
+	switch t.Kind_ & abi.KindMask {
+	case abi.Struct:
 		st := (*structtype)(unsafe.Pointer(t.Type))
 		return st.PkgPath.Name()
-	case kindInterface:
+	case abi.Interface:
 		it := (*interfacetype)(unsafe.Pointer(t.Type))
 		return it.PkgPath.Name()
 	}
@@ -106,6 +106,15 @@ func reflectOffsUnlock() {
 	unlock(&reflectOffs.lock)
 }
 
+// resolveNameOff should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname resolveNameOff
 func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
 	if off == 0 {
 		return name{}
@@ -140,6 +149,15 @@ func (t rtype) nameOff(off nameOff) name {
 	return resolveNameOff(unsafe.Pointer(t.Type), off)
 }
 
+// resolveTypeOff should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname resolveTypeOff
 func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
 	if off == 0 || off == -1 {
 		// -1 is the sentinel value for unreachable code.
@@ -338,8 +356,8 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 	if t == v {
 		return true
 	}
-	kind := t.Kind_ & kindMask
-	if kind != v.Kind_&kindMask {
+	kind := t.Kind_ & abi.KindMask
+	if kind != v.Kind_&abi.KindMask {
 		return false
 	}
 	rt, rv := toRType(t), toRType(v)
@@ -358,21 +376,21 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 			return false
 		}
 	}
-	if kindBool <= kind && kind <= kindComplex128 {
+	if abi.Bool <= kind && kind <= abi.Complex128 {
 		return true
 	}
 	switch kind {
-	case kindString, kindUnsafePointer:
+	case abi.String, abi.UnsafePointer:
 		return true
-	case kindArray:
+	case abi.Array:
 		at := (*arraytype)(unsafe.Pointer(t))
 		av := (*arraytype)(unsafe.Pointer(v))
 		return typesEqual(at.Elem, av.Elem, seen) && at.Len == av.Len
-	case kindChan:
+	case abi.Chan:
 		ct := (*chantype)(unsafe.Pointer(t))
 		cv := (*chantype)(unsafe.Pointer(v))
 		return ct.Dir == cv.Dir && typesEqual(ct.Elem, cv.Elem, seen)
-	case kindFunc:
+	case abi.Func:
 		ft := (*functype)(unsafe.Pointer(t))
 		fv := (*functype)(unsafe.Pointer(v))
 		if ft.OutCount != fv.OutCount || ft.InCount != fv.InCount {
@@ -391,7 +409,7 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 			}
 		}
 		return true
-	case kindInterface:
+	case abi.Interface:
 		it := (*interfacetype)(unsafe.Pointer(t))
 		iv := (*interfacetype)(unsafe.Pointer(v))
 		if it.PkgPath.Name() != iv.PkgPath.Name() {
@@ -420,19 +438,19 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 			}
 		}
 		return true
-	case kindMap:
+	case abi.Map:
 		mt := (*maptype)(unsafe.Pointer(t))
 		mv := (*maptype)(unsafe.Pointer(v))
 		return typesEqual(mt.Key, mv.Key, seen) && typesEqual(mt.Elem, mv.Elem, seen)
-	case kindPtr:
+	case abi.Pointer:
 		pt := (*ptrtype)(unsafe.Pointer(t))
 		pv := (*ptrtype)(unsafe.Pointer(v))
 		return typesEqual(pt.Elem, pv.Elem, seen)
-	case kindSlice:
+	case abi.Slice:
 		st := (*slicetype)(unsafe.Pointer(t))
 		sv := (*slicetype)(unsafe.Pointer(v))
 		return typesEqual(st.Elem, sv.Elem, seen)
-	case kindStruct:
+	case abi.Struct:
 		st := (*structtype)(unsafe.Pointer(t))
 		sv := (*structtype)(unsafe.Pointer(v))
 		if len(st.Fields) != len(sv.Fields) {

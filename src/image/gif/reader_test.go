@@ -7,6 +7,7 @@ package gif
 import (
 	"bytes"
 	"compress/lzw"
+	"encoding/hex"
 	"image"
 	"image/color"
 	"image/color/palette"
@@ -28,7 +29,7 @@ const (
 	trailerStr = "\x3b"
 )
 
-// lzw.NewReader wants a io.ByteReader, this ensures we're compatible.
+// lzw.NewReader wants an io.ByteReader, this ensures we're compatible.
 var _ io.ByteReader = (*blockReader)(nil)
 
 // lzwEncode returns an LZW encoding (with 2-bit literals) of in.
@@ -437,5 +438,20 @@ func BenchmarkDecode(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Decode(bytes.NewReader(data))
+	}
+}
+
+func TestReencodeExtendedPalette(t *testing.T) {
+	data, err := hex.DecodeString("4749463839616c02020157220221ff0b280154ffffffff00000021474946306127dc213000ff84ff840000000000800021ffffffff8f4e4554530041508f8f0202020000000000000000000000000202020202020207020202022f31050000000000000021f904ab2c3826002c00000000c00001009800462b07fc1f02061202020602020202220202930202020202020202020202020286090222202222222222222222222222222222222222222222222222222220222222222222222222222222222222222222222222222222221a22222222332223222222222222222222222222222222222222224b222222222222002200002b474946312829021f0000000000cbff002f0202073121f904ab2c2c000021f92c3803002c00e0c0000000f932")
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Encode(io.Discard, img, &Options{NumColors: 1})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

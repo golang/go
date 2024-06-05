@@ -53,6 +53,8 @@ type fmt struct {
 
 func (f *fmt) clearflags() {
 	f.fmtFlags = fmtFlags{}
+	f.wid = 0
+	f.prec = 0
 }
 
 func (f *fmt) init(buf *buffer) {
@@ -75,7 +77,8 @@ func (f *fmt) writePadding(n int) {
 	}
 	// Decide which byte the padding should be filled with.
 	padByte := byte(' ')
-	if f.zero {
+	// Zero padding is allowed only to the left.
+	if f.zero && !f.minus {
 		padByte = byte('0')
 	}
 	// Fill padding with padByte.
@@ -223,7 +226,7 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits st
 			f.zero = oldZero
 			return
 		}
-	} else if f.zero && f.widPresent {
+	} else if f.zero && !f.minus && f.widPresent { // Zero padding is allowed only to the left.
 		prec = f.wid
 		if negative || f.plus || f.space {
 			prec-- // leave room for sign
@@ -580,7 +583,8 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 	if f.plus || num[0] != '+' {
 		// If we're zero padding to the left we want the sign before the leading zeros.
 		// Achieve this by writing the sign out and then padding the unsigned number.
-		if f.zero && f.widPresent && f.wid > len(num) {
+		// Zero padding is allowed only to the left.
+		if f.zero && !f.minus && f.widPresent && f.wid > len(num) {
 			f.buf.writeByte(num[0])
 			f.writePadding(f.wid - len(num))
 			f.buf.write(num[1:])

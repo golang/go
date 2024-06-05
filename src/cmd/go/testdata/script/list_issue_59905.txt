@@ -1,8 +1,13 @@
 # Expect no panic
 go list -f '{{if .DepsErrors}}{{.DepsErrors}}{{end}}' -export -e -deps
-cmpenv stdout wanterr
+cmpenv stdout wanterr_59905
 
--- wanterr --
+# Expect no panic (Issue 61816)
+cp level1b_61816.txt level1b/pkg.go
+go list -f '{{if .DepsErrors}}{{.DepsErrors}}{{end}}' -export -e -deps
+cmpenv stdout wanterr_61816
+
+-- wanterr_59905 --
 [# test/main/level1a
 level1a${/}pkg.go:5:2: level2x redeclared in this block
 	level1a${/}pkg.go:4:2: other declaration of level2x
@@ -14,6 +19,23 @@ level1b${/}pkg.go:5:2: level2x redeclared in this block
 level1b${/}pkg.go:5:2: "test/main/level1b/level2y" imported as level2x and not used
 level1b${/}pkg.go:8:39: undefined: level2y
 ]
+-- wanterr_61816 --
+[level1b${/}pkg.go:4:2: package foo is not in std ($GOROOT${/}src${/}foo)]
+[# test/main/level1a
+level1a${/}pkg.go:5:2: level2x redeclared in this block
+	level1a${/}pkg.go:4:2: other declaration of level2x
+level1a${/}pkg.go:5:2: "test/main/level1a/level2y" imported as level2x and not used
+level1a${/}pkg.go:8:39: undefined: level2y
+ level1b${/}pkg.go:4:2: package foo is not in std ($GOROOT${/}src${/}foo)]
+-- level1b_61816.txt --
+package level1b
+
+import (
+	"foo"
+)
+
+func Print() { println(level2x.Value, level2y.Value) }
+
 -- go.mod --
 module test/main
 

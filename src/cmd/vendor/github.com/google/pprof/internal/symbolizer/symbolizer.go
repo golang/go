@@ -133,22 +133,80 @@ func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjToo
 		}
 	}
 
-	mt, err := newMapping(prof, obj, ui, force)
-	if err != nil {
-		return err
+	functions := map[profile.Function]*profile.Function{}
+	addFunction := func(f *profile.Function) *profile.Function {
+		if fp := functions[*f]; fp != nil {
+			return fp
+		}
+		functions[*f] = f
+		f.ID = uint64(len(prof.Function)) + 1
+		prof.Function = append(prof.Function, f)
+		return f
 	}
-	defer mt.close()
 
-	functions := make(map[profile.Function]*profile.Function)
-	for _, l := range mt.prof.Location {
-		m := l.Mapping
-		segment := mt.segments[m]
-		if segment == nil {
-			// Nothing to do.
+	missingBinaries := false
+	mappingLocs := map[*profile.Mapping][]*profile.Location{}
+	for _, l := range prof.Location {
+		mappingLocs[l.Mapping] = append(mappingLocs[l.Mapping], l)
+	}
+	for midx, m := range prof.Mapping {
+		locs := mappingLocs[m]
+		if len(locs) == 0 {
+			// The mapping is dangling and has no locations pointing to it.
 			continue
 		}
+		// Do not attempt to re-symbolize a mapping that has already been symbolized.
+		if !force && (m.HasFunctions || m.HasFilenames || m.HasLineNumbers) {
+			continue
+		}
+		if m.File == "" {
+			if midx == 0 {
+				ui.PrintErr("Main binary filename not available.")
+				continue
+			}
+			missingBinaries = true
+			continue
+		}
+		if m.Unsymbolizable() {
+			// Skip well-known system mappings
+			continue
+		}
+		if m.BuildID == "" {
+			if u, err := url.Parse(m.File); err == nil && u.IsAbs() && strings.Contains(strings.ToLower(u.Scheme), "http") {
+				// Skip mappings pointing to a source URL
+				continue
+			}
+		}
 
-		stack, err := segment.SourceLine(l.Address)
+		name := filepath.Base(m.File)
+		if m.BuildID != "" {
+			name += fmt.Sprintf(" (build ID %s)", m.BuildID)
+		}
+		f, err := obj.Open(m.File, m.Start, m.Limit, m.Offset, m.KernelRelocationSymbol)
+		if err != nil {
+			ui.PrintErr("Local symbolization failed for ", name, ": ", err)
+			missingBinaries = true
+			continue
+		}
+		if fid := f.BuildID(); m.BuildID != "" && fid != "" && fid != m.BuildID {
+			ui.PrintErr("Local symbolization failed for ", name, ": build ID mismatch")
+			f.Close()
+			continue
+		}
+		symbolizeOneMapping(m, locs, f, addFunction)
+		f.Close()
+	}
+
+	if missingBinaries {
+		ui.PrintErr("Some binary filenames not available. Symbolization may be incomplete.\n" +
+			"Try setting PPROF_BINARY_PATH to the search path for local binaries.")
+	}
+	return nil
+}
+
+func symbolizeOneMapping(m *profile.Mapping, locs []*profile.Location, obj plugin.ObjFile, addFunction func(*profile.Function) *profile.Function) {
+	for _, l := range locs {
+		stack, err := obj.SourceLine(l.Address)
 		if err != nil || len(stack) == 0 {
 			// No answers from addr2line.
 			continue
@@ -166,21 +224,15 @@ func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjToo
 			if frame.Line != 0 {
 				m.HasLineNumbers = true
 			}
-			f := &profile.Function{
+			f := addFunction(&profile.Function{
 				Name:       frame.Func,
 				SystemName: frame.Func,
 				Filename:   frame.File,
-			}
-			if fp := functions[*f]; fp != nil {
-				f = fp
-			} else {
-				functions[*f] = f
-				f.ID = uint64(len(mt.prof.Function)) + 1
-				mt.prof.Function = append(mt.prof.Function, f)
-			}
+			})
 			l.Line[i] = profile.Line{
 				Function: f,
 				Line:     int64(frame.Line),
+				Column:   int64(frame.Column),
 			}
 		}
 
@@ -188,8 +240,6 @@ func doLocalSymbolize(prof *profile.Profile, fast, force bool, obj plugin.ObjToo
 			m.HasInlineFrames = true
 		}
 	}
-
-	return nil
 }
 
 // Demangle updates the function names in a profile with demangled C++
@@ -214,9 +264,9 @@ func Demangle(prof *profile.Profile, force bool, demanglerMode string) {
 func demanglerModeToOptions(demanglerMode string) []demangle.Option {
 	switch demanglerMode {
 	case "": // demangled, simplified: no parameters, no templates, no return type
-		return []demangle.Option{demangle.NoParams, demangle.NoTemplateParams}
+		return []demangle.Option{demangle.NoParams, demangle.NoEnclosingParams, demangle.NoTemplateParams}
 	case "templates": // demangled, simplified: no parameters, no return type
-		return []demangle.Option{demangle.NoParams}
+		return []demangle.Option{demangle.NoParams, demangle.NoEnclosingParams}
 	case "full":
 		return []demangle.Option{demangle.NoClones}
 	case "none": // no demangling
@@ -292,88 +342,4 @@ func removeMatching(name string, start, end byte) string {
 		current++
 	}
 	return name
-}
-
-// newMapping creates a mappingTable for a profile.
-func newMapping(prof *profile.Profile, obj plugin.ObjTool, ui plugin.UI, force bool) (*mappingTable, error) {
-	mt := &mappingTable{
-		prof:     prof,
-		segments: make(map[*profile.Mapping]plugin.ObjFile),
-	}
-
-	// Identify used mappings
-	mappings := make(map[*profile.Mapping]bool)
-	for _, l := range prof.Location {
-		mappings[l.Mapping] = true
-	}
-
-	missingBinaries := false
-	for midx, m := range prof.Mapping {
-		if !mappings[m] {
-			continue
-		}
-
-		// Do not attempt to re-symbolize a mapping that has already been symbolized.
-		if !force && (m.HasFunctions || m.HasFilenames || m.HasLineNumbers) {
-			continue
-		}
-
-		if m.File == "" {
-			if midx == 0 {
-				ui.PrintErr("Main binary filename not available.")
-				continue
-			}
-			missingBinaries = true
-			continue
-		}
-
-		// Skip well-known system mappings
-		if m.Unsymbolizable() {
-			continue
-		}
-
-		// Skip mappings pointing to a source URL
-		if m.BuildID == "" {
-			if u, err := url.Parse(m.File); err == nil && u.IsAbs() && strings.Contains(strings.ToLower(u.Scheme), "http") {
-				continue
-			}
-		}
-
-		name := filepath.Base(m.File)
-		if m.BuildID != "" {
-			name += fmt.Sprintf(" (build ID %s)", m.BuildID)
-		}
-		f, err := obj.Open(m.File, m.Start, m.Limit, m.Offset, m.KernelRelocationSymbol)
-		if err != nil {
-			ui.PrintErr("Local symbolization failed for ", name, ": ", err)
-			missingBinaries = true
-			continue
-		}
-		if fid := f.BuildID(); m.BuildID != "" && fid != "" && fid != m.BuildID {
-			ui.PrintErr("Local symbolization failed for ", name, ": build ID mismatch")
-			f.Close()
-			continue
-		}
-
-		mt.segments[m] = f
-	}
-	if missingBinaries {
-		ui.PrintErr("Some binary filenames not available. Symbolization may be incomplete.\n" +
-			"Try setting PPROF_BINARY_PATH to the search path for local binaries.")
-	}
-	return mt, nil
-}
-
-// mappingTable contains the mechanisms for symbolization of a
-// profile.
-type mappingTable struct {
-	prof     *profile.Profile
-	segments map[*profile.Mapping]plugin.ObjFile
-}
-
-// Close releases any external processes being used for the mapping.
-func (mt *mappingTable) close() {
-	for _, segment := range mt.segments {
-		segment.Close()
-	}
 }

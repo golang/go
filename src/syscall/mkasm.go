@@ -54,7 +54,12 @@ func main() {
 		if !trampolines[fn] {
 			trampolines[fn] = true
 			fmt.Fprintf(&out, "TEXT ·%s_trampoline(SB),NOSPLIT,$0-0\n", fn)
-			fmt.Fprintf(&out, "\tJMP\t%s(SB)\n", fn)
+			if goos == "openbsd" && arch == "ppc64" {
+				fmt.Fprintf(&out, "\tCALL\t%s(SB)\n", fn)
+				fmt.Fprintf(&out, "\tRET\n")
+			} else {
+				fmt.Fprintf(&out, "\tJMP\t%s(SB)\n", fn)
+			}
 		}
 	}
 	err = os.WriteFile(fmt.Sprintf("zsyscall_%s_%s.s", goos, arch), out.Bytes(), 0644)

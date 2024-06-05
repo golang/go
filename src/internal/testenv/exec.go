@@ -100,11 +100,14 @@ func MustHaveExecPath(t testing.TB, path string) {
 // CleanCmdEnv will fill cmd.Env with the environment, excluding certain
 // variables that could modify the behavior of the Go tools such as
 // GODEBUG and GOTRACEBACK.
+//
+// If the caller wants to set cmd.Dir, set it before calling this function,
+// so PWD will be set correctly in the environment.
 func CleanCmdEnv(cmd *exec.Cmd) *exec.Cmd {
 	if cmd.Env != nil {
 		panic("environment already set")
 	}
-	for _, env := range os.Environ() {
+	for _, env := range cmd.Environ() {
 		// Exclude GODEBUG from the environment to prevent its output
 		// from breaking tests that are trying to parse other command output.
 		if strings.HasPrefix(env, "GODEBUG=") {

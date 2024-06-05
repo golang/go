@@ -7,6 +7,7 @@ package main
 import (
 	"cmd/internal/cov"
 	"cmd/internal/pkgpattern"
+	"cmd/internal/telemetry"
 	"flag"
 	"fmt"
 	"os"
@@ -108,6 +109,8 @@ const (
 )
 
 func main() {
+	telemetry.Start()
+
 	// First argument should be mode/subcommand.
 	if len(os.Args) < 2 {
 		usage("missing command selector")
@@ -143,6 +146,8 @@ func main() {
 		op.Usage("")
 	}
 	flag.Parse()
+	telemetry.Inc("covdata/invocations")
+	telemetry.CountFlags("covdata/flag:", *flag.CommandLine)
 
 	// Mode-independent flag setup
 	dbgtrace(1, "starting mode-independent setup")
@@ -176,7 +181,12 @@ func main() {
 		if err := pprof.StartCPUProfile(f); err != nil {
 			fatal("%v", err)
 		}
-		atExit(pprof.StopCPUProfile)
+		atExit(func() {
+			pprof.StopCPUProfile()
+			if err = f.Close(); err != nil {
+				fatal("error closing cpu profile: %v", err)
+			}
+		})
 	}
 	if *memprofileflag != "" {
 		if *memprofilerateflag != 0 {
@@ -191,6 +201,9 @@ func main() {
 			const writeLegacyFormat = 1
 			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
 				fatal("%v", err)
+			}
+			if err = f.Close(); err != nil {
+				fatal("error closing memory profile: %v", err)
 			}
 		})
 	} else {

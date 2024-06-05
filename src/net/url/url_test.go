@@ -1072,6 +1072,7 @@ type EncodeQueryTest struct {
 
 var encodeQueryTests = []EncodeQueryTest{
 	{nil, ""},
+	{Values{}, ""},
 	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "oe=utf8&q=puppies"},
 	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7"},
 	{Values{
@@ -1247,6 +1248,14 @@ var resolveReferenceTests = []struct {
 
 	// Empty path and query but with ForceQuery (issue 46033).
 	{"https://a/b/c/d;p?q#s", "?", "https://a/b/c/d;p?"},
+
+	// Opaque URLs (issue 66084).
+	{"https://foo.com/bar?a=b", "http:opaque", "http:opaque"},
+	{"http:opaque?x=y#zzz", "https:/foo?a=b#frag", "https:/foo?a=b#frag"},
+	{"http:opaque?x=y#zzz", "https:foo:bar", "https:foo:bar"},
+	{"http:opaque?x=y#zzz", "https:bar/baz?a=b#frag", "https:bar/baz?a=b#frag"},
+	{"http:opaque?x=y#zzz", "https://user@host:1234?a=b#frag", "https://user@host:1234?a=b#frag"},
+	{"http:opaque?x=y#zzz", "?a=b#frag", "http:opaque?a=b#frag"},
 }
 
 func TestResolveReference(t *testing.T) {

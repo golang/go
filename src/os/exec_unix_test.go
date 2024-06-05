@@ -19,7 +19,7 @@ func TestErrProcessDone(t *testing.T) {
 
 	p, err := StartProcess(testenv.GoToolPath(t), []string{"go"}, &ProcAttr{})
 	if err != nil {
-		t.Errorf("starting test process: %v", err)
+		t.Fatalf("starting test process: %v", err)
 	}
 	p.Wait()
 	if got := p.Signal(Kill); got != ErrProcessDone {
@@ -37,7 +37,10 @@ func TestUNIXProcessAlive(t *testing.T) {
 	}
 	defer p.Kill()
 
-	proc, _ := FindProcess(p.Pid)
+	proc, err := FindProcess(p.Pid)
+	if err != nil {
+		t.Errorf("OS reported error for running process: %v", err)
+	}
 	err = proc.Signal(syscall.Signal(0))
 	if err != nil {
 		t.Errorf("OS reported error for running process: %v", err)

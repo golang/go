@@ -1,0 +1,38 @@
+! go build
+stderr 'case-insensitive import collision'
+
+! go mod vendor
+stderr 'case-insensitive import collision'
+
+-- foo.go --
+package main
+
+import (
+	_ "example.com/Foo"
+	_ "example.com/foo"
+)
+
+func main() {}
+-- go.mod --
+module play.ground
+
+go 1.14
+
+require (
+	example.com/foo v0.1.0
+	example.com/Foo v0.1.0
+)
+
+replace (
+	example.com/foo => ./foo
+	example.com/Foo => ./foo_alt
+)
+-- foo/go.mod --
+module example.com/foo
+-- foo/foo.go --
+package foo
+
+-- foo_alt/go.mod --
+module example.com/Foo
+-- foo_alt/foo.go --
+package Foo

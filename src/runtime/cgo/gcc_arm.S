@@ -5,14 +5,14 @@
 .file "gcc_arm.S"
 
 /*
- * void crosscall_arm1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
+ * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
  *
- * Calling into the 5c tool chain, where all registers are caller save.
+ * Calling into the gc tool chain, where all registers are caller save.
  * Called from standard ARM EABI, where r4-r11 are callee-save, so they
  * must be saved explicitly.
  */
-.globl crosscall_arm1
-crosscall_arm1:
+.globl crosscall1
+crosscall1:
 	push {r4, r5, r6, r7, r8, r9, r10, r11, ip, lr}
 	mov r4, r0
 	mov r5, r1

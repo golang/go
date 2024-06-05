@@ -10,6 +10,12 @@ import (
 	"unsafe"
 )
 
+// CanUseLongPaths is true when the OS supports opting into
+// proper long path handling without the need for fixups.
+//
+//go:linkname CanUseLongPaths
+var CanUseLongPaths bool
+
 // UTF16PtrToString is like UTF16ToString, but takes *uint16
 // as a parameter instead of []uint16.
 func UTF16PtrToString(p *uint16) string {
@@ -36,7 +42,10 @@ const (
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
 )
 
-const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+const (
+	GAA_FLAG_INCLUDE_PREFIX   = 0x00000010
+	GAA_FLAG_INCLUDE_GATEWAYS = 0x0080
+)
 
 const (
 	IF_TYPE_OTHER              = 1
@@ -98,27 +107,45 @@ type IpAdapterPrefix struct {
 	PrefixLength uint32
 }
 
+type IpAdapterWinsServerAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterWinsServerAddress
+	Address  SocketAddress
+}
+
+type IpAdapterGatewayAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterGatewayAddress
+	Address  SocketAddress
+}
+
 type IpAdapterAddresses struct {
-	Length                uint32
-	IfIndex               uint32
-	Next                  *IpAdapterAddresses
-	AdapterName           *byte
-	FirstUnicastAddress   *IpAdapterUnicastAddress
-	FirstAnycastAddress   *IpAdapterAnycastAddress
-	FirstMulticastAddress *IpAdapterMulticastAddress
-	FirstDnsServerAddress *IpAdapterDnsServerAdapter
-	DnsSuffix             *uint16
-	Description           *uint16
-	FriendlyName          *uint16
-	PhysicalAddress       [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
-	PhysicalAddressLength uint32
-	Flags                 uint32
-	Mtu                   uint32
-	IfType                uint32
-	OperStatus            uint32
-	Ipv6IfIndex           uint32
-	ZoneIndices           [16]uint32
-	FirstPrefix           *IpAdapterPrefix
+	Length                 uint32
+	IfIndex                uint32
+	Next                   *IpAdapterAddresses
+	AdapterName            *byte
+	FirstUnicastAddress    *IpAdapterUnicastAddress
+	FirstAnycastAddress    *IpAdapterAnycastAddress
+	FirstMulticastAddress  *IpAdapterMulticastAddress
+	FirstDnsServerAddress  *IpAdapterDnsServerAdapter
+	DnsSuffix              *uint16
+	Description            *uint16
+	FriendlyName           *uint16
+	PhysicalAddress        [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
+	PhysicalAddressLength  uint32
+	Flags                  uint32
+	Mtu                    uint32
+	IfType                 uint32
+	OperStatus             uint32
+	Ipv6IfIndex            uint32
+	ZoneIndices            [16]uint32
+	FirstPrefix            *IpAdapterPrefix
+	TransmitLinkSpeed      uint64
+	ReceiveLinkSpeed       uint64
+	FirstWinsServerAddress *IpAdapterWinsServerAddress
+	FirstGatewayAddress    *IpAdapterGatewayAddress
 	/* more fields might be present here. */
 }
 
@@ -129,11 +156,22 @@ type SecurityAttributes struct {
 }
 
 type FILE_BASIC_INFO struct {
-	CreationTime   syscall.Filetime
-	LastAccessTime syscall.Filetime
-	LastWriteTime  syscall.Filetime
-	ChangedTime    syscall.Filetime
+	CreationTime   int64
+	LastAccessTime int64
+	LastWriteTime  int64
+	ChangedTime    int64
 	FileAttributes uint32
+
+	// Pad out to 8-byte alignment.
+	//
+	// Without this padding, TestChmod fails due to an argument validation error
+	// in SetFileInformationByHandle on windows/386.
+	//
+	// https://learn.microsoft.com/en-us/cpp/build/reference/zp-struct-member-alignment?view=msvc-170
+	// says that “The C/C++ headers in the Windows SDK assume the platform's
+	// default alignment is used.” What we see here is padding rather than
+	// alignment, but maybe it is related.
+	_ uint32
 }
 
 const (
@@ -150,7 +188,7 @@ const (
 //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
 //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
-//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
+//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
 //sys	VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) = kernel32.VirtualQuery
 //sys	GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPath2W
 
@@ -184,7 +222,9 @@ const (
 	WSA_FLAG_OVERLAPPED        = 0x01
 	WSA_FLAG_NO_HANDLE_INHERIT = 0x80
 
-	WSAEMSGSIZE syscall.Errno = 10040
+	WSAEINVAL       syscall.Errno = 10022
+	WSAEMSGSIZE     syscall.Errno = 10040
+	WSAEAFNOSUPPORT syscall.Errno = 10047
 
 	MSG_PEEK   = 0x2
 	MSG_TRUNC  = 0x0100
@@ -224,6 +264,7 @@ type WSAMsg struct {
 }
 
 //sys	WSASocket(af int32, typ int32, protocol int32, protinfo *syscall.WSAProtocolInfo, group uint32, flags uint32) (handle syscall.Handle, err error) [failretval==syscall.InvalidHandle] = ws2_32.WSASocketW
+//sys	WSAGetOverlappedResult(h syscall.Handle, o *syscall.Overlapped, bytes *uint32, wait bool, flags *uint32) (err error) = ws2_32.WSAGetOverlappedResult
 
 func loadWSASendRecvMsg() error {
 	sendRecvMsgFunc.once.Do(func() {
@@ -365,10 +406,6 @@ const (
 
 //sys	GetFinalPathNameByHandle(file syscall.Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) = kernel32.GetFinalPathNameByHandleW
 
-func LoadGetFinalPathNameByHandle() error {
-	return procGetFinalPathNameByHandleW.Find()
-}
-
 func ErrorLoadingGetTempPath2() error {
 	return procGetTempPath2W.Find()
 }
@@ -377,7 +414,7 @@ func ErrorLoadingGetTempPath2() error {
 //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
 //sys	CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle syscall.Handle, err error) = kernel32.CreateEventW
 
-//sys	RtlGenRandom(buf []byte) (err error) = advapi32.SystemFunction036
+//sys	ProcessPrng(buf []byte) (err error) = bcryptprimitives.ProcessPrng
 
 type FILE_ID_BOTH_DIR_INFO struct {
 	NextEntryOffset uint32
@@ -397,7 +434,68 @@ type FILE_ID_BOTH_DIR_INFO struct {
 	FileName        [1]uint16
 }
 
+type FILE_FULL_DIR_INFO struct {
+	NextEntryOffset uint32
+	FileIndex       uint32
+	CreationTime    syscall.Filetime
+	LastAccessTime  syscall.Filetime
+	LastWriteTime   syscall.Filetime
+	ChangeTime      syscall.Filetime
+	EndOfFile       uint64
+	AllocationSize  uint64
+	FileAttributes  uint32
+	FileNameLength  uint32
+	EaSize          uint32
+	FileName        [1]uint16
+}
+
 //sys	GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
+//sys	GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16, bufferlength uint32) (err error) = GetVolumeNameForVolumeMountPointW
 
 //sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) = kernel32.RtlLookupFunctionEntry
 //sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) = kernel32.RtlVirtualUnwind
+
+type SERVICE_STATUS struct {
+	ServiceType             uint32
+	CurrentState            uint32
+	ControlsAccepted        uint32
+	Win32ExitCode           uint32
+	ServiceSpecificExitCode uint32
+	CheckPoint              uint32
+	WaitHint                uint32
+}
+
+const (
+	SERVICE_RUNNING      = 4
+	SERVICE_QUERY_STATUS = 4
+)
+
+//sys    OpenService(mgr syscall.Handle, serviceName *uint16, access uint32) (handle syscall.Handle, err error) = advapi32.OpenServiceW
+//sys	QueryServiceStatus(hService syscall.Handle, lpServiceStatus *SERVICE_STATUS) (err error)  = advapi32.QueryServiceStatus
+//sys    OpenSCManager(machineName *uint16, databaseName *uint16, access uint32) (handle syscall.Handle, err error)  [failretval==0] = advapi32.OpenSCManagerW
+
+func FinalPath(h syscall.Handle, flags uint32) (string, error) {
+	buf := make([]uint16, 100)
+	for {
+		n, err := GetFinalPathNameByHandle(h, &buf[0], uint32(len(buf)), flags)
+		if err != nil {
+			return "", err
+		}
+		if n < uint32(len(buf)) {
+			break
+		}
+		buf = make([]uint16, n)
+	}
+	return syscall.UTF16ToString(buf), nil
+}
+
+// QueryPerformanceCounter retrieves the current value of performance counter.
+//
+//go:linkname QueryPerformanceCounter
+func QueryPerformanceCounter() int64 // Implemented in runtime package.
+
+// QueryPerformanceFrequency retrieves the frequency of the performance counter.
+// The returned value is represented as counts per second.
+//
+//go:linkname QueryPerformanceFrequency
+func QueryPerformanceFrequency() int64 // Implemented in runtime package.

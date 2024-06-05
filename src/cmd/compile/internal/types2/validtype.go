@@ -4,12 +4,14 @@
 
 package types2
 
+import "cmd/compile/internal/syntax"
+
 // validType verifies that the given type does not "expand" indefinitely
 // producing a cycle in the type graph.
 // (Cycles involving alias types, as in "type A = [10]A" are detected
 // earlier, via the objDecl cycle detection mechanism.)
 func (check *Checker) validType(typ *Named) {
-	check.validType0(typ, nil, nil)
+	check.validType0(nopos, typ, nil, nil)
 }
 
 // validType0 checks if the given type is valid. If typ is a type parameter
@@ -22,7 +24,20 @@ func (check *Checker) validType(typ *Named) {
 // of) F in S, leading to the nest S->F. If a type appears in its own nest
 // (say S->F->S) we have an invalid recursive type. The path list is the full
 // path of named types in a cycle, it is only needed for error reporting.
-func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
+func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) bool {
+	typ = Unalias(typ)
+
+	if check.conf.Trace {
+		if t, _ := typ.(*Named); t != nil && t.obj != nil /* obj should always exist but be conservative */ {
+			pos = t.obj.pos
+		}
+		check.indent++
+		check.trace(pos, "validType(%s) nest %v, path %v", typ, pathString(makeObjList(nest)), pathString(makeObjList(path)))
+		defer func() {
+			check.indent--
+		}()
+	}
+
 	switch t := typ.(type) {
 	case nil:
 		// We should never see a nil type but be conservative and panic
@@ -32,43 +47,54 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
 		}
 
 	case *Array:
-		return check.validType0(t.elem, nest, path)
+		return check.validType0(pos, t.elem, nest, path)
 
 	case *Struct:
 		for _, f := range t.fields {
-			if !check.validType0(f.typ, nest, path) {
+			if !check.validType0(pos, f.typ, nest, path) {
 				return false
 			}
 		}
 
 	case *Union:
 		for _, t := range t.terms {
-			if !check.validType0(t.typ, nest, path) {
+			if !check.validType0(pos, t.typ, nest, path) {
 				return false
 			}
 		}
 
 	case *Interface:
 		for _, etyp := range t.embeddeds {
-			if !check.validType0(etyp, nest, path) {
+			if !check.validType0(pos, etyp, nest, path) {
 				return false
 			}
 		}
 
 	case *Named:
-		// Exit early if we already know t is valid.
-		// This is purely an optimization but it prevents excessive computation
-		// times in pathological cases such as testdata/fixedbugs/issue6977.go.
-		// (Note: The valids map could also be allocated locally, once for each
-		// validType call.)
-		if check.valids.lookup(t) != nil {
-			break
-		}
+		// TODO(gri) The optimization below is incorrect (see go.dev/issue/65711):
+		//           in that issue `type A[P any] [1]P` is a valid type on its own
+		//           and the (uninstantiated) A is recorded in check.valids. As a
+		//           consequence, when checking the remaining declarations, which
+		//           are not valid, the validity check ends prematurely because A
+		//           is considered valid, even though its validity depends on the
+		//           type argument provided to it.
+		//
+		//           A correct optimization is important for pathological cases.
+		//           Keep code around for reference until we found an optimization.
+		//
+		// // Exit early if we already know t is valid.
+		// // This is purely an optimization but it prevents excessive computation
+		// // times in pathological cases such as testdata/fixedbugs/issue6977.go.
+		// // (Note: The valids map could also be allocated locally, once for each
+		// // validType call.)
+		// if check.valids.lookup(t) != nil {
+		// 	break
+		// }
 
 		// Don't report a 2nd error if we already know the type is invalid
 		// (e.g., if a cycle was detected earlier, via under).
 		// Note: ensure that t.orig is fully resolved by calling Underlying().
-		if t.Underlying() == Typ[Invalid] {
+		if !isValid(t.Underlying()) {
 			return false
 		}
 
@@ -109,7 +135,7 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
 				// index of t in nest. Search again.
 				for start, p := range path {
 					if Identical(p, t) {
-						check.cycleError(makeObjList(path[start:]))
+						check.cycleError(makeObjList(path[start:]), 0)
 						return false
 					}
 				}
@@ -121,18 +147,19 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
 		// Every type added to nest is also added to path; thus every type that is in nest
 		// must also be in path (invariant). But not every type in path is in nest, since
 		// nest may be pruned (see below, *TypeParam case).
-		if !check.validType0(t.Origin().fromRHS, append(nest, t), append(path, t)) {
+		if !check.validType0(pos, t.Origin().fromRHS, append(nest, t), append(path, t)) {
 			return false
 		}
 
-		check.valids.add(t) // t is valid
+		// see TODO above
+		// check.valids.add(t) // t is valid
 
 	case *TypeParam:
 		// A type parameter stands for the type (argument) it was instantiated with.
 		// Check the corresponding type argument for validity if we are in an
 		// instantiated type.
-		if len(nest) > 0 {
-			inst := nest[len(nest)-1] // the type instance
+		if d := len(nest) - 1; d >= 0 {
+			inst := nest[d] // the type instance
 			// Find the corresponding type argument for the type parameter
 			// and proceed with checking that type argument.
 			for i, tparam := range inst.TypeParams().list() {
@@ -146,7 +173,12 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
 					// the current (instantiated) type (see the example
 					// at the end of this file).
 					// For error reporting we keep the full path.
-					return check.validType0(targ, nest[:len(nest)-1], path)
+					res := check.validType0(pos, targ, nest[:d], path)
+					// The check.validType0 call with nest[:d] may have
+					// overwritten the entry at the current depth d.
+					// Restore the entry (was issue go.dev/issue/66323).
+					nest[d] = inst
+					return res
 				}
 			}
 		}

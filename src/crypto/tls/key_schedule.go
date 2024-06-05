@@ -7,6 +7,7 @@ package tls
 import (
 	"crypto/ecdh"
 	"crypto/hmac"
+	"crypto/internal/mlkem768"
 	"errors"
 	"fmt"
 	"hash"
@@ -14,6 +15,7 @@ import (
 
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/hkdf"
+	"golang.org/x/crypto/sha3"
 )
 
 // This file contains the functions necessary to compute the TLS 1.3 key
@@ -116,6 +118,45 @@ func (c *cipherSuiteTLS13) exportKeyingMaterial(masterSecret []byte, transcript 
 		return c.expandLabel(secret, "exporter", h.Sum(nil), length), nil
 	}
 }
+
+type keySharePrivateKeys struct {
+	curveID CurveID
+	ecdhe   *ecdh.PrivateKey
+	kyber   *mlkem768.DecapsulationKey
+}
+
+// kyberDecapsulate implements decapsulation according to Kyber Round 3.
+func kyberDecapsulate(dk *mlkem768.DecapsulationKey, c []byte) ([]byte, error) {
+	K, err := mlkem768.Decapsulate(dk, c)
+	if err != nil {
+		return nil, err
+	}
+	return kyberSharedSecret(K, c), nil
+}
+
+// kyberEncapsulate implements encapsulation according to Kyber Round 3.
+func kyberEncapsulate(ek []byte) (c, ss []byte, err error) {
+	c, ss, err = mlkem768.Encapsulate(ek)
+	if err != nil {
+		return nil, nil, err
+	}
+	return c, kyberSharedSecret(ss, c), nil
+}
+
+func kyberSharedSecret(K, c []byte) []byte {
+	// Package mlkem768 implements ML-KEM, which compared to Kyber removed a
+	// final hashing step. Compute SHAKE-256(K || SHA3-256(c), 32) to match Kyber.
+	// See https://words.filippo.io/mlkem768/#bonus-track-using-a-ml-kem-implementation-as-kyber-v3.
+	h := sha3.NewShake256()
+	h.Write(K)
+	ch := sha3.Sum256(c)
+	h.Write(ch[:])
+	out := make([]byte, 32)
+	h.Read(out)
+	return out
+}
+
+const x25519PublicKeySize = 32
 
 // generateECDHEKey returns a PrivateKey that implements Diffie-Hellman
 // according to RFC 8446, Section 4.2.8.2.

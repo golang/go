@@ -38,7 +38,7 @@ var X86 struct {
 	HasAVX512F          bool // Advanced vector extension 512 Foundation Instructions
 	HasAVX512CD         bool // Advanced vector extension 512 Conflict Detection Instructions
 	HasAVX512ER         bool // Advanced vector extension 512 Exponential and Reciprocal Instructions
-	HasAVX512PF         bool // Advanced vector extension 512 Prefetch Instructions Instructions
+	HasAVX512PF         bool // Advanced vector extension 512 Prefetch Instructions
 	HasAVX512VL         bool // Advanced vector extension 512 Vector Length Extensions
 	HasAVX512BW         bool // Advanced vector extension 512 Byte and Word Instructions
 	HasAVX512DQ         bool // Advanced vector extension 512 Doubleword and Quadword Instructions
@@ -54,6 +54,9 @@ var X86 struct {
 	HasAVX512VBMI2      bool // Advanced vector extension 512 Vector Byte Manipulation Instructions 2
 	HasAVX512BITALG     bool // Advanced vector extension 512 Bit Algorithms
 	HasAVX512BF16       bool // Advanced vector extension 512 BFloat16 Instructions
+	HasAMXTile          bool // Advanced Matrix Extension Tile instructions
+	HasAMXInt8          bool // Advanced Matrix Extension Int8 instructions
+	HasAMXBF16          bool // Advanced Matrix Extension BFloat16 instructions
 	HasBMI1             bool // Bit manipulation instruction set 1
 	HasBMI2             bool // Bit manipulation instruction set 2
 	HasCX16             bool // Compare and exchange 16 Bytes
@@ -100,6 +103,7 @@ var ARM64 struct {
 	HasASIMDDP  bool // Advanced SIMD double precision instruction set
 	HasSHA512   bool // SHA512 hardware implementation
 	HasSVE      bool // Scalable Vector Extensions
+	HasSVE2     bool // Scalable Vector Extensions 2
 	HasASIMDFHM bool // Advanced SIMD multiplication FP16 to FP32
 	_           CacheLinePad
 }

@@ -7,8 +7,8 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
-	"runtime/internal/syscall"
+	"internal/runtime/atomic"
+	"internal/runtime/syscall"
 	"unsafe"
 )
 
@@ -213,12 +213,13 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 }
 
 const (
-	_AT_NULL   = 0  // End of vector
-	_AT_PAGESZ = 6  // System physical page size
-	_AT_HWCAP  = 16 // hardware capability bit vector
-	_AT_SECURE = 23 // secure mode boolean
-	_AT_RANDOM = 25 // introduced in 2.6.29
-	_AT_HWCAP2 = 26 // hardware capability bit vector 2
+	_AT_NULL     = 0  // End of vector
+	_AT_PAGESZ   = 6  // System physical page size
+	_AT_PLATFORM = 15 // string identifying platform
+	_AT_HWCAP    = 16 // hardware capability bit vector
+	_AT_SECURE   = 23 // secure mode boolean
+	_AT_RANDOM   = 25 // introduced in 2.6.29
+	_AT_HWCAP2   = 26 // hardware capability bit vector 2
 )
 
 var procAuxv = []byte("/proc/self/auxv\x00")
@@ -287,10 +288,6 @@ func sysargs(argc int32, argv **byte) {
 	auxv = auxvreadbuf[: pairs*2 : pairs*2]
 }
 
-// startupRandomData holds random bytes initialized at startup. These come from
-// the ELF AT_RANDOM auxiliary vector.
-var startupRandomData []byte
-
 // secureMode holds the value of AT_SECURE passed in the auxiliary vector.
 var secureMode bool
 
@@ -302,7 +299,7 @@ func sysauxv(auxv []uintptr) (pairs int) {
 		case _AT_RANDOM:
 			// The kernel provides a pointer to 16-bytes
 			// worth of random data.
-			startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
+			startupRand = (*[16]byte)(unsafe.Pointer(val))[:]
 
 		case _AT_PAGESZ:
 			physPageSize = val
@@ -346,39 +343,16 @@ func getHugePageSize() uintptr {
 func osinit() {
 	ncpu = getproccount()
 	physHugePageSize = getHugePageSize()
-	if iscgo {
-		// #42494 glibc and musl reserve some signals for
-		// internal use and require they not be blocked by
-		// the rest of a normal C runtime. When the go runtime
-		// blocks...unblocks signals, temporarily, the blocked
-		// interval of time is generally very short. As such,
-		// these expectations of *libc code are mostly met by
-		// the combined go+cgo system of threads. However,
-		// when go causes a thread to exit, via a return from
-		// mstart(), the combined runtime can deadlock if
-		// these signals are blocked. Thus, don't block these
-		// signals when exiting threads.
-		// - glibc: SIGCANCEL (32), SIGSETXID (33)
-		// - musl: SIGTIMER (32), SIGCANCEL (33), SIGSYNCCALL (34)
-		sigdelset(&sigsetAllExiting, 32)
-		sigdelset(&sigsetAllExiting, 33)
-		sigdelset(&sigsetAllExiting, 34)
-	}
 	osArchInit()
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
 
-func getRandomData(r []byte) {
-	if startupRandomData != nil {
-		n := copy(r, startupRandomData)
-		extendRandom(r, n)
-		return
-	}
+func readRandom(r []byte) int {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	closefd(fd)
-	extendRandom(r, int(n))
+	return int(n)
 }
 
 func goenvs() {
@@ -420,6 +394,7 @@ func minit() {
 //go:nosplit
 func unminit() {
 	unminitSignals()
+	getg().m.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned
@@ -427,9 +402,9 @@ func unminit() {
 func mdestroy(mp *m) {
 }
 
-//#ifdef GOARCH_386
-//#define sa_handler k_sa_handler
-//#endif
+// #ifdef GOARCH_386
+// #define sa_handler k_sa_handler
+// #endif
 
 func sigreturn__sigaction()
 func sigtramp() // Called via C ABI
@@ -672,7 +647,7 @@ func setThreadCPUProfiler(hz int32) {
 	// activates may do a couple milliseconds of GC-related work and nothing
 	// else in the few seconds that the profiler observes.
 	spec := new(itimerspec)
-	spec.it_value.setNsec(1 + int64(fastrandn(uint32(1e9/hz))))
+	spec.it_value.setNsec(1 + int64(cheaprandn(uint32(1e9/hz))))
 	spec.it_interval.setNsec(1e9 / int64(hz))
 
 	var timerid int32
@@ -742,7 +717,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 	// N.B. Internally, this function does not depend on STW to
 	// successfully change every thread. It is only needed for user
 	// expectations, per above.
-	stopTheWorld(stwAllThreadsSyscall)
+	stw := stopTheWorld(stwAllThreadsSyscall)
 
 	// This function depends on several properties:
 	//
@@ -786,7 +761,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 	if errno != 0 {
 		releasem(getg().m)
 		allocmLock.unlock()
-		startTheWorld()
+		startTheWorld(stw)
 		return r1, r2, errno
 	}
 
@@ -871,7 +846,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 
 	releasem(getg().m)
 	allocmLock.unlock()
-	startTheWorld()
+	startTheWorld(stw)
 
 	return r1, r2, errno
 }
@@ -915,4 +890,10 @@ const (
 func (c *sigctxt) sigFromUser() bool {
 	code := int32(c.sigcode())
 	return code == _SI_USER || code == _SI_TKILL
+}
+
+//go:nosplit
+func mprotect(addr unsafe.Pointer, n uintptr, prot int32) (ret int32, errno int32) {
+	r, _, err := syscall.Syscall6(syscall.SYS_MPROTECT, uintptr(addr), n, uintptr(prot), 0, 0, 0)
+	return int32(r), int32(err)
 }

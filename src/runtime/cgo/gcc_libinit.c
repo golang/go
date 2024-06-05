@@ -4,6 +4,13 @@
 
 //go:build unix
 
+// When cross-compiling with clang to linux/armv5, atomics are emulated
+// and cause a compiler warning. This results in a build failure since
+// cgo uses -Werror. See #65290.
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Watomic-alignment"
+
 #include <pthread.h>
 #include <errno.h>
 #include <stdio.h>
@@ -80,6 +87,30 @@ _cgo_wait_runtime_init_done(void) {
 		return arg.Context;
 	}
 	return 0;
+}
+
+// _cgo_set_stacklo sets g->stacklo based on the stack size.
+// This is common code called from x_cgo_init, which is itself
+// called by rt0_go in the runtime package.
+void _cgo_set_stacklo(G *g, uintptr *pbounds)
+{
+	uintptr bounds[2];
+
+	// pbounds can be passed in by the caller; see gcc_linux_amd64.c.
+	if (pbounds == NULL) {
+		pbounds = &bounds[0];
+	}
+
+	x_cgo_getstackbound(pbounds);
+
+	g->stacklo = *pbounds;
+
+	// Sanity check the results now, rather than getting a
+	// morestack on g0 crash.
+	if (g->stacklo >= g->stackhi) {
+		fprintf(stderr, "runtime/cgo: bad stack bounds: lo=%p hi=%p\n", (void*)(g->stacklo), (void*)(g->stackhi));
+		abort();
+	}
 }
 
 // Store the g into a thread-specific value associated with the pthread key pthread_g.

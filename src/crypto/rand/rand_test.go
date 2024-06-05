@@ -41,3 +41,22 @@ func TestReadEmpty(t *testing.T) {
 		t.Fatalf("Read(nil) = %d, %v", n, err)
 	}
 }
+
+func BenchmarkRead(b *testing.B) {
+	b.Run("32", func(b *testing.B) {
+		benchmarkRead(b, 32)
+	})
+	b.Run("4K", func(b *testing.B) {
+		benchmarkRead(b, 4<<10)
+	})
+}
+
+func benchmarkRead(b *testing.B, size int) {
+	b.SetBytes(int64(size))
+	buf := make([]byte, size)
+	for i := 0; i < b.N; i++ {
+		if _, err := Read(buf); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

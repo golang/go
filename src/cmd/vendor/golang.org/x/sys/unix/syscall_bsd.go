@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin || dragonfly || freebsd || netbsd || openbsd
-// +build darwin dragonfly freebsd netbsd openbsd
 
 // BSD system call wrappers shared by *BSD based systems
 // including OS X (Darwin) and FreeBSD.  Like the other
@@ -317,7 +316,7 @@ func GetsockoptString(fd, level, opt int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(buf[:vallen-1]), nil
+	return ByteSliceToString(buf[:vallen]), nil
 }
 
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
@@ -600,20 +599,6 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
 //	Acct(name nil-string) (err error)
 //	Gethostuuid(uuid *byte, timeout *Timespec) (err error)
 //	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, err error)
-
-var mapper = &mmapper{
-	active: make(map[*byte][]byte),
-	mmap:   mmap,
-	munmap: munmap,
-}
-
-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
-	return mapper.Mmap(fd, offset, length, prot, flags)
-}
-
-func Munmap(b []byte) (err error) {
-	return mapper.Munmap(b)
-}
 
 //sys	Madvise(b []byte, behav int) (err error)
 //sys	Mlock(b []byte) (err error)

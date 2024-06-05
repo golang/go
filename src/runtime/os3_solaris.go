@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -198,11 +198,11 @@ func exitThread(wait *atomic.Uint32) {
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	closefd(fd)
-	extendRandom(r, int(n))
+	return int(n)
 }
 
 func goenvs() {
@@ -231,6 +231,7 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 func unminit() {
 	unminitSignals()
+	getg().m.procid = 0
 }
 
 // Called from exitm, but not from drop, to undo the effect of thread-owned

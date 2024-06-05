@@ -16,6 +16,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"math/big"
 	"net"
 	"net/url"
@@ -415,6 +416,26 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 	return
 }
 
+func parseAuthorityKeyIdentifier(e pkix.Extension) ([]byte, error) {
+	// RFC 5280, Section 4.2.1.1
+	if e.Critical {
+		// Conforming CAs MUST mark this extension as non-critical
+		return nil, errors.New("x509: authority key identifier incorrectly marked critical")
+	}
+	val := cryptobyte.String(e.Value)
+	var akid cryptobyte.String
+	if !val.ReadASN1(&akid, cryptobyte_asn1.SEQUENCE) {
+		return nil, errors.New("x509: invalid authority key identifier")
+	}
+	if akid.PeekASN1Tag(cryptobyte_asn1.Tag(0).ContextSpecific()) {
+		if !akid.ReadASN1(&akid, cryptobyte_asn1.Tag(0).ContextSpecific()) {
+			return nil, errors.New("x509: invalid authority key identifier")
+		}
+		return akid, nil
+	}
+	return nil, nil
+}
+
 func parseExtKeyUsageExtension(der cryptobyte.String) ([]ExtKeyUsage, []asn1.ObjectIdentifier, error) {
 	var extKeyUsages []ExtKeyUsage
 	var unknownUsages []asn1.ObjectIdentifier
@@ -435,23 +456,23 @@ func parseExtKeyUsageExtension(der cryptobyte.String) ([]ExtKeyUsage, []asn1.Obj
 	return extKeyUsages, unknownUsages, nil
 }
 
-func parseCertificatePoliciesExtension(der cryptobyte.String) ([]asn1.ObjectIdentifier, error) {
-	var oids []asn1.ObjectIdentifier
+func parseCertificatePoliciesExtension(der cryptobyte.String) ([]OID, error) {
+	var oids []OID
 	if !der.ReadASN1(&der, cryptobyte_asn1.SEQUENCE) {
 		return nil, errors.New("x509: invalid certificate policies")
 	}
 	for !der.Empty() {
 		var cp cryptobyte.String
-		if !der.ReadASN1(&cp, cryptobyte_asn1.SEQUENCE) {
+		var OIDBytes cryptobyte.String
+		if !der.ReadASN1(&cp, cryptobyte_asn1.SEQUENCE) || !cp.ReadASN1(&OIDBytes, cryptobyte_asn1.OBJECT_IDENTIFIER) {
 			return nil, errors.New("x509: invalid certificate policies")
 		}
-		var oid asn1.ObjectIdentifier
-		if !cp.ReadASN1ObjectIdentifier(&oid) {
+		oid, ok := newOIDFromDER(OIDBytes)
+		if !ok {
 			return nil, errors.New("x509: invalid certificate policies")
 		}
 		oids = append(oids, oid)
 	}
-
 	return oids, nil
 }
 
@@ -722,17 +743,9 @@ func processExtensions(out *Certificate) error {
 				}
 
 			case 35:
-				// RFC 5280, 4.2.1.1
-				val := cryptobyte.String(e.Value)
-				var akid cryptobyte.String
-				if !val.ReadASN1(&akid, cryptobyte_asn1.SEQUENCE) {
-					return errors.New("x509: invalid authority key identifier")
-				}
-				if akid.PeekASN1Tag(cryptobyte_asn1.Tag(0).ContextSpecific()) {
-					if !akid.ReadASN1(&akid, cryptobyte_asn1.Tag(0).ContextSpecific()) {
-						return errors.New("x509: invalid authority key identifier")
-					}
-					out.AuthorityKeyId = akid
+				out.AuthorityKeyId, err = parseAuthorityKeyIdentifier(e)
+				if err != nil {
+					return err
 				}
 			case 37:
 				out.ExtKeyUsage, out.UnknownExtKeyUsage, err = parseExtKeyUsageExtension(e.Value)
@@ -741,6 +754,10 @@ func processExtensions(out *Certificate) error {
 				}
 			case 14:
 				// RFC 5280, 4.2.1.2
+				if e.Critical {
+					// Conforming CAs MUST mark this extension as non-critical
+					return errors.New("x509: subject key identifier incorrectly marked critical")
+				}
 				val := cryptobyte.String(e.Value)
 				var skid cryptobyte.String
 				if !val.ReadASN1(&skid, cryptobyte_asn1.OCTET_STRING) {
@@ -748,9 +765,15 @@ func processExtensions(out *Certificate) error {
 				}
 				out.SubjectKeyId = skid
 			case 32:
-				out.PolicyIdentifiers, err = parseCertificatePoliciesExtension(e.Value)
+				out.Policies, err = parseCertificatePoliciesExtension(e.Value)
 				if err != nil {
 					return err
+				}
+				out.PolicyIdentifiers = make([]asn1.ObjectIdentifier, 0, len(out.Policies))
+				for _, oid := range out.Policies {
+					if oid, ok := oid.toASN1OID(); ok {
+						out.PolicyIdentifiers = append(out.PolicyIdentifiers, oid)
+					}
 				}
 			default:
 				// Unknown extensions are recorded if critical.
@@ -758,6 +781,10 @@ func processExtensions(out *Certificate) error {
 			}
 		} else if e.Id.Equal(oidExtensionAuthorityInfoAccess) {
 			// RFC 5280 4.2.2.1: Authority Information Access
+			if e.Critical {
+				// Conforming CAs MUST mark this extension as non-critical
+				return errors.New("x509: authority info access incorrectly marked critical")
+			}
 			val := cryptobyte.String(e.Value)
 			if !val.ReadASN1(&val, cryptobyte_asn1.SEQUENCE) {
 				return errors.New("x509: invalid authority info access")
@@ -796,6 +823,9 @@ func processExtensions(out *Certificate) error {
 
 	return nil
 }
+
+var x509negativeserial = godebug.New("x509negativeserial")
+var x509seriallength = godebug.New("x509seriallength")
 
 func parseCertificate(der []byte) (*Certificate, error) {
 	cert := &Certificate{}
@@ -836,15 +866,34 @@ func parseCertificate(der []byte) (*Certificate, error) {
 		return nil, errors.New("x509: invalid version")
 	}
 
-	serial := new(big.Int)
-	if !tbs.ReadASN1Integer(serial) {
+	var serialBytes cryptobyte.String
+	if !tbs.ReadASN1Element(&serialBytes, cryptobyte_asn1.INTEGER) {
 		return nil, errors.New("x509: malformed serial number")
 	}
-	// we ignore the presence of negative serial numbers because
-	// of their prevalence, despite them being invalid
-	// TODO(rolandshoemaker): revisit this decision, there are currently
-	// only 10 trusted certificates with negative serial numbers
-	// according to censys.io.
+	// We add two bytes for the tag and length (if the length was multi-byte,
+	// which is possible, the length of the serial would be more than 256 bytes,
+	// so this condition would trigger anyway).
+	if len(serialBytes) > 20+2 {
+		if x509seriallength.Value() != "1" {
+			return nil, errors.New("x509: serial number too long (>20 octets)")
+		} else {
+			x509seriallength.IncNonDefault()
+		}
+	}
+	serial := new(big.Int)
+	if !serialBytes.ReadASN1Integer(serial) {
+		return nil, errors.New("x509: malformed serial number")
+	}
+	// We do not reject zero serials, because they are unfortunately common
+	// in important root certificates which will not expire for a number of
+	// years.
+	if serial.Sign() == -1 {
+		if x509negativeserial.Value() != "1" {
+			return nil, errors.New("x509: negative serial number")
+		} else {
+			x509negativeserial.IncNonDefault()
+		}
+	}
 	cert.SerialNumber = serial
 
 	var sigAISeq cryptobyte.String
@@ -958,7 +1007,7 @@ func parseCertificate(der []byte) (*Certificate, error) {
 					}
 					oidStr := ext.Id.String()
 					if seenExts[oidStr] {
-						return nil, errors.New("x509: certificate contains duplicate extensions")
+						return nil, fmt.Errorf("x509: certificate contains duplicate extension with OID %q", oidStr)
 					}
 					seenExts[oidStr] = true
 					cert.Extensions = append(cert.Extensions, ext)
@@ -981,6 +1030,14 @@ func parseCertificate(der []byte) (*Certificate, error) {
 }
 
 // ParseCertificate parses a single certificate from the given ASN.1 DER data.
+//
+// Before Go 1.23, ParseCertificate accepted certificates with negative serial
+// numbers. This behavior can be restored by including "x509negativeserial=1" in
+// the GODEBUG environment variable.
+//
+// Before Go 1.23, ParseCertificate accepted certificates with serial numbers
+// longer than 20 octets. This behavior can be restored by including
+// "x509seriallength=1" in the GODEBUG environment variable.
 func ParseCertificate(der []byte) (*Certificate, error) {
 	cert, err := parseCertificate(der)
 	if err != nil {
@@ -1011,7 +1068,7 @@ func ParseCertificates(der []byte) ([]*Certificate, error) {
 // the actual encoded version, so the version for X.509v2 is 1.
 const x509v2Version = 1
 
-// ParseRevocationList parses a X509 v2 Certificate Revocation List from the given
+// ParseRevocationList parses a X509 v2 [Certificate] Revocation List from the given
 // ASN.1 DER data.
 func ParseRevocationList(der []byte) (*RevocationList, error) {
 	rl := &RevocationList{}
@@ -1177,7 +1234,10 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 				return nil, err
 			}
 			if ext.Id.Equal(oidExtensionAuthorityKeyId) {
-				rl.AuthorityKeyId = ext.Value
+				rl.AuthorityKeyId, err = parseAuthorityKeyIdentifier(ext)
+				if err != nil {
+					return nil, err
+				}
 			} else if ext.Id.Equal(oidExtensionCRLNumber) {
 				value := cryptobyte.String(ext.Value)
 				rl.Number = new(big.Int)

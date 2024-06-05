@@ -54,9 +54,6 @@ func checkGdbEnvironment(t *testing.T) {
 	case "plan9":
 		t.Skip("there is no gdb on Plan 9")
 	}
-	if final := os.Getenv("GOROOT_FINAL"); final != "" && testenv.GOROOT(t) != final {
-		t.Skip("gdb test can fail with GOROOT_FINAL pending")
-	}
 }
 
 func checkGdbVersion(t *testing.T) {
@@ -85,8 +82,9 @@ func checkGdbPython(t *testing.T) {
 	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
 		t.Skip("skipping gdb python tests on illumos and solaris; see golang.org/issue/20821")
 	}
-
-	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')")
+	args := []string{"-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')"}
+	gdbArgsFixup(args)
+	cmd := exec.Command("gdb", args...)
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -154,6 +152,25 @@ func lastLine(src []byte) int {
 		}
 	}
 	return 0
+}
+
+func gdbArgsFixup(args []string) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	// On Windows, some gdb flavors expect -ex and -iex arguments
+	// containing spaces to be double quoted.
+	var quote bool
+	for i, arg := range args {
+		if arg == "-iex" || arg == "-ex" {
+			quote = true
+		} else if quote {
+			if strings.ContainsRune(arg, ' ') {
+				args[i] = `"` + arg + `"`
+			}
+			quote = false
+		}
+	}
 }
 
 func TestGdbPython(t *testing.T) {
@@ -269,30 +286,14 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo END\n",
 		filepath.Join(dir, "a.exe"),
 	)
+	gdbArgsFixup(args)
 	got, err := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
 		t.Fatalf("gdb exited with error: %v", err)
 	}
 
-	firstLine, _, _ := bytes.Cut(got, []byte("\n"))
-	if string(firstLine) != "Loading Go Runtime support." {
-		// This can happen when using all.bash with
-		// GOROOT_FINAL set, because the tests are run before
-		// the final installation of the files.
-		cmd := exec.Command(testenv.GoToolPath(t), "env", "GOROOT")
-		cmd.Env = []string{}
-		out, err := cmd.CombinedOutput()
-		if err != nil && bytes.Contains(out, []byte("cannot find GOROOT")) {
-			t.Skipf("skipping because GOROOT=%s does not exist", testenv.GOROOT(t))
-		}
-
-		_, file, _, _ := runtime.Caller(1)
-
-		t.Logf("package testing source file: %s", file)
-		t.Fatalf("failed to load Go runtime support: %s\n%s", firstLine, got)
-	}
-
+	got = bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n")) // normalize line endings
 	// Extract named BEGIN...END blocks from output
 	partRe := regexp.MustCompile(`(?ms)^BEGIN ([^\n]*)\n(.*?)\nEND`)
 	blocks := map[string]string{}
@@ -442,6 +443,7 @@ func TestGdbBacktrace(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
+	gdbArgsFixup(args)
 	cmd = testenv.Command(t, "gdb", args...)
 
 	// Work around the GDB hang reported in https://go.dev/issue/37405.
@@ -562,6 +564,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
 		"-ex", "info types astruct",
 		filepath.Join(dir, "a.exe"),
 	}
+	gdbArgsFixup(args)
 	got, err := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
@@ -630,6 +633,7 @@ func TestGdbConst(t *testing.T) {
 		"-ex", "print 'runtime._PageSize'",
 		filepath.Join(dir, "a.exe"),
 	}
+	gdbArgsFixup(args)
 	got, err := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
@@ -692,6 +696,7 @@ func TestGdbPanic(t *testing.T) {
 		"-ex", "backtrace",
 		filepath.Join(dir, "a.exe"),
 	}
+	gdbArgsFixup(args)
 	got, err := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
@@ -770,6 +775,7 @@ func TestGdbInfCallstack(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
+	gdbArgsFixup(args)
 	got, err := exec.Command("gdb", args...).CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {

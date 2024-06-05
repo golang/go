@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go test cmd/go -v -run=TestDocsUpToDate -fixdocs
+//go:generate go test cmd/go -v -run=^TestDocsUpToDate$ -fixdocs
 
 package main
 
 import (
-	"cmd/go/internal/toolchain"
-	"cmd/go/internal/workcmd"
 	"context"
 	"flag"
 	"fmt"
@@ -16,7 +14,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	rtrace "runtime/trace"
 	"slices"
 	"strings"
@@ -30,7 +27,6 @@ import (
 	"cmd/go/internal/fix"
 	"cmd/go/internal/fmtcmd"
 	"cmd/go/internal/generate"
-	"cmd/go/internal/get"
 	"cmd/go/internal/help"
 	"cmd/go/internal/list"
 	"cmd/go/internal/modcmd"
@@ -38,12 +34,17 @@ import (
 	"cmd/go/internal/modget"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
+	"cmd/go/internal/telemetrycmd"
+	"cmd/go/internal/telemetrystats"
 	"cmd/go/internal/test"
 	"cmd/go/internal/tool"
+	"cmd/go/internal/toolchain"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/version"
 	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
+	"cmd/go/internal/workcmd"
+	"cmd/internal/telemetry"
 )
 
 func init() {
@@ -62,6 +63,7 @@ func init() {
 		modcmd.CmdMod,
 		workcmd.CmdWork,
 		run.CmdRun,
+		telemetrycmd.CmdTelemetry,
 		test.CmdTest,
 		tool.CmdTool,
 		version.CmdVersion,
@@ -75,11 +77,9 @@ func init() {
 		help.HelpFileType,
 		modload.HelpGoMod,
 		help.HelpGopath,
-		get.HelpGopathGet,
 		modfetch.HelpGoproxy,
 		help.HelpImportPath,
 		modload.HelpModules,
-		modget.HelpModuleGet,
 		modfetch.HelpModuleAuth,
 		help.HelpPackages,
 		modfetch.HelpPrivate,
@@ -91,36 +91,59 @@ func init() {
 
 var _ = go11tag
 
+var counterErrorsGOPATHEntryRelative = telemetry.NewCounter("go/errors:gopath-entry-relative")
+
 func main() {
 	log.SetFlags(0)
+	telemetry.Start() // Open the telemetry counter file so counters can be written to it.
 	handleChdirFlag()
 	toolchain.Select()
 
+	telemetry.StartWithUpload() // Run the upload process. Opening the counter file is idempotent.
 	flag.Usage = base.Usage
 	flag.Parse()
+	telemetry.Inc("go/invocations")
+	telemetry.CountFlags("go/flag:", *flag.CommandLine)
 
 	args := flag.Args()
 	if len(args) < 1 {
 		base.Usage()
 	}
 
-	if args[0] == "get" || args[0] == "help" {
-		if !modload.WillBeEnabled() {
-			// Replace module-aware get with GOPATH get if appropriate.
-			*modget.CmdGet = *get.CmdGet
-		}
-	}
-
 	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
+		telemetry.Inc("go/subcommand:" + strings.Join(append([]string{"help"}, args[1:]...), "-"))
 		help.Help(os.Stdout, args[1:])
 		return
+	}
+
+	if cfg.GOROOT == "" {
+		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
+		os.Exit(2)
+	}
+	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
+		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
+		os.Exit(2)
+	}
+	switch strings.ToLower(cfg.GOROOT) {
+	case "/usr/local/go": // Location recommended for installation on Linux and Darwin and used by Mac installer.
+		telemetry.Inc("go/goroot:usr-local-go")
+	case "/usr/lib/go": // A typical location used by Linux package managers.
+		telemetry.Inc("go/goroot:usr-lib-go")
+	case "/usr/lib/golang": // Another typical location used by Linux package managers.
+		telemetry.Inc("go/goroot:usr-lib-golang")
+	case `c:\program files\go`: // Location used by Windows installer.
+		telemetry.Inc("go/goroot:program-files-go")
+	case `c:\program files (x86)\go`: // Location used by 386 Windows installer on amd64 platform.
+		telemetry.Inc("go/goroot:program-files-x86-go")
+	default:
+		telemetry.Inc("go/goroot:other")
 	}
 
 	// Diagnose common mistake: GOPATH==GOROOT.
 	// This setting is equivalent to not setting GOPATH at all,
 	// which is not what most people want when they do it.
-	if gopath := cfg.BuildContext.GOPATH; filepath.Clean(gopath) == filepath.Clean(runtime.GOROOT()) {
+	if gopath := cfg.BuildContext.GOPATH; filepath.Clean(gopath) == filepath.Clean(cfg.GOROOT) {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
 		for _, p := range filepath.SplitList(gopath) {
@@ -142,20 +165,12 @@ func main() {
 					// Instead of dying, uninfer it.
 					cfg.BuildContext.GOPATH = ""
 				} else {
+					counterErrorsGOPATHEntryRelative.Inc()
 					fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
 					os.Exit(2)
 				}
 			}
 		}
-	}
-
-	if cfg.GOROOT == "" {
-		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
-		os.Exit(2)
-	}
-	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
-		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
-		os.Exit(2)
 	}
 
 	cmd, used := lookupCmd(args)
@@ -168,6 +183,7 @@ func main() {
 		}
 		if args[used] == "help" {
 			// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
+			telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-" + strings.Join(args[used:], "-"))
 			help.Help(os.Stdout, append(slices.Clip(args[:used]), args[used+1:]...))
 			base.Exit()
 		}
@@ -175,10 +191,23 @@ func main() {
 		if used > 0 {
 			helpArg += " " + strings.Join(args[:used], " ")
 		}
-		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)
+		cmdName := cfg.CmdName
+		if cmdName == "" {
+			cmdName = args[0]
+		}
+		telemetry.Inc("go/subcommand:unknown")
+		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
+	// Increment a subcommand counter for the subcommand we're running.
+	// Don't increment the counter for the tool subcommand here: we'll
+	// increment in the tool subcommand's Run function because we need
+	// to do the flag processing in invoke first.
+	if cfg.CmdName != "tool" {
+		telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
+	}
+	telemetrystats.Increment()
 	invoke(cmd, args[used-1:])
 	base.Exit()
 }
@@ -243,6 +272,9 @@ func invoke(cmd *base.Command, args []string) {
 	} else {
 		base.SetFromGOFLAGS(&cmd.Flag)
 		cmd.Flag.Parse(args[1:])
+		flagCounterPrefix := "go/" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "/flag"
+		telemetry.CountFlags(flagCounterPrefix+":", cmd.Flag)
+		telemetry.CountFlagValue(flagCounterPrefix+"/", cmd.Flag, "buildmode")
 		args = cmd.Flag.Args()
 	}
 
@@ -256,6 +288,7 @@ func invoke(cmd *base.Command, args []string) {
 		}
 		defer func() {
 			rtrace.Stop()
+			f.Close()
 		}()
 	}
 
@@ -327,6 +360,7 @@ func handleChdirFlag() {
 		_, dir, _ = strings.Cut(a, "=")
 		os.Args = slices.Delete(os.Args, used, used+1)
 	}
+	telemetry.Inc("go/flag:C")
 
 	if err := os.Chdir(dir); err != nil {
 		base.Fatalf("go: %v", err)

@@ -43,7 +43,7 @@ import (
 // A Pool must not be copied after first use.
 //
 // In the terminology of the Go memory model, a call to Put(x) “synchronizes before”
-// a call to Get returning that same value x.
+// a call to [Pool.Get] returning that same value x.
 // Similarly, a call to New returning x “synchronizes before”
 // a call to Get returning that same value x.
 type Pool struct {
@@ -76,7 +76,9 @@ type poolLocal struct {
 }
 
 // from runtime
-func fastrandn(n uint32) uint32
+//
+//go:linkname runtime_randn runtime.randn
+func runtime_randn(n uint32) uint32
 
 var poolRaceHash [128]uint64
 
@@ -97,7 +99,7 @@ func (p *Pool) Put(x any) {
 		return
 	}
 	if race.Enabled {
-		if fastrandn(4) == 0 {
+		if runtime_randn(4) == 0 {
 			// Randomly drop x on floor.
 			return
 		}
@@ -116,10 +118,10 @@ func (p *Pool) Put(x any) {
 	}
 }
 
-// Get selects an arbitrary item from the Pool, removes it from the
+// Get selects an arbitrary item from the [Pool], removes it from the
 // Pool, and returns it to the caller.
 // Get may choose to ignore the pool and treat it as empty.
-// Callers should not assume any relation between values passed to Put and
+// Callers should not assume any relation between values passed to [Pool.Put] and
 // the values returned by Get.
 //
 // If Get would otherwise return nil and p.New is non-nil, Get returns
@@ -196,6 +198,13 @@ func (p *Pool) getSlow(pid int) any {
 // returns poolLocal pool for the P and the P's id.
 // Caller must call runtime_procUnpin() when done with the pool.
 func (p *Pool) pin() (*poolLocal, int) {
+	// Check whether p is nil to get a panic.
+	// Otherwise the nil dereference happens while the m is pinned,
+	// causing a fatal error rather than a panic.
+	if p == nil {
+		panic("nil Pool")
+	}
+
 	pid := runtime_procPin()
 	// In pinSlow we store to local and then to localSize, here we load in opposite order.
 	// Since we've disabled preemption, GC cannot happen in between.
@@ -233,6 +242,16 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
 	return &local[pid], pid
 }
 
+// poolCleanup should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//   - github.com/songzhibin97/gkit
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname poolCleanup
 func poolCleanup() {
 	// This function is called with the world stopped, at the beginning of a garbage collection.
 	// It must not allocate and probably should not call any runtime functions.
@@ -286,12 +305,12 @@ func runtime_registerPoolCleanup(cleanup func())
 func runtime_procPin() int
 func runtime_procUnpin()
 
-// The below are implemented in runtime/internal/atomic and the
+// The below are implemented in internal/runtime/atomic and the
 // compiler also knows to intrinsify the symbol we linkname into this
 // package.
 
-//go:linkname runtime_LoadAcquintptr runtime/internal/atomic.LoadAcquintptr
+//go:linkname runtime_LoadAcquintptr internal/runtime/atomic.LoadAcquintptr
 func runtime_LoadAcquintptr(ptr *uintptr) uintptr
 
-//go:linkname runtime_StoreReluintptr runtime/internal/atomic.StoreReluintptr
+//go:linkname runtime_StoreReluintptr internal/runtime/atomic.StoreReluintptr
 func runtime_StoreReluintptr(ptr *uintptr, val uintptr) uintptr

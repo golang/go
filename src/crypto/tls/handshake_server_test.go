@@ -52,18 +52,36 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 	ctx := context.Background()
 	conn := Server(s, serverConfig)
 	ch, err := conn.readClientHello(ctx)
-	hs := serverHandshakeState{
-		c:           conn,
-		ctx:         ctx,
-		clientHello: ch,
-	}
-	if err == nil {
-		err = hs.processClientHello()
-	}
-	if err == nil {
-		err = hs.pickCipherSuite()
+	if conn.vers == VersionTLS13 {
+		hs := serverHandshakeStateTLS13{
+			c:           conn,
+			ctx:         ctx,
+			clientHello: ch,
+		}
+		if err == nil {
+			err = hs.processClientHello()
+		}
+		if err == nil {
+			err = hs.checkForResumption()
+		}
+		if err == nil {
+			err = hs.pickCertificate()
+		}
+	} else {
+		hs := serverHandshakeState{
+			c:           conn,
+			ctx:         ctx,
+			clientHello: ch,
+		}
+		if err == nil {
+			err = hs.processClientHello()
+		}
+		if err == nil {
+			err = hs.pickCipherSuite()
+		}
 	}
 	s.Close()
+	t.Helper()
 	if len(expectedSubStr) == 0 {
 		if err != nil && err != io.EOF {
 			t.Errorf("Got error: %s; expected to succeed", err)
@@ -389,21 +407,22 @@ func TestClose(t *testing.T) {
 func TestVersion(t *testing.T) {
 	serverConfig := &Config{
 		Certificates: testConfig.Certificates,
-		MaxVersion:   VersionTLS11,
+		MaxVersion:   VersionTLS13,
 	}
 	clientConfig := &Config{
 		InsecureSkipVerify: true,
-		MinVersion:         VersionTLS10,
+		MinVersion:         VersionTLS12,
 	}
 	state, _, err := testHandshake(t, clientConfig, serverConfig)
 	if err != nil {
 		t.Fatalf("handshake failed: %s", err)
 	}
-	if state.Version != VersionTLS11 {
+	if state.Version != VersionTLS13 {
 		t.Fatalf("incorrect version %x, should be %x", state.Version, VersionTLS11)
 	}
 
 	clientConfig.MinVersion = 0
+	serverConfig.MaxVersion = VersionTLS11
 	_, _, err = testHandshake(t, clientConfig, serverConfig)
 	if err == nil {
 		t.Fatalf("expected failure to connect with TLS 1.0/1.1")
@@ -487,17 +506,17 @@ func testCrossVersionResume(t *testing.T, version uint16) {
 		InsecureSkipVerify: true,
 		ClientSessionCache: NewLRUClientSessionCache(1),
 		ServerName:         "servername",
-		MinVersion:         VersionTLS10,
+		MinVersion:         VersionTLS12,
 	}
 
-	// Establish a session at TLS 1.1.
-	clientConfig.MaxVersion = VersionTLS11
+	// Establish a session at TLS 1.3.
+	clientConfig.MaxVersion = VersionTLS13
 	_, _, err := testHandshake(t, clientConfig, serverConfig)
 	if err != nil {
 		t.Fatalf("handshake failed: %s", err)
 	}
 
-	// The client session cache now contains a TLS 1.1 session.
+	// The client session cache now contains a TLS 1.3 session.
 	state, _, err := testHandshake(t, clientConfig, serverConfig)
 	if err != nil {
 		t.Fatalf("handshake failed: %s", err)
@@ -507,7 +526,7 @@ func testCrossVersionResume(t *testing.T, version uint16) {
 	}
 
 	// Test that the server will decline to resume at a lower version.
-	clientConfig.MaxVersion = VersionTLS10
+	clientConfig.MaxVersion = VersionTLS12
 	state, _, err = testHandshake(t, clientConfig, serverConfig)
 	if err != nil {
 		t.Fatalf("handshake failed: %s", err)
@@ -516,7 +535,7 @@ func testCrossVersionResume(t *testing.T, version uint16) {
 		t.Fatalf("handshake resumed at a lower version")
 	}
 
-	// The client session cache now contains a TLS 1.0 session.
+	// The client session cache now contains a TLS 1.2 session.
 	state, _, err = testHandshake(t, clientConfig, serverConfig)
 	if err != nil {
 		t.Fatalf("handshake failed: %s", err)
@@ -526,7 +545,7 @@ func testCrossVersionResume(t *testing.T, version uint16) {
 	}
 
 	// Test that the server will decline to resume at a higher version.
-	clientConfig.MaxVersion = VersionTLS11
+	clientConfig.MaxVersion = VersionTLS13
 	state, _, err = testHandshake(t, clientConfig, serverConfig)
 	if err != nil {
 		t.Fatalf("handshake failed: %s", err)
@@ -902,8 +921,50 @@ func TestHandshakeServerHelloRetryRequest(t *testing.T) {
 		name:    "HelloRetryRequest",
 		command: []string{"openssl", "s_client", "-no_ticket", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256", "-curves", "X25519:P-256"},
 		config:  config,
+		validate: func(cs ConnectionState) error {
+			if !cs.testingOnlyDidHRR {
+				return errors.New("expected HelloRetryRequest")
+			}
+			return nil
+		},
 	}
 	runServerTestTLS13(t, test)
+}
+
+// TestHandshakeServerKeySharePreference checks that we prefer a key share even
+// if it's later in the CurvePreferences order.
+func TestHandshakeServerKeySharePreference(t *testing.T) {
+	config := testConfig.Clone()
+	config.CurvePreferences = []CurveID{X25519, CurveP256}
+
+	test := &serverTest{
+		name:    "KeySharePreference",
+		command: []string{"openssl", "s_client", "-no_ticket", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256", "-curves", "P-256:X25519"},
+		config:  config,
+		validate: func(cs ConnectionState) error {
+			if cs.testingOnlyDidHRR {
+				return errors.New("unexpected HelloRetryRequest")
+			}
+			return nil
+		},
+	}
+	runServerTestTLS13(t, test)
+}
+
+// TestHandshakeServerUnsupportedKeyShare tests a client that sends a key share
+// that's not in the supported groups list.
+func TestHandshakeServerUnsupportedKeyShare(t *testing.T) {
+	pk, _ := ecdh.X25519().GenerateKey(rand.Reader)
+	clientHello := &clientHelloMsg{
+		vers:               VersionTLS12,
+		random:             make([]byte, 32),
+		supportedVersions:  []uint16{VersionTLS13},
+		cipherSuites:       []uint16{TLS_CHACHA20_POLY1305_SHA256},
+		compressionMethods: []uint8{compressionNone},
+		keyShares:          []keyShare{{group: X25519, data: pk.PublicKey().Bytes()}},
+		supportedCurves:    []CurveID{CurveP256},
+	}
+	testClientHelloFailure(t, testConfig, clientHello, "client sent key share for group it does not support")
 }
 
 func TestHandshakeServerALPN(t *testing.T) {
@@ -997,7 +1058,7 @@ func TestHandshakeServerSNI(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
-// TestHandshakeServerSNICertForName is similar to TestHandshakeServerSNI, but
+// TestHandshakeServerSNIGetCertificate is similar to TestHandshakeServerSNI, but
 // tests the dynamic GetCertificate method
 func TestHandshakeServerSNIGetCertificate(t *testing.T) {
 	config := testConfig.Clone()
@@ -1017,7 +1078,7 @@ func TestHandshakeServerSNIGetCertificate(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
-// TestHandshakeServerSNICertForNameNotFound is similar to
+// TestHandshakeServerSNIGetCertificateNotFound is similar to
 // TestHandshakeServerSNICertForName, but tests to make sure that when the
 // GetCertificate method doesn't return a cert, we fall back to what's in
 // the NameToCertificate map.
@@ -1035,7 +1096,7 @@ func TestHandshakeServerSNIGetCertificateNotFound(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
-// TestHandshakeServerSNICertForNameError tests to make sure that errors in
+// TestHandshakeServerSNIGetCertificateError tests to make sure that errors in
 // GetCertificate result in a tls alert.
 func TestHandshakeServerSNIGetCertificateError(t *testing.T) {
 	const errMsg = "TestHandshakeServerSNIGetCertificateError error"
@@ -1170,6 +1231,7 @@ func TestServerResumptionDisabled(t *testing.T) {
 func TestFallbackSCSV(t *testing.T) {
 	serverConfig := Config{
 		Certificates: testConfig.Certificates,
+		MinVersion:   VersionTLS11,
 	}
 	test := &serverTest{
 		name:   "FallbackSCSV",
@@ -1930,6 +1992,7 @@ func TestAESCipherReorderingTLS13(t *testing.T) {
 					supportedVersions:  []uint16{VersionTLS13},
 					compressionMethods: []uint8{compressionNone},
 					keyShares:          []keyShare{{group: X25519, data: pk.PublicKey().Bytes()}},
+					supportedCurves:    []CurveID{X25519},
 				},
 			}
 

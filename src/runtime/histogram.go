@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -132,6 +132,19 @@ func (h *timeHistogram) record(duration int64) {
 	// The sub-bucket index is just next timeHistSubBucketBits after the bucketBit.
 	subBucket := uint(duration>>(bucketBit-1-timeHistSubBucketBits)) % timeHistNumSubBuckets
 	h.counts[bucket*timeHistNumSubBuckets+subBucket].Add(1)
+}
+
+// write dumps the histogram to the passed metricValue as a float64 histogram.
+func (h *timeHistogram) write(out *metricValue) {
+	hist := out.float64HistOrInit(timeHistBuckets)
+	// The bottom-most bucket, containing negative values, is tracked
+	// separately as underflow, so fill that in manually and then iterate
+	// over the rest.
+	hist.counts[0] = h.underflow.Load()
+	for i := range h.counts {
+		hist.counts[i+1] = h.counts[i].Load()
+	}
+	hist.counts[len(hist.counts)-1] = h.overflow.Load()
 }
 
 const (

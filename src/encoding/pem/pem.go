@@ -12,7 +12,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -25,7 +25,7 @@ import (
 //	base64-encoded Bytes
 //	-----END Type-----
 //
-// where Headers is a possibly empty sequence of Key: Value lines.
+// where [Block.Headers] is a possibly empty sequence of Key: Value lines.
 type Block struct {
 	Type    string            // The type, taken from the preamble (i.e. "RSA PRIVATE KEY").
 	Headers map[string]string // Optional headers.
@@ -274,7 +274,7 @@ func Encode(out io.Writer, b *Block) error {
 			}
 		}
 		// For consistency of output, write other headers sorted by key.
-		sort.Strings(h)
+		slices.Sort(h)
 		for _, k := range h {
 			if err := writeHeader(out, k, b.Headers[k]); err != nil {
 				return err
@@ -306,7 +306,7 @@ func Encode(out io.Writer, b *Block) error {
 //
 // If b has invalid headers and cannot be encoded,
 // EncodeToMemory returns nil. If it is important to
-// report details about this error case, use Encode instead.
+// report details about this error case, use [Encode] instead.
 func EncodeToMemory(b *Block) []byte {
 	var buf bytes.Buffer
 	if err := Encode(&buf, b); err != nil {

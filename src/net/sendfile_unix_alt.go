@@ -9,14 +9,17 @@ package net
 import (
 	"internal/poll"
 	"io"
-	"os"
+	"io/fs"
+	"syscall"
 )
+
+const supportsSendfile = true
 
 // sendFile copies the contents of r to c using the sendfile
 // system call to minimize copies.
 //
-// if handled == true, sendFile returns the number of bytes copied and any
-// non-EOF error.
+// if handled == true, sendFile returns the number (potentially zero) of bytes
+// copied and any non-EOF error.
 //
 // if handled == false, sendFile performed no work.
 func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
@@ -34,7 +37,13 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 			return 0, nil, true
 		}
 	}
-	f, ok := r.(*os.File)
+	// r might be an *os.File or an os.fileWithoutWriteTo.
+	// Type assert to an interface rather than *os.File directly to handle the latter case.
+	f, ok := r.(interface {
+		fs.File
+		io.Seeker
+		syscall.Conn
+	})
 	if !ok {
 		return 0, nil, false
 	}
@@ -65,7 +74,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 
 	var werr error
 	err = sc.Read(func(fd uintptr) bool {
-		written, werr = poll.SendFile(&c.pfd, int(fd), pos, remain)
+		written, werr, handled = poll.SendFile(&c.pfd, int(fd), pos, remain)
 		return true
 	})
 	if err == nil {
@@ -78,8 +87,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 
 	_, err1 := f.Seek(written, io.SeekCurrent)
 	if err1 != nil && err == nil {
-		return written, err1, written > 0
+		return written, err1, handled
 	}
 
-	return written, wrapSyscallError("sendfile", err), written > 0
+	return written, wrapSyscallError("sendfile", err), handled
 }

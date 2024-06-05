@@ -9,7 +9,7 @@ package types2
 // under must only be called when a type is known
 // to be fully set up.
 func under(t Type) Type {
-	if t, _ := t.(*Named); t != nil {
+	if t := asNamed(t); t != nil {
 		return t.under()
 	}
 	return t.Underlying()
@@ -22,6 +22,7 @@ func under(t Type) Type {
 // identical element types), the single underlying type is the restricted
 // channel type if the restrictions are always the same, or nil otherwise.
 func coreType(t Type) Type {
+	t = Unalias(t)
 	tpar, _ := t.(*TypeParam)
 	if tpar == nil {
 		return under(t)
@@ -51,6 +52,7 @@ func coreType(t Type) Type {
 // and strings as identical. In this case, if successful and we saw
 // a string, the result is of type (possibly untyped) string.
 func coreString(t Type) Type {
+	t = Unalias(t)
 	tpar, _ := t.(*TypeParam)
 	if tpar == nil {
 		return under(t) // string or untyped string

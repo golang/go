@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm) || wasip1 || windows
+//go:build unix || js || wasip1 || windows
 
 package net
 
@@ -124,7 +124,7 @@ func (sd *sysDialer) dialIP(ctx context.Context, laddr, raddr *IPAddr) (*IPConn,
 	}
 	ctrlCtxFn := sd.Dialer.ControlContext
 	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
-		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
 			return sd.Dialer.Control(network, address, c)
 		}
 	}
@@ -145,9 +145,9 @@ func (sl *sysListener) listenIP(ctx context.Context, laddr *IPAddr) (*IPConn, er
 	default:
 		return nil, UnknownNetworkError(sl.network)
 	}
-	var ctrlCtxFn func(cxt context.Context, network, address string, c syscall.RawConn) error
+	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
 	if sl.ListenConfig.Control != nil {
-		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
 			return sl.ListenConfig.Control(network, address, c)
 		}
 	}

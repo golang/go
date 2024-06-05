@@ -9,10 +9,6 @@
 #include "time_windows.h"
 
 TEXT time·now(SB),NOSPLIT,$0-20
-	MOVW    $0, R0
-	MOVB    runtime·useQPCTime(SB), R0
-	CMP	$0, R0
-	BNE	useQPC
 	MOVW	$_INTERRUPT_TIME, R3
 loop:
 	MOVW	time_hi1(R3), R1
@@ -85,6 +81,4 @@ wall:
 	MOVW	R7,sec_hi+4(FP)
 	MOVW	R1,nsec+8(FP)
 	RET
-useQPC:
-	RET	runtime·nowQPC(SB)		// tail call
 

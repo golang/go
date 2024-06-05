@@ -11,7 +11,7 @@ package runtime
 import (
 	"internal/cpu"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -122,6 +122,8 @@ type mheap struct {
 	// credit pool.
 	reclaimCredit atomic.Uintptr
 
+	_ cpu.CacheLinePad // prevents false-sharing between arenas and preceding variables
+
 	// arenas is the heap arena map. It points to the metadata for
 	// the heap for every arena frame of the entire usable virtual
 	// address space.
@@ -205,6 +207,7 @@ type mheap struct {
 	specialprofilealloc    fixalloc // allocator for specialprofile*
 	specialReachableAlloc  fixalloc // allocator for specialReachable
 	specialPinCounterAlloc fixalloc // allocator for specialPinCounter
+	specialWeakHandleAlloc fixalloc // allocator for specialWeakHandle
 	speciallock            mutex    // lock for special record allocators.
 	arenaHintAlloc         fixalloc // allocator for arenaHints
 
@@ -236,24 +239,6 @@ var mheap_ mheap
 // outside of the Go heap and accessed via the mheap_.arenas index.
 type heapArena struct {
 	_ sys.NotInHeap
-
-	// bitmap stores the pointer/scalar bitmap for the words in
-	// this arena. See mbitmap.go for a description.
-	// This array uses 1 bit per word of heap, or 1.6% of the heap size (for 64-bit).
-	bitmap [heapArenaBitmapWords]uintptr
-
-	// If the ith bit of noMorePtrs is true, then there are no more
-	// pointers for the object containing the word described by the
-	// high bit of bitmap[i].
-	// In that case, bitmap[i+1], ... must be zero until the start
-	// of the next object.
-	// We never operate on these entries using bit-parallel techniques,
-	// so it is ok if they are small. Also, they can't be bigger than
-	// uint16 because at that size a single noMorePtrs entry
-	// represents 8K of memory, the minimum size of a span. Any larger
-	// and we'd have to worry about concurrent updates.
-	// This array uses 1 bit per word of bitmap, or .024% of the heap size (for 64-bit).
-	noMorePtrs [heapArenaBitmapWords / 8]uint8
 
 	// spans maps from virtual address page ID within this arena to *mspan.
 	// For allocated spans, their pages map to the span itself.
@@ -411,7 +396,7 @@ type mspan struct {
 	_    sys.NotInHeap
 	next *mspan     // next span in list, or nil if none
 	prev *mspan     // previous span in list, or nil if none
-	list *mSpanList // For debugging. TODO: Remove.
+	list *mSpanList // For debugging.
 
 	startAddr uintptr // address of first byte of span aka s.base()
 	npages    uintptr // number of pages in span
@@ -433,10 +418,17 @@ type mspan struct {
 	// undefined and should never be referenced.
 	//
 	// Object n starts at address n*elemsize + (start << pageShift).
-	freeindex uintptr
+	freeindex uint16
 	// TODO: Look up nelems from sizeclass and remove this field if it
 	// helps performance.
-	nelems uintptr // number of object in the span.
+	nelems uint16 // number of object in the span.
+	// freeIndexForScan is like freeindex, except that freeindex is
+	// used by the allocator whereas freeIndexForScan is used by the
+	// GC scanner. They are two fields so that the GC sees the object
+	// is allocated only when the object and the heap bits are
+	// initialized (see also the assignment of freeIndexForScan in
+	// mallocgc, and issue 54596).
+	freeIndexForScan uint16
 
 	// Cache of the allocBits at freeindex. allocCache is shifted
 	// such that the lowest bit corresponds to the bit freeindex.
@@ -493,14 +485,7 @@ type mspan struct {
 	speciallock           mutex         // guards specials list and changes to pinnerBits
 	specials              *special      // linked list of special records sorted by offset.
 	userArenaChunkFree    addrRange     // interval for managing chunk allocation
-
-	// freeIndexForScan is like freeindex, except that freeindex is
-	// used by the allocator whereas freeIndexForScan is used by the
-	// GC scanner. They are two fields so that the GC sees the object
-	// is allocated only when the object and the heap bits are
-	// initialized (see also the assignment of freeIndexForScan in
-	// mallocgc, and issue 54596).
-	freeIndexForScan uintptr
+	largeType             *_type        // malloc header for large objects.
 }
 
 func (s *mspan) base() uintptr {
@@ -578,10 +563,12 @@ func makeSpanClass(sizeclass uint8, noscan bool) spanClass {
 	return spanClass(sizeclass<<1) | spanClass(bool2int(noscan))
 }
 
+//go:nosplit
 func (sc spanClass) sizeclass() int8 {
 	return int8(sc >> 1)
 }
 
+//go:nosplit
 func (sc spanClass) noscan() bool {
 	return sc&1 != 0
 }
@@ -759,6 +746,7 @@ func (h *mheap) init() {
 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
 	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
+	h.specialWeakHandleAlloc.init(unsafe.Sizeof(specialWeakHandle{}), nil, nil, &memstats.gcMiscSys)
 	h.arenaHintAlloc.init(unsafe.Sizeof(arenaHint{}), nil, nil, &memstats.other_sys)
 
 	// Don't zero mspan allocations. Background sweeping can
@@ -801,8 +789,10 @@ func (h *mheap) reclaim(npage uintptr) {
 	// traceGCSweepStart/Done pair on the P.
 	mp := acquirem()
 
-	if traceEnabled() {
-		traceGCSweepStart()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCSweepStart()
+		traceRelease(trace)
 	}
 
 	arenas := h.sweepArenas
@@ -849,8 +839,10 @@ func (h *mheap) reclaim(npage uintptr) {
 		unlock(&h.lock)
 	}
 
-	if traceEnabled() {
-		traceGCSweepDone()
+	trace = traceAcquire()
+	if trace.ok() {
+		trace.GCSweepDone()
+		traceRelease(trace)
 	}
 	releasem(mp)
 }
@@ -921,10 +913,12 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 		n -= uintptr(len(inUse) * 8)
 	}
 	sweep.active.end(sl)
-	if traceEnabled() {
+	trace := traceAcquire()
+	if trace.ok() {
 		unlock(&h.lock)
 		// Account for pages scanned but not reclaimed.
-		traceGCSweepSpan((n0 - nFreed) * pageSize)
+		trace.GCSweepSpan((n0 - nFreed) * pageSize)
+		traceRelease(trace)
 		lock(&h.lock)
 	}
 
@@ -1372,7 +1366,14 @@ HaveSpan:
 	}
 	memstats.heapStats.release()
 
-	pageTraceAlloc(pp, now, base, npages)
+	// Trace the span alloc.
+	if traceAllocFreeEnabled() {
+		trace := traceTryAcquire()
+		if trace.ok() {
+			trace.SpanAlloc(s)
+			traceRelease(trace)
+		}
+	}
 	return s
 }
 
@@ -1401,7 +1402,12 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 			s.divMul = 0
 		} else {
 			s.elemsize = uintptr(class_to_size[sizeclass])
-			s.nelems = nbytes / s.elemsize
+			if !s.spanclass.noscan() && heapBitsInSpan(s.elemsize) {
+				// Reserve space for the pointer/scan bitmap at the end.
+				s.nelems = uint16((nbytes - (nbytes / goarch.PtrSize / 8)) / s.elemsize)
+			} else {
+				s.nelems = uint16(nbytes / s.elemsize)
+			}
 			s.divMul = class_to_divmagic[sizeclass]
 		}
 
@@ -1409,8 +1415,8 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 		s.freeindex = 0
 		s.freeIndexForScan = 0
 		s.allocCache = ^uint64(0) // all 1s indicating all free.
-		s.gcmarkBits = newMarkBits(s.nelems)
-		s.allocBits = newAllocBits(s.nelems)
+		s.gcmarkBits = newMarkBits(uintptr(s.nelems))
+		s.allocBits = newAllocBits(uintptr(s.nelems))
 
 		// It's safe to access h.sweepgen without the heap lock because it's
 		// only ever updated with the world stopped and we run on the
@@ -1548,7 +1554,14 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 // Free the span back into the heap.
 func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
-		pageTraceFree(getg().m.p.ptr(), 0, s.base(), s.npages)
+		// Trace the span free.
+		if traceAllocFreeEnabled() {
+			trace := traceTryAcquire()
+			if trace.ok() {
+				trace.SpanFree(s)
+				traceRelease(trace)
+			}
+		}
 
 		lock(&h.lock)
 		if msanenabled {
@@ -1580,7 +1593,14 @@ func (h *mheap) freeSpan(s *mspan) {
 //
 //go:systemstack
 func (h *mheap) freeManual(s *mspan, typ spanAllocType) {
-	pageTraceFree(getg().m.p.ptr(), 0, s.base(), s.npages)
+	// Trace the span free.
+	if traceAllocFreeEnabled() {
+		trace := traceTryAcquire()
+		if trace.ok() {
+			trace.SpanFree(s)
+			traceRelease(trace)
+		}
+	}
 
 	s.needzero = 1
 	lock(&h.lock)
@@ -1792,18 +1812,18 @@ func (list *mSpanList) takeAll(other *mSpanList) {
 }
 
 const (
+	// _KindSpecialFinalizer is for tracking finalizers.
 	_KindSpecialFinalizer = 1
-	_KindSpecialProfile   = 2
+	// _KindSpecialWeakHandle is used for creating weak pointers.
+	_KindSpecialWeakHandle = 2
+	// _KindSpecialProfile is for memory profiling.
+	_KindSpecialProfile = 3
 	// _KindSpecialReachable is a special used for tracking
 	// reachability during testing.
-	_KindSpecialReachable = 3
+	_KindSpecialReachable = 4
 	// _KindSpecialPinCounter is a special used for objects that are pinned
 	// multiple times
-	_KindSpecialPinCounter = 4
-	// Note: The finalizer special must be first because if we're freeing
-	// an object, a finalizer special will cause the freeing operation
-	// to abort, and we want to keep the other special records around
-	// if that happens.
+	_KindSpecialPinCounter = 5
 )
 
 type special struct {
@@ -1988,6 +2008,155 @@ func removefinalizer(p unsafe.Pointer) {
 	unlock(&mheap_.speciallock)
 }
 
+// The described object has a weak pointer.
+//
+// Weak pointers in the GC have the following invariants:
+//
+//   - Strong-to-weak conversions must ensure the strong pointer
+//     remains live until the weak handle is installed. This ensures
+//     that creating a weak pointer cannot fail.
+//
+//   - Weak-to-strong conversions require the weakly-referenced
+//     object to be swept before the conversion may proceed. This
+//     ensures that weak-to-strong conversions cannot resurrect
+//     dead objects by sweeping them before that happens.
+//
+//   - Weak handles are unique and canonical for each byte offset into
+//     an object that a strong pointer may point to, until an object
+//     becomes unreachable.
+//
+//   - Weak handles contain nil as soon as an object becomes unreachable
+//     the first time, before a finalizer makes it reachable again. New
+//     weak handles created after resurrection are newly unique.
+//
+// specialWeakHandle is allocated from non-GC'd memory, so any heap
+// pointers must be specially handled.
+type specialWeakHandle struct {
+	_       sys.NotInHeap
+	special special
+	// handle is a reference to the actual weak pointer.
+	// It is always heap-allocated and must be explicitly kept
+	// live so long as this special exists.
+	handle *atomic.Uintptr
+}
+
+//go:linkname internal_weak_runtime_registerWeakPointer internal/weak.runtime_registerWeakPointer
+func internal_weak_runtime_registerWeakPointer(p unsafe.Pointer) unsafe.Pointer {
+	return unsafe.Pointer(getOrAddWeakHandle(unsafe.Pointer(p)))
+}
+
+//go:linkname internal_weak_runtime_makeStrongFromWeak internal/weak.runtime_makeStrongFromWeak
+func internal_weak_runtime_makeStrongFromWeak(u unsafe.Pointer) unsafe.Pointer {
+	handle := (*atomic.Uintptr)(u)
+
+	// Prevent preemption. We want to make sure that another GC cycle can't start.
+	mp := acquirem()
+	p := handle.Load()
+	if p == 0 {
+		releasem(mp)
+		return nil
+	}
+	// Be careful. p may or may not refer to valid memory anymore, as it could've been
+	// swept and released already. It's always safe to ensure a span is swept, though,
+	// even if it's just some random span.
+	span := spanOfHeap(p)
+	if span == nil {
+		// The span probably got swept and released.
+		releasem(mp)
+		return nil
+	}
+	// Ensure the span is swept.
+	span.ensureSwept()
+
+	// Now we can trust whatever we get from handle, so make a strong pointer.
+	//
+	// Even if we just swept some random span that doesn't contain this object, because
+	// this object is long dead and its memory has since been reused, we'll just observe nil.
+	ptr := unsafe.Pointer(handle.Load())
+	releasem(mp)
+	return ptr
+}
+
+// Retrieves or creates a weak pointer handle for the object p.
+func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
+	// First try to retrieve without allocating.
+	if handle := getWeakHandle(p); handle != nil {
+		return handle
+	}
+
+	lock(&mheap_.speciallock)
+	s := (*specialWeakHandle)(mheap_.specialWeakHandleAlloc.alloc())
+	unlock(&mheap_.speciallock)
+
+	handle := new(atomic.Uintptr)
+	s.special.kind = _KindSpecialWeakHandle
+	s.handle = handle
+	handle.Store(uintptr(p))
+	if addspecial(p, &s.special) {
+		// This is responsible for maintaining the same
+		// GC-related invariants as markrootSpans in any
+		// situation where it's possible that markrootSpans
+		// has already run but mark termination hasn't yet.
+		if gcphase != _GCoff {
+			mp := acquirem()
+			gcw := &mp.p.ptr().gcw
+			// Mark the weak handle itself, since the
+			// special isn't part of the GC'd heap.
+			scanblock(uintptr(unsafe.Pointer(&s.handle)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+			releasem(mp)
+		}
+		return s.handle
+	}
+
+	// There was an existing handle. Free the special
+	// and try again. We must succeed because we're explicitly
+	// keeping p live until the end of this function. Either
+	// we, or someone else, must have succeeded, because we can
+	// only fail in the event of a race, and p will still be
+	// be valid no matter how much time we spend here.
+	lock(&mheap_.speciallock)
+	mheap_.specialWeakHandleAlloc.free(unsafe.Pointer(s))
+	unlock(&mheap_.speciallock)
+
+	handle = getWeakHandle(p)
+	if handle == nil {
+		throw("failed to get or create weak handle")
+	}
+
+	// Keep p alive for the duration of the function to ensure
+	// that it cannot die while we're trying to this.
+	KeepAlive(p)
+	return handle
+}
+
+func getWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
+	span := spanOfHeap(uintptr(p))
+	if span == nil {
+		throw("getWeakHandle on invalid pointer")
+	}
+
+	// Ensure that the span is swept.
+	// Sweeping accesses the specials list w/o locks, so we have
+	// to synchronize with it. And it's just much safer.
+	mp := acquirem()
+	span.ensureSwept()
+
+	offset := uintptr(p) - span.base()
+
+	lock(&span.speciallock)
+
+	// Find the existing record and return the handle if one exists.
+	var handle *atomic.Uintptr
+	iter, exists := span.specialFindSplicePoint(offset, _KindSpecialWeakHandle)
+	if exists {
+		handle = ((*specialWeakHandle)(unsafe.Pointer(*iter))).handle
+	}
+	unlock(&span.speciallock)
+	releasem(mp)
+
+	return handle
+}
+
 // The described object is being heap profiled.
 type specialprofile struct {
 	_       sys.NotInHeap
@@ -2058,6 +2227,12 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		queuefinalizer(p, sf.fn, sf.nret, sf.fint, sf.ot)
 		lock(&mheap_.speciallock)
 		mheap_.specialfinalizeralloc.free(unsafe.Pointer(sf))
+		unlock(&mheap_.speciallock)
+	case _KindSpecialWeakHandle:
+		sw := (*specialWeakHandle)(unsafe.Pointer(s))
+		sw.handle.Store(0)
+		lock(&mheap_.speciallock)
+		mheap_.specialWeakHandleAlloc.free(unsafe.Pointer(s))
 		unlock(&mheap_.speciallock)
 	case _KindSpecialProfile:
 		sp := (*specialprofile)(unsafe.Pointer(s))
@@ -2139,7 +2314,7 @@ func (b *gcBitsArena) tryAlloc(bytes uintptr) *gcBits {
 // newMarkBits returns a pointer to 8 byte aligned bytes
 // to be used for a span's mark bits.
 func newMarkBits(nelems uintptr) *gcBits {
-	blocksNeeded := uintptr((nelems + 63) / 64)
+	blocksNeeded := (nelems + 63) / 64
 	bytesNeeded := blocksNeeded * 8
 
 	// Try directly allocating from the current head arena.
@@ -2251,7 +2426,7 @@ func newArenaMayUnlock() *gcBitsArena {
 	result.next = nil
 	// If result.bits is not 8 byte aligned adjust index so
 	// that &result.bits[result.free] is 8 byte aligned.
-	if uintptr(unsafe.Offsetof(gcBitsArena{}.bits))&7 == 0 {
+	if unsafe.Offsetof(gcBitsArena{}.bits)&7 == 0 {
 		result.free = 0
 	} else {
 		result.free = 8 - (uintptr(unsafe.Pointer(&result.bits[0])) & 7)

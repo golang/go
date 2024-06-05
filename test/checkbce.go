@@ -1,5 +1,6 @@
-// +build amd64,!gcflags_noopt
 // errorcheck -0 -d=ssa/check_bce/debug=3
+
+//go:build amd64 && !gcflags_noopt
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -137,6 +138,10 @@ func g4(a [100]int) {
 		useInt(a[i+50])
 
 		// The following are out of bounds.
+		if a[0] == 0xdeadbeef {
+			// This is a trick to prohibit sccp to optimize out the following out of bound check
+			continue
+		}
 		useInt(a[i-11]) // ERROR "Found IsInBounds$"
 		useInt(a[i+51]) // ERROR "Found IsInBounds$"
 	}

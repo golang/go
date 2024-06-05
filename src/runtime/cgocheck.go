@@ -8,6 +8,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"unsafe"
 )
@@ -89,7 +90,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		return
 	}
 	if !cgoIsGoPointer(src) {
@@ -110,7 +111,7 @@ func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		return
 	}
 	if !cgoIsGoPointer(src) {
@@ -141,7 +142,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 		size = ptrdataSize
 	}
 
-	if typ.Kind_&kindGCProg == 0 {
+	if typ.Kind_&abi.KindGCProg == 0 {
 		cgoCheckBits(src, typ.GCData, off, size)
 		return
 	}
@@ -176,11 +177,10 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 	}
 
 	// src must be in the regular heap.
-
-	hbits := heapBitsForAddr(uintptr(src), size)
+	tp := s.typePointersOf(uintptr(src), size)
 	for {
 		var addr uintptr
-		if hbits, addr = hbits.next(); addr == 0 {
+		if tp, addr = tp.next(uintptr(src) + size); addr == 0 {
 			break
 		}
 		v := *(*unsafe.Pointer)(unsafe.Pointer(addr))
@@ -233,7 +233,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
 //go:nowritebarrier
 //go:systemstack
 func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		return
 	}
 
@@ -245,14 +245,14 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
 		size = ptrdataSize
 	}
 
-	if typ.Kind_&kindGCProg == 0 {
+	if typ.Kind_&abi.KindGCProg == 0 {
 		cgoCheckBits(src, typ.GCData, off, size)
 		return
 	}
-	switch typ.Kind_ & kindMask {
+	switch typ.Kind_ & abi.KindMask {
 	default:
 		throw("can't happen")
-	case kindArray:
+	case abi.Array:
 		at := (*arraytype)(unsafe.Pointer(typ))
 		for i := uintptr(0); i < at.Len; i++ {
 			if off < at.Elem.Size_ {
@@ -270,7 +270,7 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
 			}
 			size -= checked
 		}
-	case kindStruct:
+	case abi.Struct:
 		st := (*structtype)(unsafe.Pointer(typ))
 		for _, f := range st.Fields {
 			if off < f.Typ.Size_ {

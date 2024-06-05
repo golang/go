@@ -4,6 +4,8 @@
 //
 // ARM version of md5block.go
 
+//go:build !purego
+
 #include "textflag.h"
 
 // SHA-1 block routine. See sha1block.go for Go equivalent.

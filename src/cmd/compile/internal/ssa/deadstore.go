@@ -21,12 +21,18 @@ func dse(f *Func) {
 	defer f.retSparseSet(storeUse)
 	shadowed := f.newSparseMap(f.NumValues())
 	defer f.retSparseMap(shadowed)
+	// localAddrs maps from a local variable (the Aux field of a LocalAddr value) to an instance of a LocalAddr value for that variable in the current block.
+	localAddrs := map[any]*Value{}
 	for _, b := range f.Blocks {
 		// Find all the stores in this block. Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.
 		//  storeUse contains stores which are used by a subsequent store.
 		loadUse.clear()
 		storeUse.clear()
+		// TODO(deparker): use the 'clear' builtin once compiler bootstrap minimum version is raised to 1.21.
+		for k := range localAddrs {
+			delete(localAddrs, k)
+		}
 		stores = stores[:0]
 		for _, v := range b.Values {
 			if v.Op == OpPhi {
@@ -46,6 +52,13 @@ func dse(f *Func) {
 					}
 				}
 			} else {
+				if v.Op == OpLocalAddr {
+					if _, ok := localAddrs[v.Aux]; !ok {
+						localAddrs[v.Aux] = v
+					} else {
+						continue
+					}
+				}
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
 						loadUse.add(a.ID)
@@ -73,9 +86,9 @@ func dse(f *Func) {
 		}
 
 		// Walk backwards looking for dead stores. Keep track of shadowed addresses.
-		// A "shadowed address" is a pointer and a size describing a memory region that
-		// is known to be written. We keep track of shadowed addresses in the shadowed
-		// map, mapping the ID of the address to the size of the shadowed region.
+		// A "shadowed address" is a pointer, offset, and size describing a memory region that
+		// is known to be written. We keep track of shadowed addresses in the shadowed map,
+		// mapping the ID of the address to a shadowRange where future writes will happen.
 		// Since we're walking backwards, writes to a shadowed region are useless,
 		// as they will be immediately overwritten.
 		shadowed.clear()
@@ -88,13 +101,25 @@ func dse(f *Func) {
 			shadowed.clear()
 		}
 		if v.Op == OpStore || v.Op == OpZero {
+			ptr := v.Args[0]
+			var off int64
+			for ptr.Op == OpOffPtr { // Walk to base pointer
+				off += ptr.AuxInt
+				ptr = ptr.Args[0]
+			}
 			var sz int64
 			if v.Op == OpStore {
 				sz = v.Aux.(*types.Type).Size()
 			} else { // OpZero
 				sz = v.AuxInt
 			}
-			if shadowedSize := int64(shadowed.get(v.Args[0].ID)); shadowedSize != -1 && shadowedSize >= sz {
+			if ptr.Op == OpLocalAddr {
+				if la, ok := localAddrs[ptr.Aux]; ok {
+					ptr = la
+				}
+			}
+			sr := shadowRange(shadowed.get(ptr.ID))
+			if sr.contains(off, off+sz) {
 				// Modify the store/zero into a copy of the memory state,
 				// effectively eliding the store operation.
 				if v.Op == OpStore {
@@ -108,10 +133,8 @@ func dse(f *Func) {
 				v.AuxInt = 0
 				v.Op = OpCopy
 			} else {
-				if sz > 0x7fffffff { // work around sparseMap's int32 value type
-					sz = 0x7fffffff
-				}
-				shadowed.set(v.Args[0].ID, int32(sz))
+				// Extend shadowed region.
+				shadowed.set(ptr.ID, int32(sr.merge(off, off+sz)))
 			}
 		}
 		// walk to previous store
@@ -129,6 +152,50 @@ func dse(f *Func) {
 			}
 		}
 	}
+}
+
+// A shadowRange encodes a set of byte offsets [lo():hi()] from
+// a given pointer that will be written to later in the block.
+// A zero shadowRange encodes an empty shadowed range (and so
+// does a -1 shadowRange, which is what sparsemap.get returns
+// on a failed lookup).
+type shadowRange int32
+
+func (sr shadowRange) lo() int64 {
+	return int64(sr & 0xffff)
+}
+
+func (sr shadowRange) hi() int64 {
+	return int64((sr >> 16) & 0xffff)
+}
+
+// contains reports whether [lo:hi] is completely within sr.
+func (sr shadowRange) contains(lo, hi int64) bool {
+	return lo >= sr.lo() && hi <= sr.hi()
+}
+
+// merge returns the union of sr and [lo:hi].
+// merge is allowed to return something smaller than the union.
+func (sr shadowRange) merge(lo, hi int64) shadowRange {
+	if lo < 0 || hi > 0xffff {
+		// Ignore offsets that are too large or small.
+		return sr
+	}
+	if sr.lo() == sr.hi() {
+		// Old range is empty - use new one.
+		return shadowRange(lo + hi<<16)
+	}
+	if hi < sr.lo() || lo > sr.hi() {
+		// The two regions don't overlap or abut, so we would
+		// have to keep track of multiple disjoint ranges.
+		// Because we can only keep one, keep the larger one.
+		if sr.hi()-sr.lo() >= hi-lo {
+			return sr
+		}
+		return shadowRange(lo + hi<<16)
+	}
+	// Regions overlap or abut - compute the union.
+	return shadowRange(min(lo, sr.lo()) + max(hi, sr.hi())<<16)
 }
 
 // elimDeadAutosGeneric deletes autos that are never accessed. To achieve this
@@ -201,7 +268,7 @@ func elimDeadAutosGeneric(f *Func) {
 		}
 
 		if v.Uses == 0 && v.Op != OpNilCheck && !v.Op.IsCall() && !v.Op.HasSideEffects() || len(args) == 0 {
-			// Nil check has no use, but we need to keep it.
+			// We need to keep nil checks even if they have no use.
 			// Also keep calls and values that have side effects.
 			return
 		}

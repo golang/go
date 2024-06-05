@@ -24,11 +24,12 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+	_ "unsafe" // for linkname
 )
 
 // A Context specifies the supporting context for a build.
@@ -286,6 +287,7 @@ func (ctxt *Context) SrcDirs() []string {
 // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
 var Default Context = defaultContext()
 
+// Keep consistent with cmd/go/internal/cfg.defaultGOPATH.
 func defaultGOPATH() string {
 	env := "HOME"
 	if runtime.GOOS == "windows" {
@@ -305,7 +307,27 @@ func defaultGOPATH() string {
 	return ""
 }
 
-var defaultToolTags, defaultReleaseTags []string
+// defaultToolTags should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/gopherjs/gopherjs
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname defaultToolTags
+var defaultToolTags []string
+
+// defaultReleaseTags should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/gopherjs/gopherjs
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname defaultReleaseTags
+var defaultReleaseTags []string
 
 func defaultContext() Context {
 	var c Context
@@ -495,13 +517,13 @@ func (p *Package) IsCommand() bool {
 	return p.Name == "main"
 }
 
-// ImportDir is like Import but processes the Go package found in
+// ImportDir is like [Import] but processes the Go package found in
 // the named directory.
 func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
 	return ctxt.Import(".", dir, mode)
 }
 
-// NoGoError is the error used by Import to describe a directory
+// NoGoError is the error used by [Import] to describe a directory
 // containing no buildable Go source files. (It may still contain
 // test files, files hidden by build tags, and so on.)
 type NoGoError struct {
@@ -549,7 +571,7 @@ var installgoroot = godebug.New("installgoroot")
 //   - files with build constraints not satisfied by the context
 //
 // If an error occurs, Import returns a non-nil error and a non-nil
-// *Package containing partial information.
+// *[Package] containing partial information.
 func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Package, error) {
 	p := &Package{
 		ImportPath: path,
@@ -1029,7 +1051,7 @@ Found:
 	for tag := range allTags {
 		p.AllTags = append(p.AllTags, tag)
 	}
-	sort.Strings(p.AllTags)
+	slices.Sort(p.AllTags)
 
 	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)
 	p.TestEmbedPatterns, p.TestEmbedPatternPos = cleanDecls(testEmbedPos)
@@ -1044,10 +1066,10 @@ Found:
 	// The standard assemblers expect .s files.
 	if len(p.CgoFiles) > 0 {
 		p.SFiles = append(p.SFiles, Sfiles...)
-		sort.Strings(p.SFiles)
+		slices.Sort(p.SFiles)
 	} else {
 		p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, Sfiles...)
-		sort.Strings(p.IgnoredOtherFiles)
+		slices.Sort(p.IgnoredOtherFiles)
 	}
 
 	if badGoError != nil {
@@ -1089,7 +1111,7 @@ func uniq(list []string) []string {
 	}
 	out := make([]string, len(list))
 	copy(out, list)
-	sort.Strings(out)
+	slices.Sort(out)
 	uniq := out[:0]
 	for _, x := range out {
 		if len(uniq) == 0 || uniq[len(uniq)-1] != x {
@@ -1389,7 +1411,7 @@ func parseWord(data []byte) (word, rest []byte) {
 }
 
 // MatchFile reports whether the file with the given name in the given directory
-// matches the context and would be included in a Package created by ImportDir
+// matches the context and would be included in a [Package] created by [ImportDir]
 // of that directory.
 //
 // MatchFile considers the name of the file and may use ctxt.OpenFile to
@@ -1503,7 +1525,7 @@ func cleanDecls(m map[string][]token.Position) ([]string, map[string][]token.Pos
 	for path := range m {
 		all = append(all, path)
 	}
-	sort.Strings(all)
+	slices.Sort(all)
 	return all, m
 }
 
@@ -1604,6 +1626,15 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
 	return shouldBuild, sawBinaryOnly, nil
 }
 
+// parseFileHeader should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bazelbuild/bazel-gazelle
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname parseFileHeader
 func parseFileHeader(content []byte) (trimmed, goBuild []byte, sawBinaryOnly bool, err error) {
 	end := 0
 	p := content
@@ -1684,6 +1715,11 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		//
 		line = strings.TrimSpace(line)
 		if len(line) < 5 || line[:4] != "#cgo" || (line[4] != ' ' && line[4] != '\t') {
+			continue
+		}
+
+		// #cgo (nocallback|noescape) <function name>
+		if fields := strings.Fields(line); len(fields) == 3 && (fields[1] == "nocallback" || fields[1] == "noescape") {
 			continue
 		}
 

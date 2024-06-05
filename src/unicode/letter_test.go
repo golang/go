@@ -518,7 +518,7 @@ func binary(ranges []Range16, r uint16) bool {
 	lo := 0
 	hi := len(ranges)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return (r-range_.Lo)%range_.Stride == 0

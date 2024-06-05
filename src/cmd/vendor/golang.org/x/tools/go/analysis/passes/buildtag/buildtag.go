@@ -40,7 +40,7 @@ func runBuildTag(pass *analysis.Pass) (interface{}, error) {
 	}
 	for _, name := range pass.IgnoredFiles {
 		if strings.HasSuffix(name, ".go") {
-			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments)
+			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments|parser.SkipObjectResolution)
 			if err != nil {
 				// Not valid Go source code - not our job to diagnose, so ignore.
 				return nil, nil
@@ -89,7 +89,7 @@ func checkOtherFile(pass *analysis.Pass, filename string) error {
 
 	// We cannot use the Go parser, since this may not be a Go source file.
 	// Read the raw bytes instead.
-	content, tf, err := analysisutil.ReadFile(pass.Fset, filename)
+	content, tf, err := analysisutil.ReadFile(pass, filename)
 	if err != nil {
 		return err
 	}

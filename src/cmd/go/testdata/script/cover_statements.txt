@@ -1,9 +1,44 @@
 [short] skip
+
+# Workaround for issue 64014 -- for the portion of this test that
+# verifies that caching works correctly, the cache should theoretically
+# always behave reliably/deterministically, however if other tests are
+# concurrently accessing the cache while this test is running, it can
+# lead to cache lookup failures, which manifest as test failures here.
+# To avoid such flakes, use a separate isolated GOCACHE for this test.
+env GOCACHE=$WORK/cache
+
+# Initial run with simple coverage.
 go test -cover ./pkg1 ./pkg2 ./pkg3 ./pkg4
-stdout 'pkg1	\[no test files\]'
+[!GOEXPERIMENT:coverageredesign] stdout 'pkg1	\[no test files\]'
+[GOEXPERIMENT:coverageredesign] stdout 'pkg1		coverage: 0.0% of statements'
 stdout 'pkg2	\S+	coverage: 0.0% of statements \[no tests to run\]'
 stdout 'pkg3	\S+	coverage: 100.0% of statements'
 stdout 'pkg4	\S+	coverage: \[no statements\]'
+
+# Second run to make sure that caching works properly.
+go test -x -cover ./pkg1 ./pkg2 ./pkg3 ./pkg4
+[!GOEXPERIMENT:coverageredesign] stdout 'pkg1	\[no test files\]'
+[GOEXPERIMENT:coverageredesign] stdout 'pkg1		coverage: 0.0% of statements'
+stdout 'pkg2	\S+	coverage: 0.0% of statements \[no tests to run\]'
+stdout 'pkg3	\S+	coverage: 100.0% of statements'
+stdout 'pkg4	\S+	coverage: \[no statements\]'
+[GOEXPERIMENT:coverageredesign] ! stderr 'link(\.exe"?)? -'
+! stderr 'compile(\.exe"?)? -'
+! stderr 'cover(\.exe"?)? -'
+[GOEXPERIMENT:coverageredesign] stderr 'covdata(\.exe"?)? percent'
+
+# Now add in -coverprofile.
+go test -cover -coverprofile=cov.dat ./pkg1 ./pkg2 ./pkg3 ./pkg4
+[!GOEXPERIMENT:coverageredesign] stdout 'pkg1	\[no test files\]'
+[GOEXPERIMENT:coverageredesign] stdout 'pkg1		coverage: 0.0% of statements'
+stdout 'pkg2	\S+	coverage: 0.0% of statements \[no tests to run\]'
+stdout 'pkg3	\S+	coverage: 100.0% of statements'
+stdout 'pkg4	\S+	coverage: \[no statements\]'
+
+# Validate
+go tool cover -func=cov.dat
+[GOEXPERIMENT:coverageredesign] stdout 'pkg1/a.go:5:\s+F\s+0.0%'
 
 -- go.mod --
 module m

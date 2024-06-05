@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build s390x
+//go:build s390x && !purego
 
 package sha512
 
@@ -16,7 +16,7 @@ import (
 // implementation cannot be used.
 // See also TestBlockGeneric.
 func TestGenericPath(t *testing.T) {
-	if useAsm == false {
+	if !useAsm {
 		t.Skipf("assembly implementation unavailable")
 	}
 	useAsm = false

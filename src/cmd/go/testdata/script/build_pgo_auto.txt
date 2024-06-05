@@ -2,21 +2,29 @@
 
 [short] skip 'compiles and links executables'
 
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
 # use default.pgo for a single main package
 go build -n -pgo=auto -o a1.exe ./a/a1
-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+stderr 'preprofile.*-i.*default\.pgo'
+stderr 'compile.*-pgoprofile=.*a1.go'
 
 # check that pgo applied to dependencies
-stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
+stderr 'compile.*-p test/dep.*-pgoprofile=.*'
 
 # check that pgo appears in build info
 # N.B. we can't start the stdout check with -pgo because the script assumes that
 # if the first arg starts with - it is a grep flag.
 stderr 'build\\t-pgo=.*default\.pgo'
 
+# check also that -pgo appears with the other flags, before non-flag settings
+! stderr 'build\\t[A-Za-z].*build\\t-pgo'
+
 # use default.pgo for ... with a single main package
 go build -n -pgo=auto ./a/...
-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+stderr 'compile.*-pgoprofile=.*a1.go'
 
 # check that pgo appears in build info
 stderr 'build\\t-pgo=.*default\.pgo'
@@ -31,14 +39,14 @@ stderr 'compile.*nopgo.go'
 
 # other build-related commands
 go install -a -n -pgo=auto ./a/a1
-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+stderr 'compile.*-pgoprofile=.*a1.go'
 
 go run -a -n -pgo=auto ./a/a1
-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+stderr 'compile.*-pgoprofile=.*a1.go'
 
 go test -a -n -pgo=auto ./a/a1
-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go.*a1_test.go'
-stderr 'compile.*-pgoprofile=.*default\.pgo.*external_test.go'
+stderr 'compile.*-pgoprofile=.*a1.go.*a1_test.go'
+stderr 'compile.*-pgoprofile=.*external_test.go'
 
 # go list commands should succeed as usual
 go list -pgo=auto ./a/a1
@@ -50,8 +58,8 @@ go list -deps -pgo=auto ./a/a1
 # -pgo=auto is the default. Commands without explicit -pgo=auto
 # should work as -pgo=auto.
 go build -a -n -o a1.exe ./a/a1
-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
-stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
+stderr 'compile.*-pgoprofile=.*a1.go'
+stderr 'compile.*-p test/dep.*-pgoprofile=.*'
 
 # check that pgo appears in build info
 stderr 'build\\t-pgo=.*default\.pgo'

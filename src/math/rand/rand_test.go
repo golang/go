@@ -14,6 +14,7 @@ import (
 	. "math/rand"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"testing/iotest"
@@ -33,13 +34,6 @@ type statsResults struct {
 	maxError    float64
 }
 
-func max(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func nearEqual(a, b, closeEnough, maxError float64) bool {
 	absDiff := math.Abs(a - b)
 	if absDiff < closeEnough { // Necessary when one value is zero and one value is close to zero.
@@ -52,14 +46,14 @@ var testSeeds = []int64{1, 1754801282, 1698661970, 1550503961}
 
 // checkSimilarDistribution returns success if the mean and stddev of the
 // two statsResults are similar.
-func (this *statsResults) checkSimilarDistribution(expected *statsResults) error {
-	if !nearEqual(this.mean, expected.mean, expected.closeEnough, expected.maxError) {
-		s := fmt.Sprintf("mean %v != %v (allowed error %v, %v)", this.mean, expected.mean, expected.closeEnough, expected.maxError)
+func (sr *statsResults) checkSimilarDistribution(expected *statsResults) error {
+	if !nearEqual(sr.mean, expected.mean, expected.closeEnough, expected.maxError) {
+		s := fmt.Sprintf("mean %v != %v (allowed error %v, %v)", sr.mean, expected.mean, expected.closeEnough, expected.maxError)
 		fmt.Println(s)
 		return errors.New(s)
 	}
-	if !nearEqual(this.stddev, expected.stddev, expected.closeEnough, expected.maxError) {
-		s := fmt.Sprintf("stddev %v != %v (allowed error %v, %v)", this.stddev, expected.stddev, expected.closeEnough, expected.maxError)
+	if !nearEqual(sr.stddev, expected.stddev, expected.closeEnough, expected.maxError) {
+		s := fmt.Sprintf("stddev %v != %v (allowed error %v, %v)", sr.stddev, expected.stddev, expected.closeEnough, expected.maxError)
 		fmt.Println(s)
 		return errors.New(s)
 	}
@@ -83,7 +77,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
 	actual := getStatsResults(samples)
 	err := actual.checkSimilarDistribution(expected)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 }
 
@@ -338,7 +332,7 @@ func TestExpTables(t *testing.T) {
 func hasSlowFloatingPoint() bool {
 	switch runtime.GOARCH {
 	case "arm":
-		return os.Getenv("GOARM") == "5"
+		return os.Getenv("GOARM") == "5" || strings.HasSuffix(os.Getenv("GOARM"), ",softfloat")
 	case "mips", "mipsle", "mips64", "mips64le":
 		// Be conservative and assume that all mips boards
 		// have emulated floating point.

@@ -6,10 +6,12 @@ package walk
 
 import (
 	"fmt"
+	"internal/abi"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -18,7 +20,6 @@ import (
 
 // The constant is known to runtime.
 const tmpstringbufsize = 32
-const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
 
 func Walk(fn *ir.Func) {
 	ir.CurFunc = fn
@@ -33,20 +34,10 @@ func Walk(fn *ir.Func) {
 		ir.DumpList(s, ir.CurFunc.Body)
 	}
 
-	lno := base.Pos
-
-	base.Pos = lno
-	if base.Errors() > errorsBefore {
-		return
-	}
 	walkStmtList(ir.CurFunc.Body)
 	if base.Flag.W != 0 {
 		s := fmt.Sprintf("after walk %v", ir.CurFunc.Sym())
 		ir.DumpList(s, ir.CurFunc.Body)
-	}
-
-	if base.Flag.Cfg.Instrumenting {
-		instrument(fn)
 	}
 
 	// Eagerly compute sizes of all variables for SSA.
@@ -141,42 +132,34 @@ func chanfn(name string, n int, t *types.Type) ir.Node {
 	if !t.IsChan() {
 		base.Fatalf("chanfn %v", t)
 	}
-	fn := typecheck.LookupRuntime(name)
 	switch n {
-	default:
-		base.Fatalf("chanfn %d", n)
 	case 1:
-		fn = typecheck.SubstArgTypes(fn, t.Elem())
+		return typecheck.LookupRuntime(name, t.Elem())
 	case 2:
-		fn = typecheck.SubstArgTypes(fn, t.Elem(), t.Elem())
+		return typecheck.LookupRuntime(name, t.Elem(), t.Elem())
 	}
-	return fn
+	base.Fatalf("chanfn %d", n)
+	return nil
 }
 
 func mapfn(name string, t *types.Type, isfat bool) ir.Node {
 	if !t.IsMap() {
 		base.Fatalf("mapfn %v", t)
 	}
-	fn := typecheck.LookupRuntime(name)
 	if mapfast(t) == mapslow || isfat {
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
-	} else {
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Elem())
+		return typecheck.LookupRuntime(name, t.Key(), t.Elem(), t.Key(), t.Elem())
 	}
-	return fn
+	return typecheck.LookupRuntime(name, t.Key(), t.Elem(), t.Elem())
 }
 
 func mapfndel(name string, t *types.Type) ir.Node {
 	if !t.IsMap() {
 		base.Fatalf("mapfn %v", t)
 	}
-	fn := typecheck.LookupRuntime(name)
 	if mapfast(t) == mapslow {
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
-	} else {
-		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
+		return typecheck.LookupRuntime(name, t.Key(), t.Elem(), t.Key())
 	}
-	return fn
+	return typecheck.LookupRuntime(name, t.Key(), t.Elem())
 }
 
 const (
@@ -201,8 +184,7 @@ var mapassign = mkmapnames("mapassign", "ptr")
 var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
-	// Check runtime/map.go:maxElemSize before changing.
-	if t.Elem().Size() > 128 {
+	if t.Elem().Size() > abi.MapMaxElemBytes {
 		return mapslow
 	}
 	switch reflectdata.AlgType(t.Key()) {
@@ -275,8 +257,10 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 	} else {
 		ptr.SetType(n.Type().Elem().PtrTo())
 	}
+	ptr.SetTypecheck(1)
 	length = ir.NewUnaryExpr(base.Pos, ir.OLEN, n)
 	length.SetType(types.Types[types.TINT])
+	length.SetTypecheck(1)
 	return ptr, length
 }
 
@@ -339,7 +323,7 @@ func mayCall(n ir.Node) bool {
 			return n.Type().IsString() || n.Type().IsFloat()
 
 		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OLINKSYMOFFSET, ir.OMETHEXPR,
-			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OEFACE,
+			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OMAKEFACE,
 			ir.OADDR, ir.OBITNOT, ir.ONOT, ir.OPLUS,
 			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL,
 			ir.OCONVNOP, ir.ODOT,
@@ -356,8 +340,8 @@ func mayCall(n ir.Node) bool {
 // itabType loads the _type field from a runtime.itab struct.
 func itabType(itab ir.Node) ir.Node {
 	if itabTypeField == nil {
-		// runtime.itab's _type field
-		itabTypeField = runtimeField("_type", int64(types.PtrSize), types.NewPtr(types.Types[types.TUINT8]))
+		// internal/abi.ITab's Type field
+		itabTypeField = runtimeField("Type", rttype.ITab.OffsetOf("Type"), types.NewPtr(types.Types[types.TUINT8]))
 	}
 	return boundedDotPtr(base.Pos, itab, itabTypeField)
 }

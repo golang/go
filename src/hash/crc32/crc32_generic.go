@@ -12,6 +12,8 @@
 
 package crc32
 
+import "internal/byteorder"
+
 // simpleMakeTable allocates and constructs a Table for the specified
 // polynomial. The table is suitable for use with the simple algorithm
 // (simpleUpdate).
@@ -74,7 +76,7 @@ func slicingUpdate(crc uint32, tab *slicing8Table, p []byte) uint32 {
 	if len(p) >= slicing8Cutoff {
 		crc = ^crc
 		for len(p) > 8 {
-			crc ^= uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
+			crc ^= byteorder.LeUint32(p)
 			crc = tab[0][p[7]] ^ tab[1][p[6]] ^ tab[2][p[5]] ^ tab[3][p[4]] ^
 				tab[4][crc>>24] ^ tab[5][(crc>>16)&0xFF] ^
 				tab[6][(crc>>8)&0xFF] ^ tab[7][crc&0xFF]

@@ -44,7 +44,8 @@ type Optionals struct {
 	Sto struct{} `json:"sto,omitempty"`
 }
 
-var optionalsExpected = `{
+func TestOmitEmpty(t *testing.T) {
+	var want = `{
  "sr": "",
  "omitempty": 0,
  "slr": null,
@@ -55,8 +56,6 @@ var optionalsExpected = `{
  "str": {},
  "sto": {}
 }`
-
-func TestOmitEmpty(t *testing.T) {
 	var o Optionals
 	o.Sw = "something"
 	o.Mr = map[string]any{}
@@ -64,10 +63,10 @@ func TestOmitEmpty(t *testing.T) {
 
 	got, err := MarshalIndent(&o, "", " ")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("MarshalIndent error: %v", err)
 	}
-	if got := string(got); got != optionalsExpected {
-		t.Errorf(" got: %s\nwant: %s\n", got, optionalsExpected)
+	if got := string(got); got != want {
+		t.Errorf("MarshalIndent:\n\tgot:  %s\n\twant: %s\n", indentNewlines(got), indentNewlines(want))
 	}
 }
 
@@ -81,62 +80,57 @@ type StringTag struct {
 
 func TestRoundtripStringTag(t *testing.T) {
 	tests := []struct {
-		name string
+		CaseName
 		in   StringTag
 		want string // empty to just test that we roundtrip
-	}{
-		{
-			name: "AllTypes",
-			in: StringTag{
-				BoolStr:    true,
-				IntStr:     42,
-				UintptrStr: 44,
-				StrStr:     "xzbit",
-				NumberStr:  "46",
-			},
-			want: `{
-				"BoolStr": "true",
-				"IntStr": "42",
-				"UintptrStr": "44",
-				"StrStr": "\"xzbit\"",
-				"NumberStr": "46"
-			}`,
+	}{{
+		CaseName: Name("AllTypes"),
+		in: StringTag{
+			BoolStr:    true,
+			IntStr:     42,
+			UintptrStr: 44,
+			StrStr:     "xzbit",
+			NumberStr:  "46",
 		},
-		{
-			// See golang.org/issues/38173.
-			name: "StringDoubleEscapes",
-			in: StringTag{
-				StrStr:    "\b\f\n\r\t\"\\",
-				NumberStr: "0", // just to satisfy the roundtrip
-			},
-			want: `{
-				"BoolStr": "false",
-				"IntStr": "0",
-				"UintptrStr": "0",
-				"StrStr": "\"\\u0008\\u000c\\n\\r\\t\\\"\\\\\"",
-				"NumberStr": "0"
-			}`,
+		want: `{
+	"BoolStr": "true",
+	"IntStr": "42",
+	"UintptrStr": "44",
+	"StrStr": "\"xzbit\"",
+	"NumberStr": "46"
+}`,
+	}, {
+		// See golang.org/issues/38173.
+		CaseName: Name("StringDoubleEscapes"),
+		in: StringTag{
+			StrStr:    "\b\f\n\r\t\"\\",
+			NumberStr: "0", // just to satisfy the roundtrip
 		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			// Indent with a tab prefix to make the multi-line string
-			// literals in the table nicer to read.
-			got, err := MarshalIndent(&test.in, "\t\t\t", "\t")
+		want: `{
+	"BoolStr": "false",
+	"IntStr": "0",
+	"UintptrStr": "0",
+	"StrStr": "\"\\b\\f\\n\\r\\t\\\"\\\\\"",
+	"NumberStr": "0"
+}`,
+	}}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			got, err := MarshalIndent(&tt.in, "", "\t")
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("%s: MarshalIndent error: %v", tt.Where, err)
 			}
-			if got := string(got); got != test.want {
-				t.Fatalf(" got: %s\nwant: %s\n", got, test.want)
+			if got := string(got); got != tt.want {
+				t.Fatalf("%s: MarshalIndent:\n\tgot:  %s\n\twant: %s", tt.Where, stripWhitespace(got), stripWhitespace(tt.want))
 			}
 
 			// Verify that it round-trips.
 			var s2 StringTag
 			if err := Unmarshal(got, &s2); err != nil {
-				t.Fatalf("Decode: %v", err)
+				t.Fatalf("%s: Decode error: %v", tt.Where, err)
 			}
-			if !reflect.DeepEqual(test.in, s2) {
-				t.Fatalf("decode didn't match.\nsource: %#v\nEncoded as:\n%s\ndecode: %#v", test.in, string(got), s2)
+			if !reflect.DeepEqual(s2, tt.in) {
+				t.Fatalf("%s: Decode:\n\tinput: %s\n\tgot:  %#v\n\twant: %#v", tt.Where, indentNewlines(string(got)), s2, tt.in)
 			}
 		})
 	}
@@ -149,21 +143,21 @@ type renamedRenamedByteSlice []renamedByte
 
 func TestEncodeRenamedByteSlice(t *testing.T) {
 	s := renamedByteSlice("abc")
-	result, err := Marshal(s)
+	got, err := Marshal(s)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Marshal error: %v", err)
 	}
-	expect := `"YWJj"`
-	if string(result) != expect {
-		t.Errorf(" got %s want %s", result, expect)
+	want := `"YWJj"`
+	if string(got) != want {
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 	r := renamedRenamedByteSlice("abc")
-	result, err = Marshal(r)
+	got, err = Marshal(r)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Marshal error: %v", err)
 	}
-	if string(result) != expect {
-		t.Errorf(" got %s want %s", result, expect)
+	if string(got) != want {
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
@@ -212,36 +206,40 @@ func init() {
 
 func TestSamePointerNoCycle(t *testing.T) {
 	if _, err := Marshal(samePointerNoCycle); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
 }
 
 func TestSliceNoCycle(t *testing.T) {
 	if _, err := Marshal(sliceNoCycle); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
 }
 
-var unsupportedValues = []any{
-	math.NaN(),
-	math.Inf(-1),
-	math.Inf(1),
-	pointerCycle,
-	pointerCycleIndirect,
-	mapCycle,
-	sliceCycle,
-	recursiveSliceCycle,
-}
-
 func TestUnsupportedValues(t *testing.T) {
-	for _, v := range unsupportedValues {
-		if _, err := Marshal(v); err != nil {
-			if _, ok := err.(*UnsupportedValueError); !ok {
-				t.Errorf("for %v, got %T want UnsupportedValueError", v, err)
+	tests := []struct {
+		CaseName
+		in any
+	}{
+		{Name(""), math.NaN()},
+		{Name(""), math.Inf(-1)},
+		{Name(""), math.Inf(1)},
+		{Name(""), pointerCycle},
+		{Name(""), pointerCycleIndirect},
+		{Name(""), mapCycle},
+		{Name(""), sliceCycle},
+		{Name(""), recursiveSliceCycle},
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			if _, err := Marshal(tt.in); err != nil {
+				if _, ok := err.(*UnsupportedValueError); !ok {
+					t.Errorf("%s: Marshal error:\n\tgot:  %T\n\twant: %T", tt.Where, err, new(UnsupportedValueError))
+				}
+			} else {
+				t.Errorf("%s: Marshal error: got nil, want non-nil", tt.Where)
 			}
-		} else {
-			t.Errorf("for %v, expected error", v)
-		}
+		})
 	}
 }
 
@@ -253,11 +251,11 @@ func TestMarshalTextFloatMap(t *testing.T) {
 	}
 	got, err := Marshal(m)
 	if err != nil {
-		t.Errorf("Marshal() error: %v", err)
+		t.Errorf("Marshal error: %v", err)
 	}
 	want := `{"TF:NaN":"1","TF:NaN":"1"}`
 	if string(got) != want {
-		t.Errorf("Marshal() = %s, want %s", got, want)
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
@@ -322,10 +320,10 @@ func TestRefValMarshal(t *testing.T) {
 	const want = `{"R0":"ref","R1":"ref","R2":"\"ref\"","R3":"\"ref\"","V0":"val","V1":"val","V2":"\"val\"","V3":"\"val\""}`
 	b, err := Marshal(&s)
 	if err != nil {
-		t.Fatalf("Marshal: %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
 	if got := string(b); got != want {
-		t.Errorf("got %q, want %q", got, want)
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
@@ -348,33 +346,33 @@ func TestMarshalerEscaping(t *testing.T) {
 	want := `"\u003c\u0026\u003e"`
 	b, err := Marshal(c)
 	if err != nil {
-		t.Fatalf("Marshal(c): %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
 	if got := string(b); got != want {
-		t.Errorf("Marshal(c) = %#q, want %#q", got, want)
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 
 	var ct CText
 	want = `"\"\u003c\u0026\u003e\""`
 	b, err = Marshal(ct)
 	if err != nil {
-		t.Fatalf("Marshal(ct): %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
 	if got := string(b); got != want {
-		t.Errorf("Marshal(ct) = %#q, want %#q", got, want)
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
 func TestAnonymousFields(t *testing.T) {
 	tests := []struct {
-		label     string     // Test name
+		CaseName
 		makeInput func() any // Function to create input value
 		want      string     // Expected JSON output
 	}{{
 		// Both S1 and S2 have a field named X. From the perspective of S,
 		// it is ambiguous which one X refers to.
 		// This should not serialize either field.
-		label: "AmbiguousField",
+		CaseName: Name("AmbiguousField"),
 		makeInput: func() any {
 			type (
 				S1 struct{ x, X int }
@@ -388,7 +386,7 @@ func TestAnonymousFields(t *testing.T) {
 		},
 		want: `{}`,
 	}, {
-		label: "DominantField",
+		CaseName: Name("DominantField"),
 		// Both S1 and S2 have a field named X, but since S has an X field as
 		// well, it takes precedence over S1.X and S2.X.
 		makeInput: func() any {
@@ -406,7 +404,7 @@ func TestAnonymousFields(t *testing.T) {
 		want: `{"X":6}`,
 	}, {
 		// Unexported embedded field of non-struct type should not be serialized.
-		label: "UnexportedEmbeddedInt",
+		CaseName: Name("UnexportedEmbeddedInt"),
 		makeInput: func() any {
 			type (
 				myInt int
@@ -417,7 +415,7 @@ func TestAnonymousFields(t *testing.T) {
 		want: `{}`,
 	}, {
 		// Exported embedded field of non-struct type should be serialized.
-		label: "ExportedEmbeddedInt",
+		CaseName: Name("ExportedEmbeddedInt"),
 		makeInput: func() any {
 			type (
 				MyInt int
@@ -429,7 +427,7 @@ func TestAnonymousFields(t *testing.T) {
 	}, {
 		// Unexported embedded field of pointer to non-struct type
 		// should not be serialized.
-		label: "UnexportedEmbeddedIntPointer",
+		CaseName: Name("UnexportedEmbeddedIntPointer"),
 		makeInput: func() any {
 			type (
 				myInt int
@@ -443,7 +441,7 @@ func TestAnonymousFields(t *testing.T) {
 	}, {
 		// Exported embedded field of pointer to non-struct type
 		// should be serialized.
-		label: "ExportedEmbeddedIntPointer",
+		CaseName: Name("ExportedEmbeddedIntPointer"),
 		makeInput: func() any {
 			type (
 				MyInt int
@@ -458,7 +456,7 @@ func TestAnonymousFields(t *testing.T) {
 		// Exported fields of embedded structs should have their
 		// exported fields be serialized regardless of whether the struct types
 		// themselves are exported.
-		label: "EmbeddedStruct",
+		CaseName: Name("EmbeddedStruct"),
 		makeInput: func() any {
 			type (
 				s1 struct{ x, X int }
@@ -475,7 +473,7 @@ func TestAnonymousFields(t *testing.T) {
 		// Exported fields of pointers to embedded structs should have their
 		// exported fields be serialized regardless of whether the struct types
 		// themselves are exported.
-		label: "EmbeddedStructPointer",
+		CaseName: Name("EmbeddedStructPointer"),
 		makeInput: func() any {
 			type (
 				s1 struct{ x, X int }
@@ -491,7 +489,7 @@ func TestAnonymousFields(t *testing.T) {
 	}, {
 		// Exported fields on embedded unexported structs at multiple levels
 		// of nesting should still be serialized.
-		label: "NestedStructAndInts",
+		CaseName: Name("NestedStructAndInts"),
 		makeInput: func() any {
 			type (
 				MyInt1 int
@@ -518,7 +516,7 @@ func TestAnonymousFields(t *testing.T) {
 		// If an anonymous struct pointer field is nil, we should ignore
 		// the embedded fields behind it. Not properly doing so may
 		// result in the wrong output or reflect panics.
-		label: "EmbeddedFieldBehindNilPointer",
+		CaseName: Name("EmbeddedFieldBehindNilPointer"),
 		makeInput: func() any {
 			type (
 				S2 struct{ Field string }
@@ -530,13 +528,13 @@ func TestAnonymousFields(t *testing.T) {
 	}}
 
 	for _, tt := range tests {
-		t.Run(tt.label, func(t *testing.T) {
+		t.Run(tt.Name, func(t *testing.T) {
 			b, err := Marshal(tt.makeInput())
 			if err != nil {
-				t.Fatalf("Marshal() = %v, want nil error", err)
+				t.Fatalf("%s: Marshal error: %v", tt.Where, err)
 			}
 			if string(b) != tt.want {
-				t.Fatalf("Marshal() = %q, want %q", b, tt.want)
+				t.Fatalf("%s: Marshal:\n\tgot:  %s\n\twant: %s", tt.Where, b, tt.want)
 			}
 		})
 	}
@@ -588,31 +586,34 @@ func (nm *nilTextMarshaler) MarshalText() ([]byte, error) {
 
 // See golang.org/issue/16042 and golang.org/issue/34235.
 func TestNilMarshal(t *testing.T) {
-	testCases := []struct {
-		v    any
+	tests := []struct {
+		CaseName
+		in   any
 		want string
 	}{
-		{v: nil, want: `null`},
-		{v: new(float64), want: `0`},
-		{v: []any(nil), want: `null`},
-		{v: []string(nil), want: `null`},
-		{v: map[string]string(nil), want: `null`},
-		{v: []byte(nil), want: `null`},
-		{v: struct{ M string }{"gopher"}, want: `{"M":"gopher"}`},
-		{v: struct{ M Marshaler }{}, want: `{"M":null}`},
-		{v: struct{ M Marshaler }{(*nilJSONMarshaler)(nil)}, want: `{"M":"0zenil0"}`},
-		{v: struct{ M any }{(*nilJSONMarshaler)(nil)}, want: `{"M":null}`},
-		{v: struct{ M encoding.TextMarshaler }{}, want: `{"M":null}`},
-		{v: struct{ M encoding.TextMarshaler }{(*nilTextMarshaler)(nil)}, want: `{"M":"0zenil0"}`},
-		{v: struct{ M any }{(*nilTextMarshaler)(nil)}, want: `{"M":null}`},
+		{Name(""), nil, `null`},
+		{Name(""), new(float64), `0`},
+		{Name(""), []any(nil), `null`},
+		{Name(""), []string(nil), `null`},
+		{Name(""), map[string]string(nil), `null`},
+		{Name(""), []byte(nil), `null`},
+		{Name(""), struct{ M string }{"gopher"}, `{"M":"gopher"}`},
+		{Name(""), struct{ M Marshaler }{}, `{"M":null}`},
+		{Name(""), struct{ M Marshaler }{(*nilJSONMarshaler)(nil)}, `{"M":"0zenil0"}`},
+		{Name(""), struct{ M any }{(*nilJSONMarshaler)(nil)}, `{"M":null}`},
+		{Name(""), struct{ M encoding.TextMarshaler }{}, `{"M":null}`},
+		{Name(""), struct{ M encoding.TextMarshaler }{(*nilTextMarshaler)(nil)}, `{"M":"0zenil0"}`},
+		{Name(""), struct{ M any }{(*nilTextMarshaler)(nil)}, `{"M":null}`},
 	}
-
-	for _, tt := range testCases {
-		out, err := Marshal(tt.v)
-		if err != nil || string(out) != tt.want {
-			t.Errorf("Marshal(%#v) = %#q, %#v, want %#q, nil", tt.v, out, err, tt.want)
-			continue
-		}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			switch got, err := Marshal(tt.in); {
+			case err != nil:
+				t.Fatalf("%s: Marshal error: %v", tt.Where, err)
+			case string(got) != tt.want:
+				t.Fatalf("%s: Marshal:\n\tgot:  %s\n\twant: %s", tt.Where, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -624,12 +625,12 @@ func TestEmbeddedBug(t *testing.T) {
 	}
 	b, err := Marshal(v)
 	if err != nil {
-		t.Fatal("Marshal:", err)
+		t.Fatal("Marshal error:", err)
 	}
 	want := `{"S":"B"}`
 	got := string(b)
 	if got != want {
-		t.Fatalf("Marshal: got %s want %s", got, want)
+		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 	// Now check that the duplicate field, S, does not appear.
 	x := BugX{
@@ -637,12 +638,12 @@ func TestEmbeddedBug(t *testing.T) {
 	}
 	b, err = Marshal(x)
 	if err != nil {
-		t.Fatal("Marshal:", err)
+		t.Fatal("Marshal error:", err)
 	}
 	want = `{"A":23}`
 	got = string(b)
 	if got != want {
-		t.Fatalf("Marshal: got %s want %s", got, want)
+		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
@@ -664,12 +665,12 @@ func TestTaggedFieldDominates(t *testing.T) {
 	}
 	b, err := Marshal(v)
 	if err != nil {
-		t.Fatal("Marshal:", err)
+		t.Fatal("Marshal error:", err)
 	}
 	want := `{"S":"BugD"}`
 	got := string(b)
 	if got != want {
-		t.Fatalf("Marshal: got %s want %s", got, want)
+		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
@@ -691,12 +692,12 @@ func TestDuplicatedFieldDisappears(t *testing.T) {
 	}
 	b, err := Marshal(v)
 	if err != nil {
-		t.Fatal("Marshal:", err)
+		t.Fatal("Marshal error:", err)
 	}
 	want := `{}`
 	got := string(b)
 	if got != want {
-		t.Fatalf("Marshal: got %s want %s", got, want)
+		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
@@ -706,9 +707,8 @@ func TestIssue10281(t *testing.T) {
 	}
 	x := Foo{Number(`invalid`)}
 
-	b, err := Marshal(&x)
-	if err == nil {
-		t.Errorf("Marshal(&x) = %#q; want error", b)
+	if _, err := Marshal(&x); err == nil {
+		t.Fatalf("Marshal error: got nil, want non-nil")
 	}
 }
 
@@ -724,26 +724,26 @@ func TestMarshalErrorAndReuseEncodeState(t *testing.T) {
 	}
 	dummy := Dummy{Name: "Dummy"}
 	dummy.Next = &dummy
-	if b, err := Marshal(dummy); err == nil {
-		t.Errorf("Marshal(dummy) = %#q; want error", b)
+	if _, err := Marshal(dummy); err == nil {
+		t.Errorf("Marshal error: got nil, want non-nil")
 	}
 
 	type Data struct {
 		A string
 		I int
 	}
-	data := Data{A: "a", I: 1}
-	b, err := Marshal(data)
+	want := Data{A: "a", I: 1}
+	b, err := Marshal(want)
 	if err != nil {
-		t.Errorf("Marshal(%v) = %v", data, err)
+		t.Errorf("Marshal error: %v", err)
 	}
 
-	var data2 Data
-	if err := Unmarshal(b, &data2); err != nil {
-		t.Errorf("Unmarshal(%v) = %v", data2, err)
+	var got Data
+	if err := Unmarshal(b, &got); err != nil {
+		t.Errorf("Unmarshal error: %v", err)
 	}
-	if data2 != data {
-		t.Errorf("expect: %v, but get: %v", data, data2)
+	if got != want {
+		t.Errorf("Unmarshal:\n\tgot:  %v\n\twant: %v", got, want)
 	}
 }
 
@@ -753,7 +753,7 @@ func TestHTMLEscape(t *testing.T) {
 	want.Write([]byte(`{"M":"\u003chtml\u003efoo \u0026\u2028 \u2029\u003c/html\u003e"}`))
 	HTMLEscape(&b, []byte(m))
 	if !bytes.Equal(b.Bytes(), want.Bytes()) {
-		t.Errorf("HTMLEscape(&b, []byte(m)) = %s; want %s", b.Bytes(), want.Bytes())
+		t.Errorf("HTMLEscape:\n\tgot:  %s\n\twant: %s", b.Bytes(), want.Bytes())
 	}
 }
 
@@ -765,21 +765,19 @@ func TestEncodePointerString(t *testing.T) {
 	var n int64 = 42
 	b, err := Marshal(stringPointer{N: &n})
 	if err != nil {
-		t.Fatalf("Marshal: %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
 	if got, want := string(b), `{"n":"42"}`; got != want {
-		t.Errorf("Marshal = %s, want %s", got, want)
+		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 	var back stringPointer
-	err = Unmarshal(b, &back)
-	if err != nil {
-		t.Fatalf("Unmarshal: %v", err)
-	}
-	if back.N == nil {
-		t.Fatalf("Unmarshaled nil N field")
-	}
-	if *back.N != 42 {
-		t.Fatalf("*N = %d; want 42", *back.N)
+	switch err = Unmarshal(b, &back); {
+	case err != nil:
+		t.Fatalf("Unmarshal error: %v", err)
+	case back.N == nil:
+		t.Fatalf("Unmarshal: back.N = nil, want non-nil")
+	case *back.N != 42:
+		t.Fatalf("Unmarshal: *back.N = %d, want 42", *back.N)
 	}
 }
 
@@ -795,11 +793,11 @@ var encodeStringTests = []struct {
 	{"\x05", `"\u0005"`},
 	{"\x06", `"\u0006"`},
 	{"\x07", `"\u0007"`},
-	{"\x08", `"\u0008"`},
+	{"\x08", `"\b"`},
 	{"\x09", `"\t"`},
 	{"\x0a", `"\n"`},
 	{"\x0b", `"\u000b"`},
-	{"\x0c", `"\u000c"`},
+	{"\x0c", `"\f"`},
 	{"\x0d", `"\r"`},
 	{"\x0e", `"\u000e"`},
 	{"\x0f", `"\u000f"`},
@@ -825,7 +823,7 @@ func TestEncodeString(t *testing.T) {
 	for _, tt := range encodeStringTests {
 		b, err := Marshal(tt.in)
 		if err != nil {
-			t.Errorf("Marshal(%q): %v", tt.in, err)
+			t.Errorf("Marshal(%q) error: %v", tt.in, err)
 			continue
 		}
 		out := string(b)
@@ -863,65 +861,67 @@ func (f textfloat) MarshalText() ([]byte, error) { return tenc(`TF:%0.2f`, f) }
 
 // Issue 13783
 func TestEncodeBytekind(t *testing.T) {
-	testdata := []struct {
-		data any
+	tests := []struct {
+		CaseName
+		in   any
 		want string
 	}{
-		{byte(7), "7"},
-		{jsonbyte(7), `{"JB":7}`},
-		{textbyte(4), `"TB:4"`},
-		{jsonint(5), `{"JI":5}`},
-		{textint(1), `"TI:1"`},
-		{[]byte{0, 1}, `"AAE="`},
-		{[]jsonbyte{0, 1}, `[{"JB":0},{"JB":1}]`},
-		{[][]jsonbyte{{0, 1}, {3}}, `[[{"JB":0},{"JB":1}],[{"JB":3}]]`},
-		{[]textbyte{2, 3}, `["TB:2","TB:3"]`},
-		{[]jsonint{5, 4}, `[{"JI":5},{"JI":4}]`},
-		{[]textint{9, 3}, `["TI:9","TI:3"]`},
-		{[]int{9, 3}, `[9,3]`},
-		{[]textfloat{12, 3}, `["TF:12.00","TF:3.00"]`},
+		{Name(""), byte(7), "7"},
+		{Name(""), jsonbyte(7), `{"JB":7}`},
+		{Name(""), textbyte(4), `"TB:4"`},
+		{Name(""), jsonint(5), `{"JI":5}`},
+		{Name(""), textint(1), `"TI:1"`},
+		{Name(""), []byte{0, 1}, `"AAE="`},
+		{Name(""), []jsonbyte{0, 1}, `[{"JB":0},{"JB":1}]`},
+		{Name(""), [][]jsonbyte{{0, 1}, {3}}, `[[{"JB":0},{"JB":1}],[{"JB":3}]]`},
+		{Name(""), []textbyte{2, 3}, `["TB:2","TB:3"]`},
+		{Name(""), []jsonint{5, 4}, `[{"JI":5},{"JI":4}]`},
+		{Name(""), []textint{9, 3}, `["TI:9","TI:3"]`},
+		{Name(""), []int{9, 3}, `[9,3]`},
+		{Name(""), []textfloat{12, 3}, `["TF:12.00","TF:3.00"]`},
 	}
-	for _, d := range testdata {
-		js, err := Marshal(d.data)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-		got, want := string(js), d.want
-		if got != want {
-			t.Errorf("got %s, want %s", got, want)
-		}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			b, err := Marshal(tt.in)
+			if err != nil {
+				t.Errorf("%s: Marshal error: %v", tt.Where, err)
+			}
+			got, want := string(b), tt.want
+			if got != want {
+				t.Errorf("%s: Marshal:\n\tgot:  %s\n\twant: %s", tt.Where, got, want)
+			}
+		})
 	}
 }
 
 func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
-	b, err := Marshal(map[unmarshalerText]int{
+	got, err := Marshal(map[unmarshalerText]int{
 		{"x", "y"}: 1,
 		{"y", "x"}: 2,
 		{"a", "z"}: 3,
 		{"z", "a"}: 4,
 	})
 	if err != nil {
-		t.Fatalf("Failed to Marshal text.Marshaler: %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
 	const want = `{"a:z":3,"x:y":1,"y:x":2,"z:a":4}`
-	if string(b) != want {
-		t.Errorf("Marshal map with text.Marshaler keys: got %#q, want %#q", b, want)
+	if string(got) != want {
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
 // https://golang.org/issue/33675
 func TestNilMarshalerTextMapKey(t *testing.T) {
-	b, err := Marshal(map[*unmarshalerText]int{
+	got, err := Marshal(map[*unmarshalerText]int{
 		(*unmarshalerText)(nil): 1,
 		{"A", "B"}:              2,
 	})
 	if err != nil {
-		t.Fatalf("Failed to Marshal *text.Marshaler: %v", err)
+		t.Fatalf("Marshal error: %v", err)
 	}
 	const want = `{"":1,"A:B":2}`
-	if string(b) != want {
-		t.Errorf("Marshal map with *text.Marshaler keys: got %#q, want %#q", b, want)
+	if string(got) != want {
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
@@ -960,7 +960,7 @@ func TestMarshalFloat(t *testing.T) {
 		}
 		bout, err := Marshal(vf)
 		if err != nil {
-			t.Errorf("Marshal(%T(%g)): %v", vf, vf, err)
+			t.Errorf("Marshal(%T(%g)) error: %v", vf, vf, err)
 			nfail++
 			return
 		}
@@ -969,12 +969,12 @@ func TestMarshalFloat(t *testing.T) {
 		// result must convert back to the same float
 		g, err := strconv.ParseFloat(out, bits)
 		if err != nil {
-			t.Errorf("Marshal(%T(%g)) = %q, cannot parse back: %v", vf, vf, out, err)
+			t.Errorf("ParseFloat(%q) error: %v", out, err)
 			nfail++
 			return
 		}
 		if f != g || fmt.Sprint(f) != fmt.Sprint(g) { // fmt.Sprint handles ±0
-			t.Errorf("Marshal(%T(%g)) = %q (is %g, not %g)", vf, vf, out, float32(g), vf)
+			t.Errorf("ParseFloat(%q):\n\tgot:  %g\n\twant: %g", out, float32(g), vf)
 			nfail++
 			return
 		}
@@ -985,7 +985,7 @@ func TestMarshalFloat(t *testing.T) {
 		}
 		for _, re := range bad {
 			if re.MatchString(out) {
-				t.Errorf("Marshal(%T(%g)) = %q, must not match /%s/", vf, vf, out, re)
+				t.Errorf("Marshal(%T(%g)) = %q; must not match /%s/", vf, vf, out, re)
 				nfail++
 				return
 			}
@@ -1049,87 +1049,90 @@ func TestMarshalRawMessageValue(t *testing.T) {
 	)
 
 	tests := []struct {
+		CaseName
 		in   any
 		want string
 		ok   bool
 	}{
 		// Test with nil RawMessage.
-		{rawNil, "null", true},
-		{&rawNil, "null", true},
-		{[]any{rawNil}, "[null]", true},
-		{&[]any{rawNil}, "[null]", true},
-		{[]any{&rawNil}, "[null]", true},
-		{&[]any{&rawNil}, "[null]", true},
-		{struct{ M RawMessage }{rawNil}, `{"M":null}`, true},
-		{&struct{ M RawMessage }{rawNil}, `{"M":null}`, true},
-		{struct{ M *RawMessage }{&rawNil}, `{"M":null}`, true},
-		{&struct{ M *RawMessage }{&rawNil}, `{"M":null}`, true},
-		{map[string]any{"M": rawNil}, `{"M":null}`, true},
-		{&map[string]any{"M": rawNil}, `{"M":null}`, true},
-		{map[string]any{"M": &rawNil}, `{"M":null}`, true},
-		{&map[string]any{"M": &rawNil}, `{"M":null}`, true},
-		{T1{rawNil}, "{}", true},
-		{T2{&rawNil}, `{"M":null}`, true},
-		{&T1{rawNil}, "{}", true},
-		{&T2{&rawNil}, `{"M":null}`, true},
+		{Name(""), rawNil, "null", true},
+		{Name(""), &rawNil, "null", true},
+		{Name(""), []any{rawNil}, "[null]", true},
+		{Name(""), &[]any{rawNil}, "[null]", true},
+		{Name(""), []any{&rawNil}, "[null]", true},
+		{Name(""), &[]any{&rawNil}, "[null]", true},
+		{Name(""), struct{ M RawMessage }{rawNil}, `{"M":null}`, true},
+		{Name(""), &struct{ M RawMessage }{rawNil}, `{"M":null}`, true},
+		{Name(""), struct{ M *RawMessage }{&rawNil}, `{"M":null}`, true},
+		{Name(""), &struct{ M *RawMessage }{&rawNil}, `{"M":null}`, true},
+		{Name(""), map[string]any{"M": rawNil}, `{"M":null}`, true},
+		{Name(""), &map[string]any{"M": rawNil}, `{"M":null}`, true},
+		{Name(""), map[string]any{"M": &rawNil}, `{"M":null}`, true},
+		{Name(""), &map[string]any{"M": &rawNil}, `{"M":null}`, true},
+		{Name(""), T1{rawNil}, "{}", true},
+		{Name(""), T2{&rawNil}, `{"M":null}`, true},
+		{Name(""), &T1{rawNil}, "{}", true},
+		{Name(""), &T2{&rawNil}, `{"M":null}`, true},
 
 		// Test with empty, but non-nil, RawMessage.
-		{rawEmpty, "", false},
-		{&rawEmpty, "", false},
-		{[]any{rawEmpty}, "", false},
-		{&[]any{rawEmpty}, "", false},
-		{[]any{&rawEmpty}, "", false},
-		{&[]any{&rawEmpty}, "", false},
-		{struct{ X RawMessage }{rawEmpty}, "", false},
-		{&struct{ X RawMessage }{rawEmpty}, "", false},
-		{struct{ X *RawMessage }{&rawEmpty}, "", false},
-		{&struct{ X *RawMessage }{&rawEmpty}, "", false},
-		{map[string]any{"nil": rawEmpty}, "", false},
-		{&map[string]any{"nil": rawEmpty}, "", false},
-		{map[string]any{"nil": &rawEmpty}, "", false},
-		{&map[string]any{"nil": &rawEmpty}, "", false},
-		{T1{rawEmpty}, "{}", true},
-		{T2{&rawEmpty}, "", false},
-		{&T1{rawEmpty}, "{}", true},
-		{&T2{&rawEmpty}, "", false},
+		{Name(""), rawEmpty, "", false},
+		{Name(""), &rawEmpty, "", false},
+		{Name(""), []any{rawEmpty}, "", false},
+		{Name(""), &[]any{rawEmpty}, "", false},
+		{Name(""), []any{&rawEmpty}, "", false},
+		{Name(""), &[]any{&rawEmpty}, "", false},
+		{Name(""), struct{ X RawMessage }{rawEmpty}, "", false},
+		{Name(""), &struct{ X RawMessage }{rawEmpty}, "", false},
+		{Name(""), struct{ X *RawMessage }{&rawEmpty}, "", false},
+		{Name(""), &struct{ X *RawMessage }{&rawEmpty}, "", false},
+		{Name(""), map[string]any{"nil": rawEmpty}, "", false},
+		{Name(""), &map[string]any{"nil": rawEmpty}, "", false},
+		{Name(""), map[string]any{"nil": &rawEmpty}, "", false},
+		{Name(""), &map[string]any{"nil": &rawEmpty}, "", false},
+		{Name(""), T1{rawEmpty}, "{}", true},
+		{Name(""), T2{&rawEmpty}, "", false},
+		{Name(""), &T1{rawEmpty}, "{}", true},
+		{Name(""), &T2{&rawEmpty}, "", false},
 
 		// Test with RawMessage with some text.
 		//
 		// The tests below marked with Issue6458 used to generate "ImZvbyI=" instead "foo".
 		// This behavior was intentionally changed in Go 1.8.
 		// See https://golang.org/issues/14493#issuecomment-255857318
-		{rawText, `"foo"`, true}, // Issue6458
-		{&rawText, `"foo"`, true},
-		{[]any{rawText}, `["foo"]`, true},  // Issue6458
-		{&[]any{rawText}, `["foo"]`, true}, // Issue6458
-		{[]any{&rawText}, `["foo"]`, true},
-		{&[]any{&rawText}, `["foo"]`, true},
-		{struct{ M RawMessage }{rawText}, `{"M":"foo"}`, true}, // Issue6458
-		{&struct{ M RawMessage }{rawText}, `{"M":"foo"}`, true},
-		{struct{ M *RawMessage }{&rawText}, `{"M":"foo"}`, true},
-		{&struct{ M *RawMessage }{&rawText}, `{"M":"foo"}`, true},
-		{map[string]any{"M": rawText}, `{"M":"foo"}`, true},  // Issue6458
-		{&map[string]any{"M": rawText}, `{"M":"foo"}`, true}, // Issue6458
-		{map[string]any{"M": &rawText}, `{"M":"foo"}`, true},
-		{&map[string]any{"M": &rawText}, `{"M":"foo"}`, true},
-		{T1{rawText}, `{"M":"foo"}`, true}, // Issue6458
-		{T2{&rawText}, `{"M":"foo"}`, true},
-		{&T1{rawText}, `{"M":"foo"}`, true},
-		{&T2{&rawText}, `{"M":"foo"}`, true},
+		{Name(""), rawText, `"foo"`, true}, // Issue6458
+		{Name(""), &rawText, `"foo"`, true},
+		{Name(""), []any{rawText}, `["foo"]`, true},  // Issue6458
+		{Name(""), &[]any{rawText}, `["foo"]`, true}, // Issue6458
+		{Name(""), []any{&rawText}, `["foo"]`, true},
+		{Name(""), &[]any{&rawText}, `["foo"]`, true},
+		{Name(""), struct{ M RawMessage }{rawText}, `{"M":"foo"}`, true}, // Issue6458
+		{Name(""), &struct{ M RawMessage }{rawText}, `{"M":"foo"}`, true},
+		{Name(""), struct{ M *RawMessage }{&rawText}, `{"M":"foo"}`, true},
+		{Name(""), &struct{ M *RawMessage }{&rawText}, `{"M":"foo"}`, true},
+		{Name(""), map[string]any{"M": rawText}, `{"M":"foo"}`, true},  // Issue6458
+		{Name(""), &map[string]any{"M": rawText}, `{"M":"foo"}`, true}, // Issue6458
+		{Name(""), map[string]any{"M": &rawText}, `{"M":"foo"}`, true},
+		{Name(""), &map[string]any{"M": &rawText}, `{"M":"foo"}`, true},
+		{Name(""), T1{rawText}, `{"M":"foo"}`, true}, // Issue6458
+		{Name(""), T2{&rawText}, `{"M":"foo"}`, true},
+		{Name(""), &T1{rawText}, `{"M":"foo"}`, true},
+		{Name(""), &T2{&rawText}, `{"M":"foo"}`, true},
 	}
 
-	for i, tt := range tests {
-		b, err := Marshal(tt.in)
-		if ok := (err == nil); ok != tt.ok {
-			if err != nil {
-				t.Errorf("test %d, unexpected failure: %v", i, err)
-			} else {
-				t.Errorf("test %d, unexpected success", i)
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			b, err := Marshal(tt.in)
+			if ok := (err == nil); ok != tt.ok {
+				if err != nil {
+					t.Errorf("%s: Marshal error: %v", tt.Where, err)
+				} else {
+					t.Errorf("%s: Marshal error: got nil, want non-nil", tt.Where)
+				}
 			}
-		}
-		if got := string(b); got != tt.want {
-			t.Errorf("test %d, Marshal(%#v) = %q, want %q", i, tt.in, got, tt.want)
-		}
+			if got := string(b); got != tt.want {
+				t.Errorf("%s: Marshal:\n\tinput: %#v\n\tgot:  %s\n\twant: %s", tt.Where, tt.in, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -1153,38 +1156,66 @@ func TestMarshalUncommonFieldNames(t *testing.T) {
 	}{}
 	b, err := Marshal(v)
 	if err != nil {
-		t.Fatal("Marshal:", err)
+		t.Fatal("Marshal error:", err)
 	}
 	want := `{"A0":0,"À":0,"Aβ":0}`
 	got := string(b)
 	if got != want {
-		t.Fatalf("Marshal: got %s want %s", got, want)
+		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
 func TestMarshalerError(t *testing.T) {
 	s := "test variable"
 	st := reflect.TypeOf(s)
-	errText := "json: test error"
+	const errText = "json: test error"
 
 	tests := []struct {
+		CaseName
 		err  *MarshalerError
 		want string
-	}{
-		{
-			&MarshalerError{st, fmt.Errorf(errText), ""},
-			"json: error calling MarshalJSON for type " + st.String() + ": " + errText,
-		},
-		{
-			&MarshalerError{st, fmt.Errorf(errText), "TestMarshalerError"},
-			"json: error calling TestMarshalerError for type " + st.String() + ": " + errText,
-		},
-	}
+	}{{
+		Name(""),
+		&MarshalerError{st, fmt.Errorf(errText), ""},
+		"json: error calling MarshalJSON for type " + st.String() + ": " + errText,
+	}, {
+		Name(""),
+		&MarshalerError{st, fmt.Errorf(errText), "TestMarshalerError"},
+		"json: error calling TestMarshalerError for type " + st.String() + ": " + errText,
+	}}
 
-	for i, tt := range tests {
-		got := tt.err.Error()
-		if got != tt.want {
-			t.Errorf("MarshalerError test %d, got: %s, want: %s", i, got, tt.want)
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			got := tt.err.Error()
+			if got != tt.want {
+				t.Errorf("%s: Error:\n\tgot:  %s\n\twant: %s", tt.Where, got, tt.want)
+			}
+		})
+	}
+}
+
+type marshaledValue string
+
+func (v marshaledValue) MarshalJSON() ([]byte, error) {
+	return []byte(v), nil
+}
+
+func TestIssue63379(t *testing.T) {
+	for _, v := range []string{
+		"[]<",
+		"[]>",
+		"[]&",
+		"[]\u2028",
+		"[]\u2029",
+		"{}<",
+		"{}>",
+		"{}&",
+		"{}\u2028",
+		"{}\u2029",
+	} {
+		_, err := Marshal(marshaledValue(v))
+		if err == nil {
+			t.Errorf("expected error for %q", v)
 		}
 	}
 }

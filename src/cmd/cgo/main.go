@@ -28,6 +28,7 @@ import (
 	"cmd/internal/edit"
 	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
+	"cmd/internal/telemetry"
 )
 
 // A Package collects information about the package we're going to write.
@@ -38,7 +39,7 @@ type Package struct {
 	IntSize     int64
 	GccOptions  []string
 	GccIsClang  bool
-	CgoFlags    map[string][]string // #cgo flags (CFLAGS, LDFLAGS)
+	LdFlags     []string // #cgo LDFLAGS
 	Written     map[string]bool
 	Name        map[string]*Name // accumulated Name from Files
 	ExpFunc     []*ExpFunc       // accumulated ExpFunc from Files
@@ -48,6 +49,8 @@ type Package struct {
 	Preamble    string          // collected preamble for _cgo_export.h
 	typedefs    map[string]bool // type names that appear in the types of the objects we're interested in
 	typedefList []typedefInfo
+	noCallbacks map[string]bool // C function names with #cgo nocallback directive
+	noEscapes   map[string]bool // C function names with #cgo noescape directive
 }
 
 // A typedefInfo is an element on Package.typedefList: a typedef name
@@ -59,16 +62,18 @@ type typedefInfo struct {
 
 // A File collects information about a single Go input file.
 type File struct {
-	AST      *ast.File           // parsed AST
-	Comments []*ast.CommentGroup // comments from file
-	Package  string              // Package name
-	Preamble string              // C preamble (doc comment on import "C")
-	Ref      []*Ref              // all references to C.xxx in AST
-	Calls    []*Call             // all calls to C.xxx in AST
-	ExpFunc  []*ExpFunc          // exported functions for this file
-	Name     map[string]*Name    // map from Go name to Name
-	NamePos  map[*Name]token.Pos // map from Name to position of the first reference
-	Edit     *edit.Buffer
+	AST         *ast.File           // parsed AST
+	Comments    []*ast.CommentGroup // comments from file
+	Package     string              // Package name
+	Preamble    string              // C preamble (doc comment on import "C")
+	Ref         []*Ref              // all references to C.xxx in AST
+	Calls       []*Call             // all calls to C.xxx in AST
+	ExpFunc     []*ExpFunc          // exported functions for this file
+	Name        map[string]*Name    // map from Go name to Name
+	NamePos     map[*Name]token.Pos // map from Name to position of the first reference
+	NoCallbacks map[string]bool     // C function names that with #cgo nocallback directive
+	NoEscapes   map[string]bool     // C function names that with #cgo noescape directive
+	Edit        *edit.Buffer
 }
 
 func (f *File) offset(p token.Pos) int {
@@ -238,6 +243,8 @@ var objDir = flag.String("objdir", "", "object directory")
 var importPath = flag.String("importpath", "", "import path of package being built (for comments in generated files)")
 var exportHeader = flag.String("exportheader", "", "where to write export header if any exported functions")
 
+var ldflags = flag.String("ldflags", "", "flags to pass to C linker")
+
 var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
 var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
@@ -251,8 +258,11 @@ var goarch, goos, gomips, gomips64 string
 var gccBaseCmd []string
 
 func main() {
+	telemetry.Start()
 	objabi.AddVersionFlag() // -V
 	objabi.Flagparse(usage)
+	telemetry.Inc("cgo/invocations")
+	telemetry.CountFlags("cgo/flag:", *flag.CommandLine)
 
 	if *gccgoDefineCgoIncomplete {
 		if !*gccgo {
@@ -324,11 +334,11 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Record CGO_LDFLAGS from the environment for external linking.
-	if ldflags := os.Getenv("CGO_LDFLAGS"); ldflags != "" {
-		args, err := splitQuoted(ldflags)
+	// Record linker flags for external linking.
+	if *ldflags != "" {
+		args, err := splitQuoted(*ldflags)
 		if err != nil {
-			fatalf("bad CGO_LDFLAGS: %q (%s)", ldflags, err)
+			fatalf("bad -ldflags option: %q (%s)", *ldflags, err)
 		}
 		p.addToFlag("LDFLAGS", args)
 	}
@@ -374,18 +384,18 @@ func main() {
 		f := new(File)
 		f.Edit = edit.NewBuffer(b)
 		f.ParseGo(input, b)
-		f.DiscardCgoDirectives()
+		f.ProcessCgoDirectives()
 		fs[i] = f
 	}
 
 	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
 
 	if *objDir == "" {
-		// make sure that _obj directory exists, so that we can write
-		// all the output files there.
-		os.Mkdir("_obj", 0777)
 		*objDir = "_obj"
 	}
+	// make sure that `objDir` directory exists, so that we can write
+	// all the output files there.
+	os.MkdirAll(*objDir, 0o700)
 	*objDir += string(filepath.Separator)
 
 	for i, input := range goFiles {
@@ -411,6 +421,25 @@ func main() {
 			os.Stdout.WriteString(p.godefs(f, osArgs))
 		} else {
 			p.writeOutput(f, input)
+		}
+	}
+	cFunctions := make(map[string]bool)
+	for _, key := range nameKeys(p.Name) {
+		n := p.Name[key]
+		if n.FuncType != nil {
+			cFunctions[n.C] = true
+		}
+	}
+
+	for funcName := range p.noEscapes {
+		if _, found := cFunctions[funcName]; !found {
+			error_(token.NoPos, "#cgo noescape %s: no matched C function", funcName)
+		}
+	}
+
+	for funcName := range p.noCallbacks {
+		if _, found := cFunctions[funcName]; !found {
+			error_(token.NoPos, "#cgo nocallback %s: no matched C function", funcName)
 		}
 	}
 
@@ -450,10 +479,11 @@ func newPackage(args []string) *Package {
 	os.Setenv("LC_ALL", "C")
 
 	p := &Package{
-		PtrSize:  ptrSize,
-		IntSize:  intSize,
-		CgoFlags: make(map[string][]string),
-		Written:  make(map[string]bool),
+		PtrSize:     ptrSize,
+		IntSize:     intSize,
+		Written:     make(map[string]bool),
+		noCallbacks: make(map[string]bool),
+		noEscapes:   make(map[string]bool),
 	}
 	p.addToFlag("CFLAGS", args)
 	return p
@@ -485,6 +515,14 @@ func (p *Package) Record(f *File) {
 				error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
 			}
 		}
+	}
+
+	// merge nocallback & noescape
+	for k, v := range f.NoCallbacks {
+		p.noCallbacks[k] = v
+	}
+	for k, v := range f.NoEscapes {
+		p.noEscapes[k] = v
 	}
 
 	if f.ExpFunc != nil {

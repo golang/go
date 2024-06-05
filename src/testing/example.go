@@ -6,7 +6,7 @@ package testing
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -47,7 +47,7 @@ func runExamples(matchString func(pat, str string) (bool, error), examples []Int
 
 func sortLines(output string) string {
 	lines := strings.Split(output, "\n")
-	sort.Strings(lines)
+	slices.Sort(lines)
 	return strings.Join(lines, "\n")
 }
 

@@ -52,7 +52,7 @@ func (a *UnixAddr) opAddr() Addr {
 //
 // The network must be a Unix network name.
 //
-// See func Dial for a description of the network and address
+// See func [Dial] for a description of the network and address
 // parameters.
 func ResolveUnixAddr(network, address string) (*UnixAddr, error) {
 	switch network {
@@ -63,14 +63,14 @@ func ResolveUnixAddr(network, address string) (*UnixAddr, error) {
 	}
 }
 
-// UnixConn is an implementation of the Conn interface for connections
+// UnixConn is an implementation of the [Conn] interface for connections
 // to Unix domain sockets.
 type UnixConn struct {
 	conn
 }
 
 // SyscallConn returns a raw network connection.
-// This implements the syscall.Conn interface.
+// This implements the [syscall.Conn] interface.
 func (c *UnixConn) SyscallConn() (syscall.RawConn, error) {
 	if !c.ok() {
 		return nil, syscall.EINVAL
@@ -102,7 +102,7 @@ func (c *UnixConn) CloseWrite() error {
 	return nil
 }
 
-// ReadFromUnix acts like ReadFrom but returns a UnixAddr.
+// ReadFromUnix acts like [UnixConn.ReadFrom] but returns a [UnixAddr].
 func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
@@ -114,7 +114,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
 	return n, addr, err
 }
 
-// ReadFrom implements the PacketConn ReadFrom method.
+// ReadFrom implements the [PacketConn] ReadFrom method.
 func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
@@ -147,7 +147,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 	return
 }
 
-// WriteToUnix acts like WriteTo but takes a UnixAddr.
+// WriteToUnix acts like [UnixConn.WriteTo] but takes a [UnixAddr].
 func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -159,7 +159,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
 	return n, err
 }
 
-// WriteTo implements the PacketConn WriteTo method.
+// WriteTo implements the [PacketConn] WriteTo method.
 func (c *UnixConn) WriteTo(b []byte, addr Addr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -194,7 +194,7 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
 
 func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{conn{fd}} }
 
-// DialUnix acts like Dial for Unix networks.
+// DialUnix acts like [Dial] for Unix networks.
 //
 // The network must be a Unix network name; see func Dial for details.
 //
@@ -215,7 +215,7 @@ func DialUnix(network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
 }
 
 // UnixListener is a Unix domain socket listener. Clients should
-// typically use variables of type Listener instead of assuming Unix
+// typically use variables of type [Listener] instead of assuming Unix
 // domain sockets.
 type UnixListener struct {
 	fd         *netFD
@@ -227,7 +227,7 @@ type UnixListener struct {
 func (ln *UnixListener) ok() bool { return ln != nil && ln.fd != nil }
 
 // SyscallConn returns a raw network connection.
-// This implements the syscall.Conn interface.
+// This implements the [syscall.Conn] interface.
 //
 // The returned RawConn only supports calling Control. Read and
 // Write return an error.
@@ -251,8 +251,8 @@ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
 	return c, nil
 }
 
-// Accept implements the Accept method in the Listener interface.
-// Returned connections will be of type *UnixConn.
+// Accept implements the Accept method in the [Listener] interface.
+// Returned connections will be of type [*UnixConn].
 func (l *UnixListener) Accept() (Conn, error) {
 	if !l.ok() {
 		return nil, syscall.EINVAL
@@ -287,13 +287,10 @@ func (l *UnixListener) SetDeadline(t time.Time) error {
 	if !l.ok() {
 		return syscall.EINVAL
 	}
-	if err := l.fd.pfd.SetDeadline(t); err != nil {
-		return &OpError{Op: "set", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
-	}
-	return nil
+	return l.fd.SetDeadline(t)
 }
 
-// File returns a copy of the underlying os.File.
+// File returns a copy of the underlying [os.File].
 // It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
 //
@@ -311,7 +308,7 @@ func (l *UnixListener) File() (f *os.File, err error) {
 	return
 }
 
-// ListenUnix acts like Listen for Unix networks.
+// ListenUnix acts like [Listen] for Unix networks.
 //
 // The network must be "unix" or "unixpacket".
 func ListenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
@@ -331,7 +328,7 @@ func ListenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
 	return ln, nil
 }
 
-// ListenUnixgram acts like ListenPacket for Unix networks.
+// ListenUnixgram acts like [ListenPacket] for Unix networks.
 //
 // The network must be "unixgram".
 func ListenUnixgram(network string, laddr *UnixAddr) (*UnixConn, error) {

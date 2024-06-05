@@ -33,13 +33,14 @@ var (
 	gohostos         string
 	goos             string
 	goarm            string
+	goarm64          string
 	go386            string
 	goamd64          string
 	gomips           string
 	gomips64         string
 	goppc64          string
+	goriscv64        string
 	goroot           string
-	goroot_final     string
 	goextlinkenabled string
 	gogcflags        string // For running built compiler
 	goldflags        string
@@ -126,12 +127,6 @@ func xinit() {
 	// All exec calls rewrite "go" into gorootBinGo.
 	gorootBinGo = pathf("%s/bin/go", goroot)
 
-	b = os.Getenv("GOROOT_FINAL")
-	if b == "" {
-		b = goroot
-	}
-	goroot_final = b
-
 	b = os.Getenv("GOOS")
 	if b == "" {
 		b = gohostos
@@ -146,6 +141,12 @@ func xinit() {
 		b = xgetgoarm()
 	}
 	goarm = b
+
+	b = os.Getenv("GOARM64")
+	if b == "" {
+		b = "v8.0"
+	}
+	goarm64 = b
 
 	b = os.Getenv("GO386")
 	if b == "" {
@@ -176,6 +177,12 @@ func xinit() {
 		b = "power8"
 	}
 	goppc64 = b
+
+	b = os.Getenv("GORISCV64")
+	if b == "" {
+		b = "rva20u64"
+	}
+	goriscv64 = b
 
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
@@ -230,14 +237,15 @@ func xinit() {
 	os.Setenv("GOAMD64", goamd64)
 	os.Setenv("GOARCH", goarch)
 	os.Setenv("GOARM", goarm)
+	os.Setenv("GOARM64", goarm64)
 	os.Setenv("GOHOSTARCH", gohostarch)
 	os.Setenv("GOHOSTOS", gohostos)
 	os.Setenv("GOOS", goos)
 	os.Setenv("GOMIPS", gomips)
 	os.Setenv("GOMIPS64", gomips64)
 	os.Setenv("GOPPC64", goppc64)
+	os.Setenv("GORISCV64", goriscv64)
 	os.Setenv("GOROOT", goroot)
-	os.Setenv("GOROOT_FINAL", goroot_final)
 
 	// Set GOBIN to GOROOT/bin. The meaning of GOBIN has drifted over time
 	// (see https://go.dev/issue/3269, https://go.dev/cl/183058,
@@ -576,9 +584,7 @@ func setup() {
 func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
 	if cgoEnabled {
 		switch goarch {
-		case "loong64",
-			"mips", "mipsle", "mips64", "mips64le",
-			"riscv64":
+		case "loong64", "mips", "mipsle", "mips64", "mips64le":
 			// Internally linking cgo is incomplete on some architectures.
 			// https://golang.org/issue/14449
 			return true
@@ -589,7 +595,9 @@ func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
 			}
 		case "ppc64":
 			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
-			return true
+			if goos == "aix" || goos == "linux" {
+				return true
+			}
 		}
 
 		switch goos {
@@ -891,10 +899,25 @@ func runInstall(pkg string, ch chan struct{}) {
 			asmArgs = append(asmArgs, "-D", "GOPPC64_power8")
 		}
 	}
-	goasmh := pathf("%s/go_asm.h", workdir)
-	if IsRuntimePackagePath(pkg) {
-		asmArgs = append(asmArgs, "-compiling-runtime")
+	if goarch == "riscv64" {
+		// Define GORISCV64_value from goriscv64
+		asmArgs = append(asmArgs, "-D", "GORISCV64_"+goriscv64)
 	}
+	if goarch == "arm" {
+		// Define GOARM_value from goarm, which can be either a version
+		// like "6", or a version and a FP mode, like "7,hardfloat".
+		switch {
+		case strings.Contains(goarm, "7"):
+			asmArgs = append(asmArgs, "-D", "GOARM_7")
+			fallthrough
+		case strings.Contains(goarm, "6"):
+			asmArgs = append(asmArgs, "-D", "GOARM_6")
+			fallthrough
+		default:
+			asmArgs = append(asmArgs, "-D", "GOARM_5")
+		}
+	}
+	goasmh := pathf("%s/go_asm.h", workdir)
 
 	// Collect symabis from assembly code.
 	var symabis string
@@ -948,9 +971,6 @@ func runInstall(pkg string, ch chan struct{}) {
 	compile := []string{pathf("%s/compile", tooldir), "-std", "-pack", "-o", b, "-p", pkgName, "-importcfg", importcfg}
 	if gogcflags != "" {
 		compile = append(compile, strings.Fields(gogcflags)...)
-	}
-	if pkg == "runtime" {
-		compile = append(compile, "-+")
 	}
 	if len(sfiles) > 0 {
 		compile = append(compile, "-asmhdr", goasmh)
@@ -1227,6 +1247,9 @@ func cmdenv() {
 	if goarch == "arm" {
 		xprintf(format, "GOARM", goarm)
 	}
+	if goarch == "arm64" {
+		xprintf(format, "GOARM64", goarm64)
+	}
 	if goarch == "386" {
 		xprintf(format, "GO386", go386)
 	}
@@ -1241,6 +1264,9 @@ func cmdenv() {
 	}
 	if goarch == "ppc64" || goarch == "ppc64le" {
 		xprintf(format, "GOPPC64", goppc64)
+	}
+	if goarch == "riscv64" {
+		xprintf(format, "GORISCV64", goriscv64)
 	}
 	xprintf(format, "GOWORK", "off")
 
@@ -1328,7 +1354,7 @@ func toolenv() []string {
 	return env
 }
 
-var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link"}
+var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link", "cmd/preprofile"}
 
 // The bootstrap command runs a build from scratch,
 // stopping at having installed the go_bootstrap command.
@@ -1367,6 +1393,12 @@ func cmdbootstrap() {
 	// GOPATH points somewhere else (e.g., to GOROOT), the
 	// go tool may complain.
 	os.Setenv("GOPATH", pathf("%s/pkg/obj/gopath", goroot))
+
+	// Set GOPROXY=off to avoid downloading modules to the modcache in
+	// the GOPATH set above to be inside GOROOT. The modcache is read
+	// only so if we downloaded to the modcache, we'd create readonly
+	// files in GOROOT, which is undesirable. See #67463)
+	os.Setenv("GOPROXY", "off")
 
 	// Use a build cache separate from the default user one.
 	// Also one that will be wiped out during startup, so that
@@ -1577,6 +1609,9 @@ func cmdbootstrap() {
 		ok[f] = true
 	}
 	for _, f := range binFiles {
+		if gohostos == "darwin" && filepath.Base(f) == ".DS_Store" {
+			continue // unfortunate but not unexpected
+		}
 		elem := strings.TrimSuffix(filepath.Base(f), ".exe")
 		if !ok[f] && elem != "go" && elem != "gofmt" && elem != goos+"_"+goarch {
 			fatalf("unexpected new file in $GOROOT/bin: %s", elem)
@@ -1732,6 +1767,7 @@ var cgoEnabled = map[string]bool{
 	"openbsd/arm64":   true,
 	"openbsd/mips64":  true,
 	"openbsd/ppc64":   false,
+	"openbsd/riscv64": true,
 	"plan9/386":       false,
 	"plan9/amd64":     false,
 	"plan9/arm":       false,
@@ -1748,7 +1784,6 @@ var cgoEnabled = map[string]bool{
 // See go.dev/issue/56679.
 var broken = map[string]bool{
 	"linux/sparc64":  true, // An incomplete port. See CL 132155.
-	"openbsd/ppc64":  true, // An incomplete port: go.dev/issue/56001.
 	"openbsd/mips64": true, // Broken: go.dev/issue/58110.
 }
 
@@ -1853,10 +1888,7 @@ func banner() {
 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot)
 	xprintf("Installed commands in %s\n", gorootBin)
 
-	if !xsamefile(goroot_final, goroot) {
-		// If the files are to be moved, don't check that gobin
-		// is on PATH; assume they know what they are doing.
-	} else if gohostos == "plan9" {
+	if gohostos == "plan9" {
 		// Check that GOROOT/bin is bound before /bin.
 		pid := strings.Replace(readfile("#c/pid"), " ", "", -1)
 		ns := fmt.Sprintf("/proc/%s/ns", pid)
@@ -1880,12 +1912,6 @@ func banner() {
 		if !strings.Contains(pathsep+path+pathsep, pathsep+gorootBin+pathsep) {
 			xprintf("*** You need to add %s to your PATH.\n", gorootBin)
 		}
-	}
-
-	if !xsamefile(goroot_final, goroot) {
-		xprintf("\n"+
-			"The binaries expect %s to be copied or moved to %s\n",
-			goroot, goroot_final)
 	}
 }
 
@@ -1942,29 +1968,6 @@ func cmdlist() {
 	if _, err := os.Stdout.Write(out); err != nil {
 		fatalf("write failed: %v", err)
 	}
-}
-
-// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
-// belongs to the collection of "runtime-related" packages, including
-// "runtime" itself, "reflect", "syscall", and the
-// "runtime/internal/*" packages.
-//
-// Keep in sync with cmd/internal/objabi/path.go:IsRuntimePackagePath.
-func IsRuntimePackagePath(pkgpath string) bool {
-	rval := false
-	switch pkgpath {
-	case "runtime":
-		rval = true
-	case "reflect":
-		rval = true
-	case "syscall":
-		rval = true
-	case "internal/bytealg":
-		rval = true
-	default:
-		rval = strings.HasPrefix(pkgpath, "runtime/internal")
-	}
-	return rval
 }
 
 func setNoOpt() {

@@ -314,7 +314,7 @@ type Prog struct {
 	RegTo2   int16     // 2nd destination operand
 	Mark     uint16    // bitmask of arch-specific items
 	Optab    uint16    // arch-specific opcode index
-	Scond    uint8     // bits that describe instruction suffixes (e.g. ARM conditions)
+	Scond    uint8     // bits that describe instruction suffixes (e.g. ARM conditions, RISCV Rounding Mode)
 	Back     uint8     // for x86 back end: backwards branch state
 	Ft       uint8     // for x86 back end: type index of Prog.From
 	Tt       uint8     // for x86 back end: type index of Prog.To
@@ -416,6 +416,7 @@ const (
 	AJMP
 	ANOP
 	APCALIGN
+	APCALIGNMAX // currently x86, amd64 and arm64
 	APCDATA
 	ARET
 	AGETCALLERPC
@@ -836,6 +837,9 @@ const (
 	// PkgInit indicates this is a compiler-generated package init func.
 	AttrPkgInit
 
+	// Linkname indicates this is a go:linkname'd symbol.
+	AttrLinkname
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -865,6 +869,7 @@ func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddre
 func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
 func (a *Attribute) IsPcdata() bool           { return a.load()&AttrPcdata != 0 }
 func (a *Attribute) IsPkgInit() bool          { return a.load()&AttrPkgInit != 0 }
+func (a *Attribute) IsLinkname() bool         { return a.load()&AttrLinkname != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	for {
@@ -914,6 +919,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrContentAddressable, s: ""},
 	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
 	{bit: AttrPkgInit, s: "PKGINIT"},
+	{bit: AttrLinkname, s: "LINKNAME"},
 }
 
 // String formats a for printing in as part of a TEXT prog.
@@ -1001,6 +1007,11 @@ type RegSpill struct {
 	Spill, Unspill As
 }
 
+// A Func represents a Go function. If non-nil, it must be a *ir.Func.
+type Func interface {
+	Pos() src.XPos
+}
+
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
@@ -1030,13 +1041,14 @@ type Link struct {
 	Imports            []goobj.ImportedPkg
 	DiagFunc           func(string, ...interface{})
 	DiagFlush          func()
-	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls, src.XPos) // if non-nil, curfn is a *ir.Func
+	DebugInfo          func(fn *LSym, info *LSym, curfn Func) ([]dwarf.Scope, dwarf.InlCalls)
 	GenAbstractFunc    func(fn *LSym)
 	Errors             int
 
 	InParallel    bool // parallel backend phase in effect
 	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
 	IsAsm         bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
+	Std           bool // is standard library package
 
 	// state for writing objects
 	Text []*LSym
@@ -1047,6 +1059,10 @@ type Link struct {
 	// add them to a separate list, sort at the end, and append it
 	// to Data.
 	constSyms []*LSym
+
+	// Windows SEH symbols are also data symbols that can be created
+	// concurrently.
+	SEHSyms []*LSym
 
 	// pkgIdx maps package path to index. The index is used for
 	// symbol reference in the object file.

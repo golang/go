@@ -26,7 +26,7 @@ func (k KeySizeError) Error() string {
 	return "crypto/rc4: invalid key size " + strconv.Itoa(int(k))
 }
 
-// NewCipher creates and returns a new Cipher. The key argument should be the
+// NewCipher creates and returns a new [Cipher]. The key argument should be the
 // RC4 key, at least 1 byte and at most 256 bytes.
 func NewCipher(key []byte) (*Cipher, error) {
 	k := len(key)
@@ -45,7 +45,7 @@ func NewCipher(key []byte) (*Cipher, error) {
 	return &c, nil
 }
 
-// Reset zeros the key data and makes the Cipher unusable.
+// Reset zeros the key data and makes the [Cipher] unusable.
 //
 // Deprecated: Reset can't guarantee that the key will be entirely removed from
 // the process's memory.

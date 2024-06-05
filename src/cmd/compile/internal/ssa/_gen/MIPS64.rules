@@ -38,6 +38,14 @@
 (Mod8 x y) => (Select0 (DIVV (SignExt8to64 x) (SignExt8to64 y)))
 (Mod8u x y) => (Select0 (DIVVU (ZeroExt8to64 x) (ZeroExt8to64 y)))
 
+(Select0 <t> (Add64carry x y c)) => (ADDV (ADDV <t> x y) c)
+(Select1 <t> (Add64carry x y c)) =>
+	(OR (SGTU <t> x s:(ADDV <t> x y)) (SGTU <t> s (ADDV <t> s c)))
+
+(Select0 <t> (Sub64borrow x y c)) => (SUBV (SUBV <t> x y) c)
+(Select1 <t> (Sub64borrow x y c)) =>
+	(OR (SGTU <t> s:(SUBV <t> x y) x) (SGTU <t> (SUBV <t> s c) s))
+
 // math package intrinsics
 (Abs ...) => (ABSD ...)
 
@@ -797,6 +805,10 @@
 (GTZ (MOVVconst [c]) yes no) && c <= 0 => (First no yes)
 (GEZ (MOVVconst [c]) yes no) && c >= 0 => (First yes no)
 (GEZ (MOVVconst [c]) yes no) && c <  0 => (First no yes)
+
+// SGT/SGTU with known outcomes.
+(SGT  x x) => (MOVVconst [0])
+(SGTU x x) => (MOVVconst [0])
 
 // fold readonly sym load
 (MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read8(sym, int64(off)))])

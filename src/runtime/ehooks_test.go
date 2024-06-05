@@ -28,32 +28,36 @@ func TestExitHooks(t *testing.T) {
 		scenarios := []struct {
 			mode     string
 			expected string
-			musthave string
+			musthave []string
 		}{
 			{
 				mode:     "simple",
 				expected: "bar foo",
-				musthave: "",
 			},
 			{
 				mode:     "goodexit",
 				expected: "orange apple",
-				musthave: "",
 			},
 			{
 				mode:     "badexit",
 				expected: "blub blix",
-				musthave: "",
 			},
 			{
-				mode:     "panics",
-				expected: "",
-				musthave: "fatal error: internal error: exit hook invoked panic",
+				mode: "panics",
+				musthave: []string{
+					"fatal error: exit hook invoked panic",
+					"main.testPanics",
+				},
 			},
 			{
-				mode:     "callsexit",
+				mode: "callsexit",
+				musthave: []string{
+					"fatal error: exit hook invoked exit",
+				},
+			},
+			{
+				mode:     "exit2",
 				expected: "",
-				musthave: "fatal error: internal error: exit hook invoked exit",
 			},
 		}
 
@@ -71,20 +75,18 @@ func TestExitHooks(t *testing.T) {
 			out, _ := cmd.CombinedOutput()
 			outs := strings.ReplaceAll(string(out), "\n", " ")
 			outs = strings.TrimSpace(outs)
-			if s.expected != "" {
-				if s.expected != outs {
-					t.Logf("raw output: %q", outs)
-					t.Errorf("failed%s mode %s: wanted %q got %q", bt,
-						s.mode, s.expected, outs)
+			if s.expected != "" && s.expected != outs {
+				t.Fatalf("failed%s mode %s: wanted %q\noutput:\n%s", bt,
+					s.mode, s.expected, outs)
+			}
+			for _, need := range s.musthave {
+				if !strings.Contains(outs, need) {
+					t.Fatalf("failed mode %s: output does not contain %q\noutput:\n%s",
+						s.mode, need, outs)
 				}
-			} else if s.musthave != "" {
-				if !strings.Contains(outs, s.musthave) {
-					t.Logf("raw output: %q", outs)
-					t.Errorf("failed mode %s: output does not contain %q",
-						s.mode, s.musthave)
-				}
-			} else {
-				panic("badly written scenario")
+			}
+			if s.expected == "" && s.musthave == nil && outs != "" {
+				t.Errorf("failed mode %s: wanted no output\noutput:\n%s", s.mode, outs)
 			}
 		}
 	}

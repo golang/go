@@ -104,7 +104,7 @@ func issue10979() {
 
 // issue11347
 // These should not crash.
-var a1, b1 /* ERROR "cycle" */ , c1 /* ERROR "cycle" */ b1 = 0 > 0<<""[""[c1]]>c1
+var a1, b1, c1 /* ERROR "cycle" */ b1 /* ERROR "b1 is not a type" */ = 0 > 0<<""[""[c1]]>c1
 var a2, b2 /* ERROR "cycle" */ = 0 /* ERROR "assignment mismatch" */ /* ERROR "assignment mismatch" */ > 0<<""[b2]
 var a3, b3 /* ERROR "cycle" */ = int /* ERROR "assignment mismatch" */ /* ERROR "assignment mismatch" */ (1<<""[b3])
 
@@ -137,7 +137,7 @@ func issue10260() {
 	_ = x /* ERROR "impossible type assertion: x.(T1)\n\tT1 does not implement I1 (method foo has pointer receiver)" */ .(T1)
 
 	T1{}.foo /* ERROR "cannot call pointer method foo on T1" */ ()
-	x.Foo /* ERROR "x.Foo undefined (type I1 has no field or method Foo, but does have foo)" */ ()
+	x.Foo /* ERROR "x.Foo undefined (type I1 has no field or method Foo, but does have method foo)" */ ()
 
 	_ = i2 /* ERROR "impossible type assertion: i2.(*T1)\n\t*T1 does not implement I2 (wrong type for method foo)\n\t\thave foo()\n\t\twant foo(int)" */ .(*T1)
 
@@ -282,7 +282,7 @@ type issue25301b /* ERROR "invalid recursive type" */ = interface {
 }
 
 type issue25301c interface {
-	notE // ERROR "non-interface type struct{}"
+	notE // ERRORx "non-interface type (struct{}|notE)"
 }
 
 type notE = struct{}

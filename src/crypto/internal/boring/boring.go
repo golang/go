@@ -16,6 +16,7 @@ import "C"
 import (
 	"crypto/internal/boring/sig"
 	_ "crypto/internal/boring/syso"
+	"internal/stringslite"
 	"math/bits"
 	"unsafe"
 )
@@ -39,16 +40,12 @@ func Unreachable() {
 // provided by runtime to avoid os import.
 func runtime_arg0() string
 
-func hasSuffix(s, t string) bool {
-	return len(s) > len(t) && s[len(s)-len(t):] == t
-}
-
 // UnreachableExceptTests marks code that should be unreachable
 // when BoringCrypto is in use. It panics.
 func UnreachableExceptTests() {
 	name := runtime_arg0()
 	// If BoringCrypto ran on Windows we'd need to allow _test.exe and .test.exe as well.
-	if !hasSuffix(name, "_test") && !hasSuffix(name, ".test") {
+	if !stringslite.HasSuffix(name, "_test") && !stringslite.HasSuffix(name, ".test") {
 		println("boringcrypto: unexpected code execution in", name)
 		panic("boringcrypto: invalid code execution")
 	}

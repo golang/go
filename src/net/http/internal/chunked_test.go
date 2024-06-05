@@ -153,6 +153,7 @@ func TestParseHexUint(t *testing.T) {
 		{"00000000000000000", 0, "http chunk length too large"}, // could accept if we wanted
 		{"10000000000000000", 0, "http chunk length too large"},
 		{"00000000000000001", 0, "http chunk length too large"}, // could accept if we wanted
+		{"", 0, "empty hex number for chunk length"},
 	}
 	for i := uint64(0); i <= 1234; i++ {
 		tests = append(tests, testCase{in: fmt.Sprintf("%x", i), want: i})
@@ -238,4 +239,63 @@ func TestChunkEndReadError(t *testing.T) {
 	if _, err := io.ReadAll(r); err != readErr {
 		t.Errorf("expected %v, got %v", readErr, err)
 	}
+}
+
+func TestChunkReaderTooMuchOverhead(t *testing.T) {
+	// If the sender is sending 100x as many chunk header bytes as chunk data,
+	// we should reject the stream at some point.
+	chunk := []byte("1;")
+	for i := 0; i < 100; i++ {
+		chunk = append(chunk, 'a') // chunk extension
+	}
+	chunk = append(chunk, "\r\nX\r\n"...)
+	const bodylen = 1 << 20
+	r := NewChunkedReader(&funcReader{f: func(i int) ([]byte, error) {
+		if i < bodylen {
+			return chunk, nil
+		}
+		return []byte("0\r\n"), nil
+	}})
+	_, err := io.ReadAll(r)
+	if err == nil {
+		t.Fatalf("successfully read body with excessive overhead; want error")
+	}
+}
+
+func TestChunkReaderByteAtATime(t *testing.T) {
+	// Sending one byte per chunk should not trip the excess-overhead detection.
+	const bodylen = 1 << 20
+	r := NewChunkedReader(&funcReader{f: func(i int) ([]byte, error) {
+		if i < bodylen {
+			return []byte("1\r\nX\r\n"), nil
+		}
+		return []byte("0\r\n"), nil
+	}})
+	got, err := io.ReadAll(r)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if len(got) != bodylen {
+		t.Errorf("read %v bytes, want %v", len(got), bodylen)
+	}
+}
+
+type funcReader struct {
+	f   func(iteration int) ([]byte, error)
+	i   int
+	b   []byte
+	err error
+}
+
+func (r *funcReader) Read(p []byte) (n int, err error) {
+	if len(r.b) == 0 && r.err == nil {
+		r.b, r.err = r.f(r.i)
+		r.i++
+	}
+	n = copy(p, r.b)
+	r.b = r.b[n:]
+	if len(r.b) > 0 {
+		return n, nil
+	}
+	return n, r.err
 }

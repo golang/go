@@ -4,7 +4,8 @@
 
 // Package csv reads and writes comma-separated values (CSV) files.
 // There are many kinds of CSV files; this package supports the format
-// described in RFC 4180.
+// described in RFC 4180, except that [Writer] uses LF
+// instead of CRLF as newline character by default.
 //
 // A csv file contains zero or more records of one or more fields per record.
 // Each record is separated by the newline character. The final record may
@@ -62,7 +63,7 @@ import (
 )
 
 // A ParseError is returned for parsing errors.
-// Line numbers are 1-indexed and columns are 0-indexed.
+// Line and column numbers are 1-indexed.
 type ParseError struct {
 	StartLine int   // Line where the record starts
 	Line      int   // Line where the error occurred
@@ -82,7 +83,7 @@ func (e *ParseError) Error() string {
 
 func (e *ParseError) Unwrap() error { return e.Err }
 
-// These are the errors that can be returned in ParseError.Err.
+// These are the errors that can be returned in [ParseError.Err].
 var (
 	ErrBareQuote  = errors.New("bare \" in non-quoted-field")
 	ErrQuote      = errors.New("extraneous or missing \" in quoted-field")
@@ -100,9 +101,9 @@ func validDelim(r rune) bool {
 
 // A Reader reads records from a CSV-encoded file.
 //
-// As returned by NewReader, a Reader expects input conforming to RFC 4180.
+// As returned by [NewReader], a Reader expects input conforming to RFC 4180.
 // The exported fields can be changed to customize the details before the
-// first call to Read or ReadAll.
+// first call to [Reader.Read] or [Reader.ReadAll].
 //
 // The Reader converts all \r\n sequences in its input to plain \n,
 // including in multiline field values, so that the returned data does
@@ -186,12 +187,12 @@ func NewReader(r io.Reader) *Reader {
 
 // Read reads one record (a slice of fields) from r.
 // If the record has an unexpected number of fields,
-// Read returns the record along with the error ErrFieldCount.
+// Read returns the record along with the error [ErrFieldCount].
 // If the record contains a field that cannot be parsed,
 // Read returns a partial record along with the parse error.
 // The partial record contains all fields read before the error.
-// If there is no data left to be read, Read returns nil, io.EOF.
-// If ReuseRecord is true, the returned slice may be shared
+// If there is no data left to be read, Read returns nil, [io.EOF].
+// If [Reader.ReuseRecord] is true, the returned slice may be shared
 // between multiple calls to Read.
 func (r *Reader) Read() (record []string, err error) {
 	if r.ReuseRecord {
@@ -205,7 +206,7 @@ func (r *Reader) Read() (record []string, err error) {
 
 // FieldPos returns the line and column corresponding to
 // the start of the field with the given index in the slice most recently
-// returned by Read. Numbering of lines and columns starts at 1;
+// returned by [Reader.Read]. Numbering of lines and columns starts at 1;
 // columns are counted in bytes, not runes.
 //
 // If this is called with an out-of-bounds index, it panics.
@@ -231,7 +232,7 @@ type position struct {
 
 // ReadAll reads all the remaining records from r.
 // Each record is a slice of fields.
-// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
+// A successful call returns err == nil, not err == [io.EOF]. Because ReadAll is
 // defined to read until EOF, it does not treat end of file as an error to be
 // reported.
 func (r *Reader) ReadAll() (records [][]string, err error) {
@@ -249,7 +250,7 @@ func (r *Reader) ReadAll() (records [][]string, err error) {
 
 // readLine reads the next line (with the trailing endline).
 // If EOF is hit without a trailing endline, it will be omitted.
-// If some bytes were read, then the error is never io.EOF.
+// If some bytes were read, then the error is never [io.EOF].
 // The result is only valid until the next call to readLine.
 func (r *Reader) readLine() ([]byte, error) {
 	line, err := r.r.ReadSlice('\n')

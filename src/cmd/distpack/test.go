@@ -26,7 +26,7 @@ var srcRules = []testRule{
 	{name: "go/VERSION"},
 	{name: "go/src/cmd/go/main.go"},
 	{name: "go/src/bytes/bytes.go"},
-	{name: "go/.DS_Store", exclude: true},
+	{name: "**/.DS_Store", exclude: true},
 	{name: "go/.git", exclude: true},
 	{name: "go/.gitattributes", exclude: true},
 	{name: "go/.github", exclude: true},
@@ -44,7 +44,7 @@ var zipRules = []testRule{
 	{name: "go/src/cmd/go/main.go"},
 	{name: "go/src/bytes/bytes.go"},
 
-	{name: "go/.DS_Store", exclude: true},
+	{name: "**/.DS_Store", exclude: true},
 	{name: "go/.git", exclude: true},
 	{name: "go/.gitattributes", exclude: true},
 	{name: "go/.github", exclude: true},
@@ -73,7 +73,7 @@ var modRules = []testRule{
 	{name: "golang.org/toolchain@*/src/cmd/go/main.go"},
 	{name: "golang.org/toolchain@*/src/bytes/bytes.go"},
 
-	{name: "golang.org/toolchain@*/.DS_Store", exclude: true},
+	{name: "**/.DS_Store", exclude: true},
 	{name: "golang.org/toolchain@*/.git", exclude: true},
 	{name: "golang.org/toolchain@*/.gitattributes", exclude: true},
 	{name: "golang.org/toolchain@*/.github", exclude: true},

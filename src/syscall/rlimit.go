@@ -8,12 +8,21 @@ package syscall
 
 import (
 	"sync/atomic"
+	_ "unsafe"
 )
 
-// origRlimitNofile, if not {0, 0}, is the original soft RLIMIT_NOFILE.
-// When we can assume that we are bootstrapping with Go 1.19,
-// this can be atomic.Pointer[Rlimit].
-var origRlimitNofile atomic.Value // of Rlimit
+// origRlimitNofile, if non-nil, is the original soft RLIMIT_NOFILE.
+//
+// origRlimitNofile should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/opencontainers/runc
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname origRlimitNofile
+var origRlimitNofile atomic.Pointer[Rlimit]
 
 // Some systems set an artificially low soft limit on open file count, for compatibility
 // with code that uses select and its hard-coded maximum file descriptor
@@ -32,19 +41,19 @@ var origRlimitNofile atomic.Value // of Rlimit
 func init() {
 	var lim Rlimit
 	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
-		origRlimitNofile.Store(lim)
-		lim.Cur = lim.Max
-		adjustFileLimit(&lim)
-		setrlimit(RLIMIT_NOFILE, &lim)
+		origRlimitNofile.Store(&lim)
+		nlim := lim
+		nlim.Cur = nlim.Max
+		adjustFileLimit(&nlim)
+		setrlimit(RLIMIT_NOFILE, &nlim)
 	}
 }
 
 func Setrlimit(resource int, rlim *Rlimit) error {
-	err := setrlimit(resource, rlim)
-	if err == nil && resource == RLIMIT_NOFILE {
-		// Store zeroes in origRlimitNofile to tell StartProcess
+	if resource == RLIMIT_NOFILE {
+		// Store nil in origRlimitNofile to tell StartProcess
 		// to not adjust the rlimit in the child process.
-		origRlimitNofile.Store(Rlimit{0, 0})
+		origRlimitNofile.Store(nil)
 	}
-	return err
+	return setrlimit(resource, rlim)
 }

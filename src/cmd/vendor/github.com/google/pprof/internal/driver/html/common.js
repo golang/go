@@ -558,16 +558,11 @@ function viewer(baseUrl, nodes, options) {
     return null;
   }
 
-  // convert a string to a regexp that matches that string.
-  function quotemeta(str) {
-    return str.replace(/([\\\.?+*\[\](){}|^$])/g, '\\$1');
-  }
-
-  function setSampleIndexLink(id) {
-    const elem = document.getElementById(id);
+  function setSampleIndexLink(si) {
+    const elem = document.getElementById('sampletype-' + si);
     if (elem != null) {
       setHrefParams(elem, function (params) {
-        params.set("si", id);
+        params.set("si", si);
       });
     }
   }
@@ -595,7 +590,7 @@ function viewer(baseUrl, nodes, options) {
       // list-based.  Construct regular expression depending on mode.
       let re = regexpActive
           ? search.value
-          : Array.from(getSelection().keys()).map(key => quotemeta(nodes[key])).join('|');
+          : Array.from(getSelection().keys()).map(key => pprofQuoteMeta(nodes[key])).join('|');
 
       setHrefParams(elem, function (params) {
         if (re != '') {
@@ -682,8 +677,10 @@ function viewer(baseUrl, nodes, options) {
     toptable.addEventListener('touchstart', handleTopClick);
   }
 
-  const ids = ['topbtn', 'graphbtn', 'flamegraph', 'flamegraph2', 'peek', 'list',
-	       'disasm', 'focus', 'ignore', 'hide', 'show', 'show-from'];
+  const ids = ['topbtn', 'graphbtn',
+               'flamegraph',
+               'peek', 'list',
+               'disasm', 'focus', 'ignore', 'hide', 'show', 'show-from'];
   ids.forEach(makeSearchLinkDynamic);
 
   const sampleIDs = [{{range .SampleTypes}}'{{.}}', {{end}}];
@@ -709,4 +706,9 @@ function viewer(baseUrl, nodes, options) {
   if (main) {
     main.focus();
   }
+}
+
+// convert a string to a regexp that matches exactly that string.
+function pprofQuoteMeta(str) {
+  return '^' + str.replace(/([\\\.?+*\[\](){}|^$])/g, '\\$1') + '$';
 }

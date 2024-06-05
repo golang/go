@@ -7,6 +7,7 @@ package ssa
 import (
 	"testing"
 
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -15,6 +16,7 @@ import (
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
+	"cmd/internal/sys"
 )
 
 var CheckFunc = checkFunc
@@ -55,20 +57,24 @@ type Conf struct {
 
 func (c *Conf) Frontend() Frontend {
 	if c.fe == nil {
-		f := ir.NewFunc(src.NoXPos)
-		f.Nname = ir.NewNameAt(f.Pos(), &types.Sym{
-			Pkg:  types.NewPkg("my/import/path", "path"),
-			Name: "function",
-		})
-		f.LSym = &obj.LSym{Name: "my/import/path.function"}
+		pkg := types.NewPkg("my/import/path", "path")
+		fn := ir.NewFunc(src.NoXPos, src.NoXPos, pkg.Lookup("function"), types.NewSignature(nil, nil, nil))
+		fn.DeclareParams(true)
+		fn.LSym = &obj.LSym{Name: "my/import/path.function"}
 
 		c.fe = TestFrontend{
 			t:    c.tb,
 			ctxt: c.config.ctxt,
-			f:    f,
+			f:    fn,
 		}
 	}
 	return c.fe
+}
+
+func (c *Conf) Temp(typ *types.Type) *ir.Name {
+	n := ir.NewNameAt(src.NoXPos, &types.Sym{Name: "aFakeAuto"}, typ)
+	n.Class = ir.PAUTO
+	return n
 }
 
 // TestFrontend is a test-only frontend.
@@ -82,16 +88,8 @@ type TestFrontend struct {
 func (TestFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
-func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
-	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"})
-	n.SetType(t)
-	n.Class = ir.PAUTO
-	return n
-}
 func (d TestFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
 	return LocalSlot{N: parent.N, Type: t, Off: offset}
-}
-func (TestFrontend) AllocFrame(f *Func) {
 }
 func (d TestFrontend) Syslook(s string) *obj.LSym {
 	return d.ctxt.Lookup(s)
@@ -107,9 +105,6 @@ func (d TestFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.
 func (d TestFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
 func (d TestFrontend) Debug_checknil() bool                               { return false }
 
-func (d TestFrontend) MyImportPath() string {
-	return d.f.Sym().Pkg.Path
-}
 func (d TestFrontend) Func() *ir.Func {
 	return d.f
 }
@@ -122,13 +117,7 @@ func init() {
 	types.RegSize = 8
 	types.MaxWidth = 1 << 50
 
+	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
 	typecheck.InitUniverse()
 	testTypes.SetTypPtrs()
-}
-
-func (d TestFrontend) DerefItab(sym *obj.LSym, off int64) *obj.LSym { return nil }
-
-func (d TestFrontend) CanSSA(t *types.Type) bool {
-	// There are no un-SSAable types in test land.
-	return true
 }

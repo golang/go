@@ -56,16 +56,18 @@ func FuzzDecode(f *testing.F) {
 			e := &Encoder{CompressionLevel: l}
 			err = e.Encode(&w, img)
 			if err != nil {
-				t.Fatalf("failed to encode valid image: %s", err)
+				t.Errorf("failed to encode valid image: %s", err)
+				continue
 			}
 			img1, err := Decode(&w)
 			if err != nil {
-				t.Fatalf("failed to decode roundtripped image: %s", err)
+				t.Errorf("failed to decode roundtripped image: %s", err)
+				continue
 			}
 			got := img1.Bounds()
 			want := img.Bounds()
 			if !got.Eq(want) {
-				t.Fatalf("roundtripped image bounds have changed, got: %s, want: %s", got, want)
+				t.Errorf("roundtripped image bounds have changed, got: %s, want: %s", got, want)
 			}
 		}
 	})

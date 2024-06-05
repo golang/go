@@ -6,13 +6,20 @@ package runtime
 
 import (
 	"internal/abi"
-	"internal/goarch"
-	"runtime/internal/math"
 	"unsafe"
 )
 
 // Should be a built-in for unsafe.Pointer?
 //
+// add should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - fortio.org/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname add
 //go:nosplit
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
@@ -85,6 +92,19 @@ func badsystemstack() {
 //
 // The (CPU-specific) implementations of this function are in memclr_*.s.
 //
+// memclrNoHeapPointers should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//   - github.com/chenzhuoyu/iasm
+//   - github.com/cloudwego/frugal
+//   - github.com/dgraph-io/ristretto
+//   - github.com/outcaste-io/ristretto
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname memclrNoHeapPointers
 //go:noescape
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
@@ -105,12 +125,26 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 //
 // Implementations are in memmove_*.s.
 //
-//go:noescape
-func memmove(to, from unsafe.Pointer, n uintptr)
-
-// Outside assembly calls memmove. Make sure it has ABI wrappers.
+// Outside assembly calls memmove.
+//
+// memmove should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//   - github.com/cloudwego/dynamicgo
+//   - github.com/cloudwego/frugal
+//   - github.com/ebitengine/purego
+//   - github.com/tetratelabs/wazero
+//   - github.com/ugorji/go/codec
+//   - gvisor.dev/gvisor
+//   - github.com/sagernet/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname memmove
+//go:noescape
+func memmove(to, from unsafe.Pointer, n uintptr)
 
 //go:linkname reflect_memmove reflect.memmove
 func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
@@ -120,93 +154,17 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
 // exported value for testing
 const hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
 
-//go:nosplit
-func fastrand() uint32 {
-	mp := getg().m
-	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
-	// Only the platform that math.Mul64 can be lowered
-	// by the compiler should be in this list.
-	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
-		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
-		goarch.IsS390x|goarch.IsRiscv64|goarch.IsLoong64 == 1 {
-		mp.fastrand += 0xa0761d6478bd642f
-		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
-		return uint32(hi ^ lo)
-	}
-
-	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
-	// Shift triplet [17,7,16] was calculated as indicated in Marsaglia's
-	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
-	// This generator passes the SmallCrush suite, part of TestU01 framework:
-	// http://simul.iro.umontreal.ca/testu01/tu01.html
-	t := (*[2]uint32)(unsafe.Pointer(&mp.fastrand))
-	s1, s0 := t[0], t[1]
-	s1 ^= s1 << 17
-	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
-	t[0], t[1] = s0, s1
-	return s0 + s1
-}
-
-//go:nosplit
-func fastrandn(n uint32) uint32 {
-	// This is similar to fastrand() % n, but faster.
-	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
-	return uint32(uint64(fastrand()) * uint64(n) >> 32)
-}
-
-func fastrand64() uint64 {
-	mp := getg().m
-	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
-	// Only the platform that math.Mul64 can be lowered
-	// by the compiler should be in this list.
-	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
-		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
-		goarch.IsS390x|goarch.IsRiscv64 == 1 {
-		mp.fastrand += 0xa0761d6478bd642f
-		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
-		return hi ^ lo
-	}
-
-	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
-	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
-	// This generator passes the SmallCrush suite, part of TestU01 framework:
-	// http://simul.iro.umontreal.ca/testu01/tu01.html
-	t := (*[2]uint32)(unsafe.Pointer(&mp.fastrand))
-	s1, s0 := t[0], t[1]
-	s1 ^= s1 << 17
-	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
-	r := uint64(s0 + s1)
-
-	s0, s1 = s1, s0
-	s1 ^= s1 << 17
-	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
-	r += uint64(s0+s1) << 32
-
-	t[0], t[1] = s0, s1
-	return r
-}
-
-func fastrandu() uint {
-	if goarch.PtrSize == 4 {
-		return uint(fastrand())
-	}
-	return uint(fastrand64())
-}
-
-//go:linkname rand_fastrand64 math/rand.fastrand64
-func rand_fastrand64() uint64 { return fastrand64() }
-
-//go:linkname sync_fastrandn sync.fastrandn
-func sync_fastrandn(n uint32) uint32 { return fastrandn(n) }
-
-//go:linkname net_fastrandu net.fastrandu
-func net_fastrandu() uint { return fastrandu() }
-
-//go:linkname os_fastrand os.fastrand
-func os_fastrand() uint32 { return fastrand() }
-
 // in internal/bytealg/equal_*.s
 //
+// memequal should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname memequal
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool
 
@@ -216,6 +174,19 @@ func memequal(a, b unsafe.Pointer, size uintptr) bool
 // compiles down to zero instructions.
 // USE CAREFULLY!
 //
+// noescape should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//   - github.com/ebitengine/purego
+//   - github.com/hamba/avro/v2
+//   - github.com/puzpuzpuz/xsync/v3
+//   - github.com/songzhibin97/gkit
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname noescape
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
@@ -294,6 +265,17 @@ func breakpoint()
 //go:noescape
 func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs)
 
+// procyield should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/sagernet/sing-tun
+//   - github.com/slackhq/nebula
+//   - github.com/tailscale/wireguard-go
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname procyield
 func procyield(cycles uint32)
 
 type neverCallThisFunction struct{}
@@ -371,13 +353,29 @@ func getcallersp() uintptr // implemented as an intrinsic on all platforms
 //
 // The compiler rewrites calls to this function into instructions that fetch the
 // pointer from a well-known register (DX on x86 architecture, etc.) directly.
+//
+// WARNING: PGO-based devirtualization cannot detect that caller of
+// getclosureptr require closure context, and thus must maintain a list of
+// these functions, which is in
+// cmd/compile/internal/devirtualize/pgo.maybeDevirtualizeFunctionCall.
 func getclosureptr() uintptr
 
 //go:noescape
 func asmcgocall(fn, arg unsafe.Pointer) int32
 
 func morestack()
+
+// morestack_noctxt should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname morestack_noctxt
 func morestack_noctxt()
+
 func rt0_go()
 
 // return0 is a stub used to return 0 from deferproc.
@@ -421,11 +419,15 @@ func call1073741824(typ, fn, stackArgs unsafe.Pointer, stackArgsSize, stackRetOf
 func systemstack_switch()
 
 // alignUp rounds n up to a multiple of a. a must be a power of 2.
+//
+//go:nosplit
 func alignUp(n, a uintptr) uintptr {
 	return (n + a - 1) &^ (a - 1)
 }
 
 // alignDown rounds n down to a multiple of a. a must be a power of 2.
+//
+//go:nosplit
 func alignDown(n, a uintptr) uintptr {
 	return n &^ (a - 1)
 }
@@ -446,7 +448,7 @@ func memequal_varlen(a, b unsafe.Pointer) bool
 func bool2int(x bool) int {
 	// Avoid branches. In the SSA compiler, this compiles to
 	// exactly what you would want it to.
-	return int(uint8(*(*uint8)(unsafe.Pointer(&x))))
+	return int(*(*uint8)(unsafe.Pointer(&x)))
 }
 
 // abort crashes the runtime in situations where even throw might not
@@ -458,7 +460,19 @@ func abort()
 
 // Called from compiled code; declared for vet; do NOT call from Go.
 func gcWriteBarrier1()
+
+// gcWriteBarrier2 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//   - github.com/cloudwego/frugal
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname gcWriteBarrier2
 func gcWriteBarrier2()
+
 func gcWriteBarrier3()
 func gcWriteBarrier4()
 func gcWriteBarrier5()

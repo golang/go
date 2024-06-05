@@ -305,32 +305,15 @@ func (d *decoder) processSOS(n int) error {
 			} // for i
 			mcu++
 			if d.ri > 0 && mcu%d.ri == 0 && mcu < mxx*myy {
-				// A more sophisticated decoder could use RST[0-7] markers to resynchronize from corrupt input,
-				// but this one assumes well-formed input, and hence the restart marker follows immediately.
+				// For well-formed input, the RST[0-7] restart marker follows
+				// immediately. For corrupt input, call findRST to try to
+				// resynchronize.
 				if err := d.readFull(d.tmp[:2]); err != nil {
 					return err
-				}
-
-				// Section F.1.2.3 says that "Byte alignment of markers is
-				// achieved by padding incomplete bytes with 1-bits. If padding
-				// with 1-bits creates a X’FF’ value, a zero byte is stuffed
-				// before adding the marker."
-				//
-				// Seeing "\xff\x00" here is not spec compliant, as we are not
-				// expecting an *incomplete* byte (that needed padding). Still,
-				// some real world encoders (see golang.org/issue/28717) insert
-				// it, so we accept it and re-try the 2 byte read.
-				//
-				// libjpeg issues a warning (but not an error) for this:
-				// https://github.com/LuaDist/libjpeg/blob/6c0fcb8ddee365e7abc4d332662b06900612e923/jdmarker.c#L1041-L1046
-				if d.tmp[0] == 0xff && d.tmp[1] == 0x00 {
-					if err := d.readFull(d.tmp[:2]); err != nil {
+				} else if d.tmp[0] != 0xff || d.tmp[1] != expectedRST {
+					if err := d.findRST(expectedRST); err != nil {
 						return err
 					}
-				}
-
-				if d.tmp[0] != 0xff || d.tmp[1] != expectedRST {
-					return FormatError("bad RST marker")
 				}
 				expectedRST++
 				if expectedRST == rst7Marker+1 {
@@ -520,4 +503,48 @@ func (d *decoder) reconstructBlock(b *block, bx, by, compIndex int) error {
 		}
 	}
 	return nil
+}
+
+// findRST advances past the next RST restart marker that matches expectedRST.
+// Other than I/O errors, it is also an error if we encounter an {0xFF, M}
+// two-byte marker sequence where M is not 0x00, 0xFF or the expectedRST.
+//
+// This is similar to libjpeg's jdmarker.c's next_marker function.
+// https://github.com/libjpeg-turbo/libjpeg-turbo/blob/2dfe6c0fe9e18671105e94f7cbf044d4a1d157e6/jdmarker.c#L892-L935
+//
+// Precondition: d.tmp[:2] holds the next two bytes of JPEG-encoded input
+// (input in the d.readFull sense).
+func (d *decoder) findRST(expectedRST uint8) error {
+	for {
+		// i is the index such that, at the bottom of the loop, we read 2-i
+		// bytes into d.tmp[i:2], maintaining the invariant that d.tmp[:2]
+		// holds the next two bytes of JPEG-encoded input. It is either 0 or 1,
+		// so that each iteration advances by 1 or 2 bytes (or returns).
+		i := 0
+
+		if d.tmp[0] == 0xff {
+			if d.tmp[1] == expectedRST {
+				return nil
+			} else if d.tmp[1] == 0xff {
+				i = 1
+			} else if d.tmp[1] != 0x00 {
+				// libjpeg's jdmarker.c's jpeg_resync_to_restart does something
+				// fancy here, treating RST markers within two (modulo 8) of
+				// expectedRST differently from RST markers that are 'more
+				// distant'. Until we see evidence that recovering from such
+				// cases is frequent enough to be worth the complexity, we take
+				// a simpler approach for now. Any marker that's not 0x00, 0xff
+				// or expectedRST is a fatal FormatError.
+				return FormatError("bad RST marker")
+			}
+
+		} else if d.tmp[1] == 0xff {
+			d.tmp[0] = 0xff
+			i = 1
+		}
+
+		if err := d.readFull(d.tmp[i:2]); err != nil {
+			return err
+		}
+	}
 }

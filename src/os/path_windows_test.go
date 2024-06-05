@@ -5,48 +5,116 @@
 package os_test
 
 import (
+	"fmt"
+	"internal/syscall/windows"
+	"internal/testenv"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
 )
 
-func TestFixLongPath(t *testing.T) {
-	if os.CanUseLongPaths {
-		return
+func TestAddExtendedPrefix(t *testing.T) {
+	// Test addExtendedPrefix instead of fixLongPath so the path manipulation code
+	// is exercised even if long path are supported by the system, else the
+	// function might not be tested at all if/when all test builders support long paths.
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal("cannot get cwd")
 	}
-	t.Parallel()
-
-	// 248 is long enough to trigger the longer-than-248 checks in
-	// fixLongPath, but short enough not to make a path component
-	// longer than 255, which is illegal on Windows. (which
-	// doesn't really matter anyway, since this is purely a string
-	// function we're testing, and it's not actually being used to
-	// do a system call)
-	veryLong := "l" + strings.Repeat("o", 248) + "ng"
+	drive := strings.ToLower(filepath.VolumeName(cwd))
+	cwd = strings.ToLower(cwd[len(drive)+1:])
+	// Build a very long pathname. Paths in Go are supposed to be arbitrarily long,
+	// so let's make a long path which is comfortably bigger than MAX_PATH on Windows
+	// (256) and thus requires fixLongPath to be correctly interpreted in I/O syscalls.
+	veryLong := "l" + strings.Repeat("o", 500) + "ng"
 	for _, test := range []struct{ in, want string }{
-		// Short; unchanged:
+		// Test cases use word substitutions:
+		//   * "long" is replaced with a very long pathname
+		//   * "c:" or "C:" are replaced with the drive of the current directory (preserving case)
+		//   * "cwd" is replaced with the current directory
+
+		// Drive Absolute
+		{`C:\long\foo.txt`, `\\?\C:\long\foo.txt`},
+		{`C:/long/foo.txt`, `\\?\C:\long\foo.txt`},
+		{`C:\\\long///foo.txt`, `\\?\C:\long\foo.txt`},
+		{`C:\long\.\foo.txt`, `\\?\C:\long\foo.txt`},
+		{`C:\long\..\foo.txt`, `\\?\C:\foo.txt`},
+		{`C:\long\..\..\foo.txt`, `\\?\C:\foo.txt`},
+
+		// Drive Relative
+		{`C:long\foo.txt`, `\\?\C:\cwd\long\foo.txt`},
+		{`C:long/foo.txt`, `\\?\C:\cwd\long\foo.txt`},
+		{`C:long///foo.txt`, `\\?\C:\cwd\long\foo.txt`},
+		{`C:long\.\foo.txt`, `\\?\C:\cwd\long\foo.txt`},
+		{`C:long\..\foo.txt`, `\\?\C:\cwd\foo.txt`},
+
+		// Rooted
+		{`\long\foo.txt`, `\\?\C:\long\foo.txt`},
+		{`/long/foo.txt`, `\\?\C:\long\foo.txt`},
+		{`\long///foo.txt`, `\\?\C:\long\foo.txt`},
+		{`\long\.\foo.txt`, `\\?\C:\long\foo.txt`},
+		{`\long\..\foo.txt`, `\\?\C:\foo.txt`},
+
+		// Relative
+		{`long\foo.txt`, `\\?\C:\cwd\long\foo.txt`},
+		{`long/foo.txt`, `\\?\C:\cwd\long\foo.txt`},
+		{`long///foo.txt`, `\\?\C:\cwd\long\foo.txt`},
+		{`long\.\foo.txt`, `\\?\C:\cwd\long\foo.txt`},
+		{`long\..\foo.txt`, `\\?\C:\cwd\foo.txt`},
+		{`.\long\foo.txt`, `\\?\C:\cwd\long\foo.txt`},
+
+		// UNC Absolute
+		{`\\srv\share\long`, `\\?\UNC\srv\share\long`},
+		{`//srv/share/long`, `\\?\UNC\srv\share\long`},
+		{`/\srv/share/long`, `\\?\UNC\srv\share\long`},
+		{`\\srv\share\long\`, `\\?\UNC\srv\share\long\`},
+		{`\\srv\share\bar\.\long`, `\\?\UNC\srv\share\bar\long`},
+		{`\\srv\share\bar\..\long`, `\\?\UNC\srv\share\long`},
+		{`\\srv\share\bar\..\..\long`, `\\?\UNC\srv\share\long`}, // share name is not removed by ".."
+
+		// Local Device
+		{`\\.\C:\long\foo.txt`, `\\.\C:\long\foo.txt`},
+		{`//./C:/long/foo.txt`, `\\.\C:\long\foo.txt`},
+		{`/\./C:/long/foo.txt`, `\\.\C:\long\foo.txt`},
+		{`\\.\C:\long///foo.txt`, `\\.\C:\long\foo.txt`},
+		{`\\.\C:\long\.\foo.txt`, `\\.\C:\long\foo.txt`},
+		{`\\.\C:\long\..\foo.txt`, `\\.\C:\foo.txt`},
+
+		// Misc tests
 		{`C:\short.txt`, `C:\short.txt`},
 		{`C:\`, `C:\`},
 		{`C:`, `C:`},
-		// The "long" substring is replaced by a looooooong
-		// string which triggers the rewriting. Except in the
-		// cases below where it doesn't.
-		{`C:\long\foo.txt`, `\\?\C:\long\foo.txt`},
-		{`C:/long/foo.txt`, `\\?\C:\long\foo.txt`},
-		{`C:\long\foo\\bar\.\baz\\`, `\\?\C:\long\foo\bar\baz`},
-		{`\\unc\path`, `\\unc\path`},
-		{`long.txt`, `long.txt`},
-		{`C:long.txt`, `C:long.txt`},
-		{`c:\long\..\bar\baz`, `c:\long\..\bar\baz`},
-		{`\\?\c:\long\foo.txt`, `\\?\c:\long\foo.txt`},
-		{`\\?\c:\long/foo.txt`, `\\?\c:\long/foo.txt`},
+		{`\\srv\path`, `\\srv\path`},
+		{`long.txt`, `\\?\C:\cwd\long.txt`},
+		{`C:long.txt`, `\\?\C:\cwd\long.txt`},
+		{`C:\long\.\bar\baz`, `\\?\C:\long\bar\baz`},
+		{`C:long\.\bar\baz`, `\\?\C:\cwd\long\bar\baz`},
+		{`C:\long\..\bar\baz`, `\\?\C:\bar\baz`},
+		{`C:long\..\bar\baz`, `\\?\C:\cwd\bar\baz`},
+		{`C:\long\foo\\bar\.\baz\\`, `\\?\C:\long\foo\bar\baz\`},
+		{`C:\long\..`, `\\?\C:\`},
+		{`C:\.\long\..\.`, `\\?\C:\`},
+		{`\\?\C:\long\foo.txt`, `\\?\C:\long\foo.txt`},
+		{`\\?\C:\long/foo.txt`, `\\?\C:\long/foo.txt`},
 	} {
 		in := strings.ReplaceAll(test.in, "long", veryLong)
+		in = strings.ToLower(in)
+		in = strings.ReplaceAll(in, "c:", drive)
+
 		want := strings.ReplaceAll(test.want, "long", veryLong)
-		if got := os.FixLongPath(in); got != want {
+		want = strings.ToLower(want)
+		want = strings.ReplaceAll(want, "c:", drive)
+		want = strings.ReplaceAll(want, "cwd", cwd)
+
+		got := os.AddExtendedPrefix(in)
+		got = strings.ToLower(got)
+		if got != want {
+			in = strings.ReplaceAll(in, veryLong, "long")
 			got = strings.ReplaceAll(got, veryLong, "long")
-			t.Errorf("fixLongPath(%q) = %q; want %q", test.in, got, test.want)
+			want = strings.ReplaceAll(want, veryLong, "long")
+			t.Errorf("addExtendedPrefix(%#q) = %#q; want %#q", in, got, want)
 		}
 	}
 }
@@ -104,5 +172,109 @@ func TestOpenRootSlash(t *testing.T) {
 			t.Fatalf("Open(%q) failed: %v", test, err)
 		}
 		dir.Close()
+	}
+}
+
+func testMkdirAllAtRoot(t *testing.T, root string) {
+	// Create a unique-enough directory name in root.
+	base := fmt.Sprintf("%s-%d", t.Name(), os.Getpid())
+	path := filepath.Join(root, base)
+	if err := os.MkdirAll(path, 0777); err != nil {
+		t.Fatalf("MkdirAll(%q) failed: %v", path, err)
+	}
+	// Clean up
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMkdirAllExtendedLengthAtRoot(t *testing.T) {
+	if testenv.Builder() == "" {
+		t.Skipf("skipping non-hermetic test outside of Go builders")
+	}
+
+	const prefix = `\\?\`
+	vol := filepath.VolumeName(t.TempDir()) + `\`
+	if len(vol) < 4 || vol[:4] != prefix {
+		vol = prefix + vol
+	}
+	testMkdirAllAtRoot(t, vol)
+}
+
+func TestMkdirAllVolumeNameAtRoot(t *testing.T) {
+	if testenv.Builder() == "" {
+		t.Skipf("skipping non-hermetic test outside of Go builders")
+	}
+
+	vol, err := syscall.UTF16PtrFromString(filepath.VolumeName(t.TempDir()) + `\`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const maxVolNameLen = 50
+	var buf [maxVolNameLen]uint16
+	err = windows.GetVolumeNameForVolumeMountPoint(vol, &buf[0], maxVolNameLen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	volName := syscall.UTF16ToString(buf[:])
+	testMkdirAllAtRoot(t, volName)
+}
+
+func TestRemoveAllLongPathRelative(t *testing.T) {
+	// Test that RemoveAll doesn't hang with long relative paths.
+	// See go.dev/issue/36375.
+	tmp := t.TempDir()
+	chdir(t, tmp)
+	dir := filepath.Join(tmp, "foo", "bar", strings.Repeat("a", 150), strings.Repeat("b", 150))
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.RemoveAll("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func testLongPathAbs(t *testing.T, target string) {
+	t.Helper()
+	testWalkFn := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			t.Error(err)
+		}
+		return err
+	}
+	if err := os.MkdirAll(target, 0777); err != nil {
+		t.Fatal(err)
+	}
+	// Test that Walk doesn't fail with long paths.
+	// See go.dev/issue/21782.
+	filepath.Walk(target, testWalkFn)
+	// Test that RemoveAll doesn't hang with long paths.
+	// See go.dev/issue/36375.
+	if err := os.RemoveAll(target); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestLongPathAbs(t *testing.T) {
+	t.Parallel()
+
+	target := t.TempDir() + "\\" + strings.Repeat("a\\", 300)
+	testLongPathAbs(t, target)
+}
+
+func TestLongPathRel(t *testing.T) {
+	chdir(t, t.TempDir())
+
+	target := strings.Repeat("b\\", 300)
+	testLongPathAbs(t, target)
+}
+
+func BenchmarkAddExtendedPrefix(b *testing.B) {
+	veryLong := `C:\l` + strings.Repeat("o", 248) + "ng"
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		os.AddExtendedPrefix(veryLong)
 	}
 }

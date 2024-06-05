@@ -74,22 +74,7 @@ func removeAllFrom(parent *File, base string) error {
 	if err != syscall.EISDIR && err != syscall.EPERM && err != syscall.EACCES {
 		return &PathError{Op: "unlinkat", Path: base, Err: err}
 	}
-
-	// Is this a directory we need to recurse into?
-	var statInfo syscall.Stat_t
-	statErr := ignoringEINTR(func() error {
-		return unix.Fstatat(parentFd, base, &statInfo, unix.AT_SYMLINK_NOFOLLOW)
-	})
-	if statErr != nil {
-		if IsNotExist(statErr) {
-			return nil
-		}
-		return &PathError{Op: "fstatat", Path: base, Err: statErr}
-	}
-	if statInfo.Mode&syscall.S_IFMT != syscall.S_IFDIR {
-		// Not a directory; return the error from the unix.Unlinkat.
-		return &PathError{Op: "unlinkat", Path: base, Err: err}
-	}
+	uErr := err
 
 	// Remove the directory's entries.
 	var recurseErr error
@@ -98,10 +83,14 @@ func removeAllFrom(parent *File, base string) error {
 		var respSize int
 
 		// Open the directory to recurse into
-		file, err := openFdAt(parentFd, base)
+		file, err := openDirAt(parentFd, base)
 		if err != nil {
 			if IsNotExist(err) {
 				return nil
+			}
+			if err == syscall.ENOTDIR {
+				// Not a directory; return the error from the unix.Unlinkat.
+				return &PathError{Op: "unlinkat", Path: base, Err: uErr}
 			}
 			recurseErr = &PathError{Op: "openfdat", Path: base, Err: err}
 			break
@@ -168,16 +157,19 @@ func removeAllFrom(parent *File, base string) error {
 	return &PathError{Op: "unlinkat", Path: base, Err: unlinkError}
 }
 
-// openFdAt opens path relative to the directory in fd.
-// Other than that this should act like openFileNolog.
+// openDirAt opens a directory name relative to the directory referred to by
+// the file descriptor dirfd. If name is anything but a directory (this
+// includes a symlink to one), it should return an error. Other than that this
+// should act like openFileNolog.
+//
 // This acts like openFileNolog rather than OpenFile because
 // we are going to (try to) remove the file.
 // The contents of this file are not relevant for test caching.
-func openFdAt(dirfd int, name string) (*File, error) {
+func openDirAt(dirfd int, name string) (*File, error) {
 	var r int
 	for {
 		var e error
-		r, e = unix.Openat(dirfd, name, O_RDONLY|syscall.O_CLOEXEC, 0)
+		r, e = unix.Openat(dirfd, name, O_RDONLY|syscall.O_CLOEXEC|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
 		if e == nil {
 			break
 		}
@@ -195,5 +187,5 @@ func openFdAt(dirfd int, name string) (*File, error) {
 	}
 
 	// We use kindNoPoll because we know that this is a directory.
-	return newFile(r, name, kindNoPoll), nil
+	return newFile(r, name, kindNoPoll, false), nil
 }

@@ -307,12 +307,19 @@ func schedule(f *Func) {
 	}
 
 	// Remove SPanchored now that we've scheduled.
+	// Also unlink nil checks now that ordering is assured
+	// between the nil check and the uses of the nil-checked pointer.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
-				if a.Op == OpSPanchored {
+				if a.Op == OpSPanchored || opcodeTable[a.Op].nilCheck {
 					v.SetArg(i, a.Args[0])
 				}
+			}
+		}
+		for i, c := range b.ControlValues() {
+			if c.Op == OpSPanchored || opcodeTable[c.Op].nilCheck {
+				b.ReplaceControl(i, c.Args[0])
 			}
 		}
 	}
@@ -327,6 +334,15 @@ func schedule(f *Func) {
 				v.resetArgs()
 				f.freeValue(v)
 			} else {
+				if opcodeTable[v.Op].nilCheck {
+					if v.Uses != 0 {
+						base.Fatalf("nilcheck still has %d uses", v.Uses)
+					}
+					// We can't delete the nil check, but we mark
+					// it as having void type so regalloc won't
+					// try to allocate a register for it.
+					v.Type = types.TypeVoid
+				}
 				b.Values[i] = v
 				i++
 			}
@@ -546,7 +562,7 @@ func (v *Value) hasFlagInput() bool {
 	// PPC64 carry dependencies are conveyed through their final argument,
 	// so we treat those operations as taking flags as well.
 	switch v.Op {
-	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZEzero:
+	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZE, OpPPC64ADDZEzero:
 		return true
 	}
 	return false

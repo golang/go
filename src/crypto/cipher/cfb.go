@@ -50,15 +50,15 @@ func (x *cfb) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// NewCFBEncrypter returns a Stream which encrypts with cipher feedback mode,
-// using the given Block. The iv must be the same length as the Block's block
+// NewCFBEncrypter returns a [Stream] which encrypts with cipher feedback mode,
+// using the given [Block]. The iv must be the same length as the [Block]'s block
 // size.
 func NewCFBEncrypter(block Block, iv []byte) Stream {
 	return newCFB(block, iv, false)
 }
 
-// NewCFBDecrypter returns a Stream which decrypts with cipher feedback mode,
-// using the given Block. The iv must be the same length as the Block's block
+// NewCFBDecrypter returns a [Stream] which decrypts with cipher feedback mode,
+// using the given [Block]. The iv must be the same length as the [Block]'s block
 // size.
 func NewCFBDecrypter(block Block, iv []byte) Stream {
 	return newCFB(block, iv, true)

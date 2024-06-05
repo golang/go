@@ -169,7 +169,7 @@ func TestCode(t *testing.T) {
 				continue
 			}
 			t.Run(fmt.Sprintf("%s%s", test.name[4:], flag), func(t *testing.T) {
-				out, err := testenv.Command(t, filepath.Join(tmpdir, "code.test"), "-test.run="+test.name).CombinedOutput()
+				out, err := testenv.Command(t, filepath.Join(tmpdir, "code.test"), "-test.run=^"+test.name+"$").CombinedOutput()
 				if err != nil || string(out) != "PASS\n" {
 					t.Errorf("Failed:\n%s\n", out)
 				}

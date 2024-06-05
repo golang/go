@@ -23,7 +23,7 @@ var (
 )
 
 // Ensure current working directory seen by this goroutine matches
-// the most recent Chdir called in any goroutine. It's called internally
+// the most recent [Chdir] called in any goroutine. It's called internally
 // before executing any syscall which uses a relative pathname. Must
 // be called with the goroutine locked to the OS thread, to prevent
 // rescheduling on a different thread (potentially with a different

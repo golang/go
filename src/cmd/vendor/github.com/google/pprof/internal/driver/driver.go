@@ -20,6 +20,7 @@ package driver
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -118,7 +119,14 @@ func generateReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Opti
 
 	// Generate the report.
 	dst := new(bytes.Buffer)
-	if err := report.Generate(dst, rpt, o.Obj); err != nil {
+	switch rpt.OutputFormat() {
+	case report.WebList:
+		// We need template expansion, so generate here instead of in report.
+		err = printWebList(dst, rpt, o.Obj)
+	default:
+		err = report.Generate(dst, rpt, o.Obj)
+	}
+	if err != nil {
 		return err
 	}
 	src := dst
@@ -153,6 +161,18 @@ func generateReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Opti
 		return err
 	}
 	return out.Close()
+}
+
+func printWebList(dst io.Writer, rpt *report.Report, obj plugin.ObjTool) error {
+	listing, err := report.MakeWebList(rpt, obj, -1)
+	if err != nil {
+		return err
+	}
+	legend := report.ProfileLabels(rpt)
+	return renderHTML(dst, "sourcelisting", rpt, nil, legend, webArgs{
+		Standalone: true,
+		Listing:    listing,
+	})
 }
 
 func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
@@ -256,7 +276,7 @@ func aggregate(prof *profile.Profile, cfg config) error {
 	default:
 		return fmt.Errorf("unexpected granularity")
 	}
-	return prof.Aggregate(inlines, function, filename, linenumber, address)
+	return prof.Aggregate(inlines, function, filename, linenumber, cfg.ShowColumns, address)
 }
 
 func reportOptions(p *profile.Profile, numLabelUnits map[string]string, cfg config) (*report.Options, error) {

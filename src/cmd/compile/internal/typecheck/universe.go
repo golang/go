@@ -46,7 +46,7 @@ var builtinFuncs = [...]struct {
 	{"new", ir.ONEW},
 	{"panic", ir.OPANIC},
 	{"print", ir.OPRINT},
-	{"println", ir.OPRINTN},
+	{"println", ir.OPRINTLN},
 	{"real", ir.OREAL},
 	{"recover", ir.ORECOVER},
 }
@@ -56,9 +56,6 @@ var unsafeFuncs = [...]struct {
 	op   ir.Op
 }{
 	{"Add", ir.OUNSAFEADD},
-	{"Alignof", ir.OALIGNOF},
-	{"Offsetof", ir.OOFFSETOF},
-	{"Sizeof", ir.OSIZEOF},
 	{"Slice", ir.OUNSAFESLICE},
 	{"SliceData", ir.OUNSAFESLICEDATA},
 	{"String", ir.OUNSAFESTRING},
@@ -70,22 +67,17 @@ func InitUniverse() {
 	types.InitTypes(func(sym *types.Sym, typ *types.Type) types.Object {
 		n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
 		n.SetType(typ)
+		n.SetTypecheck(1)
 		sym.Def = n
 		return n
 	})
 
 	for _, s := range &builtinFuncs {
-		s2 := types.BuiltinPkg.Lookup(s.name)
-		def := NewName(s2)
-		def.BuiltinOp = s.op
-		s2.Def = def
+		ir.NewBuiltin(types.BuiltinPkg.Lookup(s.name), s.op)
 	}
 
 	for _, s := range &unsafeFuncs {
-		s2 := types.UnsafePkg.Lookup(s.name)
-		def := NewName(s2)
-		def.BuiltinOp = s.op
-		s2.Def = def
+		ir.NewBuiltin(types.UnsafePkg.Lookup(s.name), s.op)
 	}
 
 	s := types.BuiltinPkg.Lookup("true")
@@ -96,14 +88,11 @@ func InitUniverse() {
 
 	s = Lookup("_")
 	types.BlankSym = s
-	s.Def = NewName(s)
-	ir.BlankNode = ir.AsNode(s.Def)
-	ir.BlankNode.SetType(types.Types[types.TBLANK])
-	ir.BlankNode.SetTypecheck(1)
+	ir.BlankNode = ir.NewNameAt(src.NoXPos, s, types.Types[types.TBLANK])
+	s.Def = ir.BlankNode
 
 	s = types.BuiltinPkg.Lookup("_")
-	s.Def = NewName(s)
-	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
+	s.Def = ir.NewNameAt(src.NoXPos, s, types.Types[types.TBLANK])
 
 	s = types.BuiltinPkg.Lookup("nil")
 	s.Def = NodNil()

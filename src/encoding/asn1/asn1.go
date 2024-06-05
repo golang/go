@@ -211,7 +211,7 @@ func parseBitString(bytes []byte) (ret BitString, err error) {
 
 // NULL
 
-// NullRawValue is a RawValue with its Tag set to the ASN.1 NULL type tag (5).
+// NullRawValue is a [RawValue] with its Tag set to the ASN.1 NULL type tag (5).
 var NullRawValue = RawValue{Tag: TagNull}
 
 // NullBytes contains bytes representing the DER-encoded ASN.1 NULL type.
@@ -656,14 +656,14 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 }
 
 var (
-	bitStringType        = reflect.TypeOf(BitString{})
-	objectIdentifierType = reflect.TypeOf(ObjectIdentifier{})
-	enumeratedType       = reflect.TypeOf(Enumerated(0))
-	flagType             = reflect.TypeOf(Flag(false))
-	timeType             = reflect.TypeOf(time.Time{})
-	rawValueType         = reflect.TypeOf(RawValue{})
-	rawContentsType      = reflect.TypeOf(RawContent(nil))
-	bigIntType           = reflect.TypeOf((*big.Int)(nil))
+	bitStringType        = reflect.TypeFor[BitString]()
+	objectIdentifierType = reflect.TypeFor[ObjectIdentifier]()
+	enumeratedType       = reflect.TypeFor[Enumerated]()
+	flagType             = reflect.TypeFor[Flag]()
+	timeType             = reflect.TypeFor[time.Time]()
+	rawValueType         = reflect.TypeFor[RawValue]()
+	rawContentsType      = reflect.TypeFor[RawContent]()
+	bigIntType           = reflect.TypeFor[*big.Int]()
 )
 
 // invalidLength reports whether offset + length > sliceLength, or if the
@@ -1031,34 +1031,33 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // fields in val will not be included in rest, as these are considered
 // valid elements of the SEQUENCE and not trailing data.
 //
-// An ASN.1 INTEGER can be written to an int, int32, int64,
-// or *big.Int (from the math/big package).
-// If the encoded value does not fit in the Go type,
-// Unmarshal returns a parse error.
+//   - An ASN.1 INTEGER can be written to an int, int32, int64,
+//     or *[big.Int].
+//     If the encoded value does not fit in the Go type,
+//     Unmarshal returns a parse error.
 //
-// An ASN.1 BIT STRING can be written to a BitString.
+//   - An ASN.1 BIT STRING can be written to a [BitString].
 //
-// An ASN.1 OCTET STRING can be written to a []byte.
+//   - An ASN.1 OCTET STRING can be written to a []byte.
 //
-// An ASN.1 OBJECT IDENTIFIER can be written to an
-// ObjectIdentifier.
+//   - An ASN.1 OBJECT IDENTIFIER can be written to an [ObjectIdentifier].
 //
-// An ASN.1 ENUMERATED can be written to an Enumerated.
+//   - An ASN.1 ENUMERATED can be written to an [Enumerated].
 //
-// An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a time.Time.
+//   - An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a [time.Time].
 //
-// An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
+//   - An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
 //
-// Any of the above ASN.1 values can be written to an interface{}.
-// The value stored in the interface has the corresponding Go type.
-// For integers, that type is int64.
+//   - Any of the above ASN.1 values can be written to an interface{}.
+//     The value stored in the interface has the corresponding Go type.
+//     For integers, that type is int64.
 //
-// An ASN.1 SEQUENCE OF x or SET OF x can be written
-// to a slice if an x can be written to the slice's element type.
+//   - An ASN.1 SEQUENCE OF x or SET OF x can be written
+//     to a slice if an x can be written to the slice's element type.
 //
-// An ASN.1 SEQUENCE or SET can be written to a struct
-// if each of the elements in the sequence can be
-// written to the corresponding element in the struct.
+//   - An ASN.1 SEQUENCE or SET can be written to a struct
+//     if each of the elements in the sequence can be
+//     written to the corresponding element in the struct.
 //
 // The following tags on struct fields have special meaning to Unmarshal:
 //

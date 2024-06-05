@@ -8,6 +8,7 @@ package syntax
 // In this package, re is always a *Regexp and r is always a rune.
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -75,24 +76,10 @@ func (x *Regexp) Equal(y *Regexp) bool {
 		}
 
 	case OpLiteral, OpCharClass:
-		if len(x.Rune) != len(y.Rune) {
-			return false
-		}
-		for i, r := range x.Rune {
-			if r != y.Rune[i] {
-				return false
-			}
-		}
+		return slices.Equal(x.Rune, y.Rune)
 
 	case OpAlternate, OpConcat:
-		if len(x.Sub) != len(y.Sub) {
-			return false
-		}
-		for i, sub := range x.Sub {
-			if !sub.Equal(y.Sub[i]) {
-				return false
-			}
-		}
+		return slices.EqualFunc(x.Sub, y.Sub, (*Regexp).Equal)
 
 	case OpStar, OpPlus, OpQuest:
 		if x.Flags&NonGreedy != y.Flags&NonGreedy || !x.Sub[0].Equal(y.Sub[0]) {
@@ -112,8 +99,165 @@ func (x *Regexp) Equal(y *Regexp) bool {
 	return true
 }
 
+// printFlags is a bit set indicating which flags (including non-capturing parens) to print around a regexp.
+type printFlags uint8
+
+const (
+	flagI    printFlags = 1 << iota // (?i:
+	flagM                           // (?m:
+	flagS                           // (?s:
+	flagOff                         // )
+	flagPrec                        // (?: )
+	negShift = 5                    // flagI<<negShift is (?-i:
+)
+
+// addSpan enables the flags f around start..last,
+// by setting flags[start] = f and flags[last] = flagOff.
+func addSpan(start, last *Regexp, f printFlags, flags *map[*Regexp]printFlags) {
+	if *flags == nil {
+		*flags = make(map[*Regexp]printFlags)
+	}
+	(*flags)[start] = f
+	(*flags)[last] |= flagOff // maybe start==last
+}
+
+// calcFlags calculates the flags to print around each subexpression in re,
+// storing that information in (*flags)[sub] for each affected subexpression.
+// The first time an entry needs to be written to *flags, calcFlags allocates the map.
+// calcFlags also calculates the flags that must be active or can't be active
+// around re and returns those flags.
+func calcFlags(re *Regexp, flags *map[*Regexp]printFlags) (must, cant printFlags) {
+	switch re.Op {
+	default:
+		return 0, 0
+
+	case OpLiteral:
+		// If literal is fold-sensitive, return (flagI, 0) or (0, flagI)
+		// according to whether (?i) is active.
+		// If literal is not fold-sensitive, return 0, 0.
+		for _, r := range re.Rune {
+			if minFold <= r && r <= maxFold && unicode.SimpleFold(r) != r {
+				if re.Flags&FoldCase != 0 {
+					return flagI, 0
+				} else {
+					return 0, flagI
+				}
+			}
+		}
+		return 0, 0
+
+	case OpCharClass:
+		// If literal is fold-sensitive, return 0, flagI - (?i) has been compiled out.
+		// If literal is not fold-sensitive, return 0, 0.
+		for i := 0; i < len(re.Rune); i += 2 {
+			lo := max(minFold, re.Rune[i])
+			hi := min(maxFold, re.Rune[i+1])
+			for r := lo; r <= hi; r++ {
+				for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+					if !(lo <= f && f <= hi) && !inCharClass(f, re.Rune) {
+						return 0, flagI
+					}
+				}
+			}
+		}
+		return 0, 0
+
+	case OpAnyCharNotNL: // (?-s).
+		return 0, flagS
+
+	case OpAnyChar: // (?s).
+		return flagS, 0
+
+	case OpBeginLine, OpEndLine: // (?m)^ (?m)$
+		return flagM, 0
+
+	case OpEndText:
+		if re.Flags&WasDollar != 0 { // (?-m)$
+			return 0, flagM
+		}
+		return 0, 0
+
+	case OpCapture, OpStar, OpPlus, OpQuest, OpRepeat:
+		return calcFlags(re.Sub[0], flags)
+
+	case OpConcat, OpAlternate:
+		// Gather the must and cant for each subexpression.
+		// When we find a conflicting subexpression, insert the necessary
+		// flags around the previously identified span and start over.
+		var must, cant, allCant printFlags
+		start := 0
+		last := 0
+		did := false
+		for i, sub := range re.Sub {
+			subMust, subCant := calcFlags(sub, flags)
+			if must&subCant != 0 || subMust&cant != 0 {
+				if must != 0 {
+					addSpan(re.Sub[start], re.Sub[last], must, flags)
+				}
+				must = 0
+				cant = 0
+				start = i
+				did = true
+			}
+			must |= subMust
+			cant |= subCant
+			allCant |= subCant
+			if subMust != 0 {
+				last = i
+			}
+			if must == 0 && start == i {
+				start++
+			}
+		}
+		if !did {
+			// No conflicts: pass the accumulated must and cant upward.
+			return must, cant
+		}
+		if must != 0 {
+			// Conflicts found; need to finish final span.
+			addSpan(re.Sub[start], re.Sub[last], must, flags)
+		}
+		return 0, allCant
+	}
+}
+
 // writeRegexp writes the Perl syntax for the regular expression re to b.
-func writeRegexp(b *strings.Builder, re *Regexp) {
+func writeRegexp(b *strings.Builder, re *Regexp, f printFlags, flags map[*Regexp]printFlags) {
+	f |= flags[re]
+	if f&flagPrec != 0 && f&^(flagOff|flagPrec) != 0 && f&flagOff != 0 {
+		// flagPrec is redundant with other flags being added and terminated
+		f &^= flagPrec
+	}
+	if f&^(flagOff|flagPrec) != 0 {
+		b.WriteString(`(?`)
+		if f&flagI != 0 {
+			b.WriteString(`i`)
+		}
+		if f&flagM != 0 {
+			b.WriteString(`m`)
+		}
+		if f&flagS != 0 {
+			b.WriteString(`s`)
+		}
+		if f&((flagM|flagS)<<negShift) != 0 {
+			b.WriteString(`-`)
+			if f&(flagM<<negShift) != 0 {
+				b.WriteString(`m`)
+			}
+			if f&(flagS<<negShift) != 0 {
+				b.WriteString(`s`)
+			}
+		}
+		b.WriteString(`:`)
+	}
+	if f&flagOff != 0 {
+		defer b.WriteString(`)`)
+	}
+	if f&flagPrec != 0 {
+		b.WriteString(`(?:`)
+		defer b.WriteString(`)`)
+	}
+
 	switch re.Op {
 	default:
 		b.WriteString("<invalid op" + strconv.Itoa(int(re.Op)) + ">")
@@ -122,14 +266,8 @@ func writeRegexp(b *strings.Builder, re *Regexp) {
 	case OpEmptyMatch:
 		b.WriteString(`(?:)`)
 	case OpLiteral:
-		if re.Flags&FoldCase != 0 {
-			b.WriteString(`(?i:`)
-		}
 		for _, r := range re.Rune {
 			escape(b, r, false)
-		}
-		if re.Flags&FoldCase != 0 {
-			b.WriteString(`)`)
 		}
 	case OpCharClass:
 		if len(re.Rune)%2 != 0 {
@@ -147,7 +285,9 @@ func writeRegexp(b *strings.Builder, re *Regexp) {
 				lo, hi := re.Rune[i]+1, re.Rune[i+1]-1
 				escape(b, lo, lo == '-')
 				if lo != hi {
-					b.WriteRune('-')
+					if hi != lo+1 {
+						b.WriteRune('-')
+					}
 					escape(b, hi, hi == '-')
 				}
 			}
@@ -156,25 +296,25 @@ func writeRegexp(b *strings.Builder, re *Regexp) {
 				lo, hi := re.Rune[i], re.Rune[i+1]
 				escape(b, lo, lo == '-')
 				if lo != hi {
-					b.WriteRune('-')
+					if hi != lo+1 {
+						b.WriteRune('-')
+					}
 					escape(b, hi, hi == '-')
 				}
 			}
 		}
 		b.WriteRune(']')
-	case OpAnyCharNotNL:
-		b.WriteString(`(?-s:.)`)
-	case OpAnyChar:
-		b.WriteString(`(?s:.)`)
+	case OpAnyCharNotNL, OpAnyChar:
+		b.WriteString(`.`)
 	case OpBeginLine:
-		b.WriteString(`(?m:^)`)
+		b.WriteString(`^`)
 	case OpEndLine:
-		b.WriteString(`(?m:$)`)
+		b.WriteString(`$`)
 	case OpBeginText:
 		b.WriteString(`\A`)
 	case OpEndText:
 		if re.Flags&WasDollar != 0 {
-			b.WriteString(`(?-m:$)`)
+			b.WriteString(`$`)
 		} else {
 			b.WriteString(`\z`)
 		}
@@ -191,17 +331,17 @@ func writeRegexp(b *strings.Builder, re *Regexp) {
 			b.WriteRune('(')
 		}
 		if re.Sub[0].Op != OpEmptyMatch {
-			writeRegexp(b, re.Sub[0])
+			writeRegexp(b, re.Sub[0], flags[re.Sub[0]], flags)
 		}
 		b.WriteRune(')')
 	case OpStar, OpPlus, OpQuest, OpRepeat:
-		if sub := re.Sub[0]; sub.Op > OpCapture || sub.Op == OpLiteral && len(sub.Rune) > 1 {
-			b.WriteString(`(?:`)
-			writeRegexp(b, sub)
-			b.WriteString(`)`)
-		} else {
-			writeRegexp(b, sub)
+		p := printFlags(0)
+		sub := re.Sub[0]
+		if sub.Op > OpCapture || sub.Op == OpLiteral && len(sub.Rune) > 1 {
+			p = flagPrec
 		}
+		writeRegexp(b, sub, p, flags)
+
 		switch re.Op {
 		case OpStar:
 			b.WriteRune('*')
@@ -225,27 +365,31 @@ func writeRegexp(b *strings.Builder, re *Regexp) {
 		}
 	case OpConcat:
 		for _, sub := range re.Sub {
+			p := printFlags(0)
 			if sub.Op == OpAlternate {
-				b.WriteString(`(?:`)
-				writeRegexp(b, sub)
-				b.WriteString(`)`)
-			} else {
-				writeRegexp(b, sub)
+				p = flagPrec
 			}
+			writeRegexp(b, sub, p, flags)
 		}
 	case OpAlternate:
 		for i, sub := range re.Sub {
 			if i > 0 {
 				b.WriteRune('|')
 			}
-			writeRegexp(b, sub)
+			writeRegexp(b, sub, 0, flags)
 		}
 	}
 }
 
 func (re *Regexp) String() string {
 	var b strings.Builder
-	writeRegexp(&b, re)
+	var flags map[*Regexp]printFlags
+	must, cant := calcFlags(re, &flags)
+	must |= (cant &^ flagI) << negShift
+	if must != 0 {
+		must |= flagOff
+	}
+	writeRegexp(&b, re, must, flags)
 	return b.String()
 }
 

@@ -6,37 +6,35 @@
 #include "textflag.h"
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
-TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
-	MOVV	ptr+0(FP), R6
-	MOVV	n+8(FP), R7
-	ADDV	R6, R7, R4
+TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
+	ADDV	R4, R5, R6
 
 	// if less than 8 bytes, do one byte at a time
-	SGTU	$8, R7, R8
+	SGTU	$8, R5, R8
 	BNE	R8, out
 
 	// do one byte at a time until 8-aligned
-	AND	$7, R6, R8
+	AND	$7, R4, R8
 	BEQ	R8, words
-	MOVB	R0, (R6)
-	ADDV	$1, R6
+	MOVB	R0, (R4)
+	ADDV	$1, R4
 	JMP	-4(PC)
 
 words:
 	// do 8 bytes at a time if there is room
-	ADDV	$-7, R4, R7
+	ADDV	$-7, R6, R5
 
 	PCALIGN	$16
-	SGTU	R7, R6, R8
+	SGTU	R5, R4, R8
 	BEQ	R8, out
-	MOVV	R0, (R6)
-	ADDV	$8, R6
+	MOVV	R0, (R4)
+	ADDV	$8, R4
 	JMP	-4(PC)
 
 out:
-	BEQ	R6, R4, done
-	MOVB	R0, (R6)
-	ADDV	$1, R6
+	BEQ	R4, R6, done
+	MOVB	R0, (R4)
+	ADDV	$1, R4
 	JMP	-3(PC)
 done:
 	RET
