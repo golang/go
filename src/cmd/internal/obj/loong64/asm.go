@@ -1045,6 +1045,22 @@ func buildop(ctxt *obj.Link) {
 			opset(AFTINTWD, r0)
 			opset(AFTINTVF, r0)
 			opset(AFTINTVD, r0)
+			opset(AFTINTRPWF, r0)
+			opset(AFTINTRPWD, r0)
+			opset(AFTINTRPVF, r0)
+			opset(AFTINTRPVD, r0)
+			opset(AFTINTRMWF, r0)
+			opset(AFTINTRMWD, r0)
+			opset(AFTINTRMVF, r0)
+			opset(AFTINTRMVD, r0)
+			opset(AFTINTRZWF, r0)
+			opset(AFTINTRZWD, r0)
+			opset(AFTINTRZVF, r0)
+			opset(AFTINTRZVD, r0)
+			opset(AFTINTRNEWF, r0)
+			opset(AFTINTRNEWD, r0)
+			opset(AFTINTRNEVF, r0)
+			opset(AFTINTRNEVD, r0)
 
 		case AADD:
 			opset(ASGT, r0)
@@ -1988,6 +2004,38 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x46c9 << 10 // ftint.l.s
 	case AFTINTVD:
 		return 0x46ca << 10 // ftint.l.d
+	case AFTINTRMWF:
+		return 0x4681 << 10 // ftintrm.w.s
+	case AFTINTRMWD:
+		return 0x4682 << 10 // ftintrm.w.d
+	case AFTINTRMVF:
+		return 0x4689 << 10 // ftintrm.l.s
+	case AFTINTRMVD:
+		return 0x468a << 10 // ftintrm.l.d
+	case AFTINTRPWF:
+		return 0x4691 << 10 // ftintrp.w.s
+	case AFTINTRPWD:
+		return 0x4692 << 10 // ftintrp.w.d
+	case AFTINTRPVF:
+		return 0x4699 << 10 // ftintrp.l.s
+	case AFTINTRPVD:
+		return 0x469a << 10 // ftintrp.l.d
+	case AFTINTRZWF:
+		return 0x46a1 << 10 // ftintrz.w.s
+	case AFTINTRZWD:
+		return 0x46a2 << 10 // ftintrz.w.d
+	case AFTINTRZVF:
+		return 0x46a9 << 10 // ftintrz.l.s
+	case AFTINTRZVD:
+		return 0x46aa << 10 // ftintrz.l.d
+	case AFTINTRNEWF:
+		return 0x46b1 << 10 // ftintrne.w.s
+	case AFTINTRNEWD:
+		return 0x46b2 << 10 // ftintrne.w.d
+	case AFTINTRNEVF:
+		return 0x46b9 << 10 // ftintrne.l.s
+	case AFTINTRNEVD:
+		return 0x46ba << 10 // ftintrne.l.d
 	}
 
 	c.ctxt.Diag("bad rr opcode %v", a)
