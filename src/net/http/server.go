@@ -1357,16 +1357,21 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 
 	// If the client wanted a 100-continue but we never sent it to
 	// them (or, more strictly: we never finished reading their
-	// request body), don't reuse this connection because it's now
-	// in an unknown state: we might be sending this response at
-	// the same time the client is now sending its request body
-	// after a timeout.  (Some HTTP clients send Expect:
-	// 100-continue but knowing that some servers don't support
-	// it, the clients set a timer and send the body later anyway)
-	// If we haven't seen EOF, we can't skip over the unread body
-	// because we don't know if the next bytes on the wire will be
-	// the body-following-the-timer or the subsequent request.
-	// See Issue 11549.
+	// request body), don't reuse this connection.
+	//
+	// This behavior was first added on the theory that we don't know
+	// if the next bytes on the wire are going to be the remainder of
+	// the request body or the subsequent request (see issue 11549),
+	// but that's not correct: If we keep using the connection,
+	// the client is required to send the request body whether we
+	// asked for it or not.
+	//
+	// We probably do want to skip reusing the connection in most cases,
+	// however. If the client is offering a large request body that we
+	// don't intend to use, then it's better to close the connection
+	// than to read the body. For now, assume that if we're sending
+	// headers, the handler is done reading the body and we should
+	// drop the connection if we haven't seen EOF.
 	if ecr, ok := w.req.Body.(*expectContinueReader); ok && !ecr.sawEOF.Load() {
 		w.closeAfterReply = true
 	}
