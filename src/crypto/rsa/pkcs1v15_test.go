@@ -222,6 +222,7 @@ func TestSignPKCS1v15WithPublicKeySizeZero(t *testing.T) {
 		&PrivateKey{
 			PublicKey: PublicKey{
 				N: big.NewInt(0),
+				E: 65537,
 			},
 		}, crypto.SHA1, digest)
 	if err == nil {
