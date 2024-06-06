@@ -214,7 +214,7 @@ func TestSignPKCS1v15(t *testing.T) {
 	}
 }
 
-func TestSignPKCS1v15WithPrivateKeySizeZero(t *testing.T) {
+func TestSignPKCS1v15WithPublicKeySizeZero(t *testing.T) {
 	h := sha1.New()
 	h.Write([]byte("key"))
 	digest := h.Sum(nil)
@@ -227,7 +227,7 @@ func TestSignPKCS1v15WithPrivateKeySizeZero(t *testing.T) {
 	if err == nil {
 		t.Error("expected error but got nil")
 	}
-	if err != nil && err.Error() != "crypto/rsa: private key size zero" {
+	if err != nil && err.Error() != "crypto/rsa: public key size zero" {
 		t.Errorf("unexpected error: %v", err)
 	}
 }

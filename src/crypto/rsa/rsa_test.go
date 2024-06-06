@@ -656,7 +656,7 @@ func TestEncryptOAEP(t *testing.T) {
 
 func TestEncryptOAEPWithPublicKeySizeZero(t *testing.T) {
 	sha1 := sha1.New()
-	_, err := EncryptOAEP(sha1, nil, &PublicKey{}, nil, nil)
+	_, err := EncryptOAEP(sha1, nil, &PublicKey{N: big.NewInt(0)}, nil, nil)
 	if err == nil {
 		t.Error("expected error but got nil")
 	}
