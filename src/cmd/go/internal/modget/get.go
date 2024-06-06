@@ -32,6 +32,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -208,7 +209,7 @@ variable for future go command invocations.
 }
 
 var (
-	getD        = CmdGet.Flag.Bool("d", false, "")
+	getD        dFlag
 	getF        = CmdGet.Flag.Bool("f", false, "")
 	getFix      = CmdGet.Flag.Bool("fix", false, "")
 	getM        = CmdGet.Flag.Bool("m", false, "")
@@ -242,9 +243,32 @@ func (v *upgradeFlag) Set(s string) error {
 
 func (v *upgradeFlag) String() string { return "" }
 
+// dFlag is a custom flag.Value for the deprecated -d flag
+// which will be used to provide warnings or errors if -d
+// is provided.
+type dFlag struct {
+	value bool
+	set   bool
+}
+
+func (v *dFlag) IsBoolFlag() bool { return true }
+
+func (v *dFlag) Set(s string) error {
+	v.set = true
+	value, err := strconv.ParseBool(s)
+	if err != nil {
+		err = errors.New("parse error")
+	}
+	v.value = value
+	return err
+}
+
+func (b *dFlag) String() string { return "" }
+
 func init() {
 	work.AddBuildFlags(CmdGet, work.OmitModFlag)
 	CmdGet.Run = runGet // break init loop
+	CmdGet.Flag.Var(&getD, "d", "")
 	CmdGet.Flag.Var(&getU, "u", "")
 }
 
@@ -255,8 +279,11 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	default:
 		base.Fatalf("go: unknown upgrade flag -u=%s", getU.rawVersion)
 	}
-	if *getD {
-		fmt.Fprintf(os.Stderr, "go: -d flag is a no-op\n")
+	if getD.set {
+		if !getD.value {
+			base.Fatalf("go: -d flag may not be set to false")
+		}
+		fmt.Fprintf(os.Stderr, "go: -d flag is deprecated. -d=true is a no-op\n")
 	}
 	if *getF {
 		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op\n")
