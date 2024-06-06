@@ -364,11 +364,15 @@ func constructCallStat(p *pgoir.Profile, fn *ir.Func, name string, call *ir.Call
 		return e.Dst.Name() < stat.Hottest
 	}
 
+	callerNode := p.WeightedCG.IRNodes[name]
+	if callerNode == nil {
+		return nil
+	}
+
 	// Sum of all edges from this callsite, regardless of callee.
 	// For direct calls, this should be the same as the single edge
 	// weight (except for multiple calls on one line, which we
 	// can't distinguish).
-	callerNode := p.WeightedCG.IRNodes[name]
 	for _, edge := range callerNode.OutEdges {
 		if edge.CallSiteOffset != offset {
 			continue
@@ -655,6 +659,10 @@ func findHotConcreteCallee(p *pgoir.Profile, caller *ir.Func, call *ir.CallExpr,
 	callerName := ir.LinkFuncName(caller)
 	callerNode := p.WeightedCG.IRNodes[callerName]
 	callOffset := pgoir.NodeLineOffset(call, caller)
+
+	if callerNode == nil {
+		return nil, 0
+	}
 
 	var hottest *pgoir.IREdge
 
