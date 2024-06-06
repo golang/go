@@ -187,5 +187,13 @@ var Anames = []string{
 	"FCOPYSGD",
 	"FCLASSF",
 	"FCLASSD",
+	"FFINTFW",
+	"FFINTFV",
+	"FFINTDW",
+	"FFINTDV",
+	"FTINTWF",
+	"FTINTWD",
+	"FTINTVF",
+	"FTINTVD",
 	"LAST",
 }

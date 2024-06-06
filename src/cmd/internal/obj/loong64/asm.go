@@ -1037,6 +1037,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AMOVDV, r0)
 			opset(ATRUNCDV, r0)
 			opset(ATRUNCFV, r0)
+			opset(AFFINTFW, r0)
+			opset(AFFINTFV, r0)
+			opset(AFFINTDW, r0)
+			opset(AFFINTDV, r0)
+			opset(AFTINTWF, r0)
+			opset(AFTINTWD, r0)
+			opset(AFTINTVF, r0)
+			opset(AFTINTVD, r0)
 
 		case AADD:
 			opset(ASGT, r0)
@@ -1964,6 +1972,22 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x450d << 10 // fclass.s
 	case AFCLASSD:
 		return 0x450e << 10 // fclass.d
+	case AFFINTFW:
+		return 0x4744 << 10 // ffint.s.w
+	case AFFINTFV:
+		return 0x4746 << 10 // ffint.s.l
+	case AFFINTDW:
+		return 0x4748 << 10 // ffint.d.w
+	case AFFINTDV:
+		return 0x474a << 10 // ffint.d.l
+	case AFTINTWF:
+		return 0x46c1 << 10 // ftint.w.s
+	case AFTINTWD:
+		return 0x46c2 << 10 // ftint.w.d
+	case AFTINTVF:
+		return 0x46c9 << 10 // ftint.l.s
+	case AFTINTVD:
+		return 0x46ca << 10 // ftint.l.d
 	}
 
 	c.ctxt.Diag("bad rr opcode %v", a)
