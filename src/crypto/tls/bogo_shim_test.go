@@ -368,7 +368,7 @@ func TestBogoSuite(t *testing.T) {
 		if err != nil {
 			t.Fatalf("bogo failed: %s\n%s", err, out)
 		}
-		t.Fatalf("failed to read results JSON file: %s", err)
+		t.Fatalf("failed to read results JSON file: %s", jsonErr)
 	}
 
 	var results bogoResults
