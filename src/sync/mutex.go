@@ -25,12 +25,14 @@ func fatal(string)
 //
 // A Mutex must not be copied after first use.
 //
-// In the terminology of the Go memory model,
+// In the terminology of [the Go memory model],
 // the n'th call to [Mutex.Unlock] “synchronizes before” the m'th call to [Mutex.Lock]
 // for any n < m.
 // A successful call to [Mutex.TryLock] is equivalent to a call to Lock.
 // A failed call to TryLock does not establish any “synchronizes before”
 // relation at all.
+//
+// [the Go memory model]: https://go.dev/ref/mem
 type Mutex struct {
 	state int32
 	sema  uint32

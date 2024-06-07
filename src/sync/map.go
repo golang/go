@@ -24,7 +24,7 @@ import (
 //
 // The zero Map is empty and ready for use. A Map must not be copied after first use.
 //
-// In the terminology of the Go memory model, Map arranges that a write operation
+// In the terminology of [the Go memory model], Map arranges that a write operation
 // “synchronizes before” any read operation that observes the effect of the write, where
 // read and write operations are defined as follows.
 // [Map.Load], [Map.LoadAndDelete], [Map.LoadOrStore], [Map.Swap], [Map.CompareAndSwap],
@@ -33,6 +33,8 @@ import (
 // [Map.LoadOrStore] is a write operation when it returns loaded set to false;
 // [Map.CompareAndSwap] is a write operation when it returns swapped set to true;
 // and [Map.CompareAndDelete] is a write operation when it returns deleted set to true.
+//
+// [the Go memory model]: https://go.dev/ref/mem
 type Map struct {
 	mu Mutex
 
