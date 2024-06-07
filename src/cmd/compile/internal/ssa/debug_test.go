@@ -591,7 +591,7 @@ func newGdb(t testing.TB, tag, executable string, args ...string) dbgr {
 	s := &gdbState{tagg: tag, cmd: cmd, args: args}
 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")
 	s.funcFileLinePCre = regexp.MustCompile(
-		"([^ ]+) [(][^)]*[)][ \\t\\n]+at ([^:]+):([0-9]+)")
+		`([^ ]+) [(][^)]*[)][ \t\n]+at ([^:]+):([0-9]+)`)
 	// runtime.main () at /Users/drchase/GoogleDrive/work/go/src/runtime/proc.go:201
 	//                                    function              file    line
 	// Thread 2 hit Breakpoint 1, main.main () at /Users/drchase/GoogleDrive/work/debug/hist.go:18
