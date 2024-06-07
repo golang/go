@@ -1748,6 +1748,24 @@ func TestAutomaticHTTP2_ListenAndServe_GetCertificate(t *testing.T) {
 	})
 }
 
+func TestAutomaticHTTP2_ListenAndServe_GetConfigForClient(t *testing.T) {
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conf := &tls.Config{
+		// GetConfigForClient requires specifying a full tls.Config so we must set
+		// NextProtos ourselves.
+		NextProtos:   []string{"h2"},
+		Certificates: []tls.Certificate{cert},
+	}
+	testAutomaticHTTP2_ListenAndServe(t, &tls.Config{
+		GetConfigForClient: func(clientHello *tls.ClientHelloInfo) (*tls.Config, error) {
+			return conf, nil
+		},
+	})
+}
+
 func testAutomaticHTTP2_ListenAndServe(t *testing.T, tlsConf *tls.Config) {
 	CondSkipHTTP2(t)
 	// Not parallel: uses global test hooks.
