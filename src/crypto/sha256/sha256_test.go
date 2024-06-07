@@ -9,6 +9,7 @@ package sha256
 import (
 	"bytes"
 	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"encoding"
 	"fmt"
@@ -323,6 +324,15 @@ func TestCgo(t *testing.T) {
 	h := New()
 	h.Write(d.Data[:])
 	h.Sum(nil)
+}
+
+func TestSHA256Hash(t *testing.T) {
+	t.Run("SHA-224", func(t *testing.T) {
+		cryptotest.TestHash(t, New224)
+	})
+	t.Run("SHA-256", func(t *testing.T) {
+		cryptotest.TestHash(t, New)
+	})
 }
 
 var bench = New()

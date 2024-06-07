@@ -9,6 +9,7 @@ package sha1
 import (
 	"bytes"
 	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"encoding"
 	"fmt"
@@ -232,6 +233,10 @@ func TestAllocations(t *testing.T) {
 	if n > 0 {
 		t.Errorf("allocs = %d, want 0", n)
 	}
+}
+
+func TestSHA1Hash(t *testing.T) {
+	cryptotest.TestHash(t, New)
 }
 
 var bench = New()
