@@ -179,7 +179,7 @@ func TestLongAdjustTimers(t *testing.T) {
 	done := make(chan bool)
 	AfterFunc(60*Second, func() { close(done) })
 
-	// Set up a queing goroutine to ping pong through the scheduler.
+	// Set up a queuing goroutine to ping pong through the scheduler.
 	inQ := make(chan func())
 	outQ := make(chan func())
 
