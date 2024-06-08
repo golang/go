@@ -32,6 +32,10 @@ import (
 // only to local times. Applying them to UTC times will use "UTC" as the
 // time zone abbreviation, while strictly speaking those RFCs require the
 // use of "GMT" in that case.
+// When using the [RFC1123] or [RFC1123Z] formats for parsing, note that these
+// formats define a leading zero for the day-in-month portion, which is not
+// strictly allowed by RFC 1123. This will result in an error when parsing
+// date strings that occur in the first 9 days of a given month.
 // In general [RFC1123Z] should be used instead of [RFC1123] for servers
 // that insist on that format, and [RFC3339] should be preferred for new protocols.
 // [RFC3339], [RFC822], [RFC822Z], [RFC1123], and [RFC1123Z] are useful for formatting;
