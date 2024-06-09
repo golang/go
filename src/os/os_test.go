@@ -1383,123 +1383,108 @@ func TestChtimes(t *testing.T) {
 	testChtimes(t, f.Name())
 }
 
-func TestChtimesWithZeroTimes(t *testing.T) {
+func TestChtimesOmit(t *testing.T) {
+	t.Parallel()
+
+	testChtimesOmit(t, true, false)
+	testChtimesOmit(t, false, true)
+	testChtimesOmit(t, true, true)
+	testChtimesOmit(t, false, false) // Same as TestChtimes.
+}
+
+func testChtimesOmit(t *testing.T, omitAt, omitMt bool) {
+	t.Logf("omit atime: %v, mtime: %v", omitAt, omitMt)
 	file := newFile(t)
 	_, err := file.Write([]byte("hello, world\n"))
 	if err != nil {
-		t.Fatalf("Write: %s", err)
+		t.Fatal(err)
 	}
-	fName := file.Name()
+	name := file.Name()
 	err = file.Close()
 	if err != nil {
-		t.Errorf("%v", err)
+		t.Error(err)
 	}
-	fs, err := Stat(fName)
+	fs, err := Stat(name)
 	if err != nil {
 		t.Fatal(err)
 	}
-	startAtime := Atime(fs)
-	startMtime := fs.ModTime()
+
+	wantAtime := Atime(fs)
+	wantMtime := fs.ModTime()
 	switch runtime.GOOS {
 	case "js":
-		startAtime = startAtime.Truncate(time.Second)
-		startMtime = startMtime.Truncate(time.Second)
-	}
-	at0 := startAtime
-	mt0 := startMtime
-	t0 := startMtime.Truncate(time.Second).Add(1 * time.Hour)
-
-	tests := []struct {
-		aTime     time.Time
-		mTime     time.Time
-		wantATime time.Time
-		wantMTime time.Time
-	}{
-		{
-			aTime:     time.Time{},
-			mTime:     time.Time{},
-			wantATime: startAtime,
-			wantMTime: startMtime,
-		},
-		{
-			aTime:     t0.Add(200 * time.Second),
-			mTime:     time.Time{},
-			wantATime: t0.Add(200 * time.Second),
-			wantMTime: startMtime,
-		},
-		{
-			aTime:     time.Time{},
-			mTime:     t0.Add(100 * time.Second),
-			wantATime: t0.Add(200 * time.Second),
-			wantMTime: t0.Add(100 * time.Second),
-		},
-		{
-			aTime:     t0.Add(300 * time.Second),
-			mTime:     t0.Add(100 * time.Second),
-			wantATime: t0.Add(300 * time.Second),
-			wantMTime: t0.Add(100 * time.Second),
-		},
+		wantAtime = wantAtime.Truncate(time.Second)
+		wantMtime = wantMtime.Truncate(time.Second)
 	}
 
-	for _, tt := range tests {
-		// Now change the times accordingly.
-		if err := Chtimes(fName, tt.aTime, tt.mTime); err != nil {
-			t.Error(err)
-		}
+	var setAtime, setMtime time.Time // Zero value means omit.
+	if !omitAt {
+		wantAtime = wantAtime.Add(-1 * time.Second)
+		setAtime = wantAtime
+	}
+	if !omitMt {
+		wantMtime = wantMtime.Add(-1 * time.Second)
+		setMtime = wantMtime
+	}
 
-		// Finally verify the expectations.
-		fs, err = Stat(fName)
-		if err != nil {
-			t.Error(err)
-		}
-		at0 = Atime(fs)
-		mt0 = fs.ModTime()
+	// Change the times accordingly.
+	if err := Chtimes(name, setAtime, setMtime); err != nil {
+		t.Error(err)
+	}
 
-		if got, want := at0, tt.wantATime; !got.Equal(want) {
-			errormsg := fmt.Sprintf("AccessTime mismatch with values ATime:%q-MTime:%q\ngot:  %q\nwant: %q", tt.aTime, tt.mTime, got, want)
-			switch runtime.GOOS {
-			case "plan9":
-				// Mtime is the time of the last change of
-				// content.  Similarly, atime is set whenever
-				// the contents are accessed; also, it is set
-				// whenever mtime is set.
-			case "windows":
-				t.Error(errormsg)
-			default: // unix's
-				if got, want := at0, tt.wantATime; !got.Equal(want) {
-					mounts, err := ReadFile("/bin/mounts")
-					if err != nil {
-						mounts, err = ReadFile("/etc/mtab")
-					}
-					if strings.Contains(string(mounts), "noatime") {
-						t.Log(errormsg)
-						t.Log("A filesystem is mounted with noatime; ignoring.")
-					} else {
-						switch runtime.GOOS {
-						case "netbsd", "dragonfly":
-							// On a 64-bit implementation, birth time is generally supported and cannot be changed.
-							// When supported, atime update is restricted and depends on the file system and on the
-							// OS configuration.
-							if strings.Contains(runtime.GOARCH, "64") {
-								t.Log(errormsg)
-								t.Log("Filesystem might not support atime changes; ignoring.")
-							}
-						default:
-							t.Error(errormsg)
-						}
-					}
-				}
-			}
-		}
-		if got, want := mt0, tt.wantMTime; !got.Equal(want) {
-			errormsg := fmt.Sprintf("ModTime mismatch with values ATime:%q-MTime:%q\ngot:  %q\nwant: %q", tt.aTime, tt.mTime, got, want)
-			switch runtime.GOOS {
-			case "dragonfly":
+	// Verify the expectations.
+	fs, err = Stat(name)
+	if err != nil {
+		t.Error(err)
+	}
+	gotAtime := Atime(fs)
+	gotMtime := fs.ModTime()
+
+	if !gotAtime.Equal(wantAtime) {
+		errormsg := fmt.Sprintf("atime mismatch, got: %q, want: %q", gotAtime, wantAtime)
+		switch runtime.GOOS {
+		case "plan9":
+			// Mtime is the time of the last change of content.
+			// Similarly, atime is set whenever the contents are
+			// accessed; also, it is set whenever mtime is set.
+		case "dragonfly":
+			if omitAt && omitMt {
 				t.Log(errormsg)
-				t.Log("Mtime is always updated; ignoring.")
-			default:
+				t.Log("Known DragonFly BSD issue (won't work when both times are omitted); ignoring.")
+			} else {
+				// Assume hammer2 fs; https://www.dragonflybsd.org/hammer/ says:
+				// > Because HAMMER2 is a block copy-on-write filesystem,
+				// > the "atime" field is not supported and will typically
+				// > just reflect local system in-memory caches or mtime.
+				//
+				// TODO: if only can CI define TMPDIR to point to a tmpfs
+				// (e.g. /var/run/shm), this exception can be removed.
+				t.Log(errormsg)
+				t.Log("Known DragonFly BSD issue (atime not supported on hammer2); ignoring.")
+			}
+		case "netbsd":
+			if !omitAt && hasNoatime() {
+				t.Log(errormsg)
+				t.Log("Known NetBSD issue (atime not changed on fs mounted with noatime); ignoring.")
+			} else {
 				t.Error(errormsg)
 			}
+		default:
+			t.Error(errormsg)
+		}
+	}
+	if !gotMtime.Equal(wantMtime) {
+		errormsg := fmt.Sprintf("mtime mismatch, got: %q, want: %q", gotMtime, wantMtime)
+		switch runtime.GOOS {
+		case "dragonfly":
+			if omitAt && omitMt {
+				t.Log(errormsg)
+				t.Log("Known DragonFly BSD issue (won't work when both times are omitted); ignoring.")
+			} else {
+				t.Error(errormsg)
+			}
+		default:
+			t.Error(errormsg)
 		}
 	}
 }
