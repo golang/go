@@ -1792,13 +1792,6 @@ func TestSeek(t *testing.T) {
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
-			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 && runtime.GOOS == "linux" {
-				mounts, _ := ReadFile("/proc/mounts")
-				if strings.Contains(string(mounts), "reiserfs") {
-					// Reiserfs rejects the big seeks.
-					t.Skipf("skipping test known to fail on reiserfs; https://golang.org/issue/91")
-				}
-			}
 			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out)
 		}
 	}
