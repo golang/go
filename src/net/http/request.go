@@ -959,7 +959,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 			// so we use a well-known ReadCloser variable instead
 			// and have the http package also treat that sentinel
 			// variable to mean explicitly zero.
-			if req.GetBody != nil && req.ContentLength == 0 {
+			if req.GetBody != nil {
 				req.Body = NoBody
 				req.GetBody = func() (io.ReadCloser, error) { return NoBody, nil }
 			}
