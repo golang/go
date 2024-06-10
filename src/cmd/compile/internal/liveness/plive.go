@@ -431,7 +431,7 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
 
 	nblocks := int32(len(f.Blocks))
 	nvars := int32(len(vars))
-	bulk := bitvec.NewBulk(nvars, nblocks*7)
+	bulk := bitvec.NewBulk(nvars, nblocks*7, fn.Pos())
 	for _, b := range f.Blocks {
 		be := lv.blockEffects(b)
 
