@@ -42,10 +42,12 @@ import (
 //
 // A Pool must not be copied after first use.
 //
-// In the terminology of the Go memory model, a call to Put(x) “synchronizes before”
+// In the terminology of [the Go memory model], a call to Put(x) “synchronizes before”
 // a call to [Pool.Get] returning that same value x.
 // Similarly, a call to New returning x “synchronizes before”
 // a call to Get returning that same value x.
+//
+// [the Go memory model]: https://go.dev/ref/mem
 type Pool struct {
 	noCopy noCopy
 

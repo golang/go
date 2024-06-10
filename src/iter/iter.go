@@ -8,6 +8,7 @@ package iter
 
 import (
 	"internal/race"
+	"runtime"
 	"unsafe"
 )
 
@@ -50,14 +51,20 @@ func coroswitch(*coro)
 // simultaneously.
 func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 	var (
-		v         V
-		ok        bool
-		done      bool
-		yieldNext bool
-		racer     int
+		v          V
+		ok         bool
+		done       bool
+		yieldNext  bool
+		racer      int
+		panicValue any
+		seqDone    bool // to detect Goexit
 	)
 	c := newcoro(func(c *coro) {
 		race.Acquire(unsafe.Pointer(&racer))
+		if done {
+			race.Release(unsafe.Pointer(&racer))
+			return
+		}
 		yield := func(v1 V) bool {
 			if done {
 				return false
@@ -72,14 +79,24 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 			race.Acquire(unsafe.Pointer(&racer))
 			return !done
 		}
+		// Recover and propagate panics from seq.
+		defer func() {
+			if p := recover(); p != nil {
+				panicValue = p
+			} else if !seqDone {
+				panicValue = goexitPanicValue
+			}
+			done = true // Invalidate iterator
+			race.Release(unsafe.Pointer(&racer))
+		}()
 		seq(yield)
 		var v0 V
 		v, ok = v0, false
-		done = true
-		race.Release(unsafe.Pointer(&racer))
+		seqDone = true
 	})
 	next = func() (v1 V, ok1 bool) {
 		race.Write(unsafe.Pointer(&racer)) // detect races
+
 		if done {
 			return
 		}
@@ -90,15 +107,36 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 		race.Release(unsafe.Pointer(&racer))
 		coroswitch(c)
 		race.Acquire(unsafe.Pointer(&racer))
+
+		// Propagate panics and goexits from seq.
+		if panicValue != nil {
+			if panicValue == goexitPanicValue {
+				// Propagate runtime.Goexit from seq.
+				runtime.Goexit()
+			} else {
+				panic(panicValue)
+			}
+		}
 		return v, ok
 	}
 	stop = func() {
 		race.Write(unsafe.Pointer(&racer)) // detect races
+
 		if !done {
 			done = true
 			race.Release(unsafe.Pointer(&racer))
 			coroswitch(c)
 			race.Acquire(unsafe.Pointer(&racer))
+
+			// Propagate panics and goexits from seq.
+			if panicValue != nil {
+				if panicValue == goexitPanicValue {
+					// Propagate runtime.Goexit from seq.
+					runtime.Goexit()
+				} else {
+					panic(panicValue)
+				}
+			}
 		}
 	}
 	return next, stop
@@ -125,15 +163,21 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 // simultaneously.
 func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 	var (
-		k         K
-		v         V
-		ok        bool
-		done      bool
-		yieldNext bool
-		racer     int
+		k          K
+		v          V
+		ok         bool
+		done       bool
+		yieldNext  bool
+		racer      int
+		panicValue any
+		seqDone    bool
 	)
 	c := newcoro(func(c *coro) {
 		race.Acquire(unsafe.Pointer(&racer))
+		if done {
+			race.Release(unsafe.Pointer(&racer))
+			return
+		}
 		yield := func(k1 K, v1 V) bool {
 			if done {
 				return false
@@ -148,15 +192,25 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 			race.Acquire(unsafe.Pointer(&racer))
 			return !done
 		}
+		// Recover and propagate panics from seq.
+		defer func() {
+			if p := recover(); p != nil {
+				panicValue = p
+			} else if !seqDone {
+				panicValue = goexitPanicValue
+			}
+			done = true // Invalidate iterator.
+			race.Release(unsafe.Pointer(&racer))
+		}()
 		seq(yield)
 		var k0 K
 		var v0 V
 		k, v, ok = k0, v0, false
-		done = true
-		race.Release(unsafe.Pointer(&racer))
+		seqDone = true
 	})
 	next = func() (k1 K, v1 V, ok1 bool) {
 		race.Write(unsafe.Pointer(&racer)) // detect races
+
 		if done {
 			return
 		}
@@ -167,16 +221,41 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 		race.Release(unsafe.Pointer(&racer))
 		coroswitch(c)
 		race.Acquire(unsafe.Pointer(&racer))
+
+		// Propagate panics and goexits from seq.
+		if panicValue != nil {
+			if panicValue == goexitPanicValue {
+				// Propagate runtime.Goexit from seq.
+				runtime.Goexit()
+			} else {
+				panic(panicValue)
+			}
+		}
 		return k, v, ok
 	}
 	stop = func() {
 		race.Write(unsafe.Pointer(&racer)) // detect races
+
 		if !done {
 			done = true
 			race.Release(unsafe.Pointer(&racer))
 			coroswitch(c)
 			race.Acquire(unsafe.Pointer(&racer))
+
+			// Propagate panics and goexits from seq.
+			if panicValue != nil {
+				if panicValue == goexitPanicValue {
+					// Propagate runtime.Goexit from seq.
+					runtime.Goexit()
+				} else {
+					panic(panicValue)
+				}
+			}
 		}
 	}
 	return next, stop
 }
+
+// goexitPanicValue is a sentinel value indicating that an iterator
+// exited via runtime.Goexit.
+var goexitPanicValue any = new(int)

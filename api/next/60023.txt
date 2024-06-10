@@ -1,3 +1,0 @@
-pkg encoding/binary, func Encode([]uint8, ByteOrder, interface{}) (int, error) #60023
-pkg encoding/binary, func Decode([]uint8, ByteOrder, interface{}) (int, error) #60023
-pkg encoding/binary, func Append([]uint8, ByteOrder, interface{}) ([]uint8, error) #60023

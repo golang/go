@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"math/bits"
 	"math/rand"
 	"os"
 	"reflect"
@@ -278,8 +279,17 @@ func TestGCTestIsReachable(t *testing.T) {
 	}
 
 	got := runtime.GCTestIsReachable(all...)
-	if want != got {
-		t.Fatalf("did not get expected reachable set; want %b, got %b", want, got)
+	if got&want != want {
+		// This is a serious bug - an object is live (due to the KeepAlive
+		// call below), but isn't reported as such.
+		t.Fatalf("live object not in reachable set; want %b, got %b", want, got)
+	}
+	if bits.OnesCount64(got&^want) > 1 {
+		// Note: we can occasionally have a value that is retained even though
+		// it isn't live, due to conservative scanning of stack frames.
+		// See issue 67204. For now, we allow a "slop" of 1 unintentionally
+		// retained object.
+		t.Fatalf("dead object in reachable set; want %b, got %b", want, got)
 	}
 	runtime.KeepAlive(half)
 }

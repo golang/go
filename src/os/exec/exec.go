@@ -332,6 +332,10 @@ type Cmd struct {
 	// See https://go.dev/blog/path-security
 	// and https://go.dev/issue/43724 for more context.
 	lookPathErr error
+
+	// cachedLookExtensions caches the result of calling lookExtensions.
+	// This is only used on Windows.
+	cachedLookExtensions string
 }
 
 // A ctxResult reports the result of watching the Context associated with a
@@ -430,16 +434,13 @@ func Command(name string, arg ...string) *Cmd {
 		// We may need to add a filename extension from PATHEXT
 		// or verify an extension that is already present.
 		// Since the path is absolute, its extension should be unambiguous
-		// and independent of cmd.Dir, and we can go ahead and update cmd.Path to
-		// reflect it.
+		// and independent of cmd.Dir, and we can go ahead and cache the lookup now.
 		//
 		// Note that we cannot add an extension here for relative paths, because
 		// cmd.Dir may be set after we return from this function and that may cause
 		// the command to resolve to a different extension.
 		lp, err := lookExtensions(name, "")
-		if lp != "" {
-			cmd.Path = lp
-		}
+		cmd.cachedLookExtensions = lp
 		if err != nil {
 			cmd.Err = err
 		}
@@ -641,7 +642,10 @@ func (c *Cmd) Start() error {
 		return c.Err
 	}
 	lp := c.Path
-	if runtime.GOOS == "windows" && !filepath.IsAbs(c.Path) {
+	if c.cachedLookExtensions != "" {
+		lp = c.cachedLookExtensions
+	}
+	if runtime.GOOS == "windows" && c.cachedLookExtensions == "" {
 		// If c.Path is relative, we had to wait until now
 		// to resolve it in case c.Dir was changed.
 		// (If it is absolute, we already resolved its extension in Command

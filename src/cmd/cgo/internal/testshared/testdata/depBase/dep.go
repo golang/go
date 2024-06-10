@@ -51,3 +51,8 @@ func F() int {
 	defer func() {}()
 	return V
 }
+
+func H() {
+	// Issue 67635: deadcoded closures causes linker crash.
+	func() { F() }()
+}

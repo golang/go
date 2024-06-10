@@ -48,7 +48,7 @@ Use the following forms in your markdown:
 To preview `next` content in merged form using a local instance of the website, run:
 
 ```
-go run golang.org/x/website/cmd/golangorg@latest -content='' -goroot=..
+go run golang.org/x/website/cmd/golangorg@latest -goroot=..
 ```
 
 Then open http://localhost:6060/doc/next. Refresh the page to see your latest edits.

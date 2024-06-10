@@ -12,9 +12,11 @@ import (
 //
 // A Once must not be copied after first use.
 //
-// In the terminology of the Go memory model,
+// In the terminology of [the Go memory model],
 // the return from f “synchronizes before”
 // the return from any call of once.Do(f).
+//
+// [the Go memory model]: https://go.dev/ref/mem
 type Once struct {
 	// done indicates whether the action has been performed.
 	// It is first in the struct because it is used in the hot path.

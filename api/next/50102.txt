@@ -1,9 +1,0 @@
-pkg archive/tar, type FileInfoNames interface { Gname, IsDir, ModTime, Mode, Name, Size, Sys, Uname } #50102
-pkg archive/tar, type FileInfoNames interface, Gname() (string, error) #50102
-pkg archive/tar, type FileInfoNames interface, IsDir() bool #50102
-pkg archive/tar, type FileInfoNames interface, ModTime() time.Time #50102
-pkg archive/tar, type FileInfoNames interface, Mode() fs.FileMode #50102
-pkg archive/tar, type FileInfoNames interface, Name() string #50102
-pkg archive/tar, type FileInfoNames interface, Size() int64 #50102
-pkg archive/tar, type FileInfoNames interface, Sys() interface{} #50102
-pkg archive/tar, type FileInfoNames interface, Uname() (string, error) #50102

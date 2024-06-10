@@ -2397,17 +2397,12 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 			return
 		}
 		resCode := resp.StatusCode
-		if continueCh != nil {
-			if resCode == 100 {
-				if trace != nil && trace.Got100Continue != nil {
-					trace.Got100Continue()
-				}
-				continueCh <- struct{}{}
-				continueCh = nil
-			} else if resCode >= 200 {
-				close(continueCh)
-				continueCh = nil
+		if continueCh != nil && resCode == StatusContinue {
+			if trace != nil && trace.Got100Continue != nil {
+				trace.Got100Continue()
 			}
+			continueCh <- struct{}{}
+			continueCh = nil
 		}
 		is1xx := 100 <= resCode && resCode <= 199
 		// treat 101 as a terminal status, see issue 26161
@@ -2429,6 +2424,25 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 	}
 	if resp.isProtocolSwitch() {
 		resp.Body = newReadWriteCloserBody(pc.br, pc.conn)
+	}
+	if continueCh != nil {
+		// We send an "Expect: 100-continue" header, but the server
+		// responded with a terminal status and no 100 Continue.
+		//
+		// If we're going to keep using the connection, we need to send the request body.
+		// Tell writeLoop to skip sending the body if we're going to close the connection,
+		// or to send it otherwise.
+		//
+		// The case where we receive a 101 Switching Protocols response is a bit
+		// ambiguous, since we don't know what protocol we're switching to.
+		// Conceivably, it's one that doesn't need us to send the body.
+		// Given that we'll send the body if ExpectContinueTimeout expires,
+		// be consistent and always send it if we aren't closing the connection.
+		if resp.Close || rc.treq.Request.Close {
+			close(continueCh) // don't send the body; the connection will close
+		} else {
+			continueCh <- struct{}{} // send the body
+		}
 	}
 
 	resp.TLS = pc.tlsState

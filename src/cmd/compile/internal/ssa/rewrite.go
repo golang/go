@@ -1666,6 +1666,16 @@ func mergePPC64AndRlwinm(mask uint32, rlw int64) int64 {
 	return encodePPC64RotateMask(r, int64(mask_out), 32)
 }
 
+// Test if RLWINM opcode rlw clears the upper 32 bits of the
+// result. Return rlw if it does, 0 otherwise.
+func mergePPC64MovwzregRlwinm(rlw int64) int64 {
+	_, mb, me, _ := DecodePPC64RotateMask(rlw)
+	if mb > me {
+		return 0
+	}
+	return rlw
+}
+
 // Test if AND feeding into an ANDconst can be merged. Return the encoded RLWINM constant,
 // or 0 if they cannot be merged.
 func mergePPC64RlwinmAnd(rlw int64, mask uint32) int64 {

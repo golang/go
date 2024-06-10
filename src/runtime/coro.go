@@ -68,8 +68,8 @@ func corostart() {
 	c := gp.coroarg
 	gp.coroarg = nil
 
+	defer coroexit(c)
 	c.f(c)
-	coroexit(c)
 }
 
 // coroexit is like coroswitch but closes the coro
