@@ -1639,7 +1639,9 @@ func setupLocList(ctxt *obj.Link, f *Func, list []byte, st, en ID) ([]byte, int)
 
 // locatePrologEnd walks the entry block of a function with incoming
 // register arguments and locates the last instruction in the prolog
-// that spills a register arg. It returns the ID of that instruction
+// that spills a register arg. It returns the ID of that instruction,
+// and (where appropriate) the prolog's lowered closure ptr store inst.
+//
 // Example:
 //
 //	b1:
@@ -1655,19 +1657,21 @@ func setupLocList(ctxt *obj.Link, f *Func, list []byte, st, en ID) ([]byte, int)
 // optimization turned off (e.g. "-N"). If optimization is enabled
 // we can't be assured of finding all input arguments spilled in the
 // entry block prolog.
-func locatePrologEnd(f *Func) ID {
+func locatePrologEnd(f *Func, needCloCtx bool) (ID, *Value) {
 
 	// returns true if this instruction looks like it moves an ABI
-	// register to the stack, along with the value being stored.
+	// register (or context register for rangefunc bodies) to the
+	// stack, along with the value being stored.
 	isRegMoveLike := func(v *Value) (bool, ID) {
 		n, ok := v.Aux.(*ir.Name)
 		var r ID
-		if !ok || n.Class != ir.PPARAM {
+		if (!ok || n.Class != ir.PPARAM) && !needCloCtx {
 			return false, r
 		}
 		regInputs, memInputs, spInputs := 0, 0, 0
 		for _, a := range v.Args {
-			if a.Op == OpArgIntReg || a.Op == OpArgFloatReg {
+			if a.Op == OpArgIntReg || a.Op == OpArgFloatReg ||
+				(needCloCtx && a.Op.isLoweredGetClosurePtr()) {
 				regInputs++
 				r = a.ID
 			} else if a.Type.IsMemory() {
@@ -1702,9 +1706,15 @@ func locatePrologEnd(f *Func) ID {
 	// the value it produces in the regArgs list. When see a store that uses
 	// the value, remove the entry. When we hit the last store (use)
 	// then we've arrived at the end of the prolog.
+	var cloRegStore *Value
 	for k, v := range f.Entry.Values {
 		if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
 			regArgs = append(regArgs, v.ID)
+			continue
+		}
+		if needCloCtx && v.Op.isLoweredGetClosurePtr() {
+			regArgs = append(regArgs, v.ID)
+			cloRegStore = v
 			continue
 		}
 		if ok, r := isRegMoveLike(v); ok {
@@ -1715,19 +1725,19 @@ func locatePrologEnd(f *Func) ID {
 					// the last instruction in the block. If so, then
 					// return the "end of block" sentinel.
 					if k < len(f.Entry.Values)-1 {
-						return f.Entry.Values[k+1].ID
+						return f.Entry.Values[k+1].ID, cloRegStore
 					}
-					return BlockEnd.ID
+					return BlockEnd.ID, cloRegStore
 				}
 			}
 		}
 		if v.Op.IsCall() {
 			// if we hit a call, we've gone too far.
-			return v.ID
+			return v.ID, cloRegStore
 		}
 	}
 	// nothing found
-	return ID(-1)
+	return ID(-1), cloRegStore
 }
 
 // isNamedRegParam returns true if the param corresponding to "p"
@@ -1754,21 +1764,26 @@ func isNamedRegParam(p abi.ABIParamAssignment) bool {
 // it constructs a 2-element location list: the first element holds
 // the input register, and the second element holds the stack location
 // of the param (the assumption being that when optimization is off,
-// each input param reg will be spilled in the prolog).
+// each input param reg will be spilled in the prolog). In addition
+// to the register params, here we also build location lists (where
+// appropriate for the ".closureptr" compiler-synthesized variable
+// needed by the debugger for range func bodies.
 func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32, rval *FuncDebug) {
 
+	needCloCtx := f.CloSlot != nil
 	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type)
 
-	// Look to see if we have any named register-promoted parameters.
-	// If there are none, bail early and let the caller sort things
-	// out for the remainder of the params/locals.
+	// Look to see if we have any named register-promoted parameters,
+	// and/or whether we need location info for the ".closureptr"
+	// synthetic variable; if not bail early and let the caller sort
+	// things out for the remainder of the params/locals.
 	numRegParams := 0
 	for _, inp := range pri.InParams() {
 		if isNamedRegParam(inp) {
 			numRegParams++
 		}
 	}
-	if numRegParams == 0 {
+	if numRegParams == 0 && !needCloCtx {
 		return
 	}
 
@@ -1778,27 +1793,71 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 		state.logf("generating -N reg param loc lists for func %q\n", f.Name)
 	}
 
+	// cloReg stores the obj register num that the context register
+	// appears in within the function prolog, where appropriate.
+	var cloReg int16
+
+	extraForCloCtx := 0
+	if needCloCtx {
+		extraForCloCtx = 1
+	}
+
 	// Allocate location lists.
-	rval.LocationLists = make([][]byte, numRegParams)
+	rval.LocationLists = make([][]byte, numRegParams+extraForCloCtx)
 
 	// Locate the value corresponding to the last spill of
 	// an input register.
-	afterPrologVal := locatePrologEnd(f)
+	afterPrologVal, cloRegStore := locatePrologEnd(f, needCloCtx)
 
-	// Walk the input params again and process the register-resident elements.
-	pidx := 0
+	if needCloCtx {
+		reg, _ := state.f.getHome(cloRegStore.ID).(*Register)
+		cloReg = reg.ObjNum()
+		if loggingEnabled {
+			state.logf("needCloCtx is true for func %q, cloreg=%v\n",
+				f.Name, reg)
+		}
+	}
+
+	addVarSlot := func(name *ir.Name, typ *types.Type) {
+		sl := LocalSlot{N: name, Type: typ, Off: 0}
+		rval.Vars = append(rval.Vars, name)
+		rval.Slots = append(rval.Slots, sl)
+		slid := len(rval.VarSlots)
+		rval.VarSlots = append(rval.VarSlots, []SlotID{SlotID(slid)})
+	}
+
+	// Make an initial pass to populate the vars/slots for our return
+	// value, covering first the input parameters and then (if needed)
+	// the special ".closureptr" var for rangefunc bodies.
+	params := []abi.ABIParamAssignment{}
 	for _, inp := range pri.InParams() {
 		if !isNamedRegParam(inp) {
 			// will be sorted out elsewhere
 			continue
 		}
+		addVarSlot(inp.Name, inp.Type)
+		params = append(params, inp)
+	}
+	if needCloCtx {
+		addVarSlot(f.CloSlot, f.CloSlot.Type())
+		cloAssign := abi.ABIParamAssignment{
+			Type:      f.CloSlot.Type(),
+			Name:      f.CloSlot,
+			Registers: []abi.RegIndex{0}, // dummy
+		}
+		params = append(params, cloAssign)
+	}
 
-		n := inp.Name
-		sl := LocalSlot{N: n, Type: inp.Type, Off: 0}
-		rval.Vars = append(rval.Vars, n)
-		rval.Slots = append(rval.Slots, sl)
-		slid := len(rval.VarSlots)
-		rval.VarSlots = append(rval.VarSlots, []SlotID{SlotID(slid)})
+	// Walk the input params again and process the register-resident elements.
+	pidx := 0
+	for _, inp := range params {
+		if !isNamedRegParam(inp) {
+			// will be sorted out elsewhere
+			continue
+		}
+
+		sl := rval.Slots[pidx]
+		n := rval.Vars[pidx]
 
 		if afterPrologVal == ID(-1) {
 			// This can happen for degenerate functions with infinite
@@ -1828,7 +1887,12 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 		padding := make([]uint64, 0, 32)
 		padding = inp.ComputePadding(padding)
 		for k, r := range inp.Registers {
-			reg := ObjRegForAbiReg(r, f.Config)
+			var reg int16
+			if n == f.CloSlot {
+				reg = cloReg
+			} else {
+				reg = ObjRegForAbiReg(r, f.Config)
+			}
 			dwreg := ctxt.Arch.DWARFRegisters[reg]
 			if dwreg < 32 {
 				list = append(list, dwarf.DW_OP_reg0+byte(dwreg))

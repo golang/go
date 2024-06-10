@@ -524,6 +524,7 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 			cloSlot.SetUsed(true)
 			cloSlot.SetEsc(ir.EscNever)
 			cloSlot.SetAddrtaken(true)
+			s.f.CloSlot = cloSlot
 			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, cloSlot, s.mem(), false)
 			addr := s.addr(cloSlot)
 			s.store(s.f.Config.Types.BytePtr, addr, clo)
