@@ -1,0 +1,43 @@
+name: golang-trout
+arch: amd64
+platform: linux
+version: 1.23.alpha1+trout-1
+section: default
+priority: extra
+maintainer: Trout Software <devit@trout.software>
+description: |
+ The Go Programming Language.
+ .
+ Go is an open source programming language supported by Google
+ Easy to learn and get started with
+ Built-in concurrency and a robust standard library
+ Growing ecosystem of partners, communities, and tools
+ --
+ This is a package for easy dev installation
+
+contents:
+  - src: bin
+    dst: /opt/go/bin
+    type: tree
+  - src: /opt/go/bin/go
+    dst: /usr/bin/go
+    type: symlink
+  - src: doc
+    dst: /opt/go/doc
+    type: tree
+  - src: lib
+    dst: /opt/go/lib
+    type: tree
+  - src: misc
+    dst: /opt/go/misc
+    type: tree
+  - src: pkg
+    dst: /opt/go/pkg
+    type: tree
+  - src: src
+    dst: /opt/go/src
+    type: tree
+  - src: VERSION
+    dst: /opt/go/VERSION
+  - src: go.env
+    dst: /opt/go/go.env
