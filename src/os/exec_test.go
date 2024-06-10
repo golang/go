@@ -6,7 +6,6 @@ package os_test
 
 import (
 	"internal/testenv"
-	"math"
 	"os"
 	"os/signal"
 	"runtime"
@@ -74,30 +73,5 @@ func TestProcessReleaseTwice(t *testing.T) {
 
 	if err != want {
 		t.Fatalf("second Release: got err %v, want %v", err, want)
-	}
-}
-
-// Lookup of a process that does not exist at time of lookup.
-func TestProcessAlreadyDone(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not support lookup of non-existant process")
-	}
-	if runtime.GOARCH == "wasm" {
-		t.Skip("Wait not supported om wasm port")
-	}
-
-	// Theoretically MaxInt32 is a valid PID, but the chance of it actually
-	// being used is extremely unlikely.
-	p, err := os.FindProcess(math.MaxInt32)
-	if err != nil {
-		t.Fatalf("FindProcess(math.MaxInt32) got err %v, want nil", err)
-	}
-
-	if ps, err := p.Wait(); err != os.ErrProcessDone {
-		t.Errorf("Wait() got err %v (ps %+v), want ErrProcessDone", err, ps)
-	}
-
-	if err := p.Release(); err != nil {
-		t.Errorf("Release() got err %v, want nil", err)
 	}
 }

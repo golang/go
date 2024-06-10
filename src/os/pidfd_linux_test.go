@@ -5,8 +5,10 @@
 package os_test
 
 import (
+	"errors"
 	"internal/testenv"
 	"os"
+	"syscall"
 	"testing"
 )
 
@@ -47,7 +49,7 @@ func TestFindProcessViaPidfd(t *testing.T) {
 	if err := proc.Signal(os.Kill); err != os.ErrProcessDone {
 		t.Errorf("Signal: got %v, want %v", err, os.ErrProcessDone)
 	}
-	if _, err := proc.Wait(); err != os.ErrProcessDone {
+	if _, err := proc.Wait(); !errors.Is(err, syscall.ECHILD) {
 		t.Errorf("Wait: got %v, want %v", err, os.ErrProcessDone)
 	}
 	// Release never returns errors on Unix.

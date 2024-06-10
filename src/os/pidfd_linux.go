@@ -74,7 +74,10 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
 	handle, status := p.handleTransientAcquire()
 	switch status {
 	case statusDone:
-		return nil, ErrProcessDone
+		// Process already completed Wait, or was not found by
+		// pidfdFind. Return ECHILD for consistency with what the wait
+		// syscall would return.
+		return nil, NewSyscallError("wait", syscall.ECHILD)
 	case statusReleased:
 		return nil, syscall.EINVAL
 	}
