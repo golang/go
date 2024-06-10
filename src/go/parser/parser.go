@@ -1676,6 +1676,8 @@ func (p *parser) parseElementList() (list []ast.Expr) {
 }
 
 func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
+	defer decNestLev(incNestLev(p))
+
 	if p.trace {
 		defer un(trace(p, "LiteralValue"))
 	}
