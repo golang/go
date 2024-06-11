@@ -2259,19 +2259,34 @@ func testGoLookupIPCNAMEOrderHostsAliases(t *testing.T, mode hostLookupOrder, lo
 // This isn't a great test as it just tests the dnsmessage package
 // against itself.
 func TestDNSPacketSize(t *testing.T) {
+	t.Run("enabled", func(t *testing.T) {
+		testDNSPacketSize(t, false)
+	})
+	t.Run("disabled", func(t *testing.T) {
+		testDNSPacketSize(t, true)
+	})
+}
+
+func testDNSPacketSize(t *testing.T, disable bool) {
 	fake := fakeDNSServer{
 		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
-			if len(q.Additionals) == 0 {
-				t.Error("missing EDNS record")
-			} else if opt, ok := q.Additionals[0].Body.(*dnsmessage.OPTResource); !ok {
-				t.Errorf("additional record type %T, expected OPTResource", q.Additionals[0])
-			} else if len(opt.Options) != 0 {
-				t.Errorf("found %d Options, expected none", len(opt.Options))
+			if disable {
+				if len(q.Additionals) > 0 {
+					t.Error("unexpected additional record")
+				}
 			} else {
-				got := int(q.Additionals[0].Header.Class)
-				t.Logf("EDNS packet size == %d", got)
-				if got != maxDNSPacketSize {
-					t.Errorf("EDNS packet size == %d, want %d", got, maxDNSPacketSize)
+				if len(q.Additionals) == 0 {
+					t.Error("missing EDNS record")
+				} else if opt, ok := q.Additionals[0].Body.(*dnsmessage.OPTResource); !ok {
+					t.Errorf("additional record type %T, expected OPTResource", q.Additionals[0])
+				} else if len(opt.Options) != 0 {
+					t.Errorf("found %d Options, expected none", len(opt.Options))
+				} else {
+					got := int(q.Additionals[0].Header.Class)
+					t.Logf("EDNS packet size == %d", got)
+					if got != maxDNSPacketSize {
+						t.Errorf("EDNS packet size == %d, want %d", got, maxDNSPacketSize)
+					}
 				}
 			}
 
@@ -2302,6 +2317,10 @@ func TestDNSPacketSize(t *testing.T) {
 			}
 			return r, nil
 		},
+	}
+
+	if disable {
+		t.Setenv("GODEBUG", "netedns0=0")
 	}
 
 	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
