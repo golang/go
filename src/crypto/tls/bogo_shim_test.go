@@ -75,6 +75,8 @@ var (
 
 	advertiseALPN = flag.String("advertise-alpn", "", "")
 	expectALPN    = flag.String("expect-alpn", "", "")
+	rejectALPN    = flag.Bool("reject-alpn", false, "")
+	declineALPN   = flag.Bool("decline-alpn", false, "")
 
 	hostName = flag.String("host-name", "", "")
 
@@ -124,6 +126,14 @@ func bogoShim() {
 			cfg.NextProtos = append(cfg.NextProtos, alpns[1:1+alpnLen])
 			alpns = alpns[alpnLen+1:]
 		}
+	}
+
+	if *rejectALPN {
+		cfg.NextProtos = []string{"unnegotiableprotocol"}
+	}
+
+	if *declineALPN {
+		cfg.NextProtos = []string{}
 	}
 
 	if *hostName != "" {
@@ -255,6 +265,9 @@ func bogoShim() {
 			}
 			if *expectVersion != 0 && cs.Version != uint16(*expectVersion) {
 				log.Fatalf("expected ssl version %q, got %q", uint16(*expectVersion), cs.Version)
+			}
+			if *declineALPN && cs.NegotiatedProtocol != "" {
+				log.Fatal("unexpected ALPN protocol")
 			}
 			if *expectECHAccepted && !cs.ECHAccepted {
 				log.Fatal("expected ECH to be accepted, but connection state shows it was not")
