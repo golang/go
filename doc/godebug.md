@@ -327,6 +327,13 @@ Go 1.19 made it an error for path lookups to resolve to binaries in the current 
 controlled by the [`execerrdot` setting](/pkg/os/exec#hdr-Executables_in_the_current_directory).
 There is no plan to remove this setting.
 
+Go 1.19 started sending EDNS0 additional headers on DNS requests.
+This can reportedly break the DNS server provided on some routers,
+such as CenturyLink Zyxel C3000Z.
+This can be changed by the [`netedns0` setting](/pkg/net#hdr-Name_Resolution).
+This setting is available in Go 1.21.12, Go 1.22.5, Go 1.23, and later.
+There is no plan to remove this setting.
+
 ### Go 1.18
 
 Go 1.18 removed support for SHA1 in most X.509 certificates,
