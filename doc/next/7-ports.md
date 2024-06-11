@@ -15,8 +15,7 @@ Go 1.23 is the last release that requires Linux kernel version 2.6.32 or later. 
 ### OpenBSD {#openbsd}
 
 <!-- go.dev/issue/55999, CL 518629, CL 518630 -->
-<!-- TODO: Should it say 'experimental' like in go.dev/doc/go1.22#openbsd or https://go.dev/doc/go1.20#freebsd-riscv, or not? -->
-Go 1.23 adds experimental support for OpenBSD on RISC-V (`GOOS=openbsd`, `GOARCH=riscv64`).
+Go 1.23 adds experimental support for OpenBSD on 64-bit RISC-V (`GOOS=openbsd`, `GOARCH=riscv64`).
 
 ### Wasm {#wasm}
 
