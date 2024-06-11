@@ -21,8 +21,17 @@ Hot block alignment can be disabled with `-gcflags=[<packages>=]-d=alignhot=0`
 ## Linker {#linker}
 
 <!-- go.dev/issue/67401, CL 585556, CL 587220, and many more -->
-TODO: Say what needs to be said in Go 1.23 release notes regarding
-the locking down of future linkname uses.
+The linker now disallows using a `//go:linkname` directive to refer to
+internal symbols in the standard library (including the runtime) that
+are not marked with `//go:linkname` on their definitions.
+Similarly, the linker disallows references to such symbols from assembly
+code.
+For backward compatibility, existing usages of `//go:linkname` found in
+a large open-source code corpus remain supported.
+Any new references to standard library internal symbols will be disallowed.
+
+A linker command line flag `-checklinkname=0` can be used to disable
+this check, for debugging and experimenting purposes.
 
 <!-- CL 473495 -->
 When building a dynamically linked ELF binary (including PIE binary), the
