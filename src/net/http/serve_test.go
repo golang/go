@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/synctest"
 	"internal/testenv"
 	"io"
 	"log"
@@ -5805,70 +5806,59 @@ func testServerShutdown(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerShutdownStateNew(t *testing.T) { run(t, testServerShutdownStateNew) }
-func testServerShutdownStateNew(t *testing.T, mode testMode) {
+func TestServerShutdownStateNew(t *testing.T) { runSynctest(t, testServerShutdownStateNew) }
+func testServerShutdownStateNew(t testing.TB, mode testMode) {
 	if testing.Short() {
 		t.Skip("test takes 5-6 seconds; skipping in short mode")
 	}
 
-	var connAccepted sync.WaitGroup
+	listener := fakeNetListen()
+	defer listener.Close()
+
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		// nothing.
 	}), func(ts *httptest.Server) {
-		ts.Config.ConnState = func(conn net.Conn, state ConnState) {
-			if state == StateNew {
-				connAccepted.Done()
-			}
-		}
+		ts.Listener.Close()
+		ts.Listener = listener
+		// Ignore irrelevant error about TLS handshake failure.
+		ts.Config.ErrorLog = log.New(io.Discard, "", 0)
 	}).ts
 
 	// Start a connection but never write to it.
-	connAccepted.Add(1)
-	c, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := listener.connect()
 	defer c.Close()
+	synctest.Wait()
 
-	// Wait for the connection to be accepted by the server. Otherwise, if
-	// Shutdown happens to run first, the server will be closed when
-	// encountering the connection, in which case it will be rejected
-	// immediately.
-	connAccepted.Wait()
-
-	shutdownRes := make(chan error, 1)
-	go func() {
-		shutdownRes <- ts.Config.Shutdown(context.Background())
-	}()
-	readRes := make(chan error, 1)
-	go func() {
-		_, err := c.Read([]byte{0})
-		readRes <- err
-	}()
+	shutdownRes := runAsync(func() (struct{}, error) {
+		return struct{}{}, ts.Config.Shutdown(context.Background())
+	})
 
 	// TODO(#59037): This timeout is hard-coded in closeIdleConnections.
 	// It is undocumented, and some users may find it surprising.
 	// Either document it, or switch to a less surprising behavior.
 	const expectTimeout = 5 * time.Second
 
-	t0 := time.Now()
-	select {
-	case got := <-shutdownRes:
-		d := time.Since(t0)
-		if got != nil {
-			t.Fatalf("shutdown error after %v: %v", d, err)
-		}
-		if d < expectTimeout/2 {
-			t.Errorf("shutdown too soon after %v", d)
-		}
-	case <-time.After(expectTimeout * 3 / 2):
-		t.Fatalf("timeout waiting for shutdown")
+	// Wait until just before the expected timeout.
+	time.Sleep(expectTimeout - 1)
+	synctest.Wait()
+	if shutdownRes.done() {
+		t.Fatal("shutdown too soon")
+	}
+	if c.IsClosedByPeer() {
+		t.Fatal("connection was closed by server too soon")
 	}
 
-	// Wait for c.Read to unblock; should be already done at this point,
-	// or within a few milliseconds.
-	if err := <-readRes; err == nil {
-		t.Error("expected error from Read")
+	// closeIdleConnections isn't precise about its actual shutdown time.
+	// Wait long enough for it to definitely have shut down.
+	//
+	// (It would be good to make closeIdleConnections less sloppy.)
+	time.Sleep(2 * time.Second)
+	synctest.Wait()
+	if _, err := shutdownRes.result(); err != nil {
+		t.Fatalf("Shutdown() = %v, want complete", err)
+	}
+	if !c.IsClosedByPeer() {
+		t.Fatalf("connection was not closed by server after shutdown")
 	}
 }
 

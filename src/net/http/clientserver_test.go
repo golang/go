@@ -15,6 +15,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"hash"
+	"internal/synctest"
 	"io"
 	"log"
 	"maps"
@@ -91,6 +92,37 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 			f(t, mode)
 		})
 	}
+}
+
+// cleanupT wraps a testing.T and adds its own Cleanup method.
+// Used to execute cleanup functions within a synctest bubble.
+type cleanupT struct {
+	*testing.T
+	cleanups []func()
+}
+
+// Cleanup replaces T.Cleanup.
+func (t *cleanupT) Cleanup(f func()) {
+	t.cleanups = append(t.cleanups, f)
+}
+
+func (t *cleanupT) done() {
+	for _, f := range slices.Backward(t.cleanups) {
+		f()
+	}
+}
+
+// runSynctest is run combined with synctest.Run.
+//
+// The TB passed to f arranges for cleanup functions to be run in the synctest bubble.
+func runSynctest(t *testing.T, f func(t testing.TB, mode testMode), opts ...any) {
+	run(t, func(t *testing.T, mode testMode) {
+		synctest.Run(func() {
+			ct := &cleanupT{T: t}
+			defer ct.done()
+			f(ct, mode)
+		})
+	}, opts...)
 }
 
 type clientServerTest struct {
