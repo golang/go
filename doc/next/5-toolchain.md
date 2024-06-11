@@ -25,4 +25,5 @@ TODO: Say what needs to be said in Go 1.23 release notes regarding
 the locking down of future linkname uses.
 
 <!-- CL 473495 -->
-The new `-bindnow` flag enables full RELRO on ELF targets.
+When building a dynamically linked ELF binary (including PIE binary), the
+new `-bindnow` flag enables immediate function binding.
