@@ -1,0 +1,28 @@
+[!fuzz] skip
+[!cgo] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+# Test that fuzzing works with cgo (issue 65169)
+
+go test -fuzz=. -fuzztime=1x
+stdout ok
+! stdout FAIL
+
+-- go.mod --
+module example.com/p
+
+go 1.20
+-- c.go --
+package p
+
+import "C"
+-- c_test.go --
+package p
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+	f.Add(0)
+	f.Fuzz(func(t *testing.T, x int) {})
+}
