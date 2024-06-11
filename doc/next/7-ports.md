@@ -24,6 +24,13 @@ Go 1.23 introduces a new `GOARM64` environment variable, which specifies the min
 
 The `GOARM64` environment variable defaults to `v8.0`.
 
+### RISC-V {#riscv}
+
+<!-- go.dev/issue/61476, CL 541135 -->
+Go 1.23 introduces a new `GORISCV64` environment variable, which selects the [RISC-V user-mode application profile](https://github.com/riscv/riscv-profiles/blob/main/src/profiles.adoc) for which to compile. Allowed values are `rva20u64` and `rva22u64`.
+
+The `GORISCV64` environment variable defaults to `rva20u64`.
+
 ### Wasm {#wasm}
 
 <!-- go.dev/issue/63718 -->
