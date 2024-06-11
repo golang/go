@@ -629,7 +629,7 @@ Architecture-specific environment variables:
 	GORISCV64
 		For GOARCH=riscv64, the RISC-V user-mode application profile for which
 		to compile. Valid values are rva20u64 (default), rva22u64.
-		See https://github.com/riscv/riscv-profiles/blob/main/profiles.adoc
+		See https://github.com/riscv/riscv-profiles/blob/main/src/profiles.adoc
 	GOWASM
 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
 		Valid values are satconv, signext.
