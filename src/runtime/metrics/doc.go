@@ -277,6 +277,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the net package
 		due to a non-default GODEBUG=multipathtcp=... setting.
 
+	/godebug/non-default-behavior/netedns0:events
+		The number of non-default behaviors executed by the net package
+		due to a non-default GODEBUG=netedns0=... setting.
+
 	/godebug/non-default-behavior/panicnil:events
 		The number of non-default behaviors executed by the runtime
 		package due to a non-default GODEBUG=panicnil=... setting.
