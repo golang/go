@@ -1,8 +1,5 @@
 <!-- These items need to be completed and moved to an appropriate location in the release notes. -->
 
-<!-- go.dev/issue/60905, CL 559555 -->
-TODO: The new `GOARM64` environment variable needs to be documented. This note should be moved to an appropriate location in the release notes.
-
 <!-- go.dev/issue/61476, CL 541135 -->
 TODO: The new `GORISCV64` environment variable needs to be documented. This note should be moved to an appropriate location in the release notes.
 

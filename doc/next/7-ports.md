@@ -17,6 +17,13 @@ Go 1.23 is the last release that requires Linux kernel version 2.6.32 or later. 
 <!-- go.dev/issue/55999, CL 518629, CL 518630 -->
 Go 1.23 adds experimental support for OpenBSD on 64-bit RISC-V (`GOOS=openbsd`, `GOARCH=riscv64`).
 
+### ARM64 {#arm64}
+
+<!-- go.dev/issue/60905, CL 559555 -->
+Go 1.23 introduces a new `GOARM64` environment variable, which specifies the minimum target version of the ARM64 architecture at compile time. Allowed values are `v8.{0-9}` and `v9.{0-5}`. This may be followed by an option specifying extensions implemented by target hardware. Valid options are `,lse` and `,crypto`.
+
+The `GOARM64` environment variable defaults to `v8.0`.
+
 ### Wasm {#wasm}
 
 <!-- go.dev/issue/63718 -->
