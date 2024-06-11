@@ -12,8 +12,35 @@
 TEXT ·addVV(SB),NOSPLIT,$0
 	JMP ·addVV_g(SB)
 
+// func subVV(z, x, y []Word) (c Word)
 TEXT ·subVV(SB),NOSPLIT,$0
-	JMP ·subVV_g(SB)
+	// input:
+	//   R4: z
+	//   R5: z_len
+	//   R7: x
+	//   R10: y
+	MOVV	z+0(FP), R4
+	MOVV	z_len+8(FP), R5
+	MOVV	x+24(FP), R7
+	MOVV	y+48(FP), R10
+	MOVV	$0, R6
+	SLLV	$3, R5
+	MOVV	$0, R8
+loop:
+	BEQ	R5, R6, done
+	MOVV	(R6)(R7), R9
+	MOVV	(R6)(R10), R11
+	SUBV	R11, R9, R11	// x1 - y1 = z1', if z1' > x1 then overflow
+	SUBV	R8, R11, R12	// z1' - c0 = z1, if z1 > z1' then overflow
+	SGTU	R11, R9, R9
+	SGTU	R12, R11, R11
+	MOVV	R12, (R6)(R4)
+	OR	R9, R11, R8
+	ADDV	$8, R6
+	JMP	loop
+done:
+	MOVV	R8, c+72(FP)
+	RET
 
 // func addVW(z, x []Word, y Word) (c Word)
 TEXT ·addVW(SB),NOSPLIT,$0
