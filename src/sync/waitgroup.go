@@ -115,7 +115,7 @@ func (wg *WaitGroup) Wait() {
 				// otherwise concurrent Waits will race with each other.
 				race.Write(unsafe.Pointer(&wg.sema))
 			}
-			runtime_Semacquire(&wg.sema)
+			runtime_SemacquireWaitGroup(&wg.sema)
 			if wg.state.Load() != 0 {
 				panic("sync: WaitGroup is reused before previous Wait has returned")
 			}

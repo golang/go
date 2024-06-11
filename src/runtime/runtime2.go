@@ -489,7 +489,8 @@ type g struct {
 	// current in-progress goroutine profile
 	goroutineProfiled goroutineProfileStateHolder
 
-	coroarg *coro // argument during coroutine transfers
+	coroarg   *coro // argument during coroutine transfers
+	syncGroup *synctestGroup
 
 	// Per-G tracer state.
 	trace gTraceState
@@ -1064,6 +1065,7 @@ const (
 	waitReasonSyncMutexLock                           // "sync.Mutex.Lock"
 	waitReasonSyncRWMutexRLock                        // "sync.RWMutex.RLock"
 	waitReasonSyncRWMutexLock                         // "sync.RWMutex.Lock"
+	waitReasonSyncWaitGroupWait                       // "sync.WaitGroup.Wait"
 	waitReasonTraceReaderBlocked                      // "trace reader (blocked)"
 	waitReasonWaitForGCCycle                          // "wait for GC cycle"
 	waitReasonGCWorkerIdle                            // "GC worker (idle)"
@@ -1078,6 +1080,11 @@ const (
 	waitReasonPageTraceFlush                          // "page trace flush"
 	waitReasonCoroutine                               // "coroutine"
 	waitReasonGCWeakToStrongWait                      // "GC weak to strong wait"
+	waitReasonSynctestRun                             // "synctest.Run"
+	waitReasonSynctestWait                            // "synctest.Wait"
+	waitReasonSynctestChanReceive                     // "chan receive (synctest)"
+	waitReasonSynctestChanSend                        // "chan send (synctest)"
+	waitReasonSynctestSelect                          // "select (synctest)"
 )
 
 var waitReasonStrings = [...]string{
@@ -1105,6 +1112,7 @@ var waitReasonStrings = [...]string{
 	waitReasonSyncMutexLock:         "sync.Mutex.Lock",
 	waitReasonSyncRWMutexRLock:      "sync.RWMutex.RLock",
 	waitReasonSyncRWMutexLock:       "sync.RWMutex.Lock",
+	waitReasonSyncWaitGroupWait:     "sync.WaitGroup.Wait",
 	waitReasonTraceReaderBlocked:    "trace reader (blocked)",
 	waitReasonWaitForGCCycle:        "wait for GC cycle",
 	waitReasonGCWorkerIdle:          "GC worker (idle)",
@@ -1119,6 +1127,11 @@ var waitReasonStrings = [...]string{
 	waitReasonPageTraceFlush:        "page trace flush",
 	waitReasonCoroutine:             "coroutine",
 	waitReasonGCWeakToStrongWait:    "GC weak to strong wait",
+	waitReasonSynctestRun:           "synctest.Run",
+	waitReasonSynctestWait:          "synctest.Wait",
+	waitReasonSynctestChanReceive:   "chan receive (synctest)",
+	waitReasonSynctestChanSend:      "chan send (synctest)",
+	waitReasonSynctestSelect:        "select (synctest)",
 }
 
 func (w waitReason) String() string {
@@ -1155,6 +1168,26 @@ var isWaitingForGC = [len(waitReasonStrings)]bool{
 	waitReasonGCAssistMarking:       true,
 	waitReasonGCWorkerActive:        true,
 	waitReasonFlushProcCaches:       true,
+}
+
+func (w waitReason) isIdleInSynctest() bool {
+	return isIdleInSynctest[w]
+}
+
+// isIdleInSynctest indicates that a goroutine is considered idle by synctest.Wait.
+var isIdleInSynctest = [len(waitReasonStrings)]bool{
+	waitReasonChanReceiveNilChan:  true,
+	waitReasonChanSendNilChan:     true,
+	waitReasonSelectNoCases:       true,
+	waitReasonSleep:               true,
+	waitReasonSyncCondWait:        true,
+	waitReasonSyncWaitGroupWait:   true,
+	waitReasonCoroutine:           true,
+	waitReasonSynctestRun:         true,
+	waitReasonSynctestWait:        true,
+	waitReasonSynctestChanReceive: true,
+	waitReasonSynctestChanSend:    true,
+	waitReasonSynctestSelect:      true,
 }
 
 var (

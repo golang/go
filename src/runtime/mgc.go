@@ -639,6 +639,17 @@ func gcStart(trigger gcTrigger) {
 	releasem(mp)
 	mp = nil
 
+	if gp := getg(); gp.syncGroup != nil {
+		// Disassociate the G from its synctest bubble while allocating.
+		// This is less elegant than incrementing the group's active count,
+		// but avoids any contamination between GC and synctest.
+		sg := gp.syncGroup
+		gp.syncGroup = nil
+		defer func() {
+			gp.syncGroup = sg
+		}()
+	}
+
 	// Pick up the remaining unswept/not being swept spans concurrently
 	//
 	// This shouldn't happen if we're being invoked in background
@@ -1774,8 +1785,12 @@ func boring_registerCache(p unsafe.Pointer) {
 
 //go:linkname unique_runtime_registerUniqueMapCleanup unique.runtime_registerUniqueMapCleanup
 func unique_runtime_registerUniqueMapCleanup(f func()) {
+	// Create the channel on the system stack so it doesn't inherit the current G's
+	// synctest bubble (if any).
+	systemstack(func() {
+		uniqueMapCleanup = make(chan struct{}, 1)
+	})
 	// Start the goroutine in the runtime so it's counted as a system goroutine.
-	uniqueMapCleanup = make(chan struct{}, 1)
 	go func(cleanup func()) {
 		for {
 			<-uniqueMapCleanup

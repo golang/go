@@ -428,6 +428,17 @@ func gcAssistAlloc(gp *g) {
 		return
 	}
 
+	if gp := getg(); gp.syncGroup != nil {
+		// Disassociate the G from its synctest bubble while allocating.
+		// This is less elegant than incrementing the group's active count,
+		// but avoids any contamination between GC assist and synctest.
+		sg := gp.syncGroup
+		gp.syncGroup = nil
+		defer func() {
+			gp.syncGroup = sg
+		}()
+	}
+
 	// This extremely verbose boolean indicates whether we've
 	// entered mark assist from the perspective of the tracer.
 	//

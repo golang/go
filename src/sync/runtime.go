@@ -13,6 +13,9 @@ import "unsafe"
 // library and should not be used directly.
 func runtime_Semacquire(s *uint32)
 
+// SemacquireWaitGroup is like Semacquire, but for WaitGroup.Wait.
+func runtime_SemacquireWaitGroup(s *uint32)
+
 // Semacquire(RW)Mutex(R) is like Semacquire, but for profiling contended
 // Mutexes and RWMutexes.
 // If lifo is true, queue waiter at the head of wait queue.

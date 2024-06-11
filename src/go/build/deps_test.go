@@ -643,6 +643,9 @@ var depsRules = `
 	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
 	< testing;
 
+	RUNTIME
+	< internal/synctest;
+
 	log/slog, testing
 	< testing/slogtest;
 

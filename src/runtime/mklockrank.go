@@ -95,6 +95,9 @@ NONE
 < itab
 < reflectOffs;
 
+# Synctest
+hchan, root, timers, timer, notifyList, reflectOffs < synctest;
+
 # User arena state
 NONE < userArenaState;
 
@@ -145,6 +148,7 @@ gcBitsArenas,
   profInsert,
   profMemFuture,
   spanSetSpine,
+  synctest,
   fin,
   root
 # Anything that can grow the stack can acquire STACKGROW.

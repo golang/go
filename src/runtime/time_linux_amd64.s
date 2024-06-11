@@ -10,7 +10,7 @@
 
 #define SYS_clock_gettime	228
 
-// func time.now() (sec int64, nsec int32, mono int64)
+// func now() (sec int64, nsec int32, mono int64)
 TEXT time·now<ABIInternal>(SB),NOSPLIT,$16-24
 	MOVQ	SP, R12 // Save old SP; R12 unchanged by C code.
 

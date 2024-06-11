@@ -137,6 +137,16 @@ func coroswitch_m(gp *g) {
 	// emitting an event for every single transition.
 	trace := traceAcquire()
 
+	canCAS := true
+	sg := gp.syncGroup
+	if sg != nil {
+		// If we're in a synctest group, always use casgstatus (which tracks
+		// group idleness) rather than directly CASing. Mark the group as active
+		// while we're in the process of transferring control.
+		canCAS = false
+		sg.incActive()
+	}
+
 	if locked {
 		// Detach the goroutine from the thread; we'll attach to the goroutine we're
 		// switching to before returning.
@@ -155,7 +165,7 @@ func coroswitch_m(gp *g) {
 		// If we can CAS ourselves directly from running to waiting, so do,
 		// keeping the control transfer as lightweight as possible.
 		gp.waitreason = waitReasonCoroutine
-		if !gp.atomicstatus.CompareAndSwap(_Grunning, _Gwaiting) {
+		if !canCAS || !gp.atomicstatus.CompareAndSwap(_Grunning, _Gwaiting) {
 			// The CAS failed: use casgstatus, which will take care of
 			// coordinating with the garbage collector about the state change.
 			casgstatus(gp, _Grunning, _Gwaiting)
@@ -223,7 +233,7 @@ func coroswitch_m(gp *g) {
 		tryRecordGoroutineProfile(gnext, nil, osyield)
 	}
 
-	if !gnext.atomicstatus.CompareAndSwap(_Gwaiting, _Grunning) {
+	if !canCAS || !gnext.atomicstatus.CompareAndSwap(_Gwaiting, _Grunning) {
 		// The CAS failed: use casgstatus, which will take care of
 		// coordinating with the garbage collector about the state change.
 		casgstatus(gnext, _Gwaiting, _Grunnable)
@@ -239,6 +249,10 @@ func coroswitch_m(gp *g) {
 	// Release the trace locker. We've completed all the necessary transitions..
 	if trace.ok() {
 		traceRelease(trace)
+	}
+
+	if sg != nil {
+		sg.decActive()
 	}
 
 	// Switch to gnext. Does not return.

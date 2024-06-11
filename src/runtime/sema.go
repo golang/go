@@ -105,6 +105,11 @@ func sync_runtime_SemacquireRWMutex(addr *uint32, lifo bool, skipframes int) {
 	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes, waitReasonSyncRWMutexLock)
 }
 
+//go:linkname sync_runtime_SemacquireWaitGroup sync.runtime_SemacquireWaitGroup
+func sync_runtime_SemacquireWaitGroup(addr *uint32) {
+	semacquire1(addr, false, semaBlockProfile, 0, waitReasonSyncWaitGroupWait)
+}
+
 //go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
 func poll_runtime_Semrelease(addr *uint32) {
 	semrelease(addr)
@@ -624,6 +629,10 @@ func notifyListNotifyAll(l *notifyList) {
 	for s != nil {
 		next := s.next
 		s.next = nil
+		if s.g.syncGroup != nil && getg().syncGroup != s.g.syncGroup {
+			println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
+			panic("semaphore wake of synctest goroutine from outside bubble")
+		}
 		readyWithTime(s, 4)
 		s = next
 	}
@@ -677,6 +686,10 @@ func notifyListNotifyOne(l *notifyList) {
 			}
 			unlock(&l.lock)
 			s.next = nil
+			if s.g.syncGroup != nil && getg().syncGroup != s.g.syncGroup {
+				println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
+				panic("semaphore wake of synctest goroutine from outside bubble")
+			}
 			readyWithTime(s, 4)
 			return
 		}
