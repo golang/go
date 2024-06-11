@@ -40,8 +40,30 @@ done:
 	MOVV	R10, c+56(FP)
 	RET
 
+// func subVW(z, x []Word, y Word) (c Word)
 TEXT ·subVW(SB),NOSPLIT,$0
-	JMP ·subVW_g(SB)
+	// input:
+	//   R4: z
+	//   R5: z_len
+	//   R7: x
+	//   R10: y
+	MOVV	z+0(FP), R4
+	MOVV	z_len+8(FP), R5
+	MOVV	x+24(FP), R7
+	MOVV	y+48(FP), R10
+	MOVV	$0, R6
+	SLLV	$3, R5
+loop:
+	BEQ	R5, R6, done
+	MOVV	(R6)(R7), R8
+	SUBV	R10, R8, R11	// x1 - c = z1, if z1 > x1 then overflow
+	SGTU	R11, R8, R10
+	MOVV	R11, (R6)(R4)
+	ADDV	$8, R6
+	JMP	loop
+done:
+	MOVV	R10, c+56(FP)
+	RET
 
 TEXT ·lshVU(SB),NOSPLIT,$0
 	JMP ·lshVU_g(SB)
