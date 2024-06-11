@@ -344,7 +344,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		// that is a type parameter.
 		assert(!isTypeParam(y))
 		// x and y may be identical now
-		if x == y {
+		if x == y || Unalias(x) == Unalias(y) {
 			return true
 		}
 	}
