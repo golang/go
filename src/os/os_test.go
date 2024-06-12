@@ -158,28 +158,20 @@ func equal(name1, name2 string) (r bool) {
 	return
 }
 
-// localTmp returns a local temporary directory not on NFS.
-func localTmp() string {
-	switch runtime.GOOS {
-	case "android", "ios", "windows":
-		return TempDir()
-	}
-	return "/tmp"
-}
-
-func newFile(testName string, t *testing.T) (f *File) {
-	f, err := CreateTemp(localTmp(), "_Go_"+testName)
+func newFile(t *testing.T) (f *File) {
+	t.Helper()
+	f, err := CreateTemp("", "_Go_"+t.Name())
 	if err != nil {
-		t.Fatalf("TempFile %s: %s", testName, err)
+		t.Fatal(err)
 	}
-	return
-}
-
-func newDir(testName string, t *testing.T) (name string) {
-	name, err := MkdirTemp(localTmp(), "_Go_"+testName)
-	if err != nil {
-		t.Fatalf("TempDir %s: %s", testName, err)
-	}
+	t.Cleanup(func() {
+		if err := f.Close(); err != nil && !errors.Is(err, ErrClosed) {
+			t.Fatal(err)
+		}
+		if err := Remove(f.Name()); err != nil {
+			t.Fatal(err)
+		}
+	})
 	return
 }
 
@@ -1276,9 +1268,7 @@ func TestChmod(t *testing.T) {
 	}
 	t.Parallel()
 
-	f := newFile("TestChmod", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 	// Creation mode is read write
 
 	fm := FileMode(0456)
@@ -1314,9 +1304,7 @@ func checkSize(t *testing.T, f *File, size int64) {
 func TestFTruncate(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestFTruncate", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	checkSize(t, f, 0)
 	f.Write([]byte("hello, world\n"))
@@ -1336,9 +1324,7 @@ func TestFTruncate(t *testing.T) {
 func TestTruncate(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestTruncate", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	checkSize(t, f, 0)
 	f.Write([]byte("hello, world\n"))
@@ -1375,15 +1361,10 @@ func TestTruncateNonexistentFile(t *testing.T) {
 	assertPathError(t, path, err)
 }
 
-// Use TempDir (via newFile) to make sure we're on a local file system,
-// so that timings are not distorted by latency and caching.
-// On NFS, timings can be off due to caching of meta-data on
-// NFS servers (Issue 848).
 func TestChtimes(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestChtimes", t)
-	defer Remove(f.Name())
+	f := newFile(t)
 
 	f.Write([]byte("hello, world\n"))
 	f.Close()
@@ -1392,13 +1373,12 @@ func TestChtimes(t *testing.T) {
 }
 
 func TestChtimesWithZeroTimes(t *testing.T) {
-	file := newFile("chtimes-with-zero", t)
+	file := newFile(t)
 	_, err := file.Write([]byte("hello, world\n"))
 	if err != nil {
 		t.Fatalf("Write: %s", err)
 	}
 	fName := file.Name()
-	defer Remove(file.Name())
 	err = file.Close()
 	if err != nil {
 		t.Errorf("%v", err)
@@ -1513,17 +1493,10 @@ func TestChtimesWithZeroTimes(t *testing.T) {
 	}
 }
 
-// Use TempDir (via newDir) to make sure we're on a local file system,
-// so that timings are not distorted by latency and caching.
-// On NFS, timings can be off due to caching of meta-data on
-// NFS servers (Issue 848).
 func TestChtimesDir(t *testing.T) {
 	t.Parallel()
 
-	name := newDir("TestChtimes", t)
-	defer RemoveAll(name)
-
-	testChtimes(t, name)
+	testChtimes(t, t.TempDir())
 }
 
 func testChtimes(t *testing.T, name string) {
@@ -1574,9 +1547,8 @@ func testChtimes(t *testing.T, name string) {
 }
 
 func TestChtimesToUnixZero(t *testing.T) {
-	file := newFile("chtimes-to-unix-zero", t)
+	file := newFile(t)
 	fn := file.Name()
-	defer Remove(fn)
 	if _, err := file.Write([]byte("hi")); err != nil {
 		t.Fatal(err)
 	}
@@ -1796,9 +1768,7 @@ func TestProgWideChdir(t *testing.T) {
 func TestSeek(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestSeek", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2040,9 +2010,7 @@ func TestHostname(t *testing.T) {
 func TestReadAt(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAt", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2064,9 +2032,7 @@ func TestReadAt(t *testing.T) {
 func TestReadAtOffset(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAtOffset", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2095,9 +2061,7 @@ func TestReadAtOffset(t *testing.T) {
 func TestReadAtNegativeOffset(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAtNegativeOffset", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2116,9 +2080,7 @@ func TestReadAtNegativeOffset(t *testing.T) {
 func TestWriteAt(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestWriteAt", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2141,9 +2103,7 @@ func TestWriteAt(t *testing.T) {
 func TestWriteAtNegativeOffset(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestWriteAtNegativeOffset", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	n, err := f.WriteAt([]byte("WORLD"), -10)
 
@@ -2477,9 +2437,7 @@ func TestStatRelativeSymlink(t *testing.T) {
 func TestReadAtEOF(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAtEOF", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	_, err := f.ReadAt(make([]byte, 10), 0)
 	switch err {
@@ -2495,12 +2453,7 @@ func TestReadAtEOF(t *testing.T) {
 func TestLongPath(t *testing.T) {
 	t.Parallel()
 
-	tmpdir := newDir("TestLongPath", t)
-	defer func(d string) {
-		if err := RemoveAll(d); err != nil {
-			t.Fatalf("RemoveAll failed: %v", err)
-		}
-	}(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Test the boundary of 247 and fewer bytes (normal) and 248 and more bytes (adjusted).
 	sizes := []int{247, 248, 249, 400}
