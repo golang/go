@@ -566,11 +566,11 @@ type rewriter struct {
 	rewritten map[*syntax.ForStmt]syntax.Stmt
 
 	// Declared variables in generated code for outermost loop.
-	declStmt      *syntax.DeclStmt
-	nextVar       types2.Object
-	retVars       []types2.Object
-	defers        types2.Object
-	stateVarCount int // stateVars are referenced from their respective loops
+	declStmt         *syntax.DeclStmt
+	nextVar          types2.Object
+	defers           types2.Object
+	stateVarCount    int // stateVars are referenced from their respective loops
+	bodyClosureCount int // to help the debugger, the closures generated for loop bodies get names
 
 	rangefuncBodyClosures map[*syntax.FuncLit]bool
 }
@@ -764,7 +764,7 @@ func (r *rewriter) editDefer(x *syntax.CallStmt) syntax.Stmt {
 		tv := syntax.TypeAndValue{Type: r.any.Type()}
 		tv.SetIsValue()
 		init.SetTypeInfo(tv)
-		r.defers = r.declVar("#defers", r.any.Type(), init)
+		r.defers = r.declOuterVar("#defers", r.any.Type(), init)
 	}
 
 	// Attach the token as an "extra" argument to the defer.
@@ -1033,12 +1033,18 @@ func (r *rewriter) endLoop(loop *forLoop) {
 		base.Fatalf("invalid typecheck of range func")
 	}
 
+	// Give the closure generated for the body a name, to help the debugger connect it to its frame, if active.
+	r.bodyClosureCount++
+	clo := r.bodyFunc(nfor.Body.List, syntax.UnpackListExpr(rclause.Lhs), rclause.Def, ftyp, start, end)
+	cloDecl, cloVar := r.declSingleVar(fmt.Sprintf("#yield%d", r.bodyClosureCount), clo.GetTypeInfo().Type, clo)
+	setPos(cloDecl, start)
+
 	// Build X(bodyFunc)
 	call := &syntax.ExprStmt{
 		X: &syntax.CallExpr{
 			Fun: rclause.X,
 			ArgList: []syntax.Expr{
-				r.bodyFunc(nfor.Body.List, syntax.UnpackListExpr(rclause.Lhs), rclause.Def, ftyp, start, end),
+				r.useObj(cloVar),
 			},
 		},
 	}
@@ -1073,7 +1079,7 @@ func (r *rewriter) endLoop(loop *forLoop) {
 	}
 
 	// iteratorFunc(bodyFunc)
-	block.List = append(block.List, call)
+	block.List = append(block.List, cloDecl, call)
 
 	if r.checkFuncMisuse() {
 		// iteratorFunc has exited, check for swallowed panic, and set body state to abi.RF_EXHAUSTED
@@ -1092,7 +1098,6 @@ func (r *rewriter) endLoop(loop *forLoop) {
 	if len(r.forStack) == 1 { // ending an outermost loop
 		r.declStmt = nil
 		r.nextVar = nil
-		r.retVars = nil
 		r.defers = nil
 	}
 
@@ -1348,7 +1353,7 @@ func (r *rewriter) callPanic(start syntax.Pos, arg syntax.Expr) syntax.Stmt {
 // next returns a reference to the #next variable.
 func (r *rewriter) next() *syntax.Name {
 	if r.nextVar == nil {
-		r.nextVar = r.declVar("#next", r.int.Type(), nil)
+		r.nextVar = r.declOuterVar("#next", r.int.Type(), nil)
 	}
 	return r.useObj(r.nextVar)
 }
@@ -1425,8 +1430,9 @@ func (r *rewriter) generateParamName(results []*syntax.Field, i int) {
 	r.info.Defs[n] = obj
 }
 
-// declVar declares a variable with a given name type and initializer value.
-func (r *rewriter) declVar(name string, typ types2.Type, init syntax.Expr) *types2.Var {
+// declOuterVar declares a variable with a given name, type, and initializer value,
+// in the same scope as the outermost loop in a loop nest.
+func (r *rewriter) declOuterVar(name string, typ types2.Type, init syntax.Expr) *types2.Var {
 	if r.declStmt == nil {
 		r.declStmt = &syntax.DeclStmt{}
 	}
@@ -1438,6 +1444,20 @@ func (r *rewriter) declVar(name string, typ types2.Type, init syntax.Expr) *type
 		Values: init,
 	})
 	return obj
+}
+
+// declSingleVar declares a variable with a given name, type, and initializer value,
+// and returns both the declaration and variable, so that the declaration can be placed
+// in a specific scope.
+func (r *rewriter) declSingleVar(name string, typ types2.Type, init syntax.Expr) (*syntax.DeclStmt, *types2.Var) {
+	stmt := &syntax.DeclStmt{}
+	obj, n := r.makeVarName(stmt.Pos(), name, typ)
+	stmt.DeclList = append(stmt.DeclList, &syntax.VarDecl{
+		NameList: []*syntax.Name{n},
+		// Note: Type is ignored
+		Values: init,
+	})
+	return stmt, obj
 }
 
 // runtimePkg is a fake runtime package that contains what we need to refer to in package runtime.
