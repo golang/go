@@ -203,6 +203,7 @@ func (TestDeps) SnapshotCoverage() {
 
 var CoverMode string
 var Covered string
+var CoverSelectedPackages []string
 
 // These variables below are set at runtime (via code in testmain) to point
 // to the equivalent functions in package internal/coverage/cfile; doing
@@ -210,7 +211,7 @@ var Covered string
 // only when -cover is in effect (as opposed to importing for all tests).
 var (
 	CoverSnapshotFunc           func() float64
-	CoverProcessTestDirFunc     func(dir string, cfile string, cm string, cpkg string, w io.Writer) error
+	CoverProcessTestDirFunc     func(dir string, cfile string, cm string, cpkg string, w io.Writer, selpkgs []string) error
 	CoverMarkProfileEmittedFunc func(val bool)
 )
 
@@ -232,7 +233,7 @@ func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
 	}
 	CoverMarkProfileEmittedFunc(true)
 	cmode := CoverMode
-	if err := CoverProcessTestDirFunc(gocoverdir, coverprofile, cmode, Covered, os.Stdout); err != nil {
+	if err := CoverProcessTestDirFunc(gocoverdir, coverprofile, cmode, Covered, os.Stdout, CoverSelectedPackages); err != nil {
 		return "error generating coverage report", err
 	}
 	return "", nil

@@ -45,7 +45,7 @@ func TestTestSupport(t *testing.T) {
 	textfile := filepath.Join(t.TempDir(), "file.txt")
 	var sb strings.Builder
 	err := ProcessCoverTestDir(tgcd, textfile,
-		testing.CoverMode(), "", &sb)
+		testing.CoverMode(), "", &sb, nil)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestAuxMetaDataFiles(t *testing.T) {
 	var sb strings.Builder
 	textfile := filepath.Join(td, "file2.txt")
 	err = ProcessCoverTestDir(tgcd, textfile,
-		testing.CoverMode(), "", &sb)
+		testing.CoverMode(), "", &sb, nil)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}

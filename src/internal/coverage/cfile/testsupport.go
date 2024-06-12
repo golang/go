@@ -27,7 +27,7 @@ import (
 // testmain code when "go test -cover" is in effect. It is not
 // intended to be used other than internally by the Go command's
 // generated code.
-func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.Writer) error {
+func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.Writer, selpkgs []string) error {
 	cmode := coverage.ParseCounterMode(cm)
 	if cmode == coverage.CtrModeInvalid {
 		return fmt.Errorf("invalid counter mode %q", cm)
@@ -103,7 +103,7 @@ func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.
 	}
 
 	// Emit percent.
-	if err := ts.cf.EmitPercent(w, nil, cpkg, true, true); err != nil {
+	if err := ts.cf.EmitPercent(w, selpkgs, cpkg, true, true); err != nil {
 		return err
 	}
 

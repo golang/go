@@ -683,6 +683,22 @@ func (t *testFuncs) Covered() string {
 	return " in " + strings.Join(t.Cover.Paths, ", ")
 }
 
+func (t *testFuncs) CoverSelectedPackages() string {
+	if t.Cover == nil || t.Cover.Paths == nil {
+		return `[]string{"` + t.Package.ImportPath + `"}`
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "[]string{")
+	for k, p := range t.Cover.Pkgs {
+		if k != 0 {
+			sb.WriteString(", ")
+		}
+		fmt.Fprintf(&sb, `"%s"`, p.ImportPath)
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
 // Tested returns the name of the package being tested.
 func (t *testFuncs) Tested() string {
 	return t.Package.Name
@@ -950,6 +966,7 @@ func init() {
 {{if .Cover}}
 	testdeps.CoverMode = {{printf "%q" .Cover.Mode}}
 	testdeps.Covered = {{printf "%q" .Covered}}
+	testdeps.CoverSelectedPackages = {{printf "%s" .CoverSelectedPackages}}
 	testdeps.CoverSnapshotFunc = cfile.Snapshot
 	testdeps.CoverProcessTestDirFunc = cfile.ProcessCoverTestDir
 	testdeps.CoverMarkProfileEmittedFunc = cfile.MarkProfileEmitted
