@@ -103,7 +103,7 @@ func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.
 	}
 
 	// Emit percent.
-	if err := ts.cf.EmitPercent(w, cpkg, true, true); err != nil {
+	if err := ts.cf.EmitPercent(w, nil, cpkg, true, true); err != nil {
 		return err
 	}
 

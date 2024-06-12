@@ -23,7 +23,7 @@ package cformat
 //				}
 //			}
 //		}
-//		myformatter.EmitPercent(os.Stdout, "", true, true)
+//		myformatter.EmitPercent(os.Stdout, nil, "", true, true)
 //		myformatter.EmitTextual(somefile)
 //
 // These apis are linked into tests that are built with "-cover", and
@@ -199,17 +199,21 @@ func (fm *Formatter) EmitTextual(w io.Writer) error {
 	return nil
 }
 
-// EmitPercent writes out a "percentage covered" string to the writer 'w'.
-func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool, aggregate bool) error {
-	pkgs := make([]string, 0, len(fm.pm))
-	for importpath := range fm.pm {
-		pkgs = append(pkgs, importpath)
+// EmitPercent writes out a "percentage covered" string to the writer
+// 'w', selecting the set of packages in 'pkgs' and suffixing the
+// printed string with 'inpkgs'.
+func (fm *Formatter) EmitPercent(w io.Writer, pkgs []string, inpkgs string, noteEmpty bool, aggregate bool) error {
+	if len(pkgs) == 0 {
+		pkgs = make([]string, 0, len(fm.pm))
+		for importpath := range fm.pm {
+			pkgs = append(pkgs, importpath)
+		}
 	}
 
 	rep := func(cov, tot uint64) error {
 		if tot != 0 {
 			if _, err := fmt.Fprintf(w, "coverage: %.1f%% of statements%s\n",
-				100.0*float64(cov)/float64(tot), covpkgs); err != nil {
+				100.0*float64(cov)/float64(tot), inpkgs); err != nil {
 				return err
 			}
 		} else if noteEmpty {
@@ -224,6 +228,9 @@ func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool, ag
 	var totalStmts, coveredStmts uint64
 	for _, importpath := range pkgs {
 		p := fm.pm[importpath]
+		if p == nil {
+			continue
+		}
 		if !aggregate {
 			totalStmts, coveredStmts = 0, 0
 		}
