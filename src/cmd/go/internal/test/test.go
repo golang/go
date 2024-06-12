@@ -1067,7 +1067,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			Package:    p,
 			IgnoreFail: true, // run (prepare output) even if build failed
 		}
-		if writeCoverMetaAct != nil {
+		if writeCoverMetaAct != nil && build.Actor != nil {
 			// There is no real "run" for this package (since there
 			// are no tests), but if coverage is turned on, we can
 			// collect coverage data for the code in the package by
