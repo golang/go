@@ -22,8 +22,8 @@ The [slices] package adds several functions that work with iterators:
   sub-slices of up to n elements of a slice.
 
 The [maps] package adds several functions that work with iterators:
-- [All](/pkg/maps#All) returns an iterator over key-value pairs from m.
-- [Keys](/pkg/maps#Keys) returns an iterator over keys in m.
-- [Values](/pkg/maps#Values) returns an iterator over values in m.
-- [Insert](/pkg/maps#Insert) adds the key-value pairs from seq to m.
-- [Collect](/pkg/maps#Collect) collects key-value pairs from seq into a new map and returns it.
+- [All](/pkg/maps#All) returns an iterator over key-value pairs from a map.
+- [Keys](/pkg/maps#Keys) returns an iterator over keys in a map.
+- [Values](/pkg/maps#Values) returns an iterator over values in a map.
+- [Insert](/pkg/maps#Insert) adds the key-value pairs from an iterator to an existing map.
+- [Collect](/pkg/maps#Collect) collects key-value pairs from an iterator into a new map and returns it.
