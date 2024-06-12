@@ -314,8 +314,7 @@ func readFile(f *file) (*File, error) {
 	}
 
 	// Note: don't call f.rotate here as this will enqueue a follow-up rotation.
-	_, cleanup := f.rotate1()
-	cleanup()
+	f.rotate1()
 
 	if f.err != nil {
 		return nil, fmt.Errorf("failed to rotate mapped file - %v", f.err)

@@ -32,11 +32,11 @@ type file struct {
 	counters atomic.Pointer[Counter] // head of list
 	end      Counter                 // list ends at &end instead of nil
 
-	mu         sync.Mutex
-	namePrefix string
-	err        error
-	meta       string
-	current    atomic.Pointer[mappedFile] // can be read without holding mu, but may be nil
+	mu                 sync.Mutex
+	buildInfo          *debug.BuildInfo
+	timeBegin, timeEnd time.Time
+	err                error
+	current            atomic.Pointer[mappedFile] // may be read without holding mu, but may be nil
 }
 
 var defaultFile file
@@ -116,70 +116,11 @@ var (
 	errCorrupt     = errors.New("counter: corrupt counter file")
 )
 
-func (f *file) init(begin, end time.Time) {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		f.err = errNoBuildInfo
-		return
-	}
-	if mode, _ := telemetry.Default.Mode(); mode == "off" {
-		f.err = ErrDisabled
-		return
-	}
-	dir := telemetry.Default.LocalDir()
-
-	if err := os.MkdirAll(dir, 0777); err != nil {
-		f.err = err
-		return
-	}
-
-	goVers, progPath, progVers := telemetry.ProgramInfo(info)
-	f.meta = fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
-		begin.Format(time.RFC3339), end.Format(time.RFC3339),
-		progPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
-	if len(f.meta) > maxMetaLen { // should be impossible for our use
-		f.err = fmt.Errorf("metadata too long")
-		return
-	}
-	if progVers != "" {
-		progVers = "@" + progVers
-	}
-	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", path.Base(progPath), progVers, goVers, runtime.GOOS, runtime.GOARCH)
-	f.namePrefix = filepath.Join(dir, prefix)
-}
-
-// filename returns the name of the file to use for f,
-// given the current time now.
-// It also returns the time when that name will no longer be valid
-// and a new filename should be computed.
-func (f *file) filename(now time.Time) (name string, expire time.Time, err error) {
-	now = now.UTC()
-	year, month, day := now.Date()
-	begin := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
-	// files always begin today, but expire on the next day of the week
-	// from the 'weekends' file.
-	incr, err := fileValidity(now)
-	if err != nil {
-		return "", time.Time{}, err
-	}
-	end := time.Date(year, month, day+incr, 0, 0, 0, 0, time.UTC)
-	if f.namePrefix == "" && f.err == nil {
-		f.init(begin, end)
-		debugPrintf("init: %#q, %v", f.namePrefix, f.err)
-	}
-	// f.err != nil was set in f.init and means it is impossible to
-	// have a counter file
-	if f.err != nil {
-		return "", time.Time{}, f.err
-	}
-
-	name = f.namePrefix + now.Format("2006-01-02") + "." + FileVersion + ".count"
-	return name, end, nil
-}
-
-// fileValidity returns the number of days that a file is valid for.
-// It is the number of days to the next day of the week from the 'weekends' file.
-func fileValidity(now time.Time) (int, error) {
+// weekEnd returns the day of the week on which uploads occur (and therefore
+// counters expire).
+//
+// Reads the weekends file, creating one if none exists.
+func weekEnd() (time.Weekday, error) {
 	// If there is no 'weekends' file create it and initialize it
 	// to a random day of the week. There is a short interval for
 	// a race.
@@ -206,18 +147,13 @@ func fileValidity(now time.Time) (int, error) {
 	if len(buf) == 0 {
 		return 0, fmt.Errorf("empty weekends file")
 	}
-	dayofweek := time.Weekday(buf[0] - '0') // 0 is Sunday
+	weekend := time.Weekday(buf[0] - '0') // 0 is Sunday
 	// paranoia to make sure the value is legal
-	dayofweek %= 7
-	if dayofweek < 0 {
-		dayofweek += 7
+	weekend %= 7
+	if weekend < 0 {
+		weekend += 7
 	}
-	today := now.Weekday()
-	incr := dayofweek - today
-	if incr <= 0 {
-		incr += 7
-	}
-	return int(incr), nil
+	return weekend, nil
 }
 
 // rotate checks to see whether the file f needs to be rotated,
@@ -226,11 +162,19 @@ func fileValidity(now time.Time) (int, error) {
 // In general rotate should be called just once for each file.
 // rotate will arrange a timer to call itself again when necessary.
 func (f *file) rotate() {
-	expire, cleanup := f.rotate1()
-	cleanup()
-	if !expire.IsZero() {
+	expiry := f.rotate1()
+	if !expiry.IsZero() {
+		delay := time.Until(expiry)
+		// Some tests set CounterTime to a time in the past, causing delay to be
+		// negative. Avoid infinite loops by delaying at least a short interval.
+		//
+		// TODO(rfindley): instead, just also mock AfterFunc.
+		const minDelay = 1 * time.Minute
+		if delay < minDelay {
+			delay = minDelay
+		}
 		// TODO(rsc): Does this do the right thing for laptops closing?
-		time.AfterFunc(time.Until(expire), f.rotate)
+		time.AfterFunc(delay, f.rotate)
 	}
 }
 
@@ -242,60 +186,125 @@ var CounterTime = func() time.Time {
 	return time.Now().UTC()
 }
 
-func (f *file) rotate1() (expire time.Time, cleanup func()) {
+// counterSpan returns the current time span for a counter file, as determined
+// by [CounterTime] and the [weekEnd].
+func counterSpan() (begin, end time.Time, _ error) {
+	year, month, day := CounterTime().Date()
+	begin = time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	// files always begin today, but expire on the next day of the week
+	// from the 'weekends' file.
+	weekend, err := weekEnd()
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	incr := int(weekend - begin.Weekday())
+	if incr <= 0 {
+		incr += 7 // ensure that end is later than begin
+	}
+	end = time.Date(year, month, day+incr, 0, 0, 0, 0, time.UTC)
+	return begin, end, nil
+}
+
+// rotate1 rotates the current counter file, returning its expiry, or the zero
+// time if rotation failed.
+func (f *file) rotate1() time.Time {
+	// Cleanup must be performed while unlocked, since invalidateCounters may
+	// involve calls to f.lookup.
+	var previous *mappedFile // read below while holding the f.mu.
+	defer func() {
+		// Counters must be invalidated whenever the mapped file changes.
+		if next := f.current.Load(); next != previous {
+			f.invalidateCounters()
+			// Ensure that the previous counter mapped file is closed.
+			if previous != nil {
+				previous.close() // safe to call multiple times
+			}
+		}
+	}()
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	var previous *mappedFile
-	// TODO(rfindley): refactor. All callers immediately invoke cleanup;
-	// therefore the cleanup here should be deferred.
-	cleanup = func() {
-		// convert counters to new mapping (or nil)
-		// from old mapping (or nil)
-		f.invalidateCounters()
-		if previous == nil {
-			// no old mapping to worry about
-			return
-		}
-		// now it is safe to clean up the old mapping
-		// Quim Montel pointed out the previous cleanup was incomplete
-		previous.close()
-	}
-
-	name, expire, err := f.filename(CounterTime())
-	if err != nil {
-		// This could be mode == "off" (when rotate is called for the first time)
-		ret := nop
-		if previous = f.current.Load(); previous != nil {
-			// or it could be some strange error
-			f.current.Store(nil)
-			ret = cleanup
-		}
-		debugPrintf("rotate: %v\n", err)
-		return time.Time{}, ret
-	}
-
 	previous = f.current.Load()
-	if previous != nil && name == previous.f.Name() {
-		// the existing file is fine
-		return expire, nop
+
+	if f.err != nil {
+		return time.Time{} // already in failed state; nothing to do
 	}
 
-	m, err := openMapped(name, f.meta, nil)
+	fail := func(err error) {
+		debugPrintf("rotate: %v", err)
+		f.err = err
+		f.current.Store(nil)
+	}
+
+	if mode, _ := telemetry.Default.Mode(); mode == "off" {
+		// TODO(rfindley): do we ever want to make ErrDisabled recoverable?
+		// Specifically, if f.err is ErrDisabled, should we check again during when
+		// rotating?
+		fail(ErrDisabled)
+		return time.Time{}
+	}
+
+	if f.buildInfo == nil {
+		bi, ok := debug.ReadBuildInfo()
+		if !ok {
+			fail(errNoBuildInfo)
+			return time.Time{}
+		}
+		f.buildInfo = bi
+	}
+
+	begin, end, err := counterSpan()
+	if err != nil {
+		fail(err)
+		return time.Time{}
+	}
+	if f.timeBegin.Equal(begin) && f.timeEnd.Equal(end) {
+		return f.timeEnd // nothing to do
+	}
+	f.timeBegin, f.timeEnd = begin, end
+
+	goVers, progPath, progVers := telemetry.ProgramInfo(f.buildInfo)
+	meta := fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
+		f.timeBegin.Format(time.RFC3339), f.timeEnd.Format(time.RFC3339),
+		progPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
+	if len(meta) > maxMetaLen { // should be impossible for our use
+		fail(fmt.Errorf("metadata too long"))
+		return time.Time{}
+	}
+
+	if progVers != "" {
+		progVers = "@" + progVers
+	}
+	baseName := fmt.Sprintf("%s%s-%s-%s-%s-%s.%s.count",
+		path.Base(progPath),
+		progVers,
+		goVers,
+		runtime.GOOS,
+		runtime.GOARCH,
+		f.timeBegin.Format("2006-01-02"),
+		FileVersion,
+	)
+	dir := telemetry.Default.LocalDir()
+	if err := os.MkdirAll(dir, 0777); err != nil {
+		fail(fmt.Errorf("making local dir: %v", err))
+		return time.Time{}
+	}
+	name := filepath.Join(dir, baseName)
+
+	m, err := openMapped(name, meta, nil)
 	if err != nil {
 		// Mapping failed:
 		// If there used to be a mapped file, after cleanup
 		// incrementing counters will only change their internal state.
 		// (before cleanup the existing mapped file would be updated)
-		f.current.Store(nil) // invalidate the current mapping
-		debugPrintf("rotate: openMapped: %v\n", err)
-		return time.Time{}, cleanup
+		fail(fmt.Errorf("openMapped: %v", err))
+		return time.Time{}
 	}
 
 	debugPrintf("using %v", m.f.Name())
 	f.current.Store(m)
-
-	return expire, cleanup
+	return f.timeEnd
 }
 
 func (f *file) newCounter(name string) *atomic.Uint64 {
@@ -325,6 +334,7 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 	cleanup = nop
 	if newM != nil {
 		f.current.Store(newM)
+		// TODO(rfindley): shouldn't this close f.current?
 		cleanup = f.invalidateCounters
 	}
 	return v, cleanup

@@ -86,59 +86,31 @@ type Config struct {
 // Start returns a StartResult, which may be awaited via [StartResult.Wait] to
 // wait for all work done by Start to complete.
 func Start(config Config) *StartResult {
-	if config.TelemetryDir != "" {
-		telemetry.Default = telemetry.NewDir(config.TelemetryDir)
-	}
-	result := new(StartResult)
-
-	mode, _ := telemetry.Default.Mode()
-	if mode == "off" {
-		// Telemetry is turned off. Crash reporting doesn't work without telemetry
-		// at least set to "local". The upload process runs in both "on" and "local" modes.
-		// In local mode the upload process builds local reports but does not do the upload.
-		return result
-	}
-
-	counter.Open()
-
-	if _, err := os.Stat(telemetry.Default.LocalDir()); err != nil {
-		// There was a problem statting LocalDir, which is needed for both
-		// crash monitoring and counter uploading. Most likely, there was an
-		// error creating telemetry.LocalDir in the counter.Open call above.
-		// Don't start the child.
-		return result
-	}
-
-	var reportCrashes = config.ReportCrashes && crashmonitor.Supported()
-
 	switch v := os.Getenv(telemetryChildVar); v {
 	case "":
 		// The subprocess started by parent has GO_TELEMETRY_CHILD=1.
-		childShouldUpload := config.Upload && acquireUploadToken()
-		if reportCrashes || childShouldUpload {
-			parent(reportCrashes, childShouldUpload, result)
-		}
+		return parent(config)
 	case "1":
-		// golang/go#67211: be sure to set telemetryChildVar before running the
-		// child, because the child itself invokes the go command to download the
-		// upload config. If the telemetryChildVar variable is still set to "1",
-		// that delegated go command may think that it is itself a telemetry
-		// child.
-		//
-		// On the other hand, if telemetryChildVar were simply unset, then the
-		// delegated go commands would fork themselves recursively. Short-circuit
-		// this recursion.
-		os.Setenv(telemetryChildVar, "2")
-		upload := os.Getenv(telemetryUploadVar) == "1"
-		child(reportCrashes, upload, config.UploadStartTime, config.UploadURL)
-		os.Exit(0)
+		child(config) // child will exit the process when it's done.
 	case "2":
-		// Do nothing: see note above.
+		// Do nothing: this was executed directly or indirectly by a child.
 	default:
 		log.Fatalf("unexpected value for %q: %q", telemetryChildVar, v)
 	}
 
-	return result
+	return &StartResult{}
+}
+
+// MaybeChild executes the telemetry child logic if the calling program is
+// the telemetry child process, and does nothing otherwise. It is meant to be
+// called as the first thing in a program that uses telemetry.Start but cannot
+// call telemetry.Start immediately when it starts.
+func MaybeChild(config Config) {
+	if v := os.Getenv(telemetryChildVar); v == "1" {
+		child(config) // child will exit the process when it's done.
+	}
+	// other values of the telemetryChildVar environment variable
+	// will be handled by telemetry.Start.
 }
 
 // A StartResult is a handle to the result of a call to [Start]. Call
@@ -169,7 +141,41 @@ const telemetryChildVar = "GO_TELEMETRY_CHILD"
 // acquired by the parent, and the child should attempt an upload.
 const telemetryUploadVar = "GO_TELEMETRY_CHILD_UPLOAD"
 
-func parent(reportCrashes, upload bool, result *StartResult) {
+func parent(config Config) *StartResult {
+	if config.TelemetryDir != "" {
+		telemetry.Default = telemetry.NewDir(config.TelemetryDir)
+	}
+	result := new(StartResult)
+
+	mode, _ := telemetry.Default.Mode()
+	if mode == "off" {
+		// Telemetry is turned off. Crash reporting doesn't work without telemetry
+		// at least set to "local". The upload process runs in both "on" and "local" modes.
+		// In local mode the upload process builds local reports but does not do the upload.
+		return result
+	}
+
+	counter.Open()
+
+	if _, err := os.Stat(telemetry.Default.LocalDir()); err != nil {
+		// There was a problem statting LocalDir, which is needed for both
+		// crash monitoring and counter uploading. Most likely, there was an
+		// error creating telemetry.LocalDir in the counter.Open call above.
+		// Don't start the child.
+		return result
+	}
+
+	childShouldUpload := config.Upload && acquireUploadToken()
+	reportCrashes := config.ReportCrashes && crashmonitor.Supported()
+
+	if reportCrashes || childShouldUpload {
+		startChild(reportCrashes, childShouldUpload, result)
+	}
+
+	return result
+}
+
+func startChild(reportCrashes, upload bool, result *StartResult) {
 	// This process is the application (parent).
 	// Fork+exec the telemetry child.
 	exe, err := os.Executable()
@@ -233,8 +239,28 @@ func parent(reportCrashes, upload bool, result *StartResult) {
 	}()
 }
 
-func child(reportCrashes, upload bool, uploadStartTime time.Time, uploadURL string) {
+func child(config Config) {
 	log.SetPrefix(fmt.Sprintf("telemetry-sidecar (pid %v): ", os.Getpid()))
+
+	if config.TelemetryDir != "" {
+		telemetry.Default = telemetry.NewDir(config.TelemetryDir)
+	}
+
+	// golang/go#67211: be sure to set telemetryChildVar before running the
+	// child, because the child itself invokes the go command to download the
+	// upload config. If the telemetryChildVar variable is still set to "1",
+	// that delegated go command may think that it is itself a telemetry
+	// child.
+	//
+	// On the other hand, if telemetryChildVar were simply unset, then the
+	// delegated go commands would fork themselves recursively. Short-circuit
+	// this recursion.
+	os.Setenv(telemetryChildVar, "2")
+	upload := os.Getenv(telemetryUploadVar) == "1"
+
+	reportCrashes := config.ReportCrashes && crashmonitor.Supported()
+	uploadStartTime := config.UploadStartTime
+	uploadURL := config.UploadURL
 
 	// Start crashmonitoring and uploading depending on what's requested
 	// and wait for the longer running child to complete before exiting:
@@ -255,6 +281,8 @@ func child(reportCrashes, upload bool, uploadStartTime time.Time, uploadURL stri
 		})
 	}
 	g.Wait()
+
+	os.Exit(0)
 }
 
 func uploaderChild(asof time.Time, uploadURL string) {
