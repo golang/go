@@ -59,6 +59,10 @@ func dse(f *Func) {
 						continue
 					}
 				}
+				if v.Op == OpInlMark {
+					// Not really a use of the memory. See #67957.
+					continue
+				}
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
 						loadUse.add(a.ID)
