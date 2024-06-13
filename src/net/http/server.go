@@ -2497,16 +2497,39 @@ func RedirectHandler(url string, code int) Handler {
 //     This change mostly affects how paths with %2F escapes adjacent to slashes are treated.
 //     See https://go.dev/issue/21955 for details.
 type ServeMux struct {
-	mu       sync.RWMutex
-	tree     routingNode
-	index    routingIndex
-	patterns []*pattern  // TODO(jba): remove if possible
-	mux121   serveMux121 // used only when GODEBUG=httpmuxgo121=1
+	mu                sync.RWMutex
+	tree              routingNode
+	index             routingIndex
+	patterns          []*pattern  // TODO(jba): remove if possible
+	mux121            serveMux121 // used only when GODEBUG=httpmuxgo121=1
+	notFoundHandler   HandlerFunc
+	notAllowedHandler HandlerFunc
+}
+
+// MuxOption is used for customizing [ServeMux] default behaviour and handlers.
+type MuxOption func(*ServeMux)
+
+// WithNotFoundHandler overwrites default [NotFoundHandler] with the given func.
+func WithNotFoundHandler(fn HandlerFunc) MuxOption {
+	return func(mux *ServeMux) {
+		mux.notFoundHandler = fn
+	}
+}
+
+// WithNotAllowedHandler overwrites default MethodNotAllowed handler with the given func.
+func WithNotAllowedHandler(fn HandlerFunc) MuxOption {
+	return func(mux *ServeMux) {
+		mux.notAllowedHandler = fn
+	}
 }
 
 // NewServeMux allocates and returns a new [ServeMux].
-func NewServeMux() *ServeMux {
-	return &ServeMux{}
+func NewServeMux(opts ...MuxOption) *ServeMux {
+	mux := &ServeMux{}
+	for _, opt := range opts {
+		opt(mux)
+	}
+	return mux
 }
 
 // DefaultServeMux is the default [ServeMux] used by [Serve].
@@ -2622,12 +2645,18 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 		// matches except for the method.
 		allowedMethods := mux.matchingMethods(host, path)
 		if len(allowedMethods) > 0 {
-			return HandlerFunc(func(w ResponseWriter, r *Request) {
-				w.Header().Set("Allow", strings.Join(allowedMethods, ", "))
-				Error(w, StatusText(StatusMethodNotAllowed), StatusMethodNotAllowed)
-			}), "", nil, nil
+			if mux.notAllowedHandler == nil {
+				return HandlerFunc(func(w ResponseWriter, r *Request) {
+					w.Header().Set("Allow", strings.Join(allowedMethods, ", "))
+					Error(w, StatusText(StatusMethodNotAllowed), StatusMethodNotAllowed)
+				}), "", nil, nil
+			}
+			return mux.notAllowedHandler, "", nil, nil
 		}
-		return NotFoundHandler(), "", nil, nil
+		if mux.notFoundHandler == nil {
+			return NotFoundHandler(), "", nil, nil
+		}
+		return mux.notFoundHandler, "", nil, nil
 	}
 	return n.handler, n.pattern.String(), n.pattern, matches
 }
