@@ -282,7 +282,11 @@ func (check *Checker) isNil(e syntax.Expr) bool {
 	return false
 }
 
-// If the type switch expression is invalid, x is nil.
+// caseTypes typechecks the type expressions of a type case, checks for duplicate types
+// using the seen map, and verifies that each type is valid with respect to the type of
+// the operand x in the type switch clause. If the type switch expression is invalid, x
+// must be nil. The result is the type of the last type expression; it is nil if the
+// expression denotes the predeclared nil.
 func (check *Checker) caseTypes(x *operand, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
 	var dummy operand
 L:
@@ -739,21 +743,18 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	}
 
 	// check rhs
-	var x operand
-	check.expr(nil, &x, guard.X)
-	if x.mode == invalid {
-		return
-	}
-
-	// TODO(gri) we may want to permit type switches on type parameter values at some point
 	var sx *operand // switch expression against which cases are compared against; nil if invalid
-	if isTypeParam(x.typ) {
-		check.errorf(&x, InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
-	} else {
-		if _, ok := under(x.typ).(*Interface); ok {
-			sx = &x
-		} else {
-			check.errorf(&x, InvalidTypeSwitch, "%s is not an interface", &x)
+	{
+		var x operand
+		check.expr(nil, &x, guard.X)
+		if x.mode != invalid {
+			if isTypeParam(x.typ) {
+				check.errorf(&x, InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
+			} else if IsInterface(x.typ) {
+				sx = &x
+			} else {
+				check.errorf(&x, InvalidTypeSwitch, "%s is not an interface", &x)
+			}
 		}
 	}
 
@@ -782,7 +783,10 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 			// exactly one type, the variable has that type; otherwise, the variable
 			// has the type of the expression in the TypeSwitchGuard."
 			if len(cases) != 1 || T == nil {
-				T = x.typ
+				T = Typ[Invalid]
+				if sx != nil {
+					T = sx.typ
+				}
 			}
 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
 			// TODO(mdempsky): Just use clause.Colon? Why did I even suggest
