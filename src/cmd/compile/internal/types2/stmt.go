@@ -818,13 +818,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {
 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
-			// TODO(mdempsky): Just use clause.Colon? Why did I even suggest
-			// "at the end of the TypeSwitchCase" in go.dev/issue/16794 instead?
-			scopePos := clause.Pos() // for default clause (len(List) == 0)
-			if n := len(cases); n > 0 {
-				scopePos = syntax.EndPos(cases[n-1])
-			}
-			check.declare(check.scope, nil, obj, scopePos)
+			check.declare(check.scope, nil, obj, clause.Colon)
 			check.recordImplicit(clause, obj)
 			// For the "declared and not used" error, all lhs variables act as
 			// one; i.e., if any one of them is 'used', all of them are 'used'.

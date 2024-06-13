@@ -1885,6 +1885,9 @@ func TestScopeLookupParent(t *testing.T) {
 	// Each /*name=kind:line*/ comment makes the test look up the
 	// name at that point and checks that it resolves to a decl of
 	// the specified kind and line number.  "undef" means undefined.
+	// Note that type switch case clauses with an empty body (but for
+	// comments) need the ";" to ensure that the recorded scope extends
+	// past the comments.
 	mainSrc := `
 /*lib=pkgname:5*/ /*X=var:1*/ /*Pi=const:8*/ /*T=typename:9*/ /*Y=var:10*/ /*F=func:12*/
 package main
@@ -1908,17 +1911,17 @@ func F[T *U, U any](param1, param2 int) /*param1=undef*/ (res1 /*res1=undef*/, r
 
 	var i interface{}
 	switch y := i.(type) { /*y=undef*/
-	case /*y=undef*/ int /*y=var:23*/ :
-	case float32, /*y=undef*/ float64 /*y=var:23*/ :
-	default /*y=var:23*/:
+	case /*y=undef*/ int /*y=undef*/ : /*y=var:23*/ ;
+	case float32, /*y=undef*/ float64 /*y=undef*/ : /*y=var:23*/ ;
+	default /*y=undef*/ : /*y=var:23*/
 		println(y)
 	}
 	/*y=undef*/
 
         switch int := i.(type) {
-        case /*int=typename:0*/ int /*int=var:31*/ :
+        case /*int=typename:0*/ int /*int=typename:0*/ : /*int=var:31*/
         	println(int)
-        default /*int=var:31*/ :
+        default /*int=typename:0*/ : /*int=var:31*/ ;
         }
 
 	_ = param1
