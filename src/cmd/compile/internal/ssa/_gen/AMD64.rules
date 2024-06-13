@@ -1583,6 +1583,9 @@
 (MOVSDstore [off] {sym} ptr (MOVQi2f val) mem) => (MOVQstore  [off] {sym} ptr val mem)
 (MOVSSstore [off] {sym} ptr (MOVLi2f val) mem) => (MOVLstore  [off] {sym} ptr val mem)
 
+(MOVSDstore [off] {sym} ptr (MOVSDconst [f]) mem) && f == f => (MOVQstore [off] {sym} ptr (MOVQconst [int64(math.Float64bits(f))]) mem)
+(MOVSSstore [off] {sym} ptr (MOVSSconst [f]) mem) && f == f => (MOVLstore [off] {sym} ptr (MOVLconst [int32(math.Float32bits(f))]) mem)
+
 // Load args directly into the register class where it will be used.
 // We do this by just modifying the type of the Arg.
 (MOVQf2i <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() => @b.Func.Entry (Arg <t> [off] {sym})

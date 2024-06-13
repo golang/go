@@ -227,3 +227,12 @@ func Float64DenormalFloat32Constant() float64 {
 	// ppc64x:"FMOVD\t[$]f64\\.3800000000000000\\(SB\\)"
 	return 0x1p-127
 }
+
+func Float64ConstantStore(p *float64) {
+	// amd64: "MOVQ\t[$]4617801906721357038"
+	*p = 5.432
+}
+func Float32ConstantStore(p *float32) {
+	// amd64: "MOVL\t[$]1085133554"
+	*p = 5.432
+}
