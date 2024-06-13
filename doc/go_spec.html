@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.23 (June 12, 2024)",
+	"Subtitle": "Language version go1.23 (June 13, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -6620,7 +6620,8 @@ In that case, the example above prints
 <p>
 A "for" statement with a "range" clause
 iterates through all entries of an array, slice, string or map, values received on
-a channel, or integer values from zero to an upper limit [<a href="#Go_1.22">Go 1.22</a>].
+a channel, integer values from zero to an upper limit [<a href="#Go_1.22">Go 1.22</a>],
+or values passed to an iterator function's yield function [<a href="#Go_1.23">Go 1.23</a>].
 For each entry it assigns <i>iteration values</i>
 to corresponding <i>iteration variables</i> if present and then executes the block.
 </p>
@@ -6633,11 +6634,15 @@ RangeClause = [ ExpressionList "=" | IdentifierList ":=" ] "range" Expression .
 The expression on the right in the "range" clause is called the <i>range expression</i>,
 its <a href="#Core_types">core type</a> must be
 an array, pointer to an array, slice, string, map, channel permitting
-<a href="#Receive_operator">receive operations</a>, or an integer.
+<a href="#Receive_operator">receive operations</a>, an integer, or
+a function with specific signature (see below).
 As with an assignment, if present the operands on the left must be
 <a href="#Address_operators">addressable</a> or map index expressions; they
-denote the iteration variables. If the range expression is a channel or integer,
-at most one iteration variable is permitted, otherwise there may be up to two.
+denote the iteration variables.
+If the range expression is a function, the maximum number of iteration variables depends on
+the function signature.
+If the range expression is a channel or integer, at most one iteration variable is permitted;
+otherwise there may be up to two.
 If the last iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
 the range clause is equivalent to the same clause without that identifier.
 </p>
@@ -8676,6 +8681,12 @@ integer values from zero to an upper limit.
 </li>
 </ul>
 
+<h4 id="Go_1.23">Go 1.23</h4>
+<ul>
+<li>A "for" statement with <a href="#For_range">"range" clause</a> accepts an iterator
+function as range expression.
+</li>
+</ul>
 <h3 id="Type_unification_rules">Type unification rules</h3>
 
 <p>
