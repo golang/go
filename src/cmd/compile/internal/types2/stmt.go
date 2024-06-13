@@ -284,10 +284,27 @@ func (check *Checker) isNil(e syntax.Expr) bool {
 
 // caseTypes typechecks the type expressions of a type case, checks for duplicate types
 // using the seen map, and verifies that each type is valid with respect to the type of
-// the operand x in the type switch clause. If the type switch expression is invalid, x
-// must be nil. The result is the type of the last type expression; it is nil if the
-// expression denotes the predeclared nil.
-func (check *Checker) caseTypes(x *operand, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
+// the operand x corresponding to the type switch expression. If that expression is not
+// valid, x must be nil.
+//
+//	switch <x>.(type) {
+//	case <types>: ...
+//	...
+//	}
+//
+// caseTypes returns the case-specific type for a variable v introduced through a short
+// variable declaration by the type switch:
+//
+//	switch v := <x>.(type) {
+//	case <types>: // T is the type of <v> in this case
+//	...
+//	}
+//
+// If there is exactly one type expression, T is the type of that expression. If there
+// are multiple type expressions, or if predeclared nil is among the types, the result
+// is the type of x. If x is invalid (nil), the result is the invalid type.
+func (check *Checker) caseTypes(x *operand, types []syntax.Expr, seen map[Type]syntax.Expr) Type {
+	var T Type
 	var dummy operand
 L:
 	for _, e := range types {
@@ -322,49 +339,72 @@ L:
 			check.typeAssertion(e, x, T, true)
 		}
 	}
-	return
+
+	// spec: "In clauses with a case listing exactly one type, the variable has that type;
+	// otherwise, the variable has the type of the expression in the TypeSwitchGuard.
+	if len(types) != 1 || T == nil {
+		T = Typ[Invalid]
+		if x != nil {
+			T = x.typ
+		}
+	}
+
+	assert(T != nil)
+	return T
 }
 
 // TODO(gri) Once we are certain that typeHash is correct in all situations, use this version of caseTypes instead.
 // (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
-//
-// func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[string]syntax.Expr) (T Type) {
-// 	var dummy operand
-// L:
-// 	for _, e := range types {
-// 		// The spec allows the value nil instead of a type.
-// 		var hash string
-// 		if check.isNil(e) {
-// 			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
-// 			T = nil
-// 			hash = "<nil>" // avoid collision with a type named nil
-// 		} else {
-// 			T = check.varType(e)
-// 			if !isValid(T) {
-// 				continue L
-// 			}
-// 			hash = typeHash(T, nil)
-// 		}
-// 		// look for duplicate types
-// 		if other := seen[hash]; other != nil {
-// 			// talk about "case" rather than "type" because of nil case
-// 			Ts := "nil"
-// 			if T != nil {
-// 				Ts = TypeString(T, check.qualifier)
-// 			}
-// 			err := check.newError(_DuplicateCase)
-// 			err.addf(e, "duplicate case %s in type switch", Ts)
-// 			err.addf(other, "previous case")
-// 			err.report()
-// 			continue L
-// 		}
-// 		seen[hash] = e
-// 		if T != nil {
-// 			check.typeAssertion(e, x, xtyp, T, true)
-// 		}
-// 	}
-// 	return
-// }
+func (check *Checker) caseTypes_currently_unused(x *operand, xtyp *Interface, types []syntax.Expr, seen map[string]syntax.Expr) Type {
+	var T Type
+	var dummy operand
+L:
+	for _, e := range types {
+		// The spec allows the value nil instead of a type.
+		var hash string
+		if check.isNil(e) {
+			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
+			T = nil
+			hash = "<nil>" // avoid collision with a type named nil
+		} else {
+			T = check.varType(e)
+			if !isValid(T) {
+				continue L
+			}
+			panic("enable typeHash(T, nil)")
+			// hash = typeHash(T, nil)
+		}
+		// look for duplicate types
+		if other := seen[hash]; other != nil {
+			// talk about "case" rather than "type" because of nil case
+			Ts := "nil"
+			if T != nil {
+				Ts = TypeString(T, check.qualifier)
+			}
+			err := check.newError(DuplicateCase)
+			err.addf(e, "duplicate case %s in type switch", Ts)
+			err.addf(other, "previous case")
+			err.report()
+			continue L
+		}
+		seen[hash] = e
+		if T != nil {
+			check.typeAssertion(e, x, T, true)
+		}
+	}
+
+	// spec: "In clauses with a case listing exactly one type, the variable has that type;
+	// otherwise, the variable has the type of the expression in the TypeSwitchGuard.
+	if len(types) != 1 || T == nil {
+		T = Typ[Invalid]
+		if x != nil {
+			T = x.typ
+		}
+	}
+
+	assert(T != nil)
+	return T
+}
 
 // stmt typechecks statement s.
 func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
@@ -777,17 +817,6 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		check.openScopeUntil(clause, end, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {
-			// spec: "The TypeSwitchGuard may include a short variable declaration.
-			// When that form is used, the variable is declared at the beginning of
-			// the implicit block in each clause. In clauses with a case listing
-			// exactly one type, the variable has that type; otherwise, the variable
-			// has the type of the expression in the TypeSwitchGuard."
-			if len(cases) != 1 || T == nil {
-				T = Typ[Invalid]
-				if sx != nil {
-					T = sx.typ
-				}
-			}
 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
 			// TODO(mdempsky): Just use clause.Colon? Why did I even suggest
 			// "at the end of the TypeSwitchCase" in go.dev/issue/16794 instead?
