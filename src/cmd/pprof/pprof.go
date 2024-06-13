@@ -32,7 +32,7 @@ import (
 )
 
 func main() {
-	telemetry.Start()
+	telemetry.OpenCounters()
 	telemetry.Inc("pprof/invocations")
 	options := &driver.Options{
 		Fetch: new(fetcher),

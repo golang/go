@@ -69,7 +69,7 @@ var (
 func main() {
 	log.SetPrefix("distpack: ")
 	log.SetFlags(0)
-	telemetry.Start()
+	telemetry.OpenCounters()
 	flag.Usage = usage
 	flag.Parse()
 	telemetry.Inc("distpack/invocations")

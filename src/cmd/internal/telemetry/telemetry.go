@@ -19,20 +19,38 @@ import (
 	"golang.org/x/telemetry/counter"
 )
 
-// Start opens the counter files for writing if telemetry is supported
+var openCountersCalled, maybeChildCalled bool
+
+// OpenCounters opens the counter files for writing if telemetry is supported
 // on the current platform (and does nothing otherwise).
-func Start() {
+func OpenCounters() {
+	openCountersCalled = true
 	telemetry.Start(telemetry.Config{
 		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
 	})
 }
 
-// StartWithUpload opens the counter files for writing if telemetry
-// is supported on the current platform and also enables a once a day
-// check to see if the weekly reports are ready to be uploaded.
-// It should only be called by cmd/go
-func StartWithUpload() {
+// MaybeParent does a once a day check to see if the weekly reports are
+// ready to be processed or uploaded, and if so, starts the telemetry child to
+// do so. It should only be called by cmd/go, and only after OpenCounters and MaybeChild
+// have already been called.
+func MaybeParent() {
+	if !openCountersCalled || !maybeChildCalled {
+		panic("MaybeParent must be called after OpenCounters and MaybeChild")
+	}
 	telemetry.Start(telemetry.Config{
+		Upload:       true,
+		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
+	})
+}
+
+// MaybeChild executes the telemetry child logic if the calling program is
+// the telemetry child process, and does nothing otherwise. It is meant to be
+// called as the first thing in a program that uses telemetry.OpenCounters but cannot
+// call telemetry.OpenCounters immediately when it starts.
+func MaybeChild() {
+	maybeChildCalled = true
+	telemetry.MaybeChild(telemetry.Config{
 		Upload:       true,
 		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
 	})

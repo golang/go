@@ -26,7 +26,7 @@ import (
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("asm: ")
-	telemetry.Start()
+	telemetry.OpenCounters()
 
 	buildcfg.Check()
 	GOARCH := buildcfg.GOARCH

@@ -26,7 +26,7 @@ var wflag = flag.Bool("w", false, "write build ID")
 func main() {
 	log.SetPrefix("buildid: ")
 	log.SetFlags(0)
-	telemetry.Start()
+	telemetry.OpenCounters()
 	flag.Usage = usage
 	flag.Parse()
 	telemetry.Inc("buildid/invocations")

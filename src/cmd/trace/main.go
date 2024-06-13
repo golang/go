@@ -64,7 +64,7 @@ var (
 )
 
 func main() {
-	telemetry.Start()
+	telemetry.OpenCounters()
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usageMessage)
 		os.Exit(2)

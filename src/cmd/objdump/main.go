@@ -58,7 +58,7 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("objdump: ")
-	telemetry.Start()
+	telemetry.OpenCounters()
 
 	flag.Usage = usage
 	flag.Parse()

@@ -157,7 +157,7 @@ func (t *ternaryFlag) IsBoolFlag() bool { return true } // parse like a boolean 
 func Main(arch *sys.Arch, theArch Arch) {
 	log.SetPrefix("link: ")
 	log.SetFlags(0)
-	telemetry.Start()
+	telemetry.OpenCounters()
 	telemetry.Inc("link/invocations")
 
 	thearch = theArch

@@ -68,7 +68,7 @@ func (nflag) String() string {
 
 func main() {
 	log.SetFlags(0)
-	telemetry.Start()
+	telemetry.OpenCounters()
 	flag.Usage = usage
 	flag.Parse()
 	telemetry.Inc("nm/invocations")

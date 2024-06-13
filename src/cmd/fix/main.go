@@ -65,7 +65,7 @@ func usage() {
 }
 
 func main() {
-	telemetry.Start()
+	telemetry.OpenCounters()
 	flag.Usage = usage
 	flag.Parse()
 	telemetry.Inc("fix/invocations")

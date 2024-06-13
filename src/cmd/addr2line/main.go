@@ -46,7 +46,7 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("addr2line: ")
-	telemetry.Start()
+	telemetry.OpenCounters()
 
 	// pprof expects this behavior when checking for addr2line
 	if len(os.Args) > 1 && os.Args[1] == "--help" {

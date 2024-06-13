@@ -374,7 +374,7 @@ func main() {
 }
 
 func gofmtMain(s *sequencer) {
-	telemetry.Start()
+	telemetry.OpenCounters()
 	flag.Usage = usage
 	flag.Parse()
 	telemetry.Inc("gofmt/invocations")

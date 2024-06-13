@@ -31,7 +31,7 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("pack: ")
-	telemetry.Start()
+	telemetry.OpenCounters()
 	// need "pack op archive" at least.
 	if len(os.Args) < 3 {
 		log.Print("not enough arguments")

@@ -47,7 +47,7 @@ import (
 )
 
 func main() {
-	telemetry.Start()
+	telemetry.OpenCounters()
 	objabi.AddVersionFlag()
 
 	telemetry.Inc("vet/invocations")

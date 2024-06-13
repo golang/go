@@ -109,7 +109,7 @@ const (
 )
 
 func main() {
-	telemetry.Start()
+	telemetry.OpenCounters()
 
 	// First argument should be mode/subcommand.
 	if len(os.Args) < 2 {

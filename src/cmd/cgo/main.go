@@ -258,7 +258,7 @@ var goarch, goos, gomips, gomips64 string
 var gccBaseCmd []string
 
 func main() {
-	telemetry.Start()
+	telemetry.OpenCounters()
 	objabi.AddVersionFlag() // -V
 	objabi.Flagparse(usage)
 	telemetry.Inc("cgo/invocations")

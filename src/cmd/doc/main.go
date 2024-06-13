@@ -87,7 +87,7 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("doc: ")
-	telemetry.Start()
+	telemetry.OpenCounters()
 	dirsInit()
 	err := do(os.Stdout, flag.CommandLine, os.Args[1:])
 	if err != nil {

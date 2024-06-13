@@ -116,7 +116,7 @@ func ignoreSignals() {
 }
 
 func main() {
-	telemetry.Start()
+	telemetry.OpenCounters()
 
 	flag.Usage = usage
 	flag.Parse()

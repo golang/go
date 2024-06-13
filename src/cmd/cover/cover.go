@@ -87,7 +87,7 @@ const (
 )
 
 func main() {
-	telemetry.Start()
+	telemetry.OpenCounters()
 
 	objabi.AddVersionFlag()
 	flag.Usage = usage

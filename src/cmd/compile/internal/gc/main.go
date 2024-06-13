@@ -59,7 +59,7 @@ func handlePanic() {
 // code, and finally writes the compiled package definition to disk.
 func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "init")
-	telemetry.Start()
+	telemetry.OpenCounters()
 	telemetry.Inc("compile/invocations")
 
 	defer handlePanic()
