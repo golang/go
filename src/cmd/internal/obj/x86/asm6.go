@@ -1096,6 +1096,7 @@ var optab =
 	{ADPPD, yxshuf, Pq, opBytes{0x3a, 0x41, 0}},
 	{ADPPS, yxshuf, Pq, opBytes{0x3a, 0x40, 0}},
 	{AEMMS, ynone, Pm, opBytes{0x77}},
+	{AENDBR64, ynone, Pf3, opBytes{0x1e, 0xfa}},
 	{AEXTRACTPS, yextractps, Pq, opBytes{0x3a, 0x17, 0}},
 	{AENTER, nil, 0, opBytes{}}, // botch
 	{AFXRSTOR, ysvrs_mo, Pm, opBytes{0xae, 01, 0xae, 01}},
