@@ -598,3 +598,7 @@ pkg syscall (freebsd-arm64-cgo), const SYS_MKNODAT = 498
 pkg syscall (freebsd-arm64-cgo), const SYS_STAT = 188
 pkg syscall (freebsd-arm64-cgo), const SYS_STAT ideal-int
 pkg syscall (freebsd-arm64-cgo), const SYS_STATFS = 396
+pkg syscall (openbsd-386), const ELAST = 91
+pkg syscall (openbsd-386-cgo), const ELAST = 91
+pkg syscall (openbsd-amd64), const ELAST = 91
+pkg syscall (openbsd-amd64-cgo), const ELAST = 91

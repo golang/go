@@ -118,10 +118,40 @@ pkg sync/atomic, method (*Uint64) And(uint64) uint64 #61395
 pkg sync/atomic, method (*Uint64) Or(uint64) uint64 #61395
 pkg sync/atomic, method (*Uintptr) And(uintptr) uintptr #61395
 pkg sync/atomic, method (*Uintptr) Or(uintptr) uintptr #61395
+pkg syscall (openbsd-386), const EBADMSG = 92 #67998
+pkg syscall (openbsd-386), const ELAST = 95 #67998
+pkg syscall (openbsd-386), const ENOTRECOVERABLE = 93 #67998
+pkg syscall (openbsd-386), const ENOTRECOVERABLE Errno #67998
+pkg syscall (openbsd-386), const EOWNERDEAD = 94 #67998
+pkg syscall (openbsd-386), const EOWNERDEAD Errno #67998
+pkg syscall (openbsd-386), const EPROTO = 95 #67998
+pkg syscall (openbsd-386-cgo), const EBADMSG = 92 #67998
+pkg syscall (openbsd-386-cgo), const ELAST = 95 #67998
+pkg syscall (openbsd-386-cgo), const ENOTRECOVERABLE = 93 #67998
+pkg syscall (openbsd-386-cgo), const ENOTRECOVERABLE Errno #67998
+pkg syscall (openbsd-386-cgo), const EOWNERDEAD = 94 #67998
+pkg syscall (openbsd-386-cgo), const EOWNERDEAD Errno #67998
+pkg syscall (openbsd-386-cgo), const EPROTO = 95 #67998
+pkg syscall (openbsd-amd64), const EBADMSG = 92 #67998
+pkg syscall (openbsd-amd64), const ELAST = 95 #67998
+pkg syscall (openbsd-amd64), const ENOTRECOVERABLE = 93 #67998
+pkg syscall (openbsd-amd64), const ENOTRECOVERABLE Errno #67998
+pkg syscall (openbsd-amd64), const EOWNERDEAD = 94 #67998
+pkg syscall (openbsd-amd64), const EOWNERDEAD Errno #67998
+pkg syscall (openbsd-amd64), const EPROTO = 95 #67998
+pkg syscall (openbsd-amd64-cgo), const EBADMSG = 92 #67998
+pkg syscall (openbsd-amd64-cgo), const ELAST = 95 #67998
+pkg syscall (openbsd-amd64-cgo), const ENOTRECOVERABLE = 93 #67998
+pkg syscall (openbsd-amd64-cgo), const ENOTRECOVERABLE Errno #67998
+pkg syscall (openbsd-amd64-cgo), const EOWNERDEAD = 94 #67998
+pkg syscall (openbsd-amd64-cgo), const EOWNERDEAD Errno #67998
+pkg syscall (openbsd-amd64-cgo), const EPROTO = 95 #67998
 pkg syscall (windows-386), const WSAENOPROTOOPT = 10042 #62254
 pkg syscall (windows-386), const WSAENOPROTOOPT Errno #62254
 pkg syscall (windows-amd64), const WSAENOPROTOOPT = 10042 #62254
 pkg syscall (windows-amd64), const WSAENOPROTOOPT Errno #62254
+pkg syscall, const EBADMSG Errno #67998
+pkg syscall, const EPROTO Errno #67998
 pkg unicode/utf16, func RuneLen(int32) int #44940
 pkg unique, func Make[$0 comparable]($0) Handle[$0] #62483
 pkg unique, method (Handle[$0]) Value() $0 #62483
