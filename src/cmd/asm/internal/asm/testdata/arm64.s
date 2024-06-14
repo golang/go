@@ -1888,4 +1888,10 @@ next:
 	DC	CIGDVAC, R25                       // b97e0bd5
 	DC	CVAP, R26                          // 3a7c0bd5
 	DC	CVADP, R27                         // 3b7d0bd5
+
+// Branch Target Identification
+	BTI	C                                  // 5f2403d5
+	BTI	J                                  // 9f2403d5
+	BTI	JC                                 // df2403d5
+
 	END

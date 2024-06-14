@@ -872,6 +872,8 @@ var optab = []Optab{
 	{ASYSL, C_VCON, C_NONE, C_NONE, C_ZREG, C_NONE, 50, 4, 0, 0, 0},
 	{ATLBI, C_SPOP, C_NONE, C_NONE, C_NONE, C_NONE, 107, 4, 0, 0, 0},
 	{ATLBI, C_SPOP, C_NONE, C_NONE, C_ZREG, C_NONE, 107, 4, 0, 0, 0},
+	{ABTI, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 108, 4, 0, 0, 0},
+	{ABTI, C_SPOP, C_NONE, C_NONE, C_NONE, C_NONE, 108, 4, 0, 0, 0},
 
 	/* encryption instructions */
 	{AAESD, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 26, 4, 0, 0, 0}, // for compatibility with old code
@@ -3036,6 +3038,7 @@ func buildop(ctxt *obj.Link) {
 			ABL,
 			AWORD,
 			ADWORD,
+			ABTI,
 			obj.ARET,
 			obj.ATEXT:
 			break
@@ -5864,6 +5867,24 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			o1 |= uint32(0x1F)
 		}
 		o1 |= uint32(SYSARG4(int(op.op1), int(op.cn), int(op.cm), int(op.op2)))
+
+	case 108: /* bti */
+		o1 = SYSHINT(32)
+		if p.From.Type != obj.TYPE_SPECIAL {
+			c.ctxt.Diag("missing operand: %v\n", p)
+			break
+		}
+		switch SpecialOperand(p.From.Offset) {
+		case SPOP_C:
+			o1 |= 1 << 6
+		case SPOP_J:
+			o1 |= 2 << 6
+		case SPOP_JC:
+			o1 |= 3 << 6
+		default:
+			c.ctxt.Diag("illegal argument: %v\n", p)
+			break
+		}
 	}
 	out[0] = o1
 	out[1] = o2
@@ -6751,7 +6772,7 @@ func (c *ctxt7) opirr(p *obj.Prog, a obj.As) uint32 {
 		return SYSOP(0, 0, 3, 3, 0, 6, 0x1F)
 
 	case AHINT:
-		return SYSOP(0, 0, 3, 2, 0, 0, 0x1F)
+		return SYSHINT(0)
 
 	case AVEXT:
 		return 0x2E<<24 | 0<<23 | 0<<21 | 0<<15
