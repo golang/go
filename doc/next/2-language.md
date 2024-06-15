@@ -10,7 +10,8 @@ The "range" clause in a "for-range" loop now accepts iterator functions of the f
 
 as range expressions.
 Calls of the iterator argument function produce the iteration values for the "for-range" loop.
-For details see the [language spec](/ref/spec#For_statements).
+For details see the [iter] package documentation and the [language spec](/ref/spec#For_range).
+For motivation see the 2022 ["range-over-func" discussion](/issue/56413).
 
 <!-- go.dev/issue/46477, CL 566856, CL 586955, CL 586956 -->
 Go 1.23 includes preview support for [generic type aliases](/issue/46477).
