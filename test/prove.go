@@ -400,8 +400,8 @@ func f13f(a, b int64) int64 {
 	if b != math.MaxInt64 {
 		return 42
 	}
-	if a > b {
-		if a == 0 { // ERROR "Disproved Eq64$"
+	if a > b { // ERROR "Disproved Less64$"
+		if a == 0 {
 			return 1
 		}
 	}
@@ -684,20 +684,6 @@ func constsuffix(s string) bool {
 	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$"
 }
 
-// oforuntil tests the pattern created by OFORUNTIL blocks. These are
-// handled by addLocalInductiveFacts rather than findIndVar.
-func oforuntil(b []int) {
-	i := 0
-	if len(b) > i {
-	top:
-		println(b[i]) // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Proved IsInBounds$"
-		i++
-		if i < len(b) {
-			goto top
-		}
-	}
-}
-
 func atexit(foobar []func()) {
 	for i := len(foobar) - 1; i >= 0; i-- { // ERROR "Induction variable: limits \[0,\?\], increment 1"
 		f := foobar[i]
@@ -877,11 +863,11 @@ func unrollDecMin(a []int, b int) int {
 		return 42
 	}
 	var i, x int
-	for i = len(a); i >= b; i -= 2 {
+	for i = len(a); i >= b; i -= 2 { // ERROR "Proved Leq64"
 		x += a[i-1]
 		x += a[i-2]
 	}
-	if i == 1 { // ERROR "Disproved Eq64$"
+	if i == 1 {
 		x += a[i-1]
 	}
 	return x
@@ -893,11 +879,11 @@ func unrollIncMin(a []int, b int) int {
 		return 42
 	}
 	var i, x int
-	for i = len(a); i >= b; i += 2 {
+	for i = len(a); i >= b; i += 2 { // ERROR "Proved Leq64"
 		x += a[i-1]
 		x += a[i-2]
 	}
-	if i == 1 { // ERROR "Disproved Eq64$"
+	if i == 1 {
 		x += a[i-1]
 	}
 	return x
@@ -1107,7 +1093,7 @@ func modu2(x, y uint) int {
 
 func issue57077(s []int) (left, right []int) {
 	middle := len(s) / 2
-	left = s[:middle] // ERROR "Proved IsSliceInBounds$"
+	left = s[:middle]  // ERROR "Proved IsSliceInBounds$"
 	right = s[middle:] // ERROR "Proved IsSliceInBounds$"
 	return
 }
@@ -1122,6 +1108,43 @@ func issue51622(b []byte) int {
 func issue45928(x int) {
 	combinedFrac := x / (x | (1 << 31)) // ERROR "Proved Neq64$"
 	useInt(combinedFrac)
+}
+
+func constantBounds1(i, j uint) int {
+	var a [10]int
+	if j < 11 && i < j {
+		return a[i] // ERROR "Proved IsInBounds$"
+	}
+	return 0
+}
+
+func constantBounds2(i, j uint) int {
+	var a [10]int
+	if i < j && j < 11 {
+		return a[i] // ERROR "Proved IsInBounds"
+	}
+	return 0
+}
+
+func constantBounds3(i, j, k, l uint) int {
+	var a [8]int
+	if i < j && j < k && k < l && l < 11 {
+		return a[i] // ERROR "Proved IsInBounds"
+	}
+	return 0
+}
+
+func equalityPropagation(a [1]int, i, j uint) int {
+	if i == j && i == 5 {
+		return a[j-5] // ERROR "Proved IsInBounds"
+	}
+	return 0
+}
+func inequalityPropagation(a [1]int, i, j uint) int {
+	if i != j && j >= 5 && j <= 6 && i == 5 {
+		return a[j-6] // ERROR "Proved IsInBounds"
+	}
+	return 0
 }
 
 //go:noinline
