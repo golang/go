@@ -9,13 +9,14 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"internal/lazyregexp"
 	"path"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"internal/lazyregexp"
 )
 
 // ----------------------------------------------------------------------------
@@ -971,6 +972,9 @@ var predeclaredFuncs = map[string]bool{
 	"println": true,
 	"real":    true,
 	"recover": true,
+	"clear":   true,
+	"min":     true,
+	"max":     true,
 }
 
 var predeclaredConstants = map[string]bool{
