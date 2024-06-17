@@ -267,6 +267,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=httpmuxgo121=... setting.
 
+	/godebug/non-default-behavior/httpservecontentkeepheaders:events
+		The number of non-default behaviors executed
+		by the net/http package due to a non-default
+		GODEBUG=httpservecontentkeepheaders=... setting.
+
 	/godebug/non-default-behavior/installgoroot:events
 		The number of non-default behaviors executed by the go/build
 		package due to a non-default GODEBUG=installgoroot=... setting.
