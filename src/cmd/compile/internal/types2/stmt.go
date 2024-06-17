@@ -150,11 +150,7 @@ func (check *Checker) multipleSelectDefaults(list []*syntax.CommClause) {
 }
 
 func (check *Checker) openScope(node syntax.Node, comment string) {
-	check.openScopeUntil(node, syntax.EndPos(node), comment)
-}
-
-func (check *Checker) openScopeUntil(node syntax.Node, end syntax.Pos, comment string) {
-	scope := NewScope(check.scope, node.Pos(), end, comment)
+	scope := NewScope(check.scope, node.Pos(), syntax.EndPos(node), comment)
 	check.recordScope(node, scope)
 	check.scope = scope
 }
@@ -637,7 +633,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 		check.multipleSelectDefaults(s.Body)
 
-		for i, clause := range s.Body {
+		for _, clause := range s.Body {
 			if clause == nil {
 				continue // error reported before
 			}
@@ -667,11 +663,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				check.error(clause.Comm, InvalidSelectCase, "select case must be send or receive (possibly with assignment)")
 				continue
 			}
-			end := s.Rbrace
-			if i+1 < len(s.Body) {
-				end = s.Body[i+1].Pos()
-			}
-			check.openScopeUntil(clause, end, "case")
+			check.openScope(clause, "case")
 			if clause.Comm != nil {
 				check.stmt(inner, clause.Comm)
 			}
@@ -747,16 +739,14 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 			check.error(clause, InvalidSyntaxTree, "incorrect expression switch case")
 			continue
 		}
-		end := s.Rbrace
 		inner := inner
 		if i+1 < len(s.Body) {
-			end = s.Body[i+1].Pos()
 			inner |= fallthroughOk
 		} else {
 			inner |= finalSwitchCase
 		}
 		check.caseValues(&x, syntax.UnpackListExpr(clause.Cases), seen)
-		check.openScopeUntil(clause, end, "case")
+		check.openScope(clause, "case")
 		check.stmtList(inner, clause.Body)
 		check.closeScope()
 	}
@@ -802,19 +792,15 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 
 	var lhsVars []*Var                 // list of implicitly declared lhs variables
 	seen := make(map[Type]syntax.Expr) // map of seen types to positions
-	for i, clause := range s.Body {
+	for _, clause := range s.Body {
 		if clause == nil {
 			check.error(s, InvalidSyntaxTree, "incorrect type switch case")
 			continue
 		}
-		end := s.Rbrace
-		if i+1 < len(s.Body) {
-			end = s.Body[i+1].Pos()
-		}
 		// Check each type in this type switch case.
 		cases := syntax.UnpackListExpr(clause.Cases)
 		T := check.caseTypes(sx, cases, seen)
-		check.openScopeUntil(clause, end, "case")
+		check.openScope(clause, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {
 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
