@@ -1180,6 +1180,7 @@ func buildVetConfig(a *Action, srcfiles []string) {
 		PackageFile:  make(map[string]string),
 		Standard:     make(map[string]bool),
 	}
+	vcfg.GoVersion = "go" + gover.Local()
 	if a.Package.Module != nil {
 		v := a.Package.Module.GoVersion
 		if v == "" {
