@@ -398,6 +398,13 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// (e.g. go version).
 			return true
 		}
+	case objabi.R_GOTPCREL:
+		if target.IsExternal() {
+			// External linker will do this relocation.
+			return true
+		}
+		// We only need to handle external linking mode, as R_GOTPCREL can
+		// only occur in plugin or shared build modes.
 	}
 
 	return false

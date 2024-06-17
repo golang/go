@@ -414,3 +414,11 @@ func TestTextSectionSplit(t *testing.T) {
 		t.Errorf("runtime.text.1 not found, text section not split?")
 	}
 }
+
+func TestIssue67976(t *testing.T) {
+	// Issue 67976: build failure with loading a dynimport variable (the runtime/pprof
+	// package does this on darwin) in a plugin on darwin/amd64.
+	// The test program uses runtime/pprof in a plugin.
+	globalSkip(t)
+	goCmd(t, "build", "-buildmode=plugin", "-o", "issue67976.so", "./issue67976/plugin.go")
+}
