@@ -958,6 +958,7 @@ var predeclaredTypes = map[string]bool{
 var predeclaredFuncs = map[string]bool{
 	"append":  true,
 	"cap":     true,
+	"clear":   true,
 	"close":   true,
 	"complex": true,
 	"copy":    true,
@@ -965,6 +966,8 @@ var predeclaredFuncs = map[string]bool{
 	"imag":    true,
 	"len":     true,
 	"make":    true,
+	"max":     true,
+	"min":     true,
 	"new":     true,
 	"panic":   true,
 	"print":   true,
