@@ -1339,6 +1339,27 @@ func validateIF(ctxt *obj.Link, ins *instruction) {
 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
+func validateIV(ctxt *obj.Link, ins *instruction) {
+	wantVectorReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+}
+
+func validateIIIV(ctxt *obj.Link, ins *instruction) {
+	wantVectorReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+}
+
+func validateIVIV(ctxt *obj.Link, ins *instruction) {
+	wantVectorReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantVectorReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+}
+
 func validateSI(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins, ins.imm, 12)
 	wantIntReg(ctxt, ins, "rd", ins.rd)
@@ -1352,6 +1373,27 @@ func validateSF(ctxt *obj.Link, ins *instruction) {
 	wantIntReg(ctxt, ins, "rd", ins.rd)
 	wantFloatReg(ctxt, ins, "rs1", ins.rs1)
 	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+}
+
+func validateSV(ctxt *obj.Link, ins *instruction) {
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantVectorReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+}
+
+func validateSVII(ctxt *obj.Link, ins *instruction) {
+	wantVectorReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+}
+
+func validateSVIV(ctxt *obj.Link, ins *instruction) {
+	wantVectorReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantVectorReg(ctxt, ins, "rs2", ins.rs2)
 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
@@ -1431,7 +1473,10 @@ func encodeR(as obj.As, rs1, rs2, rd, funct3, funct7 uint32) uint32 {
 	if enc.rs2 != 0 && rs2 != 0 {
 		panic("encodeR: instruction uses rs2, but rs2 was nonzero")
 	}
-	return funct7<<25 | enc.funct7<<25 | enc.rs2<<20 | rs2<<20 | rs1<<15 | enc.funct3<<12 | funct3<<12 | rd<<7 | enc.opcode
+	funct3 |= enc.funct3
+	funct7 |= enc.funct7
+	rs2 |= enc.rs2
+	return funct7<<25 | rs2<<20 | rs1<<15 | funct3<<12 | rd<<7 | enc.opcode
 }
 
 // encodeR4 encodes an R4-type RISC-V instruction.
@@ -1483,38 +1528,67 @@ func encodeRFF(ins *instruction) uint32 {
 }
 
 // encodeI encodes an I-type RISC-V instruction.
-func encodeI(as obj.As, rs1, rd, imm uint32) uint32 {
+func encodeI(as obj.As, rs1, rd, imm, funct7 uint32) uint32 {
 	enc := encode(as)
 	if enc == nil {
 		panic("encodeI: could not encode instruction")
 	}
 	imm |= uint32(enc.csr)
-	return imm<<20 | rs1<<15 | enc.funct3<<12 | rd<<7 | enc.opcode
+	return funct7<<25 | imm<<20 | rs1<<15 | enc.funct3<<12 | rd<<7 | enc.opcode
 }
 
 func encodeIII(ins *instruction) uint32 {
-	return encodeI(ins.as, regI(ins.rs1), regI(ins.rd), uint32(ins.imm))
+	return encodeI(ins.as, regI(ins.rs1), regI(ins.rd), uint32(ins.imm), 0)
 }
 
 func encodeIF(ins *instruction) uint32 {
-	return encodeI(ins.as, regI(ins.rs1), regF(ins.rd), uint32(ins.imm))
+	return encodeI(ins.as, regI(ins.rs1), regF(ins.rd), uint32(ins.imm), 0)
+}
+
+func encodeIV(ins *instruction) uint32 {
+	return encodeI(ins.as, regI(ins.rs1), regV(ins.rd), uint32(ins.imm), ins.funct7)
+}
+
+func encodeIIIV(ins *instruction) uint32 {
+	return encodeI(ins.as, regI(ins.rs1), regV(ins.rd), regI(ins.rs2), ins.funct7)
+}
+
+func encodeIVIV(ins *instruction) uint32 {
+	return encodeI(ins.as, regI(ins.rs1), regV(ins.rd), regV(ins.rs2), ins.funct7)
 }
 
 // encodeS encodes an S-type RISC-V instruction.
-func encodeS(as obj.As, rs1, rs2, imm uint32) uint32 {
+func encodeS(as obj.As, rs1, rs2, imm, funct7 uint32) uint32 {
 	enc := encode(as)
 	if enc == nil {
 		panic("encodeS: could not encode instruction")
 	}
-	return (imm>>5)<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | (imm&0x1f)<<7 | enc.opcode
+	if enc.rs2 != 0 && rs2 != 0 {
+		panic("encodeS: instruction uses rs2, but rs2 was nonzero")
+	}
+	rs2 |= enc.rs2
+	imm |= uint32(enc.csr) &^ 0x1f
+	return funct7<<25 | (imm>>5)<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | (imm&0x1f)<<7 | enc.opcode
 }
 
 func encodeSI(ins *instruction) uint32 {
-	return encodeS(ins.as, regI(ins.rd), regI(ins.rs1), uint32(ins.imm))
+	return encodeS(ins.as, regI(ins.rd), regI(ins.rs1), uint32(ins.imm), 0)
 }
 
 func encodeSF(ins *instruction) uint32 {
-	return encodeS(ins.as, regI(ins.rd), regF(ins.rs1), uint32(ins.imm))
+	return encodeS(ins.as, regI(ins.rd), regF(ins.rs1), uint32(ins.imm), 0)
+}
+
+func encodeSV(ins *instruction) uint32 {
+	return encodeS(ins.as, regI(ins.rd), 0, regV(ins.rs1), ins.funct7)
+}
+
+func encodeSVII(ins *instruction) uint32 {
+	return encodeS(ins.as, regI(ins.rs1), regI(ins.rs2), regV(ins.rd), ins.funct7)
+}
+
+func encodeSVIV(ins *instruction) uint32 {
+	return encodeS(ins.as, regI(ins.rs1), regV(ins.rs2), regV(ins.rd), ins.funct7)
 }
 
 // encodeBImmediate encodes an immediate for a B-type RISC-V instruction.
@@ -1721,7 +1795,7 @@ var (
 	//
 	//  1. the instruction encoding (R/I/S/B/U/J), in lowercase
 	//  2. zero or more register operand identifiers (I = integer
-	//     register, F = float register), in uppercase
+	//     register, F = float register, V = vector register), in uppercase
 	//  3. the word "Encoding"
 	//
 	// For example, rIIIEncoding indicates an R-type instruction with two
@@ -1737,11 +1811,17 @@ var (
 	rIFEncoding   = encoding{encode: encodeRIF, validate: validateRIF, length: 4}
 	rFFEncoding   = encoding{encode: encodeRFF, validate: validateRFF, length: 4}
 
-	iIIEncoding = encoding{encode: encodeIII, validate: validateIII, length: 4}
-	iFEncoding  = encoding{encode: encodeIF, validate: validateIF, length: 4}
+	iIIEncoding  = encoding{encode: encodeIII, validate: validateIII, length: 4}
+	iFEncoding   = encoding{encode: encodeIF, validate: validateIF, length: 4}
+	iVEncoding   = encoding{encode: encodeIV, validate: validateIV, length: 4}
+	iIIVEncoding = encoding{encode: encodeIIIV, validate: validateIIIV, length: 4}
+	iVIVEncoding = encoding{encode: encodeIVIV, validate: validateIVIV, length: 4}
 
-	sIEncoding = encoding{encode: encodeSI, validate: validateSI, length: 4}
-	sFEncoding = encoding{encode: encodeSF, validate: validateSF, length: 4}
+	sIEncoding   = encoding{encode: encodeSI, validate: validateSI, length: 4}
+	sFEncoding   = encoding{encode: encodeSF, validate: validateSF, length: 4}
+	sVEncoding   = encoding{encode: encodeSV, validate: validateSV, length: 4}
+	sVIIEncoding = encoding{encode: encodeSVII, validate: validateSVII, length: 4}
+	sVIVEncoding = encoding{encode: encodeSVIV, validate: validateSVIV, length: 4}
 
 	bEncoding = encoding{encode: encodeB, validate: validateB, length: 4}
 	uEncoding = encoding{encode: encodeU, validate: validateU, length: 4}
@@ -2022,10 +2102,72 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	// "V" Standard Extension for Vector Operations, Version 1.0
 	//
 
-	// 31.6. Vector Configuration-Setting Instructions
+	// 31.6: Vector Configuration-Setting Instructions
 	AVSETVLI & obj.AMask:  {enc: vsetvliEncoding, immForm: AVSETIVLI},
 	AVSETIVLI & obj.AMask: {enc: vsetivliEncoding},
 	AVSETVL & obj.AMask:   {enc: vsetvlEncoding},
+
+	// 31.7.4: Vector Unit-Stride Instructions
+	AVLE8V & obj.AMask:  {enc: iVEncoding},
+	AVLE16V & obj.AMask: {enc: iVEncoding},
+	AVLE32V & obj.AMask: {enc: iVEncoding},
+	AVLE64V & obj.AMask: {enc: iVEncoding},
+	AVSE8V & obj.AMask:  {enc: sVEncoding},
+	AVSE16V & obj.AMask: {enc: sVEncoding},
+	AVSE32V & obj.AMask: {enc: sVEncoding},
+	AVSE64V & obj.AMask: {enc: sVEncoding},
+	AVLMV & obj.AMask:   {enc: iVEncoding},
+	AVSMV & obj.AMask:   {enc: sVEncoding},
+
+	// 31.7.5: Vector Strided Instructions
+	AVLSE8V & obj.AMask:  {enc: iIIVEncoding},
+	AVLSE16V & obj.AMask: {enc: iIIVEncoding},
+	AVLSE32V & obj.AMask: {enc: iIIVEncoding},
+	AVLSE64V & obj.AMask: {enc: iIIVEncoding},
+	AVSSE8V & obj.AMask:  {enc: sVIIEncoding},
+	AVSSE16V & obj.AMask: {enc: sVIIEncoding},
+	AVSSE32V & obj.AMask: {enc: sVIIEncoding},
+	AVSSE64V & obj.AMask: {enc: sVIIEncoding},
+
+	// 31.7.6: Vector Indexed Instructions
+	AVLUXEI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLUXEI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXEI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLUXEI64V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXEI8V & obj.AMask:  {enc: iVIVEncoding},
+	AVLOXEI16V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXEI32V & obj.AMask: {enc: iVIVEncoding},
+	AVLOXEI64V & obj.AMask: {enc: iVIVEncoding},
+	AVSUXEI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSUXEI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXEI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSUXEI64V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXEI8V & obj.AMask:  {enc: sVIVEncoding},
+	AVSOXEI16V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXEI32V & obj.AMask: {enc: sVIVEncoding},
+	AVSOXEI64V & obj.AMask: {enc: sVIVEncoding},
+
+	// 31.7.9. Vector Load/Store Whole Register Instructions
+	AVL1RE8V & obj.AMask:  {enc: iVEncoding},
+	AVL1RE16V & obj.AMask: {enc: iVEncoding},
+	AVL1RE32V & obj.AMask: {enc: iVEncoding},
+	AVL1RE64V & obj.AMask: {enc: iVEncoding},
+	AVL2RE8V & obj.AMask:  {enc: iVEncoding},
+	AVL2RE16V & obj.AMask: {enc: iVEncoding},
+	AVL2RE32V & obj.AMask: {enc: iVEncoding},
+	AVL2RE64V & obj.AMask: {enc: iVEncoding},
+	AVL4RE8V & obj.AMask:  {enc: iVEncoding},
+	AVL4RE16V & obj.AMask: {enc: iVEncoding},
+	AVL4RE32V & obj.AMask: {enc: iVEncoding},
+	AVL4RE64V & obj.AMask: {enc: iVEncoding},
+	AVL8RE8V & obj.AMask:  {enc: iVEncoding},
+	AVL8RE16V & obj.AMask: {enc: iVEncoding},
+	AVL8RE32V & obj.AMask: {enc: iVEncoding},
+	AVL8RE64V & obj.AMask: {enc: iVEncoding},
+	AVS1RV & obj.AMask:    {enc: sVEncoding},
+	AVS2RV & obj.AMask:    {enc: sVEncoding},
+	AVS4RV & obj.AMask:    {enc: sVEncoding},
+	AVS8RV & obj.AMask:    {enc: sVEncoding},
 
 	//
 	// Privileged ISA
@@ -2849,6 +2991,60 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 			ins.rs1 = uint32(p.From.Offset)
 		}
 
+	case AVLE8V, AVLE16V, AVLE32V, AVLE64V, AVSE8V, AVSE16V, AVSE32V, AVSE64V, AVLMV, AVSMV:
+		// Set mask bit
+		switch {
+		case ins.rs1 == obj.REG_NONE:
+			ins.funct7 |= 1 // unmasked
+		case ins.rs1 != REG_V0:
+			p.Ctxt.Diag("%v: invalid vector mask register", p)
+		}
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), obj.REG_NONE
+
+	case AVLSE8V, AVLSE16V, AVLSE32V, AVLSE64V,
+		AVLUXEI8V, AVLUXEI16V, AVLUXEI32V, AVLUXEI64V, AVLOXEI8V, AVLOXEI16V, AVLOXEI32V, AVLOXEI64V:
+		// Set mask bit
+		switch {
+		case ins.rs3 == obj.REG_NONE:
+			ins.funct7 |= 1 // unmasked
+		case ins.rs3 != REG_V0:
+			p.Ctxt.Diag("%v: invalid vector mask register", p)
+		}
+		ins.rs1, ins.rs2, ins.rs3 = ins.rs2, ins.rs1, obj.REG_NONE
+
+	case AVSSE8V, AVSSE16V, AVSSE32V, AVSSE64V,
+		AVSUXEI8V, AVSUXEI16V, AVSUXEI32V, AVSUXEI64V, AVSOXEI8V, AVSOXEI16V, AVSOXEI32V, AVSOXEI64V:
+		// Set mask bit
+		switch {
+		case ins.rs3 == obj.REG_NONE:
+			ins.funct7 |= 1 // unmasked
+		case ins.rs3 != REG_V0:
+			p.Ctxt.Diag("%v: invalid vector mask register", p)
+		}
+		ins.rd, ins.rs1, ins.rs2, ins.rs3 = ins.rs2, ins.rd, ins.rs1, obj.REG_NONE
+
+	case AVL1RV, AVL1RE8V, AVL1RE16V, AVL1RE32V, AVL1RE64V, AVL2RV, AVL2RE8V, AVL2RE16V, AVL2RE32V, AVL2RE64V,
+		AVL4RV, AVL4RE8V, AVL4RE16V, AVL4RE32V, AVL4RE64V, AVL8RV, AVL8RE8V, AVL8RE16V, AVL8RE32V, AVL8RE64V:
+		switch ins.as {
+		case AVL1RV:
+			ins.as = AVL1RE8V
+		case AVL2RV:
+			ins.as = AVL2RE8V
+		case AVL4RV:
+			ins.as = AVL4RE8V
+		case AVL8RV:
+			ins.as = AVL8RE8V
+		}
+		if ins.rs1 != obj.REG_NONE {
+			p.Ctxt.Diag("%v: too many operands for instruction", p)
+		}
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), obj.REG_NONE
+
+	case AVS1RV, AVS2RV, AVS4RV, AVS8RV:
+		if ins.rs1 != obj.REG_NONE {
+			p.Ctxt.Diag("%v: too many operands for instruction", p)
+		}
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), obj.REG_NONE
 	}
 
 	for _, ins := range inss {

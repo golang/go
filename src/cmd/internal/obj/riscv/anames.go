@@ -650,5 +650,9 @@ var Anames = []string{
 	"RDTIME",
 	"SEQZ",
 	"SNEZ",
+	"VL1RV",
+	"VL2RV",
+	"VL4RV",
+	"VL8RV",
 	"LAST",
 }
