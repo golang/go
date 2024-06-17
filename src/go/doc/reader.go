@@ -9,14 +9,13 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"internal/lazyregexp"
 	"path"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"internal/lazyregexp"
 )
 
 // ----------------------------------------------------------------------------
