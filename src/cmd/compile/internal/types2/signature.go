@@ -66,7 +66,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 // function. It is ignored when comparing signatures for identity.
 //
 // For an abstract method, Recv returns the enclosing interface either
-// as a *Named or an *Interface. Due to embedding, an interface may
+// as a *[Named] or an *[Interface]. Due to embedding, an interface may
 // contain methods whose receiver type is a different interface.
 func (s *Signature) Recv() *Var { return s.recv }
 
@@ -176,12 +176,29 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	// Audit to ensure all lookups honor scopePos and simplify.
 	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
 	scopePos := syntax.EndPos(ftyp) // all parameters' scopes start after the signature
-	var recvList []*Var             // TODO(gri) remove the need for making a list here
+
+	// collect and typecheck receiver, incoming parameters, and results
+	var recv *Var
 	if recvPar != nil {
-		recvList, _ = check.collectParams(scope, []*syntax.Field{recvPar}, false, scopePos) // use rewritten receiver type, if any
+		// spec: "The receiver is specified via an extra parameter section preceding the
+		// method name. That parameter section must declare a single parameter, the receiver."
+		recvList, _ := check.collectParams(scope, []*syntax.Field{recvPar}, false, scopePos) // use rewritten receiver type, if any
+		switch len(recvList) {
+		case 0:
+			// error reported by parser
+			recv = NewParam(nopos, nil, "", Typ[Invalid]) // use invalid type so it's ignored by check.later code below
+		default:
+			// error reported by parser
+			check.error(recvList[len(recvList)-1].Pos(), InvalidRecv, "method has multiple receivers")
+			fallthrough // continue with first receiver
+		case 1:
+			recv = recvList[0]
+		}
+		sig.recv = recv
 	}
 	params, variadic := check.collectParams(scope, ftyp.ParamList, true, scopePos)
 	results, _ := check.collectParams(scope, ftyp.ResultList, false, scopePos)
+
 	scope.Squash(func(obj, alt Object) {
 		err := check.newError(DuplicateDecl)
 		err.addf(obj, "%s redeclared in this block", obj.Name())
@@ -189,24 +206,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		err.report()
 	})
 
-	if recvPar != nil {
-		// recv parameter list present (may be empty)
-		// spec: "The receiver is specified via an extra parameter section preceding the
-		// method name. That parameter section must declare a single parameter, the receiver."
-		var recv *Var
-		switch len(recvList) {
-		case 0:
-			// error reported by resolver
-			recv = NewParam(nopos, nil, "", Typ[Invalid]) // ignore recv below
-		default:
-			// more than one receiver
-			check.error(recvList[len(recvList)-1].Pos(), InvalidRecv, "method must have exactly one receiver")
-			fallthrough // continue with first receiver
-		case 1:
-			recv = recvList[0]
-		}
-		sig.recv = recv
-
+	if recv != nil {
 		// Delay validation of receiver type as it may cause premature expansion
 		// of types the receiver type is dependent on (see issues go.dev/issue/51232, go.dev/issue/51233).
 		check.later(func() {

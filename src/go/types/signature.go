@@ -96,8 +96,8 @@ func (s *Signature) Results() *Tuple { return s.results }
 // Variadic reports whether the signature s is variadic.
 func (s *Signature) Variadic() bool { return s.variadic }
 
-func (t *Signature) Underlying() Type { return t }
-func (t *Signature) String() string   { return TypeString(t, nil) }
+func (s *Signature) Underlying() Type { return s }
+func (s *Signature) String() string   { return TypeString(s, nil) }
 
 // ----------------------------------------------------------------------------
 // Implementation
@@ -189,25 +189,17 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	// Audit to ensure all lookups honor scopePos and simplify.
 	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
 	scopePos := ftyp.End() // all parameters' scopes start after the signature
-	recvList, _ := check.collectParams(scope, recvPar, false, scopePos)
-	params, variadic := check.collectParams(scope, ftyp.Params, true, scopePos)
-	results, _ := check.collectParams(scope, ftyp.Results, false, scopePos)
-	scope.squash(func(obj, alt Object) {
-		err := check.newError(DuplicateDecl)
-		err.addf(obj, "%s redeclared in this block", obj.Name())
-		err.addAltDecl(alt)
-		err.report()
-	})
 
+	// collect and typecheck receiver, incoming parameters, and results
+	var recv *Var
 	if recvPar != nil {
-		// recv parameter list present (may be empty)
 		// spec: "The receiver is specified via an extra parameter section preceding the
 		// method name. That parameter section must declare a single parameter, the receiver."
-		var recv *Var
+		recvList, _ := check.collectParams(scope, recvPar, false, scopePos) // use rewritten receiver type, if any
 		switch len(recvList) {
 		case 0:
 			// error reported by resolver
-			recv = NewParam(nopos, nil, "", Typ[Invalid]) // ignore recv below
+			recv = NewParam(nopos, nil, "", Typ[Invalid]) // use invalid type so it's ignored by check.later code below
 		default:
 			// more than one receiver
 			check.error(recvList[len(recvList)-1], InvalidRecv, "method has multiple receivers")
@@ -216,7 +208,18 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			recv = recvList[0]
 		}
 		sig.recv = recv
+	}
+	params, variadic := check.collectParams(scope, ftyp.Params, true, scopePos)
+	results, _ := check.collectParams(scope, ftyp.Results, false, scopePos)
 
+	scope.squash(func(obj, alt Object) {
+		err := check.newError(DuplicateDecl)
+		err.addf(obj, "%s redeclared in this block", obj.Name())
+		err.addAltDecl(alt)
+		err.report()
+	})
+
+	if recv != nil {
 		// Delay validation of receiver type as it may cause premature expansion
 		// of types the receiver type is dependent on (see issues go.dev/issue/51232, go.dev/issue/51233).
 		check.later(func() {
