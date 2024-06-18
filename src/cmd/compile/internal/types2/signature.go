@@ -178,15 +178,15 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	scopePos := syntax.EndPos(ftyp) // all parameters' scopes start after the signature
 
 	// collect and typecheck receiver, incoming parameters, and results
-	var recv *Var
 	if recvPar != nil {
 		// spec: "The receiver is specified via an extra parameter section preceding the
 		// method name. That parameter section must declare a single parameter, the receiver."
 		recvList, _ := check.collectParams(scope, []*syntax.Field{recvPar}, false, scopePos) // use rewritten receiver type, if any
+		var recv *Var
 		switch len(recvList) {
 		case 0:
 			// error reported by parser
-			recv = NewParam(nopos, nil, "", Typ[Invalid]) // use invalid type so it's ignored by check.later code below
+			recv = NewParam(nopos, nil, "", Typ[Invalid]) // use invalid type so it's ignored by validateRecv
 		default:
 			// error reported by parser
 			check.error(recvList[len(recvList)-1].Pos(), InvalidRecv, "method has multiple receivers")
@@ -195,9 +195,18 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 			recv = recvList[0]
 		}
 		sig.recv = recv
+		// Delay validation of receiver type as it may cause premature expansion
+		// of types the receiver type is dependent on (see issues go.dev/issue/51232, go.dev/issue/51233).
+		check.later(func() {
+			check.validRecv(recv, sig.RecvTypeParams() != nil)
+		}).describef(recv, "validRecv(%s)", recv)
 	}
+
 	params, variadic := check.collectParams(scope, ftyp.ParamList, true, scopePos)
 	results, _ := check.collectParams(scope, ftyp.ResultList, false, scopePos)
+	sig.params = NewTuple(params...)
+	sig.results = NewTuple(results...)
+	sig.variadic = variadic
 
 	scope.Squash(func(obj, alt Object) {
 		err := check.newError(DuplicateDecl)
@@ -205,60 +214,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		err.addAltDecl(alt)
 		err.report()
 	})
-
-	if recv != nil {
-		// Delay validation of receiver type as it may cause premature expansion
-		// of types the receiver type is dependent on (see issues go.dev/issue/51232, go.dev/issue/51233).
-		check.later(func() {
-			// spec: "The receiver type must be of the form T or *T where T is a type name."
-			rtyp, _ := deref(recv.typ)
-			atyp := Unalias(rtyp)
-			if !isValid(atyp) {
-				return // error was reported before
-			}
-			// spec: "The type denoted by T is called the receiver base type; it must not
-			// be a pointer or interface type and it must be declared in the same package
-			// as the method."
-			switch T := atyp.(type) {
-			case *Named:
-				// The receiver type may be an instantiated type referred to
-				// by an alias (which cannot have receiver parameters for now).
-				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
-					check.errorf(recv, InvalidRecv, "cannot define new methods on instantiated type %s", rtyp)
-					break
-				}
-				if T.obj.pkg != check.pkg {
-					check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
-					break
-				}
-				var cause string
-				switch u := T.under().(type) {
-				case *Basic:
-					// unsafe.Pointer is treated like a regular pointer
-					if u.kind == UnsafePointer {
-						cause = "unsafe.Pointer"
-					}
-				case *Pointer, *Interface:
-					cause = "pointer or interface type"
-				case *TypeParam:
-					// The underlying type of a receiver base type cannot be a
-					// type parameter: "type T[P any] P" is not a valid declaration.
-					panic("unreachable")
-				}
-				if cause != "" {
-					check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
-				}
-			case *Basic:
-				check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
-			default:
-				check.errorf(recv, InvalidRecv, "invalid receiver type %s", recv.typ)
-			}
-		}).describef(recv, "validate receiver %s", recv)
-	}
-
-	sig.params = NewTuple(params...)
-	sig.results = NewTuple(results...)
-	sig.variadic = variadic
 }
 
 // collectParams declares the parameters of list in scope and returns the corresponding
@@ -325,4 +280,55 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadic
 	}
 
 	return
+}
+
+// validRecv verifies that the receiver satisfies its respective spec requirements
+// and reports an error otherwise. If hasTypeParams is set, the receiver declares
+// type parameters.
+func (check *Checker) validRecv(recv *Var, hasTypeParams bool) {
+	// spec: "The receiver type must be of the form T or *T where T is a type name."
+	rtyp, _ := deref(recv.typ)
+	atyp := Unalias(rtyp)
+	if !isValid(atyp) {
+		return // error was reported before
+	}
+	// spec: "The type denoted by T is called the receiver base type; it must not
+	// be a pointer or interface type and it must be declared in the same package
+	// as the method."
+	switch T := atyp.(type) {
+	case *Named:
+		// The receiver type may be an instantiated type referred to
+		// by an alias (which cannot have receiver parameters for now).
+		// TODO(gri) revisit this logic since alias types can have
+		//           type parameters in 1.24
+		if T.TypeArgs() != nil && !hasTypeParams {
+			check.errorf(recv, InvalidRecv, "cannot define new methods on instantiated type %s", rtyp)
+			break
+		}
+		if T.obj.pkg != check.pkg {
+			check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+			break
+		}
+		var cause string
+		switch u := T.under().(type) {
+		case *Basic:
+			// unsafe.Pointer is treated like a regular pointer
+			if u.kind == UnsafePointer {
+				cause = "unsafe.Pointer"
+			}
+		case *Pointer, *Interface:
+			cause = "pointer or interface type"
+		case *TypeParam:
+			// The underlying type of a receiver base type cannot be a
+			// type parameter: "type T[P any] P" is not a valid declaration.
+			panic("unreachable")
+		}
+		if cause != "" {
+			check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
+		}
+	case *Basic:
+		check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+	default:
+		check.errorf(recv, InvalidRecv, "invalid receiver type %s", recv.typ)
+	}
 }
