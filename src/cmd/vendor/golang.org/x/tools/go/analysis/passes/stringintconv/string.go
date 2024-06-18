@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/aliases"
+	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -73,9 +74,15 @@ func typeName(t types.Type) string {
 func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{
+		(*ast.File)(nil),
 		(*ast.CallExpr)(nil),
 	}
+	var file *ast.File
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
+		if n, ok := n.(*ast.File); ok {
+			file = n
+			return
+		}
 		call := n.(*ast.CallExpr)
 
 		if len(call.Args) != 1 {
@@ -167,27 +174,74 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		diag := analysis.Diagnostic{
 			Pos:     n.Pos(),
-			Message: fmt.Sprintf("conversion from %s to %s yields a string of one rune, not a string of digits (did you mean fmt.Sprint(x)?)", source, target),
+			Message: fmt.Sprintf("conversion from %s to %s yields a string of one rune, not a string of digits", source, target),
+		}
+		addFix := func(message string, edits []analysis.TextEdit) {
+			diag.SuggestedFixes = append(diag.SuggestedFixes, analysis.SuggestedFix{
+				Message:   message,
+				TextEdits: edits,
+			})
 		}
 
-		if convertibleToRune {
-			diag.SuggestedFixes = []analysis.SuggestedFix{
-				{
-					Message: "Did you mean to convert a rune to a string?",
-					TextEdits: []analysis.TextEdit{
-						{
-							Pos:     arg.Pos(),
-							End:     arg.Pos(),
-							NewText: []byte("rune("),
-						},
-						{
-							Pos:     arg.End(),
-							End:     arg.End(),
-							NewText: []byte(")"),
-						},
+		// Fix 1: use fmt.Sprint(x)
+		//
+		// Prefer fmt.Sprint over strconv.Itoa, FormatInt,
+		// or FormatUint, as it works for any type.
+		// Add an import of "fmt" as needed.
+		//
+		// Unless the type is exactly string, we must retain the conversion.
+		//
+		// Do not offer this fix if type parameters are involved,
+		// as there are too many combinations and subtleties.
+		// Consider x = rune | int16 | []byte: in all cases,
+		// string(x) is legal, but the appropriate diagnostic
+		// and fix differs. Similarly, don't offer the fix if
+		// the type has methods, as some {String,GoString,Format}
+		// may change the behavior of fmt.Sprint.
+		if len(ttypes) == 1 && len(vtypes) == 1 && types.NewMethodSet(V0).Len() == 0 {
+			fmtName, importEdit := analysisinternal.AddImport(pass.TypesInfo, file, arg.Pos(), "fmt", "fmt")
+			if types.Identical(T0, types.Typ[types.String]) {
+				// string(x) -> fmt.Sprint(x)
+				addFix("Format the number as a decimal", []analysis.TextEdit{
+					importEdit,
+					{
+						Pos:     call.Fun.Pos(),
+						End:     call.Fun.End(),
+						NewText: []byte(fmtName + ".Sprint"),
 					},
-				},
+				})
+			} else {
+				// mystring(x) -> mystring(fmt.Sprint(x))
+				addFix("Format the number as a decimal", []analysis.TextEdit{
+					importEdit,
+					{
+						Pos:     call.Lparen + 1,
+						End:     call.Lparen + 1,
+						NewText: []byte(fmtName + ".Sprint("),
+					},
+					{
+						Pos:     call.Rparen,
+						End:     call.Rparen,
+						NewText: []byte(")"),
+					},
+				})
 			}
+		}
+
+		// Fix 2: use string(rune(x))
+		if convertibleToRune {
+			addFix("Convert a single rune to a string", []analysis.TextEdit{
+				{
+					Pos:     arg.Pos(),
+					End:     arg.Pos(),
+					NewText: []byte("rune("),
+				},
+				{
+					Pos:     arg.End(),
+					End:     arg.End(),
+					NewText: []byte(")"),
+				},
+			})
 		}
 		pass.Report(diag)
 	})

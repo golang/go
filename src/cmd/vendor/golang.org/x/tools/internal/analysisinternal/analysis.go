@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	pathpkg "path"
 	"strconv"
 
 	"golang.org/x/tools/go/analysis"
@@ -269,6 +270,8 @@ func StmtToInsertVarBefore(path []ast.Node) ast.Stmt {
 		if expr.Init == enclosingStmt || expr.Post == enclosingStmt {
 			return expr
 		}
+	case *ast.SwitchStmt, *ast.TypeSwitchStmt:
+		return expr.(ast.Stmt)
 	}
 	return enclosingStmt.(ast.Stmt)
 }
@@ -429,4 +432,82 @@ func slicesContains[S ~[]E, E comparable](slice S, x E) bool {
 		}
 	}
 	return false
+}
+
+// AddImport checks whether this file already imports pkgpath and
+// that import is in scope at pos. If so, it returns the name under
+// which it was imported and a zero edit. Otherwise, it adds a new
+// import of pkgpath, using a name derived from the preferred name,
+// and returns the chosen name along with the edit for the new import.
+//
+// It does not mutate its arguments.
+func AddImport(info *types.Info, file *ast.File, pos token.Pos, pkgpath, preferredName string) (name string, newImport analysis.TextEdit) {
+	// Find innermost enclosing lexical block.
+	scope := info.Scopes[file].Innermost(pos)
+	if scope == nil {
+		panic("no enclosing lexical block")
+	}
+
+	// Is there an existing import of this package?
+	// If so, are we in its scope? (not shadowed)
+	for _, spec := range file.Imports {
+		pkgname, ok := importedPkgName(info, spec)
+		if ok && pkgname.Imported().Path() == pkgpath {
+			if _, obj := scope.LookupParent(pkgname.Name(), pos); obj == pkgname {
+				return pkgname.Name(), analysis.TextEdit{}
+			}
+		}
+	}
+
+	// We must add a new import.
+	// Ensure we have a fresh name.
+	newName := preferredName
+	for i := 0; ; i++ {
+		if _, obj := scope.LookupParent(newName, pos); obj == nil {
+			break // fresh
+		}
+		newName = fmt.Sprintf("%s%d", preferredName, i)
+	}
+
+	// For now, keep it real simple: create a new import
+	// declaration before the first existing declaration (which
+	// must exist), including its comments, and let goimports tidy it up.
+	//
+	// Use a renaming import whenever the preferred name is not
+	// available, or the chosen name does not match the last
+	// segment of its path.
+	newText := fmt.Sprintf("import %q\n\n", pkgpath)
+	if newName != preferredName || newName != pathpkg.Base(pkgpath) {
+		newText = fmt.Sprintf("import %s %q\n\n", newName, pkgpath)
+	}
+	decl0 := file.Decls[0]
+	var before ast.Node = decl0
+	switch decl0 := decl0.(type) {
+	case *ast.GenDecl:
+		if decl0.Doc != nil {
+			before = decl0.Doc
+		}
+	case *ast.FuncDecl:
+		if decl0.Doc != nil {
+			before = decl0.Doc
+		}
+	}
+	return newName, analysis.TextEdit{
+		Pos:     before.Pos(),
+		End:     before.Pos(),
+		NewText: []byte(newText),
+	}
+}
+
+// importedPkgName returns the PkgName object declared by an ImportSpec.
+// TODO(adonovan): use go1.22's Info.PkgNameOf.
+func importedPkgName(info *types.Info, imp *ast.ImportSpec) (*types.PkgName, bool) {
+	var obj types.Object
+	if imp.Name != nil {
+		obj = info.Defs[imp.Name]
+	} else {
+		obj = info.Implicits[imp]
+	}
+	pkgname, ok := obj.(*types.PkgName)
+	return pkgname, ok
 }
