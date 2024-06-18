@@ -200,6 +200,11 @@ func Run(cmdargs ...any) {
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
+	env := cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)]
+	env = AppendPATH(env)
+	cmd.Env = env
+
 	if err := cmd.Run(); err != nil {
 		Errorf("%v", err)
 	}
@@ -211,7 +216,9 @@ func RunStdin(cmdline []string) {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = cfg.OrigEnv
+	env := cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)]
+	env = AppendPATH(env)
+	cmd.Env = env
 	StartSigHandlers()
 	if err := cmd.Run(); err != nil {
 		Errorf("%v", err)
