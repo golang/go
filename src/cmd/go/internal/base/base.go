@@ -196,6 +196,7 @@ func Run(cmdargs ...any) {
 			return
 		}
 	}
+
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
