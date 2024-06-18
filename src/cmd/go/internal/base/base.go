@@ -196,15 +196,9 @@ func Run(cmdargs ...any) {
 			return
 		}
 	}
-
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
-	env := cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)]
-	env = AppendPATH(env)
-	cmd.Env = env
-
 	if err := cmd.Run(); err != nil {
 		Errorf("%v", err)
 	}
