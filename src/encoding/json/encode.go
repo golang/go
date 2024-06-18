@@ -141,7 +141,7 @@ import (
 // are sorted and used as JSON object keys by applying the following rules,
 // subject to the UTF-8 coercion described for string values above:
 //   - keys of any string type are used directly
-//   - [encoding.TextMarshalers] are marshaled
+//   - keys that implement [encoding.TextMarshaler] are marshaled
 //   - integer keys are converted to strings
 //
 // Pointer values encode as the value pointed to.
