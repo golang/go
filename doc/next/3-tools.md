@@ -45,7 +45,6 @@ the files but instead print the necessary changes as a unified diff.
 It exits with a non-zero code if updates are needed.
 
 <!-- go.dev/issue/52792, CL 562775 -->
-<!-- TODO: Improve this if needed. -->
 The `go` `list` `-m` `-json` command now includes new `Sum` and `GoModSum` fields.
 This is similar to the existing behavior of the `go` `mod` `download` `-json` command.
 
