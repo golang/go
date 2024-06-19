@@ -31,7 +31,7 @@ element in the sequence, false if it should stop.
 Iterator functions are most often called by a range loop, as in:
 
 	func PrintAll[V any](seq iter.Seq[V]) {
-		for _, v := range seq {
+		for v := range seq {
 			fmt.Println(v)
 		}
 	}
@@ -92,9 +92,8 @@ sequence only once. These “single-use iterators” typically report values
 from a data stream that cannot be rewound to start over.
 Calling the iterator again after stopping early may continue the
 stream, but calling it again after the sequence is finished will yield
-no values at all, immediately returning true. Doc comments for
-functions or methods that return single-use iterators should document
-this fact:
+no values at all. Doc comments for functions or methods that return
+single-use iterators should document this fact:
 
 	// Lines returns an iterator over lines read from r.
 	// It returns a single-use iterator.
@@ -119,17 +118,24 @@ For example:
 
 	// Pairs returns an iterator over successive pairs of values from seq.
 	func Pairs[V any](seq iter.Seq[V]) iter.Seq2[V, V] {
-		return func(yield func(V, V) bool) bool {
+		return func(yield func(V, V) bool) {
 			next, stop := iter.Pull(seq)
 			defer stop()
-			v1, ok1 := next()
-			v2, ok2 := next()
-			for ok1 || ok2 {
+			for {
+				v1, ok1 := next()
+				if !ok1 {
+					return
+				}
+				v2, ok2 := next()
+				// If ok2 is false, v2 should be the
+				// zero value; yield one last pair.
 				if !yield(v1, v2) {
-					return false
+					return
+				}
+				if !ok2 {
+					return
 				}
 			}
-			return true
 		}
 	}
 
