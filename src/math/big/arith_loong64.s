@@ -71,8 +71,35 @@ TEXT ·lshVU(SB),NOSPLIT,$0
 TEXT ·rshVU(SB),NOSPLIT,$0
 	JMP ·rshVU_g(SB)
 
+// func mulAddVWW(z, x []Word, y, r Word) (c Word)
 TEXT ·mulAddVWW(SB),NOSPLIT,$0
-	JMP ·mulAddVWW_g(SB)
+	// input:
+	//   R4: z
+	//   R5: z_len
+	//   R7: x
+	//   R10: y
+	//   R11: r
+	MOVV	z+0(FP), R4
+	MOVV	z_len+8(FP), R5
+	MOVV	x+24(FP), R7
+	MOVV	y+48(FP), R10
+	MOVV	r+56(FP), R11
+	SLLV	$3, R5
+	MOVV	$0, R6
+loop:
+	BEQ	R5, R6, done
+	MOVV	(R6)(R7), R8
+	MULV	R8, R10, R9
+	MULHVU	R8, R10, R12
+	ADDV	R9, R11, R8
+	SGTU	R9, R8, R11	// if (c' = lo + c) < lo then overflow
+	MOVV	R8, (R6)(R4)
+	ADDV	R12, R11
+	ADDV	$8, R6
+	JMP	loop
+done:
+	MOVV	R11, c+64(FP)
+	RET
 
 TEXT ·addMulVVWW(SB),NOSPLIT,$0
 	JMP ·addMulVVWW_g(SB)
