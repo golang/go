@@ -1907,6 +1907,44 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBUreg x:(XOR (MOVVconst [1]) (SGT _ _)))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64XOR {
+			break
+		}
+		_ = x.Args[1]
+		x_0 := x.Args[0]
+		x_1 := x.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, x_0, x_1 = _i0+1, x_1, x_0 {
+			if x_0.Op != OpLOONG64MOVVconst || auxIntToInt64(x_0.AuxInt) != 1 || x_1.Op != OpLOONG64SGT {
+				continue
+			}
+			v.copyOf(x)
+			return true
+		}
+		break
+	}
+	// match: (MOVBUreg x:(XOR (MOVVconst [1]) (SGTU _ _)))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64XOR {
+			break
+		}
+		_ = x.Args[1]
+		x_0 := x.Args[0]
+		x_1 := x.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, x_0, x_1 = _i0+1, x_1, x_0 {
+			if x_0.Op != OpLOONG64MOVVconst || auxIntToInt64(x_0.AuxInt) != 1 || x_1.Op != OpLOONG64SGTU {
+				continue
+			}
+			v.copyOf(x)
+			return true
+		}
+		break
+	}
 	// match: (MOVBUreg x:(SGT _ _))
 	// result: x
 	for {

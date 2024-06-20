@@ -453,6 +453,7 @@
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 
 (If cond yes no) => (NE (MOVBUreg <typ.UInt64> cond) yes no)
+(MOVBUreg x:(XOR (MOVVconst [1]) ((SGT|SGTU) _ _))) => x
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
