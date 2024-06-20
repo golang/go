@@ -16,16 +16,15 @@ import "unsafe"
 // faketime is the simulated time in nanoseconds since 1970 for the
 // playground.
 var faketime int64 = 1257894000000000000
-var path = "/tmp/keploy_time.txt"
 
-func getActualTime() int64 {
-	secs, nsecs := walltime()
-	t := int64(secs)*1e9 + int64(nsecs)
-	return t
-}
+var path = "/tmp/keploy_time.txt"
 
 //go:nosplit
 func UpdateFakeTime() {
+	if !(GOARCH == "amd64" || GOARCH == "arm64") {
+		print("error: unsupported architecture for keploy time freezing\n")
+		return
+	}
 	filePath := []byte(path)
 	fd := open(&filePath[0], 0, 0)
 	if fd < 0 {
@@ -80,6 +79,7 @@ func nanotime() int64 {
 
 //go:linkname time_now time.now
 func time_now() (sec int64, nsec int32, mono int64) {
+
 	UpdateFakeTime()
 	return faketime / 1e9, int32(faketime % 1e9), faketime
 }
