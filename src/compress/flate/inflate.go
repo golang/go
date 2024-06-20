@@ -676,12 +676,14 @@ func (f *decompressor) copyData() {
 }
 
 func (f *decompressor) finishBlock() {
+	if f.dict.availRead() > 0 {
+		f.toRead = f.dict.readFlush()
+	}
+
 	if f.final {
-		if f.dict.availRead() > 0 {
-			f.toRead = f.dict.readFlush()
-		}
 		f.err = io.EOF
 	}
+
 	f.step = (*decompressor).nextBlock
 }
 
