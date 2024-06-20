@@ -543,7 +543,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 
 	case *types2.Alias:
 		w.Code(pkgbits.TypeNamed)
-		w.namedType(typ.Obj(), nil)
+		w.namedType(splitAlias(typ))
 
 	case *types2.TypeParam:
 		w.derived = true
@@ -2958,6 +2958,9 @@ func objTypeParams(obj types2.Object) *types2.TypeParamList {
 		if !obj.IsAlias() {
 			return obj.Type().(*types2.Named).TypeParams()
 		}
+		if alias, ok := obj.Type().(*types2.Alias); ok {
+			return alias.TypeParams()
+		}
 	}
 	return nil
 }
@@ -2970,6 +2973,14 @@ func splitNamed(typ *types2.Named) (*types2.TypeName, *types2.TypeList) {
 	orig := typ.Origin()
 	base.Assertf(orig.TypeArgs() == nil, "origin %v of %v has type arguments", orig, typ)
 	base.Assertf(typ.Obj() == orig.Obj(), "%v has object %v, but %v has object %v", typ, typ.Obj(), orig, orig.Obj())
+
+	return typ.Obj(), typ.TypeArgs()
+}
+
+// splitAlias is like splitNamed, but for an alias type.
+func splitAlias(typ *types2.Alias) (*types2.TypeName, *types2.TypeList) {
+	orig := typ.Origin()
+	base.Assertf(typ.Obj() == orig.Obj(), "alias type %v has object %v, but %v has object %v", typ, typ.Obj(), orig, orig.Obj())
 
 	return typ.Obj(), typ.TypeArgs()
 }
