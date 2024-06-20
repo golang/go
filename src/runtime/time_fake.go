@@ -16,6 +16,43 @@ import "unsafe"
 // faketime is the simulated time in nanoseconds since 1970 for the
 // playground.
 var faketime int64 = 1257894000000000000
+var path = "/tmp/keploy_time.txt"
+
+func getActualTime() int64 {
+	secs, nsecs := walltime()
+	t := int64(secs)*1e9 + int64(nsecs)
+	return t
+}
+
+//go:nosplit
+func UpdateFakeTime() {
+	filePath := []byte(path)
+	fd := open(&filePath[0], 0, 0)
+	if fd < 0 {
+		print("Error opening file\n")
+		return
+	}
+	r := make([]byte, 22)
+	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+	closefd(fd)
+	timeString := r[:n]
+	// Converting the time to int64.
+	var intTime int64
+	for _, v := range timeString {
+		if v == 10 {
+			break
+		}
+		intTime = intTime*10 + int64(v-48)
+	}
+	// print("\nThis is the offset time in the func", intTime, "\n")
+	offset := intTime
+	actualTime := getActualTime()
+	// print("this is the actual time\n", actualTime, "\n")
+	// subtract the offset from the actual time
+	t := actualTime - offset
+	faketime = t
+	// print("this is the new fake time\n", t, "\n")
+}
 
 var faketimeState struct {
 	lock mutex
@@ -31,13 +68,19 @@ var faketimeState struct {
 	lastfd uintptr
 }
 
+// //go:nosplit
+// func nanotime() int64 {
+// 	return faketime
+// }
+
 //go:nosplit
 func nanotime() int64 {
-	return faketime
+	return nanotime1()
 }
 
 //go:linkname time_now time.now
 func time_now() (sec int64, nsec int32, mono int64) {
+	UpdateFakeTime()
 	return faketime / 1e9, int32(faketime % 1e9), faketime
 }
 
@@ -71,24 +114,24 @@ func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	faketimeState.lastfaketime = t
 
 	// Playback header: 0 0 P B <8-byte time> <4-byte data length> (big endian)
-	var buf [4 + 8 + 4]byte
-	buf[2] = 'P'
-	buf[3] = 'B'
-	tu := uint64(t)
-	buf[4] = byte(tu >> (7 * 8))
-	buf[5] = byte(tu >> (6 * 8))
-	buf[6] = byte(tu >> (5 * 8))
-	buf[7] = byte(tu >> (4 * 8))
-	buf[8] = byte(tu >> (3 * 8))
-	buf[9] = byte(tu >> (2 * 8))
-	buf[10] = byte(tu >> (1 * 8))
-	buf[11] = byte(tu >> (0 * 8))
-	nu := uint32(n)
-	buf[12] = byte(nu >> (3 * 8))
-	buf[13] = byte(nu >> (2 * 8))
-	buf[14] = byte(nu >> (1 * 8))
-	buf[15] = byte(nu >> (0 * 8))
-	write1(fd, unsafe.Pointer(&buf[0]), int32(len(buf)))
+	// var buf [4 + 8 + 4]byte
+	// buf[2] = 'P'
+	// buf[3] = 'B'
+	// tu := uint64(t)
+	// buf[4] = byte(tu >> (7 * 8))
+	// buf[5] = byte(tu >> (6 * 8))
+	// buf[6] = byte(tu >> (5 * 8))
+	// buf[7] = byte(tu >> (4 * 8))
+	// buf[8] = byte(tu >> (3 * 8))
+	// buf[9] = byte(tu >> (2 * 8))
+	// buf[10] = byte(tu >> (1 * 8))
+	// buf[11] = byte(tu >> (0 * 8))
+	// nu := uint32(n)
+	// buf[12] = byte(nu >> (3 * 8))
+	// buf[13] = byte(nu >> (2 * 8))
+	// buf[14] = byte(nu >> (1 * 8))
+	// buf[15] = byte(nu >> (0 * 8))
+	// write1(fd, unsafe.Pointer(&buf[0]), int32(len(buf)))
 
 	// Write actual data.
 	res := write1(fd, p, n)
