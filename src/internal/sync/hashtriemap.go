@@ -15,7 +15,7 @@ import (
 // is designed around frequent loads, but offers decent performance for stores
 // and deletes as well, especially if the map is larger. Its primary use-case is
 // the unique package, but can be used elsewhere as well.
-type HashTrieMap[K, V comparable] struct {
+type HashTrieMap[K comparable, V any] struct {
 	root     *indirect[K, V]
 	keyHash  hashFunc
 	valEqual equalFunc
@@ -23,7 +23,7 @@ type HashTrieMap[K, V comparable] struct {
 }
 
 // NewHashTrieMap creates a new HashTrieMap for the provided key and value.
-func NewHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
+func NewHashTrieMap[K comparable, V any]() *HashTrieMap[K, V] {
 	var m map[K]V
 	mapType := abi.TypeOf(m).MapType()
 	ht := &HashTrieMap[K, V]{
@@ -174,10 +174,14 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
 }
 
 // CompareAndDelete deletes the entry for key if its value is equal to old.
+// The value type must be comparable, otherwise this CompareAndDelete will panic.
 //
 // If there is no current value for key in the map, CompareAndDelete returns false
 // (even if the old value is the nil interface value).
 func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+	if ht.valEqual == nil {
+		panic("called CompareAndDelete when value is not of comparable type")
+	}
 	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
 
 	// Find a node with the key and compare with it. n != nil if we found the node.
@@ -322,7 +326,7 @@ const (
 )
 
 // indirect is an internal node in the hash-trie.
-type indirect[K, V comparable] struct {
+type indirect[K comparable, V any] struct {
 	node[K, V]
 	dead     atomic.Bool
 	mu       Mutex // Protects mutation to children and any children that are entry nodes.
@@ -330,7 +334,7 @@ type indirect[K, V comparable] struct {
 	children [nChildren]atomic.Pointer[node[K, V]]
 }
 
-func newIndirectNode[K, V comparable](parent *indirect[K, V]) *indirect[K, V] {
+func newIndirectNode[K comparable, V any](parent *indirect[K, V]) *indirect[K, V] {
 	return &indirect[K, V]{node: node[K, V]{isEntry: false}, parent: parent}
 }
 
@@ -345,14 +349,14 @@ func (i *indirect[K, V]) empty() bool {
 }
 
 // entry is a leaf node in the hash-trie.
-type entry[K, V comparable] struct {
+type entry[K comparable, V any] struct {
 	node[K, V]
 	overflow atomic.Pointer[entry[K, V]] // Overflow for hash collisions.
 	key      K
 	value    V
 }
 
-func newEntryNode[K, V comparable](key K, value V) *entry[K, V] {
+func newEntryNode[K comparable, V any](key K, value V) *entry[K, V] {
 	return &entry[K, V]{
 		node:  node[K, V]{isEntry: true},
 		key:   key,
@@ -394,7 +398,7 @@ func (head *entry[K, V]) compareAndDelete(key K, value V, valEqual equalFunc) (*
 
 // node is the header for a node. It's polymorphic and
 // is actually either an entry or an indirect.
-type node[K, V comparable] struct {
+type node[K comparable, V any] struct {
 	isEntry bool
 }
 
