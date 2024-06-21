@@ -200,19 +200,21 @@ blockloop:
 // last block of src chain. Once all edges are processed, the chains are sorted
 // by hottness and merge count and generate final block order.
 
-// chain is a linear sequence of blocks
+// chain is a linear sequence of blocks, where the first block is the entry block
+// and the last block is the exit block. The chain is used to represent a sequence
+// of blocks that are likely to be executed together.
 type chain struct {
-	id       int
-	blocks   []*Block
-	priority int // merge count
+	id       ID
+	blocks   []*Block // ordered blocks in this chain
+	priority int      // merge count
 }
 
-func (t *chain) first() *Block {
-	return t.blocks[0]
+func (c *chain) first() *Block {
+	return c.blocks[0]
 }
 
-func (t *chain) last() *Block {
-	return t.blocks[len(t.blocks)-1]
+func (c *chain) last() *Block {
+	return c.blocks[len(c.blocks)-1]
 }
 
 // edge simply represents a CFG edge
@@ -231,32 +233,36 @@ func (e *edge) String() string {
 	return fmt.Sprintf("%v->%v(%d)", e.src, e.dst, e.weight)
 }
 
+// chainGraph is a directed graph of chains, where each chain is a sequence of
+// blocks, and each edge is a CFG edge with a weight. The graph is used to build
+// a block layout that minimizes control flow instructions.
 type chainGraph struct {
-	chainId int
+	cid     idAlloc
 	chains  []*chain
 	edges   []*edge
-	b2chain map[*Block]*chain
+	b2chain []*chain // indexed by block id
 }
 
 func (g *chainGraph) newChain(block *Block) *chain {
-	tr := &chain{g.chainId, []*Block{block}, 0 /*priority*/}
-	g.b2chain[block] = tr
-	g.chains = append(g.chains, tr)
-	g.chainId++
-	return tr
+	c := &chain{g.cid.get(), []*Block{block}, 0 /*priority*/}
+	g.b2chain[block.ID] = c
+	g.chains = append(g.chains, c)
+	return c
 }
 
 func (g *chainGraph) getChain(b *Block) *chain {
-	return g.b2chain[b]
+	return g.b2chain[b.ID]
 }
 
+// mergeChain merges the "from" chain into the "to" chain. The from chain is
+// removed then.
 func (g *chainGraph) mergeChain(to, from *chain) {
 	for _, block := range from.blocks {
-		g.b2chain[block] = to
+		g.b2chain[block.ID] = to
 	}
 	to.blocks = append(to.blocks, from.blocks...)
 	to.priority++ // increment
-	g.chains[from.id] = nil
+	g.chains[from.id-1 /*ID always >0*/] = nil
 }
 
 func (g *chainGraph) print() {
@@ -274,7 +280,11 @@ func (g *chainGraph) print() {
 }
 
 func greedyBlockOrder(fn *Func) []*Block {
-	graph := &chainGraph{0, []*chain{}, []*edge{}, make(map[*Block]*chain)}
+	graph := &chainGraph{
+		chains:  []*chain{},
+		edges:   []*edge{},
+		b2chain: make([]*chain, fn.NumBlocks(), fn.NumBlocks()),
+	}
 
 	// Initially every block is in its own chain
 	for _, block := range fn.Blocks {
@@ -301,17 +311,13 @@ func greedyBlockOrder(fn *Func) []*Block {
 	}
 
 	// Sort edges by weight and move slow path to end
-	j := len(graph.edges) - 1
-	for i, edge := range graph.edges {
-		if edge.weight == 0 {
-			if edge.dst.Kind == BlockExit && i < j {
-				graph.edges[j], graph.edges[i] = graph.edges[i], graph.edges[j]
-				j--
-			}
-		}
-	}
 	sort.SliceStable(graph.edges, func(i, j int) bool {
 		e1, e2 := graph.edges[i], graph.edges[j]
+		// Move slow path to end
+		if e1.weight == WeightNotTaken && e2.weight == WeightNotTaken {
+			return e1.dst.Kind != BlockExit && e2.dst.Kind == BlockExit
+		}
+
 		// If the weights are the same, then keep the original order, this
 		// ensures that adjacent edges are accessed sequentially, which has
 		// a noticeable impact on performance
@@ -339,16 +345,19 @@ func greedyBlockOrder(fn *Func) []*Block {
 			graph.mergeChain(src, dst)
 		}
 	}
-	for i := 0; i < len(graph.chains); i++ {
-		// Remove nil chains because they are merged
-		if graph.chains[i] == nil {
-			graph.chains = append(graph.chains[:i], graph.chains[i+1:]...)
-			i--
-		} else if graph.chains[i].first() == fn.Entry {
-			// Entry chain must be present at beginning
-			graph.chains[0], graph.chains[i] = graph.chains[i], graph.chains[0]
+	i := 0
+	for _, chain := range graph.chains {
+		// Remove nil chains because they are merge
+		if chain != nil {
+			graph.chains[i] = chain
+			if chain.first() == fn.Entry {
+				// Entry chain must be present at beginning
+				graph.chains[0], graph.chains[i] = graph.chains[i], graph.chains[0]
+			}
+			i++
 		}
 	}
+	graph.chains = graph.chains[:i]
 
 	// Reorder chains based by hottness and priority
 	before := make(map[*chain][]*chain)
@@ -363,10 +372,15 @@ func greedyBlockOrder(fn *Func) []*Block {
 			before[src] = append(before[src], dst)
 		}
 	}
-	// assert(graph.chains[0].first() == fn.Entry, "entry chain must be first")
-	const idxSkipEntry = 1 // Entry chain is always first
-	sort.SliceStable(graph.chains[idxSkipEntry:], func(i, j int) bool {
-		c1, c2 := graph.chains[i+idxSkipEntry], graph.chains[j+idxSkipEntry]
+	sort.SliceStable(graph.chains, func(i, j int) bool {
+		c1, c2 := graph.chains[i], graph.chains[j]
+		// Entry chain must be present at beginning
+		if c1.first() == fn.Entry {
+			return true
+		}
+		if c2.first() == fn.Entry {
+			return false
+		}
 		// Respect precedence relation
 		for _, b := range before[c1] {
 			if b == c2 {
@@ -382,8 +396,9 @@ func greedyBlockOrder(fn *Func) []*Block {
 			return s1 > s2
 		}
 		// Keep original order if we can't decide
-		return true
+		return false
 	})
+	assert(graph.chains[0].first() == fn.Entry, "entry chain must be first")
 
 	// Generate final block order
 	blockOrder := make([]*Block, 0)
