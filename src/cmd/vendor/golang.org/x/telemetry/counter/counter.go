@@ -15,6 +15,7 @@ import (
 	"runtime/debug"
 
 	"golang.org/x/telemetry/internal/counter"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 // Inc increments the counter with the given name.
@@ -83,8 +84,23 @@ func NewStack(name string, depth int) *StackCounter {
 // counter file on disk and starts to mmap telemetry counters to the file.
 // Open also persists any counters already created in the current process.
 //
-// Programs using telemetry should call Open exactly once.
+// Programs using telemetry should call either Open or OpenDir exactly once.
 func Open() {
+	counter.Open()
+}
+
+// OpenDir prepares telemetry counters for recording to the file system, using
+// the specified telemetry directory, if it is not the empty string.
+//
+// If the telemetry mode is "off", Open is a no-op. Otherwise, it opens the
+// counter file on disk and starts to mmap telemetry counters to the file.
+// Open also persists any counters already created in the current process.
+//
+// Programs using telemetry should call either Open or OpenDir exactly once.
+func OpenDir(telemetryDir string) {
+	if telemetryDir != "" {
+		telemetry.Default = telemetry.NewDir(telemetryDir)
+	}
 	counter.Open()
 }
 
