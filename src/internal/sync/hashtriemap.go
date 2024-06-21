@@ -181,57 +181,16 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
 // (even if the old value is the nil interface value).
 func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
-	var i *indirect[K, V]
-	var hashShift uint
-	var slot *atomic.Pointer[node[K, V]]
-	var n *node[K, V]
-	for {
-		// Find the key or return when there's nothing to delete.
-		i = ht.root
-		hashShift = 8 * goarch.PtrSize
-		found := false
-		for hashShift != 0 {
-			hashShift -= nChildrenLog2
 
-			slot = &i.children[(hash>>hashShift)&nChildrenMask]
-			n = slot.Load()
-			if n == nil {
-				// Nothing to delete. Give up.
-				return
-			}
-			if n.isEntry {
-				// We found an entry. Check if it matches.
-				if _, ok := n.entry().lookup(key, ht.keyEqual); !ok {
-					// No match, nothing to delete.
-					return
-				}
-				// We've got something to delete.
-				found = true
-				break
-			}
-			i = n.indirect()
+	// Find a node with the key and compare with it. n != nil if we found the node.
+	i, hashShift, slot, n := ht.find(key, hash)
+	if n == nil {
+		if i != nil {
+			i.mu.Unlock()
 		}
-		if !found {
-			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
-		}
-
-		// Grab the lock and double-check what we saw.
-		i.mu.Lock()
-		n = slot.Load()
-		if !i.dead.Load() {
-			if n == nil {
-				// Valid node that doesn't contain what we need. Nothing to delete.
-				i.mu.Unlock()
-				return
-			}
-			if n.isEntry {
-				// What we saw is still true, so we can continue with the delete.
-				break
-			}
-		}
-		// We have to start over.
-		i.mu.Unlock()
+		return false
 	}
+
 	// Try to delete the entry.
 	e, deleted := n.entry().compareAndDelete(key, old, ht.keyEqual, ht.valEqual)
 	if !deleted {
@@ -266,6 +225,58 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 	}
 	i.mu.Unlock()
 	return true
+}
+
+// compare searches the tree for a node that compares with key (hash must be the hash of key).
+//
+// Returns a non-nil node, which will always be an entry, if found.
+//
+// If i != nil then i.mu is locked, and it is the caller's responsibility to unlock it.
+func (ht *HashTrieMap[K, V]) find(key K, hash uintptr) (i *indirect[K, V], hashShift uint, slot *atomic.Pointer[node[K, V]], n *node[K, V]) {
+	for {
+		// Find the key or return when there's nothing to delete.
+		i = ht.root
+		hashShift = 8 * goarch.PtrSize
+		found := false
+		for hashShift != 0 {
+			hashShift -= nChildrenLog2
+
+			slot = &i.children[(hash>>hashShift)&nChildrenMask]
+			n = slot.Load()
+			if n == nil {
+				// Nothing to compare with. Give up.
+				i = nil
+				return
+			}
+			if n.isEntry {
+				// We found an entry. Check if it matches.
+				if _, ok := n.entry().lookup(key, ht.keyEqual); !ok {
+					// No match, comparison failed.
+					i = nil
+					n = nil
+					return
+				}
+				// We've got a match. Prepare to perform an operation on the key.
+				found = true
+				break
+			}
+			i = n.indirect()
+		}
+		if !found {
+			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
+		}
+
+		// Grab the lock and double-check what we saw.
+		i.mu.Lock()
+		n = slot.Load()
+		if !i.dead.Load() && (n == nil || n.isEntry) {
+			// Either we've got a valid node or the node is now nil under the lock.
+			// In either case, we're done here.
+			return
+		}
+		// We have to start over.
+		i.mu.Unlock()
+	}
 }
 
 // All returns an iter.Seq2 that produces all key-value pairs in the map.
