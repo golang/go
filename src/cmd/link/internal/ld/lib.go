@@ -2009,7 +2009,15 @@ func (ctxt *Link) hostlink() {
 		cmd := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym)
 		// dsymutil may not clean up its temp directory at exit.
 		// Set DSYMUTIL_REPRODUCER_PATH to work around. see issue 59026.
-		cmd.Env = append(os.Environ(), "DSYMUTIL_REPRODUCER_PATH="+*flagTmpdir)
+		// dsymutil (Apple LLVM version 16.0.0) deletes the directory
+		// even if it is not empty. We still need our tmpdir, so give a
+		// subdirectory to dsymutil.
+		dsymDir := filepath.Join(*flagTmpdir, "dsymutil")
+		err := os.MkdirAll(dsymDir, 0777)
+		if err != nil {
+			Exitf("fail to create temp dir: %v", err)
+		}
+		cmd.Env = append(os.Environ(), "DSYMUTIL_REPRODUCER_PATH="+dsymDir)
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("host link dsymutil:")
 			for _, v := range cmd.Args {
