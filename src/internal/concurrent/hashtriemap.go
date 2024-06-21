@@ -7,7 +7,6 @@ package concurrent
 import (
 	"internal/abi"
 	"internal/goarch"
-	"math/rand/v2"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -34,7 +33,7 @@ func NewHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
 		keyHash:  mapType.Hasher,
 		keyEqual: mapType.Key.Equal,
 		valEqual: mapType.Elem.Equal,
-		seed:     uintptr(rand.Uint64()),
+		seed:     uintptr(runtime_rand()),
 	}
 	return ht
 }
@@ -406,3 +405,9 @@ func (n *node[K, V]) indirect() *indirect[K, V] {
 	}
 	return (*indirect[K, V])(unsafe.Pointer(n))
 }
+
+// Pull in runtime.rand so that we don't need to take a dependency
+// on math/rand/v2.
+//
+//go:linkname runtime_rand runtime.rand
+func runtime_rand() uint64
