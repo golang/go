@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package concurrent
+package sync
 
 import (
 	"internal/abi"
 	"internal/goarch"
-	"sync"
 	"sync/atomic"
 	"unsafe"
 )
@@ -317,7 +316,7 @@ const (
 type indirect[K, V comparable] struct {
 	node[K, V]
 	dead     atomic.Bool
-	mu       sync.Mutex // Protects mutation to children and any children that are entry nodes.
+	mu       Mutex // Protects mutation to children and any children that are entry nodes.
 	parent   *indirect[K, V]
 	children [nChildren]atomic.Pointer[node[K, V]]
 }

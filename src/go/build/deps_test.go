@@ -103,8 +103,7 @@ var depsRules = `
 	< internal/godebug
 	< internal/reflectlite
 	< errors
-	< internal/oserror
-	< internal/concurrent;
+	< internal/oserror;
 
 	cmp, runtime, math/bits
 	< iter
@@ -115,7 +114,8 @@ var depsRules = `
 
 	RUNTIME
 	< sort
-	< container/heap;
+	< container/heap
+	< unique;
 
 	RUNTIME
 	< io;
@@ -177,9 +177,6 @@ var depsRules = `
 
 	bufio, path, strconv
 	< STR;
-
-	RUNTIME, internal/concurrent
-	< unique;
 
 	# OS is basic OS access, including helpers (path/filepath, os/exec, etc).
 	# OS includes string routines, but those must be layered above package os.

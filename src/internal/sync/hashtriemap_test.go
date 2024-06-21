@@ -2,56 +2,41 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package concurrent
+package sync_test
 
 import (
 	"fmt"
-	"internal/abi"
+	isync "internal/sync"
 	"math"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
-	"unsafe"
 )
 
 func TestHashTrieMap(t *testing.T) {
-	testHashTrieMap(t, func() *HashTrieMap[string, int] {
-		return NewHashTrieMap[string, int]()
+	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
+		return isync.NewHashTrieMap[string, int]()
 	})
 }
 
 func TestHashTrieMapBadHash(t *testing.T) {
-	testHashTrieMap(t, func() *HashTrieMap[string, int] {
-		// Stub out the good hash function with a terrible one.
-		// Everything should still work as expected.
-		m := NewHashTrieMap[string, int]()
-		m.keyHash = func(_ unsafe.Pointer, _ uintptr) uintptr {
-			return 0
-		}
-		return m
+	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
+		return isync.NewBadHashTrieMap[string, int]()
 	})
 }
 
 func TestHashTrieMapTruncHash(t *testing.T) {
-	testHashTrieMap(t, func() *HashTrieMap[string, int] {
+	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
 		// Stub out the good hash function with a different terrible one
 		// (truncated hash). Everything should still work as expected.
 		// This is useful to test independently to catch issues with
 		// near collisions, where only the last few bits of the hash differ.
-		m := NewHashTrieMap[string, int]()
-		var mx map[string]int
-		mapType := abi.TypeOf(mx).MapType()
-		hasher := mapType.Hasher
-		m.keyHash = func(p unsafe.Pointer, n uintptr) uintptr {
-			return hasher(p, n) & ((uintptr(1) << 4) - 1)
-		}
-		return m
+		return isync.NewTruncHashTrieMap[string, int]()
 	})
 }
 
-func testHashTrieMap(t *testing.T, newMap func() *HashTrieMap[string, int]) {
+func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]) {
 	t.Run("LoadEmpty", func(t *testing.T) {
 		m := newMap()
 
@@ -218,7 +203,7 @@ func testHashTrieMap(t *testing.T, newMap func() *HashTrieMap[string, int]) {
 	})
 }
 
-func testAll[K, V comparable](t *testing.T, m *HashTrieMap[K, V], testData map[K]V, yield func(K, V) bool) {
+func testAll[K, V comparable](t *testing.T, m *isync.HashTrieMap[K, V], testData map[K]V, yield func(K, V) bool) {
 	for k, v := range testData {
 		expectStored(t, k, v)(m.LoadOrStore(k, v))
 	}
@@ -349,41 +334,5 @@ func init() {
 	}
 	for i := range testDataLarge {
 		testDataLarge[i] = fmt.Sprintf("%b", i)
-	}
-}
-
-func dumpMap[K, V comparable](ht *HashTrieMap[K, V]) {
-	dumpNode(ht, &ht.root.node, 0)
-}
-
-func dumpNode[K, V comparable](ht *HashTrieMap[K, V], n *node[K, V], depth int) {
-	var sb strings.Builder
-	for range depth {
-		fmt.Fprintf(&sb, "\t")
-	}
-	prefix := sb.String()
-	if n.isEntry {
-		e := n.entry()
-		for e != nil {
-			fmt.Printf("%s%p [Entry Key=%v Value=%v Overflow=%p, Hash=%016x]\n", prefix, e, e.key, e.value, e.overflow.Load(), ht.keyHash(unsafe.Pointer(&e.key), ht.seed))
-			e = e.overflow.Load()
-		}
-		return
-	}
-	i := n.indirect()
-	fmt.Printf("%s%p [Indirect Parent=%p Dead=%t Children=[", prefix, i, i.parent, i.dead.Load())
-	for j := range i.children {
-		c := i.children[j].Load()
-		fmt.Printf("%p", c)
-		if j != len(i.children)-1 {
-			fmt.Printf(", ")
-		}
-	}
-	fmt.Printf("]]\n")
-	for j := range i.children {
-		c := i.children[j].Load()
-		if c != nil {
-			dumpNode(ht, c, depth+1)
-		}
 	}
 }
