@@ -18,7 +18,6 @@ import (
 type HashTrieMap[K, V comparable] struct {
 	root     *indirect[K, V]
 	keyHash  hashFunc
-	keyEqual equalFunc
 	valEqual equalFunc
 	seed     uintptr
 }
@@ -30,7 +29,6 @@ func NewHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
 	ht := &HashTrieMap[K, V]{
 		root:     newIndirectNode[K, V](nil),
 		keyHash:  mapType.Hasher,
-		keyEqual: mapType.Key.Equal,
 		valEqual: mapType.Elem.Equal,
 		seed:     uintptr(runtime_rand()),
 	}
@@ -56,7 +54,7 @@ func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
 			return *new(V), false
 		}
 		if n.isEntry {
-			return n.entry().lookup(key, ht.keyEqual)
+			return n.entry().lookup(key)
 		}
 		i = n.indirect()
 	}
@@ -91,7 +89,7 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 				// We found an existing entry, which is as far as we can go.
 				// If it stays this way, we'll have to replace it with an
 				// indirect node.
-				if v, ok := n.entry().lookup(key, ht.keyEqual); ok {
+				if v, ok := n.entry().lookup(key); ok {
 					return v, true
 				}
 				haveInsertPoint = true
@@ -123,7 +121,7 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
 	var oldEntry *entry[K, V]
 	if n != nil {
 		oldEntry = n.entry()
-		if v, ok := oldEntry.lookup(key, ht.keyEqual); ok {
+		if v, ok := oldEntry.lookup(key); ok {
 			// Easy case: by loading again, it turns out exactly what we wanted is here!
 			return v, true
 		}
@@ -192,7 +190,7 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 	}
 
 	// Try to delete the entry.
-	e, deleted := n.entry().compareAndDelete(key, old, ht.keyEqual, ht.valEqual)
+	e, deleted := n.entry().compareAndDelete(key, old, ht.valEqual)
 	if !deleted {
 		// Nothing was actually deleted, which means the node is no longer there.
 		i.mu.Unlock()
@@ -250,7 +248,7 @@ func (ht *HashTrieMap[K, V]) find(key K, hash uintptr) (i *indirect[K, V], hashS
 			}
 			if n.isEntry {
 				// We found an entry. Check if it matches.
-				if _, ok := n.entry().lookup(key, ht.keyEqual); !ok {
+				if _, ok := n.entry().lookup(key); !ok {
 					// No match, comparison failed.
 					i = nil
 					n = nil
@@ -362,9 +360,9 @@ func newEntryNode[K, V comparable](key K, value V) *entry[K, V] {
 	}
 }
 
-func (e *entry[K, V]) lookup(key K, equal equalFunc) (V, bool) {
+func (e *entry[K, V]) lookup(key K) (V, bool) {
 	for e != nil {
-		if equal(unsafe.Pointer(&e.key), abi.NoEscape(unsafe.Pointer(&key))) {
+		if e.key == key {
 			return e.value, true
 		}
 		e = e.overflow.Load()
@@ -376,17 +374,15 @@ func (e *entry[K, V]) lookup(key K, equal equalFunc) (V, bool) {
 // equal. Returns the new entry chain and whether or not anything was deleted.
 //
 // compareAndDelete must be called under the mutex of the indirect node which e is a child of.
-func (head *entry[K, V]) compareAndDelete(key K, value V, keyEqual, valEqual equalFunc) (*entry[K, V], bool) {
-	if keyEqual(unsafe.Pointer(&head.key), abi.NoEscape(unsafe.Pointer(&key))) &&
-		valEqual(unsafe.Pointer(&head.value), abi.NoEscape(unsafe.Pointer(&value))) {
+func (head *entry[K, V]) compareAndDelete(key K, value V, valEqual equalFunc) (*entry[K, V], bool) {
+	if head.key == key && valEqual(unsafe.Pointer(&head.value), abi.NoEscape(unsafe.Pointer(&value))) {
 		// Drop the head of the list.
 		return head.overflow.Load(), true
 	}
 	i := &head.overflow
 	e := i.Load()
 	for e != nil {
-		if keyEqual(unsafe.Pointer(&e.key), abi.NoEscape(unsafe.Pointer(&key))) &&
-			valEqual(unsafe.Pointer(&e.value), abi.NoEscape(unsafe.Pointer(&value))) {
+		if e.key == key && valEqual(unsafe.Pointer(&e.value), abi.NoEscape(unsafe.Pointer(&value))) {
 			i.Store(e.overflow.Load())
 			return head, true
 		}
