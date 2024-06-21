@@ -5,6 +5,7 @@
 package raw
 
 import (
+	"encoding/binary"
 	"strconv"
 	"strings"
 
@@ -57,4 +58,19 @@ func (e *Event) String() string {
 		s.WriteString(strconv.Quote(string(e.Data)))
 	}
 	return s.String()
+}
+
+// EncodedSize returns the canonical encoded size of an event.
+func (e *Event) EncodedSize() int {
+	size := 1
+	var buf [binary.MaxVarintLen64]byte
+	for _, arg := range e.Args {
+		size += binary.PutUvarint(buf[:], arg)
+	}
+	spec := e.Version.Specs()[e.Ev]
+	if spec.HasData {
+		size += binary.PutUvarint(buf[:], uint64(len(e.Data)))
+		size += len(e.Data)
+	}
+	return size
 }

@@ -7,9 +7,11 @@ package main
 import (
 	"cmd/internal/browser"
 	"cmd/internal/telemetry/counter"
+	"cmp"
 	"flag"
 	"fmt"
 	"internal/trace"
+	"internal/trace/event"
 	"internal/trace/raw"
 	"internal/trace/traceviewer"
 	"io"
@@ -18,7 +20,9 @@ import (
 	"net/http"
 	_ "net/http/pprof" // Required to use pprof
 	"os"
+	"slices"
 	"sync/atomic"
+	"text/tabwriter"
 	"time"
 )
 
@@ -45,7 +49,7 @@ Supported profile types are:
 Flags:
 	-http=addr: HTTP service address (e.g., ':6060')
 	-pprof=type: print a pprof-like profile instead
-	-d=int: print debug info such as parsed events (1 for high-level, 2 for low-level)
+	-d=mode: print debug info and exit (modes: wire, parsed, footprint)
 
 Note that while the various profiles available when launching
 'go tool trace' work on every browser, the trace viewer itself
@@ -56,7 +60,7 @@ and is only actively tested on that browser.
 var (
 	httpFlag  = flag.String("http", "localhost:0", "HTTP service address (e.g., ':6060')")
 	pprofFlag = flag.String("pprof", "", "print a pprof-like profile instead")
-	debugFlag = flag.Int("d", 0, "print debug information (1 for basic debug info, 2 for lower-level info)")
+	debugFlag = flag.String("d", "", "print debug info and exit (modes: wire, parsed, footprint)")
 
 	// The binary file name, left here for serveSVGProfile.
 	programBinary string
@@ -128,11 +132,17 @@ func main() {
 	}
 
 	// Debug flags.
-	switch *debugFlag {
-	case 1:
-		logAndDie(debugProcessedEvents(tracef))
-	case 2:
-		logAndDie(debugRawEvents(tracef))
+	if *debugFlag != "" {
+		switch *debugFlag {
+		case "parsed":
+			logAndDie(debugProcessedEvents(tracef))
+		case "wire":
+			logAndDie(debugRawEvents(tracef))
+		case "footprint":
+			logAndDie(debugEventsFootprint(tracef))
+		default:
+			logAndDie(fmt.Errorf("invalid debug mode %s, want one of: parsed, wire, footprint", *debugFlag))
+		}
 	}
 
 	ln, err := net.Listen("tcp", *httpFlag)
@@ -353,6 +363,58 @@ func debugRawEvents(trc io.Reader) error {
 		}
 		fmt.Println(ev.String())
 	}
+}
+
+func debugEventsFootprint(trc io.Reader) error {
+	cr := countingReader{r: trc}
+	tr, err := raw.NewReader(&cr)
+	if err != nil {
+		return err
+	}
+	type eventStats struct {
+		typ   event.Type
+		count int
+		bytes int
+	}
+	var stats [256]eventStats
+	for i := range stats {
+		stats[i].typ = event.Type(i)
+	}
+	eventsRead := 0
+	for {
+		e, err := tr.ReadEvent()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		s := &stats[e.Ev]
+		s.count++
+		s.bytes += e.EncodedSize()
+		eventsRead++
+	}
+	slices.SortFunc(stats[:], func(a, b eventStats) int {
+		return cmp.Compare(b.bytes, a.bytes)
+	})
+	specs := tr.Version().Specs()
+	w := tabwriter.NewWriter(os.Stdout, 3, 8, 2, ' ', 0)
+	fmt.Fprintf(w, "Event\tBytes\t%%\tCount\t%%\n")
+	fmt.Fprintf(w, "-\t-\t-\t-\t-\n")
+	for i := range stats {
+		stat := &stats[i]
+		name := ""
+		if int(stat.typ) >= len(specs) {
+			name = fmt.Sprintf("<unknown (%d)>", stat.typ)
+		} else {
+			name = specs[stat.typ].Name
+		}
+		bytesPct := float64(stat.bytes) / float64(cr.bytesRead.Load()) * 100
+		countPct := float64(stat.count) / float64(eventsRead) * 100
+		fmt.Fprintf(w, "%s\t%d\t%.2f%%\t%d\t%.2f%%\n", name, stat.bytes, bytesPct, stat.count, countPct)
+	}
+	w.Flush()
+	return nil
 }
 
 type countingReader struct {
