@@ -2917,6 +2917,6 @@ func (ctxt *Link) findExtLinkTool(toolname string) string {
 	if err != nil {
 		Exitf("%s: finding %s failed: %v\n%s", os.Args[0], toolname, err, out)
 	}
-	cmdpath := strings.TrimSuffix(string(out), "\n")
+	cmdpath := strings.TrimRight(string(out), "\r\n")
 	return cmdpath
 }
