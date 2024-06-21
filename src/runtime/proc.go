@@ -7154,6 +7154,31 @@ func sync_atomic_runtime_procUnpin() {
 
 // Active spinning for sync.Mutex.
 //
+//go:linkname internal_sync_runtime_canSpin internal/sync.runtime_canSpin
+//go:nosplit
+func internal_sync_runtime_canSpin(i int) bool {
+	// sync.Mutex is cooperative, so we are conservative with spinning.
+	// Spin only few times and only if running on a multicore machine and
+	// GOMAXPROCS>1 and there is at least one other running P and local runq is empty.
+	// As opposed to runtime mutex we don't do passive spinning here,
+	// because there can be work on global runq or on other Ps.
+	if i >= active_spin || ncpu <= 1 || gomaxprocs <= sched.npidle.Load()+sched.nmspinning.Load()+1 {
+		return false
+	}
+	if p := getg().m.p.ptr(); !runqempty(p) {
+		return false
+	}
+	return true
+}
+
+//go:linkname internal_sync_runtime_doSpin internal/sync.runtime_doSpin
+//go:nosplit
+func internal_sync_runtime_doSpin() {
+	procyield(active_spin_cnt)
+}
+
+// Active spinning for sync.Mutex.
+//
 // sync_runtime_canSpin should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
@@ -7167,18 +7192,7 @@ func sync_atomic_runtime_procUnpin() {
 //go:linkname sync_runtime_canSpin sync.runtime_canSpin
 //go:nosplit
 func sync_runtime_canSpin(i int) bool {
-	// sync.Mutex is cooperative, so we are conservative with spinning.
-	// Spin only few times and only if running on a multicore machine and
-	// GOMAXPROCS>1 and there is at least one other running P and local runq is empty.
-	// As opposed to runtime mutex we don't do passive spinning here,
-	// because there can be work on global runq or on other Ps.
-	if i >= active_spin || ncpu <= 1 || gomaxprocs <= sched.npidle.Load()+sched.nmspinning.Load()+1 {
-		return false
-	}
-	if p := getg().m.p.ptr(); !runqempty(p) {
-		return false
-	}
-	return true
+	return internal_sync_runtime_canSpin(i)
 }
 
 // sync_runtime_doSpin should be an internal detail,
@@ -7194,7 +7208,7 @@ func sync_runtime_canSpin(i int) bool {
 //go:linkname sync_runtime_doSpin sync.runtime_doSpin
 //go:nosplit
 func sync_runtime_doSpin() {
-	procyield(active_spin_cnt)
+	internal_sync_runtime_doSpin()
 }
 
 var stealOrder randomOrder

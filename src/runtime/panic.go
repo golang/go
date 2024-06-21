@@ -1048,6 +1048,16 @@ func maps_fatal(s string) {
 	fatal(s)
 }
 
+//go:linkname internal_sync_throw internal/sync.throw
+func internal_sync_throw(s string) {
+	throw(s)
+}
+
+//go:linkname internal_sync_fatal internal/sync.fatal
+func internal_sync_fatal(s string) {
+	fatal(s)
+}
+
 // throw triggers a fatal error that dumps a stack trace and exits.
 //
 // throw should be used for runtime-internal fatal errors where Go itself,

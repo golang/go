@@ -49,7 +49,7 @@ const (
 	// desired maximum number of frames after expansion.
 	// This should be at least as large as the largest skip value
 	// used for profiling; otherwise stacks may be truncated inconsistently
-	maxSkip = 5
+	maxSkip = 6
 
 	// maxProfStackDepth is the highest valid value for debug.profstackdepth.
 	// It's used for the bucket.stk func.

@@ -90,8 +90,8 @@ func sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
 	semrelease1(addr, handoff, skipframes)
 }
 
-//go:linkname sync_runtime_SemacquireMutex sync.runtime_SemacquireMutex
-func sync_runtime_SemacquireMutex(addr *uint32, lifo bool, skipframes int) {
+//go:linkname internal_sync_runtime_SemacquireMutex internal/sync.runtime_SemacquireMutex
+func internal_sync_runtime_SemacquireMutex(addr *uint32, lifo bool, skipframes int) {
 	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes, waitReasonSyncMutexLock)
 }
 
@@ -108,6 +108,11 @@ func sync_runtime_SemacquireRWMutex(addr *uint32, lifo bool, skipframes int) {
 //go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
 func poll_runtime_Semrelease(addr *uint32) {
 	semrelease(addr)
+}
+
+//go:linkname internal_sync_runtime_Semrelease internal/sync.runtime_Semrelease
+func internal_sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
+	semrelease1(addr, handoff, skipframes)
 }
 
 func readyWithTime(s *sudog, traceskip int) {
@@ -687,7 +692,7 @@ func notifyListCheck(sz uintptr) {
 	}
 }
 
-//go:linkname sync_nanotime sync.runtime_nanotime
-func sync_nanotime() int64 {
+//go:linkname internal_sync_nanotime internal/sync.runtime_nanotime
+func internal_sync_nanotime() int64 {
 	return nanotime()
 }

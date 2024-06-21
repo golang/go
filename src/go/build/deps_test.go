@@ -97,6 +97,7 @@ var depsRules = `
 	< runtime
 	< sync/atomic
 	< internal/weak
+	< internal/sync
 	< sync
 	< internal/bisect
 	< internal/godebug
