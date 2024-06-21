@@ -15,24 +15,44 @@ import (
 // is designed around frequent loads, but offers decent performance for stores
 // and deletes as well, especially if the map is larger. Its primary use-case is
 // the unique package, but can be used elsewhere as well.
+//
+// The zero HashTrieMap is empty and ready to use.
+// It must not be copied after first use.
 type HashTrieMap[K comparable, V any] struct {
+	inited   atomic.Uint32
+	initMu   Mutex
 	root     *indirect[K, V]
 	keyHash  hashFunc
 	valEqual equalFunc
 	seed     uintptr
 }
 
-// NewHashTrieMap creates a new HashTrieMap for the provided key and value.
-func NewHashTrieMap[K comparable, V any]() *HashTrieMap[K, V] {
+func (ht *HashTrieMap[K, V]) init() {
+	if ht.inited.Load() == 0 {
+		ht.initSlow()
+	}
+}
+
+//go:noinline
+func (ht *HashTrieMap[K, V]) initSlow() {
+	ht.initMu.Lock()
+	defer ht.initMu.Unlock()
+
+	if ht.inited.Load() != 0 {
+		// Someone got to it while we were waiting.
+		return
+	}
+
+	// Set up root node, derive the hash function for the key, and the
+	// equal function for the value, if any.
 	var m map[K]V
 	mapType := abi.TypeOf(m).MapType()
-	ht := &HashTrieMap[K, V]{
-		root:     newIndirectNode[K, V](nil),
-		keyHash:  mapType.Hasher,
-		valEqual: mapType.Elem.Equal,
-		seed:     uintptr(runtime_rand()),
-	}
-	return ht
+	ht.root = newIndirectNode[K, V](nil)
+	ht.keyHash = mapType.Hasher
+	ht.valEqual = mapType.Elem.Equal
+	ht.seed = uintptr(runtime_rand())
+
+	ht.inited.Store(1)
 }
 
 type hashFunc func(unsafe.Pointer, uintptr) uintptr
@@ -42,6 +62,7 @@ type equalFunc func(unsafe.Pointer, unsafe.Pointer) bool
 // value is present.
 // The ok result indicates whether value was found in the map.
 func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
+	ht.init()
 	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
 
 	i := ht.root
@@ -65,6 +86,7 @@ func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
 // Otherwise, it stores and returns the given value.
 // The loaded result is true if the value was loaded, false if stored.
 func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool) {
+	ht.init()
 	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
 	var i *indirect[K, V]
 	var hashShift uint
@@ -179,6 +201,7 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
 // If there is no current value for key in the map, CompareAndDelete returns false
 // (even if the old value is the nil interface value).
 func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+	ht.init()
 	if ht.valEqual == nil {
 		panic("called CompareAndDelete when value is not of comparable type")
 	}
@@ -287,6 +310,7 @@ func (ht *HashTrieMap[K, V]) find(key K, hash uintptr) (i *indirect[K, V], hashS
 // safe to operate on the tree during iteration. No particular enumeration
 // order is guaranteed.
 func (ht *HashTrieMap[K, V]) All() func(yield func(K, V) bool) {
+	ht.init()
 	return func(yield func(key K, value V) bool) {
 		ht.iter(ht.root, yield)
 	}

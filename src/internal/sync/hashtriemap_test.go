@@ -16,7 +16,8 @@ import (
 
 func TestHashTrieMap(t *testing.T) {
 	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
-		return isync.NewHashTrieMap[string, int]()
+		var m isync.HashTrieMap[string, int]
+		return &m
 	})
 }
 

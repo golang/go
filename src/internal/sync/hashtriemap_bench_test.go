@@ -23,7 +23,7 @@ func BenchmarkHashTrieMapLoadLarge(b *testing.B) {
 
 func benchmarkHashTrieMapLoad(b *testing.B, data []string) {
 	b.ReportAllocs()
-	m := isync.NewHashTrieMap[string, int]()
+	var m isync.HashTrieMap[string, int]
 	for i := range data {
 		m.LoadOrStore(data[i], i)
 	}
@@ -50,7 +50,7 @@ func BenchmarkHashTrieMapLoadOrStoreLarge(b *testing.B) {
 
 func benchmarkHashTrieMapLoadOrStore(b *testing.B, data []string) {
 	b.ReportAllocs()
-	m := isync.NewHashTrieMap[string, int]()
+	var m isync.HashTrieMap[string, int]
 
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
