@@ -2050,14 +2050,13 @@ func (ctxt *Link) hostlink() {
 			Exitf("%s: running strip failed: %v\n%s\n%s", os.Args[0], err, cmd, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
-		if _, err := os.Stat(dsym); os.IsNotExist(err) {
-			return
+		if _, err := os.Stat(dsym); err == nil {
+			updateMachoOutFile("combining dwarf",
+				func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
+					return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
+				})
+			uuidUpdated = true
 		}
-		updateMachoOutFile("combining dwarf",
-			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
-				return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
-			})
-		uuidUpdated = true
 	}
 	if ctxt.IsDarwin() && !uuidUpdated && *flagBuildid != "" {
 		updateMachoOutFile("rewriting uuid",
