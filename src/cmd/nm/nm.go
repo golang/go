@@ -13,7 +13,7 @@ import (
 	"sort"
 
 	"cmd/internal/objfile"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 )
 
 const helpText = `usage: go tool nm [options] file...
@@ -68,11 +68,11 @@ func (nflag) String() string {
 
 func main() {
 	log.SetFlags(0)
-	telemetry.OpenCounters()
+	counter.Open()
 	flag.Usage = usage
 	flag.Parse()
-	telemetry.Inc("nm/invocations")
-	telemetry.CountFlags("nm/flag:", *flag.CommandLine)
+	counter.Inc("nm/invocations")
+	counter.CountFlags("nm/flag:", *flag.CommandLine)
 
 	switch *sortOrder {
 	case "address", "name", "none", "size":

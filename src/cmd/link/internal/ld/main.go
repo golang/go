@@ -36,7 +36,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/quoted"
 	"cmd/internal/sys"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 	"cmd/link/internal/benchmark"
 	"flag"
 	"internal/buildcfg"
@@ -157,8 +157,8 @@ func (t *ternaryFlag) IsBoolFlag() bool { return true } // parse like a boolean 
 func Main(arch *sys.Arch, theArch Arch) {
 	log.SetPrefix("link: ")
 	log.SetFlags(0)
-	telemetry.OpenCounters()
-	telemetry.Inc("link/invocations")
+	counter.Open()
+	counter.Inc("link/invocations")
 
 	thearch = theArch
 	ctxt := linknew(arch)
@@ -204,7 +204,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	objabi.Flagfn1("importcfg", "read import configuration from `file`", ctxt.readImportCfg)
 
 	objabi.Flagparse(usage)
-	telemetry.CountFlags("link/flag:", *flag.CommandLine)
+	counter.CountFlags("link/flag:", *flag.CommandLine)
 
 	if ctxt.Debugvlog > 0 {
 		// dump symbol info on crash

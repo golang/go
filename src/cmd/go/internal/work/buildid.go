@@ -19,7 +19,7 @@ import (
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
 	"cmd/internal/quoted"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 )
 
 // Build IDs
@@ -406,11 +406,11 @@ func (b *Builder) fileHash(file string) string {
 }
 
 var (
-	counterCacheHit  = telemetry.NewCounter("go/buildcache/hit")
-	counterCacheMiss = telemetry.NewCounter("go/buildcache/miss")
+	counterCacheHit  = counter.New("go/buildcache/hit")
+	counterCacheMiss = counter.New("go/buildcache/miss")
 
 	onceIncStdlibRecompiled sync.Once
-	stdlibRecompiled        = telemetry.NewCounter("go/buildcache/stdlib-recompiled")
+	stdlibRecompiled        = counter.New("go/buildcache/stdlib-recompiled")
 )
 
 // useCache tries to satisfy the action a, which has action ID actionHash,

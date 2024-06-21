@@ -30,7 +30,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
@@ -59,8 +59,8 @@ func handlePanic() {
 // code, and finally writes the compiled package definition to disk.
 func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "init")
-	telemetry.OpenCounters()
-	telemetry.Inc("compile/invocations")
+	counter.Open()
+	counter.Inc("compile/invocations")
 
 	defer handlePanic()
 

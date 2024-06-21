@@ -6,7 +6,7 @@ package base
 
 import (
 	"cmd/internal/cov/covcmd"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -195,7 +195,7 @@ func ParseFlags() {
 	objabi.AddVersionFlag() // -V
 	registerFlags()
 	objabi.Flagparse(usage)
-	telemetry.CountFlags("compile/flag:", *flag.CommandLine)
+	counter.CountFlags("compile/flag:", *flag.CommandLine)
 
 	if gcd := os.Getenv("GOCOMPILEDEBUG"); gcd != "" {
 		// This will only override the flags set in gcd;
