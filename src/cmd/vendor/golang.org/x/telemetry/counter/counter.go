@@ -83,8 +83,6 @@ func NewStack(name string, depth int) *StackCounter {
 // If the telemetry mode is "off", Open is a no-op. Otherwise, it opens the
 // counter file on disk and starts to mmap telemetry counters to the file.
 // Open also persists any counters already created in the current process.
-//
-// Programs using telemetry should call either Open or OpenDir exactly once.
 func Open() {
 	counter.Open()
 }
@@ -95,8 +93,6 @@ func Open() {
 // If the telemetry mode is "off", Open is a no-op. Otherwise, it opens the
 // counter file on disk and starts to mmap telemetry counters to the file.
 // Open also persists any counters already created in the current process.
-//
-// Programs using telemetry should call either Open or OpenDir exactly once.
 func OpenDir(telemetryDir string) {
 	if telemetryDir != "" {
 		telemetry.Default = telemetry.NewDir(telemetryDir)

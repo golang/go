@@ -340,6 +340,8 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 	return v, cleanup
 }
 
+var openOnce sync.Once
+
 // Open associates counting with the defaultFile.
 // The returned function is for testing only, and should
 // be called after all Inc()s are finished, but before
@@ -349,22 +351,27 @@ func Open() func() {
 	if telemetry.DisabledOnPlatform {
 		return func() {}
 	}
-	if mode, _ := telemetry.Default.Mode(); mode == "off" {
-		// Don't open the file when telemetry is off.
-		defaultFile.err = ErrDisabled
-		return func() {} // No need to clean up.
-	}
-	debugPrintf("Open")
-	defaultFile.rotate()
-	return func() {
-		// Once this has been called, the defaultFile is no longer usable.
-		mf := defaultFile.current.Load()
-		if mf == nil {
-			// telemetry might have been off
+	close := func() {}
+	openOnce.Do(func() {
+		if mode, _ := telemetry.Default.Mode(); mode == "off" {
+			// Don't open the file when telemetry is off.
+			defaultFile.err = ErrDisabled
+			// No need to clean up.
 			return
 		}
-		mf.close()
-	}
+		debugPrintf("Open")
+		defaultFile.rotate()
+		close = func() {
+			// Once this has been called, the defaultFile is no longer usable.
+			mf := defaultFile.current.Load()
+			if mf == nil {
+				// telemetry might have been off
+				return
+			}
+			mf.close()
+		}
+	})
+	return close
 }
 
 // A mappedFile is a counter file mmapped into memory.
