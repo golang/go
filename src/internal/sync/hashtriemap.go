@@ -195,6 +195,36 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
 	return &top.node
 }
 
+// CompareAndSwap swaps the old and new values for key
+// if the value stored in the map is equal to old.
+// The value type must be of a comparable type, otherwise CompareAndSwap will panic.
+func (ht *HashTrieMap[K, V]) CompareAndSwap(key K, old, new V) (swapped bool) {
+	ht.init()
+	if ht.valEqual == nil {
+		panic("called CompareAndSwap when value is not of comparable type")
+	}
+	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
+
+	// Find a node with the key and compare with it. n != nil if we found the node.
+	i, _, slot, n := ht.find(key, hash, ht.valEqual, old)
+	if i != nil {
+		defer i.mu.Unlock()
+	}
+	if n == nil {
+		return false
+	}
+
+	// Try to swap the entry.
+	e, swapped := n.entry().compareAndSwap(key, old, new, ht.valEqual)
+	if !swapped {
+		// Nothing was actually swapped, which means the node is no longer there.
+		return false
+	}
+	// Store the entry back because it changed.
+	slot.Store(&e.node)
+	return true
+}
+
 // CompareAndDelete deletes the entry for key if its value is equal to old.
 // The value type must be comparable, otherwise this CompareAndDelete will panic.
 //
@@ -207,8 +237,8 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 	}
 	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
 
-	// Find a node with the key and compare with it. n != nil if we found the node.
-	i, hashShift, slot, n := ht.find(key, hash)
+	// Find a node with the key. n != nil if we found the node.
+	i, hashShift, slot, n := ht.find(key, hash, nil, *new(V))
 	if n == nil {
 		if i != nil {
 			i.mu.Unlock()
@@ -252,14 +282,15 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
 	return true
 }
 
-// compare searches the tree for a node that compares with key (hash must be the hash of key).
+// find searches the tree for a node that contains key (hash must be the hash of key).
+// If valEqual != nil, then it will also enforce that the values are equal as well.
 //
 // Returns a non-nil node, which will always be an entry, if found.
 //
 // If i != nil then i.mu is locked, and it is the caller's responsibility to unlock it.
-func (ht *HashTrieMap[K, V]) find(key K, hash uintptr) (i *indirect[K, V], hashShift uint, slot *atomic.Pointer[node[K, V]], n *node[K, V]) {
+func (ht *HashTrieMap[K, V]) find(key K, hash uintptr, valEqual equalFunc, value V) (i *indirect[K, V], hashShift uint, slot *atomic.Pointer[node[K, V]], n *node[K, V]) {
 	for {
-		// Find the key or return when there's nothing to delete.
+		// Find the key or return if it's not there.
 		i = ht.root
 		hashShift = 8 * goarch.PtrSize
 		found := false
@@ -275,7 +306,7 @@ func (ht *HashTrieMap[K, V]) find(key K, hash uintptr) (i *indirect[K, V], hashS
 			}
 			if n.isEntry {
 				// We found an entry. Check if it matches.
-				if _, ok := n.entry().lookup(key); !ok {
+				if _, ok := n.entry().lookupWithValue(key, value, valEqual); !ok {
 					// No match, comparison failed.
 					i = nil
 					n = nil
@@ -396,6 +427,44 @@ func (e *entry[K, V]) lookup(key K) (V, bool) {
 		e = e.overflow.Load()
 	}
 	return *new(V), false
+}
+
+func (e *entry[K, V]) lookupWithValue(key K, value V, valEqual equalFunc) (V, bool) {
+	for e != nil {
+		if e.key == key && (valEqual == nil || valEqual(unsafe.Pointer(&e.value), abi.NoEscape(unsafe.Pointer(&value)))) {
+			return e.value, true
+		}
+		e = e.overflow.Load()
+	}
+	return *new(V), false
+}
+
+// compareAndSwap replaces an entry in the overflow chain if both the key and value compare
+// equal. Returns the new entry chain and whether or not anything was swapped.
+//
+// compareAndSwap must be called under the mutex of the indirect node which e is a child of.
+func (head *entry[K, V]) compareAndSwap(key K, old, new V, valEqual equalFunc) (*entry[K, V], bool) {
+	if head.key == key && valEqual(unsafe.Pointer(&head.value), abi.NoEscape(unsafe.Pointer(&old))) {
+		// Return the new head of the list.
+		e := newEntryNode(key, new)
+		if chain := head.overflow.Load(); chain != nil {
+			e.overflow.Store(chain)
+		}
+		return e, true
+	}
+	i := &head.overflow
+	e := i.Load()
+	for e != nil {
+		if e.key == key && valEqual(unsafe.Pointer(&e.value), abi.NoEscape(unsafe.Pointer(&old))) {
+			eNew := newEntryNode(key, new)
+			eNew.overflow.Store(e.overflow.Load())
+			i.Store(eNew)
+			return head, true
+		}
+		i = &e.overflow
+		e = e.overflow.Load()
+	}
+	return head, false
 }
 
 // compareAndDelete deletes an entry in the overflow chain if both the key and value compare
