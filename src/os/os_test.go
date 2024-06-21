@@ -1361,6 +1361,17 @@ func TestTruncateNonexistentFile(t *testing.T) {
 	assertPathError(t, path, err)
 }
 
+var hasNoatime = sync.OnceValue(func() bool {
+	// A sloppy way to check if noatime flag is set (as all filesystems are
+	// checked, not just the one we're interested in). A correct way
+	// would be to use statvfs syscall and check if flags has ST_NOATIME,
+	// but the syscall is OS-specific and is not even wired into Go stdlib.
+	//
+	// Only used on NetBSD (which ignores explicit atime updates with noatime).
+	mounts, _ := ReadFile("/proc/mounts")
+	return bytes.Contains(mounts, []byte("noatime"))
+})
+
 func TestChtimes(t *testing.T) {
 	t.Parallel()
 
@@ -1523,6 +1534,7 @@ func testChtimes(t *testing.T, name string) {
 	pat := Atime(postStat)
 	pmt := postStat.ModTime()
 	if !pat.Before(at) {
+		errormsg := fmt.Sprintf("AccessTime didn't go backwards; was=%v, after=%v", at, pat)
 		switch runtime.GOOS {
 		case "plan9":
 			// Mtime is the time of the last change of
@@ -1530,14 +1542,14 @@ func testChtimes(t *testing.T, name string) {
 			// the contents are accessed; also, it is set
 			// whenever mtime is set.
 		case "netbsd":
-			mounts, _ := ReadFile("/proc/mounts")
-			if strings.Contains(string(mounts), "noatime") {
-				t.Logf("AccessTime didn't go backwards, but see a filesystem mounted noatime; ignoring. Issue 19293.")
+			if hasNoatime() {
+				t.Log(errormsg)
+				t.Log("Known NetBSD issue (atime not changed on fs mounted with noatime); ignoring.")
 			} else {
-				t.Logf("AccessTime didn't go backwards; was=%v, after=%v (Ignoring on NetBSD, assuming noatime, Issue 19293)", at, pat)
+				t.Errorf(errormsg)
 			}
 		default:
-			t.Errorf("AccessTime didn't go backwards; was=%v, after=%v", at, pat)
+			t.Errorf(errormsg)
 		}
 	}
 
