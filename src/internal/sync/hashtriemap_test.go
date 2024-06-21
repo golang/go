@@ -266,7 +266,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 			}
 		}
 	})
-	t.Run("ConcurrentLifecycleSwapUnsharedKeys", func(t *testing.T) {
+	t.Run("ConcurrentLifecycleCompareAndSwapUnsharedKeys", func(t *testing.T) {
 		m := newMap()
 
 		gmp := runtime.GOMAXPROCS(-1)
@@ -300,7 +300,7 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 		}
 		wg.Wait()
 	})
-	t.Run("ConcurrentLifecycleSwapAndDeleteUnsharedKeys", func(t *testing.T) {
+	t.Run("ConcurrentLifecycleCompareAndSwapAndDeleteUnsharedKeys", func(t *testing.T) {
 		m := newMap()
 
 		gmp := runtime.GOMAXPROCS(-1)
@@ -356,6 +356,161 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 				for i, s := range testData {
 					expectNotSwapped(t, s, math.MaxInt, i+1)(m.CompareAndSwap(s, math.MaxInt, i+1))
 					m.CompareAndSwap(s, i, i+1)
+					expectPresent(t, s, i+1)(m.Load(s))
+				}
+				for i, s := range testData {
+					expectPresent(t, s, i+1)(m.Load(s))
+				}
+			}(i)
+		}
+		wg.Wait()
+	})
+	t.Run("SwapAll", func(t *testing.T) {
+		m := newMap()
+
+		for i, s := range testData {
+			expectMissing(t, s, 0)(m.Load(s))
+			expectNotLoadedFromSwap(t, s, i)(m.Swap(s, i))
+			expectPresent(t, s, i)(m.Load(s))
+			expectLoadedFromSwap(t, s, i, i)(m.Swap(s, i))
+		}
+		for j := range 3 {
+			for i, s := range testData {
+				expectPresent(t, s, i+j)(m.Load(s))
+				expectLoadedFromSwap(t, s, i+j, i+j+1)(m.Swap(s, i+j+1))
+				expectPresent(t, s, i+j+1)(m.Load(s))
+			}
+		}
+		for i, s := range testData {
+			expectLoadedFromSwap(t, s, i+3, i+3)(m.Swap(s, i+3))
+		}
+	})
+	t.Run("SwapOne", func(t *testing.T) {
+		m := newMap()
+
+		for i, s := range testData {
+			expectMissing(t, s, 0)(m.Load(s))
+			expectNotLoadedFromSwap(t, s, i)(m.Swap(s, i))
+			expectPresent(t, s, i)(m.Load(s))
+			expectLoadedFromSwap(t, s, i, i)(m.Swap(s, i))
+		}
+		expectLoadedFromSwap(t, testData[15], 15, 16)(m.Swap(testData[15], 16))
+		for i, s := range testData {
+			if i == 15 {
+				expectPresent(t, s, 16)(m.Load(s))
+			} else {
+				expectPresent(t, s, i)(m.Load(s))
+			}
+		}
+	})
+	t.Run("SwapMultiple", func(t *testing.T) {
+		m := newMap()
+
+		for i, s := range testData {
+			expectMissing(t, s, 0)(m.Load(s))
+			expectNotLoadedFromSwap(t, s, i)(m.Swap(s, i))
+			expectPresent(t, s, i)(m.Load(s))
+			expectLoadedFromSwap(t, s, i, i)(m.Swap(s, i))
+		}
+		for _, i := range []int{1, 105, 6, 85} {
+			expectLoadedFromSwap(t, testData[i], i, i+1)(m.Swap(testData[i], i+1))
+		}
+		for i, s := range testData {
+			if i == 1 || i == 105 || i == 6 || i == 85 {
+				expectPresent(t, s, i+1)(m.Load(s))
+			} else {
+				expectPresent(t, s, i)(m.Load(s))
+			}
+		}
+	})
+	t.Run("ConcurrentLifecycleSwapUnsharedKeys", func(t *testing.T) {
+		m := newMap()
+
+		gmp := runtime.GOMAXPROCS(-1)
+		var wg sync.WaitGroup
+		for i := range gmp {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+
+				makeKey := func(s string) string {
+					return s + "-" + strconv.Itoa(id)
+				}
+				for _, s := range testData {
+					key := makeKey(s)
+					expectMissing(t, key, 0)(m.Load(key))
+					expectNotLoadedFromSwap(t, key, id)(m.Swap(key, id))
+					expectPresent(t, key, id)(m.Load(key))
+					expectLoadedFromSwap(t, key, id, id)(m.Swap(key, id))
+				}
+				for _, s := range testData {
+					key := makeKey(s)
+					expectPresent(t, key, id)(m.Load(key))
+					expectLoadedFromSwap(t, key, id, id+1)(m.Swap(key, id+1))
+					expectPresent(t, key, id+1)(m.Load(key))
+				}
+				for _, s := range testData {
+					key := makeKey(s)
+					expectPresent(t, key, id+1)(m.Load(key))
+				}
+			}(i)
+		}
+		wg.Wait()
+	})
+	t.Run("ConcurrentLifecycleSwapAndDeleteUnsharedKeys", func(t *testing.T) {
+		m := newMap()
+
+		gmp := runtime.GOMAXPROCS(-1)
+		var wg sync.WaitGroup
+		for i := range gmp {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+
+				makeKey := func(s string) string {
+					return s + "-" + strconv.Itoa(id)
+				}
+				for _, s := range testData {
+					key := makeKey(s)
+					expectMissing(t, key, 0)(m.Load(key))
+					expectNotLoadedFromSwap(t, key, id)(m.Swap(key, id))
+					expectPresent(t, key, id)(m.Load(key))
+					expectLoadedFromSwap(t, key, id, id)(m.Swap(key, id))
+				}
+				for _, s := range testData {
+					key := makeKey(s)
+					expectPresent(t, key, id)(m.Load(key))
+					expectLoadedFromSwap(t, key, id, id+1)(m.Swap(key, id+1))
+					expectPresent(t, key, id+1)(m.Load(key))
+					expectDeleted(t, key, id+1)(m.CompareAndDelete(key, id+1))
+					expectNotLoadedFromSwap(t, key, id+2)(m.Swap(key, id+2))
+					expectPresent(t, key, id+2)(m.Load(key))
+				}
+				for _, s := range testData {
+					key := makeKey(s)
+					expectPresent(t, key, id+2)(m.Load(key))
+				}
+			}(i)
+		}
+		wg.Wait()
+	})
+	t.Run("ConcurrentSwapSharedKeys", func(t *testing.T) {
+		m := newMap()
+
+		// Load up the map.
+		for i, s := range testData {
+			expectMissing(t, s, 0)(m.Load(s))
+			expectStored(t, s, i)(m.LoadOrStore(s, i))
+		}
+		gmp := runtime.GOMAXPROCS(-1)
+		var wg sync.WaitGroup
+		for i := range gmp {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+
+				for i, s := range testData {
+					m.Swap(s, i+1)
 					expectPresent(t, s, i+1)(m.Load(s))
 				}
 				for i, s := range testData {
@@ -493,6 +648,30 @@ func expectNotSwapped[K, V comparable](t *testing.T, key K, old, new V) func(swa
 
 		if swapped {
 			t.Errorf("expected key %v with value %v to not be in map or not swapped for %v", key, old, new)
+		}
+	}
+}
+
+func expectLoadedFromSwap[K, V comparable](t *testing.T, key K, want, new V) func(got V, loaded bool) {
+	t.Helper()
+	return func(got V, loaded bool) {
+		t.Helper()
+
+		if !loaded {
+			t.Errorf("expected key %v to be in map and for %v to have been swapped for %v", key, want, new)
+		} else if want != got {
+			t.Errorf("key %v had its value %v swapped for %v, but expected it to have value %v", key, got, new, want)
+		}
+	}
+}
+
+func expectNotLoadedFromSwap[K, V comparable](t *testing.T, key K, new V) func(old V, loaded bool) {
+	t.Helper()
+	return func(old V, loaded bool) {
+		t.Helper()
+
+		if loaded {
+			t.Errorf("expected key %v to not be in map, but found value %v for it", key, old)
 		}
 	}
 }

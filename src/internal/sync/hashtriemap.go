@@ -195,6 +195,80 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
 	return &top.node
 }
 
+// Swap swaps the value for a key and returns the previous value if any.
+// The loaded result reports whether the key was present.
+func (ht *HashTrieMap[K, V]) Swap(key K, new V) (previous V, loaded bool) {
+	ht.init()
+	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
+	var i *indirect[K, V]
+	var hashShift uint
+	var slot *atomic.Pointer[node[K, V]]
+	var n *node[K, V]
+	for {
+		// Find the key or a candidate location for insertion.
+		i = ht.root
+		hashShift = 8 * goarch.PtrSize
+		haveInsertPoint := false
+		for hashShift != 0 {
+			hashShift -= nChildrenLog2
+
+			slot = &i.children[(hash>>hashShift)&nChildrenMask]
+			n = slot.Load()
+			if n == nil || n.isEntry {
+				// We found a nil slot which is a candidate for insertion,
+				// or an existing entry that we'll replace.
+				haveInsertPoint = true
+				break
+			}
+			i = n.indirect()
+		}
+		if !haveInsertPoint {
+			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
+		}
+
+		// Grab the lock and double-check what we saw.
+		i.mu.Lock()
+		n = slot.Load()
+		if (n == nil || n.isEntry) && !i.dead.Load() {
+			// What we saw is still true, so we can continue with the insert.
+			break
+		}
+		// We have to start over.
+		i.mu.Unlock()
+	}
+	// N.B. This lock is held from when we broke out of the outer loop above.
+	// We specifically break this out so that we can use defer here safely.
+	// One option is to break this out into a new function instead, but
+	// there's so much local iteration state used below that this turns out
+	// to be cleaner.
+	defer i.mu.Unlock()
+
+	var zero V
+	var oldEntry *entry[K, V]
+	if n != nil {
+		// Swap if the keys compare.
+		oldEntry = n.entry()
+		newEntry, old, swapped := oldEntry.swap(key, new)
+		if swapped {
+			slot.Store(&newEntry.node)
+			return old, true
+		}
+	}
+	// The keys didn't compare, so we're doing an insertion.
+	newEntry := newEntryNode(key, new)
+	if oldEntry == nil {
+		// Easy case: create a new entry and store it.
+		slot.Store(&newEntry.node)
+	} else {
+		// We possibly need to expand the entry already there into one or more new nodes.
+		//
+		// Publish the node last, which will make both oldEntry and newEntry visible. We
+		// don't want readers to be able to observe that oldEntry isn't in the tree.
+		slot.Store(ht.expand(oldEntry, newEntry, hash, hashShift, i))
+	}
+	return zero, false
+}
+
 // CompareAndSwap swaps the old and new values for key
 // if the value stored in the map is equal to old.
 // The value type must be of a comparable type, otherwise CompareAndSwap will panic.
@@ -437,6 +511,35 @@ func (e *entry[K, V]) lookupWithValue(key K, value V, valEqual equalFunc) (V, bo
 		e = e.overflow.Load()
 	}
 	return *new(V), false
+}
+
+// swap replaces an entry in the overflow chain if keys compare equal. Returns the new entry chain,
+// the old value, and whether or not anything was swapped.
+//
+// swap must be called under the mutex of the indirect node which e is a child of.
+func (head *entry[K, V]) swap(key K, new V) (*entry[K, V], V, bool) {
+	if head.key == key {
+		// Return the new head of the list.
+		e := newEntryNode(key, new)
+		if chain := head.overflow.Load(); chain != nil {
+			e.overflow.Store(chain)
+		}
+		return e, head.value, true
+	}
+	i := &head.overflow
+	e := i.Load()
+	for e != nil {
+		if e.key == key {
+			eNew := newEntryNode(key, new)
+			eNew.overflow.Store(e.overflow.Load())
+			i.Store(eNew)
+			return head, e.value, true
+		}
+		i = &e.overflow
+		e = e.overflow.Load()
+	}
+	var zero V
+	return head, zero, false
 }
 
 // compareAndSwap replaces an entry in the overflow chain if both the key and value compare
