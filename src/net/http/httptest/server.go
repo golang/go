@@ -134,7 +134,6 @@ func (s *Server) Start() {
 	s.goServe()
 	if serveFlag != "" {
 		fmt.Fprintln(os.Stderr, "httptest: serving on", s.URL)
-		select {}
 	}
 }
 
