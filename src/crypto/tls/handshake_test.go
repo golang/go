@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/hex"
@@ -42,7 +43,6 @@ import (
 
 var (
 	update       = flag.Bool("update", false, "update golden files on failure")
-	fast         = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
 	keyFile      = flag.String("keylog", "", "destination file for KeyLogWriter")
 	bogoMode     = flag.Bool("bogo-mode", false, "Enabled bogo shim mode, ignore everything else")
 	bogoFilter   = flag.String("bogo-filter", "", "BoGo test filter")
@@ -222,6 +222,76 @@ func parseTestData(r io.Reader) (flows [][]byte, err error) {
 
 	return flows, nil
 }
+
+// replayingConn is a net.Conn that replays flows recorded by recordingConn.
+type replayingConn struct {
+	t testing.TB
+	sync.Mutex
+	flows   [][]byte
+	reading bool
+}
+
+var _ net.Conn = (*replayingConn)(nil)
+
+func (r *replayingConn) Read(b []byte) (n int, err error) {
+	r.Lock()
+	defer r.Unlock()
+
+	if !r.reading {
+		r.t.Errorf("expected write, got read")
+		return 0, fmt.Errorf("recording expected write, got read")
+	}
+
+	n = copy(b, r.flows[0])
+	r.flows[0] = r.flows[0][n:]
+	if len(r.flows[0]) == 0 {
+		r.flows = r.flows[1:]
+		if len(r.flows) == 0 {
+			return n, io.EOF
+		} else {
+			r.reading = false
+		}
+	}
+	return n, nil
+}
+
+func (r *replayingConn) Write(b []byte) (n int, err error) {
+	r.Lock()
+	defer r.Unlock()
+
+	if r.reading {
+		r.t.Errorf("expected read, got write")
+		return 0, fmt.Errorf("recording expected read, got write")
+	}
+
+	if !bytes.HasPrefix(r.flows[0], b) {
+		r.t.Errorf("write mismatch: expected %x, got %x", r.flows[0], b)
+		return 0, fmt.Errorf("write mismatch")
+	}
+	r.flows[0] = r.flows[0][len(b):]
+	if len(r.flows[0]) == 0 {
+		r.flows = r.flows[1:]
+		r.reading = true
+	}
+	return len(b), nil
+}
+
+func (r *replayingConn) Close() error {
+	r.Lock()
+	defer r.Unlock()
+
+	if len(r.flows) > 0 {
+		r.t.Errorf("closed with unfinished flows")
+		return fmt.Errorf("unexpected close")
+	}
+	return nil
+}
+
+func (r *replayingConn) LocalAddr() net.Addr                { return nil }
+func (r *replayingConn) RemoteAddr() net.Addr               { return nil }
+func (r *replayingConn) SetDeadline(t time.Time) error      { return nil }
+func (r *replayingConn) SetReadDeadline(t time.Time) error  { return nil }
+func (r *replayingConn) SetWriteDeadline(t time.Time) error { return nil }
 
 // tempFile creates a temp file containing contents and returns its path.
 func tempFile(contents string) string {

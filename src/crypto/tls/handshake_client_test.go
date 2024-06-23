@@ -283,7 +283,7 @@ func (test *clientTest) loadData() (flows [][]byte, err error) {
 }
 
 func (test *clientTest) run(t *testing.T, write bool) {
-	var clientConn, serverConn net.Conn
+	var clientConn net.Conn
 	var recordingConn *recordingConn
 	var childProcess *exec.Cmd
 	var stdin opensslInput
@@ -302,178 +302,138 @@ func (test *clientTest) run(t *testing.T, write bool) {
 			}
 		}()
 	} else {
-		clientConn, serverConn = localPipe(t)
+		flows, err := test.loadData()
+		if err != nil {
+			t.Fatalf("failed to load data from %s: %v", test.dataPath(), err)
+		}
+		clientConn = &replayingConn{t: t, flows: flows, reading: false}
 	}
 
-	doneChan := make(chan bool)
-	defer func() {
-		clientConn.Close()
-		<-doneChan
-	}()
-	go func() {
-		defer close(doneChan)
+	config := test.config
+	if config == nil {
+		config = testConfig
+	}
+	client := Client(clientConn, config)
+	defer client.Close()
 
-		config := test.config
-		if config == nil {
-			config = testConfig
+	if _, err := client.Write([]byte("hello\n")); err != nil {
+		t.Errorf("Client.Write failed: %s", err)
+		return
+	}
+
+	for i := 1; i <= test.numRenegotiations; i++ {
+		// The initial handshake will generate a
+		// handshakeComplete signal which needs to be quashed.
+		if i == 1 && write {
+			<-stdout.handshakeComplete
 		}
-		client := Client(clientConn, config)
-		defer client.Close()
 
-		if _, err := client.Write([]byte("hello\n")); err != nil {
+		// OpenSSL will try to interleave application data and
+		// a renegotiation if we send both concurrently.
+		// Therefore: ask OpensSSL to start a renegotiation, run
+		// a goroutine to call client.Read and thus process the
+		// renegotiation request, watch for OpenSSL's stdout to
+		// indicate that the handshake is complete and,
+		// finally, have OpenSSL write something to cause
+		// client.Read to complete.
+		if write {
+			stdin <- opensslRenegotiate
+		}
+
+		signalChan := make(chan struct{})
+
+		go func() {
+			defer close(signalChan)
+
+			buf := make([]byte, 256)
+			n, err := client.Read(buf)
+
+			if test.checkRenegotiationError != nil {
+				newErr := test.checkRenegotiationError(i, err)
+				if err != nil && newErr == nil {
+					return
+				}
+				err = newErr
+			}
+
+			if err != nil {
+				t.Errorf("Client.Read failed after renegotiation #%d: %s", i, err)
+				return
+			}
+
+			buf = buf[:n]
+			if !bytes.Equal([]byte(opensslSentinel), buf) {
+				t.Errorf("Client.Read returned %q, but wanted %q", string(buf), opensslSentinel)
+			}
+
+			if expected := i + 1; client.handshakes != expected {
+				t.Errorf("client should have recorded %d handshakes, but believes that %d have occurred", expected, client.handshakes)
+			}
+		}()
+
+		if write && test.renegotiationExpectedToFail != i {
+			<-stdout.handshakeComplete
+			stdin <- opensslSendSentinel
+		}
+		<-signalChan
+	}
+
+	if test.sendKeyUpdate {
+		if write {
+			<-stdout.handshakeComplete
+			stdin <- opensslKeyUpdate
+		}
+
+		doneRead := make(chan struct{})
+
+		go func() {
+			defer close(doneRead)
+
+			buf := make([]byte, 256)
+			n, err := client.Read(buf)
+
+			if err != nil {
+				t.Errorf("Client.Read failed after KeyUpdate: %s", err)
+				return
+			}
+
+			buf = buf[:n]
+			if !bytes.Equal([]byte(opensslSentinel), buf) {
+				t.Errorf("Client.Read returned %q, but wanted %q", string(buf), opensslSentinel)
+			}
+		}()
+
+		if write {
+			// There's no real reason to wait for the client KeyUpdate to
+			// send data with the new server keys, except that s_server
+			// drops writes if they are sent at the wrong time.
+			<-stdout.readKeyUpdate
+			stdin <- opensslSendSentinel
+		}
+		<-doneRead
+
+		if _, err := client.Write([]byte("hello again\n")); err != nil {
 			t.Errorf("Client.Write failed: %s", err)
 			return
 		}
+	}
 
-		for i := 1; i <= test.numRenegotiations; i++ {
-			// The initial handshake will generate a
-			// handshakeComplete signal which needs to be quashed.
-			if i == 1 && write {
-				<-stdout.handshakeComplete
-			}
-
-			// OpenSSL will try to interleave application data and
-			// a renegotiation if we send both concurrently.
-			// Therefore: ask OpensSSL to start a renegotiation, run
-			// a goroutine to call client.Read and thus process the
-			// renegotiation request, watch for OpenSSL's stdout to
-			// indicate that the handshake is complete and,
-			// finally, have OpenSSL write something to cause
-			// client.Read to complete.
-			if write {
-				stdin <- opensslRenegotiate
-			}
-
-			signalChan := make(chan struct{})
-
-			go func() {
-				defer close(signalChan)
-
-				buf := make([]byte, 256)
-				n, err := client.Read(buf)
-
-				if test.checkRenegotiationError != nil {
-					newErr := test.checkRenegotiationError(i, err)
-					if err != nil && newErr == nil {
-						return
-					}
-					err = newErr
-				}
-
-				if err != nil {
-					t.Errorf("Client.Read failed after renegotiation #%d: %s", i, err)
-					return
-				}
-
-				buf = buf[:n]
-				if !bytes.Equal([]byte(opensslSentinel), buf) {
-					t.Errorf("Client.Read returned %q, but wanted %q", string(buf), opensslSentinel)
-				}
-
-				if expected := i + 1; client.handshakes != expected {
-					t.Errorf("client should have recorded %d handshakes, but believes that %d have occurred", expected, client.handshakes)
-				}
-			}()
-
-			if write && test.renegotiationExpectedToFail != i {
-				<-stdout.handshakeComplete
-				stdin <- opensslSendSentinel
-			}
-			<-signalChan
-		}
-
-		if test.sendKeyUpdate {
-			if write {
-				<-stdout.handshakeComplete
-				stdin <- opensslKeyUpdate
-			}
-
-			doneRead := make(chan struct{})
-
-			go func() {
-				defer close(doneRead)
-
-				buf := make([]byte, 256)
-				n, err := client.Read(buf)
-
-				if err != nil {
-					t.Errorf("Client.Read failed after KeyUpdate: %s", err)
-					return
-				}
-
-				buf = buf[:n]
-				if !bytes.Equal([]byte(opensslSentinel), buf) {
-					t.Errorf("Client.Read returned %q, but wanted %q", string(buf), opensslSentinel)
-				}
-			}()
-
-			if write {
-				// There's no real reason to wait for the client KeyUpdate to
-				// send data with the new server keys, except that s_server
-				// drops writes if they are sent at the wrong time.
-				<-stdout.readKeyUpdate
-				stdin <- opensslSendSentinel
-			}
-			<-doneRead
-
-			if _, err := client.Write([]byte("hello again\n")); err != nil {
-				t.Errorf("Client.Write failed: %s", err)
-				return
-			}
-		}
-
-		if test.validate != nil {
-			if err := test.validate(client.ConnectionState()); err != nil {
-				t.Errorf("validate callback returned error: %s", err)
-			}
-		}
-
-		// If the server sent us an alert after our last flight, give it a
-		// chance to arrive.
-		if write && test.renegotiationExpectedToFail == 0 {
-			if err := peekError(client); err != nil {
-				t.Errorf("final Read returned an error: %s", err)
-			}
-		}
-	}()
-
-	if !write {
-		flows, err := test.loadData()
-		if err != nil {
-			t.Fatalf("%s: failed to load data from %s: %v", test.name, test.dataPath(), err)
-		}
-		for i, b := range flows {
-			if i%2 == 1 {
-				if *fast {
-					serverConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
-				} else {
-					serverConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
-				}
-				serverConn.Write(b)
-				continue
-			}
-			bb := make([]byte, len(b))
-			if *fast {
-				serverConn.SetReadDeadline(time.Now().Add(1 * time.Second))
-			} else {
-				serverConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
-			}
-			_, err := io.ReadFull(serverConn, bb)
-			if err != nil {
-				t.Fatalf("%s, flow %d: %s", test.name, i+1, err)
-			}
-			if !bytes.Equal(b, bb) {
-				t.Fatalf("%s, flow %d: mismatch on read: got:%x want:%x", test.name, i+1, bb, b)
-			}
+	if test.validate != nil {
+		if err := test.validate(client.ConnectionState()); err != nil {
+			t.Errorf("validate callback returned error: %s", err)
 		}
 	}
 
-	<-doneChan
-	if !write {
-		serverConn.Close()
+	// If the server sent us an alert after our last flight, give it a
+	// chance to arrive.
+	if write && test.renegotiationExpectedToFail == 0 {
+		if err := peekError(client); err != nil {
+			t.Errorf("final Read returned an error: %s", err)
+		}
 	}
 
 	if write {
+		clientConn.Close()
 		path := test.dataPath()
 		out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
