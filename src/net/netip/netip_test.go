@@ -112,18 +112,18 @@ func TestParseAddr(t *testing.T) {
 		// IPv6 with a zone specifier.
 		{
 			in: "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b%eth0",
-			ip: MkAddr(Mk128(0xfd7a115ca1e0ab12, 0x4843cd96626b430b), unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth0"})),
+			ip: MkAddr(Mk128(0xfd7a115ca1e0ab12, 0x4843cd96626b430b), unique.Make(MakeAddrDetail(true, "eth0"))),
 		},
 		// IPv6 with dotted decimal and zone specifier.
 		{
 			in:  "1:2::ffff:192.168.140.255%eth1",
-			ip:  MkAddr(Mk128(0x0001000200000000, 0x0000ffffc0a88cff), unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth1"})),
+			ip:  MkAddr(Mk128(0x0001000200000000, 0x0000ffffc0a88cff), unique.Make(MakeAddrDetail(true, "eth1"))),
 			str: "1:2::ffff:c0a8:8cff%eth1",
 		},
 		// 4-in-6 with zone
 		{
 			in:  "::ffff:192.168.140.255%eth1",
-			ip:  MkAddr(Mk128(0, 0x0000ffffc0a88cff), unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth1"})),
+			ip:  MkAddr(Mk128(0, 0x0000ffffc0a88cff), unique.Make(MakeAddrDetail(true, "eth1"))),
 			str: "::ffff:192.168.140.255%eth1",
 		},
 		// IPv6 with capital letters.
@@ -1723,7 +1723,7 @@ var parseBenchInputs = []struct {
 }
 
 func BenchmarkParseAddr(b *testing.B) {
-	sinkInternValue = unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth1"}) // Pin to not benchmark the intern package
+	sinkInternValue = unique.Make(MakeAddrDetail(true, "eth1")) // Pin to not benchmark the intern package
 	for _, test := range parseBenchInputs {
 		b.Run(test.name, func(b *testing.B) {
 			b.ReportAllocs()

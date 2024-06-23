@@ -59,8 +59,8 @@ type Addr struct {
 
 // addrDetail represents the details of an Addr, like address family and IPv6 zone.
 type addrDetail struct {
-	IsV6   bool   // IPv4 is false, IPv6 is true.
-	ZoneV6 string // != "" only if IsV6 is true.
+	isV6   bool   // IPv4 is false, IPv6 is true.
+	zoneV6 string // != "" only if IsV6 is true.
 }
 
 // z0, z4, and z6noz are sentinel Addr.z values.
@@ -68,7 +68,7 @@ type addrDetail struct {
 var (
 	z0    unique.Handle[addrDetail]
 	z4    = unique.Make(addrDetail{})
-	z6noz = unique.Make(addrDetail{IsV6: true})
+	z6noz = unique.Make(addrDetail{isV6: true})
 )
 
 // IPv6LinkLocalAllNodes returns the IPv6 link-local all nodes multicast
@@ -410,7 +410,7 @@ func (ip Addr) Zone() string {
 	if ip.z == z0 {
 		return ""
 	}
-	return ip.z.Value().ZoneV6
+	return ip.z.Value().zoneV6
 }
 
 // Compare returns an integer comparing two IPs.
@@ -495,7 +495,7 @@ func (ip Addr) WithZone(zone string) Addr {
 		ip.z = z6noz
 		return ip
 	}
-	ip.z = unique.Make(addrDetail{IsV6: true, ZoneV6: zone})
+	ip.z = unique.Make(addrDetail{isV6: true, zoneV6: zone})
 	return ip
 }
 

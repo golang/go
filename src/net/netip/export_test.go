@@ -16,6 +16,10 @@ type Uint128 = uint128
 
 type AddrDetail = addrDetail
 
+func MakeAddrDetail(isV6 bool, zoneV6 string) AddrDetail {
+	return AddrDetail{isV6: isV6, zoneV6: zoneV6}
+}
+
 func Mk128(hi, lo uint64) Uint128 {
 	return uint128{hi, lo}
 }
