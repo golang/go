@@ -8603,3 +8603,48 @@ func TestSliceAt(t *testing.T) {
 	// _ = SliceAt(typ, unsafe.Pointer(last), 1)
 	shouldPanic("", func() { _ = SliceAt(typ, unsafe.Pointer(last), 2) })
 }
+
+// Test that maps created with MapOf properly updates keys on overwrite as
+// expected (i.e., it sets the key update flag in the map).
+//
+// This test is based on runtime.TestNegativeZero.
+func TestMapOfKeyUpdate(t *testing.T) {
+	m := MakeMap(MapOf(TypeFor[float64](), TypeFor[bool]()))
+
+	zero := float64(0.0)
+	negZero := math.Copysign(zero, -1.0)
+
+	m.SetMapIndex(ValueOf(zero), ValueOf(true))
+	m.SetMapIndex(ValueOf(negZero), ValueOf(true))
+
+	if m.Len() != 1 {
+		t.Errorf("map length got %d want 1", m.Len())
+	}
+
+	iter := m.MapRange()
+	for iter.Next() {
+		k := iter.Key().Float()
+		if math.Copysign(1.0, k) > 0 {
+			t.Errorf("map key %f has positive sign", k)
+		}
+	}
+}
+
+// Test that maps created with MapOf properly panic on unhashable keys, even if
+// the map is empty. (i.e., it sets the hash might panic flag in the map).
+//
+// This test is a simplified version of runtime.TestEmptyMapWithInterfaceKey
+// for reflect.
+func TestMapOfKeyPanic(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Errorf("didn't panic")
+		}
+	}()
+
+	m := MakeMap(MapOf(TypeFor[any](), TypeFor[bool]()))
+
+	var slice []int
+	m.MapIndex(ValueOf(slice))
+}
