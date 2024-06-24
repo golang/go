@@ -1137,7 +1137,7 @@ func (r *rewriter) setStateAt(index int, stateVal abi.RF_State) *syntax.AssignSt
 func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, ftyp *types2.Signature, start, end syntax.Pos) *syntax.FuncLit {
 	// Starting X(bodyFunc); build up bodyFunc first.
 	var params, results []*types2.Var
-	results = append(results, types2.NewVar(start, nil, "", r.bool.Type()))
+	results = append(results, types2.NewVar(start, nil, "#r", r.bool.Type()))
 	bodyFunc := &syntax.FuncLit{
 		// Note: Type is ignored but needs to be non-nil to avoid panic in syntax.Inspect.
 		Type: &syntax.FuncType{},

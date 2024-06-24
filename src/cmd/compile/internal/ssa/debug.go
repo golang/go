@@ -600,7 +600,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 	state.vars = state.vars[:0]
 	for i, slot := range f.Names {
 		state.slots = append(state.slots, *slot)
-		if ir.IsSynthetic(slot.N) {
+		if ir.IsSynthetic(slot.N) || !IsVarWantedForDebug(slot.N) {
 			continue
 		}
 
@@ -620,7 +620,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 		for _, v := range b.Values {
 			if v.Op == OpVarDef {
 				n := v.Aux.(*ir.Name)
-				if ir.IsSynthetic(n) {
+				if ir.IsSynthetic(n) || !IsVarWantedForDebug(n) {
 					continue
 				}
 
@@ -665,7 +665,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 	state.initializeCache(f, len(state.varParts), len(state.slots))
 
 	for i, slot := range f.Names {
-		if ir.IsSynthetic(slot.N) {
+		if ir.IsSynthetic(slot.N) || !IsVarWantedForDebug(slot.N) {
 			continue
 		}
 		for _, value := range f.NamedValues[*slot] {
@@ -1087,7 +1087,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 	switch {
 	case v.Op == OpVarDef:
 		n := v.Aux.(*ir.Name)
-		if ir.IsSynthetic(n) {
+		if ir.IsSynthetic(n) || !IsVarWantedForDebug(n) {
 			break
 		}
 
@@ -1835,6 +1835,9 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 			// will be sorted out elsewhere
 			continue
 		}
+		if !IsVarWantedForDebug(inp.Name) {
+			continue
+		}
 		addVarSlot(inp.Name, inp.Type)
 		params = append(params, inp)
 	}
@@ -1853,6 +1856,9 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 	for _, inp := range params {
 		if !isNamedRegParam(inp) {
 			// will be sorted out elsewhere
+			continue
+		}
+		if !IsVarWantedForDebug(inp.Name) {
 			continue
 		}
 
@@ -1947,4 +1953,20 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 		rval.LocationLists[pidx] = list
 		pidx++
 	}
+}
+
+// IsVarWantedForDebug returns true if the debug info for the node should
+// be generated.
+// For example, internal variables for range-over-func loops have little
+// value to users, so we don't generate debug info for them.
+func IsVarWantedForDebug(n ir.Node) bool {
+	name := n.Sym().Name
+	if len(name) > 0 && name[0] == '&' {
+		name = name[1:]
+	}
+	if len(name) > 0 && name[0] == '#' {
+		// #yield is used by delve.
+		return strings.HasPrefix(name, "#yield")
+	}
+	return true
 }
