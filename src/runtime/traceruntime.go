@@ -24,11 +24,11 @@ func (s *gTraceState) reset() {
 
 // mTraceState is per-M state for the tracer.
 type mTraceState struct {
-	seqlock       atomic.Uintptr // seqlock indicating that this M is writing to a trace buffer.
-	buf           [2]*traceBuf   // Per-M traceBuf for writing. Indexed by trace.gen%2.
-	link          *m             // Snapshot of alllink or freelink.
-	reentered     uint32         // Whether we've reentered tracing from within tracing.
-	oldthrowsplit bool           // gp.throwsplit upon calling traceLocker.writer. For debugging.
+	seqlock       atomic.Uintptr                    // seqlock indicating that this M is writing to a trace buffer.
+	buf           [2][traceNumExperiments]*traceBuf // Per-M traceBuf for writing. Indexed by trace.gen%2.
+	link          *m                                // Snapshot of alllink or freelink.
+	reentered     uint32                            // Whether we've reentered tracing from within tracing.
+	oldthrowsplit bool                              // gp.throwsplit upon calling traceLocker.writer. For debugging.
 }
 
 // pTraceState is per-P state for the tracer.
@@ -691,11 +691,13 @@ func traceThreadDestroy(mp *m) {
 	systemstack(func() {
 		lock(&trace.lock)
 		for i := range mp.trace.buf {
-			if mp.trace.buf[i] != nil {
-				// N.B. traceBufFlush accepts a generation, but it
-				// really just cares about gen%2.
-				traceBufFlush(mp.trace.buf[i], uintptr(i))
-				mp.trace.buf[i] = nil
+			for exp, buf := range mp.trace.buf[i] {
+				if buf != nil {
+					// N.B. traceBufFlush accepts a generation, but it
+					// really just cares about gen%2.
+					traceBufFlush(buf, uintptr(i))
+					mp.trace.buf[i][exp] = nil
+				}
 			}
 		}
 		unlock(&trace.lock)

@@ -43,7 +43,7 @@ func (t *traceTypeTable) dump(gen uintptr) {
 	t.tab.reset()
 }
 
-func dumpTypesRec(node *traceMapNode, w traceExpWriter) traceExpWriter {
+func dumpTypesRec(node *traceMapNode, w traceWriter) traceWriter {
 	typ := (*abi.Type)(*(*unsafe.Pointer)(unsafe.Pointer(&node.data[0])))
 	typName := toRType(typ).string()
 

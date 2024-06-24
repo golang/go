@@ -24,6 +24,7 @@ const traceBytesPerNumber = 10
 // we can change it if it's deemed too error-prone.
 type traceWriter struct {
 	traceLocker
+	exp traceExperiment
 	*traceBuf
 }
 
@@ -47,7 +48,7 @@ func (tl traceLocker) writer() traceWriter {
 			gp.throwsplit = true
 		}
 	}
-	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2]}
+	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2][traceNoExperiment]}
 }
 
 // unsafeTraceWriter produces a traceWriter that doesn't lock the trace.
@@ -105,7 +106,7 @@ func (w traceWriter) end() {
 		// less error-prone.
 		return
 	}
-	w.mp.trace.buf[w.gen%2] = w.traceBuf
+	w.mp.trace.buf[w.gen%2][w.exp] = w.traceBuf
 	if debugTraceReentrancy {
 		// The writer is no longer live, we can drop throwsplit (if it wasn't
 		// already set upon entry).
@@ -127,7 +128,7 @@ func (w traceWriter) end() {
 func (w traceWriter) ensure(maxSize int) (traceWriter, bool) {
 	refill := w.traceBuf == nil || !w.available(maxSize)
 	if refill {
-		w = w.refill(traceNoExperiment)
+		w = w.refill()
 	}
 	return w, refill
 }
@@ -151,14 +152,7 @@ func (w traceWriter) flush() traceWriter {
 }
 
 // refill puts w.traceBuf on the queue of full buffers and refresh's w's buffer.
-//
-// exp indicates whether the refilled batch should be EvExperimentalBatch.
-//
-// nosplit because it's part of writing an event for an M, which must not
-// have any stack growth.
-//
-//go:nosplit
-func (w traceWriter) refill(exp traceExperiment) traceWriter {
+func (w traceWriter) refill() traceWriter {
 	systemstack(func() {
 		lock(&trace.lock)
 		if w.traceBuf != nil {
@@ -192,11 +186,11 @@ func (w traceWriter) refill(exp traceExperiment) traceWriter {
 	}
 
 	// Write the buffer's header.
-	if exp == traceNoExperiment {
+	if w.exp == traceNoExperiment {
 		w.byte(byte(traceEvEventBatch))
 	} else {
 		w.byte(byte(traceEvExperimentalBatch))
-		w.byte(byte(exp))
+		w.byte(byte(w.exp))
 	}
 	w.varint(uint64(w.gen))
 	w.varint(uint64(mID))

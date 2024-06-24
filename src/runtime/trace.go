@@ -524,10 +524,11 @@ func traceAdvance(stopTrace bool) {
 				// trace.lock needed for traceBufFlush, but also to synchronize
 				// with traceThreadDestroy, which flushes both buffers unconditionally.
 				lock(&trace.lock)
-				bufp := &mp.trace.buf[gen%2]
-				if *bufp != nil {
-					traceBufFlush(*bufp, gen)
-					*bufp = nil
+				for exp, buf := range mp.trace.buf[gen%2] {
+					if buf != nil {
+						traceBufFlush(buf, gen)
+						mp.trace.buf[gen%2][exp] = nil
+					}
 				}
 				unlock(&trace.lock)
 
