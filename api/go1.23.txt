@@ -18,7 +18,7 @@ pkg crypto/tls, type Config struct, EncryptedClientHelloRejectionVerify func(Con
 pkg crypto/tls, type ConnectionState struct, ECHAccepted bool #63369
 pkg crypto/tls, type ECHRejectionError struct #63369
 pkg crypto/tls, type ECHRejectionError struct, RetryConfigList []uint8 #63369
-pkg crypto/tls, type QUICConfig struct, EnableStoreSessionEvent bool #63691
+pkg crypto/tls, type QUICConfig struct, EnableSessionEvents bool #63691
 pkg crypto/tls, type QUICEvent struct, SessionState *SessionState #63691
 pkg crypto/tls, type QUICSessionTicketOptions struct, Extra [][]uint8 #63691
 pkg crypto/x509, func ParseOID(string) (OID, error) #66249
