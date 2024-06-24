@@ -893,6 +893,15 @@ func TestAddrLessCompare(t *testing.T) {
 		{mustIP("::1%a"), mustIP("::1%b"), true},
 		{mustIP("::1%a"), mustIP("::1%a"), false},
 		{mustIP("::1%b"), mustIP("::1%a"), false},
+
+		// For Issue 68113, verify that an IPv4 address and a
+		// v4-mapped-IPv6 address differing only in their zone
+		// pointer are unequal via all three of
+		// ==/Compare/reflect.DeepEqual. In Go 1.22 and
+		// earlier, these were accidentally equal via
+		// DeepEqual due to their zone pointers (z) differing
+		// but pointing to identical structures.
+		{mustIP("::ffff:11.1.1.12"), mustIP("11.1.1.12"), false},
 	}
 	for _, tt := range tests {
 		got := tt.a.Less(tt.b)
@@ -919,6 +928,12 @@ func TestAddrLessCompare(t *testing.T) {
 			if got2 {
 				t.Errorf("Less(%q, %q) was correctly %v, but so was Less(%q, %q)", tt.a, tt.b, got, tt.b, tt.a)
 			}
+		}
+
+		// Also check reflect.DeepEqual. See issue 68113.
+		deepEq := reflect.DeepEqual(tt.a, tt.b)
+		if (cmp == 0) != deepEq {
+			t.Errorf("%q and %q differ in == (%v) vs reflect.DeepEqual (%v)", tt.a, tt.b, cmp == 0, deepEq)
 		}
 	}
 
