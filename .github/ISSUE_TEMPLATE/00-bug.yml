@@ -17,7 +17,7 @@ body:
       description: |
         What version of Go are you using (`go version`)?
 
-        Note: we only [support](https://go.dev/doc/devel/release#policy) the two most recent major releases.
+        Note: we only [support](https://go.dev/doc/devel/release#policy) the two most recent minor releases.
       placeholder: ex. go version go1.20.7 darwin/arm64
     validations:
       required: true
