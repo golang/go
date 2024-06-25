@@ -1129,6 +1129,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 
 	case *ast.CompositeLit:
 		var typ, base Type
+		var isElem bool // true if composite literal is an element of an enclosing composite literal
 
 		switch {
 		case e.Type != nil:
@@ -1151,11 +1152,12 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 		case hint != nil:
 			// no composite literal type present - use hint (element type of enclosing type)
 			typ = hint
-			base, _ = deref(coreType(typ)) // *T implies &T{}
-			if base == nil {
-				check.errorf(e, InvalidLit, "invalid composite literal element type %s (no core type)", typ)
-				goto Error
+			base = typ
+			// *T implies &T{}
+			if b, ok := deref(coreType(base)); ok {
+				base = b
 			}
+			isElem = true
 
 		default:
 			// TODO(gri) provide better error messages depending on context
@@ -1343,7 +1345,15 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			}
 			// if utyp is invalid, an error was reported before
 			if isValid(utyp) {
-				check.errorf(e, InvalidLit, "invalid composite literal type %s", typ)
+				var qualifier string
+				if isElem {
+					qualifier = " element"
+				}
+				var cause string
+				if utyp == nil {
+					cause = " (no core type)"
+				}
+				check.errorf(e, InvalidLit, "invalid composite literal%s type %s%s", qualifier, typ, cause)
 				goto Error
 			}
 		}
