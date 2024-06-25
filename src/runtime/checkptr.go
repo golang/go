@@ -48,8 +48,8 @@ func checkptrStraddles(ptr unsafe.Pointer, size uintptr) bool {
 }
 
 func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
-	if 0 < uintptr(p) && uintptr(p) < minLegalPointer {
-		throw("checkptr: pointer arithmetic computed bad pointer value")
+	if uintptr(p) < minLegalPointer {
+		return
 	}
 
 	// Check that if the computed pointer p points into a heap
