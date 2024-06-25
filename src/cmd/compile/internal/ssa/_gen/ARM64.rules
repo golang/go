@@ -580,10 +580,10 @@
 (AtomicCompareAndSwap(32|64)Variant ...) => (LoweredAtomicCas(32|64)Variant      ...)
 
 // Return old contents.
-(AtomicAnd(64|32|8)            ...) => (LoweredAtomicAnd(64|32|8)            ...)
-(AtomicOr(64|32|8)             ...) => (LoweredAtomicOr(64|32|8)             ...)
-(AtomicAnd(64|32|8)Variant     ...) => (LoweredAtomicAnd(64|32|8)Variant     ...)
-(AtomicOr(64|32|8)Variant      ...) => (LoweredAtomicOr(64|32|8)Variant      ...)
+(AtomicAnd(64|32|8)value            ...) => (LoweredAtomicAnd(64|32|8)            ...)
+(AtomicOr(64|32|8)value             ...) => (LoweredAtomicOr(64|32|8)             ...)
+(AtomicAnd(64|32|8)valueVariant     ...) => (LoweredAtomicAnd(64|32|8)Variant     ...)
+(AtomicOr(64|32|8)valueVariant      ...) => (LoweredAtomicOr(64|32|8)Variant      ...)
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)

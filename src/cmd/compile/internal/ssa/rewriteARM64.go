@@ -469,22 +469,22 @@ func rewriteValueARM64(v *Value) bool {
 	case OpAtomicAdd64Variant:
 		v.Op = OpARM64LoweredAtomicAdd64Variant
 		return true
-	case OpAtomicAnd32:
+	case OpAtomicAnd32value:
 		v.Op = OpARM64LoweredAtomicAnd32
 		return true
-	case OpAtomicAnd32Variant:
+	case OpAtomicAnd32valueVariant:
 		v.Op = OpARM64LoweredAtomicAnd32Variant
 		return true
-	case OpAtomicAnd64:
+	case OpAtomicAnd64value:
 		v.Op = OpARM64LoweredAtomicAnd64
 		return true
-	case OpAtomicAnd64Variant:
+	case OpAtomicAnd64valueVariant:
 		v.Op = OpARM64LoweredAtomicAnd64Variant
 		return true
-	case OpAtomicAnd8:
+	case OpAtomicAnd8value:
 		v.Op = OpARM64LoweredAtomicAnd8
 		return true
-	case OpAtomicAnd8Variant:
+	case OpAtomicAnd8valueVariant:
 		v.Op = OpARM64LoweredAtomicAnd8Variant
 		return true
 	case OpAtomicCompareAndSwap32:
@@ -523,22 +523,22 @@ func rewriteValueARM64(v *Value) bool {
 	case OpAtomicLoadPtr:
 		v.Op = OpARM64LDAR
 		return true
-	case OpAtomicOr32:
+	case OpAtomicOr32value:
 		v.Op = OpARM64LoweredAtomicOr32
 		return true
-	case OpAtomicOr32Variant:
+	case OpAtomicOr32valueVariant:
 		v.Op = OpARM64LoweredAtomicOr32Variant
 		return true
-	case OpAtomicOr64:
+	case OpAtomicOr64value:
 		v.Op = OpARM64LoweredAtomicOr64
 		return true
-	case OpAtomicOr64Variant:
+	case OpAtomicOr64valueVariant:
 		v.Op = OpARM64LoweredAtomicOr64Variant
 		return true
-	case OpAtomicOr8:
+	case OpAtomicOr8value:
 		v.Op = OpARM64LoweredAtomicOr8
 		return true
-	case OpAtomicOr8Variant:
+	case OpAtomicOr8valueVariant:
 		v.Op = OpARM64LoweredAtomicOr8Variant
 		return true
 	case OpAtomicStore32:

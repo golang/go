@@ -3231,22 +3231,26 @@ const (
 	OpAtomicCompareAndSwapRel32
 	OpAtomicAnd8
 	OpAtomicOr8
-	OpAtomicAnd64
 	OpAtomicAnd32
-	OpAtomicOr64
 	OpAtomicOr32
+	OpAtomicAnd64value
+	OpAtomicAnd32value
+	OpAtomicAnd8value
+	OpAtomicOr64value
+	OpAtomicOr32value
+	OpAtomicOr8value
 	OpAtomicAdd32Variant
 	OpAtomicAdd64Variant
 	OpAtomicExchange32Variant
 	OpAtomicExchange64Variant
 	OpAtomicCompareAndSwap32Variant
 	OpAtomicCompareAndSwap64Variant
-	OpAtomicAnd8Variant
-	OpAtomicOr8Variant
-	OpAtomicAnd64Variant
-	OpAtomicOr64Variant
-	OpAtomicAnd32Variant
-	OpAtomicOr32Variant
+	OpAtomicAnd64valueVariant
+	OpAtomicOr64valueVariant
+	OpAtomicAnd32valueVariant
+	OpAtomicOr32valueVariant
+	OpAtomicAnd8valueVariant
+	OpAtomicOr8valueVariant
 	OpPubBarrier
 	OpClobber
 	OpClobberReg
@@ -40739,25 +40743,49 @@ var opcodeTable = [...]opInfo{
 		generic:        true,
 	},
 	{
-		name:           "AtomicAnd64",
-		argLen:         3,
-		hasSideEffects: true,
-		generic:        true,
-	},
-	{
 		name:           "AtomicAnd32",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
 	},
 	{
-		name:           "AtomicOr64",
+		name:           "AtomicOr32",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
 	},
 	{
-		name:           "AtomicOr32",
+		name:           "AtomicAnd64value",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicAnd32value",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicAnd8value",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicOr64value",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicOr32value",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicOr8value",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
@@ -40799,37 +40827,37 @@ var opcodeTable = [...]opInfo{
 		generic:        true,
 	},
 	{
-		name:           "AtomicAnd8Variant",
+		name:           "AtomicAnd64valueVariant",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
 	},
 	{
-		name:           "AtomicOr8Variant",
+		name:           "AtomicOr64valueVariant",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
 	},
 	{
-		name:           "AtomicAnd64Variant",
+		name:           "AtomicAnd32valueVariant",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
 	},
 	{
-		name:           "AtomicOr64Variant",
+		name:           "AtomicOr32valueVariant",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
 	},
 	{
-		name:           "AtomicAnd32Variant",
+		name:           "AtomicAnd8valueVariant",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
 	},
 	{
-		name:           "AtomicOr32Variant",
+		name:           "AtomicOr8valueVariant",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,

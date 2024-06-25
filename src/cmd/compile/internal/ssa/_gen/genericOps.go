@@ -609,12 +609,20 @@ var genericOps = []opData{
 	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
 	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
 	{name: "AtomicCompareAndSwapRel32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Lock release, reports whether store happens and new memory.
-	{name: "AtomicAnd8", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},              // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicOr8", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},               // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicAnd64", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},            // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicAnd32", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},            // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicOr64", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},             // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicOr32", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},             // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+
+	// Older atomic logical operations which don't return the old value.
+	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},  // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},   // *arg0 |= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicAnd32", argLength: 3, typ: "Mem", hasSideEffects: true}, // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr32", argLength: 3, typ: "Mem", hasSideEffects: true},  // *arg0 |= arg1.  arg2=memory.  Returns memory.
+
+	// Newer atomic logical operations which return the old value.
+	{name: "AtomicAnd64value", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true}, // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAnd32value", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true}, // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAnd8value", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},   // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr64value", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},  // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr32value", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},  // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr8value", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},    // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
 
 	// Atomic operation variants
 	// These variants have the same semantics as above atomic operations.
@@ -628,12 +636,12 @@ var genericOps = []opData{
 	{name: "AtomicExchange64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
 	{name: "AtomicCompareAndSwap32Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
 	{name: "AtomicCompareAndSwap64Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
-	{name: "AtomicAnd8Variant", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},           // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicOr8Variant", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},            // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicAnd64Variant", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},         // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicOr64Variant", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},          // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicAnd32Variant", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},         // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
-	{name: "AtomicOr32Variant", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},          // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAnd64valueVariant", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},    // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr64valueVariant", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},     // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAnd32valueVariant", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},    // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr32valueVariant", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},     // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAnd8valueVariant", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},      // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicOr8valueVariant", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},       // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
 
 	// Publication barrier
 	{name: "PubBarrier", argLength: 1, hasSideEffects: true}, // Do data barrier. arg0=memory.
