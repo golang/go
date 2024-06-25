@@ -578,11 +578,14 @@
 (AtomicCompareAndSwap32 ptr old new_ mem) => (CMPXCHGLlock ptr old new_ mem)
 (AtomicCompareAndSwap64 ptr old new_ mem) => (CMPXCHGQlock ptr old new_ mem)
 
-// Atomic memory updates.
+// Atomic memory logical operations (old style).
 (AtomicAnd8  ptr val mem) => (ANDBlock ptr val mem)
 (AtomicAnd32 ptr val mem) => (ANDLlock ptr val mem)
 (AtomicOr8   ptr val mem) => (ORBlock  ptr val mem)
 (AtomicOr32  ptr val mem) => (ORLlock  ptr val mem)
+
+// Atomic memory logical operations (new style).
+(Atomic(And64|And32|Or64|Or32)value ptr val mem) => (LoweredAtomic(And64|And32|Or64|Or32) ptr val mem)
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
@@ -1697,3 +1700,6 @@
 ((SHL|SHR|SAR)XQload [off] {sym} ptr (MOVQconst [c]) mem) => ((SHL|SHR|SAR)Qconst [int8(c&63)] (MOVQload [off] {sym} ptr mem))
 ((SHL|SHR|SAR)XQload [off] {sym} ptr (MOVLconst [c]) mem) => ((SHL|SHR|SAR)Qconst [int8(c&63)] (MOVQload [off] {sym} ptr mem))
 ((SHL|SHR|SAR)XLload [off] {sym} ptr (MOVLconst [c]) mem) => ((SHL|SHR|SAR)Lconst [int8(c&31)] (MOVLload [off] {sym} ptr mem))
+
+// Convert atomic logical operations to easier ones if we don't use the result.
+(Select1 a:(LoweredAtomic(And64|And32|Or64|Or32) ptr val mem)) && a.Uses == 1 && clobber(a) => ((ANDQ|ANDL|ORQ|ORL)lock ptr val mem)

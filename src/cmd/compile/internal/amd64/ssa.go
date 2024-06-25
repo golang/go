@@ -1286,7 +1286,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p = s.Prog(x86.ASETEQ)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
-	case ssa.OpAMD64ANDBlock, ssa.OpAMD64ANDLlock, ssa.OpAMD64ORBlock, ssa.OpAMD64ORLlock:
+	case ssa.OpAMD64ANDBlock, ssa.OpAMD64ANDLlock, ssa.OpAMD64ANDQlock, ssa.OpAMD64ORBlock, ssa.OpAMD64ORLlock, ssa.OpAMD64ORQlock:
+		// Atomic memory operations that don't need to return the old value.
 		s.Prog(x86.ALOCK)
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -1294,6 +1295,60 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)
+	case ssa.OpAMD64LoweredAtomicAnd64, ssa.OpAMD64LoweredAtomicOr64, ssa.OpAMD64LoweredAtomicAnd32, ssa.OpAMD64LoweredAtomicOr32:
+		// Atomic memory operations that need to return the old value.
+		// We need to do these with compare-and-exchange to get access to the old value.
+		// loop:
+		// MOVQ mask, tmp
+		// MOVQ (addr), AX
+		// ANDQ AX, tmp
+		// LOCK CMPXCHGQ tmp, (addr) : note that AX is implicit old value to compare against
+		// JNE loop
+		// : result in AX
+		mov := x86.AMOVQ
+		op := x86.AANDQ
+		cmpxchg := x86.ACMPXCHGQ
+		switch v.Op {
+		case ssa.OpAMD64LoweredAtomicOr64:
+			op = x86.AORQ
+		case ssa.OpAMD64LoweredAtomicAnd32:
+			mov = x86.AMOVL
+			op = x86.AANDL
+			cmpxchg = x86.ACMPXCHGL
+		case ssa.OpAMD64LoweredAtomicOr32:
+			mov = x86.AMOVL
+			op = x86.AORL
+			cmpxchg = x86.ACMPXCHGL
+		}
+		addr := v.Args[0].Reg()
+		mask := v.Args[1].Reg()
+		tmp := v.RegTmp()
+		p1 := s.Prog(mov)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = mask
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = tmp
+		p2 := s.Prog(mov)
+		p2.From.Type = obj.TYPE_MEM
+		p2.From.Reg = addr
+		ssagen.AddAux(&p2.From, v)
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = x86.REG_AX
+		p3 := s.Prog(op)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = x86.REG_AX
+		p3.To.Type = obj.TYPE_REG
+		p3.To.Reg = tmp
+		s.Prog(x86.ALOCK)
+		p5 := s.Prog(cmpxchg)
+		p5.From.Type = obj.TYPE_REG
+		p5.From.Reg = tmp
+		p5.To.Type = obj.TYPE_MEM
+		p5.To.Reg = addr
+		ssagen.AddAux(&p5.To, v)
+		p6 := s.Prog(x86.AJNE)
+		p6.To.Type = obj.TYPE_BRANCH
+		p6.To.SetTarget(p1)
 	case ssa.OpAMD64PrefetchT0, ssa.OpAMD64PrefetchNTA:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM

@@ -1612,8 +1612,14 @@ func (s *regAllocState) regalloc(f *Func) {
 			// allocate it after all the input registers, but before
 			// the input registers are freed via advanceUses below.
 			// (Not all instructions need that distinct part, but it is conservative.)
+			// We also ensure it is not any of the single-choice output registers.
 			if opcodeTable[v.Op].needIntTemp {
 				m := s.allocatable & s.f.Config.gpRegMask
+				for _, out := range regspec.outputs {
+					if countRegs(out.regs) == 1 {
+						m &^= out.regs
+					}
+				}
 				if m&^desired.avoid&^s.nospill != 0 {
 					m &^= desired.avoid
 				}
@@ -1651,9 +1657,12 @@ func (s *regAllocState) regalloc(f *Func) {
 					used |= regMask(1) << tmpReg
 				}
 				for _, out := range regspec.outputs {
+					if out.regs == 0 {
+						continue
+					}
 					mask := out.regs & s.allocatable &^ used
 					if mask == 0 {
-						continue
+						s.f.Fatalf("can't find any output register %s", v.LongString())
 					}
 					if opcodeTable[v.Op].resultInArg0 && out.idx == 0 {
 						if !opcodeTable[v.Op].commutative {

@@ -4164,6 +4164,13 @@ func (s *state) sfcall(op ssa.Op, args ...*ssa.Value) (*ssa.Value, bool) {
 	return nil, false
 }
 
+// split breaks up a tuple-typed value into its 2 parts.
+func (s *state) split(v *ssa.Value) (*ssa.Value, *ssa.Value) {
+	p0 := s.newValue1(ssa.OpSelect0, v.Type.FieldType(0), v)
+	p1 := s.newValue1(ssa.OpSelect1, v.Type.FieldType(1), v)
+	return p0, p1
+}
+
 var intrinsics map[intrinsicKey]intrinsicBuilder
 
 // An intrinsicBuilder converts a call node n into an ssa value that
@@ -4531,6 +4538,7 @@ func InitTables() {
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, types.TBOOL, atomicCasEmitterARM64),
 		sys.ARM64)
 
+	// Old-style atomic logical operation API (all supported archs except arm64).
 	addF("internal/runtime/atomic", "And8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
@@ -4556,6 +4564,8 @@ func InitTables() {
 		},
 		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 
+	// arm64 always uses the new-style atomic logical operations, for both the
+	// old and new style API.
 	addF("internal/runtime/atomic", "And8",
 		makeAtomicGuardedIntrinsicARM64old(ssa.OpAtomicAnd8value, ssa.OpAtomicAnd8valueVariant, types.TUINT8, atomicEmitterARM64),
 		sys.ARM64)
@@ -4580,6 +4590,40 @@ func InitTables() {
 	addF("internal/runtime/atomic", "Or",
 		makeAtomicGuardedIntrinsicARM64old(ssa.OpAtomicOr32value, ssa.OpAtomicOr32valueVariant, types.TUINT32, atomicEmitterARM64),
 		sys.ARM64)
+
+	// New-style atomic logical operations, which return the old memory value.
+	addF("internal/runtime/atomic", "And64",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			v := s.newValue3(ssa.OpAtomicAnd64value, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
+			p0, p1 := s.split(v)
+			s.vars[memVar] = p1
+			return p0
+		},
+		sys.AMD64)
+	addF("internal/runtime/atomic", "And32",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			v := s.newValue3(ssa.OpAtomicAnd32value, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
+			p0, p1 := s.split(v)
+			s.vars[memVar] = p1
+			return p0
+		},
+		sys.AMD64)
+	addF("internal/runtime/atomic", "Or64",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			v := s.newValue3(ssa.OpAtomicOr64value, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
+			p0, p1 := s.split(v)
+			s.vars[memVar] = p1
+			return p0
+		},
+		sys.AMD64)
+	addF("internal/runtime/atomic", "Or32",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			v := s.newValue3(ssa.OpAtomicOr32value, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
+			p0, p1 := s.split(v)
+			s.vars[memVar] = p1
+			return p0
+		},
+		sys.AMD64)
 
 	// Aliases for atomic load operations
 	alias("internal/runtime/atomic", "Loadint32", "internal/runtime/atomic", "Load", all...)
@@ -5108,16 +5152,16 @@ func InitTables() {
 	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd", p4...)
 	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd64", p8...)
 
-	alias("sync/atomic", "AndInt32", "internal/runtime/atomic", "And32", sys.ArchARM64)
-	alias("sync/atomic", "AndUint32", "internal/runtime/atomic", "And32", sys.ArchARM64)
-	alias("sync/atomic", "AndInt64", "internal/runtime/atomic", "And64", sys.ArchARM64)
-	alias("sync/atomic", "AndUint64", "internal/runtime/atomic", "And64", sys.ArchARM64)
-	alias("sync/atomic", "AndUintptr", "internal/runtime/atomic", "And64", sys.ArchARM64)
-	alias("sync/atomic", "OrInt32", "internal/runtime/atomic", "Or32", sys.ArchARM64)
-	alias("sync/atomic", "OrUint32", "internal/runtime/atomic", "Or32", sys.ArchARM64)
-	alias("sync/atomic", "OrInt64", "internal/runtime/atomic", "Or64", sys.ArchARM64)
-	alias("sync/atomic", "OrUint64", "internal/runtime/atomic", "Or64", sys.ArchARM64)
-	alias("sync/atomic", "OrUintptr", "internal/runtime/atomic", "Or64", sys.ArchARM64)
+	alias("sync/atomic", "AndInt32", "internal/runtime/atomic", "And32", sys.ArchARM64, sys.ArchAMD64)
+	alias("sync/atomic", "AndUint32", "internal/runtime/atomic", "And32", sys.ArchARM64, sys.ArchAMD64)
+	alias("sync/atomic", "AndInt64", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64)
+	alias("sync/atomic", "AndUint64", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64)
+	alias("sync/atomic", "AndUintptr", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64)
+	alias("sync/atomic", "OrInt32", "internal/runtime/atomic", "Or32", sys.ArchARM64, sys.ArchAMD64)
+	alias("sync/atomic", "OrUint32", "internal/runtime/atomic", "Or32", sys.ArchARM64, sys.ArchAMD64)
+	alias("sync/atomic", "OrInt64", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64)
+	alias("sync/atomic", "OrUint64", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64)
+	alias("sync/atomic", "OrUintptr", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64)
 
 	/******** math/big ********/
 	alias("math/big", "mulWW", "math/bits", "Mul64", p8...)
