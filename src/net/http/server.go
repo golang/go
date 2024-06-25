@@ -16,6 +16,7 @@ import (
 	"internal/godebug"
 	"io"
 	"log"
+	"maps"
 	"math/rand"
 	"net"
 	"net/textproto"
@@ -2721,19 +2722,10 @@ func (mux *ServeMux) matchingMethods(host, path string) []string {
 	ms := map[string]bool{}
 	mux.tree.matchingMethods(host, path, ms)
 	// matchOrRedirect will try appending a trailing slash if there is no match.
-	mux.tree.matchingMethods(host, path+"/", ms)
-	methods := mapKeys(ms)
-	slices.Sort(methods)
-	return methods
-}
-
-// TODO(jba): replace with maps.Keys when it is defined.
-func mapKeys[K comparable, V any](m map[K]V) []K {
-	var ks []K
-	for k := range m {
-		ks = append(ks, k)
+	if !strings.HasSuffix(path, "/") {
+		mux.tree.matchingMethods(host, path+"/", ms)
 	}
-	return ks
+	return slices.Sorted(maps.Keys(ms))
 }
 
 // ServeHTTP dispatches the request to the handler whose
