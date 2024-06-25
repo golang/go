@@ -560,9 +560,7 @@ L: // unpack receiver type
 	}
 
 	// unpack receiver name
-	if name, _ := rtyp.(*syntax.Name); name != nil {
-		rname = name
-	}
+	rname, _ = rtyp.(*syntax.Name)
 
 	return
 }

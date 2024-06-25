@@ -545,9 +545,7 @@ L: // unpack receiver type
 	}
 
 	// unpack receiver name
-	if name, _ := rtyp.(*ast.Ident); name != nil {
-		rname = name
-	}
+	rname, _ = rtyp.(*ast.Ident)
 
 	return
 }
