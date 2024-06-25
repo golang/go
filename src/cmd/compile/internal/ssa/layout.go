@@ -256,7 +256,7 @@ func (g *chainGraph) getChain(b *Block) *chain {
 
 // mergeChain merges the "from" chain into the "to" chain. The from chain is
 // removed then.
-func (g *chainGraph) mergeChain(to, from *chain) {
+func (g *chainGraph) mergeChain(from, to *chain) {
 	for _, block := range from.blocks {
 		g.b2chain[block.ID] = to
 	}
@@ -321,28 +321,20 @@ func greedyBlockOrder(fn *Func) []*Block {
 		// If the weights are the same, then keep the original order, this
 		// ensures that adjacent edges are accessed sequentially, which has
 		// a noticeable impact on performance
-		return e1.weight >= e2.weight
+		return e1.weight > e2.weight
 	})
 
 	// Merge proper chains until no more chains can be merged
 	for _, edge := range graph.edges {
-		src := graph.getChain(edge.src)
-		dst := graph.getChain(edge.dst)
-		if src == dst {
-			// Loop detected, "rotate" the loop from [..,header,body,latch] to
-			// [..,body,latch,header]
-			for idx, block := range src.blocks {
-				if block == edge.dst && block.Kind != BlockPlain /*already rotated?*/ {
-					c := append(src.blocks[0:idx], src.blocks[idx+1:]...)
-					c = append(c, block)
-					src.blocks = c
-					break
-				}
+		c1 := graph.getChain(edge.src)
+		c2 := graph.getChain(edge.dst)
+		// [c1] edge [c2] ? Then merge c1 into c2 and remove entire c1 then
+		if c1 != c2 && (edge.dst == c2.first() && edge.src == c1.last()) {
+			if fn.pass.debug > 2 {
+				fmt.Printf("process %v merge %v to %v\n",
+					edge, c2.blocks, c1.blocks)
 			}
-			continue
-		}
-		if edge.dst == dst.first() && edge.src == src.last() {
-			graph.mergeChain(src, dst)
+			graph.mergeChain(c2, c1)
 		}
 	}
 	i := 0
@@ -413,7 +405,7 @@ func greedyBlockOrder(fn *Func) []*Block {
 	}
 	if len(blockOrder) != len(fn.Blocks) {
 		graph.print()
-		fn.Fatalf("miss blocks in final order")
+		fn.Fatalf("miss blocks in final order: %v %v", blockOrder, fn.Blocks)
 	}
 	if entryChain := graph.getChain(fn.Entry); entryChain != graph.chains[0] ||
 		entryChain.first() != fn.Entry {
