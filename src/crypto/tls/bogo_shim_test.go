@@ -17,9 +17,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/cryptobyte"
 )
 
 var (
@@ -77,10 +80,12 @@ var (
 	_                       = flag.Bool("expect-ticket-supports-early-data", false, "")
 	onResumeShimWritesFirst = flag.Bool("on-resume-shim-writes-first", false, "")
 
-	advertiseALPN = flag.String("advertise-alpn", "", "")
-	expectALPN    = flag.String("expect-alpn", "", "")
-	rejectALPN    = flag.Bool("reject-alpn", false, "")
-	declineALPN   = flag.Bool("decline-alpn", false, "")
+	advertiseALPN        = flag.String("advertise-alpn", "", "")
+	expectALPN           = flag.String("expect-alpn", "", "")
+	rejectALPN           = flag.Bool("reject-alpn", false, "")
+	declineALPN          = flag.Bool("decline-alpn", false, "")
+	expectAdvertisedALPN = flag.String("expect-advertised-alpn", "", "")
+	selectALPN           = flag.String("select-alpn", "", "")
 
 	hostName = flag.String("host-name", "", "")
 
@@ -118,6 +123,29 @@ func bogoShim() {
 		MaxVersion: uint16(*maxVersion),
 
 		ClientSessionCache: NewLRUClientSessionCache(0),
+
+		GetConfigForClient: func(chi *ClientHelloInfo) (*Config, error) {
+
+			if *expectAdvertisedALPN != "" {
+
+				s := cryptobyte.String(*expectAdvertisedALPN)
+
+				var expectedALPNs []string
+
+				for !s.Empty() {
+					var alpn cryptobyte.String
+					if !s.ReadUint8LengthPrefixed(&alpn) {
+						return nil, fmt.Errorf("unexpected error while parsing arguments for -expect-advertised-alpn")
+					}
+					expectedALPNs = append(expectedALPNs, string(alpn))
+				}
+
+				if !slices.Equal(chi.SupportedProtos, expectedALPNs) {
+					return nil, fmt.Errorf("unexpected ALPN: got %q, want %q", chi.SupportedProtos, expectedALPNs)
+				}
+			}
+			return nil, nil
+		},
 	}
 
 	if *noTLS1 {
@@ -159,6 +187,9 @@ func bogoShim() {
 
 	if *declineALPN {
 		cfg.NextProtos = []string{}
+	}
+	if *selectALPN != "" {
+		cfg.NextProtos = []string{*selectALPN}
 	}
 
 	if *hostName != "" {
@@ -288,6 +319,11 @@ func bogoShim() {
 			if *expectALPN != "" && cs.NegotiatedProtocol != *expectALPN {
 				log.Fatalf("unexpected protocol negotiated: want %q, got %q", *expectALPN, cs.NegotiatedProtocol)
 			}
+
+			if *selectALPN != "" && cs.NegotiatedProtocol != *selectALPN {
+				log.Fatalf("unexpected protocol negotiated: want %q, got %q", *selectALPN, cs.NegotiatedProtocol)
+			}
+
 			if *expectVersion != 0 && cs.Version != uint16(*expectVersion) {
 				log.Fatalf("expected ssl version %q, got %q", uint16(*expectVersion), cs.Version)
 			}
