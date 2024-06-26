@@ -162,7 +162,7 @@ var filemap = map[string]action{
 	"package.go":       nil,
 	"pointer.go":       nil,
 	"predicates.go":    nil,
-	"scope.go":         func(f *ast.File) { fixTokenPos(f); renameIdents(f, "Squash->squash", "InsertLazy->_InsertLazy") },
+	"scope.go":         func(f *ast.File) { fixTokenPos(f); renameIdents(f, "InsertLazy->_InsertLazy") },
 	"selection.go":     nil,
 	"sizes.go":         func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
 	"slice.go":         nil,

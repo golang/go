@@ -161,7 +161,6 @@ type Checker struct {
 	versions      map[*ast.File]string      // maps files to version strings (each file has an entry); shared with Info.FileVersions if present
 	imports       []*PkgName                // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
-	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
 	brokenAliases map[*TypeName]bool        // set of aliases with broken (not yet determined) types
 	unionTypeSets map[*Union]*_TypeSet      // computed type sets for union types
 	mono          monoGraph                 // graph for detecting non-monomorphizable instantiation loops
@@ -496,7 +495,6 @@ func (check *Checker) checkFiles(files []*ast.File) {
 	check.dotImportMap = nil
 	check.pkgPathMap = nil
 	check.seenPkgMap = nil
-	check.recvTParamMap = nil
 	check.brokenAliases = nil
 	check.unionTypeSets = nil
 	check.ctxt = nil

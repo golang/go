@@ -139,14 +139,13 @@ type Checker struct {
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
-	files         []*syntax.File              // list of package files
-	versions      map[*syntax.PosBase]string  // maps files to version strings (each file has an entry); shared with Info.FileVersions if present
-	imports       []*PkgName                  // list of imported packages
-	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
-	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
-	brokenAliases map[*TypeName]bool          // set of aliases with broken (not yet determined) types
-	unionTypeSets map[*Union]*_TypeSet        // computed type sets for union types
-	mono          monoGraph                   // graph for detecting non-monomorphizable instantiation loops
+	files         []*syntax.File             // list of package files
+	versions      map[*syntax.PosBase]string // maps files to version strings (each file has an entry); shared with Info.FileVersions if present
+	imports       []*PkgName                 // list of imported packages
+	dotImportMap  map[dotImportKey]*PkgName  // maps dot-imported objects to the package they were dot-imported through
+	brokenAliases map[*TypeName]bool         // set of aliases with broken (not yet determined) types
+	unionTypeSets map[*Union]*_TypeSet       // computed type sets for union types
+	mono          monoGraph                  // graph for detecting non-monomorphizable instantiation loops
 
 	firstErr error                    // first error encountered
 	methods  map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
@@ -474,7 +473,6 @@ func (check *Checker) checkFiles(files []*syntax.File) {
 	check.dotImportMap = nil
 	check.pkgPathMap = nil
 	check.seenPkgMap = nil
-	check.recvTParamMap = nil
 	check.brokenAliases = nil
 	check.unionTypeSets = nil
 	check.ctxt = nil

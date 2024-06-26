@@ -517,27 +517,10 @@ func (check *Checker) collectObjects() {
 // Note that base may not be a *syntax.Name for erroneous programs.
 func (check *Checker) unpackRecv(rtyp syntax.Expr, unpackParams bool) (ptr bool, base syntax.Expr, tparams []*syntax.Name) {
 	// unpack receiver type
-	// This accepts invalid receivers such as ***T and does not
-	// work for other invalid receivers, but we don't care. The
-	// validity of receiver expressions is checked elsewhere.
-	base = rtyp
-L:
-	for {
-		switch t := base.(type) {
-		case *syntax.ParenExpr:
-			base = t.X
-		// case *ast.StarExpr:
-		//      ptr = true
-		// 	base = t.X
-		case *syntax.Operation:
-			if t.Op != syntax.Mul || t.Y != nil {
-				break
-			}
-			ptr = true
-			base = t.X
-		default:
-			break L
-		}
+	base = syntax.Unparen(rtyp)
+	if t, _ := base.(*syntax.Operation); t != nil && t.Op == syntax.Mul && t.Y == nil {
+		ptr = true
+		base = syntax.Unparen(t.X)
 	}
 
 	// unpack type parameters, if any

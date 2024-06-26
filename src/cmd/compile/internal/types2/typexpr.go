@@ -28,15 +28,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 	switch obj {
 	case nil:
 		if e.Value == "_" {
-			// Blank identifiers are never declared, but the current identifier may
-			// be a placeholder for a receiver type parameter. In this case we can
-			// resolve its type and object from Checker.recvTParamMap.
-			if tpar := check.recvTParamMap[e]; tpar != nil {
-				x.mode = typexpr
-				x.typ = tpar
-			} else {
-				check.error(e, InvalidBlank, "cannot use _ as value or type")
-			}
+			check.error(e, InvalidBlank, "cannot use _ as value or type")
 		} else {
 			check.errorf(e, UndeclaredName, "undefined: %s", e.Value)
 		}

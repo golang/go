@@ -141,41 +141,6 @@ func (s *Scope) insert(name string, obj Object) {
 	s.elems[name] = obj
 }
 
-// Squash merges s with its parent scope p by adding all
-// objects of s to p, adding all children of s to the
-// children of p, and removing s from p's children.
-// The function f is called for each object obj in s which
-// has an object alt in p. s should be discarded after
-// having been squashed.
-func (s *Scope) Squash(err func(obj, alt Object)) {
-	p := s.parent
-	assert(p != nil)
-	for name, obj := range s.elems {
-		obj = resolve(name, obj)
-		obj.setParent(nil)
-		if alt := p.Insert(obj); alt != nil {
-			err(obj, alt)
-		}
-	}
-
-	j := -1 // index of s in p.children
-	for i, ch := range p.children {
-		if ch == s {
-			j = i
-			break
-		}
-	}
-	assert(j >= 0)
-	k := len(p.children) - 1
-	p.children[j] = p.children[k]
-	p.children = p.children[:k]
-
-	p.children = append(p.children, s.children...)
-
-	s.children = nil
-	s.elems = nil
-}
-
 // Pos and End describe the scope's source code extent [pos, end).
 // The results are guaranteed to be valid only if the type-checked
 // AST has complete position information. The extent is undefined

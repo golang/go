@@ -507,21 +507,10 @@ func (check *Checker) collectObjects() {
 // Note that base may not be a *ast.Ident for erroneous programs.
 func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, base ast.Expr, tparams []*ast.Ident) {
 	// unpack receiver type
-	// This accepts invalid receivers such as ***T and does not
-	// work for other invalid receivers, but we don't care. The
-	// validity of receiver expressions is checked elsewhere.
-	base = rtyp
-L:
-	for {
-		switch t := base.(type) {
-		case *ast.ParenExpr:
-			base = t.X
-		case *ast.StarExpr:
-			ptr = true
-			base = t.X
-		default:
-			break L
-		}
+	base = ast.Unparen(rtyp)
+	if t, _ := base.(*ast.StarExpr); t != nil {
+		ptr = true
+		base = ast.Unparen(t.X)
 	}
 
 	// unpack type parameters, if any
