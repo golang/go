@@ -97,10 +97,6 @@ func TestIntendedInlining(t *testing.T) {
 			"traceLocker.ok",
 			"traceEnabled",
 		},
-		"internal/runtime/sys": {},
-		"internal/runtime/math": {
-			"MulUintptr",
-		},
 		"bytes": {
 			"(*Buffer).Bytes",
 			"(*Buffer).Cap",
@@ -117,6 +113,10 @@ func TestIntendedInlining(t *testing.T) {
 		"internal/abi": {
 			"UseInterfaceSwitchCache",
 		},
+		"internal/runtime/math": {
+			"MulUintptr",
+		},
+		"internal/runtime/sys": {},
 		"compress/flate": {
 			"byLiteral.Len",
 			"byLiteral.Less",
