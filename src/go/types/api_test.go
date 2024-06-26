@@ -763,7 +763,7 @@ func TestUsesInfo(t *testing.T) {
 
 		// Uses of fields are instantiated.
 		{`package s1; type N[A any] struct{ a A }; var f = N[int]{}.a`, `a`, `field a int`},
-		{`package s1; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
+		{`package s2; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
 
 		// Uses of methods are uses of the instantiated method.
 		{`package m0; type N[A any] int; func (r N[B]) m() { r.n() }; func (N[C]) n() {}`, `n`, `func (m0.N[B]).n()`},
