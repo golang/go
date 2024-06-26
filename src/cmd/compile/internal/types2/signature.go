@@ -103,7 +103,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		// collect generic receiver type parameters, if any
 		// - a receiver type parameter is like any other type parameter, except that it is declared implicitly
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
-		_, rname, rparams := check.unpackRecv(recvPar.Type, true)
+		_, base, rparams := check.unpackRecv(recvPar.Type, true)
 		if len(rparams) > 0 {
 			// The scope of the type parameter T in "func (r T[T]) f()"
 			// starts after f, not at "r"; see #52038.
@@ -131,7 +131,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 			// determine receiver type to get its type parameters
 			// and the respective type parameter bounds
 			var recvTParams []*TypeParam
-			if rname != nil {
+			if rname := base.(*syntax.Name); rname != nil {
 				// recv should be a Named type (otherwise an error is reported elsewhere)
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.

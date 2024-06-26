@@ -437,11 +437,11 @@ func (check *Checker) collectObjects() {
 					//                when type checking the function type. Confirm that
 					//                we don't need to check tparams here.
 
-					ptr, recv, _ := check.unpackRecv(d.decl.Recv.List[0].Type, false)
+					ptr, base, _ := check.unpackRecv(d.decl.Recv.List[0].Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and
 					// methods with blank _ names are never found; no need to collect any
 					// of them. They will still be type-checked with all the other functions.)
-					if recv != nil && name != "_" {
+					if recv, _ := base.(*ast.Ident); recv != nil && name != "_" {
 						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
 					check.recordDef(d.decl.Name, obj)
@@ -496,33 +496,39 @@ func (check *Checker) collectObjects() {
 	}
 }
 
-// unpackRecv unpacks a receiver type and returns its components: ptr indicates whether
-// rtyp is a pointer receiver, rname is the receiver type name, and tparams are its
-// type parameters, if any. The type parameters are only unpacked if unpackParams is
-// set. If rname is nil, the receiver is unusable (i.e., the source has a bug which we
-// cannot easily work around).
-func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, rname *ast.Ident, tparams []*ast.Ident) {
-L: // unpack receiver type
+// unpackRecv unpacks a receiver type expression and returns its components: ptr indicates
+// whether rtyp is a pointer receiver, base is the receiver base type expression stripped
+// of its type parameters (if any), and tparams are its type parameter names, if any. The
+// type parameters are only unpacked if unpackParams is set. For instance, given the rtyp
+//
+//	*T[A, _]
+//
+// ptr is true, base is T, and tparams is [A, _] (assuming unpackParams is set).
+// Note that base may not be a *ast.Ident for erroneous programs.
+func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, base ast.Expr, tparams []*ast.Ident) {
+	// unpack receiver type
 	// This accepts invalid receivers such as ***T and does not
 	// work for other invalid receivers, but we don't care. The
 	// validity of receiver expressions is checked elsewhere.
+	base = rtyp
+L:
 	for {
-		switch t := rtyp.(type) {
+		switch t := base.(type) {
 		case *ast.ParenExpr:
-			rtyp = t.X
+			base = t.X
 		case *ast.StarExpr:
 			ptr = true
-			rtyp = t.X
+			base = t.X
 		default:
 			break L
 		}
 	}
 
 	// unpack type parameters, if any
-	switch rtyp.(type) {
+	switch base.(type) {
 	case *ast.IndexExpr, *ast.IndexListExpr:
-		ix := typeparams.UnpackIndexExpr(rtyp)
-		rtyp = ix.X
+		ix := typeparams.UnpackIndexExpr(base)
+		base = ix.X
 		if unpackParams {
 			for _, arg := range ix.Indices {
 				var par *ast.Ident
@@ -543,9 +549,6 @@ L: // unpack receiver type
 			}
 		}
 	}
-
-	// unpack receiver name
-	rname, _ = rtyp.(*ast.Ident)
 
 	return
 }
