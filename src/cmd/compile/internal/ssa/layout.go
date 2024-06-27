@@ -198,7 +198,13 @@ blockloop:
 // its own chain, then starting from hottest edge and repeatedly merge two proper
 // chains iff the edge dest is the first block of dest chain and edge src is the
 // last block of src chain. Once all edges are processed, the chains are sorted
-// by hottness and merge count and generate final block order.
+// by hottness and merge count and generate final block order. The algorithm is
+// summarized as follows:
+// 	- Initially every block is in its own chain.
+// 	- Sort edges by weight and move slow path to end.
+// 	- Merge proper chains until no more chains can be merged.
+// 	- Sort chains by hottness and priority.
+// 	- Generate final block order.
 
 // chain is a linear sequence of blocks, where the first block is the entry block
 // and the last block is the exit block. The chain is used to represent a sequence
@@ -261,7 +267,7 @@ func (g *chainGraph) mergeChain(from, to *chain) {
 		g.b2chain[block.ID] = to
 	}
 	to.blocks = append(to.blocks, from.blocks...)
-	to.priority++ // increment
+	to.priority++
 	g.chains[from.id-1 /*ID always >0*/] = nil
 }
 
@@ -277,6 +283,12 @@ func (g *chainGraph) print() {
 		}
 		fmt.Printf("id:%d priority:%d blocks:%v\n", ch.id, ch.priority, ch.blocks)
 	}
+	fmt.Printf("== BlockOrder:\n")
+	blockOrder := make([]*Block, 0)
+	for _, chain := range g.chains {
+		blockOrder = append(blockOrder, chain.blocks...)
+	}
+	fmt.Printf("%v\n", blockOrder)
 }
 
 func greedyBlockOrder(fn *Func) []*Block {
@@ -328,8 +340,11 @@ func greedyBlockOrder(fn *Func) []*Block {
 	for _, edge := range graph.edges {
 		c1 := graph.getChain(edge.src)
 		c2 := graph.getChain(edge.dst)
-		// [c1] edge [c2] ? Then merge c1 into c2 and remove entire c1 then
-		if c1 != c2 && (edge.dst == c2.first() && edge.src == c1.last()) {
+		if c1 == c2 {
+			continue
+		}
+		// [..c1..] edge [..c2..] ? Then merge c1 into c2 and remove entire c1 then
+		if edge.dst == c2.first() && edge.src == c1.last() {
 			if fn.pass.debug > 2 {
 				fmt.Printf("process %v merge %v to %v\n",
 					edge, c2.blocks, c1.blocks)
@@ -382,6 +397,10 @@ func greedyBlockOrder(fn *Func) []*Block {
 		// Higher merge count is considered
 		if c1.priority != c2.priority {
 			return c1.priority > c2.priority
+		}
+		// Keep adjacent chains close together
+		if c1.id > c2.id {
+			return false
 		}
 		// Non-terminated chain is considered
 		if s1, s2 := len(c1.last().Succs), len(c2.last().Succs); s1 != s2 {
