@@ -286,7 +286,7 @@ func (d *dwctxt) newdie(parent *dwarf.DWDie, abbrev int, name string) *dwarf.DWD
 
 	var st sym.SymKind
 	switch abbrev {
-	case dwarf.DW_ABRV_FUNCTYPEPARAM, dwarf.DW_ABRV_DOTDOTDOT, dwarf.DW_ABRV_STRUCTFIELD, dwarf.DW_ABRV_ARRAYRANGE:
+	case dwarf.DW_ABRV_FUNCTYPEPARAM, dwarf.DW_ABRV_FUNCTYPEOUTPARAM, dwarf.DW_ABRV_DOTDOTDOT, dwarf.DW_ABRV_STRUCTFIELD, dwarf.DW_ABRV_ARRAYRANGE:
 		// There are no relocations against these dies, and their names
 		// are not unique, so don't create a symbol.
 		return die
@@ -622,8 +622,9 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		for i := 0; i < nfields; i++ {
 			s := decodetypeFuncOutType(d.ldr, d.arch, gotype, &relocs, i)
 			sn := d.ldr.SymName(s)
-			fld := d.newdie(die, dwarf.DW_ABRV_FUNCTYPEPARAM, sn[5:])
-			d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.defgotype(s)))
+			fld := d.newdie(die, dwarf.DW_ABRV_FUNCTYPEOUTPARAM, sn[5:])
+			newattr(fld, dwarf.DW_AT_variable_parameter, dwarf.DW_CLS_FLAG, 1, 0)
+			d.newrefattr(fld, dwarf.DW_AT_type, d.defgotype(s))
 		}
 
 	case abi.Interface:
@@ -2096,7 +2097,8 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	seen := loader.MakeBitmap(d.ldr.NSym())
 	for _, s := range infoSec.syms {
 		if seen.Has(s) {
-			log.Fatalf("symbol %s listed multiple times", d.ldr.SymName(s))
+			log.Fatalf("dwarf symbol %s listed multiple times",
+				d.ldr.SymName(s))
 		}
 		seen.Set(s)
 	}
