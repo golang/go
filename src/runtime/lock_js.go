@@ -63,29 +63,21 @@ func unlock2(l *mutex) {
 
 // One-time notifications.
 
-type noteWithTimeout struct {
-	gp       *g
-	deadline int64
-}
-
-var (
-	notes            = make(map[*note]*g)
-	notesWithTimeout = make(map[*note]noteWithTimeout)
-)
+// Linked list of notes with a deadline.
+var allDeadlineNotes *note
 
 func noteclear(n *note) {
-	n.key = note_cleared
+	n.status = note_cleared
 }
 
 func notewakeup(n *note) {
-	// gp := getg()
-	if n.key == note_woken {
+	if n.status == note_woken {
 		throw("notewakeup - double wakeup")
 	}
-	cleared := n.key == note_cleared
-	n.key = note_woken
+	cleared := n.status == note_cleared
+	n.status = note_woken
 	if cleared {
-		goready(notes[n], 1)
+		goready(n.gp, 1)
 	}
 }
 
@@ -113,48 +105,50 @@ func notetsleepg(n *note, ns int64) bool {
 		}
 
 		id := scheduleTimeoutEvent(delay)
-		mp := acquirem()
-		notes[n] = gp
-		notesWithTimeout[n] = noteWithTimeout{gp: gp, deadline: deadline}
-		releasem(mp)
+
+		n.gp = gp
+		n.deadline = deadline
+		if allDeadlineNotes != nil {
+			allDeadlineNotes.allprev = n
+		}
+		n.allnext = allDeadlineNotes
+		allDeadlineNotes = n
 
 		gopark(nil, nil, waitReasonSleep, traceBlockSleep, 1)
 
 		clearTimeoutEvent(id) // note might have woken early, clear timeout
 
-		mp = acquirem()
-		delete(notes, n)
-		delete(notesWithTimeout, n)
-		releasem(mp)
+		n.gp = nil
+		n.deadline = 0
+		if n.allprev != nil {
+			n.allprev.allnext = n.allnext
+		}
+		if allDeadlineNotes == n {
+			allDeadlineNotes = n.allnext
+		}
+		n.allprev = nil
+		n.allnext = nil
 
-		return n.key == note_woken
+		return n.status == note_woken
 	}
 
-	for n.key != note_woken {
-		mp := acquirem()
-		notes[n] = gp
-		releasem(mp)
+	for n.status != note_woken {
+		n.gp = gp
 
 		gopark(nil, nil, waitReasonZero, traceBlockGeneric, 1)
 
-		mp = acquirem()
-		delete(notes, n)
-		releasem(mp)
+		n.gp = nil
 	}
 	return true
 }
 
 // checkTimeouts resumes goroutines that are waiting on a note which has reached its deadline.
-// TODO(drchase): need to understand if write barriers are really okay in this context.
-//
-//go:yeswritebarrierrec
 func checkTimeouts() {
 	now := nanotime()
-	// TODO: map iteration has the write barriers in it; is that okay?
-	for n, nt := range notesWithTimeout {
-		if n.key == note_cleared && now >= nt.deadline {
-			n.key = note_timeout
-			goready(nt.gp, 1)
+	for n := allDeadlineNotes; n != nil; n = n.allnext {
+		if n.status == note_cleared && n.deadline != 0 && now >= n.deadline {
+			n.status = note_timeout
+			goready(n.gp, 1)
 		}
 	}
 }
