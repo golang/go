@@ -234,7 +234,64 @@ done:
 	RET
 
 TEXT ·subVW(SB),NOSPLIT,$0
-	JMP ·subVW_g(SB)
+	MOV	x+24(FP), X5
+	MOV	y+48(FP), X6
+	MOV	z+0(FP), X7
+	MOV	z_len+8(FP), X30
+
+	MOV	$4, X28
+	MOV	X6, X29		// b = y
+
+	BEQZ	X30, done
+	BLTU	X30, X28, loop1
+
+loop4:
+	MOV	0(X5), X8	// x[0]
+	MOV	8(X5), X11	// x[1]
+	MOV	16(X5), X14	// x[2]
+	MOV	24(X5), X17	// x[3]
+
+	SUB	X29, X8, X10	// z[0] = x[0] - b
+	SLTU	X10, X8, X29	// next b
+
+	SUB	X29, X11, X13	// z[1] = x[1] - b
+	SLTU	X13, X11, X29	// next b
+
+	SUB	X29, X14, X16	// z[2] = x[2] - b
+	SLTU	X16, X14, X29	// next b
+
+	SUB	X29, X17, X19	// z[3] = x[3] - b
+	SLTU	X19, X17, X29	// next b
+
+	MOV	X10, 0(X7)	// z[0]
+	MOV	X13, 8(X7)	// z[1]
+	MOV	X16, 16(X7)	// z[2]
+	MOV	X19, 24(X7)	// z[3]
+
+	ADD	$32, X5
+	ADD	$32, X7
+	SUB	$4, X30
+
+	BGEU	X30, X28, loop4
+	BEQZ	X30, done
+
+loop1:
+	MOV	0(X5), X10	// x
+
+	SUB	X29, X10, X12	// z = x - b
+	SLTU	X12, X10, X29	// next b
+
+	MOV	X12, 0(X7)	// z
+
+	ADD	$8, X5
+	ADD	$8, X7
+	SUB	$1, X30
+
+	BNEZ	X30, loop1
+
+done:
+	MOV	X29, c+56(FP)	// return b
+	RET
 
 TEXT ·shlVU(SB),NOSPLIT,$0
 	JMP ·shlVU_g(SB)
