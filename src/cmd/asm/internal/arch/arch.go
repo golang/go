@@ -586,6 +586,10 @@ func archRISCV64(shared bool) *Arch {
 		name := fmt.Sprintf("F%d", i-riscv.REG_F0)
 		register[name] = int16(i)
 	}
+	for i := riscv.REG_V0; i <= riscv.REG_V31; i++ {
+		name := fmt.Sprintf("V%d", i-riscv.REG_V0)
+		register[name] = int16(i)
+	}
 
 	// General registers with ABI names.
 	register["ZERO"] = riscv.REG_ZERO

@@ -1030,6 +1030,11 @@ func regF(r uint32) uint32 {
 	return regVal(r, REG_F0, REG_F31)
 }
 
+// regV returns a vector register.
+func regV(r uint32) uint32 {
+	return regVal(r, REG_V0, REG_V31)
+}
+
 // regAddr extracts a register from an Addr.
 func regAddr(a obj.Addr, min, max uint32) uint32 {
 	if a.Type != obj.TYPE_REG {
@@ -1110,6 +1115,11 @@ func wantIntReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 // wantFloatReg checks that r is a floating-point register.
 func wantFloatReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 	wantReg(ctxt, ins, pos, "float", r, REG_F0, REG_F31)
+}
+
+// wantVectorReg checks that r is a vector register.
+func wantVectorReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
+	wantReg(ctxt, ins, pos, "vector", r, REG_V0, REG_V31)
 }
 
 // wantEvenOffset checks that the offset is a multiple of two.

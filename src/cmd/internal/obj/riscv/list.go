@@ -28,6 +28,8 @@ func RegName(r int) string {
 		return fmt.Sprintf("X%d", r-REG_X0)
 	case REG_F0 <= r && r <= REG_F31:
 		return fmt.Sprintf("F%d", r-REG_F0)
+	case REG_V0 <= r && r <= REG_V31:
+		return fmt.Sprintf("V%d", r-REG_V0)
 	default:
 		return fmt.Sprintf("Rgok(%d)", r-obj.RBaseRISCV)
 	}
