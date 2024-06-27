@@ -300,7 +300,79 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	JMP ·shrVU_g(SB)
 
 TEXT ·mulAddVWW(SB),NOSPLIT,$0
-	JMP ·mulAddVWW_g(SB)
+	MOV	x+24(FP), X5
+	MOV	y+48(FP), X6
+	MOV	z+0(FP), X7
+	MOV	z_len+8(FP), X30
+	MOV	r+56(FP), X29
+
+	MOV	$4, X28
+
+	BEQ	ZERO, X30, done
+	BLTU	X30, X28, loop1
+
+loop4:
+	MOV	0(X5), X8	// x[0]
+	MOV	8(X5), X11	// x[1]
+	MOV	16(X5), X14	// x[2]
+	MOV	24(X5), X17	// x[3]
+
+	MULHU	X8, X6, X9	// z_hi[0] = x[0] * y
+	MUL	X8, X6, X8	// z_lo[0] = x[0] * y
+	ADD	X8, X29, X10	// z[0] = z_lo[0] + c
+	SLTU	X8, X10, X23
+	ADD	X23, X9, X29	// next c
+
+	MULHU	X11, X6, X12	// z_hi[1] = x[1] * y
+	MUL	X11, X6, X11	// z_lo[1] = x[1] * y
+	ADD	X11, X29, X13	// z[1] = z_lo[1] + c
+	SLTU	X11, X13, X23
+	ADD	X23, X12, X29	// next c
+
+	MULHU	X14, X6, X15	// z_hi[2] = x[2] * y
+	MUL	X14, X6, X14	// z_lo[2] = x[2] * y
+	ADD	X14, X29, X16	// z[2] = z_lo[2] + c
+	SLTU	X14, X16, X23
+	ADD	X23, X15, X29	// next c
+
+	MULHU	X17, X6, X18	// z_hi[3] = x[3] * y
+	MUL	X17, X6, X17	// z_lo[3] = x[3] * y
+	ADD	X17, X29, X19	// z[3] = z_lo[3] + c
+	SLTU	X17, X19, X23
+	ADD	X23, X18, X29	// next c
+
+	MOV	X10, 0(X7)	// z[0]
+	MOV	X13, 8(X7)	// z[1]
+	MOV	X16, 16(X7)	// z[2]
+	MOV	X19, 24(X7)	// z[3]
+
+	ADD	$32, X5
+	ADD	$32, X7
+	SUB	$4, X30
+
+	BGEU	X30, X28, loop4
+	BEQZ	X30, done
+
+loop1:
+	MOV	0(X5), X10	// x
+
+	MULHU	X10, X6, X12	// z_hi = x * y
+	MUL	X10, X6, X10	// z_lo = x * y
+	ADD	X10, X29, X13	// z_lo + c
+	SLTU	X10, X13, X15
+	ADD	X12, X15, X29	// next c
+
+	MOV	X13, 0(X7)	// z
+
+	ADD	$8, X5
+	ADD	$8, X7
+	SUB	$1, X30
+
+	BNEZ	X30, loop1
+
+done:
+	MOV	X29, c+64(FP)	// return c
+	RET
 
 TEXT ·addMulVVW(SB),NOSPLIT,$0
 	JMP ·addMulVVW_g(SB)
