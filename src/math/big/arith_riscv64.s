@@ -92,7 +92,86 @@ done:
 	RET
 
 TEXT ·subVV(SB),NOSPLIT,$0
-	JMP ·subVV_g(SB)
+	MOV	x+24(FP), X5
+	MOV	y+48(FP), X6
+	MOV	z+0(FP), X7
+	MOV	z_len+8(FP), X30
+
+	MOV	$4, X28
+	MOV	$0, X29		// b = 0
+
+	BEQZ	X30, done
+	BLTU	X30, X28, loop1
+
+loop4:
+	MOV	0(X5), X8	// x[0]
+	MOV	0(X6), X9	// y[0]
+	MOV	8(X5), X11	// x[1]
+	MOV	8(X6), X12	// y[1]
+	MOV	16(X5), X14	// x[2]
+	MOV	16(X6), X15	// y[2]
+	MOV	24(X5), X17	// x[3]
+	MOV	24(X6), X18	// y[3]
+
+	SUB	X9, X8, X21	// z[0] = x[0] - y[0]
+	SLTU	X21, X8, X22
+	SUB	X29, X21, X10	// z[0] = x[0] - y[0] - b
+	SLTU	X10, X21, X23
+	ADD	X22, X23, X29	// next b
+
+	SUB	X12, X11, X24	// z[1] = x[1] - y[1]
+	SLTU	X24, X11, X25
+	SUB	X29, X24, X13	// z[1] = x[1] - y[1] - b
+	SLTU	X13, X24, X26
+	ADD	X25, X26, X29	// next b
+
+	SUB	X15, X14, X21	// z[2] = x[2] - y[2]
+	SLTU	X21, X14, X22
+	SUB	X29, X21, X16	// z[2] = x[2] - y[2] - b
+	SLTU	X16, X21, X23
+	ADD	X22, X23, X29	// next b
+
+	SUB	X18, X17, X21	// z[3] = x[3] - y[3]
+	SLTU	X21, X17, X22
+	SUB	X29, X21, X19	// z[3] = x[3] - y[3] - b
+	SLTU	X19, X21, X23
+	ADD	X22, X23, X29	// next b
+
+	MOV	X10, 0(X7)	// z[0]
+	MOV	X13, 8(X7)	// z[1]
+	MOV	X16, 16(X7)	// z[2]
+	MOV	X19, 24(X7)	// z[3]
+
+	ADD	$32, X5
+	ADD	$32, X6
+	ADD	$32, X7
+	SUB	$4, X30
+
+	BGEU	X30, X28, loop4
+	BEQZ	X30, done
+
+loop1:
+	MOV	0(X5), X10	// x
+	MOV	0(X6), X11	// y
+
+	SUB	X11, X10, X12	// z = x - y
+	SLTU	X12, X10, X14
+	SUB	X29, X12, X13	// z = x - y - b
+	SLTU	X13, X12, X15
+	ADD	X14, X15, X29	// next b
+
+	MOV	X13, 0(X7)	// z
+
+	ADD	$8, X5
+	ADD	$8, X6
+	ADD	$8, X7
+	SUB	$1, X30
+
+	BNEZ	X30, loop1
+
+done:
+	MOV	X29, c+72(FP)	// return b
+	RET
 
 TEXT ·addVW(SB),NOSPLIT,$0
 	JMP ·addVW_g(SB)
