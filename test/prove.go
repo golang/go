@@ -1147,6 +1147,18 @@ func inequalityPropagation(a [1]int, i, j uint) int {
 	return 0
 }
 
+func issue66826a(a [21]byte) {
+	for i := 0; i <= 10; i++ { // ERROR "Induction variable: limits \[0,10\], increment 1$"
+		_ = a[2*i] // ERROR "Proved IsInBounds"
+	}
+}
+func issue66826b(a [31]byte, i int) {
+	if i < 0 || i > 10 {
+		return
+	}
+	_ = a[3*i] // ERROR "Proved IsInBounds"
+}
+
 //go:noinline
 func useInt(a int) {
 }
