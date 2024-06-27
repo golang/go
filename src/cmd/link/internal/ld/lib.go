@@ -2009,7 +2009,15 @@ func (ctxt *Link) hostlink() {
 		cmd := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym)
 		// dsymutil may not clean up its temp directory at exit.
 		// Set DSYMUTIL_REPRODUCER_PATH to work around. see issue 59026.
-		cmd.Env = append(os.Environ(), "DSYMUTIL_REPRODUCER_PATH="+*flagTmpdir)
+		// dsymutil (Apple LLVM version 16.0.0) deletes the directory
+		// even if it is not empty. We still need our tmpdir, so give a
+		// subdirectory to dsymutil.
+		dsymDir := filepath.Join(*flagTmpdir, "dsymutil")
+		err := os.MkdirAll(dsymDir, 0777)
+		if err != nil {
+			Exitf("fail to create temp dir: %v", err)
+		}
+		cmd.Env = append(os.Environ(), "DSYMUTIL_REPRODUCER_PATH="+dsymDir)
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("host link dsymutil:")
 			for _, v := range cmd.Args {
@@ -2042,14 +2050,13 @@ func (ctxt *Link) hostlink() {
 			Exitf("%s: running strip failed: %v\n%s\n%s", os.Args[0], err, cmd, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
-		if _, err := os.Stat(dsym); os.IsNotExist(err) {
-			return
+		if _, err := os.Stat(dsym); err == nil {
+			updateMachoOutFile("combining dwarf",
+				func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
+					return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
+				})
+			uuidUpdated = true
 		}
-		updateMachoOutFile("combining dwarf",
-			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
-				return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
-			})
-		uuidUpdated = true
 	}
 	if ctxt.IsDarwin() && !uuidUpdated && *flagBuildid != "" {
 		updateMachoOutFile("rewriting uuid",
@@ -2917,6 +2924,6 @@ func (ctxt *Link) findExtLinkTool(toolname string) string {
 	if err != nil {
 		Exitf("%s: finding %s failed: %v\n%s", os.Args[0], toolname, err, out)
 	}
-	cmdpath := strings.TrimSuffix(string(out), "\n")
+	cmdpath := strings.TrimRight(string(out), "\r\n")
 	return cmdpath
 }

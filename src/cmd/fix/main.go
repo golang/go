@@ -22,7 +22,7 @@ import (
 	"sort"
 	"strings"
 
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 )
 
 var (
@@ -65,11 +65,11 @@ func usage() {
 }
 
 func main() {
-	telemetry.OpenCounters()
+	counter.Open()
 	flag.Usage = usage
 	flag.Parse()
-	telemetry.Inc("fix/invocations")
-	telemetry.CountFlags("fix/flag:", *flag.CommandLine)
+	counter.Inc("fix/invocations")
+	counter.CountFlags("fix/flag:", *flag.CommandLine)
 
 	if !version.IsValid(*goVersion) {
 		report(fmt.Errorf("invalid -go=%s", *goVersion))

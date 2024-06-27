@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20240612191826-8cad58b3fcbb
+# golang.org/x/telemetry v0.0.0-20240624145040-38a44306ed05
 ## explicit; go 1.20
 golang.org/x/telemetry
 golang.org/x/telemetry/counter
@@ -70,7 +70,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.21.1-0.20240604144337-208808308b70
+# golang.org/x/tools v0.22.1-0.20240618181713-f2d2ebe43e72
 ## explicit; go 1.19
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover

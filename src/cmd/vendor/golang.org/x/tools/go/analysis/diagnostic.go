@@ -33,8 +33,17 @@ type Diagnostic struct {
 	URL string
 
 	// SuggestedFixes is an optional list of fixes to address the
-	// problem described by the diagnostic, each one representing
+	// problem described by the diagnostic. Each one represents
 	// an alternative strategy; at most one may be applied.
+	//
+	// Fixes for different diagnostics should be treated as
+	// independent changes to the same baseline file state,
+	// analogous to a set of git commits all with the same parent.
+	// Combining fixes requires resolving any conflicts that
+	// arise, analogous to a git merge.
+	// Any conflicts that remain may be dealt with, depending on
+	// the tool, by discarding fixes, consulting the user, or
+	// aborting the operation.
 	SuggestedFixes []SuggestedFix
 
 	// Related contains optional secondary positions and messages
@@ -58,8 +67,10 @@ type RelatedInformation struct {
 //
 // The TextEdits must not overlap, nor contain edits for other packages.
 type SuggestedFix struct {
-	// A description for this suggested fix to be shown to a user deciding
-	// whether to accept it.
+	// A verb phrase describing the fix, to be shown to
+	// a user trying to decide whether to accept it.
+	//
+	// Example: "Remove the surplus argument"
 	Message   string
 	TextEdits []TextEdit
 }

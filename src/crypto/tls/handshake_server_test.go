@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -659,7 +660,7 @@ func (test *serverTest) loadData() (flows [][]byte, err error) {
 }
 
 func (test *serverTest) run(t *testing.T, write bool) {
-	var clientConn, serverConn net.Conn
+	var serverConn net.Conn
 	var recordingConn *recordingConn
 	var childProcess *exec.Cmd
 
@@ -676,65 +677,33 @@ func (test *serverTest) run(t *testing.T, write bool) {
 			}
 		}()
 	} else {
-		clientConn, serverConn = localPipe(t)
+		flows, err := test.loadData()
+		if err != nil {
+			t.Fatalf("Failed to load data from %s", test.dataPath())
+		}
+		serverConn = &replayingConn{t: t, flows: flows, reading: true}
 	}
 	config := test.config
 	if config == nil {
 		config = testConfig
 	}
 	server := Server(serverConn, config)
-	connStateChan := make(chan ConnectionState, 1)
-	go func() {
-		_, err := server.Write([]byte("hello, world\n"))
-		if len(test.expectHandshakeErrorIncluding) > 0 {
-			if err == nil {
-				t.Errorf("Error expected, but no error returned")
-			} else if s := err.Error(); !strings.Contains(s, test.expectHandshakeErrorIncluding) {
-				t.Errorf("Error expected containing '%s' but got '%s'", test.expectHandshakeErrorIncluding, s)
-			}
-		} else {
-			if err != nil {
-				t.Logf("Error from Server.Write: '%s'", err)
-			}
-		}
-		server.Close()
-		serverConn.Close()
-		connStateChan <- server.ConnectionState()
-	}()
 
-	if !write {
-		flows, err := test.loadData()
+	_, err := server.Write([]byte("hello, world\n"))
+	if len(test.expectHandshakeErrorIncluding) > 0 {
+		if err == nil {
+			t.Errorf("Error expected, but no error returned")
+		} else if s := err.Error(); !strings.Contains(s, test.expectHandshakeErrorIncluding) {
+			t.Errorf("Error expected containing '%s' but got '%s'", test.expectHandshakeErrorIncluding, s)
+		}
+	} else {
 		if err != nil {
-			t.Fatalf("%s: failed to load data from %s", test.name, test.dataPath())
+			t.Logf("Error from Server.Write: '%s'", err)
 		}
-		for i, b := range flows {
-			if i%2 == 0 {
-				if *fast {
-					clientConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
-				} else {
-					clientConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
-				}
-				clientConn.Write(b)
-				continue
-			}
-			bb := make([]byte, len(b))
-			if *fast {
-				clientConn.SetReadDeadline(time.Now().Add(1 * time.Second))
-			} else {
-				clientConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
-			}
-			n, err := io.ReadFull(clientConn, bb)
-			if err != nil {
-				t.Fatalf("%s #%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", test.name, i+1, err, n, len(bb), bb[:n], b)
-			}
-			if !bytes.Equal(b, bb) {
-				t.Fatalf("%s #%d: mismatch on read: got:%x want:%x", test.name, i+1, bb, b)
-			}
-		}
-		clientConn.Close()
 	}
+	server.Close()
 
-	connState := <-connStateChan
+	connState := server.ConnectionState()
 	peerCerts := connState.PeerCertificates
 	if len(peerCerts) == len(test.expectedPeerCerts) {
 		for i, peerCert := range peerCerts {
@@ -754,6 +723,7 @@ func (test *serverTest) run(t *testing.T, write bool) {
 	}
 
 	if write {
+		serverConn.Close()
 		path := test.dataPath()
 		out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
@@ -1330,37 +1300,14 @@ func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, 
 	serverConn.Close()
 	flows := serverConn.(*recordingConn).flows
 
-	feeder := make(chan struct{})
-	clientConn, serverConn = localPipe(b)
-
-	go func() {
-		for range feeder {
-			for i, f := range flows {
-				if i%2 == 0 {
-					clientConn.Write(f)
-					continue
-				}
-				ff := make([]byte, len(f))
-				n, err := io.ReadFull(clientConn, ff)
-				if err != nil {
-					b.Errorf("#%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", i+1, err, n, len(ff), ff[:n], f)
-				}
-				if !bytes.Equal(f, ff) {
-					b.Errorf("#%d: mismatch on read: got:%x want:%x", i+1, ff, f)
-				}
-			}
-		}
-	}()
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		feeder <- struct{}{}
-		server := Server(serverConn, config)
+		replay := &replayingConn{t: b, flows: slices.Clone(flows), reading: true}
+		server := Server(replay, config)
 		if err := server.Handshake(); err != nil {
 			b.Fatalf("handshake failed: %v", err)
 		}
 	}
-	close(feeder)
 }
 
 func BenchmarkHandshakeServer(b *testing.B) {

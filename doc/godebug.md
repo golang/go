@@ -185,11 +185,6 @@ Go 1.23 changed the behavior of
 serial numbers that are negative. This change can be reverted with
 the [`x509negativeserial` setting](/pkg/crypto/x509/#ParseCertificate).
 
-Go 1.23 changed the behavior of
-[crypto/x509.ParseCertificate](/pkg/crypto/x509/#ParseCertificate) to reject
-serial numbers that are longer than 20 octets. This change can be reverted with
-the [`x509seriallength` setting](/pkg/crypto/x509/#ParseCertificate).
-
 Go 1.23 re-enabled support in html/template for ECMAScript 6 template literals by default.
 The [`jstmpllitinterp` setting](/pkg/html/template#hdr-Security_Model) no longer has
 any effect.
@@ -204,6 +199,15 @@ Leaf field of the returned [`tls.Certificate`](/pkg/crypto/tls#Certificate).
 This behavior is controlled by the `x509keypairleaf` setting. For Go 1.23, it
 defaults to `x509keypairleaf=1`. Previous versions default to
 `x509keypairleaf=0`.
+
+Go 1.23 changed
+[`net/http.ServeContent`](/pkg/net/http#ServeContent),
+[`net/http.ServeFile`](/pkg/net/http#ServeFile), and
+[`net/http.ServeFS`](/pkg/net/http#ServeFS) to
+remove Cache-Control, Content-Encoding, Etag, and Last-Modified headers
+when serving an error. This behavior is controlled by
+the [`httpservecontentkeepheaders` setting](/pkg/net/http#ServeContent).
+Using `httpservecontentkeepheaders=1` restores the pre-Go 1.23 behavior.
 
 ### Go 1.22
 

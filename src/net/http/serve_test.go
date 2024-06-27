@@ -7166,13 +7166,12 @@ func testErrorContentLength(t *testing.T, mode testMode) {
 func TestError(t *testing.T) {
 	w := httptest.NewRecorder()
 	w.Header().Set("Content-Length", "1")
-	w.Header().Set("Content-Encoding", "ascii")
 	w.Header().Set("X-Content-Type-Options", "scratch and sniff")
 	w.Header().Set("Other", "foo")
 	Error(w, "oops", 432)
 
 	h := w.Header()
-	for _, hdr := range []string{"Content-Length", "Content-Encoding"} {
+	for _, hdr := range []string{"Content-Length"} {
 		if v, ok := h[hdr]; ok {
 			t.Errorf("%s: %q, want not present", hdr, v)
 		}

@@ -4086,26 +4086,3 @@ func TestRejectCriticalSKI(t *testing.T) {
 		t.Fatalf("ParseCertificate() unexpected error: %v, want: %s", err, expectedErr)
 	}
 }
-
-func TestSerialTooLong(t *testing.T) {
-	template := Certificate{
-		Subject:   pkix.Name{CommonName: "Cert"},
-		NotBefore: time.Unix(1000, 0),
-		NotAfter:  time.Unix(100000, 0),
-	}
-	for _, serial := range []*big.Int{
-		big.NewInt(0).SetBytes(bytes.Repeat([]byte{5}, 21)),
-		big.NewInt(0).SetBytes(bytes.Repeat([]byte{255}, 20)),
-	} {
-		template.SerialNumber = serial
-		certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
-		if err != nil {
-			t.Fatalf("CreateCertificate() unexpected error: %v", err)
-		}
-		expectedErr := "x509: serial number too long (>20 octets)"
-		_, err = ParseCertificate(certDER)
-		if err == nil || err.Error() != expectedErr {
-			t.Fatalf("ParseCertificate() unexpected error: %v, want: %s", err, expectedErr)
-		}
-	}
-}

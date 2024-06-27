@@ -377,7 +377,7 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			continue
 		}
 
-		if c.quic != nil {
+		if c.quic != nil && c.quic.enableSessionEvents {
 			if err := c.quicResumeSession(sessionState); err != nil {
 				return err
 			}

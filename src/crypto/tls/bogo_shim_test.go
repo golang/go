@@ -33,8 +33,9 @@ var (
 
 	trustCert = flag.String("trust-cert", "", "")
 
-	minVersion = flag.Int("min-version", VersionSSL30, "")
-	maxVersion = flag.Int("max-version", VersionTLS13, "")
+	minVersion    = flag.Int("min-version", VersionSSL30, "")
+	maxVersion    = flag.Int("max-version", VersionTLS13, "")
+	expectVersion = flag.Int("expect-version", 0, "")
 
 	noTLS13 = flag.Bool("no-tls13", false, "")
 
@@ -252,7 +253,9 @@ func bogoShim() {
 			if *expectALPN != "" && cs.NegotiatedProtocol != *expectALPN {
 				log.Fatalf("unexpected protocol negotiated: want %q, got %q", *expectALPN, cs.NegotiatedProtocol)
 			}
-
+			if *expectVersion != 0 && cs.Version != uint16(*expectVersion) {
+				log.Fatalf("expected ssl version %q, got %q", uint16(*expectVersion), cs.Version)
+			}
 			if *expectECHAccepted && !cs.ECHAccepted {
 				log.Fatal("expected ECH to be accepted, but connection state shows it was not")
 			} else if i == 0 && *onInitialExpectECHAccepted && !cs.ECHAccepted {

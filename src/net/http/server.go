@@ -2226,17 +2226,22 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // writes are done to w.
 // The error message should be plain text.
 //
-// Error deletes the Content-Length and Content-Encoding headers,
+// Error deletes the Content-Length header,
 // sets Content-Type to “text/plain; charset=utf-8”,
 // and sets X-Content-Type-Options to “nosniff”.
 // This configures the header properly for the error message,
 // in case the caller had set it up expecting a successful output.
 func Error(w ResponseWriter, error string, code int) {
 	h := w.Header()
-	// We delete headers which might be valid for some other content,
-	// but not anymore for the error content.
+
+	// Delete the Content-Length header, which might be for some other content.
+	// Assuming the error string fits in the writer's buffer, we'll figure
+	// out the correct Content-Length for it later.
+	//
+	// We don't delete Content-Encoding, because some middleware sets
+	// Content-Encoding: gzip and wraps the ResponseWriter to compress on-the-fly.
+	// See https://go.dev/issue/66343.
 	h.Del("Content-Length")
-	h.Del("Content-Encoding")
 
 	// There might be content type already set, but we reset it to
 	// text/plain for the error message.

@@ -25,7 +25,7 @@ type Info struct {
 // Note: After adding entries to this table, update the list in doc/godebug.md as well.
 // (Otherwise the test in this package will fail.)
 var All = []Info{
-	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1", Opaque: true},
+	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
 	{Name: "execerrdot", Package: "os/exec"},
 	{Name: "gocachehash", Package: "cmd/go"},
 	{Name: "gocachetest", Package: "cmd/go"},
@@ -36,6 +36,7 @@ var All = []Info{
 	{Name: "http2server", Package: "net/http"},
 	{Name: "httplaxcontentlength", Package: "net/http", Changed: 22, Old: "1"},
 	{Name: "httpmuxgo121", Package: "net/http", Changed: 22, Old: "1"},
+	{Name: "httpservecontentkeepheaders", Package: "net/http", Changed: 23, Old: "1"},
 	{Name: "installgoroot", Package: "go/build"},
 	{Name: "jstmpllitinterp", Package: "html/template", Opaque: true}, // bug #66217: remove Opaque
 	//{Name: "multipartfiles", Package: "mime/multipart"},
@@ -57,7 +58,6 @@ var All = []Info{
 	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
 	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
-	{Name: "x509seriallength", Package: "crypto/x509", Changed: 23, Old: "1"},
 	{Name: "x509sha1", Package: "crypto/x509"},
 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
 	{Name: "x509usepolicies", Package: "crypto/x509"},

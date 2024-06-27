@@ -961,7 +961,11 @@ again:
 	CASPD	(R2, R3), (R2), (R8, R9)             // 487c2248
 
 // RET
-	RET
+	RET                                        // c0035fd6
+	RET R0					   // 00005fd6
+	RET R6					   // c0005fd6
+	RET R27					   // 60035fd6
+	RET R30					   // c0035fd6
 	RET	foo(SB)
 
 // B/BL/B.cond cases, and canonical names JMP, CALL.
