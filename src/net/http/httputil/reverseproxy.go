@@ -207,6 +207,9 @@ type BufferPool interface {
 }
 
 func singleJoiningSlash(a, b string) string {
+	if b == "" {
+		return a
+	}
 	aslash := strings.HasSuffix(a, "/")
 	bslash := strings.HasPrefix(b, "/")
 	switch {
@@ -227,14 +230,16 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
 	apath := a.EscapedPath()
 	bpath := b.EscapedPath()
 
-	aslash := strings.HasSuffix(apath, "/")
-	bslash := strings.HasPrefix(bpath, "/")
+	if bpath != "" {
+		aslash := strings.HasSuffix(apath, "/")
+		bslash := strings.HasPrefix(bpath, "/")
 
-	switch {
-	case aslash && bslash:
-		return a.Path + b.Path[1:], apath + bpath[1:]
-	case !aslash && !bslash:
-		return a.Path + "/" + b.Path, apath + "/" + bpath
+		switch {
+		case aslash && bslash:
+			return a.Path + b.Path[1:], apath + bpath[1:]
+		case !aslash && !bslash:
+			return a.Path + "/" + b.Path, apath + "/" + bpath
+		}
 	}
 	return a.Path + b.Path, apath + bpath
 }

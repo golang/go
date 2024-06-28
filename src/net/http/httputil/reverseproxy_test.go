@@ -1662,6 +1662,29 @@ func TestJoinURLPath(t *testing.T) {
 	}
 }
 
+func TestJoinURLPath_trailingSlash(t *testing.T) {
+	tests := []struct {
+		a        *url.URL
+		b        *url.URL
+		wantPath string
+		wantRaw  string
+	}{
+		{&url.URL{Path: "/a/b"}, &url.URL{Path: ""}, "/a/b", ""},
+		{&url.URL{Path: "/a/b", RawPath: "/a%2Fb"}, &url.URL{Path: ""}, "/a/b", "/a%2Fb"},
+	}
+
+	for _, tt := range tests {
+		p, rp := joinURLPath(tt.a, tt.b)
+		if p != tt.wantPath || rp != tt.wantRaw {
+			t.Errorf("joinURLPath(URL(%q,%q),URL(%q,%q)) want (%q,%q) got (%q,%q)",
+				tt.a.Path, tt.a.RawPath,
+				tt.b.Path, tt.b.RawPath,
+				tt.wantPath, tt.wantRaw,
+				p, rp)
+		}
+	}
+}
+
 func TestReverseProxyRewriteReplacesOut(t *testing.T) {
 	const content = "response_content"
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
