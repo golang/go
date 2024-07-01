@@ -1548,8 +1548,21 @@ func (rt *peBaseRelocTable) write(ctxt *Link) {
 	// sort the pages array
 	sort.Sort(rt.pages)
 
+	// .reloc section must be 32-bit aligned
+	if out.Offset()&3 != 0 {
+		Errorf(nil, "internal error, start of .reloc not 32-bit aligned")
+	}
+
 	for _, p := range rt.pages {
 		b := rt.blocks[p]
+
+		// Add a dummy entry at the end of the list if we have an
+		// odd number of entries, so as to ensure that the next
+		// block starts on a 32-bit boundary (see issue 68260).
+		if len(b.entries)&1 != 0 {
+			b.entries = append(b.entries, peBaseRelocEntry{})
+		}
+
 		const sizeOfPEbaseRelocBlock = 8 // 2 * sizeof(uint32)
 		blockSize := uint32(sizeOfPEbaseRelocBlock + len(b.entries)*2)
 		out.Write32(p)
