@@ -147,6 +147,15 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
+
+	case AMOVD:
+		if p.From.Type == obj.TYPE_FCONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE {
+			f64 := p.From.Val.(float64)
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = ctxt.Float64Sym(f64)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+		}
 	}
 }
 
@@ -2322,12 +2331,19 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			}
 
 			// Note that the values for $off_hi and $off_lo are currently
-			// zero and will be assigned during relocation.
+			// zero and will be assigned during relocation. If the destination
+			// is an integer register then we can use the same register for the
+			// address computation, otherwise we need to use the temporary register.
 			//
 			// AUIPC $off_hi, Rd
 			// L $off_lo, Rd, Rd
-			insAUIPC := &instruction{as: AAUIPC, rd: ins.rd}
-			ins.as, ins.rs1, ins.rs2, ins.imm = movToLoad(p.As), ins.rd, obj.REG_NONE, 0
+			//
+			addrReg := ins.rd
+			if addrReg < REG_X0 || addrReg > REG_X31 {
+				addrReg = REG_TMP
+			}
+			insAUIPC := &instruction{as: AAUIPC, rd: addrReg}
+			ins.as, ins.rs1, ins.rs2, ins.imm = movToLoad(p.As), addrReg, obj.REG_NONE, 0
 			inss = []*instruction{insAUIPC, ins}
 
 		default:

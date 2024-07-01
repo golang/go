@@ -510,6 +510,9 @@ start:
 	MOVD	F0, 4(X5)				// 27b20200
 	MOVD	F0, F1					// d3000022
 
+	// Convert to load of symbol (AUIPC + FLD)
+	MOVD	$(709.78271289338397), F3		// 970f000087b10f00
+
 	// TLS load with local-exec (LUI + ADDIW + ADD of TP + load)
 	MOV	tls(SB), X5				// b70f00009b8f0f00b38f4f0083b20f00
 	MOVB	tls(SB), X5				// b70f00009b8f0f00b38f4f0083820f00
