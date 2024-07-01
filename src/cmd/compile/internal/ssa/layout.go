@@ -291,12 +291,36 @@ func (g *chainGraph) print() {
 	fmt.Printf("%v\n", blockOrder)
 }
 
-func greedyBlockOrder(fn *Func) []*Block {
+func newChainGraph(fn *Func) *chainGraph {
 	graph := &chainGraph{
 		chains:  []*chain{},
 		edges:   []*edge{},
 		b2chain: make([]*chain, fn.NumBlocks(), fn.NumBlocks()),
 	}
+	return graph
+}
+
+// isBefore returns true if block a is before block b in the block order. The
+// "before" precedence relation is transitive, i.e., if a is before b and b is
+// before c, then a is before c.
+func isBefore(before map[*chain][]*chain, visited map[*chain]bool, a, b *chain) bool {
+	if _, ok := visited[a]; ok {
+		return false
+	}
+	visited[a] = true
+	for _, c := range before[a] {
+		if c == b {
+			return true
+		}
+		if isBefore(before, visited, c, b) {
+			return true
+		}
+	}
+	return false
+}
+
+func greedyBlockOrder(fn *Func) []*Block {
+	graph := newChainGraph(fn)
 
 	// Initially every block is in its own chain
 	for _, block := range fn.Blocks {
@@ -377,6 +401,9 @@ func greedyBlockOrder(fn *Func) []*Block {
 			src := graph.getChain(edge.src)
 			dst := graph.getChain(edge.dst)
 			before[src] = append(before[src], dst)
+			if fn.pass.debug > 2 {
+				fmt.Printf("%v comes before %v\n", src.blocks, dst.blocks)
+			}
 		}
 	}
 	sort.SliceStable(graph.chains, func(i, j int) bool {
@@ -389,10 +416,12 @@ func greedyBlockOrder(fn *Func) []*Block {
 			return false
 		}
 		// Respect precedence relation
-		for _, b := range before[c1] {
-			if b == c2 {
-				return true
-			}
+		visited := make(map[*chain]bool)
+		if isBefore(before, visited, c1, c2) {
+			return true
+		}
+		if isBefore(before, visited, c2, c1) {
+			return false
 		}
 		// Higher merge count is considered
 		if c1.priority != c2.priority {
