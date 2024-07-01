@@ -1689,8 +1689,7 @@
 //
 // The -r flag searches recursively for modules in the argument
 // directories, and the use command operates as if each of the directories
-// were specified as arguments: namely, use directives will be added for
-// directories that exist, and removed for directories that do not exist.
+// were specified as arguments.
 //
 // See the workspaces reference at https://go.dev/ref/mod#workspaces
 // for more information.
