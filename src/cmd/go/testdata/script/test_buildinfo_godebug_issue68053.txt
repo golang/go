@@ -1,0 +1,30 @@
+[short] skip 'builds test binary'
+
+go list -test -f '{{.ImportPath}} {{.DefaultGODEBUG}}'
+stdout 'example.com/foo\.test.*panicnil=1.*'
+
+go test -c
+go version -m ./foo.test
+stdout 'build\tDefaultGODEBUG=.*panicnil=1.*'
+
+-- go.mod --
+module example.com/foo
+
+go 1.23
+-- main_test.go --
+//go:debug panicnil=1
+package main_test
+
+import (
+	"runtime/debug"
+	"testing"
+)
+
+func TestFoo(t *testing.T) {
+	defer func() {
+		t.Fatal(recover())
+	}()
+
+	t.Log(debug.ReadBuildInfo())
+	panic(nil)
+}

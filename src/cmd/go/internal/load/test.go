@@ -293,6 +293,16 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 
 	pb := p.Internal.Build
 	pmain.DefaultGODEBUG = defaultGODEBUG(pmain, pb.Directives, pb.TestDirectives, pb.XTestDirectives)
+	if pmain.Internal.BuildInfo != nil && pmain.DefaultGODEBUG != p.DefaultGODEBUG {
+		// The DefaultGODEBUG used to build the test main package is different from the DefaultGODEBUG
+		// used to build the package under test. That makes the BuildInfo assigned above from the package
+		// under test incorrect for the test main package. Recompute the build info for the test main
+		// package to incorporate the test main's DefaultGODEBUG value.
+		// Most test binaries do not have build info: p.Internal.BuildInfo is only computed for main
+		// packages, so ptest only inherits a non-nil BuildInfo value if the test is for package main.
+		// See issue #68053.
+		pmain.setBuildInfo(ctx, opts.AutoVCS)
+	}
 
 	// The generated main also imports testing, regexp, and os.
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
