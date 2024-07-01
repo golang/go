@@ -1440,6 +1440,9 @@ func testChtimesOmit(t *testing.T, omitAt, omitMt bool) {
 	gotAtime := Atime(fs)
 	gotMtime := fs.ModTime()
 
+	// TODO: remove the dragonfly omitAt && omitMt exceptions below once the
+	// fix (https://github.com/DragonFlyBSD/DragonFlyBSD/commit/c7c71870ed0)
+	// is available generally and on CI runners.
 	if !gotAtime.Equal(wantAtime) {
 		errormsg := fmt.Sprintf("atime mismatch, got: %q, want: %q", gotAtime, wantAtime)
 		switch runtime.GOOS {
