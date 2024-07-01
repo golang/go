@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"hash/fnv"
+	"strconv"
 )
 
 // An Expr is a Node that can appear as an expression.
@@ -1183,17 +1185,21 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 		fmt.Fprintf(&b, "%-S", recv)
 	}
 
+	b.WriteString(".")
+	b.WriteString(msym.Name)
+
 	// A particular receiver type may have multiple non-exported
 	// methods with the same name. To disambiguate them, include a
 	// package qualifier for names that came from a different
 	// package than the receiver type.
 	if !types.IsExported(msym.Name) && msym.Pkg != rpkg {
-		b.WriteString(".")
-		b.WriteString(msym.Pkg.Prefix)
+		b.WriteString("+")
+
+		h := fnv.New32()
+		h.Write([]byte(msym.Pkg.Prefix))
+		b.WriteString(strconv.FormatUint(uint64(h.Sum32()), 16))
 	}
 
-	b.WriteString(".")
-	b.WriteString(msym.Name)
 	b.WriteString(suffix)
 	return rpkg.LookupBytes(b.Bytes())
 }
