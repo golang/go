@@ -239,6 +239,9 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 				// We can't resolve dot imports (yet).
 				return nil
 			}
+		} else {
+			// Trim 'go-' prefix from package name (like done at runtime) to ensure match
+			n = strings.TrimPrefix(n, "go-")
 		}
 		if unresolved[n] {
 			// Copy the spec and its path to avoid modifying the original.
