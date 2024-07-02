@@ -11,6 +11,7 @@ if (process.argv.length < 3) {
 
 globalThis.require = require;
 globalThis.fs = require("fs");
+globalThis.path = require("path");
 globalThis.TextEncoder = require("util").TextEncoder;
 globalThis.TextDecoder = require("util").TextDecoder;
 

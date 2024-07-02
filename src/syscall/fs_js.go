@@ -16,6 +16,7 @@ import (
 func now() (sec int64, nsec int32)
 
 var jsProcess = js.Global().Get("process")
+var jsPath = js.Global().Get("path")
 var jsFS = js.Global().Get("fs")
 var constants = jsFS.Get("constants")
 
@@ -101,10 +102,8 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		}
 	}
 
-	if path[0] != '/' {
-		cwd := jsProcess.Call("cwd").String()
-		path = cwd + "/" + path
-	}
+	path = jsPath.Call("resolve", path).String()
+
 	f := &jsFile{
 		path:    path,
 		entries: entries,
