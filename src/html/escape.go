@@ -56,7 +56,7 @@ var replacementTable = [...]rune{
 func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
 	const attribute = false
 
-	// http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
+	// https://html.spec.whatwg.org/multipage/syntax.html#consume-a-character-reference
 
 	// i starts at 1 because we already know that s[0] == '&'.
 	i, s := 1, b[src:]
@@ -169,6 +169,7 @@ var htmlEscaper = strings.NewReplacer(
 	`<`, "&lt;",
 	`>`, "&gt;",
 	`"`, "&#34;", // "&#34;" is shorter than "&quot;".
+	"\r", "&#13;",
 )
 
 // EscapeString escapes special characters like "<" to become "&lt;". It
