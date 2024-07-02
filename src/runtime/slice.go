@@ -382,12 +382,8 @@ func slicecopy(toPtr unsafe.Pointer, toLen int, fromPtr unsafe.Pointer, fromLen 
 		asanwrite(toPtr, size)
 	}
 
-	if size == 1 { // common case worth about 2x to do here
-		// TODO: is this still worth it with new memmove impl?
-		*(*byte)(toPtr) = *(*byte)(fromPtr) // known to be a byte pointer
-	} else {
-		memmove(toPtr, fromPtr, size)
-	}
+	memmove(toPtr, fromPtr, size)
+
 	return n
 }
 
