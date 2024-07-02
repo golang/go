@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -211,7 +212,9 @@ func RunStdin(cmdline []string) {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = cfg.OrigEnv
+	env := slices.Clip(cfg.OrigEnv)
+	env = AppendPATH(env)
+	cmd.Env = env
 	StartSigHandlers()
 	if err := cmd.Run(); err != nil {
 		Errorf("%v", err)
