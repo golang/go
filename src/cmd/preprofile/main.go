@@ -8,7 +8,7 @@
 //
 // Usage:
 //
-//	go tool preprofile [-v] [-o output] -i input
+//	go tool preprofile [-o output] -i input
 //
 //
 
@@ -26,7 +26,7 @@ import (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: go tool preprofile [-v] [-o output] -i input\n\n")
+	fmt.Fprintf(os.Stderr, "usage: go tool preprofile [-o output] -i input\n\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
