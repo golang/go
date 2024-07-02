@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !purego && (386 || amd64 || arm || arm64 || ppc64 || ppc64le || riscv64 || s390x)
-
 package bigmod
 
 import "internal/cpu"
@@ -17,6 +15,8 @@ import "internal/cpu"
 // TODO(filippo): file cmd/compile performance issue.
 
 var supportADX = cpu.X86.HasADX && cpu.X86.HasBMI2
+
+//go:build !purego && (386 || amd64 || arm || arm64 || ppc64 || ppc64le || riscv64 || s390x)
 
 //go:noescape
 func addMulVVW1024(z, x *uint, y uint) (c uint)
