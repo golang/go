@@ -25,6 +25,7 @@ import (
 type generation struct {
 	gen        uint64
 	batches    map[ThreadID][]batch
+	batchMs    []ThreadID
 	cpuSamples []cpuSample
 	*evTable
 }
@@ -169,6 +170,9 @@ func processBatch(g *generation, b batch) error {
 			return err
 		}
 	default:
+		if _, ok := g.batches[b.m]; !ok {
+			g.batchMs = append(g.batchMs, b.m)
+		}
 		g.batches[b.m] = append(g.batches[b.m], b)
 	}
 	return nil

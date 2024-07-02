@@ -507,7 +507,7 @@ func TestTraceStress(t *testing.T) {
 	case "js", "wasip1":
 		t.Skip("no os.Pipe on " + runtime.GOOS)
 	}
-	testTraceProg(t, "stress.go", nil)
+	testTraceProg(t, "stress.go", checkReaderDeterminism)
 }
 
 func TestTraceStressStartStop(t *testing.T) {
@@ -533,6 +533,43 @@ func TestTraceWaitOnPipe(t *testing.T) {
 
 func TestTraceIterPull(t *testing.T) {
 	testTraceProg(t, "iter-pull.go", nil)
+}
+
+func checkReaderDeterminism(t *testing.T, tb, _ []byte, _ bool) {
+	events := func() []trace.Event {
+		var evs []trace.Event
+
+		r, err := trace.NewReader(bytes.NewReader(tb))
+		if err != nil {
+			t.Error(err)
+		}
+		for {
+			ev, err := r.ReadEvent()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			evs = append(evs, ev)
+		}
+
+		return evs
+	}
+
+	evs1 := events()
+	evs2 := events()
+
+	if l1, l2 := len(evs1), len(evs2); l1 != l2 {
+		t.Fatalf("re-reading trace gives different event count (%d != %d)", l1, l2)
+	}
+	for i, ev1 := range evs1 {
+		ev2 := evs2[i]
+		if s1, s2 := ev1.String(), ev2.String(); s1 != s2 {
+			t.Errorf("re-reading trace gives different event %d:\n%s\n%s\n", i, s1, s2)
+			break
+		}
+	}
 }
 
 func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {

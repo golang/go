@@ -142,7 +142,8 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		r.cpuSamples = r.gen.cpuSamples
 
 		// Reset frontier.
-		for m, batches := range r.gen.batches {
+		for _, m := range r.gen.batchMs {
+			batches := r.gen.batches[m]
 			bc := &batchCursor{m: m}
 			ok, err := bc.nextEvent(batches, r.gen.freq)
 			if err != nil {
