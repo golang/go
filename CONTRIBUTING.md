@@ -2,7 +2,7 @@
 
 Go is an open source project.
 
-It is the work of hundreds of contributors. We appreciate your help!
+It is the work of thousands of contributors. We appreciate your help!
 
 ## Before filing an issue
 
