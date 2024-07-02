@@ -55,6 +55,10 @@ Flags:
 		Set build mode (default exe).
 	-c
 		Dump call graphs.
+	-checklinkname=value
+		If value is 0, all go:linkname directives are permitted.
+		If value is 1 (the default), only a known set of widely-used
+		linknames are permitted.
 	-compressdwarf
 		Compress DWARF if possible (default true).
 	-cpuprofile file
