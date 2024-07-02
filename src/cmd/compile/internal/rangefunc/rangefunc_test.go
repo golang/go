@@ -285,6 +285,26 @@ var fail []error = []error{
 	errorString(CERR_MISSING),
 }
 
+// TestNoVars ensures that versions of rangefunc that use zero or one
+// iteration variable (instead of two) run the proper number of times
+// and in the one variable case supply the proper values.
+// For #65236.
+func TestNoVars(t *testing.T) {
+	i, k := 0, 0
+	for range Check2(OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
+		i++
+	}
+	for j := range Check2(OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
+		k += j
+	}
+	if i != 10 {
+		t.Errorf("Expected 10, got %d", i)
+	}
+	if k != 45 {
+		t.Errorf("Expected 45, got %d", k)
+	}
+}
+
 func TestCheck(t *testing.T) {
 	i := 0
 	defer func() {
