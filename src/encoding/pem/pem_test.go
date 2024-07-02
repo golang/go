@@ -233,6 +233,34 @@ func TestLineBreaker(t *testing.T) {
 			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, got, test.out)
 		}
 	}
+
+	t.Run("SmallBuffer", func(t *testing.T) {
+		buf := new(strings.Builder)
+		breaker := lineBreaker{out: buf}
+		input := bytes.Repeat([]byte("a"), 10) // Less than pemLineLength
+
+		written, err := breaker.Write(input)
+		if err != nil {
+			t.Fatalf("Write failed: %v", err)
+		}
+		if written != len(input) {
+			t.Errorf("Expected to write %d bytes, wrote %d bytes", len(input), written)
+		}
+	})
+
+	t.Run("LargeBuffer", func(t *testing.T) {
+		buf := new(strings.Builder)
+		breaker := lineBreaker{out: buf}
+		input := bytes.Repeat([]byte("a"), 200) // More than pemLineLength
+
+		written, err := breaker.Write(input)
+		if err != nil {
+			t.Fatalf("Write failed: %v", err)
+		}
+		if written != len(input) {
+			t.Errorf("Expected to write %d bytes, wrote %d bytes", len(input), written)
+		}
+	})
 }
 
 func TestFuzz(t *testing.T) {
