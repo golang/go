@@ -1,11 +1,15 @@
 # This test checks that VCS information is stamped into Go binaries by default,
 # controlled with -buildvcs. This test focuses on Mercurial specifics.
 # The Git test covers common functionality.
+# Set HGRCPATH to a known configuration that uses fixed author and date values,
+# to keep revision values stable.
 
 [!exec:hg] skip
 [short] skip
 env GOBIN=$WORK/gopath/bin
 env oldpath=$PATH
+env TZ=GMT
+env HGRCPATH=$WORK/hgrc
 cd repo/a
 
 # If there's no local repository, there's no VCS info.
@@ -29,13 +33,14 @@ cd ..
 env PATH=$oldpath
 rm .hg
 
-# If there is an empty repository in a parent directory, only "uncommitted" is tagged.
+# An empty repository or one explicitly updated to null uses the null cset ID,
+# and the time is hard set to 1/1/70, regardless of the current time.
 exec hg init
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
-! stdout vcs.revision
-! stdout vcs.time
+stdout '^\tbuild\tvcs.revision=0000000000000000000000000000000000000000$'
+stdout '^\tbuild\tvcs.time=1970-01-01T00:00:00Z$'
 stdout '^\tbuild\tvcs.modified=true$'
 cd ..
 
@@ -45,8 +50,26 @@ exec hg commit -m 'initial commit'
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tvcs.revision='
-stdout '^\tbuild\tvcs.time='
+stdout '^\tbuild\tvcs.revision=3b54a85adb09648c82e23fbfb5a5928777fcdd98$'
+stdout '^\tbuild\tvcs.time=1970-01-02T03:46:40Z$'
+stdout '^\tbuild\tvcs.modified=false$'
+rm $GOBIN/a$GOEXE
+
+# Add an extra commit and then back off of it to show that the hash is
+# from the checked out revision, not the tip revision.
+cp ../../outside/empty.txt .
+exec hg ci -Am 'another commit'
+exec hg update --clean -r '.^'
+
+# Modified state is not thrown off by extra status output
+exec hg bisect -v -g .
+exec hg bisect -v -b '.^^'
+exec hg status
+stdout '^.+'
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs.revision=3b54a85adb09648c82e23fbfb5a5928777fcdd98$'
+stdout '^\tbuild\tvcs.time=1970-01-02T03:46:40Z$'
 stdout '^\tbuild\tvcs.modified=false$'
 rm $GOBIN/a$GOEXE
 
@@ -88,4 +111,17 @@ go 1.18
 package main
 
 func main() {}
+-- $WORK/hgrc --
+[devel]
+# Use a fixed timestamp instead of now() to keep commit hashes stable.
+default-date = 100000 0
+
+[ui]
+# Use a fixed author to keep commit hashes stable.
+username = test
+
+# tweakdefaults is an opt-in that may print extra output in commands like
+# status.  That can be disabled by setting HGPLAIN=1.
+tweakdefaults = 1
+
 -- outside/empty.txt --
