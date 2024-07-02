@@ -52,7 +52,7 @@ func main() {
 			}
 			fmt.Fprintf(&buf, "const Is%s = %d\n", strings.Title(goarch), value)
 		}
-		err := os.WriteFile("zgoarch_"+target+".go", buf.Bytes(), 0666)
+		err = os.WriteFile("zgoarch_"+target+".go", buf.Bytes(), 0666)
 		if err != nil {
 			log.Fatal(err)
 		}
