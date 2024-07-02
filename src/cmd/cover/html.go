@@ -300,6 +300,18 @@ const tmplHTML = `
 		if (!visible) {
 			select("file0");
 		}
+		
+		document.addEventListener("keydown", evt => {
+                        if (evt.key === "ArrowLeft" && files.selectedIndex > 0) {
+				files.selectedIndex--
+                        }
+
+                        if (evt.key === "ArrowRight" && files.selectedIndex < (files.childElementCount - 1)) {
+                                files.selectedIndex++;
+                        }
+
+                        onChange()
+                })
 	})();
 	</script>
 </html>
