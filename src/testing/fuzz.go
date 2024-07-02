@@ -272,14 +272,14 @@ func (f *F) Fuzz(ff any) {
 	// run calls fn on a given input, as a subtest with its own T.
 	// run is analogous to T.Run. The test filtering and cleanup works similarly.
 	// fn is called in its own goroutine.
-	run := func(captureOut io.Writer, e corpusEntry) (ok bool) {
+	run := func(captureOut io.Writer, e corpusEntry) (ok, skipped bool) {
 		if e.Values == nil {
 			// The corpusEntry must have non-nil Values in order to run the
 			// test. If Values is nil, it is a bug in our code.
 			panic(fmt.Sprintf("corpus file %q was not unmarshaled", e.Path))
 		}
 		if shouldFailFast() {
-			return true
+			return true, false
 		}
 		testName := f.name
 		if e.Path != "" {
@@ -339,7 +339,7 @@ func (f *F) Fuzz(ff any) {
 			t.chatty.Updatef(t.parent.name, "=== NAME  %s\n", t.parent.name)
 		}
 		f.common.inFuzzFn, f.inFuzzFn = false, false
-		return !t.Failed()
+		return !t.Failed(), t.Skipped()
 	}
 
 	switch f.fuzzContext.mode {
@@ -376,16 +376,18 @@ func (f *F) Fuzz(ff any) {
 	case fuzzWorker:
 		// Fuzzing is enabled, and this is a worker process. Follow instructions
 		// from the coordinator.
-		if err := f.fuzzContext.deps.RunFuzzWorker(func(e corpusEntry) error {
+		if err := f.fuzzContext.deps.RunFuzzWorker(func(e corpusEntry) (bool, error) {
 			// Don't write to f.w (which points to Stdout) if running from a
 			// fuzz worker. This would become very verbose, particularly during
 			// minimization. Return the error instead, and let the caller deal
 			// with the output.
 			var buf strings.Builder
-			if ok := run(&buf, e); !ok {
-				return errors.New(buf.String())
+			ok, skipped := run(&buf, e)
+			// Only report the error if the input was not skipped.
+			if !ok && !skipped {
+				return false, errors.New(buf.String())
 			}
-			return nil
+			return skipped, nil
 		}); err != nil {
 			// Internal errors are marked with f.Fail; user code may call this too, before F.Fuzz.
 			// The worker will exit with fuzzWorkerExitCode, indicating this is a failure
