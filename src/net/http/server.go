@@ -2011,7 +2011,13 @@ func (c *conn) serve(ctx context.Context) {
 
 	c.r = &connReader{conn: c}
 	c.bufr = newBufioReader(c.r)
-	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
+
+	var writeBufferSize int = 4 << 10
+	if c.server.WriteBufferSize != 0 {
+		writeBufferSize = c.server.WriteBufferSize
+	}
+
+	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, writeBufferSize)
 
 	for {
 		w, err := c.readRequest(ctx)
@@ -2972,6 +2978,10 @@ type Server struct {
 	// is derived from the base context and has a ServerContextKey
 	// value.
 	ConnContext func(ctx context.Context, c net.Conn) context.Context
+
+	// WriteBufferSize optionally specifies the buffer size used to write to a connection.
+	// If not set, a default value of 4 KB is used.
+	WriteBufferSize int
 
 	inShutdown atomic.Bool // true when server is in shutdown
 
