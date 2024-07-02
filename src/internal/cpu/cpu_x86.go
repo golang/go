@@ -40,7 +40,8 @@ const (
 	cpuid_SHA      = 1 << 29
 	cpuid_AVX512BW = 1 << 30
 	cpuid_AVX512VL = 1 << 31
-
+	// edx bits
+	cpuid_FSRM = 1 << 4
 	// edx bits for CPUID 0x80000001
 	cpuid_RDTSCP = 1 << 27
 )
@@ -52,6 +53,7 @@ func doinit() {
 		{Name: "adx", Feature: &X86.HasADX},
 		{Name: "aes", Feature: &X86.HasAES},
 		{Name: "erms", Feature: &X86.HasERMS},
+		{Name: "fsrm", Feature: &X86.HasFSRM},
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
 		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
 		{Name: "sha", Feature: &X86.HasSHA},
@@ -137,7 +139,7 @@ func doinit() {
 		return
 	}
 
-	_, ebx7, _, _ := cpuid(7, 0)
+	_, ebx7, _, edx7 := cpuid(7, 0)
 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
@@ -150,6 +152,8 @@ func doinit() {
 		X86.HasAVX512BW = isSet(ebx7, cpuid_AVX512BW)
 		X86.HasAVX512VL = isSet(ebx7, cpuid_AVX512VL)
 	}
+
+	X86.HasFSRM = isSet(edx7, cpuid_FSRM)
 
 	var maxExtendedInformation uint32
 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)

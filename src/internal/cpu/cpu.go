@@ -37,6 +37,7 @@ var X86 struct {
 	HasBMI1      bool
 	HasBMI2      bool
 	HasERMS      bool
+	HasFSRM      bool
 	HasFMA       bool
 	HasOSXSAVE   bool
 	HasPCLMULQDQ bool
