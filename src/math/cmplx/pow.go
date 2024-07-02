@@ -64,7 +64,7 @@ func Pow(x, y complex128) complex128 {
 		case r > 0:
 			return 0
 		}
-		panic("not reached")
+		panic("unreachable")
 	}
 	modulus := Abs(x)
 	if modulus == 0 {

@@ -289,7 +289,7 @@ func (ts *triState) String() string {
 	case setFalse:
 		return "false"
 	}
-	panic("not reached")
+	panic("unreachable")
 }
 
 func (ts triState) IsBoolFlag() bool {
