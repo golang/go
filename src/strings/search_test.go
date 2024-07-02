@@ -5,7 +5,7 @@
 package strings_test
 
 import (
-	"reflect"
+	"slices"
 	. "strings"
 	"testing"
 )
@@ -83,7 +83,7 @@ func TestFinderCreation(t *testing.T) {
 			}
 		}
 
-		if !reflect.DeepEqual(good, tc.suf) {
+		if !slices.Equal(good, tc.suf) {
 			t.Errorf("boyerMoore(%q) got %v want %v", tc.pattern, good, tc.suf)
 		}
 	}
