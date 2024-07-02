@@ -9,7 +9,6 @@ import (
 	"internal/testenv"
 	"os"
 	. "path/filepath"
-	"reflect"
 	"runtime"
 	"slices"
 	"strings"
@@ -367,7 +366,7 @@ func TestNonWindowsGlobEscape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Glob error for %q: %s", pattern, err)
 	}
-	if !reflect.DeepEqual(matches, want) {
+	if !slices.Equal(matches, want) {
 		t.Fatalf("Glob(%#q) = %v want %v", pattern, matches, want)
 	}
 }

@@ -16,7 +16,6 @@ import (
 	. "os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"runtime/debug"
 	"slices"
@@ -805,13 +804,13 @@ func TestReaddirStatFailures(t *testing.T) {
 	}
 
 	if got, want := names(mustReadDir("initial readdir")),
-		[]string{"good1", "good2", "x"}; !reflect.DeepEqual(got, want) {
+		[]string{"good1", "good2", "x"}; !slices.Equal(got, want) {
 		t.Errorf("initial readdir got %q; want %q", got, want)
 	}
 
 	xerr = ErrNotExist
 	if got, want := names(mustReadDir("with x disappearing")),
-		[]string{"good1", "good2"}; !reflect.DeepEqual(got, want) {
+		[]string{"good1", "good2"}; !slices.Equal(got, want) {
 		t.Errorf("with x disappearing, got %q; want %q", got, want)
 	}
 

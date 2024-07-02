@@ -11,7 +11,6 @@ import (
 	"io"
 	"io/fs"
 	"path"
-	"reflect"
 	"slices"
 	"strings"
 	"testing/iotest"
@@ -358,7 +357,7 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 		t.errorf("%s: Glob(%#q): %w", dir, glob, err)
 		return
 	}
-	if reflect.DeepEqual(want, names) {
+	if slices.Equal(want, names) {
 		return
 	}
 
