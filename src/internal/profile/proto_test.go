@@ -5,7 +5,7 @@
 package profile
 
 import (
-	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -34,7 +34,7 @@ func TestPackedEncoding(t *testing.T) {
 		},
 	} {
 		source := &packedInts{tc.uint64s, tc.int64s}
-		if got, want := marshal(source), tc.encoded; !reflect.DeepEqual(got, want) {
+		if got, want := marshal(source), tc.encoded; !slices.Equal(got, want) {
 			t.Errorf("failed encode %d, got %v, want %v", i, got, want)
 		}
 
@@ -43,10 +43,10 @@ func TestPackedEncoding(t *testing.T) {
 			t.Errorf("failed decode %d: %v", i, err)
 			continue
 		}
-		if got, want := dest.uint64s, tc.uint64s; !reflect.DeepEqual(got, want) {
+		if got, want := dest.uint64s, tc.uint64s; !slices.Equal(got, want) {
 			t.Errorf("failed decode uint64s %d, got %v, want %v", i, got, want)
 		}
-		if got, want := dest.int64s, tc.int64s; !reflect.DeepEqual(got, want) {
+		if got, want := dest.int64s, tc.int64s; !slices.Equal(got, want) {
 			t.Errorf("failed decode int64s %d, got %v, want %v", i, got, want)
 		}
 	}
