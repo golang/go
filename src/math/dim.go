@@ -4,6 +4,29 @@
 
 package math
 
+// Ordered Size comparisons can be performed (> , < , <= , >=)
+type Ordered interface {
+	Integer | Float | ~string
+}
+
+type Integer interface {
+	Signed | Unsigned
+}
+
+type Signed interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64
+}
+
+type Unsigned interface {
+	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+// Float we do not recommend adding float64
+type Float interface {
+	~float32
+	//~float32 | ~float64
+}
+
 // Dim returns the maximum of x-y or 0.
 //
 // Special cases are:
@@ -44,6 +67,18 @@ func Max(x, y float64) float64 {
 	return max(x, y)
 }
 
+// MaxAll returns the larger of x or y.(All Ordered types except float64)
+// If it is of type float64, Max should be used instead of MaxAll
+// If add float64 type to MaxAll, it's inevitably need reflection
+//  to determine the type of the value and then do something different
+// So we do not recommend adding float64
+func MaxAll[T Ordered](x, y T) T {
+	if x > y {
+		return x
+	}
+	return y
+}
+
 func max(x, y float64) float64 {
 	// special cases
 	switch {
@@ -78,6 +113,18 @@ func Min(x, y float64) float64 {
 		return archMin(x, y)
 	}
 	return min(x, y)
+}
+
+// MinAll returns the smaller of x or y.(All Ordered types except float64)
+// If it is of type float64, Min should be used instead of MinAll
+// If add float64 type to MinAll, it's inevitably need reflection
+//  to determine the type of the value and then do something different
+// So we do not recommend adding float64
+func MinAll[T Ordered](x, y T) T {
+	if x < y {
+		return x
+	}
+	return y
 }
 
 func min(x, y float64) float64 {
