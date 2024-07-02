@@ -10,9 +10,9 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -702,7 +702,7 @@ func TestPaxXattrs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(hdr.Xattrs, xattrs) {
+	if !maps.Equal(hdr.Xattrs, xattrs) {
 		t.Fatalf("xattrs did not survive round trip: got %+v, want %+v",
 			hdr.Xattrs, xattrs)
 	}
