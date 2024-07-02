@@ -5,8 +5,8 @@
 package runtime_test
 
 import (
-	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -80,7 +80,7 @@ func testCallersEqual(t *testing.T, pcs []uintptr, want []string) {
 		}
 		got = append(got, frame.Function)
 	}
-	if !reflect.DeepEqual(want, got) {
+	if !slices.Equal(want, got) {
 		t.Fatalf("wanted %v, got %v", want, got)
 	}
 }

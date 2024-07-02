@@ -7,7 +7,8 @@ package pprof
 import (
 	"context"
 	"reflect"
-	"sort"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -17,15 +18,9 @@ func labelsSorted(ctx context.Context) []label {
 		ls = append(ls, label{key, value})
 		return true
 	})
-	sort.Sort(labelSorter(ls))
+	slices.SortFunc(ls, func(a, b label) int { return strings.Compare(a.key, b.key) })
 	return ls
 }
-
-type labelSorter []label
-
-func (s labelSorter) Len() int           { return len(s) }
-func (s labelSorter) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s labelSorter) Less(i, j int) bool { return s[i].key < s[j].key }
 
 func TestContextLabels(t *testing.T) {
 	// Background context starts with no labels.

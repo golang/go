@@ -201,10 +201,10 @@ func TestReadMetrics(t *testing.T) {
 	checkUint64(t, "/gc/heap/frees:objects", frees, mstats.Frees-tinyAllocs)
 
 	// Verify that /gc/pauses:seconds is a copy of /sched/pauses/total/gc:seconds
-	if !reflect.DeepEqual(gcPauses.Buckets, schedPausesTotalGC.Buckets) {
+	if !slices.Equal(gcPauses.Buckets, schedPausesTotalGC.Buckets) {
 		t.Errorf("/gc/pauses:seconds buckets %v do not match /sched/pauses/total/gc:seconds buckets %v", gcPauses.Buckets, schedPausesTotalGC.Counts)
 	}
-	if !reflect.DeepEqual(gcPauses.Counts, schedPausesTotalGC.Counts) {
+	if !slices.Equal(gcPauses.Counts, schedPausesTotalGC.Counts) {
 		t.Errorf("/gc/pauses:seconds counts %v do not match /sched/pauses/total/gc:seconds counts %v", gcPauses.Counts, schedPausesTotalGC.Counts)
 	}
 }

@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"reflect"
 	. "runtime"
+	"slices"
 	"testing"
 	"time"
 	"unsafe"
@@ -20,7 +21,7 @@ func TestProfBuf(t *testing.T) {
 	}
 	read := func(t *testing.T, b *ProfBuf, data []uint64, tags []unsafe.Pointer) {
 		rdata, rtags, eof := b.Read(ProfBufNonBlocking)
-		if !reflect.DeepEqual(rdata, data) || !reflect.DeepEqual(rtags, tags) {
+		if !slices.Equal(rdata, data) || !reflect.DeepEqual(rtags, tags) {
 			t.Fatalf("unexpected profile read:\nhave data %#x\nwant data %#x\nhave tags %#x\nwant tags %#x", rdata, data, rtags, tags)
 		}
 		if eof {
@@ -32,7 +33,7 @@ func TestProfBuf(t *testing.T) {
 		go func() {
 			eof := data == nil
 			rdata, rtags, reof := b.Read(ProfBufBlocking)
-			if !reflect.DeepEqual(rdata, data) || !reflect.DeepEqual(rtags, tags) || reof != eof {
+			if !slices.Equal(rdata, data) || !reflect.DeepEqual(rtags, tags) || reof != eof {
 				// Errorf, not Fatalf, because called in goroutine.
 				t.Errorf("unexpected profile read:\nhave data %#x\nwant data %#x\nhave tags %#x\nwant tags %#x\nhave eof=%v, want %v", rdata, data, rtags, tags, reof, eof)
 			}
