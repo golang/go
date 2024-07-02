@@ -315,6 +315,17 @@ func newTCPConn(fd *netFD, keepAliveIdle time.Duration, keepAliveCfg KeepAliveCo
 // If the IP field of raddr is nil or an unspecified IP address, the
 // local system is assumed.
 func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+	return DialTCPWithContext(context.Background(), network, laddr, raddr)
+}
+
+// DialTCPWithContext acts like Dial for TCP networks.
+//
+// The network must be a TCP network name; see func Dial for details.
+//
+// If laddr is nil, a local address is automatically chosen.
+// If the IP field of raddr is nil or an unspecified IP address, the
+// local system is assumed.
+func DialTCPWithContext(ctx context.Context, network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	switch network {
 	case "tcp", "tcp4", "tcp6":
 	default:
@@ -324,7 +335,7 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
 	sd := &sysDialer{network: network, address: raddr.String()}
-	c, err := sd.dialTCP(context.Background(), laddr, raddr)
+	c, err := sd.dialTCP(ctx, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
