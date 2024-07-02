@@ -5,6 +5,7 @@
 package testing
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"internal/sysinfo"
@@ -51,14 +52,14 @@ func (f *durationOrCountFlag) Set(s string) error {
 	if strings.HasSuffix(s, "x") {
 		n, err := strconv.ParseInt(s[:len(s)-1], 10, 0)
 		if err != nil || n < 0 || (!f.allowZero && n == 0) {
-			return fmt.Errorf("invalid count")
+			return errors.New("invalid count")
 		}
 		*f = durationOrCountFlag{n: int(n)}
 		return nil
 	}
 	d, err := time.ParseDuration(s)
 	if err != nil || d < 0 || (!f.allowZero && d == 0) {
-		return fmt.Errorf("invalid duration")
+		return errors.New("invalid duration")
 	}
 	*f = durationOrCountFlag{d: d}
 	return nil

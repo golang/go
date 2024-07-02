@@ -6,10 +6,11 @@ package pgo
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 // IsSerialized returns true if r is a serialized Profile.
@@ -39,7 +40,7 @@ func FromSerialized(r io.Reader) (*Profile, error) {
 		if err := scanner.Err(); err != nil {
 			return nil, fmt.Errorf("error reading preprocessed profile: %w", err)
 		}
-		return nil, fmt.Errorf("preprocessed profile missing header")
+		return nil, errors.New("preprocessed profile missing header")
 	}
 	if gotHdr := scanner.Text() + "\n"; gotHdr != serializationHeader {
 		return nil, fmt.Errorf("preprocessed profile malformed header; got %q want %q", gotHdr, serializationHeader)
@@ -54,7 +55,7 @@ func FromSerialized(r io.Reader) (*Profile, error) {
 			if err := scanner.Err(); err != nil {
 				return nil, fmt.Errorf("error reading preprocessed profile: %w", err)
 			}
-			return nil, fmt.Errorf("preprocessed profile entry missing callee")
+			return nil, errors.New("preprocessed profile entry missing callee")
 		}
 		calleeName := scanner.Text()
 
@@ -62,7 +63,7 @@ func FromSerialized(r io.Reader) (*Profile, error) {
 			if err := scanner.Err(); err != nil {
 				return nil, fmt.Errorf("error reading preprocessed profile: %w", err)
 			}
-			return nil, fmt.Errorf("preprocessed profile entry missing weight")
+			return nil, errors.New("preprocessed profile entry missing weight")
 		}
 		readStr = scanner.Text()
 

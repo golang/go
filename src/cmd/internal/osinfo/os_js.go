@@ -7,7 +7,7 @@
 package osinfo
 
 import (
-	"fmt"
+	"errors"
 	"syscall/js"
 )
 
@@ -21,7 +21,7 @@ func Version() (string, error) {
 	if v, ok := node(); ok {
 		return "Node.js " + v, nil
 	}
-	return "", fmt.Errorf("unrecognized environment")
+	return "", errors.New("unrecognized environment")
 }
 
 func node() (version string, ok bool) {

@@ -43,7 +43,7 @@ func FromPProf(r io.Reader) (*Profile, error) {
 	}
 
 	if valueIndex == -1 {
-		return nil, fmt.Errorf(`profile does not contain a sample index with value/type "samples/count" or cpu/nanoseconds"`)
+		return nil, errors.New(`profile does not contain a sample index with value/type "samples/count" or cpu/nanoseconds"`)
 	}
 
 	g := profile.NewGraph(p, &profile.Options{
@@ -97,7 +97,7 @@ func createNamedEdgeMap(g *profile.Graph) (edgeMap NamedEdgeMap, totalWeight int
 		// TODO(prattmic): If Function.start_line is missing we could
 		// fall back to using absolute line numbers, which is better
 		// than nothing.
-		return NamedEdgeMap{}, 0, fmt.Errorf("profile missing Function.start_line data (Go version of profiled application too old? Go 1.20+ automatically adds this to profiles)")
+		return NamedEdgeMap{}, 0, errors.New("profile missing Function.start_line data (Go version of profiled application too old? Go 1.20+ automatically adds this to profiles)")
 	}
 	return postProcessNamedEdgeMap(weight, totalWeight)
 }

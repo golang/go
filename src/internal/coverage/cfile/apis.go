@@ -5,6 +5,7 @@
 package cfile
 
 import (
+	"errors"
 	"fmt"
 	"internal/coverage"
 	"internal/coverage/rtcov"
@@ -16,7 +17,7 @@ import (
 // WriteMetaDir implements [runtime/coverage.WriteMetaDir].
 func WriteMetaDir(dir string) error {
 	if !finalHashComputed {
-		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
+		return errors.New("error: no meta-data available (binary not built with -cover?)")
 	}
 	return emitMetaDataToDirectory(dir, rtcov.Meta.List)
 }
@@ -24,10 +25,10 @@ func WriteMetaDir(dir string) error {
 // WriteMeta implements [runtime/coverage.WriteMeta].
 func WriteMeta(w io.Writer) error {
 	if w == nil {
-		return fmt.Errorf("error: nil writer in WriteMeta")
+		return errors.New("error: nil writer in WriteMeta")
 	}
 	if !finalHashComputed {
-		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
+		return errors.New("error: no meta-data available (binary not built with -cover?)")
 	}
 	ml := rtcov.Meta.List
 	return writeMetaData(w, ml, cmode, cgran, finalHash)
@@ -44,7 +45,7 @@ func WriteCountersDir(dir string) error {
 // WriteCounters implements [runtime/coverage.WriteCounters].
 func WriteCounters(w io.Writer) error {
 	if w == nil {
-		return fmt.Errorf("error: nil writer in WriteCounters")
+		return errors.New("error: nil writer in WriteCounters")
 	}
 	if cmode != coverage.CtrModeAtomic {
 		return fmt.Errorf("WriteCounters invoked for program built with -covermode=%s (please use -covermode=atomic)", cmode.String())
@@ -52,10 +53,10 @@ func WriteCounters(w io.Writer) error {
 	// Ask the runtime for the list of coverage counter symbols.
 	cl := getCovCounterList()
 	if len(cl) == 0 {
-		return fmt.Errorf("program not built with -cover")
+		return errors.New("program not built with -cover")
 	}
 	if !finalHashComputed {
-		return fmt.Errorf("meta-data not written yet, unable to write counter data")
+		return errors.New("meta-data not written yet, unable to write counter data")
 	}
 
 	pm := rtcov.Meta.PkgMap
@@ -70,7 +71,7 @@ func WriteCounters(w io.Writer) error {
 func ClearCounters() error {
 	cl := getCovCounterList()
 	if len(cl) == 0 {
-		return fmt.Errorf("program not built with -cover")
+		return errors.New("program not built with -cover")
 	}
 	if cmode != coverage.CtrModeAtomic {
 		return fmt.Errorf("ClearCounters invoked for program built with -covermode=%s (please use -covermode=atomic)", cmode.String())

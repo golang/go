@@ -5,6 +5,7 @@
 package stringtab
 
 import (
+	"errors"
 	"fmt"
 	"internal/coverage/slicereader"
 	"internal/coverage/uleb128"
@@ -74,7 +75,7 @@ func (stw *Writer) Write(w io.Writer) error {
 		if nw, err := w.Write(stw.tmp); err != nil {
 			return fmt.Errorf("writing string table: %v", err)
 		} else if nw != len(stw.tmp) {
-			return fmt.Errorf("short write emitting stringtab uleb")
+			return errors.New("short write emitting stringtab uleb")
 		}
 		return nil
 	}
@@ -88,7 +89,7 @@ func (stw *Writer) Write(w io.Writer) error {
 		if nw, err := w.Write([]byte(s)); err != nil {
 			return fmt.Errorf("writing string table: %v", err)
 		} else if nw != len([]byte(s)) {
-			return fmt.Errorf("short write emitting stringtab")
+			return errors.New("short write emitting stringtab")
 		}
 	}
 	return nil

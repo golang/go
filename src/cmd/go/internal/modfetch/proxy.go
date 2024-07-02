@@ -120,7 +120,7 @@ func proxyList() ([]proxySpec, error) {
 			// There were no proxies, other than the implicit "noproxy" added when
 			// GONOPROXY is set. This can happen if GOPROXY is a non-empty string
 			// like "," or " ".
-			proxyOnce.err = fmt.Errorf("GOPROXY list is not the empty string, but contains no entries")
+			proxyOnce.err = errors.New("GOPROXY list is not the empty string, but contains no entries")
 		}
 	})
 
@@ -230,7 +230,7 @@ func (p *proxyRepo) ModulePath() string {
 	return p.path
 }
 
-var errProxyReuse = fmt.Errorf("proxy does not support CheckReuse")
+var errProxyReuse = errors.New("proxy does not support CheckReuse")
 
 func (p *proxyRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
 	return errProxyReuse
@@ -402,7 +402,7 @@ func (p *proxyRepo) Latest(ctx context.Context) (*RevInfo, error) {
 
 func (p *proxyRepo) GoMod(ctx context.Context, version string) ([]byte, error) {
 	if version != module.CanonicalVersion(version) {
-		return nil, p.versionError(version, fmt.Errorf("internal error: version passed to GoMod is not canonical"))
+		return nil, p.versionError(version, errors.New("internal error: version passed to GoMod is not canonical"))
 	}
 
 	encVer, err := module.EscapeVersion(version)
@@ -418,7 +418,7 @@ func (p *proxyRepo) GoMod(ctx context.Context, version string) ([]byte, error) {
 
 func (p *proxyRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
 	if version != module.CanonicalVersion(version) {
-		return p.versionError(version, fmt.Errorf("internal error: version passed to Zip is not canonical"))
+		return p.versionError(version, errors.New("internal error: version passed to Zip is not canonical"))
 	}
 
 	encVer, err := module.EscapeVersion(version)
@@ -440,7 +440,7 @@ func (p *proxyRepo) Zip(ctx context.Context, dst io.Writer, version string) erro
 		return p.versionError(version, err)
 	}
 	if lr.N <= 0 {
-		return p.versionError(version, fmt.Errorf("downloaded zip file too large"))
+		return p.versionError(version, errors.New("downloaded zip file too large"))
 	}
 	return nil
 }

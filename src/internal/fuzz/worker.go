@@ -276,7 +276,7 @@ func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuz
 	}
 
 	if input.crasherMsg != "" && resp.Err == "" {
-		return fuzzResult{}, fmt.Errorf("attempted to minimize a crash but could not reproduce")
+		return fuzzResult{}, errors.New("attempted to minimize a crash but could not reproduce")
 	}
 
 	return fuzzResult{

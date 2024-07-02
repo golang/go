@@ -47,6 +47,7 @@ package liveness
 //    xyz:  Live(8), Kill(2)
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -97,7 +98,7 @@ func (i1 Interval) adjacent(i2 Interval) bool {
 // require that the two intervals either overlap or are adjacent.
 func (i1 *Interval) MergeInto(i2 Interval) error {
 	if !i1.Overlaps(i2) && !i1.adjacent(i2) {
-		return fmt.Errorf("merge method invoked on non-overlapping/non-adjacent")
+		return errors.New("merge method invoked on non-overlapping/non-adjacent")
 	}
 	i1.st = imin(i1.st, i2.st)
 	i1.en = imax(i1.en, i2.en)
@@ -148,7 +149,7 @@ func (c *IntervalsBuilder) Finish() (Intervals, error) {
 // the comment at the beginning of this file for an example.
 func (c *IntervalsBuilder) Live(pos int) error {
 	if pos < 0 {
-		return fmt.Errorf("bad pos, negative")
+		return errors.New("bad pos, negative")
 	}
 	if c.last() == -1 {
 		c.setLast(pos)
@@ -159,7 +160,7 @@ func (c *IntervalsBuilder) Live(pos int) error {
 		return nil
 	}
 	if pos >= c.last() {
-		return fmt.Errorf("pos not decreasing")
+		return errors.New("pos not decreasing")
 	}
 	// extend lifetime across this pos
 	c.s[len(c.s)-1].st = pos
@@ -177,13 +178,13 @@ func (c *IntervalsBuilder) Live(pos int) error {
 // position itself.
 func (c *IntervalsBuilder) Kill(pos int) error {
 	if pos < 0 {
-		return fmt.Errorf("bad pos, negative")
+		return errors.New("bad pos, negative")
 	}
 	if c.last() == -1 {
 		return nil
 	}
 	if pos >= c.last() {
-		return fmt.Errorf("pos not decreasing")
+		return errors.New("pos not decreasing")
 	}
 	c.s[len(c.s)-1].st = pos + 1
 	// terminate lifetime

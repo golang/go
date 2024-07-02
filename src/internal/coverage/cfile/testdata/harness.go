@@ -5,6 +5,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"internal/coverage/slicewriter"
@@ -150,7 +151,7 @@ func (f *failingWriter) Write(p []byte) (n int, err error) {
 	if f.writeLimit < 0 || c < f.writeLimit {
 		return f.slws.Write(p)
 	}
-	return 0, fmt.Errorf("manufactured write error")
+	return 0, errors.New("manufactured write error")
 }
 
 func (f *failingWriter) Seek(offset int64, whence int) (int64, error) {

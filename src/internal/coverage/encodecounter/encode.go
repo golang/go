@@ -7,6 +7,7 @@ package encodecounter
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"internal/coverage"
 	"internal/coverage/slicewriter"
@@ -78,7 +79,7 @@ func padToFourByteBoundary(ws *slicewriter.WriteSeeker) error {
 		if nw, err := ws.Write(pad); err != nil {
 			return err
 		} else if nw != len(pad) {
-			return fmt.Errorf("error: short write")
+			return errors.New("error: short write")
 		}
 	}
 	return nil
@@ -221,7 +222,7 @@ func (cfw *CoverageDataWriter) writeBytes(b []byte) error {
 		return fmt.Errorf("error writing counter data: %v", err)
 	}
 	if len(b) != nw {
-		return fmt.Errorf("error writing counter data: short write")
+		return errors.New("error writing counter data: short write")
 	}
 	return nil
 }
@@ -252,7 +253,7 @@ func (cfw *CoverageDataWriter) writeCounters(visitor CounterVisitor, ws *slicewr
 		if sz, err := ws.Write(buf); err != nil {
 			return err
 		} else if sz != towr {
-			return fmt.Errorf("writing counters: short write")
+			return errors.New("writing counters: short write")
 		}
 		return nil
 	}

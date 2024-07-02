@@ -9,6 +9,7 @@ package cfg
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"go/build"
 	"internal/buildcfg"
@@ -295,7 +296,7 @@ var envCache struct {
 func EnvFile() (string, bool, error) {
 	if file := os.Getenv("GOENV"); file != "" {
 		if file == "off" {
-			return "", false, fmt.Errorf("GOENV=off")
+			return "", false, errors.New("GOENV=off")
 		}
 		return file, true, nil
 	}
@@ -304,7 +305,7 @@ func EnvFile() (string, bool, error) {
 		return "", false, err
 	}
 	if dir == "" {
-		return "", false, fmt.Errorf("missing user-config dir")
+		return "", false, errors.New("missing user-config dir")
 	}
 	return filepath.Join(dir, "go/env"), false, nil
 }

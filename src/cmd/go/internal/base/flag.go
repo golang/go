@@ -5,12 +5,11 @@
 package base
 
 import (
-	"flag"
-	"fmt"
-
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/internal/quoted"
+	"errors"
+	"flag"
 )
 
 // A StringsFlag is a command-line flag that interprets its argument
@@ -81,5 +80,5 @@ func AddModCommonFlags(flags *flag.FlagSet) {
 func ChdirFlag(s string) error {
 	// main handles -C by removing it from the command line.
 	// If we see one during flag parsing, that's an error.
-	return fmt.Errorf("-C flag must be first flag on command line")
+	return errors.New("-C flag must be first flag on command line")
 }

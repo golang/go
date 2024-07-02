@@ -8,6 +8,7 @@ package objfile
 
 import (
 	"debug/dwarf"
+	"errors"
 	"fmt"
 	"internal/xcoff"
 	"io"
@@ -45,7 +46,7 @@ func (f *xcoffFile) symbols() ([]Sym, error) {
 			sym.Code = '?'
 		default:
 			if s.SectionNumber < 0 || len(f.xcoff.Sections) < int(s.SectionNumber) {
-				return nil, fmt.Errorf("invalid section number in symbol table")
+				return nil, errors.New("invalid section number in symbol table")
 			}
 			sect := f.xcoff.Sections[s.SectionNumber-1]
 
@@ -101,7 +102,7 @@ func (f *xcoffFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
 func (f *xcoffFile) text() (textStart uint64, text []byte, err error) {
 	sect := f.xcoff.Section(".text")
 	if sect == nil {
-		return 0, nil, fmt.Errorf("text section not found")
+		return 0, nil, errors.New("text section not found")
 	}
 	textStart = sect.VirtualAddress
 	text, err = sect.Data()
@@ -155,7 +156,7 @@ func (f *xcoffFile) goarch() string {
 }
 
 func (f *xcoffFile) loadAddress() (uint64, error) {
-	return 0, fmt.Errorf("unknown load address")
+	return 0, errors.New("unknown load address")
 }
 
 func (f *xcoffFile) dwarf() (*dwarf.Data, error) {

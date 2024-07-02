@@ -30,6 +30,7 @@ package multipart
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"internal/godebug"
 	"io"
@@ -386,7 +387,7 @@ func (r *Reader) nextPart(rawPart bool, maxMIMEHeaderSize, maxMIMEHeaders int64)
 		r.currentPart.Close()
 	}
 	if string(r.dashBoundary) == "--" {
-		return nil, fmt.Errorf("multipart: boundary is empty")
+		return nil, errors.New("multipart: boundary is empty")
 	}
 	expectNewPart := false
 	for {

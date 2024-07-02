@@ -5,6 +5,7 @@
 package debug
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"strconv"
@@ -217,7 +218,7 @@ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 				return nil, fmt.Errorf("expected 3 columns for replacement; got %d", len(elem))
 			}
 			if last == nil {
-				return nil, fmt.Errorf("replacement with no module on previous line")
+				return nil, errors.New("replacement with no module on previous line")
 			}
 			last.Replace = &Module{
 				Path:    string(elem[0]),
@@ -228,21 +229,21 @@ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 		case strings.HasPrefix(line, buildLine):
 			kv := line[len(buildLine):]
 			if len(kv) < 1 {
-				return nil, fmt.Errorf("build line missing '='")
+				return nil, errors.New("build line missing '='")
 			}
 
 			var key, rawValue string
 			switch kv[0] {
 			case '=':
-				return nil, fmt.Errorf("build line with missing key")
+				return nil, errors.New("build line with missing key")
 
 			case '`', '"':
 				rawKey, err := strconv.QuotedPrefix(kv)
 				if err != nil {
-					return nil, fmt.Errorf("invalid quoted key in build line")
+					return nil, errors.New("invalid quoted key in build line")
 				}
 				if len(kv) == len(rawKey) {
-					return nil, fmt.Errorf("build line missing '=' after quoted key")
+					return nil, errors.New("build line missing '=' after quoted key")
 				}
 				if c := kv[len(rawKey)]; c != '=' {
 					return nil, fmt.Errorf("unexpected character after quoted key: %q", c)
@@ -254,7 +255,7 @@ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 				var ok bool
 				key, rawValue, ok = strings.Cut(kv, "=")
 				if !ok {
-					return nil, fmt.Errorf("build line missing '=' after key")
+					return nil, errors.New("build line missing '=' after key")
 				}
 				if quoteKey(key) {
 					return nil, fmt.Errorf("unquoted key %q must be quoted", key)
@@ -268,7 +269,7 @@ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 					var err error
 					value, err = strconv.Unquote(rawValue)
 					if err != nil {
-						return nil, fmt.Errorf("invalid quoted value in build line")
+						return nil, errors.New("invalid quoted value in build line")
 					}
 
 				default:

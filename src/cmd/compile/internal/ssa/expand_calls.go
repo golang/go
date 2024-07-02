@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"errors"
 	"fmt"
 )
 
@@ -383,7 +384,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 			m0.AuxInt = at.Size()
 			return m0
 		} else {
-			panic(fmt.Errorf("Store of not a load"))
+			panic(errors.New("Store of not a load"))
 		}
 	}
 
@@ -783,7 +784,7 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 			dst := x.offsetFrom(b, rc.storeDest, rc.storeOffset, types.NewPtr(at))
 			m0 = b.NewValue3A(pos, OpStore, types.TypeMem, at, dst, a, m0)
 		} else {
-			panic(fmt.Errorf("Expected rc to have registers"))
+			panic(errors.New("Expected rc to have registers"))
 		}
 	} else {
 		panic(fmt.Errorf("Expected container OpSelectN, saw %v instead", container.LongString()))

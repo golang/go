@@ -639,7 +639,7 @@ func match(s *State, args []string, text, name string) error {
 			return fmt.Errorf("bad -count=: %v", err)
 		}
 		if n < 1 {
-			return fmt.Errorf("bad -count=: must be at least 1")
+			return errors.New("bad -count=: must be at least 1")
 		}
 		args = args[1:]
 	}

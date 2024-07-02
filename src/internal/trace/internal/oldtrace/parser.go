@@ -451,7 +451,7 @@ func (p *parser) parseEventBatches() (Events, error) {
 		if len(frontier) == 0 {
 			for i := range allProcs {
 				if !allProcs[i].done {
-					return Events{}, fmt.Errorf("no consistent ordering of events possible")
+					return Events{}, errors.New("no consistent ordering of events possible")
 				}
 			}
 			break
@@ -510,7 +510,7 @@ func (p *parser) parseEventBatches() (Events, error) {
 			}
 			block := lastSysBlock[ev.G]
 			if block == 0 {
-				return Events{}, fmt.Errorf("stray syscall exit")
+				return Events{}, errors.New("stray syscall exit")
 			}
 			if ts < block {
 				return Events{}, ErrTimeOrder

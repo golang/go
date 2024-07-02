@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash"
 	"internal/coverage"
@@ -35,7 +36,7 @@ type CoverageMetaDataBuilder struct {
 
 func NewCoverageMetaDataBuilder(pkgpath string, pkgname string, modulepath string) (*CoverageMetaDataBuilder, error) {
 	if pkgpath == "" {
-		return nil, fmt.Errorf("invalid empty package path")
+		return nil, errors.New("invalid empty package path")
 	}
 	x := &CoverageMetaDataBuilder{
 		tmp: make([]byte, 0, 256),
@@ -104,7 +105,7 @@ func (b *CoverageMetaDataBuilder) emitFunc(w io.WriteSeeker, off int64, f funcDe
 	if nw, err := w.Write(f.encoded); err != nil {
 		return 0, err
 	} else if ew != nw {
-		return 0, fmt.Errorf("short write emitting coverage meta-data")
+		return 0, errors.New("short write emitting coverage meta-data")
 	}
 	return off + int64(ew), nil
 }
@@ -122,7 +123,7 @@ func (b *CoverageMetaDataBuilder) wrUint32(w io.WriteSeeker, v uint32) {
 	if nw, err := w.Write(b.tmp); err != nil {
 		b.reportWriteError(err)
 	} else if nw != 4 {
-		b.reportWriteError(fmt.Errorf("short write"))
+		b.reportWriteError(errors.New("short write"))
 	}
 }
 

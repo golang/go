@@ -441,7 +441,7 @@ func GoModSum(ctx context.Context, path, version string) (string, error) {
 	return sum, nil
 }
 
-var errNotCached = fmt.Errorf("not in cache")
+var errNotCached = errors.New("not in cache")
 
 // readDiskStat reads a cached stat result from disk,
 // returning the name of the cache file and the result.
@@ -788,7 +788,7 @@ func checkCacheDir(ctx context.Context) error {
 	if cfg.GOMODCACHE == "" {
 		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
 		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
-		return fmt.Errorf("module cache not found: neither GOMODCACHE nor GOPATH is set")
+		return errors.New("module cache not found: neither GOMODCACHE nor GOPATH is set")
 	}
 	if !filepath.IsAbs(cfg.GOMODCACHE) {
 		counterErrorsGOMODCACHEEntryRelative.Inc()

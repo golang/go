@@ -7,6 +7,7 @@ package trace
 import (
 	"cmp"
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"internal/trace/event"
@@ -83,7 +84,7 @@ func readTimedBaseEvent(b []byte, e *baseEvent) (int, timestamp, error) {
 	// Read timestamp diff.
 	ts, nb := binary.Uvarint(b[n:])
 	if nb <= 0 {
-		return 0, 0, fmt.Errorf("found invalid uvarint for timestamp")
+		return 0, 0, errors.New("found invalid uvarint for timestamp")
 	}
 	n += nb
 
@@ -91,7 +92,7 @@ func readTimedBaseEvent(b []byte, e *baseEvent) (int, timestamp, error) {
 	for i := 0; i < len(spec.Args)-1; i++ {
 		arg, nb := binary.Uvarint(b[n:])
 		if nb <= 0 {
-			return 0, 0, fmt.Errorf("found invalid uvarint")
+			return 0, 0, errors.New("found invalid uvarint")
 		}
 		e.args[i] = arg
 		n += nb

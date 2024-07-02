@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -97,7 +98,7 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 			// we won't be able to parse this generation correctly at all.
 			// Rather than return a cryptic error in that case, indicate the
 			// problem as soon as we see it.
-			return nil, nil, fmt.Errorf("generations out of order")
+			return nil, nil, errors.New("generations out of order")
 		}
 		if err := processBatch(g, b); err != nil {
 			return nil, nil, err
@@ -106,7 +107,7 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 
 	// Check some invariants.
 	if g.freq == 0 {
-		return nil, nil, fmt.Errorf("no frequency event found")
+		return nil, nil, errors.New("no frequency event found")
 	}
 	// N.B. Trust that the batch order is correct. We can't validate the batch order
 	// by timestamp because the timestamps could just be plain wrong. The source of
@@ -158,7 +159,7 @@ func processBatch(g *generation, b batch) error {
 			return err
 		}
 		if g.freq != 0 {
-			return fmt.Errorf("found multiple frequency events")
+			return errors.New("found multiple frequency events")
 		}
 		g.freq = freq
 	case b.exp != event.NoExperiment:
@@ -210,12 +211,12 @@ func validateStackStrings(
 // string contained therein to the provided strings map.
 func addStrings(stringTable *dataTable[stringID, string], b batch) error {
 	if !b.isStringsBatch() {
-		return fmt.Errorf("internal error: addStrings called on non-string batch")
+		return errors.New("internal error: addStrings called on non-string batch")
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvStrings byte.
 	if err != nil || event.Type(hdr) != go122.EvStrings {
-		return fmt.Errorf("missing strings batch header")
+		return errors.New("missing strings batch header")
 	}
 
 	var sb strings.Builder
@@ -268,12 +269,12 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
 // string contained therein to the provided stacks map.
 func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b batch) error {
 	if !b.isStacksBatch() {
-		return fmt.Errorf("internal error: addStacks called on non-stacks batch")
+		return errors.New("internal error: addStacks called on non-stacks batch")
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvStacks byte.
 	if err != nil || event.Type(hdr) != go122.EvStacks {
-		return fmt.Errorf("missing stacks batch header")
+		return errors.New("missing stacks batch header")
 	}
 
 	for r.Len() != 0 {
@@ -346,12 +347,12 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
 // sample contained therein to the provided samples list.
 func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 	if !b.isCPUSamplesBatch() {
-		return nil, fmt.Errorf("internal error: addCPUSamples called on non-CPU-sample batch")
+		return nil, errors.New("internal error: addCPUSamples called on non-CPU-sample batch")
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvCPUSamples byte.
 	if err != nil || event.Type(hdr) != go122.EvCPUSamples {
-		return nil, fmt.Errorf("missing CPU samples batch header")
+		return nil, errors.New("missing CPU samples batch header")
 	}
 
 	for r.Len() != 0 {
@@ -417,7 +418,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 // parseFreq parses out a lone EvFrequency from a batch.
 func parseFreq(b batch) (frequency, error) {
 	if !b.isFreqBatch() {
-		return 0, fmt.Errorf("internal error: parseFreq called on non-frequency batch")
+		return 0, errors.New("internal error: parseFreq called on non-frequency batch")
 	}
 	r := bytes.NewReader(b.data)
 	r.ReadByte() // Consume the EvFrequency byte.
@@ -435,7 +436,7 @@ func parseFreq(b batch) (frequency, error) {
 // for the experiment its a part of.
 func addExperimentalData(expData map[event.Experiment]*ExperimentalData, b batch) error {
 	if b.exp == event.NoExperiment {
-		return fmt.Errorf("internal error: addExperimentalData called on non-experimental batch")
+		return errors.New("internal error: addExperimentalData called on non-experimental batch")
 	}
 	ed, ok := expData[b.exp]
 	if !ok {

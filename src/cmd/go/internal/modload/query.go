@@ -1146,7 +1146,7 @@ var _ versionRepo = emptyRepo{}
 
 func (er emptyRepo) ModulePath() string { return er.path }
 func (er emptyRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
-	return fmt.Errorf("empty repo")
+	return errors.New("empty repo")
 }
 func (er emptyRepo) Versions(ctx context.Context, prefix string) (*modfetch.Versions, error) {
 	return &modfetch.Versions{}, nil
@@ -1171,7 +1171,7 @@ var _ versionRepo = (*replacementRepo)(nil)
 func (rr *replacementRepo) ModulePath() string { return rr.repo.ModulePath() }
 
 func (rr *replacementRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
-	return fmt.Errorf("replacement repo")
+	return errors.New("replacement repo")
 }
 
 // Versions returns the versions from rr.repo augmented with any matching

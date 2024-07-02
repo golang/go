@@ -5,6 +5,7 @@
 package version
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -57,7 +58,7 @@ func ReadHeader(r io.Reader) (Version, error) {
 	var v Version
 	_, err := fmt.Fscanf(r, headerFmt, &v)
 	if err != nil {
-		return v, fmt.Errorf("bad file format: not a Go execution trace?")
+		return v, errors.New("bad file format: not a Go execution trace?")
 	}
 	if !v.Valid() {
 		return v, fmt.Errorf("unknown or unsupported trace version go 1.%d", v)

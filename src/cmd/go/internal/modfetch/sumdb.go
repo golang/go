@@ -101,7 +101,7 @@ func dbDial() (dbName string, db *sumdb.Client, err error) {
 	}
 
 	if gosumdb == "off" {
-		return "", nil, fmt.Errorf("checksum database disabled by GOSUMDB=off")
+		return "", nil, errors.New("checksum database disabled by GOSUMDB=off")
 	}
 
 	key := strings.Fields(gosumdb)
@@ -111,10 +111,10 @@ func dbDial() (dbName string, db *sumdb.Client, err error) {
 		}
 	}
 	if len(key) == 0 {
-		return "", nil, fmt.Errorf("missing GOSUMDB")
+		return "", nil, errors.New("missing GOSUMDB")
 	}
 	if len(key) > 2 {
-		return "", nil, fmt.Errorf("invalid GOSUMDB: too many fields")
+		return "", nil, errors.New("invalid GOSUMDB: too many fields")
 	}
 	vkey, err := note.NewVerifier(key[0])
 	if err != nil {
@@ -251,7 +251,7 @@ func (c *dbClient) ReadConfig(file string) (data []byte, err error) {
 func (*dbClient) WriteConfig(file string, old, new []byte) error {
 	if file == "key" {
 		// Should not happen.
-		return fmt.Errorf("cannot write key")
+		return errors.New("cannot write key")
 	}
 	if cfg.SumdbDir == "" {
 		return fmt.Errorf("could not locate sumdb file: missing $GOPATH: %s",

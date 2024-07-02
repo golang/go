@@ -292,7 +292,7 @@ func negotiateALPN(serverProtos, clientProtos []string, quic bool) (string, erro
 	if len(serverProtos) == 0 || len(clientProtos) == 0 {
 		if quic && len(serverProtos) != 0 {
 			// RFC 9001, Section 8.1
-			return "", fmt.Errorf("tls: client did not request an application protocol")
+			return "", errors.New("tls: client did not request an application protocol")
 		}
 		return "", nil
 	}

@@ -9,6 +9,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -178,7 +179,7 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 		if parentSentinel == 0 && strings.HasPrefix(line, "sentinel ") {
 			_, err := fmt.Sscanf(line, "sentinel %x", &parentSentinel)
 			if err != nil {
-				return nil, fmt.Errorf("can't read sentinel line")
+				return nil, errors.New("can't read sentinel line")
 			}
 			continue
 		}
@@ -190,7 +191,7 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 				on = true
 
 				if parentSentinel == 0 {
-					return nil, fmt.Errorf("no sentinel value in crash report")
+					return nil, errors.New("no sentinel value in crash report")
 				}
 			}
 			continue

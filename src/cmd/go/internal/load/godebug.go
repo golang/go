@@ -6,7 +6,6 @@ package load
 
 import (
 	"errors"
-	"fmt"
 	"go/build"
 	"internal/godebugs"
 	"sort"
@@ -26,13 +25,13 @@ func ParseGoDebug(text string) (key, value string, err error) {
 	i := strings.IndexAny(text, " \t")
 	if i < 0 {
 		if strings.TrimSpace(text) == "//go:debug" {
-			return "", "", fmt.Errorf("missing key=value")
+			return "", "", errors.New("missing key=value")
 		}
 		return "", "", ErrNotGoDebug
 	}
 	k, v, ok := strings.Cut(strings.TrimSpace(text[i:]), "=")
 	if !ok {
-		return "", "", fmt.Errorf("missing key=value")
+		return "", "", errors.New("missing key=value")
 	}
 	if err := modload.CheckGodebug("//go:debug setting", k, v); err != nil {
 		return "", "", err

@@ -6,6 +6,7 @@ package raw
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -34,11 +35,11 @@ func NewTextReader(r io.Reader) (*TextReader, error) {
 	}
 	trace, line := readToken(line)
 	if trace != "Trace" {
-		return nil, fmt.Errorf("failed to parse header")
+		return nil, errors.New("failed to parse header")
 	}
 	gover, line := readToken(line)
 	if !strings.HasPrefix(gover, "Go1.") {
-		return nil, fmt.Errorf("failed to parse header Go version")
+		return nil, errors.New("failed to parse header Go version")
 	}
 	rawv, err := strconv.ParseUint(gover[len("Go1."):], 10, 64)
 	if err != nil {
@@ -163,7 +164,7 @@ func readArg(s string) (arg string, value uint64, rest string, err error) {
 	var tok string
 	tok, rest = readToken(s)
 	if len(tok) == 0 {
-		return "", 0, s, fmt.Errorf("no argument")
+		return "", 0, s, errors.New("no argument")
 	}
 	parts := strings.SplitN(tok, "=", 2)
 	if len(parts) < 2 {

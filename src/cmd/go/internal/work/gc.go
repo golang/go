@@ -7,6 +7,7 @@ package work
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"internal/buildcfg"
 	"internal/platform"
@@ -535,7 +536,7 @@ func packInternal(afile string, ofiles []string) error {
 		if err == nil && n < size {
 			err = io.ErrUnexpectedEOF
 		} else if err == nil && n > size {
-			err = fmt.Errorf("file larger than size reported by stat")
+			err = errors.New("file larger than size reported by stat")
 		}
 		if err != nil {
 			return fmt.Errorf("copying %s to %s: %v", ofile, afile, err)

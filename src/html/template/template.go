@@ -5,6 +5,7 @@
 package template
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -31,7 +32,7 @@ type Template struct {
 }
 
 // escapeOK is a sentinel value used to indicate valid escaping.
-var escapeOK = fmt.Errorf("template escaped correctly")
+var escapeOK = errors.New("template escaped correctly")
 
 // nameSpace is the data structure shared by all templates in an association.
 type nameSpace struct {
@@ -87,7 +88,7 @@ func (t *Template) checkCanParse() error {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	if t.nameSpace.escaped {
-		return fmt.Errorf("html/template: cannot Parse after Execute")
+		return errors.New("html/template: cannot Parse after Execute")
 	}
 	return nil
 }

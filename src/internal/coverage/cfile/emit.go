@@ -10,6 +10,7 @@ package cfile
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"internal/coverage"
 	"internal/coverage/encodecounter"
@@ -294,7 +295,7 @@ func emitCounterDataToDirectory(outdir string) error {
 	}
 
 	if !finalHashComputed {
-		return fmt.Errorf("error: meta-data not available (binary not built with -cover?)")
+		return errors.New("error: meta-data not available (binary not built with -cover?)")
 	}
 
 	// Ask the runtime for the list of coverage counter symbols.
@@ -311,7 +312,7 @@ func emitCounterDataToDirectory(outdir string) error {
 		return err
 	}
 	if s.cf == nil {
-		return fmt.Errorf("counter data output file open failed (no additional info")
+		return errors.New("counter data output file open failed (no additional info")
 	}
 
 	// Emit counter data file.

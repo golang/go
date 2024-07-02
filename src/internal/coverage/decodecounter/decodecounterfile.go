@@ -6,6 +6,7 @@ package decodecounter
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"internal/coverage"
 	"internal/coverage/slicereader"
@@ -50,7 +51,7 @@ func NewCounterDataReader(fn string, rs io.ReadSeeker) (*CounterDataReader, erro
 		fmt.Fprintf(os.Stderr, "=-= counter file header: %+v\n", cdr.hdr)
 	}
 	if !checkMagic(cdr.hdr.Magic) {
-		return nil, fmt.Errorf("invalid magic string: not a counter data file")
+		return nil, errors.New("invalid magic string: not a counter data file")
 	}
 	if cdr.hdr.Version > coverage.CounterFileVersion {
 		return nil, fmt.Errorf("version data incompatibility: reader is %d data is %d", coverage.CounterFileVersion, cdr.hdr.Version)
@@ -86,10 +87,10 @@ func (cdr *CounterDataReader) readFooter() error {
 		return err
 	}
 	if !checkMagic(cdr.ftr.Magic) {
-		return fmt.Errorf("invalid magic string (not a counter data file)")
+		return errors.New("invalid magic string (not a counter data file)")
 	}
 	if cdr.ftr.NumSegments == 0 {
-		return fmt.Errorf("invalid counter data file (no segments)")
+		return errors.New("invalid counter data file (no segments)")
 	}
 	return nil
 }
@@ -136,7 +137,7 @@ func (cdr *CounterDataReader) readStringTable() error {
 		return err
 	}
 	if nr != int(cdr.shdr.StrTabLen) {
-		return fmt.Errorf("error: short read on string table")
+		return errors.New("error: short read on string table")
 	}
 	slr := slicereader.NewReader(b, false /* not readonly */)
 	cdr.stab = stringtab.NewReader(slr)
@@ -151,13 +152,13 @@ func (cdr *CounterDataReader) readArgs() error {
 		return err
 	}
 	if nr != int(cdr.shdr.ArgsLen) {
-		return fmt.Errorf("error: short read on args table")
+		return errors.New("error: short read on args table")
 	}
 	slr := slicereader.NewReader(b, false /* not readonly */)
 	sget := func() (string, error) {
 		kidx := slr.ReadULEB128()
 		if int(kidx) >= cdr.stab.Entries() {
-			return "", fmt.Errorf("malformed string table ref")
+			return "", errors.New("malformed string table ref")
 		}
 		return cdr.stab.Get(uint32(kidx)), nil
 	}
@@ -173,14 +174,14 @@ func (cdr *CounterDataReader) readArgs() error {
 			return errv
 		}
 		if _, ok := cdr.args[k]; ok {
-			return fmt.Errorf("malformed args table")
+			return errors.New("malformed args table")
 		}
 		cdr.args[k] = v
 	}
 	if argcs, ok := cdr.args["argc"]; ok {
 		argc, err := strconv.Atoi(argcs)
 		if err != nil {
-			return fmt.Errorf("malformed argc in counter data file args section")
+			return errors.New("malformed argc in counter data file args section")
 		}
 		cdr.osargs = make([]string, 0, argc)
 		for i := 0; i < argc; i++ {
