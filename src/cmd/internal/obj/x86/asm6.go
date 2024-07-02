@@ -5297,7 +5297,7 @@ bad:
 			if ctxt.Arch.Family == sys.I386 {
 				breg := byteswapreg(ctxt, &p.From)
 				if breg != REG_AX {
-					ab.Put1(0x87) //xchg rhs,bx
+					ab.Put1(0x87) // xchg rhs,bx
 					ab.asmando(ctxt, cursym, p, &p.To, reg[breg])
 					subreg(&pp, z, breg)
 					ab.doasm(ctxt, cursym, &pp)
