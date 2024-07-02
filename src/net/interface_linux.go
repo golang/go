@@ -6,16 +6,20 @@ package net
 
 import (
 	"os"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
 
 // If the ifindex is zero, interfaceTable returns mappings of all
-// network interfaces. Otherwise it returns a mapping of a specific
+// network interfaces. Otherwise, it returns a mapping of a specific
 // interface.
 func interfaceTable(ifindex int) ([]Interface, error) {
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
 	if err != nil {
+		if runtime.GOOS == "android" && os.IsPermission(err) {
+			return interfaceTableAndroid(ifindex)
+		}
 		return nil, os.NewSyscallError("netlinkrib", err)
 	}
 	msgs, err := syscall.ParseNetlinkMessage(tab)
@@ -269,4 +273,158 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
 		}
 	}
 	return ifmat
+}
+
+// Starting from Android 11, it is no longer possible to retrieve network card information
+// using the RTM_GETLINK method.
+// As a result, alternative methods need to be employed.
+// After considering the Android NetworkInterface.getNetworkInterfaces() method,
+// I opted to utilize the RTM_GETADDR + ioctl approach to obtain network card information.
+// However, it appears that retrieving the
+// HWAddr (hardware address) of the network card is currently not achievable.
+func interfaceTableAndroid(ifindex int) ([]Interface, error) {
+	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
+	if err != nil {
+		return nil, os.NewSyscallError("netlinkrib", err)
+	}
+	msgs, err := syscall.ParseNetlinkMessage(tab)
+	if err != nil {
+		return nil, os.NewSyscallError("parsenetlinkmessage", err)
+	}
+
+	var ift []Interface
+	im := make(map[uint32]struct{})
+loop:
+	for _, m := range msgs {
+		switch m.Header.Type {
+		case syscall.NLMSG_DONE:
+			break loop
+		case syscall.RTM_NEWADDR:
+			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
+			if _, ok := im[ifam.Index]; ok {
+				continue
+			} else {
+				im[ifam.Index] = struct{}{}
+			}
+
+			if ifindex == 0 || ifindex == int(ifam.Index) {
+				ifi := newLinkAndroid(ifam)
+				if ifi != nil {
+					ift = append(ift, *ifi)
+				}
+				if ifindex == int(ifam.Index) {
+					break loop
+				}
+			}
+		}
+	}
+
+	return ift, nil
+}
+
+// According to the network card Index, get the Name, MTU and Flags of the network card through ioctl
+func newLinkAndroid(ifam *syscall.IfAddrmsg) *Interface {
+	ift := &Interface{Index: int(ifam.Index)}
+
+	name, err := indexToName(ifam.Index)
+	if err != nil {
+		return nil
+	}
+	ift.Name = name
+
+	mtu, err := nameToMTU(name)
+	if err != nil {
+		return nil
+	}
+	ift.MTU = mtu
+
+	flags, err := nameToFlags(name)
+	if err != nil {
+		return nil
+	}
+	ift.Flags = flags
+	return ift
+}
+
+func ioctl(fd int, req uint, arg unsafe.Pointer) error {
+	_, _, e1 := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
+	if e1 != 0 {
+		return e1
+	}
+	return nil
+}
+
+func indexToName(index uint32) (string, error) {
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM|syscall.SOCK_CLOEXEC, 0)
+	if err != nil {
+		return "", err
+	}
+	defer syscall.Close(fd)
+
+	var ifr [40]byte
+	*(*uint32)(unsafe.Pointer(&ifr[syscall.IFNAMSIZ])) = index
+	err = ioctl(fd, syscall.SIOCGIFNAME, unsafe.Pointer(&ifr[0]))
+	if err != nil {
+		return "", err
+	}
+
+	return string(trim(ifr[:syscall.IFNAMSIZ])), nil
+}
+
+func nameToMTU(name string) (int, error) {
+	// Leave room for terminating NULL byte.
+	if len(name) >= syscall.IFNAMSIZ {
+		return 0, syscall.EINVAL
+	}
+
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM|syscall.SOCK_CLOEXEC, 0)
+	if err != nil {
+		return 0, err
+	}
+	defer syscall.Close(fd)
+
+	var ifr [40]byte
+	copy(ifr[:], name)
+	err = ioctl(fd, syscall.SIOCGIFMTU, unsafe.Pointer(&ifr[0]))
+	if err != nil {
+		return 0, err
+	}
+
+	return int(*(*int32)(unsafe.Pointer(&ifr[syscall.IFNAMSIZ]))), nil
+}
+
+func nameToFlags(name string) (Flags, error) {
+	// Leave room for terminating NULL byte.
+	if len(name) >= syscall.IFNAMSIZ {
+		return 0, syscall.EINVAL
+	}
+
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM|syscall.SOCK_CLOEXEC, 0)
+	if err != nil {
+		return 0, err
+	}
+	defer syscall.Close(fd)
+
+	var ifr [40]byte
+	copy(ifr[:], name)
+	err = ioctl(fd, syscall.SIOCGIFFLAGS, unsafe.Pointer(&ifr[0]))
+	if err != nil {
+		return 0, err
+	}
+
+	return linkFlags(*(*uint32)(unsafe.Pointer(&ifr[syscall.IFNAMSIZ]))), nil
+}
+
+func trim(data []byte) []byte {
+	if len(data) == 0 {
+		return nil
+	}
+
+	index := len(data) - 1
+
+	for ; index > 0 && data[index] == 0; index-- {
+	}
+	result := make([]byte, index+1)
+	copy(result, data)
+	return result
 }
