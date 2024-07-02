@@ -18,9 +18,7 @@ import (
 
 const randomDevice = "/dev/random"
 
-func init() {
-	Reader = &reader{}
-}
+var randReader = &reader{}
 
 // reader is a new pseudorandom generator that seeds itself by
 // reading from /dev/random. The Read method on the returned

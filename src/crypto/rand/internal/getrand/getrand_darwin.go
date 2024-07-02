@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rand
+//go:build darwin
 
-import "internal/syscall/unix"
+package getrand
 
-func init() {
+import (
+	"internal/syscall/unix"
+	"math"
+)
+
+const maxGetRandomRead = math.MaxInt
+
+func getRandom(out []byte) error {
 	// arc4random_buf is the recommended application CSPRNG, accepts buffers of
 	// any size, and never returns an error.
 	//
@@ -15,5 +22,6 @@ func init() {
 	//
 	// Note that despite its legacy name, it uses a secure CSPRNG (not RC4) in
 	// all supported macOS versions.
-	altGetRandom = func(b []byte) error { unix.ARC4Random(b); return nil }
+	unix.ARC4Random(out)
+	return nil
 }
