@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"maps"
 	"math"
 	"math/big"
 	"net"
@@ -1979,7 +1980,7 @@ func TestStringKind(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unmarshal error: %v", err)
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !maps.Equal(got, want) {
 		t.Fatalf("Marshal/Unmarshal mismatch:\n\tgot:  %v\n\twant: %v", got, want)
 	}
 }
@@ -2533,7 +2534,7 @@ func TestUnmarshalRescanLiteralMangledUnquote(t *testing.T) {
 		t.Fatalf("Unmarshal error: %v", err)
 	}
 	want := map[textUnmarshalerString]string{"foo": "", `"`: ""}
-	if !reflect.DeepEqual(got, want) {
+	if !maps.Equal(got, want) {
 		t.Errorf("Marshal/Unmarshal roundtrip:\n\tgot:  %q\n\twant: %q", gotT, wantT)
 	}
 }
