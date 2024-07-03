@@ -1665,7 +1665,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 		Outer:
 			for _, clause := range stmt.Body {
 				for _, cas := range syntax.UnpackListExpr(clause.Cases) {
-					if casType := w.p.typeOf(cas); !types2.AssignableTo(casType, tagType) {
+					if casType := w.p.typeOf(cas); !types2.AssignableTo(casType, tagType) && (types2.IsInterface(casType) || types2.IsInterface(tagType)) {
 						tagType = types2.NewInterfaceType(nil, nil)
 						break Outer
 					}
