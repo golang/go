@@ -63,6 +63,7 @@ go env -changed
 
 --  a/go.env --
 GOPROXY=s
+GOAMD64=v1
 
 --  b/go.env --
 GOTOOLCHAIN=local

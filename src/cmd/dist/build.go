@@ -61,14 +61,6 @@ var (
 	isRelease  bool
 
 	vflag int // verbosity
-
-	defaultGO386     = "sse2"
-	defaultGOAMD64   = "v1"
-	defaultGOMIPS    = "hardfloat"
-	defaultGOMIPS64  = "hardfloat"
-	defaultGOPPC64   = "power8"
-	defaultGORISCV64 = "rva20u64"
-	defaultGOARM64   = "v8.0"
 )
 
 // The known architectures.
@@ -152,43 +144,43 @@ func xinit() {
 
 	b = os.Getenv("GOARM64")
 	if b == "" {
-		b = defaultGOARM64
+		b = "v8.0"
 	}
 	goarm64 = b
 
 	b = os.Getenv("GO386")
 	if b == "" {
-		b = defaultGO386
+		b = "sse2"
 	}
 	go386 = b
 
 	b = os.Getenv("GOAMD64")
 	if b == "" {
-		b = defaultGOAMD64
+		b = "v1"
 	}
 	goamd64 = b
 
 	b = os.Getenv("GOMIPS")
 	if b == "" {
-		b = defaultGOMIPS
+		b = "hardfloat"
 	}
 	gomips = b
 
 	b = os.Getenv("GOMIPS64")
 	if b == "" {
-		b = defaultGOMIPS64
+		b = "hardfloat"
 	}
 	gomips64 = b
 
 	b = os.Getenv("GOPPC64")
 	if b == "" {
-		b = defaultGOPPC64
+		b = "power8"
 	}
 	goppc64 = b
 
 	b = os.Getenv("GORISCV64")
 	if b == "" {
-		b = defaultGORISCV64
+		b = "rva20u64"
 	}
 	goriscv64 = b
 
@@ -1401,12 +1393,6 @@ func cmdbootstrap() {
 	// GOPATH points somewhere else (e.g., to GOROOT), the
 	// go tool may complain.
 	os.Setenv("GOPATH", pathf("%s/pkg/obj/gopath", goroot))
-
-	// Set GOPROXY=off to avoid downloading modules to the modcache in
-	// the GOPATH set above to be inside GOROOT. The modcache is read
-	// only so if we downloaded to the modcache, we'd create readonly
-	// files in GOROOT, which is undesirable. See #67463)
-	os.Setenv("GOPROXY", "off")
 
 	// Use a build cache separate from the default user one.
 	// Also one that will be wiped out during startup, so that
