@@ -343,6 +343,21 @@ func main() {
 		p.addToFlag("LDFLAGS", args)
 	}
 
+	// For backward compatibility for Bazel, record CGO_LDFLAGS
+	// from the environment for external linking.
+	// This should not happen with cmd/go, which removes CGO_LDFLAGS
+	// from the environment when invoking cgo.
+	// This can be removed when we no longer need to support
+	// older versions of Bazel. See issue #66456 and
+	// https://github.com/bazelbuild/rules_go/issues/3979.
+	if envFlags := os.Getenv("CGO_LDFLAGS"); envFlags != "" {
+		args, err := splitQuoted(envFlags)
+		if err != nil {
+			fatalf("bad CGO_LDFLAGS: %q (%s)", envFlags, err)
+		}
+		p.addToFlag("LDFLAGS", args)
+	}
+
 	// Need a unique prefix for the global C symbols that
 	// we use to coordinate between gcc and ourselves.
 	// We already put _cgo_ at the beginning, so the main
