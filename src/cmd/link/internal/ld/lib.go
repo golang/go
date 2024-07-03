@@ -892,9 +892,9 @@ func (ctxt *Link) linksetup() {
 		}
 
 		// Set runtime.disableMemoryProfiling bool if
-		// runtime.MemProfile is not retained in the binary after
+		// runtime.memProfileInternal is not retained in the binary after
 		// deadcode (and we're not dynamically linking).
-		memProfile := ctxt.loader.Lookup("runtime.MemProfile", abiInternalVer)
+		memProfile := ctxt.loader.Lookup("runtime.memProfileInternal", abiInternalVer)
 		if memProfile != 0 && !ctxt.loader.AttrReachable(memProfile) && !ctxt.DynlinkingGo() {
 			memProfSym := ctxt.loader.LookupOrCreateSym("runtime.disableMemoryProfiling", 0)
 			sb := ctxt.loader.MakeSymbolUpdater(memProfSym)

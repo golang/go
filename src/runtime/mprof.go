@@ -892,9 +892,10 @@ func (r *StackRecord) Stack() []uintptr {
 // at the beginning of main).
 var MemProfileRate int = 512 * 1024
 
-// disableMemoryProfiling is set by the linker if runtime.MemProfile
+// disableMemoryProfiling is set by the linker if memory profiling
 // is not used and the link type guarantees nobody else could use it
 // elsewhere.
+// We check if the runtime.memProfileInternal symbol is present.
 var disableMemoryProfiling bool
 
 // A MemProfileRecord describes the live objects allocated
@@ -955,6 +956,13 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 // memProfileInternal returns the number of records n in the profile. If there
 // are less than size records, copyFn is invoked for each record, and ok returns
 // true.
+//
+// The linker set disableMemoryProfiling to true to disable memory profiling
+// if this function is not reachable. Mark it noinline to ensure the symbol exists.
+// (This function is big and normally not inlined anyway.)
+// See also disableMemoryProfiling above and cmd/link/internal/ld/lib.go:linksetup.
+//
+//go:noinline
 func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemProfileRecord)) (n int, ok bool) {
 	cycle := mProfCycle.read()
 	// If we're between mProf_NextCycle and mProf_Flush, take care

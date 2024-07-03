@@ -586,7 +586,8 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 		runtime.ReadMemStats(memStats)
 	}
 
-	// Find out how many records there are (MemProfile(nil, true)),
+	// Find out how many records there are (the call
+	// pprof_memProfileInternal(nil, true) below),
 	// allocate that many records, and get the data.
 	// There's a race—more records might be added between
 	// the two calls—so allocate a few extra records for safety
