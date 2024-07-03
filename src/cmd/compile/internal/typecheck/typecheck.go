@@ -663,14 +663,14 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 
 	switch n := n.(type) {
 	default:
-		base.Fatalf("rewriteMultiValueCall %+v", n.Op())
+		base.Fatalf("RewriteMultiValueCall %+v", n.Op())
 	case *ir.CallExpr:
 		n.Args = list
 	case *ir.ReturnStmt:
 		n.Results = list
 	case *ir.AssignListStmt:
 		if n.Op() != ir.OAS2FUNC {
-			base.Fatalf("rewriteMultiValueCall: invalid op %v", n.Op())
+			base.Fatalf("RewriteMultiValueCall: invalid op %v", n.Op())
 		}
 		as.SetOp(ir.OAS2FUNC)
 		n.SetOp(ir.OAS2)
