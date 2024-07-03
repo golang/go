@@ -1394,6 +1394,12 @@ func cmdbootstrap() {
 	// go tool may complain.
 	os.Setenv("GOPATH", pathf("%s/pkg/obj/gopath", goroot))
 
+	// Set GOPROXY=off to avoid downloading modules to the modcache in
+	// the GOPATH set above to be inside GOROOT. The modcache is read
+	// only so if we downloaded to the modcache, we'd create readonly
+	// files in GOROOT, which is undesirable. See #67463)
+	os.Setenv("GOPROXY", "off")
+
 	// Use a build cache separate from the default user one.
 	// Also one that will be wiped out during startup, so that
 	// make.bash really does start from a clean slate.
