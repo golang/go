@@ -232,7 +232,7 @@ func userArenaChunkReserveBytes() uintptr {
 }
 
 type userArena struct {
-	// full is a list of full chunks that have not enough free memory left, and
+	// fullList is a list of full chunks that have not enough free memory left, and
 	// that we'll free once this user arena is freed.
 	//
 	// Can't use mSpanList here because it's not-in-heap.

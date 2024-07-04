@@ -10,7 +10,7 @@ var Runtime_Semrelease = runtime_Semrelease
 var Runtime_procPin = runtime_procPin
 var Runtime_procUnpin = runtime_procUnpin
 
-// poolDequeue testing.
+// PoolDequeue exports an interface for pollDequeue testing.
 type PoolDequeue interface {
 	PushHead(val any) bool
 	PopHead() (any, bool)
