@@ -334,8 +334,10 @@ type Cmd struct {
 	lookPathErr error
 
 	// cachedLookExtensions caches the result of calling lookExtensions.
+	// It is set when Command is called with an absolute path, letting it do
+	// the work of resolving the extension, so Start doesn't need to do it again.
 	// This is only used on Windows.
-	cachedLookExtensions string
+	cachedLookExtensions struct{ in, out string }
 }
 
 // A ctxResult reports the result of watching the Context associated with a
@@ -436,12 +438,12 @@ func Command(name string, arg ...string) *Cmd {
 		// Since the path is absolute, its extension should be unambiguous
 		// and independent of cmd.Dir, and we can go ahead and cache the lookup now.
 		//
-		// Note that we cannot add an extension here for relative paths, because
-		// cmd.Dir may be set after we return from this function and that may cause
-		// the command to resolve to a different extension.
-		lp, err := lookExtensions(name, "")
-		cmd.cachedLookExtensions = lp
-		if err != nil {
+		// Note that we don't cache anything here for relative paths, because
+		// cmd.Dir may be set after we return from this function and that may
+		// cause the command to resolve to a different extension.
+		if lp, err := lookExtensions(name, ""); err == nil {
+			cmd.cachedLookExtensions.in, cmd.cachedLookExtensions.out = name, lp
+		} else {
 			cmd.Err = err
 		}
 	}
@@ -642,29 +644,32 @@ func (c *Cmd) Start() error {
 		return c.Err
 	}
 	lp := c.Path
-	if c.cachedLookExtensions != "" {
-		lp = c.cachedLookExtensions
-	}
-	if runtime.GOOS == "windows" && c.cachedLookExtensions == "" {
-		// If c.Path is relative, we had to wait until now
-		// to resolve it in case c.Dir was changed.
-		// (If it is absolute, we already resolved its extension in Command
-		// and shouldn't need to do so again.)
-		//
-		// Unfortunately, we cannot write the result back to c.Path because programs
-		// may assume that they can call Start concurrently with reading the path.
-		// (It is safe and non-racy to do so on Unix platforms, and users might not
-		// test with the race detector on all platforms;
-		// see https://go.dev/issue/62596.)
-		//
-		// So we will pass the fully resolved path to os.StartProcess, but leave
-		// c.Path as is: missing a bit of logging information seems less harmful
-		// than triggering a surprising data race, and if the user really cares
-		// about that bit of logging they can always use LookPath to resolve it.
-		var err error
-		lp, err = lookExtensions(c.Path, c.Dir)
-		if err != nil {
-			return err
+	if runtime.GOOS == "windows" {
+		if c.Path == c.cachedLookExtensions.in {
+			// If Command was called with an absolute path, we already resolved
+			// its extension and shouldn't need to do so again (provided c.Path
+			// wasn't set to another value between the calls to Command and Start).
+			lp = c.cachedLookExtensions.out
+		} else {
+			// If *Cmd was made without using Command at all, or if Command was
+			// called with a relative path, we had to wait until now to resolve
+			// it in case c.Dir was changed.
+			//
+			// Unfortunately, we cannot write the result back to c.Path because programs
+			// may assume that they can call Start concurrently with reading the path.
+			// (It is safe and non-racy to do so on Unix platforms, and users might not
+			// test with the race detector on all platforms;
+			// see https://go.dev/issue/62596.)
+			//
+			// So we will pass the fully resolved path to os.StartProcess, but leave
+			// c.Path as is: missing a bit of logging information seems less harmful
+			// than triggering a surprising data race, and if the user really cares
+			// about that bit of logging they can always use LookPath to resolve it.
+			var err error
+			lp, err = lookExtensions(c.Path, c.Dir)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if c.Cancel != nil && c.ctx == nil {
