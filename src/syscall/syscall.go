@@ -104,3 +104,7 @@ func Exit(code int)
 // runtimeSetenv and runtimeUnsetenv are provided by the runtime.
 func runtimeSetenv(k, v string)
 func runtimeUnsetenv(k string)
+
+// runtimeClearenv is provided by the runtime (on platforms without
+// clearenv(3), it is just a wrapper around runtimeUnsetenv).
+func runtimeClearenv(env map[string]int)
