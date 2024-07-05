@@ -104,7 +104,7 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fgo2, "var _Cgo_always_false bool\n")
 		fmt.Fprintf(fgo2, "//go:linkname _Cgo_use runtime.cgoUse\n")
 		fmt.Fprintf(fgo2, "func _Cgo_use(interface{})\n")
-		fmt.Fprintf(fgo2, "//go:linkname _Cgo_keepalive runtime.KeepAlive\n")
+		fmt.Fprintf(fgo2, "//go:linkname _Cgo_keepalive runtime.cgoKeepAlive\n")
 		fmt.Fprintf(fgo2, "//go:noescape\n")
 		fmt.Fprintf(fgo2, "func _Cgo_keepalive(interface{})\n")
 	}

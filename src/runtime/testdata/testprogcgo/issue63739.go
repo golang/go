@@ -11,10 +11,13 @@ package main
 // After we retiring _Cgo_use for parameters, the compiler will treat the
 // parameters, start from the second, as non-alive. Then, they will be marked
 // as scalar in stackmap, which means the pointer won't be copied correctly
-// in copyStack.
+// in copystack.
 
 /*
 int add_from_multiple_pointers(int *a, int *b, int *c) {
+	*a = *a + 1;
+	*b = *b + 1;
+	*c = *c + 1;
 	return *a + *b + *c;
 }
 #cgo noescape add_from_multiple_pointers
@@ -24,8 +27,6 @@ import "C"
 
 import (
 	"fmt"
-	"os"
-	"time"
 )
 
 const (
@@ -47,8 +48,8 @@ func testCWithMultiplePointers() {
 	var b C.int = 2
 	var c C.int = 3
 	v := C.add_from_multiple_pointers(&a, &b, &c)
-	if v != 6 {
-		fmt.Printf("%d + %d + %d != %d", a, b, c, v)
+	if v != 9 || a != 2 || b != 3 || c != 4 {
+		fmt.Printf("%d + %d + %d != %d\n", a, b, c, v)
 	}
 }
 
