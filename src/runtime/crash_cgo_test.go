@@ -769,6 +769,15 @@ func TestCgoNoEscape(t *testing.T) {
 	}
 }
 
+// Issue #63739.
+func TestCgoEscapeWithMultiplePointers(t *testing.T) {
+	got := runTestProg(t, "testprogcgo", "CgoEscapeWithMultiplePointers")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("want %s, got %s\n", want, got)
+	}
+}
+
 func TestCgoTracebackGoroutineProfile(t *testing.T) {
 	output := runTestProg(t, "testprogcgo", "GoroutineProfile")
 	want := "OK\n"
