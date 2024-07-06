@@ -260,7 +260,7 @@ func SliceData(slice []ArbitraryType) *ArbitraryType
 // a run-time panic occurs.
 //
 // Since Go strings are immutable, the bytes passed to String
-// must not be modified afterwards.
+// must not be modified as long as the returned string value exists.
 func String(ptr *byte, len IntegerType) string
 
 // StringData returns a pointer to the underlying bytes of str.
