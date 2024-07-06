@@ -730,6 +730,8 @@
 (MOVWUreg (MOVVconst [c])) => (MOVVconst [int64(uint32(c))])
 (MOVVreg  (MOVVconst [c])) => (MOVVconst [c])
 
+(MOVBUreg (ANDconst [c] x)) => (ANDconst [c&0xff] x)
+
 // constant comparisons
 (SGTconst [c] (MOVVconst [d])) && c>d => (MOVVconst [1])
 (SGTconst [c] (MOVVconst [d])) && c<=d => (MOVVconst [0])

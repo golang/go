@@ -1960,6 +1960,19 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		return true
 	}
+	// match: (MOVBUreg (ANDconst [c] x))
+	// result: (ANDconst [c&0xff] x)
+	for {
+		if v_0.Op != OpLOONG64ANDconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		v.reset(OpLOONG64ANDconst)
+		v.AuxInt = int64ToAuxInt(c & 0xff)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64MOVBload(v *Value) bool {
