@@ -711,19 +711,6 @@ func (t *tester) registerTests() {
 			})
 	}
 
-	// GOEXPERIMENT=rangefunc tests
-	if !t.compileOnly {
-		for _, pkg := range []string{"iter", "slices", "maps"} {
-			t.registerTest("GOEXPERIMENT=rangefunc",
-				&goTest{
-					variant: pkg,
-					short:   t.short,
-					env:     []string{"GOEXPERIMENT=rangefunc"},
-					pkg:     pkg,
-				})
-		}
-	}
-
 	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
 	// mode (with GO_TEST_SHORT=0) because this is just testing a
 	// non-critical debug setting.
