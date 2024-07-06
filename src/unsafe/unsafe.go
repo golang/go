@@ -110,7 +110,7 @@ type IntegerType int
 //	u := unsafe.Pointer(nil)
 //	p := unsafe.Pointer(uintptr(u) + offset)
 //
-// (4) Conversion of a Pointer to a uintptr when calling [syscall.Syscall].
+// (4) Conversion of a Pointer to a uintptr when calling functions like [syscall.Syscall].
 //
 // The Syscall functions in package syscall pass their uintptr arguments directly
 // to the operating system, which then may, depending on the details of the call,
