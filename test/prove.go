@@ -1159,6 +1159,28 @@ func issue66826b(a [31]byte, i int) {
 	_ = a[3*i] // ERROR "Proved IsInBounds"
 }
 
+func f20(a, b bool) int {
+	if a == b {
+		if a {
+			if b { // ERROR "Proved Arg"
+				return 1
+			}
+		}
+	}
+	return 0
+}
+
+func f21(a, b *int) int {
+	if a == b {
+		if a != nil {
+			if b != nil { // ERROR "Proved IsNonNil"
+				return 1
+			}
+		}
+	}
+	return 0
+}
+
 //go:noinline
 func useInt(a int) {
 }
