@@ -601,6 +601,27 @@ var execTests = []execTest{
 	{"declare in range", "{{range $x := .PSI}}<{{$foo:=$x}}{{$x}}>{{end}}", "<21><22><23>", tVal, true},
 	{"range count", `{{range $i, $x := count 5}}[{{$i}}]{{$x}}{{end}}`, "[0]a[1]b[2]c[3]d[4]e", tVal, true},
 	{"range nil count", `{{range $i, $x := count 0}}{{else}}empty{{end}}`, "empty", tVal, true},
+	{"range iter.Seq[int]", `{{range $i := .}}{{$i}}{{end}}`, "01", func(yield func(int) bool) {
+		for i := range 2 {
+			if !yield(i) {
+				break
+			}
+		}
+	}, true},
+	{"range iter.Seq[int]", `{{range $i, $c := .}}{{$c}}{{end}}`, "", func(yield func(int) bool) {
+		for i := range 2 {
+			if !yield(i) {
+				break
+			}
+		}
+	}, false},
+	{"range iter.Seq[int,int]", `{{range $i, $c := .}}{{$i}}{{$c}}{{end}}`, "0112", func(yield func(int, int) bool) {
+		for i := range 2 {
+			if !yield(i, i+1) {
+				break
+			}
+		}
+	}, true},
 
 	// Cute examples.
 	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},
