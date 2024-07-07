@@ -362,7 +362,7 @@
 //
 //	func TestMain(m *testing.M) {
 //		// call flag.Parse() here if TestMain uses flags
-//		os.Exit(m.Run())
+//		m.Run()
 //	}
 //
 // TestMain is a low-level primitive and should not be necessary for casual
