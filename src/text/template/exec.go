@@ -394,6 +394,25 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		}()
 		s.walk(elem, r.List)
 	}
+
+	rangeone := func(elem reflect.Value) {
+		if len(r.Pipe.Decl) > 0 {
+			s.setVar(r.Pipe.Decl[0].Ident[0], elem)
+		}
+		if len(r.Pipe.Decl) > 1 {
+			s.errorf("can't use %v iterate over two variables", val)
+			return
+		}
+		defer s.pop(mark)
+		defer func() {
+			// Consume panic(walkContinue)
+			if r := recover(); r != nil && r != walkContinue {
+				panic(r)
+			}
+		}()
+		s.walk(elem, r.List)
+	}
+
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
 		if val.Len() == 0 {
@@ -434,6 +453,20 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		return
 	case reflect.Invalid:
 		break // An invalid value is likely a nil map, etc. and acts like an empty map.
+	case reflect.Func:
+		if val.Type().CanSeq() {
+			for v := range val.Seq() {
+				rangeone(v)
+			}
+			return
+		}
+		if val.Type().CanSeq2() {
+			for i, v := range val.Seq2() {
+				oneIteration(reflect.ValueOf(i), v)
+			}
+			return
+		}
+		fallthrough
 	default:
 		s.errorf("range can't iterate over %v", val)
 	}
