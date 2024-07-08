@@ -590,8 +590,7 @@ func (s *ImportStack) Copy() []string {
 
 func (s *ImportStack) CopyWithPos() []string {
 	ss := make([]string, 0, len(*s))
-	for i := 0; i < len(*s); i++ {
-		v := (*s)[i]
+	for _, v := range *s {
 		sPos := make([]string, 0, len(v.Pos))
 		for _, p := range v.Pos {
 			sPos = append(sPos, p.String())
