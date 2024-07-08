@@ -590,33 +590,22 @@ func (s *ImportStack) Copy() []string {
 
 func (s *ImportStack) CopyWithPos() []string {
 	ss := make([]string, 0, len(*s))
-	var lastPkg string
-	for i := len(*s)-1; i >= 0; i-- {
+	for i := 0; i < len(*s); i++ {
 		v := (*s)[i]
 		sPos := make([]string, 0, len(v.Pos))
 		for _, p := range v.Pos {
-			if strings.Contains(p.Filename, lastPkg) || i == 1 {
-				sPos = append(sPos, p.String())
-			}
-		}
-		if v != nil {
-			lastPkg = v.Pkg
-		} else {
-			lastPkg = ""
+			sPos = append(sPos, p.String())
 		}
 		lensPos := len(sPos)
 		if lensPos > 0 {
-			if lensPos > 2 {
-				sPos = append([]string{}, sPos[:2]...)
+			if lensPos > 10 {
+				sPos = append([]string{}, sPos[:10]...)
 				sPos = append(sPos, " and more")
 			}
 			ss = append(ss, v.Pkg+" from "+strings.Join(sPos, ","))
 		} else {
 			ss = append(ss, v.Pkg)
 		}
-	}
-	for i, j := 0, len(ss)-1; i < j; i, j = i+1, j-1 {
-		ss[i], ss[j] = ss[j], ss[i]
 	}
 	return ss
 }
