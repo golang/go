@@ -1196,7 +1196,15 @@ func Parsed() bool {
 // CommandLine is the default set of command-line flags, parsed from [os.Args].
 // The top-level functions such as [BoolVar], [Arg], and so on are wrappers for the
 // methods of CommandLine.
-var CommandLine = NewFlagSet(os.Args[0], ExitOnError)
+var CommandLine = safeCommandLineFlagSet()
+
+// Handle the scenario where a process run via execl() can have an empty os.Args
+func safeCommandLineFlagSet() {
+	if len(os.Args) == 0 {
+		return NewFlagSet("", ExitOnError)
+	}
+	return NewFlagSet(os.Args[0], ExitOnError)
+}
 
 func init() {
 	// Override generic FlagSet default Usage with call to global Usage.
