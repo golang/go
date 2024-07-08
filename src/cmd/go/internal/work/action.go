@@ -631,7 +631,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 
 		// vet expects to be able to import "fmt".
 		var stk load.ImportStack
-		stk.Push("vet")
+		stk.Push(&load.ImportInfo{Pkg: "vet"})
 		p1, err := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
 		if err != nil {
 			base.Fatalf("unexpected error loading fmt package from package %s: %v", p.ImportPath, err)
