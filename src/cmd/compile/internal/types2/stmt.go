@@ -931,14 +931,15 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 
 			// initialize lhs iteration variable, if any
 			typ := rhs[i]
-			if typ == nil {
+			if typ == nil || typ == Typ[Invalid] {
+				// typ == Typ[Invalid] can happen if allowVersion fails.
 				obj.typ = Typ[Invalid]
 				obj.used = true // don't complain about unused variable
 				continue
 			}
 
 			if rangeOverInt {
-				assert(i == 0) // at most one iteration variable (rhs[1] == nil for rangeOverInt)
+				assert(i == 0) // at most one iteration variable (rhs[1] == nil or Typ[Invalid] for rangeOverInt)
 				check.initVar(obj, &x, "range clause")
 			} else {
 				var y operand
@@ -968,12 +969,12 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 
 			// assign to lhs iteration variable, if any
 			typ := rhs[i]
-			if typ == nil {
+			if typ == nil || typ == Typ[Invalid] {
 				continue
 			}
 
 			if rangeOverInt {
-				assert(i == 0) // at most one iteration variable (rhs[1] == nil for rangeOverInt)
+				assert(i == 0) // at most one iteration variable (rhs[1] == nil or Typ[Invalid] for rangeOverInt)
 				check.assignVar(lhs, nil, &x, "range clause")
 				// If the assignment succeeded, if x was untyped before, it now
 				// has a type inferred via the assignment. It must be an integer.

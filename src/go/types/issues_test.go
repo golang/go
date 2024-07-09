@@ -1103,3 +1103,32 @@ func _() {
 	conf := Config{GoVersion: "go1.17"}
 	mustTypecheck(src, &conf, nil)
 }
+
+func TestIssue68334(t *testing.T) {
+	const src = `
+package p
+
+func f(x int) {
+	for i, j := range x {
+		_, _ = i, j
+	}
+	var a, b int
+	for a, b = range x {
+		_, _ = a, b
+	}
+}
+`
+
+	got := ""
+	conf := Config{
+		GoVersion: "go1.21",                                      // #68334 requires GoVersion <= 1.21
+		Error:     func(err error) { got += err.Error() + "\n" }, // #68334 requires Error != nil
+	}
+	typecheck(src, &conf, nil) // do not crash
+
+	want := "p:5:20: cannot range over x (variable of type int): requires go1.22 or later\n" +
+		"p:9:19: cannot range over x (variable of type int): requires go1.22 or later\n"
+	if got != want {
+		t.Errorf("got: %s want: %s", got, want)
+	}
+}
