@@ -376,14 +376,14 @@ func TestIssue60181(t *testing.T) {
 
 	want := "hello gopher"
 
-	a, err := CreateTemp("", "a")
+	a, err := CreateTemp(".", "a")
 	if err != nil {
 		t.Fatal(err)
 	}
 	a.WriteString(want[:5])
 	a.Close()
 
-	b, err := CreateTemp("", "b")
+	b, err := CreateTemp(".", "b")
 	if err != nil {
 		t.Fatal(err)
 	}
