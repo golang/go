@@ -1859,7 +1859,6 @@ var types2Failures = setOf(
 	"fixedbugs/issue20233.go", // types2 reports two instead of one error (preference: 1.17 compiler)
 	"fixedbugs/issue20245.go", // types2 reports two instead of one error (preference: 1.17 compiler)
 	"fixedbugs/issue31053.go", // types2 reports "unknown field" instead of "cannot refer to unexported field"
-	"fixedbugs/notinheap.go",  // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
 )
 
 var types2Failures32Bit = setOf(
