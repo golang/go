@@ -144,6 +144,34 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 	}
 	base.ExitIfErrors()
 
+	// Implementation restriction: we don't allow not-in-heap types to
+	// be used as map keys/values, or channel.
+	{
+		for _, file := range files {
+			syntax.Inspect(file, func(n syntax.Node) bool {
+				if n, ok := n.(*syntax.TypeDecl); ok {
+					switch n := n.Type.(type) {
+					case *syntax.MapType:
+						typ := n.GetTypeInfo().Type.Underlying().(*types2.Map)
+						if isNotInHeap(typ.Key()) {
+							base.ErrorfAt(m.makeXPos(n.Pos()), 0, "incomplete (or unallocatable) map key not allowed")
+						}
+						if isNotInHeap(typ.Elem()) {
+							base.ErrorfAt(m.makeXPos(n.Pos()), 0, "incomplete (or unallocatable) map value not allowed")
+						}
+					case *syntax.ChanType:
+						typ := n.GetTypeInfo().Type.Underlying().(*types2.Chan)
+						if isNotInHeap(typ.Elem()) {
+							base.ErrorfAt(m.makeXPos(n.Pos()), 0, "chan of incomplete (or unallocatable) type not allowed")
+						}
+					}
+				}
+				return true
+			})
+		}
+	}
+	base.ExitIfErrors()
+
 	// Rewrite range over function to explicit function calls
 	// with the loop bodies converted into new implicit closures.
 	// We do this now, before serialization to unified IR, so that if the
