@@ -1777,6 +1777,7 @@ next:
 	MSR	R17, ZCR_EL1                       // 111218d5
 	SYS	$32768, R1                         // 018008d5
 	SYS	$32768                             // 1f8008d5
+	MSR	$1, DIT                            // 5f4103d5
 
 // TLBI instruction
 	TLBI	VMALLE1IS                          // 1f8308d5

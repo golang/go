@@ -4229,6 +4229,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		// PSTATEfield can be special registers and special operands.
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SPSel {
 			v = 0<<16 | 4<<12 | 5<<5
+		} else if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_DIT {
+			// op1 = 011 (3) op2 = 010 (2)
+			v = 3<<16 | 2<<5
 		} else if p.To.Type == obj.TYPE_SPECIAL {
 			opd := SpecialOperand(p.To.Offset)
 			for _, pf := range pstatefield {
