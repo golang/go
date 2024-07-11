@@ -232,10 +232,9 @@ func (x *Float) Acc() Accuracy {
 }
 
 // Sign returns:
-//
-//	-1 if x <   0
-//	 0 if x is ±0
-//	+1 if x >   0
+//   - -1 if x < 0;
+//   - 0 if x is ±0;
+//   - +1 if x > 0.
 func (x *Float) Sign() int {
 	if debugFloat {
 		x.validate()
@@ -1673,10 +1672,9 @@ func (z *Float) Quo(x, y *Float) *Float {
 }
 
 // Cmp compares x and y and returns:
-//
-//	-1 if x <  y
-//	 0 if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf)
-//	+1 if x >  y
+//   - -1 if x < y;
+//   - 0 if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf);
+//   - +1 if x > y.
 func (x *Float) Cmp(y *Float) int {
 	if debugFloat {
 		x.validate()
