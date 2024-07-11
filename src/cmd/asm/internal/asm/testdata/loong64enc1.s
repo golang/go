@@ -516,3 +516,27 @@ lable2:
 	XVPCNTH		X3, X2          // 62249c76
 	XVPCNTW		X3, X2          // 62289c76
 	XVPCNTV		X3, X2          // 622c9c76
+
+	// MOVV C_DCON12_0, r
+	MOVV    $0x7a90000000000000, R4         // MOVV $8831558869273542656, R4        // 04a41e03
+	MOVV    $0xea90000000000000, R4         // MOVV $-1544734672188080128, R4       // 04a43a03
+
+	// MOVV C_UCON, r
+	MOVV    $0x54321000, R4                 // MOVV $1412567040, R4                 // 2464a814
+	MOVV    $0xffffffff8432f000, R4         // MOVV $-2077036544, R4                // e4650815
+
+	// MOVV C_ADDCON, r
+	MOVV    $0xfffffffffffff821, R4         // MOVV $-2015, R4                      // 0484e002
+
+	// MOVV C_ANDCON, r
+	MOVV $0x821, R4                         // MOVV $2081, R4                       // 0484a003
+
+	// ADDV C_SCON, [r1], r2
+	ADDV	$0x321, R4			// ADDV	$801, R4			// 8484cc02
+	ADDV	$0x321, R5, R4			// ADDV	$801, R5, R4			// a484cc02
+	ADDV	$0xfffffffffffffc21, R4		// ADDV	$-991, R4			// 8484f002
+	ADDV	$0xfffffffffffffc21, R5, R4	// ADDV	$-991, R5, R4			// a484f002
+
+	// AND C_SCON, [r1], r2
+	AND	$0x321, R4			// AND	$801, R4			// 84844c03
+	AND	$0x321, R5, R4			// AND	$801, R5, R4			// a4844c03

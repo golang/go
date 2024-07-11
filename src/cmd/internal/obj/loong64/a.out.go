@@ -330,12 +330,58 @@ const (
 	C_ZCON
 	C_SCON // 12 bit signed
 	C_UCON // 32 bit signed, low 12 bits 0
+
+	// When the immediate value is SCON, it can choose either the ADDCON implementation
+	// or the ANDCON implementation, using ADD0CON/AND0CON to distinguish them, so that
+	// the program can choose the implementation with fewer instructions.
 	C_ADD0CON
 	C_AND0CON
-	C_ADDCON  // -0x800 <= v < 0
-	C_ANDCON  // 0 < v <= 0xFFF
-	C_LCON    // other 32
-	C_DCON    // other 64 (could subdivide further)
+
+	C_ADDCON // -0x800 <= v < 0
+	C_ANDCON // 0 < v <= 0xFFF
+	C_LCON   // other 32
+
+	// 64 bit signed, lo32 bits 0, hi20 bits are not 0, hi12 bits can
+	// be obtained by sign extension of the hi20 bits.
+	C_DCON20S_0
+	// 64 bit signed, lo52 bits 0, hi12 bits are not 0.
+	C_DCON12_0
+	// 64 bit signed, lo32 bits 0, hi32 bits are not 0.
+	C_DCON32_0
+	// 64 bit signed, lo12 bits 0, lo20 bits are not 0, hi20 bits can be
+	// obtained by sign extension of the lo20 bits, other bits are not 0.
+	C_DCON12_20S
+	// 64 bit signed, lo12 bits 0, hi20 bits are not 0, hi12 bits can be
+	// obtained by sign extension of the hi20 bits, other bits are not 0.
+	C_DCON20S_20
+	// 64 bit signed, lo12 bits 0, other bits are not 0.
+	C_DCON32_20
+	// 64 bit signed, lo12 bits are not 0, 12~51 bits can be obtained
+	// by sign extension of the lo12 bits, other bits are not 0.
+	C_DCON12_12S
+	// 64 bit signed, hi20 bits and lo12 bits are not 0, hi12 bits can
+	// be obtained by sign extension of the hi20 bits, lo20 bits can
+	// be obtained by sign extension of the lo12 bits.
+	C_DCON20S_12S
+	// 64 bit signed, lo12 bits are not 0, lo20 bits can be obtained by sign
+	// extension of the lo12 bits, other bits are not 0.
+	C_DCON32_12S
+	// 64 bit signed, lo20 and lo12 bits are not 0, hi20 bits can be obtained by sign
+	// extension of the lo20 bits. other bits are not 0.
+	C_DCON12_32S
+	// 64 bit signed, hi20 bits are not 0, hi12 bits can be obtained by sign
+	// extension of the hi20 bits, lo32 bits are not 0.
+	C_DCON20S_32
+	// 64 bit signed, 12~51 bits 0, other bits are not 0.
+	C_DCON12_12U
+	// 64 bit signed, lo20 bits 0, hi20 bits are not 0, hi12 bits can be
+	// obtained by sign extension of the hi20 bits, lo12 bits are not 0.
+	C_DCON20S_12U
+	// 64 bit signed, lo20 bits 0, other bits are not 0.
+	C_DCON32_12U
+	// other 64
+	C_DCON
+
 	C_SACON   // $n(REG) where n <= int12
 	C_LACON   // $n(REG) where int12 < n <= int32
 	C_DACON   // $n(REG) where int32 < n
