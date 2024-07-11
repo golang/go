@@ -286,7 +286,7 @@ func SplitN(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
 //   - n < 0: all substrings.
 //
 // Edge cases for s and sep (for example, empty strings) are handled
-// as described in the documentation for SplitAfter.
+// as described in the documentation for [SplitAfter].
 func SplitAfterN(s, sep string, n int) []string {
 	return genSplit(s, sep, len(sep), n)
 }
