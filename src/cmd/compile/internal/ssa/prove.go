@@ -1869,19 +1869,7 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 			c = v
 			val -= off
 		}
-		old := ft.limits[c.ID]
-		ft.limitStack = append(ft.limitStack, limitFact{c.ID, old})
-		if val < old.min || val > old.max || uint64(val) < old.umin || uint64(val) > old.umax {
-			ft.unsat = true
-			if b.Func.pass.debug > 2 {
-				b.Func.Warnl(b.Pos, "block=%s outedge=%d %s=%d unsat", b, idx, c, val)
-			}
-		} else {
-			ft.limits[c.ID] = limit{val, val, uint64(val), uint64(val)}
-			if b.Func.pass.debug > 2 {
-				b.Func.Warnl(b.Pos, "block=%s outedge=%d %s=%d", b, idx, c, val)
-			}
-		}
+		ft.newLimit(c, limit{min: val, max: val, umin: uint64(val), umax: uint64(val)})
 	default:
 		panic("unknown branch")
 	}
