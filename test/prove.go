@@ -1181,6 +1181,18 @@ func f21(a, b *int) int {
 	return 0
 }
 
+func f22(b bool, x, y int) int {
+	b2 := x < y
+	if b == b2 {
+		if b {
+			if x >= y { // ERROR "Disproved Leq64$"
+				return 1
+			}
+		}
+	}
+	return 0
+}
+
 //go:noinline
 func useInt(a int) {
 }

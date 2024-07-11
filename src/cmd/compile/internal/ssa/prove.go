@@ -629,6 +629,67 @@ func (ft *factsTable) newLimit(v *Value, newLim limit) bool {
 		}
 	}
 
+	// If this is new known constant for a boolean value,
+	// extract relation between its args. For example, if
+	// We learn v is false, and v is defined as a<b, then we learn a>=b.
+	if v.Type.IsBoolean() {
+		// If we reach here, is is because we have a more restrictive
+		// value for v than the default. The only two such values
+		// are constant true or constant false.
+		if lim.min != lim.max {
+			v.Block.Func.Fatalf("boolean not constant %v", v)
+		}
+		isTrue := lim.min == 1
+		if dr, ok := domainRelationTable[v.Op]; ok && v.Op != OpIsInBounds && v.Op != OpIsSliceInBounds {
+			d := dr.d
+			r := dr.r
+			if d == signed && ft.isNonNegative(v.Args[0]) && ft.isNonNegative(v.Args[1]) {
+				d |= unsigned
+			}
+			if !isTrue {
+				r ^= (lt | gt | eq)
+			}
+			// TODO: v.Block is wrong?
+			addRestrictions(v.Block, ft, d, v.Args[0], v.Args[1], r)
+		}
+		switch v.Op {
+		case OpIsNonNil:
+			if isTrue {
+				ft.pointerNonNil(v.Args[0])
+			} else {
+				ft.pointerNil(v.Args[0])
+			}
+		case OpIsInBounds, OpIsSliceInBounds:
+			// 0 <= a0 < a1 (or 0 <= a0 <= a1)
+			r := lt
+			if v.Op == OpIsSliceInBounds {
+				r |= eq
+			}
+			if isTrue {
+				// On the positive branch, we learn:
+				//   signed: 0 <= a0 < a1 (or 0 <= a0 <= a1)
+				//   unsigned:    a0 < a1 (or a0 <= a1)
+				ft.setNonNegative(v.Args[0])
+				ft.update(v.Block, v.Args[0], v.Args[1], signed, r)
+				ft.update(v.Block, v.Args[0], v.Args[1], unsigned, r)
+			} else {
+				// On the negative branch, we learn (0 > a0 ||
+				// a0 >= a1). In the unsigned domain, this is
+				// simply a0 >= a1 (which is the reverse of the
+				// positive branch, so nothing surprising).
+				// But in the signed domain, we can't express the ||
+				// condition, so check if a0 is non-negative instead,
+				// to be able to learn something.
+				r ^= (lt | gt | eq) // >= (index) or > (slice)
+				if ft.isNonNegative(v.Args[0]) {
+					ft.update(v.Block, v.Args[0], v.Args[1], signed, r)
+				}
+				ft.update(v.Block, v.Args[0], v.Args[1], unsigned, r)
+				// TODO: v.Block is wrong here
+			}
+		}
+	}
+
 	return true
 }
 
@@ -1119,8 +1180,8 @@ var (
 	// For example:
 	//      OpLess8:   {signed, lt},
 	//	v1 = (OpLess8 v2 v3).
-	// If v1 branch is taken then we learn that the rangeMask
-	// can be at most lt.
+	// If we learn that v1 is true, then we can deduce that v2<v3
+	// in the signed domain.
 	domainRelationTable = map[Op]struct {
 		d domain
 		r relation
@@ -1156,12 +1217,6 @@ var (
 		OpLeq32U: {unsigned, lt | eq},
 		OpLeq64:  {signed, lt | eq},
 		OpLeq64U: {unsigned, lt | eq},
-
-		// For these ops, the negative branch is different: we can only
-		// prove signed/GE (signed/GT) if we can prove that arg0 is non-negative.
-		// See the special case in addBranchRestrictions.
-		OpIsInBounds:      {signed | unsigned, lt},      // 0 <= arg0 < arg1
-		OpIsSliceInBounds: {signed | unsigned, lt | eq}, // 0 <= arg0 <= arg1
 	}
 )
 
@@ -1829,56 +1884,6 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 		}
 	default:
 		panic("unknown branch")
-	}
-	if tr, has := domainRelationTable[c.Op]; has {
-		// When we branched from parent we learned a new set of
-		// restrictions. Update the factsTable accordingly.
-		d := tr.d
-		if d == signed && ft.isNonNegative(c.Args[0]) && ft.isNonNegative(c.Args[1]) {
-			d |= unsigned
-		}
-		switch c.Op {
-		case OpIsInBounds, OpIsSliceInBounds:
-			// 0 <= a0 < a1 (or 0 <= a0 <= a1)
-			//
-			// On the positive branch, we learn:
-			//   signed: 0 <= a0 < a1 (or 0 <= a0 <= a1)
-			//   unsigned:    a0 < a1 (or a0 <= a1)
-			//
-			// On the negative branch, we learn (0 > a0 ||
-			// a0 >= a1). In the unsigned domain, this is
-			// simply a0 >= a1 (which is the reverse of the
-			// positive branch, so nothing surprising).
-			// But in the signed domain, we can't express the ||
-			// condition, so check if a0 is non-negative instead,
-			// to be able to learn something.
-			switch br {
-			case negative:
-				d = unsigned
-				if ft.isNonNegative(c.Args[0]) {
-					d |= signed
-				}
-				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
-			case positive:
-				ft.setNonNegative(c.Args[0])
-				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
-			}
-		default:
-			switch br {
-			case negative:
-				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
-			case positive:
-				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
-			}
-		}
-	}
-	if c.Op == OpIsNonNil {
-		switch br {
-		case positive:
-			ft.pointerNonNil(c.Args[0])
-		case negative:
-			ft.pointerNil(c.Args[0])
-		}
 	}
 }
 
