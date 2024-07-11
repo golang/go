@@ -29,3 +29,9 @@ type okay3 func(x nih) nih
 type okay4 interface {
 	f(x nih) nih
 }
+
+func f() {
+	type embed7 map[nih]int // ERROR "incomplete \(or unallocatable\) map key not allowed"
+	type embed8 map[int]nih // ERROR "incomplete \(or unallocatable\) map value not allowed"
+	type emebd9 chan nih    // ERROR "chan of incomplete \(or unallocatable\) type not allowed"
+}
