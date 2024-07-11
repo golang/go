@@ -23,6 +23,7 @@ import (
 	"reflect/internal/example1"
 	"reflect/internal/example2"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -3532,6 +3533,14 @@ func TestAllocations(t *testing.T) {
 			panic("wrong result")
 		}
 	})
+	if runtime.GOOS != "js" && runtime.GOOS != "wasip1" {
+		typ := TypeFor[struct{ f int }]()
+		noAlloc(t, 100, func(int) {
+			if typ.Field(0).Index[0] != 0 {
+				panic("wrong field index")
+			}
+		})
+	}
 }
 
 func TestSmallNegativeInt(t *testing.T) {
@@ -6860,6 +6869,25 @@ func TestTypeFieldOutOfRangePanic(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestTypeFieldReadOnly(t *testing.T) {
+	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+		// This is OK because we don't use the optimization
+		// for js or wasip1.
+		t.Skip("test does not fault on GOOS=js")
+	}
+
+	// It's important that changing one StructField.Index
+	// value not affect other StructField.Index values.
+	// Right now StructField.Index is read-only;
+	// that saves allocations but is otherwise not important.
+	typ := TypeFor[struct{ f int }]()
+	f := typ.Field(0)
+	defer debug.SetPanicOnFault(debug.SetPanicOnFault(true))
+	shouldPanic("", func() {
+		f.Index[0] = 1
+	})
 }
 
 // Issue 9179.
