@@ -133,7 +133,7 @@ func LastIndexByte(s []byte, c byte) int {
 // IndexRune interprets s as a sequence of UTF-8-encoded code points.
 // It returns the byte index of the first occurrence in s of the given rune.
 // It returns -1 if rune is not present in s.
-// If r is utf8.RuneError, it returns the first instance of any
+// If r is [utf8.RuneError], it returns the first instance of any
 // invalid UTF-8 byte sequence.
 func IndexRune(s []byte, r rune) int {
 	switch {
@@ -359,7 +359,7 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 //   - n == 0: the result is nil (zero subslices);
 //   - n < 0: all subslices.
 //
-// To split around the first instance of a separator, see Cut.
+// To split around the first instance of a separator, see [Cut].
 func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
 
 // SplitAfterN slices s into subslices after each instance of sep and
@@ -378,7 +378,7 @@ func SplitAfterN(s, sep []byte, n int) [][]byte {
 // If sep is empty, Split splits after each UTF-8 sequence.
 // It is equivalent to SplitN with a count of -1.
 //
-// To split around the first instance of a separator, see Cut.
+// To split around the first instance of a separator, see [Cut].
 func Split(s, sep []byte) [][]byte { return genSplit(s, sep, 0, -1) }
 
 // SplitAfter slices s into all subslices after each instance of sep and
@@ -393,7 +393,7 @@ var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 // Fields interprets s as a sequence of UTF-8-encoded code points.
 // It splits the slice s around each instance of one or more consecutive white space
-// characters, as defined by unicode.IsSpace, returning a slice of subslices of s or an
+// characters, as defined by [unicode.IsSpace], returning a slice of subslices of s or an
 // empty slice if s contains only white space.
 func Fields(s []byte) [][]byte {
 	// First count the fields.
