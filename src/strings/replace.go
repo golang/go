@@ -299,7 +299,7 @@ func makeGenericReplacer(oldnew []string) *genericReplacer {
 
 type appendSliceWriter []byte
 
-// Write writes to the buffer to satisfy io.Writer.
+// Write writes to the buffer to satisfy [io.Writer].
 func (w *appendSliceWriter) Write(p []byte) (int, error) {
 	*w = append(*w, p...)
 	return len(p), nil
