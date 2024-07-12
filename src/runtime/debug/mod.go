@@ -77,6 +77,7 @@ type Module struct {
 //   - CGO_CPPFLAGS: the effective CGO_CPPFLAGS environment variable
 //   - CGO_CXXFLAGS:  the effective CGO_CXXFLAGS environment variable
 //   - CGO_LDFLAGS: the effective CGO_LDFLAGS environment variable
+//   - DefaultGODEBUG: the effective GODEBUG settings
 //   - GOARCH: the architecture target
 //   - GOAMD64/GOARM/GO386/etc: the architecture feature level for GOARCH
 //   - GOOS: the operating system target
