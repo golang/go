@@ -65,12 +65,6 @@ func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
 	fdate = fdate[len(fdate)-len("2006-01-02"):]
 
 	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
-	if _, err := os.Stat(newname); err == nil {
-		// Another process uploaded but failed to clean up (or hasn't yet cleaned
-		// up). Ensure that cleanup occurs.
-		_ = os.Remove(fname)
-		return false
-	}
 
 	// Lock the upload, to prevent duplicate uploads.
 	{
@@ -82,6 +76,14 @@ func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
 		}
 		_ = lockfile.Close()
 		defer os.Remove(lockname)
+	}
+
+	if _, err := os.Stat(newname); err == nil {
+		// Another process uploaded but failed to clean up (or hasn't yet cleaned
+		// up). Ensure that cleanup occurs.
+		u.logger.Printf("After acquire: report already uploaded")
+		_ = os.Remove(fname)
+		return false
 	}
 
 	endpoint := u.uploadServerURL + "/" + fdate

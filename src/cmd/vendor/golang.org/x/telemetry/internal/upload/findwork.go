@@ -32,7 +32,7 @@ func (u *uploader) findWork() work {
 	}
 
 	mode, asof := u.dir.Mode()
-	u.logger.Printf("Finding work: mode %s, asof %s", mode, asof)
+	u.logger.Printf("Finding work: mode %s asof %s", mode, asof)
 
 	// count files end in .v1.count
 	// reports end in .json. If they are not to be uploaded they

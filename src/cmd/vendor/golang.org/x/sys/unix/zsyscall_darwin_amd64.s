@@ -228,6 +228,16 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
 GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
 DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
 
+TEXT libc_pthread_chdir_np_trampoline<>(SB),NOSPLIT,$0-0
+	JMP	libc_pthread_chdir_np(SB)
+GLOBL	·libc_pthread_chdir_np_trampoline_addr(SB), RODATA, $8
+DATA	·libc_pthread_chdir_np_trampoline_addr(SB)/8, $libc_pthread_chdir_np_trampoline<>(SB)
+
+TEXT libc_pthread_fchdir_np_trampoline<>(SB),NOSPLIT,$0-0
+	JMP	libc_pthread_fchdir_np(SB)
+GLOBL	·libc_pthread_fchdir_np_trampoline_addr(SB), RODATA, $8
+DATA	·libc_pthread_fchdir_np_trampoline_addr(SB)/8, $libc_pthread_fchdir_np_trampoline<>(SB)
+
 TEXT libc_sendfile_trampoline<>(SB),NOSPLIT,$0-0
 	JMP	libc_sendfile(SB)
 GLOBL	·libc_sendfile_trampoline_addr(SB), RODATA, $8

@@ -26,12 +26,11 @@ type Data struct {
 
 // Mmap maps the given file into memory.
 // When remapping a file, pass the most recently returned Data.
-func Mmap(f *os.File, data *Data) (Data, error) {
-	return mmapFile(f, data)
+func Mmap(f *os.File) (*Data, error) {
+	return mmapFile(f)
 }
 
 // Munmap unmaps the given file from memory.
 func Munmap(d *Data) error {
-	// d.f.Close() on Windows still gets an error
-	return munmapFile(*d)
+	return munmapFile(d)
 }
