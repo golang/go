@@ -975,13 +975,13 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			//
 			// Useful for i > 0; s[i-1].
 			lim := ft.limits[x.ID]
-			if lim != noLimit && ((d == signed && lim.min > opMin[v.Op]) || (d == unsigned && lim.umin > 0)) {
+			if (d == signed && lim.min > opMin[v.Op]) || (d == unsigned && lim.umin > 0) {
 				ft.update(parent, x, w, d, gt)
 			}
 		} else if x, delta := isConstDelta(w); x != nil && delta == 1 {
 			// v >= x+1 && x < max  ⇒  v > x
 			lim := ft.limits[x.ID]
-			if lim != noLimit && ((d == signed && lim.max < opMax[w.Op]) || (d == unsigned && lim.umax < opUMax[w.Op])) {
+			if (d == signed && lim.max < opMax[w.Op]) || (d == unsigned && lim.umax < opUMax[w.Op]) {
 				ft.update(parent, v, x, d, gt)
 			}
 		}
@@ -995,7 +995,8 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 				parent.Func.Warnl(parent.Pos, "x+d %s w; x:%v %v delta:%v w:%v d:%v", r, x, parent.String(), delta, w.AuxInt, d)
 			}
 			underflow := true
-			if l := ft.limits[x.ID]; l != noLimit && delta < 0 {
+			if delta < 0 {
+				l := ft.limits[x.ID]
 				if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
 					(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
 					underflow = false
@@ -1061,16 +1062,15 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 					if r == gt {
 						min++
 					}
-					if l := ft.limits[x.ID]; l != noLimit {
-						if l.max <= min {
-							if r&eq == 0 || l.max < min {
-								// x>min (x>=min) is impossible, so it must be x<=max
-								ft.signedMax(x, max)
-							}
-						} else if l.min > max {
-							// x<=max is impossible, so it must be x>min
-							ft.signedMin(x, min)
+					l := ft.limits[x.ID]
+					if l.max <= min {
+						if r&eq == 0 || l.max < min {
+							// x>min (x>=min) is impossible, so it must be x<=max
+							ft.signedMax(x, max)
 						}
+					} else if l.min > max {
+						// x<=max is impossible, so it must be x>min
+						ft.signedMin(x, min)
 					}
 				}
 			}
@@ -1969,9 +1969,6 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			// slicemask(x + y)
 			// if x is larger than -y (y is negative), then slicemask is -1.
 			lim := ft.limits[x.ID]
-			if lim == noLimit {
-				break
-			}
 			if lim.umin > uint64(-delta) {
 				if v.Args[0].Op == OpAdd64 {
 					v.reset(OpConst64)
@@ -1989,9 +1986,6 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			// Capture that information here for use in arch-specific optimizations.
 			x := v.Args[0]
 			lim := ft.limits[x.ID]
-			if lim == noLimit {
-				break
-			}
 			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v non-zero", v.Op)
@@ -2038,9 +2032,6 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			// is strictly less than the number of bits in a.
 			by := v.Args[1]
 			lim := ft.limits[by.ID]
-			if lim == noLimit {
-				break
-			}
 			bits := 8 * v.Args[0].Type.Size()
 			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
 				if by.isGenericIntConst() {
@@ -2070,8 +2061,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			divrLim := ft.limits[divr.ID]
 			divd := v.Args[0]
 			divdLim := ft.limits[divd.ID]
-			if (divrLim != noLimit && (divrLim.max < -1 || divrLim.min > -1)) ||
-				(divdLim != noLimit && divdLim.min > mostNegativeDividend[v.Op]) {
+			if divrLim.max < -1 || divrLim.min > -1 || divdLim.min > mostNegativeDividend[v.Op] {
 				// See DivisionNeedsFixUp in rewrite.go.
 				// v.AuxInt = 1 means we have proved both that the divisor is not -1
 				// and that the dividend is not the most negative integer,
@@ -2085,51 +2075,46 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		// Fold provable constant results.
 		// Helps in cases where we reuse a value after branching on its equality.
 		for i, arg := range v.Args {
-			switch arg.Op {
-			case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool, OpConstNil:
-				continue
-			}
 			lim := ft.limits[arg.ID]
-			if lim == noLimit {
-				continue
-			}
-
 			var constValue int64
-			typ := arg.Type
-			bits := 8 * typ.Size()
 			switch {
 			case lim.min == lim.max:
 				constValue = lim.min
 			case lim.umin == lim.umax:
-				// truncate then sign extand
-				switch bits {
-				case 64:
-					constValue = int64(lim.umin)
-				case 32:
-					constValue = int64(int32(lim.umin))
-				case 16:
-					constValue = int64(int16(lim.umin))
-				case 8:
-					constValue = int64(int8(lim.umin))
-				default:
-					panic("unexpected integer size")
-				}
+				constValue = int64(lim.umin)
 			default:
 				continue
 			}
-			var c *Value
+			switch arg.Op {
+			case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool, OpConstNil:
+				continue
+			}
+			typ := arg.Type
 			f := b.Func
-			switch bits {
-			case 64:
-				c = f.ConstInt64(typ, constValue)
-			case 32:
-				c = f.ConstInt32(typ, int32(constValue))
-			case 16:
-				c = f.ConstInt16(typ, int16(constValue))
-			case 8:
+			var c *Value
+			switch {
+			case typ.IsBoolean():
+				c = f.ConstBool(typ, constValue != 0)
+			case typ.IsInteger() && typ.Size() == 1:
 				c = f.ConstInt8(typ, int8(constValue))
+			case typ.IsInteger() && typ.Size() == 2:
+				c = f.ConstInt16(typ, int16(constValue))
+			case typ.IsInteger() && typ.Size() == 4:
+				c = f.ConstInt32(typ, int32(constValue))
+			case typ.IsInteger() && typ.Size() == 8:
+				c = f.ConstInt64(typ, constValue)
+			case typ.IsPtrShaped():
+				if constValue == 0 {
+					c = f.ConstNil(typ)
+				} else {
+					// Not sure how this might happen, but if it
+					// does, just skip it.
+					continue
+				}
 			default:
-				panic("unexpected integer size")
+				// Not sure how this might happen, but if it
+				// does, just skip it.
+				continue
 			}
 			v.SetArg(i, c)
 			if b.Func.pass.debug > 1 {
