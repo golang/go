@@ -213,7 +213,8 @@ func (w *Writer) Close() error {
 // The name must be a relative path: it must not start with a drive
 // letter (e.g. C:) or leading slash, and only forward slashes are
 // allowed. To create a directory instead of a file, add a trailing
-// slash to the name.
+// slash to the name. Duplicate names will not overwrite previous entries
+// and are appended to the zip file.
 // The file's contents must be written to the [io.Writer] before the next
 // call to [Writer.Create], [Writer.CreateHeader], or [Writer.Close].
 func (w *Writer) Create(name string) (io.Writer, error) {
