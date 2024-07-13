@@ -104,7 +104,7 @@ type Context interface {
 	// a Done channel for cancellation.
 	Done() <-chan struct{}
 
-	// If Done is not yet closed, Err returns nil.
+	// Err If Done is not yet closed, Err returns nil.
 	// If Done is closed, Err returns a non-nil error explaining why:
 	// Canceled if the context was canceled
 	// or DeadlineExceeded if the context's deadline passed.
