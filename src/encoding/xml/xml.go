@@ -1119,11 +1119,17 @@ Input:
 			return nil
 		}
 
-		// We must rewrite unescaped \r and \r\n into \n.
-		if b == '\r' {
-			d.buf.WriteByte('\n')
+		// We must rewrite unescaped \r and \r\n into \n outside quotes,
+		// and unescaped \r, \r\n, \n, and \t into space inside quotes.
+		if b >= ' ' {
+			d.buf.WriteByte(b)
 		} else if b1 == '\r' && b == '\n' {
 			// Skip \r\n--we already wrote \n.
+		} else if quote >= 0 && (b == '\r' || b == '\n' || b == '\t') {
+			// Normalize newline, CR, and tab into space
+			d.buf.WriteByte(' ')
+		} else if b == '\r' {
+			d.buf.WriteByte('\n')
 		} else {
 			d.buf.WriteByte(b)
 		}
