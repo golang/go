@@ -468,7 +468,7 @@ func (tg *testgoData) unsetenv(name string) {
 		tg.env = append([]string(nil), os.Environ()...)
 		tg.env = append(tg.env, "GO111MODULE=off", "TESTGONETWORK=panic")
 		if testing.Short() {
-			tg.env = append(tg.env, "TESTGOVCS=panic")
+			tg.env = append(tg.env, "TESTGOVCSREMOTE=panic")
 		}
 	}
 	for i, v := range tg.env {

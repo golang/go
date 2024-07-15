@@ -1,0 +1,126 @@
+# Test that the version of a binary is stamped using git tag information.
+# See https://go.dev/issue/50603
+
+[short] skip 'constructs a local git repo'
+[!git] skip
+
+# Redirect git to a test-specific .gitconfig.
+# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
+# For older git versions we also set $HOME.
+env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
+env HOME=$WORK${/}home${/}gopher
+exec git config --global --show-origin user.name
+stdout 'Go Gopher'
+
+cd $WORK/repo
+# Use devel when git information is missing.
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example\s+\(devel\)'
+rm example$GOEXE
+
+env GIT_AUTHOR_NAME='Go Gopher'
+env GIT_AUTHOR_EMAIL='gopher@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+exec git init
+env GIT_COMMITTER_DATE=2022-07-19T11:07:00-04:00
+env GIT_AUTHOR_DATE=2022-07-19T11:07:00-04:00
+exec git add .
+exec git commit -m 'initial commit'
+exec git branch -m main
+
+# Use a 0.0.0 pseudo-version when no tags are present.
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example\s+v0.0.0-20220719150700-b52f952448d2\s+'
+rm example$GOEXE
+
+# Use a 0.0.0 pseudo-version if the current tag is not a valid semantic version.
+exec git tag 1.0.1
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example\s+v0.0.0-20220719150700-b52f952448d2\s+'
+rm example$GOEXE
+
+# Use the current tag which has a valid semantic version to stamp the version.
+exec git tag v1.0.1
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example\s+v1.0.1\s+'
+rm example$GOEXE
+
+# Use tag+dirty when there are uncomitted changes present.
+cp $WORK/copy/README $WORK/repo/README
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example\s+v1.0.1\+dirty\s+'
+rm example$GOEXE
+
+env GIT_COMMITTER_DATE=2022-07-19T11:07:01-04:00
+env GIT_AUTHOR_DATE=2022-07-19T11:07:01-04:00
+exec git add .
+exec git commit -m 'commit 2'
+
+# Use the updated tag to stamp the version.
+exec git tag v1.0.2
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example\s+v1.0.2\s+'
+rm example$GOEXE
+
+env GIT_COMMITTER_DATE=2022-07-19T11:07:02-04:00
+env GIT_AUTHOR_DATE=2022-07-19T11:07:02-04:00
+mv README README2
+exec git add .
+exec git commit -m 'commit 3'
+
+# Use a pseudo-version when current commit doesn't match a tagged version.
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example\s+v1.0.3-0.20220719150702-deaeab06f7fe\s+'
+rm example$GOEXE
+
+# Use pseudo+dirty when uncomitted changes are present.
+mv README2 README3
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example\s+v1.0.3-0.20220719150702-deaeab06f7fe\+dirty\s+'
+rm example$GOEXE
+
+# Make sure we always use the previously tagged version to generate the pseudo-version at a untagged revision.
+env GIT_COMMITTER_DATE=2022-07-19T11:07:03-04:00
+env GIT_AUTHOR_DATE=2022-07-19T11:07:03-04:00
+exec git add .
+exec git commit -m 'commit 4'
+
+mv README3 README4
+env GIT_COMMITTER_DATE=2022-07-19T11:07:04-04:00
+env GIT_AUTHOR_DATE=2022-07-19T11:07:04-04:00
+exec git add .
+exec git commit -m 'commit 5'
+exec git tag v1.0.4
+# Jump back to commit 4 which is untagged.
+exec git checkout ':/commit 4'
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example\s+v1.0.3-0.20220719150703-2e239bf29c13\s+'
+rm example$GOEXE
+
+-- $WORK/repo/go.mod --
+module example
+
+go 1.18
+-- $WORK/repo/main.go --
+package main
+
+func main() {
+}
+-- $WORK/copy/README --
+hello
+
+-- $WORK/home/gopher/.gitconfig --
+[user]
+    name = Go Gopher
+    email = gopher@golang.org

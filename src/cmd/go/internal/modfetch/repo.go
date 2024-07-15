@@ -220,6 +220,33 @@ func Lookup(ctx context.Context, proxy, path string) Repo {
 	})
 }
 
+var lookupLocalCache par.Cache[string, Repo] // path, Repo
+
+// LookupLocal will only use local VCS information to fetch the Repo.
+func LookupLocal(ctx context.Context, path string) Repo {
+	if traceRepo {
+		defer logCall("LookupLocal(%q)", path)()
+	}
+
+	return lookupLocalCache.Do(path, func() Repo {
+		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
+			repoDir, vcsCmd, err := vcs.FromDir(path, "", true)
+			if err != nil {
+				return nil, err
+			}
+			code, err := lookupCodeRepo(ctx, &vcs.RepoRoot{Repo: repoDir, Root: repoDir, VCS: vcsCmd}, true)
+			if err != nil {
+				return nil, err
+			}
+			r, err := newCodeRepo(code, repoDir, path)
+			if err == nil && traceRepo {
+				r = newLoggingRepo(r)
+			}
+			return r, err
+		})
+	})
+}
+
 // lookup returns the module with the given module path.
 func lookup(ctx context.Context, proxy, path string) (r Repo, err error) {
 	if cfg.BuildMod == "vendor" {
@@ -286,15 +313,15 @@ func lookupDirect(ctx context.Context, path string) (Repo, error) {
 		return newProxyRepo(rr.Repo, path)
 	}
 
-	code, err := lookupCodeRepo(ctx, rr)
+	code, err := lookupCodeRepo(ctx, rr, false)
 	if err != nil {
 		return nil, err
 	}
 	return newCodeRepo(code, rr.Root, path)
 }
 
-func lookupCodeRepo(ctx context.Context, rr *vcs.RepoRoot) (codehost.Repo, error) {
-	code, err := codehost.NewRepo(ctx, rr.VCS.Cmd, rr.Repo)
+func lookupCodeRepo(ctx context.Context, rr *vcs.RepoRoot, local bool) (codehost.Repo, error) {
+	code, err := codehost.NewRepo(ctx, rr.VCS.Cmd, rr.Repo, local)
 	if err != nil {
 		if _, ok := err.(*codehost.VCSError); ok {
 			return nil, err
