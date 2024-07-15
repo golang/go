@@ -46,7 +46,7 @@ type gState[R resource] struct {
 	// goroutine stopped executing. These are flushed on every stop or block.
 	completedRanges []completedRange
 
-	// startRunning is the most recent event that caused a goroutine to
+	// startRunningTime is the most recent event that caused a goroutine to
 	// transition to GoRunning.
 	startRunningTime trace.Time
 

@@ -6,7 +6,7 @@ package main
 
 import (
 	"cmd/internal/archive"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 	"fmt"
 	"io"
 	"io/fs"
@@ -31,7 +31,7 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("pack: ")
-	telemetry.OpenCounters()
+	counter.Open()
 	// need "pack op archive" at least.
 	if len(os.Args) < 3 {
 		log.Print("not enough arguments")
@@ -39,8 +39,8 @@ func main() {
 		usage()
 	}
 	setOp(os.Args[1])
-	telemetry.Inc("pack/invocations")
-	telemetry.Inc("pack/op:" + string(op))
+	counter.Inc("pack/invocations")
+	counter.Inc("pack/op:" + string(op))
 	var ar *Archive
 	switch op {
 	case 'p':

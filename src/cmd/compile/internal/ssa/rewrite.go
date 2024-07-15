@@ -1287,6 +1287,11 @@ func areAdjacentOffsets(off1, off2, size int64) bool {
 // depth limits recursion depth. In AMD64.rules 3 is used as limit,
 // because it catches same amount of cases as 4.
 func zeroUpper32Bits(x *Value, depth int) bool {
+	if x.Type.IsSigned() && x.Type.Size() < 8 {
+		// If the value is signed, it might get re-sign-extended
+		// during spill and restore. See issue 68227.
+		return false
+	}
 	switch x.Op {
 	case OpAMD64MOVLconst, OpAMD64MOVLload, OpAMD64MOVLQZX, OpAMD64MOVLloadidx1,
 		OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVBload, OpAMD64MOVBloadidx1,
@@ -1305,7 +1310,7 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	case OpArg: // note: but not ArgIntReg
 		// amd64 always loads args from the stack unsigned.
 		// most other architectures load them sign/zero extended based on the type.
-		return x.Type.Size() == 4 && (x.Type.IsUnsigned() || x.Block.Func.Config.arch == "amd64")
+		return x.Type.Size() == 4 && x.Block.Func.Config.arch == "amd64"
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
@@ -1325,11 +1330,14 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 
 // zeroUpper48Bits is similar to zeroUpper32Bits, but for upper 48 bits.
 func zeroUpper48Bits(x *Value, depth int) bool {
+	if x.Type.IsSigned() && x.Type.Size() < 8 {
+		return false
+	}
 	switch x.Op {
 	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
 		return true
 	case OpArg: // note: but not ArgIntReg
-		return x.Type.Size() == 2 && (x.Type.IsUnsigned() || x.Block.Func.Config.arch == "amd64")
+		return x.Type.Size() == 2 && x.Block.Func.Config.arch == "amd64"
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
@@ -1349,11 +1357,14 @@ func zeroUpper48Bits(x *Value, depth int) bool {
 
 // zeroUpper56Bits is similar to zeroUpper32Bits, but for upper 56 bits.
 func zeroUpper56Bits(x *Value, depth int) bool {
+	if x.Type.IsSigned() && x.Type.Size() < 8 {
+		return false
+	}
 	switch x.Op {
 	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
 		return true
 	case OpArg: // note: but not ArgIntReg
-		return x.Type.Size() == 1 && (x.Type.IsUnsigned() || x.Block.Func.Config.arch == "amd64")
+		return x.Type.Size() == 1 && x.Block.Func.Config.arch == "amd64"
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.

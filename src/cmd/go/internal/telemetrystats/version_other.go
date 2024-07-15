@@ -6,8 +6,8 @@
 
 package telemetrystats
 
-import "cmd/internal/telemetry"
+import "cmd/internal/telemetry/counter"
 
 func incrementVersionCounters() {
-	telemetry.Inc("go/platform:version-not-supported")
+	counter.Inc("go/platform:version-not-supported")
 }

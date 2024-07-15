@@ -158,28 +158,20 @@ func equal(name1, name2 string) (r bool) {
 	return
 }
 
-// localTmp returns a local temporary directory not on NFS.
-func localTmp() string {
-	switch runtime.GOOS {
-	case "android", "ios", "windows":
-		return TempDir()
-	}
-	return "/tmp"
-}
-
-func newFile(testName string, t *testing.T) (f *File) {
-	f, err := CreateTemp(localTmp(), "_Go_"+testName)
+func newFile(t *testing.T) (f *File) {
+	t.Helper()
+	f, err := CreateTemp("", "_Go_"+t.Name())
 	if err != nil {
-		t.Fatalf("TempFile %s: %s", testName, err)
+		t.Fatal(err)
 	}
-	return
-}
-
-func newDir(testName string, t *testing.T) (name string) {
-	name, err := MkdirTemp(localTmp(), "_Go_"+testName)
-	if err != nil {
-		t.Fatalf("TempDir %s: %s", testName, err)
-	}
+	t.Cleanup(func() {
+		if err := f.Close(); err != nil && !errors.Is(err, ErrClosed) {
+			t.Fatal(err)
+		}
+		if err := Remove(f.Name()); err != nil {
+			t.Fatal(err)
+		}
+	})
 	return
 }
 
@@ -1276,9 +1268,7 @@ func TestChmod(t *testing.T) {
 	}
 	t.Parallel()
 
-	f := newFile("TestChmod", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 	// Creation mode is read write
 
 	fm := FileMode(0456)
@@ -1314,9 +1304,7 @@ func checkSize(t *testing.T, f *File, size int64) {
 func TestFTruncate(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestFTruncate", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	checkSize(t, f, 0)
 	f.Write([]byte("hello, world\n"))
@@ -1336,9 +1324,7 @@ func TestFTruncate(t *testing.T) {
 func TestTruncate(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestTruncate", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	checkSize(t, f, 0)
 	f.Write([]byte("hello, world\n"))
@@ -1375,15 +1361,21 @@ func TestTruncateNonexistentFile(t *testing.T) {
 	assertPathError(t, path, err)
 }
 
-// Use TempDir (via newFile) to make sure we're on a local file system,
-// so that timings are not distorted by latency and caching.
-// On NFS, timings can be off due to caching of meta-data on
-// NFS servers (Issue 848).
+var hasNoatime = sync.OnceValue(func() bool {
+	// A sloppy way to check if noatime flag is set (as all filesystems are
+	// checked, not just the one we're interested in). A correct way
+	// would be to use statvfs syscall and check if flags has ST_NOATIME,
+	// but the syscall is OS-specific and is not even wired into Go stdlib.
+	//
+	// Only used on NetBSD (which ignores explicit atime updates with noatime).
+	mounts, _ := ReadFile("/proc/mounts")
+	return bytes.Contains(mounts, []byte("noatime"))
+})
+
 func TestChtimes(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestChtimes", t)
-	defer Remove(f.Name())
+	f := newFile(t)
 
 	f.Write([]byte("hello, world\n"))
 	f.Close()
@@ -1391,139 +1383,119 @@ func TestChtimes(t *testing.T) {
 	testChtimes(t, f.Name())
 }
 
-func TestChtimesWithZeroTimes(t *testing.T) {
-	file := newFile("chtimes-with-zero", t)
+func TestChtimesOmit(t *testing.T) {
+	t.Parallel()
+
+	testChtimesOmit(t, true, false)
+	testChtimesOmit(t, false, true)
+	testChtimesOmit(t, true, true)
+	testChtimesOmit(t, false, false) // Same as TestChtimes.
+}
+
+func testChtimesOmit(t *testing.T, omitAt, omitMt bool) {
+	t.Logf("omit atime: %v, mtime: %v", omitAt, omitMt)
+	file := newFile(t)
 	_, err := file.Write([]byte("hello, world\n"))
-	if err != nil {
-		t.Fatalf("Write: %s", err)
-	}
-	fName := file.Name()
-	defer Remove(file.Name())
-	err = file.Close()
-	if err != nil {
-		t.Errorf("%v", err)
-	}
-	fs, err := Stat(fName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	startAtime := Atime(fs)
-	startMtime := fs.ModTime()
+	name := file.Name()
+	err = file.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	fs, err := Stat(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantAtime := Atime(fs)
+	wantMtime := fs.ModTime()
 	switch runtime.GOOS {
 	case "js":
-		startAtime = startAtime.Truncate(time.Second)
-		startMtime = startMtime.Truncate(time.Second)
-	}
-	at0 := startAtime
-	mt0 := startMtime
-	t0 := startMtime.Truncate(time.Second).Add(1 * time.Hour)
-
-	tests := []struct {
-		aTime     time.Time
-		mTime     time.Time
-		wantATime time.Time
-		wantMTime time.Time
-	}{
-		{
-			aTime:     time.Time{},
-			mTime:     time.Time{},
-			wantATime: startAtime,
-			wantMTime: startMtime,
-		},
-		{
-			aTime:     t0.Add(200 * time.Second),
-			mTime:     time.Time{},
-			wantATime: t0.Add(200 * time.Second),
-			wantMTime: startMtime,
-		},
-		{
-			aTime:     time.Time{},
-			mTime:     t0.Add(100 * time.Second),
-			wantATime: t0.Add(200 * time.Second),
-			wantMTime: t0.Add(100 * time.Second),
-		},
-		{
-			aTime:     t0.Add(300 * time.Second),
-			mTime:     t0.Add(100 * time.Second),
-			wantATime: t0.Add(300 * time.Second),
-			wantMTime: t0.Add(100 * time.Second),
-		},
+		wantAtime = wantAtime.Truncate(time.Second)
+		wantMtime = wantMtime.Truncate(time.Second)
 	}
 
-	for _, tt := range tests {
-		// Now change the times accordingly.
-		if err := Chtimes(fName, tt.aTime, tt.mTime); err != nil {
-			t.Error(err)
-		}
+	var setAtime, setMtime time.Time // Zero value means omit.
+	if !omitAt {
+		wantAtime = wantAtime.Add(-1 * time.Second)
+		setAtime = wantAtime
+	}
+	if !omitMt {
+		wantMtime = wantMtime.Add(-1 * time.Second)
+		setMtime = wantMtime
+	}
 
-		// Finally verify the expectations.
-		fs, err = Stat(fName)
-		if err != nil {
-			t.Error(err)
-		}
-		at0 = Atime(fs)
-		mt0 = fs.ModTime()
+	// Change the times accordingly.
+	if err := Chtimes(name, setAtime, setMtime); err != nil {
+		t.Error(err)
+	}
 
-		if got, want := at0, tt.wantATime; !got.Equal(want) {
-			errormsg := fmt.Sprintf("AccessTime mismatch with values ATime:%q-MTime:%q\ngot:  %q\nwant: %q", tt.aTime, tt.mTime, got, want)
-			switch runtime.GOOS {
-			case "plan9":
-				// Mtime is the time of the last change of
-				// content.  Similarly, atime is set whenever
-				// the contents are accessed; also, it is set
-				// whenever mtime is set.
-			case "windows":
-				t.Error(errormsg)
-			default: // unix's
-				if got, want := at0, tt.wantATime; !got.Equal(want) {
-					mounts, err := ReadFile("/bin/mounts")
-					if err != nil {
-						mounts, err = ReadFile("/etc/mtab")
-					}
-					if strings.Contains(string(mounts), "noatime") {
-						t.Log(errormsg)
-						t.Log("A filesystem is mounted with noatime; ignoring.")
-					} else {
-						switch runtime.GOOS {
-						case "netbsd", "dragonfly":
-							// On a 64-bit implementation, birth time is generally supported and cannot be changed.
-							// When supported, atime update is restricted and depends on the file system and on the
-							// OS configuration.
-							if strings.Contains(runtime.GOARCH, "64") {
-								t.Log(errormsg)
-								t.Log("Filesystem might not support atime changes; ignoring.")
-							}
-						default:
-							t.Error(errormsg)
-						}
-					}
-				}
-			}
-		}
-		if got, want := mt0, tt.wantMTime; !got.Equal(want) {
-			errormsg := fmt.Sprintf("ModTime mismatch with values ATime:%q-MTime:%q\ngot:  %q\nwant: %q", tt.aTime, tt.mTime, got, want)
-			switch runtime.GOOS {
-			case "dragonfly":
+	// Verify the expectations.
+	fs, err = Stat(name)
+	if err != nil {
+		t.Error(err)
+	}
+	gotAtime := Atime(fs)
+	gotMtime := fs.ModTime()
+
+	// TODO: remove the dragonfly omitAt && omitMt exceptions below once the
+	// fix (https://github.com/DragonFlyBSD/DragonFlyBSD/commit/c7c71870ed0)
+	// is available generally and on CI runners.
+	if !gotAtime.Equal(wantAtime) {
+		errormsg := fmt.Sprintf("atime mismatch, got: %q, want: %q", gotAtime, wantAtime)
+		switch runtime.GOOS {
+		case "plan9":
+			// Mtime is the time of the last change of content.
+			// Similarly, atime is set whenever the contents are
+			// accessed; also, it is set whenever mtime is set.
+		case "dragonfly":
+			if omitAt && omitMt {
 				t.Log(errormsg)
-				t.Log("Mtime is always updated; ignoring.")
-			default:
+				t.Log("Known DragonFly BSD issue (won't work when both times are omitted); ignoring.")
+			} else {
+				// Assume hammer2 fs; https://www.dragonflybsd.org/hammer/ says:
+				// > Because HAMMER2 is a block copy-on-write filesystem,
+				// > the "atime" field is not supported and will typically
+				// > just reflect local system in-memory caches or mtime.
+				//
+				// TODO: if only can CI define TMPDIR to point to a tmpfs
+				// (e.g. /var/run/shm), this exception can be removed.
+				t.Log(errormsg)
+				t.Log("Known DragonFly BSD issue (atime not supported on hammer2); ignoring.")
+			}
+		case "netbsd":
+			if !omitAt && hasNoatime() {
+				t.Log(errormsg)
+				t.Log("Known NetBSD issue (atime not changed on fs mounted with noatime); ignoring.")
+			} else {
 				t.Error(errormsg)
 			}
+		default:
+			t.Error(errormsg)
+		}
+	}
+	if !gotMtime.Equal(wantMtime) {
+		errormsg := fmt.Sprintf("mtime mismatch, got: %q, want: %q", gotMtime, wantMtime)
+		switch runtime.GOOS {
+		case "dragonfly":
+			if omitAt && omitMt {
+				t.Log(errormsg)
+				t.Log("Known DragonFly BSD issue (won't work when both times are omitted); ignoring.")
+			} else {
+				t.Error(errormsg)
+			}
+		default:
+			t.Error(errormsg)
 		}
 	}
 }
 
-// Use TempDir (via newDir) to make sure we're on a local file system,
-// so that timings are not distorted by latency and caching.
-// On NFS, timings can be off due to caching of meta-data on
-// NFS servers (Issue 848).
 func TestChtimesDir(t *testing.T) {
 	t.Parallel()
 
-	name := newDir("TestChtimes", t)
-	defer RemoveAll(name)
-
-	testChtimes(t, name)
+	testChtimes(t, t.TempDir())
 }
 
 func testChtimes(t *testing.T, name string) {
@@ -1550,6 +1522,7 @@ func testChtimes(t *testing.T, name string) {
 	pat := Atime(postStat)
 	pmt := postStat.ModTime()
 	if !pat.Before(at) {
+		errormsg := fmt.Sprintf("AccessTime didn't go backwards; was=%v, after=%v", at, pat)
 		switch runtime.GOOS {
 		case "plan9":
 			// Mtime is the time of the last change of
@@ -1557,14 +1530,14 @@ func testChtimes(t *testing.T, name string) {
 			// the contents are accessed; also, it is set
 			// whenever mtime is set.
 		case "netbsd":
-			mounts, _ := ReadFile("/proc/mounts")
-			if strings.Contains(string(mounts), "noatime") {
-				t.Logf("AccessTime didn't go backwards, but see a filesystem mounted noatime; ignoring. Issue 19293.")
+			if hasNoatime() {
+				t.Log(errormsg)
+				t.Log("Known NetBSD issue (atime not changed on fs mounted with noatime); ignoring.")
 			} else {
-				t.Logf("AccessTime didn't go backwards; was=%v, after=%v (Ignoring on NetBSD, assuming noatime, Issue 19293)", at, pat)
+				t.Errorf(errormsg)
 			}
 		default:
-			t.Errorf("AccessTime didn't go backwards; was=%v, after=%v", at, pat)
+			t.Errorf(errormsg)
 		}
 	}
 
@@ -1574,9 +1547,8 @@ func testChtimes(t *testing.T, name string) {
 }
 
 func TestChtimesToUnixZero(t *testing.T) {
-	file := newFile("chtimes-to-unix-zero", t)
+	file := newFile(t)
 	fn := file.Name()
-	defer Remove(fn)
 	if _, err := file.Write([]byte("hi")); err != nil {
 		t.Fatal(err)
 	}
@@ -1796,9 +1768,7 @@ func TestProgWideChdir(t *testing.T) {
 func TestSeek(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestSeek", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2040,9 +2010,7 @@ func TestHostname(t *testing.T) {
 func TestReadAt(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAt", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2064,9 +2032,7 @@ func TestReadAt(t *testing.T) {
 func TestReadAtOffset(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAtOffset", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2095,9 +2061,7 @@ func TestReadAtOffset(t *testing.T) {
 func TestReadAtNegativeOffset(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAtNegativeOffset", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2116,9 +2080,7 @@ func TestReadAtNegativeOffset(t *testing.T) {
 func TestWriteAt(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestWriteAt", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2141,9 +2103,7 @@ func TestWriteAt(t *testing.T) {
 func TestWriteAtNegativeOffset(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestWriteAtNegativeOffset", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	n, err := f.WriteAt([]byte("WORLD"), -10)
 
@@ -2477,9 +2437,7 @@ func TestStatRelativeSymlink(t *testing.T) {
 func TestReadAtEOF(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAtEOF", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	_, err := f.ReadAt(make([]byte, 10), 0)
 	switch err {
@@ -2495,12 +2453,7 @@ func TestReadAtEOF(t *testing.T) {
 func TestLongPath(t *testing.T) {
 	t.Parallel()
 
-	tmpdir := newDir("TestLongPath", t)
-	defer func(d string) {
-		if err := RemoveAll(d); err != nil {
-			t.Fatalf("RemoveAll failed: %v", err)
-		}
-	}(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Test the boundary of 247 and fewer bytes (normal) and 248 and more bytes (adjusted).
 	sizes := []int{247, 248, 249, 400}

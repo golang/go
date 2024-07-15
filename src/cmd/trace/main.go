@@ -6,7 +6,7 @@ package main
 
 import (
 	"cmd/internal/browser"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 	"flag"
 	"fmt"
 	"internal/trace"
@@ -64,14 +64,14 @@ var (
 )
 
 func main() {
-	telemetry.OpenCounters()
+	counter.Open()
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usageMessage)
 		os.Exit(2)
 	}
 	flag.Parse()
-	telemetry.Inc("trace/invocations")
-	telemetry.CountFlags("trace/flag:", *flag.CommandLine)
+	counter.Inc("trace/invocations")
+	counter.CountFlags("trace/flag:", *flag.CommandLine)
 
 	// Go 1.7 traces embed symbol info and does not require the binary.
 	// But we optionally accept binary as first arg for Go 1.5 traces.

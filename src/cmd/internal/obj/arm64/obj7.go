@@ -552,7 +552,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	var q *obj.Prog
 	var q1 *obj.Prog
-	var retjmp *obj.LSym
 	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
@@ -846,7 +845,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 
-			retjmp = p.To.Sym
+			retJMP, retReg := p.To.Sym, p.To.Reg
+			if retReg == 0 {
+				retReg = REGLINK
+			}
 			p.To = obj.Addr{}
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if c.autosize != 0 {
@@ -924,10 +926,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = q
 			}
 
-			if retjmp != nil { // retjmp
+			if retJMP != nil {
 				p.As = AB
 				p.To.Type = obj.TYPE_BRANCH
-				p.To.Sym = retjmp
+				p.To.Sym = retJMP
 				p.Spadj = +c.autosize
 				break
 			}
@@ -935,7 +937,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.As = obj.ARET
 			p.To.Type = obj.TYPE_MEM
 			p.To.Offset = 0
-			p.To.Reg = REGLINK
+			p.To.Reg = retReg
 			p.Spadj = +c.autosize
 
 		case AADD, ASUB:

@@ -642,6 +642,9 @@ var depsRules = `
 	FMT
 	< internal/txtar;
 
+	CRYPTO-MATH, testing
+	< crypto/internal/cryptotest;
+
 	# v2 execution trace parser.
 	FMT
 	< internal/trace/event;

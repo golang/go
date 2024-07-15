@@ -217,7 +217,11 @@ func (p *PipeNode) writeTo(sb *strings.Builder) {
 			}
 			v.writeTo(sb)
 		}
-		sb.WriteString(" := ")
+		if p.IsAssign {
+			sb.WriteString(" = ")
+		} else {
+			sb.WriteString(" := ")
+		}
 	}
 	for i, c := range p.Cmds {
 		if i > 0 {

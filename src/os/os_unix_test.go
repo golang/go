@@ -45,13 +45,7 @@ func TestChown(t *testing.T) {
 	}
 	t.Parallel()
 
-	// Use TempDir() to make sure we're on a local file system,
-	// so that the group ids returned by Getgroups will be allowed
-	// on the file. On NFS, the Getgroups groups are
-	// basically useless.
-	f := newFile("TestChown", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 	dir, err := f.Stat()
 	if err != nil {
 		t.Fatalf("stat %s: %s", f.Name(), err)
@@ -99,13 +93,7 @@ func TestFileChown(t *testing.T) {
 	}
 	t.Parallel()
 
-	// Use TempDir() to make sure we're on a local file system,
-	// so that the group ids returned by Getgroups will be allowed
-	// on the file. On NFS, the Getgroups groups are
-	// basically useless.
-	f := newFile("TestFileChown", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 	dir, err := f.Stat()
 	if err != nil {
 		t.Fatalf("stat %s: %s", f.Name(), err)
@@ -151,13 +139,7 @@ func TestLchown(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 	t.Parallel()
 
-	// Use TempDir() to make sure we're on a local file system,
-	// so that the group ids returned by Getgroups will be allowed
-	// on the file. On NFS, the Getgroups groups are
-	// basically useless.
-	f := newFile("TestLchown", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 	dir, err := f.Stat()
 	if err != nil {
 		t.Fatalf("stat %s: %s", f.Name(), err)
@@ -223,8 +205,7 @@ func TestReaddirRemoveRace(t *testing.T) {
 		}
 		return oldStat(name)
 	}
-	dir := newDir("TestReaddirRemoveRace", t)
-	defer RemoveAll(dir)
+	dir := t.TempDir()
 	if err := WriteFile(filepath.Join(dir, "some-file"), []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -255,8 +236,7 @@ func TestMkdirStickyUmask(t *testing.T) {
 	t.Parallel()
 
 	const umask = 0077
-	dir := newDir("TestMkdirStickyUmask", t)
-	defer RemoveAll(dir)
+	dir := t.TempDir()
 
 	oldUmask := syscall.Umask(umask)
 	defer syscall.Umask(oldUmask)
@@ -396,14 +376,14 @@ func TestIssue60181(t *testing.T) {
 
 	want := "hello gopher"
 
-	a, err := CreateTemp("", "a")
+	a, err := CreateTemp(".", "a")
 	if err != nil {
 		t.Fatal(err)
 	}
 	a.WriteString(want[:5])
 	a.Close()
 
-	b, err := CreateTemp("", "b")
+	b, err := CreateTemp(".", "b")
 	if err != nil {
 		t.Fatal(err)
 	}

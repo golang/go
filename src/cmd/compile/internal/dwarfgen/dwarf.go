@@ -91,6 +91,9 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Sc
 			default:
 				continue
 			}
+			if !ssa.IsVarWantedForDebug(n) {
+				continue
+			}
 			apdecls = append(apdecls, n)
 			if n.Type().Kind() == types.TSSA {
 				// Can happen for TypeInt128 types. This only happens for
@@ -194,6 +197,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		// DWARF-gen. See issue 48573 for more details.
 		debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
 		for _, n := range debugInfo.RegOutputParams {
+			if !ssa.IsVarWantedForDebug(n) {
+				continue
+			}
 			if n.Class != ir.PPARAMOUT || !n.IsOutputParamInRegisters() {
 				panic("invalid ir.Name on debugInfo.RegOutputParams list")
 			}

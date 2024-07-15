@@ -35,7 +35,7 @@ func NewFileTransport(fs FileSystem) RoundTripper {
 // NewFileTransportFS returns a new [RoundTripper], serving the provided
 // file system fsys. The returned RoundTripper ignores the URL host in its
 // incoming requests, as well as most other properties of the
-// request.
+// request. The files provided by fsys must implement [io.Seeker].
 //
 // The typical use case for NewFileTransportFS is to register the "file"
 // protocol with a [Transport], as in:

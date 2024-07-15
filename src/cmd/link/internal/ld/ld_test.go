@@ -304,7 +304,34 @@ package main
 import "runtime"
 import "runtime/pprof"
 func main() {
-        _ = pprof.Profiles()
+	_ = pprof.Profiles()
+	println(runtime.MemProfileRate)
+}
+`,
+			"524288",
+		},
+		{
+			"with_memprofile_runtime_pprof_writeheap",
+			`
+package main
+import "io"
+import "runtime"
+import "runtime/pprof"
+func main() {
+	_ = pprof.WriteHeapProfile(io.Discard)
+	println(runtime.MemProfileRate)
+}
+`,
+			"524288",
+		},
+		{
+			"with_memprofile_runtime_pprof_lookupheap",
+			`
+package main
+import "runtime"
+import "runtime/pprof"
+func main() {
+	_ = pprof.Lookup("heap")
 	println(runtime.MemProfileRate)
 }
 `,

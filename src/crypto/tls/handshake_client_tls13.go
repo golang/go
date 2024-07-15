@@ -900,7 +900,7 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 	session.ageAdd = msg.ageAdd
 	session.EarlyData = c.quic != nil && msg.maxEarlyData == 0xffffffff // RFC 9001, Section 4.6.1
 	session.ticket = msg.label
-	if c.quic != nil && c.quic.enableStoreSessionEvent {
+	if c.quic != nil && c.quic.enableSessionEvents {
 		c.quicStoreSession(session)
 		return nil
 	}

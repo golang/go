@@ -28,7 +28,7 @@ import (
 	"cmd/internal/edit"
 	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 )
 
 // A Package collects information about the package we're going to write.
@@ -258,11 +258,11 @@ var goarch, goos, gomips, gomips64 string
 var gccBaseCmd []string
 
 func main() {
-	telemetry.OpenCounters()
+	counter.Open()
 	objabi.AddVersionFlag() // -V
 	objabi.Flagparse(usage)
-	telemetry.Inc("cgo/invocations")
-	telemetry.CountFlags("cgo/flag:", *flag.CommandLine)
+	counter.Inc("cgo/invocations")
+	counter.CountFlags("cgo/flag:", *flag.CommandLine)
 
 	if *gccgoDefineCgoIncomplete {
 		if !*gccgo {
@@ -339,6 +339,21 @@ func main() {
 		args, err := splitQuoted(*ldflags)
 		if err != nil {
 			fatalf("bad -ldflags option: %q (%s)", *ldflags, err)
+		}
+		p.addToFlag("LDFLAGS", args)
+	}
+
+	// For backward compatibility for Bazel, record CGO_LDFLAGS
+	// from the environment for external linking.
+	// This should not happen with cmd/go, which removes CGO_LDFLAGS
+	// from the environment when invoking cgo.
+	// This can be removed when we no longer need to support
+	// older versions of Bazel. See issue #66456 and
+	// https://github.com/bazelbuild/rules_go/issues/3979.
+	if envFlags := os.Getenv("CGO_LDFLAGS"); envFlags != "" {
+		args, err := splitQuoted(envFlags)
+		if err != nil {
+			fatalf("bad CGO_LDFLAGS: %q (%s)", envFlags, err)
 		}
 		p.addToFlag("LDFLAGS", args)
 	}

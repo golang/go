@@ -276,7 +276,7 @@
 //
 // Usage:
 //
-//	go clean [clean flags] [build flags] [packages]
+//	go clean [-i] [-r] [-cache] [-testcache] [-modcache] [-fuzzcache] [build flags] [packages]
 //
 // Clean removes object files from package source directories.
 // The go command builds most objects in a temporary directory,
@@ -1689,8 +1689,7 @@
 //
 // The -r flag searches recursively for modules in the argument
 // directories, and the use command operates as if each of the directories
-// were specified as arguments: namely, use directives will be added for
-// directories that exist, and removed for directories that do not exist.
+// were specified as arguments.
 //
 // See the workspaces reference at https://go.dev/ref/mod#workspaces
 // for more information.
@@ -1994,6 +1993,9 @@
 //
 //	//go:build
 //
+// Build constraints can also be used to downgrade the language version
+// used to compile a file.
+//
 // Constraints may appear in any kind of source file (not just Go), but
 // they must appear near the top of the file, preceded
 // only by blank lines and other comments. These rules mean that in Go
@@ -2115,6 +2117,10 @@
 // Go versions 1.16 and earlier used a different syntax for build constraints,
 // with a "// +build" prefix. The gofmt command will add an equivalent //go:build
 // constraint when encountering the older syntax.
+//
+// In modules with a Go version of 1.21 or later, if a file's build constraint
+// has a term for a Go major release, the language version used when compiling
+// the file will be the minimum version implied by the build constraint.
 //
 // # Build modes
 //

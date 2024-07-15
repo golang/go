@@ -819,6 +819,7 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
 
 // ServeFileFS replies to the request with the contents
 // of the named file or directory from the file system fsys.
+// The files provided by fsys must implement [io.Seeker].
 //
 // If the provided name is constructed from user input, it should be
 // sanitized before calling [ServeFileFS].
@@ -965,6 +966,7 @@ func FileServer(root FileSystem) Handler {
 
 // FileServerFS returns a handler that serves HTTP requests
 // with the contents of the file system fsys.
+// The files provided by fsys must implement [io.Seeker].
 //
 // As a special case, the returned file server redirects any request
 // ending in "/index.html" to the same path, without the final

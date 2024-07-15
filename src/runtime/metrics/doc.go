@@ -230,6 +230,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/stack/starting-size:bytes
 		The stack size of new goroutines.
 
+	/godebug/non-default-behavior/asynctimerchan:events
+		The number of non-default behaviors executed by the time package
+		due to a non-default GODEBUG=asynctimerchan=... setting.
+
 	/godebug/non-default-behavior/execerrdot:events
 		The number of non-default behaviors executed by the os/exec
 		package due to a non-default GODEBUG=execerrdot=... setting.

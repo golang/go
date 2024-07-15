@@ -2578,3 +2578,81 @@ func produceProfileEvents(t *testing.T, depth int) {
 	runtime.GC()
 	goroutineDeep(t, depth-4) // -4 for produceProfileEvents, **, chanrecv1, chanrev, gopark
 }
+
+func TestMutexBlockFullAggregation(t *testing.T) {
+	// This regression test is adapted from
+	// https://github.com/grafana/pyroscope-go/issues/103,
+	// authored by Tolya Korniltsev
+
+	var m sync.Mutex
+
+	prev := runtime.SetMutexProfileFraction(-1)
+	defer runtime.SetMutexProfileFraction(prev)
+
+	const fraction = 1
+	const iters = 100
+	const workers = 2
+
+	runtime.SetMutexProfileFraction(fraction)
+	runtime.SetBlockProfileRate(1)
+	defer runtime.SetBlockProfileRate(0)
+
+	wg := sync.WaitGroup{}
+	wg.Add(workers)
+	for j := 0; j < workers; j++ {
+		go func() {
+			for i := 0; i < iters; i++ {
+				m.Lock()
+				// Wait at least 1 millisecond to pass the
+				// starvation threshold for the mutex
+				time.Sleep(time.Millisecond)
+				m.Unlock()
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	assertNoDuplicates := func(name string, collect func([]runtime.BlockProfileRecord) (int, bool)) {
+		var p []runtime.BlockProfileRecord
+		n, ok := collect(nil)
+		for {
+			p = make([]runtime.BlockProfileRecord, n+50)
+			n, ok = collect(p)
+			if ok {
+				p = p[:n]
+				break
+			}
+		}
+		seen := make(map[string]struct{})
+		for _, r := range p {
+			cf := runtime.CallersFrames(r.Stack())
+			var stack strings.Builder
+			for {
+				f, more := cf.Next()
+				stack.WriteString(f.Func.Name())
+				if !more {
+					break
+				}
+				stack.WriteByte('\n')
+			}
+			s := stack.String()
+			if !strings.Contains(s, "TestMutexBlockFullAggregation") {
+				continue
+			}
+			if _, ok := seen[s]; ok {
+				t.Errorf("saw duplicate entry in %s profile with stack:\n%s", name, s)
+			}
+			seen[s] = struct{}{}
+		}
+		if len(seen) == 0 {
+			t.Errorf("did not see any samples in %s profile for this test", name)
+		}
+	}
+	t.Run("mutex", func(t *testing.T) {
+		assertNoDuplicates("mutex", runtime.MutexProfile)
+	})
+	t.Run("block", func(t *testing.T) {
+		assertNoDuplicates("block", runtime.BlockProfile)
+	})
+}

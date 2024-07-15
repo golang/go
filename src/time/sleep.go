@@ -23,6 +23,7 @@ func syncTimer(c chan Time) unsafe.Pointer {
 	// If asynctimerchan=1, we don't even tell the runtime
 	// about channel timers, so that we get the pre-Go 1.23 code paths.
 	if asynctimerchan.Value() == "1" {
+		asynctimerchan.IncNonDefault()
 		return nil
 	}
 

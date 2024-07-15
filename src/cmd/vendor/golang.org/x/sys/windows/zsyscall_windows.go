@@ -91,6 +91,7 @@ var (
 	procEnumServicesStatusExW                                = modadvapi32.NewProc("EnumServicesStatusExW")
 	procEqualSid                                             = modadvapi32.NewProc("EqualSid")
 	procFreeSid                                              = modadvapi32.NewProc("FreeSid")
+	procGetAce                                               = modadvapi32.NewProc("GetAce")
 	procGetLengthSid                                         = modadvapi32.NewProc("GetLengthSid")
 	procGetNamedSecurityInfoW                                = modadvapi32.NewProc("GetNamedSecurityInfoW")
 	procGetSecurityDescriptorControl                         = modadvapi32.NewProc("GetSecurityDescriptorControl")
@@ -1220,6 +1221,14 @@ func setEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCE
 	r0, _, _ := syscall.Syscall6(procSetEntriesInAclW.Addr(), 4, uintptr(countExplicitEntries), uintptr(unsafe.Pointer(explicitEntries)), uintptr(unsafe.Pointer(oldACL)), uintptr(unsafe.Pointer(newACL)), 0, 0)
 	if r0 != 0 {
 		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func GetAce(acl *ACL, aceIndex uint32, pAce **ACCESS_ALLOWED_ACE) (ret error) {
+	r0, _, _ := syscall.Syscall(procGetAce.Addr(), 3, uintptr(unsafe.Pointer(acl)), uintptr(aceIndex), uintptr(unsafe.Pointer(pAce)))
+	if r0 == 0 {
+		ret = GetLastError()
 	}
 	return
 }

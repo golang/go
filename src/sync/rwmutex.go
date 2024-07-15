@@ -234,7 +234,7 @@ func syscall_hasWaitingReaders(rw *RWMutex) bool {
 }
 
 // RLocker returns a [Locker] interface that implements
-// the [RWMutex.Lock] and [RWMutex.Unlock] methods by calling rw.RLock and rw.RUnlock.
+// the [Locker.Lock] and [Locker.Unlock] methods by calling rw.RLock and rw.RUnlock.
 func (rw *RWMutex) RLocker() Locker {
 	return (*rlocker)(rw)
 }

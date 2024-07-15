@@ -31,9 +31,9 @@ type CounterConfig struct {
 	Depth int     `json:",omitempty"` // for stack counters
 }
 
-// A Report is what's uploaded (or saved locally)
+// A Report is the weekly aggregate of counters.
 type Report struct {
-	Week     string  // first day this report covers (YYYY-MM-DD)
+	Week     string  // End day this report covers (YYYY-MM-DD)
 	LastWeek string  // Week field from latest previous report uploaded
 	X        float64 // A random probability used to determine which counters are uploaded
 	Programs []*ProgramReport

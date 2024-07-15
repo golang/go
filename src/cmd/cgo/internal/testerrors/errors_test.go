@@ -127,6 +127,7 @@ func TestReportsTypeErrors(t *testing.T) {
 		"issue33061.go",
 		"issue50710.go",
 		"issue67517.go",
+		"issue67707.go",
 	} {
 		check(t, file)
 	}

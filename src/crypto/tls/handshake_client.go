@@ -478,7 +478,9 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 	}
 
 	if c.quic != nil {
-		c.quicResumeSession(session)
+		if c.quic.enableSessionEvents {
+			c.quicResumeSession(session)
+		}
 
 		// For 0-RTT, the cipher suite has to match exactly, and we need to be
 		// offering the same ALPN.

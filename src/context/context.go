@@ -739,6 +739,8 @@ func stringify(v any) string {
 		return s.String()
 	case string:
 		return s
+	case nil:
+		return "<nil>"
 	}
 	return reflectlite.TypeOf(v).String()
 }

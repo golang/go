@@ -33,8 +33,9 @@ var (
 
 	trustCert = flag.String("trust-cert", "", "")
 
-	minVersion = flag.Int("min-version", VersionSSL30, "")
-	maxVersion = flag.Int("max-version", VersionTLS13, "")
+	minVersion    = flag.Int("min-version", VersionSSL30, "")
+	maxVersion    = flag.Int("max-version", VersionTLS13, "")
+	expectVersion = flag.Int("expect-version", 0, "")
 
 	noTLS13 = flag.Bool("no-tls13", false, "")
 
@@ -53,6 +54,7 @@ var (
 	echConfigListB64           = flag.String("ech-config-list", "", "")
 	expectECHAccepted          = flag.Bool("expect-ech-accept", false, "")
 	expectHRR                  = flag.Bool("expect-hrr", false, "")
+	expectNoHRR                = flag.Bool("expect-no-hrr", false, "")
 	expectedECHRetryConfigs    = flag.String("expect-ech-retry-configs", "", "")
 	expectNoECHRetryConfigs    = flag.Bool("expect-no-ech-retry-configs", false, "")
 	onInitialExpectECHAccepted = flag.Bool("on-initial-expect-ech-accept", false, "")
@@ -74,6 +76,8 @@ var (
 
 	advertiseALPN = flag.String("advertise-alpn", "", "")
 	expectALPN    = flag.String("expect-alpn", "", "")
+	rejectALPN    = flag.Bool("reject-alpn", false, "")
+	declineALPN   = flag.Bool("decline-alpn", false, "")
 
 	hostName = flag.String("host-name", "", "")
 
@@ -123,6 +127,14 @@ func bogoShim() {
 			cfg.NextProtos = append(cfg.NextProtos, alpns[1:1+alpnLen])
 			alpns = alpns[alpnLen+1:]
 		}
+	}
+
+	if *rejectALPN {
+		cfg.NextProtos = []string{"unnegotiableprotocol"}
+	}
+
+	if *declineALPN {
+		cfg.NextProtos = []string{}
 	}
 
 	if *hostName != "" {
@@ -252,7 +264,12 @@ func bogoShim() {
 			if *expectALPN != "" && cs.NegotiatedProtocol != *expectALPN {
 				log.Fatalf("unexpected protocol negotiated: want %q, got %q", *expectALPN, cs.NegotiatedProtocol)
 			}
-
+			if *expectVersion != 0 && cs.Version != uint16(*expectVersion) {
+				log.Fatalf("expected ssl version %q, got %q", uint16(*expectVersion), cs.Version)
+			}
+			if *declineALPN && cs.NegotiatedProtocol != "" {
+				log.Fatal("unexpected ALPN protocol")
+			}
 			if *expectECHAccepted && !cs.ECHAccepted {
 				log.Fatal("expected ECH to be accepted, but connection state shows it was not")
 			} else if i == 0 && *onInitialExpectECHAccepted && !cs.ECHAccepted {
@@ -265,6 +282,10 @@ func bogoShim() {
 
 			if *expectHRR && !cs.testingOnlyDidHRR {
 				log.Fatal("expected HRR but did not do it")
+			}
+
+			if *expectNoHRR && cs.testingOnlyDidHRR {
+				log.Fatal("expected no HRR but did do it")
 			}
 
 			if *expectSessionMiss && cs.DidResume {

@@ -10,7 +10,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 )
 
 func Increment() {
@@ -22,30 +22,30 @@ func Increment() {
 // the command is running in.
 func incrementConfig() {
 	if !modload.WillBeEnabled() {
-		telemetry.Inc("go/mode:gopath")
+		counter.Inc("go/mode:gopath")
 	} else if workfile := modload.FindGoWork(base.Cwd()); workfile != "" {
-		telemetry.Inc("go/mode:workspace")
+		counter.Inc("go/mode:workspace")
 	} else {
-		telemetry.Inc("go/mode:module")
+		counter.Inc("go/mode:module")
 	}
-	telemetry.Inc("go/platform/target/goos:" + cfg.Goos)
-	telemetry.Inc("go/platform/target/goarch:" + cfg.Goarch)
+	counter.Inc("go/platform/target/goos:" + cfg.Goos)
+	counter.Inc("go/platform/target/goarch:" + cfg.Goarch)
 	switch cfg.Goarch {
 	case "386":
-		telemetry.Inc("go/platform/target/go386:" + cfg.GO386)
+		counter.Inc("go/platform/target/go386:" + cfg.GO386)
 	case "amd64":
-		telemetry.Inc("go/platform/target/goamd64:" + cfg.GOAMD64)
+		counter.Inc("go/platform/target/goamd64:" + cfg.GOAMD64)
 	case "arm":
-		telemetry.Inc("go/platform/target/goarm:" + cfg.GOARM)
+		counter.Inc("go/platform/target/goarm:" + cfg.GOARM)
 	case "arm64":
-		telemetry.Inc("go/platform/target/goarm64:" + cfg.GOARM64)
+		counter.Inc("go/platform/target/goarm64:" + cfg.GOARM64)
 	case "mips":
-		telemetry.Inc("go/platform/target/gomips:" + cfg.GOMIPS)
+		counter.Inc("go/platform/target/gomips:" + cfg.GOMIPS)
 	case "ppc64":
-		telemetry.Inc("go/platform/target/goppc64:" + cfg.GOPPC64)
+		counter.Inc("go/platform/target/goppc64:" + cfg.GOPPC64)
 	case "riscv64":
-		telemetry.Inc("go/platform/target/goriscv64:" + cfg.GORISCV64)
+		counter.Inc("go/platform/target/goriscv64:" + cfg.GORISCV64)
 	case "wasm":
-		telemetry.Inc("go/platform/target/gowasm:" + cfg.GOWASM)
+		counter.Inc("go/platform/target/gowasm:" + cfg.GOWASM)
 	}
 }

@@ -36,7 +36,22 @@ type file struct {
 	buildInfo          *debug.BuildInfo
 	timeBegin, timeEnd time.Time
 	err                error
-	current            atomic.Pointer[mappedFile] // may be read without holding mu, but may be nil
+	// current holds the current file mapping, which may change when the file is
+	// rotated or extended.
+	//
+	// current may be read without holding mu, but may be nil.
+	//
+	// The cleanup logic for file mappings is complicated, because invalidating
+	// counter pointers is reentrant: [file.invalidateCounters] may call
+	// [file.lookup], which acquires mu. Therefore, writing current must be done
+	// as follows:
+	//  1. record the previous value of current
+	//  2. Store a new value in current
+	//  3. unlock mu
+	//  4. call invalidateCounters
+	//  5. close the previous mapped value from (1)
+	// TODO(rfindley): simplify
+	current atomic.Pointer[mappedFile]
 }
 
 var defaultFile file
@@ -292,7 +307,7 @@ func (f *file) rotate1() time.Time {
 	}
 	name := filepath.Join(dir, baseName)
 
-	m, err := openMapped(name, meta, nil)
+	m, err := openMapped(name, meta)
 	if err != nil {
 		// Mapping failed:
 		// If there used to be a mapped file, after cleanup
@@ -334,11 +349,15 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 	cleanup = nop
 	if newM != nil {
 		f.current.Store(newM)
-		// TODO(rfindley): shouldn't this close f.current?
-		cleanup = f.invalidateCounters
+		cleanup = func() {
+			f.invalidateCounters()
+			current.close()
+		}
 	}
 	return v, cleanup
 }
+
+var openOnce sync.Once
 
 // Open associates counting with the defaultFile.
 // The returned function is for testing only, and should
@@ -349,25 +368,61 @@ func Open() func() {
 	if telemetry.DisabledOnPlatform {
 		return func() {}
 	}
-	if mode, _ := telemetry.Default.Mode(); mode == "off" {
-		// Don't open the file when telemetry is off.
-		defaultFile.err = ErrDisabled
-		return func() {} // No need to clean up.
-	}
-	debugPrintf("Open")
-	defaultFile.rotate()
-	return func() {
-		// Once this has been called, the defaultFile is no longer usable.
-		mf := defaultFile.current.Load()
-		if mf == nil {
-			// telemetry might have been off
+	close := func() {}
+	openOnce.Do(func() {
+		if mode, _ := telemetry.Default.Mode(); mode == "off" {
+			// Don't open the file when telemetry is off.
+			defaultFile.err = ErrDisabled
+			// No need to clean up.
 			return
 		}
-		mf.close()
-	}
+		debugPrintf("Open")
+		defaultFile.rotate()
+		close = func() {
+			// Once this has been called, the defaultFile is no longer usable.
+			mf := defaultFile.current.Load()
+			if mf == nil {
+				// telemetry might have been off
+				return
+			}
+			mf.close()
+		}
+	})
+	return close
 }
 
+const (
+	FileVersion = "v1"
+	hdrPrefix   = "# telemetry/counter file " + FileVersion + "\n"
+	recordUnit  = 32
+	maxMetaLen  = 512
+	numHash     = 512 // 2kB for hash table
+	maxNameLen  = 4 * 1024
+	limitOff    = 0
+	hashOff     = 4
+	pageSize    = 16 * 1024
+	minFileLen  = 16 * 1024
+)
+
 // A mappedFile is a counter file mmapped into memory.
+//
+// The file layout for a mappedFile m is as follows:
+//
+//	offset, byte size:                 description
+//	------------------                 -----------
+//	0, hdrLen:                         header, containing metadata; see [mappedHeader]
+//	hdrLen+limitOff, 4:                uint32 allocation limit (byte offset of the end of counter records)
+//	hdrLen+hashOff, 4*numHash:         hash table, stores uint32 heads of a linked list of records, keyed by name hash
+//	hdrLen+hashOff+4*numHash to limit: counter records: see record syntax below
+//
+// The record layout is as follows:
+//
+//	offset, byte size: description
+//	------------------ -----------
+//	0, 8:              uint64 counter value
+//	8, 12:             uint32 name length
+//	12, 16:            uint32 offset of next record in linked list
+//	16, name length:   counter name
 type mappedFile struct {
 	meta      string
 	hdrLen    uint32
@@ -377,9 +432,16 @@ type mappedFile struct {
 	mapping   *mmap.Data
 }
 
+// openMapped opens and memory maps a file.
+//
+// name is the path to the file.
+//
+// meta is the file metadata, which must match the metadata of the file on disk
+// exactly.
+//
 // existing should be nil the first time this is called for a file,
 // and when remapping, should be the previous mappedFile.
-func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, err error) {
+func openMapped(name, meta string) (_ *mappedFile, err error) {
 	hdr, err := mappedHeader(meta)
 	if err != nil {
 		return nil, err
@@ -395,13 +457,13 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, 
 		f:    f,
 		meta: meta,
 	}
-	// without this files cannot be cleanedup on Windows (affects tests)
-	runtime.SetFinalizer(m, (*mappedFile).close)
+
 	defer func() {
 		if err != nil {
 			m.close()
 		}
 	}()
+
 	info, err := f.Stat()
 	if err != nil {
 		return nil, err
@@ -426,36 +488,20 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, 
 	}
 
 	// Map into memory.
-	var mapping mmap.Data
-	if existing != nil {
-		mapping, err = memmap(f, existing.mapping)
-	} else {
-		mapping, err = memmap(f, nil)
-	}
+	mapping, err := memmap(f)
 	if err != nil {
 		return nil, err
 	}
-	m.mapping = &mapping
+	m.mapping = mapping
 	if !bytes.HasPrefix(m.mapping.Data, hdr) {
+		// TODO(rfindley): we can and should do better here, reading the mapped
+		// header length and comparing headers exactly.
 		return nil, fmt.Errorf("counter: header mismatch")
 	}
 	m.hdrLen = uint32(len(hdr))
 
 	return m, nil
 }
-
-const (
-	FileVersion = "v1"
-	hdrPrefix   = "# telemetry/counter file " + FileVersion + "\n"
-	recordUnit  = 32
-	maxMetaLen  = 512
-	numHash     = 512 // 2kB for hash table
-	maxNameLen  = 4 * 1024
-	limitOff    = 0
-	hashOff     = 4
-	pageSize    = 16 * 1024
-	minFileLen  = 16 * 1024
-)
 
 func mappedHeader(meta string) ([]byte, error) {
 	if len(meta) > maxMetaLen {
@@ -477,6 +523,11 @@ func (m *mappedFile) place(limit uint32, name string) (start, end uint32) {
 	}
 	n := round(uint32(16+len(name)), recordUnit)
 	start = round(limit, recordUnit) // should already be rounded but just in case
+	// Note: Checking for crossing a page boundary would be
+	// start/pageSize != (start+n-1)/pageSize,
+	// but we are checking for reaching the page end, so no -1.
+	// The page end is reserved for use by extend.
+	// See the comment in m.extend.
 	if start/pageSize != (start+n)/pageSize {
 		// bump start to next page
 		start = round(limit, pageSize)
@@ -531,6 +582,9 @@ func (m *mappedFile) cas32(off, old, new uint32) bool {
 	return (*atomic.Uint32)(unsafe.Pointer(&m.mapping.Data[off])).CompareAndSwap(old, new)
 }
 
+// entryAt reads a counter record at the given byte offset.
+//
+// See the documentation for [mappedFile] for a description of the counter record layout.
 func (m *mappedFile) entryAt(off uint32) (name []byte, next uint32, v *atomic.Uint64, ok bool) {
 	if off < m.hdrLen+hashOff || int64(off)+16 > int64(len(m.mapping.Data)) {
 		return nil, 0, nil, false
@@ -545,7 +599,14 @@ func (m *mappedFile) entryAt(off uint32) (name []byte, next uint32, v *atomic.Ui
 	return name, next, v, true
 }
 
+// writeEntryAt writes a new counter record at the given offset.
+//
+// See the documentation for [mappedFile] for a description of the counter record layout.
+//
+// writeEntryAt only returns false in the presence of some form of corruption:
+// an offset outside the bounds of the record region in the mapped file.
 func (m *mappedFile) writeEntryAt(off uint32, name string) (next *atomic.Uint32, v *atomic.Uint64, ok bool) {
+	// TODO(rfindley): shouldn't this first condition be off < m.hdrLen+hashOff+4*numHash?
 	if off < m.hdrLen+hashOff || int64(off)+16+int64(len(name)) > int64(len(m.mapping.Data)) {
 		return nil, nil, false
 	}
@@ -556,6 +617,11 @@ func (m *mappedFile) writeEntryAt(off uint32, name string) (next *atomic.Uint32,
 	return next, v, true
 }
 
+// lookup searches the mapped file for a counter record with the given name, returning:
+//   - v: the mapped counter value
+//   - headOff: the offset of the head pointer (see [mappedFile])
+//   - head: the value of the head pointer
+//   - ok: whether lookup succeeded
 func (m *mappedFile) lookup(name string) (v *atomic.Uint64, headOff, head uint32, ok bool) {
 	h := hash(name)
 	headOff = m.hdrLen + hashOff + h*4
@@ -574,6 +640,9 @@ func (m *mappedFile) lookup(name string) (v *atomic.Uint64, headOff, head uint32
 	return nil, headOff, head, true
 }
 
+// newCounter allocates and writes a new counter record with the given name.
+//
+// If name is already recorded in the file, newCounter returns the existing counter.
 func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, err error) {
 	if len(name) > maxNameLen {
 		return nil, nil, fmt.Errorf("counter name too long")
@@ -590,19 +659,37 @@ func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, 
 	}()
 
 	v, headOff, head, ok := m.lookup(name)
-	for !ok {
+	for tries := 0; !ok; tries++ {
+		if tries >= 10 {
+			debugFatalf("corrupt: failed to remap after 10 tries")
+			return nil, nil, errCorrupt
+		}
 		// Lookup found an invalid pointer,
 		// perhaps because the file has grown larger than the mapping.
 		limit := m.load32(m.hdrLen + limitOff)
-		if int64(limit) <= int64(len(m.mapping.Data)) {
-			// Mapping doesn't need to grow, so lookup found actual corruption.
-			debugPrintf("corrupt1\n")
+		if limit, datalen := int64(limit), int64(len(m.mapping.Data)); limit <= datalen {
+			// Mapping doesn't need to grow, so lookup found actual corruption,
+			// in the form of an entry pointer that exceeds the recorded allocation
+			// limit. This should never happen, unless the actual file contents are
+			// corrupt.
+			debugFatalf("corrupt: limit %d is within mapping length %d", limit, datalen)
 			return nil, nil, errCorrupt
 		}
-		newM, err := openMapped(m.f.Name(), m.meta, m)
+		// That the recorded limit is greater than the mapped data indicates that
+		// an external process has extended the file. Re-map to pick up this extension.
+		newM, err := openMapped(m.f.Name(), m.meta)
 		if err != nil {
 			return nil, nil, err
 		}
+		if limit, datalen := int64(limit), int64(len(newM.mapping.Data)); limit > datalen {
+			// We've re-mapped, yet limit still exceeds the data length. This
+			// indicates that the underlying file was somehow truncated, or the
+			// recorded limit is corrupt.
+			debugFatalf("corrupt: limit %d exceeds file size %d", limit, datalen)
+			return nil, nil, errCorrupt
+		}
+		// If m != orig, this is at least the second time around the loop
+		// trying to open the mapping. Close the previous attempt.
 		if m != orig {
 			m.close()
 		}
@@ -643,7 +730,7 @@ func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, 
 	// Write record.
 	next, v, ok := m.writeEntryAt(start, name)
 	if !ok {
-		debugPrintf("corrupt2 %#x+%d vs %#x\n", start, len(name), len(m.mapping.Data))
+		debugFatalf("corrupt: failed to write entry: %#x+%d vs %#x\n", start, len(name), len(m.mapping.Data))
 		return nil, nil, errCorrupt // more likely our math is wrong
 	}
 
@@ -679,12 +766,26 @@ func (m *mappedFile) extend(end uint32) (*mappedFile, error) {
 		return nil, err
 	}
 	if info.Size() < int64(end) {
+		// Note: multiple processes could be calling extend at the same time,
+		// but this write only writes the last 4 bytes of the page.
+		// The last 4 bytes of the page are reserved for this purpose and hold no data.
+		// (In m.place, if a new record would extend to the very end of the page,
+		// it is placed in the next page instead.)
+		// So it is fine if multiple processes extend at the same time.
 		if _, err := m.f.WriteAt(m.zero[:], int64(end)-int64(len(m.zero))); err != nil {
 			return nil, err
 		}
 	}
-	newM, err := openMapped(m.f.Name(), m.meta, m)
-	m.f.Close()
+	newM, err := openMapped(m.f.Name(), m.meta)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(newM.mapping.Data)) < int64(end) {
+		// File system or logic bug: new file is somehow not extended.
+		// See go.dev/issue/68311, where this appears to have been happening.
+		newM.close()
+		return nil, errCorrupt
+	}
 	return newM, err
 }
 
