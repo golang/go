@@ -73,6 +73,7 @@ var ARM64 struct {
 	HasCRC32   bool
 	HasATOMICS bool
 	HasCPUID   bool
+	HasDIT     bool
 	IsNeoverse bool
 	_          CacheLinePad
 }
