@@ -425,6 +425,13 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 	restore := true
 	defer unwindm(&restore)
 
+	var ditAlreadySet bool
+	if debug.dataindependenttiming == 1 && gp.m.isextra {
+		// We only need to enable DIT for threads that were created by C, as it
+		// should already by enabled on threads that were created by Go.
+		ditAlreadySet = sys.EnableDIT()
+	}
+
 	if raceenabled {
 		raceacquire(unsafe.Pointer(&racecgosync))
 	}
@@ -438,6 +445,11 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 
 	if raceenabled {
 		racereleasemerge(unsafe.Pointer(&racecgosync))
+	}
+
+	if debug.dataindependenttiming == 1 && !ditAlreadySet {
+		// Only unset DIT if it wasn't already enabled when cgocallback was called.
+		sys.DisableDIT()
 	}
 
 	// Do not unwind m->g0->sched.sp.

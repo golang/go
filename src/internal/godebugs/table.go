@@ -26,6 +26,7 @@ type Info struct {
 // (Otherwise the test in this package will fail.)
 var All = []Info{
 	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
+	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
 	{Name: "execerrdot", Package: "os/exec"},
 	{Name: "gocachehash", Package: "cmd/go"},
 	{Name: "gocachetest", Package: "cmd/go"},
