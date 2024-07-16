@@ -2817,6 +2817,33 @@ func TestUserCacheDir(t *testing.T) {
 	}
 }
 
+func TestUserCacheDirXDGConfigDirEnvVar(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "darwin", "plan9":
+		t.Skip("$XDG_CACHE_HOME is effective only on Unix systems")
+	}
+
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CACHE_HOME", wd)
+
+	dir, err := UserCacheDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dir != wd {
+		t.Fatalf("UserCacheDir returned %q; want the value of $XDG_CACHE_HOME %q", dir, wd)
+	}
+
+	t.Setenv("XDG_CACHE_HOME", "some-dir")
+	_, err = UserCacheDir()
+	if err == nil {
+		t.Fatal("UserCacheDir succeeded though $XDG_CACHE_HOME contains a relative path")
+	}
+}
+
 func TestUserConfigDir(t *testing.T) {
 	t.Parallel()
 
@@ -2838,6 +2865,33 @@ func TestUserConfigDir(t *testing.T) {
 	}
 	if !fi.IsDir() {
 		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
+	}
+}
+
+func TestUserConfigDirXDGConfigDirEnvVar(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "darwin", "plan9":
+		t.Skip("$XDG_CONFIG_HOME is effective only on Unix systems")
+	}
+
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", wd)
+
+	dir, err := UserConfigDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dir != wd {
+		t.Fatalf("UserConfigDir returned %q; want the value of $XDG_CONFIG_HOME %q", dir, wd)
+	}
+
+	t.Setenv("XDG_CONFIG_HOME", "some-dir")
+	_, err = UserConfigDir()
+	if err == nil {
+		t.Fatal("UserConfigDir succeeded though $XDG_CONFIG_HOME contains a relative path")
 	}
 }
 

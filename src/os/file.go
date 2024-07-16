@@ -472,8 +472,8 @@ func TempDir() string {
 // On Windows, it returns %LocalAppData%.
 // On Plan 9, it returns $home/lib/cache.
 //
-// If the location cannot be determined (for example, $HOME is not defined),
-// then it will return an error.
+// If the location cannot be determined (for example, $HOME is not defined) or
+// the path in $XDG_CACHE_HOME is relative, then it will return an error.
 func UserCacheDir() (string, error) {
 	var dir string
 
@@ -506,6 +506,8 @@ func UserCacheDir() (string, error) {
 				return "", errors.New("neither $XDG_CACHE_HOME nor $HOME are defined")
 			}
 			dir += "/.cache"
+		} else if !filepathlite.IsAbs(dir) {
+			return "", errors.New("path in $XDG_CACHE_HOME is relative")
 		}
 	}
 
@@ -523,8 +525,8 @@ func UserCacheDir() (string, error) {
 // On Windows, it returns %AppData%.
 // On Plan 9, it returns $home/lib.
 //
-// If the location cannot be determined (for example, $HOME is not defined),
-// then it will return an error.
+// If the location cannot be determined (for example, $HOME is not defined) or
+// the path in $XDG_CONFIG_HOME is relative, then it will return an error.
 func UserConfigDir() (string, error) {
 	var dir string
 
@@ -557,6 +559,8 @@ func UserConfigDir() (string, error) {
 				return "", errors.New("neither $XDG_CONFIG_HOME nor $HOME are defined")
 			}
 			dir += "/.config"
+		} else if !filepathlite.IsAbs(dir) {
+			return "", errors.New("path in $XDG_CONFIG_HOME is relative")
 		}
 	}
 
