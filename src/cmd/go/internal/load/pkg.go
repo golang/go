@@ -588,12 +588,25 @@ func (s *ImportStack) Copy() []string {
 	return ss
 }
 
+func delimiter(r rune) bool {
+	return r == '/' || r == '\\'
+}
+
+func convertToBasename(path string) string {
+	tokens := strings.FieldsFunc(path, delimiter)
+	length := len(tokens)
+	if length == 0 {
+		return ""
+	}
+	return tokens[length-1]
+}
+
 func (s *ImportStack) CopyWithPos() []string {
 	ss := make([]string, 0, len(*s))
 	for _, v := range *s {
 		sPos := make([]string, 0, len(v.Pos))
 		for _, p := range v.Pos {
-			sPos = append(sPos, p.String())
+			sPos = append(sPos, convertToBasename(p.String()))
 		}
 		lensPos := len(sPos)
 		if lensPos > 0 {
