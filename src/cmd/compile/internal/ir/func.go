@@ -421,7 +421,7 @@ var globClosgen int32
 
 // closureName generates a new unique name for a closure within outerfn at pos.
 func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
-	if outerfn != nil && outerfn.OClosure != nil && outerfn.OClosure.Func.RangeParent != nil {
+	if outerfn.OClosure != nil && outerfn.OClosure.Func.RangeParent != nil {
 		outerfn = outerfn.OClosure.Func.RangeParent
 	}
 	pkg := types.LocalPkg
@@ -431,7 +431,7 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 	default:
 		base.FatalfAt(pos, "closureName: bad Op: %v", why)
 	case OCLOSURE:
-		if outerfn == nil || outerfn.OClosure == nil {
+		if outerfn.OClosure == nil {
 			suffix = ".func"
 		}
 	case ORANGE:
@@ -446,7 +446,7 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 	// There may be multiple functions named "_". In those
 	// cases, we can't use their individual Closgens as it
 	// would lead to name clashes.
-	if outerfn != nil && !IsBlank(outerfn.Nname) {
+	if !IsBlank(outerfn.Nname) {
 		pkg = outerfn.Sym().Pkg
 		outer = FuncName(outerfn)
 
