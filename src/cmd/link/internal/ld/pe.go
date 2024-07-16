@@ -16,6 +16,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/buildcfg"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -307,7 +308,7 @@ var (
 	pe64        int
 	dr          *Dll
 
-	dexport = make([]loader.Sym, 0, 1024)
+	dexport []loader.Sym
 )
 
 // peStringTable is a COFF string table.
@@ -1390,7 +1391,7 @@ func initdynexport(ctxt *Link) {
 		if !ldr.AttrReachable(s) || !ldr.AttrCgoExportDynamic(s) {
 			continue
 		}
-		if len(dexport)+1 > cap(dexport) {
+		if len(dexport) >= math.MaxUint16 {
 			ctxt.Errorf(s, "pe dynexport table is full")
 			errorexit()
 		}
