@@ -140,9 +140,6 @@ func ReadDir(name string) ([]DirEntry, error) {
 // already exists in the destination, CopyFS will return an error
 // such that errors.Is(err, fs.ErrExist) will be true.
 //
-// Symbolic links in fsys are not supported. A *PathError with Err set
-// to ErrInvalid is returned when copying from a symbolic link.
-//
 // Symbolic links in dir are followed.
 //
 // New files added to fsys (including if dir is a subdirectory of fsys)
@@ -160,35 +157,38 @@ func CopyFS(dir string, fsys fs.FS) error {
 			return err
 		}
 		newPath := joinPath(dir, fpath)
-		if d.IsDir() {
-			return MkdirAll(newPath, 0777)
-		}
 
-		// TODO(panjf2000): handle symlinks with the help of fs.ReadLinkFS
-		// 		once https://go.dev/issue/49580 is done.
-		//		we also need filepathlite.IsLocal from https://go.dev/cl/564295.
-		if !d.Type().IsRegular() {
+		switch d.Type() {
+		case ModeDir:
+			return MkdirAll(newPath, 0777)
+		case ModeSymlink:
+			target, err := fs.ReadLink(fsys, path)
+			if err != nil {
+				return err
+			}
+			return Symlink(target, newPath)
+		case 0:
+			r, err := fsys.Open(path)
+			if err != nil {
+				return err
+			}
+			defer r.Close()
+			info, err := r.Stat()
+			if err != nil {
+				return err
+			}
+			w, err := OpenFile(newPath, O_CREATE|O_EXCL|O_WRONLY, 0666|info.Mode()&0777)
+			if err != nil {
+				return err
+			}
+
+			if _, err := io.Copy(w, r); err != nil {
+				w.Close()
+				return &PathError{Op: "Copy", Path: newPath, Err: err}
+			}
+			return w.Close()
+		default:
 			return &PathError{Op: "CopyFS", Path: path, Err: ErrInvalid}
 		}
-
-		r, err := fsys.Open(path)
-		if err != nil {
-			return err
-		}
-		defer r.Close()
-		info, err := r.Stat()
-		if err != nil {
-			return err
-		}
-		w, err := OpenFile(newPath, O_CREATE|O_EXCL|O_WRONLY, 0666|info.Mode()&0777)
-		if err != nil {
-			return err
-		}
-
-		if _, err := io.Copy(w, r); err != nil {
-			w.Close()
-			return &PathError{Op: "Copy", Path: newPath, Err: err}
-		}
-		return w.Close()
 	})
 }

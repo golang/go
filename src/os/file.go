@@ -700,11 +700,16 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
 //
 // The directory dir must not be "".
 //
-// The result implements [io/fs.StatFS], [io/fs.ReadFileFS] and
-// [io/fs.ReadDirFS].
+// The result implements [io/fs.StatFS], [io/fs.ReadFileFS], [io/fs.ReadDirFS], and
+// [io/fs.ReadLinkFS].
 func DirFS(dir string) fs.FS {
 	return dirFS(dir)
 }
+
+var _ fs.StatFS = dirFS("")
+var _ fs.ReadFileFS = dirFS("")
+var _ fs.ReadDirFS = dirFS("")
+var _ fs.ReadLinkFS = dirFS("")
 
 type dirFS string
 
@@ -775,6 +780,28 @@ func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+func (dir dirFS) Lstat(name string) (fs.FileInfo, error) {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "lstat", Path: name, Err: err}
+	}
+	f, err := Lstat(fullname)
+	if err != nil {
+		// See comment in dirFS.Open.
+		err.(*PathError).Path = name
+		return nil, err
+	}
+	return f, nil
+}
+
+func (dir dirFS) ReadLink(name string) (string, error) {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return "", &PathError{Op: "readlink", Path: name, Err: err}
+	}
+	return Readlink(fullname)
 }
 
 // join returns the path for name in dir.
