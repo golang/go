@@ -601,12 +601,21 @@ func convertToBasename(path string) string {
 	return tokens[length-1]
 }
 
+func trimLineNumber(basename string) string {
+	tokens := strings.Split(basename, ":")
+	length := len(tokens)
+	if length == 0 {
+		return ""
+	}
+	return tokens[0]
+}
+
 func (s *ImportStack) CopyWithPos() []string {
 	ss := make([]string, 0, len(*s))
 	for _, v := range *s {
 		sPos := make([]string, 0, len(v.Pos))
 		for _, p := range v.Pos {
-			sPos = append(sPos, convertToBasename(p.String()))
+			sPos = append(sPos, trimLineNumber(convertToBasename(p.String())))
 		}
 		lensPos := len(sPos)
 		if lensPos > 0 {
