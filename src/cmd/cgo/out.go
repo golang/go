@@ -644,11 +644,11 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(false)\n")
 	}
 
-	// use _Cgo_keepalive instead of _Cgo_use when noescape exist,
+	// use _Cgo_keepalive instead of _Cgo_use when noescape & nocallback exist,
 	// so that the compiler won't force to escape them to heap.
 	// instead, make the compiler keep them alive by using _Cgo_keepalive.
 	touchFunc := "_Cgo_use"
-	if p.noEscapes[n.C] {
+	if p.noEscapes[n.C] && p.noCallbacks[n.C] {
 		touchFunc = "_Cgo_keepalive"
 	}
 	fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")

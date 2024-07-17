@@ -118,6 +118,7 @@ int add(int x, int y) {
 // escape vs noescape
 
 #cgo noescape handleGoStringPointerNoescape
+#cgo nocallback handleGoStringPointerNoescape
 void handleGoStringPointerNoescape(void *s) {}
 
 void handleGoStringPointerEscape(void *s) {}
