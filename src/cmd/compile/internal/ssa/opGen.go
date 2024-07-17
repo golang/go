@@ -2600,6 +2600,7 @@ const (
 	OpRISCV64FSQRTS
 	OpRISCV64FNEGS
 	OpRISCV64FMVSX
+	OpRISCV64FMVXS
 	OpRISCV64FCVTSW
 	OpRISCV64FCVTSL
 	OpRISCV64FCVTWS
@@ -2625,6 +2626,7 @@ const (
 	OpRISCV64FABSD
 	OpRISCV64FSGNJD
 	OpRISCV64FMVDX
+	OpRISCV64FMVXD
 	OpRISCV64FCVTDW
 	OpRISCV64FCVTDL
 	OpRISCV64FCVTWD
@@ -34986,6 +34988,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "FMVXS",
+		argLen: 1,
+		asm:    riscv.AFMVXS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
 		name:   "FCVTSW",
 		argLen: 1,
 		asm:    riscv.AFCVTSW,
@@ -35342,6 +35357,19 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "FMVXD",
+		argLen: 1,
+		asm:    riscv.AFMVXD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
