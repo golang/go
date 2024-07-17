@@ -12,6 +12,7 @@ import (
 	. "slices"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 var equalIntTests = []struct {
@@ -1448,5 +1449,14 @@ func TestRepeatPanics(t *testing.T) {
 		if !panics(func() { _ = Repeat(test.x, test.count) }) {
 			t.Errorf("Repeat %s: got no panic, want panic", test.name)
 		}
+	}
+}
+
+func TestIssue68488(t *testing.T) {
+	s := make([]int, 3)
+	clone := Clone(s[1:1])
+	switch unsafe.SliceData(clone) {
+	case &s[0], &s[1], &s[2]:
+		t.Error("clone keeps alive s due to array overlap")
 	}
 }
