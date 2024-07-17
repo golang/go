@@ -6,6 +6,7 @@ package big
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/bits"
@@ -227,7 +228,7 @@ func TestScanBase(t *testing.T) {
 	for _, a := range natScanTests {
 		r := strings.NewReader(a.s)
 		x, b, count, err := nat(nil).scan(r, a.base, a.frac)
-		if err != a.err {
+		if errors.Is(err, a.err) {
 			t.Errorf("scan%+v\n\tgot error = %v; want %v", a, err, a.err)
 		}
 		if x.cmp(a.x) != 0 {

@@ -292,7 +292,7 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
 		t.Errorf("expected to have read 2 bytes, got %v", n)
 	}
 	n, err = ReadAtLeast(rb, buf, 4)
-	if err != ErrShortBuffer {
+	if !errors.Is(err, ErrShortBuffer) {
 		t.Errorf("expected ErrShortBuffer got %v", err)
 	}
 	if n != 0 {
@@ -348,7 +348,7 @@ func TestTeeReader(t *testing.T) {
 	pr, pw := Pipe()
 	pr.Close()
 	r = TeeReader(rb, pw)
-	if n, err := ReadFull(r, dst); n != 0 || err != ErrClosedPipe {
+	if n, err := ReadFull(r, dst); n != 0 || !errors.Is(err, ErrClosedPipe) {
 		t.Errorf("closed tee: ReadFull(r, dst) = %d, %v; want 0, EPIPE", n, err)
 	}
 }

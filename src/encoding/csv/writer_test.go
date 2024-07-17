@@ -58,7 +58,7 @@ func TestWrite(t *testing.T) {
 			f.Comma = tt.Comma
 		}
 		err := f.WriteAll(tt.Input)
-		if err != tt.Error {
+		if !errors.Is(err, tt.Error) {
 			t.Errorf("Unexpected error:\ngot  %v\nwant %v", err, tt.Error)
 		}
 		out := b.String()

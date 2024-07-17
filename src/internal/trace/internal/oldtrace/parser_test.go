@@ -6,6 +6,7 @@ package oldtrace
 
 import (
 	"bytes"
+	"errors"
 	"internal/trace/version"
 	"os"
 	"path/filepath"
@@ -64,7 +65,7 @@ func TestParseCanned(t *testing.T) {
 			}
 			checkTrace(t, int(v), trace)
 		case strings.HasSuffix(f.Name(), "_unordered"):
-			if err != ErrTimeOrder {
+			if !errors.Is(err, ErrTimeOrder) {
 				t.Errorf("unordered trace is not detected %v: %v", f.Name(), err)
 			}
 		default:

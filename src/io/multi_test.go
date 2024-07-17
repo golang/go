@@ -210,7 +210,7 @@ func TestMultiWriterError(t *testing.T) {
 	})
 	w := MultiWriter(f1, f2)
 	n, err := w.Write(make([]byte, 100))
-	if n != 50 || err != ErrShortWrite {
+	if n != 50 || !errors.Is(err, ErrShortWrite) {
 		t.Errorf("Write = %d, %v, want 50, ErrShortWrite", n, err)
 	}
 }

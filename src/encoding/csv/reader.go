@@ -254,9 +254,9 @@ func (r *Reader) ReadAll() (records [][]string, err error) {
 // The result is only valid until the next call to readLine.
 func (r *Reader) readLine() ([]byte, error) {
 	line, err := r.r.ReadSlice('\n')
-	if err == bufio.ErrBufferFull {
+	if errors.Is(err, bufio.ErrBufferFull) {
 		r.rawBuffer = append(r.rawBuffer[:0], line...)
-		for err == bufio.ErrBufferFull {
+		for errors.Is(err, bufio.ErrBufferFull) {
 			line, err = r.r.ReadSlice('\n')
 			r.rawBuffer = append(r.rawBuffer, line...)
 		}

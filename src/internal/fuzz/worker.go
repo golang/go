@@ -656,7 +656,7 @@ func (ws *workerServer) serve(ctx context.Context) error {
 	for {
 		var c call
 		if err := dec.Decode(&c); err != nil {
-			if err == io.EOF || err == ctx.Err() {
+			if err == io.EOF || errors.Is(err, ctx.Err()) {
 				return nil
 			} else {
 				return err

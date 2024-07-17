@@ -13,6 +13,7 @@ package testdeps
 import (
 	"bufio"
 	"context"
+	"errors"
 	"internal/fuzz"
 	"internal/testlog"
 	"io"
@@ -163,7 +164,7 @@ func (TestDeps) CoordinateFuzzing(
 		CorpusDir:       corpusDir,
 		CacheDir:        cacheDir,
 	})
-	if err == ctx.Err() {
+	if errors.Is(err, ctx.Err()) {
 		return nil
 	}
 	return err
@@ -179,7 +180,7 @@ func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	err := fuzz.RunFuzzWorker(ctx, fn)
-	if err == ctx.Err() {
+	if errors.Is(err, ctx.Err()) {
 		return nil
 	}
 	return err

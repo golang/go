@@ -237,23 +237,23 @@ func TestCopyFileRange(t *testing.T) {
 		defer Remove(anyFile.Name())
 		defer anyFile.Close()
 
-		if _, err := io.Copy(nilFile, nilFile); err != ErrInvalid {
+		if _, err := io.Copy(nilFile, nilFile); !errors.Is(err, ErrInvalid) {
 			t.Errorf("io.Copy(nilFile, nilFile) = %v, want %v", err, ErrInvalid)
 		}
-		if _, err := io.Copy(anyFile, nilFile); err != ErrInvalid {
+		if _, err := io.Copy(anyFile, nilFile); !errors.Is(err, ErrInvalid) {
 			t.Errorf("io.Copy(anyFile, nilFile) = %v, want %v", err, ErrInvalid)
 		}
-		if _, err := io.Copy(nilFile, anyFile); err != ErrInvalid {
+		if _, err := io.Copy(nilFile, anyFile); !errors.Is(err, ErrInvalid) {
 			t.Errorf("io.Copy(nilFile, anyFile) = %v, want %v", err, ErrInvalid)
 		}
 
-		if _, err := nilFile.ReadFrom(nilFile); err != ErrInvalid {
+		if _, err := nilFile.ReadFrom(nilFile); !errors.Is(err, ErrInvalid) {
 			t.Errorf("nilFile.ReadFrom(nilFile) = %v, want %v", err, ErrInvalid)
 		}
-		if _, err := anyFile.ReadFrom(nilFile); err != ErrInvalid {
+		if _, err := anyFile.ReadFrom(nilFile); !errors.Is(err, ErrInvalid) {
 			t.Errorf("anyFile.ReadFrom(nilFile) = %v, want %v", err, ErrInvalid)
 		}
-		if _, err := nilFile.ReadFrom(anyFile); err != ErrInvalid {
+		if _, err := nilFile.ReadFrom(anyFile); !errors.Is(err, ErrInvalid) {
 			t.Errorf("nilFile.ReadFrom(anyFile) = %v, want %v", err, ErrInvalid)
 		}
 	})

@@ -7,6 +7,7 @@ package internal
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -129,7 +130,7 @@ func TestChunkReaderAllocs(t *testing.T) {
 		if n != len(readBuf)-1 {
 			t.Fatalf("read %d bytes; want %d", n, len(readBuf)-1)
 		}
-		if err != io.ErrUnexpectedEOF {
+		if !errors.Is(err, io.ErrUnexpectedEOF) {
 			t.Fatalf("read error = %v; want ErrUnexpectedEOF", err)
 		}
 	})
@@ -221,7 +222,7 @@ func TestIncompleteChunk(t *testing.T) {
 	for i := 0; i < len(valid); i++ {
 		incomplete := valid[:i]
 		r := NewChunkedReader(strings.NewReader(incomplete))
-		if _, err := io.ReadAll(r); err != io.ErrUnexpectedEOF {
+		if _, err := io.ReadAll(r); !errors.Is(err, io.ErrUnexpectedEOF) {
 			t.Errorf("expected io.ErrUnexpectedEOF for %q, got %v", incomplete, err)
 		}
 	}

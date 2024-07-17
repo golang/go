@@ -60,7 +60,7 @@ func TestLoadLocationValidatesNames(t *testing.T) {
 	}
 	for _, v := range bad {
 		_, err := time.LoadLocation(v)
-		if err != time.ErrLocation {
+		if !errors.Is(err, time.ErrLocation) {
 			t.Errorf("LoadLocation(%q) error = %v; want ErrLocation", v, err)
 		}
 	}

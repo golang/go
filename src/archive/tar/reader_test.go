@@ -684,7 +684,7 @@ func TestReader(t *testing.T) {
 				}
 			}
 
-			if err != v.err {
+			if !errors.Is(err, v.err) {
 				t.Fatalf("unexpected error: got %v, want %v", err, v.err)
 			}
 			f.Close()
@@ -876,7 +876,7 @@ func TestReadTruncation(t *testing.T) {
 					}
 				}
 			}
-			if err != v.err {
+			if !errors.Is(err, v.err) {
 				t.Errorf("test %d, NewReader(%s) with %s discard: got %v, want %v",
 					i, s1, s2, err, v.err)
 			}
@@ -1636,7 +1636,7 @@ func TestInsecurePaths(t *testing.T) {
 
 		tr := NewReader(&buf)
 		h, err := tr.Next()
-		if err != ErrInsecurePath {
+		if !errors.Is(err, ErrInsecurePath) {
 			t.Errorf("tr.Next for file %q: got err %v, want ErrInsecurePath", path, err)
 			continue
 		}

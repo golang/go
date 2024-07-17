@@ -5,6 +5,7 @@
 package mime
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -477,10 +478,10 @@ func TestParseMediaTypeBogus(t *testing.T) {
 		if params != nil {
 			t.Errorf("ParseMediaType(%q): got non-nil params on error", tt.in)
 		}
-		if err != ErrInvalidMediaParameter && mt != "" {
+		if !errors.Is(err, ErrInvalidMediaParameter) && mt != "" {
 			t.Errorf("ParseMediaType(%q): got unexpected non-empty media type string", tt.in)
 		}
-		if err == ErrInvalidMediaParameter && mt != tt.mt {
+		if errors.Is(err, ErrInvalidMediaParameter) && mt != tt.mt {
 			t.Errorf("ParseMediaType(%q): in case of invalid parameters: expected type %q, got %q", tt.in, tt.mt, mt)
 		}
 	}

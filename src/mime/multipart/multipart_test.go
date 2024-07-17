@@ -7,6 +7,7 @@ package multipart
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/textproto"
@@ -316,7 +317,7 @@ Oh no, premature EOF!
 			t.Fatalf("didn't get a part")
 		}
 		_, err = io.Copy(io.Discard, part)
-		if err != io.ErrUnexpectedEOF {
+		if !errors.Is(err, io.ErrUnexpectedEOF) {
 			t.Fatalf("expected error io.ErrUnexpectedEOF; got %v", err)
 		}
 	}

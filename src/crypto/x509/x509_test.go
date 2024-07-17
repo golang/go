@@ -22,6 +22,7 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -3666,7 +3667,7 @@ func TestDisableSHA1ForCertOnly(t *testing.T) {
 	}
 
 	err = cert.CheckSignature(SHA1WithRSA, ocspTBS, nil)
-	if err != rsa.ErrVerification {
+	if !errors.Is(err, rsa.ErrVerification) {
 		t.Errorf("unexpected error: %s", err)
 	}
 }

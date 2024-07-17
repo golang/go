@@ -85,7 +85,7 @@ func OpenReader(name string) (*ReadCloser, error) {
 		return nil, err
 	}
 	r := new(ReadCloser)
-	if err = r.init(f, fi.Size()); err != nil && err != ErrInsecurePath {
+	if err = r.init(f, fi.Size()); err != nil && !errors.Is(err, ErrInsecurePath) {
 		f.Close()
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	}
 	zr := new(Reader)
 	var err error
-	if err = zr.init(r, size); err != nil && err != ErrInsecurePath {
+	if err = zr.init(r, size); err != nil && !errors.Is(err, ErrInsecurePath) {
 		return nil, err
 	}
 	return zr, err
@@ -145,7 +145,7 @@ func (r *Reader) init(rdr io.ReaderAt, size int64) error {
 	for {
 		f := &File{zip: r, zipr: rdr}
 		err = readDirectoryHeader(f, buf)
-		if err == ErrFormat || err == io.ErrUnexpectedEOF {
+		if errors.Is(err, ErrFormat) || errors.Is(err, io.ErrUnexpectedEOF) {
 			break
 		}
 		if err != nil {

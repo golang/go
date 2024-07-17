@@ -7,6 +7,7 @@ package dwarf_test
 import (
 	. "debug/dwarf"
 	"encoding/binary"
+	"errors"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -112,7 +113,7 @@ func testRanges(t *testing.T, name string, want []wantRange) {
 			if w.ranges != nil {
 				t.Errorf("%s: missing Entry for %#x", name, w.pc)
 			}
-			if err != ErrUnknownPC {
+			if !errors.Is(err, ErrUnknownPC) {
 				t.Errorf("%s: expected ErrUnknownPC for %#x, got %v", name, w.pc, err)
 			}
 			continue

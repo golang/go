@@ -680,7 +680,7 @@ func TestErrorAfterClientClose(t *testing.T) {
 		t.Fatal("close error:", err)
 	}
 	err = client.Call("Arith.Add", &Args{7, 9}, new(Reply))
-	if err != ErrShutdown {
+	if !errors.Is(err, ErrShutdown) {
 		t.Errorf("Forever: expected ErrShutdown got %v", err)
 	}
 }

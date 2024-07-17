@@ -157,7 +157,7 @@ func (r *objReader) peek(n int) ([]byte, error) {
 	}
 	b, err := r.b.Peek(n)
 	if err != nil {
-		if err != bufio.ErrBufferFull {
+		if !errors.Is(err, bufio.ErrBufferFull) {
 			r.error(err)
 		}
 	}

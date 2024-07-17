@@ -9,6 +9,7 @@ import (
 	"cmd/internal/codesign"
 	"crypto/sha256"
 	"debug/macho"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -52,7 +53,7 @@ func FindAndHash(r io.Reader, id string, bufSize int) (matches []int64, hash [32
 		// buf[start:tiny] is left over from previous iteration.
 		// After reading n bytes into buf[tiny:], we process buf[start:tiny+n].
 		n, err := io.ReadFull(r, buf[tiny:])
-		if err != io.ErrUnexpectedEOF && err != io.EOF && err != nil {
+		if !errors.Is(err, io.ErrUnexpectedEOF) && err != io.EOF && err != nil {
 			return nil, [32]byte{}, err
 		}
 

@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -76,7 +77,7 @@ where
 			sql.Named("org", org),
 		).Scan(&name)
 		if err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}

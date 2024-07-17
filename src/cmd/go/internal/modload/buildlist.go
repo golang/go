@@ -526,7 +526,7 @@ func (mg *ModuleGraph) BuildList() []module.Version {
 func (mg *ModuleGraph) findError() error {
 	errStack := mg.g.FindPath(func(m module.Version) bool {
 		_, err := mg.loadCache.Get(m)
-		return err != nil && err != par.ErrCacheEntryNotFound
+		return err != nil && !errors.Is(err, par.ErrCacheEntryNotFound)
 	})
 	if len(errStack) > 0 {
 		_, err := mg.loadCache.Get(errStack[len(errStack)-1])

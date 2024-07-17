@@ -2123,7 +2123,7 @@ func TestWriteAtInAppendMode(t *testing.T) {
 	defer f.Close()
 
 	_, err = f.WriteAt([]byte(""), 1)
-	if err != ErrWriteAtInAppendMode {
+	if !errors.Is(err, ErrWriteAtInAppendMode) {
 		t.Fatalf("f.WriteAt returned %v, expected %v", err, ErrWriteAtInAppendMode)
 	}
 }

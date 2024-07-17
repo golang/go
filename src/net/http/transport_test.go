@@ -1874,7 +1874,7 @@ func testTransportGzipShort(t *testing.T, mode testMode) {
 	if err == nil {
 		t.Fatal("Expect an error from reading a body.")
 	}
-	if err != io.ErrUnexpectedEOF {
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("ReadAll error = %v; want io.ErrUnexpectedEOF", err)
 	}
 }

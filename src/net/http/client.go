@@ -693,7 +693,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			// Sentinel error to let users select the
 			// previous response, without closing its
 			// body. See Issue 10069.
-			if err == ErrUseLastResponse {
+			if errors.Is(err, ErrUseLastResponse) {
 				return resp, nil
 			}
 

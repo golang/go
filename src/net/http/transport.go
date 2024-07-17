@@ -560,7 +560,7 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 	req = setupRewindBody(req)
 
 	if altRT := t.alternateRoundTripper(req); altRT != nil {
-		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
+		if resp, err := altRT.RoundTrip(req); !errors.Is(err, ErrSkipAltProtocol) {
 			return resp, err
 		}
 		var err error

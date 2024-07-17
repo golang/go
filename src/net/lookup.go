@@ -714,7 +714,7 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 	var cname dnsmessage.Name
 	for {
 		h, err := p.AnswerHeader()
-		if err == dnsmessage.ErrSectionDone {
+		if errors.Is(err, dnsmessage.ErrSectionDone) {
 			break
 		}
 		if err != nil {
@@ -760,7 +760,7 @@ func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
 	var mxs []*MX
 	for {
 		h, err := p.AnswerHeader()
-		if err == dnsmessage.ErrSectionDone {
+		if errors.Is(err, dnsmessage.ErrSectionDone) {
 			break
 		}
 		if err != nil {
@@ -804,7 +804,7 @@ func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
 	var nss []*NS
 	for {
 		h, err := p.AnswerHeader()
-		if err == dnsmessage.ErrSectionDone {
+		if errors.Is(err, dnsmessage.ErrSectionDone) {
 			break
 		}
 		if err != nil {
@@ -846,7 +846,7 @@ func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, erro
 	var txts []string
 	for {
 		h, err := p.AnswerHeader()
-		if err == dnsmessage.ErrSectionDone {
+		if errors.Is(err, dnsmessage.ErrSectionDone) {
 			break
 		}
 		if err != nil {

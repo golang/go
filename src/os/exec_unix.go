@@ -152,7 +152,7 @@ func (p *Process) release() error {
 
 func findProcess(pid int) (p *Process, err error) {
 	h, err := pidfdFind(pid)
-	if err == ErrProcessDone {
+	if errors.Is(err, ErrProcessDone) {
 		// We can't return an error here since users are not expecting
 		// it. Instead, return a process with a "done" state already
 		// and let a subsequent Signal or Wait call catch that.

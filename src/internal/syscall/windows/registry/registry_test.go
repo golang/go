@@ -9,6 +9,7 @@ package registry_test
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"os"
 	"syscall"
 	"testing"
@@ -95,7 +96,7 @@ func TestCreateOpenDeleteKey(t *testing.T) {
 		defer testKOpenedAgain.Close()
 		t.Fatalf("key %q should already been deleted", testKName)
 	}
-	if err != registry.ErrNotExist {
+	if !errors.Is(err, registry.ErrNotExist) {
 		t.Fatalf(`unexpected error ("not exist" expected): %v`, err)
 	}
 }
@@ -222,7 +223,7 @@ func testErrNotExist(t *testing.T, name string, err error) {
 		t.Errorf("%s value should not exist", name)
 		return
 	}
-	if err != registry.ErrNotExist {
+	if !errors.Is(err, registry.ErrNotExist) {
 		t.Errorf("reading %s value should return 'not exist' error, but got: %s", name, err)
 		return
 	}
@@ -233,7 +234,7 @@ func testErrUnexpectedType(t *testing.T, test ValueTest, gottype uint32, err err
 		t.Errorf("GetXValue(%q) should not succeed", test.Name)
 		return
 	}
-	if err != registry.ErrUnexpectedType {
+	if !errors.Is(err, registry.ErrUnexpectedType) {
 		t.Errorf("reading %s value should return 'unexpected key value type' error, but got: %s", test.Name, err)
 		return
 	}
@@ -338,7 +339,7 @@ func testGetValue(t *testing.T, k registry.Key, test ValueTest, size int) {
 		t.Errorf("GetValue(%s, [%d]byte) should fail, but succeeded", test.Name, size-1)
 		return
 	}
-	if err != registry.ErrShortBuffer {
+	if !errors.Is(err, registry.ErrShortBuffer) {
 		t.Errorf("reading %s value should return 'short buffer' error, but got: %s", test.Name, err)
 		return
 	}
@@ -370,7 +371,7 @@ func testGetValue(t *testing.T, k registry.Key, test ValueTest, size int) {
 		t.Errorf("GetValue(%q) should not succeed", test.Name)
 		return
 	}
-	if err != registry.ErrNotExist {
+	if !errors.Is(err, registry.ErrNotExist) {
 		t.Errorf("GetValue(%q) should return 'not exist' error, but got: %s", test.Name, err)
 		return
 	}

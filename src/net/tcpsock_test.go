@@ -694,7 +694,7 @@ func TestCopyPipeIntoTCP(t *testing.T) {
 
 		buf := make([]byte, 100)
 		n, err := io.ReadFull(c, buf)
-		if err != io.ErrUnexpectedEOF || n != 2 {
+		if !errors.Is(err, io.ErrUnexpectedEOF) || n != 2 {
 			errc <- fmt.Errorf("got err=%q n=%v; want err=%q n=2", err, n, io.ErrUnexpectedEOF)
 			return
 		}

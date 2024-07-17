@@ -1328,7 +1328,7 @@ func testClientTimeoutCancel(t *testing.T, mode testMode) {
 	}
 	cancel()
 	_, err = io.Copy(io.Discard, res.Body)
-	if err != ExportErrRequestCanceled {
+	if !errors.Is(err, ExportErrRequestCanceled) {
 		t.Fatalf("error = %v; want errRequestCanceled", err)
 	}
 }

@@ -209,7 +209,7 @@ func (c *DiskCache) get(id ActionID) (Entry, error) {
 	entry := make([]byte, entrySize+1) // +1 to detect whether f is too long
 	if n, err := io.ReadFull(f, entry); n > entrySize {
 		return missing(errors.New("too long"))
-	} else if err != io.ErrUnexpectedEOF {
+	} else if !errors.Is(err, io.ErrUnexpectedEOF) {
 		if err == io.EOF {
 			return missing(errors.New("file is empty"))
 		}

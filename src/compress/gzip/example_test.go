@@ -7,6 +7,7 @@ package gzip_test
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -182,13 +183,13 @@ func Example_compressingReader() {
 
 		// Copy our data to gzipWriter, which compresses it to
 		// gzipWriter, which feeds it to bodyReader.
-		if _, err := io.Copy(gzipWriter, dataReader); err != nil && err != io.ErrClosedPipe {
+		if _, err := io.Copy(gzipWriter, dataReader); err != nil && !errors.Is(err, io.ErrClosedPipe) {
 			sendErr(err)
 		}
-		if err := gzipWriter.Close(); err != nil && err != io.ErrClosedPipe {
+		if err := gzipWriter.Close(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
 			sendErr(err)
 		}
-		if err := httpWriter.Close(); err != nil && err != io.ErrClosedPipe {
+		if err := httpWriter.Close(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
 			sendErr(err)
 		}
 	}()

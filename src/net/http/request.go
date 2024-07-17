@@ -51,7 +51,7 @@ func (pe *ProtocolError) Error() string { return pe.ErrorString }
 
 // Is lets http.ErrNotSupported match errors.ErrUnsupported.
 func (pe *ProtocolError) Is(err error) bool {
-	return pe == ErrNotSupported && err == errors.ErrUnsupported
+	return errors.Is(pe, ErrNotSupported) && errors.Is(err, errors.ErrUnsupported)
 }
 
 var (

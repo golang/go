@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -172,7 +173,7 @@ func (e *UnknownRevisionError) Error() string {
 	return "unknown revision " + e.Rev
 }
 func (UnknownRevisionError) Is(err error) bool {
-	return err == fs.ErrNotExist
+	return errors.Is(err, fs.ErrNotExist)
 }
 
 // ErrNoCommits is an error equivalent to fs.ErrNotExist indicating that a given
@@ -185,7 +186,7 @@ func (noCommitsError) Error() string {
 	return "no commits"
 }
 func (noCommitsError) Is(err error) bool {
-	return err == fs.ErrNotExist
+	return errors.Is(err, fs.ErrNotExist)
 }
 
 // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.

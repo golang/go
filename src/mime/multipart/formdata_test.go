@@ -6,6 +6,7 @@ package multipart
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -299,7 +300,7 @@ func TestReadForm_MetadataTooLarge(t *testing.T) {
 			}
 			fr := NewReader(&buf, fw.Boundary())
 			_, err := fr.ReadForm(0)
-			if err != ErrMessageTooLarge {
+			if !errors.Is(err, ErrMessageTooLarge) {
 				t.Errorf("fr.ReadForm() = %v, want ErrMessageTooLarge", err)
 			}
 		})
@@ -478,7 +479,7 @@ func TestReadFormEndlessHeaderLine(t *testing.T) {
 			)
 			r := NewReader(fr, "boundary")
 			_, err := r.ReadForm(1 << 20)
-			if err != ErrMessageTooLarge {
+			if !errors.Is(err, ErrMessageTooLarge) {
 				t.Fatalf("ReadForm(1 << 20): %v, want ErrMessageTooLarge", err)
 			}
 		})

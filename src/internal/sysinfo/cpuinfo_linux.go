@@ -7,6 +7,7 @@ package sysinfo
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"strings"
@@ -20,7 +21,7 @@ func readLinuxProcCPUInfo(buf []byte) error {
 	defer f.Close()
 
 	_, err = io.ReadFull(f, buf)
-	if err != nil && err != io.ErrUnexpectedEOF {
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
 		return err
 	}
 

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"internal/obscuretestdata"
 	"io"
 	"io/fs"
@@ -624,13 +625,13 @@ func readTestZip(t *testing.T, zt ZipTest) {
 			return
 		}
 	}
-	if err != zt.Error {
+	if !errors.Is(err, zt.Error) {
 		t.Errorf("error=%v, want %v", err, zt.Error)
 		return
 	}
 
 	// bail if file is not zip
-	if err == ErrFormat {
+	if errors.Is(err, ErrFormat) {
 		return
 	}
 
@@ -742,7 +743,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File, raw []byte)
 
 	var b bytes.Buffer
 	_, err = io.Copy(&b, r)
-	if err != ft.ContentErr {
+	if !errors.Is(err, ft.ContentErr) {
 		t.Errorf("copying contents: %v (want %v)", err, ft.ContentErr)
 	}
 	if err != nil {
@@ -790,7 +791,7 @@ func TestInvalidFiles(t *testing.T) {
 
 	// zeroes
 	_, err := NewReader(bytes.NewReader(b), size)
-	if err != ErrFormat {
+	if !errors.Is(err, ErrFormat) {
 		t.Errorf("zeroes: error=%v, want %v", err, ErrFormat)
 	}
 
@@ -801,7 +802,7 @@ func TestInvalidFiles(t *testing.T) {
 		copy(b[i:i+4], sig)
 	}
 	_, err = NewReader(bytes.NewReader(b), size)
-	if err != ErrFormat {
+	if !errors.Is(err, ErrFormat) {
 		t.Errorf("sigs: error=%v, want %v", err, ErrFormat)
 	}
 
@@ -1113,7 +1114,7 @@ func TestIssue10957(t *testing.T) {
 		}
 		if f.UncompressedSize64 < 1e6 {
 			n, err := io.Copy(io.Discard, r)
-			if i == 3 && err != io.ErrUnexpectedEOF {
+			if i == 3 && !errors.Is(err, io.ErrUnexpectedEOF) {
 				t.Errorf("File[3] error = %v; want io.ErrUnexpectedEOF", err)
 			}
 			if err == nil && uint64(n) != f.UncompressedSize64 {
@@ -1155,7 +1156,7 @@ func TestIssue11146(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = io.ReadAll(r)
-	if err != io.ErrUnexpectedEOF {
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("File[0] error = %v; want io.ErrUnexpectedEOF", err)
 	}
 	r.Close()
@@ -1340,7 +1341,7 @@ func TestCVE202127919(t *testing.T) {
 		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != ErrInsecurePath {
+	if !errors.Is(err, ErrInsecurePath) {
 		t.Fatalf("Error reading the archive: %v", err)
 	}
 	_, err = r.Open("test.txt")
@@ -1396,7 +1397,7 @@ func TestOpenReaderInsecurePath(t *testing.T) {
 		defer r.Close()
 	}
 
-	if err != ErrInsecurePath {
+	if !errors.Is(err, ErrInsecurePath) {
 		t.Fatalf("Error reading the archive, we expected ErrInsecurePath but got: %v", err)
 	}
 	_, err = r.Open("test.txt")
@@ -1447,7 +1448,7 @@ func TestCVE202133196(t *testing.T) {
 		0xff, 0xff, 0xff, 0x00, 0x00,
 	}
 	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != ErrFormat {
+	if !errors.Is(err, ErrFormat) {
 		t.Fatalf("unexpected error, got: %v, want: %v", err, ErrFormat)
 	}
 
@@ -1486,7 +1487,7 @@ func TestCVE202139293(t *testing.T) {
 		0xff, 0x50, 0xfe, 0x00, 0xff, 0x00, 0x3a, 0x00, 0x00, 0x00, 0xff,
 	}
 	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != ErrFormat {
+	if !errors.Is(err, ErrFormat) {
 		t.Fatalf("unexpected error, got: %v, want: %v", err, ErrFormat)
 	}
 }
@@ -1566,7 +1567,7 @@ func TestCVE202141772(t *testing.T) {
 		0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != ErrInsecurePath {
+	if !errors.Is(err, ErrInsecurePath) {
 		t.Fatalf("Error reading the archive: %v", err)
 	}
 	entryNames := []string{`/`, `//`, `\`, `/test.txt`}
@@ -1630,7 +1631,7 @@ func TestUnderSize(t *testing.T) {
 			defer rd.Close()
 
 			_, err = io.Copy(io.Discard, rd)
-			if err != ErrFormat {
+			if !errors.Is(err, ErrFormat) {
 				t.Fatalf("Error mismatch\n\tGot:  %v\n\tWant: %v", err, ErrFormat)
 			}
 		})
@@ -1659,7 +1660,7 @@ func TestIssue54801(t *testing.T) {
 				defer rd.Close()
 
 				n, got := io.Copy(io.Discard, rd)
-				if n != 0 || got != ErrFormat {
+				if n != 0 || !errors.Is(got, ErrFormat) {
 					t.Fatalf("Error mismatch, got: %d, %v, want: %v", n, got, ErrFormat)
 				}
 			})
@@ -1685,7 +1686,7 @@ func TestInsecurePaths(t *testing.T) {
 		zw.Close()
 
 		zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-		if err != ErrInsecurePath {
+		if !errors.Is(err, ErrInsecurePath) {
 			t.Errorf("NewReader for archive with file %q: got err %v, want ErrInsecurePath", path, err)
 			continue
 		}
