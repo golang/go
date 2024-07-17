@@ -40,7 +40,7 @@ func TestProcessAlreadyDone(t *testing.T) {
 		// EINVAL (see waitid in usr/src/uts/common/os/exit.c in
 		// illumos). This is configurable via sysconf(_SC_MAXPID), but
 		// we'll just take the default.
-		pid = 30000-1
+		pid = 30000 - 1
 	}
 
 	p, err := FindProcess(pid)
@@ -74,5 +74,16 @@ func TestUNIXProcessAlive(t *testing.T) {
 	err = proc.Signal(syscall.Signal(0))
 	if err != nil {
 		t.Errorf("OS reported error for running process: %v", err)
+	}
+}
+
+func TestProcessBadPID(t *testing.T) {
+	p, err := FindProcess(-1)
+	if err != nil {
+		t.Fatalf("unexpected FindProcess error: %v", err)
+	}
+	err = p.Signal(syscall.Signal(0))
+	if err == nil {
+		t.Error("p.Signal succeeded unexpectedly")
 	}
 }
