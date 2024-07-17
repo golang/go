@@ -142,6 +142,8 @@ type PackagePublic struct {
 	XTestEmbedFiles    []string `json:",omitempty"` // files matched by XTestEmbedPatterns
 }
 
+var FromDir = vcs.FromDir
+
 // AllFiles returns the names of all the files considered for the package.
 // This is used for sanity and security checks, so we include all files,
 // even IgnoredGoFiles, because some subcommands consider them.
@@ -2429,7 +2431,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 			// (so the bootstrap toolchain packages don't even appear to be in GOROOT).
 			goto omitVCS
 		}
-		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
+		repoDir, vcsCmd, err = FromDir(base.Cwd(), "", allowNesting)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			setVCSError(err)
 			return
@@ -2455,7 +2457,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		// repository. vcs.FromDir allows nested Git repositories, but nesting
 		// is not allowed for other VCS tools. The current directory may be outside
 		// p.Module.Dir when a workspace is used.
-		pkgRepoDir, _, err := vcs.FromDir(p.Dir, "", allowNesting)
+		pkgRepoDir, _, err := FromDir(p.Dir, "", allowNesting)
 		if err != nil {
 			setVCSError(err)
 			return
@@ -2467,7 +2469,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 			}
 			goto omitVCS
 		}
-		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "", allowNesting)
+		modRepoDir, _, err := FromDir(p.Module.Dir, "", allowNesting)
 		if err != nil {
 			setVCSError(err)
 			return
