@@ -613,16 +613,9 @@ func trimLineNumber(basename string) string {
 func (s *ImportStack) CopyWithPos() []string {
 	ss := make([]string, 0, len(*s))
 	for _, v := range *s {
-		bn := ""
 		lensPos := len(v.Pos)
 		if lensPos > 0 {
-			bn = trimLineNumber(convertToBasename(v.Pos[0].String()))
-			if lensPos > 1 {
-				bn+=" and more"
-			}
-		}
-		if bn != "" {
-			ss = append(ss, v.Pkg+" from "+bn)
+			ss = append(ss, v.Pkg+" from "+trimLineNumber(convertToBasename(v.Pos[0].String())))
 		} else {
 			ss = append(ss, v.Pkg)
 		}
