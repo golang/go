@@ -297,7 +297,7 @@ func (f *file) rotate1() time.Time {
 		goVers,
 		runtime.GOOS,
 		runtime.GOARCH,
-		f.timeBegin.Format("2006-01-02"),
+		f.timeBegin.Format(time.DateOnly),
 		FileVersion,
 	)
 	dir := telemetry.Default.LocalDir()
@@ -357,27 +357,42 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 	return v, cleanup
 }
 
-var openOnce sync.Once
+var (
+	openOnce sync.Once
+	// rotating reports whether the call to Open had rotate = true.
+	//
+	// In golang/go#68497, we observed that file rotation can break runtime
+	// deadlock detection. To minimize the fix for 1.23, we are splitting the
+	// Open API into one version that rotates the counter file, and another that
+	// does not. The rotating variable guards against use of both APIs from the
+	// same process.
+	rotating bool
+)
 
 // Open associates counting with the defaultFile.
 // The returned function is for testing only, and should
 // be called after all Inc()s are finished, but before
 // any reports are generated.
 // (Otherwise expired count files will not be deleted on Windows.)
-func Open() func() {
+func Open(rotate bool) func() {
 	if telemetry.DisabledOnPlatform {
 		return func() {}
 	}
 	close := func() {}
 	openOnce.Do(func() {
+		rotating = rotate
 		if mode, _ := telemetry.Default.Mode(); mode == "off" {
 			// Don't open the file when telemetry is off.
 			defaultFile.err = ErrDisabled
 			// No need to clean up.
 			return
 		}
-		debugPrintf("Open")
-		defaultFile.rotate()
+		debugPrintf("Open(%v)", rotate)
+		if rotate {
+			defaultFile.rotate() // calls rotate1 and schedules a rotation
+		} else {
+			defaultFile.rotate1()
+		}
 		close = func() {
 			// Once this has been called, the defaultFile is no longer usable.
 			mf := defaultFile.current.Load()
@@ -388,6 +403,9 @@ func Open() func() {
 			mf.close()
 		}
 	})
+	if rotating != rotate {
+		panic("BUG: Open called with inconsistent values for 'rotate'")
+	}
 	return close
 }
 

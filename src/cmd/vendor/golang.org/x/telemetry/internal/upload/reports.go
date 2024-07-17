@@ -26,7 +26,7 @@ func (u *uploader) reports(todo *work) ([]string, error) {
 		return nil, nil // no reports
 	}
 	thisInstant := u.startTime
-	today := thisInstant.Format("2006-01-02")
+	today := thisInstant.Format(time.DateOnly)
 	lastWeek := latestReport(todo.uploaded)
 	if lastWeek >= today { //should never happen
 		lastWeek = ""
