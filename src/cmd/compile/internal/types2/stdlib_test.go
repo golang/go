@@ -359,6 +359,7 @@ var excluded = map[string]bool{
 	"crypto/internal/edwards25519/field/_asm": true,
 	"crypto/sha1/_asm":                        true,
 	"crypto/sha256/_asm":                      true,
+	"crypto/sha512/_asm":                      true,
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in
