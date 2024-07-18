@@ -46,7 +46,7 @@ type equalFunc func(unsafe.Pointer, unsafe.Pointer) bool
 // value is present.
 // The ok result indicates whether value was found in the map.
 func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
-	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
+	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
 
 	i := ht.root
 	hashShift := 8 * goarch.PtrSize
@@ -69,7 +69,7 @@ func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
 // Otherwise, it stores and returns the given value.
 // The loaded result is true if the value was loaded, false if stored.
 func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool) {
-	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
+	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
 	var i *indirect[K, V]
 	var hashShift uint
 	var slot *atomic.Pointer[node[K, V]]
@@ -182,7 +182,7 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
 // If there is no current value for key in the map, CompareAndDelete returns false
 // (even if the old value is the nil interface value).
 func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
-	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
+	hash := ht.keyHash(noescape(unsafe.Pointer(&key)), ht.seed)
 	var i *indirect[K, V]
 	var hashShift uint
 	var slot *atomic.Pointer[node[K, V]]
@@ -355,7 +355,7 @@ func newEntryNode[K, V comparable](key K, value V) *entry[K, V] {
 
 func (e *entry[K, V]) lookup(key K, equal equalFunc) (V, bool) {
 	for e != nil {
-		if equal(unsafe.Pointer(&e.key), abi.NoEscape(unsafe.Pointer(&key))) {
+		if equal(unsafe.Pointer(&e.key), noescape(unsafe.Pointer(&key))) {
 			return e.value, true
 		}
 		e = e.overflow.Load()
@@ -368,16 +368,16 @@ func (e *entry[K, V]) lookup(key K, equal equalFunc) (V, bool) {
 //
 // compareAndDelete must be called under the mutex of the indirect node which e is a child of.
 func (head *entry[K, V]) compareAndDelete(key K, value V, keyEqual, valEqual equalFunc) (*entry[K, V], bool) {
-	if keyEqual(unsafe.Pointer(&head.key), abi.NoEscape(unsafe.Pointer(&key))) &&
-		valEqual(unsafe.Pointer(&head.value), abi.NoEscape(unsafe.Pointer(&value))) {
+	if keyEqual(unsafe.Pointer(&head.key), noescape(unsafe.Pointer(&key))) &&
+		valEqual(unsafe.Pointer(&head.value), noescape(unsafe.Pointer(&value))) {
 		// Drop the head of the list.
 		return head.overflow.Load(), true
 	}
 	i := &head.overflow
 	e := i.Load()
 	for e != nil {
-		if keyEqual(unsafe.Pointer(&e.key), abi.NoEscape(unsafe.Pointer(&key))) &&
-			valEqual(unsafe.Pointer(&e.value), abi.NoEscape(unsafe.Pointer(&value))) {
+		if keyEqual(unsafe.Pointer(&e.key), noescape(unsafe.Pointer(&key))) &&
+			valEqual(unsafe.Pointer(&e.value), noescape(unsafe.Pointer(&value))) {
 			i.Store(e.overflow.Load())
 			return head, true
 		}
@@ -385,6 +385,18 @@ func (head *entry[K, V]) compareAndDelete(key K, value V, keyEqual, valEqual equ
 		e = e.overflow.Load()
 	}
 	return head, false
+}
+
+// This is just a wrapper around abi.NoEscape.
+//
+// This wrapper is necessary because internal/abi is a runtime package,
+// so it can not be built with -d=checkptr, causing incorrect inlining
+// decision when building with checkptr enabled, see issue #68511.
+//
+//go:nosplit
+//go:nocheckptr
+func noescape(p unsafe.Pointer) unsafe.Pointer {
+	return abi.NoEscape(p)
 }
 
 // node is the header for a node. It's polymorphic and
