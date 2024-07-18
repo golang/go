@@ -874,14 +874,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 var blockJump = map[ssa.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockLOONG64EQ:  {loong64.ABEQ, loong64.ABNE},
-	ssa.BlockLOONG64NE:  {loong64.ABNE, loong64.ABEQ},
-	ssa.BlockLOONG64LTZ: {loong64.ABLTZ, loong64.ABGEZ},
-	ssa.BlockLOONG64GEZ: {loong64.ABGEZ, loong64.ABLTZ},
-	ssa.BlockLOONG64LEZ: {loong64.ABLEZ, loong64.ABGTZ},
-	ssa.BlockLOONG64GTZ: {loong64.ABGTZ, loong64.ABLEZ},
-	ssa.BlockLOONG64FPT: {loong64.ABFPT, loong64.ABFPF},
-	ssa.BlockLOONG64FPF: {loong64.ABFPF, loong64.ABFPT},
+	ssa.BlockLOONG64EQ:   {loong64.ABEQ, loong64.ABNE},
+	ssa.BlockLOONG64NE:   {loong64.ABNE, loong64.ABEQ},
+	ssa.BlockLOONG64LTZ:  {loong64.ABLTZ, loong64.ABGEZ},
+	ssa.BlockLOONG64GEZ:  {loong64.ABGEZ, loong64.ABLTZ},
+	ssa.BlockLOONG64LEZ:  {loong64.ABLEZ, loong64.ABGTZ},
+	ssa.BlockLOONG64GTZ:  {loong64.ABGTZ, loong64.ABLEZ},
+	ssa.BlockLOONG64FPT:  {loong64.ABFPT, loong64.ABFPF},
+	ssa.BlockLOONG64FPF:  {loong64.ABFPF, loong64.ABFPT},
+	ssa.BlockLOONG64BEQ:  {loong64.ABEQ, loong64.ABNE},
+	ssa.BlockLOONG64BNE:  {loong64.ABNE, loong64.ABEQ},
+	ssa.BlockLOONG64BGE:  {loong64.ABGE, loong64.ABLT},
+	ssa.BlockLOONG64BLT:  {loong64.ABLT, loong64.ABGE},
+	ssa.BlockLOONG64BLTU: {loong64.ABLTU, loong64.ABGEU},
+	ssa.BlockLOONG64BGEU: {loong64.ABGEU, loong64.ABLTU},
 }
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
@@ -913,6 +919,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	case ssa.BlockLOONG64EQ, ssa.BlockLOONG64NE,
 		ssa.BlockLOONG64LTZ, ssa.BlockLOONG64GEZ,
 		ssa.BlockLOONG64LEZ, ssa.BlockLOONG64GTZ,
+		ssa.BlockLOONG64BEQ, ssa.BlockLOONG64BNE,
+		ssa.BlockLOONG64BLT, ssa.BlockLOONG64BGE,
+		ssa.BlockLOONG64BLTU, ssa.BlockLOONG64BGEU,
 		ssa.BlockLOONG64FPT, ssa.BlockLOONG64FPF:
 		jmp := blockJump[b.Kind]
 		var p *obj.Prog
@@ -930,9 +939,21 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 				s.Br(obj.AJMP, b.Succs[0].Block())
 			}
 		}
-		if !b.Controls[0].Type.IsFlags() {
+		switch b.Kind {
+		case ssa.BlockLOONG64BEQ, ssa.BlockLOONG64BNE,
+			ssa.BlockLOONG64BGE, ssa.BlockLOONG64BLT,
+			ssa.BlockLOONG64BGEU, ssa.BlockLOONG64BLTU:
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = b.Controls[0].Reg()
+			p.Reg = b.Controls[1].Reg()
+		case ssa.BlockLOONG64EQ, ssa.BlockLOONG64NE,
+			ssa.BlockLOONG64LTZ, ssa.BlockLOONG64GEZ,
+			ssa.BlockLOONG64LEZ, ssa.BlockLOONG64GTZ,
+			ssa.BlockLOONG64FPT, ssa.BlockLOONG64FPF:
+			if !b.Controls[0].Type.IsFlags() {
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = b.Controls[0].Reg()
+			}
 		}
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())
