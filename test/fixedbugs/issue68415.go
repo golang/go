@@ -6,10 +6,14 @@
 
 package main
 
-import "regexp"
+import (
+	"regexp"
+	"unique"
+)
 
 var dataFileRegexp = regexp.MustCompile(`^data\.\d+\.bin$`)
 
 func main() {
 	_ = dataFileRegexp
+	unique.Make("")
 }

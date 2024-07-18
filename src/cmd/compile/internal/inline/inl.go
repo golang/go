@@ -1007,6 +1007,15 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 		return false, 0, false
 	}
 
+	if base.Debug.Checkptr != 0 && types.IsRuntimePkg(callee.Sym().Pkg) {
+		// We don't intrument runtime packages for checkptr (see base/flag.go).
+		if log && logopt.Enabled() {
+			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
+				fmt.Sprintf(`call to into runtime package function %s in -d=checkptr build`, ir.PkgFuncName(callee)))
+		}
+		return false, 0, false
+	}
+
 	// Check if we've already inlined this function at this particular
 	// call site, in order to stop inlining when we reach the beginning
 	// of a recursion cycle again. We don't inline immediately recursive

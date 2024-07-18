@@ -1927,6 +1927,11 @@ func IsNoRacePkg(p *Pkg) bool {
 	return objabi.LookupPkgSpecial(p.Path).NoRaceFunc
 }
 
+// IsRuntimePkg reports whether p is a runtime package.
+func IsRuntimePkg(p *Pkg) bool {
+	return objabi.LookupPkgSpecial(p.Path).Runtime
+}
+
 // ReceiverBaseType returns the underlying type, if any,
 // that owns methods with receiver parameter t.
 // The result is either a named type or an anonymous struct.
