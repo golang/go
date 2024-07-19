@@ -1251,9 +1251,12 @@
 // like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
 // -retract=version is a no-op if that retraction already exists.
 //
+// The -tool=path and -droptool=path flags add and drop a tool declaration
+// for the given path.
+//
 // The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
-// -replace, -dropreplace, -retract, and -dropretract editing flags may be
-// repeated, and the changes are applied in the order given.
+// -replace, -dropreplace, -retract, -dropretract, -tool, and -droptool editing
+// flags may be repeated, and the changes are applied in the order given.
 //
 // The -print flag prints the final go.mod in its text format instead of
 // writing it back to go.mod.
@@ -1302,6 +1305,10 @@
 //		Low       string
 //		High      string
 //		Rationale string
+//	}
+//
+//	type Tool struct {
+//		Path string
 //	}
 //
 // Retract entries representing a single version (not an interval) will have
