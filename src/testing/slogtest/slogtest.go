@@ -265,7 +265,7 @@ func TestHandler(h slog.Handler, results func() []map[string]any) error {
 	if g, w := len(res), len(cases); g != w {
 		return fmt.Errorf("got %d results, want %d", g, w)
 	}
-	for i, got := range results() {
+	for i, got := range res {
 		c := cases[i]
 		for _, check := range c.checks {
 			if problem := check(got); problem != "" {
