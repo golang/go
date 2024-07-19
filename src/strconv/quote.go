@@ -379,6 +379,8 @@ func QuotedPrefix(s string) (string, error) {
 // that s quotes.  (If s is single-quoted, it would be a Go
 // character literal; Unquote returns the corresponding
 // one-character string.)
+// if s is an empty pair of single quotes,
+// Unquote returns the empty string.
 func Unquote(s string) (string, error) {
 	out, rem, err := unquote(s, true)
 	if len(rem) > 0 {
