@@ -108,6 +108,8 @@ type MainModuleSet struct {
 
 	modFiles map[module.Version]*modfile.File
 
+	tools map[string]bool
+
 	modContainingCWD module.Version
 
 	workFile *modfile.WorkFile
@@ -133,6 +135,15 @@ func (mms *MainModuleSet) Versions() []module.Version {
 		return nil
 	}
 	return mms.versions
+}
+
+// Tools returns the tools defined by all the main modules.
+// The key is the absolute package path of the tool.
+func (mms *MainModuleSet) Tools() map[string]bool {
+	if mms == nil {
+		return nil
+	}
+	return mms.tools
 }
 
 func (mms *MainModuleSet) Contains(path string) bool {
@@ -1219,6 +1230,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 		modFiles:        map[module.Version]*modfile.File{},
 		indices:         map[module.Version]*modFileIndex{},
 		highestReplaced: map[string]string{},
+		tools:           map[string]bool{},
 		workFile:        workFile,
 	}
 	var workFileReplaces []*modfile.Replace
@@ -1300,6 +1312,17 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 				if !ok || gover.ModCompare(r.Old.Path, r.Old.Version, v) > 0 {
 					mainModules.highestReplaced[r.Old.Path] = r.Old.Version
 				}
+			}
+
+			for _, t := range modFiles[i].Tool {
+				if err := module.CheckImportPath(t.Path); err != nil {
+					if e, ok := err.(*module.InvalidPathError); ok {
+						e.Kind = "tool"
+					}
+					base.Fatal(err)
+				}
+
+				mainModules.tools[t.Path] = true
 			}
 		}
 	}
