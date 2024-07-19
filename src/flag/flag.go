@@ -1199,7 +1199,7 @@ func Parsed() bool {
 var CommandLine *FlagSet
 
 func init() {
-	// Handle the scenario where a process run via execl() can have an empty os.Args
+	// It's possible for execl to hand us an empty os.Args.
 	if len(os.Args) == 0 {
 		CommandLine = NewFlagSet("", ExitOnError)
 	} else {
