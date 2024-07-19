@@ -378,7 +378,7 @@ func QuotedPrefix(s string) (string, error) {
 // or backquoted Go string literal, returning the string value
 // that s quotes.  (If s is single-quoted, it would be a Go
 // character literal; Unquote returns the corresponding
-// one-character string, For '' Unquote returns the empty string.)
+// one-character string; For '' Unquote returns the empty string.)
 func Unquote(s string) (string, error) {
 	out, rem, err := unquote(s, true)
 	if len(rem) > 0 {
