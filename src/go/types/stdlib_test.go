@@ -359,6 +359,7 @@ var excluded = map[string]bool{
 	// See go.dev/issue/46027: some imports are missing for this submodule.
 	"crypto/internal/bigmod/_asm":             true,
 	"crypto/internal/edwards25519/field/_asm": true,
+	"crypto/md5/_asm":                         true,
 	"crypto/sha1/_asm":                        true,
 	"crypto/sha256/_asm":                      true,
 	"crypto/sha512/_asm":                      true,
