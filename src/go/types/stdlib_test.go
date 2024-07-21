@@ -361,6 +361,7 @@ var excluded = map[string]bool{
 	"crypto/aes/_asm/standard":                true,
 	"crypto/internal/bigmod/_asm":             true,
 	"crypto/internal/edwards25519/field/_asm": true,
+	"crypto/internal/nistec/_asm":             true,
 	"crypto/md5/_asm":                         true,
 	"crypto/sha1/_asm":                        true,
 	"crypto/sha256/_asm":                      true,
