@@ -27,8 +27,8 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/par"
 	"cmd/go/internal/web"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/semver"
 )

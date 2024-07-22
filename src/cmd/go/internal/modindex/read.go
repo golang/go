@@ -29,8 +29,8 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
-	"cmd/go/internal/par"
 	"cmd/go/internal/str"
+	"cmd/internal/par"
 )
 
 // enabled is used to flag off the behavior of the module index on tip.

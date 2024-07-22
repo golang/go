@@ -22,10 +22,10 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modindex"
-	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/par"
 	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"

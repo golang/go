@@ -39,11 +39,11 @@ import (
 	"cmd/go/internal/modindex"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/vcs"
+	"cmd/internal/par"
 	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/modfile"

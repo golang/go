@@ -20,8 +20,8 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/par"
 	"cmd/go/internal/trace"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"

@@ -15,9 +15,9 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/par"
 	"cmd/go/internal/vcs"
 	web "cmd/go/internal/web"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 )

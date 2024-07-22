@@ -12,7 +12,7 @@ import (
 	"sort"
 	"sync"
 
-	"cmd/go/internal/par"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 )

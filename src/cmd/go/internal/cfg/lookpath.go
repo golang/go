@@ -5,7 +5,7 @@
 package cfg
 
 import (
-	"cmd/go/internal/par"
+	"cmd/internal/par"
 	"os/exec"
 )
 

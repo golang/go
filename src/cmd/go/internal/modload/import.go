@@ -21,9 +21,9 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modindex"
-	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 )

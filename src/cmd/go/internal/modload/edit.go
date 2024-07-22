@@ -8,7 +8,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/mvs"
-	"cmd/go/internal/par"
+	"cmd/internal/par"
 	"context"
 	"errors"
 	"fmt"

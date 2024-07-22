@@ -21,8 +21,8 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/par"
 	"cmd/go/internal/str"
+	"cmd/internal/par"
 )
 
 // A VCSError indicates an error using a version control system.
