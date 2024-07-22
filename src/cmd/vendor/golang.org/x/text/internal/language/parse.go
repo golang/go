@@ -121,7 +121,7 @@ func (s *scanner) toLower(start, end int) {
 }
 
 func (s *scanner) setError(e error) {
-	if s.err == nil || (e == ErrSyntax && s.err != ErrSyntax) {
+	if s.err == nil || (errors.Is(e, ErrSyntax) && !errors.Is(s.err, ErrSyntax)) {
 		s.err = e
 	}
 }

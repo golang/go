@@ -6,6 +6,7 @@ package dwarf_test
 
 import (
 	. "debug/dwarf"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -232,12 +233,12 @@ func TestLineSeek(t *testing.T) {
 	}
 
 	// Check that seeking to a PC returns the right line.
-	if err := lr.SeekPC(table[0].Address-1, &line); err != ErrUnknownPC {
+	if err := lr.SeekPC(table[0].Address-1, &line); !errors.Is(err, ErrUnknownPC) {
 		t.Fatalf("lr.SeekPC to %#x returned %v instead of ErrUnknownPC", table[0].Address-1, err)
 	}
 	for i, testLine := range table {
 		if testLine.EndSequence {
-			if err := lr.SeekPC(testLine.Address, &line); err != ErrUnknownPC {
+			if err := lr.SeekPC(testLine.Address, &line); !errors.Is(err, ErrUnknownPC) {
 				t.Fatalf("lr.SeekPC to %#x returned %v instead of ErrUnknownPC", testLine.Address, err)
 			}
 			continue

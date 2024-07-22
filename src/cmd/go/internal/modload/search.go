@@ -133,7 +133,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 				have[name] = true
 				if isMatch(name) {
 					q.Add(func() {
-						if _, _, err := scanDir(root, pkgDir, tags); err != imports.ErrNoGo {
+						if _, _, err := scanDir(root, pkgDir, tags); !errors.Is(err, imports.ErrNoGo) {
 							addPkg(name)
 						}
 					})
@@ -254,7 +254,7 @@ func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeC
 		if !have[name] {
 			have[name] = true
 			if isMatch(name) {
-				if _, _, err := index.Package(reldir).ScanDir(tags); err != imports.ErrNoGo {
+				if _, _, err := index.Package(reldir).ScanDir(tags); !errors.Is(err, imports.ErrNoGo) {
 					addPkg(name)
 				}
 			}
@@ -293,7 +293,7 @@ func MatchInModule(ctx context.Context, pattern string, m module.Version, tags m
 		return match
 	}
 	if haveGoFiles {
-		if _, _, err := scanDir(root, dir, tags); err != imports.ErrNoGo {
+		if _, _, err := scanDir(root, dir, tags); !errors.Is(err, imports.ErrNoGo) {
 			// ErrNoGo indicates that the directory is not actually a Go package,
 			// perhaps due to the tags in use. Any other non-nil error indicates a
 			// problem with one or more of the Go source files, but such an error does

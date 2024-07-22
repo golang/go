@@ -6,6 +6,7 @@ package big
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -66,7 +67,7 @@ func TestScanExponent(t *testing.T) {
 	for _, a := range exponentTests {
 		r := strings.NewReader(a.s)
 		x, b, err := scanExponent(r, a.base2ok, a.sepOk)
-		if err != a.err {
+		if errors.Is(err, a.err) {
 			t.Errorf("scanExponent%+v\n\tgot error = %v; want %v", a, err, a.err)
 		}
 		if x != a.x {

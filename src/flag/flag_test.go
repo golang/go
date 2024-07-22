@@ -6,6 +6,7 @@ package flag_test
 
 import (
 	"bytes"
+	"errors"
 	. "flag"
 	"fmt"
 	"internal/testenv"
@@ -443,7 +444,7 @@ func TestHelp(t *testing.T) {
 	if err == nil {
 		t.Fatal("error expected")
 	}
-	if err != ErrHelp {
+	if !errors.Is(err, ErrHelp) {
 		t.Fatal("expected ErrHelp; got ", err)
 	}
 	if !helpCalled {

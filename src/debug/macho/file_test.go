@@ -6,6 +6,7 @@ package macho
 
 import (
 	"bytes"
+	"errors"
 	"internal/obscuretestdata"
 	"io"
 	"reflect"
@@ -391,7 +392,7 @@ func TestOpenFatFailure(t *testing.T) {
 
 	filename = "testdata/gcc-386-darwin-exec.base64" // not a fat Mach-O
 	ff, err := openFatObscured(filename)
-	if err != ErrNotFat {
+	if !errors.Is(err, ErrNotFat) {
 		t.Errorf("OpenFat %s: got %v, want ErrNotFat", filename, err)
 	}
 	if ff != nil {

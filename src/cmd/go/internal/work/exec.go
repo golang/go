@@ -995,7 +995,7 @@ func (b *Builder) checkDirectives(a *Action) error {
 	for _, d := range p.Internal.Build.Directives {
 		if strings.HasPrefix(d.Text, "//go:debug") {
 			key, _, err := load.ParseGoDebug(d.Text)
-			if err != nil && err != load.ErrNotGoDebug {
+			if err != nil && !errors.Is(err, load.ErrNotGoDebug) {
 				msg = fmt.Appendf(msg, "%s: invalid //go:debug: %v\n", d.Pos, err)
 				continue
 			}

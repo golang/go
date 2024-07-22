@@ -782,7 +782,7 @@ func TestUSTARLongName(t *testing.T) {
 	// Test that we can get a long name back out of the archive.
 	reader := NewReader(&buf)
 	hdr, err = reader.Next()
-	if err != nil && err != ErrInsecurePath {
+	if err != nil && !errors.Is(err, ErrInsecurePath) {
 		t.Fatal(err)
 	}
 	if hdr.Name != longName {
@@ -858,7 +858,7 @@ func TestWriterErrors(t *testing.T) {
 
 	t.Run("BeforeHeader", func(t *testing.T) {
 		tw := NewWriter(new(bytes.Buffer))
-		if _, err := tw.Write([]byte("Kilts")); err != ErrWriteTooLong {
+		if _, err := tw.Write([]byte("Kilts")); !errors.Is(err, ErrWriteTooLong) {
 			t.Fatalf("Write() = %v, want %v", err, ErrWriteTooLong)
 		}
 	})
@@ -872,10 +872,10 @@ func TestWriterErrors(t *testing.T) {
 		if err := tw.Close(); err != nil {
 			t.Fatalf("Close() = %v, want nil", err)
 		}
-		if _, err := tw.Write([]byte("Kilts")); err != ErrWriteAfterClose {
+		if _, err := tw.Write([]byte("Kilts")); !errors.Is(err, ErrWriteAfterClose) {
 			t.Fatalf("Write() = %v, want %v", err, ErrWriteAfterClose)
 		}
-		if err := tw.Flush(); err != ErrWriteAfterClose {
+		if err := tw.Flush(); !errors.Is(err, ErrWriteAfterClose) {
 			t.Fatalf("Flush() = %v, want %v", err, ErrWriteAfterClose)
 		}
 		if err := tw.Close(); err != nil {
@@ -907,7 +907,7 @@ func TestWriterErrors(t *testing.T) {
 
 	t.Run("Persistence", func(t *testing.T) {
 		tw := NewWriter(new(failOnceWriter))
-		if err := tw.WriteHeader(&Header{}); err != io.ErrShortWrite {
+		if err := tw.WriteHeader(&Header{}); !errors.Is(err, io.ErrShortWrite) {
 			t.Fatalf("WriteHeader() = %v, want %v", err, io.ErrShortWrite)
 		}
 		if err := tw.WriteHeader(&Header{Name: "small.txt"}); err == nil {
@@ -997,7 +997,7 @@ func TestIssue12594(t *testing.T) {
 
 		tr := NewReader(&b)
 		hdr, err := tr.Next()
-		if err != nil && err != ErrInsecurePath {
+		if err != nil && !errors.Is(err, ErrInsecurePath) {
 			t.Errorf("test %d, unexpected Next error: %v", i, err)
 		}
 		if hdr.Name != name {
@@ -1027,7 +1027,7 @@ func TestWriteLongHeader(t *testing.T) {
 		h:    &Header{PAXRecords: map[string]string{"GOLANG.x": strings.Repeat("a", maxSpecialFileSize)}},
 	}} {
 		w := NewWriter(io.Discard)
-		if err := w.WriteHeader(test.h); err != ErrFieldTooLong {
+		if err := w.WriteHeader(test.h); !errors.Is(err, ErrFieldTooLong) {
 			t.Errorf("%v: w.WriteHeader() = %v, want ErrFieldTooLong", test.name, err)
 		}
 	}

@@ -5,6 +5,7 @@
 package fs_test
 
 import (
+	"errors"
 	. "io/fs"
 	"os"
 	"path"
@@ -51,7 +52,7 @@ func TestGlobError(t *testing.T) {
 	bad := []string{`[]`, `nonexist/[]`}
 	for _, pattern := range bad {
 		_, err := Glob(os.DirFS("."), pattern)
-		if err != path.ErrBadPattern {
+		if !errors.Is(err, path.ErrBadPattern) {
 			t.Errorf("Glob(fs, %#q) returned err=%v, want path.ErrBadPattern", pattern, err)
 		}
 	}
@@ -61,7 +62,7 @@ func TestCVE202230630(t *testing.T) {
 	// Prior to CVE-2022-30630, a stack exhaustion would occur given a large
 	// number of separators. There is now a limit of 10,000.
 	_, err := Glob(os.DirFS("."), "/*"+strings.Repeat("/", 10001))
-	if err != path.ErrBadPattern {
+	if !errors.Is(err, path.ErrBadPattern) {
 		t.Fatalf("Glob returned err=%v, want %v", err, path.ErrBadPattern)
 	}
 }

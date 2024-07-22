@@ -947,7 +947,7 @@ func TestMultiLine(t *testing.T) {
 	}
 	if err == nil {
 		t.Error("Sscanln: expected error; got none")
-	} else if err != io.ErrUnexpectedEOF {
+	} else if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("Sscanln: expected io.ErrUnexpectedEOF (ha!); got %s", err)
 	}
 }
@@ -1018,7 +1018,7 @@ func (r *RecursiveInt) Scan(state ScanState, verb rune) (err error) {
 	next := new(RecursiveInt)
 	_, err = Fscanf(state, ".%v", next)
 	if err != nil {
-		if err == io.ErrUnexpectedEOF {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
 			err = nil
 		}
 		return

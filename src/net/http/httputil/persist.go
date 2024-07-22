@@ -141,7 +141,7 @@ func (sc *ServerConn) Read() (*http.Request, error) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	if err != nil {
-		if err == io.ErrUnexpectedEOF {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
 			// A close from the opposing client is treated as a
 			// graceful close, even if there was some unparse-able
 			// data before the close.

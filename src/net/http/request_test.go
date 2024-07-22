@@ -260,7 +260,7 @@ func TestParseMultipartForm(t *testing.T) {
 
 	req.Header = Header{"Content-Type": {"text/plain"}}
 	err = req.ParseMultipartForm(25)
-	if err != ErrNotMultipart {
+	if !errors.Is(err, ErrNotMultipart) {
 		t.Error("expected ErrNotMultipart for text/plain")
 	}
 }
@@ -1149,7 +1149,7 @@ func testMissingFile(t *testing.T, req *Request) {
 	if fh != nil {
 		t.Errorf("FormFile file header = %v, want nil", fh)
 	}
-	if err != ErrMissingFile {
+	if !errors.Is(err, ErrMissingFile) {
 		t.Errorf("FormFile err = %q, want ErrMissingFile", err)
 	}
 }

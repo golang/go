@@ -6,6 +6,7 @@ package io_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	. "io"
 	"slices"
@@ -216,7 +217,7 @@ func TestPipeReadClose2(t *testing.T) {
 	go delayClose(t, r, c, pipeTest{})
 	n, err := r.Read(make([]byte, 64))
 	<-c
-	if n != 0 || err != ErrClosedPipe {
+	if n != 0 || !errors.Is(err, ErrClosedPipe) {
 		t.Errorf("read from closed pipe: %v, %v want %v, %v", n, err, 0, ErrClosedPipe)
 	}
 }
@@ -257,7 +258,7 @@ func TestPipeWriteClose2(t *testing.T) {
 	go delayClose(t, w, c, pipeTest{})
 	n, err := w.Write(make([]byte, 64))
 	<-c
-	if n != 0 || err != ErrClosedPipe {
+	if n != 0 || !errors.Is(err, ErrClosedPipe) {
 		t.Errorf("write to closed pipe: %v, %v want %v, %v", n, err, 0, ErrClosedPipe)
 	}
 }
@@ -302,7 +303,7 @@ func TestWriteAfterWriterClose(t *testing.T) {
 	buf := make([]byte, 100)
 	var result string
 	n, err := ReadFull(r, buf)
-	if err != nil && err != ErrUnexpectedEOF {
+	if err != nil && !errors.Is(err, ErrUnexpectedEOF) {
 		t.Fatalf("got: %q; want: %q", err, ErrUnexpectedEOF)
 	}
 	result = string(buf[0:n])
@@ -311,7 +312,7 @@ func TestWriteAfterWriterClose(t *testing.T) {
 	if result != "hello" {
 		t.Errorf("got: %q; want: %q", result, "hello")
 	}
-	if writeErr != ErrClosedPipe {
+	if !errors.Is(writeErr, ErrClosedPipe) {
 		t.Errorf("got: %q; want: %q", writeErr, ErrClosedPipe)
 	}
 }

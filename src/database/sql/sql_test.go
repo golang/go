@@ -856,7 +856,7 @@ func TestTxRollbackCommitErr(t *testing.T) {
 		t.Errorf("expected nil error from Rollback; got %v", err)
 	}
 	err = tx.Commit()
-	if err != ErrTxDone {
+	if !errors.Is(err, ErrTxDone) {
 		t.Errorf("expected %q from Commit; got %q", ErrTxDone, err)
 	}
 
@@ -869,7 +869,7 @@ func TestTxRollbackCommitErr(t *testing.T) {
 		t.Errorf("expected nil error from Commit; got %v", err)
 	}
 	err = tx.Rollback()
-	if err != ErrTxDone {
+	if !errors.Is(err, ErrTxDone) {
 		t.Errorf("expected %q from Rollback; got %q", ErrTxDone, err)
 	}
 }
@@ -2094,7 +2094,7 @@ func TestMaxOpenConns(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				var op string
-				if err := stmt.QueryRow("sleep", sleepMillis).Scan(&op); err != nil && err != ErrNoRows {
+				if err := stmt.QueryRow("sleep", sleepMillis).Scan(&op); err != nil && !errors.Is(err, ErrNoRows) {
 					t.Error(err)
 				}
 			}()
@@ -2472,7 +2472,7 @@ func TestStmtCloseDeps(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				var op string
-				if err := stmt.QueryRow("sleep", sleepMillis).Scan(&op); err != nil && err != ErrNoRows {
+				if err := stmt.QueryRow("sleep", sleepMillis).Scan(&op); err != nil && !errors.Is(err, ErrNoRows) {
 					t.Error(err)
 				}
 			}()

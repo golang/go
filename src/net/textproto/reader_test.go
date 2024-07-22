@@ -7,6 +7,7 @@ package textproto
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"io"
 	"net"
 	"reflect"
@@ -101,7 +102,7 @@ func TestReadDotLines(t *testing.T) {
 
 	s, err = r.ReadDotLines()
 	want = []string{"another"}
-	if !reflect.DeepEqual(s, want) || err != io.ErrUnexpectedEOF {
+	if !reflect.DeepEqual(s, want) || !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("ReadDotLines2: %v, %v", s, err)
 	}
 }
@@ -116,7 +117,7 @@ func TestReadDotBytes(t *testing.T) {
 
 	b, err = r.ReadDotBytes()
 	want = []byte("anot.her\n")
-	if !reflect.DeepEqual(b, want) || err != io.ErrUnexpectedEOF {
+	if !reflect.DeepEqual(b, want) || !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("ReadDotBytes2: %q, %v", b, err)
 	}
 }

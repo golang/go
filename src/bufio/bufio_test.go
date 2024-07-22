@@ -55,7 +55,7 @@ func readBytes(buf *Reader) string {
 		if err == nil {
 			b[nb] = c
 			nb++
-		} else if err != iotest.ErrTimeout {
+		} else if !errors.Is(err, iotest.ErrTimeout) {
 			panic("Data: " + err.Error())
 		}
 	}
@@ -97,7 +97,7 @@ func readLines(b *Reader) string {
 		if err == io.EOF {
 			break
 		}
-		if err != nil && err != iotest.ErrTimeout {
+		if err != nil && !errors.Is(err, iotest.ErrTimeout) {
 			panic("GetLines: " + err.Error())
 		}
 		s += s1
@@ -193,7 +193,7 @@ func TestZeroReader(t *testing.T) {
 	case err := <-c:
 		if err == nil {
 			t.Error("error expected")
-		} else if err != io.ErrNoProgress {
+		} else if !errors.Is(err, io.ErrNoProgress) {
 			t.Error("unexpected error:", err)
 		}
 	case <-time.After(time.Second):
@@ -827,7 +827,7 @@ func TestBufferFull(t *testing.T) {
 	const longString = "And now, hello, world! It is the time for all good men to come to the aid of their party"
 	buf := NewReaderSize(strings.NewReader(longString), minReadBufferSize)
 	line, err := buf.ReadSlice('!')
-	if string(line) != "And now, hello, " || err != ErrBufferFull {
+	if string(line) != "And now, hello, " || !errors.Is(err, ErrBufferFull) {
 		t.Errorf("first ReadSlice(,) = %q, %v", line, err)
 	}
 	line, err = buf.ReadSlice('!')
@@ -846,10 +846,10 @@ func TestPeek(t *testing.T) {
 	if s, err := buf.Peek(4); string(s) != "abcd" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "abcd", string(s), err)
 	}
-	if _, err := buf.Peek(-1); err != ErrNegativeCount {
+	if _, err := buf.Peek(-1); !errors.Is(err, ErrNegativeCount) {
 		t.Fatalf("want ErrNegativeCount got %v", err)
 	}
-	if s, err := buf.Peek(32); string(s) != "abcdefghijklmnop" || err != ErrBufferFull {
+	if s, err := buf.Peek(32); string(s) != "abcdefghijklmnop" || !errors.Is(err, ErrBufferFull) {
 		t.Fatalf("want %q, ErrBufFull got %q, err=%v", "abcdefghijklmnop", string(s), err)
 	}
 	if _, err := buf.Read(p[0:3]); string(p[0:3]) != "abc" || err != nil {
@@ -1093,7 +1093,7 @@ func testReadLineNewlines(t *testing.T, input string, expect []readLineResult) {
 			t.Errorf("%q call %d, isPrefix == %v, want %v", input, i, isPrefix, e.isPrefix)
 			return
 		}
-		if err != e.err {
+		if !errors.Is(err, e.err) {
 			t.Errorf("%q call %d, err == %v, want %v", input, i, err, e.err)
 			return
 		}
@@ -1407,7 +1407,7 @@ func TestWriterReadFromErrNoProgress(t *testing.T) {
 	// Use ReadFrom to read in some data.
 	r := &emptyThenNonEmptyReader{r: strings.NewReader("abcd"), n: 100}
 	n2, err := w.ReadFrom(r)
-	if n2 != 0 || err != io.ErrNoProgress {
+	if n2 != 0 || !errors.Is(err, io.ErrNoProgress) {
 		t.Fatalf("buf.Bytes() returned (%v, %v), want (0, io.ErrNoProgress)", n2, err)
 	}
 }

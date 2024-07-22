@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -1260,7 +1261,7 @@ func TestDecodePartial(t *testing.T) {
 			// The decoder used to erroneously return io.EOF in some cases here,
 			// such as if the input was cut off right after some type specs,
 			// but before any value was actually transmitted.
-			if err != io.ErrUnexpectedEOF {
+			if !errors.Is(err, io.ErrUnexpectedEOF) {
 				t.Errorf("%d/%d: expected io.ErrUnexpectedEOF: %v", i, len(data), err)
 			}
 		}

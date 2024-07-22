@@ -907,7 +907,7 @@ func (e *vcsNotFoundError) Error() string {
 }
 
 func (e *vcsNotFoundError) Is(err error) bool {
-	return err == os.ErrNotExist
+	return errors.Is(err, os.ErrNotExist)
 }
 
 // A govcsRule is a single GOVCS rule like private:hg|svn.

@@ -154,7 +154,7 @@ func runBenchmarkWorker() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	fn := func(CorpusEntry) error { return nil }
-	if err := RunFuzzWorker(ctx, fn); err != nil && err != ctx.Err() {
+	if err := RunFuzzWorker(ctx, fn); err != nil && !errors.Is(err, ctx.Err()) {
 		panic(err)
 	}
 }

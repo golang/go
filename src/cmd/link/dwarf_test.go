@@ -10,6 +10,7 @@ import (
 	"cmd/internal/objfile"
 	"cmd/internal/quoted"
 	"debug/dwarf"
+	"errors"
 	"internal/platform"
 	"internal/testenv"
 	"os"
@@ -175,7 +176,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 				t.Fatal(err)
 			}
 			var line dwarf.LineEntry
-			if err := lr.SeekPC(addr, &line); err == dwarf.ErrUnknownPC {
+			if err := lr.SeekPC(addr, &line); errors.Is(err, dwarf.ErrUnknownPC) {
 				t.Fatalf("did not find file:line for %#x (main.main)", addr)
 			} else if err != nil {
 				t.Fatal(err)

@@ -7,6 +7,7 @@
 package os_test
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -34,13 +35,13 @@ func TestNonpollableDeadline(t *testing.T) {
 	defer os.Remove(f.Name())
 	defer f.Close()
 	deadline := time.Now().Add(10 * time.Second)
-	if err := f.SetDeadline(deadline); err != os.ErrNoDeadline {
+	if err := f.SetDeadline(deadline); !errors.Is(err, os.ErrNoDeadline) {
 		t.Errorf("SetDeadline on file returned %v, wanted %v", err, os.ErrNoDeadline)
 	}
-	if err := f.SetReadDeadline(deadline); err != os.ErrNoDeadline {
+	if err := f.SetReadDeadline(deadline); !errors.Is(err, os.ErrNoDeadline) {
 		t.Errorf("SetReadDeadline on file returned %v, wanted %v", err, os.ErrNoDeadline)
 	}
-	if err := f.SetWriteDeadline(deadline); err != os.ErrNoDeadline {
+	if err := f.SetWriteDeadline(deadline); !errors.Is(err, os.ErrNoDeadline) {
 		t.Errorf("SetWriteDeadline on file returned %v, wanted %v", err, os.ErrNoDeadline)
 	}
 }

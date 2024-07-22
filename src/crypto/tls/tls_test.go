@@ -606,7 +606,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 	}
 
 	<-closeReturned
-	if err := tconn.Close(); err != net.ErrClosed {
+	if err := tconn.Close(); !errors.Is(err, net.ErrClosed) {
 		t.Errorf("Close error = %v; want net.ErrClosed", err)
 	}
 }

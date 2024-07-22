@@ -425,7 +425,7 @@ func (d *decoder) readImageDescriptor(keepAllFrames bool) error {
 	lzwr := lzw.NewReader(br, lzw.LSB, int(litWidth))
 	defer lzwr.Close()
 	if err = readFull(lzwr, m.Pix); err != nil {
-		if err != io.ErrUnexpectedEOF {
+		if !errors.Is(err, io.ErrUnexpectedEOF) {
 			return fmt.Errorf("gif: reading image data: %v", err)
 		}
 		return errNotEnough
@@ -441,7 +441,7 @@ func (d *decoder) readImageDescriptor(keepAllFrames bool) error {
 	// before the LZW decoder saw an explicit end code), provided that
 	// the io.ReadFull call above successfully read len(m.Pix) bytes.
 	// See https://golang.org/issue/9856 for an example GIF.
-	if n, err := lzwr.Read(d.tmp[256:257]); n != 0 || (err != io.EOF && err != io.ErrUnexpectedEOF) {
+	if n, err := lzwr.Read(d.tmp[256:257]); n != 0 || (err != && !errors.Is(err, io.ErrUnexpectedEOF)) {
 		if err != nil {
 			return fmt.Errorf("gif: reading image data: %v", err)
 		}

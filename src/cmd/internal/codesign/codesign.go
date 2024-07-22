@@ -13,6 +13,7 @@ package codesign
 import (
 	"debug/macho"
 	"encoding/binary"
+	"errors"
 	"io"
 
 	"cmd/internal/notsha256"
@@ -258,7 +259,7 @@ func Sign(out []byte, data io.Reader, id string, codeSize, textOff, textSize int
 		if err == io.EOF {
 			break
 		}
-		if err != nil && err != io.ErrUnexpectedEOF {
+		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
 			panic(err)
 		}
 		if p+n > int(codeSize) {

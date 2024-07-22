@@ -5,6 +5,7 @@
 package elf
 
 import (
+	"errors"
 	"io"
 	"path"
 	"reflect"
@@ -30,10 +31,10 @@ func TestSymbols(t *testing.T) {
 		}
 		defer f.Close()
 		fs, err := getfunc(f)
-		if err != nil && err != ErrNoSymbols {
+		if err != nil && !errors.Is(err, ErrNoSymbols) {
 			t.Error(err)
 			return
-		} else if err == ErrNoSymbols {
+		} else if errors.Is(err, ErrNoSymbols) {
 			fs = []Symbol{}
 		}
 		if !reflect.DeepEqual(ts, fs) {

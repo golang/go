@@ -1165,7 +1165,7 @@ func (f *FlagSet) Parse(arguments []string) error {
 		case ContinueOnError:
 			return err
 		case ExitOnError:
-			if err == ErrHelp {
+			if errors.Is(err, ErrHelp) {
 				os.Exit(0)
 			}
 			os.Exit(2)

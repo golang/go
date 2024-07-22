@@ -13,6 +13,7 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -494,7 +495,7 @@ func TestH12_HandlerWritesTooLittle(t *testing.T) {
 				t.Errorf("%s body is %T; want slurpResult", proto, res.Body)
 				return
 			}
-			if sr.err != io.ErrUnexpectedEOF {
+			if !errors.Is(sr.err, io.ErrUnexpectedEOF) {
 				t.Errorf("%s read error = %v; want io.ErrUnexpectedEOF", proto, sr.err)
 			}
 			if string(sr.body) != "12" {
@@ -579,7 +580,7 @@ func test304Responses(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusNotModified)
 		_, err := w.Write([]byte("illegal body"))
-		if err != ErrBodyNotAllowed {
+		if !errors.Is(err, ErrBodyNotAllowed) {
 			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
 		}
 	}))
@@ -680,7 +681,7 @@ func testCancelRequestMidBody(t *testing.T, mode testMode) {
 	if all != "Hello" {
 		t.Errorf("Read %q (%q + %q); want Hello", all, firstRead, rest)
 	}
-	if err != ExportErrRequestCanceled {
+	if !errors.Is(err, ExportErrRequestCanceled) {
 		t.Errorf("ReadAll error = %v; want %v", err, ExportErrRequestCanceled)
 	}
 }

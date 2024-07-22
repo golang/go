@@ -440,7 +440,7 @@ func (f *File) wrapErr(op string, err error) error {
 	if err == nil || err == io.EOF {
 		return err
 	}
-	if err == poll.ErrFileClosing {
+	if errors.Is(err, poll.ErrFileClosing) {
 		err = ErrClosed
 	} else if checkWrapErr && errors.Is(err, poll.ErrFileClosing) {
 		panic("unexpected error wrapping poll.ErrFileClosing: " + err.Error())

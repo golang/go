@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"go/token"
 	"io"
@@ -838,7 +839,7 @@ func TestResponseContentLengthShortBody(t *testing.T) {
 	if buf.String() != shortBody {
 		t.Errorf("Read body %q; want %q", buf.String(), shortBody)
 	}
-	if err != io.ErrUnexpectedEOF {
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("io.Copy error = %#v; want io.ErrUnexpectedEOF", err)
 	}
 }

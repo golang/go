@@ -265,7 +265,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 			}
 
 			summary, err := mg.loadCache.Get(m)
-			if err != nil && err != par.ErrCacheEntryNotFound {
+			if err != nil && !errors.Is(err, par.ErrCacheEntryNotFound) {
 				// We can't determine the requirements of m, so we don't know whether
 				// they would be allowed. This may be a transient error reaching the
 				// repository, rather than a permanent error with the retrieved version.

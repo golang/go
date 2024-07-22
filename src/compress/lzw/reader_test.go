@@ -6,6 +6,7 @@ package lzw
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -105,7 +106,7 @@ func TestReader(t *testing.T) {
 			if err != tt.err {
 				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
 			}
-			if err == io.ErrUnexpectedEOF {
+			if errors.Is(err, io.ErrUnexpectedEOF) {
 				// Even if the input is truncated, we should still return the
 				// partial decoded result.
 				if n == 0 || !strings.HasPrefix(tt.raw, s) {
@@ -143,7 +144,7 @@ func TestReaderReset(t *testing.T) {
 			if err != tt.err {
 				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
 			}
-			if err == io.ErrUnexpectedEOF {
+			if errors.Is(err, io.ErrUnexpectedEOF) {
 				// Even if the input is truncated, we should still return the
 				// partial decoded result.
 				if n == 0 || !strings.HasPrefix(tt.raw, b.String()) {

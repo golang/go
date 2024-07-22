@@ -7,6 +7,7 @@ package jpeg
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -499,7 +500,7 @@ func TestIssue56724(t *testing.T) {
 	b = b[:24] // truncate image data
 
 	_, err = Decode(bytes.NewReader(b))
-	if err != io.ErrUnexpectedEOF {
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("got: %v, want: %v", err, io.ErrUnexpectedEOF)
 	}
 }

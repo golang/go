@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -96,7 +97,7 @@ func TestFloatCorruptGob(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := gob.NewDecoder(bytes.NewReader(b[:10])).Decode(&rx); err != io.ErrUnexpectedEOF {
+	if err := gob.NewDecoder(bytes.NewReader(b[:10])).Decode(&rx); !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("got %v want EOF", err)
 	}
 

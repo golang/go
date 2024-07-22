@@ -7,6 +7,7 @@ package buildid
 import (
 	"bytes"
 	"debug/elf"
+	"errors"
 	"fmt"
 	"internal/xcoff"
 	"io"
@@ -278,7 +279,7 @@ func readBinary(name string, f *os.File) (id string, err error) {
 	//
 	data := make([]byte, readSize)
 	_, err = io.ReadFull(f, data)
-	if err == io.ErrUnexpectedEOF {
+	if errors.Is(err, io.ErrUnexpectedEOF) {
 		err = nil
 	}
 	if err != nil {

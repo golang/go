@@ -7,6 +7,7 @@ package sql_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -57,7 +58,7 @@ func ExampleDB_QueryRowContext() {
 	var created time.Time
 	err := db.QueryRowContext(ctx, "SELECT username, created_at FROM users WHERE id=?", id).Scan(&username, &created)
 	switch {
-	case err == sql.ErrNoRows:
+	case errors.Is(err, sql.ErrNoRows):
 		log.Printf("no user with id %d\n", id)
 	case err != nil:
 		log.Fatalf("query error: %v\n", err)
@@ -314,7 +315,7 @@ func ExampleStmt() {
 	var username string
 	err = stmt.QueryRowContext(ctx, id).Scan(&username)
 	switch {
-	case err == sql.ErrNoRows:
+	case errors.Is(err, sql.ErrNoRows):
 		log.Fatalf("no user with id %d", id)
 	case err != nil:
 		log.Fatal(err)
@@ -336,7 +337,7 @@ func ExampleStmt_QueryRowContext() {
 	var username string
 	err = stmt.QueryRowContext(ctx, id).Scan(&username)
 	switch {
-	case err == sql.ErrNoRows:
+	case errors.Is(err, sql.ErrNoRows):
 		log.Fatalf("no user with id %d", id)
 	case err != nil:
 		log.Fatal(err)

@@ -241,7 +241,7 @@ func TestScanLineTooLong(t *testing.T) {
 		}
 	}
 	err := s.Err()
-	if err != ErrTooLong {
+	if !errors.Is(err, ErrTooLong) {
 		t.Fatalf("expected ErrTooLong; got %s", err)
 	}
 }
@@ -378,7 +378,7 @@ func TestNonEOFWithEmptyRead(t *testing.T) {
 		t.Fatal("read should fail")
 	}
 	err := scanner.Err()
-	if err != io.ErrUnexpectedEOF {
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
@@ -396,7 +396,7 @@ func TestBadReader(t *testing.T) {
 		t.Fatal("read should fail")
 	}
 	err := scanner.Err()
-	if err != io.ErrNoProgress {
+	if !errors.Is(err, io.ErrNoProgress) {
 		t.Errorf("unexpected error: %v", err)
 	}
 }

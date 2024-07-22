@@ -8,6 +8,7 @@
 package net
 
 import (
+	"errors"
 	"internal/bytealg"
 	"io"
 	"os"
@@ -56,7 +57,7 @@ func (f *file) readLine() (s string, ok bool) {
 		if n >= 0 {
 			f.data = f.data[0 : ln+n]
 		}
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
+		if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) {
 			f.atEOF = true
 		}
 	}

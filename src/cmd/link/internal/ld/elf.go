@@ -13,6 +13,7 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"internal/buildcfg"
 	"os"
@@ -832,7 +833,7 @@ func addbuildinfo(val string) {
 
 	b, err := hex.DecodeString(val)
 	if err != nil {
-		if err == hex.ErrLength {
+		if errors.Is(err, hex.ErrLength) {
 			Exitf("-B argument must have even number of digits: %s", ov)
 		}
 		if inv, ok := err.(hex.InvalidByteError); ok {

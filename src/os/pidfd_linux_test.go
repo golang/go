@@ -43,10 +43,10 @@ func TestFindProcessViaPidfd(t *testing.T) {
 
 	// Check that all Process' public methods work as expected with
 	// "done" Process.
-	if err := proc.Kill(); err != os.ErrProcessDone {
+	if err := proc.Kill(); !errors.Is(err, os.ErrProcessDone) {
 		t.Errorf("Kill: got %v, want %v", err, os.ErrProcessDone)
 	}
-	if err := proc.Signal(os.Kill); err != os.ErrProcessDone {
+	if err := proc.Signal(os.Kill); !errors.Is(err, os.ErrProcessDone) {
 		t.Errorf("Signal: got %v, want %v", err, os.ErrProcessDone)
 	}
 	if _, err := proc.Wait(); !errors.Is(err, syscall.ECHILD) {

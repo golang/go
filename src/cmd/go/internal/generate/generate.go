@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -300,12 +301,12 @@ func (g *Generator) run() (ok bool) {
 		g.lineNum++ // 1-indexed.
 		var buf []byte
 		buf, err = input.ReadSlice('\n')
-		if err == bufio.ErrBufferFull {
+		if errors.Is(err, bufio.ErrBufferFull) {
 			// Line too long - consume and ignore.
 			if isGoGenerate(buf) {
 				g.errorf("directive too long")
 			}
-			for err == bufio.ErrBufferFull {
+			for errors.Is(err, bufio.ErrBufferFull) {
 				_, err = input.ReadSlice('\n')
 			}
 			if err != nil {

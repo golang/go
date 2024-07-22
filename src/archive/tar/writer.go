@@ -475,7 +475,7 @@ func (tw *Writer) Write(b []byte) (int, error) {
 		return 0, tw.err
 	}
 	n, err := tw.curr.Write(b)
-	if err != nil && err != ErrWriteTooLong {
+	if err != nil && !errors.Is(err, ErrWriteTooLong) {
 		tw.err = err
 	}
 	return n, err
@@ -496,7 +496,7 @@ func (tw *Writer) readFrom(r io.Reader) (int64, error) {
 		return 0, tw.err
 	}
 	n, err := tw.curr.ReadFrom(r)
-	if err != nil && err != ErrWriteTooLong {
+	if err != nil && !errors.Is(err, ErrWriteTooLong) {
 		tw.err = err
 	}
 	return n, err
@@ -506,7 +506,7 @@ func (tw *Writer) readFrom(r io.Reader) (int64, error) {
 // If the current file (from a prior call to [Writer.WriteHeader]) is not fully written,
 // then this returns an error.
 func (tw *Writer) Close() error {
-	if tw.err == ErrWriteAfterClose {
+	if errors.Is(tw.err, ErrWriteAfterClose) {
 		return nil
 	}
 	if tw.err != nil {
@@ -597,7 +597,7 @@ func (sw *sparseFileWriter) Write(b []byte) (n int, err error) {
 
 	n = len(b0) - len(b)
 	switch {
-	case err == ErrWriteTooLong:
+	case errors.Is(err, ErrWriteTooLong):
 		return n, errMissData // Not possible; implies bug in validation logic
 	case err != nil:
 		return n, err
@@ -654,7 +654,7 @@ func (sw *sparseFileWriter) ReadFrom(r io.Reader) (n int64, err error) {
 	switch {
 	case err == io.EOF:
 		return n, io.ErrUnexpectedEOF
-	case err == ErrWriteTooLong:
+	case errors.Is(err, ErrWriteTooLong):
 		return n, errMissData // Not possible; implies bug in validation logic
 	case err != nil:
 		return n, err

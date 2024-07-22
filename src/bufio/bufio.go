@@ -403,7 +403,7 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
 // part of the line returned by ReadLine.
 func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
 	line, err = b.ReadSlice('\n')
-	if err == ErrBufferFull {
+	if errors.Is(err, ErrBufferFull) {
 		// Handle the case where "\r\n" straddles the buffer.
 		if len(line) > 0 && line[len(line)-1] == '\r' {
 			// Put the '\r' back on buf and drop it from line.

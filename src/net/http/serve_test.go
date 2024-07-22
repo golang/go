@@ -1176,7 +1176,7 @@ func testIdentityResponse(t *testing.T, mode testMode) {
 		switch {
 		case req.FormValue("overwrite") == "1":
 			_, err := rw.Write([]byte("foo TOO LONG"))
-			if err != ErrContentLength {
+			if !errors.Is(err, ErrContentLength) {
 				t.Errorf("expected ErrContentLength; got %v", err)
 			}
 		case req.FormValue("underwrite") == "1":
@@ -2991,7 +2991,7 @@ func testServerWriteHijackZeroBytes(t *testing.T, mode testMode) {
 		}
 		defer conn.Close()
 		_, err = w.Write(nil)
-		if err != ErrHijacked {
+		if !errors.Is(err, ErrHijacked) {
 			t.Errorf("Write error = %v; want ErrHijacked", err)
 		}
 	}), func(ts *httptest.Server) {

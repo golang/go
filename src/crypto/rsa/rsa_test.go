@@ -15,6 +15,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -190,7 +191,7 @@ func testEverything(t *testing.T, priv *PrivateKey) {
 
 	msg := []byte("test")
 	enc, err := EncryptPKCS1v15(rand.Reader, &priv.PublicKey, msg)
-	if err == ErrMessageTooLong {
+	if errors.Is(err, ErrMessageTooLong) {
 		t.Log("key too small for EncryptPKCS1v15")
 	} else if err != nil {
 		t.Errorf("EncryptPKCS1v15: %v", err)
@@ -211,7 +212,7 @@ func testEverything(t *testing.T, priv *PrivateKey) {
 
 	label := []byte("label")
 	enc, err = EncryptOAEP(sha256.New(), rand.Reader, &priv.PublicKey, msg, label)
-	if err == ErrMessageTooLong {
+	if errors.Is(err, ErrMessageTooLong) {
 		t.Log("key too small for EncryptOAEP")
 	} else if err != nil {
 		t.Errorf("EncryptOAEP: %v", err)
@@ -228,7 +229,7 @@ func testEverything(t *testing.T, priv *PrivateKey) {
 
 	hash := sha256.Sum256(msg)
 	sig, err := SignPKCS1v15(nil, priv, crypto.SHA256, hash[:])
-	if err == ErrMessageTooLong {
+	if errors.Is(err, ErrMessageTooLong) {
 		t.Log("key too small for SignPKCS1v15")
 	} else if err != nil {
 		t.Errorf("SignPKCS1v15: %v", err)
@@ -254,7 +255,7 @@ func testEverything(t *testing.T, priv *PrivateKey) {
 
 	opts := &PSSOptions{SaltLength: PSSSaltLengthAuto}
 	sig, err = SignPSS(rand.Reader, priv, crypto.SHA256, hash[:], opts)
-	if err == ErrMessageTooLong {
+	if errors.Is(err, ErrMessageTooLong) {
 		t.Log("key too small for SignPSS with PSSSaltLengthAuto")
 	} else if err != nil {
 		t.Errorf("SignPSS: %v", err)
@@ -280,7 +281,7 @@ func testEverything(t *testing.T, priv *PrivateKey) {
 
 	opts.SaltLength = PSSSaltLengthEqualsHash
 	sig, err = SignPSS(rand.Reader, priv, crypto.SHA256, hash[:], opts)
-	if err == ErrMessageTooLong {
+	if errors.Is(err, ErrMessageTooLong) {
 		t.Log("key too small for SignPSS with PSSSaltLengthEqualsHash")
 	} else if err != nil {
 		t.Errorf("SignPSS: %v", err)

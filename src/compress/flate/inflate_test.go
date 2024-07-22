@@ -7,6 +7,7 @@ package flate
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -58,7 +59,7 @@ func TestReaderTruncated(t *testing.T) {
 		r := strings.NewReader(v.input)
 		zr := NewReader(r)
 		b, err := io.ReadAll(zr)
-		if err != io.ErrUnexpectedEOF {
+		if !errors.Is(err, io.ErrUnexpectedEOF) {
 			t.Errorf("test %d, error mismatch: got %v, want io.ErrUnexpectedEOF", i, err)
 		}
 		if string(b) != v.output {

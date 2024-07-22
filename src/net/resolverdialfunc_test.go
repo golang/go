@@ -253,7 +253,7 @@ func (a *resolverFuncConn) Write(packet []byte) (n int, err error) {
 	if err == nil && a.h.Question != nil {
 		a.h.Question(h, q)
 	}
-	if err != nil && err != dnsmessage.ErrSectionDone {
+	if err != nil && !errors.Is(err, dnsmessage.ErrSectionDone) {
 		return 0, err
 	}
 

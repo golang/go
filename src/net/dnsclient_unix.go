@@ -199,7 +199,7 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 		if err != nil {
 			return dnsmessage.Parser{}, dnsmessage.Header{}, mapErr(err)
 		}
-		if err := p.SkipQuestion(); err != dnsmessage.ErrSectionDone {
+		if err := p.SkipQuestion(); !errors.Is(err, dnsmessage.ErrSectionDone) {
 			return dnsmessage.Parser{}, dnsmessage.Header{}, errInvalidDNSResponse
 		}
 		// RFC 5966 indicates that when a client receives a UDP response with
@@ -226,13 +226,13 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
 	}
 
 	_, err := p.AnswerHeader()
-	if err != nil && err != dnsmessage.ErrSectionDone {
+	if err != nil && !errors.Is(err, dnsmessage.ErrSectionDone) {
 		return errCannotUnmarshalDNSMessage
 	}
 
 	// libresolv continues to the next server when it receives
 	// an invalid referral response. See golang.org/issue/15434.
-	if rcode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone && !hasAdd {
+	if rcode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && errors.Is(err, dnsmessage.ErrSectionDone) && !hasAdd {
 		return errLameReferral
 	}
 
@@ -254,7 +254,7 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
 func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type) error {
 	for {
 		h, err := p.AnswerHeader()
-		if err == dnsmessage.ErrSectionDone {
+		if errors.Is(err, dnsmessage.ErrSectionDone) {
 			return errNoSuchHost
 		}
 		if err != nil {
@@ -712,7 +712,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 		loop:
 			for {
 				h, err := result.p.AnswerHeader()
-				if err != nil && err != dnsmessage.ErrSectionDone {
+				if err != nil && !errors.Is(err, dnsmessage.ErrSectionDone) {
 					lastErr = &DNSError{
 						Err:    errCannotUnmarshalDNSMessage.Error(),
 						Name:   name,
@@ -857,7 +857,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 	var ptrs []string
 	for {
 		h, err := p.AnswerHeader()
-		if err == dnsmessage.ErrSectionDone {
+		if errors.Is(err, dnsmessage.ErrSectionDone) {
 			break
 		}
 		if err != nil {

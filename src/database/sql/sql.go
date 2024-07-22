@@ -1704,7 +1704,7 @@ func (db *DB) execDC(ctx context.Context, dc *driverConn, release func(error), q
 			}
 			resi, err = ctxDriverExec(ctx, execerCtx, execer, query, nvdargs)
 		})
-		if err != driver.ErrSkip {
+		if !errors.Is(err, driver.ErrSkip) {
 			if err != nil {
 				return nil, err
 			}
@@ -1777,7 +1777,7 @@ func (db *DB) queryDC(ctx, txctx context.Context, dc *driverConn, releaseConn fu
 			}
 			rowsi, err = ctxDriverQuery(ctx, queryerCtx, queryer, query, nvdargs)
 		})
-		if err != driver.ErrSkip {
+		if !errors.Is(err, driver.ErrSkip) {
 			if err != nil {
 				releaseConn(err)
 				return nil, err

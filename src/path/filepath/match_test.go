@@ -5,6 +5,7 @@
 package filepath_test
 
 import (
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -150,7 +151,7 @@ func TestCVE202230632(t *testing.T) {
 	// large number of separators (more than 4,000,000). There is now a limit
 	// of 10,000.
 	_, err := Glob("/*" + strings.Repeat("/", 10001))
-	if err != ErrBadPattern {
+	if !errors.Is(err, ErrBadPattern) {
 		t.Fatalf("Glob returned err=%v, want ErrBadPattern", err)
 	}
 }
@@ -158,7 +159,7 @@ func TestCVE202230632(t *testing.T) {
 func TestGlobError(t *testing.T) {
 	bad := []string{`[]`, `nonexist/[]`}
 	for _, pattern := range bad {
-		if _, err := Glob(pattern); err != ErrBadPattern {
+		if _, err := Glob(pattern); !errors.Is(err, ErrBadPattern) {
 			t.Errorf("Glob(%#q) returned err=%v, want ErrBadPattern", pattern, err)
 		}
 	}

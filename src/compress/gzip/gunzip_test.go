@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"encoding/base64"
+	"errors"
 	"io"
 	"os"
 	"strings"
@@ -554,7 +555,7 @@ func TestTruncatedStreams(t *testing.T) {
 		for i := 1; i < len(tc.data); i++ {
 			r, err := NewReader(strings.NewReader(string(tc.data[:i])))
 			if err != nil {
-				if err != io.ErrUnexpectedEOF {
+				if !errors.Is(err, io.ErrUnexpectedEOF) {
 					t.Errorf("NewReader(%s-%d) on truncated stream: got %v, want %v", tc.name, i, err, io.ErrUnexpectedEOF)
 				}
 				continue
@@ -563,7 +564,7 @@ func TestTruncatedStreams(t *testing.T) {
 			if ferr, ok := err.(*flate.ReadError); ok {
 				err = ferr.Err
 			}
-			if err != io.ErrUnexpectedEOF {
+			if !errors.Is(err, io.ErrUnexpectedEOF) {
 				t.Errorf("io.Copy(%s-%d) on truncated stream: got %v, want %v", tc.name, i, err, io.ErrUnexpectedEOF)
 			}
 		}

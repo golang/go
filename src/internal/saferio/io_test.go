@@ -6,6 +6,7 @@ package saferio
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"testing"
 )
@@ -54,7 +55,7 @@ func TestReadData(t *testing.T) {
 
 	t.Run("large-UnexpectedEOF", func(t *testing.T) {
 		_, err := ReadData(bytes.NewReader(make([]byte, chunk)), chunk+1)
-		if err != io.ErrUnexpectedEOF {
+		if !errors.Is(err, io.ErrUnexpectedEOF) {
 			t.Errorf("ReadData = %v, want io.ErrUnexpectedEOF", err)
 		}
 	})

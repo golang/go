@@ -11,6 +11,7 @@ package os_test
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -218,7 +219,7 @@ func testClosedPipeRace(t *testing.T, read bool) {
 		t.Error("I/O on closed pipe unexpectedly succeeded")
 	} else if pe, ok := err.(*fs.PathError); !ok {
 		t.Errorf("I/O on closed pipe returned unexpected error type %T; expected fs.PathError", pe)
-	} else if pe.Err != fs.ErrClosed {
+	} else if !errors.Is(pe.Err, fs.ErrClosed) {
 		t.Errorf("got error %q but expected %q", pe.Err, fs.ErrClosed)
 	} else {
 		t.Logf("I/O returned expected error %q", err)
@@ -314,7 +315,7 @@ func testCloseWithBlockingRead(t *testing.T, r, w *os.File) {
 		if pe, ok := err.(*fs.PathError); ok {
 			err = pe.Err
 		}
-		if err != io.EOF && err != fs.ErrClosed {
+		if err != io.EOF && !errors.Is(err, fs.ErrClosed) {
 			t.Errorf("got %v, expected EOF or closed", err)
 		}
 		close(done)

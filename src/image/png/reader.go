@@ -10,6 +10,7 @@ package png
 import (
 	"compress/zlib"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash"
 	"hash/crc32"
@@ -510,7 +511,7 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		// Read the decompressed bytes.
 		_, err := io.ReadFull(r, cr)
 		if err != nil {
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
+			if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) {
 				return nil, FormatError("not enough pixel data")
 			}
 			return nil, err

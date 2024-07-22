@@ -11,6 +11,7 @@ package flate
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -266,7 +267,7 @@ func TestTruncatedStreams(t *testing.T) {
 	for i := 0; i < len(data)-1; i++ {
 		r := NewReader(strings.NewReader(data[:i]))
 		_, err := io.Copy(io.Discard, r)
-		if err != io.ErrUnexpectedEOF {
+		if !errors.Is(err, io.ErrUnexpectedEOF) {
 			t.Errorf("io.Copy(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
 		}
 	}
