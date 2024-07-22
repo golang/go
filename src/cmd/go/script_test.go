@@ -27,9 +27,9 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
-	"cmd/go/internal/script"
-	"cmd/go/internal/script/scripttest"
 	"cmd/go/internal/vcweb/vcstest"
+	"cmd/internal/script"
+	"cmd/internal/script/scripttest"
 
 	"golang.org/x/telemetry/counter/countertest"
 )

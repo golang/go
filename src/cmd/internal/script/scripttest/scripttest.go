@@ -7,8 +7,8 @@ package scripttest
 
 import (
 	"bufio"
-	"cmd/go/internal/script"
 	"cmd/internal/pathcache"
+	"cmd/internal/script"
 	"errors"
 	"io"
 	"strings"

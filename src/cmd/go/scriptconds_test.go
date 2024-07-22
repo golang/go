@@ -6,8 +6,8 @@ package main_test
 
 import (
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/script"
-	"cmd/go/internal/script/scripttest"
+	"cmd/internal/script"
+	"cmd/internal/script/scripttest"
 	"errors"
 	"fmt"
 	"internal/buildcfg"
