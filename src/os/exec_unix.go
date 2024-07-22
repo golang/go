@@ -103,6 +103,9 @@ func (p *Process) signal(sig Signal) error {
 }
 
 func (p *Process) pidSignal(s syscall.Signal) error {
+	if p.Pid == pidReleased {
+		return errors.New("os: process already released")
+	}
 	if p.Pid == pidUnset {
 		return errors.New("os: process not initialized")
 	}

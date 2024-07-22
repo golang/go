@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -2577,4 +2578,167 @@ func produceProfileEvents(t *testing.T, depth int) {
 	memSink = nil
 	runtime.GC()
 	goroutineDeep(t, depth-4) // -4 for produceProfileEvents, **, chanrecv1, chanrev, gopark
+}
+
+func getProfileStacks(collect func([]runtime.BlockProfileRecord) (int, bool), fileLine bool) []string {
+	var n int
+	var ok bool
+	var p []runtime.BlockProfileRecord
+	for {
+		p = make([]runtime.BlockProfileRecord, n)
+		n, ok = collect(p)
+		if ok {
+			p = p[:n]
+			break
+		}
+	}
+	var stacks []string
+	for _, r := range p {
+		var stack strings.Builder
+		for i, pc := range r.Stack() {
+			if i > 0 {
+				stack.WriteByte('\n')
+			}
+			// Use FuncForPC instead of CallersFrames,
+			// because we want to see the info for exactly
+			// the PCs returned by the mutex profile to
+			// ensure inlined calls have already been properly
+			// expanded.
+			f := runtime.FuncForPC(pc - 1)
+			stack.WriteString(f.Name())
+			if fileLine {
+				stack.WriteByte(' ')
+				file, line := f.FileLine(pc - 1)
+				stack.WriteString(file)
+				stack.WriteByte(':')
+				stack.WriteString(strconv.Itoa(line))
+			}
+		}
+		stacks = append(stacks, stack.String())
+	}
+	return stacks
+}
+
+func TestMutexBlockFullAggregation(t *testing.T) {
+	// This regression test is adapted from
+	// https://github.com/grafana/pyroscope-go/issues/103,
+	// authored by Tolya Korniltsev
+
+	var m sync.Mutex
+
+	prev := runtime.SetMutexProfileFraction(-1)
+	defer runtime.SetMutexProfileFraction(prev)
+
+	const fraction = 1
+	const iters = 100
+	const workers = 2
+
+	runtime.SetMutexProfileFraction(fraction)
+	runtime.SetBlockProfileRate(1)
+	defer runtime.SetBlockProfileRate(0)
+
+	wg := sync.WaitGroup{}
+	wg.Add(workers)
+	for j := 0; j < workers; j++ {
+		go func() {
+			for i := 0; i < iters; i++ {
+				m.Lock()
+				// Wait at least 1 millisecond to pass the
+				// starvation threshold for the mutex
+				time.Sleep(time.Millisecond)
+				m.Unlock()
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	assertNoDuplicates := func(name string, collect func([]runtime.BlockProfileRecord) (int, bool)) {
+		stacks := getProfileStacks(collect, true)
+		seen := make(map[string]struct{})
+		for _, s := range stacks {
+			if _, ok := seen[s]; ok {
+				t.Errorf("saw duplicate entry in %s profile with stack:\n%s", name, s)
+			}
+			seen[s] = struct{}{}
+		}
+		if len(seen) == 0 {
+			t.Errorf("did not see any samples in %s profile for this test", name)
+		}
+	}
+	t.Run("mutex", func(t *testing.T) {
+		assertNoDuplicates("mutex", runtime.MutexProfile)
+	})
+	t.Run("block", func(t *testing.T) {
+		assertNoDuplicates("block", runtime.BlockProfile)
+	})
+}
+
+func inlineA(mu *sync.Mutex, wg *sync.WaitGroup) { inlineB(mu, wg) }
+func inlineB(mu *sync.Mutex, wg *sync.WaitGroup) { inlineC(mu, wg) }
+func inlineC(mu *sync.Mutex, wg *sync.WaitGroup) {
+	defer wg.Done()
+	mu.Lock()
+	mu.Unlock()
+}
+
+func inlineD(mu *sync.Mutex, wg *sync.WaitGroup) { inlineE(mu, wg) }
+func inlineE(mu *sync.Mutex, wg *sync.WaitGroup) { inlineF(mu, wg) }
+func inlineF(mu *sync.Mutex, wg *sync.WaitGroup) {
+	defer wg.Done()
+	mu.Unlock()
+}
+
+func TestBlockMutexProfileInlineExpansion(t *testing.T) {
+	runtime.SetBlockProfileRate(1)
+	defer runtime.SetBlockProfileRate(0)
+	prev := runtime.SetMutexProfileFraction(1)
+	defer runtime.SetMutexProfileFraction(prev)
+
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(2)
+	mu.Lock()
+	go inlineA(&mu, &wg)
+	awaitBlockedGoroutine(t, "sync.Mutex.Lock", "inlineC", 1)
+	// inlineD will unblock inlineA
+	go inlineD(&mu, &wg)
+	wg.Wait()
+
+	tcs := []struct {
+		Name     string
+		Collect  func([]runtime.BlockProfileRecord) (int, bool)
+		SubStack string
+	}{
+		{
+			Name:    "mutex",
+			Collect: runtime.MutexProfile,
+			SubStack: `sync.(*Mutex).Unlock
+runtime/pprof.inlineF
+runtime/pprof.inlineE
+runtime/pprof.inlineD`,
+		},
+		{
+			Name:    "block",
+			Collect: runtime.BlockProfile,
+			SubStack: `sync.(*Mutex).Lock
+runtime/pprof.inlineC
+runtime/pprof.inlineB
+runtime/pprof.inlineA`,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Name, func(t *testing.T) {
+			stacks := getProfileStacks(tc.Collect, false)
+			for _, s := range stacks {
+				if strings.Contains(s, tc.SubStack) {
+					return
+				}
+			}
+			t.Error("did not see expected stack")
+			t.Logf("wanted:\n%s", tc.SubStack)
+			t.Logf("got: %s", stacks)
+		})
+	}
 }

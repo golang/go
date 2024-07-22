@@ -83,8 +83,21 @@ func NewStack(name string, depth int) *StackCounter {
 // If the telemetry mode is "off", Open is a no-op. Otherwise, it opens the
 // counter file on disk and starts to mmap telemetry counters to the file.
 // Open also persists any counters already created in the current process.
+//
+// Open should only be called from short-lived processes such as command line
+// tools. If your process is long-running, use [OpenAndRotate].
 func Open() {
-	counter.Open()
+	counter.Open(false)
+}
+
+// OpenAndRotate is like [Open], but also schedules a rotation of the counter
+// file when it expires.
+//
+// See golang/go#68497 for background on why [OpenAndRotate] is a separate API.
+//
+// TODO(rfindley): refactor Open and OpenAndRotate for Go 1.24.
+func OpenAndRotate() {
+	counter.Open(true)
 }
 
 // OpenDir prepares telemetry counters for recording to the file system, using
@@ -97,7 +110,7 @@ func OpenDir(telemetryDir string) {
 	if telemetryDir != "" {
 		telemetry.Default = telemetry.NewDir(telemetryDir)
 	}
-	counter.Open()
+	counter.Open(false)
 }
 
 // CountFlags creates a counter for every flag that is set

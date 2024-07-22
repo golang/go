@@ -392,7 +392,7 @@ Proof that q ≤ q̂:
 	      ≥ (1/y)·((x₁ - y₁ + 1)·S - x)    [above: q̂·y₁ ≥ x₁ - y₁ + 1]
 	      = (1/y)·(x₁·S - y₁·S + S - x)    [distribute S]
 	      = (1/y)·(S - x₀ - y₁·S)          [-x = -x₁·S - x₀]
-	      > -y₁·S / y                      [x₀ < S, so S - x₀ < 0; drop it]
+	      > -y₁·S / y                      [x₀ < S, so S - x₀ > 0; drop it]
 	      ≥ -1                             [y₁·S ≤ y]
 
 	So q̂ - q > -1.

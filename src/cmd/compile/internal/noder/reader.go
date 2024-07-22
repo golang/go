@@ -903,6 +903,11 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 			base.Fatalf("%v is missing its underlying type", targ)
 		}
 	}
+	// For fully instantiated shape interface type, use it as-is. Otherwise, the instantiation
+	// involved recursive generic interface may cause mismatching in function signature, see issue #65362.
+	if targ.Kind() == types.TINTER && targ.IsFullyInstantiated() && targ.HasShape() {
+		return targ
+	}
 
 	// When a pointer type is used to instantiate a type parameter
 	// constrained by a basic interface, we know the pointer's element

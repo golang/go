@@ -194,6 +194,7 @@ func NewEncoder(w io.Writer) *Encoder {
 }
 
 // Encode writes the JSON encoding of v to the stream,
+// with insignificant space characters elided,
 // followed by a newline character.
 //
 // See the documentation for [Marshal] for details about the

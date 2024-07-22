@@ -232,10 +232,9 @@ func (x *Float) Acc() Accuracy {
 }
 
 // Sign returns:
-//
-//	-1 if x <   0
-//	 0 if x is ±0
-//	+1 if x >   0
+//   - -1 if x < 0;
+//   - 0 if x is ±0;
+//   - +1 if x > 0.
 func (x *Float) Sign() int {
 	if debugFloat {
 		x.validate()
@@ -393,7 +392,7 @@ func (x *Float) validate0() string {
 // have before calling round. z's mantissa must be normalized (with the msb set)
 // or empty.
 //
-// CAUTION: The rounding modes ToNegativeInf, ToPositiveInf are affected by the
+// CAUTION: The rounding modes [ToNegativeInf], [ToPositiveInf] are affected by the
 // sign of z. For correct rounding, the sign of z must be set correctly before
 // calling round.
 func (z *Float) round(sbit uint) {
@@ -733,7 +732,7 @@ func msb64(x nat) uint64 {
 }
 
 // Uint64 returns the unsigned integer resulting from truncating x
-// towards zero. If 0 <= x <= math.MaxUint64, the result is [Exact]
+// towards zero. If 0 <= x <= [math.MaxUint64], the result is [Exact]
 // if x is an integer and [Below] otherwise.
 // The result is (0, [Above]) for x < 0, and ([math.MaxUint64], [Below])
 // for x > [math.MaxUint64].
@@ -1673,10 +1672,9 @@ func (z *Float) Quo(x, y *Float) *Float {
 }
 
 // Cmp compares x and y and returns:
-//
-//	-1 if x <  y
-//	 0 if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf)
-//	+1 if x >  y
+//   - -1 if x < y;
+//   - 0 if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf);
+//   - +1 if x > y.
 func (x *Float) Cmp(y *Float) int {
 	if debugFloat {
 		x.validate()

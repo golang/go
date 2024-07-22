@@ -1,4 +1,4 @@
-// run -gcflags=all=-d=checkptr
+// run -gcflags='all=-N -l'
 
 // Copyright 2024 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,14 +6,8 @@
 
 package main
 
-import (
-	"regexp"
-	"unique"
-)
-
-var dataFileRegexp = regexp.MustCompile(`^data\.\d+\.bin$`)
+import "os"
 
 func main() {
-	_ = dataFileRegexp
-	unique.Make("")
+	os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 }

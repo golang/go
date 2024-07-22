@@ -40,6 +40,9 @@ func Open(telemetryDir string) {
 	}
 	telemetry.Default = telemetry.NewDir(telemetryDir)
 
+	// TODO(rfindley): reinstate test coverage with counter rotation enabled.
+	// Before the [counter.Open] and [counter.OpenAndRotate] APIs were split,
+	// this called counter.Open (which rotated!).
 	counter.Open()
 	opened = true
 }

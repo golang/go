@@ -18,6 +18,8 @@ type PkgSpecial struct {
 	//
 	// - Optimizations are always enabled.
 	//
+	// - Checkptr is always disabled.
+	//
 	// This should be set for runtime and all packages it imports, and may be
 	// set for additional packages.
 	Runtime bool

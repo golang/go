@@ -1224,21 +1224,13 @@ func TestManyCalls(t *testing.T) {
 	}
 
 	argv := cmdToRun("./testp7")
-	cmd = exec.Command(argv[0], argv[1:]...)
+	cmd = testenv.Command(t, argv[0], argv[1:]...)
 	sb := new(strings.Builder)
 	cmd.Stdout = sb
 	cmd.Stderr = sb
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-
-	timer := time.AfterFunc(time.Minute,
-		func() {
-			t.Error("test program timed out")
-			cmd.Process.Kill()
-		},
-	)
-	defer timer.Stop()
 
 	err = cmd.Wait()
 	t.Logf("%v\n%s", cmd.Args, sb)
@@ -1284,21 +1276,13 @@ func TestPreemption(t *testing.T) {
 	}
 
 	argv := cmdToRun("./testp8")
-	cmd = exec.Command(argv[0], argv[1:]...)
+	cmd = testenv.Command(t, argv[0], argv[1:]...)
 	sb := new(strings.Builder)
 	cmd.Stdout = sb
 	cmd.Stderr = sb
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-
-	timer := time.AfterFunc(time.Minute,
-		func() {
-			t.Error("test program timed out")
-			cmd.Process.Kill()
-		},
-	)
-	defer timer.Stop()
 
 	err = cmd.Wait()
 	t.Logf("%v\n%s", cmd.Args, sb)
