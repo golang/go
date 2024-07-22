@@ -5,8 +5,8 @@
 package script
 
 import (
-	"cmd/go/internal/imports"
 	"fmt"
+	"internal/syslist"
 	"os"
 	"runtime"
 	"sync"
@@ -25,7 +25,7 @@ func DefaultConds() map[string]Cond {
 			if suffix == runtime.GOOS {
 				return true, nil
 			}
-			if _, ok := imports.KnownOS[suffix]; !ok {
+			if _, ok := syslist.KnownOS[suffix]; !ok {
 				return false, fmt.Errorf("unrecognized GOOS %q", suffix)
 			}
 			return false, nil
@@ -37,7 +37,7 @@ func DefaultConds() map[string]Cond {
 			if suffix == runtime.GOARCH {
 				return true, nil
 			}
-			if _, ok := imports.KnownArch[suffix]; !ok {
+			if _, ok := syslist.KnownArch[suffix]; !ok {
 				return false, fmt.Errorf("unrecognized GOOS %q", suffix)
 			}
 			return false, nil

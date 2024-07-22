@@ -2,14 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file is a lightly modified copy go/build/syslist_test.go.
+// Package syslist stores tables of OS and ARCH names that are
+// (or at one point were) acceptable build targets.
 
-package modindex
+package syslist
 
-// knownOS is the list of past, present, and future known GOOS values.
+// Note that this file is read by internal/goarch/gengoarch.go and by
+// internal/goos/gengoos.go. If you change this file, look at those
+// files as well.
+
+// KnownOS is the list of past, present, and future known GOOS values.
 // Do not remove from this list, as it is used for filename matching.
-// If you add an entry to this list, look at unixOS, below.
-var knownOS = map[string]bool{
+// If you add an entry to this list, look at UnixOS, below.
+var KnownOS = map[string]bool{
 	"aix":       true,
 	"android":   true,
 	"darwin":    true,
@@ -30,10 +35,11 @@ var knownOS = map[string]bool{
 	"zos":       true,
 }
 
-// unixOS is the set of GOOS values matched by the "unix" build tag.
+// UnixOS is the set of GOOS values matched by the "unix" build tag.
 // This is not used for filename matching.
-// This list also appears in cmd/dist/build.go.
-var unixOS = map[string]bool{
+// This list also appears in cmd/dist/build.go and
+// cmd/go/internal/imports/build.go.
+var UnixOS = map[string]bool{
 	"aix":       true,
 	"android":   true,
 	"darwin":    true,
@@ -48,9 +54,9 @@ var unixOS = map[string]bool{
 	"solaris":   true,
 }
 
-// knownArch is the list of past, present, and future known GOARCH values.
+// KnownArch is the list of past, present, and future known GOARCH values.
 // Do not remove from this list, as it is used for filename matching.
-var knownArch = map[string]bool{
+var KnownArch = map[string]bool{
 	"386":         true,
 	"amd64":       true,
 	"amd64p32":    true,

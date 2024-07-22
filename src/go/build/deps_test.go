@@ -58,6 +58,7 @@ var depsRules = `
 	  internal/nettrace,
 	  internal/platform,
 	  internal/profilerecord,
+	  internal/syslist,
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  math/bits,
@@ -337,7 +338,7 @@ var depsRules = `
 	go/doc/comment, go/parser, internal/lazyregexp, text/template
 	< go/doc;
 
-	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform
+	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform, internal/syslist
 	< go/build;
 
 	# databases
