@@ -26,10 +26,10 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
-	"cmd/go/internal/robustio"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/buildid"
+	"cmd/internal/robustio"
 )
 
 // A Builder holds global state about a build.
@@ -560,9 +560,9 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		if p.Internal.PGOProfile != "" {
 			pgoAction := b.cacheAction("preprocess PGO profile "+p.Internal.PGOProfile, nil, func() *Action {
 				a := &Action{
-					Mode:    "preprocess PGO profile",
-					Actor:   &pgoActor{input: p.Internal.PGOProfile},
-					Objdir:  b.NewObjdir(),
+					Mode:   "preprocess PGO profile",
+					Actor:  &pgoActor{input: p.Internal.PGOProfile},
+					Objdir: b.NewObjdir(),
 				}
 				a.Target = filepath.Join(a.Objdir, "pgo.preprofile")
 

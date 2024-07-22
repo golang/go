@@ -24,8 +24,8 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/robustio"
 	"cmd/internal/par"
+	"cmd/internal/robustio"
 	"cmd/internal/telemetry/counter"
 
 	"golang.org/x/mod/module"

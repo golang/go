@@ -6,7 +6,7 @@ package script
 
 import (
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/robustio"
+	"cmd/internal/robustio"
 	"errors"
 	"fmt"
 	"internal/diff"

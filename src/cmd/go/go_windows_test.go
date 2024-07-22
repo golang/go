@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"cmd/go/internal/robustio"
+	"cmd/internal/robustio"
 )
 
 func TestAbsolutePath(t *testing.T) {

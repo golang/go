@@ -25,10 +25,10 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/robustio"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/par"
+	"cmd/internal/robustio"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb/dirhash"
