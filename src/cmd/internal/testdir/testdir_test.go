@@ -219,7 +219,9 @@ var stdlibImportcfgString string
 
 func stdlibImportcfg() string {
 	stdlibImportcfgStringOnce.Do(func() {
-		output, err := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std").Output()
+		cmd := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std")
+		cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=")
+		output, err := cmd.Output()
 		if err != nil {
 			log.Fatal(err)
 		}
