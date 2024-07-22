@@ -70,6 +70,6 @@ To begin the next release development cycle, populate the contents of `next`
 with those of `initial`. From the repo root:
 
     > cd doc
-    > cp -r initial/* next
+    > cp -R initial/ next
 
 Then edit `next/1-intro.md` to refer to the next version.
