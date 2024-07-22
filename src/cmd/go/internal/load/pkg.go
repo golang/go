@@ -20,6 +20,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"slices"
@@ -2343,12 +2344,8 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		// since it can include system paths through various linker flags (notably
 		// -extar, -extld, and -extldflags).
 		//
-		// TODO: since we control cmd/link, in theory we can parse ldflags to
-		// determine whether they may refer to system paths. If we do that, we can
-		// redact only those paths from the recorded -ldflags setting and still
-		// record the system-independent parts of the flags.
-		if !cfg.BuildTrimpath {
-			ldflags = trimLdFlags(ldflags)
+		if cfg.BuildTrimpath {
+			ldflags = trimPathsFromLdFlags(ldflags)
 		}
 		appendSetting("-ldflags", ldflags)
 	}
@@ -2506,10 +2503,14 @@ omitVCS:
 	p.Internal.BuildInfo = info
 }
 
-// trimLdFlags replaces know paths with variable and removes
-// flags with absolute paths
-func trimLdFlags(flags string) string {
-	return flags
+// trimLdFlags removes system paths from the ldflag.
+// since we control cmd/link, in theory we parse ldflags to
+// determine whether they refer to system paths. We then can
+// redact only those paths from the recorded -ldflags setting and still
+// record the system-independent parts of the flags.
+func trimPathsFromLdFlags(flags string) string {
+	re := regexp.MustCompile(`(?:(['"])|\s)(?:-[A-Z])?\/[aA-zZ0-9][^\s'"]+`)
+	return re.ReplaceAllString(flags, `$1`)
 }
 
 // SafeArg reports whether arg is a "safe" command-line argument,

@@ -256,14 +256,14 @@ build	GOOS=bar
 				"os":       "bar",
 				"compiler": "baz",
 				"cgo":      "false",
-				"ldflags":  "-flag1 -flag2",
+				"ldflags":  "all=-buildid '1649548598' -linkmode external -extldflags '-L/media/path1 -L/media/path2 -Wl,-z,now -Wl,-z,relro' -X 'github.com/foo/bar/app.Version=v1.2.3'",
 				"trimpath": "true",
 			},
 			pkg:     Package{},
 			autoVCS: true,
 			want: `build	-buildmode=
 build	-compiler=baz
-build	-ldflags="-flag1 -flag2"
+build	-ldflags="all=-buildid '1649548598' -linkmode external -extldflags ' -Wl,-z,now -Wl,-z,relro' -X 'github.com/foo/bar/app.Version=v1.2.3'"
 build	-trimpath=true
 build	CGO_ENABLED=0
 build	GOARCH=foo
