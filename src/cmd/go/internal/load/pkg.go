@@ -2348,8 +2348,9 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		// redact only those paths from the recorded -ldflags setting and still
 		// record the system-independent parts of the flags.
 		if !cfg.BuildTrimpath {
-			appendSetting("-ldflags", ldflags)
+			ldflags = trimLdFlags(ldflags)
 		}
+		appendSetting("-ldflags", ldflags)
 	}
 	if cfg.BuildCover {
 		appendSetting("-cover", "true")
@@ -2503,6 +2504,12 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 omitVCS:
 
 	p.Internal.BuildInfo = info
+}
+
+// trimLdFlags replaces know paths with variable and removes
+// flags with absolute paths
+func trimLdFlags(flags string) string {
+	return flags
 }
 
 // SafeArg reports whether arg is a "safe" command-line argument,

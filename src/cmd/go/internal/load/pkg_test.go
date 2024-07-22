@@ -250,6 +250,27 @@ build	GOOS=bar
 `,
 		},
 		{
+			name: "ldflags with trimpath",
+			buildContext: map[string]string{
+				"arch":     "foo",
+				"os":       "bar",
+				"compiler": "baz",
+				"cgo":      "false",
+				"ldflags":  "-flag1 -flag2",
+				"trimpath": "true",
+			},
+			pkg:     Package{},
+			autoVCS: true,
+			want: `build	-buildmode=
+build	-compiler=baz
+build	-ldflags="-flag1 -flag2"
+build	-trimpath=true
+build	CGO_ENABLED=0
+build	GOARCH=foo
+build	GOOS=bar
+`,
+		},
+		{
 
 			name: "default build mode exe",
 			buildContext: map[string]string{
