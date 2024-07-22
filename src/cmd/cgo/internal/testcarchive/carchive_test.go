@@ -33,7 +33,7 @@ import (
 	"unicode"
 )
 
-var globalSkip = func(t *testing.T) {}
+var globalSkip = func(t testing.TB) {}
 
 // Program to run.
 var bin []string
@@ -59,12 +59,12 @@ func TestMain(m *testing.M) {
 
 func testMain(m *testing.M) int {
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
-		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
+		globalSkip = func(t testing.TB) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run()
 	}
 	if runtime.GOOS == "linux" {
 		if _, err := os.Stat("/etc/alpine-release"); err == nil {
-			globalSkip = func(t *testing.T) { t.Skip("skipping failing test on alpine - go.dev/issue/19938") }
+			globalSkip = func(t testing.TB) { t.Skip("skipping failing test on alpine - go.dev/issue/19938") }
 			return m.Run()
 		}
 	}
@@ -1291,8 +1291,8 @@ func TestPreemption(t *testing.T) {
 	}
 }
 
-// Issue 59294. Test calling Go function from C after using some
-// stack space.
+// Issue 59294 and 68285. Test calling Go function from C after with
+// various stack space.
 func TestDeepStack(t *testing.T) {
 	globalSkip(t)
 	testenv.MustHaveGoBuild(t)
@@ -1347,6 +1347,53 @@ func TestDeepStack(t *testing.T) {
 	t.Logf("%v\n%s", cmd.Args, sb)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func BenchmarkCgoCallbackMainThread(b *testing.B) {
+	// Benchmark for calling into Go fron C main thread.
+	// See issue #68587.
+	//
+	// It uses a subprocess, which is a C binary that calls
+	// Go on the main thread b.N times. There is some overhead
+	// for launching the subprocess. It is probably fine when
+	// b.N is large.
+
+	globalSkip(b)
+	testenv.MustHaveGoBuild(b)
+	testenv.MustHaveCGO(b)
+	testenv.MustHaveBuildMode(b, "c-archive")
+
+	if !testWork {
+		defer func() {
+			os.Remove("testp10" + exeSuffix)
+			os.Remove("libgo10.a")
+			os.Remove("libgo10.h")
+		}()
+	}
+
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo10.a", "./libgo10")
+	out, err := cmd.CombinedOutput()
+	b.Logf("%v\n%s", cmd.Args, out)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	ccArgs := append(cc, "-o", "testp10"+exeSuffix, "main10.c", "libgo10.a")
+	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	b.Logf("%v\n%s", ccArgs, out)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	argv := cmdToRun("./testp10")
+	argv = append(argv, fmt.Sprint(b.N))
+	cmd = exec.Command(argv[0], argv[1:]...)
+
+	b.ResetTimer()
+	err = cmd.Run()
+	if err != nil {
+		b.Fatal(err)
 	}
 }
 

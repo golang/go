@@ -2550,6 +2550,7 @@ func dropm() {
 	g0.stack.lo = 0
 	g0.stackguard0 = 0
 	g0.stackguard1 = 0
+	mp.g0StackAccurate = false
 
 	putExtraM(mp)
 
