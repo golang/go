@@ -335,7 +335,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			p.logf("suppressing panic for copyResponse error in test; copy error: %v", err)
 			return
 		}
-		panic(http.ErrAbortHandler)
+		panic(err)
 	}
 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
 
@@ -454,7 +454,7 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 				written += int64(nw)
 			}
 			if werr != nil {
-				return written, werr
+				return written, fmt.Errorf("failed to write on copyBuffer: %s", werr)
 			}
 			if nr != nw {
 				return written, io.ErrShortWrite
@@ -463,8 +463,9 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 		if rerr != nil {
 			if rerr == io.EOF {
 				rerr = nil
+				return written, rerr
 			}
-			return written, rerr
+			return written, fmt.Errorf("failed to read on copyBuffer: %s", rerr)
 		}
 	}
 }
