@@ -231,34 +231,6 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 	g0 := mp.g0
 
-	inBound := sp > g0.stack.lo && sp <= g0.stack.hi
-	if mp.ncgo > 0 && !inBound {
-		// ncgo > 0 indicates that this M was in Go further up the stack
-		// (it called C and is now receiving a callback).
-		//
-		// !inBound indicates that we were called with SP outside the
-		// expected system stack bounds (C changed the stack out from
-		// under us between the cgocall and cgocallback?).
-		//
-		// It is not safe for the C call to change the stack out from
-		// under us, so throw.
-
-		// Note that this case isn't possible for signal == true, as
-		// that is always passing a new M from needm.
-
-		// Stack is bogus, but reset the bounds anyway so we can print.
-		hi := g0.stack.hi
-		lo := g0.stack.lo
-		g0.stack.hi = sp + 1024
-		g0.stack.lo = sp - 32*1024
-		g0.stackguard0 = g0.stack.lo + stackGuard
-		g0.stackguard1 = g0.stackguard0
-
-		print("M ", mp.id, " procid ", mp.procid, " runtime: cgocallback with sp=", hex(sp), " out of bounds [", hex(lo), ", ", hex(hi), "]")
-		print("\n")
-		exit(2)
-	}
-
 	if !mp.isextra {
 		// We allocated the stack for standard Ms. Don't replace the
 		// stack bounds with estimated ones when we already initialized
@@ -266,26 +238,37 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 		return
 	}
 
-	// This M does not have Go further up the stack. However, it may have
-	// previously called into Go, initializing the stack bounds. Between
-	// that call returning and now the stack may have changed (perhaps the
-	// C thread is running a coroutine library). We need to update the
-	// stack bounds for this case.
+	inBound := sp > g0.stack.lo && sp <= g0.stack.hi
+	if inBound && mp.g0StackAccurate {
+		// This M has called into Go before and has the stack bounds
+		// initialized. We have the accurate stack bounds, and the SP
+		// is in bounds. We expect it continues to run within the same
+		// bounds.
+		return
+	}
+
+	// We don't have an accurate stack bounds (either it never calls
+	// into Go before, or we couldn't get the accurate bounds), or the
+	// current SP is not within the previous bounds (the stack may have
+	// changed between calls). We need to update the stack bounds.
 	//
 	// N.B. we need to update the stack bounds even if SP appears to
-	// already be in bounds. Our "bounds" may actually be estimated dummy
-	// bounds (below). The actual stack bounds could have shifted but still
-	// have partial overlap with our dummy bounds. If we failed to update
-	// in that case, we could find ourselves seemingly called near the
-	// bottom of the stack bounds, where we quickly run out of space.
+	// already be in bounds, if our bounds are estimated dummy bounds
+	// (below). We may be in a different region within the same actual
+	// stack bounds, but our estimates were not accurate. Or the actual
+	// stack bounds could have shifted but still have partial overlap with
+	// our dummy bounds. If we failed to update in that case, we could find
+	// ourselves seemingly called near the bottom of the stack bounds, where
+	// we quickly run out of space.
 
 	// Set the stack bounds to match the current stack. If we don't
 	// actually know how big the stack is, like we don't know how big any
 	// scheduling stack is, but we assume there's at least 32 kB. If we
 	// can get a more accurate stack bound from pthread, use that, provided
-	// it actually contains SP..
+	// it actually contains SP.
 	g0.stack.hi = sp + 1024
 	g0.stack.lo = sp - 32*1024
+	mp.g0StackAccurate = false
 	if !signal && _cgo_getstackbound != nil {
 		// Don't adjust if called from the signal handler.
 		// We are on the signal stack, not the pthread stack.
@@ -296,12 +279,16 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 		asmcgocall(_cgo_getstackbound, unsafe.Pointer(&bounds))
 		// getstackbound is an unsupported no-op on Windows.
 		//
+		// On Unix systems, if the API to get accurate stack bounds is
+		// not available, it returns zeros.
+		//
 		// Don't use these bounds if they don't contain SP. Perhaps we
 		// were called by something not using the standard thread
 		// stack.
 		if bounds[0] != 0 && sp > bounds[0] && sp <= bounds[1] {
 			g0.stack.lo = bounds[0]
 			g0.stack.hi = bounds[1]
+			mp.g0StackAccurate = true
 		}
 	}
 	g0.stackguard0 = g0.stack.lo + stackGuard
@@ -319,6 +306,8 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	}
 
 	sp := gp.m.g0.sched.sp // system sp saved by cgocallback.
+	oldStack := gp.m.g0.stack
+	oldAccurate := gp.m.g0StackAccurate
 	callbackUpdateSystemStack(gp.m, sp, false)
 
 	// The call from C is on gp.m's g0 stack, so we must ensure
@@ -380,6 +369,12 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	reentersyscall(savedpc, uintptr(savedsp), uintptr(savedbp))
 
 	gp.m.winsyscall = winsyscall
+
+	// Restore the old g0 stack bounds
+	gp.m.g0.stack = oldStack
+	gp.m.g0.stackguard0 = oldStack.lo + stackGuard
+	gp.m.g0.stackguard1 = gp.m.g0.stackguard0
+	gp.m.g0StackAccurate = oldAccurate
 }
 
 func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
