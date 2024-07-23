@@ -402,6 +402,18 @@ func IoctlSetIfreqMTU(fd int, ifreq *IfreqMTU) error {
 	return ioctlPtr(fd, SIOCSIFMTU, unsafe.Pointer(ifreq))
 }
 
+//sys	renamexNp(from string, to string, flag uint32) (err error)
+
+func RenamexNp(from string, to string, flag uint32) (err error) {
+	return renamexNp(from, to, flag)
+}
+
+//sys	renameatxNp(fromfd int, from string, tofd int, to string, flag uint32) (err error)
+
+func RenameatxNp(fromfd int, from string, tofd int, to string, flag uint32) (err error) {
+	return renameatxNp(fromfd, from, tofd, to, flag)
+}
+
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS_SYSCTL
 
 func Uname(uname *Utsname) error {

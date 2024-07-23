@@ -7964,10 +7964,6 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 	cc.henc.SetMaxDynamicTableSizeLimit(t.maxEncoderHeaderTableSize())
 	cc.peerMaxHeaderTableSize = http2initialHeaderTableSize
 
-	if t.AllowHTTP {
-		cc.nextStreamID = 3
-	}
-
 	if cs, ok := c.(http2connectionStater); ok {
 		state := cs.ConnectionState()
 		cc.tlsState = &state

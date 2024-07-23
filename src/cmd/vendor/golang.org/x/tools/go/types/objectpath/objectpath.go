@@ -51,7 +51,7 @@ type Path string
 //
 //	PO package->object	Package.Scope.Lookup
 //	OT  object->type 	Object.Type
-//	TT    type->type 	Type.{Elem,Key,Params,Results,Underlying} [EKPRU]
+//	TT    type->type 	Type.{Elem,Key,{,{,Recv}Type}Params,Results,Underlying} [EKPRUTrC]
 //	TO   type->object	Type.{At,Field,Method,Obj} [AFMO]
 //
 // All valid paths start with a package and end at an object
@@ -63,8 +63,8 @@ type Path string
 //   - The only PO operator is Package.Scope.Lookup, which requires an identifier.
 //   - The only OT operator is Object.Type,
 //     which we encode as '.' because dot cannot appear in an identifier.
-//   - The TT operators are encoded as [EKPRUTC];
-//     one of these (TypeParam) requires an integer operand,
+//   - The TT operators are encoded as [EKPRUTrC];
+//     two of these ({,Recv}TypeParams) require an integer operand,
 //     which is encoded as a string of decimal digits.
 //   - The TO operators are encoded as [AFMO];
 //     three of these (At,Field,Method) require an integer operand,
@@ -98,19 +98,20 @@ const (
 	opType = '.' // .Type()		  (Object)
 
 	// type->type operators
-	opElem       = 'E' // .Elem()		        (Pointer, Slice, Array, Chan, Map)
-	opKey        = 'K' // .Key()		        (Map)
-	opParams     = 'P' // .Params()		      (Signature)
-	opResults    = 'R' // .Results()	      (Signature)
-	opUnderlying = 'U' // .Underlying()	    (Named)
-	opTypeParam  = 'T' // .TypeParams.At(i) (Named, Signature)
-	opConstraint = 'C' // .Constraint()     (TypeParam)
+	opElem          = 'E' // .Elem()		(Pointer, Slice, Array, Chan, Map)
+	opKey           = 'K' // .Key()			(Map)
+	opParams        = 'P' // .Params()		(Signature)
+	opResults       = 'R' // .Results()		(Signature)
+	opUnderlying    = 'U' // .Underlying()		(Named)
+	opTypeParam     = 'T' // .TypeParams.At(i)	(Named, Signature)
+	opRecvTypeParam = 'r' // .RecvTypeParams.At(i)	(Signature)
+	opConstraint    = 'C' // .Constraint()		(TypeParam)
 
 	// type->object operators
-	opAt     = 'A' // .At(i)		 (Tuple)
-	opField  = 'F' // .Field(i)	 (Struct)
-	opMethod = 'M' // .Method(i) (Named or Interface; not Struct: "promoted" names are ignored)
-	opObj    = 'O' // .Obj()		 (Named, TypeParam)
+	opAt     = 'A' // .At(i)	(Tuple)
+	opField  = 'F' // .Field(i)	(Struct)
+	opMethod = 'M' // .Method(i)	(Named or Interface; not Struct: "promoted" names are ignored)
+	opObj    = 'O' // .Obj()	(Named, TypeParam)
 )
 
 // For is equivalent to new(Encoder).For(obj).
@@ -286,7 +287,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 			}
 		} else {
 			if named, _ := T.(*types.Named); named != nil {
-				if r := findTypeParam(obj, named.TypeParams(), path, nil); r != nil {
+				if r := findTypeParam(obj, named.TypeParams(), path, opTypeParam, nil); r != nil {
 					// generic named type
 					return Path(r), nil
 				}
@@ -462,7 +463,10 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
 		}
 		return find(obj, T.Elem(), append(path, opElem), seen)
 	case *types.Signature:
-		if r := findTypeParam(obj, T.TypeParams(), path, seen); r != nil {
+		if r := findTypeParam(obj, T.RecvTypeParams(), path, opRecvTypeParam, nil); r != nil {
+			return r
+		}
+		if r := findTypeParam(obj, T.TypeParams(), path, opTypeParam, seen); r != nil {
 			return r
 		}
 		if r := find(obj, T.Params(), append(path, opParams), seen); r != nil {
@@ -525,10 +529,10 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
 	panic(T)
 }
 
-func findTypeParam(obj types.Object, list *types.TypeParamList, path []byte, seen map[*types.TypeName]bool) []byte {
+func findTypeParam(obj types.Object, list *types.TypeParamList, path []byte, op byte, seen map[*types.TypeName]bool) []byte {
 	for i := 0; i < list.Len(); i++ {
 		tparam := list.At(i)
-		path2 := appendOpArg(path, opTypeParam, i)
+		path2 := appendOpArg(path, op, i)
 		if r := find(obj, tparam, path2, seen); r != nil {
 			return r
 		}
@@ -580,10 +584,10 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 		code := suffix[0]
 		suffix = suffix[1:]
 
-		// Codes [AFM] have an integer operand.
+		// Codes [AFMTr] have an integer operand.
 		var index int
 		switch code {
-		case opAt, opField, opMethod, opTypeParam:
+		case opAt, opField, opMethod, opTypeParam, opRecvTypeParam:
 			rest := strings.TrimLeft(suffix, "0123456789")
 			numerals := suffix[:len(suffix)-len(rest)]
 			suffix = rest
@@ -664,6 +668,17 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 			}
 			t = tparams.At(index)
 
+		case opRecvTypeParam:
+			sig, ok := t.(*types.Signature) // Signature
+			if !ok {
+				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want signature)", code, t, t)
+			}
+			rtparams := sig.RecvTypeParams()
+			if n := rtparams.Len(); index >= n {
+				return nil, fmt.Errorf("tuple index %d out of range [0-%d)", index, n)
+			}
+			t = rtparams.At(index)
+
 		case opConstraint:
 			tparam, ok := t.(*types.TypeParam)
 			if !ok {
@@ -723,6 +738,10 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 		default:
 			return nil, fmt.Errorf("invalid path: unknown code %q", code)
 		}
+	}
+
+	if obj == nil {
+		panic(p) // path does not end in an object-valued operator
 	}
 
 	if obj.Pkg() != pkg {

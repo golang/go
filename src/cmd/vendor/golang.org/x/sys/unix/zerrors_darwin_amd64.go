@@ -1169,6 +1169,11 @@ const (
 	PT_WRITE_D                              = 0x5
 	PT_WRITE_I                              = 0x4
 	PT_WRITE_U                              = 0x6
+	RENAME_EXCL                             = 0x4
+	RENAME_NOFOLLOW_ANY                     = 0x10
+	RENAME_RESERVED1                        = 0x8
+	RENAME_SECLUDE                          = 0x1
+	RENAME_SWAP                             = 0x2
 	RLIMIT_AS                               = 0x5
 	RLIMIT_CORE                             = 0x4
 	RLIMIT_CPU                              = 0x0

@@ -5,7 +5,7 @@
 // Package chacha20poly1305 implements the ChaCha20-Poly1305 AEAD and its
 // extended nonce variant XChaCha20-Poly1305, as specified in RFC 8439 and
 // draft-irtf-cfrg-xchacha-01.
-package chacha20poly1305 // import "golang.org/x/crypto/chacha20poly1305"
+package chacha20poly1305
 
 import (
 	"crypto/cipher"

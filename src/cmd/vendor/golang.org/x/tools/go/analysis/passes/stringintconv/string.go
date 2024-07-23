@@ -199,32 +199,30 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// the type has methods, as some {String,GoString,Format}
 		// may change the behavior of fmt.Sprint.
 		if len(ttypes) == 1 && len(vtypes) == 1 && types.NewMethodSet(V0).Len() == 0 {
-			fmtName, importEdit := analysisinternal.AddImport(pass.TypesInfo, file, arg.Pos(), "fmt", "fmt")
+			fmtName, importEdits := analysisinternal.AddImport(pass.TypesInfo, file, arg.Pos(), "fmt", "fmt")
 			if types.Identical(T0, types.Typ[types.String]) {
 				// string(x) -> fmt.Sprint(x)
-				addFix("Format the number as a decimal", []analysis.TextEdit{
-					importEdit,
-					{
+				addFix("Format the number as a decimal", append(importEdits,
+					analysis.TextEdit{
 						Pos:     call.Fun.Pos(),
 						End:     call.Fun.End(),
 						NewText: []byte(fmtName + ".Sprint"),
-					},
-				})
+					}),
+				)
 			} else {
 				// mystring(x) -> mystring(fmt.Sprint(x))
-				addFix("Format the number as a decimal", []analysis.TextEdit{
-					importEdit,
-					{
+				addFix("Format the number as a decimal", append(importEdits,
+					analysis.TextEdit{
 						Pos:     call.Lparen + 1,
 						End:     call.Lparen + 1,
 						NewText: []byte(fmtName + ".Sprint("),
 					},
-					{
+					analysis.TextEdit{
 						Pos:     call.Rparen,
 						End:     call.Rparen,
 						NewText: []byte(")"),
-					},
-				})
+					}),
+				)
 			}
 		}
 

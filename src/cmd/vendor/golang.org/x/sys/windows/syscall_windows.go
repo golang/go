@@ -17,8 +17,10 @@ import (
 	"unsafe"
 )
 
-type Handle uintptr
-type HWND uintptr
+type (
+	Handle uintptr
+	HWND   uintptr
+)
 
 const (
 	InvalidHandle = ^Handle(0)
@@ -211,6 +213,10 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	OpenProcess(desiredAccess uint32, inheritHandle bool, processId uint32) (handle Handle, err error)
 //sys	ShellExecute(hwnd Handle, verb *uint16, file *uint16, args *uint16, cwd *uint16, showCmd int32) (err error) [failretval<=32] = shell32.ShellExecuteW
 //sys	GetWindowThreadProcessId(hwnd HWND, pid *uint32) (tid uint32, err error) = user32.GetWindowThreadProcessId
+//sys	LoadKeyboardLayout(name *uint16, flags uint32) (hkl Handle, err error) [failretval==0] = user32.LoadKeyboardLayoutW
+//sys	UnloadKeyboardLayout(hkl Handle) (err error) = user32.UnloadKeyboardLayout
+//sys	GetKeyboardLayout(tid uint32) (hkl Handle) = user32.GetKeyboardLayout
+//sys	ToUnicodeEx(vkey uint32, scancode uint32, keystate *byte, pwszBuff *uint16, cchBuff int32, flags uint32, hkl Handle) (ret int32) = user32.ToUnicodeEx
 //sys	GetShellWindow() (shellWindow HWND) = user32.GetShellWindow
 //sys	MessageBox(hwnd HWND, text *uint16, caption *uint16, boxtype uint32) (ret int32, err error) [failretval==0] = user32.MessageBoxW
 //sys	ExitWindowsEx(flags uint32, reason uint32) (err error) = user32.ExitWindowsEx
@@ -1368,9 +1374,11 @@ func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) {
 func SetsockoptInet4Addr(fd Handle, level, opt int, value [4]byte) (err error) {
 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&value[0])), 4)
 }
+
 func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
 }
+
 func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) {
 	return syscall.EWINDOWS
 }

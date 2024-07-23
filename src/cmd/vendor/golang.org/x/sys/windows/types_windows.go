@@ -2003,7 +2003,21 @@ const (
 	MOVEFILE_FAIL_IF_NOT_TRACKABLE = 0x20
 )
 
-const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+// Flags for GetAdaptersAddresses, see
+// https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getadaptersaddresses.
+const (
+	GAA_FLAG_SKIP_UNICAST                = 0x1
+	GAA_FLAG_SKIP_ANYCAST                = 0x2
+	GAA_FLAG_SKIP_MULTICAST              = 0x4
+	GAA_FLAG_SKIP_DNS_SERVER             = 0x8
+	GAA_FLAG_INCLUDE_PREFIX              = 0x10
+	GAA_FLAG_SKIP_FRIENDLY_NAME          = 0x20
+	GAA_FLAG_INCLUDE_WINS_INFO           = 0x40
+	GAA_FLAG_INCLUDE_GATEWAYS            = 0x80
+	GAA_FLAG_INCLUDE_ALL_INTERFACES      = 0x100
+	GAA_FLAG_INCLUDE_ALL_COMPARTMENTS    = 0x200
+	GAA_FLAG_INCLUDE_TUNNEL_BINDINGORDER = 0x400
+)
 
 const (
 	IF_TYPE_OTHER              = 1
@@ -3404,3 +3418,14 @@ type DCB struct {
 	EvtChar    byte
 	wReserved1 uint16
 }
+
+// Keyboard Layout Flags.
+// See https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayoutw
+const (
+	KLF_ACTIVATE      = 0x00000001
+	KLF_SUBSTITUTE_OK = 0x00000002
+	KLF_REORDER       = 0x00000008
+	KLF_REPLACELANG   = 0x00000010
+	KLF_NOTELLSHELL   = 0x00000080
+	KLF_SETFORPROCESS = 0x00000100
+)

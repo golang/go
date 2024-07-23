@@ -441,7 +441,7 @@ func slicesContains[S ~[]E, E comparable](slice S, x E) bool {
 // and returns the chosen name along with the edit for the new import.
 //
 // It does not mutate its arguments.
-func AddImport(info *types.Info, file *ast.File, pos token.Pos, pkgpath, preferredName string) (name string, newImport analysis.TextEdit) {
+func AddImport(info *types.Info, file *ast.File, pos token.Pos, pkgpath, preferredName string) (name string, newImport []analysis.TextEdit) {
 	// Find innermost enclosing lexical block.
 	scope := info.Scopes[file].Innermost(pos)
 	if scope == nil {
@@ -454,7 +454,7 @@ func AddImport(info *types.Info, file *ast.File, pos token.Pos, pkgpath, preferr
 		pkgname, ok := importedPkgName(info, spec)
 		if ok && pkgname.Imported().Path() == pkgpath {
 			if _, obj := scope.LookupParent(pkgname.Name(), pos); obj == pkgname {
-				return pkgname.Name(), analysis.TextEdit{}
+				return pkgname.Name(), nil
 			}
 		}
 	}
@@ -492,11 +492,11 @@ func AddImport(info *types.Info, file *ast.File, pos token.Pos, pkgpath, preferr
 			before = decl0.Doc
 		}
 	}
-	return newName, analysis.TextEdit{
+	return newName, []analysis.TextEdit{{
 		Pos:     before.Pos(),
 		End:     before.Pos(),
 		NewText: []byte(newText),
-	}
+	}}
 }
 
 // importedPkgName returns the PkgName object declared by an ImportSpec.

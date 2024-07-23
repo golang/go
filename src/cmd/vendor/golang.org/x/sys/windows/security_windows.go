@@ -1179,7 +1179,7 @@ type OBJECTS_AND_NAME struct {
 //sys	makeSelfRelativeSD(absoluteSD *SECURITY_DESCRIPTOR, selfRelativeSD *SECURITY_DESCRIPTOR, selfRelativeSDSize *uint32) (err error) = advapi32.MakeSelfRelativeSD
 
 //sys	setEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL *ACL, newACL **ACL) (ret error) = advapi32.SetEntriesInAclW
-//sys	GetAce(acl *ACL, aceIndex uint32, pAce **ACCESS_ALLOWED_ACE) (ret error) = advapi32.GetAce
+//sys	GetAce(acl *ACL, aceIndex uint32, pAce **ACCESS_ALLOWED_ACE) (err error) = advapi32.GetAce
 
 // Control returns the security descriptor control bits.
 func (sd *SECURITY_DESCRIPTOR) Control() (control SECURITY_DESCRIPTOR_CONTROL, revision uint32, err error) {

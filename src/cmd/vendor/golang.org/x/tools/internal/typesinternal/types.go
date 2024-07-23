@@ -48,3 +48,18 @@ func ReadGo116ErrorData(err types.Error) (code ErrorCode, start, end token.Pos, 
 	}
 	return ErrorCode(data[0]), token.Pos(data[1]), token.Pos(data[2]), true
 }
+
+// NameRelativeTo returns a types.Qualifier that qualifies members of
+// all packages other than pkg, using only the package name.
+// (By contrast, [types.RelativeTo] uses the complete package path,
+// which is often excessive.)
+//
+// If pkg is nil, it is equivalent to [*types.Package.Name].
+func NameRelativeTo(pkg *types.Package) types.Qualifier {
+	return func(other *types.Package) string {
+		if pkg != nil && pkg == other {
+			return "" // same package; unqualified
+		}
+		return other.Name()
+	}
+}

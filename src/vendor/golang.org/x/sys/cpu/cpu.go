@@ -105,6 +105,8 @@ var ARM64 struct {
 	HasSVE      bool // Scalable Vector Extensions
 	HasSVE2     bool // Scalable Vector Extensions 2
 	HasASIMDFHM bool // Advanced SIMD multiplication FP16 to FP32
+	HasDIT      bool // Data Independent Timing support
+	HasI8MM     bool // Advanced SIMD Int8 matrix multiplication instructions
 	_           CacheLinePad
 }
 

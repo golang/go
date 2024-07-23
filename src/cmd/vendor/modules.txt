@@ -16,16 +16,16 @@ github.com/google/pprof/third_party/svgpan
 # github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465
 ## explicit; go 1.13
 github.com/ianlancetaylor/demangle
-# golang.org/x/arch v0.8.0
+# golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea
 ## explicit; go 1.18
 golang.org/x/arch/arm/armasm
 golang.org/x/arch/arm64/arm64asm
 golang.org/x/arch/ppc64/ppc64asm
 golang.org/x/arch/x86/x86asm
-# golang.org/x/build v0.0.0-20240603162849-5dfbda438323
+# golang.org/x/build v0.0.0-20240722200705-b9910f320300
 ## explicit; go 1.21
 golang.org/x/build/relnote
-# golang.org/x/mod v0.19.0
+# golang.org/x/mod v0.19.1-0.20240718175220-b56a28f8bd83
 ## explicit; go 1.18
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -36,16 +36,16 @@ golang.org/x/mod/sumdb/dirhash
 golang.org/x/mod/sumdb/note
 golang.org/x/mod/sumdb/tlog
 golang.org/x/mod/zip
-# golang.org/x/sync v0.7.0
+# golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213
 ## explicit; go 1.18
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.22.0
+# golang.org/x/sys v0.22.1-0.20240722205227-beb594982ddb
 ## explicit; go 1.18
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20240717194752-0b706e19b701
+# golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4
 ## explicit; go 1.20
 golang.org/x/telemetry
 golang.org/x/telemetry/counter
@@ -57,10 +57,10 @@ golang.org/x/telemetry/internal/crashmonitor
 golang.org/x/telemetry/internal/mmap
 golang.org/x/telemetry/internal/telemetry
 golang.org/x/telemetry/internal/upload
-# golang.org/x/term v0.20.0
+# golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292
 ## explicit; go 1.18
 golang.org/x/term
-# golang.org/x/text v0.16.0
+# golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9
 ## explicit; go 1.18
 golang.org/x/text/cases
 golang.org/x/text/internal
@@ -70,7 +70,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.22.1-0.20240618181713-f2d2ebe43e72
+# golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c
 ## explicit; go 1.19
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover

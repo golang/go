@@ -43,6 +43,7 @@ type File struct {
 	Exclude   []*Exclude
 	Replace   []*Replace
 	Retract   []*Retract
+	Tool      []*Tool
 
 	Syntax *FileSyntax
 }
@@ -91,6 +92,12 @@ type Retract struct {
 	VersionInterval
 	Rationale string
 	Syntax    *Line
+}
+
+// A Tool is a single tool statement.
+type Tool struct {
+	Path   string
+	Syntax *Line
 }
 
 // A VersionInterval represents a range of versions with upper and lower bounds.
@@ -297,7 +304,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (parse
 					})
 				}
 				continue
-			case "module", "godebug", "require", "exclude", "replace", "retract":
+			case "module", "godebug", "require", "exclude", "replace", "retract", "tool":
 				for _, l := range x.Line {
 					f.add(&errs, x, l, x.Token[0], l.Token, fix, strict)
 				}
@@ -509,6 +516,21 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 			Syntax:          line,
 		}
 		f.Retract = append(f.Retract, retract)
+
+	case "tool":
+		if len(args) != 1 {
+			errorf("tool directive expects exactly one argument")
+			return
+		}
+		s, err := parseString(&args[0])
+		if err != nil {
+			errorf("invalid quoted string: %v", err)
+			return
+		}
+		f.Tool = append(f.Tool, &Tool{
+			Path:   s,
+			Syntax: line,
+		})
 	}
 }
 
@@ -1567,6 +1589,36 @@ func (f *File) DropRetract(vi VersionInterval) error {
 	return nil
 }
 
+// AddTool adds a new tool directive with the given path.
+// It does nothing if the tool line already exists.
+func (f *File) AddTool(path string) error {
+	for _, t := range f.Tool {
+		if t.Path == path {
+			return nil
+		}
+	}
+
+	f.Tool = append(f.Tool, &Tool{
+		Path:   path,
+		Syntax: f.Syntax.addLine(nil, "tool", path),
+	})
+
+	f.SortBlocks()
+	return nil
+}
+
+// RemoveTool removes a tool directive with the given path.
+// It does nothing if no such tool directive exists.
+func (f *File) DropTool(path string) error {
+	for _, t := range f.Tool {
+		if t.Path == path {
+			t.Syntax.markRemoved()
+			*t = Tool{}
+		}
+	}
+	return nil
+}
+
 func (f *File) SortBlocks() {
 	f.removeDups() // otherwise sorting is unsafe
 
@@ -1593,9 +1645,9 @@ func (f *File) SortBlocks() {
 	}
 }
 
-// removeDups removes duplicate exclude and replace directives.
+// removeDups removes duplicate exclude, replace and tool directives.
 //
-// Earlier exclude directives take priority.
+// Earlier exclude and tool directives take priority.
 //
 // Later replace directives take priority.
 //
@@ -1605,10 +1657,10 @@ func (f *File) SortBlocks() {
 // retract directives are not de-duplicated since comments are
 // meaningful, and versions may be retracted multiple times.
 func (f *File) removeDups() {
-	removeDups(f.Syntax, &f.Exclude, &f.Replace)
+	removeDups(f.Syntax, &f.Exclude, &f.Replace, &f.Tool)
 }
 
-func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace) {
+func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace, tool *[]*Tool) {
 	kill := make(map[*Line]bool)
 
 	// Remove duplicate excludes.
@@ -1648,6 +1700,24 @@ func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace) {
 		}
 	}
 	*replace = repl
+
+	if tool != nil {
+		haveTool := make(map[string]bool)
+		for _, t := range *tool {
+			if haveTool[t.Path] {
+				kill[t.Syntax] = true
+				continue
+			}
+			haveTool[t.Path] = true
+		}
+		var newTool []*Tool
+		for _, t := range *tool {
+			if !kill[t.Syntax] {
+				newTool = append(newTool, t)
+			}
+		}
+		*tool = newTool
+	}
 
 	// Duplicate require and retract directives are not removed.
 
