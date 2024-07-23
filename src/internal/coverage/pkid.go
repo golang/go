@@ -26,7 +26,7 @@ package coverage
 //    slot: 1 path='internal/goarch'  hard-coded id: 2
 //    slot: 2 path='internal/runtime/atomic'  hard-coded id: 3
 //    slot: 3 path='internal/goos'
-//    slot: 4 path='runtime/internal/sys'  hard-coded id: 5
+//    slot: 4 path='internal/runtime/sys'  hard-coded id: 5
 //    slot: 5 path='internal/abi'  hard-coded id: 4
 //    slot: 6 path='internal/runtime/math'  hard-coded id: 6
 //    slot: 7 path='internal/bytealg'  hard-coded id: 7
@@ -50,7 +50,7 @@ var rtPkgs = [...]string{
 	"internal/runtime/atomic",
 	"internal/goos",
 	"internal/chacha8rand",
-	"runtime/internal/sys",
+	"internal/runtime/sys",
 	"internal/abi",
 	"internal/runtime/math",
 	"internal/bytealg",

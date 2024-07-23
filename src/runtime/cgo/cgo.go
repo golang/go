@@ -32,7 +32,7 @@ package cgo
 */
 import "C"
 
-import "runtime/internal/sys"
+import "internal/runtime/sys"
 
 // Incomplete is used specifically for the semantics of incomplete C types.
 type Incomplete struct {

@@ -97,7 +97,7 @@ func TestIntendedInlining(t *testing.T) {
 			"traceLocker.ok",
 			"traceEnabled",
 		},
-		"runtime/internal/sys": {},
+		"internal/runtime/sys": {},
 		"internal/runtime/math": {
 			"MulUintptr",
 		},
@@ -246,9 +246,9 @@ func TestIntendedInlining(t *testing.T) {
 	if runtime.GOARCH != "386" {
 		// As explained above, TrailingZeros64 and TrailingZeros32 are not Go code on 386.
 		// The same applies to Bswap32.
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros64")
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros32")
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
+		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "TrailingZeros64")
+		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "TrailingZeros32")
+		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "Bswap32")
 	}
 	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" || runtime.GOARCH == "loong64" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "riscv64" || runtime.GOARCH == "s390x" {
 		// internal/runtime/atomic.Loaduintptr is only intrinsified on these platforms.

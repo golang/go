@@ -8,7 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 )
 
 // Batch type values for the alloc/free experiment.

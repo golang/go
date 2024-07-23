@@ -18,7 +18,7 @@ func StackNosplit(race bool) int {
 // stack guard size. Larger multipliers are used for non-optimized
 // builds that have larger stack frames or for specific targets.
 func stackGuardMultiplier(race bool) int {
-	// This arithmetic must match that in runtime/internal/sys/consts.go:StackGuardMultiplier.
+	// This arithmetic must match that in internal/runtime/sys/consts.go:StackGuardMultiplier.
 	n := 1
 	// On AIX, a larger stack is needed for syscalls.
 	if buildcfg.GOOS == "aix" {

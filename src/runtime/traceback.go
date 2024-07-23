@@ -8,8 +8,8 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/runtime/sys"
 	"internal/stringslite"
-	"runtime/internal/sys"
 	"unsafe"
 )
 

@@ -9,7 +9,7 @@ import (
 	"internal/chacha8rand"
 	"internal/goarch"
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 

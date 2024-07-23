@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 )
 
 // pageBits is a bitmap representing one bit per page in a palloc chunk.

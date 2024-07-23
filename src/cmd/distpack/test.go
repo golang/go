@@ -35,7 +35,7 @@ var srcRules = []testRule{
 	{name: "go/pkg/**", exclude: true},
 	{name: "go/src/cmd/dist/dist", exclude: true},
 	{name: "go/src/cmd/dist/dist.exe", exclude: true},
-	{name: "go/src/runtime/internal/sys/zversion.go", exclude: true},
+	{name: "go/src/internal/runtime/sys/zversion.go", exclude: true},
 	{name: "go/src/time/tzdata/zzipdata.go", exclude: true},
 }
 

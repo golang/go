@@ -88,7 +88,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/goexperiment"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 

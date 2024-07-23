@@ -1650,7 +1650,7 @@ func NewNamed(obj Object) *Type {
 		t.SetIsShape(true)
 		t.SetHasShape(true)
 	}
-	if sym.Pkg.Path == "runtime/internal/sys" && sym.Name == "nih" {
+	if sym.Pkg.Path == "internal/runtime/sys" && sym.Name == "nih" {
 		// Recognize the special not-in-heap type. Any type including
 		// this type will also be not-in-heap.
 		// This logic is duplicated in go/types and

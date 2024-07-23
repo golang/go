@@ -12,7 +12,7 @@ import (
 	"internal/goarch"
 	"internal/profilerecord"
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 

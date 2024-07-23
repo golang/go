@@ -8,7 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 )
 
 // Event types in the trace, args are given in square brackets.

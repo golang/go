@@ -4287,13 +4287,13 @@ func InitTables() {
 		// make it worthwhile as an intrinsic
 		brev_arch = append(brev_arch, sys.PPC64)
 	}
-	/******** runtime/internal/sys ********/
-	addF("runtime/internal/sys", "Bswap32",
+	/******** internal/runtime/sys ********/
+	addF("internal/runtime/sys", "Bswap32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
 		},
 		brev_arch...)
-	addF("runtime/internal/sys", "Bswap64",
+	addF("internal/runtime/sys", "Bswap64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
 		},
@@ -4309,9 +4309,9 @@ func InitTables() {
 
 	// Make Prefetch intrinsics for supported platforms
 	// On the unsupported platforms stub function will be eliminated
-	addF("runtime/internal/sys", "Prefetch", makePrefetchFunc(ssa.OpPrefetchCache),
+	addF("internal/runtime/sys", "Prefetch", makePrefetchFunc(ssa.OpPrefetchCache),
 		sys.AMD64, sys.ARM64, sys.PPC64)
-	addF("runtime/internal/sys", "PrefetchStreamed", makePrefetchFunc(ssa.OpPrefetchCacheStreamed),
+	addF("internal/runtime/sys", "PrefetchStreamed", makePrefetchFunc(ssa.OpPrefetchCacheStreamed),
 		sys.AMD64, sys.ARM64, sys.PPC64)
 
 	/******** internal/runtime/atomic ********/
@@ -4837,8 +4837,8 @@ func InitTables() {
 			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], y)
 		},
 		sys.S390X)
-	alias("math/bits", "ReverseBytes64", "runtime/internal/sys", "Bswap64", all...)
-	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
+	alias("math/bits", "ReverseBytes64", "internal/runtime/sys", "Bswap64", all...)
+	alias("math/bits", "ReverseBytes32", "internal/runtime/sys", "Bswap32", all...)
 	// ReverseBytes inlines correctly, no need to intrinsify it.
 	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
 	// On Power10, 16-bit rotate is not available so use BRH instruction
@@ -5051,12 +5051,12 @@ func InitTables() {
 		sys.AMD64)
 	alias("math/bits", "Div", "math/bits", "Div64", sys.ArchAMD64)
 
-	alias("runtime/internal/sys", "TrailingZeros8", "math/bits", "TrailingZeros8", all...)
-	alias("runtime/internal/sys", "TrailingZeros32", "math/bits", "TrailingZeros32", all...)
-	alias("runtime/internal/sys", "TrailingZeros64", "math/bits", "TrailingZeros64", all...)
-	alias("runtime/internal/sys", "Len8", "math/bits", "Len8", all...)
-	alias("runtime/internal/sys", "Len64", "math/bits", "Len64", all...)
-	alias("runtime/internal/sys", "OnesCount64", "math/bits", "OnesCount64", all...)
+	alias("internal/runtime/sys", "TrailingZeros8", "math/bits", "TrailingZeros8", all...)
+	alias("internal/runtime/sys", "TrailingZeros32", "math/bits", "TrailingZeros32", all...)
+	alias("internal/runtime/sys", "TrailingZeros64", "math/bits", "TrailingZeros64", all...)
+	alias("internal/runtime/sys", "Len8", "math/bits", "Len8", all...)
+	alias("internal/runtime/sys", "Len64", "math/bits", "Len64", all...)
+	alias("internal/runtime/sys", "OnesCount64", "math/bits", "OnesCount64", all...)
 
 	/******** sync/atomic ********/
 

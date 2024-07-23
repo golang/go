@@ -11,8 +11,8 @@ import (
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/exithook"
+	"internal/runtime/sys"
 	"internal/stringslite"
-	"runtime/internal/sys"
 	"unsafe"
 )
 

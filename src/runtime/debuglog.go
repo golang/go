@@ -18,7 +18,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 

@@ -639,7 +639,7 @@ var gentab = []struct {
 }{
 	{"go/build", "zcgo.go", mkzcgo},
 	{"cmd/go/internal/cfg", "zdefaultcc.go", mkzdefaultcc},
-	{"runtime/internal/sys", "zversion.go", mkzversion},
+	{"internal/runtime/sys", "zversion.go", mkzversion},
 	{"time/tzdata", "zzipdata.go", mktzdata},
 }
 
@@ -1707,7 +1707,7 @@ func checkNotStale(env []string, goBinary string, targets ...string) {
 	out := runEnv(workdir, CheckExit, env, append(goCmd, targets...)...)
 	if strings.Contains(out, "\tSTALE ") {
 		os.Setenv("GODEBUG", "gocachehash=1")
-		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
+		for _, target := range []string{"internal/runtime/sys", "cmd/dist", "cmd/link"} {
 			if strings.Contains(out, "STALE "+target) {
 				run(workdir, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
 				break

@@ -5,7 +5,7 @@
 package sys_test
 
 import (
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"testing"
 )
 
