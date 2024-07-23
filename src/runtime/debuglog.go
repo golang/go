@@ -740,10 +740,12 @@ func (r *debugLogReader) printVal() bool {
 
 // printDebugLog prints the debug log.
 func printDebugLog() {
-	if !dlogEnabled {
-		return
+	if dlogEnabled {
+		printDebugLogImpl()
 	}
+}
 
+func printDebugLogImpl() {
 	// This function should not panic or throw since it is used in
 	// the fatal panic path and this may deadlock.
 

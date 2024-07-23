@@ -31,7 +31,7 @@ func (l *dloggerImpl) PC(x uintptr) *dloggerImpl { return l.pc(x) }
 func DumpDebugLog() string {
 	gp := getg()
 	gp.writebuf = make([]byte, 0, 1<<20)
-	printDebugLog()
+	printDebugLogImpl()
 	buf := gp.writebuf
 	gp.writebuf = nil
 
