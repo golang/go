@@ -31,6 +31,8 @@ const debugLogBytes = 16 << 10
 // Above this, the string will be truncated with "..(n more bytes).."
 const debugLogStringLimit = debugLogBytes / 8
 
+type dlogger = dloggerImpl
+
 // dlog returns a debug logger. The caller can use methods on the
 // returned logger to add values, which will be space-separated in the
 // final output, much like println. The caller must call end() to
@@ -48,7 +50,7 @@ const debugLogStringLimit = debugLogBytes / 8
 //
 //go:nosplit
 //go:nowritebarrierrec
-func dlog() *dlogger {
+func dlog() *dloggerImpl {
 	if !dlogEnabled {
 		return nil
 	}
@@ -63,7 +65,7 @@ func dlog() *dlogger {
 	// global pool.
 	if l == nil {
 		allp := (*uintptr)(unsafe.Pointer(&allDloggers))
-		all := (*dlogger)(unsafe.Pointer(atomic.Loaduintptr(allp)))
+		all := (*dloggerImpl)(unsafe.Pointer(atomic.Loaduintptr(allp)))
 		for l1 := all; l1 != nil; l1 = l1.allLink {
 			if l1.owned.Load() == 0 && l1.owned.CompareAndSwap(0, 1) {
 				l = l1
@@ -76,7 +78,7 @@ func dlog() *dlogger {
 	if l == nil {
 		// Use sysAllocOS instead of sysAlloc because we want to interfere
 		// with the runtime as little as possible, and sysAlloc updates accounting.
-		l = (*dlogger)(sysAllocOS(unsafe.Sizeof(dlogger{})))
+		l = (*dloggerImpl)(sysAllocOS(unsafe.Sizeof(dloggerImpl{})))
 		if l == nil {
 			throw("failed to allocate debug log")
 		}
@@ -87,7 +89,7 @@ func dlog() *dlogger {
 		headp := (*uintptr)(unsafe.Pointer(&allDloggers))
 		for {
 			head := atomic.Loaduintptr(headp)
-			l.allLink = (*dlogger)(unsafe.Pointer(head))
+			l.allLink = (*dloggerImpl)(unsafe.Pointer(head))
 			if atomic.Casuintptr(headp, head, uintptr(unsafe.Pointer(l))) {
 				break
 			}
@@ -119,16 +121,16 @@ func dlog() *dlogger {
 	return l
 }
 
-// A dlogger writes to the debug log.
+// A dloggerImpl writes to the debug log.
 //
-// To obtain a dlogger, call dlog(). When done with the dlogger, call
+// To obtain a dloggerImpl, call dlog(). When done with the dloggerImpl, call
 // end().
-type dlogger struct {
+type dloggerImpl struct {
 	_ sys.NotInHeap
 	w debugLogWriter
 
 	// allLink is the next dlogger in the allDloggers list.
-	allLink *dlogger
+	allLink *dloggerImpl
 
 	// owned indicates that this dlogger is owned by an M. This is
 	// accessed atomically.
@@ -138,10 +140,10 @@ type dlogger struct {
 // allDloggers is a list of all dloggers, linked through
 // dlogger.allLink. This is accessed atomically. This is prepend only,
 // so it doesn't need to protect against ABA races.
-var allDloggers *dlogger
+var allDloggers *dloggerImpl
 
 //go:nosplit
-func (l *dlogger) end() {
+func (l *dloggerImpl) end() {
 	if !dlogEnabled {
 		return
 	}
@@ -181,7 +183,7 @@ const (
 )
 
 //go:nosplit
-func (l *dlogger) b(x bool) *dlogger {
+func (l *dloggerImpl) b(x bool) *dloggerImpl {
 	if !dlogEnabled {
 		return l
 	}
@@ -194,27 +196,27 @@ func (l *dlogger) b(x bool) *dlogger {
 }
 
 //go:nosplit
-func (l *dlogger) i(x int) *dlogger {
+func (l *dloggerImpl) i(x int) *dloggerImpl {
 	return l.i64(int64(x))
 }
 
 //go:nosplit
-func (l *dlogger) i8(x int8) *dlogger {
+func (l *dloggerImpl) i8(x int8) *dloggerImpl {
 	return l.i64(int64(x))
 }
 
 //go:nosplit
-func (l *dlogger) i16(x int16) *dlogger {
+func (l *dloggerImpl) i16(x int16) *dloggerImpl {
 	return l.i64(int64(x))
 }
 
 //go:nosplit
-func (l *dlogger) i32(x int32) *dlogger {
+func (l *dloggerImpl) i32(x int32) *dloggerImpl {
 	return l.i64(int64(x))
 }
 
 //go:nosplit
-func (l *dlogger) i64(x int64) *dlogger {
+func (l *dloggerImpl) i64(x int64) *dloggerImpl {
 	if !dlogEnabled {
 		return l
 	}
@@ -224,32 +226,32 @@ func (l *dlogger) i64(x int64) *dlogger {
 }
 
 //go:nosplit
-func (l *dlogger) u(x uint) *dlogger {
+func (l *dloggerImpl) u(x uint) *dloggerImpl {
 	return l.u64(uint64(x))
 }
 
 //go:nosplit
-func (l *dlogger) uptr(x uintptr) *dlogger {
+func (l *dloggerImpl) uptr(x uintptr) *dloggerImpl {
 	return l.u64(uint64(x))
 }
 
 //go:nosplit
-func (l *dlogger) u8(x uint8) *dlogger {
+func (l *dloggerImpl) u8(x uint8) *dloggerImpl {
 	return l.u64(uint64(x))
 }
 
 //go:nosplit
-func (l *dlogger) u16(x uint16) *dlogger {
+func (l *dloggerImpl) u16(x uint16) *dloggerImpl {
 	return l.u64(uint64(x))
 }
 
 //go:nosplit
-func (l *dlogger) u32(x uint32) *dlogger {
+func (l *dloggerImpl) u32(x uint32) *dloggerImpl {
 	return l.u64(uint64(x))
 }
 
 //go:nosplit
-func (l *dlogger) u64(x uint64) *dlogger {
+func (l *dloggerImpl) u64(x uint64) *dloggerImpl {
 	if !dlogEnabled {
 		return l
 	}
@@ -259,7 +261,7 @@ func (l *dlogger) u64(x uint64) *dlogger {
 }
 
 //go:nosplit
-func (l *dlogger) hex(x uint64) *dlogger {
+func (l *dloggerImpl) hex(x uint64) *dloggerImpl {
 	if !dlogEnabled {
 		return l
 	}
@@ -269,7 +271,7 @@ func (l *dlogger) hex(x uint64) *dlogger {
 }
 
 //go:nosplit
-func (l *dlogger) p(x any) *dlogger {
+func (l *dloggerImpl) p(x any) *dloggerImpl {
 	if !dlogEnabled {
 		return l
 	}
@@ -289,7 +291,7 @@ func (l *dlogger) p(x any) *dlogger {
 }
 
 //go:nosplit
-func (l *dlogger) s(x string) *dlogger {
+func (l *dloggerImpl) s(x string) *dloggerImpl {
 	if !dlogEnabled {
 		return l
 	}
@@ -325,7 +327,7 @@ func (l *dlogger) s(x string) *dlogger {
 }
 
 //go:nosplit
-func (l *dlogger) pc(x uintptr) *dlogger {
+func (l *dloggerImpl) pc(x uintptr) *dloggerImpl {
 	if !dlogEnabled {
 		return l
 	}
@@ -335,7 +337,7 @@ func (l *dlogger) pc(x uintptr) *dlogger {
 }
 
 //go:nosplit
-func (l *dlogger) traceback(x []uintptr) *dlogger {
+func (l *dloggerImpl) traceback(x []uintptr) *dloggerImpl {
 	if !dlogEnabled {
 		return l
 	}
@@ -704,7 +706,7 @@ func printDebugLog() {
 
 	// Get the list of all debug logs.
 	allp := (*uintptr)(unsafe.Pointer(&allDloggers))
-	all := (*dlogger)(unsafe.Pointer(atomic.Loaduintptr(allp)))
+	all := (*dloggerImpl)(unsafe.Pointer(atomic.Loaduintptr(allp)))
 
 	// Count the logs.
 	n := 0

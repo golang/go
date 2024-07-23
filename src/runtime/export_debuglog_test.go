@@ -14,15 +14,15 @@ const DebugLogStringLimit = debugLogStringLimit
 
 var Dlog = dlog
 
-func (l *dlogger) End()                  { l.end() }
-func (l *dlogger) B(x bool) *dlogger     { return l.b(x) }
-func (l *dlogger) I(x int) *dlogger      { return l.i(x) }
-func (l *dlogger) I16(x int16) *dlogger  { return l.i16(x) }
-func (l *dlogger) U64(x uint64) *dlogger { return l.u64(x) }
-func (l *dlogger) Hex(x uint64) *dlogger { return l.hex(x) }
-func (l *dlogger) P(x any) *dlogger      { return l.p(x) }
-func (l *dlogger) S(x string) *dlogger   { return l.s(x) }
-func (l *dlogger) PC(x uintptr) *dlogger { return l.pc(x) }
+func (l *dloggerImpl) End()                      { l.end() }
+func (l *dloggerImpl) B(x bool) *dloggerImpl     { return l.b(x) }
+func (l *dloggerImpl) I(x int) *dloggerImpl      { return l.i(x) }
+func (l *dloggerImpl) I16(x int16) *dloggerImpl  { return l.i16(x) }
+func (l *dloggerImpl) U64(x uint64) *dloggerImpl { return l.u64(x) }
+func (l *dloggerImpl) Hex(x uint64) *dloggerImpl { return l.hex(x) }
+func (l *dloggerImpl) P(x any) *dloggerImpl      { return l.p(x) }
+func (l *dloggerImpl) S(x string) *dloggerImpl   { return l.s(x) }
+func (l *dloggerImpl) PC(x uintptr) *dloggerImpl { return l.pc(x) }
 
 func DumpDebugLog() string {
 	gp := getg()

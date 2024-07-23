@@ -10,10 +10,10 @@ const dlogEnabled = false
 
 type dlogPerM struct{}
 
-func getCachedDlogger() *dlogger {
+func getCachedDlogger() *dloggerImpl {
 	return nil
 }
 
-func putCachedDlogger(l *dlogger) bool {
+func putCachedDlogger(l *dloggerImpl) bool {
 	return false
 }
