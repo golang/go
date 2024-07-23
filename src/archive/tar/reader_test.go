@@ -11,10 +11,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"os"
 	"path"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1017,7 +1019,7 @@ func TestParsePAX(t *testing.T) {
 	for i, v := range vectors {
 		r := strings.NewReader(v.in)
 		got, err := parsePAX(r)
-		if !reflect.DeepEqual(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
+		if !maps.Equal(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
 			t.Errorf("test %d, parsePAX():\ngot  %v\nwant %v", i, got, v.want)
 		}
 		if ok := err == nil; ok != v.ok {
@@ -1134,7 +1136,7 @@ func TestReadOldGNUSparseMap(t *testing.T) {
 		v.input = v.input[copy(blk[:], v.input):]
 		tr := Reader{r: bytes.NewReader(v.input)}
 		got, err := tr.readOldGNUSparseMap(&hdr, &blk)
-		if !equalSparseEntries(got, v.wantMap) {
+		if !slices.Equal(got, v.wantMap) {
 			t.Errorf("test %d, readOldGNUSparseMap(): got %v, want %v", i, got, v.wantMap)
 		}
 		if err != v.wantErr {
@@ -1325,7 +1327,7 @@ func TestReadGNUSparsePAXHeaders(t *testing.T) {
 		r := strings.NewReader(v.inputData + "#") // Add canary byte
 		tr := Reader{curr: &regFileReader{r, int64(r.Len())}}
 		got, err := tr.readGNUSparsePAXHeaders(&hdr)
-		if !equalSparseEntries(got, v.wantMap) {
+		if !slices.Equal(got, v.wantMap) {
 			t.Errorf("test %d, readGNUSparsePAXHeaders(): got %v, want %v", i, got, v.wantMap)
 		}
 		if err != v.wantErr {
