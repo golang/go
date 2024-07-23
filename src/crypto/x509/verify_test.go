@@ -17,7 +17,6 @@ import (
 	"internal/testenv"
 	"math/big"
 	"os/exec"
-	"reflect"
 	"runtime"
 	"slices"
 	"strconv"
@@ -2595,7 +2594,7 @@ func TestPathBuilding(t *testing.T) {
 				return
 			}
 			gotChains := chainsToStrings(chains)
-			if !reflect.DeepEqual(gotChains, tc.expectedChains) {
+			if !slices.Equal(gotChains, tc.expectedChains) {
 				t.Errorf("unexpected chains returned:\ngot:\n\t%s\nwant:\n\t%s", strings.Join(gotChains, "\n\t"), strings.Join(tc.expectedChains, "\n\t"))
 			}
 		})
