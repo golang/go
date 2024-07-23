@@ -12,6 +12,16 @@
 //
 // This facility can be enabled by passing -tags debuglog when
 // building. Without this tag, dlog calls compile to nothing.
+//
+// Implementation notes
+//
+// There are two implementations of the dlog interface: dloggerImpl and
+// dloggerFake. dloggerFake is a no-op implementation. dlogger is type-aliased
+// to one or the other depending on the debuglog build tag. However, both types
+// always exist and are always built. This helps ensure we compile as much of
+// the implementation as possible in the default build configuration, while also
+// enabling us to achieve good test coverage of the real debuglog implementation
+// even when the debuglog build tag is not set.
 
 package runtime
 
@@ -31,8 +41,6 @@ const debugLogBytes = 16 << 10
 // Above this, the string will be truncated with "..(n more bytes).."
 const debugLogStringLimit = debugLogBytes / 8
 
-type dlogger = dloggerImpl
-
 // dlog returns a debug logger. The caller can use methods on the
 // returned logger to add values, which will be space-separated in the
 // final output, much like println. The caller must call end() to
@@ -50,11 +58,20 @@ type dlogger = dloggerImpl
 //
 //go:nosplit
 //go:nowritebarrierrec
-func dlog() *dloggerImpl {
-	if !dlogEnabled {
-		return nil
-	}
+func dlog() dlogger {
+	// dlog1 is defined to either dlogImpl or dlogFake.
+	return dlog1()
+}
 
+//go:nosplit
+//go:nowritebarrierrec
+func dlogFake() dloggerFake {
+	return dloggerFake{}
+}
+
+//go:nosplit
+//go:nowritebarrierrec
+func dlogImpl() *dloggerImpl {
 	// Get the time.
 	tick, nano := uint64(cputicks()), uint64(nanotime())
 
@@ -142,12 +159,14 @@ type dloggerImpl struct {
 // so it doesn't need to protect against ABA races.
 var allDloggers *dloggerImpl
 
+// A dloggerFake is a no-op implementation of dlogger.
+type dloggerFake struct{}
+
+//go:nosplit
+func (l dloggerFake) end() {}
+
 //go:nosplit
 func (l *dloggerImpl) end() {
-	if !dlogEnabled {
-		return
-	}
-
 	// Fill in framing header.
 	size := l.w.write - l.w.r.end
 	if !l.w.writeFrameAt(l.w.r.end, size) {
@@ -183,10 +202,10 @@ const (
 )
 
 //go:nosplit
+func (l dloggerFake) b(x bool) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) b(x bool) *dloggerImpl {
-	if !dlogEnabled {
-		return l
-	}
 	if x {
 		l.w.byte(debugLogBoolTrue)
 	} else {
@@ -196,9 +215,15 @@ func (l *dloggerImpl) b(x bool) *dloggerImpl {
 }
 
 //go:nosplit
+func (l dloggerFake) i(x int) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) i(x int) *dloggerImpl {
 	return l.i64(int64(x))
 }
+
+//go:nosplit
+func (l dloggerFake) i8(x int8) dloggerFake { return l }
 
 //go:nosplit
 func (l *dloggerImpl) i8(x int8) *dloggerImpl {
@@ -206,9 +231,15 @@ func (l *dloggerImpl) i8(x int8) *dloggerImpl {
 }
 
 //go:nosplit
+func (l dloggerFake) i16(x int16) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) i16(x int16) *dloggerImpl {
 	return l.i64(int64(x))
 }
+
+//go:nosplit
+func (l dloggerFake) i32(x int32) dloggerFake { return l }
 
 //go:nosplit
 func (l *dloggerImpl) i32(x int32) *dloggerImpl {
@@ -216,14 +247,17 @@ func (l *dloggerImpl) i32(x int32) *dloggerImpl {
 }
 
 //go:nosplit
+func (l dloggerFake) i64(x int64) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) i64(x int64) *dloggerImpl {
-	if !dlogEnabled {
-		return l
-	}
 	l.w.byte(debugLogInt)
 	l.w.varint(x)
 	return l
 }
+
+//go:nosplit
+func (l dloggerFake) u(x uint) dloggerFake { return l }
 
 //go:nosplit
 func (l *dloggerImpl) u(x uint) *dloggerImpl {
@@ -231,9 +265,15 @@ func (l *dloggerImpl) u(x uint) *dloggerImpl {
 }
 
 //go:nosplit
+func (l dloggerFake) uptr(x uintptr) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) uptr(x uintptr) *dloggerImpl {
 	return l.u64(uint64(x))
 }
+
+//go:nosplit
+func (l dloggerFake) u8(x uint8) dloggerFake { return l }
 
 //go:nosplit
 func (l *dloggerImpl) u8(x uint8) *dloggerImpl {
@@ -241,9 +281,15 @@ func (l *dloggerImpl) u8(x uint8) *dloggerImpl {
 }
 
 //go:nosplit
+func (l dloggerFake) u16(x uint16) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) u16(x uint16) *dloggerImpl {
 	return l.u64(uint64(x))
 }
+
+//go:nosplit
+func (l dloggerFake) u32(x uint32) dloggerFake { return l }
 
 //go:nosplit
 func (l *dloggerImpl) u32(x uint32) *dloggerImpl {
@@ -251,30 +297,30 @@ func (l *dloggerImpl) u32(x uint32) *dloggerImpl {
 }
 
 //go:nosplit
+func (l dloggerFake) u64(x uint64) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) u64(x uint64) *dloggerImpl {
-	if !dlogEnabled {
-		return l
-	}
 	l.w.byte(debugLogUint)
 	l.w.uvarint(x)
 	return l
 }
 
 //go:nosplit
+func (l dloggerFake) hex(x uint64) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) hex(x uint64) *dloggerImpl {
-	if !dlogEnabled {
-		return l
-	}
 	l.w.byte(debugLogHex)
 	l.w.uvarint(x)
 	return l
 }
 
 //go:nosplit
+func (l dloggerFake) p(x any) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) p(x any) *dloggerImpl {
-	if !dlogEnabled {
-		return l
-	}
 	l.w.byte(debugLogPtr)
 	if x == nil {
 		l.w.uvarint(0)
@@ -291,11 +337,10 @@ func (l *dloggerImpl) p(x any) *dloggerImpl {
 }
 
 //go:nosplit
-func (l *dloggerImpl) s(x string) *dloggerImpl {
-	if !dlogEnabled {
-		return l
-	}
+func (l dloggerFake) s(x string) dloggerFake { return l }
 
+//go:nosplit
+func (l *dloggerImpl) s(x string) *dloggerImpl {
 	strData := unsafe.StringData(x)
 	datap := &firstmoduledata
 	if len(x) > 4 && datap.etext <= uintptr(unsafe.Pointer(strData)) && uintptr(unsafe.Pointer(strData)) < datap.end {
@@ -327,20 +372,20 @@ func (l *dloggerImpl) s(x string) *dloggerImpl {
 }
 
 //go:nosplit
+func (l dloggerFake) pc(x uintptr) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) pc(x uintptr) *dloggerImpl {
-	if !dlogEnabled {
-		return l
-	}
 	l.w.byte(debugLogPC)
 	l.w.uvarint(uint64(x))
 	return l
 }
 
 //go:nosplit
+func (l dloggerFake) traceback(x []uintptr) dloggerFake { return l }
+
+//go:nosplit
 func (l *dloggerImpl) traceback(x []uintptr) *dloggerImpl {
-	if !dlogEnabled {
-		return l
-	}
 	l.w.byte(debugLogTraceback)
 	l.w.uvarint(uint64(len(x)))
 	for _, pc := range x {

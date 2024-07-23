@@ -8,6 +8,17 @@ package runtime
 
 const dlogEnabled = true
 
+// dlogger is the underlying implementation of the dlogger interface, selected
+// at build time.
+//
+// We use a type alias instead of struct embedding so that the dlogger type is
+// identical to the type returned by method chaining on the methods of this type.
+type dlogger = *dloggerImpl
+
+func dlog1() *dloggerImpl {
+	return dlogImpl()
+}
+
 // dlogPerM is the per-M debug log data. This is embedded in the m
 // struct.
 type dlogPerM struct {

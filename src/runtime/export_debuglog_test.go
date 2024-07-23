@@ -12,7 +12,11 @@ const DebugLogBytes = debugLogBytes
 
 const DebugLogStringLimit = debugLogStringLimit
 
-var Dlog = dlog
+type Dlogger = dloggerImpl
+
+func Dlog() *Dlogger {
+	return dlogImpl()
+}
 
 func (l *dloggerImpl) End()                      { l.end() }
 func (l *dloggerImpl) B(x bool) *dloggerImpl     { return l.b(x) }
