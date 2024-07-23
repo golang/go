@@ -19,7 +19,6 @@ body {
   position: absolute;
   top: 5px;
   right: 5px;
-  z-index: 2;
   font-size: 12pt;
 }
 /* Background of a single flame-graph frame */
@@ -57,8 +56,6 @@ body {
   font-size: 12pt;
   font-weight: bold;
 }
-/* Ensure that pprof menu is above boxes */
-.submenu { z-index: 3; }
 /* Right-click menu */
 #action-menu {
   max-width: 15em;

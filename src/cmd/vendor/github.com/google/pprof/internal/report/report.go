@@ -781,7 +781,7 @@ type TextItem struct {
 func TextItems(rpt *Report) ([]TextItem, []string) {
 	g, origCount, droppedNodes, _ := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
-	labels := reportLabels(rpt, g, origCount, droppedNodes, 0, false)
+	labels := reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, 0, false)
 
 	var items []TextItem
 	var flatSum int64
@@ -1064,7 +1064,7 @@ func printTree(w io.Writer, rpt *Report) error {
 	g, origCount, droppedNodes, _ := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
 
-	fmt.Fprintln(w, strings.Join(reportLabels(rpt, g, origCount, droppedNodes, 0, false), "\n"))
+	fmt.Fprintln(w, strings.Join(reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, 0, false), "\n"))
 
 	fmt.Fprintln(w, separator)
 	fmt.Fprintln(w, legend)
@@ -1128,7 +1128,7 @@ func printTree(w io.Writer, rpt *Report) error {
 func GetDOT(rpt *Report) (*graph.Graph, *graph.DotConfig) {
 	g, origCount, droppedNodes, droppedEdges := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
-	labels := reportLabels(rpt, g, origCount, droppedNodes, droppedEdges, true)
+	labels := reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, droppedEdges, true)
 
 	c := &graph.DotConfig{
 		Title:       rpt.options.Title,
@@ -1184,12 +1184,19 @@ func ProfileLabels(rpt *Report) []string {
 	return label
 }
 
+func graphTotal(g *graph.Graph) int64 {
+	var total int64
+	for _, n := range g.Nodes {
+		total += n.FlatValue()
+	}
+	return total
+}
+
 // reportLabels returns printable labels for a report. Includes
 // profileLabels.
-func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedEdges int, fullHeaders bool) []string {
+func reportLabels(rpt *Report, shownTotal int64, nodeCount, origCount, droppedNodes, droppedEdges int, fullHeaders bool) []string {
 	nodeFraction := rpt.options.NodeFraction
 	edgeFraction := rpt.options.EdgeFraction
-	nodeCount := len(g.Nodes)
 
 	var label []string
 	if len(rpt.options.ProfileLabels) > 0 {
@@ -1198,17 +1205,12 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 		label = ProfileLabels(rpt)
 	}
 
-	var flatSum int64
-	for _, n := range g.Nodes {
-		flatSum = flatSum + n.FlatValue()
-	}
-
 	if len(rpt.options.ActiveFilters) > 0 {
 		activeFilters := legendActiveFilters(rpt.options.ActiveFilters)
 		label = append(label, activeFilters...)
 	}
 
-	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(flatSum), strings.TrimSpace(measurement.Percentage(flatSum, rpt.total)), rpt.formatValue(rpt.total)))
+	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(shownTotal), strings.TrimSpace(measurement.Percentage(shownTotal, rpt.total)), rpt.formatValue(rpt.total)))
 
 	if rpt.total != 0 {
 		if droppedNodes > 0 {

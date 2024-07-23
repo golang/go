@@ -34,6 +34,7 @@ type StackSet struct {
 	Unit    string        // One of "B", "s", "GCU", or "" (if unknown)
 	Stacks  []Stack       // List of stored stacks
 	Sources []StackSource // Mapping from source index to info
+	report  *Report
 }
 
 // Stack holds a single stack instance.
@@ -94,6 +95,7 @@ func (rpt *Report) Stacks() StackSet {
 		Unit:    unit,
 		Stacks:  []Stack{},       // Ensure non-nil
 		Sources: []StackSource{}, // Ensure non-nil
+		report:  rpt,
 	}
 	s.makeInitialStacks(rpt)
 	s.fillPlaces()
@@ -186,4 +188,9 @@ func (s *StackSet) assignColors() {
 		index := binary.LittleEndian.Uint32(h[:])
 		s.Sources[i].Color = int(index % numColors)
 	}
+}
+
+// Legend returns the list of lines to display as the legend.
+func (s *StackSet) Legend() []string {
+	return reportLabels(s.report, s.report.total, len(s.Sources), len(s.Sources), 0, 0, false)
 }

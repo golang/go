@@ -52,7 +52,6 @@ a {
 }
 #detailsbox {
   display: none;
-  z-index: 1;
   position: fixed;
   top: 40px;
   right: 20px;
@@ -107,7 +106,6 @@ a {
 }
 .submenu {
   display: none;
-  z-index: 1;
   margin-top: -4px;
   min-width: 10em;
   position: absolute;
@@ -169,8 +167,6 @@ a {
   top: 60px;
   left: 50%;
   transform: translateX(-50%);
-
-  z-index: 3;
   font-size: 125%;
   background-color: #ffffff;
   box-shadow: 0 1px 5px rgba(0,0,0,.3);
@@ -271,3 +267,9 @@ table tr td {
   background-color: #ebf5fb;
   font-weight: bold;
 }
+/* stacking order */
+.boxtext         { z-index: 2; }  /* flame graph box text */
+#current-details { z-index: 2; }  /* flame graph current box info */
+#detailsbox      { z-index: 3; }  /* profile details */
+.submenu         { z-index: 4; }
+.dialog          { z-index: 5; }

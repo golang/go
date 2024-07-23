@@ -436,11 +436,27 @@ function stackViewer(stacks, nodes) {
       r.appendChild(t);
     }
 
-    r.addEventListener('click', () => { switchPivots(pprofQuoteMeta(src.UniqueName)); });
+    onClick(r, () => { switchPivots(pprofQuoteMeta(src.UniqueName)); });
     r.addEventListener('mouseenter', () => { handleEnter(box, r); });
     r.addEventListener('mouseleave', () => { handleLeave(box); });
     r.addEventListener('contextmenu', (e) => { showActionMenu(e, box); });
     return r;
+  }
+
+  // Handle clicks, but only if the mouse did not move during the click.
+  function onClick(target, handler) {
+    // Disable click if mouse moves more than threshold pixels since mousedown.
+    const threshold = 3;
+    let [x, y] = [-1, -1];
+    target.addEventListener('mousedown', (e) => {
+      [x, y] = [e.clientX, e.clientY];
+    });
+    target.addEventListener('click', (e) => {
+      if (Math.abs(e.clientX - x) <= threshold &&
+          Math.abs(e.clientY - y) <= threshold) {
+        handler();
+      }
+    });
   }
 
   function drawSep(y, posTotal, negTotal) {
