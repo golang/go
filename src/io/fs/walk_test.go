@@ -9,7 +9,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
-	"reflect"
+	"slices"
 	"testing"
 	"testing/fstest"
 )
@@ -145,7 +145,7 @@ func TestIssue51617(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{".", "a", "a/bad", "a/next"}
-	if !reflect.DeepEqual(saw, want) {
+	if !slices.Equal(saw, want) {
 		t.Errorf("got directories %v, want %v", saw, want)
 	}
 }

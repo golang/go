@@ -5,7 +5,7 @@
 package mime
 
 import (
-	"reflect"
+	"maps"
 	"strings"
 	"testing"
 )
@@ -429,7 +429,7 @@ func TestParseMediaType(t *testing.T) {
 		if len(params) == 0 && len(test.p) == 0 {
 			continue
 		}
-		if !reflect.DeepEqual(params, test.p) {
+		if !maps.Equal(params, test.p) {
 			t.Errorf("for input %#q, wrong params.\n"+
 				"expected: %#v\n"+
 				"     got: %#v",

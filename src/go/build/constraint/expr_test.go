@@ -6,7 +6,9 @@ package constraint
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -194,7 +196,7 @@ func TestExprEval(t *testing.T) {
 				return tag == "yes"
 			}
 			ok := x.Eval(hasTag)
-			if ok != tt.ok || !reflect.DeepEqual(tags, wantTags) {
+			if ok != tt.ok || !maps.Equal(tags, wantTags) {
 				t.Errorf("Eval(%#q):\nhave ok=%v, tags=%v\nwant ok=%v, tags=%v",
 					tt.in, ok, tags, tt.ok, wantTags)
 			}
@@ -313,7 +315,7 @@ func TestPlusBuildLines(t *testing.T) {
 			for _, line := range tt.out {
 				want = append(want, "// +build "+line)
 			}
-			if !reflect.DeepEqual(lines, want) {
+			if !slices.Equal(lines, want) {
 				t.Errorf("PlusBuildLines(%q):\nhave %q\nwant %q", tt.in, lines, want)
 			}
 		})
