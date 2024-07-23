@@ -4241,7 +4241,7 @@ func InitTables() {
 			},
 			all...)
 	}
-	addF("runtime/internal/math", "MulUintptr",
+	addF("internal/runtime/math", "MulUintptr",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
 				return s.newValue2(ssa.OpMul32uover, types.NewTuple(types.Types[types.TUINT], types.Types[types.TUINT]), args[0], args[1])
@@ -5025,14 +5025,14 @@ func InitTables() {
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.MIPS64, sys.RISCV64, sys.Loong64)
 	alias("math/bits", "Mul", "math/bits", "Mul64", p8...)
-	alias("runtime/internal/math", "Mul64", "math/bits", "Mul64", p8...)
+	alias("internal/runtime/math", "Mul64", "math/bits", "Mul64", p8...)
 	addF("math/bits", "Add64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
 	alias("math/bits", "Add", "math/bits", "Add64", p8...)
-	alias("runtime/internal/math", "Add64", "math/bits", "Add64", all...)
+	alias("internal/runtime/math", "Add64", "math/bits", "Add64", all...)
 	addF("math/bits", "Sub64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])

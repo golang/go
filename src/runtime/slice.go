@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"runtime/internal/math"
+	"internal/runtime/math"
 	"runtime/internal/sys"
 	"unsafe"
 )

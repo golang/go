@@ -799,7 +799,7 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	return walkExpr(typecheck.Expr(h), init)
 }
 
-var math_MulUintptr = &types.Sym{Pkg: types.NewPkg("runtime/internal/math", "math"), Name: "MulUintptr"}
+var math_MulUintptr = &types.Sym{Pkg: types.NewPkg("internal/runtime/math", "math"), Name: "MulUintptr"}
 
 func walkUnsafeString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	ptr := safeExpr(n.X, init)

@@ -5,7 +5,7 @@
 package math_test
 
 import (
-	. "runtime/internal/math"
+	. "internal/runtime/math"
 	"testing"
 )
 

@@ -98,7 +98,7 @@ func TestIntendedInlining(t *testing.T) {
 			"traceEnabled",
 		},
 		"runtime/internal/sys": {},
-		"runtime/internal/math": {
+		"internal/runtime/math": {
 			"MulUintptr",
 		},
 		"bytes": {

@@ -9,7 +9,7 @@ package runtime
 import (
 	"internal/chacha8rand"
 	"internal/goarch"
-	"runtime/internal/math"
+	"internal/runtime/math"
 	"unsafe"
 	_ "unsafe" // for go:linkname
 )

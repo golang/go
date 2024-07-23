@@ -104,7 +104,7 @@ import (
 	"internal/goarch"
 	"internal/goos"
 	"internal/runtime/atomic"
-	"runtime/internal/math"
+	"internal/runtime/math"
 	"runtime/internal/sys"
 	"unsafe"
 )
