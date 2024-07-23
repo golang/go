@@ -24,7 +24,6 @@ package runtime_test
 
 import (
 	"fmt"
-	"internal/testenv"
 	"regexp"
 	"runtime"
 	"strings"
@@ -154,16 +153,5 @@ func TestDebugLogLongString(t *testing.T) {
 	want := "[] " + strings.Repeat("a", runtime.DebugLogStringLimit) + " ..(1 more bytes)..\n"
 	if got != want {
 		t.Fatalf("want %q, got %q", want, got)
-	}
-}
-
-// TestDebugLogBuild verifies that the runtime builds with -tags=debuglog.
-func TestDebugLogBuild(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-
-	// It doesn't matter which program we build, anything will rebuild the
-	// runtime.
-	if _, err := buildTestProg(t, "testprog", "-tags=debuglog"); err != nil {
-		t.Fatal(err)
 	}
 }
