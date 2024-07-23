@@ -12,8 +12,8 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
-	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -41,7 +41,7 @@ func TestForeachHeaderElement(t *testing.T) {
 		foreachHeaderElement(tt.in, func(v string) {
 			got = append(got, v)
 		})
-		if !reflect.DeepEqual(got, tt.want) {
+		if !slices.Equal(got, tt.want) {
 			t.Errorf("foreachHeaderElement(%q) = %q; want %q", tt.in, got, tt.want)
 		}
 	}

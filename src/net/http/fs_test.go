@@ -24,9 +24,9 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -516,7 +516,7 @@ func testServeFileContentType(t *testing.T, mode testMode) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if h := resp.Header["Content-Type"]; !reflect.DeepEqual(h, want) {
+		if h := resp.Header["Content-Type"]; !slices.Equal(h, want) {
 			t.Errorf("Content-Type mismatch: got %v, want %v", h, want)
 		}
 		resp.Body.Close()
@@ -1448,7 +1448,7 @@ func TestFileServerCleanPath(t *testing.T) {
 		rr := httptest.NewRecorder()
 		req, _ := NewRequest("GET", "http://foo.localhost"+tt.path, nil)
 		FileServer(fileServerCleanPathDir{&log}).ServeHTTP(rr, req)
-		if !reflect.DeepEqual(log, tt.wantOpen) {
+		if !slices.Equal(log, tt.wantOpen) {
 			t.Logf("For %s: Opens = %q; want %q", tt.path, log, tt.wantOpen)
 		}
 		if rr.Code != tt.wantCode {

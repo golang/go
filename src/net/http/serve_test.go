@@ -34,6 +34,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -4010,7 +4011,7 @@ func testHTTP10ConnectionHeader(t *testing.T, mode testMode) {
 		resp.Body.Close()
 
 		got := resp.Header["Connection"]
-		if !reflect.DeepEqual(got, tt.expect) {
+		if !slices.Equal(got, tt.expect) {
 			t.Errorf("wrong Connection headers for request %q. Got %q expect %q", tt.req, got, tt.expect)
 		}
 	}
@@ -4329,7 +4330,7 @@ func testServerConnState(t *testing.T, mode testMode) {
 
 		<-complete
 		sl := <-activeLog
-		if !reflect.DeepEqual(sl.got, sl.want) {
+		if !slices.Equal(sl.got, sl.want) {
 			t.Errorf("Request(s) produced unexpected state sequence.\nGot:  %v\nWant: %v", sl.got, sl.want)
 		}
 		// Don't return sl to activeLog: we don't expect any further states after
@@ -4355,7 +4356,7 @@ func testServerConnState(t *testing.T, mode testMode) {
 				return
 			}
 			sl.got = append(sl.got, state)
-			if sl.complete != nil && (len(sl.got) >= len(sl.want) || !reflect.DeepEqual(sl.got, sl.want[:len(sl.got)])) {
+			if sl.complete != nil && (len(sl.got) >= len(sl.want) || !slices.Equal(sl.got, sl.want[:len(sl.got)])) {
 				close(sl.complete)
 				sl.complete = nil
 			}

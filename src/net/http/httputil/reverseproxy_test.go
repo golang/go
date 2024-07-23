@@ -205,7 +205,7 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 		slices.Sort(cf)
 		expectedValues := []string{"Upgrade", someConnHeader, fakeConnectionToken}
 		slices.Sort(expectedValues)
-		if !reflect.DeepEqual(cf, expectedValues) {
+		if !slices.Equal(cf, expectedValues) {
 			t.Errorf("handler modified header %q = %q; want %q", "Connection", cf, expectedValues)
 		}
 	}))
@@ -765,7 +765,7 @@ func TestReverseProxyGetPutBuffer(t *testing.T) {
 	wantLog := []string{"getBuf", "putBuf-" + strconv.Itoa(size)}
 	mu.Lock()
 	defer mu.Unlock()
-	if !reflect.DeepEqual(log, wantLog) {
+	if !slices.Equal(log, wantLog) {
 		t.Errorf("Log events = %q; want %q", log, wantLog)
 	}
 }
