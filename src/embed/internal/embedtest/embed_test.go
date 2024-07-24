@@ -8,6 +8,7 @@ import (
 	"embed"
 	"io"
 	"reflect"
+	"slices"
 	"testing"
 	"testing/fstest"
 )
@@ -56,7 +57,7 @@ func testDir(t *testing.T, f embed.FS, name string, expect ...string) {
 		}
 		names = append(names, name)
 	}
-	if !reflect.DeepEqual(names, expect) {
+	if !slices.Equal(names, expect) {
 		t.Errorf("readdir %v = %v, want %v", name, names, expect)
 	}
 }
