@@ -99,12 +99,7 @@ func TestImportTestdata(t *testing.T) {
 		"exports.go":  {"go/ast", "go/token"},
 		"generics.go": nil,
 	}
-	if true /* was goexperiment.Unified */ {
-		// TODO(mdempsky): Fix test below to flatten the transitive
-		// Package.Imports graph. Unified IR is more precise about
-		// recreating the package import graph.
-		testfiles["exports.go"] = []string{"go/ast"}
-	}
+	testfiles["exports.go"] = []string{"go/ast"}
 
 	for testfile, wantImports := range testfiles {
 		tmpdir := mktmpdir(t)
