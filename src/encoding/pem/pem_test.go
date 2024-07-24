@@ -163,7 +163,7 @@ func TestCVE202224675(t *testing.T) {
 	// Prior to CVE-2022-24675, this input would cause a stack overflow.
 	input := []byte(strings.Repeat("-----BEGIN \n", 10000000))
 	result, rest := Decode(input)
-	if result != nil || !reflect.DeepEqual(rest, input) {
+	if result != nil || !bytes.Equal(rest, input) {
 		t.Errorf("Encode of %#v decoded as %#v", input, rest)
 	}
 }

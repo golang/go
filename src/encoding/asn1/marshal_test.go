@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -346,7 +347,7 @@ func TestSetEncoder(t *testing.T) {
 	if len(rest) != 0 {
 		t.Error("Unmarshal returned extra garbage")
 	}
-	if !reflect.DeepEqual(expectedOrder, resultStruct.Strings) {
+	if !slices.Equal(expectedOrder, resultStruct.Strings) {
 		t.Errorf("Unexpected SET content. got: %s, want: %s", resultStruct.Strings, expectedOrder)
 	}
 }
