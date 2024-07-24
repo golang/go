@@ -17,7 +17,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"slices"
 	"strings"
@@ -778,7 +777,7 @@ func TestReadStdin(t *testing.T) {
 					for len(want) < 5 {
 						want = append(want, "")
 					}
-					if !reflect.DeepEqual(all, want) {
+					if !slices.Equal(all, want) {
 						t.Errorf("reading %q:\nhave %x\nwant %x", s, all, want)
 					}
 				})

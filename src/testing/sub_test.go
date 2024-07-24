@@ -7,9 +7,9 @@ package testing
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -886,7 +886,7 @@ func TestCleanup(t *T) {
 		t.Cleanup(func() { cleanups = append(cleanups, 1) })
 		t.Cleanup(func() { cleanups = append(cleanups, 2) })
 	})
-	if got, want := cleanups, []int{2, 1}; !reflect.DeepEqual(got, want) {
+	if got, want := cleanups, []int{2, 1}; !slices.Equal(got, want) {
 		t.Errorf("unexpected cleanup record; got %v want %v", got, want)
 	}
 }
