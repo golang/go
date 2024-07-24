@@ -132,15 +132,17 @@ func ReadDir(name string) ([]DirEntry, error) {
 // CopyFS copies the file system fsys into the directory dir,
 // creating dir if necessary.
 //
-// Newly created directories and files have their default modes
-// where any bits from the file in fsys that are not part of the
-// standard read, write, and execute permissions will be zeroed
-// out, and standard read and write permissions are set for owner,
-// group, and others while retaining any existing execute bits from
-// the file in fsys.
+// Files are created with mode 0o666 plus any execute permissions
+// from the source, and directories are created with mode 0o777
+// (before umask).
 //
-// Symbolic links in fsys are not supported, a *PathError with Err set
-// to ErrInvalid is returned on symlink.
+// CopyFS will not overwrite existing files, and returns an error
+// if a file name in fsys already exists in the destination.
+//
+// Symbolic links in fsys are not supported. A *PathError with Err set
+// to ErrInvalid is returned when copying from a symbolic link.
+//
+// Symbolic links in dir are followed.
 //
 // Copying stops at and returns the first error encountered.
 func CopyFS(dir string, fsys fs.FS) error {

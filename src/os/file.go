@@ -366,7 +366,7 @@ func Open(name string) (*File, error) {
 }
 
 // Create creates or truncates the named file. If the file already exists,
-// it is truncated. If the file does not exist, it is created with mode 0666
+// it is truncated. If the file does not exist, it is created with mode 0o666
 // (before umask). If successful, methods on the returned File can
 // be used for I/O; the associated file descriptor has mode O_RDWR.
 // If there is an error, it will be of type *PathError.
@@ -606,11 +606,11 @@ func UserHomeDir() (string, error) {
 // On Unix, the mode's permission bits, ModeSetuid, ModeSetgid, and
 // ModeSticky are used.
 //
-// On Windows, only the 0200 bit (owner writable) of mode is used; it
+// On Windows, only the 0o200 bit (owner writable) of mode is used; it
 // controls whether the file's read-only attribute is set or cleared.
 // The other bits are currently unused. For compatibility with Go 1.12
-// and earlier, use a non-zero mode. Use mode 0400 for a read-only
-// file and 0600 for a readable+writable file.
+// and earlier, use a non-zero mode. Use mode 0o400 for a read-only
+// file and 0o600 for a readable+writable file.
 //
 // On Plan 9, the mode's permission bits, ModeAppend, ModeExclusive,
 // and ModeTemporary are used.
