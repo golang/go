@@ -48,3 +48,13 @@ func ResetDebugLog() {
 	}
 	startTheWorld(stw)
 }
+
+func CountDebugLog() int {
+	stw := stopTheWorld(stwForTestResetDebugLog)
+	i := 0
+	for l := allDloggers; l != nil; l = l.allLink {
+		i++
+	}
+	startTheWorld(stw)
+	return i
+}

@@ -28,7 +28,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 )
 
@@ -82,28 +81,63 @@ func TestDebugLogSym(t *testing.T) {
 func TestDebugLogInterleaving(t *testing.T) {
 	skipDebugLog(t)
 	runtime.ResetDebugLog()
-	var wg sync.WaitGroup
-	done := int32(0)
-	wg.Add(1)
-	go func() {
-		// Encourage main goroutine to move around to
-		// different Ms and Ps.
-		for atomic.LoadInt32(&done) == 0 {
-			runtime.Gosched()
-		}
-		wg.Done()
-	}()
-	var want strings.Builder
-	for i := 0; i < 1000; i++ {
-		runtime.Dlog().I(i).End()
-		fmt.Fprintf(&want, "[] %d\n", i)
-		runtime.Gosched()
-	}
-	atomic.StoreInt32(&done, 1)
-	wg.Wait()
 
+	n1 := runtime.CountDebugLog()
+	t.Logf("number of log shards at start: %d", n1)
+
+	const limit = 1000
+	const concurrency = 10
+
+	// Start several goroutines writing to the log simultaneously.
+	var wg sync.WaitGroup
+	i := 0
+	chans := make([]chan bool, concurrency)
+	for gid := range concurrency {
+		chans[gid] = make(chan bool)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var log *runtime.Dlogger
+			for {
+				<-chans[gid]
+				if log != nil {
+					log.End()
+				}
+				next := chans[(gid+1)%len(chans)]
+				if i >= limit {
+					close(next)
+					break
+				}
+				// Log an entry, but *don't* release the log shard until its our
+				// turn again. This should result in at least n=concurrency log
+				// shards.
+				log = runtime.Dlog().I(i)
+				i++
+				// Wake up the next logger goroutine.
+				next <- true
+			}
+		}()
+	}
+	// Start the chain reaction.
+	chans[0] <- true
+
+	// Wait for them to finish and get the log.
+	wg.Wait()
 	gotFull := runtime.DumpDebugLog()
 	got := dlogCanonicalize(gotFull)
+
+	n2 := runtime.CountDebugLog()
+	t.Logf("number of log shards at end: %d", n2)
+	if n2 < concurrency {
+		t.Errorf("created %d log shards, expected >= %d", n2, concurrency)
+	}
+
+	// Construct the desired output.
+	var want strings.Builder
+	for i := 0; i < limit; i++ {
+		fmt.Fprintf(&want, "[] %d\n", i)
+	}
+
 	if got != want.String() {
 		// Since the timestamps are useful in understand
 		// failures of this test, we print the uncanonicalized
