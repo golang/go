@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -250,7 +251,7 @@ func TestDNSDefaultSearch(t *testing.T) {
 	for _, tt := range dnsDefaultSearchTests {
 		getHostname = func() (string, error) { return tt.name, tt.err }
 		got := dnsDefaultSearch()
-		if !reflect.DeepEqual(got, tt.want) {
+		if !slices.Equal(got, tt.want) {
 			t.Errorf("dnsDefaultSearch with hostname %q and error %+v = %q, wanted %q", tt.name, tt.err, got, tt.want)
 		}
 	}
