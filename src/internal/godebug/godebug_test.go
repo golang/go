@@ -11,7 +11,6 @@ import (
 	"internal/testenv"
 	"os"
 	"os/exec"
-	"reflect"
 	"runtime/metrics"
 	"slices"
 	"strings"
@@ -125,7 +124,7 @@ func TestCmdBisect(t *testing.T) {
 	}
 	slices.Sort(have)
 
-	if !reflect.DeepEqual(have, want) {
+	if !slices.Equal(have, want) {
 		t.Errorf("bad bisect output:\nhave %v\nwant %v\ncomplete output:\n%s", have, want, string(out))
 	}
 }
