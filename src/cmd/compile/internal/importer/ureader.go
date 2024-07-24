@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"cmd/internal/src"
+	"internal/buildcfg"
 	"internal/pkgbits"
 )
 
@@ -411,6 +412,14 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 			panic("weird")
 
 		case pkgbits.ObjAlias:
+			if buildcfg.Experiment.AliasTypeParams && len(r.dict.bounds) > 0 {
+				// Temporary work-around for issue #68526: rather than panicking
+				// with an non-descriptive index-out-of-bounds panic when trying
+				// to access a missing type parameter, instead panic with a more
+				// descriptive error. Only needed for Go 1.23; Go 1.24 will have
+				// the correct implementation.
+				panic("importing generic type aliases is not supported in Go 1.23 (see issue #68526)")
+			}
 			pos := r.pos()
 			typ := r.typ()
 			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ)
