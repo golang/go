@@ -134,10 +134,10 @@ func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
 // newAliasInstance creates a new alias instance for the given origin and type
 // arguments, recording pos as the position of its synthetic object (for error
 // reporting).
-func (check *Checker) newAliasInstance(pos syntax.Pos, orig *Alias, targs []Type, ctxt *Context) *Alias {
+func (check *Checker) newAliasInstance(pos syntax.Pos, orig *Alias, targs []Type, expanding *Named, ctxt *Context) *Alias {
 	assert(len(targs) > 0)
 	obj := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
-	rhs := check.subst(pos, orig.fromRHS, makeSubstMap(orig.TypeParams().list(), targs), nil, ctxt)
+	rhs := check.subst(pos, orig.fromRHS, makeSubstMap(orig.TypeParams().list(), targs), expanding, ctxt)
 	res := check.newAlias(obj, rhs)
 	res.orig = orig
 	res.tparams = orig.tparams

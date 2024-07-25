@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"internal/buildcfg"
 	. "internal/types/errors"
 )
 
@@ -129,8 +130,9 @@ func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, ex
 		res = check.newNamedInstance(pos, orig, targs, expanding) // substituted lazily
 
 	case *Alias:
-		// TODO(gri) is this correct?
-		assert(expanding == nil) // Alias instances cannot be reached from Named types
+		if !buildcfg.Experiment.AliasTypeParams {
+			assert(expanding == nil) // Alias instances cannot be reached from Named types
+		}
 
 		tparams := orig.TypeParams()
 		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
@@ -141,7 +143,7 @@ func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, ex
 			return orig // nothing to do (minor optimization)
 		}
 
-		return check.newAliasInstance(pos, orig, targs, ctxt)
+		return check.newAliasInstance(pos, orig, targs, expanding, ctxt)
 
 	case *Signature:
 		assert(expanding == nil) // function instances cannot be reached from Named types
