@@ -118,7 +118,7 @@ func (subst *subster) typ(typ Type) Type {
 		// that has a type argument for it.
 		targs, updated := subst.typeList(t.TypeArgs().list())
 		if updated {
-			return subst.check.newAliasInstance(subst.pos, t.orig, targs, subst.ctxt)
+			return subst.check.newAliasInstance(subst.pos, t.orig, targs, subst.expanding, subst.ctxt)
 		}
 
 	case *Array:
