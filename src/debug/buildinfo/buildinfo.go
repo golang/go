@@ -57,6 +57,11 @@ var errNotGoExe = errors.New("not a Go executable")
 // fields.
 var buildInfoMagic = []byte("\xff Go buildinf:")
 
+const (
+	buildInfoAlign      = 16
+	buildInfoHeaderSize = 32
+)
+
 // ReadFile returns build information embedded in a Go binary
 // file at the given path. Most information is only available for binaries built
 // with module support.
@@ -165,14 +170,19 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 	if dataSize == 0 {
 		return "", "", errNotGoExe
 	}
-	data, err := x.ReadData(dataAddr, dataSize)
+
+	addr, err := searchMagic(x, dataAddr, dataSize)
 	if err != nil {
 		return "", "", err
 	}
-	const (
-		buildInfoAlign      = 16
-		buildInfoHeaderSize = 32
 
+	// Read in the full header first.
+	header, err := x.ReadData(addr, buildInfoHeaderSize)
+	if err != nil {
+		return "", "", err
+	}
+
+	const (
 		ptrSizeOffset = 14
 		flagsOffset   = 15
 		versPtrOffset = 16
@@ -185,17 +195,6 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 		flagsVersionPtr  = 0x0
 		flagsVersionInl  = 0x2
 	)
-	for {
-		i := bytes.Index(data, buildInfoMagic)
-		if i < 0 || len(data)-i < buildInfoHeaderSize {
-			return "", "", errNotGoExe
-		}
-		if i%buildInfoAlign == 0 && len(data)-i >= buildInfoHeaderSize {
-			data = data[i:]
-			break
-		}
-		data = data[(i+buildInfoAlign-1)&^(buildInfoAlign-1):]
-	}
 
 	// Decode the blob. The blob is a 32-byte header, optionally followed
 	// by 2 varint-prefixed string contents.
@@ -220,13 +219,19 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 	// the header is followed by the string contents inline as
 	// length-prefixed (as varint) string contents. First is the version
 	// string, followed immediately by the modinfo string.
-	flags := data[flagsOffset]
+	flags := header[flagsOffset]
 	if flags&flagsVersionMask == flagsVersionInl {
-		vers, data = decodeString(data[buildInfoHeaderSize:])
-		mod, data = decodeString(data)
+		vers, addr, err = decodeString(x, addr+buildInfoHeaderSize)
+		if err != nil {
+			return "", "", err
+		}
+		mod, _, err = decodeString(x, addr)
+		if err != nil {
+			return "", "", err
+		}
 	} else {
 		// flagsVersionPtr (<1.18)
-		ptrSize := int(data[ptrSizeOffset])
+		ptrSize := int(header[ptrSizeOffset])
 		bigEndian := flags&flagsEndianMask == flagsEndianBig
 		var bo binary.ByteOrder
 		if bigEndian {
@@ -242,8 +247,8 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 		} else {
 			return "", "", errNotGoExe
 		}
-		vers = readString(x, ptrSize, readPtr, readPtr(data[versPtrOffset:]))
-		mod = readString(x, ptrSize, readPtr, readPtr(data[versPtrOffset+ptrSize:]))
+		vers = readString(x, ptrSize, readPtr, readPtr(header[versPtrOffset:]))
+		mod = readString(x, ptrSize, readPtr, readPtr(header[versPtrOffset+ptrSize:]))
 	}
 	if vers == "" {
 		return "", "", errNotGoExe
@@ -270,12 +275,33 @@ func hasPlan9Magic(magic []byte) bool {
 	return false
 }
 
-func decodeString(data []byte) (s string, rest []byte) {
-	u, n := binary.Uvarint(data)
-	if n <= 0 || u > uint64(len(data)-n) {
-		return "", nil
+func decodeString(x exe, addr uint64) (string, uint64, error) {
+	// varint length followed by length bytes of data.
+
+	// N.B. ReadData reads _up to_ size bytes from the section containing
+	// addr. So we don't need to check that size doesn't overflow the
+	// section.
+	b, err := x.ReadData(addr, binary.MaxVarintLen64)
+	if err != nil {
+		return "", 0, err
 	}
-	return string(data[n : uint64(n)+u]), data[uint64(n)+u:]
+
+	length, n := binary.Uvarint(b)
+	if n <= 0 {
+		return "", 0, errNotGoExe
+	}
+	addr += uint64(n)
+
+	b, err = x.ReadData(addr, length)
+	if err != nil {
+		return "", 0, err
+	}
+	if uint64(len(b)) < length {
+		// Section ended before we could read the full string.
+		return "", 0, errNotGoExe
+	}
+
+	return string(b), addr + length, nil
 }
 
 // readString returns the string at address addr in the executable x.
@@ -291,6 +317,64 @@ func readString(x exe, ptrSize int, readPtr func([]byte) uint64, addr uint64) st
 		return ""
 	}
 	return string(data)
+}
+
+const searchChunkSize = 1 << 20 // 1 MB
+
+// searchMagic returns the aligned first instance of buildInfoMagic in the data
+// range [addr, addr+size). Returns false if not found.
+func searchMagic(x exe, start, size uint64) (uint64, error) {
+	end := start + size
+	if end < start {
+		// Overflow.
+		return 0, errUnrecognizedFormat
+	}
+
+	// Round up start; magic can't occur in the initial unaligned portion.
+	start = (start + buildInfoAlign - 1) &^ (buildInfoAlign - 1)
+	if start >= end {
+		return 0, errNotGoExe
+	}
+
+	for start < end {
+		// Read in chunks to avoid consuming too much memory if data is large.
+		//
+		// Normally it would be somewhat painful to handle the magic crossing a
+		// chunk boundary, but since it must be 16-byte aligned we know it will
+		// fall within a single chunk.
+		remaining := end - start
+		chunkSize := uint64(searchChunkSize)
+		if chunkSize > remaining {
+			chunkSize = remaining
+		}
+
+		data, err := x.ReadData(start, chunkSize)
+		if err != nil {
+			return 0, err
+		}
+
+		for len(data) > 0 {
+			i := bytes.Index(data, buildInfoMagic)
+			if i < 0 {
+				break
+			}
+			if remaining-uint64(i) < buildInfoHeaderSize {
+				// Found magic, but not enough space left for the full header.
+				return 0, errNotGoExe
+			}
+			if i%buildInfoAlign != 0 {
+				// Found magic, but misaligned. Keep searching.
+				data = data[(i+buildInfoAlign-1)&^(buildInfoAlign-1):]
+				continue
+			}
+			// Good match!
+			return start + uint64(i), nil
+		}
+
+		start += chunkSize
+	}
+
+	return 0, errNotGoExe
 }
 
 // elfExe is the ELF implementation of the exe interface.
