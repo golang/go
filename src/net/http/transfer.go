@@ -350,7 +350,7 @@ func (t *transferWriter) writeBody(w io.Writer) (err error) {
 	// nopCloser or readTrackingBody. This is to ensure that we can take advantage of
 	// OS-level optimizations in the event that the body is an
 	// *os.File.
-	if t.Body != nil {
+	if !t.ResponseToHEAD && t.Body != nil {
 		var body = t.unwrapBody()
 		if chunked(t.TransferEncoding) {
 			if bw, ok := w.(*bufio.Writer); ok && !t.IsResponse {
@@ -392,7 +392,7 @@ func (t *transferWriter) writeBody(w io.Writer) (err error) {
 			t.ContentLength, ncopy)
 	}
 
-	if chunked(t.TransferEncoding) {
+	if !t.ResponseToHEAD && chunked(t.TransferEncoding) {
 		// Write Trailer header
 		if t.Trailer != nil {
 			if err := t.Trailer.Write(w); err != nil {
