@@ -20,8 +20,6 @@ func pidfdFind(_ int) (uintptr, error) {
 	return 0, syscall.ENOSYS
 }
 
-func (p *Process) pidfdRelease() {}
-
 func (_ *Process) pidfdWait() (*ProcessState, error) {
 	panic("unreachable")
 }
