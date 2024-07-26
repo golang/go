@@ -134,6 +134,22 @@ func TestReadFile(t *testing.T) {
 		}
 	}
 
+	damageStringLen := func(t *testing.T, name string) {
+		data, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		i := bytes.Index(data, []byte("\xff Go buildinf:"))
+		if i < 0 {
+			t.Fatal("Go buildinf not found")
+		}
+		verLen := data[i+32:]
+		binary.PutUvarint(verLen, 16<<40) // 16TB ought to be enough for anyone.
+		if err := os.WriteFile(name, data, 0666); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	goVersionRe := regexp.MustCompile("(?m)^go\t.*\n")
 	buildRe := regexp.MustCompile("(?m)^build\t.*\n")
 	cleanOutputForComparison := func(got string) string {
@@ -189,6 +205,15 @@ func TestReadFile(t *testing.T) {
 			build: func(t *testing.T, goos, goarch, buildmode string) string {
 				name := buildWithModules(t, goos, goarch, buildmode)
 				damageBuildInfo(t, name)
+				return name
+			},
+			wantErr: "not a Go executable",
+		},
+		{
+			name: "invalid_str_len",
+			build: func(t *testing.T, goos, goarch, buildmode string) string {
+				name := buildWithModules(t, goos, goarch, buildmode)
+				damageStringLen(t, name)
 				return name
 			},
 			wantErr: "not a Go executable",
