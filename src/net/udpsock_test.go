@@ -340,7 +340,7 @@ func TestUDPZeroBytePayload(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
-	case "darwin", "ios":
+	case "ios":
 		testenv.SkipFlaky(t, 29225)
 	}
 	if !testableNetwork("udp") {
