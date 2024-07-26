@@ -2351,9 +2351,13 @@ func (ctxt *Link) buildinfo() {
 	s := ldr.CreateSymForUpdate("go:buildinfo", 0)
 	s.SetType(sym.SBUILDINFO)
 	s.SetAlign(16)
+
 	// The \xff is invalid UTF-8, meant to make it less likely
 	// to find one of these accidentally.
-	const prefix = "\xff Go buildinf:" // 14 bytes, plus 2 data bytes filled in below
+	const prefix = "\xff Go buildinf:" // 14 bytes, plus 1 data byte filled in below
+
+	// Header is always 32-bytes, a hold-over from before
+	// https://go.dev/cl/369977.
 	data := make([]byte, 32)
 	copy(data, prefix)
 	data[len(prefix)] = byte(ctxt.Arch.PtrSize)
@@ -2364,7 +2368,7 @@ func (ctxt *Link) buildinfo() {
 	data[len(prefix)+1] |= 2 // signals new pointer-free format
 	data = appendString(data, strdata["runtime.buildVersion"])
 	data = appendString(data, strdata["runtime.modinfo"])
-	// MacOS linker gets very upset if the size os not a multiple of alignment.
+	// MacOS linker gets very upset if the size is not a multiple of alignment.
 	for len(data)%16 != 0 {
 		data = append(data, 0)
 	}
