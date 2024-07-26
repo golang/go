@@ -539,3 +539,25 @@ func TestTimediv(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkProcYield(b *testing.B) {
+	benchN := func(n uint32) func(*testing.B) {
+		return func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				ProcYield(n)
+			}
+		}
+	}
+
+	b.Run("1", benchN(1))
+	b.Run("10", benchN(10))
+	b.Run("30", benchN(30)) // active_spin_cnt in lock_sema.go and lock_futex.go
+	b.Run("100", benchN(100))
+	b.Run("1000", benchN(1000))
+}
+
+func BenchmarkOSYield(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		OSYield()
+	}
+}

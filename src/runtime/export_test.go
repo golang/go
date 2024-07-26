@@ -1223,6 +1223,9 @@ func PageCachePagesLeaked() (leaked uintptr) {
 	return
 }
 
+var ProcYield = procyield
+var OSYield = osyield
+
 type Mutex = mutex
 
 var Lock = lock
