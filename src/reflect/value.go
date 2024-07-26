@@ -2677,7 +2677,7 @@ func (v Value) TrySend(x Value) bool {
 // Type returns v's type.
 func (v Value) Type() Type {
 	if v.flag != 0 && v.flag&flagMethod == 0 {
-		return (*rtype)(noescape(unsafe.Pointer(v.typ_))) // inline of toRType(v.typ()), for own inlining in inline test
+		return (*rtype)(abi.NoEscape(unsafe.Pointer(v.typ_))) // inline of toRType(v.typ()), for own inlining in inline test
 	}
 	return v.typeSlow()
 }
@@ -4017,14 +4017,4 @@ func contentEscapes(x unsafe.Pointer) {
 	if dummy.b {
 		escapes(*(*any)(x)) // the dereference may not always be safe, but never executed
 	}
-}
-
-// This is just a wrapper around abi.NoEscape. The inlining heuristics are
-// finnicky and for whatever reason treat the local call to noescape as much
-// lower cost with respect to the inliner budget. (That is, replacing calls to
-// noescape with abi.NoEscape will cause inlining tests to fail.)
-//
-//go:nosplit
-func noescape(p unsafe.Pointer) unsafe.Pointer {
-	return abi.NoEscape(p)
 }

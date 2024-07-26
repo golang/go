@@ -460,10 +460,10 @@ opSwitch:
 				case "panicrangestate":
 					cheap = true
 				}
-				// Special case for reflect.noescape. It does just type
+				// Special case for internal/abi.NoEscape. It does just type
 				// conversions to appease the escape analysis, and doesn't
 				// generate code.
-				if types.ReflectSymName(name.Sym()) == "noescape" {
+				if s := name.Sym(); s.Name == "NoEscape" && s.Pkg.Path == "internal/abi" {
 					cheap = true
 				}
 			}
