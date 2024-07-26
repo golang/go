@@ -1510,7 +1510,7 @@ func testHeadResponses(t *testing.T, mode testMode) {
 		}
 
 		// Also exercise the ReaderFrom path
-		_, err = io.Copy(w, strings.NewReader("789a"))
+		_, err = io.Copy(w, struct{ io.Reader }{strings.NewReader("789a")})
 		if err != nil {
 			t.Errorf("Copy(ResponseWriter, ...): %v", err)
 		}
@@ -1534,6 +1534,34 @@ func testHeadResponses(t *testing.T, mode testMode) {
 	}
 	if len(body) > 0 {
 		t.Errorf("got unexpected body %q", string(body))
+	}
+}
+
+// Ensure ResponseWriter.ReadFrom doesn't write a body in response to a HEAD request.
+// https://go.dev/issue/68609
+func TestHeadReaderFrom(t *testing.T) { run(t, testHeadReaderFrom, []testMode{http1Mode}) }
+func testHeadReaderFrom(t *testing.T, mode testMode) {
+	// Body is large enough to exceed the content-sniffing length.
+	wantBody := strings.Repeat("a", 4096)
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.(io.ReaderFrom).ReadFrom(strings.NewReader(wantBody))
+	}))
+	res, err := cst.c.Head(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	res, err = cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotBody, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(gotBody) != wantBody {
+		t.Errorf("got unexpected body len=%v, want %v", len(gotBody), len(wantBody))
 	}
 }
 

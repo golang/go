@@ -611,7 +611,7 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 	w.cw.flush() // make sure Header is written; flush data to rwc
 
 	// Now that cw has been flushed, its chunking field is guaranteed initialized.
-	if !w.cw.chunking && w.bodyAllowed() {
+	if !w.cw.chunking && w.bodyAllowed() && w.req.Method != "HEAD" {
 		n0, err := rf.ReadFrom(src)
 		n += n0
 		w.written += n0
