@@ -99,13 +99,14 @@ func Read(r io.ReaderAt) (*BuildInfo, error) {
 }
 
 type exe interface {
-	// ReadData reads and returns up to size bytes starting at virtual address addr.
-	ReadData(addr, size uint64) ([]byte, error)
-
 	// DataStart returns the virtual address and size of the segment or section that
 	// should contain build information. This is either a specially named section
 	// or the first writable non-zero data segment.
 	DataStart() (uint64, uint64)
+
+	// DataReader returns an io.ReaderAt that reads from addr until the end
+	// of segment or section that contains addr.
+	DataReader(addr uint64) (io.ReaderAt, error)
 }
 
 // readRawBuildInfo extracts the Go toolchain version and module information
@@ -177,7 +178,7 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 	}
 
 	// Read in the full header first.
-	header, err := x.ReadData(addr, buildInfoHeaderSize)
+	header, err := readData(x, addr, buildInfoHeaderSize)
 	if err != nil {
 		return "", "", err
 	}
@@ -281,7 +282,7 @@ func decodeString(x exe, addr uint64) (string, uint64, error) {
 	// N.B. ReadData reads _up to_ size bytes from the section containing
 	// addr. So we don't need to check that size doesn't overflow the
 	// section.
-	b, err := x.ReadData(addr, binary.MaxVarintLen64)
+	b, err := readData(x, addr, binary.MaxVarintLen64)
 	if err != nil {
 		return "", 0, err
 	}
@@ -292,7 +293,7 @@ func decodeString(x exe, addr uint64) (string, uint64, error) {
 	}
 	addr += uint64(n)
 
-	b, err = x.ReadData(addr, length)
+	b, err = readData(x, addr, length)
 	if err != nil {
 		return "", 0, err
 	}
@@ -306,13 +307,13 @@ func decodeString(x exe, addr uint64) (string, uint64, error) {
 
 // readString returns the string at address addr in the executable x.
 func readString(x exe, ptrSize int, readPtr func([]byte) uint64, addr uint64) string {
-	hdr, err := x.ReadData(addr, uint64(2*ptrSize))
+	hdr, err := readData(x, addr, uint64(2*ptrSize))
 	if err != nil || len(hdr) < 2*ptrSize {
 		return ""
 	}
 	dataAddr := readPtr(hdr)
 	dataLen := readPtr(hdr[ptrSize:])
-	data, err := x.ReadData(dataAddr, dataLen)
+	data, err := readData(x, dataAddr, dataLen)
 	if err != nil || uint64(len(data)) < dataLen {
 		return ""
 	}
@@ -336,6 +337,7 @@ func searchMagic(x exe, start, size uint64) (uint64, error) {
 		return 0, errNotGoExe
 	}
 
+	var buf []byte
 	for start < end {
 		// Read in chunks to avoid consuming too much memory if data is large.
 		//
@@ -348,11 +350,21 @@ func searchMagic(x exe, start, size uint64) (uint64, error) {
 			chunkSize = remaining
 		}
 
-		data, err := x.ReadData(start, chunkSize)
+		if buf == nil {
+			buf = make([]byte, chunkSize)
+		} else {
+			// N.B. chunkSize can only decrease, and only on the
+			// last chunk.
+			buf = buf[:chunkSize]
+			clear(buf)
+		}
+
+		n, err := readDataInto(x, start, buf)
 		if err != nil {
 			return 0, err
 		}
 
+		data := buf[:n]
 		for len(data) > 0 {
 			i := bytes.Index(data, buildInfoMagic)
 			if i < 0 {
@@ -377,19 +389,42 @@ func searchMagic(x exe, start, size uint64) (uint64, error) {
 	return 0, errNotGoExe
 }
 
+func readData(x exe, addr, size uint64) ([]byte, error) {
+	r, err := x.DataReader(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := saferio.ReadDataAt(r, size, 0)
+	if err == io.EOF {
+		err = nil
+	}
+	return b, err
+}
+
+func readDataInto(x exe, addr uint64, b []byte) (int, error) {
+	r, err := x.DataReader(addr)
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := r.ReadAt(b, 0)
+	if err == io.EOF {
+		err = nil
+	}
+	return n, err
+}
+
 // elfExe is the ELF implementation of the exe interface.
 type elfExe struct {
 	f *elf.File
 }
 
-func (x *elfExe) ReadData(addr, size uint64) ([]byte, error) {
+func (x *elfExe) DataReader(addr uint64) (io.ReaderAt, error) {
 	for _, prog := range x.f.Progs {
 		if prog.Vaddr <= addr && addr <= prog.Vaddr+prog.Filesz-1 {
-			n := prog.Vaddr + prog.Filesz - addr
-			if n > size {
-				n = size
-			}
-			return saferio.ReadDataAt(prog, n, int64(addr-prog.Vaddr))
+			remaining := prog.Vaddr + prog.Filesz - addr
+			return io.NewSectionReader(prog, int64(addr-prog.Vaddr), int64(remaining)), nil
 		}
 	}
 	return nil, errUnrecognizedFormat
@@ -424,15 +459,12 @@ func (x *peExe) imageBase() uint64 {
 	return 0
 }
 
-func (x *peExe) ReadData(addr, size uint64) ([]byte, error) {
+func (x *peExe) DataReader(addr uint64) (io.ReaderAt, error) {
 	addr -= x.imageBase()
 	for _, sect := range x.f.Sections {
 		if uint64(sect.VirtualAddress) <= addr && addr <= uint64(sect.VirtualAddress+sect.Size-1) {
-			n := uint64(sect.VirtualAddress+sect.Size) - addr
-			if n > size {
-				n = size
-			}
-			return saferio.ReadDataAt(sect, n, int64(addr-uint64(sect.VirtualAddress)))
+			remaining := uint64(sect.VirtualAddress+sect.Size) - addr
+			return io.NewSectionReader(sect, int64(addr-uint64(sect.VirtualAddress)), int64(remaining)), nil
 		}
 	}
 	return nil, errUnrecognizedFormat
@@ -465,7 +497,7 @@ type machoExe struct {
 	f *macho.File
 }
 
-func (x *machoExe) ReadData(addr, size uint64) ([]byte, error) {
+func (x *machoExe) DataReader(addr uint64) (io.ReaderAt, error) {
 	for _, load := range x.f.Loads {
 		seg, ok := load.(*macho.Segment)
 		if !ok {
@@ -475,11 +507,8 @@ func (x *machoExe) ReadData(addr, size uint64) ([]byte, error) {
 			if seg.Name == "__PAGEZERO" {
 				continue
 			}
-			n := seg.Addr + seg.Filesz - addr
-			if n > size {
-				n = size
-			}
-			return saferio.ReadDataAt(seg, n, int64(addr-seg.Addr))
+			remaining := seg.Addr + seg.Filesz - addr
+			return io.NewSectionReader(seg, int64(addr-seg.Addr), int64(remaining)), nil
 		}
 	}
 	return nil, errUnrecognizedFormat
@@ -508,14 +537,11 @@ type xcoffExe struct {
 	f *xcoff.File
 }
 
-func (x *xcoffExe) ReadData(addr, size uint64) ([]byte, error) {
+func (x *xcoffExe) DataReader(addr uint64) (io.ReaderAt, error) {
 	for _, sect := range x.f.Sections {
 		if sect.VirtualAddress <= addr && addr <= sect.VirtualAddress+sect.Size-1 {
-			n := sect.VirtualAddress + sect.Size - addr
-			if n > size {
-				n = size
-			}
-			return saferio.ReadDataAt(sect, n, int64(addr-sect.VirtualAddress))
+			remaining := sect.VirtualAddress + sect.Size - addr
+			return io.NewSectionReader(sect, int64(addr-sect.VirtualAddress), int64(remaining)), nil
 		}
 	}
 	return nil, errors.New("address not mapped")
@@ -540,14 +566,11 @@ func (x *plan9objExe) DataStart() (uint64, uint64) {
 	return 0, 0
 }
 
-func (x *plan9objExe) ReadData(addr, size uint64) ([]byte, error) {
+func (x *plan9objExe) DataReader(addr uint64) (io.ReaderAt, error) {
 	for _, sect := range x.f.Sections {
 		if uint64(sect.Offset) <= addr && addr <= uint64(sect.Offset+sect.Size-1) {
-			n := uint64(sect.Offset+sect.Size) - addr
-			if n > size {
-				n = size
-			}
-			return saferio.ReadDataAt(sect, n, int64(addr-uint64(sect.Offset)))
+			remaining := uint64(sect.Offset+sect.Size) - addr
+			return io.NewSectionReader(sect, int64(addr-uint64(sect.Offset)), int64(remaining)), nil
 		}
 	}
 	return nil, errors.New("address not mapped")

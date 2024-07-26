@@ -5,7 +5,9 @@
 package buildinfo
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"testing"
 )
 
@@ -13,15 +15,11 @@ type byteExe struct {
 	b []byte
 }
 
-func (x *byteExe) ReadData(addr, size uint64) ([]byte, error) {
-	end := addr + size
-	if end < addr {
-		return nil, fmt.Errorf("ReadData(%d, %d) overflow", addr, size)
+func (x *byteExe) DataReader(addr uint64) (io.ReaderAt, error) {
+	if addr >= uint64(len(x.b)) {
+		return nil, fmt.Errorf("ReadData(%d) out of bounds of %d-byte slice", addr, len(x.b))
 	}
-	if addr >= uint64(len(x.b)) || end-1 >= uint64(len(x.b)) {
-		return nil, fmt.Errorf("ReadData(%d, %d) out of bounds of %d-byte slice", addr, size, len(x.b))
-	}
-	return x.b[addr:end], nil
+	return bytes.NewReader(x.b[addr:]), nil
 }
 
 func (x *byteExe) DataStart() (uint64, uint64) {
