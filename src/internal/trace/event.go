@@ -647,8 +647,9 @@ func (e Event) StateTransition() StateTransition {
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunnable)
 		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case go122.EvGoStatus, go122.EvGoStatusStack:
-		// N.B. ordering.advance populates e.base.extra.
-		s = goStateTransition(GoID(e.base.args[0]), GoState(e.base.extra(version.Go122)[0]), go122GoStatus2GoState[e.base.args[2]])
+		packedStatus := e.base.args[2]
+		from, to := packedStatus>>32, packedStatus&((1<<32)-1)
+		s = goStateTransition(GoID(e.base.args[0]), GoState(from), go122GoStatus2GoState[to])
 	default:
 		panic(fmt.Sprintf("internal error: unexpected event type for StateTransition kind: %s", go122.EventString(e.base.typ)))
 	}

@@ -19,11 +19,7 @@ import (
 
 // maxArgs is the maximum number of arguments for "plain" events,
 // i.e. anything that could reasonably be represented as a baseEvent.
-//
-// TODO(mknyszek): This is only 6 instead of 5 because GoStatusStack
-// has 5 arguments and needs to smuggle in a 6th. Figure out a way to
-// shrink this in the future.
-const maxArgs = 6
+const maxArgs = 5
 
 // timedEventArgs is an array that is able to hold the arguments for any
 // timed event.

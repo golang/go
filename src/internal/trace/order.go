@@ -377,7 +377,7 @@ func (o *ordering) advanceGoStatus(ev *baseEvent, evt *evTable, m ThreadID, gen 
 	} else {
 		return curCtx, false, fmt.Errorf("found goroutine status for new goroutine after the first generation: id=%v status=%v", gid, status)
 	}
-	ev.extra(version.Go122)[0] = uint64(oldState) // Smuggle in the old state for StateTransition.
+	ev.args[2] = uint64(oldState)<<32 | uint64(status) // Smuggle in the old state for StateTransition.
 
 	newCtx := curCtx
 	switch status {
