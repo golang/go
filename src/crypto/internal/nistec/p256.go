@@ -314,6 +314,58 @@ func (q *P256Point) Double(p *P256Point) *P256Point {
 	return q
 }
 
+type p256AffinePoint struct {
+	x, y *fiat.P256Element
+}
+
+func (q *P256Point) AddAffine(p1 *P256Point, p2 *p256AffinePoint, cond int) *P256Point {
+	// Complete mixed addition formula for a = -3 from "Complete addition
+	// formulas for prime order elliptic curves"
+	// (https://eprint.iacr.org/2015/1060), Algorithm 5.
+
+	t0 := new(fiat.P256Element).Mul(p1.x, p2.x)    // t0 ← X1 · X2
+	t1 := new(fiat.P256Element).Mul(p1.y, p2.y)    // t1 ← Y1 · Y2
+	t3 := new(fiat.P256Element).Add(p2.x, p2.y)    // t3 ← X2 + Y2
+	t4 := new(fiat.P256Element).Add(p1.x, p1.y)    // t4 ← X1 + Y1
+	t3.Mul(t3, t4)                                 // t3 ← t3 · t4
+	t4.Add(t0, t1)                                 // t4 ← t0 + t1
+	t3.Sub(t3, t4)                                 // t3 ← t3 − t4
+	t4.Mul(p2.y, p1.z)                             // t4 ← Y2 · Z1
+	t4.Add(t4, p1.y)                               // t4 ← t4 + Y1
+	y3 := new(fiat.P256Element).Mul(p2.x, p1.z)    // Y3 ← X2 · Z1
+	y3.Add(y3, p1.x)                               // Y3 ← Y3 + X1
+	z3 := new(fiat.P256Element).Mul(p256B(), p1.z) // Z3 ← b  · Z1
+	x3 := new(fiat.P256Element).Sub(y3, z3)        // X3 ← Y3 − Z3
+	z3.Add(x3, x3)                                 // Z3 ← X3 + X3
+	x3.Add(x3, z3)                                 // X3 ← X3 + Z3
+	z3.Sub(t1, x3)                                 // Z3 ← t1 − X3
+	x3.Add(t1, x3)                                 // X3 ← t1 + X3
+	y3.Mul(p256B(), y3)                            // Y3 ← b  · Y3
+	t1.Add(p1.z, p1.z)                             // t1 ← Z1 + Z1
+	t2 := new(fiat.P256Element).Add(t1, p1.z)      // t2 ← t1 + Z1
+	y3.Sub(y3, t2)                                 // Y3 ← Y3 − t2
+	y3.Sub(y3, t0)                                 // Y3 ← Y3 − t0
+	t1.Add(y3, y3)                                 // t1 ← Y3 + Y3
+	y3.Add(t1, y3)                                 // Y3 ← t1 + Y3
+	t1.Add(t0, t0)                                 // t1 ← t0 + t0
+	t0.Add(t1, t0)                                 // t0 ← t1 + t0
+	t0.Sub(t0, t2)                                 // t0 ← t0 − t2
+	t1.Mul(t4, y3)                                 // t1 ← t4 · Y3
+	t2.Mul(t0, y3)                                 // t2 ← t0 · Y3
+	y3.Mul(x3, z3)                                 // Y3 ← X3 · Z3
+	y3.Add(y3, t2)                                 // Y3 ← Y3 + t2
+	x3.Mul(t3, x3)                                 // X3 ← t3 · X3
+	x3.Sub(x3, t1)                                 // X3 ← X3 − t1
+	z3.Mul(t4, z3)                                 // Z3 ← t4 · Z3
+	t1.Mul(t3, t0)                                 // t1 ← t3 · t0
+	z3.Add(z3, t1)                                 // Z3 ← Z3 + t1
+
+	q.x.Select(x3, p1.x, cond)
+	q.y.Select(y3, p1.y, cond)
+	q.z.Select(z3, p1.z, cond)
+	return q
+}
+
 // Select sets q to p1 if cond == 1, and to p2 if cond == 0.
 func (q *P256Point) Select(p1, p2 *P256Point, cond int) *P256Point {
 	q.x.Select(p1.x, p2.x, cond)
@@ -465,33 +517,35 @@ func (p *P256Point) Negate(cond int) *P256Point {
 	return p
 }
 
-type p256TableFive [32]*P256Point
+type p256AffineTable [32]*p256AffinePoint
 
-func (table *p256TableFive) Select(p *P256Point, n uint8) {
+func (table *p256AffineTable) Select(p *p256AffinePoint, n uint8) {
 	if n > 32 {
 		panic("nistec: internal error: p256TableFive called with out-of-bounds value")
 	}
-	p.Set(NewP256Point())
 	for i := uint8(1); i <= 32; i++ {
 		cond := subtle.ConstantTimeByteEq(i, n)
-		p.Select(table[i-1], p, cond)
+		p.x.Select(table[i-1].x, p.x, cond)
+		p.y.Select(table[i-1].y, p.y, cond)
 	}
 }
 
-var _p256GeneratorTable *[43]p256TableFive
+var _p256GeneratorTable *[43]p256AffineTable
 var p256GeneratorTableOnce sync.Once
 
 // p256GeneratorTable returns a sequence of p256Tables. The first table contains
 // multiples of G. Each successive table is the previous table doubled four
 // times.
-func p256GeneratorTable() *[43]p256TableFive {
+func p256GeneratorTable() *[43]p256AffineTable {
 	p256GeneratorTableOnce.Do(func() {
-		_p256GeneratorTable = new([43]p256TableFive)
+		_p256GeneratorTable = new([43]p256AffineTable)
 		base := NewP256Point().SetGenerator()
 		for i := 0; i < 43; i++ {
-			_p256GeneratorTable[i][0] = NewP256Point().Set(base)
+			p := NewP256Point().Set(base)
+			_p256GeneratorTable[i][0] = p256ToAffine(p)
 			for j := 1; j < 32; j++ {
-				_p256GeneratorTable[i][j] = NewP256Point().Add(_p256GeneratorTable[i][j-1], base)
+				p := NewP256Point().AddAffine(base, _p256GeneratorTable[i][j-1], 1)
+				_p256GeneratorTable[i][j] = p256ToAffine(p)
 			}
 			base.Double(base)
 			base.Double(base)
@@ -502,6 +556,13 @@ func p256GeneratorTable() *[43]p256TableFive {
 		}
 	})
 	return _p256GeneratorTable
+}
+
+func p256ToAffine(p *P256Point) *p256AffinePoint {
+	inv := new(fiat.P256Element).Invert(p.z)
+	x := new(fiat.P256Element).Mul(p.x, inv)
+	y := new(fiat.P256Element).Mul(p.y, inv)
+	return &p256AffinePoint{x, y}
 }
 
 func boothW6(in uint64) (uint8, int) {
@@ -523,6 +584,8 @@ func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
 	p256OrdReduce(s)
 	tables := p256GeneratorTable()
 
+	p.Set(NewP256Point())
+
 	// Start scanning the window from the most significant bits. We move by
 	// 6 bits at a time and need to finish at -1, so -1 + 6 * 42 = 251.
 	index := 251
@@ -532,10 +595,14 @@ func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
 	// most five bits long, so the top bit is never set.
 	_ = sign
 
+	t := &p256AffinePoint{new(fiat.P256Element), new(fiat.P256Element)}
 	table := &tables[(index+1)/6]
-	table.Select(p, sel)
+	table.Select(t, sel)
+	selIsNotZero := subtle.ConstantTimeByteEq(sel, 0) ^ 1
+	p.x.Select(t.x, p.x, selIsNotZero)
+	p.y.Select(t.y, p.y, selIsNotZero)
+	p.z.Select(new(fiat.P256Element).One(), p.z, selIsNotZero)
 
-	t := NewP256Point()
 	for index >= 5 {
 		index -= 6
 
@@ -548,13 +615,23 @@ func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
 			sel, sign = boothW6(wvalue)
 		}
 
+		selIsNotZero := subtle.ConstantTimeByteEq(sel, 0) ^ 1
+
 		table := &tables[(index+1)/6]
 		table.Select(t, sel)
 		t.Negate(sign)
-		p.Add(p, t)
+		p.AddAffine(p, t, selIsNotZero)
 	}
 
 	return p, nil
+}
+
+// TODO
+func (p *p256AffinePoint) Negate(cond int) *p256AffinePoint {
+	negY := new(fiat.P256Element)
+	negY.Sub(negY, p.y)
+	p.y.Select(negY, p.y, cond)
+	return p
 }
 
 // p256Sqrt sets e to a square root of x. If x is not a square, p256Sqrt returns
