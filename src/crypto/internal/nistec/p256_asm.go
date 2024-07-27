@@ -178,6 +178,28 @@ func p256LessThanP(x *p256Element) int {
 	return int(b)
 }
 
+func p256BigToLittle(l *p256Element, b *[32]byte) {
+	bytesToLimbs((*[4]uint64)(l), b)
+}
+
+func bytesToLimbs(l *[4]uint64, b *[32]byte) {
+	l[0] = byteorder.BeUint64(b[24:])
+	l[1] = byteorder.BeUint64(b[16:])
+	l[2] = byteorder.BeUint64(b[8:])
+	l[3] = byteorder.BeUint64(b[:])
+}
+
+func p256LittleToBig(b *[32]byte, l *p256Element) {
+	limbsToBytes(b, (*[4]uint64)(l))
+}
+
+func limbsToBytes(b *[32]byte, l *[4]uint64) {
+	byteorder.BePutUint64(b[24:], l[0])
+	byteorder.BePutUint64(b[16:], l[1])
+	byteorder.BePutUint64(b[8:], l[2])
+	byteorder.BePutUint64(b[:], l[3])
+}
+
 // p256Add sets res = x + y.
 func p256Add(res, x, y *p256Element) {
 	var c, b uint64
@@ -277,18 +299,6 @@ func p256NegCond(val *p256Element, cond int)
 //go:noescape
 func p256MovCond(res, a, b *P256Point, cond int)
 
-//go:noescape
-func p256BigToLittle(res *p256Element, in *[32]byte)
-
-//go:noescape
-func p256LittleToBig(res *[32]byte, in *p256Element)
-
-//go:noescape
-func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
-
-//go:noescape
-func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
-
 // p256Table is a table of the first 16 multiples of a point. Points are stored
 // at an index offset of -1 so [8]P is at index 7, P is at 0, and [16]P is at 15.
 // [0]P is the point at infinity and it's not stored.
@@ -377,6 +387,14 @@ func p256OrdReduce(s *p256OrdElement) {
 	s[1] ^= (t1 ^ s[1]) & tMask
 	s[2] ^= (t2 ^ s[2]) & tMask
 	s[3] ^= (t3 ^ s[3]) & tMask
+}
+
+func p256OrdLittleToBig(b *[32]byte, l *p256OrdElement) {
+	limbsToBytes(b, (*[4]uint64)(l))
+}
+
+func p256OrdBigToLittle(l *p256OrdElement, b *[32]byte) {
+	bytesToLimbs((*[4]uint64)(l), b)
 }
 
 // Add sets q = p1 + p2, and returns q. The points may overlap.

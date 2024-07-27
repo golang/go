@@ -362,50 +362,6 @@ loop_select:
 #undef SEL1
 #undef SEL2
 
-// The following functions all reverse the byte order.
-
-//func p256BigToLittle(res *p256Element, in *[32]byte)
-TEXT ·p256BigToLittle(SB), NOSPLIT, $0-16
-	MOVD	res+0(FP), R3
-	MOVD	in+8(FP), R4
-	BR	p256InternalEndianSwap<>(SB)
-
-//func p256LittleToBig(res *[32]byte, in *p256Element)
-TEXT ·p256LittleToBig(SB), NOSPLIT, $0-16
-	MOVD	res+0(FP), R3
-	MOVD	in+8(FP), R4
-	BR	p256InternalEndianSwap<>(SB)
-
-//func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
-TEXT ·p256OrdBigToLittle(SB), NOSPLIT, $0-16
-	MOVD	res+0(FP), R3
-	MOVD	in+8(FP), R4
-	BR	p256InternalEndianSwap<>(SB)
-
-//func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
-TEXT ·p256OrdLittleToBig(SB), NOSPLIT, $0-16
-	MOVD	res+0(FP), R3
-	MOVD	in+8(FP), R4
-	BR	p256InternalEndianSwap<>(SB)
-
-TEXT p256InternalEndianSwap<>(SB), NOSPLIT, $0-0
-	// Index registers needed for BR movs
-	MOVD	$8, R9
-	MOVD	$16, R10
-	MOVD	$24, R14
-
-	MOVDBR	(R0)(R4), R5
-	MOVDBR	(R9)(R4), R6
-	MOVDBR	(R10)(R4), R7
-	MOVDBR	(R14)(R4), R8
-
-	MOVD	R8, 0(R3)
-	MOVD	R7, 8(R3)
-	MOVD	R6, 16(R3)
-	MOVD	R5, 24(R3)
-
-	RET
-
 #define P3ptr   R3
 #define P1ptr   R4
 #define COUNT   R5

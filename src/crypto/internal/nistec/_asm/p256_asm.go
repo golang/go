@@ -21,7 +21,7 @@ import (
 	. "github.com/mmcloughlin/avo/reg"
 )
 
-//go:generate go run . -out ../p256_asm_amd64.s -pkg nistec
+//go:generate go run . -out ../p256_asm_amd64.s
 
 var (
 	res_ptr GPPhysical = RDI
@@ -45,10 +45,6 @@ var (
 func main() {
 	Package("crypto/internal/nistec")
 	ConstraintExpr("!purego")
-	p256OrdLittleToBig()
-	p256OrdBigToLittle()
-	p256LittleToBig()
-	p256BigToLittle()
 	p256MovCond()
 	p256NegCond()
 	p256Sqr()
@@ -74,82 +70,6 @@ func main() {
 		"·p256IsZero",
 	}
 	removePeskyUnicodeDot(internalFunctions, "../p256_asm_amd64.s")
-}
-
-// Implements:
-//
-//	func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
-func p256OrdLittleToBig() {
-	Implement("p256OrdLittleToBig")
-	Attributes(NOSPLIT)
-	// Hack to get Avo to output:
-	// 	JMP ·p256BigToLittle(SB)
-	Instruction(&ir.Instruction{
-		Opcode: "JMP",
-		Operands: []Op{
-			LabelRef("·p256BigToLittle(SB)"),
-		},
-	})
-}
-
-// Implements:
-//
-//	func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
-func p256OrdBigToLittle() {
-	Implement("p256OrdBigToLittle")
-	Attributes(NOSPLIT)
-	// Hack to get Avo to output:
-	// 	JMP ·p256BigToLittle(SB)
-	Instruction(&ir.Instruction{
-		Opcode: "JMP",
-		Operands: []Op{
-			LabelRef("·p256BigToLittle(SB)"),
-		},
-	})
-}
-
-// Implements
-//
-//	func p256LittleToBig(res *[32]byte, in *p256Element)
-func p256LittleToBig() {
-	Implement("p256LittleToBig")
-	Attributes(NOSPLIT)
-	// Hack to get Avo to output:
-	// 	JMP ·p256BigToLittle(SB)
-	Instruction(&ir.Instruction{
-		Opcode: "JMP",
-		Operands: []Op{
-			LabelRef("·p256BigToLittle(SB)"),
-		},
-	})
-}
-
-// Implements:
-//
-//	func p256BigToLittle(res *p256Element, in *[32]byte)
-func p256BigToLittle() {
-	Implement("p256BigToLittle")
-	Attributes(NOSPLIT)
-
-	Load(Param("res"), res_ptr)
-	Load(Param("in"), x_ptr)
-
-	MOVQ(Mem{Base: x_ptr}.Offset(8*0), acc0_v1)
-	MOVQ(Mem{Base: x_ptr}.Offset(8*1), acc1_v1)
-	MOVQ(Mem{Base: x_ptr}.Offset(8*2), acc2_v1)
-	MOVQ(Mem{Base: x_ptr}.Offset(8*3), acc3_v1)
-
-	BSWAPQ(acc0_v1)
-	BSWAPQ(acc1_v1)
-	BSWAPQ(acc2_v1)
-	BSWAPQ(acc3_v1)
-
-	MOVQ(acc3_v1, Mem{Base: res_ptr}.Offset(8*0))
-	MOVQ(acc2_v1, Mem{Base: res_ptr}.Offset(8*1))
-	MOVQ(acc1_v1, Mem{Base: res_ptr}.Offset(8*2))
-	MOVQ(acc0_v1, Mem{Base: res_ptr}.Offset(8*3))
-
-	RET()
 }
 
 // Implements:

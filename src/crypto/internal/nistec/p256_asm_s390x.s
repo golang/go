@@ -49,44 +49,6 @@ GLOBL p256ord<>(SB), 8, $32
 GLOBL p256<>(SB), 8, $96
 GLOBL p256mul<>(SB), 8, $160
 
-// func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
-TEXT ·p256OrdLittleToBig(SB), NOSPLIT, $0
-	JMP ·p256BigToLittle(SB)
-
-// func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
-TEXT ·p256OrdBigToLittle(SB), NOSPLIT, $0
-	JMP ·p256BigToLittle(SB)
-
-// ---------------------------------------
-// func p256LittleToBig(res *[32]byte, in *p256Element)
-TEXT ·p256LittleToBig(SB), NOSPLIT, $0
-	JMP ·p256BigToLittle(SB)
-
-// func p256BigToLittle(res *p256Element, in *[32]byte)
-#define res_ptr   R1
-#define in_ptr   R2
-#define T1L   V2
-#define T1H   V3
-
-TEXT ·p256BigToLittle(SB), NOSPLIT, $0
-	MOVD res+0(FP), res_ptr
-	MOVD in+8(FP), in_ptr
-
-	VL 0(in_ptr), T1H
-	VL 16(in_ptr), T1L
-
-	VPDI $0x4, T1L, T1L, T1L
-	VPDI $0x4, T1H, T1H, T1H
-
-	VST T1L, 0(res_ptr)
-	VST T1H, 16(res_ptr)
-	RET
-
-#undef res_ptr
-#undef in_ptr
-#undef T1L
-#undef T1H
-
 // ---------------------------------------
 // iff cond == 1  val <- -val
 // func p256NegCond(val *p256Element, cond int)

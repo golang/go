@@ -66,35 +66,6 @@ GLOBL p256ord<>(SB), 8, $32
 GLOBL p256one<>(SB), 8, $32
 
 /* ---------------------------------------*/
-// func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
-TEXT ·p256OrdLittleToBig(SB),NOSPLIT,$0
-	JMP	·p256BigToLittle(SB)
-/* ---------------------------------------*/
-// func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
-TEXT ·p256OrdBigToLittle(SB),NOSPLIT,$0
-	JMP	·p256BigToLittle(SB)
-/* ---------------------------------------*/
-// func p256LittleToBig(res *[32]byte, in *p256Element)
-TEXT ·p256LittleToBig(SB),NOSPLIT,$0
-	JMP	·p256BigToLittle(SB)
-/* ---------------------------------------*/
-// func p256BigToLittle(res *p256Element, in *[32]byte)
-TEXT ·p256BigToLittle(SB),NOSPLIT,$0
-	MOVD	res+0(FP), res_ptr
-	MOVD	in+8(FP), a_ptr
-
-	LDP	0*16(a_ptr), (acc0, acc1)
-	LDP	1*16(a_ptr), (acc2, acc3)
-
-	REV	acc0, acc0
-	REV	acc1, acc1
-	REV	acc2, acc2
-	REV	acc3, acc3
-
-	STP	(acc3, acc2), 0*16(res_ptr)
-	STP	(acc1, acc0), 1*16(res_ptr)
-	RET
-/* ---------------------------------------*/
 // func p256MovCond(res, a, b *P256Point, cond int)
 // If cond == 0 res=b, else res=a
 TEXT ·p256MovCond(SB),NOSPLIT,$0
