@@ -324,12 +324,12 @@ type p256AffineTable [32]p256AffinePoint
 // generator. The first p256AffineTable contains multiples of G. The second one
 // multiples of [2⁶]G, the third one of [2¹²]G, and so on, where each successive
 // table is the previous table doubled six times. Six is the width of the
-// sliding window used in p256ScalarMult, and having each table already
+// sliding window used in p256ScalarBaseMult, and having each table already
 // pre-doubled lets us avoid the doublings between windows entirely. This table
 // MUST NOT be modified, as it aliases into p256PrecomputedEmbed below.
 var p256Precomputed *[43]p256AffineTable
 
-//go:embed p256_asm_table.bin
+//go:embed p256_table.bin
 var p256PrecomputedEmbed string
 
 func init() {

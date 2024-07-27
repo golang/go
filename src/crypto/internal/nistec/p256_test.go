@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !purego && (amd64 || arm64 || ppc64le || s390x)
+//go:build (!amd64 && !arm64 && !ppc64le && !s390x) || purego
 
 package nistec
 
 import (
+	"bytes"
+	"crypto/internal/nistec/fiat"
 	"fmt"
 	"testing"
 )
@@ -16,7 +18,7 @@ func TestP256PrecomputedTable(t *testing.T) {
 
 	for i := 0; i < 43; i++ {
 		t.Run(fmt.Sprintf("table[%d]", i), func(t *testing.T) {
-			testP256AffineTable(t, base, &p256Precomputed[i])
+			testP256AffineTable(t, base, &p256GeneratorTables[i])
 		})
 
 		for k := 0; k < 6; k++ {
@@ -27,22 +29,19 @@ func TestP256PrecomputedTable(t *testing.T) {
 
 func testP256AffineTable(t *testing.T, base *P256Point, table *p256AffineTable) {
 	p := NewP256Point()
-	zInv := new(p256Element)
-	zInvSq := new(p256Element)
+	zInv := new(fiat.P256Element)
 
 	for j := 0; j < 32; j++ {
 		p.Add(p, base)
 
 		// Convert p to affine coordinates.
-		p256Inverse(zInv, &p.z)
-		p256Sqr(zInvSq, zInv, 1)
-		p256Mul(zInv, zInv, zInvSq)
+		zInv.Invert(&p.z)
+		p.x.Mul(&p.x, zInv)
+		p.y.Mul(&p.y, zInv)
+		p.z.One()
 
-		p256Mul(&p.x, &p.x, zInvSq)
-		p256Mul(&p.y, &p.y, zInv)
-		p.z = p256One
-
-		if p256Equal(&table[j].x, &p.x) != 1 || p256Equal(&table[j].y, &p.y) != 1 {
+		if !bytes.Equal(table[j].x.Bytes(), p.x.Bytes()) ||
+			!bytes.Equal(table[j].y.Bytes(), p.y.Bytes()) {
 			t.Fatalf("incorrect table entry at index %d", j)
 		}
 	}

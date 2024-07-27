@@ -9,10 +9,13 @@ package nistec
 import (
 	"crypto/internal/nistec/fiat"
 	"crypto/subtle"
+	_ "embed"
 	"errors"
 	"internal/byteorder"
+	"internal/goarch"
 	"math/bits"
 	"sync"
+	"unsafe"
 )
 
 // p256ElementLength is the length of an element of the base or scalar field,
@@ -522,40 +525,29 @@ func (table *p256AffineTable) Select(p *p256AffinePoint, n uint8) {
 	}
 }
 
-var _p256GeneratorTable *[43]p256AffineTable
-var p256GeneratorTableOnce sync.Once
+// p256GeneratorTables is a series of precomputed multiples of G, the canonical
+// generator. The first p256AffineTable contains multiples of G. The second one
+// multiples of [2⁶]G, the third one of [2¹²]G, and so on, where each successive
+// table is the previous table doubled six times. Six is the width of the
+// sliding window used in ScalarBaseMult, and having each table already
+// pre-doubled lets us avoid the doublings between windows entirely. This table
+// MUST NOT be modified, as it aliases into p256GeneratorTablesEmbed below.
+var p256GeneratorTables *[43]p256AffineTable
 
-// p256GeneratorTable returns a sequence of p256Tables. The first table contains
-// multiples of G. Each successive table is the previous table doubled four
-// times.
-func p256GeneratorTable() *[43]p256AffineTable {
-	p256GeneratorTableOnce.Do(func() {
-		_p256GeneratorTable = new([43]p256AffineTable)
-		base := NewP256Point().SetGenerator()
-		for i := 0; i < 43; i++ {
-			p := NewP256Point().Set(base)
-			_p256GeneratorTable[i][0] = *p256ToAffine(p)
-			for j := 1; j < 32; j++ {
-				p := NewP256Point().AddAffine(base, &_p256GeneratorTable[i][j-1], 1)
-				_p256GeneratorTable[i][j] = *p256ToAffine(p)
-			}
-			base.Double(base)
-			base.Double(base)
-			base.Double(base)
-			base.Double(base)
-			base.Double(base)
-			base.Double(base)
+//go:embed p256_table.bin
+var p256GeneratorTablesEmbed string
+
+func init() {
+	p256GeneratorTablesPtr := (*unsafe.Pointer)(unsafe.Pointer(&p256GeneratorTablesEmbed))
+	if goarch.BigEndian {
+		var newTable [43 * 32 * 2 * 4]uint64
+		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(*p256GeneratorTablesPtr) {
+			newTable[i] = byteorder.LeUint64(x[:])
 		}
-	})
-	return _p256GeneratorTable
-}
-
-func p256ToAffine(p *P256Point) *p256AffinePoint {
-	inv := new(fiat.P256Element).Invert(&p.z)
-	pa := &p256AffinePoint{}
-	pa.x.Mul(&p.x, inv)
-	pa.y.Mul(&p.y, inv)
-	return pa
+		newTablePtr := unsafe.Pointer(&newTable)
+		p256GeneratorTablesPtr = &newTablePtr
+	}
+	p256GeneratorTables = (*[43]p256AffineTable)(*p256GeneratorTablesPtr)
 }
 
 func boothW6(in uint64) (uint8, int) {
@@ -575,7 +567,6 @@ func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
 	s := new(p256OrdElement)
 	p256OrdBigToLittle(s, (*[32]byte)(scalar))
 	p256OrdReduce(s)
-	tables := p256GeneratorTable()
 
 	p.Set(NewP256Point())
 
@@ -589,7 +580,7 @@ func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
 	_ = sign
 
 	t := &p256AffinePoint{}
-	table := &tables[(index+1)/6]
+	table := &p256GeneratorTables[(index+1)/6]
 	table.Select(t, sel)
 	selIsNotZero := subtle.ConstantTimeByteEq(sel, 0) ^ 1
 	p.x.Select(&t.x, &p.x, selIsNotZero)
@@ -610,7 +601,7 @@ func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
 
 		selIsNotZero := subtle.ConstantTimeByteEq(sel, 0) ^ 1
 
-		table := &tables[(index+1)/6]
+		table := &p256GeneratorTables[(index+1)/6]
 		table.Select(t, sel)
 		t.Negate(sign)
 		p.AddAffine(p, t, selIsNotZero)
