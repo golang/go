@@ -5,6 +5,9 @@
 // Package textproto implements generic support for text-based request/response
 // protocols in the style of HTTP, NNTP, and SMTP.
 //
+// This package enforces the HTTP/1.1 character set defined by
+// RFC 9112 for header keys and values.
+//
 // The package provides:
 //
 // [Error], which represents a numeric error response from
