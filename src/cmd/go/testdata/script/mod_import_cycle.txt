@@ -3,6 +3,7 @@ env GO111MODULE=on
 # 'go list all' should fail with a reasonable error message
 ! go list all
 stderr '^package m\n\timports m/a\n\timports m/b\n\timports m/a: import cycle not allowed'
+stderr '^package m\n\timports m/a from m.go\n\timports m/b from a.go\n\timports m/a from b.go: import cycle not allowed'
 
 # 'go list -e' should not print to stderr, but should mark all three
 # packages (m, m/a, and m/b) as Incomplete.
