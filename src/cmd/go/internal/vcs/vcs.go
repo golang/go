@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/web"
+	"cmd/internal/pathcache"
 
 	"golang.org/x/mod/module"
 )
@@ -678,7 +679,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 		args = args[2:]
 	}
 
-	_, err := cfg.LookPath(v.Cmd)
+	_, err := pathcache.LookPath(v.Cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"go: missing %s command. See https://golang.org/s/gogetcmd\n",

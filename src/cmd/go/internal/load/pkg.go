@@ -44,6 +44,7 @@ import (
 	"cmd/go/internal/trace"
 	"cmd/go/internal/vcs"
 	"cmd/internal/par"
+	"cmd/internal/pathcache"
 	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/modfile"
@@ -2443,7 +2444,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 			goto omitVCS
 		}
 		if cfg.BuildBuildvcs == "auto" && vcsCmd != nil && vcsCmd.Cmd != "" {
-			if _, err := cfg.LookPath(vcsCmd.Cmd); err != nil {
+			if _, err := pathcache.LookPath(vcsCmd.Cmd); err != nil {
 				// We fould a repository, but the required VCS tool is not present.
 				// "-buildvcs=auto" means that we should silently drop the VCS metadata.
 				goto omitVCS

@@ -5,7 +5,7 @@
 package script
 
 import (
-	"cmd/go/internal/cfg"
+	"cmd/internal/pathcache"
 	"cmd/internal/robustio"
 	"errors"
 	"fmt"
@@ -825,7 +825,7 @@ func Program(name string, cancel func(*exec.Cmd) error, waitDelay time.Duration)
 		},
 		func(s *State, args ...string) (WaitFunc, error) {
 			lookPathOnce.Do(func() {
-				path, pathErr = cfg.LookPath(name)
+				path, pathErr = pathcache.LookPath(name)
 			})
 			if pathErr != nil {
 				return nil, pathErr

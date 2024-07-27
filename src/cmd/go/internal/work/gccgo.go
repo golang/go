@@ -18,6 +18,7 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/internal/pathcache"
 	"cmd/internal/pkgpath"
 )
 
@@ -33,7 +34,7 @@ func init() {
 	if GccgoName == "" {
 		GccgoName = "gccgo"
 	}
-	GccgoBin, gccgoErr = cfg.LookPath(GccgoName)
+	GccgoBin, gccgoErr = pathcache.LookPath(GccgoName)
 }
 
 func (gccgoToolchain) compiler() string {

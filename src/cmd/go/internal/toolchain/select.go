@@ -26,6 +26,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
 	"cmd/go/internal/work"
+	"cmd/internal/pathcache"
 	"cmd/internal/telemetry/counter"
 
 	"golang.org/x/mod/module"
@@ -308,7 +309,7 @@ func Exec(gotoolchain string) {
 	// Look in PATH for the toolchain before we download one.
 	// This allows custom toolchains as well as reuse of toolchains
 	// already installed using go install golang.org/dl/go1.2.3@latest.
-	if exe, err := cfg.LookPath(gotoolchain); err == nil {
+	if exe, err := pathcache.LookPath(gotoolchain); err == nil {
 		execGoToolchain(gotoolchain, "", exe)
 	}
 

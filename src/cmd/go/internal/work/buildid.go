@@ -18,6 +18,7 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
+	"cmd/internal/pathcache"
 	"cmd/internal/quoted"
 	"cmd/internal/telemetry/counter"
 )
@@ -292,7 +293,7 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 		}
 		exe = fields[0]
 		if !strings.ContainsAny(exe, `/\`) {
-			if lp, err := cfg.LookPath(exe); err == nil {
+			if lp, err := pathcache.LookPath(exe); err == nil {
 				exe = lp
 			}
 		}

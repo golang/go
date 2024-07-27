@@ -9,6 +9,7 @@ package work
 import (
 	"bytes"
 	"cmd/internal/cov/covcmd"
+	"cmd/internal/pathcache"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -2576,7 +2577,7 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
 	//
 	// Otherwise, we compute a new validation description
 	// and compiler id (below).
-	exe, err := cfg.LookPath(compiler)
+	exe, err := pathcache.LookPath(compiler)
 	if err != nil {
 		return cache.ActionID{}, false
 	}

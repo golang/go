@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/fsys"
+	"cmd/internal/pathcache"
 )
 
 // Global build parameters (used during package load)
@@ -162,7 +163,7 @@ func defaultContext() build.Context {
 		if ctxt.CgoEnabled {
 			if os.Getenv("CC") == "" {
 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
-				if _, err := LookPath(cc); err != nil {
+				if _, err := pathcache.LookPath(cc); err != nil {
 					defaultCgoEnabled = false
 				}
 			}

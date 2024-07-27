@@ -7,8 +7,8 @@ package scripttest
 
 import (
 	"bufio"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/script"
+	"cmd/internal/pathcache"
 	"errors"
 	"io"
 	"strings"
@@ -137,7 +137,7 @@ func CachedExec() script.Cond {
 	return script.CachedCondition(
 		"<suffix> names an executable in the test binary's PATH",
 		func(name string) (bool, error) {
-			_, err := cfg.LookPath(name)
+			_, err := pathcache.LookPath(name)
 			return err == nil, nil
 		})
 }
