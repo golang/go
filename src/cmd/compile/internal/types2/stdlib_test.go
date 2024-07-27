@@ -355,6 +355,7 @@ var excluded = map[string]bool{
 	"builtin": true,
 
 	// go.dev/issue/46027: some imports are missing for this submodule.
+	"crypto/aes/_asm/gcm":                     true,
 	"crypto/internal/bigmod/_asm":             true,
 	"crypto/internal/edwards25519/field/_asm": true,
 	"crypto/md5/_asm":                         true,
