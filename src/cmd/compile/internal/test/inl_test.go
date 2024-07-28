@@ -190,7 +190,7 @@ func TestIntendedInlining(t *testing.T) {
 			// Both OnceFunc and its returned closure need to be inlinable so
 			// that the returned closure can be inlined into the caller of OnceFunc.
 			"OnceFunc",
-			"OnceFunc.func2", // The returned closure.
+			"OnceFunc.func1", // The returned closure.
 			// TODO(austin): It would be good to check OnceValue and OnceValues,
 			// too, but currently they aren't reported because they have type
 			// parameters and aren't instantiated in sync.

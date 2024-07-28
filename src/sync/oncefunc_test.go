@@ -19,22 +19,30 @@ import (
 
 func TestOnceFunc(t *testing.T) {
 	calls := 0
-	f := sync.OnceFunc(func() { calls++ })
+	of := func() { calls++ }
+	f := sync.OnceFunc(of)
 	allocs := testing.AllocsPerRun(10, f)
 	if calls != 1 {
 		t.Errorf("want calls==1, got %d", calls)
 	}
 	if allocs != 0 {
-		t.Errorf("want 0 allocations per call, got %v", allocs)
+		t.Errorf("want 0 allocations per call to f, got %v", allocs)
+	}
+	allocs = testing.AllocsPerRun(10, func() {
+		f = sync.OnceFunc(of)
+	})
+	if allocs > 2 {
+		t.Errorf("want at most 2 allocations per call to OnceFunc, got %v", allocs)
 	}
 }
 
 func TestOnceValue(t *testing.T) {
 	calls := 0
-	f := sync.OnceValue(func() int {
+	of := func() int {
 		calls++
 		return calls
-	})
+	}
+	f := sync.OnceValue(of)
 	allocs := testing.AllocsPerRun(10, func() { f() })
 	value := f()
 	if calls != 1 {
@@ -44,16 +52,23 @@ func TestOnceValue(t *testing.T) {
 		t.Errorf("want value==1, got %d", value)
 	}
 	if allocs != 0 {
-		t.Errorf("want 0 allocations per call, got %v", allocs)
+		t.Errorf("want 0 allocations per call to f, got %v", allocs)
+	}
+	allocs = testing.AllocsPerRun(10, func() {
+		f = sync.OnceValue(of)
+	})
+	if allocs > 2 {
+		t.Errorf("want at most 2 allocations per call to OnceValue, got %v", allocs)
 	}
 }
 
 func TestOnceValues(t *testing.T) {
 	calls := 0
-	f := sync.OnceValues(func() (int, int) {
+	of := func() (int, int) {
 		calls++
 		return calls, calls + 1
-	})
+	}
+	f := sync.OnceValues(of)
 	allocs := testing.AllocsPerRun(10, func() { f() })
 	v1, v2 := f()
 	if calls != 1 {
@@ -63,7 +78,13 @@ func TestOnceValues(t *testing.T) {
 		t.Errorf("want v1==1 and v2==2, got %d and %d", v1, v2)
 	}
 	if allocs != 0 {
-		t.Errorf("want 0 allocations per call, got %v", allocs)
+		t.Errorf("want 0 allocations per call to f, got %v", allocs)
+	}
+	allocs = testing.AllocsPerRun(10, func() {
+		f = sync.OnceValues(of)
+	})
+	if allocs > 2 {
+		t.Errorf("want at most 2 allocations per call to OnceValues, got %v", allocs)
 	}
 }
 
@@ -234,6 +255,8 @@ var (
 	onceFunc = sync.OnceFunc(func() {})
 
 	onceFuncOnce sync.Once
+
+	onceFuncFunc func()
 )
 
 func doOnceFunc() {
@@ -267,6 +290,12 @@ func BenchmarkOnceFunc(b *testing.B) {
 			f()
 		}
 	})
+	b.Run("v=Make", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			onceFuncFunc = sync.OnceFunc(func() {})
+		}
+	})
 }
 
 var (
@@ -274,6 +303,8 @@ var (
 
 	onceValueOnce  sync.Once
 	onceValueValue int
+
+	onceValueFunc func() int
 )
 
 func doOnceValue() int {
@@ -308,6 +339,82 @@ func BenchmarkOnceValue(b *testing.B) {
 			if want, got := 42, onceValue(); want != got {
 				b.Fatalf("want %d, got %d", want, got)
 			}
+		}
+	})
+	b.Run("v=Make", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			onceValueFunc = sync.OnceValue(func() int { return 42 })
+		}
+	})
+}
+
+const (
+	onceValuesWant1 = 42
+	onceValuesWant2 = true
+)
+
+var (
+	onceValues = sync.OnceValues(func() (int, bool) {
+		return onceValuesWant1, onceValuesWant2
+	})
+
+	onceValuesOnce   sync.Once
+	onceValuesValue1 int
+	onceValuesValue2 bool
+
+	onceValuesFunc func() (int, bool)
+)
+
+func doOnceValues() (int, bool) {
+	onceValuesOnce.Do(func() {
+		onceValuesValue1 = onceValuesWant1
+		onceValuesValue2 = onceValuesWant2
+	})
+	return onceValuesValue1, onceValuesValue2
+}
+
+func BenchmarkOnceValues(b *testing.B) {
+	// See BenchmarkOnceFunc
+	b.Run("v=Once", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			if got1, got2 := doOnceValues(); got1 != onceValuesWant1 {
+				b.Fatalf("value 1: got %d, want %d", got1, onceValuesWant1)
+			} else if got2 != onceValuesWant2 {
+				b.Fatalf("value 2: got %v, want %v", got2, onceValuesWant2)
+			}
+		}
+	})
+	b.Run("v=Global", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			if got1, got2 := onceValues(); got1 != onceValuesWant1 {
+				b.Fatalf("value 1: got %d, want %d", got1, onceValuesWant1)
+			} else if got2 != onceValuesWant2 {
+				b.Fatalf("value 2: got %v, want %v", got2, onceValuesWant2)
+			}
+		}
+	})
+	b.Run("v=Local", func(b *testing.B) {
+		b.ReportAllocs()
+		onceValues := sync.OnceValues(func() (int, bool) {
+			return onceValuesWant1, onceValuesWant2
+		})
+		for i := 0; i < b.N; i++ {
+			if got1, got2 := onceValues(); got1 != onceValuesWant1 {
+				b.Fatalf("value 1: got %d, want %d", got1, onceValuesWant1)
+			} else if got2 != onceValuesWant2 {
+				b.Fatalf("value 2: got %v, want %v", got2, onceValuesWant2)
+			}
+		}
+	})
+	b.Run("v=Make", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			onceValuesFunc = sync.OnceValues(func() (int, bool) {
+				return onceValuesWant1, onceValuesWant2
+			})
 		}
 	})
 }
