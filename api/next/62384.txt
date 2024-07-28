@@ -1,0 +1,4 @@
+pkg encoding, type BinaryAppender interface { AppendBinary }
+pkg encoding, type BinaryAppender interface, AppendlBinary([]uint8) ([]uint8, error)
+pkg encoding, type TextAppender interface { AppendText }
+pkg encoding, type TextAppender interface, AppendText([]uint8) ([]uint8, error)
