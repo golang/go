@@ -569,7 +569,7 @@ func (f *testVFlag) Set(arg string) error {
 	}
 	if arg == "test2json" {
 		f.on = true
-		f.json = arg == "test2json"
+		f.json = true
 		return nil
 	}
 	return fmt.Errorf("invalid flag -test.v=%s", arg)
