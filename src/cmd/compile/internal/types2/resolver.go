@@ -167,10 +167,7 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 			if imp == nil {
 				// create a new fake package
 				// come up with a sensible package name (heuristic)
-				name := path
-				if i := len(name); i > 0 && name[i-1] == '/' {
-					name = name[:i-1]
-				}
+				name := strings.TrimSuffix(path, "/")
 				if i := strings.LastIndex(name, "/"); i >= 0 {
 					name = name[i+1:]
 				}

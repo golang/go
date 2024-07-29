@@ -248,10 +248,7 @@ func (a *Action) trimpath() string {
 	// same situations.
 
 	// Strip the object directory entirely.
-	objdir := a.Objdir
-	if len(objdir) > 1 && objdir[len(objdir)-1] == filepath.Separator {
-		objdir = objdir[:len(objdir)-1]
-	}
+	objdir := strings.TrimSuffix(a.Objdir, string(filepath.Separator))
 	rewrite := ""
 
 	rewriteDir := a.Package.Dir
