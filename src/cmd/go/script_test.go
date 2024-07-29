@@ -89,7 +89,7 @@ func TestScript(t *testing.T) {
 		t.Fatal(err)
 	}
 	engine := &script.Engine{
-		Conds: scriptConditions(),
+		Conds: scriptConditions(t),
 		Cmds:  scriptCommands(quitSignal(), gracePeriod),
 		Quiet: !testing.Verbose(),
 	}

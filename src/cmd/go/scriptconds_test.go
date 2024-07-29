@@ -10,20 +10,20 @@ import (
 	"cmd/internal/script/scripttest"
 	"errors"
 	"fmt"
-	"internal/buildcfg"
-	"internal/platform"
 	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
+	"testing"
 )
 
-func scriptConditions() map[string]script.Cond {
+func scriptConditions(t *testing.T) map[string]script.Cond {
 	conds := scripttest.DefaultConds()
+
+	scripttest.AddToolChainScriptConditions(t, conds, goHostOS, goHostArch)
 
 	add := func(name string, cond script.Cond) {
 		if _, ok := conds[name]; ok {
@@ -37,26 +37,10 @@ func scriptConditions() map[string]script.Cond {
 	}
 
 	add("abscc", script.Condition("default $CC path is absolute and exists", defaultCCIsAbsolute))
-	add("asan", sysCondition("-asan", platform.ASanSupported, true))
-	add("buildmode", script.PrefixCondition("go supports -buildmode=<suffix>", hasBuildmode))
 	add("case-sensitive", script.OnceCondition("$WORK filesystem is case-sensitive", isCaseSensitive))
 	add("cc", script.PrefixCondition("go env CC = <suffix> (ignoring the go/env file)", ccIs))
-	add("cgo", script.BoolCondition("host CGO_ENABLED", testenv.HasCGO()))
-	add("cgolinkext", script.Condition("platform requires external linking for cgo", cgoLinkExt))
-	add("cross", script.BoolCondition("cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH", goHostOS != runtime.GOOS || goHostArch != runtime.GOARCH))
-	add("fuzz", sysCondition("-fuzz", platform.FuzzSupported, false))
-	add("fuzz-instrumented", sysCondition("-fuzz with instrumentation", platform.FuzzInstrumented, false))
 	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
-	add("GODEBUG", script.PrefixCondition("GODEBUG contains <suffix>", hasGodebug))
-	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
-	add("go-builder", script.BoolCondition("GO_BUILDER_NAME is non-empty", testenv.Builder() != ""))
-	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
-	add("msan", sysCondition("-msan", platform.MSanSupported, true))
-	add("mustlinkext", script.Condition("platform always requires external linking", mustLinkExt))
 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
-	add("pielinkext", script.Condition("platform requires external linking for PIE", pieLinkExt))
-	add("race", sysCondition("-race", platform.RaceDetectorSupported, true))
-	add("symlink", lazyBool("testenv.HasSymlink()", testenv.HasSymlink))
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
 
 	return conds
@@ -82,23 +66,6 @@ func ccIs(s *script.State, want string) (bool, error) {
 	GOOS, _ := s.LookupEnv("GOOS")
 	GOARCH, _ := s.LookupEnv("GOARCH")
 	return cfg.DefaultCC(GOOS, GOARCH) == want, nil
-}
-
-func sysCondition(flag string, f func(goos, goarch string) bool, needsCgo bool) script.Cond {
-	return script.Condition(
-		"GOOS/GOARCH supports "+flag,
-		func(s *script.State) (bool, error) {
-			GOOS, _ := s.LookupEnv("GOOS")
-			GOARCH, _ := s.LookupEnv("GOARCH")
-			cross := goHostOS != GOOS || goHostArch != GOARCH
-			return (!needsCgo || (testenv.HasCGO() && !cross)) && f(GOOS, GOARCH), nil
-		})
-}
-
-func hasBuildmode(s *script.State, mode string) (bool, error) {
-	GOOS, _ := s.LookupEnv("GOOS")
-	GOARCH, _ := s.LookupEnv("GOARCH")
-	return platform.BuildModeSupported(runtime.Compiler, mode, GOOS, GOARCH), nil
 }
 
 var scriptNetEnabled sync.Map // testing.TB → already enabled
@@ -135,35 +102,6 @@ func hasNet(s *script.State, host string) (bool, error) {
 	// allow cmd/go to use it.
 	s.Setenv("TESTGONETWORK", "")
 	return true, nil
-}
-
-func hasGodebug(s *script.State, value string) (bool, error) {
-	godebug, _ := s.LookupEnv("GODEBUG")
-	for _, p := range strings.Split(godebug, ",") {
-		if strings.TrimSpace(p) == value {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func hasGoexperiment(s *script.State, value string) (bool, error) {
-	GOOS, _ := s.LookupEnv("GOOS")
-	GOARCH, _ := s.LookupEnv("GOARCH")
-	goexp, _ := s.LookupEnv("GOEXPERIMENT")
-	flags, err := buildcfg.ParseGOEXPERIMENT(GOOS, GOARCH, goexp)
-	if err != nil {
-		return false, err
-	}
-	for _, exp := range flags.All() {
-		if value == exp {
-			return true, nil
-		}
-		if strings.TrimPrefix(value, "no") == strings.TrimPrefix(exp, "no") {
-			return false, nil
-		}
-	}
-	return false, fmt.Errorf("unrecognized GOEXPERIMENT %q", value)
 }
 
 func isCaseSensitive() (bool, error) {
@@ -212,22 +150,4 @@ func hasWorkingGit() bool {
 	}
 	_, err := exec.LookPath("git")
 	return err == nil
-}
-
-func cgoLinkExt(s *script.State) (bool, error) {
-	GOOS, _ := s.LookupEnv("GOOS")
-	GOARCH, _ := s.LookupEnv("GOARCH")
-	return platform.MustLinkExternal(GOOS, GOARCH, true), nil
-}
-
-func mustLinkExt(s *script.State) (bool, error) {
-	GOOS, _ := s.LookupEnv("GOOS")
-	GOARCH, _ := s.LookupEnv("GOARCH")
-	return platform.MustLinkExternal(GOOS, GOARCH, false), nil
-}
-
-func pieLinkExt(s *script.State) (bool, error) {
-	GOOS, _ := s.LookupEnv("GOOS")
-	GOARCH, _ := s.LookupEnv("GOARCH")
-	return !platform.InternalLinkPIESupported(GOOS, GOARCH), nil
 }

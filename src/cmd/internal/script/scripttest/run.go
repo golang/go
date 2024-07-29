@@ -71,13 +71,6 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, pattern string) {
 		cmds[name] = cmd
 	}
 
-	addcond := func(name string, cond script.Cond) {
-		if _, ok := conds[name]; ok {
-			panic(fmt.Sprintf("condition %q is already registered", name))
-		}
-		conds[name] = cond
-	}
-
 	prependToPath := func(env []string, dir string) {
 		found := false
 		for k := range env {
@@ -135,7 +128,10 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, pattern string) {
 	cccmd := script.Program(goEnv("CC"), interrupt, gracePeriod)
 	addcmd("go", gocmd)
 	addcmd("cc", cccmd)
-	addcond("cgo", script.BoolCondition("host CGO_ENABLED", testenv.HasCGO()))
+
+	// Add various helpful conditions related to builds and toolchain use.
+	goHostOS, goHostArch := goEnv("GOHOSTOS"), goEnv("GOHOSTARCH")
+	AddToolChainScriptConditions(t, conds, goHostOS, goHostArch)
 
 	// Environment setup.
 	env := os.Environ()
