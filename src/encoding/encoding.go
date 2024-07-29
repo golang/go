@@ -36,7 +36,7 @@ type BinaryUnmarshaler interface {
 }
 
 // BinaryAppender is the interface implemented by an object
-// that can append the bianry representation of itself.
+// that can append the binary representation of itself.
 // If a type implements both [BinaryAppender] and [BinaryMarshaler],
 // then v.MarshalBinary() must be semantically identical to v.AppendBinary(nil).
 type BinaryAppender interface {
