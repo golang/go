@@ -44,7 +44,7 @@ type BinaryAppender interface {
 	// (allocating a larger slice if necessary) and returns the updated slice.
 	//
 	// Implementations must not retain b, nor mutate any bytes within b[:len(b)].
-	AppendBinary([]byte) ([]byte, error)
+	AppendBinary(b []byte) ([]byte, error)
 }
 
 // TextMarshaler is the interface implemented by an object that can
