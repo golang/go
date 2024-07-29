@@ -48,8 +48,8 @@ func OnceValue[T any](f func() T) func() T {
 		result T
 	)
 	g := func() {
-		f = nil // Do not keep f alive after invoking it.
 		defer func() {
+			f = nil // Do not keep f alive after invoking it.
 			p = recover()
 			if !valid {
 				panic(p)
@@ -80,8 +80,8 @@ func OnceValues[T1, T2 any](f func() (T1, T2)) func() (T1, T2) {
 		r2    T2
 	)
 	g := func() {
-		f = nil // Do not keep f alive after invoking it.
 		defer func() {
+			f = nil // Do not keep f alive after invoking it.
 			p = recover()
 			if !valid {
 				panic(p)
