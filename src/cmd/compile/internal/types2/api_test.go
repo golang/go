@@ -403,6 +403,118 @@ func TestTypesInfo(t *testing.T) {
 		{`package s8; func _() { f(g, h) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h`, `func(int, string)`},
 		{`package s9; func _() { f(g, h[int]) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
 		{`package s10; func _() { f(g, h[int]) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h[int]`, `func(int, string)`},
+
+		// go.dev/issue/68639
+		// parenthesized and pointer type expressions in various positions
+		// (note that the syntax parser doesn't record unnecessary parentheses
+		// around types, tests that fail because of that are commented out below)
+		// - as variable type, not generic
+		{`package qa1; type T int; var x T`, `T`, `qa1.T`},
+		{`package qa2; type T int; var x (T)`, `T`, `qa2.T`},
+		// {`package qa3; type T int; var x (T)`, `(T)`, `qa3.T`}, // parser doesn't record parens
+		{`package qa4; type T int; var x ((T))`, `T`, `qa4.T`},
+		// {`package qa5; type T int; var x ((T))`, `(T)`, `qa5.T`}, // parser doesn't record parens
+		// {`package qa6; type T int; var x ((T))`, `((T))`, `qa6.T`}, // parser doesn't record parens
+		{`package qa7; type T int; var x *T`, `T`, `qa7.T`},
+		{`package qa8; type T int; var x *T`, `*T`, `*qa8.T`},
+		{`package qa9; type T int; var x (*T)`, `T`, `qa9.T`},
+		{`package qa10; type T int; var x (*T)`, `*T`, `*qa10.T`},
+		{`package qa11; type T int; var x *(T)`, `T`, `qa11.T`},
+		// {`package qa12; type T int; var x *(T)`, `(T)`, `qa12.T`}, // parser doesn't record parens
+		// {`package qa13; type T int; var x *(T)`, `*(T)`, `*qa13.T`}, // parser doesn't record parens
+		// {`package qa14; type T int; var x (*(T))`, `(T)`, `qa14.T`}, // parser doesn't record parens
+		// {`package qa15; type T int; var x (*(T))`, `*(T)`, `*qa15.T`}, // parser doesn't record parens
+		// {`package qa16; type T int; var x (*(T))`, `(*(T))`, `*qa16.T`}, // parser doesn't record parens
+
+		// - as ordinary function parameter, not generic
+		{`package qb1; type T int; func _(T)`, `T`, `qb1.T`},
+		{`package qb2; type T int; func _((T))`, `T`, `qb2.T`},
+		// {`package qb3; type T int; func _((T))`, `(T)`, `qb3.T`}, // parser doesn't record parens
+		{`package qb4; type T int; func _(((T)))`, `T`, `qb4.T`},
+		// {`package qb5; type T int; func _(((T)))`, `(T)`, `qb5.T`}, // parser doesn't record parens
+		// {`package qb6; type T int; func _(((T)))`, `((T))`, `qb6.T`}, // parser doesn't record parens
+		{`package qb7; type T int; func _(*T)`, `T`, `qb7.T`},
+		{`package qb8; type T int; func _(*T)`, `*T`, `*qb8.T`},
+		{`package qb9; type T int; func _((*T))`, `T`, `qb9.T`},
+		{`package qb10; type T int; func _((*T))`, `*T`, `*qb10.T`},
+		{`package qb11; type T int; func _(*(T))`, `T`, `qb11.T`},
+		// {`package qb12; type T int; func _(*(T))`, `(T)`, `qb12.T`}, // parser doesn't record parens
+		// {`package qb13; type T int; func _(*(T))`, `*(T)`, `*qb13.T`}, // parser doesn't record parens
+		// {`package qb14; type T int; func _((*(T)))`, `(T)`, `qb14.T`}, // parser doesn't record parens
+		// {`package qb15; type T int; func _((*(T)))`, `*(T)`, `*qb15.T`}, // parser doesn't record parens
+		// {`package qb16; type T int; func _((*(T)))`, `(*(T))`, `*qb16.T`}, // parser doesn't record parens
+
+		// - as method receiver, not generic
+		{`package qc1; type T int; func (T) _() {}`, `T`, `qc1.T`},
+		{`package qc2; type T int; func ((T)) _() {}`, `T`, `qc2.T`},
+		// {`package qc3; type T int; func ((T)) _() {}`, `(T)`, `qc3.T`}, // parser doesn't record parens
+		{`package qc4; type T int; func (((T))) _() {}`, `T`, `qc4.T`},
+		// {`package qc5; type T int; func (((T))) _() {}`, `(T)`, `qc5.T`}, // parser doesn't record parens
+		// {`package qc6; type T int; func (((T))) _() {}`, `((T))`, `qc6.T`}, // parser doesn't record parens
+		{`package qc7; type T int; func (*T) _() {}`, `T`, `qc7.T`},
+		{`package qc8; type T int; func (*T) _() {}`, `*T`, `*qc8.T`},
+		{`package qc9; type T int; func ((*T)) _() {}`, `T`, `qc9.T`},
+		{`package qc10; type T int; func ((*T)) _() {}`, `*T`, `*qc10.T`},
+		{`package qc11; type T int; func (*(T)) _() {}`, `T`, `qc11.T`},
+		// {`package qc12; type T int; func (*(T)) _() {}`, `(T)`, `qc12.T`}, // parser doesn't record parens
+		// {`package qc13; type T int; func (*(T)) _() {}`, `*(T)`, `*qc13.T`}, // parser doesn't record parens
+		// {`package qc14; type T int; func ((*(T))) _() {}`, `(T)`, `qc14.T`}, // parser doesn't record parens
+		// {`package qc15; type T int; func ((*(T))) _() {}`, `*(T)`, `*qc15.T`}, // parser doesn't record parens
+		// {`package qc16; type T int; func ((*(T))) _() {}`, `(*(T))`, `*qc16.T`}, // parser doesn't record parens
+
+		// - as variable type, generic
+		{`package qd1; type T[_ any] int; var x T[int]`, `T`, `qd1.T[_ any]`},
+		{`package qd2; type T[_ any] int; var x (T[int])`, `T[int]`, `qd2.T[int]`},
+		// {`package qd3; type T[_ any] int; var x (T[int])`, `(T[int])`, `qd3.T[int]`}, // parser doesn't record parens
+		{`package qd4; type T[_ any] int; var x ((T[int]))`, `T`, `qd4.T[_ any]`},
+		// {`package qd5; type T[_ any] int; var x ((T[int]))`, `(T[int])`, `qd5.T[int]`}, // parser doesn't record parens
+		// {`package qd6; type T[_ any] int; var x ((T[int]))`, `((T[int]))`, `qd6.T[int]`}, // parser doesn't record parens
+		{`package qd7; type T[_ any] int; var x *T[int]`, `T`, `qd7.T[_ any]`},
+		{`package qd8; type T[_ any] int; var x *T[int]`, `*T[int]`, `*qd8.T[int]`},
+		{`package qd9; type T[_ any] int; var x (*T[int])`, `T`, `qd9.T[_ any]`},
+		{`package qd10; type T[_ any] int; var x (*T[int])`, `*T[int]`, `*qd10.T[int]`},
+		{`package qd11; type T[_ any] int; var x *(T[int])`, `T[int]`, `qd11.T[int]`},
+		// {`package qd12; type T[_ any] int; var x *(T[int])`, `(T[int])`, `qd12.T[int]`}, // parser doesn't record parens
+		// {`package qd13; type T[_ any] int; var x *(T[int])`, `*(T[int])`, `*qd13.T[int]`}, // parser doesn't record parens
+		// {`package qd14; type T[_ any] int; var x (*(T[int]))`, `(T[int])`, `qd14.T[int]`}, // parser doesn't record parens
+		// {`package qd15; type T[_ any] int; var x (*(T[int]))`, `*(T[int])`, `*qd15.T[int]`}, // parser doesn't record parens
+		// {`package qd16; type T[_ any] int; var x (*(T[int]))`, `(*(T[int]))`, `*qd16.T[int]`}, // parser doesn't record parens
+
+		// - as ordinary function parameter, generic
+		{`package qe1; type T[_ any] int; func _(T[int])`, `T`, `qe1.T[_ any]`},
+		{`package qe2; type T[_ any] int; func _((T[int]))`, `T[int]`, `qe2.T[int]`},
+		// {`package qe3; type T[_ any] int; func _((T[int]))`, `(T[int])`, `qe3.T[int]`}, // parser doesn't record parens
+		{`package qe4; type T[_ any] int; func _(((T[int])))`, `T`, `qe4.T[_ any]`},
+		// {`package qe5; type T[_ any] int; func _(((T[int])))`, `(T[int])`, `qe5.T[int]`}, // parser doesn't record parens
+		// {`package qe6; type T[_ any] int; func _(((T[int])))`, `((T[int]))`, `qe6.T[int]`}, // parser doesn't record parens
+		{`package qe7; type T[_ any] int; func _(*T[int])`, `T`, `qe7.T[_ any]`},
+		{`package qe8; type T[_ any] int; func _(*T[int])`, `*T[int]`, `*qe8.T[int]`},
+		{`package qe9; type T[_ any] int; func _((*T[int]))`, `T`, `qe9.T[_ any]`},
+		{`package qe10; type T[_ any] int; func _((*T[int]))`, `*T[int]`, `*qe10.T[int]`},
+		{`package qe11; type T[_ any] int; func _(*(T[int]))`, `T[int]`, `qe11.T[int]`},
+		// {`package qe12; type T[_ any] int; func _(*(T[int]))`, `(T[int])`, `qe12.T[int]`}, // parser doesn't record parens
+		// {`package qe13; type T[_ any] int; func _(*(T[int]))`, `*(T[int])`, `*qe13.T[int]`}, // parser doesn't record parens
+		// {`package qe14; type T[_ any] int; func _((*(T[int])))`, `(T[int])`, `qe14.T[int]`}, // parser doesn't record parens
+		// {`package qe15; type T[_ any] int; func _((*(T[int])))`, `*(T[int])`, `*qe15.T[int]`}, // parser doesn't record parens
+		// {`package qe16; type T[_ any] int; func _((*(T[int])))`, `(*(T[int]))`, `*qe16.T[int]`}, // parser doesn't record parens
+
+		// - as method receiver, generic
+		{`package qf1; type T[_ any] int; func (T[_]) _() {}`, `T`, `qf1.T[_ any]`},
+		{`package qf2; type T[_ any] int; func ((T[_])) _() {}`, `T[_]`, `qf2.T[_]`},
+		// {`package qf3; type T[_ any] int; func ((T[_])) _() {}`, `(T[_])`, `qf3.T[_]`}, // parser doesn't record parens
+		{`package qf4; type T[_ any] int; func (((T[_]))) _() {}`, `T`, `qf4.T[_ any]`},
+		// {`package qf5; type T[_ any] int; func (((T[_]))) _() {}`, `(T[_])`, `qf5.T[_]`}, // parser doesn't record parens
+		// {`package qf6; type T[_ any] int; func (((T[_]))) _() {}`, `((T[_]))`, `qf6.T[_]`}, // parser doesn't record parens
+		{`package qf7; type T[_ any] int; func (*T[_]) _() {}`, `T`, `qf7.T[_ any]`},
+		{`package qf8; type T[_ any] int; func (*T[_]) _() {}`, `*T[_]`, `*qf8.T[_]`},
+		{`package qf9; type T[_ any] int; func ((*T[_])) _() {}`, `T`, `qf9.T[_ any]`},
+		{`package qf10; type T[_ any] int; func ((*T[_])) _() {}`, `*T[_]`, `*qf10.T[_]`},
+		{`package qf11; type T[_ any] int; func (*(T[_])) _() {}`, `T[_]`, `qf11.T[_]`},
+		// {`package qf12; type T[_ any] int; func (*(T[_])) _() {}`, `(T[_])`, `qf12.T[_]`}, // parser doesn't record parens
+		// {`package qf13; type T[_ any] int; func (*(T[_])) _() {}`, `*(T[_])`, `*qf13.T[_]`}, // parser doesn't record parens
+		// {`package qf14; type T[_ any] int; func ((*(T[_]))) _() {}`, `(T[_])`, `qf14.T[_]`}, // parser doesn't record parens
+		// {`package qf15; type T[_ any] int; func ((*(T[_]))) _() {}`, `*(T[_])`, `*qf15.T[_]`}, // parser doesn't record parens
+		// {`package qf16; type T[_ any] int; func ((*(T[_]))) _() {}`, `(*(T[_]))`, `*qf16.T[_]`}, // parser doesn't record parens
 	}
 
 	for _, test := range tests {

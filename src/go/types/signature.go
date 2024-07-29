@@ -169,10 +169,12 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (recv *
 	// Determine the receiver base type.
 	var recvType Type = Typ[Invalid]
 	if rtparams == nil {
-		// If there are no type parameters, we can simply typecheck rbase.
-		// If rbase denotes a generic type, varType will complain. Further
-		// receiver constraints will be checked later, with validRecv.
-		recvType = check.varType(rbase)
+		// If there are no type parameters, we can simply typecheck rparam.Type.
+		// If that is a generic type, varType will complain.
+		// Further receiver constraints will be checked later, with validRecv.
+		// We use rparam.Type (rather than base) to correctly record pointer
+		// and parentheses in types.Info (was bug, see go.dev/issue/68639).
+		recvType = check.varType(rparam.Type)
 	} else {
 		// If there are type parameters, rbase must denote a generic base type.
 		var baseType *Named
@@ -219,12 +221,14 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (recv *
 			}
 			recvType = check.instance(rparam.Type.Pos(), baseType, targs, nil, check.context())
 			check.recordInstance(rbase, targs, recvType)
-		}
-	}
 
-	// Reestablish pointerness if needed (but avoid a pointer to an invalid type).
-	if rptr && isValid(recvType) {
-		recvType = NewPointer(recvType)
+			// Reestablish pointerness if needed (but avoid a pointer to an invalid type).
+			if rptr && isValid(recvType) {
+				recvType = NewPointer(recvType)
+			}
+
+			check.recordParenthesizedRecvTypes(rparam.Type, recvType)
+		}
 	}
 
 	// Make sure we have no more than one receiver name.
@@ -256,6 +260,37 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (recv *
 	}).describef(recv, "validRecv(%s)", recv)
 
 	return
+}
+
+// recordParenthesizedRecvTypes records parenthesized intermediate receiver type
+// expressions that all map to the same type, by recursively unpacking expr and
+// recording the corresponding type for it. Example:
+//
+//	expression  -->  type
+//	----------------------
+//	(*(T[P]))        *T[P]
+//	 *(T[P])         *T[P]
+//	  (T[P])          T[P]
+//	   T[P]           T[P]
+func (check *Checker) recordParenthesizedRecvTypes(expr ast.Expr, typ Type) {
+	for {
+		check.recordTypeAndValue(expr, typexpr, typ, nil)
+		switch e := expr.(type) {
+		case *ast.ParenExpr:
+			expr = e.X
+		case *ast.StarExpr:
+			expr = e.X
+			// In a correct program, typ must be an unnamed
+			// pointer type. But be careful and don't panic.
+			ptr, _ := typ.(*Pointer)
+			if ptr == nil {
+				return // something is wrong
+			}
+			typ = ptr.base
+		default:
+			return // cannot unpack any further
+		}
+	}
 }
 
 // collectParams collects (but does not delare) all parameters of list and returns

@@ -1380,7 +1380,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		x.typ = typ
 
 	case *syntax.ParenExpr:
-		// type inference doesn't go past parentheses (targe type T = nil)
+		// type inference doesn't go past parentheses (target type T = nil)
 		kind := check.rawExpr(nil, x, e.X, nil, false)
 		x.expr = e
 		return kind
