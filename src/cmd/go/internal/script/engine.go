@@ -586,23 +586,21 @@ func (e *Engine) runCommand(s *State, cmd *command, impl Cmd) error {
 		return nil
 	}
 
-	if wait != nil {
-		stdout, stderr, waitErr := wait(s)
-		s.stdout = stdout
-		s.stderr = stderr
-		if stdout != "" {
-			s.Logf("[stdout]\n%s", stdout)
-		}
-		if stderr != "" {
-			s.Logf("[stderr]\n%s", stderr)
-		}
-		if cmdErr := checkStatus(cmd, waitErr); cmdErr != nil {
-			return cmdErr
-		}
-		if waitErr != nil {
-			// waitErr was expected (by cmd.want), so log it instead of returning it.
-			s.Logf("[%v]\n", waitErr)
-		}
+	stdout, stderr, waitErr := wait(s)
+	s.stdout = stdout
+	s.stderr = stderr
+	if stdout != "" {
+		s.Logf("[stdout]\n%s", stdout)
+	}
+	if stderr != "" {
+		s.Logf("[stderr]\n%s", stderr)
+	}
+	if cmdErr := checkStatus(cmd, waitErr); cmdErr != nil {
+		return cmdErr
+	}
+	if waitErr != nil {
+		// waitErr was expected (by cmd.want), so log it instead of returning it.
+		s.Logf("[%v]\n", waitErr)
 	}
 	return nil
 }
