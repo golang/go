@@ -17,6 +17,7 @@ func OnceFunc(f func()) func() {
 	// Construct the inner closure just once to reduce costs on the fast path.
 	g := func() {
 		defer func() {
+			f = nil // Do not keep f alive after invoking it.
 			p = recover()
 			if !valid {
 				// Re-panic immediately so on the first call the user gets a
@@ -25,7 +26,6 @@ func OnceFunc(f func()) func() {
 			}
 		}()
 		f()
-		f = nil      // Do not keep f alive after invoking it.
 		valid = true // Set only if f does not panic.
 	}
 	return func() {
@@ -48,6 +48,7 @@ func OnceValue[T any](f func() T) func() T {
 		result T
 	)
 	g := func() {
+		f = nil // Do not keep f alive after invoking it.
 		defer func() {
 			p = recover()
 			if !valid {
@@ -55,7 +56,6 @@ func OnceValue[T any](f func() T) func() T {
 			}
 		}()
 		result = f()
-		f = nil
 		valid = true
 	}
 	return func() T {
@@ -80,6 +80,7 @@ func OnceValues[T1, T2 any](f func() (T1, T2)) func() (T1, T2) {
 		r2    T2
 	)
 	g := func() {
+		f = nil // Do not keep f alive after invoking it.
 		defer func() {
 			p = recover()
 			if !valid {
@@ -87,7 +88,6 @@ func OnceValues[T1, T2 any](f func() (T1, T2)) func() (T1, T2) {
 			}
 		}()
 		r1, r2 = f()
-		f = nil
 		valid = true
 	}
 	return func() (T1, T2) {
