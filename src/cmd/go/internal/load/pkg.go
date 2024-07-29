@@ -2076,11 +2076,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 	for _, pattern = range patterns {
 		pid++
 
-		glob := pattern
-		all := strings.HasPrefix(pattern, "all:")
-		if all {
-			glob = pattern[len("all:"):]
-		}
+		glob, all := strings.CutPrefix(pattern, "all:")
 		// Check pattern is valid for //go:embed.
 		if _, err := pathpkg.Match(glob, ""); err != nil || !validEmbedPattern(glob) {
 			return nil, nil, fmt.Errorf("invalid pattern syntax")

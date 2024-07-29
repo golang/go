@@ -378,9 +378,7 @@ func dynimport(obj string) {
 		defer f.Close()
 		sym, _ := f.ImportedSymbols()
 		for _, s := range sym {
-			if len(s) > 0 && s[0] == '_' {
-				s = s[1:]
-			}
+			s = strings.TrimPrefix(s, "_")
 			checkImportSymName(s)
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s, s, "")
 		}

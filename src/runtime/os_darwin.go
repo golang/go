@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/stringslite"
 	"unsafe"
 )
 
@@ -465,10 +466,7 @@ func sysargs(argc int32, argv **byte) {
 	executablePath = gostringnocopy(argv_index(argv, n+1))
 
 	// strip "executable_path=" prefix if available, it's added after OS X 10.11.
-	const prefix = "executable_path="
-	if len(executablePath) > len(prefix) && executablePath[:len(prefix)] == prefix {
-		executablePath = executablePath[len(prefix):]
-	}
+	executablePath = stringslite.TrimPrefix(executablePath, "executable_path=")
 }
 
 func signalM(mp *m, sig int) {

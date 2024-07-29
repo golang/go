@@ -500,9 +500,7 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 	// From here on: If the cookie is valid, it is a domain cookie (with
 	// the one exception of a public suffix below).
 	// See RFC 6265 section 5.2.3.
-	if domain[0] == '.' {
-		domain = domain[1:]
-	}
+	domain = strings.TrimPrefix(domain, ".")
 
 	if len(domain) == 0 || domain[0] == '.' {
 		// Received either "Domain=." or "Domain=..some.thing",
