@@ -26,12 +26,22 @@ void msanGoTraceback(void* parg) {
         arg->buf[0] = 0;
 }
 
+// Don't warn if the compiler doesn't support the maybe_undef attribute.
+#pragma GCC diagnostic ignored "-Wattributes"
+
 // msanGoWait will be called with all registers undefined as far as
 // msan is concerned. It just waits for a signal.
 // Because the registers are msan-undefined, the signal handler will
 // be invoked with all registers msan-undefined.
+// The maybe_undef attribute tells clang to not complain about
+// passing uninitialized values.
 __attribute__((noinline))
-void msanGoWait(unsigned long a1, unsigned long a2, unsigned long a3, unsigned long a4, unsigned long a5, unsigned long a6) {
+void msanGoWait(unsigned long a1 __attribute__((maybe_undef)),
+		unsigned long a2 __attribute__((maybe_undef)),
+		unsigned long a3 __attribute__((maybe_undef)),
+		unsigned long a4 __attribute__((maybe_undef)),
+		unsigned long a5 __attribute__((maybe_undef)),
+		unsigned long a6 __attribute__((maybe_undef))) {
 	sigset_t mask;
 
 	sigemptyset(&mask);
