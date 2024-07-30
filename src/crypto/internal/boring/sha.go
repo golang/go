@@ -159,8 +159,11 @@ const (
 )
 
 func (h *sha1Hash) MarshalBinary() ([]byte, error) {
+	return h.AppendBinary(make([]byte, 0, sha1MarshaledSize))
+}
+
+func (h *sha1Hash) AppendBinary(b []byte) ([]byte, error) {
 	d := (*sha1Ctx)(unsafe.Pointer(&h.ctx))
-	b := make([]byte, 0, sha1MarshaledSize)
 	b = append(b, sha1Magic...)
 	b = appendUint32(b, d.h[0])
 	b = appendUint32(b, d.h[1])
@@ -168,7 +171,7 @@ func (h *sha1Hash) MarshalBinary() ([]byte, error) {
 	b = appendUint32(b, d.h[3])
 	b = appendUint32(b, d.h[4])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
 	b = appendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
 	return b, nil
 }
@@ -285,8 +288,11 @@ type sha256Ctx struct {
 }
 
 func (h *sha224Hash) MarshalBinary() ([]byte, error) {
+	return h.AppendBinary(make([]byte, 0, marshaledSize256))
+}
+
+func (h *sha224Hash) AppendBinary(b []byte) ([]byte, error) {
 	d := (*sha256Ctx)(unsafe.Pointer(&h.ctx))
-	b := make([]byte, 0, marshaledSize256)
 	b = append(b, magic224...)
 	b = appendUint32(b, d.h[0])
 	b = appendUint32(b, d.h[1])
@@ -297,14 +303,17 @@ func (h *sha224Hash) MarshalBinary() ([]byte, error) {
 	b = appendUint32(b, d.h[6])
 	b = appendUint32(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
 	b = appendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
 	return b, nil
 }
 
 func (h *sha256Hash) MarshalBinary() ([]byte, error) {
+	return h.AppendBinary(make([]byte, 0, marshaledSize256))
+}
+
+func (h *sha256Hash) AppendBinary(b []byte) ([]byte, error) {
 	d := (*sha256Ctx)(unsafe.Pointer(&h.ctx))
-	b := make([]byte, 0, marshaledSize256)
 	b = append(b, magic256...)
 	b = appendUint32(b, d.h[0])
 	b = appendUint32(b, d.h[1])
@@ -315,7 +324,7 @@ func (h *sha256Hash) MarshalBinary() ([]byte, error) {
 	b = appendUint32(b, d.h[6])
 	b = appendUint32(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
 	b = appendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
 	return b, nil
 }
@@ -455,15 +464,16 @@ type sha512Ctx struct {
 
 const (
 	magic384         = "sha\x04"
-	magic512_224     = "sha\x05"
-	magic512_256     = "sha\x06"
 	magic512         = "sha\x07"
 	marshaledSize512 = len(magic512) + 8*8 + 128 + 8
 )
 
 func (h *sha384Hash) MarshalBinary() ([]byte, error) {
+	return h.AppendBinary(make([]byte, 0, marshaledSize512))
+}
+
+func (h *sha384Hash) AppendBinary(b []byte) ([]byte, error) {
 	d := (*sha512Ctx)(unsafe.Pointer(&h.ctx))
-	b := make([]byte, 0, marshaledSize512)
 	b = append(b, magic384...)
 	b = appendUint64(b, d.h[0])
 	b = appendUint64(b, d.h[1])
@@ -474,14 +484,17 @@ func (h *sha384Hash) MarshalBinary() ([]byte, error) {
 	b = appendUint64(b, d.h[6])
 	b = appendUint64(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
 	b = appendUint64(b, d.nl>>3|d.nh<<61)
 	return b, nil
 }
 
 func (h *sha512Hash) MarshalBinary() ([]byte, error) {
+	return h.AppendBinary(make([]byte, 0, marshaledSize512))
+}
+
+func (h *sha512Hash) AppendBinary(b []byte) ([]byte, error) {
 	d := (*sha512Ctx)(unsafe.Pointer(&h.ctx))
-	b := make([]byte, 0, marshaledSize512)
 	b = append(b, magic512...)
 	b = appendUint64(b, d.h[0])
 	b = appendUint64(b, d.h[1])
@@ -492,7 +505,7 @@ func (h *sha512Hash) MarshalBinary() ([]byte, error) {
 	b = appendUint64(b, d.h[6])
 	b = appendUint64(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
 	b = appendUint64(b, d.nl>>3|d.nh<<61)
 	return b, nil
 }
