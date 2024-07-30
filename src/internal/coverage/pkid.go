@@ -56,6 +56,7 @@ var rtPkgs = [...]string{
 	"internal/bytealg",
 	"internal/goexperiment",
 	"internal/runtime/syscall",
+	"internal/stringslite",
 	"runtime",
 }
 
