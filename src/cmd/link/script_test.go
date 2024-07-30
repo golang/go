@@ -6,10 +6,15 @@ package main
 
 import (
 	"cmd/internal/script/scripttest"
+	"flag"
 	"internal/testenv"
 	"runtime"
 	"testing"
 )
+
+//go:generate go test cmd/link -v -run=TestScript/README --fixreadme
+
+var fixReadme = flag.Bool("fixreadme", false, "if true, update README for script tests")
 
 func TestScript(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
@@ -33,5 +38,5 @@ func TestScript(t *testing.T) {
 			},
 		}
 	}
-	scripttest.RunToolScriptTest(t, repls, "testdata/script/*.txt")
+	scripttest.RunToolScriptTest(t, repls, "testdata/script", *fixReadme)
 }

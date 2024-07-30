@@ -6,11 +6,16 @@ package main
 
 import (
 	"cmd/internal/script/scripttest"
+	"flag"
 	"internal/testenv"
 	"os"
 	"runtime"
 	"testing"
 )
+
+//go:generate go test cmd/compile -v -run=TestScript/README --fixreadme
+
+var fixReadme = flag.Bool("fixreadme", false, "if true, update README for script tests")
 
 var testCompiler string
 
@@ -58,5 +63,5 @@ func TestScript(t *testing.T) {
 			},
 		}
 	}
-	scripttest.RunToolScriptTest(t, repls, "testdata/script/*.txt")
+	scripttest.RunToolScriptTest(t, repls, "testdata/script", *fixReadme)
 }

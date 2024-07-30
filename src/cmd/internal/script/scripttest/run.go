@@ -34,7 +34,7 @@ type ToolReplacement struct {
 // is that we'll be called from the top level cmd/X dir for tool X,
 // and that instead of executing the install tool X we'll use the
 // test binary instead.
-func RunToolScriptTest(t *testing.T, repls []ToolReplacement, pattern string) {
+func RunToolScriptTest(t *testing.T, repls []ToolReplacement, scriptsdir string, fixReadme bool) {
 	// Nearly all script tests involve doing builds, so don't
 	// bother here if we don't have "go build".
 	testenv.MustHaveGoBuild(t)
@@ -125,9 +125,9 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, pattern string) {
 	// Add in commands for "go" and "cc".
 	testgo := filepath.Join(tgr, "bin", "go")
 	gocmd := script.Program(testgo, interrupt, gracePeriod)
-	cccmd := script.Program(goEnv("CC"), interrupt, gracePeriod)
 	addcmd("go", gocmd)
-	addcmd("cc", cccmd)
+	cmdExec := cmds["exec"]
+	addcmd("cc", scriptCC(cmdExec, goEnv("CC")))
 
 	// Add various helpful conditions related to builds and toolchain use.
 	goHostOS, goHostArch := goEnv("GOHOSTOS"), goEnv("GOHOSTARCH")
@@ -153,8 +153,13 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, pattern string) {
 		Quiet: !testing.Verbose(),
 	}
 
+	t.Run("README", func(t *testing.T) {
+		checkScriptReadme(t, engine, env, scriptsdir, gotool, fixReadme)
+	})
+
 	// ... and kick off tests.
 	ctx := context.Background()
+	pattern := filepath.Join(scriptsdir, "*.txt")
 	RunTests(t, ctx, engine, env, pattern)
 }
 
@@ -252,4 +257,16 @@ func tempEnvName() string {
 	default:
 		return "TMPDIR"
 	}
+}
+
+// scriptCC runs the platform C compiler.
+func scriptCC(cmdExec script.Cmd, ccexe string) script.Cmd {
+	return script.Command(
+		script.CmdUsage{
+			Summary: "run the platform C compiler",
+			Args:    "args...",
+		},
+		func(s *script.State, args ...string) (script.WaitFunc, error) {
+			return cmdExec.Run(s, append([]string{ccexe}, args...)...)
+		})
 }
