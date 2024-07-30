@@ -82,7 +82,7 @@ func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = byteorder.BeAppendUint32(b, d.h[6])
 	b = byteorder.BeAppendUint32(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-d.nx] // already zero
+	b = append(b, make([]byte, len(d.x)-d.nx)...) // already zero
 	b = byteorder.BeAppendUint64(b, d.len)
 	return b, nil
 }
