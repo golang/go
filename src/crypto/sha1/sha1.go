@@ -49,7 +49,10 @@ const (
 )
 
 func (d *digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize)
+	return d.AppendBinary(make([]byte, 0, marshaledSize))
+}
+
+func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic...)
 	b = byteorder.BeAppendUint32(b, d.h[0])
 	b = byteorder.BeAppendUint32(b, d.h[1])
@@ -99,9 +102,10 @@ func (d *digest) Reset() {
 	d.len = 0
 }
 
-// New returns a new hash.Hash computing the SHA1 checksum. The Hash also
-// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
-// marshal and unmarshal the internal state of the hash.
+// New512_224 returns a new [hash.Hash] computing the SHA1 checksum. The Hash
+// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+// state of the hash.
 func New() hash.Hash {
 	if boring.Enabled {
 		return boring.NewSHA1()

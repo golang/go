@@ -64,7 +64,10 @@ const (
 )
 
 func (d *digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize)
+	return d.AppendBinary(make([]byte, 0, marshaledSize))
+}
+
+func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	if d.is224 {
 		b = append(b, magic224...)
 	} else {
@@ -138,8 +141,8 @@ func (d *digest) Reset() {
 	d.len = 0
 }
 
-// New returns a new hash.Hash computing the SHA256 checksum. The Hash
-// also implements [encoding.BinaryMarshaler] and
+// New returns a new [hash.Hash] computing the SHA256 checksum. The Hash
+// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
 // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
 // state of the hash.
 func New() hash.Hash {
@@ -151,7 +154,10 @@ func New() hash.Hash {
 	return d
 }
 
-// New224 returns a new hash.Hash computing the SHA224 checksum.
+// New224 returns a new [hash.Hash] computing the SHA224 checksum. The Hash
+// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+// state of the hash.
 func New224() hash.Hash {
 	if boring.Enabled {
 		return boring.NewSHA224()
