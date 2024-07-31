@@ -535,3 +535,38 @@ func (check *Checker) cleanup() {
 	}
 	check.cleaners = nil
 }
+
+// go/types doesn't support recording of types directly in the AST.
+// dummy function to match types2 code.
+func (check *Checker) recordTypeAndValueInSyntax(x ast.Expr, mode operandMode, typ Type, val constant.Value) {
+	// nothing to do
+}
+
+// go/types doesn't support recording of types directly in the AST.
+// dummy function to match types2 code.
+func (check *Checker) recordCommaOkTypesInSyntax(x ast.Expr, t0, t1 Type) {
+	// nothing to do
+}
+
+// instantiatedIdent determines the identifier of the type instantiated in expr.
+// Helper function for recordInstance in recording.go.
+func instantiatedIdent(expr ast.Expr) *ast.Ident {
+	var selOrIdent ast.Expr
+	switch e := expr.(type) {
+	case *ast.IndexExpr:
+		selOrIdent = e.X
+	case *ast.IndexListExpr: // only exists in go/ast, not syntax
+		selOrIdent = e.X
+	case *ast.SelectorExpr, *ast.Ident:
+		selOrIdent = e
+	}
+	switch x := selOrIdent.(type) {
+	case *ast.Ident:
+		return x
+	case *ast.SelectorExpr:
+		return x.Sel
+	}
+
+	// extra debugging of go.dev/issue/63933
+	panic(sprintf(nil, nil, true, "instantiated ident not found; please report: %s", expr))
+}

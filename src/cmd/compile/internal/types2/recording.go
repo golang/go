@@ -68,35 +68,7 @@ func (check *Checker) recordTypeAndValue(x syntax.Expr, mode operandMode, typ Ty
 	if m := check.Types; m != nil {
 		m[x] = TypeAndValue{mode, typ, val}
 	}
-	if check.StoreTypesInSyntax {
-		tv := TypeAndValue{mode, typ, val}
-		stv := syntax.TypeAndValue{Type: typ, Value: val}
-		if tv.IsVoid() {
-			stv.SetIsVoid()
-		}
-		if tv.IsType() {
-			stv.SetIsType()
-		}
-		if tv.IsBuiltin() {
-			stv.SetIsBuiltin()
-		}
-		if tv.IsValue() {
-			stv.SetIsValue()
-		}
-		if tv.IsNil() {
-			stv.SetIsNil()
-		}
-		if tv.Addressable() {
-			stv.SetAddressable()
-		}
-		if tv.Assignable() {
-			stv.SetAssignable()
-		}
-		if tv.HasOk() {
-			stv.SetHasOk()
-		}
-		x.SetTypeInfo(stv)
-	}
+	check.recordTypeAndValueInSyntax(x, mode, typ, val)
 }
 
 func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
@@ -145,25 +117,7 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
 			x = p.X
 		}
 	}
-	if check.StoreTypesInSyntax {
-		// Note: this loop is duplicated because the type of tv is different.
-		// Above it is types2.TypeAndValue, here it is syntax.TypeAndValue.
-		for {
-			tv := x.GetTypeInfo()
-			assert(tv.Type != nil) // should have been recorded already
-			pos := x.Pos()
-			tv.Type = NewTuple(
-				NewVar(pos, check.pkg, "", t0),
-				NewVar(pos, check.pkg, "", t1),
-			)
-			x.SetTypeInfo(tv)
-			p, _ := x.(*syntax.ParenExpr)
-			if p == nil {
-				break
-			}
-			x = p.X
-		}
-	}
+	check.recordCommaOkTypesInSyntax(x, t0, t1)
 }
 
 // recordInstance records instantiation information into check.Info, if the
@@ -179,23 +133,6 @@ func (check *Checker) recordInstance(expr syntax.Expr, targs []Type, typ Type) {
 	if m := check.Instances; m != nil {
 		m[ident] = Instance{newTypeList(targs), typ}
 	}
-}
-
-func instantiatedIdent(expr syntax.Expr) *syntax.Name {
-	var selOrIdent syntax.Expr
-	switch e := expr.(type) {
-	case *syntax.IndexExpr:
-		selOrIdent = e.X
-	case *syntax.SelectorExpr, *syntax.Name:
-		selOrIdent = e
-	}
-	switch x := selOrIdent.(type) {
-	case *syntax.Name:
-		return x
-	case *syntax.SelectorExpr:
-		return x.Sel
-	}
-	panic("instantiated ident not found")
 }
 
 func (check *Checker) recordDef(id *syntax.Name, obj Object) {

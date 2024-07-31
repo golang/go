@@ -514,3 +514,80 @@ func (check *Checker) cleanup() {
 	}
 	check.cleaners = nil
 }
+
+// types2-specific support for recording type information in the syntax tree.
+func (check *Checker) recordTypeAndValueInSyntax(x syntax.Expr, mode operandMode, typ Type, val constant.Value) {
+	if check.StoreTypesInSyntax {
+		tv := TypeAndValue{mode, typ, val}
+		stv := syntax.TypeAndValue{Type: typ, Value: val}
+		if tv.IsVoid() {
+			stv.SetIsVoid()
+		}
+		if tv.IsType() {
+			stv.SetIsType()
+		}
+		if tv.IsBuiltin() {
+			stv.SetIsBuiltin()
+		}
+		if tv.IsValue() {
+			stv.SetIsValue()
+		}
+		if tv.IsNil() {
+			stv.SetIsNil()
+		}
+		if tv.Addressable() {
+			stv.SetAddressable()
+		}
+		if tv.Assignable() {
+			stv.SetAssignable()
+		}
+		if tv.HasOk() {
+			stv.SetHasOk()
+		}
+		x.SetTypeInfo(stv)
+	}
+}
+
+// types2-specific support for recording type information in the syntax tree.
+func (check *Checker) recordCommaOkTypesInSyntax(x syntax.Expr, t0, t1 Type) {
+	if check.StoreTypesInSyntax {
+		// Note: this loop is duplicated because the type of tv is different.
+		// Above it is types2.TypeAndValue, here it is syntax.TypeAndValue.
+		for {
+			tv := x.GetTypeInfo()
+			assert(tv.Type != nil) // should have been recorded already
+			pos := x.Pos()
+			tv.Type = NewTuple(
+				NewVar(pos, check.pkg, "", t0),
+				NewVar(pos, check.pkg, "", t1),
+			)
+			x.SetTypeInfo(tv)
+			p, _ := x.(*syntax.ParenExpr)
+			if p == nil {
+				break
+			}
+			x = p.X
+		}
+	}
+}
+
+// instantiatedIdent determines the identifier of the type instantiated in expr.
+// Helper function for recordInstance in recording.go.
+func instantiatedIdent(expr syntax.Expr) *syntax.Name {
+	var selOrIdent syntax.Expr
+	switch e := expr.(type) {
+	case *syntax.IndexExpr:
+		selOrIdent = e.X
+	case *syntax.SelectorExpr, *syntax.Name:
+		selOrIdent = e
+	}
+	switch x := selOrIdent.(type) {
+	case *syntax.Name:
+		return x
+	case *syntax.SelectorExpr:
+		return x.Sel
+	}
+
+	// extra debugging of go.dev/issue/63933
+	panic(sprintf(nil, true, "instantiated ident not found; please report: %s", expr))
+}

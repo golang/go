@@ -10,8 +10,6 @@ package types
 import (
 	"go/ast"
 	"go/constant"
-	"go/token"
-	"strings"
 )
 
 func (check *Checker) record(x *operand) {
@@ -42,7 +40,7 @@ func (check *Checker) record(x *operand) {
 }
 
 func (check *Checker) recordUntyped() {
-	if !debug && check.Types == nil {
+	if !debug && !check.recordTypes() {
 		return // nothing to do
 	}
 
@@ -70,6 +68,7 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
 	if m := check.Types; m != nil {
 		m[x] = TypeAndValue{mode, typ, val}
 	}
+	check.recordTypeAndValueInSyntax(x, mode, typ, val)
 }
 
 func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
@@ -118,6 +117,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a []*operand) {
 			x = p.X
 		}
 	}
+	check.recordCommaOkTypesInSyntax(x, t0, t1)
 }
 
 // recordInstance records instantiation information into check.Info, if the
@@ -133,30 +133,6 @@ func (check *Checker) recordInstance(expr ast.Expr, targs []Type, typ Type) {
 	if m := check.Instances; m != nil {
 		m[ident] = Instance{newTypeList(targs), typ}
 	}
-}
-
-func instantiatedIdent(expr ast.Expr) *ast.Ident {
-	var selOrIdent ast.Expr
-	switch e := expr.(type) {
-	case *ast.IndexExpr:
-		selOrIdent = e.X
-	case *ast.IndexListExpr:
-		selOrIdent = e.X
-	case *ast.SelectorExpr, *ast.Ident:
-		selOrIdent = e
-	}
-	switch x := selOrIdent.(type) {
-	case *ast.Ident:
-		return x
-	case *ast.SelectorExpr:
-		return x.Sel
-	}
-
-	// extra debugging of #63933
-	var buf strings.Builder
-	buf.WriteString("instantiated ident not found; please report: ")
-	ast.Fprint(&buf, token.NewFileSet(), expr, ast.NotNilFilter)
-	panic(buf.String())
 }
 
 func (check *Checker) recordDef(id *ast.Ident, obj Object) {
