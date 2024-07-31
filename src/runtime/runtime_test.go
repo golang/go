@@ -7,6 +7,8 @@ package runtime_test
 import (
 	"flag"
 	"fmt"
+	"internal/cpu"
+	"internal/runtime/atomic"
 	"io"
 	. "runtime"
 	"runtime/debug"
@@ -560,4 +562,112 @@ func BenchmarkOSYield(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		OSYield()
 	}
+}
+
+func BenchmarkMutexHandoff(b *testing.B) {
+	testcase := func(delay func(l *Mutex)) func(b *testing.B) {
+		return func(b *testing.B) {
+			if workers := 2; GOMAXPROCS(0) < workers {
+				b.Skipf("requires GOMAXPROCS >= %d", workers)
+			}
+
+			// Measure latency of mutex handoff between threads.
+			//
+			// Hand off a runtime.mutex between two threads, one running a
+			// "coordinator" goroutine and the other running a "worker"
+			// goroutine. We don't override the runtime's typical
+			// goroutine/thread mapping behavior.
+			//
+			// Measure the latency, starting when the coordinator enters a call
+			// to runtime.unlock and ending when the worker's call to
+			// runtime.lock returns. The benchmark can specify a "delay"
+			// function to simulate the length of the mutex-holder's critical
+			// section, including to arrange for the worker's thread to be in
+			// either the "spinning" or "sleeping" portions of the runtime.lock2
+			// implementation. Measurement starts after any such "delay".
+			//
+			// The two threads' goroutines communicate their current position to
+			// each other in a non-blocking way via the "turn" state.
+
+			var state struct {
+				_    [cpu.CacheLinePadSize]byte
+				lock Mutex
+				_    [cpu.CacheLinePadSize]byte
+				turn atomic.Int64
+				_    [cpu.CacheLinePadSize]byte
+			}
+
+			var delta atomic.Int64
+			var wg sync.WaitGroup
+
+			// coordinator:
+			//  - acquire the mutex
+			//  - set the turn to 2 mod 4, instructing the worker to begin its Lock call
+			//  - wait until the mutex is contended
+			//  - wait a bit more so the worker can commit to its sleep
+			//  - release the mutex and wait for it to be our turn (0 mod 4) again
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				var t int64
+				for range b.N {
+					Lock(&state.lock)
+					state.turn.Add(2)
+					delay(&state.lock)
+					t -= Nanotime() // start the timer
+					Unlock(&state.lock)
+					for state.turn.Load()&0x2 != 0 {
+					}
+				}
+				state.turn.Add(1)
+				delta.Add(t)
+			}()
+
+			// worker:
+			//  - wait until its our turn (2 mod 4)
+			//  - acquire and release the mutex
+			//  - switch the turn counter back to the coordinator (0 mod 4)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				var t int64
+				for {
+					switch state.turn.Load() & 0x3 {
+					case 0:
+					case 1, 3:
+						delta.Add(t)
+						return
+					case 2:
+						Lock(&state.lock)
+						t += Nanotime() // stop the timer
+						Unlock(&state.lock)
+						state.turn.Add(2)
+					}
+				}
+			}()
+
+			wg.Wait()
+			b.ReportMetric(float64(delta.Load())/float64(b.N), "ns/op")
+		}
+	}
+
+	b.Run("Solo", func(b *testing.B) {
+		var lock Mutex
+		for range b.N {
+			Lock(&lock)
+			Unlock(&lock)
+		}
+	})
+
+	b.Run("FastPingPong", testcase(func(l *Mutex) {}))
+	b.Run("SlowPingPong", testcase(func(l *Mutex) {
+		// Wait for the worker to stop spinning and prepare to sleep
+		for !MutexContended(l) {
+		}
+		// Wait a bit longer so the OS can finish committing the worker to its
+		// sleep. Balance consistency against getting enough iterations.
+		const extraNs = 10e3
+		for t0 := Nanotime(); Nanotime()-t0 < extraNs; {
+		}
+	}))
 }
