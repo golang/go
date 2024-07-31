@@ -30,7 +30,8 @@ func Funcs(fns []*ir.Func) {
 		v := newVisitor(fn)
 		v.nodes(fn.Body)
 
-		for _, assigns := range v.defs {
+		for _, k := range v.defsKeys {
+			assigns := v.defs[k]
 			for _, as := range assigns {
 				// Kludge for "missing func info" linker panic.
 				// See also closureInitLSym in inline/inl.go.
@@ -51,7 +52,8 @@ type visitor struct {
 	curfn *ir.Func
 	// defs[name] contains assignments that can be discarded if name can be discarded.
 	// if defs[name] is defined nil, then name is actually used.
-	defs map[*ir.Name][]assign
+	defs     map[*ir.Name][]assign
+	defsKeys []*ir.Name // insertion order of keys, for reproducible iteration (and builds)
 
 	doNode func(ir.Node) bool
 }
@@ -96,9 +98,11 @@ func (v *visitor) node(n ir.Node) {
 		n = n.Canonical()
 		if isLocal(n, false) {
 			// Force any lazy definitions.
-			s := v.defs[n]
+			s, ok := v.defs[n]
+			if !ok {
+				v.defsKeys = append(v.defsKeys, n)
+			}
 			v.defs[n] = nil
-
 			for _, as := range s {
 				// do the visit that was skipped in v.assign when as was appended to v.defs[n]
 				v.node(*as.rhs)
@@ -161,6 +165,9 @@ func (v *visitor) assign(pos src.XPos, lhs, rhs *ir.Node, blankIsNotUse bool) {
 	if isLocal(name, blankIsNotUse) && !hasEffects(*rhs) {
 		if s, ok := v.defs[name]; !ok || s != nil {
 			// !ok || s != nil is FALSE if previously "v.defs[name] = nil" -- that marks a use.
+			if !ok {
+				v.defsKeys = append(v.defsKeys, name)
+			}
 			v.defs[name] = append(s, assign{pos, lhs, rhs})
 			return // don't visit rhs unless that node ends up live, later.
 		}
