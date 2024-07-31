@@ -112,7 +112,7 @@ func TestGoldenMarshal(t *testing.T) {
 			continue
 		}
 
-		if string(state) != g.halfState {
+		if string(stateAppend) != g.halfState {
 			t.Errorf("md5(%q) stateAppend = %q, want %q", g.in, stateAppend, g.halfState)
 			continue
 		}
