@@ -190,7 +190,16 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (recv *
 		// Checker.collectTypeParams). The scope of the type parameter T in
 		// "func (r T[T]) f() {}" starts after f, not at r, so we declare it
 		// after typechecking rbase (see go.dev/issue/52038).
-		recvTParams := check.declareTypeParams(nil, rtparams, scopePos)
+		recvTParams := make([]*TypeParam, len(rtparams))
+		for i, rparam := range rtparams {
+			tpar := check.declareTypeParam(rparam, scopePos)
+			recvTParams[i] = tpar
+			// For historic reasons, type parameters in receiver type expressions
+			// are considered both definitions and uses and thus must be recorded
+			// in the Info.Uses and Info.Types maps (see go.dev/issue/68670).
+			check.recordUse(rparam, tpar.obj)
+			check.recordTypeAndValue(rparam, typexpr, tpar, nil)
+		}
 		recvTParamsList = bindTParams(recvTParams)
 
 		// Get the type parameter bounds from the receiver base type

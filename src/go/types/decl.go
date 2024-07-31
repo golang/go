@@ -674,7 +674,9 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 	// list (so we can have mutually recursive parameterized interfaces).
 	scopePos := list.Pos()
 	for _, f := range list.List {
-		tparams = check.declareTypeParams(tparams, f.Names, scopePos)
+		for _, name := range f.Names {
+			tparams = append(tparams, check.declareTypeParam(name, scopePos))
+		}
 	}
 
 	// Set the type parameters before collecting the type constraints because
@@ -743,25 +745,17 @@ func (check *Checker) bound(x ast.Expr) Type {
 	return check.typ(x)
 }
 
-func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident, scopePos token.Pos) []*TypeParam {
+func (check *Checker) declareTypeParam(name *ast.Ident, scopePos token.Pos) *TypeParam {
 	// Use Typ[Invalid] for the type constraint to ensure that a type
 	// is present even if the actual constraint has not been assigned
 	// yet.
 	// TODO(gri) Need to systematically review all uses of type parameter
 	//           constraints to make sure we don't rely on them if they
 	//           are not properly set yet.
-	for _, name := range names {
-		tname := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		tpar := check.newTypeParam(tname, Typ[Invalid]) // assigns type to tpar as a side-effect
-		check.declare(check.scope, name, tname, scopePos)
-		tparams = append(tparams, tpar)
-	}
-
-	if check.conf._Trace && len(names) > 0 {
-		check.trace(names[0].Pos(), "type params = %v", tparams[len(tparams)-len(names):])
-	}
-
-	return tparams
+	tname := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+	tpar := check.newTypeParam(tname, Typ[Invalid]) // assigns type to tname as a side-effect
+	check.declare(check.scope, name, tname, scopePos)
+	return tpar
 }
 
 func (check *Checker) collectMethods(obj *TypeName) {

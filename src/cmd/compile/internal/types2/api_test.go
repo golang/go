@@ -515,6 +515,13 @@ func TestTypesInfo(t *testing.T) {
 		// {`package qf14; type T[_ any] int; func ((*(T[_]))) _() {}`, `(T[_])`, `qf14.T[_]`}, // parser doesn't record parens
 		// {`package qf15; type T[_ any] int; func ((*(T[_]))) _() {}`, `*(T[_])`, `*qf15.T[_]`}, // parser doesn't record parens
 		// {`package qf16; type T[_ any] int; func ((*(T[_]))) _() {}`, `(*(T[_]))`, `*qf16.T[_]`}, // parser doesn't record parens
+
+		// For historic reasons, type parameters in receiver type expressions
+		// are considered both definitions and uses and thus also show up in
+		// the Info.Types map (see go.dev/issue/68670).
+		{`package t1; type T[_ any] int; func (T[P]) _() {}`, `P`, `P`},
+		{`package t2; type T[_, _ any] int; func (T[P, Q]) _() {}`, `P`, `P`},
+		{`package t3; type T[_, _ any] int; func (T[P, Q]) _() {}`, `Q`, `Q`},
 	}
 
 	for _, test := range tests {
@@ -829,6 +836,11 @@ func TestDefsInfo(t *testing.T) {
 		{`package g0; type x[T any] int`, `x`, `type g0.x[T any] int`},
 		{`package g1; func f[T any]() {}`, `f`, `func g1.f[T any]()`},
 		{`package g2; type x[T any] int; func (*x[_]) m() {}`, `m`, `func (*g2.x[_]).m()`},
+
+		// Type parameters in receiver type expressions are definitions.
+		{`package r0; type T[_ any] int; func (T[P]) _() {}`, `P`, `type parameter P any`},
+		{`package r1; type T[_, _ any] int; func (T[P, Q]) _() {}`, `P`, `type parameter P any`},
+		{`package r2; type T[_, _ any] int; func (T[P, Q]) _() {}`, `Q`, `type parameter Q any`},
 	}
 
 	for _, test := range tests {
@@ -894,6 +906,12 @@ func TestUsesInfo(t *testing.T) {
 			`m`,
 			`func (m10.E[int]).m()`,
 		},
+
+		// For historic reasons, type parameters in receiver type expressions
+		// are considered both definitions and uses (see go.dev/issue/68670).
+		{`package r0; type T[_ any] int; func (T[P]) _() {}`, `P`, `type parameter P any`},
+		{`package r1; type T[_, _ any] int; func (T[P, Q]) _() {}`, `P`, `type parameter P any`},
+		{`package r2; type T[_, _ any] int; func (T[P, Q]) _() {}`, `Q`, `type parameter Q any`},
 	}
 
 	for _, test := range tests {
