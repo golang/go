@@ -52,8 +52,31 @@ func Lang(x string) string {
 // The versions x and y must begin with a "go" prefix: "go1.21" not "1.21".
 // Invalid versions, including the empty string, compare less than
 // valid versions and equal to each other.
-// The language version "go1.21" compares less than the
-// release candidate and eventual releases "go1.21rc1" and "go1.21.0".
+// After go1.21, the language version is less than specific release versions
+// or other prerelease versions.
+// For example:
+//
+//	Compare("go1.21rc1", "go1.21") = 1
+//	Compare("go1.21rc1", "go1.21.0") = -1
+//	Compare("go1.22rc1", "go1.22") = 1
+//	Compare("go1.22rc1", "go1.22.0") = -1
+//
+// However, When the language version is below go1.21, the situation is quite different,
+// because the initial release version was 1.N, not 1.N.0.
+// For example:
+//
+//	Compare("go1.20rc1", "go1.21") = -1
+//	Compare("go1.19rc1", "go1.19") = -1
+//	Compare("go1.18", "go1.18rc1") = 1
+//	Compare("go1.18", "go1.18rc1") = 1
+//
+// This situation also happens to prerelease for some old patch versions, such as "go1.8.5rc5, "go1.9.2rc2"
+// For example:
+//
+//	Compare("go1.8.5rc4", "go1.8.5rc5") = -1
+//	Compare("go1.8.5rc5", "go1.8.5") = -1
+//	Compare("go1.9.2rc2", "go1.9.2") = -1
+//	Compare("go1.9.2rc2", "go1.9") = 1
 func Compare(x, y string) int {
 	return gover.Compare(stripGo(x), stripGo(y))
 }

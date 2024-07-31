@@ -47,6 +47,14 @@ func Compare(x, y string) int {
 		return c
 	}
 	if c := cmp.Compare(vx.Kind, vy.Kind); c != 0 { // "" < alpha < beta < rc
+		// for patch release, alpha < beta < rc < ""
+		if vx.Patch != "" {
+			if vx.Kind == "" {
+				c = 1
+			} else if vy.Kind == "" {
+				c = -1
+			}
+		}
 		return c
 	}
 	if c := CmpInt(vx.Pre, vy.Pre); c != 0 {
@@ -133,39 +141,49 @@ func Parse(x string) Version {
 	// Parse patch if present.
 	if x[0] == '.' {
 		v.Patch, x, ok = cutInt(x[1:])
-		if !ok || x != "" {
-			// Note that we are disallowing prereleases (alpha, beta, rc) for patch releases here (x != "").
-			// Allowing them would be a bit confusing because we already have:
-			//	1.21 < 1.21rc1
-			// But a prerelease of a patch would have the opposite effect:
-			//	1.21.3rc1 < 1.21.3
-			// We've never needed them before, so let's not start now.
+		if !ok {
 			return Version{}
 		}
+
+		// If there has prerelease for patch releases.
+		if x != "" {
+			v.Kind, v.Pre, ok = parsePreRelease(x)
+			if !ok {
+				return Version{}
+			}
+		}
+
 		return v
 	}
 
 	// Parse prerelease.
+	v.Kind, v.Pre, ok = parsePreRelease(x)
+	if !ok {
+		return Version{}
+	}
+	return v
+}
+
+func parsePreRelease(x string) (kind, pre string, ok bool) {
 	i := 0
 	for i < len(x) && (x[i] < '0' || '9' < x[i]) {
 		if x[i] < 'a' || 'z' < x[i] {
-			return Version{}
+			return "", "", false
 		}
 		i++
 	}
 	if i == 0 {
-		return Version{}
+		return "", "", false
 	}
-	v.Kind, x = x[:i], x[i:]
+	kind, x = x[:i], x[i:]
 	if x == "" {
-		return v
+		return kind, "", true
 	}
-	v.Pre, x, ok = cutInt(x)
+	pre, x, ok = cutInt(x)
 	if !ok || x != "" {
-		return Version{}
+		return "", "", false
 	}
-
-	return v
+	return kind, pre, true
 }
 
 // cutInt scans the leading decimal number at the start of x to an integer

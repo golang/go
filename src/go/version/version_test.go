@@ -40,6 +40,10 @@ var compareTests = []testCase2[string, string, int]{
 	{"go1.19alpha3", "go1.19beta2", -1},
 	{"go1.19beta2", "go1.19rc1", -1},
 	{"go1.1", "go1.99999999999999998", -1},
+	{"go1.9.2rc2", "go1.9.2", -1},
+	{"go1.9.2rc2", "go1.9.2rc3", -1},
+	{"go1.9.2beta2", "go1.9.2rc3", -1},
+	{"go1.9.2alpha1", "go1.9.2beta2", -1},
 	{"go1.99999999999999998", "go1.99999999999999999", -1},
 }
 
@@ -52,6 +56,7 @@ var langTests = []testCase1[string, string]{
 	{"go1.2", "go1.2"},
 	{"go1", "go1"},
 	{"go222", "go222.0"},
+	{"go1.8.2rc", "go1.8"},
 	{"go1.999testmod", "go1.999"},
 }
 
@@ -73,6 +78,8 @@ var isValidTests = []testCase1[string, bool]{
 	{"go1.19", true},
 	{"go1.3", true},
 	{"go1.2", true},
+	{"go1.9.2rc2", true},
+	{"go1.9.2+rc2", false},
 	{"go1", true},
 }
 
