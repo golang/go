@@ -163,10 +163,14 @@ type in Go are instead represented by a uintptr.  See the Special
 cases section below.
 
 To access a struct, union, or enum type directly, prefix it with
-struct_, union_, or enum_, as in C.struct_stat.
-
-The size of any C type T is available as C.sizeof_T, as in
-C.sizeof_struct_stat.
+struct_, union_, or enum_, as in C.struct_stat. The size of any C type
+T is available as C.sizeof_T, as in C.sizeof_struct_stat. These
+special prefixes means that there is no way to directly reference a C
+identifier that starts with "struct_", "union_", "enum_", or
+"sizeof_", such as a function named "struct_function".
+A workaround is to use a "#define" in the preamble, as in
+"#define c_struct_function struct_function" and then in the
+Go code refer to "C.c_struct_function".
 
 A C function may be declared in the Go file with a parameter type of
 the special name _GoString_. This function may be called with an
