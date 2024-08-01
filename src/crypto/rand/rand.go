@@ -11,6 +11,7 @@ import (
 	"io"
 	"sync/atomic"
 	"time"
+	_ "unsafe"
 )
 
 // Reader is a global, shared instance of a cryptographically
@@ -23,6 +24,9 @@ import (
 //   - On Windows, Reader uses the ProcessPrng API.
 //   - On js/wasm, Reader uses the Web Crypto API.
 //   - On wasip1/wasm, Reader uses random_get.
+//
+// All the platform APIs above are documented to never return an error
+// when used as they are in this package.
 var Reader io.Reader
 
 func init() {
@@ -55,10 +59,23 @@ func (r *reader) Read(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-// Read is a helper function that calls Reader.Read using io.ReadFull.
-// On return, n == len(b) if and only if err == nil.
+// fatal is [runtime.fatal], pushed via linkname.
+//
+//go:linkname fatal
+func fatal(string)
+
+// Read fills b with cryptographically secure random bytes. It never returns an
+// error, and always fills b entirely.
+//
+// If [Reader] is set to a non-default value, Read calls [io.ReadFull] on
+// [Reader] and crashes the program irrecoverably if an error is returned.
 func Read(b []byte) (n int, err error) {
-	return io.ReadFull(Reader, b)
+	_, err = io.ReadFull(Reader, b)
+	if err != nil {
+		fatal("crypto/rand: failed to read random data (see https://go.dev/issue/66821): " + err.Error())
+		panic("unreachable") // To be sure.
+	}
+	return len(b), nil
 }
 
 // batched returns a function that calls f to populate a []byte by chunking it
