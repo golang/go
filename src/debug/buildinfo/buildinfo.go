@@ -295,6 +295,10 @@ func decodeString(x exe, addr uint64) (string, uint64, error) {
 
 	b, err = readData(x, addr, length)
 	if err != nil {
+		if err == io.ErrUnexpectedEOF {
+			// Length too large to allocate. Clearly bogus value.
+			return "", 0, errNotGoExe
+		}
 		return "", 0, err
 	}
 	if uint64(len(b)) < length {
