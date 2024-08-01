@@ -180,7 +180,7 @@ func (t *Timer) Reset(d Duration) bool {
 func sendTime(c any, seq uintptr, delta int64) {
 	// delta is how long ago the channel send was supposed to happen.
 	// The current time can be arbitrarily far into the future, because the runtime
-	// can delay a sendTime call until a goroutines tries to receive from
+	// can delay a sendTime call until a goroutine tries to receive from
 	// the channel. Subtract delta to go back to the old time that we
 	// used to send.
 	select {

@@ -38,7 +38,7 @@ type timer struct {
 	// The arg and seq are client-specified opaque arguments passed back to f.
 	// When used from netpoll, arg and seq have meanings defined by netpoll
 	// and are completely opaque to this code; in that context, seq is a sequence
-	// number to recognize and squech stale function invocations.
+	// number to recognize and squelch stale function invocations.
 	// When used from package time, arg is a channel (for After, NewTicker)
 	// or the function to call (for AfterFunc) and seq is unused (0).
 	//
