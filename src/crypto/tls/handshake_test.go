@@ -491,9 +491,10 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
 		if got := string(buf); got != sentinel {
 			t.Errorf("read %q from TLS connection, but expected %q", got, sentinel)
 		}
-		if err := cli.Close(); err != nil {
-			t.Errorf("failed to call cli.Close: %v", err)
-		}
+		// We discard the error because after ReadAll returns the server must
+		// have already closed the connection. Sending data (the closeNotify
+		// alert) can cause a reset, that will make Close return an error.
+		cli.Close()
 	}()
 	server := Server(s, serverConfig)
 	err = server.Handshake()
