@@ -14,4 +14,5 @@ func GetEntropy(p []byte) error {
 }
 
 //go:linkname getentropy syscall.getentropy
+//go:noescape
 func getentropy(p []byte) error

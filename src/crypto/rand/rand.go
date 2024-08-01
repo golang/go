@@ -70,28 +70,20 @@ func fatal(string)
 // If [Reader] is set to a non-default value, Read calls [io.ReadFull] on
 // [Reader] and crashes the program irrecoverably if an error is returned.
 func Read(b []byte) (n int, err error) {
-	_, err = io.ReadFull(Reader, b)
+	// We don't want b to escape to the heap, but escape analysis can't see
+	// through a potentially overridden Reader, so we special-case the default
+	// case which we can keep non-escaping, and in the general case we read into
+	// a heap buffer and copy from it.
+	if r, ok := Reader.(*reader); ok {
+		_, err = r.Read(b)
+	} else {
+		bb := make([]byte, len(b))
+		_, err = io.ReadFull(Reader, bb)
+		copy(b, bb)
+	}
 	if err != nil {
 		fatal("crypto/rand: failed to read random data (see https://go.dev/issue/66821): " + err.Error())
 		panic("unreachable") // To be sure.
 	}
 	return len(b), nil
-}
-
-// batched returns a function that calls f to populate a []byte by chunking it
-// into subslices of, at most, readMax bytes.
-func batched(f func([]byte) error, readMax int) func([]byte) error {
-	return func(out []byte) error {
-		for len(out) > 0 {
-			read := len(out)
-			if read > readMax {
-				read = readMax
-			}
-			if err := f(out[:read]); err != nil {
-				return err
-			}
-			out = out[read:]
-		}
-		return nil
-	}
 }

@@ -7,8 +7,10 @@ package rand_test
 import (
 	"bytes"
 	"compress/flate"
+	"crypto/internal/boring"
 	. "crypto/rand"
 	"io"
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -119,6 +121,30 @@ func TestConcurrentRead(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+var sink byte
+
+func TestAllocations(t *testing.T) {
+	if boring.Enabled {
+		// Might be fixable with https://go.dev/issue/56378.
+		t.Skip("boringcrypto allocates")
+	}
+	if runtime.GOOS == "aix" {
+		t.Skip("/dev/urandom read path allocates")
+	}
+	if runtime.GOOS == "js" {
+		t.Skip("syscall/js allocates")
+	}
+
+	n := int(testing.AllocsPerRun(10, func() {
+		buf := make([]byte, 32)
+		Read(buf)
+		sink ^= buf[0]
+	}))
+	if n > 0 {
+		t.Errorf("allocs = %d, want 0", n)
+	}
 }
 
 func BenchmarkRead(b *testing.B) {

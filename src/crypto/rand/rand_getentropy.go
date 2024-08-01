@@ -8,5 +8,17 @@ package rand
 
 import "internal/syscall/unix"
 
-// getentropy(2) returns a maximum of 256 bytes per call.
-var read = batched(unix.GetEntropy, 256)
+func read(b []byte) error {
+	for len(b) > 0 {
+		size := len(b)
+		if size > 256 {
+			size = 256
+		}
+		// getentropy(2) returns a maximum of 256 bytes per call.
+		if err := unix.GetEntropy(b[:size]); err != nil {
+			return err
+		}
+		b = b[size:]
+	}
+	return nil
+}
