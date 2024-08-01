@@ -464,6 +464,8 @@ type sha512Ctx struct {
 
 const (
 	magic384         = "sha\x04"
+	magic512_224     = "sha\x05"
+	magic512_256     = "sha\x06"
 	magic512         = "sha\x07"
 	marshaledSize512 = len(magic512) + 8*8 + 128 + 8
 )
