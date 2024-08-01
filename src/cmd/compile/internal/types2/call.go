@@ -706,14 +706,16 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 					}
 				}
 				if exp == nil {
-					check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e)) // cast to syntax.Expr to silence vet
+					if isValidName(sel) {
+						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e)) // cast to syntax.Expr to silence vet
+					}
 					goto Error
 				}
 				check.objDecl(exp, nil)
 			} else {
 				exp = pkg.scope.Lookup(sel)
 				if exp == nil {
-					if !pkg.fake {
+					if !pkg.fake && isValidName(sel) {
 						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e))
 					}
 					goto Error

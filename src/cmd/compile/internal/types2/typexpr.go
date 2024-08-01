@@ -29,7 +29,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 	case nil:
 		if e.Value == "_" {
 			check.error(e, InvalidBlank, "cannot use _ as value or type")
-		} else {
+		} else if isValidName(e.Value) {
 			check.errorf(e, UndeclaredName, "undefined: %s", e.Value)
 		}
 		return

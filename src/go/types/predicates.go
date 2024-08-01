@@ -9,6 +9,8 @@
 
 package types
 
+import "unicode"
+
 // isValid reports whether t is a valid type.
 func isValid(t Type) bool { return Unalias(t) != Typ[Invalid] }
 
@@ -569,4 +571,14 @@ func maxType(x, y Type) Type {
 func clone[P *T, T any](p P) P {
 	c := *p
 	return &c
+}
+
+// isValidName reports whether s is a valid Go identifier.
+func isValidName(s string) bool {
+	for i, ch := range s {
+		if !(unicode.IsLetter(ch) || ch == '_' || i > 0 && unicode.IsDigit(ch)) {
+			return false
+		}
+	}
+	return true
 }

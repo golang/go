@@ -709,14 +709,16 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 					}
 				}
 				if exp == nil {
-					check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e)) // cast to ast.Expr to silence vet
+					if isValidName(sel) {
+						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e)) // cast to ast.Expr to silence vet
+					}
 					goto Error
 				}
 				check.objDecl(exp, nil)
 			} else {
 				exp = pkg.scope.Lookup(sel)
 				if exp == nil {
-					if !pkg.fake {
+					if !pkg.fake && isValidName(sel) {
 						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e))
 					}
 					goto Error
