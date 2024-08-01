@@ -8,6 +8,7 @@ package bytes
 
 import (
 	"internal/bytealg"
+	"math/bits"
 	"unicode"
 	"unicode/utf8"
 	_ "unsafe" // for linkname
@@ -594,10 +595,11 @@ func Repeat(b []byte, count int) []byte {
 	if count < 0 {
 		panic("bytes: negative Repeat count")
 	}
-	if len(b) > maxInt/count {
+	hi, lo := bits.Mul(uint(len(b)), uint(count))
+	if hi > 0 || lo > uint(maxInt) {
 		panic("bytes: Repeat output length overflow")
 	}
-	n := len(b) * count
+	n := int(lo) // lo = len(b) * count
 
 	if len(b) == 0 {
 		return []byte{}
@@ -624,10 +626,7 @@ func Repeat(b []byte, count int) []byte {
 	nb := bytealg.MakeNoZero(n)[:n:n]
 	bp := copy(nb, b)
 	for bp < n {
-		chunk := bp
-		if chunk > chunkMax {
-			chunk = chunkMax
-		}
+		chunk := min(bp, chunkMax)
 		bp += copy(nb[bp:], nb[:chunk])
 	}
 	return nb
