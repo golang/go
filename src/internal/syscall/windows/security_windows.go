@@ -156,3 +156,22 @@ type UserInfo4 struct {
 //
 //go:linkname GetSystemDirectory
 func GetSystemDirectory() string // Implemented in runtime package.
+
+// GetUserName retrieves the user name of the current thread
+// in the specified format.
+func GetUserName(format uint32) (string, error) {
+	n := uint32(50)
+	for {
+		b := make([]uint16, n)
+		e := syscall.GetUserNameEx(format, &b[0], &n)
+		if e == nil {
+			return syscall.UTF16ToString(b[:n]), nil
+		}
+		if e != syscall.ERROR_MORE_DATA {
+			return "", e
+		}
+		if n <= uint32(len(b)) {
+			return "", e
+		}
+	}
+}
