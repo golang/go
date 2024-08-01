@@ -496,11 +496,12 @@ func Repeat[S ~[]E, E any](x S, count int) S {
 	}
 
 	const maxInt = ^uint(0) >> 1
-	if hi, lo := bits.Mul(uint(len(x)), uint(count)); hi > 0 || lo > maxInt {
+	hi, lo := bits.Mul(uint(len(x)), uint(count))
+	if hi > 0 || lo > maxInt {
 		panic("the result of (len(x) * count) overflows")
 	}
 
-	newslice := make(S, len(x)*count)
+	newslice := make(S, int(lo)) // lo = len(x) * count
 	n := copy(newslice, x)
 	for n < len(newslice) {
 		n += copy(newslice[n:], newslice[:n])

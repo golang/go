@@ -10,6 +10,7 @@ package strings
 import (
 	"internal/bytealg"
 	"internal/stringslite"
+	"math/bits"
 	"unicode"
 	"unicode/utf8"
 )
@@ -568,10 +569,11 @@ func Repeat(s string, count int) string {
 	if count < 0 {
 		panic("strings: negative Repeat count")
 	}
-	if len(s) > maxInt/count {
+	hi, lo := bits.Mul(uint(len(s)), uint(count))
+	if hi > 0 || lo > uint(maxInt) {
 		panic("strings: Repeat output length overflow")
 	}
-	n := len(s) * count
+	n := int(lo) // lo = len(s) * count
 
 	if len(s) == 0 {
 		return ""
@@ -617,13 +619,7 @@ func Repeat(s string, count int) string {
 	b.Grow(n)
 	b.WriteString(s)
 	for b.Len() < n {
-		chunk := n - b.Len()
-		if chunk > b.Len() {
-			chunk = b.Len()
-		}
-		if chunk > chunkMax {
-			chunk = chunkMax
-		}
+		chunk := min(n-b.Len(), b.Len(), chunkMax)
 		b.WriteString(b.String()[:chunk])
 	}
 	return b.String()
