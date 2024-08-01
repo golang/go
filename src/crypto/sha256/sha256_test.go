@@ -163,8 +163,20 @@ func TestGoldenMarshal(t *testing.T) {
 					continue
 				}
 
+				stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+				if err != nil {
+					t.Errorf("could not marshal: %v", err)
+					continue
+				}
+				stateAppend = stateAppend[4:]
+
 				if string(state) != g.halfState {
 					t.Errorf("sha%s(%q) state = %q, want %q", tt.name, g.in, state, g.halfState)
+					continue
+				}
+
+				if string(stateAppend) != g.halfState {
+					t.Errorf("sha%s(%q) stateAppend = %q, want %q", tt.name, g.in, stateAppend, g.halfState)
 					continue
 				}
 

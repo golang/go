@@ -140,7 +140,10 @@ const (
 )
 
 func (d *digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize)
+	return d.AppendBinary(make([]byte, 0, marshaledSize))
+}
+
+func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	switch d.function {
 	case crypto.SHA384:
 		b = append(b, magic384...)
@@ -162,7 +165,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
 	b = byteorder.BeAppendUint64(b, d.h[6])
 	b = byteorder.BeAppendUint64(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-d.nx] // already zero
+	b = append(b, make([]byte, len(d.x)-d.nx)...)
 	b = byteorder.BeAppendUint64(b, d.len)
 	return b, nil
 }
@@ -201,7 +204,10 @@ func consumeUint64(b []byte) ([]byte, uint64) {
 	return b[8:], byteorder.BeUint64(b)
 }
 
-// New returns a new hash.Hash computing the SHA-512 checksum.
+// New returns a new [hash.Hash] computing the SHA-512 checksum. The Hash
+// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+// state of the hash.
 func New() hash.Hash {
 	if boring.Enabled {
 		return boring.NewSHA512()
@@ -211,21 +217,30 @@ func New() hash.Hash {
 	return d
 }
 
-// New512_224 returns a new hash.Hash computing the SHA-512/224 checksum.
+// New512_224 returns a new [hash.Hash] computing the SHA-512/224 checksum. The Hash
+// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+// state of the hash.
 func New512_224() hash.Hash {
 	d := &digest{function: crypto.SHA512_224}
 	d.Reset()
 	return d
 }
 
-// New512_256 returns a new hash.Hash computing the SHA-512/256 checksum.
+// New512_256 returns a new [hash.Hash] computing the SHA-512/256 checksum. The Hash
+// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+// state of the hash.
 func New512_256() hash.Hash {
 	d := &digest{function: crypto.SHA512_256}
 	d.Reset()
 	return d
 }
 
-// New384 returns a new hash.Hash computing the SHA-384 checksum.
+// New384 returns a new [hash.Hash] computing the SHA-384 checksum. The Hash
+// also implements [encoding.BinaryMarshaler], [encoding.AppendBinary] and
+// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+// state of the hash.
 func New384() hash.Hash {
 	if boring.Enabled {
 		return boring.NewSHA384()
