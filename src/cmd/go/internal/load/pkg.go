@@ -459,11 +459,12 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
 
 // A PackageError describes an error loading information about a package.
 type PackageError struct {
-	ImportStack      []string // shortest path from package named on command line to this one
-	Pos              string   // position of error
-	Err              error    // the error itself
-	IsImportCycle    bool     // the error is an import cycle
-	alwaysPrintStack bool     // whether to always print the ImportStack
+	ImportStack        []string // shortest path from package named on command line to this one
+	ImportStackWithPos []string // shortest path from package named on command line to this one with position
+	Pos                string   // position of error
+	Err                error    // the error itself
+	IsImportCycle      bool     // the error is an import cycle
+	alwaysPrintStack   bool     // whether to always print the ImportStack
 }
 
 func (p *PackageError) Error() string {
@@ -489,7 +490,7 @@ func (p *PackageError) Error() string {
 	if p.Pos != "" {
 		optpos = "\n\t" + p.Pos
 	}
-	return "package " + strings.Join(p.ImportStack, "\n\timports ") + optpos + ": " + p.Err.Error()
+	return "package " + strings.Join(p.ImportStackWithPos, "\n\timports ") + optpos + ": " + p.Err.Error()
 }
 
 func (p *PackageError) Unwrap() error { return p.Err }
@@ -707,7 +708,7 @@ const (
 	cmdlinePkgLiteral
 )
 
-// LoadPackage does Load import, but without a parent package load contezt
+// LoadPackage does Load import, but without a parent package load context
 func LoadPackage(ctx context.Context, opts PackageOpts, path, srcDir string, stk *ImportStack, importPos []token.Position, mode int) *Package {
 	p, err := loadImport(ctx, opts, nil, path, srcDir, nil, stk, importPos, mode)
 	if err != nil {
@@ -1450,9 +1451,10 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 	if p.Internal.Imports == nil {
 		if p.Error == nil {
 			p.Error = &PackageError{
-				ImportStack:   stk.CopyWithPos(),
-				Err:           errors.New("import cycle not allowed"),
-				IsImportCycle: true,
+				ImportStack:        stk.Copy(),
+				ImportStackWithPos: stk.CopyWithPos(),
+				Err:                errors.New("import cycle not allowed"),
+				IsImportCycle:      true,
 			}
 		} else if !p.Error.IsImportCycle {
 			// If the error is already set, but it does not indicate that
