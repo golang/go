@@ -18,6 +18,8 @@ const (
 
 //sys	ImpersonateSelf(impersonationlevel uint32) (err error) = advapi32.ImpersonateSelf
 //sys	RevertToSelf() (err error) = advapi32.RevertToSelf
+//sys	ImpersonateLoggedOnUser(token syscall.Token) (err error) = advapi32.ImpersonateLoggedOnUser
+//sys	LogonUser(username *uint16, domain *uint16, password *uint16, logonType uint32, logonProvider uint32, token *syscall.Token) (err error) = advapi32.LogonUserW
 
 const (
 	TOKEN_ADJUST_PRIVILEGES = 0x0020
@@ -93,6 +95,26 @@ type LocalGroupUserInfo0 struct {
 	Name *uint16
 }
 
+const (
+	NERR_UserNotFound syscall.Errno = 2221
+	NERR_UserExists   syscall.Errno = 2224
+)
+
+const (
+	USER_PRIV_USER = 1
+)
+
+type UserInfo1 struct {
+	Name        *uint16
+	Password    *uint16
+	PasswordAge uint32
+	Priv        uint32
+	HomeDir     *uint16
+	Comment     *uint16
+	Flags       uint32
+	ScriptPath  *uint16
+}
+
 type UserInfo4 struct {
 	Name            *uint16
 	Password        *uint16
@@ -125,6 +147,8 @@ type UserInfo4 struct {
 	PasswordExpired uint32
 }
 
+//sys	NetUserAdd(serverName *uint16, level uint32, buf *byte, parmErr *uint32) (neterr error) = netapi32.NetUserAdd
+//sys	NetUserDel(serverName *uint16, userName *uint16) (neterr error) = netapi32.NetUserDel
 //sys	NetUserGetLocalGroups(serverName *uint16, userName *uint16, level uint32, flags uint32, buf **byte, prefMaxLen uint32, entriesRead *uint32, totalEntries *uint32) (neterr error) = netapi32.NetUserGetLocalGroups
 
 // GetSystemDirectory retrieves the path to current location of the system

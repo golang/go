@@ -5,9 +5,11 @@
 package user
 
 import (
+	"errors"
 	"fmt"
 	"internal/syscall/windows"
 	"internal/syscall/windows/registry"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -200,36 +202,91 @@ var (
 )
 
 func current() (*User, error) {
-	t, e := syscall.OpenCurrentProcessToken()
-	if e != nil {
-		return nil, e
+	// Use runAsProcessOwner to ensure that we can access the process token
+	// when calling syscall.OpenCurrentProcessToken if the current thread
+	// is impersonating a different user. See https://go.dev/issue/68647.
+	var usr *User
+	err := runAsProcessOwner(func() error {
+		t, e := syscall.OpenCurrentProcessToken()
+		if e != nil {
+			return e
+		}
+		defer t.Close()
+		u, e := t.GetTokenUser()
+		if e != nil {
+			return e
+		}
+		pg, e := t.GetTokenPrimaryGroup()
+		if e != nil {
+			return e
+		}
+		uid, e := u.User.Sid.String()
+		if e != nil {
+			return e
+		}
+		gid, e := pg.PrimaryGroup.String()
+		if e != nil {
+			return e
+		}
+		dir, e := t.GetUserProfileDirectory()
+		if e != nil {
+			return e
+		}
+		username, domain, e := lookupUsernameAndDomain(u.User.Sid)
+		if e != nil {
+			return e
+		}
+		usr, e = newUser(uid, gid, dir, username, domain)
+		return e
+	})
+	return usr, err
+}
+
+// runAsProcessOwner runs f in the context of the current process owner,
+// that is, removing any impersonation that may be in effect before calling f,
+// and restoring the impersonation afterwards.
+func runAsProcessOwner(f func() error) error {
+	var impersonationRollbackErr error
+	runtime.LockOSThread()
+	defer func() {
+		// If impersonation failed, the thread is running with the wrong token,
+		// so it's better to terminate it.
+		// This is achieved by not calling runtime.UnlockOSThread.
+		if impersonationRollbackErr != nil {
+			println("os/user: failed to revert to previous token:", impersonationRollbackErr.Error())
+			runtime.Goexit()
+		} else {
+			runtime.UnlockOSThread()
+		}
+	}()
+	prevToken, isProcessToken, err := getCurrentToken()
+	if err != nil {
+		return fmt.Errorf("os/user: failed to get current token: %w", err)
 	}
-	defer t.Close()
-	u, e := t.GetTokenUser()
-	if e != nil {
-		return nil, e
+	defer prevToken.Close()
+	if !isProcessToken {
+		if err = windows.RevertToSelf(); err != nil {
+			return fmt.Errorf("os/user: failed to revert to self: %w", err)
+		}
+		defer func() {
+			impersonationRollbackErr = windows.ImpersonateLoggedOnUser(prevToken)
+		}()
 	}
-	pg, e := t.GetTokenPrimaryGroup()
-	if e != nil {
-		return nil, e
+	return f()
+}
+
+// getCurrentToken returns the current thread token, or
+// the process token if the thread doesn't have a token.
+func getCurrentToken() (t syscall.Token, isProcessToken bool, err error) {
+	thread, _ := windows.GetCurrentThread()
+	// Need TOKEN_DUPLICATE and TOKEN_IMPERSONATE to use the token in ImpersonateLoggedOnUser.
+	err = windows.OpenThreadToken(thread, syscall.TOKEN_QUERY|syscall.TOKEN_DUPLICATE|syscall.TOKEN_IMPERSONATE, true, &t)
+	if errors.Is(err, windows.ERROR_NO_TOKEN) {
+		// Not impersonating, use the process token.
+		isProcessToken = true
+		t, err = syscall.OpenCurrentProcessToken()
 	}
-	uid, e := u.User.Sid.String()
-	if e != nil {
-		return nil, e
-	}
-	gid, e := pg.PrimaryGroup.String()
-	if e != nil {
-		return nil, e
-	}
-	dir, e := t.GetUserProfileDirectory()
-	if e != nil {
-		return nil, e
-	}
-	username, domain, e := lookupUsernameAndDomain(u.User.Sid)
-	if e != nil {
-		return nil, e
-	}
-	return newUser(uid, gid, dir, username, domain)
+	return t, isProcessToken, err
 }
 
 // lookupUserPrimaryGroup obtains the primary group SID for a user using this method:
