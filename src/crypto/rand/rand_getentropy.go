@@ -8,7 +8,5 @@ package rand
 
 import "internal/syscall/unix"
 
-func init() {
-	// getentropy(2) returns a maximum of 256 bytes per call.
-	altGetRandom = batched(unix.GetEntropy, 256)
-}
+// getentropy(2) returns a maximum of 256 bytes per call.
+var read = batched(unix.GetEntropy, 256)

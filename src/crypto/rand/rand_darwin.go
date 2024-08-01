@@ -6,14 +6,15 @@ package rand
 
 import "internal/syscall/unix"
 
-func init() {
-	// arc4random_buf is the recommended application CSPRNG, accepts buffers of
-	// any size, and never returns an error.
-	//
-	// "The subsystem is re-seeded from the kernel random number subsystem on a
-	// regular basis, and also upon fork(2)." - arc4random(3)
-	//
-	// Note that despite its legacy name, it uses a secure CSPRNG (not RC4) in
-	// all supported macOS versions.
-	altGetRandom = func(b []byte) error { unix.ARC4Random(b); return nil }
+// arc4random_buf is the recommended application CSPRNG, accepts buffers of
+// any size, and never returns an error.
+//
+// "The subsystem is re-seeded from the kernel random number subsystem on a
+// regular basis, and also upon fork(2)." - arc4random(3)
+//
+// Note that despite its legacy name, it uses a secure CSPRNG (not RC4) in
+// all supported macOS versions.
+func read(b []byte) error {
+	unix.ARC4Random(b)
+	return nil
 }
