@@ -564,6 +564,48 @@ func BenchmarkOSYield(b *testing.B) {
 	}
 }
 
+func BenchmarkMutexContention(b *testing.B) {
+	// Measure throughput of a single mutex with all threads contending
+	//
+	// Share a single counter across all threads. Progress from any thread is
+	// progress for the benchmark as a whole. We don't measure or give points
+	// for fairness here, arbitrary delay to any given thread's progress is
+	// invisible and allowed.
+	//
+	// The cache line that holds the count value will need to move between
+	// processors, but not as often as the cache line that holds the mutex. The
+	// mutex protects access to the count value, which limits contention on that
+	// cache line. This is a simple design, but it helps to make the behavior of
+	// the benchmark clear. Most real uses of mutex will protect some number of
+	// cache lines anyway.
+
+	var state struct {
+		_     cpu.CacheLinePad
+		lock  Mutex
+		_     cpu.CacheLinePad
+		count atomic.Int64
+		_     cpu.CacheLinePad
+	}
+
+	procs := GOMAXPROCS(0)
+	var wg sync.WaitGroup
+	for range procs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				Lock(&state.lock)
+				ours := state.count.Add(1)
+				Unlock(&state.lock)
+				if ours >= int64(b.N) {
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 func BenchmarkMutexHandoff(b *testing.B) {
 	testcase := func(delay func(l *Mutex)) func(b *testing.B) {
 		return func(b *testing.B) {
@@ -590,11 +632,11 @@ func BenchmarkMutexHandoff(b *testing.B) {
 			// each other in a non-blocking way via the "turn" state.
 
 			var state struct {
-				_    [cpu.CacheLinePadSize]byte
+				_    cpu.CacheLinePad
 				lock Mutex
-				_    [cpu.CacheLinePadSize]byte
+				_    cpu.CacheLinePad
 				turn atomic.Int64
-				_    [cpu.CacheLinePadSize]byte
+				_    cpu.CacheLinePad
 			}
 
 			var delta atomic.Int64
