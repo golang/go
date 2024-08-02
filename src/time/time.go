@@ -591,6 +591,7 @@ type absJanFeb int
 
 // dateToAbsDays takes a standard year/month/day and returns the
 // number of days from the absolute epoch to that day.
+// The days argument can be out of range and in particular can be negative.
 func dateToAbsDays(year int64, month Month, day int) absDays {
 	// See “Computations on Times” comment above.
 	amonth := uint32(month)
@@ -626,7 +627,7 @@ func dateToAbsDays(year int64, month Month, day int) absDays {
 	cday := 1461 * cyear / 4
 	centurydays := 146097 * century / 4
 
-	return absDays(centurydays + uint64(cday+ayday+uint32(day)-1))
+	return absDays(centurydays + uint64(int64(cday+ayday)+int64(day)-1))
 }
 
 // days converts absolute seconds to absolute days.

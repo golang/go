@@ -666,6 +666,9 @@ var dateTests = []struct {
 	{2012, 1, -43, 7, 56, 35, 0, Local, 1321631795},                 // Jan -52 7:56:35 2012
 	{2012, int(January - 2), 18, 7, 56, 35, 0, Local, 1321631795},   // (Jan-2) 18 7:56:35 2012
 	{2010, int(December + 11), 18, 7, 56, 35, 0, Local, 1321631795}, // (Dec+11) 18 7:56:35 2010
+	{1970, 1, 15297, 7, 56, 35, 0, Local, 1321631795},               // large number of days
+
+	{1970, 1, -25508, 0, 0, 0, 0, Local, -2203948800}, // negative Unix time
 }
 
 func TestDate(t *testing.T) {
@@ -703,6 +706,13 @@ func TestAddDate(t *testing.T) {
 				at.years, at.months, at.days,
 				time, t1)
 		}
+	}
+
+	t2 := Date(1899, 12, 31, 0, 0, 0, 0, UTC)
+	days := t2.Unix() / (24 * 60 * 60)
+	t3 := Unix(0, 0).AddDate(0, 0, int(days))
+	if !t2.Equal(t3) {
+		t.Errorf("Adddate(0, 0, %d) = %v, want %v", days, t3, t2)
 	}
 }
 
