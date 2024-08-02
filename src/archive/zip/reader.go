@@ -902,14 +902,8 @@ func (r *Reader) Open(name string) (fs.File, error) {
 }
 
 func split(name string) (dir, elem string, isDir bool) {
-	if len(name) > 0 && name[len(name)-1] == '/' {
-		isDir = true
-		name = name[:len(name)-1]
-	}
-	i := len(name) - 1
-	for i >= 0 && name[i] != '/' {
-		i--
-	}
+	name, isDir = strings.CutSuffix(name, "/")
+	i := strings.LastIndexByte(name, '/')
 	if i < 0 {
 		return ".", name, isDir
 	}
