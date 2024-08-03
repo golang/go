@@ -303,6 +303,7 @@ func (h *sha224Hash) AppendBinary(b []byte) ([]byte, error) {
 	b = byteorder.BeAppendUint32(b, d.h[5])
 	b = byteorder.BeAppendUint32(b, d.h[6])
 	b = byteorder.BeAppendUint32(b, d.h[7])
+	b = append(b, d.x[:d.nx]...)
 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
 	b = byteorder.BeAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
 	return b, nil
@@ -323,6 +324,7 @@ func (h *sha256Hash) AppendBinary(b []byte) ([]byte, error) {
 	b = byteorder.BeAppendUint32(b, d.h[5])
 	b = byteorder.BeAppendUint32(b, d.h[6])
 	b = byteorder.BeAppendUint32(b, d.h[7])
+	b = append(b, d.x[:d.nx]...)
 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
 	b = byteorder.BeAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
 	return b, nil
