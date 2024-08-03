@@ -361,6 +361,9 @@ func (w *writer) Sym(s *LSym) {
 	if s.ABIWrapper() {
 		flag2 |= goobj.SymFlagABIWrapper
 	}
+	if s.Func() != nil && s.Func().WasmExport != nil {
+		flag2 |= goobj.SymFlagWasmExport
+	}
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
 	}
@@ -627,6 +630,9 @@ func (w *writer) Aux(s *LSym) {
 			}
 			w.aux1(goobj.AuxWasmImport, fn.WasmImport.AuxSym)
 		}
+		if fn.WasmExport != nil {
+			w.aux1(goobj.AuxWasmType, fn.WasmExport.AuxSym)
+		}
 	} else if v := s.VarInfo(); v != nil {
 		if v.dwarfInfoSym != nil && v.dwarfInfoSym.Size != 0 {
 			w.aux1(goobj.AuxDwarfInfo, v.dwarfInfoSym)
@@ -737,6 +743,9 @@ func nAuxSym(s *LSym) int {
 			}
 			n++
 		}
+		if fn.WasmExport != nil {
+			n++
+		}
 	} else if v := s.VarInfo(); v != nil {
 		if v.dwarfInfoSym != nil && v.dwarfInfoSym.Size != 0 {
 			n++
@@ -800,6 +809,9 @@ func genFuncInfoSyms(ctxt *Link) {
 		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym}
 		if wi := fn.WasmImport; wi != nil {
 			auxsyms = append(auxsyms, wi.AuxSym)
+		}
+		if we := fn.WasmExport; we != nil {
+			auxsyms = append(auxsyms, we.AuxSym)
 		}
 		for _, s := range auxsyms {
 			if s == nil || s.Size == 0 {

@@ -219,6 +219,15 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 		if sig, ok := wasmFuncTypes[ldr.SymName(fn)]; ok {
 			typ = lookupType(sig, &types)
 		}
+		if s := ldr.WasmTypeSym(fn); s != 0 {
+			var o obj.WasmFuncType
+			o.Read(ldr.Data(s))
+			t := &wasmFuncType{
+				Params:  fieldsToTypes(o.Params),
+				Results: fieldsToTypes(o.Results),
+			}
+			typ = lookupType(t, &types)
+		}
 
 		name := nameRegexp.ReplaceAllString(ldr.SymName(fn), "_")
 		fns[i] = &wasmFunc{Name: name, Type: typ, Code: wfn.Bytes()}
@@ -407,15 +416,21 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
 
 	switch buildcfg.GOOS {
 	case "wasip1":
-		writeUleb128(ctxt.Out, 2) // number of exports
+		writeUleb128(ctxt.Out, uint64(2+len(ldr.WasmExports))) // number of exports
 		s := ldr.Lookup("_rt0_wasm_wasip1", 0)
 		idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
 		writeName(ctxt.Out, "_start")       // the wasi entrypoint
 		ctxt.Out.WriteByte(0x00)            // func export
 		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
-		writeName(ctxt.Out, "memory")       // memory in wasi
-		ctxt.Out.WriteByte(0x02)            // mem export
-		writeUleb128(ctxt.Out, 0)           // memidx
+		for _, s := range ldr.WasmExports {
+			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+			writeName(ctxt.Out, ldr.SymName(s))
+			ctxt.Out.WriteByte(0x00)            // func export
+			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+		}
+		writeName(ctxt.Out, "memory") // memory in wasi
+		ctxt.Out.WriteByte(0x02)      // mem export
+		writeUleb128(ctxt.Out, 0)     // memidx
 	case "js":
 		writeUleb128(ctxt.Out, 4) // number of exports
 		for _, name := range []string{"run", "resume", "getsp"} {

@@ -1050,6 +1050,7 @@ func (w *writer) funcExt(obj *types2.Func) {
 		w.p.errorf(decl, "go:nosplit and go:systemstack cannot be combined")
 	}
 	wi := asWasmImport(decl.Pragma)
+	we := asWasmExport(decl.Pragma)
 
 	if decl.Body != nil {
 		if pragma&ir.Noescape != 0 {
@@ -1102,6 +1103,11 @@ func (w *writer) funcExt(obj *types2.Func) {
 			w.String(wi.Name)
 		} else {
 			w.String("")
+			w.String("")
+		}
+		if we != nil {
+			w.String(we.Name)
+		} else {
 			w.String("")
 		}
 	}
@@ -3009,6 +3015,13 @@ func asWasmImport(p syntax.Pragma) *WasmImport {
 		return nil
 	}
 	return p.(*pragmas).WasmImport
+}
+
+func asWasmExport(p syntax.Pragma) *WasmExport {
+	if p == nil {
+		return nil
+	}
+	return p.(*pragmas).WasmExport
 }
 
 // isPtrTo reports whether from is the type *to.

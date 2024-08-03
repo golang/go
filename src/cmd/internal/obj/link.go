@@ -500,6 +500,7 @@ type FuncInfo struct {
 	FuncInfoSym *LSym
 
 	WasmImport *WasmImport
+	WasmExport *WasmExport
 
 	sehUnwindInfoSym *LSym
 }
@@ -665,9 +666,9 @@ func (wi *WasmImport) Read(b []byte) {
 // parameters and results translated into WASM types based on the Go function
 // declaration.
 type WasmFuncType struct {
-	// Params holds the imported function parameter fields.
+	// Params holds the function parameter fields.
 	Params []WasmField
-	// Results holds the imported function result fields.
+	// Results holds the function result fields.
 	Results []WasmField
 }
 
@@ -721,6 +722,27 @@ func (ft *WasmFuncType) Read(b []byte) {
 	for i := range ft.Results {
 		ft.Results[i].Type = WasmFieldType(readByte())
 		ft.Results[i].Offset = int64(readInt64())
+	}
+}
+
+// WasmExport represents a WebAssembly (WASM) exported function with
+// parameters and results translated into WASM types based on the Go function
+// declaration.
+type WasmExport struct {
+	WasmFuncType
+
+	WrappedSym *LSym // the wrapped Go function
+	AuxSym     *LSym // aux symbol to pass metadata to the linker
+}
+
+func (we *WasmExport) CreateAuxSym() {
+	var b bytes.Buffer
+	we.WasmFuncType.Write(&b)
+	p := b.Bytes()
+	we.AuxSym = &LSym{
+		Type: objabi.SDATA, // doesn't really matter
+		P:    append([]byte(nil), p...),
+		Size: int64(len(p)),
 	}
 }
 

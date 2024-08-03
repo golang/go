@@ -251,6 +251,8 @@ type Loader struct {
 	// CgoExports records cgo-exported symbols by SymName.
 	CgoExports map[string]Sym
 
+	WasmExports []Sym
+
 	flags uint32
 
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
@@ -1627,6 +1629,10 @@ func (l *Loader) WasmImportSym(fnSymIdx Sym) Sym {
 	return l.aux1(fnSymIdx, goobj.AuxWasmImport)
 }
 
+func (l *Loader) WasmTypeSym(s Sym) Sym {
+	return l.aux1(s, goobj.AuxWasmType)
+}
+
 // SEHUnwindSym returns the auxiliary SEH unwind symbol associated with
 // a given function symbol.
 func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
@@ -2212,6 +2218,9 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		}
 		if a := int32(osym.Align()); a != 0 && a > l.SymAlign(gi) {
 			l.SetSymAlign(gi, a)
+		}
+		if osym.WasmExport() {
+			l.WasmExports = append(l.WasmExports, gi)
 		}
 	}
 }

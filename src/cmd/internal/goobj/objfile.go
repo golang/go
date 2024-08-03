@@ -306,6 +306,7 @@ const (
 	SymFlagPkgInit
 	SymFlagLinkname
 	SymFlagABIWrapper
+	SymFlagWasmExport
 )
 
 // Returns the length of the name of the symbol.
@@ -339,6 +340,7 @@ func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
 func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
 func (s *Sym) IsLinkname() bool    { return s.Flag2()&SymFlagLinkname != 0 }
 func (s *Sym) ABIWrapper() bool    { return s.Flag2()&SymFlagABIWrapper != 0 }
+func (s *Sym) WasmExport() bool    { return s.Flag2()&SymFlagWasmExport != 0 }
 
 func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
@@ -447,6 +449,7 @@ const (
 	AuxPcinline
 	AuxPcdata
 	AuxWasmImport
+	AuxWasmType
 	AuxSehUnwindInfo
 )
 

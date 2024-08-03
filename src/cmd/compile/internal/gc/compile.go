@@ -105,6 +105,11 @@ func prepareFunc(fn *ir.Func) {
 	// Calculate parameter offsets.
 	types.CalcSize(fn.Type())
 
+	// Generate wrappers between Go ABI and Wasm ABI, for a wasmexport
+	// function.
+	// Must be done after InitLSym and CalcSize.
+	ssagen.GenWasmExportWrapper(fn)
+
 	ir.CurFunc = fn
 	walk.Walk(fn)
 	ir.CurFunc = nil // enforce no further uses of CurFunc

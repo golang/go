@@ -116,6 +116,13 @@ func (d *deadcodePass) init() {
 		}
 		d.mark(s, 0)
 	}
+	// So are wasmexports.
+	for _, s := range d.ldr.WasmExports {
+		if d.ctxt.Debugvlog > 1 {
+			d.ctxt.Logf("deadcode start wasmexport: %s<%d>\n", d.ldr.SymName(s), d.ldr.SymVersion(s))
+		}
+		d.mark(s, 0)
+	}
 
 	d.mapinitnoop = d.ldr.Lookup("runtime.mapinitnoop", abiInternalVer)
 	if d.mapinitnoop == 0 {

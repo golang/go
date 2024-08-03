@@ -196,6 +196,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		// isn't run. We don't want the frame expansion code because our function
 		// body is just the code to translate and call the imported function.
 		framesize = 0
+	} else if s.Func().WasmExport != nil {
+		genWasmExportWrapper(s, appendp)
 	} else if s.Func().Text.From.Sym.Wrapper() {
 		// if g._panic != nil && g._panic.argp == FP {
 		//   g._panic.argp = bottom-of-frame
@@ -900,6 +902,95 @@ func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 	p = appendp(p, obj.ARET)
 }
 
+// Generate function body for wasmexport wrapper function.
+func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args ...obj.Addr) *obj.Prog) {
+	we := s.Func().WasmExport
+	we.CreateAuxSym()
+	p := s.Func().Text
+	if p.Link != nil {
+		panic("wrapper functions for WASM export should not have a body")
+	}
+	framesize := p.To.Offset
+
+	// Store args
+	for i, f := range we.Params {
+		p = appendp(p, AGet, regAddr(REG_SP))
+		p = appendp(p, AGet, regAddr(REG_R0+int16(i)))
+		switch f.Type {
+		case obj.WasmI32:
+			p = appendp(p, AI32Store, constAddr(f.Offset))
+		case obj.WasmI64:
+			p = appendp(p, AI64Store, constAddr(f.Offset))
+		case obj.WasmF32:
+			p = appendp(p, AF32Store, constAddr(f.Offset))
+		case obj.WasmF64:
+			p = appendp(p, AF64Store, constAddr(f.Offset))
+		case obj.WasmPtr:
+			p = appendp(p, AI64ExtendI32U)
+			p = appendp(p, AI64Store, constAddr(f.Offset))
+		default:
+			panic("bad param type")
+		}
+	}
+
+	// Call the Go function.
+	// XXX maybe use ACALL and let later phase expand? But we don't use PC_B. Maybe we should?
+	// Go calling convention expects we push a return PC before call.
+	// SP -= 8
+	p = appendp(p, AGet, regAddr(REG_SP))
+	p = appendp(p, AI32Const, constAddr(8))
+	p = appendp(p, AI32Sub)
+	p = appendp(p, ASet, regAddr(REG_SP))
+	// write return address to Go stack
+	p = appendp(p, AGet, regAddr(REG_SP))
+	p = appendp(p, AI64Const, obj.Addr{
+		Type:   obj.TYPE_ADDR,
+		Name:   obj.NAME_EXTERN,
+		Sym:    s, // PC_F
+		Offset: 1, // PC_B=1, past the prologue, so we have the right SP delta
+	})
+	p = appendp(p, AI64Store, constAddr(0))
+	// Set PC_B parameter to function entry
+	p = appendp(p, AI32Const, constAddr(0))
+	p = appendp(p, ACall, obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: we.WrappedSym})
+	// return value is on the top of the stack, indicating whether to unwind the Wasm stack
+	// TODO: handle stack unwinding
+	p = appendp(p, AIf)
+	p = appendp(p, obj.AUNDEF)
+	p = appendp(p, AEnd)
+
+	// Load result
+	if len(we.Results) > 1 {
+		panic("invalid results type")
+	} else if len(we.Results) == 1 {
+		p = appendp(p, AGet, regAddr(REG_SP))
+		f := we.Results[0]
+		switch f.Type {
+		case obj.WasmI32:
+			p = appendp(p, AI32Load, constAddr(f.Offset))
+		case obj.WasmI64:
+			p = appendp(p, AI64Load, constAddr(f.Offset))
+		case obj.WasmF32:
+			p = appendp(p, AF32Load, constAddr(f.Offset))
+		case obj.WasmF64:
+			p = appendp(p, AF64Load, constAddr(f.Offset))
+		case obj.WasmPtr:
+			p = appendp(p, AI64Load, constAddr(f.Offset))
+			p = appendp(p, AI32WrapI64)
+		default:
+			panic("bad result type")
+		}
+	}
+
+	// Epilogue. Cannot use ARET as we don't follow Go calling convention.
+	// SP += framesize
+	p = appendp(p, AGet, regAddr(REG_SP))
+	p = appendp(p, AI32Const, constAddr(framesize))
+	p = appendp(p, AI32Add)
+	p = appendp(p, ASet, regAddr(REG_SP))
+	p = appendp(p, AReturn)
+}
+
 func constAddr(value int64) obj.Addr {
 	return obj.Addr{Type: obj.TYPE_CONST, Offset: value}
 }
@@ -991,6 +1082,12 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		// no locals
 		useAssemblyRegMap()
 	default:
+		if s.Func().WasmExport != nil {
+			// no local SP, not following Go calling convention
+			useAssemblyRegMap()
+			break
+		}
+
 		// Normal calling convention: PC_B as WebAssembly parameter. First local variable is local SP cache.
 		regVars[REG_PC_B-MINREG] = &regVar{false, 0}
 		hasLocalSP = true

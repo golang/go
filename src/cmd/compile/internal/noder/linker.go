@@ -278,6 +278,11 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
 			w.String("")
 			w.String("")
 		}
+		if name.Func.WasmExport != nil {
+			w.String(name.Func.WasmExport.Name)
+		} else {
+			w.String("")
+		}
 	}
 
 	// Relocated extension data.
