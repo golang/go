@@ -15,7 +15,7 @@ import (
 	"cmd/internal/sys"
 )
 
-var intrinsics map[intrinsicKey]intrinsicBuilder
+var intrinsics intrinsicBuilders
 
 // An intrinsicBuilder converts a call node n into an ssa value that
 // implements that call as an intrinsic. args is a list of arguments to the func.
@@ -27,8 +27,80 @@ type intrinsicKey struct {
 	fn   string
 }
 
-func initIntrinsics() {
-	intrinsics = map[intrinsicKey]intrinsicBuilder{}
+// intrinsicBuildConfig specifies the config to use for intrinsic building.
+type intrinsicBuildConfig struct {
+	instrumenting bool
+
+	go386     string
+	goamd64   int
+	goarm     buildcfg.GoarmFeatures
+	goarm64   buildcfg.Goarm64Features
+	gomips    string
+	gomips64  string
+	goppc64   int
+	goriscv64 int
+}
+
+type intrinsicBuilders map[intrinsicKey]intrinsicBuilder
+
+// add adds the intrinsic builder b for pkg.fn for the given architecture.
+func (ib intrinsicBuilders) add(arch *sys.Arch, pkg, fn string, b intrinsicBuilder) {
+	ib[intrinsicKey{arch, pkg, fn}] = b
+}
+
+// addForArchs adds the intrinsic builder b for pkg.fn for the given architectures.
+func (ib intrinsicBuilders) addForArchs(pkg, fn string, b intrinsicBuilder, archs ...*sys.Arch) {
+	for _, arch := range archs {
+		ib.add(arch, pkg, fn, b)
+	}
+}
+
+// addForFamilies does the same as addForArchs but operates on architecture families.
+func (ib intrinsicBuilders) addForFamilies(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily) {
+	for _, arch := range sys.Archs {
+		if arch.InFamily(archFamilies...) {
+			intrinsics.add(arch, pkg, fn, b)
+		}
+	}
+}
+
+// alias aliases pkg.fn to targetPkg.targetFn for all architectures in archs
+// for which targetPkg.targetFn already exists.
+func (ib intrinsicBuilders) alias(pkg, fn, targetPkg, targetFn string, archs ...*sys.Arch) {
+	// TODO(jsing): Consider making this work even if the alias is added
+	// before the intrinsic.
+	aliased := false
+	for _, arch := range archs {
+		if b := intrinsics.lookup(arch, targetPkg, targetFn); b != nil {
+			intrinsics.add(arch, pkg, fn, b)
+			aliased = true
+		}
+	}
+	if !aliased {
+		panic(fmt.Sprintf("attempted to alias undefined intrinsic: %s.%s", pkg, fn))
+	}
+}
+
+// lookup looks up the intrinsic for a pkg.fn on the specified architecture.
+func (ib intrinsicBuilders) lookup(arch *sys.Arch, pkg, fn string) intrinsicBuilder {
+	return intrinsics[intrinsicKey{arch, pkg, fn}]
+}
+
+func initIntrinsics(cfg *intrinsicBuildConfig) {
+	if cfg == nil {
+		cfg = &intrinsicBuildConfig{
+			instrumenting: base.Flag.Cfg.Instrumenting,
+			go386:         buildcfg.GO386,
+			goamd64:       buildcfg.GOAMD64,
+			goarm:         buildcfg.GOARM,
+			goarm64:       buildcfg.GOARM64,
+			gomips:        buildcfg.GOMIPS,
+			gomips64:      buildcfg.GOMIPS64,
+			goppc64:       buildcfg.GOPPC64,
+			goriscv64:     buildcfg.GORISCV64,
+		}
+	}
+	intrinsics = intrinsicBuilders{}
 
 	var p4 []*sys.Arch
 	var p8 []*sys.Arch
@@ -45,36 +117,18 @@ func initIntrinsics() {
 	}
 	all := sys.Archs[:]
 
-	// add adds the intrinsic b for pkg.fn for the given list of architectures.
 	add := func(pkg, fn string, b intrinsicBuilder, archs ...*sys.Arch) {
-		for _, a := range archs {
-			intrinsics[intrinsicKey{a, pkg, fn}] = b
-		}
+		intrinsics.addForArchs(pkg, fn, b, archs...)
 	}
-	// addF does the same as add but operates on architecture families.
 	addF := func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily) {
-		for _, a := range sys.Archs {
-			if a.InFamily(archFamilies...) {
-				intrinsics[intrinsicKey{a, pkg, fn}] = b
-			}
-		}
+		intrinsics.addForFamilies(pkg, fn, b, archFamilies...)
 	}
-	// alias defines pkg.fn = pkg2.fn2 for all architectures in archs for which pkg2.fn2 exists.
 	alias := func(pkg, fn, pkg2, fn2 string, archs ...*sys.Arch) {
-		aliased := false
-		for _, a := range archs {
-			if b, ok := intrinsics[intrinsicKey{a, pkg2, fn2}]; ok {
-				intrinsics[intrinsicKey{a, pkg, fn}] = b
-				aliased = true
-			}
-		}
-		if !aliased {
-			panic(fmt.Sprintf("attempted to alias undefined intrinsic: %s.%s", pkg, fn))
-		}
+		intrinsics.alias(pkg, fn, pkg2, fn2, archs...)
 	}
 
 	/******** runtime ********/
-	if !base.Flag.Cfg.Instrumenting {
+	if !cfg.instrumenting {
 		add("runtime", "slicebytetostringtmp",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				// Compiler frontend optimizations emit OBYTES2STRTMP nodes
@@ -125,7 +179,7 @@ func initIntrinsics() {
 		sys.ARM64, sys.PPC64, sys.RISCV64)
 
 	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X}
-	if buildcfg.GOPPC64 >= 10 {
+	if cfg.goppc64 >= 10 {
 		// Use only on Power10 as the new byte reverse instructions that Power10 provide
 		// make it worthwhile as an intrinsic
 		brev_arch = append(brev_arch, sys.PPC64)
@@ -258,7 +312,7 @@ func initIntrinsics() {
 	makeAtomicGuardedIntrinsicARM64common := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter, needReturn bool) intrinsicBuilder {
 
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			if buildcfg.GOARM64.LSE {
+			if cfg.goarm64.LSE {
 				emit(s, n, args, op1, typ, needReturn)
 			} else {
 				// Target Atomic feature is identified by dynamic detection
@@ -565,7 +619,7 @@ func initIntrinsics() {
 				return s.variable(n, types.Types[types.TFLOAT64])
 			}
 
-			if buildcfg.GOAMD64 >= 3 {
+			if cfg.goamd64 >= 3 {
 				return s.newValue3(ssa.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
 			}
 
@@ -631,7 +685,7 @@ func initIntrinsics() {
 
 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			if buildcfg.GOAMD64 >= 2 {
+			if cfg.goamd64 >= 2 {
 				return s.newValue1(op, types.Types[types.TFLOAT64], args[0])
 			}
 
@@ -732,7 +786,7 @@ func initIntrinsics() {
 	// ReverseBytes inlines correctly, no need to intrinsify it.
 	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
 	// On Power10, 16-bit rotate is not available so use BRH instruction
-	if buildcfg.GOPPC64 >= 10 {
+	if cfg.goppc64 >= 10 {
 		addF("math/bits", "ReverseBytes16",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT], args[0])
@@ -847,7 +901,7 @@ func initIntrinsics() {
 
 	makeOnesCountAMD64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			if buildcfg.GOAMD64 >= 2 {
+			if cfg.goamd64 >= 2 {
 				return s.newValue1(op, types.Types[types.TINT], args[0])
 			}
 
@@ -1032,7 +1086,7 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 			return nil
 		}
 	}
-	return intrinsics[intrinsicKey{Arch.LinkArch.Arch, pkg, fn}]
+	return intrinsics.lookup(Arch.LinkArch.Arch, pkg, fn)
 }
 
 func IsIntrinsicCall(n *ir.CallExpr) bool {

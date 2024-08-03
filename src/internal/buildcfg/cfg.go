@@ -70,12 +70,12 @@ func goamd64() int {
 	return int(defaultGOAMD64[len("v")] - '0')
 }
 
-type goarmFeatures struct {
+type GoarmFeatures struct {
 	Version   int
 	SoftFloat bool
 }
 
-func (g goarmFeatures) String() string {
+func (g GoarmFeatures) String() string {
 	armStr := strconv.Itoa(g.Version)
 	if g.SoftFloat {
 		armStr += ",softfloat"
@@ -85,7 +85,7 @@ func (g goarmFeatures) String() string {
 	return armStr
 }
 
-func goarm() (g goarmFeatures) {
+func goarm() (g GoarmFeatures) {
 	const (
 		softFloatOpt = ",softfloat"
 		hardFloatOpt = ",hardfloat"

@@ -7,6 +7,8 @@ package ssagen
 import (
 	"internal/buildcfg"
 	"testing"
+
+	"cmd/internal/sys"
 )
 
 type testIntrinsicKey struct {
@@ -1231,7 +1233,7 @@ var wantIntrinsicsPower10 = map[testIntrinsicKey]struct{}{
 }
 
 func TestIntrinsics(t *testing.T) {
-	initIntrinsics()
+	initIntrinsics(nil)
 
 	want := make(map[testIntrinsicKey]struct{})
 	for ik, iv := range wantIntrinsics {
@@ -1256,5 +1258,48 @@ func TestIntrinsics(t *testing.T) {
 		if _, found := got[ik]; !found {
 			t.Errorf("Want intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
 		}
+	}
+}
+
+func TestIntrinsicBuilders(t *testing.T) {
+	cfg := &intrinsicBuildConfig{}
+	initIntrinsics(cfg)
+
+	for _, arch := range sys.Archs {
+		if intrinsics.lookup(arch, "runtime", "getcallersp") == nil {
+			t.Errorf("No intrinsic for runtime.getcallersp on arch %v", arch)
+		}
+	}
+
+	if intrinsics.lookup(sys.ArchAMD64, "runtime", "slicebytetostringtmp") == nil {
+		t.Error("No intrinsic for runtime.slicebytetostringtmp")
+	}
+
+	if intrinsics.lookup(sys.ArchRISCV64, "runtime", "publicationBarrier") == nil {
+		t.Errorf("No intrinsic for runtime.publicationBarrier on arch %v", sys.ArchRISCV64)
+	}
+
+	if intrinsics.lookup(sys.ArchAMD64, "internal/runtime/sys", "Bswap32") == nil {
+		t.Errorf("No intrinsic for internal/runtime/sys.Bswap32 on arch %v", sys.ArchAMD64)
+	}
+	if intrinsics.lookup(sys.ArchAMD64, "internal/runtime/sys", "Bswap64") == nil {
+		t.Errorf("No intrinsic for internal/runtime/sys.Bswap64 on arch %v", sys.ArchAMD64)
+	}
+
+	if intrinsics.lookup(sys.ArchPPC64, "internal/runtime/sys", "Bswap64") != nil {
+		t.Errorf("Found intrinsic for internal/runtime/sys.Bswap64 on arch %v", sys.ArchPPC64)
+	}
+
+	cfg.goppc64 = 10
+	cfg.instrumenting = true
+
+	initIntrinsics(cfg)
+
+	if intrinsics.lookup(sys.ArchAMD64, "runtime", "slicebytetostringtmp") != nil {
+		t.Error("Intrinsic incorrectly exists for runtime.slicebytetostringtmp")
+	}
+
+	if intrinsics.lookup(sys.ArchPPC64, "internal/runtime/sys", "Bswap64") == nil {
+		t.Errorf("No intrinsic for internal/runtime/sys.Bswap64 on arch %v", sys.ArchPPC64)
 	}
 }

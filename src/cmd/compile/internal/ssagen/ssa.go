@@ -222,7 +222,7 @@ func InitConfig() {
 }
 
 func InitTables() {
-	initIntrinsics()
+	initIntrinsics(nil)
 }
 
 // AbiForBodylessFuncStackMap returns the ABI for a bodyless function's stack map.
@@ -2037,7 +2037,7 @@ func (s *state) stmt(n ir.Node) {
 		if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Name) {
 			// Note: we can only use the cache if we have the right atomic load instruction.
 			// Double-check that here.
-			if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp"}]; !ok {
+			if intrinsics.lookup(Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp") == nil {
 				s.Fatalf("atomic load not available")
 			}
 			merge = s.f.NewBlock(ssa.BlockPlain)
@@ -5763,7 +5763,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 			if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Name) {
 				// Note: we can only use the cache if we have the right atomic load instruction.
 				// Double-check that here.
-				if _, ok := intrinsics[intrinsicKey{Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp"}]; !ok {
+				if intrinsics.lookup(Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp") == nil {
 					s.Fatalf("atomic load not available")
 				}
 				// Pick right size ops.
