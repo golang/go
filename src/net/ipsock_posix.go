@@ -9,6 +9,7 @@ package net
 import (
 	"context"
 	"internal/poll"
+	"log"
 	"net/netip"
 	"runtime"
 	"syscall"
@@ -38,11 +39,12 @@ func (p *ipStackCapabilities) probe() {
 	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 	switch err {
 	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
+		log.Printf("IPv4 support not available: %v", err)
 	case nil:
 		poll.CloseFunc(s)
 		p.ipv4Enabled = true
 	}
-	var probes = []struct {
+	probes := []struct {
 		laddr TCPAddr
 		value int
 	}{
@@ -58,21 +60,28 @@ func (p *ipStackCapabilities) probe() {
 		// and we don't need to probe the capability.
 		probes = probes[:1]
 	}
-	for i := range probes {
+	for _, probe := range probes {
 		s, err := sysSocket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 		if err != nil {
+			log.Printf("Skipping probe for %v: %v", probe.laddr, err)
 			continue
 		}
 		defer poll.CloseFunc(s)
-		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, probes[i].value)
-		sa, err := probes[i].laddr.sockaddr(syscall.AF_INET6)
+		err = syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, probe.value)
 		if err != nil {
+			log.Printf("Error setting socket option for %v: %v", probe.laddr, err)
+			continue
+		}
+		sa, err := probe.laddr.sockaddr(syscall.AF_INET6)
+		if err != nil {
+			log.Printf("Error getting sockaddr for %v: %v", probe.laddr, err)
 			continue
 		}
 		if err := syscall.Bind(s, sa); err != nil {
+			log.Printf("Error binding socket for %v: %v", probe.laddr, err)
 			continue
 		}
-		if i == 0 {
+		if probe.value == 1 {
 			p.ipv6Enabled = true
 		} else {
 			p.ipv4MappedIPv6Enabled = true
