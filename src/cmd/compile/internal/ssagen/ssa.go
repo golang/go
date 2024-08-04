@@ -4215,12 +4215,10 @@ type intrinsicKey struct {
 func InitTables() {
 	intrinsics = map[intrinsicKey]intrinsicBuilder{}
 
-	var all []*sys.Arch
 	var p4 []*sys.Arch
 	var p8 []*sys.Arch
 	var lwatomics []*sys.Arch
-	for _, a := range &sys.Archs {
-		all = append(all, a)
+	for _, a := range sys.Archs {
 		if a.PtrSize == 4 {
 			p4 = append(p4, a)
 		} else {
@@ -4230,6 +4228,7 @@ func InitTables() {
 			lwatomics = append(lwatomics, a)
 		}
 	}
+	all := sys.Archs[:]
 
 	// add adds the intrinsic b for pkg.fn for the given list of architectures.
 	add := func(pkg, fn string, b intrinsicBuilder, archs ...*sys.Arch) {
@@ -4239,15 +4238,8 @@ func InitTables() {
 	}
 	// addF does the same as add but operates on architecture families.
 	addF := func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily) {
-		m := 0
-		for _, f := range archFamilies {
-			if f >= 32 {
-				panic("too many architecture families")
-			}
-			m |= 1 << uint(f)
-		}
-		for _, a := range all {
-			if m>>uint(a.Family)&1 != 0 {
+		for _, a := range sys.Archs {
+			if a.InFamily(archFamilies...) {
 				intrinsics[intrinsicKey{a, pkg, fn}] = b
 			}
 		}
