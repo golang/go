@@ -45,6 +45,9 @@ type intrinsicBuilders map[intrinsicKey]intrinsicBuilder
 
 // add adds the intrinsic builder b for pkg.fn for the given architecture.
 func (ib intrinsicBuilders) add(arch *sys.Arch, pkg, fn string, b intrinsicBuilder) {
+	if _, found := ib[intrinsicKey{arch, pkg, fn}]; found {
+		panic(fmt.Sprintf("intrinsic already exists for %v.%v on %v", pkg, fn, arch.Name))
+	}
 	ib[intrinsicKey{arch, pkg, fn}] = b
 }
 
@@ -239,7 +242,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
 		},
-		sys.PPC64, sys.S390X)
+		sys.PPC64)
 	addF("internal/runtime/atomic", "LoadAcq64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoadAcq64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], s.mem())
@@ -284,7 +287,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStoreRel32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
-		sys.PPC64, sys.S390X)
+		sys.PPC64)
 	addF("internal/runtime/atomic", "StoreRel64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStoreRel64, types.TypeMem, args[0], args[1], s.mem())
