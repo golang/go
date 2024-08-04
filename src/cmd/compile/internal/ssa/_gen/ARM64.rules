@@ -1789,6 +1789,14 @@
 (SRAconst [sc] (SBFIZ [bfc] x)) && sc >= bfc.getARM64BFlsb()
 	&& sc < bfc.getARM64BFlsb()+bfc.getARM64BFwidth()
 	=> (SBFX [armBFAuxInt(sc-bfc.getARM64BFlsb(), bfc.getARM64BFlsb()+bfc.getARM64BFwidth()-sc)] x)
+(SBFX [bfc] s:(SLLconst [sc] x))
+	&& s.Uses == 1
+	&& sc <= bfc.getARM64BFlsb()
+	=> (SBFX [armBFAuxInt(bfc.getARM64BFlsb() - sc, bfc.getARM64BFwidth())] x)
+(SBFX [bfc] s:(SLLconst [sc] x))
+	&& s.Uses == 1
+	&& sc > bfc.getARM64BFlsb()
+	=> (SBFIZ [armBFAuxInt(sc - bfc.getARM64BFlsb(), bfc.getARM64BFwidth() - (sc-bfc.getARM64BFlsb()))] x)
 
 // ubfiz
 // (x << lc) >> rc
@@ -1833,10 +1841,24 @@
 	(UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), arm64BFWidth(c, 0)))] x)
 (UBFX [bfc] (ANDconst [c] x)) && isARM64BFMask(0, c, 0) && bfc.getARM64BFlsb() + bfc.getARM64BFwidth() <= arm64BFWidth(c, 0) =>
 	(UBFX [bfc] x)
-// merge ubfx and zerso-extension into ubfx
+// merge ubfx and zero-extension into ubfx
 (MOVWUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (UBFX [bfc] x)
 (MOVHUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (UBFX [bfc] x)
 (MOVBUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (UBFX [bfc] x)
+
+// Extracting bits from across a zero-extension boundary.
+(UBFX [bfc] e:(MOVWUreg x))
+	&& e.Uses == 1
+	&& bfc.getARM64BFlsb() < 32
+	=> (UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), 32-bfc.getARM64BFlsb()))] x)
+(UBFX [bfc] e:(MOVHUreg x))
+	&& e.Uses == 1
+	&& bfc.getARM64BFlsb() < 16
+	=> (UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), 16-bfc.getARM64BFlsb()))] x)
+(UBFX [bfc] e:(MOVBUreg x))
+	&& e.Uses == 1
+	&& bfc.getARM64BFlsb() < 8
+	=> (UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), 8-bfc.getARM64BFlsb()))] x)
 
 // ubfiz/ubfx combinations: merge shifts into bitfield ops
 (SRLconst [sc] (UBFX [bfc] x)) && sc < bfc.getARM64BFwidth()
@@ -1868,6 +1890,12 @@
 (OR (UBFIZ [bfc] x) (ANDconst [ac] y))
 	&& ac == ^((1<<uint(bfc.getARM64BFwidth())-1) << uint(bfc.getARM64BFlsb()))
 	=> (BFI [bfc] y x)
+(ORshiftLL [s] (ANDconst [xc] x) (ANDconst [yc] y))
+	&& xc == ^(yc << s)    // opposite masks
+	&& yc & (yc+1) == 0    // power of 2 minus 1
+	&& yc > 0              // not 0, not all 64 bits (there are better rewrites in that case)
+	&& s+log64(yc+1) <= 64 // shifted mask doesn't overflow
+	=> (BFI [armBFAuxInt(s, log64(yc+1))] x y)
 (ORshiftRL [rc] (ANDconst [ac] x) (SLLconst [lc] y))
 	&& lc > rc && ac == ^((1<<uint(64-lc)-1) << uint64(lc-rc))
 	=> (BFI [armBFAuxInt(lc-rc, 64-lc)] x y)

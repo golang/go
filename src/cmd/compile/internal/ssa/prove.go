@@ -2008,15 +2008,6 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			lim := ft.limits[by.ID]
 			bits := 8 * v.Args[0].Type.Size()
 			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
-				if by.isGenericIntConst() {
-					// TODO: get rid of this block.
-					// Currently this causes lowering to happen
-					// in different orders, which causes some
-					// problems for codegen tests for arm64
-					// where rule application order results
-					// in different final instructions.
-					break
-				}
 				v.AuxInt = 1 // see shiftIsBounded
 				if b.Func.pass.debug > 0 && !by.isGenericIntConst() {
 					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
