@@ -668,7 +668,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 		}
 		if inWorkspaceMode() {
 			if mr := findModuleRoot(absDir); mr != "" {
-				return "", fmt.Errorf("%s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use %s", dirstr, base.ShortPath(mr))
+				return "", fmt.Errorf("%s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use %s", dirstr, base.ShortPathConservative(mr))
 			}
 			return "", fmt.Errorf("%s outside modules listed in go.work or their selected dependencies", dirstr)
 		}
