@@ -19,7 +19,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/internal/telemetry/counter"
@@ -50,7 +50,9 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "usage: go tool fix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
 	flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
-	sort.Sort(byName(fixes))
+	slices.SortFunc(fixes, func(a, b fix) int {
+		return strings.Compare(a.name, b.name)
+	})
 	for _, f := range fixes {
 		if f.disabled {
 			fmt.Fprintf(os.Stderr, "\n%s (disabled)\n", f.name)
@@ -76,7 +78,9 @@ func main() {
 		os.Exit(exitCode)
 	}
 
-	sort.Sort(byDate(fixes))
+	slices.SortFunc(fixes, func(a, b fix) int {
+		return strings.Compare(a.date, b.date)
+	})
 
 	if *allowedRewrites != "" {
 		allowed = make(map[string]bool)

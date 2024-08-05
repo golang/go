@@ -6,6 +6,7 @@ package types
 
 import (
 	"math"
+	"slices"
 	"sort"
 
 	"cmd/compile/internal/base"
@@ -146,7 +147,7 @@ func expandiface(t *Type) {
 		m.Pos = src.NoXPos
 	}
 
-	sort.Sort(MethodsByName(methods))
+	slices.SortFunc(methods, MethodsByNameCmp)
 
 	if int64(len(methods)) >= MaxWidth/int64(PtrSize) {
 		base.ErrorfAt(typePos(t), 0, "interface too large")

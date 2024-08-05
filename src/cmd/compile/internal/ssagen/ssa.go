@@ -13,7 +13,7 @@ import (
 	"internal/buildcfg"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/compile/internal/abi"
@@ -781,7 +781,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *ir.Func) {
 		inlFns = append(inlFns, fnLines)
 	}
 
-	sort.Sort(ssa.ByTopo(inlFns))
+	slices.SortFunc(inlFns, ssa.ByTopoCmp)
 	if targetFn != nil {
 		inlFns = append([]*ssa.FuncLines{targetFn}, inlFns...)
 	}
