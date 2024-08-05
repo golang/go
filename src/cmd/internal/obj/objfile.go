@@ -942,14 +942,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	}
 }
 
-// relocByOff sorts relocations by their offsets.
-type relocByOff []Reloc
-
-func (x relocByOff) Len() int           { return len(x) }
-func (x relocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
-func (x relocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-
-// relocByOffCmp sorts relocations by their offsets.
+// relocByOffCmp compare relocations by their offsets.
 func relocByOffCmp(x, y Reloc) int {
 	return cmp.Compare(x.Off, y.Off)
 }
