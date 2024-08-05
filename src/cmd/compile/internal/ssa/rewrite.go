@@ -1808,12 +1808,12 @@ func armBFAuxInt(lsb, width int64) arm64BitField {
 }
 
 // returns the lsb part of the auxInt field of arm64 bitfield ops.
-func (bfc arm64BitField) getARM64BFlsb() int64 {
+func (bfc arm64BitField) lsb() int64 {
 	return int64(uint64(bfc) >> 8)
 }
 
 // returns the width part of the auxInt field of arm64 bitfield ops.
-func (bfc arm64BitField) getARM64BFwidth() int64 {
+func (bfc arm64BitField) width() int64 {
 	return int64(bfc) & 0xff
 }
 

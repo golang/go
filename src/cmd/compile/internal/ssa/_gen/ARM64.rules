@@ -1779,24 +1779,24 @@
 (SRAconst [rc] (MOVHreg x)) && rc < 16 => (SBFX [armBFAuxInt(rc, 16-rc)] x)
 (SRAconst [rc] (MOVBreg x)) && rc < 8  => (SBFX [armBFAuxInt(rc,  8-rc)] x)
 // merge sbfx and sign-extension into sbfx
-(MOVWreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (SBFX [bfc] x)
-(MOVHreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (SBFX [bfc] x)
-(MOVBreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (SBFX [bfc] x)
+(MOVWreg (SBFX [bfc] x)) && bfc.width() <= 32 => (SBFX [bfc] x)
+(MOVHreg (SBFX [bfc] x)) && bfc.width() <= 16 => (SBFX [bfc] x)
+(MOVBreg (SBFX [bfc] x)) && bfc.width() <=  8 => (SBFX [bfc] x)
 
 // sbfiz/sbfx combinations: merge shifts into bitfield ops
-(SRAconst [sc] (SBFIZ [bfc] x)) && sc < bfc.getARM64BFlsb()
-	=> (SBFIZ [armBFAuxInt(bfc.getARM64BFlsb()-sc, bfc.getARM64BFwidth())] x)
-(SRAconst [sc] (SBFIZ [bfc] x)) && sc >= bfc.getARM64BFlsb()
-	&& sc < bfc.getARM64BFlsb()+bfc.getARM64BFwidth()
-	=> (SBFX [armBFAuxInt(sc-bfc.getARM64BFlsb(), bfc.getARM64BFlsb()+bfc.getARM64BFwidth()-sc)] x)
+(SRAconst [sc] (SBFIZ [bfc] x)) && sc < bfc.lsb()
+	=> (SBFIZ [armBFAuxInt(bfc.lsb()-sc, bfc.width())] x)
+(SRAconst [sc] (SBFIZ [bfc] x)) && sc >= bfc.lsb()
+	&& sc < bfc.lsb()+bfc.width()
+	=> (SBFX [armBFAuxInt(sc-bfc.lsb(), bfc.lsb()+bfc.width()-sc)] x)
 (SBFX [bfc] s:(SLLconst [sc] x))
 	&& s.Uses == 1
-	&& sc <= bfc.getARM64BFlsb()
-	=> (SBFX [armBFAuxInt(bfc.getARM64BFlsb() - sc, bfc.getARM64BFwidth())] x)
+	&& sc <= bfc.lsb()
+	=> (SBFX [armBFAuxInt(bfc.lsb() - sc, bfc.width())] x)
 (SBFX [bfc] s:(SLLconst [sc] x))
 	&& s.Uses == 1
-	&& sc > bfc.getARM64BFlsb()
-	=> (SBFIZ [armBFAuxInt(sc - bfc.getARM64BFlsb(), bfc.getARM64BFwidth() - (sc-bfc.getARM64BFlsb()))] x)
+	&& sc > bfc.lsb()
+	=> (SBFIZ [armBFAuxInt(sc - bfc.lsb(), bfc.width() - (sc-bfc.lsb()))] x)
 
 // ubfiz
 // (x << lc) >> rc
@@ -1838,57 +1838,57 @@
 	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
 // merge ANDconst and ubfx into ubfx
 (ANDconst [c] (UBFX [bfc] x)) && isARM64BFMask(0, c, 0) =>
-	(UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), arm64BFWidth(c, 0)))] x)
-(UBFX [bfc] (ANDconst [c] x)) && isARM64BFMask(0, c, 0) && bfc.getARM64BFlsb() + bfc.getARM64BFwidth() <= arm64BFWidth(c, 0) =>
+	(UBFX [armBFAuxInt(bfc.lsb(), min(bfc.width(), arm64BFWidth(c, 0)))] x)
+(UBFX [bfc] (ANDconst [c] x)) && isARM64BFMask(0, c, 0) && bfc.lsb() + bfc.width() <= arm64BFWidth(c, 0) =>
 	(UBFX [bfc] x)
 // merge ubfx and zero-extension into ubfx
-(MOVWUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (UBFX [bfc] x)
-(MOVHUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (UBFX [bfc] x)
-(MOVBUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (UBFX [bfc] x)
+(MOVWUreg (UBFX [bfc] x)) && bfc.width() <= 32 => (UBFX [bfc] x)
+(MOVHUreg (UBFX [bfc] x)) && bfc.width() <= 16 => (UBFX [bfc] x)
+(MOVBUreg (UBFX [bfc] x)) && bfc.width() <=  8 => (UBFX [bfc] x)
 
 // Extracting bits from across a zero-extension boundary.
 (UBFX [bfc] e:(MOVWUreg x))
 	&& e.Uses == 1
-	&& bfc.getARM64BFlsb() < 32
-	=> (UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), 32-bfc.getARM64BFlsb()))] x)
+	&& bfc.lsb() < 32
+	=> (UBFX [armBFAuxInt(bfc.lsb(), min(bfc.width(), 32-bfc.lsb()))] x)
 (UBFX [bfc] e:(MOVHUreg x))
 	&& e.Uses == 1
-	&& bfc.getARM64BFlsb() < 16
-	=> (UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), 16-bfc.getARM64BFlsb()))] x)
+	&& bfc.lsb() < 16
+	=> (UBFX [armBFAuxInt(bfc.lsb(), min(bfc.width(), 16-bfc.lsb()))] x)
 (UBFX [bfc] e:(MOVBUreg x))
 	&& e.Uses == 1
-	&& bfc.getARM64BFlsb() < 8
-	=> (UBFX [armBFAuxInt(bfc.getARM64BFlsb(), min(bfc.getARM64BFwidth(), 8-bfc.getARM64BFlsb()))] x)
+	&& bfc.lsb() < 8
+	=> (UBFX [armBFAuxInt(bfc.lsb(), min(bfc.width(), 8-bfc.lsb()))] x)
 
 // ubfiz/ubfx combinations: merge shifts into bitfield ops
-(SRLconst [sc] (UBFX [bfc] x)) && sc < bfc.getARM64BFwidth()
-	=> (UBFX [armBFAuxInt(bfc.getARM64BFlsb()+sc, bfc.getARM64BFwidth()-sc)] x)
-(UBFX [bfc] (SRLconst [sc] x)) && sc+bfc.getARM64BFwidth()+bfc.getARM64BFlsb() < 64
-	=> (UBFX [armBFAuxInt(bfc.getARM64BFlsb()+sc, bfc.getARM64BFwidth())] x)
-(SLLconst [sc] (UBFIZ [bfc] x)) && sc+bfc.getARM64BFwidth()+bfc.getARM64BFlsb() < 64
-	=> (UBFIZ [armBFAuxInt(bfc.getARM64BFlsb()+sc, bfc.getARM64BFwidth())] x)
-(UBFIZ [bfc] (SLLconst [sc] x)) && sc < bfc.getARM64BFwidth()
-	=> (UBFIZ [armBFAuxInt(bfc.getARM64BFlsb()+sc, bfc.getARM64BFwidth()-sc)] x)
+(SRLconst [sc] (UBFX [bfc] x)) && sc < bfc.width()
+	=> (UBFX [armBFAuxInt(bfc.lsb()+sc, bfc.width()-sc)] x)
+(UBFX [bfc] (SRLconst [sc] x)) && sc+bfc.width()+bfc.lsb() < 64
+	=> (UBFX [armBFAuxInt(bfc.lsb()+sc, bfc.width())] x)
+(SLLconst [sc] (UBFIZ [bfc] x)) && sc+bfc.width()+bfc.lsb() < 64
+	=> (UBFIZ [armBFAuxInt(bfc.lsb()+sc, bfc.width())] x)
+(UBFIZ [bfc] (SLLconst [sc] x)) && sc < bfc.width()
+	=> (UBFIZ [armBFAuxInt(bfc.lsb()+sc, bfc.width()-sc)] x)
 // ((x << c1) >> c2) >> c3
-(SRLconst [sc] (UBFIZ [bfc] x)) && sc == bfc.getARM64BFlsb()
-	=> (ANDconst [1<<uint(bfc.getARM64BFwidth())-1] x)
-(SRLconst [sc] (UBFIZ [bfc] x)) && sc < bfc.getARM64BFlsb()
-	=> (UBFIZ [armBFAuxInt(bfc.getARM64BFlsb()-sc, bfc.getARM64BFwidth())] x)
-(SRLconst [sc] (UBFIZ [bfc] x)) && sc > bfc.getARM64BFlsb()
-	&& sc < bfc.getARM64BFlsb()+bfc.getARM64BFwidth()
-	=> (UBFX [armBFAuxInt(sc-bfc.getARM64BFlsb(), bfc.getARM64BFlsb()+bfc.getARM64BFwidth()-sc)] x)
+(SRLconst [sc] (UBFIZ [bfc] x)) && sc == bfc.lsb()
+	=> (ANDconst [1<<uint(bfc.width())-1] x)
+(SRLconst [sc] (UBFIZ [bfc] x)) && sc < bfc.lsb()
+	=> (UBFIZ [armBFAuxInt(bfc.lsb()-sc, bfc.width())] x)
+(SRLconst [sc] (UBFIZ [bfc] x)) && sc > bfc.lsb()
+	&& sc < bfc.lsb()+bfc.width()
+	=> (UBFX [armBFAuxInt(sc-bfc.lsb(), bfc.lsb()+bfc.width()-sc)] x)
 // ((x << c1) << c2) >> c3
-(UBFX [bfc] (SLLconst [sc] x)) && sc == bfc.getARM64BFlsb()
-	=> (ANDconst [1<<uint(bfc.getARM64BFwidth())-1] x)
-(UBFX [bfc] (SLLconst [sc] x)) && sc < bfc.getARM64BFlsb()
-	=> (UBFX [armBFAuxInt(bfc.getARM64BFlsb()-sc, bfc.getARM64BFwidth())] x)
-(UBFX [bfc] (SLLconst [sc] x)) && sc > bfc.getARM64BFlsb()
-	&& sc < bfc.getARM64BFlsb()+bfc.getARM64BFwidth()
-	=> (UBFIZ [armBFAuxInt(sc-bfc.getARM64BFlsb(), bfc.getARM64BFlsb()+bfc.getARM64BFwidth()-sc)] x)
+(UBFX [bfc] (SLLconst [sc] x)) && sc == bfc.lsb()
+	=> (ANDconst [1<<uint(bfc.width())-1] x)
+(UBFX [bfc] (SLLconst [sc] x)) && sc < bfc.lsb()
+	=> (UBFX [armBFAuxInt(bfc.lsb()-sc, bfc.width())] x)
+(UBFX [bfc] (SLLconst [sc] x)) && sc > bfc.lsb()
+	&& sc < bfc.lsb()+bfc.width()
+	=> (UBFIZ [armBFAuxInt(sc-bfc.lsb(), bfc.lsb()+bfc.width()-sc)] x)
 
 // bfi
 (OR (UBFIZ [bfc] x) (ANDconst [ac] y))
-	&& ac == ^((1<<uint(bfc.getARM64BFwidth())-1) << uint(bfc.getARM64BFlsb()))
+	&& ac == ^((1<<uint(bfc.width())-1) << uint(bfc.lsb()))
 	=> (BFI [bfc] y x)
 (ORshiftLL [s] (ANDconst [xc] x) (ANDconst [yc] y))
 	&& xc == ^(yc << s)    // opposite masks
@@ -1900,9 +1900,9 @@
 	&& lc > rc && ac == ^((1<<uint(64-lc)-1) << uint64(lc-rc))
 	=> (BFI [armBFAuxInt(lc-rc, 64-lc)] x y)
 // bfxil
-(OR (UBFX [bfc] x) (ANDconst [ac] y)) && ac == ^(1<<uint(bfc.getARM64BFwidth())-1)
+(OR (UBFX [bfc] x) (ANDconst [ac] y)) && ac == ^(1<<uint(bfc.width())-1)
 	=> (BFXIL [bfc] y x)
-(ORshiftLL [sc] (UBFX [bfc] x) (SRLconst [sc] y)) && sc == bfc.getARM64BFwidth()
+(ORshiftLL [sc] (UBFX [bfc] x) (SRLconst [sc] y)) && sc == bfc.width()
 	=> (BFXIL [bfc] y x)
 (ORshiftRL [rc] (ANDconst [ac] y) (SLLconst [lc] x)) && lc < rc && ac == ^((1<<uint(64-rc)-1))
 	=> (BFXIL [armBFAuxInt(rc-lc, 64-rc)] y x)
