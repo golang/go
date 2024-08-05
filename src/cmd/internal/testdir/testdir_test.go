@@ -1212,7 +1212,7 @@ func (t test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (err
 	for i := range out {
 		for j := 0; j < len(fullshort); j += 2 {
 			full, short := fullshort[j], fullshort[j+1]
-			out[i] = strings.Replace(out[i], full, short, -1)
+			out[i] = replacePrefix(out[i], full, short)
 		}
 	}
 
@@ -1961,4 +1961,24 @@ func splitQuoted(s string) (r []string, err error) {
 		err = errors.New("unfinished escaping")
 	}
 	return args, err
+}
+
+// replacePrefix is like strings.ReplaceAll, but only replaces instances of old
+// that are preceded by ' ', '\t', or appear at the beginning of a line.
+//
+// This does the same kind of filename string replacement as cmd/go.
+// Pilfered from src/cmd/go/internal/work/shell.go .
+func replacePrefix(s, old, new string) string {
+	n := strings.Count(s, old)
+	if n == 0 {
+		return s
+	}
+
+	s = strings.ReplaceAll(s, " "+old, " "+new)
+	s = strings.ReplaceAll(s, "\n"+old, "\n"+new)
+	s = strings.ReplaceAll(s, "\n\t"+old, "\n\t"+new)
+	if strings.HasPrefix(s, old) {
+		s = new + s[len(old):]
+	}
+	return s
 }
