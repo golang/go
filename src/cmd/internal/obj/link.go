@@ -32,6 +32,7 @@ package obj
 
 import (
 	"bufio"
+	"bytes"
 	"cmd/internal/dwarf"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
@@ -496,9 +497,9 @@ type FuncInfo struct {
 	WrapInfo           *LSym // for wrapper, info of wrapped function
 	JumpTables         []JumpTable
 
-	FuncInfoSym   *LSym
-	WasmImportSym *LSym
-	WasmImport    *WasmImport
+	FuncInfoSym *LSym
+
+	WasmImport *WasmImport
 
 	sehUnwindInfoSym *LSym
 }
@@ -609,45 +610,118 @@ type WasmImport struct {
 	// Name holds the WASM imported function name specified by the
 	// //go:wasmimport directive.
 	Name string
+
+	WasmFuncType // type of the imported function
+
+	// aux symbol to pass metadata to the linker, serialization of
+	// the fields above.
+	AuxSym *LSym
+}
+
+func (wi *WasmImport) CreateAuxSym() {
+	var b bytes.Buffer
+	wi.Write(&b)
+	p := b.Bytes()
+	wi.AuxSym = &LSym{
+		Type: objabi.SDATA, // doesn't really matter
+		P:    append([]byte(nil), p...),
+		Size: int64(len(p)),
+	}
+}
+
+func (wi *WasmImport) Write(w *bytes.Buffer) {
+	var b [8]byte
+	writeUint32 := func(x uint32) {
+		binary.LittleEndian.PutUint32(b[:], x)
+		w.Write(b[:4])
+	}
+	writeString := func(s string) {
+		writeUint32(uint32(len(s)))
+		w.WriteString(s)
+	}
+	writeString(wi.Module)
+	writeString(wi.Name)
+	wi.WasmFuncType.Write(w)
+}
+
+func (wi *WasmImport) Read(b []byte) {
+	readUint32 := func() uint32 {
+		x := binary.LittleEndian.Uint32(b)
+		b = b[4:]
+		return x
+	}
+	readString := func() string {
+		n := readUint32()
+		s := string(b[:n])
+		b = b[n:]
+		return s
+	}
+	wi.Module = readString()
+	wi.Name = readString()
+	wi.WasmFuncType.Read(b)
+}
+
+// WasmFuncType represents a WebAssembly (WASM) function type with
+// parameters and results translated into WASM types based on the Go function
+// declaration.
+type WasmFuncType struct {
 	// Params holds the imported function parameter fields.
 	Params []WasmField
 	// Results holds the imported function result fields.
 	Results []WasmField
 }
 
-func (wi *WasmImport) CreateSym(ctxt *Link) *LSym {
-	var sym LSym
-
+func (ft *WasmFuncType) Write(w *bytes.Buffer) {
 	var b [8]byte
 	writeByte := func(x byte) {
-		sym.WriteBytes(ctxt, sym.Size, []byte{x})
+		w.WriteByte(x)
 	}
 	writeUint32 := func(x uint32) {
 		binary.LittleEndian.PutUint32(b[:], x)
-		sym.WriteBytes(ctxt, sym.Size, b[:4])
+		w.Write(b[:4])
 	}
 	writeInt64 := func(x int64) {
 		binary.LittleEndian.PutUint64(b[:], uint64(x))
-		sym.WriteBytes(ctxt, sym.Size, b[:])
+		w.Write(b[:])
 	}
-	writeString := func(s string) {
-		writeUint32(uint32(len(s)))
-		sym.WriteString(ctxt, sym.Size, len(s), s)
-	}
-	writeString(wi.Module)
-	writeString(wi.Name)
-	writeUint32(uint32(len(wi.Params)))
-	for _, f := range wi.Params {
+	writeUint32(uint32(len(ft.Params)))
+	for _, f := range ft.Params {
 		writeByte(byte(f.Type))
 		writeInt64(f.Offset)
 	}
-	writeUint32(uint32(len(wi.Results)))
-	for _, f := range wi.Results {
+	writeUint32(uint32(len(ft.Results)))
+	for _, f := range ft.Results {
 		writeByte(byte(f.Type))
 		writeInt64(f.Offset)
 	}
+}
 
-	return &sym
+func (ft *WasmFuncType) Read(b []byte) {
+	readByte := func() byte {
+		x := b[0]
+		b = b[1:]
+		return x
+	}
+	readUint32 := func() uint32 {
+		x := binary.LittleEndian.Uint32(b)
+		b = b[4:]
+		return x
+	}
+	readInt64 := func() int64 {
+		x := binary.LittleEndian.Uint64(b)
+		b = b[8:]
+		return int64(x)
+	}
+	ft.Params = make([]WasmField, readUint32())
+	for i := range ft.Params {
+		ft.Params[i].Type = WasmFieldType(readByte())
+		ft.Params[i].Offset = int64(readInt64())
+	}
+	ft.Results = make([]WasmField, readUint32())
+	for i := range ft.Results {
+		ft.Results[i].Type = WasmFieldType(readByte())
+		ft.Results[i].Offset = int64(readInt64())
+	}
 }
 
 type WasmField struct {

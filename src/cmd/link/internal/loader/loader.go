@@ -1620,21 +1620,11 @@ func (l *Loader) Aux(i Sym, j int) Aux {
 // contains the information necessary for the linker to add a WebAssembly
 // import statement.
 // (https://webassembly.github.io/spec/core/syntax/modules.html#imports)
-func (l *Loader) WasmImportSym(fnSymIdx Sym) (Sym, bool) {
+func (l *Loader) WasmImportSym(fnSymIdx Sym) Sym {
 	if l.SymType(fnSymIdx) != sym.STEXT {
 		log.Fatalf("error: non-function sym %d/%s t=%s passed to WasmImportSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
 	}
-	r, li := l.toLocal(fnSymIdx)
-	auxs := r.Auxs(li)
-	for i := range auxs {
-		a := &auxs[i]
-		switch a.Type() {
-		case goobj.AuxWasmImport:
-			return l.resolve(r, a.Sym()), true
-		}
-	}
-
-	return 0, false
+	return l.aux1(fnSymIdx, goobj.AuxWasmImport)
 }
 
 // SEHUnwindSym returns the auxiliary SEH unwind symbol associated with

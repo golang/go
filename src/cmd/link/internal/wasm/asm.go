@@ -12,7 +12,6 @@ import (
 	"cmd/link/internal/ld"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
-	"encoding/binary"
 	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
@@ -61,55 +60,8 @@ type wasmFuncType struct {
 }
 
 func readWasmImport(ldr *loader.Loader, s loader.Sym) obj.WasmImport {
-	reportError := func(err error) { panic(fmt.Sprintf("failed to read WASM import in sym %v: %v", s, err)) }
-
-	data := ldr.Data(s)
-
-	readUint32 := func() (v uint32) {
-		v = binary.LittleEndian.Uint32(data)
-		data = data[4:]
-		return
-	}
-
-	readUint64 := func() (v uint64) {
-		v = binary.LittleEndian.Uint64(data)
-		data = data[8:]
-		return
-	}
-
-	readByte := func() byte {
-		if len(data) == 0 {
-			reportError(io.EOF)
-		}
-
-		b := data[0]
-		data = data[1:]
-		return b
-	}
-
-	readString := func() string {
-		n := readUint32()
-
-		s := string(data[:n])
-
-		data = data[n:]
-
-		return s
-	}
-
 	var wi obj.WasmImport
-	wi.Module = readString()
-	wi.Name = readString()
-	wi.Params = make([]obj.WasmField, readUint32())
-	for i := range wi.Params {
-		wi.Params[i].Type = obj.WasmFieldType(readByte())
-		wi.Params[i].Offset = int64(readUint64())
-	}
-	wi.Results = make([]obj.WasmField, readUint32())
-	for i := range wi.Results {
-		wi.Results[i].Type = obj.WasmFieldType(readByte())
-		wi.Results[i].Offset = int64(readUint64())
-	}
+	wi.Read(ldr.Data(s))
 	return wi
 }
 
@@ -207,8 +159,8 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
 			if r.Type() == objabi.R_WASMIMPORT {
-				if lsym, ok := ldr.WasmImportSym(fn); ok {
-					wi := readWasmImport(ldr, lsym)
+				if wsym := ldr.WasmImportSym(fn); wsym != 0 {
+					wi := readWasmImport(ldr, wsym)
 					hostImportMap[fn] = int64(len(hostImports))
 					hostImports = append(hostImports, &wasmFunc{
 						Module: wi.Module,
