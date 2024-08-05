@@ -10,7 +10,6 @@ import (
 	"internal/testenv"
 	"math"
 	"math/rand"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -814,8 +813,8 @@ func TestSplit(t *testing.T) {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
 		if tt.n < 0 {
-			b := Split([]byte(tt.s), []byte(tt.sep))
-			if !reflect.DeepEqual(a, b) {
+			b := sliceOfString(Split([]byte(tt.s), []byte(tt.sep)))
+			if !slices.Equal(result, b) {
 				t.Errorf("Split disagrees withSplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
@@ -869,8 +868,8 @@ func TestSplitAfter(t *testing.T) {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
 		if tt.n < 0 {
-			b := SplitAfter([]byte(tt.s), []byte(tt.sep))
-			if !reflect.DeepEqual(a, b) {
+			b := sliceOfString(SplitAfter([]byte(tt.s), []byte(tt.sep)))
+			if !slices.Equal(result, b) {
 				t.Errorf("SplitAfter disagrees withSplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
