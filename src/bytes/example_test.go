@@ -502,10 +502,10 @@ func ExampleTitle() {
 
 func ExampleToTitle() {
 	fmt.Printf("%s\n", bytes.ToTitle([]byte("loud noises")))
-	fmt.Printf("%s\n", bytes.ToTitle([]byte("хлеб")))
+	fmt.Printf("%s\n", bytes.ToTitle([]byte("брат")))
 	// Output:
 	// LOUD NOISES
-	// ХЛЕБ
+	// БРАТ
 }
 
 func ExampleToTitleSpecial() {
