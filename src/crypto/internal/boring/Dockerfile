@@ -13,11 +13,18 @@ WORKDIR /boring
 ENV LANG=C
 ENV LANGUAGE=
 
-# Following NIST submission draft dated July 3, 2021.
-# This corresponds to boringssl.googlesource.com/boringssl tag fips-20210429.
-ENV ClangV=12
+# Following the Security Policy for FIPS 140 certificate #4735.
+# https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp4735.pdf
+# This corresponds to boringssl.googlesource.com/boringssl tag fips-20220613.
 RUN apt-get update && \
-        apt-get install --no-install-recommends -y cmake xz-utils wget unzip ca-certificates clang-$ClangV python
+        apt-get install --no-install-recommends -y xz-utils wget unzip ca-certificates python lsb-release software-properties-common gnupg make libssl-dev faketime
+
+# Install Clang.
+ENV ClangV=14
+RUN \
+	wget https://apt.llvm.org/llvm.sh && \
+	chmod +x llvm.sh && \
+	./llvm.sh $ClangV
 
 # Download, validate, unpack, build, and install Ninja.
 ENV NinjaV=1.10.2
@@ -31,11 +38,23 @@ RUN \
 	CC=clang-$ClangV CXX=clang++-$ClangV ./configure.py --bootstrap && \
 	mv ninja /usr/local/bin/
 
+# Download, validate, unpack, build, and install Cmake.
+ENV CmakeV=3.22.1
+ENV CmakeH=0e998229549d7b3f368703d20e248e7ee1f853910d42704aa87918c213ea82c0
+RUN \
+	wget https://github.com/Kitware/CMake/releases/download/v$CmakeV/cmake-$CmakeV.tar.gz && \
+	echo "$CmakeH cmake-$CmakeV.tar.gz" >sha && sha256sum -c sha && \
+	tar -xzf cmake-$CmakeV.tar.gz && \
+	rm cmake-$CmakeV.tar.gz && \
+	cd cmake-$CmakeV && \
+	CC=clang-$ClangV CXX=clang++-$ClangV ./bootstrap && \
+	make && make install
+
 # Download, validate, unpack, and install Go.
 ARG GOARCH
-ENV GoV=1.16.5
-ENV GoHamd64=b12c23023b68de22f74c0524f10b753e7b08b1504cb7e417eccebdd3fae49061
-ENV GoHarm64=d5446b46ef6f36fdffa852f73dfbbe78c1ddf010b99fa4964944b9ae8b4d6799
+ENV GoV=1.18.1
+ENV GoHamd64=b3b815f47ababac13810fc6021eb73d65478e0b2db4b09d348eefad9581a2334
+ENV GoHarm64=56a91851c97fb4697077abbca38860f735c32b38993ff79b088dac46e4735633
 RUN \
 	eval GoH=\${GoH$GOARCH} && \
 	wget https://golang.org/dl/go$GoV.linux-$GOARCH.tar.gz && \
@@ -45,8 +64,8 @@ RUN \
 	ln -s /usr/local/go/bin/go /usr/local/bin/
 
 # Download, validate, and unpack BoringCrypto.
-ENV BoringV=853ca1ea1168dff08011e5d42d94609cc0ca2e27
-ENV BoringH=a4d069ccef6f3c7bc0c68de82b91414f05cb817494cd1ab483dcf3368883c7c2
+ENV BoringV=0c6f40132b828e92ba365c6b7680e32820c63fa7
+ENV BoringH=62f733289f2d677c2723f556aa58034c438f3a7bbca6c12b156538a88e38da8a
 RUN \
 	wget https://commondatastorage.googleapis.com/chromium-boringssl-fips/boringssl-$BoringV.tar.xz && \
 	echo "$BoringH boringssl-$BoringV.tar.xz" >sha && sha256sum -c sha && \

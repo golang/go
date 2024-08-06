@@ -34,8 +34,8 @@ perl -p -i -e 's/defined.*ELF.*defined.*GNUC.*/$0 \&\& !defined(GOBORING)/' bori
 printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >${HOME}/toolchain
 cd boringssl
 mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
-ninja
-./crypto/crypto_test
+# SSLTest.HostMatching fails due to an expired certificate.
+ninja && faketime 2022-06-13 ninja run_tests
 cd ../..
 
 if [ "$(./boringssl/build/tool/bssl isfips)" != 1 ]; then
