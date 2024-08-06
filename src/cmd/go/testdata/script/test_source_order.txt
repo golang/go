@@ -11,7 +11,7 @@ go test example1_test.go example2_test.go
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Make sure that go test runs Example_Z before Example_A, preserving source order.
+// Make sure that go test runs Example_z before Example_a, preserving source order.
 
 package p
 
@@ -19,13 +19,13 @@ import "fmt"
 
 var n int
 
-func Example_Z() {
+func Example_z() {
 	n++
 	fmt.Println(n)
 	// Output: 1
 }
 
-func Example_A() {
+func Example_a() {
 	n++
 	fmt.Println(n)
 	// Output: 2
@@ -35,19 +35,19 @@ func Example_A() {
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Make sure that go test runs Example_Y before Example_B, preserving source order.
+// Make sure that go test runs Example_y before Example_b, preserving source order.
 
 package p
 
 import "fmt"
 
-func Example_Y() {
+func Example_y() {
 	n++
 	fmt.Println(n)
 	// Output: 3
 }
 
-func Example_B() {
+func Example_b() {
 	n++
 	fmt.Println(n)
 	// Output: 4
