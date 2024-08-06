@@ -102,7 +102,7 @@ func newSendFileTest(t *testing.T, proto string, size int64) (net.Conn, *File, n
 	hook := hookSendFile(t)
 
 	client, server := createSocketPair(t, proto)
-	tempFile, data := createTempFile(t, size)
+	tempFile, data := createTempFile(t, "writeto-sendfile-to-socket", size)
 
 	return client, tempFile, server, data, hook
 }
@@ -134,8 +134,8 @@ type sendFileHook struct {
 	err     error
 }
 
-func createTempFile(t *testing.T, size int64) (*File, []byte) {
-	f, err := CreateTemp(t.TempDir(), "writeto-sendfile-to-socket")
+func createTempFile(t *testing.T, name string, size int64) (*File, []byte) {
+	f, err := CreateTemp(t.TempDir(), name)
 	if err != nil {
 		t.Fatalf("failed to create temporary file: %v", err)
 	}
