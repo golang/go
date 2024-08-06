@@ -8,6 +8,7 @@ import (
 	. "bytes"
 	"fmt"
 	"internal/testenv"
+	"iter"
 	"math"
 	"math/rand"
 	"slices"
@@ -24,6 +25,37 @@ func sliceOfString(s [][]byte) []string {
 		result[i] = string(v)
 	}
 	return result
+}
+
+func collect(t *testing.T, seq iter.Seq[[]byte]) [][]byte {
+	out := slices.Collect(seq)
+	out1 := slices.Collect(seq)
+	if !slices.Equal(sliceOfString(out), sliceOfString(out1)) {
+		t.Fatalf("inconsistent seq:\n%s\n%s", out, out1)
+	}
+	return out
+}
+
+type LinesTest struct {
+	a string
+	b []string
+}
+
+var linesTests = []LinesTest{
+	{a: "abc\nabc\n", b: []string{"abc\n", "abc\n"}},
+	{a: "abc\r\nabc", b: []string{"abc\r\n", "abc"}},
+	{a: "abc\r\n", b: []string{"abc\r\n"}},
+	{a: "\nabc", b: []string{"\n", "abc"}},
+	{a: "\nabc\n\n", b: []string{"\n", "abc\n", "\n"}},
+}
+
+func TestLines(t *testing.T) {
+	for _, s := range linesTests {
+		result := sliceOfString(slices.Collect(Lines([]byte(s.a))))
+		if !slices.Equal(result, s.b) {
+			t.Errorf(`slices.Collect(Lines(%q)) = %q; want %q`, s.a, result, s.b)
+		}
+	}
 }
 
 // For ease of reading, the test cases use strings that are converted to byte
@@ -800,6 +832,14 @@ func TestSplit(t *testing.T) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
 		}
+
+		if tt.n < 0 {
+			b := sliceOfString(slices.Collect(SplitSeq([]byte(tt.s), []byte(tt.sep))))
+			if !slices.Equal(b, tt.a) {
+				t.Errorf(`collect(SplitSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, b, tt.a)
+			}
+		}
+
 		if tt.n == 0 || len(a) == 0 {
 			continue
 		}
@@ -859,6 +899,13 @@ func TestSplitAfter(t *testing.T) {
 			continue
 		}
 
+		if tt.n < 0 {
+			b := sliceOfString(slices.Collect(SplitAfterSeq([]byte(tt.s), []byte(tt.sep))))
+			if !slices.Equal(b, tt.a) {
+				t.Errorf(`collect(SplitAfterSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, b, tt.a)
+			}
+		}
+
 		if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
 			t.Errorf("last appended result was %s; want %s", x, want)
 		}
@@ -912,6 +959,11 @@ func TestFields(t *testing.T) {
 			continue
 		}
 
+		result2 := sliceOfString(collect(t, FieldsSeq([]byte(tt.s))))
+		if !slices.Equal(result2, tt.a) {
+			t.Errorf(`collect(FieldsSeq(%q)) = %v; want %v`, tt.s, result2, tt.a)
+		}
+
 		if string(b) != tt.s {
 			t.Errorf("slice changed to %s; want %s", string(b), tt.s)
 		}
@@ -952,6 +1004,11 @@ func TestFieldsFunc(t *testing.T) {
 		result := sliceOfString(a)
 		if !slices.Equal(result, tt.a) {
 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+		}
+
+		result2 := sliceOfString(collect(t, FieldsFuncSeq([]byte(tt.s), pred)))
+		if !slices.Equal(result2, tt.a) {
+			t.Errorf(`collect(FieldsFuncSeq(%q)) = %v; want %v`, tt.s, result2, tt.a)
 		}
 
 		if string(b) != tt.s {
