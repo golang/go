@@ -111,12 +111,15 @@ const (
 	marshaledSize = len(magic) + 8 + 8
 )
 
-func (d *digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize)
+func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic...)
 	b = byteorder.BeAppendUint64(b, tableSum(d.tab))
 	b = byteorder.BeAppendUint64(b, d.crc)
 	return b, nil
+}
+
+func (d *digest) MarshalBinary() ([]byte, error) {
+	return d.AppendBinary(make([]byte, 0, marshaledSize))
 }
 
 func (d *digest) UnmarshalBinary(b []byte) error {
