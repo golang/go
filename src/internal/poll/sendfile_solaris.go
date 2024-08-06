@@ -6,6 +6,8 @@ package poll
 
 import "syscall"
 
+//go:cgo_ldflag "-lsendfile"
+
 // Not strictly needed, but very helpful for debugging, see issue #10221.
 //
 //go:cgo_import_dynamic _ _ "libsendfile.so"
@@ -37,8 +39,13 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error, 
 		}
 		pos1 := pos
 		n, err = syscall.Sendfile(dst, src, &pos1, n)
-		if err == syscall.EAGAIN || err == syscall.EINTR {
-			// partial write may have occurred
+		if err == syscall.EAGAIN || err == syscall.EINTR || err == syscall.EINVAL {
+			// Partial write or other quirks may have occurred.
+			//
+			// For EINVAL, this is another quirk on SunOS: sendfile() claims to support
+			// out_fd as a regular file but returns EINVAL when the out_fd is not a
+			// socket of SOCK_STREAM, while it actually sends out data anyway and updates
+			// the file offset.
 			n = int(pos1 - pos)
 		}
 		if n > 0 {
