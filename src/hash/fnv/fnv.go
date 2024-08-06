@@ -219,48 +219,66 @@ const (
 	marshaledSize128 = len(magic128) + 8*2
 )
 
-func (s *sum32) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize32)
+func (s *sum32) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic32...)
 	b = byteorder.BeAppendUint32(b, uint32(*s))
 	return b, nil
 }
 
-func (s *sum32a) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize32)
+func (s *sum32) MarshalBinary() ([]byte, error) {
+	return s.AppendBinary(make([]byte, 0, marshaledSize32))
+}
+
+func (s *sum32a) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic32a...)
 	b = byteorder.BeAppendUint32(b, uint32(*s))
 	return b, nil
 }
 
-func (s *sum64) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize64)
+func (s *sum32a) MarshalBinary() ([]byte, error) {
+	return s.AppendBinary(make([]byte, 0, marshaledSize32))
+}
+
+func (s *sum64) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic64...)
 	b = byteorder.BeAppendUint64(b, uint64(*s))
 	return b, nil
 }
 
-func (s *sum64a) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize64)
+func (s *sum64) MarshalBinary() ([]byte, error) {
+	return s.AppendBinary(make([]byte, 0, marshaledSize64))
+}
+
+func (s *sum64a) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic64a...)
 	b = byteorder.BeAppendUint64(b, uint64(*s))
 	return b, nil
 }
 
-func (s *sum128) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize128)
+func (s *sum64a) MarshalBinary() ([]byte, error) {
+	return s.AppendBinary(make([]byte, 0, marshaledSize64))
+}
+
+func (s *sum128) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic128...)
 	b = byteorder.BeAppendUint64(b, s[0])
 	b = byteorder.BeAppendUint64(b, s[1])
 	return b, nil
 }
 
-func (s *sum128a) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize128)
+func (s *sum128) MarshalBinary() ([]byte, error) {
+	return s.AppendBinary(make([]byte, 0, marshaledSize128))
+}
+
+func (s *sum128a) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic128a...)
 	b = byteorder.BeAppendUint64(b, s[0])
 	b = byteorder.BeAppendUint64(b, s[1])
 	return b, nil
+}
+
+func (s *sum128a) MarshalBinary() ([]byte, error) {
+	return s.AppendBinary(make([]byte, 0, marshaledSize128))
 }
 
 func (s *sum32) UnmarshalBinary(b []byte) error {

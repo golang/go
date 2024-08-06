@@ -133,8 +133,20 @@ func TestGoldenMarshal(t *testing.T) {
 				continue
 			}
 
+			stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+			if err != nil {
+				t.Errorf("could not marshal: %v", err)
+				continue
+			}
+			stateAppend = stateAppend[4:]
+
 			if string(state) != g.halfStateIEEE {
 				t.Errorf("IEEE(%q) state = %q, want %q", g.in, state, g.halfStateIEEE)
+				continue
+			}
+
+			if string(stateAppend) != g.halfStateIEEE {
+				t.Errorf("IEEE(%q) state = %q, want %q", g.in, stateAppend, g.halfStateIEEE)
 				continue
 			}
 
@@ -165,8 +177,20 @@ func TestGoldenMarshal(t *testing.T) {
 				continue
 			}
 
+			stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+			if err != nil {
+				t.Errorf("could not marshal: %v", err)
+				continue
+			}
+			stateAppend = stateAppend[4:]
+
 			if string(state) != g.halfStateCastagnoli {
 				t.Errorf("Castagnoli(%q) state = %q, want %q", g.in, state, g.halfStateCastagnoli)
+				continue
+			}
+
+			if string(stateAppend) != g.halfStateCastagnoli {
+				t.Errorf("Castagnoli(%q) state = %q, want %q", g.in, stateAppend, g.halfStateCastagnoli)
 				continue
 			}
 
