@@ -1533,10 +1533,10 @@ func testChtimes(t *testing.T, name string) {
 				t.Log(errormsg)
 				t.Log("Known NetBSD issue (atime not changed on fs mounted with noatime); ignoring.")
 			} else {
-				t.Errorf(errormsg)
+				t.Error(errormsg)
 			}
 		default:
-			t.Errorf(errormsg)
+			t.Error(errormsg)
 		}
 	}
 
