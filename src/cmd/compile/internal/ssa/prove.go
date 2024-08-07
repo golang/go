@@ -1648,22 +1648,22 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 	case OpCtz64:
 		a := ft.limits[v.Args[0].ID]
 		if a.nonzero() {
-			return ft.unsignedMax(v, 63)
+			return ft.unsignedMax(v, uint64(bits.Len64(a.umax)-1))
 		}
 	case OpCtz32:
 		a := ft.limits[v.Args[0].ID]
 		if a.nonzero() {
-			return ft.unsignedMax(v, 31)
+			return ft.unsignedMax(v, uint64(bits.Len32(uint32(a.umax))-1))
 		}
 	case OpCtz16:
 		a := ft.limits[v.Args[0].ID]
 		if a.nonzero() {
-			return ft.unsignedMax(v, 15)
+			return ft.unsignedMax(v, uint64(bits.Len16(uint16(a.umax))-1))
 		}
 	case OpCtz8:
 		a := ft.limits[v.Args[0].ID]
 		if a.nonzero() {
-			return ft.unsignedMax(v, 7)
+			return ft.unsignedMax(v, uint64(bits.Len8(uint8(a.umax))-1))
 		}
 
 	case OpBitLen64:

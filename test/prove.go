@@ -1196,6 +1196,103 @@ func f22(b bool, x, y int) int {
 	return 0
 }
 
+func ctz64(x uint64, ensureBothBranchesCouldHappen bool) int {
+	const max = math.MaxUint64
+	sz := bits.Len64(max)
+
+	log2half := uint64(max) >> (sz / 2)
+	if x >= log2half || x == 0 {
+		return 42
+	}
+
+	y := bits.TrailingZeros64(x) // ERROR "Proved Ctz64 non-zero$""
+
+	z := sz / 2
+	if ensureBothBranchesCouldHappen {
+		if y < z { // ERROR "Proved Less64$"
+			return -42
+		}
+	} else {
+		if y >= z { // ERROR "Disproved Leq64$"
+			return 1337
+		}
+	}
+
+	return y
+}
+func ctz32(x uint32, ensureBothBranchesCouldHappen bool) int {
+	const max = math.MaxUint32
+	sz := bits.Len32(max)
+
+	log2half := uint32(max) >> (sz / 2)
+	if x >= log2half || x == 0 {
+		return 42
+	}
+
+	y := bits.TrailingZeros32(x) // ERROR "Proved Ctz32 non-zero$""
+
+	z := sz / 2
+	if ensureBothBranchesCouldHappen {
+		if y < z { // ERROR "Proved Less64$"
+			return -42
+		}
+	} else {
+		if y >= z { // ERROR "Disproved Leq64$"
+			return 1337
+		}
+	}
+
+	return y
+}
+func ctz16(x uint16, ensureBothBranchesCouldHappen bool) int {
+	const max = math.MaxUint16
+	sz := bits.Len16(max)
+
+	log2half := uint16(max) >> (sz / 2)
+	if x >= log2half || x == 0 {
+		return 42
+	}
+
+	y := bits.TrailingZeros16(x) // ERROR "Proved Ctz16 non-zero$""
+
+	z := sz / 2
+	if ensureBothBranchesCouldHappen {
+		if y < z { // ERROR "Proved Less64$"
+			return -42
+		}
+	} else {
+		if y >= z { // ERROR "Disproved Leq64$"
+			return 1337
+		}
+	}
+
+	return y
+}
+func ctz8(x uint8, ensureBothBranchesCouldHappen bool) int {
+	const max = math.MaxUint8
+	sz := bits.Len8(max)
+
+	log2half := uint8(max) >> (sz / 2)
+	if x >= log2half || x == 0 {
+		return 42
+	}
+
+	y := bits.TrailingZeros8(x) // ERROR "Proved Ctz8 non-zero$""
+
+	z := sz / 2
+	if ensureBothBranchesCouldHappen {
+		if y < z { // ERROR "Proved Less64$"
+			return -42
+		}
+	} else {
+		if y >= z { // ERROR "Disproved Leq64$"
+			return 1337
+		}
+	}
+
+	return y
+}
+
 func bitLen64(x uint64, ensureBothBranchesCouldHappen bool) int {
 	const max = math.MaxUint64
 	sz := bits.Len64(max)
