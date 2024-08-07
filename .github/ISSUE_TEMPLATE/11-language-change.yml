@@ -1,7 +1,7 @@
 name: Language Change Proposals
 description: Changes to the language
-labels: ["Proposal", "v2", "LanguageChange"]
-title: "proposal: Go 2: proposal title"
+labels: ["Proposal", "LanguageChange", "LanguageChangeReview"]
+title: "proposal: spec: proposal title"
 
 
 body:
