@@ -113,20 +113,6 @@ func (d domain) String() string {
 	return s
 }
 
-type pair struct {
-	// a pair of values, ordered by ID.
-	// v can be nil, to mean the zero value.
-	// for booleans the zero value (v == nil) is false.
-	v, w *Value
-	d    domain
-}
-
-// fact is a pair plus a relation for that pair.
-type fact struct {
-	p pair
-	r relation
-}
-
 // a limit records known upper and lower bounds for a value.
 //
 // If we have min>max or umin>umax, then this limit is
@@ -418,9 +404,8 @@ type factsTable struct {
 	caps map[ID]*Value
 }
 
-// checkpointFact is an invalid value used for checkpointing
+// checkpointBound is an invalid value used for checkpointing
 // and restoring factsTable.
-var checkpointFact = fact{}
 var checkpointBound = limitFact{}
 
 func newFactsTable(f *Func) *factsTable {
@@ -1160,17 +1145,6 @@ func (ft *factsTable) restore() {
 		o.next = ft.orderingCache
 		ft.orderingCache = o
 	}
-}
-
-func lessByID(v, w *Value) bool {
-	if v == nil && w == nil {
-		// Should not happen, but just in case.
-		return false
-	}
-	if v == nil {
-		return true
-	}
-	return w != nil && v.ID < w.ID
 }
 
 var (
@@ -2182,60 +2156,6 @@ func removeBranch(b *Block, branch branch) {
 	} else {
 		// TODO: figure out how to remove an entry from a jump table
 	}
-}
-
-// isNonNegative reports whether v is known to be greater or equal to zero.
-// TODO: no longer used by the prove pass; move elsewhere.
-func isNonNegative(v *Value) bool {
-	if !v.Type.IsInteger() {
-		v.Fatalf("isNonNegative bad type: %v", v.Type)
-	}
-	// TODO: return true if !v.Type.IsSigned()
-	// SSA isn't type-safe enough to do that now (issue 37753).
-	// The checks below depend only on the pattern of bits.
-
-	switch v.Op {
-	case OpConst64:
-		return v.AuxInt >= 0
-
-	case OpConst32:
-		return int32(v.AuxInt) >= 0
-
-	case OpConst16:
-		return int16(v.AuxInt) >= 0
-
-	case OpConst8:
-		return int8(v.AuxInt) >= 0
-
-	case OpStringLen, OpSliceLen, OpSliceCap,
-		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64,
-		OpZeroExt8to32, OpZeroExt16to32, OpZeroExt8to16,
-		OpCtz64, OpCtz32, OpCtz16, OpCtz8,
-		OpCtz64NonZero, OpCtz32NonZero, OpCtz16NonZero, OpCtz8NonZero,
-		OpBitLen64, OpBitLen32, OpBitLen16, OpBitLen8:
-		return true
-
-	case OpRsh64Ux64, OpRsh32Ux64:
-		by := v.Args[1]
-		return by.Op == OpConst64 && by.AuxInt > 0
-
-	case OpRsh64x64, OpRsh32x64, OpRsh8x64, OpRsh16x64, OpRsh32x32, OpRsh64x32,
-		OpSignExt32to64, OpSignExt16to64, OpSignExt8to64, OpSignExt16to32, OpSignExt8to32:
-		return isNonNegative(v.Args[0])
-
-	case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
-		return isNonNegative(v.Args[0]) || isNonNegative(v.Args[1])
-
-	case OpMod64, OpMod32, OpMod16, OpMod8,
-		OpDiv64, OpDiv32, OpDiv16, OpDiv8,
-		OpOr64, OpOr32, OpOr16, OpOr8,
-		OpXor64, OpXor32, OpXor16, OpXor8:
-		return isNonNegative(v.Args[0]) && isNonNegative(v.Args[1])
-
-		// We could handle OpPhi here, but the improvements from doing
-		// so are very minor, and it is neither simple nor cheap.
-	}
-	return false
 }
 
 // isConstDelta returns non-nil if v is equivalent to w+delta (signed).
