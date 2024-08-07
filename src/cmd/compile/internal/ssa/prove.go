@@ -1666,6 +1666,27 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 			return ft.unsignedMax(v, 7)
 		}
 
+	case OpBitLen64:
+		a := ft.limits[v.Args[0].ID]
+		return ft.unsignedMinMax(v,
+			uint64(bits.Len64(a.umin)),
+			uint64(bits.Len64(a.umax)))
+	case OpBitLen32:
+		a := ft.limits[v.Args[0].ID]
+		return ft.unsignedMinMax(v,
+			uint64(bits.Len32(uint32(a.umin))),
+			uint64(bits.Len32(uint32(a.umax))))
+	case OpBitLen16:
+		a := ft.limits[v.Args[0].ID]
+		return ft.unsignedMinMax(v,
+			uint64(bits.Len16(uint16(a.umin))),
+			uint64(bits.Len16(uint16(a.umax))))
+	case OpBitLen8:
+		a := ft.limits[v.Args[0].ID]
+		return ft.unsignedMinMax(v,
+			uint64(bits.Len8(uint8(a.umin))),
+			uint64(bits.Len8(uint8(a.umax))))
+
 	// Masks.
 	case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 		// AND can only make the value smaller.

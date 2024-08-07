@@ -8,7 +8,10 @@
 
 package main
 
-import "math"
+import (
+	"math"
+	"math/bits"
+)
 
 func f0(a []int) int {
 	a[0] = 1
@@ -1191,6 +1194,103 @@ func f22(b bool, x, y int) int {
 		}
 	}
 	return 0
+}
+
+func bitLen64(x uint64, ensureBothBranchesCouldHappen bool) int {
+	const max = math.MaxUint64
+	sz := bits.Len64(max)
+
+	if x >= max>>3 {
+		return 42
+	}
+	if x <= max>>6 {
+		return 42
+	}
+
+	y := bits.Len64(x)
+
+	if ensureBothBranchesCouldHappen {
+		if sz-6 <= y && y <= sz-3 { // ERROR "Proved Leq64$"
+			return -42
+		}
+	} else {
+		if y < sz-6 || sz-3 < y { // ERROR "Disproved Less64$"
+			return 1337
+		}
+	}
+	return y
+}
+func bitLen32(x uint32, ensureBothBranchesCouldHappen bool) int {
+	const max = math.MaxUint32
+	sz := bits.Len32(max)
+
+	if x >= max>>3 {
+		return 42
+	}
+	if x <= max>>6 {
+		return 42
+	}
+
+	y := bits.Len32(x)
+
+	if ensureBothBranchesCouldHappen {
+		if sz-6 <= y && y <= sz-3 { // ERROR "Proved Leq64$"
+			return -42
+		}
+	} else {
+		if y < sz-6 || sz-3 < y { // ERROR "Disproved Less64$"
+			return 1337
+		}
+	}
+	return y
+}
+func bitLen16(x uint16, ensureBothBranchesCouldHappen bool) int {
+	const max = math.MaxUint16
+	sz := bits.Len16(max)
+
+	if x >= max>>3 {
+		return 42
+	}
+	if x <= max>>6 {
+		return 42
+	}
+
+	y := bits.Len16(x)
+
+	if ensureBothBranchesCouldHappen {
+		if sz-6 <= y && y <= sz-3 { // ERROR "Proved Leq64$"
+			return -42
+		}
+	} else {
+		if y < sz-6 || sz-3 < y { // ERROR "Disproved Less64$"
+			return 1337
+		}
+	}
+	return y
+}
+func bitLen8(x uint8, ensureBothBranchesCouldHappen bool) int {
+	const max = math.MaxUint8
+	sz := bits.Len8(max)
+
+	if x >= max>>3 {
+		return 42
+	}
+	if x <= max>>6 {
+		return 42
+	}
+
+	y := bits.Len8(x)
+
+	if ensureBothBranchesCouldHappen {
+		if sz-6 <= y && y <= sz-3 { // ERROR "Proved Leq64$"
+			return -42
+		}
+	} else {
+		if y < sz-6 || sz-3 < y { // ERROR "Disproved Less64$"
+			return 1337
+		}
+	}
+	return y
 }
 
 //go:noinline
