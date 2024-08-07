@@ -397,9 +397,16 @@ func GenWasmExportWrapper(wrapped *ir.Func) {
 
 	pp := objw.NewProgs(fn, 0)
 	defer pp.Free()
+	// TEXT. Has a frame to pass args on stack to the Go function.
 	pp.Text.To.Type = obj.TYPE_TEXTSIZE
 	pp.Text.To.Val = int32(0)
 	pp.Text.To.Offset = types.RoundUp(ft.ArgWidth(), int64(types.RegSize))
+	// No locals. (Callee's args are covered in the callee's stackmap.)
+	p := pp.Prog(obj.AFUNCDATA)
+	p.From.SetConst(rtabi.FUNCDATA_LocalsPointerMaps)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = base.Ctxt.Lookup("no_pointers_stackmap")
 	pp.Flush()
 	// Actual code geneneration is in cmd/internal/obj/wasm.
 }

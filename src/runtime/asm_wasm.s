@@ -554,5 +554,57 @@ TEXT wasm_pc_f_loop(SB),NOSPLIT,$0
 
 	Return
 
+// wasm_pc_f_loop_export is like wasm_pc_f_loop, except that this takes an
+// argument (on Wasm stack) that is a PC_F, and the loop stops when we get
+// to that PC in a normal return (not unwinding).
+// This is for handling an wasmexport function when it needs to switch the
+// stack.
+TEXT wasm_pc_f_loop_export(SB),NOSPLIT,$0
+	Get PAUSE
+	I32Eqz
+outer:
+	If
+		// R1 is whether a function return normally (0) or unwinding (1).
+		// Start with unwinding.
+		I32Const $1
+		Set R1
+	loop:
+		Loop
+			// Get PC_F & PC_B from -8(SP)
+			Get SP
+			I32Const $8
+			I32Sub
+			I32Load16U $2 // PC_F
+			Tee R2
+
+			Get R0
+			I32Eq
+			If // PC_F == R0, we're at the stop PC
+				Get R1
+				I32Eqz
+				// Break if it is a normal return
+				BrIf outer // actually jump to after the corresponding End
+			End
+
+			Get SP
+			I32Const $8
+			I32Sub
+			I32Load16U $0 // PC_B
+
+			Get R2 // PC_F
+			CallIndirect $0
+			Set R1 // save return/unwinding state for next iteration
+
+			Get PAUSE
+			I32Eqz
+			BrIf loop
+		End
+	End
+
+	I32Const $0
+	Set PAUSE
+
+	Return
+
 TEXT wasm_export_lib(SB),NOSPLIT,$0
 	UNDEF
