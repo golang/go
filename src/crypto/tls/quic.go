@@ -206,7 +206,7 @@ func (q *QUICConn) Start(ctx context.Context) error {
 	}
 	q.conn.quic.started = true
 	if q.conn.config.MinVersion < VersionTLS13 {
-		return quicError(errors.New("tls: Config MinVersion must be at least TLS 1.13"))
+		return quicError(errors.New("tls: Config MinVersion must be at least TLS 1.3"))
 	}
 	go q.conn.HandshakeContext(ctx)
 	if _, ok := <-q.conn.quic.blockedc; !ok {
