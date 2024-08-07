@@ -1866,6 +1866,7 @@ func TestURLHostnameAndPort(t *testing.T) {
 
 var _ encodingPkg.BinaryMarshaler = (*URL)(nil)
 var _ encodingPkg.BinaryUnmarshaler = (*URL)(nil)
+var _ encodingPkg.BinaryAppender = (*URL)(nil)
 
 func TestJSON(t *testing.T) {
 	u, err := Parse("https://www.google.com/x?y=z")

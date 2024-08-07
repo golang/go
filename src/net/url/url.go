@@ -1219,7 +1219,11 @@ func splitHostPort(hostPort string) (host, port string) {
 // Would like to implement MarshalText/UnmarshalText but that will change the JSON representation of URLs.
 
 func (u *URL) MarshalBinary() (text []byte, err error) {
-	return []byte(u.String()), nil
+	return u.AppendBinary(nil)
+}
+
+func (u *URL) AppendBinary(b []byte) ([]byte, error) {
+	return append(b, u.String()...), nil
 }
 
 func (u *URL) UnmarshalBinary(text []byte) error {

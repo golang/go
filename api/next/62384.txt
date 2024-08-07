@@ -2,3 +2,4 @@ pkg encoding, type BinaryAppender interface { AppendBinary } #62384
 pkg encoding, type BinaryAppender interface, AppendBinary([]uint8) ([]uint8, error) #62384
 pkg encoding, type TextAppender interface { AppendText } #62384
 pkg encoding, type TextAppender interface, AppendText([]uint8) ([]uint8, error) #62384
+pkg net/url, method (*URL) AppendBinary([]uint8) ([]uint8, error) #62384
