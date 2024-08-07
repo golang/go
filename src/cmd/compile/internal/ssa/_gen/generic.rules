@@ -58,6 +58,14 @@
 (Round64F x:(Const64F)) => x
 (CvtBoolToUint8 (ConstBool [false])) => (Const8 [0])
 (CvtBoolToUint8 (ConstBool [true])) => (Const8 [1])
+(BitLen64 (Const64 [c])) && config.PtrSize == 8 => (Const64 [int64(bits.Len64(uint64(c)))])
+(BitLen32 (Const32 [c])) && config.PtrSize == 8 => (Const64 [int64(bits.Len32(uint32(c)))])
+(BitLen16 (Const16 [c])) && config.PtrSize == 8 => (Const64 [int64(bits.Len16(uint16(c)))])
+(BitLen8  (Const8  [c])) && config.PtrSize == 8 => (Const64 [int64(bits.Len8(uint8(c)))])
+(BitLen64 (Const64 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.Len64(uint64(c)))])
+(BitLen32 (Const32 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.Len32(uint32(c)))])
+(BitLen16 (Const16 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.Len16(uint16(c)))])
+(BitLen8  (Const8  [c])) && config.PtrSize == 4 => (Const32 [int32(bits.Len8(uint8(c)))])
 
 (Trunc16to8  (ZeroExt8to16  x)) => x
 (Trunc32to8  (ZeroExt8to32  x)) => x
