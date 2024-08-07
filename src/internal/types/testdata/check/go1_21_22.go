@@ -6,12 +6,11 @@
 
 // Check Go language version-specific errors.
 
-//go:build go1.19
+//go:build go1.22
 
 package p
 
-type Slice []byte
-type Array [8]byte
-
-var s Slice
-var p = (Array)(s /* ok because downgrades below 1.21 are ignored */)
+func f() {
+	for _ = range /* ok because of upgrade to 1.22 */ 10 {
+	}
+}
