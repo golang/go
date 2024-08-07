@@ -2909,17 +2909,21 @@ func TestFileVersions(t *testing.T) {
 		{"", "go1.20", ""},             // file upgrade ignored
 		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
 		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
-		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
+		{"go1.21", "go1.20", "go1.21"}, // file downgrade not permitted
+		{"go1.22", "go1.21", "go1.21"}, // file downgrade permitted (file and module version are >= go1.21)
 
 		// versions containing release numbers
 		// (file versions containing release numbers are considered invalid)
 		{"go1.19.0", "", "go1.19.0"},         // no file version specified
 		{"go1.20", "go1.20.1", "go1.20"},     // file upgrade ignored
 		{"go1.20.1", "go1.20", "go1.20.1"},   // file upgrade ignored
+		{"go1.21.0", "go1.21.1", "go1.21.0"}, // file upgrade ignored
+		{"go1.21", "go1.21.1", "go1.21"},     // file upgrade ignored
 		{"go1.20.1", "go1.21", "go1.21"},     // file upgrade permitted
+		{"go1.21.1", "go1.21", "go1.21.1"},   // file downgrade ignored
 		{"go1.20.1", "go1.19", "go1.20.1"},   // file downgrade not permitted
 		{"go1.21.1", "go1.19.1", "go1.21.1"}, // file downgrade not permitted (invalid file version)
-		{"go1.21.1", "go1.19", "go1.19"},     // file downgrade permitted (module version is >= go1.21)
+		{"go1.22.1", "go1.21", "go1.21"},     // file downgrade permitted (file and module version is >= go1.21)
 	} {
 		var src string
 		if test.fileVersion != "" {
