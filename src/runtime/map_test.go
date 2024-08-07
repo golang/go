@@ -1147,3 +1147,30 @@ func TestMemHashGlobalSeed(t *testing.T) {
 		}
 	})
 }
+
+func TestMapIterDeleteReplace(t *testing.T) {
+	inc := 1
+	if testing.Short() {
+		inc = 100
+	}
+	for i := 0; i < 10000; i += inc {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			m := make(map[int]bool)
+			for j := range i {
+				m[j] = false
+			}
+
+			// Delete and replace all entries.
+			for k := range m {
+				delete(m, k)
+				m[k] = true
+			}
+
+			for k, v := range m {
+				if !v {
+					t.Errorf("m[%d] got false want true", k)
+				}
+			}
+		})
+	}
+}

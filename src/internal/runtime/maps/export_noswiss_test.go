@@ -24,7 +24,7 @@ type instantiatedSlot[K comparable, V any] struct {
 	elem V
 }
 
-func NewTestTable[K comparable, V any](length uint64) *table {
+func newTestMapType[K comparable, V any]() *abi.SwissMapType {
 	var m map[K]V
 	mTyp := abi.TypeOf(m)
 	omt := (*abi.OldMapType)(unsafe.Pointer(mTyp))
@@ -46,5 +46,5 @@ func NewTestTable[K comparable, V any](length uint64) *table {
 	if omt.HashMightPanic() {
 		mt.Flags |= abi.SwissMapHashMightPanic
 	}
-	return newTable(mt, length)
+	return mt
 }

@@ -17,9 +17,9 @@ import (
 
 // The input to FuzzTable is a binary-encoded array of fuzzCommand structs.
 //
-// Each fuzz call begins with an empty table[uint16, uint32].
+// Each fuzz call begins with an empty Map[uint16, uint32].
 //
-// Each command is then executed on the table in sequence. Operations with
+// Each command is then executed on the map in sequence. Operations with
 // output (e.g., Get) are verified against a reference map.
 type fuzzCommand struct {
 	Op fuzzOp
@@ -178,12 +178,12 @@ func FuzzTable(f *testing.F) {
 			return
 		}
 
-		tab := maps.NewTestTable[uint16, uint32](8)
+		m, _ := maps.NewTestMap[uint16, uint32](8)
 		ref := make(map[uint16]uint32)
 		for _, c := range fc {
 			switch c.Op {
 			case fuzzOpGet:
-				elemPtr, ok := tab.Get(unsafe.Pointer(&c.Key))
+				elemPtr, ok := m.Get(unsafe.Pointer(&c.Key))
 				refElem, refOK := ref[c.Key]
 
 				if ok != refOK {
@@ -197,10 +197,10 @@ func FuzzTable(f *testing.F) {
 					t.Errorf("Get(%d) got %d want %d", c.Key, gotElem, refElem)
 				}
 			case fuzzOpPut:
-				tab.Put(unsafe.Pointer(&c.Key), unsafe.Pointer(&c.Elem))
+				m.Put(unsafe.Pointer(&c.Key), unsafe.Pointer(&c.Elem))
 				ref[c.Key] = c.Elem
 			case fuzzOpDelete:
-				tab.Delete(unsafe.Pointer(&c.Key))
+				m.Delete(unsafe.Pointer(&c.Key))
 				delete(ref, c.Key)
 			default:
 				// Just skip this command to keep the fuzzer
