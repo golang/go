@@ -110,7 +110,8 @@ type Statx_t struct {
 	Mnt_id           uint64
 	Dio_mem_align    uint32
 	Dio_offset_align uint32
-	_                [12]uint64
+	Subvol           uint64
+	_                [11]uint64
 }
 
 type Fsid struct {
@@ -3473,7 +3474,7 @@ const (
 	DEVLINK_PORT_FN_ATTR_STATE                         = 0x2
 	DEVLINK_PORT_FN_ATTR_OPSTATE                       = 0x3
 	DEVLINK_PORT_FN_ATTR_CAPS                          = 0x4
-	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x5
+	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x6
 )
 
 type FsverityDigest struct {
@@ -3975,7 +3976,7 @@ const (
 	ETHTOOL_A_TSINFO_TX_TYPES                 = 0x3
 	ETHTOOL_A_TSINFO_RX_FILTERS               = 0x4
 	ETHTOOL_A_TSINFO_PHC_INDEX                = 0x5
-	ETHTOOL_A_TSINFO_MAX                      = 0x5
+	ETHTOOL_A_TSINFO_MAX                      = 0x6
 	ETHTOOL_A_CABLE_TEST_UNSPEC               = 0x0
 	ETHTOOL_A_CABLE_TEST_HEADER               = 0x1
 	ETHTOOL_A_CABLE_TEST_MAX                  = 0x1

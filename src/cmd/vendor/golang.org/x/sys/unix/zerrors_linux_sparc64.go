@@ -82,6 +82,8 @@ const (
 	EFD_CLOEXEC                      = 0x400000
 	EFD_NONBLOCK                     = 0x4000
 	EMT_TAGOVF                       = 0x1
+	EPIOCGPARAMS                     = 0x40088a02
+	EPIOCSPARAMS                     = 0x80088a01
 	EPOLL_CLOEXEC                    = 0x400000
 	EXTPROC                          = 0x10000
 	FF1                              = 0x8000

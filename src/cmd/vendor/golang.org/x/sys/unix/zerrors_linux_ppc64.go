@@ -78,6 +78,8 @@ const (
 	ECHOPRT                          = 0x20
 	EFD_CLOEXEC                      = 0x80000
 	EFD_NONBLOCK                     = 0x800
+	EPIOCGPARAMS                     = 0x40088a02
+	EPIOCSPARAMS                     = 0x80088a01
 	EPOLL_CLOEXEC                    = 0x80000
 	EXTPROC                          = 0x10000000
 	FF1                              = 0x4000

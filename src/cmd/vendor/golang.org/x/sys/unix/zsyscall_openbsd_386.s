@@ -463,6 +463,11 @@ TEXT libc_mknodat_trampoline<>(SB),NOSPLIT,$0-0
 GLOBL	·libc_mknodat_trampoline_addr(SB), RODATA, $4
 DATA	·libc_mknodat_trampoline_addr(SB)/4, $libc_mknodat_trampoline<>(SB)
 
+TEXT libc_mount_trampoline<>(SB),NOSPLIT,$0-0
+	JMP	libc_mount(SB)
+GLOBL	·libc_mount_trampoline_addr(SB), RODATA, $4
+DATA	·libc_mount_trampoline_addr(SB)/4, $libc_mount_trampoline<>(SB)
+
 TEXT libc_nanosleep_trampoline<>(SB),NOSPLIT,$0-0
 	JMP	libc_nanosleep(SB)
 GLOBL	·libc_nanosleep_trampoline_addr(SB), RODATA, $4
