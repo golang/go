@@ -7,9 +7,9 @@ require (
 	golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea
 	golang.org/x/build v0.0.0-20240722200705-b9910f320300
 	golang.org/x/mod v0.20.0
-	golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213
+	golang.org/x/sync v0.8.0
 	golang.org/x/sys v0.23.0
-	golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4
+	golang.org/x/telemetry v0.0.0-20240807181058-38c23d25f755
 	golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292
 	golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c
 )

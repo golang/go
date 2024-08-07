@@ -148,6 +148,8 @@ func (d Dir) Mode() (string, time.Time) {
 
 // DisabledOnPlatform indicates whether telemetry is disabled
 // due to bugs in the current platform.
+//
+// TODO(rfindley): move to a more appropriate file.
 const DisabledOnPlatform = false ||
 	// The following platforms could potentially be supported in the future:
 	runtime.GOOS == "openbsd" || // #60614
@@ -157,4 +159,5 @@ const DisabledOnPlatform = false ||
 	// These platforms fundamentally can't be supported:
 	runtime.GOOS == "js" || // #60971
 	runtime.GOOS == "wasip1" || // #60971
-	runtime.GOOS == "plan9" // https://github.com/golang/go/issues/57540#issuecomment-1470766639
+	runtime.GOOS == "plan9" || // https://github.com/golang/go/issues/57540#issuecomment-1470766639
+	runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" // mips lacks cross-process 64-bit atomics
