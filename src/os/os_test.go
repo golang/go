@@ -1382,9 +1382,8 @@ func TestChtimes(t *testing.T) {
 	t.Parallel()
 
 	f := newFile("TestChtimes", t)
+	// This should be an empty file (see #68687, #68663).
 	defer Remove(f.Name())
-
-	f.Write([]byte("hello, world\n"))
 	f.Close()
 
 	testChtimes(t, f.Name())
@@ -1392,13 +1391,10 @@ func TestChtimes(t *testing.T) {
 
 func TestChtimesWithZeroTimes(t *testing.T) {
 	file := newFile("chtimes-with-zero", t)
-	_, err := file.Write([]byte("hello, world\n"))
-	if err != nil {
-		t.Fatalf("Write: %s", err)
-	}
+	// This should be an empty file (see #68687, #68663).
 	fName := file.Name()
 	defer Remove(file.Name())
-	err = file.Close()
+	err := file.Close()
 	if err != nil {
 		t.Errorf("%v", err)
 	}
