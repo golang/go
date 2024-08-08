@@ -1001,13 +1001,6 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	check.stmt(inner, s.Body)
 }
 
-// RangeKeyVal returns the key and value types for a range over typ.
-// Exported for use by the compiler (does not exist in go/types).
-func RangeKeyVal(typ Type) (Type, Type) {
-	key, val, _, _ := rangeKeyVal(typ, nil)
-	return key, val
-}
-
 // rangeKeyVal returns the key and value type produced by a range clause
 // over an expression of type typ.
 // If allowVersion != nil, it is used to check the required language version.
