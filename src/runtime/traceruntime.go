@@ -470,7 +470,7 @@ func (tl traceLocker) GoUnpark(gp *g, skip int) {
 	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGoUnblock, traceArg(gp.goid), gp.trace.nextSeq(tl.gen), tl.stack(skip))
 }
 
-// GoCoroswitch emits a GoSwitch event. If destroy is true, the calling goroutine
+// GoSwitch emits a GoSwitch event. If destroy is true, the calling goroutine
 // is simultaneously being destroyed.
 func (tl traceLocker) GoSwitch(nextg *g, destroy bool) {
 	// Emit a GoWaiting status if necessary for the unblocked goroutine.
@@ -630,7 +630,7 @@ func trace_userTaskEnd(id uint64) {
 	traceRelease(tl)
 }
 
-// trace_userTaskEnd emits a UserRegionBegin or UserRegionEnd event,
+// trace_userRegion emits a UserRegionBegin or UserRegionEnd event,
 // depending on mode (0 == Begin, 1 == End).
 //
 // TODO(mknyszek): Just make this two functions.
@@ -655,7 +655,7 @@ func trace_userRegion(id, mode uint64, name string) {
 	traceRelease(tl)
 }
 
-// trace_userTaskEnd emits a UserRegionBegin or UserRegionEnd event.
+// trace_userLog emits a UserRegionBegin or UserRegionEnd event.
 //
 //go:linkname trace_userLog runtime/trace.userLog
 func trace_userLog(id uint64, category, message string) {
