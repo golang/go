@@ -513,10 +513,11 @@ func Join(s [][]byte, sep []byte) []byte {
 
 	var n int
 	if len(sep) > 0 {
-		if len(sep) >= maxInt/(len(s)-1) {
+		hi, lo := bits.Mul(uint(len(sep)), uint(len(s)-1))
+		if hi > 0 || lo >= uint(maxInt) {
 			panic("bytes: Join output length overflow")
 		}
-		n += len(sep) * (len(s) - 1)
+		n += int(lo) // lo = len(sep) * (len(s) - 1)
 	}
 	for _, v := range s {
 		if len(v) > maxInt-n {

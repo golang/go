@@ -436,10 +436,11 @@ func Join(elems []string, sep string) string {
 
 	var n int
 	if len(sep) > 0 {
-		if len(sep) >= maxInt/(len(elems)-1) {
+		hi, lo := bits.Mul(uint(len(sep)), uint(len(elems)-1))
+		if hi > 0 || lo >= uint(maxInt) {
 			panic("strings: Join output length overflow")
 		}
-		n += len(sep) * (len(elems) - 1)
+		n += int(lo) // lo = len(sep) * (len(elems) - 1)
 	}
 	for _, elem := range elems {
 		if len(elem) > maxInt-n {
