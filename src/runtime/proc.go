@@ -266,6 +266,17 @@ func main() {
 	if isarchive || islibrary {
 		// A program compiled with -buildmode=c-archive or c-shared
 		// has a main, but it is not executed.
+		if GOARCH == "wasm" {
+			// On Wasm, pause makes it return to the host.
+			// Unlike cgo callbacks where Ms are created on demand,
+			// on Wasm we have only one M. So we keep this M (and this
+			// G) for callbacks.
+			// Using the caller's SP unwinds this frame and backs to
+			// goexit. The -16 is: 8 for goexit's (fake) return PC,
+			// and pause's epilogue pops 8.
+			pause(getcallersp() - 16) // should not return
+			panic("unreachable")
+		}
 		return
 	}
 	fn := main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
@@ -5913,7 +5924,9 @@ func checkdead() {
 	// For -buildmode=c-shared or -buildmode=c-archive it's OK if
 	// there are no running goroutines. The calling program is
 	// assumed to be running.
-	if islibrary || isarchive {
+	// One exception is Wasm, which is single-threaded. If we are
+	// in Go and all goroutines are blocked, it deadlocks.
+	if (islibrary || isarchive) && GOARCH != "wasm" {
 		return
 	}
 

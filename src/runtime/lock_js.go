@@ -253,9 +253,6 @@ func clearIdleTimeout() {
 	idleTimeout = nil
 }
 
-// pause sets SP to newsp and pauses the execution of Go's WebAssembly code until an event is triggered.
-func pause(newsp uintptr)
-
 // scheduleTimeoutEvent tells the WebAssembly environment to trigger an event after ms milliseconds.
 // It returns a timer id that can be used with clearTimeoutEvent.
 //

@@ -14,3 +14,7 @@ TEXT _rt0_wasm_wasip1(SB),NOSPLIT,$0
 	Call wasm_pc_f_loop(SB)
 
 	Return
+
+TEXT _rt0_wasm_wasip1_lib(SB),NOSPLIT,$0
+	Call _rt0_wasm_wasip1(SB)
+	Return

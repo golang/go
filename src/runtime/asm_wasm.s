@@ -608,3 +608,9 @@ outer:
 
 TEXT wasm_export_lib(SB),NOSPLIT,$0
 	UNDEF
+
+TEXT runtime·pause(SB), NOSPLIT, $0-8
+	MOVD newsp+0(FP), SP
+	I32Const $1
+	Set PAUSE
+	RETUNWIND

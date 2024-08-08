@@ -432,7 +432,7 @@ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
 func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ldr := ctxt.loader
 
-	if !ctxt.IsAIX() {
+	if !ctxt.IsAIX() && !ctxt.IsWasm() {
 		switch ctxt.BuildMode {
 		case BuildModeCArchive, BuildModeCShared:
 			s := ldr.Lookup(*flagEntrySymbol, sym.SymVerABI0)

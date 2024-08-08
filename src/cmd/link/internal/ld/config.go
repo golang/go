@@ -145,6 +145,9 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	case BuildModeCArchive:
 		return true, "buildmode=c-archive"
 	case BuildModeCShared:
+		if buildcfg.GOARCH == "wasm" {
+			break
+		}
 		return true, "buildmode=c-shared"
 	case BuildModePIE:
 		if !platform.InternalLinkPIESupported(buildcfg.GOOS, buildcfg.GOARCH) {
