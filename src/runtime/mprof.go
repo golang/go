@@ -722,8 +722,8 @@ type mLockProfile struct {
 }
 
 func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
-	if cycles <= 0 {
-		return
+	if cycles < 0 {
+		cycles = 0
 	}
 
 	if prof.disabled {
