@@ -629,7 +629,7 @@ func (d *Decoder) rawToken() (Token, error) {
 		if target == "xml" {
 			content := string(data)
 			ver := procInst("version", content)
-			if ver != "" && ver != "1.0" {
+			if d.Strict && ver != "" && ver != "1.0" {
 				d.err = fmt.Errorf("xml: unsupported version %q; only version 1.0 is supported", ver)
 				return nil, d.err
 			}
