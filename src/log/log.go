@@ -47,6 +47,7 @@ const (
 	Lshortfile                    // final file name element and line number: d.go:23. overrides Llongfile
 	LUTC                          // if Ldate or Ltime is set, use UTC rather than the local time zone
 	Lmsgprefix                    // move the "prefix" from the beginning of the line to before the message
+	Lmilliseconds                 // millisecond resolution: 01:23:23.123.  assumes Ltime.
 	LstdFlags     = Ldate | Ltime // initial values for the standard logger
 )
 
@@ -115,7 +116,7 @@ func formatHeader(buf *[]byte, t time.Time, prefix string, flag int, file string
 	if flag&Lmsgprefix == 0 {
 		*buf = append(*buf, prefix...)
 	}
-	if flag&(Ldate|Ltime|Lmicroseconds) != 0 {
+	if flag&(Ldate|Ltime|Lmicroseconds|Lmilliseconds) != 0 {
 		if flag&LUTC != 0 {
 			t = t.UTC()
 		}
@@ -128,7 +129,7 @@ func formatHeader(buf *[]byte, t time.Time, prefix string, flag int, file string
 			itoa(buf, day, 2)
 			*buf = append(*buf, ' ')
 		}
-		if flag&(Ltime|Lmicroseconds) != 0 {
+		if flag&(Ltime|Lmicroseconds|Lmilliseconds) != 0 {
 			hour, min, sec := t.Clock()
 			itoa(buf, hour, 2)
 			*buf = append(*buf, ':')
@@ -138,6 +139,9 @@ func formatHeader(buf *[]byte, t time.Time, prefix string, flag int, file string
 			if flag&Lmicroseconds != 0 {
 				*buf = append(*buf, '.')
 				itoa(buf, t.Nanosecond()/1e3, 6)
+			} else if flag&Lmilliseconds != 0 {
+				*buf = append(*buf, '.')
+				itoa(buf, t.Nanosecond()/1e6, 3)
 			}
 			*buf = append(*buf, ' ')
 		}
