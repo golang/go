@@ -482,8 +482,9 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 
 		case pkgbits.ObjAlias:
 			pos := r.pos()
+			var tparams []*types.TypeParam // TODO(#68778): Read tparams for unified IR.
 			typ := r.typ()
-			declare(newAliasTypeName(pos, objPkg, objName, typ))
+			declare(newAliasTypeName(pos, objPkg, objName, typ, tparams))
 
 		case pkgbits.ObjConst:
 			pos := r.pos()
@@ -661,14 +662,16 @@ func pkgScope(pkg *types.Package) *types.Scope {
 }
 
 // newAliasTypeName returns a new TypeName, with a materialized *types.Alias if supported.
-func newAliasTypeName(pos token.Pos, pkg *types.Package, name string, rhs types.Type) *types.TypeName {
+func newAliasTypeName(pos token.Pos, pkg *types.Package, name string, rhs types.Type, tparams []*types.TypeParam) *types.TypeName {
 	// When GODEBUG=gotypesalias=1 or unset, the Type() of the return value is a
 	// *types.Alias. Copied from x/tools/internal/aliases.NewAlias.
 	switch godebug.New("gotypesalias").Value() {
 	case "", "1":
 		tname := types.NewTypeName(pos, pkg, name, nil)
-		_ = types.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+		a := types.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+		a.SetTypeParams(tparams)
 		return tname
 	}
+	assert(len(tparams) == 0)
 	return types.NewTypeName(pos, pkg, name, rhs)
 }

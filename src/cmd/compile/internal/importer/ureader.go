@@ -410,8 +410,9 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 
 		case pkgbits.ObjAlias:
 			pos := r.pos()
+			var tparams []*types2.TypeParam // TODO(#68778): Read tparams for unified IR.
 			typ := r.typ()
-			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ)
+			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ, tparams)
 
 		case pkgbits.ObjConst:
 			pos := r.pos()
@@ -537,13 +538,15 @@ func (r *reader) ident(marker pkgbits.SyncMarker) (*types2.Package, string) {
 }
 
 // newAliasTypeName returns a new TypeName, with a materialized *types2.Alias if supported.
-func newAliasTypeName(aliases bool, pos syntax.Pos, pkg *types2.Package, name string, rhs types2.Type) *types2.TypeName {
+func newAliasTypeName(aliases bool, pos syntax.Pos, pkg *types2.Package, name string, rhs types2.Type, tparams []*types2.TypeParam) *types2.TypeName {
 	// Copied from x/tools/internal/aliases.NewAlias via
 	// GOROOT/src/go/internal/gcimporter/ureader.go.
 	if aliases {
 		tname := types2.NewTypeName(pos, pkg, name, nil)
-		_ = types2.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+		a := types2.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+		a.SetTypeParams(tparams)
 		return tname
 	}
+	assert(len(tparams) == 0)
 	return types2.NewTypeName(pos, pkg, name, rhs)
 }

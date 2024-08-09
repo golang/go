@@ -321,10 +321,14 @@ func (r *importReader) obj(name string) {
 	pos := r.pos()
 
 	switch tag {
-	case 'A':
-		typ := r.typ()
-
-		r.declare(types2.NewTypeName(pos, r.currPkg, name, typ))
+	case 'A', 'B':
+		var tparams []*types2.TypeParam
+		if tag == 'B' {
+			tparams = r.tparamList()
+		}
+		rhs := r.typ()
+		const enabled = true // This is now always enabled within the compiler.
+		r.declare(newAliasTypeName(enabled, pos, r.currPkg, name, rhs, tparams))
 
 	case 'C':
 		typ, val := r.value()
