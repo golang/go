@@ -62,7 +62,7 @@ func runBug(ctx context.Context, cmd *base.Command, args []string) {
 }
 
 const bugHeader = `<!-- Please answer these questions before submitting your issue. Thanks! -->
-
+For questions please use one of our forums: https://github.com/golang/go/wiki/Questions
 `
 const bugFooter = `### What did you do?
 
