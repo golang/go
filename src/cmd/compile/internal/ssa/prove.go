@@ -1501,9 +1501,6 @@ func prove(f *Func) {
 				addBranchRestrictions(ft, parent, branch)
 			}
 
-			// Add facts about the values in the current block.
-			addLocalFacts(ft, node.block)
-
 			if ft.unsat {
 				// node.block is unreachable.
 				// Remove it and don't visit
@@ -1515,6 +1512,9 @@ func prove(f *Func) {
 			// Otherwise, we can now commit to
 			// taking this branch. We'll restore
 			// ft when we unwind.
+
+			// Add facts about the values in the current block.
+			addLocalFacts(ft, node.block)
 
 			work = append(work, bp{
 				block: node.block,
