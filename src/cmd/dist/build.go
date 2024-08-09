@@ -258,7 +258,7 @@ func xinit() {
 	os.Setenv("LANGUAGE", "en_US.UTF8")
 	os.Unsetenv("GO111MODULE")
 	os.Setenv("GOENV", "off")
-	os.Unsetenv("GOFLAGS")
+	os.Setenv("GOFLAGS", os.Getenv("GOFLAGS_BOOTSTRAP"))
 	os.Setenv("GOWORK", "off")
 
 	workdir = xworkdir()
@@ -1236,7 +1236,7 @@ func cmdenv() {
 	xprintf(format, "GOBIN", gorootBin)
 	xprintf(format, "GODEBUG", os.Getenv("GODEBUG"))
 	xprintf(format, "GOENV", "off")
-	xprintf(format, "GOFLAGS", "")
+	xprintf(format, "GOFLAGS", os.Getenv("GOFLAGS_BOOTSTRAP"))
 	xprintf(format, "GOHOSTARCH", gohostarch)
 	xprintf(format, "GOHOSTOS", gohostos)
 	xprintf(format, "GOOS", goos)
