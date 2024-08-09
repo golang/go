@@ -174,14 +174,32 @@ func ExampleMod() {
 }
 
 func ExampleAbs() {
-	x := math.Abs(-2)
-	fmt.Printf("%.1f\n", x)
+	xFloat64 := math.Abs(float64(-2))
+	fmt.Printf("%.1f, %T\n", xFloat64, xFloat64)
 
-	y := math.Abs(2)
-	fmt.Printf("%.1f\n", y)
+	yFloat64 := math.Abs(float64(2))
+	fmt.Printf("%.1f, %T\n", yFloat64, yFloat64)
+
+	xInt := math.Abs(int(-2))
+	fmt.Printf("%d, %T\n", xInt, xInt)
+
+	yInt := math.Abs(int(2))
+	fmt.Printf("%d, %T\n", yInt, yInt)
+
+	type int64Type int64
+	xTypeInt64 := math.Abs(int64Type(-2))
+	fmt.Printf("%d, %T\n", xTypeInt64, xTypeInt64)
+
+	yTypeInt64 := math.Abs(int64Type(2))
+	fmt.Printf("%d, %T\n", yTypeInt64, yTypeInt64)
+
 	// Output:
-	// 2.0
-	// 2.0
+	// 2.0, float64
+	// 2.0, float64
+	// 2, int
+	// 2, int
+	// 2, math_test.int64Type
+	// 2, math_test.int64Type
 }
 func ExampleDim() {
 	fmt.Printf("%.2f\n", math.Dim(4, -2))
