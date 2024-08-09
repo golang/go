@@ -582,6 +582,23 @@ func TestIssue25596(t *testing.T) {
 	compileAndImportPkg(t, "issue25596")
 }
 
+func TestIssue70394(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+
+	pkg := compileAndImportPkg(t, "alias")
+	obj := lookupObj(t, pkg.Scope(), "A")
+
+	typ := obj.Type()
+	if _, ok := typ.(*types2.Alias); !ok {
+		t.Fatalf("type of %s is %s, wanted an alias", obj, typ)
+	}
+}
+
 func importPkg(t *testing.T, path, srcDir string) *types2.Package {
 	pkg, err := Import(make(map[string]*types2.Package), path, srcDir, nil)
 	if err != nil {

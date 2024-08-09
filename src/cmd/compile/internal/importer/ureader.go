@@ -29,11 +29,9 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
 	pr := pkgReader{
 		PkgDecoder: input,
 
-		ctxt:    ctxt,
-		imports: imports,
-		// Currently, the compiler panics when using Alias types.
-		// TODO(gri) set to true once this is fixed (issue #66873)
-		enableAlias: false,
+		ctxt:        ctxt,
+		imports:     imports,
+		enableAlias: true,
 
 		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.RelocPosBase)),
 		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.RelocPkg)),
