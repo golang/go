@@ -481,21 +481,21 @@ func (w *worker) stop() error {
 //
 // RunFuzzWorker returns an error if it could not communicate with the
 // coordinator process.
-func RunFuzzWorker(ctx context.Context, fn func(CorpusEntry) error) error {
+func RunFuzzWorker(ctx context.Context, fn func(CorpusEntry) (bool, error)) error {
 	comm, err := getWorkerComm()
 	if err != nil {
 		return err
 	}
 	srv := &workerServer{
 		workerComm: comm,
-		fuzzFn: func(e CorpusEntry) (time.Duration, error) {
+		fuzzFn: func(e CorpusEntry) (time.Duration, bool, error) {
 			timer := time.AfterFunc(10*time.Second, func() {
 				panic("deadlocked!") // this error message won't be printed
 			})
 			defer timer.Stop()
 			start := time.Now()
-			err := fn(e)
-			return time.Since(start), err
+			skipped, err := fn(e)
+			return time.Since(start), skipped, err
 		},
 		m: newMutator(),
 	}
@@ -637,7 +637,7 @@ type workerServer struct {
 	// time it took to run the input. It sets a deadline of 10 seconds, at which
 	// point it will panic with the assumption that the process is hanging or
 	// deadlocked.
-	fuzzFn func(CorpusEntry) (time.Duration, error)
+	fuzzFn func(CorpusEntry) (time.Duration, bool, error)
 }
 
 // serve reads serialized RPC messages on fuzzIn. When serve receives a message,
@@ -743,8 +743,12 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 	}
 	fuzzOnce := func(entry CorpusEntry) (dur time.Duration, cov []byte, errMsg string) {
 		mem.header().count++
+		var skipped bool
 		var err error
-		dur, err = ws.fuzzFn(entry)
+		dur, skipped, err = ws.fuzzFn(entry)
+		if skipped {
+			return dur, nil, ""
+		}
 		if err != nil {
 			errMsg = err.Error()
 			if errMsg == "" {
@@ -860,12 +864,15 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []any, mem *shar
 		return false, nil
 	}
 
-	// Check that the original value preserves coverage or causes an error.
-	// If not, then whatever caused us to think the value was interesting may
-	// have been a flake, and we can't minimize it.
+	// Check that the original value is not skipped, preserves coverage or
+	// causes an error. If not, then whatever caused us to think the value
+	// was interesting may have been a flake, and we can't minimize it.
 	*count++
-	_, retErr = ws.fuzzFn(CorpusEntry{Values: vals})
-	if keepCoverage != nil {
+	var skipped bool
+	_, skipped, retErr = ws.fuzzFn(CorpusEntry{Values: vals})
+	if skipped {
+		return false, nil
+	} else if keepCoverage != nil {
 		if !hasCoverageBit(keepCoverage, coverageSnapshot) || retErr != nil {
 			return false, nil
 		}
@@ -892,20 +899,22 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []any, mem *shar
 		*bPtr = (*bPtr)[:len(candidate)]
 		mem.setValueLen(len(candidate))
 		*count++
-		_, err := ws.fuzzFn(CorpusEntry{Values: vals})
-		if err != nil {
-			retErr = err
-			if keepCoverage != nil {
-				// Now that we've found a crash, that's more important than any
-				// minimization of interesting inputs that was being done. Clear out
-				// keepCoverage to only minimize the crash going forward.
-				keepCoverage = nil
+		_, skipped, err := ws.fuzzFn(CorpusEntry{Values: vals})
+		if !skipped {
+			if err != nil {
+				retErr = err
+				if keepCoverage != nil {
+					// Now that we've found a crash, that's more important than any
+					// minimization of interesting inputs that was being done. Clear out
+					// keepCoverage to only minimize the crash going forward.
+					keepCoverage = nil
+				}
+				return true
 			}
-			return true
-		}
-		// Minimization should preserve coverage bits.
-		if keepCoverage != nil && isCoverageSubset(keepCoverage, coverageSnapshot) {
-			return true
+			// Minimization should preserve coverage bits.
+			if keepCoverage != nil && isCoverageSubset(keepCoverage, coverageSnapshot) {
+				return true
+			}
 		}
 		vals[args.Index] = prev
 		return false
