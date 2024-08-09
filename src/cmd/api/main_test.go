@@ -382,11 +382,21 @@ func (w *Walker) Features() (fs []string) {
 	return
 }
 
-var parsedFileCache = make(map[string]*ast.File)
+var parsedFileCache struct {
+	lock sync.RWMutex
+	m    map[string]*ast.File
+}
+
+func init() {
+	parsedFileCache.m = make(map[string]*ast.File)
+}
 
 func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	filename := filepath.Join(dir, file)
-	if f := parsedFileCache[filename]; f != nil {
+	parsedFileCache.lock.RLock()
+	f := parsedFileCache.m[filename]
+	parsedFileCache.lock.RUnlock()
+	if f != nil {
 		return f, nil
 	}
 
@@ -394,7 +404,11 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	parsedFileCache[filename] = f
+	parsedFileCache.lock.Lock()
+	if _, ok := parsedFileCache.m[filename]; !ok {
+		parsedFileCache.m[filename] = f
+	}
+	parsedFileCache.lock.Unlock()
 
 	return f, nil
 }
@@ -403,9 +417,20 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 const usePkgCache = true
 
 var (
-	pkgCache = map[string]*apiPackage{} // map tagKey to package
-	pkgTags  = map[string][]string{}    // map import dir to list of relevant tags
+	pkgCache struct {
+		lock sync.RWMutex
+		m    map[string]*apiPackage // map tagKey to package
+	}
+	pkgTags struct {
+		lock sync.RWMutex
+		m    map[string][]string // map import dir to list of relevant tags
+	}
 )
+
+func init() {
+	pkgCache.m = make(map[string]*apiPackage)
+	pkgTags.m = make(map[string][]string)
+}
 
 // tagKey returns the tag-based key to use in the pkgCache.
 // It is a comma-separated string; the first part is dir, the rest tags.
@@ -450,14 +475,6 @@ type listImports struct {
 
 var listCache sync.Map // map[string]listImports, keyed by contextName
 
-// listSem is a semaphore restricting concurrent invocations of 'go list'. 'go
-// list' has its own internal concurrency, so we use a hard-coded constant (to
-// allow the I/O-intensive phases of 'go list' to overlap) instead of scaling
-// all the way up to GOMAXPROCS.
-var listSem = make(chan semToken, 2)
-
-type semToken struct{}
-
 // loadImports populates w with information about the packages in the standard
 // library and the packages they themselves import in w's build context.
 //
@@ -482,9 +499,6 @@ func (w *Walker) loadImports() {
 
 	imports, ok := listCache.Load(name)
 	if !ok {
-		listSem <- semToken{}
-		defer func() { <-listSem }()
-
 		cmd := exec.Command(goCmd(), "list", "-e", "-deps", "-json", "std")
 		cmd.Env = listEnv(w.context)
 		if w.context.Dir != "" {
@@ -629,12 +643,22 @@ func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*a
 	// of relevant tags, reuse the result.
 	var key string
 	if usePkgCache {
-		if tags, ok := pkgTags[dir]; ok {
+		pkgTags.lock.Lock()
+		tags, ok := pkgTags.m[dir]
+		if ok {
 			key = tagKey(dir, context, tags)
-			if pkg := pkgCache[key]; pkg != nil {
+			pkgTags.lock.Unlock()
+
+			pkgCache.lock.RLock()
+			pkg := pkgCache.m[key]
+			pkgCache.lock.RUnlock()
+
+			if pkg != nil {
 				w.imported[name] = pkg
 				return pkg, nil
 			}
+		} else {
+			pkgTags.lock.Unlock()
 		}
 	}
 
@@ -648,10 +672,13 @@ func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*a
 
 	// Save tags list first time we see a directory.
 	if usePkgCache {
-		if _, ok := pkgTags[dir]; !ok {
-			pkgTags[dir] = info.AllTags
+		pkgTags.lock.Lock()
+		_, ok := pkgTags.m[dir]
+		if !ok {
+			pkgTags.m[dir] = info.AllTags
 			key = tagKey(dir, context, info.AllTags)
 		}
+		pkgTags.lock.Unlock()
 	}
 
 	filenames := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
@@ -688,7 +715,9 @@ func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*a
 	pkg = &apiPackage{tpkg, files}
 
 	if usePkgCache {
-		pkgCache[key] = pkg
+		pkgCache.lock.Lock()
+		pkgCache.m[key] = pkg
+		pkgCache.lock.Unlock()
 	}
 
 	w.imported[name] = pkg
