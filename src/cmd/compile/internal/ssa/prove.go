@@ -1698,10 +1698,12 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		b := ft.limits[v.Args[1].ID]
 		return ft.unsignedMax(v, minU(a.umax, b.umax))
 	case OpOr64, OpOr32, OpOr16, OpOr8:
-		// OR can only make the value bigger.
+		// OR can only make the value bigger and can't flip bits proved to be zero in both inputs.
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
-		return ft.unsignedMin(v, maxU(a.umin, b.umin))
+		return ft.unsignedMinMax(v,
+			maxU(a.umin, b.umin),
+			1<<bits.Len64(a.umax|b.umax)-1)
 	case OpXor64, OpXor32, OpXor16, OpXor8:
 		// XOR can't flip bits that are proved to be zero in both inputs.
 		a := ft.limits[v.Args[0].ID]
