@@ -89,7 +89,7 @@ func Fix(h Interface, i int) {
 func up(h Interface, j int) {
 	for {
 		i := (j - 1) / 2 // parent
-		if i == j || !h.Less(j, i) {
+		if i == -1 || h.Less(i, j) {
 			break
 		}
 		h.Swap(i, j)
@@ -100,15 +100,21 @@ func up(h Interface, j int) {
 func down(h Interface, i0, n int) bool {
 	i := i0
 	for {
-		j1 := 2*i + 1
-		if j1 >= n || j1 < 0 { // j1 < 0 after int overflow
+		j := 2*i + 2 // right child
+		if j <= 0 {   // right child <= 0 after int overflow (if true, it breaks also if the left child has index = maxint, because is impossible to has n > maxint)
 			break
 		}
-		j := j1 // left child
-		if j2 := j1 + 1; j2 < n && h.Less(j2, j1) {
-			j = j2 // = 2*i + 2  // right child
+		if j < n { // check the bounds firstly for the right child because in most cases that's true (and implicitily left child if less than n)
+			if h.Less(j-1, j) {
+				j--
+			}
+		} else {
+			if j <= n && h.Less(j-1, i) { // if true => j-1 == n
+				h.Swap(i, j-1)
+			}
+			break
 		}
-		if !h.Less(j, i) {
+		if h.Less(i, j) {
 			break
 		}
 		h.Swap(i, j)
