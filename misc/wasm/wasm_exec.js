@@ -73,6 +73,14 @@
 		}
 	}
 
+	if (!globalThis.path) {
+		globalThis.path = {
+			resolve(...pathSegments) {
+				return pathSegments.join("/");
+			}
+		}
+	}
+
 	if (!globalThis.crypto) {
 		throw new Error("globalThis.crypto is not available, polyfill required (crypto.getRandomValues only)");
 	}
