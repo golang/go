@@ -43,12 +43,12 @@ func init() {
 
 func SimpleDeadlock() {
 	select {}
-	panic("not reached")
+	panic("unreachable")
 }
 
 func InitDeadlock() {
 	select {}
-	panic("not reached")
+	panic("unreachable")
 }
 
 func LockedDeadlock() {
