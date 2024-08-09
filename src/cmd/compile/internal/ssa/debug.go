@@ -205,10 +205,19 @@ func (s *debugState) logf(msg string, args ...interface{}) {
 
 type debugState struct {
 	// See FuncDebug.
-	slots    []LocalSlot
-	vars     []*ir.Name
+	slots []LocalSlot
+	vars  []*ir.Name
+
+	// The slots corresponding to each variable, indexed by VarID. The slice for
+	// a variable is ordered by offset within that variable. Note that each
+	// piece (offset) of a variable may have multiple slots with different
+	// types.
 	varSlots [][]SlotID
-	lists    [][]byte
+	// The index into varSlots for the first slot corresponding to a piece of
+	// that variable, indexed by VarID. See the varPieceSlots method for usage.
+	varPieces [][]int
+	// The accumulated location lists for each variable, indexed by VarID.
+	lists [][]byte
 
 	// The user variable that each slot rolls up to, indexed by SlotID.
 	slotVars []VarID
@@ -231,13 +240,21 @@ type debugState struct {
 	// The pending location list entry for each user variable, indexed by VarID.
 	pendingEntries []pendingEntry
 
-	varParts         map[*ir.Name][]SlotID
-	blockDebug       []BlockDebug
-	pendingSlotLocs  []VarLoc
-	partsByVarOffset sort.Interface
+	varSlotsByName map[*ir.Name][]SlotID
+	blockDebug     []BlockDebug
+
+	// The backing slice for pendingEntries.pieces to avoid reallocations.
+	pendingSlotLocs []VarLoc
+
+	// The backing slice for varPieces to avoid reallocations.
+	varPiecesBuf []int
+
+	// Used to sort the slots within a variable by offset. Cached here to avoid
+	// allocating the implementation of sort.Interface.
+	slotsByVarOffset slotsByVarOffset
 }
 
-func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
+func (state *debugState) initializeCache(f *Func, numVars, numSlots, numPieces int) {
 	// One blockDebug per block. Initialized in allocBlock.
 	if cap(state.blockDebug) < f.NumBlocks() {
 		state.blockDebug = make([]BlockDebug, f.NumBlocks())
@@ -278,10 +295,6 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
 	state.changedSlots = newSparseSet(numSlots)
 
 	// A pending entry per user variable, with space to track each of its pieces.
-	numPieces := 0
-	for i := range state.varSlots {
-		numPieces += len(state.varSlots[i])
-	}
 	if cap(state.pendingSlotLocs) < numPieces {
 		state.pendingSlotLocs = make([]VarLoc, numPieces)
 	} else {
@@ -295,11 +308,11 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
 	}
 	pe := state.pendingEntries[:numVars]
 	freePieceIdx := 0
-	for varID, slots := range state.varSlots {
+	for varID, pieces := range state.varPieces {
 		pe[varID] = pendingEntry{
-			pieces: state.pendingSlotLocs[freePieceIdx : freePieceIdx+len(slots)],
+			pieces: state.pendingSlotLocs[freePieceIdx : freePieceIdx+len(pieces)],
 		}
-		freePieceIdx += len(slots)
+		freePieceIdx += len(pieces)
 	}
 	state.pendingEntries = pe
 
@@ -311,6 +324,16 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
 			state.lists[i] = nil
 		}
 	}
+}
+
+// Look up the slots for the ith piece of the variable.
+func (state *debugState) varPieceSlots(varID VarID, piece int) []SlotID {
+	slots := state.varSlots[varID]
+	pieces := state.varPieces[varID]
+	if piece == len(pieces)-1 {
+		return slots[pieces[piece]:]
+	}
+	return slots[pieces[piece] : pieces[piece]+1]
 }
 
 func (state *debugState) allocBlock(b *Block) *BlockDebug {
@@ -585,11 +608,11 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 		state.logf("Generating location lists for function %q\n", f.Name)
 	}
 
-	if state.varParts == nil {
-		state.varParts = make(map[*ir.Name][]SlotID)
+	if state.varSlotsByName == nil {
+		state.varSlotsByName = make(map[*ir.Name][]SlotID)
 	} else {
-		for n := range state.varParts {
-			delete(state.varParts, n)
+		for n := range state.varSlotsByName {
+			delete(state.varSlotsByName, n)
 		}
 	}
 
@@ -608,10 +631,10 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 		for topSlot.SplitOf != nil {
 			topSlot = topSlot.SplitOf
 		}
-		if _, ok := state.varParts[topSlot.N]; !ok {
+		if _, ok := state.varSlotsByName[topSlot.N]; !ok {
 			state.vars = append(state.vars, topSlot.N)
 		}
-		state.varParts[topSlot.N] = append(state.varParts[topSlot.N], SlotID(i))
+		state.varSlotsByName[topSlot.N] = append(state.varSlotsByName[topSlot.N], SlotID(i))
 	}
 
 	// Recreate the LocalSlot for each stack-only variable.
@@ -624,10 +647,10 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 					continue
 				}
 
-				if _, ok := state.varParts[n]; !ok {
+				if _, ok := state.varSlotsByName[n]; !ok {
 					slot := LocalSlot{N: n, Type: v.Type, Off: 0}
 					state.slots = append(state.slots, slot)
-					state.varParts[n] = []SlotID{SlotID(len(state.slots) - 1)}
+					state.varSlotsByName[n] = []SlotID{SlotID(len(state.slots) - 1)}
 					state.vars = append(state.vars, n)
 				}
 			}
@@ -649,20 +672,58 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 		state.slotVars = state.slotVars[:len(state.slots)]
 	}
 
-	if state.partsByVarOffset == nil {
-		state.partsByVarOffset = &partsByVarOffset{}
-	}
+	// Set up the varSlots mapping, and sort the slots within each variable by
+	// by the offset of the slot within the variable. Along the way, compute the
+	// aggregate number of pieces across all variables in order to properly size
+	// varPiecesBuf needed to populate the varPieces mapping.
+	var numPieces int
 	for varID, n := range state.vars {
-		parts := state.varParts[n]
-		state.varSlots[varID] = parts
-		for _, slotID := range parts {
+		varSlots := state.varSlotsByName[n]
+		state.varSlots[varID] = varSlots
+		for _, slotID := range varSlots {
 			state.slotVars[slotID] = VarID(varID)
 		}
-		*state.partsByVarOffset.(*partsByVarOffset) = partsByVarOffset{parts, state.slots}
-		sort.Sort(state.partsByVarOffset)
+		state.slotsByVarOffset = slotsByVarOffset{
+			slotIDs: varSlots, slots: state.slots,
+		}
+		sort.Stable(&state.slotsByVarOffset)
+		for i := range varSlots {
+			if i == 0 || state.slotsByVarOffset.Less(i-1, i) {
+				numPieces++
+			}
+		}
 	}
 
-	state.initializeCache(f, len(state.varParts), len(state.slots))
+	// Fill in the var->pieces mapping; mapping a piece to the relevant range of
+	// varSlots.
+	if cap(state.varPiecesBuf) < numPieces {
+		state.varPiecesBuf = make([]int, numPieces)
+	} else {
+		state.varPiecesBuf = state.varPiecesBuf[:numPieces]
+	}
+	if cap(state.varPieces) < len(state.vars) {
+		state.varPieces = make([][]int, len(state.vars))
+	} else {
+		state.varPieces = state.varPieces[:len(state.vars)]
+	}
+	var varBufIdx int
+	for varID := range state.vars {
+		varSlots := state.varSlots[varID]
+		byOffset := slotsByVarOffset{
+			slotIDs: varSlots, slots: state.slots,
+		}
+		var varPieces int
+		for i := range varSlots {
+			if i == 0 || byOffset.Less(i-1, i) {
+				state.varPiecesBuf[varBufIdx+varPieces] = i
+				varPieces++
+			}
+		}
+		state.varPieces[varID] = state.varPiecesBuf[varBufIdx : varBufIdx+varPieces]
+		varBufIdx += varPieces
+	}
+
+	state.initializeCache(f, len(state.varSlotsByName), len(state.slots), numPieces)
 
 	for i, slot := range f.Names {
 		if ir.IsSynthetic(slot.N) || !IsVarWantedForDebug(slot.N) {
@@ -1091,7 +1152,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 			break
 		}
 
-		slotID := state.varParts[n][0]
+		slotID := state.varSlotsByName[n][0]
 		var stackOffset StackOffset
 		if v.Op == OpVarDef {
 			stackOffset = StackOffset(state.stackOffset(state.slots[slotID])<<1 | 1)
@@ -1180,16 +1241,16 @@ func varOffset(slot LocalSlot) int64 {
 	return offset
 }
 
-type partsByVarOffset struct {
+type slotsByVarOffset struct {
 	slotIDs []SlotID
 	slots   []LocalSlot
 }
 
-func (a partsByVarOffset) Len() int { return len(a.slotIDs) }
-func (a partsByVarOffset) Less(i, j int) bool {
+func (a slotsByVarOffset) Len() int { return len(a.slotIDs) }
+func (a slotsByVarOffset) Less(i, j int) bool {
 	return varOffset(a.slots[a.slotIDs[i]]) < varOffset(a.slots[a.slotIDs[j]])
 }
-func (a partsByVarOffset) Swap(i, j int) { a.slotIDs[i], a.slotIDs[j] = a.slotIDs[j], a.slotIDs[i] }
+func (a slotsByVarOffset) Swap(i, j int) { a.slotIDs[i], a.slotIDs[j] = a.slotIDs[j], a.slotIDs[i] }
 
 // A pendingEntry represents the beginning of a location list entry, missing
 // only its end coordinate.
@@ -1197,7 +1258,7 @@ type pendingEntry struct {
 	present                bool
 	startBlock, startValue ID
 	// The location of each piece of the variable, in the same order as the
-	// SlotIDs in varParts.
+	// varPieces which indexes into ranges of varSlots.
 	pieces []VarLoc
 }
 
@@ -1403,11 +1464,24 @@ func (state *debugState) updateVar(varID VarID, b *Block, v *Value) {
 		return
 	}
 
+	// Each piece of the variable may be split among multiple slots due to the
+	// slots having different types. We need to find a location for the piece.
+	// Use varPieces to find the relevant slots for each piece, and take the
+	// first one that is live.
+	pieceLoc := func(pieceIdx int) VarLoc {
+		for _, slot := range state.varPieceSlots(varID, pieceIdx) {
+			if loc := curLoc[slot]; !loc.absent() {
+				return loc
+			}
+		}
+		return VarLoc{}
+	}
+
 	// Extend the previous entry if possible.
 	if pending.present {
 		merge := true
-		for i, slotID := range state.varSlots[varID] {
-			if !canMerge(pending.pieces[i], curLoc[slotID]) {
+		for i := range pending.pieces {
+			if !canMerge(pending.pieces[i], pieceLoc(i)) {
 				merge = false
 				break
 			}
@@ -1421,8 +1495,8 @@ func (state *debugState) updateVar(varID VarID, b *Block, v *Value) {
 	pending.present = true
 	pending.startBlock = b.ID
 	pending.startValue = v.ID
-	for i, slot := range state.varSlots[varID] {
-		pending.pieces[i] = curLoc[slot]
+	for i := range pending.pieces {
+		pending.pieces[i] = pieceLoc(i)
 	}
 }
 
@@ -1461,17 +1535,15 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
 	list = list[:len(list)+2]
 
 	if state.loggingLevel > 1 {
-		var partStrs []string
-		for i, slot := range state.varSlots[varID] {
-			partStrs = append(partStrs, fmt.Sprintf("%v@%v", state.slots[slot], state.LocString(pending.pieces[i])))
+		var pieceStrs []string
+		for i := range pending.pieces {
+			slot := state.varPieceSlots(varID, i)[0]
+			pieceStrs = append(pieceStrs, fmt.Sprintf("%v@%v", state.slots[slot], state.LocString(pending.pieces[i])))
 		}
-		state.logf("Add entry for %v: \tb%vv%v-b%vv%v = \t%v\n", state.vars[varID], pending.startBlock, pending.startValue, endBlock, endValue, strings.Join(partStrs, " "))
+		state.logf("Add entry for %v: \tb%vv%v-b%vv%v = \t%v\n", state.vars[varID], pending.startBlock, pending.startValue, endBlock, endValue, strings.Join(pieceStrs, " "))
 	}
 
-	for i, slotID := range state.varSlots[varID] {
-		loc := pending.pieces[i]
-		slot := state.slots[slotID]
-
+	for i, loc := range pending.pieces {
 		if !loc.absent() {
 			if loc.onStack() {
 				if loc.stackOffsetValue() == 0 {
@@ -1491,9 +1563,11 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
 			}
 		}
 
-		if len(state.varSlots[varID]) > 1 {
+		if len(state.varPieces[varID]) > 1 {
+			canonicalPieceSlot := state.varPieceSlots(varID, i)[0]
+			pieceSize := state.slots[canonicalPieceSlot].Type.Size()
 			list = append(list, dwarf.DW_OP_piece)
-			list = dwarf.AppendUleb128(list, uint64(slot.Type.Size()))
+			list = dwarf.AppendUleb128(list, uint64(pieceSize))
 		}
 	}
 	state.ctxt.Arch.ByteOrder.PutUint16(list[sizeIdx:], uint16(len(list)-sizeIdx-2))
