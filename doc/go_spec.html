@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.23 (June 13, 2024)",
+	"Subtitle": "Language version go1.23 (Aug 12, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -1086,7 +1086,7 @@ A field declared with a type but no explicit field name is called an <i>embedded
 An embedded field must be specified as
 a type name <code>T</code> or as a pointer to a non-interface type name <code>*T</code>,
 and <code>T</code> itself may not be
-a pointer type. The unqualified type name acts as the field name.
+a pointer type or type parameter. The unqualified type name acts as the field name.
 </p>
 
 <pre>
@@ -1127,7 +1127,7 @@ of a struct except that they cannot be used as field names in
 </p>
 
 <p>
-Given a struct type <code>S</code> and a <a href="#Types">named type</a>
+Given a struct type <code>S</code> and a type name
 <code>T</code>, promoted methods are included in the method set of the struct as follows:
 </p>
 <ul>
