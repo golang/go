@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"iter"
 	"math"
 	"math/rand"
 	"slices"
@@ -18,6 +19,37 @@ import (
 	"unicode/utf8"
 	"unsafe"
 )
+
+func collect(t *testing.T, seq iter.Seq[string]) []string {
+	out := slices.Collect(seq)
+	out1 := slices.Collect(seq)
+	if !slices.Equal(out, out1) {
+		t.Fatalf("inconsistent seq:\n%s\n%s", out, out1)
+	}
+	return out
+}
+
+type LinesTest struct {
+	a string
+	b []string
+}
+
+var linesTests = []LinesTest{
+	{a: "abc\nabc\n", b: []string{"abc\n", "abc\n"}},
+	{a: "abc\r\nabc", b: []string{"abc\r\n", "abc"}},
+	{a: "abc\r\n", b: []string{"abc\r\n"}},
+	{a: "\nabc", b: []string{"\n", "abc"}},
+	{a: "\nabc\n\n", b: []string{"\n", "abc\n", "\n"}},
+}
+
+func TestLines(t *testing.T) {
+	for _, s := range linesTests {
+		result := slices.Collect(Lines(s.a))
+		if !slices.Equal(result, s.b) {
+			t.Errorf(`slices.Collect(Lines(%q)) = %q; want %q`, s.a, result, s.b)
+		}
+	}
+}
 
 var abcd = "abcd"
 var faces = "☺☻☹"
@@ -410,6 +442,12 @@ func TestSplit(t *testing.T) {
 			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a)
 			continue
 		}
+		if tt.n < 0 {
+			a2 := slices.Collect(SplitSeq(tt.s, tt.sep))
+			if !slices.Equal(a2, tt.a) {
+				t.Errorf(`collect(SplitSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, a2, tt.a)
+			}
+		}
 		if tt.n == 0 {
 			continue
 		}
@@ -448,6 +486,12 @@ func TestSplitAfter(t *testing.T) {
 		if !slices.Equal(a, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a)
 			continue
+		}
+		if tt.n < 0 {
+			a2 := slices.Collect(SplitAfterSeq(tt.s, tt.sep))
+			if !slices.Equal(a2, tt.a) {
+				t.Errorf(`collect(SplitAfterSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, a2, tt.a)
+			}
 		}
 		s := Join(a, "")
 		if s != tt.s {
@@ -492,6 +536,10 @@ func TestFields(t *testing.T) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
 			continue
 		}
+		a2 := collect(t, FieldsSeq(tt.s))
+		if !slices.Equal(a2, tt.a) {
+			t.Errorf(`collect(FieldsSeq(%q)) = %v; want %v`, tt.s, a2, tt.a)
+		}
 	}
 }
 
@@ -515,6 +563,10 @@ func TestFieldsFunc(t *testing.T) {
 		a := FieldsFunc(tt.s, pred)
 		if !slices.Equal(a, tt.a) {
 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+		}
+		a2 := collect(t, FieldsFuncSeq(tt.s, pred))
+		if !slices.Equal(a2, tt.a) {
+			t.Errorf(`collect(FieldsFuncSeq(%q)) = %v; want %v`, tt.s, a2, tt.a)
 		}
 	}
 }
