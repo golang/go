@@ -8,6 +8,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/par"
 	"cmd/go/internal/str"
 	"cmd/internal/pkgpattern"
 	"fmt"
@@ -488,7 +489,7 @@ func InDir(path, dir string) string {
 	if rel, ok := inDirLex(path, dir); ok {
 		return rel
 	}
-	xpath, err := filepath.EvalSymlinks(path)
+	xpath, err := evalSymlinks(path)
 	if err != nil || xpath == path {
 		xpath = ""
 	} else {
@@ -497,7 +498,7 @@ func InDir(path, dir string) string {
 		}
 	}
 
-	xdir, err := filepath.EvalSymlinks(dir)
+	xdir, err := evalSymlinks(dir)
 	if err == nil && xdir != dir {
 		if rel, ok := inDirLex(path, xdir); ok {
 			return rel
@@ -509,4 +510,19 @@ func InDir(path, dir string) string {
 		}
 	}
 	return ""
+}
+
+type evalSymlinksValue struct {
+	path string
+	err  error
+}
+
+var inDirCache par.Cache[string, evalSymlinksValue]
+
+func evalSymlinks(s string) (path string, err error) {
+	v := inDirCache.Do(s, func() evalSymlinksValue {
+		path, err := filepath.EvalSymlinks(s)
+		return evalSymlinksValue{path: path, err: err}
+	})
+	return v.path, v.err
 }
