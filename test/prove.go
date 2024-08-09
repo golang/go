@@ -1390,6 +1390,24 @@ func bitLen8(x uint8, ensureBothBranchesCouldHappen bool) int {
 	return y
 }
 
+func xor64(a, b uint64, ensureBothBranchesCouldHappen bool) int {
+	a &= 0xff
+	b &= 0xfff
+
+	z := a ^ b
+
+	if ensureBothBranchesCouldHappen {
+		if z > 0xfff { // ERROR "Disproved Less64U$"
+			return 42
+		}
+	} else {
+		if z <= 0xfff { // ERROR "Proved Leq64U$"
+			return 1337
+		}
+	}
+	return int(z)
+}
+
 //go:noinline
 func useInt(a int) {
 }

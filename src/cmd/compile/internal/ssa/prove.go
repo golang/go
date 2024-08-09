@@ -1688,6 +1688,10 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 			uint64(bits.Len8(uint8(a.umax))))
 
 	// Masks.
+
+	// TODO: if y.umax and y.umin share a leading bit pattern, y also has that leading bit pattern.
+	// we could compare the patterns of always set bits in a and b and learn more about minimum and maximum.
+	// But I doubt this help any real world code.
 	case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 		// AND can only make the value smaller.
 		a := ft.limits[v.Args[0].ID]
@@ -1699,8 +1703,10 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		b := ft.limits[v.Args[1].ID]
 		return ft.unsignedMin(v, maxU(a.umin, b.umin))
 	case OpXor64, OpXor32, OpXor16, OpXor8:
-		// TODO: use leading/trailing zeroes?
-		// Not sure if it is worth it.
+		// XOR can't flip bits that are proved to be zero in both inputs.
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		return ft.unsignedMax(v, 1<<bits.Len64(a.umax|b.umax)-1)
 
 	// Arithmetic.
 	case OpAdd64:
