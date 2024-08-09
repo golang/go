@@ -8,7 +8,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"internal/syscall/windows"
+	"internal/testenv"
+	"os"
+	"os/exec"
 	"runtime"
 	"strconv"
 	"syscall"
@@ -142,4 +146,38 @@ func TestImpersonated(t *testing.T) {
 		t.Fatal(err)
 	}
 	compare(t, want, got)
+}
+
+func TestCurrentNetapi32(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// Test that Current does not load netapi32.dll.
+		// First call Current.
+		Current()
+
+		// Then check if netapi32.dll is loaded.
+		netapi32, err := syscall.UTF16PtrFromString("netapi32.dll")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+			os.Exit(9)
+			return
+		}
+		mod, _ := windows.GetModuleHandle(netapi32)
+		if mod != 0 {
+			fmt.Fprintf(os.Stderr, "netapi32.dll is loaded\n")
+			os.Exit(9)
+			return
+		}
+		os.Exit(0)
+		return
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := testenv.CleanCmdEnv(exec.Command(exe, "-test.run=^TestCurrentNetapi32$"))
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
 }
