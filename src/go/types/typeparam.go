@@ -18,7 +18,10 @@ var lastID atomic.Uint32
 // each call, starting with 1. It may be called concurrently.
 func nextID() uint64 { return uint64(lastID.Add(1)) }
 
-// A TypeParam represents a type parameter type.
+// A TypeParam represents the type of a type parameter in a generic declaration.
+//
+// A TypeParam has a name; use the [TypeParam.Obj] method to access
+// its [TypeName] object.
 type TypeParam struct {
 	check *Checker  // for lazy type bound completion
 	id    uint64    // unique id, for debugging only
