@@ -134,7 +134,13 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
 		}
 		// BoringCrypto did not recognize h, so fall through to standard Go code.
 	}
+
 	hm := new(hmac)
+	hm.init(h, key)
+	return hm
+}
+
+func (hm *hmac) init(h func() hash.Hash, key []byte) {
 	hm.outer = h()
 	hm.inner = h()
 	unique := true
@@ -167,8 +173,6 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
 		hm.opad[i] ^= 0x5c
 	}
 	hm.inner.Write(hm.ipad)
-
-	return hm
 }
 
 // Equal compares two MACs for equality without leaking timing information.
