@@ -1230,8 +1230,10 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 
 	sh.Addralign = uint64(sect.Align)
 	sh.Size = sect.Length
-	if sect.Name != ".tbss" {
+	if sh.Type != uint32(elf.SHT_NOBITS) {
 		sh.Off = sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr
+	} else {
+		sh.Off = sect.Seg.Fileoff + sect.Seg.Filelen
 	}
 
 	return sh
