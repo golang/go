@@ -25,7 +25,7 @@ type Template struct {
 	// we need to keep our version of the name space and the underlying
 	// template's in sync.
 	text *template.Template
-	// The underlying template's parse tree, updated to be HTML-safe.
+	// The underlying template's parse tree, updated to be HTML-safe after the first execution.
 	Tree       *parse.Tree
 	*nameSpace // common to all associated templates
 }
