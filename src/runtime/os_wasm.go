@@ -96,7 +96,7 @@ func signame(sig uint32) string {
 }
 
 func crash() {
-	*(*int32)(nil) = 0
+	abort()
 }
 
 func initsig(preinit bool) {
