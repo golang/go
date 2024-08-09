@@ -395,6 +395,21 @@ func (ctxt *Link) DwarfIntConst(name, typename string, val int64) {
 	dwarf.PutIntConst(dwCtxt{ctxt}, s, ctxt.Lookup(dwarf.InfoPrefix+typename), myimportpath+"."+name, val)
 }
 
+// DwarfStringConst creates a link symbol for a string constant with the
+// given name, type and value.
+func (ctxt *Link) DwarfStringConst(name string, val string) {
+	myimportpath := ctxt.Pkgpath
+	if myimportpath == "" {
+		return
+	}
+	s := ctxt.LookupInit(dwarf.ConstInfoPrefix+myimportpath, func(s *LSym) {
+		s.Type = objabi.SDWARFCONST
+		ctxt.Data = append(ctxt.Data, s)
+	})
+
+	dwarf.PutStringConst(dwCtxt{ctxt}, s, myimportpath+"."+name, val)
+}
+
 // DwarfGlobal creates a link symbol containing a DWARF entry for
 // a global variable.
 func (ctxt *Link) DwarfGlobal(typename string, varSym *LSym) {

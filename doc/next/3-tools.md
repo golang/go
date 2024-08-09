@@ -20,3 +20,8 @@ non-existent identifiers. Some of these mistakes may cause tests not
 to run.
 
 This analyzer is among the subset of analyzers that are run by `go test`.
+
+### Compiler Toolchain {#compiler}
+
+The DWARF debug information recorded in binaries has contained string constants
+now.

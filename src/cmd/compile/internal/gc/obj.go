@@ -20,6 +20,7 @@ import (
 	"cmd/internal/objabi"
 	"encoding/json"
 	"fmt"
+	"go/constant"
 	"strings"
 )
 
@@ -169,23 +170,30 @@ func dumpGlobalConst(n *ir.Name) {
 	if n.Sym().Pkg != types.LocalPkg {
 		return
 	}
-	// only export integer constants for now
-	if !t.IsInteger() {
+	// export integer and string constants
+	if !t.IsInteger() && !t.IsString() {
 		return
 	}
 	v := n.Val()
-	if t.IsUntyped() {
-		// Export untyped integers as int (if they fit).
-		t = types.Types[types.TINT]
-		if ir.ConstOverflow(v, t) {
-			return
+	if t.IsInteger() {
+		if t.IsUntyped() {
+			// Export untyped integers as int (if they fit).
+			t = types.Types[types.TINT]
+			if ir.ConstOverflow(v, t) {
+				return
+			}
+		} else {
+			// If the type of the constant is an instantiated generic, we need to emit
+			// that type so the linker knows about it. See issue 51245.
+			_ = reflectdata.TypeLinksym(t)
 		}
+		base.Ctxt.DwarfIntConst(n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
 	} else {
-		// If the type of the constant is an instantiated generic, we need to emit
-		// that type so the linker knows about it. See issue 51245.
-		_ = reflectdata.TypeLinksym(t)
+		if !t.IsUntyped() {
+			_ = reflectdata.TypeLinksym(t)
+		}
+		base.Ctxt.DwarfStringConst(n.Sym().Name, constant.StringVal(v))
 	}
-	base.Ctxt.DwarfIntConst(n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
 }
 
 // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
