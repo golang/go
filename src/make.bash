@@ -72,6 +72,10 @@
 # that name even though they put newer Go toolchains there.
 
 bootgo=1.20.6
+#
+# GO_ASSUME_CROSSCOMPILING: Used to explicitly tell to the go build
+# system that a cross compilation is happening and it should honor the
+# different CC_FOR_TARGET even if architecture is the same.
 
 set -e
 
