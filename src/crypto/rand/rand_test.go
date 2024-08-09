@@ -7,7 +7,10 @@ package rand
 import (
 	"bytes"
 	"compress/flate"
+	"crypto/internal/boring"
+	"internal/race"
 	"io"
+	"runtime"
 	"testing"
 )
 
@@ -54,9 +57,53 @@ func BenchmarkRead(b *testing.B) {
 func benchmarkRead(b *testing.B, size int) {
 	b.SetBytes(int64(size))
 	buf := make([]byte, size)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err := Read(buf); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+func TestReadAllocs(t *testing.T) {
+	if boring.Enabled || race.Enabled || (runtime.GOOS == "js" && runtime.GOARCH == "wasm") || runtime.GOOS == "plan9" {
+		t.Skip("zero-allocs unsupported")
+	}
+
+	allocs := testing.AllocsPerRun(100, func() {
+		buf := make([]byte, 32)
+		Read(buf)
+	})
+	if allocs != 0 {
+		t.Fatalf("allocs = %v; want = 0", allocs)
+	}
+}
+
+func BenchmarkReadAllocs(b *testing.B) {
+	b.SetBytes(1024)
+	b.ReportAllocs()
+	for range b.N {
+		buf := make([]byte, 1024)
+		Read(buf)
+	}
+}
+
+func TestReadReaderChange(t *testing.T) {
+	random := make([]byte, 1024)
+	randReader.Read(random)
+
+	defer func(r io.Reader) {
+		Reader = r
+	}(Reader)
+	Reader = bytes.NewReader(random)
+
+	random2 := make([]byte, 1024)
+	_, err := Read(random2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(random, random2) {
+		t.Fatalf("Read function did not use the global Reader")
 	}
 }
