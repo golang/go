@@ -128,7 +128,7 @@ func ExampleEqualFunc() {
 		1000: []byte("Thousand"),
 	}
 	eq := maps.EqualFunc(m1, m2, func(v1 string, v2 []byte) bool {
-		return strings.ToLower(v1) == strings.ToLower(string(v2))
+		return strings.EqualFold(v1, string(v2))
 	})
 	fmt.Println(eq)
 	// Output:
