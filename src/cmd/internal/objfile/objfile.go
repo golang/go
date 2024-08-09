@@ -7,12 +7,13 @@ package objfile
 
 import (
 	"cmd/internal/archive"
+	"cmp"
 	"debug/dwarf"
 	"debug/gosym"
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 )
 
 type rawFile interface {
@@ -131,15 +132,11 @@ func (e *Entry) Symbols() ([]Sym, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Sort(byAddr(syms))
+	slices.SortFunc(syms, func(a, b Sym) int {
+		return cmp.Compare(a.Addr, b.Addr)
+	})
 	return syms, nil
 }
-
-type byAddr []Sym
-
-func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
-func (x byAddr) Len() int           { return len(x) }
-func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 func (e *Entry) PCLineTable() (Liner, error) {
 	// If the raw file implements Liner directly, use that.

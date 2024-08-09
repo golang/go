@@ -18,7 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -1678,8 +1678,9 @@ func (ctxt *Link) doelf() {
 		ldr.SetAttrSpecial(s, true)
 		sb.SetReachable(true)
 		sb.SetSize(notsha256.Size)
-
-		sort.Sort(byPkg(ctxt.Library))
+		slices.SortFunc(ctxt.Library, func(a, b *sym.Library) int {
+			return strings.Compare(a.Pkg, b.Pkg)
+		})
 		h := notsha256.New()
 		for _, l := range ctxt.Library {
 			h.Write(l.Fingerprint[:])

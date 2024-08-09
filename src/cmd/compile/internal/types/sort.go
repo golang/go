@@ -11,6 +11,14 @@ func (x MethodsByName) Len() int           { return len(x) }
 func (x MethodsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x MethodsByName) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
 
+// MethodsByNameCmp sorts methods by name.
+func MethodsByNameCmp(x, y *Field) int {
+	if x.Sym.Less(y.Sym) {
+		return -1
+	}
+	return +1
+}
+
 // EmbeddedsByName sorts embedded types by name.
 type EmbeddedsByName []*Field
 

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 )
 
@@ -51,7 +52,7 @@ func (f *plan9File) symbols() ([]Sym, error) {
 		}
 		addrs = append(addrs, s.Value)
 	}
-	sort.Sort(uint64s(addrs))
+	slices.Sort(addrs)
 
 	var syms []Sym
 

@@ -11,7 +11,8 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
-	"sort"
+	"slices"
+	"strings"
 	"sync"
 )
 
@@ -665,7 +666,9 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 		fns[idx] = fn
 		idx++
 	}
-	sort.Sort(BySymName(fns))
+	slices.SortFunc(fns, func(a, b *LSym) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	// Should not be called during parallel portion of compilation.
 	if ft.ctxt.InParallel {
@@ -692,9 +695,3 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 		}
 	}
 }
-
-type BySymName []*LSym
-
-func (s BySymName) Len() int           { return len(s) }
-func (s BySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
-func (s BySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"cmd/internal/cov/covcmd"
+	"cmp"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -20,7 +21,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -975,12 +976,6 @@ type block1 struct {
 	index int
 }
 
-type blockSlice []block1
-
-func (b blockSlice) Len() int           { return len(b) }
-func (b blockSlice) Less(i, j int) bool { return b[i].startByte < b[j].startByte }
-func (b blockSlice) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
-
 // offset translates a token position into a 0-indexed byte offset.
 func (f *File) offset(pos token.Pos) int {
 	return f.fset.Position(pos).Offset
@@ -997,7 +992,9 @@ func (f *File) addVariables(w io.Writer) {
 		t[i].Block = f.blocks[i]
 		t[i].index = i
 	}
-	sort.Sort(blockSlice(t))
+	slices.SortFunc(t, func(a, b block1) int {
+		return cmp.Compare(a.startByte, b.startByte)
+	})
 	for i := 1; i < len(t); i++ {
 		if t[i-1].endByte > t[i].startByte {
 			fmt.Fprintf(os.Stderr, "cover: internal error: block %d overlaps block %d\n", t[i-1].index, t[i].index)
