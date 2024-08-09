@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/token"
 	. "internal/types/errors"
+	"slices"
 )
 
 // labels checks correct label use in body.
@@ -109,14 +110,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 	}
 
 	jumpsOverVarDecl := func(jmp *ast.BranchStmt) bool {
-		if varDeclPos.IsValid() {
-			for _, bad := range badJumps {
-				if jmp == bad {
-					return true
-				}
-			}
-		}
-		return false
+		return varDeclPos.IsValid() && slices.Contains(badJumps, jmp)
 	}
 
 	blockBranches := func(lstmt *ast.LabeledStmt, list []ast.Stmt) {

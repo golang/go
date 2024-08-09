@@ -1388,14 +1388,7 @@ func TestScopesInfo(t *testing.T) {
 
 			// look for matching scope description
 			desc := kind + ":" + strings.Join(scope.Names(), " ")
-			found := false
-			for _, d := range test.scopes {
-				if desc == d {
-					found = true
-					break
-				}
-			}
-			if !found {
+			if !slices.Contains(test.scopes, desc) {
 				t.Errorf("package %s: no matching scope found for %s", name, desc)
 			}
 		}
@@ -1944,7 +1937,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
 				t.Errorf("%s: got object = %v; want none", test.src, f)
 			}
 		}
-		if !sameSlice(index, test.index) {
+		if !slices.Equal(index, test.index) {
 			t.Errorf("%s: got index = %v; want %v", test.src, index, test.index)
 		}
 		if indirect != test.indirect {
@@ -1980,18 +1973,6 @@ type Instance = *Tree[int]
 
 	T := pkg.Scope().Lookup("Instance").Type()
 	_, _, _ = LookupFieldOrMethod(T, false, pkg, "M") // verify that LookupFieldOrMethod terminates
-}
-
-func sameSlice(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, x := range a {
-		if x != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // TestScopeLookupParent ensures that (*Scope).LookupParent returns
