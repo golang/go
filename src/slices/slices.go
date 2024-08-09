@@ -508,3 +508,19 @@ func Repeat[S ~[]E, E any](x S, count int) S {
 	}
 	return newslice
 }
+
+// Partition split the original slice into two slice.
+// The elements of the first slice all satisfy the predicate.
+// The elements of the second slice none satisfy the predicate.
+func Partition[Slice ~[]E, E any](s Slice, f func(E) bool) ([]E, []E) {
+	truthSlice := make([]E, 0)
+	falseSlice := make([]E, 0)
+	for _, x := range s {
+		if f(x) {
+			truthSlice = append(truthSlice, x)
+		} else {
+			falseSlice = append(falseSlice, x)
+		}
+	}
+	return truthSlice, falseSlice
+}
