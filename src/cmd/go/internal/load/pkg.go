@@ -490,7 +490,11 @@ func (p *PackageError) Error() string {
 	if p.Pos != "" {
 		optpos = "\n\t" + p.Pos
 	}
-	return "package " + strings.Join(p.ImportStackWithPos, "\n\timports ") + optpos + ": " + p.Err.Error()
+	importStack := p.ImportStack
+	if p.IsImportCycle {
+		importStack = p.ImportStackWithPos
+	}
+	return "package " + strings.Join(importStack, "\n\timports ") + optpos + ": " + p.Err.Error()
 }
 
 func (p *PackageError) Unwrap() error { return p.Err }
