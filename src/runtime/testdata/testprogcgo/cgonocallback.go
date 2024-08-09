@@ -8,7 +8,8 @@ package main
 // But it do callback to go in this test, Go should crash here.
 
 /*
-// TODO(#56378): #cgo nocallback runCShouldNotCallback
+#cgo nocallback runCShouldNotCallback
+
 extern void runCShouldNotCallback();
 */
 import "C"

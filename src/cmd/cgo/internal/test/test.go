@@ -117,8 +117,8 @@ int add(int x, int y) {
 
 // escape vs noescape
 
-// TODO(#56378): enable in Go 1.23:
-// #cgo noescape handleGoStringPointerNoescape
+#cgo noescape handleGoStringPointerNoescape
+#cgo nocallback handleGoStringPointerNoescape
 void handleGoStringPointerNoescape(void *s) {}
 
 void handleGoStringPointerEscape(void *s) {}
