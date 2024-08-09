@@ -157,7 +157,7 @@ func ARMMRCOffset(op obj.As, cond string, x0, x1, x2, x3, x4, x5 int64) (offset 
 	offset = (0xe << 24) | // opcode
 		(op1 << 20) | // MCR/MRC
 		((int64(bits) ^ arm.C_SCOND_XOR) << 28) | // scond
-		((x0 & 15) << 8) | //coprocessor number
+		((x0 & 15) << 8) | // coprocessor number
 		((x1 & 7) << 21) | // coprocessor operation
 		((x2 & 15) << 12) | // ARM register
 		((x3 & 15) << 16) | // Crn
