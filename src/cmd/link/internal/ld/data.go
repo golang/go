@@ -2399,6 +2399,30 @@ func appendString(data []byte, s string) []byte {
 	return data
 }
 
+// addPlist will add an info.Plist file, as segment __TEXT and section __info_plist.
+// This is used when using the internal linker. Search in lib.go for __info_plist to find
+// the external linker handling of this. Adding a section with an info.plist file allows
+// Go executables to be code-signed for macOS.
+func (ctxt *Link) addPlist(fn string) {
+	if fn == "" {
+		return
+	}
+	b, err := os.ReadFile(fn)
+	if err != nil {
+		Exitf("reading %s: %s", fn, err)
+	}
+
+	ldr := ctxt.loader
+	sect := Segtext.Sections[len(Segtext.Sections)-1]
+	builder := ldr.MakeSymbolBuilder(".info.plist") // __info_list
+	builder.Addstring(string(b) + "\x00")           // asciiz
+	builder.SetType(sym.SELFRXSECT)                 // Produces standalone section, without fixups
+	builder.SetAlign(16)                            // Sections don't seem to strictly require this
+	builder.SetReachable(true)                      // Don't let the linker drop it
+	builder.SetSect(sect)
+	ldr.SetSymSect(builder.Sym(), sect)
+}
+
 // assign addresses to text
 func (ctxt *Link) textaddress() {
 	addsection(ctxt.loader, ctxt.Arch, &Segtext, ".text", 05)
