@@ -360,6 +360,7 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$160
 	MOVD	m_g0(R0), g
 	BL	·save_g(SB)
 
+	BL	runtime·stackcheck(SB)
 	BL	runtime·mstart(SB)
 
 	// Restore callee-save registers.
