@@ -92,9 +92,9 @@ func printGoVersion(w io.Writer) {
 }
 
 func printEnvDetails(w io.Writer) {
-	fmt.Fprintf(w, "### What operating system and processor architecture are you using (`go env`)?\n\n")
-	fmt.Fprintf(w, "<details><summary><code>go env</code> Output</summary><br><pre>\n")
-	fmt.Fprintf(w, "$ go env\n")
+	fmt.Fprintf(w, "### What operating system and processor architecture are you using (`go env -changed`)?\n\n")
+	fmt.Fprintf(w, "<details><summary><code>go env -changed</code> Output</summary><br><pre>\n")
+	fmt.Fprintf(w, "$ go env -changed\n")
 	printGoEnv(w)
 	printGoDetails(w)
 	printOSDetails(w)
@@ -106,7 +106,7 @@ func printGoEnv(w io.Writer) {
 	env := envcmd.MkEnv()
 	env = append(env, envcmd.ExtraEnvVars()...)
 	env = append(env, envcmd.ExtraEnvVarsCostly()...)
-	envcmd.PrintEnv(w, env, false)
+	envcmd.PrintEnv(w, env, true)
 }
 
 func printGoDetails(w io.Writer) {
