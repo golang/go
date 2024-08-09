@@ -477,6 +477,227 @@ func TestUseCgroupFD(t *testing.T) {
 	}
 }
 
+func getProcessNamespaces(pid int) (map[string]string, error) {
+	ls, err := os.ReadDir(fmt.Sprintf("/proc/%d/ns", pid))
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(map[string]string)
+	for _, ns := range ls {
+		id, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(pid), "ns", ns.Name()))
+		if err != nil {
+			return nil, err
+		}
+		out[ns.Name()] = id
+	}
+	return out, nil
+}
+
+func createNamespaces(t *testing.T, unshareFlags uintptr) map[string]*os.File {
+	t.Helper()
+
+	// Create a new namespace by re-execing the test binary with clone flags set.
+	// We'll capture the file descriptor of the new namespace and pass it back to the caller.
+	// As long as the file descriptor is open the namespace will be valid.
+
+	cmd := testCmdReexec(t)
+	cmd.Env = append(cmd.Env, "GO_TEST_CREATE_NAMSPACES=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: unshareFlags,
+	}
+
+	// The child process will block on stdin so we can read the namespace before it exits.
+	// Once we close the child will exit
+	pr, pw := io.Pipe()
+	cmd.Stdin = pr
+	defer func() {
+		// Close pw so the child can exit.
+		// We don't need this alive anymore after the helper function returns.
+		pw.Close()
+		if err := cmd.Wait(); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	if err := cmd.Start(); err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping due to permissions error: %v", err)
+		}
+		t.Fatal(err)
+	}
+
+	ls, err := getProcessNamespaces(cmd.Process.Pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	origNS, err := getProcessNamespaces(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Open a new file for all namespaces created by the child.
+	// This would be any namespace that has a different id than the original namespaces.
+	out := make(map[string]*os.File)
+	for kind, id := range ls {
+		if strings.HasSuffix(id, "_for_children") {
+			// This is not a namespace, but rather a namespace that child proccesses will inherit.
+			// We aren't interested in this.
+			continue
+		}
+
+		if origNS[kind] == id {
+			t.Log("skipping namespace", kind, "as it is the same as the parent")
+			continue
+		}
+
+		f, err := os.Open(fmt.Sprintf("/proc/%d/ns/%s", cmd.Process.Pid, kind))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { f.Close() })
+		out[kind] = f
+	}
+
+	return out
+}
+
+func testCmdReexec(t *testing.T) *exec.Cmd {
+	t.Helper()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := testenv.Command(t, exe, "-test.run=^"+t.Name()+"$")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	return cmd
+}
+
+func TestJoinNamespaces(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		if os.Getenv("GO_TEST_CREATE_NAMSPACES") == "1" {
+			// Block on stdin, we don't care about this value.
+			// Once stdin is closed by the caller that is our signal to exit.
+			os.Stdin.Read(make([]byte, 1))
+			os.Exit(0)
+		}
+
+		ls, err := getProcessNamespaces(os.Getpid())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+
+		for _, ns := range ls {
+			fmt.Println(ns)
+		}
+
+		os.Exit(0)
+	}
+
+	// Mapping for the namespaces we'll be testing with
+	testNSKinds := map[string]uintptr{
+		"mnt": syscall.CLONE_NEWNS,
+		"uts": syscall.CLONE_NEWUTS,
+		"net": syscall.CLONE_NEWNET,
+	}
+
+	cmdWithJoins := func(fds map[string]*os.File, ordered ...string) *exec.Cmd {
+		cmd := testCmdReexec(t)
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+
+		for _, kind := range ordered {
+			k, ok := testNSKinds[kind]
+			if !ok {
+				panic("unexpected namespace kind: " + kind)
+			}
+
+			f, ok := fds[kind]
+			if !ok {
+				panic(fmt.Sprintf("missing namespace fd for %q: %v", kind, fds))
+			}
+
+			cmd.SysProcAttr.JoinNamespaces = append(cmd.SysProcAttr.JoinNamespaces, syscall.LinuxNamespace{
+				Type: int(k),
+				FD:   int(f.Fd()),
+			})
+		}
+
+		return cmd
+	}
+
+	ourNsLS, err := getProcessNamespaces(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	checkNs := func(t *testing.T, created map[string]*os.File, cmdOut []byte) {
+		out := strings.TrimSpace(string(cmdOut))
+
+		for _, v := range strings.Split(out, "\n") {
+			// link format is like "<kind>:[4026531840]"
+			// We want to check what kind of ns this refers to
+			kind, _, ok := strings.Cut(v, ":")
+			if !ok {
+				t.Fatalf("unexpected output from child: %q", out)
+			}
+
+			ours, ok := ourNsLS[kind]
+			if !ok {
+				t.Fatalf("unexpected namespace kind: %q", kind)
+			}
+
+			if _, ok := created[kind]; ok {
+				// This is one we should have joined so it should be different from our namespace.
+				if v == ours {
+					t.Errorf("subprocess did not join new ns for %q", kind)
+				}
+			} else {
+				// This is one we should not have joined so it should be the same as our namespace.
+				if v != ours {
+					t.Errorf("subprocess joined ns for %q", kind)
+				}
+			}
+		}
+	}
+
+	t.Run("one namespace", func(t *testing.T) {
+		nsFDs := createNamespaces(t, syscall.CLONE_NEWNS)
+
+		if _, ok := nsFDs["mnt"]; !ok {
+			t.Fatal("expected to create a namespace for mnt")
+		}
+
+		out, err := cmdWithJoins(nsFDs, "mnt").CombinedOutput()
+		if err != nil {
+			t.Fatalf("cmd failed with err %v, output: %s", err, out)
+		}
+
+		checkNs(t, nsFDs, out)
+	})
+
+	t.Run("multiple namespaces", func(t *testing.T) {
+		nsFDs := createNamespaces(t, syscall.CLONE_NEWNS|syscall.CLONE_NEWNET|syscall.CLONE_NEWUTS)
+
+		for kind := range testNSKinds {
+			if _, ok := nsFDs[kind]; !ok {
+				t.Fatalf("expected to create a namespace for %q", kind)
+			}
+		}
+
+		out, err := cmdWithJoins(nsFDs, "mnt", "net", "uts").CombinedOutput()
+		if err != nil {
+			t.Fatalf("cmd failed with err %v, output: %s", err, out)
+		}
+
+		checkNs(t, nsFDs, out)
+	})
+}
+
 func TestCloneTimeNamespace(t *testing.T) {
 	testenv.MustHaveExec(t)
 
