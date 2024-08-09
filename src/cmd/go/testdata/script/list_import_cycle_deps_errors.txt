@@ -8,9 +8,9 @@ cmp stdout want
 		{
 			"ImportStack": [
 				"m/a",
-				"m/b",
-				"m/c",
-				"m/a"
+				"m/b from a.go",
+				"m/c from b.go",
+				"m/a from c.go"
 			],
 			"Pos": "",
 			"Err": "import cycle not allowed"
@@ -23,9 +23,9 @@ cmp stdout want
 		{
 			"ImportStack": [
 				"m/a",
-				"m/b",
-				"m/c",
-				"m/a"
+				"m/b from a.go",
+				"m/c from b.go",
+				"m/a from c.go"
 			],
 			"Pos": "",
 			"Err": "import cycle not allowed"
@@ -37,9 +37,9 @@ cmp stdout want
 	"Error": {
 		"ImportStack": [
 			"m/a",
-			"m/b",
-			"m/c",
-			"m/a"
+			"m/b from a.go",
+			"m/c from b.go",
+			"m/a from c.go"
 		],
 		"Pos": "",
 		"Err": "import cycle not allowed"
@@ -48,9 +48,9 @@ cmp stdout want
 		{
 			"ImportStack": [
 				"m/a",
-				"m/b",
-				"m/c",
-				"m/a"
+				"m/b from a.go",
+				"m/c from b.go",
+				"m/a from c.go"
 			],
 			"Pos": "",
 			"Err": "import cycle not allowed"
