@@ -45,9 +45,8 @@ func TestCurrent(t *testing.T) {
 }
 
 func BenchmarkCurrent(b *testing.B) {
-	// Benchmark current instead of Current because Current caches the result.
 	for i := 0; i < b.N; i++ {
-		current()
+		Current()
 	}
 }
 
