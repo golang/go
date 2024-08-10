@@ -347,12 +347,12 @@ determined by how the memory was allocated; it has nothing to do with
 the type of the pointer.
 
 Note that values of some Go types, other than the type's zero value,
-always include Go pointers. This is true of string, slice, interface,
-channel, map, and function types. A pointer type may hold a Go pointer
-or a C pointer. Array and struct types may or may not include Go
-pointers, depending on the element types. All the discussion below
-about Go pointers applies not just to pointer types, but also to other
-types that include Go pointers.
+always include Go pointers. This is true of interface, channel, map,
+and function types. A pointer type may hold a Go pointer or a C pointer.
+Array, slice, string, and struct types may or may not include Go pointers,
+depending on their type and how they are constructed. All the discussion
+below about Go pointers applies not just to pointer types,
+but also to other types that include Go pointers.
 
 All Go pointers passed to C must point to pinned Go memory. Go pointers
 passed as function arguments to C functions have the memory they point to
