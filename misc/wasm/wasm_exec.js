@@ -73,25 +73,25 @@
 		}
 	}
 
-    if (!globalThis.path) {
-        globalThis.path = {
-            resolve(...pathSegments) {
-                return pathSegments.join("/");
-            },
-            isAbsolute(path) {
-                return path[0] === "/";
-            },
-            parse(path) {
-                return {
-                    root: "/"
-                }
-            },
-            normalize(path) {
-                return path;
-            },
+	if (!globalThis.path) {
+		globalThis.path = {
+			resolve(...pathSegments) {
+				return pathSegments.join("/");
+			},
+			isAbsolute(path) {
+				return path[0] === "/";
+			},
+			parse(path) {
+				return {
+					root: "/"
+				}
+			},
+			normalize(path) {
+				return path;
+			},
 			sep: "/",
-        }
-    }
+		}
+	}
 
 	if (!globalThis.crypto) {
 		throw new Error("globalThis.crypto is not available, polyfill required (crypto.getRandomValues only)");
