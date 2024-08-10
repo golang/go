@@ -6,6 +6,8 @@ package testing_test
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"internal/race"
 	"internal/testenv"
@@ -916,5 +918,31 @@ func TestParentRun(t1 *testing.T) {
 		t1.Run("not_inner", func(t3 *testing.T) { // Note: this is t1.Run, not t2.Run.
 			t3.Log("Hello inner!")
 		})
+	})
+}
+
+func TestContext(t *testing.T) {
+	ctx := t.Context()
+	if err := ctx.Err(); err != nil {
+		t.Fatalf("expected non-canceled context, got %v", err)
+	}
+
+	var innerCtx context.Context
+	t.Run("inner", func(t *testing.T) {
+		innerCtx = t.Context()
+		if err := innerCtx.Err(); err != nil {
+			t.Fatalf("expected inner test to not inherit canceled context, got %v", err)
+		}
+	})
+	t.Run("inner2", func(t *testing.T) {
+		if !errors.Is(innerCtx.Err(), context.Canceled) {
+			t.Fatal("expected context of sibling test to be canceled after its test function finished")
+		}
+	})
+
+	t.Cleanup(func() {
+		if !errors.Is(ctx.Err(), context.Canceled) {
+			t.Fatal("expected context canceled before cleanup")
+		}
 	})
 }

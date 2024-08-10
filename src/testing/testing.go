@@ -371,6 +371,7 @@ package testing
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -633,6 +634,9 @@ type common struct {
 	tempDir    string
 	tempDirErr error
 	tempDirSeq int32
+
+	ctx       context.Context
+	cancelCtx context.CancelFunc
 }
 
 // Short reports whether the -test.short flag is set.
@@ -898,6 +902,7 @@ type TB interface {
 	Skipf(format string, args ...any)
 	Skipped() bool
 	TempDir() string
+	Context() context.Context
 
 	// A private method to prevent users implementing the
 	// interface and so future additions to it will not
@@ -1351,6 +1356,16 @@ func (c *common) Chdir(dir string) {
 	})
 }
 
+// Context returns a context that is canceled just before
+// [T.Cleanup]-registered functions are called.
+//
+// Cleanup functions can wait for any resources
+// that shut down on Context.Done before the test completes.
+func (c *common) Context() context.Context {
+	c.checkFuzzFn("Context")
+	return c.ctx
+}
+
 // panicHandling controls the panic handling used by runCleanup.
 type panicHandling int
 
@@ -1382,6 +1397,10 @@ func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 			c.runCleanup(normalPanic)
 		}
 	}()
+
+	if c.cancelCtx != nil {
+		c.cancelCtx()
+	}
 
 	for {
 		var cleanup func()
@@ -1771,15 +1790,21 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	// continue walking the stack into the parent test.
 	var pc [maxStackLen]uintptr
 	n := runtime.Callers(2, pc[:])
+
+	// There's no reason to inherit this context from parent. The user's code can't observe
+	// the difference between the background context and the one from the parent test.
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	t = &T{
 		common: common{
-			barrier: make(chan bool),
-			signal:  make(chan bool, 1),
-			name:    testName,
-			parent:  &t.common,
-			level:   t.level + 1,
-			creator: pc[:n],
-			chatty:  t.chatty,
+			barrier:   make(chan bool),
+			signal:    make(chan bool, 1),
+			name:      testName,
+			parent:    &t.common,
+			level:     t.level + 1,
+			creator:   pc[:n],
+			chatty:    t.chatty,
+			ctx:       ctx,
+			cancelCtx: cancelCtx,
 		},
 		context: t.context,
 	}
@@ -2205,15 +2230,18 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				// to keep trying.
 				break
 			}
-			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
-			ctx.deadline = deadline
+			ctx, cancelCtx := context.WithCancel(context.Background())
+			tctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
+			tctx.deadline = deadline
 			t := &T{
 				common: common{
-					signal:  make(chan bool, 1),
-					barrier: make(chan bool),
-					w:       os.Stdout,
+					signal:    make(chan bool, 1),
+					barrier:   make(chan bool),
+					w:         os.Stdout,
+					ctx:       ctx,
+					cancelCtx: cancelCtx,
 				},
-				context: ctx,
+				context: tctx,
 			}
 			if Verbose() {
 				t.chatty = newChattyPrinter(t.w)
