@@ -104,7 +104,7 @@ func TestRFC9180Vectors(t *testing.T) {
 			}
 			t.Cleanup(func() { testingOnlyGenerateKey = nil })
 
-			encap, context, err := SetupSender(
+			encap, sender, err := SetupSender(
 				uint16(kemID),
 				uint16(kdfID),
 				uint16(aeadID),
@@ -119,21 +119,42 @@ func TestRFC9180Vectors(t *testing.T) {
 			if !bytes.Equal(encap, expectedEncap) {
 				t.Errorf("unexpected encapsulated key, got: %x, want %x", encap, expectedEncap)
 			}
-			expectedSharedSecret := mustDecodeHex(t, setup["shared_secret"])
-			if !bytes.Equal(context.sharedSecret, expectedSharedSecret) {
-				t.Errorf("unexpected shared secret, got: %x, want %x", context.sharedSecret, expectedSharedSecret)
+
+			privKeyBytes := mustDecodeHex(t, setup["skRm"])
+			priv, err := ParseHPKEPrivateKey(uint16(kemID), privKeyBytes)
+			if err != nil {
+				t.Fatal(err)
 			}
-			expectedKey := mustDecodeHex(t, setup["key"])
-			if !bytes.Equal(context.key, expectedKey) {
-				t.Errorf("unexpected key, got: %x, want %x", context.key, expectedKey)
+
+			receipient, err := SetupReceipient(
+				uint16(kemID),
+				uint16(kdfID),
+				uint16(aeadID),
+				priv,
+				info,
+				encap,
+			)
+			if err != nil {
+				t.Fatal(err)
 			}
-			expectedBaseNonce := mustDecodeHex(t, setup["base_nonce"])
-			if !bytes.Equal(context.baseNonce, expectedBaseNonce) {
-				t.Errorf("unexpected base nonce, got: %x, want %x", context.baseNonce, expectedBaseNonce)
-			}
-			expectedExporterSecret := mustDecodeHex(t, setup["exporter_secret"])
-			if !bytes.Equal(context.exporterSecret, expectedExporterSecret) {
-				t.Errorf("unexpected exporter secret, got: %x, want %x", context.exporterSecret, expectedExporterSecret)
+
+			for _, ctx := range []*context{sender.context, receipient.context} {
+				expectedSharedSecret := mustDecodeHex(t, setup["shared_secret"])
+				if !bytes.Equal(ctx.sharedSecret, expectedSharedSecret) {
+					t.Errorf("unexpected shared secret, got: %x, want %x", ctx.sharedSecret, expectedSharedSecret)
+				}
+				expectedKey := mustDecodeHex(t, setup["key"])
+				if !bytes.Equal(ctx.key, expectedKey) {
+					t.Errorf("unexpected key, got: %x, want %x", ctx.key, expectedKey)
+				}
+				expectedBaseNonce := mustDecodeHex(t, setup["base_nonce"])
+				if !bytes.Equal(ctx.baseNonce, expectedBaseNonce) {
+					t.Errorf("unexpected base nonce, got: %x, want %x", ctx.baseNonce, expectedBaseNonce)
+				}
+				expectedExporterSecret := mustDecodeHex(t, setup["exporter_secret"])
+				if !bytes.Equal(ctx.exporterSecret, expectedExporterSecret) {
+					t.Errorf("unexpected exporter secret, got: %x, want %x", ctx.exporterSecret, expectedExporterSecret)
+				}
 			}
 
 			for _, enc := range parseVectorEncryptions(vector.Encryptions) {
@@ -142,25 +163,30 @@ func TestRFC9180Vectors(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					context.seqNum = uint128{lo: uint64(seqNum)}
+					sender.seqNum = uint128{lo: uint64(seqNum)}
+					receipient.seqNum = uint128{lo: uint64(seqNum)}
 					expectedNonce := mustDecodeHex(t, enc["nonce"])
-					// We can't call nextNonce, because it increments the sequence number,
-					// so just compute it directly.
-					computedNonce := context.seqNum.bytes()[16-context.aead.NonceSize():]
-					for i := range context.baseNonce {
-						computedNonce[i] ^= context.baseNonce[i]
-					}
+					computedNonce := sender.nextNonce()
 					if !bytes.Equal(computedNonce, expectedNonce) {
 						t.Errorf("unexpected nonce: got %x, want %x", computedNonce, expectedNonce)
 					}
 
 					expectedCiphertext := mustDecodeHex(t, enc["ct"])
-					ciphertext, err := context.Seal(mustDecodeHex(t, enc["aad"]), mustDecodeHex(t, enc["pt"]))
+					ciphertext, err := sender.Seal(mustDecodeHex(t, enc["aad"]), mustDecodeHex(t, enc["pt"]))
 					if err != nil {
 						t.Fatal(err)
 					}
 					if !bytes.Equal(ciphertext, expectedCiphertext) {
 						t.Errorf("unexpected ciphertext: got %x want %x", ciphertext, expectedCiphertext)
+					}
+
+					expectedPlaintext := mustDecodeHex(t, enc["pt"])
+					plaintext, err := receipient.Open(mustDecodeHex(t, enc["aad"]), mustDecodeHex(t, enc["ct"]))
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !bytes.Equal(plaintext, expectedPlaintext) {
+						t.Errorf("unexpected plaintext: got %x want %x", plaintext, expectedPlaintext)
 					}
 				})
 			}
