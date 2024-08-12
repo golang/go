@@ -119,7 +119,9 @@
 
 // rotates
 (RotateLeft8 <t> x (MOVVconst [c])) => (Or8 (Lsh8x64 <t> x (MOVVconst [c&7])) (Rsh8Ux64 <t> x (MOVVconst [-c&7])))
+(RotateLeft8 <t> x y) => (OR <t> (SLLV <t> x (ANDconst <typ.Int64> [7] y)) (SRLV <t> (ZeroExt8to64 x) (ANDconst <typ.Int64> [7] (NEGV <typ.Int64> y))))
 (RotateLeft16 <t> x (MOVVconst [c])) => (Or16 (Lsh16x64 <t> x (MOVVconst [c&15])) (Rsh16Ux64 <t> x (MOVVconst [-c&15])))
+(RotateLeft16 <t> x y) => (ROTR <t> (OR <typ.UInt32> (ZeroExt16to32 x) (SLLVconst <t> (ZeroExt16to32 x) [16])) (NEGV <typ.Int64> y))
 (RotateLeft32 x y) => (ROTR  x (NEGV <y.Type> y))
 (RotateLeft64 x y) => (ROTRV x (NEGV <y.Type> y))
 
