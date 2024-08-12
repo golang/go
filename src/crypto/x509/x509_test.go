@@ -1472,6 +1472,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 }
 
 func marshalAndParseCSR(t *testing.T, template *CertificateRequest) *CertificateRequest {
+	t.Helper()
 	derBytes, err := CreateCertificateRequest(rand.Reader, template, testPrivateKey)
 	if err != nil {
 		t.Fatal(err)
@@ -1636,6 +1637,7 @@ func TestCriticalFlagInCSRRequestedExtensions(t *testing.T) {
 // serialiseAndParse generates a self-signed certificate from template and
 // returns a parsed version of it.
 func serialiseAndParse(t *testing.T, template *Certificate) *Certificate {
+	t.Helper()
 	derBytes, err := CreateCertificate(rand.Reader, template, template, &testPrivateKey.PublicKey, testPrivateKey)
 	if err != nil {
 		t.Fatalf("failed to create certificate: %s", err)

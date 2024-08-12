@@ -163,6 +163,7 @@ func TestX509MixedKeyPair(t *testing.T) {
 }
 
 func newLocalListener(t testing.TB) net.Listener {
+	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		ln, err = net.Listen("tcp6", "[::1]:0")
