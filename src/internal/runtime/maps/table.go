@@ -571,7 +571,7 @@ func (it *Iter) Next() {
 		//
 		// We could avoid most of these lookups if we left a flag
 		// behind on the old table to denote that it is stale.
-		dirIdx := int((uint64(it.dirIdx) + it.dirOffset) % uint64(len(it.m.directory)))
+		dirIdx := int((uint64(it.dirIdx) + it.dirOffset) & uint64(len(it.m.directory)-1))
 		newTab := it.m.directory[dirIdx]
 		if it.tab == nil {
 			if newTab.index != dirIdx {
