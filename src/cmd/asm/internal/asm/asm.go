@@ -822,6 +822,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.To = a[3]
 			break
 		}
+		if p.arch.Family == sys.Loong64 {
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.AddRestSource(a[2])
+			prog.To = a[3]
+			break
+		}
 		if p.arch.Family == sys.PPC64 {
 			prog.From = a[0]
 			prog.To = a[3]

@@ -435,6 +435,14 @@ const (
 	AAMMINDBWU
 	AAMMINDBVU
 
+	// 2.2.3.8
+	ABSTRINSW
+	ABSTRINSV
+
+	// 2.2.3.9
+	ABSTRPICKW
+	ABSTRPICKV
+
 	// 2.2.10. Other Miscellaneous Instructions
 	ARDTIMELW
 	ARDTIMEHW

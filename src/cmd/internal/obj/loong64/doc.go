@@ -63,12 +63,18 @@ Examples:
 	OR	R5, R6        <=> or R6, R6, R5
 
 Special Cases.
-Argument order is the same as in the GNU Loong64 syntax: jump instructions,
+(1) Argument order is the same as in the GNU Loong64 syntax: jump instructions,
 
 Examples:
 
 	BEQ	R0, R4, lable1  <=>  beq R0, R4, lable1
 	JMP	lable1          <=>  b lable1
+
+(2) BSTRINSW, BSTRINSV, BSTRPICKW, BSTRPICKV $<msb>, <Rj>, $<lsb>, <Rd>
+
+Examples:
+
+	BSTRPICKW $15, R4, $6, R5  <=>  bstrpick.w r5, r4, 15, 6
 
 2. Expressions for special arguments.
 

@@ -217,6 +217,10 @@ var optab = []Optab{
 	{ASLLV, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
 	{ASLLV, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
 
+	{ABSTRPICKW, C_SCON, C_REG, C_SCON, C_REG, C_NONE, 17, 4, 0, 0},
+	{ABSTRPICKW, C_SCON, C_REG, C_ZCON, C_REG, C_NONE, 17, 4, 0, 0},
+	{ABSTRPICKW, C_ZCON, C_REG, C_ZCON, C_REG, C_NONE, 17, 4, 0, 0},
+
 	{ASYSCALL, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 	{ASYSCALL, C_ANDCON, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 
@@ -1159,6 +1163,11 @@ func buildop(ctxt *obj.Link) {
 			opset(ASRLV, r0)
 			opset(AROTRV, r0)
 
+		case ABSTRPICKW:
+			opset(ABSTRPICKV, r0)
+			opset(ABSTRINSW, r0)
+			opset(ABSTRINSV, r0)
+
 		case ASUB:
 			opset(ASUBU, r0)
 			opset(ANOR, r0)
@@ -1263,6 +1272,14 @@ func OP_IR(op uint32, i uint32, r2 uint32) uint32 {
 
 func OP_15I(op uint32, i uint32) uint32 {
 	return op | (i&0x7FFF)<<0
+}
+
+// i1 -> msb
+// r2 -> rj
+// i3 -> lsb
+// r4 -> rd
+func OP_IRIR(op uint32, i1 uint32, r2 uint32, i3 uint32, r4 uint32) uint32 {
+	return op | (i1 << 16) | (r2&0x1F)<<5 | (i3 << 10) | (r4&0x1F)<<0
 }
 
 // Encoding for the 'b' or 'bl' instruction.
@@ -1477,6 +1494,26 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		} else {
 			o1 = OP_16IRR(c.opirr(p.As), uint32(v)&0x1f, uint32(r), uint32(p.To.Reg))
 		}
+
+	case 17: // bstrpickw $msbw, r1, $lsbw, r2
+		rd, rj := p.To.Reg, p.Reg
+		if rj == obj.REG_NONE {
+			rj = rd
+		}
+		msb, lsb := p.From.Offset, p.GetFrom3().Offset
+
+		// check the range of msb and lsb
+		var b uint32
+		if p.As == ABSTRPICKW || p.As == ABSTRINSW {
+			b = 32
+		} else {
+			b = 64
+		}
+		if lsb < 0 || uint32(lsb) >= b || msb < 0 || uint32(msb) >= b || uint32(lsb) > uint32(msb) {
+			c.ctxt.Diag("illegal bit number\n%v", p)
+		}
+
+		o1 = OP_IRIR(c.opirir(p.As), uint32(msb), uint32(rj), uint32(lsb), uint32(rd))
 
 	case 18: // jmp [r1],0(r2)
 		r := int(p.Reg)
@@ -2247,6 +2284,21 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 	} else {
 		c.ctxt.Diag("bad irr opcode %v", a)
 	}
+	return 0
+}
+
+func (c *ctxt0) opirir(a obj.As) uint32 {
+	switch a {
+	case ABSTRINSW:
+		return 0x3<<21 | 0x0<<15 // bstrins.w
+	case ABSTRINSV:
+		return 0x2 << 22 // bstrins.d
+	case ABSTRPICKW:
+		return 0x3<<21 | 0x1<<15 // bstrpick.w
+	case ABSTRPICKV:
+		return 0x3 << 22 // bstrpick.d
+	}
+
 	return 0
 }
 
