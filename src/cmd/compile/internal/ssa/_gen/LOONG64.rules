@@ -394,6 +394,19 @@
                 mem)
 
 
+// float <=> int register moves, with no conversion.
+// These come up when compiling math.{Float64bits, Float64frombits, Float32bits, Float32frombits}.
+(MOVVload  [off] {sym} ptr (MOVDstore [off] {sym} ptr val _)) => (MOVVfpgp val)
+(MOVDload  [off] {sym} ptr (MOVVstore [off] {sym} ptr val _)) => (MOVVgpfp val)
+(MOVWUload [off] {sym} ptr (MOVFstore [off] {sym} ptr val _)) => (ZeroExt32to64 (MOVWfpgp <typ.Float32> val))
+(MOVFload  [off] {sym} ptr (MOVWstore [off] {sym} ptr val _)) => (MOVWgpfp val)
+
+// Similarly for stores, if we see a store after FPR <=> GPR move, then redirect store to use the other register set.
+(MOVVstore [off] {sym} ptr (MOVVfpgp val) mem) => (MOVDstore [off] {sym} ptr val mem)
+(MOVDstore [off] {sym} ptr (MOVVgpfp val) mem) => (MOVVstore [off] {sym} ptr val mem)
+(MOVWstore [off] {sym} ptr (MOVWfpgp val) mem) => (MOVFstore [off] {sym} ptr val mem)
+(MOVFstore [off] {sym} ptr (MOVWgpfp val) mem) => (MOVWstore [off] {sym} ptr val mem)
+
 // calls
 (StaticCall ...) => (CALLstatic ...)
 (ClosureCall ...) => (CALLclosure ...)
