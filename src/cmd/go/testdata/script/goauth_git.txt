@@ -1,0 +1,72 @@
+# This test covers the HTTP authentication mechanism over GOAUTH
+# See golang.org/issue/26232
+
+[short] skip 'constructs a local git repo'
+[!git] skip
+
+env GOPROXY=direct
+env GOSUMDB=off
+# Disable 'git credential fill' interactive prompts.
+env GIT_TERMINAL_PROMPT=0
+exec git init
+exec git config credential.helper 'store --file=.git-credentials'
+cp go.mod.orig go.mod
+
+# Set GOAUTH to git without a working directory.
+env GOAUTH='git'
+! go get vcs-test.golang.org/auth/or401
+stderr 'GOAUTH=git dir method requires an absolute path to the git working directory'
+
+# Set GOAUTH to git with a non-existent directory.
+env GOAUTH='git gitDir'
+! go get vcs-test.golang.org/auth/or401
+stderr 'GOAUTH=git dir method requires an absolute path to the git working directory'
+
+# Set GOAUTH to git with a relative working directory.
+mkdir relative
+env GOAUTH='git relative'
+! go get vcs-test.golang.org/auth/or401
+stderr 'GOAUTH=git dir method requires an absolute path to the git working directory'
+
+# Set GOAUTH to git and use a blank .git-credentials.
+# Without credentials, downloading a module from a path that requires HTTPS
+# basic auth should fail.
+env GOAUTH=git' '$PWD''
+! go get -x vcs-test.golang.org/auth/or401
+stderr '^\tserver response: ACCESS DENIED, buddy$'
+stderr 'GOAUTH encountered errors for https://vcs-test.golang.org'
+stderr GOAUTH=git' '$PWD''
+# go imports should fail as well.
+! go mod tidy -x
+stderr '^\tserver response: File\? What file\?$'
+stderr 'GOAUTH encountered errors for https://vcs-test.golang.org'
+stderr GOAUTH=git' '$PWD''
+
+# With credentials from git credentials, it should succeed.
+cp .git-credentials.cred .git-credentials
+go get vcs-test.golang.org/auth/or401
+# go imports should resolve correctly as well.
+go mod tidy
+go list all
+stdout vcs-test.golang.org/auth/or404
+
+# Clearing GOAUTH credentials should result in failures.
+env GOAUTH='off'
+# Without credentials, downloading a module from a path that requires HTTPS
+# basic auth should fail.
+! go get vcs-test.golang.org/auth/or401
+stderr '^\tserver response: ACCESS DENIED, buddy$'
+# go imports should fail as well.
+cp go.mod.orig go.mod
+! go mod tidy
+stderr '^\tserver response: File\? What file\?$'
+
+-- main.go --
+package useprivate
+
+import "vcs-test.golang.org/auth/or404"
+-- go.mod.orig --
+module private.example.com
+-- .git-credentials --
+-- .git-credentials.cred --
+https://aladdin:opensesame@vcs-test.golang.org

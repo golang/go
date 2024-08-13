@@ -2277,8 +2277,9 @@
 //	GOAUTH
 //		A semicolon-separated list of authentication commands for go-import and
 //		HTTPS module mirror interactions. Currently supports
-//		"off" (disables authentication) and
-//		"netrc" (uses credentials from NETRC or the .netrc file in your home directory).
+//		"off" (disables authentication),
+//		"netrc" (uses credentials from NETRC or the .netrc file in your home directory),
+//		"git dir" (runs 'git credential fill' in dir and uses its credentials).
 //		The default is netrc.
 //	GOBIN
 //		The directory where 'go install' will install a command.

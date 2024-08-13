@@ -129,10 +129,19 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		if url.Scheme == "https" {
-			auth.AddCredentials(req)
-		}
 		t, intercepted := intercept.URL(req.URL)
+		var client *http.Client
+		if security == Insecure && url.Scheme == "https" {
+			client = impatientInsecureHTTPClient
+		} else if intercepted && t.Client != nil {
+			client = securityPreservingHTTPClient(t.Client)
+		} else {
+			client = securityPreservingDefaultClient
+		}
+		if url.Scheme == "https" {
+			// Use initial GOAUTH credentials.
+			auth.AddCredentials(client, req, "")
+		}
 		if intercepted {
 			req.Host = req.URL.Host
 			req.URL.Host = t.ToHost
@@ -142,17 +151,28 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		var res *http.Response
-		if security == Insecure && url.Scheme == "https" { // fail earlier
-			res, err = impatientInsecureHTTPClient.Do(req)
-		} else {
-			if intercepted && t.Client != nil {
-				client := securityPreservingHTTPClient(t.Client)
-				res, err = client.Do(req)
-			} else {
-				res, err = securityPreservingDefaultClient.Do(req)
+		defer func() {
+			if err != nil && release != nil {
+				release()
 			}
+		}()
+		res, err := client.Do(req)
+		// If the initial request fails with a 4xx client error and the
+		// response body didn't satisfy the request
+		// (e.g. a valid <meta name="go-import"> tag),
+		// retry the request with credentials obtained by invoking GOAUTH
+		// with the request URL.
+		if url.Scheme == "https" && err == nil && res.StatusCode >= 400 && res.StatusCode < 500 {
+			// Close the body of the previous response since we
+			// are discarding it and creating a new one.
+			res.Body.Close()
+			req, err = http.NewRequest("GET", url.String(), nil)
+			if err != nil {
+				return nil, err
+			}
+			auth.AddCredentials(client, req, url.String())
+			intercept.Request(req)
+			res, err = client.Do(req)
 		}
 
 		if err != nil {
@@ -160,7 +180,6 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 			// ignored. A non-nil Response with a non-nil error only occurs when
 			// CheckRedirect fails, and even then the returned Response.Body is
 			// already closed.”
-			release()
 			return nil, err
 		}
 
@@ -171,7 +190,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 			ReadCloser: body,
 			afterClose: release,
 		}
-		return res, err
+		return res, nil
 	}
 
 	var (
