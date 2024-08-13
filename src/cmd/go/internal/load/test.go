@@ -545,8 +545,14 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			// We collect in the reverse order: z is imported by y is imported
 			// by x, and then we reverse it.
 			var stk []string
+			var stkWithPos []string
 			for p != nil {
 				stk = append(stk, p.ImportPath)
+				if len(p.GoFiles) > 0 {
+					stkWithPos = append(stkWithPos, p.ImportPath+" from "+filepath.Base(p.GoFiles[0]))
+				} else {
+					stkWithPos = append(stkWithPos, p.ImportPath)
+				}
 				p = importerOf[p]
 			}
 			// complete the cycle: we set importer[p] = nil to break the cycle
@@ -555,12 +561,18 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			// the cycle as (for example) package p imports package q imports package r
 			// imports package p.
 			stk = append(stk, ptest.ImportPath)
+			if len(ptest.GoFiles) > 0 {
+				stkWithPos = append(stkWithPos, p.ImportPath+" from "+filepath.Base(ptest.GoFiles[0]))
+			} else {
+				stkWithPos = append(stkWithPos, p.ImportPath)
+			}
 			slices.Reverse(stk)
 
 			return &PackageError{
-				ImportStack:   stk,
-				Err:           errors.New("import cycle not allowed in test"),
-				IsImportCycle: true,
+				ImportStack:        stk,
+				ImportStackWithPos: stkWithPos,
+				Err:                errors.New("import cycle not allowed in test"),
+				IsImportCycle:      true,
 			}
 		}
 		for _, dep := range p.Internal.Imports {
