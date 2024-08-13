@@ -345,18 +345,20 @@ func hookCopyFileRange(t *testing.T) (hook *copyFileHook, name string) {
 	return
 }
 
-func hookSendFileOverCopyFileRange(t *testing.T) (hook *copyFileHook, name string) {
-	name = "hookSendFileOverCopyFileRange"
+func hookSendFileOverCopyFileRange(t *testing.T) (*copyFileHook, string) {
+	return hookSendFileTB(t), "hookSendFileOverCopyFileRange"
+}
 
+func hookSendFileTB(tb testing.TB) *copyFileHook {
 	// Disable poll.CopyFileRange to force the fallback to poll.SendFile.
 	originalCopyFileRange := *PollCopyFileRangeP
 	*PollCopyFileRangeP = func(dst, src *poll.FD, remain int64) (written int64, handled bool, err error) {
 		return 0, false, nil
 	}
 
-	hook = new(copyFileHook)
+	hook := new(copyFileHook)
 	orig := poll.TestHookDidSendFile
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		*PollCopyFileRangeP = originalCopyFileRange
 		poll.TestHookDidSendFile = orig
 	})
@@ -368,7 +370,7 @@ func hookSendFileOverCopyFileRange(t *testing.T) (hook *copyFileHook, name strin
 		hook.err = err
 		hook.handled = handled
 	}
-	return
+	return hook
 }
 
 func hookSpliceFile(t *testing.T) *spliceFileHook {

@@ -38,12 +38,14 @@ func newSendfileTest(t *testing.T, size int64) (dst, src *File, data []byte, hoo
 	return
 }
 
-func hookSendFile(t *testing.T) (hook *copyFileHook, name string) {
-	name = "hookSendFile"
+func hookSendFile(t *testing.T) (*copyFileHook, string) {
+	return hookSendFileTB(t), "hookSendFile"
+}
 
-	hook = new(copyFileHook)
+func hookSendFileTB(tb testing.TB) *copyFileHook {
+	hook := new(copyFileHook)
 	orig := poll.TestHookDidSendFile
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		poll.TestHookDidSendFile = orig
 	})
 	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
@@ -54,5 +56,5 @@ func hookSendFile(t *testing.T) (hook *copyFileHook, name string) {
 		hook.err = err
 		hook.handled = handled
 	}
-	return
+	return hook
 }

@@ -8,7 +8,10 @@ import "syscall"
 
 // maxSendfileSize is the largest chunk size we ask the kernel to copy
 // at a time.
-const maxSendfileSize int = 4 << 20
+// sendfile(2) on Linux will transfer at most 0x7ffff000 (2,147,479,552)
+// bytes, which is true on both 32-bit and 64-bit systems.
+// See https://man7.org/linux/man-pages/man2/sendfile.2.html#NOTES for details.
+const maxSendfileSize int = 0x7ffff000
 
 // SendFile wraps the sendfile system call.
 func SendFile(dstFD *FD, src int, remain int64) (written int64, err error, handled bool) {

@@ -15,7 +15,10 @@ import "syscall"
 
 // maxSendfileSize is the largest chunk size we ask the kernel to copy
 // at a time.
-const maxSendfileSize int = 4 << 20
+// sendfile(2)s on SunOS derivatives don't have a limit on the size of
+// data to copy at a time, we pick the typical SSIZE_MAX on 32-bit systems,
+// which ought to be sufficient for all practical purposes.
+const maxSendfileSize int = 1<<31 - 1
 
 // SendFile wraps the sendfile system call.
 func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error, handled bool) {
