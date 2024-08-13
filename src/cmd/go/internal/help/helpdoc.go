@@ -491,6 +491,12 @@ General-purpose environment variables:
 	GOARCH
 		The architecture, or processor, for which to compile code.
 		Examples are amd64, 386, arm, ppc64.
+	GOAUTH
+		A semicolon-separated list of authentication commands for go-import and
+		HTTPS module mirror interactions. Currently supports
+		"off" (disables authentication) and
+		"netrc" (uses credentials from NETRC or the .netrc file in your home directory).
+		The default is netrc.
 	GOBIN
 		The directory where 'go install' will install a command.
 	GOCACHE
