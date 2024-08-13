@@ -66,6 +66,57 @@ func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]
 			return true
 		})
 	})
+	t.Run("Clear", func(t *testing.T) {
+		t.Run("Simple", func(t *testing.T) {
+			m := newMap()
+
+			for i, s := range testData {
+				expectMissing(t, s, 0)(m.Load(s))
+				expectStored(t, s, i)(m.LoadOrStore(s, i))
+				expectPresent(t, s, i)(m.Load(s))
+				expectLoaded(t, s, i)(m.LoadOrStore(s, 0))
+			}
+			m.Clear()
+			for _, s := range testData {
+				expectMissing(t, s, 0)(m.Load(s))
+			}
+		})
+		t.Run("Concurrent", func(t *testing.T) {
+			m := newMap()
+
+			// Load up the map.
+			for i, s := range testData {
+				expectMissing(t, s, 0)(m.Load(s))
+				expectStored(t, s, i)(m.LoadOrStore(s, i))
+			}
+			gmp := runtime.GOMAXPROCS(-1)
+			var wg sync.WaitGroup
+			for i := range gmp {
+				wg.Add(1)
+				go func(id int) {
+					defer wg.Done()
+
+					for _, s := range testData {
+						// Try a couple things to interfere with the clear.
+						expectNotDeleted(t, s, math.MaxInt)(m.CompareAndDelete(s, math.MaxInt))
+						m.CompareAndSwap(s, i, i+1) // May succeed or fail; we don't care.
+					}
+				}(i)
+			}
+
+			// Concurrently clear the map.
+			runtime.Gosched()
+			m.Clear()
+
+			// Wait for workers to finish.
+			wg.Wait()
+
+			// It should all be empty now.
+			for _, s := range testData {
+				expectMissing(t, s, 0)(m.Load(s))
+			}
+		})
+	})
 	t.Run("CompareAndDelete", func(t *testing.T) {
 		t.Run("All", func(t *testing.T) {
 			m := newMap()
