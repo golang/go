@@ -5,6 +5,7 @@
 package sync_test
 
 import (
+	isync "internal/sync"
 	"internal/testenv"
 	"math/rand"
 	"reflect"
@@ -133,6 +134,10 @@ func applyDeepCopyMap(calls []mapCall) ([]mapResult, map[any]any) {
 	return applyCalls(new(DeepCopyMap), calls)
 }
 
+func applyHashTrieMap(calls []mapCall) ([]mapResult, map[any]any) {
+	return applyCalls(new(isync.HashTrieMap[any, any]), calls)
+}
+
 func TestMapMatchesRWMutex(t *testing.T) {
 	if err := quick.CheckEqual(applyMap, applyRWMutexMap, nil); err != nil {
 		t.Error(err)
@@ -141,6 +146,12 @@ func TestMapMatchesRWMutex(t *testing.T) {
 
 func TestMapMatchesDeepCopy(t *testing.T) {
 	if err := quick.CheckEqual(applyMap, applyDeepCopyMap, nil); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMapMatchesHashTrieMap(t *testing.T) {
+	if err := quick.CheckEqual(applyMap, applyHashTrieMap, nil); err != nil {
 		t.Error(err)
 	}
 }

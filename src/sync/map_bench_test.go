@@ -6,6 +6,7 @@ package sync_test
 
 import (
 	"fmt"
+	isync "internal/sync"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -18,13 +19,14 @@ type bench struct {
 }
 
 func benchMap(b *testing.B, bench bench) {
-	for _, m := range [...]mapInterface{&DeepCopyMap{}, &RWMutexMap{}, &sync.Map{}} {
+	for _, m := range [...]mapInterface{&DeepCopyMap{}, &RWMutexMap{}, &isync.HashTrieMap[any, any]{}, &sync.Map{}} {
 		b.Run(fmt.Sprintf("%T", m), func(b *testing.B) {
 			m = reflect.New(reflect.TypeOf(m).Elem()).Interface().(mapInterface)
 			if bench.setup != nil {
 				bench.setup(b, m)
 			}
 
+			b.ReportAllocs()
 			b.ResetTimer()
 
 			var i int64
@@ -36,7 +38,7 @@ func benchMap(b *testing.B, bench bench) {
 	}
 }
 
-func BenchmarkLoadMostlyHits(b *testing.B) {
+func BenchmarkMapLoadMostlyHits(b *testing.B) {
 	const hits, misses = 1023, 1
 
 	benchMap(b, bench{
@@ -58,7 +60,7 @@ func BenchmarkLoadMostlyHits(b *testing.B) {
 	})
 }
 
-func BenchmarkLoadMostlyMisses(b *testing.B) {
+func BenchmarkMapLoadMostlyMisses(b *testing.B) {
 	const hits, misses = 1, 1023
 
 	benchMap(b, bench{
@@ -80,7 +82,7 @@ func BenchmarkLoadMostlyMisses(b *testing.B) {
 	})
 }
 
-func BenchmarkLoadOrStoreBalanced(b *testing.B) {
+func BenchmarkMapLoadOrStoreBalanced(b *testing.B) {
 	const hits, misses = 128, 128
 
 	benchMap(b, bench{
@@ -114,7 +116,7 @@ func BenchmarkLoadOrStoreBalanced(b *testing.B) {
 	})
 }
 
-func BenchmarkLoadOrStoreUnique(b *testing.B) {
+func BenchmarkMapLoadOrStoreUnique(b *testing.B) {
 	benchMap(b, bench{
 		setup: func(b *testing.B, m mapInterface) {
 			if _, ok := m.(*DeepCopyMap); ok {
@@ -130,7 +132,7 @@ func BenchmarkLoadOrStoreUnique(b *testing.B) {
 	})
 }
 
-func BenchmarkLoadOrStoreCollision(b *testing.B) {
+func BenchmarkMapLoadOrStoreCollision(b *testing.B) {
 	benchMap(b, bench{
 		setup: func(_ *testing.B, m mapInterface) {
 			m.LoadOrStore(0, 0)
@@ -144,7 +146,7 @@ func BenchmarkLoadOrStoreCollision(b *testing.B) {
 	})
 }
 
-func BenchmarkLoadAndDeleteBalanced(b *testing.B) {
+func BenchmarkMapLoadAndDeleteBalanced(b *testing.B) {
 	const hits, misses = 128, 128
 
 	benchMap(b, bench{
@@ -174,7 +176,7 @@ func BenchmarkLoadAndDeleteBalanced(b *testing.B) {
 	})
 }
 
-func BenchmarkLoadAndDeleteUnique(b *testing.B) {
+func BenchmarkMapLoadAndDeleteUnique(b *testing.B) {
 	benchMap(b, bench{
 		setup: func(b *testing.B, m mapInterface) {
 			if _, ok := m.(*DeepCopyMap); ok {
@@ -190,7 +192,7 @@ func BenchmarkLoadAndDeleteUnique(b *testing.B) {
 	})
 }
 
-func BenchmarkLoadAndDeleteCollision(b *testing.B) {
+func BenchmarkMapLoadAndDeleteCollision(b *testing.B) {
 	benchMap(b, bench{
 		setup: func(_ *testing.B, m mapInterface) {
 			m.LoadOrStore(0, 0)
@@ -206,7 +208,7 @@ func BenchmarkLoadAndDeleteCollision(b *testing.B) {
 	})
 }
 
-func BenchmarkRange(b *testing.B) {
+func BenchmarkMapRange(b *testing.B) {
 	const mapSize = 1 << 10
 
 	benchMap(b, bench{
@@ -224,12 +226,12 @@ func BenchmarkRange(b *testing.B) {
 	})
 }
 
-// BenchmarkAdversarialAlloc tests performance when we store a new value
+// BenchmarkMapAdversarialAlloc tests performance when we store a new value
 // immediately whenever the map is promoted to clean and otherwise load a
 // unique, missing key.
 //
 // This forces the Load calls to always acquire the map's mutex.
-func BenchmarkAdversarialAlloc(b *testing.B) {
+func BenchmarkMapAdversarialAlloc(b *testing.B) {
 	benchMap(b, bench{
 		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
 			var stores, loadsSinceStore int64
@@ -245,12 +247,12 @@ func BenchmarkAdversarialAlloc(b *testing.B) {
 	})
 }
 
-// BenchmarkAdversarialDelete tests performance when we periodically delete
+// BenchmarkMapAdversarialDelete tests performance when we periodically delete
 // one key and add a different one in a large map.
 //
 // This forces the Load calls to always acquire the map's mutex and periodically
 // makes a full copy of the map despite changing only one entry.
-func BenchmarkAdversarialDelete(b *testing.B) {
+func BenchmarkMapAdversarialDelete(b *testing.B) {
 	const mapSize = 1 << 10
 
 	benchMap(b, bench{
@@ -276,7 +278,7 @@ func BenchmarkAdversarialDelete(b *testing.B) {
 	})
 }
 
-func BenchmarkDeleteCollision(b *testing.B) {
+func BenchmarkMapDeleteCollision(b *testing.B) {
 	benchMap(b, bench{
 		setup: func(_ *testing.B, m mapInterface) {
 			m.LoadOrStore(0, 0)
@@ -290,7 +292,7 @@ func BenchmarkDeleteCollision(b *testing.B) {
 	})
 }
 
-func BenchmarkSwapCollision(b *testing.B) {
+func BenchmarkMapSwapCollision(b *testing.B) {
 	benchMap(b, bench{
 		setup: func(_ *testing.B, m mapInterface) {
 			m.LoadOrStore(0, 0)
@@ -304,7 +306,7 @@ func BenchmarkSwapCollision(b *testing.B) {
 	})
 }
 
-func BenchmarkSwapMostlyHits(b *testing.B) {
+func BenchmarkMapSwapMostlyHits(b *testing.B) {
 	const hits, misses = 1023, 1
 
 	benchMap(b, bench{
@@ -332,7 +334,7 @@ func BenchmarkSwapMostlyHits(b *testing.B) {
 	})
 }
 
-func BenchmarkSwapMostlyMisses(b *testing.B) {
+func BenchmarkMapSwapMostlyMisses(b *testing.B) {
 	const hits, misses = 1, 1023
 
 	benchMap(b, bench{
@@ -360,7 +362,7 @@ func BenchmarkSwapMostlyMisses(b *testing.B) {
 	})
 }
 
-func BenchmarkCompareAndSwapCollision(b *testing.B) {
+func BenchmarkMapCompareAndSwapCollision(b *testing.B) {
 	benchMap(b, bench{
 		setup: func(_ *testing.B, m mapInterface) {
 			m.LoadOrStore(0, 0)
@@ -376,7 +378,7 @@ func BenchmarkCompareAndSwapCollision(b *testing.B) {
 	})
 }
 
-func BenchmarkCompareAndSwapNoExistingKey(b *testing.B) {
+func BenchmarkMapCompareAndSwapNoExistingKey(b *testing.B) {
 	benchMap(b, bench{
 		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
 			for ; pb.Next(); i++ {
@@ -388,7 +390,7 @@ func BenchmarkCompareAndSwapNoExistingKey(b *testing.B) {
 	})
 }
 
-func BenchmarkCompareAndSwapValueNotEqual(b *testing.B) {
+func BenchmarkMapCompareAndSwapValueNotEqual(b *testing.B) {
 	benchMap(b, bench{
 		setup: func(_ *testing.B, m mapInterface) {
 			m.Store(0, 0)
@@ -402,7 +404,7 @@ func BenchmarkCompareAndSwapValueNotEqual(b *testing.B) {
 	})
 }
 
-func BenchmarkCompareAndSwapMostlyHits(b *testing.B) {
+func BenchmarkMapCompareAndSwapMostlyHits(b *testing.B) {
 	const hits, misses = 1023, 1
 
 	benchMap(b, bench{
@@ -432,7 +434,7 @@ func BenchmarkCompareAndSwapMostlyHits(b *testing.B) {
 	})
 }
 
-func BenchmarkCompareAndSwapMostlyMisses(b *testing.B) {
+func BenchmarkMapCompareAndSwapMostlyMisses(b *testing.B) {
 	const hits, misses = 1, 1023
 
 	benchMap(b, bench{
@@ -458,7 +460,7 @@ func BenchmarkCompareAndSwapMostlyMisses(b *testing.B) {
 	})
 }
 
-func BenchmarkCompareAndDeleteCollision(b *testing.B) {
+func BenchmarkMapCompareAndDeleteCollision(b *testing.B) {
 	benchMap(b, bench{
 		setup: func(_ *testing.B, m mapInterface) {
 			m.LoadOrStore(0, 0)
@@ -474,7 +476,7 @@ func BenchmarkCompareAndDeleteCollision(b *testing.B) {
 	})
 }
 
-func BenchmarkCompareAndDeleteMostlyHits(b *testing.B) {
+func BenchmarkMapCompareAndDeleteMostlyHits(b *testing.B) {
 	const hits, misses = 1023, 1
 
 	benchMap(b, bench{
@@ -506,7 +508,7 @@ func BenchmarkCompareAndDeleteMostlyHits(b *testing.B) {
 	})
 }
 
-func BenchmarkCompareAndDeleteMostlyMisses(b *testing.B) {
+func BenchmarkMapCompareAndDeleteMostlyMisses(b *testing.B) {
 	const hits, misses = 1, 1023
 
 	benchMap(b, bench{
@@ -534,7 +536,7 @@ func BenchmarkCompareAndDeleteMostlyMisses(b *testing.B) {
 	})
 }
 
-func BenchmarkClear(b *testing.B) {
+func BenchmarkMapClear(b *testing.B) {
 	benchMap(b, bench{
 		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
 			for ; pb.Next(); i++ {
