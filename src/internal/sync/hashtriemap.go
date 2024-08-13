@@ -304,6 +304,57 @@ func (ht *HashTrieMap[K, V]) CompareAndSwap(key K, old, new V) (swapped bool) {
 	return true
 }
 
+// LoadAndDelete deletes the value for a key, returning the previous value if any.
+// The loaded result reports whether the key was present.
+func (ht *HashTrieMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
+	ht.init()
+	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
+
+	// Find a node with the key and compare with it. n != nil if we found the node.
+	i, hashShift, slot, n := ht.find(key, hash, nil, *new(V))
+	if n == nil {
+		if i != nil {
+			i.mu.Unlock()
+		}
+		return *new(V), false
+	}
+
+	// Try to delete the entry.
+	v, e, loaded := n.entry().loadAndDelete(key)
+	if !loaded {
+		// Nothing was actually deleted, which means the node is no longer there.
+		i.mu.Unlock()
+		return *new(V), false
+	}
+	if e != nil {
+		// We didn't actually delete the whole entry, just one entry in the chain.
+		// Nothing else to do, since the parent is definitely not empty.
+		slot.Store(&e.node)
+		i.mu.Unlock()
+		return v, true
+	}
+	// Delete the entry.
+	slot.Store(nil)
+
+	// Check if the node is now empty (and isn't the root), and delete it if able.
+	for i.parent != nil && i.empty() {
+		if hashShift == 8*goarch.PtrSize {
+			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
+		}
+		hashShift += nChildrenLog2
+
+		// Delete the current node in the parent.
+		parent := i.parent
+		parent.mu.Lock()
+		i.dead.Store(true)
+		parent.children[(hash>>hashShift)&nChildrenMask].Store(nil)
+		i.mu.Unlock()
+		i = parent
+	}
+	i.mu.Unlock()
+	return v, true
+}
+
 // CompareAndDelete deletes the entry for key if its value is equal to old.
 // The value type must be comparable, otherwise this CompareAndDelete will panic.
 //
@@ -573,6 +624,28 @@ func (head *entry[K, V]) compareAndSwap(key K, old, new V, valEqual equalFunc) (
 		e = e.overflow.Load()
 	}
 	return head, false
+}
+
+// loadAndDelete deletes an entry in the overflow chain by key. Returns the value for the key, the new
+// entry chain and whether or not anything was loaded (and deleted).
+//
+// loadAndDelete must be called under the mutex of the indirect node which e is a child of.
+func (head *entry[K, V]) loadAndDelete(key K) (V, *entry[K, V], bool) {
+	if head.key == key {
+		// Drop the head of the list.
+		return head.value, head.overflow.Load(), true
+	}
+	i := &head.overflow
+	e := i.Load()
+	for e != nil {
+		if e.key == key {
+			i.Store(e.overflow.Load())
+			return e.value, head, true
+		}
+		i = &e.overflow
+		e = e.overflow.Load()
+	}
+	return *new(V), head, false
 }
 
 // compareAndDelete deletes an entry in the overflow chain if both the key and value compare
