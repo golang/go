@@ -1477,6 +1477,66 @@ func mod64uWithIdenticalMax(a, b uint64, ensureBothBranchesCouldHappen bool) int
 	}
 	return z
 }
+func mod64sPositiveWithSmallerDividendMax(a, b int64, ensureBothBranchesCouldHappen bool) int64 {
+	if a < 0 || b < 0 {
+		return 42
+	}
+	a &= 0xff
+	b &= 0xfff
+
+	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
+
+	if ensureBothBranchesCouldHappen {
+		if z > 0xff { // ERROR "Disproved Less64$"
+			return 42
+		}
+	} else {
+		if z <= 0xff { // ERROR "Proved Leq64$"
+			return 1337
+		}
+	}
+	return z
+}
+func mod64sPositiveWithSmallerDivisorMax(a, b int64, ensureBothBranchesCouldHappen bool) int64 {
+	if a < 0 || b < 0 {
+		return 42
+	}
+	a &= 0xfff
+	b &= 0xff
+
+	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
+
+	if ensureBothBranchesCouldHappen {
+		if z > 0xff-1 { // ERROR "Disproved Less64$"
+			return 42
+		}
+	} else {
+		if z <= 0xff-1 { // ERROR "Proved Leq64$"
+			return 1337
+		}
+	}
+	return z
+}
+func mod64sPositiveWithIdenticalMax(a, b int64, ensureBothBranchesCouldHappen bool) int64 {
+	if a < 0 || b < 0 {
+		return 42
+	}
+	a &= 0xfff
+	b &= 0xfff
+
+	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
+
+	if ensureBothBranchesCouldHappen {
+		if z > 0xfff-1 { // ERROR "Disproved Less64$"
+			return 42
+		}
+	} else {
+		if z <= 0xfff-1 { // ERROR "Proved Leq64$"
+			return 1337
+		}
+	}
+	return z
+}
 
 func div64u(a, b uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
 	a &= 0xffff
@@ -1496,6 +1556,31 @@ func div64u(a, b uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
 		return 42
 	}
 	if ensureAllBranchesCouldHappen() && z >= 0xfff/0xff { // ERROR "Proved Leq64U$"
+		return 42
+	}
+	return z
+}
+func div64s(a, b int64, ensureAllBranchesCouldHappen func() bool) int64 {
+	if a < 0 || b < 0 {
+		return 42
+	}
+	a &= 0xffff
+	a |= 0xfff
+	b &= 0xff
+	b |= 0xf
+
+	z := a / b // ERROR "(Proved Div64 does not need fix-up|Proved Neq64)$"
+
+	if ensureAllBranchesCouldHappen() && z > 0xffff/0xf { // ERROR "Disproved Less64$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z <= 0xffff/0xf { // ERROR "Proved Leq64$"
+		return 1337
+	}
+	if ensureAllBranchesCouldHappen() && z < 0xfff/0xff { // ERROR "Disproved Less64$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z >= 0xfff/0xff { // ERROR "Proved Leq64$"
 		return 42
 	}
 	return z

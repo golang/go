@@ -1775,11 +1775,27 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
 		return ft.newLimit(v, a.mul(b.exp2(8), 8))
+	case OpMod64, OpMod32, OpMod16, OpMod8:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		if !(a.nonnegative() && b.nonnegative()) {
+			// TODO: we could handle signed limits but I didn't bother.
+			break
+		}
+		fallthrough
 	case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
 		// Underflow in the arithmetic below is ok, it gives to MaxUint64 which does nothing to the limit.
 		return ft.unsignedMax(v, minU(a.umax, b.umax-1))
+	case OpDiv64, OpDiv32, OpDiv16, OpDiv8:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		if !(a.nonnegative() && b.nonnegative()) {
+			// TODO: we could handle signed limits but I didn't bother.
+			break
+		}
+		fallthrough
 	case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
