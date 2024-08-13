@@ -935,8 +935,8 @@ func (v Values) Set(key, value string) {
 
 // Add adds the value to key. It appends to any existing
 // values associated with key.
-func (v Values) Add(key, value string) {
-	v[key] = append(v[key], value)
+func (v Values) Add(key string, value ...string) {
+	v[key] = append(v[key], value...)
 }
 
 // Del deletes the values associated with key.
