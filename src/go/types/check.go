@@ -376,25 +376,12 @@ func (check *Checker) initFiles(files []*ast.File) {
 				// To work around this, downgrades are only allowed when the
 				// module's Go version is Go 1.21 or later.
 				//
-				// Downgrades are also only allowed to Go versions Go 1.21 or later.
-				// In GOPATH mode, there's no way to set a module version and the
-				// -lang is set to the local toolchain version to allow the use of
-				// new features in GOPATH mode. But //go:build lines added before go1.21
-				// weren't intended to downgrade, so code with //go:build lines for
-				// go versions earlier than 1.21 may use language features added
-				// in later versions and compile.
-				//
-				// We should probably change the downgradeOk condition to capture this
-				// instead of adding an extra condition, but to make the change simpler,
-				// we've tried to limit it to one line.
-				// TODO(gri): simplify this code after 1.23 has shipped
-				//
 				// If there is no valid check.version, then we don't really know what
 				// Go version to apply.
 				// Legacy tools may do this, and they historically have accepted everything.
 				// Preserve that behavior by ignoring //go:build constraints entirely in that
 				// case (!pkgVersionOk).
-				if cmp > 0 || cmp < 0 && downgradeOk && fileVersion.cmp(go1_21) >= 0 {
+				if cmp > 0 || cmp < 0 && downgradeOk {
 					v = file.GoVersion
 				}
 			}
