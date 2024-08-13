@@ -23,18 +23,18 @@ import (
 
 const maxTries = 3
 
-// runGitAuth retrieves credentials for the given prefix using
+// runGitAuth retrieves credentials for the given url using
 // 'git credential fill', validates them with a HEAD request
 // (using the provided client) and updates the credential helper's cache.
 // It returns the matching credential prefix, the http.Header with the
 // Basic Authentication header set, or an error.
 // The caller must not mutate the header.
-func runGitAuth(client *http.Client, dir, prefix string) (string, http.Header, error) {
-	if prefix == "" {
-		// No explicit prefix was passed, but 'git credential'
+func runGitAuth(client *http.Client, dir, url string) (string, http.Header, error) {
+	if url == "" {
+		// No explicit url was passed, but 'git credential'
 		// provides no way to enumerate existing credentials.
-		// Wait for a request for a specific prefix.
-		return "", nil, fmt.Errorf("no explicit prefix was passed")
+		// Wait for a request for a specific url.
+		return "", nil, fmt.Errorf("no explicit url was passed")
 	}
 	if dir == "" {
 		// Prevent config-injection attacks by requiring an explicit working directory.
@@ -43,18 +43,18 @@ func runGitAuth(client *http.Client, dir, prefix string) (string, http.Header, e
 	}
 	cmd := exec.Command("git", "credential", "fill")
 	cmd.Dir = dir
-	cmd.Stdin = strings.NewReader(fmt.Sprintf("url=%s\n", prefix))
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("url=%s\n", url))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", nil, fmt.Errorf("'git credential fill' failed (url=%s): %w\n%s", prefix, err, out)
+		return "", nil, fmt.Errorf("'git credential fill' failed (url=%s): %w\n%s", url, err, out)
 	}
 	parsedPrefix, username, password := parseGitAuth(out)
 	if parsedPrefix == "" {
-		return "", nil, fmt.Errorf("'git credential fill' failed for url=%s, could not parse url\n", prefix)
+		return "", nil, fmt.Errorf("'git credential fill' failed for url=%s, could not parse url\n", url)
 	}
 	// Check that the URL Git gave us is a prefix of the one we requested.
-	if !strings.HasPrefix(prefix, parsedPrefix) {
-		return "", nil, fmt.Errorf("requested a credential for %s, but 'git credential fill' provided one for %s\n", prefix, parsedPrefix)
+	if !strings.HasPrefix(url, parsedPrefix) {
+		return "", nil, fmt.Errorf("requested a credential for %s, but 'git credential fill' provided one for %s\n", url, parsedPrefix)
 	}
 	req, err := http.NewRequest("HEAD", parsedPrefix, nil)
 	if err != nil {
@@ -69,7 +69,7 @@ func runGitAuth(client *http.Client, dir, prefix string) (string, http.Header, e
 	// The request is intercepted for testing purposes to simulate interactions
 	// with the credential helper.
 	intercept.Request(req)
-	go updateCredentialHelper(client, req, out)
+	go updateGitCredentialHelper(client, req, out)
 
 	// Return the parsed prefix and headers, even if credential validation fails.
 	// The caller is responsible for the primary validation.
@@ -115,10 +115,10 @@ func parseGitAuth(data []byte) (parsedPrefix, username, password string) {
 	return prefix.String(), username, password
 }
 
-// updateCredentialHelper validates the given credentials by sending a HEAD request
+// updateGitCredentialHelper validates the given credentials by sending a HEAD request
 // and updates the git credential helper's cache accordingly. It retries the
 // request up to maxTries times.
-func updateCredentialHelper(client *http.Client, req *http.Request, credentialOutput []byte) {
+func updateGitCredentialHelper(client *http.Client, req *http.Request, credentialOutput []byte) {
 	for range maxTries {
 		release, err := base.AcquireNet()
 		if err != nil {

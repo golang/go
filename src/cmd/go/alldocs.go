@@ -43,6 +43,7 @@
 //	cache           build and test caching
 //	environment     environment variables
 //	filetype        file types
+//	goauth          GOAUTH environment variable
 //	go.mod          the go.mod file
 //	gopath          GOPATH environment variable
 //	goproxy         module proxy protocol
@@ -2275,12 +2276,8 @@
 //		The architecture, or processor, for which to compile code.
 //		Examples are amd64, 386, arm, ppc64.
 //	GOAUTH
-//		A semicolon-separated list of authentication commands for go-import and
-//		HTTPS module mirror interactions. Currently supports
-//		"off" (disables authentication),
-//		"netrc" (uses credentials from NETRC or the .netrc file in your home directory),
-//		"git dir" (runs 'git credential fill' in dir and uses its credentials).
-//		The default is netrc.
+//		Controls authentication for go-import and HTTPS module mirror interactions.
+//		See 'go help goauth'.
 //	GOBIN
 //		The directory where 'go install' will install a command.
 //	GOCACHE
@@ -2510,6 +2507,75 @@
 // at the first item in the file that is not a blank line or //-style
 // line comment. See the go/build package documentation for
 // more details.
+//
+// # GOAUTH environment variable
+//
+// GOAUTH is a semicolon-separated list of authentication commands for go-import and
+// HTTPS module mirror interactions. The default is netrc.
+//
+// The supported authentication commands are:
+//
+// off
+//
+//	Disables authentication.
+//
+// netrc
+//
+//	Uses credentials from NETRC or the .netrc file in your home directory.
+//
+// git dir
+//
+//	Runs 'git credential fill' in dir and uses its credentials. The
+//	go command will run 'git credential approve/reject' to update
+//	the credential helper's cache.
+//
+// command
+//
+//	Executes the given command (a space-separated argument list) and attaches
+//	the provided headers to HTTPS requests.
+//	The command must produce output in the following format:
+//		Response      = { CredentialSet } .
+//		CredentialSet = URLLine { URLLine } BlankLine { HeaderLine } BlankLine .
+//		URLLine       = /* URL that starts with "https://" */ '\n' .
+//		HeaderLine    = /* HTTP Request header */ '\n' .
+//		BlankLine     = '\n' .
+//
+//	Example:
+//		https://example.com/
+//		https://example.net/api/
+//
+//		Authorization: Basic <token>
+//
+//		https://another-example.org/
+//
+//		Example: Data
+//
+//	If the server responds with any 4xx code, the go command will write the
+//	following to the programs' stdin:
+//		Response      = StatusLine { HeaderLine } BlankLine .
+//		StatusLine    = Protocol Space Status '\n' .
+//		Protocol      = /* HTTP protocol */ .
+//		Space         = ' ' .
+//		Status        = /* HTTP status code */ .
+//		BlankLine     = '\n' .
+//		HeaderLine    = /* HTTP Response's header */ '\n' .
+//
+//	Example:
+//		HTTP/1.1 401 Unauthorized
+//		Content-Length: 19
+//		Content-Type: text/plain; charset=utf-8
+//		Date: Thu, 07 Nov 2024 18:43:09 GMT
+//
+//	Note: at least for HTTP 1.1, the contents written to stdin can be parsed
+//	as an HTTP response.
+//
+// Before the first HTTPS fetch, the go command will invoke each GOAUTH
+// command in the list with no additional arguments and no input.
+// If the server responds with any 4xx code, the go command will invoke the
+// GOAUTH commands again with the URL as an additional command-line argument
+// and the HTTP Response to the program's stdin.
+// If the server responds with an error again, the fetch fails: a URL-specific
+// GOAUTH will only be attempted once per fetch.
 //
 // # The go.mod file
 //

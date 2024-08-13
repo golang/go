@@ -140,7 +140,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		}
 		if url.Scheme == "https" {
 			// Use initial GOAUTH credentials.
-			auth.AddCredentials(client, req, "")
+			auth.AddCredentials(client, req, nil, "")
 		}
 		if intercepted {
 			req.Host = req.URL.Host
@@ -170,7 +170,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 			if err != nil {
 				return nil, err
 			}
-			auth.AddCredentials(client, req, url.String())
+			auth.AddCredentials(client, req, res, url.String())
 			intercept.Request(req)
 			res, err = client.Do(req)
 		}

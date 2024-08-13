@@ -21,7 +21,7 @@ func TestCredentialCache(t *testing.T) {
 	for _, tc := range testCases {
 		want := http.Request{Header: make(http.Header)}
 		want.SetBasicAuth(tc.login, tc.password)
-		storeCredential([]string{tc.machine}, want.Header)
+		storeCredential(tc.machine, want.Header)
 		got := &http.Request{Header: make(http.Header)}
 		ok := loadCredential(got, tc.machine)
 		if !ok || !reflect.DeepEqual(got.Header, want.Header) {
@@ -34,7 +34,7 @@ func TestCredentialCacheDelete(t *testing.T) {
 	// Store a credential for api.github.com
 	want := http.Request{Header: make(http.Header)}
 	want.SetBasicAuth("user", "pwd")
-	storeCredential([]string{"api.github.com"}, want.Header)
+	storeCredential("api.github.com", want.Header)
 	got := &http.Request{Header: make(http.Header)}
 	ok := loadCredential(got, "api.github.com")
 	if !ok || !reflect.DeepEqual(got.Header, want.Header) {
@@ -42,7 +42,7 @@ func TestCredentialCacheDelete(t *testing.T) {
 	}
 	// Providing an empty header for api.github.com should clear credentials.
 	want = http.Request{Header: make(http.Header)}
-	storeCredential([]string{"api.github.com"}, want.Header)
+	storeCredential("api.github.com", want.Header)
 	got = &http.Request{Header: make(http.Header)}
 	ok = loadCredential(got, "api.github.com")
 	if ok {
