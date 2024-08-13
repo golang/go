@@ -355,6 +355,11 @@ func (ht *HashTrieMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
 	return v, true
 }
 
+// Delete deletes the value for a key.
+func (ht *HashTrieMap[K, V]) Delete(key K) {
+	_, _ = ht.LoadAndDelete(key)
+}
+
 // CompareAndDelete deletes the entry for key if its value is equal to old.
 // The value type must be comparable, otherwise this CompareAndDelete will panic.
 //
