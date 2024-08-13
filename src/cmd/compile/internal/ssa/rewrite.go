@@ -1221,6 +1221,12 @@ func isConstZero(v *Value) bool {
 		return true
 	case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool, OpConst32F, OpConst64F:
 		return v.AuxInt == 0
+	case OpStringMake, OpIMake, OpComplexMake:
+		return isConstZero(v.Args[0]) && isConstZero(v.Args[1])
+	case OpSliceMake:
+		return isConstZero(v.Args[0]) && isConstZero(v.Args[1]) && isConstZero(v.Args[2])
+	case OpStringPtr, OpStringLen, OpSlicePtr, OpSliceLen, OpSliceCap, OpITab, OpIData, OpComplexReal, OpComplexImag:
+		return isConstZero(v.Args[0])
 	}
 	return false
 }
