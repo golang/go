@@ -195,6 +195,11 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
 	return &top.node
 }
 
+// Store sets the value for a key.
+func (ht *HashTrieMap[K, V]) Store(key K, old V) {
+	_, _ = ht.Swap(key, old)
+}
+
 // Swap swaps the value for a key and returns the previous value if any.
 // The loaded result reports whether the key was present.
 func (ht *HashTrieMap[K, V]) Swap(key K, new V) (previous V, loaded bool) {
