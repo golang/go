@@ -232,12 +232,24 @@ func current() (*User, error) {
 		if e != nil {
 			return e
 		}
-		username, domain, e := lookupUsernameAndDomain(u.User.Sid)
+		username, e := windows.GetUserName(syscall.NameSamCompatible)
 		if e != nil {
 			return e
 		}
-		usr, e = newUser(uid, gid, dir, username, domain)
-		return e
+		displayName, e := windows.GetUserName(syscall.NameDisplay)
+		if e != nil {
+			// Historically, the username is used as fallback
+			// when the display name can't be retrieved.
+			displayName = username
+		}
+		usr = &User{
+			Uid:      uid,
+			Gid:      gid,
+			Username: username,
+			Name:     displayName,
+			HomeDir:  dir,
+		}
+		return nil
 	})
 	return usr, err
 }
