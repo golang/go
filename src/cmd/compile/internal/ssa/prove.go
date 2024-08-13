@@ -1775,6 +1775,11 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
 		return ft.newLimit(v, a.mul(b.exp2(8), 8))
+	case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		// Underflow in the arithmetic below is ok, it gives to MaxUint64 which does nothing to the limit.
+		return ft.unsignedMax(v, minU(a.umax, b.umax-1))
 
 	case OpPhi:
 		// Compute the union of all the input phis.
@@ -1909,6 +1914,8 @@ func addLocalFacts(ft *factsTable, b *Block) {
 
 	// Add facts about individual operations.
 	for _, v := range b.Values {
+		// FIXME(go.dev/issue/68857): this loop only set up limits properly when b.Values is in topological order.
+		// flowLimit can also depend on limits given by this loop which right now is not handled.
 		switch v.Op {
 		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
