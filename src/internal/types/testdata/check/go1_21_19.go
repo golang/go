@@ -14,4 +14,4 @@ type Slice []byte
 type Array [8]byte
 
 var s Slice
-var p = (Array)(s /* ok because downgrades below 1.21 are ignored */)
+var p = (Array)(s /* ERROR "requires go1.20 or later" */)
