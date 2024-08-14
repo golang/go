@@ -15,20 +15,15 @@ import (
 	"strings"
 )
 
-// currentVersion is the current version number.
-//
-//   - v0: initial prototype
-//
-//   - v1: adds the flags uint32 word
-//
-// TODO(mdempsky): For the next version bump:
-//   - remove the legacy "has init" bool from the public root
-//   - remove obj's "derived func instance" bool
-const currentVersion uint32 = 1
+// currentVersion is the current version number written.
+const currentVersion = V1
 
 // A PkgEncoder provides methods for encoding a package's Unified IR
 // export data.
 type PkgEncoder struct {
+	// version of the bitstream.
+	version Version
+
 	// elems holds the bitstream for previously encoded elements.
 	elems [numRelocs][]string
 
@@ -54,6 +49,8 @@ func (pw *PkgEncoder) SyncMarkers() bool { return pw.syncFrames >= 0 }
 // negative, then sync markers are omitted entirely.
 func NewPkgEncoder(syncFrames int) PkgEncoder {
 	return PkgEncoder{
+		// TODO(taking): Change NewPkgEncoder to take a version as an argument, and remove currentVersion.
+		version:    currentVersion,
 		stringsIdx: make(map[string]Index),
 		syncFrames: syncFrames,
 	}
@@ -69,7 +66,7 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 		assert(binary.Write(out, binary.LittleEndian, x) == nil)
 	}
 
-	writeUint32(currentVersion)
+	writeUint32(uint32(pw.version))
 
 	var flags uint32
 	if pw.SyncMarkers() {
@@ -392,3 +389,6 @@ func (w *Encoder) bigFloat(v *big.Float) {
 	b := v.Append(nil, 'p', -1)
 	w.String(string(b)) // TODO: More efficient encoding.
 }
+
+// Version reports the version of the bitstream.
+func (w *Encoder) Version() Version { return w.p.version }
