@@ -100,38 +100,38 @@
 //   T1 = h + BIGSIGMA1(e) + Ch(e, f, g) + Kt + Wt
 //     BIGSIGMA1(x) = ROTR(14,x) XOR ROTR(18,x) XOR ROTR(41,x)
 //     Ch(x, y, z) = (x AND y) XOR (NOT x AND z)
+//                 = ((y XOR z) AND x) XOR z
 #define SHA512T1(index, e, f, g, h) \
 	MOV	(index*8)(X18), X8; \
 	ADD	X5, h; \
 	ROR	$14, e, X6; \
 	ADD	X8, h; \
 	ROR	$18, e, X7; \
-	XOR	X7, X6; \
 	ROR	$41, e, X8; \
+	XOR	X7, X6; \
+	XOR	f, g, X5; \
 	XOR	X8, X6; \
+	AND	e, X5; \
 	ADD	X6, h; \
-	AND	e, f, X5; \
-	NOT	e, X7; \
-	AND	g, X7; \
-	XOR	X7, X5; \
+	XOR	g, X5; \
 	ADD	h, X5
 
 // Calculate T2 in X6.
 //   T2 = BIGSIGMA0(a) + Maj(a, b, c)
 //     BIGSIGMA0(x) = ROTR(28,x) XOR ROTR(34,x) XOR ROTR(39,x)
 //     Maj(x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
+//                  = ((y XOR z) AND x) XOR (y AND z)
 #define SHA512T2(a, b, c) \
 	ROR	$28, a, X6; \
 	ROR	$34, a, X7; \
-	XOR	X7, X6; \
 	ROR	$39, a, X8; \
+	XOR	X7, X6; \
+	XOR	b, c, X9; \
+	AND	b, c, X7; \
+	AND	a, X9; \
 	XOR	X8, X6; \
-	AND	a, b, X7; \
-	AND	a, c, X8; \
-	XOR	X8, X7; \
-	AND	b, c, X9; \
-	XOR	X9, X7; \
-	ADD	X7, X6
+	XOR	X7, X9; \
+	ADD	X9, X6
 
 // Calculate T1 and T2, then e = d + T1 and a = T1 + T2.
 // The values for e and a are stored in d and h, ready for rotation.
