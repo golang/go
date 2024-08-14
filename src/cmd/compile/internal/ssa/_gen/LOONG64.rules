@@ -117,6 +117,20 @@
 (Rsh8x16 <t> x y) => (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt16to64 y)))
 (Rsh8x8  <t> x y) => (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt8to64  y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt8to64  y)))
 
+// bitfield ops
+
+// bstrpickv
+// (x << lc) >> rc
+(SRLVconst [rc] (SLLVconst [lc] x)) && lc <= rc => (BSTRPICKV [rc-lc + ((64-lc)-1)<<6] x)
+// uint64(x) >> rc
+(SRLVconst [rc] (MOVWUreg x)) && rc < 32 => (BSTRPICKV [rc + 31<<6] x)
+(SRLVconst [rc] (MOVHUreg x)) && rc < 16 => (BSTRPICKV [rc + 15<<6] x)
+(SRLVconst [rc] (MOVBUreg x)) && rc < 8 => (BSTRPICKV [rc + 7<<6] x)
+// uint64(x >> rc)
+(MOVWUreg (SRLVconst [rc] x)) && rc < 32 => (BSTRPICKV [rc + (31+rc)<<6] x)
+(MOVHUreg (SRLVconst [rc] x)) && rc < 16 => (BSTRPICKV [rc + (15+rc)<<6] x)
+(MOVBUreg (SRLVconst [rc] x)) && rc < 8 => (BSTRPICKV [rc + (7+rc)<<6] x)
+
 // rotates
 (RotateLeft8 <t> x (MOVVconst [c])) => (Or8 (Lsh8x64 <t> x (MOVVconst [c&7])) (Rsh8Ux64 <t> x (MOVVconst [-c&7])))
 (RotateLeft8 <t> x y) => (OR <t> (SLLV <t> x (ANDconst <typ.Int64> [7] y)) (SRLV <t> (ZeroExt8to64 x) (ANDconst <typ.Int64> [7] (NEGV <typ.Int64> y))))
