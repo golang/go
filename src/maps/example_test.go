@@ -167,8 +167,8 @@ func ExampleValues() {
 		10:   "Ten",
 		1000: "THOUSAND",
 	}
-	keys := slices.Sorted(maps.Values(m1))
-	fmt.Println(keys)
+	values := slices.Sorted(maps.Values(m1))
+	fmt.Println(values)
 	// Output:
 	// [THOUSAND Ten one]
 }

@@ -310,7 +310,7 @@ func ExampleSortStableFunc() {
 		{"Bob", 24},
 		{"Alice", 55},
 	}
-	// Stable sort by name, keeping age ordering of Alices intact
+	// Stable sort by name, keeping age ordering of Alice intact
 	slices.SortStableFunc(people, func(a, b Person) int {
 		return strings.Compare(a.Name, b.Name)
 	})
