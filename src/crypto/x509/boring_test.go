@@ -27,6 +27,7 @@ const (
 )
 
 func boringRSAKey(t *testing.T, size int) *rsa.PrivateKey {
+	t.Helper()
 	k, err := rsa.GenerateKey(rand.Reader, size)
 	if err != nil {
 		t.Fatal(err)
@@ -35,6 +36,7 @@ func boringRSAKey(t *testing.T, size int) *rsa.PrivateKey {
 }
 
 func boringECDSAKey(t *testing.T, curve elliptic.Curve) *ecdsa.PrivateKey {
+	t.Helper()
 	k, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
 		t.Fatal(err)

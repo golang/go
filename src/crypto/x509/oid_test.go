@@ -320,6 +320,7 @@ func BenchmarkOIDMarshalUnmarshalText(b *testing.B) {
 }
 
 func mustNewOIDFromInts(t testing.TB, ints []uint64) OID {
+	t.Helper()
 	oid, err := OIDFromInts(ints)
 	if err != nil {
 		t.Fatalf("OIDFromInts(%v) unexpected error: %v", ints, err)

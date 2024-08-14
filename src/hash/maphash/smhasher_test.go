@@ -96,6 +96,7 @@ func (s *hashSet) addS_seed(x string, seed Seed) {
 	s.add(h.Sum64())
 }
 func (s *hashSet) check(t *testing.T) {
+	t.Helper()
 	list := s.list
 	slices.Sort(list)
 
@@ -259,6 +260,7 @@ func TestSmhasherSparse(t *testing.T) {
 	sparse(t, h, 2048, 2)
 }
 func sparse(t *testing.T, h *hashSet, n int, k int) {
+	t.Helper()
 	b := make([]byte, n/8)
 	setbits(h, b, 0, k)
 	h.check(t)
@@ -295,6 +297,7 @@ func TestSmhasherPermutation(t *testing.T) {
 	permutation(t, h, []uint32{0, 1, 2, 3, 4, 5, 6, 7, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 6)
 }
 func permutation(t *testing.T, h *hashSet, s []uint32, n int) {
+	t.Helper()
 	b := make([]byte, n*4)
 	genPerm(h, b, s, 0)
 	h.check(t)
@@ -362,6 +365,7 @@ func TestSmhasherAvalanche(t *testing.T) {
 	avalancheTest1(t, &bytesKey{make([]byte, 200)})
 }
 func avalancheTest1(t *testing.T, k key) {
+	t.Helper()
 	const REP = 100000
 	r := rand.New(rand.NewSource(1234))
 	n := k.bits()
@@ -456,6 +460,7 @@ func TestSmhasherText(t *testing.T) {
 	text(t, h, "", "FooBar")
 }
 func text(t *testing.T, h *hashSet, prefix, suffix string) {
+	t.Helper()
 	const N = 4
 	const S = "ABCDEFGHIJKLMNOPQRSTabcdefghijklmnopqrst0123456789"
 	const L = len(S)

@@ -19,6 +19,7 @@ import (
 )
 
 func mustDecodeHex(t *testing.T, in string) []byte {
+	t.Helper()
 	b, err := hex.DecodeString(in)
 	if err != nil {
 		t.Fatal(err)
