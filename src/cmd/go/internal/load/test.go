@@ -562,9 +562,9 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			// imports package p.
 			stk = append(stk, ptest.ImportPath)
 			if len(ptest.GoFiles) > 0 {
-				stkWithPos = append(stkWithPos, p.ImportPath+" from "+filepath.Base(ptest.GoFiles[0]))
+				stkWithPos = append(stkWithPos, ptest.ImportPath+" from "+filepath.Base(ptest.GoFiles[0]))
 			} else {
-				stkWithPos = append(stkWithPos, p.ImportPath)
+				stkWithPos = append(stkWithPos, ptest.ImportPath)
 			}
 			slices.Reverse(stk)
 
