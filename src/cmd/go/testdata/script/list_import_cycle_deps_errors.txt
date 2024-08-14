@@ -9,7 +9,7 @@ cmp stdout want
 			"ImportStack": [
 				"m/a",
 				"m/b",
-				"m/c,
+				"m/c",
 				"m/a"
 			],
 			"ImportStackWithPos": [
