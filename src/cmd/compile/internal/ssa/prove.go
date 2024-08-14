@@ -341,6 +341,42 @@ func (l limit) exp2(b uint) limit {
 	return r
 }
 
+// Similar to add, but computes the complement of the limit for bitsize b.
+func (l limit) com(b uint) limit {
+	switch b {
+	case 64:
+		return limit{
+			min:  ^l.max,
+			max:  ^l.min,
+			umin: ^l.umax,
+			umax: ^l.umin,
+		}
+	case 32:
+		return limit{
+			min:  int64(^int32(l.max)),
+			max:  int64(^int32(l.min)),
+			umin: uint64(^uint32(l.umax)),
+			umax: uint64(^uint32(l.umin)),
+		}
+	case 16:
+		return limit{
+			min:  int64(^int16(l.max)),
+			max:  int64(^int16(l.min)),
+			umin: uint64(^uint16(l.umax)),
+			umax: uint64(^uint16(l.umin)),
+		}
+	case 8:
+		return limit{
+			min:  int64(^int8(l.max)),
+			max:  int64(^int8(l.min)),
+			umin: uint64(^uint8(l.umax)),
+			umax: uint64(^uint8(l.umin)),
+		}
+	default:
+		panic("unreachable")
+	}
+}
+
 var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
 
 // a limitFact is a limit known for a particular value.
@@ -1714,6 +1750,9 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
 		return ft.unsignedMax(v, 1<<bits.Len64(a.umax|b.umax)-1)
+	case OpCom64, OpCom32, OpCom16, OpCom8:
+		a := ft.limits[v.Args[0].ID]
+		return ft.newLimit(v, a.com(uint(v.Type.Size())*8))
 
 	// Arithmetic.
 	case OpAdd64:

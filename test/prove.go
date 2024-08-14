@@ -1606,6 +1606,27 @@ func trunc64to16(a uint64, ensureAllBranchesCouldHappen func() bool) uint16 {
 	return z
 }
 
+func com64(a uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
+	a &= 0xffff
+	a |= 0xff
+
+	z := ^a
+
+	if ensureAllBranchesCouldHappen() && z > ^uint64(0xff) { // ERROR "Disproved Less64U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z <= ^uint64(0xff) { // ERROR "Proved Leq64U$"
+		return 1337
+	}
+	if ensureAllBranchesCouldHappen() && z < ^uint64(0xffff) { // ERROR "Disproved Less64U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z >= ^uint64(0xffff) { // ERROR "Proved Leq64U$"
+		return 1337
+	}
+	return z
+}
+
 //go:noinline
 func useInt(a int) {
 }
