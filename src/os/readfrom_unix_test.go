@@ -198,7 +198,7 @@ func TestCopyFile(t *testing.T) {
 				}
 				switch runtime.GOOS {
 				case "illumos", "solaris":
-					// On SunOS, We rely on File.Stat to get the size of the file,
+					// On SunOS, We rely on File.Stat to get the size of the source file,
 					// which doesn't work for pipe.
 					if hook.called {
 						t.Fatalf("%s: shouldn't have called the hook with a source of pipe", testName)
@@ -267,7 +267,7 @@ func TestCopyFile(t *testing.T) {
 				}
 				switch runtime.GOOS {
 				case "illumos", "solaris":
-					// On SunOS, We rely on File.Stat to get the size of the file,
+					// On SunOS, We rely on File.Stat to get the size of the source file,
 					// which doesn't work for pipe.
 					if hook.called {
 						t.Fatalf("%s: shouldn't have called the hook with a source of pipe", testName)

@@ -7,6 +7,7 @@ package os
 import (
 	"internal/poll"
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -53,6 +54,24 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 	// Thus, we just bail out here and leave it to generic copy when it's a file copying itself.
 	if f.pfd.Sysfd == src.pfd.Sysfd {
 		return 0, false, nil
+	}
+
+	// sendfile() on illumos seems to incur intermittent failures when the
+	// target file is a standard stream (stdout/stderr), we hereby skip any
+	// character devices conservatively and leave them to generic copy.
+	// Check out https://go.dev/issue/68863 for more details.
+	if runtime.GOOS == "illumos" {
+		fi, err := f.Stat()
+		if err != nil {
+			return 0, false, nil
+		}
+		st, ok := fi.Sys().(*syscall.Stat_t)
+		if !ok {
+			return 0, false, nil
+		}
+		if typ := st.Mode & syscall.S_IFMT; typ == syscall.S_IFCHR || typ == syscall.S_IFBLK {
+			return 0, false, nil
+		}
 	}
 
 	if remain == 0 {
