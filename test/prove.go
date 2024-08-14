@@ -1586,6 +1586,26 @@ func div64s(a, b int64, ensureAllBranchesCouldHappen func() bool) int64 {
 	return z
 }
 
+func trunc64to16(a uint64, ensureAllBranchesCouldHappen func() bool) uint16 {
+	a &= 0xfff
+	a |= 0xff
+
+	z := uint16(a)
+	if ensureAllBranchesCouldHappen() && z > 0xfff { // ERROR "Disproved Less16U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z <= 0xfff { // ERROR "Proved Leq16U$"
+		return 1337
+	}
+	if ensureAllBranchesCouldHappen() && z < 0xff { // ERROR "Disproved Less16U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z >= 0xff { // ERROR "Proved Leq16U$"
+		return 1337
+	}
+	return z
+}
+
 //go:noinline
 func useInt(a int) {
 }

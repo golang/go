@@ -1643,6 +1643,11 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 	case OpSignExt8to64, OpSignExt8to32, OpSignExt8to16, OpSignExt16to64, OpSignExt16to32, OpSignExt32to64:
 		a := ft.limits[v.Args[0].ID]
 		return ft.signedMinMax(v, a.min, a.max)
+	case OpTrunc64to8, OpTrunc64to16, OpTrunc64to32, OpTrunc32to8, OpTrunc32to16, OpTrunc16to8:
+		a := ft.limits[v.Args[0].ID]
+		if a.umax <= 1<<(uint64(v.Type.Size())*8)-1 {
+			return ft.unsignedMinMax(v, a.umin, a.umax)
+		}
 
 	// math/bits
 	case OpCtz64:
