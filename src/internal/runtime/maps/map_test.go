@@ -223,7 +223,8 @@ func TestTablePutDelete(t *testing.T) {
 	// So first we must add to the table continuously until we happen to
 	// fill a group.
 
-	m, _ := maps.NewTestMap[uint32, uint32](8)
+	// Avoid small maps, they have no tables.
+	m, _ := maps.NewTestMap[uint32, uint32](16)
 
 	key := uint32(0)
 	elem := uint32(256 + 0)

@@ -56,54 +56,52 @@ func TestTableGroupCount(t *testing.T) {
 			n: -(1 << 30),
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit:  mapCount{1, 1},
-				initialHint: mapCount{1, 1},
-				after:       mapCount{1, 1},
+				initialLit:  mapCount{0, 1},
+				initialHint: mapCount{0, 1},
+				after:       mapCount{0, 1},
 			},
 		},
 		{
 			n: -1,
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit:  mapCount{1, 1},
-				initialHint: mapCount{1, 1},
-				after:       mapCount{1, 1},
+				initialLit:  mapCount{0, 1},
+				initialHint: mapCount{0, 1},
+				after:       mapCount{0, 1},
 			},
 		},
 		{
 			n: 0,
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit:  mapCount{1, 1},
-				initialHint: mapCount{1, 1},
-				after:       mapCount{1, 1},
+				initialLit:  mapCount{0, 1},
+				initialHint: mapCount{0, 1},
+				after:       mapCount{0, 1},
 			},
 		},
 		{
 			n: 1,
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit:  mapCount{1, 1},
-				initialHint: mapCount{1, 1},
-				after:       mapCount{1, 1},
+				initialLit:  mapCount{0, 1},
+				initialHint: mapCount{0, 1},
+				after:       mapCount{0, 1},
 			},
 		},
 		{
 			n: abi.SwissMapGroupSlots,
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit: mapCount{1, 1},
-				// TODO(go.dev/issue/54766): Initial capacity should round hint up to avoid grow.
-				initialHint: mapCount{1, 1},
-				// TODO(prattmic): small map optimization could store all 8 slots.
-				after: mapCount{1, 2},
+				initialLit:  mapCount{0, 1},
+				initialHint: mapCount{0, 1},
+				after:       mapCount{0, 1},
 			},
 		},
 		{
 			n: abi.SwissMapGroupSlots + 1,
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit:  mapCount{1, 1},
+				initialLit:  mapCount{0, 1},
 				initialHint: mapCount{1, 2},
 				after:       mapCount{1, 2},
 			},
@@ -112,7 +110,7 @@ func TestTableGroupCount(t *testing.T) {
 			n: belowMax, // 1.5 group max = 2 groups @ 75%
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit:  mapCount{1, 1},
+				initialLit:  mapCount{0, 1},
 				initialHint: mapCount{1, 2},
 				after:       mapCount{1, 2},
 			},
@@ -121,7 +119,7 @@ func TestTableGroupCount(t *testing.T) {
 			n: atMax, // 2 groups at max
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit:  mapCount{1, 1},
+				initialLit:  mapCount{0, 1},
 				initialHint: mapCount{1, 2},
 				after:       mapCount{1, 2},
 			},
@@ -130,7 +128,7 @@ func TestTableGroupCount(t *testing.T) {
 			n: atMax + 1, // 2 groups at max + 1 -> grow to 4 groups
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit: mapCount{1, 1},
+				initialLit: mapCount{0, 1},
 				// TODO(go.dev/issue/54766): Initial capacity should round hint up to avoid grow.
 				initialHint: mapCount{1, 2},
 				after:       mapCount{1, 4},
@@ -140,7 +138,7 @@ func TestTableGroupCount(t *testing.T) {
 			n: 2 * belowMax, // 3 * group max = 4 groups @75%
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit:  mapCount{1, 1},
+				initialLit:  mapCount{0, 1},
 				initialHint: mapCount{1, 4},
 				after:       mapCount{1, 4},
 			},
@@ -149,7 +147,7 @@ func TestTableGroupCount(t *testing.T) {
 			n: 2*atMax + 1, // 4 groups at max + 1 -> grow to 8 groups
 			escape: mapCase{
 				// TODO(go.dev/issue/54766): empty maps
-				initialLit: mapCount{1, 1},
+				initialLit: mapCount{0, 1},
 				// TODO(go.dev/issue/54766): Initial capacity should round hint up to avoid grow.
 				initialHint: mapCount{1, 4},
 				after:       mapCount{1, 8},

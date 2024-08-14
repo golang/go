@@ -24,25 +24,47 @@ func NewTestMap[K comparable, V any](length uint64) (*Map, *abi.SwissMapType) {
 }
 
 func (m *Map) TableCount() int {
-	return len(m.directory)
+	if m.dirLen <= 0 {
+		return 0
+	}
+	return m.dirLen
 }
 
 // Total group count, summed across all tables.
 func (m *Map) GroupCount() uint64 {
+	if m.dirLen <= 0 {
+		if m.dirPtr == nil {
+			return 0
+		}
+		return 1
+	}
+
 	var n uint64
-	for _, t := range m.directory {
+	var lastTab *table
+	for i := range m.dirLen {
+		t := m.directoryAt(uintptr(i))
+		if t == lastTab {
+			continue
+		}
+		lastTab = t
 		n += t.groups.lengthMask + 1
 	}
 	return n
 }
 
-// Return a key from a group containing no empty slots, or nil if there are no
-// full groups.
+// Return a key from a group containing no empty slots.
 //
-// Also returns nil if a group is full but contains entirely deleted slots.
+// Returns nil if there are no full groups.
+// Returns nil if a group is full but contains entirely deleted slots.
+// Returns nil if the map is small.
 func (m *Map) KeyFromFullGroup() unsafe.Pointer {
+	if m.dirLen <= 0 {
+		return nil
+	}
+
 	var lastTab *table
-	for _, t := range m.directory {
+	for i := range m.dirLen {
+		t := m.directoryAt(uintptr(i))
 		if t == lastTab {
 			continue
 		}
@@ -68,10 +90,15 @@ func (m *Map) KeyFromFullGroup() unsafe.Pointer {
 	return nil
 }
 
+// Returns nil if the map is small.
 func (m *Map) TableFor(key unsafe.Pointer) *table {
+	if m.dirLen <= 0 {
+		return nil
+	}
+
 	hash := m.typ.Hasher(key, m.seed)
 	idx := m.directoryIndex(hash)
-	return m.directory[idx]
+	return m.directoryAt(idx)
 }
 
 func (t *table) GrowthLeft() uint64 {

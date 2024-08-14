@@ -463,7 +463,8 @@ type Iter struct {
 	dirIdx int
 
 	// tab is the table at dirIdx during the previous call to Next.
-	tab *table
+	tab        *table
+	groupSmall groupReference // only if small map at init
 
 	// entryIdx is the current entry index, prior to adjustment by entryOffset.
 	// The lower 3 bits of the index are the slot index, and the upper bits
@@ -473,9 +474,19 @@ type Iter struct {
 
 // Init initializes Iter for iteration.
 func (it *Iter) Init(typ *abi.SwissMapType, m *Map) {
+
 	it.typ = typ
 	if m == nil || m.used == 0 {
 		return
+	}
+
+	dirIdx := 0
+	var groupSmall groupReference
+	if m.dirLen <= 0 {
+		// Use dirIdx == -1 as sentinal for small maps.
+		dirIdx = -1
+		groupSmall.data = m.dirPtr
+		groupSmall.typ = typ
 	}
 
 	it.typ = m.typ
@@ -483,6 +494,8 @@ func (it *Iter) Init(typ *abi.SwissMapType, m *Map) {
 	it.entryOffset = rand()
 	it.dirOffset = rand()
 	it.globalDepth = m.globalDepth
+	it.dirIdx = dirIdx
+	it.groupSmall = groupSmall
 	it.clearSeq = m.clearSeq
 }
 
@@ -520,6 +533,53 @@ func (it *Iter) Elem() unsafe.Pointer {
 func (it *Iter) Next() {
 	if it.m == nil {
 		// Map was empty at Iter.Init.
+		it.key = nil
+		it.elem = nil
+		return
+	}
+
+	if it.dirIdx < 0 {
+		// Map was small at Init.
+		g := it.groupSmall
+		for ; it.entryIdx < abi.SwissMapGroupSlots; it.entryIdx++ {
+			k := uint32(it.entryIdx+it.entryOffset) % abi.SwissMapGroupSlots
+
+			if (g.ctrls().get(k) & ctrlEmpty) == ctrlEmpty {
+				// Empty or deleted.
+				continue
+			}
+
+			key := g.key(k)
+
+			// As below, if we have grown to a full map since Init,
+			// we continue to use the old group to decide the keys
+			// to return, but must look them up again in the new
+			// tables.
+			grown := it.m.dirLen > 0
+			var elem unsafe.Pointer
+			if grown {
+				var ok bool
+				newKey, newElem, ok := it.m.getWithKey(key)
+				if !ok {
+					// See comment below.
+					if it.clearSeq == it.m.clearSeq && !it.m.typ.Key.Equal(key, key) {
+						elem = g.elem(k)
+					} else {
+						continue
+					}
+				} else {
+					key = newKey
+					elem = newElem
+				}
+			} else {
+				elem = g.elem(k)
+			}
+
+			it.entryIdx++
+			it.key = key
+			it.elem = elem
+			return
+		}
 		it.key = nil
 		it.elem = nil
 		return
@@ -564,15 +624,15 @@ func (it *Iter) Next() {
 	}
 
 	// Continue iteration until we find a full slot.
-	for it.dirIdx < len(it.m.directory) {
+	for it.dirIdx < it.m.dirLen {
 		// TODO(prattmic): We currently look up the latest table on
 		// every call, even if it.tab is set because the inner loop
 		// checks if it.tab has grown by checking it.tab != newTab.
 		//
 		// We could avoid most of these lookups if we left a flag
 		// behind on the old table to denote that it is stale.
-		dirIdx := int((uint64(it.dirIdx) + it.dirOffset) & uint64(len(it.m.directory)-1))
-		newTab := it.m.directory[dirIdx]
+		dirIdx := int((uint64(it.dirIdx) + it.dirOffset) & uint64(it.m.dirLen-1))
+		newTab := it.m.directoryAt(uintptr(dirIdx))
 		if it.tab == nil {
 			if newTab.index != dirIdx {
 				// Normally we skip past all duplicates of the

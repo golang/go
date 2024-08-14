@@ -144,7 +144,8 @@ func SwissMapType() *types.Type {
 	//     typ  unsafe.Pointer // *abi.SwissMapType
 	//     seed uintptr
 	//
-	//     directory []*table
+	//     dirPtr unsafe.Pointer
+	//     dirLen int
 	//
 	//     globalDepth uint8
 	//     // N.B Padding
@@ -156,7 +157,8 @@ func SwissMapType() *types.Type {
 		makefield("used", types.Types[types.TUINT64]),
 		makefield("typ", types.Types[types.TUNSAFEPTR]),
 		makefield("seed", types.Types[types.TUINTPTR]),
-		makefield("directory", types.NewSlice(types.NewPtr(swissTableType()))),
+		makefield("dirPtr", types.Types[types.TUNSAFEPTR]),
+		makefield("dirLen", types.Types[types.TINT]),
 		makefield("globalDepth", types.Types[types.TUINT8]),
 		makefield("clearSeq", types.Types[types.TUINT64]),
 	}
@@ -169,9 +171,9 @@ func SwissMapType() *types.Type {
 	m.SetUnderlying(types.NewStruct(fields))
 	types.CalcSize(m)
 
-	// The size of Map should be 64 bytes on 64 bit
-	// and 40 bytes on 32 bit platforms.
-	if size := int64(2*8 + 6*types.PtrSize); m.Size() != size {
+	// The size of Map should be 56 bytes on 64 bit
+	// and 36 bytes on 32 bit platforms.
+	if size := int64(2*8 + 5*types.PtrSize /* one extra for globalDepth + padding */); m.Size() != size {
 		base.Fatalf("internal/runtime/maps.Map size not correct: got %d, want %d", m.Size(), size)
 	}
 
@@ -204,7 +206,9 @@ func SwissMapIterType() *types.Type {
 	//
 	//    dirIdx int
 	//
-	//    tab *table
+	//    tab             *table
+	//    groupSmall_typ  unsafe.Pointer // *SwissMapType
+	//    groupSmall_data unsafe.Pointer
 	//
 	//    entryIdx uint64
 	// }
@@ -220,10 +224,12 @@ func SwissMapIterType() *types.Type {
 		makefield("globalDepth", types.Types[types.TUINT8]),
 		makefield("dirIdx", types.Types[types.TINT]),
 		makefield("tab", types.NewPtr(swissTableType())),
+		makefield("groupSmall_typ", types.Types[types.TUNSAFEPTR]),
+		makefield("groupSmall_data", types.Types[types.TUNSAFEPTR]),
 		makefield("entryIdx", types.Types[types.TUINT64]),
 	}
 
-	// build iterator struct hswissing the above fields
+	// build iterator struct holding the above fields
 	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.InternalMaps.Lookup("Iter"))
 	iter := types.NewNamed(n)
 	n.SetType(iter)
@@ -232,9 +238,9 @@ func SwissMapIterType() *types.Type {
 	iter.SetUnderlying(types.NewStruct(fields))
 	types.CalcSize(iter)
 
-	// The size of Iter should be 88 bytes on 64 bit
-	// and 60 bytes on 32 bit platforms.
-	if size := 7*types.PtrSize /* one extra for globalDepth + padding */ + 4*8; iter.Size() != int64(size) {
+	// The size of Iter should be 104 bytes on 64 bit
+	// and 68 bytes on 32 bit platforms.
+	if size := 9*types.PtrSize /* one extra for globalDepth + padding */ + 4*8; iter.Size() != int64(size) {
 		base.Fatalf("internal/runtime/maps.Iter size not correct: got %d, want %d", iter.Size(), size)
 	}
 

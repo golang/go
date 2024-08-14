@@ -875,7 +875,6 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 func (d *dwctxt) synthesizemaptypesSwiss(ctxt *Link, die *dwarf.DWDie) {
 	mapType := walktypedef(d.findprotodie(ctxt, "type:internal/runtime/maps.Map"))
 	tableType := walktypedef(d.findprotodie(ctxt, "type:internal/runtime/maps.table"))
-	tableSliceType := walktypedef(d.findprotodie(ctxt, "type:[]*internal/runtime/maps.table"))
 	groupsReferenceType := walktypedef(d.findprotodie(ctxt, "type:internal/runtime/maps.groupsReference"))
 
 	for ; die != nil; die = die.Link {
@@ -916,19 +915,16 @@ func (d *dwctxt) synthesizemaptypesSwiss(ctxt *Link, die *dwarf.DWDie) {
 			newattr(dwh, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Struct), 0)
 		})
 
-		// Construct type to represent []*table[K,V].
-		dwTableSlice := d.mkinternaltype(ctxt, dwarf.DW_ABRV_SLICETYPE, "[]*table", keyName, valName, func(dwh *dwarf.DWDie) {
-			d.copychildren(ctxt, dwh, tableSliceType)
-			d.substitutetype(dwh, "array", d.defptrto(d.defptrto(dwTable)))
-			d.newrefattr(dwh, dwarf.DW_AT_go_elem, d.defptrto(dwTable))
-			newattr(dwh, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, getattr(tableSliceType, dwarf.DW_AT_byte_size).Value, nil)
-			newattr(dwh, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Slice), 0)
-		})
-
 		// Construct map[K,V]
 		dwMap := d.mkinternaltype(ctxt, dwarf.DW_ABRV_STRUCTTYPE, "map", keyName, valName, func(dwh *dwarf.DWDie) {
 			d.copychildren(ctxt, dwh, mapType)
-			d.substitutetype(dwh, "directory", dwTableSlice)
+			// dirPtr is a pointer to a variable-length array of
+			// *table[K,V], of length dirLen.
+			//
+			// Since we can't directly define a variable-length
+			// array, store this as **table[K,V]. i.e., pointer to
+			// the first entry in the array.
+			d.substitutetype(dwh, "dirPtr", d.defptrto(d.defptrto(dwTable)))
 			newattr(dwh, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, getattr(mapType, dwarf.DW_AT_byte_size).Value, nil)
 			newattr(dwh, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Struct), 0)
 		})
@@ -1851,7 +1847,6 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	if buildcfg.Experiment.SwissMap {
 		prototypedies["type:internal/runtime/maps.Map"] = nil
 		prototypedies["type:internal/runtime/maps.table"] = nil
-		prototypedies["type:[]*internal/runtime/maps.table"] = nil
 		prototypedies["type:internal/runtime/maps.groupsReference"] = nil
 	} else {
 		prototypedies["type:runtime.hmap"] = nil
