@@ -131,8 +131,8 @@ func (s *_TypeSet) underIs(f func(Type) bool) bool {
 	}
 	for _, t := range s.terms {
 		assert(t.typ != nil)
-		// x == under(x) for ~x terms
-		u := t.typ
+		// Unalias(x) == under(x) for ~x terms
+		u := Unalias(t.typ)
 		if !t.tilde {
 			u = under(u)
 		}
