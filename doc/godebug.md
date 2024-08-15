@@ -150,6 +150,13 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.24
+
+Go 1.24 changed the global [`math/rand.Seed`](/pkg/math/rand/#Seed) to be a
+no-op. This setting is controlled by the `randseednop` setting.
+For Go 1.24 it defaults to `randseednop=1`.
+Using `randseednop=0` reverts to the pre-Go 1.24 behavior.
+
 ### Go 1.23
 
 Go 1.23 changed the channels created by package time to be unbuffered
