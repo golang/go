@@ -68,12 +68,17 @@ func (z *Rat) GobDecode(buf []byte) error {
 	return nil
 }
 
+// AppendText implements the [encoding.TextAppender] interface.
+func (x *Rat) AppendText(b []byte) ([]byte, error) {
+	if x.IsInt() {
+		return x.a.AppendText(b)
+	}
+	return x.marshal(b), nil
+}
+
 // MarshalText implements the [encoding.TextMarshaler] interface.
 func (x *Rat) MarshalText() (text []byte, err error) {
-	if x.IsInt() {
-		return x.a.MarshalText()
-	}
-	return x.marshal(), nil
+	return x.AppendText(nil)
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.

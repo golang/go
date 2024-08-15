@@ -132,3 +132,36 @@ func TestIntXMLEncoding(t *testing.T) {
 		}
 	}
 }
+
+func TestIntAppendText(t *testing.T) {
+	for _, test := range encodingTests {
+		for _, sign := range []string{"", "+", "-"} {
+			x := sign + test
+			var tx Int
+			tx.SetString(x, 10)
+			buf := make([]byte, 4, 32)
+			b, err := tx.AppendText(buf)
+			if err != nil {
+				t.Errorf("marshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			var rx Int
+			if err := rx.UnmarshalText(b[4:]); err != nil {
+				t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			if rx.Cmp(&tx) != 0 {
+				t.Errorf("AppendText of %s failed: got %s want %s", &tx, &rx, &tx)
+			}
+		}
+	}
+}
+
+func TestIntAppendTextNil(t *testing.T) {
+	var x *Int
+	buf := make([]byte, 4, 16)
+	data, _ := x.AppendText(buf)
+	if string(data[4:]) != "<nil>" {
+		t.Errorf("got %q, want <nil>", data[4:])
+	}
+}
