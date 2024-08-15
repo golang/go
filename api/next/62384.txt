@@ -5,3 +5,7 @@ pkg encoding, type TextAppender interface, AppendText([]uint8) ([]uint8, error) 
 pkg net/url, method (*URL) AppendBinary([]uint8) ([]uint8, error) #62384
 pkg log/slog, method (Level) AppendText([]uint8) ([]uint8, error) #62384
 pkg log/slog, method (*LevelVar) AppendText([]uint8) ([]uint8, error) #62384
+pkg math/big, method (*Float) AppendText([]uint8) ([]uint8, error) #62384
+pkg math/big, method (*Int) AppendText([]uint8) ([]uint8, error) #62384
+pkg math/big, method (*Rat) AppendText([]uint8) ([]uint8, error) #62384
+pkg regexp, method (*Regexp) AppendText([]uint8) ([]uint8, error) #62384

@@ -106,15 +106,21 @@ func (z *Float) GobDecode(buf []byte) error {
 	return nil
 }
 
+// AppendText implements the [encoding.TextAppender] interface.
+// Only the [Float] value is marshaled (in full precision), other
+// attributes such as precision or accuracy are ignored.
+func (x *Float) AppendText(b []byte) ([]byte, error) {
+	if x == nil {
+		return append(b, "<nil>"...), nil
+	}
+	return x.Append(b, 'g', -1), nil
+}
+
 // MarshalText implements the [encoding.TextMarshaler] interface.
 // Only the [Float] value is marshaled (in full precision), other
 // attributes such as precision or accuracy are ignored.
 func (x *Float) MarshalText() (text []byte, err error) {
-	if x == nil {
-		return []byte("<nil>"), nil
-	}
-	var buf []byte
-	return x.Append(buf, 'g', -1), nil
+	return x.AppendText(nil)
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
