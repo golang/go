@@ -81,7 +81,7 @@ func cgoKeepAlive(any) { throw("cgoKeepAlive should not be called") }
 
 // cgoAlwaysFalse is a boolean value that is always false.
 // The cgo-generated code says if cgoAlwaysFalse { cgoUse(p) },
-// or if cgoAlwaysFalse { cgoUse(p) }.
+// or if cgoAlwaysFalse { cgoKeepAlive(p) }.
 // The compiler cannot see that cgoAlwaysFalse is always false,
 // so it emits the test and keeps the call, giving the desired
 // escape/alive analysis result. The test is cheaper than the call.

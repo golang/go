@@ -774,7 +774,7 @@ func TestCgoEscapeWithMultiplePointers(t *testing.T) {
 	got := runTestProg(t, "testprogcgo", "CgoEscapeWithMultiplePointers")
 	want := "OK\n"
 	if got != want {
-		t.Fatalf("want %s, got %s\n", want, got)
+		t.Fatalf("output is %s; want %s", got, want)
 	}
 }
 
