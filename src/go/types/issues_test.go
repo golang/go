@@ -1131,3 +1131,23 @@ func f(x int) {
 		t.Errorf("got: %s want: %s", got, want)
 	}
 }
+
+func TestIssue68877(t *testing.T) {
+	const src = `
+package p
+
+type (
+	S struct{}
+	A = S
+	T A
+)`
+
+	t.Setenv("GODEBUG", "gotypesalias=1")
+	pkg := mustTypecheck(src, nil, nil)
+	T := pkg.Scope().Lookup("T").(*TypeName)
+	got := T.String() // this must not panic (was issue)
+	const want = "type p.T struct{}"
+	if got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+}

@@ -282,7 +282,7 @@ func (t *Named) cleanup() {
 		if t.TypeArgs().Len() == 0 {
 			panic("nil underlying")
 		}
-	case *Named:
+	case *Named, *Alias:
 		t.under() // t.under may add entries to check.cleaners
 	}
 	t.check = nil
