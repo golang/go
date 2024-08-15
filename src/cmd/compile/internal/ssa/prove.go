@@ -1787,6 +1787,10 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
 		return ft.newLimit(v, a.sub(b, 8))
+	case OpNeg64, OpNeg32, OpNeg16, OpNeg8:
+		a := ft.limits[v.Args[0].ID]
+		bitsize := uint(v.Type.Size()) * 8
+		return ft.newLimit(v, a.com(bitsize).add(limit{min: 1, max: 1, umin: 1, umax: 1}, bitsize))
 	case OpMul64:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]

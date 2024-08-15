@@ -1627,6 +1627,49 @@ func com64(a uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
 	return z
 }
 
+func neg64(a uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
+	var lo, hi uint64 = 0xff, 0xfff
+	a &= hi
+	a |= lo
+
+	z := -a
+
+	if ensureAllBranchesCouldHappen() && z > -lo { // ERROR "Disproved Less64U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z <= -lo { // ERROR "Proved Leq64U$"
+		return 1337
+	}
+	if ensureAllBranchesCouldHappen() && z < -hi { // ERROR "Disproved Less64U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z >= -hi { // ERROR "Proved Leq64U$"
+		return 1337
+	}
+	return z
+}
+func neg64mightOverflowDuringNeg(a uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
+	var lo, hi uint64 = 0, 0xfff
+	a &= hi
+	a |= lo
+
+	z := -a
+
+	if ensureAllBranchesCouldHappen() && z > -lo {
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z <= -lo {
+		return 1337
+	}
+	if ensureAllBranchesCouldHappen() && z < -hi {
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z >= -hi {
+		return 1337
+	}
+	return z
+}
+
 //go:noinline
 func useInt(a int) {
 }
