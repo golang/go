@@ -485,6 +485,16 @@ func (ht *HashTrieMap[K, V]) All() func(yield func(K, V) bool) {
 	}
 }
 
+// Range calls f sequentially for each key and value present in the map.
+// If f returns false, range stops the iteration.
+//
+// This exists for compatibility with sync.Map; All should be preferred.
+// It provides the same guarantees as sync.Map, and All.
+func (ht *HashTrieMap[K, V]) Range(yield func(K, V) bool) {
+	ht.init()
+	ht.iter(ht.root.Load(), yield)
+}
+
 func (ht *HashTrieMap[K, V]) iter(i *indirect[K, V], yield func(key K, value V) bool) bool {
 	for j := range i.children {
 		n := i.children[j].Load()
