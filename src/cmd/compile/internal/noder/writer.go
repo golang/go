@@ -730,7 +730,9 @@ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
 // bitstream.
 func (w *writer) objInfo(info objInfo) {
 	w.Sync(pkgbits.SyncObject)
-	w.Bool(false) // TODO(mdempsky): Remove; was derived func inst.
+	if w.Version().Has(pkgbits.DerivedFuncInstance) {
+		w.Bool(false)
+	}
 	w.Reloc(pkgbits.RelocObj, info.idx)
 
 	w.Len(len(info.explicits))
