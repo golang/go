@@ -180,16 +180,17 @@ func IndexRune(s string, r rune) int {
 		} else {
 			c0 := rs[last]
 			c1 := rs[last-1]
-		loop:
 			for ; i < len(s); i++ {
-				if s[i] == c0 && s[i-1] == c1 {
-					for k := 2; k < len(rs); k++ {
-						if s[i-k] != rs[last-k] {
-							continue loop
-						}
-					}
-					return i - last
+				if s[i] != c0 || s[i-1] != c1 {
+					goto skip
 				}
+				for k := 2; k < len(rs); k++ {
+					if s[i-k] != rs[last-k] {
+						goto skip
+					}
+				}
+				return i - last
+			skip:
 			}
 		}
 		return -1

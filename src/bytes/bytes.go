@@ -187,7 +187,7 @@ func IndexRune(s []byte, r rune) int {
 		return -1
 
 	fallback:
-		// Switch to bytealg.Index, if available, or a brute for search when
+		// Switch to bytealg.Index if available, or a brute force search when
 		// IndexByte returns too many false positives.
 		if haveFastIndex {
 			if j := bytealg.Index(s[i-last:], b[:n]); j >= 0 {
@@ -198,16 +198,17 @@ func IndexRune(s []byte, r rune) int {
 			// ~1.5-3x faster than Rabin-Karp since n is small.
 			c0 := b[last]
 			c1 := b[last-1] // There are at least 2 chars to match
-		loop:
 			for ; i < len(s); i++ {
-				if s[i] == c0 && s[i-1] == c1 {
-					for k := 2; k < n; k++ {
-						if s[i-k] != b[last-k] {
-							continue loop
-						}
-					}
-					return i - last
+				if s[i] != c0 || s[i-1] != c1 {
+					goto skip
 				}
+				for k := 2; k < n; k++ {
+					if s[i-k] != b[last-k] {
+						goto skip
+					}
+				}
+				return i - last
+			skip:
 			}
 		}
 		return -1
