@@ -5,11 +5,16 @@
 package ssagen
 
 import (
-	"internal/buildcfg"
+	"flag"
+	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
 	"cmd/internal/sys"
 )
+
+var updateIntrinsics = flag.Bool("update", false, "Print an updated intrinsics table")
 
 type testIntrinsicKey struct {
 	archName string
@@ -785,6 +790,8 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"ppc64", "internal/runtime/math", "Add64"}:                struct{}{},
 	{"ppc64", "internal/runtime/math", "Mul64"}:                struct{}{},
 	{"ppc64", "internal/runtime/math", "MulUintptr"}:           struct{}{},
+	{"ppc64", "internal/runtime/sys", "Bswap32"}:               struct{}{},
+	{"ppc64", "internal/runtime/sys", "Bswap64"}:               struct{}{},
 	{"ppc64", "internal/runtime/sys", "Len64"}:                 struct{}{},
 	{"ppc64", "internal/runtime/sys", "Len8"}:                  struct{}{},
 	{"ppc64", "internal/runtime/sys", "OnesCount64"}:           struct{}{},
@@ -814,6 +821,9 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"ppc64", "math/bits", "OnesCount32"}:                      struct{}{},
 	{"ppc64", "math/bits", "OnesCount64"}:                      struct{}{},
 	{"ppc64", "math/bits", "OnesCount8"}:                       struct{}{},
+	{"ppc64", "math/bits", "ReverseBytes16"}:                   struct{}{},
+	{"ppc64", "math/bits", "ReverseBytes32"}:                   struct{}{},
+	{"ppc64", "math/bits", "ReverseBytes64"}:                   struct{}{},
 	{"ppc64", "math/bits", "RotateLeft"}:                       struct{}{},
 	{"ppc64", "math/bits", "RotateLeft32"}:                     struct{}{},
 	{"ppc64", "math/bits", "RotateLeft64"}:                     struct{}{},
@@ -900,6 +910,8 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"ppc64le", "internal/runtime/math", "Add64"}:              struct{}{},
 	{"ppc64le", "internal/runtime/math", "Mul64"}:              struct{}{},
 	{"ppc64le", "internal/runtime/math", "MulUintptr"}:         struct{}{},
+	{"ppc64le", "internal/runtime/sys", "Bswap32"}:             struct{}{},
+	{"ppc64le", "internal/runtime/sys", "Bswap64"}:             struct{}{},
 	{"ppc64le", "internal/runtime/sys", "Len64"}:               struct{}{},
 	{"ppc64le", "internal/runtime/sys", "Len8"}:                struct{}{},
 	{"ppc64le", "internal/runtime/sys", "OnesCount64"}:         struct{}{},
@@ -929,6 +941,9 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"ppc64le", "math/bits", "OnesCount32"}:                    struct{}{},
 	{"ppc64le", "math/bits", "OnesCount64"}:                    struct{}{},
 	{"ppc64le", "math/bits", "OnesCount8"}:                     struct{}{},
+	{"ppc64le", "math/bits", "ReverseBytes16"}:                 struct{}{},
+	{"ppc64le", "math/bits", "ReverseBytes32"}:                 struct{}{},
+	{"ppc64le", "math/bits", "ReverseBytes64"}:                 struct{}{},
 	{"ppc64le", "math/bits", "RotateLeft"}:                     struct{}{},
 	{"ppc64le", "math/bits", "RotateLeft32"}:                   struct{}{},
 	{"ppc64le", "math/bits", "RotateLeft64"}:                   struct{}{},
@@ -1219,43 +1234,44 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"wasm", "runtime", "slicebytetostringtmp"}:                struct{}{},
 }
 
-var wantIntrinsicsPower10 = map[testIntrinsicKey]struct{}{
-	{"ppc64", "internal/runtime/sys", "Bswap32"}:   struct{}{},
-	{"ppc64", "internal/runtime/sys", "Bswap64"}:   struct{}{},
-	{"ppc64", "math/bits", "ReverseBytes16"}:       struct{}{},
-	{"ppc64", "math/bits", "ReverseBytes32"}:       struct{}{},
-	{"ppc64", "math/bits", "ReverseBytes64"}:       struct{}{},
-	{"ppc64le", "internal/runtime/sys", "Bswap32"}: struct{}{},
-	{"ppc64le", "internal/runtime/sys", "Bswap64"}: struct{}{},
-	{"ppc64le", "math/bits", "ReverseBytes16"}:     struct{}{},
-	{"ppc64le", "math/bits", "ReverseBytes32"}:     struct{}{},
-	{"ppc64le", "math/bits", "ReverseBytes64"}:     struct{}{},
-}
-
 func TestIntrinsics(t *testing.T) {
-	initIntrinsics(nil)
-
-	want := make(map[testIntrinsicKey]struct{})
-	for ik, iv := range wantIntrinsics {
-		want[ik] = iv
+	cfg := &intrinsicBuildConfig{
+		goppc64: 10,
 	}
-	if buildcfg.GOPPC64 >= 10 {
-		for ik, iv := range wantIntrinsicsPower10 {
-			want[ik] = iv
+	initIntrinsics(cfg)
+
+	if *updateIntrinsics {
+		var updatedIntrinsics []*testIntrinsicKey
+		for ik, _ := range intrinsics {
+			updatedIntrinsics = append(updatedIntrinsics, &testIntrinsicKey{ik.arch.Name, ik.pkg, ik.fn})
 		}
+		slices.SortFunc(updatedIntrinsics, func(a, b *testIntrinsicKey) int {
+			if n := strings.Compare(a.archName, b.archName); n != 0 {
+				return n
+			}
+			if n := strings.Compare(a.pkg, b.pkg); n != 0 {
+				return n
+			}
+			return strings.Compare(a.fn, b.fn)
+		})
+		for _, tik := range updatedIntrinsics {
+			fmt.Printf("\t{%q, %q, %q}: struct{}{},\n", tik.archName, tik.pkg, tik.fn)
+		}
+		return
 	}
 
-	got := make(map[testIntrinsicKey]struct{})
+	gotIntrinsics := make(map[testIntrinsicKey]struct{})
 	for ik, _ := range intrinsics {
-		got[testIntrinsicKey{ik.arch.Name, ik.pkg, ik.fn}] = struct{}{}
+		gotIntrinsics[testIntrinsicKey{ik.arch.Name, ik.pkg, ik.fn}] = struct{}{}
 	}
-	for ik, _ := range got {
-		if _, found := want[ik]; !found {
+	for ik, _ := range gotIntrinsics {
+		if _, found := wantIntrinsics[ik]; !found {
 			t.Errorf("Got unwanted intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
 		}
 	}
-	for ik, _ := range want {
-		if _, found := got[ik]; !found {
+
+	for ik, _ := range wantIntrinsics {
+		if _, found := gotIntrinsics[ik]; !found {
 			t.Errorf("Want intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
 		}
 	}
