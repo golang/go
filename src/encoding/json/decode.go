@@ -255,7 +255,11 @@ func (d *decodeState) addErrorContext(err error) error {
 		switch err := err.(type) {
 		case *UnmarshalTypeError:
 			err.Struct = d.errorContext.Struct.Name()
-			err.Field = strings.Join(d.errorContext.FieldStack, ".")
+			fieldStack := d.errorContext.FieldStack
+			if err.Field != "" {
+				fieldStack = append(fieldStack, err.Field)
+			}
+			err.Field = strings.Join(fieldStack, ".")
 		}
 	}
 	return err
