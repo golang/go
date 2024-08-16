@@ -73,10 +73,11 @@ var cgoHasExtraM bool
 func cgoUse(any) { throw("cgoUse should not be called") }
 
 // cgoKeepAlive is called by cgo-generated code (using go:linkname to get at
-// an unexported name). Unlike cgoUse The calls serve one purposes:
-// 1) they keep the argument alive until the call site; the call is emitted after
-// the end of the (presumed) use of the argument by C.
-// cgoKeepAlive should not actually be called (see cgoAlwaysFalse).
+// an unexported name). This call keeps its argument alive until the call site;
+// cgo emits the call after the last possible use of the argument by C code.
+// cgoKeepAlive is marked in the cgo-generated code as //go:noescape, so
+// unlike cgoUse it does not force the argument to escape to the heap.
+// This is used to implement the #cgo noescape directive.
 func cgoKeepAlive(any) { throw("cgoKeepAlive should not be called") }
 
 // cgoAlwaysFalse is a boolean value that is always false.

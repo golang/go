@@ -436,7 +436,7 @@ For example:
 	// #cgo noescape cFunctionName
 
 When a Go function calls a C function, it prepares for the C function to
-call back to a Go function. the #cgo nocallback directive may be used to
+call back to a Go function. The #cgo nocallback directive may be used to
 tell the compiler that these preparations are not necessary.
 If the nocallback directive is used and the C function does call back into
 Go code, the program will panic.

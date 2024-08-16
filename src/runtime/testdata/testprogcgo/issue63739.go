@@ -4,11 +4,11 @@
 
 package main
 
-// This is for issue #56378.
-// After we retiring _Cgo_use for parameters, the compiler will treat the
-// parameters, start from the second, as non-alive. Then, they will be marked
-// as scalar in stackmap, which means the pointer won't be copied correctly
-// in copystack.
+// This is for issue #63739.
+// Ensure that parameters are kept alive until the end of the C call. If not,
+// then a stack copy at just the right time while calling into C might think
+// that any stack pointers are not alive and fail to update them, causing the C
+// function to see the old, no longer correct, pointer values.
 
 /*
 int add_from_multiple_pointers(int *a, int *b, int *c) {
