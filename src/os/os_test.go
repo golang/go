@@ -3354,6 +3354,14 @@ func TestCopyFS(t *testing.T) {
 		t.Fatal("comparing two directories:", err)
 	}
 
+	// Test whether CopyFS disallows copying for disk filesystem when there is any
+	// existing file in the destination directory.
+	if err := CopyFS(tmpDir, fsys); !errors.Is(err, fs.ErrExist) {
+		t.Errorf("CopyFS should have failed and returned error when there is"+
+			"any existing file in the destination directory (in disk filesystem), "+
+			"got: %v, expected any error that indicates <file exists>", err)
+	}
+
 	// Test with memory filesystem.
 	fsys = fstest.MapFS{
 		"william":    {Data: []byte("Shakespeare\n")},
@@ -3390,6 +3398,14 @@ func TestCopyFS(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatal("comparing two directories:", err)
+	}
+
+	// Test whether CopyFS disallows copying for memory filesystem when there is any
+	// existing file in the destination directory.
+	if err := CopyFS(tmpDir, fsys); !errors.Is(err, fs.ErrExist) {
+		t.Errorf("CopyFS should have failed and returned error when there is"+
+			"any existing file in the destination directory (in memory filesystem), "+
+			"got: %v, expected any error that indicates <file exists>", err)
 	}
 }
 
