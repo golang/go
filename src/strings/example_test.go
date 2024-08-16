@@ -388,8 +388,8 @@ func ExampleToLower() {
 }
 
 func ExampleToLowerSpecial() {
-	fmt.Println(strings.ToLowerSpecial(unicode.TurkishCase, "Önnek İş"))
-	// Output: önnek iş
+	fmt.Println(strings.ToLowerSpecial(unicode.TurkishCase, "Örnek İş"))
+	// Output: örnek iş
 }
 
 func ExampleTrim() {
