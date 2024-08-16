@@ -64,14 +64,14 @@
 # timing information to this file. Useful for profiling where the
 # time goes when these scripts run.
 #
-# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.20.6 for bootstrap.
+# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.22.6 for bootstrap.
 # If $GOROOT_BOOTSTRAP/bin/go is missing, $(go env GOROOT) is
-# tried for all "go" in $PATH. By default, one of $HOME/go1.20.6,
-# $HOME/sdk/go1.20.6, or $HOME/go1.4, whichever exists, in that order.
+# tried for all "go" in $PATH. By default, one of $HOME/go1.22.6,
+# $HOME/sdk/go1.22.6, or $HOME/go1.4, whichever exists, in that order.
 # We still check $HOME/go1.4 to allow for build scripts that still hard-code
 # that name even though they put newer Go toolchains there.
 
-bootgo=1.20.6
+bootgo=1.22.6
 
 set -e
 
