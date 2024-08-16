@@ -326,7 +326,6 @@ func (check *Checker) initFiles(files []*syntax.File) {
 		check.errorf(files[0], TooNew, "package requires newer Go version %v (application built with %v)",
 			check.version, go_current)
 	}
-	downgradeOk := check.version.cmp(go1_21) >= 0
 
 	// determine Go version for each file
 	for _, file := range check.files {
@@ -335,33 +334,18 @@ func (check *Checker) initFiles(files []*syntax.File) {
 		// unlike file versions which are Go language versions only, if valid.)
 		v := check.conf.GoVersion
 
-		fileVersion := asGoVersion(file.GoVersion)
-		if fileVersion.isValid() {
-			// use the file version, if applicable
-			// (file versions are either the empty string or of the form go1.dd)
-			if pkgVersionOk {
-				cmp := fileVersion.cmp(check.version)
-				// Go 1.21 introduced the feature of setting the go.mod
-				// go line to an early version of Go and allowing //go:build lines
-				// to “upgrade” (cmp > 0) the Go version in a given file.
-				// We can do that backwards compatibly.
-				//
-				// Go 1.21 also introduced the feature of allowing //go:build lines
-				// to “downgrade” (cmp < 0) the Go version in a given file.
-				// That can't be done compatibly in general, since before the
-				// build lines were ignored and code got the module's Go version.
-				// To work around this, downgrades are only allowed when the
-				// module's Go version is Go 1.21 or later.
-				//
-				// If there is no valid check.version, then we don't really know what
-				// Go version to apply.
-				// Legacy tools may do this, and they historically have accepted everything.
-				// Preserve that behavior by ignoring //go:build constraints entirely in that
-				// case (!pkgVersionOk).
-				if cmp > 0 || cmp < 0 && downgradeOk {
-					v = file.GoVersion
-				}
-			}
+		// If the file specifies a version, use max(fileVersion, go1.21).
+		if fileVersion := asGoVersion(file.GoVersion); fileVersion.isValid() {
+			// Go 1.21 introduced the feature of allowing //go:build lines
+			// to sometimes set the Go version in a given file. Versions Go 1.21 and later
+			// can be set backwards compatibly as that was the first version
+			// files with go1.21 or later build tags could be built with.
+			//
+			// Set the version to max(fileVersion, go1.21): That will allow a
+			// downgrade to a version before go1.22, where the for loop semantics
+			// change was made, while being backwards compatible with versions of
+			// go before the new //go:build semantics were introduced.
+			v = string(versionMax(fileVersion, go1_21))
 
 			// Report a specific error for each tagged file that's too new.
 			// (Normally the build system will have filtered files by version,
@@ -374,6 +358,13 @@ func (check *Checker) initFiles(files []*syntax.File) {
 		}
 		versions[file.Pos().FileBase()] = v // file.Pos().FileBase() may be nil for tests
 	}
+}
+
+func versionMax(a, b goVersion) goVersion {
+	if a.cmp(b) > 0 {
+		return a
+	}
+	return b
 }
 
 // A bailout panic is used for early termination.

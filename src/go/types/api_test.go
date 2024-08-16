@@ -3035,22 +3035,48 @@ func TestFileVersions(t *testing.T) {
 		fileVersion string
 		wantVersion string
 	}{
-		{"", "", ""},                   // no versions specified
-		{"go1.19", "", "go1.19"},       // module version specified
-		{"", "go1.20", ""},             // file upgrade ignored
-		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
-		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
-		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
+		{"", "", ""},                    // no versions specified
+		{"go1.19", "", "go1.19"},        // module version specified
+		{"", "go1.20", "go1.21"},        // file version specified below minimum of 1.21
+		{"go1", "", "go1"},              // no file version specified
+		{"go1", "goo1.22", "go1"},       // invalid file version specified
+		{"go1", "go1.19", "go1.21"},     // file version specified below minimum of 1.21
+		{"go1", "go1.20", "go1.21"},     // file version specified below minimum of 1.21
+		{"go1", "go1.21", "go1.21"},     // file version specified at 1.21
+		{"go1", "go1.22", "go1.22"},     // file version specified above 1.21
+		{"go1.19", "", "go1.19"},        // no file version specified
+		{"go1.19", "goo1.22", "go1.19"}, // invalid file version specified
+		{"go1.19", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.19", "go1.21", "go1.21"},  // file version specified at 1.21
+		{"go1.19", "go1.22", "go1.22"},  // file version specified above 1.21
+		{"go1.20", "", "go1.20"},        // no file version specified
+		{"go1.20", "goo1.22", "go1.20"}, // invalid file version specified
+		{"go1.20", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.20", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.20", "go1.21", "go1.21"},  // file version specified at 1.21
+		{"go1.20", "go1.22", "go1.22"},  // file version specified above 1.21
+		{"go1.21", "", "go1.21"},        // no file version specified
+		{"go1.21", "goo1.22", "go1.21"}, // invalid file version specified
+		{"go1.21", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.21", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.21", "go1.21", "go1.21"},  // file version specified at 1.21
+		{"go1.21", "go1.22", "go1.22"},  // file version specified above 1.21
+		{"go1.22", "", "go1.22"},        // no file version specified
+		{"go1.22", "goo1.22", "go1.22"}, // invalid file version specified
+		{"go1.22", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.22", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.22", "go1.21", "go1.21"},  // file version specified at 1.21
+		{"go1.22", "go1.22", "go1.22"},  // file version specified above 1.21
 
 		// versions containing release numbers
 		// (file versions containing release numbers are considered invalid)
 		{"go1.19.0", "", "go1.19.0"},         // no file version specified
-		{"go1.20", "go1.20.1", "go1.20"},     // file upgrade ignored
-		{"go1.20.1", "go1.20", "go1.20.1"},   // file upgrade ignored
-		{"go1.20.1", "go1.21", "go1.21"},     // file upgrade permitted
-		{"go1.20.1", "go1.19", "go1.20.1"},   // file downgrade not permitted
-		{"go1.21.1", "go1.19.1", "go1.21.1"}, // file downgrade not permitted (invalid file version)
-		{"go1.21.1", "go1.19", "go1.19"},     // file downgrade permitted (module version is >= go1.21)
+		{"go1.20.1", "go1.19.1", "go1.20.1"}, // invalid file version
+		{"go1.20.1", "go1.21.1", "go1.20.1"}, // invalid file version
+		{"go1.21.1", "go1.19.1", "go1.21.1"}, // invalid file version
+		{"go1.21.1", "go1.21.1", "go1.21.1"}, // invalid file version
+		{"go1.22.1", "go1.19.1", "go1.22.1"}, // invalid file version
+		{"go1.22.1", "go1.21.1", "go1.22.1"}, // invalid file version
 	} {
 		var src string
 		if test.fileVersion != "" {
