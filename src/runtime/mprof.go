@@ -718,6 +718,7 @@ type mLockProfile struct {
 	pending    uintptr      // *mutex that experienced contention (to be traceback-ed)
 	cycles     int64        // cycles attributable to "pending" (if set), otherwise to "stack"
 	cyclesLost int64        // contention for which we weren't able to record a call stack
+	haveStack  bool         // stack and cycles are to be added to the mutex profile
 	disabled   bool         // attribute all time to "lost"
 }
 
@@ -745,6 +746,9 @@ func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
 		// We can only store one call stack for runtime-internal lock contention
 		// on this M, and we've already got one. Decide which should stay, and
 		// add the other to the report for runtime._LostContendedRuntimeLock.
+		if cycles == 0 {
+			return
+		}
 		prevScore := uint64(cheaprand64()) % uint64(prev)
 		thisScore := uint64(cheaprand64()) % uint64(cycles)
 		if prevScore > thisScore {
@@ -769,7 +773,7 @@ func (prof *mLockProfile) recordUnlock(l *mutex) {
 	if uintptr(unsafe.Pointer(l)) == prof.pending {
 		prof.captureStack()
 	}
-	if gp := getg(); gp.m.locks == 1 && gp.m.mLockProfile.cycles != 0 {
+	if gp := getg(); gp.m.locks == 1 && gp.m.mLockProfile.haveStack {
 		prof.store()
 	}
 }
@@ -795,6 +799,7 @@ func (prof *mLockProfile) captureStack() {
 		skip += 1 // runtime.unlockWithRank.func1
 	}
 	prof.pending = 0
+	prof.haveStack = true
 
 	prof.stack[0] = logicalStackSentinel
 	if debug.runtimeContentionStacks.Load() == 0 {
@@ -835,6 +840,7 @@ func (prof *mLockProfile) store() {
 
 	cycles, lost := prof.cycles, prof.cyclesLost
 	prof.cycles, prof.cyclesLost = 0, 0
+	prof.haveStack = false
 
 	rate := int64(atomic.Load64(&mutexprofilerate))
 	saveBlockEventStack(cycles, rate, prof.stack[:nstk], mutexProfile)

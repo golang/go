@@ -1371,7 +1371,7 @@ func TestMutexProfileRateAdjust(t *testing.T) {
 
 	blockMutex(t)
 	contentions, delay := readProfile()
-	if contentions == 0 || delay == 0 {
+	if contentions == 0 { // low-resolution timers can have delay of 0 in mutex profile
 		t.Fatal("did not see expected function in profile")
 	}
 	runtime.SetMutexProfileFraction(0)
