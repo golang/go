@@ -6,6 +6,7 @@ package xml
 
 import (
 	"bytes"
+	"encoding"
 	"errors"
 	"fmt"
 	"io"
@@ -2587,5 +2588,111 @@ func TestClose(t *testing.T) {
 				t.Errorf("unexpected success when encoding after Close")
 			}
 		})
+	}
+}
+
+type structWithMarshalXML struct{ V int }
+
+func (s *structWithMarshalXML) MarshalXML(e *Encoder, _ StartElement) error {
+	_ = e.EncodeToken(StartElement{Name: Name{Local: "marshalled"}})
+	_ = e.EncodeToken(CharData(strconv.Itoa(s.V)))
+	_ = e.EncodeToken(EndElement{Name: Name{Local: "marshalled"}})
+	return nil
+}
+
+var _ = Marshaler(&structWithMarshalXML{})
+
+type embedderX struct {
+	V structWithMarshalXML
+}
+
+func TestMarshalXMLWithPointerXMLMarshalers(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		v        interface{}
+		expected string
+	}{
+		{name: "a value with MarshalXML", v: structWithMarshalXML{V: 1}, expected: `<marshalled>1</marshalled>`},
+		{name: "pointer to a value with MarshalXML", v: &structWithMarshalXML{V: 1}, expected: "<marshalled>1</marshalled>"},
+		{name: "a struct with a value with MarshalXML", v: embedderX{V: structWithMarshalXML{V: 1}}, expected: "<embedderX><marshalled>1</marshalled></embedderX>"},
+		{name: "a slice of structs with a value with MarshalXML", v: []embedderX{{V: structWithMarshalXML{V: 1}}}, expected: `<embedderX><marshalled>1</marshalled></embedderX>`},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Marshal(test.v)
+			if err != nil {
+				t.Fatalf("Marshal error: %v", err)
+			}
+			if string(result) != test.expected {
+				t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", result, test.expected)
+			}
+		})
+	}
+}
+
+type structWithMarshalText struct{ V int }
+
+func (s *structWithMarshalText) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("marshalled(%d)", s.V)), nil
+}
+
+var _ = encoding.TextMarshaler(&structWithMarshalText{})
+
+type embedderT struct {
+	V structWithMarshalText
+}
+
+func TestMarshalXMLWithPointerTextMarshalers(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		v        interface{}
+		expected string
+	}{
+		{name: "a value with MarshalText", v: structWithMarshalText{V: 1}, expected: "<structWithMarshalText>marshalled(1)</structWithMarshalText>"},
+		{name: "pointer to a value with MarshalText", v: &structWithMarshalText{V: 1}, expected: "<structWithMarshalText>marshalled(1)</structWithMarshalText>"},
+		{name: "a struct with a value with MarshalText", v: embedderT{V: structWithMarshalText{V: 1}}, expected: "<embedderT><V>marshalled(1)</V></embedderT>"},
+		{name: "a slice of structs with a value with MarshalText", v: []embedderT{{V: structWithMarshalText{V: 1}}}, expected: "<embedderT><V>marshalled(1)</V></embedderT>"},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Marshal(test.v)
+			if err != nil {
+				t.Fatalf("Marshal error: %v", err)
+			}
+			if string(result) != test.expected {
+				t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", result, test.expected)
+			}
+		})
+	}
+}
+
+type structWithMarshalXMLAttr struct{ v int }
+
+func (s *structWithMarshalXMLAttr) MarshalXMLAttr(name Name) (Attr, error) {
+	return Attr{Name: Name{Local: "marshalled"}, Value: strconv.Itoa(s.v)}, nil
+}
+
+var _ = MarshalerAttr(&structWithMarshalXMLAttr{})
+
+type embedderAT struct {
+	X  structWithMarshalXMLAttr  `xml:"X,attr"`
+	T  structWithMarshalText     `xml:"T,attr"`
+	XP *structWithMarshalXMLAttr `xml:"XP,attr"`
+	XT *structWithMarshalText    `xml:"XT,attr"`
+}
+
+func TestMarshalXMLWithPointerAttrMarshalers(t *testing.T) {
+	result, err := Marshal(embedderAT{
+		X:  structWithMarshalXMLAttr{1},
+		T:  structWithMarshalText{2},
+		XP: &structWithMarshalXMLAttr{3},
+		XT: &structWithMarshalText{4},
+	})
+	if err != nil {
+		t.Fatalf("Marshal error: %v", err)
+	}
+	expected := `<embedderAT marshalled="1" T="marshalled(2)" marshalled="3" XT="marshalled(4)"></embedderAT>`
+	if string(result) != expected {
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", result, expected)
 	}
 }

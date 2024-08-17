@@ -451,22 +451,25 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	if val.CanInterface() && typ.Implements(marshalerType) {
 		return p.marshalInterface(val.Interface().(Marshaler), defaultStart(typ, finfo, startTemplate))
 	}
+
+	var pv reflect.Value
 	if val.CanAddr() {
-		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(marshalerType) {
-			return p.marshalInterface(pv.Interface().(Marshaler), defaultStart(pv.Type(), finfo, startTemplate))
-		}
+		pv = val.Addr()
+	} else {
+		pv = reflect.New(typ)
+		pv.Elem().Set(val)
+	}
+
+	if pv.CanInterface() && pv.Type().Implements(marshalerType) {
+		return p.marshalInterface(pv.Interface().(Marshaler), defaultStart(pv.Type(), finfo, startTemplate))
 	}
 
 	// Check for text marshaler.
 	if val.CanInterface() && typ.Implements(textMarshalerType) {
 		return p.marshalTextInterface(val.Interface().(encoding.TextMarshaler), defaultStart(typ, finfo, startTemplate))
 	}
-	if val.CanAddr() {
-		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-			return p.marshalTextInterface(pv.Interface().(encoding.TextMarshaler), defaultStart(pv.Type(), finfo, startTemplate))
-		}
+	if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
+		return p.marshalTextInterface(pv.Interface().(encoding.TextMarshaler), defaultStart(pv.Type(), finfo, startTemplate))
 	}
 
 	// Slices and arrays iterate over the elements. They do not have an enclosing tag.
@@ -589,18 +592,23 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 		return nil
 	}
 
+	var pv reflect.Value
 	if val.CanAddr() {
-		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(marshalerAttrType) {
-			attr, err := pv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
-			if err != nil {
-				return err
-			}
-			if attr.Name.Local != "" {
-				start.Attr = append(start.Attr, attr)
-			}
-			return nil
+		pv = val.Addr()
+	} else {
+		pv = reflect.New(val.Type())
+		pv.Elem().Set(val)
+	}
+
+	if pv.CanInterface() && pv.Type().Implements(marshalerAttrType) {
+		attr, err := pv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
+		if err != nil {
+			return err
 		}
+		if attr.Name.Local != "" {
+			start.Attr = append(start.Attr, attr)
+		}
+		return nil
 	}
 
 	if val.CanInterface() && val.Type().Implements(textMarshalerType) {
@@ -612,16 +620,13 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 		return nil
 	}
 
-	if val.CanAddr() {
-		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-			text, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
-			if err != nil {
-				return err
-			}
-			start.Attr = append(start.Attr, Attr{name, string(text)})
-			return nil
+	if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
+		text, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
+		if err != nil {
+			return err
 		}
+		start.Attr = append(start.Attr, Attr{name, string(text)})
+		return nil
 	}
 
 	// Dereference or skip nil pointer, interface values.
