@@ -363,7 +363,7 @@ func typeEncoder(t reflect.Type) encoderFunc {
 	}
 
 	// Compute the real encoder and replace the indirect func with it.
-	f = newTypeEncoder(t, true)
+	f = newTypeEncoder(t)
 	wg.Done()
 	encoderCache.Store(t, f)
 	return f
@@ -375,20 +375,19 @@ var (
 )
 
 // newTypeEncoder constructs an encoderFunc for a type.
-// The returned encoder only checks CanAddr when allowAddr is true.
-func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
+func newTypeEncoder(t reflect.Type) encoderFunc {
 	// If we have a non-pointer value whose type implements
 	// Marshaler with a value receiver, then we're better off taking
 	// the address of the value - otherwise we end up with an
 	// allocation as we cast the value to an interface.
-	if t.Kind() != reflect.Pointer && allowAddr && reflect.PointerTo(t).Implements(marshalerType) {
-		return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, false))
+	if t.Kind() != reflect.Pointer && reflect.PointerTo(t).Implements(marshalerType) {
+		return addrMarshalerEncoder
 	}
 	if t.Implements(marshalerType) {
 		return marshalerEncoder
 	}
-	if t.Kind() != reflect.Pointer && allowAddr && reflect.PointerTo(t).Implements(textMarshalerType) {
-		return newCondAddrEncoder(addrTextMarshalerEncoder, newTypeEncoder(t, false))
+	if t.Kind() != reflect.Pointer && reflect.PointerTo(t).Implements(textMarshalerType) {
+		return addrTextMarshalerEncoder
 	}
 	if t.Implements(textMarshalerType) {
 		return textMarshalerEncoder
@@ -451,7 +450,13 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
-	va := v.Addr()
+	var va reflect.Value
+	if v.CanAddr() {
+		va = v.Addr()
+	} else {
+		va = reflect.New(v.Type())
+		va.Elem().Set(v)
+	}
 	if va.IsNil() {
 		e.WriteString("null")
 		return
@@ -487,7 +492,13 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
-	va := v.Addr()
+	var va reflect.Value
+	if v.CanAddr() {
+		va = v.Addr()
+	} else {
+		va = reflect.New(v.Type())
+		va.Elem().Set(v)
+	}
 	if va.IsNil() {
 		e.WriteString("null")
 		return
@@ -890,25 +901,6 @@ func (pe ptrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 
 func newPtrEncoder(t reflect.Type) encoderFunc {
 	enc := ptrEncoder{typeEncoder(t.Elem())}
-	return enc.encode
-}
-
-type condAddrEncoder struct {
-	canAddrEnc, elseEnc encoderFunc
-}
-
-func (ce condAddrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
-	if v.CanAddr() {
-		ce.canAddrEnc(e, v, opts)
-	} else {
-		ce.elseEnc(e, v, opts)
-	}
-}
-
-// newCondAddrEncoder returns an encoder that checks whether its value
-// CanAddr and delegates to canAddrEnc if so, else to elseEnc.
-func newCondAddrEncoder(canAddrEnc, elseEnc encoderFunc) encoderFunc {
-	enc := condAddrEncoder{canAddrEnc: canAddrEnc, elseEnc: elseEnc}
 	return enc.encode
 }
 

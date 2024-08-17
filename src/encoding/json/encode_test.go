@@ -1219,3 +1219,83 @@ func TestIssue63379(t *testing.T) {
 		}
 	}
 }
+
+type structWithMarshalJSON struct{ v int }
+
+func (s *structWithMarshalJSON) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"marshalled(%d)"`, s.v)), nil
+}
+
+var _ = Marshaler(&structWithMarshalJSON{})
+
+type embedderJ struct {
+	V structWithMarshalJSON
+}
+
+func TestMarshalJSONWithPointerJSONMarshalers(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		v        interface{}
+		expected string
+	}{
+		{name: "a value with MarshalJSON", v: structWithMarshalJSON{v: 1}, expected: `"marshalled(1)"`},
+		{name: "pointer to a value with MarshalJSON", v: &structWithMarshalJSON{v: 1}, expected: `"marshalled(1)"`},
+		{name: "a map with a value with MarshalJSON", v: map[string]interface{}{"v": structWithMarshalJSON{v: 1}}, expected: `{"v":"marshalled(1)"}`},
+		{name: "a map with a pointer to a value with MarshalJSON", v: map[string]interface{}{"v": &structWithMarshalJSON{v: 1}}, expected: `{"v":"marshalled(1)"}`},
+		{name: "a slice of maps with a value with MarshalJSON", v: []map[string]interface{}{{"v": structWithMarshalJSON{v: 1}}}, expected: `[{"v":"marshalled(1)"}]`},
+		{name: "a slice of maps with a pointer to a value with MarshalJSON", v: []map[string]interface{}{{"v": &structWithMarshalJSON{v: 1}}}, expected: `[{"v":"marshalled(1)"}]`},
+		{name: "a struct with a value with MarshalJSON", v: embedderJ{V: structWithMarshalJSON{v: 1}}, expected: `{"V":"marshalled(1)"}`},
+		{name: "a slice of structs with a value with MarshalJSON", v: []embedderJ{{V: structWithMarshalJSON{v: 1}}}, expected: `[{"V":"marshalled(1)"}]`},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Marshal(test.v)
+			if err != nil {
+				t.Fatalf("Marshal error: %v", err)
+			}
+			if string(result) != test.expected {
+				t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", result, test.expected)
+			}
+		})
+	}
+}
+
+type structWithMarshalText struct{ v int }
+
+func (s *structWithMarshalText) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("marshalled(%d)", s.v)), nil
+}
+
+var _ = encoding.TextMarshaler(&structWithMarshalText{})
+
+type embedderT struct {
+	V structWithMarshalText
+}
+
+func TestMarshalJSONWithPointerTextMarshalers(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		v        interface{}
+		expected string
+	}{
+		{name: "a value with MarshalText", v: structWithMarshalText{v: 1}, expected: `"marshalled(1)"`},
+		{name: "pointer to a value with MarshalText", v: &structWithMarshalText{v: 1}, expected: `"marshalled(1)"`},
+		{name: "a map with a value with MarshalText", v: map[string]interface{}{"v": structWithMarshalText{v: 1}}, expected: `{"v":"marshalled(1)"}`},
+		{name: "a map with a pointer to a value with MarshalText", v: map[string]interface{}{"v": &structWithMarshalText{v: 1}}, expected: `{"v":"marshalled(1)"}`},
+		{name: "a slice of maps with a value with MarshalText", v: []map[string]interface{}{{"v": structWithMarshalText{v: 1}}}, expected: `[{"v":"marshalled(1)"}]`},
+		{name: "a slice of maps with a pointer to a value with MarshalText", v: []map[string]interface{}{{"v": &structWithMarshalText{v: 1}}}, expected: `[{"v":"marshalled(1)"}]`},
+		{name: "a struct with a value with MarshalText", v: embedderT{V: structWithMarshalText{v: 1}}, expected: `{"V":"marshalled(1)"}`},
+		{name: "a slice of structs with a value with MarshalText", v: []embedderT{{V: structWithMarshalText{v: 1}}}, expected: `[{"V":"marshalled(1)"}]`},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Marshal(test.v)
+			if err != nil {
+				t.Fatalf("Marshal error: %v", err)
+			}
+			if string(result) != test.expected {
+				t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", result, test.expected)
+			}
+		})
+	}
+}
