@@ -54,8 +54,8 @@
 // On some systems the monotonic clock will stop if the computer goes to sleep.
 // On such a system, t.Sub(u) may not accurately reflect the actual
 // time that passed between t and u. The same applies to other functions and
-// methods that subtract times, such as [Since], [Until], [Before], [After],
-// [Add], [Sub], [Equal] and [Compare]. In some cases, you may need to strip
+// methods that subtract times, such as [Since], [Until], [Time.Before], [Time.After],
+// [Time.Add], [Time.Equal] and [Time.Compare]. In some cases, you may need to strip
 // the monotonic clock to get accurate results.
 //
 // Because the monotonic clock reading has no meaning outside
