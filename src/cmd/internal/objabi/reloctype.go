@@ -202,7 +202,7 @@ const (
 
 	// R_POWER_TLS marks an X-form instruction such as "ADD R3,R13,R4" as completing
 	// a sequence of GOT-relative relocations to compute a TLS address. This can be
-	// used by the system linker to to rewrite the GOT-relative TLS relocation into a
+	// used by the system linker to rewrite the GOT-relative TLS relocation into a
 	// simpler thread-pointer relative relocation. See table 3.26 and 3.28 in the
 	// ppc64 elfv2 1.4 ABI on this transformation.  Likewise, the second argument
 	// (usually called RB in X-form instructions) is assumed to be R13.

@@ -63,7 +63,7 @@ func StaticCall(call *ir.CallExpr) {
 	// dictionary parameter. We could devirtualize this call if we
 	// could derive an appropriate dictionary argument.
 	//
-	// TODO(mdempsky): If typ has has a promoted non-generic method,
+	// TODO(mdempsky): If typ has a promoted non-generic method,
 	// then that method won't require a dictionary argument. We could
 	// still devirtualize those calls.
 	//

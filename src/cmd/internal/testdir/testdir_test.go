@@ -71,7 +71,7 @@ var (
 
 // Test is the main entrypoint that runs tests in the GOROOT/test directory.
 //
-// Each .go file test case in GOROOT/test is registered as a subtest with a
+// Each .go file test case in GOROOT/test is registered as a subtest with
 // a full name like "Test/fixedbugs/bug000.go" ('/'-separated relative path).
 func Test(t *testing.T) {
 	if *target != "" {

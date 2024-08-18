@@ -682,7 +682,7 @@ func nextRegion(cands []*ir.Name, idx int) int {
 // given subrange of cands described by st and en (indices into our
 // candidate var list), where the variables within this range have
 // already been determined to be compatible with respect to type,
-// size, etc. Overlapping is done in a a greedy fashion: we select the
+// size, etc. Overlapping is done in a greedy fashion: we select the
 // first element in the st->en range, then walk the rest of the
 // elements adding in vars whose lifetimes don't overlap with the
 // first element, then repeat the process until we run out of work.

@@ -155,7 +155,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 }
 
 // collectRecv extracts the method receiver and its type parameters (if any) from rparam.
-// It declares the type parameters (but not the receiver) in the the current scope, and
+// It declares the type parameters (but not the receiver) in the current scope, and
 // returns the receiver variable and its type parameter list (if any).
 func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (recv *Var, recvTParamsList *TypeParamList) {
 	// Unpack the receiver parameter which is of the form

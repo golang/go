@@ -356,7 +356,7 @@ func TestIndexRune(t *testing.T) {
 		{Repeat("𡋀", 64) + "𡌀", '𡌀', 256}, // test cutover
 		{Repeat("𡋀", 64), '𡌀', -1},
 
-		// Test the cutover to to bytealg.IndexString when it is triggered in
+		// Test the cutover to bytealg.IndexString when it is triggered in
 		// the middle of rune that contains consecutive runs of equal bytes.
 		{"aaaaaKKKK\U000bc104", '\U000bc104', 17}, // cutover: (n + 16) / 8
 		{"aaaaaKKKK鄄", '鄄', 17},

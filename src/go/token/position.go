@@ -306,7 +306,7 @@ func (f *File) Pos(offset int) Pos {
 // Offset returns the offset for the given file position p.
 //
 // If p is before the file's start position (or if p is NoPos),
-// the result is 0; if p is past the file's end position, the
+// the result is 0; if p is past the file's end position,
 // the result is the file size (see also go.dev/issue/57490).
 //
 // The following invariant, though not true for offset values
