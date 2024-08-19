@@ -151,17 +151,13 @@ func listGroupsForUsernameAndDomain(username, domain string) ([]string, error) {
 	// NetUserGetLocalGroups() would return a list of LocalGroupUserInfo0
 	// elements which hold the names of local groups where the user participates.
 	// The list does not follow any sorting order.
-	//
-	// If no groups can be found for this user, NetUserGetLocalGroups() should
-	// always return the SID of a single group called "None", which
-	// also happens to be the primary group for the local user.
 	err = windows.NetUserGetLocalGroups(nil, q, 0, windows.LG_INCLUDE_INDIRECT, &p0, windows.MAX_PREFERRED_LENGTH, &entriesRead, &totalEntries)
 	if err != nil {
 		return nil, err
 	}
 	defer syscall.NetApiBufferFree(p0)
 	if entriesRead == 0 {
-		return nil, fmt.Errorf("listGroupsForUsernameAndDomain: NetUserGetLocalGroups() returned an empty list for domain: %s, username: %s", domain, username)
+		return nil, nil
 	}
 	entries := (*[1024]windows.LocalGroupUserInfo0)(unsafe.Pointer(p0))[:entriesRead:entriesRead]
 	var sids []string
