@@ -84,7 +84,7 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 
 	switch pr.version {
 	default:
-		panic(fmt.Errorf("unsupported version: %v", pr.version))
+		panicf("unsupported version: %v", pr.version)
 	case 0:
 		// no flags
 	case 1:
@@ -136,7 +136,7 @@ func (pr *PkgDecoder) AbsIdx(k RelocKind, idx Index) int {
 		absIdx += int(pr.elemEndsEnds[k-1])
 	}
 	if absIdx >= int(pr.elemEndsEnds[k]) {
-		errorf("%v:%v is out of bounds; %v", k, idx, pr.elemEndsEnds)
+		panicf("%v:%v is out of bounds; %v", k, idx, pr.elemEndsEnds)
 	}
 	return absIdx
 }
@@ -242,7 +242,7 @@ type Decoder struct {
 
 func (r *Decoder) checkErr(err error) {
 	if err != nil {
-		errorf("unexpected decoding error: %w", err)
+		panicf("unexpected decoding error: %w", err)
 	}
 }
 
