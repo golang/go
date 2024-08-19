@@ -1403,6 +1403,13 @@ var defaultLocTests = []struct {
 	{"UnixMilli", func(t1, t2 Time) bool { return t1.UnixMilli() == t2.UnixMilli() }},
 	{"UnixMicro", func(t1, t2 Time) bool { return t1.UnixMicro() == t2.UnixMicro() }},
 
+	{"AppendBinary", func(t1, t2 Time) bool {
+		buf1 := make([]byte, 4, 32)
+		buf2 := make([]byte, 4, 32)
+		a1, b1 := t1.AppendBinary(buf1)
+		a2, b2 := t2.AppendBinary(buf2)
+		return bytes.Equal(a1[4:], a2[4:]) && b1 == b2
+	}},
 	{"MarshalBinary", func(t1, t2 Time) bool {
 		a1, b1 := t1.MarshalBinary()
 		a2, b2 := t2.MarshalBinary()
@@ -1417,6 +1424,14 @@ var defaultLocTests = []struct {
 		a1, b1 := t1.MarshalJSON()
 		a2, b2 := t2.MarshalJSON()
 		return bytes.Equal(a1, a2) && b1 == b2
+	}},
+	{"AppendText", func(t1, t2 Time) bool {
+		maxCap := len(RFC3339Nano) + 4
+		buf1 := make([]byte, 4, maxCap)
+		buf2 := make([]byte, 4, maxCap)
+		a1, b1 := t1.AppendText(buf1)
+		a2, b2 := t2.AppendText(buf2)
+		return bytes.Equal(a1[4:], a2[4:]) && b1 == b2
 	}},
 	{"MarshalText", func(t1, t2 Time) bool {
 		a1, b1 := t1.MarshalText()
@@ -1507,6 +1522,13 @@ func BenchmarkMarshalText(b *testing.B) {
 	t := Now()
 	for i := 0; i < b.N; i++ {
 		t.MarshalText()
+	}
+}
+
+func BenchmarkMarshalBinary(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.MarshalBinary()
 	}
 }
 

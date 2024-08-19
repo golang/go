@@ -9,3 +9,5 @@ pkg math/big, method (*Float) AppendText([]uint8) ([]uint8, error) #62384
 pkg math/big, method (*Int) AppendText([]uint8) ([]uint8, error) #62384
 pkg math/big, method (*Rat) AppendText([]uint8) ([]uint8, error) #62384
 pkg regexp, method (*Regexp) AppendText([]uint8) ([]uint8, error) #62384
+pkg time, method (Time) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg time, method (Time) AppendText([]uint8) ([]uint8, error) #62384

@@ -119,9 +119,9 @@ import (
 // these methods does not change the actual instant it represents, only the time
 // zone in which to interpret it.
 //
-// Representations of a Time value saved by the [Time.GobEncode], [Time.MarshalBinary],
-// [Time.MarshalJSON], and [Time.MarshalText] methods store the [Time.Location]'s offset, but not
-// the location name. They therefore lose information about Daylight Saving Time.
+// Representations of a Time value saved by the [Time.GobEncode], [Time.MarshalBinary], [Time.AppendBinary],
+// [Time.MarshalJSON], [Time.MarshalText] and [Time.AppendText] methods store the [Time.Location]'s offset,
+// but not the location name. They therefore lose information about Daylight Saving Time.
 //
 // In addition to the required “wall clock” reading, a Time may contain an optional
 // reading of the current process's monotonic clock, to provide additional precision
@@ -1435,8 +1435,8 @@ const (
 	timeBinaryVersionV2                 // For LMT only
 )
 
-// MarshalBinary implements the encoding.BinaryMarshaler interface.
-func (t Time) MarshalBinary() ([]byte, error) {
+// AppendBinary implements the [encoding.BinaryAppender] interface.
+func (t Time) AppendBinary(b []byte) ([]byte, error) {
 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
 	var offsetSec int8
 	version := timeBinaryVersionV1
@@ -1452,38 +1452,46 @@ func (t Time) MarshalBinary() ([]byte, error) {
 
 		offset /= 60
 		if offset < -32768 || offset == -1 || offset > 32767 {
-			return nil, errors.New("Time.MarshalBinary: unexpected zone offset")
+			return b, errors.New("Time.MarshalBinary: unexpected zone offset")
 		}
 		offsetMin = int16(offset)
 	}
 
 	sec := t.sec()
 	nsec := t.nsec()
-	enc := []byte{
-		version,         // byte 0 : version
-		byte(sec >> 56), // bytes 1-8: seconds
-		byte(sec >> 48),
-		byte(sec >> 40),
-		byte(sec >> 32),
-		byte(sec >> 24),
-		byte(sec >> 16),
-		byte(sec >> 8),
+	b = append(b,
+		version,       // byte 0 : version
+		byte(sec>>56), // bytes 1-8: seconds
+		byte(sec>>48),
+		byte(sec>>40),
+		byte(sec>>32),
+		byte(sec>>24),
+		byte(sec>>16),
+		byte(sec>>8),
 		byte(sec),
-		byte(nsec >> 24), // bytes 9-12: nanoseconds
-		byte(nsec >> 16),
-		byte(nsec >> 8),
+		byte(nsec>>24), // bytes 9-12: nanoseconds
+		byte(nsec>>16),
+		byte(nsec>>8),
 		byte(nsec),
-		byte(offsetMin >> 8), // bytes 13-14: zone offset in minutes
+		byte(offsetMin>>8), // bytes 13-14: zone offset in minutes
 		byte(offsetMin),
-	}
+	)
 	if version == timeBinaryVersionV2 {
-		enc = append(enc, byte(offsetSec))
+		b = append(b, byte(offsetSec))
 	}
-
-	return enc, nil
+	return b, nil
 }
 
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+func (t Time) MarshalBinary() ([]byte, error) {
+	b, err := t.AppendBinary(make([]byte, 0, 16))
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
 func (t *Time) UnmarshalBinary(data []byte) error {
 	buf := data
 	if len(buf) == 0 {
@@ -1576,17 +1584,24 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-// MarshalText implements the [encoding.TextMarshaler] interface.
+// AppendText implements the [encoding.TextAppender] interface.
 // The time is formatted in RFC 3339 format with sub-second precision.
 // If the timestamp cannot be represented as valid RFC 3339
-// (e.g., the year is out of range), then an error is reported.
-func (t Time) MarshalText() ([]byte, error) {
-	b := make([]byte, 0, len(RFC3339Nano))
+// (e.g., the year is out of range), then an error is returned.
+func (t Time) AppendText(b []byte) ([]byte, error) {
 	b, err := t.appendStrictRFC3339(b)
 	if err != nil {
 		return nil, errors.New("Time.MarshalText: " + err.Error())
 	}
 	return b, nil
+}
+
+// MarshalText implements the [encoding.TextMarshaler] interface. The output
+// matches that of calling the [Time.AppendText] method.
+//
+// See [Time.AppendText] for more information.
+func (t Time) MarshalText() ([]byte, error) {
+	return t.AppendText(make([]byte, 0, len(RFC3339Nano)))
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
