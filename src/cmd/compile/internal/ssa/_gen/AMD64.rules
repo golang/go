@@ -563,6 +563,7 @@
 (AtomicStorePtrNoWB ptr val mem) => (Select1 (XCHGQ <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
 
 // Atomic exchanges.
+(AtomicExchange8 ptr val mem) => (XCHGB val ptr mem)
 (AtomicExchange32 ptr val mem) => (XCHGL val ptr mem)
 (AtomicExchange64 ptr val mem) => (XCHGQ val ptr mem)
 

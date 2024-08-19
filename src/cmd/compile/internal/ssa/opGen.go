@@ -3249,6 +3249,7 @@ const (
 	OpAtomicStorePtrNoWB
 	OpAtomicStoreRel32
 	OpAtomicStoreRel64
+	OpAtomicExchange8
 	OpAtomicExchange32
 	OpAtomicExchange64
 	OpAtomicAdd32
@@ -41138,6 +41139,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "AtomicStoreRel64",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicExchange8",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,

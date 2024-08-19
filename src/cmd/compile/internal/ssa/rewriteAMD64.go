@@ -587,6 +587,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAtomicExchange32(v)
 	case OpAtomicExchange64:
 		return rewriteValueAMD64_OpAtomicExchange64(v)
+	case OpAtomicExchange8:
+		return rewriteValueAMD64_OpAtomicExchange8(v)
 	case OpAtomicLoad32:
 		return rewriteValueAMD64_OpAtomicLoad32(v)
 	case OpAtomicLoad64:
@@ -23986,6 +23988,21 @@ func rewriteValueAMD64_OpAtomicExchange64(v *Value) bool {
 		val := v_1
 		mem := v_2
 		v.reset(OpAMD64XCHGQ)
+		v.AddArg3(val, ptr, mem)
+		return true
+	}
+}
+func rewriteValueAMD64_OpAtomicExchange8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (AtomicExchange8 ptr val mem)
+	// result: (XCHGB val ptr mem)
+	for {
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		v.reset(OpAMD64XCHGB)
 		v.AddArg3(val, ptr, mem)
 		return true
 	}
