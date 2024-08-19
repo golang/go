@@ -520,3 +520,20 @@ func checkShiftToMask(u []uint64, s []int64) {
 	// amd64:-"SHR",-"SHL","ANDQ"
 	u[1] = u[1] << 5 >> 5
 }
+
+//
+// Left shift with addition.
+//
+
+func checkLeftShiftWithAddition(a int64, b int64) int64 {
+	// riscv64/rva20u64: "SLLI","ADD"
+	// riscv64/rva22u64: "SH1ADD"
+	a = a + b<<1
+	// riscv64/rva20u64: "SLLI","ADD"
+	// riscv64/rva22u64: "SH2ADD"
+	a = a + b<<2
+	// riscv64/rva20u64: "SLLI","ADD"
+	// riscv64/rva22u64: "SH3ADD"
+	a = a + b<<3
+	return a
+}
