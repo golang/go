@@ -558,14 +558,16 @@
 (BNEZ (SLTIU [x] y) yes no) => (BLTU y (MOVDconst [x]) yes no)
 
 // Convert branch with zero to more optimal branch zero.
-(BEQ (MOVDconst [0]) cond yes no) => (BEQZ cond yes no)
-(BEQ cond (MOVDconst [0]) yes no) => (BEQZ cond yes no)
-(BNE (MOVDconst [0]) cond yes no) => (BNEZ cond yes no)
-(BNE cond (MOVDconst [0]) yes no) => (BNEZ cond yes no)
-(BLT (MOVDconst [0]) cond yes no) => (BGTZ cond yes no)
-(BLT cond (MOVDconst [0]) yes no) => (BLTZ cond yes no)
-(BGE (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
-(BGE cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
+(BEQ  (MOVDconst [0]) cond yes no) => (BEQZ cond yes no)
+(BEQ  cond (MOVDconst [0]) yes no) => (BEQZ cond yes no)
+(BNE  (MOVDconst [0]) cond yes no) => (BNEZ cond yes no)
+(BNE  cond (MOVDconst [0]) yes no) => (BNEZ cond yes no)
+(BLT  (MOVDconst [0]) cond yes no) => (BGTZ cond yes no)
+(BLT  cond (MOVDconst [0]) yes no) => (BLTZ cond yes no)
+(BLTU (MOVDconst [0]) cond yes no) => (BNEZ cond yes no)
+(BGE  (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
+(BGE  cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
+(BGEU (MOVDconst [0]) cond yes no) => (BEQZ cond yes no)
 
 // Remove redundant NEG from SEQZ/SNEZ.
 (SEQZ (NEG x)) => (SEQZ x)
