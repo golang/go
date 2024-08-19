@@ -381,16 +381,20 @@ func (m *Map) getWithKeySmall(hash uintptr, key unsafe.Pointer) (unsafe.Pointer,
 		data: m.dirPtr,
 	}
 
-	match := g.ctrls().matchH2(h2(hash))
+	h2 := uint8(h2(hash))
+	ctrls := *g.ctrls()
 
-	for match != 0 {
-		i := match.first()
+	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
+		c := uint8(ctrls)
+		ctrls >>= 8
+		if c != h2 {
+			continue
+		}
 
 		slotKey := g.key(i)
 		if m.typ.Key.Equal(key, slotKey) {
 			return slotKey, g.elem(i), true
 		}
-		match = match.removeFirst()
 	}
 
 	return nil, nil, false
