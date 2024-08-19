@@ -216,10 +216,15 @@
 				return decoder.decode(new DataView(this._inst.exports.mem.buffer, saddr, len));
 			}
 
+			const testCallExport = (a, b) => {
+				return this._inst.exports.testExport(a, b);
+			}
+
 			const timeOrigin = Date.now() - performance.now();
 			this.importObject = {
 				_gotest: {
 					add: (a, b) => a + b,
+					callExport: testCallExport,
 				},
 				gojs: {
 					// Go's SP does not change as long as no Go code is running. Some operations (e.g. calls, getters and setters)
