@@ -1368,8 +1368,8 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 
 			db.waitDuration.Add(int64(time.Since(waitStart)))
 
-			// If we failed to delete it, that means something else
-			// grabbed it and is about to send on it.
+			// If we failed to delete it, that means either the DB was closed or
+			// something else grabbed it and is about to send on it.
 			if !deleted {
 				// TODO(bradfitz): rather than this best effort select, we
 				// should probably start a goroutine to read from req. This best
@@ -3594,6 +3594,7 @@ type connRequestAndIndex struct {
 // and clears the set.
 func (s *connRequestSet) CloseAndRemoveAll() {
 	for _, v := range s.s {
+		*v.curIdx = -1
 		close(v.req)
 	}
 	s.s = nil
