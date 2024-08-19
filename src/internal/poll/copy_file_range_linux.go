@@ -22,13 +22,19 @@ var isKernelVersionGE53 = sync.OnceValue(func() bool {
 	return major > 5 || (major == 5 && minor >= 3)
 })
 
-const maxCopyFileRangeRound = 1 << 30
+// For best performance, call copy_file_range() with the largest len value
+// possible. Linux sets up a limitation of data transfer for most of its I/O
+// system calls, as MAX_RW_COUNT (INT_MAX & PAGE_MASK). This value equals to
+// the maximum integer value minus a page size that is typically 2^12=4096 bytes.
+// That is to say, it's the maximum integer value with the lowest 12 bits unset,
+// which is 0x7ffff000.
+const maxCopyFileRangeRound = 0x7ffff000
 
 func handleCopyFileRangeErr(err error, copied, written int64) (bool, error) {
 	switch err {
 	case syscall.ENOSYS:
 		// copy_file_range(2) was introduced in Linux 4.5.
-		// Go supports Linux >= 2.6.33, so the system call
+		// Go supports Linux >= 3.2, so the system call
 		// may not be present.
 		//
 		// If we see ENOSYS, we have certainly not transferred
