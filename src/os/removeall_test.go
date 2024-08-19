@@ -187,29 +187,10 @@ func TestRemoveAllLongPath(t *testing.T) {
 }
 
 func TestRemoveAllDot(t *testing.T) {
-	prevDir, err := Getwd()
-	if err != nil {
-		t.Fatalf("Could not get wd: %s", err)
-	}
-	tempDir, err := MkdirTemp("", "TestRemoveAllDot-")
-	if err != nil {
-		t.Fatalf("Could not create TempDir: %s", err)
-	}
-	defer RemoveAll(tempDir)
+	t.Chdir(t.TempDir())
 
-	err = Chdir(tempDir)
-	if err != nil {
-		t.Fatalf("Could not chdir to tempdir: %s", err)
-	}
-
-	err = RemoveAll(".")
-	if err == nil {
+	if err := RemoveAll("."); err == nil {
 		t.Errorf("RemoveAll succeed to remove .")
-	}
-
-	err = Chdir(prevDir)
-	if err != nil {
-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
 	}
 }
 
