@@ -293,7 +293,11 @@ func TestChdir(t *testing.T) {
 	}
 	defer os.Chdir(oldDir)
 
-	tmp := t.TempDir()
+	// The "relative" test case relies on tmp not being a symlink.
+	tmp, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	rel, err := filepath.Rel(oldDir, tmp)
 	if err != nil {
 		t.Fatal(err)
