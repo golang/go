@@ -10,6 +10,7 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"reflect"
 	"strconv"
@@ -77,6 +78,15 @@ const (
 // See [MarshalIndent] for an example.
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
+//
+// Before Go 1.24, the marshaling was inconsistent: custom marshalers
+// (MarshalXML, MarshalXMLAttr, MarshalText methods) defined with pointer receivers
+// were not called for non-addressable values. Also, MarshalXMLAttr and MarshalText
+// were not called for struct fields marked as attribute/CDATA/chardata having interface types.
+// As of Go 1.24, the marshaling is consistent.
+//
+// The GODEBUG setting xmlinconsistentmarshal=1 restores pre-Go 1.24
+// inconsistent marshaling.
 func Marshal(v any) ([]byte, error) {
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
@@ -167,7 +177,7 @@ func (enc *Encoder) Indent(prefix, indent string) {
 //
 // Encode calls [Encoder.Flush] before returning.
 func (enc *Encoder) Encode(v any) error {
-	err := enc.p.marshalValue(reflect.ValueOf(v), nil, nil)
+	err := enc.p.marshalValue(reflect.ValueOf(v), nil, nil, false)
 	if err != nil {
 		return err
 	}
@@ -182,7 +192,7 @@ func (enc *Encoder) Encode(v any) error {
 //
 // EncodeElement calls [Encoder.Flush] before returning.
 func (enc *Encoder) EncodeElement(v any, start StartElement) error {
-	err := enc.p.marshalValue(reflect.ValueOf(v), nil, &start)
+	err := enc.p.marshalValue(reflect.ValueOf(v), nil, &start, false)
 	if err != nil {
 		return err
 	}
@@ -415,14 +425,15 @@ func (p *printer) popPrefix() {
 }
 
 var (
-	marshalerType     = reflect.TypeFor[Marshaler]()
-	marshalerAttrType = reflect.TypeFor[MarshalerAttr]()
-	textMarshalerType = reflect.TypeFor[encoding.TextMarshaler]()
+	marshalerType          = reflect.TypeFor[Marshaler]()
+	marshalerAttrType      = reflect.TypeFor[MarshalerAttr]()
+	textMarshalerType      = reflect.TypeFor[encoding.TextMarshaler]()
+	xmlinconsistentmarshal = godebug.New("xmlinconsistentmarshal")
 )
 
 // marshalValue writes one or more XML elements representing val.
 // If val was obtained from a struct field, finfo must have its details.
-func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplate *StartElement) error {
+func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplate *StartElement, incrementedOldBehaviorCounter bool) error {
 	if startTemplate != nil && startTemplate.Name.Local == "" {
 		return fmt.Errorf("xml: EncodeElement of StartElement with missing name")
 	}
@@ -452,30 +463,36 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		return p.marshalInterface(val.Interface().(Marshaler), defaultStart(typ, finfo, startTemplate))
 	}
 
-	var pv reflect.Value
-	if val.CanAddr() {
-		pv = val.Addr()
-	} else {
-		pv = reflect.New(typ)
-		pv.Elem().Set(val)
-	}
-
-	if pv.CanInterface() && pv.Type().Implements(marshalerType) {
-		return p.marshalInterface(pv.Interface().(Marshaler), defaultStart(pv.Type(), finfo, startTemplate))
+	if val.CanInterface() && reflect.PointerTo(typ).Implements(marshalerType) {
+		pv := addrOrNew(val)
+		if pv.IsValid() {
+			return p.marshalInterface(pv.Interface().(Marshaler), defaultStart(pv.Type(), finfo, startTemplate))
+		}
+		if !incrementedOldBehaviorCounter {
+			xmlinconsistentmarshal.IncNonDefault()
+			incrementedOldBehaviorCounter = true
+		}
 	}
 
 	// Check for text marshaler.
 	if val.CanInterface() && typ.Implements(textMarshalerType) {
 		return p.marshalTextInterface(val.Interface().(encoding.TextMarshaler), defaultStart(typ, finfo, startTemplate))
 	}
-	if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-		return p.marshalTextInterface(pv.Interface().(encoding.TextMarshaler), defaultStart(pv.Type(), finfo, startTemplate))
+	if val.CanInterface() && reflect.PointerTo(typ).Implements(textMarshalerType) {
+		pv := addrOrNew(val)
+		if pv.IsValid() {
+			return p.marshalTextInterface(pv.Interface().(encoding.TextMarshaler), defaultStart(pv.Type(), finfo, startTemplate))
+		}
+		if !incrementedOldBehaviorCounter {
+			xmlinconsistentmarshal.IncNonDefault()
+			incrementedOldBehaviorCounter = true
+		}
 	}
 
 	// Slices and arrays iterate over the elements. They do not have an enclosing tag.
 	if (kind == reflect.Slice || kind == reflect.Array) && typ.Elem().Kind() != reflect.Uint8 {
 		for i, n := 0, val.Len(); i < n; i++ {
-			if err := p.marshalValue(val.Index(i), finfo, startTemplate); err != nil {
+			if err := p.marshalValue(val.Index(i), finfo, startTemplate, incrementedOldBehaviorCounter); err != nil {
 				return err
 			}
 		}
@@ -526,6 +543,8 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 
 	// Attributes
 	for i := range tinfo.fields {
+		attrIncrementedOldBehaviorCounter := incrementedOldBehaviorCounter
+
 		finfo := &tinfo.fields[i]
 		if finfo.flags&fAttr == 0 {
 			continue
@@ -540,8 +559,17 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 			continue
 		}
 
+		if fv.Kind() == reflect.Interface {
+			if xmlinconsistentmarshal.Value() != "1" {
+				fv = fv.Elem()
+			} else if !attrIncrementedOldBehaviorCounter {
+				xmlinconsistentmarshal.IncNonDefault()
+				attrIncrementedOldBehaviorCounter = true
+			}
+		}
+
 		name := Name{Space: finfo.xmlns, Local: finfo.name}
-		if err := p.marshalAttr(&start, name, fv); err != nil {
+		if err := p.marshalAttr(&start, name, fv, attrIncrementedOldBehaviorCounter); err != nil {
 			return err
 		}
 	}
@@ -557,7 +585,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	}
 
 	if val.Kind() == reflect.Struct {
-		err = p.marshalStruct(tinfo, val)
+		err = p.marshalStruct(tinfo, val, incrementedOldBehaviorCounter)
 	} else {
 		s, b, err1 := p.marshalSimple(typ, val)
 		if err1 != nil {
@@ -580,7 +608,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 }
 
 // marshalAttr marshals an attribute with the given name and value, adding to start.Attr.
-func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value) error {
+func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value, incrementedOldBehaviorCount bool) error {
 	if val.CanInterface() && val.Type().Implements(marshalerAttrType) {
 		attr, err := val.Interface().(MarshalerAttr).MarshalXMLAttr(name)
 		if err != nil {
@@ -592,23 +620,22 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 		return nil
 	}
 
-	var pv reflect.Value
-	if val.CanAddr() {
-		pv = val.Addr()
-	} else {
-		pv = reflect.New(val.Type())
-		pv.Elem().Set(val)
-	}
-
-	if pv.CanInterface() && pv.Type().Implements(marshalerAttrType) {
-		attr, err := pv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
-		if err != nil {
-			return err
+	if val.CanInterface() && reflect.PointerTo(val.Type()).Implements(marshalerAttrType) {
+		pv := addrOrNew(val)
+		if pv.IsValid() {
+			attr, err := pv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
+			if err != nil {
+				return err
+			}
+			if attr.Name.Local != "" {
+				start.Attr = append(start.Attr, attr)
+			}
+			return nil
 		}
-		if attr.Name.Local != "" {
-			start.Attr = append(start.Attr, attr)
+		if !incrementedOldBehaviorCount {
+			xmlinconsistentmarshal.IncNonDefault()
+			incrementedOldBehaviorCount = true
 		}
-		return nil
 	}
 
 	if val.CanInterface() && val.Type().Implements(textMarshalerType) {
@@ -620,13 +647,20 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 		return nil
 	}
 
-	if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-		text, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
-		if err != nil {
-			return err
+	if val.CanInterface() && reflect.PointerTo(val.Type()).Implements(textMarshalerType) {
+		pv := addrOrNew(val)
+		if pv.IsValid() {
+			text, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
+			if err != nil {
+				return err
+			}
+			start.Attr = append(start.Attr, Attr{name, string(text)})
+			return nil
 		}
-		start.Attr = append(start.Attr, Attr{name, string(text)})
-		return nil
+		if !incrementedOldBehaviorCount {
+			xmlinconsistentmarshal.IncNonDefault()
+			incrementedOldBehaviorCount = true
+		}
 	}
 
 	// Dereference or skip nil pointer, interface values.
@@ -642,7 +676,7 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 	if val.Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
 		n := val.Len()
 		for i := 0; i < n; i++ {
-			if err := p.marshalAttr(start, name, val.Index(i)); err != nil {
+			if err := p.marshalAttr(start, name, val.Index(i), incrementedOldBehaviorCount); err != nil {
 				return err
 			}
 		}
@@ -834,9 +868,10 @@ func indirect(vf reflect.Value) reflect.Value {
 	return vf
 }
 
-func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value, incrementedOldBehaviorCount bool) error {
 	s := parentStack{p: p}
 	for i := range tinfo.fields {
+		fieldIncrementedOldBehaviorCount := incrementedOldBehaviorCount
 		finfo := &tinfo.fields[i]
 		if finfo.flags&fAttr != 0 {
 			continue
@@ -857,6 +892,18 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			if err := s.trim(finfo.parents); err != nil {
 				return err
 			}
+
+			if vf.Kind() == reflect.Interface && !vf.IsNil() {
+				if xmlinconsistentmarshal.Value() != "1" {
+					vf = vf.Elem()
+				} else {
+					if !fieldIncrementedOldBehaviorCount {
+						xmlinconsistentmarshal.IncNonDefault()
+						fieldIncrementedOldBehaviorCount = true
+					}
+				}
+			}
+
 			if vf.CanInterface() && vf.Type().Implements(textMarshalerType) {
 				data, err := vf.Interface().(encoding.TextMarshaler).MarshalText()
 				if err != nil {
@@ -867,9 +914,9 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				}
 				continue
 			}
-			if vf.CanAddr() {
-				pv := vf.Addr()
-				if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
+			if vf.CanInterface() && reflect.PointerTo(vf.Type()).Implements(textMarshalerType) {
+				pv := addrOrNew(vf)
+				if pv.IsValid() {
 					data, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
 					if err != nil {
 						return err
@@ -878,6 +925,10 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 						return err
 					}
 					continue
+				}
+				if !fieldIncrementedOldBehaviorCount {
+					xmlinconsistentmarshal.IncNonDefault()
+					fieldIncrementedOldBehaviorCount = true
 				}
 			}
 
@@ -981,7 +1032,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				}
 			}
 		}
-		if err := p.marshalValue(vf, finfo, nil); err != nil {
+		if err := p.marshalValue(vf, finfo, nil, fieldIncrementedOldBehaviorCount); err != nil {
 			return err
 		}
 	}
@@ -1133,4 +1184,16 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.IsZero()
 	}
 	return false
+}
+
+func addrOrNew(v reflect.Value) reflect.Value {
+	if v.CanAddr() {
+		return v.Addr()
+	}
+	if xmlinconsistentmarshal.Value() != "1" {
+		pv := reflect.New(v.Type())
+		pv.Elem().Set(v)
+		return pv
+	}
+	return reflect.Value{}
 }

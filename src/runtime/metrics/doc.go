@@ -363,6 +363,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		package due to a non-default GODEBUG=x509usepolicies=...
 		setting.
 
+	/godebug/non-default-behavior/xmlinconsistentmarshal:events
+		The number of non-default behaviors executed by the encoding/xml
+		package due to a non-default GODEBUG=xmlinconsistentmarshal=...
+		setting.
+
 	/godebug/non-default-behavior/zipinsecurepath:events
 		The number of non-default behaviors executed by the archive/zip
 		package due to a non-default GODEBUG=zipinsecurepath=...

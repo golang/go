@@ -61,6 +61,7 @@ var All = []Info{
 	{Name: "x509sha1", Package: "crypto/x509"},
 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
 	{Name: "x509usepolicies", Package: "crypto/x509"},
+	{Name: "xmlinconsistentmarshal", Package: "encoding/xml"},
 	{Name: "zipinsecurepath", Package: "archive/zip"},
 }
 
