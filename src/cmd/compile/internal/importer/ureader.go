@@ -417,7 +417,10 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 
 		case pkgbits.ObjAlias:
 			pos := r.pos()
-			var tparams []*types2.TypeParam // TODO(#68778): Read tparams for unified IR.
+			var tparams []*types2.TypeParam
+			if r.Version().Has(pkgbits.AliasTypeParamNames) {
+				tparams = r.typeParamNames()
+			}
 			typ := r.typ()
 			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ, tparams)
 

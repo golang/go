@@ -855,11 +855,19 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 	case *types2.TypeName:
 		if obj.IsAlias() {
 			w.pos(obj)
-			t := obj.Type()
-			if alias, ok := t.(*types2.Alias); ok { // materialized alias
-				t = alias.Rhs()
+			rhs := obj.Type()
+			var tparams *types2.TypeParamList
+			if alias, ok := rhs.(*types2.Alias); ok { // materialized alias
+				assert(alias.TypeArgs() == nil)
+				tparams = alias.TypeParams()
+				rhs = alias.Rhs()
 			}
-			w.typ(t)
+			if w.Version().Has(pkgbits.AliasTypeParamNames) {
+				w.typeParamNames(tparams)
+			}
+			// TODO(taking): enable this assertion once this is not intended to be a nop.
+			// assert(w.Version().Has(pkgbits.AliasTypeParamNames) || tparams.Len() == 0)
+			w.typ(rhs)
 			return pkgbits.ObjAlias
 		}
 

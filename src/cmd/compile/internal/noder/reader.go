@@ -746,6 +746,10 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
 	case pkgbits.ObjAlias:
 		name := do(ir.OTYPE, false)
 
+		if r.Version().Has(pkgbits.AliasTypeParamNames) {
+			r.typeParamNames()
+		}
+
 		// Clumsy dance: the r.typ() call here might recursively find this
 		// type alias name, before we've set its type (#66873). So we
 		// temporarily clear sym.Def and then restore it later, if still
