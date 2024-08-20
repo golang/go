@@ -119,11 +119,11 @@ func Getwd() (ret string, err error) {
 		b := make([]byte, len)
 		err := getcwd(&b[0], len)
 		if err == nil {
-			i := 0
-			for b[i] != 0 {
-				i++
+			n := clen(b[:])
+			if n < 1 {
+				return "", EINVAL
 			}
-			return string(b[0:i]), nil
+			return string(b[:n]), nil
 		}
 		if err != ERANGE {
 			return "", err
