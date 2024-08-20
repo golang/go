@@ -16,6 +16,7 @@ import (
 	"encoding"
 	"encoding/base64"
 	"fmt"
+	"internal/godebug"
 	"math"
 	"reflect"
 	"slices"
@@ -157,6 +158,13 @@ import (
 // JSON cannot represent cyclic data structures and Marshal does not
 // handle them. Passing cyclic structures to Marshal will result in
 // an error.
+//
+// Before Go 1.24, the marshaling was inconsistent: custom marshalers
+// (MarshalJSON and MarshalText methods) defined with pointer receivers
+// were not called for non-addressable values. As of Go 1.24, the marshaling is consistent.
+//
+// The GODEBUG setting jsoninconsistentmarshal=1 restores pre-Go 1.24
+// inconsistent marshaling.
 func Marshal(v any) ([]byte, error) {
 	e := newEncodeState()
 	defer encodeStatePool.Put(e)
@@ -363,7 +371,7 @@ func typeEncoder(t reflect.Type) encoderFunc {
 	}
 
 	// Compute the real encoder and replace the indirect func with it.
-	f = newTypeEncoder(t)
+	f = newTypeEncoder(t, true)
 	wg.Done()
 	encoderCache.Store(t, f)
 	return f
@@ -375,19 +383,19 @@ var (
 )
 
 // newTypeEncoder constructs an encoderFunc for a type.
-func newTypeEncoder(t reflect.Type) encoderFunc {
-	// If we have a non-pointer value whose type implements
+// The returned encoder only checks CanAddr when allowAddr is true.
+func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc { // If we have a non-pointer value whose type implements
 	// Marshaler with a value receiver, then we're better off taking
 	// the address of the value - otherwise we end up with an
 	// allocation as we cast the value to an interface.
-	if t.Kind() != reflect.Pointer && reflect.PointerTo(t).Implements(marshalerType) {
-		return addrMarshalerEncoder
+	if t.Kind() != reflect.Pointer && allowAddr && reflect.PointerTo(t).Implements(marshalerType) {
+		return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, false))
 	}
 	if t.Implements(marshalerType) {
 		return marshalerEncoder
 	}
-	if t.Kind() != reflect.Pointer && reflect.PointerTo(t).Implements(textMarshalerType) {
-		return addrTextMarshalerEncoder
+	if t.Kind() != reflect.Pointer && allowAddr && reflect.PointerTo(t).Implements(textMarshalerType) {
+		return newCondAddrEncoder(addrTextMarshalerEncoder, newTypeEncoder(t, false))
 	}
 	if t.Implements(textMarshalerType) {
 		return textMarshalerEncoder
@@ -901,6 +909,28 @@ func (pe ptrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 
 func newPtrEncoder(t reflect.Type) encoderFunc {
 	enc := ptrEncoder{typeEncoder(t.Elem())}
+	return enc.encode
+}
+
+type condAddrEncoder struct {
+	canAddrEnc, elseEnc encoderFunc
+}
+
+var jsoninconsistentmarshal = godebug.New("jsoninconsistentmarshal")
+
+func (ce condAddrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+	if v.CanAddr() || jsoninconsistentmarshal.Value() != "1" {
+		ce.canAddrEnc(e, v, opts)
+	} else {
+		jsoninconsistentmarshal.IncNonDefault()
+		ce.elseEnc(e, v, opts)
+	}
+}
+
+// newCondAddrEncoder returns an encoder that checks whether its value
+// CanAddr and delegates to canAddrEnc if so, else to elseEnc.
+func newCondAddrEncoder(canAddrEnc, elseEnc encoderFunc) encoderFunc {
+	enc := condAddrEncoder{canAddrEnc: canAddrEnc, elseEnc: elseEnc}
 	return enc.encode
 }
 

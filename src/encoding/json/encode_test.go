@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"reflect"
 	"regexp"
 	"runtime/debug"
+	"runtime/metrics"
 	"strconv"
 	"testing"
 )
@@ -1228,36 +1230,8 @@ func (s *structWithMarshalJSON) MarshalJSON() ([]byte, error) {
 
 var _ = Marshaler(&structWithMarshalJSON{})
 
-type embedderJ struct {
-	V structWithMarshalJSON
-}
-
-func TestMarshalJSONWithPointerJSONMarshalers(t *testing.T) {
-	for _, test := range []struct {
-		name     string
-		v        interface{}
-		expected string
-	}{
-		{name: "a value with MarshalJSON", v: structWithMarshalJSON{v: 1}, expected: `"marshalled(1)"`},
-		{name: "pointer to a value with MarshalJSON", v: &structWithMarshalJSON{v: 1}, expected: `"marshalled(1)"`},
-		{name: "a map with a value with MarshalJSON", v: map[string]interface{}{"v": structWithMarshalJSON{v: 1}}, expected: `{"v":"marshalled(1)"}`},
-		{name: "a map with a pointer to a value with MarshalJSON", v: map[string]interface{}{"v": &structWithMarshalJSON{v: 1}}, expected: `{"v":"marshalled(1)"}`},
-		{name: "a slice of maps with a value with MarshalJSON", v: []map[string]interface{}{{"v": structWithMarshalJSON{v: 1}}}, expected: `[{"v":"marshalled(1)"}]`},
-		{name: "a slice of maps with a pointer to a value with MarshalJSON", v: []map[string]interface{}{{"v": &structWithMarshalJSON{v: 1}}}, expected: `[{"v":"marshalled(1)"}]`},
-		{name: "a struct with a value with MarshalJSON", v: embedderJ{V: structWithMarshalJSON{v: 1}}, expected: `{"V":"marshalled(1)"}`},
-		{name: "a slice of structs with a value with MarshalJSON", v: []embedderJ{{V: structWithMarshalJSON{v: 1}}}, expected: `[{"V":"marshalled(1)"}]`},
-	} {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
-			result, err := Marshal(test.v)
-			if err != nil {
-				t.Fatalf("Marshal error: %v", err)
-			}
-			if string(result) != test.expected {
-				t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", result, test.expected)
-			}
-		})
-	}
+type embedder struct {
+	V interface{}
 }
 
 type structWithMarshalText struct{ v int }
@@ -1268,31 +1242,223 @@ func (s *structWithMarshalText) MarshalText() ([]byte, error) {
 
 var _ = encoding.TextMarshaler(&structWithMarshalText{})
 
-type embedderT struct {
-	V structWithMarshalText
-}
-
-func TestMarshalJSONWithPointerTextMarshalers(t *testing.T) {
+func TestMarshalJSONWithPointerMarshalers(t *testing.T) {
 	for _, test := range []struct {
-		name     string
-		v        interface{}
-		expected string
+		name                     string
+		jsoninconsistentmarshal  bool
+		v                        interface{}
+		expected                 string
+		expectedOldBehaviorCount uint64
+		expectedError            string
 	}{
+		// MarshalJSON
+		{name: "a value with MarshalJSON", v: structWithMarshalJSON{v: 1}, expected: `"marshalled(1)"`},
+		{name: "pointer to a value with MarshalJSON", v: &structWithMarshalJSON{v: 1}, expected: `"marshalled(1)"`},
+		{
+			name:     "a map with a value with MarshalJSON",
+			v:        map[string]interface{}{"v": structWithMarshalJSON{v: 1}},
+			expected: `{"v":"marshalled(1)"}`,
+		},
+		{
+			name:     "a map with a pointer to a value with MarshalJSON",
+			v:        map[string]interface{}{"v": &structWithMarshalJSON{v: 1}},
+			expected: `{"v":"marshalled(1)"}`,
+		},
+		{
+			name:     "a slice of maps with a value with MarshalJSON",
+			v:        []map[string]interface{}{{"v": structWithMarshalJSON{v: 1}}},
+			expected: `[{"v":"marshalled(1)"}]`,
+		},
+		{
+			name:     "a slice of maps with a pointer to a value with MarshalJSON",
+			v:        []map[string]interface{}{{"v": &structWithMarshalJSON{v: 1}}},
+			expected: `[{"v":"marshalled(1)"}]`,
+		},
+		{
+			name:     "a struct with a value with MarshalJSON",
+			v:        embedder{V: structWithMarshalJSON{v: 1}},
+			expected: `{"V":"marshalled(1)"}`,
+		},
+		{
+			name:     "a slice of structs with a value with MarshalJSON",
+			v:        []embedder{{V: structWithMarshalJSON{v: 1}}},
+			expected: `[{"V":"marshalled(1)"}]`,
+		},
+		{
+			name:                     "a value with MarshalJSON (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        structWithMarshalJSON{v: 1},
+			expected:                 `{}`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                    "pointer to a value with MarshalJSON (only addressable)",
+			jsoninconsistentmarshal: true,
+			v:                       &structWithMarshalJSON{v: 1},
+			expected:                `"marshalled(1)"`,
+		},
+		{
+			name:                     "a map with a value with MarshalJSON (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        map[string]interface{}{"v": structWithMarshalJSON{v: 1}},
+			expected:                 `{"v":{}}`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                    "a map with a pointer to a value with MarshalJSON (only addressable)",
+			jsoninconsistentmarshal: true,
+			v:                       map[string]interface{}{"v": &structWithMarshalJSON{v: 1}},
+			expected:                `{"v":"marshalled(1)"}`,
+		},
+		{
+			name:                     "a slice of maps with a value with MarshalJSON (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        []map[string]interface{}{{"v": structWithMarshalJSON{v: 1}}},
+			expected:                 `[{"v":{}}]`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                    "a slice of maps with a pointer to a value with MarshalJSON (only addressable)",
+			jsoninconsistentmarshal: true,
+			v:                       []map[string]interface{}{{"v": &structWithMarshalJSON{v: 1}}},
+			expected:                `[{"v":"marshalled(1)"}]`,
+		},
+		{
+			name:                     "a struct with a value with MarshalJSON (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        embedder{V: structWithMarshalJSON{v: 1}},
+			expected:                 `{"V":{}}`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                     "a slice of structs with a value with MarshalJSON (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        []embedder{{V: structWithMarshalJSON{v: 1}}},
+			expected:                 `[{"V":{}}]`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                     "a slice of structs with a value with MarshalJSON with two elements (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        []embedder{{V: structWithMarshalJSON{v: 1}}, {V: structWithMarshalJSON{v: 2}}},
+			expected:                 `[{"V":{}},{"V":{}}]`,
+			expectedOldBehaviorCount: 2,
+		},
+		// MarshalText
 		{name: "a value with MarshalText", v: structWithMarshalText{v: 1}, expected: `"marshalled(1)"`},
 		{name: "pointer to a value with MarshalText", v: &structWithMarshalText{v: 1}, expected: `"marshalled(1)"`},
 		{name: "a map with a value with MarshalText", v: map[string]interface{}{"v": structWithMarshalText{v: 1}}, expected: `{"v":"marshalled(1)"}`},
-		{name: "a map with a pointer to a value with MarshalText", v: map[string]interface{}{"v": &structWithMarshalText{v: 1}}, expected: `{"v":"marshalled(1)"}`},
-		{name: "a slice of maps with a value with MarshalText", v: []map[string]interface{}{{"v": structWithMarshalText{v: 1}}}, expected: `[{"v":"marshalled(1)"}]`},
-		{name: "a slice of maps with a pointer to a value with MarshalText", v: []map[string]interface{}{{"v": &structWithMarshalText{v: 1}}}, expected: `[{"v":"marshalled(1)"}]`},
-		{name: "a struct with a value with MarshalText", v: embedderT{V: structWithMarshalText{v: 1}}, expected: `{"V":"marshalled(1)"}`},
-		{name: "a slice of structs with a value with MarshalText", v: []embedderT{{V: structWithMarshalText{v: 1}}}, expected: `[{"V":"marshalled(1)"}]`},
+		{
+			name:     "a map with a pointer to a value with MarshalText",
+			v:        map[string]interface{}{"v": &structWithMarshalText{v: 1}},
+			expected: `{"v":"marshalled(1)"}`,
+		},
+		{
+			name:     "a slice of maps with a value with MarshalText",
+			v:        []map[string]interface{}{{"v": structWithMarshalText{v: 1}}},
+			expected: `[{"v":"marshalled(1)"}]`,
+		},
+		{
+			name:     "a slice of maps with a pointer to a value with MarshalText",
+			v:        []map[string]interface{}{{"v": &structWithMarshalText{v: 1}}},
+			expected: `[{"v":"marshalled(1)"}]`,
+		},
+		{
+			name:     "a struct with a value with MarshalText",
+			v:        embedder{V: structWithMarshalText{v: 1}},
+			expected: `{"V":"marshalled(1)"}`,
+		},
+		{
+			name:     "a slice of structs with a value with MarshalText",
+			v:        []embedder{{V: structWithMarshalText{v: 1}}},
+			expected: `[{"V":"marshalled(1)"}]`,
+		},
+		{
+			name:                     "a value with MarshalText (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        structWithMarshalText{v: 1},
+			expected:                 `{}`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                    "pointer to a value with MarshalText (only addressable)",
+			jsoninconsistentmarshal: true,
+			v:                       &structWithMarshalText{v: 1},
+			expected:                `"marshalled(1)"`,
+		},
+		{
+			name:                     "a map with a value with MarshalText (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        map[string]interface{}{"v": structWithMarshalText{v: 1}},
+			expected:                 `{"v":{}}`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                    "a map with a pointer to a value with MarshalText (only addressable)",
+			jsoninconsistentmarshal: true,
+			v:                       map[string]interface{}{"v": &structWithMarshalText{v: 1}},
+			expected:                `{"v":"marshalled(1)"}`,
+		},
+		{
+			name:                     "a slice of maps with a value with MarshalText (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        []map[string]interface{}{{"v": structWithMarshalText{v: 1}}},
+			expected:                 `[{"v":{}}]`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                    "a slice of maps with a pointer to a value with MarshalText (only addressable)",
+			jsoninconsistentmarshal: true,
+			v:                       []map[string]interface{}{{"v": &structWithMarshalText{v: 1}}},
+			expected:                `[{"v":"marshalled(1)"}]`,
+		},
+		{
+			name:                     "a struct with a value with MarshalText (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        embedder{V: structWithMarshalText{v: 1}},
+			expected:                 `{"V":{}}`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                     "a slice of structs with a value with MarshalText (only addressable)",
+			jsoninconsistentmarshal:  true,
+			v:                        []embedder{{V: structWithMarshalText{v: 1}}},
+			expected:                 `[{"V":{}}]`,
+			expectedOldBehaviorCount: 1,
+		},
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			result, err := Marshal(test.v)
-			if err != nil {
-				t.Fatalf("Marshal error: %v", err)
+			const metricName = "/godebug/non-default-behavior/jsoninconsistentmarshal:events"
+			sample := make([]metrics.Sample, 1)
+			sample[0].Name = metricName
+			metrics.Read(sample)
+			metricOldValue := sample[0].Value.Uint64()
+
+			if test.jsoninconsistentmarshal {
+				os.Setenv("GODEBUG", "jsoninconsistentmarshal=1")
+				defer os.Unsetenv("GODEBUG")
 			}
+			result, err := Marshal(test.v)
+
+			metrics.Read(sample)
+			metricNewValue := sample[0].Value.Uint64()
+			oldBehaviorCount := metricNewValue - metricOldValue
+
+			if oldBehaviorCount != test.expectedOldBehaviorCount {
+				t.Errorf("The old behavior count is %d, want %d", oldBehaviorCount, test.expectedOldBehaviorCount)
+			}
+
+			if err != nil {
+				if test.expectedError != "" {
+					if err.Error() != test.expectedError {
+						t.Errorf("Unexpected Marshal error: %s, expected: %s", err.Error(), test.expectedError)
+					}
+					return
+				}
+				t.Fatalf("Unexpected Marshal error: %v", err)
+			}
+
 			if string(result) != test.expected {
 				t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", result, test.expected)
 			}
