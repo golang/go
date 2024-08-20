@@ -48,7 +48,7 @@ type pkgReader struct {
 	// offset for rewriting the given (absolute!) index into the output,
 	// but bitwise inverted so we can detect if we're missing the entry
 	// or not.
-	newindex []pkgbits.Index
+	newindex []index
 }
 
 func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
@@ -59,7 +59,7 @@ func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
 		pkgs:     make([]*types.Pkg, pr.NumElems(pkgbits.RelocPkg)),
 		typs:     make([]*types.Type, pr.NumElems(pkgbits.RelocType)),
 
-		newindex: make([]pkgbits.Index, pr.TotalElems()),
+		newindex: make([]index, pr.TotalElems()),
 	}
 }
 
@@ -67,7 +67,7 @@ func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
 // corresponding dictionary) within a package's export data.
 type pkgReaderIndex struct {
 	pr        *pkgReader
-	idx       pkgbits.Index
+	idx       index
 	dict      *readerDict
 	methodSym *types.Sym
 
@@ -85,7 +85,7 @@ func (pri pkgReaderIndex) asReader(k pkgbits.RelocKind, marker pkgbits.SyncMarke
 	return r
 }
 
-func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
+func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx index, marker pkgbits.SyncMarker) *reader {
 	return &reader{
 		Decoder: pr.NewDecoder(k, idx, marker),
 		p:       pr,
@@ -260,7 +260,7 @@ func (r *reader) posBase() *src.PosBase {
 
 // posBaseIdx returns the specified position base, reading it first if
 // needed.
-func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *src.PosBase {
+func (pr *pkgReader) posBaseIdx(idx index) *src.PosBase {
 	if b := pr.posBases[idx]; b != nil {
 		return b
 	}
@@ -341,7 +341,7 @@ func (r *reader) pkg() *types.Pkg {
 
 // pkgIdx returns the specified package from the export data, reading
 // it first if needed.
-func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Pkg {
+func (pr *pkgReader) pkgIdx(idx index) *types.Pkg {
 	if pkg := pr.pkgs[idx]; pkg != nil {
 		return pkg
 	}
@@ -391,7 +391,7 @@ func (r *reader) typWrapped(wrapped bool) *types.Type {
 func (r *reader) typInfo() typeInfo {
 	r.Sync(pkgbits.SyncType)
 	if r.Bool() {
-		return typeInfo{idx: pkgbits.Index(r.Len()), derived: true}
+		return typeInfo{idx: index(r.Len()), derived: true}
 	}
 	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
 }
@@ -668,7 +668,7 @@ func (pr *pkgReader) objInstIdx(info objInfo, dict *readerDict, shaped bool) ir.
 // type arguments, if any.
 // If shaped is true, then the shaped variant of the object is returned
 // instead.
-func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) ir.Node {
+func (pr *pkgReader) objIdx(idx index, implicits, explicits []*types.Type, shaped bool) ir.Node {
 	n, err := pr.objIdxMayFail(idx, implicits, explicits, shaped)
 	if err != nil {
 		base.Fatalf("%v", err)
@@ -682,7 +682,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
 //
 // Other sources of internal failure (such as duplicate definitions) still fail
 // the build.
-func (pr *pkgReader) objIdxMayFail(idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) (ir.Node, error) {
+func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type, shaped bool) (ir.Node, error) {
 	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 	_, sym := rname.qualifiedIdent()
 	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
@@ -952,7 +952,7 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 }
 
 // objDictIdx reads and returns the specified object dictionary.
-func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, explicits []*types.Type, shaped bool) (*readerDict, error) {
+func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits []*types.Type, shaped bool) (*readerDict, error) {
 	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
 
 	dict := readerDict{
@@ -2578,7 +2578,7 @@ func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
 	return
 }
 
-func (pr *pkgReader) objDictName(idx pkgbits.Index, implicits, explicits []*types.Type) *ir.Name {
+func (pr *pkgReader) objDictName(idx index, implicits, explicits []*types.Type) *ir.Name {
 	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
 	_, sym := rname.qualifiedIdent()
 	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))

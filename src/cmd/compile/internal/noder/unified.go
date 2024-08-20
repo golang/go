@@ -458,9 +458,9 @@ func writeUnifiedExport(out io.Writer) {
 	l := linker{
 		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
 
-		pkgs:   make(map[string]pkgbits.Index),
-		decls:  make(map[*types.Sym]pkgbits.Index),
-		bodies: make(map[*types.Sym]pkgbits.Index),
+		pkgs:   make(map[string]index),
+		decls:  make(map[*types.Sym]index),
+		bodies: make(map[*types.Sym]index),
 	}
 
 	publicRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
@@ -468,7 +468,7 @@ func writeUnifiedExport(out io.Writer) {
 	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
 	assert(privateRootWriter.Idx == pkgbits.PrivateRootIdx)
 
-	var selfPkgIdx pkgbits.Index
+	var selfPkgIdx index
 
 	{
 		pr := localPkgReader
@@ -498,7 +498,7 @@ func writeUnifiedExport(out io.Writer) {
 	}
 
 	{
-		var idxs []pkgbits.Index
+		var idxs []index
 		for _, idx := range l.decls {
 			idxs = append(idxs, idx)
 		}
@@ -525,7 +525,7 @@ func writeUnifiedExport(out io.Writer) {
 	{
 		type symIdx struct {
 			sym *types.Sym
-			idx pkgbits.Index
+			idx index
 		}
 		var bodies []symIdx
 		for sym, idx := range l.bodies {
