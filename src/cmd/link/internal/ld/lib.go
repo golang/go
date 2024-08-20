@@ -1275,7 +1275,7 @@ func hostlinksetup(ctxt *Link) {
 // cleanTimeStamps resets the timestamps for the specified list of
 // existing files to the Unix epoch (1970-01-01 00:00:00 +0000 UTC).
 // We take this step in order to help preserve reproducible builds;
-// this seems to be primarily needed for external linking on on Darwin
+// this seems to be primarily needed for external linking on Darwin
 // with later versions of xcode, which (unfortunately) seem to want to
 // incorporate object file times into the final output file's build
 // ID. See issue 64947 for the unpleasant details.

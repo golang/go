@@ -104,6 +104,9 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fgo2, "var _Cgo_always_false bool\n")
 		fmt.Fprintf(fgo2, "//go:linkname _Cgo_use runtime.cgoUse\n")
 		fmt.Fprintf(fgo2, "func _Cgo_use(interface{})\n")
+		fmt.Fprintf(fgo2, "//go:linkname _Cgo_keepalive runtime.cgoKeepAlive\n")
+		fmt.Fprintf(fgo2, "//go:noescape\n")
+		fmt.Fprintf(fgo2, "func _Cgo_keepalive(interface{})\n")
 	}
 	fmt.Fprintf(fgo2, "//go:linkname _Cgo_no_callback runtime.cgoNoCallback\n")
 	fmt.Fprintf(fgo2, "func _Cgo_no_callback(bool)\n")
@@ -639,17 +642,20 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(false)\n")
 	}
 
-	// skip _Cgo_use when noescape exist,
+	// Use _Cgo_keepalive instead of _Cgo_use when noescape & nocallback exist,
 	// so that the compiler won't force to escape them to heap.
-	if !p.noEscapes[n.C] {
-		fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
-		if d.Type.Params != nil {
-			for i := range d.Type.Params.List {
-				fmt.Fprintf(fgo2, "\t\t_Cgo_use(p%d)\n", i)
-			}
-		}
-		fmt.Fprintf(fgo2, "\t}\n")
+	// Instead, make the compiler keep them alive by using _Cgo_keepalive.
+	touchFunc := "_Cgo_use"
+	if p.noEscapes[n.C] && p.noCallbacks[n.C] {
+		touchFunc = "_Cgo_keepalive"
 	}
+	fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
+	if d.Type.Params != nil {
+		for _, name := range paramnames {
+			fmt.Fprintf(fgo2, "\t\t%s(%s)\n", touchFunc, name)
+		}
+	}
+	fmt.Fprintf(fgo2, "\t}\n")
 	fmt.Fprintf(fgo2, "\treturn\n")
 	fmt.Fprintf(fgo2, "}\n")
 }

@@ -58,7 +58,7 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 
 	// sendfile() on illumos seems to incur intermittent failures when the
 	// target file is a standard stream (stdout/stderr), we hereby skip any
-	// character devices conservatively and leave them to generic copy.
+	// anything other than regular files conservatively and leave them to generic copy.
 	// Check out https://go.dev/issue/68863 for more details.
 	if runtime.GOOS == "illumos" {
 		fi, err := f.Stat()
@@ -69,7 +69,7 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 		if !ok {
 			return 0, false, nil
 		}
-		if typ := st.Mode & syscall.S_IFMT; typ == syscall.S_IFCHR || typ == syscall.S_IFBLK {
+		if typ := st.Mode & syscall.S_IFMT; typ != syscall.S_IFREG {
 			return 0, false, nil
 		}
 	}

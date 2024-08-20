@@ -194,7 +194,7 @@ func (w *Encoder) Flush() Index {
 
 func (w *Encoder) checkErr(err error) {
 	if err != nil {
-		errorf("unexpected encoding error: %v", err)
+		panicf("unexpected encoding error: %v", err)
 	}
 }
 
@@ -359,7 +359,7 @@ func (w *Encoder) Value(val constant.Value) {
 func (w *Encoder) scalar(val constant.Value) {
 	switch v := constant.Val(val).(type) {
 	default:
-		errorf("unhandled %v (%v)", val, val.Kind())
+		panicf("unhandled %v (%v)", val, val.Kind())
 	case bool:
 		w.Code(ValBool)
 		w.Bool(v)

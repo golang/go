@@ -618,7 +618,7 @@ func (ft *factsTable) newLimit(v *Value, newLim limit) bool {
 	// extract relation between its args. For example, if
 	// We learn v is false, and v is defined as a<b, then we learn a>=b.
 	if v.Type.IsBoolean() {
-		// If we reach here, is is because we have a more restrictive
+		// If we reach here, it is because we have a more restrictive
 		// value for v than the default. The only two such values
 		// are constant true or constant false.
 		if lim.min != lim.max {

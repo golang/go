@@ -750,7 +750,6 @@ func TestNeedmDeadlock(t *testing.T) {
 }
 
 func TestCgoNoCallback(t *testing.T) {
-	t.Skip("TODO(#56378): enable in Go 1.23")
 	got := runTestProg(t, "testprogcgo", "CgoNoCallback")
 	want := "function marked with #cgo nocallback called back into Go"
 	if !strings.Contains(got, want) {
@@ -759,11 +758,19 @@ func TestCgoNoCallback(t *testing.T) {
 }
 
 func TestCgoNoEscape(t *testing.T) {
-	t.Skip("TODO(#56378): enable in Go 1.23")
 	got := runTestProg(t, "testprogcgo", "CgoNoEscape")
 	want := "OK\n"
 	if got != want {
 		t.Fatalf("want %s, got %s\n", want, got)
+	}
+}
+
+// Issue #63739.
+func TestCgoEscapeWithMultiplePointers(t *testing.T) {
+	got := runTestProg(t, "testprogcgo", "CgoEscapeWithMultiplePointers")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("output is %s; want %s", got, want)
 	}
 }
 

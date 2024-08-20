@@ -198,14 +198,16 @@ func TestCopyFile(t *testing.T) {
 				}
 				switch runtime.GOOS {
 				case "illumos", "solaris":
-					// On SunOS, We rely on File.Stat to get the size of the source file,
+					// On solaris, We rely on File.Stat to get the size of the source file,
 					// which doesn't work for pipe.
+					// On illumos, We skip anything other than regular files conservatively
+					// for the target file, therefore the hook shouldn't have been called.
 					if hook.called {
-						t.Fatalf("%s: shouldn't have called the hook with a source of pipe", testName)
+						t.Fatalf("%s: shouldn't have called the hook with a source or a destination of pipe", testName)
 					}
 				default:
 					if !hook.called {
-						t.Fatalf("%s: should have called the hook with a source of pipe", testName)
+						t.Fatalf("%s: should have called the hook with both source and destination of pipe", testName)
 					}
 				}
 				pw2.Close()
@@ -231,8 +233,17 @@ func TestCopyFile(t *testing.T) {
 				if n != int64(len(data)) {
 					t.Fatalf("%s: transferred %d, want %d", testName, n, len(data))
 				}
-				if !hook.called {
-					t.Fatalf("%s: should have called the hook", testName)
+				switch runtime.GOOS {
+				case "illumos":
+					// On illumos, We skip anything other than regular files conservatively
+					// for the target file, therefore the hook shouldn't have been called.
+					if hook.called {
+						t.Fatalf("%s: shouldn't have called the hook with a destination of pipe", testName)
+					}
+				default:
+					if !hook.called {
+						t.Fatalf("%s: should have called the hook with a destination of pipe", testName)
+					}
 				}
 				pw.Close()
 				mustContainData(t, pr, data)

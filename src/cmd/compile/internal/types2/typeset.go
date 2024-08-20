@@ -163,7 +163,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 	// let any follow-on errors play out.
 	//
 	// TODO(gri) Consider recording when this happens and reporting
-	// it as an error (but only if there were no other errors so to
+	// it as an error (but only if there were no other errors so
 	// to not have unnecessary follow-on errors).
 	if !ityp.complete {
 		return &topTypeSet

@@ -21,7 +21,8 @@ var getwdCache struct {
 // Getwd may return any one of them.
 func Getwd() (dir string, err error) {
 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return syscall.Getwd()
+		dir, err = syscall.Getwd()
+		return dir, NewSyscallError("getwd", err)
 	}
 
 	// Clumsy but widespread kludge:

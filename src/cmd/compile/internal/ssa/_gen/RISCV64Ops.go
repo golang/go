@@ -235,6 +235,12 @@ func init() {
 		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0 ^ arg1
 		{name: "XORI", argLength: 1, reg: gp11, asm: "XORI", aux: "Int64"},    // arg0 ^ auxint
 
+		// Minimum and maximum
+		{name: "MIN", argLength: 2, reg: gp21, asm: "MIN", commutative: true},   // min(arg0,arg1), signed
+		{name: "MAX", argLength: 2, reg: gp21, asm: "MAX", commutative: true},   // max(arg0,arg1), signed
+		{name: "MINU", argLength: 2, reg: gp21, asm: "MINU", commutative: true}, // min(arg0,arg1), unsigned
+		{name: "MAXU", argLength: 2, reg: gp21, asm: "MAXU", commutative: true}, // max(arg0,arg1), unsigned
+
 		// Generate boolean values
 		{name: "SEQZ", argLength: 1, reg: gp11, asm: "SEQZ"},                 // arg0 == 0, result is 0 or 1
 		{name: "SNEZ", argLength: 1, reg: gp11, asm: "SNEZ"},                 // arg0 != 0, result is 0 or 1

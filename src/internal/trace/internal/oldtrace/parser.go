@@ -813,7 +813,7 @@ func (p *parser) readRawEvent(flags uint, ev *rawEvent) error {
 	}
 }
 
-// loadBatch loads the next batch for pid and appends its contents to to events.
+// loadBatch loads the next batch for pid and appends its contents to events.
 func (p *parser) loadBatch(pid int32, events []Event) ([]Event, error) {
 	offsets := p.batchOffsets[pid]
 	if len(offsets) == 0 {

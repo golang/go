@@ -72,11 +72,20 @@ var cgoHasExtraM bool
 // cgoUse should not actually be called (see cgoAlwaysFalse).
 func cgoUse(any) { throw("cgoUse should not be called") }
 
+// cgoKeepAlive is called by cgo-generated code (using go:linkname to get at
+// an unexported name). This call keeps its argument alive until the call site;
+// cgo emits the call after the last possible use of the argument by C code.
+// cgoKeepAlive is marked in the cgo-generated code as //go:noescape, so
+// unlike cgoUse it does not force the argument to escape to the heap.
+// This is used to implement the #cgo noescape directive.
+func cgoKeepAlive(any) { throw("cgoKeepAlive should not be called") }
+
 // cgoAlwaysFalse is a boolean value that is always false.
-// The cgo-generated code says if cgoAlwaysFalse { cgoUse(p) }.
+// The cgo-generated code says if cgoAlwaysFalse { cgoUse(p) },
+// or if cgoAlwaysFalse { cgoKeepAlive(p) }.
 // The compiler cannot see that cgoAlwaysFalse is always false,
 // so it emits the test and keeps the call, giving the desired
-// escape analysis result. The test is cheaper than the call.
+// escape/alive analysis result. The test is cheaper than the call.
 var cgoAlwaysFalse bool
 
 var cgo_yield = &_cgo_yield

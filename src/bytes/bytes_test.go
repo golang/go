@@ -489,7 +489,7 @@ func TestIndexRune(t *testing.T) {
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", 0xD800, -1}, // Surrogate pair
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", utf8.MaxRune + 1, -1},
 
-		// Test the cutover to to bytealg.Index when it is triggered in
+		// Test the cutover to bytealg.Index when it is triggered in
 		// the middle of rune that contains consecutive runs of equal bytes.
 		{"aaaaaKKKK\U000bc104", '\U000bc104', 17}, // cutover: (n + 16) / 8
 		{"aaaaaKKKK鄄", '鄄', 17},

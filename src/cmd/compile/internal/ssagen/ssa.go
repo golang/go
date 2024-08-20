@@ -3785,6 +3785,25 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 		})
 	}
 
+	if typ.IsInteger() {
+		if Arch.LinkArch.Family == sys.RISCV64 && buildcfg.GORISCV64 >= 22 && typ.Size() == 8 {
+			var op ssa.Op
+			switch {
+			case typ.IsSigned() && n.Op() == ir.OMIN:
+				op = ssa.OpMin64
+			case typ.IsSigned() && n.Op() == ir.OMAX:
+				op = ssa.OpMax64
+			case typ.IsUnsigned() && n.Op() == ir.OMIN:
+				op = ssa.OpMin64u
+			case typ.IsUnsigned() && n.Op() == ir.OMAX:
+				op = ssa.OpMax64u
+			}
+			return fold(func(x, a *ssa.Value) *ssa.Value {
+				return s.newValue2(op, typ, x, a)
+			})
+		}
+	}
+
 	lt := s.ssaOp(ir.OLT, typ)
 
 	return fold(func(x, a *ssa.Value) *ssa.Value {

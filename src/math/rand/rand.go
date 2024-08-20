@@ -313,6 +313,9 @@ var globalRandGenerator atomic.Pointer[Rand]
 
 var randautoseed = godebug.New("randautoseed")
 
+// randseednop controls whether the global Seed is a no-op.
+var randseednop = godebug.New("randseednop")
+
 // globalRand returns the generator to use for the top-level convenience
 // functions.
 func globalRand() *Rand {
@@ -391,7 +394,15 @@ func (fs *runtimeSource) read(p []byte, readVal *int64, readPos *int8) (n int, e
 // a random value. Programs that call Seed with a known value to get
 // a specific sequence of results should use New(NewSource(seed)) to
 // obtain a local random generator.
+//
+// As of Go 1.24 [Seed] is a no-op. To restore the previous behavior set
+// GODEBUG=randseednop=0.
 func Seed(seed int64) {
+	if randseednop.Value() != "0" {
+		return
+	}
+	randseednop.IncNonDefault()
+
 	orig := globalRandGenerator.Load()
 
 	// If we are already using a lockedSource, we can just re-seed it.

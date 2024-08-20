@@ -307,7 +307,7 @@ func (w WaitStatus) TrapCause() int     { return 0 }
 
 // Rusage is a placeholder to allow compilation of the [os/exec] package
 // because we need Go programs to be portable across platforms. WASI does
-// not have a mechanism to to spawn processes so there is no reason for an
+// not have a mechanism to spawn processes so there is no reason for an
 // application to take a dependency on this type.
 type Rusage struct {
 	Utime Timeval
@@ -316,7 +316,7 @@ type Rusage struct {
 
 // ProcAttr is a placeholder to allow compilation of the [os/exec] package
 // because we need Go programs to be portable across platforms. WASI does
-// not have a mechanism to to spawn processes so there is no reason for an
+// not have a mechanism to spawn processes so there is no reason for an
 // application to take a dependency on this type.
 type ProcAttr struct {
 	Dir   string
