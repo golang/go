@@ -242,7 +242,7 @@ func newBucket(typ bucketType, nstk int) *bucket {
 	return b
 }
 
-// stk returns the slice in b holding the stack. The caller can asssume that the
+// stk returns the slice in b holding the stack. The caller can assume that the
 // backing array is immutable.
 func (b *bucket) stk() []uintptr {
 	stk := (*[maxProfStackDepth]uintptr)(add(unsafe.Pointer(b), unsafe.Sizeof(*b)))

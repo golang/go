@@ -385,10 +385,10 @@ func (p *parser) parseEventBatches() (Events, error) {
 	// Merge events as long as at least one P has more events
 	gs := make(map[uint64]gState)
 	// Note: technically we don't need a priority queue here. We're only ever
-	// interested in the earliest elligible event, which means we just have to
+	// interested in the earliest eligible event, which means we just have to
 	// track the smallest element. However, in practice, the priority queue
 	// performs better, because for each event we only have to compute its state
-	// transition once, not on each iteration. If it was elligible before, it'll
+	// transition once, not on each iteration. If it was eligible before, it'll
 	// already be in the queue. Furthermore, on average, we only have one P to
 	// look at in each iteration, because all other Ps are already in the queue.
 	var frontier orderEventList

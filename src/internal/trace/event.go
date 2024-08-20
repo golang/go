@@ -306,7 +306,7 @@ type StackFrame struct {
 	Line uint64
 }
 
-// ExperimentalEvent presents a raw view of an experimental event's arguments and thier names.
+// ExperimentalEvent presents a raw view of an experimental event's arguments and their names.
 type ExperimentalEvent struct {
 	// Name is the name of the event.
 	Name string

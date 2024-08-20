@@ -51,7 +51,7 @@ module example.com/b
 
 go 1.23
 
-// The indrect comment below is inaccurate. Its purpose
+// The indirect comment below is inaccurate. Its purpose
 // is to test that it is corrected when enough packages
 // are loaded to correct it.
 

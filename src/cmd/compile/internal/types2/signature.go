@@ -274,7 +274,7 @@ func (check *Checker) recordParenthesizedRecvTypes(expr syntax.Expr, typ Type) {
 	}
 }
 
-// collectParams collects (but does not delare) all parameters of list and returns
+// collectParams collects (but does not declare) all parameters of list and returns
 // the list of parameter names, corresponding parameter variables, and whether the
 // parameter list is variadic. Anonymous parameters are recorded with nil names.
 func (check *Checker) collectParams(list []*syntax.Field, variadicOk bool) (names []*syntax.Name, params []*Var, variadic bool) {

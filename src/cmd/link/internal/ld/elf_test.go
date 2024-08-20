@@ -595,7 +595,7 @@ func TestRelroSectionOverlapIssue67261(t *testing.T) {
 		} else {
 			// Non-empty output indicates failure, as mentioned above.
 			if len(string(sout)) != 0 {
-				t.Errorf("unexpected outut from %s:\n%s\n", sprog, string(sout))
+				t.Errorf("unexpected output from %s:\n%s\n", sprog, string(sout))
 			}
 		}
 		rcmd := testenv.Command(t, filepath.Join(dir, targ))

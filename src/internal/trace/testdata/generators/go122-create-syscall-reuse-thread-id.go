@@ -4,7 +4,7 @@
 
 // Tests a G being created from within a syscall.
 //
-// Specifically, it tests a scenerio wherein a C
+// Specifically, it tests a scenario wherein a C
 // thread is calling into Go, creating a goroutine in
 // a syscall (in the tracer's model). The system is free
 // to reuse thread IDs, so first a thread ID is used to

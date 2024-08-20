@@ -7459,7 +7459,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 		if hotAlign > 0 && b.Hotness&ssa.HotPgoInitial == ssa.HotPgoInitial {
 			// So far this has only been shown profitable for PGO-hot loop headers.
-			// The Hotness values allows distinctions betwen initial blocks that are "hot" or not, and "flow-in" or not.
+			// The Hotness values allows distinctions between initial blocks that are "hot" or not, and "flow-in" or not.
 			// Currently only the initial blocks of loops are tagged in this way;
 			// there are no blocks tagged "pgo-hot" that are not also tagged "initial".
 			// TODO more heuristics, more architectures.

@@ -4,7 +4,7 @@
 
 // Tests a G being created from within a syscall.
 //
-// Specifically, it tests a scenerio wherein a C
+// Specifically, it tests a scenario wherein a C
 // thread is calling into Go, creating a goroutine in
 // a syscall (in the tracer's model). Because the actual
 // m can be reused, it's possible for that m to have never

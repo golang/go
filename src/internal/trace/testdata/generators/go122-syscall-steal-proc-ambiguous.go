@@ -4,7 +4,7 @@
 
 // Tests syscall P stealing.
 //
-// Specifically, it tests a scenerio wherein, without a
+// Specifically, it tests a scenario wherein, without a
 // P sequence number of GoSyscallBegin, the syscall that
 // a ProcSteal applies to is ambiguous. This only happens in
 // practice when the events aren't already properly ordered
