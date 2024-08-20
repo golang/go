@@ -542,6 +542,14 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		rights = fileRights
 	}
 
+	if (openmode & O_DIRECTORY) != 0 {
+		if openmode&(O_WRONLY|O_RDWR) != 0 {
+			return -1, EISDIR
+		}
+		oflags |= OFLAG_DIRECTORY
+		rights &= dirRights
+	}
+
 	var fdflags fdflags
 	if (openmode & O_APPEND) != 0 {
 		fdflags |= FDFLAG_APPEND
