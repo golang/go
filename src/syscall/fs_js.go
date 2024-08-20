@@ -23,12 +23,13 @@ var constants = jsFS.Get("constants")
 var uint8Array = js.Global().Get("Uint8Array")
 
 var (
-	nodeWRONLY = constants.Get("O_WRONLY").Int()
-	nodeRDWR   = constants.Get("O_RDWR").Int()
-	nodeCREATE = constants.Get("O_CREAT").Int()
-	nodeTRUNC  = constants.Get("O_TRUNC").Int()
-	nodeAPPEND = constants.Get("O_APPEND").Int()
-	nodeEXCL   = constants.Get("O_EXCL").Int()
+	nodeWRONLY    = constants.Get("O_WRONLY").Int()
+	nodeRDWR      = constants.Get("O_RDWR").Int()
+	nodeCREATE    = constants.Get("O_CREAT").Int()
+	nodeTRUNC     = constants.Get("O_TRUNC").Int()
+	nodeAPPEND    = constants.Get("O_APPEND").Int()
+	nodeEXCL      = constants.Get("O_EXCL").Int()
+	nodeDIRECTORY = constants.Get("O_DIRECTORY").Int()
 )
 
 type jsFile struct {
@@ -82,6 +83,9 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 	}
 	if openmode&O_SYNC != 0 {
 		return 0, errors.New("syscall.Open: O_SYNC is not supported by js/wasm")
+	}
+	if openmode&O_DIRECTORY != 0 {
+		flags |= nodeDIRECTORY
 	}
 
 	jsFD, err := fsCall("open", path, flags, perm)
