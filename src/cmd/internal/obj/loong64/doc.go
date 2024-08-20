@@ -48,7 +48,7 @@ start:
 
 1. All generial-prupose register names are written as Rn.
 
-2. All floating-poing register names are written as Fn.
+2. All floating-point register names are written as Fn.
 
 # Argument mapping rules
 

@@ -636,7 +636,7 @@ func setThreadCPUProfiler(hz int32) {
 	// spend shows up as a 10% chance of one sample (for an expected value of
 	// 0.1 samples), and so that "two and six tenths" periods of CPU spend show
 	// up as a 60% chance of 3 samples and a 40% chance of 2 samples (for an
-	// expected value of 2.6). Set the initial delay to a value in the unifom
+	// expected value of 2.6). Set the initial delay to a value in the uniform
 	// random distribution between 0 and the desired period. And because "0"
 	// means "disable timer", add 1 so the half-open interval [0,period) turns
 	// into (0,period].

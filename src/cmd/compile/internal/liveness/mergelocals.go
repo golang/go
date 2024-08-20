@@ -952,7 +952,7 @@ func (cs *cstate) computeIntervals() {
 		//
 		// Note the SPanchored: this ensures that the scheduler won't
 		// move the MOVDaddr earlier than the vardef. With a variable
-		// "xyz" that has no pointers, howver, if we start with
+		// "xyz" that has no pointers, however, if we start with
 		//
 		//    v66 = VarDef <mem> {t2} v65
 		//    v67 = LocalAddr <*T> {t2} v2 v66

@@ -411,7 +411,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				// The NOP is needed to give the jumps somewhere to land.
 				// It is a liblink NOP, not a hardware NOP: it encodes to 0 instruction bytes.
 				//
-				// We don't generate this for leafs because that means the wrapped
+				// We don't generate this for leaves because that means the wrapped
 				// function was inlined into the wrapper.
 
 				q = obj.Appendp(q, newprog)

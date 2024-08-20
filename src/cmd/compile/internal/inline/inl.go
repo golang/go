@@ -957,7 +957,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 	}
 
 	if base.Debug.Checkptr != 0 && types.IsRuntimePkg(callee.Sym().Pkg) {
-		// We don't intrument runtime packages for checkptr (see base/flag.go).
+		// We don't instrument runtime packages for checkptr (see base/flag.go).
 		if log && logopt.Enabled() {
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
 				fmt.Sprintf(`call to into runtime package function %s in -d=checkptr build`, ir.PkgFuncName(callee)))

@@ -38,7 +38,7 @@
 // //line directives that change line numbers in strange ways should be rare,
 // and failing PGO matching on these files is not too big of a loss.
 
-// Package pgoir assosciates a PGO profile with the IR of the current package
+// Package pgoir associates a PGO profile with the IR of the current package
 // compilation.
 package pgoir
 

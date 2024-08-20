@@ -88,14 +88,14 @@ func T_multi_return_nil(x, y bool) *Bar {
 	return nil
 }
 
-// returns.go T_multi_return_nil_anomoly 98 0 1
+// returns.go T_multi_return_nil_anomaly 98 0 1
 // ResultFlags
 //   0 ResultIsConcreteTypeConvertedToInterface
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[4]}
 // <endcallsites>
 // <endfuncpreamble>
-func T_multi_return_nil_anomoly(x, y bool) Itf {
+func T_multi_return_nil_anomaly(x, y bool) Itf {
 	if x && y {
 		var qnil *Q
 		return qnil

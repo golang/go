@@ -590,13 +590,13 @@ var allocTests = []struct {
 	argLen  int // The number of arguments to use for the syscall
 	expected int // The expected number of allocations
 }{
-	// For less than or equal to 16 arguments, we expect 1 alloction:
+	// For less than or equal to 16 arguments, we expect 1 allocation:
 	// - makeValue new(ref)
 	{0,  1},
 	{2,  1},
 	{15, 1},
 	{16, 1},
-	// For greater than 16 arguments, we expect 3 alloction:
+	// For greater than 16 arguments, we expect 3 allocation:
 	// - makeValue: new(ref)
 	// - makeArgSlices: argVals = make([]Value, size)
 	// - makeArgSlices: argRefs = make([]ref, size)

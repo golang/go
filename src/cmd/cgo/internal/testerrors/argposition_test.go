@@ -41,16 +41,16 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 			var errorMessage strings.Builder
 			for caseIndex, expectedPos := range expectedPositions {
 				actualPosition := v.fset.PositionFor(ident.Pos(), true)
-				errorOccured := false
+				errorOccurred := false
 				if expectedPos.Line != actualPosition.Line {
 					fmt.Fprintf(&errorMessage, "wrong line number for ident %s: expected: %d got: %d\n", ident.Name, expectedPos.Line, actualPosition.Line)
-					errorOccured = true
+					errorOccurred = true
 				}
 				if expectedPos.Column != actualPosition.Column {
 					fmt.Fprintf(&errorMessage, "wrong column number for ident %s: expected: %d got: %d\n", ident.Name, expectedPos.Column, actualPosition.Column)
-					errorOccured = true
+					errorOccurred = true
 				}
-				if errorOccured {
+				if errorOccurred {
 					continue
 				}
 				gotMatch = true

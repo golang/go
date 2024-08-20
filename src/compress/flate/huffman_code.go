@@ -176,7 +176,7 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	for {
 		l := &levels[level]
 		if l.nextPairFreq == math.MaxInt32 && l.nextCharFreq == math.MaxInt32 {
-			// We've run out of both leafs and pairs.
+			// We've run out of both leaves and pairs.
 			// End all calculations for this level.
 			// To make sure we never come back to this level or any lower level,
 			// set nextPairFreq impossibly large.
