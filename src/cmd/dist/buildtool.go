@@ -119,8 +119,8 @@ var ignoreSuffixes = []string{
 }
 
 var tryDirs = []string{
-	"sdk/go1.17",
-	"go1.17",
+	"sdk/go1.22.6",
+	"go1.22.6",
 }
 
 func bootstrapBuildTools() {
