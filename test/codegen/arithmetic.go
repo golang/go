@@ -629,3 +629,39 @@ func constantFold3(i, j int) int {
 	r := (5 * i) * (6 * j)
 	return r
 }
+
+// ----------------- //
+//  Integer Min/Max  //
+// ----------------- //
+
+func Int64Min(a, b int64) int64 {
+	// amd64: "CMPQ","CMOVQLT"
+	// arm64: "CMP","CSEL"
+	// riscv64/rva20u64:"BLT\t"
+	// riscv64/rva22u64:"MIN\t"
+	return min(a, b)
+}
+
+func Int64Max(a, b int64) int64 {
+	// amd64: "CMPQ","CMOVQGT"
+	// arm64: "CMP","CSEL"
+	// riscv64/rva20u64:"BLT\t"
+	// riscv64/rva22u64:"MAX\t"
+	return max(a, b)
+}
+
+func Uint64Min(a, b uint64) uint64 {
+	// amd64: "CMPQ","CMOVQCS"
+	// arm64: "CMP","CSEL"
+	// riscv64/rva20u64:"BLTU"
+	// riscv64/rva22u64:"MINU"
+	return min(a, b)
+}
+
+func Uint64Max(a, b uint64) uint64 {
+	// amd64: "CMPQ","CMOVQHI"
+	// arm64: "CMP","CSEL"
+	// riscv64/rva20u64:"BLTU"
+	// riscv64/rva22u64:"MAXU"
+	return max(a, b)
+}
