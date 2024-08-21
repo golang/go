@@ -148,6 +148,7 @@ func SwissMapType() *types.Type {
 	//     dirLen int
 	//
 	//     globalDepth uint8
+	//     globalShift uint8
 	//     // N.B Padding
 	//
 	//     clearSeq uint64
@@ -160,6 +161,7 @@ func SwissMapType() *types.Type {
 		makefield("dirPtr", types.Types[types.TUNSAFEPTR]),
 		makefield("dirLen", types.Types[types.TINT]),
 		makefield("globalDepth", types.Types[types.TUINT8]),
+		makefield("globalShift", types.Types[types.TUINT8]),
 		makefield("clearSeq", types.Types[types.TUINT64]),
 	}
 

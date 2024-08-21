@@ -233,9 +233,20 @@ type Map struct {
 	// The number of bits to use in table directory lookups.
 	globalDepth uint8
 
+	// The number of bits to shift out of the hash for directory lookups.
+	// On 64-bit systems, this is 64 - globalDepth.
+	globalShift uint8
+
 	// clearSeq is a sequence counter of calls to Clear. It is used to
 	// detect map clears during iteration.
 	clearSeq uint64
+}
+
+func depthToShift(depth uint8) uint8 {
+	if goarch.PtrSize == 4 {
+		return 32 - depth
+	}
+	return 64 - depth
 }
 
 func NewMap(mt *abi.SwissMapType, capacity uint64) *Map {
@@ -259,6 +270,7 @@ func NewMap(mt *abi.SwissMapType, capacity uint64) *Map {
 		//directory: make([]*table, dirSize),
 
 		globalDepth: globalDepth,
+		globalShift: depthToShift(globalDepth),
 	}
 
 	if capacity > abi.SwissMapGroupSlots {
@@ -294,12 +306,7 @@ func (m *Map) directoryIndex(hash uintptr) uintptr {
 	if m.dirLen == 1 {
 		return 0
 	}
-	// TODO(prattmic): Store the shift as globalShift, as we need that more
-	// often than globalDepth.
-	if goarch.PtrSize == 4 {
-		return hash >> (32 - m.globalDepth)
-	}
-	return hash >> (64 - m.globalDepth)
+	return hash >> (m.globalShift & 63)
 }
 
 func (m *Map) directoryAt(i uintptr) *table {
@@ -338,6 +345,7 @@ func (m *Map) installTableSplit(old, left, right *table) {
 			}
 		}
 		m.globalDepth++
+		m.globalShift--
 		//m.directory = newDir
 		m.dirPtr = unsafe.Pointer(&newDir[0])
 		m.dirLen = len(newDir)
