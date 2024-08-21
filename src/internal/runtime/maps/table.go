@@ -231,6 +231,32 @@ func (t *table) getWithKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, un
 	}
 }
 
+func (t *table) getWithoutKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, bool) {
+	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	for ; ; seq = seq.next() {
+		g := t.groups.group(seq.offset)
+
+		match := g.ctrls().matchH2(h2(hash))
+
+		for match != 0 {
+			i := match.first()
+
+			slotKey := g.key(i)
+			if t.typ.Key.Equal(key, slotKey) {
+				return g.elem(i), true
+			}
+			match = match.removeFirst()
+		}
+
+		match = g.ctrls().matchEmpty()
+		if match != 0 {
+			// Finding an empty slot means we've reached the end of
+			// the probe sequence.
+			return nil, false
+		}
+	}
+}
+
 // PutSlot returns a pointer to the element slot where an inserted element
 // should be written, and ok if it returned a valid slot.
 //

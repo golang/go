@@ -360,8 +360,7 @@ func (m *Map) Used() uint64 {
 // Get performs a lookup of the key that key points to. It returns a pointer to
 // the element, or false if the key doesn't exist.
 func (m *Map) Get(key unsafe.Pointer) (unsafe.Pointer, bool) {
-	_, elem, ok := m.getWithKey(key)
-	return elem, ok
+	return m.getWithoutKey(key)
 }
 
 func (m *Map) getWithKey(key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
@@ -373,6 +372,18 @@ func (m *Map) getWithKey(key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bo
 
 	idx := m.directoryIndex(hash)
 	return m.directoryAt(idx).getWithKey(hash, key)
+}
+
+func (m *Map) getWithoutKey(key unsafe.Pointer) (unsafe.Pointer, bool) {
+	hash := m.typ.Hasher(key, m.seed)
+
+	if m.dirLen == 0 {
+		_, elem, ok := m.getWithKeySmall(hash, key)
+		return elem, ok
+	}
+
+	idx := m.directoryIndex(hash)
+	return m.directoryAt(idx).getWithoutKey(hash, key)
 }
 
 func (m *Map) getWithKeySmall(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
