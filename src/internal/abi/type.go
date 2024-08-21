@@ -177,6 +177,15 @@ func TypeOf(a any) *Type {
 	return (*Type)(NoEscape(unsafe.Pointer(eface.Type)))
 }
 
+// TypeFor returns the abi.Type for a type parameter.
+func TypeFor[T any]() *Type {
+	var v T
+	if t := TypeOf(v); t != nil {
+		return t // optimize for T being a non-interface kind
+	}
+	return TypeOf((*T)(nil)).Elem() // only for an interface kind
+}
+
 func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
 
 func (t *Type) HasName() bool {

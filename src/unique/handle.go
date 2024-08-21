@@ -31,7 +31,7 @@ func (h Handle[T]) Value() T {
 // are equal if and only if the values used to produce them are equal.
 func Make[T comparable](value T) Handle[T] {
 	// Find the map for type T.
-	typ := abi.TypeOf(value)
+	typ := abi.TypeFor[T]()
 	ma, ok := uniqueMaps.Load(typ)
 	if !ok {
 		// This is a good time to initialize cleanup, since we must go through
