@@ -1296,7 +1296,7 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) {
 // setrlimit sets a resource limit.
 // The Setrlimit function is in rlimit.go, and calls this one.
 func setrlimit(resource int, rlim *Rlimit) (err error) {
-	return prlimit(0, resource, rlim, nil)
+	return prlimit1(0, resource, rlim, nil)
 }
 
 // prlimit changes a resource limit. We use a single definition so that

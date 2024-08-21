@@ -252,10 +252,12 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		cred                      *Credential
 		ngroups, groups           uintptr
 		c                         uintptr
+		rlim                      *Rlimit
+		lim                       Rlimit
 	)
 	pidfd = -1
 
-	rlim := origRlimitNofile.Load()
+	rlim = origRlimitNofile.Load()
 
 	if sys.UidMappings != nil {
 		puid = []byte("/proc/self/uid_map\000")
@@ -632,7 +634,20 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 
 	// Restore original rlimit.
 	if rlim != nil {
-		RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+		// Some other process may have changed our rlimit by
+		// calling prlimit. We can check for that case because
+		// our current rlimit will not be the value we set when
+		// caching the rlimit in the init function in rlimit.go.
+		//
+		// Note that this test is imperfect, since it won't catch
+		// the case in which some other process used prlimit to
+		// set our rlimits to max-1/max. In that case we will fall
+		// back to the original cur/max when starting the child.
+		// We hope that setting to max-1/max is unlikely.
+		_, _, err1 = RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, 0, uintptr(unsafe.Pointer(&lim)), 0, 0)
+		if err1 != 0 || (lim.Cur == rlim.Max-1 && lim.Max == rlim.Max) {
+			RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+		}
 	}
 
 	// Enable tracing if requested.
