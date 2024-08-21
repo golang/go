@@ -93,7 +93,7 @@ type InternalBenchmark struct {
 type B struct {
 	common
 	importPath       string // import path of the package containing the benchmark
-	context          *benchContext
+	bstate           *benchState
 	N                int
 	previousN        int           // number of iterations in the previous run
 	previousDuration time.Duration // total duration of the previous run
@@ -199,10 +199,10 @@ func (b *B) runN(n int) {
 // run1 runs the first iteration of benchFunc. It reports whether more
 // iterations of this benchmarks should be run.
 func (b *B) run1() bool {
-	if ctx := b.context; ctx != nil {
+	if bstate := b.bstate; bstate != nil {
 		// Extend maxLen, if needed.
-		if n := len(b.name) + ctx.extLen + 1; n > ctx.maxLen {
-			ctx.maxLen = n + 8 // Add additional slack to avoid too many jumps in size.
+		if n := len(b.name) + bstate.extLen + 1; n > bstate.maxLen {
+			bstate.maxLen = n + 8 // Add additional slack to avoid too many jumps in size.
 		}
 	}
 	go func() {
@@ -253,9 +253,9 @@ func (b *B) run() {
 			fmt.Fprintf(b.w, "cpu: %s\n", cpu)
 		}
 	})
-	if b.context != nil {
+	if b.bstate != nil {
 		// Running go test --test.bench
-		b.context.processBench(b) // Must call doBench.
+		b.bstate.processBench(b) // Must call doBench.
 	} else {
 		// Running func Benchmark.
 		b.doBench()
@@ -492,7 +492,7 @@ func benchmarkName(name string, n int) string {
 	return name
 }
 
-type benchContext struct {
+type benchState struct {
 	match *matcher
 
 	maxLen int // The largest recorded benchmark name.
@@ -517,17 +517,17 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 			maxprocs = procs
 		}
 	}
-	ctx := &benchContext{
+	bstate := &benchState{
 		match:  newMatcher(matchString, *matchBenchmarks, "-test.bench", *skip),
 		extLen: len(benchmarkName("", maxprocs)),
 	}
 	var bs []InternalBenchmark
 	for _, Benchmark := range benchmarks {
-		if _, matched, _ := ctx.match.fullName(nil, Benchmark.Name); matched {
+		if _, matched, _ := bstate.match.fullName(nil, Benchmark.Name); matched {
 			bs = append(bs, Benchmark)
 			benchName := benchmarkName(Benchmark.Name, maxprocs)
-			if l := len(benchName) + ctx.extLen + 1; l > ctx.maxLen {
-				ctx.maxLen = l
+			if l := len(benchName) + bstate.extLen + 1; l > bstate.maxLen {
+				bstate.maxLen = l
 			}
 		}
 	}
@@ -544,7 +544,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 			}
 		},
 		benchTime: benchTime,
-		context:   ctx,
+		bstate:    bstate,
 	}
 	if Verbose() {
 		main.chatty = newChattyPrinter(main.w)
@@ -554,7 +554,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 }
 
 // processBench runs bench b for the configured CPU counts and prints the results.
-func (ctx *benchContext) processBench(b *B) {
+func (s *benchState) processBench(b *B) {
 	for i, procs := range cpuList {
 		for j := uint(0); j < *count; j++ {
 			runtime.GOMAXPROCS(procs)
@@ -562,7 +562,7 @@ func (ctx *benchContext) processBench(b *B) {
 
 			// If it's chatty, we've already printed this information.
 			if b.chatty == nil {
-				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+				fmt.Fprintf(b.w, "%-*s\t", s.maxLen, benchName)
 			}
 			// Recompute the running time for all but the first iteration.
 			if i > 0 || j > 0 {
@@ -589,7 +589,7 @@ func (ctx *benchContext) processBench(b *B) {
 			}
 			results := r.String()
 			if b.chatty != nil {
-				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+				fmt.Fprintf(b.w, "%-*s\t", s.maxLen, benchName)
 			}
 			if *benchmarkMemory || b.showAllocResult {
 				results += "\t" + r.MemString()
@@ -629,8 +629,8 @@ func (b *B) Run(name string, f func(b *B)) bool {
 	defer benchmarkLock.Lock()
 
 	benchName, ok, partial := b.name, true, false
-	if b.context != nil {
-		benchName, ok, partial = b.context.match.fullName(&b.common, name)
+	if b.bstate != nil {
+		benchName, ok, partial = b.bstate.match.fullName(&b.common, name)
 	}
 	if !ok {
 		return true
@@ -651,7 +651,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		importPath: b.importPath,
 		benchFunc:  f,
 		benchTime:  b.benchTime,
-		context:    b.context,
+		bstate:     b.bstate,
 	}
 	if partial {
 		// Partial name match, like -bench=X/Y matching BenchmarkX.

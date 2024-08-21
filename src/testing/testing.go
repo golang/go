@@ -925,7 +925,7 @@ var _ TB = (*B)(nil)
 type T struct {
 	common
 	denyParallel bool
-	context      *testContext // For running tests and subtests.
+	tstate       *testState // For running tests and subtests.
 }
 
 func (c *common) private() {}
@@ -1547,7 +1547,7 @@ func (t *T) Parallel() {
 
 	t.signal <- true   // Release calling test.
 	<-t.parent.barrier // Wait for the parent test to complete.
-	t.context.waitParallel()
+	t.tstate.waitParallel()
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
@@ -1657,7 +1657,7 @@ func tRunner(t *T, fn func(t *T)) {
 			}
 		}
 
-		if err != nil && t.context.isFuzzing {
+		if err != nil && t.tstate.isFuzzing {
 			prefix := "panic: "
 			if err == errNilPanicOrGoexit {
 				prefix = ""
@@ -1715,7 +1715,7 @@ func tRunner(t *T, fn func(t *T)) {
 			// Run parallel subtests.
 
 			// Decrease the running count for this test and mark it as no longer running.
-			t.context.release()
+			t.tstate.release()
 			running.Delete(t.name)
 
 			// Release the parallel subtests.
@@ -1737,12 +1737,12 @@ func tRunner(t *T, fn func(t *T)) {
 			t.checkRaces()
 			if !t.isParallel {
 				// Reacquire the count for sequential tests. See comment in Run.
-				t.context.waitParallel()
+				t.tstate.waitParallel()
 			}
 		} else if t.isParallel {
 			// Only release the count for this test if it was run as a parallel
 			// test. See comment in Run method.
-			t.context.release()
+			t.tstate.release()
 		}
 		t.report() // Report after all subtests have finished.
 
@@ -1781,7 +1781,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	}
 
 	t.hasSub.Store(true)
-	testName, ok, _ := t.context.match.fullName(&t.common, name)
+	testName, ok, _ := t.tstate.match.fullName(&t.common, name)
 	if !ok || shouldFailFast() {
 		return true
 	}
@@ -1806,7 +1806,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 			ctx:       ctx,
 			cancelCtx: cancelCtx,
 		},
-		context: t.context,
+		tstate: t.tstate,
 	}
 	t.w = indenter{&t.common}
 
@@ -1845,17 +1845,17 @@ func (t *T) Run(name string, f func(t *T)) bool {
 //
 // The ok result is false if the -timeout flag indicates “no timeout” (0).
 func (t *T) Deadline() (deadline time.Time, ok bool) {
-	deadline = t.context.deadline
+	deadline = t.tstate.deadline
 	return deadline, !deadline.IsZero()
 }
 
-// testContext holds all fields that are common to all tests. This includes
+// testState holds all fields that are common to all tests. This includes
 // synchronization primitives to run at most *parallel tests.
-type testContext struct {
+type testState struct {
 	match    *matcher
 	deadline time.Time
 
-	// isFuzzing is true in the context used when generating random inputs
+	// isFuzzing is true in the state used when generating random inputs
 	// for fuzz targets. isFuzzing is false when running normal tests and
 	// when running fuzz tests as unit tests (without -fuzz or when -fuzz
 	// does not match).
@@ -1877,8 +1877,8 @@ type testContext struct {
 	maxParallel int
 }
 
-func newTestContext(maxParallel int, m *matcher) *testContext {
-	return &testContext{
+func newTestState(maxParallel int, m *matcher) *testState {
+	return &testState{
 		match:         m,
 		startParallel: make(chan bool),
 		maxParallel:   maxParallel,
@@ -1886,28 +1886,28 @@ func newTestContext(maxParallel int, m *matcher) *testContext {
 	}
 }
 
-func (c *testContext) waitParallel() {
-	c.mu.Lock()
-	if c.running < c.maxParallel {
-		c.running++
-		c.mu.Unlock()
+func (s *testState) waitParallel() {
+	s.mu.Lock()
+	if s.running < s.maxParallel {
+		s.running++
+		s.mu.Unlock()
 		return
 	}
-	c.numWaiting++
-	c.mu.Unlock()
-	<-c.startParallel
+	s.numWaiting++
+	s.mu.Unlock()
+	<-s.startParallel
 }
 
-func (c *testContext) release() {
-	c.mu.Lock()
-	if c.numWaiting == 0 {
-		c.running--
-		c.mu.Unlock()
+func (s *testState) release() {
+	s.mu.Lock()
+	if s.numWaiting == 0 {
+		s.running--
+		s.mu.Unlock()
 		return
 	}
-	c.numWaiting--
-	c.mu.Unlock()
-	c.startParallel <- true // Pick a waiting test to be run.
+	s.numWaiting--
+	s.mu.Unlock()
+	s.startParallel <- true // Pick a waiting test to be run.
 }
 
 // No one should be using func Main anymore.
@@ -2231,8 +2231,8 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				break
 			}
 			ctx, cancelCtx := context.WithCancel(context.Background())
-			tctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
-			tctx.deadline = deadline
+			tstate := newTestState(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
+			tstate.deadline = deadline
 			t := &T{
 				common: common{
 					signal:    make(chan bool, 1),
@@ -2241,7 +2241,7 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 					ctx:       ctx,
 					cancelCtx: cancelCtx,
 				},
-				context: tctx,
+				tstate: tstate,
 			}
 			if Verbose() {
 				t.chatty = newChattyPrinter(t.w)
