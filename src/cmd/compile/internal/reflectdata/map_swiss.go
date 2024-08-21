@@ -86,13 +86,11 @@ func swissTableType() *types.Type {
 	//     localDepth uint8
 	//     // N.B Padding
 	//
-	//     typ  unsafe.Pointer // *abi.SwissMapType
 	//     seed uintptr
 	//
 	//     index int
 	//
 	//     // From groups.
-	//     groups_typ        unsafe.Pointer // *abi.SwissMapType
 	//     groups_data       unsafe.Pointer
 	//     groups_lengthMask uint64
 	//     groups_entryMask  uint64
@@ -103,10 +101,8 @@ func swissTableType() *types.Type {
 		makefield("capacity", types.Types[types.TUINT16]),
 		makefield("growthLeft", types.Types[types.TUINT16]),
 		makefield("localDepth", types.Types[types.TUINT8]),
-		makefield("typ", types.Types[types.TUNSAFEPTR]),
 		makefield("seed", types.Types[types.TUINTPTR]),
 		makefield("index", types.Types[types.TINT]),
-		makefield("groups_typ", types.Types[types.TUNSAFEPTR]),
 		makefield("groups_data", types.Types[types.TUNSAFEPTR]),
 		makefield("groups_lengthMask", types.Types[types.TUINT64]),
 		makefield("groups_entryMask", types.Types[types.TUINT64]),
@@ -120,9 +116,9 @@ func swissTableType() *types.Type {
 	table.SetUnderlying(types.NewStruct(fields))
 	types.CalcSize(table)
 
-	// The size of table should be 64 bytes on 64 bit
-	// and 44 bytes on 32 bit platforms.
-	if size := int64(3*2 + 2*1 /* one extra for padding */ + 2*8 + 5*types.PtrSize); table.Size() != size {
+	// The size of table should be 48 bytes on 64 bit
+	// and 36 bytes on 32 bit platforms.
+	if size := int64(3*2 + 2*1 /* one extra for padding */ + 2*8 + 3*types.PtrSize); table.Size() != size {
 		base.Fatalf("internal/runtime/maps.table size not correct: got %d, want %d", table.Size(), size)
 	}
 
@@ -141,7 +137,6 @@ func SwissMapType() *types.Type {
 
 	// type Map struct {
 	//     used uint64
-	//     typ  unsafe.Pointer // *abi.SwissMapType
 	//     seed uintptr
 	//
 	//     dirPtr unsafe.Pointer
@@ -156,7 +151,6 @@ func SwissMapType() *types.Type {
 	// must match internal/runtime/maps/map.go:Map.
 	fields := []*types.Field{
 		makefield("used", types.Types[types.TUINT64]),
-		makefield("typ", types.Types[types.TUNSAFEPTR]),
 		makefield("seed", types.Types[types.TUINTPTR]),
 		makefield("dirPtr", types.Types[types.TUNSAFEPTR]),
 		makefield("dirLen", types.Types[types.TINT]),
@@ -173,9 +167,9 @@ func SwissMapType() *types.Type {
 	m.SetUnderlying(types.NewStruct(fields))
 	types.CalcSize(m)
 
-	// The size of Map should be 56 bytes on 64 bit
-	// and 36 bytes on 32 bit platforms.
-	if size := int64(2*8 + 5*types.PtrSize /* one extra for globalDepth + padding */); m.Size() != size {
+	// The size of Map should be 48 bytes on 64 bit
+	// and 32 bytes on 32 bit platforms.
+	if size := int64(2*8 + 4*types.PtrSize /* one extra for globalDepth + padding */); m.Size() != size {
 		base.Fatalf("internal/runtime/maps.Map size not correct: got %d, want %d", m.Size(), size)
 	}
 
@@ -208,9 +202,8 @@ func SwissMapIterType() *types.Type {
 	//
 	//    dirIdx int
 	//
-	//    tab             *table
-	//    groupSmall_typ  unsafe.Pointer // *SwissMapType
-	//    groupSmall_data unsafe.Pointer
+	//    tab        *table
+	//    groupSmall unsafe.Pointer // actually groupReference.data
 	//
 	//    entryIdx uint64
 	// }
@@ -226,8 +219,7 @@ func SwissMapIterType() *types.Type {
 		makefield("globalDepth", types.Types[types.TUINT8]),
 		makefield("dirIdx", types.Types[types.TINT]),
 		makefield("tab", types.NewPtr(swissTableType())),
-		makefield("groupSmall_typ", types.Types[types.TUNSAFEPTR]),
-		makefield("groupSmall_data", types.Types[types.TUNSAFEPTR]),
+		makefield("groupSmall", types.Types[types.TUNSAFEPTR]),
 		makefield("entryIdx", types.Types[types.TUINT64]),
 	}
 
@@ -240,9 +232,9 @@ func SwissMapIterType() *types.Type {
 	iter.SetUnderlying(types.NewStruct(fields))
 	types.CalcSize(iter)
 
-	// The size of Iter should be 104 bytes on 64 bit
-	// and 68 bytes on 32 bit platforms.
-	if size := 9*types.PtrSize /* one extra for globalDepth + padding */ + 4*8; iter.Size() != int64(size) {
+	// The size of Iter should be 96 bytes on 64 bit
+	// and 64 bytes on 32 bit platforms.
+	if size := 8*types.PtrSize /* one extra for globalDepth + padding */ + 4*8; iter.Size() != int64(size) {
 		base.Fatalf("internal/runtime/maps.Iter size not correct: got %d, want %d", iter.Size(), size)
 	}
 

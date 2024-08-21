@@ -195,15 +195,6 @@ type Map struct {
 	// tables). Excludes deleted slots.
 	used uint64
 
-	// Type of this map.
-	//
-	// TODO(prattmic): Old maps pass this into every call instead of
-	// keeping a reference in the map header. This is probably more
-	// efficient and arguably more robust (crafty users can't reach into to
-	// the map to change its type), but I leave it here for now for
-	// simplicity.
-	typ *abi.SwissMapType
-
 	// seed is the hash seed, computed as a unique random number per map.
 	// TODO(prattmic): Populate this on table initialization.
 	seed uintptr
@@ -262,8 +253,6 @@ func NewMap(mt *abi.SwissMapType, capacity uint64) *Map {
 	globalDepth := uint8(sys.TrailingZeros64(dirSize))
 
 	m := &Map{
-		typ: mt,
-
 		//TODO
 		//seed: uintptr(rand()),
 
@@ -289,17 +278,12 @@ func NewMap(mt *abi.SwissMapType, capacity uint64) *Map {
 		m.dirLen = 0
 
 		g := groupReference{
-			typ:  m.typ,
 			data: m.dirPtr,
 		}
 		g.ctrls().setEmpty()
 	}
 
 	return m
-}
-
-func (m *Map) Type() *abi.SwissMapType {
-	return m.typ
 }
 
 func (m *Map) directoryIndex(hash uintptr) uintptr {
@@ -367,36 +351,35 @@ func (m *Map) Used() uint64 {
 
 // Get performs a lookup of the key that key points to. It returns a pointer to
 // the element, or false if the key doesn't exist.
-func (m *Map) Get(key unsafe.Pointer) (unsafe.Pointer, bool) {
-	return m.getWithoutKey(key)
+func (m *Map) Get(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
+	return m.getWithoutKey(typ, key)
 }
 
-func (m *Map) getWithKey(key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
-	hash := m.typ.Hasher(key, m.seed)
+func (m *Map) getWithKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
+	hash := typ.Hasher(key, m.seed)
 
 	if m.dirLen == 0 {
-		return m.getWithKeySmall(hash, key)
+		return m.getWithKeySmall(typ, hash, key)
 	}
 
 	idx := m.directoryIndex(hash)
-	return m.directoryAt(idx).getWithKey(hash, key)
+	return m.directoryAt(idx).getWithKey(typ, hash, key)
 }
 
-func (m *Map) getWithoutKey(key unsafe.Pointer) (unsafe.Pointer, bool) {
-	hash := m.typ.Hasher(key, m.seed)
+func (m *Map) getWithoutKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
+	hash := typ.Hasher(key, m.seed)
 
 	if m.dirLen == 0 {
-		_, elem, ok := m.getWithKeySmall(hash, key)
+		_, elem, ok := m.getWithKeySmall(typ, hash, key)
 		return elem, ok
 	}
 
 	idx := m.directoryIndex(hash)
-	return m.directoryAt(idx).getWithoutKey(hash, key)
+	return m.directoryAt(idx).getWithoutKey(typ, hash, key)
 }
 
-func (m *Map) getWithKeySmall(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
+func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
 	g := groupReference{
-		typ:  m.typ,
 		data: m.dirPtr,
 	}
 
@@ -410,42 +393,42 @@ func (m *Map) getWithKeySmall(hash uintptr, key unsafe.Pointer) (unsafe.Pointer,
 			continue
 		}
 
-		slotKey := g.key(i)
-		if m.typ.Key.Equal(key, slotKey) {
-			return slotKey, g.elem(i), true
+		slotKey := g.key(typ, i)
+		if typ.Key.Equal(key, slotKey) {
+			return slotKey, g.elem(typ, i), true
 		}
 	}
 
 	return nil, nil, false
 }
 
-func (m *Map) Put(key, elem unsafe.Pointer) {
-	slotElem := m.PutSlot(key)
-	typedmemmove(m.typ.Elem, slotElem, elem)
+func (m *Map) Put(typ *abi.SwissMapType, key, elem unsafe.Pointer) {
+	slotElem := m.PutSlot(typ, key)
+	typedmemmove(typ.Elem, slotElem, elem)
 }
 
 // PutSlot returns a pointer to the element slot where an inserted element
 // should be written.
 //
 // PutSlot never returns nil.
-func (m *Map) PutSlot(key unsafe.Pointer) unsafe.Pointer {
-	hash := m.typ.Hasher(key, m.seed)
+func (m *Map) PutSlot(typ *abi.SwissMapType, key unsafe.Pointer) unsafe.Pointer {
+	hash := typ.Hasher(key, m.seed)
 
 	if m.dirLen == 0 {
 		if m.used < abi.SwissMapGroupSlots {
-			return m.putSlotSmall(hash, key)
+			return m.putSlotSmall(typ, hash, key)
 		}
 
 		// Can't fit another entry, grow to full size map.
 		//
 		// TODO(prattmic): If this is an update to an existing key then
 		// we actually don't need to grow.
-		m.growToTable()
+		m.growToTable(typ)
 	}
 
 	for {
 		idx := m.directoryIndex(hash)
-		elem, ok := m.directoryAt(idx).PutSlot(m, hash, key)
+		elem, ok := m.directoryAt(idx).PutSlot(typ, m, hash, key)
 		if !ok {
 			continue
 		}
@@ -453,9 +436,8 @@ func (m *Map) PutSlot(key unsafe.Pointer) unsafe.Pointer {
 	}
 }
 
-func (m *Map) putSlotSmall(hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
 	g := groupReference{
-		typ:  m.typ,
 		data: m.dirPtr,
 	}
 
@@ -465,13 +447,13 @@ func (m *Map) putSlotSmall(hash uintptr, key unsafe.Pointer) unsafe.Pointer {
 	for match != 0 {
 		i := match.first()
 
-		slotKey := g.key(i)
-		if m.typ.Key.Equal(key, slotKey) {
-			if m.typ.NeedKeyUpdate() {
-				typedmemmove(m.typ.Key, slotKey, key)
+		slotKey := g.key(typ, i)
+		if typ.Key.Equal(key, slotKey) {
+			if typ.NeedKeyUpdate() {
+				typedmemmove(typ.Key, slotKey, key)
 			}
 
-			slotElem := g.elem(i)
+			slotElem := g.elem(typ, i)
 
 			return slotElem
 		}
@@ -487,9 +469,9 @@ func (m *Map) putSlotSmall(hash uintptr, key unsafe.Pointer) unsafe.Pointer {
 
 	i := match.first()
 
-	slotKey := g.key(i)
-	typedmemmove(m.typ.Key, slotKey, key)
-	slotElem := g.elem(i)
+	slotKey := g.key(typ, i)
+	typedmemmove(typ.Key, slotKey, key)
+	slotElem := g.elem(typ, i)
 
 	g.ctrls().set(i, ctrl(h2(hash)))
 	m.used++
@@ -497,11 +479,10 @@ func (m *Map) putSlotSmall(hash uintptr, key unsafe.Pointer) unsafe.Pointer {
 	return slotElem
 }
 
-func (m *Map) growToTable() {
-	tab := newTable(m.typ, 2*abi.SwissMapGroupSlots, 0, 0)
+func (m *Map) growToTable(typ *abi.SwissMapType) {
+	tab := newTable(typ, 2*abi.SwissMapGroupSlots, 0, 0)
 
 	g := groupReference{
-		typ:  m.typ,
 		data: m.dirPtr,
 	}
 
@@ -510,11 +491,11 @@ func (m *Map) growToTable() {
 			// Empty
 			continue
 		}
-		key := g.key(i)
-		elem := g.elem(i)
-		hash := tab.typ.Hasher(key, m.seed)
-		slotElem := tab.uncheckedPutSlot(hash, key)
-		typedmemmove(tab.typ.Elem, slotElem, elem)
+		key := g.key(typ, i)
+		elem := g.elem(typ, i)
+		hash := typ.Hasher(key, m.seed)
+		slotElem := tab.uncheckedPutSlot(typ, hash, key)
+		typedmemmove(typ.Elem, slotElem, elem)
 		tab.used++
 	}
 
@@ -526,21 +507,20 @@ func (m *Map) growToTable() {
 	m.dirLen = len(directory)
 }
 
-func (m *Map) Delete(key unsafe.Pointer) {
-	hash := m.typ.Hasher(key, m.seed)
+func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
+	hash := typ.Hasher(key, m.seed)
 
 	if m.dirLen == 0 {
-		m.deleteSmall(hash, key)
+		m.deleteSmall(typ, hash, key)
 		return
 	}
 
 	idx := m.directoryIndex(hash)
-	m.directoryAt(idx).Delete(m, key)
+	m.directoryAt(idx).Delete(typ, m, key)
 }
 
-func (m *Map) deleteSmall(hash uintptr, key unsafe.Pointer) {
+func (m *Map) deleteSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) {
 	g := groupReference{
-		typ:  m.typ,
 		data: m.dirPtr,
 	}
 
@@ -548,12 +528,12 @@ func (m *Map) deleteSmall(hash uintptr, key unsafe.Pointer) {
 
 	for match != 0 {
 		i := match.first()
-		slotKey := g.key(i)
-		if m.typ.Key.Equal(key, slotKey) {
+		slotKey := g.key(typ, i)
+		if typ.Key.Equal(key, slotKey) {
 			m.used--
 
-			typedmemclr(m.typ.Key, slotKey)
-			typedmemclr(m.typ.Elem, g.elem(i))
+			typedmemclr(typ.Key, slotKey)
+			typedmemclr(typ.Elem, g.elem(typ, i))
 
 			// We only have 1 group, so it is OK to immediately
 			// reuse deleted slots.
@@ -565,9 +545,9 @@ func (m *Map) deleteSmall(hash uintptr, key unsafe.Pointer) {
 }
 
 // Clear deletes all entries from the map resulting in an empty map.
-func (m *Map) Clear() {
+func (m *Map) Clear(typ *abi.SwissMapType) {
 	if m.dirLen == 0 {
-		m.clearSmall()
+		m.clearSmall(typ)
 		return
 	}
 
@@ -577,7 +557,7 @@ func (m *Map) Clear() {
 		if t == lastTab {
 			continue
 		}
-		t.Clear()
+		t.Clear(typ)
 		lastTab = t
 	}
 	m.used = 0
@@ -585,13 +565,12 @@ func (m *Map) Clear() {
 	// TODO: shrink directory?
 }
 
-func (m *Map) clearSmall() {
+func (m *Map) clearSmall(typ *abi.SwissMapType) {
 	g := groupReference{
-		typ:  m.typ,
 		data: m.dirPtr,
 	}
 
-	typedmemclr(m.typ.Group, g.data)
+	typedmemclr(typ.Group, g.data)
 	g.ctrls().setEmpty()
 
 	m.used = 0

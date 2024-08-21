@@ -178,12 +178,12 @@ func FuzzTable(f *testing.F) {
 			return
 		}
 
-		m, _ := maps.NewTestMap[uint16, uint32](8)
+		m, typ := maps.NewTestMap[uint16, uint32](8)
 		ref := make(map[uint16]uint32)
 		for _, c := range fc {
 			switch c.Op {
 			case fuzzOpGet:
-				elemPtr, ok := m.Get(unsafe.Pointer(&c.Key))
+				elemPtr, ok := m.Get(typ, unsafe.Pointer(&c.Key))
 				refElem, refOK := ref[c.Key]
 
 				if ok != refOK {
@@ -197,10 +197,10 @@ func FuzzTable(f *testing.F) {
 					t.Errorf("Get(%d) got %d want %d", c.Key, gotElem, refElem)
 				}
 			case fuzzOpPut:
-				m.Put(unsafe.Pointer(&c.Key), unsafe.Pointer(&c.Elem))
+				m.Put(typ, unsafe.Pointer(&c.Key), unsafe.Pointer(&c.Elem))
 				ref[c.Key] = c.Elem
 			case fuzzOpDelete:
-				m.Delete(unsafe.Pointer(&c.Key))
+				m.Delete(typ, unsafe.Pointer(&c.Key))
 				delete(ref, c.Key)
 			default:
 				// Just skip this command to keep the fuzzer

@@ -18,8 +18,8 @@ import (
 func TestHmapSize(t *testing.T) {
 	// The structure of Map is defined in internal/runtime/maps/map.go
 	// and in cmd/compile/internal/reflectdata/map_swiss.go and must be in sync.
-	// The size of Map should be 56 bytes on 64 bit and 36 bytes on 32 bit platforms.
-	wantSize := uintptr(2*8 + 5*goarch.PtrSize)
+	// The size of Map should be 48 bytes on 64 bit and 32 bytes on 32 bit platforms.
+	wantSize := uintptr(2*8 + 4*goarch.PtrSize)
 	gotSize := unsafe.Sizeof(maps.Map{})
 	if gotSize != wantSize {
 		t.Errorf("sizeof(maps.Map{})==%d, want %d", gotSize, wantSize)

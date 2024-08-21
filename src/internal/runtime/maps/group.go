@@ -157,8 +157,6 @@ func (g *ctrlGroup) convertNonFullToEmptyAndFullToDeleted() {
 // A group holds abi.SwissMapGroupSlots slots (key/elem pairs) plus their
 // control word.
 type groupReference struct {
-	typ *abi.SwissMapType
-
 	// data points to the group, which is described by typ.Group and has
 	// layout:
 	//
@@ -204,15 +202,15 @@ func (g *groupReference) ctrls() *ctrlGroup {
 }
 
 // key returns a pointer to the key at index i.
-func (g *groupReference) key(i uint32) unsafe.Pointer {
-	offset := groupSlotsOffset + uintptr(i)*g.typ.SlotSize
+func (g *groupReference) key(typ *abi.SwissMapType, i uint32) unsafe.Pointer {
+	offset := groupSlotsOffset + uintptr(i)*typ.SlotSize
 
 	return unsafe.Pointer(uintptr(g.data) + offset)
 }
 
 // elem returns a pointer to the element at index i.
-func (g *groupReference) elem(i uint32) unsafe.Pointer {
-	offset := groupSlotsOffset + uintptr(i)*g.typ.SlotSize + g.typ.ElemOff
+func (g *groupReference) elem(typ *abi.SwissMapType, i uint32) unsafe.Pointer {
+	offset := groupSlotsOffset + uintptr(i)*typ.SlotSize + typ.ElemOff
 
 	return unsafe.Pointer(uintptr(g.data) + offset)
 }
@@ -220,8 +218,6 @@ func (g *groupReference) elem(i uint32) unsafe.Pointer {
 // groupsReference is a wrapper type describing an array of groups stored at
 // data.
 type groupsReference struct {
-	typ *abi.SwissMapType
-
 	// data points to an array of groups. See groupReference above for the
 	// definition of group.
 	data unsafe.Pointer // data *[length]typ.Group
@@ -240,7 +236,6 @@ type groupsReference struct {
 // Length must be a power of two.
 func newGroups(typ *abi.SwissMapType, length uint64) groupsReference {
 	return groupsReference{
-		typ: typ,
 		// TODO: make the length type the same throughout.
 		data:       newarray(typ.Group, int(length)),
 		lengthMask: length - 1,
@@ -249,13 +244,12 @@ func newGroups(typ *abi.SwissMapType, length uint64) groupsReference {
 }
 
 // group returns the group at index i.
-func (g *groupsReference) group(i uint64) groupReference {
+func (g *groupsReference) group(typ *abi.SwissMapType, i uint64) groupReference {
 	// TODO(prattmic): Do something here about truncation on cast to
 	// uintptr on 32-bit systems?
-	offset := uintptr(i) * g.typ.Group.Size_
+	offset := uintptr(i) * typ.Group.Size_
 
 	return groupReference{
-		typ:  g.typ,
 		data: unsafe.Pointer(uintptr(g.data) + offset),
 	}
 }

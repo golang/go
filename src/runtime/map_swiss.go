@@ -122,7 +122,7 @@ func mapaccess1(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Poi
 		return unsafe.Pointer(&zeroVal[0])
 	}
 
-	elem, ok := m.Get(key)
+	elem, ok := m.Get(t, key)
 	if !ok {
 		return unsafe.Pointer(&zeroVal[0])
 	}
@@ -151,7 +151,7 @@ func mapaccess2(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) (unsafe.Po
 		return unsafe.Pointer(&zeroVal[0]), false
 	}
 
-	elem, ok := m.Get(key)
+	elem, ok := m.Get(t, key)
 	if !ok {
 		return unsafe.Pointer(&zeroVal[0]), false
 	}
@@ -192,7 +192,7 @@ func mapassign(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Poin
 		asanread(key, t.Key.Size_)
 	}
 
-	return m.PutSlot(key)
+	return m.PutSlot(t, key)
 }
 
 func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
@@ -217,7 +217,7 @@ func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
 		return
 	}
 
-	m.Delete(key)
+	m.Delete(t, key)
 }
 
 // mapiterinit initializes the Iter struct used for ranging over maps.
@@ -257,7 +257,7 @@ func mapclear(t *abi.SwissMapType, m *maps.Map) {
 		return
 	}
 
-	m.Clear()
+	m.Clear(t)
 }
 
 // Reflect stubs. Called from ../reflect/asm_*.s
@@ -386,7 +386,7 @@ func mapclone2(t *abi.SwissMapType, src *maps.Map) *maps.Map {
 	var iter maps.Iter
 	iter.Init(t, src)
 	for iter.Next(); iter.Key() != nil; iter.Next() {
-		dst.Put(iter.Key(), iter.Elem())
+		dst.Put(t, iter.Key(), iter.Elem())
 	}
 
 	return dst
