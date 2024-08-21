@@ -295,7 +295,7 @@ func (w *Encoder) Len(x int) { assert(x >= 0); w.Uint64(uint64(x)) }
 // Int encodes and writes an int value into the element bitstream.
 func (w *Encoder) Int(x int) { w.Int64(int64(x)) }
 
-// Len encodes and writes a uint value into the element bitstream.
+// Uint encodes and writes a uint value into the element bitstream.
 func (w *Encoder) Uint(x uint) { w.Uint64(uint64(x)) }
 
 // Reloc encodes and writes a relocation for the given (section,
