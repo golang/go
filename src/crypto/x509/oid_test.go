@@ -228,6 +228,14 @@ func TestOIDMarshal(t *testing.T) {
 			continue
 		}
 
+		textAppend := make([]byte, 4)
+		textAppend, err = o.AppendText(textAppend)
+		textAppend = textAppend[4:]
+		if string(textAppend) != tt.in || err != nil {
+			t.Errorf("(%#v).AppendText() = (%v, %v); want = (%v, nil)", o, string(textAppend), err, tt.in)
+			continue
+		}
+
 		binary, err := o.MarshalBinary()
 		if err != nil {
 			t.Errorf("(%#v).MarshalBinary() = %v; want = nil", o, err)
@@ -240,6 +248,23 @@ func TestOIDMarshal(t *testing.T) {
 
 		if !o3.Equal(tt.out) {
 			t.Errorf("(*OID).UnmarshalBinary(%v) = %v; want = %v", binary, o3, tt.out)
+			continue
+		}
+
+		binaryAppend := make([]byte, 4)
+		binaryAppend, err = o.AppendBinary(binaryAppend)
+		binaryAppend = binaryAppend[4:]
+		if err != nil {
+			t.Errorf("(%#v).AppendBinary() = %v; want = nil", o, err)
+		}
+
+		var o4 OID
+		if err := o4.UnmarshalBinary(binaryAppend); err != nil {
+			t.Errorf("(*OID).UnmarshalBinary(%v) = %v; want = nil", binaryAppend, err)
+		}
+
+		if !o4.Equal(tt.out) {
+			t.Errorf("(*OID).UnmarshalBinary(%v) = %v; want = %v", binaryAppend, o4, tt.out)
 			continue
 		}
 	}

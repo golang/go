@@ -31,18 +31,22 @@ func (p *PCG) Seed(seed1, seed2 uint64) {
 	p.lo = seed2
 }
 
-// MarshalBinary implements the encoding.BinaryMarshaler interface.
-func (p *PCG) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 20)
-	copy(b, "pcg:")
-	byteorder.BePutUint64(b[4:], p.hi)
-	byteorder.BePutUint64(b[4+8:], p.lo)
+// AppendBinary implements the [encoding.BinaryAppender] interface.
+func (p *PCG) AppendBinary(b []byte) ([]byte, error) {
+	b = append(b, "pcg:"...)
+	b = byteorder.BeAppendUint64(b, p.hi)
+	b = byteorder.BeAppendUint64(b, p.lo)
 	return b, nil
+}
+
+// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+func (p *PCG) MarshalBinary() ([]byte, error) {
+	return p.AppendBinary(make([]byte, 0, 20))
 }
 
 var errUnmarshalPCG = errors.New("invalid PCG encoding")
 
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
 func (p *PCG) UnmarshalBinary(data []byte) error {
 	if len(data) != 20 || string(data[:4]) != "pcg:" {
 		return errUnmarshalPCG

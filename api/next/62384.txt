@@ -11,3 +11,7 @@ pkg math/big, method (*Rat) AppendText([]uint8) ([]uint8, error) #62384
 pkg regexp, method (*Regexp) AppendText([]uint8) ([]uint8, error) #62384
 pkg time, method (Time) AppendBinary([]uint8) ([]uint8, error) #62384
 pkg time, method (Time) AppendText([]uint8) ([]uint8, error) #62384
+pkg math/rand/v2, method (*ChaCha8) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg math/rand/v2, method (*PCG) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg crypto/x509, method (OID) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg crypto/x509, method (OID) AppendText([]uint8) ([]uint8, error) #62384

@@ -21,14 +21,21 @@ func BenchmarkPCG_DXSM(b *testing.B) {
 func TestPCGMarshal(t *testing.T) {
 	var p PCG
 	const (
-		seed1 = 0x123456789abcdef0
-		seed2 = 0xfedcba9876543210
-		want  = "pcg:\x12\x34\x56\x78\x9a\xbc\xde\xf0\xfe\xdc\xba\x98\x76\x54\x32\x10"
+		seed1      = 0x123456789abcdef0
+		seed2      = 0xfedcba9876543210
+		want       = "pcg:\x12\x34\x56\x78\x9a\xbc\xde\xf0\xfe\xdc\xba\x98\x76\x54\x32\x10"
+		wantAppend = "\x00\x00\x00\x00" + want
 	)
 	p.Seed(seed1, seed2)
 	data, err := p.MarshalBinary()
 	if string(data) != want || err != nil {
 		t.Errorf("MarshalBinary() = %q, %v, want %q, nil", data, err, want)
+	}
+
+	dataAppend := make([]byte, 4, 32)
+	dataAppend, err = p.AppendBinary(dataAppend)
+	if string(dataAppend) != wantAppend || err != nil {
+		t.Errorf("AppendBinary() = %q, %v, want %q, nil", dataAppend, err, wantAppend)
 	}
 
 	q := PCG{}
