@@ -344,8 +344,13 @@ func Chdir(dir string) error {
 		return &PathError{Op: "chdir", Path: dir, Err: e}
 	}
 	if runtime.GOOS == "windows" {
+		abs := filepathlite.IsAbs(dir)
 		getwdCache.Lock()
-		getwdCache.dir = dir
+		if abs {
+			getwdCache.dir = dir
+		} else {
+			getwdCache.dir = ""
+		}
 		getwdCache.Unlock()
 	}
 	if log := testlog.Logger(); log != nil {
