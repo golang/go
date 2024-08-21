@@ -98,6 +98,22 @@ func TestChaCha8Read(t *testing.T) {
 	}
 }
 
+func BenchmarkChaCha8MarshalBinary(b *testing.B) {
+	p := NewChaCha8(chacha8seed)
+	for range b.N {
+		p.MarshalBinary()
+	}
+}
+
+func BenchmarkChaCha8MarshalBinaryRead(b *testing.B) {
+	p := NewChaCha8(chacha8seed)
+	buf := make([]byte, 1)
+	for range b.N {
+		p.MarshalBinary()
+		p.Read(buf)
+	}
+}
+
 func TestChaCha8Marshal(t *testing.T) {
 	p := NewChaCha8(chacha8seed)
 	for i, x := range chacha8output {
@@ -108,6 +124,17 @@ func TestChaCha8Marshal(t *testing.T) {
 		if string(enc) != chacha8marshal[i] {
 			t.Errorf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshal[i])
 		}
+
+		b := make([]byte, 4, 32)
+		b, err = p.AppendBinary(b)
+		encAppend := b[4:]
+		if err != nil {
+			t.Fatalf("#%d: AppendBinary: %v", i, err)
+		}
+		if string(encAppend) != chacha8marshal[i] {
+			t.Errorf("#%d: AppendBinary=%q, want %q", i, encAppend, chacha8marshal[i])
+		}
+
 		*p = ChaCha8{}
 		if err := p.UnmarshalBinary(enc); err != nil {
 			t.Fatalf("#%d: UnmarshalBinary: %v", i, err)
@@ -128,6 +155,17 @@ func TestChaCha8MarshalRead(t *testing.T) {
 		if string(enc) != chacha8marshalread[i] {
 			t.Errorf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshalread[i])
 		}
+
+		b := make([]byte, 4, 32)
+		b, err = p.AppendBinary(b)
+		encAppend := b[4:]
+		if err != nil {
+			t.Fatalf("#%d: AppendBinary: %v", i, err)
+		}
+		if string(encAppend) != chacha8marshalread[i] {
+			t.Errorf("#%d: AppendBinary=%q, want %q", i, encAppend, chacha8marshalread[i])
+		}
+
 		*p = ChaCha8{}
 		if err := p.UnmarshalBinary(enc); err != nil {
 			t.Fatalf("#%d: UnmarshalBinary: %v", i, err)

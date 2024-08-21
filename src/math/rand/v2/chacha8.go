@@ -70,7 +70,7 @@ func (c *ChaCha8) Read(p []byte) (n int, err error) {
 	return
 }
 
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
 func (c *ChaCha8) UnmarshalBinary(data []byte) error {
 	data, ok := cutPrefix(data, []byte("readbuf:"))
 	if ok {
@@ -98,13 +98,18 @@ func readUint8LengthPrefixed(b []byte) (buf, rest []byte, ok bool) {
 	return b[1 : 1+b[0]], b[1+b[0]:], true
 }
 
-// MarshalBinary implements the encoding.BinaryMarshaler interface.
-func (c *ChaCha8) MarshalBinary() ([]byte, error) {
+// AppendBinary implements the [encoding.BinaryAppender] interface.
+func (c *ChaCha8) AppendBinary(b []byte) ([]byte, error) {
 	if c.readLen > 0 {
-		out := []byte("readbuf:")
-		out = append(out, uint8(c.readLen))
-		out = append(out, c.readBuf[len(c.readBuf)-c.readLen:]...)
-		return append(out, chacha8rand.Marshal(&c.state)...), nil
+		b = append(b, "readbuf:"...)
+		b = append(b, uint8(c.readLen))
+		b = append(b, c.readBuf[len(c.readBuf)-c.readLen:]...)
 	}
-	return chacha8rand.Marshal(&c.state), nil
+	return append(b, chacha8rand.Marshal(&c.state)...), nil
+}
+
+// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+func (c *ChaCha8) MarshalBinary() ([]byte, error) {
+	// the maximum length of (chacha8rand.Marshal + c.readBuf + "readbuf:") is 64
+	return c.AppendBinary(make([]byte, 0, 64))
 }

@@ -112,9 +112,14 @@ func appendBase128BigInt(dst []byte, n *big.Int) []byte {
 	return dst
 }
 
+// AppendText implements [encoding.TextAppender]
+func (o OID) AppendText(b []byte) ([]byte, error) {
+	return append(b, o.String()...), nil
+}
+
 // MarshalText implements [encoding.TextMarshaler]
 func (o OID) MarshalText() ([]byte, error) {
-	return []byte(o.String()), nil
+	return o.AppendText(nil)
 }
 
 // UnmarshalText implements [encoding.TextUnmarshaler]
@@ -180,9 +185,14 @@ func (o *OID) unmarshalOIDText(oid string) error {
 	return nil
 }
 
+// AppendBinary implements [encoding.BinaryAppender]
+func (o OID) AppendBinary(b []byte) ([]byte, error) {
+	return append(b, o.der...), nil
+}
+
 // MarshalBinary implements [encoding.BinaryMarshaler]
 func (o OID) MarshalBinary() ([]byte, error) {
-	return bytes.Clone(o.der), nil
+	return o.AppendBinary(nil)
 }
 
 // UnmarshalBinary implements [encoding.BinaryUnmarshaler]
