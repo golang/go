@@ -545,13 +545,16 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			// We collect in the reverse order: z is imported by y is imported
 			// by x, and then we reverse it.
 			var stk []string
-			var stkWithPos []string
+			pkgToFiles := map[string][]string{}
 			for p != nil {
 				stk = append(stk, p.ImportPath)
-				if len(p.GoFiles) > 0 {
-					stkWithPos = append(stkWithPos, p.ImportPath+" from "+filepath.Base(p.GoFiles[0]))
-				} else {
-					stkWithPos = append(stkWithPos, p.ImportPath)
+				if p.Internal.Build != nil {
+					for key, val := range p.Internal.Build.ImportPos {
+						if len(val) == 0 {
+							continue
+						}
+						pkgToFiles[key] = append(pkgToFiles[key], filepath.Base(val[0].Filename))
+					}
 				}
 				p = importerOf[p]
 			}
@@ -561,12 +564,16 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			// the cycle as (for example) package p imports package q imports package r
 			// imports package p.
 			stk = append(stk, ptest.ImportPath)
-			if len(ptest.GoFiles) > 0 {
-				stkWithPos = append(stkWithPos, ptest.ImportPath+" from "+filepath.Base(ptest.GoFiles[0]))
-			} else {
-				stkWithPos = append(stkWithPos, ptest.ImportPath)
-			}
 			slices.Reverse(stk)
+
+			stkWithPos := make([]string, 0, len(stk))
+			for i, pkg := range stk {
+				if file, ok := pkgToFiles[pkg]; ok && len(file) > 0 && i != 0 {
+					stkWithPos = append(stkWithPos, pkg + " from " + filepath.Base(file[0]))
+				} else {
+					stkWithPos = append(stkWithPos, pkg)
+				}
+			}
 
 			return &PackageError{
 				ImportStack:        stk,
