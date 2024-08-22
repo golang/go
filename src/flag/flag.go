@@ -662,7 +662,7 @@ func (f *FlagSet) PrintDefaults() {
 // a bool flag with a one-byte name. For bool flags, the type is
 // omitted and if the flag name is one byte the usage message appears
 // on the same line. The parenthetical default is omitted if the
-// default is the zero value for the type. The listed type, here int,
+// default is the zero value for the type. The listed type, here string,
 // can be changed by placing a back-quoted name in the flag's usage
 // string; the first such item in the message is taken to be a parameter
 // name to show in the message and the back quotes are stripped from
