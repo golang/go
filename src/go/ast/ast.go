@@ -303,7 +303,7 @@ type (
 	// Note that for the CHAR and STRING kinds, the literal is stored
 	// with its quotes. For example, for a double-quoted STRING, the
 	// first and the last rune in the Value field will be ". The
-	// Unquote and UnquoteChar functions in the strconv package can be
+	// [strconv.Unquote] and [strconv.UnquoteChar] functions can be
 	// used to unquote STRING and CHAR values, respectively.
 	BasicLit struct {
 		ValuePos token.Pos   // literal position
