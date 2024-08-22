@@ -4920,6 +4920,17 @@ func TestConnRequestSet(t *testing.T) {
 			t.Error("wasn't random")
 		}
 	})
+	t.Run("close-delete", func(t *testing.T) {
+		reset()
+		ch := make(chan connRequest)
+		dh := s.Add(ch)
+		wantLen(1)
+		s.CloseAndRemoveAll()
+		wantLen(0)
+		if s.Delete(dh) {
+			t.Error("unexpected delete after CloseAndRemoveAll")
+		}
+	})
 }
 
 func BenchmarkConnRequestSet(b *testing.B) {
