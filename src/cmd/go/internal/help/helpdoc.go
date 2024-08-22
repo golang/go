@@ -678,6 +678,11 @@ Additional information available from 'go env' but not read from the environment
 		If module-aware mode is enabled, but there is no go.mod, GOMOD will be
 		os.DevNull ("/dev/null" on Unix-like systems, "NUL" on Windows).
 		If module-aware mode is disabled, GOMOD will be the empty string.
+	GOTELEMETRY
+		The current Go telemetry mode ("off", "local", or "on").
+		See "go help telemetry" for more information.
+	GOTELEMETRYDIR
+		The directory Go telemetry data is written is written to.
 	GOTOOLDIR
 		The directory where the go tools (compile, cover, doc, etc...) are installed.
 	GOVERSION

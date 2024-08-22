@@ -1797,6 +1797,11 @@
 // To enable both collection and uploading, run “go telemetry on”.
 // To disable both collection and uploading, run "go telemetry off".
 //
+// The current telemetry mode is also available as the value of the
+// non-settable "GOTELEMETRY" go env variable. The directory in the
+// local file system that telemetry data is written to is available
+// as the value of the non-settable "GOTELEMETRYDIR" go env variable.
+//
 // See https://go.dev/doc/telemetry for more information on telemetry.
 //
 // # Test packages
@@ -2450,6 +2455,11 @@
 //		If module-aware mode is enabled, but there is no go.mod, GOMOD will be
 //		os.DevNull ("/dev/null" on Unix-like systems, "NUL" on Windows).
 //		If module-aware mode is disabled, GOMOD will be the empty string.
+//	GOTELEMETRY
+//		The current Go telemetry mode ("off", "local", or "on").
+//		See "go help telemetry" for more information.
+//	GOTELEMETRYDIR
+//		The directory Go telemetry data is written is written to.
 //	GOTOOLDIR
 //		The directory where the go tools (compile, cover, doc, etc...) are installed.
 //	GOVERSION
