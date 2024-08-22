@@ -6,6 +6,7 @@ package os_test
 
 import (
 	"errors"
+	"internal/syscall/unix"
 	"internal/testenv"
 	"os"
 	"syscall"
@@ -55,5 +56,36 @@ func TestFindProcessViaPidfd(t *testing.T) {
 	// Release never returns errors on Unix.
 	if err := proc.Release(); err != nil {
 		t.Fatalf("Release: got %v, want <nil>", err)
+	}
+}
+
+func TestStartProcessWithPidfd(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	if err := os.CheckPidfdOnce(); err != nil {
+		// Non-pidfd code paths tested in exec_unix_test.go.
+		t.Skipf("skipping: pidfd not available: %v", err)
+	}
+
+	var pidfd int
+	p, err := os.StartProcess(testenv.GoToolPath(t), []string{"go"}, &os.ProcAttr{
+		Sys: &syscall.SysProcAttr{
+			PidFD: &pidfd,
+		},
+	})
+	if err != nil {
+		t.Fatalf("starting test process: %v", err)
+	}
+	defer syscall.Close(pidfd)
+
+	if _, err := p.Wait(); err != nil {
+		t.Fatalf("Wait: got %v, want <nil>", err)
+	}
+
+	// Check the pidfd is still valid
+	err = unix.PidFDSendSignal(uintptr(pidfd), syscall.Signal(0))
+	if !errors.Is(err, syscall.ESRCH) {
+		t.Errorf("SendSignal: got %v, want %v", err, syscall.ESRCH)
 	}
 }
