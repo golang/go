@@ -299,6 +299,12 @@ type (
 	}
 
 	// A BasicLit node represents a literal of basic type.
+	//
+	// Note that for the CHAR and STRING kinds, the literal is stored
+	// with its quotes. For example, for a double-quoted STRING, the
+	// first and the last rune in the Value field will be ". The
+	// [strconv.Unquote] and [strconv.UnquoteChar] functions can be
+	// used to unquote STRING and CHAR values, respectively.
 	BasicLit struct {
 		ValuePos token.Pos   // literal position
 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
