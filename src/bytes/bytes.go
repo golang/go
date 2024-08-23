@@ -187,7 +187,7 @@ func IndexRune(s []byte, r rune) int {
 		return -1
 
 	fallback:
-		// Switch to bytealg.Index, if available, or a brute for search when
+		// Switch to bytealg.Index, if available, or a brute force search when
 		// IndexByte returns too many false positives.
 		if haveFastIndex {
 			if j := bytealg.Index(s[i-last:], b[:n]); j >= 0 {
