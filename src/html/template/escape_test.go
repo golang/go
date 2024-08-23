@@ -1061,6 +1061,10 @@ func TestErrors(t *testing.T) {
 			"z:1:29: at range loop continue: {{range}} branches end in different contexts",
 		},
 		{
+			"{{range .Items}}{{if .X}}{{break}}{{end}}<a{{if .Y}}{{continue}}{{end}}>{{if .Z}}{{continue}}{{end}}{{end}}",
+			"z:1:54: at range loop continue: {{range}} branches end in different contexts",
+		},
+		{
 			"<a b=1 c={{.H}}",
 			"z: ends in a non-text context: {stateAttr delimSpaceOrTagEnd",
 		},

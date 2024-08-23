@@ -145,7 +145,7 @@ func (e *escaper) escape(c context, n parse.Node) context {
 		return c
 	case *parse.ContinueNode:
 		c.n = n
-		e.rangeContext.continues = append(e.rangeContext.breaks, c)
+		e.rangeContext.continues = append(e.rangeContext.continues, c)
 		return context{state: stateDead}
 	case *parse.IfNode:
 		return e.escapeBranch(c, &n.BranchNode, "if")
