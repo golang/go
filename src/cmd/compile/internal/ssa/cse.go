@@ -85,6 +85,11 @@ func cse(f *Func) {
 		pNum++
 	}
 
+	// Keep a table to remap memory operand of any memory user which does not have a memory result (such as a regular load),
+	// to some dominating memory operation, skipping the memory defs that do not alias with it.
+	memTable := f.Cache.allocInt32Slice(f.NumValues())
+	defer f.Cache.freeInt32Slice(memTable)
+
 	// Split equivalence classes at points where they have
 	// non-equivalent arguments.  Repeat until we can't find any
 	// more splits.
@@ -108,12 +113,23 @@ func cse(f *Func) {
 
 			// Sort by eq class of arguments.
 			slices.SortFunc(e, func(v, w *Value) int {
+				_, idxMem, _, _ := isMemUser(v)
 				for i, a := range v.Args {
-					b := w.Args[i]
-					if valueEqClass[a.ID] < valueEqClass[b.ID] {
+					var aId, bId ID
+					if i != idxMem {
+						b := w.Args[i]
+						aId = a.ID
+						bId = b.ID
+					} else {
+						// A memory user's mem argument may be remapped to allow matching
+						// identical load-like instructions across disjoint stores.
+						aId, _ = getEffectiveMemoryArg(memTable, v)
+						bId, _ = getEffectiveMemoryArg(memTable, w)
+					}
+					if valueEqClass[aId] < valueEqClass[bId] {
 						return -1
 					}
-					if valueEqClass[a.ID] > valueEqClass[b.ID] {
+					if valueEqClass[aId] > valueEqClass[bId] {
 						return +1
 					}
 				}
@@ -126,12 +142,23 @@ func cse(f *Func) {
 				v, w := e[j-1], e[j]
 				// Note: commutative args already correctly ordered by byArgClass.
 				eqArgs := true
+				_, idxMem, _, _ := isMemUser(v)
 				for k, a := range v.Args {
 					if v.Op == OpLocalAddr && k == 1 {
 						continue
 					}
-					b := w.Args[k]
-					if valueEqClass[a.ID] != valueEqClass[b.ID] {
+					var aId, bId ID
+					if k != idxMem {
+						b := w.Args[k]
+						aId = a.ID
+						bId = b.ID
+					} else {
+						// A memory user's mem argument may be remapped to allow matching
+						// identical load-like instructions across disjoint stores.
+						aId, _ = getEffectiveMemoryArg(memTable, v)
+						bId, _ = getEffectiveMemoryArg(memTable, w)
+					}
+					if valueEqClass[aId] != valueEqClass[bId] {
 						eqArgs = false
 						break
 					}
@@ -180,9 +207,18 @@ func cse(f *Func) {
 	defer f.Cache.freeValueSlice(rewrite)
 	for _, e := range partition {
 		slices.SortFunc(e, func(v, w *Value) int {
-			c := cmp.Compare(sdom.domorder(v.Block), sdom.domorder(w.Block))
-			if c != 0 {
+			if c := cmp.Compare(sdom.domorder(v.Block), sdom.domorder(w.Block)); c != 0 {
 				return c
+			}
+			if _, _, _, ok := isMemUser(v); ok {
+				// Additional ordering among the memory users within one block: prefer the earliest
+				// possible value among the set of equivalent values, that is the one with the lowest
+				// skip count (lowest number of memory defs skipped until their common def).
+				_, vSkips := getEffectiveMemoryArg(memTable, v)
+				_, wSkips := getEffectiveMemoryArg(memTable, w)
+				if c := cmp.Compare(vSkips, wSkips); c != 0 {
+					return c
+				}
 			}
 			if v.Op == OpLocalAddr {
 				// compare the memory args for OpLocalAddrs in the same block
@@ -254,7 +290,7 @@ func cse(f *Func) {
 		for _, v := range b.Values {
 			for i, w := range v.Args {
 				if x := rewrite[w.ID]; x != nil {
-					if w.Pos.IsStmt() == src.PosIsStmt {
+					if w.Pos.IsStmt() == src.PosIsStmt && w.Op != OpNilCheck {
 						// about to lose a statement marker, w
 						// w is an input to v; if they're in the same block
 						// and the same line, v is a good-enough new statement boundary.
@@ -419,4 +455,83 @@ func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
 	}
 
 	return types.CMPeq
+}
+
+// Query if the given instruction only uses "memory" argument and we may try to skip some memory "defs" if they do not alias with its address.
+// Return index of pointer argument, index of "memory" argument, the access width and true on such instructions, otherwise return (-1, -1, 0, false).
+func isMemUser(v *Value) (int, int, int64, bool) {
+	switch v.Op {
+	case OpLoad:
+		return 0, 1, v.Type.Size(), true
+	case OpNilCheck:
+		return 0, 1, 0, true
+	default:
+		return -1, -1, 0, false
+	}
+}
+
+// Query if the given "memory"-defining instruction's memory destination can be analyzed for aliasing with a memory "user" instructions.
+// Return index of pointer argument, index of "memory" argument, the access width and true on such instructions, otherwise return (-1, -1, 0, false).
+func isMemDef(v *Value) (int, int, int64, bool) {
+	switch v.Op {
+	case OpStore:
+		return 0, 2, auxToType(v.Aux).Size(), true
+	default:
+		return -1, -1, 0, false
+	}
+}
+
+// Mem table keeps memTableSkipBits lower bits to store the number of skips of "memory" operand
+// and the rest to store the ID of the destination "memory"-producing instruction.
+const memTableSkipBits = 8
+
+// The maximum ID value we are able to store in the memTable, otherwise fall back to v.ID
+const maxId = ID(1<<(31-memTableSkipBits)) - 1
+
+// Return the first possibly-aliased store along the memory chain starting at v's memory argument and the number of not-aliased stores skipped.
+func getEffectiveMemoryArg(memTable []int32, v *Value) (ID, uint32) {
+	if code := uint32(memTable[v.ID]); code != 0 {
+		return ID(code >> memTableSkipBits), code & ((1 << memTableSkipBits) - 1)
+	}
+	if idxPtr, idxMem, width, ok := isMemUser(v); ok {
+		// TODO: We could early return some predefined value if width==0
+		memId := v.Args[idxMem].ID
+		if memId > maxId {
+			return memId, 0
+		}
+		mem, skips := skipDisjointMemDefs(v, idxPtr, idxMem, width)
+		if mem.ID <= maxId {
+			memId = mem.ID
+		} else {
+			skips = 0 // avoid the skip
+		}
+		memTable[v.ID] = int32(memId<<memTableSkipBits) | int32(skips)
+		return memId, skips
+	} else {
+		v.Block.Func.Fatalf("expected memory user instruction: %v", v.LongString())
+	}
+	return 0, 0
+}
+
+// Find a memory def that's not trivially disjoint with the user instruction, count the number
+// of "skips" along the path. Return the corresponding memory def's value and the number of skips.
+func skipDisjointMemDefs(user *Value, idxUserPtr, idxUserMem int, useWidth int64) (*Value, uint32) {
+	usePtr, mem := user.Args[idxUserPtr], user.Args[idxUserMem]
+	const maxSkips = (1 << memTableSkipBits) - 1
+	var skips uint32
+	for skips = 0; skips < maxSkips; skips++ {
+		if idxPtr, idxMem, width, ok := isMemDef(mem); ok {
+			if mem.Args[idxMem].Uses > 50 {
+				// Skipping a memory def with a lot of uses may potentially increase register pressure.
+				break
+			}
+			defPtr := mem.Args[idxPtr]
+			if disjoint(defPtr, width, usePtr, useWidth) {
+				mem = mem.Args[idxMem]
+				continue
+			}
+		}
+		break
+	}
+	return mem, skips
 }

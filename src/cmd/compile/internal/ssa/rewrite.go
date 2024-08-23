@@ -944,7 +944,8 @@ func disjointTypes(t1 *types.Type, t2 *types.Type) bool {
 	}
 
 	if !t1.IsPtr() || !t2.IsPtr() {
-		panic("disjointTypes: one of arguments is not a pointer")
+		// Treat non-pointer types (such as TFUNC, TMAP, uintptr) conservatively.
+		return false
 	}
 
 	t1 = t1.Elem()
