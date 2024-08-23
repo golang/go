@@ -6,6 +6,7 @@ package slices_test
 
 import (
 	"cmp"
+	"fmt"
 	"internal/race"
 	"internal/testenv"
 	"math"
@@ -1447,6 +1448,19 @@ func TestRepeatPanics(t *testing.T) {
 	} {
 		if !panics(func() { _ = Repeat(test.x, test.count) }) {
 			t.Errorf("Repeat %s: got no panic, want panic", test.name)
+		}
+	}
+}
+
+func BenchmarkRepeat(b *testing.B) {
+	s := []byte("0123456789")
+	for _, n := range []int{5, 10} {
+		for _, c := range []int{0, 1, 2, 6} {
+			b.Run(fmt.Sprintf("%dx%d", n, c), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					Repeat(s[:n], c)
+				}
+			})
 		}
 	}
 }

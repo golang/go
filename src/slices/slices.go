@@ -491,6 +491,10 @@ func Concat[S ~[]E, E any](slices ...S) S {
 // Repeat panics if count is negative or if the result of (len(x) * count)
 // overflows.
 func Repeat[S ~[]E, E any](x S, count int) S {
+	if count == 0 {
+		return S{}
+	}
+
 	if count < 0 {
 		panic("cannot be negative")
 	}
