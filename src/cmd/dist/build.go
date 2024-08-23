@@ -845,6 +845,8 @@ func runInstall(pkg string, ch chan struct{}) {
 			pathf("%s/src/runtime/asm_ppc64x.h", goroot), 0)
 		copyfile(pathf("%s/pkg/include/asm_amd64.h", goroot),
 			pathf("%s/src/runtime/asm_amd64.h", goroot), 0)
+		copyfile(pathf("%s/pkg/include/asm_riscv64.h", goroot),
+			pathf("%s/src/runtime/asm_riscv64.h", goroot), 0)
 	}
 
 	// Generate any missing files; regenerate existing ones.
