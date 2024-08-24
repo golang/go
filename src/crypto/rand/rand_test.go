@@ -2,28 +2,42 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rand_test
+package rand
 
 import (
 	"bytes"
 	"compress/flate"
 	"crypto/internal/boring"
-	. "crypto/rand"
+	"internal/race"
 	"io"
+	"os"
 	"runtime"
 	"sync"
 	"testing"
 )
 
+func testReadAndReader(t *testing.T, f func(*testing.T, func([]byte) (int, error))) {
+	t.Run("Read", func(t *testing.T) {
+		f(t, Read)
+	})
+	t.Run("Reader.Read", func(t *testing.T) {
+		f(t, Reader.Read)
+	})
+}
+
 func TestRead(t *testing.T) {
+	testReadAndReader(t, testRead)
+}
+
+func testRead(t *testing.T, Read func([]byte) (int, error)) {
 	var n int = 4e6
 	if testing.Short() {
 		n = 1e5
 	}
 	b := make([]byte, n)
-	n, err := io.ReadFull(Reader, b)
+	n, err := Read(b)
 	if n != len(b) || err != nil {
-		t.Fatalf("ReadFull(buf) = %d, %s", n, err)
+		t.Fatalf("Read(buf) = %d, %s", n, err)
 	}
 
 	var z bytes.Buffer
@@ -36,6 +50,10 @@ func TestRead(t *testing.T) {
 }
 
 func TestReadLoops(t *testing.T) {
+	testReadAndReader(t, testReadLoops)
+}
+
+func testReadLoops(t *testing.T, Read func([]byte) (int, error)) {
 	b := make([]byte, 1)
 	for {
 		n, err := Read(b)
@@ -58,6 +76,10 @@ func TestReadLoops(t *testing.T) {
 }
 
 func TestLargeRead(t *testing.T) {
+	testReadAndReader(t, testLargeRead)
+}
+
+func testLargeRead(t *testing.T, Read func([]byte) (int, error)) {
 	// 40MiB, more than the documented maximum of 32Mi-1 on Linux 32-bit.
 	b := make([]byte, 40<<20)
 	if n, err := Read(b); err != nil {
@@ -68,11 +90,15 @@ func TestLargeRead(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
-	n, err := Reader.Read(make([]byte, 0))
+	testReadAndReader(t, testReadEmpty)
+}
+
+func testReadEmpty(t *testing.T, Read func([]byte) (int, error)) {
+	n, err := Read(make([]byte, 0))
 	if n != 0 || err != nil {
 		t.Fatalf("Read(make([]byte, 0)) = %d, %v", n, err)
 	}
-	n, err = Reader.Read(nil)
+	n, err = Read(nil)
 	if n != 0 || err != nil {
 		t.Fatalf("Read(nil) = %d, %v", n, err)
 	}
@@ -101,6 +127,10 @@ func TestReadUsesReader(t *testing.T) {
 }
 
 func TestConcurrentRead(t *testing.T) {
+	testReadAndReader(t, testConcurrentRead)
+}
+
+func testConcurrentRead(t *testing.T, Read func([]byte) (int, error)) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -130,11 +160,11 @@ func TestAllocations(t *testing.T) {
 		// Might be fixable with https://go.dev/issue/56378.
 		t.Skip("boringcrypto allocates")
 	}
-	if runtime.GOOS == "aix" {
-		t.Skip("/dev/urandom read path allocates")
-	}
 	if runtime.GOOS == "js" {
 		t.Skip("syscall/js allocates")
+	}
+	if race.Enabled {
+		t.Skip("urandomRead allocates under -race")
 	}
 
 	n := int(testing.AllocsPerRun(10, func() {
@@ -144,6 +174,28 @@ func TestAllocations(t *testing.T) {
 	}))
 	if n > 0 {
 		t.Errorf("allocs = %d, want 0", n)
+	}
+}
+
+// TestNoUrandomFallback ensures the urandom fallback is not reached in
+// normal operations.
+func TestNoUrandomFallback(t *testing.T) {
+	expectFallback := false
+	if runtime.GOOS == "aix" {
+		// AIX always uses the urandom fallback.
+		expectFallback = true
+	}
+	if os.Getenv("GO_GETRANDOM_DISABLED") == "1" {
+		// We are testing the urandom fallback intentionally.
+		expectFallback = true
+	}
+	Read(make([]byte, 1))
+	if urandomFile != nil && !expectFallback {
+		t.Error("/dev/urandom fallback used unexpectedly")
+		t.Log("note: if this test fails, it may be because the system does not have getrandom(2)")
+	}
+	if urandomFile == nil && expectFallback {
+		t.Error("/dev/urandom fallback not used as expected")
 	}
 }
 

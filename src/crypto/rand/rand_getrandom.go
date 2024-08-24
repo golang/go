@@ -44,6 +44,11 @@ func read(b []byte) error {
 			size = maxSize
 		}
 		n, err := unix.GetRandom(b[:size], 0)
+		if errors.Is(err, syscall.ENOSYS) {
+			// If getrandom(2) is not available, presumably on Linux versions
+			// earlier than 3.17, fall back to reading from /dev/urandom.
+			return urandomRead(b)
+		}
 		if errors.Is(err, syscall.EINTR) {
 			// If getrandom(2) is blocking, either because it is waiting for the
 			// entropy pool to become initialized or because we requested more
