@@ -391,7 +391,7 @@ func Exec(gotoolchain string) {
 			// The only other tool the go command invokes is gofmt,
 			// so we set that one explicitly before handling bin (which will include bin/go).
 			allowExec(filepath.Join(dir, "pkg/tool"), "")
-			allowExec(filepath.Join(dir, "lib"), "go_*_*_exec")
+			allowExec(filepath.Join(dir, "lib"), "go_?*_?*_exec")
 			allowExec(filepath.Join(dir, "bin/gofmt"), "")
 			allowExec(filepath.Join(dir, "bin"), "")
 		}
