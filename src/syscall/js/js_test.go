@@ -7,7 +7,7 @@
 // To run these tests:
 //
 // - Install Node
-// - Add /path/to/go/misc/wasm to your $PATH (so that "go test" can find
+// - Add /path/to/go/lib/wasm to your $PATH (so that "go test" can find
 //   "go_js_wasm_exec").
 // - GOOS=js GOARCH=wasm go test
 //
