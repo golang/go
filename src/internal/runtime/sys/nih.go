@@ -14,7 +14,7 @@ type nih struct{}
 // Other types can embed NotInHeap to make it not-in-heap. Specifically, pointers
 // to these types must always fail the `runtime.inheap` check. The type may be used
 // for global variables, or for objects in unmanaged memory (e.g., allocated with
-// `sysAlloc`, `persistentalloc`, r`fixalloc`, or from a manually-managed span).
+// `sysAlloc`, `persistentalloc`, `fixalloc`, or from a manually-managed span).
 //
 // Specifically:
 //
