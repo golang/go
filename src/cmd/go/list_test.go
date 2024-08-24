@@ -134,7 +134,7 @@ func downloadModule(modulePath string, url string, dependenciesToStrip []string)
 		return err
 	}
 
-	if err := writeFile(filepath.Join(modulePath, "go.sum"), sumText); err != nil {
+	if err := os.WriteFile(filepath.Join(modulePath, "go.sum"), sumText, 0644); err != nil {
 		return err
 	}
 
@@ -145,19 +145,19 @@ func downloadModule(modulePath string, url string, dependenciesToStrip []string)
 
 	strippedModText := stripDependencies(modText, dependenciesToStrip)
 
-	return writeFile(filepath.Join(modulePath, "go.mod"), strippedModText)
+	return os.WriteFile(filepath.Join(modulePath, "go.mod"), strippedModText, 0644)
 }
 
-func stripDependencies(goModText string, dependenciesToStrip []string) string {
+func stripDependencies(goModText []byte, dependenciesToStrip []string) []byte {
 	var filteredLines []string
-	lines := strings.Split(goModText, "\n")
+	lines := strings.Split(string(goModText), "\n")
 	for _, line := range lines {
 		if !containsAny(line, dependenciesToStrip) {
 			filteredLines = append(filteredLines, line)
 		}
 	}
 	filteredText := strings.Join(filteredLines, "\n")
-	return filteredText
+	return []byte(filteredText)
 }
 
 func containsAny(text string, options []string) bool {
@@ -169,22 +169,12 @@ func containsAny(text string, options []string) bool {
 	return false
 }
 
-func writeFile(filePath, content string) error {
-	out, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.WriteString(out, content)
-	return err
-}
-
-func fetchText(url string) (string, error) {
+func fetchText(url string) ([]byte, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	return string(body), err
+	return body, err
 }
