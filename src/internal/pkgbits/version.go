@@ -25,6 +25,7 @@ const (
 	// - remove the legacy "has init" bool from the public root
 	// - remove obj's "derived func instance" bool
 	// - add a TypeParamNames field to ObjAlias
+	// - remove derived info "needed" bool
 	V2
 
 	numVersions = iota
@@ -56,6 +57,10 @@ const (
 	// ObjAlias has a list of TypeParamNames.
 	AliasTypeParamNames
 
+	// Deprecated: DerivedInfoNeeded was a bool indicating
+	// whether a type was a derived type.
+	DerivedInfoNeeded
+
 	numFields = iota
 )
 
@@ -71,6 +76,7 @@ var introduced = [numFields]Version{
 var removed = [numFields]Version{
 	HasInit:             V2,
 	DerivedFuncInstance: V2,
+	DerivedInfoNeeded:   V2,
 }
 
 // Has reports whether field f is present in a bitstream at version v.

@@ -45,6 +45,8 @@ func TestVersions(t *testing.T) {
 		{pkgbits.V1, pkgbits.HasInit},
 		{pkgbits.V0, pkgbits.DerivedFuncInstance},
 		{pkgbits.V1, pkgbits.DerivedFuncInstance},
+		{pkgbits.V0, pkgbits.DerivedInfoNeeded},
+		{pkgbits.V1, pkgbits.DerivedInfoNeeded},
 		{pkgbits.V2, pkgbits.AliasTypeParamNames},
 	} {
 		if !c.v.Has(c.f) {
@@ -57,6 +59,7 @@ func TestVersions(t *testing.T) {
 		{pkgbits.V0, pkgbits.Flags},
 		{pkgbits.V2, pkgbits.HasInit},
 		{pkgbits.V2, pkgbits.DerivedFuncInstance},
+		{pkgbits.V2, pkgbits.DerivedInfoNeeded},
 		{pkgbits.V0, pkgbits.AliasTypeParamNames},
 		{pkgbits.V1, pkgbits.AliasTypeParamNames},
 	} {
