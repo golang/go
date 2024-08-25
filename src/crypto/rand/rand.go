@@ -21,8 +21,7 @@ import (
 //
 //   - On Linux, FreeBSD, Dragonfly, and Solaris, Reader uses getrandom(2).
 //   - On legacy Linux (< 3.17), Reader opens /dev/urandom on first use.
-//   - On macOS and iOS, Reader uses arc4random_buf(3).
-//   - On OpenBSD, Reader uses getentropy(2).
+//   - On macOS, iOS, and OpenBSD Reader, uses arc4random_buf(3).
 //   - On NetBSD, Reader uses the kern.arandom sysctl.
 //   - On Windows, Reader uses the ProcessPrng API.
 //   - On js/wasm, Reader uses the Web Crypto API.
