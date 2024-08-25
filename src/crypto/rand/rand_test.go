@@ -160,9 +160,6 @@ func TestAllocations(t *testing.T) {
 		// Might be fixable with https://go.dev/issue/56378.
 		t.Skip("boringcrypto allocates")
 	}
-	if runtime.GOOS == "js" {
-		t.Skip("syscall/js allocates")
-	}
 	if race.Enabled {
 		t.Skip("urandomRead allocates under -race")
 	}
