@@ -8,6 +8,7 @@ package rand
 
 import (
 	"crypto/internal/boring"
+	"internal/godebug"
 	"io"
 	"os"
 	"sync"
@@ -64,6 +65,8 @@ func (r *reader) Read(b []byte) (n int, err error) {
 //go:linkname fatal
 func fatal(string)
 
+var randcrash = godebug.New("randcrash")
+
 // Read fills b with cryptographically secure random bytes. It never returns an
 // error, and always fills b entirely.
 //
@@ -83,6 +86,10 @@ func Read(b []byte) (n int, err error) {
 		copy(b, bb)
 	}
 	if err != nil {
+		if randcrash.Value() == "0" {
+			randcrash.IncNonDefault()
+			return 0, err
+		}
 		fatal("crypto/rand: failed to read random data (see https://go.dev/issue/66821): " + err.Error())
 		panic("unreachable") // To be sure.
 	}

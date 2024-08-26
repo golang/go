@@ -48,20 +48,18 @@ func TestNoGetrandom(t *testing.T) {
 			return
 		}
 
-		buf := &bytes.Buffer{}
 		cmd := testenv.Command(t, os.Args[0], "-test.v")
-		cmd.Stdout = buf
-		cmd.Stderr = buf
 		cmd.Env = append(os.Environ(), "GO_GETRANDOM_DISABLED=1")
-		if err := cmd.Run(); err != nil {
-			t.Errorf("subprocess failed: %v\n%s", err, buf.Bytes())
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("subprocess failed: %v\n%s", err, out)
 			return
 		}
 
-		if !bytes.Contains(buf.Bytes(), []byte("GetRandom returned ENOSYS")) {
+		if !bytes.Contains(out, []byte("GetRandom returned ENOSYS")) {
 			t.Errorf("subprocess did not disable getrandom")
 		}
-		if !bytes.Contains(buf.Bytes(), []byte("TestRead")) {
+		if !bytes.Contains(out, []byte("TestRead")) {
 			t.Errorf("subprocess did not run TestRead")
 		}
 	}()
