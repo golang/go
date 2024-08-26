@@ -49,27 +49,20 @@ func testRead(t *testing.T, Read func([]byte) (int, error)) {
 	}
 }
 
-func TestReadLoops(t *testing.T) {
-	testReadAndReader(t, testReadLoops)
+func TestReadByteValues(t *testing.T) {
+	testReadAndReader(t, testReadByteValues)
 }
 
-func testReadLoops(t *testing.T, Read func([]byte) (int, error)) {
+func testReadByteValues(t *testing.T, Read func([]byte) (int, error)) {
 	b := make([]byte, 1)
+	v := make(map[byte]bool)
 	for {
 		n, err := Read(b)
 		if n != 1 || err != nil {
 			t.Fatalf("Read(b) = %d, %v", n, err)
 		}
-		if b[0] == 42 {
-			break
-		}
-	}
-	for {
-		n, err := Read(b)
-		if n != 1 || err != nil {
-			t.Fatalf("Read(b) = %d, %v", n, err)
-		}
-		if b[0] == 0 {
+		v[b[0]] = true
+		if len(v) == 256 {
 			break
 		}
 	}
