@@ -80,6 +80,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		AliasTypeParams:  true,
 		SwissMap:         true,
 		SpinbitMutex:     haveXchg8,
+		SyncHashTrieMap:  true,
 	}
 
 	// Start with the statically enabled set of experiments.

@@ -358,13 +358,13 @@ func TestConcurrentClear(t *testing.T) {
 	})
 }
 
-func TestMapClearNoAllocations(t *testing.T) {
+func TestMapClearOneAllocation(t *testing.T) {
 	testenv.SkipIfOptimizationOff(t)
 	var m sync.Map
 	allocs := testing.AllocsPerRun(10, func() {
 		m.Clear()
 	})
-	if allocs > 0 {
-		t.Errorf("AllocsPerRun of m.Clear = %v; want 0", allocs)
+	if allocs > 1 {
+		t.Errorf("AllocsPerRun of m.Clear = %v; want 1", allocs)
 	}
 }
