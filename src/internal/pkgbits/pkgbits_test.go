@@ -11,19 +11,25 @@ import (
 )
 
 func TestRoundTrip(t *testing.T) {
-	pw := pkgbits.NewPkgEncoder(-1)
-	w := pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
-	w.Flush()
+	for _, version := range []pkgbits.Version{
+		pkgbits.V0,
+		pkgbits.V1,
+		pkgbits.V2,
+	} {
+		pw := pkgbits.NewPkgEncoder(version, -1)
+		w := pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
+		w.Flush()
 
-	var b strings.Builder
-	_ = pw.DumpTo(&b)
-	input := b.String()
+		var b strings.Builder
+		_ = pw.DumpTo(&b)
+		input := b.String()
 
-	pr := pkgbits.NewPkgDecoder("package_id", input)
-	r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+		pr := pkgbits.NewPkgDecoder("package_id", input)
+		r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
-	if r.Version() != w.Version() {
-		t.Errorf("Expected reader version %q to be the writer version %q", r.Version(), w.Version())
+		if r.Version() != w.Version() {
+			t.Errorf("Expected reader version %q to be the writer version %q", r.Version(), w.Version())
+		}
 	}
 }
 

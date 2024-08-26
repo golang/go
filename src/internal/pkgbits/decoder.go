@@ -82,8 +82,8 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 	assert(binary.Read(r, binary.LittleEndian, &ver) == nil)
 	pr.version = Version(ver)
 
-	if pr.version >= V2 { // TODO(taking): Switch to numVersions.
-		panic(fmt.Errorf("cannot decode %q, export data version %d is too new", pkgPath, pr.version))
+	if pr.version >= numVersions {
+		panic(fmt.Errorf("cannot decode %q, export data version %d is greater than maximum supported version %d", pkgPath, pr.version, numVersions-1))
 	}
 
 	if pr.version.Has(Flags) {
@@ -101,7 +101,9 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 	assert(err == nil)
 
 	pr.elemData = input[pos:]
-	assert(len(pr.elemData)-8 == int(pr.elemEnds[len(pr.elemEnds)-1]))
+
+	const fingerprintSize = 8
+	assert(len(pr.elemData)-fingerprintSize == int(pr.elemEnds[len(pr.elemEnds)-1]))
 
 	return pr
 }

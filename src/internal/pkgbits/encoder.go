@@ -15,9 +15,6 @@ import (
 	"strings"
 )
 
-// currentVersion is the current version number written.
-const currentVersion = V1
-
 // A PkgEncoder provides methods for encoding a package's Unified IR
 // export data.
 type PkgEncoder struct {
@@ -47,10 +44,9 @@ func (pw *PkgEncoder) SyncMarkers() bool { return pw.syncFrames >= 0 }
 // export data files, but can help diagnosing desync errors in
 // higher-level Unified IR reader/writer code. If syncFrames is
 // negative, then sync markers are omitted entirely.
-func NewPkgEncoder(syncFrames int) PkgEncoder {
+func NewPkgEncoder(version Version, syncFrames int) PkgEncoder {
 	return PkgEncoder{
-		// TODO(taking): Change NewPkgEncoder to take a version as an argument, and remove currentVersion.
-		version:    currentVersion,
+		version:    version,
 		stringsIdx: make(map[string]Index),
 		syncFrames: syncFrames,
 	}
@@ -68,11 +64,13 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 
 	writeUint32(uint32(pw.version))
 
-	var flags uint32
-	if pw.SyncMarkers() {
-		flags |= flagSyncMarkers
+	if pw.version.Has(Flags) {
+		var flags uint32
+		if pw.SyncMarkers() {
+			flags |= flagSyncMarkers
+		}
+		writeUint32(flags)
 	}
-	writeUint32(flags)
 
 	// Write elemEndsEnds.
 	var sum uint32

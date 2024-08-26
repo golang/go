@@ -7,12 +7,14 @@
 package main
 
 import (
+	"fmt"
+
 	"issue68526.dir/a"
 )
 
 func main() {
 	unexported()
-	// exported()
+	exported()
 }
 
 func unexported() {
@@ -23,23 +25,21 @@ func unexported() {
 	}
 }
 
-// TODO(#68778): enable once type parameterized aliases are allowed in exportdata.
+func exported() {
+	var (
+		astr a.A[string]
+		aint a.A[int]
+	)
 
-// func exported() {
-// 	var (
-// 		astr a.A[string]
-// 		aint a.A[int]
-// 	)
+	if any(astr) != any(struct{ F string }{}) || any(aint) != any(struct{ F int }{}) {
+		panic("zero value of alias and concrete type not identical")
+	}
 
-// 	if any(astr) != any(struct{ F string }{}) || any(aint) != any(struct{ F int }{}) {
-// 		panic("zero value of alias and concrete type not identical")
-// 	}
+	if any(astr) == any(aint) {
+		panic("zero value of struct{ F string } and struct{ F int } are not distinct")
+	}
 
-// 	if any(astr) == any(aint) {
-// 		panic("zero value of struct{ F string } and struct{ F int } are not distinct")
-// 	}
-
-// 	if got := fmt.Sprintf("%T", astr); got != "struct { F string }" {
-// 		panic(got)
-// 	}
-// }
+	if got := fmt.Sprintf("%T", astr); got != "struct { F string }" {
+		panic(got)
+	}
+}

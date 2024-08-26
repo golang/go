@@ -6,8 +6,7 @@
 
 package a
 
-// TODO(#68778): enable once type parameterized aliases are allowed in exportdata.
-// type A[T any] = struct{ F T }
+type A[T any] = struct{ F T }
 
 type B = struct{ F int }
 

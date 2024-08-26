@@ -96,8 +96,13 @@ type pkgWriter struct {
 // newPkgWriter returns an initialized pkgWriter for the specified
 // package.
 func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo map[*syntax.FuncLit]bool) *pkgWriter {
+	// Use V2 as the encoded version aliastypeparams GOEXPERIMENT is enabled.
+	version := pkgbits.V1
+	if buildcfg.Experiment.AliasTypeParams {
+		version = pkgbits.V2
+	}
 	return &pkgWriter{
-		PkgEncoder: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
+		PkgEncoder: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
 
 		m:                     m,
 		curpkg:                pkg,
@@ -864,8 +869,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 			if w.Version().Has(pkgbits.AliasTypeParamNames) {
 				w.typeParamNames(tparams)
 			}
-			// TODO(taking): enable this assertion once this is not intended to be a nop.
-			// assert(w.Version().Has(pkgbits.AliasTypeParamNames) || tparams.Len() == 0)
+			assert(w.Version().Has(pkgbits.AliasTypeParamNames) || tparams.Len() == 0)
 			w.typ(rhs)
 			return pkgbits.ObjAlias
 		}
