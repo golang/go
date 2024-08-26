@@ -2,6 +2,7 @@
 [!exec:pkg-config] skip 'test requires pkg-config tool'
 
 ! go list -export .
+stderr '^# example\n# '
 stderr 'pkg-config'
 stderr 'not found|not find'
 stderr 'package|Package'
