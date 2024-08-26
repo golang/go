@@ -1833,6 +1833,38 @@ func TestWriterReadFromMustReturnUnderlyingError(t *testing.T) {
 	}
 }
 
+type X struct {
+	i io.Writer
+	l int
+}
+
+func (x *X) Write(p []byte) (n int, err error) {
+	x.l = len(p)
+	n, err = x.i.Write(p)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func TestIssue69068(t *testing.T) {
+	x1 := X{io.Discard, 0}
+	x2 := X{io.Discard, 0}
+	bfw := NewWriterSize(&x1, 3)
+	bfw2 := NewWriterSize(&x2, 3)
+	_, err := bfw.Write([]byte("abcdefghijklmno..."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = bfw2.WriteString("abcdefghijklmno...")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if x1.l != x2.l {
+		t.Fatalf("Writer.Write give buf size is %d , but Writer.WriteString give buf size is %d", x1.l, x2.l)
+	}
+}
+
 func BenchmarkReaderCopyOptimal(b *testing.B) {
 	// Optimal case is where the underlying reader implements io.WriterTo
 	srcBuf := bytes.NewBuffer(make([]byte, 8192))

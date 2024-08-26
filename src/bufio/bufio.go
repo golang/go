@@ -676,7 +676,7 @@ func (b *Writer) Write(p []byte) (nn int, err error) {
 		if b.Buffered() == 0 {
 			// Large write, empty buffer.
 			// Write directly from p to avoid copy.
-			n, b.err = b.wr.Write(p)
+			n, b.err = b.wr.Write(p[:min(len(p), len(b.buf))])
 		} else {
 			n = copy(b.buf[b.n:], p)
 			b.n += n
