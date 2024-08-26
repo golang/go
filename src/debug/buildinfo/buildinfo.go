@@ -380,7 +380,14 @@ func searchMagic(x exe, start, size uint64) (uint64, error) {
 			}
 			if i%buildInfoAlign != 0 {
 				// Found magic, but misaligned. Keep searching.
-				data = data[(i+buildInfoAlign-1)&^(buildInfoAlign-1):]
+				next := (i + buildInfoAlign - 1) &^ (buildInfoAlign - 1)
+				if next > len(data) {
+					// Corrupt object file: the remaining
+					// count says there is more data,
+					// but we didn't read it.
+					return 0, errNotGoExe
+				}
+				data = data[next:]
 				continue
 			}
 			// Good match!
