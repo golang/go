@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime"
 	"mime/multipart"
 	"net/http/httptrace"
@@ -390,12 +391,8 @@ func (r *Request) Clone(ctx context.Context) *Request {
 	*r2 = *r
 	r2.ctx = ctx
 	r2.URL = cloneURL(r.URL)
-	if r.Header != nil {
-		r2.Header = r.Header.Clone()
-	}
-	if r.Trailer != nil {
-		r2.Trailer = r.Trailer.Clone()
-	}
+	r2.Header = r.Header.Clone()
+	r2.Trailer = r.Trailer.Clone()
 	if s := r.TransferEncoding; s != nil {
 		s2 := make([]string, len(s))
 		copy(s2, s)
@@ -411,13 +408,7 @@ func (r *Request) Clone(ctx context.Context) *Request {
 		copy(s2, s)
 		r2.matches = s2
 	}
-	if s := r.otherValues; s != nil {
-		s2 := make(map[string]string, len(s))
-		for k, v := range s {
-			s2[k] = v
-		}
-		r2.otherValues = s2
-	}
+	r2.otherValues = maps.Clone(r.otherValues)
 	return r2
 }
 
