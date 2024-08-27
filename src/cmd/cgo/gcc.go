@@ -2577,6 +2577,11 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 		if dt.BitSize > 0 {
 			fatalf("%s: unexpected: %d-bit int type - %s", lineno(pos), dt.BitSize, dtype)
 		}
+
+		if t.Align = t.Size; t.Align >= c.ptrSize {
+			t.Align = c.ptrSize
+		}
+
 		switch t.Size {
 		default:
 			fatalf("%s: unexpected: %d-byte int type - %s", lineno(pos), t.Size, dtype)
@@ -2593,9 +2598,8 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 				Len: c.intExpr(t.Size),
 				Elt: c.uint8,
 			}
-		}
-		if t.Align = t.Size; t.Align >= c.ptrSize {
-			t.Align = c.ptrSize
+			// t.Align is the alignment of the Go type.
+			t.Align = 1
 		}
 
 	case *dwarf.PtrType:
@@ -2824,6 +2828,11 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 		if dt.BitSize > 0 {
 			fatalf("%s: unexpected: %d-bit uint type - %s", lineno(pos), dt.BitSize, dtype)
 		}
+
+		if t.Align = t.Size; t.Align >= c.ptrSize {
+			t.Align = c.ptrSize
+		}
+
 		switch t.Size {
 		default:
 			fatalf("%s: unexpected: %d-byte uint type - %s", lineno(pos), t.Size, dtype)
@@ -2840,9 +2849,8 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 				Len: c.intExpr(t.Size),
 				Elt: c.uint8,
 			}
-		}
-		if t.Align = t.Size; t.Align >= c.ptrSize {
-			t.Align = c.ptrSize
+			// t.Align is the alignment of the Go type.
+			t.Align = 1
 		}
 
 	case *dwarf.VoidType:
@@ -3108,10 +3116,11 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 		}
 
 		// Round off up to talign, assumed to be a power of 2.
+		origOff := off
 		off = (off + talign - 1) &^ (talign - 1)
 
 		if f.ByteOffset > off {
-			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
+			fld, sizes = c.pad(fld, sizes, f.ByteOffset-origOff)
 			off = f.ByteOffset
 		}
 		if f.ByteOffset < off {
