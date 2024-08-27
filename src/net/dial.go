@@ -32,6 +32,12 @@ const (
 	defaultMPTCPEnabledDial   = false
 )
 
+// The type of service offered
+//
+//	0 == MPTCP disabled
+//	1 == MPTCP enabled
+//	2 == MPTCP enabled on listeners only
+//	3 == MPTCP enabled on dialers only
 var multipathtcp = godebug.New("multipathtcp")
 
 // mptcpStatusDial is a tristate for Multipath TCP on clients,
@@ -54,7 +60,7 @@ func (m *mptcpStatusDial) get() bool {
 	}
 
 	// If MPTCP is forced via GODEBUG=multipathtcp=1
-	if multipathtcp.Value() == "1" {
+	if multipathtcp.Value() == "1" || multipathtcp.Value() == "3" {
 		multipathtcp.IncNonDefault()
 
 		return true
@@ -90,8 +96,9 @@ func (m *mptcpStatusListen) get() bool {
 		return false
 	}
 
-	// If MPTCP is forced via GODEBUG=multipathtcp=0
-	if multipathtcp.Value() == "0" {
+	// If MPTCP is forced via GODEBUG=multipathtcp=0 or enabled only
+	// on dialers
+	if multipathtcp.Value() == "0" || multipathtcp.Value() == "3" {
 		multipathtcp.IncNonDefault()
 
 		return false

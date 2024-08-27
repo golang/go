@@ -157,6 +157,11 @@ no-op. This setting is controlled by the `randseednop` setting.
 For Go 1.24 it defaults to `randseednop=1`.
 Using `randseednop=0` reverts to the pre-Go 1.24 behavior.
 
+Go 1.24 added new values for the `multipathtcp` setting.
+The values "2" and "3" allow to enable MPTCP only on listeners/
+dialers respectively. It also now enabled MPTCP by default on 
+listeners. Using `multipathtcp=0` reverts to the pre-Go 1.24 behavior.
+
 ### Go 1.23
 
 Go 1.23 changed the channels created by package time to be unbuffered
