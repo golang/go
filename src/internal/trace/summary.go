@@ -394,7 +394,7 @@ func (s *Summarizer) Event(ev *Event) {
 				if stk != NoStack {
 					var frame StackFrame
 					var ok bool
-					stk.Frames(func(f StackFrame) bool {
+					stk.Frames()(func(f StackFrame) bool {
 						frame = f
 						ok = true
 						return true

@@ -6,6 +6,7 @@ package trace
 
 import (
 	"fmt"
+	"iter"
 	"math"
 	"strings"
 	"time"
@@ -265,24 +266,25 @@ type Stack struct {
 }
 
 // Frames is an iterator over the frames in a Stack.
-func (s Stack) Frames(yield func(f StackFrame) bool) bool {
-	if s.id == 0 {
-		return true
-	}
-	stk := s.table.stacks.mustGet(s.id)
-	for _, pc := range stk.pcs {
-		f := s.table.pcs[pc]
-		sf := StackFrame{
-			PC:   f.pc,
-			Func: s.table.strings.mustGet(f.funcID),
-			File: s.table.strings.mustGet(f.fileID),
-			Line: f.line,
+func (s Stack) Frames() iter.Seq[StackFrame] {
+	return func(yield func(StackFrame) bool) {
+		if s.id == 0 {
+			return
 		}
-		if !yield(sf) {
-			return false
+		stk := s.table.stacks.mustGet(s.id)
+		for _, pc := range stk.pcs {
+			f := s.table.pcs[pc]
+			sf := StackFrame{
+				PC:   f.pc,
+				Func: s.table.strings.mustGet(f.funcID),
+				File: s.table.strings.mustGet(f.fileID),
+				Line: f.line,
+			}
+			if !yield(sf) {
+				return
+			}
 		}
 	}
-	return true
 }
 
 // NoStack is a sentinel value that can be compared against any Stack value, indicating
@@ -796,7 +798,7 @@ func (e Event) String() string {
 		if s.Stack != NoStack {
 			fmt.Fprintln(&sb)
 			fmt.Fprintln(&sb, "TransitionStack=")
-			s.Stack.Frames(func(f StackFrame) bool {
+			s.Stack.Frames()(func(f StackFrame) bool {
 				fmt.Fprintf(&sb, "\t%s @ 0x%x\n", f.Func, f.PC)
 				fmt.Fprintf(&sb, "\t\t%s:%d\n", f.File, f.Line)
 				return true
@@ -809,7 +811,7 @@ func (e Event) String() string {
 	if stk := e.Stack(); stk != NoStack {
 		fmt.Fprintln(&sb)
 		fmt.Fprintln(&sb, "Stack=")
-		stk.Frames(func(f StackFrame) bool {
+		stk.Frames()(func(f StackFrame) bool {
 			fmt.Fprintf(&sb, "\t%s @ 0x%x\n", f.Func, f.PC)
 			fmt.Fprintf(&sb, "\t\t%s:%d\n", f.File, f.Line)
 			return true

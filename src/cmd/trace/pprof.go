@@ -307,7 +307,7 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
 	for stack, record := range m.stacks {
 		rec := *record
 		i := 0
-		stack.Frames(func(frame trace.StackFrame) bool {
+		stack.Frames()(func(frame trace.StackFrame) bool {
 			rec.Stack = append(rec.Stack, &trace.Frame{
 				PC:   frame.PC,
 				Fn:   frame.Func,
@@ -327,7 +327,7 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
 // pcsForStack extracts the first pprofMaxStack PCs from stack into pcs.
 func pcsForStack(stack trace.Stack, pcs *[pprofMaxStack]uint64) {
 	i := 0
-	stack.Frames(func(frame trace.StackFrame) bool {
+	stack.Frames()(func(frame trace.StackFrame) bool {
 		pcs[i] = frame.PC
 		i++
 		return i < len(pcs)

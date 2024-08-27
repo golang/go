@@ -364,7 +364,7 @@ func (gs *gState[R]) rangeEnd(ts trace.Time, name string, stack trace.Stack, ctx
 
 func lastFunc(s trace.Stack) string {
 	var last trace.StackFrame
-	s.Frames(func(f trace.StackFrame) bool {
+	s.Frames()(func(f trace.StackFrame) bool {
 		last = f
 		return true
 	})

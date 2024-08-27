@@ -351,7 +351,7 @@ func (v *Validator) getOrCreateThread(e *errAccumulator, ev trace.Event, m trace
 func checkStack(e *errAccumulator, stk trace.Stack) {
 	// Check for non-empty values, but we also check for crashes due to incorrect validation.
 	i := 0
-	stk.Frames(func(f trace.StackFrame) bool {
+	stk.Frames()(func(f trace.StackFrame) bool {
 		if i == 0 {
 			// Allow for one fully zero stack.
 			//

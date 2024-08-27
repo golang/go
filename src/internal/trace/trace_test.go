@@ -148,7 +148,7 @@ func TestTraceCPUProfile(t *testing.T) {
 				if hogRegion != nil && ev.Goroutine() == hogRegion.Goroutine() {
 					traceSamples++
 					var fns []string
-					ev.Stack().Frames(func(frame trace.StackFrame) bool {
+					ev.Stack().Frames()(func(frame trace.StackFrame) bool {
 						if frame.Func != "runtime.goexit" {
 							fns = append(fns, fmt.Sprintf("%s:%d", frame.Func, frame.Line))
 						}
@@ -438,7 +438,7 @@ func TestTraceStacks(t *testing.T) {
 		stackMatches := func(stk trace.Stack, frames []frame) bool {
 			i := 0
 			match := true
-			stk.Frames(func(f trace.StackFrame) bool {
+			stk.Frames()(func(f trace.StackFrame) bool {
 				if f.Func != frames[i].fn {
 					match = false
 					return false
