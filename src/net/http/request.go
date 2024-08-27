@@ -1487,12 +1487,11 @@ func (r *Request) PathValue(name string) string {
 func (r *Request) SetPathValue(name, value string) {
 	if i := r.patIndex(name); i >= 0 {
 		r.matches[i] = value
-	} else {
-		if r.otherValues == nil {
-			r.otherValues = map[string]string{}
-		}
-		r.otherValues[name] = value
 	}
+	if r.otherValues == nil {
+		r.otherValues = map[string]string{}
+	}
+	r.otherValues[name] = value
 }
 
 // patIndex returns the index of name in the list of named wildcards of the
