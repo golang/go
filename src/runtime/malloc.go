@@ -640,14 +640,13 @@ func mallocinit() {
 // hintList is a list of hint addresses for where to allocate new
 // heap arenas. It must be non-nil.
 //
-// register indicates whether the heap arena should be registered
-// in allArenas.
-//
 // sysAlloc returns a memory region in the Reserved state. This region must
 // be transitioned to Prepared and then Ready before use.
 //
+// arenaList is the list the arena should be added to.
+//
 // h must be locked.
-func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, register bool) (v unsafe.Pointer, size uintptr) {
+func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx) (v unsafe.Pointer, size uintptr) {
 	assertLockHeld(&h.lock)
 
 	n = alignUp(n, heapArenaBytes)
@@ -790,27 +789,25 @@ mapped:
 		}
 
 		// Register the arena in allArenas if requested.
-		if register {
-			if len(h.allArenas) == cap(h.allArenas) {
-				size := 2 * uintptr(cap(h.allArenas)) * goarch.PtrSize
-				if size == 0 {
-					size = physPageSize
-				}
-				newArray := (*notInHeap)(persistentalloc(size, goarch.PtrSize, &memstats.gcMiscSys))
-				if newArray == nil {
-					throw("out of memory allocating allArenas")
-				}
-				oldSlice := h.allArenas
-				*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / goarch.PtrSize)}
-				copy(h.allArenas, oldSlice)
-				// Do not free the old backing array because
-				// there may be concurrent readers. Since we
-				// double the array each time, this can lead
-				// to at most 2x waste.
+		if len((*arenaList)) == cap((*arenaList)) {
+			size := 2 * uintptr(cap((*arenaList))) * goarch.PtrSize
+			if size == 0 {
+				size = physPageSize
 			}
-			h.allArenas = h.allArenas[:len(h.allArenas)+1]
-			h.allArenas[len(h.allArenas)-1] = ri
+			newArray := (*notInHeap)(persistentalloc(size, goarch.PtrSize, &memstats.gcMiscSys))
+			if newArray == nil {
+				throw("out of memory allocating allArenas")
+			}
+			oldSlice := (*arenaList)
+			*(*notInHeapSlice)(unsafe.Pointer(&(*arenaList))) = notInHeapSlice{newArray, len((*arenaList)), int(size / goarch.PtrSize)}
+			copy((*arenaList), oldSlice)
+			// Do not free the old backing array because
+			// there may be concurrent readers. Since we
+			// double the array each time, this can lead
+			// to at most 2x waste.
 		}
+		(*arenaList) = (*arenaList)[:len((*arenaList))+1]
+		(*arenaList)[len((*arenaList))-1] = ri
 
 		// Store atomically just in case an object from the
 		// new heap arena becomes visible before the heap lock

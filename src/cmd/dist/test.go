@@ -752,8 +752,8 @@ func (t *tester) registerTests() {
 			})
 	}
 
-	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
-	// mode (with GO_TEST_SHORT=0) because this is just testing a
+	// GC debug mode tests. We only run these in long-test mode
+	// (with GO_TEST_SHORT=0) because this is just testing a
 	// non-critical debug setting.
 	if !t.compileOnly && !t.short {
 		t.registerTest("GODEBUG=gcstoptheworld=2 archive/zip",
@@ -763,6 +763,14 @@ func (t *tester) registerTests() {
 				short:   true,
 				env:     []string{"GODEBUG=gcstoptheworld=2"},
 				pkg:     "archive/zip",
+			})
+		t.registerTest("GODEBUG=gccheckmark=1 runtime",
+			&goTest{
+				variant: "runtime:gcstoptheworld2",
+				timeout: 300 * time.Second,
+				short:   true,
+				env:     []string{"GODEBUG=gccheckmark=1"},
+				pkg:     "runtime",
 			})
 	}
 

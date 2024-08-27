@@ -1008,7 +1008,7 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 			// is mapped contiguously.
 			hintList = &h.arenaHints
 		}
-		v, size := h.sysAlloc(userArenaChunkBytes, hintList, false)
+		v, size := h.sysAlloc(userArenaChunkBytes, hintList, &mheap_.userArenaArenas)
 		if size%userArenaChunkBytes != 0 {
 			throw("sysAlloc size is not divisible by userArenaChunkBytes")
 		}

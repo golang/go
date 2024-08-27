@@ -108,9 +108,9 @@ type mheap struct {
 
 	// Page reclaimer state
 
-	// reclaimIndex is the page index in allArenas of next page to
+	// reclaimIndex is the page index in heapArenas of next page to
 	// reclaim. Specifically, it refers to page (i %
-	// pagesPerArena) of arena allArenas[i / pagesPerArena].
+	// pagesPerArena) of arena heapArenas[i / pagesPerArena].
 	//
 	// If this is >= 1<<63, the page reclaimer is done scanning
 	// the page marks.
@@ -165,22 +165,31 @@ type mheap struct {
 	// (the actual arenas). This is only used on 32-bit.
 	arena linearAlloc
 
-	// allArenas is the arenaIndex of every mapped arena. This can
-	// be used to iterate through the address space.
+	// heapArenas is the arenaIndex of every mapped arena mapped for the heap.
+	// This can be used to iterate through the heap address space.
 	//
 	// Access is protected by mheap_.lock. However, since this is
 	// append-only and old backing arrays are never freed, it is
 	// safe to acquire mheap_.lock, copy the slice header, and
 	// then release mheap_.lock.
-	allArenas []arenaIdx
+	heapArenas []arenaIdx
 
-	// sweepArenas is a snapshot of allArenas taken at the
+	// userArenaArenas is the arenaIndex of every mapped arena mapped for
+	// user arenas.
+	//
+	// Access is protected by mheap_.lock. However, since this is
+	// append-only and old backing arrays are never freed, it is
+	// safe to acquire mheap_.lock, copy the slice header, and
+	// then release mheap_.lock.
+	userArenaArenas []arenaIdx
+
+	// sweepArenas is a snapshot of heapArenas taken at the
 	// beginning of the sweep cycle. This can be read safely by
 	// simply blocking GC (by disabling preemption).
 	sweepArenas []arenaIdx
 
-	// markArenas is a snapshot of allArenas taken at the beginning
-	// of the mark cycle. Because allArenas is append-only, neither
+	// markArenas is a snapshot of heapArenas taken at the beginning
+	// of the mark cycle. Because heapArenas is append-only, neither
 	// this slice nor its contents will change during the mark, so
 	// it can be read safely.
 	markArenas []arenaIdx
@@ -1494,7 +1503,7 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 		// Not enough room in the current arena. Allocate more
 		// arena space. This may not be contiguous with the
 		// current arena, so we have to request the full ask.
-		av, asize := h.sysAlloc(ask, &h.arenaHints, true)
+		av, asize := h.sysAlloc(ask, &h.arenaHints, &h.heapArenas)
 		if av == nil {
 			inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
 			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", inUse, " in use)\n")
