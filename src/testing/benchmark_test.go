@@ -127,6 +127,22 @@ func TestRunParallelSkipNow(t *testing.T) {
 	})
 }
 
+func TestLoopEqualsRangeOverBN(t *testing.T) {
+	// Verify that b.N and the b.Loop() iteration count match.
+	var nIterated, nInfered int
+	testing.Benchmark(func(b *testing.B) {
+		i := 0
+		for b.Loop() {
+			i++
+		}
+		nIterated = i
+		nInfered = b.N
+	})
+	if nIterated != nInfered {
+		t.Fatalf("Iteration of the two different benchmark loop flavor differs, got %d iterations want %d", nIterated, nInfered)
+	}
+}
+
 func ExampleB_RunParallel() {
 	// Parallel benchmark for text/template.Template.Execute on a single object.
 	testing.Benchmark(func(b *testing.B) {
