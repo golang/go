@@ -179,8 +179,13 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 
 	// Read in the full header first.
 	header, err := readData(x, addr, buildInfoHeaderSize)
-	if err != nil {
+	if err == io.EOF {
+		return "", "", errNotGoExe
+	} else if err != nil {
 		return "", "", err
+	}
+	if len(header) < buildInfoHeaderSize {
+		return "", "", errNotGoExe
 	}
 
 	const (
@@ -283,7 +288,9 @@ func decodeString(x exe, addr uint64) (string, uint64, error) {
 	// addr. So we don't need to check that size doesn't overflow the
 	// section.
 	b, err := readData(x, addr, binary.MaxVarintLen64)
-	if err != nil {
+	if err == io.EOF {
+		return "", 0, errNotGoExe
+	} else if err != nil {
 		return "", 0, err
 	}
 
@@ -294,11 +301,12 @@ func decodeString(x exe, addr uint64) (string, uint64, error) {
 	addr += uint64(n)
 
 	b, err = readData(x, addr, length)
-	if err != nil {
-		if err == io.ErrUnexpectedEOF {
-			// Length too large to allocate. Clearly bogus value.
-			return "", 0, errNotGoExe
-		}
+	if err == io.EOF {
+		return "", 0, errNotGoExe
+	} else if err == io.ErrUnexpectedEOF {
+		// Length too large to allocate. Clearly bogus value.
+		return "", 0, errNotGoExe
+	} else if err != nil {
 		return "", 0, err
 	}
 	if uint64(len(b)) < length {
@@ -364,7 +372,10 @@ func searchMagic(x exe, start, size uint64) (uint64, error) {
 		}
 
 		n, err := readDataInto(x, start, buf)
-		if err != nil {
+		if err == io.EOF {
+			// EOF before finding the magic; must not be a Go executable.
+			return 0, errNotGoExe
+		} else if err != nil {
 			return 0, err
 		}
 
@@ -407,7 +418,7 @@ func readData(x exe, addr, size uint64) ([]byte, error) {
 	}
 
 	b, err := saferio.ReadDataAt(r, size, 0)
-	if err == io.EOF {
+	if len(b) > 0 && err == io.EOF {
 		err = nil
 	}
 	return b, err
@@ -420,7 +431,7 @@ func readDataInto(x exe, addr uint64, b []byte) (int, error) {
 	}
 
 	n, err := r.ReadAt(b, 0)
-	if err == io.EOF {
+	if n > 0 && err == io.EOF {
 		err = nil
 	}
 	return n, err

@@ -408,3 +408,21 @@ func TestIssue54968(t *testing.T) {
 		})
 	}
 }
+
+func FuzzRead(f *testing.F) {
+	go117, err := os.ReadFile("testdata/go117")
+	if err != nil {
+		f.Errorf("Error reading go117: %v", err)
+	}
+	f.Add(go117)
+
+	notgo, err := os.ReadFile("testdata/notgo")
+	if err != nil {
+		f.Errorf("Error reading notgo: %v", err)
+	}
+	f.Add(notgo)
+
+	f.Fuzz(func(t *testing.T, in []byte) {
+		buildinfo.Read(bytes.NewReader(in))
+	})
+}
