@@ -96,8 +96,8 @@ func (m *mptcpStatusListen) get() bool {
 		return false
 	}
 
-	// If MPTCP is forced via GODEBUG=multipathtcp=0 or enabled only
-	// on dialers
+	// If MPTCP is disabled via GODEBUG=multipathtcp=0 or only
+	// enabled on dialers, but not on listeners.
 	if multipathtcp.Value() == "0" || multipathtcp.Value() == "3" {
 		multipathtcp.IncNonDefault()
 
