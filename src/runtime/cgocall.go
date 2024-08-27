@@ -338,9 +338,14 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	// stack. However, since we're returning to an earlier stack frame and
 	// need to pair with the entersyscall() call made by cgocall, we must
 	// save syscall* and let reentersyscall restore them.
+	//
+	// Note: savedsp and savedbp MUST be held in locals as an unsafe.Pointer.
+	// When we call into Go, the stack is free to be moved. If these locals
+	// aren't visible in the stack maps, they won't get updated properly,
+	// and will end up being stale when restored by reentersyscall.
 	savedsp := unsafe.Pointer(gp.syscallsp)
 	savedpc := gp.syscallpc
-	savedbp := gp.syscallbp
+	savedbp := unsafe.Pointer(gp.syscallbp)
 	exitsyscall() // coming out of cgo call
 	gp.m.incgo = false
 	if gp.m.isextra {
@@ -372,7 +377,7 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	osPreemptExtEnter(gp.m)
 
 	// going back to cgo call
-	reentersyscall(savedpc, uintptr(savedsp), savedbp)
+	reentersyscall(savedpc, uintptr(savedsp), uintptr(savedbp))
 
 	gp.m.winsyscall = winsyscall
 }
