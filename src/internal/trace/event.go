@@ -798,11 +798,10 @@ func (e Event) String() string {
 		if s.Stack != NoStack {
 			fmt.Fprintln(&sb)
 			fmt.Fprintln(&sb, "TransitionStack=")
-			s.Stack.Frames()(func(f StackFrame) bool {
+			for f := range s.Stack.Frames() {
 				fmt.Fprintf(&sb, "\t%s @ 0x%x\n", f.Func, f.PC)
 				fmt.Fprintf(&sb, "\t\t%s:%d\n", f.File, f.Line)
-				return true
-			})
+			}
 		}
 	case EventExperimental:
 		r := e.Experimental()
@@ -811,11 +810,10 @@ func (e Event) String() string {
 	if stk := e.Stack(); stk != NoStack {
 		fmt.Fprintln(&sb)
 		fmt.Fprintln(&sb, "Stack=")
-		stk.Frames()(func(f StackFrame) bool {
+		for f := range stk.Frames() {
 			fmt.Fprintf(&sb, "\t%s @ 0x%x\n", f.Func, f.PC)
 			fmt.Fprintf(&sb, "\t\t%s:%d\n", f.File, f.Line)
-			return true
-		})
+		}
 	}
 	return sb.String()
 }

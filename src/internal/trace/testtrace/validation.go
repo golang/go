@@ -350,20 +350,17 @@ func (v *Validator) getOrCreateThread(e *errAccumulator, ev trace.Event, m trace
 
 func checkStack(e *errAccumulator, stk trace.Stack) {
 	// Check for non-empty values, but we also check for crashes due to incorrect validation.
-	i := 0
-	stk.Frames()(func(f trace.StackFrame) bool {
+	for i, f := range slices.Collect(stk.Frames()) {
 		if i == 0 {
 			// Allow for one fully zero stack.
 			//
 			// TODO(mknyszek): Investigate why that happens.
-			return true
+			continue
 		}
 		if f.Func == "" || f.File == "" || f.PC == 0 || f.Line == 0 {
 			e.Errorf("invalid stack frame %#v: missing information", f)
 		}
-		i++
-		return true
-	})
+	}
 }
 
 type errAccumulator struct {

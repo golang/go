@@ -72,10 +72,9 @@ func fingerprintRegion(r *trace.UserRegionSummary) regionFingerprint {
 func regionTopStackFrame(r *trace.UserRegionSummary) trace.StackFrame {
 	var frame trace.StackFrame
 	if r.Start != nil && r.Start.Stack() != trace.NoStack {
-		r.Start.Stack().Frames()(func(f trace.StackFrame) bool {
+		for f := range r.Start.Stack().Frames() {
 			frame = f
-			return false
-		})
+		}
 	}
 	return frame
 }
