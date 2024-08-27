@@ -9,3 +9,5 @@ package os
 import "syscall"
 
 type syscallErrorType = syscall.Errno
+
+const errENOSYS = syscall.ENOSYS
