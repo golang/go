@@ -42,7 +42,7 @@ pkg crypto/x509, type Certificate struct, PermittedURIDomains []string
 pkg crypto/x509, type Certificate struct, URIs []*url.URL
 pkg crypto/x509, type CertificateInvalidError struct, Detail string
 pkg crypto/x509, type CertificateRequest struct, URIs []*url.URL
-pkg crypto/x509, type VerifyOptions struct, MaxConstraintComparisions int
+pkg crypto/x509, type VerifyOptions struct, MaxConstraintComparisons int
 pkg crypto/x509/pkix, method (Name) String() string
 pkg crypto/x509/pkix, method (RDNSequence) String() string
 pkg database/sql, func OpenDB(driver.Connector) *DB
