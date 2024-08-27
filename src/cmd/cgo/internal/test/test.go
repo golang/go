@@ -940,6 +940,19 @@ typedef struct {
 } issue67517struct;
 static void issue67517(issue67517struct* p) {}
 
+// Issue 69086.
+// GCC added the __int128 type in GCC 4.6, released in 2011.
+typedef struct {
+	int a;
+#ifdef __SIZEOF_INT128__
+	unsigned __int128 b;
+#else
+	uint64_t b;
+#endif
+	unsigned char c;
+} issue69086struct;
+static int issue690861(issue69086struct* p) { p->b = 1234; return p->c; }
+static int issue690862(unsigned long ul1, unsigned long ul2, unsigned int u, issue69086struct s) { return (int)(s.b); }
 */
 import "C"
 
@@ -2348,4 +2361,25 @@ func issue67517() {
 		// comment
 		b: nil,
 	})
+}
+
+// Issue 69086.
+func test69086(t *testing.T) {
+	var s C.issue69086struct
+
+	typ := reflect.TypeOf(s)
+	for i := 0; i < typ.NumField(); i++ {
+		f := typ.Field(i)
+		t.Logf("field %d: name %s size %d align %d offset %d", i, f.Name, f.Type.Size(), f.Type.Align(), f.Offset)
+	}
+
+	s.c = 1
+	got := C.issue690861(&s)
+	if got != 1 {
+		t.Errorf("field: got %d, want 1", got)
+	}
+	got = C.issue690862(1, 2, 3, s)
+	if got != 1234 {
+		t.Errorf("call: got %d, want 1234", got)
+	}
 }
