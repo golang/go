@@ -21,12 +21,12 @@ import (
 	"golang.org/x/telemetry/internal/counter"
 )
 
-// Supported reports whether the runtime supports [runtime.SetCrashOutput].
+// Supported reports whether the runtime supports [runtime/debug.SetCrashOutput].
 //
 // TODO(adonovan): eliminate once go1.23+ is assured.
 func Supported() bool { return setCrashOutput != nil }
 
-var setCrashOutput func(*os.File) error // = runtime.SetCrashOutput on go1.23+
+var setCrashOutput func(*os.File) error // = runtime/debug.SetCrashOutput on go1.23+
 
 // Parent sets up the parent side of the crashmonitor. It requires
 // exclusive use of a writable pipe connected to the child process's stdin.
