@@ -39,7 +39,7 @@ type AEAD interface {
 	// value passed to Seal.
 	//
 	// To reuse ciphertext's storage for the decrypted output, use ciphertext[:0]
-	// as dst. Otherwise, the remaining capacity of dst must not overlap plaintext.
+	// as dst. Otherwise, the remaining capacity of dst must not overlap ciphertext.
 	//
 	// Even if the function fails, the contents of dst, up to its capacity,
 	// may be overwritten.
