@@ -112,9 +112,24 @@ func newUploader(rcfg RunConfig) (*uploader, error) {
 	logger := log.New(logWriter, "", log.Ltime|log.Lmicroseconds|log.Lshortfile)
 
 	// Fetch the upload config, if it is not provided.
-	config, configVersion, err := configstore.Download("latest", rcfg.Env)
-	if err != nil {
-		return nil, err
+	var (
+		config        *telemetry.UploadConfig
+		configVersion string
+	)
+
+	if mode, _ := dir.Mode(); mode == "on" {
+		// golang/go#68946: only download the upload config if it will be used.
+		//
+		// TODO(rfindley): This is a narrow change aimed at minimally fixing the
+		// associated bug. In the future, we should read the mode only once during
+		// the upload process.
+		config, configVersion, err = configstore.Download("latest", rcfg.Env)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		config = &telemetry.UploadConfig{}
+		configVersion = "v0.0.0-0"
 	}
 
 	// Set the start time, if it is not provided.
