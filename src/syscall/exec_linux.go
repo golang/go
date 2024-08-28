@@ -632,7 +632,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 
 	// Restore original rlimit.
 	if rlim != nil {
-		rawSetrlimit(RLIMIT_NOFILE, rlim)
+		RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
 	}
 
 	// Enable tracing if requested.
