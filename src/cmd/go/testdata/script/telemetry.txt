@@ -46,6 +46,6 @@ go env
 stdout 'GOTELEMETRY=''?on''?'
 stdout 'GOTELEMETRYDIR=''?'$userconfig'[\\/]go[\\/]telemetry''?'
 ! go env -w GOTELEMETRY=off
-stderr '^go: unknown go command variable GOTELEMETRY$'
+stderr '^go: GOTELEMETRY cannot be modified$'
 ! go env -w GOTELEMETRYDIR=foo
-stderr '^go: unknown go command variable GOTELEMETRYDIR$'
+stderr '^go: GOTELEMETRYDIR cannot be modified$'
