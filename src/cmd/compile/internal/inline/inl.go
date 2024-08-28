@@ -49,6 +49,7 @@ const (
 	inlineExtraAppendCost = 0
 	// default is to inline if there's at most one call. -l=4 overrides this by using 1 instead.
 	inlineExtraCallCost  = 57              // 57 was benchmarked to provided most benefit with no bad surprises; see https://github.com/golang/go/issues/19348#issuecomment-439370742
+	inlineParamCallCost  = 17              // calling a parameter only costs this much extra (inlining might expose a constant function)
 	inlineExtraPanicCost = 1               // do not penalize inlining panics.
 	inlineExtraThrowCost = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
 
@@ -520,6 +521,10 @@ opSwitch:
 			}
 		}
 
+		// A call to a parameter is optimistically a cheap call, if it's a constant function
+		// perhaps it will inline, it also can simplify escape analysis.
+		extraCost := v.extraCallCost
+
 		if n.Fun.Op() == ir.ONAME {
 			name := n.Fun.(*ir.Name)
 			if name.Class == ir.PFUNC {
@@ -538,6 +543,9 @@ opSwitch:
 						cheap = true
 					}
 				}
+			}
+			if name.Class == ir.PPARAM {
+				extraCost = min(extraCost, inlineParamCallCost)
 			}
 		}
 
@@ -572,7 +580,7 @@ opSwitch:
 		}
 
 		// Call cost for non-leaf inlining.
-		v.budget -= v.extraCallCost
+		v.budget -= extraCost
 
 	case ir.OCALLMETH:
 		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")

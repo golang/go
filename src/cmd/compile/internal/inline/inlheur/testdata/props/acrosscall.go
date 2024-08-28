@@ -13,7 +13,7 @@ package params
 //   0 ParamFeedsIndirectCall
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[8],"ResultFlags":null}
-// callsite: acrosscall.go:20:12|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
+// callsite: acrosscall.go:20:12|0 flagstr "" flagval 0 score 20 mask 0 maskstr ""
 // <endcallsites>
 // <endfuncpreamble>
 func T_feeds_indirect_call_via_call_toplevel(f func(int)) {
@@ -25,7 +25,7 @@ func T_feeds_indirect_call_via_call_toplevel(f func(int)) {
 //   0 ParamMayFeedIndirectCall
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[16],"ResultFlags":null}
-// callsite: acrosscall.go:33:13|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
+// callsite: acrosscall.go:33:13|0 flagstr "" flagval 0 score 20 mask 0 maskstr ""
 // <endcallsites>
 // <endfuncpreamble>
 func T_feeds_indirect_call_via_call_conditional(f func(int)) {
@@ -39,7 +39,7 @@ func T_feeds_indirect_call_via_call_conditional(f func(int)) {
 //   0 ParamMayFeedIndirectCall
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[16],"ResultFlags":null}
-// callsite: acrosscall.go:46:23|0 flagstr "" flagval 0 score 64 mask 0 maskstr ""
+// callsite: acrosscall.go:46:23|0 flagstr "" flagval 0 score 24 mask 0 maskstr ""
 // <endcallsites>
 // <endfuncpreamble>
 func T_feeds_conditional_indirect_call_via_call_toplevel(f func(int)) {
@@ -90,8 +90,8 @@ func T_feeds_conditional_if_via_call(x int) {
 //   1 ParamNoInfo
 // <endpropsdump>
 // {"Flags":0,"ParamFlags":[24,0],"ResultFlags":null}
-// callsite: acrosscall.go:98:12|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
-// callsite: acrosscall.go:99:23|1 flagstr "" flagval 0 score 64 mask 0 maskstr ""
+// callsite: acrosscall.go:98:12|0 flagstr "" flagval 0 score 20 mask 0 maskstr ""
+// callsite: acrosscall.go:99:23|1 flagstr "" flagval 0 score 24 mask 0 maskstr ""
 // <endcallsites>
 // <endfuncpreamble>
 func T_multifeeds1(f1, f2 func(int)) {
