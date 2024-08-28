@@ -158,9 +158,14 @@ For Go 1.24 it defaults to `randseednop=1`.
 Using `randseednop=0` reverts to the pre-Go 1.24 behavior.
 
 Go 1.24 added new values for the `multipathtcp` setting.
-The values "2" and "3" allow to enable MPTCP only on listeners/
-dialers respectively. For Go 1.24, it now defaults to multipathtcp=2:
-enabled by default on listerners. Using multipathtcp=0 reverts to the
+The possible values for `multipathtcp` are now:
+- "0": disable MPTCP on dialers and listeners by default
+- "1": enable MPTCP on dialers and listeners by default
+- "2": enable MPTCP on listeners only by default
+- "3": enable MPTCP on dialers only by default
+
+For Go 1.24, it now defaults to multipathtcp="2", thus
+enabled by default on listerners. Using multipathtcp="0" reverts to the
 pre-Go 1.24 behavior.
 
 ### Go 1.23
