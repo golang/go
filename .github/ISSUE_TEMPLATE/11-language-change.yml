@@ -50,7 +50,7 @@ body:
 
        If yes, 
         1. Mention the related proposals 
-        2. then describe how this proposal differs       
+        2. then describe how this proposal differs
     validations:
       required: true
 
@@ -107,7 +107,7 @@ body:
       required: false
 
   - type: textarea
-    id: go-backwards-compatiblity
+    id: go-backwards-compatibility
     attributes:
       label: Is this change backward compatible?
       description: Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit.
