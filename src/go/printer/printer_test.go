@@ -893,15 +893,15 @@ func main() {
 		{
 			in: `package main
 
-func main() {
-//line a:15:1
+func a() {
+//line a:5:1
 	//
 }
 `,
 			fmt: `package main
 
-func main() {
-//line a:15:1
+func a() {
+//line a:5:1
 	//
 }
 `,
