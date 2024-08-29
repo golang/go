@@ -893,6 +893,42 @@ func main() {
 		{
 			in: `package main
 
+func main() {
+	//go:directive
+	// test
+	type a struct{}
+}
+`,
+			fmt: `package main
+
+func main() {
+	//go:directive
+	// test
+	type a struct{}
+}
+`,
+		},
+		{
+			in: `package main
+
+func main() {
+//go:directive
+// test
+type a struct{}
+}
+`,
+			fmt: `package main
+
+func main() {
+	//go:directive
+	// test
+	type a struct{}
+}
+`,
+		},
+		{
+			in: `package main
+
 func a() {
 //line a:5:1
 	//
@@ -906,9 +942,15 @@ func a() {
 }
 `,
 		},
+
+		// Edge case found by a fuzzer, not a real-world example.
 		{
 			in:  "package A\n\nimport(\"\f\"\n//\n\"\")",
 			fmt: "package A\n\nimport (\n\t\"\f\" //\n\t\"\"\n)\n",
+		},
+		{
+			in:  "package A\n\nimport(`\f`\n//\n\"\")",
+			fmt: "package A\n\nimport (\n\t`\f` //\n\t\"\"\n)\n",
 		},
 	}
 
