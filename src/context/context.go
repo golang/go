@@ -378,8 +378,8 @@ func parentCancelCtx(parent Context) (*cancelCtx, bool) {
 	if !ok {
 		return nil, false
 	}
-	pdone, _ := p.done.Load().(chan struct{})
-	if pdone != done {
+	pdone := p.done.Load()
+	if pdone != nil && *pdone != done {
 		return nil, false
 	}
 	return p, true
@@ -546,7 +546,7 @@ func (c *cancelCtx) cancel(removeFromParent bool, err, cause error) {
 	c.err = err
 	c.cause = cause
 	d := c.done.Load()
-	if *d == nil {
+	if d == nil {
 		c.done.Store(&closedchan)
 	} else {
 		close(*d)
