@@ -906,6 +906,10 @@ func a() {
 }
 `,
 		},
+		{
+			in:  "package A\n\nimport(\"\f\"\n//\n\"\")",
+			fmt: "package A\n\nimport (\n\t\"\f\" //\n\t\"\"\n)\n",
+		},
 	}
 
 	for _, tt := range cases {
