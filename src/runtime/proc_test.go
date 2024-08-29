@@ -1158,3 +1158,10 @@ func TestBigGOMAXPROCS(t *testing.T) {
 		t.Errorf("output:\n%s\nwanted:\nunknown function: NonexistentTest", output)
 	}
 }
+
+func TestCgoToGoCallGoexit(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("only test in Windows")
+	}
+	checkCoroTestProgOutput(t, runTestProg(t, "testprogcgo", "CgoToGoCallGoexit"))
+}
