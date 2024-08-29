@@ -980,3 +980,64 @@ func a() {
 		}
 	}
 }
+
+func TestFormatGoDocNotAtFirstColumn(t *testing.T) {
+	const src = `package main
+
+	// test comment
+	//go:directive2
+	// test comment
+func main() {
+}
+`
+
+	const want = `package main
+
+// test comment
+// test comment
+//
+//go:directive2
+func main() {
+}
+`
+	fs := token.NewFileSet()
+	f, err := parser.ParseFile(fs, "test.go", src, parser.ParseComments|parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var s strings.Builder
+	if err := Fprint(&s, fs, f); err != nil {
+		t.Fatal(err)
+	}
+
+	out := s.String()
+	if out != want {
+		t.Errorf("source\n%q\nformatted as:\n%q\nwant formatted as:\n%q", src, out, want)
+	}
+}
+
+func TestFormatCommentAfterToken(t *testing.T) {
+	const src = `package main  //comment
+var a int = 4 //comment
+func a() {
+}
+`
+
+	fs := token.NewFileSet()
+	f, err := parser.ParseFile(fs, "test.go", src, parser.ParseComments|parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var s strings.Builder
+	cfg := Config{Tabwidth: 8, Mode: UseSpaces | TabIndent}
+	if err := cfg.Fprint(&s, fs, f); err != nil {
+		t.Fatal(err)
+	}
+
+	out := s.String()
+	if out != src {
+		t.Errorf("source\n%q\nformatted as:\n%q\nwant formatted as:\n%q", src, out, src)
+	}
+}

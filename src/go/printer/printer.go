@@ -745,7 +745,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 		changed := false
 		if !p.inDecl &&
 			p.lastTok != token.IMPORT && // do not rewrite cgo's import "C" comments
-			p.posFor(p.comment.Pos()).Column == 1 &&
+			p.posFor(p.comment.Pos()).Line != p.last.Line &&
 			p.posFor(p.comment.End()+1) == next {
 			// Unindented comment abutting next token position:
 			// a top-level doc comment.
