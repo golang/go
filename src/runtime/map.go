@@ -1123,6 +1123,11 @@ func (h *hmap) sameSizeGrow() bool {
 	return h.flags&sameSizeGrow != 0
 }
 
+//go:linkname sameSizeGrowForIssue69110Test
+func sameSizeGrowForIssue69110Test(h *hmap) bool {
+	return h.sameSizeGrow()
+}
+
 // noldbuckets calculates the number of buckets prior to the current map growth.
 func (h *hmap) noldbuckets() uintptr {
 	oldB := h.B
@@ -1503,7 +1508,16 @@ func moveToBmap(t *maptype, h *hmap, dst *bmap, pos int, src *bmap) (*bmap, int)
 }
 
 func mapclone2(t *maptype, src *hmap) *hmap {
-	dst := makemap(t, src.count, nil)
+	hint := src.count
+	if overLoadFactor(hint, src.B) {
+		// Note: in rare cases (e.g. during a same-sized grow) the map
+		// can be overloaded. Make sure we don't allocate a destination
+		// bucket array larger than the source bucket array.
+		// This will cause the cloned map to be overloaded also,
+		// but that's better than crashing. See issue 69110.
+		hint = int(loadFactorNum * (bucketShift(src.B) / loadFactorDen))
+	}
+	dst := makemap(t, hint, nil)
 	dst.hash0 = src.hash0
 	dst.nevacuate = 0
 	//flags do not need to be copied here, just like a new map has no flags.
