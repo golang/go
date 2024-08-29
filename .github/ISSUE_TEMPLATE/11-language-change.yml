@@ -1,6 +1,6 @@
 name: Language Change Proposals
 description: Changes to the language
-labels: ["Proposal", "LanguageChange", "LanguageChangeReview"]
+labels: [Proposal, LanguageChange, LanguageChangeReview]
 title: "proposal: spec: proposal title"
 
 
@@ -13,32 +13,32 @@ body:
   - type: dropdown
     id: author-go-experience
     attributes:
-      label: "Go Programming Experience"
-      description: "Would you consider yourself a novice, intermediate, or experienced Go programmer?"
+      label: Go Programming Experience
+      description: Would you consider yourself a novice, intermediate, or experienced Go programmer?
       options:
-        - "Novice"
-        - "Intermediate"
-        - "Experienced"
+        - Novice
+        - Intermediate
+        - Experienced
       default: 1
 
   - type: input
     id: author-other-languages-experience
     attributes:
-      label: "Other Languages Experience"
-      description: "What other languages do you have experience with?"
-      placeholder: "Go, Python, JS, Rust"
+      label: Other Languages Experience
+      description: What other languages do you have experience with?
+      placeholder: Go, Python, JS, Rust
     validations:
       required: false
 
   - type: checkboxes
     id: related-idea
     attributes:
-      label: "Related Idea"
+      label: Related Idea
       options:
-        - label: "Has this idea, or one like it, been proposed before?"
-        - label: "Does this affect error handling?"
-        - label: "Is this about generics?"
-        - label: "Is this change backward compatible? Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit"
+        - label: Has this idea, or one like it, been proposed before?
+        - label: Does this affect error handling?
+        - label: Is this about generics?
+        - label: Is this change backward compatible? Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit
 
   - type: textarea
     id: related-proposals
@@ -85,24 +85,24 @@ body:
   - type: textarea
     id: proposal
     attributes:
-      label: "Proposal"
-      description: "What is the proposed change? Who does this proposal help, and why? Please describe as precisely as possible the change to the language."
+      label: Proposal
+      description: What is the proposed change? Who does this proposal help, and why? Please describe as precisely as possible the change to the language.
     validations:
       required: true
 
   - type: textarea
     id: language-spec-changes
     attributes:
-      label: "Language Spec Changes"
-      description: "What would change in the language spec?"
+      label: Language Spec Changes
+      description: What would change in the language spec?
     validations:
       required: false
 
   - type: textarea
     id: informal-change
     attributes:
-      label: "Informal Change"
-      description: "Please also describe the change informally, as in a class teaching Go."
+      label: Informal Change
+      description: Please also describe the change informally, as in a class teaching Go.
     validations:
       required: false
 
@@ -124,26 +124,26 @@ body:
     id: orthogonality
     attributes:
       label: "Orthogonality: How does this change interact or overlap with existing features?"
-      description: "Is the goal of this change a performance improvement? If so, what quantifiable improvement should we expect? How would we measure it?"
+      description: Is the goal of this change a performance improvement? If so, what quantifiable improvement should we expect? How would we measure it?
     validations:
       required: false
 
   - type: textarea
     id: learning-curve
     attributes:
-      label: "Would this change make Go easier or harder to learn, and why?"
+      label: Would this change make Go easier or harder to learn, and why?
 
   - type: textarea
     id: cost-description
     attributes:
-      label: "Cost Description"
-      description: "What is the cost of this proposal? (Every language change has a cost)"
+      label: Cost Description
+      description: What is the cost of this proposal? (Every language change has a cost)
 
   - type: input
     id: go-toolchain
     attributes:
       label: Changes to Go ToolChain
-      description: "How many tools (such as vet, gopls, gofmt, goimports, etc.) would be affected? "
+      description: How many tools (such as vet, gopls, gofmt, goimports, etc.) would be affected?
     validations:
       required: false
 
@@ -151,15 +151,14 @@ body:
     id: perf-costs
     attributes:
       label: Performance Costs
-      description: "What is the compile time cost? What is the run time cost? "
+      description: What is the compile time cost? What is the run time cost?
     validations:
       required: false
 
   - type: textarea
     id: prototype
     attributes:
-      label: "Prototype"
-      description: "Can you describe a possible implementation?"
+      label: Prototype
+      description: Can you describe a possible implementation?
     validations:
       required: false
-
