@@ -1012,12 +1012,16 @@ func (v Values) Encode() string {
 	for _, k := range keys {
 		vs := v[k]
 		keyEscaped := QueryEscape(k)
-		for _, v := range vs {
-			if buf.Len() > 0 {
-				buf.WriteByte('&')
+		if buf.Len() > 0 {
+			buf.WriteByte('&')
+		}
+		for index, v := range vs {
+			if index == 0 {
+				buf.WriteString(keyEscaped)
+				buf.WriteByte('=')
+			} else {
+				buf.WriteByte(',')
 			}
-			buf.WriteString(keyEscaped)
-			buf.WriteByte('=')
 			buf.WriteString(QueryEscape(v))
 		}
 	}
