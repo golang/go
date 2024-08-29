@@ -2,8 +2,6 @@ name: Language Change Proposals
 description: Changes to the language
 labels: [Proposal, LanguageChange, LanguageChangeReview]
 title: "proposal: spec: proposal title"
-
-
 body:
   - type: markdown
     attributes:

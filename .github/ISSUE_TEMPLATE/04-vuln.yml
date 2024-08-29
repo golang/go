@@ -1,7 +1,7 @@
 name: Go vulnerability management - bugs and feature requests
 description: Issues or feature requests about Go vulnerability management
 title: "x/vuln: issue title"
-labels: ["vulncheck or vulndb"]
+labels: [vulncheck or vulndb]
 body:
   - type: markdown
     attributes:
@@ -21,7 +21,7 @@ body:
   - type: textarea
     id: reproduce-latest-version
     attributes:
-      label: "Does this issue reproduce at the latest version of golang.org/x/vuln?"
+      label: Does this issue reproduce at the latest version of golang.org/x/vuln?
     validations:
       required: true
   - type: textarea
@@ -34,19 +34,19 @@ body:
   - type: textarea
     id: what-did-you-do
     attributes:
-      label: "What did you do?"
-      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is best."
+      label: What did you do?
+      description: If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is best.
     validations:
       required: true
   - type: textarea
     id: actual-behavior
     attributes:
-      label: "What did you see happen?"
+      label: What did you see happen?
     validations:
       required: true
   - type: textarea
     id: expected-behavior
     attributes:
-      label: "What did you expect to see?"
+      label: What did you expect to see?
     validations:
       required: true
