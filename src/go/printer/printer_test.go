@@ -982,16 +982,20 @@ func a() {
 }
 
 func TestFormatGoDocNotAtFirstColumn(t *testing.T) {
-	const src = `package main
+	cases := []struct {
+		src string
+		fmt string
+	}{
+		{
+			src: `package main
 
-	// test comment
-	//go:directive2
-	// test comment
+// test comment
+//go:directive2
+// test comment
 func main() {
 }
-`
-
-	const want = `package main
+`,
+			fmt: `package main
 
 // test comment
 // test comment
@@ -999,21 +1003,47 @@ func main() {
 //go:directive2
 func main() {
 }
-`
-	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, "test.go", src, parser.ParseComments|parser.SkipObjectResolution)
-	if err != nil {
-		t.Fatal(err)
+`,
+		},
+		{
+			src: `package main
+
+/* test
+ */ // test comment
+//go:directive2
+// test comment
+func main() {
+}
+`,
+			fmt: `package main
+
+/* test
+ */ // test comment
+//go:directive2
+// test comment
+func main() {
+}
+`,
+		},
 	}
 
-	var s strings.Builder
-	if err := Fprint(&s, fs, f); err != nil {
-		t.Fatal(err)
-	}
+	for _, tt := range cases {
+		fs := token.NewFileSet()
+		f, err := parser.ParseFile(fs, "test.go", tt.src, parser.ParseComments|parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	out := s.String()
-	if out != want {
-		t.Errorf("source\n%q\nformatted as:\n%q\nwant formatted as:\n%q", src, out, want)
+		var s strings.Builder
+		cfg := Config{Tabwidth: 8, Mode: UseSpaces | TabIndent}
+		if err := cfg.Fprint(&s, fs, f); err != nil {
+			t.Fatal(err)
+		}
+
+		out := s.String()
+		if out != tt.fmt {
+			t.Errorf("source\n%q\nformatted as:\n%q\nwant formatted as:\n%q", tt.src, out, tt.src)
+		}
 	}
 }
 
