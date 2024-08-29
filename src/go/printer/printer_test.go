@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -860,6 +861,68 @@ func TestEmptyDecl(t *testing.T) { // issue 63566
 		want := tok.String() + " ()"
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
+		}
+	}
+}
+
+func TestNoDocFormatInsideDecl(t *testing.T) {
+	cases := []struct {
+		in  string
+		fmt string
+	}{
+		{
+			in: `package main
+
+func main() {
+//
+//go:directive
+// test
+//
+}
+`,
+			fmt: `package main
+
+func main() {
+	//
+	//go:directive
+	// test
+	//
+}
+`,
+		},
+		{
+			in: `package main
+
+func main() {
+//line a:15:1
+	//
+}
+`,
+			fmt: `package main
+
+func main() {
+//line a:15:1
+	//
+}
+`,
+		},
+	}
+
+	for _, tt := range cases {
+		fs := token.NewFileSet()
+		f, err := parser.ParseFile(fs, "test.go", tt.in, parser.ParseComments|parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var s strings.Builder
+		if err := Fprint(&s, fs, f); err != nil {
+			t.Fatal(err)
+		}
+
+		out := s.String()
+		if out != tt.fmt {
+			t.Errorf("source\n%q\nformatted as:\n%q\nwant formatted as:\n%q", tt.in, out, tt.fmt)
 		}
 	}
 }

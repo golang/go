@@ -69,6 +69,10 @@ type printer struct {
 	goBuild      []int        // start index of all //go:build comments in output
 	plusBuild    []int        // start index of all // +build comments in output
 
+	// inDecl is set to true when inside of an ast.Decl,
+	// after printing the first token of that declaration.
+	inDecl bool
+
 	// Positions
 	// The out position differs from the pos position when the result
 	// formatting differs from the source formatting (in the amount of
@@ -739,8 +743,8 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	for p.commentBefore(next) {
 		list := p.comment.List
 		changed := false
-		if p.lastTok != token.IMPORT && // do not rewrite cgo's import "C" comments
-			p.posFor(p.comment.Pos()).Column == 1 &&
+		if !p.inDecl &&
+			p.lastTok != token.IMPORT && // do not rewrite cgo's import "C" comments
 			p.posFor(p.comment.End()+1) == next {
 			// Unindented comment abutting next token position:
 			// a top-level doc comment.

@@ -1739,6 +1739,9 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 	p.setPos(d.Pos())
 	p.print(d.Tok, blank)
 
+	p.inDecl = true
+	defer func() { p.inDecl = false }()
+
 	if d.Lparen.IsValid() || len(d.Specs) != 1 {
 		// group of parenthesized declarations
 		p.setPos(d.Lparen)
@@ -1923,6 +1926,10 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
 	p.setComment(d.Doc)
 	p.setPos(d.Pos())
 	p.print(token.FUNC, blank)
+
+	p.inDecl = true
+	defer func() { p.inDecl = false }()
+
 	// We have to save startCol only after emitting FUNC; otherwise it can be on a
 	// different line (all whitespace preceding the FUNC is emitted only when the
 	// FUNC is emitted).
