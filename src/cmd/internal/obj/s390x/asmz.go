@@ -35,7 +35,7 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"sort"
+	"slices"
 )
 
 // ctxtz holds state while assembling a single function.
@@ -853,40 +853,23 @@ func cmp(a int, b int) bool {
 	return false
 }
 
-type ocmp []Optab
-
-func (x ocmp) Len() int {
-	return len(x)
-}
-
-func (x ocmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x ocmp) Less(i, j int) bool {
-	p1 := &x[i]
-	p2 := &x[j]
-	n := int(p1.as) - int(p2.as)
-	if n != 0 {
-		return n < 0
+func ocmp(p1, p2 Optab) int {
+	if p1.as != p2.as {
+		return int(p1.as) - int(p2.as)
 	}
-	n = int(p1.a1) - int(p2.a1)
-	if n != 0 {
-		return n < 0
+	if p1.a1 != p2.a1 {
+		return int(p1.a1) - int(p2.a1)
 	}
-	n = int(p1.a2) - int(p2.a2)
-	if n != 0 {
-		return n < 0
+	if p1.a2 != p2.a2 {
+		return int(p1.a2) - int(p2.a2)
 	}
-	n = int(p1.a3) - int(p2.a3)
-	if n != 0 {
-		return n < 0
+	if p1.a3 != p2.a3 {
+		return int(p1.a3) - int(p2.a3)
 	}
-	n = int(p1.a4) - int(p2.a4)
-	if n != 0 {
-		return n < 0
+	if p1.a4 != p2.a4 {
+		return int(p1.a4) - int(p2.a4)
 	}
-	return false
+	return 0
 }
 func opset(a, b obj.As) {
 	oprange[a&obj.AMask] = oprange[b&obj.AMask]
@@ -907,7 +890,7 @@ func buildop(ctxt *obj.Link) {
 			}
 		}
 	}
-	sort.Sort(ocmp(optab))
+	slices.SortFunc(optab, ocmp)
 	for i := 0; i < len(optab); i++ {
 		r := optab[i].as
 		start := i

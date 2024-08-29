@@ -363,6 +363,7 @@ func assertSortedMethods(list []*Func) {
 }
 
 // byUniqueMethodName method lists can be sorted by their unique method names.
+// todo: replace with slices.SortFunc
 type byUniqueMethodName []*Func
 
 func (a byUniqueMethodName) Len() int           { return len(a) }

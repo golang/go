@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"container/heap"
+	"slices"
 	"sort"
 )
 
@@ -525,13 +526,13 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 				}
 			} else {
 				if start != -1 {
-					sort.Sort(bySourcePos(order[start:i]))
+					slices.SortFunc(order[start:i], valuePosCmp)
 					start = -1
 				}
 			}
 		}
 		if start != -1 {
-			sort.Sort(bySourcePos(order[start:]))
+			slices.SortFunc(order[start:], valuePosCmp)
 		}
 	}
 
@@ -568,8 +569,12 @@ func (v *Value) hasFlagInput() bool {
 	return false
 }
 
-type bySourcePos []*Value
-
-func (s bySourcePos) Len() int           { return len(s) }
-func (s bySourcePos) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s bySourcePos) Less(i, j int) bool { return s[i].Pos.Before(s[j].Pos) }
+func valuePosCmp(a, b *Value) int {
+	if a.Pos.Before(b.Pos) {
+		return -1
+	}
+	if a.Pos.After(b.Pos) {
+		return +1
+	}
+	return 0
+}

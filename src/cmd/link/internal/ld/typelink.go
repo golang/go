@@ -8,26 +8,21 @@ import (
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
-	"sort"
+	"slices"
+	"strings"
 )
-
-type byTypeStr []typelinkSortKey
 
 type typelinkSortKey struct {
 	TypeStr string
 	Type    loader.Sym
 }
 
-func (s byTypeStr) Less(i, j int) bool { return s[i].TypeStr < s[j].TypeStr }
-func (s byTypeStr) Len() int           { return len(s) }
-func (s byTypeStr) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
 // typelink generates the typelink table which is used by reflect.typelinks().
 // Types that should be added to the typelinks table are marked with the
 // MakeTypelink attribute by the compiler.
 func (ctxt *Link) typelink() {
 	ldr := ctxt.loader
-	typelinks := byTypeStr{}
+	var typelinks []typelinkSortKey
 	var itabs []loader.Sym
 	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
 		if !ldr.AttrReachable(s) {
@@ -39,7 +34,9 @@ func (ctxt *Link) typelink() {
 			itabs = append(itabs, s)
 		}
 	}
-	sort.Sort(typelinks)
+	slices.SortFunc(typelinks, func(a, b typelinkSortKey) int {
+		return strings.Compare(a.TypeStr, b.TypeStr)
+	})
 
 	tl := ldr.CreateSymForUpdate("runtime.typelink", 0)
 	tl.SetType(sym.STYPELINK)

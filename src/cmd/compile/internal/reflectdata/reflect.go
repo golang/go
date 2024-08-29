@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"internal/abi"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -1264,7 +1265,7 @@ func WriteRuntimeTypes() {
 	for len(signatslice) > 0 {
 		signats := signatslice
 		// Sort for reproducible builds.
-		sort.Sort(typesByString(signats))
+		slices.SortFunc(signats, typesStrCmp)
 		for _, ts := range signats {
 			t := ts.t
 			writeType(t)
@@ -1282,7 +1283,7 @@ func WriteGCSymbols() {
 	for t := range gcsymset {
 		gcsyms = append(gcsyms, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
 	}
-	sort.Sort(typesByString(gcsyms))
+	slices.SortFunc(gcsyms, typesStrCmp)
 	for _, ts := range gcsyms {
 		dgcsym(ts.t, true)
 	}
@@ -1460,20 +1461,17 @@ type typeAndStr struct {
 	regular string
 }
 
-type typesByString []typeAndStr
-
-func (a typesByString) Len() int { return len(a) }
-func (a typesByString) Less(i, j int) bool {
+func typesStrCmp(a, b typeAndStr) int {
 	// put named types before unnamed types
-	if a[i].t.Sym() != nil && a[j].t.Sym() == nil {
-		return true
+	if a.t.Sym() != nil && b.t.Sym() == nil {
+		return -1
 	}
-	if a[i].t.Sym() == nil && a[j].t.Sym() != nil {
-		return false
+	if a.t.Sym() == nil && b.t.Sym() != nil {
+		return +1
 	}
 
-	if a[i].short != a[j].short {
-		return a[i].short < a[j].short
+	if r := strings.Compare(a.short, b.short); r != 0 {
+		return r
 	}
 	// When the only difference between the types is whether
 	// they refer to byte or uint8, such as **byte vs **uint8,
@@ -1484,19 +1482,21 @@ func (a typesByString) Less(i, j int) bool {
 	// avoid naming collisions, and there shouldn't be a reason to care
 	// about "byte" vs "uint8": they share the same runtime type
 	// descriptor anyway.
-	if a[i].regular != a[j].regular {
-		return a[i].regular < a[j].regular
+	if r := strings.Compare(a.regular, b.regular); r != 0 {
+		return r
 	}
 	// Identical anonymous interfaces defined in different locations
 	// will be equal for the above checks, but different in DWARF output.
 	// Sort by source position to ensure deterministic order.
 	// See issues 27013 and 30202.
-	if a[i].t.Kind() == types.TINTER && len(a[i].t.AllMethods()) > 0 {
-		return a[i].t.AllMethods()[0].Pos.Before(a[j].t.AllMethods()[0].Pos)
+	if a.t.Kind() == types.TINTER && len(a.t.AllMethods()) > 0 {
+		if a.t.AllMethods()[0].Pos.Before(b.t.AllMethods()[0].Pos) {
+			return -1
+		}
+		return +1
 	}
-	return false
+	return 0
 }
-func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
 // GCSym returns a data symbol containing GC information for type t, along
 // with a boolean reporting whether the UseGCProg bit should be set in the

@@ -21,13 +21,14 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"cmp"
 	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
 	"log"
 	"path"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -1981,7 +1982,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	abbrevSec := d.writeabbrev()
 	dwarfp = append(dwarfp, abbrevSec)
 	d.calcCompUnitRanges()
-	sort.Sort(compilationUnitByStartPC(d.linkctxt.compUnits))
+	slices.SortFunc(d.linkctxt.compUnits, compilationUnitByStartPCCmp)
 
 	// newdie adds DIEs to the *beginning* of the parent's DIE list.
 	// Now that we're done creating DIEs, reverse the trees so DIEs
@@ -2247,21 +2248,16 @@ func dwarfcompress(ctxt *Link) {
 	Segdwarf.Length = pos - Segdwarf.Vaddr
 }
 
-type compilationUnitByStartPC []*sym.CompilationUnit
-
-func (v compilationUnitByStartPC) Len() int      { return len(v) }
-func (v compilationUnitByStartPC) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
-
-func (v compilationUnitByStartPC) Less(i, j int) bool {
+func compilationUnitByStartPCCmp(a, b *sym.CompilationUnit) int {
 	switch {
-	case len(v[i].Textp) == 0 && len(v[j].Textp) == 0:
-		return v[i].Lib.Pkg < v[j].Lib.Pkg
-	case len(v[i].Textp) != 0 && len(v[j].Textp) == 0:
-		return true
-	case len(v[i].Textp) == 0 && len(v[j].Textp) != 0:
-		return false
+	case len(a.Textp) == 0 && len(b.Textp) == 0:
+		return strings.Compare(a.Lib.Pkg, b.Lib.Pkg)
+	case len(a.Textp) != 0 && len(b.Textp) == 0:
+		return -1
+	case len(a.Textp) == 0 && len(b.Textp) != 0:
+		return +1
 	default:
-		return v[i].PCs[0].Start < v[j].PCs[0].Start
+		return cmp.Compare(a.PCs[0].Start, b.PCs[0].Start)
 	}
 }
 

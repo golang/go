@@ -11,6 +11,7 @@ import (
 	"debug/macho"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 )
 
@@ -42,7 +43,7 @@ func (f *machoFile) symbols() ([]Sym, error) {
 			addrs = append(addrs, s.Value)
 		}
 	}
-	sort.Sort(uint64s(addrs))
+	slices.Sort(addrs)
 
 	var syms []Sym
 	for _, s := range f.macho.Symtab.Syms {
@@ -120,12 +121,6 @@ func (f *machoFile) goarch() string {
 	}
 	return ""
 }
-
-type uint64s []uint64
-
-func (x uint64s) Len() int           { return len(x) }
-func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
 
 func (f *machoFile) loadAddress() (uint64, error) {
 	if seg := f.macho.Segment("__TEXT"); seg != nil {
