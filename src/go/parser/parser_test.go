@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/token"
 	"io/fs"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -857,5 +858,38 @@ func TestEmptyFileHasValidStartEnd(t *testing.T) {
 		if got != test.want {
 			t.Fatalf("src = %q: got %s, want %s", test.src, got, test.want)
 		}
+	}
+}
+
+func TestCommentGroupWithLineDirective(t *testing.T) {
+	const src = `package main
+func test() {
+//line a:15:1
+	//
+}
+`
+	fsset := token.NewFileSet()
+	f, err := ParseFile(fsset, "test.go", src, ParseComments|SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := &ast.CommentGroup{
+		List: []*ast.Comment{
+			{
+				Slash: token.Pos(0),
+				Text:  "//line a:5:1",
+			},
+			{
+				Slash: token.Pos(1),
+				Text:  "//",
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(f.Comments, want) {
+		var got strings.Builder
+		ast.Fprint(&got, fsset, f.Comments, nil)
+		t.Fatalf("unexpected f.Comments got:\n%v", got.String())
 	}
 }
