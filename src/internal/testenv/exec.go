@@ -31,20 +31,12 @@ import (
 // If exec is not supported, testenv.SyscallIsNotSupported will return true
 // for the resulting error.
 func MustHaveExec(t testing.TB) {
-	tryExecOnce.Do(func() {
-		tryExecErr = tryExec()
-	})
-	if tryExecErr != nil {
-		t.Skipf("skipping test: cannot exec subprocess on %s/%s: %v", runtime.GOOS, runtime.GOARCH, tryExecErr)
+	if err := tryExec(); err != nil {
+		t.Skipf("skipping test: cannot exec subprocess on %s/%s: %v", runtime.GOOS, runtime.GOARCH, err)
 	}
 }
 
-var (
-	tryExecOnce sync.Once
-	tryExecErr  error
-)
-
-func tryExec() error {
+var tryExec = sync.OnceValue(func() error {
 	switch runtime.GOOS {
 	case "wasip1", "js", "ios":
 	default:
@@ -77,7 +69,7 @@ func tryExec() error {
 	cmd := exec.Command(exe, "-test.list=^$")
 	cmd.Env = origEnv
 	return cmd.Run()
-}
+})
 
 var execPaths sync.Map // path -> error
 
