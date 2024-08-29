@@ -897,6 +897,10 @@ func main() {
 	//go:directive
 	// test
 	type a struct{}
+
+//go:directive
+// test
+test()
 }
 `,
 			fmt: `package main
@@ -905,6 +909,10 @@ func main() {
 	//go:directive
 	// test
 	type a struct{}
+
+	//go:directive
+	// test
+	test()
 }
 `,
 		},
