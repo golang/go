@@ -139,7 +139,7 @@ func (f *File) copyFile(r io.Reader) (written int64, handled bool, err error) {
 
 	// We can employ sendfile(2) when copy_file_range(2) fails to handle the copy.
 	// sendfile(2) enabled file-to-file copying since Linux 2.6.33 and Go requires
-	// Linux 3.17 or later, so we're good to go.
+	// Linux 3.2 or later, so we're good to go.
 	// Check out https://man7.org/linux/man-pages/man2/sendfile.2.html#DESCRIPTION for more details.
 	rerr := sc.Read(func(fd uintptr) bool {
 		written, err, handled = poll.SendFile(&f.pfd, int(fd), remain)

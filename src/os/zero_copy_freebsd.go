@@ -16,7 +16,7 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
 }
 
 func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
-	// copy_file_range(2) doesn't supports destinations opened with
+	// copy_file_range(2) doesn't support destinations opened with
 	// O_APPEND, so don't bother to try zero-copy with these system calls.
 	//
 	// Visit https://man.freebsd.org/cgi/man.cgi?copy_file_range(2)#ERRORS for details.
