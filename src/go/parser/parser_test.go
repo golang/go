@@ -868,28 +868,31 @@ func test() {
 	//
 }
 `
-	fsset := token.NewFileSet()
-	f, err := ParseFile(fsset, "test.go", src, ParseComments|SkipObjectResolution)
+	fset := token.NewFileSet()
+	f, err := ParseFile(fset, "test.go", src, ParseComments|SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	want := &ast.CommentGroup{
-		List: []*ast.Comment{
-			{
-				Slash: token.Pos(0),
-				Text:  "//line a:5:1",
-			},
-			{
-				Slash: token.Pos(1),
-				Text:  "//",
+	wantCommentGroups := []*ast.CommentGroup{
+		{
+			List: []*ast.Comment{
+				{
+					Slash: token.Pos(28),
+					Text:  "//line a:15:1",
+				},
+				{
+					Slash: token.Pos(43),
+					Text:  "//",
+				},
 			},
 		},
 	}
 
-	if !reflect.DeepEqual(f.Comments, want) {
-		var got strings.Builder
-		ast.Fprint(&got, fsset, f.Comments, nil)
-		t.Fatalf("unexpected f.Comments got:\n%v", got.String())
+	if !reflect.DeepEqual(f.Comments, wantCommentGroups) {
+		var got, want strings.Builder
+		ast.Fprint(&got, fset, f.Comments, nil)
+		ast.Fprint(&want, fset, wantCommentGroups, nil)
+		t.Fatalf("unexpected f.Comments got:\n%v\nwant:\n%v", got.String(), want.String())
 	}
 }
