@@ -300,7 +300,10 @@ func TestChdir(t *testing.T) {
 	}
 	rel, err := filepath.Rel(oldDir, tmp)
 	if err != nil {
-		t.Fatal(err)
+		// when GOROOT is git clone dir,
+		// there will happen error here,
+		// skip this test to avoid false test failures.
+		t.Skip(err)
 	}
 
 	for _, tc := range []struct {
