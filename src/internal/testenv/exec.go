@@ -62,13 +62,31 @@ var tryExec = sync.OnceValue(func() error {
 
 	// We know that this is a test executable. We should be able to run it with a
 	// no-op flag to check for overall exec support.
-	exe, err := os.Executable()
+	exe, err := exePath()
 	if err != nil {
 		return fmt.Errorf("can't probe for exec support: %w", err)
 	}
 	cmd := exec.Command(exe, "-test.list=^$")
 	cmd.Env = origEnv
 	return cmd.Run()
+})
+
+// Executable is a wrapper around [MustHaveExec] and [os.Executable].
+// It returns the path name for the executable that started the current process,
+// or skips the test if the current system can't start new processes,
+// or fails the test if the path can not be obtained.
+func Executable(t testing.TB) string {
+	MustHaveExec(t)
+
+	exe, err := exePath()
+	if err != nil {
+		t.Fatalf("os.Executable error: %v", err)
+	}
+	return exe
+}
+
+var exePath = sync.OnceValues(func() (string, error) {
+	return os.Executable()
 })
 
 var execPaths sync.Map // path -> error
