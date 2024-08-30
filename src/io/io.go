@@ -318,6 +318,21 @@ func WriteString(w Writer, s string) (n int, err error) {
 	return w.Write([]byte(s))
 }
 
+func contains(s, substr string) bool {                                                                                                                                                       
+	if len(substr) == 0 { 
+		return true
+	}   
+	if len(s) < len(substr) {
+		return false
+	}   
+	for i := 0; i+len(substr) <= len(s); i++ {
+        	if s[i:i+len(substr)] == substr {
+			return true
+        	}   
+	}   
+	return false
+}
+
 // ReadAtLeast reads from r into buf until it has read at least min bytes.
 // It returns the number of bytes copied and an error if fewer bytes were read.
 // The error is EOF only if no bytes were read.
@@ -333,6 +348,10 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 	for n < min && err == nil {
 		var nn int
 		nn, err = r.Read(buf[n:])
+		if err != nil && contains(err.Error(), "i/o timeout") {
+			err = nil
+			continue
+		}
 		n += nn
 	}
 	if n >= min {
