@@ -32,6 +32,7 @@ import (
 // for the resulting error.
 func MustHaveExec(t testing.TB) {
 	if err := tryExec(); err != nil {
+		t.Helper()
 		t.Skipf("skipping test: cannot exec subprocess on %s/%s: %v", runtime.GOOS, runtime.GOARCH, err)
 	}
 }
@@ -103,6 +104,7 @@ func MustHaveExecPath(t testing.TB, path string) {
 		err, _ = execPaths.LoadOrStore(path, err)
 	}
 	if err != nil {
+		t.Helper()
 		t.Skipf("skipping test: %s: %s", path, err)
 	}
 }
