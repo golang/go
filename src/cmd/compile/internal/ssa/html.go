@@ -831,10 +831,10 @@ type FuncLines struct {
 // ByTopoCmp sorts topologically: target function is on top,
 // followed by inlined functions sorted by filename and line numbers.
 func ByTopoCmp(a, b *FuncLines) int {
-	if a.Filename == b.Filename {
-		return cmp.Compare(a.StartLineno, b.StartLineno)
+	if r := strings.Compare(a.Filename, b.Filename); r != 0 {
+		return r
 	}
-	return strings.Compare(a.Filename, b.Filename)
+	return cmp.Compare(a.StartLineno, b.StartLineno)
 }
 
 // WriteSources writes lines as source code in a column headed by title.
