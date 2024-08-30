@@ -77,7 +77,19 @@
 		globalThis.path = {
 			resolve(...pathSegments) {
 				return pathSegments.join("/");
-			}
+			},
+			isAbsolute(path) {
+				return path[0] === "/";
+			},
+			parse(path) {
+				return {
+					root: "/"
+				}
+			},
+			normalize(path) {
+				return path;
+			},
+			sep: "/",
 		}
 	}
 
