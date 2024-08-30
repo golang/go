@@ -1,0 +1,56 @@
+# Test that mod=vendor is disabled in workspace mode, even
+# with a single workspace module.
+
+cd workspace
+
+# Base case: ensure the module would default to mod=vendor
+# outside of workspace mode.
+env GOWORK=off
+go list -f '{{.Dir}}' example.com/dep
+stdout $GOPATH[\\/]src[\\/]workspace[\\/]vendor[\\/]example.com[\\/]dep
+
+# Test case: endure the module does not enter mod=vendor outside
+# worspace mode.
+env GOWORK=''
+go list -f '{{.Dir}}' example.com/dep
+stdout $GOPATH[\\/]src[\\/]dep
+
+-- workspace/go.work --
+use .
+replace example.com/dep => ../dep
+-- workspace/main.go --
+package main
+
+import "example.com/dep"
+
+func main() {
+	dep.Dep()
+}
+-- workspace/go.mod --
+module example.com/mod
+
+go 1.20
+
+require example.com/dep v1.0.0
+-- workspace/vendor/example.com/dep/dep.go --
+package dep
+
+import "fmt"
+
+func Dep() {
+	fmt.Println("the vendored dep")
+}
+-- workspace/vendor/modules.txt --
+# example.com/dep v1.0.0
+## explicit
+example.com/dep
+-- dep/go.mod --
+module example.com/dep
+-- dep/dep.go --
+package dep
+
+import "fmt"
+
+func Dep () {
+    fmt.Println("the real dep")
+}

@@ -1,0 +1,31 @@
+// Package set implements sets of any type.
+package set
+
+type Set[Elem comparable] map[Elem]struct{}
+
+func Make[Elem comparable]() Set[Elem] {
+	return make(Set(Elem))
+}
+
+func (s Set[Elem]) Add(v Elem) {
+	s[v] = struct{}{}
+}
+
+func (s Set[Elem]) Delete(v Elem) {
+	delete(s, v)
+}
+
+func (s Set[Elem]) Contains(v Elem) bool {
+	_, ok := s[v]
+	return ok
+}
+
+func (s Set[Elem]) Len() int {
+	return len(s)
+}
+
+func (s Set[Elem]) Iterate(f func(Elem)) {
+	for v := range s {
+		f(v)
+	}
+}

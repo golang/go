@@ -1,0 +1,17 @@
+rsc.io/needgo122 0.0.1
+written by hand
+
+-- .mod --
+module rsc.io/needgo122
+go 1.22
+
+-- go.mod --
+module rsc.io/needgo122
+go 1.22
+
+-- .info --
+{"Version":"v0.0.1"}
+-- p.go --
+package p
+
+func F() {}

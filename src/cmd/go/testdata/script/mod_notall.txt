@@ -1,0 +1,99 @@
+# This test demonstrates go commands that combine the 'all' pattern
+# with packages outside of 'all'.
+
+# With -deps, 'all' should include test dependencies of packages in the main
+# module, but not should not include test dependencies of packages imported only
+# by other root patterns.
+
+env GOFLAGS=-mod=mod
+cp go.mod go.mod.orig
+
+go list -deps all x/otherroot
+
+stdout '^x/inall$'
+stdout '^x/inall/fromtest$'
+stdout '^x/inall/fromtestinall$'
+stdout '^x/otherroot$'
+stdout '^x/otherdep$'
+
+! stdout '^x/fromotherroottest$'
+! stdout '^y/fromotherdeptest$'
+
+cmp go.mod go.mod.orig
+
+# With -deps -test, test dependencies of other roots should be included,
+# but test dependencies of non-roots should not.
+
+go list -deps -test all x/otherroot
+stdout '^x/inall$'
+stdout '^x/inall/fromtest$'
+stdout '^x/inall/fromtestinall$'
+stdout '^x/otherroot$'
+stdout '^x/otherdep$'
+
+stdout '^x/fromotherroottest$'
+! stdout '^y/fromotherdeptest$'
+
+cmp go.mod go.mod.orig
+
+-- m.go --
+package m
+
+import _ "x/inall"
+-- m_test.go --
+package m_test
+
+import _ "x/inall/fromtest"
+-- go.mod --
+module m
+
+go 1.15
+
+require x v0.1.0
+
+replace (
+	x v0.1.0 => ./x
+	y v0.1.0 => ./y
+)
+-- x/go.mod --
+module x
+
+go 1.15
+-- x/inall/inall.go --
+package inall
+-- x/inall/inall_test.go --
+package inall_test
+
+import _ "x/inall/fromtestinall"
+-- x/inall/fromtest/fromtest.go --
+package fromtest
+-- x/inall/fromtestinall/fromtestinall.go --
+package fromtestinall
+-- x/otherroot/otherroot.go --
+package otherroot
+
+import _ "x/otherdep"
+-- x/otherroot/otherroot_test.go --
+package otherroot_test
+
+import _ "x/fromotherroottest"
+-- x/fromotherroottest/fromotherroottest.go --
+package fromotherroottest
+-- x/otherdep/otherdep.go --
+package otherdep
+-- x/otherdep/otherdep_test.go --
+package otherdep_test
+
+import _ "y/fromotherdeptest"
+-- x/otherroot/testonly/testonly.go --
+package testonly
+-- y/go.mod --
+module y
+
+go 1.15
+-- y/fromotherdeptest/fromotherdeptest.go --
+// Package fromotherdeptest is a test dependency of x/otherdep that is
+// not declared in x/go.mod. If the loader resolves this package,
+// it will add this module to the main module's go.mod file,
+// and we can detect the mistake.
+package fromotherdeptest

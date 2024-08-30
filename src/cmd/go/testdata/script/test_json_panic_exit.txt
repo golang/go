@@ -1,0 +1,69 @@
+# Verifies golang.org/issue/37555.
+
+[short] skip
+
+# 'go test -json' should say a test passes if it says it passes.
+go test -json ./pass
+stdout '"Action":"pass","Package":"[^"]*","Elapsed":[^"]*}\n\z'
+! stdout '"Test":.*\n\z'
+
+# 'go test -json' should say a test passes if it exits 0 and prints nothing.
+# TODO(golang.org/issue/29062): this should fail in the future.
+go test -json ./exit0main
+stdout '"Action":"pass".*\n\z'
+! stdout '"Test":.*\n\z'
+
+# 'go test -json' should say a test fails if it exits 1 and prints nothing.
+! go test -json ./exit1main
+stdout '"Action":"fail".*\n\z'
+! stdout '"Test":.*\n\z'
+
+# 'go test -json' should say a test fails if it panics.
+! go test -json ./panic
+stdout '"Action":"fail".*\n\z'
+! stdout '"Test":.*\n\z'
+
+-- go.mod --
+module example.com/test
+
+go 1.14
+
+-- pass/pass_test.go --
+package pass_test
+
+import "testing"
+
+func TestPass(t *testing.T) {}
+
+-- exit0main/exit0main_test.go --
+package exit0_test
+
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	os.Exit(0)
+}
+
+-- exit1main/exit1main_test.go --
+package exit1_test
+
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	os.Exit(1)
+}
+
+-- panic/panic_test.go --
+package panic_test
+
+import "testing"
+
+func TestPanic(t *testing.T) {
+	panic("oh no")
+}

@@ -1,0 +1,50 @@
+# Go should refuse to build code that is too new according to go.mod.
+
+# go.mod too new
+env GOTOOLCHAIN=local
+! go build .
+stderr '^go: go.mod requires go >= 1.99999 \(running go 1\..+\)$'
+
+# go.mod referenced from go.work too new
+cp go.work.old go.work
+! go build .
+stderr '^go: module . listed in go.work file requires go >= 1.99999, but go.work lists go 1.10; to update it:\n\tgo work use$'
+
+! go work sync
+stderr '^go: cannot load module . listed in go.work file: go.mod requires go >= 1.99999 \(running go 1\..+\)$'
+
+# go.work too new
+cp go.work.new go.work
+cp go.mod.old go.mod
+! go build .
+stderr '^go: go.work requires go >= 1.99999 \(running go 1\..+\)$'
+
+# vendor too new
+rm go.work
+mv notvendor vendor
+! go build -mod=vendor .
+stderr '^go: golang.org/x/text in vendor'${/}'modules.txt requires go >= 1.99999 \(running go 1\..+\)$'
+
+-- go.mod --
+module example
+go 1.99999
+
+-- p.go --
+package p
+
+-- go.mod.old --
+module example
+go 1.10
+
+-- go.work.new --
+go 1.99999
+use .
+
+-- go.work.old --
+go 1.10
+use .
+
+-- notvendor/modules.txt --
+# golang.org/x/text v0.9.0
+## explicit; go 1.99999
+golang.org/x/text/internal/language

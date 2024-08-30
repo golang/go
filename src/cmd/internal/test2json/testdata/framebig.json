@@ -1,0 +1,168 @@
+{"Action":"start"}
+{"Action":"run","Test":"TestIndex"}
+{"Action":"output","Test":"TestIndex","Output":"=== RUN   TestIndex\n"}
+{"Action":"output","Test":"TestIndex","Output":"--- PASS: TestIndex (0.00s)\n"}
+{"Action":"pass","Test":"TestIndex"}
+{"Action":"pass","Test":"TestIndex"}
+{"Action":"output","Test":"TestIndex","Output":"=== PASS  TestIndex\n"}
+{"Action":"run","Test":"TestLastIndex"}
+{"Action":"output","Test":"TestLastIndex","Output":"=== RUN   TestLastIndex\n"}
+{"Action":"output","Test":"TestLastIndex","Output":"--- PASS: TestLastIndex (0.00s)\n"}
+{"Action":"pass","Test":"TestLastIndex"}
+{"Action":"pass","Test":"TestLastIndex"}
+{"Action":"output","Test":"TestLastIndex","Output":"=== PASS  TestLastIndex\n"}
+{"Action":"run","Test":"TestIndexAny"}
+{"Action":"output","Test":"TestIndexAny","Output":"=== RUN   TestIndexAny\n"}
+{"Action":"output","Test":"TestIndexAny","Output":"--- PASS: TestIndexAny (0.00s)\n"}
+{"Action":"pass","Test":"TestIndexAny"}
+{"Action":"pass","Test":"TestIndexAny"}
+{"Action":"output","Test":"TestIndexAny","Output":"=== PASS  TestIndexAny\n"}
+{"Action":"run","Test":"TestLastIndexAny"}
+{"Action":"output","Test":"TestLastIndexAny","Output":"=== RUN   TestLastIndexAny\n"}
+{"Action":"output","Test":"TestLastIndexAny","Output":"--- PASS: TestLastIndexAny (0.00s)\n"}
+{"Action":"pass","Test":"TestLastIndexAny"}
+{"Action":"pass","Test":"TestLastIndexAny"}
+{"Action":"output","Test":"TestLastIndexAny","Output":"=== PASS  TestLastIndexAny\n"}
+{"Action":"run","Test":"TestIndexByte"}
+{"Action":"output","Test":"TestIndexByte","Output":"=== RUN   TestIndexByte\n"}
+{"Action":"output","Test":"TestIndexByte","Output":"--- PASS: TestIndexByte (0.00s)\n"}
+{"Action":"pass","Test":"TestIndexByte"}
+{"Action":"pass","Test":"TestIndexByte"}
+{"Action":"output","Test":"TestIndexByte","Output":"=== PASS  TestIndexByte\n"}
+{"Action":"run","Test":"TestLastIndexByte"}
+{"Action":"output","Test":"TestLastIndexByte","Output":"=== RUN   TestLastIndexByte\n"}
+{"Action":"output","Test":"TestLastIndexByte","Output":"--- PASS: TestLastIndexByte (0.00s)\n"}
+{"Action":"pass","Test":"TestLastIndexByte"}
+{"Action":"pass","Test":"TestLastIndexByte"}
+{"Action":"output","Test":"TestLastIndexByte","Output":"=== PASS  TestLastIndexByte\n"}
+{"Action":"run","Test":"TestIndexRandom"}
+{"Action":"output","Test":"TestIndexRandom","Output":"=== RUN   TestIndexRandom\n"}
+{"Action":"output","Test":"TestIndexRandom","Output":"--- PASS: TestIndexRandom (0.00s)\n"}
+{"Action":"pass","Test":"TestIndexRandom"}
+{"Action":"pass","Test":"TestIndexRandom"}
+{"Action":"output","Test":"TestIndexRandom","Output":"=== PASS  TestIndexRandom\n"}
+{"Action":"run","Test":"TestIndexRune"}
+{"Action":"output","Test":"TestIndexRune","Output":"=== RUN   TestIndexRune\n"}
+{"Action":"output","Test":"TestIndexRune","Output":"--- PASS: TestIndexRune (0.00s)\n"}
+{"Action":"pass","Test":"TestIndexRune"}
+{"Action":"pass","Test":"TestIndexRune"}
+{"Action":"output","Test":"TestIndexRune","Output":"=== PASS  TestIndexRune\n"}
+{"Action":"run","Test":"TestIndexFunc"}
+{"Action":"output","Test":"TestIndexFunc","Output":"=== RUN   TestIndexFunc\n"}
+{"Action":"output","Test":"TestIndexFunc","Output":"--- PASS: TestIndexFunc (0.00s)\n"}
+{"Action":"pass","Test":"TestIndexFunc"}
+{"Action":"pass","Test":"TestIndexFunc"}
+{"Action":"output","Test":"TestIndexFunc","Output":"=== PASS  TestIndexFunc\n"}
+{"Action":"run","Test":"ExampleIndex"}
+{"Action":"output","Test":"ExampleIndex","Output":"=== RUN   ExampleIndex\n"}
+{"Action":"output","Test":"ExampleIndex","Output":"--- PASS: ExampleIndex (0.00s)\n"}
+{"Action":"pass","Test":"ExampleIndex"}
+{"Action":"run","Test":"ExampleIndexFunc"}
+{"Action":"output","Test":"ExampleIndexFunc","Output":"=== RUN   ExampleIndexFunc\n"}
+{"Action":"output","Test":"ExampleIndexFunc","Output":"--- PASS: ExampleIndexFunc (0.00s)\n"}
+{"Action":"pass","Test":"ExampleIndexFunc"}
+{"Action":"run","Test":"ExampleIndexAny"}
+{"Action":"output","Test":"ExampleIndexAny","Output":"=== RUN   ExampleIndexAny\n"}
+{"Action":"output","Test":"ExampleIndexAny","Output":"--- PASS: ExampleIndexAny (0.00s)\n"}
+{"Action":"pass","Test":"ExampleIndexAny"}
+{"Action":"run","Test":"ExampleIndexByte"}
+{"Action":"output","Test":"ExampleIndexByte","Output":"=== RUN   ExampleIndexByte\n"}
+{"Action":"output","Test":"ExampleIndexByte","Output":"--- PASS: ExampleIndexByte (0.00s)\n"}
+{"Action":"pass","Test":"ExampleIndexByte"}
+{"Action":"run","Test":"ExampleIndexRune"}
+{"Action":"output","Test":"ExampleIndexRune","Output":"=== RUN   ExampleIndexRune\n"}
+{"Action":"output","Test":"ExampleIndexRune","Output":"--- PASS: ExampleIndexRune (0.00s)\n"}
+{"Action":"pass","Test":"ExampleIndexRune"}
+{"Action":"run","Test":"ExampleLastIndex"}
+{"Action":"output","Test":"ExampleLastIndex","Output":"=== RUN   ExampleLastIndex\n"}
+{"Action":"output","Test":"ExampleLastIndex","Output":"--- PASS: ExampleLastIndex (0.00s)\n"}
+{"Action":"pass","Test":"ExampleLastIndex"}
+{"Action":"run","Test":"ExampleLastIndexAny"}
+{"Action":"output","Test":"ExampleLastIndexAny","Output":"=== RUN   ExampleLastIndexAny\n"}
+{"Action":"output","Test":"ExampleLastIndexAny","Output":"--- PASS: ExampleLastIndexAny (0.00s)\n"}
+{"Action":"pass","Test":"ExampleLastIndexAny"}
+{"Action":"run","Test":"ExampleLastIndexByte"}
+{"Action":"output","Test":"ExampleLastIndexByte","Output":"=== RUN   ExampleLastIndexByte\n"}
+{"Action":"output","Test":"ExampleLastIndexByte","Output":"--- PASS: ExampleLastIndexByte (0.00s)\n"}
+{"Action":"pass","Test":"ExampleLastIndexByte"}
+{"Action":"run","Test":"ExampleLastIndexFunc"}
+{"Action":"output","Test":"ExampleLastIndexFunc","Output":"=== RUN   ExampleLastIndexFunc\n"}
+{"Action":"output","Test":"ExampleLastIndexFunc","Output":"--- PASS: ExampleLastIndexFunc (0.00s)\n"}
+{"Action":"pass","Test":"ExampleLastIndexFunc"}
+{"Action":"output","Output":"goos: darwin\n"}
+{"Action":"output","Output":"goarch: amd64\n"}
+{"Action":"output","Output":"pkg: strings\n"}
+{"Action":"output","Output":"cpu: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz\n"}
+{"Action":"run","Test":"BenchmarkIndexRune"}
+{"Action":"output","Test":"BenchmarkIndexRune","Output":"=== RUN   BenchmarkIndexRune\n"}
+{"Action":"output","Test":"BenchmarkIndexRune","Output":"BenchmarkIndexRune\n"}
+{"Action":"output","Test":"BenchmarkIndexRune","Output":"BenchmarkIndexRune-16              \t87335496\t        14.27 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexRuneLongString"}
+{"Action":"output","Test":"BenchmarkIndexRuneLongString","Output":"=== RUN   BenchmarkIndexRuneLongString\n"}
+{"Action":"output","Test":"BenchmarkIndexRuneLongString","Output":"BenchmarkIndexRuneLongString\n"}
+{"Action":"output","Test":"BenchmarkIndexRuneLongString","Output":"BenchmarkIndexRuneLongString-16    \t57104472\t        18.66 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexRuneFastPath"}
+{"Action":"output","Test":"BenchmarkIndexRuneFastPath","Output":"=== RUN   BenchmarkIndexRuneFastPath\n"}
+{"Action":"output","Test":"BenchmarkIndexRuneFastPath","Output":"BenchmarkIndexRuneFastPath\n"}
+{"Action":"output","Test":"BenchmarkIndexRuneFastPath","Output":"BenchmarkIndexRuneFastPath-16      \t262380160\t         4.499 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndex"}
+{"Action":"output","Test":"BenchmarkIndex","Output":"=== RUN   BenchmarkIndex\n"}
+{"Action":"output","Test":"BenchmarkIndex","Output":"BenchmarkIndex\n"}
+{"Action":"output","Test":"BenchmarkIndex","Output":"BenchmarkIndex-16                  \t248529364\t         4.697 ns/op\n"}
+{"Action":"run","Test":"BenchmarkLastIndex"}
+{"Action":"output","Test":"BenchmarkLastIndex","Output":"=== RUN   BenchmarkLastIndex\n"}
+{"Action":"output","Test":"BenchmarkLastIndex","Output":"BenchmarkLastIndex\n"}
+{"Action":"output","Test":"BenchmarkLastIndex","Output":"BenchmarkLastIndex-16              \t293688756\t         4.166 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexByte"}
+{"Action":"output","Test":"BenchmarkIndexByte","Output":"=== RUN   BenchmarkIndexByte\n"}
+{"Action":"output","Test":"BenchmarkIndexByte","Output":"BenchmarkIndexByte\n"}
+{"Action":"output","Test":"BenchmarkIndexByte","Output":"BenchmarkIndexByte-16              \t310338391\t         3.608 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexHard1"}
+{"Action":"output","Test":"BenchmarkIndexHard1","Output":"=== RUN   BenchmarkIndexHard1\n"}
+{"Action":"output","Test":"BenchmarkIndexHard1","Output":"BenchmarkIndexHard1\n"}
+{"Action":"output","Test":"BenchmarkIndexHard1","Output":"BenchmarkIndexHard1-16             \t   12852\t     92380 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexHard2"}
+{"Action":"output","Test":"BenchmarkIndexHard2","Output":"=== RUN   BenchmarkIndexHard2\n"}
+{"Action":"output","Test":"BenchmarkIndexHard2","Output":"BenchmarkIndexHard2\n"}
+{"Action":"output","Test":"BenchmarkIndexHard2","Output":"BenchmarkIndexHard2-16             \t    8977\t    135080 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexHard3"}
+{"Action":"output","Test":"BenchmarkIndexHard3","Output":"=== RUN   BenchmarkIndexHard3\n"}
+{"Action":"output","Test":"BenchmarkIndexHard3","Output":"BenchmarkIndexHard3\n"}
+{"Action":"output","Test":"BenchmarkIndexHard3","Output":"BenchmarkIndexHard3-16             \t    1885\t    532079 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexHard4"}
+{"Action":"output","Test":"BenchmarkIndexHard4","Output":"=== RUN   BenchmarkIndexHard4\n"}
+{"Action":"output","Test":"BenchmarkIndexHard4","Output":"BenchmarkIndexHard4\n"}
+{"Action":"output","Test":"BenchmarkIndexHard4","Output":"BenchmarkIndexHard4-16             \t    2298\t    533435 ns/op\n"}
+{"Action":"run","Test":"BenchmarkLastIndexHard1"}
+{"Action":"output","Test":"BenchmarkLastIndexHard1","Output":"=== RUN   BenchmarkLastIndexHard1\n"}
+{"Action":"output","Test":"BenchmarkLastIndexHard1","Output":"BenchmarkLastIndexHard1\n"}
+{"Action":"output","Test":"BenchmarkLastIndexHard1","Output":"BenchmarkLastIndexHard1-16         \t     813\t   1295767 ns/op\n"}
+{"Action":"run","Test":"BenchmarkLastIndexHard2"}
+{"Action":"output","Test":"BenchmarkLastIndexHard2","Output":"=== RUN   BenchmarkLastIndexHard2\n"}
+{"Action":"output","Test":"BenchmarkLastIndexHard2","Output":"BenchmarkLastIndexHard2\n"}
+{"Action":"output","Test":"BenchmarkLastIndexHard2","Output":"BenchmarkLastIndexHard2-16         \t     784\t   1389403 ns/op\n"}
+{"Action":"run","Test":"BenchmarkLastIndexHard3"}
+{"Action":"output","Test":"BenchmarkLastIndexHard3","Output":"=== RUN   BenchmarkLastIndexHard3\n"}
+{"Action":"output","Test":"BenchmarkLastIndexHard3","Output":"BenchmarkLastIndexHard3\n"}
+{"Action":"output","Test":"BenchmarkLastIndexHard3","Output":"BenchmarkLastIndexHard3-16         \t     913\t   1316608 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexTorture"}
+{"Action":"output","Test":"BenchmarkIndexTorture","Output":"=== RUN   BenchmarkIndexTorture\n"}
+{"Action":"output","Test":"BenchmarkIndexTorture","Output":"BenchmarkIndexTorture\n"}
+{"Action":"output","Test":"BenchmarkIndexTorture","Output":"BenchmarkIndexTorture-16           \t   98090\t     10201 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexAnyASCII"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII","Output":"=== RUN   BenchmarkIndexAnyASCII\n"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII","Output":"BenchmarkIndexAnyASCII\n"}
+{"Action":"run","Test":"BenchmarkIndexAnyASCII/1:1"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:1","Output":"=== RUN   BenchmarkIndexAnyASCII/1:1\n"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:1","Output":"BenchmarkIndexAnyASCII/1:1\n"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:1","Output":"BenchmarkIndexAnyASCII/1:1-16      \t214829462\t         5.592 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexAnyASCII/1:2"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:2","Output":"=== RUN   BenchmarkIndexAnyASCII/1:2\n"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:2","Output":"BenchmarkIndexAnyASCII/1:2\n"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:2","Output":"BenchmarkIndexAnyASCII/1:2-16      \t155499682\t         7.214 ns/op\n"}
+{"Action":"run","Test":"BenchmarkIndexAnyASCII/1:4"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:4","Output":"=== RUN   BenchmarkIndexAnyASCII/1:4\n"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:4","Output":"BenchmarkIndexAnyASCII/1:4\n"}
+{"Action":"output","Test":"BenchmarkIndexAnyASCII/1:4","Output":"BenchmarkIndexAnyASCII/1:4-16      \t172757770\t         7.092 ns/op\n"}
+{"Action":"output","Output":"PASS\n"}
+{"Action":"pass"}

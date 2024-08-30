@@ -1,0 +1,38 @@
+-- input --
+Text.
+  1. List
+2. Not indented, not a list.
+  3. Another list.
+
+-- gofmt --
+Text.
+ 1. List
+
+2. Not indented, not a list.
+ 3. Another list.
+
+-- text --
+Text.
+ 1. List
+
+2. Not indented, not a list.
+ 3. Another list.
+
+-- markdown --
+Text.
+
+ 1. List
+
+2\. Not indented, not a list.
+
+ 3. Another list.
+
+-- html --
+<p>Text.
+<ol>
+<li>List
+</ol>
+<p>2. Not indented, not a list.
+<ol>
+<li value="3">Another list.
+</ol>

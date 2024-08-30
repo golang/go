@@ -1,0 +1,104 @@
+pkg p1, const A = 1
+pkg p1, const A ideal-int
+pkg p1, const A //deprecated
+pkg p1, const A64 = 1
+pkg p1, const A64 int64
+pkg p1, const AIsLowerA = 11
+pkg p1, const AIsLowerA ideal-int
+pkg p1, const B0 = 2
+pkg p1, const B0 ideal-int
+pkg p1, const ConstChase2 = 11
+pkg p1, const ConstChase2 ideal-int
+pkg p1, const ConversionConst = 5
+pkg p1, const ConversionConst MyInt
+pkg p1, const FloatConst = 1.5  // 3/2
+pkg p1, const FloatConst ideal-float
+pkg p1, const StrConst = "foo"
+pkg p1, const StrConst ideal-string
+pkg p1, func Bar(int8, int16, int64)
+pkg p1, func Bar1(int8, int16, int64) uint64
+pkg p1, func Bar2(int8, int16, int64) (uint8, uint64)
+pkg p1, func BarE() Error
+pkg p1, func Now() Time
+pkg p1, func PlainFunc(int, int, string) (*B, error)
+pkg p1, func TakesFunc(func(int) int)
+pkg p1, method (*B) JustOnB()
+pkg p1, method (*B) OnBothTandBPtr()
+pkg p1, method (*Embedded) OnEmbedded()
+pkg p1, method (*S2) SMethod(int8, int16, int64)
+pkg p1, method (*S2) SMethod //deprecated
+pkg p1, method (*T) JustOnT()
+pkg p1, method (*T) OnBothTandBPtr()
+pkg p1, method (B) OnBothTandBVal()
+pkg p1, method (S) StructValueMethod()
+pkg p1, method (S) StructValueMethodNamedRecv()
+pkg p1, method (S2) StructValueMethod()
+pkg p1, method (S2) StructValueMethodNamedRecv()
+pkg p1, method (T) OnBothTandBVal()
+pkg p1, method (TPtrExported) OnEmbedded()
+pkg p1, method (TPtrUnexported) OnBothTandBPtr()
+pkg p1, method (TPtrUnexported) OnBothTandBVal()
+pkg p1, type B struct
+pkg p1, type ByteStruct struct
+pkg p1, type ByteStruct struct, B uint8
+pkg p1, type ByteStruct struct, R int32
+pkg p1, type Codec struct
+pkg p1, type Codec struct, Func func(int, int) int
+pkg p1, type EmbedSelector struct
+pkg p1, type EmbedSelector struct, embedded Time
+pkg p1, type EmbedURLPtr struct
+pkg p1, type EmbedURLPtr struct, embedded *URL
+pkg p1, type Embedded struct
+pkg p1, type Error interface { Error, Temporary }
+pkg p1, type Error interface, Error() string
+pkg p1, type Error interface, Temporary() bool
+pkg p1, type FuncType func(int, int, string) (*B, error)
+pkg p1, type I interface, Get(string) int64
+pkg p1, type I interface, Get //deprecated
+pkg p1, type I interface, GetNamed(string) int64
+pkg p1, type I interface, Name() string
+pkg p1, type I interface, PackageTwoMeth()
+pkg p1, type I interface, Set(string, int64)
+pkg p1, type I interface, unexported methods
+pkg p1, type MyInt int
+pkg p1, type Namer interface { Name }
+pkg p1, type Namer interface, Name() string
+pkg p1, type Private interface, X()
+pkg p1, type Private interface, unexported methods
+pkg p1, type Private //deprecated
+pkg p1, type Public interface { X, Y }
+pkg p1, type Public interface, X()
+pkg p1, type Public interface, Y()
+pkg p1, type S struct
+pkg p1, type S struct, Public *int
+pkg p1, type S struct, Public //deprecated
+pkg p1, type S struct, PublicTime Time
+pkg p1, type S2 struct
+pkg p1, type S2 struct, Extra bool
+pkg p1, type S2 struct, embedded S
+pkg p1, type S2 struct, embedded S //deprecated
+pkg p1, type SI struct
+pkg p1, type SI struct, I int
+pkg p1, type T struct
+pkg p1, type TPtrExported struct
+pkg p1, type TPtrExported struct, embedded *Embedded
+pkg p1, type TPtrUnexported struct
+pkg p1, type Time struct
+pkg p1, type URL struct
+pkg p1, type URL //deprecated
+pkg p1, var Byte uint8
+pkg p1, var ByteConv []uint8
+pkg p1, var ByteFunc func(uint8) int32
+pkg p1, var ChecksumError error
+pkg p1, var SIPtr *SI
+pkg p1, var SIPtr2 *SI
+pkg p1, var SIVal SI
+pkg p1, var StrConv string
+pkg p1, var V string
+pkg p1, var V1 uint64
+pkg p1, var V2 p2.Twoer
+pkg p1, var VError Error
+pkg p1, var VError //deprecated
+pkg p1, var X I
+pkg p1, var X0 int64
+pkg p1, var Y int

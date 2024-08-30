@@ -1,0 +1,19 @@
+! go test -json -timeout=1ms
+
+stdout '"Action":"output","Package":"p","Output":"FAIL\\tp\\t'
+stdout '"Action":"fail","Package":"p","Elapsed":'
+
+-- go.mod --
+module p
+
+-- x_test.go --
+package p
+
+import (
+	"testing"
+	"time"
+)
+
+func Test(t *testing.T) {
+	time.Sleep(1*time.Hour)
+}

@@ -1,0 +1,11 @@
+! go list .
+stderr '^go: cannot load module y listed in go\.work file: open y'${/}'go\.mod:'
+
+-- go.work --
+use ./y
+-- x/go.mod --
+module x
+
+go 1.19
+-- x/m.go --
+package m

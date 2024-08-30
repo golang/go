@@ -1,0 +1,51 @@
+env GO111MODULE=on
+cp go.mod.orig go.mod
+
+# relative and absolute paths must be within the main module.
+! go get ..
+stderr '^go: \.\. \('$WORK'[/\\]gopath\) is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
+! go get $WORK
+stderr '^go: '$WORK' is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
+! go get ../...
+stderr '^go: \.\./\.\.\. \('$WORK'[/\\]gopath([/\\]...)?\) is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
+! go get $WORK/...
+stderr '^go: '$WORK'[/\\]\.\.\. is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
+
+# @patch and @latest within the main module refer to the current version.
+# The main module won't be upgraded, but missing dependencies will be added.
+go get rsc.io/x
+grep 'rsc.io/quote v1.5.2' go.mod
+go get rsc.io/x@upgrade
+grep 'rsc.io/quote v1.5.2' go.mod
+cp go.mod.orig go.mod
+go get rsc.io/x@patch
+grep 'rsc.io/quote v1.5.2' go.mod
+cp go.mod.orig go.mod
+
+
+# Upgrading a package pattern not contained in the main module should not
+# attempt to upgrade the main module.
+go get rsc.io/quote/...@v1.5.1
+grep 'rsc.io/quote v1.5.1' go.mod
+
+
+# The main module cannot be updated to a specific version.
+! go get rsc.io@v0.1.0
+stderr '^go: can''t request version "v0.1.0" of the main module \(rsc.io\)$'
+
+# A package in the main module can't be upgraded either.
+! go get rsc.io/x@v0.1.0
+stderr '^go: package rsc.io/x is in the main module, so can''t request version v0.1.0$'
+
+# Nor can a pattern matching packages in the main module.
+! go get rsc.io/x/...@latest
+stderr '^go: pattern rsc.io/x/... matches package rsc.io/x in the main module, so can''t request version latest$'
+
+-- go.mod.orig --
+module rsc.io
+
+go 1.13
+-- x/x.go --
+package x
+
+import _ "rsc.io/quote"

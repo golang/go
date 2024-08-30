@@ -1,0 +1,15 @@
+[short] skip
+
+env GOCACHE=$WORK/cache
+go list -f '{{.Stale}}' .
+stdout true
+go install .
+go list -f '{{.Stale}}' .
+stdout false
+
+-- go.mod --
+module example.com/mod
+
+go 1.20
+-- m.go --
+package m

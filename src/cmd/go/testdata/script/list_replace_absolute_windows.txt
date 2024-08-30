@@ -1,0 +1,38 @@
+# Test a replacement with an absolute path (so the path isn't
+# cleaned by having filepath.Abs called on it). This checks
+# whether the modindex logic cleans the modroot path before using
+# it.
+
+[!GOOS:windows] skip
+[short] skip
+
+go run print_go_mod.go # use this program to write a go.mod with an absolute path
+cp stdout go.mod
+
+go list -modfile=go.mod all
+-- print_go_mod.go --
+//go:build ignore
+package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    work := os.Getenv("WORK")
+fmt.Printf(`module example.com/mod
+
+require b.com v0.0.0
+
+replace b.com => %s\gopath\src/modb
+`,  work)
+}
+-- a.go --
+package a
+
+import _ "b.com/b"
+-- modb/go.mod --
+module b.com
+-- modb/b/b.go --
+package b

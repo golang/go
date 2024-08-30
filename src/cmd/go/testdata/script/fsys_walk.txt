@@ -1,0 +1,6 @@
+# Test that go list prefix... does not read directories not beginning with prefix.
+env GODEBUG=gofsystrace=1
+go list m...
+stderr mime
+stderr mime[\\/]multipart
+! stderr archive

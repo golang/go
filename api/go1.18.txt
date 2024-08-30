@@ -1,0 +1,253 @@
+pkg bufio, method (*Writer) AvailableBuffer() []uint8
+pkg bufio, method (ReadWriter) AvailableBuffer() []uint8
+pkg bytes, func Cut([]uint8, []uint8) ([]uint8, []uint8, bool)
+pkg bytes, func Title //deprecated
+pkg crypto/tls, method (*Conn) NetConn() net.Conn
+pkg crypto/tls, type Config struct, PreferServerCipherSuites //deprecated
+pkg crypto/x509, method (*CertPool) Subjects //deprecated
+pkg debug/buildinfo, func Read(io.ReaderAt) (*debug.BuildInfo, error)
+pkg debug/buildinfo, func ReadFile(string) (*debug.BuildInfo, error)
+pkg debug/buildinfo, type BuildInfo = debug.BuildInfo
+pkg debug/dwarf, type BasicType struct, DataBitOffset int64
+pkg debug/dwarf, type StructField struct, DataBitOffset int64
+pkg debug/elf, const R_PPC64_RELATIVE = 22
+pkg debug/elf, const R_PPC64_RELATIVE R_PPC64
+pkg debug/plan9obj, var ErrNoSymbols error
+pkg go/ast, method (*IndexListExpr) End() token.Pos
+pkg go/ast, method (*IndexListExpr) Pos() token.Pos
+pkg go/ast, type FuncType struct, TypeParams *FieldList
+pkg go/ast, type IndexListExpr struct
+pkg go/ast, type IndexListExpr struct, Indices []Expr
+pkg go/ast, type IndexListExpr struct, Lbrack token.Pos
+pkg go/ast, type IndexListExpr struct, Rbrack token.Pos
+pkg go/ast, type IndexListExpr struct, X Expr
+pkg go/ast, type TypeSpec struct, TypeParams *FieldList
+pkg go/constant, method (Kind) String() string
+pkg go/token, const TILDE = 88
+pkg go/token, const TILDE Token
+pkg go/types, func Instantiate(*Context, Type, []Type, bool) (Type, error)
+pkg go/types, func NewContext() *Context
+pkg go/types, func NewSignature //deprecated
+pkg go/types, func NewSignatureType(*Var, []*TypeParam, []*TypeParam, *Tuple, *Tuple, bool) *Signature
+pkg go/types, func NewTerm(bool, Type) *Term
+pkg go/types, func NewTypeParam(*TypeName, Type) *TypeParam
+pkg go/types, func NewUnion([]*Term) *Union
+pkg go/types, method (*ArgumentError) Error() string
+pkg go/types, method (*ArgumentError) Unwrap() error
+pkg go/types, method (*Interface) IsComparable() bool
+pkg go/types, method (*Interface) IsImplicit() bool
+pkg go/types, method (*Interface) IsMethodSet() bool
+pkg go/types, method (*Interface) MarkImplicit()
+pkg go/types, method (*Named) Origin() *Named
+pkg go/types, method (*Named) SetTypeParams([]*TypeParam)
+pkg go/types, method (*Named) TypeArgs() *TypeList
+pkg go/types, method (*Named) TypeParams() *TypeParamList
+pkg go/types, method (*Signature) RecvTypeParams() *TypeParamList
+pkg go/types, method (*Signature) TypeParams() *TypeParamList
+pkg go/types, method (*Term) String() string
+pkg go/types, method (*Term) Tilde() bool
+pkg go/types, method (*Term) Type() Type
+pkg go/types, method (*TypeList) At(int) Type
+pkg go/types, method (*TypeList) Len() int
+pkg go/types, method (*TypeParam) Constraint() Type
+pkg go/types, method (*TypeParam) Index() int
+pkg go/types, method (*TypeParam) Obj() *TypeName
+pkg go/types, method (*TypeParam) SetConstraint(Type)
+pkg go/types, method (*TypeParam) String() string
+pkg go/types, method (*TypeParam) Underlying() Type
+pkg go/types, method (*TypeParamList) At(int) *TypeParam
+pkg go/types, method (*TypeParamList) Len() int
+pkg go/types, method (*Union) Len() int
+pkg go/types, method (*Union) String() string
+pkg go/types, method (*Union) Term(int) *Term
+pkg go/types, method (*Union) Underlying() Type
+pkg go/types, type ArgumentError struct
+pkg go/types, type ArgumentError struct, Err error
+pkg go/types, type ArgumentError struct, Index int
+pkg go/types, type Config struct, Context *Context
+pkg go/types, type Config struct, GoVersion string
+pkg go/types, type Context struct
+pkg go/types, type Info struct, Instances map[*ast.Ident]Instance
+pkg go/types, type Instance struct
+pkg go/types, type Instance struct, Type Type
+pkg go/types, type Instance struct, TypeArgs *TypeList
+pkg go/types, type Term struct
+pkg go/types, type TypeList struct
+pkg go/types, type TypeParam struct
+pkg go/types, type TypeParamList struct
+pkg go/types, type Union struct
+pkg net, func TCPAddrFromAddrPort(netip.AddrPort) *TCPAddr
+pkg net, func UDPAddrFromAddrPort(netip.AddrPort) *UDPAddr
+pkg net, method (*Resolver) LookupNetIP(context.Context, string, string) ([]netip.Addr, error)
+pkg net, method (*TCPAddr) AddrPort() netip.AddrPort
+pkg net, method (*UDPAddr) AddrPort() netip.AddrPort
+pkg net, method (*UDPConn) ReadFromUDPAddrPort([]uint8) (int, netip.AddrPort, error)
+pkg net, method (*UDPConn) ReadMsgUDPAddrPort([]uint8, []uint8) (int, int, int, netip.AddrPort, error)
+pkg net, method (*UDPConn) WriteMsgUDPAddrPort([]uint8, []uint8, netip.AddrPort) (int, int, error)
+pkg net, method (*UDPConn) WriteToUDPAddrPort([]uint8, netip.AddrPort) (int, error)
+pkg net, type Error interface, Temporary //deprecated
+pkg net/http, func MaxBytesHandler(Handler, int64) Handler
+pkg net/http, method (*Cookie) Valid() error
+pkg net/netip, func AddrFrom16([16]uint8) Addr
+pkg net/netip, func AddrFrom4([4]uint8) Addr
+pkg net/netip, func AddrFromSlice([]uint8) (Addr, bool)
+pkg net/netip, func AddrPortFrom(Addr, uint16) AddrPort
+pkg net/netip, func IPv4Unspecified() Addr
+pkg net/netip, func IPv6LinkLocalAllNodes() Addr
+pkg net/netip, func IPv6Unspecified() Addr
+pkg net/netip, func MustParseAddr(string) Addr
+pkg net/netip, func MustParseAddrPort(string) AddrPort
+pkg net/netip, func MustParsePrefix(string) Prefix
+pkg net/netip, func ParseAddr(string) (Addr, error)
+pkg net/netip, func ParseAddrPort(string) (AddrPort, error)
+pkg net/netip, func ParsePrefix(string) (Prefix, error)
+pkg net/netip, func PrefixFrom(Addr, int) Prefix
+pkg net/netip, method (*Addr) UnmarshalBinary([]uint8) error
+pkg net/netip, method (*Addr) UnmarshalText([]uint8) error
+pkg net/netip, method (*AddrPort) UnmarshalBinary([]uint8) error
+pkg net/netip, method (*AddrPort) UnmarshalText([]uint8) error
+pkg net/netip, method (*Prefix) UnmarshalBinary([]uint8) error
+pkg net/netip, method (*Prefix) UnmarshalText([]uint8) error
+pkg net/netip, method (Addr) AppendTo([]uint8) []uint8
+pkg net/netip, method (Addr) As16() [16]uint8
+pkg net/netip, method (Addr) As4() [4]uint8
+pkg net/netip, method (Addr) AsSlice() []uint8
+pkg net/netip, method (Addr) BitLen() int
+pkg net/netip, method (Addr) Compare(Addr) int
+pkg net/netip, method (Addr) Is4() bool
+pkg net/netip, method (Addr) Is4In6() bool
+pkg net/netip, method (Addr) Is6() bool
+pkg net/netip, method (Addr) IsGlobalUnicast() bool
+pkg net/netip, method (Addr) IsInterfaceLocalMulticast() bool
+pkg net/netip, method (Addr) IsLinkLocalMulticast() bool
+pkg net/netip, method (Addr) IsLinkLocalUnicast() bool
+pkg net/netip, method (Addr) IsLoopback() bool
+pkg net/netip, method (Addr) IsMulticast() bool
+pkg net/netip, method (Addr) IsPrivate() bool
+pkg net/netip, method (Addr) IsUnspecified() bool
+pkg net/netip, method (Addr) IsValid() bool
+pkg net/netip, method (Addr) Less(Addr) bool
+pkg net/netip, method (Addr) MarshalBinary() ([]uint8, error)
+pkg net/netip, method (Addr) MarshalText() ([]uint8, error)
+pkg net/netip, method (Addr) Next() Addr
+pkg net/netip, method (Addr) Prefix(int) (Prefix, error)
+pkg net/netip, method (Addr) Prev() Addr
+pkg net/netip, method (Addr) String() string
+pkg net/netip, method (Addr) StringExpanded() string
+pkg net/netip, method (Addr) Unmap() Addr
+pkg net/netip, method (Addr) WithZone(string) Addr
+pkg net/netip, method (Addr) Zone() string
+pkg net/netip, method (AddrPort) Addr() Addr
+pkg net/netip, method (AddrPort) AppendTo([]uint8) []uint8
+pkg net/netip, method (AddrPort) IsValid() bool
+pkg net/netip, method (AddrPort) MarshalBinary() ([]uint8, error)
+pkg net/netip, method (AddrPort) MarshalText() ([]uint8, error)
+pkg net/netip, method (AddrPort) Port() uint16
+pkg net/netip, method (AddrPort) String() string
+pkg net/netip, method (Prefix) Addr() Addr
+pkg net/netip, method (Prefix) AppendTo([]uint8) []uint8
+pkg net/netip, method (Prefix) Bits() int
+pkg net/netip, method (Prefix) Contains(Addr) bool
+pkg net/netip, method (Prefix) IsSingleIP() bool
+pkg net/netip, method (Prefix) IsValid() bool
+pkg net/netip, method (Prefix) MarshalBinary() ([]uint8, error)
+pkg net/netip, method (Prefix) MarshalText() ([]uint8, error)
+pkg net/netip, method (Prefix) Masked() Prefix
+pkg net/netip, method (Prefix) Overlaps(Prefix) bool
+pkg net/netip, method (Prefix) String() string
+pkg net/netip, type Addr struct
+pkg net/netip, type AddrPort struct
+pkg net/netip, type Prefix struct
+pkg reflect, const Pointer = 22
+pkg reflect, const Pointer Kind
+pkg reflect, func PointerTo(Type) Type
+pkg reflect, method (*MapIter) Reset(Value)
+pkg reflect, method (Value) CanComplex() bool
+pkg reflect, method (Value) CanFloat() bool
+pkg reflect, method (Value) CanInt() bool
+pkg reflect, method (Value) CanUint() bool
+pkg reflect, method (Value) FieldByIndexErr([]int) (Value, error)
+pkg reflect, method (Value) SetIterKey(*MapIter)
+pkg reflect, method (Value) SetIterValue(*MapIter)
+pkg reflect, method (Value) UnsafePointer() unsafe.Pointer
+pkg runtime/debug, func ParseBuildInfo(string) (*BuildInfo, error)
+pkg runtime/debug, method (*BuildInfo) String() string
+pkg runtime/debug, type BuildInfo struct, GoVersion string
+pkg runtime/debug, type BuildInfo struct, Settings []BuildSetting
+pkg runtime/debug, type BuildSetting struct
+pkg runtime/debug, type BuildSetting struct, Key string
+pkg runtime/debug, type BuildSetting struct, Value string
+pkg strings, func Clone(string) string
+pkg strings, func Cut(string, string) (string, string, bool)
+pkg strings, func Title //deprecated
+pkg sync, method (*Mutex) TryLock() bool
+pkg sync, method (*RWMutex) TryLock() bool
+pkg sync, method (*RWMutex) TryRLock() bool
+pkg syscall (freebsd-386), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-386-cgo), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-amd64), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-amd64-cgo), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-arm), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-arm-cgo), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-arm64), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (freebsd-arm64-cgo), type SysProcAttr struct, Pdeathsig Signal
+pkg syscall (windows-386), func Syscall //deprecated
+pkg syscall (windows-386), func Syscall12 //deprecated
+pkg syscall (windows-386), func Syscall15 //deprecated
+pkg syscall (windows-386), func Syscall18 //deprecated
+pkg syscall (windows-386), func Syscall6 //deprecated
+pkg syscall (windows-386), func Syscall9 //deprecated
+pkg syscall (windows-386), func SyscallN(uintptr, ...uintptr) (uintptr, uintptr, Errno)
+pkg syscall (windows-amd64), func Syscall //deprecated
+pkg syscall (windows-amd64), func Syscall12 //deprecated
+pkg syscall (windows-amd64), func Syscall15 //deprecated
+pkg syscall (windows-amd64), func Syscall18 //deprecated
+pkg syscall (windows-amd64), func Syscall6 //deprecated
+pkg syscall (windows-amd64), func Syscall9 //deprecated
+pkg syscall (windows-amd64), func SyscallN(uintptr, ...uintptr) (uintptr, uintptr, Errno)
+pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalFuzzTarget, []InternalExample) *M
+pkg testing, method (*F) Add(...interface{})
+pkg testing, method (*F) Cleanup(func())
+pkg testing, method (*F) Error(...interface{})
+pkg testing, method (*F) Errorf(string, ...interface{})
+pkg testing, method (*F) Fail()
+pkg testing, method (*F) FailNow()
+pkg testing, method (*F) Failed() bool
+pkg testing, method (*F) Fatal(...interface{})
+pkg testing, method (*F) Fatalf(string, ...interface{})
+pkg testing, method (*F) Fuzz(interface{})
+pkg testing, method (*F) Helper()
+pkg testing, method (*F) Log(...interface{})
+pkg testing, method (*F) Logf(string, ...interface{})
+pkg testing, method (*F) Name() string
+pkg testing, method (*F) Setenv(string, string)
+pkg testing, method (*F) Skip(...interface{})
+pkg testing, method (*F) SkipNow()
+pkg testing, method (*F) Skipf(string, ...interface{})
+pkg testing, method (*F) Skipped() bool
+pkg testing, method (*F) TempDir() string
+pkg testing, type F struct
+pkg testing, type InternalFuzzTarget struct
+pkg testing, type InternalFuzzTarget struct, Fn func(*F)
+pkg testing, type InternalFuzzTarget struct, Name string
+pkg text/template/parse, const NodeBreak = 21
+pkg text/template/parse, const NodeBreak NodeType
+pkg text/template/parse, const NodeContinue = 22
+pkg text/template/parse, const NodeContinue NodeType
+pkg text/template/parse, method (*BreakNode) Copy() Node
+pkg text/template/parse, method (*BreakNode) String() string
+pkg text/template/parse, method (*ContinueNode) Copy() Node
+pkg text/template/parse, method (*ContinueNode) String() string
+pkg text/template/parse, method (BreakNode) Position() Pos
+pkg text/template/parse, method (BreakNode) Type() NodeType
+pkg text/template/parse, method (ContinueNode) Position() Pos
+pkg text/template/parse, method (ContinueNode) Type() NodeType
+pkg text/template/parse, type BreakNode struct
+pkg text/template/parse, type BreakNode struct, Line int
+pkg text/template/parse, type BreakNode struct, embedded NodeType
+pkg text/template/parse, type BreakNode struct, embedded Pos
+pkg text/template/parse, type ContinueNode struct
+pkg text/template/parse, type ContinueNode struct, Line int
+pkg text/template/parse, type ContinueNode struct, embedded NodeType
+pkg text/template/parse, type ContinueNode struct, embedded Pos
+pkg unicode/utf8, func AppendRune([]uint8, int32) []uint8

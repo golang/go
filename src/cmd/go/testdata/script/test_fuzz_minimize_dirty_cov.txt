@@ -1,0 +1,85 @@
+# Test that minimization doesn't use dirty coverage snapshots when it
+# is unable to actually minimize the input. We do this by checking that
+# an expected value appears in the cache. If a dirty coverage map is used
+# (i.e. the coverage map generated during the last minimization step,
+# rather than the map provided with the initial input) then this value
+# is unlikely to appear in the cache, since the map generated during
+# the last minimization step should not increase the coverage.
+
+[short] skip
+[!fuzz-instrumented] skip
+
+env GOCACHE=$WORK/gocache
+go test -fuzz=FuzzCovMin -fuzztime=500000x -test.fuzzcachedir=$GOCACHE/fuzz
+go run check_file/main.go $GOCACHE/fuzz/FuzzCovMin ab
+
+-- go.mod --
+module test
+
+-- covmin_test.go --
+package covmin
+
+import "testing"
+
+func FuzzCovMin(f *testing.F) {
+	f.Add([]byte("aa"))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) == 2 && data[0] == 'a' && data[1] == 'b' {
+			return
+		}
+	})
+}
+
+-- check_file/main.go --
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+)
+
+func checkFile(name, expected string) (bool, error) {
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return false, err
+	}
+	for _, line := range bytes.Split(data, []byte("\n")) {
+		m := valRe.FindSubmatch(line)
+		if m == nil {
+			continue
+		}
+		fmt.Println(strconv.Unquote(string(m[1])))
+		if s, err := strconv.Unquote(string(m[1])); err != nil {
+			return false, err
+		} else if s == expected {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+var valRe = regexp.MustCompile(`^\[\]byte\(([^)]+)\)$`)
+
+func main() {
+	dir, expected := os.Args[1], os.Args[2]
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	for _, ent := range ents {
+		name := filepath.Join(dir, ent.Name())
+		if good, err := checkFile(name, expected); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		} else if good {
+			os.Exit(0)
+		}
+	}
+	fmt.Fprintln(os.Stderr, "input over minimized")
+	os.Exit(1)
+}

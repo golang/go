@@ -1,0 +1,26 @@
+Files in this directory are data for Go's API checker ("go tool api", in src/cmd/api).
+
+Each file is a list of API features, one per line.
+
+go1.txt (and similarly named files) are frozen once a version has been
+shipped. Each file adds new lines but does not remove any.
+
+except.txt lists features that may disappear without breaking true
+compatibility.
+
+Starting with go1.19.txt, each API feature line must end in "#nnnnn"
+giving the GitHub issue number of the proposal issue that accepted
+the new API. This helps with our end-of-cycle audit of new APIs.
+The same requirement applies to next/* (described below), which will
+become a go1.XX.txt for XX >= 19.
+
+The next/ directory contains the only files intended to be mutated.
+Each file in that directory contains a list of features that may be added
+to the next release of Go. The files in this directory only affect the
+warning output from the go api tool. Each file should be named
+nnnnn.txt, after the issue number for the accepted proposal.
+(The #nnnnn suffix must also appear at the end of each line in the file;
+that will be preserved when next/*.txt is concatenated into go1.XX.txt.)
+
+When you add a file to the api/next directory, you must add at least one file
+under doc/next. See doc/README.md for details.

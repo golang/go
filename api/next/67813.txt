@@ -1,0 +1,14 @@
+pkg net/http, type HTTP2Config struct #67813
+pkg net/http, type HTTP2Config struct, CountError func(string) #67813
+pkg net/http, type HTTP2Config struct, MaxConcurrentStreams int #67813
+pkg net/http, type HTTP2Config struct, MaxDecoderHeaderTableSize int #67813
+pkg net/http, type HTTP2Config struct, MaxEncoderHeaderTableSize int #67813
+pkg net/http, type HTTP2Config struct, MaxReadFrameSize int #67813
+pkg net/http, type HTTP2Config struct, MaxReceiveBufferPerConnection int #67813
+pkg net/http, type HTTP2Config struct, MaxReceiveBufferPerStream int #67813
+pkg net/http, type HTTP2Config struct, PermitProhibitedCipherSuites bool #67813
+pkg net/http, type HTTP2Config struct, PingTimeout time.Duration #67813
+pkg net/http, type HTTP2Config struct, SendPingTimeout time.Duration #67813
+pkg net/http, type HTTP2Config struct, WriteByteTimeout time.Duration #67813
+pkg net/http, type Server struct, HTTP2 *HTTP2Config #67813
+pkg net/http, type Transport struct, HTTP2 *HTTP2Config #67813

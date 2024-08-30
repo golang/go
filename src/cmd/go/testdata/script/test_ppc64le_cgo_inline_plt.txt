@@ -1,0 +1,38 @@
+# Verify the linker will correctly resolve
+# ppc64le objects compiled with gcc's -fno-plt
+# option. This inlines PLT calls, and generates
+# additional reloc types which the internal linker
+# should handle.
+#
+# Verifies golang.org/issue/53345
+#
+# Note, older gcc/clang may accept this option, but
+# ignore it if binutils does not support the relocs.
+[!compiler:gc] skip
+[!cgo] skip
+[!GOARCH:ppc64le] skip
+
+env CGO_CFLAGS='-fno-plt -O2 -g'
+
+go build -ldflags='-linkmode=internal'
+exec ./noplttest
+stdout helloworld
+
+-- go.mod --
+module noplttest
+
+-- noplttest.go --
+package main
+
+/*
+#include <stdio.h>
+void helloworld(void) {
+   printf("helloworld\n");
+   fflush(stdout);
+}
+*/
+import "C"
+
+func main() {
+	C.helloworld()
+}

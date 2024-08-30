@@ -1,0 +1,39 @@
+{"DocLinkBaseURL": "https://pkg.go.dev"}
+-- input --
+Did you know?
+
+  - [testing.T] is one doc link.
+  - So is [testing.M].
+  - So is [testing.B].
+    This is the same list paragraph.
+
+    There is [testing.PB] in this list item, too!
+-- text --
+Did you know?
+
+  - testing.T is one doc link.
+
+  - So is testing.M.
+
+  - So is testing.B. This is the same list paragraph.
+
+    There is testing.PB in this list item, too!
+-- markdown --
+Did you know?
+
+  - [testing.T](https://pkg.go.dev/testing#T) is one doc link.
+
+  - So is [testing.M](https://pkg.go.dev/testing#M).
+
+  - So is [testing.B](https://pkg.go.dev/testing#B). This is the same list paragraph.
+
+    There is [testing.PB](https://pkg.go.dev/testing#PB) in this list item, too!
+-- html --
+<p>Did you know?
+<ul>
+<li><p><a href="https://pkg.go.dev/testing#T">testing.T</a> is one doc link.
+<li><p>So is <a href="https://pkg.go.dev/testing#M">testing.M</a>.
+<li><p>So is <a href="https://pkg.go.dev/testing#B">testing.B</a>.
+This is the same list paragraph.
+<p>There is <a href="https://pkg.go.dev/testing#PB">testing.PB</a> in this list item, too!
+</ul>

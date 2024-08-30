@@ -1,0 +1,44 @@
+[short] skip 'links and runs binaries'
+
+# This test requires external linking. Assume that if cgo is supported
+# then external linking works.
+[!cgo] skip 'requires a C linker'
+
+# Only run on Unix systems.
+[GOOS:windows] skip
+[GOOS:plan9] skip
+
+# Ordinary build should work.
+go build
+exec ./hello
+stdout Hello
+
+# Building with -linkmode=external should not say anything about
+# runtime/cgo (issue #31544).
+go build -ldflags=-linkmode=external
+! stderr runtime/cgo
+exec ./hello
+stdout Hello
+
+# Some targets don't support -static
+[GOOS:darwin] skip 'no static linking on Darwin'
+[GOOS:solaris] skip 'no static linking on Solaris'
+
+# Building with -linkmode=external -extldflags=-static should work.
+go build -ldflags='-linkmode=external -extldflags=-static'
+! stderr runtime/cgo
+exec ./hello
+stdout Hello
+
+-- go.mod --
+module hello
+
+go 1.20
+-- hello.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello, world")
+}

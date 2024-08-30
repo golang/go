@@ -1,0 +1,55 @@
+# This test verifies that issue 56293 has been fixed, and that the
+# insertion of coverage instrumentation doesn't perturb package
+# initialization order.
+
+[short] skip
+
+# Skip if new coverage is turned off.
+[!GOEXPERIMENT:coverageredesign] skip
+
+go test -cover example
+
+-- go.mod --
+module example
+
+go 1.20
+
+-- m.go --
+
+package main
+
+import (
+	"flag"
+)
+
+var (
+	fooFlag = flag.String("foo", "", "this should be ok")
+	foo     = flag.Lookup("foo")
+
+	barFlag = flag.String("bar", "", "this should be also ok, but is "+notOK()+".")
+	bar     = flag.Lookup("bar")
+)
+
+func notOK() string {
+	return "not OK"
+}
+
+-- m_test.go --
+
+package main
+
+import (
+	"testing"
+)
+
+func TestFoo(t *testing.T) {
+	if foo == nil {
+		t.Fatal()
+	}
+}
+
+func TestBar(t *testing.T) {
+	if bar == nil {
+		t.Fatal()
+	}
+}

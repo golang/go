@@ -1,0 +1,127 @@
+[!fuzz] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+# There are no seed values, so 'go test' should finish quickly.
+go test
+
+# For the fuzzing phase, we reduce GOMAXPROCS to avoid consuming too many
+# resources during the test. Ideally this would just free up resources to run
+# other parallel tests more quickly, but unfortunately it is actually necessary
+# in some 32-bit environments to prevent the fuzzing engine from running out of
+# address space (see https://go.dev/issue/65434).
+env GOMAXPROCS=2
+
+# Fuzzing should exit 0 after fuzztime, even if timeout is short.
+go test -timeout=3s -fuzz=FuzzFast -fuzztime=5s
+
+# We should see the same behavior when invoking the test binary directly.
+go test -c
+exec ./fuzz.test$GOEXE -test.timeout=3s -test.fuzz=FuzzFast -test.fuzztime=5s -test.parallel=1 -test.fuzzcachedir=$WORK/cache
+
+# Timeout should not cause inputs to be written as crashers.
+! exists testdata/fuzz
+
+# When we use fuzztime with an "x" suffix, it runs a specific number of times.
+# This fuzz function creates a file with a unique name ($pid.$count) on each
+# run. We count the files to find the number of runs.
+mkdir count
+go test -fuzz=FuzzTestCount -fuzztime=1000x -fuzzminimizetime=1x
+go run check_file_count.go count 1000
+
+# When we use fuzzminimizetime with an "x" suffix, it runs a specific number of
+# times while minimizing. This fuzz function creates a file with a unique name
+# ($pid.$count) on each run once the first crash has been found. That means that
+# there should be one file for each execution of the fuzz function during
+# minimization, so we count these to determine how many times minimization was
+# run.
+mkdir minimizecount
+! go test -fuzz=FuzzMinimizeCount -fuzzminimizetime=3x -parallel=1
+go run check_file_count.go minimizecount 3
+
+-- go.mod --
+module fuzz
+
+go 1.16
+-- fuzz_fast_test.go --
+package fuzz_test
+
+import "testing"
+
+func FuzzFast(f *testing.F) {
+	f.Fuzz(func (*testing.T, []byte) {})
+}
+-- fuzz_count_test.go --
+package fuzz
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+func FuzzTestCount(f *testing.F) {
+	pid := os.Getpid()
+	n := 0
+	f.Fuzz(func(t *testing.T, _ []byte) {
+		name := fmt.Sprintf("count/%v.%d", pid, n)
+		if err := os.WriteFile(name, nil, 0666); err != nil {
+			t.Fatal(err)
+		}
+		n++
+	})
+}
+-- fuzz_minimize_count_test.go --
+package fuzz
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"testing"
+)
+
+func FuzzMinimizeCount(f *testing.F) {
+	pid := os.Getpid()
+	n := 0
+	seed := bytes.Repeat([]byte("a"), 357)
+	f.Add(seed)
+	crashFound := false
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if crashFound {
+			name := fmt.Sprintf("minimizecount/%v.%d", pid, n)
+			if err := os.WriteFile(name, nil, 0666); err != nil {
+				t.Fatal(err)
+			}
+			n++
+		}
+		if !bytes.Equal(b, seed) {  // this should happen right away
+			crashFound = true
+			t.Error("minimize this!")
+		}
+	})
+}
+-- check_file_count.go --
+// +build ignore
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+)
+
+func main() {
+	dir, err := os.ReadDir(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	got := len(dir)
+	want, _ := strconv.Atoi(os.Args[2])
+	if got != want {
+		fmt.Fprintf(os.Stderr, "got %d files; want %d\n", got, want)
+		os.Exit(1)
+	}
+}

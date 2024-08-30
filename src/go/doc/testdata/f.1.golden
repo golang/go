@@ -1,0 +1,16 @@
+// The package f is a go/doc test for functions and factory ...
+PACKAGE f
+
+IMPORTPATH
+	testdata/f
+
+FILENAMES
+	testdata/f.go
+
+TYPES
+	// 
+	type private struct{}
+
+	// Exported must always be visible. Was issue 2824. 
+	func Exported() private
+

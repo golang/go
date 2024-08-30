@@ -1,0 +1,24 @@
+env GOWORK=stop.work
+! go list a # require absolute path
+! stderr panic
+env GOWORK=doesnotexist
+! go list a
+! stderr panic
+
+env GOWORK=$GOPATH/src/stop.work
+go list -n a
+go build -n a
+go test -n a
+
+-- stop.work --
+go 1.18
+
+use ./a
+-- a/a.go --
+package a
+-- a/a_test.go --
+package a
+-- a/go.mod --
+module a
+
+go 1.18

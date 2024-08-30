@@ -1,0 +1,16 @@
+[short] skip
+go run example.com/printversion@v0.1.0
+stdout '^main is example.com/printversion v0.1.0$'
+
+-- go.work --
+go 1.18
+
+use (
+	.
+)
+-- go.mod --
+module example
+
+go 1.18
+
+require example.com/printversion v1.0.0

@@ -1,0 +1,45 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains rules used by flagalloc and addressingmodes to
+// split a flag-generating merged load op into separate load and op.
+// Unlike with the other rules files, not all of these
+// rules will be applied to all values.
+// Rather, flagalloc will request for rules to be applied
+// to a particular problematic value.
+// These are often the exact inverse of rules in AMD64.rules,
+// only with the conditions removed.
+//
+// For addressingmodes, certain single instructions are slower than the two instruction
+// split generated here (which is different from the inputs to addressingmodes).
+// For example:
+// (CMPBconstload c (ADDQ x y)) -> (CMPBconstloadidx1 c x y) -> (CMPB c (MOVBloadidx1 x y))
+
+(CMP(Q|L|W|B)load {sym} [off] ptr x mem) => (CMP(Q|L|W|B) (MOV(Q|L|W|B)load {sym} [off] ptr mem) x)
+
+(CMP(Q|L|W|B)constload {sym} [vo] ptr mem) && vo.Val() == 0 => (TEST(Q|L|W|B) x:(MOV(Q|L|W|B)load {sym} [vo.Off()] ptr mem) x)
+
+(CMPQconstload {sym} [vo] ptr mem) && vo.Val() != 0 => (CMPQconst (MOVQload {sym} [vo.Off()] ptr mem) [vo.Val()])
+(CMPLconstload {sym} [vo] ptr mem) && vo.Val() != 0 => (CMPLconst (MOVLload {sym} [vo.Off()] ptr mem) [vo.Val()])
+(CMPWconstload {sym} [vo] ptr mem) && vo.Val() != 0 => (CMPWconst (MOVWload {sym} [vo.Off()] ptr mem) [vo.Val16()])
+(CMPBconstload {sym} [vo] ptr mem) && vo.Val() != 0 => (CMPBconst (MOVBload {sym} [vo.Off()] ptr mem) [vo.Val8()])
+
+(CMP(Q|L|W|B)loadidx1 {sym} [off] ptr idx x mem) => (CMP(Q|L|W|B) (MOV(Q|L|W|B)loadidx1 {sym} [off] ptr idx mem) x)
+(CMPQloadidx8 {sym} [off] ptr idx x mem) => (CMPQ (MOVQloadidx8 {sym} [off] ptr idx mem) x)
+(CMPLloadidx4 {sym} [off] ptr idx x mem) => (CMPL (MOVLloadidx4 {sym} [off] ptr idx mem) x)
+(CMPWloadidx2 {sym} [off] ptr idx x mem) => (CMPW (MOVWloadidx2 {sym} [off] ptr idx mem) x)
+
+(CMP(Q|L|W|B)constloadidx1 {sym} [vo] ptr idx mem) && vo.Val() == 0 => (TEST(Q|L|W|B) x:(MOV(Q|L|W|B)loadidx1 {sym} [vo.Off()] ptr idx mem) x)
+(CMPQconstloadidx8         {sym} [vo] ptr idx mem) && vo.Val() == 0 => (TESTQ         x:(MOVQloadidx8         {sym} [vo.Off()] ptr idx mem) x)
+(CMPLconstloadidx4         {sym} [vo] ptr idx mem) && vo.Val() == 0 => (TESTL         x:(MOVLloadidx4         {sym} [vo.Off()] ptr idx mem) x)
+(CMPWconstloadidx2         {sym} [vo] ptr idx mem) && vo.Val() == 0 => (TESTW         x:(MOVWloadidx2         {sym} [vo.Off()] ptr idx mem) x)
+
+(CMPQconstloadidx1 {sym} [vo] ptr idx mem) && vo.Val() != 0 => (CMPQconst (MOVQloadidx1 {sym} [vo.Off()] ptr idx mem) [vo.Val()])
+(CMPLconstloadidx1 {sym} [vo] ptr idx mem) && vo.Val() != 0 => (CMPLconst (MOVLloadidx1 {sym} [vo.Off()] ptr idx mem) [vo.Val()])
+(CMPWconstloadidx1 {sym} [vo] ptr idx mem) && vo.Val() != 0 => (CMPWconst (MOVWloadidx1 {sym} [vo.Off()] ptr idx mem) [vo.Val16()])
+(CMPBconstloadidx1 {sym} [vo] ptr idx mem) && vo.Val() != 0 => (CMPBconst (MOVBloadidx1 {sym} [vo.Off()] ptr idx mem) [vo.Val8()])
+
+(CMPQconstloadidx8 {sym} [vo] ptr idx mem) && vo.Val() != 0 => (CMPQconst (MOVQloadidx8 {sym} [vo.Off()] ptr idx mem) [vo.Val()])
+(CMPLconstloadidx4 {sym} [vo] ptr idx mem) && vo.Val() != 0 => (CMPLconst (MOVLloadidx4 {sym} [vo.Off()] ptr idx mem) [vo.Val()])
+(CMPWconstloadidx2 {sym} [vo] ptr idx mem) && vo.Val() != 0 => (CMPWconst (MOVWloadidx2 {sym} [vo.Off()] ptr idx mem) [vo.Val16()])

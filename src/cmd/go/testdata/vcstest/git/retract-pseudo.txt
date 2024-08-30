@@ -1,0 +1,33 @@
+handle git
+
+env GIT_AUTHOR_NAME='Jay Conrod'
+env GIT_AUTHOR_EMAIL='jayconrod@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+at 2020-10-09T13:37:47-04:00
+
+git init
+
+git add go.mod p.go
+git commit -m 'create module retract-pseudo'
+git branch -m main
+git tag v1.0.0
+
+git mv p.go q.go
+git commit -m 'trivial change'
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+713affd19d7b9b6dc876b603017f3dcaab8ba674 refs/heads/main
+64c061ed4371ef372b6bbfd58ee32015d6bfc3e5 refs/tags/v1.0.0
+-- go.mod --
+module vcs-test.golang.org/git/retract-pseudo.git
+
+go 1.16
+
+retract v1.0.0
+-- p.go --
+package p

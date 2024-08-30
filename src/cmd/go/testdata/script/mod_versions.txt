@@ -1,0 +1,14 @@
+# Test rejection of pkg@version in GOPATH mode.
+env GO111MODULE=off
+! go get rsc.io/quote@v1.5.1
+stderr '^go: modules disabled by GO111MODULE=off'
+! go build rsc.io/quote@v1.5.1
+stderr '^package rsc.io/quote@v1.5.1: can only use path@version syntax with ''go get'' and ''go install'' in module-aware mode$'
+
+env GO111MODULE=on
+cd x
+! go build rsc.io/quote@v1.5.1
+stderr '^package rsc.io/quote@v1.5.1: can only use path@version syntax with ''go get'' and ''go install'' in module-aware mode$'
+
+-- x/go.mod --
+module x

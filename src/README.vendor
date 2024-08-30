@@ -1,0 +1,51 @@
+Vendoring in std and cmd
+========================
+
+The Go command maintains copies of external packages needed by the
+standard library in the src/vendor and src/cmd/vendor directories.
+
+There are two modules, std and cmd, defined in src/go.mod and
+src/cmd/go.mod. When a package outside std or cmd is imported
+by a package inside std or cmd, the import path is interpreted
+as if it had a "vendor/" prefix. For example, within "crypto/tls",
+an import of "golang.org/x/crypto/cryptobyte" resolves to
+"vendor/golang.org/x/crypto/cryptobyte". When a package with the
+same path is imported from a package outside std or cmd, it will
+be resolved normally. Consequently, a binary may be built with two
+copies of a package at different versions if the package is
+imported normally and vendored by the standard library.
+
+Vendored packages are internally renamed with a "vendor/" prefix
+to preserve the invariant that all packages have distinct paths.
+This is necessary to avoid compiler and linker conflicts. Adding
+a "vendor/" prefix also maintains the invariant that standard
+library packages begin with a dotless path element.
+
+The module requirements of std and cmd do not influence version
+selection in other modules. They are only considered when running
+module commands like 'go get' and 'go mod vendor' from a directory
+in GOROOT/src.
+
+Maintaining vendor directories
+==============================
+
+Before updating vendor directories, ensure that module mode is enabled.
+Make sure that GO111MODULE is not set in the environment, or that it is
+set to 'on' or 'auto', and if you use a go.work file, set GOWORK=off.
+
+Requirements may be added, updated, and removed with 'go get'.
+The vendor directory may be updated with 'go mod vendor'.
+A typical sequence might be:
+
+    cd src  # or src/cmd
+    go get golang.org/x/net@master
+    go mod tidy
+    go mod vendor
+
+Use caution when passing '-u' to 'go get'. The '-u' flag updates
+modules providing all transitively imported packages, not only
+the module providing the target package.
+
+Note that 'go mod vendor' only copies packages that are transitively
+imported by packages in the current module. If a new package is needed,
+it should be imported before running 'go mod vendor'.

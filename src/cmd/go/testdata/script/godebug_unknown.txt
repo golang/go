@@ -1,0 +1,9 @@
+! go build
+stderr 'p.go:1:1: invalid //go:debug: unknown //go:debug setting "x"'
+
+-- go.mod --
+module m
+-- p.go --
+//go:debug x=y
+package main
+func main() {}

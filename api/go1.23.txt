@@ -1,0 +1,158 @@
+pkg archive/tar, type FileInfoNames interface { Gname, IsDir, ModTime, Mode, Name, Size, Sys, Uname } #50102
+pkg archive/tar, type FileInfoNames interface, Gname() (string, error) #50102
+pkg archive/tar, type FileInfoNames interface, IsDir() bool #50102
+pkg archive/tar, type FileInfoNames interface, ModTime() time.Time #50102
+pkg archive/tar, type FileInfoNames interface, Mode() fs.FileMode #50102
+pkg archive/tar, type FileInfoNames interface, Name() string #50102
+pkg archive/tar, type FileInfoNames interface, Size() int64 #50102
+pkg archive/tar, type FileInfoNames interface, Sys() interface{} #50102
+pkg archive/tar, type FileInfoNames interface, Uname() (string, error) #50102
+pkg crypto/tls, const QUICResumeSession = 8 #63691
+pkg crypto/tls, const QUICResumeSession QUICEventKind #63691
+pkg crypto/tls, const QUICStoreSession = 9 #63691
+pkg crypto/tls, const QUICStoreSession QUICEventKind #63691
+pkg crypto/tls, method (*ECHRejectionError) Error() string #63369
+pkg crypto/tls, method (*QUICConn) StoreSession(*SessionState) error #63691
+pkg crypto/tls, type Config struct, EncryptedClientHelloConfigList []uint8 #63369
+pkg crypto/tls, type Config struct, EncryptedClientHelloRejectionVerify func(ConnectionState) error #63369
+pkg crypto/tls, type ConnectionState struct, ECHAccepted bool #63369
+pkg crypto/tls, type ECHRejectionError struct #63369
+pkg crypto/tls, type ECHRejectionError struct, RetryConfigList []uint8 #63369
+pkg crypto/tls, type QUICConfig struct, EnableSessionEvents bool #63691
+pkg crypto/tls, type QUICEvent struct, SessionState *SessionState #63691
+pkg crypto/tls, type QUICSessionTicketOptions struct, Extra [][]uint8 #63691
+pkg crypto/x509, func ParseOID(string) (OID, error) #66249
+pkg crypto/x509, method (*OID) UnmarshalBinary([]uint8) error #66249
+pkg crypto/x509, method (*OID) UnmarshalText([]uint8) error #66249
+pkg crypto/x509, method (OID) MarshalBinary() ([]uint8, error) #66249
+pkg crypto/x509, method (OID) MarshalText() ([]uint8, error) #66249
+pkg debug/elf, const PT_OPENBSD_NOBTCFI = 1705237480 #66054
+pkg debug/elf, const PT_OPENBSD_NOBTCFI ProgType #66054
+pkg debug/elf, const STT_GNU_IFUNC = 10 #66836
+pkg debug/elf, const STT_GNU_IFUNC SymType #66836
+pkg debug/elf, const STT_RELC = 8 #66836
+pkg debug/elf, const STT_RELC SymType #66836
+pkg debug/elf, const STT_SRELC = 9 #66836
+pkg debug/elf, const STT_SRELC SymType #66836
+pkg encoding/binary, func Append([]uint8, ByteOrder, interface{}) ([]uint8, error) #60023
+pkg encoding/binary, func Decode([]uint8, ByteOrder, interface{}) (int, error) #60023
+pkg encoding/binary, func Encode([]uint8, ByteOrder, interface{}) (int, error) #60023
+pkg go/ast, func Preorder(Node) iter.Seq[Node] #66339
+pkg go/types, method (*Alias) Origin() *Alias #67143
+pkg go/types, method (*Alias) Rhs() Type #66559
+pkg go/types, method (*Alias) SetTypeParams([]*TypeParam) #67143
+pkg go/types, method (*Alias) TypeArgs() *TypeList #67143
+pkg go/types, method (*Alias) TypeParams() *TypeParamList #67143
+pkg go/types, method (*Func) Signature() *Signature #65772
+pkg iter, func Pull2[$0 interface{}, $1 interface{}](Seq2[$0, $1]) (func() ($0, $1, bool), func()) #61897
+pkg iter, func Pull[$0 interface{}](Seq[$0]) (func() ($0, bool), func()) #61897
+pkg iter, type Seq2[$0 interface{}, $1 interface{}] func(func($0, $1) bool) #61897
+pkg iter, type Seq[$0 interface{}] func(func($0) bool) #61897
+pkg maps, func All[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) iter.Seq2[$1, $2] #61900
+pkg maps, func Collect[$0 comparable, $1 interface{}](iter.Seq2[$0, $1]) map[$0]$1 #61900
+pkg maps, func Insert[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0, iter.Seq2[$1, $2]) #61900
+pkg maps, func Keys[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) iter.Seq[$1] #61900
+pkg maps, func Values[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) iter.Seq[$2] #61900
+pkg math/rand/v2, func Uint() uint #61716
+pkg math/rand/v2, method (*ChaCha8) Read([]uint8) (int, error) #67059
+pkg math/rand/v2, method (*Rand) Uint() uint #61716
+pkg net, method (*DNSError) Unwrap() error #63116
+pkg net, method (*TCPConn) SetKeepAliveConfig(KeepAliveConfig) error #62254
+pkg net, type DNSError struct, UnwrapErr error #63116
+pkg net, type Dialer struct, KeepAliveConfig KeepAliveConfig #62254
+pkg net, type KeepAliveConfig struct #62254
+pkg net, type KeepAliveConfig struct, Count int #62254
+pkg net, type KeepAliveConfig struct, Enable bool #62254
+pkg net, type KeepAliveConfig struct, Idle time.Duration #62254
+pkg net, type KeepAliveConfig struct, Interval time.Duration #62254
+pkg net, type ListenConfig struct, KeepAliveConfig KeepAliveConfig #62254
+pkg net/http, func ParseCookie(string) ([]*Cookie, error) #66008
+pkg net/http, func ParseSetCookie(string) (*Cookie, error) #66008
+pkg net/http, method (*Request) CookiesNamed(string) []*Cookie #61472
+pkg net/http, type Cookie struct, Partitioned bool #62490
+pkg net/http, type Cookie struct, Quoted bool #46443
+pkg net/http, type Request struct, Pattern string #66405
+pkg net/http/httptest, func NewRequestWithContext(context.Context, string, string, io.Reader) *http.Request #59473
+pkg os, func CopyFS(string, fs.FS) error #62484
+pkg path/filepath, func Localize(string) (string, error) #57151
+pkg reflect, func SliceAt(Type, unsafe.Pointer, int) Value #61308
+pkg reflect, method (Value) Seq() iter.Seq[Value] #66056
+pkg reflect, method (Value) Seq2() iter.Seq2[Value, Value] #66056
+pkg reflect, type Type interface, CanSeq() bool #66056
+pkg reflect, type Type interface, CanSeq2() bool #66056
+pkg reflect, type Type interface, OverflowComplex(complex128) bool #60427
+pkg reflect, type Type interface, OverflowFloat(float64) bool #60427
+pkg reflect, type Type interface, OverflowInt(int64) bool #60427
+pkg reflect, type Type interface, OverflowUint(uint64) bool #60427
+pkg runtime/debug, func SetCrashOutput(*os.File, CrashOptions) error #42888
+pkg runtime/debug, type CrashOptions struct #67182
+pkg slices, func All[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq2[int, $1] #61899
+pkg slices, func AppendSeq[$0 interface{ ~[]$1 }, $1 interface{}]($0, iter.Seq[$1]) $0 #61899
+pkg slices, func Backward[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq2[int, $1] #61899
+pkg slices, func Chunk[$0 interface{ ~[]$1 }, $1 interface{}]($0, int) iter.Seq[$0] #53987
+pkg slices, func Collect[$0 interface{}](iter.Seq[$0]) []$0 #61899
+pkg slices, func Repeat[$0 interface{ ~[]$1 }, $1 interface{}]($0, int) $0 #65238
+pkg slices, func SortedFunc[$0 interface{}](iter.Seq[$0], func($0, $0) int) []$0 #61899
+pkg slices, func SortedStableFunc[$0 interface{}](iter.Seq[$0], func($0, $0) int) []$0 #61899
+pkg slices, func Sorted[$0 cmp.Ordered](iter.Seq[$0]) []$0 #61899
+pkg slices, func Values[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq[$1] #61899
+pkg structs, type HostLayout struct #66408
+pkg sync, method (*Map) Clear() #61696
+pkg sync/atomic, func AndInt32(*int32, int32) int32 #61395
+pkg sync/atomic, func AndInt64(*int64, int64) int64 #61395
+pkg sync/atomic, func AndUint32(*uint32, uint32) uint32 #61395
+pkg sync/atomic, func AndUint64(*uint64, uint64) uint64 #61395
+pkg sync/atomic, func AndUintptr(*uintptr, uintptr) uintptr #61395
+pkg sync/atomic, func OrInt32(*int32, int32) int32 #61395
+pkg sync/atomic, func OrInt64(*int64, int64) int64 #61395
+pkg sync/atomic, func OrUint32(*uint32, uint32) uint32 #61395
+pkg sync/atomic, func OrUint64(*uint64, uint64) uint64 #61395
+pkg sync/atomic, func OrUintptr(*uintptr, uintptr) uintptr #61395
+pkg sync/atomic, method (*Int32) And(int32) int32 #61395
+pkg sync/atomic, method (*Int32) Or(int32) int32 #61395
+pkg sync/atomic, method (*Int64) And(int64) int64 #61395
+pkg sync/atomic, method (*Int64) Or(int64) int64 #61395
+pkg sync/atomic, method (*Uint32) And(uint32) uint32 #61395
+pkg sync/atomic, method (*Uint32) Or(uint32) uint32 #61395
+pkg sync/atomic, method (*Uint64) And(uint64) uint64 #61395
+pkg sync/atomic, method (*Uint64) Or(uint64) uint64 #61395
+pkg sync/atomic, method (*Uintptr) And(uintptr) uintptr #61395
+pkg sync/atomic, method (*Uintptr) Or(uintptr) uintptr #61395
+pkg syscall (openbsd-386), const EBADMSG = 92 #67998
+pkg syscall (openbsd-386), const ELAST = 95 #67998
+pkg syscall (openbsd-386), const ENOTRECOVERABLE = 93 #67998
+pkg syscall (openbsd-386), const ENOTRECOVERABLE Errno #67998
+pkg syscall (openbsd-386), const EOWNERDEAD = 94 #67998
+pkg syscall (openbsd-386), const EOWNERDEAD Errno #67998
+pkg syscall (openbsd-386), const EPROTO = 95 #67998
+pkg syscall (openbsd-386-cgo), const EBADMSG = 92 #67998
+pkg syscall (openbsd-386-cgo), const ELAST = 95 #67998
+pkg syscall (openbsd-386-cgo), const ENOTRECOVERABLE = 93 #67998
+pkg syscall (openbsd-386-cgo), const ENOTRECOVERABLE Errno #67998
+pkg syscall (openbsd-386-cgo), const EOWNERDEAD = 94 #67998
+pkg syscall (openbsd-386-cgo), const EOWNERDEAD Errno #67998
+pkg syscall (openbsd-386-cgo), const EPROTO = 95 #67998
+pkg syscall (openbsd-amd64), const EBADMSG = 92 #67998
+pkg syscall (openbsd-amd64), const ELAST = 95 #67998
+pkg syscall (openbsd-amd64), const ENOTRECOVERABLE = 93 #67998
+pkg syscall (openbsd-amd64), const ENOTRECOVERABLE Errno #67998
+pkg syscall (openbsd-amd64), const EOWNERDEAD = 94 #67998
+pkg syscall (openbsd-amd64), const EOWNERDEAD Errno #67998
+pkg syscall (openbsd-amd64), const EPROTO = 95 #67998
+pkg syscall (openbsd-amd64-cgo), const EBADMSG = 92 #67998
+pkg syscall (openbsd-amd64-cgo), const ELAST = 95 #67998
+pkg syscall (openbsd-amd64-cgo), const ENOTRECOVERABLE = 93 #67998
+pkg syscall (openbsd-amd64-cgo), const ENOTRECOVERABLE Errno #67998
+pkg syscall (openbsd-amd64-cgo), const EOWNERDEAD = 94 #67998
+pkg syscall (openbsd-amd64-cgo), const EOWNERDEAD Errno #67998
+pkg syscall (openbsd-amd64-cgo), const EPROTO = 95 #67998
+pkg syscall (windows-386), const WSAENOPROTOOPT = 10042 #62254
+pkg syscall (windows-386), const WSAENOPROTOOPT Errno #62254
+pkg syscall (windows-amd64), const WSAENOPROTOOPT = 10042 #62254
+pkg syscall (windows-amd64), const WSAENOPROTOOPT Errno #62254
+pkg syscall, const EBADMSG Errno #67998
+pkg syscall, const EPROTO Errno #67998
+pkg unicode/utf16, func RuneLen(int32) int #44940
+pkg unique, func Make[$0 comparable]($0) Handle[$0] #62483
+pkg unique, method (Handle[$0]) Value() $0 #62483
+pkg unique, type Handle[$0 comparable] struct #62483

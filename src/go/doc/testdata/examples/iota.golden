@@ -1,0 +1,23 @@
+-- .Play --
+package main
+
+import ()
+
+const (
+	a = iota
+	b
+)
+
+const d = 4
+
+func main() {
+	_ = b
+	_ = d
+}
+-- 2.Play --
+package main
+
+import ()
+
+func main() {
+}

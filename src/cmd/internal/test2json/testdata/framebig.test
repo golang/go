@@ -1,0 +1,138 @@
+=== RUN   TestIndex
+--- PASS: TestIndex (0.00s)
+=== PASS  TestIndex
+=== NAME
+=== RUN   TestLastIndex
+--- PASS: TestLastIndex (0.00s)
+=== PASS  TestLastIndex
+=== NAME
+=== RUN   TestIndexAny
+--- PASS: TestIndexAny (0.00s)
+=== PASS  TestIndexAny
+=== NAME
+=== RUN   TestLastIndexAny
+--- PASS: TestLastIndexAny (0.00s)
+=== PASS  TestLastIndexAny
+=== NAME
+=== RUN   TestIndexByte
+--- PASS: TestIndexByte (0.00s)
+=== PASS  TestIndexByte
+=== NAME
+=== RUN   TestLastIndexByte
+--- PASS: TestLastIndexByte (0.00s)
+=== PASS  TestLastIndexByte
+=== NAME
+=== RUN   TestIndexRandom
+--- PASS: TestIndexRandom (0.00s)
+=== PASS  TestIndexRandom
+=== NAME
+=== RUN   TestIndexRune
+--- PASS: TestIndexRune (0.00s)
+=== PASS  TestIndexRune
+=== NAME
+=== RUN   TestIndexFunc
+--- PASS: TestIndexFunc (0.00s)
+=== PASS  TestIndexFunc
+=== NAME
+=== RUN   ExampleIndex
+--- PASS: ExampleIndex (0.00s)
+=== NAME
+=== RUN   ExampleIndexFunc
+--- PASS: ExampleIndexFunc (0.00s)
+=== NAME
+=== RUN   ExampleIndexAny
+--- PASS: ExampleIndexAny (0.00s)
+=== NAME
+=== RUN   ExampleIndexByte
+--- PASS: ExampleIndexByte (0.00s)
+=== NAME
+=== RUN   ExampleIndexRune
+--- PASS: ExampleIndexRune (0.00s)
+=== NAME
+=== RUN   ExampleLastIndex
+--- PASS: ExampleLastIndex (0.00s)
+=== NAME
+=== RUN   ExampleLastIndexAny
+--- PASS: ExampleLastIndexAny (0.00s)
+=== NAME
+=== RUN   ExampleLastIndexByte
+--- PASS: ExampleLastIndexByte (0.00s)
+=== NAME
+=== RUN   ExampleLastIndexFunc
+--- PASS: ExampleLastIndexFunc (0.00s)
+=== NAME
+goos: darwin
+goarch: amd64
+pkg: strings
+cpu: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
+=== RUN   BenchmarkIndexRune
+BenchmarkIndexRune
+BenchmarkIndexRune-16              	87335496	        14.27 ns/op
+=== NAME
+=== RUN   BenchmarkIndexRuneLongString
+BenchmarkIndexRuneLongString
+BenchmarkIndexRuneLongString-16    	57104472	        18.66 ns/op
+=== NAME
+=== RUN   BenchmarkIndexRuneFastPath
+BenchmarkIndexRuneFastPath
+BenchmarkIndexRuneFastPath-16      	262380160	         4.499 ns/op
+=== NAME
+=== RUN   BenchmarkIndex
+BenchmarkIndex
+BenchmarkIndex-16                  	248529364	         4.697 ns/op
+=== NAME
+=== RUN   BenchmarkLastIndex
+BenchmarkLastIndex
+BenchmarkLastIndex-16              	293688756	         4.166 ns/op
+=== NAME
+=== RUN   BenchmarkIndexByte
+BenchmarkIndexByte
+BenchmarkIndexByte-16              	310338391	         3.608 ns/op
+=== NAME
+=== RUN   BenchmarkIndexHard1
+BenchmarkIndexHard1
+BenchmarkIndexHard1-16             	   12852	     92380 ns/op
+=== NAME
+=== RUN   BenchmarkIndexHard2
+BenchmarkIndexHard2
+BenchmarkIndexHard2-16             	    8977	    135080 ns/op
+=== NAME
+=== RUN   BenchmarkIndexHard3
+BenchmarkIndexHard3
+BenchmarkIndexHard3-16             	    1885	    532079 ns/op
+=== NAME
+=== RUN   BenchmarkIndexHard4
+BenchmarkIndexHard4
+BenchmarkIndexHard4-16             	    2298	    533435 ns/op
+=== NAME
+=== RUN   BenchmarkLastIndexHard1
+BenchmarkLastIndexHard1
+BenchmarkLastIndexHard1-16         	     813	   1295767 ns/op
+=== NAME
+=== RUN   BenchmarkLastIndexHard2
+BenchmarkLastIndexHard2
+BenchmarkLastIndexHard2-16         	     784	   1389403 ns/op
+=== NAME
+=== RUN   BenchmarkLastIndexHard3
+BenchmarkLastIndexHard3
+BenchmarkLastIndexHard3-16         	     913	   1316608 ns/op
+=== NAME
+=== RUN   BenchmarkIndexTorture
+BenchmarkIndexTorture
+BenchmarkIndexTorture-16           	   98090	     10201 ns/op
+=== NAME
+=== RUN   BenchmarkIndexAnyASCII
+BenchmarkIndexAnyASCII
+=== RUN   BenchmarkIndexAnyASCII/1:1
+BenchmarkIndexAnyASCII/1:1
+BenchmarkIndexAnyASCII/1:1-16      	214829462	         5.592 ns/op
+=== NAME
+=== RUN   BenchmarkIndexAnyASCII/1:2
+BenchmarkIndexAnyASCII/1:2
+BenchmarkIndexAnyASCII/1:2-16      	155499682	         7.214 ns/op
+=== NAME
+=== RUN   BenchmarkIndexAnyASCII/1:4
+BenchmarkIndexAnyASCII/1:4
+BenchmarkIndexAnyASCII/1:4-16      	172757770	         7.092 ns/op
+=== NAME
+PASS

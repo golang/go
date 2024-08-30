@@ -1,0 +1,53 @@
+handle git
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL='bcmills@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2022-02-02T14:15:21-05:00
+git add pkg go.mod
+git commit -a -m 'pkg: add empty package'
+git branch -m main
+git tag 'v0.1.0'
+
+at 2022-02-02T14:19:44-05:00
+git branch 'v1.0.0'
+git branch 'v2.0.0'
+git checkout 'v1.0.0'
+cp v1/pkg/pkg.go pkg/pkg.go
+git commit -a -m 'pkg: start developing toward v1.0.0'
+
+at 2022-02-03T10:53:13-05:00
+git branch 'v3.0.0-devel'
+git checkout 'v3.0.0-devel'
+git checkout v0.1.0 pkg/pkg.go
+git commit -a -m 'pkg: remove panic'
+git tag v4.0.0-beta.1
+
+git checkout main
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+33ea7ee36f3e3f44f528664b3712c9fa0cef7502 refs/heads/main
+09c4d8f6938c7b5eeae46858a72712b8700fa46a refs/heads/v1.0.0
+33ea7ee36f3e3f44f528664b3712c9fa0cef7502 refs/heads/v2.0.0
+d59622f6e4d77f008819083582fde71ea1921b0c refs/heads/v3.0.0-devel
+33ea7ee36f3e3f44f528664b3712c9fa0cef7502 refs/tags/v0.1.0
+d59622f6e4d77f008819083582fde71ea1921b0c refs/tags/v4.0.0-beta.1
+-- go.mod --
+module vcs-test.golang.org/git/semver-branch.git
+
+go 1.16
+-- pkg/pkg.go --
+package pkg
+-- v1/pkg/pkg.go --
+package pkg
+
+func init() {
+	panic("TODO")
+}

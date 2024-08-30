@@ -1,0 +1,48 @@
+
+# Test case for issue 47993, in which the linker crashes
+# on a bad input instead of issuing an error and exiting.
+
+# This test requires external linking, so use cgo as a proxy 
+[!cgo] skip
+
+! go build -ldflags='-linkmode=external' .
+! stderr 'panic'
+stderr '^.*undefined symbol in relocation.*'
+
+-- go.mod --
+
+module issue47993
+
+go 1.16
+
+-- main.go --
+
+package main
+
+type M struct {
+	b bool
+}
+
+// Note the body-less func def here. This is what causes the problems.
+func (m *M) run(fp func())
+
+func doit(m *M) {
+        InAsm()
+	m.run(func() {
+	})
+}
+
+func main() {
+     m := &M{true}
+     doit(m)
+}
+
+func InAsm() 
+
+-- main.s --
+
+// Add an assembly function so as to leave open the possibility
+// that body-less functions in Go might be defined in assembly.
+
+// Currently we just need an empty file here.
+

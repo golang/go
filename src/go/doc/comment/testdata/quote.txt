@@ -1,0 +1,15 @@
+-- input --
+Doubled single quotes like `` and '' turn into Unicode double quotes,
+but single quotes ` and ' do not.
+Misplaced markdown fences ``` do not either.
+-- gofmt --
+Doubled single quotes like “ and ” turn into Unicode double quotes,
+but single quotes ` and ' do not.
+Misplaced markdown fences ``` do not either.
+-- text --
+Doubled single quotes like “ and ” turn into Unicode double quotes, but single
+quotes ` and ' do not. Misplaced markdown fences ``` do not either.
+-- html --
+<p>Doubled single quotes like “ and ” turn into Unicode double quotes,
+but single quotes ` and &apos; do not.
+Misplaced markdown fences ``` do not either.

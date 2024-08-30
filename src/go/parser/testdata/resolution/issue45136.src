@@ -1,0 +1,27 @@
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package issue45136
+
+type obj /* =@obj */ struct {
+	name /*=@name */ string
+}
+
+func _() {
+	var foo /* =@foo */ = "foo"
+	obj /* @obj */ ["foo"]
+	obj /* @obj */ .run()
+	obj /* @obj */ {
+		name: foo /* @foo */,
+	}
+	obj /* @obj */ {
+		name: "bar",
+	}.run()
+
+	var _ = File{key: obj /* @obj */ {}}
+	var _ = File{obj /* @obj */ {}}
+
+	[]obj /* @obj */ {foo /* @foo */}
+	x /* =@x1 */ := obj /* @obj */{}
+}

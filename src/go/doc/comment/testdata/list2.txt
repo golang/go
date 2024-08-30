@@ -1,0 +1,57 @@
+-- input --
+Text.
+ 1. Uno
+   2) Dos
+ 3. Tres
+   5. Cinco
+ 7. Siete
+   11. Once
+ 12. Doce
+ 13. Trece.
+
+-- gofmt --
+Text.
+ 1. Uno
+ 2. Dos
+ 3. Tres
+ 5. Cinco
+ 7. Siete
+ 11. Once
+ 12. Doce
+ 13. Trece.
+
+-- text --
+Text.
+ 1. Uno
+ 2. Dos
+ 3. Tres
+ 5. Cinco
+ 7. Siete
+ 11. Once
+ 12. Doce
+ 13. Trece.
+
+-- markdown --
+Text.
+
+ 1. Uno
+ 2. Dos
+ 3. Tres
+ 5. Cinco
+ 7. Siete
+ 11. Once
+ 12. Doce
+ 13. Trece.
+
+-- html --
+<p>Text.
+<ol>
+<li>Uno
+<li>Dos
+<li>Tres
+<li value="5">Cinco
+<li value="7">Siete
+<li value="11">Once
+<li>Doce
+<li>Trece.
+</ol>

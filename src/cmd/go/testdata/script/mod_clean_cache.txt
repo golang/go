@@ -1,0 +1,61 @@
+env GO111MODULE=on
+
+# 'mod download' should download the module to the cache.
+go mod download rsc.io/quote@v1.5.0
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+
+# '-n' should print commands but not actually execute them.
+go clean -modcache -n
+stdout '^rm -rf .*pkg.mod$'
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+
+# 'go clean -modcache' should actually delete the files.
+go clean -modcache
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+
+# 'go clean -r -modcache' should clean only the dependencies that are within the
+# main module.
+# BUG(golang.org/issue/28680): Today, it cleans across module boundaries.
+cd r
+exists ./test.out
+exists ../replaced/test.out
+go clean -r -modcache
+! exists ./test.out
+! exists ../replaced/test.out  # BUG: should still exist
+
+# 'go clean -modcache' should not download anything before cleaning.
+go mod edit -require rsc.io/quote@v1.99999999.0-not-a-real-version
+go clean -modcache
+! stderr 'finding rsc.io'
+go mod edit -droprequire rsc.io/quote
+
+! go clean -modcache m
+stderr 'go: clean -modcache cannot be used with package arguments'
+
+-- go.mod --
+module m
+-- m.go --
+package m
+
+-- r/go.mod --
+module example.com/r
+require example.com/r/replaced v0.0.0
+replace example.com/r/replaced => ../replaced
+-- r/r.go --
+package r
+import _ "example.com/r/replaced"
+-- r/test.out --
+DELETE ME
+
+-- replaced/go.mod --
+module example.com/r/replaced
+-- replaced/replaced.go --
+package replaced
+-- replaced/test.out --
+DO NOT DELETE

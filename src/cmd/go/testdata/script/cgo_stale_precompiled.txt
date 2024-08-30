@@ -1,0 +1,32 @@
+# Regression test for https://go.dev/issue/47215 and https://go.dev/issue/50183:
+# A missing $CC caused the C dependencies of the net
+# package to appear stale, and it could not be rebuilt due to a missing $CC.
+
+[!cgo] skip
+
+# This test may start with the runtime/cgo package already stale.
+# Explicitly rebuild it to ensure that it is cached.
+# (See https://go.dev/issue/50892.)
+#
+# If running in non-short mode, explicitly vary CGO_CFLAGS
+# as a control case (to ensure that our regexps do catch rebuilds).
+
+[!short] env GOCACHE=$WORK/cache
+[!short] env CGO_CFLAGS=-DTestScript_cgo_stale_precompiled=true
+go build -x runtime/cgo
+[!short] stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
+
+# https://go.dev/issue/47215: a missing $(go env CC) caused the precompiled net
+# to be stale. But as of https://go.dev/cl/452457 the precompiled libraries are
+# no longer installed anyway! Since we're requiring a C compiler in order to
+# build and use cgo libraries in the standard library, we should make sure it
+# matches what's in the cache.
+
+[abscc] stop
+
+env CGO_ENABLED=1
+env CC=''
+[!GOOS:plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
+[GOOS:plan9] env path=''
+! go build -x runtime/cgo
+stderr 'C compiler .* not found'

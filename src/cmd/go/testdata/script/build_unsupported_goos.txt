@@ -1,0 +1,6 @@
+[compiler:gccgo] skip # gccgo assumes cross-compilation is always possible
+
+env GOOS=windwos # intentional misspelling of windows
+
+! go build -n exclude
+stderr 'unsupported GOOS/GOARCH pair'

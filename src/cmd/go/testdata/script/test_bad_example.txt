@@ -1,0 +1,14 @@
+# Tests that invalid examples are ignored.
+# Verifies golang.org/issue/35284
+# Disable vet, as 'tests' analyzer objects to surplus parameter.
+go test -vet=off x_test.go
+
+-- x_test.go --
+package  x
+
+import "fmt"
+
+func ExampleThisShouldNotHaveAParameter(thisShouldntExist int) {
+	fmt.Println("X")
+	// Output:
+}

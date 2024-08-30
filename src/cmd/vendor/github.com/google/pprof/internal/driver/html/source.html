@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{.Title}}</title>
+  {{if not .Standalone}}{{template "css" .}}{{end}}
+  {{template "weblistcss" .}}
+  {{template "weblistjs" .}}
+</head>
+<body>{{"\n" -}}
+  {{/* emit different header in standalone mode */ -}}
+  {{if .Standalone}}{{"\n" -}}
+    <div class="legend">{{"" -}}
+      {{range $i, $e := .Legend -}}
+        {{if $i}}<br>{{"\n"}}{{end}}{{. -}}
+      {{end}}<br>Total: {{.Listing.Total -}}
+    </div>{{"" -}}
+  {{else -}}
+    {{template "header" .}}
+    <div id="content" class="source">{{"" -}}
+  {{end -}}
+
+  {{range .Listing.Files -}}
+    {{range .Funcs -}}
+      <h2>{{.Name}}</h2>{{"" -}}
+      <p class="filename">{{.File}}</p>{{"\n" -}}
+      <pre onClick="pprof_toggle_asm(event)">{{"\n" -}}
+        {{printf "  Total:  %10s %10s (flat, cum) %s" .Flat .Cumulative .Percent -}}
+        {{range .Lines -}}{{"\n" -}}
+          {{/* source line */ -}}
+          <span class=line>{{printf " %6d" .Line}}</span>{{" " -}}
+          <span class={{.HTMLClass}}>
+            {{- printf "  %10s %10s %8s  %s " .Flat .Cumulative "" .SrcLine -}}
+          </span>{{"" -}}
+
+          {{if .Instructions -}}
+            {{/* instructions for this source line */ -}}
+            <span class=asm>{{"" -}}
+            {{range .Instructions -}}
+              {{/* separate when we hit a new basic block */ -}}
+              {{if .NewBlock -}}{{printf " %8s %28s\n" "" "⋮"}}{{end -}}
+
+              {{/* inlined calls leading to this instruction */ -}}
+              {{range .InlinedCalls -}}
+                {{printf " %8s %10s %10s %8s  " "" "" "" "" -}}
+                <span class=inlinesrc>{{.SrcLine}}</span>{{" " -}}
+                <span class=unimportant>{{.FileBase}}:{{.Line}}</span>{{"\n" -}}
+              {{end -}}
+
+              {{if not .Synthetic -}}
+                {{/* disassembled instruction */ -}}
+                {{printf " %8s %10s %10s %8x: %s " "" .Flat .Cumulative .Address .Disasm -}}
+                <span class=unimportant>{{.FileLine}}</span>{{"\n" -}}
+              {{end -}}
+            {{end -}}
+            </span>{{"" -}}
+          {{end -}}
+          {{/* end of line */ -}}
+        {{end}}{{"\n" -}}
+      </pre>{{"\n" -}}
+      {{/* end of function */ -}}
+    {{end -}}
+    {{/* end of file */ -}}
+  {{end -}}
+
+  {{if not .Standalone}}{{"\n  " -}}
+    </div>{{"\n" -}}
+    {{template "script" .}}{{"\n" -}}
+    <script>viewer(new URL(window.location.href), null);</script>{{"" -}}
+  {{end}}
+</body>
+</html>

@@ -1,0 +1,87 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains rules used by the laterLower pass.
+// These are often the exact inverse of rules in ARM64.rules.
+
+(ADDconst [c] x) && !isARM64addcon(c)  => (ADD x (MOVDconst [c]))
+(SUBconst [c] x) && !isARM64addcon(c)  => (SUB x (MOVDconst [c]))
+(ANDconst [c] x) && !isARM64bitcon(uint64(c)) => (AND x (MOVDconst [c]))
+(ORconst  [c] x) && !isARM64bitcon(uint64(c))  => (OR  x (MOVDconst [c]))
+(XORconst [c] x) && !isARM64bitcon(uint64(c))  => (XOR x (MOVDconst [c]))
+(TSTconst [c] x) && !isARM64bitcon(uint64(c))  => (TST x (MOVDconst [c]))
+(TSTWconst [c] x) && !isARM64bitcon(uint64(c)|uint64(c)<<32)  => (TSTW x (MOVDconst [int64(c)]))
+
+(CMPconst [c] x) && !isARM64addcon(c)  => (CMP x (MOVDconst [c]))
+(CMPWconst [c] x) && !isARM64addcon(int64(c))  => (CMPW x (MOVDconst [int64(c)]))
+(CMNconst [c] x) && !isARM64addcon(c)  => (CMN x (MOVDconst [c]))
+(CMNWconst [c] x) && !isARM64addcon(int64(c))  => (CMNW x (MOVDconst [int64(c)]))
+
+(ADDSconstflags [c] x) && !isARM64addcon(c)  => (ADDSflags x (MOVDconst [c]))
+
+// These rules remove unneeded sign/zero extensions.
+// They occur in late lower because they rely on the fact
+// that their arguments don't get rewritten to a non-extended opcode instead.
+
+// Boolean-generating instructions (NOTE: NOT all boolean Values) always
+// zero upper bit of the register; no need to zero-extend
+(MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => x
+
+// omit unsigned extension
+(MOVWUreg x) && zeroUpper32Bits(x, 3) => x
+
+// don't extend after proper load
+(MOVBreg  x:(MOVBload  _ _)) => (MOVDreg x)
+(MOVBUreg x:(MOVBUload _ _)) => (MOVDreg x)
+(MOVHreg  x:(MOVBload  _ _)) => (MOVDreg x)
+(MOVHreg  x:(MOVBUload _ _)) => (MOVDreg x)
+(MOVHreg  x:(MOVHload  _ _)) => (MOVDreg x)
+(MOVHUreg x:(MOVBUload _ _)) => (MOVDreg x)
+(MOVHUreg x:(MOVHUload _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVBload  _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVBUload _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVHload  _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVHUload _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVWload  _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVBUload _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVHUload _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVWUload _ _)) => (MOVDreg x)
+(MOVBreg  x:(MOVBloadidx  _  _ _)) => (MOVDreg x)
+(MOVBUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
+(MOVHreg  x:(MOVBloadidx   _ _ _)) => (MOVDreg x)
+(MOVHreg  x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
+(MOVHreg  x:(MOVHloadidx   _ _ _)) => (MOVDreg x)
+(MOVHUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
+(MOVHUreg x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVBloadidx   _ _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVHloadidx   _ _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVWloadidx   _ _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVWUloadidx  _ _ _)) => (MOVDreg x)
+(MOVHreg  x:(MOVHloadidx2  _ _ _)) => (MOVDreg x)
+(MOVHUreg x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVHloadidx2  _ _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
+(MOVWreg  x:(MOVWloadidx4  _ _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
+(MOVWUreg x:(MOVWUloadidx4 _ _ _)) => (MOVDreg x)
+
+// fold double extensions
+(MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)
+(MOVBUreg x:(MOVBUreg _)) => (MOVDreg x)
+(MOVHreg  x:(MOVBreg  _)) => (MOVDreg x)
+(MOVHreg  x:(MOVBUreg _)) => (MOVDreg x)
+(MOVHreg  x:(MOVHreg  _)) => (MOVDreg x)
+(MOVHUreg x:(MOVBUreg _)) => (MOVDreg x)
+(MOVHUreg x:(MOVHUreg _)) => (MOVDreg x)
+(MOVWreg  x:(MOVBreg  _)) => (MOVDreg x)
+(MOVWreg  x:(MOVBUreg _)) => (MOVDreg x)
+(MOVWreg  x:(MOVHreg  _)) => (MOVDreg x)
+(MOVWreg  x:(MOVWreg  _)) => (MOVDreg x)
+(MOVWUreg x:(MOVBUreg _)) => (MOVDreg x)
+(MOVWUreg x:(MOVHUreg _)) => (MOVDreg x)
+(MOVWUreg x:(MOVWUreg _)) => (MOVDreg x)

@@ -1,0 +1,73 @@
+
+# This test is intended to verify that when a user does "go run -cover ..."
+# or "go build -cover ...", packages named on the command line are
+# always instrumented (but not their dependencies). This rule applies
+# inside and outside the standard library.
+
+[short] skip
+[!GOEXPERIMENT:coverageredesign] skip
+
+# Compile an object.
+go tool compile -p tiny tiny/tiny.go tiny/tiny2.go
+
+# Build a stdlib command with coverage.
+go build -o $WORK/nm.exe -cover cmd/nm 
+
+# Save off old GOCOVERDIR setting
+env SAVEGOCOVERDIR=$GOCOVERDIR
+
+# Collect a coverage profile from running 'cmd/nm' on the object.
+mkdir $WORK/covdata
+env GOCOVERDIR=$WORK/covdata
+exec $WORK/nm.exe tiny.o
+
+# Restore previous GOCOVERDIR setting
+env GOCOVERDIR=$SAVEGOCOVERDIR
+
+# Check to make sure we instrumented just the main package, not
+# any dependencies.
+go tool covdata pkglist -i=$WORK/covdata
+stdout cmd/nm
+! stdout cmd/internal/goobj pkglist.txt
+
+# ... now collect a coverage profile from a Go file
+# listed on the command line.
+go build -cover -o $WORK/another.exe testdata/another.go
+mkdir $WORK/covdata2
+env GOCOVERDIR=$WORK/covdata2
+exec $WORK/another.exe 
+
+# Restore previous GOCOVERDIR setting
+env GOCOVERDIR=$SAVEGOCOVERDIR
+
+# Check to make sure we instrumented just the main package.
+go tool covdata pkglist -i=$WORK/covdata2
+stdout command-line-arguments
+! stdout fmt
+
+-- go.mod --
+
+module example.prog
+
+-- testdata/another.go --
+
+package main
+
+import "fmt"
+
+func main() {
+  fmt.Println("Hi dad")
+}
+
+-- tiny/tiny.go --
+
+package tiny
+
+var Tvar int
+
+-- tiny/tiny2.go --
+
+package tiny
+
+var Tvar2 bool
+

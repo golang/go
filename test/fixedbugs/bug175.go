@@ -1,0 +1,14 @@
+// errorcheck
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+func f() (int, bool) { return 0, true }
+
+func main() {
+	x, y := f(), 2 // ERROR "multi|2-valued"
+	_, _ = x, y
+}

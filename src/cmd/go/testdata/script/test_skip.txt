@@ -1,0 +1,45 @@
+go test -v -run Test -skip T skip_test.go
+! stdout RUN
+stdout '^ok.*\[no tests to run\]'
+
+go test -v -skip T skip_test.go
+! stdout RUN
+
+go test -v -skip 1 skip_test.go
+! stdout Test1
+stdout RUN.*Test2
+stdout RUN.*Test2/3
+
+go test -v -skip 2/3 skip_test.go
+stdout RUN.*Test1
+stdout RUN.*Test2
+stdout RUN.*ExampleTest1
+! stdout Test2/3
+
+go test -v -skip 2/4 skip_test.go
+stdout RUN.*Test1
+stdout RUN.*Test2
+stdout RUN.*Test2/3
+stdout RUN.*ExampleTest1
+
+go test -v -skip Example skip_test.go
+stdout RUN.*Test1
+stdout RUN.*Test2
+stdout RUN.*Test2/3
+! stdout ExampleTest1
+
+-- skip_test.go --
+package skip_test
+
+import "testing"
+
+func Test1(t *testing.T) {
+}
+
+func Test2(t *testing.T) {
+	t.Run("3", func(t *testing.T) {})
+}
+
+func ExampleTest1() {
+	// Output:
+}

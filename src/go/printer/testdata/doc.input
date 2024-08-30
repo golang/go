@@ -1,0 +1,20 @@
+package p
+
+/*
+Doc comment.
+  - List1.
+
+  - List2.
+*/
+var X int
+
+/* erroneous doc comment */
+var Y int
+
+/*
+ * Another erroneous
+ * doc comment.
+ */
+var Z int
+
+

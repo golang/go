@@ -1,0 +1,10 @@
+go list -compiled -f {{.CompiledGoFiles}} .
+! stdout 'foo.s'
+
+-- go.mod --
+module example.com/foo
+
+go 1.20
+-- foo.go --
+package foo
+-- foo.s --

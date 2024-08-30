@@ -1,0 +1,22 @@
+# Check that goroutine scheduling does not affect compiler output.
+# If it does, reproducible builds will not work very well.
+[short] skip
+[GOOS:aix] env CGO_ENABLED=0  # go.dev/issue/56896
+env GOMAXPROCS=16
+go build -a -o http16.o net/http
+env GOMAXPROCS=17
+go build -a -o http17.o net/http
+cmp -q http16.o http17.o
+env GOMAXPROCS=18
+go build -a -o http18.o net/http
+cmp -q http16.o http18.o
+
+# Check that goroutine scheduling does not affect linker output.
+env GOMAXPROCS=16
+go build -a -o gofmt16.exe cmd/gofmt
+env GOMAXPROCS=17
+go build -a -o gofmt17.exe cmd/gofmt
+cmp -q gofmt16.exe gofmt17.exe
+env GOMAXPROCS=18
+go build -a -o gofmt18.exe cmd/gofmt
+cmp -q gofmt16.exe gofmt18.exe

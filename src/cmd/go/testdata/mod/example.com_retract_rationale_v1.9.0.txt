@@ -1,0 +1,48 @@
+Module example.com/retract/description retracts all versions of itself.
+The rationale comments have various problems.
+
+-- .mod --
+module example.com/retract/rationale
+
+go 1.14
+
+retract (
+	v1.0.0-empty
+
+	// short description
+	// more
+	//
+	// detail
+	v1.0.0-multiline1 // suffix
+	// after not included
+)
+
+// short description
+// more
+//
+// detail
+retract v1.0.0-multiline2 // suffix
+
+// loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong
+retract v1.0.0-long
+
+// Ends with a BEL character. Beep!
+retract v1.0.0-unprintable
+
+// block comment
+retract (
+	v1.0.0-block
+
+	// inner comment
+	v1.0.0-blockwithcomment
+)
+
+retract (
+	[v1.0.0-order, v1.0.0-order] // degenerate range
+	v1.0.0-order // single version
+
+	v1.0.1-order // single version
+	[v1.0.1-order, v1.0.1-order] // degenerate range
+)
+-- .info --
+{"Version":"v1.9.0"}

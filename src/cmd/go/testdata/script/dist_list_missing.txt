@@ -1,0 +1,57 @@
+# Regression test for #60939: when 'go tool dist' is missing,
+# 'go tool dist list' should inject its output.
+
+
+# Set GOROOT to a directory that definitely does not include
+# a compiled 'dist' tool. 'go tool dist list' should still
+# work, because 'cmd/go' itself can impersonate this command.
+
+mkdir $WORK/goroot/bin
+mkdir $WORK/goroot/pkg/tool/${GOOS}_${GOARCH}
+env GOROOT=$WORK/goroot
+
+! go tool -n dist
+stderr 'go: no such tool "dist"'
+
+go tool dist list
+stdout linux/amd64
+cp stdout tool.txt
+
+go tool dist list -v
+stdout linux/amd64
+cp stdout tool-v.txt
+
+go tool dist list -broken
+stdout $GOOS/$GOARCH
+cp stdout tool-broken.txt
+
+go tool dist list -json
+stdout '"GOOS": "linux",\n\s*"GOARCH": "amd64",\n'
+cp stdout tool-json.txt
+
+go tool dist list -json -broken
+stdout '"GOOS": "'$GOOS'",\n\s*"GOARCH": "'$GOARCH'",\n'
+cp stdout tool-json-broken.txt
+
+[short] stop
+
+
+# Check against the real cmd/dist as the source of truth.
+
+env GOROOT=$TESTGO_GOROOT
+go build -o dist.exe cmd/dist
+
+exec ./dist.exe list
+cmp stdout tool.txt
+
+exec ./dist.exe list -v
+cmp stdout tool-v.txt
+
+exec ./dist.exe list -broken
+cmp stdout tool-broken.txt
+
+exec ./dist.exe list -json
+cmp stdout tool-json.txt
+
+exec ./dist.exe list -json -broken
+cmp stdout tool-json-broken.txt

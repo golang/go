@@ -1,0 +1,149 @@
+# This test checks basic "go build -cover" functionality.
+
+[short] skip
+
+# Hard-wire new coverage for this test.
+env GOEXPERIMENT=coverageredesign
+
+# Build for coverage.
+go build -gcflags=-m -o example.exe -cover example/main &
+[race] go build -o examplewithrace.exe -race -cover example/main &
+wait
+
+# First execute without GOCOVERDIR set...
+env GOCOVERDIR=
+exec ./example.exe normal
+stderr '^warning: GOCOVERDIR not set, no coverage data emitted'
+
+# ... then with GOCOVERDIR set.
+env GOCOVERDIR=data/normal
+exec ./example.exe normal
+! stderr '^warning: GOCOVERDIR not set, no coverage data emitted'
+go tool covdata percent -i=data/normal
+stdout  'coverage:.*[1-9][0-9.]+%'
+
+# Program makes a direct call to os.Exit(0).
+env GOCOVERDIR=data/goodexit
+exec ./example.exe goodexit
+! stderr '^warning: GOCOVERDIR not set, no coverage data emitted'
+go tool covdata percent -i=data/goodexit
+stdout  'coverage:.*[1-9][0-9.]+%'
+
+# Program makes a direct call to os.Exit(1).
+env GOCOVERDIR=data/badexit
+! exec ./example.exe badexit
+! stderr '^warning: GOCOVERDIR not set, no coverage data emitted'
+go tool covdata percent -i=data/badexit
+stdout  'coverage:.*[1-9][0-9.]+%'
+
+# Program invokes panic.
+env GOCOVERDIR=data/panic
+! exec ./example.exe panic
+! stderr '^warning: GOCOVERDIR not set, no coverage data emitted'
+go tool covdata percent -i=data/panic
+stdout  'coverage:.*[0-9.]+%'
+
+# Skip remainder if no race detector support.
+[!race] skip
+
+env GOCOVERDIR=data2/normal
+exec ./examplewithrace.exe normal
+! stderr '^warning: GOCOVERDIR not set, no coverage data emitted'
+go tool covdata percent -i=data2/normal
+stdout  'coverage:.*[1-9][0-9.]+%'
+
+# Program makes a direct call to os.Exit(0).
+env GOCOVERDIR=data2/goodexit
+exec ./examplewithrace.exe goodexit
+! stderr '^warning: GOCOVERDIR not set, no coverage data emitted'
+go tool covdata percent -i=data2/goodexit
+stdout  'coverage:.*[1-9][0-9.]+%'
+
+# Program makes a direct call to os.Exit(1).
+env GOCOVERDIR=data2/badexit
+! exec ./examplewithrace.exe badexit
+! stderr '^warning: GOCOVERDIR not set, no coverage data emitted'
+go tool covdata percent -i=data2/badexit
+stdout  'coverage:.*[1-9][0-9.]+%'
+
+# Program invokes panic.
+env GOCOVERDIR=data2/panic
+! exec ./examplewithrace.exe panic
+! stderr '^warning: GOCOVERDIR not set, no coverage data emitted'
+go tool covdata percent -i=data2/panic
+stdout  'coverage:.*[0-9.]+%'
+
+# end of test cmds, start of harness and related files.
+
+-- go.mod --
+module example
+
+go 1.18
+
+-- main/example.go --
+package main
+
+import "example/sub"
+
+func main() {
+	sub.S()
+}
+
+-- sub/sub.go --
+
+package sub
+
+import "os"
+
+func S() {
+	switch os.Args[1] {
+	case "normal":
+		println("hi")
+	case "goodexit":
+		os.Exit(0)
+	case "badexit":
+		os.Exit(1)
+	case "panic":
+		panic("something bad happened")
+	}
+}
+
+-- data/README.txt --
+
+Just a location where we can write coverage profiles.
+
+-- data/normal/f.txt --
+
+X
+
+-- data/goodexit/f.txt --
+
+X
+
+-- data/badexit/f.txt --
+
+X
+
+-- data/panic/f.txt --
+
+X
+
+-- data2/README.txt --
+
+Just a location where we can write coverage profiles.
+
+-- data2/normal/f.txt --
+
+X
+
+-- data2/goodexit/f.txt --
+
+X
+
+-- data2/badexit/f.txt --
+
+X
+
+-- data2/panic/f.txt --
+
+X

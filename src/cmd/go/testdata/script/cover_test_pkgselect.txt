@@ -1,0 +1,80 @@
+
+[short] skip
+
+# Hard-wire new coverage for this test.
+env GOEXPERIMENT=coverageredesign
+
+# Baseline run.
+go test -cover example/foo
+stdout 'coverage: 50.0% of statements$'
+
+# Coverage percentage output should mention -coverpkg selection.
+go test -coverpkg=example/foo example/foo
+stdout 'coverage: 50.0% of statements in example/foo'
+
+# Try to ask for coverage of a package that doesn't exist.
+go test -coverpkg nonexistent example/bar
+stderr 'no packages being tested depend on matches for pattern nonexistent'
+stdout 'coverage: \[no statements\]'
+
+# Ask for foo coverage, but test bar.
+go test -coverpkg=example/foo example/bar
+stdout 'coverage: 50.0% of statements in example/foo'
+
+# end of test cmds, start of harness and related files.
+
+-- go.mod --
+module example
+
+go 1.18
+
+-- foo/foo.go --
+package foo
+
+func FooFunc() int {
+	return 42
+}
+func FooFunc2() int {
+	return 42
+}
+
+-- foo/foo_test.go --
+package foo
+
+import "testing"
+
+func TestFoo(t *testing.T) {
+	if FooFunc() != 42 {
+		t.Fatalf("bad")
+	}
+}
+
+-- bar/bar.go --
+package bar
+
+import "example/foo"
+
+func BarFunc() int {
+	return foo.FooFunc2()
+}
+
+-- bar/bar_test.go --
+package bar_test
+
+import (
+	"example/bar"
+	"testing"
+)
+
+func TestBar(t *testing.T) {
+	if bar.BarFunc() != 42 {
+		t.Fatalf("bad")
+	}
+}
+
+-- baz/baz.go --
+package baz
+
+func BazFunc() int {
+	return -42
+}
