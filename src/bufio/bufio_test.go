@@ -636,7 +636,7 @@ func TestWriter(t *testing.T) {
 			for l := 0; l < len(written); l++ {
 				if written[l] != data[l] {
 					t.Errorf("wrong bytes written")
-					t.Errorf("want=%q", data[0:len(written)])
+					t.Errorf("want=%q", data[:len(written)])
 					t.Errorf("have=%q", written)
 				}
 			}

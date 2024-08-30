@@ -74,7 +74,7 @@ func TestGolden(t *testing.T) {
 				io.WriteString(c, g.in)
 				sum = c.Sum(nil)
 			case 2:
-				io.WriteString(c, g.in[0:len(g.in)/2])
+				io.WriteString(c, g.in[:len(g.in)/2])
 				c.Sum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
 				sum = c.Sum(nil)
@@ -82,7 +82,7 @@ func TestGolden(t *testing.T) {
 				if boring.Enabled {
 					continue
 				}
-				io.WriteString(c, g.in[0:len(g.in)/2])
+				io.WriteString(c, g.in[:len(g.in)/2])
 				c.(*digest).ConstantTimeSum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
 				sum = c.(*digest).ConstantTimeSum(nil)

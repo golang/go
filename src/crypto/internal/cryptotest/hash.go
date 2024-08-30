@@ -39,8 +39,8 @@ func TestHash(t *testing.T, mh MakeHash) {
 			sum := getSum(t, h, prefix) // Append new digest to prefix
 
 			// Check that Sum didn't alter the prefix
-			if !bytes.Equal(sum[0:len(prefix)], prefix) {
-				t.Errorf("Sum alters passed buffer instead of appending; got %x, want %x", sum[0:len(prefix)], prefix)
+			if !bytes.Equal(sum[:len(prefix)], prefix) {
+				t.Errorf("Sum alters passed buffer instead of appending; got %x, want %x", sum[:len(prefix)], prefix)
 			}
 
 			// Check that the appended sum wasn't affected by the prefix
