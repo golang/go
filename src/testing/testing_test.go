@@ -440,12 +440,7 @@ func runTest(t *testing.T, test string) []byte {
 
 	testenv.MustHaveExec(t)
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Skipf("can't find test executable: %v", err)
-	}
-
-	cmd := testenv.Command(t, exe, "-test.run=^"+test+"$", "-test.bench="+test, "-test.v", "-test.parallel=2", "-test.benchtime=2x")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+test+"$", "-test.bench="+test, "-test.v", "-test.parallel=2", "-test.benchtime=2x")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	out, err := cmd.CombinedOutput()
@@ -674,14 +669,7 @@ func TestRaceBeforeParallel(t *testing.T) {
 }
 
 func TestRaceBeforeTests(t *testing.T) {
-	testenv.MustHaveExec(t)
-
-	exe, err := os.Executable()
-	if err != nil {
-		t.Skipf("can't find test executable: %v", err)
-	}
-
-	cmd := testenv.Command(t, exe, "-test.run=^$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^$")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_RACE_BEFORE_TESTS=1")
 	out, _ := cmd.CombinedOutput()

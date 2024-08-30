@@ -23,15 +23,9 @@ func TestTBHelper(t *testing.T) {
 		return
 	}
 
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cmd := testenv.Command(t, exe, "-test.run=^TestTBHelper$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestTBHelper$")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	out, _ := cmd.CombinedOutput()
@@ -66,15 +60,9 @@ func TestTBHelperParallel(t *testing.T) {
 		return
 	}
 
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cmd := testenv.Command(t, exe, "-test.run=^TestTBHelperParallel$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestTBHelperParallel$")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	out, _ := cmd.CombinedOutput()
