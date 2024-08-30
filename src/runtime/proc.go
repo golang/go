@@ -4322,7 +4322,7 @@ func gdestroy(gp *g) {
 	if locked && mp.lockedInt != 0 {
 		print("runtime: mp.lockedInt = ", mp.lockedInt, "\n")
 		if mp.isextra {
-			throw("call runtime.Goexit in thread created during a not Go runtime")
+			throw("runtime.Goexit called in a thread that was not created by the Go runtime")
 		}
 		throw("exited a goroutine internally locked to the OS thread")
 	}

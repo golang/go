@@ -615,7 +615,7 @@ func deferreturn() {
 // the program continues execution of other goroutines.
 // If all other goroutines exit, the program crashes.
 //
-// It crashes if called from a thread created by a not Go runtime.
+// It crashes if called from a thread not created by the Go runtime.
 func Goexit() {
 	// Create a panic object for Goexit, so we can recognize when it might be
 	// bypassed by a recover().

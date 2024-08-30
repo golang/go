@@ -31,7 +31,7 @@ import "runtime"
 
 func init() {
 	register("CgoToGoCallGoexit", func() {
-		println("expect: call runtime.Goexit in thread created during a not Go runtime")
+		println("expect: runtime.Goexit called in a thread that was not created by the Go runtime")
 		CgoToGoCallGoexit()
 	})
 }
