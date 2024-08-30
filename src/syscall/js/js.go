@@ -349,6 +349,60 @@ func (v Value) Delete(p string) {
 //go:noescape
 func valueDelete(v ref, p string)
 
+// GetSymbol returns the JavaScript symbol s of value v.
+// It panics if v is not a JavaScript object or s is not a JavaScript symbol.
+func (v Value) GetSymbol(s Value) Value {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.GetSymbol", vType})
+	}
+	if sType := s.Type(); sType != TypeSymbol {
+		panic("syscall/js: Value.GetSymbol: argument 1 is not a symbol, got " + sType.String())
+	}
+	r := makeValue(valueGetRef(v.ref, s.ref))
+	runtime.KeepAlive(v)
+	runtime.KeepAlive(s)
+	return r
+}
+
+//go:wasmimport gojs syscall/js.valueGetRef
+func valueGetRef(v ref, s ref) ref
+
+// SetSymbol sets the JavaScript symbol s of value v to ValueOf(x).
+// It panics if v is not a JavaScript object or s is not a JavaScript symbol.
+func (v Value) SetSymbol(s Value, x any) {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.SetSymbol", vType})
+	}
+	if sType := s.Type(); sType != TypeSymbol {
+		panic("syscall/js: Value.SetSymbol: argument 1 is not a symbol, got " + sType.String())
+	}
+	xv := ValueOf(x)
+	valueSetRef(v.ref, s.ref, xv.ref)
+	runtime.KeepAlive(v)
+	runtime.KeepAlive(s)
+	runtime.KeepAlive(xv)
+}
+
+//go:wasmimport gojs syscall/js.valueSetRef
+func valueSetRef(v ref, s ref, x ref)
+
+// DeleteSymbol deletes the JavaScript symbol s of value v.
+// It panics if v is not a JavaScript object or s is not a JavaScript symbol.
+func (v Value) DeleteSymbol(s Value) {
+	if vType := v.Type(); !vType.isObject() {
+		panic(&ValueError{"Value.DeleteSymbol", vType})
+	}
+	if sType := s.Type(); sType != TypeSymbol {
+		panic("syscall/js: Value.DeleteSymbol: argument 1 is not a symbol, got " + sType.String())
+	}
+	valueDeleteRef(v.ref, s.ref)
+	runtime.KeepAlive(v)
+	runtime.KeepAlive(s)
+}
+
+//go:wasmimport gojs syscall/js.valueDeleteRef
+func valueDeleteRef(v ref, s ref)
+
 // Index returns JavaScript index i of value v.
 // It panics if v is not a JavaScript object.
 func (v Value) Index(i int) Value {
@@ -590,7 +644,8 @@ func (v Value) String() string {
 	case TypeNumber:
 		return "<number: " + jsString(v) + ">"
 	case TypeSymbol:
-		return "<symbol>"
+		// It's better to print out the symbol name here so we can debug easier
+		return "<symbol: " + jsString(v) + ">"
 	case TypeObject:
 		return "<object>"
 	case TypeFunction:

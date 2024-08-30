@@ -347,6 +347,26 @@
 						Reflect.deleteProperty(loadValue(sp + 8), loadString(sp + 16));
 					},
 
+					// func valueGetRef(v ref, s ref) ref
+					"syscall/js.valueGetRef": (sp) => {
+						sp >>>= 0;
+						const result = Reflect.get(loadValue(sp + 8), loadValue(sp + 16));
+						sp = this._inst.exports.getsp() >>> 0; // see comment above
+						storeValue(sp + 24, result);
+					},
+
+					// func valueSetRef(v ref, s ref, x ref)
+					"syscall/js.valueSetRef": (sp) => {
+						sp >>>= 0;
+						Reflect.set(loadValue(sp + 8), loadValue(sp + 16), loadValue(sp + 24));
+					},
+
+					// func valueDeleteRef(v ref, s ref)
+					"syscall/js.valueDeleteRef": (sp) => {
+						sp >>>= 0;
+						Reflect.deleteProperty(loadValue(sp + 8), loadValue(sp + 16));
+					},
+
 					// func valueIndex(v ref, i int) ref
 					"syscall/js.valueIndex": (sp) => {
 						sp >>>= 0;
