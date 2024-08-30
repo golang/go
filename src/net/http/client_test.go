@@ -751,7 +751,7 @@ func testStreamingGet(t *testing.T, mode testMode) {
 	var buf [10]byte
 	for _, str := range []string{"i", "am", "also", "known", "as", "comet"} {
 		say <- str
-		n, err := io.ReadFull(res.Body, buf[0:len(str)])
+		n, err := io.ReadFull(res.Body, buf[:len(str)])
 		if err != nil {
 			t.Fatalf("ReadFull on %q: %v", str, err)
 		}

@@ -86,7 +86,7 @@ func TestGolden(t *testing.T) {
 			if j < 2 {
 				io.WriteString(c, g.in)
 			} else {
-				io.WriteString(c, g.in[0:len(g.in)/2])
+				io.WriteString(c, g.in[:len(g.in)/2])
 				c.Sum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
 			}
