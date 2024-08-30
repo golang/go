@@ -35,15 +35,6 @@ func (cmap CommentMap) addComment(n Node, c *CommentGroup) {
 	cmap[n] = list
 }
 
-type byInterval []Node
-
-func (a byInterval) Len() int { return len(a) }
-func (a byInterval) Less(i, j int) bool {
-	pi, pj := a[i].Pos(), a[j].Pos()
-	return pi < pj || pi == pj && a[i].End() > a[j].End()
-}
-func (a byInterval) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
 // nodeList returns the list of nodes of the AST n in source order.
 func nodeList(n Node) []Node {
 	var list []Node
