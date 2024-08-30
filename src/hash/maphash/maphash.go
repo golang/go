@@ -12,6 +12,11 @@
 // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
 package maphash
 
+import (
+	"internal/abi"
+	"internal/byteorder"
+)
+
 // A Seed is a random value that selects the specific hash function
 // computed by a [Hash]. If two Hashes use the same Seeds, they
 // will compute the same hash values for any given input.
@@ -275,3 +280,24 @@ func (h *Hash) Size() int { return 8 }
 
 // BlockSize returns h's block size.
 func (h *Hash) BlockSize() int { return len(h.buf) }
+
+// Comparable returns the hash of comparable value v with the given seed
+// such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.
+// If v contains a floating-point NaN, then the hash is non-deterministically random.
+func Comparable[T comparable](seed Seed, v T) uint64 {
+	abi.Escape(v)
+	t := abi.TypeOf(v)
+	len := t.Size()
+	if len == 0 {
+		return seed.s
+	}
+	return comparableF(seed.s, v, t)
+}
+
+// WriteComparable adds x to the data hashed by h.
+func WriteComparable[T comparable](h *Hash, x T) {
+	v := Comparable(h.seed, x)
+	var buf []byte
+	byteorder.LePutUint64(buf[:], v)
+	h.Write(buf[:])
+}

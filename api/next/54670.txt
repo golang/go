@@ -1,0 +1,2 @@
+pkg hash/maphash, func Comparable[$0 comparable](Seed, $0) uint64 #54670
+pkg hash/maphash, func WriteComparable[$0 comparable](*Hash, $0) #54670

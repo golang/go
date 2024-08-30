@@ -7,6 +7,8 @@
 package maphash
 
 import (
+	"internal/abi"
+	"internal/unsafeheader"
 	"unsafe"
 )
 
@@ -40,4 +42,24 @@ func rthashString(s string, state uint64) uint64 {
 
 func randUint64() uint64 {
 	return runtime_rand()
+}
+
+func comparableF[T comparable](seed uint64, v T, t *abi.Type) uint64 {
+	k := t.Kind()
+	len := t.Size()
+	ptr := unsafe.Pointer(&v)
+	switch k {
+	case abi.Slice:
+		len = uintptr(((*unsafeheader.Slice)(unsafe.Pointer(&v))).Len) * t.Elem().Size()
+		ptr = ((*unsafeheader.Slice)(unsafe.Pointer(&v))).Data
+	case abi.String:
+		len = uintptr(((*unsafeheader.String)(unsafe.Pointer(&v))).Len)
+		ptr = ((*unsafeheader.String)(unsafe.Pointer(&v))).Data
+	}
+	if unsafe.Sizeof(uintptr(0)) == 8 {
+		return uint64(runtime_memhash(ptr, uintptr(seed), len))
+	}
+	lo := runtime_memhash(ptr, uintptr(seed), len)
+	hi := runtime_memhash(ptr, uintptr(seed>>32), len)
+	return uint64(hi)<<32 | uint64(lo)
 }

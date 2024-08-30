@@ -210,6 +210,53 @@ func TestSeedFromReset(t *testing.T) {
 	}
 }
 
+func TestCompare(t *testing.T) {
+	var a, b int = 2, 2
+	var pa *int = &a
+	seed := MakeSeed()
+	if Comparable(seed, a) != Comparable(seed, b) {
+		t.Fatal("Comparable(seed, 2) != Comparable(seed, 2)")
+	}
+	old := Comparable(seed, pa)
+	stackGrow(8192)
+	new := Comparable(seed, pa)
+	if old != new {
+		t.Fatal("Comparable(seed, ptr) != Comparable(seed, ptr)")
+	}
+}
+
+//go:noinline
+func stackGrow(dep int) {
+	if dep == 0 {
+		return
+	}
+	var local [1024]byte
+	_ = local
+	stackGrow(dep - 1)
+}
+
+func TestWriteComparable(t *testing.T) {
+	var a, b int = 2, 2
+	var pa *int = &a
+	h1 := Hash{}
+	h2 := Hash{}
+	h1.seed = MakeSeed()
+	h2.seed = h1.seed
+	WriteComparable(&h1, a)
+	WriteComparable(&h2, b)
+	if h1.Sum64() != h1.Sum64() {
+		t.Fatal("WriteComparable(h, 2) != WriteComparable(h, 2)")
+	}
+	WriteComparable(&h1, pa)
+	old := h1.Sum64()
+	stackGrow(8192)
+	WriteComparable(&h2, pa)
+	new := h2.Sum64()
+	if old != new {
+		t.Fatal("WriteComparable(seed, ptr) != WriteComparable(seed, ptr)")
+	}
+}
+
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
 var _ hash.Hash = &Hash{}
 var _ hash.Hash64 = &Hash{}
