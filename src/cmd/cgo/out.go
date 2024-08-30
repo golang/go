@@ -1418,9 +1418,18 @@ var goTypes = map[string]*Type{
 
 // Map an ast type to a Type.
 func (p *Package) cgoType(e ast.Expr) *Type {
+	return p.doCgoType(e, make(map[ast.Expr]bool))
+}
+
+// Map an ast type to a Type, avoiding cycles.
+func (p *Package) doCgoType(e ast.Expr, m map[ast.Expr]bool) *Type {
+	if m[e] {
+		fatalf("%s: invalid recursive type", fset.Position(e.Pos()))
+	}
+	m[e] = true
 	switch t := e.(type) {
 	case *ast.StarExpr:
-		x := p.cgoType(t.X)
+		x := p.doCgoType(t.X, m)
 		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("%s*", x.C)}
 	case *ast.ArrayType:
 		if t.Len == nil {
@@ -1465,7 +1474,12 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 					continue
 				}
 				if ts.Name.Name == t.Name {
-					return p.cgoType(ts.Type)
+					// Give a better error than the one
+					// above if we detect a recursive type.
+					if m[ts.Type] {
+						fatalf("%s: invalid recursive type: %s refers to itself", fset.Position(e.Pos()), t.Name)
+					}
+					return p.doCgoType(ts.Type, m)
 				}
 			}
 		}
