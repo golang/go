@@ -1270,7 +1270,8 @@ func pprof_mutexProfileInternal(p []profilerecord.BlockProfileRecord) (n int, ok
 // of calling ThreadCreateProfile directly.
 func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
 	return threadCreateProfileInternal(len(p), func(r profilerecord.StackRecord) {
-		copy(p[0].Stack0[:], r.Stack)
+		i := copy(p[0].Stack0[:], r.Stack)
+		clear(p[0].Stack0[i:])
 		p = p[1:]
 	})
 }
@@ -1649,7 +1650,8 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 		return
 	}
 	for i, mr := range records[0:n] {
-		copy(p[i].Stack0[:], mr.Stack)
+		l := copy(p[i].Stack0[:], mr.Stack)
+		clear(p[i].Stack0[l:])
 	}
 	return
 }

@@ -2441,16 +2441,7 @@ func TestTimeVDSO(t *testing.T) {
 }
 
 func TestProfilerStackDepth(t *testing.T) {
-	// Disable sampling, otherwise it's difficult to assert anything.
-	oldMemRate := runtime.MemProfileRate
-	runtime.MemProfileRate = 1
-	runtime.SetBlockProfileRate(1)
-	oldMutexRate := runtime.SetMutexProfileFraction(1)
-	t.Cleanup(func() {
-		runtime.MemProfileRate = oldMemRate
-		runtime.SetBlockProfileRate(0)
-		runtime.SetMutexProfileFraction(oldMutexRate)
-	})
+	t.Cleanup(disableSampling())
 
 	const depth = 128
 	go produceProfileEvents(t, depth)
@@ -2740,5 +2731,86 @@ runtime/pprof.inlineA`,
 			t.Logf("wanted:\n%s", tc.SubStack)
 			t.Logf("got: %s", stacks)
 		})
+	}
+}
+
+func TestProfileRecordNullPadding(t *testing.T) {
+	// Produce events for the different profile types.
+	t.Cleanup(disableSampling())
+	memSink = make([]byte, 1)      // MemProfile
+	<-time.After(time.Millisecond) // BlockProfile
+	blockMutex(t)                  // MutexProfile
+	runtime.GC()
+
+	// Test that all profile records are null padded.
+	testProfileRecordNullPadding(t, "MutexProfile", runtime.MutexProfile)
+	testProfileRecordNullPadding(t, "GoroutineProfile", runtime.GoroutineProfile)
+	testProfileRecordNullPadding(t, "BlockProfile", runtime.BlockProfile)
+	testProfileRecordNullPadding(t, "MemProfile/inUseZero=true", func(p []runtime.MemProfileRecord) (int, bool) {
+		return runtime.MemProfile(p, true)
+	})
+	testProfileRecordNullPadding(t, "MemProfile/inUseZero=false", func(p []runtime.MemProfileRecord) (int, bool) {
+		return runtime.MemProfile(p, false)
+	})
+	// Not testing ThreadCreateProfile because it is broken, see issue 6104.
+}
+
+func testProfileRecordNullPadding[T runtime.StackRecord | runtime.MemProfileRecord | runtime.BlockProfileRecord](t *testing.T, name string, fn func([]T) (int, bool)) {
+	stack0 := func(sr *T) *[32]uintptr {
+		switch t := any(sr).(type) {
+		case *runtime.StackRecord:
+			return &t.Stack0
+		case *runtime.MemProfileRecord:
+			return &t.Stack0
+		case *runtime.BlockProfileRecord:
+			return &t.Stack0
+		default:
+			panic(fmt.Sprintf("unexpected type %T", sr))
+		}
+	}
+
+	t.Run(name, func(t *testing.T) {
+		var p []T
+		for {
+			n, ok := fn(p)
+			if ok {
+				p = p[:n]
+				break
+			}
+			p = make([]T, n*2)
+			for i := range p {
+				s0 := stack0(&p[i])
+				for j := range s0 {
+					// Poison the Stack0 array to identify lack of zero padding
+					s0[j] = ^uintptr(0)
+				}
+			}
+		}
+
+		if len(p) == 0 {
+			t.Fatal("no records found")
+		}
+
+		for _, sr := range p {
+			for i, v := range stack0(&sr) {
+				if v == ^uintptr(0) {
+					t.Fatalf("record p[%d].Stack0 is not null padded: %+v", i, sr)
+				}
+			}
+		}
+	})
+}
+
+// disableSampling configures the profilers to capture all events, otherwise
+// it's difficult to assert anything.
+func disableSampling() func() {
+	oldMemRate := runtime.MemProfileRate
+	runtime.MemProfileRate = 1
+	runtime.SetBlockProfileRate(1)
+	oldMutexRate := runtime.SetMutexProfileFraction(1)
+	return func() {
+		runtime.MemProfileRate = oldMemRate
+		runtime.SetBlockProfileRate(0)
+		runtime.SetMutexProfileFraction(oldMutexRate)
 	}
 }
