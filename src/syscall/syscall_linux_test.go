@@ -213,12 +213,8 @@ func TestSyscallNoError(t *testing.T) {
 	}
 
 	// Copy the test binary to a location that a non-root user can read/execute
-	// after we drop privileges
-	tempDir, err := os.MkdirTemp("", "TestSyscallNoError")
-	if err != nil {
-		t.Fatalf("cannot create temporary directory: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// after we drop privileges.
+	tempDir := t.TempDir()
 	os.Chmod(tempDir, 0755)
 
 	tmpBinary := filepath.Join(tempDir, filepath.Base(os.Args[0]))
