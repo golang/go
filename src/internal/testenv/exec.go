@@ -32,8 +32,12 @@ import (
 // for the resulting error.
 func MustHaveExec(t testing.TB) {
 	if err := tryExec(); err != nil {
+		msg := fmt.Sprintf("cannot exec subprocess on %s/%s: %v", runtime.GOOS, runtime.GOARCH, err)
+		if t == nil {
+			panic(msg)
+		}
 		t.Helper()
-		t.Skipf("skipping test: cannot exec subprocess on %s/%s: %v", runtime.GOOS, runtime.GOARCH, err)
+		t.Skip("skipping test:", msg)
 	}
 }
 
@@ -81,7 +85,11 @@ func Executable(t testing.TB) string {
 
 	exe, err := exePath()
 	if err != nil {
-		t.Fatalf("os.Executable error: %v", err)
+		msg := fmt.Sprintf("os.Executable error: %v", err)
+		if t == nil {
+			panic(msg)
+		}
+		t.Fatal(msg)
 	}
 	return exe
 }

@@ -16,13 +16,9 @@ import (
 const executable_EnvVar = "OSTEST_OUTPUT_EXECPATH"
 
 func TestExecutable(t *testing.T) {
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
-	ep, err := os.Executable()
-	if err != nil {
-		t.Fatalf("Executable failed: %v", err)
-	}
+	ep := testenv.Executable(t)
 	// we want fn to be of the form "dir/prog"
 	dir := filepath.Dir(filepath.Dir(ep))
 	fn, err := filepath.Rel(dir, ep)

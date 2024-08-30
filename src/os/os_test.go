@@ -2336,13 +2336,8 @@ func TestStatStdin(t *testing.T) {
 		Exit(0)
 	}
 
-	exe, err := Executable()
-	if err != nil {
-		t.Skipf("can't find executable: %v", err)
-	}
-
-	testenv.MustHaveExec(t)
 	t.Parallel()
+	exe := testenv.Executable(t)
 
 	fi, err := Stdin.Stat()
 	if err != nil {
@@ -2508,11 +2503,10 @@ func TestLongPath(t *testing.T) {
 }
 
 func testKillProcess(t *testing.T, processKiller func(p *Process)) {
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
 	// Re-exec the test binary to start a process that hangs until stdin is closed.
-	cmd := testenv.Command(t, Args[0])
+	cmd := testenv.Command(t, testenv.Executable(t))
 	cmd.Env = append(cmd.Environ(), "GO_OS_TEST_DRAIN_STDIN=1")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -2561,10 +2555,9 @@ func TestGetppid(t *testing.T) {
 		Exit(0)
 	}
 
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
-	cmd := testenv.Command(t, Args[0], "-test.run=^TestGetppid$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestGetppid$")
 	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
 
 	// verify that Getppid() from the forked process reports our process id

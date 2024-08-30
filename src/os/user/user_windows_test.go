@@ -170,10 +170,7 @@ func TestCurrentNetapi32(t *testing.T) {
 		os.Exit(0)
 		return
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
+	exe := testenv.Executable(t)
 	cmd := testenv.CleanCmdEnv(exec.Command(exe, "-test.run=^TestCurrentNetapi32$"))
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	out, err := cmd.CombinedOutput()

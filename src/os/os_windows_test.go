@@ -1221,10 +1221,7 @@ func TestRootDirAsTemp(t *testing.T) {
 	testenv.MustHaveExec(t)
 	t.Parallel()
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
+	exe := testenv.Executable(t)
 
 	newtmp, err := findUnusedDriveLetter()
 	if err != nil {
