@@ -33,12 +33,7 @@ const (
 // test. At one point this was created via "go build"; we now reuse the unit
 // test executable itself.
 func testcover(t testing.TB) string {
-	exe, err := os.Executable()
-	if err != nil {
-		t.Helper()
-		t.Fatal(err)
-	}
-	return exe
+	return testenv.Executable(t)
 }
 
 // testTempDir is a temporary directory created in TestMain.
@@ -113,8 +108,6 @@ func tempDir(t *testing.T) string {
 // "-toolexec" wrapper program to invoke the cover test executable
 // itself via "go test -cover".
 func TestCoverWithToolExec(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	toolexecArg := "-toolexec=" + testcover(t)
 
 	t.Run("CoverHTML", func(t *testing.T) {
@@ -338,8 +331,6 @@ func findDirectives(source []byte) []directiveInfo {
 // Makes sure that `cover -func=profile.cov` reports accurate coverage.
 // Issue #20515.
 func TestCoverFunc(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	// testcover -func ./testdata/profile.cov
 	coverProfile := filepath.Join(testdata, "profile.cov")
 	cmd := testenv.Command(t, testcover(t), "-func", coverProfile)

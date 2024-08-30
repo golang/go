@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -27,26 +26,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("GO_ADDR2LINETEST_IS_ADDR2LINE", "1") // Set for subprocesses to inherit.
 	os.Exit(m.Run())
 }
-
-// addr2linePath returns the path to the "addr2line" binary to run.
-func addr2linePath(t testing.TB) string {
-	t.Helper()
-	testenv.MustHaveExec(t)
-
-	addr2linePathOnce.Do(func() {
-		addr2lineExePath, addr2linePathErr = os.Executable()
-	})
-	if addr2linePathErr != nil {
-		t.Fatal(addr2linePathErr)
-	}
-	return addr2lineExePath
-}
-
-var (
-	addr2linePathOnce sync.Once
-	addr2lineExePath  string
-	addr2linePathErr  error
-)
 
 func loadSyms(t *testing.T, dbgExePath string) map[string]string {
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", dbgExePath)
@@ -70,7 +49,7 @@ func loadSyms(t *testing.T, dbgExePath string) map[string]string {
 }
 
 func runAddr2Line(t *testing.T, dbgExePath, addr string) (funcname, path, lineno string) {
-	cmd := testenv.Command(t, addr2linePath(t), dbgExePath)
+	cmd := testenv.Command(t, testenv.Executable(t), dbgExePath)
 	cmd.Stdin = strings.NewReader(addr)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -108,19 +87,18 @@ func testAddr2Line(t *testing.T, dbgExePath, addr string) {
 	// Debug paths are stored slash-separated, so convert to system-native.
 	srcPath = filepath.FromSlash(srcPath)
 	fi2, err := os.Stat(srcPath)
-
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
 	}
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
 	}
-	if want := "124"; srcLineNo != want {
+	if want := "102"; srcLineNo != want {
 		t.Fatalf("line number = %v; want %s", srcLineNo, want)
 	}
 }
 
-// This is line 123. The test depends on that.
+// This is line 101. The test depends on that.
 func TestAddr2Line(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
