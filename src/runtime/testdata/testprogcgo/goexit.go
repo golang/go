@@ -2,26 +2,24 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build windows
-
 package main
 
 /*
 #include <pthread.h>
 
-void go_callback();
+void go_callback2();
 
-static void *thr(void *arg) {
-    go_callback();
+static void *thr2(void *arg) {
+    go_callback2();
     return 0;
 }
 
-static void foo() {
+static void foo3() {
     pthread_t th;
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr, 256 << 10);
-    pthread_create(&th, &attr, thr, 0);
+    pthread_create(&th, &attr, thr2, 0);
     pthread_join(th, 0);
 }
 */
@@ -37,10 +35,10 @@ func init() {
 }
 
 func CgoToGoCallGoexit() {
-	C.foo()
+	C.foo3()
 }
 
-//export go_callback
-func go_callback() {
+//export go_callback2
+func go_callback2() {
 	runtime.Goexit()
 }
