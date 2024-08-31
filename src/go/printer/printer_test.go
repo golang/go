@@ -865,7 +865,7 @@ func TestEmptyDecl(t *testing.T) { // issue 63566
 	}
 }
 
-func TestNoDocFormatInsideDecl(t *testing.T) {
+func TestDocFormat(t *testing.T) {
 	cases := []struct {
 		in  string
 		fmt string
@@ -951,6 +951,78 @@ func a() {
 `,
 		},
 
+		{
+			in: `package main
+
+// test comment
+//go:directive2
+// test comment
+func main() {
+}
+`,
+			fmt: `package main
+
+// test comment
+// test comment
+//
+//go:directive2
+func main() {
+}
+`,
+		},
+		{
+			in: `package main
+
+	// test comment
+	//go:directive2
+	// test comment
+func main() {
+}
+`,
+			fmt: `package main
+
+// test comment
+// test comment
+//
+//go:directive2
+func main() {
+}
+`,
+		},
+		{
+			in: `package main
+
+/* test
+ */ // test comment
+//go:directive2
+// test comment
+func main() {
+}
+`,
+			fmt: `package main
+
+/* test
+ */ // test comment
+//go:directive2
+// test comment
+func main() {
+}
+`,
+		},
+
+		{
+			in: `package main  //comment
+var a int = 4 //comment
+func a() {
+}
+`,
+			fmt: `package main  //comment
+var a int = 4 //comment
+func a() {
+}
+`,
+		},
+
 		// Edge case found by a fuzzer, not a real-world example.
 		{
 			in:  "package A\n\nimport(\"\f\"\n//\n\"\")",
@@ -970,90 +1042,6 @@ func a() {
 		}
 
 		var s strings.Builder
-		if err := Fprint(&s, fs, f); err != nil {
-			t.Fatal(err)
-		}
-
-		out := s.String()
-		if out != tt.fmt {
-			t.Errorf("source\n%q\nformatted as:\n%q\nwant formatted as:\n%q", tt.in, out, tt.fmt)
-		}
-	}
-}
-
-func TestFormatGoDocNotAtFirstColumn(t *testing.T) {
-	cases := []struct {
-		src string
-		fmt string
-	}{
-		{
-			src: `package main
-
-// test comment
-//go:directive2
-// test comment
-func main() {
-}
-`,
-			fmt: `package main
-
-// test comment
-// test comment
-//
-//go:directive2
-func main() {
-}
-`,
-		},
-		{
-			src: `package main
-
-	// test comment
-	//go:directive2
-	// test comment
-func main() {
-}
-`,
-			fmt: `package main
-
-// test comment
-// test comment
-//
-//go:directive2
-func main() {
-}
-`,
-		},
-		{
-			src: `package main
-
-/* test
- */ // test comment
-//go:directive2
-// test comment
-func main() {
-}
-`,
-			fmt: `package main
-
-/* test
- */ // test comment
-//go:directive2
-// test comment
-func main() {
-}
-`,
-		},
-	}
-
-	for _, tt := range cases {
-		fs := token.NewFileSet()
-		f, err := parser.ParseFile(fs, "test.go", tt.src, parser.ParseComments|parser.SkipObjectResolution)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var s strings.Builder
 		cfg := Config{Tabwidth: 8, Mode: UseSpaces | TabIndent}
 		if err := cfg.Fprint(&s, fs, f); err != nil {
 			t.Fatal(err)
@@ -1061,32 +1049,7 @@ func main() {
 
 		out := s.String()
 		if out != tt.fmt {
-			t.Errorf("source\n%q\nformatted as:\n%q\nwant formatted as:\n%q", tt.src, out, tt.src)
+			t.Errorf("source\n%v\nformatted as:\n%v\nwant formatted as:\n%v", tt.in, out, tt.fmt)
 		}
-	}
-}
-
-func TestFormatCommentAfterToken(t *testing.T) {
-	const src = `package main  //comment
-var a int = 4 //comment
-func a() {
-}
-`
-
-	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, "test.go", src, parser.ParseComments|parser.SkipObjectResolution)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var s strings.Builder
-	cfg := Config{Tabwidth: 8, Mode: UseSpaces | TabIndent}
-	if err := cfg.Fprint(&s, fs, f); err != nil {
-		t.Fatal(err)
-	}
-
-	out := s.String()
-	if out != src {
-		t.Errorf("source\n%q\nformatted as:\n%q\nwant formatted as:\n%q", src, out, src)
 	}
 }
