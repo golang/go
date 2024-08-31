@@ -300,6 +300,8 @@ func TestChdir(t *testing.T) {
 	}
 	rel, err := filepath.Rel(oldDir, tmp)
 	if err != nil {
+		// If GOROOT is on C: volume and tmp is on the D: volume, there
+		// is no relative path between them, so skip that test case.
 		rel = "skip"
 	}
 
