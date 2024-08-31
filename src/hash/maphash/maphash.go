@@ -286,7 +286,7 @@ func (h *Hash) BlockSize() int { return len(h.buf) }
 // If v contains a floating-point NaN, then the hash is non-deterministically random.
 func Comparable[T comparable](seed Seed, v T) uint64 {
 	abi.Escape(v)
-	t := abi.TypeOf(v)
+	t := abi.TypeFor[T]()
 	len := t.Size()
 	if len == 0 {
 		return seed.s
@@ -297,7 +297,7 @@ func Comparable[T comparable](seed Seed, v T) uint64 {
 // WriteComparable adds x to the data hashed by h.
 func WriteComparable[T comparable](h *Hash, x T) {
 	v := Comparable(h.seed, x)
-	var buf []byte
+	var buf [8]byte
 	byteorder.LePutUint64(buf[:], v)
 	h.Write(buf[:])
 }

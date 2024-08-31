@@ -95,17 +95,12 @@ func mix(a, b uint64) uint64 {
 	return hi ^ lo
 }
 
-var byteSliceTyp = reflect.TypeFor[[]byte]()
-
-var strSliceTyp = reflect.TypeFor[string]()
+var strTyp = reflect.TypeFor[string]()
 
 func comparableF[T comparable](seed uint64, v T, t *abi.Type) uint64 {
 	vv := reflect.ValueOf(v)
 	typ := vv.Type()
-	if typ == byteSliceTyp {
-		return wyhash(vv.Bytes(), seed, uint64(vv.Len()))
-	}
-	if typ == strSliceTyp {
+	if typ == strTyp {
 		return rthashString(vv.String(), seed)
 	}
 	buf := make([]byte, 0, typ.Size())
@@ -119,7 +114,7 @@ func appendT(buf []byte, v reflect.Value) []byte {
 		return byteorder.LeAppendUint64(buf, uint64(v.Int()))
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
 		return byteorder.LeAppendUint64(buf, v.Uint())
-	case reflect.Array, reflect.Slice:
+	case reflect.Array:
 		for i := range v.Len() {
 			buf = appendT(buf, v.Index(i))
 		}
@@ -142,6 +137,8 @@ func appendT(buf []byte, v reflect.Value) []byte {
 	case reflect.UnsafePointer, reflect.Pointer:
 		return byteorder.LeAppendUint64(buf, uint64(v.Pointer()))
 	case reflect.Interface:
+		// There is no need to check comparability here,
+		// because !purego also treats it as a piece of memory.
 		a := v.InterfaceData()
 		buf = byteorder.LeAppendUint64(buf, uint64(a[0]))
 		return byteorder.LeAppendUint64(buf, uint64(a[1]))

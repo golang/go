@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash"
+	"reflect"
 	"testing"
 )
 
@@ -210,19 +211,36 @@ func TestSeedFromReset(t *testing.T) {
 	}
 }
 
-func TestCompare(t *testing.T) {
-	var a, b int = 2, 2
-	var pa *int = &a
-	seed := MakeSeed()
-	if Comparable(seed, a) != Comparable(seed, b) {
-		t.Fatal("Comparable(seed, 2) != Comparable(seed, 2)")
-	}
-	old := Comparable(seed, pa)
-	stackGrow(8192)
-	new := Comparable(seed, pa)
-	if old != new {
-		t.Fatal("Comparable(seed, ptr) != Comparable(seed, ptr)")
-	}
+func TestComparable(t *testing.T) {
+	testComparable(t, int64(2))
+	testComparable(t, uint64(8))
+	testComparable(t, uintptr(12))
+	testComparable(t, any("s"))
+	testComparable(t, "s")
+	testComparable(t, new(float64))
+	testComparable(t, float64(9))
+	testComparable(t, complex128(9i+1))
+	testComparable(t, struct {
+		i int
+		f float64
+	}{i: 9, f: 9.9})
+}
+
+func testComparable[T comparable](t *testing.T, v T) {
+	t.Run(reflect.TypeFor[T]().Name(), func(t *testing.T) {
+		var a, b T = v, v
+		var pa *T = &a
+		seed := MakeSeed()
+		if Comparable(seed, a) != Comparable(seed, b) {
+			t.Fatalf("Comparable(seed, %v) != Comparable(seed, %v)", a, b)
+		}
+		old := Comparable(seed, pa)
+		stackGrow(8192)
+		new := Comparable(seed, pa)
+		if old != new {
+			t.Fatal("Comparable(seed, ptr) != Comparable(seed, ptr)")
+		}
+	})
 }
 
 //go:noinline
@@ -236,25 +254,42 @@ func stackGrow(dep int) {
 }
 
 func TestWriteComparable(t *testing.T) {
-	var a, b int = 2, 2
-	var pa *int = &a
-	h1 := Hash{}
-	h2 := Hash{}
-	h1.seed = MakeSeed()
-	h2.seed = h1.seed
-	WriteComparable(&h1, a)
-	WriteComparable(&h2, b)
-	if h1.Sum64() != h1.Sum64() {
-		t.Fatal("WriteComparable(h, 2) != WriteComparable(h, 2)")
-	}
-	WriteComparable(&h1, pa)
-	old := h1.Sum64()
-	stackGrow(8192)
-	WriteComparable(&h2, pa)
-	new := h2.Sum64()
-	if old != new {
-		t.Fatal("WriteComparable(seed, ptr) != WriteComparable(seed, ptr)")
-	}
+	testWriteComparable(t, int64(2))
+	testWriteComparable(t, uint64(8))
+	testWriteComparable(t, uintptr(12))
+	testWriteComparable(t, any("s"))
+	testWriteComparable(t, "s")
+	testWriteComparable(t, new(float64))
+	testWriteComparable(t, float64(9))
+	testWriteComparable(t, complex128(9i+1))
+	testWriteComparable(t, struct {
+		i int
+		f float64
+	}{i: 9, f: 9.9})
+}
+
+func testWriteComparable[T comparable](t *testing.T, v T) {
+	t.Run(reflect.TypeFor[T]().Name(), func(t *testing.T) {
+		var a, b T = v, v
+		var pa *T = &a
+		h1 := Hash{}
+		h2 := Hash{}
+		h1.seed = MakeSeed()
+		h2.seed = h1.seed
+		WriteComparable(&h1, a)
+		WriteComparable(&h2, b)
+		if h1.Sum64() != h1.Sum64() {
+			t.Fatalf("WriteComparable(h, %v) != WriteComparable(h, %v)", a, b)
+		}
+		WriteComparable(&h1, pa)
+		old := h1.Sum64()
+		stackGrow(8192)
+		WriteComparable(&h2, pa)
+		new := h2.Sum64()
+		if old != new {
+			t.Fatal("WriteComparable(seed, ptr) != WriteComparable(seed, ptr)")
+		}
+	})
 }
 
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.

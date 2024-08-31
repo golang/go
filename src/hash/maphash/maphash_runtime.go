@@ -48,11 +48,7 @@ func comparableF[T comparable](seed uint64, v T, t *abi.Type) uint64 {
 	k := t.Kind()
 	len := t.Size()
 	ptr := unsafe.Pointer(&v)
-	switch k {
-	case abi.Slice:
-		len = uintptr(((*unsafeheader.Slice)(unsafe.Pointer(&v))).Len) * t.Elem().Size()
-		ptr = ((*unsafeheader.Slice)(unsafe.Pointer(&v))).Data
-	case abi.String:
+	if k == abi.String {
 		len = uintptr(((*unsafeheader.String)(unsafe.Pointer(&v))).Len)
 		ptr = ((*unsafeheader.String)(unsafe.Pointer(&v))).Data
 	}
