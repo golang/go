@@ -111,10 +111,10 @@ func a() {}
 	ast.Print(fs, f)
 	fd := f.Decls[1].(*ast.FuncDecl)
 	fdPos := fs.Position(fd.Pos())
-	if fdPos.Column != 1 || fdPos.Line != 5 {
-		t.Errorf("invalid fdPod.Column = %v; want = 1", fdPos.Column)
+	if fdPos.Column != 1 {
+		t.Errorf("invalid fdPos.Column = %v; want = 1", fdPos.Column)
 	}
 	if fdPos.Line != 5 {
-		t.Errorf("invalid fdPod.Line = %v; want = 5", fdPos.Line)
+		t.Errorf("invalid fdPos.Line = %v; want = 5", fdPos.Line)
 	}
 }
