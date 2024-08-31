@@ -108,7 +108,6 @@ func a() {}
 		t.Fatal(err)
 	}
 	ast.SortImports(fs, f)
-	ast.Print(fs, f)
 	fd := f.Decls[1].(*ast.FuncDecl)
 	fdPos := fs.Position(fd.Pos())
 	if fdPos.Column != 1 {
