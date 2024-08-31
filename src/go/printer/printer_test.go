@@ -1008,6 +1008,25 @@ func main() {
 		{
 			src: `package main
 
+	// test comment
+	//go:directive2
+	// test comment
+func main() {
+}
+`,
+			fmt: `package main
+
+// test comment
+// test comment
+//
+//go:directive2
+func main() {
+}
+`,
+		},
+		{
+			src: `package main
+
 /* test
  */ // test comment
 //go:directive2
