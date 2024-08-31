@@ -1158,3 +1158,7 @@ func TestBigGOMAXPROCS(t *testing.T) {
 		t.Errorf("output:\n%s\nwanted:\nunknown function: NonexistentTest", output)
 	}
 }
+
+func TestMainThread(t *testing.T) {
+	checkCoroTestProgOutput(t, runTestProg(t, "testprog", "MainThread"))
+}

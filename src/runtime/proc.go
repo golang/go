@@ -115,6 +115,8 @@ var modinfo string
 
 var (
 	m0           m
+	m0func       = make(chan func())
+	waitm0       = make(chan struct{})
 	g0           g
 	mcache0      *mcache
 	raceprocctx0 uintptr
@@ -142,6 +144,28 @@ var runtimeInitTime int64
 
 // Value to use for signal mask for newly created M's.
 var initSigmask sigset
+
+func mainThreadDo(f func()) {
+	gp := getg()
+	if gp.m == &m0 {
+		f()
+	}
+	waitm0 <- struct{}{}
+	m0func <- f
+}
+
+func mainThreadYield() {
+	g := getg()
+	if g.m != &m0 {
+		panic("runtime: call mainthread.Yield must on main thread")
+	}
+	f := <-m0func
+	f()
+}
+
+func mainThreadWaiting() <-chan struct{} {
+	return waitm0
+}
 
 // The main goroutine.
 func main() {
