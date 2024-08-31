@@ -149,6 +149,7 @@ func mainThreadDo(f func()) {
 	gp := getg()
 	if gp.m == &m0 {
 		f()
+		return
 	}
 	waitm0 <- struct{}{}
 	m0func <- f
