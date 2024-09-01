@@ -300,7 +300,9 @@ func TestChdir(t *testing.T) {
 	}
 	rel, err := filepath.Rel(oldDir, tmp)
 	if err != nil {
-		t.Fatal(err)
+		// If GOROOT is on C: volume and tmp is on the D: volume, there
+		// is no relative path between them, so skip that test case.
+		rel = "skip"
 	}
 
 	for _, tc := range []struct {
@@ -331,6 +333,9 @@ func TestChdir(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.dir == "skip" {
+				t.Skipf("skipping test because there is no relative path between %s and %s", oldDir, tmp)
+			}
 			if !filepath.IsAbs(tc.pwd) {
 				t.Fatalf("Bad tc.pwd: %q (must be absolute)", tc.pwd)
 			}
