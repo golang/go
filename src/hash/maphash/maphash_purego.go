@@ -97,13 +97,12 @@ func mix(a, b uint64) uint64 {
 
 var strTyp = reflect.TypeFor[string]()
 
-func comparableF[T comparable](seed uint64, v T, t *abi.Type) uint64 {
+func comparableF[T comparable](h *Hash, v T, t *abi.Type) {
 	vv := reflect.ValueOf(v)
 	typ := vv.Type()
 	if typ == strTyp {
-		return rthashString(vv.String(), seed)
+		h.WriteString(vv.String())
+		return
 	}
-	buf := make([]byte, 0, typ.Size())
-	buf = appendT(buf, vv)
-	return wyhash(buf, seed, uint64(len(buf)))
+	appendT(h, vv)
 }

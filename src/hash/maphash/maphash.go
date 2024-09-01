@@ -293,47 +293,68 @@ func Comparable[T comparable](seed Seed, v T) uint64 {
 	if len == 0 {
 		return seed.s
 	}
-	return comparableF(seed.s, v, t)
+	var h Hash
+	h.SetSeed(seed)
+	comparableF(&h, v, t)
+	return h.Sum64()
 }
 
 // WriteComparable adds x to the data hashed by h.
 func WriteComparable[T comparable](h *Hash, x T) {
-	v := Comparable(h.seed, x)
-	var buf [8]byte
-	byteorder.LePutUint64(buf[:], v)
-	h.Write(buf[:])
+	comparableF(h, x, abi.TypeFor[T]())
 }
 
-func appendT(buf []byte, v reflect.Value) []byte {
+func appendT(h *Hash, v reflect.Value) {
 	switch v.Kind() {
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
-		return byteorder.LeAppendUint64(buf, uint64(v.Int()))
+		var buf [8]byte
+		byteorder.LePutUint64(buf[:], uint64(v.Int()))
+		h.Write(buf[:])
+		return
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
-		return byteorder.LeAppendUint64(buf, v.Uint())
+		var buf [8]byte
+		byteorder.LePutUint64(buf[:], v.Uint())
+		h.Write(buf[:])
+		return
 	case reflect.Array:
 		for i := range v.Len() {
-			buf = appendT(buf, v.Index(i))
+			appendT(h, v.Index(i))
 		}
-		return buf
+		return
 	case reflect.String:
-		return append(buf, v.String()...)
+		h.WriteString(v.String())
+		return
 	case reflect.Struct:
 		for i := range v.NumField() {
-			buf = appendT(buf, v.Field(i))
+			appendT(h, v.Field(i))
 		}
-		return buf
+		return
 	case reflect.Complex64, reflect.Complex128:
 		c := v.Complex()
-		buf = byteorder.LeAppendUint64(buf, uint64(real(c)))
-		return byteorder.LeAppendUint64(buf, uint64(imag(c)))
+		var buf [8]byte
+		byteorder.LePutUint64(buf[:], uint64(real(c)))
+		h.Write(buf[:])
+		byteorder.LePutUint64(buf[:], uint64(imag(c)))
+		h.Write(buf[:])
+		return
 	case reflect.Float32, reflect.Float64:
-		return byteorder.LeAppendUint64(buf, uint64(v.Float()))
+		var buf [8]byte
+		byteorder.LePutUint64(buf[:], uint64(v.Float()))
+		h.Write(buf[:])
+		return
 	case reflect.Bool:
-		return byteorder.LeAppendUint16(buf, btoi(v.Bool()))
+		var buf [8]byte
+		byteorder.LePutUint16(buf[:], btoi(v.Bool()))
+		h.Write(buf[:])
+		return
 	case reflect.UnsafePointer, reflect.Pointer:
-		return byteorder.LeAppendUint64(buf, uint64(v.Pointer()))
+		var buf [8]byte
+		byteorder.LePutUint64(buf[:], uint64(v.Pointer()))
+		h.Write(buf[:])
+		return
 	case reflect.Interface:
-		return appendT(buf, v.Elem())
+		appendT(h, v.Elem())
+		return
 	}
 	panic(fmt.Errorf("hash/maphash: %s not comparable", v.Type().String()))
 }
