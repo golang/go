@@ -9,6 +9,7 @@ package maphash
 import (
 	"internal/abi"
 	"internal/unsafeheader"
+	"reflect"
 	"unsafe"
 )
 
@@ -45,17 +46,28 @@ func randUint64() uint64 {
 }
 
 func comparableF[T comparable](seed uint64, v T, t *abi.Type) uint64 {
-	k := t.Kind()
-	len := t.Size()
 	ptr := unsafe.Pointer(&v)
+	l := t.Size()
+	k := t.Kind()
 	if k == abi.String {
-		len = uintptr(((*unsafeheader.String)(unsafe.Pointer(&v))).Len)
+		l = uintptr(((*unsafeheader.String)(unsafe.Pointer(&v))).Len)
 		ptr = ((*unsafeheader.String)(unsafe.Pointer(&v))).Data
+	} else if t.TFlag&abi.TFlagRegularMemory == 0 {
+		// Note: if T like struct {s string}
+		// str value equal but ptr not equal,
+		// if think of it as a contiguous piece of memory,
+		// hash it, that happen v1 == v2
+		// Comparable(s, v1) != Comparable(s, v2).
+		vv := reflect.ValueOf(v)
+		buf := make([]byte, 0, vv.Type().Size())
+		buf = appendT(buf, vv)
+		ptr = unsafe.Pointer(&buf[0])
+		l = uintptr(len(buf))
 	}
 	if unsafe.Sizeof(uintptr(0)) == 8 {
-		return uint64(runtime_memhash(ptr, uintptr(seed), len))
+		return uint64(runtime_memhash(ptr, uintptr(seed), l))
 	}
-	lo := runtime_memhash(ptr, uintptr(seed), len)
-	hi := runtime_memhash(ptr, uintptr(seed>>32), len)
+	lo := runtime_memhash(ptr, uintptr(seed), l)
+	hi := runtime_memhash(ptr, uintptr(seed>>32), l)
 	return uint64(hi)<<32 | uint64(lo)
 }

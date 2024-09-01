@@ -13,8 +13,10 @@
 package maphash
 
 import (
+	"fmt"
 	"internal/abi"
 	"internal/byteorder"
+	"reflect"
 )
 
 // A Seed is a random value that selects the specific hash function
@@ -300,4 +302,45 @@ func WriteComparable[T comparable](h *Hash, x T) {
 	var buf [8]byte
 	byteorder.LePutUint64(buf[:], v)
 	h.Write(buf[:])
+}
+
+func appendT(buf []byte, v reflect.Value) []byte {
+	switch v.Kind() {
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+		return byteorder.LeAppendUint64(buf, uint64(v.Int()))
+	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
+		return byteorder.LeAppendUint64(buf, v.Uint())
+	case reflect.Array:
+		for i := range v.Len() {
+			buf = appendT(buf, v.Index(i))
+		}
+		return buf
+	case reflect.String:
+		return append(buf, v.String()...)
+	case reflect.Struct:
+		for i := range v.NumField() {
+			buf = appendT(buf, v.Field(i))
+		}
+		return buf
+	case reflect.Complex64, reflect.Complex128:
+		c := v.Complex()
+		buf = byteorder.LeAppendUint64(buf, uint64(real(c)))
+		return byteorder.LeAppendUint64(buf, uint64(imag(c)))
+	case reflect.Float32, reflect.Float64:
+		return byteorder.LeAppendUint64(buf, uint64(v.Float()))
+	case reflect.Bool:
+		return byteorder.LeAppendUint16(buf, btoi(v.Bool()))
+	case reflect.UnsafePointer, reflect.Pointer:
+		return byteorder.LeAppendUint64(buf, uint64(v.Pointer()))
+	case reflect.Interface:
+		return appendT(buf, v.Elem())
+	}
+	panic(fmt.Errorf("hash/maphash: %s not comparable", v.Type().String()))
+}
+
+func btoi(b bool) uint16 {
+	if b {
+		return 1
+	}
+	return 0
 }

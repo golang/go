@@ -6,10 +6,13 @@ package maphash
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"hash"
 	"reflect"
+	"strings"
 	"testing"
+	"unsafe"
 )
 
 func TestUnseededHash(t *testing.T) {
@@ -224,11 +227,43 @@ func TestComparable(t *testing.T) {
 		i int
 		f float64
 	}{i: 9, f: 9.9})
+	type S struct {
+		s string
+	}
+	s1 := S{s: heapStr(t)}
+	s2 := S{s: heapStr(t)}
+	if unsafe.StringData(s1.s) == unsafe.StringData(s2.s) {
+		t.Fatalf("unexpected two heapStr ptr equal")
+	}
+	if s1.s != s2.s {
+		t.Fatalf("unexpected two heapStr value not equal")
+	}
+	testComparable(t, s1, s2)
 }
 
-func testComparable[T comparable](t *testing.T, v T) {
-	t.Run(reflect.TypeFor[T]().Name(), func(t *testing.T) {
+var heapStrValue []byte
+
+//go:noinline
+func heapStr(t *testing.T) string {
+	s := make([]byte, 10)
+	if heapStrValue != nil {
+		copy(s, heapStrValue)
+	} else {
+		_, err := rand.Read(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		heapStrValue = s
+	}
+	return string(s)
+}
+
+func testComparable[T comparable](t *testing.T, v T, v2 ...T) {
+	t.Run(reflect.TypeFor[T]().String(), func(t *testing.T) {
 		var a, b T = v, v
+		if len(v2) != 0 {
+			b = v2[0]
+		}
 		var pa *T = &a
 		seed := MakeSeed()
 		if Comparable(seed, a) != Comparable(seed, b) {
@@ -266,11 +301,26 @@ func TestWriteComparable(t *testing.T) {
 		i int
 		f float64
 	}{i: 9, f: 9.9})
+	type S struct {
+		s string
+	}
+	s1 := S{s: heapStr(t)}
+	s2 := S{s: heapStr(t)}
+	if unsafe.StringData(s1.s) == unsafe.StringData(s2.s) {
+		t.Fatalf("unexpected two heapStr ptr equal")
+	}
+	if s1.s != s2.s {
+		t.Fatalf("unexpected two heapStr value not equal")
+	}
+	testWriteComparable(t, s1, s2)
 }
 
-func testWriteComparable[T comparable](t *testing.T, v T) {
-	t.Run(reflect.TypeFor[T]().Name(), func(t *testing.T) {
+func testWriteComparable[T comparable](t *testing.T, v T, v2 ...T) {
+	t.Run(reflect.TypeFor[T]().String(), func(t *testing.T) {
 		var a, b T = v, v
+		if len(v2) != 0 {
+			b = v2[0]
+		}
 		var pa *T = &a
 		h1 := Hash{}
 		h2 := Hash{}
@@ -290,6 +340,25 @@ func testWriteComparable[T comparable](t *testing.T, v T) {
 			t.Fatal("WriteComparable(seed, ptr) != WriteComparable(seed, ptr)")
 		}
 	})
+}
+
+func TestComparableShouldPanic(t *testing.T) {
+	s := []byte("s")
+	a := any(s)
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatalf("hash any([]byte) should panic(error) in maphash.appendT")
+		}
+		e, ok := err.(error)
+		if !ok {
+			t.Fatalf("hash any([]byte) should panic(error) in maphash.appendT")
+		}
+		if !strings.Contains(e.Error(), "comparable") {
+			t.Fatalf("hash any([]byte) should panic(error) in maphash.appendT")
+		}
+	}()
+	Comparable(MakeSeed(), a)
 }
 
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
