@@ -334,7 +334,7 @@ func TestChdir(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.dir == "skip" {
-				return
+				t.Skipf("skipping test because there is no relative path between %s and %s", oldDir, tmp)
 			}
 			if !filepath.IsAbs(tc.pwd) {
 				t.Fatalf("Bad tc.pwd: %q (must be absolute)", tc.pwd)
