@@ -411,9 +411,7 @@ func combinesWithName(x ast.Expr) bool {
 	case *ast.BinaryExpr:
 		return combinesWithName(x.X) && !isTypeElem(x.Y)
 	case *ast.ParenExpr:
-		// name(x) combines but we are making sure at
-		// the call site that x is never parenthesized.
-		panic("unexpected parenthesized expression")
+		return combinesWithName(x.X)
 	}
 	return false
 }
