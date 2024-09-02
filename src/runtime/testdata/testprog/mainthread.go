@@ -28,4 +28,26 @@ func init() {
 		println("expect: Ok")
 		MainThread()
 	})
+	register("MainThread2", func() {
+		println("expect: hello,world")
+		MainThread2()
+	})
+}
+
+func MainThread2() {
+	var wg sync.WaitGroup
+	runtime.LockOSThread()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		mainthread.Do(func() {
+			print("hello,")
+			mainthread.Do(func() {
+				print("world")
+			})
+		})
+	}()
+	<-mainthread.Waiting()
+	mainthread.Yield()
+	wg.Wait()
 }

@@ -115,12 +115,16 @@ var modinfo string
 
 var (
 	m0           m
-	m0func       = make(chan func())
-	waitm0       = make(chan struct{})
 	g0           g
 	mcache0      *mcache
 	raceprocctx0 uintptr
 	raceFiniLock mutex
+)
+
+var (
+	m0func = make(chan func())
+	waitm0 = make(chan struct{})
+	m0Exec = make(chan struct{}, 1)
 )
 
 // This slice records the initializing tasks that need to be
@@ -153,6 +157,7 @@ func mainThreadDo(f func()) {
 	}
 	waitm0 <- struct{}{}
 	m0func <- f
+	_ = <-m0Exec
 }
 
 func mainThreadYield() {
@@ -160,6 +165,13 @@ func mainThreadYield() {
 	if g.m != &m0 {
 		panic("runtime: call mainthread.Yield must on main thread")
 	}
+	// lock os thread ensure that the main thread always
+	// run only f during a call to f.
+	lockOSThread()
+	defer func() {
+		unlockOSThread()
+		m0Exec <- struct{}{}
+	}()
 	f := <-m0func
 	f()
 }

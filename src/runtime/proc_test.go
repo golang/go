@@ -12,6 +12,7 @@ import (
 	"net"
 	"runtime"
 	"runtime/debug"
+	"runtime/mainthread"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1161,4 +1162,30 @@ func TestBigGOMAXPROCS(t *testing.T) {
 
 func TestMainThread(t *testing.T) {
 	checkCoroTestProgOutput(t, runTestProg(t, "testprog", "MainThread"))
+	t.Run("in mainthread call UnlockOSThread", func(t *testing.T) {
+		mainthread.Do(func() {
+			runtime.UnlockOSThread()
+			for range 1000 {
+				runtime.Gosched()
+				m := runtime.Acquirem()
+				runtime.Releasem()
+				if m != runtime.M0 {
+					// don`t use t.Fatal, because it call
+					// Goexit, cause TestMain goroutine exit,
+					// and test timeout.
+					t.Fail()
+					t.Log("mainthread.Do.f must on main thread")
+					return
+				}
+			}
+			runtime.LockOSThread()
+		})
+	})
+	t.Run("nested call mainthread.Do", func(t *testing.T) {
+		checkCoroTestProgOutput(t, runTestProg(t, "testprog", "MainThread2"))
+	})
+}
+
+func init() {
+	runtime.LockOSThread()
 }
