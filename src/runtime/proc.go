@@ -4845,7 +4845,6 @@ func exitsyscall0(gp *g) {
 // syscall_runtime_BeforeFork is for package syscall,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
-//   - github.com/containerd/containerd
 //   - gvisor.dev/gvisor
 //
 // Do not remove or change the type signature.
@@ -4875,7 +4874,6 @@ func syscall_runtime_BeforeFork() {
 // syscall_runtime_AfterFork is for package syscall,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
-//   - github.com/containerd/containerd
 //   - gvisor.dev/gvisor
 //
 // Do not remove or change the type signature.
@@ -4909,7 +4907,6 @@ var inForkedChild bool
 // syscall_runtime_AfterForkInChild is for package syscall,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
-//   - github.com/containerd/containerd
 //   - gvisor.dev/gvisor
 //
 // Do not remove or change the type signature.
