@@ -312,9 +312,6 @@ var (
 
 func bootstrapFixImports(srcFile string) string {
 	text := readfile(srcFile)
-	if !strings.Contains(srcFile, "/cmd/") && !strings.Contains(srcFile, `\cmd\`) {
-		text = regexp.MustCompile(`\bany\b`).ReplaceAllString(text, "interface{}")
-	}
 	lines := strings.SplitAfter(text, "\n")
 	inBlock := false
 	inComment := false

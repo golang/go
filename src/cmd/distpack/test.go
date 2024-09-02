@@ -73,6 +73,11 @@ var modRules = []testRule{
 	{name: "golang.org/toolchain@*/src/cmd/go/main.go"},
 	{name: "golang.org/toolchain@*/src/bytes/bytes.go"},
 
+	{name: "golang.org/toolchain@*/lib/wasm/go_js_wasm_exec"},
+	{name: "golang.org/toolchain@*/lib/wasm/go_wasip1_wasm_exec"},
+	{name: "golang.org/toolchain@*/lib/wasm/wasm_exec.js"},
+	{name: "golang.org/toolchain@*/lib/wasm/wasm_exec_node.js"},
+
 	{name: "**/.DS_Store", exclude: true},
 	{name: "golang.org/toolchain@*/.git", exclude: true},
 	{name: "golang.org/toolchain@*/.gitattributes", exclude: true},

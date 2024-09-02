@@ -19,9 +19,12 @@ import (
 	"unsafe"
 )
 
-func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
+// ensurePidfd initializes the PidFD field in sysAttr if it is not already set.
+// It returns the original or modified SysProcAttr struct and a flag indicating
+// whether the PidFD should be duplicated before using.
+func ensurePidfd(sysAttr *syscall.SysProcAttr) (*syscall.SysProcAttr, bool) {
 	if !pidfdWorks() {
-		return sysAttr
+		return sysAttr, false
 	}
 
 	var pidfd int
@@ -29,23 +32,33 @@ func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
 	if sysAttr == nil {
 		return &syscall.SysProcAttr{
 			PidFD: &pidfd,
-		}
+		}, false
 	}
 	if sysAttr.PidFD == nil {
 		newSys := *sysAttr // copy
 		newSys.PidFD = &pidfd
-		return &newSys
+		return &newSys, false
 	}
 
-	return sysAttr
+	return sysAttr, true
 }
 
-func getPidfd(sysAttr *syscall.SysProcAttr) (uintptr, bool) {
+// getPidfd returns the value of sysAttr.PidFD (or its duplicate if needDup is
+// set) and a flag indicating whether the value can be used.
+func getPidfd(sysAttr *syscall.SysProcAttr, needDup bool) (uintptr, bool) {
 	if !pidfdWorks() {
 		return 0, false
 	}
 
-	return uintptr(*sysAttr.PidFD), true
+	h := *sysAttr.PidFD
+	if needDup {
+		dupH, e := unix.Fcntl(h, syscall.F_DUPFD_CLOEXEC, 0)
+		if e != nil {
+			return 0, false
+		}
+		h = dupH
+	}
+	return uintptr(h), true
 }
 
 func pidfdFind(pid int) (uintptr, error) {

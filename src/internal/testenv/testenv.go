@@ -53,63 +53,59 @@ func HasGoBuild() bool {
 		return false
 	}
 
-	goBuildOnce.Do(func() {
-		// To run 'go build', we need to be able to exec a 'go' command.
-		// We somewhat arbitrarily choose to exec 'go tool -n compile' because that
-		// also confirms that cmd/go can find the compiler. (Before CL 472096,
-		// we sometimes ended up with cmd/go installed in the test environment
-		// without a cmd/compile it could use to actually build things.)
-		cmd := exec.Command("go", "tool", "-n", "compile")
-		cmd.Env = origEnv
-		out, err := cmd.Output()
-		if err != nil {
-			goBuildErr = fmt.Errorf("%v: %w", cmd, err)
-			return
-		}
-		out = bytes.TrimSpace(out)
-		if len(out) == 0 {
-			goBuildErr = fmt.Errorf("%v: no tool reported", cmd)
-			return
-		}
-		if _, err := exec.LookPath(string(out)); err != nil {
-			goBuildErr = err
-			return
-		}
-
-		if platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, false) {
-			// We can assume that we always have a complete Go toolchain available.
-			// However, this platform requires a C linker to build even pure Go
-			// programs, including tests. Do we have one in the test environment?
-			// (On Android, for example, the device running the test might not have a
-			// C toolchain installed.)
-			//
-			// If CC is set explicitly, assume that we do. Otherwise, use 'go env CC'
-			// to determine which toolchain it would use by default.
-			if os.Getenv("CC") == "" {
-				cmd := exec.Command("go", "env", "CC")
-				cmd.Env = origEnv
-				out, err := cmd.Output()
-				if err != nil {
-					goBuildErr = fmt.Errorf("%v: %w", cmd, err)
-					return
-				}
-				out = bytes.TrimSpace(out)
-				if len(out) == 0 {
-					goBuildErr = fmt.Errorf("%v: no CC reported", cmd)
-					return
-				}
-				_, goBuildErr = exec.LookPath(string(out))
-			}
-		}
-	})
-
-	return goBuildErr == nil
+	return tryGoBuild() == nil
 }
 
-var (
-	goBuildOnce sync.Once
-	goBuildErr  error
-)
+var tryGoBuild = sync.OnceValue(func() error {
+	// To run 'go build', we need to be able to exec a 'go' command.
+	// We somewhat arbitrarily choose to exec 'go tool -n compile' because that
+	// also confirms that cmd/go can find the compiler. (Before CL 472096,
+	// we sometimes ended up with cmd/go installed in the test environment
+	// without a cmd/compile it could use to actually build things.)
+	goTool, err := goTool()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(goTool, "tool", "-n", "compile")
+	cmd.Env = origEnv
+	out, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("%v: %w", cmd, err)
+	}
+	out = bytes.TrimSpace(out)
+	if len(out) == 0 {
+		return fmt.Errorf("%v: no tool reported", cmd)
+	}
+	if _, err := exec.LookPath(string(out)); err != nil {
+		return err
+	}
+
+	if platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, false) {
+		// We can assume that we always have a complete Go toolchain available.
+		// However, this platform requires a C linker to build even pure Go
+		// programs, including tests. Do we have one in the test environment?
+		// (On Android, for example, the device running the test might not have a
+		// C toolchain installed.)
+		//
+		// If CC is set explicitly, assume that we do. Otherwise, use 'go env CC'
+		// to determine which toolchain it would use by default.
+		if os.Getenv("CC") == "" {
+			cmd := exec.Command(goTool, "env", "CC")
+			cmd.Env = origEnv
+			out, err := cmd.Output()
+			if err != nil {
+				return fmt.Errorf("%v: %w", cmd, err)
+			}
+			out = bytes.TrimSpace(out)
+			if len(out) == 0 {
+				return fmt.Errorf("%v: no CC reported", cmd)
+			}
+			_, err = exec.LookPath(string(out))
+			return err
+		}
+	}
+	return nil
+})
 
 // MustHaveGoBuild checks that the current system can build programs with “go build”
 // and then run them with os.StartProcess or exec.Command.
@@ -121,7 +117,7 @@ func MustHaveGoBuild(t testing.TB) {
 	}
 	if !HasGoBuild() {
 		t.Helper()
-		t.Skipf("skipping test: 'go build' unavailable: %v", goBuildErr)
+		t.Skipf("skipping test: 'go build' unavailable: %v", tryGoBuild())
 	}
 }
 
@@ -177,82 +173,67 @@ func GoToolPath(t testing.TB) string {
 	return path
 }
 
-var (
-	gorootOnce sync.Once
-	gorootPath string
-	gorootErr  error
-)
+var findGOROOT = sync.OnceValues(func() (path string, err error) {
+	if path := runtime.GOROOT(); path != "" {
+		// If runtime.GOROOT() is non-empty, assume that it is valid.
+		//
+		// (It might not be: for example, the user may have explicitly set GOROOT
+		// to the wrong directory. But this case is
+		// rare, and if that happens the user can fix what they broke.)
+		return path, nil
+	}
 
-func findGOROOT() (string, error) {
-	gorootOnce.Do(func() {
-		gorootPath = runtime.GOROOT()
-		if gorootPath != "" {
-			// If runtime.GOROOT() is non-empty, assume that it is valid.
-			//
-			// (It might not be: for example, the user may have explicitly set GOROOT
-			// to the wrong directory. But this case is
-			// rare, and if that happens the user can fix what they broke.)
-			return
+	// runtime.GOROOT doesn't know where GOROOT is (perhaps because the test
+	// binary was built with -trimpath).
+	//
+	// Since this is internal/testenv, we can cheat and assume that the caller
+	// is a test of some package in a subdirectory of GOROOT/src. ('go test'
+	// runs the test in the directory containing the packaged under test.) That
+	// means that if we start walking up the tree, we should eventually find
+	// GOROOT/src/go.mod, and we can report the parent directory of that.
+	//
+	// Notably, this works even if we can't run 'go env GOROOT' as a
+	// subprocess.
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("finding GOROOT: %w", err)
+	}
+
+	dir := cwd
+	for {
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// dir is either "." or only a volume name.
+			return "", fmt.Errorf("failed to locate GOROOT/src in any parent directory")
 		}
 
-		// runtime.GOROOT doesn't know where GOROOT is (perhaps because the test
-		// binary was built with -trimpath).
-		//
-		// Since this is internal/testenv, we can cheat and assume that the caller
-		// is a test of some package in a subdirectory of GOROOT/src. ('go test'
-		// runs the test in the directory containing the packaged under test.) That
-		// means that if we start walking up the tree, we should eventually find
-		// GOROOT/src/go.mod, and we can report the parent directory of that.
-		//
-		// Notably, this works even if we can't run 'go env GOROOT' as a
-		// subprocess.
+		if base := filepath.Base(dir); base != "src" {
+			dir = parent
+			continue // dir cannot be GOROOT/src if it doesn't end in "src".
+		}
 
-		cwd, err := os.Getwd()
+		b, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err != nil {
-			gorootErr = fmt.Errorf("finding GOROOT: %w", err)
-			return
-		}
-
-		dir := cwd
-		for {
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				// dir is either "." or only a volume name.
-				gorootErr = fmt.Errorf("failed to locate GOROOT/src in any parent directory")
-				return
-			}
-
-			if base := filepath.Base(dir); base != "src" {
+			if os.IsNotExist(err) {
 				dir = parent
-				continue // dir cannot be GOROOT/src if it doesn't end in "src".
+				continue
 			}
+			return "", fmt.Errorf("finding GOROOT: %w", err)
+		}
+		goMod := string(b)
 
-			b, err := os.ReadFile(filepath.Join(dir, "go.mod"))
-			if err != nil {
-				if os.IsNotExist(err) {
-					dir = parent
-					continue
-				}
-				gorootErr = fmt.Errorf("finding GOROOT: %w", err)
-				return
-			}
-			goMod := string(b)
-
-			for goMod != "" {
-				var line string
-				line, goMod, _ = strings.Cut(goMod, "\n")
-				fields := strings.Fields(line)
-				if len(fields) >= 2 && fields[0] == "module" && fields[1] == "std" {
-					// Found "module std", which is the module declaration in GOROOT/src!
-					gorootPath = parent
-					return
-				}
+		for goMod != "" {
+			var line string
+			line, goMod, _ = strings.Cut(goMod, "\n")
+			fields := strings.Fields(line)
+			if len(fields) >= 2 && fields[0] == "module" && fields[1] == "std" {
+				// Found "module std", which is the module declaration in GOROOT/src!
+				return parent, nil
 			}
 		}
-	})
-
-	return gorootPath, gorootErr
-}
+	}
+})
 
 // GOROOT reports the path to the directory containing the root of the Go
 // project source tree. This is normally equivalent to runtime.GOROOT, but
@@ -278,17 +259,12 @@ func GoTool() (string, error) {
 	if !HasGoBuild() {
 		return "", errors.New("platform cannot run go tool")
 	}
-	goToolOnce.Do(func() {
-		goToolPath, goToolErr = exec.LookPath("go")
-	})
-	return goToolPath, goToolErr
+	return goTool()
 }
 
-var (
-	goToolOnce sync.Once
-	goToolPath string
-	goToolErr  error
-)
+var goTool = sync.OnceValues(func() (string, error) {
+	return exec.LookPath("go")
+})
 
 // HasSrc reports whether the entire source tree is available under GOROOT.
 func HasSrc() bool {
@@ -321,29 +297,26 @@ func MustHaveExternalNetwork(t testing.TB) {
 
 // HasCGO reports whether the current system can use cgo.
 func HasCGO() bool {
-	hasCgoOnce.Do(func() {
-		goTool, err := GoTool()
-		if err != nil {
-			return
-		}
-		cmd := exec.Command(goTool, "env", "CGO_ENABLED")
-		cmd.Env = origEnv
-		out, err := cmd.Output()
-		if err != nil {
-			panic(fmt.Sprintf("%v: %v", cmd, out))
-		}
-		hasCgo, err = strconv.ParseBool(string(bytes.TrimSpace(out)))
-		if err != nil {
-			panic(fmt.Sprintf("%v: non-boolean output %q", cmd, out))
-		}
-	})
-	return hasCgo
+	return hasCgo()
 }
 
-var (
-	hasCgoOnce sync.Once
-	hasCgo     bool
-)
+var hasCgo = sync.OnceValue(func() bool {
+	goTool, err := goTool()
+	if err != nil {
+		return false
+	}
+	cmd := exec.Command(goTool, "env", "CGO_ENABLED")
+	cmd.Env = origEnv
+	out, err := cmd.Output()
+	if err != nil {
+		panic(fmt.Sprintf("%v: %v", cmd, out))
+	}
+	ok, err := strconv.ParseBool(string(bytes.TrimSpace(out)))
+	if err != nil {
+		panic(fmt.Sprintf("%v: non-boolean output %q", cmd, out))
+	}
+	return ok
+})
 
 // MustHaveCGO calls t.Skip if cgo is not available.
 func MustHaveCGO(t testing.TB) {

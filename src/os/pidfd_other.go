@@ -8,11 +8,11 @@ package os
 
 import "syscall"
 
-func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
-	return sysAttr
+func ensurePidfd(sysAttr *syscall.SysProcAttr) (*syscall.SysProcAttr, bool) {
+	return sysAttr, false
 }
 
-func getPidfd(_ *syscall.SysProcAttr) (uintptr, bool) {
+func getPidfd(_ *syscall.SysProcAttr, _ bool) (uintptr, bool) {
 	return 0, false
 }
 
