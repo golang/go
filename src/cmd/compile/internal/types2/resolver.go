@@ -719,7 +719,7 @@ func (check *Checker) packageObjects() {
 }
 
 // inSourceOrder implements the sort.Sort interface.
-// todo: replace with slices.SortFunc
+// TODO(gri) replace with slices.SortFunc
 type inSourceOrder []Object
 
 func (a inSourceOrder) Len() int           { return len(a) }
