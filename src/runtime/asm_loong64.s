@@ -91,9 +91,8 @@ TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
 	RET // not reached
 
 // func cputicks() int64
-TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+TEXT runtime·cputicks<ABIInternal>(SB),NOSPLIT,$0-8
 	RDTIMED	R0, R4
-	MOVV	R4, ret+0(FP)
 	RET
 
 /*
@@ -213,19 +212,19 @@ noswitch:
 	JMP	(R4)
 
 // func switchToCrashStack0(fn func())
-TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
-	MOVV	fn+0(FP), REGCTXT	// context register
-	MOVV	g_m(g), R4	// curm
+TEXT runtime·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-8
+	MOVV	R4, REGCTXT	// context register
+	MOVV	g_m(g), R5	// curm
 
 	// set g to gcrash
 	MOVV	$runtime·gcrash(SB), g	// g = &gcrash
 	JAL	runtime·save_g(SB)
-	MOVV	R4, g_m(g)	// g.m = curm
-	MOVV	g, m_g0(R4)	// curm.g0 = g
+	MOVV	R5, g_m(g)	// g.m = curm
+	MOVV	g, m_g0(R5)	// curm.g0 = g
 
 	// switch to crashstack
-	MOVV	(g_stack+stack_hi)(g), R4
-	ADDV	$(-4*8), R4, R3
+	MOVV	(g_stack+stack_hi)(g), R5
+	ADDV	$(-4*8), R5, R3
 
 	// call target function
 	MOVV	0(REGCTXT), R6
