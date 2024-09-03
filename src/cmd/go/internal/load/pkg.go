@@ -459,7 +459,6 @@ type PackageError struct {
 	Pos              string   // position of error
 	Err              error    // the error itself
 	IsImportCycle    bool     // the error is an import cycle
-	Hard             bool     // whether the error is soft or hard; soft errors are ignored in some places
 	alwaysPrintStack bool     // whether to always print the ImportStack
 }
 
