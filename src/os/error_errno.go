@@ -10,5 +10,8 @@ import "syscall"
 
 type syscallErrorType = syscall.Errno
 
-const errENOSYS = syscall.ENOSYS
-const errERANGE = syscall.ERANGE
+const (
+	errENOSYS = syscall.ENOSYS
+	errERANGE = syscall.ERANGE
+	errENOMEM = syscall.ENOMEM
+)

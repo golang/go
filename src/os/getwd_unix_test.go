@@ -9,6 +9,7 @@ package os_test
 import (
 	"errors"
 	. "os"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -56,6 +57,12 @@ func testGetwdDeep(t *testing.T, setPWD bool) {
 		wd, err := Getwd()
 		t.Logf("Getwd len: %d", len(wd))
 		if err != nil {
+			// We can get an EPERM error if we can't read up
+			// to root, which happens on the Android builders.
+			if errors.Is(err, syscall.EPERM) {
+				t.Logf("ignoring EPERM error: %v", err)
+				break
+			}
 			t.Fatal(err)
 		}
 		if setPWD && wd != dir {
@@ -72,7 +79,13 @@ func testGetwdDeep(t *testing.T, setPWD bool) {
 		// all Unix platforms (4096, on Linux).
 		if _, err := Stat(wd); err != nil || len(wd) > 4096 {
 			t.Logf("Done; len(wd)=%d", len(wd))
-			if err != nil && !errors.Is(err, syscall.ENAMETOOLONG) {
+			// Most systems return ENAMETOOLONG.
+			// Dragonfly returns EFAULT.
+			switch {
+			case err == nil:
+			case errors.Is(err, syscall.ENAMETOOLONG):
+			case runtime.GOOS == "dragonfly" && errors.Is(err, syscall.EFAULT):
+			default:
 				t.Fatalf("unexpected Stat error: %v", err)
 			}
 			break
