@@ -152,6 +152,10 @@ var initSigmask sigset
 func mainThreadDo(f func()) {
 	gp := getg()
 	if gp.m == &m0 {
+		// lock os thread ensure that the main thread always
+		// run only f during a call to f.
+		lockOSThread()
+		defer unlockOSThread()
 		f()
 		return
 	}
