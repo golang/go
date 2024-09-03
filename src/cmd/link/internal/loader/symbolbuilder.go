@@ -9,7 +9,8 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
-	"sort"
+	"cmp"
+	"slices"
 )
 
 // SymbolBuilder is a helper designed to help with the construction
@@ -154,18 +155,11 @@ func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc, int) {
 	return relocs.At(j), j
 }
 
-// Sort relocations by offset.
+// SortRelocs Sort relocations by offset.
 func (sb *SymbolBuilder) SortRelocs() {
-	sort.Sort((*relocsByOff)(sb.extSymPayload))
-}
-
-// Implement sort.Interface
-type relocsByOff extSymPayload
-
-func (p *relocsByOff) Len() int           { return len(p.relocs) }
-func (p *relocsByOff) Less(i, j int) bool { return p.relocs[i].Off() < p.relocs[j].Off() }
-func (p *relocsByOff) Swap(i, j int) {
-	p.relocs[i], p.relocs[j] = p.relocs[j], p.relocs[i]
+	slices.SortFunc(sb.extSymPayload.relocs, func(a, b goobj.Reloc) int {
+		return cmp.Compare(a.Off(), b.Off())
+	})
 }
 
 func (sb *SymbolBuilder) Reachable() bool {

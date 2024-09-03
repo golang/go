@@ -13,6 +13,7 @@ import (
 	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"internal/abi"
@@ -20,6 +21,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -177,7 +179,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	h.Offsets[goobj.BlkReloc] = w.Offset()
 	for _, list := range lists {
 		for _, s := range list {
-			sort.Sort(relocByOff(s.R)) // some platforms (e.g. PE) requires relocations in address order
+			slices.SortFunc(s.R, relocByOffCmp) // some platforms (e.g. PE) requires relocations in address order
 			for i := range s.R {
 				w.Reloc(&s.R[i])
 			}
@@ -935,7 +937,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 		fmt.Fprintf(ctxt.Bso, "\n")
 	}
 
-	sort.Sort(relocByOff(s.R)) // generate stable output
+	slices.SortFunc(s.R, relocByOffCmp) // generate stable output
 	for _, r := range s.R {
 		name := ""
 		ver := ""
@@ -955,9 +957,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	}
 }
 
-// relocByOff sorts relocations by their offsets.
-type relocByOff []Reloc
-
-func (x relocByOff) Len() int           { return len(x) }
-func (x relocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
-func (x relocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+// relocByOffCmp compare relocations by their offsets.
+func relocByOffCmp(x, y Reloc) int {
+	return cmp.Compare(x.Off, y.Off)
+}
