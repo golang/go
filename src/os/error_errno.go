@@ -11,3 +11,4 @@ import "syscall"
 type syscallErrorType = syscall.Errno
 
 const errENOSYS = syscall.ENOSYS
+const errERANGE = syscall.ERANGE

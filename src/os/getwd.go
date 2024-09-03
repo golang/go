@@ -59,7 +59,10 @@ func Getwd() (dir string, err error) {
 				break
 			}
 		}
-		if err != syscall.ENAMETOOLONG {
+		// Linux returns ENAMETOOLONG if the result is too long.
+		// BSD systems appear to return EINVAL.
+		// Solaris appears to use ERANGE.
+		if err != syscall.ENAMETOOLONG && err != syscall.EINVAL && err != errERANGE {
 			return dir, NewSyscallError("getwd", err)
 		}
 	}
