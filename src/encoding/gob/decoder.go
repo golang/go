@@ -7,11 +7,15 @@ package gob
 import (
 	"bufio"
 	"errors"
-	"internal/saferio"
 	"io"
+	"net"
 	"reflect"
 	"sync"
 )
+
+// chunk is an arbitrary limit on how much memory we are willing
+// to allocate without concern.
+const chunk = 10 << 20 // 10M
 
 // tooBig provides a sanity check for sizes; used in several places. Upper limit
 // of is 1GB on 32-bit systems, 8GB on 64-bit, allowing room to grow a little
@@ -92,6 +96,56 @@ func (dec *Decoder) recvMessage() bool {
 	return dec.err == nil
 }
 
+// instead of saferio.ReadData.
+func readData(r io.Reader, n uint64) ([]byte, error) {
+	if int64(n) < 0 || n != uint64(int(n)) {
+		// n is too large to fit in int, so we can't allocate
+		// a buffer large enough. Treat this as a read failure.
+		return nil, io.ErrUnexpectedEOF
+	}
+
+	if n < chunk {
+		buf := make([]byte, n)
+		for n > 0 {
+			nn, err := io.ReadFull(r, buf[len(buf)-int(n):])
+			n -= uint64(nn)
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+		return buf, nil
+	}
+
+	var buf []byte
+	buf1 := make([]byte, chunk)
+	for n > 0 {
+		next := n
+		if next > chunk {
+			next = chunk
+		}
+		for next > 0 {
+			nn, err := io.ReadFull(r, buf1[:next])
+			n -= uint64(nn)
+			next -= uint64(nn)
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				buf = append(buf, buf1[:nn]...)
+				continue
+			}
+			if err != nil {
+				if len(buf) > 0 && err == io.EOF {
+					err = io.ErrUnexpectedEOF
+				}
+				return nil, err
+			}
+			buf = append(buf, buf1[:nn]...)
+		}
+	}
+	return buf, nil
+}
+
 // readMessage reads the next nbytes bytes from the input.
 func (dec *Decoder) readMessage(nbytes int) {
 	if dec.buf.Len() != 0 {
@@ -100,7 +154,7 @@ func (dec *Decoder) readMessage(nbytes int) {
 	}
 	// Read the data
 	var buf []byte
-	buf, dec.err = saferio.ReadData(dec.r, uint64(nbytes))
+	buf, dec.err = readData(dec.r, uint64(nbytes))
 	dec.buf.SetBytes(buf)
 	if dec.err == io.EOF {
 		dec.err = io.ErrUnexpectedEOF
