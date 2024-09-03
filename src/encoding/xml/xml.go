@@ -1004,8 +1004,9 @@ Input:
 		}
 
 		// <![CDATA[ section ends with ]]>.
-		// It is an error for ]]> to appear in ordinary text.
-		if b0 == ']' && b1 == ']' && b == '>' {
+		// It is an error for ]]> to appear in ordinary text,
+		// but it is allowed in quoted strings.
+		if quote < 0 && b0 == ']' && b1 == ']' && b == '>' {
 			if cdata {
 				trunc = 2
 				break Input
