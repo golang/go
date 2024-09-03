@@ -405,13 +405,6 @@ func xgetgoarm() string {
 	return "7"
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // elfIsLittleEndian detects if the ELF file is little endian.
 func elfIsLittleEndian(fn string) bool {
 	// read the ELF file header to determine the endianness without using the

@@ -3863,7 +3863,7 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
 		cond := cond.(*ir.LogicalExpr)
 		mid := s.f.NewBlock(ssa.BlockPlain)
 		s.stmtList(cond.Init())
-		s.condBranch(cond.X, mid, no, max8(likely, 0))
+		s.condBranch(cond.X, mid, no, max(likely, 0))
 		s.startBlock(mid)
 		s.condBranch(cond.Y, yes, no, likely)
 		return
@@ -3877,7 +3877,7 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
 		cond := cond.(*ir.LogicalExpr)
 		mid := s.f.NewBlock(ssa.BlockPlain)
 		s.stmtList(cond.Init())
-		s.condBranch(cond.X, yes, mid, min8(likely, 0))
+		s.condBranch(cond.X, yes, mid, min(likely, 0))
 		s.startBlock(mid)
 		s.condBranch(cond.Y, yes, no, likely)
 		return
@@ -7399,20 +7399,6 @@ func callTargetLSym(callee *ir.Name) *obj.LSym {
 	}
 
 	return callee.LinksymABI(callee.Func.ABI)
-}
-
-func min8(a, b int8) int8 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max8(a, b int8) int8 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 // deferStructFnField is the field index of _defer.fn.

@@ -511,8 +511,8 @@ func (s *regAllocState) makeSpill(v *Value, b *Block) *Value {
 	vi := &s.values[v.ID]
 	if vi.spill != nil {
 		// Final block not known - keep track of subtree where restores reside.
-		vi.restoreMin = min32(vi.restoreMin, s.sdom[b.ID].entry)
-		vi.restoreMax = max32(vi.restoreMax, s.sdom[b.ID].exit)
+		vi.restoreMin = min(vi.restoreMin, s.sdom[b.ID].entry)
+		vi.restoreMax = max(vi.restoreMax, s.sdom[b.ID].exit)
 		return vi.spill
 	}
 	// Make a spill for v. We don't know where we want
@@ -2986,17 +2986,4 @@ func (d *desiredState) merge(x *desiredState) {
 	for _, e := range x.entries {
 		d.addList(e.ID, e.regs)
 	}
-}
-
-func min32(x, y int32) int32 {
-	if x < y {
-		return x
-	}
-	return y
-}
-func max32(x, y int32) int32 {
-	if x > y {
-		return x
-	}
-	return y
 }

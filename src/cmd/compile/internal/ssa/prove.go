@@ -1737,13 +1737,13 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		// AND can only make the value smaller.
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
-		return ft.unsignedMax(v, minU(a.umax, b.umax))
+		return ft.unsignedMax(v, min(a.umax, b.umax))
 	case OpOr64, OpOr32, OpOr16, OpOr8:
 		// OR can only make the value bigger and can't flip bits proved to be zero in both inputs.
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
 		return ft.unsignedMinMax(v,
-			maxU(a.umin, b.umin),
+			max(a.umin, b.umin),
 			1<<bits.Len64(a.umax|b.umax)-1)
 	case OpXor64, OpXor32, OpXor16, OpXor8:
 		// XOR can't flip bits that are proved to be zero in both inputs.
@@ -1835,7 +1835,7 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
 		// Underflow in the arithmetic below is ok, it gives to MaxUint64 which does nothing to the limit.
-		return ft.unsignedMax(v, minU(a.umax, b.umax-1))
+		return ft.unsignedMax(v, min(a.umax, b.umax-1))
 	case OpDiv64, OpDiv32, OpDiv16, OpDiv8:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
@@ -1871,8 +1871,8 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 			l2 := ft.limits[a.ID]
 			l.min = min(l.min, l2.min)
 			l.max = max(l.max, l2.max)
-			l.umin = minU(l.umin, l2.umin)
-			l.umax = maxU(l.umax, l2.umax)
+			l.umin = min(l.umin, l2.umin)
+			l.umax = max(l.umax, l2.umax)
 		}
 		return ft.newLimit(v, l)
 	}
