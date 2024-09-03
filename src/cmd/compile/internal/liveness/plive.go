@@ -168,15 +168,9 @@ func (m *Map) reset() {
 		m.UnsafeVals = make(map[ssa.ID]bool)
 		m.UnsafeBlocks = make(map[ssa.ID]bool)
 	} else {
-		for k := range m.Vals {
-			delete(m.Vals, k)
-		}
-		for k := range m.UnsafeVals {
-			delete(m.UnsafeVals, k)
-		}
-		for k := range m.UnsafeBlocks {
-			delete(m.UnsafeBlocks, k)
-		}
+		clear(m.Vals)
+		clear(m.UnsafeVals)
+		clear(m.UnsafeBlocks)
 	}
 	m.DeferReturn = objw.StackMapDontCare
 }

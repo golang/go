@@ -569,9 +569,7 @@ func ScoreCallsCleanup() {
 			allCallSites[call] = cs
 		}
 	}
-	for k := range scoreCallsCache.tab {
-		delete(scoreCallsCache.tab, k)
-	}
+	clear(scoreCallsCache.tab)
 }
 
 // GetCallSiteScore returns the previously calculated score for call

@@ -2228,13 +2228,9 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	}
 
 	// Clear state.
-	for _, vid := range e.cachedVals {
-		delete(e.cache, vid)
-	}
+	clear(e.cache)
 	e.cachedVals = e.cachedVals[:0]
-	for k := range e.contents {
-		delete(e.contents, k)
-	}
+	clear(e.contents)
 	e.usedRegs = 0
 	e.uniqueRegs = 0
 	e.finalRegs = 0

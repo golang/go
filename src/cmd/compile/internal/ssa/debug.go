@@ -588,9 +588,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 	if state.varParts == nil {
 		state.varParts = make(map[*ir.Name][]SlotID)
 	} else {
-		for n := range state.varParts {
-			delete(state.varParts, n)
-		}
+		clear(state.varParts)
 	}
 
 	// Recompose any decomposed variables, and establish the canonical

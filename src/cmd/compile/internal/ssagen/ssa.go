@@ -991,9 +991,7 @@ func (s *state) startBlock(b *ssa.Block) {
 	}
 	s.curBlock = b
 	s.vars = map[ir.Node]*ssa.Value{}
-	for n := range s.fwdVars {
-		delete(s.fwdVars, n)
-	}
+	clear(s.fwdVars)
 }
 
 // endBlock marks the end of generating code for the current block.

@@ -489,8 +489,8 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		rawcands[n] = struct{}{}
 	}
 	for k := 0; k < len(cs.f.Blocks); k++ {
-		genmapclear(pendingUses)
-		genmapclear(blockIndirectUE)
+		clear(pendingUses)
+		clear(blockIndirectUE)
 		b := cs.f.Blocks[k]
 		for _, v := range b.Values {
 			if n, e := affectedVar(v); n != nil {
@@ -546,7 +546,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		// that value is flowing out of the block off somewhere else,
 		// we're going to treat that local as truly address-taken and
 		// not have it be a merge candidate.
-		genmapclear(evicted)
+		clear(evicted)
 		if len(pendingUses) != 0 {
 			for id, nc := range pendingUses {
 				if cs.trace > 2 {
@@ -603,14 +603,6 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		return nil, nil
 	}
 	return pruned, regions
-}
-
-// FIXME: bootstrap tool compiler is build with a "go 1.20" go.mod, so
-// we are not allowed to use map clear yet. Use this helper instead.
-func genmapclear[KT comparable, VT any](m map[KT]VT) {
-	for k := range m {
-		delete(m, k)
-	}
 }
 
 type nameCount struct {
