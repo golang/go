@@ -233,21 +233,25 @@ var auxvreadbuf [128]uintptr
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
-	// skip over argv, envp to get to auxv
-	for argv_index(argv, n) != nil {
+	// auxv on argv is not available on musl library/archive. avoid for musl.
+	if !((islibrary || isarchive) && isMusl()) {
+		// skip over argv, envp to get to auxv
+		for argv_index(argv, n) != nil {
+			n++
+		}
+
+		// skip NULL separator
 		n++
+
+		// now argv+n is auxv
+		auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+
+		if pairs := sysauxv(auxvp[:]); pairs != 0 {
+			auxv = auxvp[: pairs*2 : pairs*2]
+			return
+		}
 	}
 
-	// skip NULL separator
-	n++
-
-	// now argv+n is auxv
-	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
-
-	if pairs := sysauxv(auxvp[:]); pairs != 0 {
-		auxv = auxvp[: pairs*2 : pairs*2]
-		return
-	}
 	// In some situations we don't get a loader-provided
 	// auxv, such as when loaded as a library on Android.
 	// Fall back to /proc/self/auxv.

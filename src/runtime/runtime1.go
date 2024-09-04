@@ -25,6 +25,9 @@ const (
 var traceback_cache uint32 = 2 << tracebackShift
 var traceback_env uint32
 
+var procCmdline = []byte("/proc/self/cmdline\x00")
+var procEnviron = []byte("/proc/self/environ\x00")
+
 // gotraceback returns the current traceback settings.
 //
 // If level is 0, suppress all tracebacks.
@@ -56,6 +59,11 @@ var (
 	argv **byte
 )
 
+// isMusl reports whether the Go program is linked with musl libc.
+func isMusl() bool {
+	return asmcgocall(_cgo_is_musl, nil) == 1
+}
+
 // nosplit for use in linux startup sysargs.
 //
 //go:nosplit
@@ -73,6 +81,12 @@ func goargs() {
 	if GOOS == "windows" {
 		return
 	}
+
+	if (isarchive || islibrary) && isMusl() {
+		argslice = fetch_from_fd(procCmdline)
+		return
+	}
+
 	argslice = make([]string, argc)
 	for i := int32(0); i < argc; i++ {
 		argslice[i] = gostringnocopy(argv_index(argv, i))
@@ -80,6 +94,11 @@ func goargs() {
 }
 
 func goenvs_unix() {
+	if (isarchive || islibrary) && isMusl() {
+		envs = fetch_from_fd(procEnviron)
+		return
+	}
+
 	// TODO(austin): ppc64 in dynamic linking mode doesn't
 	// guarantee env[] will immediately follow argv. Might cause
 	// problems.
@@ -92,6 +111,37 @@ func goenvs_unix() {
 	for i := int32(0); i < n; i++ {
 		envs[i] = gostring(argv_index(argv, argc+1+i))
 	}
+}
+
+func fetch_from_fd(path []byte) []string {
+	fd := open(&path[0], 0 /* O_RDONLY */, 0)
+	if fd <= 0 {
+		return nil
+	}
+
+	// Read the file in 16-byte chunks.
+	var data []byte
+	var buf [16]byte
+	for {
+		n := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+		if n <= 0 { // EOF
+			break
+		}
+		data = append(data, buf[:n]...)
+	}
+
+	// Parse the data into a slice of strings.
+	var start int
+	var result = make([]string, 0, 8)
+	for i := 0; i < len(data); i++ {
+		if data[i] == 0 { // null-termination
+			result = append(result, gostring(&data[start:i][0]))
+			start = i + 1
+		}
+	}
+
+	closefd(fd)
+	return result
 }
 
 func environ() []string {

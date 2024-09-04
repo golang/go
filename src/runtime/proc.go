@@ -764,6 +764,14 @@ func getGodebugEarly() string {
 		// Similar to goenv_unix but extracts the environment value for
 		// GODEBUG directly.
 		// TODO(moehrmann): remove when general goenvs() can be called before cpuinit()
+		if (isarchive || islibrary) && isMusl() {
+			for _, value := range fetch_from_fd(procEnviron) {
+				if hasPrefix(value, prefix) {
+					return value
+				}
+			}
+		}
+
 		n := int32(0)
 		for argv_index(argv, argc+1+n) != nil {
 			n++

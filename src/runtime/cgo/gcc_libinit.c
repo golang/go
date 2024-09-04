@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h> // strerror
 #include <time.h>
+#include <limits.h>
 #include "libcgo.h"
 #include "libcgo_unix.h"
 
@@ -178,4 +179,14 @@ pthread_key_destructor(void* g) {
 		// before this destructor invoked.
 		x_crosscall2_ptr(NULL, g, 0, 0);
 	}
+}
+
+// x_cgo_is_musl reports whether the C library is musl.
+int
+x_cgo_is_musl() {
+	#if defined(__GLIBC__) || defined(__UCLIBC__)
+		return 0;
+	#else
+		return 1;
+	#endif
 }

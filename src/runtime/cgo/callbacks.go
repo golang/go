@@ -150,3 +150,11 @@ var _cgo_yield unsafe.Pointer
 //go:linkname _cgo_getstackbound _cgo_getstackbound
 var x_cgo_getstackbound byte
 var _cgo_getstackbound = &x_cgo_getstackbound
+
+// x_cgo_is_musl is set to 1 if the C library is musl.
+
+//go:cgo_import_static x_cgo_is_musl
+//go:linkname x_cgo_is_musl x_cgo_is_musl
+//go:linkname _cgo_is_musl _cgo_is_musl
+var x_cgo_is_musl byte
+var _cgo_is_musl = &x_cgo_is_musl
