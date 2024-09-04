@@ -823,7 +823,7 @@ func TestIssue57490(t *testing.T) {
 }
 
 func TestParseTypeParamsAsParenExpr(t *testing.T) {
-	const src = "package p;type X[A (B),] struct{}"
+	const src = "package p; type X[A (B),] struct{}"
 
 	fset := token.NewFileSet()
 	f, err := ParseFile(fset, "test.go", src, ParseComments|SkipObjectResolution)
