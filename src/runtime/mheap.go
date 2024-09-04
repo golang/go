@@ -2073,7 +2073,22 @@ func internal_weak_runtime_makeStrongFromWeak(u unsafe.Pointer) unsafe.Pointer {
 	// Even if we just swept some random span that doesn't contain this object, because
 	// this object is long dead and its memory has since been reused, we'll just observe nil.
 	ptr := unsafe.Pointer(handle.Load())
+
+	// This is responsible for maintaining the same GC-related
+	// invariants as the Yuasa part of the write barrier. During
+	// the mark phase, it's possible that we just created the only
+	// valid pointer to the object pointed to by ptr. If it's only
+	// ever referenced from our stack, and our stack is blackened
+	// already, we could fail to mark it. So, mark it now.
+	if gcphase != _GCoff {
+		shade(uintptr(ptr))
+	}
 	releasem(mp)
+
+	// Explicitly keep ptr alive. This seems unnecessary since we return ptr,
+	// but let's be explicit since it's important we keep ptr alive across the
+	// call to shade.
+	KeepAlive(ptr)
 	return ptr
 }
 
@@ -2081,6 +2096,9 @@ func internal_weak_runtime_makeStrongFromWeak(u unsafe.Pointer) unsafe.Pointer {
 func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 	// First try to retrieve without allocating.
 	if handle := getWeakHandle(p); handle != nil {
+		// Keep p alive for the duration of the function to ensure
+		// that it cannot die while we're trying to do this.
+		KeepAlive(p)
 		return handle
 	}
 
@@ -2105,6 +2123,10 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 			scanblock(uintptr(unsafe.Pointer(&s.handle)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
 			releasem(mp)
 		}
+
+		// Keep p alive for the duration of the function to ensure
+		// that it cannot die while we're trying to do this.
+		KeepAlive(p)
 		return s.handle
 	}
 
@@ -2124,7 +2146,7 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 	}
 
 	// Keep p alive for the duration of the function to ensure
-	// that it cannot die while we're trying to this.
+	// that it cannot die while we're trying to do this.
 	KeepAlive(p)
 	return handle
 }
@@ -2154,6 +2176,9 @@ func getWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 	unlock(&span.speciallock)
 	releasem(mp)
 
+	// Keep p alive for the duration of the function to ensure
+	// that it cannot die while we're trying to do this.
+	KeepAlive(p)
 	return handle
 }
 
