@@ -5,9 +5,10 @@
 package gc
 
 import (
+	"cmp"
 	"internal/race"
 	"math/rand"
-	"sort"
+	"slices"
 	"sync"
 
 	"cmd/compile/internal/base"
@@ -131,8 +132,8 @@ func compileFunctions(profile *pgoir.Profile) {
 		// Compile the longest functions first,
 		// since they're most likely to be the slowest.
 		// This helps avoid stragglers.
-		sort.Slice(compilequeue, func(i, j int) bool {
-			return len(compilequeue[i].Body) > len(compilequeue[j].Body)
+		slices.SortFunc(compilequeue, func(a, b *ir.Func) int {
+			return cmp.Compare(len(b.Body), len(a.Body))
 		})
 	}
 

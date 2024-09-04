@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -268,8 +269,8 @@ func (mls *MergeLocalsState) String() string {
 			leaders = append(leaders, n)
 		}
 	}
-	sort.Slice(leaders, func(i, j int) bool {
-		return leaders[i].Sym().Name < leaders[j].Sym().Name
+	slices.SortFunc(leaders, func(a, b *ir.Name) int {
+		return strings.Compare(a.Sym().Name, b.Sym().Name)
 	})
 	var sb strings.Builder
 	for _, n := range leaders {
@@ -580,7 +581,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		for k := range indirectUE {
 			ids = append(ids, k)
 		}
-		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		slices.Sort(ids)
 		for _, id := range ids {
 			fmt.Fprintf(os.Stderr, "  v%d:", id)
 			for _, n := range indirectUE[id] {

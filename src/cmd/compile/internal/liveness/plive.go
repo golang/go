@@ -15,8 +15,10 @@
 package liveness
 
 import (
+	"cmp"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -1445,7 +1447,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 	}
 
 	// Sort variables from lowest to highest address.
-	sort.Slice(vars, func(i, j int) bool { return vars[i].FrameOffset() < vars[j].FrameOffset() })
+	slices.SortFunc(vars, func(a, b *ir.Name) int { return cmp.Compare(a.FrameOffset(), b.FrameOffset()) })
 
 	// Populate the stack object data.
 	// Format must match runtime/stack.go:stackObjectRecord.

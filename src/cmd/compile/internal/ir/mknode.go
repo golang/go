@@ -19,7 +19,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -143,8 +143,8 @@ func main() {
 		}
 	}
 	// Sort for deterministic output.
-	sort.Slice(concreteNodes, func(i, j int) bool {
-		return concreteNodes[i].Name.Name < concreteNodes[j].Name.Name
+	slices.SortFunc(concreteNodes, func(a, b *ast.TypeSpec) int {
+		return strings.Compare(a.Name.Name, b.Name.Name)
 	})
 	// Generate code for each concrete type.
 	for _, t := range concreteNodes {

@@ -10,8 +10,9 @@ import (
 	"go/constant"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"cmd/compile/internal/base"
@@ -264,8 +265,8 @@ func GlobalLinksym(n *ir.Name) *obj.LSym {
 }
 
 func WriteFuncSyms() {
-	sort.Slice(funcsyms, func(i, j int) bool {
-		return funcsyms[i].Linksym().Name < funcsyms[j].Linksym().Name
+	slices.SortFunc(funcsyms, func(a, b *ir.Name) int {
+		return strings.Compare(a.Linksym().Name, b.Linksym().Name)
 	})
 	for _, nam := range funcsyms {
 		s := nam.Sym()

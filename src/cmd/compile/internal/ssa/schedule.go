@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmp"
 	"container/heap"
 	"slices"
 	"sort"
@@ -261,8 +262,8 @@ func schedule(f *Func) {
 		}
 
 		// Sort all the edges by source Value ID.
-		sort.Slice(edges, func(i, j int) bool {
-			return edges[i].x.ID < edges[j].x.ID
+		slices.SortFunc(edges, func(a, b edge) int {
+			return cmp.Compare(a.x.ID, b.x.ID)
 		})
 		// Compute inEdges for values in this block.
 		for _, e := range edges {
