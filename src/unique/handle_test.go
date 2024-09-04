@@ -9,7 +9,10 @@ import (
 	"internal/abi"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
+	"time"
+	"unsafe"
 )
 
 // Set up special types. Because the internal maps are sharded by type,
@@ -109,4 +112,23 @@ func checkMapsFor[T comparable](t *testing.T, value T) {
 		return
 	}
 	t.Errorf("failed to drain internal maps of %v", value)
+}
+
+func TestMakeClonesStrings(t *testing.T) {
+	s := strings.Clone("abcdefghijklmnopqrstuvwxyz") // N.B. Must be big enough to not be tiny-allocated.
+	ran := make(chan bool)
+	runtime.SetFinalizer(unsafe.StringData(s), func(_ *byte) {
+		ran <- true
+	})
+	h := Make(s)
+
+	// Clean up s (hopefully) and run the finalizer.
+	runtime.GC()
+
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("string was improperly retained")
+	case <-ran:
+	}
+	runtime.KeepAlive(h)
 }
