@@ -434,7 +434,7 @@ func rotateRight[E any](s []E, r int) {
 	rotateLeft(s, len(s)-r)
 }
 
-// overlaps reports whether the memory ranges a[0:len(a)] and b[0:len(b)] overlap.
+// overlaps reports whether the memory ranges a[:len(a)] and b[:len(b)] overlap.
 func overlaps[E any](a, b []E) bool {
 	if len(a) == 0 || len(b) == 0 {
 		return false

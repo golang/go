@@ -1038,21 +1038,11 @@ func TestDotSlashLookup(t *testing.T) {
 		t.Skip("scanning file system takes too long")
 	}
 	maybeSkip(t)
-	where, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.Chdir(where); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	if err := os.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text")); err != nil {
-		t.Fatal(err)
-	}
+	t.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text"))
+
 	var b strings.Builder
 	var flagSet flag.FlagSet
-	err = do(&b, &flagSet, []string{"./template"})
+	err := do(&b, &flagSet, []string{"./template"})
 	if err != nil {
 		t.Errorf("unexpected error %q from ./template", err)
 	}

@@ -78,9 +78,9 @@ func TestConstantTimeEq(t *testing.T) {
 
 func makeCopy(v int, x, y []byte) []byte {
 	if len(x) > len(y) {
-		x = x[0:len(y)]
+		x = x[:len(y)]
 	} else {
-		y = y[0:len(x)]
+		y = y[:len(x)]
 	}
 	if v == 1 {
 		copy(x, y)
@@ -90,9 +90,9 @@ func makeCopy(v int, x, y []byte) []byte {
 
 func constantTimeCopyWrapper(v int, x, y []byte) []byte {
 	if len(x) > len(y) {
-		x = x[0:len(y)]
+		x = x[:len(y)]
 	} else {
-		y = y[0:len(x)]
+		y = y[:len(x)]
 	}
 	v &= 1
 	ConstantTimeCopy(v, x, y)

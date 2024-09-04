@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -35,23 +34,8 @@ func TestMain(m *testing.M) {
 
 // vetPath returns the path to the "vet" binary to run.
 func vetPath(t testing.TB) string {
-	t.Helper()
-	testenv.MustHaveExec(t)
-
-	vetPathOnce.Do(func() {
-		vetExePath, vetPathErr = os.Executable()
-	})
-	if vetPathErr != nil {
-		t.Fatal(vetPathErr)
-	}
-	return vetExePath
+	return testenv.Executable(t)
 }
-
-var (
-	vetPathOnce sync.Once
-	vetExePath  string
-	vetPathErr  error
-)
 
 func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), arg, path.Join("cmd/vet/testdata", pkg))

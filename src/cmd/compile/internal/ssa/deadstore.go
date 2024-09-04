@@ -29,10 +29,7 @@ func dse(f *Func) {
 		//  storeUse contains stores which are used by a subsequent store.
 		loadUse.clear()
 		storeUse.clear()
-		// TODO(deparker): use the 'clear' builtin once compiler bootstrap minimum version is raised to 1.21.
-		for k := range localAddrs {
-			delete(localAddrs, k)
-		}
+		clear(localAddrs)
 		stores = stores[:0]
 		for _, v := range b.Values {
 			if v.Op == OpPhi {

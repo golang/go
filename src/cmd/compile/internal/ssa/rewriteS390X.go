@@ -12118,7 +12118,7 @@ func rewriteValueS390X_OpS390XSLD(v *Value) bool {
 func rewriteValueS390X_OpS390XSLDconst(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (SLDconst (SRDconst x [c]) [d])
-	// result: (RISBGZ x {s390x.NewRotateParams(uint8(max8(0, int8(c-d))), 63-d, uint8(int8(d-c)&63))})
+	// result: (RISBGZ x {s390x.NewRotateParams(uint8(max(0, int8(c-d))), 63-d, uint8(int8(d-c)&63))})
 	for {
 		d := auxIntToUint8(v.AuxInt)
 		if v_0.Op != OpS390XSRDconst {
@@ -12127,7 +12127,7 @@ func rewriteValueS390X_OpS390XSLDconst(v *Value) bool {
 		c := auxIntToUint8(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.reset(OpS390XRISBGZ)
-		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(uint8(max8(0, int8(c-d))), 63-d, uint8(int8(d-c)&63)))
+		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(uint8(max(0, int8(c-d))), 63-d, uint8(int8(d-c)&63)))
 		v.AddArg(x)
 		return true
 	}
@@ -12874,7 +12874,7 @@ func rewriteValueS390X_OpS390XSRD(v *Value) bool {
 func rewriteValueS390X_OpS390XSRDconst(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (SRDconst (SLDconst x [c]) [d])
-	// result: (RISBGZ x {s390x.NewRotateParams(d, uint8(min8(63, int8(63-c+d))), uint8(int8(c-d)&63))})
+	// result: (RISBGZ x {s390x.NewRotateParams(d, uint8(min(63, int8(63-c+d))), uint8(int8(c-d)&63))})
 	for {
 		d := auxIntToUint8(v.AuxInt)
 		if v_0.Op != OpS390XSLDconst {
@@ -12883,7 +12883,7 @@ func rewriteValueS390X_OpS390XSRDconst(v *Value) bool {
 		c := auxIntToUint8(v_0.AuxInt)
 		x := v_0.Args[0]
 		v.reset(OpS390XRISBGZ)
-		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(d, uint8(min8(63, int8(63-c+d))), uint8(int8(c-d)&63)))
+		v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(d, uint8(min(63, int8(63-c+d))), uint8(int8(c-d)&63)))
 		v.AddArg(x)
 		return true
 	}

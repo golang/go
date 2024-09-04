@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	"cmd/internal/edit"
 	"cmd/internal/notsha256"
@@ -390,6 +391,8 @@ func main() {
 	// Use the beginning of the notsha256 of the input to disambiguate.
 	h := notsha256.New()
 	io.WriteString(h, *importPath)
+	var once sync.Once
+	var wg sync.WaitGroup
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {
 		if *srcDir != "" {
@@ -411,22 +414,33 @@ func main() {
 			fatalf("%s", err)
 		}
 
-		// Apply trimpath to the file path. The path won't be read from after this point.
-		input, _ = objabi.ApplyRewrites(input, *trimpath)
-		if strings.ContainsAny(input, "\r\n") {
-			// ParseGo, (*Package).writeOutput, and printer.Fprint in SourcePos mode
-			// all emit line directives, which don't permit newlines in the file path.
-			// Bail early if we see anything newline-like in the trimmed path.
-			fatalf("input path contains newline character: %q", input)
-		}
-		goFiles[i] = input
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Apply trimpath to the file path. The path won't be read from after this point.
+			input, _ = objabi.ApplyRewrites(input, *trimpath)
+			if strings.ContainsAny(input, "\r\n") {
+				// ParseGo, (*Package).writeOutput, and printer.Fprint in SourcePos mode
+				// all emit line directives, which don't permit newlines in the file path.
+				// Bail early if we see anything newline-like in the trimmed path.
+				fatalf("input path contains newline character: %q", input)
+			}
+			goFiles[i] = input
 
-		f := new(File)
-		f.Edit = edit.NewBuffer(b)
-		f.ParseGo(input, b)
-		f.ProcessCgoDirectives()
-		fs[i] = f
+			f := new(File)
+			f.Edit = edit.NewBuffer(b)
+			f.ParseGo(input, b)
+			f.ProcessCgoDirectives()
+			gccIsClang := f.loadDefines(p.GccOptions)
+			once.Do(func() {
+				p.GccIsClang = gccIsClang
+			})
+
+			fs[i] = f
+		}()
 	}
+
+	wg.Wait()
 
 	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
 

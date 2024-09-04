@@ -23,12 +23,13 @@ import (
 // windowsTestAcount creates a test user and returns a token for that user.
 // If the user already exists, it will be deleted and recreated.
 // The caller is responsible for closing the token.
-func windowsTestAcount(t *testing.T) syscall.Token {
+func windowsTestAcount(t *testing.T) (syscall.Token, *User) {
+	const testUserName = "GoStdTestUser01"
 	var password [33]byte
 	rand.Read(password[:])
 	// Add special chars to ensure it satisfies password requirements.
 	pwd := base64.StdEncoding.EncodeToString(password[:]) + "_-As@!%*(1)4#2"
-	name, err := syscall.UTF16PtrFromString("GoStdTestUser01")
+	name, err := syscall.UTF16PtrFromString(testUserName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,6 +58,13 @@ func windowsTestAcount(t *testing.T) syscall.Token {
 	} else if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if err = windows.NetUserDel(nil, name); err != nil {
+			if !errors.Is(err, windows.NERR_UserNotFound) {
+				t.Fatal(err)
+			}
+		}
+	})
 	domain, err := syscall.UTF16PtrFromString(".")
 	if err != nil {
 		t.Fatal(err)
@@ -69,13 +77,12 @@ func windowsTestAcount(t *testing.T) syscall.Token {
 	}
 	t.Cleanup(func() {
 		token.Close()
-		if err = windows.NetUserDel(nil, name); err != nil {
-			if !errors.Is(err, windows.NERR_UserNotFound) {
-				t.Fatal(err)
-			}
-		}
 	})
-	return token
+	usr, err := Lookup(testUserName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return token, usr
 }
 
 func TestImpersonatedSelf(t *testing.T) {
@@ -127,7 +134,7 @@ func TestImpersonated(t *testing.T) {
 	}
 
 	// Create a test user and log in as that user.
-	token := windowsTestAcount(t)
+	token, _ := windowsTestAcount(t)
 
 	// Impersonate the test user.
 	if err = windows.ImpersonateLoggedOnUser(token); err != nil {
@@ -170,14 +177,28 @@ func TestCurrentNetapi32(t *testing.T) {
 		os.Exit(0)
 		return
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
+	exe := testenv.Executable(t)
 	cmd := testenv.CleanCmdEnv(exec.Command(exe, "-test.run=^TestCurrentNetapi32$"))
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+func TestGroupIdsTestUser(t *testing.T) {
+	// Create a test user and log in as that user.
+	_, user := windowsTestAcount(t)
+
+	gids, err := user.GroupIds()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err != nil {
+		t.Fatalf("%+v.GroupIds(): %v", user, err)
+	}
+	if !containsID(gids, user.Gid) {
+		t.Errorf("%+v.GroupIds() = %v; does not contain user GID %s", user, gids, user.Gid)
 	}
 }

@@ -28,11 +28,7 @@ func TestFlag(t *testing.T) {
 		flag := flag
 		t.Run(flag, func(t *testing.T) {
 			t.Parallel()
-			exe, err := os.Executable()
-			if err != nil {
-				exe = os.Args[0]
-			}
-			cmd := exec.Command(exe, "-test.run=^TestFlag$", "-test_flag_arg="+flag)
+			cmd := exec.Command(testenv.Executable(t), "-test.run=^TestFlag$", "-test_flag_arg="+flag)
 			if flag != "" {
 				cmd.Args = append(cmd.Args, flag)
 			}

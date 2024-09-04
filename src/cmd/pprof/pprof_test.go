@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -28,23 +27,8 @@ func TestMain(m *testing.M) {
 
 // pprofPath returns the path to the "pprof" binary to run.
 func pprofPath(t testing.TB) string {
-	t.Helper()
-	testenv.MustHaveExec(t)
-
-	pprofPathOnce.Do(func() {
-		pprofExePath, pprofPathErr = os.Executable()
-	})
-	if pprofPathErr != nil {
-		t.Fatal(pprofPathErr)
-	}
-	return pprofExePath
+	return testenv.Executable(t)
 }
-
-var (
-	pprofPathOnce sync.Once
-	pprofExePath  string
-	pprofPathErr  error
-)
 
 // See also runtime/pprof.cpuProfilingBroken.
 func mustHaveCPUProfiling(t *testing.T) {

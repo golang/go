@@ -37,7 +37,7 @@ import (
 	"internal/buildcfg"
 	"log"
 	"math"
-	"sort"
+	"slices"
 )
 
 // ctxt5 holds state while assembling a single function.
@@ -1203,36 +1203,20 @@ func cmp(a int, b int) bool {
 	return false
 }
 
-type ocmp []Optab
-
-func (x ocmp) Len() int {
-	return len(x)
-}
-
-func (x ocmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x ocmp) Less(i, j int) bool {
-	p1 := &x[i]
-	p2 := &x[j]
-	n := int(p1.as) - int(p2.as)
-	if n != 0 {
-		return n < 0
+func ocmp(a, b Optab) int {
+	if a.as != b.as {
+		return int(a.as) - int(b.as)
 	}
-	n = int(p1.a1) - int(p2.a1)
-	if n != 0 {
-		return n < 0
+	if a.a1 != b.a1 {
+		return int(a.a1) - int(b.a1)
 	}
-	n = int(p1.a2) - int(p2.a2)
-	if n != 0 {
-		return n < 0
+	if a.a2 != b.a2 {
+		return int(a.a2) - int(b.a2)
 	}
-	n = int(p1.a3) - int(p2.a3)
-	if n != 0 {
-		return n < 0
+	if a.a3 != b.a3 {
+		return int(a.a3) - int(b.a3)
 	}
-	return false
+	return 0
 }
 
 func opset(a, b0 obj.As) {
@@ -1271,7 +1255,7 @@ func buildop(ctxt *obj.Link) {
 		}
 	}
 
-	sort.Sort(ocmp(optab[:n]))
+	slices.SortFunc(optab[:n], ocmp)
 	for i := 0; i < n; i++ {
 		r := optab[i].as
 		r0 := r & obj.AMask

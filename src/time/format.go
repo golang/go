@@ -405,7 +405,7 @@ func match(s1, s2 string) bool {
 
 func lookup(tab []string, val string) (int, string, error) {
 	for i, v := range tab {
-		if len(val) >= len(v) && match(val[0:len(v)], v) {
+		if len(val) >= len(v) && match(val[:len(v)], v) {
 			return i, val[len(v):], nil
 		}
 	}

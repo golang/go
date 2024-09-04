@@ -12,11 +12,12 @@ import (
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
+	"cmp"
 	"encoding/hex"
 	"fmt"
 	"internal/buildcfg"
 	"math/bits"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -231,10 +232,9 @@ type debugState struct {
 	// The pending location list entry for each user variable, indexed by VarID.
 	pendingEntries []pendingEntry
 
-	varParts         map[*ir.Name][]SlotID
-	blockDebug       []BlockDebug
-	pendingSlotLocs  []VarLoc
-	partsByVarOffset sort.Interface
+	varParts        map[*ir.Name][]SlotID
+	blockDebug      []BlockDebug
+	pendingSlotLocs []VarLoc
 }
 
 func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
@@ -588,9 +588,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 	if state.varParts == nil {
 		state.varParts = make(map[*ir.Name][]SlotID)
 	} else {
-		for n := range state.varParts {
-			delete(state.varParts, n)
-		}
+		clear(state.varParts)
 	}
 
 	// Recompose any decomposed variables, and establish the canonical
@@ -649,17 +647,16 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 		state.slotVars = state.slotVars[:len(state.slots)]
 	}
 
-	if state.partsByVarOffset == nil {
-		state.partsByVarOffset = &partsByVarOffset{}
-	}
 	for varID, n := range state.vars {
 		parts := state.varParts[n]
+		slices.SortFunc(parts, func(a, b SlotID) int {
+			return cmp.Compare(varOffset(state.slots[a]), varOffset(state.slots[b]))
+		})
+
 		state.varSlots[varID] = parts
 		for _, slotID := range parts {
 			state.slotVars[slotID] = VarID(varID)
 		}
-		*state.partsByVarOffset.(*partsByVarOffset) = partsByVarOffset{parts, state.slots}
-		sort.Sort(state.partsByVarOffset)
 	}
 
 	state.initializeCache(f, len(state.varParts), len(state.slots))
@@ -1179,17 +1176,6 @@ func varOffset(slot LocalSlot) int64 {
 	}
 	return offset
 }
-
-type partsByVarOffset struct {
-	slotIDs []SlotID
-	slots   []LocalSlot
-}
-
-func (a partsByVarOffset) Len() int { return len(a.slotIDs) }
-func (a partsByVarOffset) Less(i, j int) bool {
-	return varOffset(a.slots[a.slotIDs[i]]) < varOffset(a.slots[a.slotIDs[j]])
-}
-func (a partsByVarOffset) Swap(i, j int) { a.slotIDs[i], a.slotIDs[j] = a.slotIDs[j], a.slotIDs[i] }
 
 // A pendingEntry represents the beginning of a location list entry, missing
 // only its end coordinate.

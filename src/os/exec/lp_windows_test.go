@@ -25,13 +25,8 @@ func init() {
 	registerHelperCommand("printpath", cmdPrintPath)
 }
 
-func cmdPrintPath(args ...string) {
-	exe, err := os.Executable()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Executable: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println(exe)
+func cmdPrintPath(_ ...string) {
+	fmt.Println(testenv.Executable(nil))
 }
 
 // makePATH returns a PATH variable referring to the
@@ -82,7 +77,7 @@ func installProgs(t *testing.T, root string, files []string) {
 // (We use a copy instead of just a symlink to ensure that os.Executable
 // always reports an unambiguous path, regardless of how it is implemented.)
 func installExe(t *testing.T, dstPath string) {
-	src, err := os.Open(exePath(t))
+	src, err := os.Open(testenv.Executable(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,7 +314,7 @@ func TestLookPathWindows(t *testing.T) {
 			t.Setenv("PATH", pathVar)
 			t.Logf("set PATH=%s", pathVar)
 
-			chdir(t, root)
+			t.Chdir(root)
 
 			if !testing.Short() && !(tt.skipCmdExeCheck || errors.Is(tt.wantErr, exec.ErrDot)) {
 				// Check that cmd.exe, which is our source of ground truth,
@@ -554,7 +549,7 @@ func TestCommand(t *testing.T) {
 			t.Setenv("PATH", pathVar)
 			t.Logf("set PATH=%s", pathVar)
 
-			chdir(t, root)
+			t.Chdir(root)
 
 			cmd := exec.Command(tt.arg0, "printpath")
 			cmd.Dir = filepath.Join(root, tt.dir)

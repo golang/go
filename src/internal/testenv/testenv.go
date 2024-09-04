@@ -131,6 +131,7 @@ func HasGoRun() bool {
 // If not, MustHaveGoRun calls t.Skip with an explanation.
 func MustHaveGoRun(t testing.TB) {
 	if !HasGoRun() {
+		t.Helper()
 		t.Skipf("skipping test: 'go run' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 }
@@ -150,6 +151,7 @@ func HasParallelism() bool {
 // threads in parallel. If not, MustHaveParallelism calls t.Skip with an explanation.
 func MustHaveParallelism(t testing.TB) {
 	if !HasParallelism() {
+		t.Helper()
 		t.Skipf("skipping test: no parallelism available on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 }
@@ -321,6 +323,7 @@ var hasCgo = sync.OnceValue(func() bool {
 // MustHaveCGO calls t.Skip if cgo is not available.
 func MustHaveCGO(t testing.TB) {
 	if !HasCGO() {
+		t.Helper()
 		t.Skipf("skipping test: no cgo")
 	}
 }
@@ -336,6 +339,7 @@ func CanInternalLink(withCgo bool) bool {
 // If not, MustInternalLink calls t.Skip with an explanation.
 func MustInternalLink(t testing.TB, withCgo bool) {
 	if !CanInternalLink(withCgo) {
+		t.Helper()
 		if withCgo && CanInternalLink(false) {
 			t.Skipf("skipping test: internal linking on %s/%s is not supported with cgo", runtime.GOOS, runtime.GOARCH)
 		}
@@ -348,6 +352,7 @@ func MustInternalLink(t testing.TB, withCgo bool) {
 // If not, MustInternalLinkPIE calls t.Skip with an explanation.
 func MustInternalLinkPIE(t testing.TB) {
 	if !platform.InternalLinkPIESupported(runtime.GOOS, runtime.GOARCH) {
+		t.Helper()
 		t.Skipf("skipping test: internal linking for buildmode=pie on %s/%s is not supported", runtime.GOOS, runtime.GOARCH)
 	}
 }
@@ -357,6 +362,7 @@ func MustInternalLinkPIE(t testing.TB) {
 // If not, MustHaveBuildMode calls t.Skip with an explanation.
 func MustHaveBuildMode(t testing.TB, buildmode string) {
 	if !platform.BuildModeSupported(runtime.Compiler, buildmode, runtime.GOOS, runtime.GOARCH) {
+		t.Helper()
 		t.Skipf("skipping test: build mode %s on %s/%s is not supported by the %s compiler", buildmode, runtime.GOOS, runtime.GOARCH, runtime.Compiler)
 	}
 }
@@ -372,6 +378,7 @@ func HasSymlink() bool {
 func MustHaveSymlink(t testing.TB) {
 	ok, reason := hasSymlink()
 	if !ok {
+		t.Helper()
 		t.Skipf("skipping test: cannot make symlinks on %s/%s: %s", runtime.GOOS, runtime.GOARCH, reason)
 	}
 }
@@ -388,6 +395,7 @@ func HasLink() bool {
 // If not, MustHaveLink calls t.Skip with an explanation.
 func MustHaveLink(t testing.TB) {
 	if !HasLink() {
+		t.Helper()
 		t.Skipf("skipping test: hardlinks are not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 }
@@ -395,15 +403,15 @@ func MustHaveLink(t testing.TB) {
 var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
 
 func SkipFlaky(t testing.TB, issue int) {
-	t.Helper()
 	if !*flaky {
+		t.Helper()
 		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
 	}
 }
 
 func SkipFlakyNet(t testing.TB) {
-	t.Helper()
 	if v, _ := strconv.ParseBool(os.Getenv("GO_BUILDER_FLAKY_NET")); v {
+		t.Helper()
 		t.Skip("skipping test on builder known to have frequent network failures")
 	}
 }

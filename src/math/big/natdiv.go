@@ -602,7 +602,7 @@ func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
 	v := *vp
 	shlVU(v, vIn, shift)
 	u = u.make(len(uIn) + 1)
-	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
+	u[len(uIn)] = shlVU(u[:len(uIn)], uIn, shift)
 
 	// The caller should not pass aliased z and u, since those are
 	// the two different outputs, but correct just in case.
@@ -884,7 +884,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 	if qhatv.cmp(u.norm()) > 0 {
 		panic("impossible")
 	}
-	c := subVV(u[0:len(qhatv)], u[0:len(qhatv)], qhatv)
+	c := subVV(u[:len(qhatv)], u[:len(qhatv)], qhatv)
 	if c > 0 {
 		c = subVW(u[len(qhatv):], u[len(qhatv):], c)
 	}

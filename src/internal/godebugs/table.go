@@ -42,7 +42,7 @@ var All = []Info{
 	//{Name: "multipartfiles", Package: "mime/multipart"},
 	{Name: "multipartmaxheaders", Package: "mime/multipart"},
 	{Name: "multipartmaxparts", Package: "mime/multipart"},
-	{Name: "multipathtcp", Package: "net"},
+	{Name: "multipathtcp", Package: "net", Changed: 24, Old: "0"},
 	{Name: "netdns", Package: "net", Opaque: true},
 	{Name: "netedns0", Package: "net", Changed: 19, Old: "0"},
 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},

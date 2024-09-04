@@ -372,7 +372,7 @@ func TestSplitPath(t *testing.T) {
 //
 // Regression test for go.dev/issue/60181
 func TestIssue60181(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 
 	want := "hello gopher"
 

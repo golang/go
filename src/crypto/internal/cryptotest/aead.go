@@ -204,8 +204,8 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 							out := sealMsg(t, aead, prefix, nonce, plaintext, addData)
 
 							// Check that Seal didn't alter the prefix
-							if !bytes.Equal(out[0:len(prefix)], prefix) {
-								t.Errorf("Seal alters dst instead of appending; got %s, want %s", truncateHex(out[0:len(prefix)]), truncateHex(prefix))
+							if !bytes.Equal(out[:len(prefix)], prefix) {
+								t.Errorf("Seal alters dst instead of appending; got %s, want %s", truncateHex(out[:len(prefix)]), truncateHex(prefix))
 							}
 
 							ciphertext := out[len(prefix):]
@@ -237,8 +237,8 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 							out := openWithoutError(t, aead, prefix, nonce, ciphertext, addData)
 
 							// Check that Open didn't alter the prefix
-							if !bytes.Equal(out[0:len(prefix)], prefix) {
-								t.Errorf("Open alters dst instead of appending; got %s, want %s", truncateHex(out[0:len(prefix)]), truncateHex(prefix))
+							if !bytes.Equal(out[:len(prefix)], prefix) {
+								t.Errorf("Open alters dst instead of appending; got %s, want %s", truncateHex(out[:len(prefix)]), truncateHex(prefix))
 							}
 
 							after := out[len(prefix):]

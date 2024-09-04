@@ -24,7 +24,7 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
 			max = maxCopyFileRangeRound
 		}
 		n, e := copyFileRange(dst, src, int(max))
-		if e == nil {
+		if n > 0 {
 			remain -= n
 			written += n
 		}

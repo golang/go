@@ -819,13 +819,6 @@ func (t *node32) leftToRoot() *node32 {
 	return left
 }
 
-func max(a, b int8) int8 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func (t *node32) copy() *node32 {
 	u := *t
 	return &u
