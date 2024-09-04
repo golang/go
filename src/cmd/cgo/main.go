@@ -388,8 +388,8 @@ func main() {
 	// we use to coordinate between gcc and ourselves.
 	// We already put _cgo_ at the beginning, so the main
 	// concern is other cgo wrappers for the same functions.
-	// Use the beginning of the 32 bytes hash of the input to disambiguate.
-	h := hash.New32()
+	// Use the beginning of the 16 bytes hash of the input to disambiguate.
+	h := hash.New16()
 	io.WriteString(h, *importPath)
 	var once sync.Once
 	var wg sync.WaitGroup
