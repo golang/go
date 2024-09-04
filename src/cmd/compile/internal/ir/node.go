@@ -9,7 +9,6 @@ package ir
 import (
 	"fmt"
 	"go/constant"
-	"sort"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
@@ -427,16 +426,6 @@ func (s *NameSet) Add(n *Name) {
 		*s = make(map[*Name]struct{})
 	}
 	(*s)[n] = struct{}{}
-}
-
-// Sorted returns s sorted according to less.
-func (s NameSet) Sorted(less func(*Name, *Name) bool) []*Name {
-	var res []*Name
-	for n := range s {
-		res = append(res, n)
-	}
-	sort.Slice(res, func(i, j int) bool { return less(res[i], res[j]) })
-	return res
 }
 
 type PragmaFlag uint16
