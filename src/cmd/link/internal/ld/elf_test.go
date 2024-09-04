@@ -94,14 +94,8 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-
 	path := filepath.Join(dir, "x")
-	argv := []string{"build", "-o", path, filepath.Join(wd, "testdata", "issue39256")}
+	argv := []string{"build", "-o", path, "./testdata/issue39256"}
 	out, err := testenv.Command(t, testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("Build failure: %s\n%s\n", err, string(out))
