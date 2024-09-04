@@ -22,6 +22,10 @@ func rewriteValueARM64latelower(v *Value) bool {
 		return rewriteValueARM64latelower_OpARM64MOVBUreg(v)
 	case OpARM64MOVBreg:
 		return rewriteValueARM64latelower_OpARM64MOVBreg(v)
+	case OpARM64MOVDnop:
+		return rewriteValueARM64latelower_OpARM64MOVDnop(v)
+	case OpARM64MOVDreg:
+		return rewriteValueARM64latelower_OpARM64MOVDreg(v)
 	case OpARM64MOVHUreg:
 		return rewriteValueARM64latelower_OpARM64MOVHUreg(v)
 	case OpARM64MOVHreg:
@@ -399,6 +403,37 @@ func rewriteValueARM64latelower_OpARM64MOVBreg(v *Value) bool {
 			break
 		}
 		v.reset(OpARM64MOVDreg)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64latelower_OpARM64MOVDnop(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVDnop (MOVDconst [c]))
+	// result: (MOVDconst [c])
+	for {
+		if v_0.Op != OpARM64MOVDconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64ToAuxInt(c)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64latelower_OpARM64MOVDreg(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVDreg x)
+	// cond: x.Uses == 1
+	// result: (MOVDnop x)
+	for {
+		x := v_0
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64MOVDnop)
 		v.AddArg(x)
 		return true
 	}
