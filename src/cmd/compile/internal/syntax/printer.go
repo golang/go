@@ -916,7 +916,7 @@ func (p *printer) printParameterList(list []*Field, tok token) {
 			}
 			p.print(blank)
 		}
-		p.printNode(Unparen(f.Type)) // no need for (extra) parentheses around parameter types
+		p.printNode(f.Type)
 	}
 	// A type parameter list [P T] where the name P and the type expression T syntactically
 	// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
@@ -943,9 +943,13 @@ func combinesWithName(x Expr) bool {
 		// binary expressions
 		return combinesWithName(x.X) && !isTypeElem(x.Y)
 	case *ParenExpr:
-		// name(x) combines but we are making sure at
-		// the call site that x is never parenthesized.
-		panic("unexpected parenthesized expression")
+		// Note that the parser strips parentheses in these cases
+		// (see extractName, parser.typeOrNil) unless keep_parens
+		// is set, so we should never reach here.
+		// Do the right thing (rather than panic) for testing and
+		// in case we change parser behavior.
+		// See also go.dev/issues/69206.
+		return !isTypeElem(x.X)
 	}
 	return false
 }
