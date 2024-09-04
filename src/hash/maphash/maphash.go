@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package maphash provides hash functions on byte sequences.
+// Package maphash provides hash functions on byte sequences or comparable value.
 // These hash functions are intended to be used to implement hash tables or
 // other data structures that need to map arbitrary strings or byte
 // sequences to a uniform distribution on unsigned 64-bit integers.
@@ -16,7 +16,9 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/byteorder"
+	"math"
 	"reflect"
+	"unsafe"
 )
 
 // A Seed is a random value that selects the specific hash function
@@ -285,13 +287,11 @@ func (h *Hash) BlockSize() int { return len(h.buf) }
 
 // Comparable returns the hash of comparable value v with the given seed
 // such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.
-// If v contains a floating-point NaN, then the hash is non-deterministically random.
+// If v != v, then the resulting hash is randomly distributed.
 func Comparable[T comparable](seed Seed, v T) uint64 {
-	abi.Escape(v)
-	t := abi.TypeFor[T]()
-	len := t.Size()
-	if len == 0 {
-		return seed.s
+	t, ret := comparableReady(seed, v)
+	if ret != 0 {
+		return ret
 	}
 	var h Hash
 	h.SetSeed(seed)
@@ -299,12 +299,35 @@ func Comparable[T comparable](seed Seed, v T) uint64 {
 	return h.Sum64()
 }
 
+func comparableReady[T comparable](seed Seed, v T) (*abi.Type, uint64) {
+	// Let v be on the heap,
+	// make sure that if v is a pointer to a variable inside the function,
+	// if v and the value it points to do not change,
+	// Comparable(seed,v) before goroutine stack growth
+	// is equal to Comparable(seed,v) after goroutine stack growth.
+	abi.Escape(v)
+	t := abi.TypeFor[T]()
+	len := t.Size()
+	if len == 0 {
+		return t, seed.s
+	}
+	return t, 0
+}
+
 // WriteComparable adds x to the data hashed by h.
 func WriteComparable[T comparable](h *Hash, x T) {
-	comparableF(h, x, abi.TypeFor[T]())
+	t, ret := comparableReady(h.seed, x)
+	if ret != 0 {
+		return
+	}
+	comparableF(h, x, t)
 }
 
 func appendT(h *Hash, v reflect.Value) {
+	var buf [8]byte
+	byteorder.LePutUint64(buf[:], uint64(uintptr(unsafe.Pointer(abi.TypeOf(v.Type())))))
+	h.Write(buf[:])
+
 	switch v.Kind() {
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
 		var buf [8]byte
@@ -317,8 +340,11 @@ func appendT(h *Hash, v reflect.Value) {
 		h.Write(buf[:])
 		return
 	case reflect.Array:
-		for i := range v.Len() {
-			appendT(h, v.Index(i))
+		var buf [8]byte
+		for i := range uint64(v.Len()) {
+			byteorder.LePutUint64(buf[:], i)
+			h.Write(buf[:])
+			appendT(h, v.Index(int(i)))
 		}
 		return
 	case reflect.String:
@@ -326,26 +352,26 @@ func appendT(h *Hash, v reflect.Value) {
 		return
 	case reflect.Struct:
 		for i := range v.NumField() {
-			appendT(h, v.Field(i))
+			f := v.Field(i)
+			h.WriteString(f.Type().String())
+			appendT(h, f)
 		}
 		return
 	case reflect.Complex64, reflect.Complex128:
 		c := v.Complex()
 		var buf [8]byte
-		byteorder.LePutUint64(buf[:], uint64(real(c)))
+		byteorder.LePutUint64(buf[:], math.Float64bits(real(c)))
 		h.Write(buf[:])
-		byteorder.LePutUint64(buf[:], uint64(imag(c)))
+		byteorder.LePutUint64(buf[:], math.Float64bits(imag(c)))
 		h.Write(buf[:])
 		return
 	case reflect.Float32, reflect.Float64:
 		var buf [8]byte
-		byteorder.LePutUint64(buf[:], uint64(v.Float()))
+		byteorder.LePutUint64(buf[:], math.Float64bits(v.Float()))
 		h.Write(buf[:])
 		return
 	case reflect.Bool:
-		var buf [8]byte
-		byteorder.LePutUint16(buf[:], btoi(v.Bool()))
-		h.Write(buf[:])
+		h.WriteByte(btoi(v.Bool()))
 		return
 	case reflect.UnsafePointer, reflect.Pointer:
 		var buf [8]byte
@@ -359,7 +385,7 @@ func appendT(h *Hash, v reflect.Value) {
 	panic(fmt.Errorf("hash/maphash: %s not comparable", v.Type().String()))
 }
 
-func btoi(b bool) uint16 {
+func btoi(b bool) byte {
 	if b {
 		return 1
 	}
