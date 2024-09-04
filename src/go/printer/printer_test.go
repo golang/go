@@ -867,11 +867,11 @@ func TestEmptyDecl(t *testing.T) { // issue 63566
 
 func TestDocFormat(t *testing.T) {
 	cases := []struct {
-		in  string
-		fmt string
+		src  string
+		want string
 	}{
 		{
-			in: `package main
+			src: `package main
 
 func main() {
 //
@@ -880,7 +880,7 @@ func main() {
 //
 }
 `,
-			fmt: `package main
+			want: `package main
 
 func main() {
 	//
@@ -891,7 +891,7 @@ func main() {
 `,
 		},
 		{
-			in: `package main
+			src: `package main
 
 func main() {
 	//go:directive
@@ -903,7 +903,7 @@ func main() {
 test()
 }
 `,
-			fmt: `package main
+			want: `package main
 
 func main() {
 	//go:directive
@@ -917,7 +917,7 @@ func main() {
 `,
 		},
 		{
-			in: `package main
+			src: `package main
 
 func main() {
 //go:directive
@@ -925,7 +925,7 @@ func main() {
 type a struct{}
 }
 `,
-			fmt: `package main
+			want: `package main
 
 func main() {
 	//go:directive
@@ -935,14 +935,14 @@ func main() {
 `,
 		},
 		{
-			in: `package main
+			src: `package main
 
 func a() {
 //line a:5:1
 	//
 }
 `,
-			fmt: `package main
+			want: `package main
 
 func a() {
 //line a:5:1
@@ -952,7 +952,7 @@ func a() {
 		},
 
 		{
-			in: `package main
+			src: `package main
 
 // test comment
 //go:directive2
@@ -960,7 +960,7 @@ func a() {
 func main() {
 }
 `,
-			fmt: `package main
+			want: `package main
 
 // test comment
 // test comment
@@ -971,7 +971,7 @@ func main() {
 `,
 		},
 		{
-			in: `package main
+			src: `package main
 
 	// test comment
 	//go:directive2
@@ -979,7 +979,7 @@ func main() {
 func main() {
 }
 `,
-			fmt: `package main
+			want: `package main
 
 // test comment
 // test comment
@@ -990,7 +990,7 @@ func main() {
 `,
 		},
 		{
-			in: `package main
+			src: `package main
 
 /* test
  */ // test comment
@@ -999,7 +999,7 @@ func main() {
 func main() {
 }
 `,
-			fmt: `package main
+			want: `package main
 
 /* test
  */ // test comment
@@ -1011,12 +1011,12 @@ func main() {
 		},
 
 		{
-			in: `package main  //comment
+			src: `package main  //comment
 var a int = 4 //comment
 func a() {
 }
 `,
-			fmt: `package main  //comment
+			want: `package main  //comment
 var a int = 4 //comment
 func a() {
 }
@@ -1025,31 +1025,31 @@ func a() {
 
 		// Edge case found by a fuzzer, not a real-world example.
 		{
-			in:  "package A\n\nimport(\"\f\"\n//\n\"\")",
-			fmt: "package A\n\nimport (\n\t\"\f\" //\n\t\"\"\n)\n",
+			src:  "package A\n\nimport(\"\f\"\n//\n\"\")",
+			want: "package A\n\nimport (\n\t\"\f\" //\n\t\"\"\n)\n",
 		},
 		{
-			in:  "package A\n\nimport(`\f`\n//\n\"\")",
-			fmt: "package A\n\nimport (\n\t`\f` //\n\t\"\"\n)\n",
+			src:  "package A\n\nimport(`\f`\n//\n\"\")",
+			want: "package A\n\nimport (\n\t`\f` //\n\t\"\"\n)\n",
 		},
 	}
 
 	for _, tt := range cases {
-		fs := token.NewFileSet()
-		f, err := parser.ParseFile(fs, "test.go", tt.in, parser.ParseComments|parser.SkipObjectResolution)
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, "test.go", tt.src, parser.ParseComments|parser.SkipObjectResolution)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		var s strings.Builder
+		var buf strings.Builder
 		cfg := Config{Tabwidth: 8, Mode: UseSpaces | TabIndent}
-		if err := cfg.Fprint(&s, fs, f); err != nil {
+		if err := cfg.Fprint(&buf, fset, f); err != nil {
 			t.Fatal(err)
 		}
 
-		out := s.String()
-		if out != tt.fmt {
-			t.Errorf("source\n%v\nformatted as:\n%v\nwant formatted as:\n%v", tt.in, out, tt.fmt)
+		got := buf.String()
+		if got != tt.want {
+			t.Errorf("source\n%v\nformatted as:\n%v\nwant formatted as:\n%v", tt.src, got, tt.want)
 		}
 	}
 }

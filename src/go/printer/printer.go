@@ -63,15 +63,12 @@ type printer struct {
 	mode         pmode        // current printer mode
 	endAlignment bool         // if set, terminate alignment immediately
 	impliedSemi  bool         // if set, a linebreak implies a semicolon
+	inDecl       bool         // if set, printer is inside declaration (after first token)
 	lastTok      token.Token  // last token printed (token.ILLEGAL if it's whitespace)
 	prevOpen     token.Token  // previous non-brace "open" token (, [, or token.ILLEGAL
 	wsbuf        []whiteSpace // delayed white space
 	goBuild      []int        // start index of all //go:build comments in output
 	plusBuild    []int        // start index of all // +build comments in output
-
-	// inDecl is set to true when inside of an ast.Decl,
-	// after printing the first token of that declaration.
-	inDecl bool
 
 	// Positions
 	// The out position differs from the pos position when the result
