@@ -71,8 +71,8 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c
-## explicit; go 1.19
+# golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c
+## explicit; go 1.22.6
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
 golang.org/x/tools/go/analysis

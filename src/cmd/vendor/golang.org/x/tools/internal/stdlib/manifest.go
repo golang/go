@@ -951,7 +951,7 @@ var PackageSymbols = map[string][]Symbol{
 		{"ParseSessionState", Func, 21},
 		{"QUICClient", Func, 21},
 		{"QUICConfig", Type, 21},
-		{"QUICConfig.EnableStoreSessionEvent", Field, 23},
+		{"QUICConfig.EnableSessionEvents", Field, 23},
 		{"QUICConfig.TLSConfig", Field, 21},
 		{"QUICConn", Type, 21},
 		{"QUICEncryptionLevel", Type, 21},

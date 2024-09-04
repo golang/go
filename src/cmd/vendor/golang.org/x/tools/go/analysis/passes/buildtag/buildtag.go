@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/internal/versions"
 )
 
 const Doc = "check //go:build and // +build directives"
@@ -264,6 +265,8 @@ func (check *checker) goBuildLine(pos token.Pos, line string) {
 		return
 	}
 
+	check.tags(pos, x)
+
 	if check.goBuild == nil {
 		check.goBuild = x
 	}
@@ -323,6 +326,8 @@ func (check *checker) plusBuildLine(pos token.Pos, line string) {
 			check.crossCheck = false
 			return
 		}
+		check.tags(pos, y)
+
 		if check.plusBuild == nil {
 			check.plusBuild = y
 		} else {
@@ -362,4 +367,52 @@ func (check *checker) finish() {
 		check.pass.Reportf(check.plusBuildPos, "+build lines do not match //go:build condition")
 		return
 	}
+}
+
+// tags reports issues in go versions in tags within the expression e.
+func (check *checker) tags(pos token.Pos, e constraint.Expr) {
+	// Check that constraint.GoVersion is meaningful (>= go1.21).
+	if versions.ConstraintGoVersion == nil {
+		return
+	}
+
+	// Use Eval to visit each tag.
+	_ = e.Eval(func(tag string) bool {
+		if malformedGoTag(tag) {
+			check.pass.Reportf(pos, "invalid go version %q in build constraint", tag)
+		}
+		return false // result is immaterial as Eval does not short-circuit
+	})
+}
+
+// malformedGoTag returns true if a tag is likely to be a malformed
+// go version constraint.
+func malformedGoTag(tag string) bool {
+	// Not a go version?
+	if !strings.HasPrefix(tag, "go1") {
+		// Check for close misspellings of the "go1." prefix.
+		for _, pre := range []string{"go.", "g1.", "go"} {
+			suffix := strings.TrimPrefix(tag, pre)
+			if suffix != tag {
+				if valid, ok := validTag("go1." + suffix); ok && valid {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	// The tag starts with "go1" so it is almost certainly a GoVersion.
+	// Report it if it is not a valid build constraint.
+	valid, ok := validTag(tag)
+	return ok && !valid
+}
+
+// validTag returns (valid, ok) where valid reports when a tag is valid,
+// and ok reports determining if the tag is valid succeeded.
+func validTag(tag string) (valid bool, ok bool) {
+	if versions.ConstraintGoVersion != nil {
+		return versions.ConstraintGoVersion(&constraint.TagExpr{Tag: tag}) != "", true
+	}
+	return false, false
 }

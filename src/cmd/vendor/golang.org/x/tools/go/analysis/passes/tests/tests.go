@@ -6,7 +6,6 @@ package tests
 
 import (
 	_ "embed"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -184,13 +183,13 @@ func checkAddCalls(pass *analysis.Pass, fn *ast.FuncDecl, params *types.Tuple) {
 				i := mismatched[0]
 				expr := call.Args[i]
 				t := pass.TypesInfo.Types[expr].Type
-				pass.ReportRangef(expr, fmt.Sprintf("mismatched type in call to (*testing.F).Add: %v, fuzz target expects %v", t, params.At(i+1).Type()))
+				pass.ReportRangef(expr, "mismatched type in call to (*testing.F).Add: %v, fuzz target expects %v", t, params.At(i+1).Type())
 			} else if len(mismatched) > 1 {
 				var gotArgs, wantArgs []types.Type
 				for i := 0; i < len(call.Args); i++ {
 					gotArgs, wantArgs = append(gotArgs, pass.TypesInfo.Types[call.Args[i]].Type), append(wantArgs, params.At(i+1).Type())
 				}
-				pass.ReportRangef(call, fmt.Sprintf("mismatched types in call to (*testing.F).Add: %v, fuzz target expects %v", gotArgs, wantArgs))
+				pass.ReportRangef(call, "mismatched types in call to (*testing.F).Add: %v, fuzz target expects %v", gotArgs, wantArgs)
 			}
 		}
 		return true
@@ -244,7 +243,7 @@ func validateFuzzArgs(pass *analysis.Pass, params *types.Tuple, expr ast.Expr) b
 					}
 				}
 			}
-			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: "+formatAcceptedFuzzType())
+			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: %s", formatAcceptedFuzzType())
 			ok = false
 		}
 	}

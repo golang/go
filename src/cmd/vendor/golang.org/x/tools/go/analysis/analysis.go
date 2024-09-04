@@ -100,6 +100,8 @@ type Pass struct {
 	TypesSizes   types.Sizes    // function for computing sizes of types
 	TypeErrors   []types.Error  // type errors (only if Analyzer.RunDespiteErrors)
 
+	Module *Module // the package's enclosing module (possibly nil in some drivers)
+
 	// Report reports a Diagnostic, a finding about a specific location
 	// in the analyzed source code such as a potential mistake.
 	// It may be called by the Run function.
@@ -237,4 +239,11 @@ func (pass *Pass) String() string {
 // A Fact should not be modified once exported.
 type Fact interface {
 	AFact() // dummy method to avoid type errors
+}
+
+// A Module describes the module to which a package belongs.
+type Module struct {
+	Path      string // module path
+	Version   string // module version ("" if unknown, such as for workspace modules)
+	GoVersion string // go version used in module (e.g. "go1.22.0")
 }

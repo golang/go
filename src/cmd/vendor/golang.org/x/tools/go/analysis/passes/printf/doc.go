@@ -45,6 +45,18 @@
 //
 //	log.Print("%d", 123) // log.Print call has possible formatting directive %d
 //
+// Conversely, it also reports calls to Printf-like functions with a
+// non-constant format string and no other arguments:
+//
+//	fmt.Printf(message) // non-constant format string in call to fmt.Printf
+//
+// Such calls may have been intended for the function's Print-like
+// counterpart: if the value of message happens to contain "%",
+// misformatting will occur. In this case, the checker additionally
+// suggests a fix to turn the call into:
+//
+//	fmt.Printf("%s", message)
+//
 // # Inferred printf wrappers
 //
 // Functions that delegate their arguments to fmt.Printf are
