@@ -1425,6 +1425,14 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
 		}
 
+		// The default godebug is embedded in the binary. For main packages it's
+		// already taken into account for the action id through the build info. But
+		// to make sure it's included for tests of other packages, where there's no
+		// build info, use it as part of the action id. See issue #69203.
+		if p != nil {
+			fmt.Fprintf(h, "default GODEBUG %q\n", p.DefaultGODEBUG)
+		}
+
 		// The linker writes source file paths that refer to GOROOT,
 		// but only if -trimpath is not specified (see [gctoolchain.ld] in gc.go).
 		gorootFinal := cfg.GOROOT
