@@ -60,10 +60,10 @@ func testGetwdDeep(t *testing.T, setPWD bool) {
 		wd, err := Getwd()
 		t.Logf("Getwd len: %d", len(wd))
 		if err != nil {
-			// We can get an EPERM error if we can't read up
+			// We can get an EACCES error if we can't read up
 			// to root, which happens on the Android builders.
-			if errors.Is(err, syscall.EPERM) {
-				t.Logf("ignoring EPERM error: %v", err)
+			if errors.Is(err, syscall.EACCES) {
+				t.Logf("ignoring EACCES error: %v", err)
 				break
 			}
 			t.Fatal(err)
