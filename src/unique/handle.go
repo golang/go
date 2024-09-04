@@ -50,13 +50,13 @@ func Make[T comparable](value T) Handle[T] {
 		toInsert     *T // Keep this around to keep it alive.
 		toInsertWeak weak.Pointer[T]
 	)
-	newValue := func() weak.Pointer[T] {
+	newValue := func() (T, weak.Pointer[T]) {
 		if toInsert == nil {
 			toInsert = new(T)
 			*toInsert = clone(value, &m.cloneSeq)
 			toInsertWeak = weak.Make(toInsert)
 		}
-		return toInsertWeak
+		return *toInsert, toInsertWeak
 	}
 	var ptr *T
 	for {
@@ -64,7 +64,8 @@ func Make[T comparable](value T) Handle[T] {
 		wp, ok := m.Load(value)
 		if !ok {
 			// Try to insert a new value into the map.
-			wp, _ = m.LoadOrStore(value, newValue())
+			k, v := newValue()
+			wp, _ = m.LoadOrStore(k, v)
 		}
 		// Now that we're sure there's a value in the map, let's
 		// try to get the pointer we need out of it.
