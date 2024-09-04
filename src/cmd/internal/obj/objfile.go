@@ -494,7 +494,7 @@ func contentHash64(s *LSym) goobj.Hash64Type {
 // For now, we assume there is no circular dependencies among
 // hashed symbols.
 func (w *writer) contentHash(s *LSym) goobj.HashType {
-	h := hash.New32()
+	h := hash.New20()
 	var tmp [14]byte
 
 	// Include the size of the symbol in the hash.
