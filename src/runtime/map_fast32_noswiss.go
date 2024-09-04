@@ -105,7 +105,6 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
-//   - github.com/cloudwego/frugal
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.

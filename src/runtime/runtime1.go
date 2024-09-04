@@ -680,7 +680,6 @@ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 // reflect_resolveTextOff is for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
 //   - github.com/agiledragon/gomonkey/v2
 //
 // Do not remove or change the type signature.

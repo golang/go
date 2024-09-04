@@ -462,17 +462,7 @@ type modulehash struct {
 // To make sure the map isn't collected, we keep a second reference here.
 var pinnedTypemaps []map[typeOff]*_type
 
-var firstmoduledata moduledata // linker symbol
-
-// lastmoduledatap should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname lastmoduledatap
+var firstmoduledata moduledata  // linker symbol
 var lastmoduledatap *moduledata // linker symbol
 
 var modulesSlice *[]*moduledata // see activeModules
@@ -583,15 +573,6 @@ func moduledataverify() {
 
 const debugPcln = false
 
-// moduledataverify1 should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname moduledataverify1
 func moduledataverify1(datap *moduledata) {
 	// Check that the pclntab's format is valid.
 	hdr := datap.pcHeader
@@ -862,7 +843,6 @@ func badFuncInfoEntry(funcInfo) uintptr
 // findfunc should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
 //   - github.com/phuslu/log
 //
 // Do not remove or change the type signature.
@@ -1196,16 +1176,6 @@ func pcdatavalue1(f funcInfo, table uint32, targetpc uintptr, strict bool) int32
 }
 
 // Like pcdatavalue, but also return the start PC of this PCData value.
-//
-// pcdatavalue2 should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname pcdatavalue2
 func pcdatavalue2(f funcInfo, table uint32, targetpc uintptr) (int32, uintptr) {
 	if table >= f.npcdata {
 		return -1, 0
@@ -1234,16 +1204,6 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 }
 
 // step advances to the next pc, value pair in the encoded table.
-//
-// step should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname step
 func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) {
 	// For both uvdelta and pcdelta, the common case (~70%)
 	// is that they are a single byte. If so, avoid calling readvarint.
@@ -1289,15 +1249,6 @@ type stackmap struct {
 	bytedata [1]byte // bitmaps, each starting on a byte boundary
 }
 
-// stackmapdata should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname stackmapdata
 //go:nowritebarrier
 func stackmapdata(stkmap *stackmap, n int32) bitvector {
 	// Check this invariant only when stackDebug is on at all.

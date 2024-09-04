@@ -97,7 +97,6 @@ func memhash64(p unsafe.Pointer, h uintptr) uintptr
 //   - github.com/aristanetworks/goarista
 //   - github.com/bytedance/sonic
 //   - github.com/bytedance/go-tagexpr/v2
-//   - github.com/cloudwego/frugal
 //   - github.com/cloudwego/dynamicgo
 //   - github.com/v2fly/v2ray-core/v5
 //

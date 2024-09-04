@@ -97,7 +97,6 @@ func badsystemstack() {
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
 //   - github.com/chenzhuoyu/iasm
-//   - github.com/cloudwego/frugal
 //   - github.com/dgraph-io/ristretto
 //   - github.com/outcaste-io/ristretto
 //
@@ -132,7 +131,6 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
 //   - github.com/cloudwego/dynamicgo
-//   - github.com/cloudwego/frugal
 //   - github.com/ebitengine/purego
 //   - github.com/tetratelabs/wazero
 //   - github.com/ugorji/go/codec
@@ -365,15 +363,6 @@ func asmcgocall(fn, arg unsafe.Pointer) int32
 
 func morestack()
 
-// morestack_noctxt should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname morestack_noctxt
 func morestack_noctxt()
 
 func rt0_go()
@@ -465,7 +454,6 @@ func gcWriteBarrier1()
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
-//   - github.com/cloudwego/frugal
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.

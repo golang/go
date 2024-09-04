@@ -312,7 +312,6 @@ func makemap_small() *hmap {
 // makemap should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
@@ -607,7 +606,6 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
-//   - github.com/cloudwego/frugal
 //   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
 //   - github.com/ugorji/go/codec
@@ -867,7 +865,6 @@ search:
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
-//   - github.com/cloudwego/frugal
 //   - github.com/goccy/go-json
 //   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
@@ -928,7 +925,6 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
-//   - github.com/cloudwego/frugal
 //   - github.com/RomiChan/protobuf
 //   - github.com/segmentio/encoding
 //   - github.com/ugorji/go/codec
@@ -1066,16 +1062,6 @@ next:
 
 // mapclear deletes all keys from a map.
 // It is called by the compiler.
-//
-// mapclear should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/cloudwego/frugal
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname mapclear
 func mapclear(t *maptype, h *hmap) {
 	if raceenabled && h != nil {
 		callerpc := getcallerpc()
