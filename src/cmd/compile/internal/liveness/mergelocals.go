@@ -161,8 +161,8 @@ func (mls *MergeLocalsState) Followers(n *ir.Name, tmp []*ir.Name) []*ir.Name {
 	for _, k := range sl[1:] {
 		tmp = append(tmp, mls.vars[k])
 	}
-	sort.SliceStable(tmp, func(i, j int) bool {
-		return tmp[i].Sym().Name < tmp[j].Sym().Name
+	slices.SortStableFunc(tmp, func(a, b *ir.Name) int {
+		return strings.Compare(a.Sym().Name, b.Sym().Name)
 	})
 	return tmp
 }
