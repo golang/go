@@ -1100,6 +1100,8 @@ func buildop(ctxt *obj.Link) {
 		case AAND:
 			opset(AOR, r0)
 			opset(AXOR, r0)
+			opset(AORN, r0)
+			opset(AANDN, r0)
 
 		case ABEQ:
 			opset(ABNE, r0)
@@ -1858,6 +1860,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x2a << 15
 	case AXOR:
 		return 0x2b << 15
+	case AORN:
+		return 0x2c << 15 // orn
+	case AANDN:
+		return 0x2d << 15 // andn
 	case ASUB:
 		return 0x22 << 15
 	case ASUBU, ANEGW:

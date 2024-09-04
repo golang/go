@@ -385,6 +385,10 @@ const (
 	AMOVVF
 	AMOVVD
 
+	// 2.2.1.8
+	AORN
+	AANDN
+
 	// 2.2.7. Atomic Memory Access Instructions
 	AAMSWAPB
 	AAMSWAPH

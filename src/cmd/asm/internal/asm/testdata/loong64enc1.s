@@ -132,6 +132,11 @@ lable2:
 	BREAK				// 00002a00
 	UNDEF				// 00002a00
 
+	ANDN	R4, R5, R6		// a6901600
+	ANDN	R4, R5			// a5901600
+	ORN	R4, R5, R6		// a6101600
+	ORN	R4, R5			// a5101600
+
 	// mul
 	MUL	R4, R5	  		// a5101c00
 	MUL	R4, R5, R6	  	// a6101c00
