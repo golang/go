@@ -20,7 +20,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *syntax.CompositeLit
 		// composite literal type present - use it
 		// [...]T array types may only appear with composite literals.
 		// Check for them here so we don't have to handle ... in general.
-		if atyp, _ := e.Type.(*syntax.ArrayType); atyp != nil && atyp.Len == nil {
+		if atyp, _ := e.Type.(*syntax.ArrayType); atyp != nil && isdddArray(atyp) {
 			// We have an "open" [...]T array type.
 			// Create a new ArrayType with unknown length (-1)
 			// and finish setting it up after analyzing the literal.
@@ -124,7 +124,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *syntax.CompositeLit
 				check.assignment(x, etyp, "struct literal")
 			}
 			if len(e.ElemList) < len(fields) {
-				check.errorf(e.Rbrace, InvalidStructLit, "too few values in struct literal of type %s", base)
+				check.errorf(inNode(e, e.Rbrace), InvalidStructLit, "too few values in struct literal of type %s", base)
 				// ok to continue
 			}
 		}

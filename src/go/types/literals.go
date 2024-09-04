@@ -20,15 +20,13 @@ func (check *Checker) compositeLit(T *target, x *operand, e *ast.CompositeLit, h
 		// composite literal type present - use it
 		// [...]T array types may only appear with composite literals.
 		// Check for them here so we don't have to handle ... in general.
-		if atyp, _ := e.Type.(*ast.ArrayType); atyp != nil && atyp.Len != nil {
-			if ellip, _ := atyp.Len.(*ast.Ellipsis); ellip != nil && ellip.Elt == nil {
-				// We have an "open" [...]T array type.
-				// Create a new ArrayType with unknown length (-1)
-				// and finish setting it up after analyzing the literal.
-				typ = &Array{len: -1, elem: check.varType(atyp.Elt)}
-				base = typ
-				break
-			}
+		if atyp, _ := e.Type.(*ast.ArrayType); atyp != nil && isdddArray(atyp) {
+			// We have an "open" [...]T array type.
+			// Create a new ArrayType with unknown length (-1)
+			// and finish setting it up after analyzing the literal.
+			typ = &Array{len: -1, elem: check.varType(atyp.Elt)}
+			base = typ
+			break
 		}
 		typ = check.typ(e.Type)
 		base = typ
