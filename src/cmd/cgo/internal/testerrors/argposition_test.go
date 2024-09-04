@@ -58,7 +58,7 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 			}
 
 			if !gotMatch {
-				v.t.Errorf(errorMessage.String())
+				v.t.Error(errorMessage.String())
 			}
 		}
 	}

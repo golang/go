@@ -1019,7 +1019,7 @@ func (w *Walker) emitType(obj *types.TypeName) {
 
 func (w *Walker) emitStructType(name string, typ *types.Struct) {
 	typeStruct := fmt.Sprintf("type %s struct", name)
-	w.emitf(typeStruct)
+	w.emitf("%s", typeStruct)
 	defer w.pushScope(typeStruct)()
 
 	for i := 0; i < typ.NumFields(); i++ {

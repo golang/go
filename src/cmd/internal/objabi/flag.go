@@ -354,7 +354,7 @@ func (f *DebugFlag) Set(debugstr string) error {
 			}
 			err := f.debugSSA(phase, flag, val, valstring)
 			if err != "" {
-				log.Fatalf(err)
+				log.Fatal(err)
 			}
 			// Setting this false for -d=ssa/... preserves old behavior
 			// of turning off concurrency for any debug flags.

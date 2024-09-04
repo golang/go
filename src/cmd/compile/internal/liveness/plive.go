@@ -1148,7 +1148,7 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
 		s += " " + v
 	}
 
-	base.WarnfAt(pos, s)
+	base.WarnfAt(pos, "%s", s)
 }
 
 func (lv *liveness) printbvec(printed bool, name string, live bitvec.BitVec) bool {

@@ -1003,7 +1003,7 @@ func fmtFullPos(p src.XPos) string {
 	var sb strings.Builder
 	sep := ""
 	base.Ctxt.AllPos(p, func(pos src.Pos) {
-		fmt.Fprintf(&sb, sep)
+		sb.WriteString(sep)
 		sep = "|"
 		file := filepath.Base(pos.Filename())
 		fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())

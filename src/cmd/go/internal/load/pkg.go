@@ -1507,7 +1507,7 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 	perr := &PackageError{
 		alwaysPrintStack: true,
 		ImportStack:      stk.Copy(),
-		Err:              ImportErrorf(p.ImportPath, "use of internal package "+p.ImportPath+" not allowed"),
+		Err:              ImportErrorf(p.ImportPath, "use of internal package %s not allowed", p.ImportPath),
 	}
 	return perr
 }

@@ -46,7 +46,7 @@ func TestLargeText(t *testing.T) {
 		testname := fmt.Sprintf("bigfn%d", j)
 		fmt.Fprintf(&w, "TEXT ·%s(SB),$0\n", testname)
 		for i := 0; i < 2200000; i++ {
-			fmt.Fprintf(&w, inst)
+			w.WriteString(inst)
 		}
 		fmt.Fprintf(&w, "\tRET\n")
 		err := os.WriteFile(tmpdir+"/"+testname+".s", w.Bytes(), 0666)

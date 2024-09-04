@@ -1504,7 +1504,7 @@ func setDefaultBuildMod() {
 					}
 				}
 			} else {
-				cfg.BuildModReason = fmt.Sprintf("Go version in " + versionSource + " is unspecified, so vendor directory was not used.")
+				cfg.BuildModReason = fmt.Sprintf("Go version in %s is unspecified, so vendor directory was not used.", versionSource)
 			}
 		}
 	}
