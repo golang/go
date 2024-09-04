@@ -18,12 +18,6 @@ type netrcLine struct {
 	password string
 }
 
-var (
-	netrcOnce sync.Once
-	netrc     []netrcLine
-	netrcErr  error
-)
-
 func parseNetrc(data string) []netrcLine {
 	// See https://www.gnu.org/software/inetutils/manual/html_node/The-_002enetrc-file.html
 	// for documentation on the .netrc format.
@@ -91,20 +85,19 @@ func netrcPath() (string, error) {
 	return filepath.Join(dir, base), nil
 }
 
-func readNetrc() {
+var readNetrc = sync.OnceValues(func() ([]netrcLine, error) {
 	path, err := netrcPath()
 	if err != nil {
-		netrcErr = err
-		return
+		return nil, err
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			netrcErr = err
+		if os.IsNotExist(err) {
+			err = nil
 		}
-		return
+		return nil, err
 	}
 
-	netrc = parseNetrc(string(data))
-}
+	return parseNetrc(string(data)), nil
+})
