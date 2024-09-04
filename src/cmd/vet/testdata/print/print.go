@@ -678,3 +678,12 @@ func PointersToCompoundTypes() {
 	}
 	fmt.Printf("%s\n", T1{&T2{"x"}}) // ERROR "Printf format %s has arg T1{&T2{.x.}} of wrong type .*print\.T1"
 }
+
+// Regression test for #68796: materialized aliases cause printf
+// checker not to recognize "any" as identical to "interface{}".
+func printfUsingAnyNotEmptyInterface(format string, args ...any) {
+	_ = fmt.Sprintf(format, args...)
+}
+func _() {
+	printfUsingAnyNotEmptyInterface("%s", 123) // ERROR "wrong type"
+}
