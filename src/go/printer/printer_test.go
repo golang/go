@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -860,6 +861,195 @@ func TestEmptyDecl(t *testing.T) { // issue 63566
 		want := tok.String() + " ()"
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
+		}
+	}
+}
+
+func TestDocFormat(t *testing.T) {
+	cases := []struct {
+		src  string
+		want string
+	}{
+		{
+			src: `package main
+
+func main() {
+//
+//go:directive
+// test
+//
+}
+`,
+			want: `package main
+
+func main() {
+	//
+	//go:directive
+	// test
+	//
+}
+`,
+		},
+		{
+			src: `package main
+
+func main() {
+	//go:directive
+	// test
+	type a struct{}
+
+//go:directive
+// test
+test()
+}
+`,
+			want: `package main
+
+func main() {
+	//go:directive
+	// test
+	type a struct{}
+
+	//go:directive
+	// test
+	test()
+}
+`,
+		},
+		{
+			src: `package main
+
+func main() {
+//go:directive
+// test
+type a struct{}
+}
+`,
+			want: `package main
+
+func main() {
+	//go:directive
+	// test
+	type a struct{}
+}
+`,
+		},
+		{
+			src: `package main
+
+func a() {
+//line a:5:1
+	//
+}
+`,
+			want: `package main
+
+func a() {
+//line a:5:1
+	//
+}
+`,
+		},
+
+		{
+			src: `package main
+
+// test comment
+//go:directive2
+// test comment
+func main() {
+}
+`,
+			want: `package main
+
+// test comment
+// test comment
+//
+//go:directive2
+func main() {
+}
+`,
+		},
+		{
+			src: `package main
+
+	// test comment
+	//go:directive2
+	// test comment
+func main() {
+}
+`,
+			want: `package main
+
+// test comment
+// test comment
+//
+//go:directive2
+func main() {
+}
+`,
+		},
+		{
+			src: `package main
+
+/* test
+ */ // test comment
+//go:directive2
+// test comment
+func main() {
+}
+`,
+			want: `package main
+
+/* test
+ */ // test comment
+//go:directive2
+// test comment
+func main() {
+}
+`,
+		},
+
+		{
+			src: `package main  //comment
+var a int = 4 //comment
+func a() {
+}
+`,
+			want: `package main  //comment
+var a int = 4 //comment
+func a() {
+}
+`,
+		},
+
+		// Edge case found by a fuzzer, not a real-world example.
+		{
+			src:  "package A\n\nimport(\"\f\"\n//\n\"\")",
+			want: "package A\n\nimport (\n\t\"\f\" //\n\t\"\"\n)\n",
+		},
+		{
+			src:  "package A\n\nimport(`\f`\n//\n\"\")",
+			want: "package A\n\nimport (\n\t`\f` //\n\t\"\"\n)\n",
+		},
+	}
+
+	for _, tt := range cases {
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, "test.go", tt.src, parser.ParseComments|parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var buf strings.Builder
+		cfg := Config{Tabwidth: 8, Mode: UseSpaces | TabIndent}
+		if err := cfg.Fprint(&buf, fset, f); err != nil {
+			t.Fatal(err)
+		}
+
+		got := buf.String()
+		if got != tt.want {
+			t.Errorf("source\n%v\nformatted as:\n%v\nwant formatted as:\n%v", tt.src, got, tt.want)
 		}
 	}
 }
