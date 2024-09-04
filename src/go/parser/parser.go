@@ -2667,8 +2667,8 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
 //	P*[]int     T/F      P       *[]int
 //	P*E         T        P       *E
 //	P*E         F        nil     P*E
-//	P([]int)    T/F      P       []int
-//	P(E)        T        P       E
+//	P([]int)    T/F      P       ([]int)
+//	P(E)        T        P       (E)
 //	P(E)        F        nil     P(E)
 //	P*E|F|~G    T/F      P       *E|F|~G
 //	P*E|F|G     T        P       *E|F|G
@@ -2695,8 +2695,14 @@ func extractName(x ast.Expr, force bool) (*ast.Ident, ast.Expr) {
 	case *ast.CallExpr:
 		if name, _ := x.Fun.(*ast.Ident); name != nil {
 			if len(x.Args) == 1 && x.Ellipsis == token.NoPos && (force || isTypeElem(x.Args[0])) {
-				// x = name "(" x.ArgList[0] ")"
-				return name, x.Args[0]
+				// x = name (x.Args[0])
+				// (Note that the cmd/compile/internal/syntax parser does not care
+				// about syntax tree fidelity and does not preserve parentheses here.)
+				return name, &ast.ParenExpr{
+					Lparen: x.Lparen,
+					X:      x.Args[0],
+					Rparen: x.Rparen,
+				}
 			}
 		}
 	}
