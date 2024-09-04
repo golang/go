@@ -198,9 +198,7 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
 //	numOffsets       The number of offsets in offsetEncoding
 //	litenc, offenc   The literal and offset encoder to use
 func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int, litEnc, offEnc *huffmanEncoder) {
-	for i := range w.codegenFreq {
-		w.codegenFreq[i] = 0
-	}
+	clear(w.codegenFreq[:])
 	// Note that we are using codegen both as a temporary variable for holding
 	// a copy of the frequencies, and as the place where we put the result.
 	// This is fine because the output is always shorter than the input used
@@ -530,12 +528,8 @@ func (w *huffmanBitWriter) writeBlockDynamic(tokens []token, eof bool, input []b
 // and offsetEncoding.
 // The number of literal and offset tokens is returned.
 func (w *huffmanBitWriter) indexTokens(tokens []token) (numLiterals, numOffsets int) {
-	for i := range w.literalFreq {
-		w.literalFreq[i] = 0
-	}
-	for i := range w.offsetFreq {
-		w.offsetFreq[i] = 0
-	}
+	clear(w.literalFreq)
+	clear(w.offsetFreq)
 
 	for _, t := range tokens {
 		if t < matchType {
@@ -621,9 +615,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 	}
 
 	// Clear histogram
-	for i := range w.literalFreq {
-		w.literalFreq[i] = 0
-	}
+	clear(w.literalFreq)
 
 	// Add everything as literals
 	histogram(input, w.literalFreq)
