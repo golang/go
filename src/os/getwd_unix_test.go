@@ -9,6 +9,7 @@ package os_test
 import (
 	"errors"
 	. "os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -26,7 +27,9 @@ func TestGetwdDeepWithPWDSet(t *testing.T) {
 // testGetwdDeep checks that os.Getwd is able to return paths
 // longer than syscall.PathMax (with or without PWD set).
 func testGetwdDeep(t *testing.T, setPWD bool) {
-	dir := t.TempDir()
+	tempDir := t.TempDir()
+
+	dir := tempDir
 	t.Chdir(dir)
 
 	if setPWD {
@@ -66,7 +69,23 @@ func testGetwdDeep(t *testing.T, setPWD bool) {
 			t.Fatal(err)
 		}
 		if setPWD && wd != dir {
-			t.Fatalf("Getwd: want same value as $PWD: %q, got %q", dir, wd)
+			// It's possible for the stat of PWD to fail
+			// with ENAMETOOLONG, and for getwd to fail for
+			// the same reason, and it's possible for $TMPDIR
+			// to contain a symlink. In that case the fallback
+			// code will not return the same directory.
+			if len(dir) > 1000 {
+				symDir, err := filepath.EvalSymlinks(tempDir)
+				if err == nil && symDir != tempDir {
+					t.Logf("EvalSymlinks(%q) = %q", tempDir, symDir)
+					if strings.Replace(dir, tempDir, symDir, 1) == wd {
+						// Symlink confusion is OK.
+						break
+					}
+				}
+			}
+
+			t.Fatalf("Getwd: got %q, want same value as $PWD: %q", wd, dir)
 		}
 		// Ideally the success criterion should be len(wd) > syscall.PathMax,
 		// but the latter is not public for some platforms, so use Stat(wd).
