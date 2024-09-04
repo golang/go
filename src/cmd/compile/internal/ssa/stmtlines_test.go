@@ -18,7 +18,8 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -144,11 +145,11 @@ func TestStmtLines(t *testing.T) {
 	}
 	t.Logf("Saw %d out of %d lines without statement marks", len(nonStmtLines), len(lines))
 	if testing.Verbose() {
-		sort.Slice(nonStmtLines, func(i, j int) bool {
-			if nonStmtLines[i].File != nonStmtLines[j].File {
-				return nonStmtLines[i].File < nonStmtLines[j].File
+		slices.SortFunc(nonStmtLines, func(a, b Line) int {
+			if r := strings.Compare(a.File, b.File); r != 0 {
+				return r
 			}
-			return nonStmtLines[i].Line < nonStmtLines[j].Line
+			return a.Line - b.Line
 		})
 		for _, l := range nonStmtLines {
 			t.Logf("%s:%d has no DWARF is_stmt mark\n", l.File, l.Line)

@@ -7,6 +7,7 @@ package types
 import (
 	"cmd/compile/internal/base"
 	"cmd/internal/obj"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -125,6 +126,45 @@ func (a *Sym) Less(b *Sym) bool {
 		return a.Pkg.Path < b.Pkg.Path
 	}
 	return false
+}
+
+// Compare compares symbols a and b and returns -1, 0, or 1 if a is less than,
+// equal to, or greater than b, respectively.
+//
+// Symbols are ordered exported before non-exported, then by name, and
+// finally (for non-exported symbols) by package path.
+func (a *Sym) Compare(b *Sym) int {
+	if a == b {
+		return 0
+	}
+
+	// Nil before non-nil.
+	if a == nil {
+		return -1
+	}
+	if b == nil {
+		return 1
+	}
+
+	// Exported symbols before non-exported.
+	ea := IsExported(a.Name)
+	eb := IsExported(b.Name)
+	if ea != eb {
+		if ea {
+			return -1
+		}
+		return +1
+	}
+
+	// Order by name and then (for non-exported names) by package
+	// height and path.
+	if r := strings.Compare(a.Name, b.Name); r != 0 {
+		return r
+	}
+	if !ea {
+		return strings.Compare(a.Pkg.Path, b.Pkg.Path)
+	}
+	return 0
 }
 
 // IsExported reports whether name is an exported Go symbol (that is,

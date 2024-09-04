@@ -38,7 +38,7 @@ import (
 	"log"
 	"math"
 	"math/bits"
-	"sort"
+	"slices"
 )
 
 // ctxt9 holds state while assembling a single function.
@@ -1188,47 +1188,45 @@ func cmp(a int, b int) bool {
 // Used when sorting the optab. Sorting is
 // done in a way so that the best choice of
 // opcode/operand combination is considered first.
-func optabLess(i, j int) bool {
-	p1 := &optab[i]
-	p2 := &optab[j]
+func optabCmp(p1, p2 Optab) int {
 	n := int(p1.as) - int(p2.as)
 	// same opcode
 	if n != 0 {
-		return n < 0
+		return n
 	}
 	// Consider those that generate fewer
 	// instructions first.
 	n = int(p1.size) - int(p2.size)
 	if n != 0 {
-		return n < 0
+		return n
 	}
 	// operand order should match
 	// better choices first
 	n = int(p1.a1) - int(p2.a1)
 	if n != 0 {
-		return n < 0
+		return n
 	}
 	n = int(p1.a2) - int(p2.a2)
 	if n != 0 {
-		return n < 0
+		return n
 	}
 	n = int(p1.a3) - int(p2.a3)
 	if n != 0 {
-		return n < 0
+		return n
 	}
 	n = int(p1.a4) - int(p2.a4)
 	if n != 0 {
-		return n < 0
+		return n
 	}
 	n = int(p1.a5) - int(p2.a5)
 	if n != 0 {
-		return n < 0
+		return n
 	}
 	n = int(p1.a6) - int(p2.a6)
 	if n != 0 {
-		return n < 0
+		return n
 	}
-	return false
+	return 0
 }
 
 // Add an entry to the opcode table for
@@ -1283,7 +1281,7 @@ func buildop(ctxt *obj.Link) {
 	optab = append(optab, optabBase...)
 	optab = append(optab, optabGen...)
 	optab = append(optab, prefixOptab...)
-	sort.Slice(optab, optabLess)
+	slices.SortFunc(optab, optabCmp)
 
 	for i := range optab {
 		// Use the legacy assembler function if none provided.

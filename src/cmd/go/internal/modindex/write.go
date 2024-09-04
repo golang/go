@@ -6,9 +6,10 @@ package modindex
 
 import (
 	"cmd/go/internal/base"
+	"cmp"
 	"encoding/binary"
 	"go/token"
-	"sort"
+	"slices"
 )
 
 const indexVersion = "go index v2" // 11 bytes (plus \n), to align uint32s in index
@@ -20,8 +21,8 @@ func encodeModuleBytes(packages []*rawPackage) []byte {
 	e.Bytes([]byte(indexVersion + "\n"))
 	stringTableOffsetPos := e.Pos() // fill this at the end
 	e.Uint32(0)                     // string table offset
-	sort.Slice(packages, func(i, j int) bool {
-		return packages[i].dir < packages[j].dir
+	slices.SortFunc(packages, func(i, j *rawPackage) int {
+		return cmp.Compare(i.dir, j.dir)
 	})
 	e.Int(len(packages))
 	packagesPos := e.Pos()

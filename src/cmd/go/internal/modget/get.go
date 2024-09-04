@@ -31,7 +31,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1055,8 +1055,8 @@ func (r *resolver) performPatternAllQueries(ctx context.Context) {
 	// including in which errors it chooses to report, so sort the candidates
 	// into a deterministic-but-arbitrary order.
 	for _, q := range r.patternAllQueries {
-		sort.Slice(q.candidates, func(i, j int) bool {
-			return q.candidates[i].path < q.candidates[j].path
+		slices.SortFunc(q.candidates, func(a, b pathSet) int {
+			return strings.Compare(a.path, b.path)
 		})
 	}
 }
@@ -1146,8 +1146,8 @@ func (r *resolver) findAndUpgradeImports(ctx context.Context, queries []*query) 
 	// nondeterministic order. We want 'go get' to be fully deterministic,
 	// including in which errors it chooses to report, so sort the candidates
 	// into a deterministic-but-arbitrary order.
-	sort.Slice(upgrades, func(i, j int) bool {
-		return upgrades[i].path < upgrades[j].path
+	slices.SortFunc(upgrades, func(a, b pathSet) int {
+		return strings.Compare(a.path, b.path)
 	})
 	return upgrades
 }
@@ -1598,7 +1598,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			retractions = append(retractions, modMessage{m: m})
 		}
 	}
-	sort.Slice(retractions, func(i, j int) bool { return retractions[i].m.Path < retractions[j].m.Path })
+	slices.SortFunc(retractions, func(i, j modMessage) int { return strings.Compare(i.m.Path, j.m.Path) })
 	for i := range retractions {
 		i := i
 		r.work.Add(func() {
@@ -1619,7 +1619,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			deprecations = append(deprecations, modMessage{m: m})
 		}
 	}
-	sort.Slice(deprecations, func(i, j int) bool { return deprecations[i].m.Path < deprecations[j].m.Path })
+	slices.SortFunc(deprecations, func(i, j modMessage) int { return strings.Compare(i.m.Path, j.m.Path) })
 	for i := range deprecations {
 		i := i
 		r.work.Add(func() {
@@ -1777,24 +1777,24 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
 	for _, c := range changes {
 		sortedChanges = append(sortedChanges, c)
 	}
-	sort.Slice(sortedChanges, func(i, j int) bool {
-		pi := sortedChanges[i].path
-		pj := sortedChanges[j].path
-		if pi == pj {
-			return false
+	slices.SortFunc(sortedChanges, func(i, j change) int {
+		pi := i.path
+		pj := j.path
+		if ret := strings.Compare(pi, pj); ret != 0 {
+			// go first; toolchain second
+			switch {
+			case pi == "go":
+				return -1
+			case pj == "go":
+				return 1
+			case pi == "toolchain":
+				return -1
+			case pj == "toolchain":
+				return 1
+			}
+			return ret
 		}
-		// go first; toolchain second
-		switch {
-		case pi == "go":
-			return true
-		case pj == "go":
-			return false
-		case pi == "toolchain":
-			return true
-		case pj == "toolchain":
-			return false
-		}
-		return pi < pj
+		return 0
 	})
 
 	for _, c := range sortedChanges {

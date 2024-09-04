@@ -10,7 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -112,8 +112,14 @@ func nameLess(x, y string) bool {
 // NewArchive returns a sorted archive, and the other methods
 // preserve the sorting of the archive.
 func (a *Archive) Sort() {
-	sort.Slice(a.Files, func(i, j int) bool {
-		return nameLess(a.Files[i].Name, a.Files[j].Name)
+	slices.SortFunc(a.Files, func(a, b File) int {
+		if nameLess(a.Name, b.Name) {
+			return -1
+		} else if nameLess(b.Name, a.Name) {
+			return +1
+		} else {
+			return 0
+		}
 	})
 }
 

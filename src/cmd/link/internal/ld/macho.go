@@ -17,7 +17,7 @@ import (
 	"internal/buildcfg"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"unsafe"
 )
@@ -1006,15 +1006,14 @@ func machosymorder(ctxt *Link) {
 		}
 	}
 	collectmachosyms(ctxt)
-	sort.Slice(sortsym[:nsortsym], func(i, j int) bool {
-		s1 := sortsym[i]
-		s2 := sortsym[j]
-		k1 := symkind(ldr, s1)
-		k2 := symkind(ldr, s2)
+	slices.SortFunc(sortsym[:nsortsym], func(a, b loader.Sym) int {
+		k1 := symkind(ldr, a)
+		k2 := symkind(ldr, b)
 		if k1 != k2 {
-			return k1 < k2
+			return k1 - k2
 		}
-		return ldr.SymExtname(s1) < ldr.SymExtname(s2) // Note: unnamed symbols are not added in collectmachosyms
+		// Note: unnamed symbols are not added in collectmachosyms
+		return strings.Compare(ldr.SymExtname(a), ldr.SymExtname(b))
 	})
 	for i, s := range sortsym {
 		ldr.SetSymDynid(s, int32(i))

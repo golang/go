@@ -39,6 +39,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/loadpe"
 	"cmd/link/internal/sym"
+	"cmp"
 	"compress/zlib"
 	"debug/elf"
 	"encoding/binary"
@@ -47,7 +48,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -2278,33 +2279,41 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 
 	// Perform the sort.
 	if symn != sym.SPCLNTAB {
-		sort.Slice(sl, func(i, j int) bool {
-			si, sj := sl[i].sym, sl[j].sym
-			isz, jsz := sl[i].sz, sl[j].sz
+		slices.SortFunc(sl, func(i, j symNameSize) int {
+			si, sj := i.sym, j.sym
+			isz, jsz := i.sz, j.sz
 			switch {
 			case si == head, sj == tail:
-				return true
+				return -1
 			case sj == head, si == tail:
-				return false
+				return 1
+
 			// put zerobase right after all the zero-sized symbols,
 			// so zero-sized symbols have the same address as zerobase.
 			case si == zerobase:
-				return jsz != 0 // zerobase < nonzero-sized
+				if jsz != 0 {
+					return -1
+				}
+				return +1
 			case sj == zerobase:
-				return isz == 0 // 0-sized < zerobase
+				if isz == 0 {
+					return -1
+				}
+				return +1
 			}
 			if checkSize {
 				if isz != jsz {
-					return isz < jsz
+					if isz < jsz {
+						return -1
+					}
+					return +1
 				}
 			} else {
-				iname := sl[i].name
-				jname := sl[j].name
-				if iname != jname {
-					return iname < jname
+				if r := strings.Compare(i.name, j.name); r != 0 {
+					return r
 				}
 			}
-			return si < sj
+			return cmp.Compare(si, sj)
 		})
 	} else {
 		// PCLNTAB was built internally, and already has the proper order.

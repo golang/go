@@ -294,8 +294,8 @@ func (r *gitRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 		}
 		tags.List = append(tags.List, Tag{tag, hash})
 	}
-	sort.Slice(tags.List, func(i, j int) bool {
-		return tags.List[i].Name < tags.List[j].Name
+	slices.SortFunc(tags.List, func(a, b Tag) int {
+		return strings.Compare(a.Name, b.Name)
 	})
 
 	dir := prefix[:strings.LastIndex(prefix, "/")+1]

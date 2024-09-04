@@ -5,11 +5,11 @@
 package gover
 
 import (
-	"sort"
-	"strings"
-
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
+
+	"slices"
+	"strings"
 )
 
 // IsToolchain reports whether the module path corresponds to the
@@ -44,17 +44,15 @@ func ModCompare(path string, x, y string) int {
 // ModSort is like module.Sort but understands the "go" and "toolchain"
 // modules and their version ordering.
 func ModSort(list []module.Version) {
-	sort.Slice(list, func(i, j int) bool {
-		mi := list[i]
-		mj := list[j]
-		if mi.Path != mj.Path {
-			return mi.Path < mj.Path
+	slices.SortFunc(list, func(a, b module.Version) int {
+		if r := strings.Compare(a.Path, b.Path); r != 0 {
+			return r
 		}
 		// To help go.sum formatting, allow version/file.
 		// Compare semver prefix by semver rules,
 		// file by string order.
-		vi := mi.Version
-		vj := mj.Version
+		vi := a.Version
+		vj := b.Version
 		var fi, fj string
 		if k := strings.Index(vi, "/"); k >= 0 {
 			vi, fi = vi[:k], vi[k:]
@@ -62,10 +60,10 @@ func ModSort(list []module.Version) {
 		if k := strings.Index(vj, "/"); k >= 0 {
 			vj, fj = vj[:k], vj[k:]
 		}
-		if vi != vj {
-			return ModCompare(mi.Path, vi, vj) < 0
+		if r := strings.Compare(vi, vj); r != 0 {
+			return ModCompare(a.Path, vi, vj)
 		}
-		return fi < fj
+		return strings.Compare(fi, fj)
 	})
 }
 

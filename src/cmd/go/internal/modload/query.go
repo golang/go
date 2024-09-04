@@ -13,7 +13,6 @@ import (
 	"os"
 	pathpkg "path"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -1202,8 +1201,8 @@ func (rr *replacementRepo) Versions(ctx context.Context, prefix string) (*modfet
 	}
 
 	path := rr.ModulePath()
-	sort.Slice(versions, func(i, j int) bool {
-		return gover.ModCompare(path, versions[i], versions[j]) < 0
+	slices.SortFunc(versions, func(i, j string) int {
+		return gover.ModCompare(path, i, j)
 	})
 	str.Uniq(&versions)
 	return &modfetch.Versions{List: versions}, nil

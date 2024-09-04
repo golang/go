@@ -15,7 +15,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -167,16 +167,16 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 }
 
 func sortInlineStacks(x [][]int) {
-	sort.Slice(x, func(i, j int) bool {
-		if len(x[i]) != len(x[j]) {
-			return len(x[i]) < len(x[j])
+	slices.SortFunc(x, func(a, b []int) int {
+		if len(a) != len(b) {
+			return len(a) - len(b)
 		}
-		for k := range x[i] {
-			if x[i][k] != x[j][k] {
-				return x[i][k] < x[j][k]
+		for i := range a {
+			if a[i] != b[i] {
+				return a[i] - b[i]
 			}
 		}
-		return false
+		return 0
 	})
 }
 

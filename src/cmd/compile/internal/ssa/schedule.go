@@ -261,8 +261,8 @@ func schedule(f *Func) {
 		}
 
 		// Sort all the edges by source Value ID.
-		sort.Slice(edges, func(i, j int) bool {
-			return edges[i].x.ID < edges[j].x.ID
+		slices.SortFunc(edges, func(i, j edge) int {
+			return int(i.x.ID - j.x.ID)
 		})
 		// Compute inEdges for values in this block.
 		for _, e := range edges {

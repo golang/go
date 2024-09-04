@@ -7,7 +7,6 @@ package types
 import (
 	"math"
 	"slices"
-	"sort"
 
 	"cmd/compile/internal/base"
 	"cmd/internal/src"
@@ -94,21 +93,25 @@ func expandiface(t *Type) {
 
 	{
 		methods := t.Methods()
-		sort.SliceStable(methods, func(i, j int) bool {
-			mi, mj := methods[i], methods[j]
-
+		slices.SortStableFunc(methods, func(a, b *Field) int {
 			// Sort embedded types by type name (if any).
-			if mi.Sym == nil && mj.Sym == nil {
-				return mi.Type.Sym().Less(mj.Type.Sym())
+			if a.Sym == nil && b.Sym == nil {
+				return a.Type.Sym().Compare(b.Type.Sym())
 			}
 
 			// Sort methods before embedded types.
-			if mi.Sym == nil || mj.Sym == nil {
-				return mi.Sym != nil
+			if a.Sym == nil || b.Sym == nil {
+				//return a.Sym != nil
+				if a.Sym != nil {
+					return +1
+				}
+				if b.Sym != nil {
+					return -1
+				}
 			}
 
 			// Sort methods by symbol name.
-			return mi.Sym.Less(mj.Sym)
+			return a.Sym.Compare(b.Sym)
 		})
 	}
 

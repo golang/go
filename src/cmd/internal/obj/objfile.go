@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -780,7 +779,7 @@ func genFuncInfoSyms(ctxt *Link) {
 			o.File[i] = f
 			i++
 		}
-		sort.Slice(o.File, func(i, j int) bool { return o.File[i] < o.File[j] })
+		slices.Sort(o.File)
 		o.InlTree = make([]goobj.InlTreeNode, len(pc.InlTree.nodes))
 		for i, inl := range pc.InlTree.nodes {
 			f, l := ctxt.getFileIndexAndLine(inl.Pos)

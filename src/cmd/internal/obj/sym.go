@@ -41,7 +41,8 @@ import (
 	"internal/buildcfg"
 	"log"
 	"math"
-	"sort"
+	"slices"
+	"strings"
 )
 
 func Linknew(arch *LinkArch) *Link {
@@ -215,12 +216,16 @@ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
 	})
 }
 
-// Assign index to symbols.
+// NumberSyms Assign index to symbols.
 // asm is set to true if this is called by the assembler (i.e. not the compiler),
 // in which case all the symbols are non-package (for now).
 func (ctxt *Link) NumberSyms() {
 	if ctxt.Pkgpath == "" {
 		panic("NumberSyms called without package path")
+	}
+
+	lsymCmp := func(a, b *LSym) int {
+		return strings.Compare(a.Name, b.Name)
 	}
 
 	if ctxt.Headtype == objabi.Haix {
@@ -232,23 +237,17 @@ func (ctxt *Link) NumberSyms() {
 		// any original entries with the same name (all DWARFVAR symbols
 		// have empty names but different relocation sets) are not shuffled.
 		// TODO: Find a better place and optimize to only sort TOC symbols.
-		sort.SliceStable(ctxt.Data, func(i, j int) bool {
-			return ctxt.Data[i].Name < ctxt.Data[j].Name
-		})
+		slices.SortStableFunc(ctxt.Data, lsymCmp)
 	}
 
 	// Constant symbols are created late in the concurrent phase. Sort them
 	// to ensure a deterministic order.
-	sort.Slice(ctxt.constSyms, func(i, j int) bool {
-		return ctxt.constSyms[i].Name < ctxt.constSyms[j].Name
-	})
+	slices.SortFunc(ctxt.constSyms, lsymCmp)
 	ctxt.Data = append(ctxt.Data, ctxt.constSyms...)
 	ctxt.constSyms = nil
 
 	// So are SEH symbols.
-	sort.Slice(ctxt.SEHSyms, func(i, j int) bool {
-		return ctxt.SEHSyms[i].Name < ctxt.SEHSyms[j].Name
-	})
+	slices.SortFunc(ctxt.SEHSyms, lsymCmp)
 	ctxt.Data = append(ctxt.Data, ctxt.SEHSyms...)
 	ctxt.SEHSyms = nil
 
@@ -446,7 +445,7 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 	for f := range pc.UsedFiles {
 		usedFiles = append(usedFiles, f)
 	}
-	sort.Slice(usedFiles, func(i, j int) bool { return usedFiles[i] < usedFiles[j] })
+	slices.Sort(usedFiles)
 	for _, f := range usedFiles {
 		if filesym := ctxt.Lookup(files[f]); filesym != nil {
 			fn(fsym, filesym)

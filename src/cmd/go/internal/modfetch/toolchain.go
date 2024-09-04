@@ -8,7 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/go/internal/gover"
@@ -70,12 +70,12 @@ func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions,
 	}
 
 	if r.path == "go" {
-		sort.Slice(list, func(i, j int) bool {
-			return gover.Compare(list[i], list[j]) < 0
+		slices.SortFunc(list, func(a, b string) int {
+			return gover.Compare(a, b)
 		})
 	} else {
-		sort.Slice(list, func(i, j int) bool {
-			return gover.Compare(gover.FromToolchain(list[i]), gover.FromToolchain(list[j])) < 0
+		slices.SortFunc(list, func(a, b string) int {
+			return gover.Compare(gover.FromToolchain(a), gover.FromToolchain(b))
 		})
 	}
 	versions.List = list

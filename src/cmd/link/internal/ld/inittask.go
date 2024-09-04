@@ -8,7 +8,9 @@ import (
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"cmp"
 	"fmt"
+	"slices"
 	"sort"
 )
 
@@ -146,8 +148,8 @@ func (ctxt *Link) inittaskSym(rootNames []string, symName string) loader.Sym {
 	}
 
 	// Sort edges so we can look them up by edge destination.
-	sort.Slice(edges, func(i, j int) bool {
-		return edges[i].to < edges[j].to
+	slices.SortFunc(edges, func(i, j edge) int {
+		return cmp.Compare(i.to, j.to)
 	})
 
 	// Figure out the schedule.

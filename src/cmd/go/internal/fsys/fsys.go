@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -380,7 +381,9 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
 	for _, f := range files {
 		sortedFiles = append(sortedFiles, f)
 	}
-	sort.Slice(sortedFiles, func(i, j int) bool { return sortedFiles[i].Name() < sortedFiles[j].Name() })
+	slices.SortFunc(sortedFiles, func(i, j fs.FileInfo) int {
+		return strings.Compare(i.Name(), j.Name())
+	})
 	return sortedFiles, nil
 }
 

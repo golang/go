@@ -6,7 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
-	"sort"
+	"slices"
 )
 
 // decompose converts phi ops on compound builtin types into phi
@@ -433,12 +433,11 @@ type namedVal struct {
 // removes all values with OpInvalid, and re-sorts the list of Names.
 func deleteNamedVals(f *Func, toDelete []namedVal) {
 	// Arrange to delete from larger indices to smaller, to ensure swap-with-end deletion does not invalidate pending indices.
-	sort.Slice(toDelete, func(i, j int) bool {
-		if toDelete[i].locIndex != toDelete[j].locIndex {
-			return toDelete[i].locIndex > toDelete[j].locIndex
+	slices.SortFunc(toDelete, func(a, b namedVal) int {
+		if a.locIndex != b.locIndex {
+			return a.locIndex - b.locIndex
 		}
-		return toDelete[i].valIndex > toDelete[j].valIndex
-
+		return a.valIndex - b.valIndex
 	})
 
 	// Get rid of obsolete names

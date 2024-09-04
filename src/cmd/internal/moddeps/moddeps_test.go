@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -521,8 +520,8 @@ func findGorootModules(t *testing.T) []gorootModule {
 				break
 			}
 		}
-		sort.Slice(goroot.modules, func(i, j int) bool {
-			return goroot.modules[i].Dir < goroot.modules[j].Dir
+		slices.SortFunc(goroot.modules, func(i, j gorootModule) int {
+			return strings.Compare(i.Dir, j.Dir)
 		})
 	})
 	if goroot.err != nil {

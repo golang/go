@@ -279,7 +279,7 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 func (s *state) emitOpenDeferInfo() {
 	firstOffset := s.openDefers[0].closureNode.FrameOffset()
 
-	// Verify that cmpstackvarlt laid out the slots in order.
+	// Verify that cmpstackvar laid out the slots in order.
 	for i, r := range s.openDefers {
 		have := r.closureNode.FrameOffset()
 		want := firstOffset + int64(i)*int64(types.PtrSize)
@@ -4277,7 +4277,7 @@ func (s *state) openDeferSave(t *types.Type, val *ssa.Value) *ssa.Value {
 	pos := val.Pos
 	temp := typecheck.TempAt(pos.WithNotStmt(), s.curfn, t)
 	temp.SetOpenDeferSlot(true)
-	temp.SetFrameOffset(int64(len(s.openDefers))) // so cmpstackvarlt can order them
+	temp.SetFrameOffset(int64(len(s.openDefers))) // so cmpstackvar can order them
 	var addrTemp *ssa.Value
 	// Use OpVarLive to make sure stack slot for the closure is not removed by
 	// dead-store elimination

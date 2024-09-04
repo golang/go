@@ -6,7 +6,7 @@ package staticdata
 
 import (
 	"path"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -51,9 +51,7 @@ func embedFileList(v *ir.Name, kind int) []string {
 			}
 		}
 	}
-	sort.Slice(list, func(i, j int) bool {
-		return embedFileLess(list[i], list[j])
-	})
+	slices.SortFunc(list, embedFileCmp)
 
 	if kind == embedString || kind == embedBytes {
 		if len(list) > 1 {
@@ -88,12 +86,15 @@ func embedFileNameSplit(name string) (dir, elem string, isDir bool) {
 	return name[:i], name[i+1:], isDir
 }
 
-// embedFileLess implements the sort order for a list of embedded files.
+// embedFileCmp implements the sort order for a list of embedded files.
 // See the comment inside ../../../../embed/embed.go's Files struct for rationale.
-func embedFileLess(x, y string) bool {
+func embedFileCmp(x, y string) int {
 	xdir, xelem, _ := embedFileNameSplit(x)
 	ydir, yelem, _ := embedFileNameSplit(y)
-	return xdir < ydir || xdir == ydir && xelem < yelem
+	if r := strings.Compare(xdir, ydir); r != 0 {
+		return r
+	}
+	return strings.Compare(xelem, yelem)
 }
 
 // WriteEmbed emits the init data for a //go:embed variable,

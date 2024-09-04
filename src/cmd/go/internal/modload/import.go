@@ -13,7 +13,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/go/internal/cfg"
@@ -543,8 +543,8 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 
 	// Every module path in mods is a prefix of the import path.
 	// As in QueryPattern, prefer the longest prefix that satisfies the import.
-	sort.Slice(mods, func(i, j int) bool {
-		return len(mods[i].Path) > len(mods[j].Path)
+	slices.SortFunc(mods, func(i, j module.Version) int {
+		return len(j.Path) - len(i.Path)
 	})
 	for _, m := range mods {
 		root, isLocal, err := fetch(ctx, m)

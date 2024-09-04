@@ -29,13 +29,14 @@
 package syntax
 
 import (
+	"cmp"
 	"flag"
 	"fmt"
 	"internal/testenv"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -60,9 +61,11 @@ func sortedPositions(m map[position]string) []position {
 		list[i] = pos
 		i++
 	}
-	sort.Slice(list, func(i, j int) bool {
-		a, b := list[i], list[j]
-		return a.line < b.line || a.line == b.line && a.col < b.col
+	slices.SortFunc(list, func(a, b position) int {
+		if r := cmp.Compare(a.line, b.line); r != 0 {
+			return r
+		}
+		return cmp.Compare(a.col, b.col)
 	})
 	return list
 }

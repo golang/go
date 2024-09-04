@@ -7,11 +7,12 @@ package types_test
 import (
 	"cmd/compile/internal/types"
 	"reflect"
+	"slices"
 	"sort"
 	"testing"
 )
 
-func TestSymLess(t *testing.T) {
+func TestSymLessAndCmp(t *testing.T) {
 	var (
 		local = types.NewPkg("", "")
 		abc   = types.NewPkg("abc", "")
@@ -32,6 +33,7 @@ func TestSymLess(t *testing.T) {
 		abc.Lookup("a"),
 		local.Lookup("B"),
 	}
+	data2 := slices.Clone(data)
 	want := []*types.Sym{
 		local.Lookup("B"),
 		local.Lookup("B"),
@@ -54,6 +56,14 @@ func TestSymLess(t *testing.T) {
 	if !reflect.DeepEqual(data, want) {
 		t.Logf("want: %#v", want)
 		t.Logf("data: %#v", data)
+		t.Errorf("sorting failed")
+	}
+	slices.SortFunc(data2, func(a, b *types.Sym) int {
+		return a.Compare(b)
+	})
+	if !reflect.DeepEqual(data2, want) {
+		t.Logf("want: %#v", want)
+		t.Logf("data2: %#v", data2)
 		t.Errorf("sorting failed")
 	}
 }

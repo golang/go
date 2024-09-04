@@ -47,6 +47,18 @@ func (p XPos) After(q XPos) bool {
 	return n > m || n == m && p.lico > q.lico
 }
 
+// Compare returns an integer comparing the two positions.
+func (p XPos) Compare(q XPos) int {
+	//if r := cmp.Compare(p.index, q.index); r != 0 {
+	//	return r
+	//}
+	//return cmp.Compare(p.lico, q.lico)
+	if p.index != q.index {
+		return int(p.index - q.index)
+	}
+	return int(p.lico) - int(q.lico)
+}
+
 // WithNotStmt returns the same location to be marked with DWARF is_stmt=0
 func (p XPos) WithNotStmt() XPos {
 	p.lico = p.lico.withNotStmt()

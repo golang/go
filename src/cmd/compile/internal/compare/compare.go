@@ -13,7 +13,7 @@ import (
 	"cmd/compile/internal/types"
 	"fmt"
 	"math/bits"
-	"sort"
+	"slices"
 )
 
 // IsRegularMemory reports whether t can be compared/hashed as regular memory.
@@ -236,8 +236,14 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 		isCall := func(n ir.Node) bool {
 			return n.Op() == ir.OCALL || n.Op() == ir.OCALLFUNC
 		}
-		sort.SliceStable(c, func(i, j int) bool {
-			return !isCall(c[i]) && isCall(c[j])
+		slices.SortStableFunc(c, func(a, b ir.Node) int {
+			if isCall(a) && !isCall(b) {
+				return +1
+			}
+			if !isCall(a) && isCall(b) {
+				return -1
+			}
+			return 0
 		})
 		flatConds = append(flatConds, c...)
 	}

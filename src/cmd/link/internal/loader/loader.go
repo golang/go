@@ -19,6 +19,7 @@ import (
 	"log"
 	"math/bits"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -1515,7 +1516,7 @@ func (l *Loader) DynidSyms() []Sym {
 	for s := range l.dynid {
 		sl = append(sl, s)
 	}
-	sort.Slice(sl, func(i, j int) bool { return sl[i] < sl[j] })
+	slices.Sort(sl)
 	return sl
 }
 
@@ -1838,10 +1839,12 @@ func (l *Loader) SortSub(s Sym) Sym {
 
 // SortSyms sorts a list of symbols by their value.
 func (l *Loader) SortSyms(ss []Sym) {
-	sort.SliceStable(ss, func(i, j int) bool { return l.SymValue(ss[i]) < l.SymValue(ss[j]) })
+	slices.SortStableFunc(ss, func(a, b Sym) int {
+		return int(l.SymValue(a) - l.SymValue(b))
+	})
 }
 
-// Insure that reachable bitmap and its siblings have enough size.
+// Ensure that reachable bitmap and its siblings have enough size.
 func (l *Loader) growAttrBitmaps(reqLen int) {
 	if reqLen > l.attrReachable.Len() {
 		// These are indexed by global symbol

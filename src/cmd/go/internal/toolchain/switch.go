@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -180,8 +180,8 @@ func pathToolchains(ctx context.Context) ([]string, error) {
 			list = append(list, v)
 		}
 	}
-	sort.Slice(list, func(i, j int) bool {
-		return gover.Compare(list[i], list[j]) < 0
+	slices.SortFunc(list, func(i, j string) int {
+		return gover.Compare(i, j)
 	})
 	return list, nil
 }

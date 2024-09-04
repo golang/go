@@ -16,6 +16,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -952,22 +953,22 @@ func collectDepsErrors(p *load.Package) {
 	// Sort packages by the package on the top of the stack, which should be
 	// the package the error was produced for. Each package can have at most
 	// one error set on it.
-	sort.Slice(p.DepsErrors, func(i, j int) bool {
-		stki, stkj := p.DepsErrors[i].ImportStack, p.DepsErrors[j].ImportStack
+	slices.SortFunc(p.DepsErrors, func(a, b *load.PackageError) int {
+		stka, stkb := a.ImportStack, b.ImportStack
 		// Some packages are missing import stacks. To ensure deterministic
 		// sort order compare two errors that are missing import stacks by
 		// their errors' error texts.
-		if len(stki) == 0 {
-			if len(stkj) != 0 {
-				return true
+		if len(stka) == 0 {
+			if len(stkb) != 0 {
+				return -1
 			}
 
-			return p.DepsErrors[i].Err.Error() < p.DepsErrors[j].Err.Error()
-		} else if len(stkj) == 0 {
-			return false
+			return strings.Compare(a.Err.Error(), b.Err.Error())
+		} else if len(stkb) == 0 {
+			return +1
 		}
-		pathi, pathj := stki[len(stki)-1], stkj[len(stkj)-1]
-		return pathi < pathj
+		patha, pathb := stka[len(stka)-1], stkb[len(stkb)-1]
+		return strings.Compare(patha, pathb)
 	})
 }
 

@@ -8,7 +8,8 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"os"
-	"sort"
+	"slices"
+	"strings"
 	"sync"
 
 	"cmd/compile/internal/base"
@@ -24,17 +25,20 @@ import (
 	"cmd/internal/src"
 )
 
-// cmpstackvarlt reports whether the stack variable a sorts before b.
-func cmpstackvarlt(a, b *ir.Name, mls *liveness.MergeLocalsState) bool {
+// cmpstackvar compare the stack variable a and b.
+func cmpstackvar(a, b *ir.Name, mls *liveness.MergeLocalsState) int {
 	// Sort non-autos before autos.
 	if needAlloc(a) != needAlloc(b) {
-		return needAlloc(b)
+		if needAlloc(b) {
+			return -1
+		}
+		return +1
 	}
 
 	// If both are non-auto (e.g., parameters, results), then sort by
 	// frame offset (defined by ABI).
 	if !needAlloc(a) {
-		return a.FrameOffset() < b.FrameOffset()
+		return int(a.FrameOffset() - b.FrameOffset())
 	}
 
 	// From here on, a and b are both autos (i.e., local variables).
@@ -44,14 +48,20 @@ func cmpstackvarlt(a, b *ir.Name, mls *liveness.MergeLocalsState) bool {
 		aFollow := mls.Subsumed(a)
 		bFollow := mls.Subsumed(b)
 		if aFollow != bFollow {
-			return bFollow
+			if bFollow {
+				return -1
+			}
+			return +1
 		}
 	}
 
 	// Sort used before unused (so AllocFrame can truncate unused
 	// variables).
 	if a.Used() != b.Used() {
-		return a.Used()
+		if a.Used() {
+			return -1
+		}
+		return +1
 	}
 
 	// Sort pointer-typed before non-pointer types.
@@ -59,7 +69,10 @@ func cmpstackvarlt(a, b *ir.Name, mls *liveness.MergeLocalsState) bool {
 	ap := a.Type().HasPointers()
 	bp := b.Type().HasPointers()
 	if ap != bp {
-		return ap
+		if ap {
+			return -1
+		}
+		return +1
 	}
 
 	// Group variables that need zeroing, so we can efficiently zero
@@ -67,20 +80,29 @@ func cmpstackvarlt(a, b *ir.Name, mls *liveness.MergeLocalsState) bool {
 	ap = a.Needzero()
 	bp = b.Needzero()
 	if ap != bp {
-		return ap
+		if ap {
+			return -1
+		}
+		return +1
 	}
 
 	// Sort variables in descending alignment order, so we can optimally
 	// pack variables into the frame.
 	if a.Type().Alignment() != b.Type().Alignment() {
-		return a.Type().Alignment() > b.Type().Alignment()
+		if a.Type().Alignment() > b.Type().Alignment() {
+			return -1
+		}
+		return +1
 	}
 
 	// Sort normal variables before open-coded-defer slots, so that the
 	// latter are grouped together and near the top of the frame (to
 	// minimize varint encoding of their varp offset).
 	if a.OpenDeferSlot() != b.OpenDeferSlot() {
-		return a.OpenDeferSlot()
+		if a.OpenDeferSlot() {
+			return -1
+		}
+		return +1
 	}
 
 	// If a and b are both open-coded defer slots, then order them by
@@ -89,11 +111,11 @@ func cmpstackvarlt(a, b *ir.Name, mls *liveness.MergeLocalsState) bool {
 	//
 	// Their index was saved in FrameOffset in state.openDeferSave.
 	if a.OpenDeferSlot() {
-		return a.FrameOffset() > b.FrameOffset()
+		return int(b.FrameOffset() - a.FrameOffset())
 	}
 
 	// Tie breaker for stable results.
-	return a.Sym().Name < b.Sym().Name
+	return strings.Compare(a.Sym().Name, b.Sym().Name)
 }
 
 // needAlloc reports whether n is within the current frame, for which we need to
@@ -178,11 +200,11 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		leaders = make(map[*ir.Name]int64)
 	}
 
-	// Use sort.SliceStable instead of sort.Slice so stack layout (and thus
+	// Use SortStable instead of Sort so stack layout (and thus
 	// compiler output) is less sensitive to frontend changes that
 	// introduce or remove unused variables.
-	sort.SliceStable(fn.Dcl, func(i, j int) bool {
-		return cmpstackvarlt(fn.Dcl[i], fn.Dcl[j], mls)
+	slices.SortStableFunc(fn.Dcl, func(a, b *ir.Name) int {
+		return cmpstackvar(a, b, mls)
 	})
 
 	if mls != nil {
@@ -414,7 +436,9 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
 	for sym := range tracked {
 		trackSyms = append(trackSyms, sym)
 	}
-	sort.Slice(trackSyms, func(i, j int) bool { return trackSyms[i].Name < trackSyms[j].Name })
+	slices.SortFunc(trackSyms, func(a, b *obj.LSym) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 	for _, sym := range trackSyms {
 		r := obj.Addrel(fnsym)
 		r.Sym = sym
@@ -437,8 +461,8 @@ var (
 
 func CheckLargeStacks() {
 	// Check whether any of the functions we have compiled have gigantic stack frames.
-	sort.Slice(largeStackFrames, func(i, j int) bool {
-		return largeStackFrames[i].pos.Before(largeStackFrames[j].pos)
+	slices.SortFunc(largeStackFrames, func(a, b largeStack) int {
+		return a.pos.Compare(b.pos)
 	})
 	for _, large := range largeStackFrames {
 		if large.callee != 0 {

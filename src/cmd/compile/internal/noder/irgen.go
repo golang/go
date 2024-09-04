@@ -9,7 +9,7 @@ import (
 	"internal/buildcfg"
 	"internal/types/errors"
 	"regexp"
-	"sort"
+	"slices"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/rangefunc"
@@ -134,9 +134,8 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 				}
 			}
 		}
-		sort.Slice(nihTargs, func(i, j int) bool {
-			ti, tj := nihTargs[i], nihTargs[j]
-			return ti.pos.Before(tj.pos)
+		slices.SortFunc(nihTargs, func(a, b nihTarg) int {
+			return a.pos.Compare(b.pos)
 		})
 		for _, targ := range nihTargs {
 			base.ErrorfAt(targ.pos, 0, "cannot use incomplete (or unallocatable) type as a type argument: %v", targ.typ)

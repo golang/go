@@ -8,7 +8,7 @@ import (
 	"container/heap"
 	"fmt"
 	. "internal/types/errors"
-	"sort"
+	"slices"
 )
 
 // initOrder computes the Info.InitOrder for package variables.
@@ -257,8 +257,8 @@ func dependencyGraph(objMap map[Object]*declInfo) []*graphNode {
 	// throughout the function graph, the cost of removing a function at
 	// position X is proportional to cost * (len(funcG)-X). Therefore, we should
 	// remove high-cost functions last.
-	sort.Slice(funcG, func(i, j int) bool {
-		return funcG[i].cost() < funcG[j].cost()
+	slices.SortFunc(funcG, func(a, b *graphNode) int {
+		return a.cost() - b.cost()
 	})
 	for _, n := range funcG {
 		// connect each predecessor p of n with each successor s

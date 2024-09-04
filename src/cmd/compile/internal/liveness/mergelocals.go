@@ -10,10 +10,11 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/src"
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -160,8 +161,8 @@ func (mls *MergeLocalsState) Followers(n *ir.Name, tmp []*ir.Name) []*ir.Name {
 	for _, k := range sl[1:] {
 		tmp = append(tmp, mls.vars[k])
 	}
-	sort.SliceStable(tmp, func(i, j int) bool {
-		return tmp[i].Sym().Name < tmp[j].Sym().Name
+	slices.SortStableFunc(tmp, func(a, b *ir.Name) int {
+		return strings.Compare(a.Sym().Name, b.Sym().Name)
 	})
 	return tmp
 }
@@ -268,8 +269,8 @@ func (mls *MergeLocalsState) String() string {
 			leaders = append(leaders, n)
 		}
 	}
-	sort.Slice(leaders, func(i, j int) bool {
-		return leaders[i].Sym().Name < leaders[j].Sym().Name
+	slices.SortFunc(leaders, func(a, b *ir.Name) int {
+		return strings.Compare(a.Sym().Name, b.Sym().Name)
 	})
 	var sb strings.Builder
 	for _, n := range leaders {
@@ -312,9 +313,7 @@ func (cs *cstate) collectMergeCandidates() {
 	}
 
 	// Sort by pointerness, size, and then name.
-	sort.SliceStable(cands, func(i, j int) bool {
-		return nameLess(cands[i], cands[j])
-	})
+	slices.SortStableFunc(cands, nameCmp)
 
 	if cs.trace > 1 {
 		fmt.Fprintf(os.Stderr, "=-= raw cand list for func %v:\n", cs.fn)
@@ -580,7 +579,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		for k := range indirectUE {
 			ids = append(ids, k)
 		}
-		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		slices.Sort(ids)
 		for _, id := range ids {
 			fmt.Fprintf(os.Stderr, "  v%d:", id)
 			for _, n := range indirectUE[id] {
@@ -594,9 +593,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 	for k := range rawcands {
 		pruned = append(pruned, k)
 	}
-	sort.Slice(pruned, func(i, j int) bool {
-		return nameLess(pruned[i], pruned[j])
-	})
+	slices.SortFunc(pruned, nameCmp)
 	var regions []candRegion
 	pruned, regions = cs.genRegions(pruned)
 	if len(pruned) < 2 {
@@ -610,13 +607,13 @@ type nameCount struct {
 	count int32
 }
 
-// nameLess compares ci with cj to see if ci should be less than cj in
-// a relative ordering of candidate variables. This is used to sort
-// vars by pointerness (variables with pointers first), then in order
+// nameCmp compares ci with cj in a relative ordering
+// of candidate variables. This is used to sort vars
+// by pointerness (variables with pointers first), then in order
 // of decreasing alignment, then by decreasing size. We are assuming a
 // merging algorithm that merges later entries in the list into
 // earlier entries. An example ordered candidate list produced by
-// nameLess:
+// nameCmp:
 //
 //	idx   name    type       align    size
 //	0:    abc     [10]*int   8        80
@@ -625,20 +622,24 @@ type nameCount struct {
 //	3:    tuv     [9]int     8        72
 //	4:    wxy     [9]int32   4        36
 //	5:    jkl     [8]int32   4        32
-func nameLess(ci, cj *ir.Name) bool {
+func nameCmp(ci, cj *ir.Name) int {
 	if ci.Type().HasPointers() != cj.Type().HasPointers() {
-		return ci.Type().HasPointers()
+		if ci.Type().HasPointers() {
+			return -1
+		}
+		return +1
 	}
-	if ci.Type().Alignment() != cj.Type().Alignment() {
-		return cj.Type().Alignment() < ci.Type().Alignment()
+	if r := cmp.Compare(cj.Type().Alignment(), ci.Type().Alignment()); r != 0 {
+		return r
 	}
-	if ci.Type().Size() != cj.Type().Size() {
-		return cj.Type().Size() < ci.Type().Size()
+	if r := cmp.Compare(cj.Type().Size(), ci.Type().Size()); r != 0 {
+		return r
 	}
-	if ci.Sym().Name != cj.Sym().Name {
-		return ci.Sym().Name < cj.Sym().Name
+	if r := strings.Compare(ci.Sym().Name, cj.Sym().Name); r != 0 {
+		return r
 	}
-	return fmt.Sprintf("%v", ci.Pos()) < fmt.Sprintf("%v", cj.Pos())
+
+	return ci.Pos().Compare(cj.Pos())
 }
 
 // nextRegion starts at location idx and walks forward in the cands

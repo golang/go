@@ -6,11 +6,13 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"sort"
+	"slices"
+	"strings"
 
 	"cmd/internal/objfile"
 	"cmd/internal/telemetry/counter"
@@ -127,14 +129,22 @@ func nm(file string) {
 
 		found = true
 
+		var sorter func(i, j objfile.Sym) int
 		switch *sortOrder {
 		case "address":
-			sort.Slice(syms, func(i, j int) bool { return syms[i].Addr < syms[j].Addr })
+			sorter = func(i, j objfile.Sym) int {
+				return cmp.Compare(i.Addr, j.Addr)
+			}
 		case "name":
-			sort.Slice(syms, func(i, j int) bool { return syms[i].Name < syms[j].Name })
+			sorter = func(i, j objfile.Sym) int {
+				return strings.Compare(i.Name, j.Name)
+			}
 		case "size":
-			sort.Slice(syms, func(i, j int) bool { return syms[i].Size > syms[j].Size })
+			sorter = func(i, j objfile.Sym) int {
+				return cmp.Compare(j.Size, i.Size)
+			}
 		}
+		slices.SortFunc(syms, sorter)
 
 		for _, sym := range syms {
 			if len(entries) > 1 {

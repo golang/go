@@ -18,7 +18,6 @@ import (
 	"internal/buildcfg"
 	"math"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -1400,7 +1399,9 @@ func initdynexport(ctxt *Link) {
 		dexport = append(dexport, s)
 	}
 
-	sort.Slice(dexport, func(i, j int) bool { return ldr.SymExtname(dexport[i]) < ldr.SymExtname(dexport[j]) })
+	slices.SortFunc(dexport, func(a, b loader.Sym) int {
+		return strings.Compare(ldr.SymExtname(a), ldr.SymExtname(b))
+	})
 }
 
 func addexports(ctxt *Link) {

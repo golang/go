@@ -6,12 +6,13 @@ package ld
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"math/bits"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -1405,18 +1406,17 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 
 	/* Reloc */
 	// Ensure deterministic order
-	sort.Slice(f.loaderReloc, func(i, j int) bool {
-		r1, r2 := f.loaderReloc[i], f.loaderReloc[j]
-		if r1.sym != r2.sym {
-			return r1.sym < r2.sym
+	slices.SortFunc(f.loaderReloc, func(a, b *xcoffLoaderReloc) int {
+		if a.sym != b.sym {
+			return cmp.Compare(a.sym, b.sym)
 		}
-		if r1.roff != r2.roff {
-			return r1.roff < r2.roff
+		if a.roff != b.roff {
+			return int(a.roff - b.roff)
 		}
-		if r1.rtype != r2.rtype {
-			return r1.rtype < r2.rtype
+		if a.rtype != b.rtype {
+			return cmp.Compare(a.rtype, b.rtype)
 		}
-		return r1.symndx < r2.symndx
+		return int(a.symndx - b.symndx)
 	})
 
 	ep := ldr.Lookup(*flagEntrySymbol, 0)
@@ -1704,8 +1704,10 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 			for i := 0; i < relocs.Count(); i++ {
 				sorted[i] = i
 			}
-			sort.Slice(sorted, func(i, j int) bool {
-				return relocs.At(sorted[i]).Off() < relocs.At(sorted[j]).Off()
+			slices.SortFunc(sorted, func(a, b int) int {
+				at := relocs.At(a)
+				bt := relocs.At(b)
+				return int(at.Off() - bt.Off())
 			})
 
 			for _, ri := range sorted {

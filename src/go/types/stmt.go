@@ -12,7 +12,7 @@ import (
 	"go/token"
 	"internal/buildcfg"
 	. "internal/types/errors"
-	"sort"
+	"slices"
 )
 
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
@@ -61,8 +61,8 @@ func (check *Checker) usage(scope *Scope) {
 			unused = append(unused, v)
 		}
 	}
-	sort.Slice(unused, func(i, j int) bool {
-		return cmpPos(unused[i].pos, unused[j].pos) < 0
+	slices.SortFunc(unused, func(i, j *Var) int {
+		return cmpPos(i.pos, j.pos)
 	})
 	for _, v := range unused {
 		check.softErrorf(v, UnusedVar, "declared and not used: %s", v.name)

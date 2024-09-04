@@ -9,7 +9,7 @@ package mvs
 import (
 	"fmt"
 	"slices"
-	"sort"
+	"strings"
 	"sync"
 
 	"cmd/internal/par"
@@ -265,8 +265,8 @@ func Req(mainModule module.Version, base []string, reqs Reqs) ([]module.Version,
 			walk(m)
 		}
 	}
-	sort.Slice(min, func(i, j int) bool {
-		return min[i].Path < min[j].Path
+	slices.SortFunc(min, func(a, b module.Version) int {
+		return strings.Compare(a.Path, b.Path)
 	})
 	return min, nil
 }

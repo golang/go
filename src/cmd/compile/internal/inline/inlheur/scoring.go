@@ -9,9 +9,10 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/types"
+	"cmp"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -504,8 +505,8 @@ func (csa *callSiteAnalyzer) scoreCallsRegion(fn *ir.Func, region ir.Nodes, csta
 		csl = append(csl, cs)
 	}
 	scoreCallsCache.csl = csl[:0]
-	sort.Slice(csl, func(i, j int) bool {
-		return csl[i].ID < csl[j].ID
+	slices.SortFunc(csl, func(a, b *CallSite) int {
+		return cmp.Compare(a.ID, b.ID)
 	})
 
 	// Score each call site.
@@ -700,18 +701,18 @@ func DumpInlCallSiteScores(profile *pgoir.Profile, budgetCallback func(fn *ir.Fu
 		for _, cs := range allCallSites {
 			sl = append(sl, cs)
 		}
-		sort.Slice(sl, func(i, j int) bool {
-			if sl[i].Score != sl[j].Score {
-				return sl[i].Score < sl[j].Score
+		slices.SortFunc(sl, func(a, b *CallSite) int {
+			if a.Score != b.Score {
+				return cmp.Compare(a.Score, b.Score)
 			}
-			fni := ir.PkgFuncName(sl[i].Callee)
-			fnj := ir.PkgFuncName(sl[j].Callee)
-			if fni != fnj {
-				return fni < fnj
+			fni := ir.PkgFuncName(a.Callee)
+			fnj := ir.PkgFuncName(b.Callee)
+			if r := strings.Compare(fni, fnj); r != 0 {
+				return r
 			}
-			ecsi := EncodeCallSiteKey(sl[i])
-			ecsj := EncodeCallSiteKey(sl[j])
-			return ecsi < ecsj
+			ecsi := EncodeCallSiteKey(a)
+			ecsj := EncodeCallSiteKey(b)
+			return strings.Compare(ecsi, ecsj)
 		})
 
 		mkname := func(fn *ir.Func) string {

@@ -5,11 +5,13 @@
 package walk
 
 import (
+	"cmp"
 	"fmt"
 	"go/constant"
 	"go/token"
 	"math/bits"
-	"sort"
+	"slices"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -168,17 +170,11 @@ func (s *exprSwitch) flush() {
 	// when there's only a single slice element).
 
 	if s.exprname.Type().IsString() && len(cc) >= 2 {
-		// Sort strings by length and then by value. It is
-		// much cheaper to compare lengths than values, and
-		// all we need here is consistency. We respect this
-		// sorting below.
-		sort.Slice(cc, func(i, j int) bool {
-			si := ir.StringVal(cc[i].lo)
-			sj := ir.StringVal(cc[j].lo)
-			if len(si) != len(sj) {
-				return len(si) < len(sj)
-			}
-			return si < sj
+		// Sort strings
+		slices.SortFunc(cc, func(a, b exprClause) int {
+			si := ir.StringVal(a.lo)
+			sj := ir.StringVal(b.lo)
+			return strings.Compare(si, sj)
 		})
 
 		// runLen returns the string length associated with a
@@ -248,8 +244,16 @@ func (s *exprSwitch) flush() {
 		return
 	}
 
-	sort.Slice(cc, func(i, j int) bool {
-		return constant.Compare(cc[i].lo.Val(), token.LSS, cc[j].lo.Val())
+	slices.SortFunc(cc, func(a, b exprClause) int {
+		aVal := a.lo.Val()
+		bVal := b.lo.Val()
+		if constant.Compare(aVal, token.LSS, bVal) {
+			return -1
+		}
+		if constant.Compare(aVal, token.GTR, bVal) {
+			return +1
+		}
+		return 0
 	})
 
 	// Merge consecutive integer cases.
@@ -728,7 +732,9 @@ func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
 		return
 	}
 
-	sort.Slice(cc, func(i, j int) bool { return cc[i].hash < cc[j].hash })
+	slices.SortFunc(cc, func(a, b typeClause) int {
+		return cmp.Compare(a.hash, b.hash)
+	})
 
 	// Combine adjacent cases with the same hash.
 	merged := cc[:1]
@@ -783,9 +789,7 @@ func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
 				hashes = append(hashes, h)
 			}
 			// Order by increasing hash.
-			sort.Slice(hashes, func(j, k int) bool {
-				return hashes[j] < hashes[k]
-			})
+			slices.Sort(hashes)
 			for j := 1; j < len(hashes); j++ {
 				if hashes[j] == hashes[j-1] {
 					// There is a duplicate hash; try a different b/i pair.

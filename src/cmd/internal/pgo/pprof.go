@@ -12,7 +12,8 @@ import (
 	"fmt"
 	"internal/profile"
 	"io"
-	"sort"
+	"slices"
+	"strings"
 )
 
 // FromPProf parses Profile from a pprof profile.
@@ -103,19 +104,17 @@ func createNamedEdgeMap(g *profile.Graph) (edgeMap NamedEdgeMap, totalWeight int
 }
 
 func sortByWeight(edges []NamedCallEdge, weight map[NamedCallEdge]int64) {
-	sort.Slice(edges, func(i, j int) bool {
-		ei, ej := edges[i], edges[j]
-		if wi, wj := weight[ei], weight[ej]; wi != wj {
-			return wi > wj // want larger weight first
+	slices.SortFunc(edges, func(i, j NamedCallEdge) int {
+		if wi, wj := weight[i], weight[j]; wi != wj {
+			return int(wj - wi) // want larger weight first
 		}
-		// same weight, order by name/line number
-		if ei.CallerName != ej.CallerName {
-			return ei.CallerName < ej.CallerName
+		if r := strings.Compare(i.CallerName, j.CallerName); r != 0 {
+			return r
 		}
-		if ei.CalleeName != ej.CalleeName {
-			return ei.CalleeName < ej.CalleeName
+		if r := strings.Compare(i.CalleeName, j.CalleeName); r != 0 {
+			return r
 		}
-		return ei.CallSiteOffset < ej.CallSiteOffset
+		return i.CallSiteOffset - j.CallSiteOffset
 	})
 }
 

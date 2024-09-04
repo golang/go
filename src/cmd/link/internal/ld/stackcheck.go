@@ -8,9 +8,10 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
+	"cmp"
 	"fmt"
 	"internal/buildcfg"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -344,13 +345,13 @@ func (sc *stackCheck) findRoots() []loader.Sym {
 	for k := range nodes {
 		roots = append(roots, k)
 	}
-	sort.Slice(roots, func(i, j int) bool {
-		h1, h2 := sc.height[roots[i]], sc.height[roots[j]]
+	slices.SortFunc(roots, func(i, j loader.Sym) int {
+		h1, h2 := sc.height[i], sc.height[j]
 		if h1 != h2 {
-			return h1 > h2
+			return int(h2 - h1)
 		}
 		// Secondary sort by Sym.
-		return roots[i] < roots[j]
+		return cmp.Compare(i, j)
 	})
 	return roots
 }

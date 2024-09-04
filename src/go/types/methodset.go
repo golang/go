@@ -8,6 +8,7 @@ package types
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -201,8 +202,8 @@ func NewMethodSet(T Type) *MethodSet {
 		}
 	}
 	// sort by unique name
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].obj.Id() < list[j].obj.Id()
+	slices.SortFunc(list, func(a, b *Selection) int {
+		return strings.Compare(a.obj.Id(), b.obj.Id())
 	})
 	return &MethodSet{list}
 }
