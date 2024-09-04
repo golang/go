@@ -45,7 +45,6 @@ var bootstrapDirs = []string{
 	"cmd/internal/gcprog",
 	"cmd/internal/goobj",
 	"cmd/internal/hash",
-	"cmd/internal/notsha256",
 	"cmd/internal/obj/...",
 	"cmd/internal/objabi",
 	"cmd/internal/pgo",
@@ -225,8 +224,7 @@ func bootstrapBuildTools() {
 	// Run Go bootstrap to build binaries.
 	// Use the math_big_pure_go build tag to disable the assembly in math/big
 	// which may contain unsupported instructions.
-	// Use the purego build tag to disable other assembly code,
-	// such as in cmd/internal/notsha256.
+	// Use the purego build tag to disable other assembly code.
 	cmd := []string{
 		pathf("%s/bin/go", goroot_bootstrap),
 		"install",
