@@ -5,7 +5,7 @@
 package ld
 
 import (
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -812,7 +812,7 @@ func addbuildinfo(val string) {
 			Exitf("-B gobuildid requires a Go build ID supplied via -buildid")
 		}
 
-		hashedBuildID := notsha256.Sum256([]byte(buildID))
+		hashedBuildID := hash.Sum32([]byte(buildID))
 		buildinfo = hashedBuildID[:20]
 
 		return
@@ -1677,11 +1677,11 @@ func (ctxt *Link) doelf() {
 		sb.SetType(sym.SRODATA)
 		ldr.SetAttrSpecial(s, true)
 		sb.SetReachable(true)
-		sb.SetSize(notsha256.Size)
+		sb.SetSize(hash.Size32)
 		slices.SortFunc(ctxt.Library, func(a, b *sym.Library) int {
 			return strings.Compare(a.Pkg, b.Pkg)
 		})
-		h := notsha256.New()
+		h := hash.New32()
 		for _, l := range ctxt.Library {
 			h.Write(l.Fingerprint[:])
 		}

@@ -5,7 +5,7 @@
 package main
 
 import (
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 	"flag"
 	"fmt"
 	"internal/platform"
@@ -126,7 +126,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 		goarch = f[1]
 	}
 
-	hash := notsha256.Sum256([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
+	hash := hash.Sum32([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
 	tmp := t.TempDir()
 	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
 	args := []string{"build", "-o", hello}

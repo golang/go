@@ -23,7 +23,7 @@ import (
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -940,7 +940,7 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 	uls := under.LinkString()
 	if base.Debug.MaxShapeLen != 0 &&
 		len(uls) > base.Debug.MaxShapeLen {
-		h := notsha256.Sum256([]byte(uls))
+		h := hash.Sum32([]byte(uls))
 		uls = hex.EncodeToString(h[:])
 	}
 

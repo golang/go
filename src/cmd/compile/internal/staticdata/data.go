@@ -18,7 +18,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/types"
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -78,7 +78,7 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 		// Indulge in some paranoia by writing the length of s, too,
 		// as protection against length extension attacks.
 		// Same pattern is known to fileStringSym below.
-		h := notsha256.New()
+		h := hash.New32()
 		io.WriteString(h, s)
 		symname = fmt.Sprintf(stringSymPattern, len(s), shortHashString(h.Sum(nil)))
 	} else {
@@ -115,9 +115,9 @@ const maxFileSize = int64(2e9)
 // or other file with the same content and is placed in a read-only section.
 // If readonly is false, the symbol is a read-write copy separate from any other,
 // for use as the backing store of a []byte.
-// The content hash of file is copied into hash. (If hash is nil, nothing is copied.)
+// The content hash of file is copied into hashBytes. (If hash is nil, nothing is copied.)
 // The returned symbol contains the data itself, not a string header.
-func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.LSym, int64, error) {
+func fileStringSym(pos src.XPos, file string, readonly bool, hashBytes []byte) (*obj.LSym, int64, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, 0, err
@@ -145,9 +145,9 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 		} else {
 			sym = slicedata(pos, string(data))
 		}
-		if len(hash) > 0 {
-			sum := notsha256.Sum256(data)
-			copy(hash, sum[:])
+		if len(hashBytes) > 0 {
+			sum := hash.Sum32(data)
+			copy(hashBytes, sum[:])
 		}
 		return sym, size, nil
 	}
@@ -160,10 +160,10 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	}
 
 	// File is too big to read and keep in memory.
-	// Compute hash if needed for read-only content hashing or if the caller wants it.
+	// Compute hashBytes if needed for read-only content hashing or if the caller wants it.
 	var sum []byte
-	if readonly || len(hash) > 0 {
-		h := notsha256.New()
+	if readonly || len(hashBytes) > 0 {
+		h := hash.New32()
 		n, err := io.Copy(h, f)
 		if err != nil {
 			return nil, 0, err
@@ -172,7 +172,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 			return nil, 0, fmt.Errorf("file changed between reads")
 		}
 		sum = h.Sum(nil)
-		copy(hash, sum)
+		copy(hashBytes, sum)
 	}
 
 	var symdata *obj.LSym
