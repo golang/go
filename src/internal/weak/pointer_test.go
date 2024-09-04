@@ -5,9 +5,12 @@
 package weak_test
 
 import (
+	"context"
 	"internal/weak"
 	"runtime"
+	"sync"
 	"testing"
+	"time"
 )
 
 type T struct {
@@ -127,4 +130,83 @@ func TestPointerFinalizer(t *testing.T) {
 	if wt.Strong() != nil {
 		t.Errorf("weak pointer is non-nil even after finalization: %v", wt)
 	}
+}
+
+// Regression test for issue 69210.
+//
+// Weak-to-strong conversions must shade the new strong pointer, otherwise
+// that might be creating the only strong pointer to a white object which
+// is hidden in a blackened stack.
+//
+// Never fails if correct, fails with some high probability if incorrect.
+func TestIssue69210(t *testing.T) {
+	if testing.Short() {
+		t.Skip("this is a stress test that takes seconds to run on its own")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	// What we're trying to do is manufacture the conditions under which this
+	// bug happens. Specifically, we want:
+	//
+	// 1. To create a whole bunch of objects that are only weakly-pointed-to,
+	// 2. To call Strong while the GC is in the mark phase,
+	// 3. The new strong pointer to be missed by the GC,
+	// 4. The following GC cycle to mark a free object.
+	//
+	// Unfortunately, (2) and (3) are hard to control, but we can increase
+	// the likelihood by having several goroutines do (1) at once while
+	// another goroutine constantly keeps us in the GC with runtime.GC.
+	// Like throwing darts at a dart board until they land just right.
+	// We can increase the likelihood of (4) by adding some delay after
+	// creating the strong pointer, but only if it's non-nil. If it's nil,
+	// that means it was already collected in which case there's no chance
+	// of triggering the bug, so we want to retry as fast as possible.
+	// Our heap here is tiny, so the GCs will go by fast.
+	//
+	// As of 2024-09-03, removing the line that shades pointers during
+	// the weak-to-strong conversion causes this test to fail about 50%
+	// of the time.
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			runtime.GC()
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
+	for range max(runtime.GOMAXPROCS(-1)-1, 1) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				for range 5 {
+					bt := new(T)
+					wt := weak.Make(bt)
+					bt = nil
+					time.Sleep(1 * time.Millisecond)
+					bt = wt.Strong()
+					if bt != nil {
+						time.Sleep(4 * time.Millisecond)
+						bt.t = bt
+						bt.a = 12
+					}
+					runtime.KeepAlive(bt)
+				}
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+			}
+		}()
+	}
+	wg.Wait()
 }
