@@ -238,10 +238,6 @@ func isComparison(op syntax.Operator) bool {
 // and if x is the (formerly untyped) lhs operand of a non-constant
 // shift, it must be an integer value.
 func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
-	check.updateExprType0(nil, x, typ, final)
-}
-
-func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final bool) {
 	old, found := check.untyped[x]
 	if !found {
 		return // nothing to do
@@ -284,7 +280,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 		// No operands to take care of.
 
 	case *syntax.ParenExpr:
-		check.updateExprType0(x, x.X, typ, final)
+		check.updateExprType(x.X, typ, final)
 
 	// case *syntax.UnaryExpr:
 	// 	// If x is a constant, the operands were constants.
@@ -295,7 +291,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 	// 	if old.val != nil {
 	// 		break
 	// 	}
-	// 	check.updateExprType0(x, x.X, typ, final)
+	// 	check.updateExprType(x.X, typ, final)
 
 	case *syntax.Operation:
 		if x.Y == nil {
@@ -316,7 +312,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 			if old.val != nil {
 				break
 			}
-			check.updateExprType0(x, x.X, typ, final)
+			check.updateExprType(x.X, typ, final)
 			break
 		}
 
@@ -330,11 +326,11 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 		} else if isShift(x.Op) {
 			// The result type depends only on lhs operand.
 			// The rhs type was updated when checking the shift.
-			check.updateExprType0(x, x.X, typ, final)
+			check.updateExprType(x.X, typ, final)
 		} else {
 			// The operand types match the result type.
-			check.updateExprType0(x, x.X, typ, final)
-			check.updateExprType0(x, x.Y, typ, final)
+			check.updateExprType(x.X, typ, final)
+			check.updateExprType(x.Y, typ, final)
 		}
 
 	default:
