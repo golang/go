@@ -12,8 +12,8 @@ import (
 	"io"
 	"net/http/internal/ascii"
 	"strconv"
-	"strings"
 	"syscall/js"
+	"testing"
 )
 
 var uint8Array = js.Global().Get("Uint8Array")
@@ -53,8 +53,7 @@ var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 //
 // TODO(go.dev/issue/60810): See if it's viable to test the Fetch API
 // code path.
-var jsFetchDisabled = js.Global().Get("process").Type() == js.TypeObject &&
-	strings.HasPrefix(js.Global().Get("process").Get("argv0").String(), "node")
+var jsFetchDisabled = testing.Testing()
 
 // RoundTrip implements the [RoundTripper] interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
