@@ -63,11 +63,7 @@ func TestNonGoExecs(t *testing.T) {
 
 func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 	t.Parallel()
-	tmpdir, err := os.MkdirTemp("", "TestGoExec")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "a.go")
 	file, err := os.Create(src)
@@ -200,16 +196,12 @@ func TestGoExec(t *testing.T) {
 
 func testGoLib(t *testing.T, iscgo bool) {
 	t.Parallel()
-	tmpdir, err := os.MkdirTemp("", "TestGoLib")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	gopath := filepath.Join(tmpdir, "gopath")
 	libpath := filepath.Join(gopath, "src", "mylib")
 
-	err = os.MkdirAll(libpath, 0777)
+	err := os.MkdirAll(libpath, 0777)
 	if err != nil {
 		t.Fatal(err)
 	}
