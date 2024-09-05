@@ -7286,40 +7286,40 @@ func TestGCBits(t *testing.T) {
 			verifyGCBits(t, CachedBucketOf(TypeOf(m)), want)
 		}
 		verifyMapBucket(t,
-		Tscalar, Tptr,
-		map[Xscalar]Xptr(nil),
-		join(hdr, rep(bucketCount, lit(0)), rep(bucketCount, lit(1)), lit(1)))
+			Tscalar, Tptr,
+			map[Xscalar]Xptr(nil),
+			join(hdr, rep(bucketCount, lit(0)), rep(bucketCount, lit(1)), lit(1)))
 		verifyMapBucket(t,
-		Tscalarptr, Tptr,
-		map[Xscalarptr]Xptr(nil),
-		join(hdr, rep(bucketCount, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
+			Tscalarptr, Tptr,
+			map[Xscalarptr]Xptr(nil),
+			join(hdr, rep(bucketCount, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
 		verifyMapBucket(t, Tint64, Tptr,
-		map[int64]Xptr(nil),
-		join(hdr, rep(bucketCount, rep(8/goarch.PtrSize, lit(0))), rep(bucketCount, lit(1)), lit(1)))
+			map[int64]Xptr(nil),
+			join(hdr, rep(bucketCount, rep(8/goarch.PtrSize, lit(0))), rep(bucketCount, lit(1)), lit(1)))
 		verifyMapBucket(t,
-		Tscalar, Tscalar,
-		map[Xscalar]Xscalar(nil),
-		empty)
+			Tscalar, Tscalar,
+			map[Xscalar]Xscalar(nil),
+			empty)
 		verifyMapBucket(t,
-		ArrayOf(2, Tscalarptr), ArrayOf(3, Tptrscalar),
-		map[[2]Xscalarptr][3]Xptrscalar(nil),
-		join(hdr, rep(bucketCount*2, lit(0, 1)), rep(bucketCount*3, lit(1, 0)), lit(1)))
+			ArrayOf(2, Tscalarptr), ArrayOf(3, Tptrscalar),
+			map[[2]Xscalarptr][3]Xptrscalar(nil),
+			join(hdr, rep(bucketCount*2, lit(0, 1)), rep(bucketCount*3, lit(1, 0)), lit(1)))
 		verifyMapBucket(t,
-		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
-		map[[64 / goarch.PtrSize]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
-		join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
+			ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
+			map[[64 / goarch.PtrSize]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
+			join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
 		verifyMapBucket(t,
-		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
-		map[[64/goarch.PtrSize + 1]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
-		join(hdr, rep(bucketCount, lit(1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
+			ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
+			map[[64/goarch.PtrSize + 1]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
+			join(hdr, rep(bucketCount, lit(1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
 		verifyMapBucket(t,
-		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
-		map[[64 / goarch.PtrSize]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
-		join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
+			ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
+			map[[64 / goarch.PtrSize]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
+			join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
 		verifyMapBucket(t,
-		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
-		map[[64/goarch.PtrSize + 1]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
-		join(hdr, rep(bucketCount, lit(1)), rep(bucketCount, lit(1)), lit(1)))
+			ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
+			map[[64/goarch.PtrSize + 1]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
+			join(hdr, rep(bucketCount, lit(1)), rep(bucketCount, lit(1)), lit(1)))
 	} else {
 		const bucketCount = abi.OldMapBucketCount
 
@@ -7330,40 +7330,40 @@ func TestGCBits(t *testing.T) {
 			verifyGCBits(t, CachedBucketOf(TypeOf(m)), want)
 		}
 		verifyMapBucket(t,
-		Tscalar, Tptr,
-		map[Xscalar]Xptr(nil),
-		join(hdr, rep(bucketCount, lit(0)), rep(bucketCount, lit(1)), lit(1)))
+			Tscalar, Tptr,
+			map[Xscalar]Xptr(nil),
+			join(hdr, rep(bucketCount, lit(0)), rep(bucketCount, lit(1)), lit(1)))
 		verifyMapBucket(t,
-		Tscalarptr, Tptr,
-		map[Xscalarptr]Xptr(nil),
-		join(hdr, rep(bucketCount, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
+			Tscalarptr, Tptr,
+			map[Xscalarptr]Xptr(nil),
+			join(hdr, rep(bucketCount, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
 		verifyMapBucket(t, Tint64, Tptr,
-		map[int64]Xptr(nil),
-		join(hdr, rep(bucketCount, rep(8/goarch.PtrSize, lit(0))), rep(bucketCount, lit(1)), lit(1)))
+			map[int64]Xptr(nil),
+			join(hdr, rep(bucketCount, rep(8/goarch.PtrSize, lit(0))), rep(bucketCount, lit(1)), lit(1)))
 		verifyMapBucket(t,
-		Tscalar, Tscalar,
-		map[Xscalar]Xscalar(nil),
-		empty)
+			Tscalar, Tscalar,
+			map[Xscalar]Xscalar(nil),
+			empty)
 		verifyMapBucket(t,
-		ArrayOf(2, Tscalarptr), ArrayOf(3, Tptrscalar),
-		map[[2]Xscalarptr][3]Xptrscalar(nil),
-		join(hdr, rep(bucketCount*2, lit(0, 1)), rep(bucketCount*3, lit(1, 0)), lit(1)))
+			ArrayOf(2, Tscalarptr), ArrayOf(3, Tptrscalar),
+			map[[2]Xscalarptr][3]Xptrscalar(nil),
+			join(hdr, rep(bucketCount*2, lit(0, 1)), rep(bucketCount*3, lit(1, 0)), lit(1)))
 		verifyMapBucket(t,
-		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
-		map[[64 / goarch.PtrSize]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
-		join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
+			ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
+			map[[64 / goarch.PtrSize]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
+			join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
 		verifyMapBucket(t,
-		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
-		map[[64/goarch.PtrSize + 1]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
-		join(hdr, rep(bucketCount, lit(1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
+			ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
+			map[[64/goarch.PtrSize + 1]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
+			join(hdr, rep(bucketCount, lit(1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
 		verifyMapBucket(t,
-		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
-		map[[64 / goarch.PtrSize]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
-		join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
+			ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
+			map[[64 / goarch.PtrSize]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
+			join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
 		verifyMapBucket(t,
-		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
-		map[[64/goarch.PtrSize + 1]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
-		join(hdr, rep(bucketCount, lit(1)), rep(bucketCount, lit(1)), lit(1)))
+			ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
+			map[[64/goarch.PtrSize + 1]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
+			join(hdr, rep(bucketCount, lit(1)), rep(bucketCount, lit(1)), lit(1)))
 	}
 }
 
