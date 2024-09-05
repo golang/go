@@ -23,9 +23,9 @@ func processSignals() {
 	}()
 }
 
-var onceProcessSignals sync.Once
+var processSignalsOnce = sync.OnceFunc(processSignals)
 
 // StartSigHandlers starts the signal handlers.
 func StartSigHandlers() {
-	onceProcessSignals.Do(processSignals)
+	processSignalsOnce()
 }

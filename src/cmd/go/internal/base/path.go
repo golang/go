@@ -15,9 +15,6 @@ import (
 	"cmd/go/internal/str"
 )
 
-var cwd string
-var cwdOnce sync.Once
-
 // UncachedCwd returns the current working directory.
 // Most callers should use Cwd, which caches the result for future use.
 // UncachedCwd is appropriate to call early in program startup before flag parsing,
@@ -30,12 +27,11 @@ func UncachedCwd() string {
 	return wd
 }
 
+var cwdOnce = sync.OnceValue(UncachedCwd)
+
 // Cwd returns the current working directory at the time of the first call.
 func Cwd() string {
-	cwdOnce.Do(func() {
-		cwd = UncachedCwd()
-	})
-	return cwd
+	return cwdOnce()
 }
 
 // ShortPath returns an absolute or relative name for path, whatever is shorter.
