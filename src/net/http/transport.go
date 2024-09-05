@@ -1296,18 +1296,19 @@ func (w *wantConn) getCtxForDial() context.Context {
 
 // tryDeliver attempts to deliver pc, err to w and reports whether it succeeded.
 func (w *wantConn) tryDeliver(pc *persistConn, err error, idleAt time.Time) bool {
+	if (pc == nil) == (err == nil) {
+		panic("net/http: internal error: misuse of tryDeliver")
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	if w.done {
 		return false
 	}
-	if (pc == nil) == (err == nil) {
-		panic("net/http: internal error: misuse of tryDeliver")
-	}
+
 	w.ctx = nil
 	w.done = true
-
 	w.result <- connOrError{pc: pc, err: err, idleAt: idleAt}
 	close(w.result)
 
