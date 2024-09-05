@@ -98,14 +98,10 @@ func TestSymbolTooLarge(t *testing.T) { // Issue 42054
 		t.Skip("skip on 32-bit architectures")
 	}
 
-	tmpdir, err := os.MkdirTemp("", "TestSymbolTooLarge")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "p.go")
-	err = os.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
+	err := os.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v\n", err)
 	}
