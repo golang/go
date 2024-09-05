@@ -158,7 +158,7 @@ var (
 	// m0wait send a signal that the non-main thread is waiting for mainthread.Yield.
 	m0wait = make(chan struct{})
 	// m0exec notifies mainthread.Do when the f passed from Do on the non-main thread
-	// to Yield on the main thread has completed.
+	// to mainthread.Yield on the main thread has completed.
 	m0exec = make(chan struct{}, 1)
 )
 
