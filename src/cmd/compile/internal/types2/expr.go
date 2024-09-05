@@ -1123,29 +1123,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		check.overflow(x, opPos(x.expr))
 
 	case *syntax.FuncLit:
-		if sig, ok := check.typ(e.Type).(*Signature); ok {
-			// Set the Scope's extent to the complete "func (...) {...}"
-			// so that Scope.Innermost works correctly.
-			sig.scope.pos = e.Pos()
-			sig.scope.end = endPos(e)
-			if !check.conf.IgnoreFuncBodies && e.Body != nil {
-				// Anonymous functions are considered part of the
-				// init expression/func declaration which contains
-				// them: use existing package-level declaration info.
-				decl := check.decl // capture for use in closure below
-				iota := check.iota // capture for use in closure below (go.dev/issue/22345)
-				// Don't type-check right away because the function may
-				// be part of a type definition to which the function
-				// body refers. Instead, type-check as soon as possible,
-				// but before the enclosing scope contents changes (go.dev/issue/22992).
-				check.later(func() {
-					check.funcBody(decl, "<function literal>", sig, e.Body, iota)
-				}).describef(e, "func literal")
-			}
-			x.mode = value
-			x.typ = sig
-		} else {
-			check.errorf(e, InvalidSyntaxTree, "invalid function literal %v", e)
+		check.funcLit(x, e)
+		if x.mode == invalid {
 			goto Error
 		}
 
