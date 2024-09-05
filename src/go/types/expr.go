@@ -85,6 +85,19 @@ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
 	return true
 }
 
+// opPos returns the position of the operator if x is an operation;
+// otherwise it returns the start position of x.
+func opPos(x ast.Expr) token.Pos {
+	switch op := x.(type) {
+	case nil:
+		return nopos // don't crash
+	case *ast.BinaryExpr:
+		return op.OpPos
+	default:
+		return x.Pos()
+	}
+}
+
 // opName returns the name of the operation if x is an operation
 // that might overflow; otherwise it returns the empty string.
 func opName(e ast.Expr) string {
@@ -196,7 +209,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 		}
 		x.val = constant.UnaryOp(op, x.val, prec)
 		x.expr = e
-		check.overflow(x, x.Pos())
+		check.overflow(x, opPos(x.expr))
 		return
 	}
 
@@ -707,11 +720,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			// x is a constant so xval != nil and it must be of Int kind.
 			x.val = constant.Shift(xval, op, uint(s))
 			x.expr = e
-			opPos := x.Pos()
-			if b, _ := e.(*ast.BinaryExpr); b != nil {
-				opPos = b.OpPos
-			}
-			check.overflow(x, opPos)
+			check.overflow(x, opPos(x.expr))
 			return
 		}
 
@@ -1098,7 +1107,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			goto Error
 		}
 		// Ensure that integer values don't overflow (go.dev/issue/54280).
-		check.overflow(x, e.Pos())
+		x.expr = e // make sure that check.overflow below has an error position
+		check.overflow(x, opPos(x.expr))
 
 	case *ast.FuncLit:
 		check.funcLit(x, e)
