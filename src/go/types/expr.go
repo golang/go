@@ -1105,7 +1105,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			// Set the Scope's extent to the complete "func (...) {...}"
 			// so that Scope.Innermost works correctly.
 			sig.scope.pos = e.Pos()
-			sig.scope.end = e.End()
+			sig.scope.end = endPos(e)
 			if !check.conf.IgnoreFuncBodies && e.Body != nil {
 				// Anonymous functions are considered part of the
 				// init expression/func declaration which contains
