@@ -127,3 +127,35 @@ func (wg *WaitGroup) Wait() {
 		}
 	}
 }
+
+// WaitWithTimeout returns the value "true" when the [WaitGroup] counter is zero.
+// And returns the value "false" when the wait is completed by timeout.
+//
+//	func shutdownServices() {
+//		wg := &sync.WaitGroup{}
+//		wg.Add(1)
+//		shutdownServece1(wg)
+//
+//		wg.Add(1)
+//		shutdownServece2(wg)
+//
+//		wg.WaitWithTimeout(1 * time.Minute)
+//		os.Exit(0)
+//	}
+func (wg *WaitGroup) WaitWithTimeout(timeout time.Duration) bool {
+
+	timeoutChan := time.After(timeout)
+	waitChan := make(chan struct{})
+
+	go func() {
+		wg.Wait()
+		close(waitChan)
+	}()
+
+	select {
+	case <-timeoutChan:
+		return false
+	case <-waitChan:
+		return true
+	}
+}
