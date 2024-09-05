@@ -136,12 +136,8 @@ The error information, if any, is
 
     type PackageError struct {
         ImportStack        []string // shortest path from package named on command line to this one
-        ImportStackWithPos []string // shortest path from package named on command line to this one with position
         Pos                string   // position of error (if present, file:line:col)
         Err                string   // the error itself
-        IsImportCycle      bool     // the error is an import cycle
-        Hard               bool     // whether the error is soft or hard; soft errors are ignored in some places
-        alwaysPrintStack   bool     // whether to always print the ImportStack
     }
 
 The module information is a Module struct, defined in the discussion
