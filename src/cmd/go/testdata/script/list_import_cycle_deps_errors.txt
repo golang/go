@@ -12,12 +12,6 @@ cmp stdout want
 				"m/c",
 				"m/a"
 			],
-			"ImportStackWithPos": [
-				"m/a",
-				"m/b from a.go",
-				"m/c from b.go",
-				"m/a from c.go"
-			],
 			"Pos": "",
 			"Err": "import cycle not allowed"
 		}
@@ -33,12 +27,6 @@ cmp stdout want
 				"m/c",
 				"m/a"
 			],
-			"ImportStackWithPos": [
-				"m/a",
-				"m/b from a.go",
-				"m/c from b.go",
-				"m/a from c.go"
-			],
 			"Pos": "",
 			"Err": "import cycle not allowed"
 		}
@@ -53,12 +41,6 @@ cmp stdout want
 			"m/c",
 			"m/a"
 		],
-		"ImportStackWithPos": [
-			"m/a",
-			"m/b from a.go",
-			"m/c from b.go",
-			"m/a from c.go"
-		],
 		"Pos": "",
 		"Err": "import cycle not allowed"
 	},
@@ -69,12 +51,6 @@ cmp stdout want
 				"m/b",
 				"m/c",
 				"m/a"
-			],
-			"ImportStackWithPos": [
-				"m/a",
-				"m/b from a.go",
-				"m/c from b.go",
-				"m/a from c.go"
 			],
 			"Pos": "",
 			"Err": "import cycle not allowed"
