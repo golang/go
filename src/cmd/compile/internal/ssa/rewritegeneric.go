@@ -10556,11 +10556,11 @@ func rewriteValuegeneric_OpFloor(v *Value) bool {
 func rewriteValuegeneric_OpIMake(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (IMake _typ (StructMake1 val))
+	// match: (IMake _typ (StructMake val))
 	// result: (IMake _typ val)
 	for {
 		_typ := v_0
-		if v_1.Op != OpStructMake1 {
+		if v_1.Op != OpStructMake || len(v_1.Args) != 1 {
 			break
 		}
 		val := v_1.Args[0]
@@ -13991,120 +13991,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> _ _)
-	// cond: t.IsStruct() && t.NumFields() == 0 && CanSSA(t)
-	// result: (StructMake0)
+	// cond: t.IsStruct() && CanSSA(t)
+	// result: rewriteStructLoad(v)
 	for {
 		t := v.Type
-		if !(t.IsStruct() && t.NumFields() == 0 && CanSSA(t)) {
+		if !(t.IsStruct() && CanSSA(t)) {
 			break
 		}
-		v.reset(OpStructMake0)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: t.IsStruct() && t.NumFields() == 1 && CanSSA(t)
-	// result: (StructMake1 (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem))
-	for {
-		t := v.Type
-		ptr := v_0
-		mem := v_1
-		if !(t.IsStruct() && t.NumFields() == 1 && CanSSA(t)) {
-			break
-		}
-		v.reset(OpStructMake1)
-		v0 := b.NewValue0(v.Pos, OpLoad, t.FieldType(0))
-		v1 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
-		v1.AuxInt = int64ToAuxInt(0)
-		v1.AddArg(ptr)
-		v0.AddArg2(v1, mem)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: t.IsStruct() && t.NumFields() == 2 && CanSSA(t)
-	// result: (StructMake2 (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem) (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
-	for {
-		t := v.Type
-		ptr := v_0
-		mem := v_1
-		if !(t.IsStruct() && t.NumFields() == 2 && CanSSA(t)) {
-			break
-		}
-		v.reset(OpStructMake2)
-		v0 := b.NewValue0(v.Pos, OpLoad, t.FieldType(0))
-		v1 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
-		v1.AuxInt = int64ToAuxInt(0)
-		v1.AddArg(ptr)
-		v0.AddArg2(v1, mem)
-		v2 := b.NewValue0(v.Pos, OpLoad, t.FieldType(1))
-		v3 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
-		v3.AuxInt = int64ToAuxInt(t.FieldOff(1))
-		v3.AddArg(ptr)
-		v2.AddArg2(v3, mem)
-		v.AddArg2(v0, v2)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: t.IsStruct() && t.NumFields() == 3 && CanSSA(t)
-	// result: (StructMake3 (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem) (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem) (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
-	for {
-		t := v.Type
-		ptr := v_0
-		mem := v_1
-		if !(t.IsStruct() && t.NumFields() == 3 && CanSSA(t)) {
-			break
-		}
-		v.reset(OpStructMake3)
-		v0 := b.NewValue0(v.Pos, OpLoad, t.FieldType(0))
-		v1 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
-		v1.AuxInt = int64ToAuxInt(0)
-		v1.AddArg(ptr)
-		v0.AddArg2(v1, mem)
-		v2 := b.NewValue0(v.Pos, OpLoad, t.FieldType(1))
-		v3 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
-		v3.AuxInt = int64ToAuxInt(t.FieldOff(1))
-		v3.AddArg(ptr)
-		v2.AddArg2(v3, mem)
-		v4 := b.NewValue0(v.Pos, OpLoad, t.FieldType(2))
-		v5 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
-		v5.AuxInt = int64ToAuxInt(t.FieldOff(2))
-		v5.AddArg(ptr)
-		v4.AddArg2(v5, mem)
-		v.AddArg3(v0, v2, v4)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: t.IsStruct() && t.NumFields() == 4 && CanSSA(t)
-	// result: (StructMake4 (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem) (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem) (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem) (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
-	for {
-		t := v.Type
-		ptr := v_0
-		mem := v_1
-		if !(t.IsStruct() && t.NumFields() == 4 && CanSSA(t)) {
-			break
-		}
-		v.reset(OpStructMake4)
-		v0 := b.NewValue0(v.Pos, OpLoad, t.FieldType(0))
-		v1 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
-		v1.AuxInt = int64ToAuxInt(0)
-		v1.AddArg(ptr)
-		v0.AddArg2(v1, mem)
-		v2 := b.NewValue0(v.Pos, OpLoad, t.FieldType(1))
-		v3 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
-		v3.AuxInt = int64ToAuxInt(t.FieldOff(1))
-		v3.AddArg(ptr)
-		v2.AddArg2(v3, mem)
-		v4 := b.NewValue0(v.Pos, OpLoad, t.FieldType(2))
-		v5 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
-		v5.AuxInt = int64ToAuxInt(t.FieldOff(2))
-		v5.AddArg(ptr)
-		v4.AddArg2(v5, mem)
-		v6 := b.NewValue0(v.Pos, OpLoad, t.FieldType(3))
-		v7 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(3).PtrTo())
-		v7.AuxInt = int64ToAuxInt(t.FieldOff(3))
-		v7.AddArg(ptr)
-		v6.AddArg2(v7, mem)
-		v.AddArg4(v0, v2, v4, v6)
+		v.copyOf(rewriteStructLoad(v))
 		return true
 	}
 	// match: (Load <t> _ _)
@@ -29772,128 +29666,13 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		v.copyOf(mem)
 		return true
 	}
-	// match: (Store _ (StructMake0) mem)
-	// result: mem
+	// match: (Store _ (StructMake ___) _)
+	// result: rewriteStructStore(v)
 	for {
-		if v_1.Op != OpStructMake0 {
+		if v_1.Op != OpStructMake {
 			break
 		}
-		mem := v_2
-		v.copyOf(mem)
-		return true
-	}
-	// match: (Store dst (StructMake1 <t> f0) mem)
-	// result: (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
-	for {
-		dst := v_0
-		if v_1.Op != OpStructMake1 {
-			break
-		}
-		t := v_1.Type
-		f0 := v_1.Args[0]
-		mem := v_2
-		v.reset(OpStore)
-		v.Aux = typeToAux(t.FieldType(0))
-		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
-		v0.AuxInt = int64ToAuxInt(0)
-		v0.AddArg(dst)
-		v.AddArg3(v0, f0, mem)
-		return true
-	}
-	// match: (Store dst (StructMake2 <t> f0 f1) mem)
-	// result: (Store {t.FieldType(1)} (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst) f1 (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem))
-	for {
-		dst := v_0
-		if v_1.Op != OpStructMake2 {
-			break
-		}
-		t := v_1.Type
-		f1 := v_1.Args[1]
-		f0 := v_1.Args[0]
-		mem := v_2
-		v.reset(OpStore)
-		v.Aux = typeToAux(t.FieldType(1))
-		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
-		v0.AuxInt = int64ToAuxInt(t.FieldOff(1))
-		v0.AddArg(dst)
-		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = typeToAux(t.FieldType(0))
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
-		v2.AuxInt = int64ToAuxInt(0)
-		v2.AddArg(dst)
-		v1.AddArg3(v2, f0, mem)
-		v.AddArg3(v0, f1, v1)
-		return true
-	}
-	// match: (Store dst (StructMake3 <t> f0 f1 f2) mem)
-	// result: (Store {t.FieldType(2)} (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst) f2 (Store {t.FieldType(1)} (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst) f1 (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)))
-	for {
-		dst := v_0
-		if v_1.Op != OpStructMake3 {
-			break
-		}
-		t := v_1.Type
-		f2 := v_1.Args[2]
-		f0 := v_1.Args[0]
-		f1 := v_1.Args[1]
-		mem := v_2
-		v.reset(OpStore)
-		v.Aux = typeToAux(t.FieldType(2))
-		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
-		v0.AuxInt = int64ToAuxInt(t.FieldOff(2))
-		v0.AddArg(dst)
-		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = typeToAux(t.FieldType(1))
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
-		v2.AuxInt = int64ToAuxInt(t.FieldOff(1))
-		v2.AddArg(dst)
-		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v3.Aux = typeToAux(t.FieldType(0))
-		v4 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
-		v4.AuxInt = int64ToAuxInt(0)
-		v4.AddArg(dst)
-		v3.AddArg3(v4, f0, mem)
-		v1.AddArg3(v2, f1, v3)
-		v.AddArg3(v0, f2, v1)
-		return true
-	}
-	// match: (Store dst (StructMake4 <t> f0 f1 f2 f3) mem)
-	// result: (Store {t.FieldType(3)} (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst) f3 (Store {t.FieldType(2)} (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst) f2 (Store {t.FieldType(1)} (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst) f1 (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem))))
-	for {
-		dst := v_0
-		if v_1.Op != OpStructMake4 {
-			break
-		}
-		t := v_1.Type
-		f3 := v_1.Args[3]
-		f0 := v_1.Args[0]
-		f1 := v_1.Args[1]
-		f2 := v_1.Args[2]
-		mem := v_2
-		v.reset(OpStore)
-		v.Aux = typeToAux(t.FieldType(3))
-		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(3).PtrTo())
-		v0.AuxInt = int64ToAuxInt(t.FieldOff(3))
-		v0.AddArg(dst)
-		v1 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v1.Aux = typeToAux(t.FieldType(2))
-		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
-		v2.AuxInt = int64ToAuxInt(t.FieldOff(2))
-		v2.AddArg(dst)
-		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v3.Aux = typeToAux(t.FieldType(1))
-		v4 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
-		v4.AuxInt = int64ToAuxInt(t.FieldOff(1))
-		v4.AddArg(dst)
-		v5 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
-		v5.Aux = typeToAux(t.FieldType(0))
-		v6 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
-		v6.AuxInt = int64ToAuxInt(0)
-		v6.AddArg(dst)
-		v5.AddArg3(v6, f0, mem)
-		v3.AddArg3(v4, f1, v5)
-		v1.AddArg3(v2, f2, v3)
-		v.AddArg3(v0, f3, v1)
+		v.copyOf(rewriteStructStore(v))
 		return true
 	}
 	// match: (Store {t} dst (Load src mem) mem)
@@ -30407,104 +30186,15 @@ func rewriteValuegeneric_OpStringPtr(v *Value) bool {
 func rewriteValuegeneric_OpStructSelect(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (StructSelect (StructMake1 x))
-	// result: x
+	// match: (StructSelect [i] x:(StructMake ___))
+	// result: x.Args[i]
 	for {
-		if v_0.Op != OpStructMake1 {
+		i := auxIntToInt64(v.AuxInt)
+		x := v_0
+		if x.Op != OpStructMake {
 			break
 		}
-		x := v_0.Args[0]
-		v.copyOf(x)
-		return true
-	}
-	// match: (StructSelect [0] (StructMake2 x _))
-	// result: x
-	for {
-		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpStructMake2 {
-			break
-		}
-		x := v_0.Args[0]
-		v.copyOf(x)
-		return true
-	}
-	// match: (StructSelect [1] (StructMake2 _ x))
-	// result: x
-	for {
-		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpStructMake2 {
-			break
-		}
-		x := v_0.Args[1]
-		v.copyOf(x)
-		return true
-	}
-	// match: (StructSelect [0] (StructMake3 x _ _))
-	// result: x
-	for {
-		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpStructMake3 {
-			break
-		}
-		x := v_0.Args[0]
-		v.copyOf(x)
-		return true
-	}
-	// match: (StructSelect [1] (StructMake3 _ x _))
-	// result: x
-	for {
-		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpStructMake3 {
-			break
-		}
-		x := v_0.Args[1]
-		v.copyOf(x)
-		return true
-	}
-	// match: (StructSelect [2] (StructMake3 _ _ x))
-	// result: x
-	for {
-		if auxIntToInt64(v.AuxInt) != 2 || v_0.Op != OpStructMake3 {
-			break
-		}
-		x := v_0.Args[2]
-		v.copyOf(x)
-		return true
-	}
-	// match: (StructSelect [0] (StructMake4 x _ _ _))
-	// result: x
-	for {
-		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpStructMake4 {
-			break
-		}
-		x := v_0.Args[0]
-		v.copyOf(x)
-		return true
-	}
-	// match: (StructSelect [1] (StructMake4 _ x _ _))
-	// result: x
-	for {
-		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpStructMake4 {
-			break
-		}
-		x := v_0.Args[1]
-		v.copyOf(x)
-		return true
-	}
-	// match: (StructSelect [2] (StructMake4 _ _ x _))
-	// result: x
-	for {
-		if auxIntToInt64(v.AuxInt) != 2 || v_0.Op != OpStructMake4 {
-			break
-		}
-		x := v_0.Args[2]
-		v.copyOf(x)
-		return true
-	}
-	// match: (StructSelect [3] (StructMake4 _ _ _ x))
-	// result: x
-	for {
-		if auxIntToInt64(v.AuxInt) != 3 || v_0.Op != OpStructMake4 {
-			break
-		}
-		x := v_0.Args[3]
-		v.copyOf(x)
+		v.copyOf(x.Args[i])
 		return true
 	}
 	// match: (StructSelect [i] x:(Load <t> ptr mem))

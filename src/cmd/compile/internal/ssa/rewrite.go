@@ -2356,3 +2356,41 @@ func isNonNegative(v *Value) bool {
 	}
 	return false
 }
+
+func rewriteStructLoad(v *Value) *Value {
+	b := v.Block
+	ptr := v.Args[0]
+	mem := v.Args[1]
+
+	t := v.Type
+	args := make([]*Value, t.NumFields())
+	for i := range args {
+		ft := t.FieldType(i)
+		addr := b.NewValue1I(v.Pos, OpOffPtr, ft.PtrTo(), t.FieldOff(i), ptr)
+		args[i] = b.NewValue2(v.Pos, OpLoad, ft, addr, mem)
+	}
+
+	v.reset(OpStructMake)
+	v.AddArgs(args...)
+	return v
+}
+
+func rewriteStructStore(v *Value) *Value {
+	b := v.Block
+	dst := v.Args[0]
+	x := v.Args[1]
+	if x.Op != OpStructMake {
+		base.Fatalf("invalid struct store: %v", x)
+	}
+	mem := v.Args[2]
+
+	t := x.Type
+	for i, arg := range x.Args {
+		ft := t.FieldType(i)
+
+		addr := b.NewValue1I(v.Pos, OpOffPtr, ft.PtrTo(), t.FieldOff(i), dst)
+		mem = b.NewValue3A(v.Pos, OpStore, types.TypeMem, typeToAux(ft), addr, arg, mem)
+	}
+
+	return mem
+}

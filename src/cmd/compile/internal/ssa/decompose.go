@@ -318,11 +318,10 @@ func decomposeUserStructInto(f *Func, name *LocalSlot, slots []*LocalSlot) []*Lo
 		}
 	}
 
-	makeOp := StructMakeOp(n)
 	var keep []*Value
 	// create named values for each struct field
 	for _, v := range f.NamedValues[*name] {
-		if v.Op != makeOp {
+		if v.Op != OpStructMake || len(v.Args) != n {
 			keep = append(keep, v)
 			continue
 		}
@@ -373,7 +372,7 @@ func decomposeStructPhi(v *Value) {
 			fields[i].AddArg(a.Block.NewValue1I(v.Pos, OpStructSelect, t.FieldType(i), int64(i), a))
 		}
 	}
-	v.reset(StructMakeOp(n))
+	v.reset(OpStructMake)
 	v.AddArgs(fields[:n]...)
 
 	// Recursively decompose phis for each field.
@@ -407,24 +406,6 @@ func decomposeArrayPhi(v *Value) {
 // MaxStruct is the maximum number of fields a struct
 // can have and still be SSAable.
 const MaxStruct = 4
-
-// StructMakeOp returns the opcode to construct a struct with the
-// given number of fields.
-func StructMakeOp(nf int) Op {
-	switch nf {
-	case 0:
-		return OpStructMake0
-	case 1:
-		return OpStructMake1
-	case 2:
-		return OpStructMake2
-	case 3:
-		return OpStructMake3
-	case 4:
-		return OpStructMake4
-	}
-	panic("too many fields in an SSAable struct")
-}
 
 type namedVal struct {
 	locIndex, valIndex int // f.NamedValues[f.Names[locIndex]][valIndex] = key
