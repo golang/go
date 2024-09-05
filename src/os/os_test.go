@@ -2603,10 +2603,7 @@ func TestRemoveAllRace(t *testing.T) {
 
 	n := runtime.GOMAXPROCS(16)
 	defer runtime.GOMAXPROCS(n)
-	root, err := MkdirTemp("", "issue")
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := t.TempDir()
 	mkdirTree(t, root, 1, 6)
 	hold := make(chan struct{})
 	var wg sync.WaitGroup
