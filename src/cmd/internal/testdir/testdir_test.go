@@ -162,22 +162,17 @@ func shardMatch(name string) bool {
 }
 
 func goFiles(t *testing.T, dir string) []string {
-	f, err := os.Open(filepath.Join(testenv.GOROOT(t), "test", dir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	dirnames, err := f.Readdirnames(-1)
-	f.Close()
+	files, err := os.ReadDir(filepath.Join(testenv.GOROOT(t), "test", dir))
 	if err != nil {
 		t.Fatal(err)
 	}
 	names := []string{}
-	for _, name := range dirnames {
+	for _, file := range files {
+		name := file.Name()
 		if !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && shardMatch(name) {
 			names = append(names, name)
 		}
 	}
-	sort.Strings(names)
 	return names
 }
 
