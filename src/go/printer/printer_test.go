@@ -126,7 +126,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 	}
 
 	// formatted source and golden must be the same
-	if err := checkEqual(source, golden, res, gld); err != nil {
+	if err := checkEqual(fmt.Sprintf("format(%v)", source), golden, res, gld); err != nil {
 		t.Error(err)
 		return
 	}
