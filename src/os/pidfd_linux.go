@@ -14,6 +14,7 @@ package os
 import (
 	"errors"
 	"internal/syscall/unix"
+	"runtime"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -147,6 +148,11 @@ var checkPidfdOnce = sync.OnceValue(checkPidfd)
 // execution environment in which the above system calls are restricted by
 // seccomp or a similar technology.
 func checkPidfd() error {
+	// In Android version < 12, pidfd_open and pidfd_send_signal are not allowed by seccomp.
+	if runtime.GOOS == "android" && androidVersion() < 12 {
+		return NewSyscallError("pidfd_send_signal", syscall.ENOSYS)
+	}
+
 	// Get a pidfd of the current process (opening of "/proc/self" won't
 	// work for waitid).
 	fd, err := unix.PidFDOpen(syscall.Getpid(), 0)

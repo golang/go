@@ -4,7 +4,25 @@
 
 package runtime
 
-import _ "unsafe" // for go:cgo_export_static and go:cgo_export_dynamic
+import (
+	"unsafe"
+)
+
+//go:linkname androidVersion runtime.androidVersion
+func androidVersion() int {
+	const PROP_VALUE_MAX = 92
+	var value [PROP_VALUE_MAX]byte
+	name := []byte("ro.build.version.release\x00")
+	length := __system_property_get(&name[0], &value[0])
+	for i := int32(0); i < length; i++ {
+		if value[i] < '0' || value[i] > '9' {
+			length = i
+			break
+		}
+	}
+	version, _ := atoi(unsafe.String(&value[0], length))
+	return version
+}
 
 // Export the main function.
 //
