@@ -459,12 +459,11 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
 
 // A PackageError describes an error loading information about a package.
 type PackageError struct {
-	ImportStack        []string // shortest path from package named on command line to this one
-	ImportStackWithPos []string // shortest path from package named on command line to this one with position
-	Pos                string   // position of error
-	Err                error    // the error itself
-	IsImportCycle      bool     // the error is an import cycle
-	alwaysPrintStack   bool     // whether to always print the ImportStack
+	ImportStack      []*ImportInfo // shortest path from package named on command line to this one with position
+	Pos              string        // position of error
+	Err              error         // the error itself
+	IsImportCycle    bool          // the error is an import cycle
+	alwaysPrintStack bool          // whether to always print the ImportStack
 }
 
 func (p *PackageError) Error() string {
@@ -503,11 +502,10 @@ func (p *PackageError) Unwrap() error { return p.Err }
 // and non-essential fields are omitted.
 func (p *PackageError) MarshalJSON() ([]byte, error) {
 	perr := struct {
-		ImportStack        []string
-		ImportStackWithPos []string
+		ImportStack        []*ImportInfo
 		Pos                string
 		Err                string
-	}{p.ImportStack, p.ImportStackWithPos, p.Pos, p.Err.Error()}
+	}{p.ImportStack, p.Pos, p.Err.Error()}
 	return json.Marshal(perr)
 }
 
@@ -570,7 +568,7 @@ func (e *importError) ImportPath() string {
 
 type ImportInfo struct {
 	Pkg string
-	Pos []token.Position
+	Pos *token.Position
 }
 
 // An ImportStack is a stack of import paths, possibly with the suffix " (test)" appended.
@@ -598,30 +596,11 @@ func delimiter(r rune) bool {
 	return r == '/' || r == '\\'
 }
 
-func convertToBasename(path string) string {
-	tokens := strings.FieldsFunc(path, delimiter)
-	length := len(tokens)
-	if length == 0 {
-		return ""
-	}
-	return tokens[length-1]
-}
-
-func trimLineNumber(basename string) string {
-	tokens := strings.Split(basename, ":")
-	length := len(tokens)
-	if length == 0 {
-		return ""
-	}
-	return tokens[0]
-}
-
 func (s *ImportStack) CopyWithPos() []string {
 	ss := make([]string, 0, len(*s))
 	for _, v := range *s {
-		lensPos := len(v.Pos)
-		if lensPos > 0 {
-			ss = append(ss, v.Pkg+" from "+trimLineNumber(convertToBasename(v.Pos[0].String())))
+		if v.Pos != nil {
+			ss = append(ss, v.Pkg+" from "+v.Pos.Filename)
 		} else {
 			ss = append(ss, v.Pkg)
 		}
