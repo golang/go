@@ -3404,9 +3404,9 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 
 	// Create a directory and file outside.
 	tmpDir := t.TempDir()
-	outsideDir, err := MkdirTemp(tmpDir, "copyfs_out_")
-	if err != nil {
-		t.Fatalf("MkdirTemp: %v", err)
+	outsideDir := filepath.Join(tmpDir, "copyfs_out")
+	if err := Mkdir(outsideDir, 0755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
 	}
 	outsideFile := filepath.Join(outsideDir, "file.out.txt")
 
@@ -3415,9 +3415,9 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 	}
 
 	// Create a directory and file inside.
-	insideDir, err := MkdirTemp(tmpDir, "copyfs_in_")
-	if err != nil {
-		t.Fatalf("MkdirTemp: %v", err)
+	insideDir := filepath.Join(tmpDir, "copyfs_in")
+	if err := Mkdir(insideDir, 0755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
 	}
 	insideFile := filepath.Join(insideDir, "file.in.txt")
 	if err := WriteFile(insideFile, []byte("Testing CopyFS inside"), 0644); err != nil {
@@ -3463,9 +3463,9 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 	// Copy the directory tree and verify.
 	forceMFTUpdateOnWindows(t, insideDir)
 	fsys := DirFS(insideDir)
-	tmpDupDir, err := MkdirTemp(tmpDir, "copyfs_dup_")
-	if err != nil {
-		t.Fatalf("MkdirTemp: %v", err)
+	tmpDupDir := filepath.Join(tmpDir, "copyfs_dup")
+	if err := Mkdir(tmpDupDir, 0755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
 	}
 
 	// TODO(panjf2000): symlinks are currently not supported, and a specific error
