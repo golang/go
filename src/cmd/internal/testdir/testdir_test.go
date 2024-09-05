@@ -209,40 +209,28 @@ func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, p
 	return runcmd(cmd...)
 }
 
-var stdlibImportcfgStringOnce sync.Once // TODO(#56102): Use sync.OnceValue once available. Also below.
-var stdlibImportcfgString string
+var stdlibImportcfg = sync.OnceValue(func() string {
+	cmd := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std")
+	cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(output)
+})
 
-func stdlibImportcfg() string {
-	stdlibImportcfgStringOnce.Do(func() {
-		cmd := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std")
-		cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=")
-		output, err := cmd.Output()
-		if err != nil {
-			log.Fatal(err)
-		}
-		stdlibImportcfgString = string(output)
-	})
-	return stdlibImportcfgString
-}
-
-var stdlibImportcfgFilenameOnce sync.Once
-var stdlibImportcfgFilename string
-
-func stdlibImportcfgFile() string {
-	stdlibImportcfgFilenameOnce.Do(func() {
-		tmpdir, err := os.MkdirTemp("", "importcfg")
-		if err != nil {
-			log.Fatal(err)
-		}
-		filename := filepath.Join(tmpdir, "importcfg")
-		err = os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
-		if err != nil {
-			log.Fatal(err)
-		}
-		stdlibImportcfgFilename = filename
-	})
-	return stdlibImportcfgFilename
-}
+var stdlibImportcfgFile = sync.OnceValue(func() string {
+	tmpdir, err := os.MkdirTemp("", "importcfg")
+	if err != nil {
+		log.Fatal(err)
+	}
+	filename := filepath.Join(tmpdir, "importcfg")
+	err = os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return filename
+})
 
 func linkFile(runcmd runCmd, goname string, importcfg string, ldflags []string) (err error) {
 	if importcfg == "" {
@@ -946,7 +934,6 @@ func (t test) run() error {
 			case ".s":
 				asms = append(asms, filepath.Join(longdir, file.Name()))
 			}
-
 		}
 		if len(asms) > 0 {
 			emptyHdrFile := filepath.Join(tempDir, "go_asm.h")
@@ -1132,19 +1119,15 @@ func (t test) run() error {
 	}
 }
 
-var execCmdOnce sync.Once
-var execCmd []string
-
-func findExecCmd() []string {
-	execCmdOnce.Do(func() {
-		if goos == runtime.GOOS && goarch == runtime.GOARCH {
-			// Do nothing.
-		} else if path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", goos, goarch)); err == nil {
-			execCmd = []string{path}
-		}
-	})
+var findExecCmd = sync.OnceValue(func() (execCmd []string) {
+	if goos == runtime.GOOS && goarch == runtime.GOARCH {
+		return nil
+	}
+	if path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", goos, goarch)); err == nil {
+		execCmd = []string{path}
+	}
 	return execCmd
-}
+})
 
 // checkExpectedOutput compares the output from compiling and/or running with the contents
 // of the corresponding reference output file, if any (replace ".go" with ".out").
