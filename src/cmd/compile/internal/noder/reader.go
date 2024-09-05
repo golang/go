@@ -1190,13 +1190,16 @@ func (r *reader) typeExt(name *ir.Name) {
 	typ := name.Type()
 
 	if r.hasTypeParams() {
-		// Set "RParams" (really type arguments here, not parameters) so
-		// this type is treated as "fully instantiated". This ensures the
-		// type descriptor is written out as DUPOK and method wrappers are
-		// generated even for imported types.
-		var targs []*types.Type
-		targs = append(targs, r.dict.targs...)
-		typ.SetRParams(targs)
+		// Mark type as fully instantiated to ensure the type descriptor is written
+		// out as DUPOK and method wrappers are generated even for imported types.
+		typ.SetIsFullyInstantiated(true)
+		// HasShape should be set if any type argument is or has a shape type.
+		for _, targ := range r.dict.targs {
+			if targ.HasShape() {
+				typ.SetHasShape(true)
+				break
+			}
+		}
 	}
 
 	name.SetPragma(r.pragmaFlag())

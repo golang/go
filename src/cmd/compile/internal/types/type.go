@@ -208,16 +208,6 @@ type Type struct {
 	// Note that for pointers, this is always PtrSize even if the element type
 	// is NotInHeap. See size.go:PtrDataSize for details.
 	ptrBytes int64
-
-	// For defined (named) generic types, a pointer to the list of type params
-	// (in order) of this type that need to be instantiated. For instantiated
-	// generic types, this is the targs used to instantiate them. These targs
-	// may be typeparams (for re-instantiated types such as Value[T2]) or
-	// concrete types (for fully instantiated types such as Value[int]).
-	// rparams is only set for named types that are generic or are fully
-	// instantiated from a generic type, and is otherwise set to nil.
-	// TODO(danscales): choose a better name.
-	rparams *[]*Type
 }
 
 // Registers returns the number of integer and floating-point
@@ -240,19 +230,24 @@ const (
 	typeRecur
 	typeIsShape  // represents a set of closely related types, for generics
 	typeHasShape // there is a shape somewhere in the type
+	// typeIsFullyInstantiated reports whether a type is fully instantiated generic type; i.e.
+	// an instantiated generic type where all type arguments are non-generic or fully instantiated generic types.
+	typeIsFullyInstantiated
 )
 
-func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
-func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
-func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
-func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
-func (t *Type) IsShape() bool    { return t.flags&typeIsShape != 0 }
-func (t *Type) HasShape() bool   { return t.flags&typeHasShape != 0 }
+func (t *Type) NotInHeap() bool           { return t.flags&typeNotInHeap != 0 }
+func (t *Type) Noalg() bool               { return t.flags&typeNoalg != 0 }
+func (t *Type) Deferwidth() bool          { return t.flags&typeDeferwidth != 0 }
+func (t *Type) Recur() bool               { return t.flags&typeRecur != 0 }
+func (t *Type) IsShape() bool             { return t.flags&typeIsShape != 0 }
+func (t *Type) HasShape() bool            { return t.flags&typeHasShape != 0 }
+func (t *Type) IsFullyInstantiated() bool { return t.flags&typeIsFullyInstantiated != 0 }
 
-func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
-func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
-func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
-func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
+func (t *Type) SetNotInHeap(b bool)           { t.flags.set(typeNotInHeap, b) }
+func (t *Type) SetNoalg(b bool)               { t.flags.set(typeNoalg, b) }
+func (t *Type) SetDeferwidth(b bool)          { t.flags.set(typeDeferwidth, b) }
+func (t *Type) SetRecur(b bool)               { t.flags.set(typeRecur, b) }
+func (t *Type) SetIsFullyInstantiated(b bool) { t.flags.set(typeIsFullyInstantiated, b) }
 
 // Should always do SetHasShape(true) when doing SetIsShape(true).
 func (t *Type) SetIsShape(b bool)  { t.flags.set(typeIsShape, b) }
@@ -279,34 +274,6 @@ func (t *Type) Pos() src.XPos {
 		return t.obj.Pos()
 	}
 	return src.NoXPos
-}
-
-func (t *Type) RParams() []*Type {
-	if t.rparams == nil {
-		return nil
-	}
-	return *t.rparams
-}
-
-func (t *Type) SetRParams(rparams []*Type) {
-	if len(rparams) == 0 {
-		base.Fatalf("Setting nil or zero-length rparams")
-	}
-	t.rparams = &rparams
-	// HasShape should be set if any type argument is or has a shape type.
-	for _, rparam := range rparams {
-		if rparam.HasShape() {
-			t.SetHasShape(true)
-			break
-		}
-	}
-}
-
-// IsFullyInstantiated reports whether t is a fully instantiated generic type; i.e. an
-// instantiated generic type where all type arguments are non-generic or fully
-// instantiated generic types.
-func (t *Type) IsFullyInstantiated() bool {
-	return len(t.RParams()) > 0
 }
 
 // Map contains Type fields specific to maps.
