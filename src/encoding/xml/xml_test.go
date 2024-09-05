@@ -1925,7 +1925,7 @@ func TestParseErrors(t *testing.T) {
 		{withDefaultHeader(`<!-? not ok -->`), `invalid sequence <!- not part of <!--`},
 		{withDefaultHeader(`<![not ok]>`), `invalid <![ sequence`},
 		{withDefaultHeader(`<zzz:foo xmlns:zzz="http://example.com"><bar>baz</bar></foo>`),
-			`element <foo> in space zzz closed by </foo> in space ""`},
+			`element <foo> in namespace zzz closed by </foo> in namespace ""`},
 		{withDefaultHeader("\xf1"), `invalid UTF-8`},
 
 		// Header-related errors.
