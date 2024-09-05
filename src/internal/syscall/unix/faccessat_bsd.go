@@ -22,7 +22,3 @@ func faccessat(dirfd int, path string, mode uint32, flags int) error {
 	}
 	return err
 }
-
-func Eaccess(path string, mode uint32) error {
-	return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
-}
