@@ -108,7 +108,7 @@ func (check *Checker) funcLit(x *operand, e *ast.FuncLit) {
 	}
 }
 
-func (check *Checker) compositeLit(T *target, x *operand, e *ast.CompositeLit, hint Type) {
+func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 	var typ, base Type
 	var isElem bool // true if composite literal is an element of an enclosing composite literal
 

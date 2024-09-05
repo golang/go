@@ -1073,7 +1073,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		}
 
 	case *syntax.CompositeLit:
-		check.compositeLit(T, x, e, hint)
+		check.compositeLit(x, e, hint)
 		if x.mode == invalid {
 			goto Error
 		}
