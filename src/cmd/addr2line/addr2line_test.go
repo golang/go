@@ -102,11 +102,7 @@ func testAddr2Line(t *testing.T, dbgExePath, addr string) {
 func TestAddr2Line(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	tmpDir, err := os.MkdirTemp("", "TestAddr2Line")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Build copy of test binary with debug symbols,
 	// since the one running now may not have them.
