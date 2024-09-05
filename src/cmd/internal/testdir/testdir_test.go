@@ -63,6 +63,7 @@ var (
 	cgoEnabled   bool
 	goExperiment string
 	goDebug      string
+	tmpDir       string
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
@@ -115,6 +116,7 @@ func Test(t *testing.T) {
 	cgoEnabled, _ = strconv.ParseBool(env.CGO_ENABLED)
 	goExperiment = env.GOEXPERIMENT
 	goDebug = env.GODEBUG
+	tmpDir = t.TempDir()
 
 	common := testCommon{
 		gorootTestDir: filepath.Join(testenv.GOROOT(t), "test"),
@@ -220,12 +222,8 @@ var stdlibImportcfg = sync.OnceValue(func() string {
 })
 
 var stdlibImportcfgFile = sync.OnceValue(func() string {
-	tmpdir, err := os.MkdirTemp("", "importcfg")
-	if err != nil {
-		log.Fatal(err)
-	}
-	filename := filepath.Join(tmpdir, "importcfg")
-	err = os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
+	filename := filepath.Join(tmpDir, "importcfg")
+	err := os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
