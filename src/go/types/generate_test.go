@@ -137,8 +137,11 @@ var filemap = map[string]action{
 	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"literals.go": func(f *ast.File) {
+		insertImportPath(f, `"go/token"`)
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
-		renameSelectorExprs(f, "syntax.Name->ast.Ident", "key.Value->key.Name", "atyp.Elem->atyp.Elt") // must happen before renaming identifiers
+		renameSelectorExprs(f,
+			"syntax.IntLit->token.INT", "syntax.FloatLit->token.FLOAT", "syntax.ImagLit->token.IMAG",
+			"syntax.Name->ast.Ident", "key.Value->key.Name", "atyp.Elem->atyp.Elt") // must happen before renaming identifiers
 		renameIdents(f, "syntax->ast")
 		renameSelectors(f, "ElemList->Elts")
 	},

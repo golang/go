@@ -2,14 +2,79 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements typechecking of composite literals.
+// This file implements typechecking of literals.
 
 package types2
 
 import (
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
+	"strings"
 )
+
+// langCompat reports an error if the representation of a numeric
+// literal is not compatible with the current language version.
+func (check *Checker) langCompat(lit *syntax.BasicLit) {
+	s := lit.Value
+	if len(s) <= 2 || check.allowVersion(lit, go1_13) {
+		return
+	}
+	// len(s) > 2
+	if strings.Contains(s, "_") {
+		check.versionErrorf(lit, go1_13, "underscore in numeric literal")
+		return
+	}
+	if s[0] != '0' {
+		return
+	}
+	radix := s[1]
+	if radix == 'b' || radix == 'B' {
+		check.versionErrorf(lit, go1_13, "binary literal")
+		return
+	}
+	if radix == 'o' || radix == 'O' {
+		check.versionErrorf(lit, go1_13, "0o/0O-style octal literal")
+		return
+	}
+	if lit.Kind != syntax.IntLit && (radix == 'x' || radix == 'X') {
+		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literal")
+	}
+}
+
+func (check *Checker) basicLit(x *operand, e *syntax.BasicLit) {
+	switch e.Kind {
+	case syntax.IntLit, syntax.FloatLit, syntax.ImagLit:
+		check.langCompat(e)
+		// The max. mantissa precision for untyped numeric values
+		// is 512 bits, or 4048 bits for each of the two integer
+		// parts of a fraction for floating-point numbers that are
+		// represented accurately in the go/constant package.
+		// Constant literals that are longer than this many bits
+		// are not meaningful; and excessively long constants may
+		// consume a lot of space and time for a useless conversion.
+		// Cap constant length with a generous upper limit that also
+		// allows for separators between all digits.
+		const limit = 10000
+		if len(e.Value) > limit {
+			check.errorf(e, InvalidConstVal, "excessively long constant: %s... (%d chars)", e.Value[:10], len(e.Value))
+			x.mode = invalid
+			return
+		}
+	}
+	x.setConst(e.Kind, e.Value)
+	if x.mode == invalid {
+		// The parser already establishes syntactic correctness.
+		// If we reach here it's because of number under-/overflow.
+		// TODO(gri) setConst (and in turn the go/constant package)
+		// should return an error describing the issue.
+		check.errorf(e, InvalidConstVal, "malformed constant: %s", e.Value)
+		x.mode = invalid
+		return
+	}
+	// Ensure that integer values don't overflow (go.dev/issue/54280).
+	x.expr = e // make sure that check.overflow below has an error position
+	check.overflow(x, opPos(x.expr))
+}
 
 func (check *Checker) funcLit(x *operand, e *syntax.FuncLit) {
 	if sig, ok := check.typ(e.Type).(*Signature); ok {
