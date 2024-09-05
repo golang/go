@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"runtime"
 	"runtime/mainthread"
 	"sync"
@@ -29,13 +30,18 @@ func init() {
 		MainThread()
 	})
 	register("MainThread2", func() {
-		println("expect: hello,world")
+		println("expect: hello,runtime: nested call mainthread.Do")
 		MainThread2()
 	})
 }
 
 func MainThread2() {
 	var wg sync.WaitGroup
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Print(err)
+		}
+	}()
 	runtime.LockOSThread()
 	wg.Add(1)
 	go func() {

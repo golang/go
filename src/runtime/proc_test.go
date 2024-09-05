@@ -1171,7 +1171,7 @@ func TestMainThread(t *testing.T) {
 				runtime.Releasem()
 				if m != runtime.M0 {
 					// don`t use t.Fatal, because it call
-					// Goexit, cause TestMain goroutine exit,
+					// Goexit, cause TestMain goroutine on main thread exit,
 					// and test timeout.
 					t.Fail()
 					t.Log("mainthread.Do.f must on main thread")

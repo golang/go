@@ -13,24 +13,21 @@
 // yield the main thread temporarily to other [Do] calls by calling [Yield].
 //
 // Each package's initialization functions always run on the main thread,
-// as if by successive calls to Do(init).
+// so call Do in init is unnecessary.
 //
 // For compatibility with earlier versions of Go, if an init function calls [runtime.LockOSThread],
-// then package main's func main also runs on the main thread, as if by Do(main).
+// then package main's func main also runs on the main thread,
+// until the thread is unlocked using [runtime.UnlockOSThread].
 // In this situation, main must explicitly yield the main thread
-// to allow other calls to Do are to proceed.
+// to allow other thread calls to Do are to proceed.
 // See the documentation for [Waiting] for examples.
-package mainthread // imported as "runtime/mainthread"
+package mainthread
 
 import _ "unsafe"
 
 // Do calls f on the main thread.
 // Nothing else runs on the main thread until f returns or calls [Yield].
 // If f calls Do, the nested call panics.
-//
-// Package initialization functions run as if by Do(init).
-// If an init function calls [runtime.LockOSThread], then package main's func main
-// runs as if by Do(main), until the thread is unlocked using [runtime.UnlockOSThread].
 //
 //go:linkname Do runtime.mainThreadDo
 func Do(f func())
