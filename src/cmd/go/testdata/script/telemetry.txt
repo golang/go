@@ -49,3 +49,21 @@ stdout 'GOTELEMETRYDIR=''?'$userconfig'[\\/]go[\\/]telemetry''?'
 stderr '^go: GOTELEMETRY cannot be modified$'
 ! go env -w GOTELEMETRYDIR=foo
 stderr '^go: GOTELEMETRYDIR cannot be modified$'
+
+# Test issue #69269: 'go telemetry off' should not increment counters.
+# Establish that previous commands did write telemetry files.
+exists $userconfig/go/telemetry/local
+# Now check for go telemetry off behavior.
+rm $userconfig/go/telemetry/local
+go telemetry off
+! exists $userconfig/go/telemetry/local
+# Check for the behavior with -C, the only flag 'go telemetry off' can take.
+go telemetry local
+go -C $WORK telemetry off
+! exists $userconfig/go/telemetry/local
+go telemetry local
+go telemetry -C=$WORK off
+! exists $userconfig/go/telemetry/local
+go telemetry local
+go help telemetry
+exists $userconfig/go/telemetry/local
