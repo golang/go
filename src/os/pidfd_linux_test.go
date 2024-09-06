@@ -9,6 +9,7 @@ import (
 	"internal/syscall/unix"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"syscall"
 	"testing"
 )
@@ -87,5 +88,60 @@ func TestStartProcessWithPidfd(t *testing.T) {
 	err = unix.PidFDSendSignal(uintptr(pidfd), syscall.Signal(0))
 	if !errors.Is(err, syscall.ESRCH) {
 		t.Errorf("SendSignal: got %v, want %v", err, syscall.ESRCH)
+	}
+}
+
+// Issue #69284
+func TestPidfdLeak(t *testing.T) {
+	exe := testenv.Executable(t)
+
+	// Find the next 10 descriptors.
+	// We need to get more than one descriptor in practice;
+	// the pidfd winds up not being the next descriptor.
+	const count = 10
+	want := make([]int, count)
+	for i := range count {
+		var err error
+		want[i], err = syscall.Open(exe, syscall.O_RDONLY, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Close the descriptors.
+	for _, d := range want {
+		syscall.Close(d)
+	}
+
+	// Start a process 10 times.
+	for range 10 {
+		// For testing purposes this has to be an absolute path.
+		// Otherwise we will fail finding the executable
+		// and won't start a process at all.
+		cmd := exec.Command("/noSuchExecutable")
+		cmd.Run()
+	}
+
+	// Open the next 10 descriptors again.
+	got := make([]int, count)
+	for i := range count {
+		var err error
+		got[i], err = syscall.Open(exe, syscall.O_RDONLY, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Close the descriptors
+	for _, d := range got {
+		syscall.Close(d)
+	}
+
+	t.Logf("got %v", got)
+	t.Logf("want %v", want)
+
+	// Allow some slack for runtime epoll descriptors and the like.
+	if got[count-1] > want[count-1]+5 {
+		t.Errorf("got descriptor %d, want %d", got[count-1], want[count-1])
 	}
 }

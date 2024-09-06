@@ -750,3 +750,11 @@ func writeUidGidMappings(pid int, sys *SysProcAttr) error {
 
 	return nil
 }
+
+// forkAndExecFailureCleanup cleans up after an exec failure.
+func forkAndExecFailureCleanup(attr *ProcAttr, sys *SysProcAttr) {
+	if sys.PidFD != nil && *sys.PidFD != -1 {
+		Close(*sys.PidFD)
+		*sys.PidFD = -1
+	}
+}
