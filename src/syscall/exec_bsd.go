@@ -293,3 +293,8 @@ childerror:
 		RawSyscall(SYS_EXIT, 253, 0, 0)
 	}
 }
+
+// forkAndExecFailureCleanup cleans up after an exec failure.
+func forkAndExecFailureCleanup(attr *ProcAttr, sys *SysProcAttr) {
+	// Nothing to do.
+}
