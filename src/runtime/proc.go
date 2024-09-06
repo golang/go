@@ -116,6 +116,7 @@ var modinfo string
 var (
 	m0           m
 	mtPtr        atomic.Pointer[mainThreadOnce]
+	m0wait       = make(chan struct{}, 1)
 	g0           g
 	mcache0      *mcache
 	raceprocctx0 uintptr
@@ -127,8 +128,16 @@ func init() {
 }
 
 type mainThreadOnce struct {
+	// m0func pass f from a call to mainthread.Do on non-main thread to the main thread.
+	m0func chan func()
+	// m0wait send a signal that the non-main thread is waiting for mainthread.Yield.
+	m0wait chan struct{}
+	// m0exec notifies mainthread.Do when the f passed from Do on the non-main thread
+	// to mainthread.Yield on the main thread has completed.
+	m0exec chan struct{}
 	//m0once make sure to only send m0wait once if mainthread.Yield is not called.
 	m0once Once
+	callDo atomic.Bool
 }
 
 // copy from sync package.
@@ -152,18 +161,12 @@ func (o *Once) doSlow(f func()) {
 	}
 }
 
-var (
-	// m0func pass f from a call to mainthread.Do on non-main thread to the main thread.
-	m0func = make(chan func())
-	// m0wait send a signal that the non-main thread is waiting for mainthread.Yield.
-	m0wait = make(chan struct{})
-	// m0exec notifies mainthread.Do when the f passed from Do on the non-main thread
-	// to mainthread.Yield on the main thread has completed.
-	m0exec = make(chan struct{}, 1)
-)
-
 func newmainThreadInfo() *mainThreadOnce {
-	return new(mainThreadOnce)
+	ret := new(mainThreadOnce)
+	ret.m0func = make(chan func())
+	ret.m0wait = m0wait
+	ret.m0exec = make(chan struct{}, 1)
+	return ret
 }
 
 // This slice records the initializing tasks that need to be
@@ -194,6 +197,7 @@ func mainThreadDo(f func()) {
 		panic("runtime: nested call mainthread.Do")
 	}
 	g.inMainThreadDo = true
+	defer func() { g.inMainThreadDo = false }()
 	if g.m == &m0 {
 		// lock os thread ensure that the main thread always
 		// run only f during a call to f.
@@ -204,10 +208,11 @@ func mainThreadDo(f func()) {
 	}
 	mt := mtPtr.Load()
 	mt.m0once.Do(func() {
-		m0wait <- struct{}{}
+		mt.callDo.Store(true)
+		mt.m0wait <- struct{}{}
 	})
-	m0func <- f
-	_ = <-m0exec
+	mt.m0func <- f
+	_ = <-mt.m0exec
 }
 
 func mainThreadYield() {
@@ -224,13 +229,25 @@ func mainThreadYield() {
 	lockOSThread()
 	defer func() {
 		unlockOSThread()
+		g.inMainThreadDo = false
 	}()
+	i := 0
+	mt := mtPtr.Load()
 	for {
 		select {
-		case f := <-m0func:
+		case f := <-mt.m0func:
+			i++
 			f()
-			m0exec <- struct{}{}
+			mt.m0exec <- struct{}{}
 		default:
+			if mt.callDo.Load() && i == 0 {
+				// if g1 on main thread
+				// <-mainthread.Waiting
+				// mainthread.Yield (in now code path)
+				// g2 on other thread
+				// mainthread.Do (not yet send f)
+				continue
+			}
 			// because there is only one main thread,
 			// can use Store directly without considering concurrent call Yield.
 			mtPtr.Store(newmainThreadInfo())
@@ -238,9 +255,9 @@ func mainThreadYield() {
 				select {
 				// if there is a new send from m0func before the mtPtr is updated after
 				// all the send from m0func has been received.
-				case f := <-m0func:
+				case f := <-mt.m0func:
 					f()
-					m0exec <- struct{}{}
+					mt.m0exec <- struct{}{}
 				default:
 					return
 				}

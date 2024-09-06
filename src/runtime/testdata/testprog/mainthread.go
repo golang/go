@@ -8,23 +8,18 @@ import (
 	"fmt"
 	"runtime"
 	"runtime/mainthread"
-	"sync"
 )
 
 func MainThread() {
-	var wg sync.WaitGroup
-	runtime.LockOSThread()
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		mainthread.Do(func() { println("Ok") })
 	}()
 	<-mainthread.Waiting()
 	mainthread.Yield()
-	wg.Wait()
 }
 
 func init() {
+	runtime.LockOSThread()
 	register("MainThread", func() {
 		println("expect: Ok")
 		MainThread()
@@ -36,16 +31,12 @@ func init() {
 }
 
 func MainThread2() {
-	var wg sync.WaitGroup
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Print(err)
 		}
 	}()
-	runtime.LockOSThread()
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		mainthread.Do(func() {
 			print("hello,")
 			mainthread.Do(func() {
@@ -55,5 +46,4 @@ func MainThread2() {
 	}()
 	<-mainthread.Waiting()
 	mainthread.Yield()
-	wg.Wait()
 }
