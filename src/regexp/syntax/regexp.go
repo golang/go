@@ -210,6 +210,8 @@ func calcFlags(re *Regexp, flags *map[*Regexp]printFlags) (must, cant printFlags
 	}
 }
 
+// calcFlagsI determines if the case-folding flag (?i) is required for character classes.
+// It checks whether to look inside or outside character ranges for case folding, depending on which range is smaller, to minimize unnecessary checks.
 func calcFlagsI(re *Regexp) (must, cant printFlags) {
 	if len(re.Rune) < 2 {
 		return 0, 0
