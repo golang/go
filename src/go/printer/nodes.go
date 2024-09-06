@@ -380,7 +380,7 @@ func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
 		if closing := p.lineFor(fields.Closing); 0 < prevLine && prevLine < closing {
 			p.print(token.COMMA)
 			p.linebreak(closing, 0, ignore, true)
-		} else if mode == typeTParam && fields.NumFields() == 1 && combinesWithName(fields.List[0].Type) {
+		} else if mode == typeTParam && fields.NumFields() == 1 && combinesWithName(stripParensAlways(fields.List[0].Type)) {
 			// A type parameter list [P T] where the name P and the type expression T syntactically
 			// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
 			// (or an enclosing interface as in [P interface(*T)]), so that the type parameter list
@@ -411,7 +411,7 @@ func combinesWithName(x ast.Expr) bool {
 	case *ast.BinaryExpr:
 		return combinesWithName(x.X) && !isTypeElem(x.Y)
 	case *ast.ParenExpr:
-		return combinesWithName(x.X)
+		return !isTypeElem(x.X)
 	}
 	return false
 }
