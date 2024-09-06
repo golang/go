@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package os
+//go:build !android
 
-import _ "unsafe" // for go:linkname
+package unix
 
-//go:linkname androidVersion runtime.androidVersion
-func androidVersion() int
+func AndroidVersion() int {
+	return 0
+}

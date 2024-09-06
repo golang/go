@@ -11,7 +11,7 @@
 // A pointer to the arguments is passed on the stack.
 // A single int32 result is returned in AX.
 // (For more results, make an args/results structure.)
-TEXT runtime·__system_property_get_trampoline(SB),NOSPLIT,$0
+TEXT ·__system_property_get_trampoline(SB),NOSPLIT,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	SUBL	$8, SP

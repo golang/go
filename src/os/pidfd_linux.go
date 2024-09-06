@@ -149,7 +149,7 @@ var checkPidfdOnce = sync.OnceValue(checkPidfd)
 // seccomp or a similar technology.
 func checkPidfd() error {
 	// In Android version < 12, pidfd_open and pidfd_send_signal are not allowed by seccomp.
-	if runtime.GOOS == "android" && androidVersion() < 12 {
+	if runtime.GOOS == "android" && unix.AndroidVersion() < 12 {
 		return NewSyscallError("pidfd_send_signal", syscall.ENOSYS)
 	}
 

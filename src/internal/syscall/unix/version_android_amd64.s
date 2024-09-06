@@ -10,7 +10,7 @@
 // A pointer to the arguments is passed in DI.
 // A single int32 result is returned in AX.
 // (For more results, make an args/results structure.)
-TEXT runtime·__system_property_get_trampoline(SB),NOSPLIT,$0
+TEXT ·__system_property_get_trampoline(SB),NOSPLIT,$0
 	MOVQ	8(DI), SI		// arg 2 - value
 	MOVQ	0(DI), DI		// arg 1 - name
 	CALL	libc___system_property_get(SB)
