@@ -149,18 +149,7 @@ func calcFlags(re *Regexp, flags *map[*Regexp]printFlags) (must, cant printFlags
 	case OpCharClass:
 		// If literal is fold-sensitive, return 0, flagI - (?i) has been compiled out.
 		// If literal is not fold-sensitive, return 0, 0.
-		for i := 0; i < len(re.Rune); i += 2 {
-			lo := max(minFold, re.Rune[i])
-			hi := min(maxFold, re.Rune[i+1])
-			for r := lo; r <= hi; r++ {
-				for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
-					if !(lo <= f && f <= hi) && !inCharClass(f, re.Rune) {
-						return 0, flagI
-					}
-				}
-			}
-		}
-		return 0, 0
+		return calcFlagsI(re)
 
 	case OpAnyCharNotNL: // (?-s).
 		return 0, flagS
@@ -219,6 +208,90 @@ func calcFlags(re *Regexp, flags *map[*Regexp]printFlags) (must, cant printFlags
 		}
 		return 0, allCant
 	}
+}
+
+func calcFlagsI(re *Regexp) (must, cant printFlags) {
+	if len(re.Rune) < 2 {
+		return 0, 0
+	}
+
+	maxRange := min(maxFold, re.Rune[len(re.Rune)-1])
+	pre := rune(minFold)
+	inside, outside := 0, int(maxFold-maxRange)
+	checkInRange := true
+
+	// If last range dominates the whole range,
+	// we can check outside the range.
+	lastRange := max(0, maxRange-re.Rune[len(re.Rune)-2])
+	if lastRange > rune(outside)+re.Rune[len(re.Rune)-2] {
+		checkInRange = false
+		goto check
+	}
+
+	// If the range from last rune to maxFold dominates,
+	// we can check inside the range.
+	if outside > int(re.Rune[len(re.Rune)-1]) {
+		goto check
+	}
+
+	// 2 conditions above should catch most cases.
+	// If not, do a slow calculation
+	for i := 0; i < len(re.Rune); i += 2 {
+		lo := max(minFold, re.Rune[i])
+		hi := min(maxFold, re.Rune[i+1])
+		if lo > hi {
+			continue
+		}
+
+		inside += int(hi - lo + 1)
+		outside += int(lo - pre)
+		pre = max(minFold, hi+1)
+	}
+
+	checkInRange = inside < outside
+check:
+	if checkInRange {
+		for i := 0; i < len(re.Rune); i += 2 {
+			lo := max(minFold, re.Rune[i])
+			hi := min(maxFold, re.Rune[i+1])
+			for r := lo; r <= hi; r++ {
+				for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+					if !(lo <= f && f <= hi) && !inCharClass(f, re.Rune) {
+						return 0, flagI
+					}
+				}
+			}
+		}
+
+		return 0, 0
+	}
+
+	// Check characters outside the defined range
+	pre = minFold
+	for i := 0; i < len(re.Rune); i += 2 {
+		lo := re.Rune[i]
+		hi := min(maxFold, re.Rune[i+1])
+		// Between `pre` and `lo` (exclusive)
+		for r := pre; r < lo; r++ {
+			for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+				if inCharClass(f, re.Rune) {
+					return 0, flagI
+				}
+			}
+		}
+		pre = max(minFold, hi+1)
+	}
+
+	// Check characters between `pre` and `maxFold`
+	for r := pre; r <= maxFold; r++ {
+		for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+			if inCharClass(f, re.Rune) {
+				return 0, flagI
+			}
+		}
+	}
+
+	return 0, 0
 }
 
 // writeRegexp writes the Perl syntax for the regular expression re to b.
