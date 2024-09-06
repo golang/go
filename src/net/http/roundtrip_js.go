@@ -13,7 +13,6 @@ import (
 	"net/http/internal/ascii"
 	"strconv"
 	"syscall/js"
-	"testing"
 )
 
 var uint8Array = js.Global().Get("Uint8Array")
@@ -47,13 +46,13 @@ const jsFetchRedirect = "js.fetch:redirect"
 var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 
 // jsFetchDisabled controls whether the use of Fetch API is disabled.
-// It's set to true when we detect we're running in Node.js, so that
+// It's set to true when we detect we're running in test, so that
 // RoundTrip ends up talking over the same fake network the HTTP servers
 // currently use in various tests and examples. See go.dev/issue/57613.
 //
 // TODO(go.dev/issue/60810): See if it's viable to test the Fetch API
 // code path.
-var jsFetchDisabled = testing.Testing()
+var jsFetchDisabled = !js.Global().Get("JSFetchDisabledInTest").IsUndefined()
 
 // RoundTrip implements the [RoundTripper] interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
