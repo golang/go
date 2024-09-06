@@ -398,7 +398,7 @@ func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
 	p.print(closeTok)
 }
 
-// combinesWithName reports whether a name (*ast.Ident) followed by the expression x
+// combinesWithName reports whether a name followed by the expression x
 // syntactically combines to another valid (value) expression. For instance
 // using *T for x, "name *T" syntactically appears as the expression x*T.
 // On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or name *P|~Q"
