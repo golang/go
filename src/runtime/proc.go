@@ -190,10 +190,10 @@ var initSigmask sigset
 
 func mainThreadDo(f func()) {
 	g := getg()
-	if g.inMainThradDo {
+	if g.inMainThreadDo {
 		panic("runtime: nested call mainthread.Do")
 	}
-	g.inMainThradDo = true
+	g.inMainThreadDo = true
 	if g.m == &m0 {
 		// lock os thread ensure that the main thread always
 		// run only f during a call to f.
@@ -215,10 +215,10 @@ func mainThreadYield() {
 	if g.m != &m0 {
 		panic("runtime: call mainthread.Yield must on main thread")
 	}
-	if g.inMainThradDo {
+	if g.inMainThreadDo {
 		panic("runtime: nested call mainthread.Do")
 	}
-	g.inMainThradDo = true
+	g.inMainThreadDo = true
 	// lock os thread ensure that the main thread always
 	// run only f during a call to f.
 	lockOSThread()
