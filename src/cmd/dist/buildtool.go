@@ -142,8 +142,10 @@ func bootstrapBuildTools() {
 	_, after, _ := strings.Cut(ver, "go1")
 	if after != "" {
 		v := strings.Split(after, ".")
-		if len(v) > 2 {
-			if v[0] < minBootStrapVersion[1] || v[1] < minBootStrapVersion[2] {
+		// if go version output is go1.22.6 goos/goarch
+		// v is ["","22","6 goos/aoarch"].
+		if len(v) == 3 {
+			if v[1] < minBootStrapVersion[1] || strings.Split(v[2], " ")[0] < minBootStrapVersion[2] {
 				fatalf("requires Go 1.%s.%s or later for bootstrap", minBootStrapVersion[1], minBootStrapVersion[2])
 			}
 		}
