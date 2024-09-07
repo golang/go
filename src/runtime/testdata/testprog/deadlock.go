@@ -223,6 +223,7 @@ func GoNil() {
 }
 
 func MainGoroutineID() {
+	runtime.UnlockOSThread()
 	panic("test")
 }
 

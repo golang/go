@@ -4,11 +4,7 @@
 
 package main
 
-import (
-	"os"
-	"runtime"
-	"strings"
-)
+import "os"
 
 var cmds = map[string]func(){}
 
@@ -29,11 +25,6 @@ func main() {
 	if len(os.Args) < 2 {
 		println("usage: " + os.Args[0] + " name-of-test")
 		return
-	}
-	if !strings.Contains(os.Args[1], "MainThread") {
-		// MainThread and MainThread2 need runtime.LockOSThread,
-		// but will break MainGoroutineID.
-		runtime.UnlockOSThread()
 	}
 	f := cmds[os.Args[1]]
 	if f == nil {
