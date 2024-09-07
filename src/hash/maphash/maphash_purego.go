@@ -99,6 +99,5 @@ var strTyp = reflect.TypeFor[string]()
 
 func comparableF[T comparable](h *Hash, v T, t *abi.Type) {
 	vv := reflect.ValueOf(v)
-	typ := vv.Type()
 	appendT(h, vv)
 }
