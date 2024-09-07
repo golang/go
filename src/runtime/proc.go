@@ -143,7 +143,21 @@ type mainThreadOnce struct {
 // copy from sync package.
 type once struct {
 	done atomic.Uint32
-	m    mutex
+	m    atomicmutex
+}
+
+type atomicmutex struct {
+	v atomic.Int32
+}
+
+func (a *atomicmutex) lock() {
+	for a.v.CompareAndSwap(0, 1) {
+	}
+}
+
+func (a *atomicmutex) unlock() {
+	for a.v.CompareAndSwap(1, 0) {
+	}
 }
 
 func (o *once) Do(f func()) {
@@ -153,8 +167,8 @@ func (o *once) Do(f func()) {
 }
 
 func (o *once) doSlow(f func()) {
-	lock(&o.m)
-	defer unlock(&o.m)
+	o.m.lock()
+	defer o.m.unlock()
 	if o.done.Load() == 0 {
 		defer o.done.Store(1)
 		f()
