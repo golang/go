@@ -7,10 +7,10 @@ package main
 /*
 #include <pthread.h>
 
-void go_callback2();
+void go_callback3();
 
 static void *thr2(void *arg) {
-    go_callback2();
+    go_callback3();
     return 0;
 }
 
@@ -38,7 +38,7 @@ func CgoToGoCallGoexit() {
 	C.foo3()
 }
 
-//export go_callback2
-func go_callback2() {
+//export go_callback3
+func go_callback3() {
 	runtime.Goexit()
 }
