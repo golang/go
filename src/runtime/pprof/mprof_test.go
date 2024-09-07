@@ -145,7 +145,7 @@ func TestMemoryProfiler(t *testing.T) {
 		}
 		t.Logf("Profile = %v", p)
 
-		stks := stacks(p)
+		stks := profileStacks(p)
 		for _, test := range tests {
 			if !containsStack(stks, test.stk) {
 				t.Fatalf("No matching stack entry for %q\n\nProfile:\n%v\n", test.stk, p)

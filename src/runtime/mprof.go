@@ -1136,11 +1136,12 @@ func expandFrames(p []BlockProfileRecord) {
 	for i := range p {
 		cf := CallersFrames(p[i].Stack())
 		j := 0
-		for ; j < len(expandedStack); j++ {
+		for j < len(expandedStack) {
 			f, more := cf.Next()
 			// f.PC is a "call PC", but later consumers will expect
 			// "return PCs"
 			expandedStack[j] = f.PC + 1
+			j++
 			if !more {
 				break
 			}
