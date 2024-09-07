@@ -973,7 +973,7 @@ func TestBlockProfile(t *testing.T) {
 			t.Fatalf("invalid profile: %v", err)
 		}
 
-		stks := stacks(p)
+		stks := profileStacks(p)
 		for _, test := range tests {
 			if !containsStack(stks, test.stk) {
 				t.Errorf("No matching stack entry for %v, want %+v", test.name, test.stk)
@@ -983,12 +983,28 @@ func TestBlockProfile(t *testing.T) {
 
 }
 
-func stacks(p *profile.Profile) (res [][]string) {
+func profileStacks(p *profile.Profile) (res [][]string) {
 	for _, s := range p.Sample {
 		var stk []string
 		for _, l := range s.Location {
 			for _, line := range l.Line {
 				stk = append(stk, line.Function.Name)
+			}
+		}
+		res = append(res, stk)
+	}
+	return res
+}
+
+func blockRecordStacks(records []runtime.BlockProfileRecord) (res [][]string) {
+	for _, record := range records {
+		frames := runtime.CallersFrames(record.Stack())
+		var stk []string
+		for {
+			frame, more := frames.Next()
+			stk = append(stk, frame.Function)
+			if !more {
+				break
 			}
 		}
 		res = append(res, stk)
@@ -1280,7 +1296,7 @@ func TestMutexProfile(t *testing.T) {
 			t.Fatalf("invalid profile: %v", err)
 		}
 
-		stks := stacks(p)
+		stks := profileStacks(p)
 		for _, want := range [][]string{
 			{"sync.(*Mutex).Unlock", "runtime/pprof.blockMutexN.func1"},
 		} {
@@ -1318,6 +1334,28 @@ func TestMutexProfile(t *testing.T) {
 				t.Logf("sample: %s", time.Duration(s.Value[i]))
 			}
 			t.Fatalf("profile samples total %v, want within range [%v, %v] (target: %v)", d, lo, hi, N*D)
+		}
+	})
+
+	t.Run("records", func(t *testing.T) {
+		// Record a mutex profile using the structured record API.
+		var records []runtime.BlockProfileRecord
+		for {
+			n, ok := runtime.MutexProfile(records)
+			if ok {
+				records = records[:n]
+				break
+			}
+			records = make([]runtime.BlockProfileRecord, n*2)
+		}
+
+		// Check that we see the same stack trace as the proto profile. For
+		// historical reason we expect a runtime.goexit root frame here that is
+		// omitted in the proto profile.
+		stks := blockRecordStacks(records)
+		want := []string{"sync.(*Mutex).Unlock", "runtime/pprof.blockMutexN.func1", "runtime.goexit"}
+		if !containsStack(stks, want) {
+			t.Errorf("No matching stack entry for %+v", want)
 		}
 	})
 }
@@ -2470,7 +2508,7 @@ func TestProfilerStackDepth(t *testing.T) {
 			}
 			t.Logf("Profile = %v", p)
 
-			stks := stacks(p)
+			stks := profileStacks(p)
 			var stk []string
 			for _, s := range stks {
 				if hasPrefix(s, test.prefix) {
