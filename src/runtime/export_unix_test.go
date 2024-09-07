@@ -24,8 +24,6 @@ func Sigisblocked(i int) bool {
 	return sigismember(&sigmask, i)
 }
 
-type M = m
-
 var waitForSigusr1 struct {
 	rdpipe int32
 	wrpipe int32
