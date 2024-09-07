@@ -498,9 +498,9 @@ func (p *PackageError) Error() string {
 	if p.Pos != "" {
 		optpos = "\n\t" + p.Pos
 	}
-	imports := p.ImportStack.CopyPackages()
+	imports := p.ImportStack.CopyPkgs()
 	if p.IsImportCycle {
-		imports = p.ImportStack.CopyPackagesWithPos()
+		imports = p.ImportStack.CopyPkgsWithPos()
 	}
 	return "package " + strings.Join(imports, "\n\timports ") + optpos + ": " + p.Err.Error()
 }
@@ -611,7 +611,7 @@ func (s *ImportStack) Copy() ImportStack {
 	return ii
 }
 
-func (s *ImportStack) CopyPackages() []string {
+func (s *ImportStack) CopyPkgs() []string {
 	ss := make([]string, 0, len(*s))
 	for _, v := range *s {
 		ss = append(ss, v.Pkg)
@@ -619,7 +619,7 @@ func (s *ImportStack) CopyPackages() []string {
 	return ss
 }
 
-func (s *ImportStack) CopyPackagesWithPos() []string {
+func (s *ImportStack) CopyPkgsWithPos() []string {
 	ss := make([]string, 0, len(*s))
 	for _, v := range *s {
 		if v.Pos != nil {
@@ -1487,7 +1487,7 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 	// Don't rewrite the import stack in the error if we have an import cycle.
 	// If we do, we'll lose the path that describes the cycle.
 	if p.Error != nil && p.Error.ImportStack != nil &&
-		!p.Error.IsImportCycle && stk.shorterThan(p.Error.ImportStack.CopyPackages()) {
+		!p.Error.IsImportCycle && stk.shorterThan(p.Error.ImportStack.CopyPkgs()) {
 		p.Error.ImportStack = stk.Copy()
 	}
 	return p
