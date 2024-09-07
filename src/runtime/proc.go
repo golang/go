@@ -136,23 +136,23 @@ type mainThreadOnce struct {
 	// to mainthread.Yield on the main thread has completed.
 	m0exec chan struct{}
 	//m0once make sure to only send m0wait once if mainthread.Yield is not called.
-	m0once Once
+	m0once once
 	callDo atomic.Bool
 }
 
 // copy from sync package.
-type Once struct {
+type once struct {
 	done atomic.Uint32
 	m    mutex
 }
 
-func (o *Once) Do(f func()) {
+func (o *once) Do(f func()) {
 	if o.done.Load() == 0 {
 		o.doSlow(f)
 	}
 }
 
-func (o *Once) doSlow(f func()) {
+func (o *once) doSlow(f func()) {
 	lock(&o.m)
 	defer unlock(&o.m)
 	if o.done.Load() == 0 {
