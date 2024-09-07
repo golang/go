@@ -1160,5 +1160,8 @@ func TestBigGOMAXPROCS(t *testing.T) {
 }
 
 func TestCgoToGoCallGoexit(t *testing.T) {
+	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
 	checkCoroTestProgOutput(t, runTestProg(t, "testprogcgo", "CgoToGoCallGoexit"))
 }

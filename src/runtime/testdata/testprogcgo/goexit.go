@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !plan9 && !windows
+
 package main
 
 /*
 #include <pthread.h>
 
-extern void go_callback2();
+void go_callback2();
 
 static void *thr2(void *arg) {
     go_callback2();
