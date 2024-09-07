@@ -336,7 +336,7 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 				Column:   importPos[0].Column,
 			}
 		}
-		stk.Push(&ImportInfo{Pkg: path, Pos: tkPos})
+		stk.Push(&importInfo{Pkg: path, Pos: tkPos})
 		defer stk.Pop()
 	}
 
@@ -575,7 +575,7 @@ func (e *importError) ImportPath() string {
 	return e.importPath
 }
 
-type ImportInfo struct {
+type importInfo struct {
 	Pkg string
 	Pos *token.Position
 }
@@ -583,9 +583,9 @@ type ImportInfo struct {
 // An ImportStack is a stack of import paths, possibly with the suffix " (test)" appended.
 // The import path of a test package is the import path of the corresponding
 // non-test package with the suffix "_test" added.
-type ImportStack []*ImportInfo
+type ImportStack []*importInfo
 
-func (s *ImportStack) Push(p *ImportInfo) {
+func (s *ImportStack) Push(p *importInfo) {
 	*s = append(*s, p)
 }
 
@@ -596,7 +596,7 @@ func (s *ImportStack) Pop() {
 func (s *ImportStack) Copy() ImportStack {
 	ii := make(ImportStack, len(*s))
 	for i, v := range *s {
-		ii[i] = &ImportInfo{
+		ii[i] = &importInfo{
 			Pkg: v.Pkg,
 		}
 		if v.Pos != nil {
@@ -631,7 +631,7 @@ func (s *ImportStack) CopyPackagesWithPos() []string {
 	return ss
 }
 
-func (s *ImportStack) Top() *ImportInfo {
+func (s *ImportStack) Top() *importInfo {
 	if len(*s) == 0 {
 		return nil
 	}
@@ -767,7 +767,7 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 			// sequence that empirically doesn't trigger for these errors, guarded by
 			// a somewhat complex condition. Figure out how to generalize that
 			// condition and eliminate the explicit calls here.
-			stk.Push(&ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
+			stk.Push(&importInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 			defer stk.Pop()
 		}
 		p.setLoadPackageDataError(err, path, stk, nil)
@@ -786,7 +786,7 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 	importPath := bp.ImportPath
 	p := packageCache[importPath]
 	if p != nil {
-		stk.Push(&ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
+		stk.Push(&importInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 		p = reusePackage(p, stk)
 		stk.Pop()
 		setCmdline(p)
@@ -1984,7 +1984,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	// Errors after this point are caused by this package, not the importing
 	// package. Pushing the path here prevents us from reporting the error
 	// with the position of the import declaration.
-	stk.Push(&ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
+	stk.Push(&importInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 	defer stk.Pop()
 
 	pkgPath := p.ImportPath
