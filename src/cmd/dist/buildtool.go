@@ -13,6 +13,7 @@ package main
 
 import (
 	"fmt"
+	"go/version"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -123,8 +124,6 @@ var tryDirs = []string{
 	"go1.22.6",
 }
 
-var minBootStrapVersion [3]string = [3]string{"1", "22", "6"}
-
 func bootstrapBuildTools() {
 	goroot_bootstrap := os.Getenv("GOROOT_BOOTSTRAP")
 	if goroot_bootstrap == "" {
@@ -139,16 +138,12 @@ func bootstrapBuildTools() {
 
 	// check bootstrap version.
 	ver := run(pathf("%s/bin", goroot_bootstrap), CheckExit, pathf("%s/bin/go", goroot_bootstrap), "version")
-	_, after, _ := strings.Cut(ver, "go1")
-	if after != "" {
-		v := strings.Split(after, ".")
-		// if go version output is go1.22.6 goos/goarch
-		// v is ["","22","6 goos/aoarch"].
-		if len(v) == 3 {
-			if v[1] < minBootStrapVersion[1] || strings.Split(v[2], " ")[0] < minBootStrapVersion[2] {
-				fatalf("requires Go 1.%s.%s or later for bootstrap", minBootStrapVersion[1], minBootStrapVersion[2])
-			}
-		}
+	// if go1.22.6,
+	// go version output go version 1.22.6 goos/aoarch,
+	// so split(ver," ")[2].
+	ver = strings.Split(ver, " ")[2]
+	if version.Compare(ver, tryDirs[1]) == -1 {
+		fatalf("requires %s or later for bootstrap", tryDirs[1])
 	}
 
 	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
