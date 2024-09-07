@@ -764,12 +764,18 @@ func getGodebugEarly() string {
 		// Similar to goenv_unix but extracts the environment value for
 		// GODEBUG directly.
 		// TODO(moehrmann): remove when general goenvs() can be called before cpuinit()
-		if (isarchive || islibrary) && isMusl() {
-			for _, value := range fetch_from_fd(procEnviron) {
-				if hasPrefix(value, prefix) {
+
+		// If the binary is an archive or a library, the operating system is Linux,
+		// and the system uses Musl, then read the environment variables from the
+		// /proc/self/environ file. Iterate over each null-terminated string read
+		// from the file. If any string has the specified prefix, return that string.
+		if (isarchive || islibrary) && GOOS == "linux" && isMusl() {
+			for _, value := range readNullTerminatedStringsFromFile(procEnviron) {
+				if stringslite.HasPrefix(value, prefix) {
 					return value
 				}
 			}
+			return env
 		}
 
 		n := int32(0)

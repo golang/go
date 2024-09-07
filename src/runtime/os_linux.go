@@ -234,7 +234,7 @@ func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
 	// auxv on argv is not available on musl library/archive. avoid for musl.
-	if !((islibrary || isarchive) && isMusl()) {
+	if !((islibrary || isarchive) && GOOS == "linux" && isMusl()) {
 		// skip over argv, envp to get to auxv
 		for argv_index(argv, n) != nil {
 			n++

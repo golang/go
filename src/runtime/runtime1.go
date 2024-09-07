@@ -82,8 +82,9 @@ func goargs() {
 		return
 	}
 
-	if (isarchive || islibrary) && isMusl() {
-		argslice = fetch_from_fd(procCmdline)
+	// musl-linux library: Read argv from /proc/self/cmdline instead
+	if (isarchive || islibrary) && GOOS == "linux" && isMusl() {
+		argslice = readNullTerminatedStringsFromFile(procCmdline)
 		return
 	}
 
@@ -94,8 +95,9 @@ func goargs() {
 }
 
 func goenvs_unix() {
-	if (isarchive || islibrary) && isMusl() {
-		envs = fetch_from_fd(procEnviron)
+	// musl-linux library: Read envs from /proc/self/environ instead
+	if (isarchive || islibrary) && GOOS == "linux" && isMusl() {
+		envs = readNullTerminatedStringsFromFile(procEnviron)
 		return
 	}
 
@@ -113,15 +115,29 @@ func goenvs_unix() {
 	}
 }
 
-func fetch_from_fd(path []byte) []string {
+// readNullTerminatedStringsFromFile reads a file specified by the given path
+// and returns a slice of strings. Each string in the slice is null-terminated
+// in the file.
+//
+// Parameters:
+// - path: A null-terminated byte slice representing the file path.
+//
+// Returns:
+// - A slice of strings read from the file, where each string is null-terminated.
+//
+// It opens the file, reads its contents in chunks,
+// and parses the data into a slice of strings based on null-termination.
+//
+// Note: This function will return nil if the file cannot be opened.
+func readNullTerminatedStringsFromFile(path []byte) []string {
 	fd := open(&path[0], 0 /* O_RDONLY */, 0)
 	if fd <= 0 {
 		return nil
 	}
 
-	// Read the file in 16-byte chunks.
+	// Read the file.
 	var data []byte
-	var buf [16]byte
+	var buf [1024]byte
 	for {
 		n := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
 		if n <= 0 { // EOF

@@ -180,13 +180,3 @@ pthread_key_destructor(void* g) {
 		x_crosscall2_ptr(NULL, g, 0, 0);
 	}
 }
-
-// x_cgo_is_musl reports whether the C library is musl.
-int
-x_cgo_is_musl() {
-	#if defined(__GLIBC__) || defined(__UCLIBC__)
-		return 0;
-	#else
-		return 1;
-	#endif
-}
