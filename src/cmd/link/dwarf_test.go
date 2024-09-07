@@ -184,7 +184,10 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 			// TODO: We'd like to use filepath.Join here.
 			// Also related: golang.org/issue/19784.
 			wantFile := path.Join(prog, "main.go")
-			wantLine := 28
+			wantLine := 24
+			if prog == "testprog" {
+				wantLine = 28
+			}
 			r := d.Reader()
 			entry, err := r.SeekPC(addr)
 			if err != nil {
