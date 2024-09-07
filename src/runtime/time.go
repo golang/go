@@ -26,10 +26,40 @@ type timer struct {
 	// mu protects reads and writes to all fields, with exceptions noted below.
 	mu mutex
 
-	astate  atomic.Uint8 // atomic copy of state bits at last unlock
-	state   uint8        // state bits
-	isChan  bool         // timer has a channel; immutable; can be read without lock
-	blocked uint32       // number of goroutines blocked on timer's channel
+	astate atomic.Uint8 // atomic copy of state bits at last unlock
+	state  uint8        // state bits
+	isChan bool         // timer has a channel; immutable; can be read without lock
+
+	// isSending is used to handle races between running a
+	// channel timer and stopping or resetting the timer.
+	// It is used only for channel timers (t.isChan == true).
+	// The lowest zero bit is set when about to send a value on the channel,
+	// and cleared after sending the value.
+	// The stop/reset code uses this to detect whether it
+	// stopped the channel send.
+	//
+	// An isSending bit is set only when t.mu is held.
+	// An isSending bit is cleared only when t.sendLock is held.
+	// isSending is read only when both t.mu and t.sendLock are held.
+	//
+	// Setting and clearing Uint8 bits handles the case of
+	// a timer that is reset concurrently with unlockAndRun.
+	// If the reset timer runs immediately, we can wind up with
+	// concurrent calls to unlockAndRun for the same timer.
+	// Using matched bit set and clear in unlockAndRun
+	// ensures that the value doesn't get temporarily out of sync.
+	//
+	// We use a uint8 to keep the timer struct small.
+	// This means that we can only support up to 8 concurrent
+	// runs of a timer, where a concurrent run can only occur if
+	// we start a run, unlock the timer, the timer is reset to a new
+	// value (or the ticker fires again), it is ready to run,
+	// and it is actually run, all before the first run completes.
+	// Since completing a run is fast, even 2 concurrent timer runs are
+	// nearly impossible, so this should be safe in practice.
+	isSending atomic.Uint8
+
+	blocked uint32 // number of goroutines blocked on timer's channel
 
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
 	// each time calling f(arg, seq, delay) in the timer goroutine, so f must be
@@ -431,6 +461,15 @@ func (t *timer) stop() bool {
 		// Stop any future sends with stale values.
 		// See timer.unlockAndRun.
 		t.seq++
+
+		// If there is currently a send in progress,
+		// incrementing seq is going to prevent that
+		// send from actually happening. That means
+		// that we should return true: the timer was
+		// stopped, even though t.when may be zero.
+		if t.isSending.Load() > 0 {
+			pending = true
+		}
 	}
 	t.unlock()
 	if !async && t.isChan {
@@ -525,6 +564,15 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		// Stop any future sends with stale values.
 		// See timer.unlockAndRun.
 		t.seq++
+
+		// If there is currently a send in progress,
+		// incrementing seq is going to prevent that
+		// send from actually happening. That means
+		// that we should return true: the timer was
+		// stopped, even though t.when may be zero.
+		if t.isSending.Load() > 0 {
+			pending = true
+		}
 	}
 	t.unlock()
 	if !async && t.isChan {
@@ -1013,6 +1061,24 @@ func (t *timer) unlockAndRun(now int64) {
 		}
 		t.updateHeap()
 	}
+
+	async := debug.asynctimerchan.Load() != 0
+	var isSendingClear uint8
+	if !async && t.isChan {
+		// Tell Stop/Reset that we are sending a value.
+		// Set the lowest zero bit.
+		// We do this awkward step because atomic.Uint8
+		// doesn't support Add or CompareAndSwap.
+		// We only set bits with t locked.
+		v := t.isSending.Load()
+		i := sys.TrailingZeros8(^v)
+		if i == 8 {
+			throw("too many concurrent timer firings")
+		}
+		isSendingClear = 1 << i
+		t.isSending.Or(isSendingClear)
+	}
+
 	t.unlock()
 
 	if raceenabled {
@@ -1028,7 +1094,6 @@ func (t *timer) unlockAndRun(now int64) {
 		ts.unlock()
 	}
 
-	async := debug.asynctimerchan.Load() != 0
 	if !async && t.isChan {
 		// For a timer channel, we want to make sure that no stale sends
 		// happen after a t.stop or t.modify, but we cannot hold t.mu
@@ -1044,6 +1109,10 @@ func (t *timer) unlockAndRun(now int64) {
 		// and double-check that t.seq is still the seq value we saw above.
 		// If not, the timer has been updated and we should skip the send.
 		// We skip the send by reassigning f to a no-op function.
+		//
+		// The isSending field tells t.stop or t.modify that we have
+		// started to send the value. That lets them correctly return
+		// true meaning that no value was sent.
 		lock(&t.sendLock)
 		if t.seq != seq {
 			f = func(any, uintptr, int64) {}
@@ -1053,6 +1122,9 @@ func (t *timer) unlockAndRun(now int64) {
 	f(arg, seq, delay)
 
 	if !async && t.isChan {
+		// We are no longer sending a value.
+		t.isSending.And(^isSendingClear)
+
 		unlock(&t.sendLock)
 	}
 
