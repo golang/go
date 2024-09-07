@@ -327,7 +327,16 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 	// move the modload errors into this package to avoid a package import cycle,
 	// and from having to export an error type for the errors produced in build.
 	if !isMatchErr && (nogoErr != nil || isScanErr) {
-		stk.Push(&ImportInfo{Pkg: path, Pos: importPos})
+		var tkPos *token.Position
+		if len(importPos) > 0 {
+			tkPos = &token.Position{
+				Filename: importPos[0].Filename,
+				Offset:   importPos[0].Offset,
+				Line:     importPos[0].Line,
+				Column:   importPos[0].Column,
+			}
+		}
+		stk.Push(&ImportInfo{Pkg: path, Pos: tkPos})
 		defer stk.Pop()
 	}
 
@@ -459,11 +468,11 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
 
 // A PackageError describes an error loading information about a package.
 type PackageError struct {
-	ImportStack      []*ImportInfo // shortest path from package named on command line to this one with position
-	Pos              string        // position of error
-	Err              error         // the error itself
-	IsImportCycle    bool          // the error is an import cycle
-	alwaysPrintStack bool          // whether to always print the ImportStack
+	ImportStack      ImportStack // shortest path from package named on command line to this one with position
+	Pos              string      // position of error
+	Err              error       // the error itself
+	IsImportCycle    bool        // the error is an import cycle
+	alwaysPrintStack bool        // whether to always print the ImportStack
 }
 
 func (p *PackageError) Error() string {
@@ -489,11 +498,11 @@ func (p *PackageError) Error() string {
 	if p.Pos != "" {
 		optpos = "\n\t" + p.Pos
 	}
-	importStack := p.ImportStack
+	imports := p.ImportStack.CopyPackages()
 	if p.IsImportCycle {
-		importStack = p.ImportStackWithPos
+		imports = p.ImportStack.CopyPackagesWithPos()
 	}
-	return "package " + strings.Join(importStack, "\n\timports ") + optpos + ": " + p.Err.Error()
+	return "package " + strings.Join(imports, "\n\timports ") + optpos + ": " + p.Err.Error()
 }
 
 func (p *PackageError) Unwrap() error { return p.Err }
@@ -502,9 +511,9 @@ func (p *PackageError) Unwrap() error { return p.Err }
 // and non-essential fields are omitted.
 func (p *PackageError) MarshalJSON() ([]byte, error) {
 	perr := struct {
-		ImportStack        []*ImportInfo
-		Pos                string
-		Err                string
+		ImportStack ImportStack
+		Pos         string
+		Err         string
 	}{p.ImportStack, p.Pos, p.Err.Error()}
 	return json.Marshal(perr)
 }
@@ -584,7 +593,25 @@ func (s *ImportStack) Pop() {
 	*s = (*s)[0 : len(*s)-1]
 }
 
-func (s *ImportStack) Copy() []string {
+func (s *ImportStack) Copy() ImportStack {
+	ii := make(ImportStack, len(*s))
+	for i, v := range *s {
+		ii[i] = &ImportInfo{
+			Pkg: v.Pkg,
+		}
+		if v.Pos != nil {
+			ii[i].Pos = &token.Position{
+				Filename: v.Pos.Filename,
+				Offset:   v.Pos.Offset,
+				Line:     v.Pos.Line,
+				Column:   v.Pos.Column,
+			}
+		}
+	}
+	return ii
+}
+
+func (s *ImportStack) CopyPackages() []string {
 	ss := make([]string, 0, len(*s))
 	for _, v := range *s {
 		ss = append(ss, v.Pkg)
@@ -592,15 +619,11 @@ func (s *ImportStack) Copy() []string {
 	return ss
 }
 
-func delimiter(r rune) bool {
-	return r == '/' || r == '\\'
-}
-
-func (s *ImportStack) CopyWithPos() []string {
+func (s *ImportStack) CopyPackagesWithPos() []string {
 	ss := make([]string, 0, len(*s))
 	for _, v := range *s {
 		if v.Pos != nil {
-			ss = append(ss, v.Pkg+" from "+v.Pos.Filename)
+			ss = append(ss, v.Pkg+" from "+filepath.Base(v.Pos.Filename))
 		} else {
 			ss = append(ss, v.Pkg)
 		}
@@ -744,7 +767,7 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 			// sequence that empirically doesn't trigger for these errors, guarded by
 			// a somewhat complex condition. Figure out how to generalize that
 			// condition and eliminate the explicit calls here.
-			stk.Push(&ImportInfo{Pkg: path, Pos: importPos})
+			stk.Push(&ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 			defer stk.Pop()
 		}
 		p.setLoadPackageDataError(err, path, stk, nil)
@@ -763,7 +786,7 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 	importPath := bp.ImportPath
 	p := packageCache[importPath]
 	if p != nil {
-		stk.Push(&ImportInfo{Pkg: path, Pos: importPos})
+		stk.Push(&ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 		p = reusePackage(p, stk)
 		stk.Pop()
 		setCmdline(p)
@@ -827,6 +850,20 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 	}
 
 	return p, nil
+}
+
+func extractFirstImport(importPos []token.Position) *token.Position {
+	var pos *token.Position
+	if len(importPos) > 0 {
+		first := importPos[0]
+		pos = &token.Position{
+			Filename: first.Filename,
+			Offset:   first.Offset,
+			Line:     first.Line,
+			Column:   first.Column,
+		}
+	}
+	return pos
 }
 
 // loadPackageData loads information needed to construct a *Package. The result
@@ -1435,10 +1472,9 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 	if p.Internal.Imports == nil {
 		if p.Error == nil {
 			p.Error = &PackageError{
-				ImportStack:        stk.Copy(),
-				ImportStackWithPos: stk.CopyWithPos(),
-				Err:                errors.New("import cycle not allowed"),
-				IsImportCycle:      true,
+				ImportStack:   stk.Copy(),
+				Err:           errors.New("import cycle not allowed"),
+				IsImportCycle: true,
 			}
 		} else if !p.Error.IsImportCycle {
 			// If the error is already set, but it does not indicate that
@@ -1450,7 +1486,8 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 	}
 	// Don't rewrite the import stack in the error if we have an import cycle.
 	// If we do, we'll lose the path that describes the cycle.
-	if p.Error != nil && !p.Error.IsImportCycle && stk.shorterThan(p.Error.ImportStack) {
+	if p.Error != nil && p.Error.ImportStack != nil &&
+		!p.Error.IsImportCycle && stk.shorterThan(p.Error.ImportStack.CopyPackages()) {
 		p.Error.ImportStack = stk.Copy()
 	}
 	return p
@@ -1947,7 +1984,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	// Errors after this point are caused by this package, not the importing
 	// package. Pushing the path here prevents us from reporting the error
 	// with the position of the import declaration.
-	stk.Push(&ImportInfo{Pkg: path, Pos: importPos})
+	stk.Push(&ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 	defer stk.Pop()
 
 	pkgPath := p.ImportPath

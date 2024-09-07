@@ -967,7 +967,7 @@ func collectDepsErrors(p *load.Package) {
 			return false
 		}
 		pathi, pathj := stki[len(stki)-1], stkj[len(stkj)-1]
-		return pathi < pathj
+		return pathi.Pkg < pathj.Pkg
 	})
 }
 

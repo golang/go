@@ -544,10 +544,12 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			// The stack is supposed to be in the order x imports y imports z.
 			// We collect in the reverse order: z is imported by y is imported
 			// by x, and then we reverse it.
-			var stk []string
+			var stk ImportStack
 			pkgToFiles := map[string][]string{}
 			for p != nil {
-				stk = append(stk, p.ImportPath)
+				stk = append(stk, &ImportInfo{
+					Pkg: p.ImportPath,
+				})
 				if p.Internal.Build != nil {
 					for key, val := range p.Internal.Build.ImportPos {
 						if len(val) == 0 {
@@ -563,23 +565,23 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			// back here since we reached nil in the loop above to demonstrate
 			// the cycle as (for example) package p imports package q imports package r
 			// imports package p.
-			stk = append(stk, ptest.ImportPath)
+			stk = append(stk, &ImportInfo{
+				Pkg: ptest.ImportPath,
+			})
 			slices.Reverse(stk)
 
-			stkWithPos := make([]string, 0, len(stk))
-			for i, pkg := range stk {
-				if file, ok := pkgToFiles[pkg]; ok && len(file) > 0 && i != 0 {
-					stkWithPos = append(stkWithPos, pkg + " from " + filepath.Base(file[0]))
-				} else {
-					stkWithPos = append(stkWithPos, pkg)
+			for _, ii := range stk {
+				if file, ok := pkgToFiles[ii.Pkg]; ok && len(file) > 0 {
+					ii.Pos = &token.Position{
+						Filename: filepath.Base(file[0]),
+					}
 				}
 			}
 
 			return &PackageError{
-				ImportStack:        stk,
-				ImportStackWithPos: stkWithPos,
-				Err:                errors.New("import cycle not allowed in test"),
-				IsImportCycle:      true,
+				ImportStack:   stk,
+				Err:           errors.New("import cycle not allowed in test"),
+				IsImportCycle: true,
 			}
 		}
 		for _, dep := range p.Internal.Imports {
