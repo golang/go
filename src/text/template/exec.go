@@ -449,7 +449,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		}
 		if val.Type().CanSeq2() {
 			for i, v := range val.Seq2() {
-				oneIteration(reflect.ValueOf(i), v)
+				oneIteration(i, v)
 			}
 			return
 		}
