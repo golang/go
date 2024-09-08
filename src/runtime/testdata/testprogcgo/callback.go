@@ -38,11 +38,18 @@ import (
 
 func init() {
 	register("CgoCallbackGC", CgoCallbackGC)
-	register("CgoToGoCallGoexit", func() {
-		println("expect: runtime.Goexit called in a thread that was not created by the Go runtime")
-		goexit = true
-		C.foo()
-	})
+	register("CgoToGoCallGoexit",CgoToGoCallGoexit)
+}
+
+func CgoToGoCallGoexit(){
+	defer func(){
+		if err:=recover();err!="runtime.Goexit called in a thread that was not created by the Go runtime"{
+			panic("expect: runtime.Goexit called in a thread that was not created by the Go runtime")
+		}
+		fmt.Println("OK")
+	}
+	goexit = true
+	C.foo()
 }
 
 var goexit = false

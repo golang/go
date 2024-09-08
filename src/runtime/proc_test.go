@@ -1163,5 +1163,8 @@ func TestCgoToGoCallGoexit(t *testing.T) {
 	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
-	checkCoroTestProgOutput(t, runTestProg(t, "testprogcgo", "CgoToGoCallGoexit"))
+	output := runTestProg(t, "testprogcgo", "CgoToGoCallGoexit")
+	if output != "OK\n" {
+		t.Fatalf("want OK\n, got %s", output)
+	}
 }
