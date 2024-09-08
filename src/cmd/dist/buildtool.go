@@ -142,7 +142,7 @@ func bootstrapBuildTools() {
 	ver := run(pathf("%s/bin", goroot_bootstrap), CheckExit, pathf("%s/bin/go", goroot_bootstrap), "env", "GOVERSION")
 	// go env GOVERSION output like "go1.22.6\n" or "devel go1.24-ffb3e574 Thu Aug 29 20:16:26 2024 +0000\n".
 	ver = ver[:len(ver)-1]
-	if (strings.Contains(ver, "devel") && version.Compare(version.Lang(minBootstrap), ver) == 1) || version.Compare(ver, minBootstrap) == -1 {
+	if version.Compare(ver, version.Lang(minBootstrap)) == 1 && version.Compare(ver, minBootstrap) == -1 {
 		fatalf("%s does not meet the minimum bootstrap requirement of %s or later", ver, minBootstrap)
 	}
 
