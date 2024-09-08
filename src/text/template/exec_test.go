@@ -622,7 +622,7 @@ var execTests = []execTest{
 			}
 		}
 	}, false},
-	{"range iter.Seq[int,int]", `{{range $i, $c := .}}{{$i}}{{$c}}{{end}}`, "0112", func(yield func(int, int) bool) {
+	{"range iter.Seq2[int,int]", `{{range $i, $c := .}}{{$i}}{{$c}}{{end}}`, "0112", func(yield func(int, int) bool) {
 		for i := range 2 {
 			if !yield(i, i+1) {
 				break
