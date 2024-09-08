@@ -119,9 +119,11 @@ var ignoreSuffixes = []string{
 	"~",
 }
 
+const minBootstrap = "go1.22.6"
+
 var tryDirs = []string{
-	"sdk/go1.22.6",
-	"go1.22.6",
+	"sdk/" + minBootstrap,
+	minBootstrap,
 }
 
 func bootstrapBuildTools() {
@@ -137,16 +139,11 @@ func bootstrapBuildTools() {
 	}
 
 	// check bootstrap version.
-	ver := run(pathf("%s/bin", goroot_bootstrap), CheckExit, pathf("%s/bin/go", goroot_bootstrap), "version")
-	// go version output like go version 1.22.6 goos/aoarch,
-	// or go version devel go1.24-b44ca2cd85.
-	vers := strings.Split(ver, " ")
-	ver = vers[2]
-	if vers[2] == "devel" {
-		ver = vers[3]
-	}
-	if version.Compare(ver, tryDirs[1]) == -1 {
-		fatalf("requires %s or later for bootstrap", tryDirs[1])
+	ver := run(pathf("%s/bin", goroot_bootstrap), CheckExit, pathf("%s/bin/go", goroot_bootstrap), "env", "GOVERSION")
+	// go env GOVERSION output like "go1.22.6\n" or "devel go1.24-ffb3e574 Thu Aug 29 20:16:26 2024 +0000\n".
+	ver = ver[:len(ver)-1]
+	if (strings.Contains(ver, "devel") && version.Compare(version.Lang(minBootstrap), ver) == 1) || version.Compare(ver, minBootstrap) == -1 {
+		fatalf("%s does not meet the minimum bootstrap requirement of %s or later", ver, minBootstrap)
 	}
 
 	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
