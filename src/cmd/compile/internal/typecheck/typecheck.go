@@ -1209,20 +1209,6 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 		return false
 	}
 
-	// Do range checks for constants before DefaultLit
-	// to avoid redundant "constant NNN overflows int" errors.
-	if n.Op() == ir.OLITERAL {
-		v := toint(n.Val())
-		if constant.Sign(v) < 0 {
-			base.Errorf("negative %s argument in make(%v)", arg, t)
-			return false
-		}
-		if ir.ConstOverflow(v, types.Types[types.TINT]) {
-			base.Errorf("%s argument too large in make(%v)", arg, t)
-			return false
-		}
-	}
-
 	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.
 	// TODO(gri) The length argument requirements for (array/slice) make
 	// are the same as for index expressions. Factor the code better;
@@ -1240,20 +1226,6 @@ func checkunsafesliceorstring(op ir.Op, np *ir.Node) bool {
 	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
 		base.Errorf("non-integer len argument in %v - %v", op, n.Type())
 		return false
-	}
-
-	// Do range checks for constants before DefaultLit
-	// to avoid redundant "constant NNN overflows int" errors.
-	if n.Op() == ir.OLITERAL {
-		v := toint(n.Val())
-		if constant.Sign(v) < 0 {
-			base.Errorf("negative len argument in %v", op)
-			return false
-		}
-		if ir.ConstOverflow(v, types.Types[types.TINT]) {
-			base.Errorf("len argument too large in %v", op)
-			return false
-		}
 	}
 
 	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.
