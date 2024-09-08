@@ -527,9 +527,6 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// var arr [r]T
 		// n = arr[:l]
 		i := typecheck.IndexConst(r)
-		if i < 0 {
-			base.Fatalf("walkExpr: invalid index %v", r)
-		}
 
 		// cap is constrained to [0,2^31) or [0,2^63) depending on whether
 		// we're in 32-bit or 64-bit systems. So it's safe to do:

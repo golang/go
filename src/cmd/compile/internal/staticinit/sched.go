@@ -487,9 +487,6 @@ func (s *Schedule) initplan(n ir.Node) {
 			if a.Op() == ir.OKEY {
 				kv := a.(*ir.KeyExpr)
 				k = typecheck.IndexConst(kv.Key)
-				if k < 0 {
-					base.Fatalf("initplan arraylit: invalid index %v", kv.Key)
-				}
 				a = kv.Value
 			}
 			s.addvalue(p, k*n.Type().Elem().Size(), a)

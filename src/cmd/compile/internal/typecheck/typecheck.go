@@ -1116,9 +1116,6 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
 			elt := elt.(*ir.KeyExpr)
 			elt.Key = Expr(elt.Key)
 			key = IndexConst(elt.Key)
-			if key < 0 {
-				base.Fatalf("invalid index: %v", elt.Key)
-			}
 			kv = elt
 			r = elt.Value
 		}
