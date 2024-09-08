@@ -44,7 +44,8 @@ func randUint64() uint64 {
 	return runtime_rand()
 }
 
-func comparableF[T comparable](h *Hash, v T, t *abi.Type) {
+func comparableF[T comparable](h *Hash, v T) {
+	t := abi.TypeFor[T]()
 	ptr := unsafe.Pointer(&v)
 	l := t.Size()
 	k := t.Kind()

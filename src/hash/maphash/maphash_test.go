@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"hash"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -214,6 +215,12 @@ func TestSeedFromReset(t *testing.T) {
 	}
 }
 
+func negativeZero[T float32 | float64]() T {
+	var f T
+	f = -f
+	return f
+}
+
 func TestComparable(t *testing.T) {
 	testComparable(t, int64(2))
 	testComparable(t, uint64(8))
@@ -239,6 +246,12 @@ func TestComparable(t *testing.T) {
 		t.Fatalf("unexpected two heapStr value not equal")
 	}
 	testComparable(t, s1, s2)
+	testComparable(t, float32(0), negativeZero[float32]())
+	testComparable(t, float64(0), negativeZero[float64]())
+	seed := MakeSeed()
+	if Comparable(seed, math.NaN()) == Comparable(seed, math.NaN()) {
+		t.Fatalf("Comparable(seed, NaN) == Comparable(seed, NaN)")
+	}
 }
 
 var heapStrValue []byte
@@ -313,6 +326,17 @@ func TestWriteComparable(t *testing.T) {
 		t.Fatalf("unexpected two heapStr value not equal")
 	}
 	testWriteComparable(t, s1, s2)
+	testWriteComparable(t, float32(0), negativeZero[float32]())
+	testWriteComparable(t, float64(0), negativeZero[float64]())
+	seed := MakeSeed()
+	h1 := Hash{}
+	h2 := Hash{}
+	h1.seed, h2.seed = seed, seed
+	WriteComparable(&h1, math.NaN())
+	WriteComparable(&h2, math.NaN())
+	if h1.Sum64() == h2.Sum64() {
+		t.Fatalf("WriteComparable(seed, NaN) == WriteComparable(seed, NaN)")
+	}
 }
 
 func testWriteComparable[T comparable](t *testing.T, v T, v2 ...T) {
@@ -328,7 +352,7 @@ func testWriteComparable[T comparable](t *testing.T, v T, v2 ...T) {
 		h2.seed = h1.seed
 		WriteComparable(&h1, a)
 		WriteComparable(&h2, b)
-		if h1.Sum64() != h1.Sum64() {
+		if h1.Sum64() != h2.Sum64() {
 			t.Fatalf("WriteComparable(h, %v) != WriteComparable(h, %v)", a, b)
 		}
 		WriteComparable(&h1, pa)

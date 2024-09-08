@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package maphash provides hash functions on byte sequences or comparable value.
+// Package maphash provides hash functions on byte sequences and comparable values.
 // These hash functions are intended to be used to implement hash tables or
 // other data structures that need to map arbitrary strings or byte
 // sequences to a uniform distribution on unsigned 64-bit integers.
@@ -18,7 +18,6 @@ import (
 	"internal/byteorder"
 	"math"
 	"reflect"
-	"unsafe"
 )
 
 // A Seed is a random value that selects the specific hash function
@@ -289,17 +288,17 @@ func (h *Hash) BlockSize() int { return len(h.buf) }
 // such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.
 // If v != v, then the resulting hash is randomly distributed.
 func Comparable[T comparable](seed Seed, v T) uint64 {
-	t, ret := comparableReady(seed, v)
+	ret := comparableReady(seed, v)
 	if ret != 0 {
 		return ret
 	}
 	var h Hash
 	h.SetSeed(seed)
-	comparableF(&h, v, t)
+	comparableF(&h, v)
 	return h.Sum64()
 }
 
-func comparableReady[T comparable](seed Seed, v T) (*abi.Type, uint64) {
+func comparableReady[T comparable](seed Seed, v T) uint64 {
 	// Let v be on the heap,
 	// make sure that if v is a pointer to a variable inside the function,
 	// if v and the value it points to do not change,
@@ -309,25 +308,21 @@ func comparableReady[T comparable](seed Seed, v T) (*abi.Type, uint64) {
 	t := abi.TypeFor[T]()
 	len := t.Size()
 	if len == 0 {
-		return t, seed.s
+		return seed.s
 	}
-	return t, 0
+	return 0
 }
 
 // WriteComparable adds x to the data hashed by h.
 func WriteComparable[T comparable](h *Hash, x T) {
-	t, ret := comparableReady(h.seed, x)
+	ret := comparableReady(h.seed, x)
 	if ret != 0 {
 		return
 	}
-	comparableF(h, x, t)
+	comparableF(h, x)
 }
 
 func appendT(h *Hash, v reflect.Value) {
-	var buf [8]byte
-	byteorder.LePutUint64(buf[:], uint64(uintptr(unsafe.Pointer(abi.TypeOf(v.Type())))))
-	h.Write(buf[:])
-
 	switch v.Kind() {
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
 		var buf [8]byte
@@ -343,6 +338,8 @@ func appendT(h *Hash, v reflect.Value) {
 		var buf [8]byte
 		for i := range uint64(v.Len()) {
 			byteorder.LePutUint64(buf[:], i)
+			// do not want to hash to the same value,
+			// [2]string{"foo", ""} and [2]string{"", "foo"}.
 			h.Write(buf[:])
 			appendT(h, v.Index(int(i)))
 		}
@@ -353,6 +350,9 @@ func appendT(h *Hash, v reflect.Value) {
 	case reflect.Struct:
 		for i := range v.NumField() {
 			f := v.Field(i)
+			// do not want to hash to the same value,
+			// type T1 struct { x int }{1}
+			// type T2 struct { x int; s string }{1,""}.
 			h.WriteString(f.Type().String())
 			appendT(h, f)
 		}
@@ -366,8 +366,18 @@ func appendT(h *Hash, v reflect.Value) {
 		h.Write(buf[:])
 		return
 	case reflect.Float32, reflect.Float64:
+		f := v.Float()
+		if f == 0 {
+			h.WriteByte(0)
+			return
+		}
 		var buf [8]byte
-		byteorder.LePutUint64(buf[:], math.Float64bits(v.Float()))
+		if f != f {
+			byteorder.LePutUint64(buf[:], randUint64())
+			h.Write(buf[:])
+			return
+		}
+		byteorder.LePutUint64(buf[:], math.Float64bits(f))
 		h.Write(buf[:])
 		return
 	case reflect.Bool:
