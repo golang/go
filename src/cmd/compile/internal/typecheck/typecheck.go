@@ -7,7 +7,6 @@ package typecheck
 import (
 	"fmt"
 	"go/constant"
-	"go/token"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -681,7 +680,7 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 	}
 }
 
-func checksliceindex(l ir.Node, r ir.Node, tp *types.Type) bool {
+func checksliceindex(r ir.Node) bool {
 	t := r.Type()
 	if t == nil {
 		return false
@@ -690,33 +689,6 @@ func checksliceindex(l ir.Node, r ir.Node, tp *types.Type) bool {
 		base.Errorf("invalid slice index %v (type %v)", r, t)
 		return false
 	}
-
-	if r.Op() == ir.OLITERAL {
-		x := r.Val()
-		if constant.Sign(x) < 0 {
-			base.Errorf("invalid slice index %v (index must be non-negative)", r)
-			return false
-		} else if tp != nil && tp.NumElem() >= 0 && constant.Compare(x, token.GTR, constant.MakeInt64(tp.NumElem())) {
-			base.Errorf("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
-			return false
-		} else if ir.IsConst(l, constant.String) && constant.Compare(x, token.GTR, constant.MakeInt64(int64(len(ir.StringVal(l))))) {
-			base.Errorf("invalid slice index %v (out of bounds for %d-byte string)", r, len(ir.StringVal(l)))
-			return false
-		} else if ir.ConstOverflow(x, types.Types[types.TINT]) {
-			base.Errorf("invalid slice index %v (index too large)", r)
-			return false
-		}
-	}
-
-	return true
-}
-
-func checksliceconst(lo ir.Node, hi ir.Node) bool {
-	if lo != nil && hi != nil && lo.Op() == ir.OLITERAL && hi.Op() == ir.OLITERAL && constant.Compare(lo.Val(), token.GTR, hi.Val()) {
-		base.Errorf("invalid slice index: %v > %v", lo, hi)
-		return false
-	}
-
 	return true
 }
 
