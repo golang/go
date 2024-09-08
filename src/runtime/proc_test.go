@@ -1164,7 +1164,7 @@ func TestCgoToGoCallGoexit(t *testing.T) {
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
 	output := runTestProg(t, "testprogcgo", "CgoToGoCallGoexit")
-	if output != "OK\n" {
-		t.Fatalf("want OK\n, got %s", output)
+	if !strings.Contains(output, "runtime.Goexit called in a thread that was not created by the Go runtime") {
+		t.Fatalf("output should contain %s", "runtime.Goexit called in a thread that was not created by the Go runtime")
 	}
 }
