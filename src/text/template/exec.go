@@ -360,12 +360,13 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	val, _ := indirect(s.evalPipeline(dot, r.Pipe))
 	// mark top of stack before any variables in the body are pushed.
 	mark := s.mark()
+	var rangefunc = false
 	oneIteration := func(index, elem reflect.Value) {
 		if len(r.Pipe.Decl) > 0 {
-			if r.Pipe.IsAssign {
+			if r.Pipe.IsAssign || rangefunc {
 				// With two variables, index comes first.
 				// With one, we use the element.
-				if len(r.Pipe.Decl) > 1 {
+				if len(r.Pipe.Decl) > 1 || rangefunc {
 					s.setVar(r.Pipe.Decl[0].Ident[0], index)
 				} else {
 					s.setVar(r.Pipe.Decl[0].Ident[0], elem)
@@ -384,24 +385,6 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 				// are two) to the index.
 				s.setTopVar(2, index)
 			}
-		}
-		defer s.pop(mark)
-		defer func() {
-			// Consume panic(walkContinue)
-			if r := recover(); r != nil && r != walkContinue {
-				panic(r)
-			}
-		}()
-		s.walk(elem, r.List)
-	}
-
-	rangeone := func(elem reflect.Value) {
-		if len(r.Pipe.Decl) > 0 {
-			s.setVar(r.Pipe.Decl[0].Ident[0], elem)
-		}
-		if len(r.Pipe.Decl) > 1 {
-			s.errorf("can't use %v iterate over two variables", val)
-			return
 		}
 		defer s.pop(mark)
 		defer func() {
@@ -455,8 +438,13 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		break // An invalid value is likely a nil map, etc. and acts like an empty map.
 	case reflect.Func:
 		if val.Type().CanSeq() {
+			if len(r.Pipe.Decl) > 1 {
+				s.errorf("range can't iterate over %v", val)
+				return
+			}
+			rangefunc = true
 			for v := range val.Seq() {
-				rangeone(v)
+				oneIteration(v, reflect.Value{})
 			}
 			return
 		}

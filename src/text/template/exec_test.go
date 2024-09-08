@@ -608,7 +608,14 @@ var execTests = []execTest{
 			}
 		}
 	}, true},
-	{"range iter.Seq[int]", `{{range $i, $c := .}}{{$c}}{{end}}`, "", func(yield func(int) bool) {
+	{"i = range iter.Seq[int]", `{{$i := 0}}{{range $i = .}}{{$i}}{{end}}`, "01", func(yield func(int) bool) {
+		for i := range 2 {
+			if !yield(i) {
+				break
+			}
+		}
+	}, true},
+	{"range iter.Seq[int] over two var", `{{range $i, $c := .}}{{$c}}{{end}}`, "", func(yield func(int) bool) {
 		for i := range 2 {
 			if !yield(i) {
 				break
