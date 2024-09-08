@@ -138,10 +138,13 @@ func bootstrapBuildTools() {
 
 	// check bootstrap version.
 	ver := run(pathf("%s/bin", goroot_bootstrap), CheckExit, pathf("%s/bin/go", goroot_bootstrap), "version")
-	// if go1.22.6,
-	// go version output go version 1.22.6 goos/aoarch,
-	// so split(ver," ")[2].
-	ver = strings.Split(ver, " ")[2]
+	// go version output like go version 1.22.6 goos/aoarch,
+	// or go version devel go1.24-b44ca2cd85.
+	vers := strings.Split(ver, " ")
+	ver = vers[2]
+	if vers[2] == "devel" {
+		ver = vers[3]
+	}
 	if version.Compare(ver, tryDirs[1]) == -1 {
 		fatalf("requires %s or later for bootstrap", tryDirs[1])
 	}
