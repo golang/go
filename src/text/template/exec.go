@@ -395,7 +395,6 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		}()
 		s.walk(elem, r.List)
 	}
-
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
 		if val.Len() == 0 {
@@ -439,7 +438,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	case reflect.Func:
 		if val.Type().CanSeq() {
 			if len(r.Pipe.Decl) > 1 {
-				s.errorf("range can't iterate over %v", val)
+				s.errorf("can't use %s iterate over more than one variable", val)
 				return
 			}
 			rangefunc = true
