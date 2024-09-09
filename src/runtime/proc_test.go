@@ -1165,6 +1165,6 @@ func TestCgoToGoCallGoexit(t *testing.T) {
 	}
 	output := runTestProg(t, "testprogcgo", "CgoToGoCallGoexit")
 	if !strings.Contains(output, "runtime.Goexit called in a thread that was not created by the Go runtime") {
-		t.Fatalf("output should contain %s", "runtime.Goexit called in a thread that was not created by the Go runtime")
+		t.Fatalf("output should contain %s, got %s", "runtime.Goexit called in a thread that was not created by the Go runtime", output)
 	}
 }
