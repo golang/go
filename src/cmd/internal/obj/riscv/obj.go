@@ -2535,6 +2535,34 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 
 	case AORCB, AREV8:
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), obj.REG_NONE
+
+	case AANDN, AORN:
+		if buildcfg.GORISCV64 >= 22 {
+			// ANDN and ORN instructions are supported natively.
+			break
+		}
+		// ANDN -> (AND (NOT x) y)
+		// ORN  -> (OR  (NOT x) y)
+		bitwiseOp, notReg := AAND, ins.rd
+		if ins.as == AORN {
+			bitwiseOp = AOR
+		}
+		if ins.rs1 == notReg {
+			notReg = REG_TMP
+		}
+		inss = []*instruction{
+			&instruction{as: AXORI, rs1: ins.rs2, rs2: obj.REG_NONE, rd: notReg, imm: -1},
+			&instruction{as: bitwiseOp, rs1: ins.rs1, rs2: notReg, rd: ins.rd},
+		}
+
+	case AXNOR:
+		if buildcfg.GORISCV64 >= 22 {
+			// XNOR instruction is supported natively.
+			break
+		}
+		// XNOR -> (NOT (XOR x y))
+		ins.as = AXOR
+		inss = append(inss, &instruction{as: AXORI, rs1: ins.rd, rs2: obj.REG_NONE, rd: ins.rd, imm: -1})
 	}
 
 	for _, ins := range inss {

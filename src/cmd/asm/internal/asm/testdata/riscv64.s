@@ -361,8 +361,8 @@ start:
 	SLLIUW		$1, X18, X19			// 9b191908
 
 	// 1.2: Basic Bit Manipulation (Zbb)
-	ANDN	X19, X20, X21				// b37a3a41
-	ANDN	X19, X20				// 337a3a41
+	ANDN	X19, X20, X21				// b37a3a41 or 93caf9ffb37a5a01
+	ANDN	X19, X20				// 337a3a41 or 93cff9ff337afa01
 	CLZ	X20, X21				// 931a0a60
 	CLZW	X21, X22				// 1b9b0a60
 	CPOP	X22, X23				// 931b2b60
@@ -377,12 +377,12 @@ start:
 	MIN	X29, X30				// 334fdf0b
 	MINU	X30, X5, X6				// 33d3e20b
 	MINU	X30, X5					// b3d2e20b
-	ORN	X6, X7, X8				// 33e46340
-	ORN	X6, X7					// b3e36340
+	ORN	X6, X7, X8				// 33e46340 or 1344f3ff33e48300
+	ORN	X6, X7					// b3e36340 or 934ff3ffb3e3f301
 	SEXTB	X16, X17				// 93184860
 	SEXTH	X17, X18				// 13995860
-	XNOR	X18, X19, X20				// 33ca2941
-	XNOR	X18, X19				// b3c92941
+	XNOR	X18, X19, X20				// 33ca2941 or 33ca2901134afaff
+	XNOR	X18, X19				// b3c92941 or b3c9290193c9f9ff
 	ZEXTH	X19, X20				// 3bca0908
 
 	// 1.3: Bitwise Rotation (Zbb)
