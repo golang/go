@@ -59,11 +59,6 @@ var (
 	argv **byte
 )
 
-// isMusl reports whether the Go program is linked with musl libc.
-func isMusl() bool {
-	return asmcgocall(_cgo_is_musl, nil) == 1
-}
-
 // nosplit for use in linux startup sysargs.
 //
 //go:nosplit
@@ -83,7 +78,7 @@ func goargs() {
 	}
 
 	// musl-linux library: Read argv from /proc/self/cmdline instead
-	if (isarchive || islibrary) && GOOS == "linux" && isMusl() {
+	if libmusl {
 		argslice = readNullTerminatedStringsFromFile(procCmdline)
 		return
 	}
@@ -95,12 +90,6 @@ func goargs() {
 }
 
 func goenvs_unix() {
-	// musl-linux library: Read envs from /proc/self/environ instead
-	if (isarchive || islibrary) && GOOS == "linux" && isMusl() {
-		envs = readNullTerminatedStringsFromFile(procEnviron)
-		return
-	}
-
 	// TODO(austin): ppc64 in dynamic linking mode doesn't
 	// guarantee env[] will immediately follow argv. Might cause
 	// problems.

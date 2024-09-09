@@ -728,12 +728,20 @@ const (
 	_GoidCacheBatch = 16
 )
 
-// cpuinit sets up CPU feature flags and calls internal/cpu.Initialize. env should be the complete
-// value of the GODEBUG environment variable.
-func cpuinit(env string) {
+// cpuinit sets up CPU feature flags and calls internal/cpu.Initialize. 
+func cpuinit() {
 	switch GOOS {
 	case "aix", "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd", "illumos", "solaris", "linux":
 		cpu.DebugOptions = true
+	}
+
+	// find GODEBUG in envs
+	var env string // env should be the complete value of the GODEBUG environment variable.
+	for _, value := range envs {
+		if stringslite.HasPrefix(value, "GODEBUG=") {
+			env = value
+			break
+		}
 	}
 	cpu.Initialize(env)
 
@@ -751,49 +759,6 @@ func cpuinit(env string) {
 	case "arm64":
 		arm64HasATOMICS = cpu.ARM64.HasATOMICS
 	}
-}
-
-// getGodebugEarly extracts the environment variable GODEBUG from the environment on
-// Unix-like operating systems and returns it. This function exists to extract GODEBUG
-// early before much of the runtime is initialized.
-func getGodebugEarly() string {
-	const prefix = "GODEBUG="
-	var env string
-	switch GOOS {
-	case "aix", "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd", "illumos", "solaris", "linux":
-		// Similar to goenv_unix but extracts the environment value for
-		// GODEBUG directly.
-		// TODO(moehrmann): remove when general goenvs() can be called before cpuinit()
-
-		// If the binary is an archive or a library, the operating system is Linux,
-		// and the system uses Musl, then read the environment variables from the
-		// /proc/self/environ file. Iterate over each null-terminated string read
-		// from the file. If any string has the specified prefix, return that string.
-		if (isarchive || islibrary) && GOOS == "linux" && isMusl() {
-			for _, value := range readNullTerminatedStringsFromFile(procEnviron) {
-				if stringslite.HasPrefix(value, prefix) {
-					return value
-				}
-			}
-			return env
-		}
-
-		n := int32(0)
-		for argv_index(argv, argc+1+n) != nil {
-			n++
-		}
-
-		for i := int32(0); i < n; i++ {
-			p := argv_index(argv, argc+1+i)
-			s := unsafe.String(p, findnull(p))
-
-			if stringslite.HasPrefix(s, prefix) {
-				env = gostring(p)[len(prefix):]
-				break
-			}
-		}
-	}
-	return env
 }
 
 // The bootstrap sequence is:
@@ -841,10 +806,10 @@ func schedinit() {
 	moduledataverify()
 	stackinit()
 	mallocinit()
-	godebug := getGodebugEarly()
-	cpuinit(godebug) // must run before alginit
-	randinit()       // must run before alginit, mcommoninit
-	alginit()        // maps, hash, rand must not be used before this call
+	goenvs()
+	cpuinit()  // must run before alginit
+	randinit() // must run before alginit, mcommoninit
+	alginit()  // maps, hash, rand must not be used before this call
 	mcommoninit(gp.m, -1)
 	modulesinit()   // provides activeModules
 	typelinksinit() // uses maps, activeModules
@@ -855,7 +820,6 @@ func schedinit() {
 	initSigmask = gp.m.sigmask
 
 	goargs()
-	goenvs()
 	secure()
 	checkfds()
 	parsedebugvars()

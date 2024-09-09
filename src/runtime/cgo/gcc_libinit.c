@@ -17,7 +17,6 @@
 #include <stdlib.h>
 #include <string.h> // strerror
 #include <time.h>
-#include <limits.h>
 #include "libcgo.h"
 #include "libcgo_unix.h"
 

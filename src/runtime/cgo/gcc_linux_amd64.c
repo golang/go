@@ -90,13 +90,3 @@ threadentry(void *v)
 	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }
-
-// x_cgo_is_musl reports whether the C library is musl.
-int
-x_cgo_is_musl() {
-	#if defined(__GLIBC__) || defined(__UCLIBC__)
-		return 0;
-	#else
-		return 1;
-	#endif
-}

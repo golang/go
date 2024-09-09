@@ -1248,6 +1248,9 @@ var (
 	isarchive bool // -buildmode=c-archive
 )
 
+// libmusl is set if the Go archive/library is linked against linux musl libc.
+var libmusl bool  // set by os_linux libpreinit
+
 // Must agree with internal/buildcfg.FramePointerEnabled.
 const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
 

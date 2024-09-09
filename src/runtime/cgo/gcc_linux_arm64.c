@@ -86,13 +86,3 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 		x_cgo_inittls(tlsg, tlsbase);
 	}
 }
-
-// x_cgo_is_musl reports whether the C library is musl.
-int
-x_cgo_is_musl() {
-	#if defined(__GLIBC__) || defined(__UCLIBC__)
-		return 0;
-	#else
-		return 1;
-	#endif
-}

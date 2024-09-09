@@ -233,8 +233,8 @@ var auxvreadbuf [128]uintptr
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
-	// auxv on argv is not available on musl library/archive. avoid for musl.
-	if !((islibrary || isarchive) && GOOS == "linux" && isMusl()) {
+	// auxv on argv is not available on musl library/archive.
+	if !libmusl {
 		// skip over argv, envp to get to auxv
 		for argv_index(argv, n) != nil {
 			n++
@@ -360,6 +360,11 @@ func readRandom(r []byte) int {
 }
 
 func goenvs() {
+	if libmusl {
+		// Read envs from /proc/self/environ instead
+		envs = readNullTerminatedStringsFromFile(procEnviron)
+		return
+	}
 	goenvs_unix()
 }
 
@@ -370,6 +375,7 @@ func goenvs() {
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
+	libmusl = asmcgocall(_cgo_is_musl, nil) == 1
 	initsig(true)
 }
 
