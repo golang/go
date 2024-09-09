@@ -2113,11 +2113,12 @@ func (c *runCache) saveOutput(a *work.Action, coverProfileFile string) {
 			}
 			defer func() {
 				if err := coverProfile.Close(); err != nil && cache.DebugTest {
-					fmt.Fprintf(os.Stderr, "testcache: %s: closing temporary coverprofile: %v", a.Package.ImportPath, err)
+					base.Errorf("closing temporary coverprofile: %v", err)
 				}
 			}()
 		} else if cache.DebugTest {
-			fmt.Fprintf(os.Stderr, "testcache: %s: failed to open temporary coverprofile: %s", a.Package.ImportPath, err)
+			base.Errorf("failed to open temporary coverprofile: %s", err)
+			return
 		}
 	}
 	if c.id1 != (cache.ActionID{}) {

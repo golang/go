@@ -19,8 +19,7 @@ import (
 // across multiple test runs and packages.
 var coverMerge struct {
 	f          *os.File
-	fsize      int64 // Tracks the size of valid data written to f
-	sync.Mutex       // for f.Write
+	sync.Mutex // for f.Write
 }
 
 // initCoverProfile initializes the test coverage profile.
@@ -40,16 +39,15 @@ func initCoverProfile() {
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
-	s, err := fmt.Fprintf(f, "mode: %s\n", cfg.BuildCoverMode)
+	_, err = fmt.Fprintf(f, "mode: %s\n", cfg.BuildCoverMode)
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
 	coverMerge.f = f
-	coverMerge.fsize = int64(s)
 }
 
 // mergeCoverProfile merges file into the profile stored in testCoverProfile.
-// It prints any errors it encounters to ew.
+// Errors encountered are logged and cause a non-zero exit status.
 func mergeCoverProfile(file string) {
 	if coverMerge.f == nil {
 		return
@@ -71,24 +69,19 @@ func mergeCoverProfile(file string) {
 		return
 	}
 	if err != nil || string(buf) != expect {
-		base.Errorf("error: test wrote malformed coverage profile %s: header %q, expected %q: %v", file, string(buf), expect, err)
+		base.Errorf("test wrote malformed coverage profile %s: header %q, expected %q: %v", file, string(buf), expect, err)
 		return
 	}
-	s, err := io.Copy(coverMerge.f, r)
+	_, err = io.Copy(coverMerge.f, r)
 	if err != nil {
-		base.Errorf("error: saving coverage profile: %v", err)
+		base.Errorf("saving coverage profile: %v", err)
 		return
 	}
-	coverMerge.fsize += s
 }
 
 func closeCoverProfile() {
 	if coverMerge.f == nil {
 		return
-	}
-	// Discard any partially written data from a failed merge.
-	if err := coverMerge.f.Truncate(coverMerge.fsize); err != nil {
-		base.Errorf("closing coverage profile: %v", err)
 	}
 	if err := coverMerge.f.Close(); err != nil {
 		base.Errorf("closing coverage profile: %v", err)
