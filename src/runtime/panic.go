@@ -614,6 +614,8 @@ func deferreturn() {
 // without func main returning. Since func main has not returned,
 // the program continues execution of other goroutines.
 // If all other goroutines exit, the program crashes.
+//
+// It crashes if called from a thread not created by the Go runtime.
 func Goexit() {
 	// Create a panic object for Goexit, so we can recognize when it might be
 	// bypassed by a recover().
