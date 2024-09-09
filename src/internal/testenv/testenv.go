@@ -268,13 +268,14 @@ var goTool = sync.OnceValues(func() (string, error) {
 	return exec.LookPath("go")
 })
 
-// HasSrc reports whether the entire source tree is available under GOROOT.
-func HasSrc() bool {
+// MustHaveSource checks that the entire source tree is available under GOROOT.
+// If not, it calls t.Skip with an explanation.
+func MustHaveSource(t testing.TB) {
 	switch runtime.GOOS {
 	case "ios":
-		return false
+		t.Helper()
+		t.Skip("skipping test: no source tree on " + runtime.GOOS)
 	}
-	return true
 }
 
 // HasExternalNetwork reports whether the current system can use

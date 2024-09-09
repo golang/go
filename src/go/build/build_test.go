@@ -496,7 +496,7 @@ func TestShellSafety(t *testing.T) {
 // Want to get a "cannot find package" error when directory for package does not exist.
 // There should be valid partial information in the returned non-nil *Package.
 func TestImportDirNotExist(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // really must just have source
+	testenv.MustHaveGoBuild(t) // Need 'go list' internally.
 	ctxt := Default
 
 	emptyDir := t.TempDir()
@@ -550,7 +550,7 @@ func TestImportDirNotExist(t *testing.T) {
 }
 
 func TestImportVendor(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // really must just have source
+	testenv.MustHaveSource(t)
 
 	t.Setenv("GO111MODULE", "off")
 
@@ -571,7 +571,7 @@ func TestImportVendor(t *testing.T) {
 }
 
 func BenchmarkImportVendor(b *testing.B) {
-	testenv.MustHaveGoBuild(b) // really must just have source
+	testenv.MustHaveSource(b)
 
 	b.Setenv("GO111MODULE", "off")
 
@@ -592,7 +592,7 @@ func BenchmarkImportVendor(b *testing.B) {
 }
 
 func TestImportVendorFailure(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // really must just have source
+	testenv.MustHaveSource(t)
 
 	t.Setenv("GO111MODULE", "off")
 
@@ -614,7 +614,7 @@ func TestImportVendorFailure(t *testing.T) {
 }
 
 func TestImportVendorParentFailure(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // really must just have source
+	testenv.MustHaveSource(t)
 
 	t.Setenv("GO111MODULE", "off")
 
