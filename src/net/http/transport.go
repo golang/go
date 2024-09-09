@@ -20,6 +20,7 @@ import (
 	"internal/godebug"
 	"io"
 	"log"
+	"maps"
 	"net"
 	"net/http/httptrace"
 	"net/http/internal/ascii"
@@ -349,9 +350,9 @@ func (t *Transport) Clone() *Transport {
 		*t2.HTTP2 = *t.HTTP2
 	}
 	if !t.tlsNextProtoWasNil {
-		npm := map[string]func(authority string, c *tls.Conn) RoundTripper{}
-		for k, v := range t.TLSNextProto {
-			npm[k] = v
+		npm := maps.Clone(t.TLSNextProto)
+		if npm == nil {
+			npm = make(map[string]func(authority string, c *tls.Conn) RoundTripper)
 		}
 		t2.TLSNextProto = npm
 	}
@@ -830,9 +831,9 @@ func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
 	if _, exists := oldMap[scheme]; exists {
 		panic("protocol " + scheme + " already registered")
 	}
-	newMap := make(map[string]RoundTripper)
-	for k, v := range oldMap {
-		newMap[k] = v
+	newMap := maps.Clone(oldMap)
+	if newMap == nil {
+		newMap = make(map[string]RoundTripper)
 	}
 	newMap[scheme] = rt
 	t.altProto.Store(newMap)
