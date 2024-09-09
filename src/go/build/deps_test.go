@@ -32,7 +32,7 @@ import (
 //
 // "a < b" means package b can import package a.
 //
-// See `go doc internal/dag' for the full syntax.
+// See `go doc internal/dag` for the full syntax.
 //
 // All-caps names are pseudo-names for specific points
 // in the dependency lattice.

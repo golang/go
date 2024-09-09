@@ -15,7 +15,7 @@ import (
 // does not have a name and if the result in the signature also does not have a name,
 // then the signature and field are renamed to
 //
-//	fmt.Sprintf("#rv%d", i+1)`
+//	fmt.Sprintf("#rv%d", i+1)
 //
 // the newly named object is inserted into the signature's scope,
 // and the object and new field name are returned.

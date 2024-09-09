@@ -20,7 +20,7 @@ var platformZoneSources []string // none: Windows uses system calls instead
 // time apply to all previous and future years as well.
 
 // matchZoneKey checks if stdname and dstname match the corresponding key
-// values "MUI_Std" and MUI_Dlt" or "Std" and "Dlt" in the kname key stored
+// values "MUI_Std" and "MUI_Dlt" or "Std" and "Dlt" in the kname key stored
 // under the open registry key zones.
 func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (matched bool, err2 error) {
 	k, err := registry.OpenKey(zones, kname, registry.READ)

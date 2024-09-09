@@ -401,7 +401,7 @@ func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
 // combinesWithName reports whether a name followed by the expression x
 // syntactically combines to another valid (value) expression. For instance
 // using *T for x, "name *T" syntactically appears as the expression x*T.
-// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or name *P|~Q"
+// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or "name *P|~Q"
 // cannot be combined into a valid (value) expression.
 func combinesWithName(x ast.Expr) bool {
 	switch x := x.(type) {

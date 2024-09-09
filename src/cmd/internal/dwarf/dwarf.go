@@ -31,7 +31,7 @@ const ConstInfoPrefix = "go:constinfo."
 // populate the DWARF compilation unit info entries.
 const CUInfoPrefix = "go:cuinfo."
 
-// Used to form the symbol name assigned to the DWARF 'abstract subprogram"
+// Used to form the symbol name assigned to the DWARF "abstract subprogram"
 // info entry for a function
 const AbstractFuncSuffix = "$abstract"
 

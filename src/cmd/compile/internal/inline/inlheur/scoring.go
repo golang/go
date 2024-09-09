@@ -369,7 +369,7 @@ func setupFlagToAdjMaps() {
 // "call in loop". If the calculated cost of the function is 150, and
 // the in-loop adjustment is 5 (for example), then there is not much
 // point treating it as inlinable. On the other hand "bar" has a param
-// property (parameter "x" feeds unmodified to an "if" statement") and
+// property (parameter "x" feeds unmodified to an "if" statement) and
 // a return property (always returns same constant) meaning that a
 // given call _could_ be rescored down as much as -35 points-- thus if
 // the size of "bar" is 100 (for example) then there is at least a
