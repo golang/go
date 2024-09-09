@@ -150,4 +150,3 @@ var _cgo_yield unsafe.Pointer
 //go:linkname _cgo_getstackbound _cgo_getstackbound
 var x_cgo_getstackbound byte
 var _cgo_getstackbound = &x_cgo_getstackbound
-
