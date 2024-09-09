@@ -598,6 +598,14 @@
 // Combine negation and sign extension.
 (MOVWreg (NEG x)) => (NEGW x)
 
+// Avoid extending when already sufficiently shifted.
+(MOVBUreg x:(SRLI  [c] y)) && c >= 56 => x
+(MOVHUreg x:(SRLI  [c] y)) && c >= 48 => x
+(MOVWUreg x:(SRLI  [c] y)) && c >= 32 => x
+(MOVBUreg x:(SRLIW [c] y)) && c >= 24 => x
+(MOVHUreg x:(SRLIW [c] y)) && c >= 16 => x
+(MOVWUreg x:(SRLIW [c] y)) => x
+
 // Avoid sign/zero extension for consts.
 (MOVBreg  (MOVDconst [c])) => (MOVDconst [int64(int8(c))])
 (MOVHreg  (MOVDconst [c])) => (MOVDconst [int64(int16(c))])

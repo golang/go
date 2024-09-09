@@ -5003,6 +5003,36 @@ func rewriteValue_OpRISCV64MOVBUreg(v *ssa.Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBUreg x:(SRLI [c] y))
+	// cond: c >= 56
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpRISCV64SRLI {
+			break
+		}
+		c := ssa.AuxIntToInt64(x.AuxInt)
+		if !(c >= 56) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(SRLIW [c] y))
+	// cond: c >= 24
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpRISCV64SRLIW {
+			break
+		}
+		c := ssa.AuxIntToInt64(x.AuxInt)
+		if !(c >= 24) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
 	// match: (MOVBUreg (MOVDconst [c]))
 	// result: (MOVDconst [int64(uint8(c))])
 	for {
@@ -5816,6 +5846,36 @@ func rewriteValue_OpRISCV64MOVHUreg(v *ssa.Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVHUreg x:(SRLI [c] y))
+	// cond: c >= 48
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpRISCV64SRLI {
+			break
+		}
+		c := ssa.AuxIntToInt64(x.AuxInt)
+		if !(c >= 48) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVHUreg x:(SRLIW [c] y))
+	// cond: c >= 16
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpRISCV64SRLIW {
+			break
+		}
+		c := ssa.AuxIntToInt64(x.AuxInt)
+		if !(c >= 16) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
 	// match: (MOVHUreg (MOVDconst [c]))
 	// result: (MOVDconst [int64(uint16(c))])
 	for {
@@ -6400,6 +6460,31 @@ func rewriteValue_OpRISCV64MOVWUreg(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64MOVDconst, typ.UInt64)
 		v0.AuxInt = ssa.Int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(v0, x)
+		return true
+	}
+	// match: (MOVWUreg x:(SRLI [c] y))
+	// cond: c >= 32
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpRISCV64SRLI {
+			break
+		}
+		c := ssa.AuxIntToInt64(x.AuxInt)
+		if !(c >= 32) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVWUreg x:(SRLIW [c] y))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpRISCV64SRLIW {
+			break
+		}
+		v.CopyOf(x)
 		return true
 	}
 	// match: (MOVWUreg (MOVDconst [c]))
