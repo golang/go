@@ -1020,7 +1020,7 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *
 		// typecheck.Target.Decls (ir.UseClosure adds all closures to
 		// Decls).
 		//
-		// However, non-trivial closures in Decls are ignored, and are
+		// However, closures in Decls are ignored, and are
 		// instead enqueued when walk of the calling function
 		// discovers them.
 		//
@@ -1045,8 +1045,8 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *
 		}
 
 		clo := n.Fun.(*ir.ClosureExpr)
-		if ir.IsTrivialClosure(clo) {
-			// enqueueFunc will handle trivial closures anyways.
+		if !clo.Func.IsClosure() {
+			// enqueueFunc will handle non closures anyways.
 			return
 		}
 

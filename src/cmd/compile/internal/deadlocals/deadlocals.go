@@ -36,7 +36,7 @@ func Funcs(fns []*ir.Func) {
 				// Kludge for "missing func info" linker panic.
 				// See also closureInitLSym in inline/inl.go.
 				if clo, ok := (*as.rhs).(*ir.ClosureExpr); ok && clo.Op() == ir.OCLOSURE {
-					if !ir.IsTrivialClosure(clo) {
+					if clo.Func.IsClosure() {
 						ir.InitLSym(clo.Func, true)
 					}
 				}

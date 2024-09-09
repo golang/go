@@ -33,7 +33,7 @@ func directClosureCall(n *ir.CallExpr) {
 	clo := n.Fun.(*ir.ClosureExpr)
 	clofn := clo.Func
 
-	if ir.IsTrivialClosure(clo) {
+	if !clofn.IsClosure() {
 		return // leave for walkClosure to handle
 	}
 
@@ -87,16 +87,15 @@ func directClosureCall(n *ir.CallExpr) {
 
 	// Add to Closures for enqueueFunc. It's no longer a proper
 	// closure, but we may have already skipped over it in the
-	// functions list as a non-trivial closure, so this just
-	// ensures it's compiled.
+	// functions list, so this just ensures it's compiled.
 	ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
 }
 
 func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	clofn := clo.Func
 
-	// If no closure vars, don't bother wrapping.
-	if ir.IsTrivialClosure(clo) {
+	// If not a closure, don't bother wrapping.
+	if !clofn.IsClosure() {
 		if base.Debug.Closure > 0 {
 			base.WarnfAt(clo.Pos(), "closure converted to global")
 		}
