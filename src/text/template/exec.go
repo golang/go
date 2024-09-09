@@ -360,11 +360,10 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	val, _ := indirect(s.evalPipeline(dot, r.Pipe))
 	// mark top of stack before any variables in the body are pushed.
 	mark := s.mark()
-	var rangefunc = false
-	oneIteration := func(index, elem reflect.Value) {
+	oneIteration := func(index, elem reflect.Value, rangefunc bool) {
 		if len(r.Pipe.Decl) > 0 {
 			if r.Pipe.IsAssign || rangefunc {
-				// With two variables, index comes first.
+				// With two variables, index comes first, except for range over a function.
 				// With one, we use the element.
 				if len(r.Pipe.Decl) > 1 || rangefunc {
 					s.setVar(r.Pipe.Decl[0].Ident[0], index)
@@ -378,7 +377,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			}
 		}
 		if len(r.Pipe.Decl) > 1 {
-			if r.Pipe.IsAssign {
+			if r.Pipe.IsAssign || rangefunc {
 				s.setVar(r.Pipe.Decl[1].Ident[0], elem)
 			} else {
 				// Set next var (lexically the first if there
@@ -401,7 +400,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			break
 		}
 		for i := 0; i < val.Len(); i++ {
-			oneIteration(reflect.ValueOf(i), val.Index(i))
+			oneIteration(reflect.ValueOf(i), val.Index(i), false)
 		}
 		return
 	case reflect.Map:
@@ -410,7 +409,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		}
 		om := fmtsort.Sort(val)
 		for _, m := range om {
-			oneIteration(m.Key, m.Value)
+			oneIteration(m.Key, m.Value, false)
 		}
 		return
 	case reflect.Chan:
@@ -427,7 +426,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			if !ok {
 				break
 			}
-			oneIteration(reflect.ValueOf(i), elem)
+			oneIteration(reflect.ValueOf(i), elem, false)
 		}
 		if i == 0 {
 			break
@@ -441,15 +440,14 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 				s.errorf("can't use %s iterate over more than one variable", val)
 				return
 			}
-			rangefunc = true
 			for v := range val.Seq() {
-				oneIteration(v, reflect.Value{})
+				oneIteration(v, reflect.Value{}, true)
 			}
 			return
 		}
 		if val.Type().CanSeq2() {
 			for i, v := range val.Seq2() {
-				oneIteration(i, v)
+				oneIteration(i, v, true)
 			}
 			return
 		}

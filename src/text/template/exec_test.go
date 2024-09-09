@@ -629,6 +629,13 @@ var execTests = []execTest{
 			}
 		}
 	}, true},
+	{"i = range iter.Seq2[int,int]", `{{$i := 0}}{{range $i = .}}{{$i}}{{end}}`, "01", func(yield func(int, int) bool) {
+		for i := range 2 {
+			if !yield(i, i+1) {
+				break
+			}
+		}
+	}, true},
 
 	// Cute examples.
 	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},
