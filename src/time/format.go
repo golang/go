@@ -1259,9 +1259,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			hr, _, err = getnum(hour, true)
 			if err == nil {
 				mm, _, err = getnum(min, true)
-			}
-			if err == nil {
-				ss, _, err = getnum(seconds, true)
+				if err == nil {
+					ss, _, err = getnum(seconds, true)
+				}
 			}
 
 			// The range test use > rather than >=,
