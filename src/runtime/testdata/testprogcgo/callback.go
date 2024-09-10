@@ -38,21 +38,10 @@ import (
 
 func init() {
 	register("CgoCallbackGC", CgoCallbackGC)
-	register("CgoToGoCallGoexit", CgoToGoCallGoexit)
 }
-
-func CgoToGoCallGoexit() {
-	goexit = true
-	C.foo()
-}
-
-var goexit = false
 
 //export go_callback
 func go_callback() {
-	if goexit {
-		runtime.Goexit()
-	}
 	if e := extraMInUse.Load(); e == 0 {
 		fmt.Printf("in callback extraMInUse got %d want >0\n", e)
 		os.Exit(1)

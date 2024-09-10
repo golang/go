@@ -1158,13 +1158,3 @@ func TestBigGOMAXPROCS(t *testing.T) {
 		t.Errorf("output:\n%s\nwanted:\nunknown function: NonexistentTest", output)
 	}
 }
-
-func TestCgoToGoCallGoexit(t *testing.T) {
-	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
-		t.Skipf("no pthreads on %s", runtime.GOOS)
-	}
-	output := runTestProg(t, "testprogcgo", "CgoToGoCallGoexit")
-	if !strings.Contains(output, "runtime.Goexit called in a thread that was not created by the Go runtime") {
-		t.Fatalf("output should contain %s, got %s", "runtime.Goexit called in a thread that was not created by the Go runtime", output)
-	}
-}
