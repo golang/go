@@ -63,7 +63,6 @@ type printer struct {
 	mode         pmode        // current printer mode
 	endAlignment bool         // if set, terminate alignment immediately
 	impliedSemi  bool         // if set, a linebreak implies a semicolon
-	inDecl       bool         // if set, printer is inside declaration (after first token)
 	lastTok      token.Token  // last token printed (token.ILLEGAL if it's whitespace)
 	prevOpen     token.Token  // previous non-brace "open" token (, [, or token.ILLEGAL
 	wsbuf        []whiteSpace // delayed white space
@@ -740,9 +739,8 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	for p.commentBefore(next) {
 		list := p.comment.List
 		changed := false
-		if !p.inDecl &&
-			p.lastTok != token.IMPORT && // do not rewrite cgo's import "C" comments
-			p.posFor(p.comment.Pos()).Line != p.last.Line &&
+		if p.lastTok != token.IMPORT && // do not rewrite cgo's import "C" comments
+			p.posFor(p.comment.Pos()).Column == 1 &&
 			p.posFor(p.comment.End()+1) == next {
 			// Unindented comment abutting next token position:
 			// a top-level doc comment.
