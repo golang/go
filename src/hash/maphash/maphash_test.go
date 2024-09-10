@@ -227,13 +227,19 @@ func TestComparable(t *testing.T) {
 	testComparable(t, uintptr(12))
 	testComparable(t, any("s"))
 	testComparable(t, "s")
+	testComparable(t, true)
 	testComparable(t, new(float64))
 	testComparable(t, float64(9))
 	testComparable(t, complex128(9i+1))
+	testComparable(t, struct{}{})
 	testComparable(t, struct {
 		i int
+		u uint
+		b bool
 		f float64
-	}{i: 9, f: 9.9})
+		p *int
+		a any
+	}{i: 9, u: 1, b: true, f: 9.9, p: new(int), a: 1})
 	type S struct {
 		s string
 	}
@@ -246,11 +252,21 @@ func TestComparable(t *testing.T) {
 		t.Fatalf("unexpected two heapStr value not equal")
 	}
 	testComparable(t, s1, s2)
+	testComparable(t, s1.s, s2.s)
 	testComparable(t, float32(0), negativeZero[float32]())
 	testComparable(t, float64(0), negativeZero[float64]())
+	testComparableNoEqual(t, math.NaN(), math.NaN())
+	testComparableNoEqual(t, [2]string{"a", ""}, [2]string{"", "a"})
+	testComparableNoEqual(t, any(struct{ x int }{x: 1}), any(struct {
+		x int
+		s string
+	}{x: 1}))
+}
+
+func testComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {
 	seed := MakeSeed()
-	if Comparable(seed, math.NaN()) == Comparable(seed, math.NaN()) {
-		t.Fatalf("Comparable(seed, NaN) == Comparable(seed, NaN)")
+	if Comparable(seed, v1) == Comparable(seed, v2) {
+		t.Fatalf("Comparable(seed, %v) == Comparable(seed, %v)", v1, v2)
 	}
 }
 
@@ -291,13 +307,17 @@ func testComparable[T comparable](t *testing.T, v T, v2 ...T) {
 	})
 }
 
+var use byte
+
 //go:noinline
 func stackGrow(dep int) {
 	if dep == 0 {
 		return
 	}
 	var local [1024]byte
-	_ = local
+	// make sure local is allocated on the stack.
+	local[randUint64()%1024] = byte(randUint64())
+	use = local[randUint64()%1024]
 	stackGrow(dep - 1)
 }
 
@@ -307,13 +327,19 @@ func TestWriteComparable(t *testing.T) {
 	testWriteComparable(t, uintptr(12))
 	testWriteComparable(t, any("s"))
 	testWriteComparable(t, "s")
+	testComparable(t, true)
 	testWriteComparable(t, new(float64))
 	testWriteComparable(t, float64(9))
 	testWriteComparable(t, complex128(9i+1))
+	testWriteComparable(t, struct{}{})
 	testWriteComparable(t, struct {
 		i int
+		u uint
+		b bool
 		f float64
-	}{i: 9, f: 9.9})
+		p *int
+		a any
+	}{i: 9, u: 1, b: true, f: 9.9, p: new(int), a: 1})
 	type S struct {
 		s string
 	}
@@ -326,17 +352,28 @@ func TestWriteComparable(t *testing.T) {
 		t.Fatalf("unexpected two heapStr value not equal")
 	}
 	testWriteComparable(t, s1, s2)
+	testWriteComparable(t, s1.s, s2.s)
 	testWriteComparable(t, float32(0), negativeZero[float32]())
 	testWriteComparable(t, float64(0), negativeZero[float64]())
+	testWriteComparableNoEqual(t, math.NaN(), math.NaN())
+	testWriteComparableNoEqual(t, [2]string{"a", ""}, [2]string{"", "a"})
+	testWriteComparableNoEqual(t, any(struct{ x int }{x: 1}), any(struct {
+		x int
+		s string
+	}{x: 1}))
+}
+
+func testWriteComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {
 	seed := MakeSeed()
 	h1 := Hash{}
 	h2 := Hash{}
 	h1.seed, h2.seed = seed, seed
-	WriteComparable(&h1, math.NaN())
-	WriteComparable(&h2, math.NaN())
+	WriteComparable(&h1, v1)
+	WriteComparable(&h2, v2)
 	if h1.Sum64() == h2.Sum64() {
-		t.Fatalf("WriteComparable(seed, NaN) == WriteComparable(seed, NaN)")
+		t.Fatalf("WriteComparable(seed, %v) == WriteComparable(seed, %v)", v1, v2)
 	}
+
 }
 
 func testWriteComparable[T comparable](t *testing.T, v T, v2 ...T) {

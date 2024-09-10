@@ -48,21 +48,15 @@ func comparableF[T comparable](h *Hash, v T) {
 	t := abi.TypeFor[T]()
 	ptr := unsafe.Pointer(&v)
 	l := t.Size()
-	k := t.Kind()
-	if k == abi.String {
-		s := ((*string)(ptr))
-		h.WriteString(*s)
+	if t.TFlag&abi.TFlagRegularMemory != 0 {
+		h.Write(unsafe.Slice((*byte)(ptr), l))
 		return
 	}
-	if t.TFlag&abi.TFlagRegularMemory == 0 {
-		// Note: if T like struct {s string}
-		// str value equal but ptr not equal,
-		// if think of it as a contiguous piece of memory,
-		// hash it, that happen v1 == v2
-		// Comparable(s, v1) != Comparable(s, v2).
-		vv := reflect.ValueOf(v)
-		appendT(h, vv)
-		return
-	}
-	h.Write(unsafe.Slice((*byte)(ptr), l))
+	// Note: if T like struct {s string}
+	// str value equal but ptr not equal,
+	// if think of it as a contiguous piece of memory,
+	// hash it, that happen v1 == v2
+	// Comparable(s, v1) != Comparable(s, v2).
+	vv := reflect.ValueOf(v)
+	appendT(h, vv)
 }

@@ -359,26 +359,11 @@ func appendT(h *Hash, v reflect.Value) {
 		return
 	case reflect.Complex64, reflect.Complex128:
 		c := v.Complex()
-		var buf [8]byte
-		byteorder.LePutUint64(buf[:], math.Float64bits(real(c)))
-		h.Write(buf[:])
-		byteorder.LePutUint64(buf[:], math.Float64bits(imag(c)))
-		h.Write(buf[:])
+		h.float64(real(c))
+		h.float64(imag(c))
 		return
 	case reflect.Float32, reflect.Float64:
-		f := v.Float()
-		if f == 0 {
-			h.WriteByte(0)
-			return
-		}
-		var buf [8]byte
-		if f != f {
-			byteorder.LePutUint64(buf[:], randUint64())
-			h.Write(buf[:])
-			return
-		}
-		byteorder.LePutUint64(buf[:], math.Float64bits(f))
-		h.Write(buf[:])
+		h.float64(v.Float())
 		return
 	case reflect.Bool:
 		h.WriteByte(btoi(v.Bool()))
@@ -393,6 +378,22 @@ func appendT(h *Hash, v reflect.Value) {
 		return
 	}
 	panic(fmt.Errorf("hash/maphash: %s not comparable", v.Type().String()))
+}
+
+func (h *Hash) float64(f float64) {
+	if f == 0 {
+		h.WriteByte(0)
+		return
+	}
+	var buf [8]byte
+	if f != f {
+		byteorder.LePutUint64(buf[:], randUint64())
+		h.Write(buf[:])
+		return
+	}
+	byteorder.LePutUint64(buf[:], math.Float64bits(f))
+	h.Write(buf[:])
+	return
 }
 
 func btoi(b bool) byte {

@@ -94,8 +94,6 @@ func mix(a, b uint64) uint64 {
 	return hi ^ lo
 }
 
-var strTyp = reflect.TypeFor[string]()
-
 func comparableF[T comparable](h *Hash, v T) {
 	vv := reflect.ValueOf(v)
 	appendT(h, vv)
