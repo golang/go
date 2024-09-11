@@ -859,3 +859,13 @@ func TestStackSwitchCallback(t *testing.T) {
 		t.Errorf("expected %q, got %v", want, got)
 	}
 }
+
+func TestCgoToGoCallGoexit(t *testing.T) {
+	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	output := runTestProg(t, "testprogcgo", "CgoToGoCallGoexit")
+	if !strings.Contains(output, "runtime.Goexit called in a thread that was not created by the Go runtime") {
+		t.Fatalf("output should contain %s, got %s", "runtime.Goexit called in a thread that was not created by the Go runtime", output)
+	}
+}
