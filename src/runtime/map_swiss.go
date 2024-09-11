@@ -22,6 +22,9 @@ const (
 
 type maptype = abi.SwissMapType
 
+//go:linkname maps_errNilAssign internal/runtime/maps.errNilAssign
+var maps_errNilAssign error = plainError("assignment to entry in nil map")
+
 func makemap64(t *abi.SwissMapType, hint int64, m *maps.Map) *maps.Map {
 	if int64(int(hint)) != hint {
 		hint = 0
@@ -100,34 +103,12 @@ func alignUpPow2(n uint64) (uint64, bool) {
 // the key is not in the map.
 // NOTE: The returned pointer may keep the whole map live, so don't
 // hold onto it for very long.
-func mapaccess1(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer {
-	// TODO: concurrent checks.
-	if raceenabled && m != nil {
-		callerpc := sys.GetCallerPC()
-		pc := abi.FuncPCABIInternal(mapaccess1)
-		racereadpc(unsafe.Pointer(m), callerpc, pc)
-		raceReadObjectPC(t.Key, key, callerpc, pc)
-	}
-	if msanenabled && m != nil {
-		msanread(key, t.Key.Size_)
-	}
-	if asanenabled && m != nil {
-		asanread(key, t.Key.Size_)
-	}
-
-	if m == nil || m.Used() == 0 {
-		if err := mapKeyError(t, key); err != nil {
-			panic(err) // see issue 23734
-		}
-		return unsafe.Pointer(&zeroVal[0])
-	}
-
-	elem, ok := m.Get(t, key)
-	if !ok {
-		return unsafe.Pointer(&zeroVal[0])
-	}
-	return elem
-}
+//
+// mapaccess1 is pushed from internal/runtime/maps. We could just call it, but
+// we want to avoid one layer of call.
+//
+//go:linkname mapaccess1
+func mapaccess1(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
 
 func mapaccess2(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	// TODO: concurrent checks.
@@ -174,26 +155,11 @@ func mapaccess2_fat(t *abi.SwissMapType, m *maps.Map, key, zero unsafe.Pointer) 
 	return e, true
 }
 
-func mapassign(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer {
-	// TODO: concurrent checks.
-	if m == nil {
-		panic(plainError("assignment to entry in nil map"))
-	}
-	if raceenabled {
-		callerpc := sys.GetCallerPC()
-		pc := abi.FuncPCABIInternal(mapassign)
-		racewritepc(unsafe.Pointer(m), callerpc, pc)
-		raceReadObjectPC(t.Key, key, callerpc, pc)
-	}
-	if msanenabled {
-		msanread(key, t.Key.Size_)
-	}
-	if asanenabled {
-		asanread(key, t.Key.Size_)
-	}
-
-	return m.PutSlot(t, key)
-}
+// mapassign is pushed from internal/runtime/maps. We could just call it, but
+// we want to avoid one layer of call.
+//
+//go:linkname mapassign
+func mapassign(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
 
 func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
 	// TODO: concurrent checks.

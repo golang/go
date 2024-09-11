@@ -256,6 +256,11 @@ func mapKeyError(t *maptype, p unsafe.Pointer) error {
 	return mapKeyError2(t.Key, p)
 }
 
+//go:linkname maps_mapKeyError internal/runtime/maps.mapKeyError
+func maps_mapKeyError(t *maptype, p unsafe.Pointer) error {
+	return mapKeyError(t, p)
+}
+
 func mapKeyError2(t *_type, p unsafe.Pointer) error {
 	if t.TFlag&abi.TFlagRegularMemory != 0 {
 		return nil
