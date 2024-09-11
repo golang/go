@@ -585,6 +585,19 @@ type importInfo struct {
 // non-test package with the suffix "_test" added.
 type ImportStack []*importInfo
 
+func NewImportInfo(pkg string, pos *token.Position) *importInfo {
+	var ppos *token.Position
+	if pos != nil {
+		ppos = &token.Position{
+			Filename: pos.Filename,
+			Offset:   pos.Offset,
+			Line:     pos.Line,
+			Column:   pos.Column,
+		}
+	}
+	return &importInfo{Pkg: pkg, Pos: ppos}
+}
+
 func (s *ImportStack) Push(p *importInfo) {
 	*s = append(*s, p)
 }
