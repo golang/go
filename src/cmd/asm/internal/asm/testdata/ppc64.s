@@ -508,17 +508,26 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 
 	BEQ 0(PC)                       // 41820000
 	BEQ CR1,0(PC)                   // 41860000
+	BEQ CR0, LR                     // 4d820020
+	BEQ CR7, LR                     // 4d9e0020
 	BGE 0(PC)                       // 40800000
 	BGE CR2,0(PC)                   // 40880000
+	BGE CR6,LR                      // 4c980020
 	BGT 4(PC)                       // 41810010
 	BGT CR3,4(PC)                   // 418d0010
+	BGT CR6, LR                     // 4d990020
 	BLE 0(PC)                       // 40810000
 	BLE CR4,0(PC)                   // 40910000
+	BLE CR6, LR                     // 4c990020
 	BLT 0(PC)                       // 41800000
 	BLT CR5,0(PC)                   // 41940000
 	BNE 0(PC)                       // 40820000
+	BNE CR6, LR                     // 4c9a0020
 	BLT CR6,0(PC)                   // 41980000
+	BLT CR6, LR                     // 4d980020
 	BVC 0(PC)                       // 40830000
+	BVC CR6, LR                     // 4c9b0020
+	BVS CR6, LR                     // 4d9b0020
 	BVS 0(PC)                       // 41830000
 	JMP 8(PC)                       // 48000010
 
