@@ -1450,6 +1450,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AVMALOB, r)
 			opset(AVMALOH, r)
 			opset(AVMALOF, r)
+			opset(AVSTRC, r)
 			opset(AVSTRCB, r)
 			opset(AVSTRCH, r)
 			opset(AVSTRCF, r)
@@ -4346,8 +4347,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		zVRRc(op, uint32(p.To.Reg), uint32(v2), uint32(p.From.Reg), m6, m5, m4, asm)
 
 	case 120: // VRR-d
-		op, m6, _ := vop(p.As)
-		m5 := singleElementMask(p.As)
+		op, m6, m5 := vop(p.As)
 		v1 := uint32(p.To.Reg)
 		v2 := uint32(p.From.Reg)
 		v3 := uint32(p.Reg)
