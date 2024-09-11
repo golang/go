@@ -681,9 +681,13 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FMOVDCC F1, F2                  // fc400891
 	FADDS F1, F2                    // ec42082a
 	FADDS F1, F2, F3                // ec62082a
+	DADD F1, F2                     // ec420804
+	DADD F1, F2, F3                 // ec620804
 	FADDSCC F1, F2, F3              // ec62082b
 	FSUB F1, F2                     // fc420828
 	FSUB F1, F2, F3                 // fc620828
+	DSUB F1, F2                     // ec420c04
+        DSUB F1, F2, F3                 // ec620c04
 	FSUBCC F1, F2, F3               // fc620829
 	FSUBS F1, F2                    // ec420828
 	FSUBS F1, F2, F3                // ec620828
@@ -691,12 +695,16 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FSUBSCC F1, F2, F3              // ec620829
 	FMUL F1, F2                     // fc420072
 	FMUL F1, F2, F3                 // fc620072
+	DMUL F1, F2                     // ec420044
+        DMUL F1, F2, F3                 // ec620044
 	FMULCC F1, F2, F3               // fc620073
 	FMULS F1, F2                    // ec420072
 	FMULS F1, F2, F3                // ec620072
 	FMULSCC F1, F2, F3              // ec620073
 	FDIV F1, F2                     // fc420824
 	FDIV F1, F2, F3                 // fc620824
+	DDIV F1, F2                     // ec420c44
+        DDIV F1, F2, F3                 // ec620c44
 	FDIVCC F1, F2, F3               // fc620825
 	FDIVS F1, F2                    // ec420824
 	FDIVS F1, F2, F3                // ec620824
