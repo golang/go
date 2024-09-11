@@ -1,0 +1,10 @@
+[!buildmode:shared] skip
+[short] skip
+[!cgo] skip '-buildmode=shared requires external linking'
+[!GOOS:linux] skip
+
+env GO111MODULE=off
+env CGO_ENABLED=1
+go install -a -trimpath -buildvcs=false -buildmode=shared -pkgdir=pkgdir1 runtime
+go install -a -trimpath -buildvcs=false -buildmode=shared -pkgdir=pkgdir2 runtime
+[GOOS:linux] cmp -q pkgdir1/libruntime.so pkgdir2/libruntime.so

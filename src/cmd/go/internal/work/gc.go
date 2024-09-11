@@ -714,7 +714,21 @@ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action,
 		}
 		ldflags = append(ldflags, d.Package.ImportPath+"="+d.Target)
 	}
-	return b.Shell(root).run(".", targetPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags)
+
+	// On OS X when using external linking to build a shared library,
+	// the argument passed here to -o ends up recorded in the final
+	// shared library in the LC_ID_DYLIB load command.
+	// To avoid putting the temporary output directory name there
+	// (and making the resulting shared library useless),
+	// run the link in the output directory so that -o can name
+	// just the final path element.
+	// On Windows, DLL file name is recorded in PE file
+	// export section, so do like on OS X.
+	// On Linux, for a shared object, at least with the Gold linker,
+	// the output file path is recorded in the .gnu.version_d section.
+	dir, targetPath := filepath.Split(targetPath)
+
+	return b.Shell(root).run(dir, targetPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags)
 }
 
 func (gcToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {
