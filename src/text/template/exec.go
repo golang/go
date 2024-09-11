@@ -363,8 +363,9 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	oneIteration := func(index, elem reflect.Value, rangefunc bool) {
 		if len(r.Pipe.Decl) > 0 {
 			if r.Pipe.IsAssign || rangefunc {
-				// With two variables, index comes first, except for range over a function.
-				// With one, we use the element.
+				// With two variables index comes first in all cases.
+				// With one variable, we use the element for most cases,
+				// but not for range over a function.
 				if len(r.Pipe.Decl) > 1 || rangefunc {
 					s.setVar(r.Pipe.Decl[0].Ident[0], index)
 				} else {
