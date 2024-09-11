@@ -24,6 +24,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -781,16 +782,13 @@ func (p *Package) mangleName(n *Name) {
 }
 
 func (f *File) isMangledName(s string) bool {
-	prefix := "_C"
-	if strings.HasPrefix(s, prefix) {
-		t := s[len(prefix):]
-		for _, k := range nameKinds {
-			if strings.HasPrefix(t, k+"_") {
-				return true
-			}
-		}
+	t, ok := strings.CutPrefix(s, "_C")
+	if !ok {
+		return false
 	}
-	return false
+	return slices.ContainsFunc(nameKinds, func(k string) bool {
+		return strings.HasPrefix(t, k+"_")
+	})
 }
 
 // rewriteCalls rewrites all calls that pass pointers to check that
@@ -1050,12 +1048,9 @@ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 		}
 		return p.hasPointer(f, t.Elt, top)
 	case *ast.StructType:
-		for _, field := range t.Fields.List {
-			if p.hasPointer(f, field.Type, top) {
-				return true
-			}
-		}
-		return false
+		return slices.ContainsFunc(t.Fields.List, func(field *ast.Field) bool {
+			return p.hasPointer(f, field.Type, top)
+		})
 	case *ast.StarExpr: // Pointer type.
 		if !top {
 			return true
@@ -3202,12 +3197,9 @@ func (c *typeConv) dwarfHasPointer(dt dwarf.Type, pos token.Pos) bool {
 		return c.dwarfHasPointer(dt.Type, pos)
 
 	case *dwarf.StructType:
-		for _, f := range dt.Field {
-			if c.dwarfHasPointer(f.Type, pos) {
-				return true
-			}
-		}
-		return false
+		return slices.ContainsFunc(dt.Field, func(f *dwarf.StructField) bool {
+			return c.dwarfHasPointer(f.Type, pos)
+		})
 
 	case *dwarf.TypedefType:
 		if dt.Name == "_GoString_" || dt.Name == "_GoBytes_" {
