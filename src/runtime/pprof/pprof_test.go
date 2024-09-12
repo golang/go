@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -518,15 +519,6 @@ func diffCPUTime(t *testing.T, f func()) (user, system time.Duration) {
 	}
 	t.Fatalf("cannot measure CPU time on GOOS=%s GOARCH=%s", runtime.GOOS, runtime.GOARCH)
 	return 0, 0
-}
-
-func contains(slice []string, s string) bool {
-	for i := range slice {
-		if slice[i] == s {
-			return true
-		}
-	}
-	return false
 }
 
 // stackContains matches if a function named spec appears anywhere in the stack trace.
@@ -1877,7 +1869,7 @@ func stackContainsLabeled(spec string, count uintptr, stk []*profile.Location, l
 	if !ok {
 		panic("missing = in key/value spec")
 	}
-	if !contains(labels[k], v) {
+	if !slices.Contains(labels[k], v) {
 		return false
 	}
 	return stackContains(base, count, stk, labels)
@@ -1994,7 +1986,7 @@ func TestLabelSystemstack(t *testing.T) {
 	// * labelHog should always be labeled.
 	// * The label should _only_ appear on labelHog and the Do call above.
 	for _, s := range p.Sample {
-		isLabeled := s.Label != nil && contains(s.Label["key"], "value")
+		isLabeled := s.Label != nil && slices.Contains(s.Label["key"], "value")
 		var (
 			mayBeLabeled     bool
 			mustBeLabeled    string
