@@ -3683,9 +3683,7 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		tw.mu.Lock()
 		defer tw.mu.Unlock()
 		dst := w.Header()
-		for k, vv := range tw.h {
-			dst[k] = vv
-		}
+		maps.Copy(dst, tw.h)
 		if !tw.wroteHeader {
 			tw.code = StatusOK
 		}
