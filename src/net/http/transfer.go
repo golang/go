@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"internal/godebug"
 	"io"
+	"maps"
 	"net/http/httptrace"
 	"net/http/internal"
 	"net/http/internal/ascii"
@@ -954,9 +955,7 @@ func mergeSetHeader(dst *Header, src Header) {
 		*dst = src
 		return
 	}
-	for k, vv := range src {
-		(*dst)[k] = vv
-	}
+	maps.Copy(*dst, src)
 }
 
 // unreadDataSizeLocked returns the number of bytes of unread input.
