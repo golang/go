@@ -955,7 +955,7 @@ func mergeSetHeader(dst *Header, src Header) {
 		*dst = src
 		return
 	}
-	maps.Copy((*dst), src)
+	maps.Copy(*dst, src)
 }
 
 // unreadDataSizeLocked returns the number of bytes of unread input.
