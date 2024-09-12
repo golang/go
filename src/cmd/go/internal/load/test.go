@@ -570,8 +570,8 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			})
 			slices.Reverse(stk)
 
-			for _, ii := range stk {
-				if file, ok := pkgToFiles[ii.Pkg]; ok && len(file) > 0 {
+			for i, ii := range stk {
+				if file, ok := pkgToFiles[ii.Pkg]; ok && len(file) > 0 && i != 0 {
 					ii.Pos = &token.Position{
 						Filename: filepath.Base(file[0]),
 					}
