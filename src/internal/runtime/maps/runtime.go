@@ -11,6 +11,9 @@ import (
 
 // Functions below pushed from runtime.
 
+//go:linkname fatal
+func fatal(s string)
+
 //go:linkname rand
 func rand() uint64
 

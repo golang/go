@@ -812,9 +812,6 @@ func (t *table) rehash(typ *abi.SwissMapType, m *Map) {
 	// new allocation, so the existing grow support in iteration would
 	// continue to work.
 
-	// TODO(prattmic): split table
-	// TODO(prattmic): Avoid overflow (splitting the table will achieve this)
-
 	newCapacity := 2 * t.capacity
 	if newCapacity <= maxTableCapacity {
 		t.grow(typ, m, newCapacity)

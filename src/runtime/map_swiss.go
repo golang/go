@@ -9,7 +9,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/runtime/maps"
-	"internal/runtime/math"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -25,6 +24,11 @@ type maptype = abi.SwissMapType
 //go:linkname maps_errNilAssign internal/runtime/maps.errNilAssign
 var maps_errNilAssign error = plainError("assignment to entry in nil map")
 
+//go:linkname maps_mapKeyError internal/runtime/maps.mapKeyError
+func maps_mapKeyError(t *abi.SwissMapType, p unsafe.Pointer) error {
+	return mapKeyError(t, p)
+}
+
 func makemap64(t *abi.SwissMapType, hint int64, m *maps.Map) *maps.Map {
 	if int64(int(hint)) != hint {
 		hint = 0
@@ -39,63 +43,18 @@ func makemap_small() *maps.Map {
 	panic("unimplemented")
 }
 
-// checkHint verifies that hint is reasonable, adjusting as necessary.
-func checkHint(t *abi.SwissMapType, hint int) uint64 {
-	if hint <= 0 {
-		return 0
-	}
-
-	capacity := uint64(hint)
-
-	// Ensure a groups allocation for a capacity this high doesn't exceed
-	// the maximum allocation size.
-	//
-	// TODO(prattmic): Once we split tables, a large hint will result in
-	// splitting the tables up front, which will use smaller individual
-	// allocations.
-	//
-	// TODO(prattmic): This logic is largely duplicated from maps.newTable
-	// / maps.(*table).reset.
-	capacity, overflow := alignUpPow2(capacity)
-	if !overflow {
-		groupCount := capacity / abi.SwissMapGroupSlots
-		mem, overflow := math.MulUintptr(uintptr(groupCount), t.Group.Size_)
-		if overflow || mem > maxAlloc {
-			return 0
-		}
-	} else {
-		return 0
-	}
-
-	return capacity
-}
-
 // makemap implements Go map creation for make(map[k]v, hint).
 // If the compiler has determined that the map or the first bucket
 // can be created on the stack, h and/or bucket may be non-nil.
 // If h != nil, the map can be created directly in h.
 // If h.buckets != nil, bucket pointed to can be used as the first bucket.
 func makemap(t *abi.SwissMapType, hint int, m *maps.Map) *maps.Map {
-	capacity := checkHint(t, hint)
+	if hint < 0 {
+		hint = 0
+	}
 
 	// TODO: use existing m
-	return maps.NewMap(t, capacity)
-}
-
-// alignUpPow2 rounds n up to the next power of 2.
-//
-// Returns true if round up causes overflow.
-//
-// TODO(prattmic): deduplicate from internal/runtime/maps.
-func alignUpPow2(n uint64) (uint64, bool) {
-	if n == 0 {
-		return 0, false
-	}
-	v := (uint64(1) << sys.Len64(n-1))
-	if v == 0 {
-		return 0, true
-	}
-	return v, false
+	return maps.NewMap(t, uintptr(hint), maxAlloc)
 }
 
 // mapaccess1 returns a pointer to h[key].  Never returns nil, instead
@@ -176,13 +135,6 @@ func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
 		asanread(key, t.Key.Size_)
 	}
 
-	if m == nil || m.Used() == 0 {
-		if err := mapKeyError(t, key); err != nil {
-			panic(err) // see issue 23734
-		}
-		return
-	}
-
 	m.Delete(t, key)
 }
 
@@ -217,10 +169,6 @@ func mapclear(t *abi.SwissMapType, m *maps.Map) {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(mapclear)
 		racewritepc(unsafe.Pointer(m), callerpc, pc)
-	}
-
-	if m == nil || m.Used() == 0 {
-		return
 	}
 
 	m.Clear(t)
