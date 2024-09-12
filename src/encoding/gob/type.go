@@ -8,6 +8,7 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"reflect"
 	"sync"
@@ -779,10 +780,7 @@ func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
 
 	// Create new map with old contents plus new entry.
 	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
-	newm := make(map[reflect.Type]*typeInfo, len(m))
-	for k, v := range m {
-		newm[k] = v
-	}
+	newm := maps.Clone(m)
 	newm[rt] = info
 	typeInfoMap.Store(newm)
 	return info, nil
