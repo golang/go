@@ -449,35 +449,8 @@ func RuneCount(p []byte) int {
 
 // RuneCountInString is like [RuneCount] but its input is a string.
 func RuneCountInString(s string) (n int) {
-	ns := len(s)
-	for i := 0; i < ns; n++ {
-		c := s[i]
-		if c < RuneSelf {
-			// ASCII fast path
-			i++
-			continue
-		}
-		x := first[c]
-		if x == xx {
-			i++ // invalid.
-			continue
-		}
-		size := int(x & 7)
-		if i+size > ns {
-			i++ // Short or invalid.
-			continue
-		}
-		accept := acceptRanges[x>>4]
-		if c := s[i+1]; c < accept.lo || accept.hi < c {
-			size = 1
-		} else if size == 2 {
-		} else if c := s[i+2]; c < locb || hicb < c {
-			size = 1
-		} else if size == 3 {
-		} else if c := s[i+3]; c < locb || hicb < c {
-			size = 1
-		}
-		i += size
+	for range s {
+		n++
 	}
 	return n
 }
