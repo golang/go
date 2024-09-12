@@ -317,6 +317,11 @@ const (
 	// it is the first instruction in an AUIPC + S-type pair that needs a
 	// R_RISCV_PCREL_STYPE relocation.
 	NEED_PCREL_STYPE_RELOC
+
+	// NEED_GOT_PCREL_ITYPE_RELOC is set on AUIPC instructions to indicate that
+	// it is the first instruction in an AUIPC + I-type pair that needs a
+	// R_RISCV_GOT_PCREL_ITYPE relocation.
+	NEED_GOT_PCREL_ITYPE_RELOC
 )
 
 // RISC-V mnemonics, as defined in the "opcodes" and "opcodes-pseudo" files
