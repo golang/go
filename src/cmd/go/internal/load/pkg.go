@@ -511,10 +511,10 @@ func (p *PackageError) Unwrap() error { return p.Err }
 // and non-essential fields are omitted.
 func (p *PackageError) MarshalJSON() ([]byte, error) {
 	perr := struct {
-		ImportStack ImportStack
+		ImportStack []string // use []string for package names
 		Pos         string
 		Err         string
-	}{p.ImportStack, p.Pos, p.Err.Error()}
+	}{p.ImportStack.CopyPkgs(), p.Pos, p.Err.Error()}
 	return json.Marshal(perr)
 }
 
