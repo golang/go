@@ -522,6 +522,8 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OBREAK,
 		ir.OCONTINUE,
 		ir.ODCL,
+		ir.ODCLGOLOCAL,
+		ir.ODCLGOLOCALALLOC,
 		ir.OGOTO,
 		ir.OFALL:
 		return n

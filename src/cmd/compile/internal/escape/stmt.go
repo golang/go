@@ -48,6 +48,22 @@ func (e *escape) stmt(n ir.Node) {
 			e.dcl(n.X)
 		}
 
+	case ir.ODCLGOLOCAL:
+		// Record loop depth at declaration.
+		n := n.(*ir.Decl)
+		if !ir.IsBlank(n.X) {
+			e.dcl(n.X)
+			// GoLocal variables must be escape
+			loc := e.oldLoc(n.X)
+			loc.attrs |= attrEscapes
+		}
+
+	case ir.ODCLGOLOCALALLOC:
+		n := n.(*ir.Decl)
+		if !ir.IsBlank(n.X) {
+			e.dcl(n.X)
+		}
+
 	case ir.OLABEL:
 		n := n.(*ir.LabelStmt)
 		if n.Label.IsBlank() {

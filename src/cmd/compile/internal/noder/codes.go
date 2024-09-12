@@ -20,6 +20,7 @@ const (
 	stmtSend
 	stmtAssign
 	stmtAssignOp
+	stmtGoLocalAssign
 	stmtIncDec
 	stmtBranch
 	stmtCall

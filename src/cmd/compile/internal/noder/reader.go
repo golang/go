@@ -1686,6 +1686,47 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 		n.Def = r.initDefn(n, names)
 		return n
 
+	case stmtGoLocalAssign:
+		pos := r.pos()
+		names, lhs := r.assignList()
+		rhs := r.multiExpr()
+		// We rewrite go_local stmt to a group stmts:
+		// before:
+		//     go_local a int = initA()
+		// after:
+		//     &a, a_need_init := runtime.newGoLocal(key, type(int))
+		//     if a_need_init {
+		//         a = initA()
+		//     }
+		if len(names) == 0 {
+			return nil
+		}
+
+		for _, name := range names {
+			out.Append(typecheck.Stmt(ir.NewDecl(pos, ir.ODCLGOLOCAL, name)))
+		}
+
+		if len(rhs) == 0 {
+			return nil
+		}
+		sym := &types.Sym{Pkg: names[0].Sym().Pkg, Name: "_compile_only_" + names[0].Sym().Name + "_need_init"}
+		needInit := names[0].Curfn.NewLocal(pos, sym, types.Types[types.TBOOL])
+		ir.BindGoLocalInit(names[0], needInit)
+		out.Append(typecheck.Stmt(ir.NewDecl(pos, ir.ODCLGOLOCALALLOC, needInit)))
+
+		then := ir.Nodes{}
+
+		if len(lhs) == 1 && len(rhs) == 1 {
+			n := ir.NewAssignStmt(pos, lhs[0], rhs[0])
+			then.Append(n)
+		} else {
+			n := ir.NewAssignListStmt(pos, ir.OAS2, lhs, rhs)
+			then.Append(n)
+		}
+
+		ifStmt := ir.NewIfStmt(pos, typecheck.Expr(needInit), then, nil)
+		return ifStmt
+
 	case stmtAssignOp:
 		op := r.op()
 		lhs := r.expr()

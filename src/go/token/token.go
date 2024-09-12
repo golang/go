@@ -122,6 +122,7 @@ const (
 	STRUCT
 	SWITCH
 	TYPE
+	GOLOCAL
 	VAR
 	keyword_end
 
@@ -224,11 +225,12 @@ var tokens = [...]string{
 	RANGE:     "range",
 	RETURN:    "return",
 
-	SELECT: "select",
-	STRUCT: "struct",
-	SWITCH: "switch",
-	TYPE:   "type",
-	VAR:    "var",
+	SELECT:  "select",
+	STRUCT:  "struct",
+	SWITCH:  "switch",
+	TYPE:    "type",
+	GOLOCAL: "go_local",
+	VAR:     "var",
 
 	TILDE: "~",
 }
@@ -291,6 +293,11 @@ func init() {
 // Lookup maps an identifier to its keyword token or [IDENT] (if not a keyword).
 func Lookup(ident string) Token {
 	if tok, is_keyword := keywords[ident]; is_keyword {
+		// GoLocal stmt has the same syntax with Var stmt
+		// so we can return VAR to check syntax
+		if tok == GOLOCAL {
+			return VAR
+		}
 		return tok
 	}
 	return IDENT

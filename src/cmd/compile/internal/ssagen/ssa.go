@@ -127,6 +127,9 @@ func InitConfig() {
 	ir.Syms.Asanread = typecheck.LookupRuntimeFunc("asanread")
 	ir.Syms.Asanwrite = typecheck.LookupRuntimeFunc("asanwrite")
 	ir.Syms.Newobject = typecheck.LookupRuntimeFunc("newobject")
+	ir.Syms.NewGoLocalObject = typecheck.LookupRuntimeFunc("newGoLocalObject")
+	ir.Syms.NewGoLocalObjectForStringKey =
+		typecheck.LookupRuntimeFunc("newGoLocalObjectForStringKey")
 	ir.Syms.Newproc = typecheck.LookupRuntimeFunc("newproc")
 	ir.Syms.Panicdivide = typecheck.LookupRuntimeFunc("panicdivide")
 	ir.Syms.PanicdottypeE = typecheck.LookupRuntimeFunc("panicdottypeE")
@@ -683,6 +686,29 @@ func (s *state) paramsToHeap() {
 	do(typ.Results())
 }
 
+// newGoLocal gets heap memory for n and the flag indicating if alloc new mem.
+func (s *state) newGoLocal(n *ir.Name) {
+	// We use variable name + pos as the unique key
+	key := n.Sym().Name + "@" + src.FmtGoLocalKey(n.Pos())
+	ssaGoLocal, ssaAlloc := s.newGoLocalObject(key, n.Type(), nil)
+	goLocalAllocMap[n] = ssaAlloc
+	s.setHeapaddr(n.Pos(), n, ssaGoLocal)
+}
+
+// newGoLocalAlloc set the value for the virtual variable indicating
+// if alloc new mem for go_local variable.
+func (s *state) newGoLocalAlloc(n *ir.Name) {
+	goLocal := ir.GetGoLocalByInit(n)
+	if goLocal == nil {
+		base.FatalfAt(n.Pos(), "cannot find go local variable for %v", n)
+	}
+	ssaAlloc := goLocalAllocMap[goLocal]
+	if ssaAlloc == nil {
+		base.FatalfAt(n.Pos(), "go local variable %v not decl", goLocal)
+	}
+	s.assign(n, ssaAlloc, false, 0)
+}
+
 // newHeapaddr allocates heap memory for n and sets its heap address.
 func (s *state) newHeapaddr(n *ir.Name) {
 	s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
@@ -718,6 +744,20 @@ func (s *state) newObject(typ *types.Type, rtype *ssa.Value) *ssa.Value {
 		rtype = s.reflectType(typ)
 	}
 	return s.rtcall(ir.Syms.Newobject, true, []*types.Type{types.NewPtr(typ)}, rtype)[0]
+}
+
+// newGoLocalObject returns an SSA value denoting new(typ) and an SSA value(bool flag) indicating if alloc mem.
+func (s *state) newGoLocalObject(key string, typ *types.Type, rtype *ssa.Value) (*ssa.Value, *ssa.Value) {
+	if typ.Size() == 0 {
+		return s.newValue1A(ssa.OpAddr, types.NewPtr(typ), ir.Syms.Zerobase, s.sb), s.constBool(false)
+	}
+	if rtype == nil {
+		rtype = s.reflectType(typ)
+	}
+	ssaKey := s.entryNewValue1A(ssa.OpConstString, types.Types[types.TSTRING], ssa.StringToAux(key), s.sb)
+	values := s.rtcall(ir.Syms.NewGoLocalObjectForStringKey, true,
+		[]*types.Type{types.NewPtr(typ), types.Types[types.TBOOL]}, ssaKey, rtype)
+	return values[0], values[1]
 }
 
 func (s *state) checkPtrAlignment(n *ir.ConvExpr, v *ssa.Value, count *ssa.Value) {
@@ -1560,6 +1600,14 @@ func (s *state) stmt(n ir.Node) {
 		if v := n.X; v.Esc() == ir.EscHeap {
 			s.newHeapaddr(v)
 		}
+
+	case ir.ODCLGOLOCAL:
+		n := n.(*ir.Decl)
+		s.newGoLocal(n.X)
+
+	case ir.ODCLGOLOCALALLOC:
+		n := n.(*ir.Decl)
+		s.newGoLocalAlloc(n.X)
 
 	case ir.OLABEL:
 		n := n.(*ir.LabelStmt)

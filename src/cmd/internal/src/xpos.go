@@ -7,6 +7,8 @@
 
 package src
 
+import "fmt"
+
 // XPos is a more compact representation of Pos.
 type XPos struct {
 	index int32
@@ -180,4 +182,9 @@ func (t *PosTable) FileTable() []string {
 		fileLUT[i] = str
 	}
 	return fileLUT
+}
+
+// FmtGoLocalKey converts XPos to string, for the unique key of go_local variable
+func FmtGoLocalKey(pos XPos) string {
+	return fmt.Sprintf("%v@%v", pos.lico, pos.index)
 }

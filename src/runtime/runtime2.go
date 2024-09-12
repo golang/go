@@ -529,6 +529,9 @@ type g struct {
 	// and check for debt in the malloc hot path. The assist ratio
 	// determines how this corresponds to scan work debt.
 	gcAssistBytes int64
+
+	// localTable records GoLocal variables in this goroutine
+	localTable map[any]unsafe.Pointer
 }
 
 // gTrackingPeriod is the number of transitions out of _Grunning between

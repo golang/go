@@ -381,7 +381,7 @@ func (s *scanner) ident() {
 	// possibly a keyword
 	lit := s.segment()
 	if len(lit) >= 2 {
-		if tok := keywordMap[hash(lit)]; tok != 0 && tokStrFast(tok) == string(lit) {
+		if tok := keywordMap[string(lit)]; tok != 0 && tokStrFast(tok) == string(lit) {
 			s.nlsemi = contains(1<<_Break|1<<_Continue|1<<_Fallthrough|1<<_Return, tok)
 			s.tok = tok
 			return
@@ -415,22 +415,12 @@ func (s *scanner) atIdentChar(first bool) bool {
 	return true
 }
 
-// hash is a perfect hash function for keywords.
-// It assumes that s has at least length 2.
-func hash(s []byte) uint {
-	return (uint(s[0])<<4 ^ uint(s[1]) + uint(len(s))) & uint(len(keywordMap)-1)
-}
-
-var keywordMap [1 << 6]token // size must be power of two
+var keywordMap map[string]token = make(map[string]token, 1<<6) // size must be power of two
 
 func init() {
 	// populate keywordMap
 	for tok := _Break; tok <= _Var; tok++ {
-		h := hash([]byte(tok.String()))
-		if keywordMap[h] != 0 {
-			panic("imperfect hash")
-		}
-		keywordMap[h] = tok
+		keywordMap[tok.String()] = tok
 	}
 }
 

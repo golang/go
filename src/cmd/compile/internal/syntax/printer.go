@@ -816,7 +816,7 @@ func groupFor(d Decl) (token, *Group) {
 	case *TypeDecl:
 		return _Type, d.Group
 	case *VarDecl:
-		return _Var, d.Group
+		return d.Tok, d.Group
 	case *FuncDecl:
 		return _Func, nil
 	default:

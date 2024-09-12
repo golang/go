@@ -66,6 +66,7 @@ const (
 	_Struct      // struct
 	_Switch      // switch
 	_Type        // type
+	_GoLocal     // go_local
 	_Var         // var
 
 	// empty line comment to exclude it from .String
@@ -82,6 +83,10 @@ const (
 	// for CallStmt
 	Go    = _Go
 	Defer = _Defer
+
+	// for VarDeclStmt
+	Var     = _Var
+	GoLocal = _GoLocal
 )
 
 // Make sure we have at most 64 tokens so we can use them in a set.

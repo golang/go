@@ -4998,6 +4998,9 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 		throw("newproc1: new g is not Gdead")
 	}
 
+	// reset localTable when create or reuse a goroutine
+	newg.localTable = map[any]unsafe.Pointer{}
+
 	totalSize := uintptr(4*goarch.PtrSize + sys.MinFrameSize) // extra space in case of reads slightly beyond frame
 	totalSize = alignUp(totalSize, sys.StackAlign)
 	sp := newg.stack.hi - totalSize

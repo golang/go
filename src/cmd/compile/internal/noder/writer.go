@@ -1290,7 +1290,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 			w.implicitConvExpr(typ, stmt.Rhs)
 
 		default:
-			w.assignStmt(stmt, stmt.Lhs, stmt.Rhs)
+			w.assignStmt(stmt, stmt.Lhs, stmt.Rhs, 0)
 		}
 
 	case *syntax.BlockStmt:
@@ -1408,16 +1408,20 @@ func (w *writer) declStmt(decl syntax.Decl) {
 	case *syntax.ConstDecl, *syntax.TypeDecl:
 
 	case *syntax.VarDecl:
-		w.assignStmt(decl, namesAsExpr(decl.NameList), decl.Values)
+		w.assignStmt(decl, namesAsExpr(decl.NameList), decl.Values, decl.Tok)
 	}
 }
 
 // assignStmt writes out an assignment for "lhs = rhs".
-func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
+func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr, tok syntax.Token) {
 	lhs := syntax.UnpackListExpr(lhs0)
 	rhs := syntax.UnpackListExpr(rhs0)
 
-	w.Code(stmtAssign)
+	if tok == syntax.GoLocal {
+		w.Code(stmtGoLocalAssign)
+	} else {
+		w.Code(stmtAssign)
+	}
 	w.pos(pos)
 
 	// As if w.assignList(lhs0).

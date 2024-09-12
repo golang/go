@@ -748,7 +748,12 @@ func (p *parser) varDecl(group *Group) Decl {
 	if trace {
 		defer p.trace("varDecl")()
 	}
+	d := p.innerVarDecl(group)
+	d.Tok = _Var
+	return d
+}
 
+func (p *parser) innerVarDecl(group *Group) *VarDecl {
 	d := new(VarDecl)
 	d.pos = p.pos()
 	d.Group = group
@@ -763,7 +768,16 @@ func (p *parser) varDecl(group *Group) Decl {
 			d.Values = p.exprList()
 		}
 	}
+	return d
+}
 
+// GoLocalSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
+func (p *parser) goLocalDecl(group *Group) Decl {
+	if trace {
+		defer p.trace("goLocalDecl")()
+	}
+	d := p.innerVarDecl(group)
+	d.Tok = _GoLocal
 	return d
 }
 
@@ -2569,6 +2583,9 @@ func (p *parser) stmtOrNil() Stmt {
 	switch p.tok {
 	case _Var:
 		return p.declStmt(p.varDecl)
+
+	case _GoLocal:
+		return p.declStmt(p.goLocalDecl)
 
 	case _Const:
 		return p.declStmt(p.constDecl)

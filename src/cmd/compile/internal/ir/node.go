@@ -173,6 +173,12 @@ const (
 	OCOPY      // copy(X, Y)
 	ODCL       // var X (declares X of type X.Type)
 
+	// ODCLGOLOCAL: go_local X (declares go local X of type X.Type).
+	// ODCLGOLOCALALLOC: go local alloc, this define a virtual variable
+	// recording if alloc new mem for go_local variable.
+	ODCLGOLOCAL
+	ODCLGOLOCALALLOC
+
 	// Used during parsing but don't last.
 	ODCLFUNC // func f() or func (r) f()
 

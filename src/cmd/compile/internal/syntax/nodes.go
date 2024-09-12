@@ -95,6 +95,7 @@ type (
 		NameList []*Name
 		Type     Expr // nil means no type
 		Values   Expr // nil means no values
+		Tok      Token
 		decl
 	}
 
