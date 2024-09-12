@@ -20,7 +20,26 @@ import (
 // fakeLabelName matches the RISCV_FAKE_LABEL_NAME from binutils.
 const fakeLabelName = ".L0 "
 
-func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
+		return
+	}
+
+	// Emit the following function:
+	//
+	// go.link.addmoduledatainit:
+	//      auipc a0, %pcrel_hi(local.moduledata)
+	//      addi  a0, %pcrel_lo(local.moduledata)
+	//      j     runtime.addmoduledata
+
+	sz := initfunc.AddSymRef(ctxt.Arch, ctxt.Moduledata, 0, objabi.R_RISCV_PCREL_ITYPE, 8)
+	initfunc.SetUint32(ctxt.Arch, sz-8, 0x00000517) // auipc a0, %pcrel_hi(local.moduledata)
+	initfunc.SetUint32(ctxt.Arch, sz-4, 0x00050513) // addi  a0, %pcrel_lo(local.moduledata)
+
+	sz = initfunc.AddSymRef(ctxt.Arch, addmoduledata, 0, objabi.R_RISCV_JAL, 4)
+	initfunc.SetUint32(ctxt.Arch, sz-4, 0x0000006f) // j runtime.addmoduledata
+}
 
 func findHI20Reloc(ldr *loader.Loader, s loader.Sym, val int64) *loader.Reloc {
 	outer := ldr.OuterSym(s)
