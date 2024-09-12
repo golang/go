@@ -15,6 +15,7 @@ import (
 	"go/parser"
 	"go/token"
 	"internal/lazytemplate"
+	"maps"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -212,9 +213,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 		if testEmbed == nil && len(p.Internal.Embed) > 0 {
 			testEmbed = map[string][]string{}
 		}
-		for k, v := range p.Internal.Embed {
-			testEmbed[k] = v
-		}
+		maps.Copy(testEmbed, p.Internal.Embed)
 		ptest.Internal.Embed = testEmbed
 		ptest.EmbedFiles = str.StringList(p.EmbedFiles, p.TestEmbedFiles)
 		ptest.Internal.OrigImportPath = p.Internal.OrigImportPath

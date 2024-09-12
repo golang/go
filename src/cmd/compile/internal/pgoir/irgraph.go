@@ -50,6 +50,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/pgo"
 	"fmt"
+	"maps"
 	"os"
 )
 
@@ -296,10 +297,7 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap pgo.NamedEdgeMap) {
 	// package build by VisitIR. We want to filter for local functions
 	// below, but we also add unknown callees to IRNodes as we go. So make
 	// an initial copy of IRNodes to recall just the local functions.
-	localNodes := make(map[string]*IRNode, len(g.IRNodes))
-	for k, v := range g.IRNodes {
-		localNodes[k] = v
-	}
+	localNodes := maps.Clone(g.IRNodes)
 
 	// N.B. We must consider edges in a stable order because export data
 	// lookup order (LookupMethodFunc, below) can impact the export data of
