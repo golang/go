@@ -346,12 +346,8 @@ func osinit() {
 	osArchInit()
 }
 
-var urandom_dev = []byte("/dev/urandom\x00")
-
 func readRandom(r []byte) int {
-	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
-	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	closefd(fd)
+	n, _ := syscall.Getrandom(r, 0)
 	return int(n)
 }
 

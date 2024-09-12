@@ -42,3 +42,14 @@ func Eventfd(initval, flags int32) (fd int32, errno uintptr) {
 	r1, _, e := Syscall6(SYS_EVENTFD2, uintptr(initval), uintptr(flags), 0, 0, 0, 0)
 	return int32(r1), e
 }
+
+func Getrandom(buf []byte, flags int32) (ret int32, errno uintptr) {
+	var p unsafe.Pointer
+	if len(buf) > 0 {
+		p = unsafe.Pointer(&buf[0])
+	} else {
+		p = unsafe.Pointer(&_zero)
+	}
+	r, _, e := Syscall6(SYS_GETRANDOM, uintptr(p), uintptr(len(buf)), uintptr(flags), 0, 0, 0)
+	return int32(r), e
+}
