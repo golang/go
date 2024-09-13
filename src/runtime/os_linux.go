@@ -368,6 +368,9 @@ func goenvs() {
 	goenvs_unix()
 }
 
+//go:linkname _cgo_is_musl _cgo_is_musl
+var _cgo_is_musl unsafe.Pointer
+
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.
 // None of the Go runtime is initialized.
