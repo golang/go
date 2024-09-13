@@ -789,20 +789,18 @@ func (u *URL) EscapedFragment() string {
 }
 
 // validOptionalPort reports whether port is either an empty string
-// or matches /^:\d*$/
+// or matches /^:\d*$/ and fits in an unsigned 16-bit integer
 func validOptionalPort(port string) bool {
-	if port == "" {
+	if port == "" || port == ":" {
 		return true
 	}
 	if port[0] != ':' {
 		return false
 	}
-	for _, b := range port[1:] {
-		if b < '0' || b > '9' {
-			return false
-		}
-	}
-	return true
+
+	p, err := strconv.Atoi(port[1:])
+
+	return err == nil && p < 65536
 }
 
 // String reassembles the [URL] into a valid URL string.

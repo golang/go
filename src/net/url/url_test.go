@@ -707,6 +707,9 @@ var parseRequestURLTests = []struct {
 	// RFC 6874.
 	{"http://[fe80::1%en0]/", false},
 	{"http://[fe80::1%en0]:8080/", false},
+
+	// Tests exercising WHATWG URL Living Standard compliance:
+	{"https://example.org:70000", false}, // port out of range
 }
 
 func TestParseRequestURI(t *testing.T) {
