@@ -1042,6 +1042,8 @@ func buildop(ctxt *obj.Link) {
 			opset(ASQRTD, r0)
 			opset(AFCLASSF, r0)
 			opset(AFCLASSD, r0)
+			opset(AFLOGBF, r0)
+			opset(AFLOGBD, r0)
 
 		case AMOVVF:
 			opset(AMOVVD, r0)
@@ -1096,6 +1098,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AFMAXD, r0)
 			opset(AFCOPYSGF, r0)
 			opset(AFCOPYSGD, r0)
+			opset(AFSCALEBF, r0)
+			opset(AFSCALEBD, r0)
 
 		case AAND:
 			opset(AOR, r0)
@@ -1969,6 +1973,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x211 << 15 // fmax.s
 	case AFMAXD:
 		return 0x212 << 15 // fmax.d
+	case AFSCALEBF:
+		return 0x221 << 15 // fscaleb.s
+	case AFSCALEBD:
+		return 0x222 << 15 // fscaleb.d
 	case AFCOPYSGF:
 		return 0x225 << 15 // fcopysign.s
 	case AFCOPYSGD:
@@ -2071,6 +2079,10 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x4511 << 10
 	case ASQRTD:
 		return 0x4512 << 10
+	case AFLOGBF:
+		return 0x4509 << 10 // flogb.s
+	case AFLOGBD:
+		return 0x450a << 10 // flogb.d
 	case AFCLASSF:
 		return 0x450d << 10 // fclass.s
 	case AFCLASSD:
