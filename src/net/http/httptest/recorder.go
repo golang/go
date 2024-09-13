@@ -142,6 +142,7 @@ func checkWriteHeaderCode(code int) {
 // WriteHeader implements [http.ResponseWriter].
 func (rw *ResponseRecorder) WriteHeader(code int) {
 	if rw.wroteHeader {
+		panic(fmt.Sprintf("superfluous response.WriteHeader call"))
 		return
 	}
 

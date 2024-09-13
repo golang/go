@@ -138,7 +138,6 @@ func TestRecorder(t *testing.T) {
 			"first code only",
 			func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(201)
-				w.WriteHeader(202)
 				w.Write([]byte("hi"))
 			},
 			check(hasStatus(201), hasContents("hi")),
@@ -147,8 +146,6 @@ func TestRecorder(t *testing.T) {
 			"write sends 200",
 			func(w http.ResponseWriter, r *http.Request) {
 				w.Write([]byte("hi first"))
-				w.WriteHeader(201)
-				w.WriteHeader(202)
 			},
 			check(hasStatus(200), hasContents("hi first"), hasFlush(false)),
 		},
@@ -168,7 +165,6 @@ func TestRecorder(t *testing.T) {
 			"flush",
 			func(w http.ResponseWriter, r *http.Request) {
 				w.(http.Flusher).Flush() // also sends a 200
-				w.WriteHeader(201)
 			},
 			check(hasStatus(200), hasFlush(true), hasContentLength(-1)),
 		},
@@ -368,4 +364,21 @@ func TestRecorderPanicsOnNonXXXStatusCode(t *testing.T) {
 			handler(rw, r)
 		})
 	}
+}
+
+// Ensure that httptest.Recorder panics when using WriteHeader twice.
+func TestRecorderPanicsOnSuperfluousWriteHeader(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected a panic")
+		}
+	}()
+
+	handler := func(rw http.ResponseWriter, _ *http.Request) {
+		rw.WriteHeader(200)
+		rw.WriteHeader(201)
+	}
+	r, _ := http.NewRequest("GET", "http://example.org/", nil)
+	rw := NewRecorder()
+	handler(rw, r)
 }
