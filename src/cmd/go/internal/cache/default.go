@@ -41,7 +41,7 @@ func initDefaultCache() Cache {
 		}
 		base.Fatalf("build cache is disabled by GOCACHE=off, but required as of Go 1.12")
 	}
-	if err := os.MkdirAll(dir, 0777); err != nil {
+	if err := os.MkdirAll(dir, 0o777); err != nil {
 		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "README")); err != nil {

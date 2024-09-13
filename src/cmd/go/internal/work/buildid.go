@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"sync"
 
@@ -415,8 +416,7 @@ var (
 )
 
 // useCache tries to satisfy the action a, which has action ID actionHash,
-// by using a cached result from an earlier build. At the moment, the only
-// cached result is the installed package or binary at target.
+// by using a cached result from an earlier build.
 // If useCache decides that the cache can be used, it sets a.buildID
 // and a.built for use by parent actions and then returns true.
 // Otherwise it sets a.buildID to a temporary build ID for use in the build
@@ -543,6 +543,11 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 		}
 	}
 
+	// TODO(matloob): If we end up caching all executables, the test executable will
+	// already be cached so building it won't do any work. But for now we won't
+	// cache all executables and instead only want to cache some:
+	// we only cache executables produced for 'go run' (and soon, for 'go tool').
+	//
 	// Special case for linking a test binary: if the only thing we
 	// want the binary for is to run the test, and the test result is cached,
 	// then to avoid the link step, report the link as up-to-date.
@@ -575,7 +580,16 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 		}
 		if buildID, err := buildid.ReadFile(file); err == nil {
 			if printOutput {
-				showStdout(b, c, a, "stdout")
+				switch a.Mode {
+				case "link":
+					// The link output is stored using the build action's action ID.
+					// See corresponding code storing the link output in updateBuildID.
+					for _, a1 := range a.Deps {
+						showStdout(b, c, a1, "link-stdout") // link output
+					}
+				default:
+					showStdout(b, c, a, "stdout") // compile output
+				}
 			}
 			a.built = file
 			a.Target = "DO NOT USE - using cache"
@@ -651,13 +665,11 @@ func (b *Builder) flushOutput(a *Action) {
 // in the binary.
 //
 // Keep in sync with src/cmd/buildid/buildid.go
-func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
+func (b *Builder) updateBuildID(a *Action, target string) error {
 	sh := b.Shell(a)
 
 	if cfg.BuildX || cfg.BuildN {
-		if rewrite {
-			sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList(base.Tool("buildid"), "-w", target)))
-		}
+		sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList(base.Tool("buildid"), "-w", target)))
 		if cfg.BuildN {
 			return nil
 		}
@@ -708,34 +720,26 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 		return nil
 	}
 
-	if rewrite {
-		w, err := os.OpenFile(target, os.O_RDWR, 0)
-		if err != nil {
-			return err
-		}
-		err = buildid.Rewrite(w, matches, newID)
-		if err != nil {
-			w.Close()
-			return err
-		}
-		if err := w.Close(); err != nil {
-			return err
-		}
+	// Replace the build id in the file with the content-based ID.
+	w, err := os.OpenFile(target, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	err = buildid.Rewrite(w, matches, newID)
+	if err != nil {
+		w.Close()
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
 	}
 
-	// Cache package builds, but not binaries (link steps).
-	// The expectation is that binaries are not reused
+	// Cache package builds, and cache executable builds if
+	// executable caching was requested. Executables are not
+	// cached by default because they are not reused
 	// nearly as often as individual packages, and they're
 	// much larger, so the cache-footprint-to-utility ratio
-	// of binaries is much lower for binaries.
-	// Not caching the link step also makes sure that repeated "go run" at least
-	// always rerun the linker, so that they don't get too fast.
-	// (We don't want people thinking go is a scripting language.)
-	// Note also that if we start caching binaries, then we will
-	// copy the binaries out of the cache to run them, and then
-	// that will mean the go process is itself writing a binary
-	// and then executing it, so we will need to defend against
-	// ETXTBSY problems as discussed in exec.go and golang.org/issue/22220.
+	// of executables is much lower for executables.
 	if a.Mode == "build" {
 		r, err := os.Open(target)
 		if err == nil {
@@ -753,6 +757,23 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 				}
 				a.Package.Export = c.OutputFile(outputID)
 				a.Package.BuildID = a.buildID
+			}
+		}
+	}
+	if c, ok := c.(*cache.DiskCache); a.Mode == "link" && a.CacheExecutable && ok {
+		r, err := os.Open(target)
+		if err == nil {
+			if a.output == nil {
+				panic("internal error: a.output not set")
+			}
+			name := a.Package.Internal.ExeName
+			if name == "" {
+				name = path.Base(a.Package.ImportPath)
+			}
+			outputID, _, err := c.PutExecutable(a.actionID, name+cfg.ExeSuffix, r)
+			r.Close()
+			if err == nil && cfg.BuildX {
+				sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, c.OutputFile(outputID))))
 			}
 		}
 	}

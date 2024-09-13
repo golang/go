@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !unix
+//go:build unix
 
-package test
+package base
 
-func isETXTBSY(err error) bool {
-	// syscall.ETXTBSY is only meaningful on Unix platforms.
-	return false
+import (
+	"errors"
+	"syscall"
+)
+
+func IsETXTBSY(err error) bool {
+	return errors.Is(err, syscall.ETXTBSY)
 }

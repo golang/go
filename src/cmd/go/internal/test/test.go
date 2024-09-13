@@ -1624,7 +1624,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		t0 = time.Now()
 		err = cmd.Run()
 
-		if !isETXTBSY(err) {
+		if !base.IsETXTBSY(err) {
 			// We didn't hit the race in #22315, so there is no reason to retry the
 			// command.
 			break
