@@ -318,6 +318,7 @@ func TestStdFixed(t *testing.T) {
 		"issue16369.go",  // go/types handles this correctly - not an issue
 		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
+		"issue20027.go",  // go/types does not have constraints on channel element size
 		"issue20529.go",  // go/types does not have constraints on stack size
 		"issue22200.go",  // go/types does not have constraints on stack size
 		"issue22200b.go", // go/types does not have constraints on stack size
