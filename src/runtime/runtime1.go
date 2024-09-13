@@ -119,7 +119,7 @@ func goenvs_unix() {
 //
 // Note: This function will return nil if the file cannot be opened.
 func readNullTerminatedStringsFromFile(path []byte) []string {
-	fd := open(&path[0], 0 /* O_RDONLY */, 0)
+	fd := open(&path[0], _O_RDONLY, 0)
 	if fd <= 0 {
 		return nil
 	}
