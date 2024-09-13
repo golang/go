@@ -81,9 +81,11 @@ var ARM64 struct {
 // The booleans in Loong64 contain the correspondingly named cpu feature bit.
 // The struct is padded to avoid false sharing.
 var Loong64 struct {
-	_        CacheLinePad
-	HasCRC32 bool
-	_        CacheLinePad
+	_         CacheLinePad
+	HasCRC32  bool // support CRC instruction
+	HasLAMCAS bool // support AMCAS[_DB].{B/H/W/D}
+	HasLAM_BH bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
+	_         CacheLinePad
 }
 
 var MIPS64X struct {
@@ -137,6 +139,7 @@ var S390X struct {
 //go:linkname X86
 //go:linkname ARM
 //go:linkname ARM64
+//go:linkname Loong64
 //go:linkname MIPS64X
 //go:linkname PPC64
 //go:linkname S390X
