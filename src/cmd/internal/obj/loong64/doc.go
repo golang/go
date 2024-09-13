@@ -88,5 +88,29 @@ Examples:
 	MOVB R6, (R4)(R5)  <=>  stx.b R6, R5, R5
 	MOVV R6, (R4)(R5)  <=>  stx.d R6, R5, R5
 	MOVV F6, (R4)(R5)  <=>  fstx.d F6, R5, R5
+
+# Special instruction encoding definition and description on LoongArch
+
+ 1. DBAR hint encoding for LA664(Loongson 3A6000) and later micro-architectures, paraphrased
+    from the Linux kernel implementation: https://git.kernel.org/torvalds/c/e031a5f3f1ed
+
+    - Bit4: ordering or completion (0: completion, 1: ordering)
+    - Bit3: barrier for previous read (0: true, 1: false)
+    - Bit2: barrier for previous write (0: true, 1: false)
+    - Bit1: barrier for succeeding read (0: true, 1: false)
+    - Bit0: barrier for succeeding write (0: true, 1: false)
+    - Hint 0x700: barrier for "read after read" from the same address
+
+    Traditionally, on microstructures that do not support dbar grading such as LA464
+    (Loongson 3A5000, 3C5000) all variants are treated as “dbar 0” (full barrier).
+
+2. Notes on using atomic operation instructions
+
+  - AM*_DB.W[U]/V[U] instructions such as AMSWAPDBW not only complete the corresponding
+    atomic operation sequence, but also implement the complete full data barrier function.
+
+  - When using the AM*_.W[U]/D[U] instruction, registers rd and rj cannot be the same,
+    otherwise an exception is triggered, and rd and rk cannot be the same, otherwise
+    the execution result is uncertain.
 */
 package loong64

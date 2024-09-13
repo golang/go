@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "go_asm.h"
 #include "textflag.h"
 
 // bool cas(uint32 *ptr, uint32 old, uint32 new)
@@ -165,25 +166,27 @@ TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
 TEXT ·Store(SB), NOSPLIT, $0-12
 	MOVV	ptr+0(FP), R4
 	MOVW	val+8(FP), R5
-	DBAR
-	MOVW	R5, 0(R4)
-	DBAR
+	AMSWAPDBW	R5, (R4), R0
 	RET
 
 TEXT ·Store8(SB), NOSPLIT, $0-9
 	MOVV	ptr+0(FP), R4
 	MOVB	val+8(FP), R5
-	DBAR
+	MOVBU	internal∕cpu·Loong64+const_offsetLoong64HasLAM_BH(SB), R6
+	BEQ	R6, _legacy_store8_
+	AMSWAPDBB	R5, (R4), R0
+	RET
+_legacy_store8_:
+	// StoreRelease barrier
+	DBAR	$0x12
 	MOVB	R5, 0(R4)
-	DBAR
+	DBAR	$0x18
 	RET
 
 TEXT ·Store64(SB), NOSPLIT, $0-16
 	MOVV	ptr+0(FP), R4
 	MOVV	val+8(FP), R5
-	DBAR
-	MOVV	R5, 0(R4)
-	DBAR
+	AMSWAPDBV	R5, (R4), R0
 	RET
 
 // void	Or8(byte volatile*, byte);

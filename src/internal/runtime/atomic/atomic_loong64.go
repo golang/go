@@ -6,7 +6,14 @@
 
 package atomic
 
-import "unsafe"
+import (
+	"internal/cpu"
+	"unsafe"
+)
+
+const (
+	offsetLoong64HasLAM_BH = unsafe.Offsetof(cpu.Loong64.HasLAM_BH)
+)
 
 //go:noescape
 func Xadd(ptr *uint32, delta int32) uint32

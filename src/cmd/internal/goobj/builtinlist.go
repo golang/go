@@ -215,6 +215,7 @@ var builtins = [...]struct {
 	{"runtime.x86HasFMA", 0},
 	{"runtime.armHasVFPv4", 0},
 	{"runtime.arm64HasATOMICS", 0},
+	{"runtime.loong64HasLAM_BH", 0},
 	{"runtime.asanregisterglobals", 1},
 	{"runtime.deferproc", 1},
 	{"runtime.deferprocStack", 1},

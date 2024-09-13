@@ -1901,8 +1901,9 @@ const (
 	OpLOONG64LoweredAtomicStore8
 	OpLOONG64LoweredAtomicStore32
 	OpLOONG64LoweredAtomicStore64
-	OpLOONG64LoweredAtomicStorezero32
-	OpLOONG64LoweredAtomicStorezero64
+	OpLOONG64LoweredAtomicStore8Variant
+	OpLOONG64LoweredAtomicStore32Variant
+	OpLOONG64LoweredAtomicStore64Variant
 	OpLOONG64LoweredAtomicExchange32
 	OpLOONG64LoweredAtomicExchange64
 	OpLOONG64LoweredAtomicAdd32
@@ -3310,6 +3311,9 @@ const (
 	OpAtomicOr64value
 	OpAtomicOr32value
 	OpAtomicOr8value
+	OpAtomicStore8Variant
+	OpAtomicStore32Variant
+	OpAtomicStore64Variant
 	OpAtomicAdd32Variant
 	OpAtomicAdd64Variant
 	OpAtomicExchange8Variant
@@ -25501,23 +25505,37 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "LoweredAtomicStorezero32",
-		argLen:         2,
+		name:           "LoweredAtomicStore8Variant",
+		argLen:         3,
 		faultOnNilArg0: true,
 		hasSideEffects: true,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
 				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
 			},
 		},
 	},
 	{
-		name:           "LoweredAtomicStorezero64",
-		argLen:         2,
+		name:           "LoweredAtomicStore32Variant",
+		argLen:         3,
 		faultOnNilArg0: true,
 		hasSideEffects: true,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicStore64Variant",
+		argLen:         3,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
 				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
 			},
 		},
@@ -41697,6 +41715,24 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "AtomicOr8value",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicStore8Variant",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicStore32Variant",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicStore64Variant",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,

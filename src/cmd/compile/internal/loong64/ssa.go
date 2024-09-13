@@ -614,33 +614,51 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p1.From.Type = obj.TYPE_CONST
 		p1.From.Offset = 0x14
 
-	case ssa.OpLOONG64LoweredAtomicStore8, ssa.OpLOONG64LoweredAtomicStore32, ssa.OpLOONG64LoweredAtomicStore64:
-		as := loong64.AMOVV
+	case ssa.OpLOONG64LoweredAtomicStore8,
+		ssa.OpLOONG64LoweredAtomicStore32,
+		ssa.OpLOONG64LoweredAtomicStore64:
+		// DBAR 0x12
+		// MOVx (Rarg1), Rout
+		// DBAR 0x18
+		movx := loong64.AMOVV
 		switch v.Op {
 		case ssa.OpLOONG64LoweredAtomicStore8:
-			as = loong64.AMOVB
+			movx = loong64.AMOVB
 		case ssa.OpLOONG64LoweredAtomicStore32:
-			as = loong64.AMOVW
+			movx = loong64.AMOVW
 		}
-		s.Prog(loong64.ADBAR)
-		p := s.Prog(as)
+		p := s.Prog(loong64.ADBAR)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0x12
+
+		p1 := s.Prog(movx)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = v.Args[1].Reg()
+		p1.To.Type = obj.TYPE_MEM
+		p1.To.Reg = v.Args[0].Reg()
+
+		p2 := s.Prog(loong64.ADBAR)
+		p2.From.Type = obj.TYPE_CONST
+		p2.From.Offset = 0x18
+
+	case ssa.OpLOONG64LoweredAtomicStore8Variant,
+		ssa.OpLOONG64LoweredAtomicStore32Variant,
+		ssa.OpLOONG64LoweredAtomicStore64Variant:
+		//AMSWAPx  Rarg1, (Rarg0), Rout
+		amswapx := loong64.AAMSWAPDBV
+		switch v.Op {
+		case ssa.OpLOONG64LoweredAtomicStore32Variant:
+			amswapx = loong64.AAMSWAPDBW
+		case ssa.OpLOONG64LoweredAtomicStore8Variant:
+			amswapx = loong64.AAMSWAPDBB
+		}
+		p := s.Prog(amswapx)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		s.Prog(loong64.ADBAR)
-	case ssa.OpLOONG64LoweredAtomicStorezero32, ssa.OpLOONG64LoweredAtomicStorezero64:
-		as := loong64.AMOVV
-		if v.Op == ssa.OpLOONG64LoweredAtomicStorezero32 {
-			as = loong64.AMOVW
-		}
-		s.Prog(loong64.ADBAR)
-		p := s.Prog(as)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = loong64.REGZERO
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		s.Prog(loong64.ADBAR)
+		p.RegTo2 = loong64.REGZERO
+
 	case ssa.OpLOONG64LoweredAtomicExchange32, ssa.OpLOONG64LoweredAtomicExchange64:
 		// DBAR
 		// MOVV	Rarg1, Rtmp

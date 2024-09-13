@@ -30,5 +30,6 @@ var (
 
 	armHasVFPv4 bool
 
-	arm64HasATOMICS bool
+	arm64HasATOMICS  bool
+	loong64HasLAM_BH bool
 )

@@ -79,11 +79,20 @@ func rewriteValueLOONG64(v *Value) bool {
 	case OpAtomicStore32:
 		v.Op = OpLOONG64LoweredAtomicStore32
 		return true
+	case OpAtomicStore32Variant:
+		v.Op = OpLOONG64LoweredAtomicStore32Variant
+		return true
 	case OpAtomicStore64:
 		v.Op = OpLOONG64LoweredAtomicStore64
 		return true
+	case OpAtomicStore64Variant:
+		v.Op = OpLOONG64LoweredAtomicStore64Variant
+		return true
 	case OpAtomicStore8:
 		v.Op = OpLOONG64LoweredAtomicStore8
+		return true
+	case OpAtomicStore8Variant:
+		v.Op = OpLOONG64LoweredAtomicStore8Variant
 		return true
 	case OpAtomicStorePtrNoWB:
 		v.Op = OpLOONG64LoweredAtomicStore64
@@ -251,10 +260,6 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd32(v)
 	case OpLOONG64LoweredAtomicAdd64:
 		return rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd64(v)
-	case OpLOONG64LoweredAtomicStore32:
-		return rewriteValueLOONG64_OpLOONG64LoweredAtomicStore32(v)
-	case OpLOONG64LoweredAtomicStore64:
-		return rewriteValueLOONG64_OpLOONG64LoweredAtomicStore64(v)
 	case OpLOONG64MASKEQZ:
 		return rewriteValueLOONG64_OpLOONG64MASKEQZ(v)
 	case OpLOONG64MASKNEZ:
@@ -1732,42 +1737,6 @@ func rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd64(v *Value) bool {
 		}
 		v.reset(OpLOONG64LoweredAtomicAddconst64)
 		v.AuxInt = int64ToAuxInt(c)
-		v.AddArg2(ptr, mem)
-		return true
-	}
-	return false
-}
-func rewriteValueLOONG64_OpLOONG64LoweredAtomicStore32(v *Value) bool {
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (LoweredAtomicStore32 ptr (MOVVconst [0]) mem)
-	// result: (LoweredAtomicStorezero32 ptr mem)
-	for {
-		ptr := v_0
-		if v_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_1.AuxInt) != 0 {
-			break
-		}
-		mem := v_2
-		v.reset(OpLOONG64LoweredAtomicStorezero32)
-		v.AddArg2(ptr, mem)
-		return true
-	}
-	return false
-}
-func rewriteValueLOONG64_OpLOONG64LoweredAtomicStore64(v *Value) bool {
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (LoweredAtomicStore64 ptr (MOVVconst [0]) mem)
-	// result: (LoweredAtomicStorezero64 ptr mem)
-	for {
-		ptr := v_0
-		if v_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_1.AuxInt) != 0 {
-			break
-		}
-		mem := v_2
-		v.reset(OpLOONG64LoweredAtomicStorezero64)
 		v.AddArg2(ptr, mem)
 		return true
 	}
