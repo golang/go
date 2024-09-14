@@ -751,8 +751,13 @@ func (p *addrParser) consumeDomainLiteral() (string, error) {
 		return "", errors.New("mail: unclosed domain-literal")
 	}
 
-	// Check if the domain literal is an IP address
-	if net.ParseIP(dtext) == nil {
+	if addr, ok := strings.CutPrefix(dtext, "IPv6:"); ok {
+		if len(net.ParseIP(addr)) != net.IPv6len {
+			return "", fmt.Errorf("mail: invalid IPv6 address in domain-literal: %q", dtext)
+		}
+
+	} else if len(net.ParseIP(dtext).To4()) != net.IPv4len {
+		// Check if the domain literal is an IP address
 		return "", fmt.Errorf("mail: invalid IP address in domain-literal: %q", dtext)
 	}
 

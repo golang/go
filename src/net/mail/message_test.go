@@ -395,6 +395,7 @@ func TestAddressParsingError(t *testing.T) {
 		22: {"<jdoe@[[192.168.0.1]>", "bad character in domain-literal"},
 		23: {"<jdoe@[192.168.0.1>", "unclosed domain-literal"},
 		24: {"<jdoe@[256.0.0.1]>", "invalid IP address in domain-literal"},
+		25: {"<jdoe@[fd42::de:ad:be:ef]>", "invalid IP address in domain-literal"},
 	}
 
 	for i, tc := range mustErrTestCases {
@@ -825,6 +826,20 @@ func TestAddressParsing(t *testing.T) {
 				Address: "jdoe@[192.168.0.1]",
 			}},
 		},
+		// IPv6 Domain-literal
+		{
+			`jdoe@[IPv6:fd42::dead:beef:1234]`,
+			[]*Address{{
+				Address: "jdoe@[IPv6:fd42::dead:beef:1234]",
+			}},
+		},
+		{
+			`John Doe <jdoe@[IPv6:fd42::dead:beef:1234]>`,
+			[]*Address{{
+				Name:    "John Doe",
+				Address: "jdoe@[IPv6:fd42::dead:beef:1234]",
+			}},
+		},
 	}
 	for _, test := range tests {
 		if len(test.exp) == 1 {
@@ -989,6 +1004,20 @@ func TestAddressParser(t *testing.T) {
 				Address: "jdoe@[192.168.0.1]",
 			}},
 		},
+		// IPv6 Domain-literal
+		{
+			`jdoe@[IPv6:fd42::dead:beef:1234]`,
+			[]*Address{{
+				Address: "jdoe@[IPv6:fd42::dead:beef:1234]",
+			}},
+		},
+		{
+			`John Doe <jdoe@[IPv6:fd42::dead:beef:1234]>`,
+			[]*Address{{
+				Name:    "John Doe",
+				Address: "jdoe@[IPv6:fd42::dead:beef:1234]",
+			}},
+		},
 	}
 
 	ap := AddressParser{WordDecoder: &mime.WordDecoder{
@@ -1103,6 +1132,15 @@ func TestAddressString(t *testing.T) {
 		{
 			&Address{Name: "Bob", Address: "bob@[192.168.0.1]"},
 			`"Bob" <bob@[192.168.0.1]>`,
+		},
+		// IPv6 Domain-literal
+		{
+			&Address{Address: "bob@[IPv6:fd42::dead:beef:1234]"},
+			"<bob@[IPv6:fd42::dead:beef:1234]>",
+		},
+		{
+			&Address{Name: "Bob", Address: "bob@[IPv6:fd42::dead:beef:1234]"},
+			`"Bob" <bob@[IPv6:fd42::dead:beef:1234]>`,
 		},
 	}
 	for _, test := range tests {
