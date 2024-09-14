@@ -974,16 +974,16 @@ func (ip Addr) MarshalText() ([]byte, error) {
 	case z0:
 		return []byte(""), nil
 	case z4:
-		max := len("255.255.255.255")
+		const max = len("255.255.255.255")
 		b := make([]byte, 0, max)
 		return ip.appendTo4(b), nil
 	default:
 		if ip.Is4In6() {
-			max := len("::ffff:255.255.255.255%enp5s0")
+			const max = len("::ffff:255.255.255.255%enp5s0")
 			b := make([]byte, 0, max)
 			return ip.appendTo4In6(b), nil
 		}
-		max := len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
+		const max = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
 		b := make([]byte, 0, max)
 		return ip.appendTo6(b), nil
 	}
