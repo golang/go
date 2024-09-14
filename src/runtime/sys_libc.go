@@ -13,6 +13,8 @@ import "unsafe"
 // Switches to the system stack, if not already there.
 // Preserves the calling point as the location where a profiler traceback will begin.
 //
+// used by internal/syscall/unix via linkname
+//
 //go:nosplit
 //go:linkname libcCall runtime.libcCall
 func libcCall(fn, arg unsafe.Pointer) int32 {
