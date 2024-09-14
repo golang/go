@@ -540,3 +540,12 @@ func CardinalityMap[S ~[]E, E comparable](s S) map[E]int {
 	}
 	return cnt
 }
+
+// Transform transforms all elements of the input slice by the given transformer.
+func Transform[S1 ~[]E1, E1, E2 any](s S1, transformer func(e E1) E2) []E2 {
+	r := make([]E2, len(s))
+	for i := range s {
+		r[i] = transformer(s[i])
+	}
+	return r
+}

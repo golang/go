@@ -6,6 +6,7 @@ package slices_test
 
 import (
 	"cmp"
+	"fmt"
 	"internal/race"
 	"internal/testenv"
 	"maps"
@@ -1549,5 +1550,38 @@ func BenchmarkCardinalityMap_Large(b *testing.B) {
 	ss := make([]Large, 1024)
 	for i := 0; i < b.N; i++ {
 		_ = CardinalityMap(ss)
+	}
+}
+
+func transformToString[T any](t T) string {
+	return fmt.Sprintf("%v", t)
+}
+
+func transformToFloat64[T ~int](t T) float64 {
+	return float64(t)
+}
+
+func TestTransform(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	s2 := []string{"1", "2", "3"}
+	if got := Transform(s1, transformToString[int]); !Equal(got, s2) {
+		t.Errorf("Transform(%v, transformToString[int]) = %v, want %v", s1, got, s2)
+	}
+
+	s3 := []float64{1, 2, 3}
+	if got := Transform(s1, transformToFloat64[int]); !Equal(got, s3) {
+		t.Errorf("Transform(%v, transformToFloat64[int]) = %v, want %v", s1, got, s3)
+	}
+}
+
+func BenchmarkTransform_Large(b *testing.B) {
+	type Large [4 * 1024]byte
+
+	ss := make([]Large, 1024)
+	transformer := func(l Large) Large {
+		return l
+	}
+	for i := 0; i < b.N; i++ {
+		_ = Transform(ss, transformer)
 	}
 }
