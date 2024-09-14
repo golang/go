@@ -566,3 +566,78 @@ func Filter[S ~[]E, E any](s S, predicate func(e E, i int) bool) S {
 	clear(s[i:]) // zero/nil out the obsolete elements, for GC
 	return s[:i]
 }
+
+// Disjunction returns a slice containing the exclusive disjunction (symmetric difference) of the given slices.
+// This means the elements which are in either one of the slice but not in both.
+func Disjunction[S ~[]E, E comparable](s1, s2 S) S {
+	ms1 := CardinalityMap(s1)
+	ms2 := CardinalityMap(s2)
+	r := make(S, 0, len(s1)+len(s2))
+	for _, v := range s1 {
+		if ms2[v] > 0 {
+			ms1[v] -= 1
+			ms2[v] -= 1
+		} else {
+			r = append(r, v)
+		}
+	}
+	for _, v := range s2 {
+		if ms2[v] > 0 {
+			ms2[v] -= 1
+			r = append(r, v)
+		}
+	}
+	return Clip(r)
+}
+
+// Intersection returns a slice containing the intersection of the given slices.
+// This means the elements which are in both the given slices.
+func Intersection[S ~[]E, E comparable](s1, s2 S) S {
+	ms1 := CardinalityMap(s1)
+	ms2 := CardinalityMap(s2)
+	r := make(S, 0, min(len(s1), len(s2)))
+	for _, v := range s1 {
+		if ms2[v] > 0 {
+			ms2[v] -= 1
+			r = append(r, v)
+		}
+		ms1[v] -= 1
+	}
+	return Clip(r)
+}
+
+// Union is used to do the union of the 2 provided collections.
+// The cardinality of each element in the returned collection will be equal to the maximum of that element in the given 2 collections.
+func Union[S ~[]E, E comparable](s1, s2 S) S {
+	if len(s1) == 0 {
+		return s2
+	}
+	if len(s2) == 0 {
+		return s1
+	}
+	r := make(S, 0, len(s1)+len(s2))
+	r = append(r, s1...)
+	ms1 := CardinalityMap(s1)
+	for _, v := range s2 {
+		if ms1[v] <= 0 {
+			r = append(r, v)
+		}
+		ms1[v] -= 1
+	}
+	return Clip(r)
+}
+
+// Subtract return a new slice containing s1 - s2 i.e. all elements of s2 removed from s1.
+func Subtract[S ~[]E, E comparable](s1, s2 S) S {
+	m := CardinalityMap(s2)
+	r := make(S, 0, len(s1))
+	for _, v := range s1 {
+		c := m[v]
+		if c > 0 {
+			m[v] -= 1
+		} else {
+			r = append(r, v)
+		}
+	}
+	return Clip(r)
+}

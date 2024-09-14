@@ -1632,3 +1632,143 @@ func BenchmarkFilter_Large(b *testing.B) {
 		_ = Filter(ss, predicate)
 	}
 }
+
+var disjunctionTests = []struct {
+	s1   []int
+	s2   []int
+	want []int
+}{
+	{
+		nil,
+		nil,
+		nil,
+	},
+	{
+		[]int{1, 5, 9, 6, 7},
+		[]int{2, 6, 7, 3},
+		[]int{1, 5, 9, 2, 3},
+	},
+	{
+		[]int{1, 2, 1, 3, 1, 2},
+		[]int{1, 2, 2, 3},
+		[]int{1, 1},
+	},
+	{
+		[]int{1, 2, 3},
+		[]int{1, 2, 3},
+		nil,
+	},
+}
+
+func TestDisjunction(t *testing.T) {
+	for _, test := range disjunctionTests {
+		if got := Disjunction(test.s1, test.s2); !Equal(got, test.want) {
+			t.Errorf("Disjunction(%v, %v) = %v, want %v", test.s1, test.s2, got, test.want)
+		}
+	}
+}
+
+var intersectionTests = []struct {
+	s1   []int
+	s2   []int
+	want []int
+}{
+	{
+		nil,
+		nil,
+		nil,
+	},
+	{
+		[]int{1, 5, 9, 6, 7},
+		[]int{2, 6, 7, 3},
+		[]int{6, 7},
+	},
+	{
+		[]int{1, 2, 1, 3, 1, 2},
+		[]int{1, 2, 2, 3},
+		[]int{1, 2, 3, 2},
+	},
+	{
+		[]int{1, 2, 3},
+		[]int{1, 2, 3},
+		[]int{1, 2, 3},
+	},
+}
+
+func TestIntersection(t *testing.T) {
+	for _, test := range intersectionTests {
+		if got := Intersection(test.s1, test.s2); !Equal(got, test.want) {
+			t.Errorf("Intersection(%v, %v) = %v, want %v", test.s1, test.s2, got, test.want)
+		}
+	}
+}
+
+var unionTests = []struct {
+	s1   []int
+	s2   []int
+	want []int
+}{
+	{
+		nil,
+		nil,
+		nil,
+	},
+	{
+		[]int{1, 5, 9, 6, 7},
+		[]int{2, 6, 7, 3},
+		[]int{1, 5, 9, 6, 7, 2, 3},
+	},
+	{
+		[]int{1, 2, 1, 3, 1, 2},
+		[]int{1, 2, 2, 3},
+		[]int{1, 2, 1, 3, 1, 2},
+	},
+	{
+		[]int{1, 2, 3},
+		[]int{1, 2, 3},
+		[]int{1, 2, 3},
+	},
+}
+
+func TestUnion(t *testing.T) {
+	for _, test := range unionTests {
+		if got := Union(test.s1, test.s2); !Equal(got, test.want) {
+			t.Errorf("Union(%v, %v) = %v, want %v", test.s1, test.s2, got, test.want)
+		}
+	}
+}
+
+var subtractTests = []struct {
+	s1   []int
+	s2   []int
+	want []int
+}{
+	{
+		nil,
+		nil,
+		nil,
+	},
+	{
+		[]int{1, 5, 9, 6, 7},
+		[]int{2, 6, 7, 3},
+		[]int{1, 5, 9},
+	},
+	{
+		[]int{1, 2, 1, 3, 1, 2},
+		[]int{1, 2, 2, 3},
+		[]int{1, 1},
+	},
+	{
+		[]int{1, 2, 3},
+		[]int{1, 2, 3},
+		nil,
+	},
+}
+
+func TestSubtract(t *testing.T) {
+	for _, test := range subtractTests {
+		if got := Subtract(test.s1, test.s2); !Equal(got, test.want) {
+			t.Errorf("Subtract(%v, %v) = %v, want %v", test.s1, test.s2, got, test.want)
+		}
+	}
+}
