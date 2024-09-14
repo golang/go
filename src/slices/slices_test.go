@@ -1585,3 +1585,50 @@ func BenchmarkTransform_Large(b *testing.B) {
 		_ = Transform(ss, transformer)
 	}
 }
+
+var filterTests = []struct {
+	s         []int
+	predicate func(e int, i int) bool
+	want      []int
+}{
+	{
+		[]int{1, 2, 3},
+		func(e int, i int) bool { return false },
+		nil,
+	},
+	{
+		nil,
+		func(e int, i int) bool { return false },
+		nil,
+	},
+	{
+		[]int{1, 2, 3},
+		func(e int, i int) bool { return e == 2 },
+		[]int{2},
+	},
+	{
+		[]int{1, 2, 3},
+		func(e int, i int) bool { return i > 0 },
+		[]int{2, 3},
+	},
+}
+
+func TestFilter(t *testing.T) {
+	for _, test := range filterTests {
+		if got := Filter(test.s, test.predicate); !Equal(got, test.want) {
+			t.Errorf("Filter(%v, %p) = %v, want %v", test.s, test.predicate, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFilter_Large(b *testing.B) {
+	type Large [4 * 1024]byte
+
+	ss := make([]Large, 1024)
+	predicate := func(l Large, i int) bool {
+		return false
+	}
+	for i := 0; i < b.N; i++ {
+		_ = Filter(ss, predicate)
+	}
+}

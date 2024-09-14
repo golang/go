@@ -549,3 +549,20 @@ func Transform[S1 ~[]E1, E1, E2 any](s S1, transformer func(e E1) E2) []E2 {
 	}
 	return r
 }
+
+// Filter filters the slice with elements that satisfy the predicate.
+// The predicate is called with the element value and the element index, so that a filter can be applied on both.
+func Filter[S ~[]E, E any](s S, predicate func(e E, i int) bool) S {
+	if len(s) == 0 {
+		return s
+	}
+	i := 0
+	for j := 0; j < len(s); j++ {
+		if predicate(s[j], j) {
+			s[i] = s[j]
+			i++
+		}
+	}
+	clear(s[i:]) // zero/nil out the obsolete elements, for GC
+	return s[:i]
+}
