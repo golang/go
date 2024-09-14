@@ -8,6 +8,7 @@ import (
 	"cmp"
 	"internal/race"
 	"internal/testenv"
+	"maps"
 	"math"
 	. "slices"
 	"strings"
@@ -1448,5 +1449,105 @@ func TestRepeatPanics(t *testing.T) {
 		if !panics(func() { _ = Repeat(test.x, test.count) }) {
 			t.Errorf("Repeat %s: got no panic, want panic", test.name)
 		}
+	}
+}
+
+var cardinalityTests = []struct {
+	s    []int
+	v    int
+	want int
+}{
+	{
+		nil,
+		0,
+		0,
+	},
+	{
+		[]int{},
+		0,
+		0,
+	},
+	{
+		[]int{1, 2, 3},
+		2,
+		1,
+	},
+	{
+		[]int{1, 2, 2, 3},
+		2,
+		2,
+	},
+	{
+		[]int{1, 2, 3, 2},
+		2,
+		2,
+	},
+}
+
+func TestCardinality(t *testing.T) {
+	for _, test := range cardinalityTests {
+		if got := Cardinality(test.s, test.v); got != test.want {
+			t.Errorf("Cardinality(%v, %v) = %d, want %d", test.s, test.v, got, test.want)
+		}
+	}
+}
+
+func BenchmarkCardinality_Large(b *testing.B) {
+	type Large [4 * 1024]byte
+
+	ss := make([]Large, 1024)
+	for i := 0; i < b.N; i++ {
+		_ = Cardinality(ss, Large{1})
+	}
+}
+
+func TestCardinalityFunc(t *testing.T) {
+	for _, test := range cardinalityTests {
+		if got := CardinalityFunc(test.s, equalToIndex(equal[int], test.v)); got != test.want {
+			t.Errorf("CardinalityFunc(%v, equalToIndex(equal[int], %v)) = %d, want %d", test.s, test.v, got, test.want)
+		}
+	}
+}
+
+var cardinalityMapTests = []struct {
+	s    []int
+	want map[int]int
+}{
+	{
+		nil,
+		map[int]int{},
+	},
+	{
+		[]int{},
+		map[int]int{},
+	},
+	{
+		[]int{1, 2, 3},
+		map[int]int{1: 1, 2: 1, 3: 1},
+	},
+	{
+		[]int{1, 2, 2, 3},
+		map[int]int{1: 1, 2: 2, 3: 1},
+	},
+	{
+		[]int{1, 2, 3, 2, 3, 3},
+		map[int]int{1: 1, 2: 2, 3: 3},
+	},
+}
+
+func TestCardinalityMap(t *testing.T) {
+	for _, test := range cardinalityMapTests {
+		if got := CardinalityMap(test.s); maps.Equal(got, test.want) {
+			t.Errorf("CardinalityMap(%v) = %v, want %v", test.s, got, test.want)
+		}
+	}
+}
+
+func BenchmarkCardinalityMap_Large(b *testing.B) {
+	type Large [4 * 1024]byte
+
+	ss := make([]Large, 1024)
+	for i := 0; i < b.N; i++ {
+		_ = CardinalityMap(ss)
 	}
 }

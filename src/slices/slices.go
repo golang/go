@@ -508,3 +508,35 @@ func Repeat[S ~[]E, E any](x S, count int) S {
 	}
 	return newslice
 }
+
+// Cardinality returns the number of occurrences of the given element in the provided slice.
+func Cardinality[S ~[]E, E comparable](s S, x E) int {
+	cnt := 0
+	for i := range s {
+		if x == s[i] {
+			cnt++
+		}
+	}
+	return cnt
+}
+
+// CardinalityFunc returns the number of occurrences of the element satisfying f(s[i]) in the provided slice.
+func CardinalityFunc[S ~[]E, E any](s S, f func(E) bool) int {
+	cnt := 0
+	for i := range s {
+		if f(s[i]) {
+			cnt++
+		}
+	}
+	return cnt
+}
+
+// CardinalityMap returns a Map mapping each unique element in the given slice to an Integer
+// representing the number of occurrences of that element in the slice.
+func CardinalityMap[S ~[]E, E comparable](s S) map[E]int {
+	cnt := make(map[E]int)
+	for i := range s {
+		cnt[s[i]]++
+	}
+	return cnt
+}
