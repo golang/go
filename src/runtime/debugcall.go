@@ -11,6 +11,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -106,7 +107,7 @@ func debugCallCheck(pc uintptr) string {
 //go:nosplit
 func debugCallWrap(dispatch uintptr) {
 	var lockedExt uint32
-	callerpc := getcallerpc()
+	callerpc := sys.GetCallerPC()
 	gp := getg()
 
 	// Lock ourselves to the OS thread.

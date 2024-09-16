@@ -9,12 +9,13 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
 func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess1_fast64))
 	}
 	if h == nil || h.count == 0 {
@@ -63,7 +64,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 //go:linkname mapaccess2_fast64
 func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess2_fast64))
 	}
 	if h == nil || h.count == 0 {
@@ -116,7 +117,7 @@ func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast64))
 	}
 	if h.flags&hashWriting != 0 {
@@ -216,7 +217,7 @@ func mapassign_fast64ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer
 		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast64))
 	}
 	if h.flags&hashWriting != 0 {
@@ -303,7 +304,7 @@ done:
 
 func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapdelete_fast64))
 	}
 	if h == nil || h.count == 0 {

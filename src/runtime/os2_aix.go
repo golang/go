@@ -11,6 +11,7 @@
 package runtime
 
 import (
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -182,7 +183,7 @@ func syscall0(fn *libFunc) (r, err uintptr) {
 	resetLibcall := true
 	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
@@ -213,7 +214,7 @@ func syscall1(fn *libFunc, a0 uintptr) (r, err uintptr) {
 	resetLibcall := true
 	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
@@ -245,7 +246,7 @@ func syscall2(fn *libFunc, a0, a1 uintptr) (r, err uintptr) {
 	resetLibcall := true
 	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
@@ -277,7 +278,7 @@ func syscall3(fn *libFunc, a0, a1, a2 uintptr) (r, err uintptr) {
 	resetLibcall := true
 	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
@@ -309,7 +310,7 @@ func syscall4(fn *libFunc, a0, a1, a2, a3 uintptr) (r, err uintptr) {
 	resetLibcall := true
 	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
@@ -341,7 +342,7 @@ func syscall5(fn *libFunc, a0, a1, a2, a3, a4 uintptr) (r, err uintptr) {
 	resetLibcall := true
 	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
@@ -373,7 +374,7 @@ func syscall6(fn *libFunc, a0, a1, a2, a3, a4, a5 uintptr) (r, err uintptr) {
 	resetLibcall := true
 	if mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()

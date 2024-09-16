@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/runtime/atomic"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -961,7 +962,7 @@ func stdcall(fn stdFunction) uintptr {
 	if mp.profilehz != 0 && mp.libcallsp == 0 {
 		// leave pc/sp for cpu profiler
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()

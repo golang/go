@@ -6,19 +6,10 @@
 
 package runtime
 
-// A function that calls runtime.getcallerpc or runtime.getcallersp()
+// A function that calls runtime.getcallersp()
 // cannot be inlined, no matter how small it is.
 
-func getcallerpc() uintptr
 func getcallersp() uintptr
-
-func pc() uintptr {
-	return getcallerpc() + 1
-}
-
-func cpc() uintptr { // ERROR "can inline cpc"
-	return pc() + 2
-}
 
 func sp() uintptr {
 	return getcallersp() + 3

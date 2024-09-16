@@ -1811,7 +1811,7 @@ func mstart0() {
 	mexit(osStack)
 }
 
-// The go:noinline is to guarantee the getcallerpc/getcallersp below are safe,
+// The go:noinline is to guarantee the sys.GetCallerPC/getcallersp below are safe,
 // so that we can set up g0.sched to return to the call of mstart1 above.
 //
 //go:noinline
@@ -1829,7 +1829,7 @@ func mstart1() {
 	// And goexit0 does a gogo that needs to return from mstart1
 	// and let mstart0 exit the thread.
 	gp.sched.g = guintptr(unsafe.Pointer(gp))
-	gp.sched.pc = getcallerpc()
+	gp.sched.pc = sys.GetCallerPC()
 	gp.sched.sp = getcallersp()
 
 	asminit()
@@ -4496,7 +4496,7 @@ func entersyscall() {
 	// the stack. This results in exceeding the nosplit stack requirements
 	// on some platforms.
 	fp := getcallerfp()
-	reentersyscall(getcallerpc(), getcallersp(), fp)
+	reentersyscall(sys.GetCallerPC(), getcallersp(), fp)
 }
 
 func entersyscall_sysmon() {
@@ -4561,7 +4561,7 @@ func entersyscallblock() {
 	gp.m.p.ptr().syscalltick++
 
 	// Leave SP around for GC and traceback.
-	pc := getcallerpc()
+	pc := sys.GetCallerPC()
 	sp := getcallersp()
 	bp := getcallerfp()
 	save(pc, sp, bp)
@@ -4594,7 +4594,7 @@ func entersyscallblock() {
 	systemstack(entersyscallblock_handoff)
 
 	// Resave for traceback during blocked call.
-	save(getcallerpc(), getcallersp(), getcallerfp())
+	save(sys.GetCallerPC(), getcallersp(), getcallerfp())
 
 	gp.m.locks--
 }
@@ -4984,7 +4984,7 @@ func malg(stacksize int32) *g {
 // The compiler turns a go statement into a call to this.
 func newproc(fn *funcval) {
 	gp := getg()
-	pc := getcallerpc()
+	pc := sys.GetCallerPC()
 	systemstack(func() {
 		newg := newproc1(fn, gp, pc, false, waitReasonZero)
 

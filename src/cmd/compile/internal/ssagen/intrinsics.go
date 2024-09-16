@@ -162,12 +162,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		all...)
 
-	add("runtime", "getcallerpc",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
-		},
-		all...)
-
 	add("runtime", "getcallersp",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr, s.mem())
@@ -181,13 +175,19 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.ARM64, sys.PPC64, sys.RISCV64)
 
+	/******** internal/runtime/sys ********/
+	add("internal/runtime/sys", "GetCallerPC",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
+		},
+		all...)
+
 	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X}
 	if cfg.goppc64 >= 10 {
 		// Use only on Power10 as the new byte reverse instructions that Power10 provide
 		// make it worthwhile as an intrinsic
 		brev_arch = append(brev_arch, sys.PPC64)
 	}
-	/******** internal/runtime/sys ********/
 	addF("internal/runtime/sys", "Bswap32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
@@ -1083,7 +1083,9 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 
 	fn := sym.Name
 	if ssa.IntrinsicsDisable {
-		if pkg == "runtime" && (fn == "getcallerpc" || fn == "getcallersp" || fn == "getclosureptr") {
+		if pkg == "runtime" && (fn == "getcallersp" || fn == "getclosureptr") {
+			// These runtime functions don't have definitions, must be intrinsics.
+		} else if pkg == "internal/runtime/sys" && fn == "GetCallerPC" {
 			// These runtime functions don't have definitions, must be intrinsics.
 		} else {
 			return nil

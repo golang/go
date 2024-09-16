@@ -330,7 +330,6 @@ func publicationBarrier()
 // A general rule is that the result of getcallersp should be used
 // immediately and can only be passed to nosplit functions.
 
-func getcallerpc() uintptr
 
 func getcallersp() uintptr
 

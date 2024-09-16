@@ -504,7 +504,7 @@ func LockOSCounts() (external, internal uint32) {
 //go:noinline
 func TracebackSystemstack(stk []uintptr, i int) int {
 	if i == 0 {
-		pc, sp := getcallerpc(), getcallersp()
+		pc, sp := sys.GetCallerPC(), getcallersp()
 		var u unwinder
 		u.initAt(pc, sp, 0, getg(), unwindJumpStack) // Don't ignore errors, for testing
 		return tracebackPCs(&u, 0, stk)

@@ -333,7 +333,7 @@ var (
 // be used as the second word of an interface value.
 func convT(t *_type, v unsafe.Pointer) unsafe.Pointer {
 	if raceenabled {
-		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convT))
+		raceReadObjectPC(t, v, sys.GetCallerPC(), abi.FuncPCABIInternal(convT))
 	}
 	if msanenabled {
 		msanread(v, t.Size_)
@@ -348,7 +348,7 @@ func convT(t *_type, v unsafe.Pointer) unsafe.Pointer {
 func convTnoptr(t *_type, v unsafe.Pointer) unsafe.Pointer {
 	// TODO: maybe take size instead of type?
 	if raceenabled {
-		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convTnoptr))
+		raceReadObjectPC(t, v, sys.GetCallerPC(), abi.FuncPCABIInternal(convTnoptr))
 	}
 	if msanenabled {
 		msanread(v, t.Size_)

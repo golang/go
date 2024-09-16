@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/runtime/sys"
+	"unsafe"
+)
 
 // Call fn with arg as its argument. Return what fn returns.
 // fn is the raw pc value of the entry point of the desired function.
@@ -23,7 +26,7 @@ func libcCall(fn, arg unsafe.Pointer) int32 {
 	}
 	if mp != nil && mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
 		mp.libcallsp = getcallersp()
