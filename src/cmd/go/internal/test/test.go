@@ -1924,7 +1924,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		f, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID))
 		if err != nil {
 			if cache.DebugTest {
-				fmt.Fprintf(os.Stderr, "testcache: %s: test coverage profile not found: %v\n", a.Package.ImportPath, err)
+				fmt.Fprintf(os.Stderr, "testcache: %s: cached test result valid but cached coverage profile missing: %v\n", a.Package.ImportPath, err)
 			}
 			return false
 		}
@@ -2117,8 +2117,8 @@ func (c *runCache) saveOutput(a *work.Action, coverProfileFile string) {
 				}
 			}()
 		} else if cache.DebugTest {
-			base.Errorf("failed to open temporary coverprofile: %s", err)
-			return
+			// Not indicative of a problem, as the test may not have generated a cover profile yet.
+			fmt.Fprintf(os.Stderr, "testcache: %s: opening temporary coverprofile: %s\n", a.Package.ImportPath, err)
 		}
 	}
 	if c.id1 != (cache.ActionID{}) {

@@ -128,7 +128,7 @@ go test testcache -run=TestOSArgs -fullpath
 go test testcache -run=TestOSArgs -fullpath
 stdout '\(cached\)'
 
-# Ensure that specifying a cover profile does not prevent test results from being cached.
+# Ensure that coverage profiles are being cached.
 go test testcache -run=TestCoverageCache -coverprofile=coverage.out
 go test testcache -run=TestCoverageCache -coverprofile=coverage.out
 stdout '\(cached\)'
