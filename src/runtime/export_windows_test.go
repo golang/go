@@ -35,7 +35,7 @@ func (c ContextStub) GetPC() uintptr {
 func NewContextStub() *ContextStub {
 	var ctx context
 	ctx.set_ip(sys.GetCallerPC())
-	ctx.set_sp(getcallersp())
+	ctx.set_sp(sys.GetCallerSP())
 	ctx.set_fp(getcallerfp())
 	return &ContextStub{ctx}
 }

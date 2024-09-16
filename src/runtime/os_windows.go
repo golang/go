@@ -965,7 +965,7 @@ func stdcall(fn stdFunction) uintptr {
 		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp()
+		mp.libcallsp = sys.GetCallerSP()
 		resetLibcall = true // See comment in sys_darwin.go:libcCall
 	}
 	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))

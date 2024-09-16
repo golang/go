@@ -459,21 +459,15 @@ opSwitch:
 					}
 				case "internal/runtime/sys":
 					switch fn {
-					case "GetCallerPC":
-						// Functions that call GetCallerPC can not be inlined
-						// because users expect the PC of the logical caller,
-						// but GetCallerPC returns the physical caller.
+					case "GetCallerPC", "GetCallerSP":
+						// Functions that call GetCallerPC/SP can not be inlined
+						// because users expect the PC/SP of the logical caller,
+						// but GetCallerPC/SP returns the physical caller.
 						v.reason = "call to " + fn
 						return true
 					}
 				case "runtime":
 					switch fn {
-					case "getcallersp":
-						// Functions that call getcallersp can not be inlined
-						// because users expect the SP of the logical caller,
-						// but getcallersp returns the physical caller.
-						v.reason = "call to " + fn
-						return true
 					case "throw":
 						// runtime.throw is a "cheap call" like panic in normal code.
 						v.budget -= inlineExtraThrowCost

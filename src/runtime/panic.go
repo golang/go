@@ -281,10 +281,10 @@ func deferproc(fn func()) {
 	gp._defer = d
 	d.fn = fn
 	d.pc = sys.GetCallerPC()
-	// We must not be preempted between calling getcallersp and
-	// storing it to d.sp because getcallersp's result is a
+	// We must not be preempted between calling GetCallerSP and
+	// storing it to d.sp because GetCallerSP's result is a
 	// uintptr stack pointer.
-	d.sp = getcallersp()
+	d.sp = sys.GetCallerSP()
 
 	// deferproc returns 0 normally.
 	// a deferred func that stops a panic
@@ -395,10 +395,10 @@ func deferrangefunc() any {
 	d.link = gp._defer
 	gp._defer = d
 	d.pc = sys.GetCallerPC()
-	// We must not be preempted between calling getcallersp and
-	// storing it to d.sp because getcallersp's result is a
+	// We must not be preempted between calling GetCallerSP and
+	// storing it to d.sp because GetCallerSP's result is a
 	// uintptr stack pointer.
-	d.sp = getcallersp()
+	d.sp = sys.GetCallerSP()
 
 	d.rangefunc = true
 	d.head = new(atomic.Pointer[_defer])
@@ -484,7 +484,7 @@ func deferprocStack(d *_defer) {
 	// are initialized here.
 	d.heap = false
 	d.rangefunc = false
-	d.sp = getcallersp()
+	d.sp = sys.GetCallerSP()
 	d.pc = sys.GetCallerPC()
 	// The lines below implement:
 	//   d.panic = nil
@@ -596,7 +596,7 @@ func deferreturn() {
 	var p _panic
 	p.deferreturn = true
 
-	p.start(sys.GetCallerPC(), unsafe.Pointer(getcallersp()))
+	p.start(sys.GetCallerPC(), unsafe.Pointer(sys.GetCallerSP()))
 	for {
 		fn, ok := p.nextDefer()
 		if !ok {
@@ -622,7 +622,7 @@ func Goexit() {
 	var p _panic
 	p.goexit = true
 
-	p.start(sys.GetCallerPC(), unsafe.Pointer(getcallersp()))
+	p.start(sys.GetCallerPC(), unsafe.Pointer(sys.GetCallerSP()))
 	for {
 		fn, ok := p.nextDefer()
 		if !ok {
@@ -778,7 +778,7 @@ func gopanic(e any) {
 
 	runningPanicDefers.Add(1)
 
-	p.start(sys.GetCallerPC(), unsafe.Pointer(getcallersp()))
+	p.start(sys.GetCallerPC(), unsafe.Pointer(sys.GetCallerSP()))
 	for {
 		fn, ok := p.nextDefer()
 		if !ok {
@@ -818,7 +818,7 @@ func (p *_panic) start(pc uintptr, sp unsafe.Pointer) {
 	// can restart its defer processing loop if a recovered panic tries
 	// to jump past it.
 	p.startPC = sys.GetCallerPC()
-	p.startSP = unsafe.Pointer(getcallersp())
+	p.startSP = unsafe.Pointer(sys.GetCallerSP())
 
 	if p.deferreturn {
 		p.sp = sp
@@ -1228,7 +1228,7 @@ func recovery(gp *g) {
 //go:nosplit
 func fatalthrow(t throwType) {
 	pc := sys.GetCallerPC()
-	sp := getcallersp()
+	sp := sys.GetCallerSP()
 	gp := getg()
 
 	if gp.m.throwing == throwTypeNone {
@@ -1264,7 +1264,7 @@ func fatalthrow(t throwType) {
 //go:nosplit
 func fatalpanic(msgs *_panic) {
 	pc := sys.GetCallerPC()
-	sp := getcallersp()
+	sp := sys.GetCallerSP()
 	gp := getg()
 	var docrash bool
 	// Switch to the system stack to avoid any stack growth, which

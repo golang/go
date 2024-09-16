@@ -307,32 +307,6 @@ func goexit(neverCallThisFunction)
 // data dependency ordering.
 func publicationBarrier()
 
-// getcallerpc returns the program counter (PC) of its caller's caller.
-// getcallersp returns the stack pointer (SP) of its caller's caller.
-// Both are implemented as intrinsics on every platform.
-//
-// For example:
-//
-//	func f(arg1, arg2, arg3 int) {
-//		pc := getcallerpc()
-//		sp := getcallersp()
-//	}
-//
-// These two lines find the PC and SP immediately following
-// the call to f (where f will return).
-//
-// The call to getcallerpc and getcallersp must be done in the
-// frame being asked about.
-//
-// The result of getcallersp is correct at the time of the return,
-// but it may be invalidated by any subsequent call to a function
-// that might relocate the stack in order to grow or shrink it.
-// A general rule is that the result of getcallersp should be used
-// immediately and can only be passed to nosplit functions.
-
-
-func getcallersp() uintptr
-
 // getclosureptr returns the pointer to the current closure.
 // getclosureptr can only be used in an assignment statement
 // at the entry of a function. Moreover, go:nosplit directive

@@ -810,7 +810,7 @@ func (prof *mLockProfile) captureStack() {
 
 	var nstk int
 	gp := getg()
-	sp := getcallersp()
+	sp := sys.GetCallerSP()
 	pc := sys.GetCallerPC()
 	systemstack(func() {
 		var u unwinder
@@ -1401,7 +1401,7 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels 
 	}
 
 	// Save current goroutine.
-	sp := getcallersp()
+	sp := sys.GetCallerSP()
 	pc := sys.GetCallerPC()
 	systemstack(func() {
 		saveg(pc, sp, ourg, &p[0], pcbuf)
@@ -1597,7 +1597,7 @@ func goroutineProfileWithLabelsSync(p []profilerecord.StackRecord, labels []unsa
 		r, lbl := p, labels
 
 		// Save current goroutine.
-		sp := getcallersp()
+		sp := sys.GetCallerSP()
 		pc := sys.GetCallerPC()
 		systemstack(func() {
 			saveg(pc, sp, gp, &r[0], pcbuf)
@@ -1699,7 +1699,7 @@ func Stack(buf []byte, all bool) int {
 	n := 0
 	if len(buf) > 0 {
 		gp := getg()
-		sp := getcallersp()
+		sp := sys.GetCallerSP()
 		pc := sys.GetCallerPC()
 		systemstack(func() {
 			g0 := getg()

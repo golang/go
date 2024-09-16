@@ -13,13 +13,13 @@ import (
 
 // Public address sanitizer API.
 func ASanRead(addr unsafe.Pointer, len int) {
-	sp := getcallersp()
+	sp := sys.GetCallerSP()
 	pc := sys.GetCallerPC()
 	doasanread(addr, uintptr(len), sp, pc)
 }
 
 func ASanWrite(addr unsafe.Pointer, len int) {
-	sp := getcallersp()
+	sp := sys.GetCallerSP()
 	pc := sys.GetCallerPC()
 	doasanwrite(addr, uintptr(len), sp, pc)
 }
@@ -33,7 +33,7 @@ const asanenabled = true
 //go:linkname asanread
 //go:nosplit
 func asanread(addr unsafe.Pointer, sz uintptr) {
-	sp := getcallersp()
+	sp := sys.GetCallerSP()
 	pc := sys.GetCallerPC()
 	doasanread(addr, sz, sp, pc)
 }
@@ -41,7 +41,7 @@ func asanread(addr unsafe.Pointer, sz uintptr) {
 //go:linkname asanwrite
 //go:nosplit
 func asanwrite(addr unsafe.Pointer, sz uintptr) {
-	sp := getcallersp()
+	sp := sys.GetCallerSP()
 	pc := sys.GetCallerPC()
 	doasanwrite(addr, sz, sp, pc)
 }

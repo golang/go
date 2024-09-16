@@ -504,7 +504,7 @@ func LockOSCounts() (external, internal uint32) {
 //go:noinline
 func TracebackSystemstack(stk []uintptr, i int) int {
 	if i == 0 {
-		pc, sp := sys.GetCallerPC(), getcallersp()
+		pc, sp := sys.GetCallerPC(), sys.GetCallerSP()
 		var u unwinder
 		u.initAt(pc, sp, 0, getg(), unwindJumpStack) // Don't ignore errors, for testing
 		return tracebackPCs(&u, 0, stk)
@@ -587,7 +587,7 @@ func unexportedPanicForTesting(b []byte, i int) byte {
 func G0StackOverflow() {
 	systemstack(func() {
 		g0 := getg()
-		sp := getcallersp()
+		sp := sys.GetCallerSP()
 		// The stack bounds for g0 stack is not always precise.
 		// Use an artificially small stack, to trigger a stack overflow
 		// without actually run out of the system stack (which may seg fault).

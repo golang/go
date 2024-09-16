@@ -29,7 +29,7 @@ func libcCall(fn, arg unsafe.Pointer) int32 {
 		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp()
+		mp.libcallsp = sys.GetCallerSP()
 	} else {
 		// Make sure we don't reset libcallsp. This makes
 		// libcCall reentrant; We remember the g/pc/sp for the
