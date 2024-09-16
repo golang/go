@@ -3206,3 +3206,35 @@ func TestAnyHijacking_Check(t *testing.T) {
 		})
 	}
 }
+
+// This test function only exists for go/types.
+// func TestVersionIssue69477(t *testing.T)
+
+// TestVersionWithoutPos is a regression test for issue #69477,
+// in which the type checker would use position information
+// to compute which file it is "in" based on syntax position.
+//
+// As a rule the type checker should not depend on position
+// information for correctness, only for error messages and
+// Object.Pos. (Scope.LookupParent was a mistake.)
+//
+// The Checker now holds the effective version in a state variable.
+func TestVersionWithoutPos(t *testing.T) {
+	f := mustParse("//go:build go1.22\n\npackage p; var _ int")
+
+	// Splice in a decl from another file. Its pos will be wrong.
+	f.DeclList[0] = mustParse("package q; func _(s func(func() bool)) { for range s {} }").DeclList[0]
+
+	// Type check. The checker will consult the effective
+	// version (1.22) for the for-range stmt to know whether
+	// range-over-func are permitted: they are not.
+	// (Previously, no error was reported.)
+	pkg := NewPackage("p", "p")
+	check := NewChecker(&Config{}, pkg, nil)
+	err := check.Files([]*syntax.File{f})
+	got := fmt.Sprint(err)
+	want := "range over s (variable of type func(func() bool)): requires go1.23"
+	if !strings.Contains(got, want) {
+		t.Errorf("check error was %q, want substring %q", got, want)
+	}
+}

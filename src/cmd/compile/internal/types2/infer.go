@@ -110,7 +110,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// Unify parameter and argument types for generic parameters with typed arguments
 	// and collect the indices of generic parameters with untyped arguments.
 	// Terminology: generic parameter = function parameter with a type-parameterized type
-	u := newUnifier(tparams, targs, check.allowVersion(pos, go1_21))
+	u := newUnifier(tparams, targs, check.allowVersion(go1_21))
 
 	errorf := func(tpar, targ Type, arg *operand) {
 		// provide a better error message if we can

@@ -20,7 +20,7 @@ import (
 // literal is not compatible with the current language version.
 func (check *Checker) langCompat(lit *ast.BasicLit) {
 	s := lit.Value
-	if len(s) <= 2 || check.allowVersion(lit, go1_13) {
+	if len(s) <= 2 || check.allowVersion(go1_13) {
 		return
 	}
 	// len(s) > 2

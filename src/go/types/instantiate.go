@@ -85,6 +85,8 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 // must be non-nil.
 //
 // For Named types the resulting instance may be unexpanded.
+//
+// check may be nil (when not type-checking syntax); pos is used only only if check is non-nil.
 func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
 	// The order of the contexts below matters: we always prefer instances in the
 	// expanding instance context in order to preserve reference cycles.
@@ -201,6 +203,7 @@ func (check *Checker) validateTArgLen(pos token.Pos, name string, want, got int)
 	panic(fmt.Sprintf("%v: %s", pos, msg))
 }
 
+// check may be nil; pos is used only if check is non-nil.
 func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
 	smap := makeSubstMap(tparams, targs)
 	for i, tpar := range tparams {
@@ -212,7 +215,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, 
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
 		var cause string
-		if !check.implements(pos, targs[i], bound, true, &cause) {
+		if !check.implements(targs[i], bound, true, &cause) {
 			return i, errors.New(cause)
 		}
 	}
@@ -225,7 +228,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, 
 //
 // If the provided cause is non-nil, it may be set to an error string
 // explaining why V does not implement (or satisfy, for constraints) T.
-func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, cause *string) bool {
+func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
 	Vu := under(V)
 	Tu := under(T)
 	if !isValid(Vu) || !isValid(Tu) {
@@ -298,7 +301,7 @@ func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, caus
 		// so that ordinary, non-type parameter interfaces implement comparable.
 		if constraint && comparableType(V, true /* spec comparability */, nil, nil) {
 			// V is comparable if we are at Go 1.20 or higher.
-			if check == nil || check.allowVersion(atPos(pos), go1_20) { // atPos needed so that go/types generate passes
+			if check == nil || check.allowVersion(go1_20) {
 				return true
 			}
 			if cause != nil {

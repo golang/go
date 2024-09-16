@@ -169,9 +169,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
 	defer func(env environment) {
 		check.environment = env
 	}(check.environment)
-	check.environment = environment{
-		scope: d.file,
-	}
+	check.environment = environment{scope: d.file, version: d.version}
 
 	// Const and var declarations must not have initialization
 	// cycles. We track them by remembering the current declaration

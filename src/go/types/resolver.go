@@ -20,6 +20,7 @@ import (
 // A declInfo describes a package-level const, type, var, or func declaration.
 type declInfo struct {
 	file      *Scope        // scope of file containing this declaration
+	version   goVersion     // Go version of file containing this declaration
 	lhs       []*Var        // lhs of n:1 variable declarations, or nil
 	vtyp      ast.Expr      // type, or nil (for const and var declarations only)
 	init      ast.Expr      // init/orig expression, or nil (for const and var declarations only)
@@ -234,6 +235,8 @@ func (check *Checker) collectObjects() {
 	var methods []methodInfo // collected methods with valid receivers and non-blank _ names
 	var fileScopes []*Scope
 	for fileNo, file := range check.files {
+		check.version = asGoVersion(check.versions[file])
+
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
 		check.recordDef(file.Name, nil)
@@ -355,7 +358,7 @@ func (check *Checker) collectObjects() {
 						init = d.init[i]
 					}
 
-					d := &declInfo{file: fileScope, vtyp: d.typ, init: init, inherited: d.inherited}
+					d := &declInfo{file: fileScope, version: check.version, vtyp: d.typ, init: init, inherited: d.inherited}
 					check.declarePkgObj(name, obj, d)
 				}
 
@@ -370,7 +373,7 @@ func (check *Checker) collectObjects() {
 					// The lhs elements are only set up after the for loop below,
 					// but that's ok because declareVar only collects the declInfo
 					// for a later phase.
-					d1 = &declInfo{file: fileScope, lhs: lhs, vtyp: d.spec.Type, init: d.spec.Values[0]}
+					d1 = &declInfo{file: fileScope, version: check.version, lhs: lhs, vtyp: d.spec.Type, init: d.spec.Values[0]}
 				}
 
 				// declare all variables
@@ -385,14 +388,14 @@ func (check *Checker) collectObjects() {
 						if i < len(d.spec.Values) {
 							init = d.spec.Values[i]
 						}
-						di = &declInfo{file: fileScope, vtyp: d.spec.Type, init: init}
+						di = &declInfo{file: fileScope, version: check.version, vtyp: d.spec.Type, init: init}
 					}
 
 					check.declarePkgObj(name, obj, di)
 				}
 			case typeDecl:
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
-				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
+				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, version: check.version, tdecl: d.spec})
 			case funcDecl:
 				name := d.decl.Name.Name
 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil) // signature set later
@@ -447,7 +450,7 @@ func (check *Checker) collectObjects() {
 					check.recordDef(d.decl.Name, obj)
 				}
 				_ = d.decl.Type.TypeParams.NumFields() != 0 && !hasTParamError && check.verifyVersionf(d.decl.Type.TypeParams.List[0], go1_18, "type parameter")
-				info := &declInfo{file: fileScope, fdecl: d.decl}
+				info := &declInfo{file: fileScope, version: check.version, fdecl: d.decl}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the
 				// receiver is invalid); also we need their fdecl info when associating
