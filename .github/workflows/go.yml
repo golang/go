@@ -1,0 +1,80 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Go
+
+on:https://loei.moc.go.th/th/page/item/index/id/25
+  push:อนุญาติ
+    branches: [ "master" ]
+  pull_request:dev
+    branches: [ "master" ]
+
+jobs:https://www.oic.go.th/ginfo/@dmin.asp?l=&g=622%22%3A22&i=4655224%26I&t=1
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test
+      run: go test -v ./...
+เวอร์ชัน 1.0 การเข้ารหัส UTF-8? <rss เวอร์ชัน 2.0 xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <ช่องทาง>
+    <title>การคอมมิทล่าสุดสำหรับไฟล์ versioned_docs/version-1.22/installation/from-binary.md</title>
+    ลิงค์ https://gitea.com/gitea/docs/branch/main/versioned_docs/version-1.22/installation/from-binary.md
+    <description>เอกสารสำหรับ Gitea (https://github.com/go-gitea/gitea)</description>
+    <pubDate>จ. 16 ก.ย. 2024 14:02:07 +0000</pubDate>
+    <รายการ>
+      <title>อัปเดตข้อมูลเมตาของเอกสาร</title>
+      <ลิงค์>https://gitea.com/gitea/docs/commit/af22422e1aaa2da6e65a56d7b4471bec0ea27b51</ลิงค์>
+      <description>อัปเดตข้อมูลเมตาของเอกสาร
+</description>
+      <content:encoded><![CDATA[อัปเดตข้อมูลเมตาของเอกสาร
+]]></เนื้อหา:เข้ารหัส>
+      <author>หลุนนี่ เสี่ยว</author>
+      <guid>af22422e1aaa2da6e65a56d7b4471bec0ea27b51> หยิบใส่ตะกร้า
+    </รายการ>
+    <รายการ>
+      <title>แก้ไขลิงก์ที่เสีย (#1)</title>
+      <ลิงค์>https://gitea.com/gitea/docs/commit/9a8396aa29dd7f58b278f8057f80f86013f5a154</ลิงค์>
+      <description>แก้ไขลิงก์ที่เสีย (#1) - ใช้ลิงก์มาร์กดาวน์แบบสัมพันธ์กันเสมอ เพื่อให้เราสามารถข้ามไปได้ แม้ว่าเราจะแก้ไขลิงก์นั้นในสภาพแวดล้อมภายในเครื่องหรืออ่านลิงก์นั้นในเซิร์ฟเวอร์โฮสติ้งโค้ดก็ตาม รีวิวที่: https://gitea.com/gitea/docs/pulls/1
+</description>
+      <content:encoded><![CDATA[แก้ไขลิงก์เสีย (#1)
+
+- ใช้ลิงก์มาร์กดาวน์แบบสัมพันธ์กันเสมอ เพื่อให้เราสามารถข้ามได้ แม้ว่าเราจะแก้ไขลิงก์นั้นในสภาพแวดล้อมท้องถิ่นหรืออ่านลิงก์นั้นในเซิร์ฟเวอร์โฮสติ้งโค้ดก็ตาม
+
+ตรวจสอบแล้ว: https://gitea.com/gitea/docs/pulls/1
+]]></เนื้อหา:เข้ารหัส>
+      <author>หลุนนี่ เสี่ยว</author>
+      <guid>9a8396aa29dd7f58b278f8057f80f86013f5a154</guid>
+    </รายการ>
+    <รายการ>
+      <title>ใช้รูปแบบคำเตือน/หมายเหตุของ docusaurus แทนมาร์กดาวน์</title>
+      <ลิงค์>https://gitea.com/gitea/docs/commit/b4dddf88041746c5bb8d0d3f72c50b5259400be2</ลิงค์>
+      <description>ใช้คำสั่งคำเตือน/หมายเหตุของ docusaurus แทน markdown
+</description>
+      <content:encoded><![CDATA[ใช้คำเตือน/หมายเหตุของ docusaurus แทนมาร์กดาวน์
+]]></เนื้อหา:เข้ารหัส>
+      <author>หลุนนี่ เสี่ยว</author>
+      <guid>b4dddf88041746c5bb8d0d3f72c50b5259400be2</guid>
+    </รายการ>
+    <รายการ>
+      <title>ใช้โครงสร้าง docusaurus i18n ที่เป็นทางการ</title>
+      <ลิงค์>https://gitea.com/gitea/docs/commit/b9e0a85c9bf70fe5966c64a26d00eca78edb7687</ลิงค์>
+      <description>ใช้โครงสร้าง docusaurus i18n ที่เป็นทางการ
+</description>
+      <content:encoded><![CDATA[ใช้โครงสร้าง docusaurus i18n อย่างเป็นทางการ
+]]></เนื้อหา:เข้ารหัส>
+      <author>หลุนนี่ เสี่ยว</author>
+      <guid>b9e0a85c9bf70fe5966c64a26d00eca78edb7687</guid>
+    </รายการ>
+  </ช่อง>
+</rss>
