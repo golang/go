@@ -643,6 +643,7 @@ func (q nat) divBasic(u, v nat) {
 	rec := reciprocalWord(vn1)
 
 	// Invent a leading 0 for u, for the first iteration.
+	// Invariant: ujn == u[j+n] in each iteration.
 	ujn := Word(0)
 
 	// Compute each digit of quotient.
