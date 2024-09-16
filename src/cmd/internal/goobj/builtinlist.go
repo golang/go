@@ -186,8 +186,6 @@ var builtins = [...]struct {
 	{"runtime.uint64tofloat32", 1},
 	{"runtime.uint32tofloat64", 1},
 	{"runtime.complex128div", 1},
-	{"runtime.getcallerpc", 1},
-	{"runtime.getcallersp", 1},
 	{"runtime.racefuncenter", 1},
 	{"runtime.racefuncexit", 1},
 	{"runtime.raceread", 1},
