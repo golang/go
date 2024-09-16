@@ -604,8 +604,10 @@ var execTests = []execTest{
 	{"range iter.Seq[int]", `{{range $i := .}}{{$i}}{{end}}`, "01", fVal1, true},
 	{"i = range iter.Seq[int]", `{{$i := 0}}{{range $i = .}}{{$i}}{{end}}`, "01", fVal1, true},
 	{"range iter.Seq[int] over two var", `{{range $i, $c := .}}{{$c}}{{end}}`, "", fVal1, false},
-	{"range iter.Seq2[int,int]", `{{range $i, $c := .}}{{$i}}{{$c}}{{end}}`, "0112", fVal2, true},
+	{"i, c := range iter.Seq2[int,int]", `{{range $i, $c := .}}{{$i}}{{$c}}{{end}}`, "0112", fVal2, true},
+	{"i, c = range iter.Seq2[int,int]", `{{$i := 0}}{{$c := 0}}{{range $i, $c = .}}{{$i}}{{$c}}{{end}}`, "0112", fVal2, true},
 	{"i = range iter.Seq2[int,int]", `{{$i := 0}}{{range $i = .}}{{$i}}{{end}}`, "01", fVal2, true},
+	{"i := range iter.Seq2[int,int]", `{{range $i := .}}{{$i}}{{end}}`, "01", fVal2, true},
 
 	// Cute examples.
 	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},
