@@ -156,11 +156,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			return nil
 		},
 		all...)
-	add("runtime", "getclosureptr",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue0(ssa.OpGetClosurePtr, s.f.Config.Types.Uintptr)
-		},
-		all...)
 
 	addF("runtime", "publicationBarrier",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -179,6 +174,12 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	add("internal/runtime/sys", "GetCallerSP",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr, s.mem())
+		},
+		all...)
+
+	add("internal/runtime/sys", "GetClosurePtr",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			return s.newValue0(ssa.OpGetClosurePtr, s.f.Config.Types.Uintptr)
 		},
 		all...)
 
@@ -1083,9 +1084,7 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 
 	fn := sym.Name
 	if ssa.IntrinsicsDisable {
-		if pkg == "runtime" && fn == "getclosureptr" {
-			// These runtime functions don't have definitions, must be intrinsics.
-		} else if pkg == "internal/runtime/sys" && (fn == "GetCallerPC" || fn == "GrtCallerSP") {
+		if pkg == "internal/runtime/sys" && (fn == "GetCallerPC" || fn == "GrtCallerSP" || fn == "GetClosurePtr") {
 			// These runtime functions don't have definitions, must be intrinsics.
 		} else {
 			return nil

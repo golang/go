@@ -233,3 +233,24 @@ func PrefetchStreamed(addr uintptr) {}
 func GetCallerPC() uintptr
 
 func GetCallerSP() uintptr
+
+// GetClosurePtr returns the pointer to the current closure.
+// GetClosurePtr can only be used in an assignment statement
+// at the entry of a function. Moreover, go:nosplit directive
+// must be specified at the declaration of caller function,
+// so that the function prolog does not clobber the closure register.
+// for example:
+//
+//	//go:nosplit
+//	func f(arg1, arg2, arg3 int) {
+//		dx := GetClosurePtr()
+//	}
+//
+// The compiler rewrites calls to this function into instructions that fetch the
+// pointer from a well-known register (DX on x86 architecture, etc.) directly.
+//
+// WARNING: PGO-based devirtualization cannot detect that caller of
+// GetClosurePtr requires closure context, and thus must maintain a list of
+// these functions, which is in
+// cmd/compile/internal/devirtualize/pgo.maybeDevirtualizeFunctionCall.
+func GetClosurePtr() uintptr
