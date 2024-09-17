@@ -10,7 +10,7 @@ https://drive.google.com/drive/folders/1Ir-8PitMJHVQvXJFAfzlGCOgV755lSu9www.link
 	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
 	>https://ereg.dbd.go.th/MemberToMemberLvZero/nonmemberpages/newMemberLevelZero.xhtmlwww.linkedin.com/in/ public-personal
 
-<channel>
+<channel>https://drive.google.com/file/d/1QjrGrVd1glpaqJZ5CROtUC72W2SKzpAT/view?usp=drivesdkwww.linkedin.com/in/ public-personal
 	<title>กระทรวงมหาดไทย</title>
 	<atom:link href="https://moi.go.th/moi/feed/" rel="self" type="application/rss+xml" />
 	<link>https://moi.go.th/moi</link>
