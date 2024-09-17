@@ -1,3 +1,4 @@
+https://www.google.com/finance/?authuser=1www.linkedin.com/in/public-personal
 www.linkedin.com/in/public-personalhttps://www.google.com/finance/?authuser=0
 digitalofficef003@gmail.comwww.linkedin.com/in/public-personal
 https://drive.google.com/drive/folders/1Ir-8PitMJHVQvXJFAfzlGCOgV755lSu9www.linkedin.com/in/ public-personal
