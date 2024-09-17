@@ -10,7 +10,8 @@ import (
 	"internal/abi"
 	"internal/asan"
 	"internal/msan"
-	//"internal/runtime/sys"
+	"internal/race"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -41,12 +42,12 @@ var zeroVal [abi.ZeroValSize]byte
 //go:linkname runtime_mapaccess1 runtime.mapaccess1
 func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
 	// TODO: concurrent checks.
-	//if raceenabled && m != nil {
-	//	callerpc := sys.GetCallerPC()
-	//	pc := abi.FuncPCABIInternal(mapaccess1)
-	//	racereadpc(unsafe.Pointer(m), callerpc, pc)
-	//	raceReadObjectPC(t.Key, key, callerpc, pc)
-	//}
+	if race.Enabled && m != nil {
+		callerpc := sys.GetCallerPC()
+		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
+		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
+		race.ReadObjectPC(typ.Key, key, callerpc, pc)
+	}
 	if msan.Enabled && m != nil {
 		msan.Read(key, typ.Key.Size_)
 	}
@@ -107,12 +108,12 @@ func runtime_mapassign(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe
 	if m == nil {
 		panic(errNilAssign)
 	}
-	//if raceenabled {
-	//	callerpc := sys.GetCallerPC()
-	//	pc := abi.FuncPCABIInternal(mapassign)
-	//	racewritepc(unsafe.Pointer(m), callerpc, pc)
-	//	raceReadObjectPC(t.Key, key, callerpc, pc)
-	//}
+	if race.Enabled {
+		callerpc := sys.GetCallerPC()
+		pc := abi.FuncPCABIInternal(runtime_mapassign)
+		race.WritePC(unsafe.Pointer(m), callerpc, pc)
+		race.ReadObjectPC(typ.Key, key, callerpc, pc)
+	}
 	if msan.Enabled {
 		msan.Read(key, typ.Key.Size_)
 	}

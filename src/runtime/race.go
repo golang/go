@@ -168,6 +168,11 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 	}
 }
 
+//go:linkname race_ReadObjectPC internal/race.ReadObjectPC
+func race_ReadObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
+	raceReadObjectPC(t, addr, callerpc, pc)
+}
+
 func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 	kind := t.Kind_ & abi.KindMask
 	if kind == abi.Array || kind == abi.Struct {
@@ -181,11 +186,26 @@ func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 	}
 }
 
+//go:linkname race_WriteObjectPC internal/race.WriteObjectPC
+func race_WriteObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
+	raceWriteObjectPC(t, addr, callerpc, pc)
+}
+
 //go:noescape
 func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
 
 //go:noescape
 func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
+
+//go:linkname race_ReadPC internal/race.ReadPC
+func race_ReadPC(addr unsafe.Pointer, callerpc, pc uintptr) {
+	racereadpc(addr, callerpc, pc)
+}
+
+//go:linkname race_WritePC internal/race.WritePC
+func race_WritePC(addr unsafe.Pointer, callerpc, pc uintptr) {
+	racewritepc(addr, callerpc, pc)
+}
 
 type symbolizeCodeContext struct {
 	pc   uintptr
