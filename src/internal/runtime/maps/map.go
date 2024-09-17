@@ -229,6 +229,12 @@ type Map struct {
 	// On 64-bit systems, this is 64 - globalDepth.
 	globalShift uint8
 
+	// writing is a flag that is toggled (XOR 1) while the map is being
+	// written. Normally it is set to 1 when writing, but if there are
+	// multiple concurrent writers, then toggling increases the probability
+	// that both sides will detect the race.
+	writing uint8
+
 	// clearSeq is a sequence counter of calls to Clear. It is used to
 	// detect map clears during iteration.
 	clearSeq uint64
@@ -386,6 +392,10 @@ func (m *Map) getWithKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Poin
 		return nil, nil, false
 	}
 
+	if m.writing != 0 {
+		fatal("concurrent map read and map write")
+	}
+
 	hash := typ.Hasher(key, m.seed)
 
 	if m.dirLen == 0 {
@@ -399,6 +409,10 @@ func (m *Map) getWithKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Poin
 func (m *Map) getWithoutKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	if m.Used() == 0 {
 		return nil, false
+	}
+
+	if m.writing != 0 {
+		fatal("concurrent map read and map write")
 	}
 
 	hash := typ.Hasher(key, m.seed)
@@ -446,7 +460,15 @@ func (m *Map) Put(typ *abi.SwissMapType, key, elem unsafe.Pointer) {
 //
 // PutSlot never returns nil.
 func (m *Map) PutSlot(typ *abi.SwissMapType, key unsafe.Pointer) unsafe.Pointer {
+	if m.writing != 0 {
+		fatal("concurrent map writes")
+	}
+
 	hash := typ.Hasher(key, m.seed)
+
+	// Set writing after calling Hasher, since Hasher may panic, in which
+	// case we have not actually done a write.
+	m.writing ^= 1 // toggle, see comment on writing
 
 	if m.dirPtr == nil {
 		m.growToSmall(typ)
@@ -454,7 +476,14 @@ func (m *Map) PutSlot(typ *abi.SwissMapType, key unsafe.Pointer) unsafe.Pointer 
 
 	if m.dirLen == 0 {
 		if m.used < abi.SwissMapGroupSlots {
-			return m.putSlotSmall(typ, hash, key)
+			elem := m.putSlotSmall(typ, hash, key)
+
+			if m.writing == 0 {
+				fatal("concurrent map writes")
+			}
+			m.writing ^= 1
+
+			return elem
 		}
 
 		// Can't fit another entry, grow to full size map.
@@ -470,6 +499,12 @@ func (m *Map) PutSlot(typ *abi.SwissMapType, key unsafe.Pointer) unsafe.Pointer 
 		if !ok {
 			continue
 		}
+
+		if m.writing == 0 {
+			fatal("concurrent map writes")
+		}
+		m.writing ^= 1
+
 		return elem
 	}
 }
@@ -563,15 +598,27 @@ func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
 		return
 	}
 
+	if m.writing != 0 {
+		fatal("concurrent map writes")
+	}
+
 	hash := typ.Hasher(key, m.seed)
+
+	// Set writing after calling Hasher, since Hasher may panic, in which
+	// case we have not actually done a write.
+	m.writing ^= 1 // toggle, see comment on writing
 
 	if m.dirLen == 0 {
 		m.deleteSmall(typ, hash, key)
-		return
+	} else {
+		idx := m.directoryIndex(hash)
+		m.directoryAt(idx).Delete(typ, m, key)
 	}
 
-	idx := m.directoryIndex(hash)
-	m.directoryAt(idx).Delete(typ, m, key)
+	if m.writing == 0 {
+		fatal("concurrent map writes")
+	}
+	m.writing ^= 1
 }
 
 func (m *Map) deleteSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) {
@@ -605,23 +652,32 @@ func (m *Map) Clear(typ *abi.SwissMapType) {
 		return
 	}
 
+	if m.writing != 0 {
+		fatal("concurrent map writes")
+	}
+	m.writing ^= 1 // toggle, see comment on writing
+
 	if m.dirLen == 0 {
 		m.clearSmall(typ)
-		return
+	} else {
+		var lastTab *table
+		for i := range m.dirLen {
+			t := m.directoryAt(uintptr(i))
+			if t == lastTab {
+				continue
+			}
+			t.Clear(typ)
+			lastTab = t
+		}
+		m.used = 0
+		m.clearSeq++
+		// TODO: shrink directory?
 	}
 
-	var lastTab *table
-	for i := range m.dirLen {
-		t := m.directoryAt(uintptr(i))
-		if t == lastTab {
-			continue
-		}
-		t.Clear(typ)
-		lastTab = t
+	if m.writing == 0 {
+		fatal("concurrent map writes")
 	}
-	m.used = 0
-	m.clearSeq++
-	// TODO: shrink directory?
+	m.writing ^= 1
 }
 
 func (m *Map) clearSmall(typ *abi.SwissMapType) {

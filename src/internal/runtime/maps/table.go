@@ -553,6 +553,10 @@ func (it *Iter) Next() {
 		return
 	}
 
+	if it.m.writing != 0 {
+		fatal("concurrent map iteration and map write")
+	}
+
 	if it.dirIdx < 0 {
 		// Map was small at Init.
 		g := it.groupSmall

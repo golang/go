@@ -144,6 +144,8 @@ func SwissMapType() *types.Type {
 	//
 	//     globalDepth uint8
 	//     globalShift uint8
+	//
+	//     writing uint8
 	//     // N.B Padding
 	//
 	//     clearSeq uint64
@@ -156,6 +158,7 @@ func SwissMapType() *types.Type {
 		makefield("dirLen", types.Types[types.TINT]),
 		makefield("globalDepth", types.Types[types.TUINT8]),
 		makefield("globalShift", types.Types[types.TUINT8]),
+		makefield("writing", types.Types[types.TUINT8]),
 		makefield("clearSeq", types.Types[types.TUINT64]),
 	}
 
@@ -169,7 +172,7 @@ func SwissMapType() *types.Type {
 
 	// The size of Map should be 48 bytes on 64 bit
 	// and 32 bytes on 32 bit platforms.
-	if size := int64(2*8 + 4*types.PtrSize /* one extra for globalDepth + padding */); m.Size() != size {
+	if size := int64(2*8 + 4*types.PtrSize /* one extra for globalDepth/globalShift/writing + padding */); m.Size() != size {
 		base.Fatalf("internal/runtime/maps.Map size not correct: got %d, want %d", m.Size(), size)
 	}
 
