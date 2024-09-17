@@ -1235,10 +1235,12 @@ func throw(s string) {
 //
 //go:nosplit
 func fatal(s string) {
+	p := getg()._panic
 	// Everything fatal does should be recursively nosplit so it
 	// can be called even when it's unsafe to grow the stack.
 	printlock() // Prevent multiple interleaved fatal reports. See issue 69447.
 	systemstack(func() {
+		printPreFatalDeferPanic(p)
 		print("fatal error: ")
 		printindented(s) // logically printpanicval(s), but avoids convTstring write barrier
 		print("\n")
@@ -1246,6 +1248,27 @@ func fatal(s string) {
 
 	fatalthrow(throwTypeUser)
 	printunlock()
+}
+
+// printPreFatalDeferPanic prints the panic
+// when fatal occurs in panics while running defer.
+func printPreFatalDeferPanic(p *_panic) {
+	// Don`t call preprintpanics, because
+	// don't want to call String/Error on the panicked values.
+	// When we fatal we really want to just print and exit,
+	// no more executing user Go code.
+	for x := p; x != nil; x = x.link {
+		if x.link != nil && *efaceOf(&x.link.arg) == *efaceOf(&x.arg) {
+			// This panic contains the same value as the next one in the chain.
+			// Mark it as repanicked. We will skip printing it twice in a row.
+			x.link.repanicked = true
+		}
+	}
+	if p != nil {
+		printpanics(p)
+		// make fatal have the same indentation as non-first panics.
+		print("\t")
+	}
 }
 
 // runningPanicDefers is non-zero while running deferred functions for panic.
