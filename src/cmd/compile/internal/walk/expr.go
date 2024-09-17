@@ -87,7 +87,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		base.Fatalf("walkExpr: switch 1 unknown op %+v", n.Op())
 		panic("unreachable")
 
-	case ir.OGETG, ir.OGETCALLERPC, ir.OGETCALLERSP:
+	case ir.OGETG, ir.OGETCALLERSP:
 		return n
 
 	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.OLINKSYMOFFSET:

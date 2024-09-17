@@ -3459,10 +3459,6 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		n := n.(*ir.CallExpr)
 		return s.newValue1(ssa.OpGetG, n.Type(), s.mem())
 
-	case ir.OGETCALLERPC:
-		n := n.(*ir.CallExpr)
-		return s.newValue0(ssa.OpGetCallerPC, n.Type())
-
 	case ir.OGETCALLERSP:
 		n := n.(*ir.CallExpr)
 		return s.newValue1(ssa.OpGetCallerSP, n.Type(), s.mem())

@@ -434,17 +434,45 @@ func lookupGroupId(gid string) (*Group, error) {
 }
 
 func listGroups(user *User) ([]string, error) {
-	sid, err := syscall.StringToSid(user.Uid)
-	if err != nil {
-		return nil, err
-	}
-	username, domain, err := lookupUsernameAndDomain(sid)
-	if err != nil {
-		return nil, err
-	}
-	sids, err := listGroupsForUsernameAndDomain(username, domain)
-	if err != nil {
-		return nil, err
+	var sids []string
+	if u, err := Current(); err == nil && u.Uid == user.Uid {
+		// It is faster and more reliable to get the groups
+		// of the current user from the current process token.
+		err := runAsProcessOwner(func() error {
+			t, err := syscall.OpenCurrentProcessToken()
+			if err != nil {
+				return err
+			}
+			defer t.Close()
+			groups, err := windows.GetTokenGroups(t)
+			if err != nil {
+				return err
+			}
+			for _, g := range groups.AllGroups() {
+				sid, err := g.Sid.String()
+				if err != nil {
+					return err
+				}
+				sids = append(sids, sid)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		sid, err := syscall.StringToSid(user.Uid)
+		if err != nil {
+			return nil, err
+		}
+		username, domain, err := lookupUsernameAndDomain(sid)
+		if err != nil {
+			return nil, err
+		}
+		sids, err = listGroupsForUsernameAndDomain(username, domain)
+		if err != nil {
+			return nil, err
+		}
 	}
 	// Add the primary group of the user to the list if it is not already there.
 	// This is done only to comply with the POSIX concept of a primary group.

@@ -9,9 +9,6 @@
 // Usage:
 //
 //	go tool preprofile [-v] [-o output] -i input
-//
-//
-
 package main
 
 import (

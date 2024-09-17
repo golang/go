@@ -309,8 +309,7 @@ func publicationBarrier()
 
 // getcallerpc returns the program counter (PC) of its caller's caller.
 // getcallersp returns the stack pointer (SP) of its caller's caller.
-// The implementation may be a compiler intrinsic; there is not
-// necessarily code implementing this on every platform.
+// Both are implemented as intrinsics on every platform.
 //
 // For example:
 //
@@ -331,11 +330,9 @@ func publicationBarrier()
 // A general rule is that the result of getcallersp should be used
 // immediately and can only be passed to nosplit functions.
 
-//go:noescape
 func getcallerpc() uintptr
 
-//go:noescape
-func getcallersp() uintptr // implemented as an intrinsic on all platforms
+func getcallersp() uintptr
 
 // getclosureptr returns the pointer to the current closure.
 // getclosureptr can only be used in an assignment statement

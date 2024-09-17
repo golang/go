@@ -1010,10 +1010,6 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 	bad := func(cause string) (Type, Type, string, bool) {
 		return Typ[Invalid], Typ[Invalid], cause, false
 	}
-	toSig := func(t Type) *Signature {
-		sig, _ := coreType(t).(*Signature)
-		return sig
-	}
 
 	orig := typ
 	switch typ := arrayPtrDeref(coreType(typ)).(type) {
@@ -1044,23 +1040,26 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 		if !buildcfg.Experiment.RangeFunc && allowVersion != nil && !allowVersion(go1_23) {
 			return bad("requires go1.23 or later")
 		}
-		assert(typ.Recv() == nil)
+		// check iterator arity
 		switch {
 		case typ.Params().Len() != 1:
 			return bad("func must be func(yield func(...) bool): wrong argument count")
-		case toSig(typ.Params().At(0).Type()) == nil:
-			return bad("func must be func(yield func(...) bool): argument is not func")
 		case typ.Results().Len() != 0:
 			return bad("func must be func(yield func(...) bool): unexpected results")
 		}
-		cb := toSig(typ.Params().At(0).Type())
-		assert(cb.Recv() == nil)
+		assert(typ.Recv() == nil)
+		// check iterator argument type
+		cb, _ := coreType(typ.Params().At(0).Type()).(*Signature)
 		switch {
+		case cb == nil:
+			return bad("func must be func(yield func(...) bool): argument is not func")
 		case cb.Params().Len() > 2:
 			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
 		case cb.Results().Len() != 1 || !isBoolean(cb.Results().At(0).Type()):
 			return bad("func must be func(yield func(...) bool): yield func does not return bool")
 		}
+		assert(cb.Recv() == nil)
+		// determine key and value types, if any
 		if cb.Params().Len() >= 1 {
 			key = cb.Params().At(0).Type()
 		}

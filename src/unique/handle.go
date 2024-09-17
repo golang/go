@@ -10,8 +10,10 @@ import (
 	"internal/weak"
 	"runtime"
 	"sync"
-	_ "unsafe"
+	"unsafe"
 )
+
+var zero uintptr
 
 // Handle is a globally unique identity for some value of type T.
 //
@@ -32,6 +34,9 @@ func (h Handle[T]) Value() T {
 func Make[T comparable](value T) Handle[T] {
 	// Find the map for type T.
 	typ := abi.TypeFor[T]()
+	if typ.Size() == 0 {
+		return Handle[T]{(*T)(unsafe.Pointer(&zero))}
+	}
 	ma, ok := uniqueMaps.Load(typ)
 	if !ok {
 		// This is a good time to initialize cleanup, since we must go through

@@ -31,6 +31,7 @@ type testStruct struct {
 	z float64
 	b string
 }
+type testZeroSize struct{}
 
 func TestHandle(t *testing.T) {
 	testHandle(t, testString("foo"))
@@ -45,6 +46,7 @@ func TestHandle(t *testing.T) {
 	})
 	testHandle(t, testStruct{0.5, "184"})
 	testHandle(t, testEface("hello"))
+	testHandle(t, testZeroSize(struct{}{}))
 }
 
 func testHandle[T comparable](t *testing.T, value T) {
@@ -65,14 +67,18 @@ func testHandle[T comparable](t *testing.T, value T) {
 			t.Error("v0 != v1")
 		}
 
-		drainMaps(t)
+		drainMaps[T](t)
 		checkMapsFor(t, value)
 	})
 }
 
 // drainMaps ensures that the internal maps are drained.
-func drainMaps(t *testing.T) {
+func drainMaps[T comparable](t *testing.T) {
 	t.Helper()
+
+	if unsafe.Sizeof(*(new(T))) == 0 {
+		return // zero-size types are not inserted.
+	}
 
 	wait := make(chan struct{}, 1)
 
