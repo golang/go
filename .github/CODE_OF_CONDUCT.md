@@ -1,5 +1,5 @@
 www.linkedin.com/in/public-personalhttps://www.google.com/finance/?authuser=0
-digitalofficef003@gmail.comwww.linkedin.com/in/ public-personal
+digitalofficef003@gmail.comwww.linkedin.com/in/public-personal
 https://drive.google.com/drive/folders/1Ir-8PitMJHVQvXJFAfzlGCOgV755lSu9www.linkedin.com/in/ public-personal
 <?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
 	xmlns:content="http://purl.org/rss/1.0/modules/content/"
