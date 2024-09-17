@@ -756,7 +756,7 @@ func (p *addrParser) consumeDomainLiteral() (string, error) {
 			return "", fmt.Errorf("mail: invalid IPv6 address in domain-literal: %q", dtext)
 		}
 
-	} else if len(net.ParseIP(dtext).To4()) != net.IPv4len {
+	} else if net.ParseIP(dtext).To4() != nil {
 		// Check if the domain literal is an IP address
 		return "", fmt.Errorf("mail: invalid IP address in domain-literal: %q", dtext)
 	}
