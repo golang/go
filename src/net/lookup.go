@@ -11,6 +11,7 @@ import (
 	"internal/singleflight"
 	"net/netip"
 	"sync"
+	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
@@ -164,8 +165,10 @@ type Resolver struct {
 	// The return values are ([]IPAddr, error).
 	lookupGroup singleflight.Group
 
+	// Timeout is the time to spend Resolving
+	Timeout time.Duration
+
 	// TODO(bradfitz): optional interface impl override hook
-	// TODO(bradfitz): Timeout time.Duration?
 }
 
 func (r *Resolver) preferGo() bool     { return r != nil && r.PreferGo }
@@ -678,12 +681,21 @@ func (r *Resolver) dial(ctx context.Context, network, server string) (Conn, erro
 	// call back here to translate it. The DNS config parser has
 	// already checked that all the cfg.servers are IP
 	// addresses, which Dial will use without a DNS lookup.
+	if r.Timeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, r.Timeout)
+		defer cancel()
+	}
+	
 	var c Conn
 	var err error
 	if r != nil && r.Dial != nil {
 		c, err = r.Dial(ctx, network, server)
 	} else {
 		var d Dialer
+		if r.Timeout > 0 {
+			d.Timeout = r.Timeout
+		}
 		c, err = d.DialContext(ctx, network, server)
 	}
 	if err != nil {
