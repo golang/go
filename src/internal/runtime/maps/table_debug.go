@@ -35,6 +35,9 @@ func (t *table) checkInvariants(typ *abi.SwissMapType) {
 				used++
 
 				key := g.key(typ, j)
+				if typ.IndirectKey() {
+					key = *((*unsafe.Pointer)(key))
+				}
 
 				// Can't lookup keys that don't compare equal
 				// to themselves (e.g., NaN).

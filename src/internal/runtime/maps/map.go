@@ -442,8 +442,15 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
 		}
 
 		slotKey := g.key(typ, i)
+		if typ.IndirectKey() {
+			slotKey = *((*unsafe.Pointer)(slotKey))
+		}
 		if typ.Key.Equal(key, slotKey) {
-			return slotKey, g.elem(typ, i), true
+			slotElem := g.elem(typ, i)
+			if typ.IndirectElem() {
+				slotElem = *((*unsafe.Pointer)(slotElem))
+			}
+			return slotKey, slotElem, true
 		}
 	}
 
@@ -521,12 +528,18 @@ func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Point
 		i := match.first()
 
 		slotKey := g.key(typ, i)
+		if typ.IndirectKey() {
+			slotKey = *((*unsafe.Pointer)(slotKey))
+		}
 		if typ.Key.Equal(key, slotKey) {
 			if typ.NeedKeyUpdate() {
 				typedmemmove(typ.Key, slotKey, key)
 			}
 
 			slotElem := g.elem(typ, i)
+			if typ.IndirectElem() {
+				slotElem = *((*unsafe.Pointer)(slotElem))
+			}
 
 			return slotElem
 		}
@@ -543,8 +556,19 @@ func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Point
 	i := match.first()
 
 	slotKey := g.key(typ, i)
+	if typ.IndirectKey() {
+		kmem := newobject(typ.Key)
+		*(*unsafe.Pointer)(slotKey) = kmem
+		slotKey = kmem
+	}
 	typedmemmove(typ.Key, slotKey, key)
+
 	slotElem := g.elem(typ, i)
+	if typ.IndirectElem() {
+		emem := newobject(typ.Elem)
+		*(*unsafe.Pointer)(slotElem) = emem
+		slotElem = emem
+	}
 
 	g.ctrls().set(i, ctrl(h2(hash)))
 	m.used++
@@ -574,9 +598,23 @@ func (m *Map) growToTable(typ *abi.SwissMapType) {
 			// Empty
 			continue
 		}
+
 		key := g.key(typ, i)
+		if typ.IndirectKey() {
+			key = *((*unsafe.Pointer)(key))
+		}
+
 		elem := g.elem(typ, i)
+		if typ.IndirectElem() {
+			elem = *((*unsafe.Pointer)(elem))
+		}
+
 		hash := typ.Hasher(key, m.seed)
+
+		// TODO(prattmic): For indirect key/elem, this is
+		// allocating new objects for key/elem. That is
+		// unnecessary; the new table could simply point to the
+		// existing object.
 		slotElem := tab.uncheckedPutSlot(typ, hash, key)
 		typedmemmove(typ.Elem, slotElem, elem)
 		tab.used++
@@ -631,11 +669,33 @@ func (m *Map) deleteSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointe
 	for match != 0 {
 		i := match.first()
 		slotKey := g.key(typ, i)
+		origSlotKey := slotKey
+		if typ.IndirectKey() {
+			slotKey = *((*unsafe.Pointer)(slotKey))
+		}
 		if typ.Key.Equal(key, slotKey) {
 			m.used--
 
-			typedmemclr(typ.Key, slotKey)
-			typedmemclr(typ.Elem, g.elem(typ, i))
+			if typ.IndirectKey() {
+				// Clearing the pointer is sufficient.
+				*(*unsafe.Pointer)(origSlotKey) = nil
+			} else if typ.Key.Pointers() {
+				// Only bother clearing if there are pointers.
+				typedmemclr(typ.Key, slotKey)
+			}
+
+			slotElem := g.elem(typ, i)
+			if typ.IndirectElem() {
+				// Clearing the pointer is sufficient.
+				*(*unsafe.Pointer)(slotElem) = nil
+			} else {
+				// Unlike keys, always clear the elem (even if
+				// it contains no pointers), as compound
+				// assignment operations depend on cleared
+				// deleted values. See
+				// https://go.dev/issue/25936.
+				typedmemclr(typ.Elem, slotElem)
+			}
 
 			// We only have 1 group, so it is OK to immediately
 			// reuse deleted slots.

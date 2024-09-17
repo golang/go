@@ -34,9 +34,21 @@ func SwissMapGroupType(t *types.Type) *types.Type {
 	//         elem elemType
 	//     }
 	// }
+
+	keytype := t.Key()
+	elemtype := t.Elem()
+	types.CalcSize(keytype)
+	types.CalcSize(elemtype)
+	if keytype.Size() > abi.SwissMapMaxKeyBytes {
+		keytype = types.NewPtr(keytype)
+	}
+	if elemtype.Size() > abi.SwissMapMaxElemBytes {
+		elemtype = types.NewPtr(elemtype)
+	}
+
 	slotFields := []*types.Field{
-		makefield("key", t.Key()),
-		makefield("elem", t.Elem()),
+		makefield("key", keytype),
+		makefield("elem", elemtype),
 	}
 	slot := types.NewStruct(slotFields)
 	slot.SetNoalg(true)
@@ -63,6 +75,12 @@ func SwissMapGroupType(t *types.Type) *types.Type {
 		// size 0, but group should still reserve a word of padding at
 		// the end to ensure pointers are valid.
 		base.Fatalf("bad group size for %v", t)
+	}
+	if t.Key().Size() > abi.SwissMapMaxKeyBytes && !keytype.IsPtr() {
+		base.Fatalf("key indirect incorrect for %v", t)
+	}
+	if t.Elem().Size() > abi.SwissMapMaxElemBytes && !elemtype.IsPtr() {
+		base.Fatalf("elem indirect incorrect for %v", t)
 	}
 
 	t.MapType().SwissGroup = group
@@ -268,6 +286,12 @@ func writeSwissMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
 	}
 	if hashMightPanic(t.Key()) {
 		flags |= abi.SwissMapHashMightPanic
+	}
+	if t.Key().Size() > abi.SwissMapMaxKeyBytes {
+		flags |= abi.SwissMapIndirectKey
+	}
+	if t.Elem().Size() > abi.SwissMapMaxKeyBytes {
+		flags |= abi.SwissMapIndirectElem
 	}
 	c.Field("Flags").WriteUint32(flags)
 

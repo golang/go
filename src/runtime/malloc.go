@@ -1714,6 +1714,11 @@ func newobject(typ *_type) unsafe.Pointer {
 	return mallocgc(typ.Size_, typ, true)
 }
 
+//go:linkname maps_newobject internal/runtime/maps.newobject
+func maps_newobject(typ *_type) unsafe.Pointer {
+	return newobject(typ)
+}
+
 // reflect_unsafe_New is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
