@@ -5,7 +5,7 @@
 	xmlns:atom="http://www.w3.org/2005/Atom"
 	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
 	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
-	>https://ereg.dbd.go.th/MemberToMemberLvZero/nonmemberpages/newMemberLevelZero.xhtml
+	>https://ereg.dbd.go.th/MemberToMemberLvZero/nonmemberpages/newMemberLevelZero.xhtmlwww.linkedin.com/in/ public-personal
 
 <channel>
 	<title>กระทรวงมหาดไทย</title>
