@@ -526,22 +526,22 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 	if !deadline.IsZero() {
 		testHookStepTime()
 		if d, ok := ctx.Deadline(); !ok || deadline.Before(d) {
-			subCtx, cancel := context.WithDeadline(ctx, deadline)
+			var cancel func()
+			ctx, cancel = context.WithDeadline(ctx, deadline)
 			defer cancel()
-			ctx = subCtx
 		}
 	}
 	if oldCancel := d.Cancel; oldCancel != nil {
-		subCtx, cancel := context.WithCancel(ctx)
+		var cancel func()
+		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
 		go func() {
 			select {
 			case <-oldCancel:
 				cancel()
-			case <-subCtx.Done():
+			case <-ctx.Done():
 			}
 		}()
-		ctx = subCtx
 	}
 
 	// Shadow the nettrace (if any) during resolve so Connect events don't fire for DNS lookups.
