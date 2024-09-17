@@ -439,16 +439,26 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if val.Type().CanSeq() {
 			if len(r.Pipe.Decl) > 1 {
 				s.errorf("can't use %s iterate over more than one variable", val)
-				return
+				break
 			}
+			run := false
 			for v := range val.Seq() {
+				run = true
 				oneIteration(v, reflect.Value{}, true)
+			}
+			if !run {
+				break
 			}
 			return
 		}
 		if val.Type().CanSeq2() {
+			run := false
 			for i, v := range val.Seq2() {
+				run = true
 				oneIteration(i, v, true)
+			}
+			if !run {
+				break
 			}
 			return
 		}
