@@ -574,7 +574,7 @@ Error:
 			if !isTypeParam(x.typ) {
 				errOp = y
 			}
-			cause = check.sprintf("type parameter %s is not comparable with %s", errOp.typ, op)
+			cause = check.sprintf("type parameter %s cannot use operator %s", errOp.typ, op)
 		} else {
 			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
 		}
