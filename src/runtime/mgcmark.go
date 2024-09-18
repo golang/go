@@ -1695,6 +1695,7 @@ func gcmarknewobject(span *mspan, obj uintptr) {
 		throw("gcmarknewobject called while doing checkmark")
 	}
 	if gcphase == _GCmarktermination {
+		// Check this here instead of on the hot path.
 		throw("mallocgc called with gcphase == _GCmarktermination")
 	}
 
