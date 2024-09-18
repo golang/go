@@ -2133,7 +2133,7 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 
 	flags := hostlinkArchArgs(arch)
 
-	moreFlags := trimLinkerArgv(append(flagExtldflags, ldflag...))
+	moreFlags := trimLinkerArgv(append(ldflag, flagExtldflags...))
 	flags = append(flags, moreFlags...)
 
 	if altLinker != "" {
