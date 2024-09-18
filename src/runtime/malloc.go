@@ -427,8 +427,15 @@ func mallocinit() {
 	// Check that the minimum size (exclusive) for a malloc header is also
 	// a size class boundary. This is important to making sure checks align
 	// across different parts of the runtime.
+	//
+	// While we're here, also check to make sure all these size classes'
+	// span sizes are one page. Some code relies on this.
 	minSizeForMallocHeaderIsSizeClass := false
+	sizeClassesUpToMinSizeForMallocHeaderAreOnePage := true
 	for i := 0; i < len(class_to_size); i++ {
+		if class_to_allocnpages[i] > 1 {
+			sizeClassesUpToMinSizeForMallocHeaderAreOnePage = false
+		}
 		if minSizeForMallocHeader == uintptr(class_to_size[i]) {
 			minSizeForMallocHeaderIsSizeClass = true
 			break
@@ -436,6 +443,9 @@ func mallocinit() {
 	}
 	if !minSizeForMallocHeaderIsSizeClass {
 		throw("min size of malloc header is not a size class boundary")
+	}
+	if !sizeClassesUpToMinSizeForMallocHeaderAreOnePage {
+		throw("expected all size classes up to min size for malloc header to fit in one-page spans")
 	}
 	// Check that the pointer bitmap for all small sizes without a malloc header
 	// fits in a word.

@@ -642,8 +642,7 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 	// The objects here are always really small, so a single load is sufficient.
 	src0 := readUintptr(typ.GCData)
 
-	// Create repetitions of the bitmap if we have a small array.
-	bits := span.elemsize / goarch.PtrSize
+	// Create repetitions of the bitmap if we have a small slice backing store.
 	scanSize = typ.PtrBytes
 	src := src0
 	switch typ.Size_ {
@@ -658,19 +657,23 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 
 	// Since we're never writing more than one uintptr's worth of bits, we're either going
 	// to do one or two writes.
-	dst := span.heapBits()
+	dst := unsafe.Pointer(span.base() + pageSize - pageSize/goarch.PtrSize/8)
 	o := (x - span.base()) / goarch.PtrSize
 	i := o / ptrBits
 	j := o % ptrBits
+	bits := span.elemsize / goarch.PtrSize
 	if j+bits > ptrBits {
 		// Two writes.
 		bits0 := ptrBits - j
 		bits1 := bits - bits0
-		dst[i+0] = dst[i+0]&(^uintptr(0)>>bits0) | (src << j)
-		dst[i+1] = dst[i+1]&^((1<<bits1)-1) | (src >> bits0)
+		dst0 := (*uintptr)(add(dst, (i+0)*goarch.PtrSize))
+		dst1 := (*uintptr)(add(dst, (i+1)*goarch.PtrSize))
+		*dst0 = (*dst0)&(^uintptr(0)>>bits0) | (src << j)
+		*dst1 = (*dst1)&^((1<<bits1)-1) | (src >> bits0)
 	} else {
 		// One write.
-		dst[i] = (dst[i] &^ (((1 << bits) - 1) << j)) | (src << j)
+		dst := (*uintptr)(add(dst, i*goarch.PtrSize))
+		*dst = (*dst)&^(((1<<bits)-1)<<j) | (src << j)
 	}
 
 	const doubleCheck = false
