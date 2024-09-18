@@ -252,7 +252,7 @@ func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
 	// visible to the background sweeper.
 	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
 	s.limit = s.base() + size
-	s.initHeapBits(false)
+	s.initHeapBits()
 	return s
 }
 

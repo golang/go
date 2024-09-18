@@ -535,12 +535,13 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr, typ *abi.Type) {
 }
 
 // initHeapBits initializes the heap bitmap for a span.
-//
-// TODO(mknyszek): This should set the heap bits for single pointer
-// allocations eagerly to avoid calling heapSetType at allocation time,
-// just to write one bit.
-func (s *mspan) initHeapBits(forceClear bool) {
-	if (!s.spanclass.noscan() && heapBitsInSpan(s.elemsize)) || s.isUserArenaChunk {
+func (s *mspan) initHeapBits() {
+	if goarch.PtrSize == 8 && !s.spanclass.noscan() && s.spanclass.sizeclass() == 1 {
+		b := s.heapBits()
+		for i := range b {
+			b[i] = ^uintptr(0)
+		}
+	} else if (!s.spanclass.noscan() && heapBitsInSpan(s.elemsize)) || s.isUserArenaChunk {
 		b := s.heapBits()
 		clear(b)
 	}
@@ -639,16 +640,20 @@ func (span *mspan) heapBitsSmallForAddr(addr uintptr) uintptr {
 //
 //go:nosplit
 func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize uintptr) {
+	if goarch.PtrSize == 8 && dataSize == goarch.PtrSize {
+		// Already set by initHeapBits.
+		return
+	}
+
 	// The objects here are always really small, so a single load is sufficient.
 	src0 := readUintptr(typ.GCData)
 
 	// Create repetitions of the bitmap if we have a small slice backing store.
 	scanSize = typ.PtrBytes
 	src := src0
-	switch typ.Size_ {
-	case goarch.PtrSize:
+	if typ.Size_ == goarch.PtrSize {
 		src = (1 << (dataSize / goarch.PtrSize)) - 1
-	default:
+	} else {
 		for i := typ.Size_; i < dataSize; i += typ.Size_ {
 			src |= src0 << (i / goarch.PtrSize)
 			scanSize += typ.Size_

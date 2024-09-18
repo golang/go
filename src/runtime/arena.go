@@ -1088,7 +1088,7 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 
 	// This must clear the entire heap bitmap so that it's safe
 	// to allocate noscan data without writing anything out.
-	s.initHeapBits(true)
+	s.initHeapBits()
 
 	// Clear the span preemptively. It's an arena chunk, so let's assume
 	// everything is going to be used.
