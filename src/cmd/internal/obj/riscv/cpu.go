@@ -35,6 +35,8 @@ import (
 	"cmd/internal/obj"
 )
 
+var CSRs map[uint16]string = csrs
+
 //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p riscv
 
 const (
@@ -1315,9 +1317,10 @@ type SpecialOperand int
 
 const (
 	SPOP_BEGIN SpecialOperand = obj.SpecialOperandRISCVBase
+	SPOP_RVV_BEGIN
 
 	// Vector mask policy.
-	SPOP_MA SpecialOperand = obj.SpecialOperandRISCVBase + iota - 1
+	SPOP_MA SpecialOperand = obj.SpecialOperandRISCVBase + iota - 2
 	SPOP_MU
 
 	// Vector tail policy.
@@ -1338,8 +1341,13 @@ const (
 	SPOP_E16
 	SPOP_E32
 	SPOP_E64
+	SPOP_RVV_END
 
-	SPOP_END
+	// CSR names.  4096 special operands are reserved for RISC-V CSR names.
+	SPOP_CSR_BEGIN = SPOP_RVV_END
+	SPOP_CSR_END   = SPOP_CSR_BEGIN + 4096
+
+	SPOP_END = SPOP_CSR_END + 1
 )
 
 var specialOperands = map[SpecialOperand]struct {
@@ -1367,17 +1375,33 @@ var specialOperands = map[SpecialOperand]struct {
 }
 
 func (so SpecialOperand) encode() uint32 {
-	op, ok := specialOperands[so]
-	if ok {
-		return op.encoding
+	switch {
+	case so >= SPOP_RVV_BEGIN && so < SPOP_RVV_END:
+		op, ok := specialOperands[so]
+		if ok {
+			return op.encoding
+		}
+	case so >= SPOP_CSR_BEGIN && so < SPOP_CSR_END:
+		csrNum := uint16(so - SPOP_CSR_BEGIN)
+		if _, ok := csrs[csrNum]; ok {
+			return uint32(csrNum)
+		}
 	}
 	return 0
 }
 
+// String returns the textual representation of a SpecialOperand.
 func (so SpecialOperand) String() string {
-	op, ok := specialOperands[so]
-	if ok {
-		return op.name
+	switch {
+	case so >= SPOP_RVV_BEGIN && so < SPOP_RVV_END:
+		op, ok := specialOperands[so]
+		if ok {
+			return op.name
+		}
+	case so >= SPOP_CSR_BEGIN && so < SPOP_CSR_END:
+		if csrName, ok := csrs[uint16(so-SPOP_CSR_BEGIN)]; ok {
+			return csrName
+		}
 	}
 	return ""
 }

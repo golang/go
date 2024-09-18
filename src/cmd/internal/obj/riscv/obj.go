@@ -1920,7 +1920,12 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ASD & obj.AMask: {enc: sIEncoding},
 
 	// 7.1: CSR Instructions
-	ACSRRS & obj.AMask: {enc: iIIEncoding},
+	ACSRRC & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRCI},
+	ACSRRCI & obj.AMask: {enc: iIIEncoding},
+	ACSRRS & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRSI},
+	ACSRRSI & obj.AMask: {enc: iIIEncoding},
+	ACSRRW & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRWI},
+	ACSRRWI & obj.AMask: {enc: iIIEncoding},
 
 	// 13.1: Multiplication Operations
 	AMUL & obj.AMask:    {enc: rIIIEncoding, ternary: true},
@@ -3326,6 +3331,43 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		case ARDINSTRET:
 			ins.imm = -1022
 		}
+
+	case ACSRRC, ACSRRCI, ACSRRS, ACSRRSI, ACSRRW, ACSRRWI:
+		if len(p.RestArgs) == 0 || p.RestArgs[0].Type != obj.TYPE_SPECIAL {
+			p.Ctxt.Diag("%v: missing CSR name", p)
+			return nil
+		}
+		if p.From.Type == obj.TYPE_CONST {
+			imm := p.From.Offset
+			if imm < 0 || imm >= 32 {
+				p.Ctxt.Diag("%v: immediate out of range 0 to 31", p)
+				return nil
+			}
+			ins.rs1 = uint32(imm) + REG_ZERO
+		} else if p.From.Type == obj.TYPE_REG {
+			ins.rs1 = uint32(p.From.Reg)
+		} else {
+			p.Ctxt.Diag("%v: integer register or immediate expected for 1st operand", p)
+			return nil
+		}
+		if p.To.Type != obj.TYPE_REG {
+			p.Ctxt.Diag("%v: needs an integer register output", p)
+			return nil
+		}
+		csrNum := SpecialOperand(p.RestArgs[0].Offset).encode()
+		if csrNum >= 1<<12 {
+			p.Ctxt.Diag("%v: unknown CSR", p)
+			return nil
+		}
+		if _, ok := CSRs[uint16(csrNum)]; !ok {
+			p.Ctxt.Diag("%v: unknown CSR", p)
+			return nil
+		}
+		ins.imm = int64(csrNum)
+		if ins.imm > 2047 {
+			ins.imm -= 4096
+		}
+		ins.rs2 = obj.REG_NONE
 
 	case AFENCE:
 		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
