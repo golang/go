@@ -810,8 +810,8 @@ func (prof *mLockProfile) captureStack() {
 
 	var nstk int
 	gp := getg()
-	sp := getcallersp()
-	pc := getcallerpc()
+	sp := sys.GetCallerSP()
+	pc := sys.GetCallerPC()
 	systemstack(func() {
 		var u unwinder
 		u.initAt(pc, sp, 0, gp, unwindSilentErrors|unwindJumpStack)
@@ -1080,7 +1080,7 @@ func copyMemProfileRecord(dst *MemProfileRecord, src profilerecord.MemProfileRec
 	dst.AllocObjects = src.AllocObjects
 	dst.FreeObjects = src.FreeObjects
 	if raceenabled {
-		racewriterangepc(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0), getcallerpc(), abi.FuncPCABIInternal(MemProfile))
+		racewriterangepc(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0), sys.GetCallerPC(), abi.FuncPCABIInternal(MemProfile))
 	}
 	if msanenabled {
 		msanwrite(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0))
@@ -1193,7 +1193,7 @@ func copyBlockProfileRecord(dst *BlockProfileRecord, src profilerecord.BlockProf
 	dst.Count = src.Count
 	dst.Cycles = src.Cycles
 	if raceenabled {
-		racewriterangepc(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0), getcallerpc(), abi.FuncPCABIInternal(BlockProfile))
+		racewriterangepc(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0), sys.GetCallerPC(), abi.FuncPCABIInternal(BlockProfile))
 	}
 	if msanenabled {
 		msanwrite(unsafe.Pointer(&dst.Stack0[0]), unsafe.Sizeof(dst.Stack0))
@@ -1401,8 +1401,8 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels 
 	}
 
 	// Save current goroutine.
-	sp := getcallersp()
-	pc := getcallerpc()
+	sp := sys.GetCallerSP()
+	pc := sys.GetCallerPC()
 	systemstack(func() {
 		saveg(pc, sp, ourg, &p[0], pcbuf)
 	})
@@ -1597,8 +1597,8 @@ func goroutineProfileWithLabelsSync(p []profilerecord.StackRecord, labels []unsa
 		r, lbl := p, labels
 
 		// Save current goroutine.
-		sp := getcallersp()
-		pc := getcallerpc()
+		sp := sys.GetCallerSP()
+		pc := sys.GetCallerPC()
 		systemstack(func() {
 			saveg(pc, sp, gp, &r[0], pcbuf)
 		})
@@ -1699,8 +1699,8 @@ func Stack(buf []byte, all bool) int {
 	n := 0
 	if len(buf) > 0 {
 		gp := getg()
-		sp := getcallersp()
-		pc := getcallerpc()
+		sp := sys.GetCallerSP()
+		pc := sys.GetCallerPC()
 		systemstack(func() {
 			g0 := getg()
 			// Force traceback=1 to override GOTRACEBACK setting,

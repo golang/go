@@ -43,7 +43,7 @@
 // func runtime·raceread(addr uintptr)
 // Called from instrumented code.
 // Defined as ABIInternal so as to avoid introducing a wrapper,
-// which would render runtime.getcallerpc ineffective.
+// which would render sys.GetCallerPC ineffective.
 TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
 	MOVQ	AX, RARG1
 	MOVQ	(SP), RARG2
@@ -69,7 +69,7 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 // func runtime·racewrite(addr uintptr)
 // Called from instrumented code.
 // Defined as ABIInternal so as to avoid introducing a wrapper,
-// which would render runtime.getcallerpc ineffective.
+// which would render sys.GetCallerPC ineffective.
 TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
 	MOVQ	AX, RARG1
 	MOVQ	(SP), RARG2
@@ -95,7 +95,7 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 // func runtime·racereadrange(addr, size uintptr)
 // Called from instrumented code.
 // Defined as ABIInternal so as to avoid introducing a wrapper,
-// which would render runtime.getcallerpc ineffective.
+// which would render sys.GetCallerPC ineffective.
 TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
 	MOVQ	AX, RARG1
 	MOVQ	BX, RARG2
@@ -122,7 +122,7 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 // func runtime·racewriterange(addr, size uintptr)
 // Called from instrumented code.
 // Defined as ABIInternal so as to avoid introducing a wrapper,
-// which would render runtime.getcallerpc ineffective.
+// which would render sys.GetCallerPC ineffective.
 TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
 	MOVQ	AX, RARG1
 	MOVQ	BX, RARG2

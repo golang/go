@@ -1,19 +1,19 @@
-// errorcheck -0 -+ -p=runtime -m
+// errorcheck -0 -+ -p=internal/runtime/sys -m
 
-// Copyright 2019 The Go Authors. All rights reserved.
+// Copyright 2024 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package runtime
+package sys
 
-// A function that calls runtime.getcallerpc or runtime.getcallersp()
+// A function that calls sys.GetCallerPC or sys.GetCallerSP
 // cannot be inlined, no matter how small it is.
 
-func getcallerpc() uintptr
-func getcallersp() uintptr
+func GetCallerPC() uintptr
+func GetCallerSP() uintptr
 
 func pc() uintptr {
-	return getcallerpc() + 1
+	return GetCallerPC() + 1
 }
 
 func cpc() uintptr { // ERROR "can inline cpc"
@@ -21,7 +21,7 @@ func cpc() uintptr { // ERROR "can inline cpc"
 }
 
 func sp() uintptr {
-	return getcallersp() + 3
+	return GetCallerSP() + 3
 }
 
 func csp() uintptr { // ERROR "can inline csp"

@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/bytealg"
+	"internal/runtime/sys"
 )
 
 // The Error interface identifies a run time error.
@@ -329,7 +330,7 @@ func printindented(s string) {
 //
 // It is called from the generated wrapper code.
 func panicwrap() {
-	pc := getcallerpc()
+	pc := sys.GetCallerPC()
 	name := funcNameForPrint(funcname(findfunc(pc)))
 	// name is something like "main.(*T).F".
 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").

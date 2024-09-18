@@ -274,7 +274,7 @@ func main() {
 			// Using the caller's SP unwinds this frame and backs to
 			// goexit. The -16 is: 8 for goexit's (fake) return PC,
 			// and pause's epilogue pops 8.
-			pause(getcallersp() - 16) // should not return
+			pause(sys.GetCallerSP() - 16) // should not return
 			panic("unreachable")
 		}
 		return
@@ -1811,7 +1811,7 @@ func mstart0() {
 	mexit(osStack)
 }
 
-// The go:noinline is to guarantee the getcallerpc/getcallersp below are safe,
+// The go:noinline is to guarantee the sys.GetCallerPC/sys.GetCallerSP below are safe,
 // so that we can set up g0.sched to return to the call of mstart1 above.
 //
 //go:noinline
@@ -1829,8 +1829,8 @@ func mstart1() {
 	// And goexit0 does a gogo that needs to return from mstart1
 	// and let mstart0 exit the thread.
 	gp.sched.g = guintptr(unsafe.Pointer(gp))
-	gp.sched.pc = getcallerpc()
-	gp.sched.sp = getcallersp()
+	gp.sched.pc = sys.GetCallerPC()
+	gp.sched.sp = sys.GetCallerSP()
 
 	asminit()
 	minit()
@@ -2329,7 +2329,7 @@ func needm(signal bool) {
 	// Install g (= m->g0) and set the stack bounds
 	// to match the current stack.
 	setg(mp.g0)
-	sp := getcallersp()
+	sp := sys.GetCallerSP()
 	callbackUpdateSystemStack(mp, sp, signal)
 
 	// Should mark we are already in Go now.
@@ -4496,7 +4496,7 @@ func entersyscall() {
 	// the stack. This results in exceeding the nosplit stack requirements
 	// on some platforms.
 	fp := getcallerfp()
-	reentersyscall(getcallerpc(), getcallersp(), fp)
+	reentersyscall(sys.GetCallerPC(), sys.GetCallerSP(), fp)
 }
 
 func entersyscall_sysmon() {
@@ -4561,8 +4561,8 @@ func entersyscallblock() {
 	gp.m.p.ptr().syscalltick++
 
 	// Leave SP around for GC and traceback.
-	pc := getcallerpc()
-	sp := getcallersp()
+	pc := sys.GetCallerPC()
+	sp := sys.GetCallerSP()
 	bp := getcallerfp()
 	save(pc, sp, bp)
 	gp.syscallsp = gp.sched.sp
@@ -4594,7 +4594,7 @@ func entersyscallblock() {
 	systemstack(entersyscallblock_handoff)
 
 	// Resave for traceback during blocked call.
-	save(getcallerpc(), getcallersp(), getcallerfp())
+	save(sys.GetCallerPC(), sys.GetCallerSP(), getcallerfp())
 
 	gp.m.locks--
 }
@@ -4632,7 +4632,7 @@ func exitsyscall() {
 	gp := getg()
 
 	gp.m.locks++ // see comment in entersyscall
-	if getcallersp() > gp.syscallsp {
+	if sys.GetCallerSP() > gp.syscallsp {
 		throw("exitsyscall: syscall frame is no longer valid")
 	}
 
@@ -4984,7 +4984,7 @@ func malg(stacksize int32) *g {
 // The compiler turns a go statement into a call to this.
 func newproc(fn *funcval) {
 	gp := getg()
-	pc := getcallerpc()
+	pc := sys.GetCallerPC()
 	systemstack(func() {
 		newg := newproc1(fn, gp, pc, false, waitReasonZero)
 

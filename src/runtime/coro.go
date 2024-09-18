@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/runtime/sys"
+	"unsafe"
+)
 
 // A coro represents extra concurrency without extra parallelism,
 // as would be needed for a coroutine implementation.
@@ -39,7 +42,7 @@ type coro struct {
 func newcoro(f func(*coro)) *coro {
 	c := new(coro)
 	c.f = f
-	pc := getcallerpc()
+	pc := sys.GetCallerPC()
 	gp := getg()
 	systemstack(func() {
 		mp := gp.m
