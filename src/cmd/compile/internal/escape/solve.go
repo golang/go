@@ -318,9 +318,9 @@ func containsClosure(f, c *ir.Func) bool {
 		return false
 	}
 
-	// Closures within function Foo are named like "Foo.funcN..."
+	// Closures within function Foo are named like "Foo.funcN..." or "Foo-rangeN".
 	// TODO(mdempsky): Better way to recognize this.
 	fn := f.Sym().Name
 	cn := c.Sym().Name
-	return len(cn) > len(fn) && cn[:len(fn)] == fn && cn[len(fn)] == '.'
+	return len(cn) > len(fn) && cn[:len(fn)] == fn && (cn[len(fn)] == '.' || cn[len(fn)] == '-')
 }
