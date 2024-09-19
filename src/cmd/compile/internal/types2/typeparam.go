@@ -161,3 +161,11 @@ func (t *TypeParam) is(f func(*term) bool) bool {
 func (t *TypeParam) underIs(f func(Type) bool) bool {
 	return t.iface().typeSet().underIs(f)
 }
+
+// typeset is an iterator over the (type/underlying type) pairs of the
+// specific type terms of t's constraint.
+// If there are no specific terms, typeset calls yield with (nil, nil).
+// In any case, typeset is guaranteed to call yield at least once.
+func (t *TypeParam) typeset(yield func(t, u Type) bool) {
+	t.iface().typeSet().typeset(yield)
+}
