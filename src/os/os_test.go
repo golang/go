@@ -2639,11 +2639,6 @@ func TestPipeThreads(t *testing.T) {
 
 	threads := 100
 
-	// OpenBSD has a low default for max number of files.
-	if runtime.GOOS == "openbsd" {
-		threads = 50
-	}
-
 	r := make([]*File, threads)
 	w := make([]*File, threads)
 	for i := 0; i < threads; i++ {

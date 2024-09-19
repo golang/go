@@ -2179,11 +2179,14 @@ func TestPrefixString(t *testing.T) {
 	}
 }
 
-func TestInvalidAddrPortString(t *testing.T) {
+func TestAddrPortString(t *testing.T) {
 	tests := []struct {
 		ipp  AddrPort
 		want string
 	}{
+		{MustParseAddrPort("127.0.0.1:80"), "127.0.0.1:80"},
+		{MustParseAddrPort("[0000::0]:8080"), "[::]:8080"},
+		{MustParseAddrPort("[FFFF::1]:8080"), "[ffff::1]:8080"},
 		{AddrPort{}, "invalid AddrPort"},
 		{AddrPortFrom(Addr{}, 80), "invalid AddrPort"},
 	}

@@ -423,7 +423,7 @@ func mapdelete(m map[string]string, k string) { // ERROR "m does not escape" "le
 }
 
 // Unfortunate: v doesn't need to leak.
-func setiterkey1(v reflect.Value, it *reflect.MapIter) { // ERROR "leaking param: v$" "it does not escape"
+func setiterkey1(v reflect.Value, it *reflect.MapIter) { // ERROR "leaking param: v$" "leaking param content: it$"
 	v.SetIterKey(it)
 }
 
@@ -434,7 +434,7 @@ func setiterkey2(v reflect.Value, m map[string]string) { // ERROR "leaking param
 }
 
 // Unfortunate: v doesn't need to leak.
-func setitervalue1(v reflect.Value, it *reflect.MapIter) { // ERROR "leaking param: v$" "it does not escape"
+func setitervalue1(v reflect.Value, it *reflect.MapIter) { // ERROR "leaking param: v$" "leaking param content: it$"
 	v.SetIterValue(it)
 }
 

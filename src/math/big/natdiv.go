@@ -642,15 +642,14 @@ func (q nat) divBasic(u, v nat) {
 	vn1 := v[n-1]
 	rec := reciprocalWord(vn1)
 
+	// Invent a leading 0 for u, for the first iteration.
+	// Invariant: ujn == u[j+n] in each iteration.
+	ujn := Word(0)
+
 	// Compute each digit of quotient.
 	for j := m; j >= 0; j-- {
 		// Compute the 2-by-1 guess q̂.
-		// The first iteration must invent a leading 0 for u.
 		qhat := Word(_M)
-		var ujn Word
-		if j+n < len(u) {
-			ujn = u[j+n]
-		}
 
 		// ujn ≤ vn1, or else q̂ would be more than one digit.
 		// For ujn == vn1, we set q̂ to the max digit M above.
@@ -698,6 +697,8 @@ func (q nat) divBasic(u, v nat) {
 			}
 			qhat--
 		}
+
+		ujn = u[j+n-1]
 
 		// Save quotient digit.
 		// Caller may know the top digit is zero and not leave room for it.

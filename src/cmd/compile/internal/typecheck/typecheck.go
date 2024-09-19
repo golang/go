@@ -490,7 +490,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n.SetType(types.Types[types.TUINTPTR])
 		return n
 
-	case ir.OGETCALLERPC, ir.OGETCALLERSP:
+	case ir.OGETCALLERSP:
 		n := n.(*ir.CallExpr)
 		if len(n.Args) != 0 {
 			base.FatalfAt(n.Pos(), "unexpected arguments: %v", n)

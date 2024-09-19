@@ -405,7 +405,7 @@ func sigFetchG(c *sigctxt) *g {
 			// bottom of the signal stack. Fetch from there.
 			// TODO: in efence mode, stack is sysAlloc'd, so this wouldn't
 			// work.
-			sp := getcallersp()
+			sp := sys.GetCallerSP()
 			s := spanOf(sp)
 			if s != nil && s.state.get() == mSpanManual && s.base() < sp && sp < s.limit {
 				gp := *(**g)(unsafe.Pointer(s.base()))
@@ -479,7 +479,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	var gsignalStack gsignalStack
 	setStack := adjustSignalStack(sig, gp.m, &gsignalStack)
 	if setStack {
-		gp.m.gsignal.stktopsp = getcallersp()
+		gp.m.gsignal.stktopsp = sys.GetCallerSP()
 	}
 
 	if gp.stackguard0 == stackFork {

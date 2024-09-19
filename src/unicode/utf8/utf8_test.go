@@ -438,6 +438,15 @@ func TestRuneCount(t *testing.T) {
 	}
 }
 
+func TestRuneCountNonASCIIAllocation(t *testing.T) {
+	if n := testing.AllocsPerRun(10, func() {
+		s := []byte("日本語日本語日本語日")
+		_ = RuneCount(s)
+	}); n > 0 {
+		t.Errorf("unexpected RuneCount allocation, got %v, want 0", n)
+	}
+}
+
 type RuneLenTest struct {
 	r    rune
 	size int

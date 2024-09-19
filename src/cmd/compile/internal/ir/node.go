@@ -303,8 +303,7 @@ const (
 	// arch-specific opcodes
 	OTAILCALL    // tail call to another function
 	OGETG        // runtime.getg() (read g pointer)
-	OGETCALLERPC // runtime.getcallerpc() (continuation PC in caller frame)
-	OGETCALLERSP // runtime.getcallersp() (stack pointer in caller frame)
+	OGETCALLERSP // internal/runtime/sys.GetCallerSP() (stack pointer in caller frame)
 
 	OEND
 )

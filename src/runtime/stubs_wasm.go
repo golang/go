@@ -11,6 +11,6 @@ package runtime
 // returning to the host, the SP is newsp+8.
 // If we want to set the SP such that when it calls back into Go, the
 // Go function appears to be called from pause's caller's caller, then
-// call pause with newsp = getcallersp()-16 (another 8 is the return
-// PC pushed to the stack).
+// call pause with newsp = internal/runtime/sys.GetCallerSP()-16 (another 8 is
+// the return PC pushed to the stack).
 func pause(newsp uintptr)

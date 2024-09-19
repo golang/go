@@ -58,10 +58,10 @@ func min[T interface{ ~int }](x, y T) T {
 }
 
 func _[T interface{~int | ~float32}](x, y T) bool { return x < y }
-func _[T any](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
-func _[T interface{~int | ~float32 | ~bool}](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
+func _[T any](x, y T) bool { return x /* ERROR "type parameter T cannot use operator <" */ < y }
+func _[T interface{~int | ~float32 | ~bool}](x, y T) bool { return x /* ERROR "type parameter T cannot use operator <" */ < y }
 
-func _[T C1[T]](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
+func _[T C1[T]](x, y T) bool { return x /* ERROR "type parameter T cannot use operator <" */ < y }
 func _[T C2[T]](x, y T) bool { return x < y }
 
 type C1[T any] interface{}

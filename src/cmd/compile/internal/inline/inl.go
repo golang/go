@@ -442,29 +442,39 @@ opSwitch:
 	// Call is okay if inlinable and we have the budget for the body.
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
-		// Functions that call runtime.getcaller{pc,sp} can not be inlined
-		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
-		//
-		// runtime.throw is a "cheap call" like panic in normal code.
 		var cheap bool
 		if n.Fun.Op() == ir.ONAME {
 			name := n.Fun.(*ir.Name)
 			if name.Class == ir.PFUNC {
-				switch fn := types.RuntimeSymName(name.Sym()); fn {
-				case "getcallerpc", "getcallersp":
-					v.reason = "call to " + fn
-					return true
-				case "throw":
-					v.budget -= inlineExtraThrowCost
-					break opSwitch
-				case "panicrangestate":
-					cheap = true
-				}
-				// Special case for internal/abi.NoEscape. It does just type
-				// conversions to appease the escape analysis, and doesn't
-				// generate code.
-				if s := name.Sym(); s.Name == "NoEscape" && s.Pkg.Path == "internal/abi" {
-					cheap = true
+				s := name.Sym()
+				fn := s.Name
+				switch s.Pkg.Path {
+				case "internal/abi":
+					switch fn {
+					case "NoEscape":
+						// Special case for internal/abi.NoEscape. It does just type
+						// conversions to appease the escape analysis, and doesn't
+						// generate code.
+						cheap = true
+					}
+				case "internal/runtime/sys":
+					switch fn {
+					case "GetCallerPC", "GetCallerSP":
+						// Functions that call GetCallerPC/SP can not be inlined
+						// because users expect the PC/SP of the logical caller,
+						// but GetCallerPC/SP returns the physical caller.
+						v.reason = "call to " + fn
+						return true
+					}
+				case "runtime":
+					switch fn {
+					case "throw":
+						// runtime.throw is a "cheap call" like panic in normal code.
+						v.budget -= inlineExtraThrowCost
+						break opSwitch
+					case "panicrangestate":
+						cheap = true
+					}
 				}
 			}
 			// Special case for coverage counter updates; although

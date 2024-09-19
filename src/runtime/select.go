@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -27,7 +28,7 @@ var (
 )
 
 func selectsetpc(pc *uintptr) {
-	*pc = getcallerpc()
+	*pc = sys.GetCallerPC()
 }
 
 func sellock(scases []scase, lockorder []uint16) {
