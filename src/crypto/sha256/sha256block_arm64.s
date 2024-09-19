@@ -11,12 +11,12 @@
 	SHA256H2	V9.S4, V8, V3 \
 	VMOV	V2.B16, V8.B16
 
-// func sha256block(h []uint32, p []byte, k []uint32)
-TEXT ·sha256block(SB),NOSPLIT,$0
-	MOVD	h_base+0(FP), R0                           // Hash value first address
-	MOVD	p_base+24(FP), R1                          // message first address
-	MOVD	k_base+48(FP), R2                          // k constants first address
-	MOVD	p_len+32(FP), R3                           // message length
+// func blockSHA2(dig *digest, p []byte)
+TEXT ·blockSHA2(SB),NOSPLIT,$0
+	MOVD	dig+0(FP), R0                              // Hash value first address
+	MOVD	p_base+8(FP), R1                           // message first address
+	MOVD	p_len+16(FP), R3                           // message length
+	MOVD	·_K+0(SB), R2                              // k constants first address
 	VLD1	(R0), [V0.S4, V1.S4]                       // load h(a,b,c,d,e,f,g,h)
 	VLD1.P	64(R2), [V16.S4, V17.S4, V18.S4, V19.S4]
 	VLD1.P	64(R2), [V20.S4, V21.S4, V22.S4, V23.S4]

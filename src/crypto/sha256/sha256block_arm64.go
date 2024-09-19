@@ -8,16 +8,13 @@ package sha256
 
 import "internal/cpu"
 
-var k = _K
-
 //go:noescape
-func sha256block(h []uint32, p []byte, k []uint32)
+func blockSHA2(dig *digest, p []byte)
 
 func block(dig *digest, p []byte) {
-	if !cpu.ARM64.HasSHA2 {
-		blockGeneric(dig, p)
+	if cpu.ARM64.HasSHA2 {
+		blockSHA2(dig, p)
 	} else {
-		h := dig.h[:]
-		sha256block(h, p, k)
+		blockGeneric(dig, p)
 	}
 }

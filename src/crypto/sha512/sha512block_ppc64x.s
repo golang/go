@@ -304,8 +304,8 @@ GLOBL ·kcon(SB), RODATA, $1312
 	VADDUDM		S0, h, h; \
 	VADDUDM		s1, xj, xj
 
-// func block(dig *digest, p []byte)
-TEXT ·block(SB),0,$0-32
+// func blockPOWER(dig *digest, p []byte)
+TEXT ·blockPOWER(SB),0,$0-32
 	MOVD	dig+0(FP), CTX
 	MOVD	p_base+8(FP), INP
 	MOVD	p_len+16(FP), LEN

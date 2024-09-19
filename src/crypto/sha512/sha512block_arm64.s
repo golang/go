@@ -40,8 +40,8 @@
 	VADD	i3.D2, i1.D2, i4.D2 \
 	SHA512H2	i0.D2, i1, i3
 
-// func blockAsm(dig *digest, p []byte)
-TEXT ·blockAsm(SB),NOSPLIT,$0
+// func blockSHA512(dig *digest, p []byte)
+TEXT ·blockSHA512(SB),NOSPLIT,$0
 	MOVD	dig+0(FP), R0
 	MOVD	p_base+8(FP), R1
 	MOVD	p_len+16(FP), R2

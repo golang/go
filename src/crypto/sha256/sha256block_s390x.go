@@ -8,4 +8,13 @@ package sha256
 
 import "internal/cpu"
 
-var useAsm = cpu.S390X.HasSHA256
+//go:noescape
+func blockS390X(dig *digest, p []byte)
+
+func block(dig *digest, p []byte) {
+	if cpu.S390X.HasSHA256 {
+		blockS390X(dig, p)
+	} else {
+		blockGeneric(dig, p)
+	}
+}
