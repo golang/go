@@ -20,15 +20,15 @@ func init() {
 }
 
 //go:noescape
-func blockAMD64(dig *digest, p []byte)
+func blockAMD64(dig *Digest, p []byte)
 
 //go:noescape
-func blockAVX2(dig *digest, p []byte)
+func blockAVX2(dig *Digest, p []byte)
 
 //go:noescape
-func blockSHANI(dig *digest, p []byte)
+func blockSHANI(dig *Digest, p []byte)
 
-func block(dig *digest, p []byte) {
+func block(dig *Digest, p []byte) {
 	if useSHANI {
 		blockSHANI(dig, p)
 	} else if useAVX2 {

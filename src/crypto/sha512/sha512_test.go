@@ -905,16 +905,41 @@ func TestAllocations(t *testing.T) {
 	if boring.Enabled {
 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
 	}
-	in := []byte("hello, world!")
-	out := make([]byte, 0, Size)
-	h := New()
-	n := int(testing.AllocsPerRun(10, func() {
-		h.Reset()
-		h.Write(in)
-		out = h.Sum(out[:0])
-	}))
-	if n > 0 {
-		t.Errorf("allocs = %d, want 0", n)
+	if n := testing.AllocsPerRun(10, func() {
+		in := []byte("hello, world!")
+		out := make([]byte, 0, Size)
+
+		{
+			h := New()
+			h.Reset()
+			h.Write(in)
+			out = h.Sum(out[:0])
+		}
+		{
+			h := New512_224()
+			h.Reset()
+			h.Write(in)
+			out = h.Sum(out[:0])
+		}
+		{
+			h := New512_256()
+			h.Reset()
+			h.Write(in)
+			out = h.Sum(out[:0])
+		}
+		{
+			h := New384()
+			h.Reset()
+			h.Write(in)
+			out = h.Sum(out[:0])
+		}
+
+		Sum512(in)
+		Sum384(in)
+		Sum512_224(in)
+		Sum512_256(in)
+	}); n > 0 {
+		t.Errorf("allocs = %v, want 0", n)
 	}
 }
 

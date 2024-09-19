@@ -11,7 +11,7 @@
 	SHA256H2	V9.S4, V8, V3 \
 	VMOV	V2.B16, V8.B16
 
-// func blockSHA2(dig *digest, p []byte)
+// func blockSHA2(dig *Digest, p []byte)
 TEXT ·blockSHA2(SB),NOSPLIT,$0
 	MOVD	dig+0(FP), R0                              // Hash value first address
 	MOVD	p_base+8(FP), R1                           // message first address

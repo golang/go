@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-// func blockAMD64(dig *digest, p []byte)
+// func blockAMD64(dig *Digest, p []byte)
 TEXT ·blockAMD64(SB), $264-32
 	MOVQ p_base+8(FP), SI
 	MOVQ p_len+16(FP), DX
@@ -3490,7 +3490,7 @@ loop:
 end:
 	RET
 
-// func blockAVX2(dig *digest, p []byte)
+// func blockAVX2(dig *Digest, p []byte)
 // Requires: AVX, AVX2, BMI2
 TEXT ·blockAVX2(SB), $536-32
 	MOVQ dig+0(FP), SI
@@ -4772,7 +4772,7 @@ DATA shuff_DC00<>+16(SB)/8, $0xffffffffffffffff
 DATA shuff_DC00<>+24(SB)/8, $0x0b0a090803020100
 GLOBL shuff_DC00<>(SB), RODATA, $32
 
-// func blockSHANI(dig *digest, p []byte)
+// func blockSHANI(dig *Digest, p []byte)
 // Requires: AVX, SHA, SSE2, SSE4.1, SSSE3
 TEXT ·blockSHANI(SB), $0-32
 	MOVQ    dig+0(FP), DI

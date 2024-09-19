@@ -141,7 +141,7 @@
 // the frame size used for data expansion is 64 bytes.
 // See the definition of the macro LOAD1 above (4 bytes * 16 entries).
 //
-//func block(dig *digest, p []byte)
+//func block(dig *Digest, p []byte)
 TEXT ·block(SB),NOSPLIT,$64-32
 	MOVV	p_base+8(FP), R5
 	MOVV	p_len+16(FP), R6

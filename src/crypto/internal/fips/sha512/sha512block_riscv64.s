@@ -150,7 +150,7 @@
 	MSGSCHEDULE1(index); \
 	SHA512ROUND(index, a, b, c, d, e, f, g, h)
 
-// func block(dig *digest, p []byte)
+// func block(dig *Digest, p []byte)
 TEXT ·block(SB),0,$128-32
 	MOV	p_base+8(FP), X29
 	MOV	p_len+16(FP), X30

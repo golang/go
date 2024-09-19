@@ -141,7 +141,7 @@
 // Note that 64 bytes of stack space is used as a circular buffer
 // for the message schedule (4 bytes * 16 entries).
 //
-// func block(dig *digest, p []byte)
+// func block(dig *Digest, p []byte)
 TEXT ·block(SB),0,$64-32
 	MOV	p_base+8(FP), X29
 	MOV	p_len+16(FP), X30

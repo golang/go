@@ -93,7 +93,7 @@ var _K = []uint64{
 	0x6c44198c4a475817,
 }
 
-func blockGeneric(dig *digest, p []byte) {
+func blockGeneric(dig *Digest, p []byte) {
 	var w [80]uint64
 	h0, h1, h2, h3, h4, h5, h6, h7 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7]
 	for len(p) >= chunk {

@@ -20,9 +20,9 @@ func init() {
 }
 
 //go:noescape
-func blockS390X(dig *digest, p []byte)
+func blockS390X(dig *Digest, p []byte)
 
-func block(dig *digest, p []byte) {
+func block(dig *Digest, p []byte) {
 	if useSHA512 {
 		blockS390X(dig, p)
 	} else {

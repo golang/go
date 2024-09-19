@@ -6,6 +6,6 @@
 
 package sha512
 
-func block(dig *digest, p []byte) {
+func block(dig *Digest, p []byte) {
 	blockGeneric(dig, p)
 }

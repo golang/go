@@ -18,9 +18,9 @@ func init() {
 }
 
 //go:noescape
-func blockSHA512(dig *digest, p []byte)
+func blockSHA512(dig *Digest, p []byte)
 
-func block(dig *digest, p []byte) {
+func block(dig *Digest, p []byte) {
 	if useSHA512 {
 		blockSHA512(dig, p)
 	} else {

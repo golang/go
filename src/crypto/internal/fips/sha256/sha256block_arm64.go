@@ -18,9 +18,9 @@ func init() {
 }
 
 //go:noescape
-func blockSHA2(dig *digest, p []byte)
+func blockSHA2(dig *Digest, p []byte)
 
-func block(dig *digest, p []byte) {
+func block(dig *Digest, p []byte) {
 	if useSHA2 {
 		blockSHA2(dig, p)
 	} else {

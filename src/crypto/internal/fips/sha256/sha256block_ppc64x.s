@@ -284,7 +284,7 @@ GLOBL ·kcon(SB), RODATA, $1088
 #define VPERMLE(va,vb,vc,vt)
 #endif
 
-// func blockPOWER(dig *digest, p []byte)
+// func blockPOWER(dig *Digest, p []byte)
 TEXT ·blockPOWER(SB),0,$0-32
 	MOVD	dig+0(FP), CTX
 	MOVD	p_base+8(FP), INP

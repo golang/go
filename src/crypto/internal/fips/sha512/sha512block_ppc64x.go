@@ -4,28 +4,28 @@
 
 //go:build (ppc64 || ppc64le) && !purego
 
-package sha256
+package sha512
 
 import (
 	"crypto/internal/impl"
 	"internal/godebug"
 )
 
-// The POWER architecture doesn't have a way to turn off SHA-2 support at
+// The POWER architecture doesn't have a way to turn off SHA-512 support at
 // runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG knob for
 // that. It's intentionally only checked at init() time, to avoid the
 // performance overhead of checking it on every block.
-var ppc64sha2 = godebug.New("#ppc64sha2").Value() != "off"
+var ppc64sha512 = godebug.New("#ppc64sha512").Value() != "off"
 
 func init() {
-	impl.Register("crypto/sha256", "POWER8", &ppc64sha2)
+	impl.Register("crypto/sha512", "POWER8", &ppc64sha512)
 }
 
 //go:noescape
-func blockPOWER(dig *digest, p []byte)
+func blockPOWER(dig *Digest, p []byte)
 
-func block(dig *digest, p []byte) {
-	if ppc64sha2 {
+func block(dig *Digest, p []byte) {
+	if ppc64sha512 {
 		blockPOWER(dig, p)
 	} else {
 		blockGeneric(dig, p)
