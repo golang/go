@@ -6188,7 +6188,7 @@ func rewriteValuegeneric_OpDiv16(v *Value) bool {
 		return true
 	}
 	// match: (Div16 n (Const16 [c]))
-	// cond: isNonNegative(n) && isPowerOfTwo16(c)
+	// cond: isNonNegative(n) && isPowerOfTwo(c)
 	// result: (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
 	for {
 		n := v_0
@@ -6196,7 +6196,7 @@ func rewriteValuegeneric_OpDiv16(v *Value) bool {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
-		if !(isNonNegative(n) && isPowerOfTwo16(c)) {
+		if !(isNonNegative(n) && isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh16Ux64)
@@ -6245,7 +6245,7 @@ func rewriteValuegeneric_OpDiv16(v *Value) bool {
 		return true
 	}
 	// match: (Div16 <t> n (Const16 [c]))
-	// cond: isPowerOfTwo16(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Rsh16x64 (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [int64(16-log16(c))]))) (Const64 <typ.UInt64> [int64(log16(c))]))
 	for {
 		t := v.Type
@@ -6254,7 +6254,7 @@ func rewriteValuegeneric_OpDiv16(v *Value) bool {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
-		if !(isPowerOfTwo16(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh16x64)
@@ -6333,7 +6333,7 @@ func rewriteValuegeneric_OpDiv16u(v *Value) bool {
 		return true
 	}
 	// match: (Div16u n (Const16 [c]))
-	// cond: isPowerOfTwo16(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
 	for {
 		n := v_0
@@ -6341,7 +6341,7 @@ func rewriteValuegeneric_OpDiv16u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
-		if !(isPowerOfTwo16(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh16Ux64)
@@ -6492,7 +6492,7 @@ func rewriteValuegeneric_OpDiv32(v *Value) bool {
 		return true
 	}
 	// match: (Div32 n (Const32 [c]))
-	// cond: isNonNegative(n) && isPowerOfTwo32(c)
+	// cond: isNonNegative(n) && isPowerOfTwo(c)
 	// result: (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
 	for {
 		n := v_0
@@ -6500,7 +6500,7 @@ func rewriteValuegeneric_OpDiv32(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(isNonNegative(n) && isPowerOfTwo32(c)) {
+		if !(isNonNegative(n) && isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh32Ux64)
@@ -6549,7 +6549,7 @@ func rewriteValuegeneric_OpDiv32(v *Value) bool {
 		return true
 	}
 	// match: (Div32 <t> n (Const32 [c]))
-	// cond: isPowerOfTwo32(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Rsh32x64 (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [int64(32-log32(c))]))) (Const64 <typ.UInt64> [int64(log32(c))]))
 	for {
 		t := v.Type
@@ -6558,7 +6558,7 @@ func rewriteValuegeneric_OpDiv32(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(isPowerOfTwo32(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh32x64)
@@ -6743,7 +6743,7 @@ func rewriteValuegeneric_OpDiv32u(v *Value) bool {
 		return true
 	}
 	// match: (Div32u n (Const32 [c]))
-	// cond: isPowerOfTwo32(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
 	for {
 		n := v_0
@@ -6751,7 +6751,7 @@ func rewriteValuegeneric_OpDiv32u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(isPowerOfTwo32(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh32Ux64)
@@ -6951,7 +6951,7 @@ func rewriteValuegeneric_OpDiv64(v *Value) bool {
 		return true
 	}
 	// match: (Div64 n (Const64 [c]))
-	// cond: isNonNegative(n) && isPowerOfTwo64(c)
+	// cond: isNonNegative(n) && isPowerOfTwo(c)
 	// result: (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
 	for {
 		n := v_0
@@ -6959,7 +6959,7 @@ func rewriteValuegeneric_OpDiv64(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(isNonNegative(n) && isPowerOfTwo64(c)) {
+		if !(isNonNegative(n) && isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh64Ux64)
@@ -7020,7 +7020,7 @@ func rewriteValuegeneric_OpDiv64(v *Value) bool {
 		return true
 	}
 	// match: (Div64 <t> n (Const64 [c]))
-	// cond: isPowerOfTwo64(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Rsh64x64 (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [int64(64-log64(c))]))) (Const64 <typ.UInt64> [int64(log64(c))]))
 	for {
 		t := v.Type
@@ -7029,7 +7029,7 @@ func rewriteValuegeneric_OpDiv64(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(isPowerOfTwo64(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh64x64)
@@ -7182,7 +7182,7 @@ func rewriteValuegeneric_OpDiv64u(v *Value) bool {
 		return true
 	}
 	// match: (Div64u n (Const64 [c]))
-	// cond: isPowerOfTwo64(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
 	for {
 		n := v_0
@@ -7190,7 +7190,7 @@ func rewriteValuegeneric_OpDiv64u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(isPowerOfTwo64(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh64Ux64)
@@ -7374,7 +7374,7 @@ func rewriteValuegeneric_OpDiv8(v *Value) bool {
 		return true
 	}
 	// match: (Div8 n (Const8 [c]))
-	// cond: isNonNegative(n) && isPowerOfTwo8(c)
+	// cond: isNonNegative(n) && isPowerOfTwo(c)
 	// result: (Rsh8Ux64 n (Const64 <typ.UInt64> [log8(c)]))
 	for {
 		n := v_0
@@ -7382,7 +7382,7 @@ func rewriteValuegeneric_OpDiv8(v *Value) bool {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
-		if !(isNonNegative(n) && isPowerOfTwo8(c)) {
+		if !(isNonNegative(n) && isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh8Ux64)
@@ -7431,7 +7431,7 @@ func rewriteValuegeneric_OpDiv8(v *Value) bool {
 		return true
 	}
 	// match: (Div8 <t> n (Const8 [c]))
-	// cond: isPowerOfTwo8(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Rsh8x64 (Add8 <t> n (Rsh8Ux64 <t> (Rsh8x64 <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [int64( 8-log8(c))]))) (Const64 <typ.UInt64> [int64(log8(c))]))
 	for {
 		t := v.Type
@@ -7440,7 +7440,7 @@ func rewriteValuegeneric_OpDiv8(v *Value) bool {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
-		if !(isPowerOfTwo8(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh8x64)
@@ -7518,7 +7518,7 @@ func rewriteValuegeneric_OpDiv8u(v *Value) bool {
 		return true
 	}
 	// match: (Div8u n (Const8 [c]))
-	// cond: isPowerOfTwo8(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Rsh8Ux64 n (Const64 <typ.UInt64> [log8(c)]))
 	for {
 		n := v_0
@@ -7526,7 +7526,7 @@ func rewriteValuegeneric_OpDiv8u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
-		if !(isPowerOfTwo8(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpRsh8Ux64)
@@ -15436,7 +15436,7 @@ func rewriteValuegeneric_OpMod16(v *Value) bool {
 		return true
 	}
 	// match: (Mod16 <t> n (Const16 [c]))
-	// cond: isNonNegative(n) && isPowerOfTwo16(c)
+	// cond: isNonNegative(n) && isPowerOfTwo(c)
 	// result: (And16 n (Const16 <t> [c-1]))
 	for {
 		t := v.Type
@@ -15445,7 +15445,7 @@ func rewriteValuegeneric_OpMod16(v *Value) bool {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
-		if !(isNonNegative(n) && isPowerOfTwo16(c)) {
+		if !(isNonNegative(n) && isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAnd16)
@@ -15523,7 +15523,7 @@ func rewriteValuegeneric_OpMod16u(v *Value) bool {
 		return true
 	}
 	// match: (Mod16u <t> n (Const16 [c]))
-	// cond: isPowerOfTwo16(c)
+	// cond: isPowerOfTwo(c)
 	// result: (And16 n (Const16 <t> [c-1]))
 	for {
 		t := v.Type
@@ -15532,7 +15532,7 @@ func rewriteValuegeneric_OpMod16u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
-		if !(isPowerOfTwo16(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAnd16)
@@ -15590,7 +15590,7 @@ func rewriteValuegeneric_OpMod32(v *Value) bool {
 		return true
 	}
 	// match: (Mod32 <t> n (Const32 [c]))
-	// cond: isNonNegative(n) && isPowerOfTwo32(c)
+	// cond: isNonNegative(n) && isPowerOfTwo(c)
 	// result: (And32 n (Const32 <t> [c-1]))
 	for {
 		t := v.Type
@@ -15599,7 +15599,7 @@ func rewriteValuegeneric_OpMod32(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(isNonNegative(n) && isPowerOfTwo32(c)) {
+		if !(isNonNegative(n) && isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAnd32)
@@ -15677,7 +15677,7 @@ func rewriteValuegeneric_OpMod32u(v *Value) bool {
 		return true
 	}
 	// match: (Mod32u <t> n (Const32 [c]))
-	// cond: isPowerOfTwo32(c)
+	// cond: isPowerOfTwo(c)
 	// result: (And32 n (Const32 <t> [c-1]))
 	for {
 		t := v.Type
@@ -15686,7 +15686,7 @@ func rewriteValuegeneric_OpMod32u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(isPowerOfTwo32(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAnd32)
@@ -15744,7 +15744,7 @@ func rewriteValuegeneric_OpMod64(v *Value) bool {
 		return true
 	}
 	// match: (Mod64 <t> n (Const64 [c]))
-	// cond: isNonNegative(n) && isPowerOfTwo64(c)
+	// cond: isNonNegative(n) && isPowerOfTwo(c)
 	// result: (And64 n (Const64 <t> [c-1]))
 	for {
 		t := v.Type
@@ -15753,7 +15753,7 @@ func rewriteValuegeneric_OpMod64(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(isNonNegative(n) && isPowerOfTwo64(c)) {
+		if !(isNonNegative(n) && isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAnd64)
@@ -15842,7 +15842,7 @@ func rewriteValuegeneric_OpMod64u(v *Value) bool {
 		return true
 	}
 	// match: (Mod64u <t> n (Const64 [c]))
-	// cond: isPowerOfTwo64(c)
+	// cond: isPowerOfTwo(c)
 	// result: (And64 n (Const64 <t> [c-1]))
 	for {
 		t := v.Type
@@ -15851,7 +15851,7 @@ func rewriteValuegeneric_OpMod64u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(isPowerOfTwo64(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAnd64)
@@ -15923,7 +15923,7 @@ func rewriteValuegeneric_OpMod8(v *Value) bool {
 		return true
 	}
 	// match: (Mod8 <t> n (Const8 [c]))
-	// cond: isNonNegative(n) && isPowerOfTwo8(c)
+	// cond: isNonNegative(n) && isPowerOfTwo(c)
 	// result: (And8 n (Const8 <t> [c-1]))
 	for {
 		t := v.Type
@@ -15932,7 +15932,7 @@ func rewriteValuegeneric_OpMod8(v *Value) bool {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
-		if !(isNonNegative(n) && isPowerOfTwo8(c)) {
+		if !(isNonNegative(n) && isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAnd8)
@@ -16010,7 +16010,7 @@ func rewriteValuegeneric_OpMod8u(v *Value) bool {
 		return true
 	}
 	// match: (Mod8u <t> n (Const8 [c]))
-	// cond: isPowerOfTwo8(c)
+	// cond: isPowerOfTwo(c)
 	// result: (And8 n (Const8 <t> [c-1]))
 	for {
 		t := v.Type
@@ -16019,7 +16019,7 @@ func rewriteValuegeneric_OpMod8u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
-		if !(isPowerOfTwo8(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAnd8)
@@ -17443,7 +17443,7 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 		break
 	}
 	// match: (Mul16 <t> n (Const16 [c]))
-	// cond: isPowerOfTwo16(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(c)]))
 	for {
 		t := v.Type
@@ -17453,7 +17453,7 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt16(v_1.AuxInt)
-			if !(isPowerOfTwo16(c)) {
+			if !(isPowerOfTwo(c)) {
 				continue
 			}
 			v.reset(OpLsh16x64)
@@ -17466,7 +17466,7 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 		break
 	}
 	// match: (Mul16 <t> n (Const16 [c]))
-	// cond: t.IsSigned() && isPowerOfTwo16(-c)
+	// cond: t.IsSigned() && isPowerOfTwo(-c)
 	// result: (Neg16 (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(-c)])))
 	for {
 		t := v.Type
@@ -17476,7 +17476,7 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt16(v_1.AuxInt)
-			if !(t.IsSigned() && isPowerOfTwo16(-c)) {
+			if !(t.IsSigned() && isPowerOfTwo(-c)) {
 				continue
 			}
 			v.reset(OpNeg16)
@@ -17616,7 +17616,7 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 		break
 	}
 	// match: (Mul32 <t> n (Const32 [c]))
-	// cond: isPowerOfTwo32(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Lsh32x64 <t> n (Const64 <typ.UInt64> [log32(c)]))
 	for {
 		t := v.Type
@@ -17626,7 +17626,7 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt32(v_1.AuxInt)
-			if !(isPowerOfTwo32(c)) {
+			if !(isPowerOfTwo(c)) {
 				continue
 			}
 			v.reset(OpLsh32x64)
@@ -17639,7 +17639,7 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 		break
 	}
 	// match: (Mul32 <t> n (Const32 [c]))
-	// cond: t.IsSigned() && isPowerOfTwo32(-c)
+	// cond: t.IsSigned() && isPowerOfTwo(-c)
 	// result: (Neg32 (Lsh32x64 <t> n (Const64 <typ.UInt64> [log32(-c)])))
 	for {
 		t := v.Type
@@ -17649,7 +17649,7 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt32(v_1.AuxInt)
-			if !(t.IsSigned() && isPowerOfTwo32(-c)) {
+			if !(t.IsSigned() && isPowerOfTwo(-c)) {
 				continue
 			}
 			v.reset(OpNeg32)
@@ -17891,7 +17891,7 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 		break
 	}
 	// match: (Mul64 <t> n (Const64 [c]))
-	// cond: isPowerOfTwo64(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Lsh64x64 <t> n (Const64 <typ.UInt64> [log64(c)]))
 	for {
 		t := v.Type
@@ -17901,7 +17901,7 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(isPowerOfTwo64(c)) {
+			if !(isPowerOfTwo(c)) {
 				continue
 			}
 			v.reset(OpLsh64x64)
@@ -17914,7 +17914,7 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 		break
 	}
 	// match: (Mul64 <t> n (Const64 [c]))
-	// cond: t.IsSigned() && isPowerOfTwo64(-c)
+	// cond: t.IsSigned() && isPowerOfTwo(-c)
 	// result: (Neg64 (Lsh64x64 <t> n (Const64 <typ.UInt64> [log64(-c)])))
 	for {
 		t := v.Type
@@ -17924,7 +17924,7 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(t.IsSigned() && isPowerOfTwo64(-c)) {
+			if !(t.IsSigned() && isPowerOfTwo(-c)) {
 				continue
 			}
 			v.reset(OpNeg64)
@@ -18166,7 +18166,7 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 		break
 	}
 	// match: (Mul8 <t> n (Const8 [c]))
-	// cond: isPowerOfTwo8(c)
+	// cond: isPowerOfTwo(c)
 	// result: (Lsh8x64 <t> n (Const64 <typ.UInt64> [log8(c)]))
 	for {
 		t := v.Type
@@ -18176,7 +18176,7 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt8(v_1.AuxInt)
-			if !(isPowerOfTwo8(c)) {
+			if !(isPowerOfTwo(c)) {
 				continue
 			}
 			v.reset(OpLsh8x64)
@@ -18189,7 +18189,7 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 		break
 	}
 	// match: (Mul8 <t> n (Const8 [c]))
-	// cond: t.IsSigned() && isPowerOfTwo8(-c)
+	// cond: t.IsSigned() && isPowerOfTwo(-c)
 	// result: (Neg8 (Lsh8x64 <t> n (Const64 <typ.UInt64> [log8(-c)])))
 	for {
 		t := v.Type
@@ -18199,7 +18199,7 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt8(v_1.AuxInt)
-			if !(t.IsSigned() && isPowerOfTwo8(-c)) {
+			if !(t.IsSigned() && isPowerOfTwo(-c)) {
 				continue
 			}
 			v.reset(OpNeg8)

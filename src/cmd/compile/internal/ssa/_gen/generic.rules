@@ -189,14 +189,14 @@
 (Or(8|16|32|64) <t> (Com(8|16|32|64) x) (Com(8|16|32|64) y)) => (Com(8|16|32|64) (And(8|16|32|64) <t> x y))
 
 // Convert multiplication by a power of two to a shift.
-(Mul8  <t> n (Const8  [c])) && isPowerOfTwo8(c) => (Lsh8x64  <t> n (Const64 <typ.UInt64> [log8(c)]))
-(Mul16 <t> n (Const16 [c])) && isPowerOfTwo16(c) => (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(c)]))
-(Mul32 <t> n (Const32 [c])) && isPowerOfTwo32(c) => (Lsh32x64 <t> n (Const64 <typ.UInt64> [log32(c)]))
-(Mul64 <t> n (Const64 [c])) && isPowerOfTwo64(c) => (Lsh64x64 <t> n (Const64 <typ.UInt64> [log64(c)]))
-(Mul8  <t> n (Const8  [c])) && t.IsSigned() && isPowerOfTwo8(-c)  => (Neg8  (Lsh8x64  <t> n (Const64 <typ.UInt64> [log8(-c)])))
-(Mul16 <t> n (Const16 [c])) && t.IsSigned() && isPowerOfTwo16(-c) => (Neg16 (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(-c)])))
-(Mul32 <t> n (Const32 [c])) && t.IsSigned() && isPowerOfTwo32(-c) => (Neg32 (Lsh32x64 <t> n (Const64 <typ.UInt64> [log32(-c)])))
-(Mul64 <t> n (Const64 [c])) && t.IsSigned() && isPowerOfTwo64(-c) => (Neg64 (Lsh64x64 <t> n (Const64 <typ.UInt64> [log64(-c)])))
+(Mul8  <t> n (Const8  [c])) && isPowerOfTwo(c) => (Lsh8x64  <t> n (Const64 <typ.UInt64> [log8(c)]))
+(Mul16 <t> n (Const16 [c])) && isPowerOfTwo(c) => (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(c)]))
+(Mul32 <t> n (Const32 [c])) && isPowerOfTwo(c) => (Lsh32x64 <t> n (Const64 <typ.UInt64> [log32(c)]))
+(Mul64 <t> n (Const64 [c])) && isPowerOfTwo(c) => (Lsh64x64 <t> n (Const64 <typ.UInt64> [log64(c)]))
+(Mul8  <t> n (Const8  [c])) && t.IsSigned() && isPowerOfTwo(-c) => (Neg8  (Lsh8x64  <t> n (Const64 <typ.UInt64> [log8(-c)])))
+(Mul16 <t> n (Const16 [c])) && t.IsSigned() && isPowerOfTwo(-c) => (Neg16 (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(-c)])))
+(Mul32 <t> n (Const32 [c])) && t.IsSigned() && isPowerOfTwo(-c) => (Neg32 (Lsh32x64 <t> n (Const64 <typ.UInt64> [log32(-c)])))
+(Mul64 <t> n (Const64 [c])) && t.IsSigned() && isPowerOfTwo(-c) => (Neg64 (Lsh64x64 <t> n (Const64 <typ.UInt64> [log64(-c)])))
 
 (Mod8  (Const8  [c]) (Const8  [d])) && d != 0 => (Const8  [c % d])
 (Mod16 (Const16 [c]) (Const16 [d])) && d != 0 => (Const16 [c % d])
@@ -1045,17 +1045,17 @@
 // See ../magic.go for a detailed description of these algorithms.
 
 // Unsigned divide by power of 2.  Strength reduce to a shift.
-(Div8u  n (Const8  [c])) && isPowerOfTwo8(c)  => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8(c)]))
-(Div16u n (Const16 [c])) && isPowerOfTwo16(c) => (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
-(Div32u n (Const32 [c])) && isPowerOfTwo32(c) => (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
-(Div64u n (Const64 [c])) && isPowerOfTwo64(c) => (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
+(Div8u  n (Const8  [c])) && isPowerOfTwo(c) => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8(c)]))
+(Div16u n (Const16 [c])) && isPowerOfTwo(c) => (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
+(Div32u n (Const32 [c])) && isPowerOfTwo(c) => (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
+(Div64u n (Const64 [c])) && isPowerOfTwo(c) => (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
 (Div64u n (Const64 [-1<<63]))                 => (Rsh64Ux64 n (Const64 <typ.UInt64> [63]))
 
 // Signed non-negative divide by power of 2.
-(Div8  n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo8(c)  => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8(c)]))
-(Div16 n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo16(c) => (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
-(Div32 n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo32(c) => (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
-(Div64 n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo64(c) => (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
+(Div8  n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo(c) => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8(c)]))
+(Div16 n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
+(Div32 n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
+(Div64 n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
 (Div64 n (Const64 [-1<<63])) && isNonNegative(n)                 => (Const64 [0])
 
 // Unsigned divide, not a power of 2.  Strength reduce to a multiply.
@@ -1231,19 +1231,19 @@
 // n / c =       n >> log(c) if n >= 0
 //       = (n+c-1) >> log(c) if n < 0
 // We conditionally add c-1 by adding n>>63>>(64-log(c)) (first shift signed, second shift unsigned).
-(Div8  <t> n (Const8  [c])) && isPowerOfTwo8(c) =>
+(Div8  <t> n (Const8  [c])) && isPowerOfTwo(c) =>
   (Rsh8x64
     (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [int64( 8-log8(c))])))
     (Const64 <typ.UInt64> [int64(log8(c))]))
-(Div16 <t> n (Const16 [c])) && isPowerOfTwo16(c) =>
+(Div16 <t> n (Const16 [c])) && isPowerOfTwo(c) =>
   (Rsh16x64
     (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [int64(16-log16(c))])))
     (Const64 <typ.UInt64> [int64(log16(c))]))
-(Div32 <t> n (Const32 [c])) && isPowerOfTwo32(c) =>
+(Div32 <t> n (Const32 [c])) && isPowerOfTwo(c) =>
   (Rsh32x64
     (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [int64(32-log32(c))])))
     (Const64 <typ.UInt64> [int64(log32(c))]))
-(Div64 <t> n (Const64 [c])) && isPowerOfTwo64(c) =>
+(Div64 <t> n (Const64 [c])) && isPowerOfTwo(c) =>
   (Rsh64x64
     (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [int64(64-log64(c))])))
     (Const64 <typ.UInt64> [int64(log64(c))]))
@@ -1325,17 +1325,17 @@
       (Const64 <typ.UInt64> [63])))
 
 // Unsigned mod by power of 2 constant.
-(Mod8u  <t> n (Const8  [c])) && isPowerOfTwo8(c)  => (And8  n (Const8  <t> [c-1]))
-(Mod16u <t> n (Const16 [c])) && isPowerOfTwo16(c) => (And16 n (Const16 <t> [c-1]))
-(Mod32u <t> n (Const32 [c])) && isPowerOfTwo32(c) => (And32 n (Const32 <t> [c-1]))
-(Mod64u <t> n (Const64 [c])) && isPowerOfTwo64(c) => (And64 n (Const64 <t> [c-1]))
+(Mod8u  <t> n (Const8  [c])) && isPowerOfTwo(c) => (And8  n (Const8  <t> [c-1]))
+(Mod16u <t> n (Const16 [c])) && isPowerOfTwo(c) => (And16 n (Const16 <t> [c-1]))
+(Mod32u <t> n (Const32 [c])) && isPowerOfTwo(c) => (And32 n (Const32 <t> [c-1]))
+(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) => (And64 n (Const64 <t> [c-1]))
 (Mod64u <t> n (Const64 [-1<<63]))                 => (And64 n (Const64 <t> [1<<63-1]))
 
 // Signed non-negative mod by power of 2 constant.
-(Mod8  <t> n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo8(c)  => (And8  n (Const8  <t> [c-1]))
-(Mod16 <t> n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo16(c) => (And16 n (Const16 <t> [c-1]))
-(Mod32 <t> n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo32(c) => (And32 n (Const32 <t> [c-1]))
-(Mod64 <t> n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo64(c) => (And64 n (Const64 <t> [c-1]))
+(Mod8  <t> n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo(c) => (And8  n (Const8  <t> [c-1]))
+(Mod16 <t> n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (And16 n (Const16 <t> [c-1]))
+(Mod32 <t> n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (And32 n (Const32 <t> [c-1]))
+(Mod64 <t> n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (And64 n (Const64 <t> [c-1]))
 (Mod64 n (Const64 [-1<<63])) && isNonNegative(n)                   => n
 
 // Signed mod by negative constant.

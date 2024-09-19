@@ -810,22 +810,22 @@
 //
 // Notes:
 //   - the generic rules have already matched single powers of two so we ignore them here
-//   - isPowerOfTwo32 asserts that its argument is greater than 0
+//   - isPowerOfTwo asserts that its argument is greater than 0
 //   - c&(c-1) = clear rightmost bit
 //   - c&^(c-1) = isolate rightmost bit
 
 // c = 2ˣ + 2ʸ => c - 2ˣ = 2ʸ
-(MULL(D|W)const <t> x [c]) && isPowerOfTwo32(c&(c-1))
+(MULL(D|W)const <t> x [c]) && isPowerOfTwo(c&(c-1))
   => ((ADD|ADDW) (SL(D|W)const <t> x [uint8(log32(c&(c-1)))])
                  (SL(D|W)const <t> x [uint8(log32(c&^(c-1)))]))
 
 // c = 2ʸ - 2ˣ => c + 2ˣ = 2ʸ
-(MULL(D|W)const <t> x [c]) && isPowerOfTwo32(c+(c&^(c-1)))
+(MULL(D|W)const <t> x [c]) && isPowerOfTwo(c+(c&^(c-1)))
   => ((SUB|SUBW) (SL(D|W)const <t> x [uint8(log32(c+(c&^(c-1))))])
                  (SL(D|W)const <t> x [uint8(log32(c&^(c-1)))]))
 
 // c = 2ˣ - 2ʸ => -c + 2ˣ = 2ʸ
-(MULL(D|W)const <t> x [c]) && isPowerOfTwo32(-c+(-c&^(-c-1)))
+(MULL(D|W)const <t> x [c]) && isPowerOfTwo(-c+(-c&^(-c-1)))
   => ((SUB|SUBW) (SL(D|W)const <t> x [uint8(log32(-c&^(-c-1)))])
                  (SL(D|W)const <t> x [uint8(log32(-c+(-c&^(-c-1))))]))
 
