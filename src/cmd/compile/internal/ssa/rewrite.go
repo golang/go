@@ -1263,10 +1263,6 @@ func overlap(offset1, size1, offset2, size2 int64) bool {
 	return false
 }
 
-func areAdjacentOffsets(off1, off2, size int64) bool {
-	return off1+size == off2 || off1 == off2+size
-}
-
 // check if value zeroes out upper 32-bit of 64-bit register.
 // depth limits recursion depth. In AMD64.rules 3 is used as limit,
 // because it catches same amount of cases as 4.
@@ -1821,12 +1817,6 @@ func arm64BFWidth(mask, rshift int64) int64 {
 		panic("ARM64 BF mask is zero")
 	}
 	return nto(shiftedMask)
-}
-
-// sizeof returns the size of t in bytes.
-// It will panic if t is not a *types.Type.
-func sizeof(t interface{}) int64 {
-	return t.(*types.Type).Size()
 }
 
 // registerizable reports whether t is a primitive type that fits in

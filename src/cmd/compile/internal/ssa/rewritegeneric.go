@@ -13559,7 +13559,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const64 [x]) _))
-	// cond: isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))
+	// cond: isSamePtr(p1,p2) && t2.Size() == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))
 	// result: (Const64F [math.Float64frombits(uint64(x))])
 	for {
 		t1 := v.Type
@@ -13575,7 +13575,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		x := auxIntToInt64(v_1_1.AuxInt)
-		if !(isSamePtr(p1, p2) && sizeof(t2) == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))) {
+		if !(isSamePtr(p1, p2) && t2.Size() == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))) {
 			break
 		}
 		v.reset(OpConst64F)
@@ -13583,7 +13583,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const32 [x]) _))
-	// cond: isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x))))
+	// cond: isSamePtr(p1,p2) && t2.Size() == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x))))
 	// result: (Const32F [math.Float32frombits(uint32(x))])
 	for {
 		t1 := v.Type
@@ -13599,7 +13599,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		x := auxIntToInt32(v_1_1.AuxInt)
-		if !(isSamePtr(p1, p2) && sizeof(t2) == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x))))) {
+		if !(isSamePtr(p1, p2) && t2.Size() == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x))))) {
 			break
 		}
 		v.reset(OpConst32F)
@@ -13607,7 +13607,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _))
-	// cond: isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitInt(t1)
+	// cond: isSamePtr(p1,p2) && t2.Size() == 8 && is64BitInt(t1)
 	// result: (Const64 [int64(math.Float64bits(x))])
 	for {
 		t1 := v.Type
@@ -13623,7 +13623,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		x := auxIntToFloat64(v_1_1.AuxInt)
-		if !(isSamePtr(p1, p2) && sizeof(t2) == 8 && is64BitInt(t1)) {
+		if !(isSamePtr(p1, p2) && t2.Size() == 8 && is64BitInt(t1)) {
 			break
 		}
 		v.reset(OpConst64)
@@ -13631,7 +13631,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _))
-	// cond: isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)
+	// cond: isSamePtr(p1,p2) && t2.Size() == 4 && is32BitInt(t1)
 	// result: (Const32 [int32(math.Float32bits(x))])
 	for {
 		t1 := v.Type
@@ -13647,7 +13647,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		x := auxIntToFloat32(v_1_1.AuxInt)
-		if !(isSamePtr(p1, p2) && sizeof(t2) == 4 && is32BitInt(t1)) {
+		if !(isSamePtr(p1, p2) && t2.Size() == 4 && is32BitInt(t1)) {
 			break
 		}
 		v.reset(OpConst32)
