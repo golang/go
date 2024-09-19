@@ -18,11 +18,12 @@ func under(t Type) Type {
 // If typ is a type parameter, underIs returns the result of typ.underIs(f).
 // Otherwise, underIs returns the result of f(under(typ)).
 func underIs(typ Type, f func(Type) bool) bool {
-	typ = Unalias(typ)
-	if tpar, _ := typ.(*TypeParam); tpar != nil {
-		return tpar.underIs(f)
-	}
-	return f(under(typ))
+	var ok bool
+	typeset(typ, func(_, u Type) bool {
+		ok = f(u)
+		return ok
+	})
+	return ok
 }
 
 // typeset is an iterator over the (type/underlying type) pairs of the
@@ -46,45 +47,38 @@ func typeset(t Type, yield func(t, u Type) bool) {
 // identical element types), the single underlying type is the restricted
 // channel type if the restrictions are always the same, or nil otherwise.
 func coreType(t Type) Type {
-	t = Unalias(t)
-	tpar, _ := t.(*TypeParam)
-	if tpar == nil {
-		return under(t)
-	}
-
 	var su Type
-	if tpar.underIs(func(u Type) bool {
+	typeset(t, func(_, u Type) bool {
 		if u == nil {
 			return false
 		}
 		if su != nil {
 			u = match(su, u)
 			if u == nil {
+				su = nil
 				return false
 			}
 		}
 		// su == nil || match(su, u) != nil
 		su = u
 		return true
-	}) {
-		return su
-	}
-	return nil
+	})
+	return su
 }
 
 // coreString is like coreType but also considers []byte
 // and strings as identical. In this case, if successful and we saw
 // a string, the result is of type (possibly untyped) string.
 func coreString(t Type) Type {
-	t = Unalias(t)
-	tpar, _ := t.(*TypeParam)
-	if tpar == nil {
-		return under(t) // string or untyped string
+	// This explicit case is needed because otherwise the
+	// result would be string if t is an untyped string.
+	if !isTypeParam(t) {
+		return under(t) // untyped string remains untyped
 	}
 
 	var su Type
 	hasString := false
-	if tpar.underIs(func(u Type) bool {
+	typeset(t, func(_, u Type) bool {
 		if u == nil {
 			return false
 		}
@@ -95,19 +89,19 @@ func coreString(t Type) Type {
 		if su != nil {
 			u = match(su, u)
 			if u == nil {
+				su = nil
+				hasString = false
 				return false
 			}
 		}
 		// su == nil || match(su, u) != nil
 		su = u
 		return true
-	}) {
-		if hasString {
-			return Typ[String]
-		}
-		return su
+	})
+	if hasString {
+		return Typ[String]
 	}
-	return nil
+	return su
 }
 
 // If x and y are identical, match returns x.

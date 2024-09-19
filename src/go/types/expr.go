@@ -410,7 +410,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		}
 	case *Interface:
 		if isTypeParam(target) {
-			if !u.typeSet().underIs(func(u Type) bool {
+			if !underIs(target, func(u Type) bool {
 				if u == nil {
 					return false
 				}

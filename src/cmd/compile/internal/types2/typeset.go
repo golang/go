@@ -145,30 +145,6 @@ func (s *_TypeSet) is(f func(*term) bool) bool {
 	return true
 }
 
-// underIs calls f with the underlying types of the specific type terms
-// of s and reports whether all calls to f returned true. If there are
-// no specific terms, underIs returns the result of f(nil).
-func (s *_TypeSet) underIs(f func(Type) bool) bool {
-	if !s.hasTerms() {
-		return f(nil)
-	}
-	for _, t := range s.terms {
-		assert(t.typ != nil)
-		// Unalias(x) == under(x) for ~x terms
-		u := Unalias(t.typ)
-		if !t.tilde {
-			u = under(u)
-		}
-		if debug {
-			assert(Identical(u, under(u)))
-		}
-		if !f(u) {
-			return false
-		}
-	}
-	return true
-}
-
 // topTypeSet may be used as type set for the empty interface.
 var topTypeSet = _TypeSet{terms: allTermlist}
 

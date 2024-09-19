@@ -56,7 +56,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// If T's type set is empty, or if it doesn't
 		// have specific types, constant x cannot be
 		// converted.
-		ok = Unalias(T).(*TypeParam).underIs(func(u Type) bool {
+		ok = underIs(T, func(u Type) bool {
 			// u is nil if there are no specific type terms
 			if u == nil {
 				cause = check.sprintf("%s does not contain specific types", T)

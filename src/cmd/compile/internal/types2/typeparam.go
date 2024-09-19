@@ -155,13 +155,6 @@ func (t *TypeParam) is(f func(*term) bool) bool {
 	return t.iface().typeSet().is(f)
 }
 
-// underIs calls f with the underlying types of the specific type terms
-// of t's constraint and reports whether all calls to f returned true.
-// If there are no specific terms, underIs returns the result of f(nil).
-func (t *TypeParam) underIs(f func(Type) bool) bool {
-	return t.iface().typeSet().underIs(f)
-}
-
 // typeset is an iterator over the (type/underlying type) pairs of the
 // specific type terms of t's constraint.
 // If there are no specific terms, typeset calls yield with (nil, nil).
