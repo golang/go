@@ -360,13 +360,13 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	val, _ := indirect(s.evalPipeline(dot, r.Pipe))
 	// mark top of stack before any variables in the body are pushed.
 	mark := s.mark()
-	oneIteration := func(index, elem reflect.Value, rangefunc bool) {
+	oneIteration := func(index, elem reflect.Value) {
 		if len(r.Pipe.Decl) > 0 {
-			if r.Pipe.IsAssign || rangefunc {
+			if r.Pipe.IsAssign {
 				// With two variables index comes first in all cases.
 				// With one variable, we use the element for most cases,
 				// but not for range over a function.
-				if len(r.Pipe.Decl) > 1 || rangefunc {
+				if len(r.Pipe.Decl) > 1 {
 					s.setVar(r.Pipe.Decl[0].Ident[0], index)
 				} else {
 					s.setVar(r.Pipe.Decl[0].Ident[0], elem)
@@ -378,7 +378,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			}
 		}
 		if len(r.Pipe.Decl) > 1 {
-			if r.Pipe.IsAssign || rangefunc {
+			if r.Pipe.IsAssign {
 				s.setVar(r.Pipe.Decl[1].Ident[0], elem)
 			} else {
 				// Set next var (lexically the first if there
@@ -401,7 +401,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			break
 		}
 		for i := 0; i < val.Len(); i++ {
-			oneIteration(reflect.ValueOf(i), val.Index(i), false)
+			oneIteration(reflect.ValueOf(i), val.Index(i))
 		}
 		return
 	case reflect.Map:
@@ -410,7 +410,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		}
 		om := fmtsort.Sort(val)
 		for _, m := range om {
-			oneIteration(m.Key, m.Value, false)
+			oneIteration(m.Key, m.Value)
 		}
 		return
 	case reflect.Chan:
@@ -427,7 +427,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			if !ok {
 				break
 			}
-			oneIteration(reflect.ValueOf(i), elem, false)
+			oneIteration(reflect.ValueOf(i), elem)
 		}
 		if i == 0 {
 			break
@@ -444,7 +444,9 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			run := false
 			for v := range val.Seq() {
 				run = true
-				oneIteration(v, reflect.Value{}, true)
+				// Pass element as second value,
+				// as we do for channels.
+				oneIteration(reflect.Value{}, v)
 			}
 			if !run {
 				break
@@ -455,7 +457,14 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			run := false
 			for i, v := range val.Seq2() {
 				run = true
-				oneIteration(i, v, true)
+				if len(r.Pipe.Decl) > 1 {
+					oneIteration(i, v)
+				} else {
+					// If there is only one range variable,
+					// oneIteration will use the
+					// second value.
+					oneIteration(reflect.Value{}, i)
+				}
 			}
 			if !run {
 				break
