@@ -257,10 +257,6 @@ func TestComparable(t *testing.T) {
 	testComparable(t, float64(0), negativeZero[float64]())
 	testComparableNoEqual(t, math.NaN(), math.NaN())
 	testComparableNoEqual(t, [2]string{"a", ""}, [2]string{"", "a"})
-	testComparableNoEqual(t, any(struct{ x int }{x: 1}), any(struct {
-		x int
-		s string
-	}{x: 1}))
 }
 
 func testComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {
@@ -357,10 +353,6 @@ func TestWriteComparable(t *testing.T) {
 	testWriteComparable(t, float64(0), negativeZero[float64]())
 	testWriteComparableNoEqual(t, math.NaN(), math.NaN())
 	testWriteComparableNoEqual(t, [2]string{"a", ""}, [2]string{"", "a"})
-	testWriteComparableNoEqual(t, any(struct{ x int }{x: 1}), any(struct {
-		x int
-		s string
-	}{x: 1}))
 }
 
 func testWriteComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {

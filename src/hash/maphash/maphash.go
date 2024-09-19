@@ -288,40 +288,31 @@ func (h *Hash) BlockSize() int { return len(h.buf) }
 // such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.
 // If v != v, then the resulting hash is randomly distributed.
 func Comparable[T comparable](seed Seed, v T) uint64 {
-	ret := comparableReady(seed, v)
-	if ret != 0 {
-		return ret
-	}
+	comparableReady(v)
 	var h Hash
 	h.SetSeed(seed)
 	comparableF(&h, v)
 	return h.Sum64()
 }
 
-func comparableReady[T comparable](seed Seed, v T) uint64 {
+func comparableReady[T comparable](v T) {
 	// Let v be on the heap,
 	// make sure that if v is a pointer to a variable inside the function,
 	// if v and the value it points to do not change,
 	// Comparable(seed,v) before goroutine stack growth
 	// is equal to Comparable(seed,v) after goroutine stack growth.
 	abi.Escape(v)
-	t := abi.TypeFor[T]()
-	len := t.Size()
-	if len == 0 {
-		return seed.s
-	}
-	return 0
 }
 
 // WriteComparable adds x to the data hashed by h.
 func WriteComparable[T comparable](h *Hash, x T) {
-	ret := comparableReady(h.seed, x)
-	if ret != 0 {
-		return
-	}
+	comparableReady(x)
 	comparableF(h, x)
 }
 
+// appendT hash a value,
+// when the value cannot be directly hash raw memory,
+// or when purego is used.
 func appendT(h *Hash, v reflect.Value) {
 	switch v.Kind() {
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
@@ -350,10 +341,6 @@ func appendT(h *Hash, v reflect.Value) {
 	case reflect.Struct:
 		for i := range v.NumField() {
 			f := v.Field(i)
-			// do not want to hash to the same value,
-			// type T1 struct { x int }{1}
-			// type T2 struct { x int; s string }{1,""}.
-			h.WriteString(f.Type().String())
 			appendT(h, f)
 		}
 		return
@@ -370,6 +357,9 @@ func appendT(h *Hash, v reflect.Value) {
 		return
 	case reflect.UnsafePointer, reflect.Pointer:
 		var buf [8]byte
+		// because pointing to the abi.Escape call in comparableReady,
+		// So this is ok to hash pointer,
+		// this way because we know their target won't be moved.
 		byteorder.LePutUint64(buf[:], uint64(v.Pointer()))
 		h.Write(buf[:])
 		return
@@ -393,7 +383,6 @@ func (h *Hash) float64(f float64) {
 	}
 	byteorder.LePutUint64(buf[:], math.Float64bits(f))
 	h.Write(buf[:])
-	return
 }
 
 func btoi(b bool) byte {

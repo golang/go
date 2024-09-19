@@ -46,17 +46,16 @@ func randUint64() uint64 {
 
 func comparableF[T comparable](h *Hash, v T) {
 	t := abi.TypeFor[T]()
-	ptr := unsafe.Pointer(&v)
-	l := t.Size()
+	// We can only use the raw memory contents for the hash,
+	// if the raw memory contents are used for computing equality.
+	// That works for some types (int),
+	// but not others (float, string, structs with padding, etc.)
 	if t.TFlag&abi.TFlagRegularMemory != 0 {
+		ptr := unsafe.Pointer(&v)
+		l := t.Size()
 		h.Write(unsafe.Slice((*byte)(ptr), l))
 		return
 	}
-	// Note: if T like struct {s string}
-	// str value equal but ptr not equal,
-	// if think of it as a contiguous piece of memory,
-	// hash it, that happen v1 == v2
-	// Comparable(s, v1) != Comparable(s, v2).
 	vv := reflect.ValueOf(v)
 	appendT(h, vv)
 }
