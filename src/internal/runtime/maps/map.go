@@ -445,6 +445,7 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
 		if typ.IndirectKey() {
 			slotKey = *((*unsafe.Pointer)(slotKey))
 		}
+
 		if typ.Key.Equal(key, slotKey) {
 			slotElem := g.elem(typ, i)
 			if typ.IndirectElem() {

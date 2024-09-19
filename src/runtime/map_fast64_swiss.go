@@ -12,26 +12,45 @@ import (
 	"unsafe"
 )
 
-func mapaccess1_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) unsafe.Pointer {
-	throw("mapaccess1_fast64 unimplemented")
-	panic("unreachable")
-}
+// Functions below pushed from internal/runtime/maps.
 
-func mapaccess2_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) (unsafe.Pointer, bool) {
-	throw("mapaccess2_fast64 unimplemented")
-	panic("unreachable")
-}
+//go:linkname mapaccess1_fast64
+func mapaccess1_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) unsafe.Pointer
 
-func mapassign_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) unsafe.Pointer {
-	throw("mapassign_fast64 unimplemented")
-	panic("unreachable")
-}
+// mapaccess2_fast64 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mapaccess2_fast64
+func mapaccess2_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) (unsafe.Pointer, bool)
 
-func mapassign_fast64ptr(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer {
-	throw("mapassign_fast64ptr unimplemented")
-	panic("unreachable")
-}
+// mapassign_fast64 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mapassign_fast64
+func mapassign_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) unsafe.Pointer
 
-func mapdelete_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) {
-	throw("mapdelete_fast64 unimplemented")
-}
+// mapassign_fast64ptr should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mapassign_fast64ptr
+func mapassign_fast64ptr(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
+
+//go:linkname mapdelete_fast64
+func mapdelete_fast64(t *abi.SwissMapType, m *maps.Map, key uint64)

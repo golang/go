@@ -69,33 +69,7 @@ func makemap(t *abi.SwissMapType, hint int, m *maps.Map) *maps.Map {
 //go:linkname mapaccess1
 func mapaccess1(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
 
-func mapaccess2(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
-	if raceenabled && m != nil {
-		callerpc := sys.GetCallerPC()
-		pc := abi.FuncPCABIInternal(mapaccess2)
-		racereadpc(unsafe.Pointer(m), callerpc, pc)
-		raceReadObjectPC(t.Key, key, callerpc, pc)
-	}
-	if msanenabled && m != nil {
-		msanread(key, t.Key.Size_)
-	}
-	if asanenabled && m != nil {
-		asanread(key, t.Key.Size_)
-	}
-
-	if m == nil || m.Used() == 0 {
-		if err := mapKeyError(t, key); err != nil {
-			panic(err) // see issue 23734
-		}
-		return unsafe.Pointer(&zeroVal[0]), false
-	}
-
-	elem, ok := m.Get(t, key)
-	if !ok {
-		return unsafe.Pointer(&zeroVal[0]), false
-	}
-	return elem, true
-}
+func mapaccess2(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) (unsafe.Pointer, bool)
 
 func mapaccess1_fat(t *abi.SwissMapType, m *maps.Map, key, zero unsafe.Pointer) unsafe.Pointer {
 	e := mapaccess1(t, m, key)

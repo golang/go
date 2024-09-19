@@ -8,56 +8,48 @@ package maps
 
 import (
 	"internal/abi"
-	"internal/asan"
-	"internal/msan"
 	"internal/race"
 	"internal/runtime/sys"
 	"unsafe"
 )
 
-// Functions below pushed from runtime.
+// TODO: more string-specific optimizations possible.
 
-//go:linkname mapKeyError
-func mapKeyError(typ *abi.SwissMapType, p unsafe.Pointer) error
+func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, hash uintptr, key string) (unsafe.Pointer, bool) {
+	g := groupReference{
+		data: m.dirPtr,
+	}
 
-// Pushed from runtime in order to use runtime.plainError
-//
-//go:linkname errNilAssign
-var errNilAssign error
+	h2 := uint8(h2(hash))
+	ctrls := *g.ctrls()
 
-// Pull from runtime. It is important that is this the exact same copy as the
-// runtime because runtime.mapaccess1_fat compares the returned pointer with
-// &runtime.zeroVal[0].
-// TODO: move zeroVal to internal/abi?
-//
-//go:linkname zeroVal runtime.zeroVal
-var zeroVal [abi.ZeroValSize]byte
+	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
+		c := uint8(ctrls)
+		ctrls >>= 8
+		if c != h2 {
+			continue
+		}
 
-// mapaccess1 returns a pointer to h[key].  Never returns nil, instead
-// it will return a reference to the zero object for the elem type if
-// the key is not in the map.
-// NOTE: The returned pointer may keep the whole map live, so don't
-// hold onto it for very long.
-//
-//go:linkname runtime_mapaccess1 runtime.mapaccess1
-func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
+		slotKey := g.key(typ, i)
+
+		if key == *(*string)(slotKey) {
+			slotElem := g.elem(typ, i)
+			return slotElem, true
+		}
+	}
+
+	return nil, false
+}
+
+//go:linkname runtime_mapaccess1_faststr runtime.mapaccess1_faststr
+func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe.Pointer {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
-		race.ReadObjectPC(typ.Key, key, callerpc, pc)
-	}
-	if msan.Enabled && m != nil {
-		msan.Read(key, typ.Key.Size_)
-	}
-	if asan.Enabled && m != nil {
-		asan.Read(key, typ.Key.Size_)
 	}
 
 	if m == nil || m.Used() == 0 {
-		if err := mapKeyError(typ, key); err != nil {
-			panic(err) // see issue 23734
-		}
 		return unsafe.Pointer(&zeroVal[0])
 	}
 
@@ -65,10 +57,10 @@ func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsaf
 		fatal("concurrent map read and map write")
 	}
 
-	hash := typ.Hasher(key, m.seed)
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
 
 	if m.dirLen <= 0 {
-		_, elem, ok := m.getWithKeySmall(typ, hash, key)
+		elem, ok := m.getWithoutKeySmallFastStr(typ, hash, key)
 		if !ok {
 			return unsafe.Pointer(&zeroVal[0])
 		}
@@ -90,14 +82,8 @@ func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsaf
 			i := match.first()
 
 			slotKey := g.key(typ, i)
-			if typ.IndirectKey() {
-				slotKey = *((*unsafe.Pointer)(slotKey))
-			}
-			if typ.Key.Equal(key, slotKey) {
+			if key == *(*string)(slotKey) {
 				slotElem := g.elem(typ, i)
-				if typ.IndirectElem() {
-					slotElem = *((*unsafe.Pointer)(slotElem))
-				}
 				return slotElem
 			}
 			match = match.removeFirst()
@@ -112,25 +98,15 @@ func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsaf
 	}
 }
 
-//go:linkname runtime_mapaccess2 runtime.mapaccess2
-func runtime_mapaccess2(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
+//go:linkname runtime_mapaccess2_faststr runtime.mapaccess2_faststr
+func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsafe.Pointer, bool) {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
-		race.ReadObjectPC(typ.Key, key, callerpc, pc)
-	}
-	if msan.Enabled && m != nil {
-		msan.Read(key, typ.Key.Size_)
-	}
-	if asan.Enabled && m != nil {
-		asan.Read(key, typ.Key.Size_)
 	}
 
 	if m == nil || m.Used() == 0 {
-		if err := mapKeyError(typ, key); err != nil {
-			panic(err) // see issue 23734
-		}
 		return unsafe.Pointer(&zeroVal[0]), false
 	}
 
@@ -138,10 +114,10 @@ func runtime_mapaccess2(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsa
 		fatal("concurrent map read and map write")
 	}
 
-	hash := typ.Hasher(key, m.seed)
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
 
-	if m.dirLen == 0 {
-		_, elem, ok := m.getWithKeySmall(typ, hash, key)
+	if m.dirLen <= 0 {
+		elem, ok := m.getWithoutKeySmallFastStr(typ, hash, key)
 		if !ok {
 			return unsafe.Pointer(&zeroVal[0]), false
 		}
@@ -163,14 +139,8 @@ func runtime_mapaccess2(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsa
 			i := match.first()
 
 			slotKey := g.key(typ, i)
-			if typ.IndirectKey() {
-				slotKey = *((*unsafe.Pointer)(slotKey))
-			}
-			if typ.Key.Equal(key, slotKey) {
+			if key == *(*string)(slotKey) {
 				slotElem := g.elem(typ, i)
-				if typ.IndirectElem() {
-					slotElem = *((*unsafe.Pointer)(slotElem))
-				}
 				return slotElem, true
 			}
 			match = match.removeFirst()
@@ -185,8 +155,49 @@ func runtime_mapaccess2(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsa
 	}
 }
 
-//go:linkname runtime_mapassign runtime.mapassign
-func runtime_mapassign(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
+func (m *Map) putSlotSmallFastStr(typ *abi.SwissMapType, hash uintptr, key string) unsafe.Pointer {
+	g := groupReference{
+		data: m.dirPtr,
+	}
+
+	match := g.ctrls().matchH2(h2(hash))
+
+	// Look for an existing slot containing this key.
+	for match != 0 {
+		i := match.first()
+
+		slotKey := g.key(typ, i)
+		if key == *(*string)(slotKey) {
+			// Key needs update, as the backing storage may differ.
+			*(*string)(slotKey) = key
+			slotElem := g.elem(typ, i)
+			return slotElem
+		}
+		match = match.removeFirst()
+	}
+
+	// No need to look for deleted slots, small maps can't have them (see
+	// deleteSmall).
+	match = g.ctrls().matchEmpty()
+	if match == 0 {
+		fatal("small map with no empty slot (concurrent map writes?)")
+	}
+
+	i := match.first()
+
+	slotKey := g.key(typ, i)
+	*(*string)(slotKey) = key
+
+	slotElem := g.elem(typ, i)
+
+	g.ctrls().set(i, ctrl(h2(hash)))
+	m.used++
+
+	return slotElem
+}
+
+//go:linkname runtime_mapassign_faststr runtime.mapassign_faststr
+func runtime_mapassign_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe.Pointer {
 	if m == nil {
 		panic(errNilAssign)
 	}
@@ -194,19 +205,12 @@ func runtime_mapassign(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapassign)
 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
-		race.ReadObjectPC(typ.Key, key, callerpc, pc)
-	}
-	if msan.Enabled {
-		msan.Read(key, typ.Key.Size_)
-	}
-	if asan.Enabled {
-		asan.Read(key, typ.Key.Size_)
 	}
 	if m.writing != 0 {
 		fatal("concurrent map writes")
 	}
 
-	hash := typ.Hasher(key, m.seed)
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.
@@ -218,7 +222,7 @@ func runtime_mapassign(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe
 
 	if m.dirLen == 0 {
 		if m.used < abi.SwissMapGroupSlots {
-			elem := m.putSlotSmall(typ, hash, key)
+			elem := m.putSlotSmallFastStr(typ, hash, key)
 
 			if m.writing == 0 {
 				fatal("concurrent map writes")
@@ -256,18 +260,11 @@ outer:
 				i := match.first()
 
 				slotKey := g.key(typ, i)
-				if typ.IndirectKey() {
-					slotKey = *((*unsafe.Pointer)(slotKey))
-				}
-				if typ.Key.Equal(key, slotKey) {
-					if typ.NeedKeyUpdate() {
-						typedmemmove(typ.Key, slotKey, key)
-					}
-
+				if key == *(*string)(slotKey) {
+					// Key needs update, as the backing
+					// storage may differ.
+					*(*string)(slotKey) = key
 					slotElem = g.elem(typ, i)
-					if typ.IndirectElem() {
-						slotElem = *((*unsafe.Pointer)(slotElem))
-					}
 
 					t.checkInvariants(typ)
 					break outer
@@ -298,19 +295,9 @@ outer:
 				// If there is room left to grow, just insert the new entry.
 				if t.growthLeft > 0 {
 					slotKey := g.key(typ, i)
-					if typ.IndirectKey() {
-						kmem := newobject(typ.Key)
-						*(*unsafe.Pointer)(slotKey) = kmem
-						slotKey = kmem
-					}
-					typedmemmove(typ.Key, slotKey, key)
+					*(*string)(slotKey) = key
 
 					slotElem = g.elem(typ, i)
-					if typ.IndirectElem() {
-						emem := newobject(typ.Elem)
-						*(*unsafe.Pointer)(slotElem) = emem
-						slotElem = emem
-					}
 
 					g.ctrls().set(i, ctrl(h2(hash)))
 					t.growthLeft--
@@ -348,4 +335,19 @@ outer:
 	m.writing ^= 1
 
 	return slotElem
+}
+
+//go:linkname runtime_mapdelete_faststr runtime.mapdelete_faststr
+func runtime_mapdelete_faststr(typ *abi.SwissMapType, m *Map, key string) {
+	if race.Enabled {
+		callerpc := sys.GetCallerPC()
+		pc := abi.FuncPCABIInternal(runtime_mapassign)
+		race.WritePC(unsafe.Pointer(m), callerpc, pc)
+	}
+
+	if m == nil || m.Used() == 0 {
+		return
+	}
+
+	m.Delete(typ, abi.NoEscape(unsafe.Pointer(&key)))
 }

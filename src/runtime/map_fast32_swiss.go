@@ -12,26 +12,44 @@ import (
 	"unsafe"
 )
 
-func mapaccess1_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) unsafe.Pointer {
-	throw("mapaccess1_fast32 unimplemented")
-	panic("unreachable")
-}
+// Functions below pushed from internal/runtime/maps.
 
-func mapaccess2_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) (unsafe.Pointer, bool) {
-	throw("mapaccess2_fast32 unimplemented")
-	panic("unreachable")
-}
+//go:linkname mapaccess1_fast32
+func mapaccess1_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) unsafe.Pointer
 
-func mapassign_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) unsafe.Pointer {
-	throw("mapassign_fast32 unimplemented")
-	panic("unreachable")
-}
+// mapaccess2_fast32 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mapaccess2_fast32
+func mapaccess2_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) (unsafe.Pointer, bool)
 
-func mapassign_fast32ptr(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer {
-	throw("mapassign_fast32ptr unimplemented")
-	panic("unreachable")
-}
+// mapassign_fast32 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mapassign_fast32
+func mapassign_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) unsafe.Pointer
 
-func mapdelete_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) {
-	throw("mapdelete_fast32 unimplemented")
-}
+// mapassign_fast32ptr should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname mapassign_fast32ptr
+func mapassign_fast32ptr(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
+
+//go:linkname mapdelete_fast32
+func mapdelete_fast32(t *abi.SwissMapType, m *maps.Map, key uint32)
