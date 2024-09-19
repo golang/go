@@ -464,6 +464,9 @@
 // Write barrier.
 (WB ...) => (LoweredWB ...)
 
+// Publication barrier as intrinsic
+(PubBarrier ...) => (LoweredPubBarrier ...)
+
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)

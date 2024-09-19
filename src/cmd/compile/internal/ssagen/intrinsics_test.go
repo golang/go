@@ -419,6 +419,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"loong64", "math/bits", "Sub"}:                            struct{}{},
 	{"loong64", "math/bits", "Sub64"}:                          struct{}{},
 	{"loong64", "runtime", "KeepAlive"}:                        struct{}{},
+	{"loong64", "runtime", "publicationBarrier"}:               struct{}{},
 	{"loong64", "runtime", "slicebytetostringtmp"}:             struct{}{},
 	{"loong64", "sync", "runtime_LoadAcquintptr"}:              struct{}{},
 	{"loong64", "sync", "runtime_StoreReluintptr"}:             struct{}{},

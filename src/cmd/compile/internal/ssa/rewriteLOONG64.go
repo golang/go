@@ -584,6 +584,9 @@ func rewriteValueLOONG64(v *Value) bool {
 		return true
 	case OpPanicBounds:
 		return rewriteValueLOONG64_OpPanicBounds(v)
+	case OpPubBarrier:
+		v.Op = OpLOONG64LoweredPubBarrier
+		return true
 	case OpRotateLeft16:
 		return rewriteValueLOONG64_OpRotateLeft16(v)
 	case OpRotateLeft32:
