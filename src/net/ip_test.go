@@ -149,6 +149,15 @@ func TestMarshalEmptyIP(t *testing.T) {
 	if !reflect.DeepEqual(got, []byte("")) {
 		t.Errorf(`got %#v, want []byte("")`, got)
 	}
+
+	buf := make([]byte, 4)
+	got, err = ip.AppendText(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, []byte("\x00\x00\x00\x00")) {
+		t.Errorf(`got %#v, want []byte("\x00\x00\x00\x00")`, got)
+	}
 }
 
 var ipStringTests = []*struct {
@@ -266,7 +275,52 @@ func TestIPString(t *testing.T) {
 		if out, err := tt.in.MarshalText(); !bytes.Equal(out, tt.byt) || !reflect.DeepEqual(err, tt.error) {
 			t.Errorf("IP.MarshalText(%v) = %v, %v, want %v, %v", tt.in, out, err, tt.byt, tt.error)
 		}
+		buf := make([]byte, 4, 32)
+		if out, err := tt.in.AppendText(buf); !bytes.Equal(out[4:], tt.byt) || !reflect.DeepEqual(err, tt.error) {
+			t.Errorf("IP.AppendText(%v) = %v, %v, want %v, %v", tt.in, out[4:], err, tt.byt, tt.error)
+		}
 	}
+}
+
+func TestIPAppendTextNoAllocs(t *testing.T) {
+	// except the invalid IP
+	for _, tt := range ipStringTests[:len(ipStringTests)-1] {
+		allocs := int(testing.AllocsPerRun(1000, func() {
+			buf := make([]byte, 0, 64)
+			_, _ = tt.in.AppendText(buf)
+		}))
+		if allocs != 0 {
+			t.Errorf("IP(%q) AppendText allocs: %d times, want 0", tt.in, allocs)
+		}
+	}
+}
+
+func BenchmarkIPMarshalText(b *testing.B) {
+	b.Run("IPv4", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		ip := IP{192, 0, 2, 1}
+		for range b.N {
+			_, _ = ip.MarshalText()
+		}
+	})
+	b.Run("IPv6", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		ip := IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0xa, 0, 0xb, 0, 0xc, 0, 0xd}
+		for range b.N {
+			_, _ = ip.MarshalText()
+		}
+	})
+	b.Run("IPv6_long", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		// fd7a:115c:a1e0:ab12:4843:cd96:626b:430b
+		ip := IP{253, 122, 17, 92, 161, 224, 171, 18, 72, 67, 205, 150, 98, 107, 67, 11}
+		for range b.N {
+			_, _ = ip.MarshalText()
+		}
+	})
 }
 
 var sink string
