@@ -339,25 +339,6 @@ func parsePath(flag, arg string) (path string) {
 	return path
 }
 
-// parsePath parses -flag=arg expecting arg to be path to a tool (allows ./)
-func parseToolPath(flag, arg string) (path string) {
-	if strings.Contains(arg, "@") {
-		base.Fatalf("go: -%s=%s: need just path, not path@version", flag, arg)
-	}
-	if arg == "." {
-		return arg
-	}
-	toCheck := arg
-	if strings.HasPrefix(arg, "./") {
-		toCheck = arg[2:]
-	}
-	if err := module.CheckImportPath(toCheck); err != nil {
-		base.Fatalf("go: -%s=%s: invalid path: %v", flag, arg, err)
-	}
-
-	return arg
-}
-
 // parsePathVersionOptional parses path[@version], using adj to
 // describe any errors.
 func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version string, err error) {
@@ -547,7 +528,7 @@ func flagDropRetract(arg string) {
 
 // flagTool implements the -tool flag.
 func flagTool(arg string) {
-	path := parseToolPath("tool", arg)
+	path := parsePath("tool", arg)
 	edits = append(edits, func(f *modfile.File) {
 		if err := f.AddTool(path); err != nil {
 			base.Fatalf("go: -tool=%s: %v", arg, err)
@@ -557,7 +538,7 @@ func flagTool(arg string) {
 
 // flagDropTool implements the -droptool flag.
 func flagDropTool(arg string) {
-	path := parseToolPath("droptool", arg)
+	path := parsePath("droptool", arg)
 	edits = append(edits, func(f *modfile.File) {
 		if err := f.DropTool(path); err != nil {
 			base.Fatalf("go: -droptool=%s: %v", arg, err)

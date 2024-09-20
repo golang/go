@@ -102,10 +102,6 @@ cd $WORK/h
 cp go.mod.start go.mod
 go mod edit -tool example.com/tool
 cmpenv go.mod go.mod.edit
-go mod edit -tool ./local
-cmpenv go.mod go.mod.edit2
-go mod edit -droptool ./local
-cmpenv go.mod go.mod.edit
 go mod edit -droptool example.com/tool2
 cmpenv go.mod go.mod.edit
 go mod edit -droptool example.com/tool
@@ -386,12 +382,3 @@ module g
 go 1.24
 
 tool example.com/tool
--- $WORK/h/go.mod.edit2 --
-module g
-
-go 1.24
-
-tool (
-	./local
-	example.com/tool
-)
