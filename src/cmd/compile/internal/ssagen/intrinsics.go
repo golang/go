@@ -298,7 +298,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.PPC64)
 
-	makeAtomicGuardedIntrinsicLoong64common := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter, needReturn bool) intrinsicBuilder {
+	makeAtomicStoreGuardedIntrinsicLoong64 := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter) intrinsicBuilder {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			// Target Atomic feature is identified by dynamic detection
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLAM_BH, s.sb)
@@ -315,27 +315,19 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 			// We have atomic instructions - use it directly.
 			s.startBlock(bTrue)
-			emit(s, n, args, op1, typ, needReturn)
+			emit(s, n, args, op1, typ, false)
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Use original instruction sequence.
 			s.startBlock(bFalse)
-			emit(s, n, args, op0, typ, needReturn)
+			emit(s, n, args, op0, typ, false)
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Merge results.
 			s.startBlock(bEnd)
 
-			if needReturn {
-				return s.variable(n, types.Types[typ])
-			} else {
-				return nil
-			}
+			return nil
 		}
-	}
-
-	makeAtomicStoreGuardedIntrinsicLoong64 := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter) intrinsicBuilder {
-		return makeAtomicGuardedIntrinsicLoong64common(op0, op1, typ, emit, false)
 	}
 
 	atomicStoreEmitterLoong64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind, needReturn bool) {
@@ -475,14 +467,14 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
 		},
-		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Cas64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
 		},
-		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+		sys.AMD64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "CasRel",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
@@ -505,6 +497,53 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	addF("internal/runtime/atomic", "Cas64",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, types.TBOOL, atomicCasEmitterARM64),
 		sys.ARM64)
+
+	atomicCasEmitterLoong64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind, needReturn bool) {
+		v := s.newValue4(op, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
+		s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+		if needReturn {
+			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
+		}
+	}
+
+	makeAtomicCasGuardedIntrinsicLoong64 := func(op0, op1 ssa.Op, emit atomicOpEmitter) intrinsicBuilder {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			// Target Atomic feature is identified by dynamic detection
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLAMCAS, s.sb)
+			v := s.load(types.Types[types.TBOOL], addr)
+			b := s.endBlock()
+			b.Kind = ssa.BlockIf
+			b.SetControl(v)
+			bTrue := s.f.NewBlock(ssa.BlockPlain)
+			bFalse := s.f.NewBlock(ssa.BlockPlain)
+			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			b.AddEdgeTo(bTrue)
+			b.AddEdgeTo(bFalse)
+			b.Likely = ssa.BranchLikely
+
+			// We have atomic instructions - use it directly.
+			s.startBlock(bTrue)
+			emit(s, n, args, op1, types.TBOOL, true)
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Use original instruction sequence.
+			s.startBlock(bFalse)
+			emit(s, n, args, op0, types.TBOOL, true)
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Merge results.
+			s.startBlock(bEnd)
+
+			return s.variable(n, types.Types[types.TBOOL])
+		}
+	}
+
+	addF("internal/runtime/atomic", "Cas",
+		makeAtomicCasGuardedIntrinsicLoong64(ssa.OpAtomicCompareAndSwap32, ssa.OpAtomicCompareAndSwap32Variant, atomicCasEmitterLoong64),
+		sys.Loong64)
+	addF("internal/runtime/atomic", "Cas64",
+		makeAtomicCasGuardedIntrinsicLoong64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, atomicCasEmitterLoong64),
+		sys.Loong64)
 
 	// Old-style atomic logical operation API (all supported archs except arm64).
 	addF("internal/runtime/atomic", "And8",

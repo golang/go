@@ -453,8 +453,14 @@
 
 (AtomicAdd(32|64) ...) => (LoweredAtomicAdd(32|64) ...)
 
+// Loong64's 32-bit atomic operation instructions ll.w and amcasw are both sign-extended,
+// so the input parameters need to be sign-extended to 64 bits, otherwise the subsequent
+// comparison operations may not produce the expected results.
+//
 (AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
 (AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
+(AtomicCompareAndSwap32Variant ptr old new mem) => (LoweredAtomicCas32Variant ptr (SignExt32to64 old) new mem)
+(AtomicCompareAndSwap64Variant ...) => (LoweredAtomicCas64Variant ...)
 
 // Atomic memory logical operations (old style).
 //

@@ -66,8 +66,13 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpAtomicAnd8(v)
 	case OpAtomicCompareAndSwap32:
 		return rewriteValueLOONG64_OpAtomicCompareAndSwap32(v)
+	case OpAtomicCompareAndSwap32Variant:
+		return rewriteValueLOONG64_OpAtomicCompareAndSwap32Variant(v)
 	case OpAtomicCompareAndSwap64:
 		v.Op = OpLOONG64LoweredAtomicCas64
+		return true
+	case OpAtomicCompareAndSwap64Variant:
+		v.Op = OpLOONG64LoweredAtomicCas64Variant
 		return true
 	case OpAtomicExchange32:
 		v.Op = OpLOONG64LoweredAtomicExchange32
@@ -909,6 +914,27 @@ func rewriteValueLOONG64_OpAtomicCompareAndSwap32(v *Value) bool {
 		new := v_2
 		mem := v_3
 		v.reset(OpLOONG64LoweredAtomicCas32)
+		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+		v0.AddArg(old)
+		v.AddArg4(ptr, v0, new, mem)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpAtomicCompareAndSwap32Variant(v *Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicCompareAndSwap32Variant ptr old new mem)
+	// result: (LoweredAtomicCas32Variant ptr (SignExt32to64 old) new mem)
+	for {
+		ptr := v_0
+		old := v_1
+		new := v_2
+		mem := v_3
+		v.reset(OpLOONG64LoweredAtomicCas32Variant)
 		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
 		v0.AddArg(old)
 		v.AddArg4(ptr, v0, new, mem)

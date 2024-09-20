@@ -479,16 +479,33 @@ func init() {
 		// } else {
 		//   return (false, memory)
 		// }
-		// DBAR
 		// MOVV $0, Rout
+		// DBAR 0x14
 		// LL	(Rarg0), Rtmp
 		// BNE	Rtmp, Rarg1, 4(PC)
 		// MOVV Rarg2, Rout
 		// SC	Rout, (Rarg0)
 		// BEQ	Rout, -4(PC)
-		// DBAR
+		// DBAR 0x12
 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
+		// atomic compare and swap variant.
+		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory. auxint must be zero.
+		// if *arg0 == arg1 {
+		//   *arg0 = arg2
+		//   return (true, memory)
+		// } else {
+		//   return (false, memory)
+		// }
+		// MOVV         $0, Rout
+		// MOVV         Rarg1, Rtmp
+		// AMCASDBx     Rarg2, (Rarg0), Rtmp
+		// BNE          Rarg1, Rtmp, 2(PC)
+		// MOVV         $1, Rout
+		// NOP
+		{name: "LoweredAtomicCas64Variant", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicCas32Variant", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
 		// Atomic 32 bit AND/OR.
 		// *arg0 &= (|=) arg1. arg2=mem. returns nil.

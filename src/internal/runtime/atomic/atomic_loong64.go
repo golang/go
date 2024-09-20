@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	offsetLOONG64HasLAMCAS = unsafe.Offsetof(cpu.Loong64.HasLAMCAS)
 	offsetLoong64HasLAM_BH = unsafe.Offsetof(cpu.Loong64.HasLAM_BH)
 )
 

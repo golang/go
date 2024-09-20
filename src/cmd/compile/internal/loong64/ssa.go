@@ -746,52 +746,64 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpLOONG64LoweredAtomicCas32, ssa.OpLOONG64LoweredAtomicCas64:
 		// MOVV $0, Rout
-		// DBAR
+		// DBAR 0x14
 		// LL	(Rarg0), Rtmp
 		// BNE	Rtmp, Rarg1, 4(PC)
 		// MOVV Rarg2, Rout
 		// SC	Rout, (Rarg0)
 		// BEQ	Rout, -4(PC)
-		// DBAR
+		// DBAR 0x12
 		ll := loong64.ALLV
 		sc := loong64.ASCV
 		if v.Op == ssa.OpLOONG64LoweredAtomicCas32 {
 			ll = loong64.ALL
 			sc = loong64.ASC
 		}
+
 		p := s.Prog(loong64.AMOVV)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = loong64.REGZERO
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
-		s.Prog(loong64.ADBAR)
-		p1 := s.Prog(ll)
-		p1.From.Type = obj.TYPE_MEM
-		p1.From.Reg = v.Args[0].Reg()
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = loong64.REGTMP
-		p2 := s.Prog(loong64.ABNE)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = v.Args[1].Reg()
-		p2.Reg = loong64.REGTMP
-		p2.To.Type = obj.TYPE_BRANCH
-		p3 := s.Prog(loong64.AMOVV)
+
+		p1 := s.Prog(loong64.ADBAR)
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = 0x14
+
+		p2 := s.Prog(ll)
+		p2.From.Type = obj.TYPE_MEM
+		p2.From.Reg = v.Args[0].Reg()
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = loong64.REGTMP
+
+		p3 := s.Prog(loong64.ABNE)
 		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = v.Args[2].Reg()
-		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = v.Reg0()
-		p4 := s.Prog(sc)
+		p3.From.Reg = v.Args[1].Reg()
+		p3.Reg = loong64.REGTMP
+		p3.To.Type = obj.TYPE_BRANCH
+
+		p4 := s.Prog(loong64.AMOVV)
 		p4.From.Type = obj.TYPE_REG
-		p4.From.Reg = v.Reg0()
-		p4.To.Type = obj.TYPE_MEM
-		p4.To.Reg = v.Args[0].Reg()
-		p5 := s.Prog(loong64.ABEQ)
+		p4.From.Reg = v.Args[2].Reg()
+		p4.To.Type = obj.TYPE_REG
+		p4.To.Reg = v.Reg0()
+
+		p5 := s.Prog(sc)
 		p5.From.Type = obj.TYPE_REG
 		p5.From.Reg = v.Reg0()
-		p5.To.Type = obj.TYPE_BRANCH
-		p5.To.SetTarget(p1)
-		p6 := s.Prog(loong64.ADBAR)
-		p2.To.SetTarget(p6)
+		p5.To.Type = obj.TYPE_MEM
+		p5.To.Reg = v.Args[0].Reg()
+
+		p6 := s.Prog(loong64.ABEQ)
+		p6.From.Type = obj.TYPE_REG
+		p6.From.Reg = v.Reg0()
+		p6.To.Type = obj.TYPE_BRANCH
+		p6.To.SetTarget(p2)
+
+		p7 := s.Prog(loong64.ADBAR)
+		p7.From.Type = obj.TYPE_CONST
+		p7.From.Offset = 0x12
+		p3.To.SetTarget(p7)
 
 	case ssa.OpLOONG64LoweredAtomicAnd32,
 		ssa.OpLOONG64LoweredAtomicOr32:
@@ -814,6 +826,53 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		p.RegTo2 = v.Reg0()
+
+	case ssa.OpLOONG64LoweredAtomicCas64Variant, ssa.OpLOONG64LoweredAtomicCas32Variant:
+		// MOVV         $0, Rout
+		// MOVV         Rarg1, Rtmp
+		// AMCASDBx     Rarg2, (Rarg0), Rtmp
+		// BNE          Rarg1, Rtmp, 2(PC)
+		// MOVV         $1, Rout
+		// NOP
+
+		amcasx := loong64.AAMCASDBV
+		if v.Op == ssa.OpLOONG64LoweredAtomicCas32Variant {
+			amcasx = loong64.AAMCASDBW
+		}
+
+		p := s.Prog(loong64.AMOVV)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = loong64.REGZERO
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+
+		p1 := s.Prog(loong64.AMOVV)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = v.Args[1].Reg()
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = loong64.REGTMP
+
+		p2 := s.Prog(amcasx)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = v.Args[2].Reg()
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = v.Args[0].Reg()
+		p2.RegTo2 = loong64.REGTMP
+
+		p3 := s.Prog(loong64.ABNE)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = v.Args[1].Reg()
+		p3.Reg = loong64.REGTMP
+		p3.To.Type = obj.TYPE_BRANCH
+
+		p4 := s.Prog(loong64.AMOVV)
+		p4.From.Type = obj.TYPE_CONST
+		p4.From.Offset = 0x1
+		p4.To.Type = obj.TYPE_REG
+		p4.To.Reg = v.Reg0()
+
+		p5 := s.Prog(obj.ANOP)
+		p3.To.SetTarget(p5)
 
 	case ssa.OpLOONG64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.

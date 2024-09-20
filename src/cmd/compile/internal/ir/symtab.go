@@ -60,6 +60,7 @@ type symsStruct struct {
 	Zerobase         *obj.LSym
 	ARM64HasATOMICS  *obj.LSym
 	ARMHasVFPv4      *obj.LSym
+	Loong64HasLAMCAS *obj.LSym
 	Loong64HasLAM_BH *obj.LSym
 	Loong64HasLSX    *obj.LSym
 	X86HasFMA        *obj.LSym
