@@ -50,6 +50,8 @@ func setMimeTypes(lowerExt, mixExt map[string]string) {
 	}
 }
 
+// These are just commomly used types mostly taken from
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
 var builtinTypesLower = map[string]string{
 	".7z":     "application/x-7z-compressed",
 	".aac":    "audio/aac",
