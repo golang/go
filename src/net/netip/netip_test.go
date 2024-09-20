@@ -351,6 +351,32 @@ func TestIPv4Constructors(t *testing.T) {
 	}
 }
 
+func TestAddrAppendText(t *testing.T) {
+	tests := []struct {
+		ip   Addr
+		want string
+	}{
+		{Addr{}, ""}, // zero IP
+		{mustIP("1.2.3.4"), "1.2.3.4"},
+		{mustIP("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b"), "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b"},
+		{mustIP("::ffff:192.168.140.255"), "::ffff:192.168.140.255"},
+		{mustIP("::ffff:192.168.140.255%en0"), "::ffff:192.168.140.255%en0"},
+	}
+	for i, tc := range tests {
+		ip := tc.ip
+
+		mtAppend := make([]byte, 4, 32)
+		mtAppend, err := ip.AppendText(mtAppend)
+		mtAppend = mtAppend[4:]
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(mtAppend) != tc.want {
+			t.Errorf("%d. for (%v) AppendText = %q; want %q", i, ip, mtAppend, tc.want)
+		}
+	}
+}
+
 func TestAddrMarshalUnmarshalBinary(t *testing.T) {
 	tests := []struct {
 		ip       string
@@ -380,6 +406,23 @@ func TestAddrMarshalUnmarshalBinary(t *testing.T) {
 		}
 		if ip != ip2 {
 			t.Fatalf("got %v; want %v", ip2, ip)
+		}
+
+		bAppend := make([]byte, 4, 32)
+		bAppend, err = ip.AppendBinary(bAppend)
+		bAppend = bAppend[4:]
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(bAppend) != tc.wantSize {
+			t.Fatalf("%q encoded to size %d; want %d", tc.ip, len(bAppend), tc.wantSize)
+		}
+		var ip3 Addr
+		if err := ip3.UnmarshalBinary(bAppend); err != nil {
+			t.Fatal(err)
+		}
+		if ip != ip3 {
+			t.Fatalf("got %v; want %v", ip3, ip)
 		}
 	}
 
@@ -416,6 +459,17 @@ func TestAddrPortMarshalTextString(t *testing.T) {
 		if string(mt) != tt.want {
 			t.Errorf("%d. for (%v, %v) MarshalText = %q; want %q", i, tt.in.Addr(), tt.in.Port(), mt, tt.want)
 		}
+
+		mtAppend := make([]byte, 4, 32)
+		mtAppend, err = tt.in.AppendText(mtAppend)
+		mtAppend = mtAppend[4:]
+		if err != nil {
+			t.Errorf("%d. for (%v, %v) AppendText error: %v", i, tt.in.Addr(), tt.in.Port(), err)
+			continue
+		}
+		if string(mtAppend) != tt.want {
+			t.Errorf("%d. for (%v, %v) AppendText = %q; want %q", i, tt.in.Addr(), tt.in.Port(), mtAppend, tt.want)
+		}
 	}
 }
 
@@ -447,6 +501,23 @@ func TestAddrPortMarshalUnmarshalBinary(t *testing.T) {
 		}
 		if ipport != ipport2 {
 			t.Fatalf("got %v; want %v", ipport2, ipport)
+		}
+
+		bAppend := make([]byte, 4, 32)
+		bAppend, err = ipport.AppendBinary(bAppend)
+		bAppend = bAppend[4:]
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(bAppend) != tc.wantSize {
+			t.Fatalf("%q encoded to size %d; want %d", tc.ipport, len(bAppend), tc.wantSize)
+		}
+		var ipport3 AddrPort
+		if err := ipport3.UnmarshalBinary(bAppend); err != nil {
+			t.Fatal(err)
+		}
+		if ipport != ipport3 {
+			t.Fatalf("got %v; want %v", ipport3, ipport)
 		}
 	}
 
@@ -482,6 +553,17 @@ func TestPrefixMarshalTextString(t *testing.T) {
 		if string(mt) != tt.want {
 			t.Errorf("%d. for %v MarshalText = %q; want %q", i, tt.in, mt, tt.want)
 		}
+
+		mtAppend := make([]byte, 4, 64)
+		mtAppend, err = tt.in.AppendText(mtAppend)
+		mtAppend = mtAppend[4:]
+		if err != nil {
+			t.Errorf("%d. for %v AppendText error: %v", i, tt.in, err)
+			continue
+		}
+		if string(mtAppend) != tt.want {
+			t.Errorf("%d. for %v AppendText = %q; want %q", i, tt.in, mtAppend, tt.want)
+		}
 	}
 }
 
@@ -514,6 +596,23 @@ func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
 		}
 		if prefix != prefix2 {
 			t.Fatalf("got %v; want %v", prefix2, prefix)
+		}
+
+		bAppend := make([]byte, 4, 32)
+		bAppend, err = prefix.AppendBinary(bAppend)
+		bAppend = bAppend[4:]
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(bAppend) != tc.wantSize {
+			t.Fatalf("%q encoded to size %d; want %d", tc.prefix, len(bAppend), tc.wantSize)
+		}
+		var prefix3 Prefix
+		if err := prefix3.UnmarshalBinary(bAppend); err != nil {
+			t.Fatal(err)
+		}
+		if prefix != prefix3 {
+			t.Fatalf("got %v; want %v", prefix3, prefix)
 		}
 	}
 

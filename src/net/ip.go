@@ -301,11 +301,18 @@ func (ip IP) String() string {
 	if len(ip) != IPv4len && len(ip) != IPv6len {
 		return "?" + hexString(ip)
 	}
-	// If IPv4, use dotted notation.
-	if p4 := ip.To4(); len(p4) == IPv4len {
-		return netip.AddrFrom4([4]byte(p4)).String()
+
+	var buf []byte
+	switch len(ip) {
+	case IPv4len:
+		const maxCap = len("255.255.255.255")
+		buf = make([]byte, 0, maxCap)
+	case IPv6len:
+		const maxCap = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
+		buf = make([]byte, 0, maxCap)
 	}
-	return netip.AddrFrom16([16]byte(ip)).String()
+	buf = ip.appendTo(buf)
+	return string(buf)
 }
 
 func hexString(b []byte) string {
@@ -325,17 +332,41 @@ func ipEmptyString(ip IP) string {
 	return ip.String()
 }
 
+// appendTo appends the string representation of ip to b and returns the expanded b
+// If len(ip) != IPv4len or IPv6len, it appends nothing.
+func (ip IP) appendTo(b []byte) []byte {
+	// If IPv4, use dotted notation.
+	if p4 := ip.To4(); len(p4) == IPv4len {
+		ip = p4
+	}
+	addr, _ := netip.AddrFromSlice(ip)
+	return addr.AppendTo(b)
+}
+
+// AppendText implements the [encoding.TextAppender] interface.
+// The encoding is the same as returned by [IP.String], with one exception:
+// When len(ip) is zero, it appends nothing.
+func (ip IP) AppendText(b []byte) ([]byte, error) {
+	if len(ip) == 0 {
+		return b, nil
+	}
+	if len(ip) != IPv4len && len(ip) != IPv6len {
+		return b, &AddrError{Err: "invalid IP address", Addr: hexString(ip)}
+	}
+
+	return ip.appendTo(b), nil
+}
+
 // MarshalText implements the [encoding.TextMarshaler] interface.
 // The encoding is the same as returned by [IP.String], with one exception:
 // When len(ip) is zero, it returns an empty slice.
 func (ip IP) MarshalText() ([]byte, error) {
-	if len(ip) == 0 {
-		return []byte(""), nil
+	// 24 is satisfied with all IPv4 addresses and short IPv6 addresses
+	b, err := ip.AppendText(make([]byte, 0, 24))
+	if err != nil {
+		return nil, err
 	}
-	if len(ip) != IPv4len && len(ip) != IPv6len {
-		return nil, &AddrError{Err: "invalid IP address", Addr: hexString(ip)}
-	}
-	return []byte(ip.String()), nil
+	return b, nil
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
