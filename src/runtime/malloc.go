@@ -1356,7 +1356,7 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, size)
 	}
-	c.scanAlloc += heapSetType(uintptr(x), size, typ, nil, span)
+	c.scanAlloc += heapSetTypeNoHeader(uintptr(x), size, typ, span)
 	size = uintptr(class_to_size[sizeclass])
 
 	// Ensure that the stores above that initialize x to
@@ -1450,7 +1450,7 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type, needzero bool) (unsafe.Po
 	}
 	header := (**_type)(x)
 	x = add(x, mallocHeaderSize)
-	c.scanAlloc += heapSetType(uintptr(x), size-mallocHeaderSize, typ, header, span)
+	c.scanAlloc += heapSetTypeSmallHeader(uintptr(x), size-mallocHeaderSize, typ, header, span)
 
 	// Ensure that the stores above that initialize x to
 	// type-safe memory and set the heap bits occur before
@@ -1583,7 +1583,7 @@ func mallocgcLarge(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uin
 		// Finish storing the type information for this case.
 		if !noscan {
 			mp := acquirem()
-			getMCache(mp).scanAlloc += heapSetType(uintptr(x), size, typ, &span.largeType, span)
+			getMCache(mp).scanAlloc += heapSetTypeLarge(uintptr(x), size, typ, span)
 
 			// Publish the type information with the zeroed memory.
 			publicationBarrier()
