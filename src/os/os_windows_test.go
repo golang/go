@@ -1269,6 +1269,9 @@ func TestReadlink(t *testing.T) {
 		}
 
 		t.Run(name, func(t *testing.T) {
+			if !tt.junction {
+				testenv.MustHaveSymlink(t)
+			}
 			if !tt.relative {
 				t.Parallel()
 			}
