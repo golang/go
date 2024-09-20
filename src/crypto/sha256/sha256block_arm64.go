@@ -6,13 +6,22 @@
 
 package sha256
 
-import "internal/cpu"
+import (
+	"crypto/internal/impl"
+	"internal/cpu"
+)
+
+var useSHA2 = cpu.ARM64.HasSHA2
+
+func init() {
+	impl.Register("crypto/sha256", "Armv8.0", &useSHA2)
+}
 
 //go:noescape
 func blockSHA2(dig *digest, p []byte)
 
 func block(dig *digest, p []byte) {
-	if cpu.ARM64.HasSHA2 {
+	if useSHA2 {
 		blockSHA2(dig, p)
 	} else {
 		blockGeneric(dig, p)

@@ -6,15 +6,22 @@
 
 package sha512
 
-import "internal/cpu"
+import (
+	"crypto/internal/impl"
+	"internal/cpu"
+)
+
+var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+
+func init() {
+	impl.Register("crypto/sha512", "AVX2", &useAVX2)
+}
 
 //go:noescape
 func blockAVX2(dig *digest, p []byte)
 
 //go:noescape
 func blockAMD64(dig *digest, p []byte)
-
-var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
 
 func block(dig *digest, p []byte) {
 	if useAVX2 {

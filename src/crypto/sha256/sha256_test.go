@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
-	"crypto/rand"
 	"encoding"
 	"fmt"
 	"hash"
@@ -93,8 +92,11 @@ var golden224 = []sha256Test{
 }
 
 func TestGolden(t *testing.T) {
-	for i := 0; i < len(golden); i++ {
-		g := golden[i]
+	cryptotest.TestAllImplementations(t, "crypto/sha256", testGolden)
+}
+
+func testGolden(t *testing.T) {
+	for _, g := range golden {
 		s := fmt.Sprintf("%x", Sum256([]byte(g.in)))
 		if s != g.out {
 			t.Fatalf("Sum256 function: sha256(%s) = %s want %s", g.in, s, g.out)
@@ -115,8 +117,7 @@ func TestGolden(t *testing.T) {
 			c.Reset()
 		}
 	}
-	for i := 0; i < len(golden224); i++ {
-		g := golden224[i]
+	for _, g := range golden224 {
 		s := fmt.Sprintf("%x", Sum224([]byte(g.in)))
 		if s != g.out {
 			t.Fatalf("Sum224 function: sha224(%s) = %s want %s", g.in, s, g.out)
@@ -140,6 +141,10 @@ func TestGolden(t *testing.T) {
 }
 
 func TestGoldenMarshal(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "crypto/sha256", testGoldenMarshal)
+}
+
+func testGoldenMarshal(t *testing.T) {
 	tests := []struct {
 		name    string
 		newHash func() hash.Hash
@@ -225,21 +230,6 @@ func TestBlockSize(t *testing.T) {
 	c := New()
 	if got := c.BlockSize(); got != BlockSize {
 		t.Errorf("BlockSize = %d want %d", got, BlockSize)
-	}
-}
-
-// Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
-func TestBlockGeneric(t *testing.T) {
-	if boring.Enabled {
-		t.Skip("BoringCrypto doesn't expose digest")
-	}
-	gen, asm := New().(*digest), New().(*digest)
-	buf := make([]byte, BlockSize*20) // arbitrary factor
-	rand.Read(buf)
-	blockGeneric(gen, buf)
-	block(asm, buf)
-	if *gen != *asm {
-		t.Error("block and blockGeneric resulted in different states")
 	}
 }
 
@@ -338,12 +328,16 @@ func TestCgo(t *testing.T) {
 	h.Sum(nil)
 }
 
-func TestSHA256Hash(t *testing.T) {
+func TestHash(t *testing.T) {
 	t.Run("SHA-224", func(t *testing.T) {
-		cryptotest.TestHash(t, New224)
+		cryptotest.TestAllImplementations(t, "crypto/sha256", func(t *testing.T) {
+			cryptotest.TestHash(t, New224)
+		})
 	})
 	t.Run("SHA-256", func(t *testing.T) {
-		cryptotest.TestHash(t, New)
+		cryptotest.TestAllImplementations(t, "crypto/sha256", func(t *testing.T) {
+			cryptotest.TestHash(t, New)
+		})
 	})
 }
 
