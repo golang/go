@@ -201,14 +201,14 @@ func (p *pp) Flag(b int) bool {
 	return false
 }
 
-// Implement Write so we can call [Fprintf] on a pp (through [State]), for
+// Write implements [io.Writer] so we can call [Fprintf] on a pp (through [State]), for
 // recursive use in custom verbs.
 func (p *pp) Write(b []byte) (ret int, err error) {
 	p.buf.write(b)
 	return len(b), nil
 }
 
-// Implement WriteString so that we can call [io.WriteString]
+// WriteString implements [io.StringWriter] so that we can call [io.WriteString]
 // on a pp (through state), for efficiency.
 func (p *pp) WriteString(s string) (ret int, err error) {
 	p.buf.writeString(s)
