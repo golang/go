@@ -338,15 +338,16 @@ func (check *Checker) cycleError(cycle []Object, start int) {
 	}
 	i := start
 	for range cycle {
-		err.addf(obj, "%s refers to", objName)
+		currName := objName
+		currObj := obj
 		i++
 		if i >= len(cycle) {
 			i = 0
 		}
 		obj = cycle[i]
 		objName = name(obj)
+		err.addf(currObj, "%s refers to %s", currName, objName)
 	}
-	err.addf(obj, "%s", objName)
 	err.report()
 }
 
