@@ -409,6 +409,9 @@ func appendCleanPath(buf []byte, path string, lookupParent bool) ([]byte, bool) 
 		case "":
 			continue
 		case ".":
+			if len(buf) > 0 && buf[len(buf)-1] != '/' {
+				buf = append(buf, '/')
+			}
 			continue
 		case "..":
 			if !lookupParent {
