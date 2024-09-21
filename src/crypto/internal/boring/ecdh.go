@@ -15,69 +15,79 @@ import (
 )
 
 type PublicKeyECDH struct {
+	p *publicKeyECDH
+}
+
+type publicKeyECDH struct {
 	curve string
 	key   *C.GO_EC_POINT
 	group *C.GO_EC_GROUP
 	bytes []byte
 }
 
-func (k *PublicKeyECDH) finalize() {
+func (k *publicKeyECDH) finalize() {
 	C._goboringcrypto_EC_POINT_free(k.key)
 }
 
 type PrivateKeyECDH struct {
+	p *privateKeyECDH
+}
+
+type privateKeyECDH struct {
 	curve string
 	key   *C.GO_EC_KEY
 }
 
-func (k *PrivateKeyECDH) finalize() {
+func (k *PrivateKeyECDH) Valid() bool { return k.p != nil }
+
+func (k *privateKeyECDH) finalize() {
 	C._goboringcrypto_EC_KEY_free(k.key)
 }
 
-func NewPublicKeyECDH(curve string, bytes []byte) (*PublicKeyECDH, error) {
+func NewPublicKeyECDH(curve string, bytes []byte) (PublicKeyECDH, error) {
 	if len(bytes) < 1 {
-		return nil, errors.New("NewPublicKeyECDH: missing key")
+		return PublicKeyECDH{}, errors.New("NewPublicKeyECDH: missing key")
 	}
 
 	nid, err := curveNID(curve)
 	if err != nil {
-		return nil, err
+		return PublicKeyECDH{}, err
 	}
 
 	group := C._goboringcrypto_EC_GROUP_new_by_curve_name(nid)
 	if group == nil {
-		return nil, fail("EC_GROUP_new_by_curve_name")
+		return PublicKeyECDH{}, fail("EC_GROUP_new_by_curve_name")
 	}
 	defer C._goboringcrypto_EC_GROUP_free(group)
 	key := C._goboringcrypto_EC_POINT_new(group)
 	if key == nil {
-		return nil, fail("EC_POINT_new")
+		return PublicKeyECDH{}, fail("EC_POINT_new")
 	}
 	ok := C._goboringcrypto_EC_POINT_oct2point(group, key, (*C.uint8_t)(unsafe.Pointer(&bytes[0])), C.size_t(len(bytes)), nil) != 0
 	if !ok {
 		C._goboringcrypto_EC_POINT_free(key)
-		return nil, errors.New("point not on curve")
+		return PublicKeyECDH{}, errors.New("point not on curve")
 	}
 
-	k := &PublicKeyECDH{curve, key, group, append([]byte(nil), bytes...)}
+	k := &publicKeyECDH{curve, key, group, append([]byte(nil), bytes...)}
 	// Note: Because of the finalizer, any time k.key is passed to cgo,
 	// that call must be followed by a call to runtime.KeepAlive(k),
 	// to make sure k is not collected (and finalized) before the cgo
 	// call returns.
-	runtime.SetFinalizer(k, (*PublicKeyECDH).finalize)
-	return k, nil
+	runtime.SetFinalizer(k, (*publicKeyECDH).finalize)
+	return PublicKeyECDH{p: k}, nil
 }
 
-func (k *PublicKeyECDH) Bytes() []byte { return k.bytes }
+func (k *PublicKeyECDH) Bytes() []byte { return k.p.bytes }
 
-func NewPrivateKeyECDH(curve string, bytes []byte) (*PrivateKeyECDH, error) {
+func NewPrivateKeyECDH(curve string, bytes []byte) (PrivateKeyECDH, error) {
 	nid, err := curveNID(curve)
 	if err != nil {
-		return nil, err
+		return PrivateKeyECDH{}, err
 	}
 	key := C._goboringcrypto_EC_KEY_new_by_curve_name(nid)
 	if key == nil {
-		return nil, fail("EC_KEY_new_by_curve_name")
+		return PrivateKeyECDH{}, fail("EC_KEY_new_by_curve_name")
 	}
 	b := bytesToBN(bytes)
 	ok := b != nil && C._goboringcrypto_EC_KEY_set_private_key(key, b) != 0
@@ -86,42 +96,42 @@ func NewPrivateKeyECDH(curve string, bytes []byte) (*PrivateKeyECDH, error) {
 	}
 	if !ok {
 		C._goboringcrypto_EC_KEY_free(key)
-		return nil, fail("EC_KEY_set_private_key")
+		return PrivateKeyECDH{}, fail("EC_KEY_set_private_key")
 	}
-	k := &PrivateKeyECDH{curve, key}
+	k := &privateKeyECDH{curve, key}
 	// Note: Same as in NewPublicKeyECDH regarding finalizer and KeepAlive.
-	runtime.SetFinalizer(k, (*PrivateKeyECDH).finalize)
-	return k, nil
+	runtime.SetFinalizer(k, (*privateKeyECDH).finalize)
+	return PrivateKeyECDH{p: k}, nil
 }
 
-func (k *PrivateKeyECDH) PublicKey() (*PublicKeyECDH, error) {
+func (k *PrivateKeyECDH) PublicKey() (PublicKeyECDH, error) {
 	defer runtime.KeepAlive(k)
 
-	group := C._goboringcrypto_EC_KEY_get0_group(k.key)
+	group := C._goboringcrypto_EC_KEY_get0_group(k.p.key)
 	if group == nil {
-		return nil, fail("EC_KEY_get0_group")
+		return PublicKeyECDH{}, fail("EC_KEY_get0_group")
 	}
-	kbig := C._goboringcrypto_EC_KEY_get0_private_key(k.key)
+	kbig := C._goboringcrypto_EC_KEY_get0_private_key(k.p.key)
 	if kbig == nil {
-		return nil, fail("EC_KEY_get0_private_key")
+		return PublicKeyECDH{}, fail("EC_KEY_get0_private_key")
 	}
 	pt := C._goboringcrypto_EC_POINT_new(group)
 	if pt == nil {
-		return nil, fail("EC_POINT_new")
+		return PublicKeyECDH{}, fail("EC_POINT_new")
 	}
 	if C._goboringcrypto_EC_POINT_mul(group, pt, kbig, nil, nil, nil) == 0 {
 		C._goboringcrypto_EC_POINT_free(pt)
-		return nil, fail("EC_POINT_mul")
+		return PublicKeyECDH{}, fail("EC_POINT_mul")
 	}
-	bytes, err := pointBytesECDH(k.curve, group, pt)
+	bytes, err := pointBytesECDH(k.p.curve, group, pt)
 	if err != nil {
 		C._goboringcrypto_EC_POINT_free(pt)
-		return nil, err
+		return PublicKeyECDH{}, err
 	}
-	pub := &PublicKeyECDH{k.curve, pt, group, bytes}
+	pub := &publicKeyECDH{k.p.curve, pt, group, bytes}
 	// Note: Same as in NewPublicKeyECDH regarding finalizer and KeepAlive.
-	runtime.SetFinalizer(pub, (*PublicKeyECDH).finalize)
-	return pub, nil
+	runtime.SetFinalizer(pub, (*publicKeyECDH).finalize)
+	return PublicKeyECDH{p: pub}, nil
 }
 
 func pointBytesECDH(curve string, group *C.GO_EC_GROUP, pt *C.GO_EC_POINT) ([]byte, error) {
@@ -133,12 +143,12 @@ func pointBytesECDH(curve string, group *C.GO_EC_GROUP, pt *C.GO_EC_POINT) ([]by
 	return out, nil
 }
 
-func ECDH(priv *PrivateKeyECDH, pub *PublicKeyECDH) ([]byte, error) {
-	group := C._goboringcrypto_EC_KEY_get0_group(priv.key)
+func ECDH(priv PrivateKeyECDH, pub PublicKeyECDH) ([]byte, error) {
+	group := C._goboringcrypto_EC_KEY_get0_group(priv.p.key)
 	if group == nil {
 		return nil, fail("EC_KEY_get0_group")
 	}
-	privBig := C._goboringcrypto_EC_KEY_get0_private_key(priv.key)
+	privBig := C._goboringcrypto_EC_KEY_get0_private_key(priv.p.key)
 	if privBig == nil {
 		return nil, fail("EC_KEY_get0_private_key")
 	}
@@ -147,10 +157,10 @@ func ECDH(priv *PrivateKeyECDH, pub *PublicKeyECDH) ([]byte, error) {
 		return nil, fail("EC_POINT_new")
 	}
 	defer C._goboringcrypto_EC_POINT_free(pt)
-	if C._goboringcrypto_EC_POINT_mul(group, pt, nil, pub.key, privBig, nil) == 0 {
+	if C._goboringcrypto_EC_POINT_mul(group, pt, nil, pub.p.key, privBig, nil) == 0 {
 		return nil, fail("EC_POINT_mul")
 	}
-	out, err := xCoordBytesECDH(priv.curve, group, pt)
+	out, err := xCoordBytesECDH(priv.p.curve, group, pt)
 	if err != nil {
 		return nil, err
 	}
@@ -187,38 +197,38 @@ func curveSize(curve string) int {
 	}
 }
 
-func GenerateKeyECDH(curve string) (*PrivateKeyECDH, []byte, error) {
+func GenerateKeyECDH(curve string) (PrivateKeyECDH, []byte, error) {
 	nid, err := curveNID(curve)
 	if err != nil {
-		return nil, nil, err
+		return PrivateKeyECDH{}, nil, err
 	}
 	key := C._goboringcrypto_EC_KEY_new_by_curve_name(nid)
 	if key == nil {
-		return nil, nil, fail("EC_KEY_new_by_curve_name")
+		return PrivateKeyECDH{}, nil, fail("EC_KEY_new_by_curve_name")
 	}
 	if C._goboringcrypto_EC_KEY_generate_key_fips(key) == 0 {
 		C._goboringcrypto_EC_KEY_free(key)
-		return nil, nil, fail("EC_KEY_generate_key_fips")
+		return PrivateKeyECDH{}, nil, fail("EC_KEY_generate_key_fips")
 	}
 
 	group := C._goboringcrypto_EC_KEY_get0_group(key)
 	if group == nil {
 		C._goboringcrypto_EC_KEY_free(key)
-		return nil, nil, fail("EC_KEY_get0_group")
+		return PrivateKeyECDH{}, nil, fail("EC_KEY_get0_group")
 	}
 	b := C._goboringcrypto_EC_KEY_get0_private_key(key)
 	if b == nil {
 		C._goboringcrypto_EC_KEY_free(key)
-		return nil, nil, fail("EC_KEY_get0_private_key")
+		return PrivateKeyECDH{}, nil, fail("EC_KEY_get0_private_key")
 	}
 	bytes, err := bigBytesECDH(curve, b)
 	if err != nil {
 		C._goboringcrypto_EC_KEY_free(key)
-		return nil, nil, err
+		return PrivateKeyECDH{}, nil, err
 	}
 
-	k := &PrivateKeyECDH{curve, key}
+	k := &privateKeyECDH{curve, key}
 	// Note: Same as in NewPublicKeyECDH regarding finalizer and KeepAlive.
-	runtime.SetFinalizer(k, (*PrivateKeyECDH).finalize)
-	return k, bytes, nil
+	runtime.SetFinalizer(k, (*privateKeyECDH).finalize)
+	return PrivateKeyECDH{p: k}, bytes, nil
 }

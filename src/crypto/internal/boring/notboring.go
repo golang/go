@@ -115,9 +115,10 @@ func VerifyRSAPSS(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte, saltLen 
 type PublicKeyECDH struct{}
 type PrivateKeyECDH struct{}
 
-func ECDH(*PrivateKeyECDH, *PublicKeyECDH) ([]byte, error)      { panic("boringcrypto: not available") }
-func GenerateKeyECDH(string) (*PrivateKeyECDH, []byte, error)   { panic("boringcrypto: not available") }
-func NewPrivateKeyECDH(string, []byte) (*PrivateKeyECDH, error) { panic("boringcrypto: not available") }
-func NewPublicKeyECDH(string, []byte) (*PublicKeyECDH, error)   { panic("boringcrypto: not available") }
-func (*PublicKeyECDH) Bytes() []byte                            { panic("boringcrypto: not available") }
-func (*PrivateKeyECDH) PublicKey() (*PublicKeyECDH, error)      { panic("boringcrypto: not available") }
+func ECDH(PrivateKeyECDH, PublicKeyECDH) ([]byte, error)       { panic("boringcrypto: not available") }
+func GenerateKeyECDH(string) (PrivateKeyECDH, []byte, error)   { panic("boringcrypto: not available") }
+func NewPrivateKeyECDH(string, []byte) (PrivateKeyECDH, error) { panic("boringcrypto: not available") }
+func NewPublicKeyECDH(string, []byte) (PublicKeyECDH, error)   { panic("boringcrypto: not available") }
+func (*PublicKeyECDH) Bytes() []byte                           { panic("boringcrypto: not available") }
+func (*PrivateKeyECDH) PublicKey() (PublicKeyECDH, error)      { panic("boringcrypto: not available") }
+func (*PrivateKeyECDH) Valid() bool                            { panic("boringcrypto: not available") }
