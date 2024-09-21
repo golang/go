@@ -168,11 +168,11 @@ func (check *Checker) reportCycle(cycle []Object) {
 	err.addf(obj, "initialization cycle for %s", obj.Name())
 	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
 	for i := len(cycle) - 1; i >= 0; i-- {
-		err.addf(obj, "%s refers to", obj.Name())
+		currObj := obj
+		currName := obj.Name()
 		obj = cycle[i]
+		err.addf(currObj, "%s refers to %s", currName, obj.Name())
 	}
-	// print cycle[0] again to close the cycle
-	err.addf(obj, "%s", obj.Name())
 	err.report()
 }
 
