@@ -41,6 +41,10 @@ func TestScript(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.SkipIfShortAndSlow(t)
 
+	if testing.Short() && runtime.GOOS == "plan9" {
+		t.Skipf("skipping test in -short mode on %s", runtime.GOOS)
+	}
+
 	srv, err := vcstest.NewServer()
 	if err != nil {
 		t.Fatal(err)
