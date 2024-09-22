@@ -545,7 +545,7 @@ var lexPosTests = []lexTest{
 		{itemRightDelim, 11, "}}", 2},
 		{itemEOF, 13, "", 2},
 	}},
-	{"correctline", "{{/*\n*/}}\n{{undefinedFunction \"test\"}}", []item{
+	{"longcomment", "{{/*\n*/}}\n{{undefinedFunction \"test\"}}", []item{
 		{itemComment, 2, "/*\n*/", 1},
 		{itemText, 9, "\n", 2},
 		{itemLeftDelim, 10, "{{", 3},
