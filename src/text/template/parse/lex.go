@@ -352,6 +352,7 @@ func lexComment(l *lexer) stateFn {
 	if !delim {
 		return l.errorf("comment ends before closing delimiter")
 	}
+	l.line += strings.Count(l.input[l.start:l.pos], "\n")
 	i := l.thisItem(itemComment)
 	if trimSpace {
 		l.pos += trimMarkerLen
