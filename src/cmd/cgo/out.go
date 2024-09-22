@@ -447,7 +447,7 @@ func checkImportSymName(s string) {
 		}
 	}
 	if strings.Contains(s, "//") || strings.Contains(s, "/*") {
-		fatalf("dynamic symbol %q contains Go comment")
+		fatalf("dynamic symbol %q contains Go comment", s)
 	}
 }
 
