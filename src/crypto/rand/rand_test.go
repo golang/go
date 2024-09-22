@@ -43,6 +43,9 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func BenchmarkRead(b *testing.B) {
+	b.Run("4", func(b *testing.B) {
+		benchmarkRead(b, 4)
+	})
 	b.Run("32", func(b *testing.B) {
 		benchmarkRead(b, 32)
 	})
