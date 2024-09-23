@@ -150,6 +150,7 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ
 	// verify instantiation lazily (was go.dev/issue/50450)
 	check.later(func() {
 		tparams := typ.TypeParams().list()
+		// check type constraints
 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
 			// best position for error reporting
 			pos := pos

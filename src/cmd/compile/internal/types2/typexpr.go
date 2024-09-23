@@ -450,13 +450,18 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	}()
 
 	var cause string
-	gtyp := check.genericType(x, &cause)
+	typ := check.genericType(x, &cause)
 	if cause != "" {
 		check.errorf(x, NotAGenericType, invalidOp+"%s%s (%s)", x, xlist, cause)
 	}
-	if !isValid(gtyp) {
-		return gtyp // error already reported
+	if !isValid(typ) {
+		return typ // error already reported
 	}
+	// typ must be a generic Alias or Named type (but not a *Signature)
+	if _, ok := typ.(*Signature); ok {
+		panic("unexpected generic signature")
+	}
+	gtyp := typ.(genericType)
 
 	// evaluate arguments
 	targs := check.typeList(xlist)
@@ -464,27 +469,23 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 		return Typ[Invalid]
 	}
 
-	if orig, _ := gtyp.(*Alias); orig != nil {
-		return check.instance(x.Pos(), orig, targs, nil, check.context())
-	}
+	// create instance
+	// The instance is not generic anymore as it has type arguments, but it still
+	// satisfies the genericType interface because it has type parameters, too.
+	inst := check.instance(x.Pos(), gtyp, targs, nil, check.context()).(genericType)
 
-	orig := asNamed(gtyp)
-	if orig == nil {
-		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
-	}
-
-	// create the instance
-	inst := asNamed(check.instance(x.Pos(), orig, targs, nil, check.context()))
-
-	// orig.tparams may not be set up, so we need to do expansion later.
+	// For Named types, orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {
 		// This is an instance from the source, not from recursive substitution,
 		// and so it must be resolved during type-checking so that we can report
 		// errors.
-		check.recordInstance(x, inst.TypeArgs().list(), inst)
+		check.recordInstance(x, targs, inst)
 
-		if check.validateTArgLen(x.Pos(), inst.obj.name, inst.TypeParams().Len(), inst.TypeArgs().Len()) {
-			if i, err := check.verify(x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
+		name := inst.(interface{ Obj() *TypeName }).Obj().name
+		tparams := inst.TypeParams().list()
+		if check.validateTArgLen(x.Pos(), name, len(tparams), len(targs)) {
+			// check type constraints
+			if i, err := check.verify(x.Pos(), inst.TypeParams().list(), targs, check.context()); err != nil {
 				// best position for error reporting
 				pos := x.Pos()
 				if i < len(xlist) {
@@ -492,15 +493,10 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 				}
 				check.softErrorf(pos, InvalidTypeArg, "%s", err)
 			} else {
-				check.mono.recordInstance(check.pkg, x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), xlist)
+				check.mono.recordInstance(check.pkg, x.Pos(), tparams, targs, xlist)
 			}
 		}
-
-		// TODO(rfindley): remove this call: we don't need to call validType here,
-		// as cycles can only occur for types used inside a Named type declaration,
-		// and so it suffices to call validType from declared types.
-		check.validType(inst)
-	}).describef(x, "resolve instance %s", inst)
+	}).describef(x, "verify instantiation %s", inst)
 
 	return inst
 }

@@ -143,7 +143,7 @@ func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, ex
 			return orig // nothing to do (minor optimization)
 		}
 
-		return check.newAliasInstance(pos, orig, targs, expanding, ctxt)
+		res = check.newAliasInstance(pos, orig, targs, expanding, ctxt)
 
 	case *Signature:
 		assert(expanding == nil) // function instances cannot be reached from Named types
