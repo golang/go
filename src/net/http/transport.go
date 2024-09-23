@@ -2398,8 +2398,6 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 			trace.GotFirstResponseByte()
 		}
 	}
-	num1xx := 0               // number of informational 1xx headers received
-	const max1xxResponses = 5 // arbitrary bound on number of informational responses
 
 	continueCh := rc.continueCh
 	for {
@@ -2419,15 +2417,18 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 		// treat 101 as a terminal status, see issue 26161
 		is1xxNonTerminal := is1xx && resCode != StatusSwitchingProtocols
 		if is1xxNonTerminal {
-			num1xx++
-			if num1xx > max1xxResponses {
-				return nil, errors.New("net/http: too many 1xx informational responses")
-			}
-			pc.readLimit = pc.maxHeaderResponseSize() // reset the limit
 			if trace != nil && trace.Got1xxResponse != nil {
 				if err := trace.Got1xxResponse(resCode, textproto.MIMEHeader(resp.Header)); err != nil {
 					return nil, err
 				}
+				// If the 1xx response was delivered to the user,
+				// then they're responsible for limiting the number of
+				// responses. Reset the header limit.
+				//
+				// If the user didn't examine the 1xx response, then we
+				// limit the size of all headers (including both 1xx
+				// and the final response) to maxHeaderResponseSize.
+				pc.readLimit = pc.maxHeaderResponseSize() // reset the limit
 			}
 			continue
 		}
