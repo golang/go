@@ -102,8 +102,6 @@ func InitConfig() {
 	// Set up some runtime functions we'll need to call.
 	ir.Syms.AssertE2I = typecheck.LookupRuntimeFunc("assertE2I")
 	ir.Syms.AssertE2I2 = typecheck.LookupRuntimeFunc("assertE2I2")
-	ir.Syms.AssertI2I = typecheck.LookupRuntimeFunc("assertI2I")
-	ir.Syms.AssertI2I2 = typecheck.LookupRuntimeFunc("assertI2I2")
 	ir.Syms.CgoCheckMemmove = typecheck.LookupRuntimeFunc("cgoCheckMemmove")
 	ir.Syms.CgoCheckPtrWrite = typecheck.LookupRuntimeFunc("cgoCheckPtrWrite")
 	ir.Syms.CheckPtrAlignment = typecheck.LookupRuntimeFunc("checkptrAlignment")
