@@ -53,6 +53,17 @@ func rewriteValueLOONG64(v *Value) bool {
 	case OpAtomicAdd64:
 		v.Op = OpLOONG64LoweredAtomicAdd64
 		return true
+	case OpAtomicAnd32:
+		v.Op = OpLOONG64LoweredAtomicAnd32
+		return true
+	case OpAtomicAnd32value:
+		v.Op = OpLOONG64LoweredAtomicAnd32value
+		return true
+	case OpAtomicAnd64value:
+		v.Op = OpLOONG64LoweredAtomicAnd64value
+		return true
+	case OpAtomicAnd8:
+		return rewriteValueLOONG64_OpAtomicAnd8(v)
 	case OpAtomicCompareAndSwap32:
 		return rewriteValueLOONG64_OpAtomicCompareAndSwap32(v)
 	case OpAtomicCompareAndSwap64:
@@ -76,6 +87,17 @@ func rewriteValueLOONG64(v *Value) bool {
 	case OpAtomicLoadPtr:
 		v.Op = OpLOONG64LoweredAtomicLoad64
 		return true
+	case OpAtomicOr32:
+		v.Op = OpLOONG64LoweredAtomicOr32
+		return true
+	case OpAtomicOr32value:
+		v.Op = OpLOONG64LoweredAtomicOr32value
+		return true
+	case OpAtomicOr64value:
+		v.Op = OpLOONG64LoweredAtomicOr64value
+		return true
+	case OpAtomicOr8:
+		return rewriteValueLOONG64_OpAtomicOr8(v)
 	case OpAtomicStore32:
 		v.Op = OpLOONG64LoweredAtomicStore32
 		return true
@@ -806,6 +828,43 @@ func rewriteValueLOONG64_OpAddr(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueLOONG64_OpAtomicAnd8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicAnd8 ptr val mem)
+	// result: (LoweredAtomicAnd32 (AND <typ.Uintptr> (MOVVconst [^3]) ptr) (NORconst [0] <typ.UInt32> (SLLV <typ.UInt32> (XORconst <typ.UInt32> [0xff] (ZeroExt8to32 val)) (SLLVconst <typ.UInt64> [3] (ANDconst <typ.UInt64> [3] ptr)))) mem)
+	for {
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		v.reset(OpLOONG64LoweredAtomicAnd32)
+		v0 := b.NewValue0(v.Pos, OpLOONG64AND, typ.Uintptr)
+		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
+		v1.AuxInt = int64ToAuxInt(^3)
+		v0.AddArg2(v1, ptr)
+		v2 := b.NewValue0(v.Pos, OpLOONG64NORconst, typ.UInt32)
+		v2.AuxInt = int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, OpLOONG64SLLV, typ.UInt32)
+		v4 := b.NewValue0(v.Pos, OpLOONG64XORconst, typ.UInt32)
+		v4.AuxInt = int64ToAuxInt(0xff)
+		v5 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
+		v5.AddArg(val)
+		v4.AddArg(v5)
+		v6 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.UInt64)
+		v6.AuxInt = int64ToAuxInt(3)
+		v7 := b.NewValue0(v.Pos, OpLOONG64ANDconst, typ.UInt64)
+		v7.AuxInt = int64ToAuxInt(3)
+		v7.AddArg(ptr)
+		v6.AddArg(v7)
+		v3.AddArg2(v4, v6)
+		v2.AddArg(v3)
+		v.AddArg3(v0, v2, mem)
+		return true
+	}
+}
 func rewriteValueLOONG64_OpAtomicCompareAndSwap32(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
@@ -824,6 +883,37 @@ func rewriteValueLOONG64_OpAtomicCompareAndSwap32(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
 		v0.AddArg(old)
 		v.AddArg4(ptr, v0, new, mem)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpAtomicOr8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicOr8 ptr val mem)
+	// result: (LoweredAtomicOr32 (AND <typ.Uintptr> (MOVVconst [^3]) ptr) (SLLV <typ.UInt32> (ZeroExt8to32 val) (SLLVconst <typ.UInt64> [3] (ANDconst <typ.UInt64> [3] ptr))) mem)
+	for {
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		v.reset(OpLOONG64LoweredAtomicOr32)
+		v0 := b.NewValue0(v.Pos, OpLOONG64AND, typ.Uintptr)
+		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
+		v1.AuxInt = int64ToAuxInt(^3)
+		v0.AddArg2(v1, ptr)
+		v2 := b.NewValue0(v.Pos, OpLOONG64SLLV, typ.UInt32)
+		v3 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
+		v3.AddArg(val)
+		v4 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.UInt64)
+		v4.AuxInt = int64ToAuxInt(3)
+		v5 := b.NewValue0(v.Pos, OpLOONG64ANDconst, typ.UInt64)
+		v5.AuxInt = int64ToAuxInt(3)
+		v5.AddArg(ptr)
+		v4.AddArg(v5)
+		v2.AddArg2(v3, v4)
+		v.AddArg3(v0, v2, mem)
 		return true
 	}
 }

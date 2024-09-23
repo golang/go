@@ -446,6 +446,28 @@
 (AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
 (AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
 
+// Atomic memory logical operations (old style).
+//
+// AtomicAnd8(ptr,val) => LoweredAtomicAnd32(ptr&^3, ^((uint8(val) ^ 0xff) << ((ptr & 3) * 8)))
+// AtomicOr8(ptr,val)  => LoweredAtomicOr32(ptr&^3, uint32(val) << ((ptr & 3) * 8))
+//
+(AtomicAnd8 ptr val mem) =>
+	(LoweredAtomicAnd32 (AND <typ.Uintptr> (MOVVconst [^3]) ptr)
+		(NORconst [0] <typ.UInt32> (SLLV <typ.UInt32> (XORconst <typ.UInt32> [0xff] (ZeroExt8to32 val))
+			(SLLVconst <typ.UInt64> [3] (ANDconst <typ.UInt64> [3] ptr)))) mem)
+
+(AtomicOr8 ptr val mem) =>
+	(LoweredAtomicOr32 (AND <typ.Uintptr> (MOVVconst [^3]) ptr)
+		(SLLV <typ.UInt32> (ZeroExt8to32 val)
+			(SLLVconst <typ.UInt64> [3] (ANDconst <typ.UInt64> [3] ptr))) mem)
+
+(AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
+(AtomicOr32  ...) => (LoweredAtomicOr32  ...)
+
+// Atomic memory logical operations (new style).
+(AtomicAnd(64|32)value ...) => (LoweredAtomicAnd(64|32)value ...)
+(AtomicOr(64|32)value  ...) => (LoweredAtomicOr(64|32)value  ...)
+
 // checks
 (NilCheck ...) => (LoweredNilCheck ...)
 (IsNonNil ptr) => (SGTU ptr (MOVVconst [0]))

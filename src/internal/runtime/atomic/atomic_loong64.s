@@ -185,122 +185,78 @@ TEXT ·Store64(SB), NOSPLIT, $0-16
 TEXT ·Or8(SB), NOSPLIT, $0-9
 	MOVV	ptr+0(FP), R4
 	MOVBU	val+8(FP), R5
-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
+	// R6 = ptr & (~3)
 	MOVV	$~3, R6
 	AND	R4, R6
 	// R7 = ((ptr & 3) * 8)
 	AND	$3, R4, R7
 	SLLV	$3, R7
-	// Shift val for aligned ptr. R5 = val << R4
+	// R5 = val << R7
 	SLLV	R7, R5
-
-	DBAR
-	LL	(R6), R7
-	OR	R5, R7
-	SC	R7, (R6)
-	BEQ	R7, -4(PC)
-	DBAR
+	AMORDBW	R5, (R6), R0
 	RET
 
 // void	And8(byte volatile*, byte);
 TEXT ·And8(SB), NOSPLIT, $0-9
 	MOVV	ptr+0(FP), R4
 	MOVBU	val+8(FP), R5
-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
+	// R6 = ptr & (~3)
 	MOVV	$~3, R6
 	AND	R4, R6
 	// R7 = ((ptr & 3) * 8)
 	AND	$3, R4, R7
 	SLLV	$3, R7
-	// Shift val for aligned ptr. R5 = val << R7 | ^(0xFF << R7)
-	MOVV	$0xFF, R8
-	SLLV	R7, R5
-	SLLV	R7, R8
-	NOR	R0, R8
-	OR	R8, R5
-
-	DBAR
-	LL	(R6), R7
-	AND	R5, R7
-	SC	R7, (R6)
-	BEQ	R7, -4(PC)
-	DBAR
+	// R5 = ((val ^ 0xFF) << R7) ^ (-1)
+	XOR	$255, R5
+	SLLV	R7,  R5
+	XOR	$-1, R5
+	AMANDDBW	R5, (R6), R0
 	RET
 
 // func Or(addr *uint32, v uint32)
 TEXT ·Or(SB), NOSPLIT, $0-12
 	MOVV	ptr+0(FP), R4
 	MOVW	val+8(FP), R5
-	DBAR
-	LL	(R4), R6
-	OR	R5, R6
-	SC	R6, (R4)
-	BEQ	R6, -4(PC)
-	DBAR
+	AMORDBW	R5, (R4), R0
 	RET
 
 // func And(addr *uint32, v uint32)
 TEXT ·And(SB), NOSPLIT, $0-12
 	MOVV	ptr+0(FP), R4
 	MOVW	val+8(FP), R5
-	DBAR
-	LL	(R4), R6
-	AND	R5, R6
-	SC	R6, (R4)
-	BEQ	R6, -4(PC)
-	DBAR
+	AMANDDBW	R5, (R4), R0
 	RET
 
 // func Or32(addr *uint32, v uint32) old uint32
 TEXT ·Or32(SB), NOSPLIT, $0-20
 	MOVV	ptr+0(FP), R4
 	MOVW	val+8(FP), R5
-	DBAR
-	LL	(R4), R6
-	OR	R5, R6, R7
-	SC	R7, (R4)
-	BEQ	R7, -4(PC)
-	DBAR
-	MOVW R6, ret+16(FP)
+	AMORDBW R5, (R4), R6
+	MOVW	R6, ret+16(FP)
 	RET
 
 // func And32(addr *uint32, v uint32) old uint32
 TEXT ·And32(SB), NOSPLIT, $0-20
 	MOVV	ptr+0(FP), R4
 	MOVW	val+8(FP), R5
-	DBAR
-	LL	(R4), R6
-	AND	R5, R6, R7
-	SC	R7, (R4)
-	BEQ	R7, -4(PC)
-	DBAR
-	MOVW R6, ret+16(FP)
+	AMANDDBW	R5, (R4), R6
+	MOVW	R6, ret+16(FP)
 	RET
 
 // func Or64(addr *uint64, v uint64) old uint64
 TEXT ·Or64(SB), NOSPLIT, $0-24
 	MOVV	ptr+0(FP), R4
 	MOVV	val+8(FP), R5
-	DBAR
-	LLV	(R4), R6
-	OR	R5, R6, R7
-	SCV	R7, (R4)
-	BEQ	R7, -4(PC)
-	DBAR
-	MOVV R6, ret+16(FP)
+	AMORDBV	R5, (R4), R6
+	MOVV	R6, ret+16(FP)
 	RET
 
 // func And64(addr *uint64, v uint64) old uint64
 TEXT ·And64(SB), NOSPLIT, $0-24
 	MOVV	ptr+0(FP), R4
 	MOVV	val+8(FP), R5
-	DBAR
-	LLV	(R4), R6
-	AND	R5, R6, R7
-	SCV	R7, (R4)
-	BEQ	R7, -4(PC)
-	DBAR
-	MOVV R6, ret+16(FP)
+	AMANDDBV	R5, (R4), R6
+	MOVV	R6, ret+16(FP)
 	RET
 
 // func Anduintptr(addr *uintptr, v uintptr) old uintptr
