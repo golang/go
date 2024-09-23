@@ -197,7 +197,6 @@ type Map struct {
 	used uint64
 
 	// seed is the hash seed, computed as a unique random number per map.
-	// TODO(prattmic): Populate this on table initialization.
 	seed uintptr
 
 	// The directory of tables.
@@ -293,10 +292,7 @@ func NewMap(mt *abi.SwissMapType, hint, maxAlloc uintptr) *Map {
 	}
 
 	m := &Map{
-		//TODO
-		//seed: uintptr(rand()),
-
-		//directory: make([]*table, dirSize),
+		seed: uintptr(rand()),
 
 		globalDepth: globalDepth,
 		globalShift: depthToShift(globalDepth),
@@ -654,6 +650,13 @@ func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
 		m.directoryAt(idx).Delete(typ, m, key)
 	}
 
+	if m.used == 0 {
+		// Reset the hash seed to make it more difficult for attackers
+		// to repeatedly trigger hash collisions. See
+		// https://go.dev/issue/25237.
+		m.seed = uintptr(rand())
+	}
+
 	if m.writing == 0 {
 		fatal("concurrent map writes")
 	}
@@ -734,6 +737,10 @@ func (m *Map) Clear(typ *abi.SwissMapType) {
 		m.clearSeq++
 		// TODO: shrink directory?
 	}
+
+	// Reset the hash seed to make it more difficult for attackers to
+	// repeatedly trigger hash collisions. See https://go.dev/issue/25237.
+	m.seed = uintptr(rand())
 
 	if m.writing == 0 {
 		fatal("concurrent map writes")

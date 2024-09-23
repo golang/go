@@ -266,7 +266,7 @@ outer:
 					*(*string)(slotKey) = key
 					slotElem = g.elem(typ, i)
 
-					t.checkInvariants(typ)
+					t.checkInvariants(typ, m)
 					break outer
 				}
 				match = match.removeFirst()
@@ -304,7 +304,7 @@ outer:
 					t.used++
 					m.used++
 
-					t.checkInvariants(typ)
+					t.checkInvariants(typ, m)
 					break outer
 				}
 

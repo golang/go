@@ -259,7 +259,7 @@ outer:
 				if key == *(*uint32)(slotKey) {
 					slotElem = g.elem(typ, i)
 
-					t.checkInvariants(typ)
+					t.checkInvariants(typ, m)
 					break outer
 				}
 				match = match.removeFirst()
@@ -297,7 +297,7 @@ outer:
 					t.used++
 					m.used++
 
-					t.checkInvariants(typ)
+					t.checkInvariants(typ, m)
 					break outer
 				}
 
@@ -400,7 +400,7 @@ outer:
 				if key == *(*unsafe.Pointer)(slotKey) {
 					slotElem = g.elem(typ, i)
 
-					t.checkInvariants(typ)
+					t.checkInvariants(typ, m)
 					break outer
 				}
 				match = match.removeFirst()
@@ -438,7 +438,7 @@ outer:
 					t.used++
 					m.used++
 
-					t.checkInvariants(typ)
+					t.checkInvariants(typ, m)
 					break outer
 				}
 

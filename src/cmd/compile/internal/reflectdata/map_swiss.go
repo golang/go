@@ -104,8 +104,6 @@ func swissTableType() *types.Type {
 	//     localDepth uint8
 	//     // N.B Padding
 	//
-	//     seed uintptr
-	//
 	//     index int
 	//
 	//     // From groups.
@@ -119,7 +117,6 @@ func swissTableType() *types.Type {
 		makefield("capacity", types.Types[types.TUINT16]),
 		makefield("growthLeft", types.Types[types.TUINT16]),
 		makefield("localDepth", types.Types[types.TUINT8]),
-		makefield("seed", types.Types[types.TUINTPTR]),
 		makefield("index", types.Types[types.TINT]),
 		makefield("groups_data", types.Types[types.TUNSAFEPTR]),
 		makefield("groups_lengthMask", types.Types[types.TUINT64]),
@@ -134,9 +131,9 @@ func swissTableType() *types.Type {
 	table.SetUnderlying(types.NewStruct(fields))
 	types.CalcSize(table)
 
-	// The size of table should be 48 bytes on 64 bit
-	// and 36 bytes on 32 bit platforms.
-	if size := int64(3*2 + 2*1 /* one extra for padding */ + 2*8 + 3*types.PtrSize); table.Size() != size {
+	// The size of table should be 40 bytes on 64 bit
+	// and 32 bytes on 32 bit platforms.
+	if size := int64(3*2 + 2*1 /* one extra for padding */ + 2*8 + 2*types.PtrSize); table.Size() != size {
 		base.Fatalf("internal/runtime/maps.table size not correct: got %d, want %d", table.Size(), size)
 	}
 
