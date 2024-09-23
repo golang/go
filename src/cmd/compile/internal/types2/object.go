@@ -566,7 +566,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 			// Don't print anything more for basic types since there's
 			// no more information.
 			return
-		case *Named:
+		case genericType:
 			if t.TypeParams().Len() > 0 {
 				newTypeWriter(buf, qf).tParamList(t.TypeParams().list())
 			}
