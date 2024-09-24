@@ -339,8 +339,14 @@ func appendT(h *Hash, v reflect.Value) {
 		h.WriteString(v.String())
 		return
 	case reflect.Struct:
+		var buf [8]byte
 		for i := range v.NumField() {
 			f := v.Field(i)
+			byteorder.LePutUint64(buf[:], uint64(i))
+			// do not want to hash to the same value,
+			// struct{a,b string}{"foo",""} and
+			// struct{a,b string}{"","foo"}.
+			h.Write(buf[:])
 			appendT(h, f)
 		}
 		return
