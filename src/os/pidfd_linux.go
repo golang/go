@@ -18,6 +18,7 @@ package os
 import (
 	"errors"
 	"internal/syscall/unix"
+	"runtime"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -151,6 +152,13 @@ var checkPidfdOnce = sync.OnceValue(checkPidfd)
 // execution environment in which the above system calls are restricted by
 // seccomp or a similar technology.
 func checkPidfd() error {
+	// In Android version < 12, pidfd-related system calls are not allowed
+	// by seccomp and trigger the SIGSYS signal. See issue #69065.
+	if runtime.GOOS == "android" {
+		ignoreSIGSYS()
+		defer restoreSIGSYS()
+	}
+
 	// Get a pidfd of the current process (opening of "/proc/self" won't
 	// work for waitid).
 	fd, err := unix.PidFDOpen(syscall.Getpid(), 0)
@@ -192,3 +200,11 @@ func checkPidfd() error {
 //
 //go:linkname checkClonePidfd
 func checkClonePidfd() error
+
+// Provided by runtime.
+//
+//go:linkname ignoreSIGSYS
+func ignoreSIGSYS()
+
+//go:linkname restoreSIGSYS
+func restoreSIGSYS()
