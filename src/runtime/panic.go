@@ -1081,6 +1081,7 @@ func throw(s string) {
 func fatal(s string) {
 	// Everything fatal does should be recursively nosplit so it
 	// can be called even when it's unsafe to grow the stack.
+	printlock() // Prevent multiple interleaved fatal reports. See issue 69447.
 	systemstack(func() {
 		print("fatal error: ")
 		printindented(s) // logically printpanicval(s), but avoids convTstring write barrier
@@ -1088,6 +1089,7 @@ func fatal(s string) {
 	})
 
 	fatalthrow(throwTypeUser)
+	printunlock()
 }
 
 // runningPanicDefers is non-zero while running deferred functions for panic.
