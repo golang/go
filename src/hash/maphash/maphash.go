@@ -314,6 +314,7 @@ func WriteComparable[T comparable](h *Hash, x T) {
 // when the value cannot be directly hash raw memory,
 // or when purego is used.
 func appendT(h *Hash, v reflect.Value) {
+	h.WriteString(v.Type().String())
 	switch v.Kind() {
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
 		var buf [8]byte
