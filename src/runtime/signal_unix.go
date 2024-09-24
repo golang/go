@@ -605,6 +605,19 @@ var crashing atomic.Int32
 var testSigtrap func(info *siginfo, ctxt *sigctxt, gp *g) bool
 var testSigusr1 func(gp *g) bool
 
+// sigsysIgnored is non-zero if we are currently ignoring SIGSYS. See issue #69065.
+var sigsysIgnored uint32
+
+//go:linkname ignoreSIGSYS os.ignoreSIGSYS
+func ignoreSIGSYS() {
+	atomic.Store(&sigsysIgnored, 1)
+}
+
+//go:linkname restoreSIGSYS os.restoreSIGSYS
+func restoreSIGSYS() {
+	atomic.Store(&sigsysIgnored, 0)
+}
+
 // sighandler is invoked when a signal occurs. The global g will be
 // set to a gsignal goroutine and we will be running on the alternate
 // signal stack. The parameter gp will be the value of the global g
@@ -712,6 +725,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if c.sigFromUser() && signal_ignored(sig) {
+		return
+	}
+
+	if sig == _SIGSYS && c.sigFromSeccomp() && atomic.Load(&sigsysIgnored) != 0 {
 		return
 	}
 

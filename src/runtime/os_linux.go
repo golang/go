@@ -879,8 +879,9 @@ func runPerThreadSyscall() {
 }
 
 const (
-	_SI_USER  = 0
-	_SI_TKILL = -6
+	_SI_USER     = 0
+	_SI_TKILL    = -6
+	_SYS_SECCOMP = 1
 )
 
 // sigFromUser reports whether the signal was sent because of a call
@@ -890,6 +891,14 @@ const (
 func (c *sigctxt) sigFromUser() bool {
 	code := int32(c.sigcode())
 	return code == _SI_USER || code == _SI_TKILL
+}
+
+// sigFromSeccomp reports whether the signal was sent from seccomp.
+//
+//go:nosplit
+func (c *sigctxt) sigFromSeccomp() bool {
+	code := int32(c.sigcode())
+	return code == _SYS_SECCOMP
 }
 
 //go:nosplit
