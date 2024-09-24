@@ -115,7 +115,8 @@ func TestObjectString(t *testing.T) {
 	for i, test := range testObjects {
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
 			if test.alias {
-				defer setGOEXPERIMENT("aliastypeparams")()
+				revert := setGOEXPERIMENT("aliastypeparams")
+				defer revert()
 			}
 			src := "package p; " + test.src
 			conf := Config{Error: func(error) {}, Importer: defaultImporter(), EnableAlias: test.alias}

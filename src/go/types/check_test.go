@@ -197,7 +197,8 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool,
 	}
 
 	if goexperiment != "" {
-		defer setGOEXPERIMENT(goexperiment)()
+		revert := setGOEXPERIMENT(goexperiment)
+		defer revert()
 	}
 
 	// By default, gotypesalias is not set.
@@ -357,9 +358,7 @@ func setGOEXPERIMENT(goexperiment string) func() {
 	}
 	old := buildcfg.Experiment
 	buildcfg.Experiment = *exp
-	return func() {
-		buildcfg.Experiment = old
-	}
+	return func() { buildcfg.Experiment = old }
 }
 
 // TestManual is for manual testing of a package - either provided
