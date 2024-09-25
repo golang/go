@@ -407,7 +407,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				// t0 was simplified to t1.
 				// If t0 was a generic function, but the simplified signature t1 does
 				// not contain any type parameters anymore, the function is not generic
-				// anymore. Remove it's type parameters. (go.dev/issue/59953)
+				// anymore. Remove its type parameters. (go.dev/issue/59953)
 				// Note that if t0 was a signature, t1 must be a signature, and t1
 				// can only be a generic signature if it originated from a generic
 				// function argument. Those signatures are never defined types and

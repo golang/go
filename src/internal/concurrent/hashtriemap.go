@@ -15,7 +15,7 @@ import (
 
 // HashTrieMap is an implementation of a concurrent hash-trie. The implementation
 // is designed around frequent loads, but offers decent performance for stores
-// and deletes as well, especially if the map is larger. It's primary use-case is
+// and deletes as well, especially if the map is larger. Its primary use-case is
 // the unique package, but can be used elsewhere as well.
 type HashTrieMap[K, V comparable] struct {
 	root     *indirect[K, V]

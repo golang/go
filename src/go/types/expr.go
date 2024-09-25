@@ -49,7 +49,7 @@ sub-expression trees are left alone except for their roots). This mechanism
 ensures that a client sees the actual (run-time) type an untyped value would
 have. It also permits type-checking of lhs shift operands "as if the shift
 were not present": when updateExprType visits an untyped lhs shift operand
-and assigns it it's final type, that type must be an integer type, and a
+and assigns it its final type, that type must be an integer type, and a
 constant lhs must be representable as an integer.
 
 When an expression gets its final type, either on the way out from rawExpr,
