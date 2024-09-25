@@ -320,6 +320,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				autosize += int32(c.ctxt.Arch.FixedFrameSize)
 			}
 
+			if p.Mark&LEAF != 0 && autosize < abi.StackSmall {
+				// A leaf function with a small stack can be marked
+				// NOSPLIT, avoiding a stack check.
+				p.From.Sym.Set(obj.AttrNoSplit, true)
+			}
+
 			if autosize&4 != 0 {
 				autosize += 4
 			}
