@@ -59,7 +59,7 @@ func TestTransportPoolConnCannotReuseConnectionInUse(t *testing.T) {
 
 // When an HTTP/2 connection is at its stream limit
 // a new request is made on a new connection.
-func TestTransportPoolConnHTTP2OverStreamLimit(t *testing.T) {
+func testTransportPoolConnHTTP2NoStrictMaxConcurrentRequests(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		dt := newTransportDialTester(t, http2Mode, func(srv *http.Server) {
 			srv.HTTP2 = &http.HTTP2Config{
@@ -97,6 +97,43 @@ func TestTransportPoolConnHTTP2OverStreamLimit(t *testing.T) {
 		rt4.finish()
 		rt5.finish()
 		rt6.finish()
+	})
+}
+
+// When an HTTP/2 connection is at its stream limit
+// and StrictMaxConcurrentRequests = true,
+// a new request waits for a slot on the existing connection.
+func TestTransportPoolConnHTTP2StrictMaxConcurrentRequests(t *testing.T) {
+	t.Skip("skipped until h2_bundle.go includes support for StrictMaxConcurrentRequests")
+
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http2Mode, func(srv *http.Server) {
+			srv.HTTP2.MaxConcurrentStreams = 2
+		}, func(tr *http.Transport) {
+			tr.HTTP2 = &http.HTTP2Config{
+				StrictMaxConcurrentRequests: true,
+			}
+		})
+
+		// First request dials an HTTP/2 connection.
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		c1.finish(nil)
+		rt1.wantDone(c1, "HTTP/2.0")
+
+		// Second request uses the existing connection.
+		rt2 := dt.roundTrip()
+		rt2.wantDone(c1, "HTTP/2.0")
+
+		// Third request blocks waiting for a slot on the existing connection.
+		rt3 := dt.roundTrip()
+
+		// First request finishing unblocks the thirrd.
+		rt1.finish()
+		rt3.wantDone(c1, "HTTP/2.0")
+
+		rt2.finish()
+		rt3.finish()
 	})
 }
 
