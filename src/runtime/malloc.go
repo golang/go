@@ -1247,21 +1247,19 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		asanunpoison(x, userSize)
 	}
 
+	// Note cache c only valid while m acquired; see #47302
+	//
+	// N.B. Use the full size because that matches how the GC
+	// will update the mem profile on the "free" side.
+	//
 	// TODO(mknyszek): We should really count the header as part
 	// of gc_sys or something. The code below just pretends it is
 	// internal fragmentation and matches the GC's accounting by
 	// using the whole allocation slot.
 	fullSize := span.elemsize
-	if rate := MemProfileRate; rate > 0 {
-		// Note cache c only valid while m acquired; see #47302
-		//
-		// N.B. Use the full size because that matches how the GC
-		// will update the mem profile on the "free" side.
-		if rate != 1 && fullSize < c.nextSample {
-			c.nextSample -= fullSize
-		} else {
-			profilealloc(mp, x, fullSize)
-		}
+	c.nextSample -= int64(fullSize)
+	if c.nextSample < 0 || MemProfileRate != c.memProfRate {
+		profilealloc(mp, x, fullSize)
 	}
 	mp.mallocing = 0
 	releasem(mp)
@@ -1465,11 +1463,16 @@ func maps_newarray(typ *_type, n int) unsafe.Pointer {
 	return newarray(typ, n)
 }
 
+// profilealloc resets the current mcache's nextSample counter and
+// records a memory profile sample.
+//
+// The caller must be non-preemptible and have a P.
 func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 	c := getMCache(mp)
 	if c == nil {
 		throw("profilealloc called without a P or outside bootstrapping")
 	}
+	c.memProfRate = MemProfileRate
 	c.nextSample = nextSample()
 	mProf_Malloc(mp, x, size)
 }
@@ -1481,12 +1484,13 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 // processes, the distance between two samples follows the exponential
 // distribution (exp(MemProfileRate)), so the best return value is a random
 // number taken from an exponential distribution whose mean is MemProfileRate.
-func nextSample() uintptr {
+func nextSample() int64 {
+	if MemProfileRate == 0 {
+		// Basically never sample.
+		return maxInt64
+	}
 	if MemProfileRate == 1 {
-		// Callers assign our return value to
-		// mcache.next_sample, but next_sample is not used
-		// when the rate is 1. So avoid the math below and
-		// just return something.
+		// Sample immediately.
 		return 0
 	}
 	if GOOS == "plan9" {
@@ -1496,7 +1500,7 @@ func nextSample() uintptr {
 		}
 	}
 
-	return uintptr(fastexprand(MemProfileRate))
+	return int64(fastexprand(MemProfileRate))
 }
 
 // fastexprand returns a random number from an exponential distribution with
@@ -1531,14 +1535,14 @@ func fastexprand(mean int) int32 {
 
 // nextSampleNoFP is similar to nextSample, but uses older,
 // simpler code to avoid floating point.
-func nextSampleNoFP() uintptr {
+func nextSampleNoFP() int64 {
 	// Set first allocation sample size.
 	rate := MemProfileRate
 	if rate > 0x3fffffff { // make 2*rate not overflow
 		rate = 0x3fffffff
 	}
 	if rate != 0 {
-		return uintptr(cheaprandn(uint32(2 * rate)))
+		return int64(cheaprandn(uint32(2 * rate)))
 	}
 	return 0
 }
