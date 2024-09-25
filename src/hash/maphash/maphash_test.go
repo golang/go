@@ -8,7 +8,10 @@ import (
 	"bytes"
 	"fmt"
 	"hash"
+	"math"
+	"reflect"
 	"testing"
+	"unsafe"
 )
 
 func TestUnseededHash(t *testing.T) {
@@ -208,6 +211,199 @@ func TestSeedFromReset(t *testing.T) {
 	if x != y {
 		t.Errorf("hashes don't match: want %x, got %x", x, y)
 	}
+}
+
+func negativeZero[T float32 | float64]() T {
+	var f T
+	f = -f
+	return f
+}
+
+func TestComparable(t *testing.T) {
+	testComparable(t, int64(2))
+	testComparable(t, uint64(8))
+	testComparable(t, uintptr(12))
+	testComparable(t, any("s"))
+	testComparable(t, "s")
+	testComparable(t, true)
+	testComparable(t, new(float64))
+	testComparable(t, float64(9))
+	testComparable(t, complex128(9i+1))
+	testComparable(t, struct{}{})
+	testComparable(t, struct {
+		i int
+		u uint
+		b bool
+		f float64
+		p *int
+		a any
+	}{i: 9, u: 1, b: true, f: 9.9, p: new(int), a: 1})
+	type S struct {
+		s string
+	}
+	s1 := S{s: heapStr(t)}
+	s2 := S{s: heapStr(t)}
+	if unsafe.StringData(s1.s) == unsafe.StringData(s2.s) {
+		t.Fatalf("unexpected two heapStr ptr equal")
+	}
+	if s1.s != s2.s {
+		t.Fatalf("unexpected two heapStr value not equal")
+	}
+	testComparable(t, s1, s2)
+	testComparable(t, s1.s, s2.s)
+	testComparable(t, float32(0), negativeZero[float32]())
+	testComparable(t, float64(0), negativeZero[float64]())
+	testComparableNoEqual(t, math.NaN(), math.NaN())
+	testComparableNoEqual(t, [2]string{"a", ""}, [2]string{"", "a"})
+	testComparableNoEqual(t, struct{ a, b string }{"foo", ""}, struct{ a, b string }{"", "foo"})
+	testComparableNoEqual(t, struct{ a, b any }{int(0), struct{}{}}, struct{ a, b any }{struct{}{}, int(0)})
+}
+
+func testComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {
+	seed := MakeSeed()
+	if Comparable(seed, v1) == Comparable(seed, v2) {
+		t.Fatalf("Comparable(seed, %v) == Comparable(seed, %v)", v1, v2)
+	}
+}
+
+var heapStrValue = []byte("aTestString")
+
+func heapStr(t *testing.T) string {
+	return string(heapStrValue)
+}
+
+func testComparable[T comparable](t *testing.T, v T, v2 ...T) {
+	t.Run(reflect.TypeFor[T]().String(), func(t *testing.T) {
+		var a, b T = v, v
+		if len(v2) != 0 {
+			b = v2[0]
+		}
+		var pa *T = &a
+		seed := MakeSeed()
+		if Comparable(seed, a) != Comparable(seed, b) {
+			t.Fatalf("Comparable(seed, %v) != Comparable(seed, %v)", a, b)
+		}
+		old := Comparable(seed, pa)
+		stackGrow(8192)
+		new := Comparable(seed, pa)
+		if old != new {
+			t.Fatal("Comparable(seed, ptr) != Comparable(seed, ptr)")
+		}
+	})
+}
+
+var use byte
+
+//go:noinline
+func stackGrow(dep int) {
+	if dep == 0 {
+		return
+	}
+	var local [1024]byte
+	// make sure local is allocated on the stack.
+	local[randUint64()%1024] = byte(randUint64())
+	use = local[randUint64()%1024]
+	stackGrow(dep - 1)
+}
+
+func TestWriteComparable(t *testing.T) {
+	testWriteComparable(t, int64(2))
+	testWriteComparable(t, uint64(8))
+	testWriteComparable(t, uintptr(12))
+	testWriteComparable(t, any("s"))
+	testWriteComparable(t, "s")
+	testComparable(t, true)
+	testWriteComparable(t, new(float64))
+	testWriteComparable(t, float64(9))
+	testWriteComparable(t, complex128(9i+1))
+	testWriteComparable(t, struct{}{})
+	testWriteComparable(t, struct {
+		i int
+		u uint
+		b bool
+		f float64
+		p *int
+		a any
+	}{i: 9, u: 1, b: true, f: 9.9, p: new(int), a: 1})
+	type S struct {
+		s string
+	}
+	s1 := S{s: heapStr(t)}
+	s2 := S{s: heapStr(t)}
+	if unsafe.StringData(s1.s) == unsafe.StringData(s2.s) {
+		t.Fatalf("unexpected two heapStr ptr equal")
+	}
+	if s1.s != s2.s {
+		t.Fatalf("unexpected two heapStr value not equal")
+	}
+	testWriteComparable(t, s1, s2)
+	testWriteComparable(t, s1.s, s2.s)
+	testWriteComparable(t, float32(0), negativeZero[float32]())
+	testWriteComparable(t, float64(0), negativeZero[float64]())
+	testWriteComparableNoEqual(t, math.NaN(), math.NaN())
+	testWriteComparableNoEqual(t, [2]string{"a", ""}, [2]string{"", "a"})
+	testWriteComparableNoEqual(t, struct{ a, b string }{"foo", ""}, struct{ a, b string }{"", "foo"})
+	testWriteComparableNoEqual(t, struct{ a, b any }{int(0), struct{}{}}, struct{ a, b any }{struct{}{}, int(0)})
+}
+
+func testWriteComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {
+	seed := MakeSeed()
+	h1 := Hash{}
+	h2 := Hash{}
+	h1.seed, h2.seed = seed, seed
+	WriteComparable(&h1, v1)
+	WriteComparable(&h2, v2)
+	if h1.Sum64() == h2.Sum64() {
+		t.Fatalf("WriteComparable(seed, %v) == WriteComparable(seed, %v)", v1, v2)
+	}
+
+}
+
+func testWriteComparable[T comparable](t *testing.T, v T, v2 ...T) {
+	t.Run(reflect.TypeFor[T]().String(), func(t *testing.T) {
+		var a, b T = v, v
+		if len(v2) != 0 {
+			b = v2[0]
+		}
+		var pa *T = &a
+		h1 := Hash{}
+		h2 := Hash{}
+		h1.seed = MakeSeed()
+		h2.seed = h1.seed
+		WriteComparable(&h1, a)
+		WriteComparable(&h2, b)
+		if h1.Sum64() != h2.Sum64() {
+			t.Fatalf("WriteComparable(h, %v) != WriteComparable(h, %v)", a, b)
+		}
+		WriteComparable(&h1, pa)
+		old := h1.Sum64()
+		stackGrow(8192)
+		WriteComparable(&h2, pa)
+		new := h2.Sum64()
+		if old != new {
+			t.Fatal("WriteComparable(seed, ptr) != WriteComparable(seed, ptr)")
+		}
+	})
+}
+
+func TestComparableShouldPanic(t *testing.T) {
+	s := []byte("s")
+	a := any(s)
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Fatalf("hash any([]byte) should panic in maphash.appendT")
+		}
+		s, ok := err.(string)
+		if !ok {
+			t.Fatalf("hash any([]byte) should panic in maphash.appendT")
+		}
+		want := "maphash: []uint8 not comparable"
+		if s != want {
+			t.Fatalf("want %s, got %s", want, s)
+		}
+	}()
+	Comparable(MakeSeed(), a)
 }
 
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
