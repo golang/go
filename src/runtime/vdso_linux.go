@@ -97,6 +97,8 @@ type vdsoInfo struct {
 	verdef *elfVerdef
 }
 
+var vdsoLoadStart, vdsoLoadEnd uintptr
+
 // see vdso_linux_*.go for vdsoSymbolKeys[] and vdso*Sym vars
 
 func vdsoInitFromSysinfoEhdr(info *vdsoInfo, hdr *elfEhdr) {
@@ -116,6 +118,8 @@ func vdsoInitFromSysinfoEhdr(info *vdsoInfo, hdr *elfEhdr) {
 			if !foundVaddr {
 				foundVaddr = true
 				info.loadOffset = info.loadAddr + uintptr(pt.p_offset-pt.p_vaddr)
+				vdsoLoadStart = info.loadOffset
+				vdsoLoadEnd = info.loadOffset + uintptr(pt.p_memsz)
 			}
 
 		case _PT_DYNAMIC:
@@ -285,11 +289,5 @@ func vdsoauxv(tag, val uintptr) {
 //
 //go:nosplit
 func inVDSOPage(pc uintptr) bool {
-	for _, k := range vdsoSymbolKeys {
-		if *k.ptr != 0 {
-			page := *k.ptr &^ (physPageSize - 1)
-			return pc >= page && pc < page+physPageSize
-		}
-	}
-	return false
+	return pc >= vdsoLoadStart && pc < vdsoLoadEnd
 }
