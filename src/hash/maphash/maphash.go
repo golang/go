@@ -13,7 +13,6 @@
 package maphash
 
 import (
-	"fmt"
 	"internal/abi"
 	"internal/byteorder"
 	"math"
@@ -296,11 +295,10 @@ func Comparable[T comparable](seed Seed, v T) uint64 {
 }
 
 func comparableReady[T comparable](v T) {
-	// Let v be on the heap,
-	// make sure that if v is a pointer to a variable inside the function,
-	// if v and the value it points to do not change,
-	// Comparable(seed,v) before goroutine stack growth
-	// is equal to Comparable(seed,v) after goroutine stack growth.
+	// Force v to be on the heap.
+	// We cannot hash pointers to local variables,
+	// as the address of the local variable
+	// might change on stack growth.
 	abi.Escape(v)
 }
 
@@ -374,7 +372,7 @@ func appendT(h *Hash, v reflect.Value) {
 		appendT(h, v.Elem())
 		return
 	}
-	panic(fmt.Errorf("hash/maphash: %s not comparable", v.Type().String()))
+	panic("maphash: " + v.Type().String() + " not comparable")
 }
 
 func (h *Hash) float64(f float64) {

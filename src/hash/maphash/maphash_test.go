@@ -6,12 +6,10 @@ package maphash
 
 import (
 	"bytes"
-	"crypto/rand"
 	"fmt"
 	"hash"
 	"math"
 	"reflect"
-	"strings"
 	"testing"
 	"unsafe"
 )
@@ -268,21 +266,10 @@ func testComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {
 	}
 }
 
-var heapStrValue []byte
+var heapStrValue = []byte("aTestString")
 
-//go:noinline
 func heapStr(t *testing.T) string {
-	s := make([]byte, 10)
-	if heapStrValue != nil {
-		copy(s, heapStrValue)
-	} else {
-		_, err := rand.Read(s)
-		if err != nil {
-			t.Fatal(err)
-		}
-		heapStrValue = s
-	}
-	return string(s)
+	return string(heapStrValue)
 }
 
 func testComparable[T comparable](t *testing.T, v T, v2 ...T) {
@@ -405,14 +392,15 @@ func TestComparableShouldPanic(t *testing.T) {
 	defer func() {
 		err := recover()
 		if err == nil {
-			t.Fatalf("hash any([]byte) should panic(error) in maphash.appendT")
+			t.Fatalf("hash any([]byte) should panic in maphash.appendT")
 		}
-		e, ok := err.(error)
+		s, ok := err.(string)
 		if !ok {
-			t.Fatalf("hash any([]byte) should panic(error) in maphash.appendT")
+			t.Fatalf("hash any([]byte) should panic in maphash.appendT")
 		}
-		if !strings.Contains(e.Error(), "comparable") {
-			t.Fatalf("hash any([]byte) should panic(error) in maphash.appendT")
+		want := "maphash: []uint8 not comparable"
+		if s != want {
+			t.Fatalf("want %s, got %s", want, s)
 		}
 	}()
 	Comparable(MakeSeed(), a)
