@@ -15,9 +15,10 @@ import (
 	"runtime/debug"
 	"strconv"
 	"testing"
+	"time"
 )
 
-type Optionals struct {
+type OptionalsEmpty struct {
 	Sr string `json:"sr"`
 	So string `json:"so,omitempty"`
 	Sw string `json:"-"`
@@ -56,8 +57,130 @@ func TestOmitEmpty(t *testing.T) {
  "str": {},
  "sto": {}
 }`
-	var o Optionals
+	var o OptionalsEmpty
 	o.Sw = "something"
+	o.Mr = map[string]any{}
+	o.Mo = map[string]any{}
+
+	got, err := MarshalIndent(&o, "", " ")
+	if err != nil {
+		t.Fatalf("MarshalIndent error: %v", err)
+	}
+	if got := string(got); got != want {
+		t.Errorf("MarshalIndent:\n\tgot:  %s\n\twant: %s\n", indentNewlines(got), indentNewlines(want))
+	}
+}
+
+type NonZeroStruct struct{}
+
+func (nzs NonZeroStruct) IsZero() bool {
+	return false
+}
+
+type OptionalsZero struct {
+	Sr string `json:"sr"`
+	So string `json:"so,omitzero"`
+	Sw string `json:"-"`
+
+	Ir int `json:"omitzero"` // actually named omitzero, not an option
+	Io int `json:"io,omitzero"`
+
+	Slr       []string `json:"slr,random"`
+	Slo       []string `json:"slo,omitzero"`
+	SloNonNil []string `json:"slononnil,omitzero"`
+
+	Mr map[string]any `json:"mr"`
+	Mo map[string]any `json:",omitzero"`
+
+	Fr float64 `json:"fr"`
+	Fo float64 `json:"fo,omitzero"`
+
+	Br bool `json:"br"`
+	Bo bool `json:"bo,omitzero"`
+
+	Ur uint `json:"ur"`
+	Uo uint `json:"uo,omitzero"`
+
+	Str struct{} `json:"str"`
+	Sto struct{} `json:"sto,omitzero"`
+
+	Time time.Time     `json:"time,omitzero"`
+	Nzs  NonZeroStruct `json:"nzs,omitzero"`
+}
+
+func TestOmitZero(t *testing.T) {
+	var want = `{
+ "sr": "",
+ "omitzero": 0,
+ "slr": null,
+ "slononnil": [],
+ "mr": {},
+ "Mo": {},
+ "fr": 0,
+ "br": false,
+ "ur": 0,
+ "str": {},
+ "nzs": {}
+}`
+	var o OptionalsZero
+	o.Sw = "something"
+	o.SloNonNil = make([]string, 0)
+	o.Mr = map[string]any{}
+	o.Mo = map[string]any{}
+
+	got, err := MarshalIndent(&o, "", " ")
+	if err != nil {
+		t.Fatalf("MarshalIndent error: %v", err)
+	}
+	if got := string(got); got != want {
+		t.Errorf("MarshalIndent:\n\tgot:  %s\n\twant: %s\n", indentNewlines(got), indentNewlines(want))
+	}
+}
+
+type OptionalsEmptyZero struct {
+	Sr string `json:"sr"`
+	So string `json:"so,omitempty,omitzero"`
+	Sw string `json:"-"`
+
+	Io int `json:"io,omitempty,omitzero"`
+
+	Slr       []string `json:"slr,random"`
+	Slo       []string `json:"slo,omitempty,omitzero"`
+	SloNonNil []string `json:"slononnil,omitempty,omitzero"`
+
+	Mr map[string]any `json:"mr"`
+	Mo map[string]any `json:",omitempty,omitzero"`
+
+	Fr float64 `json:"fr"`
+	Fo float64 `json:"fo,omitempty,omitzero"`
+
+	Br bool `json:"br"`
+	Bo bool `json:"bo,omitempty,omitzero"`
+
+	Ur uint `json:"ur"`
+	Uo uint `json:"uo,omitempty,omitzero"`
+
+	Str struct{} `json:"str"`
+	Sto struct{} `json:"sto,omitempty,omitzero"`
+
+	Time time.Time     `json:"time,omitempty,omitzero"`
+	Nzs  NonZeroStruct `json:"nzs,omitzero"`
+}
+
+func TestOmitEmptyZero(t *testing.T) {
+	var want = `{
+ "sr": "",
+ "slr": null,
+ "mr": {},
+ "fr": 0,
+ "br": false,
+ "ur": 0,
+ "str": {},
+ "nzs": {}
+}`
+	var o OptionalsEmptyZero
+	o.Sw = "something"
+	o.SloNonNil = make([]string, 0)
 	o.Mr = map[string]any{}
 	o.Mo = map[string]any{}
 

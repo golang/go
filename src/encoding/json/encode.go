@@ -99,6 +99,32 @@ import (
 //	// Field appears in JSON as key "-".
 //	Field int `json:"-,"`
 //
+// The "omitzero" option specifies that the field should be omitted
+// from the encoding if the field has a zero value, according to:
+//
+// 1) If the field type has an "IsZero() bool" method, that will be used to
+// determine whether the value is zero.
+//
+// 2) Otherwise, the value is zero if it is the zero value for its type.
+//
+// Examples of struct field tags and their meanings:
+//
+//	// Field appears in JSON as key "myName".
+//	Field time.Time `json:"myName"`
+//
+//	// Field appears in JSON as key "myName" and
+//	// the field is omitted from the object if its value is zero,
+//	// as defined above.
+//	Field time.Time `json:"myName,omitzero"`
+//
+//	// Field appears in JSON as key "Field" (the default), but
+//	// the field is skipped if zero.
+//	// Note the leading comma.
+//	Field time.Time `json:",omitzero"`
+//
+// If both "omitempty" and "omitzero" are specified, the field will be omitted
+// if the value is either empty or zero (or both).
+//
 // The "string" option signals that a field is stored as JSON inside a
 // JSON-encoded string. It applies only to fields of string, floating point,
 // integer, or boolean types. This extra level of encoding is sometimes used
@@ -316,6 +342,15 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.IsZero()
 	}
 	return false
+}
+
+func isZeroValue(v reflect.Value) bool {
+	if z, ok := v.Interface().(interface {
+		IsZero() bool
+	}); ok {
+		return z.IsZero()
+	}
+	return v.IsZero()
 }
 
 func (e *encodeState) reflectValue(v reflect.Value, opts encOpts) {
@@ -701,7 +736,8 @@ FieldLoop:
 			fv = fv.Field(i)
 		}
 
-		if f.omitEmpty && isEmptyValue(fv) {
+		if (f.omitEmpty && isEmptyValue(fv)) ||
+			(f.omitZero && isZeroValue(fv)) {
 			continue
 		}
 		e.WriteByte(next)
@@ -1048,6 +1084,7 @@ type field struct {
 	index     []int
 	typ       reflect.Type
 	omitEmpty bool
+	omitZero  bool
 	quoted    bool
 
 	encoder encoderFunc
@@ -1154,6 +1191,7 @@ func typeFields(t reflect.Type) structFields {
 						index:     index,
 						typ:       ft,
 						omitEmpty: opts.Contains("omitempty"),
+						omitZero:  opts.Contains("omitzero"),
 						quoted:    quoted,
 					}
 					field.nameBytes = []byte(field.name)
