@@ -164,7 +164,7 @@ type OptionalsEmptyZero struct {
 	Sto struct{} `json:"sto,omitempty,omitzero"`
 
 	Time time.Time     `json:"time,omitempty,omitzero"`
-	Nzs  NonZeroStruct `json:"nzs,omitzero"`
+	Nzs  NonZeroStruct `json:"nzs,omitempty,omitzero"`
 }
 
 func TestOmitEmptyZero(t *testing.T) {
