@@ -100,7 +100,7 @@ import (
 //	Field int `json:"-,"`
 //
 // The "omitzero" option specifies that the field should be omitted
-// from the encoding if the field has a zero value, according to:
+// from the encoding if the field has a zero value, according to rules:
 //
 // 1) If the field type has an "IsZero() bool" method, that will be used to
 // determine whether the value is zero.
@@ -114,7 +114,7 @@ import (
 //
 //	// Field appears in JSON as key "myName" and
 //	// the field is omitted from the object if its value is zero,
-//	// as defined above.
+//	// as determined above.
 //	Field time.Time `json:"myName,omitzero"`
 //
 //	// Field appears in JSON as key "Field" (the default), but
