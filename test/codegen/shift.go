@@ -166,6 +166,66 @@ func lshConst64x63Add(x int64) int64 {
 	return (x + x) << 63
 }
 
+func rshConst64Uto32U(v uint64, a []int8) {
+	// riscv64:"SRLI " "MOVWU" -"SLLI"
+	a[1] = a[uint32(v>>31)]
+	// riscv64:"SRLI " -"MOVWU" -"SLLI"
+	a[2] = a[uint32(v>>32)]
+	// riscv64:"SRLI " "MOVWU" -"SLLI"
+	if uint32(v>>33) < 100 {
+		a[3] = 1
+	}
+}
+
+func rshConst64Uto16U(v uint64, a []int8) {
+	// riscv64:"SRLI " "MOVHU" -"SLLI"
+	a[1] = a[uint16(v>>47)]
+	// riscv64:"SRLI " -"MOVHU" -"SLLI"
+	a[2] = a[uint16(v>>48)]
+	// riscv64:"SRLI " "MOVHU" -"SLLI"
+	if uint16(v>>49) < 100 {
+		a[3] = 1
+	}
+}
+
+func rshConst64Uto8U(v uint64, a []int8) {
+	// riscv64:"SRLI " "MOVBU" -"SLLI"
+	a[1] = a[uint8(v>>55)]
+	// riscv64:"SRLI " -"MOVBU" -"SLLI"
+	a[2] = a[uint8(v>>56)]
+	// riscv64:"SRLI " "MOVBU" -"SLLI"
+	if uint8(v>>57) < 100 {
+		a[3] = 1
+	}
+}
+
+func rshConst32Uto32U(v uint32, a []int8) {
+	// riscv64:"SRLIW " "MOVWU" -"SLLI"
+	a[1] = a[uint32(v>>24)]
+}
+
+func rshConst32Uto16U(v uint32, a []int8) {
+	// riscv64:"SRLIW " "MOVHU" -"SLLI"
+	a[1] = a[uint16(v>>15)]
+	// riscv64:"SRLIW " "MOVHU" -"SLLI"
+	a[2] = a[uint16(v>>16)]
+	// riscv64:"SRLIW" "MOVHU" -"SLLI"
+	if uint16(v>>17) < 100 {
+		a[3] = 1
+	}
+}
+
+func rshConst32Uto8U(v uint32, a []int8) {
+	// riscv64:"SRLIW " "MOVBU" -"SLLI"
+	a[1] = a[uint8(v>>22)]
+	// riscv64:"SRLIW " "MOVBU" -"SLLI"
+	a[2] = a[uint8(v>>24)]
+	// riscv64:"SRLIW" "MOVBU" -"SLLI"
+	if uint8(v>>25) < 100 {
+		a[3] = 1
+	}
+}
+
 // ------------------ //
 //   masked shifts    //
 // ------------------ //
