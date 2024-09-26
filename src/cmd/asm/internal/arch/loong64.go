@@ -66,6 +66,14 @@ func loong64RegisterNumber(name string, n int16) (int16, bool) {
 		if 0 <= n && n <= 31 {
 			return loong64.REG_R0 + n, true
 		}
+	case "V":
+		if 0 <= n && n <= 31 {
+			return loong64.REG_V0 + n, true
+		}
+	case "X":
+		if 0 <= n && n <= 31 {
+			return loong64.REG_X0 + n, true
+		}
 	}
 	return 0, false
 }

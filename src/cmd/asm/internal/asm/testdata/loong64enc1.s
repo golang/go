@@ -401,3 +401,35 @@ lable2:
 	FSCALEBD	F4, F5, F6	// a6101101
 	FLOGBF		F4, F5		// 85241401
 	FLOGBD		F4, F5		// 85281401
+
+	// VSTX/VLDX/XVSTX/XVLDX instructions
+	VMOVQ		V2, (R5)(R5)    // a2144438
+	VMOVQ		(R4)(R5), V2    // 82144038
+	XVMOVQ		X2, (R4)(R5)    // 82144c38
+	XVMOVQ		(R4)(R5), X2    // 82144838
+
+	// VST/VLD/XVST/XVLD instructions
+	VMOVQ		V2, (R4)        // 8200402c
+	VMOVQ		V2, 3(R4)       // 820c402c
+	VMOVQ		V2, 2040(R4)    // 82e05f2c
+	VMOVQ		V2, -2040(R4)   // 8220602c
+	VMOVQ		V2, y+16(FP)    // 0260402c
+	VMOVQ		V2, x+2030(FP)  // 02d85f2c
+	VMOVQ		(R4), V2        // 8200002c
+	VMOVQ		3(R4), V2       // 820c002c
+	VMOVQ		2044(R4), V2    // 82f01f2c
+	VMOVQ		-2044(R4), V2   // 8210202c
+	VMOVQ		y+16(FP), V2    // 0260002c
+	VMOVQ		x+2030(FP), V2  // 02d81f2c
+	XVMOVQ		X2, (R4)        // 8200c02c
+	XVMOVQ		X3, 3(R4)       // 830cc02c
+	XVMOVQ		X4, 2040(R4)    // 84e0df2c
+	XVMOVQ		X5, -2040(R4)   // 8520e02c
+	XVMOVQ		X6, y+16(FP)    // 0660c02c
+	XVMOVQ		X7, x+2030(FP)  // 07d8df2c
+	XVMOVQ		(R4), X2        // 8200802c
+	XVMOVQ		3(R4), X3       // 830c802c
+	XVMOVQ		2044(R4), X4    // 84f09f2c
+	XVMOVQ		-2044(R4), X5   // 8510a02c
+	XVMOVQ		y+16(FP), X6    // 0660802c
+	XVMOVQ		x+2030(FP), X7  // 07d89f2c

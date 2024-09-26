@@ -15,6 +15,8 @@ const (
 	NSYM   = 50
 	NREG   = 32 // number of general registers
 	NFREG  = 32 // number of floating point registers
+	NVREG  = 32 // number of LSX registers
+	NXREG  = 32 // number of LASX registers
 )
 
 const (
@@ -150,7 +152,75 @@ const (
 	REG_FCC30
 	REG_FCC31
 
-	REG_LAST = REG_FCC31 // the last defined register
+	// LSX: 128-bit vector register
+	REG_V0
+	REG_V1
+	REG_V2
+	REG_V3
+	REG_V4
+	REG_V5
+	REG_V6
+	REG_V7
+	REG_V8
+	REG_V9
+	REG_V10
+	REG_V11
+	REG_V12
+	REG_V13
+	REG_V14
+	REG_V15
+	REG_V16
+	REG_V17
+	REG_V18
+	REG_V19
+	REG_V20
+	REG_V21
+	REG_V22
+	REG_V23
+	REG_V24
+	REG_V25
+	REG_V26
+	REG_V27
+	REG_V28
+	REG_V29
+	REG_V30
+	REG_V31
+
+	// LASX: 256-bit vector register
+	REG_X0
+	REG_X1
+	REG_X2
+	REG_X3
+	REG_X4
+	REG_X5
+	REG_X6
+	REG_X7
+	REG_X8
+	REG_X9
+	REG_X10
+	REG_X11
+	REG_X12
+	REG_X13
+	REG_X14
+	REG_X15
+	REG_X16
+	REG_X17
+	REG_X18
+	REG_X19
+	REG_X20
+	REG_X21
+	REG_X22
+	REG_X23
+	REG_X24
+	REG_X25
+	REG_X26
+	REG_X27
+	REG_X28
+	REG_X29
+	REG_X30
+	REG_X31
+
+	REG_LAST = REG_X31 // the last defined register
 
 	REG_SPECIAL = REG_FCSR0
 
@@ -179,6 +249,9 @@ func init() {
 	f(REG_R0, REG_R31, 0)
 	f(REG_F0, REG_F31, 32)
 
+	// The lower bits of V and X registers are alias to F registers
+	f(REG_V0, REG_V31, 32)
+	f(REG_X0, REG_X31, 32)
 }
 
 const (
@@ -199,6 +272,8 @@ const (
 	C_FREG
 	C_FCSRREG
 	C_FCCREG
+	C_VREG
+	C_XREG
 	C_ZCON
 	C_SCON // 12 bit signed
 	C_UCON // 32 bit signed, low 12 bits 0
@@ -549,6 +624,10 @@ const (
 	AFTINTRNEVF
 	AFTINTRNEVD
 
+	// LSX and LASX memory access instructions
+	AVMOVQ
+	AXVMOVQ
+
 	ALAST
 
 	// aliases
@@ -573,5 +652,11 @@ func init() {
 	}
 	if REG_FCC0%32 != 0 {
 		panic("REG_FCC0 is not a multiple of 32")
+	}
+	if REG_V0%32 != 0 {
+		panic("REG_V0 is not a multiple of 32")
+	}
+	if REG_X0%32 != 0 {
+		panic("REG_X0 is not a multiple of 32")
 	}
 }

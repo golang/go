@@ -520,15 +520,27 @@ func archLoong64(linkArch *obj.LinkArch) *Arch {
 	for i := loong64.REG_R0; i <= loong64.REG_R31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+
 	for i := loong64.REG_F0; i <= loong64.REG_F31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+
 	for i := loong64.REG_FCSR0; i <= loong64.REG_FCSR31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+
 	for i := loong64.REG_FCC0; i <= loong64.REG_FCC31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+
+	for i := loong64.REG_V0; i <= loong64.REG_V31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+
+	for i := loong64.REG_X0; i <= loong64.REG_X31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+
 	// Pseudo-registers.
 	register["SB"] = RSB
 	register["FP"] = RFP
@@ -541,6 +553,8 @@ func archLoong64(linkArch *obj.LinkArch) *Arch {
 		"FCSR": true,
 		"FCC":  true,
 		"R":    true,
+		"V":    true,
+		"X":    true,
 	}
 
 	instructions := make(map[string]obj.As)

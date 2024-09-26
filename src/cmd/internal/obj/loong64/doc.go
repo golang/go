@@ -8,7 +8,7 @@ GNU LoongArch64 syntax, but we can still follow the general rules to map between
 
 # Instructions mnemonics mapping rules
 
-1. Bit widths represented by various instruction suffixes
+1. Bit widths represented by various instruction suffixes and prefixes
 V (vlong)     = 64 bit
 WU (word)     = 32 bit unsigned
 W (word)      = 32 bit
@@ -18,6 +18,18 @@ B (byte)      = 8 bit
 BU            = 8 bit unsigned
 F (float)     = 32 bit float
 D (double)    = 64 bit float
+
+V  (LSX)      = 128 bit
+XV (LASX)     = 256 bit
+
+Examples:
+
+	MOVB  (R2), R3  // Load 8 bit memory data into R3 register
+	MOVH  (R2), R3  // Load 16 bit memory data into R3 register
+	MOVW  (R2), R3  // Load 32 bit memory data into R3 register
+	MOVV  (R2), R3  // Load 64 bit memory data into R3 register
+	VMOVQ  (R2), V1 // Load 128 bit memory data into V1 register
+	XVMOVQ (R2), X1 // Load 256 bit memory data into X1 register
 
 2. Align directive
 Go asm supports the PCALIGN directive, which indicates that the next instruction should
@@ -49,6 +61,10 @@ start:
 1. All generial-prupose register names are written as Rn.
 
 2. All floating-point register names are written as Fn.
+
+3. All LSX register names are written as Vn.
+
+4. All LASX register names are written as Xn.
 
 # Argument mapping rules
 
