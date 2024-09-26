@@ -58,9 +58,6 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 		inReg = append(inReg, bool2byte(abid.inRegPtrs.Get(i)))
 		outReg = append(outReg, bool2byte(abid.outRegPtrs.Get(i)))
 	}
-	if ft.Kind_&abi.KindGCProg != 0 {
-		panic("can't handle gc programs")
-	}
 
 	// Expand frame type's GC bitmap into byte-map.
 	ptrs = ft.Pointers()

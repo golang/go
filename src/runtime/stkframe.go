@@ -264,9 +264,6 @@ var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjecti
 func stkobjinit() {
 	var abiRegArgsEface any = abi.RegArgs{}
 	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
-	if abiRegArgsType.Kind_&abi.KindGCProg != 0 {
-		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
-	}
 	// Set methodValueCallFrameObjs[0].gcdataoff so that
 	// stackObjectRecord.gcdata() will work correctly with it.
 	ptr := uintptr(unsafe.Pointer(&methodValueCallFrameObjs[0]))
@@ -284,6 +281,6 @@ func stkobjinit() {
 		off:       -int32(alignUp(abiRegArgsType.Size_, 8)), // It's always the highest address local.
 		size:      int32(abiRegArgsType.Size_),
 		ptrBytes:  int32(abiRegArgsType.PtrBytes),
-		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.GCData)) - mod.rodata),
+		gcdataoff: uint32(uintptr(unsafe.Pointer(getGCMask(abiRegArgsType))) - mod.rodata),
 	}
 }

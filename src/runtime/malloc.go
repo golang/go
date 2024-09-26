@@ -1900,6 +1900,10 @@ var persistentChunks *notInHeap
 //
 // Consider marking persistentalloc'd types not in heap by embedding
 // internal/runtime/sys.NotInHeap.
+//
+// nosplit because it is used during write barriers and must not be preempted.
+//
+//go:nosplit
 func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
 	var p *notInHeap
 	systemstack(func() {

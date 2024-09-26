@@ -371,6 +371,8 @@ func alignDown(n, a uintptr) uintptr {
 }
 
 // divRoundUp returns ceil(n / a).
+//
+//go:nosplit
 func divRoundUp(n, a uintptr) uintptr {
 	// a is generally a power of two. This will get inlined and
 	// the compiler will optimize the division.

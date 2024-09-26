@@ -879,13 +879,13 @@ func (ctxt *Link) linksetup() {
 		if ctxt.Arch.Family == sys.ARM {
 			goarm := ctxt.loader.LookupOrCreateSym("runtime.goarm", 0)
 			sb := ctxt.loader.MakeSymbolUpdater(goarm)
-			sb.SetType(sym.SDATA)
+			sb.SetType(sym.SNOPTRDATA)
 			sb.SetSize(0)
 			sb.AddUint8(uint8(buildcfg.GOARM.Version))
 
 			goarmsoftfp := ctxt.loader.LookupOrCreateSym("runtime.goarmsoftfp", 0)
 			sb2 := ctxt.loader.MakeSymbolUpdater(goarmsoftfp)
-			sb2.SetType(sym.SDATA)
+			sb2.SetType(sym.SNOPTRDATA)
 			sb2.SetSize(0)
 			if buildcfg.GOARM.SoftFloat {
 				sb2.AddUint8(1)
@@ -901,7 +901,7 @@ func (ctxt *Link) linksetup() {
 		if memProfile != 0 && !ctxt.loader.AttrReachable(memProfile) && !ctxt.DynlinkingGo() {
 			memProfSym := ctxt.loader.LookupOrCreateSym("runtime.disableMemoryProfiling", 0)
 			sb := ctxt.loader.MakeSymbolUpdater(memProfSym)
-			sb.SetType(sym.SDATA)
+			sb.SetType(sym.SNOPTRDATA)
 			sb.SetSize(0)
 			sb.AddUint8(1) // true bool
 		}
@@ -962,7 +962,7 @@ func (ctxt *Link) mangleTypeSym() {
 	ldr := ctxt.loader
 	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
 		if !ldr.AttrReachable(s) && !ctxt.linkShared {
-			// If -linkshared, the GCProg generation code may need to reach
+			// If -linkshared, the gc mask generation code may need to reach
 			// out to the shared library for the type descriptor's data, even
 			// the type descriptor itself is not actually needed at run time
 			// (therefore not reachable). We still need to mangle its name,

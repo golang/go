@@ -41,11 +41,6 @@ func decodetypeKind(arch *sys.Arch, p []byte) abi.Kind {
 	return abi.Kind(p[2*arch.PtrSize+7]) & abi.KindMask //  0x13 / 0x1f
 }
 
-// Type.commonType.kind
-func decodetypeUsegcprog(arch *sys.Arch, p []byte) bool {
-	return abi.Kind(p[2*arch.PtrSize+7])&abi.KindGCProg != 0 //  0x13 / 0x1f
-}
-
 // Type.commonType.size
 func decodetypeSize(arch *sys.Arch, p []byte) int64 {
 	return int64(decodeInuxi(arch, p, arch.PtrSize)) // 0x8 / 0x10
@@ -59,6 +54,11 @@ func decodetypePtrdata(arch *sys.Arch, p []byte) int64 {
 // Type.commonType.tflag
 func decodetypeHasUncommon(arch *sys.Arch, p []byte) bool {
 	return abi.TFlag(p[abi.TFlagOff(arch.PtrSize)])&abi.TFlagUncommon != 0
+}
+
+// Type.commonType.tflag
+func decodetypeGCMaskOnDemand(arch *sys.Arch, p []byte) bool {
+	return abi.TFlag(p[abi.TFlagOff(arch.PtrSize)])&abi.TFlagGCMaskOnDemand != 0
 }
 
 // Type.FuncType.dotdotdot

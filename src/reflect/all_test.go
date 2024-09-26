@@ -6841,7 +6841,7 @@ func TestInvalid(t *testing.T) {
 }
 
 // Issue 8917.
-func TestLargeGCProg(t *testing.T) {
+func TestLarge(t *testing.T) {
 	fv := ValueOf(func([256]*byte) {})
 	fv.Call([]Value{ValueOf([256]*byte{})})
 }
