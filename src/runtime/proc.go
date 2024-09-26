@@ -230,6 +230,9 @@ func mainThreadDo(f func()) {
 }
 
 func mainThreadYield() {
+	if isarchive || islibrary {
+		panic("runtime: not support -buildmode=c-shared and -buildmode=c-archive")
+	}
 	g := getg()
 	if g.m != &m0 {
 		panic("runtime: call mainthread.Yield must on main thread")
