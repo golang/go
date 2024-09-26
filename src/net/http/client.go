@@ -388,15 +388,12 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	}
 
 	stopTimerCh := make(chan struct{})
-	var once sync.Once
-	stopTimer = func() {
-		once.Do(func() {
-			close(stopTimerCh)
-			if cancelCtx != nil {
-				cancelCtx()
-			}
-		})
-	}
+	stopTimer = sync.OnceFunc(func() {
+		close(stopTimerCh)
+		if cancelCtx != nil {
+			cancelCtx()
+		}
+	})
 
 	timer := time.NewTimer(time.Until(deadline))
 	var timedOut atomic.Bool
