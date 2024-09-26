@@ -433,3 +433,13 @@ lable2:
 	XVMOVQ		-2044(R4), X5   // 8510a02c
 	XVMOVQ		y+16(FP), X6    // 0660802c
 	XVMOVQ		x+2030(FP), X7  // 07d89f2c
+
+	// VSEQ{B,H,W,V}, XVSEQ{B,H,W,V} instruction
+	VSEQB		V1, V2, V3      // 43040070
+	VSEQH		V1, V2, V3      // 43840070
+	VSEQW		V1, V2, V3      // 43040170
+	VSEQV		V1, V2, V3      // 43840170
+	XVSEQB		X3, X2, X4      // 440c0074
+	XVSEQH		X3, X2, X4      // 448c0074
+	XVSEQW		X3, X2, X4      // 440c0174
+	XVSEQV		X3, X2, X4      // 448c0174

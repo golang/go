@@ -628,6 +628,16 @@ const (
 	AVMOVQ
 	AXVMOVQ
 
+	// LSX and LASX integer comparison instruction
+	AVSEQB
+	AXVSEQB
+	AVSEQH
+	AXVSEQH
+	AVSEQW
+	AXVSEQW
+	AVSEQV
+	AXVSEQV
+
 	ALAST
 
 	// aliases

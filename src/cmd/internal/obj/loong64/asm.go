@@ -85,6 +85,8 @@ var optab = []Optab{
 	{AADDF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
 	{AADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
 	{ACMPEQF, C_FREG, C_FREG, C_NONE, C_FCCREG, C_NONE, 2, 4, 0, 0},
+	{AVSEQB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AXVSEQB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
 
 	{ACLOW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
 	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
@@ -1283,6 +1285,15 @@ func buildop(ctxt *obj.Link) {
 				}
 				opset(i, r0)
 			}
+		case AVSEQB:
+			opset(AVSEQH, r0)
+			opset(AVSEQW, r0)
+			opset(AVSEQV, r0)
+
+		case AXVSEQB:
+			opset(AXVSEQH, r0)
+			opset(AXVSEQW, r0)
+			opset(AXVSEQV, r0)
 		}
 	}
 }
@@ -2125,6 +2136,22 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x07088 << 15 // vstx
 	case AXVMOVQ:
 		return 0x07098 << 15 // xvstx
+	case AVSEQB:
+		return 0x0e000 << 15 // vseq.b
+	case AXVSEQB:
+		return 0x0e800 << 15 // xvseq.b
+	case AVSEQH:
+		return 0x0e001 << 15 // vseq.h
+	case AXVSEQH:
+		return 0x0e801 << 15 // xvseq.h
+	case AVSEQW:
+		return 0x0e002 << 15 // vseq.w
+	case AXVSEQW:
+		return 0x0e802 << 15 // xvseq.w
+	case AVSEQV:
+		return 0x0e003 << 15 // vseq.d
+	case AXVSEQV:
+		return 0x0e803 << 15 // xvseq.d
 	}
 
 	if a < 0 {

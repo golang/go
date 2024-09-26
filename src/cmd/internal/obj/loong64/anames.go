@@ -257,5 +257,13 @@ var Anames = []string{
 	"FTINTRNEVD",
 	"VMOVQ",
 	"XVMOVQ",
+	"VSEQB",
+	"XVSEQB",
+	"VSEQH",
+	"XVSEQH",
+	"VSEQW",
+	"XVSEQW",
+	"VSEQV",
+	"XVSEQV",
 	"LAST",
 }
