@@ -30,14 +30,11 @@ const (
 type Table [256]uint64
 
 var (
-	slicing8TablesBuildOnce sync.Once
-	slicing8TableISO        *[8]Table
-	slicing8TableECMA       *[8]Table
+	slicing8TableISO  *[8]Table
+	slicing8TableECMA *[8]Table
 )
 
-func buildSlicing8TablesOnce() {
-	slicing8TablesBuildOnce.Do(buildSlicing8Tables)
-}
+var buildSlicing8TablesOnce = sync.OnceFunc(buildSlicing8Tables)
 
 func buildSlicing8Tables() {
 	slicing8TableISO = makeSlicingBy8Table(makeTable(ISO))
