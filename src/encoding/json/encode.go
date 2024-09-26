@@ -107,21 +107,6 @@ import (
 //
 // 2) Otherwise, the value is zero if it is the zero value for its type.
 //
-// Examples of struct field tags and their meanings:
-//
-//	// Field appears in JSON as key "myName".
-//	Field time.Time `json:"myName"`
-//
-//	// Field appears in JSON as key "myName" and
-//	// the field is omitted from the object if its value is zero,
-//	// as determined above.
-//	Field time.Time `json:"myName,omitzero"`
-//
-//	// Field appears in JSON as key "Field" (the default), but
-//	// the field is skipped if zero.
-//	// Note the leading comma.
-//	Field time.Time `json:",omitzero"`
-//
 // If both "omitempty" and "omitzero" are specified, the field will be omitted
 // if the value is either empty or zero (or both).
 //
