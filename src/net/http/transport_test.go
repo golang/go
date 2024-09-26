@@ -2586,8 +2586,8 @@ func runCancelTestTransport(t *testing.T, mode testMode, f func(t *testing.T, te
 
 // runCancelTestChannel uses Request.Cancel.
 func runCancelTestChannel(t *testing.T, mode testMode, f func(t *testing.T, test cancelTest)) {
-	var cancelOnce sync.Once
 	cancelc := make(chan struct{})
+	cancelOnce := sync.OnceFunc(func() { close(cancelc) })
 	f(t, cancelTest{
 		mode: mode,
 		newReq: func(req *Request) *Request {
@@ -2595,9 +2595,7 @@ func runCancelTestChannel(t *testing.T, mode testMode, f func(t *testing.T, test
 			return req
 		},
 		cancel: func(tr *Transport, req *Request) {
-			cancelOnce.Do(func() {
-				close(cancelc)
-			})
+			cancelOnce()
 		},
 		checkErr: func(when string, err error) {
 			if !errors.Is(err, ExportErrRequestCanceled) && !errors.Is(err, ExportErrRequestCanceledConn) {
@@ -5114,20 +5112,16 @@ func testTransportEventTraceTLSVerify(t *testing.T, mode testMode) {
 	}
 }
 
-var (
-	isDNSHijackedOnce sync.Once
-	isDNSHijacked     bool
-)
+var isDNSHijacked = sync.OnceValue(func() bool {
+	addrs, _ := net.LookupHost("dns-should-not-resolve.golang")
+	return len(addrs) != 0
+})
 
 func skipIfDNSHijacked(t *testing.T) {
 	// Skip this test if the user is using a shady/ISP
 	// DNS server hijacking queries.
 	// See issues 16732, 16716.
-	isDNSHijackedOnce.Do(func() {
-		addrs, _ := net.LookupHost("dns-should-not-resolve.golang")
-		isDNSHijacked = len(addrs) != 0
-	})
-	if isDNSHijacked {
+	if isDNSHijacked() {
 		t.Skip("skipping; test requires non-hijacking DNS server")
 	}
 }
@@ -5463,7 +5457,7 @@ func TestTransportReturnsPeekError(t *testing.T) {
 	errValue := errors.New("specific error value")
 
 	wrote := make(chan struct{})
-	var wroteOnce sync.Once
+	wroteOnce := sync.OnceFunc(func() { close(wrote) })
 
 	tr := &Transport{
 		Dial: func(network, addr string) (net.Conn, error) {
@@ -5473,7 +5467,7 @@ func TestTransportReturnsPeekError(t *testing.T) {
 					return 0, errValue
 				},
 				write: func(p []byte) (int, error) {
-					wroteOnce.Do(func() { close(wrote) })
+					wroteOnce()
 					return len(p), nil
 				},
 			}
