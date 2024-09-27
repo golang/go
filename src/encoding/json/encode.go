@@ -329,13 +329,37 @@ func isEmptyValue(v reflect.Value) bool {
 	return false
 }
 
+type isZeroer interface {
+	IsZero() bool
+}
+
+var isZeroerType = reflect.TypeFor[isZeroer]()
+
 func isZeroValue(v reflect.Value) bool {
-	if z, ok := v.Interface().(interface {
-		IsZero() bool
-	}); ok {
-		return z.IsZero()
+	// Provide a function that uses a type's IsZero method.
+	var isZero func(reflect.Value) bool
+
+	switch {
+	case v.Kind() == reflect.Interface && v.Type().Implements(isZeroerType):
+		isZero = func(va reflect.Value) bool {
+			// Avoid panics calling IsZero on a nil interface or
+			// non-nil interface with nil pointer.
+			return va.IsNil() ||
+				(va.Elem().Kind() == reflect.Pointer && va.Elem().IsNil()) ||
+				va.Interface().(isZeroer).IsZero()
+		}
+	case v.Kind() == reflect.Pointer && v.Type().Implements(isZeroerType):
+		isZero = func(va reflect.Value) bool {
+			// Avoid panics calling IsZero on nil pointer.
+			return va.IsNil() || va.Interface().(isZeroer).IsZero()
+		}
+	case v.Type().Implements(isZeroerType):
+		isZero = func(va reflect.Value) bool { return va.Interface().(isZeroer).IsZero() }
+	case reflect.PointerTo(v.Type()).Implements(isZeroerType):
+		isZero = func(va reflect.Value) bool { return va.Addr().Interface().(isZeroer).IsZero() }
 	}
-	return v.IsZero()
+
+	return (isZero == nil && v.IsZero() || (isZero != nil && isZero(v)))
 }
 
 func (e *encodeState) reflectValue(v reflect.Value, opts encOpts) {

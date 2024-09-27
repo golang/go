@@ -77,6 +77,14 @@ func (nzs NonZeroStruct) IsZero() bool {
 	return false
 }
 
+type NoPanicStruct struct {
+	Int int `json:"int,omitzero"`
+}
+
+func (nps *NoPanicStruct) IsZero() bool {
+	return nps.Int == 0
+}
+
 type OptionalsZero struct {
 	Sr string `json:"sr"`
 	So string `json:"so,omitzero"`
@@ -106,6 +114,12 @@ type OptionalsZero struct {
 
 	Time time.Time     `json:"time,omitzero"`
 	Nzs  NonZeroStruct `json:"nzs,omitzero"`
+
+	IsZeroer interface {
+		IsZero() bool
+	} `json:"iszeroer,omitzero"`
+	NoPanicStruct1 *NoPanicStruct `json:"nps1,omitzero"`
+	NoPanicStruct2 NoPanicStruct  `json:"nps2,omitzero"`
 }
 
 func TestOmitZero(t *testing.T) {
