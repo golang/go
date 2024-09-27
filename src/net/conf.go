@@ -94,19 +94,30 @@ func initConfVal() {
 			if confVal.dnsDebugLevel > 1 {
 				println("go package net: confVal.netCgo =", confVal.netCgo, " netGo =", confVal.netGo)
 			}
+			if dnsMode != "go" && dnsMode != "cgo" && dnsMode != "" {
+				println("go package net: GODEBUG=netdns contains an invalid dns mode, ignoring it")
+			}
 			switch {
-			case confVal.netGo:
-				if netGoBuildTag {
-					println("go package net: built with netgo build tag; using Go's DNS resolver")
+			case netGoBuildTag || !cgoAvailable:
+				if dnsMode == "cgo" {
+					println("go package net: ignoring GODEBUG=netdns=cgo as the binary was compiled without support for the cgo resolver")
 				} else {
-					println("go package net: GODEBUG setting forcing use of Go's resolver")
+					println("go package net: using the Go DNS resolver")
 				}
-			case !cgoAvailable:
-				println("go package net: cgo resolver not supported; using Go's DNS resolver")
-			case confVal.netCgo || confVal.preferCgo:
-				println("go package net: using cgo DNS resolver")
+			case netCgoBuildTag:
+				if dnsMode == "go" {
+					println("go package net: GODEBUG setting forcing use of the Go resolver")
+				} else {
+					println("go package net: using the cgo DNS resolver")
+				}
 			default:
-				println("go package net: dynamic selection of DNS resolver")
+				if dnsMode == "go" {
+					println("go package net: GODEBUG setting forcing use of the Go resolver")
+				} else if dnsMode == "cgo" {
+					println("go package net: GODEBUG setting forcing use of the cgo resolver")
+				} else {
+					println("go package net: dynamic selection of DNS resolver")
+				}
 			}
 		}()
 	}
