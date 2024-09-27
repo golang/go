@@ -22,9 +22,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 	x.mode = invalid
 	x.expr = e
 
-	// Note that we cannot use check.lookup here because the returned scope
-	// may be different from obj.Parent(). See also Scope.LookupParent doc.
-	scope, obj := check.scope.LookupParent(e.Value, check.pos)
+	scope, obj := check.lookupScope(e.Value)
 	switch obj {
 	case nil:
 		if e.Value == "_" {

@@ -92,7 +92,7 @@ func (s *Scope) Lookup(name string) Object {
 // Note that obj.Parent() may be different from the returned scope if the
 // object was inserted into the scope and already had a parent at that
 // time (see Insert). This can only happen for dot-imported objects
-// whose scope is the scope of the package that exported them.
+// whose parent is the scope of the package that exported them.
 func (s *Scope) LookupParent(name string, pos syntax.Pos) (*Scope, Object) {
 	for ; s != nil; s = s.parent {
 		if obj := s.Lookup(name); obj != nil && (!pos.IsKnown() || cmpPos(obj.scopePos(), pos) <= 0) {
@@ -113,6 +113,11 @@ func (s *Scope) Insert(obj Object) Object {
 		return alt
 	}
 	s.insert(name, obj)
+	// TODO(gri) Can we always set the parent to s (or is there
+	// a need to keep the original parent or some race condition)?
+	// If we can, than we may not need environment.lookupScope
+	// which is only there so that we get the correct scope for
+	// marking "used" dot-imported packages.
 	if obj.Parent() == nil {
 		obj.setParent(s)
 	}

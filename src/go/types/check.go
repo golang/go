@@ -83,9 +83,26 @@ type environment struct {
 	hasCallOrRecv bool                   // set if an expression contains a function call or channel receive operation
 }
 
-// lookup looks up name in the current environment and returns the matching object, or nil.
+// lookupScope looks up name in the current environment and if an object
+// is found it returns the scope containing the object and the object.
+// Otherwise it returns (nil, nil).
+//
+// Note that obj.Parent() may be different from the returned scope if the
+// object was inserted into the scope and already had a parent at that
+// time (see Scope.Insert). This can only happen for dot-imported objects
+// whose parent is the scope of the package that exported them.
+func (env *environment) lookupScope(name string) (*Scope, Object) {
+	for s := env.scope; s != nil; s = s.parent {
+		if obj := s.Lookup(name); obj != nil && (!env.pos.IsValid() || cmpPos(obj.scopePos(), env.pos) <= 0) {
+			return s, obj
+		}
+	}
+	return nil, nil
+}
+
+// lookup is like lookupScope but it only returns the object (or nil).
 func (env *environment) lookup(name string) Object {
-	_, obj := env.scope.LookupParent(name, env.pos)
+	_, obj := env.lookupScope(name)
 	return obj
 }
 
