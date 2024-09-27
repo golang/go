@@ -57,7 +57,6 @@ type environment struct {
 	decl          *declInfo                 // package-level declaration whose init expression/function body is checked
 	scope         *Scope                    // top-most scope for lookups
 	version       goVersion                 // current accepted language version; changes across files
-	pos           syntax.Pos                // if valid, identifiers are looked up as if at position pos (used by Eval)
 	iota          constant.Value            // value of iota in a constant declaration; nil otherwise
 	errpos        syntax.Pos                // if valid, identifier position of a constant with inherited initializer
 	inTParamList  bool                      // set if inside a type parameter list
@@ -77,7 +76,7 @@ type environment struct {
 // whose parent is the scope of the package that exported them.
 func (env *environment) lookupScope(name string) (*Scope, Object) {
 	for s := env.scope; s != nil; s = s.parent {
-		if obj := s.Lookup(name); obj != nil && (!env.pos.IsKnown() || cmpPos(obj.scopePos(), env.pos) <= 0) {
+		if obj := s.Lookup(name); obj != nil {
 			return s, obj
 		}
 	}
