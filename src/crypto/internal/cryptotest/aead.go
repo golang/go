@@ -108,7 +108,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 
 		// Test all combinations of plaintext and additional data lengths.
 		for _, ptLen := range lengths {
-			if ptLen <= 1 { // We need enough room for an overlap to occur.
+			if ptLen <= 1 { // We need enough room for an inexact overlap to occur.
 				continue
 			}
 			for _, adLen := range lengths {
@@ -196,7 +196,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 						rng.Read(longBuff)
 						prefixes := [][]byte{shortBuff, longBuff}
 
-						// Check each prefix gets appended to by Seal with altering them.
+						// Check each prefix gets appended to by Seal without altering them.
 						for _, prefix := range prefixes {
 							plaintext, addData := make([]byte, ptLen), make([]byte, adLen)
 							rng.Read(plaintext)
@@ -227,7 +227,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 						rng.Read(longBuff)
 						prefixes := [][]byte{shortBuff, longBuff}
 
-						// Check each prefix gets appended to by Open with altering them.
+						// Check each prefix gets appended to by Open without altering them.
 						for _, prefix := range prefixes {
 							before, addData := make([]byte, adLen), make([]byte, ptLen)
 							rng.Read(before)
