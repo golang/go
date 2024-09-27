@@ -460,7 +460,7 @@ var depsRules = `
 	< crypto/internal/boring
 	< crypto/boring;
 
-	crypto/internal/alias
+	crypto/internal/alias, math/rand/v2
 	< crypto/internal/randutil
 	< crypto/internal/nistec/fiat
 	< crypto/internal/nistec
