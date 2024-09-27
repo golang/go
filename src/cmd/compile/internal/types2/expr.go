@@ -127,16 +127,6 @@ var op2str2 = [...]string{
 	syntax.Shl: "shift",
 }
 
-// If typ is a type parameter, underIs returns the result of typ.underIs(f).
-// Otherwise, underIs returns the result of f(under(typ)).
-func underIs(typ Type, f func(Type) bool) bool {
-	typ = Unalias(typ)
-	if tpar, _ := typ.(*TypeParam); tpar != nil {
-		return tpar.underIs(f)
-	}
-	return f(under(typ))
-}
-
 func (check *Checker) unary(x *operand, e *syntax.Operation) {
 	check.expr(nil, x, e.X)
 	if x.mode == invalid {
@@ -444,7 +434,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		}
 	case *Interface:
 		if isTypeParam(target) {
-			if !u.typeSet().underIs(func(u Type) bool {
+			if !underIs(target, func(u Type) bool {
 				if u == nil {
 					return false
 				}
@@ -574,7 +564,7 @@ Error:
 			if !isTypeParam(x.typ) {
 				errOp = y
 			}
-			cause = check.sprintf("type parameter %s is not comparable with %s", errOp.typ, op)
+			cause = check.sprintf("type parameter %s cannot use operator %s", errOp.typ, op)
 		} else {
 			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
 		}

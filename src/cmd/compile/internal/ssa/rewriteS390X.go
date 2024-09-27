@@ -10833,13 +10833,13 @@ func rewriteValueS390X_OpS390XMULLDconst(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (MULLDconst <t> x [c])
-	// cond: isPowerOfTwo32(c&(c-1))
+	// cond: isPowerOfTwo(c&(c-1))
 	// result: (ADD (SLDconst <t> x [uint8(log32(c&(c-1)))]) (SLDconst <t> x [uint8(log32(c&^(c-1)))]))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		x := v_0
-		if !(isPowerOfTwo32(c & (c - 1))) {
+		if !(isPowerOfTwo(c & (c - 1))) {
 			break
 		}
 		v.reset(OpS390XADD)
@@ -10853,13 +10853,13 @@ func rewriteValueS390X_OpS390XMULLDconst(v *Value) bool {
 		return true
 	}
 	// match: (MULLDconst <t> x [c])
-	// cond: isPowerOfTwo32(c+(c&^(c-1)))
+	// cond: isPowerOfTwo(c+(c&^(c-1)))
 	// result: (SUB (SLDconst <t> x [uint8(log32(c+(c&^(c-1))))]) (SLDconst <t> x [uint8(log32(c&^(c-1)))]))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		x := v_0
-		if !(isPowerOfTwo32(c + (c &^ (c - 1)))) {
+		if !(isPowerOfTwo(c + (c &^ (c - 1)))) {
 			break
 		}
 		v.reset(OpS390XSUB)
@@ -10873,13 +10873,13 @@ func rewriteValueS390X_OpS390XMULLDconst(v *Value) bool {
 		return true
 	}
 	// match: (MULLDconst <t> x [c])
-	// cond: isPowerOfTwo32(-c+(-c&^(-c-1)))
+	// cond: isPowerOfTwo(-c+(-c&^(-c-1)))
 	// result: (SUB (SLDconst <t> x [uint8(log32(-c&^(-c-1)))]) (SLDconst <t> x [uint8(log32(-c+(-c&^(-c-1))))]))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		x := v_0
-		if !(isPowerOfTwo32(-c + (-c &^ (-c - 1)))) {
+		if !(isPowerOfTwo(-c + (-c &^ (-c - 1)))) {
 			break
 		}
 		v.reset(OpS390XSUB)
@@ -11060,13 +11060,13 @@ func rewriteValueS390X_OpS390XMULLWconst(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (MULLWconst <t> x [c])
-	// cond: isPowerOfTwo32(c&(c-1))
+	// cond: isPowerOfTwo(c&(c-1))
 	// result: (ADDW (SLWconst <t> x [uint8(log32(c&(c-1)))]) (SLWconst <t> x [uint8(log32(c&^(c-1)))]))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		x := v_0
-		if !(isPowerOfTwo32(c & (c - 1))) {
+		if !(isPowerOfTwo(c & (c - 1))) {
 			break
 		}
 		v.reset(OpS390XADDW)
@@ -11080,13 +11080,13 @@ func rewriteValueS390X_OpS390XMULLWconst(v *Value) bool {
 		return true
 	}
 	// match: (MULLWconst <t> x [c])
-	// cond: isPowerOfTwo32(c+(c&^(c-1)))
+	// cond: isPowerOfTwo(c+(c&^(c-1)))
 	// result: (SUBW (SLWconst <t> x [uint8(log32(c+(c&^(c-1))))]) (SLWconst <t> x [uint8(log32(c&^(c-1)))]))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		x := v_0
-		if !(isPowerOfTwo32(c + (c &^ (c - 1)))) {
+		if !(isPowerOfTwo(c + (c &^ (c - 1)))) {
 			break
 		}
 		v.reset(OpS390XSUBW)
@@ -11100,13 +11100,13 @@ func rewriteValueS390X_OpS390XMULLWconst(v *Value) bool {
 		return true
 	}
 	// match: (MULLWconst <t> x [c])
-	// cond: isPowerOfTwo32(-c+(-c&^(-c-1)))
+	// cond: isPowerOfTwo(-c+(-c&^(-c-1)))
 	// result: (SUBW (SLWconst <t> x [uint8(log32(-c&^(-c-1)))]) (SLWconst <t> x [uint8(log32(-c+(-c&^(-c-1))))]))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		x := v_0
-		if !(isPowerOfTwo32(-c + (-c &^ (-c - 1)))) {
+		if !(isPowerOfTwo(-c + (-c &^ (-c - 1)))) {
 			break
 		}
 		v.reset(OpS390XSUBW)

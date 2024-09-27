@@ -663,7 +663,7 @@
 //
 // Usage:
 //
-//	go get [-t] [-u] [-v] [build flags] [packages]
+//	go get [-t] [-u] [-v] [-tool] [build flags] [packages]
 //
 // Get resolves its command-line arguments to packages at specific module versions,
 // updates go.mod to require those versions, and downloads source code into the
@@ -716,6 +716,9 @@
 //
 // When the -t and -u flags are used together, get will update
 // test dependencies as well.
+//
+// The -tool flag instructs go to add a matching tool line to go.mod for each
+// listed package. If -tool is used with @none, the line will be removed.
 //
 // The -x flag prints commands as they are executed. This is useful for
 // debugging version control commands when a module is downloaded directly

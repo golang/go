@@ -187,8 +187,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			if !isTypeParam(x.typ) {
 				break
 			}
-			if t.typeSet().underIs(func(t Type) bool {
-				switch t := arrayPtrDeref(t).(type) {
+			if underIs(x.typ, func(u Type) bool {
+				switch t := arrayPtrDeref(u).(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
 						return true

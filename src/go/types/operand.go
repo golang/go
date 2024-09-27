@@ -311,7 +311,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 	// Also handle the case where T is a pointer to an interface so that we get
 	// the Checker.implements error cause.
 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
-		if check.implements(x.Pos(), V, T, false, cause) {
+		if check.implements(V, T, false, cause) {
 			return true, 0
 		}
 		// V doesn't implement T but V may still be assignable to T if V
@@ -326,7 +326,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 
 	// If V is an interface, check if a missing type assertion is the problem.
 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
-		if check.implements(x.Pos(), T, V, false, nil) {
+		if check.implements(T, V, false, nil) {
 			// T implements V, so give hint about type assertion.
 			if cause != nil {
 				*cause = "need type assertion"

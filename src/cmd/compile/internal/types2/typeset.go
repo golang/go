@@ -29,10 +29,10 @@ type _TypeSet struct {
 	comparable bool     // invariant: !comparable || terms.isAll()
 }
 
-// IsEmpty reports whether type set s is the empty set.
+// IsEmpty reports whether s is the empty set.
 func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
 
-// IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
+// IsAll reports whether s is the set of all types (corresponding to the empty interface).
 func (s *_TypeSet) IsAll() bool { return s.IsMethodSet() && len(s.methods) == 0 }
 
 // IsMethodSet reports whether the interface t is fully described by its method set.
@@ -51,7 +51,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
 // NumMethods returns the number of methods available.
 func (s *_TypeSet) NumMethods() int { return len(s.methods) }
 
-// Method returns the i'th method of type set s for 0 <= i < s.NumMethods().
+// Method returns the i'th method of s for 0 <= i < s.NumMethods().
 // The methods are ordered by their unique ID.
 func (s *_TypeSet) Method(i int) *Func { return s.methods[i] }
 
@@ -98,13 +98,36 @@ func (s *_TypeSet) String() string {
 // ----------------------------------------------------------------------------
 // Implementation
 
-// hasTerms reports whether the type set has specific type terms.
+// hasTerms reports whether s has specific type terms.
 func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll() }
 
 // subsetOf reports whether s1 ⊆ s2.
 func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
 
-// TODO(gri) TypeSet.is and TypeSet.underIs should probably also go into termlist.go
+// typeset is an iterator over the (type/underlying type) pairs in s.
+// If s has no specific terms, typeset calls yield with (nil, nil).
+// In any case, typeset is guaranteed to call yield at least once.
+func (s *_TypeSet) typeset(yield func(t, u Type) bool) {
+	if !s.hasTerms() {
+		yield(nil, nil)
+		return
+	}
+
+	for _, t := range s.terms {
+		assert(t.typ != nil)
+		// Unalias(x) == under(x) for ~x terms
+		u := Unalias(t.typ)
+		if !t.tilde {
+			u = under(u)
+		}
+		if debug {
+			assert(Identical(u, under(u)))
+		}
+		if !yield(t.typ, u) {
+			break
+		}
+	}
+}
 
 // is calls f with the specific type terms of s and reports whether
 // all calls to f returned true. If there are no specific terms, is
@@ -116,30 +139,6 @@ func (s *_TypeSet) is(f func(*term) bool) bool {
 	for _, t := range s.terms {
 		assert(t.typ != nil)
 		if !f(t) {
-			return false
-		}
-	}
-	return true
-}
-
-// underIs calls f with the underlying types of the specific type terms
-// of s and reports whether all calls to f returned true. If there are
-// no specific terms, underIs returns the result of f(nil).
-func (s *_TypeSet) underIs(f func(Type) bool) bool {
-	if !s.hasTerms() {
-		return f(nil)
-	}
-	for _, t := range s.terms {
-		assert(t.typ != nil)
-		// Unalias(x) == under(x) for ~x terms
-		u := Unalias(t.typ)
-		if !t.tilde {
-			u = under(u)
-		}
-		if debug {
-			assert(Identical(u, under(u)))
-		}
-		if !f(u) {
 			return false
 		}
 	}
@@ -238,7 +237,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			// error message.
 			if check != nil {
 				check.later(func() {
-					if pos.IsKnown() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+					if pos.IsKnown() && !check.allowVersion(go1_14) || !Identical(m.typ, other.Type()) {
 						err := check.newError(DuplicateDecl)
 						err.addf(atPos(pos), "duplicate method %s", m.name)
 						err.addf(atPos(mpos[other.(*Func)]), "other declaration of method %s", m.name)

@@ -521,11 +521,7 @@ var genericOps = []opData{
 	{name: "IData", argLength: 1},                // arg0=interface, returns data field
 
 	// Structs
-	{name: "StructMake0"},                              // Returns struct with 0 fields.
-	{name: "StructMake1", argLength: 1},                // arg0=field0.  Returns struct.
-	{name: "StructMake2", argLength: 2},                // arg0,arg1=field0,field1.  Returns struct.
-	{name: "StructMake3", argLength: 3},                // arg0..2=field0..2.  Returns struct.
-	{name: "StructMake4", argLength: 4},                // arg0..3=field0..3.  Returns struct.
+	{name: "StructMake", argLength: -1},                // args...=field0..n-1. Returns struct with n fields.
 	{name: "StructSelect", argLength: 1, aux: "Int64"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
 
 	// Arrays

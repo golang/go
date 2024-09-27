@@ -15,6 +15,7 @@ import (
 	"slices"
 )
 
+// decl may be nil
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
 	if check.conf.IgnoreFuncBodies {
 		panic("function body not ignored")
@@ -31,10 +32,11 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		check.indent = indent
 	}(check.environment, check.indent)
 	check.environment = environment{
-		decl:  decl,
-		scope: sig.scope,
-		iota:  iota,
-		sig:   sig,
+		decl:    decl,
+		scope:   sig.scope,
+		version: check.version, // TODO(adonovan): would decl.version (if decl != nil) be better?
+		iota:    iota,
+		sig:     sig,
 	}
 	check.indent = 0
 
@@ -889,7 +891,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	if x.mode != invalid {
 		// Ranging over a type parameter is permitted if it has a core type.
 		k, v, cause, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
-			return check.allowVersion(x.expr, v)
+			return check.allowVersion(v)
 		})
 		switch {
 		case !ok && cause != "":

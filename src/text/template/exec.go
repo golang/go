@@ -395,6 +395,22 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		s.walk(elem, r.List)
 	}
 	switch val.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		if len(r.Pipe.Decl) > 1 {
+			s.errorf("can't use %s to iterate over more than one variable", val)
+			break
+		}
+		run := false
+		for v := range val.Seq() {
+			run = true
+			// Pass element as second value, as we do for channels.
+			oneIteration(reflect.Value{}, v)
+		}
+		if !run {
+			break
+		}
+		return
 	case reflect.Array, reflect.Slice:
 		if val.Len() == 0 {
 			break
@@ -434,6 +450,43 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		return
 	case reflect.Invalid:
 		break // An invalid value is likely a nil map, etc. and acts like an empty map.
+	case reflect.Func:
+		if val.Type().CanSeq() {
+			if len(r.Pipe.Decl) > 1 {
+				s.errorf("can't use %s iterate over more than one variable", val)
+				break
+			}
+			run := false
+			for v := range val.Seq() {
+				run = true
+				// Pass element as second value,
+				// as we do for channels.
+				oneIteration(reflect.Value{}, v)
+			}
+			if !run {
+				break
+			}
+			return
+		}
+		if val.Type().CanSeq2() {
+			run := false
+			for i, v := range val.Seq2() {
+				run = true
+				if len(r.Pipe.Decl) > 1 {
+					oneIteration(i, v)
+				} else {
+					// If there is only one range variable,
+					// oneIteration will use the
+					// second value.
+					oneIteration(reflect.Value{}, i)
+				}
+			}
+			if !run {
+				break
+			}
+			return
+		}
+		fallthrough
 	default:
 		s.errorf("range can't iterate over %v", val)
 	}

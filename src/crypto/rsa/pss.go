@@ -296,6 +296,10 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 	// well-specified number of random bytes is included in the signature, in a
 	// well-specified way.
 
+	if opts != nil && opts.Hash != 0 {
+		hash = opts.Hash
+	}
+
 	if boring.Enabled && rand == boring.RandReader {
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
@@ -304,10 +308,6 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 		return boring.SignRSAPSS(bkey, hash, digest, opts.saltLength())
 	}
 	boring.UnreachableExceptTests()
-
-	if opts != nil && opts.Hash != 0 {
-		hash = opts.Hash
-	}
 
 	saltLength := opts.saltLength()
 	switch saltLength {

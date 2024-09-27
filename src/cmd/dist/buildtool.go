@@ -13,6 +13,7 @@ package main
 
 import (
 	"fmt"
+	"go/version"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -118,9 +119,11 @@ var ignoreSuffixes = []string{
 	"~",
 }
 
+const minBootstrap = "go1.22.6"
+
 var tryDirs = []string{
-	"sdk/go1.22.6",
-	"go1.22.6",
+	"sdk/" + minBootstrap,
+	minBootstrap,
 }
 
 func bootstrapBuildTools() {
@@ -134,6 +137,15 @@ func bootstrapBuildTools() {
 			}
 		}
 	}
+
+	// check bootstrap version.
+	ver := run(pathf("%s/bin", goroot_bootstrap), CheckExit, pathf("%s/bin/go", goroot_bootstrap), "env", "GOVERSION")
+	// go env GOVERSION output like "go1.22.6\n" or "devel go1.24-ffb3e574 Thu Aug 29 20:16:26 2024 +0000\n".
+	ver = ver[:len(ver)-1]
+	if version.Compare(ver, version.Lang(minBootstrap)) > 0 && version.Compare(ver, minBootstrap) < 0 {
+		fatalf("%s does not meet the minimum bootstrap requirement of %s or later", ver, minBootstrap)
+	}
+
 	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
 
 	mkbuildcfg(pathf("%s/src/internal/buildcfg/zbootstrap.go", goroot))

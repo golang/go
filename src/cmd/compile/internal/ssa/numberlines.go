@@ -15,7 +15,7 @@ func isPoorStatementOp(op Op) bool {
 	// Note that Nilcheck often vanishes, but when it doesn't, you'd love to start the statement there
 	// so that a debugger-user sees the stop before the panic, and can examine the value.
 	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpPhi, OpITab, OpIData,
-		OpIMake, OpStringMake, OpSliceMake, OpStructMake0, OpStructMake1, OpStructMake2, OpStructMake3, OpStructMake4,
+		OpIMake, OpStringMake, OpSliceMake, OpStructMake,
 		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F, OpSB, OpSP,
 		OpArgIntReg, OpArgFloatReg:
 		return true

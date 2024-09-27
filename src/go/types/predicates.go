@@ -214,7 +214,7 @@ func hasNil(t Type) bool {
 	case *Slice, *Pointer, *Signature, *Map, *Chan:
 		return true
 	case *Interface:
-		return !isTypeParam(t) || u.typeSet().underIs(func(u Type) bool {
+		return !isTypeParam(t) || underIs(t, func(u Type) bool {
 			return u != nil && hasNil(u)
 		})
 	}

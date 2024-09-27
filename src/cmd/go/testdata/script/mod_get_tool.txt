@@ -1,0 +1,81 @@
+# test go get -tool
+go get -tool example.com/tools/cmd/hello@v1.0.0
+cmp go.mod go.mod.want
+
+go get -u tool
+cmp go.mod go.mod.upgraded
+
+# test -tool with @none
+go get -tool example.com/tools/cmd/hello@none
+cmp go.mod go.mod.gone
+
+go mod tidy
+cmp go.mod go.mod.empty
+
+# test -tool with wildcards
+go get -tool ./cmd/...
+cmp go.mod go.mod.wildcard
+! go get -tool ./cmd/...@none
+stderr 'can''t request explicit version "none" of path "./cmd/..." in main module'
+
+# test -tool with all
+! go get -tool all
+stderr 'go get -tool does not work with "all"'
+
+# test tool@none
+! go get tool@none
+stderr 'can''t request explicit version of "tool" pattern'
+
+-- main.go --
+package main
+
+func main() {}
+
+-- go.mod --
+module example.com/foo
+go 1.24
+
+-- go.mod.want --
+module example.com/foo
+
+go 1.24
+
+tool example.com/tools/cmd/hello
+
+require example.com/tools v1.0.0 // indirect
+-- go.mod.upgraded --
+module example.com/foo
+
+go 1.24
+
+tool example.com/tools/cmd/hello
+
+require example.com/tools v1.1.0 // indirect
+-- go.mod.gone --
+module example.com/foo
+
+go 1.24
+
+require example.com/tools v1.1.0 // indirect
+-- go.mod.empty --
+module example.com/foo
+
+go 1.24
+-- go.mod.wildcard --
+module example.com/foo
+
+go 1.24
+
+tool (
+	example.com/foo/cmd/a
+	example.com/foo/cmd/b
+)
+-- cmd/a/a.go --
+package a
+
+func main() {}
+
+-- cmd/b/b.go --
+package b
+
+func main() {}

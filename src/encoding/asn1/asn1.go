@@ -702,6 +702,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		if !t.isCompound && t.class == ClassUniversal {
 			innerBytes := bytes[offset : offset+t.length]
 			switch t.tag {
+			case TagBoolean:
+				result, err = parseBool(innerBytes)
 			case TagPrintableString:
 				result, err = parsePrintableString(innerBytes)
 			case TagNumericString:

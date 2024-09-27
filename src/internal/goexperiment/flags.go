@@ -113,7 +113,7 @@ type Flags struct {
 
 	// AliasTypeParams enables type parameters for alias types.
 	// Requires that gotypesalias=1 is set with GODEBUG.
-	// This flag will be removed with Go 1.24.
+	// This flag will be removed with Go 1.25.
 	AliasTypeParams bool
 
 	// SwissMap enables the SwissTable-based map implementation.

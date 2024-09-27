@@ -19,14 +19,11 @@ type GetRandomFlag uintptr
 
 // GetRandom calls the getrandom system call.
 func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
-	if len(p) == 0 {
-		return 0, nil
-	}
 	if getrandomUnsupported.Load() {
 		return 0, syscall.ENOSYS
 	}
 	r1, _, errno := syscall.Syscall(getrandomTrap,
-		uintptr(unsafe.Pointer(&p[0])),
+		uintptr(unsafe.Pointer(unsafe.SliceData(p))),
 		uintptr(len(p)),
 		uintptr(flags))
 	if errno != 0 {

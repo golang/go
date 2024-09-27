@@ -1175,7 +1175,7 @@ func validateRFF(ctxt *obj.Link, ins *instruction) {
 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
-func validateII(ctxt *obj.Link, ins *instruction) {
+func validateIII(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins, ins.imm, 12)
 	wantIntReg(ctxt, ins, "rd", ins.rd)
 	wantIntReg(ctxt, ins, "rs1", ins.rs1)
@@ -1321,7 +1321,7 @@ func encodeI(as obj.As, rs1, rd, imm uint32) uint32 {
 	return imm<<20 | rs1<<15 | enc.funct3<<12 | rd<<7 | enc.opcode
 }
 
-func encodeII(ins *instruction) uint32 {
+func encodeIII(ins *instruction) uint32 {
 	return encodeI(ins.as, regI(ins.rs1), regI(ins.rd), uint32(ins.imm))
 }
 
@@ -1522,8 +1522,8 @@ var (
 	rIFEncoding   = encoding{encode: encodeRIF, validate: validateRIF, length: 4}
 	rFFEncoding   = encoding{encode: encodeRFF, validate: validateRFF, length: 4}
 
-	iIEncoding = encoding{encode: encodeII, validate: validateII, length: 4}
-	iFEncoding = encoding{encode: encodeIF, validate: validateIF, length: 4}
+	iIIEncoding = encoding{encode: encodeIII, validate: validateIII, length: 4}
+	iFEncoding  = encoding{encode: encodeIF, validate: validateIF, length: 4}
 
 	sIEncoding = encoding{encode: encodeSI, validate: validateSI, length: 4}
 	sFEncoding = encoding{encode: encodeSF, validate: validateSF, length: 4}
@@ -1550,15 +1550,15 @@ var encodings = [ALAST & obj.AMask]encoding{
 	// Unprivileged ISA
 
 	// 2.4: Integer Computational Instructions
-	AADDI & obj.AMask:  iIEncoding,
-	ASLTI & obj.AMask:  iIEncoding,
-	ASLTIU & obj.AMask: iIEncoding,
-	AANDI & obj.AMask:  iIEncoding,
-	AORI & obj.AMask:   iIEncoding,
-	AXORI & obj.AMask:  iIEncoding,
-	ASLLI & obj.AMask:  iIEncoding,
-	ASRLI & obj.AMask:  iIEncoding,
-	ASRAI & obj.AMask:  iIEncoding,
+	AADDI & obj.AMask:  iIIEncoding,
+	ASLTI & obj.AMask:  iIIEncoding,
+	ASLTIU & obj.AMask: iIIEncoding,
+	AANDI & obj.AMask:  iIIEncoding,
+	AORI & obj.AMask:   iIIEncoding,
+	AXORI & obj.AMask:  iIIEncoding,
+	ASLLI & obj.AMask:  iIIEncoding,
+	ASRLI & obj.AMask:  iIIEncoding,
+	ASRAI & obj.AMask:  iIIEncoding,
 	ALUI & obj.AMask:   uEncoding,
 	AAUIPC & obj.AMask: uEncoding,
 	AADD & obj.AMask:   rIIIEncoding,
@@ -1574,7 +1574,7 @@ var encodings = [ALAST & obj.AMask]encoding{
 
 	// 2.5: Control Transfer Instructions
 	AJAL & obj.AMask:  jEncoding,
-	AJALR & obj.AMask: iIEncoding,
+	AJALR & obj.AMask: iIIEncoding,
 	ABEQ & obj.AMask:  bEncoding,
 	ABNE & obj.AMask:  bEncoding,
 	ABLT & obj.AMask:  bEncoding,
@@ -1583,24 +1583,24 @@ var encodings = [ALAST & obj.AMask]encoding{
 	ABGEU & obj.AMask: bEncoding,
 
 	// 2.6: Load and Store Instructions
-	ALW & obj.AMask:  iIEncoding,
-	ALWU & obj.AMask: iIEncoding,
-	ALH & obj.AMask:  iIEncoding,
-	ALHU & obj.AMask: iIEncoding,
-	ALB & obj.AMask:  iIEncoding,
-	ALBU & obj.AMask: iIEncoding,
+	ALW & obj.AMask:  iIIEncoding,
+	ALWU & obj.AMask: iIIEncoding,
+	ALH & obj.AMask:  iIIEncoding,
+	ALHU & obj.AMask: iIIEncoding,
+	ALB & obj.AMask:  iIIEncoding,
+	ALBU & obj.AMask: iIIEncoding,
 	ASW & obj.AMask:  sIEncoding,
 	ASH & obj.AMask:  sIEncoding,
 	ASB & obj.AMask:  sIEncoding,
 
 	// 2.7: Memory Ordering
-	AFENCE & obj.AMask: iIEncoding,
+	AFENCE & obj.AMask: iIIEncoding,
 
 	// 5.2: Integer Computational Instructions (RV64I)
-	AADDIW & obj.AMask: iIEncoding,
-	ASLLIW & obj.AMask: iIEncoding,
-	ASRLIW & obj.AMask: iIEncoding,
-	ASRAIW & obj.AMask: iIEncoding,
+	AADDIW & obj.AMask: iIIEncoding,
+	ASLLIW & obj.AMask: iIIEncoding,
+	ASRLIW & obj.AMask: iIIEncoding,
+	ASRAIW & obj.AMask: iIIEncoding,
 	AADDW & obj.AMask:  rIIIEncoding,
 	ASLLW & obj.AMask:  rIIIEncoding,
 	ASRLW & obj.AMask:  rIIIEncoding,
@@ -1608,7 +1608,7 @@ var encodings = [ALAST & obj.AMask]encoding{
 	ASRAW & obj.AMask:  rIIIEncoding,
 
 	// 5.3: Load and Store Instructions (RV64I)
-	ALD & obj.AMask: iIEncoding,
+	ALD & obj.AMask: iIIEncoding,
 	ASD & obj.AMask: sIEncoding,
 
 	// 7.1: Multiplication Operations
@@ -1653,9 +1653,9 @@ var encodings = [ALAST & obj.AMask]encoding{
 	AAMOMINUD & obj.AMask: rIIIEncoding,
 
 	// 10.1: Base Counters and Timers
-	ARDCYCLE & obj.AMask:   iIEncoding,
-	ARDTIME & obj.AMask:    iIEncoding,
-	ARDINSTRET & obj.AMask: iIEncoding,
+	ARDCYCLE & obj.AMask:   iIIEncoding,
+	ARDTIME & obj.AMask:    iIIEncoding,
+	ARDINSTRET & obj.AMask: iIIEncoding,
 
 	// 11.5: Single-Precision Load and Store Instructions
 	AFLW & obj.AMask: iFEncoding,
@@ -1744,8 +1744,8 @@ var encodings = [ALAST & obj.AMask]encoding{
 	// Privileged ISA
 
 	// 3.2.1: Environment Call and Breakpoint
-	AECALL & obj.AMask:  iIEncoding,
-	AEBREAK & obj.AMask: iIEncoding,
+	AECALL & obj.AMask:  iIIEncoding,
+	AEBREAK & obj.AMask: iIIEncoding,
 
 	//
 	// RISC-V Bit-Manipulation ISA-extensions (1.0)
@@ -1759,7 +1759,7 @@ var encodings = [ALAST & obj.AMask]encoding{
 	ASH2ADDUW & obj.AMask: rIIIEncoding,
 	ASH3ADD & obj.AMask:   rIIIEncoding,
 	ASH3ADDUW & obj.AMask: rIIIEncoding,
-	ASLLIUW & obj.AMask:   iIEncoding,
+	ASLLIUW & obj.AMask:   iIIEncoding,
 
 	// 1.2: Basic Bit Manipulation (Zbb)
 	AANDN & obj.AMask:  rIIIEncoding,
@@ -1783,21 +1783,21 @@ var encodings = [ALAST & obj.AMask]encoding{
 	AROL & obj.AMask:   rIIIEncoding,
 	AROLW & obj.AMask:  rIIIEncoding,
 	AROR & obj.AMask:   rIIIEncoding,
-	ARORI & obj.AMask:  iIEncoding,
-	ARORIW & obj.AMask: iIEncoding,
+	ARORI & obj.AMask:  iIIEncoding,
+	ARORIW & obj.AMask: iIIEncoding,
 	ARORW & obj.AMask:  rIIIEncoding,
-	AORCB & obj.AMask:  iIEncoding,
-	AREV8 & obj.AMask:  iIEncoding,
+	AORCB & obj.AMask:  iIIEncoding,
+	AREV8 & obj.AMask:  iIIEncoding,
 
 	// 1.5: Single-bit Instructions (Zbs)
 	ABCLR & obj.AMask:  rIIIEncoding,
-	ABCLRI & obj.AMask: iIEncoding,
+	ABCLRI & obj.AMask: iIIEncoding,
 	ABEXT & obj.AMask:  rIIIEncoding,
-	ABEXTI & obj.AMask: iIEncoding,
+	ABEXTI & obj.AMask: iIIEncoding,
 	ABINV & obj.AMask:  rIIIEncoding,
-	ABINVI & obj.AMask: iIEncoding,
+	ABINVI & obj.AMask: iIIEncoding,
 	ABSET & obj.AMask:  rIIIEncoding,
-	ABSETI & obj.AMask: iIEncoding,
+	ABSETI & obj.AMask: iIIEncoding,
 
 	// Escape hatch
 	AWORD & obj.AMask: rawEncoding,

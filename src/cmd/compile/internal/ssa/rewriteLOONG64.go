@@ -1559,7 +1559,7 @@ func rewriteValueLOONG64_OpLOONG64DIVVU(v *Value) bool {
 		return true
 	}
 	// match: (DIVVU x (MOVVconst [c]))
-	// cond: isPowerOfTwo64(c)
+	// cond: isPowerOfTwo(c)
 	// result: (SRLVconst [log64(c)] x)
 	for {
 		x := v_0
@@ -1567,7 +1567,7 @@ func rewriteValueLOONG64_OpLOONG64DIVVU(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(isPowerOfTwo64(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpLOONG64SRLVconst)
@@ -3550,7 +3550,7 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 		break
 	}
 	// match: (MULV x (MOVVconst [c]))
-	// cond: isPowerOfTwo64(c)
+	// cond: isPowerOfTwo(c)
 	// result: (SLLVconst [log64(c)] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -3559,7 +3559,7 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(isPowerOfTwo64(c)) {
+			if !(isPowerOfTwo(c)) {
 				continue
 			}
 			v.reset(OpLOONG64SLLVconst)
@@ -3772,7 +3772,7 @@ func rewriteValueLOONG64_OpLOONG64REMVU(v *Value) bool {
 		return true
 	}
 	// match: (REMVU x (MOVVconst [c]))
-	// cond: isPowerOfTwo64(c)
+	// cond: isPowerOfTwo(c)
 	// result: (ANDconst [c-1] x)
 	for {
 		x := v_0
@@ -3780,7 +3780,7 @@ func rewriteValueLOONG64_OpLOONG64REMVU(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_1.AuxInt)
-		if !(isPowerOfTwo64(c)) {
+		if !(isPowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpLOONG64ANDconst)

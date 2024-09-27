@@ -113,6 +113,9 @@ type B struct {
 	netBytes  uint64
 	// Extra metrics collected by ReportMetric.
 	extra map[string]float64
+	// Remaining iterations of Loop() to be executed in benchFunc.
+	// See issue #61515.
+	loopN int
 }
 
 // StartTimer starts timing a test. This function is called automatically
@@ -187,6 +190,7 @@ func (b *B) runN(n int) {
 	runtime.GC()
 	b.resetRaces()
 	b.N = n
+	b.loopN = n
 	b.parallelism = 1
 	b.ResetTimer()
 	b.StartTimer()
@@ -347,6 +351,21 @@ func (b *B) ReportMetric(n float64, unit string) {
 		panic("metric unit must not contain whitespace")
 	}
 	b.extra[unit] = n
+}
+
+// Loop returns true until b.N calls has been made to it.
+//
+// A benchmark should either use Loop or contain an explicit loop from 0 to b.N, but not both.
+// After the benchmark finishes, b.N will contain the total number of calls to op, so the benchmark
+// may use b.N to compute other average metrics.
+func (b *B) Loop() bool {
+	if b.loopN == b.N {
+		// If it's the first call to b.Loop() in the benchmark function.
+		// Allows more precise measurement of benchmark loop cost counts.
+		b.ResetTimer()
+	}
+	b.loopN--
+	return b.loopN >= 0
 }
 
 // BenchmarkResult contains the results of a benchmark run.

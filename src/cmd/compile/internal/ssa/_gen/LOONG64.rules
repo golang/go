@@ -583,13 +583,13 @@
 (MULV x (MOVVconst [-1])) => (NEGV x)
 (MULV _ (MOVVconst [0])) => (MOVVconst [0])
 (MULV x (MOVVconst [1])) => x
-(MULV x (MOVVconst [c])) && isPowerOfTwo64(c) => (SLLVconst [log64(c)] x)
+(MULV x (MOVVconst [c])) && isPowerOfTwo(c) => (SLLVconst [log64(c)] x)
 
 // div by constant
 (DIVVU x (MOVVconst [1])) => x
-(DIVVU x (MOVVconst [c])) && isPowerOfTwo64(c) => (SRLVconst [log64(c)] x)
+(DIVVU x (MOVVconst [c])) && isPowerOfTwo(c) => (SRLVconst [log64(c)] x)
 (REMVU _ (MOVVconst [1])) => (MOVVconst [0])                       // mod
-(REMVU x (MOVVconst [c])) && isPowerOfTwo64(c) => (ANDconst [c-1] x) // mod
+(REMVU x (MOVVconst [c])) && isPowerOfTwo(c) => (ANDconst [c-1] x) // mod
 
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)

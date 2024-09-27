@@ -59,17 +59,17 @@ func cname(s string) string {
 		return t
 	}
 
-	if strings.HasPrefix(s, "struct_") {
-		return "struct " + s[len("struct_"):]
+	if t, ok := strings.CutPrefix(s, "struct_"); ok {
+		return "struct " + t
 	}
-	if strings.HasPrefix(s, "union_") {
-		return "union " + s[len("union_"):]
+	if t, ok := strings.CutPrefix(s, "union_"); ok {
+		return "union " + t
 	}
-	if strings.HasPrefix(s, "enum_") {
-		return "enum " + s[len("enum_"):]
+	if t, ok := strings.CutPrefix(s, "enum_"); ok {
+		return "enum " + t
 	}
-	if strings.HasPrefix(s, "sizeof_") {
-		return "sizeof(" + cname(s[len("sizeof_"):]) + ")"
+	if t, ok := strings.CutPrefix(s, "sizeof_"); ok {
+		return "sizeof(" + cname(t) + ")"
 	}
 	return s
 }
@@ -1833,8 +1833,8 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 		if strings.HasPrefix(s, "___") {
 			s = s[1:]
 		}
-		if strings.HasPrefix(s, "__cgodebug_strlen__") {
-			if n, err := strconv.Atoi(s[len("__cgodebug_strlen__"):]); err == nil {
+		if t, ok := strings.CutPrefix(s, "__cgodebug_strlen__"); ok {
+			if n, err := strconv.Atoi(t); err == nil {
 				return n
 			}
 		}

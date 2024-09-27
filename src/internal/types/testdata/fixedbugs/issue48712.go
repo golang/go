@@ -10,7 +10,7 @@ func _[P comparable](x, y P) {
 	_ = y == x
 	_ = y == y
 
-	_ = x /* ERROR "type parameter P is not comparable with <" */ < y
+	_ = x /* ERROR "type parameter P cannot use operator <" */ < y
 }
 
 func _[P comparable](x P, y any) {
@@ -19,7 +19,7 @@ func _[P comparable](x P, y any) {
 	_ = y == x
 	_ = y == y
 
-	_ = x /* ERROR "type parameter P is not comparable with <" */ < y
+	_ = x /* ERROR "type parameter P cannot use operator <" */ < y
 }
 
 func _[P any](x, y P) {
@@ -28,7 +28,7 @@ func _[P any](x, y P) {
 	_ = y /* ERROR "incomparable types in type set" */ == x
 	_ = y /* ERROR "incomparable types in type set" */ == y
 
-	_ = x /* ERROR "type parameter P is not comparable with <" */ < y
+	_ = x /* ERROR "type parameter P cannot use operator <" */ < y
 }
 
 func _[P any](x P, y any) {
@@ -37,5 +37,5 @@ func _[P any](x P, y any) {
 	_ = y == x // ERROR "incomparable types in type set"
 	_ = y == y
 
-	_ = x /* ERROR "type parameter P is not comparable with <" */ < y
+	_ = x /* ERROR "type parameter P cannot use operator <" */ < y
 }

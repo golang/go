@@ -311,6 +311,26 @@ func TestIssue11130(t *testing.T) {
 	}
 }
 
+func TestIssue68241(t *testing.T) {
+	for i, want := range []any{false, true} {
+		data, err := Marshal(want)
+		if err != nil {
+			t.Errorf("cannot Marshal: %v", err)
+			return
+		}
+
+		var got any
+		_, err = Unmarshal(data, &got)
+		if err != nil {
+			t.Errorf("cannot Unmarshal: %v", err)
+			return
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("#%d Unmarshal, got: %v, want: %v", i, got, want)
+		}
+	}
+}
+
 func BenchmarkMarshal(b *testing.B) {
 	b.ReportAllocs()
 

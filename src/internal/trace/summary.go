@@ -390,24 +390,14 @@ func (s *Summarizer) Event(ev *Event) {
 			// This root frame will be identical for all transitions on this
 			// goroutine, because it represents its immutable start point.
 			if g.Name == "" {
-				stk := st.Stack
-				if stk != NoStack {
-					var frame StackFrame
-					var ok bool
-					stk.Frames(func(f StackFrame) bool {
-						frame = f
-						ok = true
-						return true
-					})
-					if ok {
-						// NB: this PC won't actually be consistent for
-						// goroutines which existed at the start of the
-						// trace. The UI doesn't use it directly; this
-						// mainly serves as an indication that we
-						// actually saw a call stack for the goroutine
-						g.PC = frame.PC
-						g.Name = frame.Func
-					}
+				for frame := range st.Stack.Frames() {
+					// NB: this PC won't actually be consistent for
+					// goroutines which existed at the start of the
+					// trace. The UI doesn't use it directly; this
+					// mainly serves as an indication that we
+					// actually saw a call stack for the goroutine
+					g.PC = frame.PC
+					g.Name = frame.Func
 				}
 			}
 

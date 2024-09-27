@@ -16,7 +16,7 @@ import (
 // literal is not compatible with the current language version.
 func (check *Checker) langCompat(lit *syntax.BasicLit) {
 	s := lit.Value
-	if len(s) <= 2 || check.allowVersion(lit, go1_13) {
+	if len(s) <= 2 || check.allowVersion(go1_13) {
 		return
 	}
 	// len(s) > 2
@@ -339,4 +339,51 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 
 	x.mode = value
 	x.typ = typ
+}
+
+// indexedElts checks the elements (elts) of an array or slice composite literal
+// against the literal's element type (typ), and the element indices against
+// the literal length if known (length >= 0). It returns the length of the
+// literal (maximum index value + 1).
+func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) int64 {
+	visited := make(map[int64]bool, len(elts))
+	var index, max int64
+	for _, e := range elts {
+		// determine and check index
+		validIndex := false
+		eval := e
+		if kv, _ := e.(*syntax.KeyValueExpr); kv != nil {
+			if typ, i := check.index(kv.Key, length); isValid(typ) {
+				if i >= 0 {
+					index = i
+					validIndex = true
+				} else {
+					check.errorf(e, InvalidLitIndex, "index %s must be integer constant", kv.Key)
+				}
+			}
+			eval = kv.Value
+		} else if length >= 0 && index >= length {
+			check.errorf(e, OversizeArrayLit, "index %d is out of bounds (>= %d)", index, length)
+		} else {
+			validIndex = true
+		}
+
+		// if we have a valid index, check for duplicate entries
+		if validIndex {
+			if visited[index] {
+				check.errorf(e, DuplicateLitKey, "duplicate index %d in array or slice literal", index)
+			}
+			visited[index] = true
+		}
+		index++
+		if index > max {
+			max = index
+		}
+
+		// check element against composite literal element type
+		var x operand
+		check.exprWithHint(&x, eval, typ)
+		check.assignment(&x, typ, "array or slice literal")
+	}
+	return max
 }

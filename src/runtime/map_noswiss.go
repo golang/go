@@ -1528,7 +1528,7 @@ func reflect_mapiternext(it *hiter) {
 	mapiternext(it)
 }
 
-// reflect_mapiterkey is for package reflect,
+// reflect_mapiterkey was for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/goccy/go-json
@@ -1542,7 +1542,7 @@ func reflect_mapiterkey(it *hiter) unsafe.Pointer {
 	return it.key
 }
 
-// reflect_mapiterelem is for package reflect,
+// reflect_mapiterelem was for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/goccy/go-json

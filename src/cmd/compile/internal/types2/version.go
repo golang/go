@@ -48,28 +48,17 @@ var (
 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
 )
 
-// allowVersion reports whether the current package at the given position
-// is allowed to use version v. If the position is unknown, the specified
-// module version (Config.GoVersion) is used. If that version is invalid,
-// allowVersion returns true.
-func (check *Checker) allowVersion(at poser, v goVersion) bool {
-	fileVersion := check.conf.GoVersion
-	if pos := at.Pos(); pos.IsKnown() {
-		fileVersion = check.versions[pos.FileBase()]
-	}
-
-	// We need asGoVersion (which calls version.Lang) below
-	// because fileVersion may be the (unaltered) Config.GoVersion
-	// string which may contain dot-release information.
-	version := asGoVersion(fileVersion)
-
-	return !version.isValid() || version.cmp(v) >= 0
+// allowVersion reports whether the current effective Go version
+// (which may vary from one file to another) is allowed to use the
+// feature version (want).
+func (check *Checker) allowVersion(want goVersion) bool {
+	return !check.version.isValid() || check.version.cmp(want) >= 0
 }
 
 // verifyVersionf is like allowVersion but also accepts a format string and arguments
 // which are used to report a version error if allowVersion returns false.
 func (check *Checker) verifyVersionf(at poser, v goVersion, format string, args ...interface{}) bool {
-	if !check.allowVersion(at, v) {
+	if !check.allowVersion(v) {
 		check.versionErrorf(at, v, format, args...)
 		return false
 	}

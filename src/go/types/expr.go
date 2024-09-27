@@ -49,7 +49,7 @@ sub-expression trees are left alone except for their roots). This mechanism
 ensures that a client sees the actual (run-time) type an untyped value would
 have. It also permits type-checking of lhs shift operands "as if the shift
 were not present": when updateExprType visits an untyped lhs shift operand
-and assigns it it's final type, that type must be an integer type, and a
+and assigns it its final type, that type must be an integer type, and a
 constant lhs must be representable as an integer.
 
 When an expression gets its final type, either on the way out from rawExpr,
@@ -124,16 +124,6 @@ var op2str2 = [...]string{
 	token.XOR: "bitwise XOR",
 	token.MUL: "multiplication",
 	token.SHL: "shift",
-}
-
-// If typ is a type parameter, underIs returns the result of typ.underIs(f).
-// Otherwise, underIs returns the result of f(under(typ)).
-func underIs(typ Type, f func(Type) bool) bool {
-	typ = Unalias(typ)
-	if tpar, _ := typ.(*TypeParam); tpar != nil {
-		return tpar.underIs(f)
-	}
-	return f(under(typ))
 }
 
 // The unary expression e may be nil. It's passed in for better error messages only.
@@ -420,7 +410,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		}
 	case *Interface:
 		if isTypeParam(target) {
-			if !u.typeSet().underIs(func(u Type) bool {
+			if !underIs(target, func(u Type) bool {
 				if u == nil {
 					return false
 				}
@@ -565,7 +555,7 @@ Error:
 			if !isTypeParam(x.typ) {
 				errOp = y
 			}
-			cause = check.sprintf("type parameter %s is not comparable with %s", errOp.typ, op)
+			cause = check.sprintf("type parameter %s cannot use operator %s", errOp.typ, op)
 		} else {
 			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
 		}

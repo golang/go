@@ -83,7 +83,7 @@ var testObjects = []struct {
 	src   string
 	obj   string
 	want  string
-	alias bool // needs materialized aliases
+	alias bool // needs materialized (and possibly generic) aliases
 }{
 	{"import \"io\"; var r io.Reader", "r", "var p.r io.Reader", false},
 
@@ -99,6 +99,7 @@ var testObjects = []struct {
 	{"type t = struct{f int}", "t", "type p.t = struct{f int}", false},
 	{"type t = func(int)", "t", "type p.t = func(int)", false},
 	{"type A = B; type B = int", "A", "type p.A = p.B", true},
+	{"type A[P ~int] = struct{}", "A", "type p.A[P ~int] = struct{}", true}, // requires GOEXPERIMENT=aliastypeparams
 
 	{"var v int", "v", "var p.v int", false},
 
@@ -114,6 +115,8 @@ func TestObjectString(t *testing.T) {
 	for i, test := range testObjects {
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
 			if test.alias {
+				revert := setGOEXPERIMENT("aliastypeparams")
+				defer revert()
 				t.Setenv("GODEBUG", "gotypesalias=1")
 			}
 
@@ -127,10 +130,15 @@ func TestObjectString(t *testing.T) {
 			if len(names) != 1 && len(names) != 2 {
 				t.Fatalf("%s: invalid object path %s", test.src, test.obj)
 			}
-			_, obj := pkg.Scope().LookupParent(names[0], nopos)
+
+			var obj Object
+			for s := pkg.Scope(); s != nil && obj == nil; s = s.Parent() {
+				obj = s.Lookup(names[0])
+			}
 			if obj == nil {
 				t.Fatalf("%s: %s not found", test.src, names[0])
 			}
+
 			if len(names) == 2 {
 				if typ, ok := obj.Type().(interface{ TypeParams() *TypeParamList }); ok {
 					obj = lookupTypeParamObj(typ.TypeParams(), names[1])

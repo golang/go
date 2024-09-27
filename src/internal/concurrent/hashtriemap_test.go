@@ -6,6 +6,7 @@ package concurrent
 
 import (
 	"fmt"
+	"internal/abi"
 	"math"
 	"runtime"
 	"strconv"
@@ -28,6 +29,23 @@ func TestHashTrieMapBadHash(t *testing.T) {
 		m := NewHashTrieMap[string, int]()
 		m.keyHash = func(_ unsafe.Pointer, _ uintptr) uintptr {
 			return 0
+		}
+		return m
+	})
+}
+
+func TestHashTrieMapTruncHash(t *testing.T) {
+	testHashTrieMap(t, func() *HashTrieMap[string, int] {
+		// Stub out the good hash function with a different terrible one
+		// (truncated hash). Everything should still work as expected.
+		// This is useful to test independently to catch issues with
+		// near collisions, where only the last few bits of the hash differ.
+		m := NewHashTrieMap[string, int]()
+		var mx map[string]int
+		mapType := abi.TypeOf(mx).MapType()
+		hasher := mapType.Hasher
+		m.keyHash = func(p unsafe.Pointer, n uintptr) uintptr {
+			return hasher(p, n) & ((uintptr(1) << 4) - 1)
 		}
 		return m
 	})

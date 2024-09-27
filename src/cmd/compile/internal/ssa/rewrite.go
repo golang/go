@@ -475,16 +475,7 @@ func log2uint32(n int64) int64 {
 }
 
 // isPowerOfTwoX functions report whether n is a power of 2.
-func isPowerOfTwo8(n int8) bool {
-	return n > 0 && n&(n-1) == 0
-}
-func isPowerOfTwo16(n int16) bool {
-	return n > 0 && n&(n-1) == 0
-}
-func isPowerOfTwo32(n int32) bool {
-	return n > 0 && n&(n-1) == 0
-}
-func isPowerOfTwo64(n int64) bool {
+func isPowerOfTwo[T int8 | int16 | int32 | int64](n T) bool {
 	return n > 0 && n&(n-1) == 0
 }
 
@@ -1272,10 +1263,6 @@ func overlap(offset1, size1, offset2, size2 int64) bool {
 	return false
 }
 
-func areAdjacentOffsets(off1, off2, size int64) bool {
-	return off1+size == off2 || off1 == off2+size
-}
-
 // check if value zeroes out upper 32-bit of 64-bit register.
 // depth limits recursion depth. In AMD64.rules 3 is used as limit,
 // because it catches same amount of cases as 4.
@@ -1808,19 +1795,19 @@ func armBFAuxInt(lsb, width int64) arm64BitField {
 }
 
 // returns the lsb part of the auxInt field of arm64 bitfield ops.
-func (bfc arm64BitField) getARM64BFlsb() int64 {
+func (bfc arm64BitField) lsb() int64 {
 	return int64(uint64(bfc) >> 8)
 }
 
 // returns the width part of the auxInt field of arm64 bitfield ops.
-func (bfc arm64BitField) getARM64BFwidth() int64 {
+func (bfc arm64BitField) width() int64 {
 	return int64(bfc) & 0xff
 }
 
 // checks if mask >> rshift applied at lsb is a valid arm64 bitfield op mask.
 func isARM64BFMask(lsb, mask, rshift int64) bool {
 	shiftedMask := int64(uint64(mask) >> uint64(rshift))
-	return shiftedMask != 0 && isPowerOfTwo64(shiftedMask+1) && nto(shiftedMask)+lsb < 64
+	return shiftedMask != 0 && isPowerOfTwo(shiftedMask+1) && nto(shiftedMask)+lsb < 64
 }
 
 // returns the bitfield width of mask >> rshift for arm64 bitfield ops.
@@ -1830,12 +1817,6 @@ func arm64BFWidth(mask, rshift int64) int64 {
 		panic("ARM64 BF mask is zero")
 	}
 	return nto(shiftedMask)
-}
-
-// sizeof returns the size of t in bytes.
-// It will panic if t is not a *types.Type.
-func sizeof(t interface{}) int64 {
-	return t.(*types.Type).Size()
 }
 
 // registerizable reports whether t is a primitive type that fits in
@@ -2374,4 +2355,42 @@ func isNonNegative(v *Value) bool {
 		// so are very minor, and it is neither simple nor cheap.
 	}
 	return false
+}
+
+func rewriteStructLoad(v *Value) *Value {
+	b := v.Block
+	ptr := v.Args[0]
+	mem := v.Args[1]
+
+	t := v.Type
+	args := make([]*Value, t.NumFields())
+	for i := range args {
+		ft := t.FieldType(i)
+		addr := b.NewValue1I(v.Pos, OpOffPtr, ft.PtrTo(), t.FieldOff(i), ptr)
+		args[i] = b.NewValue2(v.Pos, OpLoad, ft, addr, mem)
+	}
+
+	v.reset(OpStructMake)
+	v.AddArgs(args...)
+	return v
+}
+
+func rewriteStructStore(v *Value) *Value {
+	b := v.Block
+	dst := v.Args[0]
+	x := v.Args[1]
+	if x.Op != OpStructMake {
+		base.Fatalf("invalid struct store: %v", x)
+	}
+	mem := v.Args[2]
+
+	t := x.Type
+	for i, arg := range x.Args {
+		ft := t.FieldType(i)
+
+		addr := b.NewValue1I(v.Pos, OpOffPtr, ft.PtrTo(), t.FieldOff(i), dst)
+		mem = b.NewValue3A(v.Pos, OpStore, types.TypeMem, typeToAux(ft), addr, arg, mem)
+	}
+
+	return mem
 }

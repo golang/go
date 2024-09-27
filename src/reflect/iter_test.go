@@ -114,10 +114,10 @@ func TestValueSeq(t *testing.T) {
 		}},
 		{"string", ValueOf("12语言"), func(t *testing.T, s iter.Seq[Value]) {
 			i := int64(0)
-			indexs := []int64{0, 1, 2, 5}
+			indexes := []int64{0, 1, 2, 5}
 			for v := range s {
-				if v.Int() != indexs[i] {
-					t.Fatalf("got %d, want %d", v.Int(), indexs[i])
+				if v.Int() != indexes[i] {
+					t.Fatalf("got %d, want %d", v.Int(), indexes[i])
 				}
 				i++
 			}
@@ -126,14 +126,12 @@ func TestValueSeq(t *testing.T) {
 			}
 		}},
 		{"map[string]int", ValueOf(m), func(t *testing.T, s iter.Seq[Value]) {
-			i := int64(0)
 			copy := maps.Clone(m)
 			for v := range s {
 				if _, ok := copy[v.String()]; !ok {
 					t.Fatalf("unexpected %v", v.Interface())
 				}
 				delete(copy, v.String())
-				i++
 			}
 			if len(copy) != 0 {
 				t.Fatalf("should loop four times")
@@ -240,11 +238,10 @@ func TestValueSeq2(t *testing.T) {
 			}
 		}},
 		{"string", ValueOf("12语言"), func(t *testing.T, s iter.Seq2[Value, Value]) {
-			i := int64(0)
-			str := "12语言"
 			next, stop := iter.Pull2(s)
 			defer stop()
-			for j, s := range str {
+			i := int64(0)
+			for j, s := range "12语言" {
 				v1, v2, ok := next()
 				if !ok {
 					t.Fatalf("should loop four times")
