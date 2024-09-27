@@ -130,10 +130,15 @@ func TestObjectString(t *testing.T) {
 			if len(names) != 1 && len(names) != 2 {
 				t.Fatalf("%s: invalid object path %s", test.src, test.obj)
 			}
-			_, obj := pkg.Scope().LookupParent(names[0], nopos)
+
+			var obj Object
+			for s := pkg.Scope(); s != nil && obj == nil; s = s.Parent() {
+				obj = s.Lookup(names[0])
+			}
 			if obj == nil {
 				t.Fatalf("%s: %s not found", test.src, names[0])
 			}
+
 			if len(names) == 2 {
 				if typ, ok := obj.Type().(interface{ TypeParams() *TypeParamList }); ok {
 					obj = lookupTypeParamObj(typ.TypeParams(), names[1])
