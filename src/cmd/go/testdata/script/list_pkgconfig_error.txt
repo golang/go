@@ -2,9 +2,7 @@
 [!exec:pkg-config] skip 'test requires pkg-config tool'
 
 ! go list -export .
-# 'Package .* not found appears' in pkg-config and pkgconf; while
-# 'could not find package .*' appears in u-config. See #68283.
-stderr '#^ example\n#pkg-config .*\n(.*\n)*(Package .* not found)|(could not find package .*)'
+stderr '^# example\n# \[pkg-config .*\]\n(.*\n)*Package .* not found'
 
 -- go.mod --
 module example
