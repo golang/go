@@ -209,6 +209,17 @@ function returns void). For example:
 	_, err := C.voidFunc()
 	var n, err = C.sqrt(1)
 
+Note that the C errno value may be non-zero, and thus the err result may be
+non-nil, even if the function call is successful. Unlike normal Go conventions,
+you should first check whether the call succeeded before checking the error
+result. For example:
+
+	n, err := C.setenv(key, value, 1)
+	if n != 0 {
+		// we know the call failed, so it is now valid to use err
+		return err
+	}
+
 Calling C function pointers is currently not supported, however you can
 declare Go variables which hold C function pointers and pass them
 back and forth between Go and C. C code may call function pointers
