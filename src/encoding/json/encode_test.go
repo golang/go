@@ -85,10 +85,6 @@ func (nps *NoPanicStruct) IsZero() bool {
 	return nps.Int == 0
 }
 
-type IsZeroer interface {
-	IsZero() bool
-}
-
 type OptionalsZero struct {
 	Sr string `json:"sr"`
 	So string `json:"so,omitzero"`
@@ -119,9 +115,9 @@ type OptionalsZero struct {
 	Time time.Time     `json:"time,omitzero"`
 	Nzs  NonZeroStruct `json:"nzs,omitzero"`
 
-	NilIsZeroer    IsZeroer       `json:"niliszeroer,omitzero"`    // nil interface
-	NonNilIsZeroer IsZeroer       `json:"nonniliszeroer,omitzero"` // non-nil interface
-	NoPanicStruct1 IsZeroer       `json:"nps1,omitzero"`           // non-nil interface with non-nil pointer
+	NilIsZeroer    isZeroer       `json:"niliszeroer,omitzero"`    // nil interface
+	NonNilIsZeroer isZeroer       `json:"nonniliszeroer,omitzero"` // non-nil interface
+	NoPanicStruct1 isZeroer       `json:"nps1,omitzero"`           // non-nil interface with non-nil pointer
 	NoPanicStruct2 *NoPanicStruct `json:"nps2,omitzero"`           // nil pointer
 	NoPanicStruct3 NoPanicStruct  `json:"nps3,omitzero"`           // concrete type
 }
