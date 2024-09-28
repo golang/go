@@ -40,6 +40,11 @@ func SortImports(fset *token.FileSet, f *File) {
 		specs = append(specs, sortSpecs(fset, f, d.Specs[i:])...)
 		d.Specs = specs
 
+		f.Imports = f.Imports[:0]
+		for _, v := range specs {
+			f.Imports = append(f.Imports, v.(*ImportSpec))
+		}
+
 		// Deduping can leave a blank line before the rparen; clean that up.
 		if len(d.Specs) > 0 {
 			lastSpec := d.Specs[len(d.Specs)-1]
