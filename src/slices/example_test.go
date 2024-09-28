@@ -538,3 +538,13 @@ func ExampleChunk() {
 	// [{Bob 5} {Vera 24}]
 	// [{Zac 15}]
 }
+
+func ExamplePartition() {
+	truthSlice, falseSlice := Partition([]int{1, 2, 3, 4, 5, 6}, func(x int) bool { return x%2 == 0 })
+	fmt.Println(truthSlice)
+	fmt.Println(falseSlice)
+
+	// Output:
+	// [2 4 6]
+	// [1 3 5]
+}

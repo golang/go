@@ -1450,3 +1450,37 @@ func TestRepeatPanics(t *testing.T) {
 		}
 	}
 }
+
+func TestPartition(t *testing.T) {
+	tests := []struct {
+		name       string
+		original   []int
+		truthSlice []int
+		falseSlice []int
+		predicate  func(int) bool
+	}{
+		{
+			name:       "split odd & even",
+			original:   []int{1, 2, 3, 4, 5, 6},
+			truthSlice: []int{1, 3, 5},
+			falseSlice: []int{2, 4, 6},
+			predicate:  func(x int) bool { return x%2 == 1 },
+		},
+		{
+			name:       "split by pivot",
+			original:   []int{1, 10, 100, 1000, 10000},
+			truthSlice: []int{1, 10},
+			falseSlice: []int{100, 1000, 10000},
+			predicate:  func(x int) bool { return x < 100 },
+		},
+	}
+	for _, testCase := range tests {
+		truthSlice, falseSlice := Partition(testCase.original, testCase.predicate)
+		if !Equal(truthSlice, testCase.truthSlice) {
+			t.Errorf("Partition %s truth failed", testCase.name)
+		}
+		if !Equal(falseSlice, testCase.falseSlice) {
+			t.Errorf("Parition %s false failed", testCase.name)
+		}
+	}
+}
