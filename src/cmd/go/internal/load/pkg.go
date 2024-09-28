@@ -498,9 +498,9 @@ func (p *PackageError) Error() string {
 	if p.Pos != "" {
 		optpos = "\n\t" + p.Pos
 	}
-	imports := p.ImportStack.CopyPkgs()
+	imports := p.ImportStack.Pkgs()
 	if p.IsImportCycle {
-		imports = p.ImportStack.CopyPkgsWithPos()
+		imports = p.ImportStack.PkgsWithPos()
 	}
 	return "package " + strings.Join(imports, "\n\timports ") + optpos + ": " + p.Err.Error()
 }
@@ -514,7 +514,7 @@ func (p *PackageError) MarshalJSON() ([]byte, error) {
 		ImportStack []string // use []string for package names
 		Pos         string
 		Err         string
-	}{p.ImportStack.CopyPkgs(), p.Pos, p.Err.Error()}
+	}{p.ImportStack.Pkgs(), p.Pos, p.Err.Error()}
 	return json.Marshal(perr)
 }
 
@@ -624,7 +624,7 @@ func (s *ImportStack) Copy() ImportStack {
 	return ii
 }
 
-func (s *ImportStack) CopyPkgs() []string {
+func (s *ImportStack) Pkgs() []string {
 	ss := make([]string, 0, len(*s))
 	for _, v := range *s {
 		ss = append(ss, v.Pkg)
@@ -632,7 +632,7 @@ func (s *ImportStack) CopyPkgs() []string {
 	return ss
 }
 
-func (s *ImportStack) CopyPkgsWithPos() []string {
+func (s *ImportStack) PkgsWithPos() []string {
 	ss := make([]string, 0, len(*s))
 	for _, v := range *s {
 		if v.Pos != nil {
@@ -1500,7 +1500,7 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 	// Don't rewrite the import stack in the error if we have an import cycle.
 	// If we do, we'll lose the path that describes the cycle.
 	if p.Error != nil && p.Error.ImportStack != nil &&
-		!p.Error.IsImportCycle && stk.shorterThan(p.Error.ImportStack.CopyPkgs()) {
+		!p.Error.IsImportCycle && stk.shorterThan(p.Error.ImportStack.Pkgs()) {
 		p.Error.ImportStack = stk.Copy()
 	}
 	return p
