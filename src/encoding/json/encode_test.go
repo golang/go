@@ -85,6 +85,10 @@ func (nps *NoPanicStruct) IsZero() bool {
 	return nps.Int == 0
 }
 
+type IsZeroer interface {
+	IsZero() bool
+}
+
 type OptionalsZero struct {
 	Sr string `json:"sr"`
 	So string `json:"so,omitzero"`
@@ -115,11 +119,11 @@ type OptionalsZero struct {
 	Time time.Time     `json:"time,omitzero"`
 	Nzs  NonZeroStruct `json:"nzs,omitzero"`
 
-	IsZeroer interface {
-		IsZero() bool
-	} `json:"iszeroer,omitzero"`
-	NoPanicStruct1 *NoPanicStruct `json:"nps1,omitzero"`
-	NoPanicStruct2 NoPanicStruct  `json:"nps2,omitzero"`
+	NilIsZeroer    IsZeroer       `json:"niliszeroer,omitzero"`    // nil interface
+	NonNilIsZeroer IsZeroer       `json:"nonniliszeroer,omitzero"` // non-nil interface
+	NoPanicStruct1 IsZeroer       `json:"nps1,omitzero"`           // non-nil interface with non-nil pointer
+	NoPanicStruct2 *NoPanicStruct `json:"nps2,omitzero"`           // nil pointer
+	NoPanicStruct3 NoPanicStruct  `json:"nps3,omitzero"`           // concrete type
 }
 
 func TestOmitZero(t *testing.T) {
@@ -141,6 +145,9 @@ func TestOmitZero(t *testing.T) {
 	o.SloNonNil = make([]string, 0)
 	o.Mr = map[string]any{}
 	o.Mo = map[string]any{}
+
+	o.NonNilIsZeroer = time.Time{}
+	o.NoPanicStruct1 = &NoPanicStruct{}
 
 	got, err := MarshalIndent(&o, "", " ")
 	if err != nil {
