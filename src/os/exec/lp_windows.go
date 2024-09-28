@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 // ErrNotFound is the error resulting if a path search failed to find an executable file.
@@ -154,7 +153,7 @@ func lookPath(file string, exts []string) (string, error) {
 		dotf   string
 		dotErr error
 	)
-	if _, found := syscall.Getenv("NoDefaultCurrentDirectoryInExePath"); !found {
+	if _, found := os.LookupEnv("NoDefaultCurrentDirectoryInExePath"); !found {
 		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
 			if execerrdot.Value() == "0" {
 				execerrdot.IncNonDefault()

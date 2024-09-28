@@ -13,7 +13,6 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"syscall"
 )
 
 // The net package's name resolution is rather complicated.
@@ -138,7 +137,7 @@ func initConfVal() {
 	// prefer the cgo resolver.
 	// Note that LOCALDOMAIN can change behavior merely by being
 	// specified with the empty string.
-	_, localDomainDefined := syscall.Getenv("LOCALDOMAIN")
+	_, localDomainDefined := os.LookupEnv("LOCALDOMAIN")
 	if localDomainDefined || os.Getenv("RES_OPTIONS") != "" || os.Getenv("HOSTALIASES") != "" {
 		confVal.preferCgo = true
 		return
