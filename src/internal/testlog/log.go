@@ -21,7 +21,7 @@ type Interface interface {
 }
 
 // logger is the current logger Interface.
-// We use an atomic.Value in case test startup
+// We use an atomic.Pointer in case test startup
 // is racing with goroutines started during init.
 // That must not cause a race detector failure,
 // although it will still result in limited visibility
