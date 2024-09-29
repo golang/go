@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/cpu"
+	"unsafe"
+)
 
 func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
 
@@ -43,8 +46,9 @@ func vgetrandomGetState() uintptr {
 	lock(&vgetrandomAlloc.statesLock)
 	if len(vgetrandomAlloc.states) == 0 {
 		num := uintptr(ncpu) // Just a reasonable size hint to start.
-		allocSize := (num*vgetrandomAlloc.stateSize + physPageSize - 1) &^ (physPageSize - 1)
-		num = (physPageSize / vgetrandomAlloc.stateSize) * (allocSize / physPageSize)
+		stateSizeCacheAligned := (vgetrandomAlloc.stateSize + cpu.CacheLineSize - 1) &^ (cpu.CacheLineSize - 1)
+		allocSize := (num*stateSizeCacheAligned + physPageSize - 1) &^ (physPageSize - 1)
+		num = (physPageSize / stateSizeCacheAligned) * (allocSize / physPageSize)
 		p, err := mmap(nil, allocSize, vgetrandomAlloc.mmapProt, vgetrandomAlloc.mmapFlags, -1, 0)
 		if err != 0 {
 			unlock(&vgetrandomAlloc.statesLock)
@@ -59,7 +63,7 @@ func vgetrandomGetState() uintptr {
 				newBlock = (newBlock + physPageSize - 1) &^ (physPageSize - 1)
 			}
 			vgetrandomAlloc.states = append(vgetrandomAlloc.states, newBlock)
-			newBlock += vgetrandomAlloc.stateSize
+			newBlock += stateSizeCacheAligned
 		}
 	}
 	state := vgetrandomAlloc.states[len(vgetrandomAlloc.states)-1]
