@@ -46,7 +46,7 @@ type OptionalsEmpty struct {
 }
 
 func TestOmitEmpty(t *testing.T) {
-	var want = `{
+	const want = `{
  "sr": "",
  "omitempty": 0,
  "slr": null,
@@ -82,7 +82,7 @@ type NoPanicStruct struct {
 }
 
 func (nps *NoPanicStruct) IsZero() bool {
-	return nps.Int == 0
+	return nps.Int != 0
 }
 
 type OptionalsZero struct {
@@ -100,8 +100,10 @@ type OptionalsZero struct {
 	Mr map[string]any `json:"mr"`
 	Mo map[string]any `json:",omitzero"`
 
-	Fr float64 `json:"fr"`
-	Fo float64 `json:"fo,omitzero"`
+	Fr   float64    `json:"fr"`
+	Fo   float64    `json:"fo,omitzero"`
+	Foo  float64    `json:"foo,omitzero"`
+	Foo2 [2]float64 `json:"foo2,omitzero"`
 
 	Br bool `json:"br"`
 	Bo bool `json:"bo,omitzero"`
@@ -123,7 +125,7 @@ type OptionalsZero struct {
 }
 
 func TestOmitZero(t *testing.T) {
-	var want = `{
+	const want = `{
  "sr": "",
  "omitzero": 0,
  "slr": null,
@@ -134,13 +136,18 @@ func TestOmitZero(t *testing.T) {
  "br": false,
  "ur": 0,
  "str": {},
- "nzs": {}
+ "nzs": {},
+ "nps1": {},
+ "nps3": {}
 }`
 	var o OptionalsZero
 	o.Sw = "something"
 	o.SloNonNil = make([]string, 0)
 	o.Mr = map[string]any{}
 	o.Mo = map[string]any{}
+
+	o.Foo = -0
+	o.Foo2 = [2]float64{0, -0}
 
 	o.NonNilIsZeroer = time.Time{}
 	o.NoPanicStruct1 = &NoPanicStruct{}
@@ -150,6 +157,32 @@ func TestOmitZero(t *testing.T) {
 		t.Fatalf("MarshalIndent error: %v", err)
 	}
 	if got := string(got); got != want {
+		t.Errorf("MarshalIndent:\n\tgot:  %s\n\twant: %s\n", indentNewlines(got), indentNewlines(want))
+	}
+}
+
+func TestOmitZeroMap(t *testing.T) {
+	const want = `{
+ "foo": {
+  "sr": "",
+  "omitzero": 0,
+  "slr": null,
+  "mr": null,
+  "fr": 0,
+  "br": false,
+  "ur": 0,
+  "str": {},
+  "nzs": {},
+  "nps3": {}
+ }
+}`
+	m := map[string]OptionalsZero{"foo": {}}
+	got, err := MarshalIndent(m, "", " ")
+	if err != nil {
+		t.Fatalf("MarshalIndent error: %v", err)
+	}
+	if got := string(got); got != want {
+		fmt.Println(got)
 		t.Errorf("MarshalIndent:\n\tgot:  %s\n\twant: %s\n", indentNewlines(got), indentNewlines(want))
 	}
 }
@@ -185,7 +218,7 @@ type OptionalsEmptyZero struct {
 }
 
 func TestOmitEmptyZero(t *testing.T) {
-	var want = `{
+	const want = `{
  "sr": "",
  "slr": null,
  "mr": {},

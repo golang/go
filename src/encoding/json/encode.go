@@ -354,9 +354,19 @@ func isZeroValue(v reflect.Value) bool {
 			return v.IsNil() || v.Interface().(isZeroer).IsZero()
 		}
 	case v.Type().Implements(isZeroerType):
-		isZero = func() bool { return v.Interface().(isZeroer).IsZero() }
+		isZero = func() bool {
+			return v.Interface().(isZeroer).IsZero()
+		}
 	case reflect.PointerTo(v.Type()).Implements(isZeroerType):
-		isZero = func() bool { return v.Addr().Interface().(isZeroer).IsZero() }
+		isZero = func() bool {
+			if !v.CanAddr() {
+				// Temporarily box v so we can take the address.
+				v2 := reflect.New(v.Type()).Elem()
+				v2.Set(v)
+				v = v2
+			}
+			return v.Addr().Interface().(isZeroer).IsZero()
+		}
 	}
 
 	return (isZero == nil && v.IsZero() || (isZero != nil && isZero()))
