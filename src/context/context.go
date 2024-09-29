@@ -33,7 +33,8 @@
 // propagation:
 //
 // Do not store Contexts inside a struct type; instead, pass a Context
-// explicitly to each function that needs it. The Context should be the first
+// explicitly to each function that needs it. This is discussed further in
+// https://go.dev/blog/context-and-structs. The Context should be the first
 // parameter, typically named ctx:
 //
 //	func DoSomething(ctx context.Context, arg Arg) error {
@@ -49,7 +50,7 @@
 // The same Context may be passed to functions running in different goroutines;
 // Contexts are safe for simultaneous use by multiple goroutines.
 //
-// See https://blog.golang.org/context for example code for a server that uses
+// See https://go.dev/blog/context for example code for a server that uses
 // Contexts.
 package context
 
