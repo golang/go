@@ -448,9 +448,11 @@ var depsRules = `
 	# It must not depend on external crypto packages.
 	# Internal packages imported by FIPS might need to retain
 	# backwards compatibility with older versions of the module.
-	RUNTIME, crypto/internal/impl
+	STR, crypto/internal/impl
+	< crypto/internal/fips
 	< crypto/internal/fips/sha256
 	< crypto/internal/fips/sha512
+	< crypto/internal/fips/hmac
 	< FIPS;
 
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
