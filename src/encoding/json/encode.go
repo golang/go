@@ -329,49 +329,6 @@ func isEmptyValue(v reflect.Value) bool {
 	return false
 }
 
-type isZeroer interface {
-	IsZero() bool
-}
-
-var isZeroerType = reflect.TypeFor[isZeroer]()
-
-func isZeroValue(v reflect.Value) bool {
-	// Provide a function that uses a type's IsZero method.
-	var isZero func() bool
-
-	switch {
-	case v.Kind() == reflect.Interface && v.Type().Implements(isZeroerType):
-		isZero = func() bool {
-			// Avoid panics calling IsZero on a nil interface or
-			// non-nil interface with nil pointer.
-			return v.IsNil() ||
-				(v.Elem().Kind() == reflect.Pointer && v.Elem().IsNil()) ||
-				v.Interface().(isZeroer).IsZero()
-		}
-	case v.Kind() == reflect.Pointer && v.Type().Implements(isZeroerType):
-		isZero = func() bool {
-			// Avoid panics calling IsZero on nil pointer.
-			return v.IsNil() || v.Interface().(isZeroer).IsZero()
-		}
-	case v.Type().Implements(isZeroerType):
-		isZero = func() bool {
-			return v.Interface().(isZeroer).IsZero()
-		}
-	case reflect.PointerTo(v.Type()).Implements(isZeroerType):
-		isZero = func() bool {
-			if !v.CanAddr() {
-				// Temporarily box v so we can take the address.
-				v2 := reflect.New(v.Type()).Elem()
-				v2.Set(v)
-				v = v2
-			}
-			return v.Addr().Interface().(isZeroer).IsZero()
-		}
-	}
-
-	return (isZero == nil && v.IsZero() || (isZero != nil && isZero()))
-}
-
 func (e *encodeState) reflectValue(v reflect.Value, opts encOpts) {
 	valueEncoder(v)(e, v, opts)
 }
@@ -756,7 +713,7 @@ FieldLoop:
 		}
 
 		if (f.omitEmpty && isEmptyValue(fv)) ||
-			(f.omitZero && isZeroValue(fv)) {
+			(f.omitZero && (f.isZero == nil && fv.IsZero() || (f.isZero != nil && f.isZero(fv)))) {
 			continue
 		}
 		e.WriteByte(next)
@@ -1104,10 +1061,17 @@ type field struct {
 	typ       reflect.Type
 	omitEmpty bool
 	omitZero  bool
+	isZero    func(reflect.Value) bool
 	quoted    bool
 
 	encoder encoderFunc
 }
+
+type isZeroer interface {
+	IsZero() bool
+}
+
+var isZeroerType = reflect.TypeFor[isZeroer]()
 
 // typeFields returns a list of fields that JSON should recognize for the given type.
 // The algorithm is breadth-first search over the set of structs to include - the top struct
@@ -1219,6 +1183,38 @@ func typeFields(t reflect.Type) structFields {
 					nameEscBuf = appendHTMLEscape(nameEscBuf[:0], field.nameBytes)
 					field.nameEscHTML = `"` + string(nameEscBuf) + `":`
 					field.nameNonEsc = `"` + field.name + `":`
+
+					if field.omitZero {
+						t := sf.Type
+						// Provide a function that uses a type's IsZero method.
+						switch {
+						case t.Kind() == reflect.Interface && t.Implements(isZeroerType):
+							field.isZero = func(v reflect.Value) bool {
+								// Avoid panics calling IsZero on a nil interface or
+								// non-nil interface with nil pointer.
+								return v.IsNil() || (v.Elem().Kind() == reflect.Pointer && v.Elem().IsNil()) || v.Interface().(isZeroer).IsZero()
+							}
+						case t.Kind() == reflect.Pointer && t.Implements(isZeroerType):
+							field.isZero = func(v reflect.Value) bool {
+								// Avoid panics calling IsZero on nil pointer.
+								return v.IsNil() || v.Interface().(isZeroer).IsZero()
+							}
+						case t.Implements(isZeroerType):
+							field.isZero = func(v reflect.Value) bool {
+								return v.Interface().(isZeroer).IsZero()
+							}
+						case reflect.PointerTo(t).Implements(isZeroerType):
+							field.isZero = func(v reflect.Value) bool {
+								if !v.CanAddr() {
+									// Temporarily box v so we can take the address.
+									v2 := reflect.New(v.Type()).Elem()
+									v2.Set(v)
+									v = v2
+								}
+								return v.Addr().Interface().(isZeroer).IsZero()
+							}
+						}
+					}
 
 					fields = append(fields, field)
 					if count[f.typ] > 1 {

@@ -147,7 +147,7 @@ func TestOmitZero(t *testing.T) {
 	o.Mo = map[string]any{}
 
 	o.Foo = -0
-	o.Foo2 = [2]float64{0, -0}
+	o.Foo2 = [2]float64{+0, -0}
 
 	o.NonNilIsZeroer = time.Time{}
 	o.NoPanicStruct1 = &NoPanicStruct{}
