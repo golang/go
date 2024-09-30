@@ -26,11 +26,13 @@ import (
 
 		ast.SortImports(fset, f)
 
+		// Check that the duplicate import spec is eliminated.
 		importDeclSpecCount := len(f.Decls[0].(*ast.GenDecl).Specs)
 		if importDeclSpecCount != 1 {
 			t.Fatalf("len(f.Decls[0].(*ast.GenDecl).Specs) = %v; want = 1", importDeclSpecCount)
 		}
 
+		// Check that File.Imports is consistent.
 		if len(f.Imports) != 1 {
 			t.Fatalf("len(f.Imports) = %v; want = 1", len(f.Imports))
 		}
@@ -60,6 +62,7 @@ import (
 
 		ast.SortImports(fset, f)
 
+		// Check that three single-spec import decls remain.
 		for i := range 3 {
 			importDeclSpecCount := len(f.Decls[i].(*ast.GenDecl).Specs)
 			if importDeclSpecCount != 1 {
@@ -67,6 +70,7 @@ import (
 			}
 		}
 
+		// Check that File.Imports is consistent.
 		if len(f.Imports) != 3 {
 			t.Fatalf("len(f.Imports) = %v; want = 3", len(f.Imports))
 		}

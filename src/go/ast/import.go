@@ -14,7 +14,6 @@ import (
 // SortImports sorts runs of consecutive import lines in import blocks in f.
 // It also removes duplicate imports when it is possible to do so without data loss.
 func SortImports(fset *token.FileSet, f *File) {
-	f.Imports = f.Imports[:0]
 	for _, d := range f.Decls {
 		d, ok := d.(*GenDecl)
 		if !ok || d.Tok != token.IMPORT {
@@ -24,9 +23,6 @@ func SortImports(fset *token.FileSet, f *File) {
 		}
 
 		if !d.Lparen.IsValid() {
-			for _, v := range d.Specs {
-				f.Imports = append(f.Imports, v.(*ImportSpec))
-			}
 			// Not a block: sorted by default.
 			continue
 		}
@@ -44,10 +40,6 @@ func SortImports(fset *token.FileSet, f *File) {
 		specs = append(specs, sortSpecs(fset, f, d.Specs[i:])...)
 		d.Specs = specs
 
-		for _, v := range specs {
-			f.Imports = append(f.Imports, v.(*ImportSpec))
-		}
-
 		// Deduping can leave a blank line before the rparen; clean that up.
 		if len(d.Specs) > 0 {
 			lastSpec := d.Specs[len(d.Specs)-1]
@@ -56,6 +48,16 @@ func SortImports(fset *token.FileSet, f *File) {
 			for rParenLine > lastLine+1 {
 				rParenLine--
 				fset.File(d.Rparen).MergeLine(rParenLine)
+			}
+		}
+	}
+
+	// Make File.Imports order consistent.
+	f.Imports = f.Imports[:0]
+	for _, decl := range f.Decls {
+		if decl, ok := decl.(*GenDecl); ok && decl.Tok == token.IMPORT {
+			for _, spec := range decl.Specs {
+				f.Imports = append(f.Imports, spec.(*ImportSpec))
 			}
 		}
 	}
