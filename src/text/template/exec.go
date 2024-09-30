@@ -398,7 +398,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		if len(r.Pipe.Decl) > 1 {
-			s.errorf("can't use %s to iterate over more than one variable", val)
+			s.errorf("can't use %v to iterate over more than one variable", val)
 			break
 		}
 		run := false
@@ -453,7 +453,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	case reflect.Func:
 		if val.Type().CanSeq() {
 			if len(r.Pipe.Decl) > 1 {
-				s.errorf("can't use %s iterate over more than one variable", val)
+				s.errorf("can't use %v iterate over more than one variable", val)
 				break
 			}
 			run := false
