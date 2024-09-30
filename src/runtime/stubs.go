@@ -268,7 +268,7 @@ func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSi
 // Notable members of the hall of shame include:
 //   - github.com/sagernet/sing-tun
 //   - github.com/slackhq/nebula
-//   - github.com/tailscale/wireguard-go
+//   - golang.zx2c4.com/wireguard
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
