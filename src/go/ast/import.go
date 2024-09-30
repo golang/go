@@ -51,6 +51,16 @@ func SortImports(fset *token.FileSet, f *File) {
 			}
 		}
 	}
+
+	// Make File.Imports order consistent.
+	f.Imports = f.Imports[:0]
+	for _, decl := range f.Decls {
+		if decl, ok := decl.(*GenDecl); ok && decl.Tok == token.IMPORT {
+			for _, spec := range decl.Specs {
+				f.Imports = append(f.Imports, spec.(*ImportSpec))
+			}
+		}
+	}
 }
 
 func lineAt(fset *token.FileSet, pos token.Pos) int {
