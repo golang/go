@@ -14,6 +14,7 @@ import (
 // SortImports sorts runs of consecutive import lines in import blocks in f.
 // It also removes duplicate imports when it is possible to do so without data loss.
 func SortImports(fset *token.FileSet, f *File) {
+	f.Imports = f.Imports[:0]
 	for _, d := range f.Decls {
 		d, ok := d.(*GenDecl)
 		if !ok || d.Tok != token.IMPORT {
@@ -23,6 +24,9 @@ func SortImports(fset *token.FileSet, f *File) {
 		}
 
 		if !d.Lparen.IsValid() {
+			for _, v := range d.Specs {
+				f.Imports = append(f.Imports, v.(*ImportSpec))
+			}
 			// Not a block: sorted by default.
 			continue
 		}
@@ -40,7 +44,6 @@ func SortImports(fset *token.FileSet, f *File) {
 		specs = append(specs, sortSpecs(fset, f, d.Specs[i:])...)
 		d.Specs = specs
 
-		f.Imports = f.Imports[:0]
 		for _, v := range specs {
 			f.Imports = append(f.Imports, v.(*ImportSpec))
 		}
