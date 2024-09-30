@@ -13,3 +13,5 @@ https://iaathai.org/
 https://www.thaiinvestors.com/
 https://www.google.co.th/m?q=www.tfpa.or.th&client=ms-opera-mobile&channel=new&espv=1
 https://www.sec.or.th/TH/Pages/Home.aspx
+Kulembetsa ndalama Malinga ndi mndandanda wa maulalo ndi omwe akuwoneka patsamba lawebusayiti.
+ETCWISIT TONGMO
