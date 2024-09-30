@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.23 (Aug 12, 2024)",
+	"Subtitle": "Language version go1.23 (Oct 1, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -1927,8 +1927,8 @@ components have identical types. In detail:
 	<li>Two slice types are identical if they have identical element types.</li>
 
 	<li>Two struct types are identical if they have the same sequence of fields,
-	    and if corresponding fields have the same names, and identical types,
-	    and identical tags.
+	    and if corresponding pairs of fields have the same names, identical types,
+	    and identical tags, and are either both embedded or both not embedded.
 	    <a href="#Exported_identifiers">Non-exported</a> field names from different
 	    packages are always different.</li>
 
