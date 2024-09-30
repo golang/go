@@ -2075,26 +2075,31 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 			}
 		}
 		if errPos.IsKnown() {
+			// Not all parameters are named because named != len(list).
+			// If named == typed, there must be parameters that have no types.
+			// They must be at the end of the parameter list, otherwise types
+			// would have been filled in by the right-to-left sweep above and
+			// there would be no error.
+			// If requireNames is set, the parameter list is a type parameter
+			// list.
 			var msg string
-			if requireNames {
-				// Not all parameters are named because named != len(list).
-				// If named == typed we must have parameters that have no types,
-				// and they must be at the end of the parameter list, otherwise
-				// the types would have been filled in by the right-to-left sweep
-				// above and we wouldn't have an error. Since we are in a type
-				// parameter list, the missing types are constraints.
-				if named == typed {
-					errPos = end // position error at closing ]
+			if named == typed {
+				errPos = end // position error at closing token ) or ]
+				if requireNames {
 					msg = "missing type constraint"
 				} else {
+					msg = "missing parameter type"
+				}
+			} else {
+				if requireNames {
 					msg = "missing type parameter name"
 					// go.dev/issue/60812
 					if len(list) == 1 {
 						msg += " or invalid array length"
 					}
+				} else {
+					msg = "missing parameter name"
 				}
-			} else {
-				msg = "mixed named and unnamed parameters"
 			}
 			p.syntaxErrorAt(errPos, msg)
 		}
