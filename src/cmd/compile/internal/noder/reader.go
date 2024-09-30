@@ -3242,7 +3242,11 @@ func (r *reader) exprType() ir.Node {
 
 	dt := ir.NewDynamicType(pos, rtype)
 	dt.ITab = itab
-	return typed(typ, dt)
+	dt = typed(typ, dt).(*ir.DynamicType)
+	if st := dt.ToStatic(); st != nil {
+		return st
+	}
+	return dt
 }
 
 func (r *reader) op() ir.Op {

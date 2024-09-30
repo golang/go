@@ -459,23 +459,6 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 				nilGoto = jmp
 				continue
 			}
-			if n1.Op() == ir.ODYNAMICTYPE {
-				// Convert dynamic to static, if the dynamic is actually static.
-				// TODO: why isn't this OTYPE to begin with?
-				dt := n1.(*ir.DynamicType)
-				if dt.RType != nil && dt.RType.Op() == ir.OADDR {
-					addr := dt.RType.(*ir.AddrExpr)
-					if addr.X.Op() == ir.OLINKSYMOFFSET {
-						n1 = ir.TypeNode(n1.Type())
-					}
-				}
-				if dt.ITab != nil && dt.ITab.Op() == ir.OADDR {
-					addr := dt.ITab.(*ir.AddrExpr)
-					if addr.X.Op() == ir.OLINKSYMOFFSET {
-						n1 = ir.TypeNode(n1.Type())
-					}
-				}
-			}
 			cases = append(cases, oneCase{
 				pos: ncase.Pos(),
 				typ: n1,
