@@ -16,6 +16,7 @@ func doinit() {
 		{Name: "sha1", Feature: &ARM64.HasSHA1},
 		{Name: "sha2", Feature: &ARM64.HasSHA2},
 		{Name: "sha512", Feature: &ARM64.HasSHA512},
+		{Name: "sha3", Feature: &ARM64.HasSHA3},
 		{Name: "crc32", Feature: &ARM64.HasCRC32},
 		{Name: "atomics", Feature: &ARM64.HasATOMICS},
 		{Name: "cpuid", Feature: &ARM64.HasCPUID},
@@ -38,6 +39,7 @@ func extractBits(data uint64, start, end uint) uint {
 
 func parseARM64SystemRegisters(isar0, pfr0 uint64) {
 	// ID_AA64ISAR0_EL1
+	// https://developer.arm.com/documentation/ddi0601/2025-03/AArch64-Registers/ID-AA64ISAR0-EL1--AArch64-Instruction-Set-Attribute-Register-0
 	switch extractBits(isar0, 4, 7) {
 	case 1:
 		ARM64.HasAES = true
@@ -67,6 +69,11 @@ func parseARM64SystemRegisters(isar0, pfr0 uint64) {
 	switch extractBits(isar0, 20, 23) {
 	case 2:
 		ARM64.HasATOMICS = true
+	}
+
+	switch extractBits(isar0, 32, 35) {
+	case 1:
+		ARM64.HasSHA3 = true
 	}
 
 	switch extractBits(pfr0, 48, 51) {
