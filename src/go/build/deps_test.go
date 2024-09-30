@@ -450,6 +450,7 @@ var depsRules = `
 	# backwards compatibility with older versions of the module.
 	STR, crypto/internal/impl
 	< crypto/internal/fips
+	< crypto/internal/fips/subtle
 	< crypto/internal/fips/sha256
 	< crypto/internal/fips/sha512
 	< crypto/internal/fips/hmac
