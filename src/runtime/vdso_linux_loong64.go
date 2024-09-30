@@ -19,9 +19,10 @@ var vdsoLinuxVersion = vdsoVersionKey{"LINUX_5.10", 0xae78f70}
 
 var vdsoSymbolKeys = []vdsoSymbolKey{
 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
+	{"__vdso_getrandom", 0x25425d, 0x84a559bf, &vdsoGetrandomSym},
 }
 
-// initialize to fall back to syscall
 var (
-	vdsoClockgettimeSym uintptr = 0
+	vdsoClockgettimeSym uintptr
+	vdsoGetrandomSym    uintptr
 )

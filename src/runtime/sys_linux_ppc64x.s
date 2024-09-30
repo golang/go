@@ -757,3 +757,53 @@ TEXT runtime·socket(SB),$0-20
 	MOVD	R0, 0(R0) // unimplemented, only needed for android; declared in stubs_linux.go
 	MOVW	R0, ret+16(FP) // for vet
 	RET
+
+// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
+	MOVD	R1, R15
+
+	MOVD	runtime·vdsoGetrandomSym(SB), R12
+	MOVD	R12, CTR
+	MOVD	g_m(g), R21
+
+	MOVD	m_vdsoPC(R21), R22
+	MOVD	R22, 32(R1)
+	MOVD	m_vdsoSP(R21), R22
+	MOVD	R22, 40(R1)
+	MOVD	LR, m_vdsoPC(R21)
+	MOVD	$buf-FIXED_FRAME(FP), R22
+	MOVD	R22, m_vdsoSP(R21)
+
+	RLDICR  $0, R1, $59, R1
+
+	MOVBZ	runtime·iscgo(SB), R22
+	CMP	R22, $0
+	BNE	nosaveg
+	MOVD	m_gsignal(R21), R22
+	CMP	R22, $0
+	BEQ	nosaveg
+	CMP	R22, g
+	BEQ	nosaveg
+	MOVD	(g_stack+stack_lo)(R22), R22
+	MOVD	g, (R22)
+
+	BL	(CTR)
+
+	MOVD	$0, (R22)
+	JMP	restore
+
+nosaveg:
+	BL	(CTR)
+
+restore:
+	MOVD	$0, R0
+	MOVD	R15, R1
+	MOVD	40(R1), R22
+	MOVD	R22, m_vdsoSP(R21)
+	MOVD	32(R1), R22
+	MOVD	R22, m_vdsoPC(R21)
+
+	BVC	out
+	NEG	R3, R3
+out:
+	RET
