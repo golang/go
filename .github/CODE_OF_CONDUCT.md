@@ -1,3 +1,6 @@
+https://www.settrade.com/th/member/my-feed
+https://www.settrade.com/th/equities/quote/BBL/rights-benefits
+https://www.settrade.com/th/equities/quote/TTB/rights-benefits
 https://www.google.com/finance/?authuser=1www.linkedin.com/in/public-personal
 www.linkedin.com/in/public-personalhttps://www.google.com/finance/?authuser=0
 digitalofficef003@gmail.comwww.linkedin.com/in/public-personal
