@@ -11,6 +11,7 @@ import (
 	"unsafe"
 )
 
+//go:noescape
 func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
 
 var vgetrandomAlloc struct {

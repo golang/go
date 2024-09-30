@@ -13,6 +13,7 @@ import (
 )
 
 //go:linkname vgetrandom runtime.vgetrandom
+//go:noescape
 func vgetrandom(p []byte, flags uint32) (ret int, supported bool)
 
 var getrandomUnsupported atomic.Bool
