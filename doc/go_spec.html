@@ -2511,12 +2511,12 @@ An alias declaration binds an identifier to the given type
 </p>
 
 <pre class="ebnf">
-AliasDecl = identifier "=" Type .
+AliasDecl = identifier [ TypeParameters ] "=" Type .
 </pre>
 
 <p>
 Within the <a href="#Declarations_and_scope">scope</a> of
-the identifier, it serves as an <i>alias</i> for the type.
+the identifier, it serves as an <i>alias</i> for the given type.
 </p>
 
 <pre>
@@ -2526,6 +2526,24 @@ type (
 )
 </pre>
 
+<p>
+If the alias declaration specifies <a href="#Type_parameter_declarations">type parameters</a>
+[<a href="#Go_1.24">Go 1.24</a>], the type name denotes a <i>generic alias</i>.
+Generic aliases must be <a href="#Instantiations">instantiated</a> when they
+are used.
+</p>
+
+<pre>
+type set[P comparable] = map[P]bool
+</pre>
+
+<p>
+In an alias declaration the given type cannot be a type parameter.
+</p>
+
+<pre>
+type A[P any] = P    // illegal: P is a type parameter
+</pre>
 
 <h4 id="Type_definitions">Type definitions</h4>
 
@@ -8687,6 +8705,15 @@ integer values from zero to an upper limit.
 function as range expression.
 </li>
 </ul>
+
+<h4 id="Go_1.24">Go 1.24</h4>
+<ul>
+<li>
+An <a href="#Alias_declarations">alias declaration</a> may declare
+<a href="#Type_parameter_declarations">type parameters</a>.
+</li>
+</ul>
+
 <h3 id="Type_unification_rules">Type unification rules</h3>
 
 <p>
