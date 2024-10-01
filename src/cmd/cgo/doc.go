@@ -545,15 +545,6 @@ The following options are available when running cgo directly:
 		If there are any exported functions, write the
 		generated export declarations to file.
 		C code can #include this to see the declarations.
-	-importpath string
-		The import path for the Go package. Optional; used for
-		nicer comments in the generated files.
-	-import_runtime_cgo
-		If set (which it is by default) import runtime/cgo in
-		generated output.
-	-import_syscall
-		If set (which it is by default) import syscall in
-		generated output.
 	-gccgo
 		Generate output for the gccgo compiler rather than the
 		gc compiler.
@@ -568,12 +559,25 @@ The following options are available when running cgo directly:
 		Write out input file in Go syntax replacing C package
 		names with real values. Used to generate files in the
 		syscall package when bootstrapping a new target.
+	-importpath string
+		The import path for the Go package. Optional; used for
+		nicer comments in the generated files.
+	-import_runtime_cgo
+		If set (which it is by default) import runtime/cgo in
+		generated output.
+	-import_syscall
+		If set (which it is by default) import syscall in
+		generated output.
 	-ldflags flags
 		Flags to pass to the C linker. The cmd/go tool uses
 		this to pass in the flags in the CGO_LDFLAGS variable.
 	-objdir directory
 		Put all generated files in directory.
 	-srcdir directory
+		Find the Go input files, listed on the command line,
+		in directory.
+	-trimpath rewrites
+		Apply trims and rewrites to source file paths.
 */
 package main
 
