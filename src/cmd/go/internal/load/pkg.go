@@ -329,12 +329,7 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 	if !isMatchErr && (nogoErr != nil || isScanErr) {
 		var tkPos *token.Position
 		if len(importPos) > 0 {
-			tkPos = &token.Position{
-				Filename: importPos[0].Filename,
-				Offset:   importPos[0].Offset,
-				Line:     importPos[0].Line,
-				Column:   importPos[0].Column,
-			}
+			tkPos = &importPos[0]
 		}
 		stk.Push(&importInfo{Pkg: path, Pos: tkPos})
 		defer stk.Pop()
@@ -586,16 +581,7 @@ type importInfo struct {
 type ImportStack []*importInfo
 
 func NewImportInfo(pkg string, pos *token.Position) *importInfo {
-	var ppos *token.Position
-	if pos != nil {
-		ppos = &token.Position{
-			Filename: pos.Filename,
-			Offset:   pos.Offset,
-			Line:     pos.Line,
-			Column:   pos.Column,
-		}
-	}
-	return &importInfo{Pkg: pkg, Pos: ppos}
+	return &importInfo{Pkg: pkg, Pos: pos}
 }
 
 func (s *ImportStack) Push(p *importInfo) {
@@ -613,12 +599,7 @@ func (s *ImportStack) Copy() ImportStack {
 			Pkg: v.Pkg,
 		}
 		if v.Pos != nil {
-			ii[i].Pos = &token.Position{
-				Filename: v.Pos.Filename,
-				Offset:   v.Pos.Offset,
-				Line:     v.Pos.Line,
-				Column:   v.Pos.Column,
-			}
+			ii[i].Pos = v.Pos
 		}
 	}
 	return ii
@@ -866,17 +847,10 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 }
 
 func extractFirstImport(importPos []token.Position) *token.Position {
-	var pos *token.Position
-	if len(importPos) > 0 {
-		first := importPos[0]
-		pos = &token.Position{
-			Filename: first.Filename,
-			Offset:   first.Offset,
-			Line:     first.Line,
-			Column:   first.Column,
-		}
+	if len(importPos) == 0 {
+		return nil
 	}
-	return pos
+	return &importPos[0]
 }
 
 // loadPackageData loads information needed to construct a *Package. The result
