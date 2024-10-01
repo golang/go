@@ -97,8 +97,9 @@ type OptionalsZero struct {
 	Slo       []string `json:"slo,omitzero"`
 	SloNonNil []string `json:"slononnil,omitzero"`
 
-	Mr map[string]any `json:"mr"`
-	Mo map[string]any `json:",omitzero"`
+	Mr  map[string]any `json:"mr"`
+	Mo  map[string]any `json:",omitzero"`
+	Moo map[string]any `json:"moo,omitzero"`
 
 	Fr   float64    `json:"fr"`
 	Fo   float64    `json:"fo,omitzero"`
@@ -114,14 +115,17 @@ type OptionalsZero struct {
 	Str struct{} `json:"str"`
 	Sto struct{} `json:"sto,omitzero"`
 
-	Time time.Time     `json:"time,omitzero"`
-	Nzs  NonZeroStruct `json:"nzs,omitzero"`
+	Time      time.Time     `json:"time,omitzero"`
+	TimeLocal time.Time     `json:"timelocal,omitzero"`
+	Nzs       NonZeroStruct `json:"nzs,omitzero"`
 
 	NilIsZeroer    isZeroer       `json:"niliszeroer,omitzero"`    // nil interface
 	NonNilIsZeroer isZeroer       `json:"nonniliszeroer,omitzero"` // non-nil interface
+	NoPanicStruct0 isZeroer       `json:"nps0,omitzero"`           // non-nil interface with nil pointer
 	NoPanicStruct1 isZeroer       `json:"nps1,omitzero"`           // non-nil interface with non-nil pointer
 	NoPanicStruct2 *NoPanicStruct `json:"nps2,omitzero"`           // nil pointer
-	NoPanicStruct3 NoPanicStruct  `json:"nps3,omitzero"`           // concrete type
+	NoPanicStruct3 *NoPanicStruct `json:"nps3,omitzero"`           // non-nil pointer
+	NoPanicStruct4 NoPanicStruct  `json:"nps4,omitzero"`           // concrete type
 }
 
 func TestOmitZero(t *testing.T) {
@@ -138,7 +142,8 @@ func TestOmitZero(t *testing.T) {
  "str": {},
  "nzs": {},
  "nps1": {},
- "nps3": {}
+ "nps3": {},
+ "nps4": {}
 }`
 	var o OptionalsZero
 	o.Sw = "something"
@@ -149,8 +154,12 @@ func TestOmitZero(t *testing.T) {
 	o.Foo = -0
 	o.Foo2 = [2]float64{+0, -0}
 
+	o.TimeLocal = time.Time{}.Local()
+
 	o.NonNilIsZeroer = time.Time{}
+	o.NoPanicStruct0 = (*NoPanicStruct)(nil)
 	o.NoPanicStruct1 = &NoPanicStruct{}
+	o.NoPanicStruct3 = &NoPanicStruct{}
 
 	got, err := MarshalIndent(&o, "", " ")
 	if err != nil {
@@ -173,7 +182,7 @@ func TestOmitZeroMap(t *testing.T) {
   "ur": 0,
   "str": {},
   "nzs": {},
-  "nps3": {}
+  "nps4": {}
  }
 }`
 	m := map[string]OptionalsZero{"foo": {}}
