@@ -1,4 +1,4 @@
-// run -gcflags=-d=maymorestack=runtime.mayMoreStackMove
+// run
 
 // Copyright 2024 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -13,6 +13,7 @@ import (
 func All() iter.Seq[int] {
 	return func(yield func(int) bool) {
 		for i := 0; i < 10; i++ {
+			growStack(512)
 			if !yield(i) {
 				return
 			}
@@ -46,6 +47,13 @@ func f() {
 		s = NewS(rounds)
 		s.check(rounds)
 	}
+}
+
+func growStack(i int) {
+	if i == 0 {
+		return
+	}
+	growStack(i - 1)
 }
 
 func main() {
