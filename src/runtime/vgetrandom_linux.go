@@ -87,19 +87,26 @@ func vgetrandom(p []byte, flags uint32) (ret int, supported bool) {
 		return -1, false
 	}
 
-	mp := acquirem()
+	// We use getg().m instead of acquirem() here, because always taking
+	// the lock is slightly more expensive than not always taking the lock.
+	// However, we *do* require that m doesn't migrate elsewhere during the
+	// execution of the vDSO. So, we exploit two details:
+	//   1) Asynchronous preemption is aborted when PC is in the runtime.
+	//   2) Most of the time, this function only calls vgetrandom1(), which
+	//      does not have a preamble that synchronously preempts.
+	// We do need to take the lock when getting a new state for m, but this
+	// is very much the slow path, in the sense that it only ever happens
+	// once over the entire lifetime of an m. So, a simple getg().m suffices.
+	mp := getg().m
+
 	if mp.vgetrandomState == 0 {
+		mp.locks++
 		state := vgetrandomGetState()
+		mp.locks--
 		if state == 0 {
-			releasem(mp)
 			return -1, false
 		}
 		mp.vgetrandomState = state
 	}
-
-	ret = vgetrandom1(unsafe.SliceData(p), uintptr(len(p)), flags, mp.vgetrandomState, vgetrandomAlloc.stateSize)
-	supported = true
-
-	releasem(mp)
-	return
+	return vgetrandom1(unsafe.SliceData(p), uintptr(len(p)), flags, mp.vgetrandomState, vgetrandomAlloc.stateSize), true
 }
