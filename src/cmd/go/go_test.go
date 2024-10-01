@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -473,7 +474,7 @@ func (tg *testgoData) unsetenv(name string) {
 	}
 	for i, v := range tg.env {
 		if strings.HasPrefix(v, name+"=") {
-			tg.env = append(tg.env[:i], tg.env[i+1:]...)
+			tg.env = slices.Delete(tg.env, i, i+1)
 			break
 		}
 	}

@@ -607,7 +607,7 @@ func buildPtrTests(t *testing.T, gopath string, cgocheck2 bool) (exe string) {
 		goexperiment = append(goexperiment, "cgocheck2")
 		changed = true
 	} else if !cgocheck2 && i >= 0 {
-		goexperiment = append(goexperiment[:i], goexperiment[i+1:]...)
+		goexperiment = slices.Delete(goexperiment, i, i+1)
 		changed = true
 	}
 	if changed {

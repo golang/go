@@ -1681,7 +1681,7 @@ func locatePrologEnd(f *Func, needCloCtx bool) (ID, *Value) {
 	removeReg := func(r ID) bool {
 		for i := 0; i < len(regArgs); i++ {
 			if regArgs[i] == r {
-				regArgs = append(regArgs[:i], regArgs[i+1:]...)
+				regArgs = slices.Delete(regArgs, i, i+1)
 				return true
 			}
 		}
