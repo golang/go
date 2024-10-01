@@ -1192,7 +1192,9 @@ func typeFields(t reflect.Type) structFields {
 							field.isZero = func(v reflect.Value) bool {
 								// Avoid panics calling IsZero on a nil interface or
 								// non-nil interface with nil pointer.
-								return v.IsNil() || (v.Elem().Kind() == reflect.Pointer && v.Elem().IsNil()) || v.Interface().(isZeroer).IsZero()
+								return v.IsNil() ||
+									(v.Elem().Kind() == reflect.Pointer && v.Elem().IsNil()) ||
+									v.Interface().(isZeroer).IsZero()
 							}
 						case t.Kind() == reflect.Pointer && t.Implements(isZeroerType):
 							field.isZero = func(v reflect.Value) bool {
