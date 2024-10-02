@@ -2,26 +2,77 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sha3
+package sha3_test
 
 import (
 	"bytes"
 	"crypto/internal/fips"
+	. "crypto/internal/fips/sha3"
 	"encoding"
 	"encoding/hex"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"math/rand"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+// TODO(fips): move tests to the stdlib crypto/sha3 package.
+
+// Sum224 returns the SHA3-224 digest of the data.
+func Sum224(data []byte) (digest [28]byte) {
+	h := New224()
+	h.Write(data)
+	h.Sum(digest[:0])
+	return
+}
+
+// Sum256 returns the SHA3-256 digest of the data.
+func Sum256(data []byte) (digest [32]byte) {
+	h := New256()
+	h.Write(data)
+	h.Sum(digest[:0])
+	return
+}
+
+// Sum384 returns the SHA3-384 digest of the data.
+func Sum384(data []byte) (digest [48]byte) {
+	h := New384()
+	h.Write(data)
+	h.Sum(digest[:0])
+	return
+}
+
+// Sum512 returns the SHA3-512 digest of the data.
+func Sum512(data []byte) (digest [64]byte) {
+	h := New512()
+	h.Write(data)
+	h.Sum(digest[:0])
+	return
+}
+
+// ShakeSum128 writes an arbitrary-length digest of data into hash.
+func ShakeSum128(hash, data []byte) {
+	h := NewShake128()
+	h.Write(data)
+	h.Read(hash)
+}
+
+// ShakeSum256 writes an arbitrary-length digest of data into hash.
+func ShakeSum256(hash, data []byte) {
+	h := NewShake256()
+	h.Write(data)
+	h.Read(hash)
+}
 
 const testString = "brekeccakkeccak koax koax"
 
 // testDigests contains functions returning hash.Hash instances
 // with output-length equal to the KAT length for SHA-3, Keccak
 // and SHAKE instances.
-var testDigests = map[string]func() fips.Hash{
+var testDigests = map[string]func() *Digest{
 	"SHA3-224":   New224,
 	"SHA3-256":   New256,
 	"SHA3-384":   New384,
@@ -30,10 +81,10 @@ var testDigests = map[string]func() fips.Hash{
 	"Keccak-512": NewLegacyKeccak512,
 }
 
-// testShakes contains functions that return sha3.ShakeHash instances for
+// testShakes contains functions that return *sha3.SHAKE instances for
 // with output-length equal to the KAT length.
 var testShakes = map[string]struct {
-	constructor  func(N []byte, S []byte) ShakeHash
+	constructor  func(N []byte, S []byte) *SHAKE
 	defAlgoName  string
 	defCustomStr string
 }{
@@ -56,7 +107,7 @@ func decodeHex(s string) []byte {
 // TestKeccak does a basic test of the non-standardized Keccak hash functions.
 func TestKeccak(t *testing.T) {
 	tests := []struct {
-		fn   func() fips.Hash
+		fn   func() *Digest
 		data []byte
 		want string
 	}{
@@ -87,7 +138,7 @@ func TestKeccak(t *testing.T) {
 func TestShakeSum(t *testing.T) {
 	tests := [...]struct {
 		name        string
-		hash        ShakeHash
+		hash        *SHAKE
 		expectedLen int
 	}{
 		{"SHAKE128", NewShake128(), 32},
@@ -283,6 +334,55 @@ func TestClone(t *testing.T) {
 	}
 }
 
+var sink byte
+
+func TestAllocations(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+
+	want := 0.0
+
+	if runtime.GOARCH == "s390x" {
+		// On s390x the returned hash.Hash is conditional so it escapes.
+		want = 3.0
+	}
+
+	t.Run("New", func(t *testing.T) {
+		if allocs := testing.AllocsPerRun(10, func() {
+			h := New256()
+			b := []byte("ABC")
+			h.Write(b)
+			out := make([]byte, 0, 32)
+			out = h.Sum(out)
+			sink ^= out[0]
+		}); allocs > want {
+			t.Errorf("expected zero allocations, got %0.1f", allocs)
+		}
+	})
+	t.Run("NewShake", func(t *testing.T) {
+		if allocs := testing.AllocsPerRun(10, func() {
+			h := NewShake128()
+			b := []byte("ABC")
+			h.Write(b)
+			out := make([]byte, 0, 32)
+			out = h.Sum(out)
+			sink ^= out[0]
+			h.Read(out)
+			sink ^= out[0]
+		}); allocs > want {
+			t.Errorf("expected zero allocations, got %0.1f", allocs)
+		}
+	})
+	t.Run("Sum", func(t *testing.T) {
+		if allocs := testing.AllocsPerRun(10, func() {
+			b := []byte("ABC")
+			out := Sum256(b)
+			sink ^= out[0]
+		}); allocs > want {
+			t.Errorf("expected zero allocations, got %0.1f", allocs)
+		}
+	})
+}
+
 func TestCSHAKEAccumulated(t *testing.T) {
 	// Generated with pycryptodome@3.20.0
 	//
@@ -328,16 +428,16 @@ func TestCSHAKEAccumulated(t *testing.T) {
 	//    console.log(bytesToHex(acc.xof(32)));
 	//
 	t.Run("cSHAKE128", func(t *testing.T) {
-		testCSHAKEAccumulated(t, NewCShake128, rateK256,
+		testCSHAKEAccumulated(t, NewCShake128, (1600-256)/8,
 			"bb14f8657c6ec5403d0b0e2ef3d3393497e9d3b1a9a9e8e6c81dbaa5fd809252")
 	})
 	t.Run("cSHAKE256", func(t *testing.T) {
-		testCSHAKEAccumulated(t, NewCShake256, rateK512,
+		testCSHAKEAccumulated(t, NewCShake256, (1600-512)/8,
 			"0baaf9250c6e25f0c14ea5c7f9bfde54c8a922c8276437db28f3895bdf6eeeef")
 	})
 }
 
-func testCSHAKEAccumulated(t *testing.T, newCShake func(N, S []byte) ShakeHash, rate int64, exp string) {
+func testCSHAKEAccumulated(t *testing.T, newCShake func(N, S []byte) *SHAKE, rate int64, exp string) {
 	rnd := newCShake(nil, nil)
 	acc := newCShake(nil, nil)
 	for n := 0; n < 200; n++ {
@@ -430,16 +530,6 @@ func testMarshalUnmarshal(t *testing.T, h fips.Hash) {
 	}
 }
 
-// BenchmarkPermutationFunction measures the speed of the permutation function
-// with no input data.
-func BenchmarkPermutationFunction(b *testing.B) {
-	b.SetBytes(int64(200))
-	var lanes [25]uint64
-	for i := 0; i < b.N; i++ {
-		keccakF1600(&lanes)
-	}
-}
-
 // benchmarkHash tests the speed to hash num buffers of buflen each.
 func benchmarkHash(b *testing.B, h fips.Hash, size, num int) {
 	b.StopTimer()
@@ -461,7 +551,7 @@ func benchmarkHash(b *testing.B, h fips.Hash, size, num int) {
 
 // benchmarkShake is specialized to the Shake instances, which don't
 // require a copy on reading output.
-func benchmarkShake(b *testing.B, h ShakeHash, size, num int) {
+func benchmarkShake(b *testing.B, h *SHAKE, size, num int) {
 	b.StopTimer()
 	h.Reset()
 	data := sequentialBytes(size)

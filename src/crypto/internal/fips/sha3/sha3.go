@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package sha3 implements the SHA-3 fixed-output-length hash functions and
+// the SHAKE variable-output-length functions defined by [FIPS 202], as well as
+// the cSHAKE extendable-output-length functions defined by [SP 800-185].
+//
+// [FIPS 202]: https://doi.org/10.6028/NIST.FIPS.202
+// [SP 800-185]: https://doi.org/10.6028/NIST.SP.800-185
 package sha3
 
 import (
@@ -22,7 +28,7 @@ const (
 	spongeSqueezing
 )
 
-type state struct {
+type Digest struct {
 	a [1600 / 8]byte // main state of the hash
 
 	// a[n:rate] is the buffer. If absorbing, it's the remaining space to XOR
@@ -49,14 +55,13 @@ type state struct {
 }
 
 // BlockSize returns the rate of sponge underlying this hash function.
-func (d *state) BlockSize() int { return d.rate }
+func (d *Digest) BlockSize() int { return d.rate }
 
 // Size returns the output size of the hash function in bytes.
-func (d *state) Size() int { return d.outputLen }
+func (d *Digest) Size() int { return d.outputLen }
 
-// Reset clears the internal state by zeroing the sponge state and
-// the buffer indexes, and setting Sponge.state to absorbing.
-func (d *state) Reset() {
+// Reset resets the Digest to its initial state.
+func (d *Digest) Reset() {
 	// Zero the permutation's state.
 	for i := range d.a {
 		d.a[i] = 0
@@ -65,13 +70,13 @@ func (d *state) Reset() {
 	d.n = 0
 }
 
-func (d *state) clone() *state {
+func (d *Digest) Clone() *Digest {
 	ret := *d
 	return &ret
 }
 
 // permute applies the KeccakF-1600 permutation.
-func (d *state) permute() {
+func (d *Digest) permute() {
 	var a *[25]uint64
 	if goarch.BigEndian {
 		a = new([25]uint64)
@@ -92,9 +97,9 @@ func (d *state) permute() {
 	}
 }
 
-// pads appends the domain separation bits in dsbyte, applies
+// padAndPermute appends the domain separation bits in dsbyte, applies
 // the multi-bitrate 10..1 padding rule, and permutes the state.
-func (d *state) padAndPermute() {
+func (d *Digest) padAndPermute() {
 	// Pad with this instance's domain-separator bits. We know that there's
 	// at least one byte of space in the sponge because, if it were full,
 	// permute would have been called to empty it. dsbyte also contains the
@@ -109,9 +114,8 @@ func (d *state) padAndPermute() {
 	d.state = spongeSqueezing
 }
 
-// Write absorbs more data into the hash's state. It panics if any
-// output has already been read.
-func (d *state) Write(p []byte) (n int, err error) {
+// Write absorbs more data into the hash's state.
+func (d *Digest) Write(p []byte) (n int, err error) {
 	if d.state != spongeAbsorbing {
 		panic("sha3: Write after Read")
 	}
@@ -132,8 +136,8 @@ func (d *state) Write(p []byte) (n int, err error) {
 	return
 }
 
-// Read squeezes an arbitrary number of bytes from the sponge.
-func (d *state) Read(out []byte) (n int, err error) {
+// read squeezes an arbitrary number of bytes from the sponge.
+func (d *Digest) read(out []byte) (n int, err error) {
 	// If we're still absorbing, pad and apply the permutation.
 	if d.state == spongeAbsorbing {
 		d.padAndPermute()
@@ -156,19 +160,19 @@ func (d *state) Read(out []byte) (n int, err error) {
 	return
 }
 
-// Sum applies padding to the hash state and then squeezes out the desired
-// number of output bytes. It panics if any output has already been read.
-func (d *state) Sum(in []byte) []byte {
+// Sum appends the current hash to b and returns the resulting slice.
+// It does not change the underlying hash state.
+func (d *Digest) Sum(b []byte) []byte {
 	if d.state != spongeAbsorbing {
 		panic("sha3: Sum after Read")
 	}
 
 	// Make a copy of the original hash so that caller can keep writing
 	// and summing.
-	dup := d.clone()
+	dup := d.Clone()
 	hash := make([]byte, dup.outputLen, 64) // explicit cap to allow stack allocation
-	dup.Read(hash)
-	return append(in, hash...)
+	dup.read(hash)
+	return append(b, hash...)
 }
 
 const (
@@ -180,11 +184,11 @@ const (
 	marshaledSize = len(magicSHA3) + 1 + 200 + 1 + 1
 )
 
-func (d *state) MarshalBinary() ([]byte, error) {
+func (d *Digest) MarshalBinary() ([]byte, error) {
 	return d.AppendBinary(make([]byte, 0, marshaledSize))
 }
 
-func (d *state) AppendBinary(b []byte) ([]byte, error) {
+func (d *Digest) AppendBinary(b []byte) ([]byte, error) {
 	switch d.dsbyte {
 	case dsbyteSHA3:
 		b = append(b, magicSHA3...)
@@ -204,7 +208,7 @@ func (d *state) AppendBinary(b []byte) ([]byte, error) {
 	return b, nil
 }
 
-func (d *state) UnmarshalBinary(b []byte) error {
+func (d *Digest) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize {
 		return errors.New("sha3: invalid hash state")
 	}

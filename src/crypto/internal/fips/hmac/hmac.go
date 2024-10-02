@@ -10,6 +10,7 @@ package hmac
 import (
 	"crypto/internal/fips"
 	"crypto/internal/fips/sha256"
+	"crypto/internal/fips/sha3"
 	"crypto/internal/fips/sha512"
 )
 
@@ -158,8 +159,7 @@ func setServiceIndicator(h fips.Hash, key []byte) {
 	}
 
 	switch h.(type) {
-	case *sha256.Digest, *sha512.Digest:
-	// TODO(fips): SHA-3
+	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
 	default:
 		return
 	}

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build gc && !purego
+//go:build gc && !purego && ignore
 
 package sha3
 
@@ -10,10 +10,7 @@ package sha3
 // message digest' (KIMD) and 'compute last message digest' (KLMD)
 // instructions to compute SHA-3 and SHAKE hashes on IBM Z.
 
-import (
-	"crypto/internal/fips"
-	"internal/cpu"
-)
+import "internal/cpu"
 
 // codes represent 7-bit KIMD/KLMD function codes as defined in
 // the Principles of Operation.
@@ -249,7 +246,7 @@ func (s *asmState) Clone() ShakeHash {
 
 // new224 returns an assembly implementation of SHA3-224 if available,
 // otherwise it returns a generic implementation.
-func new224() fips.Hash {
+func new224() *Digest {
 	if cpu.S390X.HasSHA3 {
 		return newAsmState(sha3_224)
 	}
@@ -258,7 +255,7 @@ func new224() fips.Hash {
 
 // new256 returns an assembly implementation of SHA3-256 if available,
 // otherwise it returns a generic implementation.
-func new256() fips.Hash {
+func new256() *Digest {
 	if cpu.S390X.HasSHA3 {
 		return newAsmState(sha3_256)
 	}
@@ -267,7 +264,7 @@ func new256() fips.Hash {
 
 // new384 returns an assembly implementation of SHA3-384 if available,
 // otherwise it returns a generic implementation.
-func new384() fips.Hash {
+func new384() *Digest {
 	if cpu.S390X.HasSHA3 {
 		return newAsmState(sha3_384)
 	}
@@ -276,7 +273,7 @@ func new384() fips.Hash {
 
 // new512 returns an assembly implementation of SHA3-512 if available,
 // otherwise it returns a generic implementation.
-func new512() fips.Hash {
+func new512() *Digest {
 	if cpu.S390X.HasSHA3 {
 		return newAsmState(sha3_512)
 	}
