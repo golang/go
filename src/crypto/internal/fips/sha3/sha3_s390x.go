@@ -8,6 +8,7 @@ package sha3
 
 import (
 	"crypto/internal/fips/subtle"
+	"crypto/internal/impl"
 	"internal/cpu"
 )
 
@@ -17,6 +18,13 @@ import (
 // [z/Architecture Principles of Operation, Fourteen Edition].
 //
 // [z/Architecture Principles of Operation, Fourteen Edition]: https://www.ibm.com/docs/en/module_1678991624569/pdf/SA22-7832-13.pdf
+
+var useSHA3 = cpu.S390X.HasSHA3
+
+func init() {
+	// CP Assist for Cryptographic Functions (CPACF)
+	impl.Register("crypto/sha3", "CPACF", &useSHA3)
+}
 
 func keccakF1600(a *[200]byte) {
 	keccakF1600Generic(a)
@@ -60,7 +68,7 @@ func (d *Digest) write(p []byte) (n int, err error) {
 	if d.state != spongeAbsorbing {
 		panic("sha3: Write after Read")
 	}
-	if !cpu.S390X.HasSHA3 {
+	if !useSHA3 {
 		return d.writeGeneric(p)
 	}
 
@@ -101,8 +109,7 @@ func (d *Digest) sum(b []byte) []byte {
 	if d.state != spongeAbsorbing {
 		panic("sha3: Sum after Read")
 	}
-	if !cpu.S390X.HasSHA3 ||
-		d.dsbyte != dsbyteSHA3 && d.dsbyte != dsbyteShake {
+	if !useSHA3 || d.dsbyte != dsbyteSHA3 && d.dsbyte != dsbyteShake {
 		return d.sumGeneric(b)
 	}
 
@@ -128,7 +135,7 @@ func (d *Digest) sum(b []byte) []byte {
 }
 
 func (d *Digest) read(out []byte) (n int, err error) {
-	if !cpu.S390X.HasSHA3 || d.dsbyte != dsbyteShake {
+	if !useSHA3 || d.dsbyte != dsbyteShake {
 		return d.readGeneric(out)
 	}
 
