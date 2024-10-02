@@ -36,6 +36,7 @@ import (
 	"internal/coverage"
 	"internal/coverage/cmerge"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 	"text/tabwriter"
@@ -174,12 +175,7 @@ func (fm *Formatter) EmitTextual(w io.Writer) error {
 	if _, err := fmt.Fprintf(w, "mode: %s\n", fm.cm.String()); err != nil {
 		return err
 	}
-	pkgs := make([]string, 0, len(fm.pm))
-	for importpath := range fm.pm {
-		pkgs = append(pkgs, importpath)
-	}
-	slices.Sort(pkgs)
-	for _, importpath := range pkgs {
+	for _, importpath := range slices.Sorted(maps.Keys(fm.pm)) {
 		p := fm.pm[importpath]
 		units := make([]extcu, 0, len(p.unitTable))
 		for u := range p.unitTable {
@@ -281,14 +277,8 @@ func (fm *Formatter) EmitFuncs(w io.Writer) error {
 	allStmts := uint64(0)
 	covStmts := uint64(0)
 
-	pkgs := make([]string, 0, len(fm.pm))
-	for importpath := range fm.pm {
-		pkgs = append(pkgs, importpath)
-	}
-	slices.Sort(pkgs)
-
 	// Emit functions for each package, sorted by import path.
-	for _, importpath := range pkgs {
+	for _, importpath := range slices.Sorted(maps.Keys(fm.pm)) {
 		p := fm.pm[importpath]
 		if len(p.unitTable) == 0 {
 			continue

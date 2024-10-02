@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -169,16 +170,10 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	// Write PAX records to the output.
 	isGlobal := hdr.Typeflag == TypeXGlobalHeader
 	if len(paxHdrs) > 0 || isGlobal {
-		// Sort keys for deterministic ordering.
-		var keys []string
-		for k := range paxHdrs {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
-
 		// Write each record to a buffer.
 		var buf strings.Builder
-		for _, k := range keys {
+		// Sort keys for deterministic ordering.
+		for _, k := range slices.Sorted(maps.Keys(paxHdrs)) {
 			rec, err := formatPAXRecord(k, paxHdrs[k])
 			if err != nil {
 				return err
