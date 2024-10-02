@@ -821,6 +821,6 @@ func doCheckClonePidfd(pidfd *int32) (pid uintptr, errno Errno) {
 	}
 
 	for {
-		RawSyscall(SYS_EXIT, 0, 0, 0)
+		RawSyscall(SYS_EXIT_GROUP, 0, 0, 0)
 	}
 }
