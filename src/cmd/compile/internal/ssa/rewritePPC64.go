@@ -73,6 +73,9 @@ func rewriteValuePPC64(v *Value) bool {
 	case OpAtomicExchange64:
 		v.Op = OpPPC64LoweredAtomicExchange64
 		return true
+	case OpAtomicExchange8:
+		v.Op = OpPPC64LoweredAtomicExchange8
+		return true
 	case OpAtomicLoad32:
 		return rewriteValuePPC64_OpAtomicLoad32(v)
 	case OpAtomicLoad64:
