@@ -6,22 +6,22 @@ package sha3
 
 // New224 returns a new Digest computing the SHA3-224 hash.
 func New224() *Digest {
-	return new224()
+	return &Digest{rate: rateK448, outputLen: 28, dsbyte: dsbyteSHA3}
 }
 
 // New256 returns a new Digest computing the SHA3-256 hash.
 func New256() *Digest {
-	return new256()
+	return &Digest{rate: rateK512, outputLen: 32, dsbyte: dsbyteSHA3}
 }
 
 // New384 returns a new Digest computing the SHA3-384 hash.
 func New384() *Digest {
-	return new384()
+	return &Digest{rate: rateK768, outputLen: 48, dsbyte: dsbyteSHA3}
 }
 
 // New512 returns a new Digest computing the SHA3-512 hash.
 func New512() *Digest {
-	return new512()
+	return &Digest{rate: rateK1024, outputLen: 64, dsbyte: dsbyteSHA3}
 }
 
 // TODO(fips): do this in the stdlib crypto/sha3 package.
@@ -45,22 +45,6 @@ const (
 	rateK768  = (1600 - 768) / 8
 	rateK1024 = (1600 - 1024) / 8
 )
-
-func new224Generic() *Digest {
-	return &Digest{rate: rateK448, outputLen: 28, dsbyte: dsbyteSHA3}
-}
-
-func new256Generic() *Digest {
-	return &Digest{rate: rateK512, outputLen: 32, dsbyte: dsbyteSHA3}
-}
-
-func new384Generic() *Digest {
-	return &Digest{rate: rateK768, outputLen: 48, dsbyte: dsbyteSHA3}
-}
-
-func new512Generic() *Digest {
-	return &Digest{rate: rateK1024, outputLen: 64, dsbyte: dsbyteSHA3}
-}
 
 // NewLegacyKeccak256 returns a new Digest computing the legacy, non-standard
 // Keccak-256 hash.

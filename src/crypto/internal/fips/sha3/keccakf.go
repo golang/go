@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !amd64 || purego || !gc
-
 package sha3
 
-import "math/bits"
+import (
+	"internal/byteorder"
+	"internal/goarch"
+	"math/bits"
+	"unsafe"
+)
 
 // rc stores the round constants for use in the ι step.
 var rc = [24]uint64{
@@ -36,9 +39,23 @@ var rc = [24]uint64{
 	0x8000000080008008,
 }
 
-// keccakF1600 applies the Keccak permutation to a 1600b-wide
-// state represented as a slice of 25 uint64s.
-func keccakF1600(a *[25]uint64) {
+// keccakF1600Generic applies the Keccak permutation.
+func keccakF1600Generic(da *[200]byte) {
+	var a *[25]uint64
+	if goarch.BigEndian {
+		a = new([25]uint64)
+		for i := range a {
+			a[i] = byteorder.LeUint64(da[i*8:])
+		}
+		defer func() {
+			for i := range a {
+				byteorder.LePutUint64(da[i*8:], a[i])
+			}
+		}()
+	} else {
+		a = (*[25]uint64)(unsafe.Pointer(da))
+	}
+
 	// Implementation translated from Keccak-inplace.c
 	// in the keccak reference code.
 	var t, bc0, bc1, bc2, bc3, bc4, d0, d1, d2, d3, d4 uint64

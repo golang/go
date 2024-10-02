@@ -116,19 +116,11 @@ func (s *SHAKE) UnmarshalBinary(b []byte) error {
 
 // NewShake128 creates a new SHAKE128 XOF.
 func NewShake128() *SHAKE {
-	return newShake128()
+	return &SHAKE{d: Digest{rate: rateK256, outputLen: 32, dsbyte: dsbyteShake}}
 }
 
 // NewShake256 creates a new SHAKE256 XOF.
 func NewShake256() *SHAKE {
-	return newShake256()
-}
-
-func newShake128Generic() *SHAKE {
-	return &SHAKE{d: Digest{rate: rateK256, outputLen: 32, dsbyte: dsbyteShake}}
-}
-
-func newShake256Generic() *SHAKE {
 	return &SHAKE{d: Digest{rate: rateK512, outputLen: 64, dsbyte: dsbyteShake}}
 }
 

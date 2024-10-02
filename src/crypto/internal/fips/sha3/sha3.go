@@ -13,9 +13,6 @@ package sha3
 import (
 	"crypto/internal/fips/subtle"
 	"errors"
-	"internal/byteorder"
-	"internal/goarch"
-	"unsafe"
 )
 
 // spongeDirection indicates the direction bytes are flowing through the sponge.
@@ -77,24 +74,8 @@ func (d *Digest) Clone() *Digest {
 
 // permute applies the KeccakF-1600 permutation.
 func (d *Digest) permute() {
-	var a *[25]uint64
-	if goarch.BigEndian {
-		a = new([25]uint64)
-		for i := range a {
-			a[i] = byteorder.LeUint64(d.a[i*8:])
-		}
-	} else {
-		a = (*[25]uint64)(unsafe.Pointer(&d.a))
-	}
-
-	keccakF1600(a)
+	keccakF1600(&d.a)
 	d.n = 0
-
-	if goarch.BigEndian {
-		for i := range a {
-			byteorder.LePutUint64(d.a[i*8:], a[i])
-		}
-	}
 }
 
 // padAndPermute appends the domain separation bits in dsbyte, applies
@@ -115,7 +96,8 @@ func (d *Digest) padAndPermute() {
 }
 
 // Write absorbs more data into the hash's state.
-func (d *Digest) Write(p []byte) (n int, err error) {
+func (d *Digest) Write(p []byte) (n int, err error) { return d.write(p) }
+func (d *Digest) writeGeneric(p []byte) (n int, err error) {
 	if d.state != spongeAbsorbing {
 		panic("sha3: Write after Read")
 	}
@@ -137,7 +119,7 @@ func (d *Digest) Write(p []byte) (n int, err error) {
 }
 
 // read squeezes an arbitrary number of bytes from the sponge.
-func (d *Digest) read(out []byte) (n int, err error) {
+func (d *Digest) readGeneric(out []byte) (n int, err error) {
 	// If we're still absorbing, pad and apply the permutation.
 	if d.state == spongeAbsorbing {
 		d.padAndPermute()
@@ -162,7 +144,8 @@ func (d *Digest) read(out []byte) (n int, err error) {
 
 // Sum appends the current hash to b and returns the resulting slice.
 // It does not change the underlying hash state.
-func (d *Digest) Sum(b []byte) []byte {
+func (d *Digest) Sum(b []byte) []byte { return d.sum(b) }
+func (d *Digest) sumGeneric(b []byte) []byte {
 	if d.state != spongeAbsorbing {
 		panic("sha3: Sum after Read")
 	}

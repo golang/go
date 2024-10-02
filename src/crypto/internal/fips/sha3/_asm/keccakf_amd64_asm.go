@@ -101,7 +101,7 @@ const (
 
 func main() {
 	Package("golang.org/x/crypto/sha3")
-	ConstraintExpr("amd64,!purego,gc")
+	ConstraintExpr("!purego")
 	keccakF1600()
 	Generate()
 }
