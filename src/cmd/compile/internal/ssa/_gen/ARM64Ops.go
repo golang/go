@@ -651,12 +651,14 @@ func init() {
 		// CBNZ		Rtmp, -2(PC)
 		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicExchange8", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
 		// atomic exchange variant.
 		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>. auxint must be zero.
 		// SWPALD	Rarg1, (Rarg0), Rout
 		{name: "LoweredAtomicExchange64Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicExchange32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange8Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
 		// atomic add.
 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.

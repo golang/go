@@ -249,6 +249,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"arm64", "internal/runtime/atomic", "Xaddint32"}:          struct{}{},
 	{"arm64", "internal/runtime/atomic", "Xaddint64"}:          struct{}{},
 	{"arm64", "internal/runtime/atomic", "Xadduintptr"}:        struct{}{},
+	{"arm64", "internal/runtime/atomic", "Xchg8"}:              struct{}{},
 	{"arm64", "internal/runtime/atomic", "Xchg"}:               struct{}{},
 	{"arm64", "internal/runtime/atomic", "Xchg64"}:             struct{}{},
 	{"arm64", "internal/runtime/atomic", "Xchgint32"}:          struct{}{},

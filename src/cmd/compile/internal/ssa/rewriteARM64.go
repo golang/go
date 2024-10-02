@@ -513,6 +513,12 @@ func rewriteValueARM64(v *Value) bool {
 	case OpAtomicExchange64Variant:
 		v.Op = OpARM64LoweredAtomicExchange64Variant
 		return true
+	case OpAtomicExchange8:
+		v.Op = OpARM64LoweredAtomicExchange8
+		return true
+	case OpAtomicExchange8Variant:
+		v.Op = OpARM64LoweredAtomicExchange8Variant
+		return true
 	case OpAtomicLoad32:
 		v.Op = OpARM64LDARW
 		return true

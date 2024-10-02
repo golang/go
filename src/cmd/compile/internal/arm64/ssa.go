@@ -578,15 +578,22 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARM64LoweredAtomicExchange64,
-		ssa.OpARM64LoweredAtomicExchange32:
+		ssa.OpARM64LoweredAtomicExchange32,
+		ssa.OpARM64LoweredAtomicExchange8:
 		// LDAXR	(Rarg0), Rout
 		// STLXR	Rarg1, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -2(PC)
-		ld := arm64.ALDAXR
-		st := arm64.ASTLXR
-		if v.Op == ssa.OpARM64LoweredAtomicExchange32 {
+		var ld, st obj.As
+		switch v.Op {
+		case ssa.OpARM64LoweredAtomicExchange8:
+			ld = arm64.ALDAXRB
+			st = arm64.ASTLXRB
+		case ssa.OpARM64LoweredAtomicExchange32:
 			ld = arm64.ALDAXRW
 			st = arm64.ASTLXRW
+		case ssa.OpARM64LoweredAtomicExchange64:
+			ld = arm64.ALDAXR
+			st = arm64.ASTLXR
 		}
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
@@ -608,10 +615,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p2.To.Type = obj.TYPE_BRANCH
 		p2.To.SetTarget(p)
 	case ssa.OpARM64LoweredAtomicExchange64Variant,
-		ssa.OpARM64LoweredAtomicExchange32Variant:
-		swap := arm64.ASWPALD
-		if v.Op == ssa.OpARM64LoweredAtomicExchange32Variant {
+		ssa.OpARM64LoweredAtomicExchange32Variant,
+		ssa.OpARM64LoweredAtomicExchange8Variant:
+		var swap obj.As
+		switch v.Op {
+		case ssa.OpARM64LoweredAtomicExchange8Variant:
+			swap = arm64.ASWPALB
+		case ssa.OpARM64LoweredAtomicExchange32Variant:
 			swap = arm64.ASWPALW
+		case ssa.OpARM64LoweredAtomicExchange64Variant:
+			swap = arm64.ASWPALD
 		}
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()

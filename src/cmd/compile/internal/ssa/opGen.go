@@ -1712,8 +1712,10 @@ const (
 	OpARM64STLRW
 	OpARM64LoweredAtomicExchange64
 	OpARM64LoweredAtomicExchange32
+	OpARM64LoweredAtomicExchange8
 	OpARM64LoweredAtomicExchange64Variant
 	OpARM64LoweredAtomicExchange32Variant
+	OpARM64LoweredAtomicExchange8Variant
 	OpARM64LoweredAtomicAdd64
 	OpARM64LoweredAtomicAdd32
 	OpARM64LoweredAtomicAdd64Variant
@@ -3269,6 +3271,7 @@ const (
 	OpAtomicOr8value
 	OpAtomicAdd32Variant
 	OpAtomicAdd64Variant
+	OpAtomicExchange8Variant
 	OpAtomicExchange32Variant
 	OpAtomicExchange64Variant
 	OpAtomicCompareAndSwap32Variant
@@ -22987,6 +22990,23 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:            "LoweredAtomicExchange8",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		unsafePoint:     true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		name:            "LoweredAtomicExchange64Variant",
 		argLen:          3,
 		resultNotInArgs: true,
@@ -23008,6 +23028,23 @@ var opcodeTable = [...]opInfo{
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
 		hasSideEffects:  true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
+			},
+			outputs: []outputInfo{
+				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		name:            "LoweredAtomicExchange8Variant",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		unsafePoint:     true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
@@ -41259,6 +41296,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "AtomicAdd64Variant",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicExchange8Variant",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
