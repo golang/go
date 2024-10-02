@@ -1114,6 +1114,11 @@ func (t *timer) unlockAndRun(now int64) {
 		// started to send the value. That lets them correctly return
 		// true meaning that no value was sent.
 		lock(&t.sendLock)
+
+		// We are committed to possibly sending a value based on seq,
+		// so no need to keep telling stop/modify that we are sending.
+		t.isSending.And(^isSendingClear)
+
 		if t.seq != seq {
 			f = func(any, uintptr, int64) {}
 		}
@@ -1122,9 +1127,6 @@ func (t *timer) unlockAndRun(now int64) {
 	f(arg, seq, delay)
 
 	if !async && t.isChan {
-		// We are no longer sending a value.
-		t.isSending.And(^isSendingClear)
-
 		unlock(&t.sendLock)
 	}
 
