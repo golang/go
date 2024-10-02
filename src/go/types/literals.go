@@ -141,8 +141,9 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 	default:
 		// TODO(gri) provide better error messages depending on context
 		check.error(e, UntypedLit, "missing type in composite literal")
-		x.mode = invalid
-		return
+		// continue with invalid type so that elements are "used" (go.dev/issue/69092)
+		typ = Typ[Invalid]
+		base = typ
 	}
 
 	switch utyp := coreType(base).(type) {

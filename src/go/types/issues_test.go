@@ -1151,3 +1151,30 @@ type (
 		t.Errorf("got %s, want %s", got, want)
 	}
 }
+
+func TestIssue69092(t *testing.T) {
+	const src = `
+package p
+
+var _ = T{{x}}
+`
+
+	fset := token.NewFileSet()
+	file := mustParse(fset, src)
+	conf := Config{Error: func(err error) {}} // ignore errors
+	info := Info{Types: make(map[ast.Expr]TypeAndValue)}
+	conf.Check("p", fset, []*ast.File{file}, &info)
+
+	// look for {x} expression
+	outer := file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.CompositeLit) // T{{x}}
+	inner := outer.Elts[0]                                                                        // {x}
+
+	// type of {x} must have been recorded
+	tv, ok := info.Types[inner]
+	if !ok {
+		t.Fatal("no type found for {x}")
+	}
+	if tv.Type != Typ[Invalid] {
+		t.Fatalf("unexpected type for {x}: %s", tv.Type)
+	}
+}
