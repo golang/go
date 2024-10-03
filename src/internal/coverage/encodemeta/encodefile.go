@@ -6,9 +6,9 @@ package encodemeta
 
 import (
 	"bufio"
-	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	"hash/fnv"
 	"internal/coverage"
 	"internal/coverage/stringtab"
 	"io"
@@ -112,7 +112,9 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode 
 	// Now emit blobs themselves.
 	for k, blob := range blobs {
 		if m.debug {
-			fmt.Fprintf(os.Stderr, "=+= writing blob %d len %d at off=%d hash %s\n", k, len(blob), off2, fmt.Sprintf("%x", md5.Sum(blob)))
+			h := fnv.New128a()
+			h.Write(blob)
+			fmt.Fprintf(os.Stderr, "=+= writing blob %d len %d at off=%d hash %s\n", k, len(blob), off2, fmt.Sprintf("%x", h.Sum(nil)))
 		}
 		if _, err = m.w.Write(blob); err != nil {
 			return fmt.Errorf("error writing %s: %v", m.mfname, err)

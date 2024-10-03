@@ -685,7 +685,7 @@ var depsRules = `
 	< internal/trace/traceviewer;
 
 	# Coverage.
-	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter,
+	FMT, hash/fnv, encoding/binary, regexp, sort, text/tabwriter,
 	internal/coverage, internal/coverage/uleb128
 	< internal/coverage/cmerge,
 	  internal/coverage/pods,

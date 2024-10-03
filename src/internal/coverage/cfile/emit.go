@@ -9,8 +9,8 @@
 package cfile
 
 import (
-	"crypto/md5"
 	"fmt"
+	"hash/fnv"
 	"internal/coverage"
 	"internal/coverage/encodecounter"
 	"internal/coverage/encodemeta"
@@ -206,7 +206,7 @@ func prepareForMetaEmit() ([]rtcov.CovMetaBlob, error) {
 		}
 	}
 
-	h := md5.New()
+	h := fnv.New128a()
 	tlen := uint64(unsafe.Sizeof(coverage.MetaFileHeader{}))
 	for _, entry := range ml {
 		if _, err := h.Write(entry.Hash[:]); err != nil {
