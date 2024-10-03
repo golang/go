@@ -245,6 +245,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				// A type parameter can be unified with its core type in two cases.
 				switch {
 				case tx != nil:
+					if traceInference {
+						u.tracef("-> unify type parameter %s (type %s) with constraint core type %s", tpar, tx, core.typ)
+					}
 					// The corresponding type argument tx is known. There are 2 cases:
 					// 1) If the core type has a tilde, per spec requirement for tilde
 					//    elements, the core type is an underlying (literal) type.
@@ -263,6 +266,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 						return nil
 					}
 				case single && !core.tilde:
+					if traceInference {
+						u.tracef("-> set type parameter %s to constraint core type %s", tpar, core.typ)
+					}
 					// The corresponding type argument tx is unknown and there's a single
 					// specific type and no tilde.
 					// In this case the type argument must be that single type; set it.
@@ -270,6 +276,9 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				}
 			} else {
 				if tx != nil {
+					if traceInference {
+						u.tracef("-> unify type parameter %s (type %s) methods with constraint methods", tpar, tx)
+					}
 					// We don't have a core type, but the type argument tx is known.
 					// It must have (at least) all the methods of the type constraint,
 					// and the method signatures must unify; otherwise tx cannot satisfy
