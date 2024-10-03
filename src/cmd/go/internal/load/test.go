@@ -114,7 +114,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 	var stk ImportStack
 	var testEmbed, xtestEmbed map[string][]string
 	var incomplete bool
-	stk.Push(&ImportInfo{Pkg: p.ImportPath + " (test)"})
+	stk.Push(ImportInfo{Pkg: p.ImportPath + " (test)"})
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
 		p1, err := loadImport(ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
@@ -141,7 +141,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 	}
 	stk.Pop()
 
-	stk.Push(&ImportInfo{Pkg: p.ImportPath + "_test"})
+	stk.Push(ImportInfo{Pkg: p.ImportPath + "_test"})
 	pxtestNeedsPtest := false
 	var pxtestIncomplete bool
 	rawXTestImports := str.StringList(p.XTestImports)
@@ -549,15 +549,8 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			for p != nil {
 				stk = append(stk, ImportInfo{
 					Pkg: p.ImportPath,
+					Pos: extractFirstImport(importerOf[p].Internal.Build.ImportPos[p.ImportPath]),
 				})
-				if p.Internal.Build != nil {
-					for key, val := range p.Internal.Build.ImportPos {
-						if len(val) == 0 {
-							continue
-						}
-						pkgToFiles[key] = append(pkgToFiles[key], filepath.Base(val[0].Filename))
-					}
-				}
 				p = importerOf[p]
 			}
 			// complete the cycle: we set importer[p] = nil to break the cycle
