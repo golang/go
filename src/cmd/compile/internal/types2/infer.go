@@ -236,10 +236,10 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 				u.tracef("-- type parameter %s = %s: core(%s) = %s, single = %v", tpar, tx, tpar, core, single)
 			}
 
-			// If there is a core term (i.e., a core type with tilde information)
-			// unify the type parameter with the core type.
+			// If the type parameter's constraint has a core term (i.e., a core type with tilde information)
+			// try to unify the type parameter with that core type.
 			if core != nil {
-				// A type parameter can be unified with its core type in two cases.
+				// A type parameter can be unified with its constraint's core type in two cases.
 				switch {
 				case tx != nil:
 					if traceInference {
@@ -266,33 +266,42 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 					if traceInference {
 						u.tracef("-> set type parameter %s to constraint core type %s", tpar, core.typ)
 					}
-					// The corresponding type argument tx is unknown and there's a single
-					// specific type and no tilde.
+					// The corresponding type argument tx is unknown and the core term
+					// describes a single specific type and no tilde.
 					// In this case the type argument must be that single type; set it.
 					u.set(tpar, core.typ)
 				}
-			} else {
-				if tx != nil {
-					if traceInference {
-						u.tracef("-> unify type parameter %s (type %s) methods with constraint methods", tpar, tx)
-					}
-					// We don't have a core type, but the type argument tx is known.
-					// It must have (at least) all the methods of the type constraint,
-					// and the method signatures must unify; otherwise tx cannot satisfy
-					// the constraint.
-					// TODO(gri) Now that unification handles interfaces, this code can
-					//           be reduced to calling u.unify(tx, tpar.iface(), assign)
-					//           (which will compare signatures exactly as we do below).
-					//           We leave it as is for now because missingMethod provides
-					//           a failure cause which allows for a better error message.
-					//           Eventually, unify should return an error with cause.
-					var cause string
-					constraint := tpar.iface()
-					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
-						// TODO(gri) better error message (see TODO above)
-						err.addf(pos, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
-						return nil
-					}
+			}
+
+			// Independent of whether there is a core term, if the type argument tx is known
+			// it must implement the methods of the type constraint, possibly after unification
+			// of the relevant method signatures, otherwise tx cannot satisfy the constraint.
+			// This unification step may provide additional type arguments.
+			//
+			// Note: The type argument tx may be known but contain references to other type
+			// parameters (i.e., tx may still be parameterized).
+			// In this case the methods of tx don't correctly reflect the final method set
+			// and we may get a missing method error below. Skip this step in this case.
+			//
+			// TODO(gri) We should be able continue even with a parameterized tx if we add
+			// a simplify step beforehand (see below). This will require factoring out the
+			// simplify phase so we can call it from here.
+			if tx != nil && !isParameterized(tparams, tx) {
+				if traceInference {
+					u.tracef("-> unify type parameter %s (type %s) methods with constraint methods", tpar, tx)
+				}
+				// TODO(gri) Now that unification handles interfaces, this code can
+				//           be reduced to calling u.unify(tx, tpar.iface(), assign)
+				//           (which will compare signatures exactly as we do below).
+				//           We leave it as is for now because missingMethod provides
+				//           a failure cause which allows for a better error message.
+				//           Eventually, unify should return an error with cause.
+				var cause string
+				constraint := tpar.iface()
+				if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
+					// TODO(gri) better error message (see TODO above)
+					err.addf(pos, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
+					return nil
 				}
 			}
 		}
