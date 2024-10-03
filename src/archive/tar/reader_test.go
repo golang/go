@@ -7,9 +7,9 @@ package tar
 import (
 	"bytes"
 	"compress/bzip2"
-	"crypto/md5"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"maps"
 	"math"
@@ -27,7 +27,7 @@ func TestReader(t *testing.T) {
 	vectors := []struct {
 		file    string    // Test input file
 		headers []*Header // Expected output headers
-		chksums []string  // MD5 checksum of files, leave as nil if not checked
+		chksums []string  // CRC32 checksum of files, leave as nil if not checked
 		err     error     // Expected error to occur
 	}{{
 		file: "testdata/gnu.tar",
@@ -55,8 +55,8 @@ func TestReader(t *testing.T) {
 			Format:   FormatGNU,
 		}},
 		chksums: []string{
-			"e38b27eaccb4391bdec553a7f3ae6b2f",
-			"c65bd2e50a56a2138bf1716f2fd56fe9",
+			"6cbd88fc",
+			"ddac04b3",
 		},
 	}, {
 		file: "testdata/sparse-formats.tar",
@@ -149,11 +149,11 @@ func TestReader(t *testing.T) {
 			Format:   FormatGNU,
 		}},
 		chksums: []string{
-			"6f53234398c2449fe67c1812d993012f",
-			"6f53234398c2449fe67c1812d993012f",
-			"6f53234398c2449fe67c1812d993012f",
-			"6f53234398c2449fe67c1812d993012f",
-			"b0061974914468de549a2af8ced10316",
+			"5375e1d2",
+			"5375e1d2",
+			"5375e1d2",
+			"5375e1d2",
+			"8eb179ba",
 		},
 	}, {
 		file: "testdata/star.tar",
@@ -270,7 +270,7 @@ func TestReader(t *testing.T) {
 			Format: FormatPAX,
 		}},
 		chksums: []string{
-			"0afb597b283fe61b5d4879669a350556",
+			"5fd7e86a",
 		},
 	}, {
 		file: "testdata/pax-records.tar",
@@ -657,7 +657,7 @@ func TestReader(t *testing.T) {
 				if v.chksums == nil {
 					continue
 				}
-				h := md5.New()
+				h := crc32.NewIEEE()
 				_, err = io.CopyBuffer(h, tr, rdbuf) // Effectively an incremental read
 				if err != nil {
 					break
