@@ -327,11 +327,11 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 	// move the modload errors into this package to avoid a package import cycle,
 	// and from having to export an error type for the errors produced in build.
 	if !isMatchErr && (nogoErr != nil || isScanErr) {
-		var tkPos *token.Position
+		var pos *token.Position
 		if len(importPos) > 0 {
-			tkPos = &importPos[0]
+			pos = &importPos[0]
 		}
-		stk.Push(&importInfo{Pkg: path, Pos: tkPos})
+		stk.Push(&importInfo{Pkg: path, Pos: pos})
 		defer stk.Pop()
 	}
 
