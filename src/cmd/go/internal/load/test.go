@@ -565,7 +565,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			// back here since we reached nil in the loop above to demonstrate
 			// the cycle as (for example) package p imports package q imports package r
 			// imports package p.
-			stk = append(stk, &ImportInfo{
+			stk = append(stk, ImportInfo{
 				Pkg: ptest.ImportPath,
 			})
 			slices.Reverse(stk)
@@ -573,7 +573,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			for i, ii := range stk {
 				if file, ok := pkgToFiles[ii.Pkg]; ok && len(file) > 0 && i != 0 {
 					ii.Pos = &token.Position{
-						Filename: filepath.Base(file[0]),
+						Filename: file[0],
 					}
 				}
 			}
