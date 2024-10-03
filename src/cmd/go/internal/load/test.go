@@ -304,7 +304,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 
 	// The generated main also imports testing, regexp, and os.
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
-	stk.Push(&ImportInfo{Pkg: "testmain"})
+	stk.Push(ImportInfo{Pkg: "testmain"})
 	deps := TestMainDeps // cap==len, so safe for append
 	if cover != nil && cfg.Experiment.CoverageRedesign {
 		deps = append(deps, "internal/coverage/cfile")
@@ -547,7 +547,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			var stk ImportStack
 			pkgToFiles := map[string][]string{}
 			for p != nil {
-				stk = append(stk, &ImportInfo{
+				stk = append(stk, ImportInfo{
 					Pkg: p.ImportPath,
 				})
 				if p.Internal.Build != nil {
