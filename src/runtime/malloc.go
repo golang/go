@@ -1224,7 +1224,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// All slots hold nil so no scanning is needed.
 	// This may be racing with GC so do it atomically if there can be
 	// a race marking the bit.
-	if gcphase != _GCoff {
+	if writeBarrier.enabled {
 		gcmarknewobject(span, uintptr(x))
 	}
 
