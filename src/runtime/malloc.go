@@ -942,9 +942,9 @@ func nextFreeFast(s *mspan) gclinkptr {
 //
 // Must run in a non-preemptible context since otherwise the owner of
 // c could change.
-func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, checkGCTrigger bool) {
 	s = c.alloc[spc]
-	shouldhelpgc = false
+	checkGCTrigger = false
 	freeIndex := s.nextFreeIndex()
 	if freeIndex == s.nelems {
 		// The span is full.
@@ -953,7 +953,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
 		}
 		c.refill(spc)
-		shouldhelpgc = true
+		checkGCTrigger = true
 		s = c.alloc[spc]
 
 		freeIndex = s.nextFreeIndex()
@@ -1057,7 +1057,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 	mp.mallocing = 1
 
-	shouldhelpgc := false
+	checkGCTrigger := false
 	dataSize := userSize
 	c := getMCache(mp)
 	if c == nil {
@@ -1140,7 +1140,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			span = c.alloc[tinySpanClass]
 			v := nextFreeFast(span)
 			if v == 0 {
-				v, span, shouldhelpgc = c.nextFree(tinySpanClass)
+				v, span, checkGCTrigger = c.nextFree(tinySpanClass)
 			}
 			x = unsafe.Pointer(v)
 			(*[2]uint64)(x)[0] = 0
@@ -1169,7 +1169,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			span = c.alloc[spc]
 			v := nextFreeFast(span)
 			if v == 0 {
-				v, span, shouldhelpgc = c.nextFree(spc)
+				v, span, checkGCTrigger = c.nextFree(spc)
 			}
 			x = unsafe.Pointer(v)
 			if needzero && span.needzero != 0 {
@@ -1182,7 +1182,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			}
 		}
 	} else {
-		shouldhelpgc = true
+		checkGCTrigger = true
 		// For large allocations, keep track of zeroed state so that
 		// bulk zeroing can be happen later in a preemptible context.
 		span = c.allocLarge(size, noscan)
@@ -1306,7 +1306,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
-	if shouldhelpgc {
+	if checkGCTrigger {
 		if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
 			gcStart(t)
 		}
