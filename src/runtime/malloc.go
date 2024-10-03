@@ -972,6 +972,14 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, checkGCTrigger 
 	return
 }
 
+// doubleCheckMalloc enables a bunch of extra checks to malloc to double-check
+// that various invariants are upheld.
+//
+// We might consider turning these on by default; many of them previously were.
+// They account for a few % of mallocgc's cost though, which does matter somewhat
+// at scale.
+const doubleCheckMalloc = false
+
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
@@ -991,8 +999,10 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, checkGCTrigger 
 //
 //go:linkname mallocgc
 func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
-	if gcphase == _GCmarktermination {
-		throw("mallocgc called with gcphase == _GCmarktermination")
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
 	}
 
 	if size == 0 {
@@ -1049,11 +1059,13 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
-	if mp.mallocing != 0 {
-		throw("malloc deadlock")
-	}
-	if mp.gsignal == getg() {
-		throw("malloc during signal")
+	if doubleCheckMalloc {
+		if mp.mallocing != 0 {
+			throw("malloc deadlock")
+		}
+		if mp.gsignal == getg() {
+			throw("malloc during signal")
+		}
 	}
 	mp.mallocing = 1
 
