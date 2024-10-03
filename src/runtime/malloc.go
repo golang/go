@@ -1042,9 +1042,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
-	// assistG is the G to charge for this allocation, or nil if
-	// GC is not currently active.
-	assistG := deductAssistCredit(size)
+	// Assist the GC if needed.
+	if gcBlackenEnabled != 0 {
+		deductAssistCredit(size)
+	}
 
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
@@ -1298,13 +1299,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
-	if assistG != nil {
-		// Account for internal fragmentation in the assist
-		// debt now that we know it.
-		//
-		// N.B. Use the full size because that's how the rest
-		// of the GC accounts for bytes marked.
-		assistG.gcAssistBytes -= int64(fullSize - dataSize)
+	// Adjust our GC assist debt to account for internal fragmentation.
+	if gcBlackenEnabled != 0 {
+		if assistG := getg().m.curg; assistG != nil {
+			assistG.gcAssistBytes -= int64(fullSize - size)
+		}
 	}
 
 	if shouldhelpgc {
@@ -1338,26 +1337,22 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 // Caller must be preemptible.
 //
 // Returns the G for which the assist credit was accounted.
-func deductAssistCredit(size uintptr) *g {
-	var assistG *g
-	if gcBlackenEnabled != 0 {
-		// Charge the current user G for this allocation.
-		assistG = getg()
-		if assistG.m.curg != nil {
-			assistG = assistG.m.curg
-		}
-		// Charge the allocation against the G. We'll account
-		// for internal fragmentation at the end of mallocgc.
-		assistG.gcAssistBytes -= int64(size)
-
-		if assistG.gcAssistBytes < 0 {
-			// This G is in debt. Assist the GC to correct
-			// this before allocating. This must happen
-			// before disabling preemption.
-			gcAssistAlloc(assistG)
-		}
+func deductAssistCredit(size uintptr) {
+	// Charge the current user G for this allocation.
+	assistG := getg()
+	if assistG.m.curg != nil {
+		assistG = assistG.m.curg
 	}
-	return assistG
+	// Charge the allocation against the G. We'll account
+	// for internal fragmentation at the end of mallocgc.
+	assistG.gcAssistBytes -= int64(size)
+
+	if assistG.gcAssistBytes < 0 {
+		// This G is in debt. Assist the GC to correct
+		// this before allocating. This must happen
+		// before disabling preemption.
+		gcAssistAlloc(assistG)
+	}
 }
 
 // memclrNoHeapPointersChunked repeatedly calls memclrNoHeapPointers
