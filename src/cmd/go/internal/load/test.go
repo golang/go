@@ -114,7 +114,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 	var stk ImportStack
 	var testEmbed, xtestEmbed map[string][]string
 	var incomplete bool
-	stk.Push(&importInfo{Pkg: p.ImportPath + " (test)"})
+	stk.Push(&ImportInfo{Pkg: p.ImportPath + " (test)"})
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
 		p1, err := loadImport(ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
@@ -141,7 +141,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 	}
 	stk.Pop()
 
-	stk.Push(&importInfo{Pkg: p.ImportPath + "_test"})
+	stk.Push(&ImportInfo{Pkg: p.ImportPath + "_test"})
 	pxtestNeedsPtest := false
 	var pxtestIncomplete bool
 	rawXTestImports := str.StringList(p.XTestImports)
@@ -304,7 +304,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 
 	// The generated main also imports testing, regexp, and os.
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
-	stk.Push(&importInfo{Pkg: "testmain"})
+	stk.Push(&ImportInfo{Pkg: "testmain"})
 	deps := TestMainDeps // cap==len, so safe for append
 	if cover != nil && cfg.Experiment.CoverageRedesign {
 		deps = append(deps, "internal/coverage/cfile")
@@ -547,7 +547,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			var stk ImportStack
 			pkgToFiles := map[string][]string{}
 			for p != nil {
-				stk = append(stk, &importInfo{
+				stk = append(stk, &ImportInfo{
 					Pkg: p.ImportPath,
 				})
 				if p.Internal.Build != nil {
@@ -565,7 +565,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			// back here since we reached nil in the loop above to demonstrate
 			// the cycle as (for example) package p imports package q imports package r
 			// imports package p.
-			stk = append(stk, &importInfo{
+			stk = append(stk, &ImportInfo{
 				Pkg: ptest.ImportPath,
 			})
 			slices.Reverse(stk)

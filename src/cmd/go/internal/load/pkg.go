@@ -331,7 +331,7 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 		if len(importPos) > 0 {
 			pos = &importPos[0]
 		}
-		stk.Push(&importInfo{Pkg: path, Pos: pos})
+		stk.Push(ImportInfo{Pkg: path, Pos: pos})
 		defer stk.Pop()
 	}
 
@@ -570,7 +570,7 @@ func (e *importError) ImportPath() string {
 	return e.importPath
 }
 
-type importInfo struct {
+type ImportInfo struct {
 	Pkg string
 	Pos *token.Position
 }
@@ -578,13 +578,13 @@ type importInfo struct {
 // An ImportStack is a stack of import paths, possibly with the suffix " (test)" appended.
 // The import path of a test package is the import path of the corresponding
 // non-test package with the suffix "_test" added.
-type ImportStack []*importInfo
+type ImportStack []ImportInfo
 
-func NewImportInfo(pkg string, pos *token.Position) *importInfo {
-	return &importInfo{Pkg: pkg, Pos: pos}
+func NewImportInfo(pkg string, pos *token.Position) ImportInfo {
+	return ImportInfo{Pkg: pkg, Pos: pos}
 }
 
-func (s *ImportStack) Push(p *importInfo) {
+func (s *ImportStack) Push(p ImportInfo) {
 	*s = append(*s, p)
 }
 
@@ -593,16 +593,7 @@ func (s *ImportStack) Pop() {
 }
 
 func (s *ImportStack) Copy() ImportStack {
-	ii := make(ImportStack, len(*s))
-	for i, v := range *s {
-		ii[i] = &importInfo{
-			Pkg: v.Pkg,
-		}
-		if v.Pos != nil {
-			ii[i].Pos = v.Pos
-		}
-	}
-	return ii
+	return slices.Clone(*s)
 }
 
 func (s *ImportStack) Pkgs() []string {
@@ -625,11 +616,11 @@ func (s *ImportStack) PkgsWithPos() []string {
 	return ss
 }
 
-func (s *ImportStack) Top() *importInfo {
+func (s *ImportStack) Top() *ImportInfo {
 	if len(*s) == 0 {
 		return nil
 	}
-	return (*s)[len(*s)-1]
+	return &(*s)[len(*s)-1]
 }
 
 // shorterThan reports whether sp is shorter than t.
@@ -642,10 +633,7 @@ func (sp *ImportStack) shorterThan(t []string) bool {
 	}
 	// If they are the same length, settle ties using string ordering.
 	for i := range s {
-		siPkg := ""
-		if s[i] != nil {
-			siPkg = s[i].Pkg
-		}
+		siPkg := s[i].Pkg
 		if siPkg != t[i] {
 			return siPkg < t[i]
 		}
@@ -761,7 +749,7 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 			// sequence that empirically doesn't trigger for these errors, guarded by
 			// a somewhat complex condition. Figure out how to generalize that
 			// condition and eliminate the explicit calls here.
-			stk.Push(&importInfo{Pkg: path, Pos: extractFirstImport(importPos)})
+			stk.Push(ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 			defer stk.Pop()
 		}
 		p.setLoadPackageDataError(err, path, stk, nil)
@@ -780,7 +768,7 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 	importPath := bp.ImportPath
 	p := packageCache[importPath]
 	if p != nil {
-		stk.Push(&importInfo{Pkg: path, Pos: extractFirstImport(importPos)})
+		stk.Push(ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 		p = reusePackage(p, stk)
 		stk.Pop()
 		setCmdline(p)
@@ -1971,7 +1959,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	// Errors after this point are caused by this package, not the importing
 	// package. Pushing the path here prevents us from reporting the error
 	// with the position of the import declaration.
-	stk.Push(&importInfo{Pkg: path, Pos: extractFirstImport(importPos)})
+	stk.Push(&ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 	defer stk.Pop()
 
 	pkgPath := p.ImportPath
