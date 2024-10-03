@@ -1022,33 +1022,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		size += computeRZlog(size)
 	}
 
+	// Pre-malloc debug hooks.
 	if debug.malloc {
-		if debug.sbrk != 0 {
-			align := uintptr(16)
-			if typ != nil {
-				// TODO(austin): This should be just
-				//   align = uintptr(typ.align)
-				// but that's only 4 on 32-bit platforms,
-				// even if there's a uint64 field in typ (see #599).
-				// This causes 64-bit atomic accesses to panic.
-				// Hence, we use stricter alignment that matches
-				// the normal allocator better.
-				if size&7 == 0 {
-					align = 8
-				} else if size&3 == 0 {
-					align = 4
-				} else if size&1 == 0 {
-					align = 2
-				} else {
-					align = 1
-				}
-			}
-			return persistentalloc(size, align, &memstats.other_sys)
-		}
-
-		if inittrace.active && inittrace.id == getg().goid {
-			// Init functions are executed sequentially in a single goroutine.
-			inittrace.allocs += 1
+		if x := preMallocgcDebug(size, typ); x != nil {
+			return x
 		}
 	}
 
@@ -1296,19 +1273,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
+	// Post-malloc debug hooks.
 	if debug.malloc {
-		if inittrace.active && inittrace.id == getg().goid {
-			// Init functions are executed sequentially in a single goroutine.
-			inittrace.bytes += uint64(fullSize)
-		}
-
-		if traceAllocFreeEnabled() {
-			trace := traceAcquire()
-			if trace.ok() {
-				trace.HeapObjectAlloc(uintptr(x), typ)
-				traceRelease(trace)
-			}
-		}
+		postMallocgcDebug(x, fullSize, typ)
 	}
 
 	// Adjust our GC assist debt to account for internal fragmentation.
@@ -1341,6 +1308,51 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	return x
+}
+
+func preMallocgcDebug(size uintptr, typ *_type) unsafe.Pointer {
+	if debug.sbrk != 0 {
+		align := uintptr(16)
+		if typ != nil {
+			// TODO(austin): This should be just
+			//   align = uintptr(typ.align)
+			// but that's only 4 on 32-bit platforms,
+			// even if there's a uint64 field in typ (see #599).
+			// This causes 64-bit atomic accesses to panic.
+			// Hence, we use stricter alignment that matches
+			// the normal allocator better.
+			if size&7 == 0 {
+				align = 8
+			} else if size&3 == 0 {
+				align = 4
+			} else if size&1 == 0 {
+				align = 2
+			} else {
+				align = 1
+			}
+		}
+		return persistentalloc(size, align, &memstats.other_sys)
+	}
+	if inittrace.active && inittrace.id == getg().goid {
+		// Init functions are executed sequentially in a single goroutine.
+		inittrace.allocs += 1
+	}
+	return nil
+}
+
+func postMallocgcDebug(x unsafe.Pointer, elemsize uintptr, typ *_type) {
+	if inittrace.active && inittrace.id == getg().goid {
+		// Init functions are executed sequentially in a single goroutine.
+		inittrace.bytes += uint64(elemsize)
+	}
+
+	if traceAllocFreeEnabled() {
+		trace := traceAcquire()
+		if trace.ok() {
+			trace.HeapObjectAlloc(uintptr(x), typ)
+			traceRelease(trace)
+		}
+	}
 }
 
 // deductAssistCredit reduces the current G's assist credit
