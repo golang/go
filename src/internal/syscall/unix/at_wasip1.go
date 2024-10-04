@@ -19,6 +19,10 @@ const (
 	UTIME_OMIT = -0x2
 )
 
+func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
+	return syscall.Openat(dirfd, path, flags, perm)
+}
+
 func Readlinkat(dirfd int, path string, buf []byte) (int, error) {
 	var nwritten size
 	errno := path_readlink(

@@ -223,6 +223,7 @@ const (
 	O_EXCL      = 0200
 	O_SYNC      = 010000
 	O_DIRECTORY = 020000
+	O_NOFOLLOW  = 0400
 
 	O_CLOEXEC = 0
 )
