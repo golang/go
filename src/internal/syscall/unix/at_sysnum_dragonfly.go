@@ -7,9 +7,11 @@ package unix
 import "syscall"
 
 const (
-	unlinkatTrap uintptr = syscall.SYS_UNLINKAT
-	openatTrap   uintptr = syscall.SYS_OPENAT
-	fstatatTrap  uintptr = syscall.SYS_FSTATAT
+	unlinkatTrap   uintptr = syscall.SYS_UNLINKAT
+	openatTrap     uintptr = syscall.SYS_OPENAT
+	fstatatTrap    uintptr = syscall.SYS_FSTATAT
+	readlinkatTrap uintptr = syscall.SYS_READLINKAT
+	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
 
 	AT_EACCESS          = 0x4
 	AT_FDCWD            = 0xfffafdcd

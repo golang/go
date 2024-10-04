@@ -11,4 +11,5 @@ const (
 	copyFileRangeTrap   uintptr = 379
 	pidfdSendSignalTrap uintptr = 424
 	pidfdOpenTrap       uintptr = 434
+	openat2Trap         uintptr = 437
 )

@@ -10,3 +10,7 @@ TEXT ·libc_faccessat_trampoline(SB),NOSPLIT,$0-0
         JMP	libc_faccessat(SB)
 TEXT ·libc_arc4random_buf_trampoline(SB),NOSPLIT,$0-0
         JMP	libc_arc4random_buf(SB)
+TEXT ·libc_readlinkat_trampoline(SB),NOSPLIT,$0-0
+        JMP	libc_readlinkat(SB)
+TEXT ·libc_mkdirat_trampoline(SB),NOSPLIT,$0-0
+        JMP	libc_mkdirat(SB)
