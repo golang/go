@@ -300,7 +300,9 @@ func TestChdir(t *testing.T) {
 	}
 	rel, err := filepath.Rel(oldDir, tmp)
 	if err != nil {
-		t.Fatal(err)
+		// If GOROOT is on C: volume and tmp is on the D: volume, there
+		// is no relative path between them, so skip that test case.
+		rel = "skip"
 	}
 
 	for _, tc := range []struct {
@@ -331,6 +333,9 @@ func TestChdir(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.dir == "skip" {
+				t.Skipf("skipping test because there is no relative path between %s and %s", oldDir, tmp)
+			}
 			if !filepath.IsAbs(tc.pwd) {
 				t.Fatalf("Bad tc.pwd: %q (must be absolute)", tc.pwd)
 			}
@@ -435,12 +440,7 @@ func runTest(t *testing.T, test string) []byte {
 
 	testenv.MustHaveExec(t)
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Skipf("can't find test executable: %v", err)
-	}
-
-	cmd := testenv.Command(t, exe, "-test.run=^"+test+"$", "-test.bench="+test, "-test.v", "-test.parallel=2", "-test.benchtime=2x")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+test+"$", "-test.bench="+test, "-test.v", "-test.parallel=2", "-test.benchtime=2x")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	out, err := cmd.CombinedOutput()
@@ -669,14 +669,7 @@ func TestRaceBeforeParallel(t *testing.T) {
 }
 
 func TestRaceBeforeTests(t *testing.T) {
-	testenv.MustHaveExec(t)
-
-	exe, err := os.Executable()
-	if err != nil {
-		t.Skipf("can't find test executable: %v", err)
-	}
-
-	cmd := testenv.Command(t, exe, "-test.run=^$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^$")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_RACE_BEFORE_TESTS=1")
 	out, _ := cmd.CombinedOutput()

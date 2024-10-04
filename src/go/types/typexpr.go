@@ -23,9 +23,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
 	x.mode = invalid
 	x.expr = e
 
-	// Note that we cannot use check.lookup here because the returned scope
-	// may be different from obj.Parent(). See also Scope.LookupParent doc.
-	scope, obj := check.scope.LookupParent(e.Name, check.pos)
+	scope, obj := check.lookupScope(e.Name)
 	switch obj {
 	case nil:
 		if e.Name == "_" {
@@ -440,13 +438,18 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) 
 	}()
 
 	var cause string
-	gtyp := check.genericType(ix.X, &cause)
+	typ := check.genericType(ix.X, &cause)
 	if cause != "" {
 		check.errorf(ix.Orig, NotAGenericType, invalidOp+"%s (%s)", ix.Orig, cause)
 	}
-	if !isValid(gtyp) {
-		return gtyp // error already reported
+	if !isValid(typ) {
+		return typ // error already reported
 	}
+	// typ must be a generic Alias or Named type (but not a *Signature)
+	if _, ok := typ.(*Signature); ok {
+		panic("unexpected generic signature")
+	}
+	gtyp := typ.(genericType)
 
 	// evaluate arguments
 	targs := check.typeList(ix.Indices)
@@ -454,27 +457,23 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) 
 		return Typ[Invalid]
 	}
 
-	if orig, _ := gtyp.(*Alias); orig != nil {
-		return check.instance(ix.Pos(), orig, targs, nil, check.context())
-	}
+	// create instance
+	// The instance is not generic anymore as it has type arguments, but it still
+	// satisfies the genericType interface because it has type parameters, too.
+	inst := check.instance(ix.Pos(), gtyp, targs, nil, check.context()).(genericType)
 
-	orig := asNamed(gtyp)
-	if orig == nil {
-		panic(fmt.Sprintf("%v: cannot instantiate %v", ix.Pos(), gtyp))
-	}
-
-	// create the instance
-	inst := asNamed(check.instance(ix.Pos(), orig, targs, nil, check.context()))
-
-	// orig.tparams may not be set up, so we need to do expansion later.
+	// For Named types, orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {
 		// This is an instance from the source, not from recursive substitution,
 		// and so it must be resolved during type-checking so that we can report
 		// errors.
-		check.recordInstance(ix.Orig, inst.TypeArgs().list(), inst)
+		check.recordInstance(ix.Orig, targs, inst)
 
-		if check.validateTArgLen(ix.Pos(), inst.obj.name, inst.TypeParams().Len(), inst.TypeArgs().Len()) {
-			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
+		name := inst.(interface{ Obj() *TypeName }).Obj().name
+		tparams := inst.TypeParams().list()
+		if check.validateTArgLen(ix.Pos(), name, len(tparams), len(targs)) {
+			// check type constraints
+			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), targs, check.context()); err != nil {
 				// best position for error reporting
 				pos := ix.Pos()
 				if i < len(ix.Indices) {
@@ -482,15 +481,10 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) 
 				}
 				check.softErrorf(atPos(pos), InvalidTypeArg, "%v", err)
 			} else {
-				check.mono.recordInstance(check.pkg, ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), ix.Indices)
+				check.mono.recordInstance(check.pkg, ix.Pos(), tparams, targs, ix.Indices)
 			}
 		}
-
-		// TODO(rfindley): remove this call: we don't need to call validType here,
-		// as cycles can only occur for types used inside a Named type declaration,
-		// and so it suffices to call validType from declared types.
-		check.validType(inst)
-	}).describef(ix, "resolve instance %s", inst)
+	}).describef(ix, "verify instantiation %s", inst)
 
 	return inst
 }

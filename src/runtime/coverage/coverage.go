@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package coverage contains APIs for writing coverage profile data at runtime
+// from long-running and/or server programs that do not terminate via [os.Exit].
 package coverage
 
 import (

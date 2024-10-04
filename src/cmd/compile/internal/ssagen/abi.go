@@ -451,8 +451,10 @@ func resultsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultIn
 			wfs[i].Type = obj.WasmF32
 		case types.TFLOAT64:
 			wfs[i].Type = obj.WasmF64
+		case types.TUNSAFEPTR:
+			wfs[i].Type = obj.WasmPtr
 		default:
-			base.ErrorfAt(f.Pos(), 0, "go:wasmimport %s %s: unsupported result type %s", f.WasmImport.Module, f.WasmImport.Name, t.String())
+			base.ErrorfAt(f.Pos(), 0, "%s: unsupported result type %s", pragma, t.String())
 		}
 		wfs[i].Offset = p.FrameOffset(result)
 	}

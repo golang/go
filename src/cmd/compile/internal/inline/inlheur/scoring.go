@@ -9,9 +9,10 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/types"
+	"cmp"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -368,7 +369,7 @@ func setupFlagToAdjMaps() {
 // "call in loop". If the calculated cost of the function is 150, and
 // the in-loop adjustment is 5 (for example), then there is not much
 // point treating it as inlinable. On the other hand "bar" has a param
-// property (parameter "x" feeds unmodified to an "if" statement") and
+// property (parameter "x" feeds unmodified to an "if" statement) and
 // a return property (always returns same constant) meaning that a
 // given call _could_ be rescored down as much as -35 points-- thus if
 // the size of "bar" is 100 (for example) then there is at least a
@@ -504,8 +505,8 @@ func (csa *callSiteAnalyzer) scoreCallsRegion(fn *ir.Func, region ir.Nodes, csta
 		csl = append(csl, cs)
 	}
 	scoreCallsCache.csl = csl[:0]
-	sort.Slice(csl, func(i, j int) bool {
-		return csl[i].ID < csl[j].ID
+	slices.SortFunc(csl, func(a, b *CallSite) int {
+		return cmp.Compare(a.ID, b.ID)
 	})
 
 	// Score each call site.
@@ -569,9 +570,7 @@ func ScoreCallsCleanup() {
 			allCallSites[call] = cs
 		}
 	}
-	for k := range scoreCallsCache.tab {
-		delete(scoreCallsCache.tab, k)
-	}
+	clear(scoreCallsCache.tab)
 }
 
 // GetCallSiteScore returns the previously calculated score for call
@@ -702,18 +701,18 @@ func DumpInlCallSiteScores(profile *pgoir.Profile, budgetCallback func(fn *ir.Fu
 		for _, cs := range allCallSites {
 			sl = append(sl, cs)
 		}
-		sort.Slice(sl, func(i, j int) bool {
-			if sl[i].Score != sl[j].Score {
-				return sl[i].Score < sl[j].Score
+		slices.SortFunc(sl, func(a, b *CallSite) int {
+			if a.Score != b.Score {
+				return cmp.Compare(a.Score, b.Score)
 			}
-			fni := ir.PkgFuncName(sl[i].Callee)
-			fnj := ir.PkgFuncName(sl[j].Callee)
+			fni := ir.PkgFuncName(a.Callee)
+			fnj := ir.PkgFuncName(b.Callee)
 			if fni != fnj {
-				return fni < fnj
+				return cmp.Compare(fni, fnj)
 			}
-			ecsi := EncodeCallSiteKey(sl[i])
-			ecsj := EncodeCallSiteKey(sl[j])
-			return ecsi < ecsj
+			ecsi := EncodeCallSiteKey(a)
+			ecsj := EncodeCallSiteKey(b)
+			return cmp.Compare(ecsi, ecsj)
 		})
 
 		mkname := func(fn *ir.Func) string {

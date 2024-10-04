@@ -5,13 +5,14 @@
 package noder
 
 import (
+	"cmp"
 	"fmt"
 	"internal/buildcfg"
 	"internal/pkgbits"
 	"internal/types/errors"
 	"io"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -519,7 +520,7 @@ func writeUnifiedExport(out io.Writer) {
 		for _, idx := range l.decls {
 			idxs = append(idxs, idx)
 		}
-		sort.Slice(idxs, func(i, j int) bool { return idxs[i] < idxs[j] })
+		slices.Sort(idxs)
 
 		w := publicRootWriter
 
@@ -553,7 +554,7 @@ func writeUnifiedExport(out io.Writer) {
 		for sym, idx := range l.bodies {
 			bodies = append(bodies, symIdx{sym, idx})
 		}
-		sort.Slice(bodies, func(i, j int) bool { return bodies[i].idx < bodies[j].idx })
+		slices.SortFunc(bodies, func(a, b symIdx) int { return cmp.Compare(a.idx, b.idx) })
 
 		w := privateRootWriter
 

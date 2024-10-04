@@ -7,6 +7,7 @@ package ssa
 import (
 	"fmt"
 	"os"
+	"slices"
 )
 
 // If true, check poset integrity after every mutation
@@ -350,7 +351,7 @@ func (po *poset) changeroot(oldr, newr uint32) {
 func (po *poset) removeroot(r uint32) {
 	for i := range po.roots {
 		if po.roots[i] == r {
-			po.roots = append(po.roots[:i], po.roots[i+1:]...)
+			po.roots = slices.Delete(po.roots, i, i+1)
 			return
 		}
 	}

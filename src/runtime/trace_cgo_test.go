@@ -94,10 +94,9 @@ func mustFindLogV2(t *testing.T, trc io.Reader, category string) trace.Event {
 // dumpStack returns e.Stack() as a string.
 func dumpStackV2(e *trace.Event) string {
 	var buf bytes.Buffer
-	e.Stack().Frames(func(f trace.StackFrame) bool {
+	for f := range e.Stack().Frames() {
 		file := strings.TrimPrefix(f.File, runtime.GOROOT())
 		fmt.Fprintf(&buf, "%s\n\t%s:%d\n", f.Func, file, f.Line)
-		return true
-	})
+	}
 	return buf.String()
 }

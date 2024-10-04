@@ -361,20 +361,6 @@ func asmbPlan9Sym(ctxt *Link) {
 	}
 }
 
-type byPkg []*sym.Library
-
-func (libs byPkg) Len() int {
-	return len(libs)
-}
-
-func (libs byPkg) Less(a, b int) bool {
-	return libs[a].Pkg < libs[b].Pkg
-}
-
-func (libs byPkg) Swap(a, b int) {
-	libs[a], libs[b] = libs[b], libs[a]
-}
-
 // Create a table with information on the text sections.
 // Return the symbol of the table, and number of sections.
 func textsectionmap(ctxt *Link) (loader.Sym, uint32) {

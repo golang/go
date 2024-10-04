@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -169,16 +170,10 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	// Write PAX records to the output.
 	isGlobal := hdr.Typeflag == TypeXGlobalHeader
 	if len(paxHdrs) > 0 || isGlobal {
-		// Sort keys for deterministic ordering.
-		var keys []string
-		for k := range paxHdrs {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
-
 		// Write each record to a buffer.
 		var buf strings.Builder
-		for _, k := range keys {
+		// Sort keys for deterministic ordering.
+		for _, k := range slices.Sorted(maps.Keys(paxHdrs)) {
 			rec, err := formatPAXRecord(k, paxHdrs[k])
 			if err != nil {
 				return err
@@ -413,7 +408,7 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
+		if name == "." {
 			return nil
 		}
 		info, err := d.Info()
@@ -421,7 +416,7 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
 			return err
 		}
 		// TODO(#49580): Handle symlinks when fs.ReadLinkFS is available.
-		if !info.Mode().IsRegular() {
+		if !d.IsDir() && !info.Mode().IsRegular() {
 			return errors.New("tar: cannot add non-regular file")
 		}
 		h, err := FileInfoHeader(info, "")
@@ -431,6 +426,9 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
 		h.Name = name
 		if err := tw.WriteHeader(h); err != nil {
 			return err
+		}
+		if d.IsDir() {
+			return nil
 		}
 		f, err := fsys.Open(name)
 		if err != nil {
@@ -668,6 +666,7 @@ func (sw *sparseFileWriter) ReadFrom(r io.Reader) (n int64, err error) {
 func (sw sparseFileWriter) logicalRemaining() int64 {
 	return sw.sp[len(sw.sp)-1].endOffset() - sw.pos
 }
+
 func (sw sparseFileWriter) physicalRemaining() int64 {
 	return sw.fw.physicalRemaining()
 }

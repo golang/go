@@ -3597,12 +3597,6 @@ func mapdelete_faststr(t *abi.Type, m unsafe.Pointer, key string)
 func mapiterinit(t *abi.Type, m unsafe.Pointer, it *hiter)
 
 //go:noescape
-func mapiterkey(it *hiter) (key unsafe.Pointer)
-
-//go:noescape
-func mapiterelem(it *hiter) (elem unsafe.Pointer)
-
-//go:noescape
 func mapiternext(it *hiter)
 
 //go:noescape

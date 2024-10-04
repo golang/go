@@ -161,7 +161,7 @@ func TestMergeLocalsIntegration(t *testing.T) {
 		fields := strings.Fields(line)
 		wantFields := 9
 		if len(fields) != wantFields {
-			t.Logf(string(out))
+			t.Log(string(out))
 			t.Fatalf("bad trace output line, wanted %d fields got %d: %s",
 				wantFields, len(fields), line)
 		}
@@ -173,7 +173,7 @@ func TestMergeLocalsIntegration(t *testing.T) {
 	wantvnum := 8
 	gotvnum := len(vars)
 	if wantvnum != gotvnum {
-		t.Logf(string(out))
+		t.Log(string(out))
 		t.Fatalf("expected trace output on %d vars got %d\n", wantvnum, gotvnum)
 	}
 

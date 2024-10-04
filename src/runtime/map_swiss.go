@@ -60,6 +60,7 @@ import (
 	"internal/goarch"
 	"internal/runtime/atomic"
 	"internal/runtime/math"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -391,7 +392,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
 // hold onto it for very long.
 func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(mapaccess1)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.Key, key, callerpc, pc)
@@ -452,7 +453,7 @@ bucketloop:
 
 func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(mapaccess2)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.Key, key, callerpc, pc)
@@ -577,7 +578,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(mapassign)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.Key, key, callerpc, pc)
@@ -691,7 +692,7 @@ done:
 
 func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(mapdelete)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.Key, key, callerpc, pc)
@@ -811,7 +812,7 @@ search:
 // Both need to have zeroed hiter since the struct contains pointers.
 func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiterinit))
 	}
 
@@ -858,7 +859,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 func mapiternext(it *hiter) {
 	h := it.h
 	if raceenabled {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiternext))
 	}
 	if h.flags&hashWriting != 0 {
@@ -984,7 +985,7 @@ next:
 // mapclear deletes all keys from a map.
 func mapclear(t *maptype, h *hmap) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(mapclear)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 	}
@@ -1117,6 +1118,11 @@ func (h *hmap) growing() bool {
 // sameSizeGrow reports whether the current growth is to a map of the same size.
 func (h *hmap) sameSizeGrow() bool {
 	return h.flags&sameSizeGrow != 0
+}
+
+//go:linkname sameSizeGrowForIssue69110Test
+func sameSizeGrowForIssue69110Test(h *hmap) bool {
+	return h.sameSizeGrow()
 }
 
 // noldbuckets calculates the number of buckets prior to the current map growth.
@@ -1404,7 +1410,7 @@ func reflect_maplen(h *hmap) int {
 		return 0
 	}
 	if raceenabled {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(reflect_maplen))
 	}
 	return h.count
@@ -1421,7 +1427,7 @@ func reflectlite_maplen(h *hmap) int {
 		return 0
 	}
 	if raceenabled {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(reflect_maplen))
 	}
 	return h.count
@@ -1497,7 +1503,16 @@ func moveToBmap(t *maptype, h *hmap, dst *bmap, pos int, src *bmap) (*bmap, int)
 }
 
 func mapclone2(t *maptype, src *hmap) *hmap {
-	dst := makemap(t, src.count, nil)
+	hint := src.count
+	if overLoadFactor(hint, src.B) {
+		// Note: in rare cases (e.g. during a same-sized grow) the map
+		// can be overloaded. Make sure we don't allocate a destination
+		// bucket array larger than the source bucket array.
+		// This will cause the cloned map to be overloaded also,
+		// but that's better than crashing. See issue 69110.
+		hint = int(loadFactorNum * (bucketShift(src.B) / loadFactorDen))
+	}
+	dst := makemap(t, hint, nil)
 	dst.hash0 = src.hash0
 	dst.nevacuate = 0
 	// flags do not need to be copied here, just like a new map has no flags.

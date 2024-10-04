@@ -101,10 +101,10 @@ func (ctxt *Context) lookup(h string, orig Type, targs []Type) Type {
 	return nil
 }
 
-// update de-duplicates n against previously seen types with the hash h.  If an
-// identical type is found with the type hash h, the previously seen type is
-// returned. Otherwise, n is returned, and recorded in the Context for the hash
-// h.
+// update de-duplicates inst against previously seen types with the hash h.
+// If an identical type is found with the type hash h, the previously seen
+// type is returned. Otherwise, inst is returned, and recorded in the Context
+// for the hash h.
 func (ctxt *Context) update(h string, orig Type, targs []Type, inst Type) Type {
 	assert(inst != nil)
 

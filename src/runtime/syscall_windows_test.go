@@ -1111,12 +1111,6 @@ func TestDLLPreloadMitigation(t *testing.T) {
 
 	tmpdir := t.TempDir()
 
-	dir0, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(dir0)
-
 	const src = `
 #include <stdint.h>
 #include <windows.h>
@@ -1127,7 +1121,7 @@ uintptr_t cfunc(void) {
 }
 `
 	srcname := "nojack.c"
-	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1148,7 +1142,7 @@ uintptr_t cfunc(void) {
 	// ("nojack.dll") Think of this as the user double-clicking an
 	// installer from their Downloads directory where a browser
 	// silently downloaded some malicious DLLs.
-	os.Chdir(tmpdir)
+	t.Chdir(tmpdir)
 
 	// First before we can load a DLL from the current directory,
 	// loading it only as "nojack.dll", without an absolute path.

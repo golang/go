@@ -592,7 +592,7 @@ func Join(s [][]byte, sep []byte) []byte {
 
 // HasPrefix reports whether the byte slice s begins with prefix.
 func HasPrefix(s, prefix []byte) bool {
-	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix)
+	return len(s) >= len(prefix) && Equal(s[:len(prefix)], prefix)
 }
 
 // HasSuffix reports whether the byte slice s ends with suffix.

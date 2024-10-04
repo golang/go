@@ -610,9 +610,9 @@
 (MOV(H|W)reg (SRAWconst [c] (MOVHreg x))) => (SRAWconst [c] (MOVHreg x))
 (MOVWreg (SRAWconst [c] (MOVWreg x))) => (SRAWconst [c] (MOVWreg x))
 
-(MOV(WZ|W)reg (S(R|RA)Wconst [c] x)) && sizeof(x.Type) <= 32 => (S(R|RA)Wconst [c] x)
-(MOV(HZ|H)reg (S(R|RA)Wconst [c] x)) && sizeof(x.Type) <= 16 => (S(R|RA)Wconst [c] x)
-(MOV(BZ|B)reg (S(R|RA)Wconst [c] x)) && sizeof(x.Type) == 8 => (S(R|RA)Wconst [c] x)
+(MOV(WZ|W)reg (S(R|RA)Wconst [c] x)) && x.Type.Size() <= 32 => (S(R|RA)Wconst [c] x)
+(MOV(HZ|H)reg (S(R|RA)Wconst [c] x)) && x.Type.Size() <= 16 => (S(R|RA)Wconst [c] x)
+(MOV(BZ|B)reg (S(R|RA)Wconst [c] x)) && x.Type.Size() == 8 => (S(R|RA)Wconst [c] x)
 
 // initial right shift will handle sign/zero extend
 (MOVBZreg (SRDconst [c] x)) && c>=56 => (SRDconst [c] x)

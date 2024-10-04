@@ -16,7 +16,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -32,7 +31,7 @@ import (
 //
 // "a < b" means package b can import package a.
 //
-// See `go doc internal/dag' for the full syntax.
+// See `go doc internal/dag` for the full syntax.
 //
 // All-caps names are pseudo-names for specific points
 // in the dependency lattice.
@@ -461,7 +460,7 @@ var depsRules = `
 	< crypto/internal/boring
 	< crypto/boring;
 
-	crypto/internal/alias
+	crypto/internal/alias, math/rand/v2
 	< crypto/internal/randutil
 	< crypto/internal/nistec/fiat
 	< crypto/internal/nistec
@@ -751,11 +750,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 }
 
 func TestDependencies(t *testing.T) {
-	if !testenv.HasSrc() {
-		// Tests run in a limited file system and we do not
-		// provide access to every source file.
-		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.MustHaveSource(t)
 
 	ctxt := Default
 	all, err := listStdPkgs(ctxt.GOROOT)
@@ -859,9 +854,7 @@ func depsPolicy(t *testing.T) *dag.Graph {
 // TestStdlibLowercase tests that all standard library package names are
 // lowercase. See Issue 40065.
 func TestStdlibLowercase(t *testing.T) {
-	if !testenv.HasSrc() {
-		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.MustHaveSource(t)
 
 	ctxt := Default
 	all, err := listStdPkgs(ctxt.GOROOT)

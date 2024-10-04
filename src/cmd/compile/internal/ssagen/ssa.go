@@ -13,7 +13,7 @@ import (
 	"internal/buildcfg"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/compile/internal/abi"
@@ -102,8 +102,6 @@ func InitConfig() {
 	// Set up some runtime functions we'll need to call.
 	ir.Syms.AssertE2I = typecheck.LookupRuntimeFunc("assertE2I")
 	ir.Syms.AssertE2I2 = typecheck.LookupRuntimeFunc("assertE2I2")
-	ir.Syms.AssertI2I = typecheck.LookupRuntimeFunc("assertI2I")
-	ir.Syms.AssertI2I2 = typecheck.LookupRuntimeFunc("assertI2I2")
 	ir.Syms.CgoCheckMemmove = typecheck.LookupRuntimeFunc("cgoCheckMemmove")
 	ir.Syms.CgoCheckPtrWrite = typecheck.LookupRuntimeFunc("cgoCheckPtrWrite")
 	ir.Syms.CheckPtrAlignment = typecheck.LookupRuntimeFunc("checkptrAlignment")
@@ -789,7 +787,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *ir.Func) {
 		inlFns = append(inlFns, fnLines)
 	}
 
-	sort.Sort(ssa.ByTopo(inlFns))
+	slices.SortFunc(inlFns, ssa.ByTopoCmp)
 	if targetFn != nil {
 		inlFns = append([]*ssa.FuncLines{targetFn}, inlFns...)
 	}
@@ -991,9 +989,7 @@ func (s *state) startBlock(b *ssa.Block) {
 	}
 	s.curBlock = b
 	s.vars = map[ir.Node]*ssa.Value{}
-	for n := range s.fwdVars {
-		delete(s.fwdVars, n)
-	}
+	clear(s.fwdVars)
 }
 
 // endBlock marks the end of generating code for the current block.
@@ -3461,10 +3457,6 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		n := n.(*ir.CallExpr)
 		return s.newValue1(ssa.OpGetG, n.Type(), s.mem())
 
-	case ir.OGETCALLERPC:
-		n := n.(*ir.CallExpr)
-		return s.newValue0(ssa.OpGetCallerPC, n.Type())
-
 	case ir.OGETCALLERSP:
 		n := n.(*ir.CallExpr)
 		return s.newValue1(ssa.OpGetCallerSP, n.Type(), s.mem())
@@ -3863,7 +3855,7 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
 		cond := cond.(*ir.LogicalExpr)
 		mid := s.f.NewBlock(ssa.BlockPlain)
 		s.stmtList(cond.Init())
-		s.condBranch(cond.X, mid, no, max8(likely, 0))
+		s.condBranch(cond.X, mid, no, max(likely, 0))
 		s.startBlock(mid)
 		s.condBranch(cond.Y, yes, no, likely)
 		return
@@ -3877,7 +3869,7 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
 		cond := cond.(*ir.LogicalExpr)
 		mid := s.f.NewBlock(ssa.BlockPlain)
 		s.stmtList(cond.Init())
-		s.condBranch(cond.X, yes, mid, min8(likely, 0))
+		s.condBranch(cond.X, yes, mid, min(likely, 0))
 		s.startBlock(mid)
 		s.condBranch(cond.Y, yes, no, likely)
 		return
@@ -3951,7 +3943,7 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 			old := s.expr(left.X)
 
 			// Make new structure.
-			new := s.newValue0(ssa.StructMakeOp(t.NumFields()), t)
+			new := s.newValue0(ssa.OpStructMake, t)
 
 			// Add fields as args.
 			for i := 0; i < nf; i++ {
@@ -4079,7 +4071,7 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 		return s.constSlice(t)
 	case t.IsStruct():
 		n := t.NumFields()
-		v := s.entryNewValue0(ssa.StructMakeOp(t.NumFields()), t)
+		v := s.entryNewValue0(ssa.OpStructMake, t)
 		for i := 0; i < n; i++ {
 			v.AddArg(s.zeroVal(t.FieldType(i)))
 		}
@@ -7399,20 +7391,6 @@ func callTargetLSym(callee *ir.Name) *obj.LSym {
 	}
 
 	return callee.LinksymABI(callee.Func.ABI)
-}
-
-func min8(a, b int8) int8 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max8(a, b int8) int8 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 // deferStructFnField is the field index of _defer.fn.

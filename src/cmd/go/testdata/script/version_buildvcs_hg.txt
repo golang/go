@@ -6,12 +6,15 @@
 [short] skip
 env GOBIN=$WORK/gopath/bin
 env oldpath=$PATH
+env TZ=GMT
+env HGRCPATH=$WORK/hgrc
 cd repo/a
 
 # If there's no local repository, there's no VCS info.
 go install
 go version -m $GOBIN/a$GOEXE
 ! stdout hgrevision
+stdout '\s+mod\s+example.com/a\s+\(devel\)'
 rm $GOBIN/a$GOEXE
 
 # If there is a repository, but it can't be used for some reason,
@@ -29,31 +32,58 @@ cd ..
 env PATH=$oldpath
 rm .hg
 
-# If there is an empty repository in a parent directory, only "uncommitted" is tagged.
+# An empty repository or one explicitly updated to null uses the null cset ID,
+# and the time is hard set to 1/1/70, regardless of the current time.
 exec hg init
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
-! stdout vcs.revision
-! stdout vcs.time
+stdout '^\tbuild\tvcs.revision=0000000000000000000000000000000000000000$'
+stdout '^\tbuild\tvcs.time=1970-01-01T00:00:00Z$'
 stdout '^\tbuild\tvcs.modified=true$'
+stdout '\s+mod\s+example.com/a\s+v0.0.0-19700101000000-000000000000\+dirty'
 cd ..
 
 # Revision and commit time are tagged for repositories with commits.
 exec hg add a README
-exec hg commit -m 'initial commit'
+exec hg commit -m 'initial commit' --user test-user --date '2024-07-31T01:21:27+00:00'
+exec hg tag v1.2.3
+# Switch back to the tagged branch.
+# Tagging a commit causes a new commit to be created. (See https://repo.mercurial-scm.org/hg/help/revsets)
+exec hg update '.~1'
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tvcs.revision='
-stdout '^\tbuild\tvcs.time='
+stdout '^\tbuild\tvcs.revision=71eaed52daeaafea83cb604f75b0a0336ef2c345$'
+stdout '^\tbuild\tvcs.time=2024-07-31T01:21:27Z$'
 stdout '^\tbuild\tvcs.modified=false$'
+stdout '\s+mod\s+example.com/a\s+v1.2.3\s+'
+rm $GOBIN/a$GOEXE
+
+# Add an extra commit and then back off of it to show that the hash is
+# from the checked out revision, not the tip revision.
+cp ../../outside/empty.txt .
+exec hg ci -Am 'another commit' --user test-user --date '2024-08-01T19:24:38+00:00'
+exec hg update --clean -r '.^'
+
+# Modified state is not thrown off by extra status output
+exec hg bisect -v -g .
+exec hg bisect -v -b '.^^'
+exec hg status
+stdout '^.+'
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs.revision=71eaed52daeaafea83cb604f75b0a0336ef2c345$'
+stdout '^\tbuild\tvcs.time=2024-07-31T01:21:27Z$'
+stdout '^\tbuild\tvcs.modified=false$'
+stdout '\s+mod\s+example.com/a\s+v1.2.3\s+'
 rm $GOBIN/a$GOEXE
 
 # Building with -buildvcs=false suppresses the info.
 go install -buildvcs=false
 go version -m $GOBIN/a$GOEXE
 ! stdout hgrevision
+stdout '\s+mod\s+example.com/a\s+\(devel\)'
 rm $GOBIN/a$GOEXE
 
 # An untracked file is shown as uncommitted, even if it isn't part of the build.
@@ -61,6 +91,7 @@ cp ../../outside/empty.txt .
 go install
 go version -m $GOBIN/a$GOEXE
 stdout '^\tbuild\tvcs.modified=true$'
+stdout '\s+mod\s+example.com/a\s+v1.2.3\+dirty\s+'
 rm empty.txt
 rm $GOBIN/a$GOEXE
 
@@ -69,6 +100,7 @@ cp ../../outside/empty.txt ../README
 go install
 go version -m $GOBIN/a$GOEXE
 stdout '^\tbuild\tvcs.modified=true$'
+stdout '\s+mod\s+example.com/a\s+v1.2.3\+dirty\s+'
 exec hg revert ../README
 rm $GOBIN/a$GOEXE
 
@@ -88,4 +120,10 @@ go 1.18
 package main
 
 func main() {}
+-- $WORK/hgrc --
+[ui]
+# tweakdefaults is an opt-in that may print extra output in commands like
+# status.  That can be disabled by setting HGPLAIN=1.
+tweakdefaults = 1
+
 -- outside/empty.txt --

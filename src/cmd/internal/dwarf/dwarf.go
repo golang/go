@@ -10,11 +10,12 @@ package dwarf
 import (
 	"bytes"
 	"cmd/internal/src"
+	"cmp"
 	"errors"
 	"fmt"
 	"internal/buildcfg"
 	"os/exec"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -30,7 +31,7 @@ const ConstInfoPrefix = "go:constinfo."
 // populate the DWARF compilation unit info entries.
 const CUInfoPrefix = "go:cuinfo."
 
-// Used to form the symbol name assigned to the DWARF 'abstract subprogram"
+// Used to form the symbol name assigned to the DWARF "abstract subprogram"
 // info entry for a function
 const AbstractFuncSuffix = "$abstract"
 
@@ -1112,7 +1113,7 @@ func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
 				pruned.Vars = append(pruned.Vars, s.Vars[i])
 			}
 		}
-		sort.Sort(byChildIndex(pruned.Vars))
+		slices.SortFunc(pruned.Vars, byChildIndexCmp)
 		scopes[k] = pruned
 	}
 
@@ -1181,7 +1182,7 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 			}
 		}
 		if len(flattened) > 0 {
-			sort.Sort(byChildIndex(flattened))
+			slices.SortFunc(flattened, byChildIndexCmp)
 
 			if logDwarf {
 				ctxt.Logf("putAbstractScope(%v): vars:", s.Info)
@@ -1245,7 +1246,7 @@ func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
 
 	// Variables associated with this inlined routine instance.
 	vars := ic.InlVars
-	sort.Sort(byChildIndex(vars))
+	slices.SortFunc(vars, byChildIndexCmp)
 	inlIndex := ic.InlIndex
 	var encbuf [20]byte
 	for _, v := range vars {
@@ -1562,12 +1563,8 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 	// Var has no children => no terminator
 }
 
-// byChildIndex implements sort.Interface for []*dwarf.Var by child index.
-type byChildIndex []*Var
-
-func (s byChildIndex) Len() int           { return len(s) }
-func (s byChildIndex) Less(i, j int) bool { return s[i].ChildIndex < s[j].ChildIndex }
-func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+// byChildIndexCmp compares two *dwarf.Var by child index.
+func byChildIndexCmp(a, b *Var) int { return cmp.Compare(a.ChildIndex, b.ChildIndex) }
 
 // IsDWARFEnabledOnAIXLd returns true if DWARF is possible on the
 // current extld.

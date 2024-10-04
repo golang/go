@@ -18,6 +18,7 @@ package reflect
 import (
 	"internal/abi"
 	"internal/goarch"
+	"runtime"
 	"strconv"
 	"sync"
 	"unicode"
@@ -1114,16 +1115,34 @@ func (t *structType) Field(i int) (f StructField) {
 	}
 	f.Offset = p.Offset
 
-	// NOTE(rsc): This is the only allocation in the interface
-	// presented by a reflect.Type. It would be nice to avoid,
-	// at least in the common cases, but we need to make sure
-	// that misbehaving clients of reflect cannot affect other
-	// uses of reflect. One possibility is CL 5371098, but we
-	// postponed that ugliness until there is a demonstrated
-	// need for the performance. This is issue 2320.
-	f.Index = []int{i}
+	// We can't safely use this optimization on js or wasi,
+	// which do not appear to support read-only data.
+	if i < 256 && runtime.GOOS != "js" && runtime.GOOS != "wasip1" {
+		staticuint64s := getStaticuint64s()
+		p := unsafe.Pointer(&(*staticuint64s)[i])
+		if unsafe.Sizeof(int(0)) == 4 && goarch.BigEndian {
+			p = unsafe.Add(p, 4)
+		}
+		f.Index = unsafe.Slice((*int)(p), 1)
+	} else {
+		// NOTE(rsc): This is the only allocation in the interface
+		// presented by a reflect.Type. It would be nice to avoid,
+		// but we need to make sure that misbehaving clients of
+		// reflect cannot affect other uses of reflect.
+		// One possibility is CL 5371098, but we postponed that
+		// ugliness until there is a demonstrated
+		// need for the performance. This is issue 2320.
+		f.Index = []int{i}
+	}
 	return
 }
+
+// getStaticuint64s returns a pointer to an array of 256 uint64 values,
+// defined in the runtime package in read-only memory.
+// staticuint64s[0] == 0, staticuint64s[1] == 1, and so forth.
+//
+//go:linkname getStaticuint64s runtime.getStaticuint64s
+func getStaticuint64s() *[256]uint64
 
 // TODO(gri): Should there be an error/bool indicator if the index
 // is wrong for FieldByIndex?

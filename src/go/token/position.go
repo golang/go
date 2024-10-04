@@ -503,7 +503,7 @@ func (s *FileSet) RemoveFile(file *File) {
 
 	if i := searchFiles(s.files, file.base); i >= 0 && s.files[i] == file {
 		last := &s.files[len(s.files)-1]
-		s.files = append(s.files[:i], s.files[i+1:]...)
+		s.files = slices.Delete(s.files, i, i+1)
 		*last = nil // don't prolong lifetime when popping last element
 	}
 }

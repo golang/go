@@ -346,8 +346,13 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 // The elements are copied using assignment, so this is a shallow clone.
 // The result may have additional unused capacity.
 func Clone[S ~[]E, E any](s S) S {
-	// The s[:0:0] preserves nil in case it matters.
-	return append(s[:0:0], s...)
+	// Preserve nilness in case it matters.
+	if s == nil {
+		return nil
+	}
+	// Avoid s[:0:0] as it leads to unwanted liveness when cloning a
+	// zero-length slice of a large array; see https://go.dev/issue/68488.
+	return append(S{}, s...)
 }
 
 // Compact replaces consecutive runs of equal elements with a single copy.
@@ -434,7 +439,7 @@ func rotateRight[E any](s []E, r int) {
 	rotateLeft(s, len(s)-r)
 }
 
-// overlaps reports whether the memory ranges a[0:len(a)] and b[0:len(b)] overlap.
+// overlaps reports whether the memory ranges a[:len(a)] and b[:len(b)] overlap.
 func overlaps[E any](a, b []E) bool {
 	if len(a) == 0 || len(b) == 0 {
 		return false

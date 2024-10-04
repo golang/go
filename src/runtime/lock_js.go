@@ -6,7 +6,10 @@
 
 package runtime
 
-import _ "unsafe" // for go:linkname
+import (
+	"internal/runtime/sys"
+	_ "unsafe" // for go:linkname
+)
 
 // js/wasm has no support for threads yet. There is no preemption.
 
@@ -244,7 +247,7 @@ var idleStart int64
 
 func handleAsyncEvent() {
 	idleStart = nanotime()
-	pause(getcallersp() - 16)
+	pause(sys.GetCallerSP() - 16)
 }
 
 // clearIdleTimeout clears our record of the timeout started by beforeIdle.
@@ -291,7 +294,7 @@ func handleEvent() {
 
 	// return execution to JavaScript
 	idleStart = nanotime()
-	pause(getcallersp() - 16)
+	pause(sys.GetCallerSP() - 16)
 }
 
 // eventHandler retrieves and executes handlers for pending JavaScript events.

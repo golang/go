@@ -118,7 +118,7 @@ type gitRepo struct {
 	ctx context.Context
 
 	remote, remoteURL string
-	local             bool
+	local             bool // local only lookups; no remote fetches
 	dir               string
 
 	mu lockedfile.Mutex // protects fetchLevel and git repo state
@@ -216,6 +216,11 @@ func (r *gitRepo) CheckReuse(ctx context.Context, old *Origin, subdir string) er
 // loadRefs loads heads and tags references from the remote into the map r.refs.
 // The result is cached in memory.
 func (r *gitRepo) loadRefs(ctx context.Context) (map[string]string, error) {
+	if r.local { // Return results from the cache if local only.
+		// In the future, we could consider loading r.refs using local git commands
+		// if desired.
+		return nil, nil
+	}
 	r.refsOnce.Do(func() {
 		// The git protocol sends all known refs and ls-remote filters them on the client side,
 		// so we might as well record both heads and tags in one shot.
@@ -392,10 +397,6 @@ const minHashDigits = 7
 // stat stats the given rev in the local repository,
 // or else it fetches more info from the remote repository and tries again.
 func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err error) {
-	if r.local {
-		return r.statLocal(ctx, rev, rev)
-	}
-
 	// Fast path: maybe rev is a hash we already have locally.
 	didStatLocal := false
 	if len(rev) >= minHashDigits && len(rev) <= 40 && AllHex(rev) {
@@ -499,6 +500,10 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 		}
 	}
 
+	if r.local { // at this point, we have determined that we need to fetch rev, fail early if local only mode.
+		return nil, fmt.Errorf("revision does not exist locally: %s", rev)
+	}
+
 	// If we know a specific commit we need and its ref, fetch it.
 	// We do NOT fetch arbitrary hashes (when we don't know the ref)
 	// because we want to avoid ever importing a commit that isn't
@@ -506,7 +511,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 	// Both Gerrit and GitHub expose every CL/PR as a named ref,
 	// and we don't want those commits masquerading as being real
 	// pseudo-versions in the main repo.
-	if r.fetchLevel <= fetchSome && ref != "" && hash != "" && !r.local {
+	if r.fetchLevel <= fetchSome && ref != "" && hash != "" {
 		r.fetchLevel = fetchSome
 		var refspec string
 		if ref == "HEAD" {
@@ -563,6 +568,9 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 //
 // fetchRefsLocked requires that r.mu remain locked for the duration of the call.
 func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
+	if r.local {
+		panic("go: fetchRefsLocked called in local only mode.")
+	}
 	if r.fetchLevel < fetchAll {
 		// NOTE: To work around a bug affecting Git clients up to at least 2.23.0
 		// (2019-08-16), we must first expand the set of local refs, and only then
@@ -738,6 +746,9 @@ func (r *gitRepo) RecentTag(ctx context.Context, rev, prefix string, allowed fun
 		return "", nil
 	}
 
+	if r.local { // at this point, we have determined that we need to fetch rev, fail early if local only mode.
+		return "", fmt.Errorf("revision does not exist locally: %s", rev)
+	}
 	// There are plausible tags, but we don't know if rev is a descendent of any of them.
 	// Fetch the history to find out.
 
@@ -797,6 +808,10 @@ func (r *gitRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
 	// that here.
 	if _, err = r.stat(ctx, rev); err != nil {
 		return false, err
+	}
+
+	if r.local { // at this point, we have determined that we need to fetch rev, fail early if local only mode.
+		return false, fmt.Errorf("revision does not exist locally: %s", rev)
 	}
 
 	// Now fetch history so that git can search for a path.

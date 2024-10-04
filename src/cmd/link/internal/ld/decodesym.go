@@ -261,7 +261,7 @@ func decodetypeGcprog(ctxt *Link, s loader.Sym) []byte {
 			}
 			return append(progsize, progbytes...)
 		}
-		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
+		Exitf("cannot find gcprog for %s", ctxt.loader.SymName(s))
 		return nil
 	}
 	relocs := ctxt.loader.Relocs(s)

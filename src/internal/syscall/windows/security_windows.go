@@ -175,3 +175,38 @@ func GetUserName(format uint32) (string, error) {
 		}
 	}
 }
+
+// getTokenInfo retrieves a specified type of information about an access token.
+func getTokenInfo(t syscall.Token, class uint32, initSize int) (unsafe.Pointer, error) {
+	n := uint32(initSize)
+	for {
+		b := make([]byte, n)
+		e := syscall.GetTokenInformation(t, class, &b[0], uint32(len(b)), &n)
+		if e == nil {
+			return unsafe.Pointer(&b[0]), nil
+		}
+		if e != syscall.ERROR_INSUFFICIENT_BUFFER {
+			return nil, e
+		}
+		if n <= uint32(len(b)) {
+			return nil, e
+		}
+	}
+}
+
+type TOKEN_GROUPS struct {
+	GroupCount uint32
+	Groups     [1]SID_AND_ATTRIBUTES
+}
+
+func (g *TOKEN_GROUPS) AllGroups() []SID_AND_ATTRIBUTES {
+	return (*[(1 << 28) - 1]SID_AND_ATTRIBUTES)(unsafe.Pointer(&g.Groups[0]))[:g.GroupCount:g.GroupCount]
+}
+
+func GetTokenGroups(t syscall.Token) (*TOKEN_GROUPS, error) {
+	i, e := getTokenInfo(t, syscall.TokenGroups, 50)
+	if e != nil {
+		return nil, e
+	}
+	return (*TOKEN_GROUPS)(i), nil
+}

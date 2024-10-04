@@ -15,6 +15,7 @@ import (
 	"go/parser"
 	"go/token"
 	"internal/lazytemplate"
+	"maps"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -212,9 +213,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 		if testEmbed == nil && len(p.Internal.Embed) > 0 {
 			testEmbed = map[string][]string{}
 		}
-		for k, v := range p.Internal.Embed {
-			testEmbed[k] = v
-		}
+		maps.Copy(testEmbed, p.Internal.Embed)
 		ptest.Internal.Embed = testEmbed
 		ptest.EmbedFiles = str.StringList(p.EmbedFiles, p.TestEmbedFiles)
 		ptest.Internal.OrigImportPath = p.Internal.OrigImportPath
@@ -293,14 +292,13 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
 
 	pb := p.Internal.Build
 	pmain.DefaultGODEBUG = defaultGODEBUG(pmain, pb.Directives, pb.TestDirectives, pb.XTestDirectives)
-	if pmain.Internal.BuildInfo != nil && pmain.DefaultGODEBUG != p.DefaultGODEBUG {
-		// The DefaultGODEBUG used to build the test main package is different from the DefaultGODEBUG
-		// used to build the package under test. That makes the BuildInfo assigned above from the package
-		// under test incorrect for the test main package. Recompute the build info for the test main
-		// package to incorporate the test main's DefaultGODEBUG value.
-		// Most test binaries do not have build info: p.Internal.BuildInfo is only computed for main
-		// packages, so ptest only inherits a non-nil BuildInfo value if the test is for package main.
-		// See issue #68053.
+	if pmain.Internal.BuildInfo == nil || pmain.DefaultGODEBUG != p.DefaultGODEBUG {
+		// Either we didn't generate build info for the package under test (because it wasn't package main), or
+		// the DefaultGODEBUG used to build the test main package is different from the DefaultGODEBUG
+		// used to build the package under test. If we didn't set build info for the package under test
+		// pmain won't have buildinfo set (since we copy it from the package under test). If the default GODEBUG
+		// used for the package under test is different from that of the test main, the BuildInfo assigned above from the package
+		// under test incorrect for the test main package. Either set or correct pmain's build info.
 		pmain.setBuildInfo(ctx, opts.AutoVCS)
 	}
 

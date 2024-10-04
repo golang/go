@@ -24,6 +24,9 @@ func good2(MyInt32) {} // named type is ok
 //go:wasmexport good3
 func good3() int32 { return 0 } // one result is ok
 
+//go:wasmexport good4
+func good4() unsafe.Pointer { return nil } // one result is ok
+
 //go:wasmexport bad1
 func bad1(string) {} // ERROR "go:wasmexport: unsupported parameter type"
 
@@ -53,6 +56,12 @@ func bad7(*S) {} // ERROR "go:wasmexport: unsupported parameter type"
 
 //go:wasmexport bad8
 func bad8([4]int32) {} // ERROR "go:wasmexport: unsupported parameter type"
+
+//go:wasmexport bad9
+func bad9() bool { return false } // ERROR "go:wasmexport: unsupported result type"
+
+//go:wasmexport bad10
+func bad10() *byte { return nil } // ERROR "go:wasmexport: unsupported result type"
 
 //go:wasmexport toomanyresults
 func toomanyresults() (int32, int32) { return 0, 0 } // ERROR "go:wasmexport: too many return values"

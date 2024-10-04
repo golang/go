@@ -98,7 +98,8 @@ data, defined in detail in the corresponding sections that follow.
 			{{if pipeline}} T1 {{else}}{{if pipeline}} T0 {{end}}{{end}}
 
 	{{range pipeline}} T1 {{end}}
-		The value of the pipeline must be an array, slice, map, or channel.
+		The value of the pipeline must be an array, slice, map, iter.Seq,
+		iter.Seq2, integer or channel.
 		If the value of the pipeline has length zero, nothing is output;
 		otherwise, dot is set to the successive elements of the array,
 		slice, or map and T1 is executed. If the value is a map and the
@@ -106,7 +107,8 @@ data, defined in detail in the corresponding sections that follow.
 		visited in sorted key order.
 
 	{{range pipeline}} T1 {{else}} T0 {{end}}
-		The value of the pipeline must be an array, slice, map, or channel.
+		The value of the pipeline must be an array, slice, map, iter.Seq,
+		iter.Seq2, integer or channel.
 		If the value of the pipeline has length zero, dot is unaffected and
 		T0 is executed; otherwise, dot is set to the successive elements
 		of the array, slice, or map and T1 is executed.

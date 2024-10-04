@@ -621,7 +621,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 		}
 
 		// Found end of a run with common leading literal string:
-		// sub[start:i] all begin with str[0:len(str)], but sub[i]
+		// sub[start:i] all begin with str[:len(str)], but sub[i]
 		// does not even begin with str[0].
 		//
 		// Factor out common string and append factored expression to out.

@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"os"
+	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	"cmd/compile/internal/base"
@@ -414,7 +416,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
 	for sym := range tracked {
 		trackSyms = append(trackSyms, sym)
 	}
-	sort.Slice(trackSyms, func(i, j int) bool { return trackSyms[i].Name < trackSyms[j].Name })
+	slices.SortFunc(trackSyms, func(a, b *obj.LSym) int { return strings.Compare(a.Name, b.Name) })
 	for _, sym := range trackSyms {
 		r := obj.Addrel(fnsym)
 		r.Sym = sym

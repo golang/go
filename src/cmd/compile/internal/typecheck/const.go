@@ -425,27 +425,9 @@ func defaultType(t *types.Type) *types.Type {
 	return nil
 }
 
-// IndexConst checks if Node n contains a constant expression
-// representable as a non-negative int and returns its value.
-// If n is not a constant expression, not representable as an
-// integer, or negative, it returns -1. If n is too large, it
-// returns -2.
+// IndexConst returns the index value of constant Node n.
 func IndexConst(n ir.Node) int64 {
-	if n.Op() != ir.OLITERAL {
-		return -1
-	}
-	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
-		return -1
-	}
-
-	v := toint(n.Val())
-	if v.Kind() != constant.Int || constant.Sign(v) < 0 {
-		return -1
-	}
-	if ir.ConstOverflow(v, types.Types[types.TINT]) {
-		return -2
-	}
-	return ir.IntVal(types.Types[types.TINT], v)
+	return ir.IntVal(types.Types[types.TINT], toint(n.Val()))
 }
 
 // callOrChan reports whether n is a call or channel operation.

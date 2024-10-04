@@ -389,7 +389,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 
 	case ir.OCLOSURE:
 		r := r.(*ir.ClosureExpr)
-		if ir.IsTrivialClosure(r) {
+		if !r.Func.IsClosure() {
 			if base.Debug.Closure > 0 {
 				base.WarnfAt(r.Pos(), "closure converted to global")
 			}
@@ -487,9 +487,6 @@ func (s *Schedule) initplan(n ir.Node) {
 			if a.Op() == ir.OKEY {
 				kv := a.(*ir.KeyExpr)
 				k = typecheck.IndexConst(kv.Key)
-				if k < 0 {
-					base.Fatalf("initplan arraylit: invalid index %v", kv.Key)
-				}
 				a = kv.Value
 			}
 			s.addvalue(p, k*n.Type().Elem().Size(), a)
@@ -668,7 +665,7 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 		count[x.(*ir.Name)] = 0
 	}
 
-	hasNonTrivialClosure := false
+	hasClosure := false
 	ir.Visit(as2body.Rhs[0], func(n ir.Node) {
 		if name, ok := n.(*ir.Name); ok {
 			if c, ok := count[name]; ok {
@@ -676,13 +673,13 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 			}
 		}
 		if clo, ok := n.(*ir.ClosureExpr); ok {
-			hasNonTrivialClosure = hasNonTrivialClosure || !ir.IsTrivialClosure(clo)
+			hasClosure = hasClosure || clo.Func.IsClosure()
 		}
 	})
 
-	// If there's a non-trivial closure, it has captured the param,
+	// If there's a closure, it has captured the param,
 	// so we can't substitute arg for param.
-	if hasNonTrivialClosure {
+	if hasClosure {
 		return false
 	}
 

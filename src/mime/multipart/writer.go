@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/textproto"
 	"slices"
 	"strings"
@@ -107,12 +108,7 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 		fmt.Fprintf(&b, "--%s\r\n", w.boundary)
 	}
 
-	keys := make([]string, 0, len(header))
-	for k := range header {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	for _, k := range keys {
+	for _, k := range slices.Sorted(maps.Keys(header)) {
 		for _, v := range header[k] {
 			fmt.Fprintf(&b, "%s: %s\r\n", k, v)
 		}

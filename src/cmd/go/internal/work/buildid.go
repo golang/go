@@ -410,8 +410,8 @@ var (
 	counterCacheHit  = counter.New("go/buildcache/hit")
 	counterCacheMiss = counter.New("go/buildcache/miss")
 
-	onceIncStdlibRecompiled sync.Once
 	stdlibRecompiled        = counter.New("go/buildcache/stdlib-recompiled")
+	stdlibRecompiledIncOnce = sync.OnceFunc(stdlibRecompiled.Inc)
 )
 
 // useCache tries to satisfy the action a, which has action ID actionHash,
@@ -467,7 +467,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 			counterCacheHit.Inc()
 		} else {
 			if a.Package != nil && a.Package.Standard {
-				onceIncStdlibRecompiled.Do(stdlibRecompiled.Inc)
+				stdlibRecompiledIncOnce()
 			}
 			counterCacheMiss.Inc()
 		}

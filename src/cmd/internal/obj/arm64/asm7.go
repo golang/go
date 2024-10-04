@@ -33,10 +33,11 @@ package arm64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -1099,40 +1100,15 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	c := ctxt7{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset & 0xffffffff), extrasize: int32(p.To.Offset >> 32)}
 	p.To.Offset &= 0xffffffff // extrasize is no longer needed
 
-	bflag := 1
+	// Process literal pool and allocate initial program counter for each Prog, before
+	// generating branch veneers.
 	pc := int64(0)
 	p.Pc = pc
-	var m int
-	var o *Optab
 	for p = p.Link; p != nil; p = p.Link {
 		p.Pc = pc
-		o = c.oplook(p)
-		m = o.size(c.ctxt, p)
-		if m == 0 {
-			switch p.As {
-			case obj.APCALIGN, obj.APCALIGNMAX:
-				m = obj.AlignmentPadding(int32(pc), p, ctxt, cursym)
-				break
-			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
-				continue
-			default:
-				c.ctxt.Diag("zero-width instruction\n%v", p)
-			}
-		}
-		pc += int64(m)
-
-		if o.flag&LFROM != 0 {
-			c.addpool(p, &p.From)
-		}
-		if o.flag&LTO != 0 {
-			c.addpool(p, &p.To)
-		}
-		if c.blitrl != nil {
-			c.checkpool(p)
-		}
+		c.addLiteralsToPool(p)
+		pc += int64(c.asmsizeBytes(p))
 	}
-
-	c.cursym.Size = pc
 
 	/*
 	 * if any procedure is large enough to
@@ -1140,92 +1116,41 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	 * generate extra passes putting branches
 	 * around jmps to fix. this is rare.
 	 */
-	for bflag != 0 {
-		bflag = 0
+	changed := true
+	for changed {
+		changed = false
 		pc = 0
 		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
 			p.Pc = pc
-			o = c.oplook(p)
-
-			/* very large branches */
-			if (o.flag&BRANCH14BITS != 0 || o.flag&BRANCH19BITS != 0) && p.To.Target() != nil {
-				otxt := p.To.Target().Pc - pc
-				var toofar bool
-				if o.flag&BRANCH14BITS != 0 { // branch instruction encodes 14 bits
-					toofar = otxt <= -(1<<15)+10 || otxt >= (1<<15)-10
-				} else if o.flag&BRANCH19BITS != 0 { // branch instruction encodes 19 bits
-					toofar = otxt <= -(1<<20)+10 || otxt >= (1<<20)-10
-				}
-				if toofar {
-					q := c.newprog()
-					q.Link = p.Link
-					p.Link = q
-					q.As = AB
-					q.To.Type = obj.TYPE_BRANCH
-					q.To.SetTarget(p.To.Target())
-					p.To.SetTarget(q)
-					q = c.newprog()
-					q.Link = p.Link
-					p.Link = q
-					q.As = AB
-					q.To.Type = obj.TYPE_BRANCH
-					q.To.SetTarget(q.Link.Link)
-					bflag = 1
-				}
-			}
-			m = o.size(c.ctxt, p)
-
-			if m == 0 {
-				switch p.As {
-				case obj.APCALIGN, obj.APCALIGNMAX:
-					m = obj.AlignmentPaddingLength(int32(pc), p, ctxt)
-					break
-				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
-					continue
-				default:
-					c.ctxt.Diag("zero-width instruction\n%v", p)
-				}
-			}
-
-			pc += int64(m)
+			changed = changed || c.fixUpLongBranch(p)
+			pc += int64(c.asmsizeBytes(p))
 		}
 	}
-
-	pc += -pc & (funcAlign - 1)
-	c.cursym.Size = pc
 
 	/*
 	 * lay out the code, emitting code and data relocations.
 	 */
-	c.cursym.Grow(c.cursym.Size)
-	bp := c.cursym.P
-	psz := int32(0)
-	var i int
-	var out [6]uint32
+	buf := codeBuffer{&c.cursym.P}
+
 	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
-		o = c.oplook(p)
-		sz := o.size(c.ctxt, p)
-		if sz > 4*len(out) {
-			log.Fatalf("out array in span7 is too small, need at least %d for %v", sz/4, p)
-		}
-		if p.As == obj.APCALIGN || p.As == obj.APCALIGNMAX {
+		switch p.As {
+		case obj.APCALIGN, obj.APCALIGNMAX:
 			v := obj.AlignmentPaddingLength(int32(p.Pc), p, c.ctxt)
-			for i = 0; i < int(v/4); i++ {
+			for i := 0; i < int(v/4); i++ {
 				// emit ANOOP instruction by the padding size
-				c.ctxt.Arch.ByteOrder.PutUint32(bp, OP_NOOP)
-				bp = bp[4:]
-				psz += 4
+				buf.emit(OP_NOOP)
 			}
-		} else {
-			c.asmout(p, o, out[:])
-			for i = 0; i < sz/4; i++ {
-				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
-				bp = bp[4:]
-				psz += 4
-			}
+		case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+			continue
+		default:
+			var out [6]uint32
+			count := c.asmout(p, out[:])
+			buf.emit(out[:count]...)
 		}
 	}
+	buf.finish()
+	c.cursym.Size = int64(len(c.cursym.P))
 
 	// Mark nonpreemptible instruction sequences.
 	// We use REGTMP as a scratch register during call injection,
@@ -1241,6 +1166,92 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// TODO: try using relative PCs.
 			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, cursym, p.Pc)
 		}
+	}
+}
+
+type codeBuffer struct {
+	data *[]byte
+}
+
+func (cb *codeBuffer) pc() int64 {
+	return int64(len(*cb.data))
+}
+
+// Write a sequence of opcodes into the code buffer.
+func (cb *codeBuffer) emit(op ...uint32) {
+	for _, o := range op {
+		*cb.data = binary.LittleEndian.AppendUint32(*cb.data, o)
+	}
+}
+
+// Completes the code buffer for the function by padding the buffer to function alignment
+// with zero values.
+func (cb *codeBuffer) finish() {
+	for len(*cb.data)%funcAlign > 0 {
+		*cb.data = append(*cb.data, 0)
+	}
+}
+
+// Return the size of the assembled Prog, in bytes.
+func (c *ctxt7) asmsizeBytes(p *obj.Prog) int {
+	switch p.As {
+	case obj.APCALIGN, obj.APCALIGNMAX:
+		return obj.AlignmentPadding(int32(p.Pc), p, c.ctxt, c.cursym)
+	case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+		return 0
+	default:
+		o := c.oplook(p)
+		return o.size(c.ctxt, p)
+	}
+}
+
+// Modify the Prog list if the Prog is a branch with a large offset that cannot be
+// encoded in the instruction. Return true if a modification was made, false if not.
+func (c *ctxt7) fixUpLongBranch(p *obj.Prog) bool {
+	var toofar bool
+
+	o := c.oplook(p)
+
+	/* very large branches */
+	if (o.flag&BRANCH14BITS != 0 || o.flag&BRANCH19BITS != 0) && p.To.Target() != nil {
+		otxt := p.To.Target().Pc - p.Pc
+		if o.flag&BRANCH14BITS != 0 { // branch instruction encodes 14 bits
+			toofar = otxt <= -(1<<15)+10 || otxt >= (1<<15)-10
+		} else if o.flag&BRANCH19BITS != 0 { // branch instruction encodes 19 bits
+			toofar = otxt <= -(1<<20)+10 || otxt >= (1<<20)-10
+		}
+		if toofar {
+			q := c.newprog()
+			q.Link = p.Link
+			p.Link = q
+			q.As = AB
+			q.To.Type = obj.TYPE_BRANCH
+			q.To.SetTarget(p.To.Target())
+			p.To.SetTarget(q)
+			q = c.newprog()
+			q.Link = p.Link
+			p.Link = q
+			q.As = AB
+			q.To.Type = obj.TYPE_BRANCH
+			q.To.SetTarget(q.Link.Link)
+		}
+	}
+
+	return toofar
+}
+
+// Adds literal values from the Prog into the literal pool if necessary.
+func (c *ctxt7) addLiteralsToPool(p *obj.Prog) {
+	o := c.oplook(p)
+
+	if o.flag&LFROM != 0 {
+		c.addpool(p, &p.From)
+	}
+	if o.flag&LTO != 0 {
+		c.addpool(p, &p.To)
+	}
+	if c.blitrl != nil {
+		c.checkpool(p)
 	}
 }
 
@@ -2700,38 +2711,26 @@ func cmp(a int, b int) bool {
 	return false
 }
 
-type ocmp []Optab
-
-func (x ocmp) Len() int {
-	return len(x)
-}
-
-func (x ocmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x ocmp) Less(i, j int) bool {
-	p1 := &x[i]
-	p2 := &x[j]
+func ocmp(p1, p2 Optab) int {
 	if p1.as != p2.as {
-		return p1.as < p2.as
+		return int(p1.as) - int(p2.as)
 	}
 	if p1.a1 != p2.a1 {
-		return p1.a1 < p2.a1
+		return int(p1.a1) - int(p2.a1)
 	}
 	if p1.a2 != p2.a2 {
-		return p1.a2 < p2.a2
+		return int(p1.a2) - int(p2.a2)
 	}
 	if p1.a3 != p2.a3 {
-		return p1.a3 < p2.a3
+		return int(p1.a3) - int(p2.a3)
 	}
 	if p1.a4 != p2.a4 {
-		return p1.a4 < p2.a4
+		return int(p1.a4) - int(p2.a4)
 	}
 	if p1.scond != p2.scond {
-		return p1.scond < p2.scond
+		return int(p1.scond) - int(p2.scond)
 	}
-	return false
+	return 0
 }
 
 func oprangeset(a obj.As, t []Optab) {
@@ -2754,7 +2753,7 @@ func buildop(ctxt *obj.Link) {
 		}
 	}
 
-	sort.Sort(ocmp(optab))
+	slices.SortFunc(optab, ocmp)
 	for i := 0; i < len(optab); i++ {
 		as, start := optab[i].as, i
 		for ; i < len(optab)-1; i++ {
@@ -3468,7 +3467,9 @@ func (c *ctxt7) checkShiftAmount(p *obj.Prog, a *obj.Addr) {
 	}
 }
 
-func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+	o := c.oplook(p)
+
 	var os [5]uint32
 	o1 := uint32(0)
 	o2 := uint32(0)
@@ -5908,6 +5909,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[2] = o3
 	out[3] = o4
 	out[4] = o5
+
+	return int(o.size(c.ctxt, p) / 4)
 }
 
 func (c *ctxt7) addrRelocType(p *obj.Prog) objabi.RelocType {

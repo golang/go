@@ -145,7 +145,7 @@ func Batch(fns []*ir.Func, recursive bool) {
 	}
 
 	// We've walked the function bodies, so we've seen everywhere a
-	// variable might be reassigned or have it's address taken. Now we
+	// variable might be reassigned or have its address taken. Now we
 	// can decide whether closures should capture their free variables
 	// by value or reference.
 	for _, closure := range b.closures {

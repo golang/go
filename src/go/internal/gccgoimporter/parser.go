@@ -176,7 +176,7 @@ func (p *parser) parseQualifiedNameStr(unquotedName string) (pkgpath, name strin
 		name = parts[0]
 	default:
 		// qualified name, which may contain periods
-		pkgpath = strings.Join(parts[0:len(parts)-1], ".")
+		pkgpath = strings.Join(parts[:len(parts)-1], ".")
 		name = parts[len(parts)-1]
 	}
 

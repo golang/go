@@ -12,9 +12,10 @@ import (
 	"go/token"
 	"internal/buildcfg"
 	. "internal/types/errors"
-	"sort"
+	"slices"
 )
 
+// decl may be nil
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
 	if check.conf.IgnoreFuncBodies {
 		panic("function body not ignored")
@@ -31,10 +32,11 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		check.indent = indent
 	}(check.environment, check.indent)
 	check.environment = environment{
-		decl:  decl,
-		scope: sig.scope,
-		iota:  iota,
-		sig:   sig,
+		decl:    decl,
+		scope:   sig.scope,
+		version: check.version, // TODO(adonovan): would decl.version (if decl != nil) be better?
+		iota:    iota,
+		sig:     sig,
 	}
 	check.indent = 0
 
@@ -61,8 +63,8 @@ func (check *Checker) usage(scope *Scope) {
 			unused = append(unused, v)
 		}
 	}
-	sort.Slice(unused, func(i, j int) bool {
-		return cmpPos(unused[i].pos, unused[j].pos) < 0
+	slices.SortFunc(unused, func(a, b *Var) int {
+		return cmpPos(a.pos, b.pos)
 	})
 	for _, v := range unused {
 		check.softErrorf(v, UnusedVar, "declared and not used: %s", v.name)
@@ -889,7 +891,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	if x.mode != invalid {
 		// Ranging over a type parameter is permitted if it has a core type.
 		k, v, cause, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
-			return check.allowVersion(x.expr, v)
+			return check.allowVersion(v)
 		})
 		switch {
 		case !ok && cause != "":
@@ -1028,10 +1030,6 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 	bad := func(cause string) (Type, Type, string, bool) {
 		return Typ[Invalid], Typ[Invalid], cause, false
 	}
-	toSig := func(t Type) *Signature {
-		sig, _ := coreType(t).(*Signature)
-		return sig
-	}
 
 	orig := typ
 	switch typ := arrayPtrDeref(coreType(typ)).(type) {
@@ -1062,23 +1060,26 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 		if !buildcfg.Experiment.RangeFunc && allowVersion != nil && !allowVersion(go1_23) {
 			return bad("requires go1.23 or later")
 		}
-		assert(typ.Recv() == nil)
+		// check iterator arity
 		switch {
 		case typ.Params().Len() != 1:
 			return bad("func must be func(yield func(...) bool): wrong argument count")
-		case toSig(typ.Params().At(0).Type()) == nil:
-			return bad("func must be func(yield func(...) bool): argument is not func")
 		case typ.Results().Len() != 0:
 			return bad("func must be func(yield func(...) bool): unexpected results")
 		}
-		cb := toSig(typ.Params().At(0).Type())
-		assert(cb.Recv() == nil)
+		assert(typ.Recv() == nil)
+		// check iterator argument type
+		cb, _ := coreType(typ.Params().At(0).Type()).(*Signature)
 		switch {
+		case cb == nil:
+			return bad("func must be func(yield func(...) bool): argument is not func")
 		case cb.Params().Len() > 2:
 			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
 		case cb.Results().Len() != 1 || !isBoolean(cb.Results().At(0).Type()):
 			return bad("func must be func(yield func(...) bool): yield func does not return bool")
 		}
+		assert(cb.Recv() == nil)
+		// determine key and value types, if any
 		if cb.Params().Len() >= 1 {
 			key = cb.Params().At(0).Type()
 		}

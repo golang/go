@@ -15,8 +15,6 @@ var Syms symsStruct
 type symsStruct struct {
 	AssertE2I         *obj.LSym
 	AssertE2I2        *obj.LSym
-	AssertI2I         *obj.LSym
-	AssertI2I2        *obj.LSym
 	Asanread          *obj.LSym
 	Asanwrite         *obj.LSym
 	CgoCheckMemmove   *obj.LSym

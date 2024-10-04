@@ -54,11 +54,9 @@ for packages to be built with the go tool:
 
 - "main" denotes the top-level package in a stand-alone executable.
 
-- "all" expands to all packages found in all the GOPATH
-trees. For example, 'go list all' lists all the packages on the local
-system. When using modules, "all" expands to all packages in
-the main module and their dependencies, including dependencies
-needed by tests of any of those.
+- "all" expands to all packages in the main module (or workspace modules) and
+their dependencies, including dependencies needed by tests of any of those. In
+GOPATH mode, "all" expands to all packages found in all the GOPATH trees.
 
 - "std" is like all but expands to just the packages in the standard
 Go library.
@@ -493,6 +491,12 @@ General-purpose environment variables:
 	GOARCH
 		The architecture, or processor, for which to compile code.
 		Examples are amd64, 386, arm, ppc64.
+	GOAUTH
+		A semicolon-separated list of authentication commands for go-import and
+		HTTPS module mirror interactions. Currently supports
+		"off" (disables authentication) and
+		"netrc" (uses credentials from NETRC or the .netrc file in your home directory).
+		The default is netrc.
 	GOBIN
 		The directory where 'go install' will install a command.
 	GOCACHE

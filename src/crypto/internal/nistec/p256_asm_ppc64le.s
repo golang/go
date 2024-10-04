@@ -291,7 +291,7 @@ TEXT ·p256Select(SB), NOSPLIT, $0-24
 	VSPLTB   $7, SEL1, IDX    // splat byte
 	VSPLTISB $1, ONE          // VREPIB $1, ONE
 	VSPLTISB $1, SEL2         // VREPIB $1, SEL2
-	MOVD     $17, COUNT
+	MOVD     $16, COUNT	  // len(p256Table)
 	MOVD     COUNT, CTR       // set up ctr
 
 	VSPLTISB $0, X1H // VZERO  X1H
@@ -441,7 +441,7 @@ TEXT ·p256SelectAffine(SB), NOSPLIT, $0-24
 
 	VSPLTISB $1, ONE    // Vector with byte 1s
 	VSPLTISB $1, SEL2   // Vector with byte 1s
-	MOVD     $64, COUNT
+	MOVD     $32, COUNT // len(p256AffineTable)
 	MOVD     COUNT, CTR // loop count
 
 	VSPLTISB $0, X1H // VZERO  X1H

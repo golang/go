@@ -15,15 +15,14 @@ import (
 // used to store the frames to reduce allocations.
 func viewerFrames(stk trace.Stack) []*trace.Frame {
 	var frames []*trace.Frame
-	stk.Frames(func(f trace.StackFrame) bool {
+	for f := range stk.Frames() {
 		frames = append(frames, &trace.Frame{
 			PC:   f.PC,
 			Fn:   f.Func,
 			File: f.File,
 			Line: int(f.Line),
 		})
-		return true
-	})
+	}
 	return frames
 }
 

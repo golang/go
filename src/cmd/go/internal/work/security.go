@@ -91,6 +91,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-f(no-)?visibility-inlines-hidden`),
 	re(`-fsanitize=(.+)`),
 	re(`-ftemplate-depth-(.+)`),
+	re(`-ftls-model=(global-dynamic|local-dynamic|initial-exec|local-exec)`),
 	re(`-fvisibility=(.+)`),
 	re(`-g([^@\-].*)?`),
 	re(`-m32`),

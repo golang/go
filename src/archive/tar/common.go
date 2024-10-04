@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"internal/godebug"
 	"io/fs"
+	"maps"
 	"math"
 	"path"
 	"reflect"
@@ -696,24 +697,14 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 		h.Gname = sys.Gname
 		h.AccessTime = sys.AccessTime
 		h.ChangeTime = sys.ChangeTime
-		if sys.Xattrs != nil {
-			h.Xattrs = make(map[string]string)
-			for k, v := range sys.Xattrs {
-				h.Xattrs[k] = v
-			}
-		}
+		h.Xattrs = maps.Clone(sys.Xattrs)
 		if sys.Typeflag == TypeLink {
 			// hard link
 			h.Typeflag = TypeLink
 			h.Size = 0
 			h.Linkname = sys.Linkname
 		}
-		if sys.PAXRecords != nil {
-			h.PAXRecords = make(map[string]string)
-			for k, v := range sys.PAXRecords {
-				h.PAXRecords[k] = v
-			}
-		}
+		h.PAXRecords = maps.Clone(sys.PAXRecords)
 	}
 	var doNameLookups = true
 	if iface, ok := fi.(FileInfoNames); ok {

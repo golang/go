@@ -341,6 +341,9 @@ func (w *typeWriter) typ(typ Type) {
 		if list := t.targs.list(); len(list) != 0 {
 			// instantiated type
 			w.typeList(list)
+		} else if w.ctxt == nil && t.TypeParams().Len() != 0 { // For type hashing, don't need to format the TypeParams
+			// parameterized type
+			w.tParamList(t.TypeParams().list())
 		}
 		if w.ctxt != nil {
 			// TODO(gri) do we need to print the alias type name, too?

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -160,8 +161,8 @@ func (mls *MergeLocalsState) Followers(n *ir.Name, tmp []*ir.Name) []*ir.Name {
 	for _, k := range sl[1:] {
 		tmp = append(tmp, mls.vars[k])
 	}
-	sort.SliceStable(tmp, func(i, j int) bool {
-		return tmp[i].Sym().Name < tmp[j].Sym().Name
+	slices.SortStableFunc(tmp, func(a, b *ir.Name) int {
+		return strings.Compare(a.Sym().Name, b.Sym().Name)
 	})
 	return tmp
 }
@@ -268,8 +269,8 @@ func (mls *MergeLocalsState) String() string {
 			leaders = append(leaders, n)
 		}
 	}
-	sort.Slice(leaders, func(i, j int) bool {
-		return leaders[i].Sym().Name < leaders[j].Sym().Name
+	slices.SortFunc(leaders, func(a, b *ir.Name) int {
+		return strings.Compare(a.Sym().Name, b.Sym().Name)
 	})
 	var sb strings.Builder
 	for _, n := range leaders {
@@ -489,8 +490,8 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		rawcands[n] = struct{}{}
 	}
 	for k := 0; k < len(cs.f.Blocks); k++ {
-		genmapclear(pendingUses)
-		genmapclear(blockIndirectUE)
+		clear(pendingUses)
+		clear(blockIndirectUE)
 		b := cs.f.Blocks[k]
 		for _, v := range b.Values {
 			if n, e := affectedVar(v); n != nil {
@@ -546,7 +547,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		// that value is flowing out of the block off somewhere else,
 		// we're going to treat that local as truly address-taken and
 		// not have it be a merge candidate.
-		genmapclear(evicted)
+		clear(evicted)
 		if len(pendingUses) != 0 {
 			for id, nc := range pendingUses {
 				if cs.trace > 2 {
@@ -580,7 +581,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		for k := range indirectUE {
 			ids = append(ids, k)
 		}
-		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		slices.Sort(ids)
 		for _, id := range ids {
 			fmt.Fprintf(os.Stderr, "  v%d:", id)
 			for _, n := range indirectUE[id] {
@@ -603,14 +604,6 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		return nil, nil
 	}
 	return pruned, regions
-}
-
-// FIXME: bootstrap tool compiler is build with a "go 1.20" go.mod, so
-// we are not allowed to use map clear yet. Use this helper instead.
-func genmapclear[KT comparable, VT any](m map[KT]VT) {
-	for k := range m {
-		delete(m, k)
-	}
 }
 
 type nameCount struct {
@@ -1011,7 +1004,7 @@ func fmtFullPos(p src.XPos) string {
 	var sb strings.Builder
 	sep := ""
 	base.Ctxt.AllPos(p, func(pos src.Pos) {
-		fmt.Fprintf(&sb, sep)
+		sb.WriteString(sep)
 		sep = "|"
 		file := filepath.Base(pos.Filename())
 		fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())

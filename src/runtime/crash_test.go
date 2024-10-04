@@ -621,7 +621,7 @@ func TestConcurrentMapWrites(t *testing.T) {
 	}
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapWrites")
-	want := "fatal error: concurrent map writes"
+	want := "fatal error: concurrent map writes\n"
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
@@ -632,7 +632,7 @@ func TestConcurrentMapReadWrite(t *testing.T) {
 	}
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapReadWrite")
-	want := "fatal error: concurrent map read and map write"
+	want := "fatal error: concurrent map read and map write\n"
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
@@ -643,9 +643,33 @@ func TestConcurrentMapIterateWrite(t *testing.T) {
 	}
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapIterateWrite")
-	want := "fatal error: concurrent map iteration and map write"
+	want := "fatal error: concurrent map iteration and map write\n"
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+func TestConcurrentMapWritesIssue69447(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+	exe, err := buildTestProg(t, "testprog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 200; i++ {
+		output := runBuiltTestProg(t, exe, "concurrentMapWrites")
+		if output == "" {
+			// If we didn't detect an error, that's ok.
+			// This case makes this test not flaky like
+			// the other ones above.
+			// (More correctly, this case makes this test flaky
+			// in the other direction, in that it might not
+			// detect a problem even if there is one.)
+			continue
+		}
+		want := "fatal error: concurrent map writes\n"
+		if !strings.HasPrefix(output, want) {
+			t.Fatalf("output does not start with %q:\n%s", want, output)
+		}
 	}
 }
 

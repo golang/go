@@ -20,6 +20,7 @@ import (
 // A declInfo describes a package-level const, type, var, or func declaration.
 type declInfo struct {
 	file      *Scope        // scope of file containing this declaration
+	version   goVersion     // Go version of file containing this declaration
 	lhs       []*Var        // lhs of n:1 variable declarations, or nil
 	vtyp      ast.Expr      // type, or nil (for const and var declarations only)
 	init      ast.Expr      // init/orig expression, or nil (for const and var declarations only)
@@ -232,8 +233,11 @@ func (check *Checker) collectObjects() {
 		recv *ast.Ident // receiver type name
 	}
 	var methods []methodInfo // collected methods with valid receivers and non-blank _ names
-	var fileScopes []*Scope
+
+	fileScopes := make([]*Scope, len(check.files)) // fileScopes[i] corresponds to check.files[i]
 	for fileNo, file := range check.files {
+		check.version = asGoVersion(check.versions[file])
+
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
 		check.recordDef(file.Name, nil)
@@ -246,7 +250,7 @@ func (check *Checker) collectObjects() {
 			pos, end = token.Pos(f.Base()), token.Pos(f.Base()+f.Size())
 		}
 		fileScope := NewScope(pkg.scope, pos, end, check.filename(fileNo))
-		fileScopes = append(fileScopes, fileScope)
+		fileScopes[fileNo] = fileScope
 		check.recordScope(file, fileScope)
 
 		// determine file directory, necessary to resolve imports
@@ -355,7 +359,7 @@ func (check *Checker) collectObjects() {
 						init = d.init[i]
 					}
 
-					d := &declInfo{file: fileScope, vtyp: d.typ, init: init, inherited: d.inherited}
+					d := &declInfo{file: fileScope, version: check.version, vtyp: d.typ, init: init, inherited: d.inherited}
 					check.declarePkgObj(name, obj, d)
 				}
 
@@ -370,7 +374,7 @@ func (check *Checker) collectObjects() {
 					// The lhs elements are only set up after the for loop below,
 					// but that's ok because declareVar only collects the declInfo
 					// for a later phase.
-					d1 = &declInfo{file: fileScope, lhs: lhs, vtyp: d.spec.Type, init: d.spec.Values[0]}
+					d1 = &declInfo{file: fileScope, version: check.version, lhs: lhs, vtyp: d.spec.Type, init: d.spec.Values[0]}
 				}
 
 				// declare all variables
@@ -385,14 +389,14 @@ func (check *Checker) collectObjects() {
 						if i < len(d.spec.Values) {
 							init = d.spec.Values[i]
 						}
-						di = &declInfo{file: fileScope, vtyp: d.spec.Type, init: init}
+						di = &declInfo{file: fileScope, version: check.version, vtyp: d.spec.Type, init: init}
 					}
 
 					check.declarePkgObj(name, obj, di)
 				}
 			case typeDecl:
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
-				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
+				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, version: check.version, tdecl: d.spec})
 			case funcDecl:
 				name := d.decl.Name.Name
 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil) // signature set later
@@ -447,7 +451,7 @@ func (check *Checker) collectObjects() {
 					check.recordDef(d.decl.Name, obj)
 				}
 				_ = d.decl.Type.TypeParams.NumFields() != 0 && !hasTParamError && check.verifyVersionf(d.decl.Type.TypeParams.List[0], go1_18, "type parameter")
-				info := &declInfo{file: fileScope, fdecl: d.decl}
+				info := &declInfo{file: fileScope, version: check.version, fdecl: d.decl}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the
 				// receiver is invalid); also we need their fdecl info when associating
@@ -482,13 +486,44 @@ func (check *Checker) collectObjects() {
 	// Ignore methods that have an invalid receiver. They will be
 	// type-checked later, with regular functions.
 	if methods == nil {
-		return // nothing to do
+		return
 	}
+
+	// lookupScope returns the file scope which contains the given name,
+	// or nil if the name is not found in any scope. The search does not
+	// step inside blocks (function bodies).
+	// This function is only used in conjuction with import "C", and even
+	// then only rarely. It doesn't have to be particularly fast.
+	lookupScope := func(name *ast.Ident) *Scope {
+		for i, file := range check.files {
+			found := false
+			ast.Inspect(file, func(n ast.Node) bool {
+				if found {
+					return false // we're done
+				}
+				switch n := n.(type) {
+				case *ast.Ident:
+					if n == name {
+						found = true
+						return false
+					}
+				case *ast.BlockStmt:
+					return false // don't descend into function bodies
+				}
+				return true
+			})
+			if found {
+				return fileScopes[i]
+			}
+		}
+		return nil
+	}
+
 	check.methods = make(map[*TypeName][]*Func)
 	for i := range methods {
 		m := &methods[i]
 		// Determine the receiver base type and associate m with it.
-		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv, fileScopes)
+		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv, lookupScope)
 		if base != nil {
 			m.obj.hasPtrRecv_ = ptr
 			check.methods[base] = append(check.methods[base], m.obj)
@@ -546,7 +581,7 @@ func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, ba
 // there was a pointer indirection to get to it. The base type name must be declared
 // in package scope, and there can be at most one pointer indirection. If no such type
 // name exists, the returned base is nil.
-func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, fileScopes []*Scope) (ptr bool, base *TypeName) {
+func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, lookupScope func(*ast.Ident) *Scope) (ptr bool, base *TypeName) {
 	// Algorithm: Starting from a type expression, which may be a name,
 	// we follow that type through alias declarations until we reach a
 	// non-alias type name. If we encounter anything but pointer types or
@@ -576,18 +611,15 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, fileScopes
 			name = typ.Name
 		case *ast.SelectorExpr:
 			// C.struct_foo is a valid type name for packages using cgo.
+			// See go.dev/issue/59944.
+			// TODO(gri) why is it possible to associate methods with C types?
 			//
 			// Detect this case, and adjust name so that the correct TypeName is
 			// resolved below.
 			if ident, _ := typ.X.(*ast.Ident); ident != nil && ident.Name == "C" {
 				// Check whether "C" actually resolves to an import of "C", by looking
 				// in the appropriate file scope.
-				var obj Object
-				for _, scope := range fileScopes {
-					if scope.Contains(ident.Pos()) {
-						obj = scope.Lookup(ident.Name)
-					}
-				}
+				obj := lookupScope(ident).Lookup(ident.Name) // the fileScope must always be found
 				// If Config.go115UsesCgo is set, the typechecker will resolve Cgo
 				// selectors to their cgo name. We must do the same here.
 				if pname, _ := obj.(*PkgName); pname != nil {
@@ -713,6 +745,7 @@ func (check *Checker) packageObjects() {
 }
 
 // inSourceOrder implements the sort.Sort interface.
+// TODO(gri) replace with slices.SortFunc
 type inSourceOrder []Object
 
 func (a inSourceOrder) Len() int           { return len(a) }

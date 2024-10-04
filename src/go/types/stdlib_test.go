@@ -318,6 +318,7 @@ func TestStdFixed(t *testing.T) {
 		"issue16369.go",  // go/types handles this correctly - not an issue
 		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
+		"issue20027.go",  // go/types does not have constraints on channel element size
 		"issue20529.go",  // go/types does not have constraints on stack size
 		"issue22200.go",  // go/types does not have constraints on stack size
 		"issue22200b.go", // go/types does not have constraints on stack size
@@ -357,8 +358,15 @@ var excluded = map[string]bool{
 	"builtin": true,
 
 	// See go.dev/issue/46027: some imports are missing for this submodule.
-	"crypto/internal/edwards25519/field/_asm": true,
+	"crypto/aes/_asm/gcm":                     true,
+	"crypto/aes/_asm/standard":                true,
 	"crypto/internal/bigmod/_asm":             true,
+	"crypto/internal/edwards25519/field/_asm": true,
+	"crypto/internal/nistec/_asm":             true,
+	"crypto/md5/_asm":                         true,
+	"crypto/sha1/_asm":                        true,
+	"crypto/sha256/_asm":                      true,
+	"crypto/sha512/_asm":                      true,
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in

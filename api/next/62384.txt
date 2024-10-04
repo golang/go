@@ -15,3 +15,10 @@ pkg math/rand/v2, method (*ChaCha8) AppendBinary([]uint8) ([]uint8, error) #6238
 pkg math/rand/v2, method (*PCG) AppendBinary([]uint8) ([]uint8, error) #62384
 pkg crypto/x509, method (OID) AppendBinary([]uint8) ([]uint8, error) #62384
 pkg crypto/x509, method (OID) AppendText([]uint8) ([]uint8, error) #62384
+pkg net, method (IP) AppendText([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (Addr) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (Addr) AppendText([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (AddrPort) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (AddrPort) AppendText([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (Prefix) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (Prefix) AppendText([]uint8) ([]uint8, error) #62384

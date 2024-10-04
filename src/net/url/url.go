@@ -13,6 +13,7 @@ package url
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path"
 	"slices"
 	"strconv"
@@ -1004,12 +1005,7 @@ func (v Values) Encode() string {
 		return ""
 	}
 	var buf strings.Builder
-	keys := make([]string, 0, len(v))
-	for k := range v {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	for _, k := range keys {
+	for _, k := range slices.Sorted(maps.Keys(v)) {
 		vs := v[k]
 		keyEscaped := QueryEscape(k)
 		for _, v := range vs {

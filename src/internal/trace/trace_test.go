@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -148,12 +149,11 @@ func TestTraceCPUProfile(t *testing.T) {
 				if hogRegion != nil && ev.Goroutine() == hogRegion.Goroutine() {
 					traceSamples++
 					var fns []string
-					ev.Stack().Frames(func(frame trace.StackFrame) bool {
+					for frame := range ev.Stack().Frames() {
 						if frame.Func != "runtime.goexit" {
 							fns = append(fns, fmt.Sprintf("%s:%d", frame.Func, frame.Line))
 						}
-						return true
-					})
+					}
 					stack := strings.Join(fns, "|")
 					traceStacks[stack]++
 				}
@@ -436,21 +436,15 @@ func TestTraceStacks(t *testing.T) {
 			}...)
 		}
 		stackMatches := func(stk trace.Stack, frames []frame) bool {
-			i := 0
-			match := true
-			stk.Frames(func(f trace.StackFrame) bool {
+			for i, f := range slices.Collect(stk.Frames()) {
 				if f.Func != frames[i].fn {
-					match = false
 					return false
 				}
 				if line := uint64(frames[i].line); line != 0 && line != f.Line {
-					match = false
 					return false
 				}
-				i++
-				return true
-			})
-			return match
+			}
+			return true
 		}
 		r, err := trace.NewReader(bytes.NewReader(tb))
 		if err != nil {

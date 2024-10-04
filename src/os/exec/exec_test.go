@@ -159,62 +159,14 @@ func helperCommandContext(t *testing.T, ctx context.Context, name string, args .
 	helperCommandUsed.LoadOrStore(name, true)
 
 	t.Helper()
-	testenv.MustHaveExec(t)
-
+	exe := testenv.Executable(t)
 	cs := append([]string{name}, args...)
 	if ctx != nil {
-		cmd = exec.CommandContext(ctx, exePath(t), cs...)
+		cmd = exec.CommandContext(ctx, exe, cs...)
 	} else {
-		cmd = exec.Command(exePath(t), cs...)
+		cmd = exec.Command(exe, cs...)
 	}
 	return cmd
-}
-
-// exePath returns the path to the running executable.
-func exePath(t testing.TB) string {
-	exeOnce.Do(func() {
-		// Use os.Executable instead of os.Args[0] in case the caller modifies
-		// cmd.Dir: if the test binary is invoked like "./exec.test", it should
-		// not fail spuriously.
-		exeOnce.path, exeOnce.err = os.Executable()
-	})
-
-	if exeOnce.err != nil {
-		if t == nil {
-			panic(exeOnce.err)
-		}
-		t.Fatal(exeOnce.err)
-	}
-
-	return exeOnce.path
-}
-
-var exeOnce struct {
-	path string
-	err  error
-	sync.Once
-}
-
-func chdir(t *testing.T, dir string) {
-	t.Helper()
-
-	prev, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("Chdir(%#q)", dir)
-
-	t.Cleanup(func() {
-		if err := os.Chdir(prev); err != nil {
-			// Couldn't chdir back to the original working directory.
-			// panic instead of t.Fatal so that we don't run other tests
-			// in an unexpected location.
-			panic("couldn't restore working directory: " + err.Error())
-		}
-	})
 }
 
 var helperCommandUsed sync.Map
@@ -1201,7 +1153,7 @@ func cmdHang(args ...string) {
 	pid := os.Getpid()
 
 	if *subsleep != 0 {
-		cmd := exec.Command(exePath(nil), "hang", subsleep.String(), "-read=true", "-probe="+probe.String())
+		cmd := exec.Command(testenv.Executable(nil), "hang", subsleep.String(), "-read=true", "-probe="+probe.String())
 		cmd.Stdin = os.Stdin
 		cmd.Stderr = os.Stderr
 		out, err := cmd.StdoutPipe()

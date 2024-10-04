@@ -663,7 +663,7 @@
 //
 // Usage:
 //
-//	go get [-t] [-u] [-v] [build flags] [packages]
+//	go get [-t] [-u] [-v] [-tool] [build flags] [packages]
 //
 // Get resolves its command-line arguments to packages at specific module versions,
 // updates go.mod to require those versions, and downloads source code into the
@@ -716,6 +716,9 @@
 //
 // When the -t and -u flags are used together, get will update
 // test dependencies as well.
+//
+// The -tool flag instructs go to add a matching tool line to go.mod for each
+// listed package. If -tool is used with @none, the line will be removed.
 //
 // The -x flag prints commands as they are executed. This is useful for
 // debugging version control commands when a module is downloaded directly
@@ -2270,6 +2273,12 @@
 //	GOARCH
 //		The architecture, or processor, for which to compile code.
 //		Examples are amd64, 386, arm, ppc64.
+//	GOAUTH
+//		A semicolon-separated list of authentication commands for go-import and
+//		HTTPS module mirror interactions. Currently supports
+//		"off" (disables authentication) and
+//		"netrc" (uses credentials from NETRC or the .netrc file in your home directory).
+//		The default is netrc.
 //	GOBIN
 //		The directory where 'go install' will install a command.
 //	GOCACHE
@@ -2934,11 +2943,9 @@
 //
 // - "main" denotes the top-level package in a stand-alone executable.
 //
-// - "all" expands to all packages found in all the GOPATH
-// trees. For example, 'go list all' lists all the packages on the local
-// system. When using modules, "all" expands to all packages in
-// the main module and their dependencies, including dependencies
-// needed by tests of any of those.
+// - "all" expands to all packages in the main module (or workspace modules) and
+// their dependencies, including dependencies needed by tests of any of those. In
+// GOPATH mode, "all" expands to all packages found in all the GOPATH trees.
 //
 // - "std" is like all but expands to just the packages in the standard
 // Go library.

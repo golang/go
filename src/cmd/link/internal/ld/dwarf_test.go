@@ -131,8 +131,8 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
 
 // Similar to gobuild() above, but uses a main package instead of a test.go file.
 
-func gobuildTestdata(t *testing.T, tdir string, pkgDir string, gcflags string) *builtFile {
-	dst := filepath.Join(tdir, "out.exe")
+func gobuildTestdata(t *testing.T, pkgDir string, gcflags string) *builtFile {
+	dst := filepath.Join(t.TempDir(), "out.exe")
 
 	// Run a build with an updated GOPATH
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", gcflags, "-o", dst)
@@ -762,10 +762,8 @@ func main() {
 func abstractOriginSanity(t *testing.T, pkgDir string, flags string) {
 	t.Parallel()
 
-	dir := t.TempDir()
-
 	// Build with inlining, to exercise DWARF inlining support.
-	f := gobuildTestdata(t, dir, filepath.Join(pkgDir, "main"), flags)
+	f := gobuildTestdata(t, filepath.Join(pkgDir, "main"), flags)
 	defer f.Close()
 
 	d, err := f.DWARF()
@@ -840,13 +838,7 @@ func TestAbstractOriginSanity(t *testing.T) {
 	}
 
 	mustHaveDWARF(t)
-
-	if wd, err := os.Getwd(); err == nil {
-		gopathdir := filepath.Join(wd, "testdata", "httptest")
-		abstractOriginSanity(t, gopathdir, OptAllInl4)
-	} else {
-		t.Fatalf("os.Getwd() failed %v", err)
-	}
+	abstractOriginSanity(t, "testdata/httptest", OptAllInl4)
 }
 
 func TestAbstractOriginSanityIssue25459(t *testing.T) {
@@ -857,24 +849,14 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
 		t.Skip("skipping on not-amd64 not-386; location lists not supported")
 	}
 
-	if wd, err := os.Getwd(); err == nil {
-		gopathdir := filepath.Join(wd, "testdata", "issue25459")
-		abstractOriginSanity(t, gopathdir, DefaultOpt)
-	} else {
-		t.Fatalf("os.Getwd() failed %v", err)
-	}
+	abstractOriginSanity(t, "testdata/issue25459", DefaultOpt)
 }
 
 func TestAbstractOriginSanityIssue26237(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	mustHaveDWARF(t)
-	if wd, err := os.Getwd(); err == nil {
-		gopathdir := filepath.Join(wd, "testdata", "issue26237")
-		abstractOriginSanity(t, gopathdir, DefaultOpt)
-	} else {
-		t.Fatalf("os.Getwd() failed %v", err)
-	}
+	abstractOriginSanity(t, "testdata/issue26237", DefaultOpt)
 }
 
 func TestRuntimeTypeAttrInternal(t *testing.T) {
@@ -1231,14 +1213,7 @@ func TestMachoIssue32233(t *testing.T) {
 		t.Skip("skipping; test only interesting on darwin")
 	}
 
-	tmpdir := t.TempDir()
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("where am I? %v", err)
-	}
-	pdir := filepath.Join(wd, "testdata", "issue32233", "main")
-	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+	f := gobuildTestdata(t, "testdata/issue32233/main", DefaultOpt)
 	f.Close()
 }
 
@@ -1313,13 +1288,7 @@ func TestIssue38192(t *testing.T) {
 
 	// Build a test program that contains a translation unit whose
 	// text (from am assembly source) contains only a single instruction.
-	tmpdir := t.TempDir()
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("where am I? %v", err)
-	}
-	pdir := filepath.Join(wd, "testdata", "issue38192")
-	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+	f := gobuildTestdata(t, "testdata/issue38192", DefaultOpt)
 	defer f.Close()
 
 	// Open the resulting binary and examine the DWARF it contains.
@@ -1431,14 +1400,7 @@ func TestIssue39757(t *testing.T) {
 	// compiler/runtime in ways that aren't happening now, so this
 	// might be something to check for if it does start failing.
 
-	tmpdir := t.TempDir()
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("where am I? %v", err)
-	}
-	pdir := filepath.Join(wd, "testdata", "issue39757")
-	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+	f := gobuildTestdata(t, "testdata/issue39757", DefaultOpt)
 	defer f.Close()
 
 	syms, err := f.Symbols()
@@ -1529,17 +1491,7 @@ func TestIssue42484(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := os.MkdirTemp("", "TestIssue42484")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("where am I? %v", err)
-	}
-	pdir := filepath.Join(wd, "testdata", "issue42484")
-	f := gobuildTestdata(t, tmpdir, pdir, NoOpt)
+	f := gobuildTestdata(t, "testdata/issue42484", NoOpt)
 
 	var lastAddr uint64
 	var lastFile string

@@ -13,16 +13,30 @@ import (
 	"testing"
 )
 
-const executable_EnvVar = "OSTEST_OUTPUT_EXECPATH"
-
 func TestExecutable(t *testing.T) {
-	testenv.MustHaveExec(t)
-	t.Parallel()
+	const helperEnvVar = "OSTEST_OUTPUT_EXECPATH"
 
-	ep, err := os.Executable()
-	if err != nil {
-		t.Fatalf("Executable failed: %v", err)
+	if os.Getenv(helperEnvVar) != "" {
+		// First chdir to another path.
+		dir := "/"
+		if runtime.GOOS == "windows" {
+			cwd, err := os.Getwd()
+			if err != nil {
+				panic(err)
+			}
+			dir = filepath.VolumeName(cwd)
+		}
+		os.Chdir(dir)
+		if ep, err := os.Executable(); err != nil {
+			fmt.Fprint(os.Stderr, "ERROR: ", err)
+		} else {
+			fmt.Fprint(os.Stderr, ep)
+		}
+		os.Exit(0)
 	}
+
+	t.Parallel()
+	ep := testenv.Executable(t)
 	// we want fn to be of the form "dir/prog"
 	dir := filepath.Dir(filepath.Dir(ep))
 	fn, err := filepath.Rel(dir, ep)
@@ -30,7 +44,7 @@ func TestExecutable(t *testing.T) {
 		t.Fatalf("filepath.Rel: %v", err)
 	}
 
-	cmd := testenv.Command(t, fn, "-test.run=^$")
+	cmd := testenv.Command(t, fn, "-test.run=^"+t.Name()+"$")
 	// make child start with a relative program path
 	cmd.Dir = dir
 	cmd.Path = fn
@@ -41,7 +55,7 @@ func TestExecutable(t *testing.T) {
 		// get real path of the executable without influenced by argv[0].
 		cmd.Args[0] = "-"
 	}
-	cmd.Env = append(cmd.Environ(), fmt.Sprintf("%s=1", executable_EnvVar))
+	cmd.Env = append(cmd.Environ(), fmt.Sprintf("%s=1", helperEnvVar))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("exec(self) failed: %v", err)
@@ -65,27 +79,6 @@ func sameFile(fn1, fn2 string) bool {
 		return false
 	}
 	return os.SameFile(fi1, fi2)
-}
-
-func init() {
-	if e := os.Getenv(executable_EnvVar); e != "" {
-		// first chdir to another path
-		dir := "/"
-		if runtime.GOOS == "windows" {
-			cwd, err := os.Getwd()
-			if err != nil {
-				panic(err)
-			}
-			dir = filepath.VolumeName(cwd)
-		}
-		os.Chdir(dir)
-		if ep, err := os.Executable(); err != nil {
-			fmt.Fprint(os.Stderr, "ERROR: ", err)
-		} else {
-			fmt.Fprint(os.Stderr, ep)
-		}
-		os.Exit(0)
-	}
 }
 
 func TestExecutableDeleted(t *testing.T) {

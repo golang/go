@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	errpkg "errors"
 	"internal/itoa"
 	"runtime"
 	"unsafe"
@@ -330,6 +331,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	if clone3 != nil {
 		pid, err1 = rawVforkSyscall(_SYS_clone3, uintptr(unsafe.Pointer(clone3)), unsafe.Sizeof(*clone3), 0)
 	} else {
+		// N.B. Keep in sync with doCheckClonePidfd.
 		flags |= uintptr(SIGCHLD)
 		if runtime.GOARCH == "s390x" {
 			// On Linux/s390, the first two arguments of clone(2) are swapped.
@@ -749,4 +751,91 @@ func writeUidGidMappings(pid int, sys *SysProcAttr) error {
 	}
 
 	return nil
+}
+
+// forkAndExecFailureCleanup cleans up after an exec failure.
+func forkAndExecFailureCleanup(attr *ProcAttr, sys *SysProcAttr) {
+	if sys.PidFD != nil && *sys.PidFD != -1 {
+		Close(*sys.PidFD)
+		*sys.PidFD = -1
+	}
+}
+
+// checkClonePidfd verifies that clone(CLONE_PIDFD) works by actually doing a
+// clone.
+//
+//go:linkname os_checkClonePidfd os.checkClonePidfd
+func os_checkClonePidfd() error {
+	pidfd := int32(-1)
+	pid, errno := doCheckClonePidfd(&pidfd)
+	if errno != 0 {
+		return errno
+	}
+
+	if pidfd == -1 {
+		// Bad: CLONE_PIDFD failed to provide a pidfd. Reap the process
+		// before returning.
+
+		var err error
+		for {
+			var status WaitStatus
+			_, err = Wait4(int(pid), &status, 0, nil)
+			if err != EINTR {
+				break
+			}
+		}
+		if err != nil {
+			return err
+		}
+
+		return errpkg.New("clone(CLONE_PIDFD) failed to return pidfd")
+	}
+
+	// Good: CLONE_PIDFD provided a pidfd. Reap the process and close the
+	// pidfd.
+	defer Close(int(pidfd))
+
+	for {
+		const _P_PIDFD = 3
+		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED, 0, 0)
+		if errno != EINTR {
+			break
+		}
+	}
+	if errno != 0 {
+		return errno
+	}
+
+	return nil
+}
+
+// doCheckClonePidfd implements the actual clone call of os_checkClonePidfd and
+// child execution. This is a separate function so we can separate the child's
+// and parent's stack frames if we're using vfork.
+//
+// This is go:noinline because the point is to keep the stack frames of this
+// and os_checkClonePidfd separate.
+//
+//go:noinline
+func doCheckClonePidfd(pidfd *int32) (pid uintptr, errno Errno) {
+	flags := uintptr(CLONE_VFORK | CLONE_VM | CLONE_PIDFD | SIGCHLD)
+	if runtime.GOARCH == "s390x" {
+		// On Linux/s390, the first two arguments of clone(2) are swapped.
+		pid, errno = rawVforkSyscall(SYS_CLONE, 0, flags, uintptr(unsafe.Pointer(pidfd)))
+	} else {
+		pid, errno = rawVforkSyscall(SYS_CLONE, flags, 0, uintptr(unsafe.Pointer(pidfd)))
+	}
+	if errno != 0 || pid != 0 {
+		// If we're in the parent, we must return immediately
+		// so we're not in the same stack frame as the child.
+		// This can at most use the return PC, which the child
+		// will not modify, and the results of
+		// rawVforkSyscall, which must have been written after
+		// the child was replaced.
+		return
+	}
+
+	for {
+		RawSyscall(SYS_EXIT_GROUP, 0, 0, 0)
+	}
 }

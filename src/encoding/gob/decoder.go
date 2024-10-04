@@ -35,6 +35,8 @@ type Decoder struct {
 	freeList     *decoderState                           // list of free decoderStates; avoids reallocation
 	countBuf     []byte                                  // used for decoding integers while parsing messages
 	err          error
+	// ignoreDepth tracks the depth of recursively parsed ignored fields
+	ignoreDepth int
 }
 
 // NewDecoder returns a new decoder that reads from the [io.Reader].

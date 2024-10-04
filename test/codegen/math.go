@@ -156,6 +156,7 @@ func fnma(x, y, z float64) float64 {
 func fromFloat64(f64 float64) uint64 {
 	// amd64:"MOVQ\tX.*, [^X].*"
 	// arm64:"FMOVD\tF.*, R.*"
+	// loong64:"MOVV\tF.*, R.*"
 	// ppc64x:"MFVSRD"
 	// mips64/hardfloat:"MOVV\tF.*, R.*"
 	return math.Float64bits(f64+1) + 1
@@ -164,6 +165,7 @@ func fromFloat64(f64 float64) uint64 {
 func fromFloat32(f32 float32) uint32 {
 	// amd64:"MOVL\tX.*, [^X].*"
 	// arm64:"FMOVS\tF.*, R.*"
+	// loong64:"MOVW\tF.*, R.*"
 	// mips64/hardfloat:"MOVW\tF.*, R.*"
 	return math.Float32bits(f32+1) + 1
 }
@@ -171,6 +173,7 @@ func fromFloat32(f32 float32) uint32 {
 func toFloat64(u64 uint64) float64 {
 	// amd64:"MOVQ\t[^X].*, X.*"
 	// arm64:"FMOVD\tR.*, F.*"
+	// loong64:"MOVV\tR.*, F.*"
 	// ppc64x:"MTVSRD"
 	// mips64/hardfloat:"MOVV\tR.*, F.*"
 	return math.Float64frombits(u64+1) + 1
@@ -179,6 +182,7 @@ func toFloat64(u64 uint64) float64 {
 func toFloat32(u32 uint32) float32 {
 	// amd64:"MOVL\t[^X].*, X.*"
 	// arm64:"FMOVS\tR.*, F.*"
+	// loong64:"MOVW\tR.*, F.*"
 	// mips64/hardfloat:"MOVW\tR.*, F.*"
 	return math.Float32frombits(u32+1) + 1
 }

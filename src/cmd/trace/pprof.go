@@ -306,19 +306,19 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
 	prof := make([]traceviewer.ProfileRecord, 0, len(m.stacks))
 	for stack, record := range m.stacks {
 		rec := *record
-		i := 0
-		stack.Frames(func(frame trace.StackFrame) bool {
+		for i, frame := range slices.Collect(stack.Frames()) {
 			rec.Stack = append(rec.Stack, &trace.Frame{
 				PC:   frame.PC,
 				Fn:   frame.Func,
 				File: frame.File,
 				Line: int(frame.Line),
 			})
-			i++
 			// Cut this off at pprofMaxStack because that's as far
 			// as our deduplication goes.
-			return i < pprofMaxStack
-		})
+			if i >= pprofMaxStack {
+				break
+			}
+		}
 		prof = append(prof, rec)
 	}
 	return prof
@@ -326,10 +326,10 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
 
 // pcsForStack extracts the first pprofMaxStack PCs from stack into pcs.
 func pcsForStack(stack trace.Stack, pcs *[pprofMaxStack]uint64) {
-	i := 0
-	stack.Frames(func(frame trace.StackFrame) bool {
+	for i, frame := range slices.Collect(stack.Frames()) {
 		pcs[i] = frame.PC
-		i++
-		return i < len(pcs)
-	})
+		if i >= len(pcs) {
+			break
+		}
+	}
 }

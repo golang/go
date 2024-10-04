@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/build"
 	"internal/godebugs"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -89,9 +90,7 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 	defaults := godebugForGoVersion(goVersion)
 	if defaults != nil {
 		// Apply m on top of defaults.
-		for k, v := range m {
-			defaults[k] = v
-		}
+		maps.Copy(defaults, m)
 		m = defaults
 	}
 

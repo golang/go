@@ -199,9 +199,6 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 			if r.Op() == ir.OKEY {
 				kv := r.(*ir.KeyExpr)
 				k = typecheck.IndexConst(kv.Key)
-				if k < 0 {
-					base.Fatalf("fixedlit: invalid index %v", kv.Key)
-				}
 				r = kv.Value
 			}
 			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(base.Pos, k))
@@ -372,9 +369,6 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		if value.Op() == ir.OKEY {
 			kv := value.(*ir.KeyExpr)
 			index = typecheck.IndexConst(kv.Key)
-			if index < 0 {
-				base.Fatalf("slicelit: invalid index %v", kv.Key)
-			}
 			value = kv.Value
 		}
 		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(base.Pos, index))

@@ -575,15 +575,15 @@ func TestGdbAutotmpTypes(t *testing.T) {
 
 	// Check that the backtrace matches the source code.
 	types := []string{
-		"[]main.astruct;",
-		"bucket<string,main.astruct>;",
-		"hash<string,main.astruct>;",
-		"main.astruct;",
-		"hash<string,main.astruct> * map[string]main.astruct;",
+		"[]main.astruct",
+		"bucket<string,main.astruct>",
+		"hash<string,main.astruct>",
+		"main.astruct",
+		"hash<string,main.astruct> * map[string]main.astruct",
 	}
 	for _, name := range types {
 		if !strings.Contains(sgot, name) {
-			t.Fatalf("could not find %s in 'info typrs astruct' output", name)
+			t.Fatalf("could not find %q in 'info typrs astruct' output", name)
 		}
 	}
 }

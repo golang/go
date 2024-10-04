@@ -30,6 +30,15 @@ export CGO_ENABLED=0
 # Go toolchain / clang toolchain combinations.
 perl -p -i -e 's/defined.*ELF.*defined.*GNUC.*/$0 \&\& !defined(GOBORING)/' boringssl/crypto/mem.c
 
+# We build all of libcrypto, which includes a bunch of I/O operations that we
+# don't actually care about, since we only really want the BoringCrypto module.
+# In libcrypto, they use the LFS64 interfaces where available in order to
+# traverse files larger than 2GB. In some scenarios this can cause breakage, so
+# we comment out the _FILE_OFFSET_BITS definition which enables the LFS64
+# interfaces. Since this code is outside of the FIPS module, it doesn't affect
+# the certification status of the module. See b/364606941 for additional context.
+perl -p -i -e 's/(#define _FILE_OFFSET_BITS 64)/\/\/ $1/' boringssl/crypto/bio/file.c
+
 # Verbatim instructions from BoringCrypto build docs.
 printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >${HOME}/toolchain
 cd boringssl

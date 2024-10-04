@@ -17,6 +17,7 @@ import (
 	"go/token"
 	"io"
 	"math/big"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -188,7 +189,9 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 	}
 	// record all referenced packages as imports
 	list := append(([]*types2.Package)(nil), pkgList[1:]...)
-	sort.Sort(byPath(list))
+	slices.SortFunc(list, func(a, b *types2.Package) int {
+		return strings.Compare(a.Path(), b.Path())
+	})
 	localpkg.SetImports(list)
 
 	// package was imported completely and without errors

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -71,13 +72,7 @@ func testFS(fsys fs.FS, expected ...string) error {
 	}
 	delete(found, ".")
 	if len(expected) == 0 && len(found) > 0 {
-		var list []string
-		for k := range found {
-			if k != "." {
-				list = append(list, k)
-			}
-		}
-		slices.Sort(list)
+		list := slices.Sorted(maps.Keys(found))
 		if len(list) > 15 {
 			list = append(list[:10], "...")
 		}

@@ -708,7 +708,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
 	if p.arch.Family == sys.ARM64 {
 		off, err := arch.ARM64RegisterShift(r1, op, count)
 		if err != nil {
-			p.errorf(err.Error())
+			p.errorf("%v", err)
 		}
 		return off
 	} else {
@@ -770,7 +770,7 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 	case sys.ARM64:
 		err := arch.ARM64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
 		if err != nil {
-			p.errorf(err.Error())
+			p.errorf("%v", err)
 		}
 	default:
 		p.errorf("register extension not supported on this architecture")
@@ -1117,7 +1117,7 @@ ListLoop:
 			ext := tok.String()
 			curArrangement, err := arch.ARM64RegisterArrangement(reg, name, ext)
 			if err != nil {
-				p.errorf(err.Error())
+				p.errorf("%v", err)
 			}
 			if firstReg == -1 {
 				// only record the first register and arrangement
@@ -1164,7 +1164,7 @@ ListLoop:
 	case sys.ARM64:
 		offset, err := arch.ARM64RegisterListOffset(firstReg, regCnt, arrangement)
 		if err != nil {
-			p.errorf(err.Error())
+			p.errorf("%v", err)
 		}
 		a.Offset = offset
 	default:

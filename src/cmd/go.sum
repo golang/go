@@ -6,8 +6,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 h1:KwWnWVW
 github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
 github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
 github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-golang.org/x/arch v0.9.1-0.20240807172201-9d90945922a7 h1:4+03DsxQb03qtr7e32FA8tiq18ytCUClXaXxQBDRGbs=
-golang.org/x/arch v0.9.1-0.20240807172201-9d90945922a7/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+golang.org/x/arch v0.10.1-0.20240910142527-7874f23b9c06 h1:UQRD9d43XiTfPsm0o04gmvWqcLLGkwqV+bOwtb7AP6c=
+golang.org/x/arch v0.10.1-0.20240910142527-7874f23b9c06/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
 golang.org/x/build v0.0.0-20240722200705-b9910f320300 h1:2Cqg4LnvfD2ZpG8+6KbyYUkweWhNS3SgfcN/eeVseJ0=
 golang.org/x/build v0.0.0-20240722200705-b9910f320300/go.mod h1:YsGhg4JUVUWLzdqU2wCrtpRrOveOql6w56FLDHq/CJ4=
 golang.org/x/mod v0.20.0 h1:utOm6MM3R3dnawAiJgn0y+xvuYRsm1RKM/4giyfDgV0=
@@ -22,7 +22,7 @@ golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292 h1:BOrQi08eIX3cDgGcMgFON
 golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292/go.mod h1:F3qCibpT5AMpCRfhfT53vVJwhLtIVHhB9XDjfFvnMI4=
 golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 h1:MlCLrwVF1WvXT14xTzwuKN3u4LpUve8sG/gJUCuBpe8=
 golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
-golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c h1:jGHQpjWnvPa5qmjhxUYeut+TlRYWRGaMcOnAZ4S5IOo=
-golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c/go.mod h1:pnu6ufv6vQkll6szChhK3C3L/ruaIv5eBeztNG8wtsI=
+golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c h1:JImdv91aqIPqamNg5sOTUjNQD++5KkvchZi2BcYlNoE=
+golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c/go.mod h1:IV2Kidsnn7A8K7hHxn/wcUfHXkViw0LLHdu8LnpT8LU=
 rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef h1:mqLYrXCXYEZOop9/Dbo6RPX11539nwiCNBb1icVPmw8=
 rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=

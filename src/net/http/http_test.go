@@ -151,9 +151,7 @@ var forbiddenStringsFunctions = map[string]bool{
 // strings and bytes package functions. HTTP is mostly ASCII based, and doing
 // Unicode-aware case folding or space stripping can introduce vulnerabilities.
 func TestNoUnicodeStrings(t *testing.T) {
-	if !testenv.HasSrc() {
-		t.Skip("source code not available")
-	}
+	testenv.MustHaveSource(t)
 
 	re := regexp.MustCompile(`(strings|bytes).([A-Za-z]+)`)
 	if err := fs.WalkDir(os.DirFS("."), ".", func(path string, d fs.DirEntry, err error) error {

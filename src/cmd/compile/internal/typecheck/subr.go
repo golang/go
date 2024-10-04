@@ -6,7 +6,7 @@ package typecheck
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -144,7 +144,7 @@ func CalcMethods(t *types.Type) {
 	}
 
 	ms = append(ms, t.Methods()...)
-	sort.Sort(types.MethodsByName(ms))
+	slices.SortFunc(ms, types.MethodsByNameCmp)
 	t.SetAllMethods(ms)
 }
 

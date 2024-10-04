@@ -47,6 +47,7 @@ var goodCompilerFlags = [][]string{
 	{"-fstack-xxx"},
 	{"-fno-stack-xxx"},
 	{"-fsanitize=hands"},
+	{"-ftls-model=local-dynamic"},
 	{"-g"},
 	{"-ggdb"},
 	{"-march=souza"},

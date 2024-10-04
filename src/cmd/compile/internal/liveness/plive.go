@@ -15,8 +15,10 @@
 package liveness
 
 import (
+	"cmp"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -29,7 +31,7 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/types"
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 
@@ -168,15 +170,9 @@ func (m *Map) reset() {
 		m.UnsafeVals = make(map[ssa.ID]bool)
 		m.UnsafeBlocks = make(map[ssa.ID]bool)
 	} else {
-		for k := range m.Vals {
-			delete(m.Vals, k)
-		}
-		for k := range m.UnsafeVals {
-			delete(m.UnsafeVals, k)
-		}
-		for k := range m.UnsafeBlocks {
-			delete(m.UnsafeBlocks, k)
-		}
+		clear(m.Vals)
+		clear(m.UnsafeVals)
+		clear(m.UnsafeBlocks)
 	}
 	m.DeferReturn = objw.StackMapDontCare
 }
@@ -985,7 +981,7 @@ func (lv *liveness) enableClobber() {
 		// Clobber only functions where the hash of the function name matches a pattern.
 		// Useful for binary searching for a miscompiled function.
 		hstr := ""
-		for _, b := range notsha256.Sum256([]byte(lv.f.Name)) {
+		for _, b := range hash.Sum20([]byte(lv.f.Name)) {
 			hstr += fmt.Sprintf("%08b", b)
 		}
 		if !strings.HasSuffix(hstr, h) {
@@ -1154,7 +1150,7 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
 		s += " " + v
 	}
 
-	base.WarnfAt(pos, s)
+	base.WarnfAt(pos, "%s", s)
 }
 
 func (lv *liveness) printbvec(printed bool, name string, live bitvec.BitVec) bool {
@@ -1451,7 +1447,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 	}
 
 	// Sort variables from lowest to highest address.
-	sort.Slice(vars, func(i, j int) bool { return vars[i].FrameOffset() < vars[j].FrameOffset() })
+	slices.SortFunc(vars, func(a, b *ir.Name) int { return cmp.Compare(a.FrameOffset(), b.FrameOffset()) })
 
 	// Populate the stack object data.
 	// Format must match runtime/stack.go:stackObjectRecord.

@@ -105,13 +105,3 @@ func stringtouint32(x []uint32, s string) {
 		x[i] = binary.LittleEndian.Uint32(buf[:])
 	}
 }
-
-// contains reports whether v is in s.
-func contains(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
-}

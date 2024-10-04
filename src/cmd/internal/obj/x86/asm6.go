@@ -3506,7 +3506,7 @@ bas:
 	return
 
 bad:
-	ctxt.Diag("asmidx: bad address %d/%d/%d", scale, index, base)
+	ctxt.Diag("asmidx: bad address %d/%s/%s", scale, rconv(index), rconv(base))
 	ab.Put1(0)
 }
 

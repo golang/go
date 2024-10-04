@@ -9,12 +9,13 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
 func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess1_faststr))
 	}
 	if h == nil || h.count == 0 {
@@ -118,7 +119,7 @@ dohash:
 //go:linkname mapaccess2_faststr
 func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess2_faststr))
 	}
 	if h == nil || h.count == 0 {
@@ -215,7 +216,6 @@ dohash:
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/bytedance/sonic
-//   - github.com/cloudwego/frugal
 //   - github.com/ugorji/go/codec
 //
 // Do not remove or change the type signature.
@@ -227,7 +227,7 @@ func mapassign_faststr(t *maptype, h *hmap, s string) unsafe.Pointer {
 		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_faststr))
 	}
 	if h.flags&hashWriting != 0 {
@@ -322,7 +322,7 @@ done:
 
 func mapdelete_faststr(t *maptype, h *hmap, ky string) {
 	if raceenabled && h != nil {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapdelete_faststr))
 	}
 	if h == nil || h.count == 0 {

@@ -9,7 +9,11 @@ import (
 	"internal/abi"
 	"reflect"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
+	"unsafe"
 )
 
 // Set up special types. Because the internal maps are sharded by type,
@@ -28,6 +32,7 @@ type testStruct struct {
 	z float64
 	b string
 }
+type testZeroSize struct{}
 
 func TestHandle(t *testing.T) {
 	testHandle(t, testString("foo"))
@@ -42,6 +47,7 @@ func TestHandle(t *testing.T) {
 	})
 	testHandle(t, testStruct{0.5, "184"})
 	testHandle(t, testEface("hello"))
+	testHandle(t, testZeroSize(struct{}{}))
 }
 
 func testHandle[T comparable](t *testing.T, value T) {
@@ -62,14 +68,18 @@ func testHandle[T comparable](t *testing.T, value T) {
 			t.Error("v0 != v1")
 		}
 
-		drainMaps(t)
+		drainMaps[T](t)
 		checkMapsFor(t, value)
 	})
 }
 
 // drainMaps ensures that the internal maps are drained.
-func drainMaps(t *testing.T) {
+func drainMaps[T comparable](t *testing.T) {
 	t.Helper()
+
+	if unsafe.Sizeof(*(new(T))) == 0 {
+		return // zero-size types are not inserted.
+	}
 
 	wait := make(chan struct{}, 1)
 
@@ -109,4 +119,46 @@ func checkMapsFor[T comparable](t *testing.T, value T) {
 		return
 	}
 	t.Errorf("failed to drain internal maps of %v", value)
+}
+
+func TestMakeClonesStrings(t *testing.T) {
+	s := strings.Clone("abcdefghijklmnopqrstuvwxyz") // N.B. Must be big enough to not be tiny-allocated.
+	ran := make(chan bool)
+	runtime.SetFinalizer(unsafe.StringData(s), func(_ *byte) {
+		ran <- true
+	})
+	h := Make(s)
+
+	// Clean up s (hopefully) and run the finalizer.
+	runtime.GC()
+
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("string was improperly retained")
+	case <-ran:
+	}
+	runtime.KeepAlive(h)
+}
+
+func TestHandleUnsafeString(t *testing.T) {
+	var testData []string
+	for i := range 1024 {
+		testData = append(testData, strconv.Itoa(i))
+	}
+	var buf []byte
+	var handles []Handle[string]
+	for _, s := range testData {
+		if len(buf) < len(s) {
+			buf = make([]byte, len(s)*2)
+		}
+		copy(buf, s)
+		sbuf := unsafe.String(&buf[0], len(s))
+		handles = append(handles, Make(sbuf))
+	}
+	for i, s := range testData {
+		h := Make(s)
+		if handles[i].Value() != h.Value() {
+			t.Fatal("unsafe string improperly retained internally")
+		}
+	}
 }

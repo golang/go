@@ -898,6 +898,19 @@ var unmarshalTests = []struct {
 		},
 	},
 
+	{
+		CaseName: Name(""),
+		in:       `{"Level1a": "hello"}`,
+		ptr:      new(Top),
+		err: &UnmarshalTypeError{
+			Value:  "string",
+			Struct: "Top",
+			Field:  "Embed0a.Level1a",
+			Type:   reflect.TypeFor[int](),
+			Offset: 10,
+		},
+	},
+
 	// issue 15146.
 	// invalid inputs in wrongStringTests below.
 	{CaseName: Name(""), in: `{"B":"true"}`, ptr: new(B), out: B{true}, golden: true},

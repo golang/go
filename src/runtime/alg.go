@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -34,7 +35,7 @@ func memhash128(p unsafe.Pointer, h uintptr) uintptr {
 
 //go:nosplit
 func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr {
-	ptr := getclosureptr()
+	ptr := sys.GetClosurePtr()
 	size := *(*uintptr)(unsafe.Pointer(ptr + unsafe.Sizeof(h)))
 	return memhash(p, h, size)
 }
@@ -97,7 +98,6 @@ func memhash64(p unsafe.Pointer, h uintptr) uintptr
 //   - github.com/aristanetworks/goarista
 //   - github.com/bytedance/sonic
 //   - github.com/bytedance/go-tagexpr/v2
-//   - github.com/cloudwego/frugal
 //   - github.com/cloudwego/dynamicgo
 //   - github.com/v2fly/v2ray-core/v5
 //

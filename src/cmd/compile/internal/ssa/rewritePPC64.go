@@ -6812,7 +6812,7 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVBZreg (SRWconst [c] x))
-	// cond: sizeof(x.Type) == 8
+	// cond: x.Type.Size() == 8
 	// result: (SRWconst [c] x)
 	for {
 		if v_0.Op != OpPPC64SRWconst {
@@ -6820,7 +6820,7 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
 		}
 		c := auxIntToInt64(v_0.AuxInt)
 		x := v_0.Args[0]
-		if !(sizeof(x.Type) == 8) {
+		if !(x.Type.Size() == 8) {
 			break
 		}
 		v.reset(OpPPC64SRWconst)
@@ -7267,7 +7267,7 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVBreg (SRAWconst [c] x))
-	// cond: sizeof(x.Type) == 8
+	// cond: x.Type.Size() == 8
 	// result: (SRAWconst [c] x)
 	for {
 		if v_0.Op != OpPPC64SRAWconst {
@@ -7275,7 +7275,7 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *Value) bool {
 		}
 		c := auxIntToInt64(v_0.AuxInt)
 		x := v_0.Args[0]
-		if !(sizeof(x.Type) == 8) {
+		if !(x.Type.Size() == 8) {
 			break
 		}
 		v.reset(OpPPC64SRAWconst)
@@ -8700,7 +8700,7 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVHZreg (SRWconst [c] x))
-	// cond: sizeof(x.Type) <= 16
+	// cond: x.Type.Size() <= 16
 	// result: (SRWconst [c] x)
 	for {
 		if v_0.Op != OpPPC64SRWconst {
@@ -8708,7 +8708,7 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
 		}
 		c := auxIntToInt64(v_0.AuxInt)
 		x := v_0.Args[0]
-		if !(sizeof(x.Type) <= 16) {
+		if !(x.Type.Size() <= 16) {
 			break
 		}
 		v.reset(OpPPC64SRWconst)
@@ -9239,7 +9239,7 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVHreg (SRAWconst [c] x))
-	// cond: sizeof(x.Type) <= 16
+	// cond: x.Type.Size() <= 16
 	// result: (SRAWconst [c] x)
 	for {
 		if v_0.Op != OpPPC64SRAWconst {
@@ -9247,7 +9247,7 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
 		}
 		c := auxIntToInt64(v_0.AuxInt)
 		x := v_0.Args[0]
-		if !(sizeof(x.Type) <= 16) {
+		if !(x.Type.Size() <= 16) {
 			break
 		}
 		v.reset(OpPPC64SRAWconst)
@@ -10068,7 +10068,7 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWZreg (SRWconst [c] x))
-	// cond: sizeof(x.Type) <= 32
+	// cond: x.Type.Size() <= 32
 	// result: (SRWconst [c] x)
 	for {
 		if v_0.Op != OpPPC64SRWconst {
@@ -10076,7 +10076,7 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		}
 		c := auxIntToInt64(v_0.AuxInt)
 		x := v_0.Args[0]
-		if !(sizeof(x.Type) <= 32) {
+		if !(x.Type.Size() <= 32) {
 			break
 		}
 		v.reset(OpPPC64SRWconst)
@@ -10638,7 +10638,7 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg (SRAWconst [c] x))
-	// cond: sizeof(x.Type) <= 32
+	// cond: x.Type.Size() <= 32
 	// result: (SRAWconst [c] x)
 	for {
 		if v_0.Op != OpPPC64SRAWconst {
@@ -10646,7 +10646,7 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
 		}
 		c := auxIntToInt64(v_0.AuxInt)
 		x := v_0.Args[0]
-		if !(sizeof(x.Type) <= 32) {
+		if !(x.Type.Size() <= 32) {
 			break
 		}
 		v.reset(OpPPC64SRAWconst)

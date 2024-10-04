@@ -86,7 +86,7 @@ func parseMetaGoImports(r io.Reader, mod ModuleMode) ([]metaImport, error) {
 }
 
 // attrValue returns the attribute value for the case-insensitive key
-// `name', or the empty string if nothing is found.
+// `name`, or the empty string if nothing is found.
 func attrValue(attrs []xml.Attr, name string) string {
 	for _, a := range attrs {
 		if strings.EqualFold(a.Name.Local, name) {

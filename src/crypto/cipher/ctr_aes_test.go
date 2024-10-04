@@ -80,7 +80,7 @@ func TestCTR_AES(t *testing.T) {
 			ctr := cipher.NewCTR(c, tt.iv)
 			encrypted := make([]byte, len(in))
 			ctr.XORKeyStream(encrypted, in)
-			if out := tt.out[0:len(in)]; !bytes.Equal(out, encrypted) {
+			if out := tt.out[:len(in)]; !bytes.Equal(out, encrypted) {
 				t.Errorf("%s/%d: CTR\ninpt %x\nhave %x\nwant %x", test, len(in), in, encrypted, out)
 			}
 		}
@@ -90,7 +90,7 @@ func TestCTR_AES(t *testing.T) {
 			ctr := cipher.NewCTR(c, tt.iv)
 			plain := make([]byte, len(in))
 			ctr.XORKeyStream(plain, in)
-			if out := tt.in[0:len(in)]; !bytes.Equal(out, plain) {
+			if out := tt.in[:len(in)]; !bytes.Equal(out, plain) {
 				t.Errorf("%s/%d: CTRReader\nhave %x\nwant %x", test, len(out), plain, out)
 			}
 		}

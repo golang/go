@@ -31,6 +31,10 @@ type mOS struct {
 	// needPerThreadSyscall indicates that a per-thread syscall is required
 	// for doAllThreadsSyscall.
 	needPerThreadSyscall atomic.Uint8
+
+	// This is a pointer to a chunk of memory allocated with a special
+	// mmap invocation in vgetrandomGetState().
+	vgetrandomState uintptr
 }
 
 //go:noescape
@@ -344,6 +348,7 @@ func osinit() {
 	ncpu = getproccount()
 	physHugePageSize = getHugePageSize()
 	osArchInit()
+	vgetrandomInit()
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -400,6 +405,10 @@ func unminit() {
 // Called from exitm, but not from drop, to undo the effect of thread-owned
 // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
 func mdestroy(mp *m) {
+	if mp.vgetrandomState != 0 {
+		vgetrandomPutState(mp.vgetrandomState)
+		mp.vgetrandomState = 0
+	}
 }
 
 // #ifdef GOARCH_386
@@ -879,8 +888,9 @@ func runPerThreadSyscall() {
 }
 
 const (
-	_SI_USER  = 0
-	_SI_TKILL = -6
+	_SI_USER     = 0
+	_SI_TKILL    = -6
+	_SYS_SECCOMP = 1
 )
 
 // sigFromUser reports whether the signal was sent because of a call
@@ -890,6 +900,14 @@ const (
 func (c *sigctxt) sigFromUser() bool {
 	code := int32(c.sigcode())
 	return code == _SI_USER || code == _SI_TKILL
+}
+
+// sigFromSeccomp reports whether the signal was sent from seccomp.
+//
+//go:nosplit
+func (c *sigctxt) sigFromSeccomp() bool {
+	code := int32(c.sigcode())
+	return code == _SYS_SECCOMP
 }
 
 //go:nosplit

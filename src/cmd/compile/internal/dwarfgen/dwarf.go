@@ -9,7 +9,9 @@ import (
 	"flag"
 	"fmt"
 	"internal/buildcfg"
+	"slices"
 	"sort"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -130,7 +132,9 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Sc
 	for t := range fnsym.Func().Autot {
 		typesyms = append(typesyms, t)
 	}
-	sort.Sort(obj.BySymName(typesyms))
+	slices.SortFunc(typesyms, func(a, b *obj.LSym) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 	for _, sym := range typesyms {
 		r := obj.Addrel(infosym)
 		r.Sym = sym

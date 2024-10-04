@@ -119,7 +119,9 @@
 
 // rotates
 (RotateLeft8 <t> x (MOVVconst [c])) => (Or8 (Lsh8x64 <t> x (MOVVconst [c&7])) (Rsh8Ux64 <t> x (MOVVconst [-c&7])))
+(RotateLeft8 <t> x y) => (OR <t> (SLLV <t> x (ANDconst <typ.Int64> [7] y)) (SRLV <t> (ZeroExt8to64 x) (ANDconst <typ.Int64> [7] (NEGV <typ.Int64> y))))
 (RotateLeft16 <t> x (MOVVconst [c])) => (Or16 (Lsh16x64 <t> x (MOVVconst [c&15])) (Rsh16Ux64 <t> x (MOVVconst [-c&15])))
+(RotateLeft16 <t> x y) => (ROTR <t> (OR <typ.UInt32> (ZeroExt16to32 x) (SLLVconst <t> (ZeroExt16to32 x) [16])) (NEGV <typ.Int64> y))
 (RotateLeft32 x y) => (ROTR  x (NEGV <y.Type> y))
 (RotateLeft64 x y) => (ROTRV x (NEGV <y.Type> y))
 
@@ -260,136 +262,150 @@
 // zeroing
 (Zero [0] _ mem) => mem
 (Zero [1] ptr mem) => (MOVBstore ptr (MOVVconst [0]) mem)
-(Zero [2] {t} ptr mem) && t.Alignment()%2 == 0 =>
-	(MOVHstore ptr (MOVVconst [0]) mem)
-(Zero [2] ptr mem) =>
-	(MOVBstore [1] ptr (MOVVconst [0])
-		(MOVBstore [0] ptr (MOVVconst [0]) mem))
-(Zero [4] {t} ptr mem) && t.Alignment()%4 == 0 =>
-	(MOVWstore ptr (MOVVconst [0]) mem)
-(Zero [4] {t} ptr mem) && t.Alignment()%2 == 0 =>
-	(MOVHstore [2] ptr (MOVVconst [0])
-		(MOVHstore [0] ptr (MOVVconst [0]) mem))
-(Zero [4] ptr mem) =>
-	(MOVBstore [3] ptr (MOVVconst [0])
-		(MOVBstore [2] ptr (MOVVconst [0])
-			(MOVBstore [1] ptr (MOVVconst [0])
-				(MOVBstore [0] ptr (MOVVconst [0]) mem))))
-(Zero [8] {t} ptr mem) && t.Alignment()%8 == 0 =>
-	(MOVVstore ptr (MOVVconst [0]) mem)
-(Zero [8] {t} ptr mem) && t.Alignment()%4 == 0 =>
-	(MOVWstore [4] ptr (MOVVconst [0])
-		(MOVWstore [0] ptr (MOVVconst [0]) mem))
-(Zero [8] {t} ptr mem) && t.Alignment()%2 == 0 =>
-	(MOVHstore [6] ptr (MOVVconst [0])
-		(MOVHstore [4] ptr (MOVVconst [0])
-			(MOVHstore [2] ptr (MOVVconst [0])
-				(MOVHstore [0] ptr (MOVVconst [0]) mem))))
-
+(Zero [2] ptr mem) => (MOVHstore ptr (MOVVconst [0]) mem)
 (Zero [3] ptr mem) =>
-	(MOVBstore [2] ptr (MOVVconst [0])
-		(MOVBstore [1] ptr (MOVVconst [0])
-			(MOVBstore [0] ptr (MOVVconst [0]) mem)))
-(Zero [6] {t} ptr mem) && t.Alignment()%2 == 0 =>
-	(MOVHstore [4] ptr (MOVVconst [0])
-		(MOVHstore [2] ptr (MOVVconst [0])
-			(MOVHstore [0] ptr (MOVVconst [0]) mem)))
-(Zero [12] {t} ptr mem) && t.Alignment()%4 == 0 =>
-	(MOVWstore [8] ptr (MOVVconst [0])
-		(MOVWstore [4] ptr (MOVVconst [0])
-			(MOVWstore [0] ptr (MOVVconst [0]) mem)))
-(Zero [16] {t} ptr mem) && t.Alignment()%8 == 0 =>
-	(MOVVstore [8] ptr (MOVVconst [0])
-		(MOVVstore [0] ptr (MOVVconst [0]) mem))
-(Zero [24] {t} ptr mem) && t.Alignment()%8 == 0 =>
-	(MOVVstore [16] ptr (MOVVconst [0])
-		(MOVVstore [8] ptr (MOVVconst [0])
-			(MOVVstore [0] ptr (MOVVconst [0]) mem)))
+    (MOVBstore [2] ptr (MOVVconst [0])
+        (MOVHstore ptr (MOVVconst [0]) mem))
+(Zero [4] {t} ptr mem) => (MOVWstore ptr (MOVVconst [0]) mem)
+(Zero [5] ptr mem) =>
+    (MOVBstore [4] ptr (MOVVconst [0])
+        (MOVWstore ptr (MOVVconst [0]) mem))
+(Zero [6] ptr mem) =>
+    (MOVHstore [4] ptr (MOVVconst [0])
+        (MOVWstore ptr (MOVVconst [0]) mem))
+(Zero [7] ptr mem) =>
+    (MOVWstore [3] ptr (MOVVconst [0])
+        (MOVWstore ptr (MOVVconst [0]) mem))
+(Zero [8] {t} ptr mem) => (MOVVstore ptr (MOVVconst [0]) mem)
+(Zero [9] ptr mem) =>
+        (MOVBstore [8] ptr (MOVVconst [0])
+                (MOVVstore ptr (MOVVconst [0]) mem))
+(Zero [10] ptr mem) =>
+        (MOVHstore [8] ptr (MOVVconst [0])
+                (MOVVstore ptr (MOVVconst [0]) mem))
+(Zero [11] ptr mem) =>
+        (MOVWstore [7] ptr (MOVVconst [0])
+                (MOVVstore ptr (MOVVconst [0]) mem))
+(Zero [12] ptr mem) =>
+        (MOVWstore [8] ptr (MOVVconst [0])
+                (MOVVstore ptr (MOVVconst [0]) mem))
+(Zero [13] ptr mem) =>
+        (MOVVstore [5] ptr (MOVVconst [0])
+                (MOVVstore ptr (MOVVconst [0]) mem))
+(Zero [14] ptr mem) =>
+        (MOVVstore [6] ptr (MOVVconst [0])
+                (MOVVstore ptr (MOVVconst [0]) mem))
+(Zero [15] ptr mem) =>
+        (MOVVstore [7] ptr (MOVVconst [0])
+                (MOVVstore ptr (MOVVconst [0]) mem))
+(Zero [16] ptr mem) =>
+        (MOVVstore [8] ptr (MOVVconst [0])
+                (MOVVstore ptr (MOVVconst [0]) mem))
+
+// strip off fractional word zeroing
+(Zero [s] ptr mem) && s%8 != 0 && s > 16 =>
+    (Zero [s%8]
+        (OffPtr <ptr.Type> ptr [s-s%8])
+        (Zero [s-s%8] ptr mem))
 
 // medium zeroing uses a duff device
-// 8, and 128 are magic constants, see runtime/mkduff.go
-(Zero [s] {t} ptr mem)
-	&& s%8 == 0 && s > 24 && s <= 8*128
-	&& t.Alignment()%8 == 0 && !config.noDuffDevice =>
-	(DUFFZERO [8 * (128 - s/8)] ptr mem)
+(Zero [s] ptr mem)
+    && s%8 == 0 && s > 16 && s <= 8*128
+    && !config.noDuffDevice =>
+    (DUFFZERO [8 * (128 - s/8)] ptr mem)
 
-// large or unaligned zeroing uses a loop
-(Zero [s] {t} ptr mem)
-	&& (s > 8*128 || config.noDuffDevice) || t.Alignment()%8 != 0 =>
-	(LoweredZero [t.Alignment()]
-		ptr
-		(ADDVconst <ptr.Type> ptr [s-moveSize(t.Alignment(), config)])
-		mem)
+// large zeroing uses a loop
+(Zero [s] ptr mem)
+    && s%8 == 0 && s > 8*128 =>
+    (LoweredZero
+        ptr
+        (ADDVconst <ptr.Type> ptr [s-8])
+        mem)
 
 // moves
 (Move [0] _ _ mem) => mem
-(Move [1] dst src mem) => (MOVBstore dst (MOVBload src mem) mem)
-(Move [2] {t} dst src mem) && t.Alignment()%2 == 0 =>
-	(MOVHstore dst (MOVHload src mem) mem)
-(Move [2] dst src mem) =>
-	(MOVBstore [1] dst (MOVBload [1] src mem)
-		(MOVBstore dst (MOVBload src mem) mem))
-(Move [4] {t} dst src mem) && t.Alignment()%4 == 0 =>
-	(MOVWstore dst (MOVWload src mem) mem)
-(Move [4] {t} dst src mem) && t.Alignment()%2 == 0 =>
-	(MOVHstore [2] dst (MOVHload [2] src mem)
-		(MOVHstore dst (MOVHload src mem) mem))
-(Move [4] dst src mem) =>
-	(MOVBstore [3] dst (MOVBload [3] src mem)
-		(MOVBstore [2] dst (MOVBload [2] src mem)
-			(MOVBstore [1] dst (MOVBload [1] src mem)
-				(MOVBstore dst (MOVBload src mem) mem))))
-(Move [8] {t} dst src mem) && t.Alignment()%8 == 0 =>
-	(MOVVstore dst (MOVVload src mem) mem)
-(Move [8] {t} dst src mem) && t.Alignment()%4 == 0 =>
-	(MOVWstore [4] dst (MOVWload [4] src mem)
-		(MOVWstore dst (MOVWload src mem) mem))
-(Move [8] {t} dst src mem) && t.Alignment()%2 == 0 =>
-	(MOVHstore [6] dst (MOVHload [6] src mem)
-		(MOVHstore [4] dst (MOVHload [4] src mem)
-			(MOVHstore [2] dst (MOVHload [2] src mem)
-				(MOVHstore dst (MOVHload src mem) mem))))
-
+(Move [1] dst src mem) => (MOVBstore dst (MOVBUload src mem) mem)
+(Move [2] dst src mem) => (MOVHstore dst (MOVHUload src mem) mem)
 (Move [3] dst src mem) =>
-	(MOVBstore [2] dst (MOVBload [2] src mem)
-		(MOVBstore [1] dst (MOVBload [1] src mem)
-			(MOVBstore dst (MOVBload src mem) mem)))
-(Move [6] {t} dst src mem) && t.Alignment()%2 == 0 =>
-	(MOVHstore [4] dst (MOVHload [4] src mem)
-		(MOVHstore [2] dst (MOVHload [2] src mem)
-			(MOVHstore dst (MOVHload src mem) mem)))
-(Move [12] {t} dst src mem) && t.Alignment()%4 == 0 =>
-	(MOVWstore [8] dst (MOVWload [8] src mem)
-		(MOVWstore [4] dst (MOVWload [4] src mem)
-			(MOVWstore dst (MOVWload src mem) mem)))
-(Move [16] {t} dst src mem) && t.Alignment()%8 == 0 =>
-	(MOVVstore [8] dst (MOVVload [8] src mem)
-		(MOVVstore dst (MOVVload src mem) mem))
-(Move [24] {t} dst src mem) && t.Alignment()%8 == 0 =>
-	(MOVVstore [16] dst (MOVVload [16] src mem)
-		(MOVVstore [8] dst (MOVVload [8] src mem)
-			(MOVVstore dst (MOVVload src mem) mem)))
+        (MOVBstore [2] dst (MOVBUload [2] src mem)
+                (MOVHstore dst (MOVHUload src mem) mem))
+(Move [4] dst src mem) => (MOVWstore dst (MOVWUload src mem) mem)
+(Move [5] dst src mem) =>
+        (MOVBstore [4] dst (MOVBUload [4] src mem)
+                (MOVWstore dst (MOVWUload src mem) mem))
+(Move [6] dst src mem) =>
+        (MOVHstore [4] dst (MOVHUload [4] src mem)
+                (MOVWstore dst (MOVWUload src mem) mem))
+(Move [7] dst src mem) =>
+        (MOVWstore [3] dst (MOVWUload [3] src mem)
+                (MOVWstore dst (MOVWUload src mem) mem))
+(Move [8] dst src mem) => (MOVVstore dst (MOVVload src mem) mem)
+(Move [9] dst src mem) =>
+        (MOVBstore [8] dst (MOVBUload [8] src mem)
+                (MOVVstore dst (MOVVload src mem) mem))
+(Move [10] dst src mem) =>
+        (MOVHstore [8] dst (MOVHUload [8] src mem)
+                (MOVVstore dst (MOVVload src mem) mem))
+(Move [11] dst src mem) =>
+        (MOVWstore [7] dst (MOVWload [7] src mem)
+                (MOVVstore dst (MOVVload src mem) mem))
+(Move [12] dst src mem) =>
+        (MOVWstore [8] dst (MOVWUload [8] src mem)
+                (MOVVstore dst (MOVVload src mem) mem))
+(Move [13] dst src mem) =>
+        (MOVVstore [5] dst (MOVVload [5] src mem)
+                (MOVVstore dst (MOVVload src mem) mem))
+(Move [14] dst src mem) =>
+        (MOVVstore [6] dst (MOVVload [6] src mem)
+                (MOVVstore dst (MOVVload src mem) mem))
+(Move [15] dst src mem) =>
+        (MOVVstore [7] dst (MOVVload [7] src mem)
+                (MOVVstore dst (MOVVload src mem) mem))
+(Move [16] dst src mem) =>
+        (MOVVstore [8] dst (MOVVload [8] src mem)
+                (MOVVstore dst (MOVVload src mem) mem))
+
+// strip off fractional word move
+(Move [s] dst src mem) && s%8 != 0 && s > 16 =>
+        (Move [s%8]
+                (OffPtr <dst.Type> dst [s-s%8])
+                (OffPtr <src.Type> src [s-s%8])
+                (Move [s-s%8] dst src mem))
 
 // medium move uses a duff device
-(Move [s] {t} dst src mem)
-	&& s%8 == 0 && s >= 24 && s <= 8*128 && t.Alignment()%8 == 0
-	&& !config.noDuffDevice && logLargeCopy(v, s)  =>
-	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
+(Move [s] dst src mem)
+        && s%8 == 0 && s > 16 && s <= 8*128
+        && !config.noDuffDevice && logLargeCopy(v, s)  =>
+        (DUFFCOPY [16 * (128 - s/8)] dst src mem)
 // 16 and 128 are magic constants.  16 is the number of bytes to encode:
-//	MOVV	(R1), R23
-//	ADDV	$8, R1
-//	MOVV	R23, (R2)
-//	ADDV	$8, R2
-// and 128 is the number of such blocks. See runtime/duff_mips64.s:duffcopy.
+//     MOVV    (R20), R30
+//     ADDV    $8, R20
+//     MOVV    R30, (R21)
+//     ADDV    $8, R21
+// and 128 is the number of such blocks. See runtime/duff_loong64.s:duffcopy.
 
-// large or unaligned move uses a loop
-(Move [s] {t} dst src mem)
-	&& s > 24 && logLargeCopy(v, s) || t.Alignment()%8 != 0 =>
-	(LoweredMove [t.Alignment()]
-		dst
-		src
-		(ADDVconst <src.Type> src [s-moveSize(t.Alignment(), config)])
-		mem)
+// large move uses a loop
+(Move [s] dst src mem)
+        && s%8 == 0 && s > 1024 && logLargeCopy(v, s) =>
+        (LoweredMove
+                dst
+                src
+                (ADDVconst <src.Type> src [s-8])
+                mem)
+
+
+// float <=> int register moves, with no conversion.
+// These come up when compiling math.{Float64bits, Float64frombits, Float32bits, Float32frombits}.
+(MOVVload  [off] {sym} ptr (MOVDstore [off] {sym} ptr val _)) => (MOVVfpgp val)
+(MOVDload  [off] {sym} ptr (MOVVstore [off] {sym} ptr val _)) => (MOVVgpfp val)
+(MOVWUload [off] {sym} ptr (MOVFstore [off] {sym} ptr val _)) => (ZeroExt32to64 (MOVWfpgp <typ.Float32> val))
+(MOVFload  [off] {sym} ptr (MOVWstore [off] {sym} ptr val _)) => (MOVWgpfp val)
+
+// Similarly for stores, if we see a store after FPR <=> GPR move, then redirect store to use the other register set.
+(MOVVstore [off] {sym} ptr (MOVVfpgp val) mem) => (MOVDstore [off] {sym} ptr val mem)
+(MOVDstore [off] {sym} ptr (MOVVgpfp val) mem) => (MOVVstore [off] {sym} ptr val mem)
+(MOVWstore [off] {sym} ptr (MOVWfpgp val) mem) => (MOVFstore [off] {sym} ptr val mem)
+(MOVFstore [off] {sym} ptr (MOVWgpfp val) mem) => (MOVWstore [off] {sym} ptr val mem)
 
 // calls
 (StaticCall ...) => (CALLstatic ...)
@@ -567,13 +583,13 @@
 (MULV x (MOVVconst [-1])) => (NEGV x)
 (MULV _ (MOVVconst [0])) => (MOVVconst [0])
 (MULV x (MOVVconst [1])) => x
-(MULV x (MOVVconst [c])) && isPowerOfTwo64(c) => (SLLVconst [log64(c)] x)
+(MULV x (MOVVconst [c])) && isPowerOfTwo(c) => (SLLVconst [log64(c)] x)
 
 // div by constant
 (DIVVU x (MOVVconst [1])) => x
-(DIVVU x (MOVVconst [c])) && isPowerOfTwo64(c) => (SRLVconst [log64(c)] x)
+(DIVVU x (MOVVconst [c])) && isPowerOfTwo(c) => (SRLVconst [log64(c)] x)
 (REMVU _ (MOVVconst [1])) => (MOVVconst [0])                       // mod
-(REMVU x (MOVVconst [c])) && isPowerOfTwo64(c) => (ANDconst [c-1] x) // mod
+(REMVU x (MOVVconst [c])) && isPowerOfTwo(c) => (ANDconst [c-1] x) // mod
 
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)

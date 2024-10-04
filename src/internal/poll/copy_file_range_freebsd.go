@@ -22,7 +22,7 @@ func handleCopyFileRangeErr(err error, copied, written int64) (bool, error) {
 	switch err {
 	case syscall.ENOSYS:
 		// The copy_file_range(2) function first appeared in FreeBSD 13.0.
-		// Go supports FreeBSD>= 12, so the system call
+		// Go supports FreeBSD >= 12, so the system call
 		// may not be present. We've detected the FreeBSD version with
 		// unix.SupportCopyFileRange() at the beginning of this function,
 		// but we still want to check for ENOSYS here to prevent some rare

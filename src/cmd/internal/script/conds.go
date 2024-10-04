@@ -123,13 +123,13 @@ func (b *boolCond) Eval(s *State, suffix string) (bool, error) {
 // The eval function is not passed a *State because the condition is cached
 // across all execution states and must not vary by state.
 func OnceCondition(summary string, eval func() (bool, error)) Cond {
-	return &onceCond{eval: eval, usage: CondUsage{Summary: summary}}
+	return &onceCond{
+		eval:  sync.OnceValues(eval),
+		usage: CondUsage{Summary: summary},
+	}
 }
 
 type onceCond struct {
-	once  sync.Once
-	v     bool
-	err   error
 	eval  func() (bool, error)
 	usage CondUsage
 }
@@ -140,8 +140,7 @@ func (l *onceCond) Eval(s *State, suffix string) (bool, error) {
 	if suffix != "" {
 		return false, ErrUsage
 	}
-	l.once.Do(func() { l.v, l.err = l.eval() })
-	return l.v, l.err
+	return l.eval()
 }
 
 // CachedCondition is like Condition but only calls eval the first time the

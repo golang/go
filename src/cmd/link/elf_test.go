@@ -9,7 +9,7 @@ package main
 import (
 	"bytes"
 	"cmd/internal/buildid"
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 	"cmd/link/internal/ld"
 	"debug/elf"
 	"fmt"
@@ -224,7 +224,7 @@ func TestGNUBuildIDDerivedFromGoBuildID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedGoBuildID := notsha256.Sum256([]byte("0x1234"))
+	expectedGoBuildID := hash.Sum32([]byte("0x1234"))
 
 	gnuBuildID, err := buildid.ReadELFNote(outFile, string(ld.ELF_NOTE_BUILDINFO_NAME), ld.ELF_NOTE_BUILDINFO_TAG)
 	if err != nil || gnuBuildID == nil {

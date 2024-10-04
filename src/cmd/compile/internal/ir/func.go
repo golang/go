@@ -282,12 +282,12 @@ func (f *Func) SetWBPos(pos src.XPos) {
 	}
 }
 
+// IsClosure reports whether f is a function literal that captures at least one value.
 func (f *Func) IsClosure() bool {
 	if f.OClosure == nil {
 		return false
 	}
-	// Trivial closure will be converted to global.
-	return !IsTrivialClosure(f.OClosure)
+	return len(f.ClosureVars) > 0
 }
 
 // FuncName returns the name (without the package) of the function f.
@@ -417,12 +417,6 @@ func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
 	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap && !clo.IsGoWrap {
 		base.ErrorfAt(clo.Pos(), 0, "heap-allocated closure %s, not allowed in runtime", FuncName(clo.Func))
 	}
-}
-
-// IsTrivialClosure reports whether closure clo has an
-// empty list of captured vars.
-func IsTrivialClosure(clo *ClosureExpr) bool {
-	return len(clo.Func.ClosureVars) == 0
 }
 
 // globClosgen is like Func.Closgen, but for the global scope.

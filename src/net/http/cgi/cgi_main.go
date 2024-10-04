@@ -7,6 +7,7 @@ package cgi
 import (
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path"
@@ -63,22 +64,12 @@ func testCGI() {
 
 	fmt.Printf("test=Hello CGI\r\n")
 
-	keys := make([]string, 0, len(params))
-	for k := range params {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	for _, key := range keys {
+	for _, key := range slices.Sorted(maps.Keys(params)) {
 		fmt.Printf("param-%s=%s\r\n", key, params.Get(key))
 	}
 
 	envs := envMap(os.Environ())
-	keys = make([]string, 0, len(envs))
-	for k := range envs {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	for _, key := range keys {
+	for _, key := range slices.Sorted(maps.Keys(envs)) {
 		fmt.Printf("env-%s=%s\r\n", key, envs[key])
 	}
 

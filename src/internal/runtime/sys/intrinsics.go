@@ -206,3 +206,51 @@ func Prefetch(addr uintptr) {}
 //
 // ARM64: Produce PRFM instruction with PLDL1STRM option
 func PrefetchStreamed(addr uintptr) {}
+
+// GetCallerPC returns the program counter (PC) of its caller's caller.
+// GetCallerSP returns the stack pointer (SP) of its caller's caller.
+// Both are implemented as intrinsics on every platform.
+//
+// For example:
+//
+//	func f(arg1, arg2, arg3 int) {
+//		pc := GetCallerPC()
+//		sp := GetCallerSP()
+//	}
+//
+// These two lines find the PC and SP immediately following
+// the call to f (where f will return).
+//
+// The call to GetCallerPC and GetCallerSP must be done in the
+// frame being asked about.
+//
+// The result of GetCallerSP is correct at the time of the return,
+// but it may be invalidated by any subsequent call to a function
+// that might relocate the stack in order to grow or shrink it.
+// A general rule is that the result of GetCallerSP should be used
+// immediately and can only be passed to nosplit functions.
+
+func GetCallerPC() uintptr
+
+func GetCallerSP() uintptr
+
+// GetClosurePtr returns the pointer to the current closure.
+// GetClosurePtr can only be used in an assignment statement
+// at the entry of a function. Moreover, go:nosplit directive
+// must be specified at the declaration of caller function,
+// so that the function prolog does not clobber the closure register.
+// for example:
+//
+//	//go:nosplit
+//	func f(arg1, arg2, arg3 int) {
+//		dx := GetClosurePtr()
+//	}
+//
+// The compiler rewrites calls to this function into instructions that fetch the
+// pointer from a well-known register (DX on x86 architecture, etc.) directly.
+//
+// WARNING: PGO-based devirtualization cannot detect that caller of
+// GetClosurePtr requires closure context, and thus must maintain a list of
+// these functions, which is in
+// cmd/compile/internal/devirtualize/pgo.maybeDevirtualizeFunctionCall.
+func GetClosurePtr() uintptr

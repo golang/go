@@ -597,45 +597,6 @@ func mark(d fs.DirEntry, err error, errors *[]error, clear bool) error {
 	return nil
 }
 
-// chdir changes the current working directory to the named directory,
-// and then restore the original working directory at the end of the test.
-func chdir(t *testing.T, dir string) {
-	olddir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd %s: %v", dir, err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir %s: %v", dir, err)
-	}
-
-	t.Cleanup(func() {
-		if err := os.Chdir(olddir); err != nil {
-			t.Errorf("restore original working directory %s: %v", olddir, err)
-			os.Exit(1)
-		}
-	})
-}
-
-func chtmpdir(t *testing.T) (restore func()) {
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	d, err := os.MkdirTemp("", "test")
-	if err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	if err := os.Chdir(d); err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	return func() {
-		if err := os.Chdir(oldwd); err != nil {
-			t.Fatalf("chtmpdir: %v", err)
-		}
-		os.RemoveAll(d)
-	}
-}
-
 // tempDirCanonical returns a temporary directory for the test to use, ensuring
 // that the returned path does not contain symlinks.
 func tempDirCanonical(t *testing.T) string {
@@ -663,21 +624,7 @@ func TestWalkDir(t *testing.T) {
 }
 
 func testWalk(t *testing.T, walk func(string, fs.WalkDirFunc) error, errVisit int) {
-	if runtime.GOOS == "ios" {
-		restore := chtmpdir(t)
-		defer restore()
-	}
-
-	tmpDir := t.TempDir()
-
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal("finding working dir:", err)
-	}
-	if err = os.Chdir(tmpDir); err != nil {
-		t.Fatal("entering temp dir:", err)
-	}
-	defer os.Chdir(origDir)
+	t.Chdir(t.TempDir())
 
 	makeTree(t)
 	errors := make([]error, 0, 10)
@@ -686,7 +633,7 @@ func testWalk(t *testing.T, walk func(string, fs.WalkDirFunc) error, errVisit in
 		return mark(d, err, &errors, clear)
 	}
 	// Expect no errors.
-	err = walk(tree.name, markFn)
+	err := walk(tree.name, markFn)
 	if err != nil {
 		t.Fatalf("no error expected, found: %s", err)
 	}
@@ -1225,22 +1172,7 @@ func testEvalSymlinks(t *testing.T, path, want string) {
 }
 
 func testEvalSymlinksAfterChdir(t *testing.T, wd, path, want string) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		err := os.Chdir(cwd)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	err = os.Chdir(wd)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	t.Chdir(wd)
 	have, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		t.Errorf("EvalSymlinks(%q) in %q directory error: %v", path, wd, err)
@@ -1314,8 +1246,7 @@ func TestEvalSymlinks(t *testing.T) {
 
 func TestEvalSymlinksIsNotExist(t *testing.T) {
 	testenv.MustHaveSymlink(t)
-
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 
 	_, err := filepath.EvalSymlinks("notexist")
 	if !os.IsNotExist(err) {
@@ -1396,10 +1327,10 @@ func TestIssue13582(t *testing.T) {
 // Issue 57905.
 func TestRelativeSymlinkToAbsolute(t *testing.T) {
 	testenv.MustHaveSymlink(t)
-	// Not parallel: uses os.Chdir.
+	// Not parallel: uses t.Chdir.
 
 	tmpDir := t.TempDir()
-	chdir(t, tmpDir)
+	t.Chdir(tmpDir)
 
 	// Create "link" in the current working directory as a symlink to an arbitrary
 	// absolute path. On macOS, this path is likely to begin with a symlink
@@ -1452,18 +1383,10 @@ var absTests = []string{
 
 func TestAbs(t *testing.T) {
 	root := t.TempDir()
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("getwd failed: ", err)
-	}
-	err = os.Chdir(root)
-	if err != nil {
-		t.Fatal("chdir failed: ", err)
-	}
-	defer os.Chdir(wd)
+	t.Chdir(root)
 
 	for _, dir := range absTestDirs {
-		err = os.Mkdir(dir, 0777)
+		err := os.Mkdir(dir, 0777)
 		if err != nil {
 			t.Fatal("Mkdir failed: ", err)
 		}
@@ -1485,7 +1408,7 @@ func TestAbs(t *testing.T) {
 		tests = append(slices.Clip(tests), extra...)
 	}
 
-	err = os.Chdir(absTestDirs[0])
+	err := os.Chdir(absTestDirs[0])
 	if err != nil {
 		t.Fatal("chdir failed: ", err)
 	}
@@ -1521,16 +1444,7 @@ func TestAbs(t *testing.T) {
 // a valid path, so it can't be used with os.Stat.
 func TestAbsEmptyString(t *testing.T) {
 	root := t.TempDir()
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("getwd failed: ", err)
-	}
-	err = os.Chdir(root)
-	if err != nil {
-		t.Fatal("chdir failed: ", err)
-	}
-	defer os.Chdir(wd)
+	t.Chdir(root)
 
 	info, err := os.Stat(root)
 	if err != nil {
@@ -1757,19 +1671,9 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 
 func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
 	tmpdir := t.TempDir()
+	t.Chdir(tmpdir)
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(wd)
-
-	err = os.Chdir(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = mklink(tmpdir, "link")
+	err := mklink(tmpdir, "link")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1882,13 +1786,7 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
 // Issue 30520 part 2.
 func TestEvalSymlinksAboveRootChdir(t *testing.T) {
 	testenv.MustHaveSymlink(t)
-
-	tmpDir, err := os.MkdirTemp("", "TestEvalSymlinksAboveRootChdir")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-	chdir(t, tmpDir)
+	t.Chdir(t.TempDir())
 
 	subdir := filepath.Join("a", "b")
 	if err := os.MkdirAll(subdir, 0777); err != nil {
@@ -1956,12 +1854,11 @@ func TestIssue51617(t *testing.T) {
 }
 
 func TestEscaping(t *testing.T) {
-	dir1 := t.TempDir()
-	dir2 := t.TempDir()
-	chdir(t, dir1)
+	dir := t.TempDir()
+	t.Chdir(t.TempDir())
 
 	for _, p := range []string{
-		filepath.Join(dir2, "x"),
+		filepath.Join(dir, "x"),
 	} {
 		if !filepath.IsLocal(p) {
 			continue
@@ -1970,7 +1867,7 @@ func TestEscaping(t *testing.T) {
 		if err != nil {
 			f.Close()
 		}
-		ents, err := os.ReadDir(dir2)
+		ents, err := os.ReadDir(dir)
 		if err != nil {
 			t.Fatal(err)
 		}

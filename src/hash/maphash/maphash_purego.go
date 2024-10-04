@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"internal/byteorder"
 	"math/bits"
+	"reflect"
 )
 
 func rthash(buf []byte, seed uint64) uint64 {
@@ -91,4 +92,9 @@ func r8(p []byte) uint64 {
 func mix(a, b uint64) uint64 {
 	hi, lo := bits.Mul64(a, b)
 	return hi ^ lo
+}
+
+func comparableF[T comparable](h *Hash, v T) {
+	vv := reflect.ValueOf(v)
+	appendT(h, vv)
 }

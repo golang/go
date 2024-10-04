@@ -134,6 +134,12 @@ var stringTests = [][2]string{
 	dup("package p; type _ chan<- <-chan int"),
 	dup("package p; type _ chan<- chan<- int"),
 
+	// go.dev/issues/69206
+	dup("package p; type _[P C] int"),
+	{"package p; type _[P (C),] int", "package p; type _[P C] int"},
+	{"package p; type _[P ((C)),] int", "package p; type _[P C] int"},
+	{"package p; type _[P, Q ((C))] int", "package p; type _[P, Q C] int"},
+
 	// TODO(gri) expand
 }
 

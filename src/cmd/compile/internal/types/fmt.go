@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"cmd/compile/internal/base"
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 )
 
 // BuiltinPkg is a fake package that declares the universe block.
@@ -644,7 +644,7 @@ func SplitVargenSuffix(name string) (base, suffix string) {
 func TypeHash(t *Type) uint32 {
 	p := t.LinkString()
 
-	// Using SHA256 is overkill, but reduces accidental collisions.
-	h := notsha256.Sum256([]byte(p))
+	// Using 16 bytes hash is overkill, but reduces accidental collisions.
+	h := hash.Sum16([]byte(p))
 	return binary.LittleEndian.Uint32(h[:4])
 }

@@ -14,7 +14,7 @@ package ir
 // The algorithm (known as Tarjan's algorithm) for doing that is taken from
 // Sedgewick, Algorithms, Second Edition, p. 482, with two adaptations.
 //
-// First, a non-trivial closure function (fn.OClosure != nil) cannot be
+// First, a closure function (fn.IsClosure()) cannot be
 // the root of a connected component. Refusing to use it as a root forces
 // it into the component of the function in which it appears.  This is
 // more convenient for escape analysis.

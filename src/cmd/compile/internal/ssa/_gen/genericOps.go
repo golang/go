@@ -488,8 +488,8 @@ var genericOps = []opData{
 	// Pseudo-ops
 	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem
 	{name: "GetClosurePtr"},                       // get closure pointer from dedicated register
-	{name: "GetCallerPC"},                         // for getcallerpc intrinsic
-	{name: "GetCallerSP", argLength: 1},           // for getcallersp intrinsic. arg0=mem.
+	{name: "GetCallerPC"},                         // for GetCallerPC intrinsic
+	{name: "GetCallerSP", argLength: 1},           // for GetCallerSP intrinsic. arg0=mem.
 
 	// Indexing operations
 	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
@@ -521,11 +521,7 @@ var genericOps = []opData{
 	{name: "IData", argLength: 1},                // arg0=interface, returns data field
 
 	// Structs
-	{name: "StructMake0"},                              // Returns struct with 0 fields.
-	{name: "StructMake1", argLength: 1},                // arg0=field0.  Returns struct.
-	{name: "StructMake2", argLength: 2},                // arg0,arg1=field0,field1.  Returns struct.
-	{name: "StructMake3", argLength: 3},                // arg0..2=field0..2.  Returns struct.
-	{name: "StructMake4", argLength: 4},                // arg0..3=field0..3.  Returns struct.
+	{name: "StructMake", argLength: -1},                // args...=field0..n-1. Returns struct with n fields.
 	{name: "StructSelect", argLength: 1, aux: "Int64"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
 
 	// Arrays
@@ -608,6 +604,7 @@ var genericOps = []opData{
 	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},               // Store arg1 to *arg0.  arg2=memory.  Returns memory.
 	{name: "AtomicStoreRel32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
 	{name: "AtomicStoreRel64", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
+	{name: "AtomicExchange8", argLength: 3, typ: "(UInt8,Mem)", hasSideEffects: true},          // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
 	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
 	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
 	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.

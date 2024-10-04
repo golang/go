@@ -1824,6 +1824,10 @@ const (
 	OpLOONG64MOVHstorezero
 	OpLOONG64MOVWstorezero
 	OpLOONG64MOVVstorezero
+	OpLOONG64MOVWfpgp
+	OpLOONG64MOVWgpfp
+	OpLOONG64MOVVfpgp
+	OpLOONG64MOVVgpfp
 	OpLOONG64MOVBreg
 	OpLOONG64MOVBUreg
 	OpLOONG64MOVHreg
@@ -2425,9 +2429,11 @@ const (
 	OpRISCV64SH2ADD
 	OpRISCV64SH3ADD
 	OpRISCV64AND
+	OpRISCV64ANDN
 	OpRISCV64ANDI
 	OpRISCV64NOT
 	OpRISCV64OR
+	OpRISCV64ORN
 	OpRISCV64ORI
 	OpRISCV64ROL
 	OpRISCV64ROLW
@@ -2435,6 +2441,7 @@ const (
 	OpRISCV64RORI
 	OpRISCV64RORIW
 	OpRISCV64RORW
+	OpRISCV64XNOR
 	OpRISCV64XOR
 	OpRISCV64XORI
 	OpRISCV64MIN
@@ -3190,11 +3197,7 @@ const (
 	OpIMake
 	OpITab
 	OpIData
-	OpStructMake0
-	OpStructMake1
-	OpStructMake2
-	OpStructMake3
-	OpStructMake4
+	OpStructMake
 	OpStructSelect
 	OpArrayMake0
 	OpArrayMake1
@@ -3246,6 +3249,7 @@ const (
 	OpAtomicStorePtrNoWB
 	OpAtomicStoreRel32
 	OpAtomicStoreRel64
+	OpAtomicExchange8
 	OpAtomicExchange32
 	OpAtomicExchange64
 	OpAtomicAdd32
@@ -24606,6 +24610,58 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "MOVWfpgp",
+		argLen: 1,
+		asm:    loong64.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
+		name:   "MOVWgpfp",
+		argLen: 1,
+		asm:    loong64.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "MOVVfpgp",
+		argLen: 1,
+		asm:    loong64.AMOVV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
+		name:   "MOVVgpfp",
+		argLen: 1,
+		asm:    loong64.AMOVV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:   "MOVBreg",
 		argLen: 1,
 		asm:    loong64.AMOVB,
@@ -32684,6 +32740,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "ANDN",
+		argLen: 2,
+		asm:    riscv.AANDN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
 		name:    "ANDI",
 		auxType: auxInt64,
 		argLen:  1,
@@ -32715,6 +32785,20 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         riscv.AOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "ORN",
+		argLen: 2,
+		asm:    riscv.AORN,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
@@ -32813,6 +32897,21 @@ var opcodeTable = [...]opInfo{
 		name:   "RORW",
 		argLen: 2,
 		asm:    riscv.ARORW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:        "XNOR",
+		argLen:      2,
+		commutative: true,
+		asm:         riscv.AXNOR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
@@ -40760,28 +40859,8 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "StructMake0",
-		argLen:  0,
-		generic: true,
-	},
-	{
-		name:    "StructMake1",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "StructMake2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "StructMake3",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "StructMake4",
-		argLen:  4,
+		name:    "StructMake",
+		argLen:  -1,
 		generic: true,
 	},
 	{
@@ -41060,6 +41139,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "AtomicStoreRel64",
+		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "AtomicExchange8",
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,

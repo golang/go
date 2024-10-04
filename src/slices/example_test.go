@@ -325,9 +325,11 @@ func ExampleClone() {
 	fmt.Println(clone)
 	clone[2] = 10
 	fmt.Println(numbers)
+	fmt.Println(clone)
 	// Output:
 	// [0 42 -10 8]
 	// [0 42 -10 8]
+	// [0 42 10 8]
 }
 
 func ExampleGrow() {

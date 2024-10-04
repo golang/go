@@ -58,6 +58,14 @@
 (Round64F x:(Const64F)) => x
 (CvtBoolToUint8 (ConstBool [false])) => (Const8 [0])
 (CvtBoolToUint8 (ConstBool [true])) => (Const8 [1])
+(BitLen64 (Const64 [c])) && config.PtrSize == 8 => (Const64 [int64(bits.Len64(uint64(c)))])
+(BitLen32 (Const32 [c])) && config.PtrSize == 8 => (Const64 [int64(bits.Len32(uint32(c)))])
+(BitLen16 (Const16 [c])) && config.PtrSize == 8 => (Const64 [int64(bits.Len16(uint16(c)))])
+(BitLen8  (Const8  [c])) && config.PtrSize == 8 => (Const64 [int64(bits.Len8(uint8(c)))])
+(BitLen64 (Const64 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.Len64(uint64(c)))])
+(BitLen32 (Const32 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.Len32(uint32(c)))])
+(BitLen16 (Const16 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.Len16(uint16(c)))])
+(BitLen8  (Const8  [c])) && config.PtrSize == 4 => (Const32 [int32(bits.Len8(uint8(c)))])
 
 (Trunc16to8  (ZeroExt8to16  x)) => x
 (Trunc32to8  (ZeroExt8to32  x)) => x
@@ -181,14 +189,14 @@
 (Or(8|16|32|64) <t> (Com(8|16|32|64) x) (Com(8|16|32|64) y)) => (Com(8|16|32|64) (And(8|16|32|64) <t> x y))
 
 // Convert multiplication by a power of two to a shift.
-(Mul8  <t> n (Const8  [c])) && isPowerOfTwo8(c) => (Lsh8x64  <t> n (Const64 <typ.UInt64> [log8(c)]))
-(Mul16 <t> n (Const16 [c])) && isPowerOfTwo16(c) => (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(c)]))
-(Mul32 <t> n (Const32 [c])) && isPowerOfTwo32(c) => (Lsh32x64 <t> n (Const64 <typ.UInt64> [log32(c)]))
-(Mul64 <t> n (Const64 [c])) && isPowerOfTwo64(c) => (Lsh64x64 <t> n (Const64 <typ.UInt64> [log64(c)]))
-(Mul8  <t> n (Const8  [c])) && t.IsSigned() && isPowerOfTwo8(-c)  => (Neg8  (Lsh8x64  <t> n (Const64 <typ.UInt64> [log8(-c)])))
-(Mul16 <t> n (Const16 [c])) && t.IsSigned() && isPowerOfTwo16(-c) => (Neg16 (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(-c)])))
-(Mul32 <t> n (Const32 [c])) && t.IsSigned() && isPowerOfTwo32(-c) => (Neg32 (Lsh32x64 <t> n (Const64 <typ.UInt64> [log32(-c)])))
-(Mul64 <t> n (Const64 [c])) && t.IsSigned() && isPowerOfTwo64(-c) => (Neg64 (Lsh64x64 <t> n (Const64 <typ.UInt64> [log64(-c)])))
+(Mul8  <t> n (Const8  [c])) && isPowerOfTwo(c) => (Lsh8x64  <t> n (Const64 <typ.UInt64> [log8(c)]))
+(Mul16 <t> n (Const16 [c])) && isPowerOfTwo(c) => (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(c)]))
+(Mul32 <t> n (Const32 [c])) && isPowerOfTwo(c) => (Lsh32x64 <t> n (Const64 <typ.UInt64> [log32(c)]))
+(Mul64 <t> n (Const64 [c])) && isPowerOfTwo(c) => (Lsh64x64 <t> n (Const64 <typ.UInt64> [log64(c)]))
+(Mul8  <t> n (Const8  [c])) && t.IsSigned() && isPowerOfTwo(-c) => (Neg8  (Lsh8x64  <t> n (Const64 <typ.UInt64> [log8(-c)])))
+(Mul16 <t> n (Const16 [c])) && t.IsSigned() && isPowerOfTwo(-c) => (Neg16 (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(-c)])))
+(Mul32 <t> n (Const32 [c])) && t.IsSigned() && isPowerOfTwo(-c) => (Neg32 (Lsh32x64 <t> n (Const64 <typ.UInt64> [log32(-c)])))
+(Mul64 <t> n (Const64 [c])) && t.IsSigned() && isPowerOfTwo(-c) => (Neg64 (Lsh64x64 <t> n (Const64 <typ.UInt64> [log64(-c)])))
 
 (Mod8  (Const8  [c]) (Const8  [d])) && d != 0 => (Const8  [c % d])
 (Mod16 (Const16 [c]) (Const16 [d])) && d != 0 => (Const16 [c % d])
@@ -734,10 +742,10 @@
 	=> x
 
 // Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
-(Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) => (Const64F [math.Float64frombits(uint64(x))])
-(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x)))) => (Const32F [math.Float32frombits(uint32(x))])
-(Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitInt(t1)   => (Const64  [int64(math.Float64bits(x))])
-(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)   => (Const32  [int32(math.Float32bits(x))])
+(Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && t2.Size() == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) => (Const64F [math.Float64frombits(uint64(x))])
+(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && t2.Size() == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x)))) => (Const32F [math.Float32frombits(uint32(x))])
+(Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && isSamePtr(p1,p2) && t2.Size() == 8 && is64BitInt(t1)   => (Const64  [int64(math.Float64bits(x))])
+(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && t2.Size() == 4 && is32BitInt(t1)   => (Const32  [int32(math.Float32bits(x))])
 
 // Float Loads up to Zeros so they can be constant folded.
 (Load <t1> op:(OffPtr [o1] p1)
@@ -877,77 +885,15 @@
 (PtrIndex <t> ptr idx) && config.PtrSize == 8 => (AddPtr ptr (Mul64 <typ.Int> idx (Const64 <typ.Int> [t.Elem().Size()])))
 
 // struct operations
-(StructSelect (StructMake1 x)) => x
-(StructSelect [0] (StructMake2 x _)) => x
-(StructSelect [1] (StructMake2 _ x)) => x
-(StructSelect [0] (StructMake3 x _ _)) => x
-(StructSelect [1] (StructMake3 _ x _)) => x
-(StructSelect [2] (StructMake3 _ _ x)) => x
-(StructSelect [0] (StructMake4 x _ _ _)) => x
-(StructSelect [1] (StructMake4 _ x _ _)) => x
-(StructSelect [2] (StructMake4 _ _ x _)) => x
-(StructSelect [3] (StructMake4 _ _ _ x)) => x
-
-(Load <t> _ _) && t.IsStruct() && t.NumFields() == 0 && CanSSA(t) =>
-  (StructMake0)
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 1 && CanSSA(t) =>
-  (StructMake1
-    (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 2 && CanSSA(t) =>
-  (StructMake2
-    (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
-    (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 3 && CanSSA(t) =>
-  (StructMake3
-    (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
-    (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)
-    (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
-(Load <t> ptr mem) && t.IsStruct() && t.NumFields() == 4 && CanSSA(t) =>
-  (StructMake4
-    (Load <t.FieldType(0)> (OffPtr <t.FieldType(0).PtrTo()> [0]             ptr) mem)
-    (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)
-    (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)
-    (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
+(StructSelect [i] x:(StructMake ___)) => x.Args[i]
+(Load <t> _ _) && t.IsStruct() && CanSSA(t) => rewriteStructLoad(v)
+(Store _ (StructMake ___) _) => rewriteStructStore(v)
 
 (StructSelect [i] x:(Load <t> ptr mem)) && !CanSSA(t) =>
   @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 
-(Store _ (StructMake0) mem) => mem
-(Store dst (StructMake1 <t> f0) mem) =>
-  (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
-(Store dst (StructMake2 <t> f0 f1) mem) =>
-  (Store {t.FieldType(1)}
-    (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)
-    f1
-    (Store {t.FieldType(0)}
-      (OffPtr <t.FieldType(0).PtrTo()> [0] dst)
-        f0 mem))
-(Store dst (StructMake3 <t> f0 f1 f2) mem) =>
-  (Store {t.FieldType(2)}
-    (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)
-    f2
-    (Store {t.FieldType(1)}
-      (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)
-      f1
-      (Store {t.FieldType(0)}
-        (OffPtr <t.FieldType(0).PtrTo()> [0] dst)
-          f0 mem)))
-(Store dst (StructMake4 <t> f0 f1 f2 f3) mem) =>
-  (Store {t.FieldType(3)}
-    (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst)
-    f3
-    (Store {t.FieldType(2)}
-      (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)
-      f2
-      (Store {t.FieldType(1)}
-        (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)
-        f1
-        (Store {t.FieldType(0)}
-          (OffPtr <t.FieldType(0).PtrTo()> [0] dst)
-            f0 mem))))
-
 // Putting struct{*byte} and similar into direct interfaces.
-(IMake _typ (StructMake1 val)) => (IMake _typ val)
+(IMake _typ (StructMake val)) => (IMake _typ val)
 (StructSelect [0] (IData x)) => (IData x)
 
 // un-SSAable values use mem->mem copies
@@ -1037,17 +983,17 @@
 // See ../magic.go for a detailed description of these algorithms.
 
 // Unsigned divide by power of 2.  Strength reduce to a shift.
-(Div8u  n (Const8  [c])) && isPowerOfTwo8(c)  => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8(c)]))
-(Div16u n (Const16 [c])) && isPowerOfTwo16(c) => (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
-(Div32u n (Const32 [c])) && isPowerOfTwo32(c) => (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
-(Div64u n (Const64 [c])) && isPowerOfTwo64(c) => (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
+(Div8u  n (Const8  [c])) && isPowerOfTwo(c) => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8(c)]))
+(Div16u n (Const16 [c])) && isPowerOfTwo(c) => (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
+(Div32u n (Const32 [c])) && isPowerOfTwo(c) => (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
+(Div64u n (Const64 [c])) && isPowerOfTwo(c) => (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
 (Div64u n (Const64 [-1<<63]))                 => (Rsh64Ux64 n (Const64 <typ.UInt64> [63]))
 
 // Signed non-negative divide by power of 2.
-(Div8  n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo8(c)  => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8(c)]))
-(Div16 n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo16(c) => (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
-(Div32 n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo32(c) => (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
-(Div64 n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo64(c) => (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
+(Div8  n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo(c) => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8(c)]))
+(Div16 n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
+(Div32 n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
+(Div64 n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
 (Div64 n (Const64 [-1<<63])) && isNonNegative(n)                 => (Const64 [0])
 
 // Unsigned divide, not a power of 2.  Strength reduce to a multiply.
@@ -1223,19 +1169,19 @@
 // n / c =       n >> log(c) if n >= 0
 //       = (n+c-1) >> log(c) if n < 0
 // We conditionally add c-1 by adding n>>63>>(64-log(c)) (first shift signed, second shift unsigned).
-(Div8  <t> n (Const8  [c])) && isPowerOfTwo8(c) =>
+(Div8  <t> n (Const8  [c])) && isPowerOfTwo(c) =>
   (Rsh8x64
     (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [int64( 8-log8(c))])))
     (Const64 <typ.UInt64> [int64(log8(c))]))
-(Div16 <t> n (Const16 [c])) && isPowerOfTwo16(c) =>
+(Div16 <t> n (Const16 [c])) && isPowerOfTwo(c) =>
   (Rsh16x64
     (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [int64(16-log16(c))])))
     (Const64 <typ.UInt64> [int64(log16(c))]))
-(Div32 <t> n (Const32 [c])) && isPowerOfTwo32(c) =>
+(Div32 <t> n (Const32 [c])) && isPowerOfTwo(c) =>
   (Rsh32x64
     (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [int64(32-log32(c))])))
     (Const64 <typ.UInt64> [int64(log32(c))]))
-(Div64 <t> n (Const64 [c])) && isPowerOfTwo64(c) =>
+(Div64 <t> n (Const64 [c])) && isPowerOfTwo(c) =>
   (Rsh64x64
     (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [int64(64-log64(c))])))
     (Const64 <typ.UInt64> [int64(log64(c))]))
@@ -1317,17 +1263,17 @@
       (Const64 <typ.UInt64> [63])))
 
 // Unsigned mod by power of 2 constant.
-(Mod8u  <t> n (Const8  [c])) && isPowerOfTwo8(c)  => (And8  n (Const8  <t> [c-1]))
-(Mod16u <t> n (Const16 [c])) && isPowerOfTwo16(c) => (And16 n (Const16 <t> [c-1]))
-(Mod32u <t> n (Const32 [c])) && isPowerOfTwo32(c) => (And32 n (Const32 <t> [c-1]))
-(Mod64u <t> n (Const64 [c])) && isPowerOfTwo64(c) => (And64 n (Const64 <t> [c-1]))
+(Mod8u  <t> n (Const8  [c])) && isPowerOfTwo(c) => (And8  n (Const8  <t> [c-1]))
+(Mod16u <t> n (Const16 [c])) && isPowerOfTwo(c) => (And16 n (Const16 <t> [c-1]))
+(Mod32u <t> n (Const32 [c])) && isPowerOfTwo(c) => (And32 n (Const32 <t> [c-1]))
+(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) => (And64 n (Const64 <t> [c-1]))
 (Mod64u <t> n (Const64 [-1<<63]))                 => (And64 n (Const64 <t> [1<<63-1]))
 
 // Signed non-negative mod by power of 2 constant.
-(Mod8  <t> n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo8(c)  => (And8  n (Const8  <t> [c-1]))
-(Mod16 <t> n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo16(c) => (And16 n (Const16 <t> [c-1]))
-(Mod32 <t> n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo32(c) => (And32 n (Const32 <t> [c-1]))
-(Mod64 <t> n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo64(c) => (And64 n (Const64 <t> [c-1]))
+(Mod8  <t> n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo(c) => (And8  n (Const8  <t> [c-1]))
+(Mod16 <t> n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (And16 n (Const16 <t> [c-1]))
+(Mod32 <t> n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (And32 n (Const32 <t> [c-1]))
+(Mod64 <t> n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo(c) => (And64 n (Const64 <t> [c-1]))
 (Mod64 n (Const64 [-1<<63])) && isNonNegative(n)                   => n
 
 // Signed mod by negative constant.

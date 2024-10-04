@@ -405,7 +405,7 @@ func match(s1, s2 string) bool {
 
 func lookup(tab []string, val string) (int, string, error) {
 	for i, v := range tab {
-		if len(val) >= len(v) && match(val[0:len(v)], v) {
+		if len(val) >= len(v) && match(val[:len(v)], v) {
 			return i, val[len(v):], nil
 		}
 	}
@@ -1259,9 +1259,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			hr, _, err = getnum(hour, true)
 			if err == nil {
 				mm, _, err = getnum(min, true)
-			}
-			if err == nil {
-				ss, _, err = getnum(seconds, true)
+				if err == nil {
+					ss, _, err = getnum(seconds, true)
+				}
 			}
 
 			// The range test use > rather than >=,

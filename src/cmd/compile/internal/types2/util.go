@@ -36,6 +36,9 @@ func dddErrPos(call *syntax.CallExpr) *syntax.CallExpr {
 	return call
 }
 
+// isdddArray reports whether atyp is of the form [...]E.
+func isdddArray(atyp *syntax.ArrayType) bool { return atyp.Len == nil }
+
 // argErrPos returns the node (poser) for reporting an invalid argument count.
 func argErrPos(call *syntax.CallExpr) *syntax.CallExpr { return call }
 
@@ -47,6 +50,9 @@ func startPos(n syntax.Node) syntax.Pos { return syntax.StartPos(n) }
 
 // endPos returns the position of the first character immediately after node n.
 func endPos(n syntax.Node) syntax.Pos { return syntax.EndPos(n) }
+
+// inNode is a dummy function returning pos.
+func inNode(_ syntax.Node, pos syntax.Pos) syntax.Pos { return pos }
 
 // makeFromLiteral returns the constant value for the given literal string and kind.
 func makeFromLiteral(lit string, kind syntax.LitKind) constant.Value {

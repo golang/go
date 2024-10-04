@@ -9,7 +9,7 @@ import (
 	"cmd/internal/objabi"
 	"fmt"
 	"log"
-	"sort"
+	"slices"
 )
 
 // ctxt0 holds state while assembling a single function.
@@ -964,36 +964,20 @@ func cmp(a int, b int) bool {
 	return false
 }
 
-type ocmp []Optab
-
-func (x ocmp) Len() int {
-	return len(x)
-}
-
-func (x ocmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x ocmp) Less(i, j int) bool {
-	p1 := &x[i]
-	p2 := &x[j]
-	n := int(p1.as) - int(p2.as)
-	if n != 0 {
-		return n < 0
+func ocmp(p1, p2 Optab) int {
+	if p1.as != p2.as {
+		return int(p1.as) - int(p2.as)
 	}
-	n = int(p1.from1) - int(p2.from1)
-	if n != 0 {
-		return n < 0
+	if p1.from1 != p2.from1 {
+		return int(p1.from1) - int(p2.from1)
 	}
-	n = int(p1.reg) - int(p2.reg)
-	if n != 0 {
-		return n < 0
+	if p1.reg != p2.reg {
+		return int(p1.reg) - int(p2.reg)
 	}
-	n = int(p1.to1) - int(p2.to1)
-	if n != 0 {
-		return n < 0
+	if p1.to1 != p2.to1 {
+		return int(p1.to1) - int(p2.to1)
 	}
-	return false
+	return 0
 }
 
 func opset(a, b0 obj.As) {
@@ -1025,7 +1009,7 @@ func buildop(ctxt *obj.Link) {
 	}
 	for n = 0; optab[n].as != obj.AXXX; n++ {
 	}
-	sort.Sort(ocmp(optab[:n]))
+	slices.SortFunc(optab[:n], ocmp)
 	for i := 0; i < n; i++ {
 		r := optab[i].as
 		r0 := r & obj.AMask
@@ -1058,6 +1042,8 @@ func buildop(ctxt *obj.Link) {
 			opset(ASQRTD, r0)
 			opset(AFCLASSF, r0)
 			opset(AFCLASSD, r0)
+			opset(AFLOGBF, r0)
+			opset(AFLOGBD, r0)
 
 		case AMOVVF:
 			opset(AMOVVD, r0)
@@ -1112,10 +1098,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AFMAXD, r0)
 			opset(AFCOPYSGF, r0)
 			opset(AFCOPYSGD, r0)
+			opset(AFSCALEBF, r0)
+			opset(AFSCALEBD, r0)
 
 		case AAND:
 			opset(AOR, r0)
 			opset(AXOR, r0)
+			opset(AORN, r0)
+			opset(AANDN, r0)
 
 		case ABEQ:
 			opset(ABNE, r0)
@@ -1874,6 +1864,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x2a << 15
 	case AXOR:
 		return 0x2b << 15
+	case AORN:
+		return 0x2c << 15 // orn
+	case AANDN:
+		return 0x2d << 15 // andn
 	case ASUB:
 		return 0x22 << 15
 	case ASUBU, ANEGW:
@@ -1979,6 +1973,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x211 << 15 // fmax.s
 	case AFMAXD:
 		return 0x212 << 15 // fmax.d
+	case AFSCALEBF:
+		return 0x221 << 15 // fscaleb.s
+	case AFSCALEBD:
+		return 0x222 << 15 // fscaleb.d
 	case AFCOPYSGF:
 		return 0x225 << 15 // fcopysign.s
 	case AFCOPYSGD:
@@ -2081,6 +2079,10 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x4511 << 10
 	case ASQRTD:
 		return 0x4512 << 10
+	case AFLOGBF:
+		return 0x4509 << 10 // flogb.s
+	case AFLOGBD:
+		return 0x450a << 10 // flogb.d
 	case AFCLASSF:
 		return 0x450d << 10 // fclass.s
 	case AFCLASSD:

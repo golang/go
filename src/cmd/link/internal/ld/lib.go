@@ -44,6 +44,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -51,7 +52,7 @@ import (
 
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loadelf"
@@ -1012,12 +1013,12 @@ func typeSymbolMangle(name string) string {
 		return name
 	}
 	if isType {
-		hash := notsha256.Sum256([]byte(name[5:]))
+		hb := hash.Sum20([]byte(name[5:]))
 		prefix := "type:"
 		if name[5] == '.' {
 			prefix = "type:."
 		}
-		return prefix + base64.StdEncoding.EncodeToString(hash[:6])
+		return prefix + base64.StdEncoding.EncodeToString(hb[:6])
 	}
 	// instantiated symbol, replace type name in []
 	i := strings.IndexByte(name, '[')
@@ -1025,8 +1026,8 @@ func typeSymbolMangle(name string) string {
 	if j == -1 || j <= i {
 		j = len(name)
 	}
-	hash := notsha256.Sum256([]byte(name[i+1 : j]))
-	return name[:i+1] + base64.StdEncoding.EncodeToString(hash[:6]) + name[j:]
+	hb := hash.Sum20([]byte(name[i+1 : j]))
+	return name[:i+1] + base64.StdEncoding.EncodeToString(hb[:6]) + name[j:]
 }
 
 /*
@@ -2182,9 +2183,9 @@ func trimLinkerArgv(argv []string) []string {
 		} else if skip {
 			skip = false
 		} else if f == "" || f[0] != '-' {
-		} else if contains(flagsWithNextArgSkip, f) {
+		} else if slices.Contains(flagsWithNextArgSkip, f) {
 			skip = true
-		} else if contains(flagsWithNextArgKeep, f) {
+		} else if slices.Contains(flagsWithNextArgKeep, f) {
 			flags = append(flags, f)
 			keep = true
 		} else {

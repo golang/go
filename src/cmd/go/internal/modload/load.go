@@ -36,6 +36,7 @@ package modload
 // A package matches the "all" pattern if:
 // 	- it is in the main module, or
 // 	- it is imported by any test in the main module, or
+// 	- it is imported by a tool of the main module, or
 // 	- it is imported by another package in "all", or
 // 	- the main module specifies a go version ≤ 1.15, and the package is imported
 // 	  by a *test of* another package in "all".
@@ -324,7 +325,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 			case m.Pattern() == "all":
 				if ld == nil {
-					// The initial roots are the packages in the main module.
+					// The initial roots are the packages and tools in the main module.
 					// loadFromRoots will expand that to "all".
 					m.Errs = m.Errs[:0]
 					matchModules := MainModules.Versions()
@@ -332,6 +333,9 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 						matchModules = []module.Version{opts.MainModule}
 					}
 					matchPackages(ctx, m, opts.Tags, omitStd, matchModules)
+					for tool := range MainModules.Tools() {
+						m.Pkgs = append(m.Pkgs, tool)
+					}
 				} else {
 					// Starting with the packages in the main module,
 					// enumerate the full list of "all".
@@ -343,6 +347,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 					m.MatchPackages() // Locate the packages within GOROOT/src.
 				}
 
+			case m.Pattern() == "tool":
+				for tool, _ := range MainModules.Tools() {
+					m.Pkgs = append(m.Pkgs, tool)
+				}
 			default:
 				panic(fmt.Sprintf("internal error: modload missing case for pattern %s", m.Pattern()))
 			}
@@ -1863,6 +1871,9 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 		// about (by reducing churn on the flag bits of dependencies), and costs
 		// essentially nothing (these atomic flag ops are essentially free compared
 		// to scanning source code for imports).
+		ld.applyPkgFlags(ctx, pkg, pkgInAll)
+	} else if MainModules.Tools()[pkg.path] {
+		// Tools declared by main modules are always in "all".
 		ld.applyPkgFlags(ctx, pkg, pkgInAll)
 	}
 	if ld.AllowPackage != nil {

@@ -25,11 +25,7 @@ func TestLargeBranch(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := os.MkdirTemp("", "testlargebranch")
-	if err != nil {
-		t.Fatalf("Could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Generate a very large function.
 	buf := bytes.NewBuffer(make([]byte, 0, genBufSize))

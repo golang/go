@@ -4,12 +4,76 @@ package ssa
 
 func rewriteValueRISCV64latelower(v *Value) bool {
 	switch v.Op {
+	case OpRISCV64AND:
+		return rewriteValueRISCV64latelower_OpRISCV64AND(v)
+	case OpRISCV64NOT:
+		return rewriteValueRISCV64latelower_OpRISCV64NOT(v)
+	case OpRISCV64OR:
+		return rewriteValueRISCV64latelower_OpRISCV64OR(v)
 	case OpRISCV64SLLI:
 		return rewriteValueRISCV64latelower_OpRISCV64SLLI(v)
 	case OpRISCV64SRAI:
 		return rewriteValueRISCV64latelower_OpRISCV64SRAI(v)
 	case OpRISCV64SRLI:
 		return rewriteValueRISCV64latelower_OpRISCV64SRLI(v)
+	case OpRISCV64XOR:
+		return rewriteValueRISCV64latelower_OpRISCV64XOR(v)
+	}
+	return false
+}
+func rewriteValueRISCV64latelower_OpRISCV64AND(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (AND x (NOT y))
+	// result: (ANDN x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpRISCV64NOT {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpRISCV64ANDN)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValueRISCV64latelower_OpRISCV64NOT(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (NOT (XOR x y))
+	// result: (XNOR x y)
+	for {
+		if v_0.Op != OpRISCV64XOR {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpRISCV64XNOR)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueRISCV64latelower_OpRISCV64OR(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (OR x (NOT y))
+	// result: (ORN x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpRISCV64NOT {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpRISCV64ORN)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
 	}
 	return false
 }
@@ -238,6 +302,26 @@ func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *Value) bool {
 		x := v_0
 		v.copyOf(x)
 		return true
+	}
+	return false
+}
+func rewriteValueRISCV64latelower_OpRISCV64XOR(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (XOR x (NOT y))
+	// result: (XNOR x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpRISCV64NOT {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpRISCV64XNOR)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
 	}
 	return false
 }

@@ -425,7 +425,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		// Immediate interfaces cause so many headaches.
 		if a.Op == OpIMake {
 			data := a.Args[1]
-			for data.Op == OpStructMake1 || data.Op == OpArrayMake1 {
+			for data.Op == OpStructMake || data.Op == OpArrayMake1 {
 				data = data.Args[0]
 			}
 			return x.decomposeAsNecessary(pos, b, data, mem, rc.next(data.Type))
@@ -505,7 +505,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 			return makeOf(a, OpArrayMake0, nil)
 		}
 		if at.IsStruct() {
-			return makeOf(a, OpStructMake0, nil)
+			return makeOf(a, OpStructMake, nil)
 		}
 		return a
 	}
@@ -559,7 +559,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		if at.NumFields() > 4 {
 			panic(fmt.Errorf("Too many fields (%d, %d bytes), container=%s", at.NumFields(), at.Size(), container.LongString()))
 		}
-		a = makeOf(a, StructMakeOp(at.NumFields()), args)
+		a = makeOf(a, OpStructMake, args)
 		x.commonSelectors[sk] = a
 		return a
 
