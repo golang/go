@@ -77,9 +77,10 @@ import (
 // slot as empty, as there could be more slots used later in a probe sequence
 // and this deletion would cause probing to stop too early. Instead, we mark
 // such slots as "deleted" with a tombstone. If the group still has an empty
-// slot, we don't need a tombstone and directly mark the slot empty. Currently,
-// tombstone are only cleared during grow, as an in-place cleanup complicates
-// iteration.
+// slot, we don't need a tombstone and directly mark the slot empty. Insert
+// prioritizes reuse of tombstones over filling an empty slots. Otherwise,
+// tombstones are only completely cleared during grow, as an in-place cleanup
+// complicates iteration.
 //
 // Growth
 //

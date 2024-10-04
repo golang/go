@@ -161,8 +161,6 @@ func (t *table) Get(key unsafe.Pointer) (unsafe.Pointer, bool) {
 	// TODO(prattmic): We could avoid hashing in a variety of special
 	// cases.
 	//
-	// - One group maps with simple keys could iterate over all keys and
-	//   compare them directly.
 	// - One entry maps could just directly compare the single entry
 	//   without hashing.
 	// - String keys could do quick checks of a few bytes before hashing.
@@ -243,6 +241,11 @@ func (t *table) getWithKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, un
 func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
 
+	// As we look for a match, keep track of the first deleted slot we
+	// find, which we'll use to insert the new entry if necessary.
+	var firstDeletedGroup groupReference
+	var firstDeletedSlot uint32
+
 	for ; ; seq = seq.next() {
 		g := t.groups.group(seq.offset)
 		match := g.ctrls().matchH2(h2(hash))
@@ -265,15 +268,28 @@ func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointe
 			match = match.removeFirst()
 		}
 
+		// No existing slot for this key in this group. Is this the end
+		// of the probe sequence?
 		match = g.ctrls().matchEmpty()
 		if match != 0 {
 			// Finding an empty slot means we've reached the end of
 			// the probe sequence.
 
+			var i uint32
+
+			// If we found a deleted slot along the way, we can
+			// replace it without consuming growthLeft.
+			if firstDeletedGroup.data != nil {
+				g = firstDeletedGroup
+				i = firstDeletedSlot
+				t.growthLeft++ // will be decremented below to become a no-op.
+			} else {
+				// Otherwise, use the empty slot.
+				i = match.first()
+			}
+
 			// If there is room left to grow, just insert the new entry.
 			if t.growthLeft > 0 {
-				i := match.first()
-
 				slotKey := g.key(i)
 				typedmemmove(t.typ.Key, slotKey, key)
 				slotElem := g.elem(i)
@@ -287,23 +303,23 @@ func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointe
 				return slotElem, true
 			}
 
-			// TODO(prattmic): While searching the probe sequence,
-			// we may have passed deleted slots which we could use
-			// for this entry.
-			//
-			// At the moment, we leave this behind for
-			// rehash to free up.
-			//
-			// cockroachlabs/swiss restarts search of the probe
-			// sequence for a deleted slot.
-			//
-			// TODO(go.dev/issue/54766): We want this optimization
-			// back. We could search for the first deleted slot
-			// during the main search, but only use it if we don't
-			// find an existing entry.
-
 			t.rehash(m)
 			return nil, false
+		}
+
+		// No empty slots in this group. Check for a deleted
+		// slot, which we'll use if we don't find a match later
+		// in the probe sequence.
+		//
+		// We only need to remember a single deleted slot.
+		if firstDeletedGroup.data == nil {
+			// Since we already checked for empty slots
+			// above, matches here must be deleted slots.
+			match = g.ctrls().matchEmptyOrDeleted()
+			if match != 0 {
+				firstDeletedGroup = g
+				firstDeletedSlot = match.first()
+			}
 		}
 	}
 }
