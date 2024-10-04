@@ -342,11 +342,8 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 	}
 	p.Incomplete = true
 
-	top := ""
-	if stk.Top() != nil {
-		top = stk.Top().Pkg
-	}
-	if path != top {
+	top, ok := stk.Top()
+	if ok && path != top.Pkg {
 		p.Error.setPos(importPos)
 	}
 }
@@ -616,11 +613,11 @@ func (s *ImportStack) PkgsWithPos() []string {
 	return ss
 }
 
-func (s *ImportStack) Top() *ImportInfo {
+func (s *ImportStack) Top() (ImportInfo, bool) {
 	if len(*s) == 0 {
-		return nil
+		return ImportInfo{}, false
 	}
-	return &(*s)[len(*s)-1]
+	return (*s)[len(*s)-1], true
 }
 
 // shorterThan reports whether sp is shorter than t.
@@ -1789,11 +1786,8 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 			// then the cause of the error is not within p itself: the error
 			// must be either in an explicit command-line argument,
 			// or on the importer side (indicated by a non-empty importPos).
-			top := ""
-			if stk.Top() != nil {
-				top = stk.Top().Pkg
-			}
-			if path != top && len(importPos) > 0 {
+			top, ok := stk.Top()
+			if ok && path != top.Pkg && len(importPos) > 0 {
 				p.Error.setPos(importPos)
 			}
 		}
