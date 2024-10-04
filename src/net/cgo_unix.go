@@ -16,6 +16,7 @@ import (
 	"errors"
 	"internal/bytealg"
 	"net/netip"
+	"runtime"
 	"syscall"
 	"unsafe"
 
@@ -195,6 +196,16 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 			return nil, newDNSError(err, name, "")
 		case _C_EAI_NONAME, _C_EAI_NODATA:
 			return nil, newDNSError(errNoSuchHost, name, "")
+		case _C_EAI_ADDRFAMILY:
+			if runtime.GOOS == "freebsd" {
+				// FreeBSD began returning EAI_ADDRFAMILY for valid hosts without
+				// an A record in 13.2. We previously returned "no such host" for
+				// this case.
+				//
+				// https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=273912
+				return nil, newDNSError(errNoSuchHost, name, "")
+			}
+			fallthrough
 		default:
 			return nil, newDNSError(addrinfoErrno(gerrno), name, "")
 		}

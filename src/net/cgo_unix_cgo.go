@@ -22,6 +22,11 @@ package net
 #define EAI_NODATA -5
 #endif
 
+// If nothing else defined EAI_ADDRFAMILY, make sure it has a value.
+#ifndef EAI_ADDRFAMILY
+#define EAI_ADDRFAMILY -9
+#endif
+
 // If nothing else defined EAI_OVERFLOW, make sure it has a value.
 #ifndef EAI_OVERFLOW
 #define EAI_OVERFLOW -12
@@ -31,19 +36,20 @@ import "C"
 import "unsafe"
 
 const (
-	_C_AF_INET      = C.AF_INET
-	_C_AF_INET6     = C.AF_INET6
-	_C_AF_UNSPEC    = C.AF_UNSPEC
-	_C_EAI_AGAIN    = C.EAI_AGAIN
-	_C_EAI_NODATA   = C.EAI_NODATA
-	_C_EAI_NONAME   = C.EAI_NONAME
-	_C_EAI_SERVICE  = C.EAI_SERVICE
-	_C_EAI_OVERFLOW = C.EAI_OVERFLOW
-	_C_EAI_SYSTEM   = C.EAI_SYSTEM
-	_C_IPPROTO_TCP  = C.IPPROTO_TCP
-	_C_IPPROTO_UDP  = C.IPPROTO_UDP
-	_C_SOCK_DGRAM   = C.SOCK_DGRAM
-	_C_SOCK_STREAM  = C.SOCK_STREAM
+	_C_AF_INET        = C.AF_INET
+	_C_AF_INET6       = C.AF_INET6
+	_C_AF_UNSPEC      = C.AF_UNSPEC
+	_C_EAI_ADDRFAMILY = C.EAI_ADDRFAMILY
+	_C_EAI_AGAIN      = C.EAI_AGAIN
+	_C_EAI_NODATA     = C.EAI_NODATA
+	_C_EAI_NONAME     = C.EAI_NONAME
+	_C_EAI_SERVICE    = C.EAI_SERVICE
+	_C_EAI_OVERFLOW   = C.EAI_OVERFLOW
+	_C_EAI_SYSTEM     = C.EAI_SYSTEM
+	_C_IPPROTO_TCP    = C.IPPROTO_TCP
+	_C_IPPROTO_UDP    = C.IPPROTO_UDP
+	_C_SOCK_DGRAM     = C.SOCK_DGRAM
+	_C_SOCK_STREAM    = C.SOCK_STREAM
 )
 
 type (
