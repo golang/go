@@ -1953,7 +1953,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	// Errors after this point are caused by this package, not the importing
 	// package. Pushing the path here prevents us from reporting the error
 	// with the position of the import declaration.
-	stk.Push(&ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
+	stk.Push(ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 	defer stk.Pop()
 
 	pkgPath := p.ImportPath
