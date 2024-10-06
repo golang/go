@@ -26,6 +26,7 @@ import (
 // correctness.
 type FS interface {
 	// Open opens the named file.
+	// [File.Close] must be called to release any associated resources.
 	//
 	// When Open returns an error, it should be of type *PathError
 	// with the Op field set to "open", the Path field set to name,
