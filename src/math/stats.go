@@ -31,22 +31,7 @@ func Mean(numbers []float64) float64 {
 // Special cases are:
 //   Median([]float64{}) = 0
 func Median(numbers []float64) float64 {
-	if len(numbers) == 0 {
-		return 0
-	}
-
-	// Create a sorted copy of the input slice
-	sorted := make([]float64, len(numbers))
-	copy(sorted, numbers)
-	sort.Float64s(sorted)
-
-	n := len(sorted)
-	if n%2 == 0 {
-		// If even, return the average of the two middle numbers
-		return (sorted[n/2-1] + sorted[n/2]) / 2
-	}
-	// If odd, return the middle number
-	return sorted[n/2]
+	return Percentile(numbers, 50)
 }
 
 // Mode returns the mode(s) of a slice of float64 numbers.
