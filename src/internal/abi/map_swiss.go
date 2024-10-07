@@ -11,8 +11,11 @@ import (
 // Map constants common to several packages
 // runtime/runtime-gdb.py:MapTypePrinter contains its own copy
 const (
+	// Number of bits in the group.slot count.
+	SwissMapGroupSlotsBits = 3
+
 	// Number of slots in a group.
-	SwissMapGroupSlots = 8
+	SwissMapGroupSlots = 1 << SwissMapGroupSlotsBits // 8
 )
 
 type SwissMapType struct {
