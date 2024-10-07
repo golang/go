@@ -5,13 +5,14 @@
 package types
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/internal/typeparams"
 	"go/token"
 	. "internal/types/errors"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -678,7 +679,9 @@ func (check *Checker) packageObjects() {
 		objList[i] = obj
 		i++
 	}
-	sort.Sort(inSourceOrder(objList))
+	slices.SortFunc(objList, func(a, b Object) int {
+		return cmp.Compare(a.order(), b.order())
+	})
 
 	// add new methods to already type-checked types (from a prior Checker.Files call)
 	for _, obj := range objList {
@@ -743,14 +746,6 @@ func (check *Checker) packageObjects() {
 	// methods. We can now safely discard this map.
 	check.methods = nil
 }
-
-// inSourceOrder implements the sort.Sort interface.
-// TODO(gri) replace with slices.SortFunc
-type inSourceOrder []Object
-
-func (a inSourceOrder) Len() int           { return len(a) }
-func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
-func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // unusedImports checks for unused imports.
 func (check *Checker) unusedImports() {

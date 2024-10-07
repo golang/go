@@ -9,7 +9,7 @@ package types2
 import (
 	"bytes"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -308,7 +308,7 @@ func (w *typeWriter) typ(typ Type) {
 			w.error("unnamed type parameter")
 			break
 		}
-		if i := tparamIndex(w.tparams.list(), t); i >= 0 {
+		if i := slices.Index(w.tparams.list(), t); i >= 0 {
 			// The names of type parameters that are declared by the type being
 			// hashed are not part of the type identity. Replace them with a
 			// placeholder indicating their index.
@@ -382,7 +382,7 @@ func (w *typeWriter) typeSet(s *_TypeSet) {
 			newTypeHasher(&buf, w.ctxt).typ(term.typ)
 			termHashes = append(termHashes, buf.String())
 		}
-		sort.Strings(termHashes)
+		slices.Sort(termHashes)
 		if !first {
 			w.byte(';')
 		}

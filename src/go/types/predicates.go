@@ -9,7 +9,10 @@
 
 package types
 
-import "unicode"
+import (
+	"slices"
+	"unicode"
+)
 
 // isValid reports whether t is a valid type.
 func isValid(t Type) bool { return Unalias(t) != Typ[Invalid] }
@@ -509,14 +512,8 @@ func identicalOrigin(x, y *Named) bool {
 // Instantiations are identical if their origin and type arguments are
 // identical.
 func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool {
-	if len(xargs) != len(yargs) {
+	if !slices.EqualFunc(xargs, yargs, Identical) {
 		return false
-	}
-
-	for i, xa := range xargs {
-		if !Identical(xa, yargs[i]) {
-			return false
-		}
 	}
 
 	return Identical(xorig, yorig)
