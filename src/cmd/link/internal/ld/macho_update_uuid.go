@@ -19,10 +19,11 @@ package ld
 
 import (
 	"cmd/internal/hash"
+	imacho "cmd/internal/macho"
+
 	"debug/macho"
 	"io"
 	"os"
-	"unsafe"
 )
 
 // uuidFromGoBuildId hashes the Go build ID and returns a slice of 16
@@ -66,26 +67,21 @@ func machoRewriteUuid(ctxt *Link, exef *os.File, exem *macho.File, outexe string
 	}
 
 	// Locate the portion of the binary containing the load commands.
-	cmdOffset := unsafe.Sizeof(exem.FileHeader)
-	if is64bit := exem.Magic == macho.Magic64; is64bit {
-		// mach_header_64 has one extra uint32.
-		cmdOffset += unsafe.Sizeof(exem.Magic)
-	}
-	if _, err := outf.Seek(int64(cmdOffset), 0); err != nil {
+	cmdOffset := imacho.FileHeaderSize(exem)
+	if _, err := outf.Seek(cmdOffset, 0); err != nil {
 		return err
 	}
 
 	// Read the load commands, looking for the LC_UUID cmd. If/when we
 	// locate it, overwrite it with a new value produced by
 	// uuidFromGoBuildId.
-	reader := loadCmdReader{next: int64(cmdOffset),
-		f: outf, order: exem.ByteOrder}
+	reader := imacho.NewLoadCmdUpdater(outf, exem.ByteOrder, cmdOffset)
 	for i := uint32(0); i < exem.Ncmd; i++ {
 		cmd, err := reader.Next()
 		if err != nil {
 			return err
 		}
-		if cmd.Cmd == LC_UUID {
+		if cmd.Cmd == imacho.LC_UUID {
 			var u uuidCmd
 			if err := reader.ReadAt(0, &u); err != nil {
 				return err
