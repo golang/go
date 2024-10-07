@@ -42,7 +42,7 @@ func uuidFromGoBuildId(buildID string) []byte {
 	// to use this UUID flavor than any of the others. This is similar
 	// to how other linkers handle this (for example this code in lld:
 	// https://github.com/llvm/llvm-project/blob/2a3a79ce4c2149d7787d56f9841b66cacc9061d0/lld/MachO/Writer.cpp#L524).
-	rv[6] &= 0xcf
+	rv[6] &= 0x0f
 	rv[6] |= 0x30
 	rv[8] &= 0x3f
 	rv[8] |= 0xc0
