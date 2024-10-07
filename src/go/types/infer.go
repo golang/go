@@ -12,6 +12,7 @@ package types
 import (
 	"fmt"
 	"go/token"
+	"slices"
 	"strings"
 )
 
@@ -38,7 +39,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// be able to use it either.
 	if check.conf.Error != nil {
 		defer func() {
-			assert(inferred == nil || len(inferred) == len(tparams) && !containsNil(inferred))
+			assert(inferred == nil || len(inferred) == len(tparams) && !slices.Contains(inferred, nil))
 		}()
 	}
 
@@ -57,7 +58,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	assert(params.Len() == len(args))
 
 	// If we already have all type arguments, we're done.
-	if len(targs) == n && !containsNil(targs) {
+	if len(targs) == n && !slices.Contains(targs, nil) {
 		return targs
 	}
 
@@ -460,16 +461,6 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	return
 }
 
-// containsNil reports whether list contains a nil entry.
-func containsNil(list []Type) bool {
-	for _, t := range list {
-		if t == nil {
-			return true
-		}
-	}
-	return false
-}
-
 // renameTParams renames the type parameters in the given type such that each type
 // parameter is given a new identity. renameTParams returns the new type parameters
 // and updated type. If the result type is unchanged from the argument type, none
@@ -639,7 +630,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		}
 
 	case *TypeParam:
-		return tparamIndex(w.tparams, t) >= 0
+		return slices.Index(w.tparams, t) >= 0
 
 	default:
 		panic(fmt.Sprintf("unexpected %T", typ))
@@ -720,7 +711,7 @@ func (w *cycleFinder) typ(typ Type) {
 		// in w.tparams, iterative substitution will lead to infinite expansion.
 		// Nil out the corresponding type which effectively kills the cycle.
 		if tpar, _ := typ.(*TypeParam); tpar != nil {
-			if i := tparamIndex(w.tparams, tpar); i >= 0 {
+			if i := slices.Index(w.tparams, tpar); i >= 0 {
 				// cycle through tpar
 				w.inferred[i] = nil
 			}
@@ -789,7 +780,7 @@ func (w *cycleFinder) typ(typ Type) {
 		}
 
 	case *TypeParam:
-		if i := tparamIndex(w.tparams, t); i >= 0 && w.inferred[i] != nil {
+		if i := slices.Index(w.tparams, t); i >= 0 && w.inferred[i] != nil {
 			w.typ(w.inferred[i])
 		}
 
@@ -802,15 +793,4 @@ func (w *cycleFinder) varList(list []*Var) {
 	for _, v := range list {
 		w.typ(v.typ)
 	}
-}
-
-// If tpar is a type parameter in list, tparamIndex returns the index
-// of the type parameter in list. Otherwise the result is < 0.
-func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
-	for i, p := range list {
-		if p == tpar {
-			return i
-		}
-	}
-	return -1
 }

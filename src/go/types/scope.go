@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -58,7 +58,7 @@ func (s *Scope) Names() []string {
 		names[i] = name
 		i++
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
