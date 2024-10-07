@@ -296,6 +296,8 @@ func getMachoHdr() *MachoHdr {
 	return &machohdr
 }
 
+// Create a new Mach-O load command. ndata is the number of 32-bit words for
+// the data (not including the load command header).
 func newMachoLoad(arch *sys.Arch, type_ uint32, ndata uint32) *MachoLoad {
 	if arch.PtrSize == 8 && (ndata&1 != 0) {
 		ndata++
@@ -848,6 +850,20 @@ func asmbMacho(ctxt *Link) {
 				ml.data[3] = 0  /* compatibility version */
 				stringtouint32(ml.data[4:], lib)
 			}
+		}
+
+		if ctxt.IsInternal() && len(buildinfo) > 0 {
+			ml := newMachoLoad(ctxt.Arch, LC_UUID, 4)
+			// Mach-O UUID is 16 bytes
+			if len(buildinfo) < 16 {
+				buildinfo = append(buildinfo, make([]byte, 16)...)
+			}
+			// By default, buildinfo is already in UUIDv3 format
+			// (see uuidFromGoBuildId).
+			ml.data[0] = ctxt.Arch.ByteOrder.Uint32(buildinfo)
+			ml.data[1] = ctxt.Arch.ByteOrder.Uint32(buildinfo[4:])
+			ml.data[2] = ctxt.Arch.ByteOrder.Uint32(buildinfo[8:])
+			ml.data[3] = ctxt.Arch.ByteOrder.Uint32(buildinfo[12:])
 		}
 
 		if ctxt.IsInternal() && ctxt.NeedCodeSign() {
