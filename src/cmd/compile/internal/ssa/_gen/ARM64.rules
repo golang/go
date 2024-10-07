@@ -571,12 +571,12 @@
 (AtomicStore64      ...) => (STLR  ...)
 (AtomicStorePtrNoWB ...) => (STLR  ...)
 
-(AtomicExchange(32|64)       ...) => (LoweredAtomicExchange(32|64) ...)
+(AtomicExchange(8|32|64)       ...) => (LoweredAtomicExchange(8|32|64) ...)
 (AtomicAdd(32|64)            ...) => (LoweredAtomicAdd(32|64)      ...)
 (AtomicCompareAndSwap(32|64) ...) => (LoweredAtomicCas(32|64)      ...)
 
 (AtomicAdd(32|64)Variant            ...) => (LoweredAtomicAdd(32|64)Variant      ...)
-(AtomicExchange(32|64)Variant       ...) => (LoweredAtomicExchange(32|64)Variant ...)
+(AtomicExchange(8|32|64)Variant       ...) => (LoweredAtomicExchange(8|32|64)Variant ...)
 (AtomicCompareAndSwap(32|64)Variant ...) => (LoweredAtomicCas(32|64)Variant      ...)
 
 // Return old contents.

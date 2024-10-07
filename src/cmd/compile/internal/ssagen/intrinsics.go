@@ -373,6 +373,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
 		}
 	}
+	addF("internal/runtime/atomic", "Xchg8",
+		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange8, ssa.OpAtomicExchange8Variant, types.TUINT8, atomicEmitterARM64),
+		sys.ARM64)
 	addF("internal/runtime/atomic", "Xchg",
 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange32, ssa.OpAtomicExchange32Variant, types.TUINT32, atomicEmitterARM64),
 		sys.ARM64)
