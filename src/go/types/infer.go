@@ -12,6 +12,7 @@ package types
 import (
 	"fmt"
 	"go/token"
+	"slices"
 	"strings"
 )
 
@@ -38,7 +39,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// be able to use it either.
 	if check.conf.Error != nil {
 		defer func() {
-			assert(inferred == nil || len(inferred) == len(tparams) && !containsNil(inferred))
+			assert(inferred == nil || len(inferred) == len(tparams) && !slices.Contains(inferred, nil))
 		}()
 	}
 
@@ -57,7 +58,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	assert(params.Len() == len(args))
 
 	// If we already have all type arguments, we're done.
-	if len(targs) == n && !containsNil(targs) {
+	if len(targs) == n && !slices.Contains(targs, nil) {
 		return targs
 	}
 
@@ -239,12 +240,15 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				u.tracef("-- type parameter %s = %s: core(%s) = %s, single = %v", tpar, tx, tpar, core, single)
 			}
 
-			// If there is a core term (i.e., a core type with tilde information)
-			// unify the type parameter with the core type.
+			// If the type parameter's constraint has a core term (i.e., a core type with tilde information)
+			// try to unify the type parameter with that core type.
 			if core != nil {
-				// A type parameter can be unified with its core type in two cases.
+				// A type parameter can be unified with its constraint's core type in two cases.
 				switch {
 				case tx != nil:
+					if traceInference {
+						u.tracef("-> unify type parameter %s (type %s) with constraint core type %s", tpar, tx, core.typ)
+					}
 					// The corresponding type argument tx is known. There are 2 cases:
 					// 1) If the core type has a tilde, per spec requirement for tilde
 					//    elements, the core type is an underlying (literal) type.
@@ -263,30 +267,45 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 						return nil
 					}
 				case single && !core.tilde:
-					// The corresponding type argument tx is unknown and there's a single
-					// specific type and no tilde.
+					if traceInference {
+						u.tracef("-> set type parameter %s to constraint core type %s", tpar, core.typ)
+					}
+					// The corresponding type argument tx is unknown and the core term
+					// describes a single specific type and no tilde.
 					// In this case the type argument must be that single type; set it.
 					u.set(tpar, core.typ)
 				}
-			} else {
-				if tx != nil {
-					// We don't have a core type, but the type argument tx is known.
-					// It must have (at least) all the methods of the type constraint,
-					// and the method signatures must unify; otherwise tx cannot satisfy
-					// the constraint.
-					// TODO(gri) Now that unification handles interfaces, this code can
-					//           be reduced to calling u.unify(tx, tpar.iface(), assign)
-					//           (which will compare signatures exactly as we do below).
-					//           We leave it as is for now because missingMethod provides
-					//           a failure cause which allows for a better error message.
-					//           Eventually, unify should return an error with cause.
-					var cause string
-					constraint := tpar.iface()
-					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
-						// TODO(gri) better error message (see TODO above)
-						err.addf(posn, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
-						return nil
-					}
+			}
+
+			// Independent of whether there is a core term, if the type argument tx is known
+			// it must implement the methods of the type constraint, possibly after unification
+			// of the relevant method signatures, otherwise tx cannot satisfy the constraint.
+			// This unification step may provide additional type arguments.
+			//
+			// Note: The type argument tx may be known but contain references to other type
+			// parameters (i.e., tx may still be parameterized).
+			// In this case the methods of tx don't correctly reflect the final method set
+			// and we may get a missing method error below. Skip this step in this case.
+			//
+			// TODO(gri) We should be able continue even with a parameterized tx if we add
+			// a simplify step beforehand (see below). This will require factoring out the
+			// simplify phase so we can call it from here.
+			if tx != nil && !isParameterized(tparams, tx) {
+				if traceInference {
+					u.tracef("-> unify type parameter %s (type %s) methods with constraint methods", tpar, tx)
+				}
+				// TODO(gri) Now that unification handles interfaces, this code can
+				//           be reduced to calling u.unify(tx, tpar.iface(), assign)
+				//           (which will compare signatures exactly as we do below).
+				//           We leave it as is for now because missingMethod provides
+				//           a failure cause which allows for a better error message.
+				//           Eventually, unify should return an error with cause.
+				var cause string
+				constraint := tpar.iface()
+				if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
+					// TODO(gri) better error message (see TODO above)
+					err.addf(posn, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
+					return nil
 				}
 			}
 		}
@@ -440,16 +459,6 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	}
 
 	return
-}
-
-// containsNil reports whether list contains a nil entry.
-func containsNil(list []Type) bool {
-	for _, t := range list {
-		if t == nil {
-			return true
-		}
-	}
-	return false
 }
 
 // renameTParams renames the type parameters in the given type such that each type
@@ -621,7 +630,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		}
 
 	case *TypeParam:
-		return tparamIndex(w.tparams, t) >= 0
+		return slices.Index(w.tparams, t) >= 0
 
 	default:
 		panic(fmt.Sprintf("unexpected %T", typ))
@@ -702,7 +711,7 @@ func (w *cycleFinder) typ(typ Type) {
 		// in w.tparams, iterative substitution will lead to infinite expansion.
 		// Nil out the corresponding type which effectively kills the cycle.
 		if tpar, _ := typ.(*TypeParam); tpar != nil {
-			if i := tparamIndex(w.tparams, tpar); i >= 0 {
+			if i := slices.Index(w.tparams, tpar); i >= 0 {
 				// cycle through tpar
 				w.inferred[i] = nil
 			}
@@ -771,7 +780,7 @@ func (w *cycleFinder) typ(typ Type) {
 		}
 
 	case *TypeParam:
-		if i := tparamIndex(w.tparams, t); i >= 0 && w.inferred[i] != nil {
+		if i := slices.Index(w.tparams, t); i >= 0 && w.inferred[i] != nil {
 			w.typ(w.inferred[i])
 		}
 
@@ -784,15 +793,4 @@ func (w *cycleFinder) varList(list []*Var) {
 	for _, v := range list {
 		w.typ(v.typ)
 	}
-}
-
-// If tpar is a type parameter in list, tparamIndex returns the index
-// of the type parameter in list. Otherwise the result is < 0.
-func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
-	for i, p := range list {
-		if p == tpar {
-			return i
-		}
-	}
-	return -1
 }

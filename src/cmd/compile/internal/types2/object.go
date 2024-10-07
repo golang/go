@@ -193,40 +193,48 @@ func (obj *object) sameId(pkg *Package, name string, foldCase bool) bool {
 	return samePkg(obj.pkg, pkg)
 }
 
-// less reports whether object a is ordered before object b.
+// cmp reports whether object a is ordered before object b.
+// cmp returns:
+//
+//	-1 if a is before b
+//	 0 if a is equivalent to b
+//	+1 if a is behind b
 //
 // Objects are ordered nil before non-nil, exported before
 // non-exported, then by name, and finally (for non-exported
 // functions) by package path.
-func (a *object) less(b *object) bool {
+func (a *object) cmp(b *object) int {
 	if a == b {
-		return false
+		return 0
 	}
 
 	// Nil before non-nil.
 	if a == nil {
-		return true
+		return -1
 	}
 	if b == nil {
-		return false
+		return +1
 	}
 
 	// Exported functions before non-exported.
 	ea := isExported(a.name)
 	eb := isExported(b.name)
 	if ea != eb {
-		return ea
+		if ea {
+			return -1
+		}
+		return +1
 	}
 
 	// Order by name and then (for non-exported names) by package.
 	if a.name != b.name {
-		return a.name < b.name
+		return strings.Compare(a.name, b.name)
 	}
 	if !ea {
-		return a.pkg.path < b.pkg.path
+		return strings.Compare(a.pkg.path, b.pkg.path)
 	}
 
-	return false
+	return 0
 }
 
 // A PkgName represents an imported Go package.

@@ -6,8 +6,12 @@ package unix
 
 import "syscall"
 
-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
-const openatTrap uintptr = syscall.SYS_OPENAT
+const (
+	unlinkatTrap   uintptr = syscall.SYS_UNLINKAT
+	openatTrap     uintptr = syscall.SYS_OPENAT
+	readlinkatTrap uintptr = syscall.SYS_READLINKAT
+	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
+)
 
 const (
 	AT_EACCESS          = 0x200

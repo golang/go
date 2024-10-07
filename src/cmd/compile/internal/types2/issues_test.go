@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -164,7 +164,7 @@ L7 uses var z int`
 		fact := fmt.Sprintf("L%d uses %s", id.Pos().Line(), obj)
 		facts = append(facts, fact)
 	}
-	sort.Strings(facts)
+	slices.Sort(facts)
 
 	got := strings.Join(facts, "\n")
 	if got != want {

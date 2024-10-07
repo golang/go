@@ -7,6 +7,7 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
+	"slices"
 )
 
 // labels checks correct label use in body.
@@ -108,14 +109,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 	}
 
 	jumpsOverVarDecl := func(jmp *syntax.BranchStmt) bool {
-		if varDeclPos.IsKnown() {
-			for _, bad := range badJumps {
-				if jmp == bad {
-					return true
-				}
-			}
-		}
-		return false
+		return varDeclPos.IsKnown() && slices.Contains(badJumps, jmp)
 	}
 
 	var stmtBranches func(syntax.Stmt)

@@ -10,6 +10,7 @@ import (
 	"go/constant"
 	"internal/buildcfg"
 	. "internal/types/errors"
+	"slices"
 )
 
 func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syntax.Pos) {
@@ -440,14 +441,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 
 	if debug {
 		// obj must be one of lhs
-		found := false
-		for _, lhs := range lhs {
-			if obj == lhs {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(lhs, obj) {
 			panic("inconsistent lhs")
 		}
 	}

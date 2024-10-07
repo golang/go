@@ -223,16 +223,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p5.From.Reg = out
 		}
 
-	case ssa.OpPPC64LoweredAtomicExchange32,
+	case ssa.OpPPC64LoweredAtomicExchange8,
+		ssa.OpPPC64LoweredAtomicExchange32,
 		ssa.OpPPC64LoweredAtomicExchange64:
 		// LWSYNC
-		// LDAR/LWAR    (Rarg0), Rout
-		// STDCCC/STWCCC Rout, (Rarg0)
+		// LDAR/LWAR/LBAR        (Rarg0), Rout
+		// STDCCC/STWCCC/STBWCCC Rout, (Rarg0)
 		// BNE         -2(PC)
 		// ISYNC
 		ld := ppc64.ALDAR
 		st := ppc64.ASTDCCC
-		if v.Op == ssa.OpPPC64LoweredAtomicExchange32 {
+		switch v.Op {
+		case ssa.OpPPC64LoweredAtomicExchange8:
+			ld = ppc64.ALBAR
+			st = ppc64.ASTBCCC
+		case ssa.OpPPC64LoweredAtomicExchange32:
 			ld = ppc64.ALWAR
 			st = ppc64.ASTWCCC
 		}
@@ -243,13 +248,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
 		plwsync := s.Prog(ppc64.ALWSYNC)
 		plwsync.To.Type = obj.TYPE_NONE
-		// LDAR or LWAR
+		// L[B|W|D]AR
 		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = r0
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = out
-		// STDCCC or STWCCC
+		// ST[B|W|D]CCC
 		p1 := s.Prog(st)
 		p1.From.Type = obj.TYPE_REG
 		p1.From.Reg = r1

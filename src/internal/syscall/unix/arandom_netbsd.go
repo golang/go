@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build netbsd
-
 package unix
 
 import (
@@ -17,7 +15,7 @@ const (
 	_KERN_ARND = 81
 )
 
-func GetEntropy(p []byte) error {
+func Arandom(p []byte) error {
 	mib := [2]uint32{_CTL_KERN, _KERN_ARND}
 	n := uintptr(len(p))
 	_, _, errno := syscall.Syscall6(

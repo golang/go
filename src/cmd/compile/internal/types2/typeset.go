@@ -7,7 +7,7 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -345,26 +345,22 @@ func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool
 	return terms, comp
 }
 
+func compareFunc(a, b *Func) int {
+	return a.cmp(&b.object)
+}
+
 func sortMethods(list []*Func) {
-	sort.Sort(byUniqueMethodName(list))
+	slices.SortFunc(list, compareFunc)
 }
 
 func assertSortedMethods(list []*Func) {
 	if !debug {
 		panic("assertSortedMethods called outside debug mode")
 	}
-	if !sort.IsSorted(byUniqueMethodName(list)) {
+	if !slices.IsSortedFunc(list, compareFunc) {
 		panic("methods not sorted")
 	}
 }
-
-// byUniqueMethodName method lists can be sorted by their unique method names.
-// todo: replace with slices.SortFunc
-type byUniqueMethodName []*Func
-
-func (a byUniqueMethodName) Len() int           { return len(a) }
-func (a byUniqueMethodName) Less(i, j int) bool { return a[i].less(&a[j].object) }
-func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // invalidTypeSet is a singleton type set to signal an invalid type set
 // due to an error. It's also a valid empty type set, so consumers of

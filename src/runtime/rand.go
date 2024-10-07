@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"internal/byteorder"
 	"internal/chacha8rand"
 	"internal/goarch"
 	"internal/runtime/math"
@@ -41,14 +42,15 @@ func randinit() {
 	}
 
 	seed := &globalRand.seed
-	if startupRand != nil {
+	if len(startupRand) >= 16 &&
+		// Check that at least the first two words of startupRand weren't
+		// cleared by any libc initialization.
+		!allZero(startupRand[:8]) && !allZero(startupRand[8:16]) {
 		for i, c := range startupRand {
 			seed[i%len(seed)] ^= c
 		}
-		clear(startupRand)
-		startupRand = nil
 	} else {
-		if readRandom(seed[:]) != len(seed) {
+		if readRandom(seed[:]) != len(seed) || allZero(seed[:]) {
 			// readRandom should never fail, but if it does we'd rather
 			// not make Go binaries completely unusable, so make up
 			// some random data based on the current time.
@@ -58,6 +60,25 @@ func randinit() {
 	}
 	globalRand.state.Init(*seed)
 	clear(seed[:])
+
+	if startupRand != nil {
+		// Overwrite startupRand instead of clearing it, in case cgo programs
+		// access it after we used it.
+		for len(startupRand) > 0 {
+			buf := make([]byte, 8)
+			for {
+				if x, ok := globalRand.state.Next(); ok {
+					byteorder.BePutUint64(buf, x)
+					break
+				}
+				globalRand.state.Refill()
+			}
+			n := copy(startupRand, buf)
+			startupRand = startupRand[n:]
+		}
+		startupRand = nil
+	}
+
 	globalRand.init = true
 	unlock(&globalRand.lock)
 }
@@ -86,6 +107,14 @@ func readTimeRandom(r []byte) {
 		r = r[size:]
 		v = v>>32 | v<<32
 	}
+}
+
+func allZero(b []byte) bool {
+	var acc byte
+	for _, x := range b {
+		acc |= x
+	}
+	return acc == 0
 }
 
 // bootstrapRand returns a random uint64 from the global random generator.

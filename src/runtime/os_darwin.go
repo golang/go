@@ -192,14 +192,10 @@ func getPageSize() uintptr {
 	return 0
 }
 
-var urandom_dev = []byte("/dev/urandom\x00")
-
 //go:nosplit
 func readRandom(r []byte) int {
-	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
-	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	closefd(fd)
-	return int(n)
+	arc4random_buf(unsafe.Pointer(&r[0]), int32(len(r)))
+	return len(r)
 }
 
 func goenvs() {

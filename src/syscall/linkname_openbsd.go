@@ -12,4 +12,3 @@ import _ "unsafe"
 //go:linkname unlinkat
 //go:linkname openat
 //go:linkname fstatat
-//go:linkname getentropy

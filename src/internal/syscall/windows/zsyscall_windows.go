@@ -88,7 +88,9 @@ var (
 	procNetUserAdd                        = modnetapi32.NewProc("NetUserAdd")
 	procNetUserDel                        = modnetapi32.NewProc("NetUserDel")
 	procNetUserGetLocalGroups             = modnetapi32.NewProc("NetUserGetLocalGroups")
+	procNtCreateFile                      = modntdll.NewProc("NtCreateFile")
 	procRtlGetVersion                     = modntdll.NewProc("RtlGetVersion")
+	procRtlNtStatusToDosErrorNoTeb        = modntdll.NewProc("RtlNtStatusToDosErrorNoTeb")
 	procGetProcessMemoryInfo              = modpsapi.NewProc("GetProcessMemoryInfo")
 	procCreateEnvironmentBlock            = moduserenv.NewProc("CreateEnvironmentBlock")
 	procDestroyEnvironmentBlock           = moduserenv.NewProc("DestroyEnvironmentBlock")
@@ -439,8 +441,22 @@ func NetUserGetLocalGroups(serverName *uint16, userName *uint16, level uint32, f
 	return
 }
 
+func NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer uintptr, ealength uint32) (ntstatus error) {
+	r0, _, _ := syscall.Syscall12(procNtCreateFile.Addr(), 11, uintptr(unsafe.Pointer(handle)), uintptr(access), uintptr(unsafe.Pointer(oa)), uintptr(unsafe.Pointer(iosb)), uintptr(unsafe.Pointer(allocationSize)), uintptr(attributes), uintptr(share), uintptr(disposition), uintptr(options), uintptr(eabuffer), uintptr(ealength), 0)
+	if r0 != 0 {
+		ntstatus = NTStatus(r0)
+	}
+	return
+}
+
 func rtlGetVersion(info *_OSVERSIONINFOW) {
 	syscall.Syscall(procRtlGetVersion.Addr(), 1, uintptr(unsafe.Pointer(info)), 0, 0)
+	return
+}
+
+func rtlNtStatusToDosErrorNoTeb(ntstatus NTStatus) (ret syscall.Errno) {
+	r0, _, _ := syscall.Syscall(procRtlNtStatusToDosErrorNoTeb.Addr(), 1, uintptr(ntstatus), 0, 0)
+	ret = syscall.Errno(r0)
 	return
 }
 

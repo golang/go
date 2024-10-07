@@ -12,7 +12,7 @@ import (
 )
 
 // Prime returns a number of the given bit length that is prime with high probability.
-// Prime will return error for any error returned by [rand.Read] or if bits < 2.
+// Prime will return error for any error returned by rand.Read or if bits < 2.
 func Prime(rand io.Reader, bits int) (*big.Int, error) {
 	if bits < 2 {
 		return nil, errors.New("crypto/rand: prime size must be at least 2-bit")
@@ -58,7 +58,8 @@ func Prime(rand io.Reader, bits int) (*big.Int, error) {
 	}
 }
 
-// Int returns a uniform random value in [0, max). It panics if max <= 0.
+// Int returns a uniform random value in [0, max). It panics if max <= 0, and
+// returns an error if rand.Read returns one.
 func Int(rand io.Reader, max *big.Int) (n *big.Int, err error) {
 	if max.Sign() <= 0 {
 		panic("crypto/rand: argument to Int is <= 0")

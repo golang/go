@@ -1149,11 +1149,10 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 // It is only for runtime functions, so ASCII A-Z is fine.
 func isExportedRuntime(name string) bool {
 	// Check and remove package qualifier.
-	n := len("runtime.")
-	if len(name) <= n || name[:n] != "runtime." {
+	name, found := stringslite.CutPrefix(name, "runtime.")
+	if !found {
 		return false
 	}
-	name = name[n:]
 	rcvr := ""
 
 	// Extract receiver type, if any.

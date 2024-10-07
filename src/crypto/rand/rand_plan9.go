@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Plan9 cryptographically secure pseudorandom number
-// generator.
-
 package rand
 
 import (
@@ -18,44 +15,40 @@ import (
 
 const randomDevice = "/dev/random"
 
-func init() {
-	Reader = &reader{}
-}
+// This is a pseudorandom generator that seeds itself by reading from
+// /dev/random. The read function always returns the full amount asked for, or
+// else it returns an error. The generator is a fast key erasure RNG.
 
-// reader is a new pseudorandom generator that seeds itself by
-// reading from /dev/random. The Read method on the returned
-// reader always returns the full amount asked for, or else it
-// returns an error. The generator is a fast key erasure RNG.
-type reader struct {
+var (
 	mu      sync.Mutex
 	seeded  sync.Once
 	seedErr error
 	key     [32]byte
-}
+)
 
-func (r *reader) Read(b []byte) (n int, err error) {
-	r.seeded.Do(func() {
+func read(b []byte) error {
+	seeded.Do(func() {
 		t := time.AfterFunc(time.Minute, func() {
 			println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
 		})
 		defer t.Stop()
 		entropy, err := os.Open(randomDevice)
 		if err != nil {
-			r.seedErr = err
+			seedErr = err
 			return
 		}
 		defer entropy.Close()
-		_, r.seedErr = io.ReadFull(entropy, r.key[:])
+		_, seedErr = io.ReadFull(entropy, key[:])
 	})
-	if r.seedErr != nil {
-		return 0, r.seedErr
+	if seedErr != nil {
+		return seedErr
 	}
 
-	r.mu.Lock()
-	blockCipher, err := aes.NewCipher(r.key[:])
+	mu.Lock()
+	blockCipher, err := aes.NewCipher(key[:])
 	if err != nil {
-		r.mu.Unlock()
-		return 0, err
+		mu.Unlock()
+		return err
 	}
 	var (
 		counter uint64
@@ -68,13 +61,12 @@ func (r *reader) Read(b []byte) (n int, err error) {
 		}
 		byteorder.LePutUint64(block[:], counter)
 	}
-	blockCipher.Encrypt(r.key[:aes.BlockSize], block[:])
+	blockCipher.Encrypt(key[:aes.BlockSize], block[:])
 	inc()
-	blockCipher.Encrypt(r.key[aes.BlockSize:], block[:])
+	blockCipher.Encrypt(key[aes.BlockSize:], block[:])
 	inc()
-	r.mu.Unlock()
+	mu.Unlock()
 
-	n = len(b)
 	for len(b) >= aes.BlockSize {
 		blockCipher.Encrypt(b[:aes.BlockSize], block[:])
 		inc()
@@ -84,5 +76,5 @@ func (r *reader) Read(b []byte) (n int, err error) {
 		blockCipher.Encrypt(block[:], block[:])
 		copy(b, block[:])
 	}
-	return n, nil
+	return nil
 }

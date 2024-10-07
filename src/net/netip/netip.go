@@ -462,7 +462,9 @@ func (ip Addr) Is4() bool {
 	return ip.z == z4
 }
 
-// Is4In6 reports whether ip is an IPv4-mapped IPv6 address.
+// Is4In6 reports whether ip is an "IPv4-mapped IPv6 address"
+// as defined by RFC 4291.
+// That is, it reports whether ip is in ::ffff:0:0/96.
 func (ip Addr) Is4In6() bool {
 	return ip.Is6() && ip.addr.hi == 0 && ip.addr.lo>>32 == 0xffff
 }

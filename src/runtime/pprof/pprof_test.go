@@ -2727,38 +2727,38 @@ func TestBlockMutexProfileInlineExpansion(t *testing.T) {
 	wg.Wait()
 
 	tcs := []struct {
-		Name    string
-		Collect func([]runtime.BlockProfileRecord) (int, bool)
-		Stack   string
+		Name     string
+		Collect  func([]runtime.BlockProfileRecord) (int, bool)
+		SubStack string
 	}{
 		{
 			Name:    "mutex",
 			Collect: runtime.MutexProfile,
-			Stack: `sync.(*Mutex).Unlock
+			SubStack: `sync.(*Mutex).Unlock
 runtime/pprof.inlineF
 runtime/pprof.inlineE
-runtime/pprof.inlineD
-runtime.goexit`,
+runtime/pprof.inlineD`,
 		},
 		{
 			Name:    "block",
 			Collect: runtime.BlockProfile,
-			Stack: `sync.(*Mutex).Lock
+			SubStack: `sync.(*Mutex).Lock
 runtime/pprof.inlineC
 runtime/pprof.inlineB
-runtime/pprof.inlineA
-runtime.goexit`,
+runtime/pprof.inlineA`,
 		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.Name, func(t *testing.T) {
 			stacks := getProfileStacks(tc.Collect, false)
-			if slices.Contains(stacks, tc.Stack) {
-				return
+			for _, s := range stacks {
+				if strings.Contains(s, tc.SubStack) {
+					return
+				}
 			}
 			t.Error("did not see expected stack")
-			t.Logf("wanted:\n%s", tc.Stack)
+			t.Logf("wanted:\n%s", tc.SubStack)
 			t.Logf("got: %s", stacks)
 		})
 	}

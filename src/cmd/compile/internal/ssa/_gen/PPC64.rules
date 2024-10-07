@@ -806,7 +806,7 @@
 (AtomicStore(8|32|64)    ptr val mem) => (LoweredAtomicStore(8|32|64) [1] ptr val mem)
 (AtomicStoreRel(32|64)   ptr val mem) => (LoweredAtomicStore(32|64) [0] ptr val mem)
 
-(AtomicExchange(32|64) ...) => (LoweredAtomicExchange(32|64) ...)
+(AtomicExchange(8|32|64) ...) => (LoweredAtomicExchange(8|32|64) ...)
 
 (AtomicAdd(32|64) ...) => (LoweredAtomicAdd(32|64) ...)
 
