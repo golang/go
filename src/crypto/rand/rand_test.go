@@ -158,6 +158,7 @@ func TestAllocations(t *testing.T) {
 	if race.Enabled {
 		t.Skip("urandomRead allocates under -race")
 	}
+	testenv.SkipIfOptimizationOff(t)
 
 	n := int(testing.AllocsPerRun(10, func() {
 		buf := make([]byte, 32)
