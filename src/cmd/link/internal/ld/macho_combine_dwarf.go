@@ -195,8 +195,9 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
 		case imacho.LC_UUID:
 			var u uuidCmd
 			err = reader.ReadAt(0, &u)
-			if err == nil {
-				copy(u.Uuid[:], uuidFromGoBuildId(*flagBuildid))
+			if err == nil && len(buildinfo) > 0 {
+				clear(u.Uuid[:])
+				copy(u.Uuid[:], buildinfo)
 				err = reader.WriteAt(0, &u)
 			}
 		case macho.LoadCmdDylib, macho.LoadCmdThread, macho.LoadCmdUnixThread,
