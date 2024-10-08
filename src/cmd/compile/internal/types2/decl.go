@@ -335,17 +335,13 @@ func (check *Checker) cycleError(cycle []Object, start int) {
 	} else {
 		err.addf(obj, "invalid cycle in declaration of %s", objName)
 	}
-	i := start
-	for range cycle {
-		currName := objName
-		currObj := obj
-		i++
-		if i >= len(cycle) {
-			i = 0
-		}
-		obj = cycle[i]
-		objName = name(obj)
-		err.addf(currObj, "%s refers to %s", currName, objName)
+	// "cycle[i] refers to cycle[j]" for (i,j) = (s, s+1), (s+1, s+2), ..., (n, 0), (0,1), ..., (s-1,s) for len(cycle) = n, s = start.
+	n := len(cycle)
+	rotate := func(i int) int { return (i + start) % n }
+	for i := range n {
+		obj := cycle[rotate(i)]
+		next := cycle[rotate(i+1)]
+		err.addf(obj, "%s refers to %s", name(obj), name(next))
 	}
 	err.report()
 }
