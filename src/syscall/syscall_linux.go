@@ -1077,7 +1077,7 @@ func Getpgrp() (pid int) {
 //sys	Getxattr(path string, attr string, dest []byte) (sz int, err error)
 //sys	InotifyAddWatch(fd int, pathname string, mask uint32) (watchdesc int, err error)
 //sysnb	InotifyInit1(flags int) (fd int, err error)
-//sysnb	InotifyRmWatch(fd int, watchdesc uint32) (success int, err error)
+//sysnb	InotifyRmWatch(fd int, watchdesc int) (success int, err error)
 //sysnb	Kill(pid int, sig Signal) (err error)
 //sys	Klogctl(typ int, buf []byte) (n int, err error) = SYS_SYSLOG
 //sys	Listxattr(path string, dest []byte) (sz int, err error)
