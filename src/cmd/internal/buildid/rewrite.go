@@ -7,6 +7,7 @@ package buildid
 import (
 	"bytes"
 	"cmd/internal/codesign"
+	imacho "cmd/internal/macho"
 	"crypto/sha256"
 	"debug/macho"
 	"fmt"
@@ -31,10 +32,17 @@ func FindAndHash(r io.Reader, id string, bufSize int) (matches []int64, hash [32
 	zeros := make([]byte, len(id))
 	idBytes := []byte(id)
 
+	r0 := r // preserve original type of r
+
 	// For Mach-O files, we want to exclude the code signature.
 	// The code signature contains hashes of the whole file (except the signature
 	// itself), including the buildid. So the buildid cannot contain the signature.
 	r = excludeMachoCodeSignature(r)
+
+	// With the "-B gobuildid" linker option (which will be the default on some
+	// platforms), the host build ID (GNU build ID, Mach-O UUID) depends on the
+	// Go buildid. So ignore the host build ID, to avoid convergence problem.
+	r = excludeHostBuildID(r, r0)
 
 	// The strategy is to read the file through buf, looking for id,
 	// but we need to worry about what happens if id is broken up
@@ -124,6 +132,14 @@ func excludeMachoCodeSignature(r io.Reader) io.Reader {
 	return &excludedReader{r, 0, int64(cmd.Dataoff), int64(cmd.Dataoff + cmd.Datasize)}
 }
 
+func excludeHostBuildID(r, r0 io.Reader) io.Reader {
+	off, sz, ok := findHostBuildID(r0)
+	if !ok {
+		return r
+	}
+	return &excludedReader{r, 0, off, off + sz}
+}
+
 // excludedReader wraps an io.Reader. Reading from it returns the bytes from
 // the underlying reader, except that when the byte offset is within the
 // range between start and end, it returns zero bytes.
@@ -162,4 +178,30 @@ func findMachoCodeSignature(r any) (*macho.File, codesign.CodeSigCmd, bool) {
 	}
 	cmd, ok := codesign.FindCodeSigCmd(f)
 	return f, cmd, ok
+}
+
+func findHostBuildID(r io.Reader) (offset int64, size int64, ok bool) {
+	ra, ok := r.(io.ReaderAt)
+	if !ok {
+		return 0, 0, false
+	}
+	// TODO: handle ELF GNU build ID.
+	f, err := macho.NewFile(ra)
+	if err != nil {
+		return 0, 0, false
+	}
+
+	reader := imacho.NewLoadCmdReader(io.NewSectionReader(ra, 0, 1<<63-1), f.ByteOrder, imacho.FileHeaderSize(f))
+	for i := uint32(0); i < f.Ncmd; i++ {
+		cmd, err := reader.Next()
+		if err != nil {
+			break
+		}
+		if cmd.Cmd == imacho.LC_UUID {
+			// The UUID is the data in the LC_UUID load command,
+			// skipping over the 8-byte command header.
+			return int64(reader.Offset() + 8), int64(cmd.Len - 8), true
+		}
+	}
+	return 0, 0, false
 }
