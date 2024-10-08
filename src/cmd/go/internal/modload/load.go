@@ -536,14 +536,7 @@ func matchLocalDirs(ctx context.Context, modRoots []string, m *search.Match, rs 
 		}
 
 		modRoot := findModuleRoot(absDir)
-		found := false
-		for _, mainModuleRoot := range modRoots {
-			if mainModuleRoot == modRoot {
-				found = true
-				break
-			}
-		}
-		if !found && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
+		if !slices.Contains(modRoots, modRoot) && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
 			m.Dirs = []string{}
 			scope := "main module or its selected dependencies"
 			if inWorkspaceMode() {
