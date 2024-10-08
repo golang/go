@@ -1701,8 +1701,12 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-fuse-ld="+altLinker)
 	}
 
-	if ctxt.IsELF && len(buildinfo) > 0 {
-		argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
+	if ctxt.IsELF {
+		if len(buildinfo) > 0 {
+			argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
+		} else if *flagHostBuildid == "none" {
+			argv = append(argv, "-Wl,--build-id=none")
+		}
 	}
 
 	// On Windows, given -o foo, GCC will append ".exe" to produce

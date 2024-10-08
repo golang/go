@@ -294,7 +294,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		*flagBuildid = "go-openbsd"
 	}
 
-	if *flagHostBuildid == "" && *flagBuildid != "" && ctxt.IsDarwin() {
+	if *flagHostBuildid == "" && *flagBuildid != "" {
 		*flagHostBuildid = "gobuildid"
 	}
 	addbuildinfo(ctxt)
