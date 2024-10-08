@@ -152,13 +152,7 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 
 	} else if isPowerOfTwo(base) {
 		// Use shifts and masks instead of / and %.
-		// Base is a power of 2 and 2 <= base <= len(digits) where len(digits) is 36.
-		// The largest power of 2 below or equal to 36 is 32, which is 1 << 5;
-		// i.e., the largest possible shift count is 5. By &-ind that value with
-		// the constant 7 we tell the compiler that the shift count is always
-		// less than 8 which is smaller than any register width. This allows
-		// the compiler to generate better code for the shift operation.
-		shift := uint(bits.TrailingZeros(uint(base))) & 7
+		shift := uint(bits.TrailingZeros(uint(base)))
 		b := uint64(base)
 		m := uint(base) - 1 // == 1<<shift - 1
 		for u >= b {
