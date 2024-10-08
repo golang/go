@@ -807,6 +807,9 @@ func elfwritefreebsdsig(out *OutBuf) int {
 
 func addbuildinfo(ctxt *Link) {
 	val := *flagHostBuildid
+	if val == "" || val == "none" {
+		return
+	}
 	if val == "gobuildid" {
 		buildID := *flagBuildid
 		if buildID == "" {
