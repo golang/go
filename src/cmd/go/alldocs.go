@@ -904,9 +904,9 @@
 // The error information, if any, is
 //
 //	type PackageError struct {
-//	    ImportStack        []string // shortest path from package named on command line to this one
-//	    Pos                string   // position of error (if present, file:line:col)
-//	    Err                string   // the error itself
+//	    ImportStack   []string // shortest path from package named on command line to this one
+//	    Pos           string   // position of error (if present, file:line:col)
+//	    Err           string   // the error itself
 //	}
 //
 // The module information is a Module struct, defined in the discussion
