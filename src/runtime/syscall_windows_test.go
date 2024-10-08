@@ -1212,6 +1212,13 @@ func TestBigStackCallbackSyscall(t *testing.T) {
 	}
 }
 
+func TestSyscallStackUsage(t *testing.T) {
+	// Test that the stack usage of a syscall doesn't exceed the limit.
+	// See https://go.dev/issue/69813.
+	syscall.Syscall15(procSetEvent.Addr(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	syscall.Syscall18(procSetEvent.Addr(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+}
+
 var (
 	modwinmm    = syscall.NewLazyDLL("winmm.dll")
 	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
