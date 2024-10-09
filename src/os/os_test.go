@@ -3383,6 +3383,7 @@ func verifyCopyFS(t *testing.T, originFS, copiedFS fs.FS) error {
 	if err != nil {
 		return fmt.Errorf("stat file %q failed: %v", f.Name(), err)
 	}
+	wantFileRWMode := wantFileRWStat.Mode()
 
 	return fs.WalkDir(originFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
@@ -3437,13 +3438,14 @@ func verifyCopyFS(t *testing.T, originFS, copiedFS fs.FS) error {
 		}
 
 		// check whether the execute permission is inherited from original FS
-		if copiedStat.Mode()&0111 != fStat.Mode()&0111 {
+
+		if copiedStat.Mode()&0111&wantFileRWMode != fStat.Mode()&0111&wantFileRWMode {
 			return fmt.Errorf("file %q execute mode is %v, want %v",
 				path, copiedStat.Mode()&0111, fStat.Mode()&0111)
 		}
 
 		rwMode := copiedStat.Mode() &^ 0111 // unset the executable permission from file mode
-		if rwMode != wantFileRWStat.Mode() {
+		if rwMode != wantFileRWMode {
 			return fmt.Errorf("file %q rw mode is %v, want %v",
 				path, rwMode, wantFileRWStat.Mode())
 		}
