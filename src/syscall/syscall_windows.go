@@ -323,6 +323,7 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32FirstW
 //sys	Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32NextW
 //sys	DeviceIoControl(handle Handle, ioControlCode uint32, inBuffer *byte, inBufferSize uint32, outBuffer *byte, outBufferSize uint32, bytesReturned *uint32, overlapped *Overlapped) (err error)
+//sys	setFileInformationByHandle(handle Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
 // This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
 //sys	CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) [failretval&0xff==0] = CreateSymbolicLinkW
 //sys	CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) [failretval&0xff==0] = CreateHardLinkW
@@ -610,20 +611,13 @@ func ComputerName() (name string, err error) {
 }
 
 func Ftruncate(fd Handle, length int64) (err error) {
-	curoffset, e := Seek(fd, 0, 1)
-	if e != nil {
-		return e
+	type _FILE_END_OF_FILE_INFO struct {
+		EndOfFile int64
 	}
-	defer Seek(fd, curoffset, 0)
-	_, e = Seek(fd, length, 0)
-	if e != nil {
-		return e
-	}
-	e = SetEndOfFile(fd)
-	if e != nil {
-		return e
-	}
-	return nil
+	const FileEndOfFileInfo = 6
+	var info _FILE_END_OF_FILE_INFO
+	info.EndOfFile = length
+	return setFileInformationByHandle(fd, FileEndOfFileInfo, unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)))
 }
 
 func Gettimeofday(tv *Timeval) (err error) {
