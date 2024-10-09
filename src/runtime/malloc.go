@@ -1581,14 +1581,13 @@ func mallocgcLarge(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uin
 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
 
 		// Finish storing the type information for this case.
+		mp := acquirem()
 		if !noscan {
-			mp := acquirem()
 			getMCache(mp).scanAlloc += heapSetTypeLarge(uintptr(x), size, typ, span)
-
-			// Publish the type information with the zeroed memory.
-			publicationBarrier()
-			releasem(mp)
 		}
+		// Publish the object with the now-zeroed memory.
+		publicationBarrier()
+		releasem(mp)
 	}
 	return x, size
 }
