@@ -286,7 +286,7 @@ func (x *expandState) rewriteCallArgs(v *Value, firstArg int) {
 	if v.Op == OpTailLECall {
 		// For tail call, we unwind the frame before the call so we'll use the caller's
 		// SP.
-		sp = x.f.Entry.NewValue1(src.NoXPos, OpGetCallerSP, x.typs.Uintptr, mem)
+		sp = v.Block.NewValue1(src.NoXPos, OpGetCallerSP, x.typs.Uintptr, mem)
 	}
 
 	for i, a := range argsWithoutMem { // skip leading non-parameter SSA Args and trailing mem SSA Arg.
