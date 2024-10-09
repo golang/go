@@ -370,42 +370,23 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	if mode&O_CLOEXEC == 0 {
 		sa = makeInheritSa()
 	}
+	// We don't use CREATE_ALWAYS, because when opening a file with
+	// FILE_ATTRIBUTE_READONLY these will replace an existing file
+	// with a new, read-only one. See https://go.dev/issue/38225.
+	//
+	// Instead, we ftruncate the file after opening when O_TRUNC is set.
 	var createmode uint32
 	switch {
 	case mode&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
 		createmode = CREATE_NEW
-	case mode&(O_CREAT|O_TRUNC) == (O_CREAT | O_TRUNC):
-		createmode = CREATE_ALWAYS
 	case mode&O_CREAT == O_CREAT:
 		createmode = OPEN_ALWAYS
-	case mode&O_TRUNC == O_TRUNC:
-		createmode = TRUNCATE_EXISTING
 	default:
 		createmode = OPEN_EXISTING
 	}
 	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
-		if createmode == CREATE_ALWAYS {
-			// We have been asked to create a read-only file.
-			// If the file already exists, the semantics of
-			// the Unix open system call is to preserve the
-			// existing permissions. If we pass CREATE_ALWAYS
-			// and FILE_ATTRIBUTE_READONLY to CreateFile,
-			// and the file already exists, CreateFile will
-			// change the file permissions.
-			// Avoid that to preserve the Unix semantics.
-			h, e := CreateFile(pathp, access, sharemode, sa, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
-			switch e {
-			case ERROR_FILE_NOT_FOUND, _ERROR_BAD_NETPATH, ERROR_PATH_NOT_FOUND:
-				// File does not exist. These are the same
-				// errors as Errno.Is checks for ErrNotExist.
-				// Carry on to create the file.
-			default:
-				// Success or some different error.
-				return h, e
-			}
-		}
 	}
 	if createmode == OPEN_EXISTING && access == GENERIC_READ {
 		// Necessary for opening directory handles.
@@ -415,7 +396,18 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
 		attrs |= _FILE_FLAG_WRITE_THROUGH
 	}
-	return CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
+	h, err := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
+	if err != nil {
+		return InvalidHandle, err
+	}
+	if mode&O_TRUNC == O_TRUNC {
+		err = Ftruncate(h, 0)
+		if err != nil {
+			CloseHandle(h)
+			return InvalidHandle, err
+		}
+	}
+	return h, nil
 }
 
 func Read(fd Handle, p []byte) (n int, err error) {
