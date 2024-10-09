@@ -652,6 +652,8 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpSelect0(v)
 	case OpSelect1:
 		return rewriteValueLOONG64_OpSelect1(v)
+	case OpSelectN:
+		return rewriteValueLOONG64_OpSelectN(v)
 	case OpSignExt16to32:
 		v.Op = OpLOONG64MOVHreg
 		return true
@@ -8929,6 +8931,40 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
 		v3.AddArg2(s, c)
 		v2.AddArg2(v3, s)
 		v.AddArg2(v0, v2)
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64_OpSelectN(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (SelectN [0] call:(CALLstatic {sym} dst src (MOVVconst [sz]) mem))
+	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)
+	// result: (Move [sz] dst src mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpLOONG64CALLstatic || len(call.Args) != 4 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		mem := call.Args[3]
+		dst := call.Args[0]
+		src := call.Args[1]
+		call_2 := call.Args[2]
+		if call_2.Op != OpLOONG64MOVVconst {
+			break
+		}
+		sz := auxIntToInt64(call_2.AuxInt)
+		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = int64ToAuxInt(sz)
+		v.AddArg3(dst, src, mem)
 		return true
 	}
 	return false

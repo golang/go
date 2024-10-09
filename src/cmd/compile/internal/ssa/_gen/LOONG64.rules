@@ -796,3 +796,13 @@
 (GTZ (MOVVconst [c]) yes no) && c <= 0 => (First no yes)
 (GEZ (MOVVconst [c]) yes no) && c >= 0 => (First yes no)
 (GEZ (MOVVconst [c]) yes no) && c <  0 => (First no yes)
+
+// Arch-specific inlining for small or disjoint runtime.memmove
+// Match post-lowering calls, register version.
+(SelectN [0] call:(CALLstatic {sym} dst src (MOVVconst [sz]) mem))
+	&& sz >= 0
+	&& isSameCall(sym, "runtime.memmove")
+	&& call.Uses == 1
+	&& isInlinableMemmove(dst, src, sz, config)
+	&& clobber(call)
+	=> (Move [sz] dst src mem)
