@@ -5,6 +5,7 @@
 package maps
 
 import (
+	"internal/goarch"
 	"internal/runtime/maps/internal/abi"
 	"internal/runtime/sys"
 	"unsafe"
@@ -64,11 +65,18 @@ type ctrlGroup uint64
 
 // get returns the i-th control byte.
 func (g *ctrlGroup) get(i uint32) ctrl {
+	if goarch.BigEndian {
+		return *(*ctrl)(unsafe.Add(unsafe.Pointer(g), 7-i))
+	}
 	return *(*ctrl)(unsafe.Add(unsafe.Pointer(g), i))
 }
 
 // set sets the i-th control byte.
 func (g *ctrlGroup) set(i uint32, c ctrl) {
+	if goarch.BigEndian {
+		*(*ctrl)(unsafe.Add(unsafe.Pointer(g), 7-i)) = c
+		return
+	}
 	*(*ctrl)(unsafe.Add(unsafe.Pointer(g), i)) = c
 }
 
