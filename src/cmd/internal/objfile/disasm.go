@@ -31,7 +31,7 @@ import (
 
 // Disasm is a disassembler for a given File.
 type Disasm struct {
-	syms      []Sym            //symbols in file, sorted by address
+	syms      []Sym            // symbols in file, sorted by address
 	pcln      Liner            // pcln table
 	text      []byte           // bytes of text segment (actual instructions)
 	textStart uint64           // start PC of text
