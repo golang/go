@@ -87,6 +87,39 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 		pub.Curve == xx.Curve
 }
 
+// IsValid reports whether pub is a valid public key
+//
+// Valid Elliptic Curve Public Keys have the properties according to
+// 'Validation of Elliptic Curve Public Keys' 2003 by Antipa, Brown, Menezes, and
+// Vanstone as well as NIST SP 800-56A Section 5.6.2.3.
+func (pub *PublicKey) IsValid() bool {
+
+	// IsOnCurve will return false if the public Key:
+	// - is an infinity point, O
+	// - is on the curve
+	// If either is false then the Public Key is invalid
+	if !pub.Curve.IsOnCurve(pub.X, pub.Y) {
+		return false
+	}
+
+	// is each coordinate in pub
+	// >0 and <P-1?
+	// else invalid
+	params := pub.Curve.Params()
+	if pub.X.Sign() < 0 ||
+		pub.Y.Sign() < 0 ||
+		pub.X.Cmp(params.P) >= 0 ||
+		pub.Y.Cmp(params.P) >= 0 {
+		return false
+	}
+
+	// The fourth condition only applies to
+	// curves with cofactors > 1 like Curve25519
+	// currently not handling
+
+	return true
+}
+
 // PrivateKey represents an ECDSA private key.
 type PrivateKey struct {
 	PublicKey
