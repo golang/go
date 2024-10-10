@@ -380,8 +380,8 @@ func parentCancelCtx(parent Context) (*cancelCtx, bool) {
 	if !ok {
 		return nil, false
 	}
-	pdone, _ := p.done.Load().(chan struct{})
-	if pdone != done {
+	pdone := p.done.Load()
+	if pdone != nil && *pdone != done {
 		return nil, false
 	}
 	return p, true
@@ -423,11 +423,11 @@ func init() {
 type cancelCtx struct {
 	Context
 
-	mu       sync.Mutex            // protects following fields
-	done     atomic.Value          // of chan struct{}, created lazily, closed by first cancel call
-	children map[canceler]struct{} // set to nil by the first cancel call
-	err      error                 // set to non-nil by the first cancel call
-	cause    error                 // set to non-nil by the first cancel call
+	mu       sync.Mutex                    // protects following fields
+	done     atomic.Pointer[chan struct{}] // created lazily, closed by first cancel call
+	children map[canceler]struct{}         // set to nil by the first cancel call
+	err      error                         // set to non-nil by the first cancel call
+	cause    error                         // set to non-nil by the first cancel call
 }
 
 func (c *cancelCtx) Value(key any) any {
@@ -440,16 +440,14 @@ func (c *cancelCtx) Value(key any) any {
 func (c *cancelCtx) Done() <-chan struct{} {
 	d := c.done.Load()
 	if d != nil {
-		return d.(chan struct{})
+		return *d
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	d = c.done.Load()
-	if d == nil {
-		d = make(chan struct{})
-		c.done.Store(d)
+	new := make(chan struct{})
+	if c.done.CompareAndSwap(nil, &new) {
+		return new
 	}
-	return d.(chan struct{})
+	return *c.done.Load()
+
 }
 
 func (c *cancelCtx) Err() error {
@@ -549,11 +547,11 @@ func (c *cancelCtx) cancel(removeFromParent bool, err, cause error) {
 	}
 	c.err = err
 	c.cause = cause
-	d, _ := c.done.Load().(chan struct{})
+	d := c.done.Load()
 	if d == nil {
-		c.done.Store(closedchan)
+		c.done.Store(&closedchan)
 	} else {
-		close(d)
+		close(*d)
 	}
 	for child := range c.children {
 		// NOTE: acquiring the child's lock while holding parent's lock.
