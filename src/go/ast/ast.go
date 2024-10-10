@@ -8,8 +8,11 @@ package ast
 
 import (
 	"go/token"
+	"internal/godebug"
 	"strings"
 )
+
+var exampledontreduce = godebug.New("exampledontreduce")
 
 // ----------------------------------------------------------------------------
 // Interfaces
@@ -141,10 +144,18 @@ func (g *CommentGroup) Text() string {
 	// Remove leading blank lines; convert runs of
 	// interior blank lines to a single blank line.
 	n := 0
-	for _, line := range lines {
-		if line != "" || n > 0 && lines[n-1] != "" {
-			lines[n] = line
-			n++
+	if exampledontreduce.Value() != "1" {
+		for _, line := range lines {
+			if line != "" || n > 0 && lines[n-1] != "" {
+				lines[n] = line
+				n++
+			}
+		}
+	} else {
+		// Remove trailing blank lines
+		n = len(lines)
+		for n > 0 && lines[n-1] == "" {
+			n--
 		}
 	}
 	lines = lines[0:n]
