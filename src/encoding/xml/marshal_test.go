@@ -6,10 +6,13 @@ package xml
 
 import (
 	"bytes"
+	"encoding"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
+	"runtime/metrics"
 	"strconv"
 	"strings"
 	"sync"
@@ -2585,6 +2588,397 @@ func TestClose(t *testing.T) {
 			t.Log(enc.p.closed)
 			if err := enc.EncodeToken(Directive("foo")); err == nil {
 				t.Errorf("unexpected success when encoding after Close")
+			}
+		})
+	}
+}
+
+type structWithMarshalXML struct{ V int }
+
+func (s *structWithMarshalXML) MarshalXML(e *Encoder, _ StartElement) error {
+	_ = e.EncodeToken(StartElement{Name: Name{Local: "marshalled"}})
+	_ = e.EncodeToken(CharData(strconv.Itoa(s.V)))
+	_ = e.EncodeToken(EndElement{Name: Name{Local: "marshalled"}})
+	return nil
+}
+
+var _ = Marshaler(&structWithMarshalXML{})
+
+type structWithMarshalText struct{ V int }
+
+func (s *structWithMarshalText) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("marshalled(%d)", s.V)), nil
+}
+
+var _ = encoding.TextMarshaler(&structWithMarshalText{})
+
+type structWithMarshalXMLAndMarshalText struct{ V int }
+
+func (s *structWithMarshalXMLAndMarshalText) MarshalXML(e *Encoder, _ StartElement) error {
+	_ = e.EncodeToken(StartElement{Name: Name{Local: "marshalled"}})
+	_ = e.EncodeToken(CharData(strconv.Itoa(s.V)))
+	_ = e.EncodeToken(EndElement{Name: Name{Local: "marshalled"}})
+	return nil
+}
+
+func (s *structWithMarshalXMLAndMarshalText) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("marshalled(%d)", s.V)), nil
+}
+
+var (
+	_ = Marshaler(&structWithMarshalXMLAndMarshalText{})
+	_ = encoding.TextMarshaler(&structWithMarshalXMLAndMarshalText{})
+)
+
+type structWithMarshalXMLAttr struct{ v int }
+
+func (s *structWithMarshalXMLAttr) MarshalXMLAttr(name Name) (Attr, error) {
+	return Attr{Name: Name{Local: "marshalled"}, Value: strconv.Itoa(s.v)}, nil
+}
+
+var _ = MarshalerAttr(&structWithMarshalXMLAttr{})
+
+type embedder struct {
+	V interface{}
+}
+
+type embedderAt struct {
+	X  interface{} `xml:"X,attr"`
+	T  interface{} `xml:"T,attr"`
+	XP interface{} `xml:"XP,attr"`
+	XT interface{} `xml:"XT,attr"`
+}
+
+type embedderAtWithMarshalXMLAttr struct {
+	X structWithMarshalXMLAttr `xml:"X,attr"`
+}
+
+type embedderAtWithMarshalText struct {
+	T structWithMarshalText `xml:"T,attr"`
+}
+
+type embedderAtWithMarshalXMLAttrPtr struct {
+	X *structWithMarshalXMLAttr `xml:"X,attr"`
+}
+
+type embedderAtWithMarshalTextPtr struct {
+	T *structWithMarshalText `xml:"T,attr"`
+}
+
+type typeWithMarshalXMLAttrAndMarshalText string
+
+func (s *typeWithMarshalXMLAttrAndMarshalText) MarshalXMLAttr(name Name) (Attr, error) {
+	return Attr{Name: Name{Local: "marshalled"}, Value: fmt.Sprintf("marshalled(%s)", *s)}, nil
+}
+
+func (s *typeWithMarshalXMLAttrAndMarshalText) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("marshalled(%s)", *s)), nil
+}
+
+func ptrToTypeWithMarshalXMLAttrAndMarshalText(s typeWithMarshalXMLAttrAndMarshalText) *typeWithMarshalXMLAttrAndMarshalText {
+	return &s
+}
+
+var (
+	_ = MarshalerAttr(ptrToTypeWithMarshalXMLAttrAndMarshalText(""))
+	_ = encoding.TextMarshaler(ptrToTypeWithMarshalXMLAttrAndMarshalText(""))
+)
+
+type embedderAtWithMarshalXMLAttrAndMarshalText struct {
+	X typeWithMarshalXMLAttrAndMarshalText `xml:"X,attr"`
+	Y typeWithMarshalXMLAttrAndMarshalText `xml:"Y,attr"`
+}
+
+type embedderAtWithMarshalXMLAttrAndMarshalTextAndOwnMarshalXML struct {
+	X typeWithMarshalXMLAttrAndMarshalText `xml:"X,attr"`
+	Y typeWithMarshalXMLAttrAndMarshalText `xml:"Y,attr"`
+}
+
+func (s *embedderAtWithMarshalXMLAttrAndMarshalTextAndOwnMarshalXML) MarshalXML(e *Encoder, _ StartElement) error {
+	_ = e.EncodeToken(StartElement{Name: Name{Local: "marshalled"}})
+	_ = e.EncodeToken(EndElement{Name: Name{Local: "marshalled"}})
+	return nil
+}
+
+var _ = Marshaler(&embedderAtWithMarshalXMLAttrAndMarshalTextAndOwnMarshalXML{})
+
+type embedderCharAndCData struct {
+	Char  typeWithMarshalXMLAttrAndMarshalText `xml:",chardata"`
+	CData typeWithMarshalXMLAttrAndMarshalText `xml:",cdata"`
+}
+
+func (s *embedderCharAndCDataWithOwnMarshalXML) MarshalXML(e *Encoder, _ StartElement) error {
+	_ = e.EncodeToken(StartElement{Name: Name{Local: "marshalled"}})
+	_ = e.EncodeToken(EndElement{Name: Name{Local: "marshalled"}})
+	return nil
+}
+
+var _ = Marshaler(&embedderCharAndCDataWithOwnMarshalXML{})
+
+type embedderCharAndCDataWithOwnMarshalXML struct {
+	Char  typeWithMarshalXMLAttrAndMarshalText `xml:",chardata"`
+	CData typeWithMarshalXMLAttrAndMarshalText `xml:",cdata"`
+}
+
+type embedderCharAndCDataViaInterface struct {
+	Char  interface{} `xml:",chardata"`
+	CData interface{} `xml:",cdata"`
+}
+
+func TestMarshalXMLWithPointerMarshalers(t *testing.T) {
+	for _, test := range []struct {
+		name                     string
+		xmlinconsistentmarshal   bool
+		v                        interface{}
+		expected                 string
+		expectedOldBehaviorCount uint64
+		expectedError            string
+	}{
+		{
+			name:     "a value with MarshalXML",
+			v:        structWithMarshalXML{V: 1},
+			expected: `<marshalled>1</marshalled>`,
+		},
+		{
+			name:     "a pointer to a value with MarshalXML",
+			v:        &structWithMarshalXML{V: 1},
+			expected: "<marshalled>1</marshalled>",
+		},
+		{
+			name:     "a struct with a value with MarshalXML",
+			v:        embedder{V: structWithMarshalXML{V: 1}},
+			expected: "<embedder><marshalled>1</marshalled></embedder>",
+		},
+		{
+			name:     "a slice of structs with a value with MarshalXML",
+			v:        []embedder{{V: structWithMarshalXML{V: 1}}},
+			expected: `<embedder><marshalled>1</marshalled></embedder>`,
+		},
+		{
+			name:                     "a value with MarshalXML (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        structWithMarshalXML{V: 1},
+			expected:                 `<structWithMarshalXML><V>1</V></structWithMarshalXML>`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                   "a pointer to a value with MarshalXML (only addressable)",
+			xmlinconsistentmarshal: true,
+			v:                      &structWithMarshalXML{V: 1},
+			expected:               "<marshalled>1</marshalled>",
+		},
+		{
+			name:                     "a struct with a value with MarshalXML (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        embedder{V: structWithMarshalXML{V: 1}},
+			expected:                 "<embedder><V><V>1</V></V></embedder>",
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                     "a slice of structs with a value with MarshalXML (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        []embedder{{V: structWithMarshalXML{V: 1}}},
+			expected:                 `<embedder><V><V>1</V></V></embedder>`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:     "a value with MarshalText",
+			v:        structWithMarshalText{V: 1},
+			expected: "<structWithMarshalText>marshalled(1)</structWithMarshalText>",
+		},
+		{
+			name:     "pointer to a value with MarshalText",
+			v:        &structWithMarshalText{V: 1},
+			expected: "<structWithMarshalText>marshalled(1)</structWithMarshalText>",
+		},
+		{
+			name:     "a struct with a value with MarshalText",
+			v:        embedder{V: structWithMarshalText{V: 1}},
+			expected: "<embedder><V>marshalled(1)</V></embedder>",
+		},
+		{
+			name:     "a slice of structs with a value with MarshalText",
+			v:        []embedder{{V: structWithMarshalText{V: 1}}},
+			expected: "<embedder><V>marshalled(1)</V></embedder>",
+		},
+		{
+			name:     "a struct with a value with MarshalXML and MarshalText",
+			v:        embedder{V: structWithMarshalXMLAndMarshalText{V: 1}},
+			expected: "<embedder><marshalled>1</marshalled></embedder>",
+		},
+		{
+			name:                     "a value with MarshalText (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        structWithMarshalText{V: 1},
+			expected:                 "<structWithMarshalText><V>1</V></structWithMarshalText>",
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                   "pointer to a value with MarshalText (only addressable)",
+			xmlinconsistentmarshal: true,
+			v:                      &structWithMarshalText{V: 1},
+			expected:               "<structWithMarshalText>marshalled(1)</structWithMarshalText>",
+		},
+		{
+			name:                     "a struct with a value with MarshalText (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        embedder{V: structWithMarshalText{V: 1}},
+			expected:                 "<embedder><V><V>1</V></V></embedder>",
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                     "a slice of structs with a value with MarshalText (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        []embedder{{V: structWithMarshalText{V: 1}}},
+			expected:                 "<embedder><V><V>1</V></V></embedder>",
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                     "a struct with a value with MarshalXML and MarshalText (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        embedder{V: structWithMarshalXMLAndMarshalText{V: 1}},
+			expected:                 "<embedder><V><V>1</V></V></embedder>",
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name: "a struct with attributes with MarshalXMLAttr and MarshalText",
+			v: embedderAt{
+				X:  structWithMarshalXMLAttr{1},
+				T:  structWithMarshalText{2},
+				XP: &structWithMarshalXMLAttr{3},
+				XT: &structWithMarshalText{4},
+			},
+			expected: `<embedderAt marshalled="1" T="marshalled(2)" marshalled="3" XT="marshalled(4)"></embedderAt>`,
+		},
+		{
+			name:                   "a struct with attributes with MarshalXMLAttr and MarshalText (only addressable)",
+			xmlinconsistentmarshal: true,
+			v: embedderAt{
+				X:  structWithMarshalXMLAttr{1},
+				T:  structWithMarshalText{2},
+				XP: &structWithMarshalXMLAttr{3},
+				XT: &structWithMarshalText{4},
+			},
+			expectedOldBehaviorCount: 1,
+			expectedError:            "xml: unsupported type: xml.structWithMarshalXMLAttr",
+		},
+		{
+			name:                     "a struct with an attribute with MarshalXMLAttr (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        embedderAtWithMarshalXMLAttr{X: structWithMarshalXMLAttr{v: 1}},
+			expectedOldBehaviorCount: 1,
+			expectedError:            "xml: unsupported type: xml.structWithMarshalXMLAttr",
+		},
+		{
+			name:                     "a struct with an attribute with MarshalText (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        embedderAtWithMarshalText{T: structWithMarshalText{V: 1}},
+			expectedOldBehaviorCount: 1,
+			expectedError:            "xml: unsupported type: xml.structWithMarshalText",
+		},
+		{
+			name:                   "a struct with a pointer attribute with MarshalXMLAttr (only addressable)",
+			xmlinconsistentmarshal: true,
+			v:                      embedderAtWithMarshalXMLAttrPtr{X: &structWithMarshalXMLAttr{v: 1}},
+			expected:               `<embedderAtWithMarshalXMLAttrPtr marshalled="1"></embedderAtWithMarshalXMLAttrPtr>`,
+		},
+		{
+			name:                   "a struct with a pointer attribute with MarshalText (only addressable)",
+			xmlinconsistentmarshal: true,
+			v:                      embedderAtWithMarshalTextPtr{T: &structWithMarshalText{V: 1}},
+			expected:               `<embedderAtWithMarshalTextPtr T="marshalled(1)"></embedderAtWithMarshalTextPtr>`,
+		},
+		{
+			name:                   "a struct with two attributes with MarshalXMLAttr and MarshalText (only addressable)",
+			xmlinconsistentmarshal: true,
+			v: embedderAtWithMarshalXMLAttrAndMarshalText{
+				X: typeWithMarshalXMLAttrAndMarshalText("value1"),
+				Y: typeWithMarshalXMLAttrAndMarshalText("value2"),
+			},
+			expectedOldBehaviorCount: 2,
+			expected:                 `<embedderAtWithMarshalXMLAttrAndMarshalText X="value1" Y="value2"></embedderAtWithMarshalXMLAttrAndMarshalText>`,
+		},
+		{
+			name:                   "a struct with two attributes with MarshalXMLAttr and MarshalText having its own MarshalXML with a pointer receiver (only addressable)",
+			xmlinconsistentmarshal: true,
+			v: embedderAtWithMarshalXMLAttrAndMarshalTextAndOwnMarshalXML{
+				X: "value1", Y: "value2",
+			},
+			expectedOldBehaviorCount: 1,
+			expected:                 `<embedderAtWithMarshalXMLAttrAndMarshalTextAndOwnMarshalXML X="value1" Y="value2"></embedderAtWithMarshalXMLAttrAndMarshalTextAndOwnMarshalXML>`,
+		},
+		{
+			name:     "a struct with chardata and cdata with MarshalText",
+			v:        embedderCharAndCData{Char: "value1", CData: "value2"},
+			expected: `<embedderCharAndCData>marshalled(value1)<![CDATA[marshalled(value2)]]></embedderCharAndCData>`,
+		},
+		{
+			name: "a struct with chardata and cdata with MarshalText via interface{}",
+			v: embedderCharAndCDataViaInterface{
+				Char:  typeWithMarshalXMLAttrAndMarshalText("value1"),
+				CData: typeWithMarshalXMLAttrAndMarshalText("value2"),
+			},
+			expected: `<embedderCharAndCDataViaInterface>marshalled(value1)<![CDATA[marshalled(value2)]]></embedderCharAndCDataViaInterface>`,
+		},
+		{
+			name:                     "a struct with chardata and cdata with MarshalText (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        embedderCharAndCData{Char: "value1", CData: "value2"},
+			expected:                 `<embedderCharAndCData>value1<![CDATA[value2]]></embedderCharAndCData>`,
+			expectedOldBehaviorCount: 2,
+		},
+		{
+			name:                     "a struct with chardata and cdata with MarshalText having its own MarshalXML (only addressable)",
+			xmlinconsistentmarshal:   true,
+			v:                        embedderCharAndCDataWithOwnMarshalXML{Char: "value1", CData: "value2"},
+			expected:                 `<embedderCharAndCDataWithOwnMarshalXML>value1<![CDATA[value2]]></embedderCharAndCDataWithOwnMarshalXML>`,
+			expectedOldBehaviorCount: 1,
+		},
+		{
+			name:                   "a struct with chardata and cdata with MarshalText via interface{} (only addressable)",
+			xmlinconsistentmarshal: true,
+			v: embedderCharAndCDataViaInterface{
+				Char:  typeWithMarshalXMLAttrAndMarshalText("value1"),
+				CData: typeWithMarshalXMLAttrAndMarshalText("value2"),
+			},
+			expected:                 `<embedderCharAndCDataViaInterface>value1<![CDATA[value2]]></embedderCharAndCDataViaInterface>`,
+			expectedOldBehaviorCount: 2,
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			const metricName = "/godebug/non-default-behavior/xmlinconsistentmarshal:events"
+			sample := make([]metrics.Sample, 1)
+			sample[0].Name = metricName
+			metrics.Read(sample)
+			metricOldValue := sample[0].Value.Uint64()
+
+			if test.xmlinconsistentmarshal {
+				os.Setenv("GODEBUG", "xmlinconsistentmarshal=1")
+				defer os.Unsetenv("GODEBUG")
+			}
+			result, err := Marshal(test.v)
+
+			metrics.Read(sample)
+			metricNewValue := sample[0].Value.Uint64()
+			oldBehaviorCount := metricNewValue - metricOldValue
+
+			if oldBehaviorCount != test.expectedOldBehaviorCount {
+				t.Errorf("The old behavior count is %d, want %d", oldBehaviorCount, test.expectedOldBehaviorCount)
+			}
+
+			if err != nil {
+				if test.expectedError != "" {
+					if err.Error() != test.expectedError {
+						t.Errorf("Unexpected Marshal error: %s, expected: %s", err.Error(), test.expectedError)
+					}
+					return
+				}
+				t.Fatalf("Unexpected Marshal error: %v", err)
+			}
+
+			if string(result) != test.expected {
+				t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", result, test.expected)
 			}
 		})
 	}
