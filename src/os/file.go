@@ -130,7 +130,7 @@ func (f *File) Read(b []byte) (n int, err error) {
 // ReadAt always returns a non-nil error when n < len(b).
 // At end of file, that error is io.EOF.
 func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
-	if err := f.checkValid("read"); err != nil {
+	if err := f.checkValid("readat"); err != nil {
 		return 0, err
 	}
 
@@ -141,7 +141,7 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 	for len(b) > 0 {
 		m, e := f.pread(b, off)
 		if e != nil {
-			err = f.wrapErr("read", e)
+			err = f.wrapErr("readat", e)
 			break
 		}
 		n += m
@@ -153,14 +153,14 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 
 // ReadFrom implements io.ReaderFrom.
 func (f *File) ReadFrom(r io.Reader) (n int64, err error) {
-	if err := f.checkValid("write"); err != nil {
+	if err := f.checkValid("readfrom"); err != nil {
 		return 0, err
 	}
 	n, handled, e := f.readFrom(r)
 	if !handled {
 		return genericReadFrom(f, r) // without wrapping
 	}
-	return n, f.wrapErr("write", e)
+	return n, f.wrapErr("readfrom", e)
 }
 
 // noReadFrom can be embedded alongside another type to
@@ -217,7 +217,7 @@ var errWriteAtInAppendMode = errors.New("os: invalid use of WriteAt on file open
 //
 // If file was opened with the O_APPEND flag, WriteAt returns an error.
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
-	if err := f.checkValid("write"); err != nil {
+	if err := f.checkValid("writeat"); err != nil {
 		return 0, err
 	}
 	if f.appendMode {
@@ -231,7 +231,7 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	for len(b) > 0 {
 		m, e := f.pwrite(b, off)
 		if e != nil {
-			err = f.wrapErr("write", e)
+			err = f.wrapErr("writeat", e)
 			break
 		}
 		n += m
