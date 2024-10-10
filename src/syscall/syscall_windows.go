@@ -398,6 +398,13 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	}
 	h, err := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
 	if err != nil {
+		if err == ERROR_ACCESS_DENIED && (mode&O_WRONLY != 0 || mode&O_RDWR != 0) {
+			// We should return EISDIR when we are trying to open a directory with write access.
+			fa, e1 := GetFileAttributes(pathp)
+			if e1 == nil && fa&FILE_ATTRIBUTE_DIRECTORY != 0 {
+				err = EISDIR
+			}
+		}
 		return InvalidHandle, err
 	}
 	if mode&O_TRUNC == O_TRUNC {

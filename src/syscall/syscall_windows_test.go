@@ -16,24 +16,29 @@ import (
 )
 
 func TestOpen_Dir(t *testing.T) {
-	dir := t.TempDir()
+	t.Parallel()
 
-	h, err := syscall.Open(dir, syscall.O_RDONLY, 0)
-	if err != nil {
-		t.Fatalf("Open failed: %v", err)
+	dir := t.TempDir()
+	tests := []struct {
+		mode int
+		err  error
+	}{
+		{syscall.O_RDONLY, nil},
+		{syscall.O_CREAT, syscall.ERROR_ACCESS_DENIED},                    // TODO(qmuntal): should be allowed.
+		{syscall.O_RDONLY | syscall.O_CREAT, syscall.ERROR_ACCESS_DENIED}, // TODO(qmuntal): should be allowed.
+		{syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
+		{syscall.O_WRONLY | syscall.O_RDWR, syscall.EISDIR},
+		{syscall.O_WRONLY, syscall.EISDIR},
+		{syscall.O_RDWR, syscall.EISDIR},
 	}
-	syscall.CloseHandle(h)
-	h, err = syscall.Open(dir, syscall.O_RDONLY|syscall.O_TRUNC, 0)
-	if err == nil {
-		t.Error("Open should have failed")
-	} else {
-		syscall.CloseHandle(h)
-	}
-	h, err = syscall.Open(dir, syscall.O_RDONLY|syscall.O_CREAT, 0)
-	if err == nil {
-		t.Error("Open should have failed")
-	} else {
-		syscall.CloseHandle(h)
+	for i, tt := range tests {
+		h, err := syscall.Open(dir, tt.mode, 0)
+		if err == nil {
+			syscall.CloseHandle(h)
+		}
+		if err != tt.err {
+			t.Errorf("%d: Open got %v, want %v", i, err, tt.err)
+		}
 	}
 }
 
