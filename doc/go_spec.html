@@ -7808,10 +7808,13 @@ panic(Error("cannot parse"))
 The <code>recover</code> function allows a program to manage behavior
 of a panicking goroutine.
 Suppose a function <code>G</code> defers a function <code>D</code> that calls
-<code>recover</code> and a panic occurs in a function on the same goroutine in which <code>G</code>
+<code>recover</code> and a panic occurs (i.e., <code>panic</code> is called)
+in a function on the same goroutine in which <code>G</code>
 is executing.
-When the running of deferred functions reaches <code>D</code>,
-the return value of <code>D</code>'s call to <code>recover</code> will be the value passed to the call of <code>panic</code>.
+Subsequently, when the running of deferred functions reaches <code>D</code>,
+the return value of <code>D</code>'s call to <code>recover</code> is the value
+that was previously passed to <code>panic</code> (i.e., at the call to <code>panic</code>
+that caused the deferred functions to run).
 If <code>D</code> returns normally, without starting a new
 <code>panic</code>, the panicking sequence stops. In that case,
 the state of functions called between <code>G</code> and the call to <code>panic</code>
