@@ -2272,6 +2272,7 @@ func StripPrefix(prefix string, h Handler) Handler {
 	return HandlerFunc(func(w ResponseWriter, r *Request) {
 		p := strings.TrimPrefix(r.URL.Path, prefix)
 		rp := strings.TrimPrefix(r.URL.RawPath, prefix)
+		ruri := strings.TrimPrefix(r.RequestURI, prefix)
 		if len(p) < len(r.URL.Path) && (r.URL.RawPath == "" || len(rp) < len(r.URL.RawPath)) {
 			r2 := new(Request)
 			*r2 = *r
@@ -2279,6 +2280,7 @@ func StripPrefix(prefix string, h Handler) Handler {
 			*r2.URL = *r.URL
 			r2.URL.Path = p
 			r2.URL.RawPath = rp
+			r2.RequestURI = ruri
 			h.ServeHTTP(w, r2)
 		} else {
 			NotFound(w, r)
