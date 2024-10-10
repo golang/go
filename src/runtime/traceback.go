@@ -1327,8 +1327,8 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 
 // isSystemGoroutine reports whether the goroutine g must be omitted
 // in stack dumps and deadlock detector. This is any goroutine that
-// starts at a runtime.* entry point, except for runtime.main,
-// runtime.handleAsyncEvent (wasm only) and sometimes runtime.runfinq.
+// starts at a runtime.* entry point, except for runtime.main and
+// sometimes runtime.runfinq and runtime.handleAsyncEvent (wasm only).
 //
 // If fixed is true, any goroutine that can vary between user and
 // system (that is, the finalizer goroutine) is considered a user
@@ -1339,12 +1339,12 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 	if !f.valid() {
 		return false
 	}
-	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_corostart || f.funcID == abi.FuncID_handleAsyncEvent {
+	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_corostart {
 		return false
 	}
-	if f.funcID == abi.FuncID_runfinq {
+	if f.funcID == abi.FuncID_runfinq || f.funcID == abi.FuncID_handleAsyncEvent {
 		// We include the finalizer goroutine if it's calling
-		// back into user code.
+		// back into user code, same for handleAsyncEvent on wasm.
 		if fixed {
 			// This goroutine can vary. In fixed mode,
 			// always consider it a user goroutine.
