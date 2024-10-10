@@ -315,6 +315,8 @@ func (c *conn) hijacked() bool {
 
 // c.mu must be held.
 func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.hijackedv {
 		return nil, nil, ErrHijacked
 	}
@@ -2161,13 +2163,9 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 		w.cw.flush()
 	}
 
-	c := w.conn
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	// Release the bufioWriter that writes to the chunk writer, it is not
 	// used after a connection has been hijacked.
-	rwc, buf, err = c.hijackLocked()
+	rwc, buf, err = w.conn.hijackLocked()
 	if err == nil {
 		putBufioWriter(w.w)
 		w.w = nil
