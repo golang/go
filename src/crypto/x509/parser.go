@@ -60,7 +60,24 @@ func isPrintable(b byte) bool {
 func parseASN1String(tag cryptobyte_asn1.Tag, value []byte) (string, error) {
 	switch tag {
 	case cryptobyte_asn1.T61String:
-		return string(value), nil
+		// This should be using the T61 encoding, but many (all?) implementations
+		// treat this as ISO 8859-1:
+		//
+		// man openssl-x509:
+		//  The conversion to UTF8 format used with the name options assumes that T61Strings use the ISO8859-1
+		//  character set. This is wrong but Netscape and MSIE do this as do many certificates. So although this
+		//  is incorrect it is more likely to print the majority of certificates correctly.
+		// https://www.mail-archive.com/asn1@asn1.org/msg00460.html
+		// https://github.com/dotnet/runtime/issues/25195
+		//
+		// Assuming that this is encoded in ISO 8859-1.
+		var buf strings.Builder
+		buf.Grow(len(value))
+		for _, v := range value {
+			// Every byte in ISO 8859-1 string corresponds exactly to an unicode code point.
+			buf.WriteRune(rune(v))
+		}
+		return buf.String(), nil
 	case cryptobyte_asn1.PrintableString:
 		for _, b := range value {
 			if !isPrintable(b) {
