@@ -240,6 +240,9 @@ func bootstrapBuildTools() {
 	cmd := []string{
 		pathf("%s/bin/go", goroot_bootstrap),
 		"install",
+		// Fixes cases where an invalid .git is present in a parent of GOROOT_BOOTSTRAP.
+		// See: https://github.com/golang/go/issues/61620
+		"-buildvcs=false",
 		"-tags=math_big_pure_go compiler_bootstrap purego",
 	}
 	if vflag > 0 {
