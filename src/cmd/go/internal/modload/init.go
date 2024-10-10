@@ -507,6 +507,10 @@ func Init() {
 			if !mustUseModules {
 				return
 			}
+		} else if os.Getenv("GOMOD") != "" && filepath.Join(modRoot, "go.mod") != filepath.Join(modRoot, os.Getenv("GOMOD")) {
+			// if GOMOD is set and does not point to module file, error as they must use -modfile
+			// see golang.org/issue/51217
+			base.Fatalf("go: GOMOD cannot be used to set the module file. use -modfile")
 		} else {
 			modRoots = []string{modRoot}
 		}
