@@ -334,11 +334,12 @@ type workType struct {
 
 	// bytesMarked is the number of bytes marked this cycle. This
 	// includes bytes blackened in scanned objects, noscan objects
-	// that go straight to black, and permagrey objects scanned by
-	// markroot during the concurrent scan phase. This is updated
-	// atomically during the cycle. Updates may be batched
-	// arbitrarily, since the value is only read at the end of the
-	// cycle.
+	// that go straight to black, objects allocated as black during
+	// the cycle, and permagrey objects scanned by markroot during
+	// the concurrent scan phase.
+	//
+	// This is updated atomically during the cycle. Updates may be batched
+	// arbitrarily, since the value is only read at the end of the cycle.
 	//
 	// Because of benign races during marking, this number may not
 	// be the exact number of marked bytes, but it should be very
