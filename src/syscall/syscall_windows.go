@@ -388,8 +388,10 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
 	}
-	if createmode == OPEN_EXISTING && access == GENERIC_READ {
-		// Necessary for opening directory handles.
+	if flag&O_WRONLY == 0 && flag&O_RDWR == 0 {
+		// We might be opening or creating a directory.
+		// CreateFile requires FILE_FLAG_BACKUP_SEMANTICS
+		// to work with directories.
 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
 	}
 	if flag&O_SYNC != 0 {

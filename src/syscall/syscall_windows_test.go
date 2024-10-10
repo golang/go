@@ -24,8 +24,8 @@ func TestOpen_Dir(t *testing.T) {
 		err  error
 	}{
 		{syscall.O_RDONLY, nil},
-		{syscall.O_CREAT, syscall.ERROR_ACCESS_DENIED},                    // TODO(qmuntal): should be allowed.
-		{syscall.O_RDONLY | syscall.O_CREAT, syscall.ERROR_ACCESS_DENIED}, // TODO(qmuntal): should be allowed.
+		{syscall.O_CREAT, nil},
+		{syscall.O_RDONLY | syscall.O_CREAT, nil},
 		{syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
 		{syscall.O_WRONLY | syscall.O_RDWR, syscall.EISDIR},
 		{syscall.O_WRONLY, syscall.EISDIR},
