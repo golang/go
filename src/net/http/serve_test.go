@@ -12,6 +12,7 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"context"
+	crand "crypto/rand"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -5288,69 +5289,20 @@ func getNoBody(urlStr string) (*Response, error) {
 
 // A benchmark for profiling the client without the HTTP server code.
 // The server code runs in a subprocess.
+//
+// For use like:
+//
+//	$ go test -c
+//	$ ./http.test -test.run='^$' -test.bench='^BenchmarkClient$' -test.benchtime=15s -test.cpuprofile=http.prof
+//	$ go tool pprof http.test http.prof
+//	(pprof) web
 func BenchmarkClient(b *testing.B) {
-	b.ReportAllocs()
-	b.StopTimer()
-	defer afterTest(b)
-
 	var data = []byte("Hello world.\n")
-	if server := os.Getenv("TEST_BENCH_SERVER"); server != "" {
-		// Server process mode.
-		port := os.Getenv("TEST_BENCH_SERVER_PORT") // can be set by user
-		if port == "" {
-			port = "0"
-		}
-		ln, err := net.Listen("tcp", "localhost:"+port)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		fmt.Println(ln.Addr().String())
-		HandleFunc("/", func(w ResponseWriter, r *Request) {
-			r.ParseForm()
-			if r.Form.Get("stop") != "" {
-				os.Exit(0)
-			}
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write(data)
-		})
-		var srv Server
-		log.Fatal(srv.Serve(ln))
-	}
 
-	// Start server process.
-	ctx, cancel := context.WithCancel(context.Background())
-	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=^$", "-test.bench=^BenchmarkClient$")
-	cmd.Env = append(cmd.Environ(), "TEST_BENCH_SERVER=yes")
-	cmd.Stderr = os.Stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		b.Fatal(err)
-	}
-	if err := cmd.Start(); err != nil {
-		b.Fatalf("subprocess failed to start: %v", err)
-	}
-
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-		close(done)
-	}()
-	defer func() {
-		cancel()
-		<-done
-	}()
-
-	// Wait for the server in the child process to respond and tell us
-	// its listening address, once it's started listening:
-	bs := bufio.NewScanner(stdout)
-	if !bs.Scan() {
-		b.Fatalf("failed to read listening URL from child: %v", bs.Err())
-	}
-	url := "http://" + strings.TrimSpace(bs.Text()) + "/"
-	if _, err := getNoBody(url); err != nil {
-		b.Fatalf("initial probe of child process failed: %v", err)
-	}
+	url := startClientBenchmarkServer(b, func(w ResponseWriter, _ *Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(data)
+	})
 
 	// Do b.N requests to the server.
 	b.StartTimer()
@@ -5369,12 +5321,128 @@ func BenchmarkClient(b *testing.B) {
 		}
 	}
 	b.StopTimer()
+}
+
+func startClientBenchmarkServer(b *testing.B, handler func(ResponseWriter, *Request)) string {
+	b.ReportAllocs()
+	b.StopTimer()
+
+	if server := os.Getenv("TEST_BENCH_SERVER"); server != "" {
+		// Server process mode.
+		port := os.Getenv("TEST_BENCH_SERVER_PORT") // can be set by user
+		if port == "" {
+			port = "0"
+		}
+		ln, err := net.Listen("tcp", "localhost:"+port)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		fmt.Println(ln.Addr().String())
+
+		HandleFunc("/", func(w ResponseWriter, r *Request) {
+			r.ParseForm()
+			if r.Form.Get("stop") != "" {
+				os.Exit(0)
+			}
+			handler(w, r)
+		})
+		var srv Server
+		log.Fatal(srv.Serve(ln))
+	}
+
+	var benchmarkName string
+	if pc, _, _, ok := runtime.Caller(1); ok {
+		details := runtime.FuncForPC(pc)
+		name := details.Name()
+		_, benchmarkName, _ = strings.Cut(name, ".")
+		if !strings.HasPrefix(benchmarkName, "Benchmark") {
+			b.Fatalf("Expected to be called from BenchmarkXxx function, called from %s", name)
+		}
+	} else {
+		b.Fatal("Failed to get caller name")
+	}
+
+	// Start server process.
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=^$", "-test.bench="+benchmarkName+"$")
+	cmd.Env = append(cmd.Environ(), "TEST_BENCH_SERVER=yes")
+	cmd.Stderr = os.Stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		b.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		b.Fatalf("subprocess failed to start: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+		close(done)
+	}()
+
+	// Wait for the server in the child process to respond and tell us
+	// its listening address, once it's started listening:
+	bs := bufio.NewScanner(stdout)
+	if !bs.Scan() {
+		b.Fatalf("failed to read listening URL from child: %v", bs.Err())
+	}
+	url := "http://" + strings.TrimSpace(bs.Text()) + "/"
+	if _, err := getNoBody(url); err != nil {
+		b.Fatalf("initial probe of child process failed: %v", err)
+	}
 
 	// Instruct server process to stop.
-	getNoBody(url + "?stop=yes")
-	if err := <-done; err != nil {
-		b.Fatalf("subprocess failed: %v", err)
+	b.Cleanup(func() {
+		getNoBody(url + "?stop=yes")
+		if err := <-done; err != nil {
+			b.Fatalf("subprocess failed: %v", err)
+		}
+
+		cancel()
+		<-done
+
+		afterTest(b)
+	})
+
+	return url
+}
+
+func BenchmarkClientGzip(b *testing.B) {
+	const responseSize = 1024 * 1024
+
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := io.CopyN(gz, crand.Reader, responseSize); err != nil {
+		b.Fatal(err)
 	}
+	gz.Close()
+
+	data := buf.Bytes()
+
+	url := startClientBenchmarkServer(b, func(w ResponseWriter, _ *Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Write(data)
+	})
+
+	// Do b.N requests to the server.
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		res, err := Get(url)
+		if err != nil {
+			b.Fatalf("Get: %v", err)
+		}
+		n, err := io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+		if err != nil {
+			b.Fatalf("ReadAll: %v", err)
+		}
+		if n != responseSize {
+			b.Fatalf("ReadAll: expected %d bytes, got %d", responseSize, n)
+		}
+	}
+	b.StopTimer()
 }
 
 func BenchmarkServerFakeConnNoKeepAlive(b *testing.B) {
