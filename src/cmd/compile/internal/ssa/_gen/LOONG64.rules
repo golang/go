@@ -646,6 +646,16 @@
 (ROTR x (MOVVconst [c]))  => (ROTRconst x [c&31])
 (ROTRV x (MOVVconst [c])) => (ROTRVconst x [c&63])
 
+// If the shift amount is larger than the datasize(32, 16, 8), we can optimize to constant 0.
+(MOVWUreg (SLLVconst [lc] x)) && lc >= 32 => (MOVVconst [0])
+(MOVHUreg (SLLVconst [lc] x)) && lc >= 16 => (MOVVconst [0])
+(MOVBUreg (SLLVconst [lc] x)) && lc >= 8 => (MOVVconst [0])
+
+// After zero extension, the upper (64-datasize(32|16|8)) bits are zero, we can optimize to constant 0.
+(SRLVconst [rc] (MOVWUreg x)) && rc >= 32 => (MOVVconst [0])
+(SRLVconst [rc] (MOVHUreg x)) && rc >= 16 => (MOVVconst [0])
+(SRLVconst [rc] (MOVBUreg x)) && rc >= 8 => (MOVVconst [0])
+
 // mul by constant
 (MULV x (MOVVconst [-1])) => (NEGV x)
 (MULV _ (MOVVconst [0])) => (MOVVconst [0])
