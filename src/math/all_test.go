@@ -3517,6 +3517,15 @@ func BenchmarkAbs(b *testing.B) {
 
 }
 
+func BenchmarkAbsGo(b *testing.B) {
+	x := 0.0
+	for i := 0; i < b.N; i++ {
+		x = AbsGo(absPos)
+	}
+	GlobalF = x
+
+}
+
 func BenchmarkDim(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
