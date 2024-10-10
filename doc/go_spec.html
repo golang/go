@@ -8555,7 +8555,7 @@ The following minimal alignment properties are guaranteed:
 </ol>
 
 <p>
-A struct or array type has size zero if it contains no fields (or elements, respectively) that have a size greater than zero. Two distinct zero-size variables may have the same address in memory.
+A struct or array type has size zero if it contains no fields (or elements, respectively) that have a size greater than zero. Two distinct zero-size variables may have the same address in memory. It is advisable to arrange fields of struct in order of size for memory efficient struct.
 </p>
 
 <h2 id="Appendix">Appendix</h2>
