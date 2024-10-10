@@ -36,7 +36,7 @@ func SwissMapGroupType(t *types.Type) *types.Type {
 	// }
 	slotFields := []*types.Field{
 		makefield("key", t.Key()),
-		makefield("typ", t.Elem()),
+		makefield("elem", t.Elem()),
 	}
 	slot := types.NewStruct(slotFields)
 	slot.SetNoalg(true)

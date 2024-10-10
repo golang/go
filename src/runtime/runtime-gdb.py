@@ -141,7 +141,6 @@ class SliceTypePrinter:
 			yield ('[{0}]'.format(idx), item)
 
 
-# TODO(go.dev/issue/54766): Support swisstable maps.
 class MapTypePrinter:
 	"""Pretty print map[K]V types.
 
@@ -161,7 +160,56 @@ class MapTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		MapBucketCount = 8 # see internal/abi.go:MapBucketCount
+		fields = [f.name for f in self.val.type.strip_typedefs().target().fields()]
+		if 'buckets' in fields:
+			yield from self.old_map_children()
+		else:
+			yield from self.swiss_map_children()
+
+	def swiss_map_children(self):
+		SwissMapGroupSlots = 8 # see internal/abi:SwissMapGroupSlots
+
+		cnt = 0
+		directory = SliceValue(self.val['directory'])
+		for table in directory:
+			table = table.dereference()
+			groups = table['groups']['data']
+			length = table['groups']['lengthMask'] + 1
+
+			# The linker DWARF generation
+			# (cmd/link/internal/ld.(*dwctxt).synthesizemaptypesSwiss) records
+			# groups.data as a *group[K,V], but it is actually a pointer to
+			# variable length array *[length]group[K,V].
+			#
+			# N.B. array() takes an _inclusive_ upper bound.
+
+			# group[K,V]
+			group_type = groups.type.target()
+			# [length]group[K,V]
+			array_group_type = group_type.array(length-1)
+			# *[length]group[K,V]
+			ptr_array_group_type = array_group_type.pointer()
+			# groups = (*[length]group[K,V])(groups.data)
+			groups = groups.cast(ptr_array_group_type)
+			groups = groups.dereference()
+
+			for i in xrange(length):
+				group = groups[i]
+				ctrl = group['ctrl']
+
+				for i in xrange(SwissMapGroupSlots):
+					c = (ctrl >> (8*i)) & 0xff
+					if (c & 0x80) != 0:
+						# Empty or deleted
+						continue
+
+					# Full
+					yield str(cnt), group['slots'][i]['key']
+					yield str(cnt+1), group['slots'][i]['elem']
+
+
+	def old_map_children(self):
+		MapBucketCount = 8 # see internal/abi:OldMapBucketCount
 		B = self.val['B']
 		buckets = self.val['buckets']
 		oldbuckets = self.val['oldbuckets']
@@ -386,7 +434,7 @@ goobjfile.pretty_printers.append(ifacematcher)
 class GoLenFunc(gdb.Function):
 	"Length of strings, slices, maps or channels"
 
-	how = ((StringTypePrinter, 'len'), (SliceTypePrinter, 'len'), (MapTypePrinter, 'count'), (ChanTypePrinter, 'qcount'))
+	how = ((StringTypePrinter, 'len'), (SliceTypePrinter, 'len'), (MapTypePrinter, 'used'), (ChanTypePrinter, 'qcount'))
 
 	def __init__(self):
 		gdb.Function.__init__(self, "len")
@@ -395,6 +443,12 @@ class GoLenFunc(gdb.Function):
 		typename = str(obj.type)
 		for klass, fld in self.how:
 			if klass.pattern.match(typename) or paramtypematch(obj.type, klass.pattern):
+				if klass == MapTypePrinter:
+					fields = [f.name for f in self.val.type.strip_typedefs().target().fields()]
+					if 'buckets' in fields:
+						# Old maps.
+						fld = 'count'
+
 				return obj[fld]
 
 

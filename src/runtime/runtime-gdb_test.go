@@ -186,9 +186,6 @@ func TestGdbPythonCgo(t *testing.T) {
 }
 
 func testGdbPython(t *testing.T, cgo bool) {
-	if goexperiment.SwissMap {
-		t.Skip("TODO(prattmic): swissmap DWARF")
-	}
 	if cgo {
 		testenv.MustHaveCGO(t)
 	}
@@ -531,10 +528,6 @@ func main() {
 // TestGdbAutotmpTypes ensures that types of autotmp variables appear in .debug_info
 // See bug #17830.
 func TestGdbAutotmpTypes(t *testing.T) {
-	if goexperiment.SwissMap {
-		t.Skip("TODO(prattmic): swissmap DWARF")
-	}
-
 	checkGdbEnvironment(t)
 	t.Parallel()
 	checkGdbVersion(t)
@@ -584,10 +577,21 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	// Check that the backtrace matches the source code.
 	types := []string{
 		"[]main.astruct",
-		"bucket<string,main.astruct>",
-		"hash<string,main.astruct>",
 		"main.astruct",
-		"hash<string,main.astruct> * map[string]main.astruct",
+	}
+	if goexperiment.SwissMap {
+		types = append(types, []string{
+			"groupReference<string,main.astruct>",
+			"table<string,main.astruct>",
+			"map<string,main.astruct>",
+			"map<string,main.astruct> * map[string]main.astruct",
+		}...)
+	} else {
+		types = append(types, []string{
+			"bucket<string,main.astruct>",
+			"hash<string,main.astruct>",
+			"hash<string,main.astruct> * map[string]main.astruct",
+		}...)
 	}
 	for _, name := range types {
 		if !strings.Contains(sgot, name) {
