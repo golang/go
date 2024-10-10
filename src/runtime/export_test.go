@@ -1435,9 +1435,13 @@ func Escape[T any](x T) T {
 }
 
 // Acquirem blocks preemption.
-func Acquirem() {
-	acquirem()
+func Acquirem() *M {
+	return acquirem()
 }
+
+type M = m
+
+var M0 = &m0
 
 func Releasem() {
 	releasem(getg().m)
