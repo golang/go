@@ -199,7 +199,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 		}
 		lockorder[j] = pollorder[i]
 	}
-	for i := len(lockorder) - 1; i >= 0; i-- {
+	for i := len(lockorder) - 1; i > 0; i-- {
 		o := lockorder[i]
 		c := scases[o].c
 		lockorder[i] = lockorder[0]
