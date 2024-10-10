@@ -20,7 +20,7 @@ func TestOpen_Dir(t *testing.T) {
 
 	dir := t.TempDir()
 	tests := []struct {
-		mode int
+		flag int
 		err  error
 	}{
 		{syscall.O_RDONLY, nil},
@@ -32,7 +32,7 @@ func TestOpen_Dir(t *testing.T) {
 		{syscall.O_RDWR, syscall.EISDIR},
 	}
 	for i, tt := range tests {
-		h, err := syscall.Open(dir, tt.mode, 0)
+		h, err := syscall.Open(dir, tt.flag, 0)
 		if err == nil {
 			syscall.CloseHandle(h)
 		}

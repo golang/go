@@ -341,16 +341,16 @@ func makeInheritSa() *SecurityAttributes {
 	return &sa
 }
 
-func Open(path string, mode int, perm uint32) (fd Handle, err error) {
-	if len(path) == 0 {
+func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+	if len(name) == 0 {
 		return InvalidHandle, ERROR_FILE_NOT_FOUND
 	}
-	pathp, err := UTF16PtrFromString(path)
+	namep, err := UTF16PtrFromString(name)
 	if err != nil {
 		return InvalidHandle, err
 	}
 	var access uint32
-	switch mode & (O_RDONLY | O_WRONLY | O_RDWR) {
+	switch flag & (O_RDONLY | O_WRONLY | O_RDWR) {
 	case O_RDONLY:
 		access = GENERIC_READ
 	case O_WRONLY:
@@ -358,16 +358,16 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	case O_RDWR:
 		access = GENERIC_READ | GENERIC_WRITE
 	}
-	if mode&O_CREAT != 0 {
+	if flag&O_CREAT != 0 {
 		access |= GENERIC_WRITE
 	}
-	if mode&O_APPEND != 0 {
+	if flag&O_APPEND != 0 {
 		access &^= GENERIC_WRITE
 		access |= FILE_APPEND_DATA
 	}
 	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
 	var sa *SecurityAttributes
-	if mode&O_CLOEXEC == 0 {
+	if flag&O_CLOEXEC == 0 {
 		sa = makeInheritSa()
 	}
 	// We don't use CREATE_ALWAYS, because when opening a file with
@@ -377,9 +377,9 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	// Instead, we ftruncate the file after opening when O_TRUNC is set.
 	var createmode uint32
 	switch {
-	case mode&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
+	case flag&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
 		createmode = CREATE_NEW
-	case mode&O_CREAT == O_CREAT:
+	case flag&O_CREAT == O_CREAT:
 		createmode = OPEN_ALWAYS
 	default:
 		createmode = OPEN_EXISTING
@@ -392,22 +392,22 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 		// Necessary for opening directory handles.
 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
 	}
-	if mode&O_SYNC != 0 {
+	if flag&O_SYNC != 0 {
 		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
 		attrs |= _FILE_FLAG_WRITE_THROUGH
 	}
-	h, err := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
+	h, err := CreateFile(namep, access, sharemode, sa, createmode, attrs, 0)
 	if err != nil {
-		if err == ERROR_ACCESS_DENIED && (mode&O_WRONLY != 0 || mode&O_RDWR != 0) {
+		if err == ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
 			// We should return EISDIR when we are trying to open a directory with write access.
-			fa, e1 := GetFileAttributes(pathp)
+			fa, e1 := GetFileAttributes(namep)
 			if e1 == nil && fa&FILE_ATTRIBUTE_DIRECTORY != 0 {
 				err = EISDIR
 			}
 		}
 		return InvalidHandle, err
 	}
-	if mode&O_TRUNC == O_TRUNC {
+	if flag&O_TRUNC == O_TRUNC {
 		err = Ftruncate(h, 0)
 		if err != nil {
 			CloseHandle(h)
