@@ -34,18 +34,20 @@ const (
 
 const (
 	// Invented values to support what package os expects.
-	O_RDONLY   = 0x00000
-	O_WRONLY   = 0x00001
-	O_RDWR     = 0x00002
-	O_CREAT    = 0x00040
-	O_EXCL     = 0x00080
-	O_NOCTTY   = 0x00100
-	O_TRUNC    = 0x00200
-	O_NONBLOCK = 0x00800
-	O_APPEND   = 0x00400
-	O_SYNC     = 0x01000
-	O_ASYNC    = 0x02000
-	O_CLOEXEC  = 0x80000
+	O_RDONLY       = 0x00000
+	O_WRONLY       = 0x00001
+	O_RDWR         = 0x00002
+	O_CREAT        = 0x00040
+	O_EXCL         = 0x00080
+	O_NOCTTY       = 0x00100
+	O_TRUNC        = 0x00200
+	O_NONBLOCK     = 0x00800
+	O_APPEND       = 0x00400
+	O_SYNC         = 0x01000
+	O_ASYNC        = 0x02000
+	O_CLOEXEC      = 0x80000
+	o_DIRECTORY    = 0x100000   // used by internal/syscall/windows
+	o_NOFOLLOW_ANY = 0x20000000 // used by internal/syscall/windows
 )
 
 const (

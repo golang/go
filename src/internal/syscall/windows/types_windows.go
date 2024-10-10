@@ -4,7 +4,10 @@
 
 package windows
 
-import "syscall"
+import (
+	"syscall"
+	"unsafe"
+)
 
 // Socket related.
 const (
@@ -103,6 +106,23 @@ type OBJECT_ATTRIBUTES struct {
 	Attributes         uint32
 	SecurityDescriptor *SECURITY_DESCRIPTOR
 	SecurityQoS        *SECURITY_QUALITY_OF_SERVICE
+}
+
+// init sets o's RootDirectory, ObjectName, and Length.
+func (o *OBJECT_ATTRIBUTES) init(root syscall.Handle, name string) error {
+	if name == "." {
+		name = ""
+	}
+	objectName, err := NewNTUnicodeString(name)
+	if err != nil {
+		return err
+	}
+	o.ObjectName = objectName
+	if root != syscall.InvalidHandle {
+		o.RootDirectory = root
+	}
+	o.Length = uint32(unsafe.Sizeof(*o))
+	return nil
 }
 
 // Values for the Attributes member of OBJECT_ATTRIBUTES.

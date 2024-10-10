@@ -517,6 +517,16 @@ func (s NTStatus) Error() string {
 	return s.Errno().Error()
 }
 
+// x/sys/windows/mkerrors.bash can generate a complete list of NTStatus codes.
+//
+// At the moment, we only need a couple, so just put them here manually.
+// If this list starts getting long, we should consider generating the full set.
+const (
+	STATUS_FILE_IS_A_DIRECTORY       NTStatus = 0xC00000BA
+	STATUS_NOT_A_DIRECTORY           NTStatus = 0xC0000103
+	STATUS_REPARSE_POINT_ENCOUNTERED NTStatus = 0xC000050B
+)
+
 // NT Native APIs
 //sys   NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer uintptr, ealength uint32) (ntstatus error) = ntdll.NtCreateFile
 //sys   rtlNtStatusToDosErrorNoTeb(ntstatus NTStatus) (ret syscall.Errno) = ntdll.RtlNtStatusToDosErrorNoTeb
