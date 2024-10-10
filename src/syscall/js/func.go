@@ -9,7 +9,8 @@ package js
 import "sync"
 
 var (
-	funcsMu    sync.Mutex
+	funcsMu sync.Mutex
+	// funcID 1 is reserved for func garbage collection callback.
 	funcs             = make(map[uint32]func(Value, []Value) any)
 	nextFuncID uint32 = 1
 )
@@ -36,8 +37,6 @@ type Func struct {
 // API, which requires the event loop, like fetch (http.Client), will cause an
 // immediate deadlock. Therefore a blocking function should explicitly start a
 // new goroutine.
-//
-// Func.Release must be called to free up resources when the function will not be invoked any more.
 func FuncOf(fn func(this Value, args []Value) any) Func {
 	funcsMu.Lock()
 	id := nextFuncID
@@ -50,13 +49,9 @@ func FuncOf(fn func(this Value, args []Value) any) Func {
 	}
 }
 
-// Release frees up resources allocated for the function.
-// The function must not be invoked after calling Release.
-// It is allowed to call Release while the function is still running.
+// Release is a no-op method, the function is automatically released
+// when it is garbage collected on the JavaScript side.
 func (c Func) Release() {
-	funcsMu.Lock()
-	delete(funcs, c.id)
-	funcsMu.Unlock()
 }
 
 // setEventHandler is defined in the runtime package.
@@ -64,6 +59,19 @@ func setEventHandler(fn func() bool)
 
 func init() {
 	setEventHandler(handleEvent)
+
+	// Set func garbage collection callback.
+	cleanup := FuncOf(func(this Value, args []Value) any {
+		id := uint32(args[0].Int())
+		funcsMu.Lock()
+		delete(funcs, id)
+		funcsMu.Unlock()
+		return Undefined()
+	})
+	if cleanup.id != 1 {
+		panic("bad function id for cleanup")
+	}
+	jsGo.Set("_cleanup", cleanup)
 }
 
 // handleEvent retrieves the pending event (window._pendingEvent) and calls the js.Func on it.
