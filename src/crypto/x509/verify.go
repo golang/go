@@ -49,7 +49,7 @@ const (
 	UnconstrainedName
 	// TooManyConstraints results when the number of comparison operations
 	// needed to check a certificate exceeds the limit set by
-	// VerifyOptions.MaxConstraintComparisions. This limit exists to
+	// VerifyOptions.MaxConstraintComparisons. This limit exists to
 	// prevent pathological certificates can consuming excessive amounts of
 	// CPU time to verify.
 	TooManyConstraints
@@ -195,12 +195,12 @@ type VerifyOptions struct {
 	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []ExtKeyUsage
 
-	// MaxConstraintComparisions is the maximum number of comparisons to
+	// MaxConstraintComparisons is the maximum number of comparisons to
 	// perform when checking a given certificate's name constraints. If
 	// zero, a sensible default is used. This limit prevents pathological
 	// certificates from consuming excessive amounts of CPU time when
 	// validating. It does not apply to the platform verifier.
-	MaxConstraintComparisions int
+	MaxConstraintComparisons int
 }
 
 const (
@@ -590,7 +590,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		}
 	}
 
-	maxConstraintComparisons := opts.MaxConstraintComparisions
+	maxConstraintComparisons := opts.MaxConstraintComparisons
 	if maxConstraintComparisons == 0 {
 		maxConstraintComparisons = 250000
 	}
