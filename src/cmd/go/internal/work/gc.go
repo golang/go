@@ -469,7 +469,7 @@ func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile st
 }
 
 func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) error {
-	var absOfiles []string
+	absOfiles := make([]string, 0, len(ofiles))
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(a.Objdir, f))
 	}

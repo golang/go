@@ -340,7 +340,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		// Show only the named vars.
 		if !*envChanged {
 			if *envJson {
-				var es []cfg.EnvVar
+				es := make([]cfg.EnvVar, 0, len(args))
 				for _, name := range args {
 					e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
 					es = append(es, e)

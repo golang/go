@@ -763,8 +763,9 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
 			pkgPattern, mainModule := modload.MainModules.DirImportPath(ctx, q.pattern)
 			if pkgPattern == "." {
 				modload.MustHaveModRoot()
-				var modRoots []string
-				for _, m := range modload.MainModules.Versions() {
+				versions := modload.MainModules.Versions()
+				modRoots := make([]string, 0, len(versions))
+				for _, m := range versions {
 					modRoots = append(modRoots, modload.MainModules.ModRoot(m))
 				}
 				var plural string

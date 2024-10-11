@@ -319,7 +319,7 @@ func (r *gitRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 // the absence of a specific module version.
 // The caller must supply refs, the result of a successful r.loadRefs.
 func (r *gitRepo) repoSum(refs map[string]string) string {
-	var list []string
+	list := make([]string, 0, len(refs))
 	for ref := range refs {
 		list = append(list, ref)
 	}

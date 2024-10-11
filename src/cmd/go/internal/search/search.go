@@ -361,8 +361,9 @@ func ImportPaths(patterns, modRoots []string) []*Match {
 
 // ImportPathsQuiet is like ImportPaths but does not warn about patterns with no matches.
 func ImportPathsQuiet(patterns, modRoots []string) []*Match {
-	var out []*Match
-	for _, a := range CleanPatterns(patterns) {
+	patterns = CleanPatterns(patterns)
+	out := make([]*Match, 0, len(patterns))
+	for _, a := range patterns {
 		m := NewMatch(a)
 		if m.IsLocal() {
 			m.MatchDirs(modRoots)
@@ -399,7 +400,7 @@ func CleanPatterns(patterns []string) []string {
 	if len(patterns) == 0 {
 		return []string{"."}
 	}
-	var out []string
+	out := make([]string, 0, len(patterns))
 	for _, a := range patterns {
 		var p, v string
 		if build.IsLocalImport(a) || filepath.IsAbs(a) {

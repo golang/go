@@ -128,7 +128,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go: no packages loaded from %s", arg)
 		}
 		if len(pkgs) > 1 {
-			var names []string
+			names := make([]string, 0, len(pkgs))
 			for _, p := range pkgs {
 				names = append(names, p.ImportPath)
 			}

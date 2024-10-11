@@ -993,10 +993,11 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 
 	if cfg.BuildMod == "vendor" {
 		readVendorList(VendorDir())
-		var indexes []*modFileIndex
-		var modFiles []*modfile.File
-		var modRoots []string
-		for _, m := range MainModules.Versions() {
+		versions := MainModules.Versions()
+		indexes := make([]*modFileIndex, 0, len(versions))
+		modFiles := make([]*modfile.File, 0, len(versions))
+		modRoots := make([]string, 0, len(versions))
+		for _, m := range versions {
 			indexes = append(indexes, MainModules.Index(m))
 			modFiles = append(modFiles, MainModules.ModFile(m))
 			modRoots = append(modRoots, MainModules.ModRoot(m))
