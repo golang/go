@@ -52,11 +52,12 @@ type FileHeader struct {
 // A File represents an open ELF file.
 type File struct {
 	FileHeader
-	Sections  []*Section
-	Progs     []*Prog
-	closer    io.Closer
-	gnuNeed   []verneed
-	gnuVersym []byte
+	Sections    []*Section
+	Progs       []*Prog
+	closer      io.Closer
+	dynVers     []DynamicVersion
+	dynVerNeeds []DynamicVersionNeed
+	gnuVersym   []byte
 }
 
 // A SectionHeader represents a single ELF section header.
@@ -210,10 +211,11 @@ type Symbol struct {
 	Section     SectionIndex
 	Value, Size uint64
 
-	// Version and Library are present only for the dynamic symbol
-	// table.
-	Version string
-	Library string
+	// These fields are present only for the dynamic symbol table.
+	VersionIndex int16
+	Version      string
+	Library      string
+	VersionFlags SymbolVersionFlag
 }
 
 /*
@@ -657,6 +659,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 		symbols[i].Name = str
 		symbols[i].Info = sym.Info
 		symbols[i].Other = sym.Other
+		symbols[i].VersionIndex = -1
 		symbols[i].Section = SectionIndex(sym.Shndx)
 		symbols[i].Value = uint64(sym.Value)
 		symbols[i].Size = uint64(sym.Size)
@@ -704,6 +707,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 		symbols[i].Name = str
 		symbols[i].Info = sym.Info
 		symbols[i].Other = sym.Other
+		symbols[i].VersionIndex = -1
 		symbols[i].Section = SectionIndex(sym.Shndx)
 		symbols[i].Value = sym.Value
 		symbols[i].Size = sym.Size
@@ -1446,7 +1450,7 @@ func (f *File) DynamicSymbols() ([]Symbol, error) {
 	}
 	if f.gnuVersionInit(str) {
 		for i := range sym {
-			sym[i].Library, sym[i].Version = f.gnuVersion(i)
+			sym[i].VersionIndex, sym[i].Version, sym[i].Library, sym[i].VersionFlags = f.gnuVersion(i)
 		}
 	}
 	return sym, nil
@@ -1473,21 +1477,122 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 		if ST_BIND(s.Info) == STB_GLOBAL && s.Section == SHN_UNDEF {
 			all = append(all, ImportedSymbol{Name: s.Name})
 			sym := &all[len(all)-1]
-			sym.Library, sym.Version = f.gnuVersion(i)
+			_, sym.Version, sym.Library, _ = f.gnuVersion(i)
 		}
 	}
 	return all, nil
 }
 
-type verneed struct {
-	File string
-	Name string
+type SymbolVersionFlag byte
+
+const (
+	VerFlagNone   SymbolVersionFlag = 0x0 // No flags
+	VerFlagLocal  SymbolVersionFlag = 0x1 // Symbol has local scope
+	VerFlagGlobal SymbolVersionFlag = 0x2 // Symbol has global scope
+	VerFlagHidden SymbolVersionFlag = 0x4 // Symbol is hidden
+)
+
+type DynamicVersionFlag uint16
+
+const (
+	VER_FLG_BASE DynamicVersionFlag = 0x1 // Version definition of the file
+	VER_FLG_WEAK DynamicVersionFlag = 0x2 // Weak version identifier
+	VER_FLG_INFO DynamicVersionFlag = 0x4 // Reference exists for informational purposes
+)
+
+// DynamicVersion is a version defined by a dynamic object
+type DynamicVersion struct {
+	Version uint16 // Version of data structure
+	Flags   DynamicVersionFlag
+	Index   uint16   // Version index
+	Deps    []string // Dependencies
 }
 
-// gnuVersionInit parses the GNU version tables
-// for use by calls to gnuVersion.
-func (f *File) gnuVersionInit(str []byte) bool {
-	if f.gnuNeed != nil {
+type DynamicVersionNeed struct {
+	Version uint16              // Version of data structure
+	Name    string              // Shared library name
+	Needs   []DynamicVersionDep // Dependencies
+}
+
+type DynamicVersionDep struct {
+	Flags DynamicVersionFlag
+	Other uint16 // Version index
+	Dep   string // Name of required version
+}
+
+// dynamicVersions returns version information for a dynamic object
+func (f *File) dynamicVersions(str []byte) bool {
+	if f.dynVers != nil {
+		// Already initialized
+		return true
+	}
+
+	// Accumulate verdef information.
+	vd := f.SectionByType(SHT_GNU_VERDEF)
+	if vd == nil {
+		return false
+	}
+	d, _ := vd.Data()
+
+	var dynVers []DynamicVersion
+	i := 0
+	for {
+		if i+20 > len(d) {
+			break
+		}
+		version := f.ByteOrder.Uint16(d[i : i+2])
+		flags := DynamicVersionFlag(f.ByteOrder.Uint16(d[i+2 : i+4]))
+		ndx := f.ByteOrder.Uint16(d[i+4 : i+6])
+		cnt := f.ByteOrder.Uint16(d[i+6 : i+8])
+		aux := f.ByteOrder.Uint32(d[i+12 : i+16])
+		next := f.ByteOrder.Uint32(d[i+16 : i+20])
+
+		var depName string
+		var deps []string
+		j := i + int(aux)
+		for c := 0; c < int(cnt); c++ {
+			if j+8 > len(d) {
+				break
+			}
+			vname := f.ByteOrder.Uint32(d[j : j+4])
+			vnext := f.ByteOrder.Uint32(d[j+4 : j+8])
+			depName, _ = getString(str, int(vname))
+
+			deps = append(deps, depName)
+
+			j += int(vnext)
+		}
+
+		dynVers = append(dynVers, DynamicVersion{
+			Version: version,
+			Flags:   flags,
+			Index:   ndx,
+			Deps:    deps,
+		})
+
+		if next == 0 {
+			break
+		}
+		i += int(next)
+	}
+
+	f.dynVers = dynVers
+
+	return true
+}
+
+// DynamicVersions returns version information for a dynamic object
+func (f *File) DynamicVersions() ([]DynamicVersion, error) {
+	if f.dynVers == nil {
+		return nil, errors.New("DynamicVersions: not initialized")
+	}
+
+	return f.dynVers, nil
+}
+
+// dynamicVersionNeeds returns version dependencies for a dynamic object
+func (f *File) dynamicVersionNeeds(str []byte) bool {
+	if f.dynVerNeeds != nil {
 		// Already initialized
 		return true
 	}
@@ -1499,7 +1604,7 @@ func (f *File) gnuVersionInit(str []byte) bool {
 	}
 	d, _ := vn.Data()
 
-	var need []verneed
+	var dynVerNeeds []DynamicVersionNeed
 	i := 0
 	for {
 		if i+16 > len(d) {
@@ -1515,31 +1620,35 @@ func (f *File) gnuVersionInit(str []byte) bool {
 		next := f.ByteOrder.Uint32(d[i+12 : i+16])
 		file, _ := getString(str, int(fileoff))
 
-		var name string
+		var deps []DynamicVersionDep
 		j := i + int(aux)
 		for c := 0; c < int(cnt); c++ {
 			if j+16 > len(d) {
 				break
 			}
-			// hash := f.ByteOrder.Uint32(d[j:j+4])
-			// flags := f.ByteOrder.Uint16(d[j+4:j+6])
+			flags := DynamicVersionFlag(f.ByteOrder.Uint16(d[j+4 : j+6]))
 			other := f.ByteOrder.Uint16(d[j+6 : j+8])
 			nameoff := f.ByteOrder.Uint32(d[j+8 : j+12])
 			next := f.ByteOrder.Uint32(d[j+12 : j+16])
-			name, _ = getString(str, int(nameoff))
-			ndx := int(other)
-			if ndx >= len(need) {
-				a := make([]verneed, 2*(ndx+1))
-				copy(a, need)
-				need = a
-			}
+			depName, _ := getString(str, int(nameoff))
 
-			need[ndx] = verneed{file, name}
+			deps = append(deps, DynamicVersionDep{
+				Flags: flags,
+				Other: other,
+				Dep:   depName,
+			})
+
 			if next == 0 {
 				break
 			}
 			j += int(next)
 		}
+
+		dynVerNeeds = append(dynVerNeeds, DynamicVersionNeed{
+			Version: vers,
+			Name:    file,
+			Needs:   deps,
+		})
 
 		if next == 0 {
 			break
@@ -1547,36 +1656,82 @@ func (f *File) gnuVersionInit(str []byte) bool {
 		i += int(next)
 	}
 
+	f.dynVerNeeds = dynVerNeeds
+
+	return true
+}
+
+// DynamicVersionNeeds returns version dependencies for a dynamic object
+func (f *File) DynamicVersionNeeds() ([]DynamicVersionNeed, error) {
+	if f.dynVerNeeds == nil {
+		return nil, errors.New("DynamicVersionNeeds: not initialized")
+	}
+
+	return f.dynVerNeeds, nil
+}
+
+// gnuVersionInit parses the GNU version tables
+// for use by calls to gnuVersion.
+func (f *File) gnuVersionInit(str []byte) bool {
 	// Versym parallels symbol table, indexing into verneed.
 	vs := f.SectionByType(SHT_GNU_VERSYM)
 	if vs == nil {
 		return false
 	}
-	d, _ = vs.Data()
+	d, _ := vs.Data()
 
-	f.gnuNeed = need
 	f.gnuVersym = d
+	f.dynamicVersions(str)
+	f.dynamicVersionNeeds(str)
 	return true
 }
 
 // gnuVersion adds Library and Version information to sym,
 // which came from offset i of the symbol table.
-func (f *File) gnuVersion(i int) (library string, version string) {
+func (f *File) gnuVersion(i int) (versionIndex int16, version string, library string, versionFlags SymbolVersionFlag) {
 	// Each entry is two bytes; skip undef entry at beginning.
 	i = (i + 1) * 2
 	if i >= len(f.gnuVersym) {
-		return
+		return -1, "", "", VerFlagNone
 	}
 	s := f.gnuVersym[i:]
 	if len(s) < 2 {
-		return
+		return -1, "", "", VerFlagNone
 	}
-	j := int(f.ByteOrder.Uint16(s))
-	if j < 2 || j >= len(f.gnuNeed) {
-		return
+	j := int32(f.ByteOrder.Uint16(s))
+	var ndx = int16(j & 0x7fff)
+
+	if ndx == 0 {
+		return ndx, "", "", VerFlagLocal
+	} else if ndx == 1 {
+		return ndx, "", "", VerFlagGlobal
 	}
-	n := &f.gnuNeed[j]
-	return n.File, n.Name
+
+	if ndx < 2 {
+		return 0, "", "", VerFlagNone
+	}
+
+	for _, v := range f.dynVerNeeds {
+		for _, n := range v.Needs {
+			if uint16(ndx) == n.Other {
+				return ndx, n.Dep, v.Name, VerFlagHidden
+			}
+		}
+	}
+
+	for _, v := range f.dynVers {
+		if uint16(ndx) == v.Index {
+			if len(v.Deps) > 0 {
+				var flags SymbolVersionFlag = 0
+				if j&0x8000 != 0 {
+					flags = VerFlagHidden
+				}
+				return ndx, v.Deps[0], "", flags
+			}
+		}
+	}
+
+	return -1, "", "", VerFlagNone
 }
 
 // ImportedLibraries returns the names of all libraries
