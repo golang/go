@@ -915,7 +915,7 @@ func tidyGoSum(data []byte, keep map[module.Version]bool) []byte {
 		}
 	}
 
-	var mods []module.Version
+	mods := make([]module.Version, 0, len(goSum.m))
 	for m := range goSum.m {
 		mods = append(mods, m)
 	}

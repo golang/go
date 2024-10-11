@@ -208,7 +208,7 @@ func actionGraphJSON(a *Action) string {
 		}
 	}
 
-	var list []*actionJSON
+	list := make([]*actionJSON, 0, len(workq))
 	for id, a := range workq {
 		if a.json == nil {
 			a.json = &actionJSON{

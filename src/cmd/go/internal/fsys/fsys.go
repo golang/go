@@ -761,7 +761,7 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
 		return // ignore I/O error
 	}
 
-	var names []string
+	names := make([]string, 0, len(list))
 	for _, info := range list {
 		names = append(names, info.Name())
 	}

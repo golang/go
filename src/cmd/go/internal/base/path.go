@@ -78,7 +78,7 @@ func relConservative(basepath, targpath string) (string, error) {
 // RelPaths returns a copy of paths with absolute paths
 // made relative to the current directory if they would be shorter.
 func RelPaths(paths []string) []string {
-	var out []string
+	out := make([]string, 0, len(paths))
 	for _, p := range paths {
 		rel, err := relConservative(Cwd(), p)
 		if err == nil && len(rel) < len(p) {

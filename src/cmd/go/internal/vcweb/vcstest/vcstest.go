@@ -101,7 +101,7 @@ func NewServer() (srv *Server, err error) {
 	vcs.VCSTestRepoURL = srv.HTTP.URL
 	vcs.VCSTestHosts = Hosts
 
-	var interceptors []web.Interceptor
+	interceptors := make([]web.Interceptor, 0, 2*len(Hosts))
 	for _, host := range Hosts {
 		interceptors = append(interceptors,
 			web.Interceptor{Scheme: "http", FromHost: host, ToHost: httpURL.Host, Client: srv.HTTP.Client()},

@@ -98,7 +98,7 @@ Files:
 var ErrNoGo = fmt.Errorf("no Go source files")
 
 func keys(m map[string]bool) []string {
-	var list []string
+	list := make([]string, 0, len(m))
 	for k := range m {
 		list = append(list, k)
 	}
