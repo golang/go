@@ -433,7 +433,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
 	}
 
 	if write {
-		clientConn.Close()
+		client.Close()
 		path := test.dataPath()
 		out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
