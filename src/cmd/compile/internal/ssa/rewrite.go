@@ -1371,7 +1371,7 @@ func isInlinableMemclr(c *Config, sz int64) bool {
 	switch c.arch {
 	case "amd64", "arm64":
 		return true
-	case "ppc64le", "ppc64":
+	case "ppc64le", "ppc64", "loong64":
 		return sz < 512
 	}
 	return false
