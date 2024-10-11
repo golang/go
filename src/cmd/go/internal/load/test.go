@@ -546,13 +546,13 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 			// by x, and then we reverse it.
 			var stk ImportStack
 			for p != nil {
-				tokenPositions := []token.Position{}
-				if importerOf[p].Internal.Build != nil {
-					tokenPositions = importerOf[p].Internal.Build.ImportPos[p.ImportPath]
+				importer, ok := importerOf[p]
+				if importer == nil && ok { // we set importerOf[p] == nil for the initial set of packages p that are imports of ptest
+					importer = ptest
 				}
 				stk = append(stk, ImportInfo{
 					Pkg: p.ImportPath,
-					Pos: extractFirstImport(tokenPositions),
+					Pos: extractFirstImport(importer.Internal.Build.ImportPos[p.ImportPath]),
 				})
 				p = importerOf[p]
 			}
