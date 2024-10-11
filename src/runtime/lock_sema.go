@@ -11,6 +11,10 @@ import (
 	"unsafe"
 )
 
+const (
+	locked uintptr = 1
+)
+
 // One-time notifications.
 func noteclear(n *note) {
 	n.key = 0

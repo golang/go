@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || netbsd || openbsd || plan9 || solaris || windows || ((dragonfly || freebsd || linux) && goexperiment.spinbitmutex)
+//go:build (aix || darwin || netbsd || openbsd || plan9 || solaris || windows) && !goexperiment.spinbitmutex
 
 package runtime
 
@@ -24,8 +24,6 @@ import (
 //	func semawakeup(mp *m)
 //		Wake up mp, which is or will soon be sleeping on its semaphore.
 const (
-	locked uintptr = 1
-
 	active_spin     = 4
 	active_spin_cnt = 30
 	passive_spin    = 1
@@ -41,6 +39,8 @@ const (
 type mWaitList struct {
 	next muintptr // next m waiting for lock
 }
+
+func lockVerifyMSize() {}
 
 func mutexContended(l *mutex) bool {
 	return atomic.Loaduintptr(&l.key) > locked
@@ -132,7 +132,7 @@ func unlock2(l *mutex) {
 			mp = muintptr(v &^ locked).ptr()
 			if atomic.Casuintptr(&l.key, v, uintptr(mp.mWaitList.next)) {
 				// Dequeued an M.  Wake it.
-				semawakeup(mp)
+				semawakeup(mp) // no use of mp after this point; it's awake
 				break
 			}
 		}

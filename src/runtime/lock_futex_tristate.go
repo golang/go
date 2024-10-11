@@ -38,6 +38,8 @@ const (
 
 type mWaitList struct{}
 
+func lockVerifyMSize() {}
+
 func mutexContended(l *mutex) bool {
 	return atomic.Load(key32(&l.key)) > mutex_locked
 }

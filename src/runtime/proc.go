@@ -814,6 +814,8 @@ func schedinit() {
 	// extremely short.
 	lockInit(&memstats.heapStats.noPLock, lockRankLeafRank)
 
+	lockVerifyMSize()
+
 	// raceinit must be the first call to race detector.
 	// In particular, it must be done before mallocinit below calls racemapshadow.
 	gp := getg()

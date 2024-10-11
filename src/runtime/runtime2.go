@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/chacha8rand"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"internal/runtime/sys"
 	"unsafe"
@@ -619,6 +620,12 @@ type m struct {
 	// Up to 10 locks held by this m, maintained by the lock ranking code.
 	locksHeldLen int
 	locksHeld    [10]heldLockInfo
+
+	// Size the runtime.m structure so it fits in the 2048-byte size class, and
+	// not in the next-smallest (1792-byte) size class. That leaves the 11 low
+	// bits of muintptr values available for flags, as required for
+	// GOEXPERIMENT=spinbitmutex.
+	_ [goexperiment.SpinbitMutexInt * 700 * (2 - goarch.PtrSize/4)]byte
 }
 
 type p struct {
