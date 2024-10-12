@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -860,6 +861,31 @@ func TestEmptyDecl(t *testing.T) { // issue 63566
 		want := tok.String() + " ()"
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
+		}
+	}
+}
+
+func TestIssue69858(t *testing.T) {
+	cases := []string{
+		"package A\nimport(\"a\"/*\f*/\n\"bb\")",
+		"package A\nfunc test() {\"a\"/*\f*/\n\"bb\"}",
+	}
+	for _, src := range cases {
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, "test.go", src, parser.ParseComments|parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var out strings.Builder
+		if err := Fprint(&out, fset, f); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = parser.ParseFile(fset, "test.go", out.String(), parser.ParseComments|parser.SkipObjectResolution)
+		if err != nil {
+			t.Logf("source:\n%s\nformatted as:\n%s", src, out.String())
+			t.Error(err)
 		}
 	}
 }
