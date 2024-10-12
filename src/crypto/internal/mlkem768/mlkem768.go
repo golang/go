@@ -3,17 +3,11 @@
 // license that can be found in the LICENSE file.
 
 // Package mlkem768 implements the quantum-resistant key encapsulation method
-// ML-KEM (formerly known as Kyber).
+// ML-KEM (formerly known as Kyber), as specified in [NIST FIPS 203].
 //
 // Only the recommended ML-KEM-768 parameter set is provided.
 //
-// The version currently implemented is the one specified by [NIST FIPS 203 ipd],
-// with the unintentional transposition of the matrix A reverted to match the
-// behavior of [Kyber version 3.0]. Future versions of this package might
-// introduce backwards incompatible changes to implement changes to FIPS 203.
-//
-// [Kyber version 3.0]: https://pq-crystals.org/kyber/data/kyber-specification-round3-20210804.pdf
-// [NIST FIPS 203 ipd]: https://doi.org/10.6028/NIST.FIPS.203.ipd
+// [NIST FIPS 203]: https://doi.org/10.6028/NIST.FIPS.203
 package mlkem768
 
 // This package targets security, correctness, simplicity, readability, and
@@ -21,8 +15,7 @@ package mlkem768
 // constant time.
 //
 // Variable and function names, as well as code layout, are selected to
-// facilitate reviewing the implementation against the NIST FIPS 203 ipd
-// document.
+// facilitate reviewing the implementation against the NIST FIPS 203 document.
 //
 // Reviewers unfamiliar with polynomials or linear algebra might find the
 // background at https://words.filippo.io/kyber-math/ useful.
@@ -51,7 +44,7 @@ const (
 	dv = 4
 
 	// encodingSizeX is the byte size of a ringElement or nttElement encoded
-	// by ByteEncode_X (FIPS 203 (DRAFT), Algorithm 4).
+	// by ByteEncode_X (FIPS 203, Algorithm 5).
 	encodingSize12 = n * log2q / 8
 	encodingSize10 = n * du / 8
 	encodingSize4  = n * dv / 8
@@ -63,7 +56,6 @@ const (
 
 	CiphertextSize       = k*encodingSize10 + encodingSize4
 	EncapsulationKeySize = encryptionKeySize
-	DecapsulationKeySize = decryptionKeySize + encryptionKeySize + 32 + 32
 	SharedKeySize        = 32
 	SeedSize             = 32 + 32
 )
@@ -71,25 +63,38 @@ const (
 // A DecapsulationKey is the secret key used to decapsulate a shared key from a
 // ciphertext. It includes various precomputed values.
 type DecapsulationKey struct {
-	dk [DecapsulationKeySize]byte
+	d [32]byte // decapsulation key seed
+	z [32]byte // implicit rejection sampling seed
+
+	ρ [32]byte // sampleNTT seed for A, stored for the encapsulation key
+	h [32]byte // H(ek), stored for ML-KEM.Decaps_internal
+
 	encryptionKey
 	decryptionKey
 }
 
-// Bytes returns the extended encoding of the decapsulation key, according to
-// FIPS 203 (DRAFT).
+// Bytes returns the decapsulation key as a 64-byte seed in the "d || z" form.
 func (dk *DecapsulationKey) Bytes() []byte {
-	var b [DecapsulationKeySize]byte
-	copy(b[:], dk.dk[:])
+	var b [SeedSize]byte
+	copy(b[:], dk.d[:])
+	copy(b[32:], dk.z[:])
 	return b[:]
 }
 
 // EncapsulationKey returns the public encapsulation key necessary to produce
 // ciphertexts.
 func (dk *DecapsulationKey) EncapsulationKey() []byte {
-	var b [EncapsulationKeySize]byte
-	copy(b[:], dk.dk[decryptionKeySize:])
-	return b[:]
+	// The actual logic is in a separate function to outline this allocation.
+	b := make([]byte, 0, EncapsulationKeySize)
+	return dk.encapsulationKey(b)
+}
+
+func (dk *DecapsulationKey) encapsulationKey(b []byte) []byte {
+	for i := range dk.t {
+		b = polyByteEncode(b, dk.t[i])
+	}
+	b = append(b, dk.ρ[:]...)
+	return b
 }
 
 // encryptionKey is the parsed and expanded form of a PKE encryption key.
@@ -140,56 +145,28 @@ func newKeyFromSeed(dk *DecapsulationKey, seed []byte) (*DecapsulationKey, error
 	return kemKeyGen(dk, d, z), nil
 }
 
-// NewKeyFromExtendedEncoding parses a decapsulation key from its FIPS 203
-// (DRAFT) extended encoding.
-func NewKeyFromExtendedEncoding(decapsulationKey []byte) (*DecapsulationKey, error) {
-	// The actual logic is in a separate function to outline this allocation.
-	dk := &DecapsulationKey{}
-	return newKeyFromExtendedEncoding(dk, decapsulationKey)
-}
-
-func newKeyFromExtendedEncoding(dk *DecapsulationKey, dkBytes []byte) (*DecapsulationKey, error) {
-	if len(dkBytes) != DecapsulationKeySize {
-		return nil, errors.New("mlkem768: invalid decapsulation key length")
-	}
-
-	// Note that we don't check that H(ek) matches ekPKE, as that's not
-	// specified in FIPS 203 (DRAFT). This is one reason to prefer the seed
-	// private key format.
-	dk.dk = [DecapsulationKeySize]byte(dkBytes)
-
-	dkPKE := dkBytes[:decryptionKeySize]
-	if err := parseDK(&dk.decryptionKey, dkPKE); err != nil {
-		return nil, err
-	}
-
-	ekPKE := dkBytes[decryptionKeySize : decryptionKeySize+encryptionKeySize]
-	if err := parseEK(&dk.encryptionKey, ekPKE); err != nil {
-		return nil, err
-	}
-
-	return dk, nil
-}
-
 // kemKeyGen generates a decapsulation key.
 //
-// It implements ML-KEM.KeyGen according to FIPS 203 (DRAFT), Algorithm 15, and
-// K-PKE.KeyGen according to FIPS 203 (DRAFT), Algorithm 12. The two are merged
-// to save copies and allocations.
+// It implements ML-KEM.KeyGen_internal according to FIPS 203, Algorithm 16, and
+// K-PKE.KeyGen according to FIPS 203, Algorithm 13. The two are merged to save
+// copies and allocations.
 func kemKeyGen(dk *DecapsulationKey, d, z *[32]byte) *DecapsulationKey {
 	if dk == nil {
 		dk = &DecapsulationKey{}
 	}
+	dk.d = *d
+	dk.z = *z
 
-	G := sha3.Sum512(d[:])
+	g := sha3.New512()
+	g.Write(d[:])
+	g.Write([]byte{k}) // Module dimension as a domain separator.
+	G := g.Sum(make([]byte, 0, 64))
 	ρ, σ := G[:32], G[32:]
+	dk.ρ = [32]byte(ρ)
 
 	A := &dk.A
 	for i := byte(0); i < k; i++ {
 		for j := byte(0); j < k; j++ {
-			// Note that this is consistent with Kyber round 3, rather than with
-			// the initial draft of FIPS 203, because NIST signaled that the
-			// change was involuntary and will be reverted.
 			A[i*k+j] = sampleNTT(ρ, j, i)
 		}
 	}
@@ -214,30 +191,10 @@ func kemKeyGen(dk *DecapsulationKey, d, z *[32]byte) *DecapsulationKey {
 		}
 	}
 
-	// dkPKE ← ByteEncode₁₂(s)
-	// ekPKE ← ByteEncode₁₂(t) || ρ
-	// ek ← ekPKE
-	// dk ← dkPKE || ek || H(ek) || z
-	dkB := dk.dk[:0]
-
-	for i := range s {
-		dkB = polyByteEncode(dkB, s[i])
-	}
-
-	for i := range t {
-		dkB = polyByteEncode(dkB, t[i])
-	}
-	dkB = append(dkB, ρ...)
-
 	H := sha3.New256()
-	H.Write(dkB[decryptionKeySize:])
-	dkB = H.Sum(dkB)
-
-	dkB = append(dkB, z[:]...)
-
-	if len(dkB) != len(dk.dk) {
-		panic("mlkem768: internal error: invalid decapsulation key size")
-	}
+	ek := dk.EncapsulationKey()
+	H.Write(ek)
+	H.Sum(dk.h[:0])
 
 	return dk
 }
@@ -261,12 +218,14 @@ func encapsulate(cc *[CiphertextSize]byte, encapsulationKey []byte) (ciphertext,
 	if _, err := rand.Read(m[:]); err != nil {
 		return nil, nil, errors.New("mlkem768: crypto/rand Read failed: " + err.Error())
 	}
+	// Note that the modulus check (step 2 of the encapsulation key check from
+	// FIPS 203, Section 7.2) is performed by polyByteDecode in parseEK.
 	return kemEncaps(cc, encapsulationKey, &m)
 }
 
 // kemEncaps generates a shared key and an associated ciphertext.
 //
-// It implements ML-KEM.Encaps according to FIPS 203 (DRAFT), Algorithm 16.
+// It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
 func kemEncaps(cc *[CiphertextSize]byte, ek []byte, m *[messageSize]byte) (c, K []byte, err error) {
 	if cc == nil {
 		cc = &[CiphertextSize]byte{}
@@ -288,8 +247,8 @@ func kemEncaps(cc *[CiphertextSize]byte, ek []byte, m *[messageSize]byte) (c, K 
 
 // parseEK parses an encryption key from its encoded form.
 //
-// It implements the initial stages of K-PKE.Encrypt according to FIPS 203
-// (DRAFT), Algorithm 13.
+// It implements the initial stages of K-PKE.Encrypt according to FIPS 203,
+// Algorithm 14.
 func parseEK(ex *encryptionKey, ekPKE []byte) error {
 	if len(ekPKE) != encryptionKeySize {
 		return errors.New("mlkem768: invalid encryption key length")
@@ -307,8 +266,6 @@ func parseEK(ex *encryptionKey, ekPKE []byte) error {
 
 	for i := byte(0); i < k; i++ {
 		for j := byte(0); j < k; j++ {
-			// See the note in pkeKeyGen about the order of the indices being
-			// consistent with Kyber round 3.
 			ex.A[i*k+j] = sampleNTT(ρ, j, i)
 		}
 	}
@@ -318,8 +275,8 @@ func parseEK(ex *encryptionKey, ekPKE []byte) error {
 
 // pkeEncrypt encrypt a plaintext message.
 //
-// It implements K-PKE.Encrypt according to FIPS 203 (DRAFT), Algorithm 13,
-// although the computation of t and AT is done in parseEK.
+// It implements K-PKE.Encrypt according to FIPS 203, Algorithm 14, although the
+// computation of t and AT is done in parseEK.
 func pkeEncrypt(cc *[CiphertextSize]byte, ex *encryptionKey, m *[messageSize]byte, rnd []byte) []byte {
 	var N byte
 	r, e1 := make([]nttElement, k), make([]ringElement, k)
@@ -368,24 +325,24 @@ func Decapsulate(dk *DecapsulationKey, ciphertext []byte) (sharedKey []byte, err
 		return nil, errors.New("mlkem768: invalid ciphertext length")
 	}
 	c := (*[CiphertextSize]byte)(ciphertext)
+	// Note that the hash check (step 3 of the decapsulation input check from
+	// FIPS 203, Section 7.3) is foregone as a DecapsulationKey is always
+	// validly generated by ML-KEM.KeyGen_internal.
 	return kemDecaps(dk, c), nil
 }
 
 // kemDecaps produces a shared key from a ciphertext.
 //
-// It implements ML-KEM.Decaps according to FIPS 203 (DRAFT), Algorithm 17.
+// It implements ML-KEM.Decaps_internal according to FIPS 203, Algorithm 18.
 func kemDecaps(dk *DecapsulationKey, c *[CiphertextSize]byte) (K []byte) {
-	h := dk.dk[decryptionKeySize+encryptionKeySize : decryptionKeySize+encryptionKeySize+32]
-	z := dk.dk[decryptionKeySize+encryptionKeySize+32:]
-
 	m := pkeDecrypt(&dk.decryptionKey, c)
 	g := sha3.New512()
 	g.Write(m[:])
-	g.Write(h)
-	G := g.Sum(nil)
+	g.Write(dk.h[:])
+	G := g.Sum(make([]byte, 0, 64))
 	Kprime, r := G[:SharedKeySize], G[SharedKeySize:]
 	J := sha3.NewShake256()
-	J.Write(z)
+	J.Write(dk.z[:])
 	J.Write(c[:])
 	Kout := make([]byte, SharedKeySize)
 	J.Read(Kout)
@@ -396,31 +353,10 @@ func kemDecaps(dk *DecapsulationKey, c *[CiphertextSize]byte) (K []byte) {
 	return Kout
 }
 
-// parseDK parses a decryption key from its encoded form.
-//
-// It implements the computation of s from K-PKE.Decrypt according to FIPS 203
-// (DRAFT), Algorithm 14.
-func parseDK(dx *decryptionKey, dkPKE []byte) error {
-	if len(dkPKE) != decryptionKeySize {
-		return errors.New("mlkem768: invalid decryption key length")
-	}
-
-	for i := range dx.s {
-		f, err := polyByteDecode[nttElement](dkPKE[:encodingSize12])
-		if err != nil {
-			return err
-		}
-		dx.s[i] = f
-		dkPKE = dkPKE[encodingSize12:]
-	}
-
-	return nil
-}
-
 // pkeDecrypt decrypts a ciphertext.
 //
-// It implements K-PKE.Decrypt according to FIPS 203 (DRAFT), Algorithm 14,
-// although the computation of s is done in parseDK.
+// It implements K-PKE.Decrypt according to FIPS 203, Algorithm 15,
+// although s is retained from kemKeyGen.
 func pkeDecrypt(dx *decryptionKey, c *[CiphertextSize]byte) []byte {
 	u := make([]ringElement, k)
 	for i := range u {
@@ -502,10 +438,10 @@ func fieldAddMul(a, b, c, d fieldElement) fieldElement {
 }
 
 // compress maps a field element uniformly to the range 0 to 2ᵈ-1, according to
-// FIPS 203 (DRAFT), Definition 4.5.
+// FIPS 203, Definition 4.7.
 func compress(x fieldElement, d uint8) uint16 {
 	// We want to compute (x * 2ᵈ) / q, rounded to nearest integer, with 1/2
-	// rounding up (see FIPS 203 (DRAFT), Section 2.3).
+	// rounding up (see FIPS 203, Section 2.3).
 
 	// Barrett reduction produces a quotient and a remainder in the range [0, 2q),
 	// such that dividend = quotient * q + remainder.
@@ -534,10 +470,10 @@ func compress(x fieldElement, d uint8) uint16 {
 }
 
 // decompress maps a number x between 0 and 2ᵈ-1 uniformly to the full range of
-// field elements, according to FIPS 203 (DRAFT), Definition 4.6.
+// field elements, according to FIPS 203, Definition 4.8.
 func decompress(y uint16, d uint8) fieldElement {
 	// We want to compute (y * q) / 2ᵈ, rounded to nearest integer, with 1/2
-	// rounding up (see FIPS 203 (DRAFT), Section 2.3).
+	// rounding up (see FIPS 203, Section 2.3).
 
 	dividend := uint32(y) * q
 	quotient := dividend >> d // (y * q) / 2ᵈ
@@ -552,7 +488,7 @@ func decompress(y uint16, d uint8) fieldElement {
 }
 
 // ringElement is a polynomial, an element of R_q, represented as an array
-// according to FIPS 203 (DRAFT), Section 2.4.
+// according to FIPS 203, Section 2.4.4.
 type ringElement [n]fieldElement
 
 // polyAdd adds two ringElements or nttElements.
@@ -573,7 +509,7 @@ func polySub[T ~[n]fieldElement](a, b T) (s T) {
 
 // polyByteEncode appends the 384-byte encoding of f to b.
 //
-// It implements ByteEncode₁₂, according to FIPS 203 (DRAFT), Algorithm 4.
+// It implements ByteEncode₁₂, according to FIPS 203, Algorithm 5.
 func polyByteEncode[T ~[n]fieldElement](b []byte, f T) []byte {
 	out, B := sliceForAppend(b, encodingSize12)
 	for i := 0; i < n; i += 2 {
@@ -587,13 +523,10 @@ func polyByteEncode[T ~[n]fieldElement](b []byte, f T) []byte {
 }
 
 // polyByteDecode decodes the 384-byte encoding of a polynomial, checking that
-// all the coefficients are properly reduced. This achieves the "Modulus check"
-// step of ML-KEM Encapsulation Input Validation.
+// all the coefficients are properly reduced. This fulfills the "Modulus check"
+// step of ML-KEM Encapsulation.
 //
-// polyByteDecode is also used in ML-KEM Decapsulation, where the input
-// validation is not required, but implicitly allowed by the specification.
-//
-// It implements ByteDecode₁₂, according to FIPS 203 (DRAFT), Algorithm 5.
+// It implements ByteDecode₁₂, according to FIPS 203, Algorithm 6.
 func polyByteDecode[T ~[n]fieldElement](b []byte) (T, error) {
 	if len(b) != encodingSize12 {
 		return T{}, errors.New("mlkem768: invalid encoding length")
@@ -632,8 +565,8 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 // ringCompressAndEncode1 appends a 32-byte encoding of a ring element to s,
 // compressing one coefficients per bit.
 //
-// It implements Compress₁, according to FIPS 203 (DRAFT), Definition 4.5,
-// followed by ByteEncode₁, according to FIPS 203 (DRAFT), Algorithm 4.
+// It implements Compress₁, according to FIPS 203, Definition 4.7,
+// followed by ByteEncode₁, according to FIPS 203, Algorithm 5.
 func ringCompressAndEncode1(s []byte, f ringElement) []byte {
 	s, b := sliceForAppend(s, encodingSize1)
 	for i := range b {
@@ -648,13 +581,13 @@ func ringCompressAndEncode1(s []byte, f ringElement) []byte {
 // ringDecodeAndDecompress1 decodes a 32-byte slice to a ring element where each
 // bit is mapped to 0 or ⌈q/2⌋.
 //
-// It implements ByteDecode₁, according to FIPS 203 (DRAFT), Algorithm 5,
-// followed by Decompress₁, according to FIPS 203 (DRAFT), Definition 4.6.
+// It implements ByteDecode₁, according to FIPS 203, Algorithm 6,
+// followed by Decompress₁, according to FIPS 203, Definition 4.8.
 func ringDecodeAndDecompress1(b *[encodingSize1]byte) ringElement {
 	var f ringElement
 	for i := range f {
 		b_i := b[i/8] >> (i % 8) & 1
-		const halfQ = (q + 1) / 2        // ⌈q/2⌋, rounded up per FIPS 203 (DRAFT), Section 2.3
+		const halfQ = (q + 1) / 2        // ⌈q/2⌋, rounded up per FIPS 203, Section 2.3
 		f[i] = fieldElement(b_i) * halfQ // 0 decompresses to 0, and 1 to ⌈q/2⌋
 	}
 	return f
@@ -663,8 +596,8 @@ func ringDecodeAndDecompress1(b *[encodingSize1]byte) ringElement {
 // ringCompressAndEncode4 appends a 128-byte encoding of a ring element to s,
 // compressing two coefficients per byte.
 //
-// It implements Compress₄, according to FIPS 203 (DRAFT), Definition 4.5,
-// followed by ByteEncode₄, according to FIPS 203 (DRAFT), Algorithm 4.
+// It implements Compress₄, according to FIPS 203, Definition 4.7,
+// followed by ByteEncode₄, according to FIPS 203, Algorithm 5.
 func ringCompressAndEncode4(s []byte, f ringElement) []byte {
 	s, b := sliceForAppend(s, encodingSize4)
 	for i := 0; i < n; i += 2 {
@@ -676,8 +609,8 @@ func ringCompressAndEncode4(s []byte, f ringElement) []byte {
 // ringDecodeAndDecompress4 decodes a 128-byte encoding of a ring element where
 // each four bits are mapped to an equidistant distribution.
 //
-// It implements ByteDecode₄, according to FIPS 203 (DRAFT), Algorithm 5,
-// followed by Decompress₄, according to FIPS 203 (DRAFT), Definition 4.6.
+// It implements ByteDecode₄, according to FIPS 203, Algorithm 6,
+// followed by Decompress₄, according to FIPS 203, Definition 4.8.
 func ringDecodeAndDecompress4(b *[encodingSize4]byte) ringElement {
 	var f ringElement
 	for i := 0; i < n; i += 2 {
@@ -690,8 +623,8 @@ func ringDecodeAndDecompress4(b *[encodingSize4]byte) ringElement {
 // ringCompressAndEncode10 appends a 320-byte encoding of a ring element to s,
 // compressing four coefficients per five bytes.
 //
-// It implements Compress₁₀, according to FIPS 203 (DRAFT), Definition 4.5,
-// followed by ByteEncode₁₀, according to FIPS 203 (DRAFT), Algorithm 4.
+// It implements Compress₁₀, according to FIPS 203, Definition 4.7,
+// followed by ByteEncode₁₀, according to FIPS 203, Algorithm 5.
 func ringCompressAndEncode10(s []byte, f ringElement) []byte {
 	s, b := sliceForAppend(s, encodingSize10)
 	for i := 0; i < n; i += 4 {
@@ -713,8 +646,8 @@ func ringCompressAndEncode10(s []byte, f ringElement) []byte {
 // ringDecodeAndDecompress10 decodes a 320-byte encoding of a ring element where
 // each ten bits are mapped to an equidistant distribution.
 //
-// It implements ByteDecode₁₀, according to FIPS 203 (DRAFT), Algorithm 5,
-// followed by Decompress₁₀, according to FIPS 203 (DRAFT), Definition 4.6.
+// It implements ByteDecode₁₀, according to FIPS 203, Algorithm 6,
+// followed by Decompress₁₀, according to FIPS 203, Definition 4.8.
 func ringDecodeAndDecompress10(bb *[encodingSize10]byte) ringElement {
 	b := bb[:]
 	var f ringElement
@@ -730,13 +663,13 @@ func ringDecodeAndDecompress10(bb *[encodingSize10]byte) ringElement {
 }
 
 // samplePolyCBD draws a ringElement from the special Dη distribution given a
-// stream of random bytes generated by the PRF function, according to FIPS 203
-// (DRAFT), Algorithm 7 and Definition 4.1.
+// stream of random bytes generated by the PRF function, according to FIPS 203,
+// Algorithm 8 and Definition 4.3.
 func samplePolyCBD(s []byte, b byte) ringElement {
 	prf := sha3.NewShake256()
 	prf.Write(s)
 	prf.Write([]byte{b})
-	B := make([]byte, 128)
+	B := make([]byte, 64*η)
 	prf.Read(B)
 
 	// SamplePolyCBD simply draws four (2η) bits for each coefficient, and adds
@@ -754,15 +687,16 @@ func samplePolyCBD(s []byte, b byte) ringElement {
 }
 
 // nttElement is an NTT representation, an element of T_q, represented as an
-// array according to FIPS 203 (DRAFT), Section 2.4.
+// array according to FIPS 203, Section 2.4.4.
 type nttElement [n]fieldElement
 
-// gammas are the values ζ^2BitRev7(i)+1 mod q for each index i.
+// gammas are the values ζ^2BitRev7(i)+1 mod q for each index i, according to
+// FIPS 203, Appendix A (with negative values reduced to positive).
 var gammas = [128]fieldElement{17, 3312, 2761, 568, 583, 2746, 2649, 680, 1637, 1692, 723, 2606, 2288, 1041, 1100, 2229, 1409, 1920, 2662, 667, 3281, 48, 233, 3096, 756, 2573, 2156, 1173, 3015, 314, 3050, 279, 1703, 1626, 1651, 1678, 2789, 540, 1789, 1540, 1847, 1482, 952, 2377, 1461, 1868, 2687, 642, 939, 2390, 2308, 1021, 2437, 892, 2388, 941, 733, 2596, 2337, 992, 268, 3061, 641, 2688, 1584, 1745, 2298, 1031, 2037, 1292, 3220, 109, 375, 2954, 2549, 780, 2090, 1239, 1645, 1684, 1063, 2266, 319, 3010, 2773, 556, 757, 2572, 2099, 1230, 561, 2768, 2466, 863, 2594, 735, 2804, 525, 1092, 2237, 403, 2926, 1026, 2303, 1143, 2186, 2150, 1179, 2775, 554, 886, 2443, 1722, 1607, 1212, 2117, 1874, 1455, 1029, 2300, 2110, 1219, 2935, 394, 885, 2444, 2154, 1175}
 
 // nttMul multiplies two nttElements.
 //
-// It implements MultiplyNTTs, according to FIPS 203 (DRAFT), Algorithm 10.
+// It implements MultiplyNTTs, according to FIPS 203, Algorithm 11.
 func nttMul(f, g nttElement) nttElement {
 	var h nttElement
 	// We use i += 2 for bounds check elimination. See https://go.dev/issue/66826.
@@ -775,12 +709,13 @@ func nttMul(f, g nttElement) nttElement {
 	return h
 }
 
-// zetas are the values ζ^BitRev7(k) mod q for each index k.
+// zetas are the values ζ^BitRev7(k) mod q for each index k, according to FIPS
+// 203, Appendix A.
 var zetas = [128]fieldElement{1, 1729, 2580, 3289, 2642, 630, 1897, 848, 1062, 1919, 193, 797, 2786, 3260, 569, 1746, 296, 2447, 1339, 1476, 3046, 56, 2240, 1333, 1426, 2094, 535, 2882, 2393, 2879, 1974, 821, 289, 331, 3253, 1756, 1197, 2304, 2277, 2055, 650, 1977, 2513, 632, 2865, 33, 1320, 1915, 2319, 1435, 807, 452, 1438, 2868, 1534, 2402, 2647, 2617, 1481, 648, 2474, 3110, 1227, 910, 17, 2761, 583, 2649, 1637, 723, 2288, 1100, 1409, 2662, 3281, 233, 756, 2156, 3015, 3050, 1703, 1651, 2789, 1789, 1847, 952, 1461, 2687, 939, 2308, 2437, 2388, 733, 2337, 268, 641, 1584, 2298, 2037, 3220, 375, 2549, 2090, 1645, 1063, 319, 2773, 757, 2099, 561, 2466, 2594, 2804, 1092, 403, 1026, 1143, 2150, 2775, 886, 1722, 1212, 1874, 1029, 2110, 2935, 885, 2154}
 
 // ntt maps a ringElement to its nttElement representation.
 //
-// It implements NTT, according to FIPS 203 (DRAFT), Algorithm 8.
+// It implements NTT, according to FIPS 203, Algorithm 9.
 func ntt(f ringElement) nttElement {
 	k := 1
 	for len := 128; len >= 2; len /= 2 {
@@ -801,7 +736,7 @@ func ntt(f ringElement) nttElement {
 
 // inverseNTT maps a nttElement back to the ringElement it represents.
 //
-// It implements NTT⁻¹, according to FIPS 203 (DRAFT), Algorithm 9.
+// It implements NTT⁻¹, according to FIPS 203, Algorithm 10.
 func inverseNTT(f nttElement) ringElement {
 	k := 127
 	for len := 2; len <= 128; len *= 2 {
@@ -824,8 +759,8 @@ func inverseNTT(f nttElement) ringElement {
 }
 
 // sampleNTT draws a uniformly random nttElement from a stream of uniformly
-// random bytes generated by the XOF function, according to FIPS 203 (DRAFT),
-// Algorithm 6 and Definition 4.2.
+// random bytes generated by the XOF function, according to FIPS 203,
+// Algorithm 7.
 func sampleNTT(rho []byte, ii, jj byte) nttElement {
 	B := sha3.NewShake128()
 	B.Write(rho)
