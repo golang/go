@@ -2589,3 +2589,191 @@ func TestClose(t *testing.T) {
 		})
 	}
 }
+
+type OptionalsEmpty struct {
+	Sr string `xml:"sr"`
+	So string `xml:"so,omitempty"`
+	Sw string `xml:"-"`
+
+	Ir int `xml:"omitempty"` // actually named omitempty, not an option
+	Io int `xml:"io,omitempty"`
+
+	Slr []string `xml:"slr,random"`
+	Slo []string `xml:"slo,omitempty"`
+
+	Fr float64 `xml:"fr"`
+	Fo float64 `xml:"fo,omitempty"`
+
+	Br bool `xml:"br"`
+	Bo bool `xml:"bo,omitempty"`
+
+	Ur uint `xml:"ur"`
+	Uo uint `xml:"uo,omitempty"`
+
+	Str struct{} `xml:"str"`
+	Sto struct{} `xml:"sto,omitempty"`
+}
+
+func TestOmitEmpty(t *testing.T) {
+	const want = `<OptionalsEmpty>
+ <sr></sr>
+ <omitempty>0</omitempty>
+ <fr>0</fr>
+ <br>false</br>
+ <ur>0</ur>
+ <str></str>
+ <sto></sto>
+</OptionalsEmpty>`
+	var o OptionalsEmpty
+	o.Sw = "something"
+
+	got, err := MarshalIndent(&o, "", " ")
+	if err != nil {
+		t.Fatalf("MarshalIndent error: %v", err)
+	}
+	if got := string(got); got != want {
+		t.Errorf("MarshalIndent:\n\tgot:  %s\n\twant: %s\n", indentNewlines(got), indentNewlines(want))
+	}
+}
+
+type NonZeroStruct struct{}
+
+func (nzs NonZeroStruct) IsZero() bool {
+	return false
+}
+
+type NoPanicStruct struct {
+	Int int `xml:"int,omitzero"`
+}
+
+func (nps *NoPanicStruct) IsZero() bool {
+	return nps.Int != 0
+}
+
+type OptionalsZero struct {
+	Sr string `xml:"sr"`
+	So string `xml:"so,omitzero"`
+	Sw string `xml:"-"`
+
+	Ir int `xml:"omitzero"` // actually named omitzero, not an option
+	Io int `xml:"io,omitzero"`
+
+	Slr       []string `xml:"slr,random"`
+	Slo       []string `xml:"slo,omitzero"`
+	SloNonNil []string `xml:"slononnil,omitzero"`
+
+	Fr   float64    `xml:"fr"`
+	Fo   float64    `xml:"fo,omitzero"`
+	Foo  float64    `xml:"foo,omitzero"`
+	Foo2 [2]float64 `xml:"foo2,omitzero"`
+
+	Br bool `xml:"br"`
+	Bo bool `xml:"bo,omitzero"`
+
+	Ur uint `xml:"ur"`
+	Uo uint `xml:"uo,omitzero"`
+
+	Str struct{} `xml:"str"`
+	Sto struct{} `xml:"sto,omitzero"`
+
+	Time      time.Time     `xml:"time,omitzero"`
+	TimeLocal time.Time     `xml:"timelocal,omitzero"`
+	Nzs       NonZeroStruct `xml:"nzs,omitzero"`
+
+	NilIsZeroer    isZeroer       `xml:"niliszeroer,omitzero"`    // nil interface
+	NonNilIsZeroer isZeroer       `xml:"nonniliszeroer,omitzero"` // non-nil interface
+	NoPanicStruct0 isZeroer       `xml:"nps0,omitzero"`           // non-nil interface with nil pointer
+	NoPanicStruct1 isZeroer       `xml:"nps1,omitzero"`           // non-nil interface with non-nil pointer
+	NoPanicStruct2 *NoPanicStruct `xml:"nps2,omitzero"`           // nil pointer
+	NoPanicStruct3 *NoPanicStruct `xml:"nps3,omitzero"`           // non-nil pointer
+	NoPanicStruct4 NoPanicStruct  `xml:"nps4,omitzero"`           // concrete type
+}
+
+func TestOmitZero(t *testing.T) {
+	const want = `<OptionalsZero>
+ <sr></sr>
+ <omitzero>0</omitzero>
+ <fr>0</fr>
+ <br>false</br>
+ <ur>0</ur>
+ <str></str>
+ <nzs></nzs>
+ <nps1></nps1>
+ <nps3></nps3>
+ <nps4></nps4>
+</OptionalsZero>`
+	var o OptionalsZero
+	o.Sw = "something"
+	o.SloNonNil = make([]string, 0)
+
+	o.Foo = -0
+	o.Foo2 = [2]float64{+0, -0}
+
+	o.TimeLocal = time.Time{}.Local()
+
+	o.NonNilIsZeroer = time.Time{}
+	o.NoPanicStruct0 = (*NoPanicStruct)(nil)
+	o.NoPanicStruct1 = &NoPanicStruct{}
+	o.NoPanicStruct3 = &NoPanicStruct{}
+
+	got, err := MarshalIndent(&o, "", " ")
+	if err != nil {
+		t.Fatalf("MarshalIndent error: %v", err)
+	}
+	if got := string(got); got != want {
+		t.Errorf("MarshalIndent:\n\tgot:  %s\n\twant: %s\n", indentNewlines(got), indentNewlines(want))
+	}
+}
+
+type OptionalsEmptyZero struct {
+	Sr string `xml:"sr"`
+	So string `xml:"so,omitempty,omitzero"`
+	Sw string `xml:"-"`
+
+	Io int `xml:"io,omitempty,omitzero"`
+
+	Slr       []string `xml:"slr,random"`
+	Slo       []string `xml:"slo,omitempty,omitzero"`
+	SloNonNil []string `xml:"slononnil,omitempty,omitzero"`
+
+	Fr float64 `xml:"fr"`
+	Fo float64 `xml:"fo,omitempty,omitzero"`
+
+	Br bool `xml:"br"`
+	Bo bool `xml:"bo,omitempty,omitzero"`
+
+	Ur uint `xml:"ur"`
+	Uo uint `xml:"uo,omitempty,omitzero"`
+
+	Str struct{} `xml:"str"`
+	Sto struct{} `xml:"sto,omitempty,omitzero"`
+
+	Time time.Time     `xml:"time,omitempty,omitzero"`
+	Nzs  NonZeroStruct `xml:"nzs,omitempty,omitzero"`
+}
+
+func TestOmitEmptyZero(t *testing.T) {
+	const want = `<OptionalsEmptyZero>
+ <sr></sr>
+ <fr>0</fr>
+ <br>false</br>
+ <ur>0</ur>
+ <str></str>
+ <nzs></nzs>
+</OptionalsEmptyZero>`
+	var o OptionalsEmptyZero
+	o.Sw = "something"
+	o.SloNonNil = make([]string, 0)
+
+	got, err := MarshalIndent(&o, "", " ")
+	if err != nil {
+		t.Fatalf("MarshalIndent error: %v", err)
+	}
+	if got := string(got); got != want {
+		t.Errorf("MarshalIndent:\n\tgot:  %s\n\twant: %s\n", indentNewlines(got), indentNewlines(want))
+	}
+}
+
+func indentNewlines(s string) string {
+	return strings.Join(strings.Split(s, "\n"), "\n\t")
+}

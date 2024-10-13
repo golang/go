@@ -436,6 +436,11 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		return nil
 	}
 
+	if finfo != nil && finfo.flags&fOmitZero != 0 &&
+		(finfo.isZero == nil && val.IsZero() || (finfo.isZero != nil && finfo.isZero(val))) {
+		return nil
+	}
+
 	// Drill into interfaces and pointers.
 	// This can turn into an infinite loop given a cyclic chain,
 	// but it matches the Go 1 behavior.
@@ -532,6 +537,11 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		fv := finfo.value(val, dontInitNilPointers)
 
 		if finfo.flags&fOmitEmpty != 0 && (!fv.IsValid() || isEmptyValue(fv)) {
+			continue
+		}
+
+		if finfo.flags&fOmitZero != 0 && (!fv.IsValid() ||
+			(finfo.isZero == nil && fv.IsZero() || (finfo.isZero != nil && finfo.isZero(fv)))) {
 			continue
 		}
 
