@@ -164,5 +164,6 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
 	if err != nil {
 		return ntCreateFileError(err, 0)
 	}
+	syscall.CloseHandle(h)
 	return nil
 }
