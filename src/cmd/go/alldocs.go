@@ -1967,7 +1967,7 @@
 //
 // Usage:
 //
-//	go version [-m] [-v] [file ...]
+//	go version [-m] [-v] [-json] [file ...]
 //
 // Version prints the build information for Go binary files.
 //
@@ -1985,6 +1985,9 @@
 // module version information, when available. In the output, the module
 // information consists of multiple lines following the version line, each
 // indented by a leading tab character.
+//
+// The -json flag is similar to -m but outputs the runtime/debug.BuildInfo in JSON format.
+// If flag -json is specified without -m, go version reports an error.
 //
 // See also: go doc runtime/debug.BuildInfo.
 //

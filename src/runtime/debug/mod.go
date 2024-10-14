@@ -41,29 +41,29 @@ func ReadBuildInfo() (info *BuildInfo, ok bool) {
 type BuildInfo struct {
 	// GoVersion is the version of the Go toolchain that built the binary
 	// (for example, "go1.19.2").
-	GoVersion string
+	GoVersion string `json:",omitempty"`
 
 	// Path is the package path of the main package for the binary
 	// (for example, "golang.org/x/tools/cmd/stringer").
-	Path string
+	Path string `json:",omitempty"`
 
 	// Main describes the module that contains the main package for the binary.
-	Main Module
+	Main Module `json:""`
 
 	// Deps describes all the dependency modules, both direct and indirect,
 	// that contributed packages to the build of this binary.
-	Deps []*Module
+	Deps []*Module `json:",omitempty"`
 
 	// Settings describes the build settings used to build the binary.
-	Settings []BuildSetting
+	Settings []BuildSetting `json:",omitempty"`
 }
 
 // A Module describes a single module included in a build.
 type Module struct {
-	Path    string  // module path
-	Version string  // module version
-	Sum     string  // checksum
-	Replace *Module // replaced by this module
+	Path    string  `json:",omitempty"` // module path
+	Version string  `json:",omitempty"` // module version
+	Sum     string  `json:",omitempty"` // checksum
+	Replace *Module `json:",omitempty"` // replaced by this module
 }
 
 // A BuildSetting is a key-value pair describing one setting that influenced a build.
@@ -89,8 +89,9 @@ type Module struct {
 type BuildSetting struct {
 	// Key and Value describe the build setting.
 	// Key must not contain an equals sign, space, tab, or newline.
+	Key string `json:",omitempty"`
 	// Value must not contain newlines ('\n').
-	Key, Value string
+	Value string `json:",omitempty"`
 }
 
 // quoteKey reports whether key is required to be quoted.
