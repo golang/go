@@ -544,7 +544,7 @@ opSwitch:
 					}
 				}
 			}
-			if name.Class == ir.PPARAM {
+			if name.Class == ir.PPARAM || name.Class == ir.PAUTOHEAP && name.IsClosureVar() {
 				extraCost = min(extraCost, inlineParamCallCost)
 			}
 		}
