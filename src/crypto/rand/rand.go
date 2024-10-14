@@ -68,7 +68,7 @@ func fatal(string)
 var randcrash = godebug.New("randcrash")
 
 // Read fills b with cryptographically secure random bytes. It never returns an
-// error, and always fills b entirely.
+// error, and always fills b entirely. It is safe for concurrent use.
 //
 // Read calls [io.ReadFull] on [Reader] and crashes the program irrecoverably if
 // an error is returned. The default Reader uses operating system APIs that are
