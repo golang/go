@@ -565,10 +565,10 @@ func readDataDescriptor(r io.Reader, f *File) error {
 }
 
 func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, baseOffset int64, err error) {
-	// look for directoryEndSignature in the last 1k, then in the last 65k
+	// look for directoryEndSignature in the last 1k, then in the last 65k, then in the last 5M
 	var buf []byte
 	var directoryEndOffset int64
-	for i, bLen := range []int64{1024, 65 * 1024} {
+	for i, bLen := range []int64{1024, 65 * 1024,5*1024*1024} {
 		if bLen > size {
 			bLen = size
 		}
@@ -581,7 +581,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, baseOffset 
 			directoryEndOffset = size - bLen + int64(p)
 			break
 		}
-		if i == 1 || bLen == size {
+		if i == 2 || bLen == size {
 			return nil, 0, ErrFormat
 		}
 	}
