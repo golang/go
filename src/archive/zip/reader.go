@@ -971,14 +971,14 @@ func (d *openDir) Read([]byte) (int, error) {
 
 func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
 	n := len(d.files) - d.offset
-	if count > 0 && n > count {
-		n = count
-	}
 	if n == 0 {
 		if count <= 0 {
 			return nil, nil
 		}
 		return nil, io.EOF
+	}
+	if count > 0 && n > count {
+		n = count
 	}
 	list := make([]fs.DirEntry, n)
 	for i := range list {
