@@ -238,10 +238,8 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 
 			input := pkgbits.NewPkgDecoder(id, s)
 			pkg = readUnifiedPackage(fset, nil, packages, input)
-		case 'i':
-			pkg, err = iImportData(fset, packages, buf, id)
 		default:
-			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
+			err = fmt.Errorf("import %q: binary export format %q is no longer supported (recompile package)", path, exportFormat)
 		}
 
 	default:

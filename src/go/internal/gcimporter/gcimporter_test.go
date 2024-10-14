@@ -287,9 +287,14 @@ func TestVersionHandling(t *testing.T) {
 			// ok to fail if it fails with a no longer supported error for select files
 			if strings.Contains(err.Error(), "no longer supported") {
 				switch name {
-				case "test_go1.7_0.a", "test_go1.7_1.a",
-					"test_go1.8_4.a", "test_go1.8_5.a",
-					"test_go1.11_6b.a", "test_go1.11_999b.a":
+				case "test_go1.7_0.a",
+					"test_go1.7_1.a",
+					"test_go1.8_4.a",
+					"test_go1.8_5.a",
+					"test_go1.11_0i.a",
+					"test_go1.11_6b.a",
+					"test_go1.11_999b.a",
+					"test_go1.11_999i.a":
 					continue
 				}
 				// fall through
