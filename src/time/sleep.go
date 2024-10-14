@@ -165,8 +165,8 @@ func NewTimer(d Duration) *Timer {
 // to receive a time value corresponding to the previous timer settings;
 // if the program has not received from t.C already and the timer is
 // running, Reset is guaranteed to return true.
-// Before Go 1.23, the only safe way to use Reset was to [Stop] and
-// explicitly drain the timer first.
+// Before Go 1.23, the only safe way to use Reset was to call [Timer.Stop]
+// and explicitly drain the timer first.
 // See the [NewTimer] documentation for more details.
 func (t *Timer) Reset(d Duration) bool {
 	if !t.initTimer {
