@@ -13,32 +13,6 @@ import (
 	"unsafe"
 )
 
-func (m *Map) getWithoutKeySmallFast64(typ *abi.SwissMapType, hash uintptr, key uint64) (unsafe.Pointer, bool) {
-	g := groupReference{
-		data: m.dirPtr,
-	}
-
-	h2 := uint8(h2(hash))
-	ctrls := *g.ctrls()
-
-	for i := uintptr(0); i < 8; i++ {
-		c := uint8(ctrls)
-		ctrls >>= 8
-		if c != h2 {
-			continue
-		}
-
-		slotKey := g.key(typ, i)
-
-		if key == *(*uint64)(slotKey) {
-			slotElem := g.elem(typ, i)
-			return slotElem, true
-		}
-	}
-
-	return nil, false
-}
-
 //go:linkname runtime_mapaccess1_fast64 runtime.mapaccess1_fast64
 func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe.Pointer {
 	if race.Enabled && m != nil {
@@ -55,15 +29,22 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
 		fatal("concurrent map read and map write")
 	}
 
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
-
-	if m.dirLen <= 0 {
-		elem, ok := m.getWithoutKeySmallFast64(typ, hash, key)
-		if !ok {
-			return unsafe.Pointer(&zeroVal[0])
+	if m.dirLen == 0 {
+		g := groupReference{
+			data: m.dirPtr,
 		}
-		return elem
+
+		slotSize := typ.SlotSize
+		for i, slotKey := uintptr(0), g.key(typ, 0); i < abi.SwissMapGroupSlots; i, slotKey = i+1, unsafe.Pointer(uintptr(slotKey)+slotSize) {
+			if key == *(*uint64)(slotKey) && (g.ctrls().get(i)&(1<<7)) == 0 {
+				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+				return slotElem
+			}
+		}
+		return unsafe.Pointer(&zeroVal[0])
 	}
+
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -112,15 +93,21 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
 		fatal("concurrent map read and map write")
 	}
 
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
-
-	if m.dirLen <= 0 {
-		elem, ok := m.getWithoutKeySmallFast64(typ, hash, key)
-		if !ok {
-			return unsafe.Pointer(&zeroVal[0]), false
+	if m.dirLen == 0 {
+		g := groupReference{
+			data: m.dirPtr,
 		}
-		return elem, true
+		slotSize := typ.SlotSize
+		for i, slotKey := uintptr(0), g.key(typ, 0); i < abi.SwissMapGroupSlots; i, slotKey = i+1, unsafe.Pointer(uintptr(slotKey)+slotSize) {
+			if key == *(*uint64)(slotKey) && (g.ctrls().get(i)&(1<<7)) == 0 {
+				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+				return slotElem, true
+			}
+		}
+		return unsafe.Pointer(&zeroVal[0]), false
 	}
+
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
 
 	// Select table.
 	idx := m.directoryIndex(hash)
