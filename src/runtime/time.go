@@ -33,6 +33,7 @@ type timer struct {
 	// isSending is used to handle races between running a
 	// channel timer and stopping or resetting the timer.
 	// It is used only for channel timers (t.isChan == true).
+	// It is not used for tickers.
 	// The lowest zero bit is set when about to send a value on the channel,
 	// and cleared after sending the value.
 	// The stop/reset code uses this to detect whether it
@@ -467,7 +468,7 @@ func (t *timer) stop() bool {
 		// send from actually happening. That means
 		// that we should return true: the timer was
 		// stopped, even though t.when may be zero.
-		if t.isSending.Load() > 0 {
+		if t.period == 0 && t.isSending.Load() > 0 {
 			pending = true
 		}
 	}
@@ -529,6 +530,7 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		t.maybeRunAsync()
 	}
 	t.trace("modify")
+	oldPeriod := t.period
 	t.period = period
 	if f != nil {
 		t.f = f
@@ -570,7 +572,7 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		// send from actually happening. That means
 		// that we should return true: the timer was
 		// stopped, even though t.when may be zero.
-		if t.isSending.Load() > 0 {
+		if oldPeriod == 0 && t.isSending.Load() > 0 {
 			pending = true
 		}
 	}
@@ -1064,7 +1066,7 @@ func (t *timer) unlockAndRun(now int64) {
 
 	async := debug.asynctimerchan.Load() != 0
 	var isSendingClear uint8
-	if !async && t.isChan {
+	if !async && t.isChan && t.period == 0 {
 		// Tell Stop/Reset that we are sending a value.
 		// Set the lowest zero bit.
 		// We do this awkward step because atomic.Uint8
@@ -1115,9 +1117,12 @@ func (t *timer) unlockAndRun(now int64) {
 		// true meaning that no value was sent.
 		lock(&t.sendLock)
 
-		// We are committed to possibly sending a value based on seq,
-		// so no need to keep telling stop/modify that we are sending.
-		t.isSending.And(^isSendingClear)
+		if t.period == 0 {
+			// We are committed to possibly sending a value
+			// based on seq, so no need to keep telling
+			// stop/modify that we are sending.
+			t.isSending.And(^isSendingClear)
+		}
 
 		if t.seq != seq {
 			f = func(any, uintptr, int64) {}

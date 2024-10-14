@@ -847,6 +847,31 @@ func testStopResetResultGODEBUG(t *testing.T, testStop bool, godebug string) {
 	wg.Wait()
 }
 
+// Test having a large number of goroutines wake up a timer simultaneously.
+// This used to trigger a crash when run under x/tools/cmd/stress.
+func TestMultiWakeup(t *testing.T) {
+	if testing.Short() {
+		t.Skip("-short")
+	}
+
+	goroutines := runtime.GOMAXPROCS(0)
+	timer := NewTicker(Microsecond)
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for range 100000 {
+				select {
+				case <-timer.C:
+				case <-After(Millisecond):
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 // Benchmark timer latency when the thread that creates the timer is busy with
 // other work and the timers must be serviced by other threads.
 // https://golang.org/issue/38860
