@@ -40,8 +40,8 @@ type bitset uint64
 // first control byte in the group that has the MSB set.
 //
 // Returns abi.SwissMapGroupSlots if the bitset is empty.
-func (b bitset) first() uint32 {
-	return uint32(sys.TrailingZeros64(uint64(b))) >> 3
+func (b bitset) first() uintptr {
+	return uintptr(sys.TrailingZeros64(uint64(b))) >> 3
 }
 
 // removeFirst removes the first set bit (that is, resets the least significant set bit to 0).
@@ -64,7 +64,7 @@ type ctrl uint8
 type ctrlGroup uint64
 
 // get returns the i-th control byte.
-func (g *ctrlGroup) get(i uint32) ctrl {
+func (g *ctrlGroup) get(i uintptr) ctrl {
 	if goarch.BigEndian {
 		return *(*ctrl)(unsafe.Add(unsafe.Pointer(g), 7-i))
 	}
@@ -72,7 +72,7 @@ func (g *ctrlGroup) get(i uint32) ctrl {
 }
 
 // set sets the i-th control byte.
-func (g *ctrlGroup) set(i uint32, c ctrl) {
+func (g *ctrlGroup) set(i uintptr, c ctrl) {
 	if goarch.BigEndian {
 		*(*ctrl)(unsafe.Add(unsafe.Pointer(g), 7-i)) = c
 		return
@@ -202,15 +202,15 @@ func (g *groupReference) ctrls() *ctrlGroup {
 }
 
 // key returns a pointer to the key at index i.
-func (g *groupReference) key(typ *abi.SwissMapType, i uint32) unsafe.Pointer {
-	offset := groupSlotsOffset + uintptr(i)*typ.SlotSize
+func (g *groupReference) key(typ *abi.SwissMapType, i uintptr) unsafe.Pointer {
+	offset := groupSlotsOffset + i*typ.SlotSize
 
 	return unsafe.Pointer(uintptr(g.data) + offset)
 }
 
 // elem returns a pointer to the element at index i.
-func (g *groupReference) elem(typ *abi.SwissMapType, i uint32) unsafe.Pointer {
-	offset := groupSlotsOffset + uintptr(i)*typ.SlotSize + typ.ElemOff
+func (g *groupReference) elem(typ *abi.SwissMapType, i uintptr) unsafe.Pointer {
+	offset := groupSlotsOffset + i*typ.SlotSize + typ.ElemOff
 
 	return unsafe.Pointer(uintptr(g.data) + offset)
 }

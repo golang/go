@@ -24,7 +24,7 @@ func (t *table) checkInvariants(typ *abi.SwissMapType, m *Map) {
 	var empty uint16
 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
 		g := t.groups.group(typ, i)
-		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
+		for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
 			c := g.ctrls().get(j)
 			switch {
 			case c == ctrlDeleted:
@@ -96,7 +96,7 @@ func (t *table) Print(typ *abi.SwissMapType, m *Map) {
 
 		g := t.groups.group(typ, i)
 		ctrls := g.ctrls()
-		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
+		for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
 			print("\t\t\tslot ", j, "\n")
 
 			c := ctrls.get(j)

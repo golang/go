@@ -245,7 +245,7 @@ outer:
 		// we find, which we'll use to insert the new entry if
 		// necessary.
 		var firstDeletedGroup groupReference
-		var firstDeletedSlot uint32
+		var firstDeletedSlot uintptr
 
 		for ; ; seq = seq.next() {
 			g := t.groups.group(typ, seq.offset)
@@ -282,7 +282,7 @@ outer:
 				// Finding an empty slot means we've reached the end of
 				// the probe sequence.
 
-				var i uint32
+				var i uintptr
 
 				// If we found a deleted slot along the way, we
 				// can replace it without consuming growthLeft.

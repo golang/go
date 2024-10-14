@@ -430,7 +430,7 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
 	h2 := uint8(h2(hash))
 	ctrls := *g.ctrls()
 
-	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
+	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
 		c := uint8(ctrls)
 		ctrls >>= 8
 		if c != h2 {
@@ -590,7 +590,7 @@ func (m *Map) growToTable(typ *abi.SwissMapType) {
 		data: m.dirPtr,
 	}
 
-	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
+	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
 		if (g.ctrls().get(i) & ctrlEmpty) == ctrlEmpty {
 			// Empty
 			continue

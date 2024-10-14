@@ -271,7 +271,7 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
 	// As we look for a match, keep track of the first deleted slot we
 	// find, which we'll use to insert the new entry if necessary.
 	var firstDeletedGroup groupReference
-	var firstDeletedSlot uint32
+	var firstDeletedSlot uintptr
 
 	for ; ; seq = seq.next() {
 		g := t.groups.group(typ, seq.offset)
@@ -308,7 +308,7 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
 			// Finding an empty slot means we've reached the end of
 			// the probe sequence.
 
-			var i uint32
+			var i uintptr
 
 			// If we found a deleted slot along the way, we can
 			// replace it without consuming growthLeft.
@@ -618,7 +618,7 @@ func (it *Iter) Next() {
 		// Map was small at Init.
 		g := it.groupSmall
 		for ; it.entryIdx < abi.SwissMapGroupSlots; it.entryIdx++ {
-			k := uint32(it.entryIdx+it.entryOffset) % abi.SwissMapGroupSlots
+			k := uintptr(it.entryIdx+it.entryOffset) % abi.SwissMapGroupSlots
 
 			if (g.ctrls().get(k) & ctrlEmpty) == ctrlEmpty {
 				// Empty or deleted.
@@ -745,7 +745,7 @@ func (it *Iter) Next() {
 		// on grown below.
 		for ; it.entryIdx <= it.tab.groups.entryMask; it.entryIdx++ {
 			entryIdx := (it.entryIdx + it.entryOffset) & it.tab.groups.entryMask
-			slotIdx := uint32(entryIdx & (abi.SwissMapGroupSlots - 1))
+			slotIdx := uintptr(entryIdx & (abi.SwissMapGroupSlots - 1))
 
 			if slotIdx == 0 || g.data == nil {
 				// Only compute the group (a) when we switch
@@ -922,7 +922,7 @@ func (t *table) split(typ *abi.SwissMapType, m *Map) {
 
 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
 		g := t.groups.group(typ, i)
-		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
+		for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
 			if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
 				// Empty or deleted
 				continue
@@ -968,7 +968,7 @@ func (t *table) grow(typ *abi.SwissMapType, m *Map, newCapacity uint16) {
 	if t.capacity > 0 {
 		for i := uint64(0); i <= t.groups.lengthMask; i++ {
 			g := t.groups.group(typ, i)
-			for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
+			for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
 				if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
 					// Empty or deleted
 					continue
