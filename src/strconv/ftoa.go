@@ -28,14 +28,14 @@ var float64info = floatInfo{52, 11, -1023}
 // value of bitSize bits (32 for float32, 64 for float64).
 //
 // The format fmt is one of
-// 'b' (-ddddp±ddd, a binary exponent),
-// 'e' (-d.dddde±dd, a decimal exponent),
-// 'E' (-d.ddddE±dd, a decimal exponent),
-// 'f' (-ddd.dddd, no exponent),
-// 'g' ('e' for large exponents, 'f' otherwise),
-// 'G' ('E' for large exponents, 'f' otherwise),
-// 'x' (-0xd.ddddp±ddd, a hexadecimal fraction and binary exponent), or
-// 'X' (-0Xd.ddddP±ddd, a hexadecimal fraction and binary exponent).
+//   - 'b' (-ddddp±ddd, a binary exponent),
+//   - 'e' (-d.dddde±dd, a decimal exponent),
+//   - 'E' (-d.ddddE±dd, a decimal exponent),
+//   - 'f' (-ddd.dddd, no exponent),
+//   - 'g' ('e' for large exponents, 'f' otherwise),
+//   - 'G' ('E' for large exponents, 'f' otherwise),
+//   - 'x' (-0xd.ddddp±ddd, a hexadecimal fraction and binary exponent), or
+//   - 'X' (-0Xd.ddddP±ddd, a hexadecimal fraction and binary exponent).
 //
 // The precision prec controls the number of digits (excluding the exponent)
 // printed by the 'e', 'E', 'f', 'g', 'G', 'x', and 'X' formats.
