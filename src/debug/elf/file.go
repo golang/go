@@ -1726,7 +1726,7 @@ func (f *File) gnuVersion(i int) (versionIndex int16, version string, library st
 	for _, v := range f.dynVers {
 		if uint16(ndx) == v.Index {
 			if len(v.Deps) > 0 {
-				var flags SymbolVersionFlag = VerFlagNone
+				flags := VerFlagNone
 				if j&0x8000 != 0 {
 					flags = VerFlagHidden
 				}
