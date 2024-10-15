@@ -23,6 +23,7 @@ package riscv
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
 	"internal/abi"
@@ -427,18 +428,23 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		prologue = stacksplit(ctxt, prologue, cursym, newprog, stacksize) // emit split check
 	}
 
+	q := prologue
+
 	if stacksize != 0 {
 		prologue = ctxt.StartUnsafePoint(prologue, newprog)
 
 		// Actually save LR.
 		prologue = obj.Appendp(prologue, newprog)
 		prologue.As = AMOV
+		prologue.Pos = q.Pos
 		prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
 		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -stacksize}
 
 		// Insert stack adjustment.
 		prologue = obj.Appendp(prologue, newprog)
 		prologue.As = AADDI
+		prologue.Pos = q.Pos
+		prologue.Pos = prologue.Pos.WithXlogue(src.PosPrologueEnd)
 		prologue.From = obj.Addr{Type: obj.TYPE_CONST, Offset: -stacksize}
 		prologue.Reg = REG_SP
 		prologue.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
