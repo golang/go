@@ -3593,3 +3593,29 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 		t.Fatal("comparing two directories:", err)
 	}
 }
+
+func TestAppendDoesntOverwrite(t *testing.T) {
+	name := filepath.Join(t.TempDir(), "file")
+	if err := WriteFile(name, []byte("hello"), 0666); err != nil {
+		t.Fatal(err)
+	}
+	f, err := OpenFile(name, O_APPEND|O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Write([]byte(" world")); err != nil {
+		f.Close()
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "hello world"
+	if string(got) != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
