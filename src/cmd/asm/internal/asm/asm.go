@@ -353,6 +353,7 @@ func (p *Parser) asmPCAlign(operands [][]lex.Token) {
 	prog := &obj.Prog{
 		Ctxt: p.ctxt,
 		As:   obj.APCALIGN,
+		Pos:  p.pos(),
 		From: key,
 	}
 	p.append(prog, "", true)
