@@ -915,6 +915,16 @@ func TestMarshalInvalidTimes(t *testing.T) {
 		case err == nil || err.Error() != want:
 			t.Errorf("(%v).MarshalText() error = %v, want %v", tt.time, err, want)
 		}
+
+		buf := make([]byte, 0, 64)
+		want = strings.ReplaceAll(tt.want, "MarshalJSON", "AppendText")
+		b, err = tt.time.AppendText(buf)
+		switch {
+		case b != nil:
+			t.Errorf("(%v).AppendText() = %q, want nil", tt.time, b)
+		case err == nil || err.Error() != want:
+			t.Errorf("(%v).AppendText() error = %v, want %v", tt.time, err, want)
+		}
 	}
 }
 

@@ -1584,16 +1584,20 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	return err
 }
 
+func (t Time) appendTo(b []byte, errPrefix string) ([]byte, error) {
+	b, err := t.appendStrictRFC3339(b)
+	if err != nil {
+		return nil, errors.New(errPrefix + err.Error())
+	}
+	return b, nil
+}
+
 // AppendText implements the [encoding.TextAppender] interface.
 // The time is formatted in RFC 3339 format with sub-second precision.
 // If the timestamp cannot be represented as valid RFC 3339
 // (e.g., the year is out of range), then an error is returned.
 func (t Time) AppendText(b []byte) ([]byte, error) {
-	b, err := t.appendStrictRFC3339(b)
-	if err != nil {
-		return nil, errors.New("Time.MarshalText: " + err.Error())
-	}
-	return b, nil
+	return t.appendTo(b, "Time.AppendText: ")
 }
 
 // MarshalText implements the [encoding.TextMarshaler] interface. The output
@@ -1601,7 +1605,7 @@ func (t Time) AppendText(b []byte) ([]byte, error) {
 //
 // See [Time.AppendText] for more information.
 func (t Time) MarshalText() ([]byte, error) {
-	return t.AppendText(make([]byte, 0, len(RFC3339Nano)))
+	return t.appendTo(make([]byte, 0, len(RFC3339Nano)), "Time.MarshalText: ")
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
