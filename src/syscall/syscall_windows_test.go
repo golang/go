@@ -15,29 +15,39 @@ import (
 	"testing"
 )
 
-func TestOpen_Dir(t *testing.T) {
+func TestOpen(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
+	file := filepath.Join(dir, "a")
+	f, err := os.Create(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
 	tests := []struct {
+		path string
 		flag int
 		err  error
 	}{
-		{syscall.O_RDONLY, nil},
-		{syscall.O_CREAT, nil},
-		{syscall.O_RDONLY | syscall.O_CREAT, nil},
-		{syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
-		{syscall.O_WRONLY | syscall.O_RDWR, syscall.EISDIR},
-		{syscall.O_WRONLY, syscall.EISDIR},
-		{syscall.O_RDWR, syscall.EISDIR},
+		{dir, syscall.O_RDONLY, nil},
+		{dir, syscall.O_CREAT, nil},
+		{dir, syscall.O_RDONLY | syscall.O_CREAT, nil},
+		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE, nil},
+		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE | os.O_TRUNC, nil},
+		{dir, syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
+		{dir, syscall.O_WRONLY | syscall.O_RDWR, syscall.EISDIR},
+		{dir, syscall.O_WRONLY, syscall.EISDIR},
+		{dir, syscall.O_RDWR, syscall.EISDIR},
 	}
 	for i, tt := range tests {
-		h, err := syscall.Open(dir, tt.flag, 0)
+		h, err := syscall.Open(tt.path, tt.flag, 0o660)
 		if err == nil {
 			syscall.CloseHandle(h)
 		}
 		if err != tt.err {
-			t.Errorf("%d: Open got %v, want %v", i, err, tt.err)
+			t.Errorf("%d: Open got %q, want %q", i, err, tt.err)
 		}
 	}
 }

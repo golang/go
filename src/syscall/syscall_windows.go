@@ -362,8 +362,12 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 		access |= GENERIC_WRITE
 	}
 	if flag&O_APPEND != 0 {
-		access &^= GENERIC_WRITE
 		access |= FILE_APPEND_DATA
+		// Remove GENERIC_WRITE access unless O_TRUNC is set,
+		// in which case we need it to truncate the file.
+		if flag&O_TRUNC == 0 {
+			access &^= GENERIC_WRITE
+		}
 	}
 	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
 	var sa *SecurityAttributes
