@@ -320,7 +320,7 @@ func pkeEncrypt(cc *[CiphertextSize]byte, ex *encryptionKey, m *[messageSize]byt
 // If the ciphertext is not valid, Decapsulate returns an error.
 //
 // The shared key must be kept secret.
-func Decapsulate(dk *DecapsulationKey, ciphertext []byte) (sharedKey []byte, err error) {
+func (dk *DecapsulationKey) Decapsulate(ciphertext []byte) (sharedKey []byte, err error) {
 	if len(ciphertext) != CiphertextSize {
 		return nil, errors.New("mlkem768: invalid ciphertext length")
 	}

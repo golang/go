@@ -206,7 +206,7 @@ func TestRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Kd, err := Decapsulate(dk, c)
+	Kd, err := dk.Decapsulate(c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,14 +263,14 @@ func TestBadLengths(t *testing.T) {
 	}
 
 	for i := 0; i < len(c)-1; i++ {
-		if _, err := Decapsulate(dk, c[:i]); err == nil {
+		if _, err := dk.Decapsulate(c[:i]); err == nil {
 			t.Errorf("expected error for c length %d", i)
 		}
 	}
 	cLong := c
 	for i := 0; i < 100; i++ {
 		cLong = append(cLong, 0)
-		if _, err := Decapsulate(dk, cLong); err == nil {
+		if _, err := dk.Decapsulate(cLong); err == nil {
 			t.Errorf("expected error for c length %d", len(cLong))
 		}
 	}
@@ -315,7 +315,7 @@ func TestAccumulated(t *testing.T) {
 		o.Write(ct)
 		o.Write(k)
 
-		kk, err := Decapsulate(dk, ct)
+		kk, err := dk.Decapsulate(ct)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -324,7 +324,7 @@ func TestAccumulated(t *testing.T) {
 		}
 
 		s.Read(ct1)
-		k1, err := Decapsulate(dk, ct1)
+		k1, err := dk.Decapsulate(ct1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -408,7 +408,7 @@ func BenchmarkRoundTrip(b *testing.B) {
 			ekS := dkS.EncapsulationKey()
 			sink ^= ekS[0]
 
-			Ks, err := Decapsulate(dk, c)
+			Ks, err := dk.Decapsulate(c)
 			if err != nil {
 				b.Fatal(err)
 			}

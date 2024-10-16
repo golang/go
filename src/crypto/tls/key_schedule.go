@@ -59,7 +59,7 @@ type keySharePrivateKeys struct {
 
 // kyberDecapsulate implements decapsulation according to Kyber Round 3.
 func kyberDecapsulate(dk *mlkem768.DecapsulationKey, c []byte) ([]byte, error) {
-	K, err := mlkem768.Decapsulate(dk, c)
+	K, err := dk.Decapsulate(c)
 	if err != nil {
 		return nil, err
 	}
