@@ -175,9 +175,9 @@ type actionJSON struct {
 	NeedBuild  bool      `json:",omitempty"`
 	ActionID   string    `json:",omitempty"`
 	BuildID    string    `json:",omitempty"`
-	TimeReady  time.Time `json:",omitempty"`
-	TimeStart  time.Time `json:",omitempty"`
-	TimeDone   time.Time `json:",omitempty"`
+	TimeReady  time.Time `json:",omitzero"`
+	TimeStart  time.Time `json:",omitzero"`
+	TimeDone   time.Time `json:",omitzero"`
 
 	Cmd     []string      // `json:",omitempty"`
 	CmdReal time.Duration `json:",omitempty"`

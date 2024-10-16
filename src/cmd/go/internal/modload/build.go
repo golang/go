@@ -156,7 +156,7 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,
-			Time:    &info.Time,
+			Time:    info.Time,
 		}
 	}
 }
@@ -344,7 +344,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 				m.Error = &modinfo.ModuleError{Err: err.Error()}
 			} else {
 				m.Version = q.Version
-				m.Time = &q.Time
+				m.Time = q.Time
 			}
 		}
 
