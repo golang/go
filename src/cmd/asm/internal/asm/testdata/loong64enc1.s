@@ -443,3 +443,13 @@ lable2:
 	XVSEQH		X3, X2, X4      // 448c0074
 	XVSEQW		X3, X2, X4      // 440c0174
 	XVSEQV		X3, X2, X4      // 448c0174
+
+	// VPCNT{B,H,W,V}, XVPCNT{B,H,W,V} instruction
+	VPCNTB		V1, V2          // 22209c72
+	VPCNTH		V1, V2          // 22249c72
+	VPCNTW		V1, V2          // 22289c72
+	VPCNTV		V1, V2          // 222c9c72
+	XVPCNTB		X3, X2          // 62209c76
+	XVPCNTH		X3, X2          // 62249c76
+	XVPCNTW		X3, X2          // 62289c76
+	XVPCNTV		X3, X2          // 622c9c76

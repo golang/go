@@ -628,6 +628,16 @@ const (
 	AVMOVQ
 	AXVMOVQ
 
+	// LSX and LASX Bit-manipulation Instructions
+	AVPCNTB
+	AVPCNTH
+	AVPCNTW
+	AVPCNTV
+	AXVPCNTB
+	AXVPCNTH
+	AXVPCNTW
+	AXVPCNTV
+
 	// LSX and LASX integer comparison instruction
 	AVSEQB
 	AXVSEQB
