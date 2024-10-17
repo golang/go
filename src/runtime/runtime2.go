@@ -466,6 +466,7 @@ type g struct {
 	trackingStamp int64 // timestamp of when the G last started being tracked
 	runnableTime  int64 // the amount of time spent runnable, cleared when running, only used when tracking
 	lockedm       muintptr
+	fipsIndicator uint8
 	sig           uint32
 	writebuf      []byte
 	sigcode0      uintptr

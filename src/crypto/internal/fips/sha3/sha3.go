@@ -11,6 +11,7 @@
 package sha3
 
 import (
+	"crypto/internal/fips"
 	"crypto/internal/fips/subtle"
 	"errors"
 )
@@ -144,7 +145,11 @@ func (d *Digest) readGeneric(out []byte) (n int, err error) {
 
 // Sum appends the current hash to b and returns the resulting slice.
 // It does not change the underlying hash state.
-func (d *Digest) Sum(b []byte) []byte { return d.sum(b) }
+func (d *Digest) Sum(b []byte) []byte {
+	fips.RecordApproved()
+	return d.sum(b)
+}
+
 func (d *Digest) sumGeneric(b []byte) []byte {
 	if d.state != spongeAbsorbing {
 		panic("sha3: Sum after Read")

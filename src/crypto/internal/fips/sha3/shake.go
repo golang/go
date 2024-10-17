@@ -6,6 +6,7 @@ package sha3
 
 import (
 	"bytes"
+	"crypto/internal/fips"
 	"errors"
 	"internal/byteorder"
 	"math/bits"
@@ -71,6 +72,7 @@ func (s *SHAKE) Sum(in []byte) []byte { return s.d.Sum(in) }
 func (s *SHAKE) Write(p []byte) (n int, err error) { return s.d.Write(p) }
 
 func (s *SHAKE) Read(out []byte) (n int, err error) {
+	fips.RecordApproved()
 	// Note that read is not exposed on Digest since SHA-3 does not offer
 	// variable output length. It is only used internally by Sum.
 	return s.d.read(out)
