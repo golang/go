@@ -153,6 +153,14 @@ addloop:
 	MOVL	CX, ret_hi+16(FP)
 	RET
 
+// uint8 Xchg8(uint8 *ptr, uint8 new)
+TEXT ·Xchg8(SB), NOSPLIT, $0-9
+	MOVL	ptr+0(FP), BX
+	MOVB	new+4(FP), AX
+	XCHGB	AX, 0(BX)
+	MOVB	AX, ret+8(FP)
+	RET
+
 TEXT ·Xchg(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), BX
 	MOVL	new+4(FP), AX
