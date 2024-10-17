@@ -51,8 +51,7 @@
 #define SYS_write		64
 
 // func exit(code int32)
-TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	code+0(FP), A0
+TEXT runtime·exit<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_exit_group, A7
 	ECALL
 	RET
@@ -95,23 +94,15 @@ TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0-12
 	RET
 
 // func write1(fd uintptr, p unsafe.Pointer, n int32) int32
-TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
-	MOV	fd+0(FP), A0
-	MOV	p+8(FP), A1
-	MOVW	n+16(FP), A2
+TEXT runtime·write1<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_write, A7
 	ECALL
-	MOVW	A0, ret+24(FP)
 	RET
 
 // func read(fd int32, p unsafe.Pointer, n int32) int32
-TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
-	MOVW	fd+0(FP), A0
-	MOV	p+8(FP), A1
-	MOVW	n+16(FP), A2
+TEXT runtime·read<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_read, A7
 	ECALL
-	MOVW	A0, ret+24(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -140,10 +131,9 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	RET
 
 // func gettid() uint32
-TEXT runtime·gettid(SB),NOSPLIT,$0-4
+TEXT runtime·gettid<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_gettid, A7
 	ECALL
-	MOVW	A0, ret+0(FP)
 	RET
 
 // func raise(sig uint32)
@@ -167,67 +157,45 @@ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	RET
 
 // func getpid() int
-TEXT ·getpid(SB),NOSPLIT|NOFRAME,$0-8
+TEXT ·getpid<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_getpid, A7
 	ECALL
-	MOV	A0, ret+0(FP)
 	RET
 
 // func tgkill(tgid, tid, sig int)
-TEXT ·tgkill(SB),NOSPLIT|NOFRAME,$0-24
-	MOV	tgid+0(FP), A0
-	MOV	tid+8(FP), A1
-	MOV	sig+16(FP), A2
+TEXT ·tgkill<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_tgkill, A7
 	ECALL
 	RET
 
 // func setitimer(mode int32, new, old *itimerval)
-TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
-	MOVW	mode+0(FP), A0
-	MOV	new+8(FP), A1
-	MOV	old+16(FP), A2
+TEXT runtime·setitimer<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_setitimer, A7
 	ECALL
 	RET
 
 // func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
-TEXT runtime·timer_create(SB),NOSPLIT,$0-28
-	MOVW	clockid+0(FP), A0
-	MOV	sevp+8(FP), A1
-	MOV	timerid+16(FP), A2
+TEXT runtime·timer_create<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_timer_create, A7
 	ECALL
-	MOVW	A0, ret+24(FP)
 	RET
 
 // func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
-TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
-	MOVW	timerid+0(FP), A0
-	MOVW	flags+4(FP), A1
-	MOV	new+8(FP), A2
-	MOV	old+16(FP), A3
+TEXT runtime·timer_settime<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_timer_settime, A7
 	ECALL
-	MOVW	A0, ret+24(FP)
 	RET
 
 // func timer_delete(timerid int32) int32
-TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
-	MOVW	timerid+0(FP), A0
+TEXT runtime·timer_delete<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_timer_delete, A7
 	ECALL
-	MOVW	A0, ret+8(FP)
 	RET
 
 // func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
-TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
-	MOV	addr+0(FP), A0
-	MOV	n+8(FP), A1
-	MOV	dst+16(FP), A2
+TEXT runtime·mincore<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_mincore, A7
 	ECALL
-	MOVW	A0, ret+24(FP)
 	RET
 
 // func walltime() (sec int64, nsec int32)
@@ -393,14 +361,9 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	RET
 
 // func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
-TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
-	MOV	sig+0(FP), A0
-	MOV	new+8(FP), A1
-	MOV	old+16(FP), A2
-	MOV	size+24(FP), A3
+TEXT runtime·rt_sigaction<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_rt_sigaction, A7
 	ECALL
-	MOVW	A0, ret+32(FP)
 	RET
 
 // func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
@@ -466,26 +429,15 @@ TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
 	RET
 
 // func madvise(addr unsafe.Pointer, n uintptr, flags int32)
-TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
-	MOV	addr+0(FP), A0
-	MOV	n+8(FP), A1
-	MOVW	flags+16(FP), A2
+TEXT runtime·madvise<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_madvise, A7
 	ECALL
-	MOVW	A0, ret+24(FP)
 	RET
 
 // func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, val3 uint32) int32
-TEXT runtime·futex(SB),NOSPLIT|NOFRAME,$0
-	MOV	addr+0(FP), A0
-	MOVW	op+8(FP), A1
-	MOVW	val+12(FP), A2
-	MOV	ts+16(FP), A3
-	MOV	addr2+24(FP), A4
-	MOVW	val3+32(FP), A5
+TEXT runtime·futex<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_futex, A7
 	ECALL
-	MOVW	A0, ret+40(FP)
 	RET
 
 // func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
@@ -559,26 +511,21 @@ TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0
 	RET
 
 // func osyield()
-TEXT runtime·osyield(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·osyield<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_sched_yield, A7
 	ECALL
 	RET
 
 // func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
-TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
-	MOV	pid+0(FP), A0
-	MOV	len+8(FP), A1
-	MOV	buf+16(FP), A2
+TEXT runtime·sched_getaffinity<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_sched_getaffinity, A7
 	ECALL
-	MOV	A0, ret+24(FP)
 	RET
 
 // func sbrk0() uintptr
-TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
+TEXT runtime·sbrk0<ABIInternal>(SB),NOSPLIT,$0
 	// Implemented as brk(NULL).
-	MOV	$0, A0
+	MOV	ZERO, A0
 	MOV	$SYS_brk, A7
 	ECALL
-	MOVW	A0, ret+0(FP)
 	RET
