@@ -129,10 +129,10 @@ type ProgResponse struct {
 
 	// For Get requests.
 
-	Miss     bool       `json:",omitempty"` // cache miss
-	OutputID []byte     `json:",omitempty"`
-	Size     int64      `json:",omitempty"` // in bytes
-	Time     *time.Time `json:",omitempty"` // an Entry.Time; when the object was added to the docs
+	Miss     bool      `json:",omitempty"` // cache miss
+	OutputID []byte    `json:",omitempty"`
+	Size     int64     `json:",omitempty"` // in bytes
+	Time     time.Time `json:",omitzero"`  // an Entry.Time; when the object was added to the docs
 
 	// DiskPath is the absolute path on disk of the ObjectID corresponding
 	// a "get" request's ActionID (on cache hit) or a "put" request's
@@ -339,8 +339,8 @@ func (c *ProgCache) Get(a ActionID) (Entry, error) {
 	e := Entry{
 		Size: res.Size,
 	}
-	if res.Time != nil {
-		e.Time = *res.Time
+	if !res.Time.IsZero() {
+		e.Time = res.Time
 	} else {
 		e.Time = time.Now()
 	}
