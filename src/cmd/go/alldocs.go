@@ -1342,6 +1342,9 @@
 //
 // The -x flag causes graph to print the commands graph executes.
 //
+// The -selectedVersions flag cause graph to contains only packages with versions that were selected
+// by the minimal version selected algorithm.
+//
 // See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
 //
 // # Initialize new module in current directory
