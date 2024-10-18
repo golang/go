@@ -494,6 +494,25 @@ func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	return bigmod.NewNat().ExpShortVarTime(m, e, N).Bytes(N), nil
 }
 
+// EncryptNoPadding encrypts plaintext using no padding scheme.
+//
+// The given plaintext will be left-padded with zeros if it's smaller than
+// pub.Size(). This needs to be considered when using [DecryptNoPadding]
+// to retrieve the original message.
+//
+// WARNING: This should only be used to implement cryptographically sound
+// padding schemes in the application code. Encrypting user data directly
+// with this function is insecure.
+func EncryptNoPadding(pub *PublicKey, plaintext []byte) ([]byte, error) {
+	if err := checkPub(pub); err != nil {
+		return nil, err
+	}
+	if len(plaintext) > pub.Size() {
+		return nil, ErrMessageTooLong
+	}
+	return encrypt(pub, plaintext)
+}
+
 // EncryptOAEP encrypts the given message with RSA-OAEP.
 //
 // OAEP is parameterised by a hash function that is used as a random oracle.
@@ -692,6 +711,20 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 	}
 
 	return m.Bytes(N), nil
+}
+
+// DecryptNoPadding decrypts ciphertext using no padding scheme.
+//
+// The returned plaintext (assuming no errors) will be left-padded with
+// zeros to match priv.Size() bytes. See [EncryptNoPadding] for details.
+func DecryptNoPadding(priv *PrivateKey, ciphertext []byte) ([]byte, error) {
+	if err := checkPub(&priv.PublicKey); err != nil {
+		return nil, err
+	}
+	if len(ciphertext) > priv.Size() {
+		return nil, ErrDecryption
+	}
+	return decrypt(priv, ciphertext, noCheck)
 }
 
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
