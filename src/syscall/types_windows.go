@@ -83,7 +83,23 @@ var signals = [...]string{
 	13: "broken pipe",
 	14: "alarm clock",
 	15: "terminated",
+	/* compatible with windows */
+	16: "SIGUSR1",
+	17: "SIGUSR2",
+	18: "SIGTSTP",
+	/* compatible with windows */
 }
+
+/* compatible with windows */
+func Kill(...interface{}) error {
+	return nil;
+}
+const (
+	SIGUSR1 = Signal(16)
+	SIGUSR2 = Signal(17)
+	SIGTSTP = Signal(18)
+)
+/* compatible with windows */
 
 const (
 	GENERIC_READ    = 0x80000000
