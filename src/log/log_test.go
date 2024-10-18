@@ -7,10 +7,14 @@ package log
 // These tests are too simple.
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"os"
+	"os/exec"
 	"regexp"
 	"runtime"
 	"strings"
@@ -23,7 +27,7 @@ const (
 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
-	Rline         = `(63|65):` // must update if the calls to l.Printf / l.Print below move
+	Rline         = `(68|70):` // must update if the calls to l.Printf / l.Print below move
 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
 )
@@ -209,6 +213,89 @@ func TestDiscard(t *testing.T) {
 	// but none for formatting of long string.
 	if c > 1 {
 		t.Errorf("got %v allocs, want at most 1", c)
+	}
+}
+
+func TestCallDepth(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
+	testenv.MustHaveExec(t)
+	ep, err := os.Executable()
+	if err != nil {
+		t.Fatalf("Executable failed: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		log  func()
+	}{
+		{"Fatal", func() { Fatal("Fatal") }},
+		{"Fatalf", func() { Fatalf("Fatalf") }},
+		{"Fatalln", func() { Fatalln("Fatalln") }},
+		{"Output", func() { Output(1, "Output") }},
+		{"Panic", func() { Panic("Panic") }},
+		{"Panicf", func() { Panicf("Panicf") }},
+		{"Panicln", func() { Panicf("Panicln") }},
+		{"Default.Fatal", func() { Default().Fatal("Default.Fatal") }},
+		{"Default.Fatalf", func() { Default().Fatalf("Default.Fatalf") }},
+		{"Default.Fatalln", func() { Default().Fatalln("Default.Fatalln") }},
+		{"Default.Output", func() { Default().Output(1, "Default.Output") }},
+		{"Default.Panic", func() { Default().Panic("Default.Panic") }},
+		{"Default.Panicf", func() { Default().Panicf("Default.Panicf") }},
+		{"Default.Panicln", func() { Default().Panicf("Default.Panicln") }},
+	}
+
+	// calculate the line offset until the first test case
+	_, _, line, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("runtime.Caller failed")
+	}
+	line -= len(tests) + 3
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// some of these calls uses os.Exit() so spawn a command and capture output
+			const envVar = "LOGTEST_CALL_DEPTH"
+			if os.Getenv(envVar) == "1" {
+				SetFlags(Lshortfile)
+				tt.log()
+				os.Exit(1)
+			}
+
+			// spawn test executable
+			cmd := testenv.Command(t, ep,
+				"-test.run=^"+regexp.QuoteMeta(t.Name())+"$",
+				"-test.count=1",
+			)
+			cmd.Env = append(cmd.Environ(), envVar+"=1")
+
+			out, err := cmd.CombinedOutput()
+			var exitErr *exec.ExitError
+			if !errors.As(err, &exitErr) {
+				t.Fatalf("expected exec.ExitError: %v", err)
+			}
+
+			_, firstLine, err := bufio.ScanLines(out, true)
+			if err != nil {
+				t.Fatalf("failed to split line: %v", err)
+			}
+			got := string(firstLine)
+
+			want := fmt.Sprintf(
+				"log_test.go:%d: %s",
+				line+i, tt.name,
+			)
+			if got != want {
+				t.Errorf(
+					"output from %s() mismatch:\n\t got: %s\n\twant: %s",
+					tt.name, got, want,
+				)
+			}
+		})
 	}
 }
 
