@@ -1053,6 +1053,30 @@ func init() {
 	cycleMap2["cycle"] = cycleMap2
 	cycleMap3 = map[string]any{}
 	cycleMap3["different"] = cycleMap3
+
+	p1.b = append(p1.b, p2, p1, p1)
+	p2.b = append(p2.b, p1, p2, p1)
+}
+
+type slicePtr struct {
+	b []*slicePtr
+}
+
+var (
+	p1 = new(slicePtr)
+	p2 = new(slicePtr)
+)
+
+type structFloat64 struct {
+	D float64
+}
+
+type structFloat32 struct {
+	D float32
+}
+
+type structChanInt32 struct {
+	D chan int32
 }
 
 var deepEqualTests = []DeepEqualTest{
@@ -1072,6 +1096,10 @@ var deepEqualTests = []DeepEqualTest{
 	{[]byte{1, 2, 3}, []byte{1, 2, 3}, true},
 	{[]MyByte{1, 2, 3}, []MyByte{1, 2, 3}, true},
 	{MyBytes{1, 2, 3}, MyBytes{1, 2, 3}, true},
+	{[]int32{1, 2, 3}, []int32{1, 2, 3}, true},
+	{p1, p2, true},
+	{[]*int{ptr(1), ptr(2)}, []*int{ptr(1), ptr(2)}, true},
+	{[]int32{1, 2, 3, 4}[:3], []int32{1, 2, 3, 5}[:3], true},
 
 	// Inequalities
 	{1, 2, false},
@@ -1093,6 +1121,9 @@ var deepEqualTests = []DeepEqualTest{
 	{fn3, fn3, false},
 	{[][]int{{1}}, [][]int{{2}}, false},
 	{&structWithSelfPtr{p: &structWithSelfPtr{s: "a"}}, &structWithSelfPtr{p: &structWithSelfPtr{s: "b"}}, false},
+	{[]int32{1, 2, 3}, []int32{2, 1, 3}, false},
+	{[]*int{ptr(1), ptr(2)}, []*int{ptr(2), ptr(1)}, false},
+	{[]int32{1, 2, 3, 4}, []int32{1, 2, 3, 5}, false},
 
 	// Fun with floating point.
 	{math.NaN(), math.NaN(), false},
@@ -1130,6 +1161,60 @@ var deepEqualTests = []DeepEqualTest{
 	{&loopy1, &loopy2, true},
 	{&cycleMap1, &cycleMap2, true},
 	{&cycleMap1, &cycleMap3, false},
+
+	// struct slice and StructOf slice
+	{[]structFloat64{structFloat64{D: negativeZero[float64]()}}, []structFloat64{structFloat64{D: 0}}, true},
+	{
+		[]any{newStructOf(VisibleFields(TypeFor[structFloat64]()), setStructOfField("D", negativeZero[float64]()))},
+		[]any{newStructOf(VisibleFields(TypeFor[structFloat64]()), setStructOfField("D", float64(0)))},
+		true,
+	},
+
+	{[]structFloat32{structFloat32{D: negativeZero[float32]()}}, []structFloat32{structFloat32{D: 0}}, true},
+	{
+		[]any{newStructOf(VisibleFields(TypeFor[structFloat32]()), setStructOfField("D", negativeZero[float32]()))},
+		[]any{newStructOf(VisibleFields(TypeFor[structFloat32]()), setStructOfField("D", float32(0)))},
+		true,
+	},
+
+	{[]structChanInt32{structChanInt32{D: make(chan int32)}}, []structChanInt32{structChanInt32{D: make(chan int32)}}, false},
+	{
+		[]any{newStructOf(VisibleFields(TypeFor[structChanInt32]()), setStructOfField("D", make(chan int32)))},
+		[]any{newStructOf(VisibleFields(TypeFor[structChanInt32]()), setStructOfField("D", make(chan int32)))},
+		false,
+	},
+}
+
+func ptr[T any](a T) *T {
+	return &a
+}
+
+type fieldSet func(Value)
+
+// newStructOf call StructOf get typ
+// use typ new any value
+// use set change new any value
+func newStructOf(field []StructField, set ...fieldSet) (ret any) {
+	typ := StructOf(field)
+	rret := New(typ).Elem()
+	for _, f := range set {
+		f(rret)
+	}
+	return rret.Interface()
+}
+
+// setStructOfField set a field of the struct represented by reflect.Value
+func setStructOfField(fieldName string, fieldValue any) func(Value) {
+	return func(v Value) {
+		field := v.FieldByName(fieldName)
+		field.Set(ValueOf(fieldValue))
+	}
+}
+
+func negativeZero[T float32 | float64]() T {
+	var f T
+	f = -f
+	return f
 }
 
 func TestDeepEqual(t *testing.T) {
@@ -1271,6 +1356,8 @@ var deepEqualPerfTests = []struct {
 
 	{x: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}, y: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}},
 	{x: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}, y: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}},
+
+	{x: make([]int16, 10240), y: make([]int16, 10240)},
 }
 
 func TestDeepEqualAllocs(t *testing.T) {
