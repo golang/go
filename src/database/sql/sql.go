@@ -435,7 +435,7 @@ func (n Null[T]) Value() (driver.Value, error) {
 	if valuer, ok := v.(driver.Valuer); ok {
 		val, err := valuer.Value()
 		if err != nil {
-			return nil, err
+			return val, err
 		}
 		v = val
 	}
