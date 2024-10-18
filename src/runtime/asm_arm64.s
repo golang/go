@@ -532,7 +532,7 @@ CALLFN(·call1073741824, 1073741824)
 // func memhash32(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R10
-	CBZ	R10, noaes
+	CBZ	R10, runtime·memhash32Fallback<ABIInternal>(SB)
 	MOVD	$runtime·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
@@ -548,13 +548,11 @@ TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 
 	VMOV	V0.D[0], R0
 	RET
-noaes:
-	B	runtime·memhash32Fallback<ABIInternal>(SB)
 
 // func memhash64(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R10
-	CBZ	R10, noaes
+	CBZ	R10, runtime·memhash64Fallback<ABIInternal>(SB)
 	MOVD	$runtime·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
@@ -570,25 +568,19 @@ TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 
 	VMOV	V0.D[0], R0
 	RET
-noaes:
-	B	runtime·memhash64Fallback<ABIInternal>(SB)
 
 // func memhash(p unsafe.Pointer, h, size uintptr) uintptr
 TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
 	MOVB	runtime·useAeshash(SB), R10
-	CBZ	R10, noaes
+	CBZ	R10, runtime·memhashFallback<ABIInternal>(SB)
 	B	aeshashbody<>(SB)
-noaes:
-	B	runtime·memhashFallback<ABIInternal>(SB)
 
 // func strhash(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R10
-	CBZ	R10, noaes
+	CBZ	R10, runtime·strhashFallback<ABIInternal>(SB)
 	LDP	(R0), (R0, R2)	// string data / length
 	B	aeshashbody<>(SB)
-noaes:
-	B	runtime·strhashFallback<ABIInternal>(SB)
 
 // R0: data
 // R1: seed data
