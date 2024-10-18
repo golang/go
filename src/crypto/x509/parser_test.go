@@ -85,6 +85,12 @@ func TestParseASN1String(t *testing.T) {
 			value:       []byte{80},
 			expectedErr: "invalid NumericString",
 		},
+		{
+			name:     "T61String (non-ascii)",
+			tag:      cryptobyte_asn1.T61String,
+			value:    []byte{0xff, 0x99, 'a'},
+			expected: string("\u00FF\u0099a"),
+		},
 	}
 
 	for _, tc := range tests {
