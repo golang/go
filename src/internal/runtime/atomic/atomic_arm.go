@@ -75,6 +75,25 @@ func Xchg(addr *uint32, v uint32) uint32 {
 }
 
 //go:nosplit
+func Xchg8(addr *uint8, v uint8) uint8 {
+	// Align down to 4 bytes and use 32-bit CAS.
+	uaddr := uintptr(unsafe.Pointer(addr))
+	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
+	shift := (uaddr & 3) * 8 // little endian
+	word := uint32(v) << shift
+	mask := uint32(0xFF) << shift
+
+	for {
+		old := *addr32 // Read the old 32-bit value
+		// Clear the old 8 bits then insert the new value
+		if Cas(addr32, old, (old&^mask)|word) {
+			// Return the old 8-bit value
+			return uint8((old & mask) >> shift)
+		}
+	}
+}
+
+//go:nosplit
 func Xchguintptr(addr *uintptr, v uintptr) uintptr {
 	return uintptr(Xchg((*uint32)(unsafe.Pointer(addr)), uint32(v)))
 }
