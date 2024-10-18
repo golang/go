@@ -4957,3 +4957,50 @@ func BenchmarkConnRequestSet(b *testing.B) {
 		}
 	}
 }
+
+func TestIssue69837(t *testing.T) {
+	u := Null[uint]{V: 1, Valid: true}
+	val, err := driver.DefaultParameterConverter.ConvertValue(u)
+	if err != nil {
+		t.Errorf("ConvertValue() error = %v, want nil", err)
+	}
+
+	if v, ok := val.(int64); !ok {
+		t.Errorf("val.(type): got %T, expected int64", val)
+	} else if v != 1 {
+		t.Errorf("val: got %d, expected 1", v)
+	}
+}
+
+type issue69728Type struct {
+	ID   int
+	Name string
+}
+
+func (t issue69728Type) Value() (driver.Value, error) {
+	return []byte(fmt.Sprintf("%d, %s", t.ID, t.Name)), nil
+}
+
+func TestIssue69728(t *testing.T) {
+	forValue := Null[issue69728Type]{
+		Valid: true,
+		V: issue69728Type{
+			ID:   42,
+			Name: "foobar",
+		},
+	}
+
+	v1, err := forValue.Value()
+	if err != nil {
+		t.Errorf("forValue.Value() error = %v, want nil", err)
+	}
+
+	v2, err := forValue.V.Value()
+	if err != nil {
+		t.Errorf("forValue.V.Value() error = %v, want nil", err)
+	}
+
+	if !reflect.DeepEqual(v1, v2) {
+		t.Errorf("not equal; v1 = %v, v2 = %v", v1, v2)
+	}
+}
