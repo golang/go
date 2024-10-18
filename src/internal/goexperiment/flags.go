@@ -124,4 +124,7 @@ type Flags struct {
 
 	// Synctest enables the testing/synctest package.
 	Synctest bool
+
+	// Dwarf5 enables DWARF version 5 debug info generation.
+	Dwarf5 bool
 }
