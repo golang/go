@@ -537,7 +537,7 @@ func (v RowsAffected) RowsAffected() (int64, error) {
 
 // ResultNoRows is a pre-defined [Result] for drivers to return when a DDL
 // command (such as a CREATE TABLE) succeeds. It returns an error for both
-// LastInsertId and [RowsAffected].
+// LastInsertId and RowsAffected.
 var ResultNoRows noRows
 
 type noRows struct{}
