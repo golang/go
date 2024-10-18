@@ -328,7 +328,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p, pPreempt, pCheck = c.stacksplitPre(p, autosize) // emit pre part of split check
 				pPre = p
 				p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
-				wasSplit = true //need post part of split
+				wasSplit = true // need post part of split
 			}
 
 			if autosize != 0 {

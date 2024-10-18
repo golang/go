@@ -533,7 +533,7 @@ func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, 
 		t.rangeDepth--
 	}
 	switch next.Type() {
-	case nodeEnd: //done
+	case nodeEnd: // done
 	case nodeElse:
 		// Special case for "else if" and "else with".
 		// If the "else" is followed immediately by an "if" or "with",

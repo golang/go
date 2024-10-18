@@ -1371,7 +1371,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 		out.Write32(uint32(uint64(datsect.virtualAddress) + ftbase + d.thunkoff))
 	}
 
-	out.Write32(0) //end
+	out.Write32(0) // end
 	out.Write32(0)
 	out.Write32(0)
 	out.Write32(0)
