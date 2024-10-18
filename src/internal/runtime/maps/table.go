@@ -54,6 +54,9 @@ type table struct {
 	// Index of this table in the Map directory. This is the index of the
 	// _first_ location in the directory. The table may occur in multiple
 	// sequential indicies.
+	//
+	// index is -1 if the table is stale (no longer installed in the
+	// directory).
 	index int
 
 	// groups is an array of slot groups. Each group holds abi.SwissMapGroupSlots
@@ -710,15 +713,10 @@ func (it *Iter) Next() {
 
 	// Continue iteration until we find a full slot.
 	for it.dirIdx < it.m.dirLen {
-		// TODO(prattmic): We currently look up the latest table on
-		// every call, even if it.tab is set because the inner loop
-		// checks if it.tab has grown by checking it.tab != newTab.
-		//
-		// We could avoid most of these lookups if we left a flag
-		// behind on the old table to denote that it is stale.
-		dirIdx := int((uint64(it.dirIdx) + it.dirOffset) & uint64(it.m.dirLen-1))
-		newTab := it.m.directoryAt(uintptr(dirIdx))
+		// Find next table.
 		if it.tab == nil {
+			dirIdx := int((uint64(it.dirIdx) + it.dirOffset) & uint64(it.m.dirLen-1))
+			newTab := it.m.directoryAt(uintptr(dirIdx))
 			if newTab.index != dirIdx {
 				// Normally we skip past all duplicates of the
 				// same entry in the table (see updates to
@@ -781,7 +779,7 @@ func (it *Iter) Next() {
 			// We still use our old table to decide which
 			// keys to lookup in order to avoid returning
 			// the same key twice.
-			grown := it.tab != newTab
+			grown := it.tab.index == -1
 			var elem unsafe.Pointer
 			if grown {
 				var ok bool
@@ -956,6 +954,7 @@ func (t *table) split(typ *abi.SwissMapType, m *Map) {
 	}
 
 	m.installTableSplit(t, left, right)
+	t.index = -1
 }
 
 // grow the capacity of the table by allocating a new table with a bigger array
@@ -999,6 +998,7 @@ func (t *table) grow(typ *abi.SwissMapType, m *Map, newCapacity uint16) {
 
 	newTable.checkInvariants(typ, m)
 	m.replaceTable(newTable)
+	t.index = -1
 }
 
 // probeSeq maintains the state for a probe sequence that iterates through the
