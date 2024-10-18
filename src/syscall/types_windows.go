@@ -486,8 +486,8 @@ type StartupInfo struct {
 	FillAttribute uint32
 	Flags         uint32
 	ShowWindow    uint16
-	_             uint16
-	_             *byte
+	CbReserved2   uint16
+	Reserved2     *byte
 	StdInput      Handle
 	StdOutput     Handle
 	StdErr        Handle
