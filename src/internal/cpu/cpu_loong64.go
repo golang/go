@@ -26,6 +26,7 @@ func get_cpucfg(reg uint32) uint32
 
 func doinit() {
 	options = []option{
+		{Name: "lsx", Feature: &Loong64.HasLSX},
 		{Name: "crc32", Feature: &Loong64.HasCRC32},
 		{Name: "lamcas", Feature: &Loong64.HasLAMCAS},
 		{Name: "lam_bh", Feature: &Loong64.HasLAM_BH},
@@ -41,13 +42,13 @@ func doinit() {
 	cfg1 := get_cpucfg(1)
 	cfg2 := get_cpucfg(2)
 
-	Loong64.HasCRC32 = isSet(cfg1, cpucfg1_CRC32)
-	Loong64.HasLAMCAS = isSet(cfg2, cpucfg2_LAM_BH)
-	Loong64.HasLAM_BH = isSet(cfg2, cpucfg2_LAMCAS)
+	Loong64.HasCRC32 = cfgIsSet(cfg1, cpucfg1_CRC32)
+	Loong64.HasLAMCAS = cfgIsSet(cfg2, cpucfg2_LAM_BH)
+	Loong64.HasLAM_BH = cfgIsSet(cfg2, cpucfg2_LAMCAS)
 
 	osInit()
 }
 
-func isSet(cfg uint32, val uint32) bool {
+func cfgIsSet(cfg uint32, val uint32) bool {
 	return cfg&val != 0
 }

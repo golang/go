@@ -10,7 +10,17 @@ package cpu
 // initialized.
 var HWCap uint
 
+// HWCAP bits. These are exposed by the Linux kernel.
+const (
+	hwcap_LOONGARCH_LSX = 1 << 4
+)
+
 func hwcapInit() {
 	// TODO: Features that require kernel support like LSX and LASX can
 	// be detected here once needed in std library or by the compiler.
+	Loong64.HasLSX = hwcIsSet(HWCap, hwcap_LOONGARCH_LSX)
+}
+
+func hwcIsSet(hwc uint, val uint) bool {
+	return hwc&val != 0
 }

@@ -493,6 +493,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 		}
 		fallthrough
+
 	case ssa.OpLOONG64MOVWF,
 		ssa.OpLOONG64MOVWD,
 		ssa.OpLOONG64TRUNCFW,
@@ -525,6 +526,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
+	case ssa.OpLOONG64VPCNT64,
+		ssa.OpLOONG64VPCNT32,
+		ssa.OpLOONG64VPCNT16:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = ((v.Args[0].Reg() - loong64.REG_F0) & 31) + loong64.REG_V0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ((v.Reg() - loong64.REG_F0) & 31) + loong64.REG_V0
+
 	case ssa.OpLOONG64NEGV:
 		// SUB from REGZERO
 		p := s.Prog(loong64.ASUBVU)
@@ -533,6 +544,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = loong64.REGZERO
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
 	case ssa.OpLOONG64DUFFZERO:
 		// runtime.duffzero expects start address in R20
 		p := s.Prog(obj.ADUFFZERO)

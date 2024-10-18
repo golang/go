@@ -628,6 +628,12 @@ func rewriteValueLOONG64(v *Value) bool {
 		return true
 	case OpPanicBounds:
 		return rewriteValueLOONG64_OpPanicBounds(v)
+	case OpPopCount16:
+		return rewriteValueLOONG64_OpPopCount16(v)
+	case OpPopCount32:
+		return rewriteValueLOONG64_OpPopCount32(v)
+	case OpPopCount64:
+		return rewriteValueLOONG64_OpPopCount64(v)
 	case OpPubBarrier:
 		v.Op = OpLOONG64LoweredPubBarrier
 		return true
@@ -8238,6 +8244,65 @@ func rewriteValueLOONG64_OpPanicBounds(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueLOONG64_OpPopCount16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (PopCount16 <t> x)
+	// result: (MOVWfpgp <t> (VPCNT16 <typ.Float32> (MOVWgpfp <typ.Float32> (ZeroExt16to32 x))))
+	for {
+		t := v.Type
+		x := v_0
+		v.reset(OpLOONG64MOVWfpgp)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpLOONG64VPCNT16, typ.Float32)
+		v1 := b.NewValue0(v.Pos, OpLOONG64MOVWgpfp, typ.Float32)
+		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
+		v2.AddArg(x)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpPopCount32(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (PopCount32 <t> x)
+	// result: (MOVWfpgp <t> (VPCNT32 <typ.Float32> (MOVWgpfp <typ.Float32> x)))
+	for {
+		t := v.Type
+		x := v_0
+		v.reset(OpLOONG64MOVWfpgp)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpLOONG64VPCNT32, typ.Float32)
+		v1 := b.NewValue0(v.Pos, OpLOONG64MOVWgpfp, typ.Float32)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpPopCount64(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (PopCount64 <t> x)
+	// result: (MOVVfpgp <t> (VPCNT64 <typ.Float64> (MOVVgpfp <typ.Float64> x)))
+	for {
+		t := v.Type
+		x := v_0
+		v.reset(OpLOONG64MOVVfpgp)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpLOONG64VPCNT64, typ.Float64)
+		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVgpfp, typ.Float64)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
 }
 func rewriteValueLOONG64_OpRotateLeft16(v *Value) bool {
 	v_1 := v.Args[1]

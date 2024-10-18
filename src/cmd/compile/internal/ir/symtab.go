@@ -61,6 +61,7 @@ type symsStruct struct {
 	ARM64HasATOMICS  *obj.LSym
 	ARMHasVFPv4      *obj.LSym
 	Loong64HasLAM_BH *obj.LSym
+	Loong64HasLSX    *obj.LSym
 	X86HasFMA        *obj.LSym
 	X86HasPOPCNT     *obj.LSym
 	X86HasSSE41      *obj.LSym
