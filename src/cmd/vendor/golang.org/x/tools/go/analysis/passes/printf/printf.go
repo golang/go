@@ -24,7 +24,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -161,7 +160,7 @@ func maybePrintfWrapper(info *types.Info, decl ast.Decl) *printfWrapper {
 
 	// Check final parameter is "args ...interface{}".
 	args := params.At(nparams - 1)
-	iface, ok := aliases.Unalias(args.Type().(*types.Slice).Elem()).(*types.Interface)
+	iface, ok := types.Unalias(args.Type().(*types.Slice).Elem()).(*types.Interface)
 	if !ok || !iface.Empty() {
 		return nil
 	}
@@ -515,7 +514,7 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 		// non-constant format string and no arguments:
 		// if msg contains "%", misformatting occurs.
 		// Report the problem and suggest a fix: fmt.Printf("%s", msg).
-		if idx == len(call.Args)-1 {
+		if !suppressNonconstants && idx == len(call.Args)-1 {
 			pass.Report(analysis.Diagnostic{
 				Pos: formatArg.Pos(),
 				End: formatArg.End(),
@@ -1013,7 +1012,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 
 		typ := params.At(firstArg).Type()
 		typ = typ.(*types.Slice).Elem()
-		it, ok := aliases.Unalias(typ).(*types.Interface)
+		it, ok := types.Unalias(typ).(*types.Interface)
 		if !ok || !it.Empty() {
 			// Skip variadic functions accepting non-interface{} args.
 			return
@@ -1101,3 +1100,12 @@ func (ss stringSet) Set(flag string) error {
 	}
 	return nil
 }
+
+// suppressNonconstants suppresses reporting printf calls with
+// non-constant formatting strings (proposal #60529) when true.
+//
+// This variable is to allow for staging the transition to newer
+// versions of x/tools by vendoring.
+//
+// Remove this after the 1.24 release.
+var suppressNonconstants bool

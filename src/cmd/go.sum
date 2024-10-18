@@ -10,10 +10,10 @@ golang.org/x/arch v0.11.1-0.20241106162200-f977c2e4e3f4 h1:B9d6SEXeIaY1QC4c7Gsf8
 golang.org/x/arch v0.11.1-0.20241106162200-f977c2e4e3f4/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
 golang.org/x/build v0.0.0-20240722200705-b9910f320300 h1:2Cqg4LnvfD2ZpG8+6KbyYUkweWhNS3SgfcN/eeVseJ0=
 golang.org/x/build v0.0.0-20240722200705-b9910f320300/go.mod h1:YsGhg4JUVUWLzdqU2wCrtpRrOveOql6w56FLDHq/CJ4=
-golang.org/x/mod v0.20.0 h1:utOm6MM3R3dnawAiJgn0y+xvuYRsm1RKM/4giyfDgV0=
-golang.org/x/mod v0.20.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
-golang.org/x/sync v0.8.0 h1:3NFvSEYkUoMifnESzZl15y791HH1qU2xm6eCJU5ZPXQ=
-golang.org/x/sync v0.8.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+golang.org/x/mod v0.22.0 h1:D4nJWe9zXqHOmWqj4VMOJhvzj7bEZg4wEYa759z1pH4=
+golang.org/x/mod v0.22.0/go.mod h1:6SkKJ3Xj0I0BrPOZoBy3bdMptDDU9oJrpohJ3eWZ1fY=
+golang.org/x/sync v0.9.0 h1:fEo0HyrW1GIgZdpbhCRO0PkJajUS5H9IFUztCgEo2jQ=
+golang.org/x/sync v0.9.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
 golang.org/x/sys v0.27.0 h1:wBqf8DvsY9Y/2P8gAfPDEYNuS30J4lPHJxXSb/nJZ+s=
 golang.org/x/sys v0.27.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
 golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97 h1:5xPN7d0u5VdgF2gFFXUDaeD3NP1pPgFMHocnCQGAh5M=
@@ -22,7 +22,7 @@ golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292 h1:BOrQi08eIX3cDgGcMgFON
 golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292/go.mod h1:F3qCibpT5AMpCRfhfT53vVJwhLtIVHhB9XDjfFvnMI4=
 golang.org/x/text v0.19.0 h1:kTxAhCbGbxhK0IwgSKiMO5awPoDQ0RpfiVYBfK860YM=
 golang.org/x/text v0.19.0/go.mod h1:BuEKDfySbSR4drPmRPG/7iBdf8hvFMuRexcpahXilzY=
-golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c h1:JImdv91aqIPqamNg5sOTUjNQD++5KkvchZi2BcYlNoE=
-golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c/go.mod h1:IV2Kidsnn7A8K7hHxn/wcUfHXkViw0LLHdu8LnpT8LU=
+golang.org/x/tools v0.27.0 h1:qEKojBykQkQ4EynWy4S8Weg69NumxKdn40Fce3uc/8o=
+golang.org/x/tools v0.27.0/go.mod h1:sUi0ZgbwW9ZPAq26Ekut+weQPR5eIM6GQLQ1Yjm1H0Q=
 rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef h1:mqLYrXCXYEZOop9/Dbo6RPX11539nwiCNBb1icVPmw8=
 rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=

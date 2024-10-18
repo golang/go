@@ -16,8 +16,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-
-	"golang.org/x/tools/internal/aliases"
 )
 
 // UnpackIndexExpr extracts data from AST nodes that represent index
@@ -65,7 +63,7 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack toke
 
 // IsTypeParam reports whether t is a type parameter (or an alias of one).
 func IsTypeParam(t types.Type) bool {
-	_, ok := aliases.Unalias(t).(*types.TypeParam)
+	_, ok := types.Unalias(t).(*types.TypeParam)
 	return ok
 }
 
@@ -93,8 +91,8 @@ func IsTypeParam(t types.Type) bool {
 // In this case, GenericAssignableTo reports that instantiations of Container
 // are assignable to the corresponding instantiation of Interface.
 func GenericAssignableTo(ctxt *types.Context, V, T types.Type) bool {
-	V = aliases.Unalias(V)
-	T = aliases.Unalias(T)
+	V = types.Unalias(V)
+	T = types.Unalias(T)
 
 	// If V and T are not both named, or do not have matching non-empty type
 	// parameter lists, fall back on types.AssignableTo.

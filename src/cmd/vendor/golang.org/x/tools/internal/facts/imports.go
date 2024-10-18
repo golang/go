@@ -6,8 +6,6 @@ package facts
 
 import (
 	"go/types"
-
-	"golang.org/x/tools/internal/aliases"
 )
 
 // importMap computes the import map for a package by traversing the
@@ -47,8 +45,8 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 
 	addType = func(T types.Type) {
 		switch T := T.(type) {
-		case *aliases.Alias:
-			addType(aliases.Unalias(T))
+		case *types.Alias:
+			addType(types.Unalias(T))
 		case *types.Basic:
 			// nop
 		case *types.Named:

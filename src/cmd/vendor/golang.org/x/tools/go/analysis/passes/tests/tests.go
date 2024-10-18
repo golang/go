@@ -48,7 +48,7 @@ var acceptedFuzzTypes = []types.Type{
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	for _, f := range pass.Files {
-		if !strings.HasSuffix(pass.Fset.File(f.Pos()).Name(), "_test.go") {
+		if !strings.HasSuffix(pass.Fset.File(f.FileStart).Name(), "_test.go") {
 			continue
 		}
 		for _, decl := range f.Decls {

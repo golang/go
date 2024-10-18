@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/scanner"
 	"go/token"
 	"go/types"
 	"os"
@@ -17,24 +18,57 @@ import (
 	"strconv"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/aliases"
 )
 
 func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
 	// Get the end position for the type error.
-	offset, end := fset.PositionFor(start, false).Offset, start
-	if offset >= len(src) {
-		return end
+	file := fset.File(start)
+	if file == nil {
+		return start
 	}
-	if width := bytes.IndexAny(src[offset:], " \n,():;[]+-*"); width > 0 {
-		end = start + token.Pos(width)
+	if offset := file.PositionFor(start, false).Offset; offset > len(src) {
+		return start
+	} else {
+		src = src[offset:]
+	}
+
+	// Attempt to find a reasonable end position for the type error.
+	//
+	// TODO(rfindley): the heuristic implemented here is unclear. It looks like
+	// it seeks the end of the primary operand starting at start, but that is not
+	// quite implemented (for example, given a func literal this heuristic will
+	// return the range of the func keyword).
+	//
+	// We should formalize this heuristic, or deprecate it by finally proposing
+	// to add end position to all type checker errors.
+	//
+	// Nevertheless, ensure that the end position at least spans the current
+	// token at the cursor (this was golang/go#69505).
+	end := start
+	{
+		var s scanner.Scanner
+		fset := token.NewFileSet()
+		f := fset.AddFile("", fset.Base(), len(src))
+		s.Init(f, src, nil /* no error handler */, scanner.ScanComments)
+		pos, tok, lit := s.Scan()
+		if tok != token.SEMICOLON && token.Pos(f.Base()) <= pos && pos <= token.Pos(f.Base()+f.Size()) {
+			off := file.Offset(pos) + len(lit)
+			src = src[off:]
+			end += token.Pos(off)
+		}
+	}
+
+	// Look for bytes that might terminate the current operand. See note above:
+	// this is imprecise.
+	if width := bytes.IndexAny(src, " \n,():;[]+-*/"); width > 0 {
+		end += token.Pos(width)
 	}
 	return end
 }
 
 func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 	// TODO(adonovan): think about generics, and also generic aliases.
-	under := aliases.Unalias(typ)
+	under := types.Unalias(typ)
 	// Don't call Underlying unconditionally: although it removes
 	// Named and Alias, it also removes TypeParam.
 	if n, ok := under.(*types.Named); ok {
@@ -416,8 +450,7 @@ func CheckReadable(pass *analysis.Pass, filename string) error {
 		return nil
 	}
 	for _, f := range pass.Files {
-		// TODO(adonovan): use go1.20 f.FileStart
-		if pass.Fset.File(f.Pos()).Name() == filename {
+		if pass.Fset.File(f.FileStart).Name() == filename {
 			return nil
 		}
 	}

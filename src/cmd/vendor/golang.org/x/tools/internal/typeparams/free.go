@@ -37,8 +37,20 @@ func (w *Free) Has(typ types.Type) (res bool) {
 	case nil, *types.Basic: // TODO(gri) should nil be handled here?
 		break
 
-	case *aliases.Alias:
-		return w.Has(aliases.Unalias(t))
+	case *types.Alias:
+		if aliases.TypeParams(t).Len() > aliases.TypeArgs(t).Len() {
+			return true // This is an uninstantiated Alias.
+		}
+		// The expansion of an alias can have free type parameters,
+		// whether or not the alias itself has type parameters:
+		//
+		//   func _[K comparable]() {
+		//     type Set      = map[K]bool // free(Set)      = {K}
+		//     type MapTo[V] = map[K]V    // free(Map[foo]) = {V}
+		//   }
+		//
+		// So, we must Unalias.
+		return w.Has(types.Unalias(t))
 
 	case *types.Array:
 		return w.Has(t.Elem())
@@ -98,9 +110,8 @@ func (w *Free) Has(typ types.Type) (res bool) {
 
 	case *types.Named:
 		args := t.TypeArgs()
-		// TODO(taking): this does not match go/types/infer.go. Check with rfindley.
 		if params := t.TypeParams(); params.Len() > args.Len() {
-			return true
+			return true // this is an uninstantiated named type.
 		}
 		for i, n := 0, args.Len(); i < n; i++ {
 			if w.Has(args.At(i)) {

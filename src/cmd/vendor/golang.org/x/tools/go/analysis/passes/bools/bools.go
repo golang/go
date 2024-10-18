@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
-	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
@@ -169,7 +168,7 @@ func (op boolOp) checkSuspect(pass *analysis.Pass, exprs []ast.Expr) {
 // seen[e] is already true; any newly processed exprs are added to seen.
 func (op boolOp) split(e ast.Expr, seen map[*ast.BinaryExpr]bool) (exprs []ast.Expr) {
 	for {
-		e = astutil.Unparen(e)
+		e = ast.Unparen(e)
 		if b, ok := e.(*ast.BinaryExpr); ok && b.Op == op.tok {
 			seen[b] = true
 			exprs = append(exprs, op.split(b.Y, seen)...)

@@ -73,6 +73,15 @@ func (in *Inspector) Preorder(types []ast.Node, f func(ast.Node)) {
 	// check, Preorder is almost twice as fast as Nodes. The two
 	// features seem to contribute similar slowdowns (~1.4x each).
 
+	// This function is equivalent to the PreorderSeq call below,
+	// but to avoid the additional dynamic call (which adds 13-35%
+	// to the benchmarks), we expand it out.
+	//
+	// in.PreorderSeq(types...)(func(n ast.Node) bool {
+	// 	f(n)
+	// 	return true
+	// })
+
 	mask := maskOf(types)
 	for i := 0; i < len(in.events); {
 		ev := in.events[i]
@@ -171,7 +180,9 @@ func (in *Inspector) WithStack(types []ast.Node, f func(n ast.Node, push bool, s
 // traverse builds the table of events representing a traversal.
 func traverse(files []*ast.File) []event {
 	// Preallocate approximate number of events
-	// based on source file extent.
+	// based on source file extent of the declarations.
+	// (We use End-Pos not FileStart-FileEnd to neglect
+	// the effect of long doc comments.)
 	// This makes traverse faster by 4x (!).
 	var extent int
 	for _, f := range files {

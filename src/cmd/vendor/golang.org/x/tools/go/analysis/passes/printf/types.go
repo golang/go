@@ -10,7 +10,6 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -73,7 +72,7 @@ func (m *argMatcher) match(typ types.Type, topLevel bool) bool {
 		return true
 	}
 
-	if typ, _ := aliases.Unalias(typ).(*types.TypeParam); typ != nil {
+	if typ, _ := types.Unalias(typ).(*types.TypeParam); typ != nil {
 		// Avoid infinite recursion through type parameters.
 		if m.seen[typ] {
 			return true
@@ -276,7 +275,7 @@ func (m *argMatcher) match(typ types.Type, topLevel bool) bool {
 }
 
 func isConvertibleToString(typ types.Type) bool {
-	if bt, ok := aliases.Unalias(typ).(*types.Basic); ok && bt.Kind() == types.UntypedNil {
+	if bt, ok := types.Unalias(typ).(*types.Basic); ok && bt.Kind() == types.UntypedNil {
 		// We explicitly don't want untyped nil, which is
 		// convertible to both of the interfaces below, as it
 		// would just panic anyway.

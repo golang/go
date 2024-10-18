@@ -6,8 +6,6 @@ package typesinternal
 
 import (
 	"go/types"
-
-	"golang.org/x/tools/internal/aliases"
 )
 
 // ReceiverNamed returns the named type (if any) associated with the
@@ -15,11 +13,11 @@ import (
 // It also reports whether a Pointer was present.
 func ReceiverNamed(recv *types.Var) (isPtr bool, named *types.Named) {
 	t := recv.Type()
-	if ptr, ok := aliases.Unalias(t).(*types.Pointer); ok {
+	if ptr, ok := types.Unalias(t).(*types.Pointer); ok {
 		isPtr = true
 		t = ptr.Elem()
 	}
-	named, _ = aliases.Unalias(t).(*types.Named)
+	named, _ = types.Unalias(t).(*types.Named)
 	return
 }
 
@@ -36,7 +34,7 @@ func ReceiverNamed(recv *types.Var) (isPtr bool, named *types.Named) {
 // indirection from the type, regardless of named types (analogous to
 // a LOAD instruction).
 func Unpointer(t types.Type) types.Type {
-	if ptr, ok := aliases.Unalias(t).(*types.Pointer); ok {
+	if ptr, ok := types.Unalias(t).(*types.Pointer); ok {
 		return ptr.Elem()
 	}
 	return t
