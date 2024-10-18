@@ -86,6 +86,8 @@ var (
 
 	flagCaptureHostObjs = flag.String("capturehostobjs", "", "capture host object files loaded during internal linking to specified dir")
 
+	flagPlist = flag.String("plist", "", "filename of info.plist to include")
+
 	flagA             = flag.Bool("a", false, "no-op (deprecated)")
 	FlagC             = flag.Bool("c", false, "dump call graph")
 	FlagD             = flag.Bool("d", false, "disable dynamic executable")
@@ -431,6 +433,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 	dwarfcompress(ctxt)
 	bench.Start("layout")
 	filesize := ctxt.layout(order)
+	bench.Start("plist")
+	ctxt.addPlist(*flagPlist)
 
 	// Write out the output file.
 	// It is split into two parts (Asmb and Asmb2). The first
