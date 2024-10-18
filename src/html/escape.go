@@ -104,7 +104,8 @@ func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
 			break
 		}
 
-		if i <= 3 { // No characters matched.
+		// We need to have at least "&#." or "&#x.".
+		if (!hex && i < 3) || (hex && i < 4) {
 			b[dst] = b[src]
 			return dst + 1, src + 1
 		}
