@@ -614,6 +614,9 @@ func (r *Resolver) LookupNS(ctx context.Context, name string) ([]*NS, error) {
 
 // LookupTXT returns the DNS TXT records for the given domain name.
 //
+// If a DNS TXT record holds multiple strings, they are concatenated as a
+// single string.
+//
 // LookupTXT uses [context.Background] internally; to specify the context, use
 // [Resolver.LookupTXT].
 func LookupTXT(name string) ([]string, error) {
@@ -621,6 +624,9 @@ func LookupTXT(name string) ([]string, error) {
 }
 
 // LookupTXT returns the DNS TXT records for the given domain name.
+//
+// If a DNS TXT record holds multiple strings, they are concatenated as a
+// single string.
 func (r *Resolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
 	return r.lookupTXT(ctx, name)
 }
