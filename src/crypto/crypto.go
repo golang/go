@@ -130,8 +130,10 @@ func (h Hash) New() hash.Hash {
 		if f != nil {
 			return f()
 		}
+	} else {
+		panic("crypto: requested hash function #" + strconv.Itoa(int(h)) + " is invalid")
 	}
-	panic("crypto: requested hash function #" + strconv.Itoa(int(h)) + " is unavailable")
+	panic("crypto: requested hash function " + h.String() + " has not been imported")
 }
 
 // Available reports whether the given hash function is linked into the binary.
