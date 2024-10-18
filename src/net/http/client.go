@@ -103,6 +103,10 @@ type Client struct {
 	// RoundTripper implementations should use the Request's Context
 	// for cancellation instead of implementing CancelRequest.
 	Timeout time.Duration
+
+	// RetainHeaders indicates whether to keep the auth/cookie headers when redirect across different primary domains.
+	// For example, if you want to retain the auth/cookie headers after redirecting from a.com to b.com, set it to true.
+	RetainHeaders bool
 }
 
 // DefaultClient is the default [Client] and is used by [Get], [Head], and [Post].
@@ -791,9 +795,15 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 		}
 
 		// Copy the initial request's Header values
-		// (at least the safe ones).
-		for k, vv := range ireqhdr {
-			if shouldCopyHeaderOnRedirect(k, preq.URL, req.URL) {
+		// (at least the safe ones when Client.RetainHeaders is false).
+		if !c.RetainHeaders {
+			for k, vv := range ireqhdr {
+				if shouldCopyHeaderOnRedirect(k, preq.URL, req.URL) {
+					req.Header[k] = vv
+				}
+			}
+		} else {
+			for k, vv := range ireqhdr {
 				req.Header[k] = vv
 			}
 		}
