@@ -31,7 +31,7 @@ import (
 //     poll without blocking. If delta > 0, block for up to delta nanoseconds.
 //     Return a list of goroutines built by calling netpollready,
 //     and a delta to add to netpollWaiters when all goroutines are ready.
-//     This will never return an empty list with a non-zero delta.
+//     This must never return an empty list with a non-zero delta.
 //
 // func netpollBreak()
 //     Wake up the network poller, assumed to be blocked in netpoll.
