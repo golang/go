@@ -811,7 +811,9 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 
 	if p.Internal.Local && parent != nil && !parent.Internal.Local {
 		var err error
-		if path == "." {
+		if cfg.ModulesEnabled {
+			err = ImportErrorf(path, "local import %q not supported in module mode", path)
+		} else if path == "." {
 			err = ImportErrorf(path, "%s: cannot import current directory", path)
 		} else {
 			err = ImportErrorf(path, "local import %q in non-local package", path)
