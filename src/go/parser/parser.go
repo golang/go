@@ -166,7 +166,7 @@ func (p *parser) next0() {
 func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 	// /*-style comments may end on a different line than where they start.
 	// Scan the comment for '\n' chars and adjust endline accordingly.
-	endline = p.file.Line(p.pos)
+	endline = p.file.PositionFor(p.pos, false).Line
 	if p.lit[1] == '*' {
 		// don't use range here - no need to decode Unicode code points
 		for i := 0; i < len(p.lit); i++ {
@@ -188,8 +188,8 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 // empty lines terminate a comment group.
 func (p *parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline int) {
 	var list []*ast.Comment
-	endline = p.file.Line(p.pos)
-	for p.tok == token.COMMENT && p.file.Line(p.pos) <= endline+n {
+	endline = p.file.PositionFor(p.pos, false).Line
+	for p.tok == token.COMMENT && p.file.PositionFor(p.pos, false).Line <= endline+n {
 		var comment *ast.Comment
 		comment, endline = p.consumeComment()
 		list = append(list, comment)
@@ -226,11 +226,11 @@ func (p *parser) next() {
 		var comment *ast.CommentGroup
 		var endline int
 
-		if p.file.Line(p.pos) == p.file.Line(prev) {
+		if p.file.PositionFor(p.pos, false).Line == p.file.PositionFor(prev, false).Line {
 			// The comment is on same line as the previous token; it
 			// cannot be a lead comment but may be a line comment.
 			comment, endline = p.consumeCommentGroup(0)
-			if p.file.Line(p.pos) != endline || p.tok == token.SEMICOLON || p.tok == token.EOF {
+			if p.file.PositionFor(p.pos, false).Line != endline || p.tok == token.SEMICOLON || p.tok == token.EOF {
 				// The next token is on a different line, thus
 				// the last comment group is a line comment.
 				p.lineComment = comment
@@ -243,7 +243,7 @@ func (p *parser) next() {
 			comment, endline = p.consumeCommentGroup(1)
 		}
 
-		if endline+1 == p.file.Line(p.pos) {
+		if endline+1 == p.file.PositionFor(p.pos, false).Line {
 			// The next token is following on the line immediately after the
 			// comment group, thus the last comment group is a lead comment.
 			p.leadComment = comment
