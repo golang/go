@@ -569,6 +569,11 @@
 (MOVWstore [off] {sym} ptr (MOVWreg x) mem) => (MOVWstore [off] {sym} ptr x mem)
 (MOVWstore [off] {sym} ptr (MOVWUreg x) mem) => (MOVWstore [off] {sym} ptr x mem)
 
+(MOVBstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
+(MOVHstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
+(MOVWstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
+(MOVVstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVVstorezero [off] {sym} ptr mem)
+
 // register indexed load
 (MOVVload [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVVloadidx ptr idx mem)
 (MOVWUload [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVWUloadidx ptr idx mem)
