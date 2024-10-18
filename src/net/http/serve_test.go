@@ -1146,6 +1146,47 @@ func testOnlyWriteTimeout(t *testing.T, mode testMode) {
 	}
 }
 
+func TestErrorAfterWriteTimeout(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	writeTimeout := 200 * time.Millisecond
+	var afterTimeoutErrc = make(chan error, 1)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, req *Request) {
+		time.Sleep(2 * writeTimeout)
+
+		_, err := w.Write([]byte("test"))
+		afterTimeoutErrc <- err
+	}))
+	ts.Config.WriteTimeout = writeTimeout
+	ts.Start()
+	defer ts.Close()
+
+	c := ts.Client()
+
+	errc := make(chan error, 1)
+	go func() {
+		res, err := c.Get(ts.URL)
+		if err != nil {
+			errc <- err
+			return
+		}
+		_, err = io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+		errc <- err
+	}()
+	select {
+	case err := <-errc:
+		if err == nil {
+			t.Errorf("expected an error from Get request")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for Get error")
+	}
+	if err := <-afterTimeoutErrc; err == nil {
+		t.Error("expected write error after timeout")
+	}
+}
+
 // trackLastConnListener tracks the last net.Conn that was accepted.
 type trackLastConnListener struct {
 	net.Listener
