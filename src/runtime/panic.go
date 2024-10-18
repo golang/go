@@ -1038,6 +1038,11 @@ func rand_fatal(s string) {
 	fatal(s)
 }
 
+//go:linkname fips_fatal crypto/internal/fips.fatal
+func fips_fatal(s string) {
+	fatal(s)
+}
+
 // throw triggers a fatal error that dumps a stack trace and exits.
 //
 // throw should be used for runtime-internal fatal errors where Go itself,
