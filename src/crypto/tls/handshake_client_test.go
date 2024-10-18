@@ -2625,8 +2625,8 @@ func TestClientHandshakeContextCancellation(t *testing.T) {
 	if err != context.Canceled {
 		t.Errorf("Unexpected client handshake error: %v", err)
 	}
-	if runtime.GOARCH == "wasm" {
-		t.Skip("conn.Close does not error as expected when called multiple times on WASM")
+	if runtime.GOOS == "js" {
+		t.Skip("conn.Close does not error as expected when called multiple times on GOOS=js")
 	}
 	err = cli.Close()
 	if err == nil {
