@@ -579,6 +579,8 @@ const (
 	SO_SNDBUF                 = 0x1001
 	SO_UPDATE_ACCEPT_CONTEXT  = 0x700b
 	SO_UPDATE_CONNECT_CONTEXT = 0x7010
+	
+	SO_EXCLUSIVEADDRUSE = ^SO_REUSEADDR
 
 	IOC_OUT                            = 0x40000000
 	IOC_IN                             = 0x80000000
