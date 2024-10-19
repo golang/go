@@ -159,8 +159,11 @@ func goStore64(addr *uint64, v uint64) {
 	addrLock(addr).unlock()
 }
 
+//go:noescape
+func Or8(addr *uint8, v uint8)
+
 //go:nosplit
-func Or8(addr *uint8, v uint8) {
+func goOr8(addr *uint8, v uint8) {
 	// Align down to 4 bytes and use 32-bit CAS.
 	uaddr := uintptr(unsafe.Pointer(addr))
 	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
@@ -173,8 +176,11 @@ func Or8(addr *uint8, v uint8) {
 	}
 }
 
+//go:noescape
+func And8(addr *uint8, v uint8)
+
 //go:nosplit
-func And8(addr *uint8, v uint8) {
+func goAnd8(addr *uint8, v uint8) {
 	// Align down to 4 bytes and use 32-bit CAS.
 	uaddr := uintptr(unsafe.Pointer(addr))
 	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
