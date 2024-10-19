@@ -11,6 +11,9 @@
   {"algorithm":"SHA3-384","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"2.0"},
   {"algorithm":"SHA3-512","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"2.0"},
 
+  {"algorithm":"SHAKE-128","inBit":false,"outBit":false,"inEmpty":true,"outputLen":[{"min":16,"max":65536,"increment":8}],"revision":"1.0"},
+  {"algorithm":"SHAKE-256","inBit":false,"outBit":false,"inEmpty":true,"outputLen":[{"min":16,"max":65536,"increment":8}],"revision":"1.0"},
+
   {"algorithm":"HMAC-SHA2-224","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":224,"min":32}],"revision":"1.0"},
   {"algorithm":"HMAC-SHA2-256","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":256,"min":32}],"revision":"1.0"},
   {"algorithm":"HMAC-SHA2-384","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":384,"min":32}],"revision":"1.0"},

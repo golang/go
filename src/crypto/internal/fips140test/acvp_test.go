@@ -95,6 +95,8 @@ const (
 var (
 	// SHA2 algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html#section-7.2
+	// SHA3 and SHAKE algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-celi-acvp-sha3.html#name-sha3-and-shake-algorithm-ca
 	// HMAC algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-mac.html#section-7
 	// PBKDF2 algorithm capabilities:
@@ -139,6 +141,17 @@ var (
 		"SHA3-384/MCT": cmdSha3Mct(sha3.New384()),
 		"SHA3-512":     cmdHashAft(sha3.New512()),
 		"SHA3-512/MCT": cmdSha3Mct(sha3.New512()),
+
+		// Note: SHAKE AFT and VOT test types can be handled by the same command
+		// handler impl, but use distinct acvptool command names, and so are
+		// registered twice with the same digest: once under "SHAKE-xxx" for AFT,
+		// and once under"SHAKE-xxx/VOT" for VOT.
+		"SHAKE-128":     cmdShakeAftVot(sha3.NewShake128()),
+		"SHAKE-128/VOT": cmdShakeAftVot(sha3.NewShake128()),
+		"SHAKE-128/MCT": cmdShakeMct(sha3.NewShake128()),
+		"SHAKE-256":     cmdShakeAftVot(sha3.NewShake256()),
+		"SHAKE-256/VOT": cmdShakeAftVot(sha3.NewShake256()),
+		"SHAKE-256/MCT": cmdShakeMct(sha3.NewShake256()),
 
 		"HMAC-SHA2-224":     cmdHmacAft(func() fips140.Hash { return sha256.New224() }),
 		"HMAC-SHA2-256":     cmdHmacAft(func() fips140.Hash { return sha256.New() }),
@@ -406,6 +419,70 @@ func cmdSha3Mct(h fips140.Hash) command {
 			}
 
 			return [][]byte{md[1000]}, nil
+		},
+	}
+}
+
+func cmdShakeAftVot(h *sha3.SHAKE) command {
+	return command{
+		requiredArgs: 2, // Message, output length (bytes)
+		handler: func(args [][]byte) ([][]byte, error) {
+			msg := args[0]
+
+			outLenBytes := binary.LittleEndian.Uint32(args[1])
+			digest := make([]byte, outLenBytes)
+
+			h.Reset()
+			h.Write(msg)
+			h.Read(digest)
+
+			return [][]byte{digest}, nil
+		},
+	}
+}
+
+func cmdShakeMct(h *sha3.SHAKE) command {
+	return command{
+		requiredArgs: 4, // Seed message, min output length (bytes), max output length (bytes), output length (bytes)
+		handler: func(args [][]byte) ([][]byte, error) {
+			md := args[0]
+			minOutBytes := binary.LittleEndian.Uint32(args[1])
+			maxOutBytes := binary.LittleEndian.Uint32(args[2])
+
+			outputLenBytes := binary.LittleEndian.Uint32(args[3])
+			if outputLenBytes < 2 {
+				return nil, fmt.Errorf("invalid output length: %d", outputLenBytes)
+			}
+
+			rangeBytes := maxOutBytes - minOutBytes + 1
+			if rangeBytes == 0 {
+				return nil, fmt.Errorf("invalid maxOutBytes and minOutBytes: %d, %d", maxOutBytes, minOutBytes)
+			}
+
+			for i := 0; i < 1000; i++ {
+				// "The MSG[i] input to SHAKE MUST always contain at least 128 bits. If this is not the case
+				// as the previous digest was too short, append empty bits to the rightmost side of the digest."
+				boundary := min(len(md), 16)
+				msg := make([]byte, 16)
+				copy(msg, md[:boundary])
+
+				//  MD[i] = SHAKE(MSG[i], OutputLen * 8)
+				h.Reset()
+				h.Write(msg)
+				digest := make([]byte, outputLenBytes)
+				h.Read(digest)
+				md = digest
+
+				// RightmostOutputBits = 16 rightmost bits of MD[i] as an integer
+				// OutputLen = minOutBytes + (RightmostOutputBits % Range)
+				rightmostOutput := uint32(md[outputLenBytes-2])<<8 | uint32(md[outputLenBytes-1])
+				outputLenBytes = minOutBytes + (rightmostOutput % rangeBytes)
+			}
+
+			encodedOutputLenBytes := make([]byte, 4)
+			binary.LittleEndian.PutUint32(encodedOutputLenBytes, outputLenBytes)
+
+			return [][]byte{md, encodedOutputLenBytes}, nil
 		},
 	}
 }

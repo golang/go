@@ -11,6 +11,9 @@
   {"Wrapper": "go", "In": "vectors/SHA3-384.bz2", "Out": "expected/SHA3-384.bz2"},
   {"Wrapper": "go", "In": "vectors/SHA3-512.bz2", "Out": "expected/SHA3-512.bz2"},
 
+  {"Wrapper": "go", "In": "vectors/SHAKE-128.bz2", "Out": "expected/SHAKE-128.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHAKE-256.bz2", "Out": "expected/SHAKE-256.bz2"},
+
   {"Wrapper": "go", "In": "vectors/HMAC-SHA2-224.bz2", "Out": "expected/HMAC-SHA2-224.bz2"},
   {"Wrapper": "go", "In": "vectors/HMAC-SHA2-256.bz2", "Out": "expected/HMAC-SHA2-256.bz2"},
   {"Wrapper": "go", "In": "vectors/HMAC-SHA2-384.bz2", "Out": "expected/HMAC-SHA2-384.bz2"},
