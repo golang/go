@@ -318,7 +318,9 @@ var optab = []Optab{
 	{AMOVW, C_REG, C_NONE, C_FREG, 88, 4, 0, 0, 0, 0},
 	{AMOVW, C_FREG, C_NONE, C_REG, 89, 4, 0, 0, 0, 0},
 	{ALDREXD, C_SOREG, C_NONE, C_REG, 91, 4, 0, 0, 0, 0},
+	{ALDREXB, C_SOREG, C_NONE, C_REG, 91, 4, 0, 0, 0, 0},
 	{ASTREXD, C_SOREG, C_REG, C_REG, 92, 4, 0, 0, 0, 0},
+	{ASTREXB, C_SOREG, C_REG, C_REG, 92, 4, 0, 0, 0, 0},
 	{APLD, C_SOREG, C_NONE, C_NONE, 95, 4, 0, 0, 0, 0},
 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 96, 4, 0, 0, 0, 0},
 	{ACLZ, C_REG, C_NONE, C_REG, 97, 4, 0, 0, 0, 0},
@@ -1432,7 +1434,9 @@ func buildop(ctxt *obj.Link) {
 		case ALDREX,
 			ASTREX,
 			ALDREXD,
+			ALDREXB,
 			ASTREXD,
+			ASTREXB,
 			ADMB,
 			APLD,
 			AAND,
@@ -2397,18 +2401,25 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(p.From.Reg) & 15) << 16
 		o1 |= (uint32(p.To.Reg) & 15) << 12
 
-	case 91: /* ldrexd oreg,reg */
+	case 91: /* ldrexd/ldrexb oreg,reg */
 		c.aclass(&p.From)
 
 		if c.instoffset != 0 {
 			c.ctxt.Diag("offset must be zero in LDREX")
 		}
-		o1 = 0x1b<<20 | 0xf9f
+
+		switch p.As {
+		case ALDREXD:
+			o1 = 0x1b << 20
+		case ALDREXB:
+			o1 = 0x1d << 20
+		}
+		o1 |= 0xf9f
 		o1 |= (uint32(p.From.Reg) & 15) << 16
 		o1 |= (uint32(p.To.Reg) & 15) << 12
 		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 
-	case 92: /* strexd reg,oreg,reg */
+	case 92: /* strexd/strexb reg,oreg,reg */
 		c.aclass(&p.From)
 
 		if c.instoffset != 0 {
@@ -2420,7 +2431,14 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg || p.To.Reg == p.Reg+1 {
 			c.ctxt.Diag("cannot use same register as both source and destination: %v", p)
 		}
-		o1 = 0x1a<<20 | 0xf90
+
+		switch p.As {
+		case ASTREXD:
+			o1 = 0x1a << 20
+		case ASTREXB:
+			o1 = 0x1c << 20
+		}
+		o1 |= 0xf90
 		o1 |= (uint32(p.From.Reg) & 15) << 16
 		o1 |= (uint32(p.Reg) & 15) << 0
 		o1 |= (uint32(p.To.Reg) & 15) << 12
