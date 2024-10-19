@@ -433,7 +433,7 @@ func (n Null[T]) Value() (driver.Value, error) {
 	v := any(n.V)
 	// See issue 69728.
 	if valuer, ok := v.(driver.Valuer); ok {
-		val, err := valuer.Value()
+		val, err := callValuerValue(valuer)
 		if err != nil {
 			return val, err
 		}
