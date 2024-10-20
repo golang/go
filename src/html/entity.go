@@ -20,11 +20,8 @@ var entity map[string]rune
 // HTML entities that are two unicode codepoints.
 var entity2 map[string][2]rune
 
-// populateMapsOnce guards calling populateMaps.
-var populateMapsOnce sync.Once
-
-// populateMaps populates entity and entity2.
-func populateMaps() {
+// populateMapsOnce populates entity and entity2.
+var populateMapsOnce = sync.OnceFunc(func() {
 	entity = map[string]rune{
 		"AElig;":                           '\U000000C6',
 		"AMP;":                             '\U00000026',
@@ -2262,4 +2259,4 @@ func populateMaps() {
 		"vsupnE;":                  {'\u2ACC', '\uFE00'},
 		"vsupne;":                  {'\u228B', '\uFE00'},
 	}
-}
+})

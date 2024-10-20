@@ -185,7 +185,7 @@ func EscapeString(s string) string {
 // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
 // always true.
 func UnescapeString(s string) string {
-	populateMapsOnce.Do(populateMaps)
+	populateMapsOnce()
 	i := strings.IndexByte(s, '&')
 
 	if i < 0 {
