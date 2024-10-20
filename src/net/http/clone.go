@@ -68,7 +68,7 @@ func cloneMultipartForm(f *multipart.Form) *multipart.Form {
 		Value: (map[string][]string)(Header(f.Value).Clone()),
 	}
 	if f.File != nil {
-		m := make(map[string][]*multipart.FileHeader)
+		m := make(map[string][]*multipart.FileHeader, len(f.File))
 		for k, vv := range f.File {
 			vv2 := make([]*multipart.FileHeader, len(vv))
 			for i, v := range vv {
