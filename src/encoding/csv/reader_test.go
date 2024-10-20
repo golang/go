@@ -404,6 +404,16 @@ field"`,
 	Errors:  []error{errInvalidDelim},
 }}
 
+func equalError(a, b error) bool {
+	if a == nil {
+		return b == nil
+	}
+	if b == nil {
+		return a == nil
+	}
+	return a.Error() == b.Error()
+}
+
 func TestRead(t *testing.T) {
 	newReader := func(tt readTest) (*Reader, [][][2]int, map[int][2]int, string) {
 		positions, errPositions, input := makePositions(tt.Input)
@@ -429,7 +439,7 @@ func TestRead(t *testing.T) {
 			r, positions, errPositions, input := newReader(tt)
 			out, err := r.ReadAll()
 			if wantErr := firstError(tt.Errors, positions, errPositions); wantErr != nil {
-				if !reflect.DeepEqual(err, wantErr) {
+				if !equalError(err, wantErr) {
 					t.Fatalf("ReadAll() error mismatch:\ngot  %v (%#v)\nwant %v (%#v)", err, err, wantErr, wantErr)
 				}
 				if out != nil {
@@ -461,7 +471,7 @@ func TestRead(t *testing.T) {
 				} else if recNum >= len(tt.Output) {
 					wantErr = io.EOF
 				}
-				if !reflect.DeepEqual(err, wantErr) {
+				if !equalError(err, wantErr) {
 					t.Fatalf("Read() error at record %d:\ngot %v (%#v)\nwant %v (%#v)", recNum, err, err, wantErr, wantErr)
 				}
 				// ErrFieldCount is explicitly non-fatal.

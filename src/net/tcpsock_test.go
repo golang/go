@@ -334,7 +334,7 @@ func TestResolveTCPAddr(t *testing.T) {
 
 	for _, tt := range resolveTCPAddrTests {
 		addr, err := ResolveTCPAddr(tt.network, tt.litAddrOrName)
-		if !reflect.DeepEqual(addr, tt.addr) || !reflect.DeepEqual(err, tt.err) {
+		if !reflect.DeepEqual(addr, tt.addr) || !equalError(err, tt.err) {
 			t.Errorf("ResolveTCPAddr(%q, %q) = %#v, %v, want %#v, %v", tt.network, tt.litAddrOrName, addr, err, tt.addr, tt.err)
 			continue
 		}

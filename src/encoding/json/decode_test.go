@@ -2470,7 +2470,7 @@ func TestUnmarshalErrorAfterMultipleJSON(t *testing.T) {
 				var v any
 				err = dec.Decode(&v)
 			}
-			if !reflect.DeepEqual(err, tt.err) {
+			if !equalError(err, tt.err) {
 				t.Errorf("%s: Decode error:\n\tgot:  %v\n\twant: %v", tt.Where, err, tt.err)
 			}
 		})

@@ -7,7 +7,6 @@ package constraint
 import (
 	"fmt"
 	"maps"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -160,11 +159,21 @@ func TestParseError(t *testing.T) {
 			if err == nil {
 				t.Fatalf("parseExpr(%q) = %v, want error", tt.in, x)
 			}
-			if !reflect.DeepEqual(err, tt.err) {
+			if !equalError(err, tt.err) {
 				t.Fatalf("parseExpr(%q): wrong error:\nhave %#v\nwant %#v", tt.in, err, tt.err)
 			}
 		})
 	}
+}
+
+func equalError(a, b error) bool {
+	if a == nil {
+		return b == nil
+	}
+	if b == nil {
+		return a == nil
+	}
+	return a.Error() == b.Error()
 }
 
 var exprEvalTests = []struct {

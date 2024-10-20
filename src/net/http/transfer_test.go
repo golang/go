@@ -326,10 +326,20 @@ func TestParseTransferEncoding(t *testing.T) {
 			ProtoMinor: 1,
 		}
 		gotErr := tr.parseTransferEncoding()
-		if !reflect.DeepEqual(gotErr, tt.wantErr) {
+		if !equalError(gotErr, tt.wantErr) {
 			t.Errorf("%d.\ngot error:\n%v\nwant error:\n%v\n\n", i, gotErr, tt.wantErr)
 		}
 	}
+}
+
+func equalError(a, b error) bool {
+	if a == nil {
+		return b == nil
+	}
+	if b == nil {
+		return a == nil
+	}
+	return a.Error() == b.Error()
 }
 
 // issue 39017 - disallow Content-Length values such as "+3"
@@ -366,7 +376,7 @@ func TestParseContentLength(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if _, gotErr := parseContentLength([]string{tt.cl}); !reflect.DeepEqual(gotErr, tt.wantErr) {
+		if _, gotErr := parseContentLength([]string{tt.cl}); !equalError(gotErr, tt.wantErr) {
 			t.Errorf("%q:\n\tgot=%v\n\twant=%v", tt.cl, gotErr, tt.wantErr)
 		}
 	}

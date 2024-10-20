@@ -7,7 +7,6 @@ package strconv_test
 import (
 	"math"
 	"math/cmplx"
-	"reflect"
 	. "strconv"
 	"testing"
 )
@@ -192,7 +191,7 @@ func TestParseComplex(t *testing.T) {
 			test.err = &NumError{Func: "ParseComplex", Num: test.in, Err: test.err}
 		}
 		got, err := ParseComplex(test.in, 128)
-		if !reflect.DeepEqual(err, test.err) {
+		if !equalError(err, test.err) {
 			t.Fatalf("ParseComplex(%q, 128) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
 		}
 		if !(cmplx.IsNaN(test.out) && cmplx.IsNaN(got)) && got != test.out {
@@ -201,7 +200,7 @@ func TestParseComplex(t *testing.T) {
 
 		if complex128(complex64(test.out)) == test.out {
 			got, err := ParseComplex(test.in, 64)
-			if !reflect.DeepEqual(err, test.err) {
+			if !equalError(err, test.err) {
 				t.Fatalf("ParseComplex(%q, 64) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
 			}
 			got64 := complex64(got)

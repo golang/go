@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"math"
 	"math/rand"
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -198,7 +197,7 @@ func TestIndentErrors(t *testing.T) {
 			slice := make([]uint8, 0)
 			buf := bytes.NewBuffer(slice)
 			if err := Indent(buf, []uint8(tt.in), "", ""); err != nil {
-				if !reflect.DeepEqual(err, tt.err) {
+				if !equalError(err, tt.err) {
 					t.Fatalf("%s: Indent error:\n\tgot:  %v\n\twant: %v", tt.Where, err, tt.err)
 				}
 			}

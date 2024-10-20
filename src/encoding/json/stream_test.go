@@ -472,7 +472,7 @@ func TestDecodeInStream(t *testing.T) {
 					got, err = dec.Token()
 				}
 				if errWant, ok := want.(error); ok {
-					if err == nil || !reflect.DeepEqual(err, errWant) {
+					if err == nil || !equalError(err, errWant) {
 						t.Fatalf("%s:\n\tinput: %s\n\tgot error:  %v\n\twant error: %v", tt.Where, tt.json, err, errWant)
 					}
 					break

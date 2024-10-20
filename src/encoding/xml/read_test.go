@@ -324,7 +324,8 @@ type BadPathEmbeddedB struct {
 }
 
 var badPathTests = []struct {
-	v, e any
+	v any
+	e error
 }{
 	{&BadPathTestA{}, &TagPathError{reflect.TypeFor[BadPathTestA](), "First", "items>item1", "Second", "items"}},
 	{&BadPathTestB{}, &TagPathError{reflect.TypeFor[BadPathTestB](), "First", "items>item1", "Second", "items>item1>value"}},
@@ -332,10 +333,20 @@ var badPathTests = []struct {
 	{&BadPathTestD{}, &TagPathError{reflect.TypeFor[BadPathTestD](), "First", "", "Second", "First"}},
 }
 
+func equalError(a, b error) bool {
+	if a == nil {
+		return b == nil
+	}
+	if b == nil {
+		return a == nil
+	}
+	return a.Error() == b.Error()
+}
+
 func TestUnmarshalBadPaths(t *testing.T) {
 	for _, tt := range badPathTests {
 		err := Unmarshal([]byte(pathTestString), tt.v)
-		if !reflect.DeepEqual(err, tt.e) {
+		if !equalError(err, tt.e) {
 			t.Fatalf("Unmarshal with %#v didn't fail properly:\nhave %#v,\nwant %#v", tt.v, err, tt.e)
 		}
 	}

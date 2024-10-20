@@ -7,7 +7,6 @@ package strconv_test
 import (
 	"math"
 	"math/rand"
-	"reflect"
 	. "strconv"
 	"strings"
 	"sync"
@@ -515,7 +514,7 @@ func testAtof(t *testing.T, opt bool) {
 		test := &atoftests[i]
 		out, err := ParseFloat(test.in, 64)
 		outs := FormatFloat(out, 'g', -1, 64)
-		if outs != test.out || !reflect.DeepEqual(err, test.err) {
+		if outs != test.out || !equalError(err, test.err) {
 			t.Errorf("ParseFloat(%v, 64) = %v, %v want %v, %v",
 				test.in, out, err, test.out, test.err)
 		}
@@ -528,7 +527,7 @@ func testAtof(t *testing.T, opt bool) {
 				continue
 			}
 			outs := FormatFloat(float64(out32), 'g', -1, 32)
-			if outs != test.out || !reflect.DeepEqual(err, test.err) {
+			if outs != test.out || !equalError(err, test.err) {
 				t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
 					test.in, out32, err, test.out, test.err, out)
 			}
@@ -542,7 +541,7 @@ func testAtof(t *testing.T, opt bool) {
 			continue
 		}
 		outs := FormatFloat(float64(out32), 'g', -1, 32)
-		if outs != test.out || !reflect.DeepEqual(err, test.err) {
+		if outs != test.out || !equalError(err, test.err) {
 			t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
 				test.in, out32, err, test.out, test.err, out)
 		}

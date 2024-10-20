@@ -479,7 +479,7 @@ func TestAtoi(t *testing.T) {
 			if test.err != nil {
 				testErr = &NumError{"Atoi", test.in, test.err.(*NumError).Err}
 			}
-			if int(test.out) != out || !reflect.DeepEqual(testErr, err) {
+			if int(test.out) != out || !equalError(testErr, err) {
 				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
 					test.in, out, err, test.out, testErr)
 			}
@@ -492,7 +492,7 @@ func TestAtoi(t *testing.T) {
 			if test.err != nil {
 				testErr = &NumError{"Atoi", test.in, test.err.(*NumError).Err}
 			}
-			if test.out != int64(out) || !reflect.DeepEqual(testErr, err) {
+			if test.out != int64(out) || !equalError(testErr, err) {
 				t.Errorf("Atoi(%q) = %v, %v want %v, %v",
 					test.in, out, err, test.out, testErr)
 			}

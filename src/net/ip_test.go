@@ -272,11 +272,11 @@ func TestIPString(t *testing.T) {
 		if out := tt.in.String(); out != tt.str {
 			t.Errorf("IP.String(%v) = %q, want %q", tt.in, out, tt.str)
 		}
-		if out, err := tt.in.MarshalText(); !bytes.Equal(out, tt.byt) || !reflect.DeepEqual(err, tt.error) {
+		if out, err := tt.in.MarshalText(); !bytes.Equal(out, tt.byt) || !equalError(err, tt.error) {
 			t.Errorf("IP.MarshalText(%v) = %v, %v, want %v, %v", tt.in, out, err, tt.byt, tt.error)
 		}
 		buf := make([]byte, 4, 32)
-		if out, err := tt.in.AppendText(buf); !bytes.Equal(out[4:], tt.byt) || !reflect.DeepEqual(err, tt.error) {
+		if out, err := tt.in.AppendText(buf); !bytes.Equal(out[4:], tt.byt) || !equalError(err, tt.error) {
 			t.Errorf("IP.AppendText(%v) = %v, %v, want %v, %v", tt.in, out[4:], err, tt.byt, tt.error)
 		}
 	}
@@ -438,7 +438,7 @@ var parseCIDRTests = []struct {
 func TestParseCIDR(t *testing.T) {
 	for _, tt := range parseCIDRTests {
 		ip, net, err := ParseCIDR(tt.in)
-		if !reflect.DeepEqual(err, tt.err) {
+		if !equalError(err, tt.err) {
 			t.Errorf("ParseCIDR(%q) = %v, %v; want %v, %v", tt.in, ip, net, tt.ip, tt.net)
 		}
 		if err == nil && (!tt.ip.Equal(ip) || !tt.net.IP.Equal(net.IP) || !reflect.DeepEqual(net.Mask, tt.net.Mask)) {

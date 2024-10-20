@@ -888,6 +888,16 @@ func TestIssue10884_MaxBytesEOF(t *testing.T) {
 	}
 }
 
+func equalError(a, b error) bool {
+	if a == nil {
+		return b == nil
+	}
+	if b == nil {
+		return a == nil
+	}
+	return a.Error() == b.Error()
+}
+
 // Issue 14981: MaxBytesReader's return error wasn't sticky. It
 // doesn't technically need to be, but people expected it to be.
 func TestMaxBytesReaderStickyError(t *testing.T) {
@@ -905,7 +915,7 @@ func TestMaxBytesReaderStickyError(t *testing.T) {
 				firstErr = err
 				continue
 			}
-			if !reflect.DeepEqual(err, firstErr) {
+			if !equalError(err, firstErr) {
 				return fmt.Errorf("non-sticky error. got log:\n%s", log.Bytes())
 			}
 			t.Logf("Got log: %s", log.Bytes())

@@ -221,7 +221,7 @@ func TestAddrList(t *testing.T) {
 
 	for i, tt := range addrListTests {
 		addrs, err := filterAddrList(tt.filter, tt.ips, tt.inetaddr, "ADDR")
-		if !reflect.DeepEqual(err, tt.err) {
+		if !equalError(err, tt.err) {
 			t.Errorf("#%v: got %v; want %v", i, err, tt.err)
 		}
 		if tt.err != nil {

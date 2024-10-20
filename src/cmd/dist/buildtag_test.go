@@ -6,7 +6,6 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 )
 
@@ -36,8 +35,18 @@ var buildParserTests = []struct {
 func TestBuildParser(t *testing.T) {
 	for _, tt := range buildParserTests {
 		matched, err := matchexpr(tt.x)
-		if matched != tt.matched || !reflect.DeepEqual(err, tt.err) {
+		if matched != tt.matched || !equalError(err, tt.err) {
 			t.Errorf("matchexpr(%q) = %v, %v; want %v, %v", tt.x, matched, err, tt.matched, tt.err)
 		}
 	}
+}
+
+func equalError(a, b error) bool {
+	if a == nil {
+		return b == nil
+	}
+	if b == nil {
+		return a == nil
+	}
+	return a.Error() == b.Error()
 }
