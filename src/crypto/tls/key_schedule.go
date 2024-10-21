@@ -54,11 +54,11 @@ func (c *cipherSuiteTLS13) exportKeyingMaterial(s *tls13.MasterSecret, transcrip
 type keySharePrivateKeys struct {
 	curveID CurveID
 	ecdhe   *ecdh.PrivateKey
-	kyber   *mlkem768.DecapsulationKey
+	kyber   *mlkem768.DecapsulationKey768
 }
 
 // kyberDecapsulate implements decapsulation according to Kyber Round 3.
-func kyberDecapsulate(dk *mlkem768.DecapsulationKey, c []byte) ([]byte, error) {
+func kyberDecapsulate(dk *mlkem768.DecapsulationKey768, c []byte) ([]byte, error) {
 	K, err := dk.Decapsulate(c)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func kyberDecapsulate(dk *mlkem768.DecapsulationKey, c []byte) ([]byte, error) {
 
 // kyberEncapsulate implements encapsulation according to Kyber Round 3.
 func kyberEncapsulate(ek []byte) (c, ss []byte, err error) {
-	k, err := mlkem768.NewEncapsulationKey(ek)
+	k, err := mlkem768.NewEncapsulationKey768(ek)
 	if err != nil {
 		return nil, nil, err
 	}

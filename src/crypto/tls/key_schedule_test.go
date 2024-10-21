@@ -120,7 +120,7 @@ func TestTrafficKey(t *testing.T) {
 }
 
 func TestKyberEncapsulate(t *testing.T) {
-	dk, err := mlkem768.GenerateKey()
+	dk, err := mlkem768.GenerateKey768()
 	if err != nil {
 		t.Fatal(err)
 	}

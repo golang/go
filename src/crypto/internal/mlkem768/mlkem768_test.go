@@ -16,7 +16,7 @@ import (
 )
 
 func TestRoundTrip(t *testing.T) {
-	dk, err := GenerateKey()
+	dk, err := GenerateKey768()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fail()
 	}
 
-	dk1, err := GenerateKey()
+	dk1, err := GenerateKey768()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestBadLengths(t *testing.T) {
-	dk, err := GenerateKey()
+	dk, err := GenerateKey768()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,14 +59,14 @@ func TestBadLengths(t *testing.T) {
 	c, _ := ek.Encapsulate()
 
 	for i := 0; i < len(ekBytes)-1; i++ {
-		if _, err := NewEncapsulationKey(ekBytes[:i]); err == nil {
+		if _, err := NewEncapsulationKey768(ekBytes[:i]); err == nil {
 			t.Errorf("expected error for ek length %d", i)
 		}
 	}
 	ekLong := ekBytes
 	for i := 0; i < 100; i++ {
 		ekLong = append(ekLong, 0)
-		if _, err := NewEncapsulationKey(ekLong); err == nil {
+		if _, err := NewEncapsulationKey768(ekLong); err == nil {
 			t.Errorf("expected error for ek length %d", len(ekLong))
 		}
 	}
@@ -105,11 +105,11 @@ func TestAccumulated(t *testing.T) {
 	o := sha3.NewShake128()
 	seed := make([]byte, SeedSize)
 	var msg [messageSize]byte
-	ct1 := make([]byte, CiphertextSize)
+	ct1 := make([]byte, CiphertextSize768)
 
 	for i := 0; i < n; i++ {
 		s.Read(seed)
-		dk, err := NewDecapsulationKey(seed)
+		dk, err := NewDecapsulationKey768(seed)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -146,7 +146,7 @@ func TestAccumulated(t *testing.T) {
 var sink byte
 
 func BenchmarkKeyGen(b *testing.B) {
-	var dk DecapsulationKey
+	var dk DecapsulationKey768
 	var d, z [32]byte
 	rand.Read(d[:])
 	rand.Read(z[:])
@@ -162,15 +162,15 @@ func BenchmarkEncaps(b *testing.B) {
 	rand.Read(seed)
 	var m [messageSize]byte
 	rand.Read(m[:])
-	dk, err := NewDecapsulationKey(seed)
+	dk, err := NewDecapsulationKey768(seed)
 	if err != nil {
 		b.Fatal(err)
 	}
 	ekBytes := dk.EncapsulationKey().Bytes()
-	var c [CiphertextSize]byte
+	var c [CiphertextSize768]byte
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ek, err := NewEncapsulationKey(ekBytes)
+		ek, err := NewEncapsulationKey768(ekBytes)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -180,7 +180,7 @@ func BenchmarkEncaps(b *testing.B) {
 }
 
 func BenchmarkDecaps(b *testing.B) {
-	dk, err := GenerateKey()
+	dk, err := GenerateKey768()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -188,13 +188,13 @@ func BenchmarkDecaps(b *testing.B) {
 	c, _ := ek.Encapsulate()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		K := kemDecaps(dk, (*[CiphertextSize]byte)(c))
+		K := kemDecaps(dk, (*[CiphertextSize768]byte)(c))
 		sink ^= K[0]
 	}
 }
 
 func BenchmarkRoundTrip(b *testing.B) {
-	dk, err := GenerateKey()
+	dk, err := GenerateKey768()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func BenchmarkRoundTrip(b *testing.B) {
 	}
 	b.Run("Alice", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			dkS, err := GenerateKey()
+			dkS, err := GenerateKey768()
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -222,7 +222,7 @@ func BenchmarkRoundTrip(b *testing.B) {
 	})
 	b.Run("Bob", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ek, err := NewEncapsulationKey(ekBytes)
+			ek, err := NewEncapsulationKey768(ekBytes)
 			if err != nil {
 				b.Fatal(err)
 			}

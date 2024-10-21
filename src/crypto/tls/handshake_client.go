@@ -164,7 +164,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCon
 			if _, err := io.ReadFull(config.rand(), seed); err != nil {
 				return nil, nil, nil, err
 			}
-			keyShareKeys.kyber, err = mlkem768.NewDecapsulationKey(seed)
+			keyShareKeys.kyber, err = mlkem768.NewDecapsulationKey768(seed)
 			if err != nil {
 				return nil, nil, nil, err
 			}
