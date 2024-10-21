@@ -1100,6 +1100,7 @@ type Auto struct {
 type RegSpill struct {
 	Addr           Addr
 	Reg            int16
+	Reg2           int16 // If not 0, a second register to spill at Addr+regSize. Only for some archs.
 	Spill, Unspill As
 }
 
@@ -1192,6 +1193,10 @@ func (fi *FuncInfo) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 		spill.As = ra.Spill
 		spill.From.Type = TYPE_REG
 		spill.From.Reg = ra.Reg
+		if ra.Reg2 != 0 {
+			spill.From.Type = TYPE_REGREG
+			spill.From.Offset = int64(ra.Reg2)
+		}
 		spill.To = ra.Addr
 		last = spill
 	}
@@ -1208,6 +1213,10 @@ func (fi *FuncInfo) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 		unspill.From = ra.Addr
 		unspill.To.Type = TYPE_REG
 		unspill.To.Reg = ra.Reg
+		if ra.Reg2 != 0 {
+			unspill.To.Type = TYPE_REGREG
+			unspill.To.Offset = int64(ra.Reg2)
+		}
 		last = unspill
 	}
 	return last
