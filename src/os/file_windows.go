@@ -223,17 +223,13 @@ func Pipe() (r *File, w *File, err error) {
 	return newFile(p[0], "|0", "pipe"), newFile(p[1], "|1", "pipe"), nil
 }
 
-var (
-	useGetTempPath2Once sync.Once
-	useGetTempPath2     bool
-)
+var useGetTempPath2 = sync.OnceValue(func() bool {
+	return windows.ErrorLoadingGetTempPath2() == nil
+})
 
 func tempDir() string {
-	useGetTempPath2Once.Do(func() {
-		useGetTempPath2 = (windows.ErrorLoadingGetTempPath2() == nil)
-	})
 	getTempPath := syscall.GetTempPath
-	if useGetTempPath2 {
+	if useGetTempPath2() {
 		getTempPath = windows.GetTempPath2
 	}
 	n := uint32(syscall.MAX_PATH)
