@@ -798,6 +798,9 @@ func (lc *ListenConfig) SetMultipathTCP(use bool) {
 //
 // See func Listen for a description of the network and address
 // parameters.
+//
+// The ctx argument is used while resolving the address on which to listen;
+// it does not affect the returned Listener.
 func (lc *ListenConfig) Listen(ctx context.Context, network, address string) (Listener, error) {
 	addrs, err := DefaultResolver.resolveAddrList(ctx, "listen", network, address, nil)
 	if err != nil {
@@ -832,6 +835,9 @@ func (lc *ListenConfig) Listen(ctx context.Context, network, address string) (Li
 //
 // See func ListenPacket for a description of the network and address
 // parameters.
+//
+// The ctx argument is used while resolving the address on which to listen;
+// it does not affect the returned Listener.
 func (lc *ListenConfig) ListenPacket(ctx context.Context, network, address string) (PacketConn, error) {
 	addrs, err := DefaultResolver.resolveAddrList(ctx, "listen", network, address, nil)
 	if err != nil {
