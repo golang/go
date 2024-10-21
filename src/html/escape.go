@@ -53,7 +53,7 @@ var replacementTable = [...]rune{
 // unescapeEntity reads an entity like "&lt;" from b[src:] and writes the
 // corresponding "<" to b[dst:], returning the incremented dst and src cursors.
 // Precondition: b[src] == '&' && dst <= src.
-func unescapeEntity(b []byte, dst int, src int, entity map[string]rune, entity2 map[string][2]rune) (dst1, src1 int) {
+func unescapeEntity(b []byte, dst, src int, entity map[string]rune, entity2 map[string][2]rune) (dst1, src1 int) {
 	const attribute = false
 
 	// http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
