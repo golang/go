@@ -504,6 +504,16 @@
 (Rsh64x64 (Lsh64x64 x (Const64 [48])) (Const64 [48])) => (SignExt16to64 (Trunc64to16 <typ.Int16> x))
 (Rsh64x64 (Lsh64x64 x (Const64 [32])) (Const64 [32])) => (SignExt32to64 (Trunc64to32 <typ.Int32> x))
 
+// ((x >> c) & d) << e
+(Lsh64x64 (And64 (Rsh(64|64U)x64 <t> x (Const64 <t2> [c])) (Const64 [d])) (Const64 [e])) && c >= e => (And64 (Rsh(64|64U)x64 <t> x (Const64 <t2> [c-e])) (Const64 <t> [d<<e]))
+(Lsh32x64 (And32 (Rsh(32|32U)x64 <t> x (Const64 <t2> [c])) (Const32 [d])) (Const64 [e])) && c >= e => (And32 (Rsh(32|32U)x64 <t> x (Const64 <t2> [c-e])) (Const32 <t> [d<<e]))
+(Lsh16x64 (And16 (Rsh(16|16U)x64 <t> x (Const64 <t2> [c])) (Const16 [d])) (Const64 [e])) && c >= e => (And16 (Rsh(16|16U)x64 <t> x (Const64 <t2> [c-e])) (Const16 <t> [d<<e]))
+(Lsh8x64  (And8  (Rsh(8|8U)x64   <t> x (Const64 <t2> [c])) (Const8  [d])) (Const64 [e])) && c >= e => (And8  (Rsh(8|8U)x64   <t> x (Const64 <t2> [c-e])) (Const8  <t> [d<<e]))
+(Lsh64x64 (And64 (Rsh(64|64U)x64 <t> x (Const64 <t2> [c])) (Const64 [d])) (Const64 [e])) && c < e =>  (And64 (Lsh64x64 <t> x (Const64 <t2> [e-c])) (Const64 <t> [d<<e]))
+(Lsh32x64 (And32 (Rsh(32|32U)x64 <t> x (Const64 <t2> [c])) (Const32 [d])) (Const64 [e])) && c < e =>  (And32 (Lsh32x64 <t> x (Const64 <t2> [e-c])) (Const32 <t> [d<<e]))
+(Lsh16x64 (And16 (Rsh(16|16U)x64 <t> x (Const64 <t2> [c])) (Const16 [d])) (Const64 [e])) && c < e =>  (And16 (Lsh16x64 <t> x (Const64 <t2> [e-c])) (Const16 <t> [d<<e]))
+(Lsh8x64  (And8  (Rsh(8|8U)x64   <t> x (Const64 <t2> [c])) (Const8  [d])) (Const64 [e])) && c < e =>  (And8  (Lsh8x64  <t> x (Const64 <t2> [e-c])) (Const8  <t> [d<<e]))
+
 // constant comparisons
 (Eq(64|32|16|8)   (Const(64|32|16|8) [c]) (Const(64|32|16|8) [d])) => (ConstBool [c == d])
 (Neq(64|32|16|8)  (Const(64|32|16|8) [c]) (Const(64|32|16|8) [d])) => (ConstBool [c != d])
