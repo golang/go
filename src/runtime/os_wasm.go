@@ -13,6 +13,7 @@ func osinit() {
 	// https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
 	physPageSize = 64 * 1024
 	initBloc()
+	blocMax = uintptr(currentMemory()) * physPageSize // record the initial linear memory size
 	ncpu = 1
 	getg().m.procid = 2
 }
