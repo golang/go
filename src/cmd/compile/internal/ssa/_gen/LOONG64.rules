@@ -625,6 +625,10 @@
 // MOVVnop doesn't emit instruction, only for ensuring the type.
 (MOVVreg x) && x.Uses == 1 => (MOVVnop x)
 
+// TODO: we should be able to get rid of MOVVnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVVnop (MOVVconst [c])) => (MOVVconst [c])
+
 // fold constant into arithmetic ops
 (ADDV x (MOVVconst <t> [c])) && is32Bit(c) && !t.IsPtr() => (ADDVconst [c] x)
 (SUBV x (MOVVconst [c])) && is32Bit(c) => (SUBVconst [c] x)
