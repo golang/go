@@ -164,7 +164,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCon
 			if _, err := io.ReadFull(config.rand(), seed); err != nil {
 				return nil, nil, nil, err
 			}
-			keyShareKeys.kyber, err = mlkem768.NewKeyFromSeed(seed)
+			keyShareKeys.kyber, err = mlkem768.NewDecapsulationKey(seed)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -174,7 +174,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCon
 			// both, as allowed by draft-ietf-tls-hybrid-design-09, Section 3.2.
 			hello.keyShares = []keyShare{
 				{group: x25519Kyber768Draft00, data: append(keyShareKeys.ecdhe.PublicKey().Bytes(),
-					keyShareKeys.kyber.EncapsulationKey()...)},
+					keyShareKeys.kyber.EncapsulationKey().Bytes()...)},
 				{group: X25519, data: keyShareKeys.ecdhe.PublicKey().Bytes()},
 			}
 		} else {

@@ -73,6 +73,8 @@ type DecapsulationKey struct {
 }
 
 // Bytes returns the decapsulation key as a 64-byte seed in the "d || z" form.
+//
+// The decapsulation key must be kept secret.
 func (dk *DecapsulationKey) Bytes() []byte {
 	var b [SeedSize]byte
 	copy(b[:], dk.d[:])
@@ -82,17 +84,34 @@ func (dk *DecapsulationKey) Bytes() []byte {
 
 // EncapsulationKey returns the public encapsulation key necessary to produce
 // ciphertexts.
-func (dk *DecapsulationKey) EncapsulationKey() []byte {
-	// The actual logic is in a separate function to outline this allocation.
-	b := make([]byte, 0, EncapsulationKeySize)
-	return dk.encapsulationKey(b)
+func (dk *DecapsulationKey) EncapsulationKey() *EncapsulationKey {
+	return &EncapsulationKey{
+		ρ:             dk.ρ,
+		h:             dk.h,
+		encryptionKey: dk.encryptionKey,
+	}
 }
 
-func (dk *DecapsulationKey) encapsulationKey(b []byte) []byte {
-	for i := range dk.t {
-		b = polyByteEncode(b, dk.t[i])
+// An EncapsulationKey is the public key used to produce ciphertexts to be
+// decapsulated by the corresponding [DecapsulationKey].
+type EncapsulationKey struct {
+	ρ [32]byte // sampleNTT seed for A
+	h [32]byte // H(ek)
+	encryptionKey
+}
+
+// Bytes returns the encapsulation key as a byte slice.
+func (ek *EncapsulationKey) Bytes() []byte {
+	// The actual logic is in a separate function to outline this allocation.
+	b := make([]byte, 0, EncapsulationKeySize)
+	return ek.bytes(b)
+}
+
+func (ek *EncapsulationKey) bytes(b []byte) []byte {
+	for i := range ek.t {
+		b = polyByteEncode(b, ek.t[i])
 	}
-	b = append(b, dk.ρ[:]...)
+	b = append(b, ek.ρ[:]...)
 	return b
 }
 
@@ -123,9 +142,9 @@ func generateKey(dk *DecapsulationKey) *DecapsulationKey {
 	return kemKeyGen(dk, &d, &z)
 }
 
-// NewKeyFromSeed deterministically generates a decapsulation key from a 64-byte
+// NewDecapsulationKey parses a decapsulation key from a 64-byte
 // seed in the "d || z" form. The seed must be uniformly random.
-func NewKeyFromSeed(seed []byte) (*DecapsulationKey, error) {
+func NewDecapsulationKey(seed []byte) (*DecapsulationKey, error) {
 	// The actual logic is in a separate function to outline this allocation.
 	dk := &DecapsulationKey{}
 	return newKeyFromSeed(dk, seed)
@@ -187,7 +206,7 @@ func kemKeyGen(dk *DecapsulationKey, d, z *[32]byte) *DecapsulationKey {
 	}
 
 	H := sha3.New256()
-	ek := dk.EncapsulationKey()
+	ek := dk.EncapsulationKey().Bytes()
 	H.Write(ek)
 	H.Sum(dk.h[:0])
 
@@ -196,74 +215,75 @@ func kemKeyGen(dk *DecapsulationKey, d, z *[32]byte) *DecapsulationKey {
 
 // Encapsulate generates a shared key and an associated ciphertext from an
 // encapsulation key, drawing random bytes from crypto/rand.
-// If the encapsulation key is not valid, Encapsulate returns an error.
 //
 // The shared key must be kept secret.
-func Encapsulate(encapsulationKey []byte) (ciphertext, sharedKey []byte, err error) {
+func (ek *EncapsulationKey) Encapsulate() (ciphertext, sharedKey []byte) {
 	// The actual logic is in a separate function to outline this allocation.
 	var cc [CiphertextSize]byte
-	return encapsulate(&cc, encapsulationKey)
+	return ek.encapsulate(&cc)
 }
 
-func encapsulate(cc *[CiphertextSize]byte, encapsulationKey []byte) (ciphertext, sharedKey []byte, err error) {
-	if len(encapsulationKey) != EncapsulationKeySize {
-		return nil, nil, errors.New("mlkem768: invalid encapsulation key length")
-	}
+func (ek *EncapsulationKey) encapsulate(cc *[CiphertextSize]byte) (ciphertext, sharedKey []byte) {
 	var m [messageSize]byte
 	rand.Read(m[:])
 	// Note that the modulus check (step 2 of the encapsulation key check from
 	// FIPS 203, Section 7.2) is performed by polyByteDecode in parseEK.
-	return kemEncaps(cc, encapsulationKey, &m)
+	return kemEncaps(cc, ek, &m)
 }
 
 // kemEncaps generates a shared key and an associated ciphertext.
 //
 // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
-func kemEncaps(cc *[CiphertextSize]byte, ek []byte, m *[messageSize]byte) (c, K []byte, err error) {
+func kemEncaps(cc *[CiphertextSize]byte, ek *EncapsulationKey, m *[messageSize]byte) (c, K []byte) {
 	if cc == nil {
 		cc = &[CiphertextSize]byte{}
 	}
 
-	H := sha3.Sum256(ek[:])
 	g := sha3.New512()
 	g.Write(m[:])
-	g.Write(H[:])
+	g.Write(ek.h[:])
 	G := g.Sum(nil)
 	K, r := G[:SharedKeySize], G[SharedKeySize:]
-	var ex encryptionKey
-	if err := parseEK(&ex, ek[:]); err != nil {
-		return nil, nil, err
-	}
-	c = pkeEncrypt(cc, &ex, m, r)
-	return c, K, nil
+	c = pkeEncrypt(cc, &ek.encryptionKey, m, r)
+	return c, K
+}
+
+// NewEncapsulationKey parses an encapsulation key from its encoded form.
+// If the encapsulation key is not valid, NewEncapsulationKey returns an error.
+func NewEncapsulationKey(encapsulationKey []byte) (*EncapsulationKey, error) {
+	// The actual logic is in a separate function to outline this allocation.
+	ek := &EncapsulationKey{}
+	return parseEK(ek, encapsulationKey)
 }
 
 // parseEK parses an encryption key from its encoded form.
 //
 // It implements the initial stages of K-PKE.Encrypt according to FIPS 203,
 // Algorithm 14.
-func parseEK(ex *encryptionKey, ekPKE []byte) error {
+func parseEK(ek *EncapsulationKey, ekPKE []byte) (*EncapsulationKey, error) {
 	if len(ekPKE) != encryptionKeySize {
-		return errors.New("mlkem768: invalid encryption key length")
+		return nil, errors.New("mlkem768: invalid encapsulation key length")
 	}
 
-	for i := range ex.t {
+	ek.h = sha3.Sum256(ekPKE[:])
+
+	for i := range ek.t {
 		var err error
-		ex.t[i], err = polyByteDecode[nttElement](ekPKE[:encodingSize12])
+		ek.t[i], err = polyByteDecode[nttElement](ekPKE[:encodingSize12])
 		if err != nil {
-			return err
+			return nil, err
 		}
 		ekPKE = ekPKE[encodingSize12:]
 	}
-	ρ := ekPKE
+	copy(ek.ρ[:], ekPKE)
 
 	for i := byte(0); i < k; i++ {
 		for j := byte(0); j < k; j++ {
-			ex.a[i*k+j] = sampleNTT(ρ, j, i)
+			ek.a[i*k+j] = sampleNTT(ek.ρ[:], j, i)
 		}
 	}
 
-	return nil
+	return ek, nil
 }
 
 // pkeEncrypt encrypt a plaintext message.

@@ -63,19 +63,20 @@ func kyberDecapsulate(dk *mlkem768.DecapsulationKey, c []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return kyberSharedSecret(K, c), nil
+	return kyberSharedSecret(c, K), nil
 }
 
 // kyberEncapsulate implements encapsulation according to Kyber Round 3.
 func kyberEncapsulate(ek []byte) (c, ss []byte, err error) {
-	c, ss, err = mlkem768.Encapsulate(ek)
+	k, err := mlkem768.NewEncapsulationKey(ek)
 	if err != nil {
 		return nil, nil, err
 	}
-	return c, kyberSharedSecret(ss, c), nil
+	c, ss = k.Encapsulate()
+	return c, kyberSharedSecret(c, ss), nil
 }
 
-func kyberSharedSecret(K, c []byte) []byte {
+func kyberSharedSecret(c, K []byte) []byte {
 	// Package mlkem768 implements ML-KEM, which compared to Kyber removed a
 	// final hashing step. Compute SHAKE-256(K || SHA3-256(c), 32) to match Kyber.
 	// See https://words.filippo.io/mlkem768/#bonus-track-using-a-ml-kem-implementation-as-kyber-v3.

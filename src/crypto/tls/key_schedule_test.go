@@ -124,7 +124,7 @@ func TestKyberEncapsulate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ct, ss, err := kyberEncapsulate(dk.EncapsulationKey())
+	ct, ss, err := kyberEncapsulate(dk.EncapsulationKey().Bytes())
 	if err != nil {
 		t.Fatal(err)
 	}
