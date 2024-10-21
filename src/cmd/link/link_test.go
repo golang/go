@@ -783,8 +783,8 @@ func TestTrampoline(t *testing.T) {
 		if err != nil {
 			t.Errorf("nm failure: %s\n%s\n", err, string(out))
 		}
-		if !bytes.Contains(out, []byte("T runtime.deferreturn+0-tramp0")) {
-			t.Errorf("Trampoline T runtime.deferreturn+0-tramp0 is missing")
+		if ok, _ := regexp.Match("T runtime.deferreturn(\\+0)?-tramp0", out); !ok {
+			t.Errorf("Trampoline T runtime.deferreturn(+0)?-tramp0 is missing")
 		}
 	}
 }
