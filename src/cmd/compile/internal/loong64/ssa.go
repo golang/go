@@ -186,6 +186,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
+	case ssa.OpLOONG64BSTRPICKV,
+		ssa.OpLOONG64BSTRPICKW:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		if v.Op == ssa.OpLOONG64BSTRPICKW {
+			p.From.Offset = v.AuxInt >> 5
+			p.AddRestSourceConst(v.AuxInt & 0x1f)
+		} else {
+			p.From.Offset = v.AuxInt >> 6
+			p.AddRestSourceConst(v.AuxInt & 0x3f)
+		}
+		p.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	case ssa.OpLOONG64FMINF,
 		ssa.OpLOONG64FMIND,
 		ssa.OpLOONG64FMAXF,
@@ -334,6 +349,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
 	case ssa.OpLOONG64MOVBloadidx,
 		ssa.OpLOONG64MOVBUloadidx,
 		ssa.OpLOONG64MOVHloadidx,
@@ -350,6 +366,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Index = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
 	case ssa.OpLOONG64MOVBstoreidx,
 		ssa.OpLOONG64MOVHstoreidx,
 		ssa.OpLOONG64MOVWstoreidx,
@@ -363,6 +380,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Name = obj.NAME_NONE
 		p.To.Reg = v.Args[0].Reg()
 		p.To.Index = v.Args[1].Reg()
+
 	case ssa.OpLOONG64MOVBstorezeroidx,
 		ssa.OpLOONG64MOVHstorezeroidx,
 		ssa.OpLOONG64MOVWstorezeroidx,
@@ -374,6 +392,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Name = obj.NAME_NONE
 		p.To.Reg = v.Args[0].Reg()
 		p.To.Index = v.Args[1].Reg()
+
 	case ssa.OpLOONG64MOVBload,
 		ssa.OpLOONG64MOVBUload,
 		ssa.OpLOONG64MOVHload,

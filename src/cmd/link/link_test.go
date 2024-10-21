@@ -706,6 +706,14 @@ func TestTrampoline(t *testing.T) {
 		if string(out) != "hello\n" {
 			t.Errorf("unexpected output (%s):\n%s", mode, out)
 		}
+
+		out, err = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe).CombinedOutput()
+		if err != nil {
+			t.Errorf("nm failure: %s\n%s\n", err, string(out))
+		}
+		if !bytes.Contains(out, []byte("T runtime.deferreturn+0-tramp0")) {
+			t.Errorf("Trampoline T runtime.deferreturn+0-tramp0 is missing")
+		}
 	}
 }
 

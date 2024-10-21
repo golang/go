@@ -521,7 +521,7 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	// Populate closure variables.
 	if fn.Needctxt() {
 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
-		if fn.RangeParent != nil {
+		if fn.RangeParent != nil && base.Flag.N != 0 {
 			// For a range body closure, keep its closure pointer live on the
 			// stack with a special name, so the debugger can look for it and
 			// find the parent frame.

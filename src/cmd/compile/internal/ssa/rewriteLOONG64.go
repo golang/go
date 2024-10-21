@@ -1890,6 +1890,23 @@ func rewriteValueLOONG64_OpLOONG64MOVBUloadidx(v *Value) bool {
 }
 func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (MOVBUreg (SRLVconst [rc] x))
+	// cond: rc < 8
+	// result: (BSTRPICKV [rc + (7+rc)<<6] x)
+	for {
+		if v_0.Op != OpLOONG64SRLVconst {
+			break
+		}
+		rc := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(rc < 8) {
+			break
+		}
+		v.reset(OpLOONG64BSTRPICKV)
+		v.AuxInt = int64ToAuxInt(rc + (7+rc)<<6)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVBUreg x:(SGT _ _))
 	// result: x
 	for {
@@ -3076,6 +3093,23 @@ func rewriteValueLOONG64_OpLOONG64MOVHUloadidx(v *Value) bool {
 }
 func rewriteValueLOONG64_OpLOONG64MOVHUreg(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (MOVHUreg (SRLVconst [rc] x))
+	// cond: rc < 16
+	// result: (BSTRPICKV [rc + (15+rc)<<6] x)
+	for {
+		if v_0.Op != OpLOONG64SRLVconst {
+			break
+		}
+		rc := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(rc < 16) {
+			break
+		}
+		v.reset(OpLOONG64BSTRPICKV)
+		v.AuxInt = int64ToAuxInt(rc + (15+rc)<<6)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVHUreg x:(MOVBUload _ _))
 	// result: (MOVVreg x)
 	for {
@@ -4182,6 +4216,23 @@ func rewriteValueLOONG64_OpLOONG64MOVWUloadidx(v *Value) bool {
 }
 func rewriteValueLOONG64_OpLOONG64MOVWUreg(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (MOVWUreg (SRLVconst [rc] x))
+	// cond: rc < 32
+	// result: (BSTRPICKV [rc + (31+rc)<<6] x)
+	for {
+		if v_0.Op != OpLOONG64SRLVconst {
+			break
+		}
+		rc := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(rc < 32) {
+			break
+		}
+		v.reset(OpLOONG64BSTRPICKV)
+		v.AuxInt = int64ToAuxInt(rc + (31+rc)<<6)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVWUreg x:(MOVBUload _ _))
 	// result: (MOVVreg x)
 	for {
@@ -5587,6 +5638,75 @@ func rewriteValueLOONG64_OpLOONG64SRLV(v *Value) bool {
 }
 func rewriteValueLOONG64_OpLOONG64SRLVconst(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (SRLVconst [rc] (SLLVconst [lc] x))
+	// cond: lc <= rc
+	// result: (BSTRPICKV [rc-lc + ((64-lc)-1)<<6] x)
+	for {
+		rc := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpLOONG64SLLVconst {
+			break
+		}
+		lc := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(lc <= rc) {
+			break
+		}
+		v.reset(OpLOONG64BSTRPICKV)
+		v.AuxInt = int64ToAuxInt(rc - lc + ((64-lc)-1)<<6)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SRLVconst [rc] (MOVWUreg x))
+	// cond: rc < 32
+	// result: (BSTRPICKV [rc + 31<<6] x)
+	for {
+		rc := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpLOONG64MOVWUreg {
+			break
+		}
+		x := v_0.Args[0]
+		if !(rc < 32) {
+			break
+		}
+		v.reset(OpLOONG64BSTRPICKV)
+		v.AuxInt = int64ToAuxInt(rc + 31<<6)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SRLVconst [rc] (MOVHUreg x))
+	// cond: rc < 16
+	// result: (BSTRPICKV [rc + 15<<6] x)
+	for {
+		rc := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpLOONG64MOVHUreg {
+			break
+		}
+		x := v_0.Args[0]
+		if !(rc < 16) {
+			break
+		}
+		v.reset(OpLOONG64BSTRPICKV)
+		v.AuxInt = int64ToAuxInt(rc + 15<<6)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SRLVconst [rc] (MOVBUreg x))
+	// cond: rc < 8
+	// result: (BSTRPICKV [rc + 7<<6] x)
+	for {
+		rc := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpLOONG64MOVBUreg {
+			break
+		}
+		x := v_0.Args[0]
+		if !(rc < 8) {
+			break
+		}
+		v.reset(OpLOONG64BSTRPICKV)
+		v.AuxInt = int64ToAuxInt(rc + 7<<6)
+		v.AddArg(x)
+		return true
+	}
 	// match: (SRLVconst [c] (MOVVconst [d]))
 	// result: (MOVVconst [int64(uint64(d)>>uint64(c))])
 	for {
