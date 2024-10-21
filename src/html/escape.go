@@ -53,10 +53,9 @@ var replacementTable = [...]rune{
 // unescapeEntity reads an entity like "&lt;" from b[src:] and writes the
 // corresponding "<" to b[dst:], returning the incremented dst and src cursors.
 // Precondition: b[src] == '&' && dst <= src.
-func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
-	const attribute = false
-
-	// http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
+// attribute should be true if parsing an attribute value.
+func unescapeEntity(b []byte, dst, src int, attribute bool) (dst1, src1 int) {
+	// https://html.spec.whatwg.org/multipage/syntax.html#consume-a-character-reference
 
 	// i starts at 1 because we already know that s[0] == '&'.
 	i, s := 1, b[src:]
@@ -163,16 +162,38 @@ func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
 	return dst1, src1
 }
 
+func unescapeInner(b []byte, i int, attribute bool) []byte {
+	dst, src := unescapeEntity(b, i, i, attribute)
+	for len(b[src:]) > 0 {
+		if b[src] == '&' {
+			i = 0
+		} else {
+			i = bytes.IndexByte(b[src:], '&')
+		}
+		if i < 0 {
+			dst += copy(b[dst:], b[src:])
+			break
+		}
+
+		if i > 0 {
+			copy(b[dst:], b[src:src+i])
+		}
+		dst, src = unescapeEntity(b, dst+i, src+i, attribute)
+	}
+	return b[:dst]
+}
+
 var htmlEscaper = strings.NewReplacer(
 	`&`, "&amp;",
 	`'`, "&#39;", // "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
 	`<`, "&lt;",
 	`>`, "&gt;",
 	`"`, "&#34;", // "&#34;" is shorter than "&quot;".
+	"\r", "&#13;",
 )
 
 // EscapeString escapes special characters like "<" to become "&lt;". It
-// escapes only five such characters: <, >, &, ' and ".
+// escapes only six such characters: <, >, &, ', ", and \r.
 // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
 // always true.
 func EscapeString(s string) string {
@@ -186,29 +207,8 @@ func EscapeString(s string) string {
 // always true.
 func UnescapeString(s string) string {
 	populateMapsOnce.Do(populateMaps)
-	i := strings.IndexByte(s, '&')
-
-	if i < 0 {
-		return s
+	if i := strings.IndexByte(s, '&'); i >= 0 {
+		return string(unescapeInner([]byte(s), i, false))
 	}
-
-	b := []byte(s)
-	dst, src := unescapeEntity(b, i, i)
-	for len(s[src:]) > 0 {
-		if s[src] == '&' {
-			i = 0
-		} else {
-			i = strings.IndexByte(s[src:], '&')
-		}
-		if i < 0 {
-			dst += copy(b[dst:], s[src:])
-			break
-		}
-
-		if i > 0 {
-			copy(b[dst:], s[src:src+i])
-		}
-		dst, src = unescapeEntity(b, dst+i, src+i)
-	}
-	return string(b[:dst])
+	return s
 }
