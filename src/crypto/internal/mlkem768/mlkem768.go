@@ -112,19 +112,15 @@ type decryptionKey struct {
 func GenerateKey() (*DecapsulationKey, error) {
 	// The actual logic is in a separate function to outline this allocation.
 	dk := &DecapsulationKey{}
-	return generateKey(dk)
+	return generateKey(dk), nil
 }
 
-func generateKey(dk *DecapsulationKey) (*DecapsulationKey, error) {
+func generateKey(dk *DecapsulationKey) *DecapsulationKey {
 	var d [32]byte
-	if _, err := rand.Read(d[:]); err != nil {
-		return nil, errors.New("mlkem768: crypto/rand Read failed: " + err.Error())
-	}
+	rand.Read(d[:])
 	var z [32]byte
-	if _, err := rand.Read(z[:]); err != nil {
-		return nil, errors.New("mlkem768: crypto/rand Read failed: " + err.Error())
-	}
-	return kemKeyGen(dk, &d, &z), nil
+	rand.Read(z[:])
+	return kemKeyGen(dk, &d, &z)
 }
 
 // NewKeyFromSeed deterministically generates a decapsulation key from a 64-byte
@@ -214,9 +210,7 @@ func encapsulate(cc *[CiphertextSize]byte, encapsulationKey []byte) (ciphertext,
 		return nil, nil, errors.New("mlkem768: invalid encapsulation key length")
 	}
 	var m [messageSize]byte
-	if _, err := rand.Read(m[:]); err != nil {
-		return nil, nil, errors.New("mlkem768: crypto/rand Read failed: " + err.Error())
-	}
+	rand.Read(m[:])
 	// Note that the modulus check (step 2 of the encapsulation key check from
 	// FIPS 203, Section 7.2) is performed by polyByteDecode in parseEK.
 	return kemEncaps(cc, encapsulationKey, &m)
