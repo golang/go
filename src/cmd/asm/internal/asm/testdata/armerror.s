@@ -261,8 +261,6 @@ TEXT errors(SB),$0
 	STREXD	R0, (R2), R2       // ERROR "cannot use same register as both source and destination"
 	STREXD	R1, (R4), R7       // ERROR "must be even"
 	STREXB	R0, (R2), R0       // ERROR "cannot use same register as both source and destination"
-	STREXB	R0, (R2), R1       // ERROR "cannot use same register as both source and destination"
 	STREXB	R0, (R2), R2       // ERROR "cannot use same register as both source and destination"
-	STREXB	R1, (R4), R7       // ERROR "must be even"
 
 	END

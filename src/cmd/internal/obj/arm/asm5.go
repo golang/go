@@ -2425,15 +2425,15 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if c.instoffset != 0 {
 			c.ctxt.Diag("offset must be zero in STREX")
 		}
-		if p.Reg&1 != 0 {
-			c.ctxt.Diag("source register must be even in STREXD: %v", p)
-		}
-		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg || p.To.Reg == p.Reg+1 {
+		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg || (p.As == ASTREXD && p.To.Reg == p.Reg+1) {
 			c.ctxt.Diag("cannot use same register as both source and destination: %v", p)
 		}
 
 		switch p.As {
 		case ASTREXD:
+			if p.Reg&1 != 0 {
+				c.ctxt.Diag("source register must be even in STREXD: %v", p)
+			}
 			o1 = 0x1a << 20
 		case ASTREXB:
 			o1 = 0x1c << 20
