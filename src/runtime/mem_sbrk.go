@@ -8,6 +8,8 @@ package runtime
 
 import "unsafe"
 
+const isSbrkPlatform = true
+
 const memDebug = false
 
 // Memory management on sbrk systems (including the linear memory
@@ -47,6 +49,13 @@ func (p memHdrPtr) ptr() *memHdr   { return (*memHdr)(unsafe.Pointer(p)) }
 func (p *memHdrPtr) set(x *memHdr) { *p = memHdrPtr(unsafe.Pointer(x)) }
 
 func memAlloc(n uintptr) unsafe.Pointer {
+	if p := memAllocNoGrow(n); p != nil {
+		return p
+	}
+	return sbrk(n)
+}
+
+func memAllocNoGrow(n uintptr) unsafe.Pointer {
 	n = memRound(n)
 	var prevp *memHdr
 	for p := memFreelist.ptr(); p != nil; p = p.next.ptr() {
@@ -66,7 +75,7 @@ func memAlloc(n uintptr) unsafe.Pointer {
 		}
 		prevp = p
 	}
-	return sbrk(n)
+	return nil
 }
 
 func memFree(ap unsafe.Pointer, n uintptr) {
@@ -206,4 +215,35 @@ func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	}
 	unlock(&memlock)
 	return p
+}
+
+func sysReserveAlignedSbrk(size, align uintptr) (unsafe.Pointer, uintptr) {
+	lock(&memlock)
+	if p := memAllocNoGrow(size + align); p != nil {
+		// We can satisfy the reservation from the free list.
+		// Trim off the unaligned parts.
+		pAligned := alignUp(uintptr(p), align)
+		if startLen := pAligned - uintptr(p); startLen > 0 {
+			memFree(p, startLen)
+		}
+		end := pAligned + size
+		if endLen := (uintptr(p) + size + align) - end; endLen > 0 {
+			memFree(unsafe.Pointer(end), endLen)
+		}
+		memCheck()
+		return unsafe.Pointer(pAligned), size
+	}
+
+	// Round up bloc to align, then allocate size.
+	p := alignUp(bloc, align)
+	r := sbrk(p + size - bloc)
+	if r == nil {
+		p, size = 0, 0
+	} else if l := p - uintptr(r); l > 0 {
+		// Free the area we skipped over for alignment.
+		memFree(r, l)
+		memCheck()
+	}
+	unlock(&memlock)
+	return unsafe.Pointer(p), size
 }

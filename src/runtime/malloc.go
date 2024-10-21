@@ -470,7 +470,10 @@ func mallocinit() {
 	lockInit(&globalAlloc.mutex, lockRankGlobalAlloc)
 
 	// Create initial arena growth hints.
-	if goarch.PtrSize == 8 {
+	if isSbrkPlatform {
+		// Don't generate hints on sbrk platforms. We can
+		// only grow the break sequentially.
+	} else if goarch.PtrSize == 8 {
 		// On a 64-bit machine, we pick the following hints
 		// because:
 		//
@@ -828,6 +831,12 @@ mapped:
 // aligned to align bytes. It may reserve either n or n+align bytes,
 // so it returns the size that was reserved.
 func sysReserveAligned(v unsafe.Pointer, size, align uintptr) (unsafe.Pointer, uintptr) {
+	if isSbrkPlatform {
+		if v != nil {
+			throw("unexpected heap arena hint on sbrk platform")
+		}
+		return sysReserveAlignedSbrk(size, align)
+	}
 	// Since the alignment is rather large in uses of this
 	// function, we're not likely to get it by chance, so we ask
 	// for a larger region and remove the parts we don't need.
