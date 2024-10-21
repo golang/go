@@ -100,7 +100,7 @@ func (dk *DecapsulationKey) encapsulationKey(b []byte) []byte {
 // encryptionKey is the parsed and expanded form of a PKE encryption key.
 type encryptionKey struct {
 	t [k]nttElement     // ByteDecode₁₂(ek[:384k])
-	A [k * k]nttElement // A[i*k+j] = sampleNTT(ρ, j, i)
+	a [k * k]nttElement // A[i*k+j] = sampleNTT(ρ, j, i)
 }
 
 // decryptionKey is the parsed and expanded form of a PKE decryption key.
@@ -164,7 +164,7 @@ func kemKeyGen(dk *DecapsulationKey, d, z *[32]byte) *DecapsulationKey {
 	ρ, σ := G[:32], G[32:]
 	dk.ρ = [32]byte(ρ)
 
-	A := &dk.A
+	A := &dk.a
 	for i := byte(0); i < k; i++ {
 		for j := byte(0); j < k; j++ {
 			A[i*k+j] = sampleNTT(ρ, j, i)
@@ -266,7 +266,7 @@ func parseEK(ex *encryptionKey, ekPKE []byte) error {
 
 	for i := byte(0); i < k; i++ {
 		for j := byte(0); j < k; j++ {
-			ex.A[i*k+j] = sampleNTT(ρ, j, i)
+			ex.a[i*k+j] = sampleNTT(ρ, j, i)
 		}
 	}
 
@@ -295,7 +295,7 @@ func pkeEncrypt(cc *[CiphertextSize]byte, ex *encryptionKey, m *[messageSize]byt
 		u[i] = e1[i]
 		for j := range r {
 			// Note that i and j are inverted, as we need the transposed of A.
-			u[i] = polyAdd(u[i], inverseNTT(nttMul(ex.A[j*k+i], r[j])))
+			u[i] = polyAdd(u[i], inverseNTT(nttMul(ex.a[j*k+i], r[j])))
 		}
 	}
 
