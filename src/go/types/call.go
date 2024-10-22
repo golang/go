@@ -8,7 +8,6 @@ package types
 
 import (
 	"go/ast"
-	"go/internal/typeparams"
 	"go/token"
 	. "internal/types/errors"
 	"strings"
@@ -33,13 +32,13 @@ import (
 //
 // If an error (other than a version error) occurs in any case, it is reported
 // and x.mode is set to invalid.
-func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typeparams.IndexExpr, infer bool) ([]Type, []ast.Expr) {
+func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexedExpr, infer bool) ([]Type, []ast.Expr) {
 	assert(T != nil || ix != nil)
 
 	var instErrPos positioner
 	if ix != nil {
-		instErrPos = inNode(ix.Orig, ix.Lbrack)
-		x.expr = ix.Orig // if we don't have an index expression, keep the existing expression of x
+		instErrPos = inNode(ix.orig, ix.lbrack)
+		x.expr = ix.orig // if we don't have an index expression, keep the existing expression of x
 	} else {
 		instErrPos = atPos(pos)
 	}
@@ -49,7 +48,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
 	var targs []Type
 	var xlist []ast.Expr
 	if ix != nil {
-		xlist = ix.Indices
+		xlist = ix.indices
 		targs = check.typeList(xlist)
 		if targs == nil {
 			x.mode = invalid
@@ -65,7 +64,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
 	got, want := len(targs), sig.TypeParams().Len()
 	if got > want {
 		// Providing too many type arguments is always an error.
-		check.errorf(ix.Indices[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
+		check.errorf(ix.indices[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
 		return nil, nil
 	}
@@ -169,7 +168,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Si
 }
 
 func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
-	ix := typeparams.UnpackIndexExpr(call.Fun)
+	ix := unpackIndexedExpr(call.Fun)
 	if ix != nil {
 		if check.indexExpr(x, ix) {
 			// Delay function instantiation to argument checking,
@@ -259,7 +258,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	var xlist []ast.Expr
 	var targs []Type
 	if ix != nil {
-		xlist = ix.Indices
+		xlist = ix.indices
 		targs = check.typeList(xlist)
 		if targs == nil {
 			check.use(call.Args...)
@@ -285,8 +284,8 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		// is an error checking its arguments (for example, if an incorrect number
 		// of arguments is supplied).
 		if got == want && want > 0 {
-			check.verifyVersionf(atPos(ix.Lbrack), go1_18, "function instantiation")
-			sig = check.instantiateSignature(ix.Pos(), ix.Orig, sig, targs, xlist)
+			check.verifyVersionf(atPos(ix.lbrack), go1_18, "function instantiation")
+			sig = check.instantiateSignature(ix.Pos(), ix.orig, sig, targs, xlist)
 			// targs have been consumed; proceed with checking arguments of the
 			// non-generic signature.
 			targs = nil
@@ -383,7 +382,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 		// single value (possibly a partially instantiated function), or a multi-valued expression
 		e := elist[0]
 		var x operand
-		if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
+		if ix := unpackIndexedExpr(e); ix != nil && check.indexExpr(&x, ix) {
 			// x is a generic function.
 			targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, infer)
 			if targs != nil {
@@ -391,7 +390,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 				targsList = [][]Type{targs}
 				xlistList = [][]ast.Expr{xlist}
 				// Update x.expr so that we can record the partially instantiated function.
-				x.expr = ix.Orig
+				x.expr = ix.orig
 			} else {
 				// x was instantiated: we must record it here because we didn't
 				// use the usual expression evaluators.
@@ -420,7 +419,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 		xlistList = make([][]ast.Expr, n)
 		for i, e := range elist {
 			var x operand
-			if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
+			if ix := unpackIndexedExpr(e); ix != nil && check.indexExpr(&x, ix) {
 				// x is a generic function.
 				targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, infer)
 				if targs != nil {
@@ -428,7 +427,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 					targsList[i] = targs
 					xlistList[i] = xlist
 					// Update x.expr so that we can record the partially instantiated function.
-					x.expr = ix.Orig
+					x.expr = ix.orig
 				} else {
 					// x was instantiated: we must record it here because we didn't
 					// use the usual expression evaluators.
@@ -546,8 +545,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 		if !check.allowVersion(go1_18) {
 			switch call.Fun.(type) {
 			case *ast.IndexExpr, *ast.IndexListExpr:
-				ix := typeparams.UnpackIndexExpr(call.Fun)
-				check.versionErrorf(inNode(call.Fun, ix.Lbrack), go1_18, "function instantiation")
+				ix := unpackIndexedExpr(call.Fun)
+				check.versionErrorf(inNode(call.Fun, ix.lbrack), go1_18, "function instantiation")
 			default:
 				check.versionErrorf(inNode(call, call.Lparen), go1_18, "implicit function instantiation")
 			}

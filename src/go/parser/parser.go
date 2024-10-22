@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build/constraint"
-	"go/internal/typeparams"
 	"go/scanner"
 	"go/token"
 	"strings"
@@ -643,7 +642,7 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
 	}
 
 	// x[P], x[P1, P2], ...
-	return nil, typeparams.PackIndexExpr(x, lbrack, args, rbrack)
+	return nil, packIndexExpr(x, lbrack, args, rbrack)
 }
 
 func (p *parser) parseFieldDecl() *ast.Field {
@@ -1163,7 +1162,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 					p.exprLev--
 				}
 				rbrack := p.expectClosing(token.RBRACK, "type argument list")
-				typ = typeparams.PackIndexExpr(ident, lbrack, list, rbrack)
+				typ = packIndexExpr(ident, lbrack, list, rbrack)
 			}
 		case p.tok == token.LPAREN:
 			// ordinary method
@@ -1352,7 +1351,7 @@ func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
 		}
 	}
 
-	return typeparams.PackIndexExpr(typ, opening, list, closing)
+	return packIndexExpr(typ, opening, list, closing)
 }
 
 func (p *parser) tryIdentOrType() ast.Expr {
@@ -1605,7 +1604,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 	}
 
 	// instance expression
-	return typeparams.PackIndexExpr(x, lbrack, args, rbrack)
+	return packIndexExpr(x, lbrack, args, rbrack)
 }
 
 func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
@@ -2920,4 +2919,26 @@ func (p *parser) parseFile() *ast.File {
 	}
 
 	return f
+}
+
+// packIndexExpr returns an IndexExpr x[expr0] or IndexListExpr x[expr0, ...].
+func packIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.Pos) ast.Expr {
+	switch len(exprs) {
+	case 0:
+		panic("internal error: packIndexExpr with empty expr slice")
+	case 1:
+		return &ast.IndexExpr{
+			X:      x,
+			Lbrack: lbrack,
+			Index:  exprs[0],
+			Rbrack: rbrack,
+		}
+	default:
+		return &ast.IndexListExpr{
+			X:       x,
+			Lbrack:  lbrack,
+			Indices: exprs,
+			Rbrack:  rbrack,
+		}
+	}
 }

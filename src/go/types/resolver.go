@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/internal/typeparams"
 	"go/token"
 	. "internal/types/errors"
 	"slices"
@@ -552,10 +551,10 @@ func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, ba
 	// unpack type parameters, if any
 	switch base.(type) {
 	case *ast.IndexExpr, *ast.IndexListExpr:
-		ix := typeparams.UnpackIndexExpr(base)
-		base = ix.X
+		ix := unpackIndexedExpr(base)
+		base = ix.x
 		if unpackParams {
-			for _, arg := range ix.Indices {
+			for _, arg := range ix.indices {
 				var par *ast.Ident
 				switch arg := arg.(type) {
 				case *ast.Ident:
@@ -563,7 +562,7 @@ func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, ba
 				case *ast.BadExpr:
 					// ignore - error already reported by parser
 				case nil:
-					check.error(ix.Orig, InvalidSyntaxTree, "parameterized receiver contains nil parameters")
+					check.error(ix.orig, InvalidSyntaxTree, "parameterized receiver contains nil parameters")
 				default:
 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
 				}

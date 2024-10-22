@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/internal/typeparams"
 	. "internal/types/errors"
 	"strings"
 )
@@ -285,8 +284,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 		}
 
 	case *ast.IndexExpr, *ast.IndexListExpr:
-		ix := typeparams.UnpackIndexExpr(e)
-		check.verifyVersionf(inNode(e, ix.Lbrack), go1_18, "type instantiation")
+		ix := unpackIndexedExpr(e)
+		check.verifyVersionf(inNode(e, ix.lbrack), go1_18, "type instantiation")
 		return check.instantiatedType(ix, def)
 
 	case *ast.ParenExpr:
@@ -425,9 +424,9 @@ func setDefType(def *TypeName, typ Type) {
 	}
 }
 
-func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) (res Type) {
+func (check *Checker) instantiatedType(ix *indexedExpr, def *TypeName) (res Type) {
 	if check.conf._Trace {
-		check.trace(ix.Pos(), "-- instantiating type %s with %s", ix.X, ix.Indices)
+		check.trace(ix.Pos(), "-- instantiating type %s with %s", ix.x, ix.indices)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -441,9 +440,9 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) 
 	}()
 
 	var cause string
-	typ := check.genericType(ix.X, &cause)
+	typ := check.genericType(ix.x, &cause)
 	if cause != "" {
-		check.errorf(ix.Orig, NotAGenericType, invalidOp+"%s (%s)", ix.Orig, cause)
+		check.errorf(ix.orig, NotAGenericType, invalidOp+"%s (%s)", ix.orig, cause)
 	}
 	if !isValid(typ) {
 		return typ // error already reported
@@ -455,7 +454,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) 
 	gtyp := typ.(genericType)
 
 	// evaluate arguments
-	targs := check.typeList(ix.Indices)
+	targs := check.typeList(ix.indices)
 	if targs == nil {
 		return Typ[Invalid]
 	}
@@ -470,7 +469,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) 
 		// This is an instance from the source, not from recursive substitution,
 		// and so it must be resolved during type-checking so that we can report
 		// errors.
-		check.recordInstance(ix.Orig, targs, inst)
+		check.recordInstance(ix.orig, targs, inst)
 
 		name := inst.(interface{ Obj() *TypeName }).Obj().name
 		tparams := inst.TypeParams().list()
@@ -479,12 +478,12 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) 
 			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), targs, check.context()); err != nil {
 				// best position for error reporting
 				pos := ix.Pos()
-				if i < len(ix.Indices) {
-					pos = ix.Indices[i].Pos()
+				if i < len(ix.indices) {
+					pos = ix.indices[i].Pos()
 				}
 				check.softErrorf(atPos(pos), InvalidTypeArg, "%v", err)
 			} else {
-				check.mono.recordInstance(check.pkg, ix.Pos(), tparams, targs, ix.Indices)
+				check.mono.recordInstance(check.pkg, ix.Pos(), tparams, targs, ix.indices)
 			}
 		}
 	}).describef(ix, "verify instantiation %s", inst)

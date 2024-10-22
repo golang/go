@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/internal/typeparams"
 	"go/token"
 	. "internal/types/errors"
 )
@@ -1062,7 +1061,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 		check.selector(x, e, nil, false)
 
 	case *ast.IndexExpr, *ast.IndexListExpr:
-		ix := typeparams.UnpackIndexExpr(e)
+		ix := unpackIndexedExpr(e)
 		if check.indexExpr(x, ix) {
 			if !enableReverseTypeInference {
 				T = nil
