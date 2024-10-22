@@ -229,6 +229,7 @@ var genericOps = []opData{
 	{name: "Ctz16", argLength: 1},        // Count trailing (low order) zeroes (returns 0-16)
 	{name: "Ctz32", argLength: 1},        // Count trailing (low order) zeroes (returns 0-32)
 	{name: "Ctz64", argLength: 1},        // Count trailing (low order) zeroes (returns 0-64)
+	{name: "Ctz64On32", argLength: 2},    // Count trailing (low order) zeroes (returns 0-64) in arg[1]<<32+arg[0]
 	{name: "Ctz8NonZero", argLength: 1},  // same as above, but arg[0] known to be non-zero, returns 0-7
 	{name: "Ctz16NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-15
 	{name: "Ctz32NonZero", argLength: 1}, // same as above, but arg[0] known to be non-zero, returns 0-31

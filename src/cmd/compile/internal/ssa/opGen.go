@@ -469,6 +469,7 @@ const (
 	Op386BSFL
 	Op386BSFW
 	Op386LoweredCtz32
+	Op386LoweredCtz64
 	Op386BSRL
 	Op386BSRW
 	Op386BSWAPL
@@ -3093,6 +3094,7 @@ const (
 	OpCtz16
 	OpCtz32
 	OpCtz64
+	OpCtz64On32
 	OpCtz8NonZero
 	OpCtz16NonZero
 	OpCtz32NonZero
@@ -5189,6 +5191,21 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
+			},
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+		},
+	},
+	{
+		name:            "LoweredCtz64",
+		argLen:          2,
+		resultNotInArgs: true,
+		clobberFlags:    true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+				{1, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -40456,6 +40473,11 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "Ctz64",
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Ctz64On32",
+		argLen:  2,
 		generic: true,
 	},
 	{

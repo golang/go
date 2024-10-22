@@ -63,6 +63,7 @@
 (Ctz16NonZero ...) => (BSFL ...)
 (Ctz32 ...) => (LoweredCtz32 ...)
 (Ctz32NonZero ...) => (BSFL ...)
+(Ctz64On32 ...) => (LoweredCtz64 ...)
 
 // Lowering extension
 (SignExt8to16  ...) => (MOVBLSX ...)

@@ -323,6 +323,9 @@ func rewriteValue386(v *Value) bool {
 	case OpCtz32NonZero:
 		v.Op = Op386BSFL
 		return true
+	case OpCtz64On32:
+		v.Op = Op386LoweredCtz64
+		return true
 	case OpCtz8:
 		return rewriteValue386_OpCtz8(v)
 	case OpCtz8NonZero:
