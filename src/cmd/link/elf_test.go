@@ -224,7 +224,9 @@ func TestGNUBuildID(t *testing.T) {
 		{"specific", "-B=0x0123456789abcdef", "\x01\x23\x45\x67\x89\xab\xcd\xef"},
 		{"none", "-B=none", ""},
 	}
-	if testenv.HasCGO() {
+	if testenv.HasCGO() && runtime.GOOS != "solaris" && runtime.GOOS != "illumos" {
+		// Solaris ld doesn't support --build-id. So we don't
+		// add it in external linking mode.
 		for _, test := range tests {
 			t1 := test
 			t1.name += "_external"
