@@ -207,6 +207,38 @@ func operandString(x *operand, qf Qualifier) string {
 	return buf.String()
 }
 
+// compositeKind returns the kind of the given composite type
+// ("array", "slice", etc.) or the empty string if typ is not
+// composite but a basic type.
+func compositeKind(typ Type) string {
+	switch under(typ).(type) {
+	case *Basic:
+		return ""
+	case *Array:
+		return "array"
+	case *Slice:
+		return "slice"
+	case *Struct:
+		return "struct"
+	case *Pointer:
+		return "pointer"
+	case *Signature:
+		return "func"
+	case *Interface:
+		return "interface"
+	case *Map:
+		return "map"
+	case *Chan:
+		return "chan"
+	case *Tuple:
+		return "tuple"
+	case *Union:
+		return "union"
+	default:
+		panic("unreachable")
+	}
+}
+
 func (x *operand) String() string {
 	return operandString(x, nil)
 }

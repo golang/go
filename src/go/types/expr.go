@@ -556,7 +556,12 @@ Error:
 			}
 			cause = check.sprintf("type parameter %s cannot use operator %s", errOp.typ, op)
 		} else {
-			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
+			// catch-all neither x nor y is a type parameter
+			what := compositeKind(errOp.typ)
+			if what == "" {
+				what = check.sprintf("%s", errOp.typ)
+			}
+			cause = check.sprintf("operator %s not defined on %s", op, what)
 		}
 	}
 	if switchCase {
@@ -572,7 +577,7 @@ Error:
 func (check *Checker) incomparableCause(typ Type) string {
 	switch under(typ).(type) {
 	case *Slice, *Signature, *Map:
-		return check.kindString(typ) + " can only be compared to nil"
+		return compositeKind(typ) + " can only be compared to nil"
 	}
 	// see if we can extract a more specific error
 	var cause string
@@ -580,33 +585,6 @@ func (check *Checker) incomparableCause(typ Type) string {
 		cause = check.sprintf(format, args...)
 	})
 	return cause
-}
-
-// kindString returns the type kind as a string.
-func (check *Checker) kindString(typ Type) string {
-	switch under(typ).(type) {
-	case *Array:
-		return "array"
-	case *Slice:
-		return "slice"
-	case *Struct:
-		return "struct"
-	case *Pointer:
-		return "pointer"
-	case *Signature:
-		return "func"
-	case *Interface:
-		if isTypeParam(typ) {
-			return check.sprintf("type parameter %s", typ)
-		}
-		return "interface"
-	case *Map:
-		return "map"
-	case *Chan:
-		return "chan"
-	default:
-		return check.sprintf("%s", typ) // catch-all
-	}
 }
 
 // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
