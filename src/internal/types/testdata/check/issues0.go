@@ -363,7 +363,7 @@ func issue35895() {
 
 	// Because both t1 and t2 have the same global package name (template),
 	// qualify packages with full path name in this case.
-	var _ t1.Template = t2 /* ERRORx `cannot use .* \(value of type .html/template.\.Template\) as .text/template.\.Template` */ .Template{}
+	var _ t1.Template = t2 /* ERRORx `cannot use .* \(value of struct type .html/template.\.Template\) as .text/template.\.Template` */ .Template{}
 }
 
 func issue42989(s uint) {

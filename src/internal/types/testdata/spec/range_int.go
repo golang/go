@@ -44,7 +44,7 @@ func _() {
 	for i, j /* ERROR "range over 10 (untyped int constant) permits only one iteration variable" */ := range 10 {
 		_, _ = i, j
 	}
-	for i = range MyInt /* ERROR "cannot use MyInt(10) (constant 10 of type MyInt) as int value in range clause" */ (10) {
+	for i = range MyInt /* ERROR "cannot use MyInt(10) (constant 10 of int32 type MyInt) as int value in range clause" */ (10) {
 		_ = i
 	}
 	for mi := range MyInt(10) {

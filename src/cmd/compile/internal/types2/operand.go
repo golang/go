@@ -178,15 +178,33 @@ func operandString(x *operand, qf Qualifier) string {
 	// <typ>
 	if hasType {
 		if isValid(x.typ) {
-			var intro string
+			var desc string
 			if isGeneric(x.typ) {
-				intro = " of generic type "
-			} else {
-				intro = " of type "
+				desc = "generic "
 			}
-			buf.WriteString(intro)
+
+			// Describe the type structure if it is an *Alias or *Named type.
+			// If the type is a renamed basic type, describe the basic type,
+			// as in "int32 type MyInt" for a *Named type MyInt.
+			// If it is a type parameter, describe the constraint instead.
+			tpar, _ := Unalias(x.typ).(*TypeParam)
+			if tpar == nil {
+				switch x.typ.(type) {
+				case *Alias, *Named:
+					what := compositeKind(x.typ)
+					if what == "" {
+						// x.typ must be basic type
+						what = under(x.typ).(*Basic).name
+					}
+					desc += what + " "
+				}
+			}
+			// desc is "" or has a trailing space at the end
+
+			buf.WriteString(" of " + desc + "type ")
 			WriteType(&buf, x.typ, qf)
-			if tpar, _ := Unalias(x.typ).(*TypeParam); tpar != nil {
+
+			if tpar != nil {
 				buf.WriteString(" constrained by ")
 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
 				// If we have the type set and it's empty, say so for better error messages.
