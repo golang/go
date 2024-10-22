@@ -454,7 +454,7 @@ func mallocinit() {
 	}
 
 	if minTagBits > taggedPointerBits {
-		throw("taggedPointerbits too small")
+		throw("taggedPointerBits too small")
 	}
 
 	// Initialize the heap.
