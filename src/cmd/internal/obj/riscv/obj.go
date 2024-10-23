@@ -155,6 +155,14 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case obj.AUNDEF:
 		p.As = AEBREAK
 
+	case AFMVXS:
+		// FMVXS is the old name for FMVXW.
+		p.As = AFMVXW
+
+	case AFMVSX:
+		// FMVSX is the old name for FMVWX.
+		p.As = AFMVWX
+
 	case ASCALL:
 		// SCALL is the old name for ECALL.
 		p.As = AECALL
@@ -1627,6 +1635,9 @@ var encodings = [ALAST & obj.AMask]encoding{
 	ALD & obj.AMask: iIIEncoding,
 	ASD & obj.AMask: sIEncoding,
 
+	// 7.1: CSR Instructions
+	ACSRRS & obj.AMask: iIIEncoding,
+
 	// 7.1: Multiplication Operations
 	AMUL & obj.AMask:    rIIIEncoding,
 	AMULH & obj.AMask:   rIIIEncoding,
@@ -1668,11 +1679,6 @@ var encodings = [ALAST & obj.AMask]encoding{
 	AAMOMINUW & obj.AMask: rIIIEncoding,
 	AAMOMINUD & obj.AMask: rIIIEncoding,
 
-	// 10.1: Base Counters and Timers
-	ARDCYCLE & obj.AMask:   iIIEncoding,
-	ARDTIME & obj.AMask:    iIIEncoding,
-	ARDINSTRET & obj.AMask: iIIEncoding,
-
 	// 11.5: Single-Precision Load and Store Instructions
 	AFLW & obj.AMask: iFEncoding,
 	AFSW & obj.AMask: sFEncoding,
@@ -1702,8 +1708,6 @@ var encodings = [ALAST & obj.AMask]encoding{
 	AFSGNJS & obj.AMask:  rFFFEncoding,
 	AFSGNJNS & obj.AMask: rFFFEncoding,
 	AFSGNJXS & obj.AMask: rFFFEncoding,
-	AFMVXS & obj.AMask:   rFIEncoding,
-	AFMVSX & obj.AMask:   rIFEncoding,
 	AFMVXW & obj.AMask:   rFIEncoding,
 	AFMVWX & obj.AMask:   rIFEncoding,
 
@@ -2419,13 +2423,28 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.funct7 = 3
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
 
-	case AECALL, AEBREAK, ARDCYCLE, ARDTIME, ARDINSTRET:
+	case AECALL, AEBREAK:
 		insEnc := encode(p.As)
 		if p.To.Type == obj.TYPE_NONE {
 			ins.rd = REG_ZERO
 		}
 		ins.rs1 = REG_ZERO
 		ins.imm = insEnc.csr
+
+	case ARDCYCLE, ARDTIME, ARDINSTRET:
+		ins.as = ACSRRS
+		if p.To.Type == obj.TYPE_NONE {
+			ins.rd = REG_ZERO
+		}
+		ins.rs1 = REG_ZERO
+		switch p.As {
+		case ARDCYCLE:
+			ins.imm = -1024
+		case ARDTIME:
+			ins.imm = -1023
+		case ARDINSTRET:
+			ins.imm = -1022
+		}
 
 	case AFENCE:
 		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
