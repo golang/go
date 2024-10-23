@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package mlkem768 implements the quantum-resistant key encapsulation method
+// Package mlkem implements the quantum-resistant key encapsulation method
 // ML-KEM (formerly known as Kyber), as specified in [NIST FIPS 203].
 //
 // Only the recommended ML-KEM-768 parameter set is provided.
 //
 // [NIST FIPS 203]: https://doi.org/10.6028/NIST.FIPS.203
-package mlkem768
+package mlkem
 
 // This package targets security, correctness, simplicity, readability, and
 // reviewability as its primary goals. All critical operations are performed in
@@ -21,11 +21,10 @@ package mlkem768
 // background at https://words.filippo.io/kyber-math/ useful.
 
 import (
-	"crypto/rand"
-	"crypto/subtle"
+	"crypto/internal/fips/drbg"
+	"crypto/internal/fips/sha3"
+	"crypto/internal/fips/subtle"
 	"errors"
-
-	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -125,7 +124,7 @@ type decryptionKey struct {
 }
 
 // GenerateKey768 generates a new decapsulation key, drawing random bytes from
-// crypto/rand. The decapsulation key must be kept secret.
+// a DRBG. The decapsulation key must be kept secret.
 func GenerateKey768() (*DecapsulationKey768, error) {
 	// The actual logic is in a separate function to outline this allocation.
 	dk := &DecapsulationKey768{}
@@ -134,9 +133,9 @@ func GenerateKey768() (*DecapsulationKey768, error) {
 
 func generateKey(dk *DecapsulationKey768) *DecapsulationKey768 {
 	var d [32]byte
-	rand.Read(d[:])
+	drbg.Read(d[:])
 	var z [32]byte
-	rand.Read(z[:])
+	drbg.Read(z[:])
 	return kemKeyGen(dk, &d, &z)
 }
 
@@ -150,7 +149,7 @@ func NewDecapsulationKey768(seed []byte) (*DecapsulationKey768, error) {
 
 func newKeyFromSeed(dk *DecapsulationKey768, seed []byte) (*DecapsulationKey768, error) {
 	if len(seed) != SeedSize {
-		return nil, errors.New("mlkem768: invalid seed length")
+		return nil, errors.New("mlkem: invalid seed length")
 	}
 	d := (*[32]byte)(seed[:32])
 	z := (*[32]byte)(seed[32:])
@@ -212,7 +211,7 @@ func kemKeyGen(dk *DecapsulationKey768, d, z *[32]byte) *DecapsulationKey768 {
 }
 
 // Encapsulate generates a shared key and an associated ciphertext from an
-// encapsulation key, drawing random bytes from crypto/rand.
+// encapsulation key, drawing random bytes from a DRBG.
 //
 // The shared key must be kept secret.
 func (ek *EncapsulationKey768) Encapsulate() (ciphertext, sharedKey []byte) {
@@ -223,7 +222,7 @@ func (ek *EncapsulationKey768) Encapsulate() (ciphertext, sharedKey []byte) {
 
 func (ek *EncapsulationKey768) encapsulate(cc *[CiphertextSize768]byte) (ciphertext, sharedKey []byte) {
 	var m [messageSize]byte
-	rand.Read(m[:])
+	drbg.Read(m[:])
 	// Note that the modulus check (step 2 of the encapsulation key check from
 	// FIPS 203, Section 7.2) is performed by polyByteDecode in parseEK.
 	return kemEncaps(cc, ek, &m)
@@ -260,10 +259,12 @@ func NewEncapsulationKey768(encapsulationKey []byte) (*EncapsulationKey768, erro
 // Algorithm 14.
 func parseEK(ek *EncapsulationKey768, ekPKE []byte) (*EncapsulationKey768, error) {
 	if len(ekPKE) != encryptionKeySize {
-		return nil, errors.New("mlkem768: invalid encapsulation key length")
+		return nil, errors.New("mlkem: invalid encapsulation key length")
 	}
 
-	ek.h = sha3.Sum256(ekPKE[:])
+	h := sha3.New256()
+	h.Write(ekPKE)
+	h.Sum(ek.h[:0])
 
 	for i := range ek.t {
 		var err error
@@ -333,7 +334,7 @@ func pkeEncrypt(cc *[CiphertextSize768]byte, ex *encryptionKey, m *[messageSize]
 // The shared key must be kept secret.
 func (dk *DecapsulationKey768) Decapsulate(ciphertext []byte) (sharedKey []byte, err error) {
 	if len(ciphertext) != CiphertextSize768 {
-		return nil, errors.New("mlkem768: invalid ciphertext length")
+		return nil, errors.New("mlkem: invalid ciphertext length")
 	}
 	c := (*[CiphertextSize768]byte)(ciphertext)
 	// Note that the hash check (step 3 of the decapsulation input check from

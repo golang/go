@@ -10,8 +10,8 @@ import (
 	"crypto"
 	"crypto/hmac"
 	"crypto/internal/fips/hkdf"
+	"crypto/internal/fips/mlkem"
 	"crypto/internal/fips/tls13"
-	"crypto/internal/mlkem768"
 	"crypto/rsa"
 	"crypto/subtle"
 	"errors"
@@ -481,7 +481,7 @@ func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
 
 	ecdhePeerData := hs.serverHello.serverShare.data
 	if hs.serverHello.serverShare.group == x25519Kyber768Draft00 {
-		if len(ecdhePeerData) != x25519PublicKeySize+mlkem768.CiphertextSize768 {
+		if len(ecdhePeerData) != x25519PublicKeySize+mlkem.CiphertextSize768 {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: invalid server key share")
 		}

@@ -10,9 +10,9 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/internal/fips/mlkem"
 	"crypto/internal/fips/tls13"
 	"crypto/internal/hpke"
-	"crypto/internal/mlkem768"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
@@ -160,11 +160,11 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCon
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			seed := make([]byte, mlkem768.SeedSize)
+			seed := make([]byte, mlkem.SeedSize)
 			if _, err := io.ReadFull(config.rand(), seed); err != nil {
 				return nil, nil, nil, err
 			}
-			keyShareKeys.kyber, err = mlkem768.NewDecapsulationKey768(seed)
+			keyShareKeys.kyber, err = mlkem.NewDecapsulationKey768(seed)
 			if err != nil {
 				return nil, nil, nil, err
 			}

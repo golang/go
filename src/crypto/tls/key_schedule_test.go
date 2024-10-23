@@ -6,8 +6,8 @@ package tls
 
 import (
 	"bytes"
+	"crypto/internal/fips/mlkem"
 	"crypto/internal/fips/tls13"
-	"crypto/internal/mlkem768"
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
@@ -120,7 +120,7 @@ func TestTrafficKey(t *testing.T) {
 }
 
 func TestKyberEncapsulate(t *testing.T) {
-	dk, err := mlkem768.GenerateKey768()
+	dk, err := mlkem.GenerateKey768()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package mlkem768
+package mlkem
 
 import (
+	"crypto/internal/fips/sha3"
 	"errors"
 	"internal/byteorder"
-
-	"golang.org/x/crypto/sha3"
 )
 
 // fieldElement is an integer modulo q, an element of ℤ_q. It is always reduced.
@@ -164,7 +163,7 @@ func polyByteEncode[T ~[n]fieldElement](b []byte, f T) []byte {
 // It implements ByteDecode₁₂, according to FIPS 203, Algorithm 6.
 func polyByteDecode[T ~[n]fieldElement](b []byte) (T, error) {
 	if len(b) != encodingSize12 {
-		return T{}, errors.New("mlkem768: invalid encoding length")
+		return T{}, errors.New("mlkem: invalid encoding length")
 	}
 	var f T
 	for i := 0; i < n; i += 2 {
@@ -172,10 +171,10 @@ func polyByteDecode[T ~[n]fieldElement](b []byte) (T, error) {
 		const mask12 = 0b1111_1111_1111
 		var err error
 		if f[i], err = fieldCheckReduced(uint16(d & mask12)); err != nil {
-			return T{}, errors.New("mlkem768: invalid polynomial encoding")
+			return T{}, errors.New("mlkem: invalid polynomial encoding")
 		}
 		if f[i+1], err = fieldCheckReduced(uint16(d >> 12)); err != nil {
-			return T{}, errors.New("mlkem768: invalid polynomial encoding")
+			return T{}, errors.New("mlkem: invalid polynomial encoding")
 		}
 		b = b[3:]
 	}

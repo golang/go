@@ -9,8 +9,8 @@ import (
 	"context"
 	"crypto"
 	"crypto/hmac"
+	"crypto/internal/fips/mlkem"
 	"crypto/internal/fips/tls13"
-	"crypto/internal/mlkem768"
 	"crypto/rsa"
 	"errors"
 	"hash"
@@ -223,7 +223,7 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 	ecdhData := clientKeyShare.data
 	if selectedGroup == x25519Kyber768Draft00 {
 		ecdhGroup = X25519
-		if len(ecdhData) != x25519PublicKeySize+mlkem768.EncapsulationKeySize768 {
+		if len(ecdhData) != x25519PublicKeySize+mlkem.EncapsulationKeySize768 {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: invalid Kyber client key share")
 		}

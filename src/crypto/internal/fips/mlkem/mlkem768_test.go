@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package mlkem768
+package mlkem
 
 import (
 	"bytes"
+	"crypto/internal/fips/sha3"
 	"crypto/rand"
 	_ "embed"
 	"encoding/hex"
 	"flag"
 	"testing"
-
-	"golang.org/x/crypto/sha3"
 )
 
 func TestRoundTrip(t *testing.T) {

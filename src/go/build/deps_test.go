@@ -462,6 +462,7 @@ var depsRules = `
 	< crypto/internal/fips/hmac
 	< crypto/internal/fips/check
 	< crypto/internal/fips/hkdf
+	< crypto/internal/fips/mlkem
 	< crypto/internal/fips/ssh
 	< crypto/internal/fips/tls12
 	< crypto/internal/fips/tls13
@@ -525,7 +526,6 @@ var depsRules = `
 	CRYPTO, FMT, math/big
 	< crypto/internal/boring/bbig
 	< crypto/rand
-	< crypto/internal/mlkem768
 	< crypto/ed25519
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
