@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash"
+	"internal/testenv"
 	"io"
 	"testing"
 )
@@ -902,6 +903,7 @@ func TestLargeHashes(t *testing.T) {
 }
 
 func TestAllocations(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
 	if boring.Enabled {
 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
 	}
