@@ -14,14 +14,11 @@ import (
 	"net"
 	. "os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
-
-	"golang.org/x/net/nettest"
 )
 
 func TestSpliceFile(t *testing.T) {
@@ -478,42 +475,4 @@ func testGetPollFDAndNetwork(t *testing.T, proto string) {
 	}); err != nil {
 		t.Fatalf("server Control error: %v", err)
 	}
-}
-
-func createSocketPair(t *testing.T, proto string) (client, server net.Conn) {
-	t.Helper()
-	if !nettest.TestableNetwork(proto) {
-		t.Skipf("%s does not support %q", runtime.GOOS, proto)
-	}
-
-	ln, err := nettest.NewLocalListener(proto)
-	if err != nil {
-		t.Fatalf("NewLocalListener error: %v", err)
-	}
-	t.Cleanup(func() {
-		if ln != nil {
-			ln.Close()
-		}
-		if client != nil {
-			client.Close()
-		}
-		if server != nil {
-			server.Close()
-		}
-	})
-	ch := make(chan struct{})
-	go func() {
-		var err error
-		server, err = ln.Accept()
-		if err != nil {
-			t.Errorf("Accept new connection error: %v", err)
-		}
-		ch <- struct{}{}
-	}()
-	client, err = net.Dial(proto, ln.Addr().String())
-	<-ch
-	if err != nil {
-		t.Fatalf("Dial new connection error: %v", err)
-	}
-	return client, server
 }
