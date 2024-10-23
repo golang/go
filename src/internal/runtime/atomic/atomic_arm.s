@@ -228,6 +228,42 @@ store64loop:
 	DMB	MB_ISH
 	RET
 
+TEXT armAnd8<>(SB),NOSPLIT,$0-5
+	// addr is already in R1
+	MOVB	v+4(FP), R2
+
+and8loop:
+	LDREXB	(R1), R6
+
+	DMB	MB_ISHST
+
+	AND 	R2, R6
+	STREXB	R6, (R1), R0
+	CMP	$0, R0
+	BNE	and8loop
+
+	DMB	MB_ISH
+
+	RET
+
+TEXT armOr8<>(SB),NOSPLIT,$0-5
+	// addr is already in R1
+	MOVB	v+4(FP), R2
+
+or8loop:
+	LDREXB	(R1), R6
+
+	DMB	MB_ISHST
+
+	ORR 	R2, R6
+	STREXB	R6, (R1), R0
+	CMP	$0, R0
+	BNE	or8loop
+
+	DMB	MB_ISH
+
+	RET
+
 // The following functions all panic if their address argument isn't
 // 8-byte aligned. Since we're calling back into Go code to do this,
 // we have to cooperate with stack unwinding. In the normal case, the
@@ -310,3 +346,31 @@ TEXT ·Store64(SB),NOSPLIT,$-4-12
 	JMP	·goStore64(SB)
 #endif
 	JMP	armStore64<>(SB)
+
+TEXT ·And8(SB),NOSPLIT,$-4-5
+	NO_LOCAL_POINTERS
+	MOVW	addr+0(FP), R1
+
+// Uses STREXB/LDREXB that is armv6k or later.
+// For simplicity we only enable this on armv7.
+#ifndef GOARM_7
+	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
+	CMP	$1, R11
+	BEQ	2(PC)
+	JMP	·goAnd8(SB)
+#endif
+	JMP	armAnd8<>(SB)
+
+TEXT ·Or8(SB),NOSPLIT,$-4-5
+	NO_LOCAL_POINTERS
+	MOVW	addr+0(FP), R1
+
+// Uses STREXB/LDREXB that is armv6k or later.
+// For simplicity we only enable this on armv7.
+#ifndef GOARM_7
+	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
+	CMP	$1, R11
+	BEQ	2(PC)
+	JMP	·goOr8(SB)
+#endif
+	JMP	armOr8<>(SB)
