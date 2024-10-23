@@ -74,8 +74,11 @@ func Xchg(addr *uint32, v uint32) uint32 {
 	}
 }
 
+//go:noescape
+func Xchg8(addr *uint8, v uint8) uint8
+
 //go:nosplit
-func Xchg8(addr *uint8, v uint8) uint8 {
+func goXchg8(addr *uint8, v uint8) uint8 {
 	// Align down to 4 bytes and use 32-bit CAS.
 	uaddr := uintptr(unsafe.Pointer(addr))
 	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
