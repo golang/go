@@ -13,6 +13,7 @@ import (
 	"go/build"
 	"internal/buildcfg"
 	"internal/cfg"
+	"internal/platform"
 	"io"
 	"io/fs"
 	"os"
@@ -140,10 +141,12 @@ func defaultContext() build.Context {
 	// Recreate that logic here with the new GOOS/GOARCH setting.
 	// We need to run steps 2 and 3 to determine what the default value
 	// of CgoEnabled would be for computing CGOChanged.
-	defaultCgoEnabled := ctxt.CgoEnabled
-	if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
-		defaultCgoEnabled = false
-	} else {
+	defaultCgoEnabled := false
+	if buildcfg.DefaultCGO_ENABLED == "1" {
+		defaultCgoEnabled = true
+	} else if buildcfg.DefaultCGO_ENABLED == "0" {
+	} else if runtime.GOARCH == ctxt.GOARCH && runtime.GOOS == ctxt.GOOS {
+		defaultCgoEnabled = platform.CgoSupported(ctxt.GOOS, ctxt.GOARCH)
 		// Use built-in default cgo setting for GOOS/GOARCH.
 		// Note that ctxt.GOOS/GOARCH are derived from the preference list
 		// (1) environment, (2) go/env file, (3) runtime constants,

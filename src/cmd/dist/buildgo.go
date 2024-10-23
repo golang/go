@@ -7,7 +7,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -106,22 +105,6 @@ func defaultCCFunc(name string, defaultcc map[string]string) string {
 	fmt.Fprintf(&buf, "}\n")
 
 	return buf.String()
-}
-
-// mkzcgo writes zcgo.go for the go/build package:
-//
-//	package build
-//	const defaultCGO_ENABLED = <CGO_ENABLED>
-//
-// It is invoked to write go/build/zcgo.go.
-func mkzcgo(dir, file string) {
-	var buf strings.Builder
-	writeHeader(&buf)
-	fmt.Fprintf(&buf, "package build\n")
-	fmt.Fprintln(&buf)
-	fmt.Fprintf(&buf, "const defaultCGO_ENABLED = %s\n", quote(os.Getenv("CGO_ENABLED")))
-
-	writefile(buf.String(), file, writeSkipSame)
 }
 
 // mktzdata src/time/tzdata/zzipdata.go:

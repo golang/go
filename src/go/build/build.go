@@ -359,7 +359,7 @@ func defaultContext() Context {
 
 	env := os.Getenv("CGO_ENABLED")
 	if env == "" {
-		env = defaultCGO_ENABLED
+		env = buildcfg.DefaultCGO_ENABLED
 	}
 	switch env {
 	case "1":

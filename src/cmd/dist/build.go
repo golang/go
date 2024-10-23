@@ -673,7 +673,6 @@ var gentab = []struct {
 	file string
 	gen  func(dir, file string)
 }{
-	{"go/build", "zcgo.go", mkzcgo},
 	{"cmd/go/internal/cfg", "zdefaultcc.go", mkzdefaultcc},
 	{"internal/runtime/sys", "zversion.go", mkzversion},
 	{"time/tzdata", "zzipdata.go", mktzdata},

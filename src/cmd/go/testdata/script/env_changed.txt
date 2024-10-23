@@ -11,6 +11,7 @@ env GO111MODULE=auto
 env CGO_CFLAGS=nodefault
 env CGO_CPPFLAGS=nodefault
 env GOFIPS140=latest
+[cgo] env CGO_ENABLED=0
 
 go env -changed
 # linux output like GOTOOLCHAIN='local'
@@ -22,6 +23,7 @@ stdout 'GO111MODULE=''?auto''?'
 stdout 'CGO_CFLAGS=''?nodefault''?'
 stdout 'CGO_CPPFLAGS=''?nodefault''?'
 stdout 'GOFIPS140=''?latest''?'
+[cgo] stdout 'CGO_ENABLED=''?0''?'
 
 go env -changed -json
 stdout '"GOTOOLCHAIN": "local"'
@@ -31,6 +33,7 @@ stdout '"GO111MODULE": "auto"'
 stdout '"CGO_CFLAGS": "nodefault"'
 stdout '"CGO_CPPFLAGS": "nodefault"'
 stdout '"GOFIPS140": "latest"'
+[cgo] stdout '"CGO_ENABLED": "0"'
 
 [GOOS:windows] env GOOS=linux
 [!GOOS:windows] env GOOS=windows
