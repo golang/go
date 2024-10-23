@@ -5,8 +5,6 @@
 // Package mlkem implements the quantum-resistant key encapsulation method
 // ML-KEM (formerly known as Kyber), as specified in [NIST FIPS 203].
 //
-// Only the recommended ML-KEM-768 parameter set is provided.
-//
 // [NIST FIPS 203]: https://doi.org/10.6028/NIST.FIPS.203
 package mlkem
 
@@ -19,6 +17,11 @@ package mlkem
 //
 // Reviewers unfamiliar with polynomials or linear algebra might find the
 // background at https://words.filippo.io/kyber-math/ useful.
+//
+// This file implements the recommended parameter set ML-KEM-768. The ML-KEM-1024
+// parameter set implementation is auto-generated from this file.
+//
+//go:generate go run generate1024.go -input mlkem768.go -output mlkem1024.go
 
 import (
 	"crypto/internal/fips/drbg"
@@ -35,7 +38,9 @@ const (
 	// encodingSizeX is the byte size of a ringElement or nttElement encoded
 	// by ByteEncode_X (FIPS 203, Algorithm 5).
 	encodingSize12 = n * 12 / 8
+	encodingSize11 = n * 11 / 8
 	encodingSize10 = n * 10 / 8
+	encodingSize5  = n * 5 / 8
 	encodingSize4  = n * 4 / 8
 	encodingSize1  = n * 1 / 8
 
@@ -49,11 +54,16 @@ const (
 const (
 	k = 3
 
-	decryptionKeySize = k * encodingSize12
-	encryptionKeySize = k*encodingSize12 + 32
-
 	CiphertextSize768       = k*encodingSize10 + encodingSize4
-	EncapsulationKeySize768 = encryptionKeySize
+	EncapsulationKeySize768 = k*encodingSize12 + 32
+)
+
+// ML-KEM-1024 parameters.
+const (
+	k1024 = 4
+
+	CiphertextSize1024       = k1024*encodingSize11 + encodingSize5
+	EncapsulationKeySize1024 = k1024*encodingSize12 + 32
 )
 
 // A DecapsulationKey768 is the secret key used to decapsulate a shared key from a
@@ -258,7 +268,7 @@ func NewEncapsulationKey768(encapsulationKey []byte) (*EncapsulationKey768, erro
 // It implements the initial stages of K-PKE.Encrypt according to FIPS 203,
 // Algorithm 14.
 func parseEK(ek *EncapsulationKey768, ekPKE []byte) (*EncapsulationKey768, error) {
-	if len(ekPKE) != encryptionKeySize {
+	if len(ekPKE) != EncapsulationKeySize768 {
 		return nil, errors.New("mlkem: invalid encapsulation key length")
 	}
 

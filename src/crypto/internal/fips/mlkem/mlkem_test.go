@@ -14,12 +14,36 @@ import (
 	"testing"
 )
 
+type encapsulationKey interface {
+	Bytes() []byte
+	Encapsulate() ([]byte, []byte)
+}
+
+type decapsulationKey[E encapsulationKey] interface {
+	Bytes() []byte
+	Decapsulate([]byte) ([]byte, error)
+	EncapsulationKey() E
+}
+
 func TestRoundTrip(t *testing.T) {
-	dk, err := GenerateKey768()
+	t.Run("768", func(t *testing.T) {
+		testRoundTrip(t, GenerateKey768, NewEncapsulationKey768, NewDecapsulationKey768)
+	})
+	t.Run("1024", func(t *testing.T) {
+		testRoundTrip(t, GenerateKey1024, NewEncapsulationKey1024, NewDecapsulationKey1024)
+	})
+}
+
+func testRoundTrip[E encapsulationKey, D decapsulationKey[E]](
+	t *testing.T, generateKey func() (D, error),
+	newEncapsulationKey func([]byte) (E, error),
+	newDecapsulationKey func([]byte) (D, error)) {
+	dk, err := generateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, Ke := dk.EncapsulationKey().Encapsulate()
+	ek := dk.EncapsulationKey()
+	c, Ke := ek.Encapsulate()
 	Kd, err := dk.Decapsulate(c)
 	if err != nil {
 		t.Fatal(err)
@@ -28,28 +52,64 @@ func TestRoundTrip(t *testing.T) {
 		t.Fail()
 	}
 
-	dk1, err := GenerateKey768()
+	ek1, err := newEncapsulationKey(ek.Bytes())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Equal(dk.EncapsulationKey().Bytes(), dk1.EncapsulationKey().Bytes()) {
+	if !bytes.Equal(ek.Bytes(), ek1.Bytes()) {
 		t.Fail()
 	}
-	if bytes.Equal(dk.Bytes(), dk1.Bytes()) {
+	dk1, err := newDecapsulationKey(dk.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(dk.Bytes(), dk1.Bytes()) {
+		t.Fail()
+	}
+	c1, Ke1 := ek1.Encapsulate()
+	Kd1, err := dk1.Decapsulate(c1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(Ke1, Kd1) {
 		t.Fail()
 	}
 
-	c1, Ke1 := dk.EncapsulationKey().Encapsulate()
-	if bytes.Equal(c, c1) {
+	dk2, err := generateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(dk.EncapsulationKey().Bytes(), dk2.EncapsulationKey().Bytes()) {
 		t.Fail()
 	}
-	if bytes.Equal(Ke, Ke1) {
+	if bytes.Equal(dk.Bytes(), dk2.Bytes()) {
+		t.Fail()
+	}
+
+	c2, Ke2 := dk.EncapsulationKey().Encapsulate()
+	if bytes.Equal(c, c2) {
+		t.Fail()
+	}
+	if bytes.Equal(Ke, Ke2) {
 		t.Fail()
 	}
 }
 
 func TestBadLengths(t *testing.T) {
-	dk, err := GenerateKey768()
+	t.Run("768", func(t *testing.T) {
+		testBadLengths(t, GenerateKey768, NewEncapsulationKey768, NewDecapsulationKey768)
+	})
+	t.Run("1024", func(t *testing.T) {
+		testBadLengths(t, GenerateKey1024, NewEncapsulationKey1024, NewDecapsulationKey1024)
+	})
+}
+
+func testBadLengths[E encapsulationKey, D decapsulationKey[E]](
+	t *testing.T, generateKey func() (D, error),
+	newEncapsulationKey func([]byte) (E, error),
+	newDecapsulationKey func([]byte) (D, error)) {
+	dk, err := generateKey()
+	dkBytes := dk.Bytes()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,15 +117,28 @@ func TestBadLengths(t *testing.T) {
 	ekBytes := dk.EncapsulationKey().Bytes()
 	c, _ := ek.Encapsulate()
 
+	for i := 0; i < len(dkBytes)-1; i++ {
+		if _, err := newDecapsulationKey(dkBytes[:i]); err == nil {
+			t.Errorf("expected error for dk length %d", i)
+		}
+	}
+	dkLong := dkBytes
+	for i := 0; i < 100; i++ {
+		dkLong = append(dkLong, 0)
+		if _, err := newDecapsulationKey(dkLong); err == nil {
+			t.Errorf("expected error for dk length %d", len(dkLong))
+		}
+	}
+
 	for i := 0; i < len(ekBytes)-1; i++ {
-		if _, err := NewEncapsulationKey768(ekBytes[:i]); err == nil {
+		if _, err := newEncapsulationKey(ekBytes[:i]); err == nil {
 			t.Errorf("expected error for ek length %d", i)
 		}
 	}
 	ekLong := ekBytes
 	for i := 0; i < 100; i++ {
 		ekLong = append(ekLong, 0)
-		if _, err := NewEncapsulationKey768(ekLong); err == nil {
+		if _, err := newEncapsulationKey(ekLong); err == nil {
 			t.Errorf("expected error for ek length %d", len(ekLong))
 		}
 	}

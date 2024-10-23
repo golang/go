@@ -5,7 +5,10 @@
 package mlkem
 
 import (
+	"bytes"
+	"crypto/rand"
 	"math/big"
+	mathrand "math/rand/v2"
 	"strconv"
 	"testing"
 )
@@ -148,6 +151,81 @@ func TestDecompress(t *testing.T) {
 				t.Errorf("decompress(%d, %d): got %d, expected %d", n, d, result, expected)
 			}
 		}
+	}
+}
+
+func randomRingElement() ringElement {
+	var r ringElement
+	for i := range r {
+		r[i] = fieldElement(mathrand.IntN(q))
+	}
+	return r
+}
+
+func TestEncodeDecode(t *testing.T) {
+	f := randomRingElement()
+	b := make([]byte, 12*n/8)
+	rand.Read(b)
+
+	// Compare ringCompressAndEncode to ringCompressAndEncodeN.
+	e1 := ringCompressAndEncode(nil, f, 10)
+	e2 := ringCompressAndEncode10(nil, f)
+	if !bytes.Equal(e1, e2) {
+		t.Errorf("ringCompressAndEncode = %x, ringCompressAndEncode10 = %x", e1, e2)
+	}
+	e1 = ringCompressAndEncode(nil, f, 4)
+	e2 = ringCompressAndEncode4(nil, f)
+	if !bytes.Equal(e1, e2) {
+		t.Errorf("ringCompressAndEncode = %x, ringCompressAndEncode4 = %x", e1, e2)
+	}
+	e1 = ringCompressAndEncode(nil, f, 1)
+	e2 = ringCompressAndEncode1(nil, f)
+	if !bytes.Equal(e1, e2) {
+		t.Errorf("ringCompressAndEncode = %x, ringCompressAndEncode1 = %x", e1, e2)
+	}
+
+	// Compare ringDecodeAndDecompress to ringDecodeAndDecompressN.
+	g1 := ringDecodeAndDecompress(b[:encodingSize10], 10)
+	g2 := ringDecodeAndDecompress10((*[encodingSize10]byte)(b))
+	if g1 != g2 {
+		t.Errorf("ringDecodeAndDecompress = %v, ringDecodeAndDecompress10 = %v", g1, g2)
+	}
+	g1 = ringDecodeAndDecompress(b[:encodingSize4], 4)
+	g2 = ringDecodeAndDecompress4((*[encodingSize4]byte)(b))
+	if g1 != g2 {
+		t.Errorf("ringDecodeAndDecompress = %v, ringDecodeAndDecompress4 = %v", g1, g2)
+	}
+	g1 = ringDecodeAndDecompress(b[:encodingSize1], 1)
+	g2 = ringDecodeAndDecompress1((*[encodingSize1]byte)(b))
+	if g1 != g2 {
+		t.Errorf("ringDecodeAndDecompress = %v, ringDecodeAndDecompress1 = %v", g1, g2)
+	}
+
+	// Round-trip ringCompressAndEncode and ringDecodeAndDecompress.
+	for d := 1; d < 12; d++ {
+		encodingSize := d * n / 8
+		g := ringDecodeAndDecompress(b[:encodingSize], uint8(d))
+		out := ringCompressAndEncode(nil, g, uint8(d))
+		if !bytes.Equal(out, b[:encodingSize]) {
+			t.Errorf("roundtrip failed for d = %d", d)
+		}
+	}
+
+	// Round-trip ringCompressAndEncodeN and ringDecodeAndDecompressN.
+	g := ringDecodeAndDecompress10((*[encodingSize10]byte)(b))
+	out := ringCompressAndEncode10(nil, g)
+	if !bytes.Equal(out, b[:encodingSize10]) {
+		t.Errorf("roundtrip failed for specialized 10")
+	}
+	g = ringDecodeAndDecompress4((*[encodingSize4]byte)(b))
+	out = ringCompressAndEncode4(nil, g)
+	if !bytes.Equal(out, b[:encodingSize4]) {
+		t.Errorf("roundtrip failed for specialized 4")
+	}
+	g = ringDecodeAndDecompress1((*[encodingSize1]byte)(b))
+	out = ringCompressAndEncode1(nil, g)
+	if !bytes.Equal(out, b[:encodingSize1]) {
+		t.Errorf("roundtrip failed for specialized 1")
 	}
 }
 
