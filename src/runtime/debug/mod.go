@@ -161,7 +161,7 @@ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 		}
 	}()
 
-	var (
+	const (
 		pathLine  = "path\t"
 		modLine   = "mod\t"
 		depLine   = "dep\t"
@@ -202,7 +202,7 @@ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 		switch {
 		case strings.HasPrefix(line, pathLine):
 			elem := line[len(pathLine):]
-			bi.Path = string(elem)
+			bi.Path = elem
 		case strings.HasPrefix(line, modLine):
 			elem := strings.Split(line[len(modLine):], tab)
 			last = &bi.Main
@@ -227,9 +227,9 @@ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 				return nil, fmt.Errorf("replacement with no module on previous line")
 			}
 			last.Replace = &Module{
-				Path:    string(elem[0]),
-				Version: string(elem[1]),
-				Sum:     string(elem[2]),
+				Path:    elem[0],
+				Version: elem[1],
+				Sum:     elem[2],
 			}
 			last = nil
 		case strings.HasPrefix(line, buildLine):
