@@ -101,6 +101,7 @@ func quoteValue(value string) bool {
 	return strings.ContainsAny(value, " \t\r\n\"`")
 }
 
+// String returns a string representation of a [BuildInfo].
 func (bi *BuildInfo) String() string {
 	buf := new(strings.Builder)
 	if bi.GoVersion != "" {
@@ -146,6 +147,12 @@ func (bi *BuildInfo) String() string {
 	return buf.String()
 }
 
+// ParseBuildInfo parses the string returned by [*BuildInfo.String],
+// restoring the original BuildInfo,
+// except that the GoVersion field is not set.
+// Programs should normally not call this function,
+// but instead call [ReadBuildInfo], [debug/buildinfo.ReadFile],
+// or [debug/buildinfo.Read].
 func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 	lineNum := 1
 	defer func() {
