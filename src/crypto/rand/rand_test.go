@@ -198,8 +198,7 @@ func TestReadError(t *testing.T) {
 	}
 	testenv.MustHaveExec(t)
 
-	// We run this test in a subprocess because it's expected to crash the
-	// program unless the GODEBUG is set.
+	// We run this test in a subprocess because it's expected to crash.
 	if os.Getenv("GO_TEST_READ_ERROR") == "1" {
 		defer func(r io.Reader) { Reader = r }(Reader)
 		Reader = readerFunc(func([]byte) (int, error) {
@@ -220,13 +219,6 @@ func TestReadError(t *testing.T) {
 	exp := "fatal error: crypto/rand: failed to read random data"
 	if !bytes.Contains(out, []byte(exp)) {
 		t.Errorf("subprocess output does not contain %q: %s", exp, out)
-	}
-
-	cmd = testenv.Command(t, os.Args[0], "-test.run=TestReadError")
-	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1", "GODEBUG=randcrash=0")
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("subprocess failed: %v\n%s", err, out)
 	}
 }
 
