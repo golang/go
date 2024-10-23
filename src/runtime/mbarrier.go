@@ -92,19 +92,6 @@ import (
 // barriers, which will slow down both the mutator and the GC, we always grey
 // the ptr object regardless of the slot's color.
 //
-// Another place where we intentionally omit memory barriers is when
-// accessing mheap_.arena_used to check if a pointer points into the
-// heap. On relaxed memory machines, it's possible for a mutator to
-// extend the size of the heap by updating arena_used, allocate an
-// object from this new region, and publish a pointer to that object,
-// but for tracing running on another processor to observe the pointer
-// but use the old value of arena_used. In this case, tracing will not
-// mark the object, even though it's reachable. However, the mutator
-// is guaranteed to execute a write barrier when it publishes the
-// pointer, so it will take care of marking the object. A general
-// consequence of this is that the garbage collector may cache the
-// value of mheap_.arena_used. (See issue #9984.)
-//
 //
 // Stack writes:
 //
