@@ -166,10 +166,11 @@ func (check *Checker) reportCycle(cycle []Object) {
 
 	err := check.newError(InvalidInitCycle)
 	err.addf(obj, "initialization cycle for %s", obj.Name())
-	// "cycle[i] refers to cycle[j]" for (i,j) = (0, n-1), (n-1, n-2), ..., (1,0) for len(cycle) = n.
+	// "cycle[i] refers to cycle[j]" for (i,j) = (0,n-1), (n-1,n-2), ..., (1,0) for len(cycle) = n.
 	for j := len(cycle) - 1; j >= 0; j-- {
-		err.addf(obj, "%s refers to %s", obj.Name(), cycle[j].Name())
-		obj = cycle[j]
+		next := cycle[j]
+		err.addf(obj, "%s refers to %s", obj.Name(), next.Name())
+		obj = next
 	}
 	err.report()
 }
