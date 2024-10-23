@@ -78,9 +78,20 @@ func DefaultDir() (string, bool, error) {
 	// otherwise distinguish between an explicit "off" and a UserCacheDir error.
 
 	defaultDirOnce.Do(func() {
-		defaultDir = cfg.Getenv("GOCACHE")
-		if defaultDir != "" {
-			defaultDirChanged = true
+		// Compute default location.
+		dir, err := os.UserCacheDir()
+		if err != nil {
+			defaultDir = "off"
+			defaultDirErr = fmt.Errorf("GOCACHE is not defined and %v", err)
+		} else {
+			defaultDir = filepath.Join(dir, "go-build")
+		}
+
+		newDir := cfg.Getenv("GOCACHE")
+		if newDir != "" {
+			defaultDirErr = nil
+			defaultDirChanged = newDir != defaultDir
+			defaultDir = newDir
 			if filepath.IsAbs(defaultDir) || defaultDir == "off" {
 				return
 			}
@@ -88,16 +99,6 @@ func DefaultDir() (string, bool, error) {
 			defaultDirErr = fmt.Errorf("GOCACHE is not an absolute path")
 			return
 		}
-
-		// Compute default location.
-		dir, err := os.UserCacheDir()
-		if err != nil {
-			defaultDir = "off"
-			defaultDirChanged = true
-			defaultDirErr = fmt.Errorf("GOCACHE is not defined and %v", err)
-			return
-		}
-		defaultDir = filepath.Join(dir, "go-build")
 	})
 
 	return defaultDir, defaultDirChanged, defaultDirErr

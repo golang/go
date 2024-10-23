@@ -67,6 +67,11 @@ env GOROOT=./b
 go env -changed
 ! stdout 'GOTOOLCHAIN=''?local''?'
 
+[GOOS:windows] env LocalAppData=C:\
+[GOOS:windows] env GOCACHE=C:\go-build
+[GOOS:windows] go env -changed
+[GOOS:windows] ! stdout 'GOCACHE'
+
 --  a/go.env --
 GOPROXY=s
 GOAMD64=v1
