@@ -855,7 +855,7 @@ func parseCertificate(der []byte) (*Certificate, error) {
 	if !tbs.ReadOptionalASN1Integer(&cert.Version, cryptobyte_asn1.Tag(0).Constructed().ContextSpecific(), 0) {
 		return nil, errors.New("x509: malformed version")
 	}
-	if cert.Version < 0 {
+	if cert.Version < 0 || cert.Version > 3 {
 		return nil, errors.New("x509: malformed version")
 	}
 	// for backwards compat reasons Version is one-indexed,
