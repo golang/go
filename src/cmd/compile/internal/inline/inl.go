@@ -467,7 +467,7 @@ opSwitch:
 						v.reason = "call to " + fn
 						return true
 					}
-				case "runtime":
+				case "go.runtime":
 					switch fn {
 					case "throw":
 						// runtime.throw is a "cheap call" like panic in normal code.
