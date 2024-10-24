@@ -316,6 +316,7 @@ const (
 	REG_LAST = REG_ELEM_END // the last defined register
 )
 
+//go:generate go run ../mkcnames.go -i a.out.go -o cnames.go -p loong64
 const (
 	C_NONE = iota
 	C_REG

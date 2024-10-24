@@ -337,6 +337,7 @@ const (
 	NOSCHED
 )
 
+//go:generate go run ../mkcnames.go -i a.out.go -o anames7.go -p arm64
 const (
 	// optab is sorted based on the order of these constants
 	// and the first match is chosen.
