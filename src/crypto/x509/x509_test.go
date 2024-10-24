@@ -2357,6 +2357,33 @@ func TestEmptySubject(t *testing.T) {
 	t.Fatal("SAN extension is missing")
 }
 
+func TestEmptySubjectInCSR(t *testing.T) {
+	template := CertificateRequest{
+		DNSNames: []string{"example.com"},
+	}
+
+	derBytes, err := CreateCertificateRequest(rand.Reader, &template, testPrivateKey)
+	if err != nil {
+		t.Fatalf("failed to create certificate request: %s", err)
+	}
+
+	csr, err := ParseCertificateRequest(derBytes)
+	if err != nil {
+		t.Fatalf("failed to parse certificate request: %s", err)
+	}
+
+	for _, ext := range csr.Extensions {
+		if ext.Id.Equal(oidExtensionSubjectAltName) {
+			if !ext.Critical {
+				t.Fatal("SAN extension is not critical")
+			}
+			return
+		}
+	}
+
+	t.Fatal("SAN extension is missing")
+}
+
 // multipleURLsInCRLDPPEM contains two URLs in a single CRL DistributionPoint
 // structure. It is taken from https://crt.sh/?id=12721534.
 const multipleURLsInCRLDPPEM = `
