@@ -367,6 +367,7 @@ var profileDescriptions = map[string]string{
 	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
 	"mutex":        "Stack traces of holders of contended mutexes",
 	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
+	"symbol":       "Maps given program counters to function names. Counters can be specifed in a GET raw query or POST body, multiple counters are separated by '+'.",
 	"threadcreate": "Stack traces that led to the creation of new OS threads",
 	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
 }
@@ -404,7 +405,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Adding other profiles exposed from within this package
-	for _, p := range []string{"cmdline", "profile", "trace"} {
+	for _, p := range []string{"cmdline", "profile", "symbol", "trace"} {
 		profiles = append(profiles, profileEntry{
 			Name: p,
 			Href: p,

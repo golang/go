@@ -442,11 +442,26 @@ var depsRules = `
 	NET, log
 	< net/mail;
 
+	NONE < crypto/internal/impl;
+
+	# FIPS is the FIPS 140 module.
+	# It must not depend on external crypto packages.
+	# Internal packages imported by FIPS might need to retain
+	# backwards compatibility with older versions of the module.
+	STR, crypto/internal/impl
+	< crypto/internal/fips
+	< crypto/internal/fips/subtle
+	< crypto/internal/fips/sha256
+	< crypto/internal/fips/sha512
+	< crypto/internal/fips/hmac
+	< FIPS;
+
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
 	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+	FIPS,
 	crypto/internal/boring/sig,
 	crypto/internal/boring/syso,
 	golang.org/x/sys/cpu,
@@ -643,7 +658,7 @@ var depsRules = `
 	FMT
 	< internal/txtar;
 
-	CRYPTO-MATH, testing
+	CRYPTO-MATH, testing, internal/testenv
 	< crypto/internal/cryptotest;
 
 	CGO, FMT

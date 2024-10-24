@@ -813,8 +813,8 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 			throw("newUserArenaChunk called without a P or outside bootstrapping")
 		}
 		// Note cache c only valid while m acquired; see #47302
-		if rate != 1 && userArenaChunkBytes < c.nextSample {
-			c.nextSample -= userArenaChunkBytes
+		if rate != 1 && int64(userArenaChunkBytes) < c.nextSample {
+			c.nextSample -= int64(userArenaChunkBytes)
 		} else {
 			profilealloc(mp, unsafe.Pointer(span.base()), userArenaChunkBytes)
 		}
@@ -1088,7 +1088,7 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 
 	// This must clear the entire heap bitmap so that it's safe
 	// to allocate noscan data without writing anything out.
-	s.initHeapBits(true)
+	s.initHeapBits()
 
 	// Clear the span preemptively. It's an arena chunk, so let's assume
 	// everything is going to be used.

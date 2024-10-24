@@ -645,16 +645,6 @@ func bad40() {
 	printnl()
 }
 
-func good40() {
-	ret := T40{}              // ERROR "stack object ret T40$"
-	ret.m = make(map[int]int) // ERROR "live at call to rand32: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ (runtime.hmap|internal/runtime/maps.table)$"
-	t := &ret
-	printnl() // ERROR "live at call to printnl: ret$"
-	// Note: ret is live at the printnl because the compiler moves &ret
-	// from before the printnl to after.
-	useT40(t)
-}
-
 func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"
 	ddd2(x, y) // ERROR "stack object .autotmp_[0-9]+ \[2\]\*int$"
 	printnl()

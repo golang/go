@@ -7,7 +7,6 @@
 package main
 
 import (
-	"bytes"
 	"cmd/internal/buildid"
 	"cmd/internal/hash"
 	"cmd/link/internal/ld"
@@ -203,36 +202,51 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	}
 }
 
-func TestGNUBuildIDDerivedFromGoBuildID(t *testing.T) {
+func TestGNUBuildID(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	t.Parallel()
 
-	goFile := filepath.Join(t.TempDir(), "notes.go")
+	tmpdir := t.TempDir()
+	goFile := filepath.Join(tmpdir, "notes.go")
 	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
 		t.Fatal(err)
 	}
-	outFile := filepath.Join(t.TempDir(), "notes.exe")
-	goTool := testenv.GoToolPath(t)
 
-	cmd := testenv.Command(t, goTool, "build", "-o", outFile, "-ldflags", "-buildid 0x1234 -B gobuildid", goFile)
-	cmd.Dir = t.TempDir()
+	// Use a specific Go buildid for testing.
+	const gobuildid = "testbuildid"
+	h := hash.Sum32([]byte(gobuildid))
+	gobuildidHash := string(h[:20])
 
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
+	tests := []struct{ name, ldflags, expect string }{
+		{"default", "", gobuildidHash},
+		{"gobuildid", "-B=gobuildid", gobuildidHash},
+		{"specific", "-B=0x0123456789abcdef", "\x01\x23\x45\x67\x89\xab\xcd\xef"},
+		{"none", "-B=none", ""},
 	}
-
-	expectedGoBuildID := hash.Sum32([]byte("0x1234"))
-
-	gnuBuildID, err := buildid.ReadELFNote(outFile, string(ld.ELF_NOTE_BUILDINFO_NAME), ld.ELF_NOTE_BUILDINFO_TAG)
-	if err != nil || gnuBuildID == nil {
-		t.Fatalf("can't read GNU build ID")
+	if testenv.HasCGO() {
+		for _, test := range tests {
+			t1 := test
+			t1.name += "_external"
+			t1.ldflags += " -linkmode=external"
+			tests = append(tests, t1)
+		}
 	}
-
-	if !bytes.Equal(gnuBuildID, expectedGoBuildID[:20]) {
-		t.Fatalf("build id not matching")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			exe := filepath.Join(tmpdir, test.name)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-buildid="+gobuildid+" "+test.ldflags, "-o", exe, goFile)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+			}
+			gnuBuildID, err := buildid.ReadELFNote(exe, string(ld.ELF_NOTE_BUILDINFO_NAME), ld.ELF_NOTE_BUILDINFO_TAG)
+			if err != nil {
+				t.Fatalf("can't read GNU build ID")
+			}
+			if string(gnuBuildID) != test.expect {
+				t.Errorf("build id mismatch: got %x, want %x", gnuBuildID, test.expect)
+			}
+		})
 	}
 }
 

@@ -19,9 +19,9 @@ func (t *table) checkInvariants() {
 
 	// For every non-empty slot, verify we can retrieve the key using Get.
 	// Count the number of used and deleted slots.
-	var used uint64
-	var deleted uint64
-	var empty uint64
+	var used uint16
+	var deleted uint16
+	var empty uint16
 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
 		g := t.groups.group(i)
 		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
@@ -82,6 +82,8 @@ func (t *table) checkInvariants() {
 func (t *table) Print() {
 	print(`table{
 	seed: `, t.seed, `
+	index: `, t.index, `
+	localDepth: `, t.localDepth, `
 	capacity: `, t.capacity, `
 	used: `, t.used, `
 	growthLeft: `, t.growthLeft, `

@@ -5,7 +5,6 @@
 package reflectdata
 
 import (
-	"internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/rttype"
@@ -13,6 +12,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"internal/abi"
 )
 
 // SwissMapGroupType makes the map slot group type given the type of the map.
@@ -36,7 +36,7 @@ func SwissMapGroupType(t *types.Type) *types.Type {
 	// }
 	slotFields := []*types.Field{
 		makefield("key", t.Key()),
-		makefield("typ", t.Elem()),
+		makefield("elem", t.Elem()),
 	}
 	slot := types.NewStruct(slotFields)
 	slot.SetNoalg(true)
@@ -70,28 +70,82 @@ func SwissMapGroupType(t *types.Type) *types.Type {
 	return group
 }
 
-var swissHmapType *types.Type
+var cachedSwissTableType *types.Type
 
-// SwissMapType returns a type interchangeable with internal/runtime/maps.Map.
-// Make sure this stays in sync with internal/runtime/maps/map.go.
-func SwissMapType() *types.Type {
-	if swissHmapType != nil {
-		return swissHmapType
+// swissTableType returns a type interchangeable with internal/runtime/maps.table.
+// Make sure this stays in sync with internal/runtime/maps/table.go.
+func swissTableType() *types.Type {
+	if cachedSwissTableType != nil {
+		return cachedSwissTableType
 	}
 
-	// build a struct:
 	// type table struct {
-	//     used uint64
+	//     used       uint16
+	//     capacity   uint16
+	//     growthLeft uint16
+	//     localDepth uint8
+	//     // N.B Padding
+	//
 	//     typ  unsafe.Pointer // *abi.SwissMapType
 	//     seed uintptr
+	//
+	//     index int
 	//
 	//     // From groups.
 	//     groups_typ        unsafe.Pointer // *abi.SwissMapType
 	//     groups_data       unsafe.Pointer
 	//     groups_lengthMask uint64
+	// }
+	// must match internal/runtime/maps/table.go:table.
+	fields := []*types.Field{
+		makefield("used", types.Types[types.TUINT16]),
+		makefield("capacity", types.Types[types.TUINT16]),
+		makefield("growthLeft", types.Types[types.TUINT16]),
+		makefield("localDepth", types.Types[types.TUINT8]),
+		makefield("typ", types.Types[types.TUNSAFEPTR]),
+		makefield("seed", types.Types[types.TUINTPTR]),
+		makefield("index", types.Types[types.TINT]),
+		makefield("groups_typ", types.Types[types.TUNSAFEPTR]),
+		makefield("groups_data", types.Types[types.TUNSAFEPTR]),
+		makefield("groups_lengthMask", types.Types[types.TUINT64]),
+	}
+
+	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.InternalMaps.Lookup("table"))
+	table := types.NewNamed(n)
+	n.SetType(table)
+	n.SetTypecheck(1)
+
+	table.SetUnderlying(types.NewStruct(fields))
+	types.CalcSize(table)
+
+	// The size of table should be 56 bytes on 64 bit
+	// and 36 bytes on 32 bit platforms.
+	if size := int64(3*2 + 2*1 /* one extra for padding */ + 1*8 + 5*types.PtrSize); table.Size() != size {
+		base.Fatalf("internal/runtime/maps.table size not correct: got %d, want %d", table.Size(), size)
+	}
+
+	cachedSwissTableType = table
+	return table
+}
+
+var cachedSwissMapType *types.Type
+
+// SwissMapType returns a type interchangeable with internal/runtime/maps.Map.
+// Make sure this stays in sync with internal/runtime/maps/map.go.
+func SwissMapType() *types.Type {
+	if cachedSwissMapType != nil {
+		return cachedSwissMapType
+	}
+
+	// type Map struct {
+	//     used uint64
+	//     typ  unsafe.Pointer // *abi.SwissMapType
+	//     seed uintptr
 	//
-	//     capacity   uint64
-	//     growthLeft uint64
+	//     directory []*table
+	//
+	//     globalDepth uint8
+	//     // N.B Padding
 	//
 	//     clearSeq uint64
 	// }
@@ -100,58 +154,56 @@ func SwissMapType() *types.Type {
 		makefield("used", types.Types[types.TUINT64]),
 		makefield("typ", types.Types[types.TUNSAFEPTR]),
 		makefield("seed", types.Types[types.TUINTPTR]),
-		makefield("groups_typ", types.Types[types.TUNSAFEPTR]),
-		makefield("groups_data", types.Types[types.TUNSAFEPTR]),
-		makefield("groups_lengthMask", types.Types[types.TUINT64]),
-		makefield("capacity", types.Types[types.TUINT64]),
-		makefield("growthLeft", types.Types[types.TUINT64]),
+		makefield("directory", types.NewSlice(types.NewPtr(swissTableType()))),
+		makefield("globalDepth", types.Types[types.TUINT8]),
 		makefield("clearSeq", types.Types[types.TUINT64]),
 	}
 
-	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.InternalMaps.Lookup("table"))
-	hmap := types.NewNamed(n)
-	n.SetType(hmap)
+	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.InternalMaps.Lookup("Map"))
+	m := types.NewNamed(n)
+	n.SetType(m)
 	n.SetTypecheck(1)
 
-	hmap.SetUnderlying(types.NewStruct(fields))
-	types.CalcSize(hmap)
+	m.SetUnderlying(types.NewStruct(fields))
+	types.CalcSize(m)
 
 	// The size of Map should be 64 bytes on 64 bit
-	// and 48 bytes on 32 bit platforms.
-	if size := int64(5*8 + 4*types.PtrSize); hmap.Size() != size {
-		base.Fatalf("internal/runtime/maps.Map size not correct: got %d, want %d", hmap.Size(), size)
+	// and 40 bytes on 32 bit platforms.
+	if size := int64(2*8 + 6*types.PtrSize); m.Size() != size {
+		base.Fatalf("internal/runtime/maps.Map size not correct: got %d, want %d", m.Size(), size)
 	}
 
-	swissHmapType = hmap
-	return hmap
+	cachedSwissMapType = m
+	return m
 }
 
-var swissHiterType *types.Type
+var cachedSwissIterType *types.Type
 
 // SwissMapIterType returns a type interchangeable with runtime.hiter.
 // Make sure this stays in sync with runtime/map.go.
 func SwissMapIterType() *types.Type {
-	if swissHiterType != nil {
-		return swissHiterType
+	if cachedSwissIterType != nil {
+		return cachedSwissIterType
 	}
 
-	hmap := SwissMapType()
-
-	// build a struct:
 	// type Iter struct {
-	//    key      unsafe.Pointer // *Key
-	//    elem     unsafe.Pointer // *Elem
-	//    typ      unsafe.Pointer // *SwissMapType
-	//    m        *Map
+	//    key  unsafe.Pointer // *Key
+	//    elem unsafe.Pointer // *Elem
+	//    typ  unsafe.Pointer // *SwissMapType
+	//    m    *Map
 	//
-	//    // From groups.
-	//    groups_typ        unsafe.Pointer // *abi.SwissMapType
-	//    groups_data       unsafe.Pointer
-	//    groups_lengthMask uint64
+	//    groupSlotOffset uint64
+	//    dirOffset       uint64
 	//
 	//    clearSeq uint64
 	//
-	//    offset   uint64
+	//    globalDepth uint8
+	//    // N.B. padding
+	//
+	//    dirIdx int
+	//
+	//    tab *table
+	//
 	//    groupIdx uint64
 	//    slotIdx  uint32
 	//
@@ -162,34 +214,35 @@ func SwissMapIterType() *types.Type {
 		makefield("key", types.Types[types.TUNSAFEPTR]),  // Used in range.go for TMAP.
 		makefield("elem", types.Types[types.TUNSAFEPTR]), // Used in range.go for TMAP.
 		makefield("typ", types.Types[types.TUNSAFEPTR]),
-		makefield("m", types.NewPtr(hmap)),
-		makefield("groups_typ", types.Types[types.TUNSAFEPTR]),
-		makefield("groups_data", types.Types[types.TUNSAFEPTR]),
-		makefield("groups_lengthMask", types.Types[types.TUINT64]),
+		makefield("m", types.NewPtr(SwissMapType())),
+		makefield("groupSlotOffset", types.Types[types.TUINT64]),
+		makefield("dirOffset", types.Types[types.TUINT64]),
 		makefield("clearSeq", types.Types[types.TUINT64]),
-		makefield("offset", types.Types[types.TUINT64]),
+		makefield("globalDepth", types.Types[types.TUINT8]),
+		makefield("dirIdx", types.Types[types.TINT]),
+		makefield("tab", types.NewPtr(swissTableType())),
 		makefield("groupIdx", types.Types[types.TUINT64]),
 		makefield("slotIdx", types.Types[types.TUINT32]),
 	}
 
 	// build iterator struct hswissing the above fields
 	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.InternalMaps.Lookup("Iter"))
-	hiter := types.NewNamed(n)
-	n.SetType(hiter)
+	iter := types.NewNamed(n)
+	n.SetType(iter)
 	n.SetTypecheck(1)
 
-	hiter.SetUnderlying(types.NewStruct(fields))
-	types.CalcSize(hiter)
-	want := 6*types.PtrSize + 4*8 + 1*4
+	iter.SetUnderlying(types.NewStruct(fields))
+	types.CalcSize(iter)
+	want := 7*types.PtrSize + 4*8 + 1*4
 	if types.PtrSize == 8 {
 		want += 4 // tailing padding
 	}
-	if hiter.Size() != int64(want) {
-		base.Fatalf("hash_iter size not correct %d %d", hiter.Size(), want)
+	if iter.Size() != int64(want) {
+		base.Fatalf("internal/runtime/maps.Iter size not correct: got %d, want %d", iter.Size(), want)
 	}
 
-	swissHiterType = hiter
-	return hiter
+	cachedSwissIterType = iter
+	return iter
 }
 
 func writeSwissMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {

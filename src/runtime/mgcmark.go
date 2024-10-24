@@ -1694,6 +1694,10 @@ func gcmarknewobject(span *mspan, obj uintptr) {
 	if useCheckmark { // The world should be stopped so this should not happen.
 		throw("gcmarknewobject called while doing checkmark")
 	}
+	if gcphase == _GCmarktermination {
+		// Check this here instead of on the hot path.
+		throw("mallocgc called with gcphase == _GCmarktermination")
+	}
 
 	// Mark object.
 	objIndex := span.objIndex(obj)

@@ -10,8 +10,28 @@ import "unsafe"
 
 const memDebug = false
 
-var bloc uintptr
-var blocMax uintptr
+// Memory management on sbrk systems (including the linear memory
+// on Wasm).
+
+// bloc is the runtime's sense of the break, which can go up or
+// down. blocMax is the system's break, also the high water mark
+// of bloc. The runtime uses memory up to bloc. The memory
+// between bloc and blocMax is allocated by the OS but not used
+// by the runtime.
+//
+// When the runtime needs to grow the heap address range, it
+// increases bloc. When it needs to grow beyond blocMax, it calls
+// the system sbrk to allocate more memory (and therefore
+// increase blocMax).
+//
+// When the runtime frees memory at the end of the address space,
+// it decreases bloc, but does not reduces the system break (as
+// the OS doesn't support it). When the runtime frees memory in
+// the middle of the address space, the memory goes to a free
+// list.
+
+var bloc uintptr    // The runtime's sense of break. Can go up or down.
+var blocMax uintptr // The break of the OS. Only increase.
 var memlock mutex
 
 type memHdr struct {

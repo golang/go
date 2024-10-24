@@ -26,6 +26,6 @@ type X2 struct{}
 
 func _() {
 	switch F2().(type) {
-	case * /* ERROR "impossible type switch case: *X2\n\tF2() (value of type T2) cannot have dynamic type *X2 (missing method M)" */ X2:
+	case * /* ERROR "impossible type switch case: *X2\n\tF2() (value of interface type T2) cannot have dynamic type *X2 (missing method M)" */ X2:
 	}
 }

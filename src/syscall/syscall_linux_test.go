@@ -499,6 +499,9 @@ func TestSetuidEtc(t *testing.T) {
 	if syscall.Getuid() != 0 {
 		t.Skip("skipping root only test")
 	}
+	if syscall.Getgid() != 0 {
+		t.Skip("skipping the test when root's gid is not default value 0")
+	}
 	if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
 		// The Go build system's swarming user is known not to be root.
 		// Unfortunately, it sometimes appears as root due the current

@@ -1468,6 +1468,9 @@ func (ctxt *Link) hostlink() {
 				argv = append(argv, "-Wl,-x")
 			}
 		}
+		if *flagHostBuildid == "none" {
+			argv = append(argv, "-Wl,-no_uuid")
+		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-pthread")
 		if ctxt.BuildMode != BuildModePIE {
@@ -1698,8 +1701,12 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-fuse-ld="+altLinker)
 	}
 
-	if ctxt.IsELF && len(buildinfo) > 0 {
-		argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
+	if ctxt.IsELF {
+		if len(buildinfo) > 0 {
+			argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
+		} else if *flagHostBuildid == "none" {
+			argv = append(argv, "-Wl,--build-id=none")
+		}
 	}
 
 	// On Windows, given -o foo, GCC will append ".exe" to produce
@@ -2059,7 +2066,7 @@ func (ctxt *Link) hostlink() {
 			uuidUpdated = true
 		}
 	}
-	if ctxt.IsDarwin() && !uuidUpdated && *flagBuildid != "" {
+	if ctxt.IsDarwin() && !uuidUpdated && len(buildinfo) > 0 {
 		updateMachoOutFile("rewriting uuid",
 			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
 				return machoRewriteUuid(ctxt, exef, exem, outexe)
@@ -2126,7 +2133,7 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 
 	flags := hostlinkArchArgs(arch)
 
-	moreFlags := trimLinkerArgv(append(flagExtldflags, ldflag...))
+	moreFlags := trimLinkerArgv(append(ldflag, flagExtldflags...))
 	flags = append(flags, moreFlags...)
 
 	if altLinker != "" {

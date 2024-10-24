@@ -453,6 +453,7 @@
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 
 (If cond yes no) => (NE (MOVBUreg <typ.UInt64> cond) yes no)
+(MOVBUreg x:(XOR (MOVVconst [1]) ((SGT|SGTU) _ _))) => x
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
@@ -568,6 +569,11 @@
 (MOVHstore [off] {sym} ptr (MOVWUreg x) mem) => (MOVHstore [off] {sym} ptr x mem)
 (MOVWstore [off] {sym} ptr (MOVWreg x) mem) => (MOVWstore [off] {sym} ptr x mem)
 (MOVWstore [off] {sym} ptr (MOVWUreg x) mem) => (MOVWstore [off] {sym} ptr x mem)
+
+(MOVBstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
+(MOVHstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
+(MOVWstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
+(MOVVstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVVstorezero [off] {sym} ptr mem)
 
 // register indexed load
 (MOVVload [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVVloadidx ptr idx mem)
@@ -724,6 +730,8 @@
 (MOVWreg  (MOVVconst [c])) => (MOVVconst [int64(int32(c))])
 (MOVWUreg (MOVVconst [c])) => (MOVVconst [int64(uint32(c))])
 (MOVVreg  (MOVVconst [c])) => (MOVVconst [c])
+
+(MOVBUreg (ANDconst [c] x)) => (ANDconst [c&0xff] x)
 
 // constant comparisons
 (SGTconst [c] (MOVVconst [d])) && c>d => (MOVVconst [1])

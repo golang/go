@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -356,17 +357,6 @@ func TestStdKen(t *testing.T) {
 // Package paths of excluded packages.
 var excluded = map[string]bool{
 	"builtin": true,
-
-	// See go.dev/issue/46027: some imports are missing for this submodule.
-	"crypto/aes/_asm/gcm":                     true,
-	"crypto/aes/_asm/standard":                true,
-	"crypto/internal/bigmod/_asm":             true,
-	"crypto/internal/edwards25519/field/_asm": true,
-	"crypto/internal/nistec/_asm":             true,
-	"crypto/md5/_asm":                         true,
-	"crypto/sha1/_asm":                        true,
-	"crypto/sha256/_asm":                      true,
-	"crypto/sha512/_asm":                      true,
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in
@@ -446,6 +436,11 @@ func pkgFilenames(dir string, includeTest bool) ([]string, error) {
 		return nil, err
 	}
 	if excluded[pkg.ImportPath] {
+		return nil, nil
+	}
+	if slices.Contains(strings.Split(pkg.ImportPath, "/"), "_asm") {
+		// Submodules where not all dependencies are available.
+		// See go.dev/issue/46027.
 		return nil, nil
 	}
 	var filenames []string

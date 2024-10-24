@@ -76,7 +76,7 @@ func makemap(t *abi.SwissMapType, hint int, m *maps.Map) *maps.Map {
 	capacity := checkHint(t, hint)
 
 	// TODO: use existing m
-	return maps.NewTable(t, capacity)
+	return maps.NewMap(t, capacity)
 }
 
 // alignUpPow2 rounds n up to the next power of 2.

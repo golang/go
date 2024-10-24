@@ -1,0 +1,137 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build !purego
+
+// Based on the Linux Kernel with the following comment:
+// Algorithm based on https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=fb87127bcefc17efab757606e1b1e333fd614dd0
+// Originally written by Ard Biesheuvel <ard.biesheuvel@linaro.org>
+
+#include "textflag.h"
+
+#define SHA512TRANS(i0, i1, i2, i3, i4, rc0, in0) \
+	VADD	in0.D2, rc0.D2, V5.D2 \
+	VEXT	$8, i3.B16, i2.B16, V6.B16 \
+	VEXT	$8, V5.B16, V5.B16, V5.B16 \
+	VEXT	$8, i2.B16, i1.B16, V7.B16 \
+	VADD	V5.D2, i3.D2, i3.D2 \
+
+#define SHA512ROUND(i0, i1, i2, i3, i4, rc0, rc1, in0, in1, in2, in3, in4) \
+	VLD1.P	16(R4), [rc1.D2] \
+	SHA512TRANS(i0, i1, i2, i3, i4, rc0, in0) \
+	VEXT	$8, in4.B16, in3.B16, V5.B16 \
+	SHA512SU0	in1.D2, in0.D2 \
+	SHA512H	V7.D2, V6, i3 \
+	SHA512SU1	V5.D2, in2.D2, in0.D2 \
+	VADD	i3.D2, i1.D2, i4.D2 \
+	SHA512H2	i0.D2, i1, i3
+
+#define SHA512ROUND_NO_UPDATE(i0, i1, i2, i3, i4, rc0, rc1, in0) \
+	VLD1.P	16(R4), [rc1.D2] \
+	SHA512TRANS(i0, i1, i2, i3, i4, rc0, in0) \
+	SHA512H	V7.D2, V6, i3 \
+	VADD	i3.D2, i1.D2, i4.D2 \
+	SHA512H2	i0.D2, i1, i3
+
+#define SHA512ROUND_LAST(i0, i1, i2, i3, i4, rc0, in0) \
+	SHA512TRANS(i0, i1, i2, i3, i4, rc0, in0) \
+	SHA512H	V7.D2, V6, i3 \
+	VADD	i3.D2, i1.D2, i4.D2 \
+	SHA512H2	i0.D2, i1, i3
+
+// func blockSHA512(dig *Digest, p []byte)
+TEXT ·blockSHA512(SB),NOSPLIT,$0
+	MOVD	dig+0(FP), R0
+	MOVD	p_base+8(FP), R1
+	MOVD	p_len+16(FP), R2
+	MOVD	·_K+0(SB), R3
+
+	// long enough to prefetch
+	PRFM	(R3), PLDL3KEEP
+	// load digest
+	VLD1	(R0), [V8.D2, V9.D2, V10.D2, V11.D2]
+loop:
+	// load digest in V0-V3 keeping original in V8-V11
+	VMOV	V8.B16, V0.B16
+	VMOV	V9.B16, V1.B16
+	VMOV	V10.B16, V2.B16
+	VMOV	V11.B16, V3.B16
+
+	// load message data in V12-V19
+	VLD1.P	64(R1), [V12.D2, V13.D2, V14.D2, V15.D2]
+	VLD1.P	64(R1), [V16.D2, V17.D2, V18.D2, V19.D2]
+
+	// convert message into big endian format
+	VREV64	V12.B16, V12.B16
+	VREV64	V13.B16, V13.B16
+	VREV64	V14.B16, V14.B16
+	VREV64	V15.B16, V15.B16
+	VREV64	V16.B16, V16.B16
+	VREV64	V17.B16, V17.B16
+	VREV64	V18.B16, V18.B16
+	VREV64	V19.B16, V19.B16
+
+	MOVD	R3, R4
+	// load first 4 round consts in V20-V23
+	VLD1.P	64(R4), [V20.D2, V21.D2, V22.D2, V23.D2]
+
+	SHA512ROUND(V0, V1, V2, V3, V4, V20, V24, V12, V13, V19, V16, V17)
+	SHA512ROUND(V3, V0, V4, V2, V1, V21, V25, V13, V14, V12, V17, V18)
+	SHA512ROUND(V2, V3, V1, V4, V0, V22, V26, V14, V15, V13, V18, V19)
+	SHA512ROUND(V4, V2, V0, V1, V3, V23, V27, V15, V16, V14, V19, V12)
+	SHA512ROUND(V1, V4, V3, V0, V2, V24, V28, V16, V17, V15, V12, V13)
+
+	SHA512ROUND(V0, V1, V2, V3, V4, V25, V29, V17, V18, V16, V13, V14)
+	SHA512ROUND(V3, V0, V4, V2, V1, V26, V30, V18, V19, V17, V14, V15)
+	SHA512ROUND(V2, V3, V1, V4, V0, V27, V31, V19, V12, V18, V15, V16)
+	SHA512ROUND(V4, V2, V0, V1, V3, V28, V24, V12, V13, V19, V16, V17)
+	SHA512ROUND(V1, V4, V3, V0, V2, V29, V25, V13, V14, V12, V17, V18)
+
+	SHA512ROUND(V0, V1, V2, V3, V4, V30, V26, V14, V15, V13, V18, V19)
+	SHA512ROUND(V3, V0, V4, V2, V1, V31, V27, V15, V16, V14, V19, V12)
+	SHA512ROUND(V2, V3, V1, V4, V0, V24, V28, V16, V17, V15, V12, V13)
+	SHA512ROUND(V4, V2, V0, V1, V3, V25, V29, V17, V18, V16, V13, V14)
+	SHA512ROUND(V1, V4, V3, V0, V2, V26, V30, V18, V19, V17, V14, V15)
+
+	SHA512ROUND(V0, V1, V2, V3, V4, V27, V31, V19, V12, V18, V15, V16)
+	SHA512ROUND(V3, V0, V4, V2, V1, V28, V24, V12, V13, V19, V16, V17)
+	SHA512ROUND(V2, V3, V1, V4, V0, V29, V25, V13, V14, V12, V17, V18)
+	SHA512ROUND(V4, V2, V0, V1, V3, V30, V26, V14, V15, V13, V18, V19)
+	SHA512ROUND(V1, V4, V3, V0, V2, V31, V27, V15, V16, V14, V19, V12)
+
+	SHA512ROUND(V0, V1, V2, V3, V4, V24, V28, V16, V17, V15, V12, V13)
+	SHA512ROUND(V3, V0, V4, V2, V1, V25, V29, V17, V18, V16, V13, V14)
+	SHA512ROUND(V2, V3, V1, V4, V0, V26, V30, V18, V19, V17, V14, V15)
+	SHA512ROUND(V4, V2, V0, V1, V3, V27, V31, V19, V12, V18, V15, V16)
+	SHA512ROUND(V1, V4, V3, V0, V2, V28, V24, V12, V13, V19, V16, V17)
+
+	SHA512ROUND(V0, V1, V2, V3, V4, V29, V25, V13, V14, V12, V17, V18)
+	SHA512ROUND(V3, V0, V4, V2, V1, V30, V26, V14, V15, V13, V18, V19)
+	SHA512ROUND(V2, V3, V1, V4, V0, V31, V27, V15, V16, V14, V19, V12)
+	SHA512ROUND(V4, V2, V0, V1, V3, V24, V28, V16, V17, V15, V12, V13)
+	SHA512ROUND(V1, V4, V3, V0, V2, V25, V29, V17, V18, V16, V13, V14)
+
+	SHA512ROUND(V0, V1, V2, V3, V4, V26, V30, V18, V19, V17, V14, V15)
+	SHA512ROUND(V3, V0, V4, V2, V1, V27, V31, V19, V12, V18, V15, V16)
+
+	SHA512ROUND_NO_UPDATE(V2, V3, V1, V4, V0, V28, V24, V12)
+	SHA512ROUND_NO_UPDATE(V4, V2, V0, V1, V3, V29, V25, V13)
+	SHA512ROUND_NO_UPDATE(V1, V4, V3, V0, V2, V30, V26, V14)
+	SHA512ROUND_NO_UPDATE(V0, V1, V2, V3, V4, V31, V27, V15)
+
+	SHA512ROUND_LAST(V3, V0, V4, V2, V1, V24, V16)
+	SHA512ROUND_LAST(V2, V3, V1, V4, V0, V25, V17)
+	SHA512ROUND_LAST(V4, V2, V0, V1, V3, V26, V18)
+	SHA512ROUND_LAST(V1, V4, V3, V0, V2, V27, V19)
+
+	// add result to digest
+	VADD	V0.D2, V8.D2, V8.D2
+	VADD	V1.D2, V9.D2, V9.D2
+	VADD	V2.D2, V10.D2, V10.D2
+	VADD	V3.D2, V11.D2, V11.D2
+	SUB	$128, R2
+	CBNZ	R2, loop
+
+	VST1	[V8.D2, V9.D2, V10.D2, V11.D2], (R0)
+	RET

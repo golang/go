@@ -1008,11 +1008,12 @@ func benchmarkMapDelete[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testin
 
 	for i := 0; i < b.N; i++ {
 		if len(m) == 0 {
-			b.StopTimer()
+			// We'd like to StopTimer while refilling the map, but
+			// it is way too expensive and thus makes the benchmark
+			// take a long time. See https://go.dev/issue/20875.
 			for j := range k {
 				m[k[j]] = e[j]
 			}
-			b.StartTimer()
 		}
 		delete(m, k[i%n])
 	}

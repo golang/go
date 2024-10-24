@@ -7,15 +7,49 @@ package maps
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
+
+// Maximum size of a table before it is split at the directory level.
+//
+// TODO: Completely made up value. This should be tuned for performance vs grow
+// latency.
+// TODO: This should likely be based on byte size, as copying costs will
+// dominate grow latency for large objects.
+const maxTableCapacity = 1024
+
+// Ensure the max capacity fits in uint16, used for capacity and growthLeft
+// below.
+var _ = uint16(maxTableCapacity)
 
 // table is a Swiss table hash table structure.
 //
 // Each table is a complete hash table implementation.
+//
+// Map uses one or more tables to store entries. Extendible hashing (hash
+// prefix) is used to select the table to use for a specific key. Using
+// multiple tables enables incremental growth by growing only one table at a
+// time.
 type table struct {
 	// The number of filled slots (i.e. the number of elements in the table).
-	used uint64
+	used uint16
+
+	// The total number of slots (always 2^N). Equal to
+	// `(groups.lengthMask+1)*abi.SwissMapGroupSlots`.
+	capacity uint16
+
+	// The number of slots we can still fill without needing to rehash.
+	//
+	// We rehash when used + tombstones > loadFactor*capacity, including
+	// tombstones so the table doesn't overfill with tombstones. This field
+	// counts down remaining empty slots before the next rehash.
+	growthLeft uint16
+
+	// The number of bits used by directory lookups above this table. Note
+	// that this may be less then globalDepth, if the directory has grown
+	// but this table has not yet been split.
+	localDepth uint8
 
 	// TODO(prattmic): Old maps pass this into every call instead of
 	// keeping a reference in the map header. This is probably more
@@ -28,8 +62,15 @@ type table struct {
 	// TODO(prattmic): Populate this on table initialization.
 	seed uintptr
 
+	// Index of this table in the Map directory. This is the index of the
+	// _first_ location in the directory. The table may occur in multiple
+	// sequential indicies.
+	index int
+
 	// groups is an array of slot groups. Each group holds abi.SwissMapGroupSlots
-	// key/elem slots and their control bytes.
+	// key/elem slots and their control bytes. A table has a fixed size
+	// groups array. The table is replaced (in rehash) when more space is
+	// required.
 	//
 	// TODO(prattmic): keys and elements are interleaved to maximize
 	// locality, but it comes at the expense of wasted space for some types
@@ -40,28 +81,9 @@ type table struct {
 	// keys/values as pointers rather than inline in the slot. This avoid
 	// bloating the table size if either type is very large.
 	groups groupsReference
-
-	// The total number of slots (always 2^N). Equal to
-	// `(groups.lengthMask+1)*abi.SwissMapGroupSlots`.
-	capacity uint64
-
-	// The number of slots we can still fill without needing to rehash.
-	//
-	// We rehash when used + tombstones > loadFactor*capacity, including
-	// tombstones so the table doesn't overfill with tombstones. This field
-	// counts down remaining empty slots before the next rehash.
-	growthLeft uint64
-
-	// clearSeq is a sequence counter of calls to Clear. It is used to
-	// detect map clears during iteration.
-	clearSeq uint64
 }
 
-func NewTable(mt *abi.SwissMapType, capacity uint64) *table {
-	return newTable(mt, capacity)
-}
-
-func newTable(mt *abi.SwissMapType, capacity uint64) *table {
+func newTable(mt *abi.SwissMapType, capacity uint64, index int, localDepth uint8) *table {
 	if capacity < abi.SwissMapGroupSlots {
 		// TODO: temporary until we have a real map type.
 		capacity = abi.SwissMapGroupSlots
@@ -69,6 +91,13 @@ func newTable(mt *abi.SwissMapType, capacity uint64) *table {
 
 	t := &table{
 		typ: mt,
+
+		index:      index,
+		localDepth: localDepth,
+	}
+
+	if capacity > maxTableCapacity {
+		panic("initial table capacity too large")
 	}
 
 	// N.B. group count must be a power of two for probeSeq to visit every
@@ -78,20 +107,15 @@ func newTable(mt *abi.SwissMapType, capacity uint64) *table {
 		panic("rounded-up capacity overflows uint64")
 	}
 
-	t.reset(capacity)
+	t.reset(uint16(capacity))
 
 	return t
 }
 
 // reset resets the table with new, empty groups with the specified new total
 // capacity.
-func (t *table) reset(capacity uint64) {
-	ac, overflow := alignUpPow2(capacity)
-	if capacity != ac || overflow {
-		panic("capacity must be a power of two")
-	}
-
-	groupCount := capacity / abi.SwissMapGroupSlots
+func (t *table) reset(capacity uint16) {
+	groupCount := uint64(capacity) / abi.SwissMapGroupSlots
 	t.groups = newGroups(t.typ, groupCount)
 	t.capacity = capacity
 	t.resetGrowthLeft()
@@ -104,7 +128,7 @@ func (t *table) reset(capacity uint64) {
 
 // Preconditions: table must be empty.
 func (t *table) resetGrowthLeft() {
-	var growthLeft uint64
+	var growthLeft uint16
 	if t.capacity == 0 {
 		// No real reason to support zero capacity table, since an
 		// empty Map simply won't have a table.
@@ -128,13 +152,22 @@ func (t *table) resetGrowthLeft() {
 }
 
 func (t *table) Used() uint64 {
-	return t.used
+	return uint64(t.used)
 }
 
 // Get performs a lookup of the key that key points to. It returns a pointer to
 // the element, or false if the key doesn't exist.
 func (t *table) Get(key unsafe.Pointer) (unsafe.Pointer, bool) {
-	_, elem, ok := t.getWithKey(key)
+	// TODO(prattmic): We could avoid hashing in a variety of special
+	// cases.
+	//
+	// - One group maps with simple keys could iterate over all keys and
+	//   compare them directly.
+	// - One entry maps could just directly compare the single entry
+	//   without hashing.
+	// - String keys could do quick checks of a few bytes before hashing.
+	hash := t.typ.Hasher(key, t.seed)
+	_, elem, ok := t.getWithKey(hash, key)
 	return elem, ok
 }
 
@@ -146,17 +179,8 @@ func (t *table) Get(key unsafe.Pointer) (unsafe.Pointer, bool) {
 // lookup of keys from the old group in the new group in order to correctly
 // expose updated elements. For NeedsKeyUpdate keys, iteration also must return
 // the new key value, not the old key value.
-func (t *table) getWithKey(key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
-	// TODO(prattmic): We could avoid hashing in a variety of special
-	// cases.
-	//
-	// - One group maps with simple keys could iterate over all keys and
-	//   compare them directly.
-	// - One entry maps could just directly compare the single entry
-	//   without hashing.
-	// - String keys could do quick checks of a few bytes before hashing.
-	hash := t.typ.Hasher(key, t.seed)
-
+// hash must be the hash of the key.
+func (t *table) getWithKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
 	// To find the location of a key in the table, we compute hash(key). From
 	// h1(hash(key)) and the capacity, we construct a probeSeq that visits
 	// every group of slots in some interesting order. See [probeSeq].
@@ -209,18 +233,14 @@ func (t *table) getWithKey(key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, 
 	}
 }
 
-func (t *table) Put(key, elem unsafe.Pointer) {
-	slotElem := t.PutSlot(key)
-	typedmemmove(t.typ.Elem, slotElem, elem)
-}
-
 // PutSlot returns a pointer to the element slot where an inserted element
-// should be written.
+// should be written, and ok if it returned a valid slot.
 //
-// PutSlot never returns nil.
-func (t *table) PutSlot(key unsafe.Pointer) unsafe.Pointer {
-	hash := t.typ.Hasher(key, t.seed)
-
+// PutSlot returns ok false if the table was split and the Map needs to find
+// the new table.
+//
+// hash must be the hash of key.
+func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
 
 	for ; ; seq = seq.next() {
@@ -240,7 +260,7 @@ func (t *table) PutSlot(key unsafe.Pointer) unsafe.Pointer {
 				slotElem := g.elem(i)
 
 				t.checkInvariants()
-				return slotElem
+				return slotElem, true
 			}
 			match = match.removeFirst()
 		}
@@ -261,9 +281,10 @@ func (t *table) PutSlot(key unsafe.Pointer) unsafe.Pointer {
 				g.ctrls().set(i, ctrl(h2(hash)))
 				t.growthLeft--
 				t.used++
+				m.used++
 
 				t.checkInvariants()
-				return slotElem
+				return slotElem, true
 			}
 
 			// TODO(prattmic): While searching the probe sequence,
@@ -281,14 +302,8 @@ func (t *table) PutSlot(key unsafe.Pointer) unsafe.Pointer {
 			// during the main search, but only use it if we don't
 			// find an existing entry.
 
-			t.rehash()
-
-			// Note that we don't have to restart the entire Put process as we
-			// know the key doesn't exist in the map.
-			slotElem := t.uncheckedPutSlot(hash, key)
-			t.used++
-			t.checkInvariants()
-			return slotElem
+			t.rehash(m)
+			return nil, false
 		}
 	}
 }
@@ -334,7 +349,7 @@ func (t *table) uncheckedPutSlot(hash uintptr, key unsafe.Pointer) unsafe.Pointe
 	}
 }
 
-func (t *table) Delete(key unsafe.Pointer) {
+func (t *table) Delete(m *Map, key unsafe.Pointer) {
 	hash := t.typ.Hasher(key, t.seed)
 
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
@@ -347,6 +362,7 @@ func (t *table) Delete(key unsafe.Pointer) {
 			slotKey := g.key(i)
 			if t.typ.Key.Equal(key, slotKey) {
 				t.used--
+				m.used--
 
 				typedmemclr(t.typ.Key, slotKey)
 				typedmemclr(t.typ.Elem, g.elem(i))
@@ -384,7 +400,7 @@ func (t *table) Delete(key unsafe.Pointer) {
 // tombstones returns the number of deleted (tombstone) entries in the table. A
 // tombstone is a slot that has been deleted but is still considered occupied
 // so as not to violate the probing invariant.
-func (t *table) tombstones() uint64 {
+func (t *table) tombstones() uint16 {
 	return (t.capacity*maxAvgGroupLoad)/abi.SwissMapGroupSlots - t.used - t.growthLeft
 }
 
@@ -396,7 +412,6 @@ func (t *table) Clear() {
 		g.ctrls().setEmpty()
 	}
 
-	t.clearSeq++
 	t.used = 0
 	t.resetGrowthLeft()
 
@@ -411,24 +426,28 @@ type Iter struct {
 	key  unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/compile/internal/walk/range.go).
 	elem unsafe.Pointer // Must be in second position (see cmd/compile/internal/walk/range.go).
 	typ  *abi.SwissMapType
-	tab  *table
+	m    *Map
 
-	// Snapshot of the groups at iteration initialization time. If the
-	// table resizes during iteration, we continue to iterate over the old
-	// groups.
-	//
-	// If the table grows we must consult the updated table to observe
-	// changes, though we continue to use the snapshot to determine order
-	// and avoid duplicating results.
-	groups groupsReference
+	// Randomize iteration order by starting iteration at a random slot
+	// offset. The offset into the directory uses a separate offset, as it
+	// must adjust when the directory grows.
+	groupSlotOffset uint64
+	dirOffset       uint64
 
-	// Copy of Table.clearSeq at iteration initialization time. Used to
+	// Snapshot of Map.clearSeq at iteration initialization time. Used to
 	// detect clear during iteration.
 	clearSeq uint64
 
-	// Randomize iteration order by starting iteration at a random slot
-	// offset.
-	offset uint64
+	// Value of Map.globalDepth during the last call to Next. Used to
+	// detect directory grow during iteration.
+	globalDepth uint8
+
+	// dirIdx is the current directory index, prior to adjustment by
+	// dirOffset.
+	dirIdx int
+
+	// tab is the table at dirIdx during the previous call to Next.
+	tab *table
 
 	// TODO: these could be merged into a single counter (and pre-offset
 	// with offset).
@@ -439,17 +458,18 @@ type Iter struct {
 }
 
 // Init initializes Iter for iteration.
-func (it *Iter) Init(typ *abi.SwissMapType, t *table) {
+func (it *Iter) Init(typ *abi.SwissMapType, m *Map) {
 	it.typ = typ
-	if t == nil || t.used == 0 {
+	if m == nil || m.used == 0 {
 		return
 	}
 
-	it.typ = t.typ
-	it.tab = t
-	it.offset = rand()
-	it.groups = t.groups
-	it.clearSeq = t.clearSeq
+	it.typ = m.typ
+	it.m = m
+	it.groupSlotOffset = rand()
+	it.dirOffset = rand()
+	it.globalDepth = m.globalDepth
+	it.clearSeq = m.clearSeq
 }
 
 func (it *Iter) Initialized() bool {
@@ -458,7 +478,7 @@ func (it *Iter) Initialized() bool {
 
 // Map returns the map this iterator is iterating over.
 func (it *Iter) Map() *Map {
-	return it.tab
+	return it.m
 }
 
 // Key returns a pointer to the current key. nil indicates end of iteration.
@@ -484,100 +504,195 @@ func (it *Iter) Elem() unsafe.Pointer {
 //
 // Init must be called prior to Next.
 func (it *Iter) Next() {
-	if it.tab == nil {
+	if it.m == nil {
 		// Map was empty at Iter.Init.
 		it.key = nil
 		it.elem = nil
 		return
 	}
 
+	if it.globalDepth != it.m.globalDepth {
+		// Directory has grown since the last call to Next. Adjust our
+		// directory index.
+		//
+		// Consider:
+		//
+		// Before:
+		// - 0: *t1
+		// - 1: *t2  <- dirIdx
+		//
+		// After:
+		// - 0: *t1a (split)
+		// - 1: *t1b (split)
+		// - 2: *t2  <- dirIdx
+		// - 3: *t2
+		//
+		// That is, we want to double the current index when the
+		// directory size doubles (or quadruple when the directory size
+		// quadruples, etc).
+		//
+		// The actual (randomized) dirIdx is computed below as:
+		//
+		// dirIdx := (it.dirIdx + it.dirOffset) % it.m.dirLen
+		//
+		// Multiplication is associative across modulo operations,
+		// A * (B % C) = (A * B) % (A * C),
+		// provided that A is positive.
+		//
+		// Thus we can achieve this by adjusting it.dirIdx,
+		// it.dirOffset, and it.m.dirLen individually.
+		orders := it.m.globalDepth - it.globalDepth
+		it.dirIdx <<= orders
+		it.dirOffset <<= orders
+		// it.m.dirLen was already adjusted when the directory grew.
+
+		it.globalDepth = it.m.globalDepth
+	}
+
 	// Continue iteration until we find a full slot.
-	for ; it.groupIdx <= it.groups.lengthMask; it.groupIdx++ {
-		g := it.groups.group((it.groupIdx + it.offset) & it.groups.lengthMask)
-
-		// TODO(prattmic): Skip over groups that are composed of only empty
-		// or deleted slots using matchEmptyOrDeleted() and counting the
-		// number of bits set.
-		for ; it.slotIdx < abi.SwissMapGroupSlots; it.slotIdx++ {
-			k := (it.slotIdx + uint32(it.offset)) % abi.SwissMapGroupSlots
-
-			if (g.ctrls().get(k) & ctrlEmpty) == ctrlEmpty {
-				// Empty or deleted.
-				continue
+	for it.dirIdx < len(it.m.directory) {
+		// TODO(prattmic): We currently look up the latest table on
+		// every call, even if it.tab is set because the inner loop
+		// checks if it.tab has grown by checking it.tab != newTab.
+		//
+		// We could avoid most of these lookups if we left a flag
+		// behind on the old table to denote that it is stale.
+		dirIdx := int((uint64(it.dirIdx) + it.dirOffset) % uint64(len(it.m.directory)))
+		newTab := it.m.directory[dirIdx]
+		if it.tab == nil {
+			if newTab.index != dirIdx {
+				// Normally we skip past all duplicates of the
+				// same entry in the table (see updates to
+				// it.dirIdx at the end of the loop below), so
+				// this case wouldn't occur.
+				//
+				// But on the very first call, we have a
+				// completely randomized dirIdx that may refer
+				// to a middle of a run of tables in the
+				// directory. Do a one-time adjustment of the
+				// offset to ensure we start at first index for
+				// newTable.
+				diff := dirIdx - newTab.index
+				it.dirOffset -= uint64(diff)
+				dirIdx = newTab.index
 			}
+			it.tab = newTab
+		}
 
-			key := g.key(k)
+		// N.B. Use it.tab, not newTab. It is important to use the old
+		// table for key selection if the table has grown. See comment
+		// on grown below.
+		for ; it.groupIdx <= it.tab.groups.lengthMask; it.groupIdx++ {
+			g := it.tab.groups.group((it.groupIdx + it.groupSlotOffset) & it.tab.groups.lengthMask)
 
-			// If groups.data has changed, then the table
-			// has grown. If the table has grown, then
-			// further mutations (changes to key->elem or
-			// deletions) will not be visible in our
-			// snapshot of groups. Instead we must consult
-			// the new groups by doing a full lookup.
-			//
-			// We still use our old snapshot of groups to
-			// decide which keys to lookup in order to
-			// avoid returning the same key twice.
-			//
-			// TODO(prattmic): Rather than growing t.groups
-			// directly, a cleaner design may be to always
-			// create a new table on grow or split, leaving
-			// behind 1 or 2 forwarding pointers. This lets
-			// us handle this update after grow problem the
-			// same way both within a single table and
-			// across split.
-			grown := it.groups.data != it.tab.groups.data
-			var elem unsafe.Pointer
-			if grown {
-				var ok bool
-				newKey, newElem, ok := it.tab.getWithKey(key)
-				if !ok {
-					// Key has likely been deleted, and
-					// should be skipped.
-					//
-					// One exception is keys that don't
-					// compare equal to themselves (e.g.,
-					// NaN). These keys cannot be looked
-					// up, so getWithKey will fail even if
-					// the key exists.
-					//
-					// However, we are in luck because such
-					// keys cannot be updated and they
-					// cannot be deleted except with clear.
-					// Thus if no clear has occurted, the
-					// key/elem must still exist exactly as
-					// in the old groups, so we can return
-					// them from there.
-					//
-					// TODO(prattmic): Consider checking
-					// clearSeq early. If a clear occurred,
-					// Next could always return
-					// immediately, as iteration doesn't
-					// need to return anything added after
-					// clear.
-					if it.clearSeq == it.tab.clearSeq && !it.tab.typ.Key.Equal(key, key) {
-						elem = g.elem(k)
+			// TODO(prattmic): Skip over groups that are composed of only empty
+			// or deleted slots using matchEmptyOrDeleted() and counting the
+			// number of bits set.
+			for ; it.slotIdx < abi.SwissMapGroupSlots; it.slotIdx++ {
+				k := (it.slotIdx + uint32(it.groupSlotOffset)) % abi.SwissMapGroupSlots
+
+				if (g.ctrls().get(k) & ctrlEmpty) == ctrlEmpty {
+					// Empty or deleted.
+					continue
+				}
+
+				key := g.key(k)
+
+				// If the table has changed since the last
+				// call, then it has grown or split. In this
+				// case, further mutations (changes to
+				// key->elem or deletions) will not be visible
+				// in our snapshot table. Instead we must
+				// consult the new table by doing a full
+				// lookup.
+				//
+				// We still use our old table to decide which
+				// keys to lookup in order to avoid returning
+				// the same key twice.
+				grown := it.tab != newTab
+				var elem unsafe.Pointer
+				if grown {
+					var ok bool
+					newKey, newElem, ok := it.m.getWithKey(key)
+					if !ok {
+						// Key has likely been deleted, and
+						// should be skipped.
+						//
+						// One exception is keys that don't
+						// compare equal to themselves (e.g.,
+						// NaN). These keys cannot be looked
+						// up, so getWithKey will fail even if
+						// the key exists.
+						//
+						// However, we are in luck because such
+						// keys cannot be updated and they
+						// cannot be deleted except with clear.
+						// Thus if no clear has occurted, the
+						// key/elem must still exist exactly as
+						// in the old groups, so we can return
+						// them from there.
+						//
+						// TODO(prattmic): Consider checking
+						// clearSeq early. If a clear occurred,
+						// Next could always return
+						// immediately, as iteration doesn't
+						// need to return anything added after
+						// clear.
+						if it.clearSeq == it.m.clearSeq && !it.m.typ.Key.Equal(key, key) {
+							elem = g.elem(k)
+						} else {
+							continue
+						}
 					} else {
-						continue
+						key = newKey
+						elem = newElem
 					}
 				} else {
-					key = newKey
-					elem = newElem
+					elem = g.elem(k)
 				}
-			} else {
-				elem = g.elem(k)
-			}
 
-			it.slotIdx++
-			if it.slotIdx >= abi.SwissMapGroupSlots {
-				it.groupIdx++
-				it.slotIdx = 0
+				it.slotIdx++
+				if it.slotIdx >= abi.SwissMapGroupSlots {
+					it.groupIdx++
+					it.slotIdx = 0
+				}
+				it.key = key
+				it.elem = elem
+				return
 			}
-			it.key = key
-			it.elem = elem
-			return
+			it.slotIdx = 0
 		}
-		it.slotIdx = 0
+
+		// Skip other entries in the directory that refer to the same
+		// logical table. There are two cases of this:
+		//
+		// Consider this directory:
+		//
+		// - 0: *t1
+		// - 1: *t1
+		// - 2: *t2a
+		// - 3: *t2b
+		//
+		// At some point, the directory grew to accomodate a split of
+		// t2. t1 did not split, so entries 0 and 1 both point to t1.
+		// t2 did split, so the two halves were installed in entries 2
+		// and 3.
+		//
+		// If dirIdx is 0 and it.tab is t1, then we should skip past
+		// entry 1 to avoid repeating t1.
+		//
+		// If dirIdx is 2 and it.tab is t2 (pre-split), then we should
+		// skip past entry 3 because our pre-split t2 already covers
+		// all keys from t2a and t2b (except for new insertions, which
+		// iteration need not return).
+		//
+		// We can achieve both of these by using to difference between
+		// the directory and table depth to compute how many entries
+		// the table covers.
+		entries := 1 << (it.m.globalDepth - it.tab.localDepth)
+		it.dirIdx += entries
+		it.tab = nil
+		it.groupIdx = 0
 	}
 
 	it.key = nil
@@ -585,7 +700,10 @@ func (it *Iter) Next() {
 	return
 }
 
-func (t *table) rehash() {
+// Replaces the table with one larger table or two split tables to fit more
+// entries. Since the table is replaced, t is now stale and should not be
+// modified.
+func (t *table) rehash(m *Map) {
 	// TODO(prattmic): SwissTables typically perform a "rehash in place"
 	// operation which recovers capacity consumed by tombstones without growing
 	// the table by reordering slots as necessary to maintain the probe
@@ -605,21 +723,69 @@ func (t *table) rehash() {
 	// TODO(prattmic): Avoid overflow (splitting the table will achieve this)
 
 	newCapacity := 2 * t.capacity
-	t.resize(newCapacity)
+	if newCapacity <= maxTableCapacity {
+		t.grow(m, newCapacity)
+		return
+	}
+
+	t.split(m)
 }
 
-// resize the capacity of the table by allocating a bigger array and
-// uncheckedPutting each element of the table into the new array (we know that
-// no insertion here will Put an already-present value), and discard the old
-// backing array.
-func (t *table) resize(newCapacity uint64) {
-	oldGroups := t.groups
-	oldCapacity := t.capacity
-	t.reset(newCapacity)
+// Bitmask for the last selection bit at this depth.
+func localDepthMask(localDepth uint8) uintptr {
+	if goarch.PtrSize == 4 {
+		return uintptr(1) << (32 - localDepth)
+	}
+	return uintptr(1) << (64 - localDepth)
+}
 
-	if oldCapacity > 0 {
-		for i := uint64(0); i <= oldGroups.lengthMask; i++ {
-			g := oldGroups.group(i)
+// split the table into two, installing the new tables in the map directory.
+func (t *table) split(m *Map) {
+	localDepth := t.localDepth
+	localDepth++
+
+	// TODO: is this the best capacity?
+	left := newTable(t.typ, maxTableCapacity, -1, localDepth)
+	right := newTable(t.typ, maxTableCapacity, -1, localDepth)
+
+	// Split in half at the localDepth bit from the top.
+	mask := localDepthMask(localDepth)
+
+	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+		g := t.groups.group(i)
+		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
+			if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
+				// Empty or deleted
+				continue
+			}
+			key := g.key(j)
+			elem := g.elem(j)
+			hash := t.typ.Hasher(key, t.seed)
+			var newTable *table
+			if hash&mask == 0 {
+				newTable = left
+			} else {
+				newTable = right
+			}
+			slotElem := newTable.uncheckedPutSlot(hash, key)
+			typedmemmove(newTable.typ.Elem, slotElem, elem)
+			newTable.used++
+		}
+	}
+
+	m.installTableSplit(t, left, right)
+}
+
+// grow the capacity of the table by allocating a new table with a bigger array
+// and uncheckedPutting each element of the table into the new table (we know
+// that no insertion here will Put an already-present value), and discard the
+// old table.
+func (t *table) grow(m *Map, newCapacity uint16) {
+	newTable := newTable(t.typ, uint64(newCapacity), t.index, t.localDepth)
+
+	if t.capacity > 0 {
+		for i := uint64(0); i <= t.groups.lengthMask; i++ {
+			g := t.groups.group(i)
 			for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
 				if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
 					// Empty or deleted
@@ -627,14 +793,16 @@ func (t *table) resize(newCapacity uint64) {
 				}
 				key := g.key(j)
 				elem := g.elem(j)
-				hash := t.typ.Hasher(key, t.seed)
-				slotElem := t.uncheckedPutSlot(hash, key)
-				typedmemmove(t.typ.Elem, slotElem, elem)
+				hash := newTable.typ.Hasher(key, t.seed)
+				slotElem := newTable.uncheckedPutSlot(hash, key)
+				typedmemmove(newTable.typ.Elem, slotElem, elem)
+				newTable.used++
 			}
 		}
 	}
 
-	t.checkInvariants()
+	newTable.checkInvariants()
+	m.replaceTable(newTable)
 }
 
 // probeSeq maintains the state for a probe sequence that iterates through the

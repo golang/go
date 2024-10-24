@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
-	"crypto/rand"
 	"encoding"
 	"encoding/hex"
 	"fmt"
@@ -680,6 +679,12 @@ func testHash(t *testing.T, name, in, outHex string, oneShotResult []byte, diges
 }
 
 func TestGolden(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+		testGolden(t)
+	})
+}
+
+func testGolden(t *testing.T) {
 	tests := []struct {
 		name        string
 		oneShotHash func(in []byte) []byte
@@ -720,6 +725,12 @@ func TestGolden(t *testing.T) {
 }
 
 func TestGoldenMarshal(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+		testGoldenMarshal(t)
+	})
+}
+
+func testGoldenMarshal(t *testing.T) {
 	tests := []struct {
 		name    string
 		newHash func() hash.Hash
@@ -834,21 +845,6 @@ func TestBlockSize(t *testing.T) {
 	}
 }
 
-// Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
-func TestBlockGeneric(t *testing.T) {
-	if boring.Enabled {
-		t.Skip("BoringCrypto doesn't expose digest")
-	}
-	gen, asm := New().(*digest), New().(*digest)
-	buf := make([]byte, BlockSize*20) // arbitrary factor
-	rand.Read(buf)
-	blockGeneric(gen, buf)
-	block(asm, buf)
-	if *gen != *asm {
-		t.Error("block and blockGeneric resulted in different states")
-	}
-}
-
 // Tests for unmarshaling hashes that have hashed a large amount of data
 // The initial hash generation is omitted from the test, because it takes a long time.
 // The test contains some already-generated states, and their expected sums
@@ -909,31 +905,64 @@ func TestAllocations(t *testing.T) {
 	if boring.Enabled {
 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
 	}
-	in := []byte("hello, world!")
-	out := make([]byte, 0, Size)
-	h := New()
-	n := int(testing.AllocsPerRun(10, func() {
-		h.Reset()
-		h.Write(in)
-		out = h.Sum(out[:0])
-	}))
-	if n > 0 {
-		t.Errorf("allocs = %d, want 0", n)
+	if n := testing.AllocsPerRun(10, func() {
+		in := []byte("hello, world!")
+		out := make([]byte, 0, Size)
+
+		{
+			h := New()
+			h.Reset()
+			h.Write(in)
+			out = h.Sum(out[:0])
+		}
+		{
+			h := New512_224()
+			h.Reset()
+			h.Write(in)
+			out = h.Sum(out[:0])
+		}
+		{
+			h := New512_256()
+			h.Reset()
+			h.Write(in)
+			out = h.Sum(out[:0])
+		}
+		{
+			h := New384()
+			h.Reset()
+			h.Write(in)
+			out = h.Sum(out[:0])
+		}
+
+		Sum512(in)
+		Sum384(in)
+		Sum512_224(in)
+		Sum512_256(in)
+	}); n > 0 {
+		t.Errorf("allocs = %v, want 0", n)
 	}
 }
 
-func TestSHA512Hash(t *testing.T) {
+func TestHash(t *testing.T) {
 	t.Run("SHA-384", func(t *testing.T) {
-		cryptotest.TestHash(t, New384)
+		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+			cryptotest.TestHash(t, New384)
+		})
 	})
 	t.Run("SHA-512/224", func(t *testing.T) {
-		cryptotest.TestHash(t, New512_224)
+		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+			cryptotest.TestHash(t, New512_224)
+		})
 	})
 	t.Run("SHA-512/256", func(t *testing.T) {
-		cryptotest.TestHash(t, New512_256)
+		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+			cryptotest.TestHash(t, New512_256)
+		})
 	})
 	t.Run("SHA-512", func(t *testing.T) {
-		cryptotest.TestHash(t, New)
+		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+			cryptotest.TestHash(t, New)
+		})
 	})
 }
 

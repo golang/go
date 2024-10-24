@@ -410,6 +410,8 @@ func (n NullTime) Value() (driver.Value, error) {
 //	} else {
 //	   // NULL value
 //	}
+//
+// T should be one of the types accepted by [driver.Value].
 type Null[T any] struct {
 	V     T
 	Valid bool
@@ -428,7 +430,17 @@ func (n Null[T]) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
 	}
-	return n.V, nil
+	v := any(n.V)
+	// See issue 69728.
+	if valuer, ok := v.(driver.Valuer); ok {
+		val, err := callValuerValue(valuer)
+		if err != nil {
+			return val, err
+		}
+		v = val
+	}
+	// See issue 69837.
+	return driver.DefaultParameterConverter.ConvertValue(v)
 }
 
 // Scanner is an interface used by [Rows.Scan].
