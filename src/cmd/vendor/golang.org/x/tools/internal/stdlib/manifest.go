@@ -1269,7 +1269,7 @@ var PackageSymbols = map[string][]Symbol{
 		{"VerifyOptions.DNSName", Field, 0},
 		{"VerifyOptions.Intermediates", Field, 0},
 		{"VerifyOptions.KeyUsages", Field, 1},
-		{"VerifyOptions.MaxConstraintComparisions", Field, 10},
+		{"VerifyOptions.MaxConstraintComparisons", Field, 10},
 		{"VerifyOptions.Roots", Field, 0},
 	},
 	"crypto/x509/pkix": {
