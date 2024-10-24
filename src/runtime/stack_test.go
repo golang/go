@@ -863,6 +863,37 @@ func TestTracebackAncestors(t *testing.T) {
 	}
 }
 
+func TestSetTracebackAncestors(t *testing.T) {
+	wait := make(chan struct{})
+
+	go func() {
+		<-wait
+	}()
+
+	TracebackAncestors(3)
+	t.Cleanup(func() {
+		TracebackAncestors(0)
+	})
+
+	// GetStack of current runtime
+	getStack := func() string {
+		for i := 1024; ; i *= 2 {
+			buf := make([]byte, i)
+			if n := Stack(buf, true); n < i {
+				return string(buf[:n-1])
+			}
+		}
+	}
+
+	output := getStack()
+
+	if !strings.Contains(output, "originating from goroutine") {
+		t.Errorf("output does not contain ancestor trace:\n%s", output)
+	}
+
+	close(wait)
+}
+
 // Test that defer closure is correctly scanned when the stack is scanned.
 func TestDeferLiveness(t *testing.T) {
 	output := runTestProg(t, "testprog", "DeferLiveness", "GODEBUG=clobberfree=1")
