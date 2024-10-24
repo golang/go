@@ -127,6 +127,10 @@ func (f *elfFile) goarch() string {
 			return "ppc64le"
 		}
 		return "ppc64"
+	case elf.EM_RISCV:
+		if f.elf.Class == elf.ELFCLASS64 {
+			return "riscv64"
+		}
 	case elf.EM_S390:
 		return "s390x"
 	}
