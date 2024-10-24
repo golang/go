@@ -150,13 +150,18 @@
 
 (ANDconst [m] (SRWconst x [s])) && mergePPC64RShiftMask(m,s,32) == 0 => (MOVDconst [0])
 (ANDconst [m] (SRWconst x [s])) && mergePPC64AndSrwi(m,s) != 0 => (RLWINM [mergePPC64AndSrwi(m,s)] x)
+(ANDconst [m] (SRDconst x [s])) && mergePPC64AndSrdi(m,s) != 0 => (RLWINM [mergePPC64AndSrdi(m,s)] x)
 (AND (MOVDconst [m]) (SRWconst x [s])) && mergePPC64RShiftMask(m,s,32) == 0 => (MOVDconst [0])
 (AND (MOVDconst [m]) (SRWconst x [s])) && mergePPC64AndSrwi(m,s) != 0 => (RLWINM [mergePPC64AndSrwi(m,s)] x)
+(AND (MOVDconst [m]) (SRDconst x [s])) && mergePPC64AndSrdi(m,s) != 0 => (RLWINM [mergePPC64AndSrdi(m,s)] x)
 
 (SRWconst (ANDconst [m] x) [s]) && mergePPC64RShiftMask(m>>uint(s),s,32) == 0 => (MOVDconst [0])
 (SRWconst (ANDconst [m] x) [s]) && mergePPC64AndSrwi(m>>uint(s),s) != 0 => (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
 (SRWconst (AND (MOVDconst [m]) x) [s]) && mergePPC64RShiftMask(m>>uint(s),s,32) == 0 => (MOVDconst [0])
 (SRWconst (AND (MOVDconst [m]) x) [s]) && mergePPC64AndSrwi(m>>uint(s),s) != 0 => (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
+
+(ANDconst [m] (SLDconst x [s])) && mergePPC64AndSldi(m,s) != 0 => (RLWINM [mergePPC64AndSldi(m,s)] x)
+(AND (MOVDconst [m]) (SLDconst x [s])) && mergePPC64AndSldi(m,s) != 0 => (RLWINM [mergePPC64AndSldi(m,s)] x)
 
 // Merge shift right + shift left and clear left (e.g for a table lookup)
 (CLRLSLDI [c] (SRWconst [s] x)) && mergePPC64ClrlsldiSrw(int64(c),s) != 0 => (RLWINM [mergePPC64ClrlsldiSrw(int64(c),s)] x)

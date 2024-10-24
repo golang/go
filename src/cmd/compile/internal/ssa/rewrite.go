@@ -1580,6 +1580,36 @@ func mergePPC64AndSrwi(m, s int64) int64 {
 	return encodePPC64RotateMask((32-s)&31, mask, 32)
 }
 
+// Combine (ANDconst [m] (SRDconst [s])) into (RLWINM [y]) or return 0
+func mergePPC64AndSrdi(m, s int64) int64 {
+	mask := mergePPC64RShiftMask(m, s, 64)
+
+	// Verify the rotate and mask result only uses the lower 32 bits.
+	rv := bits.RotateLeft64(0xFFFFFFFF00000000, -int(s))
+	if rv&uint64(mask) != 0 {
+		return 0
+	}
+	if !isPPC64WordRotateMask(mask) {
+		return 0
+	}
+	return encodePPC64RotateMask((32-s)&31, mask, 32)
+}
+
+// Combine (ANDconst [m] (SLDconst [s])) into (RLWINM [y]) or return 0
+func mergePPC64AndSldi(m, s int64) int64 {
+	mask := -1 << s & m
+
+	// Verify the rotate and mask result only uses the lower 32 bits.
+	rv := bits.RotateLeft64(0xFFFFFFFF00000000, int(s))
+	if rv&uint64(mask) != 0 {
+		return 0
+	}
+	if !isPPC64WordRotateMask(mask) {
+		return 0
+	}
+	return encodePPC64RotateMask(s&31, mask, 32)
+}
+
 // Test if a word shift right feeding into a CLRLSLDI can be merged into RLWINM.
 // Return the encoded RLWINM constant, or 0 if they cannot be merged.
 func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {

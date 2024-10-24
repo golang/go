@@ -462,12 +462,6 @@ func checkMergedShifts64(a [256]uint32, b [256]uint64, c [256]byte, v uint64) {
 	a[2] = a[v>>25&0x7F]
 	// ppc64x: -"CLRLSLDI", "RLWNM\t[$]3, R[0-9]+, [$]29, [$]29, R[0-9]+"
 	a[3] = a[(v>>31)&0x01]
-	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
-	a[4] = a[(v>>30)&0x07]
-	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
-	a[5] = a[(v>>32)&0x01]
-	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
-	a[6] = a[(v>>34)&0x03]
 	// ppc64x: -"CLRLSLDI", "RLWNM\t[$]12, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[0] = b[uint8(v>>23)]
 	// ppc64x: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
@@ -476,7 +470,7 @@ func checkMergedShifts64(a [256]uint32, b [256]uint64, c [256]byte, v uint64) {
 	b[2] = b[((uint64((uint32(v) >> 21)) & 0x3f) << 4)]
 	// ppc64x: "RLWNM\t[$]11, R[0-9]+, [$]10, [$]15"
 	c[0] = c[((v>>5)&0x3F)<<16]
-	// ppc64x: "RLWNM\t[$]0, R[0-9]+, [$]19, [$]24"
+	// ppc64x: "ANDCC\t[$]8064,"
 	c[1] = c[((v>>7)&0x3F)<<7]
 }
 

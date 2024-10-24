@@ -4292,6 +4292,54 @@ func rewriteValuePPC64_OpPPC64AND(v *Value) bool {
 		}
 		break
 	}
+	// match: (AND (MOVDconst [m]) (SRDconst x [s]))
+	// cond: mergePPC64AndSrdi(m,s) != 0
+	// result: (RLWINM [mergePPC64AndSrdi(m,s)] x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpPPC64MOVDconst {
+				continue
+			}
+			m := auxIntToInt64(v_0.AuxInt)
+			if v_1.Op != OpPPC64SRDconst {
+				continue
+			}
+			s := auxIntToInt64(v_1.AuxInt)
+			x := v_1.Args[0]
+			if !(mergePPC64AndSrdi(m, s) != 0) {
+				continue
+			}
+			v.reset(OpPPC64RLWINM)
+			v.AuxInt = int64ToAuxInt(mergePPC64AndSrdi(m, s))
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (AND (MOVDconst [m]) (SLDconst x [s]))
+	// cond: mergePPC64AndSldi(m,s) != 0
+	// result: (RLWINM [mergePPC64AndSldi(m,s)] x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpPPC64MOVDconst {
+				continue
+			}
+			m := auxIntToInt64(v_0.AuxInt)
+			if v_1.Op != OpPPC64SLDconst {
+				continue
+			}
+			s := auxIntToInt64(v_1.AuxInt)
+			x := v_1.Args[0]
+			if !(mergePPC64AndSldi(m, s) != 0) {
+				continue
+			}
+			v.reset(OpPPC64RLWINM)
+			v.AuxInt = int64ToAuxInt(mergePPC64AndSldi(m, s))
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
 	// match: (AND x (NOR y y))
 	// result: (ANDN x y)
 	for {
@@ -4507,6 +4555,42 @@ func rewriteValuePPC64_OpPPC64ANDconst(v *Value) bool {
 		}
 		v.reset(OpPPC64RLWINM)
 		v.AuxInt = int64ToAuxInt(mergePPC64AndSrwi(m, s))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ANDconst [m] (SRDconst x [s]))
+	// cond: mergePPC64AndSrdi(m,s) != 0
+	// result: (RLWINM [mergePPC64AndSrdi(m,s)] x)
+	for {
+		m := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpPPC64SRDconst {
+			break
+		}
+		s := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(mergePPC64AndSrdi(m, s) != 0) {
+			break
+		}
+		v.reset(OpPPC64RLWINM)
+		v.AuxInt = int64ToAuxInt(mergePPC64AndSrdi(m, s))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ANDconst [m] (SLDconst x [s]))
+	// cond: mergePPC64AndSldi(m,s) != 0
+	// result: (RLWINM [mergePPC64AndSldi(m,s)] x)
+	for {
+		m := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpPPC64SLDconst {
+			break
+		}
+		s := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(mergePPC64AndSldi(m, s) != 0) {
+			break
+		}
+		v.reset(OpPPC64RLWINM)
+		v.AuxInt = int64ToAuxInt(mergePPC64AndSldi(m, s))
 		v.AddArg(x)
 		return true
 	}
