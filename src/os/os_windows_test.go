@@ -1017,8 +1017,8 @@ func TestStatNUL(t *testing.T) {
 // works on Windows when developer mode is active.
 // This is supported starting Windows 10 (1703, v10.0.14972).
 func TestSymlinkCreation(t *testing.T) {
-	if !testenv.HasSymlink() && !isWindowsDeveloperModeActive() {
-		t.Skip("Windows developer mode is not active")
+	if !testenv.HasSymlink() {
+		t.Skip("skipping test; no symlink support")
 	}
 	t.Parallel()
 
@@ -1032,23 +1032,6 @@ func TestSymlinkCreation(t *testing.T) {
 	if err := os.Symlink(dummyFile, linkFile); err != nil {
 		t.Fatal(err)
 	}
-}
-
-// isWindowsDeveloperModeActive checks whether or not the developer mode is active on Windows 10.
-// Returns false for prior Windows versions.
-// see https://docs.microsoft.com/en-us/windows/uwp/get-started/enable-your-device-for-development
-func isWindowsDeveloperModeActive() bool {
-	key, err := registry.OpenKey(registry.LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", registry.READ)
-	if err != nil {
-		return false
-	}
-
-	val, _, err := key.GetIntegerValue("AllowDevelopmentWithoutDevLicense")
-	if err != nil {
-		return false
-	}
-
-	return val != 0
 }
 
 // TestRootRelativeDirSymlink verifies that symlinks to paths relative to the
