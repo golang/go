@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/mainthread"
 	"runtime/trace"
 	"strings"
 	"sync"
@@ -43,7 +44,22 @@ func TestMain(m *testing.M) {
 
 	_, coreErrBefore := os.Stat("core")
 
-	status := m.Run()
+	sch := make(chan int)
+	go func() {
+		sch <- m.Run()
+	}()
+	var status int
+loop:
+	for {
+		select {
+		case s := <-sch:
+			status = s
+			break loop
+		case <-mainthread.Waiting():
+			mainthread.Yield()
+		}
+	}
+
 	for _, file := range toRemove {
 		os.RemoveAll(file)
 	}

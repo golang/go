@@ -489,6 +489,8 @@ type g struct {
 
 	coroarg *coro // argument during coroutine transfers
 
+	inMainThreadDo bool
+
 	// Per-G tracer state.
 	trace gTraceState
 
