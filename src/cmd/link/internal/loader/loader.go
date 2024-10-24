@@ -2474,10 +2474,10 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 // the mangled name. When we do mangling, we copy payload of mangled to original.
 func (l *Loader) CopySym(src, dst Sym) {
 	if !l.IsExternal(dst) {
-		panic("dst is not external") //l.newExtSym(l.SymName(dst), l.SymVersion(dst))
+		panic("dst is not external") // l.newExtSym(l.SymName(dst), l.SymVersion(dst))
 	}
 	if !l.IsExternal(src) {
-		panic("src is not external") //l.cloneToExternal(src)
+		panic("src is not external") // l.cloneToExternal(src)
 	}
 	l.payloads[l.extIndex(dst)] = l.payloads[l.extIndex(src)]
 	l.SetSymPkg(dst, l.SymPkg(src))

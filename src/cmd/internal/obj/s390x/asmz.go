@@ -3446,9 +3446,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 	case 40: // word/byte
 		wd := uint32(c.regoff(&p.From))
-		if p.As == AWORD { //WORD
+		if p.As == AWORD { // WORD
 			*asm = append(*asm, uint8(wd>>24), uint8(wd>>16), uint8(wd>>8), uint8(wd))
-		} else { //BYTE
+		} else { // BYTE
 			*asm = append(*asm, uint8(wd))
 		}
 
@@ -4573,9 +4573,9 @@ func (c *ctxtz) zoprre(a obj.As) uint32 {
 		return op_CGR
 	case ACMPU:
 		return op_CLGR
-	case AFCMPO: //ordered
+	case AFCMPO: // ordered
 		return op_KDBR
-	case AFCMPU: //unordered
+	case AFCMPU: // unordered
 		return op_CDBR
 	case ACEBR:
 		return op_CEBR
