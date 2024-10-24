@@ -62,6 +62,11 @@ _cgo_maybe_run_preinit() {
 	 }
 }
 
+int
+x_cgo_sys_lib_args_valid() {
+	return 1;
+}
+
 void
 x_cgo_sys_thread_create(void (*func)(void*), void* arg) {
 	_cgo_beginthread(func, arg);
