@@ -1937,12 +1937,26 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	if other := foldPath[fold]; other == "" {
 		foldPath[fold] = p.ImportPath
 	} else if other != p.ImportPath {
-		setError(ImportErrorf(p.ImportPath, "case-insensitive import collision: %q and %q", p.ImportPath, other))
+		// It is unnecessary to set an ImportPathError when the error is already
+		// a module.InvalidPathError.
+		// Beside, ImportErrorf may panic when the import path is invalid.
+		// See https://golang.org/issue/49137
+		var invalidPathErr *module.InvalidPathError
+		if !errors.As(err, &invalidPathErr) {
+			setError(ImportErrorf(p.ImportPath, "case-insensitive import collision: %q and %q", p.ImportPath, other))
+		}
 		return
 	}
 
 	if !SafeArg(p.ImportPath) {
-		setError(ImportErrorf(p.ImportPath, "invalid import path %q", p.ImportPath))
+		// It is unnecessary to set an ImportPathError when the error is already
+		// a module.InvalidPathError.
+		// Beside, ImportErrorf may panic when the import path is invalid.
+		// See https://golang.org/issue/49137
+		var invalidPathErr *module.InvalidPathError
+		if !errors.As(err, &invalidPathErr) {
+			setError(ImportErrorf(p.ImportPath, "invalid import path %q", p.ImportPath))
+		}
 		return
 	}
 
