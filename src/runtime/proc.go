@@ -6900,7 +6900,7 @@ func runqgrab(pp *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool)
 		h := atomic.LoadAcq(&pp.runqhead) // load-acquire, synchronize with other consumers
 		t := atomic.LoadAcq(&pp.runqtail) // load-acquire, synchronize with the producer
 		n := t - h
-		n = n - n/2
+		n = n/2
 		if n == 0 {
 			if stealRunNextG {
 				// Try to steal from pp.runnext.
