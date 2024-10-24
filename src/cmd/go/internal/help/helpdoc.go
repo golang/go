@@ -38,13 +38,16 @@ Many commands apply to a set of packages:
 
 Usually, [packages] is a list of import paths.
 
-An import path that is a rooted path or that begins with
-a . or .. element is interpreted as a file system path and
-denotes the package in that directory.
+An import path is a slash-separated string that uniquely
+identifies a package. The import path for a package within
+a module consists of the module path of the module followed
+by the subdirectory within the module at which the source code
+for the package is found.
 
-Otherwise, the import path P denotes the package found in
-the directory DIR/src/P for some DIR listed in the GOPATH
-environment variable (For more details see: 'go help gopath').
+An import path that is a rooted path is interpreted as a
+file system path and denotes the package in that directory.
+An import path that begins with a . or .. element refers to
+the package in that directory, which must be in the main module.
 
 If no import paths are given, the action applies to the
 package in the current directory.
@@ -63,16 +66,12 @@ Go library.
 
 - "cmd" expands to the Go repository's commands and their
 internal libraries.
-
-Import paths beginning with "cmd/" only match source code in
-the Go repository.
-
+	
 An import path is a pattern if it includes one or more "..." wildcards,
 each of which can match any string, including the empty string and
-strings containing slashes. Such a pattern expands to all package
-directories found in the GOPATH trees with names matching the
-patterns.
-
+strings containing slashes. Such a pattern expands to all packages found in
+module dependencies trees with names matching the patterns.
+	
 To make common patterns more convenient, there are two special cases.
 First, /... at the end of the pattern can match an empty string,
 so that net/... matches both net and packages in its subdirectories, like net/http.
@@ -91,7 +90,7 @@ a remote repository. Run 'go help importpath' for details.
 Every package in a program must have a unique import path.
 By convention, this is arranged by starting each path with a
 unique prefix that belongs to you. For example, paths used
-internally at Google all begin with 'google', and paths
+internally at Google all begin with 'github.com/user/repo/google', and paths
 denoting remote repositories begin with the path to the code,
 such as 'github.com/user/repo'.
 
