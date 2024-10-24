@@ -443,6 +443,14 @@ type response struct {
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw chunkWriter
 
+	// writeTimeoutTimer is set when the server has a WriteTimeout configured
+	// and triggers when a write timed out
+	// writeDeadline is used to enable direct flushing of writes after the
+	// timeout so writers receive an error and can handle it
+	writeTimeoutTimer *time.Timer
+	writeDeadline     bool
+	writeDeadlineMu   sync.Mutex
+
 	// handlerHeader is the Header that Handlers get access to,
 	// which may be retained and mutated even after WriteHeader.
 	// handlerHeader is copied into cw.header at WriteHeader
@@ -1111,6 +1119,9 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	if isH2Upgrade {
 		w.closeAfterReply = true
 	}
+	if d := c.server.WriteTimeout; d > 0 {
+		w.setWriteTimeout(d)
+	}
 	w.cw.res = w
 	w.w = newBufioWriterSize(&w.cw, bufferBeforeChunkingSize)
 	return w, nil
@@ -1669,6 +1680,16 @@ func (w *response) WriteString(data string) (n int, err error) {
 	return w.write(len(data), nil, data)
 }
 
+// setWriteTimeout lets the response know if the write was supposed to be
+// timed out, timed out requests will force be flushed on every write
+func (w *response) setWriteTimeout(d time.Duration) {
+	w.writeTimeoutTimer = time.AfterFunc(d, func() {
+		w.writeDeadlineMu.Lock()
+		w.writeDeadline = true
+		w.writeDeadlineMu.Unlock()
+	})
+}
+
 // either dataB or dataS is non-zero.
 func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err error) {
 	if w.conn.hijacked() {
@@ -1699,10 +1720,22 @@ func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err er
 		return 0, ErrContentLength
 	}
 	if dataB != nil {
-		return w.w.Write(dataB)
+		n, err = w.w.Write(dataB)
 	} else {
-		return w.w.WriteString(dataS)
+		n, err = w.w.WriteString(dataS)
 	}
+	if err == nil {
+		w.writeDeadlineMu.Lock()
+		wd := w.writeDeadline
+		w.writeDeadlineMu.Unlock()
+
+		if wd {
+			// r.Flush returns no errors, flush manually
+			w.w.Flush()
+			err = w.cw.flush()
+		}
+	}
+	return
 }
 
 func (w *response) finishRequest() {
@@ -1717,6 +1750,9 @@ func (w *response) finishRequest() {
 	w.cw.close()
 	w.conn.bufw.Flush()
 
+	if w.writeTimeoutTimer != nil {
+		w.writeTimeoutTimer.Stop()
+	}
 	w.conn.r.abortPendingRead()
 
 	// Close the body (regardless of w.closeAfterReply) so we can
