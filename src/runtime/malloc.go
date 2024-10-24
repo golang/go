@@ -1064,7 +1064,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if asanenabled {
 		// Poison the space between the end of the requested size of x
 		// and the end of the slot. Unpoison the requested allocation.
-		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ+(elemsize-size))
+		frag := elemsize - size
+		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) {
+			frag -= mallocHeaderSize
+		}
+		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ+frag)
 		asanunpoison(x, size-asanRZ)
 	}
 
