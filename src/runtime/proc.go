@@ -1152,7 +1152,7 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 }
 
 // This will return false if the gp is not in the expected status and the cas fails.
-// This acts like a lock acquire while the casfromgstatus acts like a lock release.
+// This acts like a lock acquire while the casfrom_Gscanstatus acts like a lock release.
 func castogscanstatus(gp *g, oldval, newval uint32) bool {
 	switch oldval {
 	case _Grunnable,
