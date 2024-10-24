@@ -37,3 +37,23 @@ func TestXchg8(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkXchg8(b *testing.B) {
+	var x [512]uint8 // give byte its own cache line
+	sink = &x
+	for i := 0; i < b.N; i++ {
+		atomic.Xchg8(&x[255], uint8(i))
+	}
+}
+
+func BenchmarkXchg8Parallel(b *testing.B) {
+	var x [512]uint8 // give byte its own cache line
+	sink = &x
+	b.RunParallel(func(pb *testing.PB) {
+		i := uint8(0)
+		for pb.Next() {
+			atomic.Xchg8(&x[255], i)
+			i++
+		}
+	})
+}
