@@ -64,6 +64,12 @@ Go library.
 - "cmd" expands to the Go repository's commands and their
 internal libraries.
 
+Package names match against fully-qualified import paths or patterns that
+match against any number of import paths. For instance, "fmt" refers to the
+standard library's package fmt, but "http" alone for package http would not
+match the import path "net/http" from the standard library. Instead, the
+complete import path "net/http" must be used.
+
 Import paths beginning with "cmd/" only match source code in
 the Go repository.
 
@@ -93,7 +99,10 @@ By convention, this is arranged by starting each path with a
 unique prefix that belongs to you. For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
-such as 'github.com/user/repo'.
+such as 'github.com/user/repo'. Package patterns should include this prefix.
+For instance, a package called 'http' residing under 'github.com/user/repo',
+would be addressed with the fully-qualified pattern:
+'github.com/user/repo/http'.
 
 Packages in a program need not have unique package names,
 but there are two reserved package names with special meaning.
