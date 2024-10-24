@@ -8,7 +8,7 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/alias"
+	"crypto/internal/fips/alias"
 	"crypto/subtle"
 	"errors"
 	"internal/byteorder"

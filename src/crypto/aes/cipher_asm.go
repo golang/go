@@ -8,8 +8,8 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/alias"
 	"crypto/internal/boring"
+	"crypto/internal/fips/alias"
 	"internal/cpu"
 	"internal/goarch"
 )

@@ -13,7 +13,7 @@ package cipher
 
 import (
 	"bytes"
-	"crypto/internal/alias"
+	"crypto/internal/fips/alias"
 	"crypto/subtle"
 )
 

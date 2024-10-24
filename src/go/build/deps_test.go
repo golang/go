@@ -452,6 +452,7 @@ var depsRules = `
 	# backwards compatibility with older versions of the module.
 	STR, crypto/internal/impl
 	< crypto/internal/fips
+	< crypto/internal/fips/alias
 	< crypto/internal/fips/subtle
 	< crypto/internal/fips/sha256
 	< crypto/internal/fips/sha512
@@ -474,7 +475,6 @@ var depsRules = `
 	hash, embed
 	< crypto
 	< crypto/subtle
-	< crypto/internal/alias
 	< crypto/cipher;
 
 	crypto/cipher,
@@ -482,7 +482,8 @@ var depsRules = `
 	< crypto/internal/boring
 	< crypto/boring;
 
-	crypto/internal/alias, math/rand/v2
+	crypto/internal/fips/alias, math/rand/v2,
+	crypto/subtle, embed
 	< crypto/internal/randutil
 	< crypto/internal/nistec/fiat
 	< crypto/internal/nistec

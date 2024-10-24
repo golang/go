@@ -5,7 +5,7 @@
 package cipher
 
 import (
-	"crypto/internal/alias"
+	"crypto/internal/fips/alias"
 	"crypto/subtle"
 	"errors"
 	"internal/byteorder"

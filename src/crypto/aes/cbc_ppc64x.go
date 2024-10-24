@@ -8,7 +8,7 @@ package aes
 
 import (
 	"crypto/cipher"
-	"crypto/internal/alias"
+	"crypto/internal/fips/alias"
 )
 
 // Assert that aesCipherAsm implements the cbcEncAble and cbcDecAble interfaces.

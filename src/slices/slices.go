@@ -449,7 +449,7 @@ func overlaps[E any](a, b []E) bool {
 		return false
 	}
 	// TODO: use a runtime/unsafe facility once one becomes available. See issue 12445.
-	// Also see crypto/internal/alias/alias.go:AnyOverlap
+	// Also see crypto/internal/fips/alias/alias.go:AnyOverlap
 	return uintptr(unsafe.Pointer(&a[0])) <= uintptr(unsafe.Pointer(&b[len(b)-1]))+(elemSize-1) &&
 		uintptr(unsafe.Pointer(&b[0])) <= uintptr(unsafe.Pointer(&a[len(a)-1]))+(elemSize-1)
 }
