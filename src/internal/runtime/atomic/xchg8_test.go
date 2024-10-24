@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build 386 || amd64 || arm64 || ppc64 || ppc64le
+//go:build 386 || amd64 || arm || arm64 || ppc64 || ppc64le
 
 package atomic_test
 
@@ -36,4 +36,24 @@ func TestXchg8(t *testing.T) {
 			break
 		}
 	}
+}
+
+func BenchmarkXchg8(b *testing.B) {
+	var x [512]uint8 // give byte its own cache line
+	sink = &x
+	for i := 0; i < b.N; i++ {
+		atomic.Xchg8(&x[255], uint8(i))
+	}
+}
+
+func BenchmarkXchg8Parallel(b *testing.B) {
+	var x [512]uint8 // give byte its own cache line
+	sink = &x
+	b.RunParallel(func(pb *testing.PB) {
+		i := uint8(0)
+		for pb.Next() {
+			atomic.Xchg8(&x[255], i)
+			i++
+		}
+	})
 }
