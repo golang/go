@@ -472,6 +472,23 @@ var ptrTests = []ptrTest{
 		body:    `s := struct { a [4]byte; p *int }{p: new(int)}; C.f43(unsafe.Pointer(unsafe.SliceData(s.a[:])))`,
 		fail:    false,
 	},
+	{
+		// Passing the address of an element of a pointer-to-array.
+		name:    "arraypointer",
+		c:       `void f44(void* p) {}`,
+		imports: []string{"unsafe"},
+		body:    `a := new([10]byte); C.f44(unsafe.Pointer(&a[0]))`,
+		fail:    false,
+	},
+	{
+		// Passing the address of an element of a pointer-to-array
+		// that contains a Go pointer.
+		name:    "arraypointer2",
+		c:       `void f45(void** p) {}`,
+		imports: []string{"unsafe"},
+		body:    `i := 0; a := &[2]unsafe.Pointer{nil, unsafe.Pointer(&i)}; C.f45(&a[0])`,
+		fail:    true,
+	},
 }
 
 func TestPointerChecks(t *testing.T) {
