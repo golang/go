@@ -3579,6 +3579,15 @@ type intName struct {
 	s string
 }
 
+// Dynamic version flags.
+type DynamicVersionFlag uint16
+
+const (
+	VER_FLG_BASE DynamicVersionFlag = 0x1 /* Version definition of the file. */
+	VER_FLG_WEAK DynamicVersionFlag = 0x2 /* Weak version identifier. */
+	VER_FLG_INFO DynamicVersionFlag = 0x4 /* Reference exists for informational purposes. */
+)
+
 func stringName(i uint32, names []intName, goSyntax bool) string {
 	for _, n := range names {
 		if n.i == i {
