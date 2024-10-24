@@ -1065,9 +1065,17 @@ func (e *PackageNotInModuleError) Error() string {
 	}
 
 	if strings.Contains(e.Pattern, "...") {
-		return fmt.Sprintf("module %s@%s found%s, but does not contain packages matching %s", e.Mod.Path, e.Query, found, e.Pattern)
+		return fmt.Sprintf(
+			"module %s@%s found%s, but does not contain packages matching %s... "+
+				"no go files found, are you sure you have the correct import path?",
+			e.Mod.Path, e.Query, found, e.Pattern,
+		)
 	}
-	return fmt.Sprintf("module %s@%s found%s, but does not contain package %s", e.Mod.Path, e.Query, found, e.Pattern)
+	return fmt.Sprintf(
+		"module %s@%s found%s, but does not contain package %s... "+
+			"no go files found, are you sure you have the correct import path?",
+		e.Mod.Path, e.Query, found, e.Pattern,
+	)
 }
 
 func (e *PackageNotInModuleError) ImportPath() string {
