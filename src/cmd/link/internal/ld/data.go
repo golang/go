@@ -2981,6 +2981,12 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.xdefine("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
 
 	if fuzzCounters != nil {
+		if *flagAsan {
+			// ASAN requires that the symbol marking the end
+			// of the section be aligned on an 8 byte boundary.
+			// See issue #66966.
+			fuzzCounters.Length = uint64(Rnd(int64(fuzzCounters.Length), 8))
+		}
 		ctxt.xdefine("runtime.__start___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr))
 		ctxt.xdefine("runtime.__stop___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
 		ctxt.xdefine("internal/fuzz._counters", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr))
