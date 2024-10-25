@@ -1035,7 +1035,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// These "redzones" are marked as unaddressable.
 	var asanRZ uintptr
 	if asanenabled {
-		asanRZ = computeRZlog(size)
+		asanRZ = redZoneSize(size)
 		size += asanRZ
 	}
 
@@ -1074,10 +1074,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		// Poison the space between the end of the requested size of x
 		// and the end of the slot. Unpoison the requested allocation.
 		frag := elemsize - size
-		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) {
+		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-mallocHeaderSize {
 			frag -= mallocHeaderSize
 		}
-		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ+frag)
+		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
 		asanunpoison(x, size-asanRZ)
 	}
 
@@ -1369,7 +1369,13 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, size)
 	}
-	c.scanAlloc += heapSetTypeNoHeader(uintptr(x), size, typ, span)
+	if goarch.PtrSize == 8 && sizeclass == 1 {
+		// initHeapBits already set the pointer bits for the 8-byte sizeclass
+		// on 64-bit platforms.
+		c.scanAlloc += 8
+	} else {
+		c.scanAlloc += heapSetTypeNoHeader(uintptr(x), size, typ, span)
+	}
 	size = uintptr(class_to_size[sizeclass])
 
 	// Ensure that the stores above that initialize x to
@@ -2040,9 +2046,9 @@ func (p *notInHeap) add(bytes uintptr) *notInHeap {
 	return (*notInHeap)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + bytes))
 }
 
-// computeRZlog computes the size of the redzone.
+// redZoneSize computes the size of the redzone for a given allocation.
 // Refer to the implementation of the compiler-rt.
-func computeRZlog(userSize uintptr) uintptr {
+func redZoneSize(userSize uintptr) uintptr {
 	switch {
 	case userSize <= (64 - 16):
 		return 16 << 0

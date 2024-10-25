@@ -640,11 +640,6 @@ func (span *mspan) heapBitsSmallForAddr(addr uintptr) uintptr {
 //
 //go:nosplit
 func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize uintptr) {
-	if goarch.PtrSize == 8 && dataSize == goarch.PtrSize {
-		// Already set by initHeapBits.
-		return
-	}
-
 	// The objects here are always really small, so a single load is sufficient.
 	src0 := readUintptr(typ.GCData)
 
@@ -654,9 +649,20 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 	if typ.Size_ == goarch.PtrSize {
 		src = (1 << (dataSize / goarch.PtrSize)) - 1
 	} else {
+		// N.B. We rely on dataSize being an exact multiple of the type size.
+		// The alternative is to be defensive and mask out src to the length
+		// of dataSize. The purpose is to save on one additional masking operation.
+		if doubleCheckHeapSetType && !asanenabled && dataSize%typ.Size_ != 0 {
+			throw("runtime: (*mspan).writeHeapBitsSmall: dataSize is not a multiple of typ.Size_")
+		}
 		for i := typ.Size_; i < dataSize; i += typ.Size_ {
 			src |= src0 << (i / goarch.PtrSize)
 			scanSize += typ.Size_
+		}
+		if asanenabled {
+			// Mask src down to dataSize. dataSize is going to be a strange size because of
+			// the redzone required for allocations when asan is enabled.
+			src &= (1 << (dataSize / goarch.PtrSize)) - 1
 		}
 	}
 

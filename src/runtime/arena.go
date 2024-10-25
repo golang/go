@@ -798,7 +798,7 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 
 	if asanenabled {
 		// TODO(mknyszek): Track individual objects.
-		rzSize := computeRZlog(span.elemsize)
+		rzSize := redZoneSize(span.elemsize)
 		span.elemsize -= rzSize
 		span.largeType.Size_ = span.elemsize
 		rzStart := span.base() + span.elemsize
