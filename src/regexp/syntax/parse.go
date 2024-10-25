@@ -952,8 +952,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			if c, t, err = nextRune(t); err != nil {
 				return nil, err
 			}
-			err := p.literal(c)
-			if err != nil {
+			if err := p.literal(c); err != nil {
 				return nil, err
 			}
 
@@ -973,8 +972,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			r.Cap = p.numCap
 			t = t[1:]
 		case '|':
-			err := p.parseVerticalBar()
-			if err != nil {
+			if err := p.parseVerticalBar(); err != nil {
 				return nil, err
 			}
 			t = t[1:]
@@ -985,15 +983,11 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			t = t[1:]
 		case '^':
 			if p.flags&OneLine != 0 {
-				_, err := p.op(OpBeginText)
-				if err != nil {
+				if _, err := p.op(OpBeginText); err != nil {
 					return nil, err
 				}
-			} else {
-				_, err := p.op(OpBeginLine)
-				if err != nil {
-					return nil, err
-				}
+			} else if _, err := p.op(OpBeginLine); err != nil {
+				return nil, err
 			}
 			t = t[1:]
 		case '$':
@@ -1003,24 +997,18 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 					return nil, err
 				}
 				r.Flags |= WasDollar
-			} else {
-				_, err := p.op(OpEndLine)
-				if err != nil {
-					return nil, err
-				}
+			} else if _, err := p.op(OpEndLine); err != nil {
+				return nil, err
+
 			}
 			t = t[1:]
 		case '.':
 			if p.flags&DotNL != 0 {
-				_, err := p.op(OpAnyChar)
-				if err != nil {
+				if _, err := p.op(OpAnyChar); err != nil {
 					return nil, err
 				}
-			} else {
-				_, err := p.op(OpAnyCharNotNL)
-				if err != nil {
-					return nil, err
-				}
+			} else if _, err := p.op(OpAnyCharNotNL); err != nil {
+				return nil, err
 			}
 			t = t[1:]
 		case '[':
@@ -1049,8 +1037,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			min, max, after, ok := p.parseRepeat(t)
 			if !ok {
 				// If the repeat cannot be parsed, { is a literal.
-				err := p.literal('{')
-				if err != nil {
+				if err := p.literal('{'); err != nil {
 					return nil, err
 				}
 				t = t[1:]
@@ -1069,22 +1056,19 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			if p.flags&PerlX != 0 && len(t) >= 2 {
 				switch t[1] {
 				case 'A':
-					_, err := p.op(OpBeginText)
-					if err != nil {
+					if _, err := p.op(OpBeginText); err != nil {
 						return nil, err
 					}
 					t = t[2:]
 					break BigSwitch
 				case 'b':
-					_, err := p.op(OpWordBoundary)
-					if err != nil {
+					if _, err := p.op(OpWordBoundary); err != nil {
 						return nil, err
 					}
 					t = t[2:]
 					break BigSwitch
 				case 'B':
-					_, err := p.op(OpNoWordBoundary)
-					if err != nil {
+					if _, err := p.op(OpNoWordBoundary); err != nil {
 						return nil, err
 					}
 					t = t[2:]
@@ -1101,16 +1085,14 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 						if err != nil {
 							return nil, err
 						}
-						err = p.literal(c)
-						if err != nil {
+						if err = p.literal(c); err != nil {
 							return nil, err
 						}
 						lit = rest
 					}
 					break BigSwitch
 				case 'z':
-					_, err := p.op(OpEndText)
-					if err != nil {
+					if _, err := p.op(OpEndText); err != nil {
 						return nil, err
 					}
 					t = t[2:]
@@ -1152,8 +1134,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			if c, t, err = p.parseEscape(t); err != nil {
 				return nil, err
 			}
-			err := p.literal(c)
-			if err != nil {
+			if err := p.literal(c); err != nil {
 				return nil, err
 			}
 		}
@@ -1167,8 +1148,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 		// pop vertical bar
 		p.stack = p.stack[:len(p.stack)-1]
 	}
-	err = p.alternate()
-	if err != nil {
+	if err = p.alternate(); err != nil {
 		return nil, err
 	}
 
@@ -1328,8 +1308,7 @@ Loop:
 			}
 			if c == ':' {
 				// Open new group
-				_, err := p.op(opLeftParen)
-				if err != nil {
+				if _, err := p.op(opLeftParen); err != nil {
 					return "", err
 				}
 			}
@@ -1426,8 +1405,7 @@ func (p *parser) parseVerticalBar() error {
 	// (things below an opVerticalBar become an alternation).
 	// Otherwise, push a new vertical bar.
 	if !p.swapVerticalBar() {
-		_, err := p.op(opVerticalBar)
-		if err != nil {
+		if _, err := p.op(opVerticalBar); err != nil {
 			return err
 		}
 	}
@@ -1511,8 +1489,7 @@ func (p *parser) parseRightParen() error {
 		// pop vertical bar
 		p.stack = p.stack[:len(p.stack)-1]
 	}
-	err := p.alternate()
-	if err != nil {
+	if err := p.alternate(); err != nil {
 		return err
 	}
 
