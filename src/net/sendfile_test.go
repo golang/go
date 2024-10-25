@@ -69,7 +69,10 @@ func expectSendfile(t *testing.T, wantConn Conn, f func()) {
 	}
 }
 
-func TestSendfile(t *testing.T) {
+func TestSendfile(t *testing.T)                        { testSendfile(t, 0) }
+func TestSendfileWithExactLimit(t *testing.T)          { testSendfile(t, newtonLen) }
+func TestSendfileWithLimitLargerThanFile(t *testing.T) { testSendfile(t, newtonLen*2) }
+func testSendfile(t *testing.T, limit int64) {
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
@@ -104,7 +107,14 @@ func TestSendfile(t *testing.T) {
 				sbytes, err = io.Copy(conn, f)
 			default:
 				expectSendfile(t, conn, func() {
-					sbytes, err = io.Copy(conn, f)
+					if limit > 0 {
+						sbytes, err = io.CopyN(conn, f, limit)
+						if err == io.EOF && limit > newtonLen {
+							err = nil
+						}
+					} else {
+						sbytes, err = io.Copy(conn, f)
+					}
 				})
 			}
 			if err != nil {

@@ -17,13 +17,7 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
 
 // readFrom is basically a refactor of net.sendFile, but adapted to work for the target of *File.
 func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
-	// SunOS uses 0 as the "until EOF" value.
-	// If you pass in more bytes than the file contains, it will
-	// loop back to the beginning ad nauseam until it's sent
-	// exactly the number of bytes told to. As such, we need to
-	// know exactly how many bytes to send.
 	var remain int64 = 0
-
 	lr, ok := r.(*io.LimitedReader)
 	if ok {
 		remain, r = lr.N, lr.R
@@ -74,25 +68,6 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 		}
 	}
 
-	if remain == 0 {
-		fi, err := src.Stat()
-		if err != nil {
-			return 0, false, err
-		}
-
-		remain = fi.Size()
-	}
-
-	// The other quirk with SunOS' sendfile implementation
-	// is that it doesn't use the current position of the file
-	// -- if you pass it offset 0, it starts from offset 0.
-	// There's no way to tell it "start from current position",
-	// so we have to manage that explicitly.
-	pos, err := src.Seek(0, io.SeekCurrent)
-	if err != nil {
-		return
-	}
-
 	sc, err := src.SyscallConn()
 	if err != nil {
 		return
@@ -103,27 +78,14 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 	// https://docs.oracle.com/cd/E88353_01/html/E37843/sendfile-3c.html and
 	// https://illumos.org/man/3EXT/sendfile for more details.
 	rerr := sc.Read(func(fd uintptr) bool {
-		written, err, handled = poll.SendFile(&f.pfd, int(fd), pos, remain)
+		written, err, handled = poll.SendFile(&f.pfd, int(fd), remain)
 		return true
 	})
 	if lr != nil {
 		lr.N = remain - written
 	}
-
-	// This is another quirk on SunOS: sendfile() claims to support
-	// out_fd as a regular file but returns EINVAL when the out_fd is not a
-	// socket of SOCK_STREAM, while it actually sends out data anyway and updates
-	// the file offset. In this case, we can just ignore the error.
-	if err == syscall.EINVAL && written > 0 {
-		err = nil
-	}
 	if err == nil {
 		err = rerr
-	}
-
-	_, err1 := src.Seek(written, io.SeekCurrent)
-	if err1 != nil && err == nil {
-		return written, handled, err1
 	}
 
 	return written, handled, wrapSyscallError("sendfile", err)
