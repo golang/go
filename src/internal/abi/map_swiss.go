@@ -21,6 +21,12 @@ const (
 	// Must fit in a uint8.
 	SwissMapMaxKeyBytes  = 128
 	SwissMapMaxElemBytes = 128
+
+	ctrlEmpty   = 0b10000000
+	bitsetLSB   = 0x0101010101010101
+
+	// Value of control word with all empty slots.
+	SwissMapCtrlEmpty = bitsetLSB * uint64(ctrlEmpty)
 )
 
 type SwissMapType struct {

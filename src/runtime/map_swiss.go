@@ -37,24 +37,23 @@ func makemap64(t *abi.SwissMapType, hint int64, m *maps.Map) *maps.Map {
 }
 
 // makemap_small implements Go map creation for make(map[k]v) and
-// make(map[k]v, hint) when hint is known to be at most bucketCnt
+// make(map[k]v, hint) when hint is known to be at most abi.SwissMapGroupSlots
 // at compile time and the map needs to be allocated on the heap.
 func makemap_small() *maps.Map {
-	panic("unimplemented")
+	return maps.NewEmptyMap()
 }
 
 // makemap implements Go map creation for make(map[k]v, hint).
-// If the compiler has determined that the map or the first bucket
-// can be created on the stack, h and/or bucket may be non-nil.
-// If h != nil, the map can be created directly in h.
-// If h.buckets != nil, bucket pointed to can be used as the first bucket.
+// If the compiler has determined that the map or the first group
+// can be created on the stack, m and optionally m.dirPtr may be non-nil.
+// If m != nil, the map can be created directly in m.
+// If m.dirPtr != nil, it points to a group usable for a small map.
 func makemap(t *abi.SwissMapType, hint int, m *maps.Map) *maps.Map {
 	if hint < 0 {
 		hint = 0
 	}
 
-	// TODO: use existing m
-	return maps.NewMap(t, uintptr(hint), maxAlloc)
+	return maps.NewMap(t, uintptr(hint), m, maxAlloc)
 }
 
 // mapaccess1 returns a pointer to h[key].  Never returns nil, instead

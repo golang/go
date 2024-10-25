@@ -657,6 +657,16 @@ func newT40() *T40 {
 	return &ret
 }
 
+func good40() {
+	ret := T40{}              // ERROR "stack object ret T40$"
+	ret.m = make(map[int]int) // ERROR "live at call to rand(32)?: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ (runtime.hmap|internal/runtime/maps.Map)$"
+	t := &ret
+	printnl() // ERROR "live at call to printnl: ret$"
+	// Note: ret is live at the printnl because the compiler moves &ret
+	// from before the printnl to after.
+	useT40(t)
+}
+
 func bad40() {
 	t := newT40()
 	_ = t

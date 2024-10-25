@@ -246,71 +246,82 @@ func depthToShift(depth uint8) uint8 {
 	return 64 - depth
 }
 
+// If m is non-nil, it should be used rather than allocating.
+//
 // maxAlloc should be runtime.maxAlloc.
 //
 // TODO(prattmic): Put maxAlloc somewhere accessible.
-func NewMap(mt *abi.SwissMapType, hint, maxAlloc uintptr) *Map {
+func NewMap(mt *abi.SwissMapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
+	if m == nil {
+		m = new(Map)
+	}
+
+	m.seed = uintptr(rand())
+
+	if hint <= abi.SwissMapGroupSlots {
+		// A small map can fill all 8 slots, so no need to increase
+		// target capacity.
+		//
+		// In fact, since an 8 slot group is what the first assignment
+		// to an empty map would allocate anyway, it doesn't matter if
+		// we allocate here or on the first assignment.
+		//
+		// Thus we just return without allocating. (We'll save the
+		// allocation completely if no assignment comes.)
+
+		// Note that the compiler may have initialized m.dirPtr with a
+		// pointer to a stack-allocated group, in which case we already
+		// have a group. The control word is already initialized.
+
+		return m
+	}
+
+	// Full size map.
+
 	// Set initial capacity to hold hint entries without growing in the
 	// average case.
-	var targetCapacity uintptr
-	if hint <= abi.SwissMapGroupSlots {
-		// Small map can fill all 8 slots. We set the target to 0 here
-		// because an 8 slot small map is what the first assignment to
-		// an empty map will allocate anyway. Whether we allocate here
-		// or in the first assignment makes no difference. And if there
-		// is a chance that the caller won't write at all then it is
-		// better to delay.
-		targetCapacity = 0
-	} else {
-		targetCapacity = (hint * abi.SwissMapGroupSlots) / maxAvgGroupLoad
-		if targetCapacity < hint { // overflow
-			targetCapacity = 0
-		}
+	targetCapacity := (hint * abi.SwissMapGroupSlots) / maxAvgGroupLoad
+	if targetCapacity < hint { // overflow
+		return m // return an empty map.
 	}
 
 	dirSize := (uint64(targetCapacity) + maxTableCapacity - 1) / maxTableCapacity
 	dirSize, overflow := alignUpPow2(dirSize)
 	if overflow || dirSize > uint64(math.MaxUintptr) {
-		targetCapacity = 0
+		return m // return an empty map.
 	}
 
 	// Reject hints that are obviously too large.
 	groups, overflow := math.MulUintptr(uintptr(dirSize), maxTableCapacity)
 	if overflow {
-		targetCapacity = 0
+		return m // return an empty map.
 	} else {
 		mem, overflow := math.MulUintptr(groups, mt.Group.Size_)
 		if overflow || mem > maxAlloc {
-			targetCapacity = 0
+			return m // return an empty map.
 		}
 	}
 
-	globalDepth := uint8(sys.TrailingZeros64(dirSize))
-	if targetCapacity == 0 {
-		// TrailingZeros64 returns 64 for 0.
-		globalDepth = 0
+	m.globalDepth = uint8(sys.TrailingZeros64(dirSize))
+	m.globalShift = depthToShift(m.globalDepth)
+
+	directory := make([]*table, dirSize)
+
+	for i := range directory {
+		// TODO: Think more about initial table capacity.
+		directory[i] = newTable(mt, uint64(targetCapacity)/dirSize, i, m.globalDepth)
 	}
 
-	m := &Map{
-		seed: uintptr(rand()),
+	m.dirPtr = unsafe.Pointer(&directory[0])
+	m.dirLen = len(directory)
 
-		globalDepth: globalDepth,
-		globalShift: depthToShift(globalDepth),
-	}
+	return m
+}
 
-	if targetCapacity > 0 {
-		// Full map.
-		directory := make([]*table, dirSize)
-
-		for i := range directory {
-			// TODO: Think more about initial table capacity.
-			directory[i] = newTable(mt, uint64(targetCapacity)/dirSize, i, globalDepth)
-		}
-
-		m.dirPtr = unsafe.Pointer(&directory[0])
-		m.dirLen = len(directory)
-	}
-
+func NewEmptyMap() *Map {
+	m := new(Map)
+	m.seed = uintptr(rand())
+	// See comment in NewMap. No need to eager allocate a group.
 	return m
 }
 
@@ -623,6 +634,9 @@ func (m *Map) growToTable(typ *abi.SwissMapType) {
 
 	m.dirPtr = unsafe.Pointer(&directory[0])
 	m.dirLen = len(directory)
+
+	m.globalDepth = 0
+	m.globalShift = depthToShift(m.globalDepth)
 }
 
 func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {

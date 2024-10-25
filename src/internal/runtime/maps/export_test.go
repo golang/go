@@ -24,7 +24,7 @@ const maxAllocTest = 1 << 30
 
 func NewTestMap[K comparable, V any](hint uintptr) (*Map, *abi.SwissMapType) {
 	mt := newTestMapType[K, V]()
-	return NewMap(mt, hint, maxAllocTest), mt
+	return NewMap(mt, hint, nil, maxAllocTest), mt
 }
 
 func (m *Map) TableCount() int {

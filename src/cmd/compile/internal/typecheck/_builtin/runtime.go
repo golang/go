@@ -129,6 +129,7 @@ func panicrangestate(state int)
 // defer in range over func
 func deferrangefunc() interface{}
 
+func rand() uint64
 func rand32() uint32
 
 // *byte is really *runtime.Type
