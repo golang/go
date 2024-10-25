@@ -10,8 +10,8 @@ import (
 	"crypto/cipher"
 	"crypto/ecdh"
 	"crypto/rand"
-	"encoding/binary"
 	"errors"
+	"internal/byteorder"
 	"math/bits"
 
 	"golang.org/x/crypto/chacha20poly1305"
@@ -37,7 +37,7 @@ func (kdf *hkdfKDF) LabeledExtract(suiteID []byte, salt []byte, label string, in
 
 func (kdf *hkdfKDF) LabeledExpand(suiteID []byte, randomKey []byte, label string, info []byte, length uint16) []byte {
 	labeledInfo := make([]byte, 0, 2+7+len(suiteID)+len(label)+len(info))
-	labeledInfo = binary.BigEndian.AppendUint16(labeledInfo, length)
+	labeledInfo = byteorder.BeAppendUint16(labeledInfo, length)
 	labeledInfo = append(labeledInfo, []byte("HPKE-v1")...)
 	labeledInfo = append(labeledInfo, suiteID...)
 	labeledInfo = append(labeledInfo, label...)
@@ -76,7 +76,7 @@ func newDHKem(kemID uint16) (*dhKEM, error) {
 	return &dhKEM{
 		dh:      suite.curve,
 		kdf:     hkdfKDF{suite.hash},
-		suiteID: binary.BigEndian.AppendUint16([]byte("KEM"), kemID),
+		suiteID: byteorder.BeAppendUint16([]byte("KEM"), kemID),
 		nSecret: suite.nSecret,
 	}, nil
 }
@@ -224,9 +224,9 @@ func (s *Sender) Seal(aad, plaintext []byte) ([]byte, error) {
 func SuiteID(kemID, kdfID, aeadID uint16) []byte {
 	suiteID := make([]byte, 0, 4+2+2+2)
 	suiteID = append(suiteID, []byte("HPKE")...)
-	suiteID = binary.BigEndian.AppendUint16(suiteID, kemID)
-	suiteID = binary.BigEndian.AppendUint16(suiteID, kdfID)
-	suiteID = binary.BigEndian.AppendUint16(suiteID, aeadID)
+	suiteID = byteorder.BeAppendUint16(suiteID, kemID)
+	suiteID = byteorder.BeAppendUint16(suiteID, kdfID)
+	suiteID = byteorder.BeAppendUint16(suiteID, aeadID)
 	return suiteID
 }
 
@@ -253,7 +253,7 @@ func (u uint128) bitLen() int {
 
 func (u uint128) bytes() []byte {
 	b := make([]byte, 16)
-	binary.BigEndian.PutUint64(b[0:], u.hi)
-	binary.BigEndian.PutUint64(b[8:], u.lo)
+	byteorder.BePutUint64(b[0:], u.hi)
+	byteorder.BePutUint64(b[8:], u.lo)
 	return b
 }
