@@ -119,9 +119,9 @@ func (g ctrlGroup) matchEmptyOrDeleted() bitset {
 	// A deleted slot is 1111 1110
 	// A full slot is    0??? ????
 	//
-	// A slot is empty or deleted iff bit 7 is set and bit 0 is not.
+	// A slot is empty or deleted iff bit 7 is set.
 	v := uint64(g)
-	return bitset((v &^ (v << 7)) & bitsetMSB)
+	return bitset(v & bitsetMSB)
 }
 
 // convertNonFullToEmptyAndFullToDeleted converts deleted control bytes in a
