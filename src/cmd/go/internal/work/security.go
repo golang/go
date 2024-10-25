@@ -205,6 +205,8 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,--hash-style=(sysv|gnu|both)`),
 	re(`-Wl,-headerpad_max_install_names`),
 	re(`-Wl,--no-undefined`),
+	re(`-Wl,--pop-state`),
+	re(`-Wl,--push-state`),
 	re(`-Wl,-R,?([^@\-,][^,@]*$)`),
 	re(`-Wl,--just-symbols[=,]([^,@\-][^,@]+)`),
 	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]+)`),
@@ -308,7 +310,31 @@ Args:
 			}
 		}
 		for _, re := range valid {
-			if re.FindString(arg) == arg { // must be complete match
+			if match := re.FindString(arg); match == arg { // must be complete match
+				continue Args
+			} else if match == "-Wl,--push-state" {
+				// Examples for --push-state are written
+				//     -Wl,--push-state,--as-needed
+				// Support other commands in the same -Wl arg.
+				args := strings.Split(arg, ",")
+				for _, a := range args[1:] {
+					a = "-Wl," + a
+					var found bool
+					for _, re := range valid {
+						if re.FindString(a) == a {
+							found = true
+							break
+						}
+					}
+					if !found {
+						goto Bad
+					}
+					for _, re := range invalid {
+						if re.FindString(a) == a {
+							goto Bad
+						}
+					}
+				}
 				continue Args
 			}
 		}

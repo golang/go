@@ -178,6 +178,10 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,-z,noexecstack"},
 	{"libcgotbdtest.tbd"},
 	{"./libcgotbdtest.tbd"},
+	{"-Wl,--push-state"},
+	{"-Wl,--pop-state"},
+	{"-Wl,--push-state,--as-needed"},
+	{"-Wl,--push-state,--no-as-needed,-Bstatic"},
 }
 
 var badLinkerFlags = [][]string{
@@ -244,6 +248,8 @@ var badLinkerFlags = [][]string{
 	{"-Wl,-e="},
 	{"-Wl,-e,"},
 	{"-Wl,-R,-flag"},
+	{"-Wl,--push-state,"},
+	{"-Wl,--push-state,@foo"},
 }
 
 func TestCheckLinkerFlags(t *testing.T) {
