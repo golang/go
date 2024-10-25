@@ -51,6 +51,8 @@ import (
 // the generated ODCLFUNC, but there is no
 // pointer from the Func back to the OMETHVALUE.
 type Func struct {
+	// if you add or remove a field, don't forget to update sizeof_test.go
+
 	miniNode
 	Body Nodes
 
@@ -75,6 +77,9 @@ type Func struct {
 	// Enclosed functions that need to be compiled.
 	// Populated during walk.
 	Closures []*Func
+
+	// Parent of a closure
+	ClosureParent *Func
 
 	// Parents records the parent scope of each scope within a
 	// function. The root scope (0) has no parent, so the i'th
@@ -516,6 +521,7 @@ func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func,
 
 	fn.Nname.Defn = fn
 	pkg.Funcs = append(pkg.Funcs, fn)
+	fn.ClosureParent = outerfn
 
 	return fn
 }
