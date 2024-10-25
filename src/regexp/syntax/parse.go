@@ -158,15 +158,20 @@ func (p *parser) reuse(re *Regexp) {
 	p.free = re
 }
 
-func (p *parser) checkLimits(re *Regexp) {
+func (p *parser) checkLimits(re *Regexp) error {
 	if p.numRunes > maxRunes {
-		panic(ErrLarge)
+		return &Error{Code: ErrLarge, Expr: p.wholeRegexp}
 	}
-	p.checkSize(re)
-	p.checkHeight(re)
+	if err := p.checkSize(re); err != nil {
+		return err
+	}
+	if err := p.checkHeight(re); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (p *parser) checkSize(re *Regexp) {
+func (p *parser) checkSize(re *Regexp) error {
 	if p.size == nil {
 		// We haven't started tracking size yet.
 		// Do a relatively cheap check to see if we need to start.
@@ -191,7 +196,7 @@ func (p *parser) checkSize(re *Regexp) {
 			}
 		}
 		if int64(p.numRegexp) < maxSize/p.repeats {
-			return
+			return nil
 		}
 
 		// We need to start tracking size.
@@ -199,13 +204,16 @@ func (p *parser) checkSize(re *Regexp) {
 		// with info about everything we've constructed so far.
 		p.size = make(map[*Regexp]int64)
 		for _, re := range p.stack {
-			p.checkSize(re)
+			if err := p.checkSize(re); err != nil {
+				return err
+			}
 		}
 	}
 
 	if p.calcSize(re, true) > maxSize {
-		panic(ErrLarge)
+		return &Error{Code: ErrLarge, Expr: p.wholeRegexp}
 	}
+	return nil
 }
 
 func (p *parser) calcSize(re *Regexp, force bool) int64 {
@@ -254,19 +262,22 @@ func (p *parser) calcSize(re *Regexp, force bool) int64 {
 	return size
 }
 
-func (p *parser) checkHeight(re *Regexp) {
+func (p *parser) checkHeight(re *Regexp) error {
 	if p.numRegexp < maxHeight {
-		return
+		return nil
 	}
 	if p.height == nil {
 		p.height = make(map[*Regexp]int)
 		for _, re := range p.stack {
-			p.checkHeight(re)
+			if err := p.checkHeight(re); err != nil {
+				return err
+			}
 		}
 	}
 	if p.calcHeight(re, true) > maxHeight {
-		panic(ErrNestingDepth)
+		return &Error{Code: ErrNestingDepth, Expr: p.wholeRegexp}
 	}
+	return nil
 }
 
 func (p *parser) calcHeight(re *Regexp, force bool) int {
@@ -289,12 +300,12 @@ func (p *parser) calcHeight(re *Regexp, force bool) int {
 // Parse stack manipulation.
 
 // push pushes the regexp re onto the parse stack and returns the regexp.
-func (p *parser) push(re *Regexp) *Regexp {
+func (p *parser) push(re *Regexp) (*Regexp, error) {
 	p.numRunes += len(re.Rune)
 	if re.Op == OpCharClass && len(re.Rune) == 2 && re.Rune[0] == re.Rune[1] {
 		// Single rune.
 		if p.maybeConcat(re.Rune[0], p.flags&^FoldCase) {
-			return nil
+			return nil, nil
 		}
 		re.Op = OpLiteral
 		re.Rune = re.Rune[:1]
@@ -309,7 +320,7 @@ func (p *parser) push(re *Regexp) *Regexp {
 			unicode.SimpleFold(re.Rune[1]) == re.Rune[0] {
 		// Case-insensitive rune like [Aa] or [Δδ].
 		if p.maybeConcat(re.Rune[0], p.flags|FoldCase) {
-			return nil
+			return nil, nil
 		}
 
 		// Rewrite as (case-insensitive) literal.
@@ -322,8 +333,10 @@ func (p *parser) push(re *Regexp) *Regexp {
 	}
 
 	p.stack = append(p.stack, re)
-	p.checkLimits(re)
-	return re
+	if err := p.checkLimits(re); err != nil {
+		return nil, err
+	}
+	return re, nil
 }
 
 // maybeConcat implements incremental concatenation
@@ -364,7 +377,7 @@ func (p *parser) maybeConcat(r rune, flags Flags) bool {
 }
 
 // literal pushes a literal regexp for the rune r on the stack.
-func (p *parser) literal(r rune) {
+func (p *parser) literal(r rune) error {
 	re := p.newRegexp(OpLiteral)
 	re.Flags = p.flags
 	if p.flags&FoldCase != 0 {
@@ -372,7 +385,8 @@ func (p *parser) literal(r rune) {
 	}
 	re.Rune0[0] = r
 	re.Rune = re.Rune0[:1]
-	p.push(re)
+	_, err := p.push(re)
+	return err
 }
 
 // minFoldRune returns the minimum rune fold-equivalent to r.
@@ -390,7 +404,7 @@ func minFoldRune(r rune) rune {
 
 // op pushes a regexp with the given op onto the stack
 // and returns that regexp.
-func (p *parser) op(op Op) *Regexp {
+func (p *parser) op(op Op) (*Regexp, error) {
 	re := p.newRegexp(op)
 	re.Flags = p.flags
 	return p.push(re)
@@ -430,7 +444,9 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
 	re.Sub = re.Sub0[:1]
 	re.Sub[0] = sub
 	p.stack[n-1] = re
-	p.checkLimits(re)
+	if err := p.checkLimits(re); err != nil {
+		return "", err
+	}
 
 	if op == OpRepeat && (min >= 2 || max >= 2) && !repeatIsValid(re, 1000) {
 		return "", &Error{ErrInvalidRepeatSize, before[:len(before)-len(after)]}
@@ -473,7 +489,7 @@ func repeatIsValid(re *Regexp, n int) bool {
 }
 
 // concat replaces the top of the stack (above the topmost '|' or '(') with its concatenation.
-func (p *parser) concat() *Regexp {
+func (p *parser) concat() (*Regexp, error) {
 	p.maybeConcat(-1, 0)
 
 	// Scan down to find pseudo-operator | or (.
@@ -489,11 +505,15 @@ func (p *parser) concat() *Regexp {
 		return p.push(p.newRegexp(OpEmptyMatch))
 	}
 
-	return p.push(p.collapse(subs, OpConcat))
+	re, err := p.collapse(subs, OpConcat)
+	if err != nil {
+		return nil, err
+	}
+	return p.push(re)
 }
 
 // alternate replaces the top of the stack (above the topmost '(') with its alternation.
-func (p *parser) alternate() *Regexp {
+func (p *parser) alternate() (*Regexp, error) {
 	// Scan down to find pseudo-operator (.
 	// There are no | above (.
 	i := len(p.stack)
@@ -515,7 +535,11 @@ func (p *parser) alternate() *Regexp {
 		return p.push(p.newRegexp(OpNoMatch))
 	}
 
-	return p.push(p.collapse(subs, OpAlternate))
+	re, err := p.collapse(subs, OpAlternate)
+	if err != nil {
+		return nil, err
+	}
+	return p.push(re)
 }
 
 // cleanAlt cleans re for eventual inclusion in an alternation.
@@ -545,9 +569,9 @@ func cleanAlt(re *Regexp) {
 // If sub contains op nodes, they all get hoisted up
 // so that there is never a concat of a concat or an
 // alternate of an alternate.
-func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
+func (p *parser) collapse(subs []*Regexp, op Op) (*Regexp, error) {
 	if len(subs) == 1 {
-		return subs[0]
+		return subs[0], nil
 	}
 	re := p.newRegexp(op)
 	re.Sub = re.Sub0[:0]
@@ -560,14 +584,18 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 		}
 	}
 	if op == OpAlternate {
-		re.Sub = p.factor(re.Sub)
+		alternate, err := p.factor(re.Sub)
+		if err != nil {
+			return nil, err
+		}
+		re.Sub = alternate
 		if len(re.Sub) == 1 {
 			old := re
 			re = re.Sub[0]
 			p.reuse(old)
 		}
 	}
-	return re
+	return re, nil
 }
 
 // factor factors common prefixes from the alternation list sub.
@@ -585,9 +613,9 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 // which simplifies by character class introduction to
 //
 //	A(B[CD]|EF)|BC[XY]
-func (p *parser) factor(sub []*Regexp) []*Regexp {
+func (p *parser) factor(sub []*Regexp) ([]*Regexp, error) {
 	if len(sub) < 2 {
-		return sub
+		return sub, nil
 	}
 
 	// Round 1: Factor out common literal prefixes.
@@ -638,9 +666,14 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 
 			for j := start; j < i; j++ {
 				sub[j] = p.removeLeadingString(sub[j], len(str))
-				p.checkLimits(sub[j])
+				if err := p.checkLimits(sub[j]); err != nil {
+					return nil, err
+				}
 			}
-			suffix := p.collapse(sub[start:i], OpAlternate) // recurse
+			suffix, err := p.collapse(sub[start:i], OpAlternate) // recurse
+			if err != nil {
+				return nil, err
+			}
 
 			re := p.newRegexp(OpConcat)
 			re.Sub = append(re.Sub[:0], prefix, suffix)
@@ -696,9 +729,14 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 			for j := start; j < i; j++ {
 				reuse := j != start // prefix came from sub[start]
 				sub[j] = p.removeLeadingRegexp(sub[j], reuse)
-				p.checkLimits(sub[j])
+				if err := p.checkLimits(sub[j]); err != nil {
+					return nil, err
+				}
 			}
-			suffix := p.collapse(sub[start:i], OpAlternate) // recurse
+			suffix, err := p.collapse(sub[start:i], OpAlternate) // recurse
+			if err != nil {
+				return nil, err
+			}
 
 			re := p.newRegexp(OpConcat)
 			re.Sub = append(re.Sub[:0], prefix, suffix)
@@ -769,7 +807,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 	}
 	sub = out
 
-	return sub
+	return sub, nil
 }
 
 // leadingString returns the leading literal string that re begins with.
@@ -888,19 +926,6 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 }
 
 func parse(s string, flags Flags) (_ *Regexp, err error) {
-	defer func() {
-		switch r := recover(); r {
-		default:
-			panic(r)
-		case nil:
-			// ok
-		case ErrLarge: // too big
-			err = &Error{Code: ErrLarge, Expr: s}
-		case ErrNestingDepth:
-			err = &Error{Code: ErrNestingDepth, Expr: s}
-		}
-	}()
-
 	if flags&Literal != 0 {
 		// Trivial parser for literal string.
 		if err := checkUTF8(s); err != nil {
@@ -927,7 +952,10 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			if c, t, err = nextRune(t); err != nil {
 				return nil, err
 			}
-			p.literal(c)
+			err := p.literal(c)
+			if err != nil {
+				return nil, err
+			}
 
 		case '(':
 			if p.flags&PerlX != 0 && len(t) >= 2 && t[1] == '?' {
@@ -938,10 +966,17 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 				break
 			}
 			p.numCap++
-			p.op(opLeftParen).Cap = p.numCap
+			r, err := p.op(opLeftParen)
+			if err != nil {
+				return nil, err
+			}
+			r.Cap = p.numCap
 			t = t[1:]
 		case '|':
-			p.parseVerticalBar()
+			err := p.parseVerticalBar()
+			if err != nil {
+				return nil, err
+			}
 			t = t[1:]
 		case ')':
 			if err = p.parseRightParen(); err != nil {
@@ -950,23 +985,42 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			t = t[1:]
 		case '^':
 			if p.flags&OneLine != 0 {
-				p.op(OpBeginText)
+				_, err := p.op(OpBeginText)
+				if err != nil {
+					return nil, err
+				}
 			} else {
-				p.op(OpBeginLine)
+				_, err := p.op(OpBeginLine)
+				if err != nil {
+					return nil, err
+				}
 			}
 			t = t[1:]
 		case '$':
 			if p.flags&OneLine != 0 {
-				p.op(OpEndText).Flags |= WasDollar
+				r, err := p.op(OpEndText)
+				if err != nil {
+					return nil, err
+				}
+				r.Flags |= WasDollar
 			} else {
-				p.op(OpEndLine)
+				_, err := p.op(OpEndLine)
+				if err != nil {
+					return nil, err
+				}
 			}
 			t = t[1:]
 		case '.':
 			if p.flags&DotNL != 0 {
-				p.op(OpAnyChar)
+				_, err := p.op(OpAnyChar)
+				if err != nil {
+					return nil, err
+				}
 			} else {
-				p.op(OpAnyCharNotNL)
+				_, err := p.op(OpAnyCharNotNL)
+				if err != nil {
+					return nil, err
+				}
 			}
 			t = t[1:]
 		case '[':
@@ -995,7 +1049,10 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			min, max, after, ok := p.parseRepeat(t)
 			if !ok {
 				// If the repeat cannot be parsed, { is a literal.
-				p.literal('{')
+				err := p.literal('{')
+				if err != nil {
+					return nil, err
+				}
 				t = t[1:]
 				break
 			}
@@ -1012,15 +1069,24 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			if p.flags&PerlX != 0 && len(t) >= 2 {
 				switch t[1] {
 				case 'A':
-					p.op(OpBeginText)
+					_, err := p.op(OpBeginText)
+					if err != nil {
+						return nil, err
+					}
 					t = t[2:]
 					break BigSwitch
 				case 'b':
-					p.op(OpWordBoundary)
+					_, err := p.op(OpWordBoundary)
+					if err != nil {
+						return nil, err
+					}
 					t = t[2:]
 					break BigSwitch
 				case 'B':
-					p.op(OpNoWordBoundary)
+					_, err := p.op(OpNoWordBoundary)
+					if err != nil {
+						return nil, err
+					}
 					t = t[2:]
 					break BigSwitch
 				case 'C':
@@ -1035,12 +1101,18 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 						if err != nil {
 							return nil, err
 						}
-						p.literal(c)
+						err = p.literal(c)
+						if err != nil {
+							return nil, err
+						}
 						lit = rest
 					}
 					break BigSwitch
 				case 'z':
-					p.op(OpEndText)
+					_, err := p.op(OpEndText)
+					if err != nil {
+						return nil, err
+					}
 					t = t[2:]
 					break BigSwitch
 				}
@@ -1058,7 +1130,10 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 				if r != nil {
 					re.Rune = r
 					t = rest
-					p.push(re)
+					_, err := p.push(re)
+					if err != nil {
+						return nil, err
+					}
 					break BigSwitch
 				}
 			}
@@ -1067,7 +1142,10 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			if r, rest := p.parsePerlClassEscape(t, re.Rune0[:0]); r != nil {
 				re.Rune = r
 				t = rest
-				p.push(re)
+				_, err := p.push(re)
+				if err != nil {
+					return nil, err
+				}
 				break BigSwitch
 			}
 			p.reuse(re)
@@ -1076,17 +1154,26 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			if c, t, err = p.parseEscape(t); err != nil {
 				return nil, err
 			}
-			p.literal(c)
+			err := p.literal(c)
+			if err != nil {
+				return nil, err
+			}
 		}
 		lastRepeat = repeat
 	}
 
-	p.concat()
+	_, err = p.concat()
+	if err != nil {
+		return nil, err
+	}
 	if p.swapVerticalBar() {
 		// pop vertical bar
 		p.stack = p.stack[:len(p.stack)-1]
 	}
-	p.alternate()
+	_, err = p.alternate()
+	if err != nil {
+		return nil, err
+	}
 
 	n := len(p.stack)
 	if n != 1 {
@@ -1185,7 +1272,10 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 
 		// Like ordinary capture, but named.
 		p.numCap++
-		re := p.op(opLeftParen)
+		re, err := p.op(opLeftParen)
+		if err != nil {
+			return "", err
+		}
 		re.Cap = p.numCap
 		re.Name = name
 		return t[end+1:], nil
@@ -1241,7 +1331,10 @@ Loop:
 			}
 			if c == ':' {
 				// Open new group
-				p.op(opLeftParen)
+				_, err := p.op(opLeftParen)
+				if err != nil {
+					return "", err
+				}
 			}
 			p.flags = flags
 			return t, nil
@@ -1326,16 +1419,23 @@ func matchRune(re *Regexp, r rune) bool {
 }
 
 // parseVerticalBar handles a | in the input.
-func (p *parser) parseVerticalBar() {
-	p.concat()
+func (p *parser) parseVerticalBar() error {
+	_, err := p.concat()
+	if err != nil {
+		return err
+	}
 
 	// The concatenation we just parsed is on top of the stack.
 	// If it sits above an opVerticalBar, swap it below
 	// (things below an opVerticalBar become an alternation).
 	// Otherwise, push a new vertical bar.
 	if !p.swapVerticalBar() {
-		p.op(opVerticalBar)
+		_, err := p.op(opVerticalBar)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // mergeCharClass makes dst = dst|src.
@@ -1408,12 +1508,18 @@ func (p *parser) swapVerticalBar() bool {
 
 // parseRightParen handles a ) in the input.
 func (p *parser) parseRightParen() error {
-	p.concat()
+	_, err := p.concat()
+	if err != nil {
+		return err
+	}
 	if p.swapVerticalBar() {
 		// pop vertical bar
 		p.stack = p.stack[:len(p.stack)-1]
 	}
-	p.alternate()
+	_, err = p.alternate()
+	if err != nil {
+		return err
+	}
 
 	n := len(p.stack)
 	if n < 2 {
@@ -1429,12 +1535,18 @@ func (p *parser) parseRightParen() error {
 	p.flags = re2.Flags
 	if re2.Cap == 0 {
 		// Just for grouping.
-		p.push(re1)
+		_, err := p.push(re1)
+		if err != nil {
+			return err
+		}
 	} else {
 		re2.Op = OpCapture
 		re2.Sub = re2.Sub0[:1]
 		re2.Sub[0] = re1
-		p.push(re2)
+		_, err := p.push(re2)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1821,7 +1933,10 @@ func (p *parser) parseClass(s string) (rest string, err error) {
 		class = negateClass(class)
 	}
 	re.Rune = class
-	p.push(re)
+	_, err = p.push(re)
+	if err != nil {
+		return "", err
+	}
 	return t, nil
 }
 
