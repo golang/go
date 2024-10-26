@@ -2026,8 +2026,85 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			if v.Args[0].Op == OpSliceMake {
 				ft.update(b, v, v.Args[0].Args[2], signed, eq)
 			}
+		case OpPhi:
+			addLocalFactsPhi(ft, v)
 		}
 	}
+}
+
+func addLocalFactsPhi(ft *factsTable, v *Value) {
+	// Look for phis that implement min/max.
+	//   z:
+	//      c = Less64 x y (or other Less/Leq operation)
+	//      If c -> bx by
+	//   bx: <- z
+	//       -> b ...
+	//   by: <- z
+	//      -> b ...
+	//   b: <- bx by
+	//      v = Phi x y
+	// Then v is either min or max of x,y.
+	// If it is the min, then we deduce v <= x && v <= y.
+	// If it is the max, then we deduce v >= x && v >= y.
+	// The min case is useful for the copy builtin, see issue 16833.
+	if len(v.Args) != 2 {
+		return
+	}
+	b := v.Block
+	x := v.Args[0]
+	y := v.Args[1]
+	bx := b.Preds[0].b
+	by := b.Preds[1].b
+	var z *Block // branch point
+	switch {
+	case bx == by: // bx == by == z case
+		z = bx
+	case by.uniquePred() == bx: // bx == z case
+		z = bx
+	case bx.uniquePred() == by: // by == z case
+		z = by
+	case bx.uniquePred() == by.uniquePred():
+		z = bx.uniquePred()
+	}
+	if z == nil || z.Kind != BlockIf {
+		return
+	}
+	c := z.Controls[0]
+	if len(c.Args) != 2 {
+		return
+	}
+	var isMin bool // if c, a less-than comparison, is true, phi chooses x.
+	if bx == z {
+		isMin = b.Preds[0].i == 0
+	} else {
+		isMin = bx.Preds[0].i == 0
+	}
+	if c.Args[0] == x && c.Args[1] == y {
+		// ok
+	} else if c.Args[0] == y && c.Args[1] == x {
+		// Comparison is reversed from how the values are listed in the Phi.
+		isMin = !isMin
+	} else {
+		// Not comparing x and y.
+		return
+	}
+	var dom domain
+	switch c.Op {
+	case OpLess64, OpLess32, OpLess16, OpLess8, OpLeq64, OpLeq32, OpLeq16, OpLeq8:
+		dom = signed
+	case OpLess64U, OpLess32U, OpLess16U, OpLess8U, OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U:
+		dom = unsigned
+	default:
+		return
+	}
+	var rel relation
+	if isMin {
+		rel = lt | eq
+	} else {
+		rel = gt | eq
+	}
+	ft.update(b, v, x, dom, rel)
+	ft.update(b, v, y, dom, rel)
 }
 
 var ctzNonZeroOp = map[Op]Op{OpCtz8: OpCtz8NonZero, OpCtz16: OpCtz16NonZero, OpCtz32: OpCtz32NonZero, OpCtz64: OpCtz64NonZero}

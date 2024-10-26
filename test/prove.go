@@ -1670,6 +1670,48 @@ func neg64mightOverflowDuringNeg(a uint64, ensureAllBranchesCouldHappen func() b
 	return z
 }
 
+func phiMin(a, b []byte) {
+	_ = a[:min(len(a), len(b))] // ERROR "Proved IsSliceInBounds"
+	_ = b[:min(len(a), len(b))] // ERROR "Proved IsSliceInBounds"
+	_ = a[:max(len(a), len(b))]
+	_ = b[:max(len(a), len(b))]
+	x := len(a)
+	if x > len(b) {
+		x = len(b)
+		useInt(0)
+	}
+	_ = a[:x] // ERROR "Proved IsSliceInBounds"
+	y := len(a)
+	if y > len(b) {
+		y = len(b)
+		useInt(0)
+	} else {
+		useInt(1)
+	}
+	_ = b[:y] // ERROR "Proved IsSliceInBounds"
+}
+
+func issue16833(a, b []byte) {
+	n := copy(a, b)
+	_ = a[n:] // ERROR "Proved IsSliceInBounds"
+	_ = b[n:] // ERROR "Proved IsSliceInBounds"
+	_ = a[:n] // ERROR "Proved IsSliceInBounds"
+	_ = b[:n] // ERROR "Proved IsSliceInBounds"
+}
+
+func clampedIdx1(x []int, i int) int {
+	if len(x) == 0 {
+		return 0
+	}
+	return x[min(max(0, i), len(x)-1)] // ERROR "Proved IsInBounds"
+}
+func clampedIdx2(x []int, i int) int {
+	if len(x) == 0 {
+		return 0
+	}
+	return x[max(min(i, len(x)-1), 0)] // TODO: can't get rid of this bounds check yet
+}
+
 //go:noinline
 func useInt(a int) {
 }
