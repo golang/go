@@ -86,28 +86,16 @@ func benchmarkAESStream(b *testing.B, mode func(cipher.Block, []byte) cipher.Str
 const almost1K = 1024 - 5
 const almost8K = 8*1024 - 5
 
-func BenchmarkAESCFBEncrypt1K(b *testing.B) {
-	benchmarkAESStream(b, cipher.NewCFBEncrypter, make([]byte, almost1K))
-}
-
-func BenchmarkAESCFBDecrypt1K(b *testing.B) {
-	benchmarkAESStream(b, cipher.NewCFBDecrypter, make([]byte, almost1K))
-}
-
-func BenchmarkAESCFBDecrypt8K(b *testing.B) {
-	benchmarkAESStream(b, cipher.NewCFBDecrypter, make([]byte, almost8K))
-}
-
-func BenchmarkAESOFB1K(b *testing.B) {
-	benchmarkAESStream(b, cipher.NewOFB, make([]byte, almost1K))
-}
-
-func BenchmarkAESCTR1K(b *testing.B) {
-	benchmarkAESStream(b, cipher.NewCTR, make([]byte, almost1K))
-}
-
-func BenchmarkAESCTR8K(b *testing.B) {
-	benchmarkAESStream(b, cipher.NewCTR, make([]byte, almost8K))
+func BenchmarkAESCTR(b *testing.B) {
+	b.Run("50", func(b *testing.B) {
+		benchmarkAESStream(b, cipher.NewCTR, make([]byte, 50))
+	})
+	b.Run("1K", func(b *testing.B) {
+		benchmarkAESStream(b, cipher.NewCTR, make([]byte, almost1K))
+	})
+	b.Run("8K", func(b *testing.B) {
+		benchmarkAESStream(b, cipher.NewCTR, make([]byte, almost8K))
+	})
 }
 
 func BenchmarkAESCBCEncrypt1K(b *testing.B) {
