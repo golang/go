@@ -290,7 +290,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			if d == nil {
 				return errNilPtr
 			}
-			*d = []byte(s.Format(time.RFC3339Nano))
+			*d = s.AppendFormat(make([]byte, 0, len(time.RFC3339Nano)), time.RFC3339Nano)
 			return nil
 		case *RawBytes:
 			if d == nil {
