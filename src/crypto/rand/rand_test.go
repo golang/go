@@ -9,6 +9,8 @@ import (
 	"compress/flate"
 	"crypto/internal/boring"
 	"errors"
+	"internal/asan"
+	"internal/msan"
 	"internal/race"
 	"internal/testenv"
 	"io"
@@ -155,8 +157,8 @@ func TestAllocations(t *testing.T) {
 		// Might be fixable with https://go.dev/issue/56378.
 		t.Skip("boringcrypto allocates")
 	}
-	if race.Enabled {
-		t.Skip("urandomRead allocates under -race")
+	if race.Enabled || msan.Enabled || asan.Enabled {
+		t.Skip("urandomRead allocates under -race, -asan, and -msan")
 	}
 	testenv.SkipIfOptimizationOff(t)
 

@@ -7,6 +7,7 @@ package net
 import (
 	"errors"
 	"fmt"
+	"internal/asan"
 	"internal/testenv"
 	"net/netip"
 	"os"
@@ -492,6 +493,9 @@ func TestAllocs(t *testing.T) {
 	}
 	if !testableNetwork("udp4") {
 		t.Skipf("skipping: udp4 not available")
+	}
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
 	}
 
 	// Optimizations are required to remove the allocs.

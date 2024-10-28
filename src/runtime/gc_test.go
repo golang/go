@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/asan"
 	"math/bits"
 	"math/rand"
 	"os"
@@ -208,6 +209,9 @@ func TestGcZombieReporting(t *testing.T) {
 }
 
 func TestGCTestMoveStackOnNextCall(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("extra allocations with -asan causes this to fail; see #70079")
+	}
 	t.Parallel()
 	var onStack int
 	// GCTestMoveStackOnNextCall can fail in rare cases if there's
@@ -298,6 +302,9 @@ var pointerClassBSS *int
 var pointerClassData = 42
 
 func TestGCTestPointerClass(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("extra allocations cause this test to fail; see #70079")
+	}
 	t.Parallel()
 	check := func(p unsafe.Pointer, want string) {
 		t.Helper()

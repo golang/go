@@ -7,6 +7,7 @@ package binary
 import (
 	"bytes"
 	"fmt"
+	"internal/asan"
 	"io"
 	"math"
 	"reflect"
@@ -710,6 +711,9 @@ func TestNoFixedSize(t *testing.T) {
 }
 
 func TestAppendAllocs(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
 	buf := make([]byte, 0, Size(&s))
 	var err error
 	allocs := testing.AllocsPerRun(1, func() {
@@ -745,6 +749,9 @@ var sizableTypes = []any{
 }
 
 func TestSizeAllocs(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
 	for _, data := range sizableTypes {
 		t.Run(fmt.Sprintf("%T", data), func(t *testing.T) {
 			// Size uses a sync.Map behind the scenes. The slow lookup path of

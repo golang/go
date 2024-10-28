@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"go/token"
+	"internal/asan"
 	"internal/goarch"
 	"internal/goexperiment"
 	"internal/testenv"
@@ -1277,6 +1278,9 @@ func TestDeepEqualAllocs(t *testing.T) {
 	// TODO(prattmic): maps on stack
 	if goexperiment.SwissMap {
 		t.Skipf("Maps on stack not yet implemented")
+	}
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
 	}
 
 	for _, tt := range deepEqualPerfTests {
@@ -7353,6 +7357,9 @@ func TestPtrToMethods(t *testing.T) {
 }
 
 func TestMapAlloc(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
 	m := ValueOf(make(map[int]int, 10))
 	k := ValueOf(5)
 	v := ValueOf(7)
@@ -7383,6 +7390,9 @@ func TestMapAlloc(t *testing.T) {
 }
 
 func TestChanAlloc(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
 	// Note: for a chan int, the return Value must be allocated, so we
 	// use a chan *int instead.
 	c := ValueOf(make(chan *int, 1))
@@ -7745,11 +7755,14 @@ func TestMapIterReset(t *testing.T) {
 	}
 
 	// Reset should not allocate.
+	//
+	// Except with -asan, where there are additional allocations.
+	// See #70079.
 	n := int(testing.AllocsPerRun(10, func() {
 		iter.Reset(ValueOf(m2))
 		iter.Reset(Value{})
 	}))
-	if n > 0 {
+	if !asan.Enabled && n > 0 {
 		t.Errorf("MapIter.Reset allocated %d times", n)
 	}
 }

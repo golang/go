@@ -959,6 +959,7 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"internal/asan"
 	"math"
 	"math/rand"
 	"os"
@@ -1773,6 +1774,9 @@ func issue8331a() C.issue8331 {
 // issue 10303
 
 func test10303(t *testing.T, n int) {
+	if asan.Enabled {
+		t.Skip("variable z is heap-allocated due to extra allocations with -asan; see #70079")
+	}
 	if runtime.Compiler == "gccgo" {
 		t.Skip("gccgo permits C pointers on the stack")
 	}

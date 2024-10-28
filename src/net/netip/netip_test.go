@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"internal/asan"
 	"internal/testenv"
 	"net"
 	. "net/netip"
@@ -2132,6 +2133,10 @@ var (
 )
 
 func TestNoAllocs(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
+
 	// Wrappers that panic on error, to prove that our alloc-free
 	// methods are returning successfully.
 	panicIP := func(ip Addr, err error) Addr {
