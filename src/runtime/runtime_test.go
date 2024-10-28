@@ -10,6 +10,7 @@ import (
 	"internal/cpu"
 	"internal/runtime/atomic"
 	"io"
+	"math/bits"
 	. "runtime"
 	"runtime/debug"
 	"slices"
@@ -604,6 +605,111 @@ func BenchmarkMutexContention(b *testing.B) {
 		}()
 	}
 	wg.Wait()
+}
+
+func BenchmarkMutexCapture(b *testing.B) {
+
+	// Measure mutex fairness.
+	//
+	// Have several threads contend for a single mutex value. Measure how
+	// effectively a single thread is able to capture the lock and report the
+	// duration of those "streak" events. Measure how long other individual
+	// threads need to wait between their turns with the lock. Report the
+	// duration of those "starve" events.
+	//
+	// Report in terms of wall clock time (assuming a constant time per
+	// lock/unlock pair) rather than number of locks/unlocks. This keeps
+	// timekeeping overhead out of the critical path, and avoids giving an
+	// advantage to lock/unlock implementations that take less time per
+	// operation.
+
+	var state struct {
+		_     cpu.CacheLinePad
+		lock  Mutex
+		_     cpu.CacheLinePad
+		count atomic.Int64
+		_     cpu.CacheLinePad
+	}
+
+	procs := GOMAXPROCS(0)
+	var wg sync.WaitGroup
+	histograms := make(chan [2][65]int)
+	for range procs {
+		wg.Add(1)
+		go func() {
+			var (
+				prev      int64
+				streak    int64
+				histogram [2][65]int
+			)
+			for {
+				Lock(&state.lock)
+				ours := state.count.Add(1)
+				Unlock(&state.lock)
+				delta := ours - prev - 1
+				prev = ours
+				if delta == 0 {
+					streak++
+				} else {
+					histogram[0][bits.LeadingZeros64(uint64(streak))]++
+					histogram[1][bits.LeadingZeros64(uint64(delta))]++
+					streak = 1
+				}
+				if ours >= int64(b.N) {
+					wg.Done()
+					if delta == 0 {
+						histogram[0][bits.LeadingZeros64(uint64(streak))]++
+						histogram[1][bits.LeadingZeros64(uint64(delta))]++
+					}
+					histograms <- histogram
+					return
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	b.StopTimer()
+
+	var histogram [2][65]int
+	for range procs {
+		h := <-histograms
+		for i := range h {
+			for j := range h[i] {
+				histogram[i][j] += h[i][j]
+			}
+		}
+	}
+
+	percentile := func(h [65]int, p float64) int {
+		sum := 0
+		for i, v := range h {
+			bound := uint64(1<<63) >> i
+			sum += int(bound) * v
+		}
+
+		// Imagine that the longest streak / starvation events were instead half
+		// as long but twice in number. (Note that we've pre-multiplied by the
+		// [lower] "bound" value.) Continue those splits until we meet the
+		// percentile target.
+		part := 0
+		for i, v := range h {
+			bound := uint64(1<<63) >> i
+			part += int(bound) * v
+			// have we trimmed off enough at the head to dip below the percentile goal
+			if float64(sum-part) < float64(sum)*p {
+				return int(bound)
+			}
+		}
+
+		return 0
+	}
+
+	perOp := float64(b.Elapsed().Nanoseconds()) / float64(b.N)
+	b.ReportMetric(perOp*float64(percentile(histogram[0], 1.0)), "ns/streak-p100")
+	b.ReportMetric(perOp*float64(percentile(histogram[0], 0.9)), "ns/streak-p90")
+	b.ReportMetric(perOp*float64(percentile(histogram[1], 1.0)), "ns/starve-p100")
+	b.ReportMetric(perOp*float64(percentile(histogram[1], 0.9)), "ns/starve-p90")
 }
 
 func BenchmarkMutexHandoff(b *testing.B) {
