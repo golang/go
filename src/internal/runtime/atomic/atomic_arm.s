@@ -264,6 +264,23 @@ or8loop:
 
 	RET
 
+TEXT armXchg8<>(SB),NOSPLIT,$0-9
+	// addr is already in R1
+	MOVB	v+4(FP), R2
+xchg8loop:
+	LDREXB	(R1), R6
+
+	DMB	MB_ISHST
+
+	STREXB	R2, (R1), R0
+	CMP	$0, R0
+	BNE	xchg8loop
+
+	DMB	MB_ISH
+
+	MOVB R6, ret+8(FP)
+	RET
+
 // The following functions all panic if their address argument isn't
 // 8-byte aligned. Since we're calling back into Go code to do this,
 // we have to cooperate with stack unwinding. In the normal case, the
@@ -374,3 +391,17 @@ TEXT ·Or8(SB),NOSPLIT,$-4-5
 	JMP	·goOr8(SB)
 #endif
 	JMP	armOr8<>(SB)
+
+TEXT ·Xchg8(SB),NOSPLIT,$-4-9
+	NO_LOCAL_POINTERS
+	MOVW	addr+0(FP), R1
+
+	// Uses STREXB/LDREXB that is armv6k or later.
+	// For simplicity we only enable this on armv7.
+#ifndef GOARM_7
+	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
+	CMP	$1, R11
+	BEQ	2(PC)
+	JMP	·goXchg8(SB)
+#endif
+	JMP	armXchg8<>(SB)
