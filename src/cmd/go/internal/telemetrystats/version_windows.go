@@ -8,15 +8,14 @@ package telemetrystats
 
 import (
 	"fmt"
+	"internal/syscall/windows"
 
 	"cmd/internal/telemetry/counter"
-
-	"golang.org/x/sys/windows"
 )
 
 func incrementVersionCounters() {
-	v := windows.RtlGetVersion()
-	counter.Inc(fmt.Sprintf("go/platform/host/windows/major-version:%d", v.MajorVersion))
-	counter.Inc(fmt.Sprintf("go/platform/host/windows/version:%d-%d", v.MajorVersion, v.MinorVersion))
-	counter.Inc(fmt.Sprintf("go/platform/host/windows/build:%d", v.BuildNumber))
+	major, minor, build := windows.Version()
+	counter.Inc(fmt.Sprintf("go/platform/host/windows/major-version:%d", major))
+	counter.Inc(fmt.Sprintf("go/platform/host/windows/version:%d-%d", major, minor))
+	counter.Inc(fmt.Sprintf("go/platform/host/windows/build:%d", build))
 }
