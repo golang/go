@@ -77,9 +77,10 @@ import (
 // slot as empty, as there could be more slots used later in a probe sequence
 // and this deletion would cause probing to stop too early. Instead, we mark
 // such slots as "deleted" with a tombstone. If the group still has an empty
-// slot, we don't need a tombstone and directly mark the slot empty. Currently,
-// tombstone are only cleared during grow, as an in-place cleanup complicates
-// iteration.
+// slot, we don't need a tombstone and directly mark the slot empty. Insert
+// prioritizes reuse of tombstones over filling an empty slots. Otherwise,
+// tombstones are only completely cleared during grow, as an in-place cleanup
+// complicates iteration.
 //
 // Growth
 //
@@ -191,7 +192,7 @@ func h2(h uintptr) uintptr {
 
 type Map struct {
 	// The number of filled slots (i.e. the number of elements in all
-	// tables).
+	// tables). Excludes deleted slots.
 	used uint64
 
 	// Type of this map.
@@ -207,17 +208,45 @@ type Map struct {
 	// TODO(prattmic): Populate this on table initialization.
 	seed uintptr
 
-	// The directory of tables. The length of this slice is
-	// `1 << globalDepth`. Multiple entries may point to the same table.
-	// See top-level comment for more details.
-	directory []*table
+	// The directory of tables.
+	//
+	// Normally dirPtr points to an array of table pointers
+	//
+	// dirPtr *[dirLen]*table
+	//
+	// The length (dirLen) of this array is `1 << globalDepth`. Multiple
+	// entries may point to the same table. See top-level comment for more
+	// details.
+	//
+	// Small map optimization: if the map always contained
+	// abi.SwissMapGroupSlots or fewer entries, it fits entirely in a
+	// single group. In that case dirPtr points directly to a single group.
+	//
+	// dirPtr *group
+	//
+	// In this case, dirLen is 0. used counts the number of used slots in
+	// the group. Note that small maps never have deleted slots (as there
+	// is no probe sequence to maintain).
+	dirPtr unsafe.Pointer
+	dirLen int
 
 	// The number of bits to use in table directory lookups.
 	globalDepth uint8
 
+	// The number of bits to shift out of the hash for directory lookups.
+	// On 64-bit systems, this is 64 - globalDepth.
+	globalShift uint8
+
 	// clearSeq is a sequence counter of calls to Clear. It is used to
 	// detect map clears during iteration.
 	clearSeq uint64
+}
+
+func depthToShift(depth uint8) uint8 {
+	if goarch.PtrSize == 4 {
+		return 32 - depth
+	}
+	return 64 - depth
 }
 
 func NewMap(mt *abi.SwissMapType, capacity uint64) *Map {
@@ -238,14 +267,32 @@ func NewMap(mt *abi.SwissMapType, capacity uint64) *Map {
 		//TODO
 		//seed: uintptr(rand()),
 
-		directory: make([]*table, dirSize),
+		//directory: make([]*table, dirSize),
 
 		globalDepth: globalDepth,
+		globalShift: depthToShift(globalDepth),
 	}
 
-	for i := range m.directory {
-		// TODO: Think more about initial table capacity.
-		m.directory[i] = newTable(mt, capacity/dirSize, i, globalDepth)
+	if capacity > abi.SwissMapGroupSlots {
+		directory := make([]*table, dirSize)
+
+		for i := range directory {
+			// TODO: Think more about initial table capacity.
+			directory[i] = newTable(mt, capacity/dirSize, i, globalDepth)
+		}
+
+		m.dirPtr = unsafe.Pointer(&directory[0])
+		m.dirLen = len(directory)
+	} else {
+		grp := newGroups(mt, 1)
+		m.dirPtr = grp.data
+		m.dirLen = 0
+
+		g := groupReference{
+			typ:  m.typ,
+			data: m.dirPtr,
+		}
+		g.ctrls().setEmpty()
 	}
 
 	return m
@@ -256,12 +303,18 @@ func (m *Map) Type() *abi.SwissMapType {
 }
 
 func (m *Map) directoryIndex(hash uintptr) uintptr {
-	// TODO(prattmic): Store the shift as globalShift, as we need that more
-	// often than globalDepth.
-	if goarch.PtrSize == 4 {
-		return hash >> (32 - m.globalDepth)
+	if m.dirLen == 1 {
+		return 0
 	}
-	return hash >> (64 - m.globalDepth)
+	return hash >> (m.globalShift & 63)
+}
+
+func (m *Map) directoryAt(i uintptr) *table {
+	return *(**table)(unsafe.Pointer(uintptr(m.dirPtr) + goarch.PtrSize*i))
+}
+
+func (m *Map) directorySet(i uintptr, nt *table) {
+	*(**table)(unsafe.Pointer(uintptr(m.dirPtr) + goarch.PtrSize*i)) = nt
 }
 
 func (m *Map) replaceTable(nt *table) {
@@ -269,7 +322,8 @@ func (m *Map) replaceTable(nt *table) {
 	// time the globalDepth grows without the table splitting.
 	entries := 1 << (m.globalDepth - nt.localDepth)
 	for i := 0; i < entries; i++ {
-		m.directory[nt.index+i] = nt
+		//m.directory[nt.index+i] = nt
+		m.directorySet(uintptr(nt.index+i), nt)
 	}
 }
 
@@ -277,8 +331,9 @@ func (m *Map) installTableSplit(old, left, right *table) {
 	if old.localDepth == m.globalDepth {
 		// No room for another level in the directory. Grow the
 		// directory.
-		newDir := make([]*table, len(m.directory)*2)
-		for i, t := range m.directory {
+		newDir := make([]*table, m.dirLen*2)
+		for i := range m.dirLen {
+			t := m.directoryAt(uintptr(i))
 			newDir[2*i] = t
 			newDir[2*i+1] = t
 			// t may already exist in multiple indicies. We should
@@ -290,7 +345,10 @@ func (m *Map) installTableSplit(old, left, right *table) {
 			}
 		}
 		m.globalDepth++
-		m.directory = newDir
+		m.globalShift--
+		//m.directory = newDir
+		m.dirPtr = unsafe.Pointer(&newDir[0])
+		m.dirLen = len(newDir)
 	}
 
 	// N.B. left and right may still consume multiple indicies if the
@@ -310,15 +368,55 @@ func (m *Map) Used() uint64 {
 // Get performs a lookup of the key that key points to. It returns a pointer to
 // the element, or false if the key doesn't exist.
 func (m *Map) Get(key unsafe.Pointer) (unsafe.Pointer, bool) {
-	_, elem, ok := m.getWithKey(key)
-	return elem, ok
+	return m.getWithoutKey(key)
 }
 
 func (m *Map) getWithKey(key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
 	hash := m.typ.Hasher(key, m.seed)
 
+	if m.dirLen == 0 {
+		return m.getWithKeySmall(hash, key)
+	}
+
 	idx := m.directoryIndex(hash)
-	return m.directory[idx].getWithKey(hash, key)
+	return m.directoryAt(idx).getWithKey(hash, key)
+}
+
+func (m *Map) getWithoutKey(key unsafe.Pointer) (unsafe.Pointer, bool) {
+	hash := m.typ.Hasher(key, m.seed)
+
+	if m.dirLen == 0 {
+		_, elem, ok := m.getWithKeySmall(hash, key)
+		return elem, ok
+	}
+
+	idx := m.directoryIndex(hash)
+	return m.directoryAt(idx).getWithoutKey(hash, key)
+}
+
+func (m *Map) getWithKeySmall(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
+	g := groupReference{
+		typ:  m.typ,
+		data: m.dirPtr,
+	}
+
+	h2 := uint8(h2(hash))
+	ctrls := *g.ctrls()
+
+	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
+		c := uint8(ctrls)
+		ctrls >>= 8
+		if c != h2 {
+			continue
+		}
+
+		slotKey := g.key(i)
+		if m.typ.Key.Equal(key, slotKey) {
+			return slotKey, g.elem(i), true
+		}
+	}
+
+	return nil, nil, false
 }
 
 func (m *Map) Put(key, elem unsafe.Pointer) {
@@ -333,9 +431,21 @@ func (m *Map) Put(key, elem unsafe.Pointer) {
 func (m *Map) PutSlot(key unsafe.Pointer) unsafe.Pointer {
 	hash := m.typ.Hasher(key, m.seed)
 
+	if m.dirLen == 0 {
+		if m.used < abi.SwissMapGroupSlots {
+			return m.putSlotSmall(hash, key)
+		}
+
+		// Can't fit another entry, grow to full size map.
+		//
+		// TODO(prattmic): If this is an update to an existing key then
+		// we actually don't need to grow.
+		m.growToTable()
+	}
+
 	for {
 		idx := m.directoryIndex(hash)
-		elem, ok := m.directory[idx].PutSlot(m, hash, key)
+		elem, ok := m.directoryAt(idx).PutSlot(m, hash, key)
 		if !ok {
 			continue
 		}
@@ -343,17 +453,127 @@ func (m *Map) PutSlot(key unsafe.Pointer) unsafe.Pointer {
 	}
 }
 
+func (m *Map) putSlotSmall(hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+	g := groupReference{
+		typ:  m.typ,
+		data: m.dirPtr,
+	}
+
+	match := g.ctrls().matchH2(h2(hash))
+
+	// Look for an existing slot containing this key.
+	for match != 0 {
+		i := match.first()
+
+		slotKey := g.key(i)
+		if m.typ.Key.Equal(key, slotKey) {
+			if m.typ.NeedKeyUpdate() {
+				typedmemmove(m.typ.Key, slotKey, key)
+			}
+
+			slotElem := g.elem(i)
+
+			return slotElem
+		}
+		match = match.removeFirst()
+	}
+
+	// No need to look for deleted slots, small maps can't have them (see
+	// deleteSmall).
+	match = g.ctrls().matchEmpty()
+	if match == 0 {
+		panic("small map with no empty slot")
+	}
+
+	i := match.first()
+
+	slotKey := g.key(i)
+	typedmemmove(m.typ.Key, slotKey, key)
+	slotElem := g.elem(i)
+
+	g.ctrls().set(i, ctrl(h2(hash)))
+	m.used++
+
+	return slotElem
+}
+
+func (m *Map) growToTable() {
+	tab := newTable(m.typ, 2*abi.SwissMapGroupSlots, 0, 0)
+
+	g := groupReference{
+		typ:  m.typ,
+		data: m.dirPtr,
+	}
+
+	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
+		if (g.ctrls().get(i) & ctrlEmpty) == ctrlEmpty {
+			// Empty
+			continue
+		}
+		key := g.key(i)
+		elem := g.elem(i)
+		hash := tab.typ.Hasher(key, m.seed)
+		slotElem := tab.uncheckedPutSlot(hash, key)
+		typedmemmove(tab.typ.Elem, slotElem, elem)
+		tab.used++
+	}
+
+	directory := make([]*table, 1)
+
+	directory[0] = tab
+
+	m.dirPtr = unsafe.Pointer(&directory[0])
+	m.dirLen = len(directory)
+}
+
 func (m *Map) Delete(key unsafe.Pointer) {
 	hash := m.typ.Hasher(key, m.seed)
 
+	if m.dirLen == 0 {
+		m.deleteSmall(hash, key)
+		return
+	}
+
 	idx := m.directoryIndex(hash)
-	m.directory[idx].Delete(m, key)
+	m.directoryAt(idx).Delete(m, key)
+}
+
+func (m *Map) deleteSmall(hash uintptr, key unsafe.Pointer) {
+	g := groupReference{
+		typ:  m.typ,
+		data: m.dirPtr,
+	}
+
+	match := g.ctrls().matchH2(h2(hash))
+
+	for match != 0 {
+		i := match.first()
+		slotKey := g.key(i)
+		if m.typ.Key.Equal(key, slotKey) {
+			m.used--
+
+			typedmemclr(m.typ.Key, slotKey)
+			typedmemclr(m.typ.Elem, g.elem(i))
+
+			// We only have 1 group, so it is OK to immediately
+			// reuse deleted slots.
+			g.ctrls().set(i, ctrlEmpty)
+			return
+		}
+		match = match.removeFirst()
+	}
 }
 
 // Clear deletes all entries from the map resulting in an empty map.
 func (m *Map) Clear() {
+	if m.dirLen == 0 {
+		m.clearSmall()
+		return
+	}
+
 	var lastTab *table
-	for _, t := range m.directory {
+	for i := range m.dirLen {
+		t := m.directoryAt(uintptr(i))
 		if t == lastTab {
 			continue
 		}
@@ -363,4 +583,17 @@ func (m *Map) Clear() {
 	m.used = 0
 	m.clearSeq++
 	// TODO: shrink directory?
+}
+
+func (m *Map) clearSmall() {
+	g := groupReference{
+		typ:  m.typ,
+		data: m.dirPtr,
+	}
+
+	typedmemclr(m.typ.Group, g.data)
+	g.ctrls().setEmpty()
+
+	m.used = 0
+	m.clearSeq++
 }

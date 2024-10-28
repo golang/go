@@ -563,6 +563,17 @@ func cgoCheckPointer(ptr any, arg any) {
 			ep = aep
 			t = ep._type
 			top = false
+		case abi.Pointer:
+			// The Go code is indexing into a pointer to an array,
+			// and we have been passed the pointer-to-array.
+			// Check the array rather than the pointer.
+			pt := (*abi.PtrType)(unsafe.Pointer(aep._type))
+			t = pt.Elem
+			if t.Kind_&abi.KindMask != abi.Array {
+				throw("can't happen")
+			}
+			ep = aep
+			top = false
 		default:
 			throw("can't happen")
 		}

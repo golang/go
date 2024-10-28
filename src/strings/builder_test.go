@@ -6,6 +6,7 @@ package strings_test
 
 import (
 	"bytes"
+	"internal/asan"
 	. "strings"
 	"testing"
 	"unicode/utf8"
@@ -89,6 +90,10 @@ func TestBuilderReset(t *testing.T) {
 
 func TestBuilderGrow(t *testing.T) {
 	for _, growLen := range []int{0, 100, 1000, 10000, 100000} {
+		if asan.Enabled {
+			t.Logf("skipping allocs check for growLen %d: extra allocs with -asan; see #70079", growLen)
+			continue
+		}
 		p := bytes.Repeat([]byte{'a'}, growLen)
 		allocs := testing.AllocsPerRun(100, func() {
 			var b Builder
@@ -188,6 +193,9 @@ func TestBuilderWriteByte(t *testing.T) {
 }
 
 func TestBuilderAllocs(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
 	// Issue 23382; verify that copyCheck doesn't force the
 	// Builder to escape and be heap allocated.
 	n := testing.AllocsPerRun(10000, func() {
@@ -387,6 +395,9 @@ func BenchmarkBuildString_ByteBuffer(b *testing.B) {
 }
 
 func TestBuilderGrowSizeclasses(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
 	s := Repeat("a", 19)
 	allocs := testing.AllocsPerRun(100, func() {
 		var b Builder

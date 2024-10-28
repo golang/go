@@ -47,7 +47,6 @@ var All = []Info{
 	{Name: "netedns0", Package: "net", Changed: 19, Old: "0"},
 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
 	{Name: "randautoseed", Package: "math/rand"},
-	{Name: "randcrash", Package: "crypto/rand", Changed: 24, Old: "0"},
 	{Name: "randseednop", Package: "math/rand", Changed: 24, Old: "0"},
 	{Name: "tarinsecurepath", Package: "archive/tar"},
 	{Name: "tls10server", Package: "crypto/tls", Changed: 22, Old: "1"},

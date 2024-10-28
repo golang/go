@@ -6,6 +6,8 @@ package slices_test
 
 import (
 	"cmp"
+	"internal/asan"
+	"internal/msan"
 	"internal/race"
 	"internal/testenv"
 	"math"
@@ -497,7 +499,7 @@ func TestInsert(t *testing.T) {
 		}
 	}
 
-	if !testenv.OptimizationOff() && !race.Enabled {
+	if !testenv.OptimizationOff() && !race.Enabled && !asan.Enabled && !msan.Enabled {
 		// Allocations should be amortized.
 		const count = 50
 		n := testing.AllocsPerRun(10, func() {
@@ -953,7 +955,7 @@ func TestGrow(t *testing.T) {
 	}
 	if n := testing.AllocsPerRun(100, func() { _ = Grow(s2, cap(s2)-len(s2)+1) }); n != 1 {
 		errorf := t.Errorf
-		if race.Enabled || testenv.OptimizationOff() {
+		if race.Enabled || msan.Enabled || asan.Enabled || testenv.OptimizationOff() {
 			errorf = t.Logf // this allocates multiple times in race detector mode
 		}
 		errorf("Grow should allocate once when given insufficient capacity; allocated %v times", n)
@@ -1314,7 +1316,7 @@ func TestConcat(t *testing.T) {
 		_ = sink
 		if allocs > 1 {
 			errorf := t.Errorf
-			if testenv.OptimizationOff() || race.Enabled {
+			if testenv.OptimizationOff() || race.Enabled || asan.Enabled || msan.Enabled {
 				errorf = t.Logf
 			}
 			errorf("Concat(%v) allocated %v times; want 1", tc.s, allocs)

@@ -1701,7 +1701,7 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "-fuse-ld="+altLinker)
 	}
 
-	if ctxt.IsELF {
+	if ctxt.IsELF && linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,--build-id=0x1234567890abcdef") { // Solaris ld doesn't support --build-id.
 		if len(buildinfo) > 0 {
 			argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
 		} else if *flagHostBuildid == "none" {

@@ -6,7 +6,9 @@
 
 TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 start:
+	//
 	// Unprivileged ISA
+	//
 
 	// 2.4: Integer Computational Instructions
 
@@ -139,7 +141,7 @@ start:
 	// 2.7: Memory Ordering Instructions
 	FENCE						// 0f00f00f
 
-	// 5.2: Integer Computational Instructions (RV64I)
+	// 4.2: Integer Computational Instructions (RV64I)
 	ADDIW	$1, X5, X6				// 1b831200
 	SLLIW	$1, X5, X6				// 1b931200
 	SRLIW	$1, X5, X6				// 1bd31200
@@ -164,18 +166,25 @@ start:
 	SUBW	$1, X6					// 1b03f3ff
 	SRAW	$1, X6					// 1b531340
 
-	// 5.3: Load and Store Instructions (RV64I)
+	// 4.3: Load and Store Instructions (RV64I)
 	LD	(X5), X6				// 03b30200
 	LD	4(X5), X6				// 03b34200
 	SD	X5, (X6)				// 23305300
 	SD	X5, 4(X6)				// 23325300
 
-	// 7.1: Multiplication Operations
+	// 8.1: Base Counters and Timers (Zicntr)
+	RDCYCLE		X5				// f32200c0
+	RDTIME		X5				// f32210c0
+	RDINSTRET	X5				// f32220c0
+
+	// 13.1: Multiplication Operations
 	MUL	X5, X6, X7				// b3035302
 	MULH	X5, X6, X7				// b3135302
 	MULHU	X5, X6, X7				// b3335302
 	MULHSU	X5, X6, X7				// b3235302
 	MULW	X5, X6, X7				// bb035302
+
+	// 13.2: Division Operations
 	DIV	X5, X6, X7				// b3435302
 	DIVU	X5, X6, X7				// b3535302
 	REM	X5, X6, X7				// b3635302
@@ -185,13 +194,13 @@ start:
 	REMW	X5, X6, X7				// bb635302
 	REMUW	X5, X6, X7				// bb735302
 
-	// 8.2: Load-Reserved/Store-Conditional
+	// 14.2: Load-Reserved/Store-Conditional (Zalrsc)
 	LRW	(X5), X6				// 2fa30214
 	LRD	(X5), X6				// 2fb30214
 	SCW	X5, (X6), X7				// af23531a
 	SCD	X5, (X6), X7				// af33531a
 
-	// 8.3: Atomic Memory Operations
+	// 14.4: Atomic Memory Operations (Zaamo)
 	AMOSWAPW	X5, (X6), X7			// af23530e
 	AMOSWAPD	X5, (X6), X7			// af33530e
 	AMOADDW		X5, (X6), X7			// af235306
@@ -211,18 +220,13 @@ start:
 	AMOMINUW	X5, (X6), X7			// af2353c6
 	AMOMINUD	X5, (X6), X7			// af3353c6
 
-	// 10.1: Base Counters and Timers
-	RDCYCLE		X5				// f32200c0
-	RDTIME		X5				// f32210c0
-	RDINSTRET	X5				// f32220c0
-
-	// 11.5: Single-Precision Load and Store Instructions
+	// 20.5: Single-Precision Load and Store Instructions
 	FLW	(X5), F0				// 07a00200
 	FLW	4(X5), F0				// 07a04200
 	FSW	F0, (X5)				// 27a00200
 	FSW	F0, 4(X5)				// 27a20200
 
-	// 11.6: Single-Precision Floating-Point Computational Instructions
+	// 20.6: Single-Precision Floating-Point Computational Instructions
 	FADDS	F1, F0, F2				// 53011000
 	FSUBS	F1, F0, F2				// 53011008
 	FMULS	F1, F0, F2				// 53011010
@@ -231,7 +235,7 @@ start:
 	FMAXS	F1, F0, F2				// 53111028
 	FSQRTS	F0, F1					// d3000058
 
-	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
+	// 20.7: Single-Precision Floating-Point Conversion and Move Instructions
 	FCVTWS	F0, X5					// d31200c0
 	FCVTWS.RNE	F0, X5				// d30200c0
 	FCVTWS.RTZ	F0, X5				// d31200c0
@@ -272,21 +276,21 @@ start:
 	FNMSUBS	F1, F2, F3, F4				// 4b822018
 	FNMADDS	F1, F2, F3, F4				// 4f822018
 
-	// 11.8: Single-Precision Floating-Point Compare Instructions
+	// 20.8: Single-Precision Floating-Point Compare Instructions
 	FEQS	F0, F1, X7				// d3a300a0
 	FLTS	F0, F1, X7				// d39300a0
 	FLES	F0, F1, X7				// d38300a0
 
-	// 11.9: Single-Precision Floating-Point Classify Instruction
+	// 20.9: Single-Precision Floating-Point Classify Instruction
 	FCLASSS	F0, X5					// d31200e0
 
-	// 12.3: Double-Precision Load and Store Instructions
+	// 21.3: Double-Precision Load and Store Instructions
 	FLD	(X5), F0				// 07b00200
 	FLD	4(X5), F0				// 07b04200
 	FSD	F0, (X5)				// 27b00200
 	FSD	F0, 4(X5)				// 27b20200
 
-	// 12.4: Double-Precision Floating-Point Computational Instructions
+	// 21.4: Double-Precision Floating-Point Computational Instructions
 	FADDD	F1, F0, F2				// 53011002
 	FSUBD	F1, F0, F2				// 5301100a
 	FMULD	F1, F0, F2				// 53011012
@@ -295,7 +299,7 @@ start:
 	FMAXD	F1, F0, F2				// 5311102a
 	FSQRTD	F0, F1					// d300005a
 
-	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
+	// 21.5: Double-Precision Floating-Point Conversion and Move Instructions
 	FCVTWD	F0, X5					// d31200c2
 	FCVTWD.RNE	F0, X5				// d30200c2
 	FCVTWD.RTZ	F0, X5				// d31200c2
@@ -336,11 +340,10 @@ start:
 	FNMSUBD	F1, F2, F3, F4				// 4b82201a
 	FNMADDD	F1, F2, F3, F4				// 4f82201a
 
-	// 12.6: Double-Precision Floating-Point Classify Instruction
+	// 21.7: Double-Precision Floating-Point Classify Instruction
 	FCLASSD	F0, X5					// d31200e2
 
-	// RISC-V Bit-Manipulation ISA-extensions (1.0)
-	// 1.1: Address Generation Instructions (Zba)
+	// 28.4.1: Address Generation Instructions (Zba)
 	ADDUW		X10, X11, X12			// 3b86a508
 	ADDUW		X10, X11			// bb85a508
 	SH1ADD		X11, X12, X13			// b326b620
@@ -360,7 +363,7 @@ start:
 	SLLIUW		$63, X17, X18			// 1b99f80b
 	SLLIUW		$1, X18, X19			// 9b191908
 
-	// 1.2: Basic Bit Manipulation (Zbb)
+	// 28.4.2: Basic Bit Manipulation (Zbb)
 	ANDN	X19, X20, X21				// b37a3a41 or 93caf9ffb37a5a01
 	ANDN	X19, X20				// 337a3a41 or 93cff9ff337afa01
 	CLZ	X20, X21				// 931a0a60
@@ -385,7 +388,7 @@ start:
 	XNOR	X18, X19				// b3c92941 or b3c9290193c9f9ff
 	ZEXTH	X19, X20				// 3bca0908
 
-	// 1.3: Bitwise Rotation (Zbb)
+	// 28.4.2: Bitwise Rotation (Zbb)
 	ROL	X8, X9, X10				// 33958460 or b30f8040b3dff4013395840033e5af00
 	ROL	X8, X9					// b3948460 or b30f8040b3dff401b3948400b3e49f00
 	ROLW	X9, X10, X11				// bb159560 or b30f9040bb5ff501bb159500b3e5bf00
@@ -403,7 +406,7 @@ start:
 	ORCB	X5, X6					// 13d37228
 	REV8	X7, X8					// 13d4836b
 
-	// 1.5: Single-bit Instructions (Zbs)
+	// 28.4.4: Single-bit Instructions (Zbs)
 	BCLR	X23, X24, X25				// b31c7c49
 	BCLR	$63, X24				// 131cfc4b
 	BCLRI	$1, X25, X26				// 139d1c48
@@ -417,9 +420,11 @@ start:
 	BSET	$63, X9					// 9394f42b
 	BSETI	$1, X10, X11				// 93151528
 
+	//
 	// Privileged ISA
+	//
 
-	// 3.2.1: Environment Call and Breakpoint
+	// 3.3.1: Environment Call and Breakpoint
 	ECALL						// 73000000
 	SCALL						// 73000000
 	EBREAK						// 73001000

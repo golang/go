@@ -306,6 +306,8 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpLOONG64MOVVload(v)
 	case OpLOONG64MOVVloadidx:
 		return rewriteValueLOONG64_OpLOONG64MOVVloadidx(v)
+	case OpLOONG64MOVVnop:
+		return rewriteValueLOONG64_OpLOONG64MOVVnop(v)
 	case OpLOONG64MOVVreg:
 		return rewriteValueLOONG64_OpLOONG64MOVVreg(v)
 	case OpLOONG64MOVVstore:
@@ -1907,6 +1909,26 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBUreg x:(SGT _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64SGT {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(SGTU _ _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64SGTU {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (MOVBUreg x:(XOR (MOVVconst [1]) (SGT _ _)))
 	// result: x
 	for {
@@ -1944,26 +1966,6 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
 			return true
 		}
 		break
-	}
-	// match: (MOVBUreg x:(SGT _ _))
-	// result: x
-	for {
-		x := v_0
-		if x.Op != OpLOONG64SGT {
-			break
-		}
-		v.copyOf(x)
-		return true
-	}
-	// match: (MOVBUreg x:(SGTU _ _))
-	// result: x
-	for {
-		x := v_0
-		if x.Op != OpLOONG64SGTU {
-			break
-		}
-		v.copyOf(x)
-		return true
 	}
 	// match: (MOVBUreg x:(MOVBUload _ _))
 	// result: (MOVVreg x)
@@ -3876,6 +3878,21 @@ func rewriteValueLOONG64_OpLOONG64MOVVloadidx(v *Value) bool {
 		v.reset(OpLOONG64MOVVload)
 		v.AuxInt = int32ToAuxInt(int32(c))
 		v.AddArg2(ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64_OpLOONG64MOVVnop(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVVnop (MOVVconst [c]))
+	// result: (MOVVconst [c])
+	for {
+		if v_0.Op != OpLOONG64MOVVconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		v.reset(OpLOONG64MOVVconst)
+		v.AuxInt = int64ToAuxInt(c)
 		return true
 	}
 	return false
@@ -9393,6 +9410,53 @@ func rewriteBlockLOONG64(b *Block) bool {
 			b.resetWithControl(BlockLOONG64LEZ, x)
 			return true
 		}
+		// match: (EQ (SGTU (MOVVconst [c]) y) yes no)
+		// cond: c >= -2048 && c <= 2047
+		// result: (EQ (SGTUconst [c] y) yes no)
+		for b.Controls[0].Op == OpLOONG64SGTU {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64MOVVconst {
+				break
+			}
+			c := auxIntToInt64(v_0_0.AuxInt)
+			if !(c >= -2048 && c <= 2047) {
+				break
+			}
+			v0 := b.NewValue0(v_0.Pos, OpLOONG64SGTUconst, typ.Bool)
+			v0.AuxInt = int64ToAuxInt(c)
+			v0.AddArg(y)
+			b.resetWithControl(BlockLOONG64EQ, v0)
+			return true
+		}
+		// match: (EQ (SUBV x y) yes no)
+		// result: (BEQ x y yes no)
+		for b.Controls[0].Op == OpLOONG64SUBV {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockLOONG64BEQ, x, y)
+			return true
+		}
+		// match: (EQ (SGT x y) yes no)
+		// result: (BGE y x yes no)
+		for b.Controls[0].Op == OpLOONG64SGT {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockLOONG64BGE, y, x)
+			return true
+		}
+		// match: (EQ (SGTU x y) yes no)
+		// result: (BGEU y x yes no)
+		for b.Controls[0].Op == OpLOONG64SGTU {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockLOONG64BGEU, y, x)
+			return true
+		}
 		// match: (EQ (MOVVconst [0]) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == OpLOONG64MOVVconst {
@@ -9649,6 +9713,53 @@ func rewriteBlockLOONG64(b *Block) bool {
 				break
 			}
 			b.resetWithControl(BlockLOONG64GTZ, x)
+			return true
+		}
+		// match: (NE (SGTU (MOVVconst [c]) y) yes no)
+		// cond: c >= -2048 && c <= 2047
+		// result: (NE (SGTUconst [c] y) yes no)
+		for b.Controls[0].Op == OpLOONG64SGTU {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLOONG64MOVVconst {
+				break
+			}
+			c := auxIntToInt64(v_0_0.AuxInt)
+			if !(c >= -2048 && c <= 2047) {
+				break
+			}
+			v0 := b.NewValue0(v_0.Pos, OpLOONG64SGTUconst, typ.Bool)
+			v0.AuxInt = int64ToAuxInt(c)
+			v0.AddArg(y)
+			b.resetWithControl(BlockLOONG64NE, v0)
+			return true
+		}
+		// match: (NE (SUBV x y) yes no)
+		// result: (BNE x y yes no)
+		for b.Controls[0].Op == OpLOONG64SUBV {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockLOONG64BNE, x, y)
+			return true
+		}
+		// match: (NE (SGT x y) yes no)
+		// result: (BLT y x yes no)
+		for b.Controls[0].Op == OpLOONG64SGT {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockLOONG64BLT, y, x)
+			return true
+		}
+		// match: (NE (SGTU x y) yes no)
+		// result: (BLTU y x yes no)
+		for b.Controls[0].Op == OpLOONG64SGTU {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
+			x := v_0.Args[0]
+			b.resetWithControl2(BlockLOONG64BLTU, y, x)
 			return true
 		}
 		// match: (NE (MOVVconst [0]) yes no)

@@ -440,6 +440,13 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 		// we're looking for is not a compile-time constant (typ.Type()
 		// will be its shape).
 		typ ir.Node
+
+		// For a single runtime known type with a case var, create a
+		// temporary variable to hold the value returned by the dynamic
+		// type assert expr, so that we do not need one more dynamic
+		// type assert expr later.
+		val ir.Node
+		idx int // index of the single runtime known type in sw.Cases
 	}
 	var cases []oneCase
 	var defaultGoto, nilGoto ir.Node
@@ -459,10 +466,19 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 				nilGoto = jmp
 				continue
 			}
+			idx := -1
+			var val ir.Node
+			// for a single runtime known type with a case var, create the tmpVar
+			if len(ncase.List) == 1 && ncase.List[0].Op() == ir.ODYNAMICTYPE && ncase.Var != nil {
+				val = typecheck.TempAt(ncase.Pos(), ir.CurFunc, ncase.Var.Type())
+				idx = i
+			}
 			cases = append(cases, oneCase{
 				pos: ncase.Pos(),
 				typ: n1,
 				jmp: jmp,
+				val: val,
+				idx: idx,
 			})
 		}
 	}
@@ -570,6 +586,9 @@ caseLoop:
 
 			as := ir.NewAssignListStmt(c.pos, ir.OAS2, nil, nil)
 			as.Lhs = []ir.Node{ir.BlankNode, s.okName} // _, ok =
+			if c.val != nil {
+				as.Lhs[0] = c.val // tmpVar, ok =
+			}
 			as.Rhs = []ir.Node{dot}
 			typecheck.Stmt(as)
 
@@ -640,10 +659,18 @@ caseLoop:
 						val = ifaceData(ncase.Pos(), s.srcName, t)
 					}
 				} else if ncase.List[0].Op() == ir.ODYNAMICTYPE { // single runtime known type
-					dt := ncase.List[0].(*ir.DynamicType)
-					x := ir.NewDynamicTypeAssertExpr(ncase.Pos(), ir.ODYNAMICDOTTYPE, val, dt.RType)
-					x.ITab = dt.ITab
-					val = x
+					var found bool
+					for _, c := range cases {
+						if c.idx == i {
+							val = c.val
+							found = val != nil
+							break
+						}
+					}
+					// the tmpVar must always be found
+					if !found {
+						base.Fatalf("an error occurred when processing type switch case %v", ncase.List[0])
+					}
 				} else if ir.IsNil(ncase.List[0]) {
 				} else {
 					base.Fatalf("unhandled type switch case %v", ncase.List[0])

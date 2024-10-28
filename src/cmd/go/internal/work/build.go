@@ -104,10 +104,11 @@ and test commands:
 		Sets -cover.
 	-coverpkg pattern1,pattern2,pattern3
 		For a build that targets package 'main' (e.g. building a Go
-		executable), apply coverage analysis to each package matching
-		the patterns. The default is to apply coverage analysis to
-		packages in the main Go module. See 'go help packages' for a
-		description of package patterns.  Sets -cover.
+		executable), apply coverage analysis to each package whose
+		import path matches the patterns. The default is to apply
+		coverage analysis to packages in the main Go module. See
+		'go help packages' for a description of package patterns.
+		Sets -cover.
 	-v
 		print the names of packages as they are compiled.
 	-work

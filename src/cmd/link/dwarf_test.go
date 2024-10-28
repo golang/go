@@ -121,10 +121,14 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 
 			if buildmode == "c-archive" {
 				// Extract the archive and use the go.o object within.
-				cmd := testenv.Command(t, "ar", "-x", exe)
+				ar := os.Getenv("AR")
+				if ar == "" {
+					ar = "ar"
+				}
+				cmd := testenv.Command(t, ar, "-x", exe)
 				cmd.Dir = tmpDir
 				if out, err := cmd.CombinedOutput(); err != nil {
-					t.Fatalf("ar -x %s: %v\n%s", exe, err, out)
+					t.Fatalf("%s -x %s: %v\n%s", ar, exe, err, out)
 				}
 				exe = filepath.Join(tmpDir, "go.o")
 			}

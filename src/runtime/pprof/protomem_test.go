@@ -7,6 +7,7 @@ package pprof
 import (
 	"bytes"
 	"fmt"
+	"internal/asan"
 	"internal/profile"
 	"internal/profilerecord"
 	"internal/testenv"
@@ -119,6 +120,9 @@ func locationToStrings(loc *profile.Location, funcs []string) []string {
 
 // This is a regression test for https://go.dev/issue/64528 .
 func TestGenericsHashKeyInPprofBuilder(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("extra allocations with -asan throw off the test; see #70079")
+	}
 	previousRate := runtime.MemProfileRate
 	runtime.MemProfileRate = 1
 	defer func() {
@@ -178,6 +182,9 @@ func nonRecursiveGenericAllocFunction[CurrentOp any, OtherOp any](alloc bool) {
 }
 
 func TestGenericsInlineLocations(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("extra allocations with -asan throw off the test; see #70079")
+	}
 	if testenv.OptimizationOff() {
 		t.Skip("skipping test with optimizations disabled")
 	}

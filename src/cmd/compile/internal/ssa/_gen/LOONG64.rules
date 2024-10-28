@@ -453,6 +453,7 @@
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 
 (If cond yes no) => (NE (MOVBUreg <typ.UInt64> cond) yes no)
+(MOVBUreg x:((SGT|SGTU) _ _)) => x
 (MOVBUreg x:(XOR (MOVVconst [1]) ((SGT|SGTU) _ _))) => x
 
 // Write barrier.
@@ -464,30 +465,8 @@
 
 (CondSelect <t> x y cond) => (OR (MASKEQZ <t> x cond) (MASKNEZ <t> y cond))
 
-// Optimizations
-
-// Absorb boolean tests into block
-(NE (FPFlagTrue cmp) yes no) => (FPT cmp yes no)
-(NE (FPFlagFalse cmp) yes no) => (FPF cmp yes no)
-(EQ (FPFlagTrue cmp) yes no) => (FPF cmp yes no)
-(EQ (FPFlagFalse cmp) yes no) => (FPT cmp yes no)
-(NE (XORconst [1] cmp:(SGT _ _)) yes no) => (EQ cmp yes no)
-(NE (XORconst [1] cmp:(SGTU _ _)) yes no) => (EQ cmp yes no)
-(NE (XORconst [1] cmp:(SGTconst _)) yes no) => (EQ cmp yes no)
-(NE (XORconst [1] cmp:(SGTUconst _)) yes no) => (EQ cmp yes no)
-(EQ (XORconst [1] cmp:(SGT _ _)) yes no) => (NE cmp yes no)
-(EQ (XORconst [1] cmp:(SGTU _ _)) yes no) => (NE cmp yes no)
-(EQ (XORconst [1] cmp:(SGTconst _)) yes no) => (NE cmp yes no)
-(EQ (XORconst [1] cmp:(SGTUconst _)) yes no) => (NE cmp yes no)
-(NE (SGTUconst [1] x) yes no) => (EQ x yes no)
-(EQ (SGTUconst [1] x) yes no) => (NE x yes no)
-(NE (SGTU x (MOVVconst [0])) yes no) => (NE x yes no)
-(EQ (SGTU x (MOVVconst [0])) yes no) => (EQ x yes no)
-(NE (SGTconst [0] x) yes no) => (LTZ x yes no)
-(EQ (SGTconst [0] x) yes no) => (GEZ x yes no)
-(NE (SGT x (MOVVconst [0])) yes no) => (GTZ x yes no)
-(EQ (SGT x (MOVVconst [0])) yes no) => (LEZ x yes no)
-(MOVBUreg x:((SGT|SGTU) _ _)) => x
+(SGT  (MOVVconst [c]) x) && is32Bit(c) => (SGTconst  [c] x)
+(SGTU (MOVVconst [c]) x) && is32Bit(c) => (SGTUconst [c] x)
 
 // fold offset into address
 (ADDVconst [off1] (MOVVaddr [off2] {sym} ptr)) && is32Bit(off1+int64(off2)) => (MOVVaddr [int32(off1)+int32(off2)] {sym} ptr)
@@ -646,6 +625,10 @@
 // MOVVnop doesn't emit instruction, only for ensuring the type.
 (MOVVreg x) && x.Uses == 1 => (MOVVnop x)
 
+// TODO: we should be able to get rid of MOVVnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVVnop (MOVVconst [c])) => (MOVVconst [c])
+
 // fold constant into arithmetic ops
 (ADDV x (MOVVconst <t> [c])) && is32Bit(c) && !t.IsPtr() => (ADDVconst [c] x)
 (SUBV x (MOVVconst [c])) && is32Bit(c) => (SUBVconst [c] x)
@@ -662,9 +645,6 @@
 (SRAV x (MOVVconst [c])) => (SRAVconst x [c])
 (ROTR x (MOVVconst [c]))  => (ROTRconst x [c&31])
 (ROTRV x (MOVVconst [c])) => (ROTRVconst x [c&63])
-
-(SGT  (MOVVconst [c]) x) && is32Bit(c) => (SGTconst  [c] x)
-(SGTU (MOVVconst [c]) x) && is32Bit(c) => (SGTUconst [c] x)
 
 // mul by constant
 (MULV x (MOVVconst [-1])) => (NEGV x)
@@ -756,6 +736,43 @@
 (SGTconst [c] (SRLVconst _ [d])) && 0 <= c && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c) => (MOVVconst [1])
 (SGTUconst [c] (SRLVconst _ [d])) && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c) => (MOVVconst [1])
 
+// SGT/SGTU with known outcomes.
+(SGT  x x) => (MOVVconst [0])
+(SGTU x x) => (MOVVconst [0])
+
+// Optimizations
+
+// Absorb boolean tests into block
+(NE (FPFlagTrue cmp) yes no) => (FPT cmp yes no)
+(NE (FPFlagFalse cmp) yes no) => (FPF cmp yes no)
+(EQ (FPFlagTrue cmp) yes no) => (FPF cmp yes no)
+(EQ (FPFlagFalse cmp) yes no) => (FPT cmp yes no)
+(NE (XORconst [1] cmp:(SGT _ _)) yes no) => (EQ cmp yes no)
+(NE (XORconst [1] cmp:(SGTU _ _)) yes no) => (EQ cmp yes no)
+(NE (XORconst [1] cmp:(SGTconst _)) yes no) => (EQ cmp yes no)
+(NE (XORconst [1] cmp:(SGTUconst _)) yes no) => (EQ cmp yes no)
+(EQ (XORconst [1] cmp:(SGT _ _)) yes no) => (NE cmp yes no)
+(EQ (XORconst [1] cmp:(SGTU _ _)) yes no) => (NE cmp yes no)
+(EQ (XORconst [1] cmp:(SGTconst _)) yes no) => (NE cmp yes no)
+(EQ (XORconst [1] cmp:(SGTUconst _)) yes no) => (NE cmp yes no)
+(NE (SGTUconst [1] x) yes no) => (EQ x yes no)
+(EQ (SGTUconst [1] x) yes no) => (NE x yes no)
+(NE (SGTU x (MOVVconst [0])) yes no) => (NE x yes no)
+(EQ (SGTU x (MOVVconst [0])) yes no) => (EQ x yes no)
+(NE (SGTconst [0] x) yes no) => (LTZ x yes no)
+(EQ (SGTconst [0] x) yes no) => (GEZ x yes no)
+(NE (SGT x (MOVVconst [0])) yes no) => (GTZ x yes no)
+(EQ (SGT x (MOVVconst [0])) yes no) => (LEZ x yes no)
+
+(EQ (SGTU (MOVVconst [c]) y) yes no) && c >= -2048 && c <= 2047 => (EQ (SGTUconst [c] y) yes no)
+(NE (SGTU (MOVVconst [c]) y) yes no) && c >= -2048 && c <= 2047 => (NE (SGTUconst [c] y) yes no)
+(EQ (SUBV x y) yes no) => (BEQ x y yes no)
+(NE (SUBV x y) yes no) => (BNE x y yes no)
+(EQ (SGT x y) yes no) => (BGE y x yes no)
+(NE (SGT x y) yes no) => (BLT y x yes no)
+(EQ (SGTU x y) yes no) => (BGEU y x yes no)
+(NE (SGTU x y) yes no) => (BLTU y x yes no)
+
 // absorb constants into branches
 (EQ  (MOVVconst [0]) yes no) => (First yes no)
 (EQ  (MOVVconst [c]) yes no) && c != 0 => (First no yes)
@@ -769,7 +786,3 @@
 (GTZ (MOVVconst [c]) yes no) && c <= 0 => (First no yes)
 (GEZ (MOVVconst [c]) yes no) && c >= 0 => (First yes no)
 (GEZ (MOVVconst [c]) yes no) && c <  0 => (First no yes)
-
-// SGT/SGTU with known outcomes.
-(SGT  x x) => (MOVVconst [0])
-(SGTU x x) => (MOVVconst [0])

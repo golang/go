@@ -7,6 +7,8 @@ package slog
 import (
 	"bytes"
 	"context"
+	"internal/asan"
+	"internal/msan"
 	"internal/race"
 	"internal/testenv"
 	"io"
@@ -644,8 +646,8 @@ func callerPC(depth int) uintptr {
 }
 
 func wantAllocs(t *testing.T, want int, f func()) {
-	if race.Enabled {
-		t.Skip("skipping test in race mode")
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping test in race, asan, and msan modes")
 	}
 	testenv.SkipIfOptimizationOff(t)
 	t.Helper()

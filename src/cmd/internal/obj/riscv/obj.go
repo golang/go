@@ -23,6 +23,7 @@ package riscv
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
 	"internal/abi"
@@ -427,18 +428,23 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		prologue = stacksplit(ctxt, prologue, cursym, newprog, stacksize) // emit split check
 	}
 
+	q := prologue
+
 	if stacksize != 0 {
 		prologue = ctxt.StartUnsafePoint(prologue, newprog)
 
 		// Actually save LR.
 		prologue = obj.Appendp(prologue, newprog)
 		prologue.As = AMOV
+		prologue.Pos = q.Pos
 		prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
 		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -stacksize}
 
 		// Insert stack adjustment.
 		prologue = obj.Appendp(prologue, newprog)
 		prologue.As = AADDI
+		prologue.Pos = q.Pos
+		prologue.Pos = prologue.Pos.WithXlogue(src.PosPrologueEnd)
 		prologue.From = obj.Addr{Type: obj.TYPE_CONST, Offset: -stacksize}
 		prologue.Reg = REG_SP
 		prologue.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
@@ -1030,6 +1036,11 @@ func regF(r uint32) uint32 {
 	return regVal(r, REG_F0, REG_F31)
 }
 
+// regV returns a vector register.
+func regV(r uint32) uint32 {
+	return regVal(r, REG_V0, REG_V31)
+}
+
 // regAddr extracts a register from an Addr.
 func regAddr(a obj.Addr, min, max uint32) uint32 {
 	if a.Type != obj.TYPE_REG {
@@ -1110,6 +1121,11 @@ func wantIntReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 // wantFloatReg checks that r is a floating-point register.
 func wantFloatReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 	wantReg(ctxt, ins, pos, "float", r, REG_F0, REG_F31)
+}
+
+// wantVectorReg checks that r is a vector register.
+func wantVectorReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
+	wantReg(ctxt, ins, pos, "vector", r, REG_V0, REG_V31)
 }
 
 // wantEvenOffset checks that the offset is a multiple of two.

@@ -157,7 +157,10 @@ var helloSource = `
 import "fmt"
 import "runtime"
 var gslice []string
+// TODO(prattmic): Stack allocated maps initialized inline appear "optimized out" in GDB.
+var smallmapvar map[string]string
 func main() {
+	smallmapvar = make(map[string]string)
 	mapvar := make(map[string]string, ` + strconv.FormatInt(abi.OldMapBucketCount+9, 10) + `)
 	slicemap := make(map[string][]string,` + strconv.FormatInt(abi.OldMapBucketCount+3, 10) + `)
     chanint := make(chan int, 10)
@@ -166,6 +169,7 @@ func main() {
 	chanint <- 11
     chanstr <- "spongepants"
     chanstr <- "squarebob"
+	smallmapvar["abc"] = "def"
 	mapvar["abc"] = "def"
 	mapvar["ghi"] = "jkl"
 	slicemap["a"] = []string{"b","c","d"}
@@ -179,6 +183,7 @@ func main() {
 	_ = ptrvar // set breakpoint here
 	gslice = slicevar
 	fmt.Printf("%v, %v, %v\n", slicemap, <-chanint, <-chanstr)
+	runtime.KeepAlive(smallmapvar)
 	runtime.KeepAlive(mapvar)
 }  // END_OF_PROGRAM
 `
@@ -294,6 +299,9 @@ func testGdbPython(t *testing.T, cgo bool) {
 		"-ex", "echo BEGIN info goroutines\n",
 		"-ex", "info goroutines",
 		"-ex", "echo END\n",
+		"-ex", "echo BEGIN print smallmapvar\n",
+		"-ex", "print smallmapvar",
+		"-ex", "echo END\n",
 		"-ex", "echo BEGIN print mapvar\n",
 		"-ex", "print mapvar",
 		"-ex", "echo END\n",
@@ -344,6 +352,11 @@ func testGdbPython(t *testing.T, cgo bool) {
 	infoGoroutinesRe := regexp.MustCompile(`\*\s+\d+\s+running\s+`)
 	if bl := blocks["info goroutines"]; !infoGoroutinesRe.MatchString(bl) {
 		t.Fatalf("info goroutines failed: %s", bl)
+	}
+
+	printSmallMapvarRe := regexp.MustCompile(`^\$[0-9]+ = map\[string\]string = {\[(0x[0-9a-f]+\s+)?"abc"\] = (0x[0-9a-f]+\s+)?"def"}$`)
+	if bl := blocks["print smallmapvar"]; !printSmallMapvarRe.MatchString(bl) {
+		t.Fatalf("print smallmapvar failed: %s", bl)
 	}
 
 	printMapvarRe1 := regexp.MustCompile(`^\$[0-9]+ = map\[string\]string = {\[(0x[0-9a-f]+\s+)?"abc"\] = (0x[0-9a-f]+\s+)?"def", \[(0x[0-9a-f]+\s+)?"ghi"\] = (0x[0-9a-f]+\s+)?"jkl"}$`)

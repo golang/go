@@ -798,11 +798,8 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 
 	if asanenabled {
 		// TODO(mknyszek): Track individual objects.
-		rzSize := computeRZlog(span.elemsize)
-		span.elemsize -= rzSize
-		span.largeType.Size_ = span.elemsize
+		// N.B. span.elemsize includes a redzone already.
 		rzStart := span.base() + span.elemsize
-		span.userArenaChunkFree = makeAddrRange(span.base(), rzStart)
 		asanpoison(unsafe.Pointer(rzStart), span.limit-rzStart)
 		asanunpoison(unsafe.Pointer(span.base()), span.elemsize)
 	}
@@ -1066,6 +1063,11 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 	s.limit = s.base() + s.elemsize
 	s.freeindex = 1
 	s.allocCount = 1
+
+	// Adjust size to include redzone.
+	if asanenabled {
+		s.elemsize -= redZoneSize(s.elemsize)
+	}
 
 	// Account for this new arena chunk memory.
 	gcController.heapInUse.add(int64(userArenaChunkBytes))

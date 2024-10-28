@@ -161,8 +161,6 @@ func (t *table) Get(key unsafe.Pointer) (unsafe.Pointer, bool) {
 	// TODO(prattmic): We could avoid hashing in a variety of special
 	// cases.
 	//
-	// - One group maps with simple keys could iterate over all keys and
-	//   compare them directly.
 	// - One entry maps could just directly compare the single entry
 	//   without hashing.
 	// - String keys could do quick checks of a few bytes before hashing.
@@ -233,6 +231,32 @@ func (t *table) getWithKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, un
 	}
 }
 
+func (t *table) getWithoutKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, bool) {
+	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	for ; ; seq = seq.next() {
+		g := t.groups.group(seq.offset)
+
+		match := g.ctrls().matchH2(h2(hash))
+
+		for match != 0 {
+			i := match.first()
+
+			slotKey := g.key(i)
+			if t.typ.Key.Equal(key, slotKey) {
+				return g.elem(i), true
+			}
+			match = match.removeFirst()
+		}
+
+		match = g.ctrls().matchEmpty()
+		if match != 0 {
+			// Finding an empty slot means we've reached the end of
+			// the probe sequence.
+			return nil, false
+		}
+	}
+}
+
 // PutSlot returns a pointer to the element slot where an inserted element
 // should be written, and ok if it returned a valid slot.
 //
@@ -242,6 +266,11 @@ func (t *table) getWithKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, un
 // hash must be the hash of key.
 func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+
+	// As we look for a match, keep track of the first deleted slot we
+	// find, which we'll use to insert the new entry if necessary.
+	var firstDeletedGroup groupReference
+	var firstDeletedSlot uint32
 
 	for ; ; seq = seq.next() {
 		g := t.groups.group(seq.offset)
@@ -265,15 +294,28 @@ func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointe
 			match = match.removeFirst()
 		}
 
+		// No existing slot for this key in this group. Is this the end
+		// of the probe sequence?
 		match = g.ctrls().matchEmpty()
 		if match != 0 {
 			// Finding an empty slot means we've reached the end of
 			// the probe sequence.
 
+			var i uint32
+
+			// If we found a deleted slot along the way, we can
+			// replace it without consuming growthLeft.
+			if firstDeletedGroup.data != nil {
+				g = firstDeletedGroup
+				i = firstDeletedSlot
+				t.growthLeft++ // will be decremented below to become a no-op.
+			} else {
+				// Otherwise, use the empty slot.
+				i = match.first()
+			}
+
 			// If there is room left to grow, just insert the new entry.
 			if t.growthLeft > 0 {
-				i := match.first()
-
 				slotKey := g.key(i)
 				typedmemmove(t.typ.Key, slotKey, key)
 				slotElem := g.elem(i)
@@ -287,23 +329,23 @@ func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointe
 				return slotElem, true
 			}
 
-			// TODO(prattmic): While searching the probe sequence,
-			// we may have passed deleted slots which we could use
-			// for this entry.
-			//
-			// At the moment, we leave this behind for
-			// rehash to free up.
-			//
-			// cockroachlabs/swiss restarts search of the probe
-			// sequence for a deleted slot.
-			//
-			// TODO(go.dev/issue/54766): We want this optimization
-			// back. We could search for the first deleted slot
-			// during the main search, but only use it if we don't
-			// find an existing entry.
-
 			t.rehash(m)
 			return nil, false
+		}
+
+		// No empty slots in this group. Check for a deleted
+		// slot, which we'll use if we don't find a match later
+		// in the probe sequence.
+		//
+		// We only need to remember a single deleted slot.
+		if firstDeletedGroup.data == nil {
+			// Since we already checked for empty slots
+			// above, matches here must be deleted slots.
+			match = g.ctrls().matchEmptyOrDeleted()
+			if match != 0 {
+				firstDeletedGroup = g
+				firstDeletedSlot = match.first()
+			}
 		}
 	}
 }
@@ -431,8 +473,8 @@ type Iter struct {
 	// Randomize iteration order by starting iteration at a random slot
 	// offset. The offset into the directory uses a separate offset, as it
 	// must adjust when the directory grows.
-	groupSlotOffset uint64
-	dirOffset       uint64
+	entryOffset uint64
+	dirOffset   uint64
 
 	// Snapshot of Map.clearSeq at iteration initialization time. Used to
 	// detect clear during iteration.
@@ -447,28 +489,39 @@ type Iter struct {
 	dirIdx int
 
 	// tab is the table at dirIdx during the previous call to Next.
-	tab *table
+	tab        *table
+	groupSmall groupReference // only if small map at init
 
-	// TODO: these could be merged into a single counter (and pre-offset
-	// with offset).
-	groupIdx uint64
-	slotIdx  uint32
-
-	// 4 bytes of padding on 64-bit arches.
+	// entryIdx is the current entry index, prior to adjustment by entryOffset.
+	// The lower 3 bits of the index are the slot index, and the upper bits
+	// are the group index.
+	entryIdx uint64
 }
 
 // Init initializes Iter for iteration.
 func (it *Iter) Init(typ *abi.SwissMapType, m *Map) {
+
 	it.typ = typ
 	if m == nil || m.used == 0 {
 		return
 	}
 
+	dirIdx := 0
+	var groupSmall groupReference
+	if m.dirLen <= 0 {
+		// Use dirIdx == -1 as sentinal for small maps.
+		dirIdx = -1
+		groupSmall.data = m.dirPtr
+		groupSmall.typ = typ
+	}
+
 	it.typ = m.typ
 	it.m = m
-	it.groupSlotOffset = rand()
+	it.entryOffset = rand()
 	it.dirOffset = rand()
 	it.globalDepth = m.globalDepth
+	it.dirIdx = dirIdx
+	it.groupSmall = groupSmall
 	it.clearSeq = m.clearSeq
 }
 
@@ -506,6 +559,53 @@ func (it *Iter) Elem() unsafe.Pointer {
 func (it *Iter) Next() {
 	if it.m == nil {
 		// Map was empty at Iter.Init.
+		it.key = nil
+		it.elem = nil
+		return
+	}
+
+	if it.dirIdx < 0 {
+		// Map was small at Init.
+		g := it.groupSmall
+		for ; it.entryIdx < abi.SwissMapGroupSlots; it.entryIdx++ {
+			k := uint32(it.entryIdx+it.entryOffset) % abi.SwissMapGroupSlots
+
+			if (g.ctrls().get(k) & ctrlEmpty) == ctrlEmpty {
+				// Empty or deleted.
+				continue
+			}
+
+			key := g.key(k)
+
+			// As below, if we have grown to a full map since Init,
+			// we continue to use the old group to decide the keys
+			// to return, but must look them up again in the new
+			// tables.
+			grown := it.m.dirLen > 0
+			var elem unsafe.Pointer
+			if grown {
+				var ok bool
+				newKey, newElem, ok := it.m.getWithKey(key)
+				if !ok {
+					// See comment below.
+					if it.clearSeq == it.m.clearSeq && !it.m.typ.Key.Equal(key, key) {
+						elem = g.elem(k)
+					} else {
+						continue
+					}
+				} else {
+					key = newKey
+					elem = newElem
+				}
+			} else {
+				elem = g.elem(k)
+			}
+
+			it.entryIdx++
+			it.key = key
+			it.elem = elem
+			return
+		}
 		it.key = nil
 		it.elem = nil
 		return
@@ -550,15 +650,15 @@ func (it *Iter) Next() {
 	}
 
 	// Continue iteration until we find a full slot.
-	for it.dirIdx < len(it.m.directory) {
+	for it.dirIdx < it.m.dirLen {
 		// TODO(prattmic): We currently look up the latest table on
 		// every call, even if it.tab is set because the inner loop
 		// checks if it.tab has grown by checking it.tab != newTab.
 		//
 		// We could avoid most of these lookups if we left a flag
 		// behind on the old table to denote that it is stale.
-		dirIdx := int((uint64(it.dirIdx) + it.dirOffset) % uint64(len(it.m.directory)))
-		newTab := it.m.directory[dirIdx]
+		dirIdx := int((uint64(it.dirIdx) + it.dirOffset) & uint64(it.m.dirLen-1))
+		newTab := it.m.directoryAt(uintptr(dirIdx))
 		if it.tab == nil {
 			if newTab.index != dirIdx {
 				// Normally we skip past all duplicates of the
@@ -579,88 +679,92 @@ func (it *Iter) Next() {
 			it.tab = newTab
 		}
 
+		var g groupReference
+
 		// N.B. Use it.tab, not newTab. It is important to use the old
 		// table for key selection if the table has grown. See comment
 		// on grown below.
-		for ; it.groupIdx <= it.tab.groups.lengthMask; it.groupIdx++ {
-			g := it.tab.groups.group((it.groupIdx + it.groupSlotOffset) & it.tab.groups.lengthMask)
+		for ; it.entryIdx <= it.tab.groups.entryMask; it.entryIdx++ {
+			entryIdx := (it.entryIdx + it.entryOffset) & it.tab.groups.entryMask
+			slotIdx := uint32(entryIdx & (abi.SwissMapGroupSlots - 1))
+
+			if slotIdx == 0 || g.data == nil {
+				// Only compute the group (a) when we switch
+				// groups (slotIdx rolls over) and (b) on the
+				// first iteration in this table (slotIdx may
+				// not be zero due to entryOffset).
+				groupIdx := entryIdx >> abi.SwissMapGroupSlotsBits
+				g = it.tab.groups.group(groupIdx)
+			}
 
 			// TODO(prattmic): Skip over groups that are composed of only empty
 			// or deleted slots using matchEmptyOrDeleted() and counting the
 			// number of bits set.
-			for ; it.slotIdx < abi.SwissMapGroupSlots; it.slotIdx++ {
-				k := (it.slotIdx + uint32(it.groupSlotOffset)) % abi.SwissMapGroupSlots
 
-				if (g.ctrls().get(k) & ctrlEmpty) == ctrlEmpty {
-					// Empty or deleted.
-					continue
-				}
+			if (g.ctrls().get(slotIdx) & ctrlEmpty) == ctrlEmpty {
+				// Empty or deleted.
+				continue
+			}
 
-				key := g.key(k)
+			key := g.key(slotIdx)
 
-				// If the table has changed since the last
-				// call, then it has grown or split. In this
-				// case, further mutations (changes to
-				// key->elem or deletions) will not be visible
-				// in our snapshot table. Instead we must
-				// consult the new table by doing a full
-				// lookup.
-				//
-				// We still use our old table to decide which
-				// keys to lookup in order to avoid returning
-				// the same key twice.
-				grown := it.tab != newTab
-				var elem unsafe.Pointer
-				if grown {
-					var ok bool
-					newKey, newElem, ok := it.m.getWithKey(key)
-					if !ok {
-						// Key has likely been deleted, and
-						// should be skipped.
-						//
-						// One exception is keys that don't
-						// compare equal to themselves (e.g.,
-						// NaN). These keys cannot be looked
-						// up, so getWithKey will fail even if
-						// the key exists.
-						//
-						// However, we are in luck because such
-						// keys cannot be updated and they
-						// cannot be deleted except with clear.
-						// Thus if no clear has occurted, the
-						// key/elem must still exist exactly as
-						// in the old groups, so we can return
-						// them from there.
-						//
-						// TODO(prattmic): Consider checking
-						// clearSeq early. If a clear occurred,
-						// Next could always return
-						// immediately, as iteration doesn't
-						// need to return anything added after
-						// clear.
-						if it.clearSeq == it.m.clearSeq && !it.m.typ.Key.Equal(key, key) {
-							elem = g.elem(k)
-						} else {
-							continue
-						}
+			// If the table has changed since the last
+			// call, then it has grown or split. In this
+			// case, further mutations (changes to
+			// key->elem or deletions) will not be visible
+			// in our snapshot table. Instead we must
+			// consult the new table by doing a full
+			// lookup.
+			//
+			// We still use our old table to decide which
+			// keys to lookup in order to avoid returning
+			// the same key twice.
+			grown := it.tab != newTab
+			var elem unsafe.Pointer
+			if grown {
+				var ok bool
+				newKey, newElem, ok := it.m.getWithKey(key)
+				if !ok {
+					// Key has likely been deleted, and
+					// should be skipped.
+					//
+					// One exception is keys that don't
+					// compare equal to themselves (e.g.,
+					// NaN). These keys cannot be looked
+					// up, so getWithKey will fail even if
+					// the key exists.
+					//
+					// However, we are in luck because such
+					// keys cannot be updated and they
+					// cannot be deleted except with clear.
+					// Thus if no clear has occurted, the
+					// key/elem must still exist exactly as
+					// in the old groups, so we can return
+					// them from there.
+					//
+					// TODO(prattmic): Consider checking
+					// clearSeq early. If a clear occurred,
+					// Next could always return
+					// immediately, as iteration doesn't
+					// need to return anything added after
+					// clear.
+					if it.clearSeq == it.m.clearSeq && !it.m.typ.Key.Equal(key, key) {
+						elem = g.elem(slotIdx)
 					} else {
-						key = newKey
-						elem = newElem
+						continue
 					}
 				} else {
-					elem = g.elem(k)
+					key = newKey
+					elem = newElem
 				}
-
-				it.slotIdx++
-				if it.slotIdx >= abi.SwissMapGroupSlots {
-					it.groupIdx++
-					it.slotIdx = 0
-				}
-				it.key = key
-				it.elem = elem
-				return
+			} else {
+				elem = g.elem(slotIdx)
 			}
-			it.slotIdx = 0
+
+			it.entryIdx++
+			it.key = key
+			it.elem = elem
+			return
 		}
 
 		// Skip other entries in the directory that refer to the same
@@ -692,7 +796,7 @@ func (it *Iter) Next() {
 		entries := 1 << (it.m.globalDepth - it.tab.localDepth)
 		it.dirIdx += entries
 		it.tab = nil
-		it.groupIdx = 0
+		it.entryIdx = 0
 	}
 
 	it.key = nil

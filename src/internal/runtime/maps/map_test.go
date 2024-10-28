@@ -213,6 +213,69 @@ func TestTableKeyUpdate(t *testing.T) {
 	}
 }
 
+// Put should reuse a deleted slot rather than consuming an empty slot.
+func TestTablePutDelete(t *testing.T) {
+	// Put will reuse the first deleted slot it encounters.
+	//
+	// This is awkward to test because Delete will only install ctrlDeleted
+	// if the group is full, otherwise it goes straight to empty.
+	//
+	// So first we must add to the table continuously until we happen to
+	// fill a group.
+
+	// Avoid small maps, they have no tables.
+	m, _ := maps.NewTestMap[uint32, uint32](16)
+
+	key := uint32(0)
+	elem := uint32(256 + 0)
+
+	for {
+		key += 1
+		elem += 1
+
+		m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
+
+		// Normally a Put that fills a group would fill it with the
+		// inserted key, so why search the whole map for a potentially
+		// different key in a full group?
+		//
+		// Put may grow/split a table. Initial construction of the new
+		// table(s) could result in a full group consisting of
+		// arbitrary keys.
+		fullKeyPtr := m.KeyFromFullGroup()
+		if fullKeyPtr != nil {
+			// Found a full group.
+			key = *(*uint32)(fullKeyPtr)
+			elem = 256 + key
+			break
+		}
+	}
+
+	// Key is in a full group. Deleting it will result in a ctrlDeleted
+	// slot.
+	m.Delete(unsafe.Pointer(&key))
+
+	// Re-insert key. This should reuse the deleted slot rather than
+	// consuming space.
+	tabWant := m.TableFor(unsafe.Pointer(&key))
+	growthLeftWant := tabWant.GrowthLeft()
+
+	m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
+
+	tabGot := m.TableFor(unsafe.Pointer(&key))
+	growthLeftGot := tabGot.GrowthLeft()
+
+	if tabGot != tabWant {
+		// There shouldn't be a grow, as replacing a deleted slot
+		// doesn't require more space.
+		t.Errorf("Put(%d) grew table got %v want %v map %v", key, tabGot, tabWant, m)
+	}
+
+	if growthLeftGot != growthLeftWant {
+		t.Errorf("GrowthLeft got %d want %d: map %v tab %v", growthLeftGot, growthLeftWant, m, tabGot)
+	}
+}
+
 func TestTableIteration(t *testing.T) {
 	m, _ := maps.NewTestMap[uint32, uint64](8)
 

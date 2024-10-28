@@ -7,6 +7,7 @@
 package sha256
 
 import (
+	"crypto/internal/fips"
 	"errors"
 	"internal/byteorder"
 )
@@ -181,6 +182,7 @@ func (d *Digest) Write(p []byte) (nn int, err error) {
 }
 
 func (d *Digest) Sum(in []byte) []byte {
+	fips.RecordApproved()
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := *d
 	hash := d0.checkSum()

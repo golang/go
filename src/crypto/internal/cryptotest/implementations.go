@@ -7,6 +7,7 @@ package cryptotest
 import (
 	"crypto/internal/boring"
 	"crypto/internal/impl"
+	"internal/goos"
 	"internal/testenv"
 	"testing"
 )
@@ -34,7 +35,9 @@ func TestAllImplementations(t *testing.T, pkg string, f func(t *testing.T)) {
 			t.Run(name, f)
 		} else {
 			t.Run(name, func(t *testing.T) {
-				if testenv.Builder() != "" {
+				// Report an error if we're on Linux CI (assumed to be the most
+				// consistent) and the builder can't test this implementation.
+				if testenv.Builder() != "" && goos.GOOS == "linux" {
 					if name == "SHA-NI" {
 						t.Skip("known issue, see golang.org/issue/69592")
 					}

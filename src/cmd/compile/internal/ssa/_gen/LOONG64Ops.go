@@ -511,12 +511,18 @@ func init() {
 	blocks := []blockData{
 		{name: "EQ", controls: 1},
 		{name: "NE", controls: 1},
-		{name: "LTZ", controls: 1}, // < 0
-		{name: "LEZ", controls: 1}, // <= 0
-		{name: "GTZ", controls: 1}, // > 0
-		{name: "GEZ", controls: 1}, // >= 0
-		{name: "FPT", controls: 1}, // FP flag is true
-		{name: "FPF", controls: 1}, // FP flag is false
+		{name: "LTZ", controls: 1},  // < 0
+		{name: "LEZ", controls: 1},  // <= 0
+		{name: "GTZ", controls: 1},  // > 0
+		{name: "GEZ", controls: 1},  // >= 0
+		{name: "FPT", controls: 1},  // FP flag is true
+		{name: "FPF", controls: 1},  // FP flag is false
+		{name: "BEQ", controls: 2},  // controls[0] == controls[1]
+		{name: "BNE", controls: 2},  // controls[0] == controls[1]
+		{name: "BGE", controls: 2},  // controls[0] >= controls[1]
+		{name: "BLT", controls: 2},  // controls[0] < controls[1]
+		{name: "BGEU", controls: 2}, // controls[0] >= controls[1], unsigned
+		{name: "BLTU", controls: 2}, // controls[0] < controls[1], unsigned
 	}
 
 	archs = append(archs, arch{

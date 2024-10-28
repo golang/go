@@ -724,3 +724,13 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
 	reflectOffsUnlock()
 	return id
 }
+
+//go:linkname fips_getIndicator crypto/internal/fips.getIndicator
+func fips_getIndicator() uint8 {
+	return getg().fipsIndicator
+}
+
+//go:linkname fips_setIndicator crypto/internal/fips.setIndicator
+func fips_setIndicator(indicator uint8) {
+	getg().fipsIndicator = indicator
+}

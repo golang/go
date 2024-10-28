@@ -880,7 +880,8 @@ func (t *tester) registerTests() {
 		}
 	}
 
-	if t.raceDetectorSupported() {
+	if t.raceDetectorSupported() && !t.msan && !t.asan {
+		// N.B. -race is incompatible with -msan and -asan.
 		t.registerRaceTests()
 	}
 
@@ -1090,10 +1091,18 @@ func (t *tester) internalLink() bool {
 		// linkmode=internal isn't supported.
 		return false
 	}
+	if t.msan || t.asan {
+		// linkmode=internal isn't supported by msan or asan.
+		return false
+	}
 	return true
 }
 
 func (t *tester) internalLinkPIE() bool {
+	if t.msan || t.asan {
+		// linkmode=internal isn't supported by msan or asan.
+		return false
+	}
 	switch goos + "-" + goarch {
 	case "darwin-amd64", "darwin-arm64",
 		"linux-amd64", "linux-arm64", "linux-ppc64le",
@@ -1232,18 +1241,22 @@ func (t *tester) registerCgoTests(heading string) {
 			}
 
 			// Static linking tests
-			if goos != "android" && p != "netbsd/arm" {
+			if goos != "android" && p != "netbsd/arm" && !t.msan && !t.asan {
 				// TODO(#56629): Why does this fail on netbsd-arm?
+				// TODO(#70080): Why does this fail with msan?
+				// asan doesn't support static linking (this is an explicit build error on the C side).
 				cgoTest("static", "testtls", "external", "static", staticCheck)
 			}
 			cgoTest("external", "testnocgo", "external", "", staticCheck)
-			if goos != "android" {
+			if goos != "android" && !t.msan && !t.asan {
+				// TODO(#70080): Why does this fail with msan?
+				// asan doesn't support static linking (this is an explicit build error on the C side).
 				cgoTest("static", "testnocgo", "external", "static", staticCheck)
 				cgoTest("static", "test", "external", "static", staticCheck)
 				// -static in CGO_LDFLAGS triggers a different code path
 				// than -static in -extldflags, so test both.
 				// See issue #16651.
-				if goarch != "loong64" {
+				if goarch != "loong64" && !t.msan && !t.asan {
 					// TODO(#56623): Why does this fail on loong64?
 					cgoTest("auto-static", "test", "auto", "static", staticCheck)
 				}

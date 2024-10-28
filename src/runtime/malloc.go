@@ -470,7 +470,10 @@ func mallocinit() {
 	lockInit(&globalAlloc.mutex, lockRankGlobalAlloc)
 
 	// Create initial arena growth hints.
-	if goarch.PtrSize == 8 {
+	if isSbrkPlatform {
+		// Don't generate hints on sbrk platforms. We can
+		// only grow the break sequentially.
+	} else if goarch.PtrSize == 8 {
 		// On a 64-bit machine, we pick the following hints
 		// because:
 		//
@@ -828,6 +831,12 @@ mapped:
 // aligned to align bytes. It may reserve either n or n+align bytes,
 // so it returns the size that was reserved.
 func sysReserveAligned(v unsafe.Pointer, size, align uintptr) (unsafe.Pointer, uintptr) {
+	if isSbrkPlatform {
+		if v != nil {
+			throw("unexpected heap arena hint on sbrk platform")
+		}
+		return sysReserveAlignedSbrk(size, align)
+	}
 	// Since the alignment is rather large in uses of this
 	// function, we're not likely to get it by chance, so we ask
 	// for a larger region and remove the parts we don't need.
@@ -1026,7 +1035,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// These "redzones" are marked as unaddressable.
 	var asanRZ uintptr
 	if asanenabled {
-		asanRZ = computeRZlog(size)
+		asanRZ = redZoneSize(size)
 		size += asanRZ
 	}
 
@@ -1064,7 +1073,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if asanenabled {
 		// Poison the space between the end of the requested size of x
 		// and the end of the slot. Unpoison the requested allocation.
-		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ+(elemsize-size))
+		frag := elemsize - size
+		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-mallocHeaderSize {
+			frag -= mallocHeaderSize
+		}
+		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
 		asanunpoison(x, size-asanRZ)
 	}
 
@@ -1356,7 +1369,13 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, size)
 	}
-	c.scanAlloc += heapSetTypeNoHeader(uintptr(x), size, typ, span)
+	if goarch.PtrSize == 8 && sizeclass == 1 {
+		// initHeapBits already set the pointer bits for the 8-byte sizeclass
+		// on 64-bit platforms.
+		c.scanAlloc += 8
+	} else {
+		c.scanAlloc += heapSetTypeNoHeader(uintptr(x), size, typ, span)
+	}
 	size = uintptr(class_to_size[sizeclass])
 
 	// Ensure that the stores above that initialize x to
@@ -2027,9 +2046,9 @@ func (p *notInHeap) add(bytes uintptr) *notInHeap {
 	return (*notInHeap)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + bytes))
 }
 
-// computeRZlog computes the size of the redzone.
+// redZoneSize computes the size of the redzone for a given allocation.
 // Refer to the implementation of the compiler-rt.
-func computeRZlog(userSize uintptr) uintptr {
+func redZoneSize(userSize uintptr) uintptr {
 	switch {
 	case userSize <= (64 - 16):
 		return 16 << 0
