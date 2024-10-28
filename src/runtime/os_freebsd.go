@@ -10,7 +10,9 @@ import (
 	"unsafe"
 )
 
-type mOS struct{}
+type mOS struct {
+	waitsema uint32 // semaphore for parking on locks
+}
 
 //go:noescape
 func thr_new(param *thrparam, size int32) int32

@@ -26,6 +26,8 @@ const (
 	passive_spin    = 1
 )
 
+type mWaitList struct{}
+
 func mutexContended(l *mutex) bool {
 	return false
 }

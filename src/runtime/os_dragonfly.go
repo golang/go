@@ -19,7 +19,9 @@ const (
 	_SIG_SETMASK = 3
 )
 
-type mOS struct{}
+type mOS struct {
+	waitsema uint32 // semaphore for parking on locks
+}
 
 //go:noescape
 func lwp_create(param *lwpparams) int32

@@ -35,6 +35,8 @@ type mOS struct {
 	// This is a pointer to a chunk of memory allocated with a special
 	// mmap invocation in vgetrandomGetState().
 	vgetrandomState uintptr
+
+	waitsema uint32 // semaphore for parking on locks
 }
 
 //go:noescape
