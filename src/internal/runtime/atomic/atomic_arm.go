@@ -80,9 +80,8 @@ func Xchg8(addr *uint8, v uint8) uint8
 //go:nosplit
 func goXchg8(addr *uint8, v uint8) uint8 {
 	// Align down to 4 bytes and use 32-bit CAS.
-	uaddr := uintptr(unsafe.Pointer(addr))
-	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
-	shift := (uaddr & 3) * 8 // little endian
+	addr32 := (*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(addr)) &^ 3))
+	shift := (uintptr(unsafe.Pointer(addr)) & 3) * 8 // little endian
 	word := uint32(v) << shift
 	mask := uint32(0xFF) << shift
 
