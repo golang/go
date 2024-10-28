@@ -247,8 +247,8 @@ func growSlice(b []byte, n int) []byte {
 		c = 2 * cap(b)
 	}
 	b2 := append([]byte(nil), make([]byte, c)...)
-	copy(b2, b)
-	return b2[:len(b)]
+	i := copy(b2, b)
+	return b2[:i]
 }
 
 // WriteTo writes data to w until the buffer is drained or an error occurs.

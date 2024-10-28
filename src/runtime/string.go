@@ -51,8 +51,8 @@ func concatstrings(buf *tmpBuf, a []string) string {
 	}
 	s, b := rawstringtmp(buf, l)
 	for _, x := range a {
-		copy(b, x)
-		b = b[len(x):]
+		n := copy(b, x)
+		b = b[n:]
 	}
 	return s
 }
