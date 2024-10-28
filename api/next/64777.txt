@@ -1,0 +1,3 @@
+pkg runtime/mainthread, func Do(func()) #64777
+pkg runtime/mainthread, func Waiting() <-chan struct #64777
+pkg runtime/mainthread, func Yield() #64777
