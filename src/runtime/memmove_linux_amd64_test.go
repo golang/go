@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"internal/asan"
 	"os"
 	"syscall"
 	"testing"
@@ -14,6 +15,10 @@ import (
 // TestMemmoveOverflow maps 3GB of memory and calls memmove on
 // the corresponding slice.
 func TestMemmoveOverflow(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("appears to break asan and causes spurious failures")
+	}
+
 	t.Parallel()
 	// Create a temporary file.
 	tmp, err := os.CreateTemp("", "go-memmovetest")
