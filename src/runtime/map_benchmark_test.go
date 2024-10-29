@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"math/rand"
 	"runtime"
@@ -15,6 +16,8 @@ import (
 	"testing"
 	"unsafe"
 )
+
+var mapbench = flag.Bool("mapbench", false, "enable the full set of map benchmark variants")
 
 const size = 10
 
@@ -511,9 +514,24 @@ func benchSizes(f func(b *testing.B, n int)) func(*testing.B) {
 		1 << 22,
 	}
 
+	// Cases enabled by default. Set -mapbench for the remainder.
+	//
+	// With the other type combinations, there are literally thousands of
+	// variations. It take too long to run all of these as part of
+	// builders.
+	byDefault := map[int]bool{
+		6:       true,
+		64:      true,
+		1 << 16: true,
+	}
+
 	return func(b *testing.B) {
 		for _, n := range cases {
 			b.Run("len="+strconv.Itoa(n), func(b *testing.B) {
+				if !*mapbench && !byDefault[n] {
+					b.Skip("Skipped because -mapbench=false")
+				}
+
 				f(b, n)
 			})
 		}
