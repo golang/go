@@ -421,9 +421,9 @@ func disasm_s390x(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder,
 		text = "?"
 	} else {
 		if gnuAsm {
-			text = fmt.Sprintf("%s", s390xasm.GNUSyntax(inst, pc))
+			text = fmt.Sprintf("%-36s // %s", s390xasm.GoSyntax(inst, pc, lookup), s390xasm.GNUSyntax(inst, pc))
 		} else {
-			text = fmt.Sprintf("%s", "Go/plan9 syntax unsupported..!!")
+			text = s390xasm.GoSyntax(inst, pc, lookup)
 		}
 	}
 	return text, size

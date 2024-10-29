@@ -2518,8 +2518,6 @@ var (
 	ap_ImmUnsigned_16_47   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{16, 32}}
 	ap_FPReg_12_15         = &argField{Type: TypeFPReg, flags: 0x2, BitField: BitField{12, 4}}
 	ap_Len_8_15            = &argField{Type: TypeLen, flags: 0x10, BitField: BitField{8, 8}}
-	ap_ImmUnsigned_8_15    = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{8, 8}}
-	ap_ImmUnsigned_16_31   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{16, 16}}
 	ap_Mask_8_11           = &argField{Type: TypeMask, flags: 0x800, BitField: BitField{8, 4}}
 	ap_RegImSigned16_32_47 = &argField{Type: TypeRegImSigned16, flags: 0x80, BitField: BitField{32, 16}}
 	ap_RegImSigned12_12_23 = &argField{Type: TypeRegImSigned12, flags: 0x80, BitField: BitField{12, 12}}
@@ -2531,8 +2529,10 @@ var (
 	ap_ImmSigned16_32_47   = &argField{Type: TypeImmSigned16, flags: 0x0, BitField: BitField{32, 16}}
 	ap_ImmSigned8_32_39    = &argField{Type: TypeImmSigned8, flags: 0x0, BitField: BitField{32, 8}}
 	ap_Mask_12_15          = &argField{Type: TypeMask, flags: 0x800, BitField: BitField{12, 4}}
+	ap_ImmUnsigned_8_15    = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{8, 8}}
 	ap_ImmUnsigned_32_47   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{32, 16}}
 	ap_ImmUnsigned_32_39   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{32, 8}}
+	ap_ImmUnsigned_16_31   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{16, 16}}
 	ap_FPReg_32_35         = &argField{Type: TypeFPReg, flags: 0x2, BitField: BitField{32, 4}}
 	ap_Mask_36_39          = &argField{Type: TypeMask, flags: 0x800, BitField: BitField{36, 4}}
 	ap_ACReg_24_27         = &argField{Type: TypeACReg, flags: 0x3, BitField: BitField{24, 4}}
@@ -2546,6 +2546,7 @@ var (
 	ap_ACReg_12_15         = &argField{Type: TypeACReg, flags: 0x3, BitField: BitField{12, 4}}
 	ap_CReg_8_11           = &argField{Type: TypeCReg, flags: 0x4, BitField: BitField{8, 4}}
 	ap_CReg_12_15          = &argField{Type: TypeCReg, flags: 0x4, BitField: BitField{12, 4}}
+	ap_ImmSigned32_16_31   = &argField{Type: TypeImmSigned32, flags: 0x0, BitField: BitField{16, 16}}
 	ap_ImmUnsigned_24_27   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{24, 4}}
 	ap_ImmUnsigned_28_31   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{28, 4}}
 	ap_ImmUnsigned_16_23   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{16, 8}}
@@ -2706,21 +2707,21 @@ var instFormats = [...]instFormat{
 	{NC, 0xff00000000000000, 0xd400000000000000, 0x0, // AND (character) (NC D1(L1,B1),D2(B2))
 		[8]*argField{ap_DispUnsigned_20_31, ap_Len_8_15, ap_BaseReg_16_19, ap_DispUnsigned_36_47, ap_BaseReg_32_35}},
 	{NI, 0xff00000000000000, 0x9400000000000000, 0x0, // AND (immediate) (NI D1(B1),I2)
-		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
+		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
 	{NIY, 0xff00000000ff0000, 0xeb00000000540000, 0x0, // AND (immediate) (NIY D1(B1),I2)
-		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
+		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
 	{NIHH, 0xff0f000000000000, 0xa504000000000000, 0x0, // AND IMMEDIATE (high high) (NIHH R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{NIHL, 0xff0f000000000000, 0xa505000000000000, 0x0, // AND IMMEDIATE (high low) (NIHL R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{NIHF, 0xff0f000000000000, 0xc00a000000000000, 0x0, // AND IMMEDIATE (high) (NIHF R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{NILH, 0xff0f000000000000, 0xa506000000000000, 0x0, // AND IMMEDIATE (low high) (NILH R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{NILL, 0xff0f000000000000, 0xa507000000000000, 0x0, // AND IMMEDIATE (low low) (NILL R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{NILF, 0xff0f000000000000, 0xc00b000000000000, 0x0, // AND IMMEDIATE (low) (NILF R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{NCRK, 0xffff000000000000, 0xb9f5000000000000, 0xf0000000000, // AND WITH COMPLEMENT(32) (NCRK R1,R2,R3)
 		[8]*argField{ap_Reg_24_27, ap_Reg_28_31, ap_Reg_16_19}},
 	{NCGRK, 0xffff000000000000, 0xb9e5000000000000, 0xf0000000000, // AND WITH COMPLEMENT(64) (NCGRK R1,R2,R3)
@@ -3338,13 +3339,13 @@ var instFormats = [...]instFormat{
 	{XC, 0xff00000000000000, 0xd700000000000000, 0x0, // EXCLUSIVE OR (character) (XC D1(L1,B1),D2(B2))
 		[8]*argField{ap_DispUnsigned_20_31, ap_Len_8_15, ap_BaseReg_16_19, ap_DispUnsigned_36_47, ap_BaseReg_32_35}},
 	{XI, 0xff00000000000000, 0x9700000000000000, 0x0, // EXCLUSIVE OR (immediate) (XI D1(B1),I2)
-		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
+		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
 	{XIY, 0xff00000000ff0000, 0xeb00000000570000, 0x0, // EXCLUSIVE OR (immediate) (XIY D1(B1),I2)
-		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
+		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
 	{XIHF, 0xff0f000000000000, 0xc006000000000000, 0x0, // EXCLUSIVE OR IMMEDIATE (high) (XIHF R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{XILF, 0xff0f000000000000, 0xc007000000000000, 0x0, // EXCLUSIVE OR IMMEDIATE (low) (XILF R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{EX, 0xff00000000000000, 0x4400000000000000, 0x0, // EXECUTE (EX R1,D2(X2,B2))
 		[8]*argField{ap_Reg_8_11, ap_DispUnsigned_20_31, ap_IndexReg_12_15, ap_BaseReg_16_19}},
 	{EXRL, 0xff0f000000000000, 0xc600000000000000, 0x0, // EXECUTE RELATIVE LONG (EXRL R1,RI2)
@@ -3642,7 +3643,7 @@ var instFormats = [...]instFormat{
 	{LOCFHR, 0xffff000000000000, 0xb9e0000000000000, 0xf0000000000, // LOAD HIGH ON CONDITION (32) (LOCFHR R1,R2,M3)
 		[8]*argField{ap_Reg_24_27, ap_Reg_28_31, ap_Mask_16_19}},
 	{LGFI, 0xff0f000000000000, 0xc001000000000000, 0x0, // LOAD IMMEDIATE (64→32) (LGFI R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{LXDB, 0xff00000000ff0000, 0xed00000000050000, 0xff000000, // LOAD LENGTHENED (long to extended BFP) (LXDB R1,D2(X2,B2))
 		[8]*argField{ap_FPReg_8_11, ap_DispUnsigned_20_31, ap_IndexReg_12_15, ap_BaseReg_16_19}},
 	{LXDBR, 0xffff000000000000, 0xb305000000000000, 0xff0000000000, // LOAD LENGTHENED (long to extended BFP) (LXDBR R1,R2)
@@ -3706,17 +3707,17 @@ var instFormats = [...]instFormat{
 	{LLGHRL, 0xff0f000000000000, 0xc406000000000000, 0x0, // LOAD LOGICAL HALFWORD RELATIVE LONG(64→16) (LLGHRL R1,RI2)
 		[8]*argField{ap_Reg_8_11, ap_RegImSigned32_16_47}},
 	{LLIHH, 0xff0f000000000000, 0xa50c000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (high high) (LLIHH R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{LLIHL, 0xff0f000000000000, 0xa50d000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (high low) (LLIHL R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{LLIHF, 0xff0f000000000000, 0xc00e000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (high) (LLIHF R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{LLILH, 0xff0f000000000000, 0xa50e000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (low high) (LLILH R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{LLILL, 0xff0f000000000000, 0xa50f000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (low low) (LLILL R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{LLILF, 0xff0f000000000000, 0xc00f000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (low) (LLILF R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{LLGFRL, 0xff0f000000000000, 0xc40e000000000000, 0x0, // LOAD LOGICAL RELATIVE LONG (64→32) (LLGFRL R1,RI2)
 		[8]*argField{ap_Reg_8_11, ap_RegImSigned32_16_47}},
 	{LLGT, 0xff00000000ff0000, 0xe300000000170000, 0x0, // LOAD LOGICAL THIRTY ONE BITS (64→31) (LLGT R1,D2(X2,B2))
@@ -4016,9 +4017,9 @@ var instFormats = [...]instFormat{
 	{MGH, 0xff00000000ff0000, 0xe3000000003c0000, 0x0, // MULTIPLY HALFWORD (64→16) (MGH R1,D2(X2,B2))
 		[8]*argField{ap_Reg_8_11, ap_DispSigned20_20_39, ap_IndexReg_12_15, ap_BaseReg_16_19}},
 	{MHI, 0xff0f000000000000, 0xa70c000000000000, 0x0, // MULTIPLY HALFWORD IMMEDIATE (32→16) (MHI R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_31}},
 	{MGHI, 0xff0f000000000000, 0xa70d000000000000, 0x0, // MULTIPLY HALFWORD IMMEDIATE (64→16) (MGHI R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_31}},
 	{MLG, 0xff00000000ff0000, 0xe300000000860000, 0x0, // MULTIPLY LOGICAL (128→64) (MLG R1,D2(X2,B2))
 		[8]*argField{ap_Reg_8_11, ap_DispSigned20_20_39, ap_IndexReg_12_15, ap_BaseReg_16_19}},
 	{MLGR, 0xffff000000000000, 0xb986000000000000, 0xff0000000000, // MULTIPLY LOGICAL (128→64) (MLGR R1,R2)
@@ -4050,9 +4051,9 @@ var instFormats = [...]instFormat{
 	{MSGFR, 0xffff000000000000, 0xb91c000000000000, 0xff0000000000, // MULTIPLY SINGLE (64←32) (MSGFR R1,R2)
 		[8]*argField{ap_Reg_24_27, ap_Reg_28_31}},
 	{MSFI, 0xff0f000000000000, 0xc201000000000000, 0x0, // MULTIPLY SINGLE IMMEDIATE (32) (MSFI R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{MSGFI, 0xff0f000000000000, 0xc200000000000000, 0x0, // MULTIPLY SINGLE IMMEDIATE (64←32) (MSGFI R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{MYH, 0xff00000000ff0000, 0xed000000003d0000, 0xf000000, // MULTIPLY UNNORM. (long to ext. high HFP) (MYH R1,R3,D2(X2,B2))
 		[8]*argField{ap_FPReg_32_35, ap_FPReg_8_11, ap_DispUnsigned_20_31, ap_IndexReg_12_15, ap_BaseReg_16_19}},
 	{MYHR, 0xffff000000000000, 0xb33d000000000000, 0xf0000000000, // MULTIPLY UNNORM. (long to ext. high HFP) (MYHR R1,R3,R2)
@@ -4100,21 +4101,21 @@ var instFormats = [...]instFormat{
 	{OC, 0xff00000000000000, 0xd600000000000000, 0x0, // OR (character) (OC D1(L1,B1),D2(B2))
 		[8]*argField{ap_DispUnsigned_20_31, ap_Len_8_15, ap_BaseReg_16_19, ap_DispUnsigned_36_47, ap_BaseReg_32_35}},
 	{OI, 0xff00000000000000, 0x9600000000000000, 0x0, // OR (immediate) (OI D1(B1),I2)
-		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
+		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
 	{OIY, 0xff00000000ff0000, 0xeb00000000560000, 0x0, // OR (immediate) (OIY D1(B1),I2)
-		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
+		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
 	{OIHH, 0xff0f000000000000, 0xa508000000000000, 0x0, // OR IMMEDIATE (high high) (OIHH R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{OIHL, 0xff0f000000000000, 0xa509000000000000, 0x0, // OR IMMEDIATE (high low) (OIHL R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{OIHF, 0xff0f000000000000, 0xc00c000000000000, 0x0, // OR IMMEDIATE (high) (OIHF R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{OILH, 0xff0f000000000000, 0xa50a000000000000, 0x0, // OR IMMEDIATE (low high) (OILH R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{OILL, 0xff0f000000000000, 0xa50b000000000000, 0x0, // OR IMMEDIATE (low low) (OILL R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
 	{OILF, 0xff0f000000000000, 0xc00d000000000000, 0x0, // OR IMMEDIATE (low) (OILF R1,I2)
-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
+		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
 	{OCRK, 0xffff000000000000, 0xb975000000000000, 0xf0000000000, // OR WITH COMPLEMENT (32) (OCRK R1,R2,R3)
 		[8]*argField{ap_Reg_24_27, ap_Reg_28_31, ap_Reg_16_19}},
 	{OCGRK, 0xffff000000000000, 0xb965000000000000, 0xf0000000000, // OR WITH COMPLEMENT (64) (OCGRK R1,R2,R3)
@@ -4830,13 +4831,13 @@ var instFormats = [...]instFormat{
 	{VLEB, 0xff00000000ff0000, 0xe700000000000000, 0x0, // VECTOR LOAD ELEMENT (8) (VLEB V1,D2(X2,B2),M3)
 		[8]*argField{ap_VecReg_8_11, ap_DispUnsigned_20_31, ap_IndexReg_12_15, ap_BaseReg_16_19, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
 	{VLEIH, 0xff00000000ff0000, 0xe700000000410000, 0xf000000000000, // VECTOR LOAD ELEMENT IMMEDIATE (16) (VLEIH V1,I2,M3)
-		[8]*argField{ap_VecReg_8_11, ap_ImmUnsigned_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
+		[8]*argField{ap_VecReg_8_11, ap_ImmSigned16_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
 	{VLEIF, 0xff00000000ff0000, 0xe700000000430000, 0xf000000000000, // VECTOR LOAD ELEMENT IMMEDIATE (32) (VLEIF V1,I2,M3)
-		[8]*argField{ap_VecReg_8_11, ap_ImmUnsigned_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
+		[8]*argField{ap_VecReg_8_11, ap_ImmSigned16_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
 	{VLEIG, 0xff00000000ff0000, 0xe700000000420000, 0xf000000000000, // VECTOR LOAD ELEMENT IMMEDIATE (64) (VLEIG V1,I2,M3)
-		[8]*argField{ap_VecReg_8_11, ap_ImmUnsigned_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
+		[8]*argField{ap_VecReg_8_11, ap_ImmSigned16_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
 	{VLEIB, 0xff00000000ff0000, 0xe700000000400000, 0xf000000000000, // VECTOR LOAD ELEMENT IMMEDIATE (8) (VLEIB V1,I2,M3)
-		[8]*argField{ap_VecReg_8_11, ap_ImmUnsigned_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
+		[8]*argField{ap_VecReg_8_11, ap_ImmSigned16_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
 	{VLER, 0xff00000000ff0000, 0xe600000000070000, 0x0, // VECTOR LOAD ELEMENTS REVERSED (VLER V1,D2(X2,B2),M3)
 		[8]*argField{ap_VecReg_8_11, ap_DispUnsigned_20_31, ap_IndexReg_12_15, ap_BaseReg_16_19, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
 	{VFI, 0xff00000000ff0000, 0xe700000000c70000, 0xff0000000000, // VECTOR LOAD FP INTEGER (VFI V1,V2,M3,M4,M5)

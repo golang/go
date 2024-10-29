@@ -6,7 +6,6 @@ package s390xasm
 
 import (
 	"fmt"
-	"strings"
 )
 
 // A BitField is a bit-field in a 64-bit double word.
@@ -45,54 +44,4 @@ func (b BitField) Parse(i uint64) uint64 {
 func (b BitField) ParseSigned(i uint64) int64 {
 	u := int64(b.Parse(i))
 	return u << (64 - b.Bits) >> (64 - b.Bits)
-}
-
-// BitFields is a series of BitFields representing a single number.
-type BitFields []BitField
-
-func (bs BitFields) String() string {
-	ss := make([]string, len(bs))
-	for i, bf := range bs {
-		ss[i] = bf.String()
-	}
-	return fmt.Sprintf("<%s>", strings.Join(ss, "|"))
-}
-
-func (bs *BitFields) Append(b BitField) {
-	*bs = append(*bs, b)
-}
-
-// parse extracts the bitfields from i, concatenate them and return the result
-// as an unsigned integer and the total length of all the bitfields.
-// parse will panic if any bitfield in b is invalid, but it doesn't check if
-// the sequence of bitfields is reasonable.
-func (bs BitFields) parse(i uint64) (u uint64, Bits uint8) {
-	for _, b := range bs {
-		u = (u << b.Bits) | uint64(b.Parse(i))
-		Bits += b.Bits
-	}
-	return u, Bits
-}
-
-// Parse extracts the bitfields from i, concatenate them and return the result
-// as an unsigned integer. Parse will panic if any bitfield in b is invalid.
-func (bs BitFields) Parse(i uint64) uint64 {
-	u, _ := bs.parse(i)
-	return u
-}
-
-// ParseSigned extracts the bitfields from i, concatenate them and return the result
-// as a signed integer. Parse will panic if any bitfield in b is invalid.
-func (bs BitFields) ParseSigned(i uint64) int64 {
-	u, l := bs.parse(i)
-	return int64(u) << (64 - l) >> (64 - l)
-}
-
-// Count the number of bits in the aggregate BitFields
-func (bs BitFields) NumBits() int {
-	num := 0
-	for _, b := range bs {
-		num += int(b.Bits)
-	}
-	return num
 }

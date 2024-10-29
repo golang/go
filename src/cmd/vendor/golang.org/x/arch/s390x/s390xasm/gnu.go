@@ -280,6 +280,7 @@ func HandleExtndMnemonic(inst *Inst) string {
 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 2, Value2: 0, Value3: 0, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "vfcesb"},
 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 2, Value2: 0, Value3: 1, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "vfcesbs"},
 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 3, Value2: 0, Value3: 0, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "vfcedb"},
+		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 3, Value2: 0, Value3: 1, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "vfcedbs"},
 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 2, Value2: 8, Value3: 0, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "wfcesb"},
 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 2, Value2: 8, Value3: 1, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "wfcesbs"},
 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 3, Value2: 8, Value3: 0, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "wfcedb"},
@@ -453,8 +454,7 @@ func HandleExtndMnemonic(inst *Inst) string {
 	case "vavg", "vavgl", "verllv", "veslv", "vesrav", "vesrlv", "vgfm", "vgm", "vmx", "vmxl", "vmrh", "vmrl", "vmn", "vmnl", "vrep",
 		"vclz", "vctz", "vec", "vecl", "vlc", "vlp", "vpopct", "vrepi", "verim", "verll", "vesl", "vesra", "vesrl", "vgfma", "vlrep",
 		"vlgv", "vlvg", "vlbrrep", "vler", "vlbr", "vstbr", "vster", "vpk", "vme", "vmh", "vmle", "vmlh", "vmlo", "vml", "vmo", "vmae",
-		"vmale", "vmalo", "vmal", "vmah", "vmalh", "vmao", "vmph", "vmplh", "vupl", "vupll", "vscbi", "vs", "vsum", "vsumg", "vsumq",
-		"va", "vacc":
+		"vmale", "vmalo", "vmal", "vmah", "vmalh", "vmao", "vmph", "vmplh", "vupl", "vupll", "vscbi", "vs", "vsum", "vsumg", "vsumq", "va", "vacc":
 
 		switch opString {
 
@@ -569,16 +569,18 @@ func HandleExtndMnemonic(inst *Inst) string {
 					break
 				}
 			}
-		case "vsum", "vsumg":
-			for i := 1; i < len(vecInstrExtndMnics)-4; i++ {
-				if uint8(inst.Args[vecInstrExtndMnics[i].Offset].(Mask)) == vecInstrExtndMnics[i].Value {
-					newOpStr = opString + vecInstrExtndMnics[i].ExtnOpStr
-					removeArg(inst, int8(vecInstrExtndMnics[i].Offset))
-					break
-				}
+		case "vsum", "vsumg", "vsumq":
+			var off int
+			switch opString {
+			case "vsum":
+				off = 0
+			case "vsumg":
+				off = 1
+			case "vsumq":
+				off = 2
+
 			}
-		case "vsumq":
-			for i := 2; i < len(vecInstrExtndMnics)-2; i++ {
+			for i := off; i < len(vecInstrExtndMnics)-4+off; i++ {
 				if uint8(inst.Args[vecInstrExtndMnics[i].Offset].(Mask)) == vecInstrExtndMnics[i].Value {
 					newOpStr = opString + vecInstrExtndMnics[i].ExtnOpStr
 					removeArg(inst, int8(vecInstrExtndMnics[i].Offset))
@@ -668,8 +670,8 @@ func HandleExtndMnemonic(inst *Inst) string {
 
 	case "vac", "vaccc":
 		if uint8(inst.Args[4].(Mask)) == uint8(4) {
-			newOpStr = opString + vecInstrExtndMnics[3].ExtnOpStr
-			removeArg(inst, int8(3))
+			newOpStr = opString + vecInstrExtndMnics[4].ExtnOpStr
+			removeArg(inst, int8(4))
 		}
 
 	case "vceq", "vch", "vchl":

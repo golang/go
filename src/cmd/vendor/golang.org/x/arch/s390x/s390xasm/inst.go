@@ -12,9 +12,9 @@ import (
 
 type Inst struct {
 	Op   Op     // Opcode mnemonic
-	Enc  uint64 // Raw encoding bits (if Len == 8, this is the prefix word)
+	Enc  uint64 // Raw encoding bits
 	Len  int    // Length of encoding in bytes.
-	Args Args   // Instruction arguments, in Power ISA manual order.
+	Args Args   // Instruction arguments, in s390x ISA manual order.
 }
 
 func (i Inst) String(pc uint64) string {
@@ -26,19 +26,32 @@ func (i Inst) String(pc uint64) string {
 	}
 	mnemonic := HandleExtndMnemonic(&i)
 	buf.WriteString(fmt.Sprintf("%s", mnemonic))
-	for j, arg := range i.Args {
-		if arg == nil {
+	for j := 0; j < len(i.Args); j++ {
+		if i.Args[j] == nil {
 			break
 		}
+		str := i.Args[j].String(pc)
 		if j == 0 {
 			buf.WriteString(" ")
 		} else {
-			switch arg.(type) {
-			case VReg, Reg:
+			switch i.Args[j].(type) {
+			case VReg:
 				if _, ok := i.Args[j-1].(Disp12); ok {
-					buf.WriteString("")
+					buf.WriteString("(")
 				} else if _, ok := i.Args[j-1].(Disp20); ok {
-					buf.WriteString("")
+					buf.WriteString("(")
+				} else {
+					buf.WriteString(",")
+				}
+			case Reg:
+				if _, ok := i.Args[j-1].(Disp12); ok {
+					if str != "" {
+						buf.WriteString("(")
+					}
+				} else if _, ok := i.Args[j-1].(Disp20); ok {
+					if str != "" {
+						buf.WriteString("(")
+					}
 				} else {
 					buf.WriteString(",")
 				}
@@ -47,13 +60,34 @@ func (i Inst) String(pc uint64) string {
 					buf.WriteString(",")
 				} else if _, ok := i.Args[j-1].(Reg); ok {
 					buf.WriteString(",")
+				} else if _, ok := i.Args[j-1].(Disp12); ok {
+					if str != "" {
+						buf.WriteString("(")
+					}
+				} else if _, ok := i.Args[j-1].(Disp20); ok {
+					if str != "" {
+						buf.WriteString("(")
+					}
+				} else if _, ok := i.Args[j-1].(Len); ok {
+					buf.WriteString(",")
+				} else if _, ok := i.Args[j-1].(Index); ok {
+					if ((i.Args[j-1].String(pc)) != "") && str != "" {
+						str = "," + str
+					} else if str == "" {
+						str = ")"
+					}
 				}
 			case Index, Len:
+				if str != "" || (i.Args[j+1].String(pc)) != "" {
+					buf.WriteString("(")
+				} else {
+					j = j + 1
+				}
 			default:
 				buf.WriteString(",")
 			}
 		}
-		buf.WriteString(arg.String(pc))
+		buf.WriteString(str)
 		if rxb_check && i.Args[j+2] == nil {
 			break
 		}
@@ -145,7 +179,7 @@ func (r Index) String(pc uint64) string {
 	switch {
 	case X1 <= r && r <= X15:
 		s := "%"
-		return fmt.Sprintf("%sr%d,", s, int(r-X0))
+		return fmt.Sprintf("%sr%d", s, int(r-X0))
 	case X0 == r:
 		return fmt.Sprintf("")
 	default:
@@ -159,9 +193,9 @@ type Disp20 uint32
 func (Disp20) IsArg() {}
 func (r Disp20) String(pc uint64) string {
 	if (r>>19)&0x01 == 1 {
-		return fmt.Sprintf("%d(", int32(r|0xfff<<20))
+		return fmt.Sprintf("%d", int32(r|0xfff<<20))
 	} else {
-		return fmt.Sprintf("%d(", int32(r))
+		return fmt.Sprintf("%d", int32(r))
 	}
 }
 
@@ -170,7 +204,7 @@ type Disp12 uint16
 
 func (Disp12) IsArg() {}
 func (r Disp12) String(pc uint64) string {
-	return fmt.Sprintf("%d(", r)
+	return fmt.Sprintf("%d", r)
 }
 
 // RegIm12 represents an 12-bit Register immediate number.
@@ -395,5 +429,5 @@ type Len uint8
 
 func (Len) IsArg() {}
 func (i Len) String(pc uint64) string {
-	return fmt.Sprintf("%d,", uint16(i)+1)
+	return fmt.Sprintf("%d", uint16(i)+1)
 }
