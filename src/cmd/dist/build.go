@@ -1063,8 +1063,7 @@ func packagefile(pkg string) string {
 }
 
 // unixOS is the set of GOOS values matched by the "unix" build tag.
-// This is the same list as in go/build/syslist.go and
-// cmd/go/internal/imports/build.go.
+// This is the same list as in internal/syslist/syslist.go.
 var unixOS = map[string]bool{
 	"aix":       true,
 	"android":   true,
