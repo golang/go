@@ -36,11 +36,9 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
 		return sendFile(dstFD, src, nil, size)
 	}
 
-	// Darwin/FreeBSD/DragonFly/Solaris's sendfile implementation
-	// doesn't use the current position of the file --
-	// if you pass it offset 0, it starts from offset 0.
-	// There's no way to tell it "start from current position",
-	// so we have to manage that explicitly.
+	// Non-Linux sendfile implementations don't use the current position of the source file,
+	// so we need to look up the position, pass it explicitly, and adjust it after
+	// sendfile returns.
 	start, err := ignoringEINTR2(func() (int64, error) {
 		return syscall.Seek(src, 0, io.SeekCurrent)
 	})
@@ -48,36 +46,23 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
 		return 0, err, false
 	}
 
-	// Solaris requires us to pass a length to send,
-	// rather than accepting 0 as "send everything".
-	//
-	// Seek to the end of the source file to find its length.
-	//
-	// Important: If we ever remove this block
-	// (because Solaris has added a way to send everything, or we discovered a
-	// previously-unknown existing way),
-	// then some of the sendFile function will need updating.
-	//
-	// On Solaris, sendfile can return n>0 and EINVAL when successfully copying to a file.
-	// We ignore the EINVAL in this case.
-	//
-	// On non-Solaris platforms, when size==0 we call sendfile until it returns
-	// n==0 and success, indicating that it has copied the entire source file.
-	// If we were to do this on Solaris, then the final sendfile call could return (0, EINVAL),
-	// which we would treat as an error rather than successful completion of the copy.
-	// This never happens, because when size==0 on Solaris,
-	// we look up the actual file size here.
-	// If we change that, we need to handle the (0, EINVAL) case below.
 	mustReposition := false
-	if runtime.GOOS == "solaris" && size == 0 {
-		end, err := ignoringEINTR2(func() (int64, error) {
-			return syscall.Seek(src, 0, io.SeekEnd)
-		})
-		if err != nil {
-			return 0, err, false
+	switch runtime.GOOS {
+	case "solaris", "illumos":
+		// Solaris/illumos requires us to pass a length to send,
+		// rather than accepting 0 as "send everything".
+		//
+		// Seek to the end of the source file to find its length.
+		if size == 0 {
+			end, err := ignoringEINTR2(func() (int64, error) {
+				return syscall.Seek(src, 0, io.SeekEnd)
+			})
+			if err != nil {
+				return 0, err, false
+			}
+			size = end - start
+			mustReposition = true
 		}
-		size = end - start
-		mustReposition = true
 	}
 
 	pos := start
@@ -115,6 +100,22 @@ func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err
 		if n > 0 {
 			written += int64(n)
 		}
+
+		switch runtime.GOOS {
+		case "solaris", "illumos":
+			// A quirk on Solaris/illumos: sendfile() claims to support out_fd
+			// as a regular file but returns EINVAL when the out_fd
+			// is not a socket of SOCK_STREAM, while it actually sends
+			// out data anyway and updates the file offset.
+			//
+			// We ignore EINVAL if any sendfile call returned n > 0,
+			// to handle the case where the last call returns 0 to indicate
+			// no more data to send.
+			if err == syscall.EINVAL && written > 0 {
+				err = nil
+			}
+		}
+
 		switch err {
 		case nil:
 			// We're done if sendfile copied no bytes
@@ -158,18 +159,11 @@ func sendFileChunk(dst, src int, offset *int64, size int) (n int, err error) {
 	case "linux":
 		// The offset is always nil on Linux.
 		n, err = syscall.Sendfile(dst, src, offset, size)
-	case "solaris":
+	case "solaris", "illumos":
 		// Trust the offset, not the return value from sendfile.
 		start := *offset
 		n, err = syscall.Sendfile(dst, src, offset, size)
 		n = int(*offset - start)
-		// A quirk on Solaris: sendfile() claims to support out_fd
-		// as a regular file but returns EINVAL when the out_fd
-		// is not a socket of SOCK_STREAM, while it actually sends
-		// out data anyway and updates the file offset.
-		if err == syscall.EINVAL && n > 0 {
-			err = nil
-		}
 	default:
 		start := *offset
 		n, err = syscall.Sendfile(dst, src, offset, size)
