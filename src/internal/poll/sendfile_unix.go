@@ -96,10 +96,10 @@ func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err
 				return written, nil, true
 			}
 		case syscall.EAGAIN:
-			// Darwin can return EAGAIN with n > 0,
+			// *BSD and Darwin can return EAGAIN with n > 0,
 			// so check to see if the write has completed.
-			// So far as we know all other platforms only return EAGAIN when n == 0,
-			// but checking is harmless.
+			// So far as we know all other platforms only
+			// return EAGAIN when n == 0, but checking is harmless.
 			if size > 0 && written >= size {
 				return written, nil, true
 			}

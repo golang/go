@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"internal/poll"
 	"io"
+	"math/rand"
 	"os"
 	"runtime"
 	"strconv"
@@ -46,6 +47,7 @@ func expectSendfile(t *testing.T, wantConn Conn, f func()) {
 		called     bool
 		gotHandled bool
 		gotFD      *poll.FD
+		gotErr     error
 	)
 	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
 		if called {
@@ -54,6 +56,7 @@ func expectSendfile(t *testing.T, wantConn Conn, f func()) {
 		called = true
 		gotHandled = handled
 		gotFD = dstFD
+		gotErr = err
 	}
 	f()
 	if !called {
@@ -61,7 +64,7 @@ func expectSendfile(t *testing.T, wantConn Conn, f func()) {
 		return
 	}
 	if !gotHandled {
-		t.Error("internal/poll.SendFile did not handle the write, want it to")
+		t.Error("internal/poll.SendFile did not handle the write, want it to, error:", gotErr)
 		return
 	}
 	if &wantConn.(*TCPConn).fd.pfd != gotFD {
@@ -69,10 +72,33 @@ func expectSendfile(t *testing.T, wantConn Conn, f func()) {
 	}
 }
 
-func TestSendfile(t *testing.T)                        { testSendfile(t, 0) }
-func TestSendfileWithExactLimit(t *testing.T)          { testSendfile(t, newtonLen) }
-func TestSendfileWithLimitLargerThanFile(t *testing.T) { testSendfile(t, newtonLen*2) }
-func testSendfile(t *testing.T, limit int64) {
+func TestSendfile(t *testing.T) { testSendfile(t, newton, newtonSHA256, newtonLen, 0) }
+func TestSendfileWithExactLimit(t *testing.T) {
+	testSendfile(t, newton, newtonSHA256, newtonLen, newtonLen)
+}
+func TestSendfileWithLimitLargerThanFile(t *testing.T) {
+	testSendfile(t, newton, newtonSHA256, newtonLen, newtonLen*2)
+}
+func TestSendfileWithLargeFile(t *testing.T) {
+	// Some platforms are not capable of handling large files with sendfile
+	// due to limited system resource, so we only run this test on amd64 and
+	// arm64 for the moment.
+	if runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64" {
+		t.Skip("skipping on non-amd64 and non-arm64 platforms")
+	}
+	// Also skip it during short testing.
+	if testing.Short() {
+		t.Skip("Skip it during short testing")
+	}
+
+	// We're using 1<<31 - 1 as the chunk size for sendfile currently,
+	// make an edge case file that is 1 byte bigger than that.
+	f := createTempFile(t, 1<<31)
+	// For big file like this, only verify the transmission of the file,
+	// skip the content check.
+	testSendfile(t, f.Name(), "", 1<<31, 0)
+}
+func testSendfile(t *testing.T, filePath, fileHash string, size, limit int64) {
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
@@ -90,7 +116,7 @@ func testSendfile(t *testing.T, limit int64) {
 			defer close(errc)
 			defer conn.Close()
 
-			f, err := os.Open(newton)
+			f, err := os.Open(filePath)
 			if err != nil {
 				errc <- err
 				return
@@ -109,7 +135,7 @@ func testSendfile(t *testing.T, limit int64) {
 				expectSendfile(t, conn, func() {
 					if limit > 0 {
 						sbytes, err = io.CopyN(conn, f, limit)
-						if err == io.EOF && limit > newtonLen {
+						if err == io.EOF && limit > size {
 							err = nil
 						}
 					} else {
@@ -122,8 +148,8 @@ func testSendfile(t *testing.T, limit int64) {
 				return
 			}
 
-			if sbytes != newtonLen {
-				errc <- fmt.Errorf("sent %d bytes; expected %d", sbytes, newtonLen)
+			if sbytes != size {
+				errc <- fmt.Errorf("sent %d bytes; expected %d", sbytes, size)
 				return
 			}
 		}()
@@ -143,11 +169,11 @@ func testSendfile(t *testing.T, limit int64) {
 		t.Error(err)
 	}
 
-	if rbytes != newtonLen {
-		t.Errorf("received %d bytes; expected %d", rbytes, newtonLen)
+	if rbytes != size {
+		t.Errorf("received %d bytes; expected %d", rbytes, size)
 	}
 
-	if res := hex.EncodeToString(h.Sum(nil)); res != newtonSHA256 {
+	if len(fileHash) > 0 && hex.EncodeToString(h.Sum(nil)) != newtonSHA256 {
 		t.Error("retrieved data hash did not match")
 	}
 
@@ -552,7 +578,7 @@ type sendFileBench struct {
 
 func (bench sendFileBench) benchSendFile(b *testing.B) {
 	fileSize := b.N * bench.chunkSize
-	f := createTempFile(b, fileSize)
+	f := createTempFile(b, int64(fileSize))
 
 	client, server := spawnTestSocketPair(b, bench.proto)
 	defer server.Close()
@@ -578,25 +604,27 @@ func (bench sendFileBench) benchSendFile(b *testing.B) {
 	}
 }
 
-func createTempFile(b *testing.B, size int) *os.File {
-	f, err := os.CreateTemp(b.TempDir(), "sendfile-bench")
+func createTempFile(tb testing.TB, size int64) *os.File {
+	f, err := os.CreateTemp(tb.TempDir(), "sendfile-bench")
 	if err != nil {
-		b.Fatalf("failed to create temporary file: %v", err)
+		tb.Fatalf("failed to create temporary file: %v", err)
 	}
-	b.Cleanup(func() {
+	tb.Cleanup(func() {
 		f.Close()
 	})
 
-	data := make([]byte, size)
-	if _, err := f.Write(data); err != nil {
-		b.Fatalf("failed to create and feed the file: %v", err)
-	}
-	if err := f.Sync(); err != nil {
-		b.Fatalf("failed to save the file: %v", err)
+	if _, err := io.CopyN(f, newRandReader(tb), size); err != nil {
+		tb.Fatalf("failed to fill the file with random data: %v", err)
 	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		b.Fatalf("failed to rewind the file: %v", err)
+		tb.Fatalf("failed to rewind the file: %v", err)
 	}
 
 	return f
+}
+
+func newRandReader(tb testing.TB) io.Reader {
+	seed := time.Now().UnixNano()
+	tb.Logf("Deterministic RNG seed based on timestamp: 0x%x", seed)
+	return rand.New(rand.NewSource(seed))
 }
