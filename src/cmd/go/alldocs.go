@@ -2952,6 +2952,11 @@
 //
 //	<meta name="go-import" content="import-prefix vcs repo-root">
 //
+// Starting in Go 1.25, an optional subdirectory will be recognized by the
+// go command:
+//
+//	<meta name="go-import" content="import-prefix vcs repo-root subdir">
+//
 // The import-prefix is the import path corresponding to the repository
 // root. It must be a prefix or an exact match of the package being
 // fetched with "go get". If it's not an exact match, another http
@@ -2965,6 +2970,12 @@
 //
 // The repo-root is the root of the version control system
 // containing a scheme and not containing a .vcs qualifier.
+//
+// The subdir specifies the directory within the repo-root where the
+// Go module's root (including its go.mod file) is located. It allows
+// you to organize your repository with the Go module code in a subdirectory
+// rather than directly at the repository's root.
+// If set, all vcs tags must be prefixed with "subdir". i.e. "subdir/v1.2.3"
 //
 // For example,
 //
@@ -2980,8 +2991,15 @@
 //	<meta name="go-import" content="example.org git https://code.org/r/p/exproj">
 //
 // the go tool will verify that https://example.org/?go-get=1 contains the
-// same meta tag and then git clone https://code.org/r/p/exproj into
-// GOPATH/src/example.org.
+// same meta tag and then download the code from the Git repository at https://code.org/r/p/exproj
+//
+// If that page contains the meta tag
+//
+//	<meta name="go-import" content="example.org git https://code.org/r/p/exproj foo/subdir">
+//
+// the go tool will verify that https://example.org/?go-get=1 contains the same meta
+// tag and then download the code from the "foo/subdir" subdirectory within the Git repository
+// at https://code.org/r/p/exproj
 //
 // Downloaded packages are stored in the module cache.
 // See https://golang.org/ref/mod#module-cache.

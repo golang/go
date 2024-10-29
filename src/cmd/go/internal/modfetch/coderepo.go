@@ -59,9 +59,11 @@ type codeRepo struct {
 }
 
 // newCodeRepo returns a Repo that reads the source code for the module with the
-// given path, from the repo stored in code, with the root of the repo
-// containing the path given by codeRoot.
-func newCodeRepo(code codehost.Repo, codeRoot, path string) (Repo, error) {
+// given path, from the repo stored in code.
+// codeRoot gives the import path corresponding to the root of the repository,
+// and subdir gives the subdirectory within the repo containing the module.
+// If subdir is empty, the module is at the root of the repo.
+func newCodeRepo(code codehost.Repo, codeRoot, subdir, path string) (Repo, error) {
 	if !hasPathPrefix(path, codeRoot) {
 		return nil, fmt.Errorf("mismatched repo: found %s for %s", codeRoot, path)
 	}
@@ -108,12 +110,25 @@ func newCodeRepo(code codehost.Repo, codeRoot, path string) (Repo, error) {
 	//	pathMajor = .v2
 	//	pseudoMajor = v2
 	//
+	// Starting in 1.25, subdir may be passed in by the go-import meta tag.
+	// So it may be the case that:
+	//	path = github.com/rsc/foo/v2
+	//	codeRoot = github.com/rsc/foo
+	//	subdir = bar/subdir
+	//	pathPrefix = github.com/rsc/foo
+	//	pathMajor = /v2
+	//	pseudoMajor = v2
+	// which means that codeDir = bar/subdir
+
 	codeDir := ""
 	if codeRoot != path {
 		if !hasPathPrefix(pathPrefix, codeRoot) {
 			return nil, fmt.Errorf("repository rooted at %s cannot contain module %s", codeRoot, path)
 		}
 		codeDir = strings.Trim(pathPrefix[len(codeRoot):], "/")
+	}
+	if subdir != "" {
+		codeDir = filepath.ToSlash(filepath.Join(codeDir, subdir))
 	}
 
 	r := &codeRepo{

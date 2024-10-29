@@ -240,7 +240,7 @@ func LookupLocal(ctx context.Context, codeRoot string, path string, dir string) 
 			if err != nil {
 				return nil, err
 			}
-			r, err := newCodeRepo(code, codeRoot, path)
+			r, err := newCodeRepo(code, codeRoot, "", path)
 			if err == nil && traceRepo {
 				r = newLoggingRepo(r)
 			}
@@ -319,7 +319,7 @@ func lookupDirect(ctx context.Context, path string) (Repo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newCodeRepo(code, rr.Root, path)
+	return newCodeRepo(code, rr.Root, rr.SubDir, path)
 }
 
 func lookupCodeRepo(ctx context.Context, rr *vcs.RepoRoot, local bool) (codehost.Repo, error) {
