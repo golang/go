@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The file contains tests that cannot run under race detector for some reason.
+// The file contains tests that cannot run under race detector (or asan or msan) for some reason.
 //
-//go:build !race
+//go:build !race && !asan && !msan
 
 package runtime_test
 
@@ -23,7 +23,7 @@ func newOSProcCreated() {
 	newOSProcDone = true
 }
 
-// Can't be run with -race because it inserts calls into newOSProcCreated()
+// Can't be run with -race, -asan, or -msan because it inserts calls into newOSProcCreated()
 // that require a valid G/M.
 func TestNewOSProc0(t *testing.T) {
 	runtime.NewOSProc0(0x800000, unsafe.Pointer(abi.FuncPCABIInternal(newOSProcCreated)))
