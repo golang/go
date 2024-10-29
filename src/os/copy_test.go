@@ -98,7 +98,7 @@ func TestCopyFileToFile(t *testing.T) {
 	for _, srcStart := range []int64{0, 100, size} {
 		remaining := size - srcStart
 		for _, dstStart := range []int64{0, 200} {
-			for _, limit := range []int64{remaining, remaining - 100, size * 2} {
+			for _, limit := range []int64{remaining, remaining - 100, size * 2, 0} {
 				if limit < 0 {
 					continue
 				}

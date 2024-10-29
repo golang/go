@@ -30,9 +30,8 @@ import (
 func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool) {
 	if runtime.GOOS == "linux" {
 		// Linux's sendfile doesn't require any setup:
-		// It sends from the current position of the source file,
-		// updates the position of the source after sending,
-		// and sends everything when the size is 0.
+		// It sends from the current position of the source file and
+		// updates the position of the source after sending.
 		return sendFile(dstFD, src, nil, size)
 	}
 
@@ -46,28 +45,9 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
 		return 0, err, false
 	}
 
-	mustReposition := false
-	switch runtime.GOOS {
-	case "solaris", "illumos":
-		// Solaris/illumos requires us to pass a length to send,
-		// rather than accepting 0 as "send everything".
-		//
-		// Seek to the end of the source file to find its length.
-		if size == 0 {
-			end, err := ignoringEINTR2(func() (int64, error) {
-				return syscall.Seek(src, 0, io.SeekEnd)
-			})
-			if err != nil {
-				return 0, err, false
-			}
-			size = end - start
-			mustReposition = true
-		}
-	}
-
 	pos := start
 	n, err, handled = sendFile(dstFD, src, &pos, size)
-	if n > 0 || mustReposition {
+	if n > 0 {
 		ignoringEINTR2(func() (int64, error) {
 			return syscall.Seek(src, start+n, io.SeekStart)
 		})
@@ -91,9 +71,13 @@ func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err
 
 	dst := dstFD.Sysfd
 	for {
-		chunk := 0
+		// Some platforms support passing 0 to read to the end of the source,
+		// but all platforms support just writing a large value.
+		//
+		// Limit the maximum size to fit in an int32, to avoid any possible overflow.
+		chunk := 1<<31 - 1
 		if size > 0 {
-			chunk = int(size - written)
+			chunk = int(min(size-written, int64(chunk)))
 		}
 		var n int
 		n, err = sendFileChunk(dst, src, offset, chunk)
