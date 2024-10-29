@@ -199,11 +199,15 @@ var optabBase = []Optab{
 	{as: ARLDCL, a1: C_REG, a3: C_32CON, a6: C_REG, type_: 14, size: 4},
 	{as: AFADD, a1: C_FREG, a6: C_FREG, type_: 2, size: 4},
 	{as: AFADD, a1: C_FREG, a2: C_FREG, a6: C_FREG, type_: 2, size: 4},
+	{as: ADADDQ, a1: C_FREGP, a6: C_FREGP, type_: 2, size: 4},
+	{as: ADADDQ, a1: C_FREGP, a2: C_FREGP, a6: C_FREGP, type_: 2, size: 4},
 	{as: AFABS, a1: C_FREG, a6: C_FREG, type_: 33, size: 4},
 	{as: AFABS, a6: C_FREG, type_: 33, size: 4},
 	{as: AFMADD, a1: C_FREG, a2: C_FREG, a3: C_FREG, a6: C_FREG, type_: 34, size: 4},
 	{as: AFMUL, a1: C_FREG, a6: C_FREG, type_: 32, size: 4},
 	{as: AFMUL, a1: C_FREG, a2: C_FREG, a6: C_FREG, type_: 32, size: 4},
+	{as: ADMULQ, a1: C_FREGP, a6: C_FREGP, type_: 32, size: 4},
+	{as: ADMULQ, a1: C_FREGP, a2: C_FREGP, a6: C_FREGP, type_: 32, size: 4},
 
 	{as: AMOVBU, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
 	{as: AMOVBU, a1: C_REG, a6: C_XOREG, type_: 108, size: 4},
@@ -481,6 +485,8 @@ var optabBase = []Optab{
 	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_U16CON, type_: 70, size: 4},
 	{as: AFCMPO, a1: C_FREG, a6: C_FREG, type_: 70, size: 4},
 	{as: AFCMPO, a1: C_FREG, a2: C_CREG, a6: C_FREG, type_: 70, size: 4},
+	{as: ADCMPOQ, a1: C_FREGP, a6: C_FREGP, type_: 70, size: 4},
+	{as: ADCMPOQ, a1: C_FREGP, a2: C_CREG, a6: C_FREGP, type_: 70, size: 4},
 	{as: ATW, a1: C_32CON, a2: C_REG, a6: C_REG, type_: 60, size: 4},
 	{as: ATW, a1: C_32CON, a2: C_REG, a6: C_S16CON, type_: 61, size: 4},
 	{as: ADCBF, a1: C_SOREG, type_: 43, size: 4},
@@ -1876,6 +1882,10 @@ func buildop(ctxt *obj.Link) {
 			opset(ADDIV, r0)
 			opset(ADSUB, r0)
 
+		case ADADDQ:
+			opset(ADDIVQ, r0)
+			opset(ADSUBQ, r0)
+
 		case AFMADD:
 			opset(AFMADDCC, r0)
 			opset(AFMADDS, r0)
@@ -1901,8 +1911,16 @@ func buildop(ctxt *obj.Link) {
 			opset(AFMULSCC, r0)
 			opset(ADMUL, r0)
 
+		case ADMULQ:
+			opset(ADMULQ, r0)
+
 		case AFCMPO:
 			opset(AFCMPU, r0)
+			opset(ADCMPU, r0)
+			opset(ADCMPO, r0)
+
+		case ADCMPOQ:
+			opset(ADCMPUQ, r0)
 
 		case AMTFSB0:
 			opset(AMTFSB0CC, r0)
@@ -4008,6 +4026,22 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVCC(59, 34, 0, 0)
 	case ADSUB:
 		return OPVCC(59, 514, 0, 0)
+	case ADADDQ:
+		return OPVCC(63, 2, 0, 0)
+	case ADDIVQ:
+		return OPVCC(63, 546, 0, 0)
+	case ADMULQ:
+		return OPVCC(63, 34, 0, 0)
+	case ADSUBQ:
+		return OPVCC(63, 514, 0, 0)
+	case ADCMPU:
+		return OPVCC(59, 642, 0, 0)
+	case ADCMPUQ:
+		return OPVCC(63, 642, 0, 0)
+	case ADCMPO:
+		return OPVCC(59, 130, 0, 0)
+	case ADCMPOQ:
+		return OPVCC(63, 130, 0, 0)
 
 	case ADCBF:
 		return OPVCC(31, 86, 0, 0)
