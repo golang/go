@@ -80,26 +80,10 @@ func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err
 			chunk = int(min(size-written, int64(chunk)))
 		}
 		var n int
-		n, err = sendFileChunk(dst, src, offset, chunk)
+		n, err = sendFileChunk(dst, src, offset, chunk, written)
 		if n > 0 {
 			written += int64(n)
 		}
-
-		switch runtime.GOOS {
-		case "solaris", "illumos":
-			// A quirk on Solaris/illumos: sendfile() claims to support out_fd
-			// as a regular file but returns EINVAL when the out_fd
-			// is not a socket of SOCK_STREAM, while it actually sends
-			// out data anyway and updates the file offset.
-			//
-			// We ignore EINVAL if any sendfile call returned n > 0,
-			// to handle the case where the last call returns 0 to indicate
-			// no more data to send.
-			if err == syscall.EINVAL && written > 0 {
-				err = nil
-			}
-		}
-
 		switch err {
 		case nil:
 			// We're done if sendfile copied no bytes
@@ -123,8 +107,8 @@ func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err
 				return written, err, true
 			}
 		case syscall.EINTR:
-			// Ignore.
-		case syscall.ENOSYS, syscall.EINVAL, syscall.EOPNOTSUPP:
+			// Retry.
+		case syscall.ENOSYS, syscall.EOPNOTSUPP, syscall.EINVAL:
 			// ENOSYS indicates no kernel support for sendfile.
 			// EINVAL indicates a FD type which does not support sendfile.
 			//
@@ -138,7 +122,7 @@ func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err
 	}
 }
 
-func sendFileChunk(dst, src int, offset *int64, size int) (n int, err error) {
+func sendFileChunk(dst, src int, offset *int64, size int, written int64) (n int, err error) {
 	switch runtime.GOOS {
 	case "linux":
 		// The offset is always nil on Linux.
@@ -148,6 +132,21 @@ func sendFileChunk(dst, src int, offset *int64, size int) (n int, err error) {
 		start := *offset
 		n, err = syscall.Sendfile(dst, src, offset, size)
 		n = int(*offset - start)
+		// A quirk on Solaris/illumos: sendfile claims to support out_fd
+		// as a regular file but returns EINVAL when the out_fd
+		// is not a socket of SOCK_STREAM, while it actually sends
+		// out data anyway and updates the file offset.
+		//
+		// Another quirk: sendfile transfers data and returns EINVAL when being
+		// asked to transfer bytes more than the actual file size. For instance,
+		// the source file is wrapped in an io.LimitedReader with larger size
+		// than the actual file size.
+		//
+		// To handle these cases we ignore EINVAL if any call to sendfile was
+		// able to send data.
+		if err == syscall.EINVAL && (n > 0 || written > 0) {
+			err = nil
+		}
 	default:
 		start := *offset
 		n, err = syscall.Sendfile(dst, src, offset, size)
