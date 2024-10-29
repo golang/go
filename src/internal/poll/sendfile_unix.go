@@ -7,6 +7,7 @@
 package poll
 
 import (
+	"io"
 	"runtime"
 	"syscall"
 )
@@ -40,13 +41,8 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
 	// if you pass it offset 0, it starts from offset 0.
 	// There's no way to tell it "start from current position",
 	// so we have to manage that explicitly.
-	const (
-		seekStart   = 0
-		seekCurrent = 1
-		seekEnd     = 2
-	)
 	start, err := ignoringEINTR2(func() (int64, error) {
-		return syscall.Seek(src, 0, seekCurrent)
+		return syscall.Seek(src, 0, io.SeekCurrent)
 	})
 	if err != nil {
 		return 0, err, false
@@ -75,7 +71,7 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
 	mustReposition := false
 	if runtime.GOOS == "solaris" && size == 0 {
 		end, err := ignoringEINTR2(func() (int64, error) {
-			return syscall.Seek(src, 0, seekEnd)
+			return syscall.Seek(src, 0, io.SeekEnd)
 		})
 		if err != nil {
 			return 0, err, false
@@ -88,7 +84,7 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
 	n, err, handled = sendFile(dstFD, src, &pos, size)
 	if n > 0 || mustReposition {
 		ignoringEINTR2(func() (int64, error) {
-			return syscall.Seek(src, start+n, seekStart)
+			return syscall.Seek(src, start+n, io.SeekStart)
 		})
 	}
 	return n, err, handled
