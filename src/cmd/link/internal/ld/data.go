@@ -2240,12 +2240,12 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 	// from input files. Both are type sym.SELFGOT, so in that case
 	// we skip size comparison and do the name comparison instead
 	// (conveniently, .got sorts before .toc).
-	checkSize := symn != sym.SELFGOT
+	sortBySize := symn != sym.SELFGOT
 
 	for k, s := range syms {
 		ss := ldr.SymSize(s)
 		sl[k] = symNameSize{sz: ss, sym: s}
-		if !checkSize {
+		if !sortBySize {
 			sl[k].name = ldr.SymName(s)
 		}
 		ds := int64(len(ldr.Data(s)))
@@ -2286,15 +2286,16 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 				return true
 			case sj == head, si == tail:
 				return false
-			// put zerobase right after all the zero-sized symbols,
-			// so zero-sized symbols have the same address as zerobase.
-			case si == zerobase:
-				return jsz != 0 // zerobase < nonzero-sized
-			case sj == zerobase:
-				return isz == 0 // 0-sized < zerobase
 			}
-			if checkSize {
-				if isz != jsz {
+			if sortBySize {
+				switch {
+				// put zerobase right after all the zero-sized symbols,
+				// so zero-sized symbols have the same address as zerobase.
+				case si == zerobase:
+					return jsz != 0 // zerobase < nonzero-sized, zerobase > zero-sized
+				case sj == zerobase:
+					return isz == 0 // 0-sized < zerobase, nonzero-sized > zerobase
+				case isz != jsz:
 					return isz < jsz
 				}
 			} else {
@@ -2304,7 +2305,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 					return iname < jname
 				}
 			}
-			return si < sj
+			return si < sj // break ties by symbol number
 		})
 	} else {
 		// PCLNTAB was built internally, and already has the proper order.
