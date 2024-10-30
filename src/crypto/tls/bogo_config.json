@@ -12,7 +12,7 @@
 
         "TLS-ECH-Client-Reject-ResumeInnerSession-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled (we could possibly test this if we had the ability to indicate not to send ECH on resumption?)",
 
-        "TLS-ECH-Client-Reject-EarlyDataRejected": "We don't support switiching out ECH configs with this level of granularity",
+        "TLS-ECH-Client-Reject-EarlyDataRejected": "Go does not support early (0-RTT) data",
 
         "TLS-ECH-Client-NoNPN": "We don't support NPN",
 
@@ -30,8 +30,12 @@
         "TLS-ECH-Client-NoSupportedConfigs": "We don't support fallback to cleartext when there are no valid ECH configs",
         "TLS-ECH-Client-SkipInvalidPublicName": "We don't support fallback to cleartext when there are no valid ECH configs",
 
+        "TLS-ECH-Server-EarlyData": "Go does not support early (0-RTT) data",
+        "TLS-ECH-Server-EarlyDataRejected": "Go does not support early (0-RTT) data",
 
-        "*ECH-Server*": "no ECH server support",
+        "CurveTest-Client-Kyber-TLS13": "Temporarily disabled since the curve ID is not exposed and it cannot be correctly configured",
+        "CurveTest-Server-Kyber-TLS13": "Temporarily disabled since the curve ID is not exposed and it cannot be correctly configured",
+
         "SendV2ClientHello*": "We don't support SSLv2",
         "*QUIC*": "No QUIC support",
         "Compliance-fips*": "No FIPS",
@@ -229,5 +233,11 @@
         "EarlyData-UnexpectedHandshake-Server-TLS13": "TODO: first pass, this should be fixed",
         "EarlyData-CipherMismatch-Client-TLS13": "TODO: first pass, this should be fixed",
         "Resume-Server-UnofferedCipher-TLS13": "TODO: first pass, this should be fixed"
-    }
+    },
+    "AllCurves": [
+        23,
+        24,
+        25,
+        29
+    ]
 }

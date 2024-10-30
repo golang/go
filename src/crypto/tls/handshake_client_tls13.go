@@ -39,7 +39,7 @@ type clientHandshakeStateTLS13 struct {
 	masterSecret  *tls13.MasterSecret
 	trafficSecret []byte // client_application_traffic_secret_0
 
-	echContext *echContext
+	echContext *echClientContext
 }
 
 // handshake requires hs.c, hs.hello, hs.serverHello, hs.keyShareKeys, and,
@@ -105,7 +105,7 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 
 			if hs.serverHello.encryptedClientHello != nil {
 				c.sendAlert(alertUnsupportedExtension)
-				return errors.New("tls: unexpected encrypted_client_hello extension in server hello despite ECH being accepted")
+				return errors.New("tls: unexpected encrypted client hello extension in server hello despite ECH being accepted")
 			}
 
 			if hs.hello.serverName == "" && hs.serverHello.serverNameAck {
@@ -288,7 +288,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 	} else if hs.serverHello.encryptedClientHello != nil {
 		// Unsolicited ECH extension should be rejected
 		c.sendAlert(alertUnsupportedExtension)
-		return errors.New("tls: unexpected ECH extension in serverHello")
+		return errors.New("tls: unexpected encrypted client hello extension in serverHello")
 	}
 
 	// The only HelloRetryRequest extensions we support are key_share and
@@ -604,7 +604,7 @@ func (hs *clientHandshakeStateTLS13) readServerParameters() error {
 	}
 	if hs.echContext != nil && !hs.echContext.echRejected && encryptedExtensions.echRetryConfigs != nil {
 		c.sendAlert(alertUnsupportedExtension)
-		return errors.New("tls: server sent ECH retry configs after accepting ECH")
+		return errors.New("tls: server sent encrypted client hello retry configs after accepting encrypted client hello")
 	}
 
 	return nil

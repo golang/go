@@ -8,8 +8,10 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/internal/hpke"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -29,6 +31,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/cryptobyte"
 )
 
 var rsaCertPEM = `-----BEGIN CERTIFICATE-----
@@ -880,6 +884,10 @@ func TestCloneNonFuncFields(t *testing.T) {
 			f.Set(reflect.ValueOf(RenegotiateOnceAsClient))
 		case "EncryptedClientHelloConfigList":
 			f.Set(reflect.ValueOf([]byte{'x'}))
+		case "EncryptedClientHelloKeys":
+			f.Set(reflect.ValueOf([]EncryptedClientHelloKey{
+				{Config: []byte{1}, PrivateKey: []byte{1}},
+			}))
 		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys":
 			continue // these are unexported fields that are handled separately
 		default:
@@ -2072,6 +2080,120 @@ func TestLargeCertMsg(t *testing.T) {
 		},
 	}
 	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
-		t.Fatalf("unexpected failure :%s", err)
+		t.Fatalf("unexpected failure: %s", err)
+	}
+}
+
+func TestECH(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		DNSNames:     []string{"public.example"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+	publicCertDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicCert, err := x509.ParseCertificate(publicCertDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl.DNSNames[0] = "secret.example"
+	secretCertDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secretCert, err := x509.ParseCertificate(secretCertDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	marshalECHConfig := func(id uint8, pubKey []byte, publicName string, maxNameLen uint8) []byte {
+		builder := cryptobyte.NewBuilder(nil)
+		builder.AddUint16(extensionEncryptedClientHello)
+		builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+			builder.AddUint8(id)
+			builder.AddUint16(hpke.DHKEM_X25519_HKDF_SHA256) // The only DHKEM we support
+			builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+				builder.AddBytes(pubKey)
+			})
+			builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+				for _, aeadID := range sortedSupportedAEADs {
+					builder.AddUint16(hpke.KDF_HKDF_SHA256) // The only KDF we support
+					builder.AddUint16(aeadID)
+				}
+			})
+			builder.AddUint8(maxNameLen)
+			builder.AddUint8LengthPrefixed(func(builder *cryptobyte.Builder) {
+				builder.AddBytes([]byte(publicName))
+			})
+			builder.AddUint16(0) // extensions
+		})
+
+		return builder.BytesOrPanic()
+	}
+
+	echKey, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	echConfig := marshalECHConfig(123, echKey.PublicKey().Bytes(), "public.example", 32)
+
+	builder := cryptobyte.NewBuilder(nil)
+	builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+		builder.AddBytes(echConfig)
+	})
+	echConfigList := builder.BytesOrPanic()
+
+	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+	clientConfig.InsecureSkipVerify = false
+	clientConfig.Rand = rand.Reader
+	clientConfig.Time = nil
+	clientConfig.MinVersion = VersionTLS13
+	clientConfig.ServerName = "secret.example"
+	clientConfig.RootCAs = x509.NewCertPool()
+	clientConfig.RootCAs.AddCert(secretCert)
+	clientConfig.RootCAs.AddCert(publicCert)
+	clientConfig.EncryptedClientHelloConfigList = echConfigList
+	serverConfig.InsecureSkipVerify = false
+	serverConfig.Rand = rand.Reader
+	serverConfig.Time = nil
+	serverConfig.MinVersion = VersionTLS13
+	serverConfig.ServerName = "public.example"
+	serverConfig.Certificates = []Certificate{
+		{Certificate: [][]byte{publicCertDER}, PrivateKey: k},
+		{Certificate: [][]byte{secretCertDER}, PrivateKey: k},
+	}
+	serverConfig.EncryptedClientHelloKeys = []EncryptedClientHelloKey{
+		{Config: echConfig, PrivateKey: echKey.Bytes(), SendAsRetry: true},
+	}
+
+	ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("unexpected failure: %s", err)
+	}
+	if !ss.ECHAccepted {
+		t.Fatal("server ConnectionState shows ECH not accepted")
+	}
+	if !cs.ECHAccepted {
+		t.Fatal("client ConnectionState shows ECH not accepted")
+	}
+	if cs.ServerName != "secret.example" || ss.ServerName != "secret.example" {
+		t.Fatalf("unexpected ConnectionState.ServerName, want %q, got server:%q, client: %q", "secret.example", ss.ServerName, cs.ServerName)
+	}
+	if len(cs.VerifiedChains) != 1 {
+		t.Fatal("unexpect number of certificate chains")
+	}
+	if len(cs.VerifiedChains[0]) != 1 {
+		t.Fatal("unexpect number of certificates")
+	}
+	if !cs.VerifiedChains[0][0].Equal(secretCert) {
+		t.Fatal("unexpected certificate")
 	}
 }

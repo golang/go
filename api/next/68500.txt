@@ -1,0 +1,5 @@
+pkg crypto/tls, type Config struct, EncryptedClientHelloKeys []EncryptedClientHelloKey #68500
+pkg crypto/tls, type EncryptedClientHelloKey struct #68500
+pkg crypto/tls, type EncryptedClientHelloKey struct, Config []uint8 #68500
+pkg crypto/tls, type EncryptedClientHelloKey struct, PrivateKey []uint8 #68500
+pkg crypto/tls, type EncryptedClientHelloKey struct, SendAsRetry bool #68500

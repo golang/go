@@ -9,8 +9,10 @@ import (
 	"context"
 	"crypto"
 	"crypto/hmac"
+	"crypto/internal/fips140/hkdf"
 	"crypto/internal/fips140/mlkem"
 	"crypto/internal/fips140/tls13"
+	"crypto/internal/hpke"
 	"crypto/rsa"
 	"crypto/tls/internal/fips140tls"
 	"errors"
@@ -25,6 +27,18 @@ import (
 // attempt to validate. It will ignore the rest not to let cheap ClientHello
 // messages cause too much work in session ticket decryption attempts.
 const maxClientPSKIdentities = 5
+
+type echServerContext struct {
+	hpkeContext *hpke.Receipient
+	configID    uint8
+	ciphersuite echCipher
+	transcript  hash.Hash
+	// inner indicates that the initial client_hello we recieved contained an
+	// encrypted_client_hello extension that indicated it was an "inner" hello.
+	// We don't do any additional processing of the hello in this case, so all
+	// fields above are unset.
+	inner bool
+}
 
 type serverHandshakeStateTLS13 struct {
 	c               *Conn
@@ -44,6 +58,7 @@ type serverHandshakeStateTLS13 struct {
 	trafficSecret   []byte // client_application_traffic_secret_0
 	transcript      hash.Hash
 	clientFinished  []byte
+	echContext      *echServerContext
 }
 
 func (hs *serverHandshakeStateTLS13) handshake() error {
@@ -531,6 +546,22 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) 
 		selectedGroup:     selectedGroup,
 	}
 
+	if hs.echContext != nil {
+		// Compute the acceptance message.
+		helloRetryRequest.encryptedClientHello = make([]byte, 8)
+		confTranscript := cloneHash(hs.transcript, hs.suite.hash)
+		if err := transcriptMsg(helloRetryRequest, confTranscript); err != nil {
+			return nil, err
+		}
+		acceptConfirmation := tls13.ExpandLabel(hs.suite.hash.New,
+			hkdf.Extract(hs.suite.hash.New, hs.clientHello.random, nil),
+			"hrr ech accept confirmation",
+			confTranscript.Sum(nil),
+			8,
+		)
+		helloRetryRequest.encryptedClientHello = acceptConfirmation
+	}
+
 	if _, err := hs.c.writeHandshakeRecord(helloRetryRequest, hs.transcript); err != nil {
 		return nil, err
 	}
@@ -549,6 +580,45 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) 
 	if !ok {
 		c.sendAlert(alertUnexpectedMessage)
 		return nil, unexpectedMessageError(clientHello, msg)
+	}
+
+	if hs.echContext != nil {
+		if len(clientHello.encryptedClientHello) == 0 {
+			c.sendAlert(alertMissingExtension)
+			return nil, errors.New("tls: second client hello missing encrypted client hello extension")
+		}
+
+		echType, echCiphersuite, configID, encap, payload, err := parseECHExt(clientHello.encryptedClientHello)
+		if err != nil {
+			c.sendAlert(alertDecodeError)
+			return nil, errors.New("tls: client sent invalid encrypted client hello extension")
+		}
+
+		if echType == outerECHExt && hs.echContext.inner || echType == innerECHExt && !hs.echContext.inner {
+			c.sendAlert(alertDecodeError)
+			return nil, errors.New("tls: unexpected switch in encrypted client hello extension type")
+		}
+
+		if echType == outerECHExt {
+			if echCiphersuite != hs.echContext.ciphersuite || configID != hs.echContext.configID || len(encap) != 0 {
+				c.sendAlert(alertIllegalParameter)
+				return nil, errors.New("tls: second client hello encrypted client hello extension does not match")
+			}
+
+			encodedInner, err := decryptECHPayload(hs.echContext.hpkeContext, clientHello.original, payload)
+			if err != nil {
+				c.sendAlert(alertDecryptError)
+				return nil, errors.New("tls: failed to decrypt second client hello encrypted client hello extension payload")
+			}
+
+			echInner, err := decodeInnerClientHello(clientHello, encodedInner)
+			if err != nil {
+				c.sendAlert(alertIllegalParameter)
+				return nil, errors.New("tls: client sent invalid encrypted client hello extension")
+			}
+
+			clientHello = echInner
+		}
 	}
 
 	if len(clientHello.keyShares) != 1 {
@@ -638,9 +708,27 @@ func illegalClientHelloChange(ch, ch1 *clientHelloMsg) bool {
 func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 	c := hs.c
 
+	if hs.echContext != nil {
+		copy(hs.hello.random[32-8:], make([]byte, 8))
+		echTranscript := cloneHash(hs.transcript, hs.suite.hash)
+		echTranscript.Write(hs.clientHello.original)
+		if err := transcriptMsg(hs.hello, echTranscript); err != nil {
+			return err
+		}
+		// compute the acceptance message
+		acceptConfirmation := tls13.ExpandLabel(hs.suite.hash.New,
+			hkdf.Extract(hs.suite.hash.New, hs.clientHello.random, nil),
+			"ech accept confirmation",
+			echTranscript.Sum(nil),
+			8,
+		)
+		copy(hs.hello.random[32-8:], acceptConfirmation)
+	}
+
 	if err := transcriptMsg(hs.clientHello, hs.transcript); err != nil {
 		return err
 	}
+
 	if _, err := hs.c.writeHandshakeRecord(hs.hello, hs.transcript); err != nil {
 		return err
 	}
@@ -689,6 +777,16 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 		}
 		encryptedExtensions.quicTransportParameters = p
 		encryptedExtensions.earlyData = hs.earlyData
+	}
+
+	// If client sent ECH extension, but we didn't accept it,
+	// send retry configs, if available.
+	if len(hs.c.config.EncryptedClientHelloKeys) > 0 && len(hs.clientHello.encryptedClientHello) > 0 && hs.echContext == nil {
+		encryptedExtensions.echRetryConfigs, err = buildRetryConfigList(hs.c.config.EncryptedClientHelloKeys)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return err
+		}
 	}
 
 	if _, err := hs.c.writeHandshakeRecord(encryptedExtensions, hs.transcript); err != nil {
