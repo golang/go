@@ -722,6 +722,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		p.RegTo2 = v.Reg0()
 
+	case ssa.OpLOONG64LoweredAtomicExchange8Variant:
+		// AMSWAPDBB	Rarg1, (Rarg0), Rout
+		p := s.Prog(loong64.AAMSWAPDBB)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.RegTo2 = v.Reg0()
+
 	case ssa.OpLOONG64LoweredAtomicAdd32, ssa.OpLOONG64LoweredAtomicAdd64:
 		// AMADDx  Rarg1, (Rarg0), Rout
 		// ADDV    Rarg1, Rout, Rout

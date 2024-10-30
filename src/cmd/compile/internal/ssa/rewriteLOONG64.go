@@ -80,6 +80,9 @@ func rewriteValueLOONG64(v *Value) bool {
 	case OpAtomicExchange64:
 		v.Op = OpLOONG64LoweredAtomicExchange64
 		return true
+	case OpAtomicExchange8Variant:
+		v.Op = OpLOONG64LoweredAtomicExchange8Variant
+		return true
 	case OpAtomicLoad32:
 		v.Op = OpLOONG64LoweredAtomicLoad32
 		return true

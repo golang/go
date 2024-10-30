@@ -450,6 +450,7 @@
 (AtomicStorePtrNoWB ...) => (LoweredAtomicStore64 ...)
 
 (AtomicExchange(32|64) ...) => (LoweredAtomicExchange(32|64) ...)
+(AtomicExchange8Variant  ...) => (LoweredAtomicExchange8Variant  ...)
 
 (AtomicAdd(32|64) ...) => (LoweredAtomicAdd(32|64) ...)
 

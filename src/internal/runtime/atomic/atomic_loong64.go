@@ -26,6 +26,9 @@ func Xadd64(ptr *uint64, delta int64) uint64
 func Xadduintptr(ptr *uintptr, delta uintptr) uintptr
 
 //go:noescape
+func Xchg8(ptr *uint8, new uint8) uint8
+
+//go:noescape
 func Xchg(ptr *uint32, new uint32) uint32
 
 //go:noescape

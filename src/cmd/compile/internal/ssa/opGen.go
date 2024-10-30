@@ -1924,6 +1924,7 @@ const (
 	OpLOONG64LoweredAtomicStore64Variant
 	OpLOONG64LoweredAtomicExchange32
 	OpLOONG64LoweredAtomicExchange64
+	OpLOONG64LoweredAtomicExchange8Variant
 	OpLOONG64LoweredAtomicAdd32
 	OpLOONG64LoweredAtomicAdd64
 	OpLOONG64LoweredAtomicCas32
@@ -25841,6 +25842,22 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:            "LoweredAtomicExchange64",
+		argLen:          3,
+		resultNotInArgs: true,
+		faultOnNilArg0:  true,
+		hasSideEffects:  true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
+		name:            "LoweredAtomicExchange8Variant",
 		argLen:          3,
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,

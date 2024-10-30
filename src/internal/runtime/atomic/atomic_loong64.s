@@ -150,6 +150,44 @@ TEXT ·Xadd64(SB), NOSPLIT, $0-24
 	MOVV	R4, ret+16(FP)
 	RET
 
+// uint8 Xchg8(ptr *uint8, new uint8)
+// Atomically:
+//     old := *ptr;
+//     *ptr = new;
+//     return old;
+TEXT ·Xchg8(SB), NOSPLIT, $0-17
+	MOVV	ptr+0(FP), R4
+	MOVBU	new+8(FP), R5
+
+	// R6 = ((ptr & 3) * 8)
+	AND	$3, R4, R6
+	SLLV	$3, R6
+
+	// R7 = ((0xFF) << R6) ^ (-1)
+	MOVV	$0xFF, R8
+	SLLV	R6, R8, R7
+	XOR	$-1, R7
+
+	// R4 = ptr & (~3)
+	MOVV	$~3, R8
+	AND	R8, R4
+
+	// R5 = ((val) << R6)
+	SLLV	R6, R5
+
+	DBAR	$0x14	// LoadAcquire barrier
+_xchg8_again:
+	LL	(R4), R8
+	MOVV	R8, R9	// backup old val
+	AND	R7, R8
+	OR	R5, R8
+	SC	R8, (R4)
+	BEQ	R8, _xchg8_again
+	DBAR	$0x12	// StoreRelease barrier
+	SRLV	R6, R9, R9
+	MOVBU	R9, ret+16(FP)
+	RET
+
 // func Xchg(ptr *uint32, new uint32) uint32
 TEXT ·Xchg(SB), NOSPLIT, $0-20
 	MOVV	ptr+0(FP), R4
