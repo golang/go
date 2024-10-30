@@ -113,6 +113,9 @@ func WriteEmbed(v *ir.Name) {
 	}
 
 	files := embedFileList(v, kind)
+	if base.Errors() > 0 {
+		return
+	}
 	switch kind {
 	case embedString, embedBytes:
 		file := files[0]
