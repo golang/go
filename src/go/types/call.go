@@ -777,7 +777,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 		}
 	case builtin:
 		// types2 uses the position of '.' for the error
-		check.errorf(e.Sel, UncalledBuiltin, "cannot select on %s", x)
+		check.errorf(e.Sel, UncalledBuiltin, "invalid use of %s in selector expression", x)
 		goto Error
 	case invalid:
 		goto Error
