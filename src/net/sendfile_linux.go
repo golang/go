@@ -20,7 +20,7 @@ const supportsSendfile = true
 //
 // if handled == false, sendFile performed no work.
 func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
-	var remain int64 = 1<<63 - 1 // by default, copy until EOF
+	var remain int64 = 0 // 0 indicates sending until EOF
 
 	lr, ok := r.(*io.LimitedReader)
 	if ok {

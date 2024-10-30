@@ -17,7 +17,7 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
 
 // readFrom is basically a refactor of net.sendFile, but adapted to work for the target of *File.
 func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
-	var remain int64 = 0
+	var remain int64 = 0 // 0 indicates sending until EOF
 	lr, ok := r.(*io.LimitedReader)
 	if ok {
 		remain, r = lr.N, lr.R
