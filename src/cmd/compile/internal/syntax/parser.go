@@ -300,7 +300,11 @@ func tokstring(tok token) string {
 	case _Semi:
 		return "semicolon or newline"
 	}
-	return tok.String()
+	s := tok.String()
+	if _Break <= tok && tok <= _Var {
+		return "keyword " + s
+	}
+	return s
 }
 
 // Convenience methods using the current token position.
@@ -2337,7 +2341,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 	if p.tok != _Semi {
 		// accept potential varDecl but complain
 		if p.got(_Var) {
-			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", tokstring(keyword)))
+			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", keyword.String()))
 		}
 		init = p.simpleStmt(nil, keyword)
 		// If we have a range clause, we are done (can only happen for keyword == _For).
