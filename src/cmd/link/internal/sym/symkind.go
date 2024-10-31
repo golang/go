@@ -43,6 +43,10 @@ type SymKind uint8
 const (
 	Sxxx SymKind = iota
 	STEXT
+	STEXTFIPSSTART
+	STEXTFIPS
+	STEXTFIPSEND
+	STEXTEND
 	SELFRXSECT
 	SMACHOPLT
 
@@ -53,6 +57,10 @@ const (
 	SGOFUNC
 	SGCBITS
 	SRODATA
+	SRODATAFIPSSTART
+	SRODATAFIPS
+	SRODATAFIPSEND
+	SRODATAEND
 	SFUNCTAB
 
 	SELFROSECT
@@ -87,14 +95,23 @@ const (
 	// Writable sections.
 	SFirstWritable
 	SBUILDINFO
+	SFIPSINFO
 	SELFSECT
 	SMACHO
 	SMACHOGOT
 	SWINDOWS
 	SELFGOT
 	SNOPTRDATA
+	SNOPTRDATAFIPSSTART
+	SNOPTRDATAFIPS
+	SNOPTRDATAFIPSEND
+	SNOPTRDATAEND
 	SINITARR
 	SDATA
+	SDATAFIPSSTART
+	SDATAFIPS
+	SDATAFIPSEND
+	SDATAEND
 	SXCOFFTOC
 	SBSS
 	SNOPTRBSS
@@ -135,9 +152,13 @@ const (
 var AbiSymKindToSymKind = [...]SymKind{
 	objabi.Sxxx:                    Sxxx,
 	objabi.STEXT:                   STEXT,
+	objabi.STEXTFIPS:               STEXTFIPS,
 	objabi.SRODATA:                 SRODATA,
+	objabi.SRODATAFIPS:             SRODATAFIPS,
 	objabi.SNOPTRDATA:              SNOPTRDATA,
+	objabi.SNOPTRDATAFIPS:          SNOPTRDATAFIPS,
 	objabi.SDATA:                   SDATA,
+	objabi.SDATAFIPS:               SDATAFIPS,
 	objabi.SBSS:                    SBSS,
 	objabi.SNOPTRBSS:               SNOPTRBSS,
 	objabi.STLSBSS:                 STLSBSS,
@@ -166,6 +187,10 @@ var ReadOnly = []SymKind{
 	SGOFUNC,
 	SGCBITS,
 	SRODATA,
+	SRODATAFIPSSTART,
+	SRODATAFIPS,
+	SRODATAFIPSEND,
+	SRODATAEND,
 	SFUNCTAB,
 }
 

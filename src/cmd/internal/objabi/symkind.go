@@ -44,12 +44,16 @@ const (
 	Sxxx SymKind = iota
 	// Executable instructions
 	STEXT
+	STEXTFIPS
 	// Read only static data
 	SRODATA
+	SRODATAFIPS
 	// Static data that does not contain any pointers
 	SNOPTRDATA
+	SNOPTRDATAFIPS
 	// Static data
 	SDATA
+	SDATAFIPS
 	// Statically data that is initially all 0s
 	SBSS
 	// Statically data that is initially all 0s and does not contain pointers
