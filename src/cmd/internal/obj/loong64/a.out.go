@@ -477,6 +477,16 @@ const (
 	ABSTRPICKW
 	ABSTRPICKV
 
+	// 2.2.9. CRC Check Instructions
+	ACRCWBW
+	ACRCWHW
+	ACRCWWW
+	ACRCWVW
+	ACRCCWBW
+	ACRCCWHW
+	ACRCCWWW
+	ACRCCWVW
+
 	// 2.2.10. Other Miscellaneous Instructions
 	ARDTIMELW
 	ARDTIMEHW
