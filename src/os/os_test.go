@@ -2626,6 +2626,8 @@ func TestRemoveAllRace(t *testing.T) {
 // Test that reading from a pipe doesn't use up a thread.
 func TestPipeThreads(t *testing.T) {
 	switch runtime.GOOS {
+	case "aix":
+		t.Skip("skipping on aix; issue 70131")
 	case "illumos", "solaris":
 		t.Skip("skipping on Solaris and illumos; issue 19111")
 	case "windows":
