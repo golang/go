@@ -1400,7 +1400,7 @@ var defaultLocTests = []struct {
 	{"Add", func(t1, t2 Time) bool { return t1.Add(Hour).Equal(t2.Add(Hour)) }},
 	{"Sub", func(t1, t2 Time) bool { return t1.Sub(t2) == t2.Sub(t1) }},
 
-	//Original caus for this test case bug 15852
+	// Original cause for this test case bug 15852
 	{"AddDate", func(t1, t2 Time) bool { return t1.AddDate(1991, 9, 3) == t2.AddDate(1991, 9, 3) }},
 
 	{"UTC", func(t1, t2 Time) bool { return t1.UTC() == t2.UTC() }},
