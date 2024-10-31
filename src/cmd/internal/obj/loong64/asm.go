@@ -92,6 +92,9 @@ var optab = []Optab{
 	{AMOVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
 	{AMOVD, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
 
+	{AFMADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 39, 4, 0, 0},
+	{AFMADDF, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 39, 4, 0, 0},
+
 	{AMOVW, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
 	{AMOVWU, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
 	{AMOVV, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
@@ -1101,6 +1104,15 @@ func buildop(ctxt *obj.Link) {
 			opset(AFSCALEBF, r0)
 			opset(AFSCALEBD, r0)
 
+		case AFMADDF:
+			opset(AFMADDD, r0)
+			opset(AFMSUBF, r0)
+			opset(AFMSUBD, r0)
+			opset(AFNMADDF, r0)
+			opset(AFNMADDD, r0)
+			opset(AFNMSUBF, r0)
+			opset(AFNMSUBD, r0)
+
 		case AAND:
 			opset(AOR, r0)
 			opset(AXOR, r0)
@@ -1255,6 +1267,10 @@ func buildop(ctxt *obj.Link) {
 			}
 		}
 	}
+}
+
+func OP_RRRR(op uint32, r1 uint32, r2 uint32, r3 uint32, r4 uint32) uint32 {
+	return op | (r1&0x1F)<<15 | (r2&0x1F)<<10 | (r3&0x1F)<<5 | (r4 & 0x1F)
 }
 
 // r1 -> rk
@@ -1656,6 +1672,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o2 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
 		o3 = OP_12IRR(c.opirr(-p.As), uint32(v), uint32(REGTMP), uint32(p.To.Reg))
 
+	case 39: // fmadd r1, r2, [r3], r4
+		r := int(p.To.Reg)
+		if len(p.RestArgs) > 0 {
+			r = int(p.GetFrom3().Reg)
+		}
+		o1 = OP_RRRR(c.oprrrr(p.As), uint32(p.From.Reg), uint32(p.Reg), uint32(r), uint32(p.To.Reg))
+
 	case 40: // word
 		o1 = uint32(c.regoff(&p.From))
 
@@ -1868,6 +1891,30 @@ func (c *ctxt0) vregoff(a *obj.Addr) int64 {
 
 func (c *ctxt0) regoff(a *obj.Addr) int32 {
 	return int32(c.vregoff(a))
+}
+
+func (c *ctxt0) oprrrr(a obj.As) uint32 {
+	switch a {
+	case AFMADDF:
+		return 0x81 << 20 // fmadd.s
+	case AFMADDD:
+		return 0x82 << 20 // fmadd.d
+	case AFMSUBF:
+		return 0x85 << 20 // fmsub.s
+	case AFMSUBD:
+		return 0x86 << 20 // fmsub.d
+	case AFNMADDF:
+		return 0x89 << 20 // fnmadd.f
+	case AFNMADDD:
+		return 0x8a << 20 // fnmadd.d
+	case AFNMSUBF:
+		return 0x8d << 20 // fnmsub.s
+	case AFNMSUBD:
+		return 0x8e << 20 // fnmsub.d
+	}
+
+	c.ctxt.Diag("bad rrrr opcode %v", a)
+	return 0
 }
 
 func (c *ctxt0) oprrr(a obj.As) uint32 {
