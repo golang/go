@@ -608,6 +608,7 @@ func (it *Iter) Next() {
 
 	if it.m.writing != 0 {
 		fatal("concurrent map iteration and map write")
+		return
 	}
 
 	if it.dirIdx < 0 {

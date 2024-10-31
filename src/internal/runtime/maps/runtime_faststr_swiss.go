@@ -55,6 +55,7 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
 
 	if m.writing != 0 {
 		fatal("concurrent map read and map write")
+		return nil
 	}
 
 	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
@@ -112,6 +113,7 @@ func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsa
 
 	if m.writing != 0 {
 		fatal("concurrent map read and map write")
+		return nil, false
 	}
 
 	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)

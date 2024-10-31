@@ -27,6 +27,7 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
 
 	if m.writing != 0 {
 		fatal("concurrent map read and map write")
+		return nil
 	}
 
 	if m.dirLen == 0 {
@@ -91,6 +92,7 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
 
 	if m.writing != 0 {
 		fatal("concurrent map read and map write")
+		return nil, false
 	}
 
 	if m.dirLen == 0 {

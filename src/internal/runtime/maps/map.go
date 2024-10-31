@@ -560,6 +560,7 @@ func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Point
 	match = g.ctrls().matchEmptyOrDeleted()
 	if match == 0 {
 		fatal("small map with no empty slot (concurrent map writes?)")
+		return nil
 	}
 
 	i := match.first()
