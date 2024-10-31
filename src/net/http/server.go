@@ -2480,6 +2480,8 @@ func RedirectHandler(url string, code int) Handler {
 // ServeMux also takes care of sanitizing the URL request path and the Host
 // header, stripping the port number and redirecting any request containing . or
 // .. segments or repeated slashes to an equivalent, cleaner URL.
+// Escaped path elements such as "%2e" for "." and "%2f" for "/" are preserved
+// and aren't considered separators for request routing.
 //
 // # Compatibility
 //
