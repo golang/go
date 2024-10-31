@@ -4,7 +4,9 @@
 
 package textproto
 
-import "testing"
+import (
+	"testing"
+)
 
 type canonicalHeaderKeyTest struct {
 	in, out string
@@ -31,6 +33,17 @@ var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
 	// This caused a panic due to mishandling of a space:
 	{"C Ontent-Transfer-Encoding", "C Ontent-Transfer-Encoding"},
 	{"foo bar", "foo bar"},
+}
+
+func TestNilMapSetOrAdd(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("nil MIMEHeader caused panic: %v", r)
+		}
+	}()
+	var h MIMEHeader
+	h.Set("foo", "bar")
+	h.Add("biz", "boo")
 }
 
 func TestCanonicalMIMEHeaderKey(t *testing.T) {
