@@ -381,6 +381,8 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
 // Requires that the entry does not exist in the table, and that the table has
 // room for another element without rehashing.
 //
+// Requires that there are no deleted entries in the table.
+//
 // Never returns nil.
 func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
 	if t.growthLeft == 0 {
@@ -395,7 +397,7 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe
 	for ; ; seq = seq.next() {
 		g := t.groups.group(typ, seq.offset)
 
-		match := g.ctrls().matchEmpty()
+		match := g.ctrls().matchEmptyOrDeleted()
 		if match != 0 {
 			i := match.first()
 
@@ -414,9 +416,7 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe
 				slotElem = emem
 			}
 
-			if g.ctrls().get(i) == ctrlEmpty {
-				t.growthLeft--
-			}
+			t.growthLeft--
 			g.ctrls().set(i, ctrl(h2(hash)))
 			return slotElem
 		}

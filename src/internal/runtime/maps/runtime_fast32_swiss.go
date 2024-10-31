@@ -160,9 +160,10 @@ func (m *Map) putSlotSmallFast32(typ *abi.SwissMapType, hash uintptr, key uint32
 		match = match.removeFirst()
 	}
 
-	// No need to look for deleted slots, small maps can't have them (see
-	// deleteSmall).
-	match = g.ctrls().matchEmpty()
+	// There can't be deleted slots, small maps can't have them
+	// (see deleteSmall). Use matchEmptyOrDeleted as it is a bit
+	// more efficient than matchEmpty.
+	match = g.ctrls().matchEmptyOrDeleted()
 	if match == 0 {
 		fatal("small map with no empty slot (concurrent map writes?)")
 	}
