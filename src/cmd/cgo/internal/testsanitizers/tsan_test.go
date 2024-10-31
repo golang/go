@@ -8,6 +8,7 @@ package sanitizers_test
 
 import (
 	"internal/testenv"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -68,7 +69,16 @@ func TestTSAN(t *testing.T) {
 			outPath := dir.Join(name)
 			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
 
-			cmd := hangProneCmd(outPath)
+			cmdArgs := []string{outPath}
+			if goos == "linux" {
+				// Disable ASLR. See #59418.
+				arch, err := exec.Command("uname", "-m").Output()
+				if err != nil {
+					t.Fatalf("failed to run `uname -m`: %v", err)
+				}
+				cmdArgs = []string{"setarch", strings.TrimSpace(string(arch)), "-R", outPath}
+			}
+			cmd := hangProneCmd(cmdArgs[0], cmdArgs[1:]...)
 			if tc.needsRuntime {
 				config.skipIfRuntimeIncompatible(t)
 			}

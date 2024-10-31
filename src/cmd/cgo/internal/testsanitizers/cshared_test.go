@@ -11,6 +11,7 @@ import (
 	"internal/platform"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -90,7 +91,16 @@ func TestShared(t *testing.T) {
 			cmd.Args = append(cmd.Args, "-o", dstBin, cSrc, lib)
 			mustRun(t, cmd)
 
-			cmd = hangProneCmd(dstBin)
+			cmdArgs := []string{dstBin}
+			if tc.sanitizer == "thread" && GOOS == "linux" {
+				// Disable ASLR for TSAN. See #59418.
+				arch, err := exec.Command("uname", "-m").Output()
+				if err != nil {
+					t.Fatalf("failed to run `uname -m`: %v", err)
+				}
+				cmdArgs = []string{"setarch", strings.TrimSpace(string(arch)), "-R", dstBin}
+			}
+			cmd = hangProneCmd(cmdArgs[0], cmdArgs[1:]...)
 			replaceEnv(cmd, "LD_LIBRARY_PATH", ".")
 			mustRun(t, cmd)
 		})
