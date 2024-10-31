@@ -86,7 +86,7 @@ var optab = []Optab{
 	{AADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
 	{ACMPEQF, C_FREG, C_FREG, C_NONE, C_FCCREG, C_NONE, 2, 4, 0, 0},
 
-	{ACLO, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
+	{ACLOW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
 	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
 	{AMOVVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
 	{AMOVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
@@ -1207,8 +1207,26 @@ func buildop(ctxt *obj.Link) {
 			opset(ARDTIMEHW, r0)
 			opset(ARDTIMED, r0)
 
-		case ACLO:
-			opset(ACLZ, r0)
+		case ACLOW:
+			opset(ACLZW, r0)
+			opset(ACTOW, r0)
+			opset(ACTZW, r0)
+			opset(ACLOV, r0)
+			opset(ACLZV, r0)
+			opset(ACTOV, r0)
+			opset(ACTZV, r0)
+			opset(AREVB2H, r0)
+			opset(AREVB4H, r0)
+			opset(AREVB2W, r0)
+			opset(AREVBV, r0)
+			opset(AREVH2W, r0)
+			opset(AREVHV, r0)
+			opset(ABITREV4B, r0)
+			opset(ABITREV8B, r0)
+			opset(ABITREVW, r0)
+			opset(ABITREVV, r0)
+			opset(AEXTWB, r0)
+			opset(AEXTWH, r0)
 			opset(ACPUCFG, r0)
 
 		case ATEQ:
@@ -2023,10 +2041,46 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 
 func (c *ctxt0) oprr(a obj.As) uint32 {
 	switch a {
-	case ACLO:
-		return 0x4 << 10
-	case ACLZ:
-		return 0x5 << 10
+	case ACLOW:
+		return 0x4 << 10 // clo.w
+	case ACLZW:
+		return 0x5 << 10 // clz.w
+	case ACTOW:
+		return 0x6 << 10 // cto.w
+	case ACTZW:
+		return 0x7 << 10 // ctz.w
+	case ACLOV:
+		return 0x8 << 10 // clo.d
+	case ACLZV:
+		return 0x9 << 10 // clz.d
+	case ACTOV:
+		return 0xa << 10 // cto.d
+	case ACTZV:
+		return 0xb << 10 // ctz.d
+	case AREVB2H:
+		return 0xc << 10 // revb.2h
+	case AREVB4H:
+		return 0xd << 10 // revb.4h
+	case AREVB2W:
+		return 0xe << 10 // revb.2w
+	case AREVBV:
+		return 0xf << 10 // revb.d
+	case AREVH2W:
+		return 0x10 << 10 // revh.2w
+	case AREVHV:
+		return 0x11 << 10 // revh.d
+	case ABITREV4B:
+		return 0x12 << 10 // bitrev.4b
+	case ABITREV8B:
+		return 0x13 << 10 // bitrev.8b
+	case ABITREVW:
+		return 0x14 << 10 // bitrev.w
+	case ABITREVV:
+		return 0x15 << 10 // bitrev.d
+	case AEXTWH:
+		return 0x16 << 10 // ext.w.h
+	case AEXTWB:
+		return 0x17 << 10 // ext.w.h
 	case ACPUCFG:
 		return 0x1b << 10
 	case ARDTIMELW:
