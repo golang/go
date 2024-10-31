@@ -16,6 +16,6 @@ require (
 
 require (
 	github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 // indirect
-	golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 // indirect
+	golang.org/x/text v0.19.0 // indirect
 	rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef // indirect
 )
