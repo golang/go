@@ -79,3 +79,19 @@ const (
 	SSEHUNWINDINFO
 	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
 )
+
+// IsText reports whether t is one of the text kinds.
+func (t SymKind) IsText() bool {
+	return t == STEXT || t == STEXTFIPS
+}
+
+// IsDATA reports whether t is one of the DATA kinds (SDATA or SDATAFIPS,
+// excluding NOPTRDATA, RODATA, BSS, and so on).
+func (t SymKind) IsDATA() bool {
+	return t == SDATA || t == SDATAFIPS
+}
+
+// IsFIPS reports whether t is one fo the FIPS kinds.
+func (t SymKind) IsFIPS() bool {
+	return t == STEXTFIPS || t == SRODATAFIPS || t == SNOPTRDATAFIPS || t == SDATAFIPS
+}

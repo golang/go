@@ -2414,7 +2414,7 @@ func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.S
 		/* type */
 		var t uint8
 
-		if cgoexp && st == sym.STEXT {
+		if cgoexp && st.IsText() {
 			t = elf.ST_INFO(elf.STB_GLOBAL, elf.STT_FUNC)
 		} else {
 			t = elf.ST_INFO(elf.STB_GLOBAL, elf.STT_OBJECT)
@@ -2464,9 +2464,9 @@ func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.S
 		var t uint8
 
 		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
-		if target.Arch.Family == sys.I386 && cgoexp && st == sym.STEXT {
+		if target.Arch.Family == sys.I386 && cgoexp && st.IsText() {
 			t = elf.ST_INFO(elf.STB_GLOBAL, elf.STT_FUNC)
-		} else if target.Arch.Family == sys.ARM && cgoeDynamic && st == sym.STEXT {
+		} else if target.Arch.Family == sys.ARM && cgoeDynamic && st.IsText() {
 			t = elf.ST_INFO(elf.STB_GLOBAL, elf.STT_FUNC)
 		} else {
 			t = elf.ST_INFO(elf.STB_GLOBAL, elf.STT_OBJECT)

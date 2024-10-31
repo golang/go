@@ -1056,7 +1056,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 	// These symbols won't show up in the first loop below because we
 	// skip sym.STEXT symbols. Normal sym.STEXT symbols are emitted by walking textp.
 	s := ldr.Lookup("runtime.text", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		// We've already included this symbol in ctxt.Textp on AIX with external linker.
 		// See data.go:/textaddress
 		if !ctxt.IsExternal() {
@@ -1075,14 +1075,14 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 		if s == 0 {
 			break
 		}
-		if ldr.SymType(s) == sym.STEXT {
+		if ldr.SymType(s).IsText() {
 			putaixsym(ctxt, s, TextSym)
 		}
 		n++
 	}
 
 	s = ldr.Lookup("runtime.etext", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		// We've already included this symbol in ctxt.Textp
 		// on AIX with external linker.
 		// See data.go:/textaddress
@@ -1255,7 +1255,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 					break
 				}
 			}
-		} else if t := ldr.SymType(s); t == sym.SDATA || t == sym.SNOPTRDATA || t == sym.SBUILDINFO || t == sym.SXCOFFTOC {
+		} else if t := ldr.SymType(s); t.IsDATA() || t.IsNOPTRDATA() || t == sym.SBUILDINFO || t == sym.SXCOFFTOC {
 			switch ldr.SymSect(targ).Seg {
 			default:
 				ldr.Errorf(s, "unknown segment for .loader relocation with symbol %s", ldr.SymName(targ))
@@ -1327,7 +1327,7 @@ func (ctxt *Link) doxcoff() {
 				panic("cgo_export on static symbol")
 			}
 
-			if ldr.SymType(s) == sym.STEXT {
+			if ldr.SymType(s).IsText() {
 				// On AIX, an exported function must have two symbols:
 				// - a .text symbol which must start with a ".".
 				// - a .data symbol which is a function descriptor.

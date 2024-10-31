@@ -50,7 +50,7 @@ func (d *deadcodePass) init() {
 		n := d.ldr.NDef()
 		for i := 1; i < n; i++ {
 			s := loader.Sym(i)
-			if d.ldr.SymType(s) == sym.STEXT && d.ldr.SymSize(s) == 0 {
+			if d.ldr.SymType(s).IsText() && d.ldr.SymSize(s) == 0 {
 				// Zero-sized text symbol is a function deadcoded by the
 				// compiler. It doesn't really get compiled, and its
 				// metadata may be missing.

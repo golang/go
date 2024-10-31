@@ -866,7 +866,7 @@ func collectmachosyms(ctxt *Link) {
 	if !*FlagS {
 		if !ctxt.DynlinkingGo() {
 			s := ldr.Lookup("runtime.text", 0)
-			if ldr.SymType(s) == sym.STEXT {
+			if ldr.SymType(s).IsText() {
 				addsym(s)
 			}
 		}
@@ -880,7 +880,7 @@ func collectmachosyms(ctxt *Link) {
 		}
 		if !ctxt.DynlinkingGo() {
 			s := ldr.Lookup("runtime.etext", 0)
-			if ldr.SymType(s) == sym.STEXT {
+			if ldr.SymType(s).IsText() {
 				addsym(s)
 			}
 		}

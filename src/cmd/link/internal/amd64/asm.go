@@ -263,7 +263,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		return true
 
 	case objabi.R_PCREL:
-		if targType == sym.SDYNIMPORT && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
+		if targType == sym.SDYNIMPORT && ldr.SymType(s).IsText() && target.IsDarwin() {
 			// Loading the address of a dynamic symbol. Rewrite to use GOT.
 			// turn LEAQ symbol address to MOVQ of GOT entry
 			if r.Add() != 0 {
@@ -287,7 +287,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		}
 
 	case objabi.R_ADDR:
-		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
+		if ldr.SymType(s).IsText() && target.IsElf() {
 			su := ldr.MakeSymbolUpdater(s)
 			if target.IsSolaris() {
 				addpltsym(target, ldr, syms, targ)
@@ -349,7 +349,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// linking, in which case the relocation will be
 			// prepared in the 'reloc' phase and passed to the
 			// external linker in the 'asmb' phase.
-			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
+			if t := ldr.SymType(s); !t.IsDATA() && !t.IsRODATA() {
 				break
 			}
 		}

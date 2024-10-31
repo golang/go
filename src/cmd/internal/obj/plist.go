@@ -250,7 +250,7 @@ func (ctxt *Link) GloblPos(s *LSym, size int64, flag int, pos src.XPos) {
 	if flag&RODATA != 0 {
 		s.Type = objabi.SRODATA
 	} else if flag&NOPTR != 0 {
-		if s.Type == objabi.SDATA {
+		if s.Type.IsDATA() {
 			s.Type = objabi.SNOPTRDATA
 		} else {
 			s.Type = objabi.SNOPTRBSS

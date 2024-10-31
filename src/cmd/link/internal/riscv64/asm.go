@@ -174,7 +174,7 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
 				r.Type() != objabi.R_RISCV_PCREL_STYPE && r.Type() != objabi.R_RISCV_TLS_IE {
 				continue
 			}
-			if r.Off() == 0 && ldr.SymType(s) == sym.STEXT {
+			if r.Off() == 0 && ldr.SymType(s).IsText() {
 				// Use the symbol for the function instead of creating
 				// an overlapping symbol.
 				continue
@@ -206,7 +206,7 @@ func findHI20Symbol(ctxt *ld.Link, ldr *loader.Loader, val int64) loader.Sym {
 	if idx >= len(ctxt.Textp) {
 		return 0
 	}
-	if s := ctxt.Textp[idx]; ldr.SymValue(s) == val && ldr.SymType(s) == sym.STEXT {
+	if s := ctxt.Textp[idx]; ldr.SymValue(s) == val && ldr.SymType(s).IsText() {
 		return s
 	}
 	return 0

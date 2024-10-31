@@ -636,7 +636,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 		sb.SetValue(int64(elfsym.value))
 		sb.SetSize(int64(elfsym.size))
-		if sectsb.Type() == sym.STEXT {
+		if sectsb.Type().IsText() {
 			if l.AttrExternal(s) && !l.AttrDuplicateOK(s) {
 				return errorf("%s: duplicate symbol definition", sb.Name())
 			}
@@ -674,7 +674,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if l.SubSym(s) != 0 {
 			sb.SortSub()
 		}
-		if sb.Type() == sym.STEXT {
+		if sb.Type().IsText() {
 			if l.AttrOnList(s) {
 				return errorf("symbol %s listed multiple times",
 					l.SymName(s))

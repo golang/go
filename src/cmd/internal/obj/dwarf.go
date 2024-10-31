@@ -293,7 +293,7 @@ func isDwarf64(ctxt *Link) bool {
 }
 
 func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfDebugLines *LSym) {
-	if s.Type != objabi.STEXT {
+	if !s.Type.IsText() {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
 	fn := s.Func()

@@ -2748,7 +2748,7 @@ func Entryvalue(ctxt *Link) int64 {
 	if st == 0 {
 		return *FlagTextAddr
 	}
-	if !ctxt.IsAIX() && st != sym.STEXT {
+	if !ctxt.IsAIX() && !st.IsText() {
 		ldr.Errorf(s, "entry not text")
 	}
 	return ldr.SymValue(s)
@@ -2768,7 +2768,7 @@ func (ctxt *Link) callgraph() {
 			if rs == 0 {
 				continue
 			}
-			if r.Type().IsDirectCall() && ldr.SymType(rs) == sym.STEXT {
+			if r.Type().IsDirectCall() && ldr.SymType(rs).IsText() {
 				ctxt.Logf("%s calls %s\n", ldr.SymName(s), ldr.SymName(rs))
 			}
 		}

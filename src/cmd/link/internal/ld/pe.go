@@ -736,7 +736,7 @@ func (f *peFile) mapToPESection(ldr *loader.Loader, s loader.Sym, linkmode LinkM
 	if linkmode != LinkExternal {
 		return f.dataSect.index, int64(v), nil
 	}
-	if ldr.SymType(s) == sym.SDATA {
+	if ldr.SymType(s).IsDATA() {
 		return f.dataSect.index, int64(v), nil
 	}
 	// Note: although address of runtime.edata (type sym.SDATA) is at the start of .bss section
@@ -793,8 +793,8 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		name = mangleABIName(ctxt, ldr, s, name)
 
 		var peSymType uint16 = IMAGE_SYM_TYPE_NULL
-		switch t {
-		case sym.STEXT, sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
+		switch {
+		case t.IsText(), t == sym.SDYNIMPORT, t == sym.SHOSTOBJ, t == sym.SUNDEFEXT:
 			// Microsoft's PE documentation is contradictory. It says that the symbol's complex type
 			// is stored in the pesym.Type most significant byte, but MSVC, LLVM, and mingw store it
 			// in the 4 high bits of the less significant byte. Also, the PE documentation says that
@@ -828,11 +828,11 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 
 	// Add special runtime.text and runtime.etext symbols.
 	s := ldr.Lookup("runtime.text", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		addsym(s)
 	}
 	s = ldr.Lookup("runtime.etext", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		addsym(s)
 	}
 

@@ -1623,7 +1623,7 @@ func (l *Loader) Aux(i Sym, j int) Aux {
 // import statement.
 // (https://webassembly.github.io/spec/core/syntax/modules.html#imports)
 func (l *Loader) WasmImportSym(fnSymIdx Sym) Sym {
-	if l.SymType(fnSymIdx) != sym.STEXT {
+	if !l.SymType(fnSymIdx).IsText() {
 		log.Fatalf("error: non-function sym %d/%s t=%s passed to WasmImportSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
 	}
 	return l.aux1(fnSymIdx, goobj.AuxWasmImport)
@@ -1636,7 +1636,7 @@ func (l *Loader) WasmTypeSym(s Sym) Sym {
 // SEHUnwindSym returns the auxiliary SEH unwind symbol associated with
 // a given function symbol.
 func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
-	if l.SymType(fnSymIdx) != sym.STEXT {
+	if !l.SymType(fnSymIdx).IsText() {
 		log.Fatalf("error: non-function sym %d/%s t=%s passed to SEHUnwindSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
 	}
 
@@ -1649,7 +1649,7 @@ func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
 // lookups, e.f. for function with name XYZ we would then look up
 // go.info.XYZ, etc.
 func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, auxDwarfRanges, auxDwarfLines Sym) {
-	if l.SymType(fnSymIdx) != sym.STEXT {
+	if !l.SymType(fnSymIdx).IsText() {
 		log.Fatalf("error: non-function sym %d/%s t=%s passed to GetFuncDwarfAuxSyms", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
 	}
 	r, auxs := l.auxs(fnSymIdx)
@@ -2609,7 +2609,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			}
 			osym := r.Sym(i)
 			st := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
-			if st != sym.STEXT {
+			if !st.IsText() {
 				continue
 			}
 			dupok := osym.Dupok()

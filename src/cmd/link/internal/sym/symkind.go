@@ -206,11 +206,31 @@ var RelROMap = map[SymKind]SymKind{
 	SFUNCTAB:  SFUNCTABRELRO,
 }
 
-// IsData returns true if the type is a data type.
+// IsText returns true if t is a text type.
+func (t SymKind) IsText() bool {
+	return STEXT <= t && t <= STEXTEND
+}
+
+// IsData returns true if t is any kind of data type.
 func (t SymKind) IsData() bool {
-	return t == SDATA || t == SNOPTRDATA || t == SBSS || t == SNOPTRBSS
+	return SNOPTRDATA <= t && t <= SNOPTRBSS
+}
+
+// IsDATA returns true if t is one of the SDATA types.
+func (t SymKind) IsDATA() bool {
+	return SDATA <= t && t <= SDATAEND
+}
+
+// IsRODATA returns true if t is one of the SRODATA types.
+func (t SymKind) IsRODATA() bool {
+	return SRODATA <= t && t <= SRODATAEND
+}
+
+// IsNOPTRDATA returns true if t is one of the SNOPTRDATA types.
+func (t SymKind) IsNOPTRDATA() bool {
+	return SNOPTRDATA <= t && t <= SNOPTRDATAEND
 }
 
 func (t SymKind) IsDWARF() bool {
-	return t >= SDWARFSECT && t <= SDWARFLINES
+	return SDWARFSECT <= t && t <= SDWARFLINES
 }

@@ -158,7 +158,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 		sname = strings.Replace(sname, "·", ".", -1)
 	}
 
-	if ctxt.DynlinkingGo() && bind == elf.STB_GLOBAL && curbind == elf.STB_LOCAL && ldr.SymType(x) == sym.STEXT {
+	if ctxt.DynlinkingGo() && bind == elf.STB_GLOBAL && curbind == elf.STB_LOCAL && ldr.SymType(x).IsText() {
 		// When dynamically linking, we want references to functions defined
 		// in this module to always be to the function object, not to the
 		// PLT. We force this by writing an additional local symbol for every
@@ -202,7 +202,7 @@ func genelfsym(ctxt *Link, elfbind elf.SymBind) {
 		if s == 0 {
 			break
 		}
-		if ldr.SymType(s) != sym.STEXT {
+		if !ldr.SymType(s).IsText() {
 			panic("unexpected type for runtime.text symbol")
 		}
 		putelfsym(ctxt, s, elf.STT_FUNC, elfbind)
@@ -215,7 +215,7 @@ func genelfsym(ctxt *Link, elfbind elf.SymBind) {
 
 	// runtime.etext marker symbol.
 	s = ldr.Lookup("runtime.etext", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		putelfsym(ctxt, s, elf.STT_FUNC, elfbind)
 	}
 
@@ -315,11 +315,11 @@ func asmbPlan9Sym(ctxt *Link) {
 
 	// Add special runtime.text and runtime.etext symbols.
 	s := ldr.Lookup("runtime.text", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		putplan9sym(ctxt, ldr, s, TextSym)
 	}
 	s = ldr.Lookup("runtime.etext", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		putplan9sym(ctxt, ldr, s, TextSym)
 	}
 
@@ -871,8 +871,8 @@ func mangleABIName(ctxt *Link, ldr *loader.Loader, x loader.Sym, name string) st
 		return name
 	}
 
-	if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) != sym.SymVerABIInternal && ldr.SymVersion(x) < sym.SymVerStatic {
-		if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
+	if ldr.SymType(x).IsText() && ldr.SymVersion(x) != sym.SymVerABIInternal && ldr.SymVersion(x) < sym.SymVerStatic {
+		if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2).IsText() {
 			name = fmt.Sprintf("%s.abi%d", name, ldr.SymVersion(x))
 		}
 	}
@@ -883,7 +883,7 @@ func mangleABIName(ctxt *Link, ldr *loader.Loader, x loader.Sym, name string) st
 	// except symbols that are exported to C. Type symbols are always
 	// ABIInternal so they are not mangled.
 	if ctxt.IsShared() {
-		if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) == sym.SymVerABIInternal && !ldr.AttrCgoExport(x) && !strings.HasPrefix(name, "type:") {
+		if ldr.SymType(x).IsText() && ldr.SymVersion(x) == sym.SymVerABIInternal && !ldr.AttrCgoExport(x) && !strings.HasPrefix(name, "type:") {
 			name = fmt.Sprintf("%s.abiinternal", name)
 		}
 	}

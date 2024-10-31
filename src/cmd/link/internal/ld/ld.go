@@ -221,7 +221,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 		return nil, 0
 	}
 	amd := ctxt.loader.LookupOrCreateSym("runtime.addmoduledata", 0)
-	if ctxt.loader.SymType(amd) == sym.STEXT && ctxt.BuildMode != BuildModePlugin {
+	if ctxt.loader.SymType(amd).IsText() && ctxt.BuildMode != BuildModePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return nil, 0
