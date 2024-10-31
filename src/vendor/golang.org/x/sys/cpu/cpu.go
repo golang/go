@@ -201,6 +201,25 @@ var S390X struct {
 	_         CacheLinePad
 }
 
+// RISCV64 contains the supported CPU features and performance characteristics for riscv64
+// platforms. The booleans in RISCV64, with the exception of HasFastMisaligned, indicate
+// the presence of RISC-V extensions.
+//
+// It is safe to assume that all the RV64G extensions are supported and so they are omitted from
+// this structure. As riscv64 Go programs require at least RV64G, the code that populates
+// this structure cannot run successfully if some of the RV64G extensions are missing.
+// The struct is padded to avoid false sharing.
+var RISCV64 struct {
+	_                 CacheLinePad
+	HasFastMisaligned bool // Fast misaligned accesses
+	HasC              bool // Compressed instruction-set extension
+	HasV              bool // Vector extension compatible with RVV 1.0
+	HasZba            bool // Address generation instructions extension
+	HasZbb            bool // Basic bit-manipulation extension
+	HasZbs            bool // Single-bit instructions extension
+	_                 CacheLinePad
+}
+
 func init() {
 	archInit()
 	initOptions()

@@ -610,6 +610,7 @@ const (
 	POLLRDNORM   = 0x40
 	POLLWRBAND   = 0x100
 	POLLWRNORM   = 0x4
+	POLLRDHUP    = 0x4000
 )
 
 type CapRights struct {

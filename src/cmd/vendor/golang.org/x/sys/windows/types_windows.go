@@ -1060,6 +1060,7 @@ const (
 	SIO_GET_EXTENSION_FUNCTION_POINTER = IOC_INOUT | IOC_WS2 | 6
 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
+	SIO_UDP_NETRESET                   = IOC_IN | IOC_VENDOR | 15
 
 	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
 
@@ -2029,6 +2030,50 @@ const (
 	IF_TYPE_IEEE80211          = 71
 	IF_TYPE_TUNNEL             = 131
 	IF_TYPE_IEEE1394           = 144
+)
+
+// Enum NL_PREFIX_ORIGIN for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_prefix_origin
+const (
+	IpPrefixOriginOther               = 0
+	IpPrefixOriginManual              = 1
+	IpPrefixOriginWellKnown           = 2
+	IpPrefixOriginDhcp                = 3
+	IpPrefixOriginRouterAdvertisement = 4
+	IpPrefixOriginUnchanged           = 1 << 4
+)
+
+// Enum NL_SUFFIX_ORIGIN for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_suffix_origin
+const (
+	NlsoOther                      = 0
+	NlsoManual                     = 1
+	NlsoWellKnown                  = 2
+	NlsoDhcp                       = 3
+	NlsoLinkLayerAddress           = 4
+	NlsoRandom                     = 5
+	IpSuffixOriginOther            = 0
+	IpSuffixOriginManual           = 1
+	IpSuffixOriginWellKnown        = 2
+	IpSuffixOriginDhcp             = 3
+	IpSuffixOriginLinkLayerAddress = 4
+	IpSuffixOriginRandom           = 5
+	IpSuffixOriginUnchanged        = 1 << 4
+)
+
+// Enum NL_DAD_STATE for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_dad_state
+const (
+	NldsInvalid          = 0
+	NldsTentative        = 1
+	NldsDuplicate        = 2
+	NldsDeprecated       = 3
+	NldsPreferred        = 4
+	IpDadStateInvalid    = 0
+	IpDadStateTentative  = 1
+	IpDadStateDuplicate  = 2
+	IpDadStateDeprecated = 3
+	IpDadStatePreferred  = 4
 )
 
 type SocketAddress struct {

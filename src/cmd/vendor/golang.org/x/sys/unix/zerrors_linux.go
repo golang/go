@@ -495,6 +495,7 @@ const (
 	BPF_F_TEST_REG_INVARIANTS                   = 0x80
 	BPF_F_TEST_RND_HI32                         = 0x4
 	BPF_F_TEST_RUN_ON_CPU                       = 0x1
+	BPF_F_TEST_SKB_CHECKSUM_COMPLETE            = 0x4
 	BPF_F_TEST_STATE_FREQ                       = 0x8
 	BPF_F_TEST_XDP_LIVE_FRAMES                  = 0x2
 	BPF_F_XDP_DEV_BOUND_ONLY                    = 0x40
@@ -1922,6 +1923,7 @@ const (
 	MNT_EXPIRE                                  = 0x4
 	MNT_FORCE                                   = 0x1
 	MNT_ID_REQ_SIZE_VER0                        = 0x18
+	MNT_ID_REQ_SIZE_VER1                        = 0x20
 	MODULE_INIT_COMPRESSED_FILE                 = 0x4
 	MODULE_INIT_IGNORE_MODVERSIONS              = 0x1
 	MODULE_INIT_IGNORE_VERMAGIC                 = 0x2
@@ -2187,7 +2189,7 @@ const (
 	NFT_REG_SIZE                                = 0x10
 	NFT_REJECT_ICMPX_MAX                        = 0x3
 	NFT_RT_MAX                                  = 0x4
-	NFT_SECMARK_CTX_MAXLEN                      = 0x100
+	NFT_SECMARK_CTX_MAXLEN                      = 0x1000
 	NFT_SET_MAXNAMELEN                          = 0x100
 	NFT_SOCKET_MAX                              = 0x3
 	NFT_TABLE_F_MASK                            = 0x7
@@ -2356,9 +2358,11 @@ const (
 	PERF_MEM_LVLNUM_IO                          = 0xa
 	PERF_MEM_LVLNUM_L1                          = 0x1
 	PERF_MEM_LVLNUM_L2                          = 0x2
+	PERF_MEM_LVLNUM_L2_MHB                      = 0x5
 	PERF_MEM_LVLNUM_L3                          = 0x3
 	PERF_MEM_LVLNUM_L4                          = 0x4
 	PERF_MEM_LVLNUM_LFB                         = 0xc
+	PERF_MEM_LVLNUM_MSC                         = 0x6
 	PERF_MEM_LVLNUM_NA                          = 0xf
 	PERF_MEM_LVLNUM_PMEM                        = 0xe
 	PERF_MEM_LVLNUM_RAM                         = 0xd
@@ -2431,6 +2435,7 @@ const (
 	PRIO_PGRP                                   = 0x1
 	PRIO_PROCESS                                = 0x0
 	PRIO_USER                                   = 0x2
+	PROCFS_IOCTL_MAGIC                          = 'f'
 	PROC_SUPER_MAGIC                            = 0x9fa0
 	PROT_EXEC                                   = 0x4
 	PROT_GROWSDOWN                              = 0x1000000
@@ -2933,11 +2938,12 @@ const (
 	RUSAGE_SELF                                 = 0x0
 	RUSAGE_THREAD                               = 0x1
 	RWF_APPEND                                  = 0x10
+	RWF_ATOMIC                                  = 0x40
 	RWF_DSYNC                                   = 0x2
 	RWF_HIPRI                                   = 0x1
 	RWF_NOAPPEND                                = 0x20
 	RWF_NOWAIT                                  = 0x8
-	RWF_SUPPORTED                               = 0x3f
+	RWF_SUPPORTED                               = 0x7f
 	RWF_SYNC                                    = 0x4
 	RWF_WRITE_LIFE_NOT_SET                      = 0x0
 	SCHED_BATCH                                 = 0x3
@@ -3210,6 +3216,7 @@ const (
 	STATX_ATTR_MOUNT_ROOT                       = 0x2000
 	STATX_ATTR_NODUMP                           = 0x40
 	STATX_ATTR_VERITY                           = 0x100000
+	STATX_ATTR_WRITE_ATOMIC                     = 0x400000
 	STATX_BASIC_STATS                           = 0x7ff
 	STATX_BLOCKS                                = 0x400
 	STATX_BTIME                                 = 0x800
@@ -3226,6 +3233,7 @@ const (
 	STATX_SUBVOL                                = 0x8000
 	STATX_TYPE                                  = 0x1
 	STATX_UID                                   = 0x8
+	STATX_WRITE_ATOMIC                          = 0x10000
 	STATX__RESERVED                             = 0x80000000
 	SYNC_FILE_RANGE_WAIT_AFTER                  = 0x4
 	SYNC_FILE_RANGE_WAIT_BEFORE                 = 0x1
@@ -3624,6 +3632,7 @@ const (
 	XDP_UMEM_PGOFF_COMPLETION_RING              = 0x180000000
 	XDP_UMEM_PGOFF_FILL_RING                    = 0x100000000
 	XDP_UMEM_REG                                = 0x4
+	XDP_UMEM_TX_METADATA_LEN                    = 0x4
 	XDP_UMEM_TX_SW_CSUM                         = 0x2
 	XDP_UMEM_UNALIGNED_CHUNK_FLAG               = 0x1
 	XDP_USE_NEED_WAKEUP                         = 0x8

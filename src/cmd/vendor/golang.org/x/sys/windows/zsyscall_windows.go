@@ -247,7 +247,9 @@ var (
 	procGetCommandLineW                                      = modkernel32.NewProc("GetCommandLineW")
 	procGetComputerNameExW                                   = modkernel32.NewProc("GetComputerNameExW")
 	procGetComputerNameW                                     = modkernel32.NewProc("GetComputerNameW")
+	procGetConsoleCP                                         = modkernel32.NewProc("GetConsoleCP")
 	procGetConsoleMode                                       = modkernel32.NewProc("GetConsoleMode")
+	procGetConsoleOutputCP                                   = modkernel32.NewProc("GetConsoleOutputCP")
 	procGetConsoleScreenBufferInfo                           = modkernel32.NewProc("GetConsoleScreenBufferInfo")
 	procGetCurrentDirectoryW                                 = modkernel32.NewProc("GetCurrentDirectoryW")
 	procGetCurrentProcessId                                  = modkernel32.NewProc("GetCurrentProcessId")
@@ -347,8 +349,10 @@ var (
 	procSetCommMask                                          = modkernel32.NewProc("SetCommMask")
 	procSetCommState                                         = modkernel32.NewProc("SetCommState")
 	procSetCommTimeouts                                      = modkernel32.NewProc("SetCommTimeouts")
+	procSetConsoleCP                                         = modkernel32.NewProc("SetConsoleCP")
 	procSetConsoleCursorPosition                             = modkernel32.NewProc("SetConsoleCursorPosition")
 	procSetConsoleMode                                       = modkernel32.NewProc("SetConsoleMode")
+	procSetConsoleOutputCP                                   = modkernel32.NewProc("SetConsoleOutputCP")
 	procSetCurrentDirectoryW                                 = modkernel32.NewProc("SetCurrentDirectoryW")
 	procSetDefaultDllDirectories                             = modkernel32.NewProc("SetDefaultDllDirectories")
 	procSetDllDirectoryW                                     = modkernel32.NewProc("SetDllDirectoryW")
@@ -2162,9 +2166,27 @@ func GetComputerName(buf *uint16, n *uint32) (err error) {
 	return
 }
 
+func GetConsoleCP() (cp uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetConsoleCP.Addr(), 0, 0, 0, 0)
+	cp = uint32(r0)
+	if cp == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func GetConsoleMode(console Handle, mode *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetConsoleMode.Addr(), 2, uintptr(console), uintptr(unsafe.Pointer(mode)), 0)
 	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetConsoleOutputCP() (cp uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetConsoleOutputCP.Addr(), 0, 0, 0, 0)
+	cp = uint32(r0)
+	if cp == 0 {
 		err = errnoErr(e1)
 	}
 	return
@@ -3038,6 +3060,14 @@ func SetCommTimeouts(handle Handle, timeouts *CommTimeouts) (err error) {
 	return
 }
 
+func SetConsoleCP(cp uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetConsoleCP.Addr(), 1, uintptr(cp), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func setConsoleCursorPosition(console Handle, position uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procSetConsoleCursorPosition.Addr(), 2, uintptr(console), uintptr(position), 0)
 	if r1 == 0 {
@@ -3048,6 +3078,14 @@ func setConsoleCursorPosition(console Handle, position uint32) (err error) {
 
 func SetConsoleMode(console Handle, mode uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procSetConsoleMode.Addr(), 2, uintptr(console), uintptr(mode), 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func SetConsoleOutputCP(cp uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetConsoleOutputCP.Addr(), 1, uintptr(cp), 0, 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

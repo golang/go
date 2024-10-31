@@ -150,9 +150,14 @@ const (
 	NFDBITS                          = 0x20
 	NLDLY                            = 0x100
 	NOFLSH                           = 0x80
+	NS_GET_MNTNS_ID                  = 0x4008b705
 	NS_GET_NSTYPE                    = 0x2000b703
 	NS_GET_OWNER_UID                 = 0x2000b704
 	NS_GET_PARENT                    = 0x2000b702
+	NS_GET_PID_FROM_PIDNS            = 0x4004b706
+	NS_GET_PID_IN_PIDNS              = 0x4004b708
+	NS_GET_TGID_FROM_PIDNS           = 0x4004b707
+	NS_GET_TGID_IN_PIDNS             = 0x4004b709
 	NS_GET_USERNS                    = 0x2000b701
 	OLCUC                            = 0x2
 	ONLCR                            = 0x4

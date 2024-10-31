@@ -313,6 +313,10 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	SetConsoleMode(console Handle, mode uint32) (err error) = kernel32.SetConsoleMode
 //sys	GetConsoleScreenBufferInfo(console Handle, info *ConsoleScreenBufferInfo) (err error) = kernel32.GetConsoleScreenBufferInfo
 //sys	setConsoleCursorPosition(console Handle, position uint32) (err error) = kernel32.SetConsoleCursorPosition
+//sys	GetConsoleCP() (cp uint32, err error) = kernel32.GetConsoleCP
+//sys	GetConsoleOutputCP() (cp uint32, err error) = kernel32.GetConsoleOutputCP
+//sys	SetConsoleCP(cp uint32) (err error) = kernel32.SetConsoleCP
+//sys	SetConsoleOutputCP(cp uint32) (err error) = kernel32.SetConsoleOutputCP
 //sys	WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) = kernel32.WriteConsoleW
 //sys	ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) = kernel32.ReadConsoleW
 //sys	resizePseudoConsole(pconsole Handle, size uint32) (hr error) = kernel32.ResizePseudoConsole

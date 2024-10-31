@@ -237,6 +237,9 @@ const (
 	CLOCK_UPTIME_RAW_APPROX                 = 0x9
 	CLONE_NOFOLLOW                          = 0x1
 	CLONE_NOOWNERCOPY                       = 0x2
+	CONNECT_DATA_AUTHENTICATED              = 0x4
+	CONNECT_DATA_IDEMPOTENT                 = 0x2
+	CONNECT_RESUME_ON_READ_WRITE            = 0x1
 	CR0                                     = 0x0
 	CR1                                     = 0x1000
 	CR2                                     = 0x2000
@@ -1265,6 +1268,10 @@ const (
 	RTV_SSTHRESH                            = 0x20
 	RUSAGE_CHILDREN                         = -0x1
 	RUSAGE_SELF                             = 0x0
+	SAE_ASSOCID_ALL                         = 0xffffffff
+	SAE_ASSOCID_ANY                         = 0x0
+	SAE_CONNID_ALL                          = 0xffffffff
+	SAE_CONNID_ANY                          = 0x0
 	SCM_CREDS                               = 0x3
 	SCM_RIGHTS                              = 0x1
 	SCM_TIMESTAMP                           = 0x2

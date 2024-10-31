@@ -1295,6 +1295,48 @@ func GetsockoptTCPInfo(fd, level, opt int) (*TCPInfo, error) {
 	return &value, err
 }
 
+// GetsockoptTCPCCVegasInfo returns algorithm specific congestion control information for a socket using the "vegas"
+// algorithm.
+//
+// The socket's congestion control algorighm can be retrieved via [GetsockoptString] with the [TCP_CONGESTION] option:
+//
+//	algo, err := unix.GetsockoptString(fd, unix.IPPROTO_TCP, unix.TCP_CONGESTION)
+func GetsockoptTCPCCVegasInfo(fd, level, opt int) (*TCPVegasInfo, error) {
+	var value [SizeofTCPCCInfo / 4]uint32 // ensure proper alignment
+	vallen := _Socklen(SizeofTCPCCInfo)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
+	out := (*TCPVegasInfo)(unsafe.Pointer(&value[0]))
+	return out, err
+}
+
+// GetsockoptTCPCCDCTCPInfo returns algorithm specific congestion control information for a socket using the "dctp"
+// algorithm.
+//
+// The socket's congestion control algorighm can be retrieved via [GetsockoptString] with the [TCP_CONGESTION] option:
+//
+//	algo, err := unix.GetsockoptString(fd, unix.IPPROTO_TCP, unix.TCP_CONGESTION)
+func GetsockoptTCPCCDCTCPInfo(fd, level, opt int) (*TCPDCTCPInfo, error) {
+	var value [SizeofTCPCCInfo / 4]uint32 // ensure proper alignment
+	vallen := _Socklen(SizeofTCPCCInfo)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
+	out := (*TCPDCTCPInfo)(unsafe.Pointer(&value[0]))
+	return out, err
+}
+
+// GetsockoptTCPCCBBRInfo returns algorithm specific congestion control information for a socket using the "bbr"
+// algorithm.
+//
+// The socket's congestion control algorighm can be retrieved via [GetsockoptString] with the [TCP_CONGESTION] option:
+//
+//	algo, err := unix.GetsockoptString(fd, unix.IPPROTO_TCP, unix.TCP_CONGESTION)
+func GetsockoptTCPCCBBRInfo(fd, level, opt int) (*TCPBBRInfo, error) {
+	var value [SizeofTCPCCInfo / 4]uint32 // ensure proper alignment
+	vallen := _Socklen(SizeofTCPCCInfo)
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
+	out := (*TCPBBRInfo)(unsafe.Pointer(&value[0]))
+	return out, err
+}
+
 // GetsockoptString returns the string value of the socket option opt for the
 // socket associated with fd at the given socket level.
 func GetsockoptString(fd, level, opt int) (string, error) {
@@ -1959,7 +2001,26 @@ func Getpgrp() (pid int) {
 //sysnb	Getpid() (pid int)
 //sysnb	Getppid() (ppid int)
 //sys	Getpriority(which int, who int) (prio int, err error)
-//sys	Getrandom(buf []byte, flags int) (n int, err error)
+
+func Getrandom(buf []byte, flags int) (n int, err error) {
+	vdsoRet, supported := vgetrandom(buf, uint32(flags))
+	if supported {
+		if vdsoRet < 0 {
+			return 0, errnoErr(syscall.Errno(-vdsoRet))
+		}
+		return vdsoRet, nil
+	}
+	var p *byte
+	if len(buf) > 0 {
+		p = &buf[0]
+	}
+	r, _, e := Syscall(SYS_GETRANDOM, uintptr(unsafe.Pointer(p)), uintptr(len(buf)), uintptr(flags))
+	if e != 0 {
+		return 0, errnoErr(e)
+	}
+	return int(r), nil
+}
+
 //sysnb	Getrusage(who int, rusage *Rusage) (err error)
 //sysnb	Getsid(pid int) (sid int, err error)
 //sysnb	Gettid() (tid int)
