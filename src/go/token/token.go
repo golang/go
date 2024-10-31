@@ -213,7 +213,7 @@ var tokens = [...]string{
 	FOR:         "for",
 
 	FUNC:   "func",
-	GO:     "go",
+	GO:     "async",
 	GOTO:   "goto",
 	IF:     "if",
 	IMPORT: "import",
