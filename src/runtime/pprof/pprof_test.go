@@ -2545,19 +2545,34 @@ func TestProfilerStackDepth(t *testing.T) {
 			t.Logf("Profile = %v", p)
 
 			stks := profileStacks(p)
-			var stk []string
-			for _, s := range stks {
-				if hasPrefix(s, test.prefix) {
-					stk = s
-					break
+			var matchedStacks [][]string
+			for _, stk := range stks {
+				if !hasPrefix(stk, test.prefix) {
+					continue
 				}
+				// We may get multiple stacks which contain the prefix we want, but
+				// which might not have enough frames, e.g. if the profiler hides
+				// some leaf frames that would count against the stack depth limit.
+				// Check for at least one match
+				matchedStacks = append(matchedStacks, stk)
+				if len(stk) != depth {
+					continue
+				}
+				if rootFn, wantFn := stk[depth-1], "runtime/pprof.produceProfileEvents"; rootFn != wantFn {
+					continue
+				}
+				// Found what we wanted
+				return
 			}
-			if len(stk) != depth {
-				t.Fatalf("want stack depth = %d, got %d", depth, len(stk))
-			}
+			for _, stk := range matchedStacks {
+				t.Logf("matched stack=%s", stk)
+				if len(stk) != depth {
+					t.Errorf("want stack depth = %d, got %d", depth, len(stk))
+				}
 
-			if rootFn, wantFn := stk[depth-1], "runtime/pprof.produceProfileEvents"; rootFn != wantFn {
-				t.Fatalf("want stack stack root %s, got %v", wantFn, rootFn)
+				if rootFn, wantFn := stk[depth-1], "runtime/pprof.produceProfileEvents"; rootFn != wantFn {
+					t.Errorf("want stack stack root %s, got %v", wantFn, rootFn)
+				}
 			}
 		})
 	}
