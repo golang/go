@@ -534,7 +534,7 @@ func (f *xcoffFile) getXCOFFscnum(sect *sym.Section) int16 {
 	case &Segrelrodata:
 		return f.sectNameToScnum[".data"]
 	}
-	Errorf(nil, "getXCOFFscnum not implemented for section %s", sect.Name)
+	Errorf("getXCOFFscnum not implemented for section %s", sect.Name)
 	return -1
 }
 
@@ -545,11 +545,11 @@ func Xcoffinit(ctxt *Link) {
 
 	HEADR = int32(Rnd(XCOFFHDRRESERVE, XCOFFSECTALIGN))
 	if *FlagRound != -1 {
-		Errorf(nil, "-R not available on AIX")
+		Errorf("-R not available on AIX")
 	}
 	*FlagRound = XCOFFSECTALIGN
 	if *FlagTextAddr != -1 {
-		Errorf(nil, "-T not available on AIX")
+		Errorf("-T not available on AIX")
 	}
 	*FlagTextAddr = Rnd(XCOFFTEXTBASE, *FlagRound) + int64(HEADR)
 }
@@ -583,7 +583,7 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 	ldr := ctxt.loader
 	switch stype {
 	default:
-		Errorf(nil, "unknown XCOFF outer symbol for type %s", stype.String())
+		Errorf("unknown XCOFF outer symbol for type %s", stype.String())
 	case sym.SRODATA, sym.SRODATARELRO, sym.SFUNCTAB, sym.SSTRING:
 		// Nothing to do
 	case sym.STYPERELRO:
@@ -1046,7 +1046,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 	for name, size := range outerSymSize {
 		sym := ldr.Lookup(name, 0)
 		if sym == 0 {
-			Errorf(nil, "unknown outer symbol with name %s", name)
+			Errorf("unknown outer symbol with name %s", name)
 		} else {
 			s := ldr.MakeSymbolUpdater(sym)
 			s.SetSize(size)
@@ -1767,7 +1767,7 @@ dwarfLoop:
 				continue dwarfLoop
 			}
 		}
-		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
+		Errorf("emitRelocations: could not find %q section", sect.Name)
 	}
 }
 
@@ -1802,7 +1802,7 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 
 	err := os.WriteFile(fname, buf.Bytes(), 0666)
 	if err != nil {
-		Errorf(nil, "WriteFile %s failed: %v", fname, err)
+		Errorf("WriteFile %s failed: %v", fname, err)
 	}
 
 	return fname

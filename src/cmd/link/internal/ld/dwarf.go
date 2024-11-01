@@ -480,7 +480,7 @@ func (d *dwctxt) dotypedef(parent *dwarf.DWDie, name string, def *dwarf.DWDie) *
 		return nil
 	}
 	if def == nil {
-		Errorf(nil, "dwarf: bad def in dotypedef")
+		Errorf("dwarf: bad def in dotypedef")
 	}
 
 	// Create a new loader symbol for the typedef. We no longer

@@ -358,7 +358,7 @@ type peSection struct {
 // checkOffset verifies COFF section sect offset in the file.
 func (sect *peSection) checkOffset(off int64) {
 	if off != int64(sect.pointerToRawData) {
-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(off))
+		Errorf("%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(off))
 		errorexit()
 	}
 }
@@ -367,11 +367,11 @@ func (sect *peSection) checkOffset(off int64) {
 // and file offset provided in segment seg.
 func (sect *peSection) checkSegment(seg *sym.Segment) {
 	if seg.Vaddr-uint64(PEBASE) != uint64(sect.virtualAddress) {
-		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(seg.Vaddr-uint64(PEBASE))))
+		Errorf("%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(seg.Vaddr-uint64(PEBASE))))
 		errorexit()
 	}
 	if seg.Fileoff != uint64(sect.pointerToRawData) {
-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(int64(seg.Fileoff)))
+		Errorf("%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(int64(seg.Fileoff)))
 		errorexit()
 	}
 }
@@ -669,7 +669,7 @@ dwarfLoop:
 				continue dwarfLoop
 			}
 		}
-		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
+		Errorf("emitRelocations: could not find %q section", sect.Name)
 	}
 
 	if f.ctorsSect == nil {
@@ -1548,7 +1548,7 @@ func (rt *peBaseRelocTable) write(ctxt *Link) {
 
 	// .reloc section must be 32-bit aligned
 	if out.Offset()&3 != 0 {
-		Errorf(nil, "internal error, start of .reloc not 32-bit aligned")
+		Errorf("internal error, start of .reloc not 32-bit aligned")
 	}
 
 	for _, p := range rt.pages {
@@ -1650,7 +1650,7 @@ func (ctxt *Link) dope() {
 
 func setpersrc(ctxt *Link, syms []loader.Sym) {
 	if len(rsrcsyms) != 0 {
-		Errorf(nil, "too many .rsrc sections")
+		Errorf("too many .rsrc sections")
 	}
 	rsrcsyms = syms
 }

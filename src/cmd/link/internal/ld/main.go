@@ -226,7 +226,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		windowsgui = true
 	default:
 		if err := ctxt.HeadType.Set(*flagHeadType); err != nil {
-			Errorf(nil, "%v", err)
+			Errorf("%v", err)
 			usage()
 		}
 	}
@@ -235,7 +235,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 
 	if !*flagAslr && ctxt.BuildMode != BuildModeCShared {
-		Errorf(nil, "-aslr=false is only allowed for -buildmode=c-shared")
+		Errorf("-aslr=false is only allowed for -buildmode=c-shared")
 		usage()
 	}
 
@@ -307,7 +307,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		} else if *benchmarkFlag == "cpu" {
 			bench = benchmark.New(benchmark.NoGC, *benchmarkFileFlag)
 		} else {
-			Errorf(nil, "unknown benchmark flag: %q", *benchmarkFlag)
+			Errorf("unknown benchmark flag: %q", *benchmarkFlag)
 			usage()
 		}
 	}

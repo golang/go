@@ -559,7 +559,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 	if sect.Vaddr < sect.Seg.Vaddr+sect.Seg.Filelen {
 		// data in file
 		if sect.Length > sect.Seg.Vaddr+sect.Seg.Filelen-sect.Vaddr {
-			Errorf(nil, "macho cannot represent section %s crossing data and bss", sect.Name)
+			Errorf("macho cannot represent section %s crossing data and bss", sect.Name)
 		}
 		msect.off = uint32(sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr)
 	} else {

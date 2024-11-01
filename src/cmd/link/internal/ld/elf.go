@@ -409,7 +409,7 @@ func elfwritephdrs(out *OutBuf) uint32 {
 func newElfPhdr() *ElfPhdr {
 	e := new(ElfPhdr)
 	if ehdr.Phnum >= NSECT {
-		Errorf(nil, "too many phdrs")
+		Errorf("too many phdrs")
 	} else {
 		phdr[ehdr.Phnum] = e
 		ehdr.Phnum++
@@ -427,7 +427,7 @@ func newElfShdr(name int64) *ElfShdr {
 	e.Name = uint32(name)
 	e.shnum = elf.SectionIndex(ehdr.Shnum)
 	if ehdr.Shnum >= NSECT {
-		Errorf(nil, "too many shdrs")
+		Errorf("too many shdrs")
 	} else {
 		shdr[ehdr.Shnum] = e
 		ehdr.Shnum++
@@ -1161,7 +1161,7 @@ func elfshnamedup(name string) *ElfShdr {
 		}
 	}
 
-	Errorf(nil, "cannot find elf name %s", name)
+	Errorf("cannot find elf name %s", name)
 	errorexit()
 	return nil
 }
@@ -1195,7 +1195,7 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
 			// list note). The real fix is probably to define new values
 			// for Symbol.Type corresponding to mapped and unmapped notes
 			// and handle them in dodata().
-			Errorf(nil, "sh.Type == SHT_NOTE in elfshbits when linking internally")
+			Errorf("sh.Type == SHT_NOTE in elfshbits when linking internally")
 		}
 		sh.Addralign = uint64(sect.Align)
 		sh.Size = sect.Length
@@ -2386,13 +2386,13 @@ elfobj:
 	}
 
 	if a > elfreserve {
-		Errorf(nil, "ELFRESERVE too small: %d > %d with %d text sections", a, elfreserve, numtext)
+		Errorf("ELFRESERVE too small: %d > %d with %d text sections", a, elfreserve, numtext)
 	}
 
 	// Verify the amount of space allocated for the elf header is sufficient.  The file offsets are
 	// already computed in layout, so we could spill into another section.
 	if a > int64(HEADR) {
-		Errorf(nil, "HEADR too small: %d > %d with %d text sections", a, HEADR, numtext)
+		Errorf("HEADR too small: %d > %d with %d text sections", a, HEADR, numtext)
 	}
 }
 

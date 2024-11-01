@@ -357,7 +357,7 @@ func adddynlib(ctxt *Link, lib string) {
 		du := ctxt.loader.MakeSymbolUpdater(ctxt.Dynamic)
 		Elfwritedynent(ctxt.Arch, du, elf.DT_NEEDED, uint64(dsu.Addstring(lib)))
 	} else {
-		Errorf(nil, "adddynlib: unsupported binary format")
+		Errorf("adddynlib: unsupported binary format")
 	}
 }
 

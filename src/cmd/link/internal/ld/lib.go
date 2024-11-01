@@ -416,7 +416,7 @@ func libinit(ctxt *Link) {
 		case BuildModeShared, BuildModePlugin:
 			// No *flagEntrySymbol for -buildmode=shared and plugin
 		default:
-			Errorf(nil, "unknown *flagEntrySymbol for buildmode %v", ctxt.BuildMode)
+			Errorf("unknown *flagEntrySymbol for buildmode %v", ctxt.BuildMode)
 		}
 	}
 }
@@ -742,7 +742,7 @@ func loadWindowsHostArchives(ctxt *Link) {
 	// Fix up references to DLL import symbols now that we're done
 	// pulling in new objects.
 	if err := loadpe.PostProcessImports(); err != nil {
-		Errorf(nil, "%v", err)
+		Errorf("%v", err)
 	}
 
 	// TODO: maybe do something similar to peimporteddlls to collect
@@ -848,7 +848,7 @@ func (ctxt *Link) linksetup() {
 			sb.SetType(sym.STLSBSS)
 			sb.SetSize(int64(ctxt.Arch.PtrSize))
 		} else if sb.Type() != sym.SDYNIMPORT {
-			Errorf(nil, "runtime declared tlsg variable %v", sb.Type())
+			Errorf("runtime declared tlsg variable %v", sb.Type())
 		}
 		ctxt.loader.SetAttrReachable(tlsg, true)
 		ctxt.Tlsg = tlsg
@@ -1226,7 +1226,7 @@ func hostobjs(ctxt *Link) {
 		}
 		f.MustSeek(h.off, 0)
 		if h.ld == nil {
-			Errorf(nil, "%s: unrecognized object file format", h.pn)
+			Errorf("%s: unrecognized object file format", h.pn)
 			continue
 		}
 		h.ld(ctxt, f, h.pkg, h.length, h.pn)
@@ -1352,7 +1352,7 @@ INSERT AFTER .debug_types;
 `
 	err := os.WriteFile(path, []byte(src), 0666)
 	if err != nil {
-		Errorf(nil, "WriteFile %s failed: %v", name, err)
+		Errorf("WriteFile %s failed: %v", name, err)
 	}
 	return path
 }
@@ -2127,7 +2127,7 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 	createTrivialCOnce.Do(func() {
 		src := filepath.Join(*flagTmpdir, "trivial.c")
 		if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
-			Errorf(nil, "WriteFile trivial.c failed: %v", err)
+			Errorf("WriteFile trivial.c failed: %v", err)
 		}
 	})
 
@@ -2267,7 +2267,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn, ehdr.Flags)
 			if err != nil {
-				Errorf(nil, "%v", err)
+				Errorf("%v", err)
 				return
 			}
 			ehdr.Flags = flags
@@ -2280,7 +2280,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
-				Errorf(nil, "%v", err)
+				Errorf("%v", err)
 				return
 			}
 			ctxt.Textp = append(ctxt.Textp, textp...)
@@ -2296,7 +2296,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			ls, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
-				Errorf(nil, "%v", err)
+				Errorf("%v", err)
 				return
 			}
 			if len(ls.Resources) != 0 {
@@ -2317,7 +2317,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
 			if err != nil {
-				Errorf(nil, "%v", err)
+				Errorf("%v", err)
 				return
 			}
 			ctxt.Textp = append(ctxt.Textp, textp...)
@@ -2336,7 +2336,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	/* check the header */
 	line, err := f.ReadString('\n')
 	if err != nil {
-		Errorf(nil, "truncated object file: %s: %v", pn, err)
+		Errorf("truncated object file: %s: %v", pn, err)
 		return nil
 	}
 
@@ -2348,17 +2348,17 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 		if line == ctxt.Arch.Name {
 			// old header format: just $GOOS
-			Errorf(nil, "%s: stale object file", pn)
+			Errorf("%s: stale object file", pn)
 			return nil
 		}
 
-		Errorf(nil, "%s: not an object file: @%d %q", pn, start, line)
+		Errorf("%s: not an object file: @%d %q", pn, start, line)
 		return nil
 	}
 
 	// First, check that the basic GOOS, GOARCH, and Version match.
 	if line != wantHdr {
-		Errorf(nil, "%s: linked object header mismatch:\nhave %q\nwant %q\n", pn, line, wantHdr)
+		Errorf("%s: linked object header mismatch:\nhave %q\nwant %q\n", pn, line, wantHdr)
 	}
 
 	// Skip over exports and other info -- ends with \n!\n.
@@ -2388,7 +2388,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		c2 = c3
 		c3 = bgetc(f)
 		if c3 == -1 {
-			Errorf(nil, "truncated object file: %s", pn)
+			Errorf("truncated object file: %s", pn)
 			return nil
 		}
 	}
@@ -2484,11 +2484,11 @@ func readelfsymboldata(ctxt *Link, f *elf.File, sym *elf.Symbol) []byte {
 	data := make([]byte, sym.Size)
 	sect := f.Sections[sym.Section]
 	if sect.Type != elf.SHT_PROGBITS && sect.Type != elf.SHT_NOTE {
-		Errorf(nil, "reading %s from non-data section", sym.Name)
+		Errorf("reading %s from non-data section", sym.Name)
 	}
 	n, err := sect.ReadAt(data, int64(sym.Value-sect.Addr))
 	if uint64(n) != sym.Size {
-		Errorf(nil, "reading contents of %s: %v", sym.Name, err)
+		Errorf("reading contents of %s: %v", sym.Name, err)
 	}
 	return data
 }
@@ -2552,7 +2552,7 @@ func findshlib(ctxt *Link, shlib string) string {
 			return libpath
 		}
 	}
-	Errorf(nil, "cannot find shared library: %s", shlib)
+	Errorf("cannot find shared library: %s", shlib)
 	return ""
 }
 
@@ -2578,7 +2578,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 
 	f, err := elf.Open(libpath)
 	if err != nil {
-		Errorf(nil, "cannot open shared library: %s", libpath)
+		Errorf("cannot open shared library: %s", libpath)
 		return
 	}
 	// Keep the file open as decodetypeGcprog needs to read from it.
@@ -2587,13 +2587,13 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 
 	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
 	if err != nil {
-		Errorf(nil, "cannot read ABI hash from shared library %s: %v", libpath, err)
+		Errorf("cannot read ABI hash from shared library %s: %v", libpath, err)
 		return
 	}
 
 	depsbytes, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GODEPS_TAG)
 	if err != nil {
-		Errorf(nil, "cannot read dep list from shared library %s: %v", libpath, err)
+		Errorf("cannot read dep list from shared library %s: %v", libpath, err)
 		return
 	}
 	var deps []string
@@ -2615,7 +2615,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 
 	syms, err := f.DynamicSymbols()
 	if err != nil {
-		Errorf(nil, "cannot read symbols from shared library: %s", libpath)
+		Errorf("cannot read symbols from shared library: %s", libpath)
 		return
 	}
 
@@ -2741,7 +2741,7 @@ func Entryvalue(ctxt *Link) int64 {
 	ldr := ctxt.loader
 	s := ldr.Lookup(a, 0)
 	if s == 0 {
-		Errorf(nil, "missing entry symbol %q", a)
+		Errorf("missing entry symbol %q", a)
 		return 0
 	}
 	st := ldr.SymType(s)
