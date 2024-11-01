@@ -75,6 +75,11 @@ func testExport(a int32, b int64) int64 {
 	return <-ch + <-ch
 }
 
+//go:wasmexport testExport0
+func testExport0() { // no arg or result (see issue 69584)
+	runtime.GC()
+}
+
 var testExportCalled bool
 
 func growStack(n int64) {

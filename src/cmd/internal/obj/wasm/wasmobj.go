@@ -974,6 +974,10 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 		Sym:    s, // PC_F
 		Offset: 1, // PC_B=1, past the prologue, so we have the right SP delta
 	}
+	if framesize == 0 {
+		// Frameless function, no prologue.
+		retAddr.Offset = 0
+	}
 	p = appendp(p, AI64Const, retAddr)
 	p = appendp(p, AI64Store, constAddr(0))
 	// Set PC_B parameter to function entry
@@ -1014,11 +1018,13 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 	}
 
 	// Epilogue. Cannot use ARET as we don't follow Go calling convention.
-	// SP += framesize
-	p = appendp(p, AGet, regAddr(REG_SP))
-	p = appendp(p, AI32Const, constAddr(framesize))
-	p = appendp(p, AI32Add)
-	p = appendp(p, ASet, regAddr(REG_SP))
+	if framesize > 0 {
+		// SP += framesize
+		p = appendp(p, AGet, regAddr(REG_SP))
+		p = appendp(p, AI32Const, constAddr(framesize))
+		p = appendp(p, AI32Add)
+		p = appendp(p, ASet, regAddr(REG_SP))
+	}
 	p = appendp(p, AReturn)
 }
 
