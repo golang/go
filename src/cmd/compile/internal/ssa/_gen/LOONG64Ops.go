@@ -174,6 +174,8 @@ func init() {
 
 		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"}, // Count leading (high order) zeroes (returns 0-32)
 		{name: "CLZV", argLength: 1, reg: gp11, asm: "CLZV"}, // Count leading (high order) zeroes (returns 0-64)
+		{name: "CTZW", argLength: 1, reg: gp11, asm: "CTZW"}, // Count trailing (low order) zeroes (returns 0-32)
+		{name: "CTZV", argLength: 1, reg: gp11, asm: "CTZV"}, // Count trailing (low order) zeroes (returns 0-64)
 
 		{name: "REVB2H", argLength: 1, reg: gp11, asm: "REVB2H"}, // Swap bytes: 0x11223344 -> 0x22114433 (sign extends to 64 bits)
 		{name: "REVB2W", argLength: 1, reg: gp11, asm: "REVB2W"}, // Swap bytes: 0x1122334455667788 -> 0x4433221188776655

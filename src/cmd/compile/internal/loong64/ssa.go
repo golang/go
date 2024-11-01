@@ -512,6 +512,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpLOONG64NEGD,
 		ssa.OpLOONG64CLZW,
 		ssa.OpLOONG64CLZV,
+		ssa.OpLOONG64CTZW,
+		ssa.OpLOONG64CTZV,
 		ssa.OpLOONG64SQRTD,
 		ssa.OpLOONG64SQRTF,
 		ssa.OpLOONG64REVB2H,
