@@ -18,7 +18,7 @@ TEXT ·cpuid(SB), NOSPLIT, $0-24
 	RET
 
 // func xgetbv() (eax, edx uint32)
-TEXT ·xgetbv(SB),NOSPLIT,$0-8
+TEXT ·xgetbv(SB), NOSPLIT, $0-8
 	MOVL $0, CX
 	XGETBV
 	MOVL AX, eax+0(FP)

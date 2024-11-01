@@ -158,6 +158,16 @@ includes_Linux='
 #endif
 #define _GNU_SOURCE
 
+// See the description in unix/linux/types.go
+#if defined(__ARM_EABI__) || \
+	(defined(__mips__) && (_MIPS_SIM == _ABIO32)) || \
+	(defined(__powerpc__) && (!defined(__powerpc64__)))
+# ifdef   _TIME_BITS
+#  undef  _TIME_BITS
+# endif
+# define  _TIME_BITS 32
+#endif
+
 // <sys/ioctl.h> is broken on powerpc64, as it fails to include definitions of
 // these structures. We just include them copied from <bits/termios.h>.
 #if defined(__powerpc__)
@@ -256,6 +266,7 @@ struct ltchars {
 #include <linux/nsfs.h>
 #include <linux/perf_event.h>
 #include <linux/pps.h>
+#include <linux/ptp_clock.h>
 #include <linux/ptrace.h>
 #include <linux/random.h>
 #include <linux/reboot.h>
@@ -527,6 +538,7 @@ ccflags="$@"
 		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MREMAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT|UDP)_/ ||
 		$2 ~ /^NFC_(GENL|PROTO|COMM|RF|SE|DIRECTION|LLCP|SOCKPROTO)_/ ||
 		$2 ~ /^NFC_.*_(MAX)?SIZE$/ ||
+		$2 ~ /^PTP_/ ||
 		$2 ~ /^RAW_PAYLOAD_/ ||
 		$2 ~ /^[US]F_/ ||
 		$2 ~ /^TP_STATUS_/ ||

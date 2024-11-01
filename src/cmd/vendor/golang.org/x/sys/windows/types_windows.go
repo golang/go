@@ -2203,6 +2203,132 @@ const (
 	IfOperStatusLowerLayerDown = 7
 )
 
+const (
+	IF_MAX_PHYS_ADDRESS_LENGTH = 32
+	IF_MAX_STRING_SIZE         = 256
+)
+
+// MIB_IF_ENTRY_LEVEL enumeration from netioapi.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/nf-netioapi-getifentry2ex.
+const (
+	MibIfEntryNormal                  = 0
+	MibIfEntryNormalWithoutStatistics = 2
+)
+
+// MIB_NOTIFICATION_TYPE enumeration from netioapi.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ne-netioapi-mib_notification_type.
+const (
+	MibParameterNotification = 0
+	MibAddInstance           = 1
+	MibDeleteInstance        = 2
+	MibInitialNotification   = 3
+)
+
+// MibIfRow2 stores information about a particular interface. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_row2.
+type MibIfRow2 struct {
+	InterfaceLuid               uint64
+	InterfaceIndex              uint32
+	InterfaceGuid               GUID
+	Alias                       [IF_MAX_STRING_SIZE + 1]uint16
+	Description                 [IF_MAX_STRING_SIZE + 1]uint16
+	PhysicalAddressLength       uint32
+	PhysicalAddress             [IF_MAX_PHYS_ADDRESS_LENGTH]uint8
+	PermanentPhysicalAddress    [IF_MAX_PHYS_ADDRESS_LENGTH]uint8
+	Mtu                         uint32
+	Type                        uint32
+	TunnelType                  uint32
+	MediaType                   uint32
+	PhysicalMediumType          uint32
+	AccessType                  uint32
+	DirectionType               uint32
+	InterfaceAndOperStatusFlags uint8
+	OperStatus                  uint32
+	AdminStatus                 uint32
+	MediaConnectState           uint32
+	NetworkGuid                 GUID
+	ConnectionType              uint32
+	TransmitLinkSpeed           uint64
+	ReceiveLinkSpeed            uint64
+	InOctets                    uint64
+	InUcastPkts                 uint64
+	InNUcastPkts                uint64
+	InDiscards                  uint64
+	InErrors                    uint64
+	InUnknownProtos             uint64
+	InUcastOctets               uint64
+	InMulticastOctets           uint64
+	InBroadcastOctets           uint64
+	OutOctets                   uint64
+	OutUcastPkts                uint64
+	OutNUcastPkts               uint64
+	OutDiscards                 uint64
+	OutErrors                   uint64
+	OutUcastOctets              uint64
+	OutMulticastOctets          uint64
+	OutBroadcastOctets          uint64
+	OutQLen                     uint64
+}
+
+// MIB_UNICASTIPADDRESS_ROW stores information about a unicast IP address. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_unicastipaddress_row.
+type MibUnicastIpAddressRow struct {
+	Address            RawSockaddrInet6 // SOCKADDR_INET union
+	InterfaceLuid      uint64
+	InterfaceIndex     uint32
+	PrefixOrigin       uint32
+	SuffixOrigin       uint32
+	ValidLifetime      uint32
+	PreferredLifetime  uint32
+	OnLinkPrefixLength uint8
+	SkipAsSource       uint8
+	DadState           uint32
+	ScopeId            uint32
+	CreationTimeStamp  Filetime
+}
+
+const ScopeLevelCount = 16
+
+// MIB_IPINTERFACE_ROW stores interface management information for a particular IP address family on a network interface.
+// See https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipinterface_row.
+type MibIpInterfaceRow struct {
+	Family                               uint16
+	InterfaceLuid                        uint64
+	InterfaceIndex                       uint32
+	MaxReassemblySize                    uint32
+	InterfaceIdentifier                  uint64
+	MinRouterAdvertisementInterval       uint32
+	MaxRouterAdvertisementInterval       uint32
+	AdvertisingEnabled                   uint8
+	ForwardingEnabled                    uint8
+	WeakHostSend                         uint8
+	WeakHostReceive                      uint8
+	UseAutomaticMetric                   uint8
+	UseNeighborUnreachabilityDetection   uint8
+	ManagedAddressConfigurationSupported uint8
+	OtherStatefulConfigurationSupported  uint8
+	AdvertiseDefaultRoute                uint8
+	RouterDiscoveryBehavior              uint32
+	DadTransmits                         uint32
+	BaseReachableTime                    uint32
+	RetransmitTime                       uint32
+	PathMtuDiscoveryTimeout              uint32
+	LinkLocalAddressBehavior             uint32
+	LinkLocalAddressTimeout              uint32
+	ZoneIndices                          [ScopeLevelCount]uint32
+	SitePrefixLength                     uint32
+	Metric                               uint32
+	NlMtu                                uint32
+	Connected                            uint8
+	SupportsWakeUpPatterns               uint8
+	SupportsNeighborDiscovery            uint8
+	SupportsRouterDiscovery              uint8
+	ReachableTime                        uint32
+	TransmitOffload                      uint32
+	ReceiveOffload                       uint32
+	DisableDefaultRoutes                 uint8
+}
+
 // Console related constants used for the mode parameter to SetConsoleMode. See
 // https://docs.microsoft.com/en-us/windows/console/setconsolemode for details.
 

@@ -110,7 +110,6 @@ func doinit() {
 	ARM64.HasASIMDFHM = isSet(hwCap, hwcap_ASIMDFHM)
 	ARM64.HasDIT = isSet(hwCap, hwcap_DIT)
 
-
 	// HWCAP2 feature bits
 	ARM64.HasSVE2 = isSet(hwCap2, hwcap2_SVE2)
 	ARM64.HasI8MM = isSet(hwCap2, hwcap2_I8MM)

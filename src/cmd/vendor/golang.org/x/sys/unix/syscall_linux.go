@@ -1860,6 +1860,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	ClockAdjtime(clockid int32, buf *Timex) (state int, err error)
 //sys	ClockGetres(clockid int32, res *Timespec) (err error)
 //sys	ClockGettime(clockid int32, time *Timespec) (err error)
+//sys	ClockSettime(clockid int32, time *Timespec) (err error)
 //sys	ClockNanosleep(clockid int32, flags int, request *Timespec, remain *Timespec) (err error)
 //sys	Close(fd int) (err error)
 //sys	CloseRange(first uint, last uint, flags uint) (err error)
