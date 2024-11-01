@@ -7,6 +7,8 @@ package runtime_test
 import (
 	"fmt"
 	"internal/asan"
+	"internal/testenv"
+	"internal/weak"
 	"math/bits"
 	"math/rand"
 	"os"
@@ -793,4 +795,79 @@ func TestMemoryLimitNoGCPercent(t *testing.T) {
 
 func TestMyGenericFunc(t *testing.T) {
 	runtime.MyGenericFunc[int]()
+}
+
+func TestWeakToStrongMarkTermination(t *testing.T) {
+	testenv.MustHaveParallelism(t)
+
+	type T struct {
+		a *int
+		b int
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	w := make([]weak.Pointer[T], 2048)
+
+	// Make sure there's no out-standing GC from a previous test.
+	runtime.GC()
+
+	// Create many objects with a weak pointers to them.
+	for i := range w {
+		x := new(T)
+		x.a = new(int)
+		w[i] = weak.Make(x)
+	}
+
+	// Reset the restart flag.
+	runtime.GCMarkDoneResetRestartFlag()
+
+	// Prevent mark termination from completing.
+	runtime.SetSpinInGCMarkDone(true)
+
+	// Start a GC, and wait a little bit to get something spinning in mark termination.
+	// Simultaneously, fire off another goroutine to disable spinning. If everything's
+	// working correctly, then weak.Strong will block, so we need to make sure something
+	// prevents the GC from continuing to spin.
+	done := make(chan struct{})
+	go func() {
+		runtime.GC()
+		done <- struct{}{}
+	}()
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+
+		// Let mark termination continue.
+		runtime.SetSpinInGCMarkDone(false)
+	}()
+	time.Sleep(10 * time.Millisecond)
+
+	// Perform many weak->strong conversions in the critical window.
+	var wg sync.WaitGroup
+	for _, wp := range w {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			wp.Strong()
+		}()
+	}
+
+	// Make sure the GC completes.
+	<-done
+
+	// Make sure all the weak->strong conversions finish.
+	wg.Wait()
+
+	// The bug is triggered if there's still mark work after gcMarkDone stops the world.
+	//
+	// This can manifest in one of two ways today:
+	// - An exceedingly rare crash in mark termination.
+	// - gcMarkDone restarts, as if issue #27993 is at play.
+	//
+	// Check for the latter. This is a fairly controlled environment, so #27993 is very
+	// unlikely to happen (it's already rare to begin with) but we'll always _appear_ to
+	// trigger the same bug if weak->strong conversions aren't properly coordinated with
+	// mark termination.
+	if runtime.GCMarkDoneRestarted() {
+		t.Errorf("gcMarkDone restarted")
+	}
 }

@@ -101,24 +101,26 @@ const (
 	traceBlockDebugCall
 	traceBlockUntilGCEnds
 	traceBlockSleep
+	traceBlockGCWeakToStrongWait
 )
 
 var traceBlockReasonStrings = [...]string{
-	traceBlockGeneric:         "unspecified",
-	traceBlockForever:         "forever",
-	traceBlockNet:             "network",
-	traceBlockSelect:          "select",
-	traceBlockCondWait:        "sync.(*Cond).Wait",
-	traceBlockSync:            "sync",
-	traceBlockChanSend:        "chan send",
-	traceBlockChanRecv:        "chan receive",
-	traceBlockGCMarkAssist:    "GC mark assist wait for work",
-	traceBlockGCSweep:         "GC background sweeper wait",
-	traceBlockSystemGoroutine: "system goroutine wait",
-	traceBlockPreempted:       "preempted",
-	traceBlockDebugCall:       "wait for debug call",
-	traceBlockUntilGCEnds:     "wait until GC ends",
-	traceBlockSleep:           "sleep",
+	traceBlockGeneric:            "unspecified",
+	traceBlockForever:            "forever",
+	traceBlockNet:                "network",
+	traceBlockSelect:             "select",
+	traceBlockCondWait:           "sync.(*Cond).Wait",
+	traceBlockSync:               "sync",
+	traceBlockChanSend:           "chan send",
+	traceBlockChanRecv:           "chan receive",
+	traceBlockGCMarkAssist:       "GC mark assist wait for work",
+	traceBlockGCSweep:            "GC background sweeper wait",
+	traceBlockSystemGoroutine:    "system goroutine wait",
+	traceBlockPreempted:          "preempted",
+	traceBlockDebugCall:          "wait for debug call",
+	traceBlockUntilGCEnds:        "wait until GC ends",
+	traceBlockSleep:              "sleep",
+	traceBlockGCWeakToStrongWait: "GC weak to strong wait",
 }
 
 // traceGoStopReason is an enumeration of reasons a goroutine might yield.
