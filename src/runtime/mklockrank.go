@@ -50,6 +50,7 @@ NONE < defer;
 NONE <
   sweepWaiters,
   assistQueue,
+  strongFromWeakQueue,
   sweep;
 
 # Test only
@@ -66,6 +67,7 @@ assistQueue,
   hchan,
   pollDesc, # pollDesc can interact with timers, which can lock sched.
   scavenge,
+  strongFromWeakQueue,
   sweep,
   sweepWaiters,
   testR,

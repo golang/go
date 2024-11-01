@@ -1095,6 +1095,7 @@ const (
 	waitReasonTraceProcStatus                         // "trace proc status"
 	waitReasonPageTraceFlush                          // "page trace flush"
 	waitReasonCoroutine                               // "coroutine"
+	waitReasonGCWeakToStrongWait                      // "GC weak to strong wait"
 )
 
 var waitReasonStrings = [...]string{
@@ -1135,6 +1136,7 @@ var waitReasonStrings = [...]string{
 	waitReasonTraceProcStatus:       "trace proc status",
 	waitReasonPageTraceFlush:        "page trace flush",
 	waitReasonCoroutine:             "coroutine",
+	waitReasonGCWeakToStrongWait:    "GC weak to strong wait",
 }
 
 func (w waitReason) String() string {
