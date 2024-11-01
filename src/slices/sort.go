@@ -180,8 +180,8 @@ type xorshift uint64
 
 func (r *xorshift) Next() uint64 {
 	*r ^= *r << 13
-	*r ^= *r >> 17
-	*r ^= *r << 5
+	*r ^= *r >> 7
+	*r ^= *r << 17
 	return uint64(*r)
 }
 
