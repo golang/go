@@ -39,7 +39,10 @@ package aes
 import "internal/byteorder"
 
 // Encrypt one block from src into dst, using the expanded key xk.
-func encryptBlockGo(xk []uint32, dst, src []byte) {
+func encryptBlockGeneric(c *blockExpanded, dst, src []byte) {
+	checkGenericIsExpected()
+	xk := c.enc[:]
+
 	_ = src[15] // early bounds check
 	s0 := byteorder.BeUint32(src[0:4])
 	s1 := byteorder.BeUint32(src[4:8])
@@ -53,11 +56,9 @@ func encryptBlockGo(xk []uint32, dst, src []byte) {
 	s3 ^= xk[3]
 
 	// Middle rounds shuffle using tables.
-	// Number of rounds is set by length of expanded key.
-	nr := len(xk)/4 - 2 // - 2: one above, one more below
 	k := 4
 	var t0, t1, t2, t3 uint32
-	for r := 0; r < nr; r++ {
+	for r := 0; r < c.rounds-1; r++ {
 		t0 = xk[k+0] ^ te0[uint8(s0>>24)] ^ te1[uint8(s1>>16)] ^ te2[uint8(s2>>8)] ^ te3[uint8(s3)]
 		t1 = xk[k+1] ^ te0[uint8(s1>>24)] ^ te1[uint8(s2>>16)] ^ te2[uint8(s3>>8)] ^ te3[uint8(s0)]
 		t2 = xk[k+2] ^ te0[uint8(s2>>24)] ^ te1[uint8(s3>>16)] ^ te2[uint8(s0>>8)] ^ te3[uint8(s1)]
@@ -85,7 +86,10 @@ func encryptBlockGo(xk []uint32, dst, src []byte) {
 }
 
 // Decrypt one block from src into dst, using the expanded key xk.
-func decryptBlockGo(xk []uint32, dst, src []byte) {
+func decryptBlockGeneric(c *blockExpanded, dst, src []byte) {
+	checkGenericIsExpected()
+	xk := c.dec[:]
+
 	_ = src[15] // early bounds check
 	s0 := byteorder.BeUint32(src[0:4])
 	s1 := byteorder.BeUint32(src[4:8])
@@ -99,11 +103,9 @@ func decryptBlockGo(xk []uint32, dst, src []byte) {
 	s3 ^= xk[3]
 
 	// Middle rounds shuffle using tables.
-	// Number of rounds is set by length of expanded key.
-	nr := len(xk)/4 - 2 // - 2: one above, one more below
 	k := 4
 	var t0, t1, t2, t3 uint32
-	for r := 0; r < nr; r++ {
+	for r := 0; r < c.rounds-1; r++ {
 		t0 = xk[k+0] ^ td0[uint8(s0>>24)] ^ td1[uint8(s3>>16)] ^ td2[uint8(s2>>8)] ^ td3[uint8(s1)]
 		t1 = xk[k+1] ^ td0[uint8(s1>>24)] ^ td1[uint8(s0>>16)] ^ td2[uint8(s3>>8)] ^ td3[uint8(s2)]
 		t2 = xk[k+2] ^ td0[uint8(s2>>24)] ^ td1[uint8(s1>>16)] ^ td2[uint8(s0>>8)] ^ td3[uint8(s3)]
@@ -143,38 +145,37 @@ func rotw(w uint32) uint32 { return w<<8 | w>>24 }
 
 // Key expansion algorithm. See FIPS-197, Figure 11.
 // Their rcon[i] is our powx[i-1] << 24.
-func expandKeyGo(key []byte, enc, dec []uint32) {
+func expandKeyGeneric(c *blockExpanded, key []byte) {
+	checkGenericIsExpected()
+
 	// Encryption key setup.
 	var i int
 	nk := len(key) / 4
 	for i = 0; i < nk; i++ {
-		enc[i] = byteorder.BeUint32(key[4*i:])
+		c.enc[i] = byteorder.BeUint32(key[4*i:])
 	}
-	for ; i < len(enc); i++ {
-		t := enc[i-1]
+	for ; i < c.roundKeysSize(); i++ {
+		t := c.enc[i-1]
 		if i%nk == 0 {
 			t = subw(rotw(t)) ^ (uint32(powx[i/nk-1]) << 24)
 		} else if nk > 6 && i%nk == 4 {
 			t = subw(t)
 		}
-		enc[i] = enc[i-nk] ^ t
+		c.enc[i] = c.enc[i-nk] ^ t
 	}
 
 	// Derive decryption key from encryption key.
 	// Reverse the 4-word round key sets from enc to produce dec.
 	// All sets but the first and last get the MixColumn transform applied.
-	if dec == nil {
-		return
-	}
-	n := len(enc)
+	n := c.roundKeysSize()
 	for i := 0; i < n; i += 4 {
 		ei := n - i - 4
 		for j := 0; j < 4; j++ {
-			x := enc[ei+j]
+			x := c.enc[ei+j]
 			if i > 0 && i+4 < n {
 				x = td0[sbox0[x>>24]] ^ td1[sbox0[x>>16&0xff]] ^ td2[sbox0[x>>8&0xff]] ^ td3[sbox0[x&0xff]]
 			}
-			dec[i+j] = x
+			c.dec[i+j] = x
 		}
 	}
 }

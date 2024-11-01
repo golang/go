@@ -7,9 +7,8 @@
 package aes
 
 import (
-	"crypto/cipher"
 	"crypto/internal/fips/alias"
-	"crypto/subtle"
+	"crypto/internal/fips/subtle"
 	"errors"
 )
 
@@ -39,18 +38,17 @@ const (
 
 var errOpen = errors.New("cipher: message authentication failed")
 
-// Assert that aesCipherGCM implements the gcmAble interface.
-var _ gcmAble = (*aesCipherGCM)(nil)
-
-// NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
-// called by [crypto/cipher.NewGCM] via the gcmAble interface.
-func (c *aesCipherGCM) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
-	g := &gcmAsm{ks: c.enc[:c.l], nonceSize: nonceSize, tagSize: tagSize}
-	gcmAesInit(&g.productTable, g.ks)
-	return g, nil
+func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
+	if supportsAES && supportsGFMUL {
+		l := c.roundKeysSize()
+		g := &GCM{ks: c.enc[:l], nonceSize: nonceSize, tagSize: tagSize}
+		gcmAesInit(&g.productTable, g.ks)
+		return g, nil
+	}
+	return nil, nil
 }
 
-type gcmAsm struct {
+type GCM struct {
 	// ks is the key schedule, the length of which depends on the size of
 	// the AES key.
 	ks []uint32
@@ -63,11 +61,11 @@ type gcmAsm struct {
 	tagSize int
 }
 
-func (g *gcmAsm) NonceSize() int {
+func (g *GCM) NonceSize() int {
 	return g.nonceSize
 }
 
-func (g *gcmAsm) Overhead() int {
+func (g *GCM) Overhead() int {
 	return g.tagSize
 }
 
@@ -88,7 +86,7 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 
 // Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
 // details.
-func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
 	if len(nonce) != g.nonceSize {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
@@ -128,7 +126,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 
 // Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
 // for details.
-func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if len(nonce) != g.nonceSize {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}

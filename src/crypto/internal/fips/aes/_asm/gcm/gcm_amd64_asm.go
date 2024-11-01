@@ -18,7 +18,7 @@ import (
 	. "github.com/mmcloughlin/avo/reg"
 )
 
-//go:generate go run . -out ../../gcm_amd64.s -pkg aes
+//go:generate go run . -out ../../gcm_amd64.s
 
 var (
 	B0 VecPhysical = X0

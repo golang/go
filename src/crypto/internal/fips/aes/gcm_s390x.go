@@ -7,9 +7,8 @@
 package aes
 
 import (
-	"crypto/cipher"
 	"crypto/internal/fips/alias"
-	"crypto/subtle"
+	"crypto/internal/fips/subtle"
 	"errors"
 	"internal/byteorder"
 	"internal/cpu"
@@ -39,8 +38,8 @@ func gcmLengths(len0, len1 uint64) [16]byte {
 // gcmHashKey represents the 16-byte hash key required by the GHASH algorithm.
 type gcmHashKey [16]byte
 
-type gcmAsm struct {
-	block     *aesCipherAsm
+type GCM struct {
+	block     *Block
 	hashKey   gcmHashKey
 	nonceSize int
 	tagSize   int
@@ -55,32 +54,23 @@ const (
 
 var errOpen = errors.New("cipher: message authentication failed")
 
-// Assert that aesCipherAsm implements the gcmAble interface.
-var _ gcmAble = (*aesCipherAsm)(nil)
-
-// NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
-// called by [crypto/cipher.NewGCM] via the gcmAble interface.
-func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
 	var hk gcmHashKey
 	c.Encrypt(hk[:], hk[:])
-	g := gcmAsm{
+	g := GCM{
 		block:     c,
 		hashKey:   hk,
 		nonceSize: nonceSize,
 		tagSize:   tagSize,
 	}
-	if cpu.S390X.HasAESGCM {
-		g := gcmKMA{g}
-		return &g, nil
-	}
 	return &g, nil
 }
 
-func (g *gcmAsm) NonceSize() int {
+func (g *GCM) NonceSize() int {
 	return g.nonceSize
 }
 
-func (g *gcmAsm) Overhead() int {
+func (g *GCM) Overhead() int {
 	return g.tagSize
 }
 
@@ -108,7 +98,7 @@ func ghash(key *gcmHashKey, hash *[16]byte, data []byte)
 
 // paddedGHASH pads data with zeroes until its length is a multiple of
 // 16-bytes. It then calculates a new value for hash using the GHASH algorithm.
-func (g *gcmAsm) paddedGHASH(hash *[16]byte, data []byte) {
+func (g *GCM) paddedGHASH(hash *[16]byte, data []byte) {
 	siz := len(data) &^ 0xf // align size to 16-bytes
 	if siz > 0 {
 		ghash(&g.hashKey, hash, data[:siz])
@@ -138,7 +128,7 @@ func cryptBlocksGCM(fn code, key, dst, src, buf []byte, cnt *gcmCount)
 // into dst. cnt is the initial count value and will be updated with the next
 // count value. The length of dst must be greater than or equal to the length
 // of src.
-func (g *gcmAsm) counterCrypt(dst, src []byte, cnt *gcmCount) {
+func (g *GCM) counterCrypt(dst, src []byte, cnt *gcmCount) {
 	// Copying src into a buffer improves performance on some models when
 	// src and dst point to the same underlying array. We also need a
 	// buffer for counter values.
@@ -166,7 +156,7 @@ func (g *gcmAsm) counterCrypt(dst, src []byte, cnt *gcmCount) {
 
 // deriveCounter computes the initial GCM counter state from the given nonce.
 // See NIST SP 800-38D, section 7.1.
-func (g *gcmAsm) deriveCounter(nonce []byte) gcmCount {
+func (g *GCM) deriveCounter(nonce []byte) gcmCount {
 	// GCM has two modes of operation with respect to the initial counter
 	// state: a "fast path" for 96-bit (12-byte) nonces, and a "slow path"
 	// for nonces of other lengths. For a 96-bit nonce, the nonce, along
@@ -189,7 +179,7 @@ func (g *gcmAsm) deriveCounter(nonce []byte) gcmCount {
 
 // auth calculates GHASH(ciphertext, additionalData), masks the result with
 // tagMask and writes the result to out.
-func (g *gcmAsm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]byte) {
+func (g *GCM) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]byte) {
 	var hash [16]byte
 	g.paddedGHASH(&hash, additionalData)
 	g.paddedGHASH(&hash, ciphertext)
@@ -204,12 +194,16 @@ func (g *gcmAsm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSi
 
 // Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
 // details.
-func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
 	if len(nonce) != g.nonceSize {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
 		panic("crypto/cipher: message too large for GCM")
+	}
+
+	if cpu.S390X.HasAESGCM {
+		return kmaSeal(g, dst, nonce, plaintext, data)
 	}
 
 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
@@ -233,7 +227,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 
 // Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
 // for details.
-func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if len(nonce) != g.nonceSize {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
@@ -247,6 +241,10 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	}
 	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(BlockSize)+uint64(g.tagSize) {
 		return nil, errOpen
+	}
+
+	if cpu.S390X.HasAESGCM {
+		return kmaOpen(g, dst, nonce, ciphertext, data)
 	}
 
 	tag := ciphertext[len(ciphertext)-g.tagSize:]
@@ -279,12 +277,6 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	return ret, nil
 }
 
-// gcmKMA implements the cipher.AEAD interface using the KMA instruction. It should
-// only be used if hasKMA is true.
-type gcmKMA struct {
-	gcmAsm
-}
-
 // flags for the KMA instruction
 const (
 	kmaHS      = 1 << 10 // hash subkey supplied
@@ -303,14 +295,7 @@ func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
 
 // Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
 // details.
-func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
-	if len(nonce) != g.nonceSize {
-		panic("crypto/cipher: incorrect nonce length given to GCM")
-	}
-	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
-		panic("crypto/cipher: message too large for GCM")
-	}
-
+func kmaSeal(g *GCM, dst, nonce, plaintext, data []byte) []byte {
 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
 	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
 		panic("crypto/cipher: invalid buffer overlap")
@@ -328,17 +313,7 @@ func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
 
 // Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
 // for details.
-func (g *gcmKMA) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
-	if len(nonce) != g.nonceSize {
-		panic("crypto/cipher: incorrect nonce length given to GCM")
-	}
-	if len(ciphertext) < g.tagSize {
-		return nil, errOpen
-	}
-	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(BlockSize)+uint64(g.tagSize) {
-		return nil, errOpen
-	}
-
+func kmaOpen(g *GCM, dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	tag := ciphertext[len(ciphertext)-g.tagSize:]
 	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
 	ret, out := sliceForAppend(dst, len(ciphertext))

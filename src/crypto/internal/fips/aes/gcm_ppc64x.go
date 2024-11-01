@@ -7,9 +7,8 @@
 package aes
 
 import (
-	"crypto/cipher"
 	"crypto/internal/fips/alias"
-	"crypto/subtle"
+	"crypto/internal/fips/subtle"
 	"errors"
 	"internal/byteorder"
 	"runtime"
@@ -35,11 +34,8 @@ const (
 
 var errOpen = errors.New("cipher: message authentication failed")
 
-// Assert that aesCipherGCM implements the gcmAble interface.
-var _ gcmAble = (*aesCipherAsm)(nil)
-
-type gcmAsm struct {
-	cipher *aesCipherAsm
+type GCM struct {
+	cipher *Block
 	// ks is the key schedule, the length of which depends on the size of
 	// the AES key.
 	ks []uint32
@@ -54,11 +50,10 @@ type gcmAsm struct {
 
 func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *uint32)
 
-// NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
-// called by [crypto/cipher.NewGCM] via the gcmAble interface.
-func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
 	var h1, h2 uint64
-	g := &gcmAsm{cipher: c, ks: c.enc[:c.l], nonceSize: nonceSize, tagSize: tagSize}
+	l := c.roundKeysSize()
+	g := &GCM{cipher: c, ks: c.enc[:l], nonceSize: nonceSize, tagSize: tagSize}
 
 	hle := make([]byte, gcmBlockSize)
 
@@ -80,11 +75,11 @@ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 	return g, nil
 }
 
-func (g *gcmAsm) NonceSize() int {
+func (g *GCM) NonceSize() int {
 	return g.nonceSize
 }
 
-func (g *gcmAsm) Overhead() int {
+func (g *GCM) Overhead() int {
 	return g.tagSize
 }
 
@@ -100,7 +95,7 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 }
 
 // deriveCounter computes the initial GCM counter state from the given nonce.
-func (g *gcmAsm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
+func (g *GCM) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
 	if len(nonce) == gcmStandardNonceSize {
 		copy(counter[:], nonce)
 		counter[gcmBlockSize-1] = 1
@@ -119,8 +114,8 @@ func (g *gcmAsm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
 // of in.
 // counterCryptASM implements counterCrypt which then allows the loop to
 // be unrolled and optimized.
-func (g *gcmAsm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
-	counterCryptASM(int(g.cipher.l)/4-1, out, in, counter, &g.cipher.enc[0])
+func (g *GCM) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
+	counterCryptASM(g.cipher.rounds, out, in, counter, &g.cipher.enc[0])
 
 }
 
@@ -134,7 +129,7 @@ func gcmInc32(counterBlock *[16]byte) {
 // paddedGHASH pads data with zeroes until its length is a multiple of
 // 16-bytes. It then calculates a new value for hash using the ghash
 // algorithm.
-func (g *gcmAsm) paddedGHASH(hash *[16]byte, data []byte) {
+func (g *GCM) paddedGHASH(hash *[16]byte, data []byte) {
 	if siz := len(data) - (len(data) % gcmBlockSize); siz > 0 {
 		gcmHash(hash[:], &g.productTable, data[:], siz)
 		data = data[siz:]
@@ -148,7 +143,7 @@ func (g *gcmAsm) paddedGHASH(hash *[16]byte, data []byte) {
 
 // auth calculates GHASH(ciphertext, additionalData), masks the result with
 // tagMask and writes the result to out.
-func (g *gcmAsm) auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte) {
+func (g *GCM) auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte) {
 	var hash [16]byte
 	g.paddedGHASH(&hash, aad)
 	g.paddedGHASH(&hash, ciphertext)
@@ -163,7 +158,7 @@ func (g *gcmAsm) auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte) {
 
 // Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
 // details.
-func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
 	if len(nonce) != g.nonceSize {
 		panic("cipher: incorrect nonce length given to GCM")
 	}
@@ -190,7 +185,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 
 // Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
 // for details.
-func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if len(nonce) != g.nonceSize {
 		panic("cipher: incorrect nonce length given to GCM")
 	}

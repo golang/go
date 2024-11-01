@@ -14,7 +14,7 @@ import (
 	. "github.com/mmcloughlin/avo/reg"
 )
 
-//go:generate go run . -out ../../asm_amd64.s -pkg aes
+//go:generate go run . -out ../../aes_amd64.s
 
 func main() {
 	Package("crypto/aes")

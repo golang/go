@@ -5,6 +5,7 @@
 package cipher
 
 import (
+	"crypto/internal/fips/aes"
 	"crypto/internal/fips/alias"
 	"crypto/subtle"
 	"errors"
@@ -44,13 +45,6 @@ type AEAD interface {
 	// Even if the function fails, the contents of dst, up to its capacity,
 	// may be overwritten.
 	Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error)
-}
-
-// gcmAble is an interface implemented by ciphers that have a specific optimized
-// implementation of GCM, like crypto/aes. NewGCM will check for this interface
-// and return the specific AEAD if found.
-type gcmAble interface {
-	NewGCM(nonceSize, tagSize int) (AEAD, error)
 }
 
 // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
@@ -109,6 +103,13 @@ func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
 	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, tagSize)
 }
 
+// gcmAble is an interface implemented by ciphers that have a specific optimized
+// implementation of GCM. crypto/aes doesn't use this anymore, and we'd like to
+// eventually remove it.
+type gcmAble interface {
+	NewGCM(nonceSize, tagSize int) (AEAD, error)
+}
+
 func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 	if tagSize < gcmMinimumTagSize || tagSize > gcmBlockSize {
 		return nil, errors.New("cipher: incorrect tag size given to GCM")
@@ -116,6 +117,17 @@ func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, erro
 
 	if nonceSize <= 0 {
 		return nil, errors.New("cipher: the nonce can't have zero length, or the security of the key will be immediately compromised")
+	}
+
+	if cipher, ok := cipher.(interface {
+		NewGCM(nonceSize, tagSize int) (*aes.GCM, error)
+	}); ok {
+		gcm, err := cipher.NewGCM(nonceSize, tagSize)
+		// TODO(filippo): Remove this check once the generic implementation is
+		// moved to crypto/internal/fips/aes and this always returns non-nil.
+		if gcm != nil || err != nil {
+			return gcm, err
+		}
 	}
 
 	if cipher, ok := cipher.(gcmAble); ok {

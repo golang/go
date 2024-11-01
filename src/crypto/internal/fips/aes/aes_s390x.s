@@ -37,39 +37,6 @@ loop:
 	MVC	$16, 0(R1), 0(R8) // update iv
 	RET
 
-// func xorBytes(dst, a, b []byte) int
-TEXT ·xorBytes(SB),NOSPLIT,$0-80
-	MOVD	dst_base+0(FP), R1
-	MOVD	a_base+24(FP), R2
-	MOVD	b_base+48(FP), R3
-	MOVD	a_len+32(FP), R4
-	MOVD	b_len+56(FP), R5
-	CMPBLE	R4, R5, skip
-	MOVD	R5, R4
-skip:
-	MOVD	R4, ret+72(FP)
-	MOVD	$0, R5
-	CMPBLT	R4, $8, tail
-loop:
-	MOVD	0(R2)(R5*1), R7
-	MOVD	0(R3)(R5*1), R8
-	XOR	R7, R8
-	MOVD	R8, 0(R1)(R5*1)
-	LAY	8(R5), R5
-	SUB	$8, R4
-	CMPBGE	R4, $8, loop
-tail:
-	CMPBEQ	R4, $0, done
-	MOVB	0(R2)(R5*1), R7
-	MOVB	0(R3)(R5*1), R8
-	XOR	R7, R8
-	MOVB	R8, 0(R1)(R5*1)
-	LAY	1(R5), R5
-	SUB	$1, R4
-	BR	tail
-done:
-	RET
-
 // func cryptBlocksGCM(fn code, key, dst, src, buf []byte, cnt *[16]byte)
 TEXT ·cryptBlocksGCM(SB),NOSPLIT,$0-112
 	MOVD	src_len+64(FP), R0
