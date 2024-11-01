@@ -530,7 +530,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		}
 		err := check.newError(WrongArgCount)
 		err.addf(at, "%s arguments in call to %s", qualifier, call.Fun)
-		err.addf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
+		err.addf(nopos, "have %s", check.typesSummary(operandTypes(args), ddd))
 		err.addf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
 		err.report()
 		return
