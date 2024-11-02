@@ -65,8 +65,8 @@ type parser struct {
 	nestLev int
 }
 
-func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mode) {
-	p.file = fset.AddFile(filename, -1, len(src))
+func (p *parser) init(file *token.File, src []byte, mode Mode) {
+	p.file = file
 	eh := func(pos token.Position, msg string) { p.errors.Add(pos, msg) }
 	p.scanner.Init(p.file, src, eh, scanner.ScanComments)
 
@@ -2900,12 +2900,11 @@ func (p *parser) parseFile() *ast.File {
 	}
 
 	f := &ast.File{
-		Doc:       doc,
-		Package:   pos,
-		Name:      ident,
-		Decls:     decls,
-		FileStart: token.Pos(p.file.Base()),
-		FileEnd:   token.Pos(p.file.Base() + p.file.Size()),
+		Doc:     doc,
+		Package: pos,
+		Name:    ident,
+		Decls:   decls,
+		// File{Start,End} are set by the defer in the caller.
 		Imports:   p.imports,
 		Comments:  p.comments,
 		GoVersion: p.goVersion,
