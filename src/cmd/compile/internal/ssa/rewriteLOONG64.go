@@ -94,6 +94,15 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpBitLen32(v)
 	case OpBitLen64:
 		return rewriteValueLOONG64_OpBitLen64(v)
+	case OpBswap16:
+		v.Op = OpLOONG64REVB2H
+		return true
+	case OpBswap32:
+		v.Op = OpLOONG64REVB2W
+		return true
+	case OpBswap64:
+		v.Op = OpLOONG64REVBV
+		return true
 	case OpClosureCall:
 		v.Op = OpLOONG64CALLclosure
 		return true
