@@ -44,7 +44,7 @@ type FS interface {
 // Path names passed to open are UTF-8-encoded,
 // unrooted, slash-separated sequences of path elements, like “x/y/z”.
 // Path names must not contain an element that is “.” or “..” or the empty string,
-// except for the special case that the root directory is named “.”.
+// except for the special case that the name "." may be used for the root directory.
 // Paths must not start or end with a slash: “/x” and “x/” are invalid.
 //
 // Note that paths are slash-separated on all systems, even Windows.
