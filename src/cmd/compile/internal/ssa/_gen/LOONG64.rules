@@ -148,6 +148,10 @@
 (BitLen64 <t> x) => (NEGV <t> (SUBVconst <t> [64] (CLZV <t> x)))
 (BitLen32 <t> x) => (NEGV <t> (SUBVconst <t> [32] (CLZW <t> x)))
 (Bswap(16|32|64) ...) => (REVB(2H|2W|V) ...)
+(BitRev8 ...) => (BITREV4B ...)
+(BitRev16 <t> x) => (REVB2H (BITREV4B <t> x))
+(BitRev32 ...) => (BITREVW ...)
+(BitRev64 ...) => (BITREVV ...)
 
 // math package intrinsics
 (Sqrt ...) => (SQRTD ...)

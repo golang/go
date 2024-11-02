@@ -125,6 +125,17 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpBitLen32(v)
 	case OpBitLen64:
 		return rewriteValueLOONG64_OpBitLen64(v)
+	case OpBitRev16:
+		return rewriteValueLOONG64_OpBitRev16(v)
+	case OpBitRev32:
+		v.Op = OpLOONG64BITREVW
+		return true
+	case OpBitRev64:
+		v.Op = OpLOONG64BITREVV
+		return true
+	case OpBitRev8:
+		v.Op = OpLOONG64BITREV4B
+		return true
 	case OpBswap16:
 		v.Op = OpLOONG64REVB2H
 		return true
@@ -971,6 +982,21 @@ func rewriteValueLOONG64_OpBitLen64(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpLOONG64CLZV, t)
 		v1.AddArg(x)
 		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpBitRev16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (BitRev16 <t> x)
+	// result: (REVB2H (BITREV4B <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.reset(OpLOONG64REVB2H)
+		v0 := b.NewValue0(v.Pos, OpLOONG64BITREV4B, t)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}

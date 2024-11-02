@@ -199,6 +199,35 @@ func OnesCount8(n uint8) int {
 	return bits.OnesCount8(n)
 }
 
+// ------------------ //
+//    bits.Reverse    //
+// ------------------ //
+
+func Reverse(n uint) uint {
+	// loong64:"BITREVV"
+	return bits.Reverse(n)
+}
+
+func Reverse64(n uint64) uint64 {
+	// loong64:"BITREVV"
+	return bits.Reverse64(n)
+}
+
+func Reverse32(n uint32) uint32 {
+	// loong64:"BITREVW"
+	return bits.Reverse32(n)
+}
+
+func Reverse16(n uint16) uint16 {
+	// loong64:"BITREV4B","REVB2H"
+	return bits.Reverse16(n)
+}
+
+func Reverse8(n uint8) uint8 {
+	// loong64:"BITREV4B"
+	return bits.Reverse8(n)
+}
+
 // ----------------------- //
 //    bits.ReverseBytes    //
 // ----------------------- //

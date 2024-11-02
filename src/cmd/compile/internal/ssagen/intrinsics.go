@@ -946,27 +946,27 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0])
 		},
-		sys.ARM64)
+		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitRev32, types.Types[types.TINT], args[0])
 		},
-		sys.ARM64)
+		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse16",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitRev16, types.Types[types.TINT], args[0])
 		},
-		sys.ARM64)
+		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitRev8, types.Types[types.TINT], args[0])
 		},
-		sys.ARM64)
+		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0])
 		},
-		sys.ARM64)
+		sys.ARM64, sys.Loong64)
 	addF("math/bits", "RotateLeft8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft8, types.Types[types.TUINT8], args[0], args[1])
