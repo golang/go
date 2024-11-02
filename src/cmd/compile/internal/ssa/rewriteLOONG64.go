@@ -90,6 +90,10 @@ func rewriteValueLOONG64(v *Value) bool {
 		return true
 	case OpAvg64u:
 		return rewriteValueLOONG64_OpAvg64u(v)
+	case OpBitLen32:
+		return rewriteValueLOONG64_OpBitLen32(v)
+	case OpBitLen64:
+		return rewriteValueLOONG64_OpBitLen64(v)
 	case OpClosureCall:
 		v.Op = OpLOONG64CALLclosure
 		return true
@@ -816,6 +820,44 @@ func rewriteValueLOONG64_OpAvg64u(v *Value) bool {
 		v1.AddArg2(x, y)
 		v0.AddArg(v1)
 		v.AddArg2(v0, y)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpBitLen32(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (BitLen32 <t> x)
+	// result: (NEGV <t> (SUBVconst <t> [32] (CLZW <t> x)))
+	for {
+		t := v.Type
+		x := v_0
+		v.reset(OpLOONG64NEGV)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpLOONG64SUBVconst, t)
+		v0.AuxInt = int64ToAuxInt(32)
+		v1 := b.NewValue0(v.Pos, OpLOONG64CLZW, t)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpBitLen64(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (BitLen64 <t> x)
+	// result: (NEGV <t> (SUBVconst <t> [64] (CLZV <t> x)))
+	for {
+		t := v.Type
+		x := v_0
+		v.reset(OpLOONG64NEGV)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpLOONG64SUBVconst, t)
+		v0.AuxInt = int64ToAuxInt(64)
+		v1 := b.NewValue0(v.Pos, OpLOONG64CLZV, t)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -5351,6 +5393,34 @@ func rewriteValueLOONG64_OpLOONG64ROTRV(v *Value) bool {
 func rewriteValueLOONG64_OpLOONG64SGT(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SGT (MOVVconst [c]) (NEGV (SUBVconst [d] x)))
+	// cond: is32Bit(d-c)
+	// result: (SGT x (MOVVconst [d-c]))
+	for {
+		if v_0.Op != OpLOONG64MOVVconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		if v_1.Op != OpLOONG64NEGV {
+			break
+		}
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpLOONG64SUBVconst {
+			break
+		}
+		d := auxIntToInt64(v_1_0.AuxInt)
+		x := v_1_0.Args[0]
+		if !(is32Bit(d - c)) {
+			break
+		}
+		v.reset(OpLOONG64SGT)
+		v0 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
+		v0.AuxInt = int64ToAuxInt(d - c)
+		v.AddArg2(x, v0)
+		return true
+	}
 	// match: (SGT (MOVVconst [c]) x)
 	// cond: is32Bit(c)
 	// result: (SGTconst [c] x)
@@ -5984,6 +6054,27 @@ func rewriteValueLOONG64_OpLOONG64SUBV(v *Value) bool {
 		}
 		x := v_1
 		v.reset(OpLOONG64NEGV)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBV (MOVVconst [c]) (NEGV (SUBVconst [d] x)))
+	// result: (ADDVconst [c-d] x)
+	for {
+		if v_0.Op != OpLOONG64MOVVconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		if v_1.Op != OpLOONG64NEGV {
+			break
+		}
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpLOONG64SUBVconst {
+			break
+		}
+		d := auxIntToInt64(v_1_0.AuxInt)
+		x := v_1_0.Args[0]
+		v.reset(OpLOONG64ADDVconst)
+		v.AuxInt = int64ToAuxInt(c - d)
 		v.AddArg(x)
 		return true
 	}

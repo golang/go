@@ -145,6 +145,9 @@
 
 (Com(64|32|16|8) x) => (NOR (MOVVconst [0]) x)
 
+(BitLen64 <t> x) => (NEGV <t> (SUBVconst <t> [64] (CLZV <t> x)))
+(BitLen32 <t> x) => (NEGV <t> (SUBVconst <t> [32] (CLZW <t> x)))
+
 // math package intrinsics
 (Sqrt ...) => (SQRTD ...)
 (Sqrt32 ...) => (SQRTF ...)
@@ -465,6 +468,9 @@
 
 (CondSelect <t> x y cond) => (OR (MASKEQZ <t> x cond) (MASKNEZ <t> y cond))
 
+// c > d-x => x > d-c
+(SGT (MOVVconst [c]) (NEGV (SUBVconst [d] x))) && is32Bit(d-c) => (SGT x (MOVVconst [d-c]))
+
 (SGT  (MOVVconst [c]) x) && is32Bit(c) => (SGTconst  [c] x)
 (SGTU (MOVVconst [c]) x) && is32Bit(c) => (SGTUconst [c] x)
 
@@ -697,6 +703,7 @@
 (SUBVconst [c] (MOVVconst [d]))  => (MOVVconst [d-c])
 (SUBVconst [c] (SUBVconst [d] x)) && is32Bit(-c-d) => (ADDVconst [-c-d] x)
 (SUBVconst [c] (ADDVconst [d] x)) && is32Bit(-c+d) => (ADDVconst [-c+d] x)
+(SUBV (MOVVconst [c]) (NEGV (SUBVconst [d] x))) => (ADDVconst [c-d] x)
 (SLLVconst [c] (MOVVconst [d]))  => (MOVVconst [d<<uint64(c)])
 (SRLVconst [c] (MOVVconst [d]))  => (MOVVconst [int64(uint64(d)>>uint64(c))])
 (SRAVconst [c] (MOVVconst [d]))  => (MOVVconst [d>>uint64(c)])
