@@ -3070,7 +3070,17 @@ func isPtrTo(from, to types2.Type) bool {
 // hasFallthrough reports whether stmts ends in a fallthrough
 // statement.
 func hasFallthrough(stmts []syntax.Stmt) bool {
-	last, ok := lastNonEmptyStmt(stmts).(*syntax.BranchStmt)
+	// From spec: the last non-empty statement may be a (possibly labeled) "fallthrough" statement
+	// Stripping (possible nested) labeled statement if any.
+	stmt := lastNonEmptyStmt(stmts)
+	for {
+		ls, ok := stmt.(*syntax.LabeledStmt)
+		if !ok {
+			break
+		}
+		stmt = ls.Stmt
+	}
+	last, ok := stmt.(*syntax.BranchStmt)
 	return ok && last.Tok == syntax.Fallthrough
 }
 

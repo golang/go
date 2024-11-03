@@ -1,0 +1,23 @@
+go run main.go
+! stdout .
+! stderr .
+
+-- main.go --
+
+package main
+
+func main() {
+	switch {
+	case true:
+	_:
+		fallthrough
+	default:
+	}
+	switch {
+	case true:
+	_:
+	_:
+		fallthrough
+	default:
+	}
+}
