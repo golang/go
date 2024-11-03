@@ -22,7 +22,6 @@ func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
 
 var supportsAES = cpu.X86.HasAES && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
 	cpu.ARM64.HasAES || goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1
-var supportsGFMUL = cpu.X86.HasPCLMULQDQ || cpu.ARM64.HasPMULL
 
 // checkGenericIsExpected is called by the variable-time implementation to make
 // sure it is not used when hardware support is available. It shouldn't happen,
@@ -52,6 +51,12 @@ func newBlock(c *Block, key []byte) *Block {
 		expandKeyGeneric(&c.blockExpanded, key)
 	}
 	return c
+}
+
+// EncryptionKeySchedule is used from the GCM implementation to access the
+// precomputed AES key schedule, to pass to the assembly implementation.
+func EncryptionKeySchedule(c *Block) []uint32 {
+	return c.enc[:c.roundKeysSize()]
 }
 
 func encryptBlock(c *Block, dst, src []byte) {

@@ -12,7 +12,7 @@
 // # details see http://www.openssl.org/~appro/cryptogams/.
 // # ====================================================================
 
-// The implementations for gcmHash, gcmInit and gcmMul are based on the generated asm
+// The implementations for gcmHash and gcmInit are based on the generated asm
 // from the script https://github.com/dot-asm/cryptogams/blob/master/ppc/ghashp8-ppc.pl
 // from commit d47afb3c.
 
@@ -93,6 +93,18 @@
 
 #define ESPERM V10
 #define TMP2 V11
+
+DATA ·rcon+0x00(SB)/8, $0x0f0e0d0c0b0a0908 // Permute for vector doubleword endian swap
+DATA ·rcon+0x08(SB)/8, $0x0706050403020100
+DATA ·rcon+0x10(SB)/8, $0x0100000001000000 // RCON
+DATA ·rcon+0x18(SB)/8, $0x0100000001000000 // RCON
+DATA ·rcon+0x20(SB)/8, $0x1b0000001b000000
+DATA ·rcon+0x28(SB)/8, $0x1b0000001b000000
+DATA ·rcon+0x30(SB)/8, $0x0d0e0f0c0d0e0f0c // MASK
+DATA ·rcon+0x38(SB)/8, $0x0d0e0f0c0d0e0f0c // MASK
+DATA ·rcon+0x40(SB)/8, $0x0000000000000000
+DATA ·rcon+0x48(SB)/8, $0x0000000000000000
+GLOBL ·rcon(SB), RODATA, $80
 
 // The following macros provide appropriate
 // implementations for endianness as well as
@@ -827,52 +839,6 @@ one:
 	JMP tail_4x
 
 done_4x:
-#ifdef GOARCH_ppc64le
-	VPERM   XL, XL, LEMASK, XL
-#endif
-	STXVD2X VXL, (XIP+R0)      // write out Xi
-	RET
-
-// func gcmMul(output []byte, productTable *[256]byte)
-TEXT ·gcmMul(SB), NOSPLIT, $0-32
-	MOVD output+0(FP), XIP
-	MOVD productTable+24(FP), HTBL
-
-	MOVD   $0x10, R8
-	MOVD   $0x20, R9
-	MOVD   $0x30, R10
-	LXVD2X (XIP)(R0), VIN // load Xi
-
-	LXVD2X   (HTBL)(R8), VHL    // Load pre-computed table
-	LXVD2X   (HTBL)(R9), VH
-	LXVD2X   (HTBL)(R10), VHH
-	LXVD2X   (HTBL)(R0), VXC2
-#ifdef GOARCH_ppc64le
-	VSPLTISB $0x07, T0
-	VXOR     LEMASK, T0, LEMASK
-	VPERM    IN, IN, LEMASK, IN
-#endif
-	VXOR     ZERO, ZERO, ZERO
-
-	VPMSUMD IN, HL, XL // H.lo·Xi.lo
-	VPMSUMD IN, H, XM  // H.hi·Xi.lo+H.lo·Xi.hi
-	VPMSUMD IN, HH, XH // H.hi·Xi.hi
-
-	VPMSUMD XL, XC2, T2 // 1st reduction phase
-
-	VSLDOI $8, XM, ZERO, T0
-	VSLDOI $8, ZERO, XM, T1
-	VXOR   XL, T0, XL
-	VXOR   XH, T1, XH
-
-	VSLDOI $8, XL, XL, XL
-	VXOR   XL, T2, XL
-
-	VSLDOI  $8, XL, XL, T1 // 2nd reduction phase
-	VPMSUMD XL, XC2, XL
-	VXOR    T1, XH, T1
-	VXOR    XL, T1, XL
-
 #ifdef GOARCH_ppc64le
 	VPERM   XL, XL, LEMASK, XL
 #endif

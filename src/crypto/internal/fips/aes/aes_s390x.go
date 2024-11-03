@@ -13,8 +13,8 @@ type code int
 // Function codes for the cipher message family of instructions.
 const (
 	aes128 code = 18
-	aes192      = 19
-	aes256      = 20
+	aes192 code = 19
+	aes256 code = 20
 )
 
 type block struct {
@@ -32,7 +32,7 @@ type block struct {
 //go:noescape
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
-var supportsAES = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR
+var supportsAES = cpu.S390X.HasAES && cpu.S390X.HasAESCBC
 
 func checkGenericIsExpected() {
 	if supportsAES {
@@ -48,16 +48,28 @@ func newBlock(c *Block, key []byte) *Block {
 	}
 
 	switch len(key) {
-	case 128 / 8:
+	case aes128KeySize:
 		c.function = aes128
-	case 192 / 8:
+	case aes192KeySize:
 		c.function = aes192
-	case 256 / 8:
+	case aes256KeySize:
 		c.function = aes256
 	}
 	c.key = c.storage[:len(key)]
 	copy(c.key, key)
 	return c
+}
+
+// BlockFunction returns the function code for the block cipher.
+// It is used by the GCM implementation to invoke the KMA instruction.
+func BlockFunction(c *Block) int {
+	return int(c.function)
+}
+
+// BlockKey returns the key for the block cipher.
+// It is used by the GCM implementation to invoke the KMA instruction.
+func BlockKey(c *Block) []byte {
+	return c.key
 }
 
 func encryptBlock(c *Block, dst, src []byte) {

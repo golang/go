@@ -464,7 +464,7 @@ func TestGCMInvalidTagSize(t *testing.T) {
 	for _, tagSize := range []int{0, 1, aes.BlockSize() + 1} {
 		aesgcm, err := cipher.NewGCMWithTagSize(aes, tagSize)
 		if aesgcm != nil || err == nil {
-			t.Fatalf("NewGCMWithNonceAndTagSize was successful with an invalid %d-byte tag size", tagSize)
+			t.Fatalf("NewGCMWithTagSize was successful with an invalid %d-byte tag size", tagSize)
 		}
 	}
 }

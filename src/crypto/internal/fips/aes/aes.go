@@ -117,9 +117,3 @@ func (c *Block) Decrypt(dst, src []byte) {
 	}
 	decryptBlock(c, dst, src)
 }
-
-// NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
-// called by [crypto/cipher.NewGCM] via an interface upgrade.
-func (c *Block) NewGCM(nonceSize, tagSize int) (*GCM, error) {
-	return newGCM(c, nonceSize, tagSize)
-}
