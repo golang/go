@@ -1569,7 +1569,8 @@ func prove(f *Func) {
 
 // initLimit sets initial constant limit for v.  This limit is based
 // only on the operation itself, not any of its input arguments. This
-// method is only called once on prove pass startup (unlike
+// method is only used in two places, once when the prove pass startup
+// and the other when a new ssa value is created, both for init. (unlike
 // flowLimit, below, which computes additional constraints based on
 // ranges of opcode arguments).
 func initLimit(v *Value) limit {
