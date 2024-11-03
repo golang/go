@@ -2068,7 +2068,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 func (r *reader) label() *types.Sym {
 	r.Sync(pkgbits.SyncLabel)
 	name := r.String()
-	if r.inlCall != nil {
+	if r.inlCall != nil && name != "_" {
 		name = fmt.Sprintf("~%s·%d", name, inlgen)
 	}
 	return typecheck.Lookup(name)
