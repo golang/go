@@ -106,7 +106,7 @@ func decodeHex(s string) []byte {
 
 // TestKeccak does a basic test of the non-standardized Keccak hash functions.
 func TestKeccak(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha3", testKeccak)
+	cryptotest.TestAllImplementations(t, "sha3", testKeccak)
 }
 
 func testKeccak(t *testing.T) {
@@ -140,7 +140,7 @@ func testKeccak(t *testing.T) {
 
 // TestShakeSum tests that the output of Sum matches the output of Read.
 func TestShakeSum(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha3", testShakeSum)
+	cryptotest.TestAllImplementations(t, "sha3", testShakeSum)
 }
 
 func testShakeSum(t *testing.T) {
@@ -173,7 +173,7 @@ func testShakeSum(t *testing.T) {
 // TestUnalignedWrite tests that writing data in an arbitrary pattern with
 // small input buffers.
 func TestUnalignedWrite(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha3", testUnalignedWrite)
+	cryptotest.TestAllImplementations(t, "sha3", testUnalignedWrite)
 }
 
 func testUnalignedWrite(t *testing.T) {
@@ -233,7 +233,7 @@ func testUnalignedWrite(t *testing.T) {
 
 // TestAppend checks that appending works when reallocation is necessary.
 func TestAppend(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha3", testAppend)
+	cryptotest.TestAllImplementations(t, "sha3", testAppend)
 }
 
 func testAppend(t *testing.T) {
@@ -255,7 +255,7 @@ func testAppend(t *testing.T) {
 
 // TestAppendNoRealloc tests that appending works when no reallocation is necessary.
 func TestAppendNoRealloc(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha3", testAppendNoRealloc)
+	cryptotest.TestAllImplementations(t, "sha3", testAppendNoRealloc)
 }
 
 func testAppendNoRealloc(t *testing.T) {
@@ -272,7 +272,7 @@ func testAppendNoRealloc(t *testing.T) {
 // TestSqueezing checks that squeezing the full output a single time produces
 // the same output as repeatedly squeezing the instance.
 func TestSqueezing(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha3", testSqueezing)
+	cryptotest.TestAllImplementations(t, "sha3", testSqueezing)
 }
 
 func testSqueezing(t *testing.T) {
@@ -313,7 +313,7 @@ func sequentialBytes(size int) []byte {
 }
 
 func TestReset(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha3", testReset)
+	cryptotest.TestAllImplementations(t, "sha3", testReset)
 }
 
 func testReset(t *testing.T) {
@@ -338,7 +338,7 @@ func testReset(t *testing.T) {
 }
 
 func TestClone(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha3", testClone)
+	cryptotest.TestAllImplementations(t, "sha3", testClone)
 }
 
 func testClone(t *testing.T) {
@@ -452,7 +452,7 @@ func TestCSHAKEAccumulated(t *testing.T) {
 	//    }
 	//    console.log(bytesToHex(acc.xof(32)));
 	//
-	cryptotest.TestAllImplementations(t, "crypto/sha3", func(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha3", func(t *testing.T) {
 		t.Run("cSHAKE128", func(t *testing.T) {
 			testCSHAKEAccumulated(t, NewCShake128, (1600-256)/8,
 				"bb14f8657c6ec5403d0b0e2ef3d3393497e9d3b1a9a9e8e6c81dbaa5fd809252")
@@ -493,7 +493,7 @@ func testCSHAKEAccumulated(t *testing.T, newCShake func(N, S []byte) *SHAKE, rat
 }
 
 func TestCSHAKELargeS(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha3", testCSHAKELargeS)
+	cryptotest.TestAllImplementations(t, "sha3", testCSHAKELargeS)
 }
 
 func testCSHAKELargeS(t *testing.T) {
@@ -525,7 +525,7 @@ func testCSHAKELargeS(t *testing.T) {
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha3", func(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha3", func(t *testing.T) {
 		t.Run("SHA3-224", func(t *testing.T) { testMarshalUnmarshal(t, New224()) })
 		t.Run("SHA3-256", func(t *testing.T) { testMarshalUnmarshal(t, New256()) })
 		t.Run("SHA3-384", func(t *testing.T) { testMarshalUnmarshal(t, New384()) })

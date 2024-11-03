@@ -93,7 +93,7 @@ var golden224 = []sha256Test{
 }
 
 func TestGolden(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha256", testGolden)
+	cryptotest.TestAllImplementations(t, "sha256", testGolden)
 }
 
 func testGolden(t *testing.T) {
@@ -142,7 +142,7 @@ func testGolden(t *testing.T) {
 }
 
 func TestGoldenMarshal(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha256", testGoldenMarshal)
+	cryptotest.TestAllImplementations(t, "sha256", testGoldenMarshal)
 }
 
 func testGoldenMarshal(t *testing.T) {
@@ -344,12 +344,12 @@ func TestCgo(t *testing.T) {
 
 func TestHash(t *testing.T) {
 	t.Run("SHA-224", func(t *testing.T) {
-		cryptotest.TestAllImplementations(t, "crypto/sha256", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
 			cryptotest.TestHash(t, New224)
 		})
 	})
 	t.Run("SHA-256", func(t *testing.T) {
-		cryptotest.TestAllImplementations(t, "crypto/sha256", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
 			cryptotest.TestHash(t, New)
 		})
 	})

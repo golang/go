@@ -680,7 +680,7 @@ func testHash(t *testing.T, name, in, outHex string, oneShotResult []byte, diges
 }
 
 func TestGolden(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
 		testGolden(t)
 	})
 }
@@ -726,7 +726,7 @@ func testGolden(t *testing.T) {
 }
 
 func TestGoldenMarshal(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
 		testGoldenMarshal(t)
 	})
 }
@@ -947,22 +947,22 @@ func TestAllocations(t *testing.T) {
 
 func TestHash(t *testing.T) {
 	t.Run("SHA-384", func(t *testing.T) {
-		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
 			cryptotest.TestHash(t, New384)
 		})
 	})
 	t.Run("SHA-512/224", func(t *testing.T) {
-		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
 			cryptotest.TestHash(t, New512_224)
 		})
 	})
 	t.Run("SHA-512/256", func(t *testing.T) {
-		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
 			cryptotest.TestHash(t, New512_256)
 		})
 	})
 	t.Run("SHA-512", func(t *testing.T) {
-		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
 			cryptotest.TestHash(t, New)
 		})
 	})

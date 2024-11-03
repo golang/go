@@ -14,7 +14,7 @@ import (
 var useSHA512 = cpu.ARM64.HasSHA512
 
 func init() {
-	impl.Register("crypto/sha512", "Armv8.2", &useSHA512)
+	impl.Register("sha512", "Armv8.2", &useSHA512)
 }
 
 //go:noescape

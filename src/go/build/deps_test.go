@@ -444,7 +444,7 @@ var depsRules = `
 	NET, log
 	< net/mail;
 
-	NONE < crypto/internal/impl;
+	STR < crypto/internal/impl;
 
 	# FIPS is the FIPS 140 module.
 	# It must not depend on external crypto packages.

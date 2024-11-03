@@ -23,7 +23,7 @@ var useSHA3 = cpu.S390X.HasSHA3
 
 func init() {
 	// CP Assist for Cryptographic Functions (CPACF)
-	impl.Register("crypto/sha3", "CPACF", &useSHA3)
+	impl.Register("sha3", "CPACF", &useSHA3)
 }
 
 func keccakF1600(a *[200]byte) {

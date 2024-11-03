@@ -18,7 +18,7 @@ import (
 var ppc64sha2 = godebug.New("#ppc64sha2").Value() != "off"
 
 func init() {
-	impl.Register("crypto/sha256", "POWER8", &ppc64sha2)
+	impl.Register("sha256", "POWER8", &ppc64sha2)
 }
 
 //go:noescape

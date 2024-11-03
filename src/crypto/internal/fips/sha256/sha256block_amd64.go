@@ -15,8 +15,8 @@ var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI2
 var useSHANI = useAVX2 && cpu.X86.HasSHA
 
 func init() {
-	impl.Register("crypto/sha256", "AVX2", &useAVX2)
-	impl.Register("crypto/sha256", "SHA-NI", &useSHANI)
+	impl.Register("sha256", "AVX2", &useAVX2)
+	impl.Register("sha256", "SHA-NI", &useSHANI)
 }
 
 //go:noescape

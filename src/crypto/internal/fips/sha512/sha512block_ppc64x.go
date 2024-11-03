@@ -18,7 +18,7 @@ import (
 var ppc64sha512 = godebug.New("#ppc64sha512").Value() != "off"
 
 func init() {
-	impl.Register("crypto/sha512", "POWER8", &ppc64sha512)
+	impl.Register("sha512", "POWER8", &ppc64sha512)
 }
 
 //go:noescape

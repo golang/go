@@ -16,7 +16,7 @@ var useSHA256 = cpu.S390X.HasSHA256
 func init() {
 	// CP Assist for Cryptographic Functions (CPACF)
 	// https://www.ibm.com/docs/en/zos/3.1.0?topic=icsf-cp-assist-cryptographic-functions-cpacf
-	impl.Register("crypto/sha256", "CPACF", &useSHA256)
+	impl.Register("sha256", "CPACF", &useSHA256)
 }
 
 //go:noescape

@@ -14,7 +14,7 @@ import (
 var useSHA2 = cpu.ARM64.HasSHA2
 
 func init() {
-	impl.Register("crypto/sha256", "Armv8.0", &useSHA2)
+	impl.Register("sha256", "Armv8.0", &useSHA2)
 }
 
 //go:noescape
