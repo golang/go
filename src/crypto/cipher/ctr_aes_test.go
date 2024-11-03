@@ -15,6 +15,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
+	fipsaes "crypto/internal/fips/aes"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -72,6 +74,10 @@ var ctrAESTests = []struct {
 }
 
 func TestCTR_AES(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "aes", testCTR_AES)
+}
+
+func testCTR_AES(t *testing.T) {
 	for _, tt := range ctrAESTests {
 		test := tt.name
 
@@ -107,26 +113,8 @@ func TestCTR_AES(t *testing.T) {
 	}
 }
 
-// This wrapper type disables method NewCTR (interface ctrAble)
-// to force generic implementation.
-type nonCtrAble struct {
-	impl cipher.Block
-}
-
-func (n *nonCtrAble) BlockSize() int {
-	return n.impl.BlockSize()
-}
-
-func (n *nonCtrAble) Encrypt(dst, src []byte) {
-	n.impl.Encrypt(dst, src)
-}
-
-func (n *nonCtrAble) Decrypt(dst, src []byte) {
-	panic("must not be called")
-}
-
 func makeTestingCiphers(aesBlock cipher.Block, iv []byte) (genericCtr, multiblockCtr cipher.Stream) {
-	return cipher.NewCTR(&nonCtrAble{impl: aesBlock}, iv), cipher.NewCTR(aesBlock, iv)
+	return cipher.NewCTR(wrap(aesBlock), iv), cipher.NewCTR(aesBlock, iv)
 }
 
 func randBytes(t *testing.T, r *rand.Rand, count int) []byte {
@@ -163,9 +151,6 @@ func TestCTR_AES_multiblock_random_IV(t *testing.T) {
 			aesBlock, err := aes.NewCipher(key)
 			if err != nil {
 				t.Fatal(err)
-			}
-			if _, ok := aesBlock.(ctrAble); !ok {
-				t.Skip("Skipping the test - multiblock implementation is not available")
 			}
 			genericCtr, _ := makeTestingCiphers(aesBlock, iv)
 
@@ -239,9 +224,6 @@ func TestCTR_AES_multiblock_overflow_IV(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if _, ok := aesBlock.(ctrAble); !ok {
-					t.Skip("Skipping the test - multiblock implementation is not available")
-				}
 
 				t.Run(fmt.Sprintf("iv=%s", hex.EncodeToString(iv)), func(t *testing.T) {
 					for _, offset := range []int{0, 1, 16, 1024} {
@@ -273,10 +255,6 @@ func TestCTR_AES_multiblock_XORKeyStreamAt(t *testing.T) {
 		t.Skip("XORKeyStreamAt is not available in boring mode")
 	}
 
-	type XORKeyStreamAtable interface {
-		XORKeyStreamAt(dst, src []byte, offset uint64)
-	}
-
 	r := rand.New(rand.NewSource(12345))
 	const Size = 32 * 1024 * 1024
 	plaintext := randBytes(t, r, Size)
@@ -291,14 +269,8 @@ func TestCTR_AES_multiblock_XORKeyStreamAt(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, ok := aesBlock.(ctrAble); !ok {
-				t.Skip("Skipping the test - multiblock implementation is not available")
-			}
-			genericCtr, multiblockCtr := makeTestingCiphers(aesBlock, iv)
-			ctrAt, ok := multiblockCtr.(XORKeyStreamAtable)
-			if !ok {
-				t.Fatal("cipher is expected to have method XORKeyStreamAt")
-			}
+			genericCtr, _ := makeTestingCiphers(aesBlock, iv)
+			ctrAt := fipsaes.NewCTR(aesBlock.(*fipsaes.Block), iv)
 
 			// Generate reference ciphertext.
 			genericCiphertext := make([]byte, Size)

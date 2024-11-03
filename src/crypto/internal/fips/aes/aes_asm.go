@@ -7,8 +7,10 @@
 package aes
 
 import (
+	"crypto/internal/impl"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/godebug"
 )
 
 //go:noescape
@@ -22,6 +24,25 @@ func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
 
 var supportsAES = cpu.X86.HasAES && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
 	cpu.ARM64.HasAES || goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1
+
+func init() {
+	if goarch.IsAmd64 == 1 {
+		impl.Register("aes", "AES-NI", &supportsAES)
+	}
+	if goarch.IsArm64 == 1 {
+		impl.Register("aes", "Armv8.0", &supportsAES)
+	}
+	if goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1 {
+		// The POWER architecture doesn't have a way to turn off AES support
+		// at runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG
+		// knob for that. It's intentionally only checked at init() time, to
+		// avoid the performance overhead of checking it every time.
+		if godebug.New("#ppc64aes").Value() == "off" {
+			supportsAES = false
+		}
+		impl.Register("aes", "POWER8", &supportsAES)
+	}
+}
 
 // checkGenericIsExpected is called by the variable-time implementation to make
 // sure it is not used when hardware support is available. It shouldn't happen,

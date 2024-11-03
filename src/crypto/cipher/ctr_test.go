@@ -18,7 +18,7 @@ type noopBlock int
 
 func (b noopBlock) BlockSize() int        { return int(b) }
 func (noopBlock) Encrypt(dst, src []byte) { copy(dst, src) }
-func (noopBlock) Decrypt(dst, src []byte) { copy(dst, src) }
+func (noopBlock) Decrypt(dst, src []byte) { panic("unreachable") }
 
 func inc(b []byte) {
 	for i := len(b) - 1; i >= 0; i++ {
@@ -59,23 +59,23 @@ func TestCTR(t *testing.T) {
 }
 
 func TestCTRStream(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "aes", func(t *testing.T) {
+		for _, keylen := range []int{128, 192, 256} {
+			t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
+				rng := newRandReader(t)
 
-	for _, keylen := range []int{128, 192, 256} {
+				key := make([]byte, keylen/8)
+				rng.Read(key)
 
-		t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
-			rng := newRandReader(t)
+				block, err := aes.NewCipher(key)
+				if err != nil {
+					panic(err)
+				}
 
-			key := make([]byte, keylen/8)
-			rng.Read(key)
-
-			block, err := aes.NewCipher(key)
-			if err != nil {
-				panic(err)
-			}
-
-			cryptotest.TestStreamFromBlock(t, block, cipher.NewCTR)
-		})
-	}
+				cryptotest.TestStreamFromBlock(t, block, cipher.NewCTR)
+			})
+		}
+	})
 
 	t.Run("DES", func(t *testing.T) {
 		rng := newRandReader(t)

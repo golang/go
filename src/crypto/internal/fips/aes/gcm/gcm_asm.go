@@ -9,7 +9,9 @@ package gcm
 import (
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/subtle"
+	"crypto/internal/impl"
 	"internal/cpu"
+	"internal/goarch"
 )
 
 // The following functions are defined in gcm_*.s.
@@ -32,6 +34,15 @@ func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint
 // Keep in sync with crypto/tls.hasAESGCMHardwareSupport.
 var supportsAESGCM = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
 	cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+
+func init() {
+	if goarch.IsAmd64 == 1 {
+		impl.Register("gcm", "AES-NI", &supportsAESGCM)
+	}
+	if goarch.IsArm64 == 1 {
+		impl.Register("gcm", "Armv8.0", &supportsAESGCM)
+	}
+}
 
 // checkGenericIsExpected is called by the variable-time implementation to make
 // sure it is not used when hardware support is available. It shouldn't happen,

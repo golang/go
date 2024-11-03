@@ -6,7 +6,10 @@
 
 package aes
 
-import "internal/cpu"
+import (
+	"crypto/internal/impl"
+	"internal/cpu"
+)
 
 type code int
 
@@ -33,6 +36,12 @@ type block struct {
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
 var supportsAES = cpu.S390X.HasAES && cpu.S390X.HasAESCBC
+
+func init() {
+	// CP Assist for Cryptographic Functions (CPACF)
+	// https://www.ibm.com/docs/en/zos/3.1.0?topic=icsf-cp-assist-cryptographic-functions-cpacf
+	impl.Register("aes", "CPACF", &supportsAES)
+}
 
 func checkGenericIsExpected() {
 	if supportsAES {

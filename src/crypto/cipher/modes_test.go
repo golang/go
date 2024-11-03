@@ -5,7 +5,6 @@
 package cipher_test
 
 import (
-	"crypto/aes"
 	. "crypto/cipher"
 	"reflect"
 	"testing"
@@ -86,7 +85,11 @@ func TestGCM(t *testing.T) {
 // TestNoExtraMethods makes sure we don't accidentally expose methods on the
 // underlying implementations of modes.
 func TestNoExtraMethods(t *testing.T) {
-	b, _ := aes.NewCipher(make([]byte, 16))
+	testAllImplementations(t, testNoExtraMethods)
+}
+
+func testNoExtraMethods(t *testing.T, newBlock func([]byte) Block) {
+	b := newBlock(make([]byte, 16))
 
 	ctr := NewCTR(b, make([]byte, 16))
 	ctrExpected := []string{"XORKeyStream"}

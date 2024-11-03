@@ -53,6 +53,10 @@ var encryptTests = []CryptTest{
 
 // Test Cipher Encrypt method against FIPS 197 examples.
 func TestCipherEncrypt(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "aes", testCipherEncrypt)
+}
+
+func testCipherEncrypt(t *testing.T) {
 	for i, tt := range encryptTests {
 		c, err := NewCipher(tt.key)
 		if err != nil {
@@ -72,6 +76,10 @@ func TestCipherEncrypt(t *testing.T) {
 
 // Test Cipher Decrypt against FIPS 197 examples.
 func TestCipherDecrypt(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "aes", testCipherDecrypt)
+}
+
+func testCipherDecrypt(t *testing.T) {
 	for i, tt := range encryptTests {
 		c, err := NewCipher(tt.key)
 		if err != nil {
@@ -91,6 +99,10 @@ func TestCipherDecrypt(t *testing.T) {
 
 // Test AES against the general cipher.Block interface tester
 func TestAESBlock(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "aes", testAESBlock)
+}
+
+func testAESBlock(t *testing.T) {
 	for _, keylen := range []int{128, 192, 256} {
 		t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
 			cryptotest.TestBlock(t, keylen/8, NewCipher)

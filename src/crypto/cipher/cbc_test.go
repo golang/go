@@ -18,22 +18,23 @@ import (
 
 // Test CBC Blockmode against the general cipher.BlockMode interface tester
 func TestCBCBlockMode(t *testing.T) {
-	for _, keylen := range []int{128, 192, 256} {
+	cryptotest.TestAllImplementations(t, "aes", func(t *testing.T) {
+		for _, keylen := range []int{128, 192, 256} {
+			t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
+				rng := newRandReader(t)
 
-		t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
-			rng := newRandReader(t)
+				key := make([]byte, keylen/8)
+				rng.Read(key)
 
-			key := make([]byte, keylen/8)
-			rng.Read(key)
+				block, err := aes.NewCipher(key)
+				if err != nil {
+					panic(err)
+				}
 
-			block, err := aes.NewCipher(key)
-			if err != nil {
-				panic(err)
-			}
-
-			cryptotest.TestBlockMode(t, block, cipher.NewCBCEncrypter, cipher.NewCBCDecrypter)
-		})
-	}
+				cryptotest.TestBlockMode(t, block, cipher.NewCBCEncrypter, cipher.NewCBCDecrypter)
+			})
+		}
+	})
 
 	t.Run("DES", func(t *testing.T) {
 		rng := newRandReader(t)

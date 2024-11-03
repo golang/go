@@ -18,6 +18,42 @@ import (
 	"testing"
 )
 
+var _ cipher.Block = (*wrapper)(nil)
+
+type wrapper struct {
+	block cipher.Block
+}
+
+func (w *wrapper) BlockSize() int          { return w.block.BlockSize() }
+func (w *wrapper) Encrypt(dst, src []byte) { w.block.Encrypt(dst, src) }
+func (w *wrapper) Decrypt(dst, src []byte) { w.block.Decrypt(dst, src) }
+
+// wrap wraps the Block so that it does not type-asserts to *aes.Block.
+func wrap(b cipher.Block) cipher.Block {
+	return &wrapper{b}
+}
+
+func testAllImplementations(t *testing.T, f func(*testing.T, func([]byte) cipher.Block)) {
+	cryptotest.TestAllImplementations(t, "gcm", func(t *testing.T) {
+		f(t, func(b []byte) cipher.Block {
+			c, err := aes.NewCipher(b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return c
+		})
+	})
+	t.Run("Fallback", func(t *testing.T) {
+		f(t, func(b []byte) cipher.Block {
+			c, err := aes.NewCipher(b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return wrap(c)
+		})
+	})
+}
+
 var aesGCMTests = []struct {
 	key, nonce, plaintext, ad, result string
 }{
@@ -374,18 +410,20 @@ var aesGCMTests = []struct {
 }
 
 func TestAESGCM(t *testing.T) {
+	testAllImplementations(t, testAESGCM)
+}
+
+func testAESGCM(t *testing.T, newCipher func(key []byte) cipher.Block) {
 	for i, test := range aesGCMTests {
 		key, _ := hex.DecodeString(test.key)
-		aes, err := aes.NewCipher(key)
-		if err != nil {
-			t.Fatal(err)
-		}
+		aes := newCipher(key)
 
 		nonce, _ := hex.DecodeString(test.nonce)
 		plaintext, _ := hex.DecodeString(test.plaintext)
 		ad, _ := hex.DecodeString(test.ad)
 		tagSize := (len(test.result) - len(test.plaintext)) / 2
 
+		var err error
 		var aesgcm cipher.AEAD
 		switch {
 		// Handle non-standard tag sizes
@@ -457,9 +495,12 @@ func TestAESGCM(t *testing.T) {
 }
 
 func TestGCMInvalidTagSize(t *testing.T) {
-	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
+	testAllImplementations(t, testGCMInvalidTagSize)
+}
 
-	aes, _ := aes.NewCipher(key)
+func testGCMInvalidTagSize(t *testing.T, newCipher func(key []byte) cipher.Block) {
+	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
+	aes := newCipher(key)
 
 	for _, tagSize := range []int{0, 1, aes.BlockSize() + 1} {
 		aesgcm, err := cipher.NewGCMWithTagSize(aes, tagSize)
@@ -470,6 +511,10 @@ func TestGCMInvalidTagSize(t *testing.T) {
 }
 
 func TestTagFailureOverwrite(t *testing.T) {
+	testAllImplementations(t, testTagFailureOverwrite)
+}
+
+func testTagFailureOverwrite(t *testing.T, newCipher func(key []byte) cipher.Block) {
 	// The AESNI GCM code decrypts and authenticates concurrently and so
 	// overwrites the output buffer before checking the authentication tag.
 	// In order to be consistent across platforms, all implementations
@@ -479,7 +524,7 @@ func TestTagFailureOverwrite(t *testing.T) {
 	nonce, _ := hex.DecodeString("54cc7dc2c37ec006bcc6d1db")
 	ciphertext, _ := hex.DecodeString("0e1bde206a07a9c2c1b65300f8c649972b4401346697138c7a4891ee59867d0c")
 
-	aes, _ := aes.NewCipher(key)
+	aes := newCipher(key)
 	aesgcm, _ := cipher.NewGCM(aes)
 
 	dst := make([]byte, len(ciphertext)-16)
@@ -504,6 +549,10 @@ func TestTagFailureOverwrite(t *testing.T) {
 }
 
 func TestGCMCounterWrap(t *testing.T) {
+	testAllImplementations(t, testGCMCounterWrap)
+}
+
+func testGCMCounterWrap(t *testing.T, newCipher func(key []byte) cipher.Block) {
 	// Test that the last 32-bits of the counter wrap correctly.
 	tests := []struct {
 		nonce, tag string
@@ -516,10 +565,7 @@ func TestGCMCounterWrap(t *testing.T) {
 		{"010ae3d486", "5405bb490b1f95d01e2ba735687154bc"}, // counter: e36c18e69406c49722808104fffffff8
 		{"01b1107a9d", "939a585f342e01e17844627492d44dbf"}, // counter: e6d56eaf9127912b6d62c6dcffffffff
 	}
-	key, err := aes.NewCipher(make([]byte, 16))
-	if err != nil {
-		t.Fatal(err)
-	}
+	key := newCipher(make([]byte, 16))
 	plaintext := make([]byte, 16*17+1)
 	for i, test := range tests {
 		nonce, _ := hex.DecodeString(test.nonce)
@@ -537,22 +583,6 @@ func TestGCMCounterWrap(t *testing.T) {
 			t.Errorf("test[%v]: authentication failed", i)
 		}
 	}
-}
-
-var _ cipher.Block = (*wrapper)(nil)
-
-type wrapper struct {
-	block cipher.Block
-}
-
-func (w *wrapper) BlockSize() int          { return w.block.BlockSize() }
-func (w *wrapper) Encrypt(dst, src []byte) { w.block.Encrypt(dst, src) }
-func (w *wrapper) Decrypt(dst, src []byte) { w.block.Decrypt(dst, src) }
-
-// wrap wraps the Block interface so that it does not fulfill
-// any optimizing interfaces such as gcmAble.
-func wrap(b cipher.Block) cipher.Block {
-	return &wrapper{b}
 }
 
 func TestGCMAsm(t *testing.T) {
@@ -659,6 +689,10 @@ func TestGCMAsm(t *testing.T) {
 
 // Test GCM against the general cipher.AEAD interface tester.
 func TestGCMAEAD(t *testing.T) {
+	testAllImplementations(t, testGCMAEAD)
+}
+
+func testGCMAEAD(t *testing.T, newCipher func(key []byte) cipher.Block) {
 	minTagSize := 12
 
 	for _, keySize := range []int{128, 192, 256} {
@@ -669,10 +703,7 @@ func TestGCMAEAD(t *testing.T) {
 			key := make([]byte, keySize/8)
 			rng.Read(key)
 
-			block, err := aes.NewCipher(key)
-			if err != nil {
-				panic(err)
-			}
+			block := newCipher(key)
 
 			// Test GCM with the current AES block with the standard nonce and tag
 			// sizes.
@@ -686,7 +717,6 @@ func TestGCMAEAD(t *testing.T) {
 			// Test non-standard nonce sizes.
 			for _, nonceSize := range []int{1, 16, 100} {
 				t.Run(fmt.Sprintf("NonceSize-%d", nonceSize), func(t *testing.T) {
-
 					cryptotest.TestAEAD(t, func() (cipher.AEAD, error) { return cipher.NewGCMWithNonceSize(block, nonceSize) })
 				})
 			}

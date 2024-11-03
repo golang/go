@@ -60,6 +60,19 @@ func testBlockMode(t *testing.T, bm MakeBlockMode, b cipher.Block, iv []byte) {
 		mustPanic(t, "IV length must equal block size", func() { bm(b, iv) })
 	})
 
+	t.Run("EmptyInput", func(t *testing.T) {
+		rng := newRandReader(t)
+
+		src, dst := make([]byte, blockSize), make([]byte, blockSize)
+		rng.Read(dst)
+		before := bytes.Clone(dst)
+
+		bm(b, iv).CryptBlocks(dst, src[:0])
+		if !bytes.Equal(dst, before) {
+			t.Errorf("CryptBlocks modified dst on empty input; got %x, want %x", dst, before)
+		}
+	})
+
 	t.Run("AlterInput", func(t *testing.T) {
 		rng := newRandReader(t)
 

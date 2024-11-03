@@ -86,6 +86,19 @@ func TestStream(t *testing.T, ms MakeStream) {
 		})
 	})
 
+	t.Run("EmptyInput", func(t *testing.T) {
+		rng := newRandReader(t)
+
+		src, dst := make([]byte, 100), make([]byte, 100)
+		rng.Read(dst)
+		before := bytes.Clone(dst)
+
+		ms().XORKeyStream(dst, src[:0])
+		if !bytes.Equal(dst, before) {
+			t.Errorf("XORKeyStream modified dst on empty input; got %s, want %s", truncateHex(dst), truncateHex(before))
+		}
+	})
+
 	t.Run("AlterInput", func(t *testing.T) {
 		rng := newRandReader(t)
 		src, dst, before := make([]byte, bufCap), make([]byte, bufCap), make([]byte, bufCap)
