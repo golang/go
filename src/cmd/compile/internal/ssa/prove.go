@@ -462,6 +462,25 @@ func newFactsTable(f *Func) *factsTable {
 	return ft
 }
 
+// initLimitForNewValue initializes the limits for newly created values,
+// possibly needing to expand the limits slice. Currently used by
+// simplifyBlock when certain provably constant results are folded.
+func (ft *factsTable) initLimitForNewValue(v *Value) {
+	if int(v.ID) >= len(ft.limits) {
+		f := v.Block.Func
+		n := f.NumValues()
+		if cap(ft.limits) >= n {
+			ft.limits = ft.limits[:n]
+		} else {
+			old := ft.limits
+			ft.limits = f.Cache.allocLimitSlice(n)
+			copy(ft.limits, old)
+			f.Cache.freeLimitSlice(old)
+		}
+	}
+	ft.limits[v.ID] = initLimit(v)
+}
+
 // signedMin records the fact that we know v is at least
 // min in the signed domain.
 func (ft *factsTable) signedMin(v *Value, min int64) bool {
@@ -2269,6 +2288,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				continue
 			}
 			v.SetArg(i, c)
+			ft.initLimitForNewValue(c)
 			if b.Func.pass.debug > 1 {
 				b.Func.Warnl(v.Pos, "Proved %v's arg %d (%v) is constant %d", v, i, arg, constValue)
 			}
