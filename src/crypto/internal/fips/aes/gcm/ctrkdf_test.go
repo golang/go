@@ -9,6 +9,7 @@ import (
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/aes/gcm"
+	"crypto/internal/fips/drbg"
 	"crypto/internal/fips/sha3"
 	"encoding/hex"
 	"testing"
@@ -28,6 +29,30 @@ func TestAllocations(t *testing.T) {
 		}
 	}); allocs > 0 {
 		t.Errorf("expected zero allocations, got %0.1f", allocs)
+	}
+}
+
+func TestXAES(t *testing.T) {
+	key := bytes.Repeat([]byte{0x01}, 32)
+	plaintext := []byte("XAES-256-GCM")
+	additionalData := []byte("c2sp.org/XAES-256-GCM")
+
+	nonce := make([]byte, 24)
+	ciphertext := make([]byte, len(plaintext)+16)
+
+	drbg.Read(nonce[:12])
+	c, _ := aes.New(key)
+	k := gcm.NewCounterKDF(c).DeriveKey(0x58, [12]byte(nonce))
+	a, _ := aes.New(k[:])
+	g, _ := gcm.New(a, 12, 16)
+	gcm.SealWithRandomNonce(g, nonce[12:], ciphertext, plaintext, additionalData)
+
+	got, err := xaesOpen(nil, key, nonce, ciphertext, additionalData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(plaintext, got) {
+		t.Errorf("plaintext and got are not equal")
 	}
 }
 
