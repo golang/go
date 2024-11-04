@@ -109,7 +109,6 @@ func swissTableType() *types.Type {
 	//     // From groups.
 	//     groups_data       unsafe.Pointer
 	//     groups_lengthMask uint64
-	//     groups_entryMask  uint64
 	// }
 	// must match internal/runtime/maps/table.go:table.
 	fields := []*types.Field{
@@ -120,7 +119,6 @@ func swissTableType() *types.Type {
 		makefield("index", types.Types[types.TINT]),
 		makefield("groups_data", types.Types[types.TUNSAFEPTR]),
 		makefield("groups_lengthMask", types.Types[types.TUINT64]),
-		makefield("groups_entryMask", types.Types[types.TUINT64]),
 	}
 
 	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.InternalMaps.Lookup("table"))
@@ -131,9 +129,9 @@ func swissTableType() *types.Type {
 	table.SetUnderlying(types.NewStruct(fields))
 	types.CalcSize(table)
 
-	// The size of table should be 40 bytes on 64 bit
-	// and 32 bytes on 32 bit platforms.
-	if size := int64(3*2 + 2*1 /* one extra for padding */ + 2*8 + 2*types.PtrSize); table.Size() != size {
+	// The size of table should be 32 bytes on 64 bit
+	// and 24 bytes on 32 bit platforms.
+	if size := int64(3*2 + 2*1 /* one extra for padding */ + 1*8 + 2*types.PtrSize); table.Size() != size {
 		base.Fatalf("internal/runtime/maps.table size not correct: got %d, want %d", table.Size(), size)
 	}
 

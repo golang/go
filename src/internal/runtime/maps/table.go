@@ -803,7 +803,8 @@ func (it *Iter) Next() {
 		// table for key selection if the table has grown. See comment
 		// on grown below.
 
-		if it.entryIdx > it.tab.groups.entryMask {
+		entryMask := uint64(it.tab.capacity) - 1
+		if it.entryIdx > entryMask {
 			// Continue to next table.
 			continue
 		}
@@ -819,7 +820,7 @@ func (it *Iter) Next() {
 		// it is cheaper to check a single slot than do a full control
 		// match.
 
-		entryIdx := (it.entryIdx + it.entryOffset) & it.tab.groups.entryMask
+		entryIdx := (it.entryIdx + it.entryOffset) & entryMask
 		slotIdx := uintptr(entryIdx & (abi.SwissMapGroupSlots - 1))
 		if slotIdx == 0 || it.group.data == nil {
 			// Only compute the group (a) when we switch
@@ -864,7 +865,7 @@ func (it *Iter) Next() {
 			return
 		}
 
-next:
+	next:
 		it.entryIdx++
 
 		// Slow path: use a match on the control word to jump ahead to
@@ -885,8 +886,8 @@ next:
 		// double-check the control value.
 
 		var groupMatch bitset
-		for it.entryIdx <= it.tab.groups.entryMask {
-			entryIdx := (it.entryIdx + it.entryOffset) & it.tab.groups.entryMask
+		for it.entryIdx <= entryMask {
+			entryIdx := (it.entryIdx + it.entryOffset) & entryMask
 			slotIdx := uintptr(entryIdx & (abi.SwissMapGroupSlots - 1))
 
 			if slotIdx == 0 || it.group.data == nil {
@@ -918,7 +919,7 @@ next:
 
 				i := groupMatch.first()
 				it.entryIdx += uint64(i - slotIdx)
-				if it.entryIdx > it.tab.groups.entryMask {
+				if it.entryIdx > entryMask {
 					// Past the end of this table's iteration.
 					continue
 				}

@@ -218,9 +218,6 @@ type groupsReference struct {
 	// length must be a power of two). This allows computing i%length
 	// quickly using bitwise AND.
 	lengthMask uint64
-
-	// entryMask is the total number of slots in the groups minus one.
-	entryMask uint64
 }
 
 // newGroups allocates a new array of length groups.
@@ -231,7 +228,6 @@ func newGroups(typ *abi.SwissMapType, length uint64) groupsReference {
 		// TODO: make the length type the same throughout.
 		data:       newarray(typ.Group, int(length)),
 		lengthMask: length - 1,
-		entryMask:  (length * abi.SwissMapGroupSlots) - 1,
 	}
 }
 
