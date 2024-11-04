@@ -40,6 +40,18 @@ func (c *CTR) XORKeyStream(dst, src []byte) {
 	}
 }
 
+// RoundToBlock is used by CTR_DRBG, which discards the rightmost unused bits at
+// each request. It rounds the offset up to the next block boundary.
+func RoundToBlock(c *CTR) {
+	if remainder := c.offset % BlockSize; remainder != 0 {
+		var carry uint64
+		c.offset, carry = bits.Add64(c.offset, BlockSize-remainder, 0)
+		if carry != 0 {
+			panic("crypto/aes: counter overflow")
+		}
+	}
+}
+
 // XORKeyStreamAt behaves like XORKeyStream but keeps no state, and instead
 // seeks into the keystream by the given bytes offset from the start (ignoring
 // any XORKetStream calls). This allows for random access into the keystream, up
