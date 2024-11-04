@@ -185,10 +185,11 @@ func Check2[U, V any](forall Seq2[U, V]) Seq2[U, V] {
 	return func(body func(U, V) bool) {
 		state := READY
 		forall(func(u U, v V) bool {
-			if state != READY {
-				panic(fail[state])
-			}
+			tmp := state
 			state = PANIC
+			if tmp != READY {
+				panic(fail[tmp])
+			}
 			ret := body(u, v)
 			if ret {
 				state = READY
@@ -208,10 +209,11 @@ func Check[U any](forall Seq[U]) Seq[U] {
 	return func(body func(U) bool) {
 		state := READY
 		forall(func(u U) bool {
-			if state != READY {
-				panic(fail[state])
-			}
+			tmp := state
 			state = PANIC
+			if tmp != READY {
+				panic(fail[tmp])
+			}
 			ret := body(u)
 			if ret {
 				state = READY
@@ -1122,11 +1124,11 @@ func TestPanickyIterator1(t *testing.T) {
 			} else {
 				t.Errorf("Saw wrong panic '%v'", r)
 			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
 		} else {
 			t.Errorf("Wanted to see a failure, result was %v", result)
-		}
-		if !slices.Equal(expect, result) {
-			t.Errorf("Expected %v, got %v", expect, result)
 		}
 	}()
 	for _, z := range PanickyOfSliceIndex([]int{1, 2, 3, 4}) {
@@ -1172,11 +1174,11 @@ func TestPanickyIterator2(t *testing.T) {
 			} else {
 				t.Errorf("Saw wrong panic '%v'", r)
 			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
 		} else {
 			t.Errorf("Wanted to see a failure, result was %v", result)
-		}
-		if !slices.Equal(expect, result) {
-			t.Errorf("Expected %v, got %v", expect, result)
 		}
 	}()
 	for _, x := range OfSliceIndex([]int{100, 200}) {
@@ -1207,11 +1209,11 @@ func TestPanickyIterator2Check(t *testing.T) {
 			} else {
 				t.Errorf("Saw wrong panic '%v'", r)
 			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
 		} else {
-			t.Errorf("Wanted to see a failure, result was %v", result)
-		}
-		if !slices.Equal(expect, result) {
-			t.Errorf("Expected %v, got %v", expect, result)
+			t.Errorf("Wanted to see a panic, result was %v", result)
 		}
 	}()
 	for _, x := range Check2(OfSliceIndex([]int{100, 200})) {
@@ -1234,13 +1236,19 @@ func TestPanickyIterator2Check(t *testing.T) {
 
 func TestPanickyIterator3(t *testing.T) {
 	var result []int
-	var expect = []int{100, 10, 1, 2, 200, 10, 1, 2}
+	var expect = []int{100, 10, 1, 2}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("Unexpected panic '%v'", r)
-		}
-		if !slices.Equal(expect, result) {
-			t.Errorf("Expected %v, got %v", expect, result)
+			if matchError(r, RERR_MISSING) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a panic, result was %v", result)
 		}
 	}()
 	for _, x := range OfSliceIndex([]int{100, 200}) {
@@ -1262,13 +1270,19 @@ func TestPanickyIterator3(t *testing.T) {
 }
 func TestPanickyIterator3Check(t *testing.T) {
 	var result []int
-	var expect = []int{100, 10, 1, 2, 200, 10, 1, 2}
+	var expect = []int{100, 10, 1, 2}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("Unexpected panic '%v'", r)
-		}
-		if !slices.Equal(expect, result) {
-			t.Errorf("Expected %v, got %v", expect, result)
+			if matchError(r, CERR_MISSING) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a panic, result was %v", result)
 		}
 	}()
 	for _, x := range Check2(OfSliceIndex([]int{100, 200})) {
@@ -1298,9 +1312,11 @@ func TestPanickyIterator4(t *testing.T) {
 			} else {
 				t.Errorf("Saw wrong panic '%v'", r)
 			}
-		}
-		if !slices.Equal(expect, result) {
-			t.Errorf("Expected %v, got %v", expect, result)
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a panic, result was %v", result)
 		}
 	}()
 	for _, x := range SwallowPanicOfSliceIndex([]int{1, 2, 3, 4}) {
@@ -1321,9 +1337,11 @@ func TestPanickyIterator4Check(t *testing.T) {
 			} else {
 				t.Errorf("Saw wrong panic '%v'", r)
 			}
-		}
-		if !slices.Equal(expect, result) {
-			t.Errorf("Expected %v, got %v", expect, result)
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a panic, result was %v", result)
 		}
 	}()
 	for _, x := range Check2(SwallowPanicOfSliceIndex([]int{1, 2, 3, 4})) {
@@ -1409,33 +1427,76 @@ X:
 
 // TestVeryBad1 checks the behavior of an extremely poorly behaved iterator.
 func TestVeryBad1(t *testing.T) {
-	result := veryBad([]int{10, 20, 30, 40, 50}) // odd length
-	expect := []int{1, 10}
+	expect := []int{} // assignment does not happen
+	var result []int
 
-	if !slices.Equal(expect, result) {
-		t.Errorf("Expected %v, got %v", expect, result)
+	defer func() {
+		if r := recover(); r != nil {
+			expectPanic(t, r, RERR_MISSING)
+			if !slices.Equal(expect, result) {
+				t.Errorf("(Inner) Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Error("Wanted to see a failure")
+		}
+	}()
+
+	result = veryBad([]int{10, 20, 30, 40, 50}) // odd length
+
+}
+
+func expectPanic(t *testing.T, r any, s string) {
+	if matchError(r, s) {
+		t.Logf("Saw expected panic '%v'", r)
+	} else {
+		t.Errorf("Saw wrong panic '%v'", r)
+	}
+}
+
+func expectError(t *testing.T, err any, s string) {
+	if matchError(err, s) {
+		t.Logf("Saw expected error '%v'", err)
+	} else {
+		t.Errorf("Saw wrong error '%v'", err)
 	}
 }
 
 // TestVeryBad2 checks the behavior of an extremely poorly behaved iterator.
 func TestVeryBad2(t *testing.T) {
-	result := veryBad([]int{10, 20, 30, 40}) // even length
-	expect := []int{1, 10}
+	result := []int{}
+	expect := []int{}
 
-	if !slices.Equal(expect, result) {
-		t.Errorf("Expected %v, got %v", expect, result)
-	}
+	defer func() {
+		if r := recover(); r != nil {
+			expectPanic(t, r, RERR_MISSING)
+			if !slices.Equal(expect, result) {
+				t.Errorf("(Inner) Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Error("Wanted to see a failure")
+		}
+	}()
+
+	result = veryBad([]int{10, 20, 30, 40}) // even length
+
 }
 
 // TestVeryBadCheck checks the behavior of an extremely poorly behaved iterator,
 // which also suppresses the exceptions from "Check"
 func TestVeryBadCheck(t *testing.T) {
-	result := veryBadCheck([]int{10, 20, 30, 40}) // even length
-	expect := []int{1, 10}
+	expect := []int{}
+	var result []int
+	defer func() {
+		if r := recover(); r != nil {
+			expectPanic(t, r, CERR_MISSING)
+		}
+		if !slices.Equal(expect, result) {
+			t.Errorf("Expected %v, got %v", expect, result)
+		}
+	}()
 
-	if !slices.Equal(expect, result) {
-		t.Errorf("Expected %v, got %v", expect, result)
-	}
+	result = veryBadCheck([]int{10, 20, 30, 40}) // even length
+
 }
 
 // TestOk is the nice version of the very bad iterator.

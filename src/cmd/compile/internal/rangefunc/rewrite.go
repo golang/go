@@ -157,8 +157,9 @@ The value of #stateK transitions
 
 (3) at the beginning of the iteration of the loop body,
 
-	if #stateN != abi.RF_READY { runtime.panicrangestate(#stateN) }
+	if #stateN != abi.RF_READY { #stateN = abi.RF_PANIC ; runtime.panicrangestate(#stateN) }
 	#stateN = abi.RF_PANIC
+	// This is slightly rearranged below for better code generation.
 
 (4) when loop iteration continues,
 
@@ -183,7 +184,7 @@ becomes
 		{
 			var #state1 = abi.RF_READY
 			f(func(x T1) bool {
-				if #state1 != abi.RF_READY { runtime.panicrangestate(#state1) }
+				if #state1 != abi.RF_READY { #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
 				#state1 = abi.RF_PANIC
 				...
 				if ... { #state1 = abi.RF_DONE ; return false }
@@ -232,11 +233,11 @@ becomes
 		)
 		var #state1 = abi.RF_READY
 		f(func() bool {
-			if #state1 != abi.RF_READY { runtime.panicrangestate(#state1) }
+			if #state1 != abi.RF_READY { #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
 			#state1 = abi.RF_PANIC
 			var #state2 = abi.RF_READY
 			g(func() bool {
-				if #state2 != abi.RF_READY { runtime.panicrangestate(#state2) }
+				if #state2 != abi.RF_READY { #state2 = abi.RF_PANIC; runtime.panicrangestate(#state2) }
 				...
 				{
 					// return a, b
@@ -324,15 +325,15 @@ becomes
 		var #next int
 		var #state1 = abi.RF_READY
 		f(func() { // 1,2
-			if #state1 != abi.RF_READY { runtime.panicrangestate(#state1) }
+			if #state1 != abi.RF_READY { #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
 			#state1 = abi.RF_PANIC
 			var #state2 = abi.RF_READY
 			g(func() { // 3,4
-				if #state2 != abi.RF_READY { runtime.panicrangestate(#state2) }
+				if #state2 != abi.RF_READY { #state2 = abi.RF_PANIC; runtime.panicrangestate(#state2) }
 				#state2 = abi.RF_PANIC
 				var #state3 = abi.RF_READY
 				h(func() { // 5,6
-					if #state3 != abi.RF_READY { runtime.panicrangestate(#state3) }
+					if #state3 != abi.RF_READY { #state3 = abi.RF_PANIC; runtime.panicrangestate(#state3) }
 					#state3 = abi.RF_PANIC
 					...
 					{
@@ -425,16 +426,16 @@ becomes
 		var #next int
 		var #state1 = abi.RF_READY
 		f(func() {
-			if #state1 != abi.RF_READY{ runtime.panicrangestate(#state1) }
+			if #state1 != abi.RF_READY{ #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
 			#state1 = abi.RF_PANIC
 			var #state2 = abi.RF_READY
 			g(func() {
-				if #state2 != abi.RF_READY { runtime.panicrangestate(#state2) }
+				if #state2 != abi.RF_READY { #state2 = abi.RF_PANIC; runtime.panicrangestate(#state2) }
 				#state2 = abi.RF_PANIC
 				...
 				var #state3 bool = abi.RF_READY
 				h(func() {
-					if #state3 != abi.RF_READY { runtime.panicrangestate(#state3) }
+					if #state3 != abi.RF_READY { #state3 = abi.RF_PANIC; runtime.panicrangestate(#state3) }
 					#state3 = abi.RF_PANIC
 					...
 					{
@@ -1182,8 +1183,25 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
 	loop := r.forStack[len(r.forStack)-1]
 
 	if r.checkFuncMisuse() {
-		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertReady(start, loop))
+		// #tmpState := #stateVarN
+		// #stateVarN = abi.RF_PANIC
+		// if #tmpState != abi.RF_READY {
+		//    runtime.panicrangestate(#tmpState)
+		// }
+		//
+		// That is a slightly code-size-optimized version of
+		//
+		// if #stateVarN != abi.RF_READY {
+		//	  #stateVarN = abi.RF_PANIC // If we ever need to specially detect "iterator swallowed checking panic" we put a different value here.
+		//    runtime.panicrangestate(#tmpState)
+		// }
+		// #stateVarN = abi.RF_PANIC
+		//
+
+		tmpDecl, tmpState := r.declSingleVar("#tmpState", r.int.Type(), r.useObj(loop.stateVar))
+		bodyFunc.Body.List = append(bodyFunc.Body.List, tmpDecl)
 		bodyFunc.Body.List = append(bodyFunc.Body.List, r.setState(abi.RF_PANIC, start))
+		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertReady(start, tmpState))
 	}
 
 	// Original loop body (already rewritten by editStmt during inspect).
@@ -1327,14 +1345,14 @@ func setValueType(x syntax.Expr, typ syntax.Type) {
 
 // assertReady returns the statement:
 //
-//	if #stateK != abi.RF_READY { runtime.panicrangestate(#stateK) }
-//
-// where #stateK is the state variable for loop.
-func (r *rewriter) assertReady(start syntax.Pos, loop *forLoop) syntax.Stmt {
+//	if #tmpState != abi.RF_READY { runtime.panicrangestate(#tmpState) }
+func (r *rewriter) assertReady(start syntax.Pos, tmpState *types2.Var) syntax.Stmt {
+
 	nif := &syntax.IfStmt{
-		Cond: r.cond(syntax.Neq, r.useObj(loop.stateVar), r.stateConst(abi.RF_READY)),
+		Cond: r.cond(syntax.Neq, r.useObj(tmpState), r.stateConst(abi.RF_READY)),
 		Then: &syntax.BlockStmt{
-			List: []syntax.Stmt{r.callPanic(start, r.useObj(loop.stateVar))},
+			List: []syntax.Stmt{
+				r.callPanic(start, r.useObj(tmpState))},
 		},
 	}
 	setPos(nif, start)
