@@ -3278,6 +3278,7 @@ func testTransportLimits1xxResponses(t *testing.T, mode testMode) {
 	for _, want := range []string{
 		"response headers exceeded",
 		"too many 1xx",
+		"header list too large",
 	} {
 		if strings.Contains(err.Error(), want) {
 			return
