@@ -441,12 +441,13 @@ var depsRules = `
 	< net/mail;
 
 	STR < crypto/internal/impl;
+	OS < crypto/internal/sysrand;
 
 	# FIPS is the FIPS 140 module.
 	# It must not depend on external crypto packages.
 	# Internal packages imported by FIPS might need to retain
 	# backwards compatibility with older versions of the module.
-	STR, crypto/internal/impl
+	STR, crypto/internal/impl, crypto/internal/sysrand
 	< crypto/internal/fips
 	< crypto/internal/fips/alias
 	< crypto/internal/fips/subtle
@@ -666,7 +667,7 @@ var depsRules = `
 	< crypto/internal/cryptotest;
 
 	CGO, FMT
-	< crypto/rand/internal/seccomp;
+	< crypto/internal/sysrand/internal/seccomp;
 
 	# v2 execution trace parser.
 	FMT

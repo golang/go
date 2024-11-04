@@ -4,7 +4,7 @@
 
 //go:build dragonfly || freebsd || linux || solaris
 
-package rand
+package sysrand
 
 import (
 	"errors"

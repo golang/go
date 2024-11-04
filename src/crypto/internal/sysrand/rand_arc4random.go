@@ -4,7 +4,7 @@
 
 //go:build darwin || openbsd
 
-package rand
+package sysrand
 
 import "internal/syscall/unix"
 

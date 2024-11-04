@@ -20,6 +20,10 @@ import (
 	"testing"
 )
 
+// These tests are mostly duplicates of the tests in crypto/internal/sysrand,
+// and testing both the Reader and Read is pretty redundant when one calls the
+// other, but better safe than sorry.
+
 func testReadAndReader(t *testing.T, f func(*testing.T, func([]byte) (int, error))) {
 	t.Run("Read", func(t *testing.T) {
 		f(t, Read)
@@ -175,28 +179,6 @@ func TestAllocations(t *testing.T) {
 	}
 }
 
-// TestNoUrandomFallback ensures the urandom fallback is not reached in
-// normal operations.
-func TestNoUrandomFallback(t *testing.T) {
-	expectFallback := false
-	if runtime.GOOS == "aix" {
-		// AIX always uses the urandom fallback.
-		expectFallback = true
-	}
-	if os.Getenv("GO_GETRANDOM_DISABLED") == "1" {
-		// We are testing the urandom fallback intentionally.
-		expectFallback = true
-	}
-	Read(make([]byte, 1))
-	if urandomFile != nil && !expectFallback {
-		t.Error("/dev/urandom fallback used unexpectedly")
-		t.Log("note: if this test fails, it may be because the system does not have getrandom(2)")
-	}
-	if urandomFile == nil && expectFallback {
-		t.Error("/dev/urandom fallback not used as expected")
-	}
-}
-
 func TestReadError(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
@@ -209,9 +191,8 @@ func TestReadError(t *testing.T) {
 		Reader = readerFunc(func([]byte) (int, error) {
 			return 0, errors.New("error")
 		})
-		if _, err := Read(make([]byte, 32)); err == nil {
-			t.Error("Read did not return error")
-		}
+		Read(make([]byte, 32))
+		t.Error("Read did not crash")
 		return
 	}
 

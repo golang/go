@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rand_test
+package sysrand_test
 
 import (
 	"bytes"
-	"crypto/rand/internal/seccomp"
+	"crypto/internal/sysrand/internal/seccomp"
 	"internal/syscall/unix"
 	"internal/testenv"
 	"os"
@@ -33,7 +33,6 @@ func TestNoGetrandom(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 	testenv.MustHaveExec(t)
-	testenv.MustHaveCGO(t)
 
 	done := make(chan struct{})
 	go func() {

@@ -1038,6 +1038,11 @@ func rand_fatal(s string) {
 	fatal(s)
 }
 
+//go:linkname sysrand_fatal crypto/internal/sysrand.fatal
+func sysrand_fatal(s string) {
+	fatal(s)
+}
+
 //go:linkname fips_fatal crypto/internal/fips.fatal
 func fips_fatal(s string) {
 	fatal(s)
