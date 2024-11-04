@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/auth"
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/web/intercept"
 	"cmd/internal/browser"
 )
 
@@ -68,66 +69,8 @@ func checkRedirect(req *http.Request, via []*http.Request) error {
 		return errors.New("stopped after 10 redirects")
 	}
 
-	interceptRequest(req)
+	intercept.Request(req)
 	return nil
-}
-
-type Interceptor struct {
-	Scheme   string
-	FromHost string
-	ToHost   string
-	Client   *http.Client
-}
-
-func EnableTestHooks(interceptors []Interceptor) error {
-	if enableTestHooks {
-		return errors.New("web: test hooks already enabled")
-	}
-
-	for _, t := range interceptors {
-		if t.FromHost == "" {
-			panic("EnableTestHooks: missing FromHost")
-		}
-		if t.ToHost == "" {
-			panic("EnableTestHooks: missing ToHost")
-		}
-	}
-
-	testInterceptors = interceptors
-	enableTestHooks = true
-	return nil
-}
-
-func DisableTestHooks() {
-	if !enableTestHooks {
-		panic("web: test hooks not enabled")
-	}
-	enableTestHooks = false
-	testInterceptors = nil
-}
-
-var (
-	enableTestHooks  = false
-	testInterceptors []Interceptor
-)
-
-func interceptURL(u *urlpkg.URL) (*Interceptor, bool) {
-	if !enableTestHooks {
-		return nil, false
-	}
-	for i, t := range testInterceptors {
-		if u.Host == t.FromHost && (u.Scheme == "" || u.Scheme == t.Scheme) {
-			return &testInterceptors[i], true
-		}
-	}
-	return nil, false
-}
-
-func interceptRequest(req *http.Request) {
-	if t, ok := interceptURL(req.URL); ok {
-		req.Host = req.URL.Host
-		req.URL.Host = t.ToHost
-	}
 }
 
 func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
@@ -137,7 +80,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		return getFile(url)
 	}
 
-	if enableTestHooks {
+	if intercept.TestHooksEnabled {
 		switch url.Host {
 		case "proxy.golang.org":
 			if os.Getenv("TESTGOPROXY404") == "1" {
@@ -159,7 +102,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 
 		default:
 			if os.Getenv("TESTGONETWORK") == "panic" {
-				if _, ok := interceptURL(url); !ok {
+				if _, ok := intercept.URL(url); !ok {
 					host := url.Host
 					if h, _, err := net.SplitHostPort(url.Host); err == nil && h != "" {
 						host = h
@@ -189,7 +132,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		if url.Scheme == "https" {
 			auth.AddCredentials(req)
 		}
-		t, intercepted := interceptURL(req.URL)
+		t, intercepted := intercept.URL(req.URL)
 		if intercepted {
 			req.Host = req.URL.Host
 			req.URL.Host = t.ToHost

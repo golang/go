@@ -39,7 +39,7 @@ import (
 	"cmd/go/internal/toolchain"
 	"cmd/go/internal/vcs"
 	"cmd/go/internal/vcweb/vcstest"
-	"cmd/go/internal/web"
+	"cmd/go/internal/web/intercept"
 	"cmd/go/internal/work"
 	"cmd/internal/robustio"
 	"cmd/internal/sys"
@@ -145,13 +145,13 @@ func TestMain(m *testing.M) {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "loading certificates from $TESTGO_VCSTEST_CERT: %v", err)
 			}
-			var interceptors []web.Interceptor
+			var interceptors []intercept.Interceptor
 			for _, host := range vcstest.Hosts {
 				interceptors = append(interceptors,
-					web.Interceptor{Scheme: "http", FromHost: host, ToHost: vcsTestHost},
-					web.Interceptor{Scheme: "https", FromHost: host, ToHost: vcsTestTLSHost, Client: vcsTestClient})
+					intercept.Interceptor{Scheme: "http", FromHost: host, ToHost: vcsTestHost},
+					intercept.Interceptor{Scheme: "https", FromHost: host, ToHost: vcsTestTLSHost, Client: vcsTestClient})
 			}
-			web.EnableTestHooks(interceptors)
+			intercept.EnableTestHooks(interceptors)
 		}
 
 		cmdgo.Main()
