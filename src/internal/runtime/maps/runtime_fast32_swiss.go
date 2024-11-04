@@ -38,12 +38,12 @@ func runtime_mapaccess1_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe
 		slotKey := g.key(typ, 0)
 		slotSize := typ.SlotSize
 		for full != 0 {
-			if key == *(*uint32)(slotKey) && full&(1<<7) != 0 {
+			if key == *(*uint32)(slotKey) && full.lowestSet() {
 				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
 				return slotElem
 			}
 			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
-			full >>= 8
+			full = full.shiftOutLowest()
 		}
 		return unsafe.Pointer(&zeroVal[0])
 	}
@@ -107,12 +107,12 @@ func runtime_mapaccess2_fast32(typ *abi.SwissMapType, m *Map, key uint32) (unsaf
 		slotKey := g.key(typ, 0)
 		slotSize := typ.SlotSize
 		for full != 0 {
-			if key == *(*uint32)(slotKey) && full&(1<<7) != 0 {
+			if key == *(*uint32)(slotKey) && full.lowestSet() {
 				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
 				return slotElem, true
 			}
 			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
-			full >>= 8
+			full = full.shiftOutLowest()
 		}
 		return unsafe.Pointer(&zeroVal[0]), false
 	}

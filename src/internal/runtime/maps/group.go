@@ -30,31 +30,80 @@ const (
 
 // bitset represents a set of slots within a group.
 //
-// The underlying representation uses one byte per slot, where each byte is
+// The underlying representation depends on GOARCH.
+//
+// On AMD64, bitset uses one bit per slot, where the bit is set if the slot is
+// part of the set. All of the ctrlGroup.match* methods are replaced with
+// intrinsics that return this packed representation.
+//
+// On other architectures, bitset uses one byte per slot, where each byte is
 // either 0x80 if the slot is part of the set or 0x00 otherwise. This makes it
-// convenient to calculate for an entire group at once (e.g. see matchEmpty).
+// convenient to calculate for an entire group at once using standard
+// arithemetic instructions.
 type bitset uint64
 
-// first assumes that only the MSB of each control byte can be set (e.g. bitset
-// is the result of matchEmpty or similar) and returns the relative index of the
-// first control byte in the group that has the MSB set.
+// first returns the relative index of the first control byte in the group that
+// is in the set.
 //
-// Returns abi.SwissMapGroupSlots if the bitset is empty.
+// Preconditions: b is not 0 (empty).
 func (b bitset) first() uintptr {
+	return bitsetFirst(b)
+}
+
+// Portable implementation of first.
+//
+// On AMD64, this is replaced with an intrisic that simply does
+// TrailingZeros64. There is no need to shift as the bitset is packed.
+func bitsetFirst(b bitset) uintptr {
 	return uintptr(sys.TrailingZeros64(uint64(b))) >> 3
 }
 
-// removeFirst removes the first set bit (that is, resets the least significant
+// removeFirst clears the first set bit (that is, resets the least significant
 // set bit to 0).
 func (b bitset) removeFirst() bitset {
 	return b & (b - 1)
 }
 
-// removeBelow removes all set bits below slot i (non-inclusive).
+// removeBelow clears all set bits below slot i (non-inclusive).
 func (b bitset) removeBelow(i uintptr) bitset {
+	return bitsetRemoveBelow(b, i)
+}
+
+// Portable implementation of removeBelow.
+//
+// On AMD64, this is replaced with an intrisic that clears the lower i bits.
+func bitsetRemoveBelow(b bitset, i uintptr) bitset {
 	// Clear all bits below slot i's byte.
 	mask := (uint64(1) << (8 * uint64(i))) - 1
 	return b &^ bitset(mask)
+}
+
+// lowestSet returns true if the bit is set for the lowest index in the bitset.
+//
+// This is intended for use with shiftOutLowest to loop over all entries in the
+// bitset regardless of whether they are set.
+func (b bitset) lowestSet() bool {
+	return bitsetLowestSet(b)
+}
+
+// Portable implementation of lowestSet.
+//
+// On AMD64, this is replaced with an intrisic that checks the lowest bit.
+func bitsetLowestSet(b bitset) bool {
+	return b&(1<<7) != 0
+}
+
+// shiftOutLowest shifts the lowest entry out of the bitset. Afterwards, the
+// lowest entry in the bitset corresponds to the next slot.
+func (b bitset) shiftOutLowest() bitset {
+	return bitsetShiftOutLowest(b)
+}
+
+// Portable implementation of shiftOutLowest.
+//
+// On AMD64, this is replaced with an intrisic that shifts a single bit.
+func bitsetShiftOutLowest(b bitset) bitset {
+	return b >> 8
 }
 
 // Each slot in the hash table has a control byte which can have one of three
@@ -96,6 +145,14 @@ func (g *ctrlGroup) setEmpty() {
 // matchH2 returns the set of slots which are full and for which the 7-bit hash
 // matches the given value. May return false positives.
 func (g ctrlGroup) matchH2(h uintptr) bitset {
+	return ctrlGroupMatchH2(g, h)
+}
+
+// Portable implementation of matchH2.
+//
+// Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
+// note on bitset about the packed instrinsified return value.
+func ctrlGroupMatchH2(g ctrlGroup, h uintptr) bitset {
 	// NB: This generic matching routine produces false positive matches when
 	// h is 2^N and the control bytes have a seq of 2^N followed by 2^N+1. For
 	// example: if ctrls==0x0302 and h=02, we'll compute v as 0x0100. When we
@@ -110,6 +167,14 @@ func (g ctrlGroup) matchH2(h uintptr) bitset {
 
 // matchEmpty returns the set of slots in the group that are empty.
 func (g ctrlGroup) matchEmpty() bitset {
+	return ctrlGroupMatchEmpty(g)
+}
+
+// Portable implementation of matchEmpty.
+//
+// Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
+// note on bitset about the packed instrinsified return value.
+func ctrlGroupMatchEmpty(g ctrlGroup) bitset {
 	// An empty slot is   1000 0000
 	// A deleted slot is  1111 1110
 	// A full slot is     0??? ????
@@ -123,6 +188,14 @@ func (g ctrlGroup) matchEmpty() bitset {
 // matchEmptyOrDeleted returns the set of slots in the group that are empty or
 // deleted.
 func (g ctrlGroup) matchEmptyOrDeleted() bitset {
+	return ctrlGroupMatchEmptyOrDeleted(g)
+}
+
+// Portable implementation of matchEmptyOrDeleted.
+//
+// Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
+// note on bitset about the packed instrinsified return value.
+func ctrlGroupMatchEmptyOrDeleted(g ctrlGroup) bitset {
 	// An empty slot is  1000 0000
 	// A deleted slot is 1111 1110
 	// A full slot is    0??? ????
@@ -134,6 +207,14 @@ func (g ctrlGroup) matchEmptyOrDeleted() bitset {
 
 // matchFull returns the set of slots in the group that are full.
 func (g ctrlGroup) matchFull() bitset {
+	return ctrlGroupMatchFull(g)
+}
+
+// Portable implementation of matchFull.
+//
+// Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
+// note on bitset about the packed instrinsified return value.
+func ctrlGroupMatchFull(g ctrlGroup) bitset {
 	// An empty slot is  1000 0000
 	// A deleted slot is 1111 1110
 	// A full slot is    0??? ????

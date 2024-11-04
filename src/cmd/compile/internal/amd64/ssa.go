@@ -256,8 +256,38 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpAMD64POR, ssa.OpAMD64PXOR,
 		ssa.OpAMD64BTSL, ssa.OpAMD64BTSQ,
 		ssa.OpAMD64BTCL, ssa.OpAMD64BTCQ,
-		ssa.OpAMD64BTRL, ssa.OpAMD64BTRQ:
+		ssa.OpAMD64BTRL, ssa.OpAMD64BTRQ,
+		ssa.OpAMD64PCMPEQB, ssa.OpAMD64PSIGNB,
+		ssa.OpAMD64PUNPCKLBW:
 		opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+
+	case ssa.OpAMD64PSHUFLW:
+		p := s.Prog(v.Op.Asm())
+		imm := v.AuxInt
+		if imm < 0 || imm > 255 {
+			v.Fatalf("Invalid source selection immediate")
+		}
+		p.From.Offset = imm
+		p.From.Type = obj.TYPE_CONST
+		p.AddRestSourceReg(v.Args[0].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
+	case ssa.OpAMD64PSHUFBbroadcast:
+		// PSHUFB with a control mask of zero copies byte 0 to all
+		// bytes in the register.
+		//
+		// X15 is always zero with ABIInternal.
+		if s.ABI != obj.ABIInternal {
+			// zero X15 manually
+			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+		}
+
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+		p.From.Reg = x86.REG_X15
 
 	case ssa.OpAMD64SHRDQ, ssa.OpAMD64SHLDQ:
 		p := s.Prog(v.Op.Asm())
@@ -915,7 +945,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux2(&p.To, v, sc.Off64())
 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
 		ssa.OpAMD64CVTTSS2SL, ssa.OpAMD64CVTTSD2SL, ssa.OpAMD64CVTTSS2SQ, ssa.OpAMD64CVTTSD2SQ,
-		ssa.OpAMD64CVTSS2SD, ssa.OpAMD64CVTSD2SS:
+		ssa.OpAMD64CVTSS2SD, ssa.OpAMD64CVTSD2SS, ssa.OpAMD64VPBROADCASTB, ssa.OpAMD64PMOVMSKB:
 		opregreg(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg())
 	case ssa.OpAMD64CVTSL2SD, ssa.OpAMD64CVTSQ2SD, ssa.OpAMD64CVTSQ2SS, ssa.OpAMD64CVTSL2SS:
 		r := v.Reg()

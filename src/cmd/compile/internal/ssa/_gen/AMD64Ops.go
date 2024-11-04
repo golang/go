@@ -1134,6 +1134,60 @@ func init() {
 		{name: "SHRXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHRXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
 		{name: "SHRXQloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHRXQ", scale: 1, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
 		{name: "SHRXQloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHRXQ", scale: 8, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
+
+		// Unpack bytes, low 64-bits.
+		//
+		// Input/output registers treated as [8]uint8.
+		//
+		// output = {in1[0], in2[0], in1[1], in2[1], in1[2], in2[2], in1[3], in2[3]}
+		{name: "PUNPCKLBW", argLength: 2, reg: fp21, resultInArg0: true, asm: "PUNPCKLBW"},
+
+		// Shuffle 16-bit words, low 64-bits.
+		//
+		// Input/output registers treated as [4]uint16.
+		// aux=source word index for each destination word, 2 bits per index.
+		//
+		// output[i] = input[(aux>>2*i)&3].
+		{name: "PSHUFLW", argLength: 1, reg: fp11, aux: "Int8", asm: "PSHUFLW"},
+
+		// Broadcast input byte.
+		//
+		// Input treated as uint8, output treated as [16]uint8.
+		//
+		// output[i] = input.
+		{name: "PSHUFBbroadcast", argLength: 1, reg: fp11, resultInArg0: true, asm: "PSHUFB"}, // PSHUFB with mask zero, (GOAMD64=v1)
+		{name: "VPBROADCASTB", argLength: 1, reg: gpfp, asm: "VPBROADCASTB"}, // Broadcast input byte from gp (GOAMD64=v3)
+
+		// Byte negate/zero/preserve (GOAMD64=v2).
+		//
+		// Input/output registers treated as [16]uint8.
+		//
+		// if in2[i] > 0 {
+		//   output[i] = in1[i]
+		// } else if in2[i] == 0 {
+		//   output[i] = 0
+		// } else {
+		//   output[i] = -1 * in1[i]
+		// }
+		{name: "PSIGNB", argLength: 2, reg: fp21, resultInArg0: true, asm: "PSIGNB"},
+
+		// Byte compare.
+		//
+		// Input/output registers treated as [16]uint8.
+		//
+		// if in1[i] == in2[i] {
+		//   output[i] = 0xff
+		// } else {
+		//   output[i] = 0
+		// }
+		{name: "PCMPEQB", argLength: 2, reg: fp21, resultInArg0: true, asm: "PCMPEQB"},
+
+		// Byte sign mask. Output is a bitmap of sign bits from each input byte.
+		//
+		// Input treated as [16]uint8. Output is [16]bit (uint16 bitmap).
+		//
+		// output[i] = (input[i] >> 7) & 1
+		{name: "PMOVMSKB", argLength: 1, reg: fpgp, asm: "PMOVMSKB"},
 	}
 
 	var AMD64blocks = []blockData{
