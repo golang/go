@@ -220,8 +220,6 @@ const (
 	REG_X30
 	REG_X31
 
-	REG_LAST = REG_X31 // the last defined register
-
 	REG_SPECIAL = REG_FCSR0
 
 	REGZERO = REG_R0 // set to zero
@@ -266,6 +264,58 @@ const (
 	BRANCH = 1 << 3
 )
 
+// Arrangement for Loong64 SIMD instructions
+const (
+	// arrangement types
+	ARNG_32B int16 = iota
+	ARNG_16H
+	ARNG_8W
+	ARNG_4V
+	ARNG_2Q
+	ARNG_16B
+	ARNG_8H
+	ARNG_4W
+	ARNG_2V
+	ARNG_B
+	ARNG_H
+	ARNG_W
+	ARNG_V
+	ARNG_BU
+	ARNG_HU
+	ARNG_WU
+	ARNG_VU
+)
+
+// LoongArch64 SIMD extension type
+const (
+	LSX int16 = iota
+	LASX
+)
+
+// bits 0-4 indicates register: Vn or Xn
+// bits 5-9 indicates arrangement: <T>
+// bits 10 indicates SMID type: 0: LSX, 1: LASX
+const (
+	REG_ARNG = obj.RBaseLOONG64 + (1 << 10) + (iota << 11) // Vn.<T>
+	REG_ELEM                                               // Vn.<T>[index]
+	REG_ELEM_END
+)
+
+const (
+	EXT_REG_SHIFT = 0
+	EXT_REG_MASK  = 0x1f
+
+	EXT_TYPE_SHIFT = 5
+	EXT_TYPE_MASK  = 0x1f
+
+	EXT_SIMDTYPE_SHIFT = 10
+	EXT_SIMDTYPE_MASK  = 0x1
+)
+
+const (
+	REG_LAST = REG_ELEM_END // the last defined register
+)
+
 const (
 	C_NONE = iota
 	C_REG
@@ -274,6 +324,8 @@ const (
 	C_FCCREG
 	C_VREG
 	C_XREG
+	C_ARNG // Vn.<T>
+	C_ELEM // Vn.<T>[index]
 	C_ZCON
 	C_SCON // 12 bit signed
 	C_UCON // 32 bit signed, low 12 bits 0

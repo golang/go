@@ -217,8 +217,8 @@ next:
 		for {
 			tok = p.nextToken()
 			if len(operands) == 0 && len(items) == 0 {
-				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386, sys.RISCV64) && tok == '.' {
-					// Suffixes: ARM conditionals, RISCV rounding mode or x86 modifiers.
+				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386, sys.Loong64, sys.RISCV64) && tok == '.' {
+					// Suffixes: ARM conditionals, Loong64 vector instructions, RISCV rounding mode or x86 modifiers.
 					tok = p.nextToken()
 					str := p.lex.Text()
 					if tok != scanner.Ident {
@@ -570,12 +570,13 @@ func (p *Parser) atRegisterShift() bool {
 // atRegisterExtension reports whether we are at the start of an ARM64 extended register.
 // We have consumed the register or R prefix.
 func (p *Parser) atRegisterExtension() bool {
-	// ARM64 only.
-	if p.arch.Family != sys.ARM64 {
+	switch p.arch.Family {
+	case sys.ARM64, sys.Loong64:
+		// R1.xxx
+		return p.peek() == '.'
+	default:
 		return false
 	}
-	// R1.xxx
-	return p.peek() == '.'
 }
 
 // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
@@ -769,6 +770,11 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 	switch p.arch.Family {
 	case sys.ARM64:
 		err := arch.ARM64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
+		if err != nil {
+			p.errorf("%v", err)
+		}
+	case sys.Loong64:
+		err := arch.Loong64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
 		if err != nil {
 			p.errorf("%v", err)
 		}

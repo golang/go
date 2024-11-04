@@ -437,6 +437,66 @@ lable2:
 	XVMOVQ		y+16(FP), X6    // 0660802c
 	XVMOVQ		x+2030(FP), X7  // 07d89f2c
 
+	// Move vector element to general-purpose register: VMOVQ  <Vn>.<T>[index], Rd
+	VMOVQ		V0.B[0], R4     // 0480ef72
+	VMOVQ		V3.B[3], R5     // 658cef72
+	VMOVQ		V4.H[2], R6     // 86c8ef72
+	VMOVQ		V5.W[2], R7     // a7e8ef72
+	VMOVQ		V6.V[1], R8     // c8f4ef72
+	VMOVQ		V7.BU[0], R4    // e480f372
+	VMOVQ		V7.BU[1], R4    // e484f372
+	VMOVQ		V9.BU[3], R5    // 258df372
+	VMOVQ		V10.HU[2], R6   // 46c9f372
+	VMOVQ		V11.WU[2], R7   // 67e9f372
+	VMOVQ		V31.VU[1], R8   // e8f7f372
+	XVMOVQ		X1.W[2], R7     // 27c8ef76
+	XVMOVQ		X6.V[2], R8     // c8e8ef76
+	XVMOVQ		X8.WU[2], R7    // 07c9f376
+	XVMOVQ		X31.VU[2], R8   // e8ebf376
+
+	// Move general-purpose register to a vector element: VMOVQ  Rn, <Vd>.<T>[index]
+	VMOVQ		R4, V2.B[0]     // 8280eb72
+	VMOVQ		R4, V3.B[1]     // 8384eb72
+	VMOVQ		R5, V4.B[3]     // a48ceb72
+	VMOVQ		R6, V5.H[2]     // c5c8eb72
+	VMOVQ		R7, V6.W[2]     // e6e8eb72
+	VMOVQ		R8, V7.V[1]     // 07f5eb72
+	XVMOVQ		R7, X9.W[2]     // e9c8eb76
+	XVMOVQ		R8, X10.V[2]    // 0ae9eb76
+
+	// Duplicate general-purpose register to vector
+	VMOVQ		R4, V2.B16      // 82009f72
+	VMOVQ		R5, V3.H8       // a3049f72
+	VMOVQ		R6, V4.W4       // c4089f72
+	VMOVQ		R7, V5.V2       // e50c9f72
+	XVMOVQ		R16, X31.B32    // 1f029f76
+	XVMOVQ		R17, X28.H16    // 3c069f76
+	XVMOVQ		R18, X10.W8     // 4a0a9f76
+	XVMOVQ		R19, X9.V4      // 690e9f76
+
+	// Move vector
+	XVMOVQ		X0, X31.B32     // 1f000777
+	XVMOVQ		X1, X30.H16     // 3e800777
+	XVMOVQ		X2, X29.W8      // 5dc00777
+	XVMOVQ		X3, X28.V4      // 7ce00777
+	XVMOVQ		X3, X27.Q2      // 7bf00777
+
+	// Move vector element to scalar.
+	XVMOVQ		X0, X31.W[7]    // 1fdcff76
+	XVMOVQ		X1, X29.W[0]    // 3dc0ff76
+	XVMOVQ		X3, X28.V[3]    // 7cecff76
+	XVMOVQ		X4, X27.V[0]    // 9be0ff76
+	XVMOVQ		X31.W[7], X0    // e0df0377
+	XVMOVQ		X29.W[0], X1    // a1c30377
+	XVMOVQ		X28.V[3], X8    // 88ef0377
+	XVMOVQ		X27.V[0], X9    // 69e30377
+
+	//Move vector element to vector.
+	VMOVQ		V1.B[3], V9.B16 // 298cf772
+	VMOVQ		V2.H[2], V8.H8  // 48c8f772
+	VMOVQ		V3.W[1], V7.W4  // 67e4f772
+	VMOVQ		V4.V[0], V6.V2  // 86f0f772
+
 	// VSEQ{B,H,W,V}, XVSEQ{B,H,W,V} instruction
 	VSEQB		V1, V2, V3      // 43040070
 	VSEQH		V1, V2, V3      // 43840070

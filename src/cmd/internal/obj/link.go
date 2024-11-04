@@ -180,14 +180,16 @@ import (
 //			offset = ((reg&31) << 16) | (exttype << 13) | (amount<<10)
 //
 //	reg.<T>
-//		Register arrangement for ARM64 SIMD register
-//		e.g.: V1.S4, V2.S2, V7.D2, V2.H4, V6.B16
+//		Register arrangement for ARM64 and Loong64 SIMD register
+//		e.g.:
+//			On ARM64: V1.S4, V2.S2, V7.D2, V2.H4, V6.B16
+//			On Loong64: X1.B32, X1.H16, X1.W8, X2.V4, X1.Q1, V1.B16, V1.H8, V1.W4, V1.V2
 //		Encoding:
 //			type = TYPE_REG
 //			reg = REG_ARNG + register + arrangement
 //
 //	reg.<T>[index]
-//		Register element for ARM64
+//		Register element for ARM64 and Loong64
 //		Encoding:
 //			type = TYPE_REG
 //			reg = REG_ELEM + register + arrangement

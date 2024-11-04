@@ -105,6 +105,104 @@ Examples:
 	MOVV R6, (R4)(R5)  <=>  stx.d R6, R5, R5
 	MOVV F6, (R4)(R5)  <=>  fstx.d F6, R5, R5
 
+3. Alphabetical list of SIMD instructions
+
+Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate),
+"ui3", "ui2", and "ui1" represent the related "index".
+
+3.1 Move general-purpose register to a vector element:
+
+	Instruction format:
+	        VMOVQ  Rj, <Vd>.<T>[index]
+
+	Mapping between Go and platform assembly:
+	       Go assembly       |      platform assembly     |          semantics
+	-------------------------------------------------------------------------------------
+	 VMOVQ  Rj, Vd.B[index]  |  vinsgr2vr.b  Vd, Rj, ui4  |  VR[vd].b[ui4] = GR[rj][7:0]
+	 VMOVQ  Rj, Vd.H[index]  |  vinsgr2vr.h  Vd, Rj, ui3  |  VR[vd].h[ui3] = GR[rj][15:0]
+	 VMOVQ  Rj, Vd.W[index]  |  vinsgr2vr.w  Vd, Rj, ui2  |  VR[vd].w[ui2] = GR[rj][31:0]
+	 VMOVQ  Rj, Vd.V[index]  |  vinsgr2vr.d  Vd, Rj, ui1  |  VR[vd].d[ui1] = GR[rj][63:0]
+	XVMOVQ  Rj, Xd.W[index]  | xvinsgr2vr.w  Xd, Rj, ui3  |  XR[xd].w[ui3] = GR[rj][31:0]
+	XVMOVQ  Rj, Xd.V[index]  | xvinsgr2vr.d  Xd, Rj, ui2  |  XR[xd].d[ui2] = GR[rj][63:0]
+
+3.2 Move vector element to general-purpose register
+
+	Instruction format:
+	        VMOVQ     <Vj>.<T>[index], Rd
+
+	Mapping between Go and platform assembly:
+	        Go assembly       |       platform assembly      |            semantics
+	---------------------------------------------------------------------------------------------
+	 VMOVQ  Vj.B[index],  Rd  |   vpickve2gr.b   rd, vj, ui4 | GR[rd] = SignExtend(VR[vj].b[ui4])
+	 VMOVQ  Vj.H[index],  Rd  |   vpickve2gr.h   rd, vj, ui3 | GR[rd] = SignExtend(VR[vj].h[ui3])
+	 VMOVQ  Vj.W[index],  Rd  |   vpickve2gr.w   rd, vj, ui2 | GR[rd] = SignExtend(VR[vj].w[ui2])
+	 VMOVQ  Vj.V[index],  Rd  |   vpickve2gr.d   rd, vj, ui1 | GR[rd] = SignExtend(VR[vj].d[ui1])
+	 VMOVQ  Vj.BU[index], Rd  |   vpickve2gr.bu  rd, vj, ui4 | GR[rd] = ZeroExtend(VR[vj].bu[ui4])
+	 VMOVQ  Vj.HU[index], Rd  |   vpickve2gr.hu  rd, vj, ui3 | GR[rd] = ZeroExtend(VR[vj].hu[ui3])
+	 VMOVQ  Vj.WU[index], Rd  |   vpickve2gr.wu  rd, vj, ui2 | GR[rd] = ZeroExtend(VR[vj].wu[ui2])
+	 VMOVQ  Vj.VU[index], Rd  |   vpickve2gr.du  rd, vj, ui1 | GR[rd] = ZeroExtend(VR[vj].du[ui1])
+	XVMOVQ  Xj.W[index],  Rd  |  xvpickve2gr.w   rd, xj, ui3 | GR[rd] = SignExtend(VR[xj].w[ui3])
+	XVMOVQ  Xj.V[index],  Rd  |  xvpickve2gr.d   rd, xj, ui2 | GR[rd] = SignExtend(VR[xj].d[ui2])
+	XVMOVQ  Xj.WU[index], Rd  |  xvpickve2gr.wu  rd, xj, ui3 | GR[rd] = ZeroExtend(VR[xj].wu[ui3])
+	XVMOVQ  Xj.VU[index], Rd  |  xvpickve2gr.du  rd, xj, ui2 | GR[rd] = ZeroExtend(VR[xj].du[ui2])
+
+3.3 Duplicate general-purpose register to vector.
+
+	Instruction format:
+	        VMOVQ    Rj, <Vd>.<T>
+
+	Mapping between Go and platform assembly:
+	   Go assembly      |    platform assembly    |                    semantics
+	------------------------------------------------------------------------------------------------
+	 VMOVQ  Rj, Vd.B16  |   vreplgr2vr.b  Vd, Rj  |  for i in range(16): VR[vd].b[i] = GR[rj][7:0]
+	 VMOVQ  Rj, Vd.H8   |   vreplgr2vr.h  Vd, Rj  |  for i in range(8) : VR[vd].h[i] = GR[rj][16:0]
+	 VMOVQ  Rj, Vd.W4   |   vreplgr2vr.w  Vd, Rj  |  for i in range(4) : VR[vd].w[i] = GR[rj][31:0]
+	 VMOVQ  Rj, Vd.V2   |   vreplgr2vr.d  Vd, Rj  |  for i in range(2) : VR[vd].d[i] = GR[rj][63:0]
+	XVMOVQ  Rj, Xd.B32  |  xvreplgr2vr.b  Xd, Rj  |  for i in range(32): XR[xd].b[i] = GR[rj][7:0]
+	XVMOVQ  Rj, Xd.H16  |  xvreplgr2vr.h  Xd, Rj  |  for i in range(16): XR[xd].h[i] = GR[rj][16:0]
+	XVMOVQ  Rj, Xd.W8   |  xvreplgr2vr.w  Xd, Rj  |  for i in range(8) : XR[xd].w[i] = GR[rj][31:0]
+	XVMOVQ  Rj, Xd.V4   |  xvreplgr2vr.d  Xd, Rj  |  for i in range(4) : XR[xd].d[i] = GR[rj][63:0]
+
+3.4 Replace vector elements
+
+	Instruction format:
+	        XVMOVQ    Xj, <Xd>.<T>
+
+	Mapping between Go and platform assembly:
+	   Go assembly      |   platform assembly   |                semantics
+	------------------------------------------------------------------------------------------------
+	XVMOVQ  Xj, Xd.B32  |  xvreplve0.b  Xd, Xj  | for i in range(32): XR[xd].b[i] = XR[xj].b[0]
+	XVMOVQ  Xj, Xd.H16  |  xvreplve0.h  Xd, Xj  | for i in range(16): XR[xd].h[i] = XR[xj].h[0]
+	XVMOVQ  Xj, Xd.W8   |  xvreplve0.w  Xd, Xj  | for i in range(8) : XR[xd].w[i] = XR[xj].w[0]
+	XVMOVQ  Xj, Xd.V4   |  xvreplve0.d  Xd, Xj  | for i in range(4) : XR[xd].d[i] = XR[xj].d[0]
+	XVMOVQ  Xj, Xd.Q2   |  xvreplve0.q  Xd, Xj  | for i in range(2) : XR[xd].q[i] = XR[xj].q[0]
+
+3.5 Move vector element to scalar
+
+	Instruction format:
+	        XVMOVQ  Xj, <Xd>.<T>[index]
+	        XVMOVQ  Xj.<T>[index], Xd
+
+	Mapping between Go and platform assembly:
+	       Go assembly        |     platform assembly     |               semantics
+	------------------------------------------------------------------------------------------------
+	 XVMOVQ  Xj, Xd.W[index]  |  xvinsve0.w   xd, xj, ui3 | XR[xd].w[ui3] = XR[xj].w[0]
+	 XVMOVQ  Xj, Xd.V[index]  |  xvinsve0.d   xd, xj, ui2 | XR[xd].d[ui2] = XR[xj].d[0]
+	 XVMOVQ  Xj.W[index], Xd  |  xvpickve.w   xd, xj, ui3 | XR[xd].w[0] = XR[xj].w[ui3], XR[xd][255:32] = 0
+	 XVMOVQ  Xj.V[index], Xd  |  xvpickve.d   xd, xj, ui2 | XR[xd].d[0] = XR[xj].d[ui2], XR[xd][255:64] = 0
+
+3.6 Move vector element to vector register.
+
+	Instruction format:
+	VMOVQ     <Vn>.<T>[index], Vn.<T>
+
+	Mapping between Go and platform assembly:
+	         Go assembly      |    platform assembly   |               semantics
+	VMOVQ Vj.B[index], Vd.B16 | vreplvei.b vd, vj, ui4 | for i in range(16): VR[vd].b[i] = VR[vj].b[ui4]
+	VMOVQ Vj.H[index], Vd.H8  | vreplvei.h vd, vj, ui3 | for i in range(8) : VR[vd].h[i] = VR[vj].h[ui3]
+	VMOVQ Vj.W[index], Vd.W4  | vreplvei.w vd, vj, ui2 | for i in range(4) : VR[vd].w[i] = VR[vj].w[ui2]
+	VMOVQ Vj.V[index], Vd.V2  | vreplvei.d vd, vj, ui1 | for i in range(2) : VR[vd].d[i] = VR[vj].d[ui1]
+
 # Special instruction encoding definition and description on LoongArch
 
  1. DBAR hint encoding for LA664(Loongson 3A6000) and later micro-architectures, paraphrased

@@ -13,6 +13,8 @@ var cnames0 = []string{
 	"FCCREG",
 	"VREG",
 	"XREG",
+	"ARNG",
+	"ELEM",
 	"ZCON",
 	"SCON",
 	"UCON",
