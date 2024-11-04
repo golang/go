@@ -409,11 +409,6 @@ func blockUntilEmptyFinalizerQueue(timeout int64) bool {
 // need to use appropriate synchronization, such as mutexes or atomic updates,
 // to avoid read-write races.
 func SetFinalizer(obj any, finalizer any) {
-	if debug.sbrk != 0 {
-		// debug.sbrk never frees memory, so no finalizers run
-		// (and we don't have the data structures to record them).
-		return
-	}
 	e := efaceOf(&obj)
 	etyp := e._type
 	if etyp == nil {
@@ -426,10 +421,14 @@ func SetFinalizer(obj any, finalizer any) {
 	if ot.Elem == nil {
 		throw("nil elem type!")
 	}
-
 	if inUserArenaChunk(uintptr(e.data)) {
 		// Arena-allocated objects are not eligible for finalizers.
 		throw("runtime.SetFinalizer: first argument was allocated into an arena")
+	}
+	if debug.sbrk != 0 {
+		// debug.sbrk never frees memory, so no finalizers run
+		// (and we don't have the data structures to record them).
+		return
 	}
 
 	// find the containing object
