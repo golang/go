@@ -2013,6 +2013,16 @@ func (c *conn) serve(ctx context.Context) {
 	c.bufr = newBufioReader(c.r)
 	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
+	protos := c.server.protocols()
+	if c.tlsState == nil && protos.UnencryptedHTTP2() {
+		if c.maybeServeUnencryptedHTTP2(ctx) {
+			return
+		}
+	}
+	if !protos.HTTP1() {
+		return
+	}
+
 	for {
 		w, err := c.readRequest(ctx)
 		if c.r.remain != c.server.initialReadLimitSize() {
@@ -2130,6 +2140,70 @@ func (c *conn) serve(ctx context.Context) {
 
 		c.rwc.SetReadDeadline(time.Time{})
 	}
+}
+
+// unencryptedHTTP2Request is an HTTP handler that initializes
+// certain uninitialized fields in its *Request.
+//
+// It's the unencrypted version of initALPNRequest.
+type unencryptedHTTP2Request struct {
+	ctx context.Context
+	c   net.Conn
+	h   serverHandler
+}
+
+func (h unencryptedHTTP2Request) BaseContext() context.Context { return h.ctx }
+
+func (h unencryptedHTTP2Request) ServeHTTP(rw ResponseWriter, req *Request) {
+	if req.Body == nil {
+		req.Body = NoBody
+	}
+	if req.RemoteAddr == "" {
+		req.RemoteAddr = h.c.RemoteAddr().String()
+	}
+	h.h.ServeHTTP(rw, req)
+}
+
+// unencryptedNetConnInTLSConn is used to pass an unencrypted net.Conn to
+// functions that only accept a *tls.Conn.
+type unencryptedNetConnInTLSConn struct {
+	net.Conn // panic on all net.Conn methods
+	conn     net.Conn
+}
+
+func (c unencryptedNetConnInTLSConn) UnencryptedNetConn() net.Conn {
+	return c.conn
+}
+
+func unencryptedTLSConn(c net.Conn) *tls.Conn {
+	return tls.Client(unencryptedNetConnInTLSConn{conn: c}, nil)
+}
+
+// TLSNextProto key to use for unencrypted HTTP/2 connections.
+// Not actually a TLS-negotiated protocol.
+const nextProtoUnencryptedHTTP2 = "unencrypted_http2"
+
+func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
+	fn, ok := c.server.TLSNextProto[nextProtoUnencryptedHTTP2]
+	if !ok {
+		return false
+	}
+	hasPreface := func(c *conn, preface []byte) bool {
+		c.r.setReadLimit(int64(len(preface)) - int64(c.bufr.Buffered()))
+		got, err := c.bufr.Peek(len(preface))
+		c.r.setInfiniteReadLimit()
+		return err == nil && bytes.Equal(got, preface)
+	}
+	if !hasPreface(c, []byte("PRI * HTTP/2.0")) {
+		return false
+	}
+	if !hasPreface(c, []byte("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")) {
+		return false
+	}
+	c.setState(c.rwc, StateActive, skipHooks)
+	h := unencryptedHTTP2Request{ctx, c.rwc, serverHandler{c.server}}
+	fn(c.server, unencryptedTLSConn(c.rwc), h)
+	return true
 }
 
 func (w *response) sendExpectationFailed() {
@@ -2981,6 +3055,10 @@ type Server struct {
 
 	// Protocols is the set of protocols accepted by the server.
 	//
+	// If Protocols includes UnencryptedHTTP2, the server will accept
+	// unencrypted HTTP/2 connections. The server can serve both
+	// HTTP/1 and unencrypted HTTP/2 on the same address and port.
+	//
 	// If Protocols is nil, the default is usually HTTP/1 and HTTP/2.
 	// If TLSNextProto is non-nil and does not contain an "h2" entry,
 	// the default is HTTP/1 only.
@@ -3284,6 +3362,9 @@ func (s *Server) shouldConfigureHTTP2ForServe() bool {
 		// tls.NewListener and passed that listener to Serve.
 		// So we should configure HTTP/2 (to set up s.TLSNextProto)
 		// in case the listener returns an "h2" *tls.Conn.
+		return true
+	}
+	if s.protocols().UnencryptedHTTP2() {
 		return true
 	}
 	// The user specified a TLSConfig on their http.Server.
@@ -3658,7 +3739,8 @@ func (s *Server) onceSetNextProtoDefaults() {
 	if omitBundledHTTP2 {
 		return
 	}
-	if !s.protocols().HTTP2() {
+	p := s.protocols()
+	if !p.HTTP2() && !p.UnencryptedHTTP2() {
 		return
 	}
 	if http2server.Value() == "0" {

@@ -24,6 +24,8 @@ import (
 //     HTTP1 is supported on both unsecured TCP and secured TLS connections.
 //
 //   - HTTP2 is the HTTP/2 protcol over a TLS connection.
+//
+//   - UnencryptedHTTP2 is the HTTP/2 protocol over an unsecured TCP connection.
 type Protocols struct {
 	bits uint8
 }
@@ -31,6 +33,7 @@ type Protocols struct {
 const (
 	protoHTTP1 = 1 << iota
 	protoHTTP2
+	protoUnencryptedHTTP2
 )
 
 // HTTP1 reports whether p includes HTTP/1.
@@ -44,6 +47,12 @@ func (p Protocols) HTTP2() bool { return p.bits&protoHTTP2 != 0 }
 
 // SetHTTP2 adds or removes HTTP/2 from p.
 func (p *Protocols) SetHTTP2(ok bool) { p.setBit(protoHTTP2, ok) }
+
+// UnencryptedHTTP2 reports whether p includes unencrypted HTTP/2.
+func (p Protocols) UnencryptedHTTP2() bool { return p.bits&protoUnencryptedHTTP2 != 0 }
+
+// SetUnencryptedHTTP2 adds or removes unencrypted HTTP/2 from p.
+func (p *Protocols) SetUnencryptedHTTP2(ok bool) { p.setBit(protoUnencryptedHTTP2, ok) }
 
 func (p *Protocols) setBit(bit uint8, ok bool) {
 	if ok {
@@ -60,6 +69,9 @@ func (p Protocols) String() string {
 	}
 	if p.HTTP2() {
 		s = append(s, "HTTP2")
+	}
+	if p.UnencryptedHTTP2() {
+		s = append(s, "UnencryptedHTTP2")
 	}
 	return "{" + strings.Join(s, ",") + "}"
 }

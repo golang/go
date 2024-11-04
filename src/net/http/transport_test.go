@@ -7312,6 +7312,67 @@ func TestTransportServerProtocols(t *testing.T) {
 			tr.Protocols.SetHTTP2(true)
 		},
 		want: "HTTP/1.1",
+	}, {
+		name:   "unencrypted HTTP2 with prior knowledge",
+		scheme: "http",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetUnencryptedHTTP2(true)
+		},
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetHTTP1(true)
+			srv.Protocols.SetUnencryptedHTTP2(true)
+		},
+		want: "HTTP/2.0",
+	}, {
+		name:   "unencrypted HTTP2 only on server",
+		scheme: "http",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetUnencryptedHTTP2(true)
+		},
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetUnencryptedHTTP2(true)
+		},
+		want: "HTTP/2.0",
+	}, {
+		name:   "unencrypted HTTP2 with no server support",
+		scheme: "http",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetUnencryptedHTTP2(true)
+		},
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetHTTP1(true)
+		},
+		want: "error",
+	}, {
+		name:   "HTTP1 with no server support",
+		scheme: "http",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetHTTP1(true)
+		},
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetUnencryptedHTTP2(true)
+		},
+		want: "error",
+	}, {
+		name:   "HTTPS1 with no server support",
+		scheme: "https",
+		transport: func(tr *Transport) {
+			tr.Protocols = &Protocols{}
+			tr.Protocols.SetHTTP1(true)
+		},
+		server: func(srv *Server) {
+			srv.Protocols = &Protocols{}
+			srv.Protocols.SetHTTP2(true)
+		},
+		want: "error",
 	}} {
 		t.Run(test.name, func(t *testing.T) {
 			// We don't use httptest here because it makes its own decisions
@@ -7362,6 +7423,9 @@ func TestTransportServerProtocols(t *testing.T) {
 			client := &Client{Transport: tr}
 			resp, err := client.Get(test.scheme + "://" + listener.Addr().String())
 			if err != nil {
+				if test.want == "error" {
+					return
+				}
 				t.Fatal(err)
 			}
 			if got := resp.Header.Get("X-Proto"); got != test.want {

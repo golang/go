@@ -302,6 +302,9 @@ type Transport struct {
 
 	// Protocols is the set of protocols supported by the transport.
 	//
+	// If Protocols includes UnencryptedHTTP2 and does not include HTTP1,
+	// the transport will use unencrypted HTTP/2 for requests for http:// URLs.
+	//
 	// If Protocols is nil, the default is usually HTTP/1 only.
 	// If ForceAttemptHTTP2 is true, or if TLSNextProto contains an "h2" entry,
 	// the default is HTTP/1 and HTTP/2.
@@ -410,7 +413,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 	}
 
 	protocols := t.protocols()
-	if !protocols.HTTP2() {
+	if !protocols.HTTP2() && !protocols.UnencryptedHTTP2() {
 		return
 	}
 	if omitBundledHTTP2 {
@@ -1900,6 +1903,24 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		if err := pconn.addTLS(ctx, cm.tlsHost(), trace); err != nil {
 			return nil, err
 		}
+	}
+
+	// Possible unencrypted HTTP/2 with prior knowledge.
+	unencryptedHTTP2 := pconn.tlsState == nil &&
+		t.Protocols != nil &&
+		t.Protocols.UnencryptedHTTP2() &&
+		!t.Protocols.HTTP1()
+	if unencryptedHTTP2 {
+		next, ok := t.TLSNextProto[nextProtoUnencryptedHTTP2]
+		if !ok {
+			return nil, errors.New("http: Transport does not support unencrypted HTTP/2")
+		}
+		alt := next(cm.targetAddr, unencryptedTLSConn(pconn.conn))
+		if e, ok := alt.(erringRoundTripper); ok {
+			// pconn.conn was closed by next (http2configureTransports.upgradeFn).
+			return nil, e.RoundTripErr()
+		}
+		return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
 	}
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {

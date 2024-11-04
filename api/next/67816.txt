@@ -1,0 +1,2 @@
+pkg net/http, method (*Protocols) SetUnencryptedHTTP2(bool) #67816
+pkg net/http, method (Protocols) UnencryptedHTTP2() bool #67816
