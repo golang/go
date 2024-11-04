@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -1084,10 +1085,15 @@ func TestLoadFixed(t *testing.T) {
 	// So GMT+1 corresponds to -3600 in the Go zone, not +3600.
 	name, offset := Now().In(loc).Zone()
 	// The zone abbreviation is "-01" since tzdata-2016g, and "GMT+1"
-	// on earlier versions; we accept both. (Issue #17276).
-	if !(name == "GMT+1" || name == "-01") || offset != -1*60*60 {
-		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q or %q, %d",
-			name, offset, "GMT+1", "-01", -1*60*60)
+	// on earlier versions; we accept both. (Issue 17276.)
+	wantName := []string{"GMT+1", "-01"}
+	// The zone abbreviation may be "+01" on OpenBSD. (Issue 69840.)
+	if runtime.GOOS == "openbsd" {
+		wantName = append(wantName, "+01")
+	}
+	if !slices.Contains(wantName, name) || offset != -1*60*60 {
+		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q (one of), %d",
+			name, offset, wantName, -1*60*60)
 	}
 }
 
