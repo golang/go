@@ -256,6 +256,7 @@ type hiter struct {
 	i           uint8
 	bucket      uintptr
 	checkBucket uintptr
+	clearSeq    uint64
 }
 
 func (h *hiter) initialized() bool {

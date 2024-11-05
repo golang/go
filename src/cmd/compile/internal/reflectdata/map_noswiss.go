@@ -155,6 +155,7 @@ func OldMapType() *types.Type {
 	//    buckets    unsafe.Pointer
 	//    oldbuckets unsafe.Pointer
 	//    nevacuate  uintptr
+	//    clearSeq   uint64
 	//    extra      unsafe.Pointer // *mapextra
 	// }
 	// must match runtime/map.go:hmap.
@@ -167,6 +168,7 @@ func OldMapType() *types.Type {
 		makefield("buckets", types.Types[types.TUNSAFEPTR]), // Used in walk.go for OMAKEMAP.
 		makefield("oldbuckets", types.Types[types.TUNSAFEPTR]),
 		makefield("nevacuate", types.Types[types.TUINTPTR]),
+		makefield("clearSeq", types.Types[types.TUINT64]),
 		makefield("extra", types.Types[types.TUNSAFEPTR]),
 	}
 
@@ -178,9 +180,9 @@ func OldMapType() *types.Type {
 	hmap.SetUnderlying(types.NewStruct(fields))
 	types.CalcSize(hmap)
 
-	// The size of hmap should be 48 bytes on 64 bit
-	// and 28 bytes on 32 bit platforms.
-	if size := int64(8 + 5*types.PtrSize); hmap.Size() != size {
+	// The size of hmap should be 56 bytes on 64 bit
+	// and 36 bytes on 32 bit platforms.
+	if size := int64(2*8 + 5*types.PtrSize); hmap.Size() != size {
 		base.Fatalf("hmap size not correct: got %d, want %d", hmap.Size(), size)
 	}
 
@@ -216,6 +218,7 @@ func OldMapIterType() *types.Type {
 	//    i           uint8
 	//    bucket      uintptr
 	//    checkBucket uintptr
+	//    clearSeq    uint64
 	// }
 	// must match runtime/map.go:hiter.
 	fields := []*types.Field{
@@ -234,6 +237,7 @@ func OldMapIterType() *types.Type {
 		makefield("i", types.Types[types.TUINT8]),
 		makefield("bucket", types.Types[types.TUINTPTR]),
 		makefield("checkBucket", types.Types[types.TUINTPTR]),
+		makefield("clearSeq", types.Types[types.TUINT64]),
 	}
 
 	// build iterator struct holding the above fields
@@ -244,8 +248,8 @@ func OldMapIterType() *types.Type {
 
 	hiter.SetUnderlying(types.NewStruct(fields))
 	types.CalcSize(hiter)
-	if hiter.Size() != int64(12*types.PtrSize) {
-		base.Fatalf("hash_iter size not correct %d %d", hiter.Size(), 12*types.PtrSize)
+	if hiter.Size() != int64(8+12*types.PtrSize) {
+		base.Fatalf("hash_iter size not correct %d %d", hiter.Size(), 8+12*types.PtrSize)
 	}
 
 	oldHiterType = hiter
