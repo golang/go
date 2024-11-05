@@ -160,7 +160,7 @@ TEXT ·block(SB),0,$128-32
 	ADD	X29, X30, X28
 	BEQ	X28, X29, end
 
-	MOV	·_K(SB), X18		// const table
+	MOV	$·_K(SB), X18		// const table
 	ADD	$8, X2, X19		// message schedule
 
 	MOV	dig+0(FP), X20

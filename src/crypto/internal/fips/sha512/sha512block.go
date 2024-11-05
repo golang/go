@@ -10,7 +10,7 @@ package sha512
 
 import "math/bits"
 
-var _K = []uint64{
+var _K = [...]uint64{
 	0x428a2f98d728ae22,
 	0x7137449123ef65cd,
 	0xb5c0fbcfec4d3b2f,

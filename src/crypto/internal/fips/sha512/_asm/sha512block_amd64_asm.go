@@ -438,7 +438,7 @@ func blockAVX2() {
 func loop0() {
 	Label("loop0")
 
-	_K := NewDataAddr(Symbol{Name: ThatPeskyUnicodeDot + "_K"}, 0)
+	_K := NewDataAddr(Symbol{Name: "$" + ThatPeskyUnicodeDot + "_K"}, 0)
 	MOVQ(_K, RBP)
 
 	// byte swap first 16 dwords

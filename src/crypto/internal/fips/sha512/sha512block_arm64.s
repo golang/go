@@ -45,7 +45,7 @@ TEXT ·blockSHA512(SB),NOSPLIT,$0
 	MOVD	dig+0(FP), R0
 	MOVD	p_base+8(FP), R1
 	MOVD	p_len+16(FP), R2
-	MOVD	·_K+0(SB), R3
+	MOVD	$·_K+0(SB), R3
 
 	// long enough to prefetch
 	PRFM	(R3), PLDL3KEEP
