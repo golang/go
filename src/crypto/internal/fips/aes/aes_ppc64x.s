@@ -74,6 +74,7 @@ GLOBL ·rcon(SB), RODATA, $80
 #define P8_LXVB16X(RA,RB,VT)  LXVB16X	(RA+RB), VT
 #define P8_STXVB16X(VS,RA,RB) STXVB16X	VS, (RA+RB)
 #define XXBRD_ON_LE(VA,VT)    XXBRD	VA, VT
+#define SETUP_ESPERM(rtmp)
 #  else
 // On POWER8/ppc64le, emulate the POWER9 instructions by loading unaligned
 // doublewords and byte-swapping each doubleword to emulate BE load/stores.
@@ -89,11 +90,17 @@ GLOBL ·rcon(SB), RODATA, $80
 #define XXBRD_ON_LE(VA,VT) \
 	VPERM	VA, VA, ESPERM, VT
 
+// Setup byte-swapping permute value in ESPERM for POWER9 instruction
+// emulation macros.
+#define SETUP_ESPERM(rtmp) \
+	MOVD	$·rcon(SB), rtmp \
+	LVX	(rtmp), ESPERM
 #  endif // defined(GOPPC64_power9)
 #else
 #define P8_LXVB16X(RA,RB,VT)  LXVD2X	(RA+RB), VT
 #define P8_STXVB16X(VS,RA,RB) STXVD2X	VS, (RA+RB)
 #define XXBRD_ON_LE(VA, VT)
+#define SETUP_ESPERM(rtmp)
 #endif // defined(GOARCH_ppc64le)
 
 // func setEncryptKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
@@ -313,10 +320,7 @@ TEXT ·encryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	MOVD	xk+8(FP), R5   // Key pointer
 	MOVD	dst+16(FP), R3 // Dest pointer
 	MOVD	src+24(FP), R4 // Src pointer
-#ifdef NEEDS_ESPERM
-	MOVD	$·rcon(SB), R7
-	LVX	(R7), ESPERM   // Permute value for P8_ macros.
-#endif
+	SETUP_ESPERM(R7)
 
 	// Set CR{1,2,3}EQ to hold the key size information.
 	CMPU	R6, $10, CR1
@@ -408,10 +412,7 @@ TEXT ·decryptBlockAsm(SB), NOSPLIT|NOFRAME, $0
 	MOVD	xk+8(FP), R5   // Key pointer
 	MOVD	dst+16(FP), R3 // Dest pointer
 	MOVD	src+24(FP), R4 // Src pointer
-#ifdef NEEDS_ESPERM
-	MOVD	$·rcon(SB), R7
-	LVX	(R7), ESPERM   // Permute value for P8_ macros.
-#endif
+	SETUP_ESPERM(R7)
 
 	// Set CR{1,2,3}EQ to hold the key size information.
 	CMPU	R6, $10, CR1
@@ -626,10 +627,7 @@ TEXT ·cryptBlocksChain(SB), NOSPLIT|NOFRAME, $0
 	MOVD	enc+40(FP), ENC
 	MOVD	nr+48(FP), ROUNDS
 
-#ifdef NEEDS_ESPERM
-	MOVD	$·rcon(SB), R11
-	LVX	(R11), ESPERM   // Permute value for P8_ macros.
-#endif
+	SETUP_ESPERM(R11)
 
 	// Assume len > 0 && len % blockSize == 0.
 	CMPW	ENC, $0
@@ -673,3 +671,221 @@ Lcbc_dec:
 	P8_STXVB16X(IVEC, IVP, R0)
 	CLEAR_KEYS()
 	RET
+
+
+#define DO1_CIPHER(iv0, keyv, key, op) \
+	LXVD2X	(key), keyv   \
+	ADD	$16, key      \
+	op	iv0, keyv, iv0
+
+#define DO2_CIPHER(iv0, iv1, keyv, key, op) \
+	DO1_CIPHER(iv0, keyv, key, op) \
+	op	iv1, keyv, iv1
+
+#define DO4_CIPHER(iv0, iv1, iv2, iv3, keyv, key, op) \
+	DO2_CIPHER(iv0, iv1, keyv, key, op) \
+	op	iv2, keyv, iv2              \
+	op	iv3, keyv, iv3
+
+#define DO8_CIPHER(iv0, iv1, iv2, iv3, iv4, iv5, iv6, iv7, keyv, key, op) \
+	DO4_CIPHER(iv0, iv1, iv2, iv3, keyv, key, op) \
+	op	iv4, keyv, iv4                        \
+	op	iv5, keyv, iv5                        \
+	op	iv6, keyv, iv6                        \
+	op	iv7, keyv, iv7
+
+#define XOR_STORE(src, iv, dstp, dstpoff) \
+	XXLXOR    src, iv, V8 \
+	P8_STXVB16X(V8,dstp,dstpoff)
+
+//func ctrBlocks1Asm(nr int, xk *[60]uint32, dst, src *[1 * BlockSize]byte, ivlo, ivhi uint64)
+TEXT ·ctrBlocks1Asm(SB), NOSPLIT|NOFRAME, $0
+
+#define CTRBLOCK_PROLOGUE \
+	MOVD	nr+0(FP), R3     \
+	MOVD	xk+8(FP), R4     \
+	MOVD	dst+16(FP), R5   \
+	MOVD	src+24(FP), R6   \
+	MOVD	ivlo+32(FP), R8  \
+	MOVD	ivhi+40(FP), R9  \
+	CMP	R3, $12, CR1     \
+	MTVSRD	R8, V0		 \
+	MTVSRD	R9, V1		 \
+	XXPERMDI V1, V0, $0, V0	 \
+	SETUP_ESPERM(R8)
+
+	CTRBLOCK_PROLOGUE
+
+	DO1_CIPHER(V0,V8,R4,VXOR)
+
+	BEQ	CR1, key_12
+	BLT	CR1, key_10
+key_14:
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+key_12:
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+key_10:
+	P8_LXVB16X(R6,R0,V9)
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+
+	DO1_CIPHER(V0,V8,R4,VCIPHER)
+	DO1_CIPHER(V0,V8,R4,VCIPHERLAST)
+
+	XOR_STORE(V9,V0,R5,R0)
+	RET
+
+//func ctrBlocks2Asm(nr int, xk *[60]uint32, dst, src *[2 * BlockSize]byte, ivlo, ivhi uint64)
+TEXT ·ctrBlocks2Asm(SB), NOSPLIT|NOFRAME, $0
+	CTRBLOCK_PROLOGUE
+
+	XXLEQV  V8, V8, V8	// V0 is -1
+	VSUBUQM V0, V8, V1	// Vi = IV + i (as IV - (-1))
+
+	DO2_CIPHER(V0,V1,V8,R4,VXOR)
+
+	BEQ	CR1, key_12
+	BLT	CR1, key_10
+key_14:
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+key_12:
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+key_10:
+	P8_LXVB16X(R6,R0,V9)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	MOVD	$16, R8
+	P8_LXVB16X(R6,R8,V10)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHER)
+	DO2_CIPHER(V0,V1,V8,R4,VCIPHERLAST)
+
+	XOR_STORE(V9,V0,R5,R0)
+	XOR_STORE(V10,V1,R5,R8)
+
+	RET
+
+//func ctrBlocks4Asm(nr int, xk *[60]uint32, dst, src *[4 * BlockSize]byte, ivlo, ivhi uint64)
+TEXT ·ctrBlocks4Asm(SB), NOSPLIT|NOFRAME, $0
+	CTRBLOCK_PROLOGUE
+
+	XXLEQV  V8, V8, V8	// V0 is -1
+	VSUBUQM V0, V8, V1	// Vi = IV + i (as IV - (-1))
+	VSUBUQM V1, V8, V2
+	VSUBUQM V2, V8, V3
+
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VXOR)
+
+	BEQ	CR1, key_12
+	BLT	CR1, key_10
+key_14:
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+key_12:
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+key_10:
+	P8_LXVB16X(R6,R0,V9)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	MOVD	$16, R8
+	P8_LXVB16X(R6,R8,V10)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	MOVD	$32, R9
+	P8_LXVB16X(R6,R9,V11)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	MOVD	$48, R10
+	P8_LXVB16X(R6,R10,V12)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHER)
+	DO4_CIPHER(V0,V1,V2,V3,V8,R4,VCIPHERLAST)
+
+	XOR_STORE(V9,V0,R5,R0)
+	XOR_STORE(V10,V1,R5,R8)
+	XOR_STORE(V11,V2,R5,R9)
+	XOR_STORE(V12,V3,R5,R10)
+
+	RET
+
+//func ctrBlocks8Asm(nr int, xk *[60]uint32, dst, src *[8 * BlockSize]byte, ivlo, ivhi uint64)
+TEXT ·ctrBlocks8Asm(SB), NOSPLIT|NOFRAME, $0
+	CTRBLOCK_PROLOGUE
+
+	XXLEQV  V8, V8, V8	// V8 is -1
+	VSUBUQM V0, V8, V1	// Vi = IV + i (as IV - (-1))
+	VADDUQM V8, V8, V9	// V9 is -2
+
+	VSUBUQM V0, V9, V2
+	VSUBUQM V1, V9, V3
+	VSUBUQM V2, V9, V4
+	VSUBUQM V3, V9, V5
+	VSUBUQM V4, V9, V6
+	VSUBUQM V5, V9, V7
+
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VXOR)
+
+	BEQ	CR1, key_12
+	BLT	CR1, key_10
+key_14:
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+key_12:
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+key_10:
+	P8_LXVB16X(R6,R0,V9)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	MOVD	$16, R8
+	P8_LXVB16X(R6,R8,V10)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	MOVD	$32, R9
+	P8_LXVB16X(R6,R9,V11)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	MOVD	$48, R10
+	P8_LXVB16X(R6,R10,V12)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	MOVD	$64, R11
+	P8_LXVB16X(R6,R11,V13)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	MOVD	$80, R12
+	P8_LXVB16X(R6,R12,V14)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	MOVD	$96, R14
+	P8_LXVB16X(R6,R14,V15)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	MOVD	$112, R15
+	P8_LXVB16X(R6,R15,V16)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHER)
+	DO8_CIPHER(V0,V1,V2,V3,V4,V5,V6,V7,V8,R4,VCIPHERLAST)
+
+	XOR_STORE(V9,V0,R5,R0)
+	XOR_STORE(V10,V1,R5,R8)
+	XOR_STORE(V11,V2,R5,R9)
+	XOR_STORE(V12,V3,R5,R10)
+	XOR_STORE(V13,V4,R5,R11)
+	XOR_STORE(V14,V5,R5,R12)
+	XOR_STORE(V15,V6,R5,R14)
+	XOR_STORE(V16,V7,R5,R15)
+
+	RET
+
