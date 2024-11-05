@@ -1296,16 +1296,17 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			p.To.Sym = c.cursym.Func().Text.From.Sym
 			p.To.Offset = p.To.Target().Pc
 		}
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.To.Sym
-		rel.Add = p.To.Offset
+		typ := objabi.R_JMPMIPS
 		if p.As == AJAL {
-			rel.Type = objabi.R_CALLMIPS
-		} else {
-			rel.Type = objabi.R_JMPMIPS
+			typ = objabi.R_CALLMIPS
 		}
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: typ,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.To.Sym,
+			Add:  p.To.Offset,
+		})
 
 	case 12: /* movbs r,r */
 		// NOTE: this case does not use REGTMP. If it ever does,
@@ -1363,10 +1364,10 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = OP_RRR(c.oprrr(p.As), obj.REG_NONE, p.To.Reg, r)
 		if p.As == obj.ACALL {
-			rel := obj.Addrel(c.cursym)
-			rel.Off = int32(c.pc)
-			rel.Siz = 0
-			rel.Type = objabi.R_CALLIND
+			c.cursym.AddRel(c.ctxt, obj.Reloc{
+				Type: objabi.R_CALLIND,
+				Off:  int32(c.pc),
+			})
 		}
 
 	case 19: /* mov $lcon,r ==> lu+or */
@@ -1559,71 +1560,80 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	/* relocation operations */
 	case 50: /* mov r,addr ==> lu + add REGSB, REGTMP + sw o(REGTMP) */
 		o1 = OP_IRR(c.opirr(ALUI), 0, REGZERO, REGTMP)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.To.Sym
-		rel.Add = p.To.Offset
-		rel.Type = objabi.R_ADDRMIPSU
-		o2 = OP_IRR(c.opirr(p.As), 0, REGTMP, p.From.Reg)
-		rel2 := obj.Addrel(c.cursym)
-		rel2.Off = int32(c.pc + 4)
-		rel2.Siz = 4
-		rel2.Sym = p.To.Sym
-		rel2.Add = p.To.Offset
-		rel2.Type = objabi.R_ADDRMIPS
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRMIPSU,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.To.Sym,
+			Add:  p.To.Offset,
+		})
 
+		o2 = OP_IRR(c.opirr(p.As), 0, REGTMP, p.From.Reg)
+		off := int32(c.pc + 4)
 		if o.size == 12 {
 			o3 = o2
 			o2 = OP_RRR(c.oprrr(AADDVU), REGSB, REGTMP, REGTMP)
-			rel2.Off += 4
+			off += 4
 		}
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRMIPS,
+			Off:  off,
+			Siz:  4,
+			Sym:  p.To.Sym,
+			Add:  p.To.Offset,
+		})
 
 	case 51: /* mov addr,r ==> lu + add REGSB, REGTMP + lw o(REGTMP) */
 		o1 = OP_IRR(c.opirr(ALUI), 0, REGZERO, REGTMP)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.From.Sym
-		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRMIPSU
-		o2 = OP_IRR(c.opirr(-p.As), 0, REGTMP, p.To.Reg)
-		rel2 := obj.Addrel(c.cursym)
-		rel2.Off = int32(c.pc + 4)
-		rel2.Siz = 4
-		rel2.Sym = p.From.Sym
-		rel2.Add = p.From.Offset
-		rel2.Type = objabi.R_ADDRMIPS
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRMIPSU,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
 
+		o2 = OP_IRR(c.opirr(-p.As), 0, REGTMP, p.To.Reg)
+		off := int32(c.pc + 4)
 		if o.size == 12 {
 			o3 = o2
 			o2 = OP_RRR(c.oprrr(AADDVU), REGSB, REGTMP, REGTMP)
-			rel2.Off += 4
+			off += 4
 		}
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRMIPS,
+			Off:  off,
+			Siz:  4,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
 
 	case 52: /* mov $lext, r ==> lu + add REGSB, r + add */
 		// NOTE: this case does not use REGTMP. If it ever does,
 		// remove the NOTUSETMP flag in optab.
 		o1 = OP_IRR(c.opirr(ALUI), 0, REGZERO, p.To.Reg)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.From.Sym
-		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRMIPSU
-		o2 = OP_IRR(c.opirr(add), 0, p.To.Reg, p.To.Reg)
-		rel2 := obj.Addrel(c.cursym)
-		rel2.Off = int32(c.pc + 4)
-		rel2.Siz = 4
-		rel2.Sym = p.From.Sym
-		rel2.Add = p.From.Offset
-		rel2.Type = objabi.R_ADDRMIPS
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRMIPSU,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
 
+		o2 = OP_IRR(c.opirr(add), 0, p.To.Reg, p.To.Reg)
+		off := int32(c.pc + 4)
 		if o.size == 12 {
 			o3 = o2
 			o2 = OP_RRR(c.oprrr(AADDVU), REGSB, p.To.Reg, p.To.Reg)
-			rel2.Off += 4
+			off += 4
 		}
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRMIPS,
+			Off:  off,
+			Siz:  4,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
 
 	case 53: /* mov r, tlsvar ==> rdhwr + sw o(r3) */
 		// clobbers R3 !
@@ -1632,12 +1642,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		// remove the NOTUSETMP flag in optab.
 		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
 		o2 = OP_IRR(c.opirr(p.As), 0, REG_R3, p.From.Reg)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc + 4)
-		rel.Siz = 4
-		rel.Sym = p.To.Sym
-		rel.Add = p.To.Offset
-		rel.Type = objabi.R_ADDRMIPSTLS
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRMIPSTLS,
+			Off:  int32(c.pc + 4),
+			Siz:  4,
+			Sym:  p.To.Sym,
+			Add:  p.To.Offset,
+		})
 
 	case 54: /* mov tlsvar, r ==> rdhwr + lw o(r3) */
 		// clobbers R3 !
@@ -1645,12 +1656,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		// remove the NOTUSETMP flag in optab.
 		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
 		o2 = OP_IRR(c.opirr(-p.As), 0, REG_R3, p.To.Reg)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc + 4)
-		rel.Siz = 4
-		rel.Sym = p.From.Sym
-		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRMIPSTLS
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRMIPSTLS,
+			Off:  int32(c.pc + 4),
+			Siz:  4,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
 
 	case 55: /* mov $tlsvar, r ==> rdhwr + add */
 		// clobbers R3 !
@@ -1658,12 +1670,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		// remove the NOTUSETMP flag in optab.
 		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
 		o2 = OP_IRR(c.opirr(add), 0, REG_R3, p.To.Reg)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc + 4)
-		rel.Siz = 4
-		rel.Sym = p.From.Sym
-		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRMIPSTLS
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRMIPSTLS,
+			Off:  int32(c.pc + 4),
+			Siz:  4,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
 
 	case 56: /* vmov{b,h,w,d} $scon, wr */
 

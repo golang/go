@@ -418,9 +418,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
 	}
 	slices.SortFunc(trackSyms, func(a, b *obj.LSym) int { return strings.Compare(a.Name, b.Name) })
 	for _, sym := range trackSyms {
-		r := obj.Addrel(fnsym)
-		r.Sym = sym
-		r.Type = objabi.R_USEFIELD
+		fnsym.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_USEFIELD, Sym: sym})
 	}
 }
 

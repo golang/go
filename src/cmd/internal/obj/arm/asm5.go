@@ -1589,13 +1589,14 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		v := int32(-8)
 		if p.To.Sym != nil {
-			rel := obj.Addrel(c.cursym)
-			rel.Off = int32(c.pc)
-			rel.Siz = 4
-			rel.Sym = p.To.Sym
 			v += int32(p.To.Offset)
-			rel.Add = int64(o1) | (int64(v)>>2)&0xffffff
-			rel.Type = objabi.R_CALLARM
+			c.cursym.AddRel(c.ctxt, obj.Reloc{
+				Type: objabi.R_CALLARM,
+				Off:  int32(c.pc),
+				Siz:  4,
+				Sym:  p.To.Sym,
+				Add:  int64(o1) | (int64(v)>>2)&0xffffff,
+			})
 			break
 		}
 
@@ -1620,10 +1621,10 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = c.oprrr(p, ABL, int(p.Scond))
 		o1 |= (uint32(p.To.Reg) & 15) << 0
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 0
-		rel.Type = objabi.R_CALLIND
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_CALLIND,
+			Off:  int32(c.pc),
+		})
 
 	case 8: /* sll $c,[R],R -> mov (R<<$c),R */
 		c.aclass(&p.From)
@@ -1663,23 +1664,23 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Sym != nil {
 			// This case happens with words generated
 			// in the PC stream as part of the literal pool (c.pool).
-			rel := obj.Addrel(c.cursym)
-
-			rel.Off = int32(c.pc)
-			rel.Siz = 4
-			rel.Sym = p.To.Sym
-			rel.Add = p.To.Offset
-
+			typ := objabi.R_ADDR
+			add := p.To.Offset
 			if c.ctxt.Flag_shared {
 				if p.To.Name == obj.NAME_GOTREF {
-					rel.Type = objabi.R_GOTPCREL
+					typ = objabi.R_GOTPCREL
 				} else {
-					rel.Type = objabi.R_PCREL
+					typ = objabi.R_PCREL
 				}
-				rel.Add += c.pc - p.Rel.Pc - 8
-			} else {
-				rel.Type = objabi.R_ADDR
+				add += c.pc - p.Rel.Pc - 8
 			}
+			c.cursym.AddRel(c.ctxt, obj.Reloc{
+				Type: typ,
+				Off:  int32(c.pc),
+				Siz:  4,
+				Sym:  p.To.Sym,
+				Add:  add,
+			})
 			o1 = 0
 		}
 
@@ -2159,12 +2160,12 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		// This case happens with words generated in the PC stream as part of
 		// the literal c.pool.
-		rel := obj.Addrel(c.cursym)
-
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.To.Sym
-		rel.Type = objabi.R_TLS_LE
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_TLS_LE,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.To.Sym,
+		})
 		o1 = 0
 
 	case 104: /* word tlsvar, initial exec */
@@ -2174,12 +2175,13 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Offset != 0 {
 			c.ctxt.Diag("offset against tls var in %v", p)
 		}
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.To.Sym
-		rel.Type = objabi.R_TLS_IE
-		rel.Add = c.pc - p.Rel.Pc - 8 - int64(rel.Siz)
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_TLS_IE,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.To.Sym,
+			Add:  c.pc - p.Rel.Pc - 8 - 4,
+		})
 
 	case 68: /* floating point store -> ADDR */
 		o1 = c.omvl(p, &p.To, REGTMP)

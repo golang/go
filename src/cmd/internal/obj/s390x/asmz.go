@@ -2643,48 +2643,48 @@ func oclass(a *obj.Addr) int {
 
 // Add a relocation for the immediate in a RIL style instruction.
 // The addend will be adjusted as required.
-func (c *ctxtz) addrilreloc(sym *obj.LSym, add int64) *obj.Reloc {
+func (c *ctxtz) addrilreloc(sym *obj.LSym, add int64) {
 	if sym == nil {
 		c.ctxt.Diag("require symbol to apply relocation")
 	}
 	offset := int64(2) // relocation offset from start of instruction
-	rel := obj.Addrel(c.cursym)
-	rel.Off = int32(c.pc + offset)
-	rel.Siz = 4
-	rel.Sym = sym
-	rel.Add = add + offset + int64(rel.Siz)
-	rel.Type = objabi.R_PCRELDBL
-	return rel
+	c.cursym.AddRel(c.ctxt, obj.Reloc{
+		Type: objabi.R_PCRELDBL,
+		Off:  int32(c.pc + offset),
+		Siz:  4,
+		Sym:  sym,
+		Add:  add + offset + 4,
+	})
 }
 
-func (c *ctxtz) addrilrelocoffset(sym *obj.LSym, add, offset int64) *obj.Reloc {
+func (c *ctxtz) addrilrelocoffset(sym *obj.LSym, add, offset int64) {
 	if sym == nil {
 		c.ctxt.Diag("require symbol to apply relocation")
 	}
 	offset += int64(2) // relocation offset from start of instruction
-	rel := obj.Addrel(c.cursym)
-	rel.Off = int32(c.pc + offset)
-	rel.Siz = 4
-	rel.Sym = sym
-	rel.Add = add + offset + int64(rel.Siz)
-	rel.Type = objabi.R_PCRELDBL
-	return rel
+	c.cursym.AddRel(c.ctxt, obj.Reloc{
+		Type: objabi.R_PCRELDBL,
+		Off:  int32(c.pc + offset),
+		Siz:  4,
+		Sym:  sym,
+		Add:  add + offset + 4,
+	})
 }
 
 // Add a CALL relocation for the immediate in a RIL style instruction.
 // The addend will be adjusted as required.
-func (c *ctxtz) addcallreloc(sym *obj.LSym, add int64) *obj.Reloc {
+func (c *ctxtz) addcallreloc(sym *obj.LSym, add int64) {
 	if sym == nil {
 		c.ctxt.Diag("require symbol to apply relocation")
 	}
 	offset := int64(2) // relocation offset from start of instruction
-	rel := obj.Addrel(c.cursym)
-	rel.Off = int32(c.pc + offset)
-	rel.Siz = 4
-	rel.Sym = sym
-	rel.Add = add + offset + int64(rel.Siz)
-	rel.Type = objabi.R_CALL
-	return rel
+	c.cursym.AddRel(c.ctxt, obj.Reloc{
+		Type: objabi.R_CALL,
+		Off:  int32(c.pc + offset),
+		Siz:  4,
+		Sym:  sym,
+		Add:  add + offset + int64(4),
+	})
 }
 
 func (c *ctxtz) branchMask(p *obj.Prog) CCMask {
@@ -4008,24 +4008,25 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			c.ctxt.Diag("invalid offset against GOT slot %v", p)
 		}
 		zRIL(_b, op_LGRL, uint32(p.To.Reg), 0, asm)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc + 2)
-		rel.Siz = 4
-		rel.Sym = p.From.Sym
-		rel.Type = objabi.R_GOTPCREL
-		rel.Add = 2 + int64(rel.Siz)
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_GOTPCREL,
+			Off:  int32(c.pc + 2),
+			Siz:  4,
+			Sym:  p.From.Sym,
+			Add:  2 + 4,
+		})
 
 	case 94: // TLS local exec model
 		zRIL(_b, op_LARL, regtmp(p), (sizeRIL+sizeRXY+sizeRI)>>1, asm)
 		zRXY(op_LG, uint32(p.To.Reg), regtmp(p), 0, 0, asm)
 		zRI(op_BRC, 0xF, (sizeRI+8)>>1, asm)
 		*asm = append(*asm, 0, 0, 0, 0, 0, 0, 0, 0)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc + sizeRIL + sizeRXY + sizeRI)
-		rel.Siz = 8
-		rel.Sym = p.From.Sym
-		rel.Type = objabi.R_TLS_LE
-		rel.Add = 0
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_TLS_LE,
+			Off:  int32(c.pc + sizeRIL + sizeRXY + sizeRI),
+			Siz:  8,
+			Sym:  p.From.Sym,
+		})
 
 	case 95: // TLS initial exec model
 		// Assembly                   | Relocation symbol    | Done Here?
@@ -4040,12 +4041,13 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 
 		// R_390_TLS_IEENT
 		zRIL(_b, op_LARL, regtmp(p), 0, asm)
-		ieent := obj.Addrel(c.cursym)
-		ieent.Off = int32(c.pc + 2)
-		ieent.Siz = 4
-		ieent.Sym = p.From.Sym
-		ieent.Type = objabi.R_TLS_IE
-		ieent.Add = 2 + int64(ieent.Siz)
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_TLS_IE,
+			Off:  int32(c.pc + 2),
+			Siz:  4,
+			Sym:  p.From.Sym,
+			Add:  2 + 4,
+		})
 
 		// R_390_TLS_LOAD
 		zRXY(op_LGF, uint32(p.To.Reg), regtmp(p), 0, 0, asm)

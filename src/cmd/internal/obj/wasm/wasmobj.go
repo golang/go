@@ -1276,14 +1276,16 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 					fmt.Println(p.To)
 					panic("bad name for Call")
 				}
-				r := obj.Addrel(s)
-				r.Siz = 1 // actually variable sized
-				r.Off = int32(w.Len())
-				r.Type = objabi.R_CALL
+				typ := objabi.R_CALL
 				if p.Mark&WasmImport != 0 {
-					r.Type = objabi.R_WASMIMPORT
+					typ = objabi.R_WASMIMPORT
 				}
-				r.Sym = p.To.Sym
+				s.AddRel(ctxt, obj.Reloc{
+					Type: typ,
+					Off:  int32(w.Len()),
+					Siz:  1, // actually variable sized
+					Sym:  p.To.Sym,
+				})
 				if hasLocalSP {
 					// The stack may have moved, which changes SP. Update the local SP variable.
 					updateLocalSP(w)
@@ -1303,12 +1305,13 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 		case AI32Const, AI64Const:
 			if p.From.Name == obj.NAME_EXTERN {
-				r := obj.Addrel(s)
-				r.Siz = 1 // actually variable sized
-				r.Off = int32(w.Len())
-				r.Type = objabi.R_ADDR
-				r.Sym = p.From.Sym
-				r.Add = p.From.Offset
+				s.AddRel(ctxt, obj.Reloc{
+					Type: objabi.R_ADDR,
+					Off:  int32(w.Len()),
+					Siz:  1, // actually variable sized
+					Sym:  p.From.Sym,
+					Add:  p.From.Offset,
+				})
 				break
 			}
 			writeSleb128(w, p.From.Offset)

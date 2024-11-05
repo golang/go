@@ -245,11 +245,10 @@ func (c Cursor) WriteSlice(target *obj.LSym, off, len, cap int64) {
 
 // Reloc adds a relocation from the current cursor position.
 // Reloc fills in Off and Siz fields. Caller should fill in the rest (Type, others).
-func (c Cursor) Reloc() *obj.Reloc {
-	r := obj.Addrel(c.lsym)
-	r.Off = int32(c.offset)
-	r.Siz = uint8(c.typ.Size())
-	return r
+func (c Cursor) Reloc(rel obj.Reloc) {
+	rel.Off = int32(c.offset)
+	rel.Siz = uint8(c.typ.Size())
+	c.lsym.AddRel(base.Ctxt, rel)
 }
 
 // Field selects the field with the given name from the struct pointed to by c.

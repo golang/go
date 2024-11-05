@@ -1062,10 +1062,10 @@ func usemethod(n *ir.CallExpr) {
 
 	if ir.IsConst(targetName, constant.String) {
 		name := constant.StringVal(targetName.Val())
-
-		r := obj.Addrel(ir.CurFunc.LSym)
-		r.Type = objabi.R_USENAMEDMETHOD
-		r.Sym = staticdata.StringSymNoCommon(name)
+		ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
+			Type: objabi.R_USENAMEDMETHOD,
+			Sym:  staticdata.StringSymNoCommon(name),
+		})
 	} else {
 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)
 	}

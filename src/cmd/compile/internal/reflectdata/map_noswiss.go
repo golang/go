@@ -296,8 +296,6 @@ func writeOldMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
 		// type live in the binary. This is important to make sure that
 		// a named map and that same map cast to its underlying type via
 		// reflection, use the same hash function. See issue 37716.
-		r := obj.Addrel(lsym)
-		r.Sym = writeType(u)
-		r.Type = objabi.R_KEEP
+		lsym.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_KEEP, Sym: writeType(u)})
 	}
 }

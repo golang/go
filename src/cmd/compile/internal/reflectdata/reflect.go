@@ -385,9 +385,7 @@ func typePkg(t *types.Type) *types.Pkg {
 
 func dmethodptrOff(c rttype.Cursor, x *obj.LSym) {
 	c.WriteInt32(0)
-	r := c.Reloc()
-	r.Sym = x
-	r.Type = objabi.R_METHODOFF
+	c.Reloc(obj.Reloc{Type: objabi.R_METHODOFF, Sym: x})
 }
 
 var kinds = []abi.Kind{
@@ -1533,9 +1531,7 @@ func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
 func MarkTypeSymUsedInInterface(tsym *obj.LSym, from *obj.LSym) {
 	// Emit a marker relocation. The linker will know the type is converted
 	// to an interface if "from" is reachable.
-	r := obj.Addrel(from)
-	r.Sym = tsym
-	r.Type = objabi.R_USEIFACE
+	from.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_USEIFACE, Sym: tsym})
 }
 
 // MarkUsedIfaceMethod marks that an interface method is used in the current
@@ -1567,20 +1563,20 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 		// type, and the linker could do more complicated matching using
 		// some sort of fuzzy shape matching. For now, only use the name
 		// of the method for matching.
-		r := obj.Addrel(ir.CurFunc.LSym)
-		r.Sym = staticdata.StringSymNoCommon(dot.Sel.Name)
-		r.Type = objabi.R_USENAMEDMETHOD
+		ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
+			Type: objabi.R_USENAMEDMETHOD,
+			Sym:  staticdata.StringSymNoCommon(dot.Sel.Name),
+		})
 		return
 	}
 
-	tsym := TypeLinksym(ityp)
-	r := obj.Addrel(ir.CurFunc.LSym)
-	r.Sym = tsym
-	// dot.Offset() is the method index * PtrSize (the offset of code pointer
-	// in itab).
+	// dot.Offset() is the method index * PtrSize (the offset of code pointer in itab).
 	midx := dot.Offset() / int64(types.PtrSize)
-	r.Add = InterfaceMethodOffset(ityp, midx)
-	r.Type = objabi.R_USEIFACEMETHOD
+	ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
+		Type: objabi.R_USEIFACEMETHOD,
+		Sym:  TypeLinksym(ityp),
+		Add:  InterfaceMethodOffset(ityp, midx),
+	})
 }
 
 func deref(t *types.Type) *types.Type {

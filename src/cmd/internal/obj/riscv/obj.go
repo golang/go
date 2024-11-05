@@ -2625,12 +2625,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		switch p.As {
 		case AJAL:
 			if p.Mark&NEED_JAL_RELOC == NEED_JAL_RELOC {
-				rel := obj.Addrel(cursym)
-				rel.Off = int32(p.Pc)
-				rel.Siz = 4
-				rel.Sym = p.To.Sym
-				rel.Add = p.To.Offset
-				rel.Type = objabi.R_RISCV_JAL
+				cursym.AddRel(ctxt, obj.Reloc{
+					Type: objabi.R_RISCV_JAL,
+					Off:  int32(p.Pc),
+					Siz:  4,
+					Sym:  p.To.Sym,
+					Add:  p.To.Offset,
+				})
 			}
 		case AJALR:
 			if p.To.Sym != nil {
@@ -2671,12 +2672,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-			rel := obj.Addrel(cursym)
-			rel.Off = int32(p.Pc)
-			rel.Siz = 8
-			rel.Sym = addr.Sym
-			rel.Add = addr.Offset
-			rel.Type = rt
+			cursym.AddRel(ctxt, obj.Reloc{
+				Type: rt,
+				Off:  int32(p.Pc),
+				Siz:  8,
+				Sym:  addr.Sym,
+				Add:  addr.Offset,
+			})
 
 		case obj.APCALIGN:
 			alignedValue := p.From.Offset

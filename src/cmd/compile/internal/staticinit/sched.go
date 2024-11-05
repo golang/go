@@ -1189,9 +1189,7 @@ func AddKeepRelocations() {
 		if vs == nil {
 			base.Fatalf("bad: mapvar %v has no linksym", k)
 		}
-		r := obj.Addrel(vs)
-		r.Sym = fs
-		r.Type = objabi.R_KEEP
+		vs.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_KEEP, Sym: fs})
 		if base.Debug.WrapGlobalMapDbg > 1 {
 			fmt.Fprintf(os.Stderr, "=-= add R_KEEP relo from %s to %s\n",
 				vs.Name, fs.Name)

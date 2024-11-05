@@ -52,17 +52,13 @@ func TestContentHash(t *testing.T) {
 		s.PkgIdx = goobj.PkgIdxHashed
 	}
 	// s3 references s0
-	r := Addrel(syms[3])
-	r.Sym = syms[0]
+	syms[3].R = []Reloc{{Sym: syms[0]}}
 	// s4 references s0
-	r = Addrel(syms[4])
-	r.Sym = syms[0]
+	syms[4].R = []Reloc{{Sym: syms[0]}}
 	// s5 references s1
-	r = Addrel(syms[5])
-	r.Sym = syms[1]
+	syms[5].R = []Reloc{{Sym: syms[1]}}
 	// s6 references s2
-	r = Addrel(syms[6])
-	r.Sym = syms[2]
+	syms[6].R = []Reloc{{Sym: syms[2]}}
 
 	// compute hashes
 	h := make([]goobj.HashType, len(syms))

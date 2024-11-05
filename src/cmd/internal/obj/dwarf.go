@@ -344,7 +344,7 @@ func (ctxt *Link) populateDWARF(curfn Func, s *LSym) {
 	var scopes []dwarf.Scope
 	var inlcalls dwarf.InlCalls
 	if ctxt.DebugInfo != nil {
-		scopes, inlcalls = ctxt.DebugInfo(s, info, curfn)
+		scopes, inlcalls = ctxt.DebugInfo(ctxt, s, info, curfn)
 	}
 	var err error
 	dwctxt := dwCtxt{ctxt}
@@ -421,7 +421,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn Func, s *LSym) {
 	if s.Func() == nil {
 		s.NewFuncInfo()
 	}
-	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
+	scopes, _ := ctxt.DebugInfo(ctxt, s, absfn, curfn)
 	dwctxt := dwCtxt{ctxt}
 	fnstate := dwarf.FnState{
 		Name:          s.Name,

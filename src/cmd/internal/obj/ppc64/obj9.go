@@ -867,11 +867,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = 0x38420000
-				rel := obj.Addrel(c.cursym)
-				rel.Off = 0
-				rel.Siz = 8
-				rel.Sym = c.ctxt.Lookup(".TOC.")
-				rel.Type = objabi.R_ADDRPOWER_PCREL
+				c.cursym.AddRel(c.ctxt, obj.Reloc{
+					Type: objabi.R_ADDRPOWER_PCREL,
+					Off:  0,
+					Siz:  8,
+					Sym:  c.ctxt.Lookup(".TOC."),
+				})
 			}
 
 			if !c.cursym.Func().Text.From.Sym.NoSplit() {
