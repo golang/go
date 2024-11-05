@@ -42,6 +42,7 @@ func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a
 // Deprecated: Use SyscallN instead.
 func Syscall18(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2 uintptr, err Errno)
 
+//go:noescape
 func SyscallN(trap uintptr, args ...uintptr) (r1, r2 uintptr, err Errno)
 func loadlibrary(filename *uint16) (handle uintptr, err Errno)
 func loadsystemlibrary(filename *uint16) (handle uintptr, err Errno)
