@@ -72,6 +72,7 @@ func FusedAdd32(x, y, z float32) float32 {
 	// s390x:"FMADDS\t"
 	// ppc64x:"FMADDS\t"
 	// arm64:"FMADDS"
+	// loong64:"FMADDF\t"
 	// riscv64:"FMADDS\t"
 	return x*y + z
 }
@@ -80,11 +81,13 @@ func FusedSub32_a(x, y, z float32) float32 {
 	// s390x:"FMSUBS\t"
 	// ppc64x:"FMSUBS\t"
 	// riscv64:"FMSUBS\t"
+	// loong64:"FMSUBF\t"
 	return x*y - z
 }
 
 func FusedSub32_b(x, y, z float32) float32 {
 	// arm64:"FMSUBS"
+	// loong64:"FNMSUBF\t"
 	// riscv64:"FNMSUBS\t"
 	return z - x*y
 }
@@ -93,6 +96,7 @@ func FusedAdd64(x, y, z float64) float64 {
 	// s390x:"FMADD\t"
 	// ppc64x:"FMADD\t"
 	// arm64:"FMADDD"
+	// loong64:"FMADDD\t"
 	// riscv64:"FMADDD\t"
 	return x*y + z
 }
@@ -101,11 +105,13 @@ func FusedSub64_a(x, y, z float64) float64 {
 	// s390x:"FMSUB\t"
 	// ppc64x:"FMSUB\t"
 	// riscv64:"FMSUBD\t"
+	// loong64:"FMSUBD\t"
 	return x*y - z
 }
 
 func FusedSub64_b(x, y, z float64) float64 {
 	// arm64:"FMSUBD"
+	// loong64:"FNMSUBD\t"
 	// riscv64:"FNMSUBD\t"
 	return z - x*y
 }

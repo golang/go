@@ -211,7 +211,7 @@
 
 (CvtBoolToUint8 ...) => (Copy ...)
 
-(Round(32|64)F ...) => (Copy ...)
+(Round(32|64)F ...) => (LoweredRound(32|64)F ...)
 
 // comparisons
 (Eq8 x y)  => (SGTU (MOVVconst [1]) (XOR (ZeroExt8to64 x) (ZeroExt8to64 y)))
@@ -674,6 +674,21 @@
 (DIVVU x (MOVVconst [c])) && isPowerOfTwo(c) => (SRLVconst [log64(c)] x)
 (REMVU _ (MOVVconst [1])) => (MOVVconst [0])                       // mod
 (REMVU x (MOVVconst [c])) && isPowerOfTwo(c) => (ANDconst [c-1] x) // mod
+
+// FMA
+(FMA ...) => (FMADDD ...)
+((ADD|SUB)F (MULF x y) z) && z.Block.Func.useFMA(v) => (FM(ADD|SUB)F x y z)
+((ADD|SUB)D (MULD x y) z) && z.Block.Func.useFMA(v) => (FM(ADD|SUB)D x y z)
+// z - xy -> -(xy - z)
+(SUBF z (MULF x y)) && z.Block.Func.useFMA(v) => (FNMSUBF x y z)
+(SUBD z (MULD x y)) && z.Block.Func.useFMA(v) => (FNMSUBD x y z)
+// z + (-xy) -> -(xy - z)
+// z - (-xy) -> xy + z
+((ADD|SUB)F z (NEGF (MULF x y))) && z.Block.Func.useFMA(v) => (F(NMSUB|MADD)F x y z)
+((ADD|SUB)D z (NEGD (MULD x y))) && z.Block.Func.useFMA(v) => (F(NMSUB|MADD)D x y z)
+// -xy - z -> -(xy + z)
+(SUBF (NEGF (MULF x y)) z) && z.Block.Func.useFMA(v) => (FNMADDF x y z)
+(SUBD (NEGD (MULD x y)) z) && z.Block.Func.useFMA(v) => (FNMADDD x y z)
 
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)

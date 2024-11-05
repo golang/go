@@ -689,7 +689,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
 		},
-		sys.ARM64, sys.PPC64, sys.RISCV64, sys.S390X)
+		sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("math", "FMA",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if !s.config.UseFMA {

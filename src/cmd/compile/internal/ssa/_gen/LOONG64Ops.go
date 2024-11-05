@@ -151,6 +151,7 @@ func init() {
 		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
 		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
 		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
 		fp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
@@ -192,6 +193,15 @@ func init() {
 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64", typ: "UInt64"}, // arg0 ^ auxInt
 		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                // ^(arg0 | arg1)
 		{name: "NORconst", argLength: 1, reg: gp11, asm: "NOR", aux: "Int64"},                // ^(arg0 | auxInt)
+
+		{name: "FMADDF", argLength: 3, reg: fp31, asm: "FMADDF", commutative: true, typ: "Float32"},   // (arg0 * arg1) + arg2
+		{name: "FMADDD", argLength: 3, reg: fp31, asm: "FMADDD", commutative: true, typ: "Float64"},   // (arg0 * arg1) + arg2
+		{name: "FMSUBF", argLength: 3, reg: fp31, asm: "FMSUBF", commutative: true, typ: "Float32"},   // (arg0 * arg1) - arg2
+		{name: "FMSUBD", argLength: 3, reg: fp31, asm: "FMSUBD", commutative: true, typ: "Float64"},   // (arg0 * arg1) - arg2
+		{name: "FNMADDF", argLength: 3, reg: fp31, asm: "FNMADDF", commutative: true, typ: "Float32"}, // -((arg0 * arg1) + arg2)
+		{name: "FNMADDD", argLength: 3, reg: fp31, asm: "FNMADDD", commutative: true, typ: "Float64"}, // -((arg0 * arg1) + arg2)
+		{name: "FNMSUBF", argLength: 3, reg: fp31, asm: "FNMSUBF", commutative: true, typ: "Float32"}, // -((arg0 * arg1) - arg2)
+		{name: "FNMSUBD", argLength: 3, reg: fp31, asm: "FNMSUBD", commutative: true, typ: "Float64"}, // -((arg0 * arg1) - arg2)
 
 		{name: "NEGV", argLength: 1, reg: gp11},                // -arg0
 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
@@ -329,6 +339,10 @@ func init() {
 		{name: "TRUNCDV", argLength: 1, reg: fp11, asm: "TRUNCDV"}, // float64 -> int64
 		{name: "MOVFD", argLength: 1, reg: fp11, asm: "MOVFD"},     // float32 -> float64
 		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"},     // float64 -> float32
+
+		// Round ops to block fused-multiply-add extraction.
+		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
+		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
 
 		// function calls
 		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem

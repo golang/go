@@ -123,7 +123,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = x
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = y
-	case ssa.OpLOONG64MOVVnop:
+	case ssa.OpLOONG64MOVVnop,
+		ssa.OpLOONG64LoweredRound32F,
+		ssa.OpLOONG64LoweredRound64F:
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -320,6 +322,30 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = loong64.REG_FCC0
+
+	case ssa.OpLOONG64FMADDF,
+		ssa.OpLOONG64FMADDD,
+		ssa.OpLOONG64FMSUBF,
+		ssa.OpLOONG64FMSUBD,
+		ssa.OpLOONG64FNMADDF,
+		ssa.OpLOONG64FNMADDD,
+		ssa.OpLOONG64FNMSUBF,
+		ssa.OpLOONG64FNMSUBD:
+		p := s.Prog(v.Op.Asm())
+		// r=(FMA x y z) -> FMADDD z, y, x, r
+		// the SSA operand order is for taking advantage of
+		// commutativity (that only applies for the first two operands)
+		r := v.Reg()
+		x := v.Args[0].Reg()
+		y := v.Args[1].Reg()
+		z := v.Args[2].Reg()
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = z
+		p.Reg = y
+		p.AddRestSourceReg(x)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+
 	case ssa.OpLOONG64MOVVaddr:
 		p := s.Prog(loong64.AMOVV)
 		p.From.Type = obj.TYPE_ADDR

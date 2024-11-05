@@ -132,6 +132,7 @@ func fma(x, y, z float64) float64 {
 	// amd64:"VFMADD231SD"
 	// arm/6:"FMULAD"
 	// arm64:"FMADDD"
+	// loong64:"FMADDD"
 	// s390x:"FMADD"
 	// ppc64x:"FMADD"
 	// riscv64:"FMADDD"
