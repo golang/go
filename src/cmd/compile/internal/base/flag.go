@@ -206,6 +206,7 @@ func ParseFlags() {
 	if Debug.Gossahash != "" {
 		hashDebug = NewHashDebug("gossahash", Debug.Gossahash, nil)
 	}
+	obj.SetFIPSDebugHash(Debug.FIPSHash)
 
 	// Compute whether we're compiling the runtime from the package path. Test
 	// code can also use the flag to set this explicitly.

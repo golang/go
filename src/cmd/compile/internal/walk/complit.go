@@ -153,7 +153,10 @@ func isStaticCompositeLiteral(n ir.Node) bool {
 	case ir.OLITERAL, ir.ONIL:
 		return true
 	case ir.OCONVIFACE:
-		// See staticassign's OCONVIFACE case for comments.
+		// See staticinit.Schedule.StaticAssign's OCONVIFACE case for comments.
+		if base.Ctxt.IsFIPS() && base.Ctxt.Flag_shared {
+			return false
+		}
 		n := n.(*ir.ConvExpr)
 		val := ir.Node(n)
 		for val.Op() == ir.OCONVIFACE {

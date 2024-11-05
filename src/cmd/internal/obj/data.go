@@ -71,8 +71,10 @@ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
 	switch s.Type {
 	case objabi.Sxxx, objabi.SBSS:
 		s.Type = objabi.SDATA
+		s.setFIPSType(ctxt)
 	case objabi.SNOPTRBSS:
 		s.Type = objabi.SNOPTRDATA
+		s.setFIPSType(ctxt)
 	case objabi.STLSBSS:
 		ctxt.Diag("cannot supply data for %v var %v", s.Type, s.Name)
 	}
@@ -203,5 +205,8 @@ func (s *LSym) WriteBytes(ctxt *Link, off int64, b []byte) int64 {
 
 // AddRel adds the relocation rel to s.
 func (s *LSym) AddRel(ctxt *Link, rel Reloc) {
+	if s.Type.IsFIPS() {
+		s.checkFIPSReloc(ctxt, rel)
+	}
 	s.R = append(s.R, rel)
 }

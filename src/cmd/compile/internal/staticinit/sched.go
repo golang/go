@@ -279,6 +279,14 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 }
 
 func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
+	// If we're building for FIPS, avoid global data relocations
+	// by treating all address-of operations as non-static.
+	// See ../../../internal/obj/fips.go for more context.
+	// We do this even in non-PIE mode to avoid generating
+	// static temporaries that would go into SRODATAFIPS
+	// but need relocations. We can't handle that in the verification.
+	disableGlobalAddrs := base.Ctxt.IsFIPS()
+
 	if r == nil {
 		// No explicit initialization value. Either zero or supplied
 		// externally.
@@ -304,10 +312,16 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 
 	switch r.Op() {
 	case ir.ONAME:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.Name)
 		return s.staticcopy(l, loff, r, typ)
 
 	case ir.OMETHEXPR:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.SelectorExpr)
 		return s.staticcopy(l, loff, r.FuncName(), typ)
 
@@ -322,6 +336,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		return true
 
 	case ir.OADDR:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.AddrExpr)
 		if name, offset, ok := StaticLoc(r.X); ok && name.Class == ir.PEXTERN {
 			staticdata.InitAddrOffset(l, loff, name.Linksym(), offset)
@@ -330,6 +347,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		fallthrough
 
 	case ir.OPTRLIT:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.AddrExpr)
 		switch r.X.Op() {
 		case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT:
@@ -346,6 +366,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		//dump("not static ptrlit", r);
 
 	case ir.OSTR2BYTES:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.ConvExpr)
 		if l.Class == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
 			sval := ir.StringVal(r.X)
@@ -354,6 +377,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		}
 
 	case ir.OSLICELIT:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.CompLitExpr)
 		s.initplan(r)
 		// Init slice.
@@ -374,7 +400,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		p := s.Plans[r]
 		for i := range p.E {
 			e := &p.E[i]
-			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
+			if e.Expr.Op() == ir.OLITERAL && !disableGlobalAddrs || e.Expr.Op() == ir.ONIL {
 				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Size()))
 				continue
 			}
@@ -388,6 +414,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		break
 
 	case ir.OCLOSURE:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.ClosureExpr)
 		if !r.Func.IsClosure() {
 			if base.Debug.Closure > 0 {
@@ -404,6 +433,10 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 	case ir.OCONVIFACE:
 		// This logic is mirrored in isStaticCompositeLiteral.
 		// If you change something here, change it there, and vice versa.
+
+		if disableGlobalAddrs {
+			return false
+		}
 
 		// Determine the underlying concrete type and value we are converting from.
 		r := r.(*ir.ConvExpr)
@@ -460,6 +493,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		return true
 
 	case ir.OINLCALL:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.InlinedCallExpr)
 		return s.staticAssignInlinedCall(l, loff, r, typ)
 	}
@@ -728,10 +764,12 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 var statuniqgen int // name generator for static temps
 
 // StaticName returns a name backed by a (writable) static data symbol.
-// Use readonlystaticname for read-only node.
 func StaticName(t *types.Type) *ir.Name {
 	// Don't use LookupNum; it interns the resulting string, but these are all unique.
-	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen))
+	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePrefix, statuniqgen))
+	if sym.Name == ".stmp_0" && sym.Pkg.Path == "crypto/internal/fips/check" {
+		panic("bad")
+	}
 	statuniqgen++
 
 	n := ir.NewNameAt(base.Pos, sym, t)

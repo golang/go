@@ -431,13 +431,13 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
 	ctxt.xdefine("runtime.rodata", sym.SRODATA, 0)
-	ctxt.xdefine("runtime.erodata", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.erodata", sym.SRODATAEND, 0)
 	ctxt.xdefine("runtime.types", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.etypes", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, 0)
-	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, 0)
+	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATAEND, 0)
 	ctxt.xdefine("runtime.data", sym.SDATA, 0)
-	ctxt.xdefine("runtime.edata", sym.SDATA, 0)
+	ctxt.xdefine("runtime.edata", sym.SDATAEND, 0)
 	ctxt.xdefine("runtime.bss", sym.SBSS, 0)
 	ctxt.xdefine("runtime.ebss", sym.SBSS, 0)
 	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, 0)
@@ -845,6 +845,9 @@ func setCarrierSym(typ sym.SymKind, s loader.Sym) {
 }
 
 func setCarrierSize(typ sym.SymKind, sz int64) {
+	if typ == sym.Sxxx {
+		panic("setCarrierSize(Sxxx)")
+	}
 	if CarrierSymByType[typ].Size != 0 {
 		panic(fmt.Sprintf("carrier symbol size for type %v already set", typ))
 	}
@@ -852,7 +855,7 @@ func setCarrierSize(typ sym.SymKind, sz int64) {
 }
 
 func isStaticTmp(name string) bool {
-	return strings.Contains(name, "."+obj.StaticNamePref)
+	return strings.Contains(name, "."+obj.StaticNamePrefix)
 }
 
 // Mangle function name with ABI information.

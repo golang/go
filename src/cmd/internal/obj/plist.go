@@ -213,6 +213,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
 	s.Set(AttrPkgInit, flag&PKGINIT != 0)
 	s.Type = objabi.STEXT
+	s.setFIPSType(ctxt)
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entries for s
@@ -258,6 +259,7 @@ func (ctxt *Link) GloblPos(s *LSym, size int64, flag int, pos src.XPos) {
 	} else if flag&TLSBSS != 0 {
 		s.Type = objabi.STLSBSS
 	}
+	s.setFIPSType(ctxt)
 }
 
 // EmitEntryLiveness generates PCDATA Progs after p to switch to the

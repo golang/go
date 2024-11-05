@@ -30,6 +30,7 @@ type DebugFlags struct {
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
 	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
 	Export                int    `help:"print export data"`
+	FIPSHash              string `help:"hash value for FIPS debugging" concurrent:"ok"`
 	Fmahash               string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
 	GCAdjust              int    `help:"log adjustments to GOGC" concurrent:"ok"`
 	GCCheck               int    `help:"check heap/gc use by compiler" concurrent:"ok"`

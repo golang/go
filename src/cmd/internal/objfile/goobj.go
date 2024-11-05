@@ -164,11 +164,12 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 		typ := objabi.SymKind(osym.Type())
 		var code rune = '?'
 		switch typ {
-		case objabi.STEXT:
+		case objabi.STEXT, objabi.STEXTFIPS:
 			code = 'T'
-		case objabi.SRODATA:
+		case objabi.SRODATA, objabi.SRODATAFIPS:
 			code = 'R'
-		case objabi.SNOPTRDATA, objabi.SDATA:
+		case objabi.SNOPTRDATA, objabi.SNOPTRDATAFIPS,
+			objabi.SDATA, objabi.SDATAFIPS:
 			code = 'D'
 		case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
 			code = 'B'

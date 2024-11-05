@@ -2339,6 +2339,8 @@ var blockedLinknames = map[string][]string{
 	// weak references
 	"internal/weak.runtime_registerWeakPointer": {"internal/weak"},
 	"internal/weak.runtime_makeStrongFromWeak":  {"internal/weak"},
+	// fips info
+	"go:fipsinfo": {"crypto/internal/fips/check"},
 }
 
 // check if a linkname reference to symbol s from pkg is allowed

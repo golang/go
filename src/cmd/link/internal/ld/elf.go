@@ -1437,6 +1437,7 @@ func (ctxt *Link) doelf() {
 	shstrtabAddstring(".noptrbss")
 	shstrtabAddstring(".go.fuzzcntrs")
 	shstrtabAddstring(".go.buildinfo")
+	shstrtabAddstring(".go.fipsinfo")
 	if ctxt.IsMIPS() {
 		shstrtabAddstring(".MIPS.abiflags")
 		shstrtabAddstring(".gnu.attributes")
@@ -1494,6 +1495,7 @@ func (ctxt *Link) doelf() {
 			shstrtabAddstring(elfRelType + ".data.rel.ro")
 		}
 		shstrtabAddstring(elfRelType + ".go.buildinfo")
+		shstrtabAddstring(elfRelType + ".go.fipsinfo")
 		if ctxt.IsMIPS() {
 			shstrtabAddstring(elfRelType + ".MIPS.abiflags")
 			shstrtabAddstring(elfRelType + ".gnu.attributes")

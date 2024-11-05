@@ -672,6 +672,8 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
+	loadfips(ctxt)
+
 	// We've loaded all the code now.
 	ctxt.Loaded = true
 
@@ -2072,6 +2074,7 @@ func (ctxt *Link) hostlink() {
 				return machoRewriteUuid(ctxt, exef, exem, outexe)
 			})
 	}
+	hostlinkfips(ctxt, *flagOutfile, *flagFipso)
 	if ctxt.NeedCodeSign() {
 		err := machoCodeSign(ctxt, *flagOutfile)
 		if err != nil {

@@ -1078,6 +1078,7 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, 
 	// is the virtual address. DWARF compression changes file sizes,
 	// so dwarfcompress will fix this up later if necessary.
 	eaddr := addr + size
+	var prev loader.Sym
 	for _, s := range syms {
 		if ldr.AttrSubSymbol(s) {
 			continue
@@ -1087,9 +1088,11 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, 
 			break
 		}
 		if val < addr {
-			ldr.Errorf(s, "phase error: addr=%#x but val=%#x sym=%s type=%v sect=%v sect.addr=%#x", addr, val, ldr.SymName(s), ldr.SymType(s), ldr.SymSect(s).Name, ldr.SymSect(s).Vaddr)
+			ldr.Errorf(s, "phase error: addr=%#x but val=%#x sym=%s type=%v sect=%v sect.addr=%#x prev=%s", addr, val, ldr.SymName(s), ldr.SymType(s), ldr.SymSect(s).Name, ldr.SymSect(s).Vaddr, ldr.SymName(prev))
+			panic("PHASE")
 			errorexit()
 		}
+		prev = s
 		if addr < val {
 			out.WriteStringPad("", int(val-addr), pad)
 			addr = val
@@ -1510,6 +1513,9 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
 				isRelro = false
 			}
 			if isRelro {
+				if symnrelro == sym.Sxxx {
+					state.ctxt.Errorf(s, "cannot contain relocations (type %v)", symnro)
+				}
 				state.setSymType(s, symnrelro)
 				if outer := ldr.OuterSym(s); outer != 0 {
 					state.setSymType(outer, symnrelro)
@@ -1846,6 +1852,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	// Writable data sections that do not need any specialized handling.
 	writable := []sym.SymKind{
 		sym.SBUILDINFO,
+		sym.SFIPSINFO,
 		sym.SELFSECT,
 		sym.SMACHO,
 		sym.SMACHOGOT,
@@ -1865,6 +1872,11 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrdata", sym.SNOPTRDATA, sym.SDATA, 06)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.noptrdata", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.enoptrdata", 0), sect)
+
+	state.assignToSection(sect, sym.SNOPTRDATAFIPSSTART, sym.SDATA)
+	state.assignToSection(sect, sym.SNOPTRDATAFIPS, sym.SDATA)
+	state.assignToSection(sect, sym.SNOPTRDATAFIPSEND, sym.SDATA)
+	state.assignToSection(sect, sym.SNOPTRDATAEND, sym.SDATA)
 
 	hasinitarr := ctxt.linkShared
 
@@ -1888,6 +1900,12 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".data", sym.SDATA, sym.SDATA, 06)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.data", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.edata", 0), sect)
+
+	state.assignToSection(sect, sym.SDATAFIPSSTART, sym.SDATA)
+	state.assignToSection(sect, sym.SDATAFIPS, sym.SDATA)
+	state.assignToSection(sect, sym.SDATAFIPSEND, sym.SDATA)
+	state.assignToSection(sect, sym.SDATAEND, sym.SDATA)
+
 	dataGcEnd := state.datsize - int64(sect.Vaddr)
 
 	// On AIX, TOC entries must be the last of .data
@@ -2093,6 +2111,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 			}
 
 			symn := sym.RelROMap[symnro]
+			if symn == sym.Sxxx {
+				continue
+			}
 			symnStartValue := state.datsize
 			if len(state.data[symn]) != 0 {
 				symnStartValue = aligndatsize(state, symnStartValue, state.data[symn][0])
@@ -2433,8 +2454,15 @@ func (ctxt *Link) textaddress() {
 		})
 	}
 
+	// Sort the text symbols by type, so that FIPS symbols are
+	// gathered together, with the FIPS start and end symbols
+	// bracketing them , even if we've randomized the overall order.
+	sort.SliceStable(ctxt.Textp, func(i, j int) bool {
+		return ldr.SymType(ctxt.Textp[i]) < ldr.SymType(ctxt.Textp[j])
+	})
+
 	text := ctxt.xdefine("runtime.text", sym.STEXT, 0)
-	etext := ctxt.xdefine("runtime.etext", sym.STEXT, 0)
+	etext := ctxt.xdefine("runtime.etext", sym.STEXTEND, 0)
 	ldr.SetSymSect(text, sect)
 	if ctxt.IsAIX() && ctxt.IsExternal() {
 		// Setting runtime.text has a real symbol prevents ld to
@@ -2970,11 +2998,11 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.defineInternal("runtime.functab", sym.SRODATA)
 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
-	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))
+	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATAEND, int64(noptr.Vaddr+noptr.Length))
 	ctxt.xdefine("runtime.bss", sym.SBSS, int64(bss.Vaddr))
 	ctxt.xdefine("runtime.ebss", sym.SBSS, int64(bss.Vaddr+bss.Length))
 	ctxt.xdefine("runtime.data", sym.SDATA, int64(data.Vaddr))
-	ctxt.xdefine("runtime.edata", sym.SDATA, int64(data.Vaddr+data.Length))
+	ctxt.xdefine("runtime.edata", sym.SDATAEND, int64(data.Vaddr+data.Length))
 	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr))
 	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
 	ctxt.xdefine("runtime.covctrs", sym.SCOVERAGE_COUNTER, int64(noptrbss.Vaddr+covCounterDataStartOff))
