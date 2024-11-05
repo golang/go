@@ -227,6 +227,53 @@ func TestGetStartupInfo(t *testing.T) {
 	}
 }
 
+func TestSyscallAllocations(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+
+	t.Parallel()
+
+	// Test that syscall.SyscallN arguments do not escape.
+	// The function used (in this case GetVersion) doesn't matter
+	// as long as it is always available and doesn't panic.
+	h, err := syscall.LoadLibrary("kernel32.dll")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.FreeLibrary(h)
+	proc, err := syscall.GetProcAddress(h, "GetVersion")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testAllocs := func(t *testing.T, name string, fn func() error) {
+		t.Run(name, func(t *testing.T) {
+			n := int(testing.AllocsPerRun(10, func() {
+				if err := fn(); err != nil {
+					t.Fatalf("%s: %v", name, err)
+				}
+			}))
+			if n > 0 {
+				t.Errorf("allocs = %d, want 0", n)
+			}
+		})
+	}
+
+	testAllocs(t, "SyscallN", func() error {
+		r0, _, e1 := syscall.SyscallN(proc, 0, 0, 0)
+		if r0 == 0 {
+			return syscall.Errno(e1)
+		}
+		return nil
+	})
+	testAllocs(t, "Syscall", func() error {
+		r0, _, e1 := syscall.Syscall(proc, 3, 0, 0, 0)
+		if r0 == 0 {
+			return syscall.Errno(e1)
+		}
+		return nil
+	})
+}
+
 func FuzzUTF16FromString(f *testing.F) {
 	f.Add("hi")           // ASCII
 	f.Add("â")            // latin1
