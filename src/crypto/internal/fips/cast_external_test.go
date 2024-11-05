@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	// Import packages that define CASTs to test them.
+	_ "crypto/internal/fips/drbg"
 	_ "crypto/internal/fips/hmac"
 	_ "crypto/internal/fips/sha256"
 	_ "crypto/internal/fips/sha3"

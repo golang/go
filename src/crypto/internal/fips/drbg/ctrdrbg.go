@@ -5,6 +5,7 @@
 package drbg
 
 import (
+	"crypto/internal/fips"
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/subtle"
 	"internal/byteorder"
@@ -36,6 +37,7 @@ const (
 
 func NewCounter(entropy *[SeedSize]byte) *Counter {
 	// CTR_DRBG_Instantiate_algorithm, per Section 10.2.1.3.1.
+	fips.RecordApproved()
 
 	K := make([]byte, keySize)
 	V := make([]byte, aes.BlockSize)
@@ -85,6 +87,8 @@ func increment(v *[aes.BlockSize]byte) {
 
 func (c *Counter) Reseed(entropy, additionalInput *[SeedSize]byte) {
 	// CTR_DRBG_Reseed_algorithm, per Section 10.2.1.4.1.
+	fips.RecordApproved()
+
 	var seed [SeedSize]byte
 	subtle.XORBytes(seed[:], entropy[:], additionalInput[:])
 	c.update(&seed)
@@ -94,6 +98,7 @@ func (c *Counter) Reseed(entropy, additionalInput *[SeedSize]byte) {
 // Generate produces at most maxRequestSize bytes of random data in out.
 func (c *Counter) Generate(out []byte, additionalInput *[SeedSize]byte) (reseedRequired bool) {
 	// CTR_DRBG_Generate_algorithm, per Section 10.2.1.5.1.
+	fips.RecordApproved()
 
 	if len(out) > maxRequestSize {
 		panic("crypto/drbg: internal error: request size exceeds maximum")

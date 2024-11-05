@@ -33,7 +33,7 @@ var testingOnlyCASTHook func(string)
 //
 // The name must not contain commas, colons, hashes, or equal signs.
 //
-// When calling this function, also add the calling package to cast_test.go.
+// When calling this function, also add the calling package to cast_external_test.go.
 func CAST(name string, f func() error) {
 	if strings.ContainsAny(name, ",#=:") {
 		panic("fips: invalid self-test name: " + name)
