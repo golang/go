@@ -336,6 +336,7 @@ func TestCgo(t *testing.T) {
 	// The scan (if any) should be limited to the [16]byte.
 	d := new(cgoData)
 	d.Ptr = d
+	_ = d.Ptr // for unusedwrite check
 	h := New()
 	h.Write(d.Data[:])
 	h.Sum(nil)
