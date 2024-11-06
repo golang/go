@@ -107,6 +107,11 @@ func processLog(testName string, tsanLog []string) string {
 			gotRace = true
 			break
 		}
+		if strings.Contains(s, "fatal error: concurrent map") {
+			// Detected by the runtime, not the race detector.
+			gotRace = true
+			break
+		}
 	}
 
 	failing := strings.Contains(testName, "Failing")
@@ -177,8 +182,11 @@ func runTests(t *testing.T) ([]byte, error) {
 	)
 	// There are races: we expect tests to fail and the exit code to be non-zero.
 	out, _ := cmd.CombinedOutput()
-	if bytes.Contains(out, []byte("fatal error:")) {
-		// But don't expect runtime to crash.
+	fatals := bytes.Count(out, []byte("fatal error:"))
+	mapFatals := bytes.Count(out, []byte("fatal error: concurrent map"))
+	if fatals > mapFatals {
+		// But don't expect runtime to crash (other than
+		// in the map concurrent access detector).
 		return out, fmt.Errorf("runtime fatal error")
 	}
 	return out, nil
