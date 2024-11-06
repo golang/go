@@ -206,12 +206,16 @@ func (p *Prog) Open() io.ReadSeeker { return io.NewSectionReader(p.sr, 0, 1<<63-
 
 // A Symbol represents an entry in an ELF symbol table section.
 type Symbol struct {
-	Name         string
-	Info, Other  byte
+	Name        string
+	Info, Other byte
+
+	// These fields are used for symbol versioning
+	// and are present only for the dynamic symbol table.
 	VersionIndex int16
 	VersionFlags SymbolVersionFlag
-	Section      SectionIndex
-	Value, Size  uint64
+
+	Section     SectionIndex
+	Value, Size uint64
 
 	// These fields are present only for the dynamic symbol table.
 	Version string
