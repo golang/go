@@ -20,3 +20,11 @@ non-existent identifiers. Some of these mistakes may cause tests not
 to run.
 
 This analyzer is among the subset of analyzers that are run by `go test`.
+
+### GOCACHEPROG
+
+The `cmd/go` internal binary and test caching mechanism can now be implemented
+by child processes implementing a JSON protocol between the `cmd/go` tool
+and the child process named by the `GOCACHEPROG` environment variable.
+This was previously behind a GOEXPERIMENT.
+For protocol details, see [#59719](/issue/59719).

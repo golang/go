@@ -12,7 +12,6 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"internal/goexperiment"
 )
 
 // Default returns the default cache to use.
@@ -55,7 +54,7 @@ func initDefaultCache() Cache {
 		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
 	}
 
-	if v := cfg.Getenv("GOCACHEPROG"); v != "" && goexperiment.CacheProg {
+	if v := cfg.Getenv("GOCACHEPROG"); v != "" {
 		return startCacheProg(v, diskCache)
 	}
 
