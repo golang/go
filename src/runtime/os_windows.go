@@ -1320,13 +1320,12 @@ func preemptM(mp *m) {
 				// Push LR. The injected call is responsible
 				// for restoring LR. gentraceback is aware of
 				// this extra slot. See sigctxt.pushCall in
-				// signal_arm.go, which is similar except we
-				// subtract 1 from IP here.
+				// signal_arm.go.
 				sp := c.sp()
 				sp -= goarch.PtrSize
 				c.set_sp(sp)
 				*(*uint32)(unsafe.Pointer(sp)) = uint32(c.lr())
-				c.set_lr(newpc - 1)
+				c.set_lr(newpc)
 				c.set_ip(targetPC)
 
 			case "arm64":
