@@ -5,12 +5,14 @@
 package main
 
 import (
+	"os"
+
 	. "github.com/mmcloughlin/avo/build"
 	. "github.com/mmcloughlin/avo/operand"
 	. "github.com/mmcloughlin/avo/reg"
 )
 
-//go:generate go run . -out ../sha512block_amd64.s -pkg sha512
+//go:generate go run . -out ../sha512block_amd64.s
 
 // SHA512 block routine. See sha512block.go for Go equivalent.
 //
@@ -138,7 +140,11 @@ var _K = []uint64{
 }
 
 func main() {
-	Package("crypto/sha512")
+	// https://github.com/mmcloughlin/avo/issues/450
+	os.Setenv("GOOS", "linux")
+	os.Setenv("GOARCH", "amd64")
+
+	Package("crypto/internal/fips/sha512")
 	ConstraintExpr("!purego")
 	blockAMD64()
 	blockAVX2()

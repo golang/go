@@ -8,13 +8,15 @@
 package main
 
 import (
+	"os"
+
 	. "github.com/mmcloughlin/avo/build"
 	. "github.com/mmcloughlin/avo/operand"
 	. "github.com/mmcloughlin/avo/reg"
 	_ "golang.org/x/crypto/sha3"
 )
 
-//go:generate go run . -out ../keccakf_amd64.s -pkg sha3
+//go:generate go run . -out ../sha3_amd64.s
 
 // Round Constants for use in the ι step.
 var RoundConstants = [24]uint64{
@@ -100,7 +102,11 @@ const (
 )
 
 func main() {
-	Package("golang.org/x/crypto/sha3")
+	// https://github.com/mmcloughlin/avo/issues/450
+	os.Setenv("GOOS", "linux")
+	os.Setenv("GOARCH", "amd64")
+
+	Package("crypto/internal/fips/sha3")
 	ConstraintExpr("!purego")
 	keccakF1600()
 	Generate()
