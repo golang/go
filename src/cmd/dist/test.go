@@ -802,7 +802,7 @@ func (t *tester) registerTests() {
 
 	// Test internal linking of PIE binaries where it is supported.
 	if t.internalLinkPIE() && !disablePIE {
-		t.registerTest("internal linking of -buildmode=pie",
+		t.registerTest("internal linking, -buildmode=pie",
 			&goTest{
 				variant:   "pie_internal",
 				timeout:   60 * time.Second,
@@ -811,15 +811,47 @@ func (t *tester) registerTests() {
 				env:       []string{"CGO_ENABLED=0"},
 				pkg:       "reflect",
 			})
+		t.registerTest("internal linking, -buildmode=pie",
+			&goTest{
+				variant:   "pie_internal",
+				timeout:   60 * time.Second,
+				buildmode: "pie",
+				ldflags:   "-linkmode=internal",
+				env:       []string{"CGO_ENABLED=0"},
+				pkg:       "crypto/internal/fips/check",
+			})
 		// Also test a cgo package.
 		if t.cgoEnabled && t.internalLink() && !disablePIE {
-			t.registerTest("internal linking of -buildmode=pie",
+			t.registerTest("internal linking, -buildmode=pie",
 				&goTest{
 					variant:   "pie_internal",
 					timeout:   60 * time.Second,
 					buildmode: "pie",
 					ldflags:   "-linkmode=internal",
 					pkg:       "os/user",
+				})
+		}
+	}
+
+	if t.extLink() && !t.compileOnly {
+		t.registerTest("external linking, -buildmode=exe",
+			&goTest{
+				variant:   "exe_external",
+				timeout:   60 * time.Second,
+				buildmode: "exe",
+				ldflags:   "-linkmode=external",
+				env:       []string{"CGO_ENABLED=1"},
+				pkg:       "crypto/internal/fips/check",
+			})
+		if t.externalLinkPIE() && !disablePIE {
+			t.registerTest("external linking, -buildmode=pie",
+				&goTest{
+					variant:   "pie_external",
+					timeout:   60 * time.Second,
+					buildmode: "pie",
+					ldflags:   "-linkmode=external",
+					env:       []string{"CGO_ENABLED=1"},
+					pkg:       "crypto/internal/fips/check",
 				})
 		}
 	}
@@ -1058,9 +1090,11 @@ func (t *tester) out(v string) {
 }
 
 // extLink reports whether the current goos/goarch supports
-// external linking. This should match the test in determineLinkMode
-// in cmd/link/internal/ld/config.go.
+// external linking.
 func (t *tester) extLink() bool {
+	if !cgoEnabled[goos+"/"+goarch] {
+		return false
+	}
 	if goarch == "ppc64" && goos != "aix" {
 		return false
 	}
@@ -1111,6 +1145,16 @@ func (t *tester) internalLinkPIE() bool {
 		return true
 	}
 	return false
+}
+
+func (t *tester) externalLinkPIE() bool {
+	// General rule is if -buildmode=pie and -linkmode=external both work, then they work together.
+	// Handle exceptions and then fall back to the general rule.
+	switch goos + "-" + goarch {
+	case "linux-s390x":
+		return true
+	}
+	return t.internalLinkPIE() && t.extLink()
 }
 
 // supportedBuildMode reports whether the given build mode is supported.
