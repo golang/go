@@ -39,7 +39,8 @@ func supported() bool {
 	case runtime.GOARCH == "wasm",
 		runtime.GOOS == "windows" && runtime.GOARCH == "386",
 		runtime.GOOS == "windows" && runtime.GOARCH == "arm",
-		runtime.GOOS == "windows" && runtime.GOARCH == "arm64":
+		runtime.GOOS == "windows" && runtime.GOARCH == "arm64",
+		runtime.GOOS == "aix":
 		return false
 	}
 	return true

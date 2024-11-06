@@ -144,7 +144,7 @@ import (
 	"strings"
 )
 
-const enableFIPS = false
+const enableFIPS = true
 
 // IsFIPS reports whether we are compiling one of the crypto/internal/fips/... packages.
 func (ctxt *Link) IsFIPS() bool {
@@ -199,6 +199,11 @@ func EnableFIPS() bool {
 		case "386", "arm", "arm64":
 			return false
 		}
+	}
+
+	// AIX doesn't just work, and it's not worth fixing.
+	if buildcfg.GOOS == "aix" {
+		return false
 	}
 
 	return enableFIPS
