@@ -611,7 +611,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 
 		// Redirect behavior:
 		redirectMethod string
-		includeBody    bool
+		includeBody    = true
 	)
 	uerr := func(err error) error {
 		// the body may have been closed already by c.send()
@@ -728,10 +728,15 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			return nil, uerr(err)
 		}
 
-		var shouldRedirect bool
-		redirectMethod, shouldRedirect, includeBody = redirectBehavior(req.Method, resp, reqs[0])
+		var shouldRedirect, includeBodyOnHop bool
+		redirectMethod, shouldRedirect, includeBodyOnHop = redirectBehavior(req.Method, resp, reqs[0])
 		if !shouldRedirect {
 			return resp, nil
+		}
+		if !includeBodyOnHop {
+			// Once a hop drops the body, we never send it again
+			// (because we're now handling a redirect for a request with no body).
+			includeBody = false
 		}
 
 		req.closeBody()
