@@ -21,7 +21,7 @@ x_cgo_getstackbound(uintptr bounds[2])
 	// Needed before pthread_getattr_np, too, since before glibc 2.32
 	// it did not call pthread_attr_init in all cases (see #65625).
 	pthread_attr_init(&attr);
-#if defined(__GLIBC__) || (defined(__sun) && !defined(__illumos__))
+#if defined(__GLIBC__) || defined(__BIONIC__) || (defined(__sun) && !defined(__illumos__))
 	// pthread_getattr_np is a GNU extension supported in glibc.
 	// Solaris is not glibc but does support pthread_getattr_np
 	// (and the fallback doesn't work...). Illumos does not.
