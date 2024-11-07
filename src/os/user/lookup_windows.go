@@ -86,16 +86,73 @@ func getProfilesDirectory() (string, error) {
 	}
 }
 
+func isServiceAccount(sid *syscall.SID) bool {
+	if !windows.IsValidSid(sid) {
+		// We don't accept SIDs from the public API, so this should never happen.
+		// Better be on the safe side and validate anyway.
+		return false
+	}
+	// The following RIDs are considered service user accounts as per
+	// https://learn.microsoft.com/en-us/windows/win32/secauthz/well-known-sids and
+	// https://learn.microsoft.com/en-us/windows/win32/services/service-user-accounts:
+	// - "S-1-5-18": LocalSystem
+	// - "S-1-5-19": LocalService
+	// - "S-1-5-20": NetworkService
+	if *windows.GetSidSubAuthorityCount(sid) != windows.SID_REVISION ||
+		*windows.GetSidIdentifierAuthority(sid) != windows.SECURITY_NT_AUTHORITY {
+		return false
+	}
+	switch *windows.GetSidSubAuthority(sid, 0) {
+	case windows.SECURITY_LOCAL_SYSTEM_RID,
+		windows.SECURITY_LOCAL_SERVICE_RID,
+		windows.SECURITY_NETWORK_SERVICE_RID:
+		return true
+	}
+	return false
+}
+
+func isValidUserAccountType(sid *syscall.SID, sidType uint32) bool {
+	switch sidType {
+	case syscall.SidTypeUser:
+		return true
+	case syscall.SidTypeWellKnownGroup:
+		return isServiceAccount(sid)
+	}
+	return false
+}
+
+func isValidGroupAccountType(sidType uint32) bool {
+	switch sidType {
+	case syscall.SidTypeGroup:
+		return true
+	case syscall.SidTypeWellKnownGroup:
+		// Some well-known groups are also considered service accounts,
+		// so isValidUserAccountType would return true for them.
+		// We have historically allowed them in LookupGroup and LookupGroupId,
+		// so don't treat them as invalid here.
+		return true
+	case syscall.SidTypeAlias:
+		// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-samr/7b2aeb27-92fc-41f6-8437-deb65d950921#gt_0387e636-5654-4910-9519-1f8326cf5ec0
+		// SidTypeAlias should also be treated as a group type next to SidTypeGroup
+		// and SidTypeWellKnownGroup:
+		// "alias object -> resource group: A group object..."
+		//
+		// Tests show that "Administrators" can be considered of type SidTypeAlias.
+		return true
+	}
+	return false
+}
+
 // lookupUsernameAndDomain obtains the username and domain for usid.
-func lookupUsernameAndDomain(usid *syscall.SID) (username, domain string, e error) {
-	username, domain, t, e := usid.LookupAccount("")
+func lookupUsernameAndDomain(usid *syscall.SID) (username, domain string, sidType uint32, e error) {
+	username, domain, sidType, e = usid.LookupAccount("")
 	if e != nil {
-		return "", "", e
+		return "", "", 0, e
 	}
-	if t != syscall.SidTypeUser {
-		return "", "", fmt.Errorf("user: should be user account type, not %d", t)
+	if !isValidUserAccountType(usid, sidType) {
+		return "", "", 0, fmt.Errorf("user: should be user account type, not %d", sidType)
 	}
-	return username, domain, nil
+	return username, domain, sidType, nil
 }
 
 // findHomeDirInRegistry finds the user home path based on the uid.
@@ -118,13 +175,7 @@ func lookupGroupName(groupname string) (string, error) {
 	if e != nil {
 		return "", e
 	}
-	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-samr/7b2aeb27-92fc-41f6-8437-deb65d950921#gt_0387e636-5654-4910-9519-1f8326cf5ec0
-	// SidTypeAlias should also be treated as a group type next to SidTypeGroup
-	// and SidTypeWellKnownGroup:
-	// "alias object -> resource group: A group object..."
-	//
-	// Tests show that "Administrators" can be considered of type SidTypeAlias.
-	if t != syscall.SidTypeGroup && t != syscall.SidTypeWellKnownGroup && t != syscall.SidTypeAlias {
+	if !isValidGroupAccountType(t) {
 		return "", fmt.Errorf("lookupGroupName: should be group account type, not %d", t)
 	}
 	return sid.String()
@@ -355,17 +406,26 @@ func lookupUserPrimaryGroup(username, domain string) (string, error) {
 }
 
 func newUserFromSid(usid *syscall.SID) (*User, error) {
-	username, domain, e := lookupUsernameAndDomain(usid)
-	if e != nil {
-		return nil, e
-	}
-	gid, e := lookupUserPrimaryGroup(username, domain)
+	username, domain, sidType, e := lookupUsernameAndDomain(usid)
 	if e != nil {
 		return nil, e
 	}
 	uid, e := usid.String()
 	if e != nil {
 		return nil, e
+	}
+	var gid string
+	if sidType == syscall.SidTypeWellKnownGroup {
+		// The SID does not contain a domain; this function's domain variable has
+		// been populated with the SID's identifier authority. This happens with
+		// special service user accounts such as "NT AUTHORITY\LocalSystem".
+		// In this case, gid is the same as the user SID.
+		gid = uid
+	} else {
+		gid, e = lookupUserPrimaryGroup(username, domain)
+		if e != nil {
+			return nil, e
+		}
 	}
 	// If this user has logged in at least once their home path should be stored
 	// in the registry under the specified SID. References:
@@ -396,7 +456,7 @@ func lookupUser(username string) (*User, error) {
 	if e != nil {
 		return nil, e
 	}
-	if t != syscall.SidTypeUser {
+	if !isValidUserAccountType(sid, t) {
 		return nil, fmt.Errorf("user: should be user account type, not %d", t)
 	}
 	return newUserFromSid(sid)
@@ -427,7 +487,7 @@ func lookupGroupId(gid string) (*Group, error) {
 	if err != nil {
 		return nil, err
 	}
-	if t != syscall.SidTypeGroup && t != syscall.SidTypeWellKnownGroup && t != syscall.SidTypeAlias {
+	if !isValidGroupAccountType(t) {
 		return nil, fmt.Errorf("lookupGroupId: should be group account type, not %d", t)
 	}
 	return &Group{Name: groupname, Gid: gid}, nil
@@ -465,7 +525,7 @@ func listGroups(user *User) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		username, domain, err := lookupUsernameAndDomain(sid)
+		username, domain, _, err := lookupUsernameAndDomain(sid)
 		if err != nil {
 			return nil, err
 		}

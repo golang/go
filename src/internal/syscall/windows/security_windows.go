@@ -210,3 +210,27 @@ func GetTokenGroups(t syscall.Token) (*TOKEN_GROUPS, error) {
 	}
 	return (*TOKEN_GROUPS)(i), nil
 }
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-sid_identifier_authority
+type SID_IDENTIFIER_AUTHORITY struct {
+	Value [6]byte
+}
+
+const (
+	SID_REVISION = 1
+	// https://learn.microsoft.com/en-us/windows/win32/services/localsystem-account
+	SECURITY_LOCAL_SYSTEM_RID = 18
+	// https://learn.microsoft.com/en-us/windows/win32/services/localservice-account
+	SECURITY_LOCAL_SERVICE_RID = 19
+	// https://learn.microsoft.com/en-us/windows/win32/services/networkservice-account
+	SECURITY_NETWORK_SERVICE_RID = 20
+)
+
+var SECURITY_NT_AUTHORITY = SID_IDENTIFIER_AUTHORITY{
+	Value: [6]byte{0, 0, 0, 0, 0, 5},
+}
+
+//sys	IsValidSid(sid *syscall.SID) (valid bool) = advapi32.IsValidSid
+//sys	GetSidIdentifierAuthority(sid *syscall.SID) (idauth *SID_IDENTIFIER_AUTHORITY) = advapi32.GetSidIdentifierAuthority
+//sys	GetSidSubAuthority(sid *syscall.SID, subAuthorityIdx uint32) (subAuth *uint32) = advapi32.GetSidSubAuthority
+//sys	GetSidSubAuthorityCount(sid *syscall.SID) (count *uint8) = advapi32.GetSidSubAuthorityCount

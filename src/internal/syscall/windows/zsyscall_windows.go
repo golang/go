@@ -49,8 +49,12 @@ var (
 
 	procAdjustTokenPrivileges             = modadvapi32.NewProc("AdjustTokenPrivileges")
 	procDuplicateTokenEx                  = modadvapi32.NewProc("DuplicateTokenEx")
+	procGetSidIdentifierAuthority         = modadvapi32.NewProc("GetSidIdentifierAuthority")
+	procGetSidSubAuthority                = modadvapi32.NewProc("GetSidSubAuthority")
+	procGetSidSubAuthorityCount           = modadvapi32.NewProc("GetSidSubAuthorityCount")
 	procImpersonateLoggedOnUser           = modadvapi32.NewProc("ImpersonateLoggedOnUser")
 	procImpersonateSelf                   = modadvapi32.NewProc("ImpersonateSelf")
+	procIsValidSid                        = modadvapi32.NewProc("IsValidSid")
 	procLogonUserW                        = modadvapi32.NewProc("LogonUserW")
 	procLookupPrivilegeValueW             = modadvapi32.NewProc("LookupPrivilegeValueW")
 	procOpenSCManagerW                    = modadvapi32.NewProc("OpenSCManagerW")
@@ -120,6 +124,24 @@ func DuplicateTokenEx(hExistingToken syscall.Token, dwDesiredAccess uint32, lpTo
 	return
 }
 
+func GetSidIdentifierAuthority(sid *syscall.SID) (idauth *SID_IDENTIFIER_AUTHORITY) {
+	r0, _, _ := syscall.Syscall(procGetSidIdentifierAuthority.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
+	idauth = (*SID_IDENTIFIER_AUTHORITY)(unsafe.Pointer(r0))
+	return
+}
+
+func GetSidSubAuthority(sid *syscall.SID, subAuthorityIdx uint32) (subAuth *uint32) {
+	r0, _, _ := syscall.Syscall(procGetSidSubAuthority.Addr(), 2, uintptr(unsafe.Pointer(sid)), uintptr(subAuthorityIdx), 0)
+	subAuth = (*uint32)(unsafe.Pointer(r0))
+	return
+}
+
+func GetSidSubAuthorityCount(sid *syscall.SID) (count *uint8) {
+	r0, _, _ := syscall.Syscall(procGetSidSubAuthorityCount.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
+	count = (*uint8)(unsafe.Pointer(r0))
+	return
+}
+
 func ImpersonateLoggedOnUser(token syscall.Token) (err error) {
 	r1, _, e1 := syscall.Syscall(procImpersonateLoggedOnUser.Addr(), 1, uintptr(token), 0, 0)
 	if r1 == 0 {
@@ -133,6 +155,12 @@ func ImpersonateSelf(impersonationlevel uint32) (err error) {
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func IsValidSid(sid *syscall.SID) (valid bool) {
+	r0, _, _ := syscall.Syscall(procIsValidSid.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
+	valid = r0 != 0
 	return
 }
 

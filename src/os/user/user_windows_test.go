@@ -202,3 +202,71 @@ func TestGroupIdsTestUser(t *testing.T) {
 		t.Errorf("%+v.GroupIds() = %v; does not contain user GID %s", user, gids, user.Gid)
 	}
 }
+
+var serviceAccounts = []struct {
+	sid  string
+	name string
+}{
+	{"S-1-5-18", "NT AUTHORITY\\SYSTEM"},
+	{"S-1-5-19", "NT AUTHORITY\\LOCAL SERVICE"},
+	{"S-1-5-20", "NT AUTHORITY\\NETWORK SERVICE"},
+}
+
+func TestLookupServiceAccount(t *testing.T) {
+	t.Parallel()
+	for _, tt := range serviceAccounts {
+		u, err := Lookup(tt.name)
+		if err != nil {
+			t.Errorf("Lookup(%q): %v", tt.name, err)
+			continue
+		}
+		if u.Uid != tt.sid {
+			t.Errorf("unexpected uid for %q; got %q, want %q", u.Name, u.Uid, tt.sid)
+		}
+	}
+}
+
+func TestLookupIdServiceAccount(t *testing.T) {
+	t.Parallel()
+	for _, tt := range serviceAccounts {
+		u, err := LookupId(tt.sid)
+		if err != nil {
+			t.Errorf("LookupId(%q): %v", tt.sid, err)
+			continue
+		}
+		if u.Gid != tt.sid {
+			t.Errorf("unexpected gid for %q; got %q, want %q", u.Name, u.Gid, tt.sid)
+		}
+		if u.Username != tt.name {
+			t.Errorf("unexpected user name for %q; got %q, want %q", u.Gid, u.Username, tt.name)
+		}
+	}
+}
+
+func TestLookupGroupServiceAccount(t *testing.T) {
+	t.Parallel()
+	for _, tt := range serviceAccounts {
+		u, err := LookupGroup(tt.name)
+		if err != nil {
+			t.Errorf("LookupGroup(%q): %v", tt.name, err)
+			continue
+		}
+		if u.Gid != tt.sid {
+			t.Errorf("unexpected gid for %q; got %q, want %q", u.Name, u.Gid, tt.sid)
+		}
+	}
+}
+
+func TestLookupGroupIdServiceAccount(t *testing.T) {
+	t.Parallel()
+	for _, tt := range serviceAccounts {
+		u, err := LookupGroupId(tt.sid)
+		if err != nil {
+			t.Errorf("LookupGroupId(%q): %v", tt.sid, err)
+			continue
+		}
+		if u.Gid != tt.sid {
+			t.Errorf("unexpected gid for %q; got %q, want %q", u.Name, u.Gid, tt.sid)
+		}
+	}
+}
