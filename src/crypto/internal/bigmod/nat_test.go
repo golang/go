@@ -35,9 +35,9 @@ func (*Nat) Generate(r *rand.Rand, size int) reflect.Value {
 
 func testModAddCommutative(a *Nat, b *Nat) bool {
 	m := maxModulus(uint(len(a.limbs)))
-	aPlusB := new(Nat).set(a)
+	aPlusB := new(Nat).Set(a)
 	aPlusB.Add(b, m)
-	bPlusA := new(Nat).set(b)
+	bPlusA := new(Nat).Set(b)
 	bPlusA.Add(a, m)
 	return aPlusB.Equal(bPlusA) == 1
 }
@@ -51,8 +51,8 @@ func TestModAddCommutative(t *testing.T) {
 
 func testModSubThenAddIdentity(a *Nat, b *Nat) bool {
 	m := maxModulus(uint(len(a.limbs)))
-	original := new(Nat).set(a)
-	a.Sub(b, m)
+	original := new(Nat).Set(a)
+	a.SubMod(b, m)
 	a.Add(b, m)
 	return a.Equal(original) == 1
 }
@@ -71,9 +71,9 @@ func TestMontgomeryRoundtrip(t *testing.T) {
 		aPlusOne := new(big.Int).SetBytes(natBytes(a))
 		aPlusOne.Add(aPlusOne, big.NewInt(1))
 		m, _ := NewModulusFromBig(aPlusOne)
-		monty := new(Nat).set(a)
+		monty := new(Nat).Set(a)
 		monty.montgomeryRepresentation(m)
-		aAgain := new(Nat).set(monty)
+		aAgain := new(Nat).Set(monty)
 		aAgain.montgomeryMul(monty, one, m)
 		if a.Equal(aAgain) != 1 {
 			t.Errorf("%v != %v", a, aAgain)
@@ -260,12 +260,12 @@ func TestModSub(t *testing.T) {
 	m := modulusFromBytes([]byte{13})
 	x := &Nat{[]uint{6}}
 	y := &Nat{[]uint{7}}
-	x.Sub(y, m)
+	x.SubMod(y, m)
 	expected := &Nat{[]uint{12}}
 	if x.Equal(expected) != 1 {
 		t.Errorf("%+v != %+v", x, expected)
 	}
-	x.Sub(y, m)
+	x.SubMod(y, m)
 	expected = &Nat{[]uint{5}}
 	if x.Equal(expected) != 1 {
 		t.Errorf("%+v != %+v", x, expected)
@@ -323,7 +323,7 @@ func TestMulReductions(t *testing.T) {
 	A := NewNat().setBig(a).ExpandFor(N)
 	B := NewNat().setBig(b).ExpandFor(N)
 
-	if A.Mul(B, N).IsZero() != 1 {
+	if A.MulMod(B, N).IsZero() != 1 {
 		t.Error("a * b mod (a * b) != 0")
 	}
 
@@ -333,7 +333,7 @@ func TestMulReductions(t *testing.T) {
 	I := NewNat().setBig(i).ExpandFor(N)
 	one := NewNat().setBig(big.NewInt(1)).ExpandFor(N)
 
-	if A.Mul(I, N).Equal(one) != 1 {
+	if A.MulMod(I, N).Equal(one) != 1 {
 		t.Error("a * inv(a) mod b != 1")
 	}
 }
@@ -401,7 +401,7 @@ func BenchmarkModSub(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Sub(y, m)
+		x.SubMod(y, m)
 	}
 }
 
@@ -434,7 +434,7 @@ func BenchmarkModMul(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Mul(y, m)
+		x.MulMod(y, m)
 	}
 }
 
@@ -472,9 +472,38 @@ func TestNewModFromBigZero(t *testing.T) {
 		t.Errorf("NewModulusFromBig(0) got %q, want %q", err, expected)
 	}
 
-	expected = "modulus must be odd"
-	_, err = NewModulusFromBig(big.NewInt(2))
-	if err == nil || err.Error() != expected {
-		t.Errorf("NewModulusFromBig(2) got %q, want %q", err, expected)
+	defer func(t *testing.T) {
+		if r := recover(); r != nil {
+			if s, ok := r.(string); !ok || !strings.Contains(s, "montgomery multiplication on even modulus") {
+				t.Errorf("Unexpected panic: %#v", r)
+			}
+		} else {
+			t.Error("Expected panic to be recovered, got nothing.")
+		}
+	}(t)
+
+	m, err := NewModulusFromBig(big.NewInt(10))
+	if err != nil {
+		t.Errorf("NewModulusFromBig(2) got %q, want %q", err, "")
+	}
+	x := NewNat().setBig(big.NewInt(1))
+	y := NewNat().setBig(big.NewInt(2))
+	x.MulMod(y, m)
+}
+
+func TestNatCmp(t *testing.T) {
+	testcases := [][3]int64{
+		{33, 22, 1},
+		{33, 33, 0},
+		{22, 33, -1},
+	}
+	for _, tc := range testcases {
+		a := new(big.Int).SetInt64(tc[0])
+		b := new(big.Int).SetInt64(tc[1])
+		na := natFromBytes(a.Bytes())
+		nb := natFromBytes(b.Bytes())
+		if res, _ := na.Cmp(nb); res != int(tc[2]) {
+			t.Errorf("expected %d got %d for (%d).cmp(%d)", tc[2], res, tc[0], tc[1])
+		}
 	}
 }

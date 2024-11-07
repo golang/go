@@ -327,9 +327,9 @@ func signNISTEC[Point nistPoint[Point]](c *nistCurve[Point], priv *PrivateKey, c
 	if err != nil {
 		return nil, err
 	}
-	s.Mul(r, c.N)
+	s.MulMod(r, c.N)
 	s.Add(e, c.N)
-	s.Mul(kInv, c.N)
+	s.MulMod(kInv, c.N)
 
 	// Again, the chance of this happening is cryptographically negligible.
 	if s.IsZero() == 1 {
@@ -528,12 +528,12 @@ func verifyNISTEC[Point nistPoint[Point]](c *nistCurve[Point], pub *PublicKey, h
 	inverse(c, w, s)
 
 	// p₁ = [e * s⁻¹]G
-	p1, err := c.newPoint().ScalarBaseMult(e.Mul(w, c.N).Bytes(c.N))
+	p1, err := c.newPoint().ScalarBaseMult(e.MulMod(w, c.N).Bytes(c.N))
 	if err != nil {
 		return false
 	}
 	// p₂ = [r * s⁻¹]Q
-	p2, err := Q.ScalarMult(Q, w.Mul(r, c.N).Bytes(c.N))
+	p2, err := Q.ScalarMult(Q, w.MulMod(r, c.N).Bytes(c.N))
 	if err != nil {
 		return false
 	}

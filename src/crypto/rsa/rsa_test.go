@@ -621,6 +621,28 @@ func BenchmarkVerifyPSS(b *testing.B) {
 	})
 }
 
+func BenchmarkPrecompute(b *testing.B) {
+	b.Run("2048", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			k := *test2048Key
+			k.Precomputed = PrecomputedValues{}
+			k.Precompute()
+		}
+	})
+}
+
+func BenchmarkValidate(b *testing.B) {
+	b.Run("2048", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if err := test2048Key.Validate(); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
 type testEncryptOAEPMessage struct {
 	in   []byte
 	seed []byte
