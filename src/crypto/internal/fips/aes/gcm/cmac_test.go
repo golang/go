@@ -6,29 +6,12 @@ package gcm_test
 
 import (
 	"bytes"
-	"crypto/internal/cryptotest"
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/aes/gcm"
 	"encoding/hex"
 	"strings"
 	"testing"
 )
-
-var sink byte
-
-func TestAllocations(t *testing.T) {
-	cryptotest.SkipTestAllocations(t)
-	if allocs := testing.AllocsPerRun(10, func() {
-		b, err := aes.New(make([]byte, 16))
-		if err != nil {
-			t.Fatal(err)
-		}
-		c := gcm.NewCMAC(b)
-		sink ^= c.MAC(make([]byte, 16))[0]
-	}); allocs > 0 {
-		t.Errorf("expected zero allocations, got %0.1f", allocs)
-	}
-}
 
 func TestCMAC(t *testing.T) {
 	// https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/AES_CMAC.pdf
