@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// package importer implements Import for gc-generated object files.
+// This file contains the FindPkg and Import functions for tests
+// to use gc-generated object files.
+
 package importer
 
 import (
@@ -75,7 +77,11 @@ var pkgExts = [...]string{".a", ".o"} // a file from the build cache will have n
 // path based on package information provided by build.Import (using
 // the build.Default build.Context). A relative srcDir is interpreted
 // relative to the current working directory.
+//
+// This function should only be used in tests.
 func FindPkg(path, srcDir string) (filename, id string, err error) {
+	// TODO(taking): move FindPkg into src/internal and dedup src/go/internal/gcimporter.FindPkg
+
 	if path == "" {
 		return "", "", errors.New("path is empty")
 	}
@@ -147,6 +153,8 @@ notfound:
 // Import imports a gc-generated package given its import path and srcDir, adds
 // the corresponding package object to the packages map, and returns the object.
 // The packages map must contain all packages already imported.
+//
+// This function should only be used in tests.
 func Import(packages map[string]*types2.Package, path, srcDir string, lookup func(path string) (io.ReadCloser, error)) (pkg *types2.Package, err error) {
 	var rc io.ReadCloser
 	var id string
@@ -208,6 +216,7 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile library)", path)
 
 	case "$$B\n":
+		// TODO(taking): minimize code delta with src/go/internal/gcimporter.Import.
 		var data []byte
 		var r io.Reader = buf
 		if size >= 0 {
@@ -225,18 +234,18 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 		exportFormat := data[0]
 		s := string(data[1:])
 
-		// The indexed export format starts with an 'i'; the older
-		// binary export format starts with a 'c', 'd', or 'v'
-		// (from "version"). Select appropriate importer.
+		// The unified export format starts with a 'u'; the indexed export
+		// format starts with an 'i'; and the older binary export format
+		// starts with a 'c', 'd', or 'v' (from "version"). Select
+		// appropriate importer.
 		switch exportFormat {
 		case 'u':
+			// TODO(taking): Look into whether this should be LastIndex instead of Index.
 			s = s[:strings.Index(s, "\n$$\n")]
 			input := pkgbits.NewPkgDecoder(id, s)
 			pkg = ReadPackage(nil, packages, input)
-		case 'i':
-			pkg, err = ImportData(packages, s, id)
 		default:
-			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
+			err = fmt.Errorf("import %q: binary export format %q is no longer supported (recompile package)", path, exportFormat)
 		}
 
 	default:

@@ -15,6 +15,8 @@ import (
 )
 
 func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
+	// TODO(taking): replace with src/cmd/internal/archive.ReadHeader.
+
 	// See $GOROOT/include/ar.h.
 	hdr := make([]byte, 16+12+6+6+8+10+2)
 	_, err = io.ReadFull(r, hdr)
@@ -43,7 +45,12 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
 //
 // If size is non-negative, it's the number of bytes of export data
 // still available to read from r.
+//
+// This function should only be used in tests.
 func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
+	// TODO(taking): Move into a src/internal package then
+	// dedup with cmd/compile/internal/noder.findExportData and go/internal/gcimporter.FindExportData.
+
 	// Read first line to make sure this is an object file.
 	line, err := r.ReadSlice('\n')
 	if err != nil {
@@ -71,6 +78,7 @@ func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
 			return
 		}
 	}
+	// TODO(taking): The else case is likely dead. Otherwise, size<0. Return an error instead.
 
 	// Now at __.PKGDEF in archive or still at beginning of file.
 	// Either way, line should begin with "go object ".
