@@ -44,9 +44,17 @@ func (b bitset) first() uintptr {
 	return uintptr(sys.TrailingZeros64(uint64(b))) >> 3
 }
 
-// removeFirst removes the first set bit (that is, resets the least significant set bit to 0).
+// removeFirst removes the first set bit (that is, resets the least significant
+// set bit to 0).
 func (b bitset) removeFirst() bitset {
 	return b & (b - 1)
+}
+
+// removeBelow removes all set bits below slot i (non-inclusive).
+func (b bitset) removeBelow(i uintptr) bitset {
+	// Clear all bits below slot i's byte.
+	mask := (uint64(1) << (8*uint64(i))) - 1
+	return b &^ bitset(mask)
 }
 
 // Each slot in the hash table has a control byte which can have one of three
@@ -122,6 +130,17 @@ func (g ctrlGroup) matchEmptyOrDeleted() bitset {
 	// A slot is empty or deleted iff bit 7 is set.
 	v := uint64(g)
 	return bitset(v & bitsetMSB)
+}
+
+// matchFull returns the set of slots in the group that are full.
+func (g ctrlGroup) matchFull() bitset {
+	// An empty slot is  1000 0000
+	// A deleted slot is 1111 1110
+	// A full slot is    0??? ????
+	//
+	// A slot is full iff bit 7 is unset.
+	v := uint64(g)
+	return bitset(^v & bitsetMSB)
 }
 
 // groupReference is a wrapper type representing a single slot group stored at

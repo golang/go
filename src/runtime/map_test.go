@@ -539,6 +539,38 @@ NextRound:
 	}
 }
 
+// Map iteration must not return duplicate entries.
+func TestMapIterDuplicate(t *testing.T) {
+	// Run several rounds to increase the probability
+	// of failure. One is not enough.
+	for range 1000 {
+		m := make(map[int]bool)
+		// Add 1000 items, remove 980.
+		for i := 0; i < 1000; i++ {
+			m[i] = true
+		}
+		for i := 20; i < 1000; i++ {
+			delete(m, i)
+		}
+
+		var want []int
+		for i := 0; i < 20; i++ {
+			want = append(want, i)
+		}
+
+		var got []int
+		for i := range m {
+			got = append(got, i)
+		}
+
+		slices.Sort(got)
+
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("iteration got %v want %v\n", got, want)
+		}
+	}
+}
+
 func TestMapStringBytesLookup(t *testing.T) {
 	// Use large string keys to avoid small-allocation coalescing,
 	// which can cause AllocsPerRun to report lower counts than it should.
