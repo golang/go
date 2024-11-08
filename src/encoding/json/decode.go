@@ -472,7 +472,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 		// Prevent infinite loop if v is an interface pointing to its own address:
 		//     var v any
 		//     v = &v
-		if v.Elem().Kind() == reflect.Interface && v.Elem().Elem() == v {
+		if v.Elem().Kind() == reflect.Interface && v.Elem().Elem().Equal(v) {
 			v = v.Elem()
 			break
 		}
