@@ -544,3 +544,13 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 
 	return domain, false, nil
 }
+
+// Clear deletes all stored cookies.
+//
+// Clear is safe for concurrent use.
+func (j *Jar) Clear() {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	clear(j.entries)
+	j.nextSeqNum = 0
+}
