@@ -73,6 +73,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/cov/covcmd",
 	"internal/bisect",
 	"internal/buildcfg",
+	"internal/exportdata",
 	"internal/goarch",
 	"internal/godebugs",
 	"internal/goexperiment",
