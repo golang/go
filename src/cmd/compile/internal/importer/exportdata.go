@@ -58,30 +58,32 @@ func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
 		return
 	}
 
-	if string(line) == "!<arch>\n" {
-		// Archive file. Scan to __.PKGDEF.
-		var name string
-		if name, size, err = readGopackHeader(r); err != nil {
-			return
-		}
-
-		// First entry should be __.PKGDEF.
-		if name != "__.PKGDEF" {
-			err = fmt.Errorf("go archive is missing __.PKGDEF")
-			return
-		}
-
-		// Read first line of __.PKGDEF data, so that line
-		// is once again the first line of the input.
-		if line, err = r.ReadSlice('\n'); err != nil {
-			err = fmt.Errorf("can't find export data (%v)", err)
-			return
-		}
+	// Is the first line an archive file signature?
+	if string(line) != "!<arch>\n" {
+		err = fmt.Errorf("not the start of an archive file (%q)", line)
+		return
 	}
-	// TODO(taking): The else case is likely dead. Otherwise, size<0. Return an error instead.
 
-	// Now at __.PKGDEF in archive or still at beginning of file.
-	// Either way, line should begin with "go object ".
+	// Archive file. Scan to __.PKGDEF.
+	var name string
+	if name, size, err = readGopackHeader(r); err != nil {
+		return
+	}
+
+	// First entry should be __.PKGDEF.
+	if name != "__.PKGDEF" {
+		err = fmt.Errorf("go archive is missing __.PKGDEF")
+		return
+	}
+
+	// Read first line of __.PKGDEF data, so that line
+	// is once again the first line of the input.
+	if line, err = r.ReadSlice('\n'); err != nil {
+		err = fmt.Errorf("can't find export data (%v)", err)
+		return
+	}
+
+	// Now at __.PKGDEF in archive. line should begin with "go object ".
 	if !strings.HasPrefix(string(line), "go object ") {
 		err = fmt.Errorf("not a Go object file")
 		return
