@@ -366,6 +366,7 @@ func issue48467(x, y uint64) uint64 {
 
 func foldConst(x, y uint64) uint64 {
 	// arm64: "ADDS\t[$]7",-"MOVD\t[$]7"
+	// ppc64x: "ADDC\t[$]7,"
 	d, b := bits.Add64(x, 7, 0)
 	return b & d
 }

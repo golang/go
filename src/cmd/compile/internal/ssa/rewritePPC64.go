@@ -446,6 +446,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return true
 	case OpPPC64ADD:
 		return rewriteValuePPC64_OpPPC64ADD(v)
+	case OpPPC64ADDC:
+		return rewriteValuePPC64_OpPPC64ADDC(v)
 	case OpPPC64ADDE:
 		return rewriteValuePPC64_OpPPC64ADDE(v)
 	case OpPPC64ADDconst:
@@ -4061,6 +4063,31 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
 			}
 			v.reset(OpPPC64ADDconst)
 			v.AuxInt = int64ToAuxInt(c)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64ADDC(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ADDC x (MOVDconst [y]))
+	// cond: is16Bit(y)
+	// result: (ADDCconst [y] x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpPPC64MOVDconst {
+				continue
+			}
+			y := auxIntToInt64(v_1.AuxInt)
+			if !(is16Bit(y)) {
+				continue
+			}
+			v.reset(OpPPC64ADDCconst)
+			v.AuxInt = int64ToAuxInt(y)
 			v.AddArg(x)
 			return true
 		}
