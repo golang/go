@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"go/build"
 	"internal/pkgbits"
+	"internal/saferio"
 	"io"
 	"os"
 	"os/exec"
@@ -216,23 +217,11 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile package)", path)
 
 	case "$$B\n":
-		// TODO(taking): minimize code delta with src/go/internal/gcimporter.Import.
-		var data []byte
-		var r io.Reader = buf
-		if size >= 0 {
-			r = io.LimitReader(r, int64(size))
+		var exportFormat byte
+		if exportFormat, err = buf.ReadByte(); err != nil {
+			return
 		}
-		data, err = io.ReadAll(r)
-		if err != nil {
-			break
-		}
-
-		if len(data) == 0 {
-			err = fmt.Errorf("import %q: missing export data", path)
-			break
-		}
-		exportFormat := data[0]
-		s := string(data[1:])
+		size--
 
 		// The unified export format starts with a 'u'; the indexed export
 		// format starts with an 'i'; and the older binary export format
@@ -241,7 +230,18 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 		switch exportFormat {
 		case 'u':
 			// exported strings may contain "\n$$\n" - search backwards
+			var data []byte
+			var r io.Reader = buf
+			if size >= 0 {
+				if data, err = saferio.ReadData(r, uint64(size)); err != nil {
+					return
+				}
+			} else if data, err = io.ReadAll(r); err != nil {
+				return
+			}
+			s := string(data)
 			s = s[:strings.LastIndex(s, "\n$$\n")]
+
 			input := pkgbits.NewPkgDecoder(id, s)
 			pkg = ReadPackage(nil, packages, input)
 		default:

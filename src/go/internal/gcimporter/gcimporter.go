@@ -23,9 +23,6 @@ import (
 	"sync"
 )
 
-// debugging/development support
-const debug = false
-
 var exportMap sync.Map // package dir → func() (string, error)
 
 // lookupGorootExport returns the location of the export data
