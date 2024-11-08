@@ -412,24 +412,39 @@ func GenWasmExportWrapper(wrapped *ir.Func) {
 }
 
 func paramsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
-	wfs := make([]obj.WasmField, len(abiParams))
-	for i, p := range abiParams {
+	wfs := make([]obj.WasmField, 0, len(abiParams))
+	for _, p := range abiParams {
 		t := p.Type
+		var wt obj.WasmFieldType
 		switch t.Kind() {
 		case types.TINT32, types.TUINT32:
-			wfs[i].Type = obj.WasmI32
+			wt = obj.WasmI32
 		case types.TINT64, types.TUINT64:
-			wfs[i].Type = obj.WasmI64
+			wt = obj.WasmI64
 		case types.TFLOAT32:
-			wfs[i].Type = obj.WasmF32
+			wt = obj.WasmF32
 		case types.TFLOAT64:
-			wfs[i].Type = obj.WasmF64
-		case types.TUNSAFEPTR:
-			wfs[i].Type = obj.WasmPtr
+			wt = obj.WasmF64
+		case types.TUNSAFEPTR, types.TUINTPTR:
+			wt = obj.WasmPtr
+		case types.TBOOL:
+			wt = obj.WasmBool
+		case types.TSTRING:
+			// Two parts, (ptr, len)
+			wt = obj.WasmPtr
+			wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result)})
+			wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result) + int64(types.PtrSize)})
+			continue
+		case types.TPTR:
+			if wasmElemTypeAllowed(t.Elem()) {
+				wt = obj.WasmPtr
+				break
+			}
+			fallthrough
 		default:
 			base.ErrorfAt(f.Pos(), 0, "%s: unsupported parameter type %s", pragma, t.String())
 		}
-		wfs[i].Offset = p.FrameOffset(result)
+		wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result)})
 	}
 	return wfs
 }
@@ -451,14 +466,56 @@ func resultsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultIn
 			wfs[i].Type = obj.WasmF32
 		case types.TFLOAT64:
 			wfs[i].Type = obj.WasmF64
-		case types.TUNSAFEPTR:
+		case types.TUNSAFEPTR, types.TUINTPTR:
 			wfs[i].Type = obj.WasmPtr
+		case types.TBOOL:
+			wfs[i].Type = obj.WasmBool
+		case types.TPTR:
+			if wasmElemTypeAllowed(t.Elem()) {
+				wfs[i].Type = obj.WasmPtr
+				break
+			}
+			fallthrough
 		default:
 			base.ErrorfAt(f.Pos(), 0, "%s: unsupported result type %s", pragma, t.String())
 		}
 		wfs[i].Offset = p.FrameOffset(result)
 	}
 	return wfs
+}
+
+// wasmElemTypeAllowed reports whether t is allowed to be passed in memory
+// (as a pointer's element type, a field of it, etc.) between the Go wasm
+// module and the host.
+func wasmElemTypeAllowed(t *types.Type) bool {
+	switch t.Kind() {
+	case types.TINT8, types.TUINT8, types.TINT16, types.TUINT16,
+		types.TINT32, types.TUINT32, types.TINT64, types.TUINT64,
+		types.TFLOAT32, types.TFLOAT64, types.TBOOL:
+		return true
+	case types.TARRAY:
+		return wasmElemTypeAllowed(t.Elem())
+	case types.TSTRUCT:
+		if len(t.Fields()) == 0 {
+			return true
+		}
+		seenHostLayout := false
+		for _, f := range t.Fields() {
+			sym := f.Type.Sym()
+			if sym != nil && sym.Name == "HostLayout" && sym.Pkg.Path == "structs" {
+				seenHostLayout = true
+				continue
+			}
+			if !wasmElemTypeAllowed(f.Type) {
+				return false
+			}
+		}
+		return seenHostLayout
+	}
+	// Pointer, and all pointerful types are not allowed, as pointers have
+	// different width on the Go side and the host side. (It will be allowed
+	// on GOARCH=wasm32.)
+	return false
 }
 
 // setupWasmImport calculates the params and results in terms of WebAssembly values for the given function,

@@ -853,8 +853,9 @@ func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 			case obj.WasmF64:
 				p = appendp(p, AF64Load, constAddr(loadOffset))
 			case obj.WasmPtr:
-				p = appendp(p, AI64Load, constAddr(loadOffset))
-				p = appendp(p, AI32WrapI64)
+				p = appendp(p, AI32Load, constAddr(loadOffset))
+			case obj.WasmBool:
+				p = appendp(p, AI32Load8U, constAddr(loadOffset))
 			default:
 				panic("bad param type")
 			}
@@ -906,6 +907,12 @@ func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 				p = appendp(p, AGet, regAddr(REG_SP))
 				p = appendp(p, AGet, regAddr(REG_R0))
 				p = appendp(p, AI64Store, constAddr(storeOffset))
+			case obj.WasmBool:
+				p = appendp(p, AI64ExtendI32U)
+				p = appendp(p, ASet, regAddr(REG_R0))
+				p = appendp(p, AGet, regAddr(REG_SP))
+				p = appendp(p, AGet, regAddr(REG_R0))
+				p = appendp(p, AI64Store8, constAddr(storeOffset))
 			default:
 				panic("bad result type")
 			}
@@ -944,6 +951,8 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 		case obj.WasmPtr:
 			p = appendp(p, AI64ExtendI32U)
 			p = appendp(p, AI64Store, constAddr(f.Offset))
+		case obj.WasmBool:
+			p = appendp(p, AI32Store8, constAddr(f.Offset))
 		default:
 			panic("bad param type")
 		}
@@ -996,8 +1005,9 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 		case obj.WasmF64:
 			p = appendp(p, AF64Load, constAddr(f.Offset))
 		case obj.WasmPtr:
-			p = appendp(p, AI64Load, constAddr(f.Offset))
-			p = appendp(p, AI32WrapI64)
+			p = appendp(p, AI32Load, constAddr(f.Offset))
+		case obj.WasmBool:
+			p = appendp(p, AI32Load8U, constAddr(f.Offset))
 		default:
 			panic("bad result type")
 		}

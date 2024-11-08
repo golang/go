@@ -689,7 +689,7 @@ func fieldsToTypes(fields []obj.WasmField) []byte {
 	b := make([]byte, len(fields))
 	for i, f := range fields {
 		switch f.Type {
-		case obj.WasmI32, obj.WasmPtr:
+		case obj.WasmI32, obj.WasmPtr, obj.WasmBool:
 			b[i] = I32
 		case obj.WasmI64:
 			b[i] = I64
