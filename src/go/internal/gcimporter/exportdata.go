@@ -14,25 +14,22 @@ import (
 	"strings"
 )
 
-func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
-	// See $GOROOT/include/ar.h.
-	hdr := make([]byte, 16+12+6+6+8+10+2)
-	_, err = io.ReadFull(r, hdr)
-	if err != nil {
-		return
+// Copy of cmd/internal/archive.ReadHeader.
+func readArchiveHeader(b *bufio.Reader, name string) int {
+	// architecture-independent object file output
+	const HeaderSize = 60
+
+	var buf [HeaderSize]byte
+	if _, err := io.ReadFull(b, buf[:]); err != nil {
+		return -1
 	}
-	// leave for debugging
-	if false {
-		fmt.Printf("header: %s", hdr)
+	aname := strings.Trim(string(buf[0:16]), " ")
+	if !strings.HasPrefix(aname, name) {
+		return -1
 	}
-	s := strings.TrimSpace(string(hdr[16+12+6+6+8:][:10]))
-	size, err = strconv.Atoi(s)
-	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
-		err = fmt.Errorf("invalid archive header")
-		return
-	}
-	name = strings.TrimSpace(string(hdr[:16]))
-	return
+	asize := strings.Trim(string(buf[48:58]), " ")
+	i, _ := strconv.Atoi(asize)
+	return i
 }
 
 // FindExportData positions the reader r at the beginning of the
@@ -54,15 +51,10 @@ func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
 		return
 	}
 
-	// Archive file. Scan to __.PKGDEF.
-	var name string
-	if name, size, err = readGopackHeader(r); err != nil {
-		return
-	}
-
-	// First entry should be __.PKGDEF.
-	if name != "__.PKGDEF" {
-		err = fmt.Errorf("go archive is missing __.PKGDEF")
+	// package export block should be first
+	size = readArchiveHeader(r, "__.PKGDEF")
+	if size <= 0 {
+		err = fmt.Errorf("not a package file")
 		return
 	}
 
