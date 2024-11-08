@@ -329,6 +329,8 @@ func TestVersionHandling(t *testing.T) {
 		}
 		// 2) find export data
 		i := bytes.Index(data, []byte("\n$$B\n")) + 5
+		// Export data can contain "\n$$\n" in string constants, however,
+		// searching for the next end of section marker "\n$$\n" is good enough for tests.
 		j := bytes.Index(data[i:], []byte("\n$$\n")) + i
 		if i < 0 || j < 0 || i > j {
 			t.Fatalf("export data section not found (i = %d, j = %d)", i, j)

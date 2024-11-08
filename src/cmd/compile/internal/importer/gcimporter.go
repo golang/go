@@ -240,8 +240,8 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 		// appropriate importer.
 		switch exportFormat {
 		case 'u':
-			// TODO(taking): Look into whether this should be LastIndex instead of Index.
-			s = s[:strings.Index(s, "\n$$\n")]
+			// exported strings may contain "\n$$\n" - search backwards
+			s = s[:strings.LastIndex(s, "\n$$\n")]
 			input := pkgbits.NewPkgDecoder(id, s)
 			pkg = ReadPackage(nil, packages, input)
 		default:
