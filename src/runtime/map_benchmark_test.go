@@ -258,12 +258,41 @@ func BenchmarkMapLast(b *testing.B) {
 	}
 }
 
+func cyclicPermutation(n int) []int {
+	// From https://crypto.stackexchange.com/questions/51787/creating-single-cycle-permutations
+	p := rand.New(rand.NewSource(1)).Perm(n)
+	inc := make([]int, n)
+	pInv := make([]int, n)
+	for i := 0; i < n; i++ {
+		inc[i] = (i + 1) % n
+		pInv[p[i]] = i
+	}
+	res := make([]int, n)
+	for i := 0; i < n; i++ {
+		res[i] = pInv[inc[p[i]]]
+	}
+
+	// Test result.
+	j := 0
+	for i := 0; i < n-1; i++ {
+		j = res[j]
+		if j == 0 {
+			panic("got back to 0 too early")
+		}
+	}
+	j = res[j]
+	if j != 0 {
+		panic("didn't get back to 0")
+	}
+	return res
+}
+
 func BenchmarkMapCycle(b *testing.B) {
 	// Arrange map entries to be a permutation, so that
 	// we hit all entries, and one lookup is data dependent
 	// on the previous lookup.
 	const N = 3127
-	p := rand.New(rand.NewSource(1)).Perm(N)
+	p := cyclicPermutation(N)
 	m := map[int]int{}
 	for i := 0; i < N; i++ {
 		m[i] = p[i]
