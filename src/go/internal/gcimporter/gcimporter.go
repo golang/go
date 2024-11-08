@@ -209,8 +209,7 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 
 	switch hdr {
 	case "$$\n":
-		// TODO(taking): 's/(recompile library)/(recompile package)/g'.
-		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile library)", path)
+		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile package)", path)
 
 	case "$$B\n":
 		var exportFormat byte

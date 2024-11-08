@@ -308,7 +308,7 @@ func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
 
 	// Expect $$B\n to signal binary import format.
 	if line != "$$B\n" {
-		err = errors.New("old export format no longer supported (recompile library)")
+		err = errors.New("old export format no longer supported (recompile package)")
 		return
 	}
 

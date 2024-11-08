@@ -213,7 +213,7 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 
 	switch hdr {
 	case "$$\n":
-		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile library)", path)
+		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile package)", path)
 
 	case "$$B\n":
 		// TODO(taking): minimize code delta with src/go/internal/gcimporter.Import.
