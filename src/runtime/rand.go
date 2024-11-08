@@ -151,6 +151,8 @@ func rand32() uint32 {
 }
 
 // rand returns a random uint64 from the per-m chacha8 state.
+// This is called from compiler-generated code.
+//
 // Do not change signature: used via linkname from other packages.
 //
 //go:nosplit
