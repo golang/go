@@ -225,6 +225,7 @@ func TestLargeHashes(t *testing.T) {
 }
 
 func TestAllocations(t *testing.T) {
+	cryptotest.SkipTestAllocations(t)
 	in := []byte("hello, world!")
 	out := make([]byte, 0, Size)
 	h := New()

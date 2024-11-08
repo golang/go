@@ -7,15 +7,11 @@ package rand
 import (
 	"bytes"
 	"compress/flate"
-	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
 	"errors"
-	"internal/asan"
-	"internal/msan"
-	"internal/race"
 	"internal/testenv"
 	"io"
 	"os"
-	"runtime"
 	"sync"
 	"testing"
 )
@@ -157,18 +153,7 @@ func testConcurrentRead(t *testing.T, Read func([]byte) (int, error)) {
 var sink byte
 
 func TestAllocations(t *testing.T) {
-	if boring.Enabled {
-		// Might be fixable with https://go.dev/issue/56378.
-		t.Skip("boringcrypto allocates")
-	}
-	if race.Enabled || msan.Enabled || asan.Enabled {
-		t.Skip("urandomRead allocates under -race, -asan, and -msan")
-	}
-	if runtime.GOOS == "plan9" {
-		t.Skip("plan9 allocates")
-	}
-	testenv.SkipIfOptimizationOff(t)
-
+	cryptotest.SkipTestAllocations(t)
 	n := int(testing.AllocsPerRun(10, func() {
 		buf := make([]byte, 32)
 		Read(buf)

@@ -231,9 +231,7 @@ func TestLargeHashes(t *testing.T) {
 }
 
 func TestAllocations(t *testing.T) {
-	if boring.Enabled {
-		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
-	}
+	cryptotest.SkipTestAllocations(t)
 	in := []byte("hello, world!")
 	out := make([]byte, 0, Size)
 	h := New()

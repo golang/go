@@ -12,7 +12,6 @@ import (
 	"encoding"
 	"encoding/hex"
 	"fmt"
-	"internal/testenv"
 	"io"
 	"math/rand"
 	"strings"
@@ -370,7 +369,7 @@ func testClone(t *testing.T) {
 var sink byte
 
 func TestAllocations(t *testing.T) {
-	testenv.SkipIfOptimizationOff(t)
+	cryptotest.SkipTestAllocations(t)
 	t.Run("New", func(t *testing.T) {
 		if allocs := testing.AllocsPerRun(10, func() {
 			h := New256()

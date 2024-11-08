@@ -9,11 +9,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto"
-	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/hex"
-	"internal/testenv"
 	"log"
 	"os"
 	"strings"
@@ -319,11 +318,7 @@ func TestMalleability(t *testing.T) {
 }
 
 func TestAllocations(t *testing.T) {
-	if boring.Enabled {
-		t.Skip("skipping allocations test with BoringCrypto")
-	}
-	testenv.SkipIfOptimizationOff(t)
-
+	cryptotest.SkipTestAllocations(t)
 	if allocs := testing.AllocsPerRun(100, func() {
 		seed := make([]byte, SeedSize)
 		message := []byte("Hello, world!")

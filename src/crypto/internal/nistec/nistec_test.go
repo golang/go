@@ -7,17 +7,16 @@ package nistec_test
 import (
 	"bytes"
 	"crypto/elliptic"
+	"crypto/internal/cryptotest"
 	"crypto/internal/nistec"
 	"fmt"
-	"internal/testenv"
 	"math/big"
 	"math/rand"
 	"testing"
 )
 
 func TestAllocations(t *testing.T) {
-	testenv.SkipIfOptimizationOff(t)
-
+	cryptotest.SkipTestAllocations(t)
 	t.Run("P224", func(t *testing.T) {
 		if allocs := testing.AllocsPerRun(10, func() {
 			p := nistec.NewP224Point().SetGenerator()

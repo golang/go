@@ -7,9 +7,6 @@ package sysrand
 import (
 	"bytes"
 	"compress/flate"
-	"internal/asan"
-	"internal/msan"
-	"internal/race"
 	"internal/testenv"
 	"os"
 	"runtime"
@@ -70,27 +67,6 @@ func TestConcurrentRead(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-}
-
-var sink byte
-
-func TestAllocations(t *testing.T) {
-	if race.Enabled || msan.Enabled || asan.Enabled {
-		t.Skip("urandomRead allocates under -race, -asan, and -msan")
-	}
-	if runtime.GOOS == "plan9" {
-		t.Skip("plan9 allocates")
-	}
-	testenv.SkipIfOptimizationOff(t)
-
-	n := int(testing.AllocsPerRun(10, func() {
-		buf := make([]byte, 32)
-		Read(buf)
-		sink ^= buf[0]
-	}))
-	if n > 0 {
-		t.Errorf("allocs = %d, want 0", n)
-	}
 }
 
 // TestNoUrandomFallback ensures the urandom fallback is not reached in

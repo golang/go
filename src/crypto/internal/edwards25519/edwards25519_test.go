@@ -5,9 +5,9 @@
 package edwards25519
 
 import (
+	"crypto/internal/cryptotest"
 	"crypto/internal/edwards25519/field"
 	"encoding/hex"
-	"internal/testenv"
 	"reflect"
 	"testing"
 )
@@ -280,8 +280,7 @@ func TestNonCanonicalPoints(t *testing.T) {
 var testAllocationsSink byte
 
 func TestAllocations(t *testing.T) {
-	testenv.SkipIfOptimizationOff(t)
-
+	cryptotest.SkipTestAllocations(t)
 	if allocs := testing.AllocsPerRun(100, func() {
 		p := NewIdentityPoint()
 		p.Add(p, NewGeneratorPoint())

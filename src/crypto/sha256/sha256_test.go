@@ -8,12 +8,10 @@ package sha256
 
 import (
 	"bytes"
-	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
 	"encoding"
 	"fmt"
 	"hash"
-	"internal/testenv"
 	"io"
 	"testing"
 )
@@ -298,10 +296,7 @@ func TestLargeHashes(t *testing.T) {
 }
 
 func TestAllocations(t *testing.T) {
-	testenv.SkipIfOptimizationOff(t)
-	if boring.Enabled {
-		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
-	}
+	cryptotest.SkipTestAllocations(t)
 	if n := testing.AllocsPerRun(10, func() {
 		in := []byte("hello, world!")
 		out := make([]byte, 0, Size)
