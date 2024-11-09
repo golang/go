@@ -5,6 +5,7 @@
 package gcm
 
 import (
+	"crypto/internal/fips"
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/alias"
 	"crypto/internal/fips/drbg"
@@ -17,7 +18,7 @@ import (
 // out and plaintext may overlap exactly or not at all. additionalData and out
 // must not overlap.
 //
-// This complies with FIPS 140-3 IG C.H Resolution 2.
+// This complies with FIPS 140-3 IG C.H Scenario 2.
 //
 // Note that this is NOT a [cipher.AEAD].Seal method.
 func SealWithRandomNonce(g *GCM, nonce, out, plaintext, additionalData []byte) {
@@ -36,15 +37,77 @@ func SealWithRandomNonce(g *GCM, nonce, out, plaintext, additionalData []byte) {
 	if alias.AnyOverlap(out, additionalData) {
 		panic("crypto/cipher: invalid buffer overlap of output and additional data")
 	}
+	fips.RecordApproved()
 	drbg.Read(nonce)
 	seal(out, g, nonce, plaintext, additionalData)
+}
+
+// NewGCMWithCounterNonce returns a new AEAD that works like GCM, but enforces
+// the construction of deterministic nonces. The nonce must be 96 bits, the
+// first 32 bits must be an encoding of the module name, and the last 64 bits
+// must be a counter.
+//
+// This complies with FIPS 140-3 IG C.H Scenario 3.
+func NewGCMWithCounterNonce(cipher *aes.Block) (*GCMWithCounterNonce, error) {
+	g, err := newGCM(&GCM{}, cipher, gcmStandardNonceSize, gcmTagSize)
+	if err != nil {
+		return nil, err
+	}
+	return &GCMWithCounterNonce{g: *g}, nil
+}
+
+type GCMWithCounterNonce struct {
+	g         GCM
+	ready     bool
+	fixedName uint32
+	start     uint64
+	next      uint64
+}
+
+func (g *GCMWithCounterNonce) NonceSize() int { return gcmStandardNonceSize }
+
+func (g *GCMWithCounterNonce) Overhead() int { return gcmTagSize }
+
+func (g *GCMWithCounterNonce) Seal(dst, nonce, plaintext, data []byte) []byte {
+	if len(nonce) != gcmStandardNonceSize {
+		panic("crypto/cipher: incorrect nonce length given to GCM")
+	}
+
+	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
+	if !g.ready {
+		// The first invocation sets the fixed name encoding and start counter.
+		g.ready = true
+		g.start = counter
+		g.fixedName = byteorder.BeUint32(nonce[:4])
+	}
+	if g.fixedName != byteorder.BeUint32(nonce[:4]) {
+		panic("crypto/cipher: incorrect module name given to GCMWithCounterNonce")
+	}
+	counter -= g.start
+
+	// Ensure the counter is monotonically increasing.
+	if counter == math.MaxUint64 {
+		panic("crypto/cipher: counter wrapped")
+	}
+	if counter < g.next {
+		panic("crypto/cipher: counter decreased")
+	}
+	g.next = counter + 1
+
+	fips.RecordApproved()
+	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
+}
+
+func (g *GCMWithCounterNonce) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+	fips.RecordApproved()
+	return g.g.Open(dst, nonce, ciphertext, data)
 }
 
 // NewGCMForTLS12 returns a new AEAD that works like GCM, but enforces the
 // construction of nonces as specified in RFC 5288, Section 3 and RFC 9325,
 // Section 7.2.1.
 //
-// This complies with FIPS 140-3 IG C.H Resolution 1.a.
+// This complies with FIPS 140-3 IG C.H Scenario 1.a.
 func NewGCMForTLS12(cipher *aes.Block) (*GCMForTLS12, error) {
 	g, err := newGCM(&GCM{}, cipher, gcmStandardNonceSize, gcmTagSize)
 	if err != nil {
@@ -78,10 +141,12 @@ func (g *GCMForTLS12) Seal(dst, nonce, plaintext, data []byte) []byte {
 	}
 	g.next = counter + 1
 
-	return g.g.Seal(dst, nonce, plaintext, data)
+	fips.RecordApproved()
+	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
 }
 
 func (g *GCMForTLS12) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+	fips.RecordApproved()
 	return g.g.Open(dst, nonce, ciphertext, data)
 }
 
@@ -128,9 +193,11 @@ func (g *GCMForTLS13) Seal(dst, nonce, plaintext, data []byte) []byte {
 	}
 	g.next = counter + 1
 
-	return g.g.Seal(dst, nonce, plaintext, data)
+	fips.RecordApproved()
+	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
 }
 
 func (g *GCMForTLS13) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+	fips.RecordApproved()
 	return g.g.Open(dst, nonce, ciphertext, data)
 }

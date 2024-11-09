@@ -5,6 +5,7 @@
 package gcm
 
 import (
+	"crypto/internal/fips"
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/alias"
 	"errors"
@@ -60,6 +61,11 @@ func (g *GCM) Overhead() int {
 }
 
 func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
+	fips.RecordNonApproved()
+	return g.sealAfterIndicator(dst, nonce, plaintext, data)
+}
+
+func (g *GCM) sealAfterIndicator(dst, nonce, plaintext, data []byte) []byte {
 	if len(nonce) != g.nonceSize {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
@@ -109,6 +115,7 @@ func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 		panic("crypto/cipher: invalid buffer overlap of output and additional data")
 	}
 
+	fips.RecordApproved()
 	if err := open(out, g, nonce, ciphertext, data); err != nil {
 		// We sometimes decrypt and authenticate concurrently, so we overwrite
 		// dst in the event of a tag mismatch. To be consistent across platforms

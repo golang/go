@@ -9,6 +9,9 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/internal/cryptotest"
+	"crypto/internal/fips"
+	fipsaes "crypto/internal/fips/aes"
+	"crypto/internal/fips/aes/gcm"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -722,4 +725,73 @@ func testGCMAEAD(t *testing.T, newCipher func(key []byte) cipher.Block) {
 			}
 		})
 	}
+}
+
+func TestFIPSServiceIndicator(t *testing.T) {
+	newGCM := func() cipher.AEAD {
+		key := make([]byte, 16)
+		block, _ := fipsaes.New(key)
+		aead, _ := gcm.NewGCMWithCounterNonce(block)
+		return aead
+	}
+	tryNonce := func(aead cipher.AEAD, nonce []byte) bool {
+		fips.ResetServiceIndicator()
+		aead.Seal(nil, nonce, []byte("x"), nil)
+		return fips.ServiceIndicator()
+	}
+	expectTrue := func(t *testing.T, aead cipher.AEAD, nonce []byte) {
+		t.Helper()
+		if !tryNonce(aead, nonce) {
+			t.Errorf("expected service indicator true for %x", nonce)
+		}
+	}
+	expectPanic := func(t *testing.T, aead cipher.AEAD, nonce []byte) {
+		t.Helper()
+		defer func() {
+			t.Helper()
+			if recover() == nil {
+				t.Errorf("expected panic for %x", nonce)
+			}
+		}()
+		tryNonce(aead, nonce)
+	}
+
+	g := newGCM()
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0})
+	// Changed name.
+	expectPanic(t, g, []byte{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0})
+
+	g = newGCM()
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
+	// Went down.
+	expectPanic(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+
+	g = newGCM()
+	expectTrue(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
+	expectTrue(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13})
+	// Did not increment.
+	expectPanic(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13})
+
+	g = newGCM()
+	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00})
+	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
+	// Wrap is ok as long as we don't run out of values.
+	expectTrue(t, g, []byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0})
+	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xfe})
+	// Run out of counters.
+	expectPanic(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xff})
+
+	g = newGCM()
+	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
+	// Wrap with overflow.
+	expectPanic(t, g, []byte{1, 2, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0})
 }

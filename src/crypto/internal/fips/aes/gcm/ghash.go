@@ -22,7 +22,8 @@ type gcmFieldElement struct {
 }
 
 // GHASH is exposed to allow crypto/cipher to implement non-AES GCM modes.
-// It is not allowed in FIPS mode.
+// It is not allowed as a stand-alone operation in FIPS mode because it
+// is not ACVP tested.
 func GHASH(key *[16]byte, inputs ...[]byte) []byte {
 	fips.RecordNonApproved()
 	var out [gcmBlockSize]byte
