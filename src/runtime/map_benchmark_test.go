@@ -1090,3 +1090,14 @@ func BenchmarkMapPop(b *testing.B) {
 	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapPop[*int32, int32]))
 	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapPop[int32, *int32]))
 }
+
+func BenchmarkMapDeleteLargeKey(b *testing.B) {
+	m := map[string]int{}
+	for i := range 9 {
+		m[fmt.Sprintf("%d", i)] = i
+	}
+	key := strings.Repeat("*", 10000)
+	for range b.N {
+		delete(m, key)
+	}
+}

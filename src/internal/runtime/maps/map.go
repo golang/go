@@ -663,7 +663,7 @@ func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
 		m.deleteSmall(typ, hash, key)
 	} else {
 		idx := m.directoryIndex(hash)
-		m.directoryAt(idx).Delete(typ, m, key)
+		m.directoryAt(idx).Delete(typ, m, hash, key)
 	}
 
 	if m.used == 0 {
