@@ -278,15 +278,6 @@ func printComment(w io.Writer, classes []class) {
 	fmt.Fprintf(w, "\n")
 }
 
-func maxObjsPerSpan(classes []class) int {
-	most := 0
-	for _, c := range classes[1:] {
-		n := c.npages * pageSize / c.size
-		most = max(most, n)
-	}
-	return most
-}
-
 func printClasses(w io.Writer, classes []class) {
 	fmt.Fprintln(w, "const (")
 	fmt.Fprintf(w, "minHeapAlign = %d\n", minHeapAlign)
@@ -296,7 +287,6 @@ func printClasses(w io.Writer, classes []class) {
 	fmt.Fprintf(w, "largeSizeDiv = %d\n", largeSizeDiv)
 	fmt.Fprintf(w, "_NumSizeClasses = %d\n", len(classes))
 	fmt.Fprintf(w, "_PageShift = %d\n", pageShift)
-	fmt.Fprintf(w, "maxObjsPerSpan = %d\n", maxObjsPerSpan(classes))
 	fmt.Fprintln(w, ")")
 
 	fmt.Fprint(w, "var class_to_size = [_NumSizeClasses]uint16 {")
