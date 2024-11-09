@@ -7,6 +7,7 @@ package tls
 import (
 	"crypto"
 	"crypto/hmac"
+	"crypto/internal/fips/tls12"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -15,6 +16,8 @@ import (
 	"fmt"
 	"hash"
 )
+
+type prfFunc func(secret []byte, label string, seed []byte, keyLen int) []byte
 
 // Split a premaster secret in two as specified in RFC 4346, Section 5.
 func splitPreMasterSecret(secret []byte) (s1, s2 []byte) {
@@ -45,7 +48,8 @@ func pHash(result, secret, seed []byte, hash func() hash.Hash) {
 }
 
 // prf10 implements the TLS 1.0 pseudo-random function, as defined in RFC 2246, Section 5.
-func prf10(result, secret, label, seed []byte) {
+func prf10(secret []byte, label string, seed []byte, keyLen int) []byte {
+	result := make([]byte, keyLen)
 	hashSHA1 := sha1.New
 	hashMD5 := md5.New
 
@@ -61,16 +65,14 @@ func prf10(result, secret, label, seed []byte) {
 	for i, b := range result2 {
 		result[i] ^= b
 	}
+
+	return result
 }
 
 // prf12 implements the TLS 1.2 pseudo-random function, as defined in RFC 5246, Section 5.
-func prf12(hashFunc func() hash.Hash) func(result, secret, label, seed []byte) {
-	return func(result, secret, label, seed []byte) {
-		labelAndSeed := make([]byte, len(label)+len(seed))
-		copy(labelAndSeed, label)
-		copy(labelAndSeed[len(label):], seed)
-
-		pHash(result, secret, labelAndSeed, hashFunc)
+func prf12(hashFunc func() hash.Hash) prfFunc {
+	return func(secret []byte, label string, seed []byte, keyLen int) []byte {
+		return tls12.PRF(hashFunc, secret, label, seed, keyLen)
 	}
 }
 
@@ -79,13 +81,13 @@ const (
 	finishedVerifyLength = 12 // Length of verify_data in a Finished message.
 )
 
-var masterSecretLabel = []byte("master secret")
-var extendedMasterSecretLabel = []byte("extended master secret")
-var keyExpansionLabel = []byte("key expansion")
-var clientFinishedLabel = []byte("client finished")
-var serverFinishedLabel = []byte("server finished")
+const masterSecretLabel = "master secret"
+const extendedMasterSecretLabel = "extended master secret"
+const keyExpansionLabel = "key expansion"
+const clientFinishedLabel = "client finished"
+const serverFinishedLabel = "server finished"
 
-func prfAndHashForVersion(version uint16, suite *cipherSuite) (func(result, secret, label, seed []byte), crypto.Hash) {
+func prfAndHashForVersion(version uint16, suite *cipherSuite) (prfFunc, crypto.Hash) {
 	switch version {
 	case VersionTLS10, VersionTLS11:
 		return prf10, crypto.Hash(0)
@@ -99,7 +101,7 @@ func prfAndHashForVersion(version uint16, suite *cipherSuite) (func(result, secr
 	}
 }
 
-func prfForVersion(version uint16, suite *cipherSuite) func(result, secret, label, seed []byte) {
+func prfForVersion(version uint16, suite *cipherSuite) prfFunc {
 	prf, _ := prfAndHashForVersion(version, suite)
 	return prf
 }
@@ -111,17 +113,19 @@ func masterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecr
 	seed = append(seed, clientRandom...)
 	seed = append(seed, serverRandom...)
 
-	masterSecret := make([]byte, masterSecretLength)
-	prfForVersion(version, suite)(masterSecret, preMasterSecret, masterSecretLabel, seed)
-	return masterSecret
+	return prfForVersion(version, suite)(preMasterSecret, masterSecretLabel, seed, masterSecretLength)
 }
 
 // extMasterFromPreMasterSecret generates the extended master secret from the
 // pre-master secret. See RFC 7627.
 func extMasterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecret, transcript []byte) []byte {
-	masterSecret := make([]byte, masterSecretLength)
-	prfForVersion(version, suite)(masterSecret, preMasterSecret, extendedMasterSecretLabel, transcript)
-	return masterSecret
+	prf, hash := prfAndHashForVersion(version, suite)
+	if version == VersionTLS12 {
+		// Use the FIPS 140-3 module only for TLS 1.2 with EMS, which is the
+		// only TLS 1.0-1.2 approved mode per IG D.Q.
+		return tls12.MasterSecret(hash.New, preMasterSecret, transcript)
+	}
+	return prf(preMasterSecret, extendedMasterSecretLabel, transcript, masterSecretLength)
 }
 
 // keysFromMasterSecret generates the connection keys from the master
@@ -133,8 +137,7 @@ func keysFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clie
 	seed = append(seed, clientRandom...)
 
 	n := 2*macLen + 2*keyLen + 2*ivLen
-	keyMaterial := make([]byte, n)
-	prfForVersion(version, suite)(keyMaterial, masterSecret, keyExpansionLabel, seed)
+	keyMaterial := prfForVersion(version, suite)(masterSecret, keyExpansionLabel, seed, n)
 	clientMAC = keyMaterial[:macLen]
 	keyMaterial = keyMaterial[macLen:]
 	serverMAC = keyMaterial[:macLen]
@@ -177,7 +180,7 @@ type finishedHash struct {
 	buffer []byte
 
 	version uint16
-	prf     func(result, secret, label, seed []byte)
+	prf     prfFunc
 }
 
 func (h *finishedHash) Write(msg []byte) (n int, err error) {
@@ -209,17 +212,13 @@ func (h finishedHash) Sum() []byte {
 // clientSum returns the contents of the verify_data member of a client's
 // Finished message.
 func (h finishedHash) clientSum(masterSecret []byte) []byte {
-	out := make([]byte, finishedVerifyLength)
-	h.prf(out, masterSecret, clientFinishedLabel, h.Sum())
-	return out
+	return h.prf(masterSecret, clientFinishedLabel, h.Sum(), finishedVerifyLength)
 }
 
 // serverSum returns the contents of the verify_data member of a server's
 // Finished message.
 func (h finishedHash) serverSum(masterSecret []byte) []byte {
-	out := make([]byte, finishedVerifyLength)
-	h.prf(out, masterSecret, serverFinishedLabel, h.Sum())
-	return out
+	return h.prf(masterSecret, serverFinishedLabel, h.Sum(), finishedVerifyLength)
 }
 
 // hashForClientCertificate returns the handshake messages so far, pre-hashed if
@@ -292,8 +291,6 @@ func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clien
 			seed = append(seed, context...)
 		}
 
-		keyMaterial := make([]byte, length)
-		prfForVersion(version, suite)(keyMaterial, masterSecret, []byte(label), seed)
-		return keyMaterial, nil
+		return prfForVersion(version, suite)(masterSecret, label, seed, length), nil
 	}
 }
