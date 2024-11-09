@@ -886,10 +886,12 @@ func (p *printer) printSignature(sig *FuncType) {
 	if list := sig.ResultList; list != nil {
 		p.print(blank)
 		if len(list) == 1 && list[0].Name == nil {
-			p.printNode(list[0].Type)
-		} else {
-			p.printParameterList(list, 0)
+			if _, ok := list[0].Type.(*DotsType); !ok {
+				p.printNode(list[0].Type)
+				return
+			}
 		}
+		p.printParameterList(list, 0)
 	}
 }
 

@@ -140,6 +140,8 @@ var stringTests = [][2]string{
 	{"package p; type _[P ((C)),] int", "package p; type _[P C] int"},
 	{"package p; type _[P, Q ((C))] int", "package p; type _[P, Q C] int"},
 
+	dup("package A; func A() (...A)"),
+
 	// TODO(gri) expand
 }
 
