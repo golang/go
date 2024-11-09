@@ -3399,8 +3399,8 @@ func (rs *Rows) Scan(dest ...any) error {
 	for i, sv := range rs.lastcols {
 		err := driver.ErrSkip
 
-		if rowsColumnScanner, ok := rs.rowsi.(driver.RowsColumnScanner); ok {
-			err = rowsColumnScanner.ScanColumn(dest[i], i)
+		if rcs, ok := rs.rowsi.(driver.RowsColumnScanner); ok {
+			err = rcs.ScanColumn(dest[i], i)
 		}
 
 		if err == driver.ErrSkip {
