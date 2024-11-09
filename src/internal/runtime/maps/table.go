@@ -357,20 +357,23 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
 	}
 }
 
-// uncheckedPutSlot inserts an entry known not to be in the table, returning an
-// entry to the element slot where the element should be written. Used by
-// PutSlot after it has failed to find an existing entry to overwrite duration
-// insertion.
+// uncheckedPutSlot inserts an entry known not to be in the table.
+// This is used for grow/split where we are making a new table from
+// entries in an existing table.
 //
-// Updates growthLeft if necessary, but does not update used.
+// Decrements growthLeft and increments used.
 //
 // Requires that the entry does not exist in the table, and that the table has
 // room for another element without rehashing.
 //
 // Requires that there are no deleted entries in the table.
 //
-// Never returns nil.
-func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+// For indirect keys and/or elements, the key and elem pointers can be
+// put directly into the map, they do not need to be copied. This
+// requires the caller to ensure that the referenced memory never
+// changes (by sourcing those pointers from another indirect key/elem
+// map).
+func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key, elem unsafe.Pointer) {
 	if t.growthLeft == 0 {
 		panic("invariant failed: growthLeft is unexpectedly 0")
 	}
@@ -389,22 +392,22 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe
 
 			slotKey := g.key(typ, i)
 			if typ.IndirectKey() {
-				kmem := newobject(typ.Key)
-				*(*unsafe.Pointer)(slotKey) = kmem
-				slotKey = kmem
+				*(*unsafe.Pointer)(slotKey) = key
+			} else {
+				typedmemmove(typ.Key, slotKey, key)
 			}
-			typedmemmove(typ.Key, slotKey, key)
 
 			slotElem := g.elem(typ, i)
 			if typ.IndirectElem() {
-				emem := newobject(typ.Elem)
-				*(*unsafe.Pointer)(slotElem) = emem
-				slotElem = emem
+				*(*unsafe.Pointer)(slotElem) = elem
+			} else {
+				typedmemmove(typ.Elem, slotElem, elem)
 			}
 
 			t.growthLeft--
+			t.used++
 			g.ctrls().set(i, ctrl(h2(hash)))
-			return slotElem
+			return
 		}
 	}
 }
@@ -1073,13 +1076,7 @@ func (t *table) split(typ *abi.SwissMapType, m *Map) {
 			} else {
 				newTable = right
 			}
-			// TODO(prattmic): For indirect key/elem, this is
-			// allocating new objects for key/elem. That is
-			// unnecessary; the new table could simply point to the
-			// existing object.
-			slotElem := newTable.uncheckedPutSlot(typ, hash, key)
-			typedmemmove(typ.Elem, slotElem, elem)
-			newTable.used++
+			newTable.uncheckedPutSlot(typ, hash, key, elem)
 		}
 	}
 
@@ -1115,13 +1112,7 @@ func (t *table) grow(typ *abi.SwissMapType, m *Map, newCapacity uint16) {
 
 				hash := typ.Hasher(key, m.seed)
 
-				// TODO(prattmic): For indirect key/elem, this is
-				// allocating new objects for key/elem. That is
-				// unnecessary; the new table could simply point to the
-				// existing object.
-				slotElem := newTable.uncheckedPutSlot(typ, hash, key)
-				typedmemmove(typ.Elem, slotElem, elem)
-				newTable.used++
+				newTable.uncheckedPutSlot(typ, hash, key, elem)
 			}
 		}
 	}

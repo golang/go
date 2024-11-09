@@ -621,13 +621,7 @@ func (m *Map) growToTable(typ *abi.SwissMapType) {
 
 		hash := typ.Hasher(key, m.seed)
 
-		// TODO(prattmic): For indirect key/elem, this is
-		// allocating new objects for key/elem. That is
-		// unnecessary; the new table could simply point to the
-		// existing object.
-		slotElem := tab.uncheckedPutSlot(typ, hash, key)
-		typedmemmove(typ.Elem, slotElem, elem)
-		tab.used++
+		tab.uncheckedPutSlot(typ, hash, key, elem)
 	}
 
 	directory := make([]*table, 1)
