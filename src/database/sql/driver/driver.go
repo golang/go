@@ -524,7 +524,7 @@ type RowsColumnScanner interface {
 
 	// ScanColumn copies the column in the current row into the value pointed at by
 	// dest. It returns [ErrSkip] to fall back to the normal [database/sql] scanning path.
-	ScanColumn(index int, dest any) error
+	ScanColumn(dest any, index int) error
 }
 
 // Tx is a transaction.

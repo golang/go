@@ -2,4 +2,4 @@ pkg database/sql/driver, type RowsColumnScanner interface { Close, Columns, Next
 pkg database/sql/driver, type RowsColumnScanner interface, Close() error #67546
 pkg database/sql/driver, type RowsColumnScanner interface, Columns() []string #67546
 pkg database/sql/driver, type RowsColumnScanner interface, Next([]Value) error #67546
-pkg database/sql/driver, type RowsColumnScanner interface, ScanColumn(int, interface{}) error #67546
+pkg database/sql/driver, type RowsColumnScanner interface, ScanColumn(interface{}, int) error #67546

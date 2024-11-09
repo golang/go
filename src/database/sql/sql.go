@@ -3400,7 +3400,7 @@ func (rs *Rows) Scan(dest ...any) error {
 		err := driver.ErrSkip
 
 		if rowsColumnScanner, ok := rs.rowsi.(driver.RowsColumnScanner); ok {
-			err = rowsColumnScanner.ScanColumn(i, dest[i])
+			err = rowsColumnScanner.ScanColumn(dest[i], i)
 		}
 
 		if err == driver.ErrSkip {
