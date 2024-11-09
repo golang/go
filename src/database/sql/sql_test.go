@@ -4200,6 +4200,98 @@ func TestNamedValueCheckerSkip(t *testing.T) {
 	}
 }
 
+type rcsDriver struct {
+	fakeDriver
+}
+
+func (d *rcsDriver) Open(dsn string) (driver.Conn, error) {
+	c, err := d.fakeDriver.Open(dsn)
+	fc := c.(*fakeConn)
+	fc.db.allowAny = true
+	return &rcsConn{fc}, err
+}
+
+type rcsConn struct {
+	*fakeConn
+}
+
+func (c *rcsConn) PrepareContext(ctx context.Context, q string) (driver.Stmt, error) {
+  stmt, err := c.fakeConn.PrepareContext(ctx, q)
+  if err != nil {
+    return stmt, err
+  }
+  return &rcsStmt{stmt.(*fakeStmt)}, nil
+}
+
+type rcsStmt struct {
+  *fakeStmt
+}
+
+func (s *rcsStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+  rows, err := s.fakeStmt.QueryContext(ctx, args)
+  if err != nil {
+    return rows, err
+  }
+	return &rcsRows{rows.(*rowsCursor)}, nil
+}
+
+type rcsRows struct {
+	*rowsCursor
+}
+
+func (r *rcsRows) ScanColumn(dest any, index int) error {
+	switch d := dest.(type) {
+  // Override int64 to set a specific value. This will prove that
+  // RowsColumnScanner is overriding normal database/sql Scan behavior.
+	case *int64:
+		*d = 42
+		return nil
+	}
+
+	return driver.ErrSkip
+}
+
+func TestRowsColumnScanner(t *testing.T) {
+	Register("RowsColumnScanner", &rcsDriver{})
+	db, err := Open("RowsColumnScanner", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err = db.ExecContext(ctx, "CREATE|t|str=string,n=int64")
+	if err != nil {
+		t.Fatal("exec create", err)
+	}
+
+	_, err = db.ExecContext(ctx, "INSERT|t|str=?,n=?", "foo", int64(1))
+	if err != nil {
+		t.Fatal("exec insert", err)
+	}
+	var (
+		str string
+		n   int64
+	)
+	err = db.QueryRowContext(ctx, "SELECT|t|str,n|").Scan(&str, &n)
+	if err != nil {
+		t.Fatal("select", err)
+	}
+
+	list := []struct{ got, want any }{
+		{str, "foo"},
+		{n, int64(42)},
+	}
+
+	for index, item := range list {
+		if !reflect.DeepEqual(item.got, item.want) {
+			t.Errorf("got %#v wanted %#v for index %d", item.got, item.want, index)
+		}
+	}
+}
+
 func TestOpenConnector(t *testing.T) {
 	Register("testctx", &fakeDriverCtx{})
 	db, err := Open("testctx", "people")
