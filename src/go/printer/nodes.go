@@ -447,9 +447,13 @@ func (p *printer) signature(sig *ast.FuncType) {
 		// res != nil
 		p.print(blank)
 		if n == 1 && res.List[0].Names == nil {
-			// single anonymous res; no ()'s
-			p.expr(stripParensAlways(res.List[0].Type))
-			return
+			// Parser permits ellipsis inside of a return field list, like: func A() (...int),
+			// removing them would cause a parse error.
+			if _, ok := res.List[0].Type.(*ast.Ellipsis); !ok {
+				// single anonymous res; no ()'s
+				p.expr(stripParensAlways(res.List[0].Type))
+				return
+			}
 		}
 		p.parameters(res, funcParam)
 	}

@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -861,5 +862,22 @@ func TestEmptyDecl(t *testing.T) { // issue 63566
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
+	}
+}
+
+func TestPrintParsableEllipsisInReturnFieldList(t *testing.T) {
+	const src = "package A\n\nfunc A() (...A)\n"
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "test.go", src, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var out strings.Builder
+	Fprint(&out, fset, f)
+
+	if out.String() != src {
+		t.Fatalf("source = %q; printed as = %q want = %q", src, out.String(), src)
 	}
 }
