@@ -196,10 +196,12 @@ func BenchmarkSmallStrMap(b *testing.B) {
 	}
 }
 
-func BenchmarkMapStringKeysEight_16(b *testing.B) { benchmarkMapStringKeysEight(b, 16) }
-func BenchmarkMapStringKeysEight_32(b *testing.B) { benchmarkMapStringKeysEight(b, 32) }
-func BenchmarkMapStringKeysEight_64(b *testing.B) { benchmarkMapStringKeysEight(b, 64) }
-func BenchmarkMapStringKeysEight_1M(b *testing.B) { benchmarkMapStringKeysEight(b, 1<<20) }
+func BenchmarkMapStringKeysEight_16(b *testing.B)  { benchmarkMapStringKeysEight(b, 16) }
+func BenchmarkMapStringKeysEight_32(b *testing.B)  { benchmarkMapStringKeysEight(b, 32) }
+func BenchmarkMapStringKeysEight_64(b *testing.B)  { benchmarkMapStringKeysEight(b, 64) }
+func BenchmarkMapStringKeysEight_128(b *testing.B) { benchmarkMapStringKeysEight(b, 128) }
+func BenchmarkMapStringKeysEight_256(b *testing.B) { benchmarkMapStringKeysEight(b, 256) }
+func BenchmarkMapStringKeysEight_1M(b *testing.B)  { benchmarkMapStringKeysEight(b, 1<<20) }
 
 func benchmarkMapStringKeysEight(b *testing.B, keySize int) {
 	m := make(map[string]bool)

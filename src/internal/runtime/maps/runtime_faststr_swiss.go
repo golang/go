@@ -13,32 +13,89 @@ import (
 	"unsafe"
 )
 
-// TODO: more string-specific optimizations possible.
-
-func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, hash uintptr, key string) (unsafe.Pointer, bool) {
+func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, key string) unsafe.Pointer {
 	g := groupReference{
 		data: m.dirPtr,
 	}
 
-	h2 := uint8(h2(hash))
 	ctrls := *g.ctrls()
+	slotKey := g.key(typ, 0)
+	slotSize := typ.SlotSize
 
-	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
-		c := uint8(ctrls)
-		ctrls >>= 8
-		if c != h2 {
-			continue
+	// The 64 threshold was chosen based on performance of BenchmarkMapStringKeysEight,
+	// where there are 8 keys to check, all of which don't quick-match the lookup key.
+	// In that case, we can save hashing the lookup key. That savings is worth this extra code
+	// for strings that are long enough that hashing is expensive.
+	if len(key) > 64 {
+		// String hashing and equality might be expensive. Do a quick check first.
+		j := abi.SwissMapGroupSlots
+		for i := range abi.SwissMapGroupSlots {
+			if ctrls&(1<<7) == 0 && longStringQuickEqualityTest(key, *(*string)(slotKey)) {
+				if j < abi.SwissMapGroupSlots {
+					// 2 strings both passed the quick equality test.
+					// Break out of this loop and do it the slow way.
+					goto dohash
+				}
+				j = i
+			}
+			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+			ctrls >>= 8
 		}
-
-		slotKey := g.key(typ, i)
-
+		if j == abi.SwissMapGroupSlots {
+			// No slot passed the quick test.
+			return nil
+		}
+		// There's exactly one slot that passed the quick test. Do the single expensive comparison.
+		slotKey = g.key(typ, uintptr(j))
 		if key == *(*string)(slotKey) {
-			slotElem := g.elem(typ, i)
-			return slotElem, true
+			return unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
 		}
+		return nil
 	}
 
-	return nil, false
+dohash:
+	// This path will cost 1 hash and 1+ε comparisons.
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
+	h2 := uint8(h2(hash))
+	ctrls = *g.ctrls()
+	slotKey = g.key(typ, 0)
+
+	for range abi.SwissMapGroupSlots {
+		if uint8(ctrls) == h2 && key == *(*string)(slotKey) {
+			return unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+		}
+		slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+		ctrls >>= 8
+	}
+	return nil
+}
+
+// Returns true if a and b might be equal.
+// Returns false if a and b are definitely not equal.
+// Requires len(a)>=8.
+func longStringQuickEqualityTest(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	x, y := stringPtr(a), stringPtr(b)
+	// Check first 8 bytes.
+	if *(*[8]byte)(x) != *(*[8]byte)(y) {
+		return false
+	}
+	// Check last 8 bytes.
+	x = unsafe.Pointer(uintptr(x) + uintptr(len(a)) - 8)
+	y = unsafe.Pointer(uintptr(y) + uintptr(len(a)) - 8)
+	if *(*[8]byte)(x) != *(*[8]byte)(y) {
+		return false
+	}
+	return true
+}
+func stringPtr(s string) unsafe.Pointer {
+	type stringStruct struct {
+		ptr unsafe.Pointer
+		len int
+	}
+	return (*stringStruct)(unsafe.Pointer(&s)).ptr
 }
 
 //go:linkname runtime_mapaccess1_faststr runtime.mapaccess1_faststr
@@ -58,15 +115,15 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
 		return nil
 	}
 
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
-
 	if m.dirLen <= 0 {
-		elem, ok := m.getWithoutKeySmallFastStr(typ, hash, key)
-		if !ok {
+		elem := m.getWithoutKeySmallFastStr(typ, key)
+		if elem == nil {
 			return unsafe.Pointer(&zeroVal[0])
 		}
 		return elem
 	}
+
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -116,15 +173,15 @@ func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsa
 		return nil, false
 	}
 
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
-
 	if m.dirLen <= 0 {
-		elem, ok := m.getWithoutKeySmallFastStr(typ, hash, key)
-		if !ok {
+		elem := m.getWithoutKeySmallFastStr(typ, key)
+		if elem == nil {
 			return unsafe.Pointer(&zeroVal[0]), false
 		}
 		return elem, true
 	}
+
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
 
 	// Select table.
 	idx := m.directoryIndex(hash)
