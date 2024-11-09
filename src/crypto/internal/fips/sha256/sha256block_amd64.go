@@ -11,8 +11,8 @@ import (
 	"internal/cpu"
 )
 
-var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI2
-var useSHANI = useAVX2 && cpu.X86.HasSHA
+var useAVX2 = cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI2
+var useSHANI = cpu.X86.HasAVX && cpu.X86.HasSHA && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3
 
 func init() {
 	impl.Register("sha256", "AVX2", &useAVX2)

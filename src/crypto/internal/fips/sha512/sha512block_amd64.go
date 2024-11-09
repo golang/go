@@ -11,7 +11,7 @@ import (
 	"internal/cpu"
 )
 
-var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+var useAVX2 = cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI2
 
 func init() {
 	impl.Register("sha512", "AVX2", &useAVX2)
