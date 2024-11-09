@@ -18,6 +18,7 @@ import (
 	_ "crypto/internal/fips/sha256"
 	_ "crypto/internal/fips/sha3"
 	_ "crypto/internal/fips/sha512"
+	_ "crypto/internal/fips/tls13"
 )
 
 func TestCAST(t *testing.T) {

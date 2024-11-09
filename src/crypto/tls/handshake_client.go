@@ -10,6 +10,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/internal/fips/tls13"
 	"crypto/internal/hpke"
 	"crypto/internal/mlkem768"
 	"crypto/rsa"
@@ -324,7 +325,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 		if err := transcriptMsg(hello, transcript); err != nil {
 			return err
 		}
-		earlyTrafficSecret := suite.deriveSecret(earlySecret, clientEarlyTrafficLabel, transcript)
+		earlyTrafficSecret := earlySecret.ClientEarlyTrafficSecret(transcript)
 		c.quicSetWriteSecret(QUICEncryptionLevelEarly, suite.id, earlyTrafficSecret)
 	}
 
@@ -382,7 +383,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 }
 
 func (c *Conn) loadSession(hello *clientHelloMsg) (
-	session *SessionState, earlySecret, binderKey []byte, err error) {
+	session *SessionState, earlySecret *tls13.EarlySecret, binderKey []byte, err error) {
 	if c.config.SessionTicketsDisabled || c.config.ClientSessionCache == nil {
 		return nil, nil, nil, nil
 	}
@@ -509,8 +510,8 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 	hello.pskBinders = [][]byte{make([]byte, cipherSuite.hash.Size())}
 
 	// Compute the PSK binders. See RFC 8446, Section 4.2.11.2.
-	earlySecret = cipherSuite.extract(session.secret, nil)
-	binderKey = cipherSuite.deriveSecret(earlySecret, resumptionBinderLabel, nil)
+	earlySecret = tls13.NewEarlySecret(cipherSuite.hash.New, session.secret)
+	binderKey = earlySecret.ResumptionBinderKey()
 	transcript := cipherSuite.hash.New()
 	if err := computeAndUpdatePSK(hello, binderKey, transcript, cipherSuite.finishedHash); err != nil {
 		return nil, nil, nil, err
