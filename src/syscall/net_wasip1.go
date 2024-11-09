@@ -6,8 +6,6 @@
 
 package syscall
 
-import "unsafe"
-
 const (
 	SHUT_RD   = 0x1
 	SHUT_WR   = 0x2
@@ -18,7 +16,7 @@ type sdflags = uint32
 
 //go:wasmimport wasi_snapshot_preview1 sock_accept
 //go:noescape
-func sock_accept(fd int32, flags fdflags, newfd unsafe.Pointer) Errno
+func sock_accept(fd int32, flags fdflags, newfd *int32) Errno
 
 //go:wasmimport wasi_snapshot_preview1 sock_shutdown
 //go:noescape
@@ -42,7 +40,7 @@ func Listen(fd int, backlog int) error {
 
 func Accept(fd int) (int, Sockaddr, error) {
 	var newfd int32
-	errno := sock_accept(int32(fd), 0, unsafe.Pointer(&newfd))
+	errno := sock_accept(int32(fd), 0, &newfd)
 	return int(newfd), nil, errnoErr(errno)
 }
 

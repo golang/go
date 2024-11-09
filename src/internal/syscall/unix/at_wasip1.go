@@ -27,11 +27,11 @@ func Readlinkat(dirfd int, path string, buf []byte) (int, error) {
 	var nwritten size
 	errno := path_readlink(
 		int32(dirfd),
-		unsafe.Pointer(unsafe.StringData(path)),
+		unsafe.StringData(path),
 		size(len(path)),
-		unsafe.Pointer(&buf[0]),
+		&buf[0],
 		size(len(buf)),
-		unsafe.Pointer(&nwritten))
+		&nwritten)
 	return int(nwritten), errnoErr(errno)
 
 }
@@ -42,7 +42,7 @@ type (
 
 //go:wasmimport wasi_snapshot_preview1 path_readlink
 //go:noescape
-func path_readlink(fd int32, path unsafe.Pointer, pathLen size, buf unsafe.Pointer, bufLen size, nwritten unsafe.Pointer) syscall.Errno
+func path_readlink(fd int32, path *byte, pathLen size, buf *byte, bufLen size, nwritten *size) syscall.Errno
 
 func Mkdirat(dirfd int, path string, mode uint32) error {
 	if path == "" {
@@ -50,14 +50,14 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
 	}
 	return errnoErr(path_create_directory(
 		int32(dirfd),
-		unsafe.Pointer(unsafe.StringData(path)),
+		unsafe.StringData(path),
 		size(len(path)),
 	))
 }
 
 //go:wasmimport wasi_snapshot_preview1 path_create_directory
 //go:noescape
-func path_create_directory(fd int32, path unsafe.Pointer, pathLen size) syscall.Errno
+func path_create_directory(fd int32, path *byte, pathLen size) syscall.Errno
 
 func errnoErr(errno syscall.Errno) error {
 	if errno == 0 {

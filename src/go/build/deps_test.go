@@ -61,6 +61,7 @@ var depsRules = `
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  math/bits,
+	  structs,
 	  unicode,
 	  unicode/utf8,
 	  unicode/utf16;
@@ -78,7 +79,8 @@ var depsRules = `
 	internal/goexperiment,
 	internal/goos,
 	internal/profilerecord,
-	math/bits
+	math/bits,
+	structs
 	< internal/bytealg
 	< internal/stringslite
 	< internal/itoa
