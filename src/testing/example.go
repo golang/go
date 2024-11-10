@@ -6,6 +6,7 @@ package testing
 
 import (
 	"fmt"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -66,6 +67,10 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
 	var fail string
 	got := strings.TrimSpace(stdout)
 	want := strings.TrimSpace(eg.Output)
+	if runtime.GOOS == "windows" {
+		got = strings.ReplaceAll(got, "\r\n", "\n")
+		want = strings.ReplaceAll(want, "\r\n", "\n")
+	}
 	if eg.Unordered {
 		if sortLines(got) != sortLines(want) && recovered == nil {
 			fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", stdout, eg.Output)
