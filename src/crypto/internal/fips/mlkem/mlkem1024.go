@@ -3,6 +3,7 @@
 package mlkem
 
 import (
+	"crypto/internal/fips"
 	"crypto/internal/fips/drbg"
 	"crypto/internal/fips/sha3"
 	"crypto/internal/fips/subtle"
@@ -81,15 +82,17 @@ type decryptionKey1024 struct {
 func GenerateKey1024() (*DecapsulationKey1024, error) {
 	// The actual logic is in a separate function to outline this allocation.
 	dk := &DecapsulationKey1024{}
-	return generateKey1024(dk), nil
+	return generateKey1024(dk)
 }
 
-func generateKey1024(dk *DecapsulationKey1024) *DecapsulationKey1024 {
+func generateKey1024(dk *DecapsulationKey1024) (*DecapsulationKey1024, error) {
 	var d [32]byte
 	drbg.Read(d[:])
 	var z [32]byte
 	drbg.Read(z[:])
-	return kemKeyGen1024(dk, &d, &z)
+	kemKeyGen1024(dk, &d, &z)
+	fips.CAST("ML-KEM PCT", func() error { return kemPCT1024(dk) })
+	return dk, nil
 }
 
 // NewDecapsulationKey1024 parses a decapsulation key from a 64-byte
@@ -106,7 +109,9 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
 	}
 	d := (*[32]byte)(seed[:32])
 	z := (*[32]byte)(seed[32:])
-	return kemKeyGen1024(dk, d, z), nil
+	kemKeyGen1024(dk, d, z)
+	fips.CAST("ML-KEM PCT", func() error { return kemPCT1024(dk) })
+	return dk, nil
 }
 
 // kemKeyGen1024 generates a decapsulation key.
@@ -114,10 +119,9 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
 // It implements ML-KEM.KeyGen_internal according to FIPS 203, Algorithm 16, and
 // K-PKE.KeyGen according to FIPS 203, Algorithm 13. The two are merged to save
 // copies and allocations.
-func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) *DecapsulationKey1024 {
-	if dk == nil {
-		dk = &DecapsulationKey1024{}
-	}
+func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) {
+	fips.RecordApproved()
+
 	dk.d = *d
 	dk.z = *z
 
@@ -159,8 +163,27 @@ func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) *DecapsulationKey10
 	ek := dk.EncapsulationKey().Bytes()
 	H.Write(ek)
 	H.Sum(dk.h[:0])
+}
 
-	return dk
+// kemPCT1024 performs a Pairwise Consistency Test per FIPS 140-3 IG 10.3.A
+// Additional Comment 1: "For key pairs generated for use with approved KEMs in
+// FIPS 203, the PCT shall consist of applying the encapsulation key ek to
+// encapsulate a shared secret K leading to ciphertext c, and then applying
+// decapsulation key dk to retrieve the same shared secret K. The PCT passes if
+// the two shared secret K values are equal. The PCT shall be performed either
+// when keys are generated/imported, prior to the first exportation, or prior to
+// the first operational use (if not exported before the first use)."
+func kemPCT1024(dk *DecapsulationKey1024) error {
+	ek := dk.EncapsulationKey()
+	c, K := ek.Encapsulate()
+	K1, err := dk.Decapsulate(c)
+	if err != nil {
+		return err
+	}
+	if subtle.ConstantTimeCompare(K, K1) != 1 {
+		return errors.New("mlkem: PCT failed")
+	}
+	return nil
 }
 
 // Encapsulate generates a shared key and an associated ciphertext from an
@@ -185,6 +208,7 @@ func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (ciphe
 //
 // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
 func kemEncaps1024(cc *[CiphertextSize1024]byte, ek *EncapsulationKey1024, m *[messageSize]byte) (c, K []byte) {
+	fips.RecordApproved()
 	if cc == nil {
 		cc = &[CiphertextSize1024]byte{}
 	}
@@ -300,6 +324,7 @@ func (dk *DecapsulationKey1024) Decapsulate(ciphertext []byte) (sharedKey []byte
 //
 // It implements ML-KEM.Decaps_internal according to FIPS 203, Algorithm 18.
 func kemDecaps1024(dk *DecapsulationKey1024, c *[CiphertextSize1024]byte) (K []byte) {
+	fips.RecordApproved()
 	m := pkeDecrypt1024(&dk.decryptionKey1024, c)
 	g := sha3.New512()
 	g.Write(m[:])

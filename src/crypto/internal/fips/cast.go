@@ -24,16 +24,21 @@ var failfipscast = godebug.New("#failfipscast")
 // testingOnlyCASTHook is called during tests with each CAST name.
 var testingOnlyCASTHook func(string)
 
-// CAST runs the named Cryptographic Algorithm Self-Test (if operated in FIPS
-// mode) and aborts the program (stopping the module input/output and entering
-// the "error state") if the self-test fails.
+// CAST runs the named Cryptographic Algorithm Self-Test or Pairwise Consistency
+// Test (if operated in FIPS mode) and aborts the program (stopping the module
+// input/output and entering the "error state") if the self-test fails.
 //
-// These are mandatory self-checks that must be performed by FIPS 140-3 modules
-// before the algorithm is used. See Implementation Guidance 10.3.A.
+// CASTs are mandatory self-checks that must be performed by FIPS 140-3 modules
+// before the algorithm is used. See Implementation Guidance 10.3.A. PCTs  are
+// mandatory for every key pair that is generated/imported, including ephemeral
+// keys (which effectively doubles the cost of key establishment). See
+// Implementation Guidance 10.3.A Additional Comment 1.
 //
 // The name must not contain commas, colons, hashes, or equal signs.
 //
-// When calling this function, also add the calling package to cast_external_test.go.
+// When calling this function from init(), also import the calling package from
+// cast_external_test.go, while if calling it from key generation/importing, add
+// an invocation to TestCAST.
 func CAST(name string, f func() error) {
 	if strings.ContainsAny(name, ",#=:") {
 		panic("fips: invalid self-test name: " + name)
@@ -47,7 +52,7 @@ func CAST(name string, f func() error) {
 
 	err := f()
 	if failfipscast.Value() != "" && strings.Contains(name, failfipscast.Value()) {
-		err = errors.New("simulated CAST failure")
+		err = errors.New("simulated CAST/PCT failure")
 	}
 	if err != nil {
 		fatal("FIPS 140-3 self-test failed: " + name + ": " + err.Error())

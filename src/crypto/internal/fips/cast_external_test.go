@@ -17,6 +17,7 @@ import (
 	_ "crypto/internal/fips/drbg"
 	_ "crypto/internal/fips/hkdf"
 	_ "crypto/internal/fips/hmac"
+	"crypto/internal/fips/mlkem"
 	_ "crypto/internal/fips/sha256"
 	_ "crypto/internal/fips/sha3"
 	_ "crypto/internal/fips/sha512"
@@ -28,6 +29,9 @@ func TestCAST(t *testing.T) {
 	if len(fips.AllCASTs) == 0 {
 		t.Errorf("no CASTs to test")
 	}
+
+	// Cause PCTs to be invoked.
+	mlkem.GenerateKey768()
 
 	if fips.Enabled {
 		for _, name := range fips.AllCASTs {

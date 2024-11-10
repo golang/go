@@ -224,7 +224,7 @@ func BenchmarkKeyGen(b *testing.B) {
 	rand.Read(z[:])
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		dk := kemKeyGen(&dk, &d, &z)
+		kemKeyGen(&dk, &d, &z)
 		sink ^= dk.EncapsulationKey().Bytes()[0]
 	}
 }

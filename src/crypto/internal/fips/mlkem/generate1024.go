@@ -44,6 +44,7 @@ var replacements = map[string]string{
 	"generateKey":    "generateKey1024",
 
 	"kemKeyGen": "kemKeyGen1024",
+	"kemPCT":    "kemPCT1024",
 
 	"encodingSize4":             "encodingSize5",
 	"encodingSize10":            "encodingSize11",
