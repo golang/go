@@ -70,7 +70,7 @@ func New512_256() hash.Hash {
 }
 
 // New384 returns a new [hash.Hash] computing the SHA-384 checksum. The Hash
-// also implements [encoding.BinaryMarshaler], [encoding.AppendBinary] and
+// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
 // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
 // state of the hash.
 func New384() hash.Hash {
