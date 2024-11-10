@@ -906,6 +906,9 @@ func (st *state) unqualifiedName(module AST) (r AST, isCast bool) {
 	if len(st.str) > 0 && st.str[0] == 'F' {
 		st.advance(1)
 		friend = true
+		if len(st.str) < 1 {
+			st.fail("expected unqualified name")
+		}
 	}
 
 	var a AST
@@ -3149,6 +3152,7 @@ func (st *state) closureTypeName() AST {
 // templateParamDecl parses:
 //
 //	<template-param-decl> ::= Ty                          # type parameter
+//	                      ::= Tk <concept name> [<template-args>] # constrained type parameter
 //	                      ::= Tn <type>                   # non-type parameter
 //	                      ::= Tt <template-param-decl>* E # template parameter
 //	                      ::= Tp <template-param-decl>    # parameter pack
@@ -3178,6 +3182,13 @@ func (st *state) templateParamDecl() (AST, AST) {
 		}
 		return tp, name
 	case 'k':
+		// We don't track enclosing template parameter levels.
+		// Don't try to demangle template parameter substitutions
+		// in constraints.
+		hold := st.parsingConstraint
+		st.parsingConstraint = true
+		defer func() { st.parsingConstraint = hold }()
+
 		st.advance(2)
 		constraint, _ := st.name()
 		name := mk("$T", &st.typeTemplateParamCount)

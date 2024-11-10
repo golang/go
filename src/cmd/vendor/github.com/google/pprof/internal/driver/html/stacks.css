@@ -14,12 +14,26 @@ body {
   width: 100%;
   position: relative; /* Allows absolute positioning of child boxes */
 }
-/* Shows details of frame that is under the mouse */
+/* Holder for current frame details. */
 #current-details {
-  position: absolute;
-  top: 5px;
-  right: 5px;
+  position: relative;
+  background: #eee; /* Light grey gives better contrast with boxes */
   font-size: 12pt;
+  padding: 0 4px;
+  width: 100%;
+}
+/* Shows details of frame that is under the mouse */
+#current-details-left {
+  float: left;
+  max-width: 60%;
+  white-space: nowrap;
+  overflow-x: hidden;
+}
+#current-details-right {
+  float: right;
+  max-width: 40%;
+  white-space: nowrap;
+  overflow-x: hidden;
 }
 /* Background of a single flame-graph frame */
 .boxbg {

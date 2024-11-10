@@ -476,6 +476,7 @@ func combineHeaders(srcs []*Profile) (*Profile, error) {
 	var timeNanos, durationNanos, period int64
 	var comments []string
 	seenComments := map[string]bool{}
+	var docURL string
 	var defaultSampleType string
 	for _, s := range srcs {
 		if timeNanos == 0 || s.TimeNanos < timeNanos {
@@ -494,6 +495,9 @@ func combineHeaders(srcs []*Profile) (*Profile, error) {
 		if defaultSampleType == "" {
 			defaultSampleType = s.DefaultSampleType
 		}
+		if docURL == "" {
+			docURL = s.DocURL
+		}
 	}
 
 	p := &Profile{
@@ -509,6 +513,7 @@ func combineHeaders(srcs []*Profile) (*Profile, error) {
 
 		Comments:          comments,
 		DefaultSampleType: defaultSampleType,
+		DocURL:            docURL,
 	}
 	copy(p.SampleType, srcs[0].SampleType)
 	return p, nil

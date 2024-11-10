@@ -19,6 +19,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -1168,8 +1169,11 @@ func ProfileLabels(rpt *Report) []string {
 	if o.SampleType != "" {
 		label = append(label, "Type: "+o.SampleType)
 	}
+	if url := prof.DocURL; url != "" {
+		label = append(label, "Doc: "+url)
+	}
 	if prof.TimeNanos != 0 {
-		const layout = "Jan 2, 2006 at 3:04pm (MST)"
+		const layout = "2006-01-02 15:04:05 MST"
 		label = append(label, "Time: "+time.Unix(0, prof.TimeNanos).Format(layout))
 	}
 	if prof.DurationNanos != 0 {
@@ -1330,6 +1334,22 @@ func (rpt *Report) Total() int64 { return rpt.total }
 
 // OutputFormat returns the output format for the report.
 func (rpt *Report) OutputFormat() int { return rpt.options.OutputFormat }
+
+// DocURL returns the documentation URL for Report, or "" if not available.
+func (rpt *Report) DocURL() string {
+	u := rpt.prof.DocURL
+	if u == "" || !absoluteURL(u) {
+		return ""
+	}
+	return u
+}
+
+func absoluteURL(str string) bool {
+	// Avoid returning relative URLs to prevent unwanted local navigation
+	// within pprof server.
+	u, err := url.Parse(str)
+	return err == nil && (u.Scheme == "https" || u.Scheme == "http")
+}
 
 func abs64(i int64) int64 {
 	if i < 0 {

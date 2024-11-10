@@ -181,7 +181,7 @@ func kernelBase(loadSegment *elf.ProgHeader, stextOffset *uint64, start, limit, 
 		// stextOffset=0xffffffff80200198
 		return start - *stextOffset, true
 	}
-	if start >= loadSegment.Vaddr && limit > start && (offset == 0 || offset == pageOffsetPpc64 || offset == start) {
+	if start >= 0x8000000000000000 && limit > start && (offset == 0 || offset == pageOffsetPpc64 || offset == start) {
 		// Some kernels look like:
 		//       VADDR=0xffffffff80200000
 		// stextOffset=0xffffffff80200198

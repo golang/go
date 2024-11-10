@@ -28,7 +28,9 @@ func (ui *webInterface) stackView(w http.ResponseWriter, req *http.Request) {
 	rpt, errList := ui.makeReport(w, req, []string{"svg"}, func(cfg *config) {
 		cfg.CallTree = true
 		cfg.Trim = false
-		cfg.Granularity = "filefunctions"
+		if cfg.Granularity == "" {
+			cfg.Granularity = "filefunctions"
+		}
 	})
 	if rpt == nil {
 		return // error already reported

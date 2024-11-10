@@ -159,10 +159,11 @@ type ObjFile interface {
 
 // A Frame describes a location in a single line in a source file.
 type Frame struct {
-	Func   string // name of function
-	File   string // source file name
-	Line   int    // line in file
-	Column int    // column in line (if available)
+	Func          string // name of function
+	File          string // source file name
+	Line          int    // line in file
+	Column        int    // column in line (if available)
+	StartLine     int    // start line of function (if available)
 }
 
 // A Sym describes a single symbol in an object file.

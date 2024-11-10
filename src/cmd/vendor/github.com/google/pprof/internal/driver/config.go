@@ -68,7 +68,7 @@ func defaultConfig() config {
 		Trim:         true,
 		DivideBy:     1.0,
 		Sort:         "flat",
-		Granularity:  "functions",
+		Granularity:  "", // Default depends on the display format
 	}
 }
 

@@ -254,6 +254,8 @@ func aggregate(prof *profile.Profile, cfg config) error {
 	var function, filename, linenumber, address bool
 	inlines := !cfg.NoInlines
 	switch cfg.Granularity {
+	case "":
+		function = true // Default granularity is "functions"
 	case "addresses":
 		if inlines {
 			return nil

@@ -148,6 +148,10 @@ a {
   right: 2px;
 }
 
+.help {
+  padding-left: 1em;
+}
+
 {{/* Used to disable events when a modal dialog is displayed */}}
 #dialog-overlay {
   display: none;

@@ -79,6 +79,7 @@ type webArgs struct {
 	Total       int64
 	SampleTypes []string
 	Legend      []string
+	DocURL      string
 	Standalone  bool // True for command-line generation of HTML
 	Help        map[string]string
 	Nodes       []string
@@ -290,6 +291,7 @@ func renderHTML(dst io.Writer, tmpl string, rpt *report.Report, errList, legend 
 	data.Title = file + " " + profile
 	data.Errors = errList
 	data.Total = rpt.Total()
+	data.DocURL = rpt.DocURL()
 	data.Legend = legend
 	return getHTMLTemplates().ExecuteTemplate(dst, tmpl, data)
 }

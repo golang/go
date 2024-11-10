@@ -228,6 +228,7 @@ func symbolizeOneMapping(m *profile.Mapping, locs []*profile.Location, obj plugi
 				Name:       frame.Func,
 				SystemName: frame.Func,
 				Filename:   frame.File,
+				StartLine:  int64(frame.StartLine),
 			})
 			l.Line[i] = profile.Line{
 				Function: f,

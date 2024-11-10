@@ -15,18 +15,38 @@
 package report
 
 import (
+	"path/filepath"
 	"regexp"
 
 	"github.com/google/pprof/internal/graph"
 )
 
-var sepRE = regexp.MustCompile(`::|\.`)
+var (
+	sepRE     = regexp.MustCompile(`::|\.`)
+	fileSepRE = regexp.MustCompile(`/`)
+)
+
+// fileNameSuffixes returns a non-empty sequence of shortened file names
+// (in decreasing preference) that can be used to represent name.
+func fileNameSuffixes(name string) []string {
+	if name == "" {
+		// Avoid returning "." when symbol info is missing
+		return []string{""}
+	}
+	return allSuffixes(filepath.ToSlash(filepath.Clean(name)), fileSepRE)
+}
 
 // shortNameList returns a non-empty sequence of shortened names
 // (in decreasing preference) that can be used to represent name.
 func shortNameList(name string) []string {
 	name = graph.ShortenFunctionName(name)
-	seps := sepRE.FindAllStringIndex(name, -1)
+	return allSuffixes(name, sepRE)
+}
+
+// allSuffixes returns a list of suffixes (in order of decreasing length)
+// found by splitting at re.
+func allSuffixes(name string, re *regexp.Regexp) []string {
+	seps := re.FindAllStringIndex(name, -1)
 	result := make([]string, 0, len(seps)+1)
 	result = append(result, name)
 	for _, sep := range seps {
