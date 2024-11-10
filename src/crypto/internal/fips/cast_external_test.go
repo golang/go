@@ -29,8 +29,10 @@ func TestCAST(t *testing.T) {
 		t.Errorf("no CASTs to test")
 	}
 
-	for _, name := range fips.AllCASTs {
-		t.Logf("CAST %s completed successfully", name)
+	if fips.Enabled {
+		for _, name := range fips.AllCASTs {
+			t.Logf("CAST %s completed successfully", name)
+		}
 	}
 
 	t.Run("SimulateFailures", func(t *testing.T) {
@@ -40,7 +42,7 @@ func TestCAST(t *testing.T) {
 				t.Parallel()
 				cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestCAST", "-test.v")
 				cmd = testenv.CleanCmdEnv(cmd)
-				cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s", name))
+				cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name))
 				out, err := cmd.CombinedOutput()
 				if err == nil {
 					t.Error(err)

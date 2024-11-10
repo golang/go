@@ -6,4 +6,11 @@ package fips
 
 import "internal/godebug"
 
-var Enabled = godebug.New("#fips140").Value() == "on"
+var Enabled bool
+
+func init() {
+	switch godebug.New("#fips140").Value() {
+	case "on", "debug", "only":
+		Enabled = true
+	}
+}

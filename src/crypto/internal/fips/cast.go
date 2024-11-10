@@ -24,9 +24,9 @@ var failfipscast = godebug.New("#failfipscast")
 // testingOnlyCASTHook is called during tests with each CAST name.
 var testingOnlyCASTHook func(string)
 
-// CAST runs the named Cryptographic Algorithm Self-Test (if compiled and
-// operated in FIPS mode) and aborts the program (stopping the module
-// input/output and entering the "error state") if the self-test fails.
+// CAST runs the named Cryptographic Algorithm Self-Test (if operated in FIPS
+// mode) and aborts the program (stopping the module input/output and entering
+// the "error state") if the self-test fails.
 //
 // These are mandatory self-checks that must be performed by FIPS 140-3 modules
 // before the algorithm is used. See Implementation Guidance 10.3.A.
@@ -40,6 +40,9 @@ func CAST(name string, f func() error) {
 	}
 	if testingOnlyCASTHook != nil {
 		testingOnlyCASTHook(name)
+	}
+	if !Enabled {
+		return
 	}
 
 	err := f()
