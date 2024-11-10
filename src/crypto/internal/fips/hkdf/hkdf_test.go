@@ -5,6 +5,8 @@ package hkdf_test
 
 import (
 	"bytes"
+	"crypto/internal/boring"
+	"crypto/internal/fips"
 	"crypto/internal/fips/hkdf"
 	"crypto/md5"
 	"crypto/sha1"
@@ -329,6 +331,32 @@ func TestHKDFLimit(t *testing.T) {
 		}
 	}()
 	hkdf.Key(hash, master, nil, info, limit+1)
+}
+
+func TestFIPSServiceIndicator(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("in BoringCrypto mode HMAC is not from the Go FIPS module")
+	}
+
+	fips.ResetServiceIndicator()
+	hkdf.Key(sha256.New, []byte("YELLOW SUBMARINE"), nil, nil, 32)
+	if !fips.ServiceIndicator() {
+		t.Error("FIPS service indicator should be set")
+	}
+
+	// Key too short.
+	fips.ResetServiceIndicator()
+	hkdf.Key(sha256.New, []byte("key"), nil, nil, 32)
+	if fips.ServiceIndicator() {
+		t.Error("FIPS service indicator should not be set")
+	}
+
+	// Salt and info are short, which is ok, but translates to a short HMAC key.
+	fips.ResetServiceIndicator()
+	hkdf.Key(sha256.New, []byte("YELLOW SUBMARINE"), []byte("salt"), []byte("info"), 32)
+	if !fips.ServiceIndicator() {
+		t.Error("FIPS service indicator should be set")
+	}
 }
 
 func Benchmark16ByteMD5Single(b *testing.B) {

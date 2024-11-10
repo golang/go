@@ -44,6 +44,11 @@ func ServiceIndicator() bool {
 
 // RecordApproved is an internal function that records the use of an approved
 // service. It does not override RecordNonApproved calls in the same span.
+//
+// It should be called by exposed functions that perform a whole cryptographic
+// alrgorithm (e.g. by Sum, not by New, unless a cryptographic Instantiate
+// algorithm is performed) and should be called after any checks that may cause
+// the function to error out or panic.
 func RecordApproved() {
 	if getIndicator() == indicatorUnset {
 		setIndicator(indicatorTrue)

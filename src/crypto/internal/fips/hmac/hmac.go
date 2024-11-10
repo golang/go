@@ -35,9 +35,25 @@ type HMAC struct {
 	// copy of the key, but rather the marshaled state of outer/inner after
 	// opad/ipad has been fed into it.
 	marshaled bool
+
+	// forHKDF and keyLen are stored to inform the service indicator decision.
+	forHKDF bool
+	keyLen  int
 }
 
 func (h *HMAC) Sum(in []byte) []byte {
+	// Per FIPS 140-3 IG C.M, key lengths below 112 bits are only allowed for
+	// legacy use (i.e. verification only) and we don't support that. However,
+	// HKDF uses the HMAC key for the salt, which is allowed to be shorter.
+	if h.keyLen < 112/8 && !h.forHKDF {
+		fips.RecordNonApproved()
+	}
+	switch h.inner.(type) {
+	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
+	default:
+		fips.RecordNonApproved()
+	}
+
 	origLen := len(in)
 	in = h.inner.Sum(in)
 
@@ -113,7 +129,7 @@ func (h *HMAC) Reset() {
 
 // New returns a new HMAC hash using the given [fips.Hash] type and key.
 func New[H fips.Hash](h func() H, key []byte) *HMAC {
-	hm := new(HMAC)
+	hm := &HMAC{keyLen: len(key)}
 	hm.outer = h()
 	hm.inner = h()
 	unique := true
@@ -129,7 +145,6 @@ func New[H fips.Hash](h func() H, key []byte) *HMAC {
 	if !unique {
 		panic("crypto/hmac: hash generation function does not produce unique values")
 	}
-	setServiceIndicator(hm.outer, key)
 	blocksize := hm.inner.BlockSize()
 	hm.ipad = make([]byte, blocksize)
 	hm.opad = make([]byte, blocksize)
@@ -151,17 +166,7 @@ func New[H fips.Hash](h func() H, key []byte) *HMAC {
 	return hm
 }
 
-func setServiceIndicator(h fips.Hash, key []byte) {
-	// Per FIPS 140-3 IG C.M, key lengths below 112 bits are only allowed for
-	// legacy use (i.e. verification only) and we don't support that.
-	if len(key) < 112/8 {
-		fips.RecordNonApproved()
-	}
-
-	switch h.(type) {
-	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
-		fips.RecordApproved()
-	default:
-		fips.RecordNonApproved()
-	}
+// MarkAsUsedInHKDF records that this HMAC instance is used as part of HKDF.
+func MarkAsUsedInHKDF(h *HMAC) {
+	h.forHKDF = true
 }
