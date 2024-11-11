@@ -1051,27 +1051,14 @@
 (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (MOVDconst [0])))) => (SUBSflags x y)
 
 // mul by constant
-(MUL x (MOVDconst [-1])) => (NEG x)
 (MUL _ (MOVDconst [0])) => (MOVDconst [0])
 (MUL x (MOVDconst [1])) => x
-(MUL x (MOVDconst [c])) && isPowerOfTwo(c) => (SLLconst [log64(c)] x)
-(MUL x (MOVDconst [c])) && isPowerOfTwo(c-1) && c >= 3 => (ADDshiftLL x x [log64(c-1)])
-(MUL x (MOVDconst [c])) && isPowerOfTwo(c+1) && c >= 7 => (ADDshiftLL (NEG <x.Type> x) x [log64(c+1)])
-(MUL x (MOVDconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) => (SLLconst [log64(c/3)] (ADDshiftLL <x.Type> x x [1]))
-(MUL x (MOVDconst [c])) && c%5 == 0 && isPowerOfTwo(c/5) => (SLLconst [log64(c/5)] (ADDshiftLL <x.Type> x x [2]))
-(MUL x (MOVDconst [c])) && c%7 == 0 && isPowerOfTwo(c/7) => (SLLconst [log64(c/7)] (ADDshiftLL <x.Type> (NEG <x.Type> x) x [3]))
-(MUL x (MOVDconst [c])) && c%9 == 0 && isPowerOfTwo(c/9) => (SLLconst [log64(c/9)] (ADDshiftLL <x.Type> x x [3]))
 
-(MULW x (MOVDconst [c])) && int32(c)==-1 => (MOVWUreg (NEG <x.Type> x))
 (MULW _ (MOVDconst [c])) && int32(c)==0 => (MOVDconst [0])
 (MULW x (MOVDconst [c])) && int32(c)==1 => (MOVWUreg x)
-(MULW x (MOVDconst [c])) && isPowerOfTwo(c) => (MOVWUreg (SLLconst <x.Type> [log64(c)] x))
-(MULW x (MOVDconst [c])) && isPowerOfTwo(c-1) && int32(c) >= 3 => (MOVWUreg (ADDshiftLL <x.Type> x x [log64(c-1)]))
-(MULW x (MOVDconst [c])) && isPowerOfTwo(c+1) && int32(c) >= 7 => (MOVWUreg (ADDshiftLL <x.Type> (NEG <x.Type> x) x [log64(c+1)]))
-(MULW x (MOVDconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c) => (MOVWUreg (SLLconst <x.Type> [log64(c/3)] (ADDshiftLL <x.Type> x x [1])))
-(MULW x (MOVDconst [c])) && c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c) => (MOVWUreg (SLLconst <x.Type> [log64(c/5)] (ADDshiftLL <x.Type> x x [2])))
-(MULW x (MOVDconst [c])) && c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c) => (MOVWUreg (SLLconst <x.Type> [log64(c/7)] (ADDshiftLL <x.Type> (NEG <x.Type> x) x [3])))
-(MULW x (MOVDconst [c])) && c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c) => (MOVWUreg (SLLconst <x.Type> [log64(c/9)] (ADDshiftLL <x.Type> x x [3])))
+
+(MUL  x (MOVDconst [c])) && canMulStrengthReduce(config, c) => {mulStrengthReduce(v, x, c)}
+(MULW x (MOVDconst [c])) && v.Type.Size() <= 4 && canMulStrengthReduce32(config, int32(c)) => {mulStrengthReduce32(v, x, int32(c))}
 
 // mneg by constant
 (MNEG x (MOVDconst [-1])) => x

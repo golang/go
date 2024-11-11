@@ -50,6 +50,14 @@ type Config struct {
 	haveBswap64    bool      // architecture implements Bswap64
 	haveBswap32    bool      // architecture implements Bswap32
 	haveBswap16    bool      // architecture implements Bswap16
+
+	// mulRecipes[x] = function to build v * x from v.
+	mulRecipes map[int64]mulRecipe
+}
+
+type mulRecipe struct {
+	cost  int
+	build func(*Value, *Value) *Value // build(m, v) returns v * x built at m.
 }
 
 type (
@@ -364,6 +372,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 3 // BX
 	}
 
+	c.buildRecipes(arch)
+
 	return c
 }
 
@@ -381,4 +391,254 @@ func (c *Config) haveByteSwap(size int64) bool {
 		base.Fatalf("bad size %d\n", size)
 		return false
 	}
+}
+
+func (c *Config) buildRecipes(arch string) {
+	// Information for strength-reducing multiplies.
+	type linearCombo struct {
+		// we can compute a*x+b*y in one instruction
+		a, b int64
+		// cost, in arbitrary units (tenths of cycles, usually)
+		cost int
+		// builds SSA value for a*x+b*y. Use the position
+		// information from m.
+		build func(m, x, y *Value) *Value
+	}
+
+	// List all the linear combination instructions we have.
+	var linearCombos []linearCombo
+	r := func(a, b int64, cost int, build func(m, x, y *Value) *Value) {
+		linearCombos = append(linearCombos, linearCombo{a: a, b: b, cost: cost, build: build})
+	}
+	var mulCost int
+	switch arch {
+	case "amd64":
+		// Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
+		//    1 - addq, shlq, leaq, negq, subq
+		//    3 - imulq
+		// These costs limit the rewrites to two instructions.
+		// Operations which have to happen in place (and thus
+		// may require a reg-reg move) score slightly higher.
+		mulCost = 30
+		// add
+		r(1, 1, 10,
+			func(m, x, y *Value) *Value {
+				v := m.Block.NewValue2(m.Pos, OpAMD64ADDQ, m.Type, x, y)
+				if m.Type.Size() == 4 {
+					v.Op = OpAMD64ADDL
+				}
+				return v
+			})
+		// neg
+		r(-1, 0, 11,
+			func(m, x, y *Value) *Value {
+				v := m.Block.NewValue1(m.Pos, OpAMD64NEGQ, m.Type, x)
+				if m.Type.Size() == 4 {
+					v.Op = OpAMD64NEGL
+				}
+				return v
+			})
+		// sub
+		r(1, -1, 11,
+			func(m, x, y *Value) *Value {
+				v := m.Block.NewValue2(m.Pos, OpAMD64SUBQ, m.Type, x, y)
+				if m.Type.Size() == 4 {
+					v.Op = OpAMD64SUBL
+				}
+				return v
+			})
+		// lea
+		r(1, 2, 10,
+			func(m, x, y *Value) *Value {
+				v := m.Block.NewValue2(m.Pos, OpAMD64LEAQ2, m.Type, x, y)
+				if m.Type.Size() == 4 {
+					v.Op = OpAMD64LEAL2
+				}
+				return v
+			})
+		r(1, 4, 10,
+			func(m, x, y *Value) *Value {
+				v := m.Block.NewValue2(m.Pos, OpAMD64LEAQ4, m.Type, x, y)
+				if m.Type.Size() == 4 {
+					v.Op = OpAMD64LEAL4
+				}
+				return v
+			})
+		r(1, 8, 10,
+			func(m, x, y *Value) *Value {
+				v := m.Block.NewValue2(m.Pos, OpAMD64LEAQ8, m.Type, x, y)
+				if m.Type.Size() == 4 {
+					v.Op = OpAMD64LEAL8
+				}
+				return v
+			})
+		// regular shifts
+		for i := 2; i < 64; i++ {
+			r(1<<i, 0, 11,
+				func(m, x, y *Value) *Value {
+					v := m.Block.NewValue1I(m.Pos, OpAMD64SHLQconst, m.Type, int64(i), x)
+					if m.Type.Size() == 4 {
+						v.Op = OpAMD64SHLLconst
+					}
+					return v
+				})
+		}
+
+	case "arm64":
+		// Rationale (for M2 ultra):
+		// - multiply is 3 cycles.
+		// - add/neg/sub/shift are 1 cycle.
+		// - add/neg/sub+shiftLL are 2 cycles.
+		// We break ties against the multiply because using a
+		// multiply also needs to load the constant into a register.
+		// (It's 3 cycles and 2 instructions either way, but the
+		// linear combo one might use 1 less register.)
+		// The multiply constant might get lifted out of a loop though. Hmm....
+		// Other arm64 chips have different tradeoffs.
+		// Some chip's add+shift instructions are 1 cycle for shifts up to 4
+		// and 2 cycles for shifts bigger than 4. So weight the larger shifts
+		// a bit more.
+		// TODO: figure out a happy medium.
+		mulCost = 35
+		// add
+		r(1, 1, 10,
+			func(m, x, y *Value) *Value {
+				return m.Block.NewValue2(m.Pos, OpARM64ADD, m.Type, x, y)
+			})
+		// neg
+		r(-1, 0, 10,
+			func(m, x, y *Value) *Value {
+				return m.Block.NewValue1(m.Pos, OpARM64NEG, m.Type, x)
+			})
+		// sub
+		r(1, -1, 10,
+			func(m, x, y *Value) *Value {
+				return m.Block.NewValue2(m.Pos, OpARM64SUB, m.Type, x, y)
+			})
+		// regular shifts
+		for i := 1; i < 64; i++ {
+			c := 10
+			if i == 1 {
+				// Prefer x<<1 over x+x.
+				// Note that we eventually reverse this decision in ARM64latelower.rules,
+				// but this makes shift combining rules in ARM64.rules simpler.
+				c--
+			}
+			r(1<<i, 0, c,
+				func(m, x, y *Value) *Value {
+					return m.Block.NewValue1I(m.Pos, OpARM64SLLconst, m.Type, int64(i), x)
+				})
+		}
+		// ADDshiftLL
+		for i := 1; i < 64; i++ {
+			c := 20
+			if i > 4 {
+				c++
+			}
+			r(1, 1<<i, c,
+				func(m, x, y *Value) *Value {
+					return m.Block.NewValue2I(m.Pos, OpARM64ADDshiftLL, m.Type, int64(i), x, y)
+				})
+		}
+		// NEGshiftLL
+		for i := 1; i < 64; i++ {
+			c := 20
+			if i > 4 {
+				c++
+			}
+			r(-1<<i, 0, c,
+				func(m, x, y *Value) *Value {
+					return m.Block.NewValue1I(m.Pos, OpARM64NEGshiftLL, m.Type, int64(i), x)
+				})
+		}
+		// SUBshiftLL
+		for i := 1; i < 64; i++ {
+			c := 20
+			if i > 4 {
+				c++
+			}
+			r(1, -1<<i, c,
+				func(m, x, y *Value) *Value {
+					return m.Block.NewValue2I(m.Pos, OpARM64SUBshiftLL, m.Type, int64(i), x, y)
+				})
+		}
+	}
+
+	c.mulRecipes = map[int64]mulRecipe{}
+
+	// Single-instruction recipes.
+	// The only option for the input value(s) is v.
+	for _, combo := range linearCombos {
+		x := combo.a + combo.b
+		cost := combo.cost
+		old := c.mulRecipes[x]
+		if (old.build == nil || cost < old.cost) && cost < mulCost {
+			c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+				return combo.build(m, v, v)
+			}}
+		}
+	}
+	// Two-instruction recipes.
+	// A: Both of the outer's inputs are from the same single-instruction recipe.
+	// B: First input is v and the second is from a single-instruction recipe.
+	// C: Second input is v and the first is from a single-instruction recipe.
+	// A is slightly preferred because it often needs 1 less register, so it
+	// goes first.
+
+	// A
+	for _, inner := range linearCombos {
+		for _, outer := range linearCombos {
+			x := (inner.a + inner.b) * (outer.a + outer.b)
+			cost := inner.cost + outer.cost
+			old := c.mulRecipes[x]
+			if (old.build == nil || cost < old.cost) && cost < mulCost {
+				c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+					v = inner.build(m, v, v)
+					return outer.build(m, v, v)
+				}}
+			}
+		}
+	}
+
+	// B
+	for _, inner := range linearCombos {
+		for _, outer := range linearCombos {
+			x := outer.a + outer.b*(inner.a+inner.b)
+			cost := inner.cost + outer.cost
+			old := c.mulRecipes[x]
+			if (old.build == nil || cost < old.cost) && cost < mulCost {
+				c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+					return outer.build(m, v, inner.build(m, v, v))
+				}}
+			}
+		}
+	}
+
+	// C
+	for _, inner := range linearCombos {
+		for _, outer := range linearCombos {
+			x := outer.a*(inner.a+inner.b) + outer.b
+			cost := inner.cost + outer.cost
+			old := c.mulRecipes[x]
+			if (old.build == nil || cost < old.cost) && cost < mulCost {
+				c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+					return outer.build(m, inner.build(m, v, v), v)
+				}}
+			}
+		}
+	}
+
+	// These cases should be handled specially by rewrite rules.
+	// (Otherwise v * 1 == (neg (neg v)))
+	delete(c.mulRecipes, 0)
+	delete(c.mulRecipes, 1)
+
+	// Currently we assume that it doesn't help to do 3 linear
+	// combination instructions.
+
+	// Currently:
+	// len(c.mulRecipes) == 5984 on arm64
+	//                       680 on amd64
+	// This function takes ~2.5ms on arm64.
+	//println(len(c.mulRecipes))
 }

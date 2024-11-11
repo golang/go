@@ -560,6 +560,30 @@ func b2i32(b bool) int32 {
 	return 0
 }
 
+func canMulStrengthReduce(config *Config, x int64) bool {
+	_, ok := config.mulRecipes[x]
+	return ok
+}
+func canMulStrengthReduce32(config *Config, x int32) bool {
+	_, ok := config.mulRecipes[int64(x)]
+	return ok
+}
+
+// mulStrengthReduce returns v*x evaluated at the location
+// (block and source position) of m.
+// canMulStrengthReduce must have returned true.
+func mulStrengthReduce(m *Value, v *Value, x int64) *Value {
+	return v.Block.Func.Config.mulRecipes[x].build(m, v)
+}
+
+// mulStrengthReduce32 returns v*x evaluated at the location
+// (block and source position) of m.
+// canMulStrengthReduce32 must have returned true.
+// The upper 32 bits of m might be set to junk.
+func mulStrengthReduce32(m *Value, v *Value, x int32) *Value {
+	return v.Block.Func.Config.mulRecipes[int64(x)].build(m, v)
+}
+
 // shiftIsBounded reports whether (left/right) shift Value v is known to be bounded.
 // A shift is bounded if it is shifting by less than the width of the shifted value.
 func shiftIsBounded(v *Value) bool {

@@ -96,3 +96,8 @@
 
 // use zero register
 (MOVDconst [0]) => (ZERO)
+
+// Prefer addition when shifting left by one.
+// They have the same latency, but ADD can often be done
+// by more functional units in the processor.
+(SLLconst [1] x) => (ADD x x)

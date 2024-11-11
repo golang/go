@@ -882,44 +882,10 @@
 // (ANDQconst [0xFFFFFFFF] x) => (MOVLQZX x)
 
 // strength reduction
-// Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
-//    1 - addq, shlq, leaq, negq, subq
-//    3 - imulq
-// This limits the rewrites to two instructions.
-// Note that negq always operates in-place,
-// which can require a register-register move
-// to preserve the original value,
-// so it must be used with care.
-(MUL(Q|L)const [-9] x) => (NEG(Q|L) (LEA(Q|L)8 <v.Type> x x))
-(MUL(Q|L)const [-5] x) => (NEG(Q|L) (LEA(Q|L)4 <v.Type> x x))
-(MUL(Q|L)const [-3] x) => (NEG(Q|L) (LEA(Q|L)2 <v.Type> x x))
-(MUL(Q|L)const [-1] x) => (NEG(Q|L) x)
 (MUL(Q|L)const [ 0] _) => (MOV(Q|L)const [0])
 (MUL(Q|L)const [ 1] x) => x
-(MUL(Q|L)const [ 3] x) => (LEA(Q|L)2 x x)
-(MUL(Q|L)const [ 5] x) => (LEA(Q|L)4 x x)
-(MUL(Q|L)const [ 7] x) => (LEA(Q|L)2 x (LEA(Q|L)2 <v.Type> x x))
-(MUL(Q|L)const [ 9] x) => (LEA(Q|L)8 x x)
-(MUL(Q|L)const [11] x) => (LEA(Q|L)2 x (LEA(Q|L)4 <v.Type> x x))
-(MUL(Q|L)const [13] x) => (LEA(Q|L)4 x (LEA(Q|L)2 <v.Type> x x))
-(MUL(Q|L)const [19] x) => (LEA(Q|L)2 x (LEA(Q|L)8 <v.Type> x x))
-(MUL(Q|L)const [21] x) => (LEA(Q|L)4 x (LEA(Q|L)4 <v.Type> x x))
-(MUL(Q|L)const [25] x) => (LEA(Q|L)8 x (LEA(Q|L)2 <v.Type> x x))
-(MUL(Q|L)const [27] x) => (LEA(Q|L)8 (LEA(Q|L)2 <v.Type> x x) (LEA(Q|L)2 <v.Type> x x))
-(MUL(Q|L)const [37] x) => (LEA(Q|L)4 x (LEA(Q|L)8 <v.Type> x x))
-(MUL(Q|L)const [41] x) => (LEA(Q|L)8 x (LEA(Q|L)4 <v.Type> x x))
-(MUL(Q|L)const [45] x) => (LEA(Q|L)8 (LEA(Q|L)4 <v.Type> x x) (LEA(Q|L)4 <v.Type> x x))
-(MUL(Q|L)const [73] x) => (LEA(Q|L)8 x (LEA(Q|L)8 <v.Type> x x))
-(MUL(Q|L)const [81] x) => (LEA(Q|L)8 (LEA(Q|L)8 <v.Type> x x) (LEA(Q|L)8 <v.Type> x x))
-
-(MUL(Q|L)const [c] x) && isPowerOfTwo(int64(c)+1) && c >=  15 => (SUB(Q|L)  (SHL(Q|L)const <v.Type> [int8(log64(int64(c)+1))] x) x)
-(MUL(Q|L)const [c] x) && isPowerOfTwo(c-1) && c >=  17 => (LEA(Q|L)1 (SHL(Q|L)const <v.Type> [int8(log32(c-1))] x) x)
-(MUL(Q|L)const [c] x) && isPowerOfTwo(c-2) && c >=  34 => (LEA(Q|L)2 (SHL(Q|L)const <v.Type> [int8(log32(c-2))] x) x)
-(MUL(Q|L)const [c] x) && isPowerOfTwo(c-4) && c >=  68 => (LEA(Q|L)4 (SHL(Q|L)const <v.Type> [int8(log32(c-4))] x) x)
-(MUL(Q|L)const [c] x) && isPowerOfTwo(c-8) && c >= 136 => (LEA(Q|L)8 (SHL(Q|L)const <v.Type> [int8(log32(c-8))] x) x)
-(MUL(Q|L)const [c] x) && c%3 == 0 && isPowerOfTwo(c/3) => (SHL(Q|L)const [int8(log32(c/3))] (LEA(Q|L)2 <v.Type> x x))
-(MUL(Q|L)const [c] x) && c%5 == 0 && isPowerOfTwo(c/5) => (SHL(Q|L)const [int8(log32(c/5))] (LEA(Q|L)4 <v.Type> x x))
-(MUL(Q|L)const [c] x) && c%9 == 0 && isPowerOfTwo(c/9) => (SHL(Q|L)const [int8(log32(c/9))] (LEA(Q|L)8 <v.Type> x x))
+(MULQconst [c] x) && canMulStrengthReduce(config, int64(c)) => {mulStrengthReduce(v, x, int64(c))}
+(MULLconst [c] x) && v.Type.Size() <= 4 && canMulStrengthReduce32(config, c) => {mulStrengthReduce32(v, x, c)}
 
 // Prefer addition when shifting left by one
 (SHL(Q|L)const [1] x) => (ADD(Q|L) x x)
@@ -955,12 +921,12 @@
 (LEA(Q|L)8 [c] {s} x (ADD(Q|L)const [d] y)) && is32Bit(int64(c)+8*int64(d)) && y.Op != OpSB => (LEA(Q|L)8 [c+8*d] {s} x y)
 
 // fold shifts into LEAQx/LEALx
-(LEA(Q|L)1 [c] {s} x (ADD(Q|L) y y)) => (LEA(Q|L)2 [c] {s} x y)
+(LEA(Q|L)1 [c] {s} x z:(ADD(Q|L) y y)) && x != z => (LEA(Q|L)2 [c] {s} x y)
 (LEA(Q|L)1 [c] {s} x (SHL(Q|L)const [2] y)) => (LEA(Q|L)4 [c] {s} x y)
 (LEA(Q|L)1 [c] {s} x (SHL(Q|L)const [3] y)) => (LEA(Q|L)8 [c] {s} x y)
-(LEA(Q|L)2 [c] {s} x (ADD(Q|L) y y)) => (LEA(Q|L)4 [c] {s} x y)
+(LEA(Q|L)2 [c] {s} x z:(ADD(Q|L) y y)) && x != z => (LEA(Q|L)4 [c] {s} x y)
 (LEA(Q|L)2 [c] {s} x (SHL(Q|L)const [2] y)) => (LEA(Q|L)8 [c] {s} x y)
-(LEA(Q|L)4 [c] {s} x (ADD(Q|L) y y)) => (LEA(Q|L)8 [c] {s} x y)
+(LEA(Q|L)4 [c] {s} x z:(ADD(Q|L) y y)) && x != z => (LEA(Q|L)8 [c] {s} x y)
 
 // (x + x) << 1 -> x << 2
 (LEA(Q|L)2 [0] {s} (ADD(Q|L) x x) x) && s == nil => (SHL(Q|L)const [2] x)

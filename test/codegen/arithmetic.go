@@ -649,7 +649,7 @@ func constantFold2(i0, j0, i1, j1 int) (int, int) {
 }
 
 func constantFold3(i, j int) int {
-	// arm64: "MOVD\t[$]30","MUL",-"ADD",-"LSL"
+	// arm64: "LSL\t[$]5,","SUB\tR[0-9]+<<1,",-"ADD"
 	// ppc64x:"MULLD\t[$]30","MULLD"
 	r := (5 * i) * (6 * j)
 	return r

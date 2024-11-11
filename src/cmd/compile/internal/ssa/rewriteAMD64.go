@@ -8556,18 +8556,20 @@ func rewriteValueAMD64_OpAMD64LEAL1(v *Value) bool {
 		}
 		break
 	}
-	// match: (LEAL1 [c] {s} x (ADDL y y))
+	// match: (LEAL1 [c] {s} x z:(ADDL y y))
+	// cond: x != z
 	// result: (LEAL2 [c] {s} x y)
 	for {
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != OpAMD64ADDL {
+			z := v_1
+			if z.Op != OpAMD64ADDL {
 				continue
 			}
-			y := v_1.Args[1]
-			if y != v_1.Args[0] {
+			y := z.Args[1]
+			if y != z.Args[0] || !(x != z) {
 				continue
 			}
 			v.reset(OpAMD64LEAL2)
@@ -8663,17 +8665,19 @@ func rewriteValueAMD64_OpAMD64LEAL2(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
-	// match: (LEAL2 [c] {s} x (ADDL y y))
+	// match: (LEAL2 [c] {s} x z:(ADDL y y))
+	// cond: x != z
 	// result: (LEAL4 [c] {s} x y)
 	for {
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != OpAMD64ADDL {
+		z := v_1
+		if z.Op != OpAMD64ADDL {
 			break
 		}
-		y := v_1.Args[1]
-		if y != v_1.Args[0] {
+		y := z.Args[1]
+		if y != z.Args[0] || !(x != z) {
 			break
 		}
 		v.reset(OpAMD64LEAL4)
@@ -8765,17 +8769,19 @@ func rewriteValueAMD64_OpAMD64LEAL4(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
-	// match: (LEAL4 [c] {s} x (ADDL y y))
+	// match: (LEAL4 [c] {s} x z:(ADDL y y))
+	// cond: x != z
 	// result: (LEAL8 [c] {s} x y)
 	for {
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != OpAMD64ADDL {
+		z := v_1
+		if z.Op != OpAMD64ADDL {
 			break
 		}
-		y := v_1.Args[1]
-		if y != v_1.Args[0] {
+		y := z.Args[1]
+		if y != z.Args[0] || !(x != z) {
 			break
 		}
 		v.reset(OpAMD64LEAL8)
@@ -9019,18 +9025,20 @@ func rewriteValueAMD64_OpAMD64LEAQ1(v *Value) bool {
 		}
 		break
 	}
-	// match: (LEAQ1 [c] {s} x (ADDQ y y))
+	// match: (LEAQ1 [c] {s} x z:(ADDQ y y))
+	// cond: x != z
 	// result: (LEAQ2 [c] {s} x y)
 	for {
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != OpAMD64ADDQ {
+			z := v_1
+			if z.Op != OpAMD64ADDQ {
 				continue
 			}
-			y := v_1.Args[1]
-			if y != v_1.Args[0] {
+			y := z.Args[1]
+			if y != z.Args[0] || !(x != z) {
 				continue
 			}
 			v.reset(OpAMD64LEAQ2)
@@ -9225,17 +9233,19 @@ func rewriteValueAMD64_OpAMD64LEAQ2(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
-	// match: (LEAQ2 [c] {s} x (ADDQ y y))
+	// match: (LEAQ2 [c] {s} x z:(ADDQ y y))
+	// cond: x != z
 	// result: (LEAQ4 [c] {s} x y)
 	for {
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != OpAMD64ADDQ {
+		z := v_1
+		if z.Op != OpAMD64ADDQ {
 			break
 		}
-		y := v_1.Args[1]
-		if y != v_1.Args[0] {
+		y := z.Args[1]
+		if y != z.Args[0] || !(x != z) {
 			break
 		}
 		v.reset(OpAMD64LEAQ4)
@@ -9411,17 +9421,19 @@ func rewriteValueAMD64_OpAMD64LEAQ4(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
-	// match: (LEAQ4 [c] {s} x (ADDQ y y))
+	// match: (LEAQ4 [c] {s} x z:(ADDQ y y))
+	// cond: x != z
 	// result: (LEAQ8 [c] {s} x y)
 	for {
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != OpAMD64ADDQ {
+		z := v_1
+		if z.Op != OpAMD64ADDQ {
 			break
 		}
-		y := v_1.Args[1]
-		if y != v_1.Args[0] {
+		y := z.Args[1]
+		if y != z.Args[0] || !(x != z) {
 			break
 		}
 		v.reset(OpAMD64LEAQ8)
@@ -13496,6 +13508,7 @@ func rewriteValueAMD64_OpAMD64MULL(v *Value) bool {
 func rewriteValueAMD64_OpAMD64MULLconst(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
+	config := b.Func.Config
 	// match: (MULLconst [c] (MULLconst [d] x))
 	// result: (MULLconst [c * d] x)
 	for {
@@ -13507,56 +13520,6 @@ func rewriteValueAMD64_OpAMD64MULLconst(v *Value) bool {
 		x := v_0.Args[0]
 		v.reset(OpAMD64MULLconst)
 		v.AuxInt = int32ToAuxInt(c * d)
-		v.AddArg(x)
-		return true
-	}
-	// match: (MULLconst [-9] x)
-	// result: (NEGL (LEAL8 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != -9 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64NEGL)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (MULLconst [-5] x)
-	// result: (NEGL (LEAL4 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != -5 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64NEGL)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (MULLconst [-3] x)
-	// result: (NEGL (LEAL2 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != -3 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64NEGL)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (MULLconst [-1] x)
-	// result: (NEGL x)
-	for {
-		if auxIntToInt32(v.AuxInt) != -1 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64NEGL)
 		v.AddArg(x)
 		return true
 	}
@@ -13580,321 +13543,16 @@ func rewriteValueAMD64_OpAMD64MULLconst(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
-	// match: (MULLconst [ 3] x)
-	// result: (LEAL2 x x)
-	for {
-		if auxIntToInt32(v.AuxInt) != 3 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL2)
-		v.AddArg2(x, x)
-		return true
-	}
-	// match: (MULLconst [ 5] x)
-	// result: (LEAL4 x x)
-	for {
-		if auxIntToInt32(v.AuxInt) != 5 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL4)
-		v.AddArg2(x, x)
-		return true
-	}
-	// match: (MULLconst [ 7] x)
-	// result: (LEAL2 x (LEAL2 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 7 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL2)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULLconst [ 9] x)
-	// result: (LEAL8 x x)
-	for {
-		if auxIntToInt32(v.AuxInt) != 9 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL8)
-		v.AddArg2(x, x)
-		return true
-	}
-	// match: (MULLconst [11] x)
-	// result: (LEAL2 x (LEAL4 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 11 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL2)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULLconst [13] x)
-	// result: (LEAL4 x (LEAL2 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 13 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL4)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULLconst [19] x)
-	// result: (LEAL2 x (LEAL8 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 19 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL2)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULLconst [21] x)
-	// result: (LEAL4 x (LEAL4 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 21 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL4)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULLconst [25] x)
-	// result: (LEAL8 x (LEAL2 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 25 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULLconst [27] x)
-	// result: (LEAL8 (LEAL2 <v.Type> x x) (LEAL2 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 27 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(v0, v0)
-		return true
-	}
-	// match: (MULLconst [37] x)
-	// result: (LEAL4 x (LEAL8 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 37 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL4)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULLconst [41] x)
-	// result: (LEAL8 x (LEAL4 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 41 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULLconst [45] x)
-	// result: (LEAL8 (LEAL4 <v.Type> x x) (LEAL4 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 45 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(v0, v0)
-		return true
-	}
-	// match: (MULLconst [73] x)
-	// result: (LEAL8 x (LEAL8 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 73 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULLconst [81] x)
-	// result: (LEAL8 (LEAL8 <v.Type> x x) (LEAL8 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 81 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAL8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(v0, v0)
-		return true
-	}
 	// match: (MULLconst [c] x)
-	// cond: isPowerOfTwo(int64(c)+1) && c >= 15
-	// result: (SUBL (SHLLconst <v.Type> [int8(log64(int64(c)+1))] x) x)
+	// cond: v.Type.Size() <= 4 && canMulStrengthReduce32(config, c)
+	// result: {mulStrengthReduce32(v, x, c)}
 	for {
 		c := auxIntToInt32(v.AuxInt)
 		x := v_0
-		if !(isPowerOfTwo(int64(c)+1) && c >= 15) {
+		if !(v.Type.Size() <= 4 && canMulStrengthReduce32(config, c)) {
 			break
 		}
-		v.reset(OpAMD64SUBL)
-		v0 := b.NewValue0(v.Pos, OpAMD64SHLLconst, v.Type)
-		v0.AuxInt = int8ToAuxInt(int8(log64(int64(c) + 1)))
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (MULLconst [c] x)
-	// cond: isPowerOfTwo(c-1) && c >= 17
-	// result: (LEAL1 (SHLLconst <v.Type> [int8(log32(c-1))] x) x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(isPowerOfTwo(c-1) && c >= 17) {
-			break
-		}
-		v.reset(OpAMD64LEAL1)
-		v0 := b.NewValue0(v.Pos, OpAMD64SHLLconst, v.Type)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c - 1)))
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (MULLconst [c] x)
-	// cond: isPowerOfTwo(c-2) && c >= 34
-	// result: (LEAL2 (SHLLconst <v.Type> [int8(log32(c-2))] x) x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(isPowerOfTwo(c-2) && c >= 34) {
-			break
-		}
-		v.reset(OpAMD64LEAL2)
-		v0 := b.NewValue0(v.Pos, OpAMD64SHLLconst, v.Type)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c - 2)))
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (MULLconst [c] x)
-	// cond: isPowerOfTwo(c-4) && c >= 68
-	// result: (LEAL4 (SHLLconst <v.Type> [int8(log32(c-4))] x) x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(isPowerOfTwo(c-4) && c >= 68) {
-			break
-		}
-		v.reset(OpAMD64LEAL4)
-		v0 := b.NewValue0(v.Pos, OpAMD64SHLLconst, v.Type)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c - 4)))
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (MULLconst [c] x)
-	// cond: isPowerOfTwo(c-8) && c >= 136
-	// result: (LEAL8 (SHLLconst <v.Type> [int8(log32(c-8))] x) x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(isPowerOfTwo(c-8) && c >= 136) {
-			break
-		}
-		v.reset(OpAMD64LEAL8)
-		v0 := b.NewValue0(v.Pos, OpAMD64SHLLconst, v.Type)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c - 8)))
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (MULLconst [c] x)
-	// cond: c%3 == 0 && isPowerOfTwo(c/3)
-	// result: (SHLLconst [int8(log32(c/3))] (LEAL2 <v.Type> x x))
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(c%3 == 0 && isPowerOfTwo(c/3)) {
-			break
-		}
-		v.reset(OpAMD64SHLLconst)
-		v.AuxInt = int8ToAuxInt(int8(log32(c / 3)))
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (MULLconst [c] x)
-	// cond: c%5 == 0 && isPowerOfTwo(c/5)
-	// result: (SHLLconst [int8(log32(c/5))] (LEAL4 <v.Type> x x))
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(c%5 == 0 && isPowerOfTwo(c/5)) {
-			break
-		}
-		v.reset(OpAMD64SHLLconst)
-		v.AuxInt = int8ToAuxInt(int8(log32(c / 5)))
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (MULLconst [c] x)
-	// cond: c%9 == 0 && isPowerOfTwo(c/9)
-	// result: (SHLLconst [int8(log32(c/9))] (LEAL8 <v.Type> x x))
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(c%9 == 0 && isPowerOfTwo(c/9)) {
-			break
-		}
-		v.reset(OpAMD64SHLLconst)
-		v.AuxInt = int8ToAuxInt(int8(log32(c / 9)))
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
+		v.copyOf(mulStrengthReduce32(v, x, c))
 		return true
 	}
 	// match: (MULLconst [c] (MOVLconst [d]))
@@ -13939,6 +13597,7 @@ func rewriteValueAMD64_OpAMD64MULQ(v *Value) bool {
 func rewriteValueAMD64_OpAMD64MULQconst(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
+	config := b.Func.Config
 	// match: (MULQconst [c] (MULQconst [d] x))
 	// cond: is32Bit(int64(c)*int64(d))
 	// result: (MULQconst [c * d] x)
@@ -13954,56 +13613,6 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value) bool {
 		}
 		v.reset(OpAMD64MULQconst)
 		v.AuxInt = int32ToAuxInt(c * d)
-		v.AddArg(x)
-		return true
-	}
-	// match: (MULQconst [-9] x)
-	// result: (NEGQ (LEAQ8 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != -9 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64NEGQ)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (MULQconst [-5] x)
-	// result: (NEGQ (LEAQ4 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != -5 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64NEGQ)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (MULQconst [-3] x)
-	// result: (NEGQ (LEAQ2 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != -3 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64NEGQ)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (MULQconst [-1] x)
-	// result: (NEGQ x)
-	for {
-		if auxIntToInt32(v.AuxInt) != -1 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64NEGQ)
 		v.AddArg(x)
 		return true
 	}
@@ -14027,321 +13636,16 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
-	// match: (MULQconst [ 3] x)
-	// result: (LEAQ2 x x)
-	for {
-		if auxIntToInt32(v.AuxInt) != 3 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ2)
-		v.AddArg2(x, x)
-		return true
-	}
-	// match: (MULQconst [ 5] x)
-	// result: (LEAQ4 x x)
-	for {
-		if auxIntToInt32(v.AuxInt) != 5 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ4)
-		v.AddArg2(x, x)
-		return true
-	}
-	// match: (MULQconst [ 7] x)
-	// result: (LEAQ2 x (LEAQ2 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 7 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ2)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULQconst [ 9] x)
-	// result: (LEAQ8 x x)
-	for {
-		if auxIntToInt32(v.AuxInt) != 9 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ8)
-		v.AddArg2(x, x)
-		return true
-	}
-	// match: (MULQconst [11] x)
-	// result: (LEAQ2 x (LEAQ4 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 11 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ2)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULQconst [13] x)
-	// result: (LEAQ4 x (LEAQ2 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 13 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ4)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULQconst [19] x)
-	// result: (LEAQ2 x (LEAQ8 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 19 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ2)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULQconst [21] x)
-	// result: (LEAQ4 x (LEAQ4 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 21 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ4)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULQconst [25] x)
-	// result: (LEAQ8 x (LEAQ2 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 25 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULQconst [27] x)
-	// result: (LEAQ8 (LEAQ2 <v.Type> x x) (LEAQ2 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 27 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(v0, v0)
-		return true
-	}
-	// match: (MULQconst [37] x)
-	// result: (LEAQ4 x (LEAQ8 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 37 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ4)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULQconst [41] x)
-	// result: (LEAQ8 x (LEAQ4 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 41 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULQconst [45] x)
-	// result: (LEAQ8 (LEAQ4 <v.Type> x x) (LEAQ4 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 45 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(v0, v0)
-		return true
-	}
-	// match: (MULQconst [73] x)
-	// result: (LEAQ8 x (LEAQ8 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 73 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(x, v0)
-		return true
-	}
-	// match: (MULQconst [81] x)
-	// result: (LEAQ8 (LEAQ8 <v.Type> x x) (LEAQ8 <v.Type> x x))
-	for {
-		if auxIntToInt32(v.AuxInt) != 81 {
-			break
-		}
-		x := v_0
-		v.reset(OpAMD64LEAQ8)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg2(v0, v0)
-		return true
-	}
 	// match: (MULQconst [c] x)
-	// cond: isPowerOfTwo(int64(c)+1) && c >= 15
-	// result: (SUBQ (SHLQconst <v.Type> [int8(log64(int64(c)+1))] x) x)
+	// cond: canMulStrengthReduce(config, int64(c))
+	// result: {mulStrengthReduce(v, x, int64(c))}
 	for {
 		c := auxIntToInt32(v.AuxInt)
 		x := v_0
-		if !(isPowerOfTwo(int64(c)+1) && c >= 15) {
+		if !(canMulStrengthReduce(config, int64(c))) {
 			break
 		}
-		v.reset(OpAMD64SUBQ)
-		v0 := b.NewValue0(v.Pos, OpAMD64SHLQconst, v.Type)
-		v0.AuxInt = int8ToAuxInt(int8(log64(int64(c) + 1)))
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (MULQconst [c] x)
-	// cond: isPowerOfTwo(c-1) && c >= 17
-	// result: (LEAQ1 (SHLQconst <v.Type> [int8(log32(c-1))] x) x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(isPowerOfTwo(c-1) && c >= 17) {
-			break
-		}
-		v.reset(OpAMD64LEAQ1)
-		v0 := b.NewValue0(v.Pos, OpAMD64SHLQconst, v.Type)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c - 1)))
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (MULQconst [c] x)
-	// cond: isPowerOfTwo(c-2) && c >= 34
-	// result: (LEAQ2 (SHLQconst <v.Type> [int8(log32(c-2))] x) x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(isPowerOfTwo(c-2) && c >= 34) {
-			break
-		}
-		v.reset(OpAMD64LEAQ2)
-		v0 := b.NewValue0(v.Pos, OpAMD64SHLQconst, v.Type)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c - 2)))
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (MULQconst [c] x)
-	// cond: isPowerOfTwo(c-4) && c >= 68
-	// result: (LEAQ4 (SHLQconst <v.Type> [int8(log32(c-4))] x) x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(isPowerOfTwo(c-4) && c >= 68) {
-			break
-		}
-		v.reset(OpAMD64LEAQ4)
-		v0 := b.NewValue0(v.Pos, OpAMD64SHLQconst, v.Type)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c - 4)))
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (MULQconst [c] x)
-	// cond: isPowerOfTwo(c-8) && c >= 136
-	// result: (LEAQ8 (SHLQconst <v.Type> [int8(log32(c-8))] x) x)
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(isPowerOfTwo(c-8) && c >= 136) {
-			break
-		}
-		v.reset(OpAMD64LEAQ8)
-		v0 := b.NewValue0(v.Pos, OpAMD64SHLQconst, v.Type)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c - 8)))
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (MULQconst [c] x)
-	// cond: c%3 == 0 && isPowerOfTwo(c/3)
-	// result: (SHLQconst [int8(log32(c/3))] (LEAQ2 <v.Type> x x))
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(c%3 == 0 && isPowerOfTwo(c/3)) {
-			break
-		}
-		v.reset(OpAMD64SHLQconst)
-		v.AuxInt = int8ToAuxInt(int8(log32(c / 3)))
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (MULQconst [c] x)
-	// cond: c%5 == 0 && isPowerOfTwo(c/5)
-	// result: (SHLQconst [int8(log32(c/5))] (LEAQ4 <v.Type> x x))
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(c%5 == 0 && isPowerOfTwo(c/5)) {
-			break
-		}
-		v.reset(OpAMD64SHLQconst)
-		v.AuxInt = int8ToAuxInt(int8(log32(c / 5)))
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (MULQconst [c] x)
-	// cond: c%9 == 0 && isPowerOfTwo(c/9)
-	// result: (SHLQconst [int8(log32(c/9))] (LEAQ8 <v.Type> x x))
-	for {
-		c := auxIntToInt32(v.AuxInt)
-		x := v_0
-		if !(c%9 == 0 && isPowerOfTwo(c/9)) {
-			break
-		}
-		v.reset(OpAMD64SHLQconst)
-		v.AuxInt = int8ToAuxInt(int8(log32(c / 9)))
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, v.Type)
-		v0.AddArg2(x, x)
-		v.AddArg(v0)
+		v.copyOf(mulStrengthReduce(v, x, int64(c)))
 		return true
 	}
 	// match: (MULQconst [c] (MOVQconst [d]))

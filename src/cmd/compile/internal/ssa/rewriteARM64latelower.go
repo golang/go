@@ -38,6 +38,8 @@ func rewriteValueARM64latelower(v *Value) bool {
 		return rewriteValueARM64latelower_OpARM64MOVWreg(v)
 	case OpARM64ORconst:
 		return rewriteValueARM64latelower_OpARM64ORconst(v)
+	case OpARM64SLLconst:
+		return rewriteValueARM64latelower_OpARM64SLLconst(v)
 	case OpARM64SUBconst:
 		return rewriteValueARM64latelower_OpARM64SUBconst(v)
 	case OpARM64TSTWconst:
@@ -992,6 +994,21 @@ func rewriteValueARM64latelower_OpARM64ORconst(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
 		v0.AuxInt = int64ToAuxInt(c)
 		v.AddArg2(x, v0)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64latelower_OpARM64SLLconst(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (SLLconst [1] x)
+	// result: (ADD x x)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 {
+			break
+		}
+		x := v_0
+		v.reset(OpARM64ADD)
+		v.AddArg2(x, x)
 		return true
 	}
 	return false

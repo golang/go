@@ -50,6 +50,7 @@ import (
 // special rules: trailing ellipsis "..." (in the outermost sexpr?) must match on both sides of a rule.
 //                trailing three underscore "___" in the outermost match sexpr indicate the presence of
 //                   extra ignored args that need not appear in the replacement
+//                if the right-hand side is in {}, then it is code used to generate the result.
 
 // extra conditions is just a chunk of Go that evaluates to a boolean. It may use
 // variables declared in the matching tsexpr. The variable "v" is predefined to be
@@ -1181,6 +1182,11 @@ func genResult(rr *RuleRewrite, arch arch, result, pos string) {
 		s := strings.SplitN(result[1:], " ", 2)
 		rr.add(stmtf("b = %s", s[0]))
 		result = s[1]
+	}
+	if result[0] == '{' {
+		// Arbitrary code used to make the result
+		rr.add(stmtf("v.copyOf(%s)", result[1:len(result)-1]))
+		return
 	}
 	cse := make(map[string]string)
 	genResult0(rr, arch, result, true, move, pos, cse)
