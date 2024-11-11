@@ -476,6 +476,37 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 	return m, state == wrongSig || state == ptrRecv
 }
 
+// hasAllMethods is similar to checkMissingMethod but instead reports whether all methods are present.
+// If V is not a valid type, or if it is a struct containing embedded fields with invalid types, the
+// result is true because it is not possible to say with certainty whether a method is missing or not
+// (an embedded field may have the method in question).
+// If the result is false and cause is not nil, *cause describes the error.
+// Use hasAllMethods to avoid follow-on errors due to incorrect types.
+func (check *Checker) hasAllMethods(V, T Type, static bool, equivalent func(x, y Type) bool, cause *string) bool {
+	if !isValid(V) {
+		return true // we don't know anything about V, assume it implements T
+	}
+	m, _ := check.missingMethod(V, T, static, equivalent, cause)
+	return m == nil || hasInvalidEmbeddedFields(V, nil)
+}
+
+// hasInvalidEmbeddedFields reports whether T is a struct (or a pointer to a struct) that contains
+// (directly or indirectly) embedded fields with invalid types.
+func hasInvalidEmbeddedFields(T Type, seen map[*Struct]bool) bool {
+	if S, _ := under(derefStructPtr(T)).(*Struct); S != nil && !seen[S] {
+		if seen == nil {
+			seen = make(map[*Struct]bool)
+		}
+		seen[S] = true
+		for _, f := range S.fields {
+			if f.embedded && (!isValid(f.typ) || hasInvalidEmbeddedFields(f.typ, seen)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func isInterfacePtr(T Type) bool {
 	p, _ := under(T).(*Pointer)
 	return p != nil && IsInterface(p.base)
@@ -519,8 +550,7 @@ func (check *Checker) assertableTo(V, T Type, cause *string) bool {
 		return true
 	}
 	// TODO(gri) fix this for generalized interfaces
-	m, _ := check.missingMethod(T, V, false, Identical, cause)
-	return m == nil
+	return check.hasAllMethods(T, V, false, Identical, cause)
 }
 
 // newAssertableTo reports whether a value of type V can be asserted to have type T.
