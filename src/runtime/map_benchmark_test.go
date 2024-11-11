@@ -714,6 +714,42 @@ func BenchmarkMapIter(b *testing.B) {
 	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapIter[int32, *int32]))
 }
 
+func benchmarkMapIterLowLoad[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	// Only insert one entry regardless of map size.
+	k := genValues[K](0, 1)
+	e := genValues[E](0, 1)
+
+	m := make(map[K]E, n)
+	for i := range k {
+		m[k[i]] = e[i]
+	}
+
+	iterations := iterCount(b, n)
+	sinkK := newSink[K]()
+	sinkE := newSink[E]()
+	b.ResetTimer()
+
+	for i := 0; i < iterations; i++ {
+		for k, e := range m {
+			*sinkK = k
+			*sinkE = e
+		}
+	}
+}
+
+func BenchmarkMapIterLowLoad(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapIterLowLoad[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapIterLowLoad[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapIterLowLoad[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapIterLowLoad[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapIterLowLoad[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapIterLowLoad[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapIterLowLoad[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapIterLowLoad[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapIterLowLoad[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapIterLowLoad[int32, *int32]))
+}
+
 func benchmarkMapAccessHit[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
 	if n == 0 {
 		b.Skip("can't access empty map")
