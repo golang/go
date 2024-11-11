@@ -688,25 +688,6 @@ func (x *Nat) montgomeryMul(a *Nat, b *Nat, m *Modulus) *Nat {
 	return x
 }
 
-// addMulVVW multiplies the multi-word value x by the single-word value y,
-// adding the result to the multi-word value z and returning the final carry.
-// It can be thought of as one row of a pen-and-paper column multiplication.
-func addMulVVW(z, x []uint, y uint) (carry uint) {
-	_ = x[len(z)-1] // bounds check elimination hint
-	for i := range z {
-		hi, lo := bits.Mul(x[i], y)
-		lo, c := bits.Add(lo, z[i], 0)
-		// We use bits.Add with zero to get an add-with-carry instruction that
-		// absorbs the carry from the previous bits.Add.
-		hi, _ = bits.Add(hi, 0, c)
-		lo, c = bits.Add(lo, carry, 0)
-		hi, _ = bits.Add(hi, 0, c)
-		carry = hi
-		z[i] = lo
-	}
-	return carry
-}
-
 // Mul calculates x = x * y mod m.
 //
 // The length of both operands must be the same as the modulus. Both operands
