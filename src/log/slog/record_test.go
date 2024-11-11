@@ -56,7 +56,7 @@ func TestRecordSource(t *testing.T) {
 			pc = callerPC(test.depth + 1)
 		}
 		r := NewRecord(time.Time{}, 0, "", pc)
-		got := r.source()
+		got := r.Source()
 		if i := strings.LastIndexByte(got.File, '/'); i >= 0 {
 			got.File = got.File[i+1:]
 		}

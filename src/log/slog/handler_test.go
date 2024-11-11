@@ -547,7 +547,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
 		},
 	} {
 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
-		line := strconv.Itoa(r.source().Line)
+		line := strconv.Itoa(r.Source().Line)
 		r.AddAttrs(test.attrs...)
 		var buf bytes.Buffer
 		opts := HandlerOptions{ReplaceAttr: test.replace, AddSource: test.addSource}
