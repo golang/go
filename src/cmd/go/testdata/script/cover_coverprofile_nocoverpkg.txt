@@ -1,0 +1,50 @@
+# Testcase for #70244. In this bug we're doing a "go test -coverprofile"
+# run for a pair of packages, the first one without tests and the second
+# one with tests. When writing the profile for the second test, profile
+# data from the first package was leaking into the output (we should
+# only see lines in the output profile for the package whose test is
+# being run).
+
+[short] skip
+
+# Kick off test.
+go test -vet=off -count=1 -coverprofile=cov.p ./...
+
+# Generate a function profile.
+go tool cover -func=cov.p
+
+# Prior to GOEXPERIMENT=coverageredesign we should see no output at all for
+# pkg1 (since it has no tests).
+[!GOEXPERIMENT:coverageredesign] ! stdout 'pkg1'
+
+# With GOEXPERIMENT=coverageredesign enabled we should see zero percent
+# coverage for pkg1's DoSomething, not 100% (as in the bug).
+[GOEXPERIMENT:coverageredesign] stdout 'cov/pkg1/file.go:3:\s+DoSomething\s+0.0%'
+
+-- go.mod --
+module cov
+
+-- pkg1/file.go --
+package pkg1
+
+func DoSomething() bool {
+	return true
+}
+-- pkg2/file.go --
+package pkg2
+
+func DoSomething() bool {
+	return true
+}
+-- pkg2/file_test.go --
+package pkg2
+
+import (
+	"cov/pkg1"
+	"testing"
+)
+
+func TestSmth(t *testing.T) {
+	pkg1.DoSomething()
+	DoSomething()
+}
