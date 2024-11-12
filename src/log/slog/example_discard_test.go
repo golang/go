@@ -7,14 +7,14 @@ import (
 )
 
 func ExampleDiscardHandler() {
-	// A slog.TextHandler will output logs
+	// A slog.TextHandler can output log messages.
 	logger1 := slog.New(slog.NewTextHandler(
 		os.Stdout,
 		&slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime},
 	))
 	logger1.Info("message 1")
 
-	// A slog.DiscardHandler will discard all messages
+	// A slog.DiscardHandler will discard all messages.
 	logger2 := slog.New(slog.DiscardHandler)
 	logger2.Info("message 2")
 
