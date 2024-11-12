@@ -347,32 +347,65 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
 	MOVV	arg+16(FP), R4;			\
-	MOVWU	argsize+24(FP), R5;			\
-	MOVV	R3, R12;				\
+	MOVWU	argsize+24(FP), R5;		\
+	MOVV	R3, R12;			\
+	MOVV	$16, R13;			\
 	ADDV	$8, R12;			\
-	ADDV	R12, R5;				\
-	BEQ	R12, R5, 6(PC);				\
-	MOVBU	(R4), R6;			\
-	ADDV	$1, R4;			\
-	MOVBU	R6, (R12);			\
-	ADDV	$1, R12;			\
-	JMP	-5(PC);				\
+	BLT	R5, R13, check8;		\
+	/* copy 16 bytes a time */		\
+	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLSX(SB), R16;	\
+	BEQ	R16, copy16_again;		\
+loop16:;					\
+	VMOVQ	(R4), V0;			\
+	ADDV	$16, R4;			\
+	ADDV	$-16, R5;			\
+	VMOVQ	V0, (R12);			\
+	ADDV	$16, R12;			\
+	BGE	R5, R13, loop16;		\
+	JMP	check8;				\
+copy16_again:;					\
+	MOVV	(R4), R14;			\
+	MOVV	8(R4), R15;			\
+	ADDV	$16, R4;			\
+	ADDV	$-16, R5;			\
+	MOVV	R14, (R12);			\
+	MOVV	R15, 8(R12);			\
+	ADDV	$16, R12;			\
+	BGE	R5, R13, copy16_again;		\
+check8:;					\
+	/* R13 = 8 */;				\
+	SRLV	$1, R13;			\
+	BLT	R5, R13, 6(PC);			\
+	/* copy 8 bytes a time */		\
+	MOVV	(R4), R14;			\
+	ADDV	$8, R4;				\
+	ADDV	$-8, R5;			\
+	MOVV	R14, (R12);			\
+	ADDV	$8, R12;			\
+	BEQ     R5, R0, 7(PC);  		\
+	/* copy 1 byte a time for the rest */	\
+	MOVBU   (R4), R14;      		\
+	ADDV    $1, R4;         		\
+	ADDV    $-1, R5;        		\
+	MOVBU   R14, (R12);     		\
+	ADDV    $1, R12;        		\
+	JMP     -6(PC);         		\
 	/* set up argument registers */		\
 	MOVV	regArgs+40(FP), R25;		\
 	JAL	·unspillArgs(SB);		\
 	/* call function */			\
-	MOVV	f+8(FP), REGCTXT;			\
+	MOVV	f+8(FP), REGCTXT;		\
 	MOVV	(REGCTXT), R25;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	JAL	(R25);				\
 	/* copy return values back */		\
 	MOVV	regArgs+40(FP), R25;		\
-	JAL	·spillArgs(SB);		\
+	JAL	·spillArgs(SB);			\
 	MOVV	argtype+0(FP), R7;		\
 	MOVV	arg+16(FP), R4;			\
 	MOVWU	n+24(FP), R5;			\
 	MOVWU	retoffset+28(FP), R6;		\
-	ADDV	$8, R3, R12;				\
+	ADDV	$8, R3, R12;			\
 	ADDV	R6, R12; 			\
 	ADDV	R6, R4;				\
 	SUBVU	R6, R5;				\
