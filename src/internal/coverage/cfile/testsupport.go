@@ -109,7 +109,7 @@ func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.
 
 	// Emit text output.
 	if tf != nil {
-		if err := ts.cf.EmitTextual(tf); err != nil {
+		if err := ts.cf.EmitTextual(nil, tf); err != nil {
 			return err
 		}
 		tfClosed = true

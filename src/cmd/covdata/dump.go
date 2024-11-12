@@ -331,7 +331,7 @@ func (d *dstate) Finish() {
 			d.format.EmitFuncs(os.Stdout)
 		}
 		if d.textfmtoutf != nil {
-			if err := d.format.EmitTextual(d.textfmtoutf); err != nil {
+			if err := d.format.EmitTextual(nil, d.textfmtoutf); err != nil {
 				fatal("writing to %s: %v", *textfmtoutflag, err)
 			}
 		}
