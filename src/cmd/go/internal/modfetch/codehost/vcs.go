@@ -560,6 +560,7 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
 func bzrParseStat(rev, out string) (*RevInfo, error) {
 	var revno int64
 	var tm time.Time
+	var tags []string
 	for _, line := range strings.Split(out, "\n") {
 		if line == "" || line[0] == ' ' || line[0] == '\t' {
 			// End of header, start of commit message.
@@ -594,6 +595,8 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 				return nil, vcsErrorf("unexpected timestamp from bzr log: %q", line)
 			}
 			tm = t.UTC()
+		case "tags":
+			tags = strings.Split(val, ", ")
 		}
 	}
 	if revno == 0 || tm.IsZero() {
@@ -605,6 +608,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 		Short:   fmt.Sprintf("%012d", revno),
 		Time:    tm,
 		Version: rev,
+		Tags:    tags,
 	}
 	return info, nil
 }
