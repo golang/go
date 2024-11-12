@@ -105,6 +105,13 @@ type rootTest struct {
 	// the target is the filename that should not have been opened.
 	target string
 
+	// ltarget is the filename that we expect to accessed, after resolving all symlinks
+	// except the last one. This is the file we expect to be removed by Remove or statted
+	// by Lstat.
+	//
+	// If the last path component in open is not a symlink, ltarget should be "".
+	ltarget string
+
 	// wantError is true if accessing the file should fail.
 	wantError bool
 
@@ -176,8 +183,9 @@ var rootTestCases = []rootTest{{
 	fs: []string{
 		"link => target",
 	},
-	open:   "link",
-	target: "target",
+	open:    "link",
+	target:  "target",
+	ltarget: "link",
 }, {
 	name: "symlink chain",
 	fs: []string{
@@ -188,8 +196,9 @@ var rootTestCases = []rootTest{{
 		"g/h/i => ..",
 		"g/c/",
 	},
-	open:   "link",
-	target: "g/c/target",
+	open:    "link",
+	target:  "g/c/target",
+	ltarget: "link",
 }, {
 	name: "path with dot",
 	fs: []string{
@@ -251,6 +260,7 @@ var rootTestCases = []rootTest{{
 		"a => a",
 	},
 	open:        "a",
+	ltarget:     "a",
 	wantError:   true,
 	alwaysFails: true,
 }, {
@@ -273,6 +283,7 @@ var rootTestCases = []rootTest{{
 		"link => $ABS/target",
 	},
 	open:      "link",
+	ltarget:   "link",
 	target:    "target",
 	wantError: true,
 }, {
@@ -282,6 +293,7 @@ var rootTestCases = []rootTest{{
 	},
 	open:      "link",
 	target:    "target",
+	ltarget:   "link",
 	wantError: true,
 }, {
 	name: "symlink chain escapes",
@@ -293,6 +305,7 @@ var rootTestCases = []rootTest{{
 	},
 	open:      "link",
 	target:    "c/target",
+	ltarget:   "link",
 	wantError: true,
 }}
 
@@ -417,6 +430,60 @@ func TestRootOpenRoot(t *testing.T) {
 				t.Fatalf(`root.OpenRoot(%q).Open("f") = %v`, test.open, err)
 			}
 			f.Close()
+		})
+	}
+}
+
+func TestRootRemoveFile(t *testing.T) {
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// Remove doesn't follow symlinks in the final path component,
+				// so it will successfully remove ltarget.
+				wantError = false
+				target = filepath.Join(root.Name(), test.ltarget)
+			} else if target != "" {
+				if err := os.WriteFile(target, nil, 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			err := root.Remove(test.open)
+			if errEndsTest(t, err, wantError, "root.Remove(%q)", test.open) {
+				return
+			}
+			_, err = os.Lstat(target)
+			if !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf(`stat file removed with Root.Remove(%q): %v, want ErrNotExist`, test.open, err)
+			}
+		})
+	}
+}
+
+func TestRootRemoveDirectory(t *testing.T) {
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// Remove doesn't follow symlinks in the final path component,
+				// so it will successfully remove ltarget.
+				wantError = false
+				target = filepath.Join(root.Name(), test.ltarget)
+			} else if target != "" {
+				if err := os.Mkdir(target, 0o777); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			err := root.Remove(test.open)
+			if errEndsTest(t, err, wantError, "root.Remove(%q)", test.open) {
+				return
+			}
+			_, err = os.Lstat(target)
+			if !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf(`stat file removed with Root.Remove(%q): %v, want ErrNotExist`, test.open, err)
+			}
 		})
 	}
 }
@@ -727,6 +794,23 @@ func TestRootConsistencyMkdir(t *testing.T) {
 				err = os.Mkdir(path, 0o777)
 			} else {
 				err = r.Mkdir(path, 0o777)
+			}
+			return "", err
+		})
+	}
+}
+
+func TestRootConsistencyRemove(t *testing.T) {
+	for _, test := range rootConsistencyTestCases {
+		if test.open == "." || test.open == "./" {
+			continue // can't remove the root itself
+		}
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			var err error
+			if r == nil {
+				err = os.Remove(path)
+			} else {
+				err = r.Remove(path)
 			}
 			return "", err
 		})

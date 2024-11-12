@@ -196,3 +196,23 @@ const (
 	FILE_OPEN_NO_RECALL            = 0x00400000
 	FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
 )
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information
+type FILE_DISPOSITION_INFORMATION struct {
+	DeleteFile bool
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
+type FILE_DISPOSITION_INFORMATION_EX struct {
+	Flags uint32
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
+const (
+	FILE_DISPOSITION_DO_NOT_DELETE             = 0x00000000
+	FILE_DISPOSITION_DELETE                    = 0x00000001
+	FILE_DISPOSITION_POSIX_SEMANTICS           = 0x00000002
+	FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK = 0x00000004
+	FILE_DISPOSITION_ON_CLOSE                  = 0x00000008
+	FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010
+)

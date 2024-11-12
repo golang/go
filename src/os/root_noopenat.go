@@ -84,3 +84,13 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 	}
 	return nil
 }
+
+func rootRemove(r *Root, name string) error {
+	if err := checkPathEscapesLstat(r, name); err != nil {
+		return &PathError{Op: "removeat", Path: name, Err: err}
+	}
+	if err := Remove(joinPath(r.root.name, name)); err != nil {
+		return &PathError{Op: "removeat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}

@@ -6,4 +6,5 @@ pkg os, method (*Root) Name() string #67002
 pkg os, method (*Root) Open(string) (*File, error) #67002
 pkg os, method (*Root) OpenFile(string, int, fs.FileMode) (*File, error) #67002
 pkg os, method (*Root) OpenRoot(string) (*Root, error) #67002
+pkg os, method (*Root) Remove(string) error #67002
 pkg os, type Root struct #67002

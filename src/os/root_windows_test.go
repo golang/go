@@ -7,6 +7,7 @@
 package os_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -43,4 +44,10 @@ func TestRootWindowsCaseInsensitivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
+	if err := r.Remove("FILE"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "file")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("os.Stat(file) after deletion: %v, want ErrNotFound", err)
+	}
 }

@@ -74,6 +74,16 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 	return err
 }
 
+func rootRemove(r *Root, name string) error {
+	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
+		return struct{}{}, removeat(parent, name)
+	})
+	if err != nil {
+		return &PathError{Op: "removeat", Path: name, Err: err}
+	}
+	return err
+}
+
 // doInRoot performs an operation on a path in a Root.
 //
 // It opens the directory containing the final element of the path,

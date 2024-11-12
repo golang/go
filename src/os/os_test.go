@@ -3815,3 +3815,23 @@ func TestAppendDoesntOverwrite(t *testing.T) {
 		}
 	})
 }
+
+func TestRemoveReadOnlyFile(t *testing.T) {
+	testMaybeRooted(t, func(t *testing.T, r *Root) {
+		if err := WriteFile("file", []byte("1"), 0); err != nil {
+			t.Fatal(err)
+		}
+		var err error
+		if r == nil {
+			err = Remove("file")
+		} else {
+			err = r.Remove("file")
+		}
+		if err != nil {
+			t.Fatalf("Remove read-only file: %v", err)
+		}
+		if _, err := Stat("file"); !IsNotExist(err) {
+			t.Fatalf("Stat read-only file after removal: %v (want IsNotExist)", err)
+		}
+	})
+}

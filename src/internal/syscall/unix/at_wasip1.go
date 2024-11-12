@@ -17,7 +17,33 @@ const (
 	// to avoid changing AccessTime or ModifiedTime.
 	// Its value must match syscall/fs_wasip1.go
 	UTIME_OMIT = -0x2
+
+	AT_REMOVEDIR = 0x200
 )
+
+func Unlinkat(dirfd int, path string, flags int) error {
+	if flags&AT_REMOVEDIR == 0 {
+		return errnoErr(path_unlink_file(
+			int32(dirfd),
+			unsafe.StringData(path),
+			size(len(path)),
+		))
+	} else {
+		return errnoErr(path_remove_directory(
+			int32(dirfd),
+			unsafe.StringData(path),
+			size(len(path)),
+		))
+	}
+}
+
+//go:wasmimport wasi_snapshot_preview1 path_unlink_file
+//go:noescape
+func path_unlink_file(fd int32, path *byte, pathLen size) syscall.Errno
+
+//go:wasmimport wasi_snapshot_preview1 path_remove_directory
+//go:noescape
+func path_remove_directory(fd int32, path *byte, pathLen size) syscall.Errno
 
 func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
 	return syscall.Openat(dirfd, path, flags, perm)

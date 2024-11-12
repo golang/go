@@ -19,3 +19,7 @@ func checkPathEscapes(r *Root, name string) error {
 	}
 	return nil
 }
+
+func checkPathEscapesLstat(r *Root, name string) error {
+	return checkPathEscapes(r, name)
+}

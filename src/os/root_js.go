@@ -12,7 +12,24 @@ import (
 	"syscall"
 )
 
+// checkPathEscapes reports whether name escapes the root.
+//
+// Due to the lack of openat, checkPathEscapes is subject to TOCTOU races
+// when symlinks change during the resolution process.
 func checkPathEscapes(r *Root, name string) error {
+	return checkPathEscapesInternal(r, name, false)
+}
+
+// checkPathEscapesLstat reports whether name escapes the root.
+// It does not resolve symlinks in the final path component.
+//
+// Due to the lack of openat, checkPathEscapes is subject to TOCTOU races
+// when symlinks change during the resolution process.
+func checkPathEscapesLstat(r *Root, name string) error {
+	return checkPathEscapesInternal(r, name, true)
+}
+
+func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
 	if r.root.closed.Load() {
 		return ErrClosed
 	}
@@ -42,6 +59,10 @@ func checkPathEscapes(r *Root, name string) error {
 				base = joinPath(base, parts[j])
 			}
 			continue
+		}
+
+		if lstat && i == len(parts)-1 {
+			break
 		}
 
 		next := joinPath(base, parts[i])

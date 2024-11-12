@@ -119,6 +119,28 @@ func mkdirat(fd int, name string, perm FileMode) error {
 	})
 }
 
+func removeat(fd int, name string) error {
+	// The system call interface forces us to know whether
+	// we are removing a file or directory. Try both.
+	e := ignoringEINTR(func() error {
+		return unix.Unlinkat(fd, name, 0)
+	})
+	if e == nil {
+		return nil
+	}
+	e1 := ignoringEINTR(func() error {
+		return unix.Unlinkat(fd, name, unix.AT_REMOVEDIR)
+	})
+	if e1 == nil {
+		return nil
+	}
+	// Both failed. See comment in Remove for how we decide which error to return.
+	if e1 != syscall.ENOTDIR {
+		return e1
+	}
+	return e
+}
+
 // checkSymlink resolves the symlink name in parent,
 // and returns errSymlink with the link contents.
 //

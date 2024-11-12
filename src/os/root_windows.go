@@ -201,3 +201,7 @@ func rootOpenDir(parent syscall.Handle, name string) (syscall.Handle, error) {
 func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
 	return windows.Mkdirat(dirfd, name, syscallMode(perm))
 }
+
+func removeat(dirfd syscall.Handle, name string) error {
+	return windows.Deleteat(dirfd, name)
+}

@@ -6,6 +6,7 @@ package windows
 
 import (
 	"syscall"
+	"unsafe"
 )
 
 // Openat flags not supported by syscall.Open.
@@ -170,4 +171,73 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
 	}
 	syscall.CloseHandle(h)
 	return nil
+}
+
+func Deleteat(dirfd syscall.Handle, name string) error {
+	objAttrs := &OBJECT_ATTRIBUTES{}
+	if err := objAttrs.init(dirfd, name); err != nil {
+		return err
+	}
+	var h syscall.Handle
+	err := NtOpenFile(
+		&h,
+		DELETE,
+		objAttrs,
+		&IO_STATUS_BLOCK{},
+		FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
+		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT,
+	)
+	if err != nil {
+		return ntCreateFileError(err, 0)
+	}
+	defer syscall.CloseHandle(h)
+
+	const (
+		FileDispositionInformation   = 13
+		FileDispositionInformationEx = 64
+	)
+
+	// First, attempt to delete the file using POSIX semantics
+	// (which permit a file to be deleted while it is still open).
+	// This matches the behavior of DeleteFileW.
+	err = NtSetInformationFile(
+		h,
+		&IO_STATUS_BLOCK{},
+		uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION_EX{
+			Flags: FILE_DISPOSITION_DELETE |
+				FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK |
+				FILE_DISPOSITION_POSIX_SEMANTICS |
+				// This differs from DeleteFileW, but matches os.Remove's
+				// behavior on Unix platforms of permitting deletion of
+				// read-only files.
+				FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
+		})),
+		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION_EX{})),
+		FileDispositionInformationEx,
+	)
+	switch err {
+	case nil:
+		return nil
+	case STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY:
+		return err.(NTStatus).Errno()
+	}
+
+	// If the prior deletion failed, the filesystem either doesn't support
+	// POSIX semantics (for example, FAT), or hasn't implemented
+	// FILE_DISPOSITION_INFORMATION_EX.
+	//
+	// Try again.
+	err = NtSetInformationFile(
+		h,
+		&IO_STATUS_BLOCK{},
+		uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
+			DeleteFile: true,
+		})),
+		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
+		FileDispositionInformation,
+	)
+	if st, ok := err.(NTStatus); ok {
+		return st.Errno()
+	}
+	return err
 }

@@ -120,6 +120,12 @@ func (r *Root) Mkdir(name string, perm FileMode) error {
 	return rootMkdir(r, name, perm)
 }
 
+// Remove removes the named file or (empty) directory in the root.
+// See [Remove] for more details.
+func (r *Root) Remove(name string) error {
+	return rootRemove(r, name)
+}
+
 func (r *Root) logOpen(name string) {
 	if log := testlog.Logger(); log != nil {
 		// This won't be right if r's name has changed since it was opened,
