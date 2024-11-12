@@ -714,7 +714,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			return err
 		}
 		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {
-			c.curveID = CurveID(byteorder.BeUint16(skx.key[1:]))
+			c.curveID = CurveID(byteorder.BEUint16(skx.key[1:]))
 		}
 
 		msg, err = c.readHandshake(&hs.finishedHash)

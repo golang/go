@@ -35,7 +35,7 @@ func rthashString(s string, state uint64) uint64 {
 func randUint64() uint64 {
 	buf := make([]byte, 8)
 	_, _ = rand.Read(buf)
-	return byteorder.LeUint64(buf)
+	return byteorder.LEUint64(buf)
 }
 
 // This is a port of wyhash implementation in runtime/hash64.go,
@@ -84,11 +84,11 @@ func r3(p []byte, k uint64) uint64 {
 }
 
 func r4(p []byte) uint64 {
-	return uint64(byteorder.LeUint32(p))
+	return uint64(byteorder.LEUint32(p))
 }
 
 func r8(p []byte) uint64 {
-	return byteorder.LeUint64(p)
+	return byteorder.LEUint64(p)
 }
 
 func mix(a, b uint64) uint64 {

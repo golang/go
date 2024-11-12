@@ -110,8 +110,8 @@ const (
 
 func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic...)
-	b = byteorder.BeAppendUint64(b, tableSum(d.tab))
-	b = byteorder.BeAppendUint64(b, d.crc)
+	b = byteorder.BEAppendUint64(b, tableSum(d.tab))
+	b = byteorder.BEAppendUint64(b, d.crc)
 	return b, nil
 }
 
@@ -126,10 +126,10 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize {
 		return errors.New("hash/crc64: invalid hash state size")
 	}
-	if tableSum(d.tab) != byteorder.BeUint64(b[4:]) {
+	if tableSum(d.tab) != byteorder.BEUint64(b[4:]) {
 		return errors.New("hash/crc64: tables do not match")
 	}
-	d.crc = byteorder.BeUint64(b[12:])
+	d.crc = byteorder.BEUint64(b[12:])
 	return nil
 }
 
@@ -153,7 +153,7 @@ func update(crc uint64, tab *Table, p []byte) uint64 {
 		}
 		// Update using slicing-by-8
 		for len(p) > 8 {
-			crc ^= byteorder.LeUint64(p)
+			crc ^= byteorder.LEUint64(p)
 			crc = helperTable[7][crc&0xff] ^
 				helperTable[6][(crc>>8)&0xff] ^
 				helperTable[5][(crc>>16)&0xff] ^
@@ -199,7 +199,7 @@ func tableSum(t *Table) uint64 {
 	b := a[:0]
 	if t != nil {
 		for _, x := range t {
-			b = byteorder.BeAppendUint64(b, x)
+			b = byteorder.BEAppendUint64(b, x)
 		}
 	}
 	return Checksum(b, MakeTable(ISO))

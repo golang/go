@@ -170,8 +170,8 @@ const (
 
 func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic...)
-	b = byteorder.BeAppendUint32(b, tableSum(d.tab))
-	b = byteorder.BeAppendUint32(b, d.crc)
+	b = byteorder.BEAppendUint32(b, tableSum(d.tab))
+	b = byteorder.BEAppendUint32(b, d.crc)
 	return b, nil
 }
 
@@ -187,10 +187,10 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize {
 		return errors.New("hash/crc32: invalid hash state size")
 	}
-	if tableSum(d.tab) != byteorder.BeUint32(b[4:]) {
+	if tableSum(d.tab) != byteorder.BEUint32(b[4:]) {
 		return errors.New("hash/crc32: tables do not match")
 	}
-	d.crc = byteorder.BeUint32(b[8:])
+	d.crc = byteorder.BEUint32(b[8:])
 	return nil
 }
 
@@ -246,7 +246,7 @@ func tableSum(t *Table) uint32 {
 	b := a[:0]
 	if t != nil {
 		for _, x := range t {
-			b = byteorder.BeAppendUint32(b, x)
+			b = byteorder.BEAppendUint32(b, x)
 		}
 	}
 	return ChecksumIEEE(b)

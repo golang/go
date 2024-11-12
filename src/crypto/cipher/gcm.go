@@ -312,7 +312,7 @@ func deriveCounter(H, counter *[gcmBlockSize]byte, nonce []byte) {
 		counter[gcmBlockSize-1] = 1
 	} else {
 		lenBlock := make([]byte, 16)
-		byteorder.BePutUint64(lenBlock[8:], uint64(len(nonce))*8)
+		byteorder.BEPutUint64(lenBlock[8:], uint64(len(nonce))*8)
 		J := gcm.GHASH(H, nonce, lenBlock)
 		copy(counter[:], J)
 	}
@@ -337,13 +337,13 @@ func gcmCounterCryptGeneric(b Block, out, src []byte, counter *[gcmBlockSize]byt
 
 func gcmInc32(counterBlock *[gcmBlockSize]byte) {
 	ctr := counterBlock[len(counterBlock)-4:]
-	byteorder.BePutUint32(ctr, byteorder.BeUint32(ctr)+1)
+	byteorder.BEPutUint32(ctr, byteorder.BEUint32(ctr)+1)
 }
 
 func gcmAuth(out []byte, H, tagMask *[gcmBlockSize]byte, ciphertext, additionalData []byte) {
 	lenBlock := make([]byte, 16)
-	byteorder.BePutUint64(lenBlock[:8], uint64(len(additionalData))*8)
-	byteorder.BePutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
+	byteorder.BEPutUint64(lenBlock[:8], uint64(len(additionalData))*8)
+	byteorder.BEPutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
 	S := gcm.GHASH(H, additionalData, ciphertext, lenBlock)
 	subtle.XORBytes(out, S, tagMask[:])
 }

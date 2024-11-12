@@ -58,12 +58,12 @@ func (c *ChaCha8) Read(p []byte) (n int, err error) {
 		p = p[n:]
 	}
 	for len(p) >= 8 {
-		byteorder.LePutUint64(p, c.Uint64())
+		byteorder.LEPutUint64(p, c.Uint64())
 		p = p[8:]
 		n += 8
 	}
 	if len(p) > 0 {
-		byteorder.LePutUint64(c.readBuf[:], c.Uint64())
+		byteorder.LEPutUint64(c.readBuf[:], c.Uint64())
 		n += copy(p, c.readBuf[:])
 		c.readLen = 8 - len(p)
 	}

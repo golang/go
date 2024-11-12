@@ -316,18 +316,18 @@ func appendT(h *Hash, v reflect.Value) {
 	switch v.Kind() {
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
 		var buf [8]byte
-		byteorder.LePutUint64(buf[:], uint64(v.Int()))
+		byteorder.LEPutUint64(buf[:], uint64(v.Int()))
 		h.Write(buf[:])
 		return
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
 		var buf [8]byte
-		byteorder.LePutUint64(buf[:], v.Uint())
+		byteorder.LEPutUint64(buf[:], v.Uint())
 		h.Write(buf[:])
 		return
 	case reflect.Array:
 		var buf [8]byte
 		for i := range uint64(v.Len()) {
-			byteorder.LePutUint64(buf[:], i)
+			byteorder.LEPutUint64(buf[:], i)
 			// do not want to hash to the same value,
 			// [2]string{"foo", ""} and [2]string{"", "foo"}.
 			h.Write(buf[:])
@@ -341,7 +341,7 @@ func appendT(h *Hash, v reflect.Value) {
 		var buf [8]byte
 		for i := range v.NumField() {
 			f := v.Field(i)
-			byteorder.LePutUint64(buf[:], uint64(i))
+			byteorder.LEPutUint64(buf[:], uint64(i))
 			// do not want to hash to the same value,
 			// struct{a,b string}{"foo",""} and
 			// struct{a,b string}{"","foo"}.
@@ -365,7 +365,7 @@ func appendT(h *Hash, v reflect.Value) {
 		// because pointing to the abi.Escape call in comparableReady,
 		// So this is ok to hash pointer,
 		// this way because we know their target won't be moved.
-		byteorder.LePutUint64(buf[:], uint64(v.Pointer()))
+		byteorder.LEPutUint64(buf[:], uint64(v.Pointer()))
 		h.Write(buf[:])
 		return
 	case reflect.Interface:
@@ -382,11 +382,11 @@ func (h *Hash) float64(f float64) {
 	}
 	var buf [8]byte
 	if f != f {
-		byteorder.LePutUint64(buf[:], randUint64())
+		byteorder.LEPutUint64(buf[:], randUint64())
 		h.Write(buf[:])
 		return
 	}
-	byteorder.LePutUint64(buf[:], math.Float64bits(f))
+	byteorder.LEPutUint64(buf[:], math.Float64bits(f))
 	h.Write(buf[:])
 }
 

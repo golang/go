@@ -261,7 +261,7 @@ func bogoShim() {
 
 		// Write the shim ID we were passed as a little endian uint64
 		shimIDBytes := make([]byte, 8)
-		byteorder.LePutUint64(shimIDBytes, *shimID)
+		byteorder.LEPutUint64(shimIDBytes, *shimID)
 		if _, err := conn.Write(shimIDBytes); err != nil {
 			log.Fatalf("failed to write shim id: %s", err)
 		}

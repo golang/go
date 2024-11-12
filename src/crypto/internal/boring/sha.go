@@ -166,14 +166,14 @@ func (h *sha1Hash) MarshalBinary() ([]byte, error) {
 func (h *sha1Hash) AppendBinary(b []byte) ([]byte, error) {
 	d := (*sha1Ctx)(unsafe.Pointer(&h.ctx))
 	b = append(b, sha1Magic...)
-	b = byteorder.BeAppendUint32(b, d.h[0])
-	b = byteorder.BeAppendUint32(b, d.h[1])
-	b = byteorder.BeAppendUint32(b, d.h[2])
-	b = byteorder.BeAppendUint32(b, d.h[3])
-	b = byteorder.BeAppendUint32(b, d.h[4])
+	b = byteorder.BEAppendUint32(b, d.h[0])
+	b = byteorder.BEAppendUint32(b, d.h[1])
+	b = byteorder.BEAppendUint32(b, d.h[2])
+	b = byteorder.BEAppendUint32(b, d.h[3])
+	b = byteorder.BEAppendUint32(b, d.h[4])
 	b = append(b, d.x[:d.nx]...)
 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
-	b = byteorder.BeAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
+	b = byteorder.BEAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
 	return b, nil
 }
 
@@ -295,17 +295,17 @@ func (h *sha224Hash) MarshalBinary() ([]byte, error) {
 func (h *sha224Hash) AppendBinary(b []byte) ([]byte, error) {
 	d := (*sha256Ctx)(unsafe.Pointer(&h.ctx))
 	b = append(b, magic224...)
-	b = byteorder.BeAppendUint32(b, d.h[0])
-	b = byteorder.BeAppendUint32(b, d.h[1])
-	b = byteorder.BeAppendUint32(b, d.h[2])
-	b = byteorder.BeAppendUint32(b, d.h[3])
-	b = byteorder.BeAppendUint32(b, d.h[4])
-	b = byteorder.BeAppendUint32(b, d.h[5])
-	b = byteorder.BeAppendUint32(b, d.h[6])
-	b = byteorder.BeAppendUint32(b, d.h[7])
+	b = byteorder.BEAppendUint32(b, d.h[0])
+	b = byteorder.BEAppendUint32(b, d.h[1])
+	b = byteorder.BEAppendUint32(b, d.h[2])
+	b = byteorder.BEAppendUint32(b, d.h[3])
+	b = byteorder.BEAppendUint32(b, d.h[4])
+	b = byteorder.BEAppendUint32(b, d.h[5])
+	b = byteorder.BEAppendUint32(b, d.h[6])
+	b = byteorder.BEAppendUint32(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
-	b = byteorder.BeAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
+	b = byteorder.BEAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
 	return b, nil
 }
 
@@ -316,17 +316,17 @@ func (h *sha256Hash) MarshalBinary() ([]byte, error) {
 func (h *sha256Hash) AppendBinary(b []byte) ([]byte, error) {
 	d := (*sha256Ctx)(unsafe.Pointer(&h.ctx))
 	b = append(b, magic256...)
-	b = byteorder.BeAppendUint32(b, d.h[0])
-	b = byteorder.BeAppendUint32(b, d.h[1])
-	b = byteorder.BeAppendUint32(b, d.h[2])
-	b = byteorder.BeAppendUint32(b, d.h[3])
-	b = byteorder.BeAppendUint32(b, d.h[4])
-	b = byteorder.BeAppendUint32(b, d.h[5])
-	b = byteorder.BeAppendUint32(b, d.h[6])
-	b = byteorder.BeAppendUint32(b, d.h[7])
+	b = byteorder.BEAppendUint32(b, d.h[0])
+	b = byteorder.BEAppendUint32(b, d.h[1])
+	b = byteorder.BEAppendUint32(b, d.h[2])
+	b = byteorder.BEAppendUint32(b, d.h[3])
+	b = byteorder.BEAppendUint32(b, d.h[4])
+	b = byteorder.BEAppendUint32(b, d.h[5])
+	b = byteorder.BEAppendUint32(b, d.h[6])
+	b = byteorder.BEAppendUint32(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
-	b = byteorder.BeAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
+	b = byteorder.BEAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
 	return b, nil
 }
 
@@ -478,17 +478,17 @@ func (h *sha384Hash) MarshalBinary() ([]byte, error) {
 func (h *sha384Hash) AppendBinary(b []byte) ([]byte, error) {
 	d := (*sha512Ctx)(unsafe.Pointer(&h.ctx))
 	b = append(b, magic384...)
-	b = byteorder.BeAppendUint64(b, d.h[0])
-	b = byteorder.BeAppendUint64(b, d.h[1])
-	b = byteorder.BeAppendUint64(b, d.h[2])
-	b = byteorder.BeAppendUint64(b, d.h[3])
-	b = byteorder.BeAppendUint64(b, d.h[4])
-	b = byteorder.BeAppendUint64(b, d.h[5])
-	b = byteorder.BeAppendUint64(b, d.h[6])
-	b = byteorder.BeAppendUint64(b, d.h[7])
+	b = byteorder.BEAppendUint64(b, d.h[0])
+	b = byteorder.BEAppendUint64(b, d.h[1])
+	b = byteorder.BEAppendUint64(b, d.h[2])
+	b = byteorder.BEAppendUint64(b, d.h[3])
+	b = byteorder.BEAppendUint64(b, d.h[4])
+	b = byteorder.BEAppendUint64(b, d.h[5])
+	b = byteorder.BEAppendUint64(b, d.h[6])
+	b = byteorder.BEAppendUint64(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
-	b = byteorder.BeAppendUint64(b, d.nl>>3|d.nh<<61)
+	b = byteorder.BEAppendUint64(b, d.nl>>3|d.nh<<61)
 	return b, nil
 }
 
@@ -499,17 +499,17 @@ func (h *sha512Hash) MarshalBinary() ([]byte, error) {
 func (h *sha512Hash) AppendBinary(b []byte) ([]byte, error) {
 	d := (*sha512Ctx)(unsafe.Pointer(&h.ctx))
 	b = append(b, magic512...)
-	b = byteorder.BeAppendUint64(b, d.h[0])
-	b = byteorder.BeAppendUint64(b, d.h[1])
-	b = byteorder.BeAppendUint64(b, d.h[2])
-	b = byteorder.BeAppendUint64(b, d.h[3])
-	b = byteorder.BeAppendUint64(b, d.h[4])
-	b = byteorder.BeAppendUint64(b, d.h[5])
-	b = byteorder.BeAppendUint64(b, d.h[6])
-	b = byteorder.BeAppendUint64(b, d.h[7])
+	b = byteorder.BEAppendUint64(b, d.h[0])
+	b = byteorder.BEAppendUint64(b, d.h[1])
+	b = byteorder.BEAppendUint64(b, d.h[2])
+	b = byteorder.BEAppendUint64(b, d.h[3])
+	b = byteorder.BEAppendUint64(b, d.h[4])
+	b = byteorder.BEAppendUint64(b, d.h[5])
+	b = byteorder.BEAppendUint64(b, d.h[6])
+	b = byteorder.BEAppendUint64(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
-	b = byteorder.BeAppendUint64(b, d.nl>>3|d.nh<<61)
+	b = byteorder.BEAppendUint64(b, d.nl>>3|d.nh<<61)
 	return b, nil
 }
 
@@ -570,9 +570,9 @@ func (h *sha512Hash) UnmarshalBinary(b []byte) error {
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
-	return b[8:], byteorder.BeUint64(b)
+	return b[8:], byteorder.BEUint64(b)
 }
 
 func consumeUint32(b []byte) ([]byte, uint32) {
-	return b[4:], byteorder.BeUint32(b)
+	return b[4:], byteorder.BEUint32(b)
 }

@@ -537,12 +537,12 @@ opSwitch:
 				// budgeting system does not see that. See issue 42958.
 				if base.Ctxt.Arch.CanMergeLoads && name.Sym().Pkg.Path == "internal/byteorder" {
 					switch name.Sym().Name {
-					case "LeUint64", "LeUint32", "LeUint16",
-						"BeUint64", "BeUint32", "BeUint16",
-						"LePutUint64", "LePutUint32", "LePutUint16",
-						"BePutUint64", "BePutUint32", "BePutUint16",
-						"LeAppendUint64", "LeAppendUint32", "LeAppendUint16",
-						"BeAppendUint64", "BeAppendUint32", "BeAppendUint16":
+					case "LEUint64", "LEUint32", "LEUint16",
+						"BEUint64", "BEUint32", "BEUint16",
+						"LEPutUint64", "LEPutUint32", "LEPutUint16",
+						"BEPutUint64", "BEPutUint32", "BEPutUint16",
+						"LEAppendUint64", "LEAppendUint32", "LEAppendUint16",
+						"BEAppendUint64", "BEAppendUint32", "BEAppendUint16":
 						cheap = true
 					}
 				}

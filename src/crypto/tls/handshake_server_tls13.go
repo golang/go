@@ -900,7 +900,7 @@ func (c *Conn) sendSessionTicket(earlyData bool, extra [][]byte) error {
 	if _, err := c.config.rand().Read(ageAdd); err != nil {
 		return err
 	}
-	m.ageAdd = byteorder.LeUint32(ageAdd)
+	m.ageAdd = byteorder.LEUint32(ageAdd)
 
 	if earlyData {
 		// RFC 9001, Section 4.6.1

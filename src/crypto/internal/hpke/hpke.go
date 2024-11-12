@@ -37,7 +37,7 @@ func (kdf *hkdfKDF) LabeledExtract(sid []byte, salt []byte, label string, inputK
 
 func (kdf *hkdfKDF) LabeledExpand(suiteID []byte, randomKey []byte, label string, info []byte, length uint16) []byte {
 	labeledInfo := make([]byte, 0, 2+7+len(suiteID)+len(label)+len(info))
-	labeledInfo = byteorder.BeAppendUint16(labeledInfo, length)
+	labeledInfo = byteorder.BEAppendUint16(labeledInfo, length)
 	labeledInfo = append(labeledInfo, []byte("HPKE-v1")...)
 	labeledInfo = append(labeledInfo, suiteID...)
 	labeledInfo = append(labeledInfo, label...)
@@ -75,7 +75,7 @@ func newDHKem(kemID uint16) (*dhKEM, error) {
 	return &dhKEM{
 		dh:      suite.curve,
 		kdf:     hkdfKDF{suite.hash},
-		suiteID: byteorder.BeAppendUint16([]byte("KEM"), kemID),
+		suiteID: byteorder.BEAppendUint16([]byte("KEM"), kemID),
 		nSecret: suite.nSecret,
 	}, nil
 }
@@ -290,9 +290,9 @@ func (r *Receipient) Open(aad, ciphertext []byte) ([]byte, error) {
 func suiteID(kemID, kdfID, aeadID uint16) []byte {
 	suiteID := make([]byte, 0, 4+2+2+2)
 	suiteID = append(suiteID, []byte("HPKE")...)
-	suiteID = byteorder.BeAppendUint16(suiteID, kemID)
-	suiteID = byteorder.BeAppendUint16(suiteID, kdfID)
-	suiteID = byteorder.BeAppendUint16(suiteID, aeadID)
+	suiteID = byteorder.BEAppendUint16(suiteID, kemID)
+	suiteID = byteorder.BEAppendUint16(suiteID, kdfID)
+	suiteID = byteorder.BEAppendUint16(suiteID, aeadID)
 	return suiteID
 }
 
@@ -327,7 +327,7 @@ func (u uint128) bitLen() int {
 
 func (u uint128) bytes() []byte {
 	b := make([]byte, 16)
-	byteorder.BePutUint64(b[0:], u.hi)
-	byteorder.BePutUint64(b[8:], u.lo)
+	byteorder.BEPutUint64(b[0:], u.hi)
+	byteorder.BEPutUint64(b[8:], u.lo)
 	return b
 }

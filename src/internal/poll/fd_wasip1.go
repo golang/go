@@ -225,11 +225,11 @@ func readIntLE(b []byte, size uintptr) uint64 {
 	case 1:
 		return uint64(b[0])
 	case 2:
-		return uint64(byteorder.LeUint16(b))
+		return uint64(byteorder.LEUint16(b))
 	case 4:
-		return uint64(byteorder.LeUint32(b))
+		return uint64(byteorder.LEUint32(b))
 	case 8:
-		return uint64(byteorder.LeUint64(b))
+		return uint64(byteorder.LEUint64(b))
 	default:
 		panic("internal/poll: readInt with unsupported size")
 	}
