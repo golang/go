@@ -231,7 +231,7 @@ func TestCallDepth(t *testing.T) {
 
 func TestAlloc(t *testing.T) {
 	ctx := context.Background()
-	dl := New(discardHandler{})
+	dl := New(discardTestHandler{})
 	defer SetDefault(Default()) // restore
 	SetDefault(dl)
 
@@ -258,7 +258,7 @@ func TestAlloc(t *testing.T) {
 		})
 	})
 	t.Run("2 pairs disabled inline", func(t *testing.T) {
-		l := New(discardHandler{disabled: true})
+		l := New(DiscardHandler)
 		s := "abc"
 		i := 2000
 		wantAllocs(t, 2, func() {
@@ -269,7 +269,7 @@ func TestAlloc(t *testing.T) {
 		})
 	})
 	t.Run("2 pairs disabled", func(t *testing.T) {
-		l := New(discardHandler{disabled: true})
+		l := New(DiscardHandler)
 		s := "abc"
 		i := 2000
 		wantAllocs(t, 0, func() {
@@ -305,7 +305,7 @@ func TestAlloc(t *testing.T) {
 		})
 	})
 	t.Run("attrs3 disabled", func(t *testing.T) {
-		logger := New(discardHandler{disabled: true})
+		logger := New(DiscardHandler)
 		wantAllocs(t, 0, func() {
 			logger.LogAttrs(ctx, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
 		})
@@ -568,18 +568,17 @@ func (c *captureHandler) clear() {
 	c.r = Record{}
 }
 
-type discardHandler struct {
-	disabled bool
-	attrs    []Attr
+type discardTestHandler struct {
+	attrs []Attr
 }
 
-func (d discardHandler) Enabled(context.Context, Level) bool { return !d.disabled }
-func (discardHandler) Handle(context.Context, Record) error  { return nil }
-func (d discardHandler) WithAttrs(as []Attr) Handler {
+func (d discardTestHandler) Enabled(context.Context, Level) bool { return true }
+func (discardTestHandler) Handle(context.Context, Record) error  { return nil }
+func (d discardTestHandler) WithAttrs(as []Attr) Handler {
 	d.attrs = concat(d.attrs, as)
 	return d
 }
-func (h discardHandler) WithGroup(name string) Handler {
+func (h discardTestHandler) WithGroup(name string) Handler {
 	return h
 }
 
