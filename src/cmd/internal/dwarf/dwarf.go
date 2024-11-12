@@ -1207,6 +1207,12 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 	return nil
 }
 
+// dwarfFileIndex returns the DWARF file index value for the file associated
+// with pos.
+func dwarfFileIndex(pos src.Pos) int64 {
+	return int64(1 + pos.FileIndex())
+}
+
 // Emit DWARF attributes and child DIEs for an inlined subroutine. The
 // first attribute of an inlined subroutine DIE is a reference back to
 // its corresponding 'abstract' DIE (containing location-independent
@@ -1240,7 +1246,7 @@ func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
 	}
 
 	// Emit call file, line attrs.
-	putattr(ctxt, s.Info, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, int64(1+ic.CallPos.FileIndex()), nil) // 1-based file table
+	putattr(ctxt, s.Info, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, dwarfFileIndex(ic.CallPos), nil)
 	form := int(expandPseudoForm(DW_FORM_udata_pseudo))
 	putattr(ctxt, s.Info, abbrev, form, DW_CLS_CONSTANT, int64(ic.CallPos.RelLine()), nil)
 
@@ -1343,7 +1349,7 @@ func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
 	if isWrapper {
 		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, int64(1), 0)
 	} else {
-		putattr(ctxt, s.Info, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, int64(1+s.StartPos.FileIndex()), nil) // 1-based file index
+		putattr(ctxt, s.Info, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, dwarfFileIndex(s.StartPos), nil)
 		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartPos.RelLine()), nil)
 
 		var ev int64
