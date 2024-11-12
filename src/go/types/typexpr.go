@@ -334,6 +334,13 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 		typ.base = Typ[Invalid] // avoid nil base in invalid recursive type declaration
 		setDefType(def, typ)
 		typ.base = check.varType(e.X)
+		// If typ.base is invalid, it's unlikely that *base is particularly
+		// useful - even a valid dereferenciation will lead to an invalid
+		// type again, and in some cases we get unexpected follow-on errors
+		// (e.g., go.dev/issue/49005). Return an invalid type instead.
+		if !isValid(typ.base) {
+			return Typ[Invalid]
+		}
 		return typ
 
 	case *ast.FuncType:
