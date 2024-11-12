@@ -348,7 +348,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				}
 
 			case m.Pattern() == "tool":
-				for tool, _ := range MainModules.Tools() {
+				for tool := range MainModules.Tools() {
 					m.Pkgs = append(m.Pkgs, tool)
 				}
 			default:
