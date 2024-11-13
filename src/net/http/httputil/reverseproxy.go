@@ -739,6 +739,7 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	resUpType := upgradeType(res.Header)
 	if !ascii.IsPrint(resUpType) { // We know reqUpType is ASCII, it's checked by the caller.
 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch to invalid protocol %q", resUpType))
+		return
 	}
 	if !ascii.EqualFold(reqUpType, resUpType) {
 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch protocol %q when %q was requested", resUpType, reqUpType))
