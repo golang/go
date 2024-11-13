@@ -178,6 +178,8 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 	case i == fixedRootFinalizers:
 		for fb := allfin; fb != nil; fb = fb.alllink {
 			cnt := uintptr(atomic.Load(&fb.cnt))
+			// Finalizers that contain cleanups only have fn set. None of the other
+			// fields are necessary.
 			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw, nil)
 		}
 
@@ -401,6 +403,10 @@ func markrootSpans(gcw *gcWork, shard int) {
 					// The special itself is a root.
 					spw := (*specialWeakHandle)(unsafe.Pointer(sp))
 					scanblock(uintptr(unsafe.Pointer(&spw.handle)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+				case _KindSpecialCleanup:
+					spc := (*specialCleanup)(unsafe.Pointer(sp))
+					// The special itself is a root.
+					scanblock(uintptr(unsafe.Pointer(&spc.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
 				}
 			}
 			unlock(&s.speciallock)

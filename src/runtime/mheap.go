@@ -204,6 +204,7 @@ type mheap struct {
 	spanalloc              fixalloc // allocator for span*
 	cachealloc             fixalloc // allocator for mcache*
 	specialfinalizeralloc  fixalloc // allocator for specialfinalizer*
+	specialCleanupAlloc    fixalloc // allocator for specialcleanup*
 	specialprofilealloc    fixalloc // allocator for specialprofile*
 	specialReachableAlloc  fixalloc // allocator for specialReachable
 	specialPinCounterAlloc fixalloc // allocator for specialPinCounter
@@ -743,6 +744,7 @@ func (h *mheap) init() {
 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
+	h.specialCleanupAlloc.init(unsafe.Sizeof(specialCleanup{}), nil, nil, &memstats.other_sys)
 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
 	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
@@ -1824,6 +1826,8 @@ const (
 	// _KindSpecialPinCounter is a special used for objects that are pinned
 	// multiple times
 	_KindSpecialPinCounter = 5
+	// _KindSpecialCleanup is for tracking cleanups.
+	_KindSpecialCleanup = 6
 )
 
 type special struct {
@@ -1849,13 +1853,13 @@ func spanHasNoSpecials(s *mspan) {
 	atomic.And8(&ha.pageSpecials[arenaPage/8], ^(uint8(1) << (arenaPage % 8)))
 }
 
-// Adds the special record s to the list of special records for
+// addspecial adds the special record s to the list of special records for
 // the object p. All fields of s should be filled in except for
 // offset & next, which this routine will fill in.
 // Returns true if the special was successfully added, false otherwise.
 // (The add will fail only if a record with the same p and s->kind
-// already exists.)
-func addspecial(p unsafe.Pointer, s *special) bool {
+// already exists unless force is set to true.)
+func addspecial(p unsafe.Pointer, s *special, force bool) bool {
 	span := spanOfHeap(uintptr(p))
 	if span == nil {
 		throw("addspecial on invalid pointer")
@@ -1874,7 +1878,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 
 	// Find splice point, check for existing record.
 	iter, exists := span.specialFindSplicePoint(offset, kind)
-	if !exists {
+	if !exists || force {
 		// Splice in record, fill in offset.
 		s.offset = uint16(offset)
 		s.next = *iter
@@ -1884,7 +1888,10 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 
 	unlock(&span.speciallock)
 	releasem(mp)
-	return !exists // already exists
+	// We're converting p to a uintptr and looking it up, and we
+	// don't want it to die and get swept while we're doing so.
+	KeepAlive(p)
+	return !exists || force // already exists or addition was forced
 }
 
 // Removes the Special record of the given kind for the object p.
@@ -1968,7 +1975,7 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 	s.nret = nret
 	s.fint = fint
 	s.ot = ot
-	if addspecial(p, &s.special) {
+	if addspecial(p, &s.special, false) {
 		// This is responsible for maintaining the same
 		// GC-related invariants as markrootSpans in any
 		// situation where it's possible that markrootSpans
@@ -2006,6 +2013,37 @@ func removefinalizer(p unsafe.Pointer) {
 	lock(&mheap_.speciallock)
 	mheap_.specialfinalizeralloc.free(unsafe.Pointer(s))
 	unlock(&mheap_.speciallock)
+}
+
+// The described object has a cleanup set for it.
+type specialCleanup struct {
+	_       sys.NotInHeap
+	special special
+	fn      *funcval
+}
+
+// addCleanup attaches a cleanup function to the object. Multiple
+// cleanups are allowed on an object, and even the same pointer.
+func addCleanup(p unsafe.Pointer, f *funcval) {
+	lock(&mheap_.speciallock)
+	s := (*specialCleanup)(mheap_.specialCleanupAlloc.alloc())
+	unlock(&mheap_.speciallock)
+	s.special.kind = _KindSpecialCleanup
+	s.fn = f
+
+	mp := acquirem()
+	addspecial(p, &s.special, true)
+	releasem(mp)
+	// This is responsible for maintaining the same
+	// GC-related invariants as markrootSpans in any
+	// situation where it's possible that markrootSpans
+	// has already run but mark termination hasn't yet.
+	if gcphase != _GCoff {
+		gcw := &mp.p.ptr().gcw
+		// Mark the cleanup itself, since the
+		// special isn't part of the GC'd heap.
+		scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+	}
 }
 
 // The described object has a weak pointer.
@@ -2156,7 +2194,7 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 	s.special.kind = _KindSpecialWeakHandle
 	s.handle = handle
 	handle.Store(uintptr(p))
-	if addspecial(p, &s.special) {
+	if addspecial(p, &s.special, false) {
 		// This is responsible for maintaining the same
 		// GC-related invariants as markrootSpans in any
 		// situation where it's possible that markrootSpans
@@ -2242,7 +2280,7 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
 	unlock(&mheap_.speciallock)
 	s.special.kind = _KindSpecialProfile
 	s.b = b
-	if !addspecial(p, &s.special) {
+	if !addspecial(p, &s.special, false) {
 		throw("setprofilebucket: profile already set")
 	}
 }
@@ -2318,6 +2356,15 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 	case _KindSpecialPinCounter:
 		lock(&mheap_.speciallock)
 		mheap_.specialPinCounterAlloc.free(unsafe.Pointer(s))
+		unlock(&mheap_.speciallock)
+	case _KindSpecialCleanup:
+		sc := (*specialCleanup)(unsafe.Pointer(s))
+		// Cleanups, unlike finalizers, do not resurrect the objects
+		// they're attached to, so we only need to pass the cleanup
+		// function, not the object.
+		queuefinalizer(nil, sc.fn, 0, nil, nil)
+		lock(&mheap_.speciallock)
+		mheap_.specialCleanupAlloc.free(unsafe.Pointer(sc))
 		unlock(&mheap_.speciallock)
 	default:
 		throw("bad special kind")

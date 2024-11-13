@@ -1908,7 +1908,7 @@ func gcTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
 		s := (*specialReachable)(mheap_.specialReachableAlloc.alloc())
 		unlock(&mheap_.speciallock)
 		s.special.kind = _KindSpecialReachable
-		if !addspecial(p, &s.special) {
+		if !addspecial(p, &s.special, false) {
 			throw("already have a reachable special (duplicate pointer?)")
 		}
 		specials[i] = s
