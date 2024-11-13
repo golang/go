@@ -19,13 +19,19 @@ func cannotinline(b *testing.B) { // ERROR "b does not escape" "cannot inline ca
 	for i := 0; i < b.N; i++ {
 		caninline(1) // ERROR "inlining call to caninline"
 	}
-	for b.Loop() { // ERROR "skip inlining within testing.B.loop"
+	for b.Loop() { // ERROR "skip inlining within testing.B.loop" "inlining call to testing\.\(\*B\)\.Loop"
 		caninline(1)
 	}
 	for i := 0; i < b.N; i++ {
 		caninline(1) // ERROR "inlining call to caninline"
 	}
-	for b.Loop() { // ERROR "skip inlining within testing.B.loop"
+	for b.Loop() { // ERROR "skip inlining within testing.B.loop" "inlining call to testing\.\(\*B\)\.Loop"
+		caninline(1)
+	}
+	for i := 0; i < b.N; i++ {
+		caninline(1) // ERROR "inlining call to caninline"
+	}
+	for b.Loop() { // ERROR "skip inlining within testing.B.loop" "inlining call to testing\.\(\*B\)\.Loop"
 		caninline(1)
 	}
 }

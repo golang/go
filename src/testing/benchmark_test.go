@@ -141,6 +141,9 @@ func TestLoopEqualsRangeOverBN(t *testing.T) {
 	if nIterated != nInfered {
 		t.Fatalf("Iteration of the two different benchmark loop flavor differs, got %d iterations want %d", nIterated, nInfered)
 	}
+	if nIterated == 0 {
+		t.Fatalf("Iteration count zero")
+	}
 }
 
 func ExampleB_RunParallel() {

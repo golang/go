@@ -164,6 +164,20 @@ func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node)
 			if base.Flag.LowerM > 1 {
 				fmt.Printf("%v: skip inlining within testing.B.loop for %v\n", ir.Line(n), n)
 			}
+			// We still want to explore inlining opportunities in other parts of ForStmt.
+			nFor, _ := n.(*ir.ForStmt)
+			nForInit := nFor.Init()
+			for i, x := range nForInit {
+				if x != nil {
+					nForInit[i] = edit(x).(ir.Node)
+				}
+			}
+			if nFor.Cond != nil {
+				nFor.Cond = mark(nFor.Cond).(ir.Node)
+			}
+			if nFor.Post != nil {
+				nFor.Post = mark(nFor.Post).(ir.Node)
+			}
 			return n
 		}
 

@@ -113,7 +113,8 @@ type B struct {
 	netBytes  uint64
 	// Extra metrics collected by ReportMetric.
 	extra map[string]float64
-	// Remaining iterations of Loop() to be executed in benchFunc.
+	// For Loop() to be executed in benchFunc.
+	// Loop() has its own control logic that skips the loop scaling.
 	// See issue #61515.
 	loopN int
 }
@@ -190,7 +191,8 @@ func (b *B) runN(n int) {
 	runtime.GC()
 	b.resetRaces()
 	b.N = n
-	b.loopN = n
+	b.loopN = 0
+
 	b.parallelism = 1
 	b.ResetTimer()
 	b.StartTimer()
@@ -228,12 +230,13 @@ func (b *B) run1() bool {
 	b.mu.RLock()
 	finished := b.finished
 	b.mu.RUnlock()
-	if b.hasSub.Load() || finished {
+	// b.Loop() does its own ramp-up so we just need to run it once.
+	if b.hasSub.Load() || finished || b.loopN != 0 {
 		tag := "BENCH"
 		if b.skipped {
 			tag = "SKIP"
 		}
-		if b.chatty != nil && (len(b.output) > 0 || finished) {
+		if b.chatty != nil && (len(b.output) > 0 || finished || b.loopN != 0) {
 			b.trimOutput()
 			fmt.Fprintf(b.w, "%s--- %s: %s\n%s", b.chatty.prefix(), tag, b.name, b.output)
 		}
@@ -272,6 +275,24 @@ func (b *B) doBench() BenchmarkResult {
 	return b.result
 }
 
+func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
+	// Order of operations matters.
+	// For very fast benchmarks, prevIters ~= prevns.
+	// If you divide first, you get 0 or 1,
+	// which can hide an order of magnitude in execution time.
+	// So multiply first, then divide.
+	n := goalns * prevIters / prevns
+	// Run more iterations than we think we'll need (1.2x).
+	n += n / 5
+	// Don't grow too fast in case we had timing errors previously.
+	n = min(n, 100*last)
+	// Be sure to run at least one more than last time.
+	n = max(n, last+1)
+	// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
+	n = min(n, 1e9)
+	return int(n)
+}
+
 // launch launches the benchmark function. It gradually increases the number
 // of benchmark iterations until the benchmark runs for the requested benchtime.
 // launch is run by the doBench function as a separate goroutine.
@@ -303,20 +324,7 @@ func (b *B) launch() {
 				// Round up, to avoid div by zero.
 				prevns = 1
 			}
-			// Order of operations matters.
-			// For very fast benchmarks, prevIters ~= prevns.
-			// If you divide first, you get 0 or 1,
-			// which can hide an order of magnitude in execution time.
-			// So multiply first, then divide.
-			n = goalns * prevIters / prevns
-			// Run more iterations than we think we'll need (1.2x).
-			n += n / 5
-			// Don't grow too fast in case we had timing errors previously.
-			n = min(n, 100*last)
-			// Be sure to run at least one more than last time.
-			n = max(n, last+1)
-			// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
-			n = min(n, 1e9)
+			n = int64(predictN(goalns, prevIters, prevns, last))
 			b.runN(int(n))
 		}
 	}
@@ -353,19 +361,53 @@ func (b *B) ReportMetric(n float64, unit string) {
 	b.extra[unit] = n
 }
 
+func (b *B) stopOrScaleBLoop() bool {
+	timeElapsed := highPrecisionTimeSince(b.start)
+	if timeElapsed >= b.benchTime.d {
+		return false
+	}
+	// Loop scaling
+	goalns := b.benchTime.d.Nanoseconds()
+	prevIters := int64(b.N)
+	b.N = predictN(goalns, prevIters, timeElapsed.Nanoseconds(), prevIters)
+	b.loopN++
+	return true
+}
+
+func (b *B) loopSlowPath() bool {
+	if b.loopN == 0 {
+		// If it's the first call to b.Loop() in the benchmark function.
+		// Allows more precise measurement of benchmark loop cost counts.
+		// Also initialize b.N to 1 to kick start loop scaling.
+		b.N = 1
+		b.loopN = 1
+		b.ResetTimer()
+		return true
+	}
+	// Handles fixed time case
+	if b.benchTime.n > 0 {
+		if b.N < b.benchTime.n {
+			b.N = b.benchTime.n
+			b.loopN++
+			return true
+		}
+		return false
+	}
+	// Handles fixed iteration count case
+	return b.stopOrScaleBLoop()
+}
+
 // Loop returns true until b.N calls has been made to it.
 //
 // A benchmark should either use Loop or contain an explicit loop from 0 to b.N, but not both.
 // After the benchmark finishes, b.N will contain the total number of calls to op, so the benchmark
 // may use b.N to compute other average metrics.
 func (b *B) Loop() bool {
-	if b.loopN == b.N {
-		// If it's the first call to b.Loop() in the benchmark function.
-		// Allows more precise measurement of benchmark loop cost counts.
-		b.ResetTimer()
+	if b.loopN != 0 && b.loopN < b.N {
+		b.loopN++
+		return true
 	}
-	b.loopN--
-	return b.loopN >= 0
+	return b.loopSlowPath()
 }
 
 // BenchmarkResult contains the results of a benchmark run.

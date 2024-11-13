@@ -700,6 +700,20 @@ func TestBenchmarkRace(t *testing.T) {
 	}
 }
 
+func TestBenchmarkRaceBLoop(t *testing.T) {
+	out := runTest(t, "BenchmarkBLoopRacy")
+	c := bytes.Count(out, []byte("race detected during execution of test"))
+
+	want := 0
+	// We should see one race detector report.
+	if race.Enabled {
+		want = 1
+	}
+	if c != want {
+		t.Errorf("got %d race reports; want %d", c, want)
+	}
+}
+
 func BenchmarkRacy(b *testing.B) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		b.Skipf("skipping intentionally-racy benchmark")
@@ -709,15 +723,25 @@ func BenchmarkRacy(b *testing.B) {
 	}
 }
 
+func BenchmarkBLoopRacy(b *testing.B) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		b.Skipf("skipping intentionally-racy benchmark")
+	}
+	for b.Loop() {
+		doRace()
+	}
+}
+
 func TestBenchmarkSubRace(t *testing.T) {
 	out := runTest(t, "BenchmarkSubRacy")
 	c := bytes.Count(out, []byte("race detected during execution of test"))
 
 	want := 0
-	// We should see two race detector reports:
-	// one in the sub-bencmark, and one in the parent afterward.
+	// We should see 3 race detector reports:
+	// one in the sub-bencmark, one in the parent afterward,
+	// and one in b.Loop.
 	if race.Enabled {
-		want = 2
+		want = 3
 	}
 	if c != want {
 		t.Errorf("got %d race reports; want %d", c, want)
@@ -739,6 +763,12 @@ func BenchmarkSubRacy(b *testing.B) {
 
 	b.Run("racy", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
+			doRace()
+		}
+	})
+
+	b.Run("racy-bLoop", func(b *testing.B) {
+		for b.Loop() {
 			doRace()
 		}
 	})
@@ -942,4 +972,55 @@ func TestContext(t *testing.T) {
 			t.Fatal("expected context canceled before cleanup")
 		}
 	})
+}
+
+func TestBenchmarkBLoopIterationCorrect(t *testing.T) {
+	out := runTest(t, "BenchmarkBLoopPrint")
+	c := bytes.Count(out, []byte("Printing from BenchmarkBLoopPrint"))
+
+	want := 2
+	if c != want {
+		t.Errorf("got %d loop iterations; want %d", c, want)
+	}
+
+	// b.Loop() will only rampup once.
+	c = bytes.Count(out, []byte("Ramping up from BenchmarkBLoopPrint"))
+	want = 1
+	if c != want {
+		t.Errorf("got %d loop rampup; want %d", c, want)
+	}
+}
+
+func TestBenchmarkBNIterationCorrect(t *testing.T) {
+	out := runTest(t, "BenchmarkBNPrint")
+	c := bytes.Count(out, []byte("Printing from BenchmarkBNPrint"))
+
+	// runTest sets benchtime=2x, with semantics specified in #32051 it should
+	// run 3 times.
+	want := 3
+	if c != want {
+		t.Errorf("got %d loop iterations; want %d", c, want)
+	}
+
+	// b.N style fixed iteration loop will rampup twice:
+	// One in run1(), the other in launch
+	c = bytes.Count(out, []byte("Ramping up from BenchmarkBNPrint"))
+	want = 2
+	if c != want {
+		t.Errorf("got %d loop rampup; want %d", c, want)
+	}
+}
+
+func BenchmarkBLoopPrint(b *testing.B) {
+	b.Logf("Ramping up from BenchmarkBLoopPrint")
+	for b.Loop() {
+		b.Logf("Printing from BenchmarkBLoopPrint")
+	}
+}
+
+func BenchmarkBNPrint(b *testing.B) {
+	b.Logf("Ramping up from BenchmarkBNPrint")
+	for i := 0; i < b.N; i++ {
+		b.Logf("Printing from BenchmarkBNPrint")
+	}
 }
