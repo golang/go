@@ -88,7 +88,7 @@ func Loong64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount,
 	case reg >= loong64.REG_X0 && reg <= loong64.REG_X31:
 		simd_type = loong64.LASX
 	default:
-		return errors.New("Loong64 extension: invalid LSX/LASX register: " + fmt.Sprintf("%p", reg))
+		return errors.New("Loong64 extension: invalid LSX/LASX register: " + fmt.Sprintf("%d", reg))
 	}
 
 	if isIndex {
