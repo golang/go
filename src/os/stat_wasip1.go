@@ -32,6 +32,15 @@ func fillFileStatFromSys(fs *fileStat, name string) {
 	case syscall.FILETYPE_SYMBOLIC_LINK:
 		fs.mode |= ModeSymlink
 	}
+
+	// WASI does not support unix-like permissions, but Go programs are likely
+	// to expect the permission bits to not be zero so we set defaults to help
+	// avoid breaking applications that are migrating to WASM.
+	if fs.sys.Filetype == syscall.FILETYPE_DIRECTORY {
+		fs.mode |= 0700
+	} else {
+		fs.mode |= 0600
+	}
 }
 
 // For testing.

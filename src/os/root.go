@@ -126,11 +126,35 @@ func (r *Root) Remove(name string) error {
 	return rootRemove(r, name)
 }
 
+// Stat returns a [FileInfo] describing the named file in the root.
+// See [Stat] for more details.
+func (r *Root) Stat(name string) (FileInfo, error) {
+	r.logStat(name)
+	return rootStat(r, name, false)
+}
+
+// Lstat returns a [FileInfo] describing the named file in the root.
+// If the file is a symbolic link, the returned FileInfo
+// describes the symbolic link.
+// See [Lstat] for more details.
+func (r *Root) Lstat(name string) (FileInfo, error) {
+	r.logStat(name)
+	return rootStat(r, name, true)
+}
+
 func (r *Root) logOpen(name string) {
 	if log := testlog.Logger(); log != nil {
 		// This won't be right if r's name has changed since it was opened,
 		// but it's the best we can do.
 		log.Open(joinPath(r.Name(), name))
+	}
+}
+
+func (r *Root) logStat(name string) {
+	if log := testlog.Logger(); log != nil {
+		// This won't be right if r's name has changed since it was opened,
+		// but it's the best we can do.
+		log.Stat(joinPath(r.Name(), name))
 	}
 }
 

@@ -75,6 +75,26 @@ func rootOpenFileNolog(r *Root, name string, flag int, perm FileMode) (*File, er
 	return f, nil
 }
 
+func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+	var fi FileInfo
+	var err error
+	if lstat {
+		err = checkPathEscapesLstat(r, name)
+		if err == nil {
+			fi, err = Lstat(joinPath(r.root.name, name))
+		}
+	} else {
+		err = checkPathEscapes(r, name)
+		if err == nil {
+			fi, err = Stat(joinPath(r.root.name, name))
+		}
+	}
+	if err != nil {
+		return nil, &PathError{Op: "statat", Path: name, Err: underlyingError(err)}
+	}
+	return fi, nil
+}
+
 func rootMkdir(r *Root, name string, perm FileMode) error {
 	if err := checkPathEscapes(r, name); err != nil {
 		return &PathError{Op: "mkdirat", Path: name, Err: err}

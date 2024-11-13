@@ -19,6 +19,7 @@ import (
 const (
 	O_DIRECTORY    = 0x100000   // target must be a directory
 	O_NOFOLLOW_ANY = 0x20000000 // disallow symlinks anywhere in the path
+	O_OPEN_REPARSE = 0x40000000 // FILE_OPEN_REPARSE_POINT, used by Lstat
 )
 
 func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall.Handle, e1 error) {
@@ -37,6 +38,10 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
 	case syscall.O_RDWR:
 		access = FILE_GENERIC_READ | FILE_GENERIC_WRITE
 		options |= FILE_NON_DIRECTORY_FILE
+	default:
+		// Stat opens files without requesting read or write permissions,
+		// but we still need to request SYNCHRONIZE.
+		access = SYNCHRONIZE
 	}
 	if flag&syscall.O_CREAT != 0 {
 		access |= FILE_GENERIC_WRITE
@@ -68,6 +73,10 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
 	}
 	if err := objAttrs.init(dirfd, name); err != nil {
 		return syscall.InvalidHandle, err
+	}
+
+	if flag&O_OPEN_REPARSE != 0 {
+		options |= FILE_OPEN_REPARSE_POINT
 	}
 
 	// We don't use FILE_OVERWRITE/FILE_OVERWRITE_IF, because when opening

@@ -113,6 +113,24 @@ func rootOpenDir(parent int, name string) (int, error) {
 	return fd, err
 }
 
+func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+	fi, err := doInRoot(r, name, func(parent sysfdType, n string) (FileInfo, error) {
+		var fs fileStat
+		if err := unix.Fstatat(parent, n, &fs.sys, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+			return nil, err
+		}
+		fillFileStatFromSys(&fs, name)
+		if !lstat && fs.Mode()&ModeSymlink != 0 {
+			return nil, checkSymlink(parent, n, syscall.ELOOP)
+		}
+		return &fs, nil
+	})
+	if err != nil {
+		return nil, &PathError{Op: "statat", Path: name, Err: err}
+	}
+	return fi, nil
+}
+
 func mkdirat(fd int, name string, perm FileMode) error {
 	return ignoringEINTR(func() error {
 		return unix.Mkdirat(fd, name, syscallMode(perm))

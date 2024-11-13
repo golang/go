@@ -509,6 +509,67 @@ func TestRootOpenFileAsRoot(t *testing.T) {
 	}
 }
 
+func TestRootStat(t *testing.T) {
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			const content = "content"
+			if target != "" {
+				if err := os.WriteFile(target, []byte(content), 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			fi, err := root.Stat(test.open)
+			if errEndsTest(t, err, test.wantError, "root.Stat(%q)", test.open) {
+				return
+			}
+			if got, want := fi.Name(), filepath.Base(test.open); got != want {
+				t.Errorf("root.Stat(%q).Name() = %q, want %q", test.open, got, want)
+			}
+			if got, want := fi.Size(), int64(len(content)); got != want {
+				t.Errorf("root.Stat(%q).Size() = %v, want %v", test.open, got, want)
+			}
+		})
+	}
+}
+
+func TestRootLstat(t *testing.T) {
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			const content = "content"
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// Lstat will stat the final link, rather than following it.
+				wantError = false
+			} else if target != "" {
+				if err := os.WriteFile(target, []byte(content), 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			fi, err := root.Lstat(test.open)
+			if errEndsTest(t, err, wantError, "root.Stat(%q)", test.open) {
+				return
+			}
+			if got, want := fi.Name(), filepath.Base(test.open); got != want {
+				t.Errorf("root.Stat(%q).Name() = %q, want %q", test.open, got, want)
+			}
+			if test.ltarget == "" {
+				if got := fi.Mode(); got&os.ModeSymlink != 0 {
+					t.Errorf("root.Stat(%q).Mode() = %v, want non-symlink", test.open, got)
+				}
+				if got, want := fi.Size(), int64(len(content)); got != want {
+					t.Errorf("root.Stat(%q).Size() = %v, want %v", test.open, got, want)
+				}
+			} else {
+				if got := fi.Mode(); got&os.ModeSymlink == 0 {
+					t.Errorf("root.Stat(%q).Mode() = %v, want symlink", test.open, got)
+				}
+			}
+		})
+	}
+}
+
 // A rootConsistencyTest is a test case comparing os.Root behavior with
 // the corresponding non-Root function.
 //
@@ -599,6 +660,24 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 		"link => target",
 	},
 	open: "link/",
+}, {
+	name: "symlink slash dot",
+	fs: []string{
+		"target/file",
+		"link => target",
+	},
+	open: "link/.",
+}, {
+	name: "file symlink slash",
+	fs: []string{
+		"target",
+		"link => target",
+	},
+	open: "link/",
+	detailedErrorMismatch: func(t *testing.T) bool {
+		// os.Create returns ENOTDIR or EISDIR depending on the platform.
+		return runtime.GOOS == "js"
+	},
 }, {
 	name: "unresolved symlink",
 	fs: []string{
@@ -813,6 +892,42 @@ func TestRootConsistencyRemove(t *testing.T) {
 				err = r.Remove(path)
 			}
 			return "", err
+		})
+	}
+}
+
+func TestRootConsistencyStat(t *testing.T) {
+	for _, test := range rootConsistencyTestCases {
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			var fi os.FileInfo
+			var err error
+			if r == nil {
+				fi, err = os.Stat(path)
+			} else {
+				fi, err = r.Stat(path)
+			}
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("name:%q size:%v mode:%v isdir:%v", fi.Name(), fi.Size(), fi.Mode(), fi.IsDir()), nil
+		})
+	}
+}
+
+func TestRootConsistencyLstat(t *testing.T) {
+	for _, test := range rootConsistencyTestCases {
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			var fi os.FileInfo
+			var err error
+			if r == nil {
+				fi, err = os.Lstat(path)
+			} else {
+				fi, err = r.Lstat(path)
+			}
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("name:%q size:%v mode:%v isdir:%v", fi.Name(), fi.Size(), fi.Mode(), fi.IsDir()), nil
 		})
 	}
 }

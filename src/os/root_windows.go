@@ -198,6 +198,40 @@ func rootOpenDir(parent syscall.Handle, name string) (syscall.Handle, error) {
 	return h, err
 }
 
+func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+	if len(name) > 0 && IsPathSeparator(name[len(name)-1]) {
+		// When a filename ends with a path separator,
+		// Lstat behaves like Stat.
+		//
+		// This behavior is not based on a principled decision here,
+		// merely the empirical evidence that Lstat behaves this way.
+		lstat = false
+	}
+	fi, err := doInRoot(r, name, func(parent syscall.Handle, n string) (FileInfo, error) {
+		fd, err := openat(parent, n, windows.O_OPEN_REPARSE, 0)
+		if err != nil {
+			return nil, err
+		}
+		defer syscall.CloseHandle(fd)
+		fi, err := statHandle(name, fd)
+		if err != nil {
+			return nil, err
+		}
+		if !lstat && fi.(*fileStat).isReparseTagNameSurrogate() {
+			link, err := readReparseLinkHandle(fd)
+			if err != nil {
+				return nil, err
+			}
+			return nil, errSymlink(link)
+		}
+		return fi, nil
+	})
+	if err != nil {
+		return nil, &PathError{Op: "statat", Path: name, Err: err}
+	}
+	return fi, nil
+}
+
 func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
 	return windows.Mkdirat(dirfd, name, syscallMode(perm))
 }
