@@ -20535,6 +20535,16 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 		v.copyOf(ptr)
 		return true
 	}
+	// match: (NilCheck ptr:(NilCheck _ _) _ )
+	// result: ptr
+	for {
+		ptr := v_0
+		if ptr.Op != OpNilCheck {
+			break
+		}
+		v.copyOf(ptr)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpNot(v *Value) bool {

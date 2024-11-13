@@ -2065,6 +2065,10 @@
 (NilCheck          ptr:(Addr {_} (SB))    _) => ptr
 (NilCheck ptr:(Convert (Addr {_} (SB)) _) _) => ptr
 
+// Nil checks of nil checks are redundant.
+// See comment at the end of https://go-review.googlesource.com/c/go/+/537775.
+(NilCheck ptr:(NilCheck _ _) _ ) => ptr
+
 // for late-expanded calls, recognize memequal applied to a single constant byte
 // Support is limited by 1, 2, 4, 8 byte sizes
 (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)

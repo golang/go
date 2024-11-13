@@ -314,14 +314,16 @@ func schedule(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
-				if a.Op == OpSPanchored || opcodeTable[a.Op].nilCheck {
-					v.SetArg(i, a.Args[0])
+				for a.Op == OpSPanchored || opcodeTable[a.Op].nilCheck {
+					a = a.Args[0]
+					v.SetArg(i, a)
 				}
 			}
 		}
 		for i, c := range b.ControlValues() {
-			if c.Op == OpSPanchored || opcodeTable[c.Op].nilCheck {
-				b.ReplaceControl(i, c.Args[0])
+			for c.Op == OpSPanchored || opcodeTable[c.Op].nilCheck {
+				c = c.Args[0]
+				b.ReplaceControl(i, c)
 			}
 		}
 	}
