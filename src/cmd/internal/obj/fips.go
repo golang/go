@@ -148,6 +148,12 @@ const enableFIPS = true
 
 // IsFIPS reports whether we are compiling one of the crypto/internal/fips/... packages.
 func (ctxt *Link) IsFIPS() bool {
+	if strings.HasSuffix(ctxt.Pkgpath, "_test") {
+		// External test packages are outside the FIPS hash scope.
+		// This allows them to use //go:embed, which would otherwise
+		// emit absolute relocations in the global data.
+		return false
+	}
 	return ctxt.Pkgpath == "crypto/internal/fips" || strings.HasPrefix(ctxt.Pkgpath, "crypto/internal/fips/")
 }
 
@@ -222,6 +228,11 @@ func (s *LSym) setFIPSType(ctxt *Link) {
 	const prefix = "crypto/internal/fips"
 	name := s.Name
 	if len(name) <= len(prefix) || (name[len(prefix)] != '.' && name[len(prefix)] != '/') || name[0] != 'c' || name[:len(prefix)] != prefix {
+		return
+	}
+
+	if strings.Contains(name, "_test.") {
+		// External test packages are not in the scope.
 		return
 	}
 
