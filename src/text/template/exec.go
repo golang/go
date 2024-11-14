@@ -855,7 +855,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 
 	// Special case for the "call" builtin.
 	// Insert the name of the callee function as the first argument.
-	if isBuiltin && name == "call" {
+	if len(args) > 0 && isBuiltin && name == "call" {
 		calleeName := args[0].String()
 		argv = append([]reflect.Value{reflect.ValueOf(calleeName)}, argv...)
 		fun = reflect.ValueOf(call)

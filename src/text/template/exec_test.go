@@ -1779,12 +1779,19 @@ func TestFunctionCheckDuringCall(t *testing.T) {
 		input   string
 		data    any
 		wantErr string
-	}{{
-		name:    "call nothing",
-		input:   `{{call}}`,
-		data:    tVal,
-		wantErr: "wrong number of args for call: want at least 1 got 0",
-	},
+	}{
+		{
+			name:    "call with no arguments",
+			input:   `{{ 1 | call }}`,
+			data:    tVal,
+			wantErr: "error calling call: unreachable",
+		},
+		{
+			name:    "call nothing",
+			input:   `{{call}}`,
+			data:    tVal,
+			wantErr: "wrong number of args for call: want at least 1 got 0",
+		},
 		{
 			name:    "call non-function",
 			input:   "{{call .True}}",
