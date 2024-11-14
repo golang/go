@@ -37,5 +37,10 @@
   {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-224","derFuncEnabled":false,"entropyInputLen":[192],"nonceLen":[96],"persoStringLen":[192],"additionalInputLen":[0],"returnedBitsLen":224}]},
   {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-256","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":256}]},
   {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-384","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":384}]},
-  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-512","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":512}]}
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-512","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":512}]},
+
+  {"algorithm":"EDDSA","mode":"keyGen","revision":"1.0","curve":["ED-25519"]},
+  {"algorithm":"EDDSA","mode":"keyVer","revision":"1.0","curve":["ED-25519"]},
+  {"algorithm":"EDDSA","mode":"sigGen","revision":"1.0","pure":true,"preHash":true,"contextLength":[{"min":0,"max":255,"increment":1}],"curve":["ED-25519"]},
+  {"algorithm":"EDDSA","mode":"sigVer","revision":"1.0","pure":true,"preHash":true,"curve":["ED-25519"]}
 ]

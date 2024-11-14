@@ -24,6 +24,8 @@ import (
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/ecdsa"
+	"crypto/internal/fips140/ed25519"
+	"crypto/internal/fips140/edwards25519"
 	"crypto/internal/fips140/hmac"
 	"crypto/internal/fips140/mlkem"
 	"crypto/internal/fips140/pbkdf2"
@@ -81,6 +83,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-ml-kem.html#section-7.3
 	// HMAC DRBG algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
+	// EDDSA algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-7
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -142,6 +146,11 @@ var (
 		"hmacDRBG/SHA3-256":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New256() }),
 		"hmacDRBG/SHA3-384":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New384() }),
 		"hmacDRBG/SHA3-512":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New512() }),
+
+		"EDDSA/keyGen": cmdEddsaKeyGenAft(),
+		"EDDSA/keyVer": cmdEddsaKeyVerAft(),
+		"EDDSA/sigGen": cmdEddsaSigGenAftBft(),
+		"EDDSA/sigVer": cmdEddsaSigVerAft(),
 	}
 )
 
@@ -393,6 +402,126 @@ func cmdPbkdf() command {
 			}
 
 			return [][]byte{derivedKey}, nil
+		},
+	}
+}
+
+func cmdEddsaKeyGenAft() command {
+	return command{
+		requiredArgs: 1, // Curve name
+		handler: func(args [][]byte) ([][]byte, error) {
+			if string(args[0]) != "ED-25519" {
+				return nil, fmt.Errorf("unsupported EDDSA curve: %q", args[0])
+			}
+
+			sk, err := ed25519.GenerateKey()
+			if err != nil {
+				return nil, fmt.Errorf("generating EDDSA keypair: %w", err)
+			}
+
+			// EDDSA/keyGen/AFT responses are d & q, described[0] as:
+			//   d	The encoded private key point
+			//   q	The encoded public key point
+			//
+			// Contrary to the description of a "point", d is the private key
+			// seed bytes per FIPS.186-5[1] A.2.3.
+			//
+			// [0]: https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-9.1
+			// [1]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf
+			return [][]byte{sk.Seed(), sk.PublicKey()}, nil
+		},
+	}
+}
+
+func cmdEddsaKeyVerAft() command {
+	return command{
+		requiredArgs: 2, // Curve name, Q
+		handler: func(args [][]byte) ([][]byte, error) {
+			if string(args[0]) != "ED-25519" {
+				return nil, fmt.Errorf("unsupported EDDSA curve: %q", args[0])
+			}
+
+			// Verify the point is on the curve. The higher-level ed25519 API does
+			// this at signature verification time so we have to use the lower-level
+			// edwards25519 package to do it here in absence of a signature to verify.
+			if _, err := new(edwards25519.Point).SetBytes(args[1]); err != nil {
+				return [][]byte{{0}}, nil
+			}
+
+			return [][]byte{{1}}, nil
+		},
+	}
+}
+
+func cmdEddsaSigGenAftBft() command {
+	return command{
+		requiredArgs: 5, // Curve name, private key seed, message, prehash, context
+		handler: func(args [][]byte) ([][]byte, error) {
+			if string(args[0]) != "ED-25519" {
+				return nil, fmt.Errorf("unsupported EDDSA curve: %q", args[0])
+			}
+
+			sk, err := ed25519.NewPrivateKeyFromSeed(args[1])
+			if err != nil {
+				return nil, fmt.Errorf("error creating private key: %w", err)
+			}
+			msg := args[2]
+			prehash := args[3]
+			context := string(args[4])
+
+			var sig []byte
+			if prehash[0] == 1 {
+				h := sha512.New()
+				h.Write(msg)
+				msg = h.Sum(nil)
+
+				// With ed25519 the context is only specified for sigGen tests when using prehashing.
+				// See https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-8.6
+				sig, err = ed25519.SignPH(sk, msg, context)
+				if err != nil {
+					return nil, fmt.Errorf("error signing message: %w", err)
+				}
+			} else {
+				sig = ed25519.Sign(sk, msg)
+			}
+
+			return [][]byte{sig}, nil
+		},
+	}
+}
+
+func cmdEddsaSigVerAft() command {
+	return command{
+		requiredArgs: 5, // Curve name, message, public key, signature, prehash
+		handler: func(args [][]byte) ([][]byte, error) {
+			if string(args[0]) != "ED-25519" {
+				return nil, fmt.Errorf("unsupported EDDSA curve: %q", args[0])
+			}
+
+			msg := args[1]
+			pk, err := ed25519.NewPublicKey(args[2])
+			if err != nil {
+				return nil, fmt.Errorf("invalid public key: %w", err)
+			}
+			sig := args[3]
+			prehash := args[4]
+
+			if prehash[0] == 1 {
+				h := sha512.New()
+				h.Write(msg)
+				msg = h.Sum(nil)
+				// Context is only specified for sigGen, not sigVer.
+				// See https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-8.6
+				err = ed25519.VerifyPH(pk, msg, sig, "")
+			} else {
+				err = ed25519.Verify(pk, msg, sig)
+			}
+
+			if err != nil {
+				return [][]byte{{0}}, nil
+			}
+
+			return [][]byte{{1}}, nil
 		},
 	}
 }
