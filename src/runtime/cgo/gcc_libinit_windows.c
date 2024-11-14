@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+# ifdef __CYGWIN__
+#error "don't use the cygwin compiler to build native Windows programs; use MinGW instead"
+#else
+// Exclude the following code from Cygwin builds.
+// Cygwin doesn't implement process.h nor does it support _beginthread.
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <process.h>
@@ -156,3 +162,5 @@ void _cgo_beginthread(void (*func)(void*), void* arg) {
 	fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
 	abort();
 }
+
+#endif // __CYGWIN__
