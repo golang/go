@@ -170,7 +170,7 @@ type FS struct {
 	//
 	//	p       # dir=.    elem=p
 	//	q/      # dir=.    elem=q
-	//	w/      # dir=.    elem=w
+	//	w       # dir=.    elem=w
 	//	q/r     # dir=q    elem=r
 	//	q/s/    # dir=q    elem=s
 	//	q/v     # dir=q    elem=v
