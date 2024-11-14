@@ -46,6 +46,7 @@ var (
 	gogcflags        string // For running built compiler
 	goldflags        string
 	goexperiment     string
+	gofips140        string
 	workdir          string
 	tooldir          string
 	oldgoos          string
@@ -185,6 +186,12 @@ func xinit() {
 	}
 	goriscv64 = b
 
+	b = os.Getenv("GOFIPS140")
+	if b == "" {
+		b = "off"
+	}
+	gofips140 = b
+
 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
 		fatalf("$GOROOT is not set correctly or not exported\n"+
 			"\tGOROOT=%s\n"+
@@ -247,6 +254,7 @@ func xinit() {
 	os.Setenv("GOPPC64", goppc64)
 	os.Setenv("GORISCV64", goriscv64)
 	os.Setenv("GOROOT", goroot)
+	os.Setenv("GOFIPS140", gofips140)
 
 	// Set GOBIN to GOROOT/bin. The meaning of GOBIN has drifted over time
 	// (see https://go.dev/issue/3269, https://go.dev/cl/183058,

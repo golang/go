@@ -34,6 +34,7 @@ var (
 	GOWASM    = gowasm()
 	ToolTags  = toolTags()
 	GO_LDSO   = defaultGO_LDSO
+	GOFIPS140 = gofips140()
 	Version   = version
 )
 
@@ -68,6 +69,47 @@ func goamd64() int {
 	}
 	Error = fmt.Errorf("invalid GOAMD64: must be v1, v2, v3, v4")
 	return int(DefaultGOAMD64[len("v")] - '0')
+}
+
+func gofips140() string {
+	v := envOr("GOFIPS140", defaultGOFIPS140)
+	switch v {
+	case "off", "latest", "inprocess", "certified":
+		return v
+	}
+	if isFIPSVersion(v) {
+		return v
+	}
+	Error = fmt.Errorf("invalid GOFIPS140: must be off, latest, inprocess, certified, or vX.Y.Z")
+	return defaultGOFIPS140
+}
+
+// isFIPSVersion reports whether v is a valid FIPS version,
+// of the form vX.Y.Z.
+func isFIPSVersion(v string) bool {
+	if !strings.HasPrefix(v, "v") {
+		return false
+	}
+	v, ok := skipNum(v[len("v"):])
+	if !ok || !strings.HasPrefix(v, ".") {
+		return false
+	}
+	v, ok = skipNum(v[len("."):])
+	if !ok || !strings.HasPrefix(v, ".") {
+		return false
+	}
+	v, ok = skipNum(v[len("."):])
+	return ok && v == ""
+}
+
+// skipNum skips the leading text matching [0-9]+
+// in s, returning the rest and whether such text was found.
+func skipNum(s string) (rest string, ok bool) {
+	i := 0
+	for i < len(s) && '0' <= s[i] && s[i] <= '9' {
+		i++
+	}
+	return s[i:], i > 0
 }
 
 type GoarmFeatures struct {
