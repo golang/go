@@ -240,11 +240,17 @@ func init() {
 		{name: "FCOPYSGD", argLength: 2, reg: fp21, asm: "FCOPYSGD"}, // float64
 
 		// shifts
+		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                        // arg0 << arg1, shift amount is mod 32
 		{name: "SLLV", argLength: 2, reg: gp21, asm: "SLLV"},                      // arg0 << arg1, shift amount is mod 64
+		{name: "SLLconst", argLength: 1, reg: gp11, asm: "SLL", aux: "Int64"},     // arg0 << auxInt, auxInt should be in the range 0 to 31.
 		{name: "SLLVconst", argLength: 1, reg: gp11, asm: "SLLV", aux: "Int64"},   // arg0 << auxInt
+		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                        // arg0 >> arg1, shift amount is mod 32
 		{name: "SRLV", argLength: 2, reg: gp21, asm: "SRLV"},                      // arg0 >> arg1, unsigned, shift amount is mod 64
+		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int64"},     // arg0 >> auxInt, auxInt should be in the range 0 to 31.
 		{name: "SRLVconst", argLength: 1, reg: gp11, asm: "SRLV", aux: "Int64"},   // arg0 >> auxInt, unsigned
+		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                        // arg0 >> arg1, shift amount is mod 32
 		{name: "SRAV", argLength: 2, reg: gp21, asm: "SRAV"},                      // arg0 >> arg1, signed, shift amount is mod 64
+		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int64"},     // arg0 >> auxInt, signed, auxInt should be in the range 0 to 31.
 		{name: "SRAVconst", argLength: 1, reg: gp11, asm: "SRAV", aux: "Int64"},   // arg0 >> auxInt, signed
 		{name: "ROTR", argLength: 2, reg: gp21, asm: "ROTR"},                      // arg0 right rotate by (arg1 mod 32) bits
 		{name: "ROTRV", argLength: 2, reg: gp21, asm: "ROTRV"},                    // arg0 right rotate by (arg1 mod 64) bits

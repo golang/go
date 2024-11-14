@@ -1834,11 +1834,17 @@ const (
 	OpLOONG64MASKEQZ
 	OpLOONG64MASKNEZ
 	OpLOONG64FCOPYSGD
+	OpLOONG64SLL
 	OpLOONG64SLLV
+	OpLOONG64SLLconst
 	OpLOONG64SLLVconst
+	OpLOONG64SRL
 	OpLOONG64SRLV
+	OpLOONG64SRLconst
 	OpLOONG64SRLVconst
+	OpLOONG64SRA
 	OpLOONG64SRAV
+	OpLOONG64SRAconst
 	OpLOONG64SRAVconst
 	OpLOONG64ROTR
 	OpLOONG64ROTRV
@@ -24710,6 +24716,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "SLL",
+		argLen: 2,
+		asm:    loong64.ASLL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
 		name:   "SLLV",
 		argLen: 2,
 		asm:    loong64.ASLLV,
@@ -24717,6 +24737,20 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
+		name:    "SLLconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     loong64.ASLL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 			outputs: []outputInfo{
 				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
@@ -24738,6 +24772,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "SRL",
+		argLen: 2,
+		asm:    loong64.ASRL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
 		name:   "SRLV",
 		argLen: 2,
 		asm:    loong64.ASRLV,
@@ -24745,6 +24793,20 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
+		name:    "SRLconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     loong64.ASRL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 			outputs: []outputInfo{
 				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
@@ -24766,6 +24828,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "SRA",
+		argLen: 2,
+		asm:    loong64.ASRA,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
 		name:   "SRAV",
 		argLen: 2,
 		asm:    loong64.ASRAV,
@@ -24773,6 +24849,20 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
 				{1, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
+		name:    "SRAconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     loong64.ASRA,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 			outputs: []outputInfo{
 				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31

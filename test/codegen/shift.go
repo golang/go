@@ -11,49 +11,58 @@ package codegen
 // ------------------ //
 
 func lshConst64x64(v int64) int64 {
+	// loong64:"SLLV"
 	// ppc64x:"SLD"
 	// riscv64:"SLLI",-"AND",-"SLTIU"
 	return v << uint64(33)
 }
 
 func rshConst64Ux64(v uint64) uint64 {
+	// loong64:"SRLV"
 	// ppc64x:"SRD"
 	// riscv64:"SRLI\t",-"AND",-"SLTIU"
 	return v >> uint64(33)
 }
 
 func rshConst64Ux64Overflow32(v uint32) uint64 {
+	// loong64:"MOVV\t\\$0,",-"SRL\t"
 	// riscv64:"MOV\t\\$0,",-"SRL"
 	return uint64(v) >> 32
 }
 
 func rshConst64Ux64Overflow16(v uint16) uint64 {
+	// loong64:"MOVV\t\\$0,",-"SRLV"
 	// riscv64:"MOV\t\\$0,",-"SRL"
 	return uint64(v) >> 16
 }
 
 func rshConst64Ux64Overflow8(v uint8) uint64 {
+	// loong64:"MOVV\t\\$0,",-"SRLV"
 	// riscv64:"MOV\t\\$0,",-"SRL"
 	return uint64(v) >> 8
 }
 
 func rshConst64x64(v int64) int64 {
+	// loong64:"SRAV"
 	// ppc64x:"SRAD"
 	// riscv64:"SRAI\t",-"OR",-"SLTIU"
 	return v >> uint64(33)
 }
 
 func rshConst64x64Overflow32(v int32) int64 {
+	// loong64:"SRA\t\\$31"
 	// riscv64:"SRAIW",-"SLLI",-"SRAI\t"
 	return int64(v) >> 32
 }
 
 func rshConst64x64Overflow16(v int16) int64 {
+	// loong64:"SLLV\t\\$48","SRAV\t\\$63"
 	// riscv64:"SLLI","SRAI",-"SRAIW"
 	return int64(v) >> 16
 }
 
 func rshConst64x64Overflow8(v int8) int64 {
+	// loong64:"SLLV\t\\$56","SRAV\t\\$63"
 	// riscv64:"SLLI","SRAI",-"SRAIW"
 	return int64(v) >> 8
 }
@@ -69,36 +78,42 @@ func lshConst64x1(v int64) int64 {
 }
 
 func lshConst32x64(v int32) int32 {
+	// loong64:"SLL\t"
 	// ppc64x:"SLW"
 	// riscv64:"SLLI",-"AND",-"SLTIU", -"MOVW"
 	return v << uint64(29)
 }
 
 func rshConst32Ux64(v uint32) uint32 {
+	// loong64:"SRL\t"
 	// ppc64x:"SRW"
 	// riscv64:"SRLIW",-"AND",-"SLTIU", -"MOVW"
 	return v >> uint64(29)
 }
 
 func rshConst32x64(v int32) int32 {
+	// loong64:"SRA\t"
 	// ppc64x:"SRAW"
 	// riscv64:"SRAIW",-"OR",-"SLTIU", -"MOVW"
 	return v >> uint64(29)
 }
 
 func lshConst64x32(v int64) int64 {
+	// loong64:"SLLV"
 	// ppc64x:"SLD"
 	// riscv64:"SLLI",-"AND",-"SLTIU"
 	return v << uint32(33)
 }
 
 func rshConst64Ux32(v uint64) uint64 {
+	// loong64:"SRLV"
 	// ppc64x:"SRD"
 	// riscv64:"SRLI\t",-"AND",-"SLTIU"
 	return v >> uint32(33)
 }
 
 func rshConst64x32(v int64) int64 {
+	// loong64:"SRAV"
 	// ppc64x:"SRAD"
 	// riscv64:"SRAI\t",-"OR",-"SLTIU"
 	return v >> uint32(33)

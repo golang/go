@@ -62,10 +62,10 @@
 (Lsh64x16 <t> x y) => (MASKEQZ (SLLV <t> x (ZeroExt16to64 y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y)))
 (Lsh64x8  <t> x y) => (MASKEQZ (SLLV <t> x (ZeroExt8to64  y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64  y)))
 
-(Lsh32x64 <t> x y) => (MASKEQZ (SLLV <t> x                y)  (SGTU (MOVVconst <typ.UInt64> [64])                y))
-(Lsh32x32 <t> x y) => (MASKEQZ (SLLV <t> x (ZeroExt32to64 y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y)))
-(Lsh32x16 <t> x y) => (MASKEQZ (SLLV <t> x (ZeroExt16to64 y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y)))
-(Lsh32x8  <t> x y) => (MASKEQZ (SLLV <t> x (ZeroExt8to64  y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64  y)))
+(Lsh32x64 <t> x y) => (MASKEQZ (SLL <t> x                y)  (SGTU (MOVVconst <typ.UInt64> [32])                y))
+(Lsh32x32 <t> x y) => (MASKEQZ (SLL <t> x (ZeroExt32to64 y)) (SGTU (MOVVconst <typ.UInt64> [32]) (ZeroExt32to64 y)))
+(Lsh32x16 <t> x y) => (MASKEQZ (SLL <t> x (ZeroExt16to64 y)) (SGTU (MOVVconst <typ.UInt64> [32]) (ZeroExt16to64 y)))
+(Lsh32x8  <t> x y) => (MASKEQZ (SLL <t> x (ZeroExt8to64  y)) (SGTU (MOVVconst <typ.UInt64> [32]) (ZeroExt8to64  y)))
 
 (Lsh16x64 <t> x y) => (MASKEQZ (SLLV <t> x                y)  (SGTU (MOVVconst <typ.UInt64> [64])                y))
 (Lsh16x32 <t> x y) => (MASKEQZ (SLLV <t> x (ZeroExt32to64 y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y)))
@@ -82,10 +82,10 @@
 (Rsh64Ux16 <t> x y) => (MASKEQZ (SRLV <t> x (ZeroExt16to64 y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y)))
 (Rsh64Ux8  <t> x y) => (MASKEQZ (SRLV <t> x (ZeroExt8to64  y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64  y)))
 
-(Rsh32Ux64 <t> x y) => (MASKEQZ (SRLV <t> (ZeroExt32to64 x)                y)  (SGTU (MOVVconst <typ.UInt64> [64])                y))
-(Rsh32Ux32 <t> x y) => (MASKEQZ (SRLV <t> (ZeroExt32to64 x) (ZeroExt32to64 y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y)))
-(Rsh32Ux16 <t> x y) => (MASKEQZ (SRLV <t> (ZeroExt32to64 x) (ZeroExt16to64 y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y)))
-(Rsh32Ux8  <t> x y) => (MASKEQZ (SRLV <t> (ZeroExt32to64 x) (ZeroExt8to64  y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64  y)))
+(Rsh32Ux64 <t> x y) => (MASKEQZ (SRL <t> x                y)  (SGTU (MOVVconst <typ.UInt64> [32])                y))
+(Rsh32Ux32 <t> x y) => (MASKEQZ (SRL <t> x (ZeroExt32to64 y)) (SGTU (MOVVconst <typ.UInt64> [32]) (ZeroExt32to64 y)))
+(Rsh32Ux16 <t> x y) => (MASKEQZ (SRL <t> x (ZeroExt16to64 y)) (SGTU (MOVVconst <typ.UInt64> [32]) (ZeroExt16to64 y)))
+(Rsh32Ux8  <t> x y) => (MASKEQZ (SRL <t> x (ZeroExt8to64  y)) (SGTU (MOVVconst <typ.UInt64> [32]) (ZeroExt8to64  y)))
 
 (Rsh16Ux64 <t> x y) => (MASKEQZ (SRLV <t> (ZeroExt16to64 x)                y)  (SGTU (MOVVconst <typ.UInt64> [64])                y))
 (Rsh16Ux32 <t> x y) => (MASKEQZ (SRLV <t> (ZeroExt16to64 x) (ZeroExt32to64 y)) (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y)))
@@ -102,10 +102,10 @@
 (Rsh64x16 <t> x y) => (SRAV x (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt16to64 y)))
 (Rsh64x8  <t> x y) => (SRAV x (OR <t> (NEGV <t> (SGTU (ZeroExt8to64  y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt8to64  y)))
 
-(Rsh32x64 <t> x y) => (SRAV (SignExt32to64 x) (OR <t> (NEGV <t> (SGTU y (MOVVconst <typ.UInt64> [63]))) y))
-(Rsh32x32 <t> x y) => (SRAV (SignExt32to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt32to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt32to64 y)))
-(Rsh32x16 <t> x y) => (SRAV (SignExt32to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt16to64 y)))
-(Rsh32x8  <t> x y) => (SRAV (SignExt32to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt8to64  y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt8to64  y)))
+(Rsh32x64 <t> x y) => (SRA x (OR <t> (NEGV <t> (SGTU y (MOVVconst <typ.UInt64> [31]))) y))
+(Rsh32x32 <t> x y) => (SRA x (OR <t> (NEGV <t> (SGTU (ZeroExt32to64 y) (MOVVconst <typ.UInt64> [31]))) (ZeroExt32to64 y)))
+(Rsh32x16 <t> x y) => (SRA x (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [31]))) (ZeroExt16to64 y)))
+(Rsh32x8  <t> x y) => (SRA x (OR <t> (NEGV <t> (SGTU (ZeroExt8to64  y) (MOVVconst <typ.UInt64> [31]))) (ZeroExt8to64  y)))
 
 (Rsh16x64 <t> x y) => (SRAV (SignExt16to64 x) (OR <t> (NEGV <t> (SGTU y (MOVVconst <typ.UInt64> [63]))) y))
 (Rsh16x32 <t> x y) => (SRAV (SignExt16to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt32to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt32to64 y)))
@@ -686,14 +686,29 @@
 (XOR x (MOVVconst [c])) && is32Bit(c) => (XORconst [c] x)
 (NOR x (MOVVconst [c])) && is32Bit(c) => (NORconst [c] x)
 
+(SLL _ (MOVVconst [c])) && uint64(c)>=32 => (MOVVconst [0])
 (SLLV _ (MOVVconst [c])) && uint64(c)>=64 => (MOVVconst [0])
+(SRL _ (MOVVconst [c])) && uint64(c)>=32 => (MOVVconst [0])
 (SRLV _ (MOVVconst [c])) && uint64(c)>=64 => (MOVVconst [0])
+(SRA x (MOVVconst [c])) && uint64(c)>=32 => (SRAconst x [31])
 (SRAV x (MOVVconst [c])) && uint64(c)>=64 => (SRAVconst x [63])
+(SLL x (MOVVconst [c])) && uint64(c) >=0 && uint64(c) <=31 => (SLLconst x [c])
 (SLLV x (MOVVconst [c])) => (SLLVconst x [c])
+(SRL x (MOVVconst [c])) && uint64(c) >=0 && uint64(c) <=31 => (SRLconst x [c])
 (SRLV x (MOVVconst [c])) => (SRLVconst x [c])
+(SRA x (MOVVconst [c])) && uint64(c) >=0 && uint64(c) <=31 => (SRAconst x [c])
 (SRAV x (MOVVconst [c])) => (SRAVconst x [c])
 (ROTR x (MOVVconst [c]))  => (ROTRconst x [c&31])
 (ROTRV x (MOVVconst [c])) => (ROTRVconst x [c&63])
+
+// Avoid unnecessary zero and sign extension when right shifting.
+(SRLVconst [rc] (MOVWUreg y)) && rc >= 0 && rc <= 31 => (SRLconst [int64(rc)] y)
+(SRAVconst [rc] (MOVWreg y)) && rc >= 0 && rc <= 31 => (SRAconst [int64(rc)] y)
+
+// Replace right shifts that exceed size of signed type.
+(SRAVconst <t> [rc] (MOVBreg y)) && rc >=  8 => (SRAVconst [63] (SLLVconst <t> [56] y))
+(SRAVconst <t> [rc] (MOVHreg y)) && rc >= 16 => (SRAVconst  [63] (SLLVconst <t> [48] y))
+(SRAVconst <t> [rc] (MOVWreg y)) && rc >= 32 => (SRAconst [31] y)
 
 // If the shift amount is larger than the datasize(32, 16, 8), we can optimize to constant 0.
 (MOVWUreg (SLLVconst [lc] x)) && lc >= 32 => (MOVVconst [0])
