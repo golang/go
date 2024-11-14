@@ -15,6 +15,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fips"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
@@ -447,6 +448,19 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 		a.buildID = actionID + buildIDSeparator + mainpkg.buildID + buildIDSeparator + contentID
 	}
 
+	// In FIPS mode, we disable any link caching,
+	// so that we always leave fips.o in $WORK/b001.
+	// This makes sure that labs validating the FIPS
+	// implementation can always run 'go build -work'
+	// and then find fips.o in $WORK/b001/fips.o.
+	// We could instead also save the fips.o and restore it
+	// to $WORK/b001 from the cache,
+	// but we went years without caching binaries anyway,
+	// so not caching them for FIPS will be fine, at least to start.
+	if a.Mode == "link" && fips.Enabled() && a.Package != nil && !strings.HasSuffix(a.Package.ImportPath, ".test") {
+		return false
+	}
+
 	// If user requested -a, we force a rebuild, so don't use the cache.
 	if cfg.BuildA {
 		if p := a.Package; p != nil && !p.Stale {
@@ -506,7 +520,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 				oldBuildID := a.buildID
 				a.buildID = id[1] + buildIDSeparator + id[2]
 				linkID := buildid.HashToString(b.linkActionID(a.triggers[0]))
-				if id[0] == linkID {
+				if id[0] == linkID && !fips.Enabled() {
 					// Best effort attempt to display output from the compile and link steps.
 					// If it doesn't work, it doesn't work: reusing the cached binary is more
 					// important than reprinting diagnostic information.

@@ -19,6 +19,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fips"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/load"
@@ -613,6 +614,9 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
 	}
 	if cfg.BuildBuildmode == "plugin" {
 		ldflags = append(ldflags, "-pluginpath", pluginPath(root))
+	}
+	if fips.Enabled() {
+		ldflags = append(ldflags, "-fipso", filepath.Join(root.Objdir, "fips.o"))
 	}
 
 	// Store BuildID inside toolchain binaries as a unique identifier of the

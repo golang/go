@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cmd/go/internal/fips"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
 )
@@ -61,12 +62,25 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 	}
 
 	var m map[string]string
+
+	// If GOFIPS140 is set to anything but "off",
+	// default to GODEBUG=fips140=on.
+	if fips.Enabled() {
+		if m == nil {
+			m = make(map[string]string)
+		}
+		m["fips140"] = "on"
+	}
+
+	// Add directives from main module go.mod.
 	for _, g := range modload.MainModules.Godebugs() {
 		if m == nil {
 			m = make(map[string]string)
 		}
 		m[g.Key] = g.Value
 	}
+
+	// Add directives from packages.
 	for _, list := range [][]build.Directive{p.Internal.Build.Directives, directives, testDirectives, xtestDirectives} {
 		for _, d := range list {
 			k, v, err := ParseGoDebug(d.Text)

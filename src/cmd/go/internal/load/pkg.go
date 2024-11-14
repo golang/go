@@ -32,6 +32,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fips"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
@@ -2428,6 +2429,9 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 	appendSetting("GOARCH", cfg.BuildContext.GOARCH)
 	if cfg.RawGOEXPERIMENT != "" {
 		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
+	}
+	if fips.Enabled() {
+		appendSetting("GOFIPS140", fips.Version())
 	}
 	appendSetting("GOOS", cfg.BuildContext.GOOS)
 	if key, val, _ := cfg.GetArchEnv(); key != "" && val != "" {
