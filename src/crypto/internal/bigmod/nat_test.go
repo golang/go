@@ -10,6 +10,7 @@ import (
 	"math/bits"
 	"math/rand"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"testing/quick"
@@ -476,5 +477,42 @@ func TestNewModFromBigZero(t *testing.T) {
 	_, err = NewModulusFromBig(big.NewInt(2))
 	if err == nil || err.Error() != expected {
 		t.Errorf("NewModulusFromBig(2) got %q, want %q", err, expected)
+	}
+}
+
+func makeTestValue(nbits int) []uint {
+	n := nbits / _W
+	x := make([]uint, n)
+	for i := range n {
+		x[i]--
+	}
+	return x
+}
+
+func TestAddMulVVWSized(t *testing.T) {
+	// Sized addMulVVW have architecture-specific implementations on
+	// a number of architectures. Test that they match the generic
+	// implementation.
+	tests := []struct {
+		n int
+		f func(z, x *uint, y uint) uint
+	}{
+		{1024, addMulVVW1024},
+		{1536, addMulVVW1536},
+		{2048, addMulVVW2048},
+	}
+	for _, test := range tests {
+		t.Run(fmt.Sprint(test.n), func(t *testing.T) {
+			x := makeTestValue(test.n)
+			z := makeTestValue(test.n)
+			z2 := slices.Clone(z)
+			var y uint
+			y--
+			c := addMulVVW(z, x, y)
+			c2 := test.f(&z2[0], &x[0], y)
+			if !slices.Equal(z, z2) || c != c2 {
+				t.Errorf("%016X, %016X != %016X, %016X", z, c, z2, c2)
+			}
+		})
 	}
 }
