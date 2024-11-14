@@ -6,6 +6,8 @@ package pbkdf2_test
 
 import (
 	"bytes"
+	"crypto/internal/boring"
+	"crypto/internal/fips140"
 	"crypto/pbkdf2"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -181,4 +183,41 @@ func BenchmarkHMACSHA1(b *testing.B) {
 
 func BenchmarkHMACSHA256(b *testing.B) {
 	benchmark(b, sha256.New)
+}
+
+func TestPBKDF2ServiceIndicator(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("in BoringCrypto mode PBKDF2 is not from the Go FIPS module")
+	}
+
+	goodSalt := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10}
+
+	fips140.ResetServiceIndicator()
+	_, err := pbkdf2.Key(sha256.New, "password", goodSalt, 1, 32)
+	if err != nil {
+		t.Error(err)
+	}
+	if !fips140.ServiceIndicator() {
+		t.Error("FIPS service indicator should be set")
+	}
+
+	// Salt too short
+	fips140.ResetServiceIndicator()
+	_, err = pbkdf2.Key(sha256.New, "password", goodSalt[:8], 1, 32)
+	if err != nil {
+		t.Error(err)
+	}
+	if fips140.ServiceIndicator() {
+		t.Error("FIPS service indicator should not be set")
+	}
+
+	// Key length too short
+	fips140.ResetServiceIndicator()
+	_, err = pbkdf2.Key(sha256.New, "password", goodSalt, 1, 10)
+	if err != nil {
+		t.Error(err)
+	}
+	if fips140.ServiceIndicator() {
+		t.Error("FIPS service indicator should not be set")
+	}
 }

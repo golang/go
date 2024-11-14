@@ -166,7 +166,7 @@ func New[H fips140.Hash](h func() H, key []byte) *HMAC {
 	return hm
 }
 
-// MarkAsUsedInHKDF records that this HMAC instance is used as part of HKDF.
-func MarkAsUsedInHKDF(h *HMAC) {
+// MarkAsUsedInKDF records that this HMAC instance is used as part of a KDF.
+func MarkAsUsedInKDF(h *HMAC) {
 	h.forHKDF = true
 }

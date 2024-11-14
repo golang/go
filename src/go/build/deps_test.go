@@ -467,6 +467,7 @@ var depsRules = `
 	< crypto/internal/fips140/sha3
 	< crypto/internal/fips140/hmac
 	< crypto/internal/fips140/check
+	< crypto/internal/fips140/pbkdf2
 	< crypto/internal/fips140/aes
 	< crypto/internal/fips140/drbg
 	< crypto/internal/fips140/aes/gcm
