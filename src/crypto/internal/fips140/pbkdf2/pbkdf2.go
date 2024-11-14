@@ -6,7 +6,6 @@ package pbkdf2
 
 import (
 	"crypto/internal/fips140"
-	_ "crypto/internal/fips140/check"
 	"crypto/internal/fips140/hmac"
 )
 
