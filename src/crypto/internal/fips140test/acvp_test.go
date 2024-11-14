@@ -21,6 +21,7 @@ package fipstest
 import (
 	"bufio"
 	"bytes"
+	"crypto/elliptic"
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/ecdsa"
@@ -32,12 +33,14 @@ import (
 	"crypto/internal/fips140/sha256"
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140/sha512"
+	"crypto/rand"
 	_ "embed"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,6 +88,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
 	// EDDSA algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-7
+	// ECDSA algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-ecdsa.html#section-7
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -151,6 +156,11 @@ var (
 		"EDDSA/keyVer": cmdEddsaKeyVerAft(),
 		"EDDSA/sigGen": cmdEddsaSigGenAftBft(),
 		"EDDSA/sigVer": cmdEddsaSigVerAft(),
+
+		"ECDSA/keyGen": cmdEcdsaKeyGenAft(),
+		"ECDSA/keyVer": cmdEcdsaKeyVerAft(),
+		"ECDSA/sigGen": cmdEcdsaSigGenAft(),
+		"ECDSA/sigVer": cmdEcdsaSigVerAft(),
 	}
 )
 
@@ -526,6 +536,208 @@ func cmdEddsaSigVerAft() command {
 	}
 }
 
+func cmdEcdsaKeyGenAft() command {
+	return command{
+		requiredArgs: 1, // Curve name
+		handler: func(args [][]byte) ([][]byte, error) {
+			curve, err := lookupCurve(string(args[0]))
+			if err != nil {
+				return nil, err
+			}
+
+			var sk *ecdsa.PrivateKey
+			switch curve.Params() {
+			case elliptic.P224().Params():
+				sk, err = ecdsa.GenerateKey(ecdsa.P224(), rand.Reader)
+			case elliptic.P256().Params():
+				sk, err = ecdsa.GenerateKey(ecdsa.P256(), rand.Reader)
+			case elliptic.P384().Params():
+				sk, err = ecdsa.GenerateKey(ecdsa.P384(), rand.Reader)
+			case elliptic.P521().Params():
+				sk, err = ecdsa.GenerateKey(ecdsa.P521(), rand.Reader)
+			default:
+				return nil, fmt.Errorf("unsupported curve: %v", curve)
+			}
+
+			if err != nil {
+				return nil, err
+			}
+
+			pubBytes := sk.PublicKey().Bytes()
+			byteLen := (curve.Params().BitSize + 7) / 8
+
+			return [][]byte{
+				sk.Bytes(),
+				pubBytes[1 : 1+byteLen],
+				pubBytes[1+byteLen:],
+			}, nil
+		},
+	}
+}
+
+func cmdEcdsaKeyVerAft() command {
+	return command{
+		requiredArgs: 3, // Curve name, X, Y
+		handler: func(args [][]byte) ([][]byte, error) {
+			curve, err := lookupCurve(string(args[0]))
+			if err != nil {
+				return nil, err
+			}
+
+			x := new(big.Int).SetBytes(args[1])
+			y := new(big.Int).SetBytes(args[2])
+
+			if curve.IsOnCurve(x, y) {
+				return [][]byte{{1}}, nil
+			}
+
+			return [][]byte{{0}}, nil
+		},
+	}
+}
+
+// pointFromAffine is used to convert the PublicKey to a nistec SetBytes input.
+// Duplicated from crypto/ecdsa.go's pointFromAffine.
+func pointFromAffine(curve elliptic.Curve, x, y *big.Int) ([]byte, error) {
+	bitSize := curve.Params().BitSize
+	// Reject values that would not get correctly encoded.
+	if x.Sign() < 0 || y.Sign() < 0 {
+		return nil, errors.New("negative coordinate")
+	}
+	if x.BitLen() > bitSize || y.BitLen() > bitSize {
+		return nil, errors.New("overflowing coordinate")
+	}
+	// Encode the coordinates and let SetBytes reject invalid points.
+	byteLen := (bitSize + 7) / 8
+	buf := make([]byte, 1+2*byteLen)
+	buf[0] = 4 // uncompressed point
+	x.FillBytes(buf[1 : 1+byteLen])
+	y.FillBytes(buf[1+byteLen : 1+2*byteLen])
+	return buf, nil
+}
+
+func signEcdsa[P ecdsa.Point[P], H fips140.Hash](c *ecdsa.Curve[P], h func() H, q []byte, sk []byte, digest []byte) (*ecdsa.Signature, error) {
+	priv, err := ecdsa.NewPrivateKey(c, sk, q)
+	if err != nil {
+		return nil, fmt.Errorf("invalid private key: %w", err)
+	}
+
+	sig, err := ecdsa.Sign(c, h, priv, rand.Reader, digest)
+	if err != nil {
+		return nil, fmt.Errorf("signing failed: %w", err)
+	}
+
+	return sig, nil
+}
+
+func cmdEcdsaSigGenAft() command {
+	return command{
+		requiredArgs: 4, // Curve name, private key, hash name, message
+		handler: func(args [][]byte) ([][]byte, error) {
+			curve, err := lookupCurve(string(args[0]))
+			if err != nil {
+				return nil, err
+			}
+
+			sk := args[1]
+
+			newH, err := lookupHash(string(args[2]))
+			if err != nil {
+				return nil, err
+			}
+
+			msg := args[3]
+			hashFunc := newH()
+			hashFunc.Write(msg)
+			digest := hashFunc.Sum(nil)
+
+			d := new(big.Int).SetBytes(sk)
+			x, y := curve.ScalarBaseMult(d.Bytes())
+			q, err := pointFromAffine(curve, x, y)
+			if err != nil {
+				return nil, err
+			}
+
+			var sig *ecdsa.Signature
+			switch curve.Params() {
+			case elliptic.P224().Params():
+				sig, err = signEcdsa(ecdsa.P224(), newH, q, sk, digest)
+			case elliptic.P256().Params():
+				sig, err = signEcdsa(ecdsa.P256(), newH, q, sk, digest)
+			case elliptic.P384().Params():
+				sig, err = signEcdsa(ecdsa.P384(), newH, q, sk, digest)
+			case elliptic.P521().Params():
+				sig, err = signEcdsa(ecdsa.P521(), newH, q, sk, digest)
+			default:
+				return nil, fmt.Errorf("unsupported curve: %v", curve)
+			}
+			if err != nil {
+				return nil, err
+			}
+
+			return [][]byte{sig.R, sig.S}, nil
+		},
+	}
+}
+
+func cmdEcdsaSigVerAft() command {
+	return command{
+		requiredArgs: 7, // Curve name, hash name, message, X, Y, R, S
+		handler: func(args [][]byte) ([][]byte, error) {
+			curve, err := lookupCurve(string(args[0]))
+			if err != nil {
+				return nil, err
+			}
+
+			newH, err := lookupHash(string(args[1]))
+			if err != nil {
+				return nil, err
+			}
+
+			msg := args[2]
+			hashFunc := newH()
+			hashFunc.Write(msg)
+			digest := hashFunc.Sum(nil)
+
+			x, y := args[3], args[4]
+			q, err := pointFromAffine(curve, new(big.Int).SetBytes(x), new(big.Int).SetBytes(y))
+			if err != nil {
+				return nil, fmt.Errorf("invalid x/y coordinates: %v", err)
+			}
+
+			signature := &ecdsa.Signature{R: args[5], S: args[6]}
+
+			switch curve.Params() {
+			case elliptic.P224().Params():
+				err = verifyEcdsa(ecdsa.P224(), q, digest, signature)
+			case elliptic.P256().Params():
+				err = verifyEcdsa(ecdsa.P256(), q, digest, signature)
+			case elliptic.P384().Params():
+				err = verifyEcdsa(ecdsa.P384(), q, digest, signature)
+			case elliptic.P521().Params():
+				err = verifyEcdsa(ecdsa.P521(), q, digest, signature)
+			default:
+				return nil, fmt.Errorf("unsupported curve: %v", curve)
+			}
+
+			if err == nil {
+				return [][]byte{{1}}, nil
+			}
+
+			return [][]byte{{0}}, nil
+		},
+	}
+}
+
+func verifyEcdsa[P ecdsa.Point[P]](c *ecdsa.Curve[P], q []byte, digest []byte, sig *ecdsa.Signature) error {
+	pub, err := ecdsa.NewPublicKey(c, q)
+	if err != nil {
+		return fmt.Errorf("invalid public key: %w", err)
+	}
+
+	return ecdsa.Verify(c, pub, digest, sig)
+}
+
 func lookupHash(name string) (func() fips140.Hash, error) {
 	var h func() fips140.Hash
 
@@ -712,6 +924,25 @@ func cmdHmacDrbgAft(h func() fips140.Hash) command {
 			return [][]byte{out}, nil
 		},
 	}
+}
+
+func lookupCurve(name string) (elliptic.Curve, error) {
+	var c elliptic.Curve
+
+	switch name {
+	case "P-224":
+		c = elliptic.P224()
+	case "P-256":
+		c = elliptic.P256()
+	case "P-384":
+		c = elliptic.P384()
+	case "P-521":
+		c = elliptic.P521()
+	default:
+		return nil, fmt.Errorf("unknown curve name: %q", name)
+	}
+
+	return c, nil
 }
 
 func TestACVP(t *testing.T) {

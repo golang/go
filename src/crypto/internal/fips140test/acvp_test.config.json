@@ -29,5 +29,7 @@
 
   {"Wrapper": "go", "In": "vectors/hmacDRBG.bz2", "Out": "expected/hmacDRBG.bz2"},
 
-  {"Wrapper": "go", "In": "vectors/EDDSA.bz2", "Out": "expected/EDDSA.bz2"}
+  {"Wrapper": "go", "In": "vectors/EDDSA.bz2", "Out": "expected/EDDSA.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/ECDSA.bz2", "Out": "expected/ECDSA.bz2"}
 ]
