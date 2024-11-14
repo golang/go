@@ -51,7 +51,7 @@ fn bootstrapenv {
 bootgo = 1.22.6
 GOROOT = `{cd .. && pwd}
 goroot_bootstrap_set = 'true'
-if(! ~ $#GOROOT_BOOTSTRAP 1){
+if(~ $"GOROOT_BOOTSTRAP ''){
 	goroot_bootstrap_set = 'false'
 	GOROOT_BOOTSTRAP = $home/go1.4
 	for(d in sdk/go$bootgo go$bootgo)
