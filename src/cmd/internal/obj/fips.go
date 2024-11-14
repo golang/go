@@ -191,12 +191,11 @@ func EnableFIPS() bool {
 	// after which we could remove this case, but until then,
 	// skip FIPS on windows-386.
 	//
-	// We don't know whether arm or arm64 works, because it is
-	// too hard to get builder time to test them. Disable since they
-	// are not important right now.
+	// We don't know whether arm works, because it is too hard to get builder
+	// time to test it. Disable since it's not important right now.
 	if buildcfg.GOOS == "windows" {
 		switch buildcfg.GOARCH {
-		case "386", "arm", "arm64":
+		case "386", "arm":
 			return false
 		}
 	}
