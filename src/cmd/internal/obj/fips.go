@@ -317,6 +317,7 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_ADDRMIPSU, // used by adding to REGSB, so position-independent
 		objabi.R_ADDRMIPSTLS,
 		objabi.R_ADDROFF,
+		objabi.R_ADDRPOWER_GOT,
 		objabi.R_ADDRPOWER_GOT_PCREL34,
 		objabi.R_ADDRPOWER_PCREL,
 		objabi.R_ADDRPOWER_TOCREL,
