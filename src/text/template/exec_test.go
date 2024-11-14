@@ -400,6 +400,9 @@ var execTests = []execTest{
 	{"Interface Call", `{{stringer .S}}`, "foozle", map[string]any{"S": bytes.NewBufferString("foozle")}, true},
 	{".ErrFunc", "{{call .ErrFunc}}", "bla", tVal, true},
 	{"call nil", "{{call nil}}", "", tVal, false},
+	{"empty call", "{{call}}", "", tVal, false},
+	{"empty call after pipe valid", "{{.ErrFunc | call}}", "bla", tVal, true},
+	{"empty call after pipe invalid", "{{1 | call}}", "", tVal, false},
 
 	// Erroneous function calls (check args).
 	{".BinaryFuncTooFew", "{{call .BinaryFunc `1`}}", "", tVal, false},
