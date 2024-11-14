@@ -7,15 +7,15 @@
 package sha512
 
 import (
+	"crypto/internal/fipsdeps/godebug"
 	"crypto/internal/impl"
-	"internal/godebug"
 )
 
 // The POWER architecture doesn't have a way to turn off SHA-512 support at
 // runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG knob for
 // that. It's intentionally only checked at init() time, to avoid the
 // performance overhead of checking it on every block.
-var ppc64sha512 = godebug.New("#ppc64sha512").Value() != "off"
+var ppc64sha512 = godebug.Value("#ppc64sha512") != "off"
 
 func init() {
 	impl.Register("sha512", "POWER8", &ppc64sha512)

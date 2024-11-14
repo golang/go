@@ -4,14 +4,14 @@
 
 package fips
 
-import "internal/godebug"
+import "crypto/internal/fipsdeps/godebug"
 
 var Enabled bool
 
 var debug bool
 
 func init() {
-	switch godebug.New("#fips140").Value() {
+	switch godebug.Value("#fips140") {
 	case "on", "only":
 		Enabled = true
 	case "debug":

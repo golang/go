@@ -7,11 +7,11 @@
 package sha512
 
 import (
+	"crypto/internal/fipsdeps/cpu"
 	"crypto/internal/impl"
-	"internal/cpu"
 )
 
-var useSHA512 = cpu.S390X.HasSHA512
+var useSHA512 = cpu.S390XHasSHA512
 
 func init() {
 	// CP Assist for Cryptographic Functions (CPACF)

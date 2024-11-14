@@ -7,11 +7,11 @@
 package sha512
 
 import (
+	"crypto/internal/fipsdeps/cpu"
 	"crypto/internal/impl"
-	"internal/cpu"
 )
 
-var useSHA512 = cpu.ARM64.HasSHA512
+var useSHA512 = cpu.ARM64HasSHA512
 
 func init() {
 	impl.Register("sha512", "Armv8.2", &useSHA512)

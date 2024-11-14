@@ -8,7 +8,7 @@ import (
 	"crypto/internal/fips"
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/subtle"
-	"internal/byteorder"
+	"crypto/internal/fipsdeps/byteorder"
 	"math/bits"
 )
 
@@ -77,12 +77,12 @@ func (c *Counter) update(seed *[SeedSize]byte) {
 }
 
 func increment(v *[aes.BlockSize]byte) {
-	hi := byteorder.BeUint64(v[:8])
-	lo := byteorder.BeUint64(v[8:])
+	hi := byteorder.BEUint64(v[:8])
+	lo := byteorder.BEUint64(v[8:])
 	lo, c := bits.Add64(lo, 1, 0)
 	hi, _ = bits.Add64(hi, 0, c)
-	byteorder.BePutUint64(v[:8], hi)
-	byteorder.BePutUint64(v[8:], lo)
+	byteorder.BEPutUint64(v[:8], hi)
+	byteorder.BEPutUint64(v[8:], lo)
 }
 
 func (c *Counter) Reseed(entropy, additionalInput *[SeedSize]byte) {

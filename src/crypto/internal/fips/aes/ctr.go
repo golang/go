@@ -7,7 +7,7 @@ package aes
 import (
 	"crypto/internal/fips/alias"
 	"crypto/internal/fips/subtle"
-	"internal/byteorder"
+	"crypto/internal/fipsdeps/byteorder"
 	"math/bits"
 )
 
@@ -24,8 +24,8 @@ func NewCTR(b *Block, iv []byte) *CTR {
 
 	return &CTR{
 		b:      *b,
-		ivlo:   byteorder.BeUint64(iv[8:16]),
-		ivhi:   byteorder.BeUint64(iv[0:8]),
+		ivlo:   byteorder.BEUint64(iv[8:16]),
+		ivhi:   byteorder.BEUint64(iv[0:8]),
 		offset: 0,
 	}
 }
@@ -122,8 +122,8 @@ func (c *CTR) XORKeyStreamAt(dst, src []byte, offset uint64) {
 func ctrBlocks(b *Block, dst, src []byte, ivlo, ivhi uint64) {
 	buf := make([]byte, len(src), 8*BlockSize)
 	for i := 0; i < len(buf); i += BlockSize {
-		byteorder.BePutUint64(buf[i:], ivhi)
-		byteorder.BePutUint64(buf[i+8:], ivlo)
+		byteorder.BEPutUint64(buf[i:], ivhi)
+		byteorder.BEPutUint64(buf[i+8:], ivlo)
 		ivlo, ivhi = add128(ivlo, ivhi, 1)
 		b.Encrypt(buf[i:], buf[i:])
 	}

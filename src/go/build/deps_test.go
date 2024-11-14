@@ -445,11 +445,16 @@ var depsRules = `
 	OS < crypto/internal/sysrand
 	< crypto/internal/entropy;
 
+	internal/byteorder < crypto/internal/fipsdeps/byteorder;
+	internal/cpu, internal/goarch < crypto/internal/fipsdeps/cpu;
+	internal/godebug < crypto/internal/fipsdeps/godebug;
+
 	# FIPS is the FIPS 140 module.
 	# It must not depend on external crypto packages.
-	# Internal packages imported by FIPS might need to retain
-	# backwards compatibility with older versions of the module.
-	STR, crypto/internal/impl, crypto/internal/entropy
+	STR, crypto/internal/impl, crypto/internal/entropy,
+	crypto/internal/fipsdeps/byteorder,
+	crypto/internal/fipsdeps/cpu,
+	crypto/internal/fipsdeps/godebug
 	< crypto/internal/fips
 	< crypto/internal/fips/alias
 	< crypto/internal/fips/subtle

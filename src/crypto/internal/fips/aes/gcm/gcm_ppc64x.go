@@ -9,9 +9,9 @@ package gcm
 import (
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/subtle"
+	"crypto/internal/fipsdeps/byteorder"
+	"crypto/internal/fipsdeps/godebug"
 	"crypto/internal/impl"
-	"internal/byteorder"
-	"internal/godebug"
 	"runtime"
 )
 
@@ -29,7 +29,7 @@ func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *u
 // at runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG
 // knob for that. It's intentionally only checked at init() time, to
 // avoid the performance overhead of checking it every time.
-var supportsAESGCM = godebug.New("#ppc64gcm").Value() != "off"
+var supportsAESGCM = godebug.Value("#ppc64gcm") != "off"
 
 func init() {
 	impl.Register("gcm", "POWER8", &supportsAESGCM)
@@ -57,14 +57,14 @@ func initGCM(g *GCM) {
 	// Load little endian, store big endian
 	var h1, h2 uint64
 	if runtime.GOARCH == "ppc64le" {
-		h1 = byteorder.LeUint64(hle[:8])
-		h2 = byteorder.LeUint64(hle[8:])
+		h1 = byteorder.LEUint64(hle[:8])
+		h2 = byteorder.LEUint64(hle[8:])
 	} else {
-		h1 = byteorder.BeUint64(hle[:8])
-		h2 = byteorder.BeUint64(hle[8:])
+		h1 = byteorder.BEUint64(hle[:8])
+		h2 = byteorder.BEUint64(hle[8:])
 	}
-	byteorder.BePutUint64(hle[:8], h1)
-	byteorder.BePutUint64(hle[8:], h2)
+	byteorder.BEPutUint64(hle[:8], h1)
+	byteorder.BEPutUint64(hle[8:], h2)
 	gcmInit(&g.productTable, hle)
 }
 

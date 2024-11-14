@@ -8,8 +8,8 @@ package sha256
 
 import (
 	"crypto/internal/fips"
+	"crypto/internal/fipsdeps/byteorder"
 	"errors"
-	"internal/byteorder"
 )
 
 // The size of a SHA-256 checksum in bytes.
@@ -66,17 +66,17 @@ func (d *Digest) AppendBinary(b []byte) ([]byte, error) {
 	} else {
 		b = append(b, magic256...)
 	}
-	b = byteorder.BeAppendUint32(b, d.h[0])
-	b = byteorder.BeAppendUint32(b, d.h[1])
-	b = byteorder.BeAppendUint32(b, d.h[2])
-	b = byteorder.BeAppendUint32(b, d.h[3])
-	b = byteorder.BeAppendUint32(b, d.h[4])
-	b = byteorder.BeAppendUint32(b, d.h[5])
-	b = byteorder.BeAppendUint32(b, d.h[6])
-	b = byteorder.BeAppendUint32(b, d.h[7])
+	b = byteorder.BEAppendUint32(b, d.h[0])
+	b = byteorder.BEAppendUint32(b, d.h[1])
+	b = byteorder.BEAppendUint32(b, d.h[2])
+	b = byteorder.BEAppendUint32(b, d.h[3])
+	b = byteorder.BEAppendUint32(b, d.h[4])
+	b = byteorder.BEAppendUint32(b, d.h[5])
+	b = byteorder.BEAppendUint32(b, d.h[6])
+	b = byteorder.BEAppendUint32(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
 	b = append(b, make([]byte, len(d.x)-d.nx)...)
-	b = byteorder.BeAppendUint64(b, d.len)
+	b = byteorder.BEAppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -103,11 +103,11 @@ func (d *Digest) UnmarshalBinary(b []byte) error {
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
-	return b[8:], byteorder.BeUint64(b)
+	return b[8:], byteorder.BEUint64(b)
 }
 
 func consumeUint32(b []byte) ([]byte, uint32) {
-	return b[4:], byteorder.BeUint32(b)
+	return b[4:], byteorder.BEUint32(b)
 }
 
 func (d *Digest) Reset() {
@@ -207,7 +207,7 @@ func (d *Digest) checkSum() [size]byte {
 	// Length in bits.
 	len <<= 3
 	padlen := tmp[:t+8]
-	byteorder.BePutUint64(padlen[t+0:], len)
+	byteorder.BEPutUint64(padlen[t+0:], len)
 	d.Write(padlen)
 
 	if d.nx != 0 {
@@ -216,15 +216,15 @@ func (d *Digest) checkSum() [size]byte {
 
 	var digest [size]byte
 
-	byteorder.BePutUint32(digest[0:], d.h[0])
-	byteorder.BePutUint32(digest[4:], d.h[1])
-	byteorder.BePutUint32(digest[8:], d.h[2])
-	byteorder.BePutUint32(digest[12:], d.h[3])
-	byteorder.BePutUint32(digest[16:], d.h[4])
-	byteorder.BePutUint32(digest[20:], d.h[5])
-	byteorder.BePutUint32(digest[24:], d.h[6])
+	byteorder.BEPutUint32(digest[0:], d.h[0])
+	byteorder.BEPutUint32(digest[4:], d.h[1])
+	byteorder.BEPutUint32(digest[8:], d.h[2])
+	byteorder.BEPutUint32(digest[12:], d.h[3])
+	byteorder.BEPutUint32(digest[16:], d.h[4])
+	byteorder.BEPutUint32(digest[20:], d.h[5])
+	byteorder.BEPutUint32(digest[24:], d.h[6])
 	if !d.is224 {
-		byteorder.BePutUint32(digest[28:], d.h[7])
+		byteorder.BEPutUint32(digest[28:], d.h[7])
 	}
 
 	return digest

@@ -7,11 +7,11 @@
 package sha256
 
 import (
+	"crypto/internal/fipsdeps/cpu"
 	"crypto/internal/impl"
-	"internal/cpu"
 )
 
-var useSHA256 = cpu.S390X.HasSHA256
+var useSHA256 = cpu.S390XHasSHA256
 
 func init() {
 	// CP Assist for Cryptographic Functions (CPACF)

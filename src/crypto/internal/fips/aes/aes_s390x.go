@@ -7,8 +7,8 @@
 package aes
 
 import (
+	"crypto/internal/fipsdeps/cpu"
 	"crypto/internal/impl"
-	"internal/cpu"
 )
 
 type code int
@@ -35,7 +35,7 @@ type block struct {
 //go:noescape
 func cryptBlocks(c code, key, dst, src *byte, length int)
 
-var supportsAES = cpu.S390X.HasAES && cpu.S390X.HasAESCBC
+var supportsAES = cpu.S390XHasAES && cpu.S390XHasAESCBC
 
 func init() {
 	// CP Assist for Cryptographic Functions (CPACF)

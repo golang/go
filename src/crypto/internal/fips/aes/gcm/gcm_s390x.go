@@ -9,9 +9,9 @@ package gcm
 import (
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/subtle"
+	"crypto/internal/fipsdeps/byteorder"
+	"crypto/internal/fipsdeps/cpu"
 	"crypto/internal/impl"
-	"internal/byteorder"
-	"internal/cpu"
 )
 
 // This file contains two implementations of AES-GCM. The first implementation
@@ -21,8 +21,8 @@ import (
 // KIMD to hash large nonces).
 
 // Keep in sync with crypto/tls.hasAESGCMHardwareSupport.
-var useGHASH = cpu.S390X.HasAES && cpu.S390X.HasAESCTR && cpu.S390X.HasGHASH
-var useGCM = useGHASH && cpu.S390X.HasAESGCM
+var useGHASH = cpu.S390XHasAES && cpu.S390XHasAESCTR && cpu.S390XHasGHASH
+var useGCM = useGHASH && cpu.S390XHasAESGCM
 
 func init() {
 	impl.Register("gcm", "CPACF/KIMD", &useGHASH)
@@ -38,8 +38,8 @@ func checkGenericIsExpected() {
 // gcmLengths writes len0 || len1 as big-endian values to a 16-byte array.
 func gcmLengths(len0, len1 uint64) [16]byte {
 	v := [16]byte{}
-	byteorder.BePutUint64(v[0:], len0)
-	byteorder.BePutUint64(v[8:], len1)
+	byteorder.BEPutUint64(v[0:], len0)
+	byteorder.BEPutUint64(v[8:], len1)
 	return v
 }
 

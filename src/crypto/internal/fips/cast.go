@@ -5,8 +5,8 @@
 package fips
 
 import (
+	"crypto/internal/fipsdeps/godebug"
 	"errors"
-	"internal/godebug"
 	"strings"
 	_ "unsafe" // for go:linkname
 )
@@ -19,7 +19,7 @@ func fatal(string)
 // failfipscast is a GODEBUG key allowing simulation of a Cryptographic Algorithm
 // Self-Test (CAST) failure, as required during FIPS 140-3 functional testing.
 // The value is a substring of the target CAST name.
-var failfipscast = godebug.New("#failfipscast")
+var failfipscast = godebug.Value("#failfipscast")
 
 // CAST runs the named Cryptographic Algorithm Self-Test or Pairwise Consistency
 // Test (if operated in FIPS mode) and aborts the program (stopping the module
@@ -45,7 +45,7 @@ func CAST(name string, f func() error) {
 	}
 
 	err := f()
-	if failfipscast.Value() != "" && strings.Contains(name, failfipscast.Value()) {
+	if failfipscast != "" && strings.Contains(name, failfipscast) {
 		err = errors.New("simulated CAST/PCT failure")
 	}
 	if err != nil {

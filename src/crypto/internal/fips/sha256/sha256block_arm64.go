@@ -7,11 +7,11 @@
 package sha256
 
 import (
+	"crypto/internal/fipsdeps/cpu"
 	"crypto/internal/impl"
-	"internal/cpu"
 )
 
-var useSHA2 = cpu.ARM64.HasSHA2
+var useSHA2 = cpu.ARM64HasSHA2
 
 func init() {
 	impl.Register("sha256", "Armv8.0", &useSHA2)

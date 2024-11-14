@@ -6,8 +6,8 @@ package mlkem
 
 import (
 	"crypto/internal/fips/sha3"
+	"crypto/internal/fipsdeps/byteorder"
 	"errors"
-	"internal/byteorder"
 )
 
 // fieldElement is an integer modulo q, an element of ℤ_q. It is always reduced.
@@ -528,8 +528,8 @@ func sampleNTT(rho []byte, ii, jj byte) nttElement {
 			B.Read(buf[:])
 			off = 0
 		}
-		d1 := byteorder.LeUint16(buf[off:]) & 0b1111_1111_1111
-		d2 := byteorder.LeUint16(buf[off+1:]) >> 4
+		d1 := byteorder.LEUint16(buf[off:]) & 0b1111_1111_1111
+		d2 := byteorder.LEUint16(buf[off+1:]) >> 4
 		off += 3
 		if d1 < q {
 			a[j] = fieldElement(d1)

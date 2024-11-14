@@ -7,10 +7,9 @@
 package aes
 
 import (
+	"crypto/internal/fipsdeps/cpu"
+	"crypto/internal/fipsdeps/godebug"
 	"crypto/internal/impl"
-	"internal/cpu"
-	"internal/goarch"
-	"internal/godebug"
 )
 
 //go:noescape
@@ -22,22 +21,22 @@ func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
 //go:noescape
 func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
 
-var supportsAES = cpu.X86.HasAES && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
-	cpu.ARM64.HasAES || goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1
+var supportsAES = cpu.X86HasAES && cpu.X86HasSSE41 && cpu.X86HasSSSE3 ||
+	cpu.ARM64HasAES || cpu.PPC64 || cpu.PPC64le
 
 func init() {
-	if goarch.IsAmd64 == 1 {
+	if cpu.AMD64 {
 		impl.Register("aes", "AES-NI", &supportsAES)
 	}
-	if goarch.IsArm64 == 1 {
+	if cpu.ARM64 {
 		impl.Register("aes", "Armv8.0", &supportsAES)
 	}
-	if goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1 {
+	if cpu.PPC64 || cpu.PPC64le {
 		// The POWER architecture doesn't have a way to turn off AES support
 		// at runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG
 		// knob for that. It's intentionally only checked at init() time, to
 		// avoid the performance overhead of checking it every time.
-		if godebug.New("#ppc64aes").Value() == "off" {
+		if godebug.Value("#ppc64aes") == "off" {
 			supportsAES = false
 		}
 		impl.Register("aes", "POWER8", &supportsAES)

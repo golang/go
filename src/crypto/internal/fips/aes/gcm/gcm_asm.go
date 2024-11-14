@@ -9,9 +9,8 @@ package gcm
 import (
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/subtle"
+	"crypto/internal/fipsdeps/cpu"
 	"crypto/internal/impl"
-	"internal/cpu"
-	"internal/goarch"
 )
 
 // The following functions are defined in gcm_*.s.
@@ -32,14 +31,14 @@ func gcmAesDec(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []
 func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
 
 // Keep in sync with crypto/tls.hasAESGCMHardwareSupport.
-var supportsAESGCM = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
-	cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+var supportsAESGCM = cpu.X86HasAES && cpu.X86HasPCLMULQDQ && cpu.X86HasSSE41 && cpu.X86HasSSSE3 ||
+	cpu.ARM64HasAES && cpu.ARM64HasPMULL
 
 func init() {
-	if goarch.IsAmd64 == 1 {
+	if cpu.AMD64 {
 		impl.Register("gcm", "AES-NI", &supportsAESGCM)
 	}
-	if goarch.IsArm64 == 1 {
+	if cpu.ARM64 {
 		impl.Register("gcm", "Armv8.0", &supportsAESGCM)
 	}
 }

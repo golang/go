@@ -6,7 +6,7 @@ package gcm
 
 import (
 	"crypto/internal/fips"
-	"internal/byteorder"
+	"crypto/internal/fipsdeps/byteorder"
 )
 
 // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
@@ -46,8 +46,8 @@ func ghash(out, H *[gcmBlockSize]byte, inputs ...[]byte) {
 	// would expect, say, 4*H to be in index 4 of the table but due to
 	// this bit ordering it will actually be in index 0010 (base 2) = 2.
 	x := gcmFieldElement{
-		byteorder.BeUint64(H[:8]),
-		byteorder.BeUint64(H[8:]),
+		byteorder.BEUint64(H[:8]),
+		byteorder.BEUint64(H[8:]),
 	}
 	productTable[reverseBits(1)] = x
 
@@ -61,8 +61,8 @@ func ghash(out, H *[gcmBlockSize]byte, inputs ...[]byte) {
 		ghashUpdate(&productTable, &y, input)
 	}
 
-	byteorder.BePutUint64(out[:], y.low)
-	byteorder.BePutUint64(out[8:], y.high)
+	byteorder.BEPutUint64(out[:], y.low)
+	byteorder.BEPutUint64(out[8:], y.high)
 }
 
 // reverseBits reverses the order of the bits of 4-bit number in i.
@@ -142,8 +142,8 @@ func ghashMul(productTable *[16]gcmFieldElement, y *gcmFieldElement) {
 // Horner's rule. There must be a multiple of gcmBlockSize bytes in blocks.
 func updateBlocks(productTable *[16]gcmFieldElement, y *gcmFieldElement, blocks []byte) {
 	for len(blocks) > 0 {
-		y.low ^= byteorder.BeUint64(blocks)
-		y.high ^= byteorder.BeUint64(blocks[8:])
+		y.low ^= byteorder.BEUint64(blocks)
+		y.high ^= byteorder.BEUint64(blocks[8:])
 		ghashMul(productTable, y)
 		blocks = blocks[gcmBlockSize:]
 	}

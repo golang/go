@@ -7,8 +7,8 @@ package sha3
 import (
 	"bytes"
 	"crypto/internal/fips"
+	"crypto/internal/fipsdeps/byteorder"
 	"errors"
-	"internal/byteorder"
 	"math/bits"
 )
 
@@ -41,7 +41,7 @@ func leftEncode(x uint64) []byte {
 	}
 	// Return n || x with n as a byte and x an n bytes in big-endian order.
 	b := make([]byte, 9)
-	byteorder.BePutUint64(b[1:], x)
+	byteorder.BEPutUint64(b[1:], x)
 	b = b[9-n-1:]
 	b[0] = byte(n)
 	return b

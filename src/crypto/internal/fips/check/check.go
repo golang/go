@@ -15,9 +15,8 @@ package check
 import (
 	"crypto/internal/fips/hmac"
 	"crypto/internal/fips/sha256"
-	"internal/asan"
-	"internal/byteorder"
-	"internal/godebug"
+	"crypto/internal/fipsdeps/byteorder"
+	"crypto/internal/fipsdeps/godebug"
 	"io"
 	"runtime"
 	"unsafe"
@@ -72,13 +71,13 @@ const fipsMagic = " Go fipsinfo \xff\x00"
 var zeroSum [32]byte
 
 func init() {
-	v := godebug.New("#fips140").Value()
+	v := godebug.Value("#fips140")
 	enabled = v != "" && v != "off"
 	if !enabled {
 		return
 	}
 
-	if asan.Enabled {
+	if asanEnabled {
 		// ASAN disapproves of reading swaths of global memory below.
 		// One option would be to expose runtime.asanunpoison through
 		// crypto/internal/fipsdeps and then call it to unpoison the range
@@ -122,7 +121,7 @@ func init() {
 	var nbuf [8]byte
 	for _, sect := range Linkinfo.Sects {
 		n := uintptr(sect.End) - uintptr(sect.Start)
-		byteorder.BePutUint64(nbuf[:], uint64(n))
+		byteorder.BEPutUint64(nbuf[:], uint64(n))
 		w.Write(nbuf[:])
 		w.Write(unsafe.Slice((*byte)(sect.Start), n))
 	}

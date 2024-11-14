@@ -36,7 +36,7 @@
 
 package aes
 
-import "internal/byteorder"
+import "crypto/internal/fipsdeps/byteorder"
 
 // Encrypt one block from src into dst, using the expanded key xk.
 func encryptBlockGeneric(c *blockExpanded, dst, src []byte) {
@@ -44,10 +44,10 @@ func encryptBlockGeneric(c *blockExpanded, dst, src []byte) {
 	xk := c.enc[:]
 
 	_ = src[15] // early bounds check
-	s0 := byteorder.BeUint32(src[0:4])
-	s1 := byteorder.BeUint32(src[4:8])
-	s2 := byteorder.BeUint32(src[8:12])
-	s3 := byteorder.BeUint32(src[12:16])
+	s0 := byteorder.BEUint32(src[0:4])
+	s1 := byteorder.BEUint32(src[4:8])
+	s2 := byteorder.BEUint32(src[8:12])
+	s3 := byteorder.BEUint32(src[12:16])
 
 	// First round just XORs input with key.
 	s0 ^= xk[0]
@@ -79,10 +79,10 @@ func encryptBlockGeneric(c *blockExpanded, dst, src []byte) {
 	s3 ^= xk[k+3]
 
 	_ = dst[15] // early bounds check
-	byteorder.BePutUint32(dst[0:4], s0)
-	byteorder.BePutUint32(dst[4:8], s1)
-	byteorder.BePutUint32(dst[8:12], s2)
-	byteorder.BePutUint32(dst[12:16], s3)
+	byteorder.BEPutUint32(dst[0:4], s0)
+	byteorder.BEPutUint32(dst[4:8], s1)
+	byteorder.BEPutUint32(dst[8:12], s2)
+	byteorder.BEPutUint32(dst[12:16], s3)
 }
 
 // Decrypt one block from src into dst, using the expanded key xk.
@@ -91,10 +91,10 @@ func decryptBlockGeneric(c *blockExpanded, dst, src []byte) {
 	xk := c.dec[:]
 
 	_ = src[15] // early bounds check
-	s0 := byteorder.BeUint32(src[0:4])
-	s1 := byteorder.BeUint32(src[4:8])
-	s2 := byteorder.BeUint32(src[8:12])
-	s3 := byteorder.BeUint32(src[12:16])
+	s0 := byteorder.BEUint32(src[0:4])
+	s1 := byteorder.BEUint32(src[4:8])
+	s2 := byteorder.BEUint32(src[8:12])
+	s3 := byteorder.BEUint32(src[12:16])
 
 	// First round just XORs input with key.
 	s0 ^= xk[0]
@@ -126,10 +126,10 @@ func decryptBlockGeneric(c *blockExpanded, dst, src []byte) {
 	s3 ^= xk[k+3]
 
 	_ = dst[15] // early bounds check
-	byteorder.BePutUint32(dst[0:4], s0)
-	byteorder.BePutUint32(dst[4:8], s1)
-	byteorder.BePutUint32(dst[8:12], s2)
-	byteorder.BePutUint32(dst[12:16], s3)
+	byteorder.BEPutUint32(dst[0:4], s0)
+	byteorder.BEPutUint32(dst[4:8], s1)
+	byteorder.BEPutUint32(dst[8:12], s2)
+	byteorder.BEPutUint32(dst[12:16], s3)
 }
 
 // Apply sbox0 to each byte in w.
@@ -152,7 +152,7 @@ func expandKeyGeneric(c *blockExpanded, key []byte) {
 	var i int
 	nk := len(key) / 4
 	for i = 0; i < nk; i++ {
-		c.enc[i] = byteorder.BeUint32(key[4*i:])
+		c.enc[i] = byteorder.BEUint32(key[4*i:])
 	}
 	for ; i < c.roundKeysSize(); i++ {
 		t := c.enc[i-1]

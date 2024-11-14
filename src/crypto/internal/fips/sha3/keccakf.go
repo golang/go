@@ -5,8 +5,8 @@
 package sha3
 
 import (
-	"internal/byteorder"
-	"internal/goarch"
+	"crypto/internal/fipsdeps/byteorder"
+	"crypto/internal/fipsdeps/cpu"
 	"math/bits"
 	"unsafe"
 )
@@ -42,14 +42,14 @@ var rc = [24]uint64{
 // keccakF1600Generic applies the Keccak permutation.
 func keccakF1600Generic(da *[200]byte) {
 	var a *[25]uint64
-	if goarch.BigEndian {
+	if cpu.BigEndian {
 		a = new([25]uint64)
 		for i := range a {
-			a[i] = byteorder.LeUint64(da[i*8:])
+			a[i] = byteorder.LEUint64(da[i*8:])
 		}
 		defer func() {
 			for i := range a {
-				byteorder.LePutUint64(da[i*8:], a[i])
+				byteorder.LEPutUint64(da[i*8:], a[i])
 			}
 		}()
 	} else {

@@ -8,8 +8,8 @@ package sha512
 
 import (
 	"crypto/internal/fips"
+	"crypto/internal/fipsdeps/byteorder"
 	"errors"
-	"internal/byteorder"
 )
 
 const (
@@ -146,17 +146,17 @@ func (d *Digest) AppendBinary(b []byte) ([]byte, error) {
 	default:
 		panic("unknown size")
 	}
-	b = byteorder.BeAppendUint64(b, d.h[0])
-	b = byteorder.BeAppendUint64(b, d.h[1])
-	b = byteorder.BeAppendUint64(b, d.h[2])
-	b = byteorder.BeAppendUint64(b, d.h[3])
-	b = byteorder.BeAppendUint64(b, d.h[4])
-	b = byteorder.BeAppendUint64(b, d.h[5])
-	b = byteorder.BeAppendUint64(b, d.h[6])
-	b = byteorder.BeAppendUint64(b, d.h[7])
+	b = byteorder.BEAppendUint64(b, d.h[0])
+	b = byteorder.BEAppendUint64(b, d.h[1])
+	b = byteorder.BEAppendUint64(b, d.h[2])
+	b = byteorder.BEAppendUint64(b, d.h[3])
+	b = byteorder.BEAppendUint64(b, d.h[4])
+	b = byteorder.BEAppendUint64(b, d.h[5])
+	b = byteorder.BEAppendUint64(b, d.h[6])
+	b = byteorder.BEAppendUint64(b, d.h[7])
 	b = append(b, d.x[:d.nx]...)
 	b = append(b, make([]byte, len(d.x)-d.nx)...)
-	b = byteorder.BeAppendUint64(b, d.len)
+	b = byteorder.BEAppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -191,7 +191,7 @@ func (d *Digest) UnmarshalBinary(b []byte) error {
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
-	return b[8:], byteorder.BeUint64(b)
+	return b[8:], byteorder.BEUint64(b)
 }
 
 // New returns a new Digest computing the SHA-512 hash.
@@ -277,8 +277,8 @@ func (d *Digest) checkSum() [size512]byte {
 	padlen := tmp[:t+16]
 	// Upper 64 bits are always zero, because len variable has type uint64,
 	// and tmp is already zeroed at that index, so we can skip updating it.
-	// byteorder.BePutUint64(padlen[t+0:], 0)
-	byteorder.BePutUint64(padlen[t+8:], len)
+	// byteorder.BEPutUint64(padlen[t+0:], 0)
+	byteorder.BEPutUint64(padlen[t+8:], len)
 	d.Write(padlen)
 
 	if d.nx != 0 {
@@ -286,15 +286,15 @@ func (d *Digest) checkSum() [size512]byte {
 	}
 
 	var digest [size512]byte
-	byteorder.BePutUint64(digest[0:], d.h[0])
-	byteorder.BePutUint64(digest[8:], d.h[1])
-	byteorder.BePutUint64(digest[16:], d.h[2])
-	byteorder.BePutUint64(digest[24:], d.h[3])
-	byteorder.BePutUint64(digest[32:], d.h[4])
-	byteorder.BePutUint64(digest[40:], d.h[5])
+	byteorder.BEPutUint64(digest[0:], d.h[0])
+	byteorder.BEPutUint64(digest[8:], d.h[1])
+	byteorder.BEPutUint64(digest[16:], d.h[2])
+	byteorder.BEPutUint64(digest[24:], d.h[3])
+	byteorder.BEPutUint64(digest[32:], d.h[4])
+	byteorder.BEPutUint64(digest[40:], d.h[5])
 	if d.size != size384 {
-		byteorder.BePutUint64(digest[48:], d.h[6])
-		byteorder.BePutUint64(digest[56:], d.h[7])
+		byteorder.BEPutUint64(digest[48:], d.h[6])
+		byteorder.BEPutUint64(digest[56:], d.h[7])
 	}
 
 	return digest

@@ -7,7 +7,7 @@ package gcm
 import (
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/subtle"
-	"internal/byteorder"
+	"crypto/internal/fipsdeps/byteorder"
 )
 
 func sealGeneric(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
@@ -58,7 +58,7 @@ func deriveCounterGeneric(H, counter *[gcmBlockSize]byte, nonce []byte) {
 		counter[gcmBlockSize-1] = 1
 	} else {
 		lenBlock := make([]byte, 16)
-		byteorder.BePutUint64(lenBlock[8:], uint64(len(nonce))*8)
+		byteorder.BEPutUint64(lenBlock[8:], uint64(len(nonce))*8)
 		ghash(counter, H, nonce, lenBlock)
 	}
 }
@@ -89,7 +89,7 @@ func gcmCounterCryptGeneric(b *aes.Block, out, src []byte, counter *[gcmBlockSiz
 // and increments it.
 func gcmInc32(counterBlock *[gcmBlockSize]byte) {
 	ctr := counterBlock[len(counterBlock)-4:]
-	byteorder.BePutUint32(ctr, byteorder.BeUint32(ctr)+1)
+	byteorder.BEPutUint32(ctr, byteorder.BEUint32(ctr)+1)
 }
 
 // gcmAuthGeneric calculates GHASH(additionalData, ciphertext), masks the result
@@ -97,8 +97,8 @@ func gcmInc32(counterBlock *[gcmBlockSize]byte) {
 func gcmAuthGeneric(out []byte, H, tagMask *[gcmBlockSize]byte, ciphertext, additionalData []byte) {
 	checkGenericIsExpected()
 	lenBlock := make([]byte, 16)
-	byteorder.BePutUint64(lenBlock[:8], uint64(len(additionalData))*8)
-	byteorder.BePutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
+	byteorder.BEPutUint64(lenBlock[:8], uint64(len(additionalData))*8)
+	byteorder.BEPutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
 	var S [gcmBlockSize]byte
 	ghash(&S, H, additionalData, ciphertext, lenBlock)
 	subtle.XORBytes(out, S[:], tagMask[:])

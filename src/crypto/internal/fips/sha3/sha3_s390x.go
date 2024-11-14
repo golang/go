@@ -8,8 +8,8 @@ package sha3
 
 import (
 	"crypto/internal/fips/subtle"
+	"crypto/internal/fipsdeps/cpu"
 	"crypto/internal/impl"
-	"internal/cpu"
 )
 
 // This file contains code for using the 'compute intermediate
@@ -19,7 +19,7 @@ import (
 //
 // [z/Architecture Principles of Operation, Fourteen Edition]: https://www.ibm.com/docs/en/module_1678991624569/pdf/SA22-7832-13.pdf
 
-var useSHA3 = cpu.S390X.HasSHA3
+var useSHA3 = cpu.S390XHasSHA3
 
 func init() {
 	// CP Assist for Cryptographic Functions (CPACF)

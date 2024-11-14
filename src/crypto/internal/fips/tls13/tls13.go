@@ -9,7 +9,7 @@ package tls13
 import (
 	"crypto/internal/fips"
 	"crypto/internal/fips/hkdf"
-	"internal/byteorder"
+	"crypto/internal/fipsdeps/byteorder"
 )
 
 // We don't set the service indicator in this package but we delegate that to
@@ -30,7 +30,7 @@ func ExpandLabel[H fips.Hash](hash func() H, secret []byte, label string, contex
 		panic("tls13: label or context too long")
 	}
 	hkdfLabel := make([]byte, 0, 2+1+len("tls13 ")+len(label)+1+len(context))
-	hkdfLabel = byteorder.BeAppendUint16(hkdfLabel, uint16(length))
+	hkdfLabel = byteorder.BEAppendUint16(hkdfLabel, uint16(length))
 	hkdfLabel = append(hkdfLabel, byte(len("tls13 ")+len(label)))
 	hkdfLabel = append(hkdfLabel, "tls13 "...)
 	hkdfLabel = append(hkdfLabel, label...)

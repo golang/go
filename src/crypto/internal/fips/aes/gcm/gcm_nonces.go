@@ -9,7 +9,7 @@ import (
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/alias"
 	"crypto/internal/fips/drbg"
-	"internal/byteorder"
+	"crypto/internal/fipsdeps/byteorder"
 	"math"
 )
 
@@ -73,14 +73,14 @@ func (g *GCMWithCounterNonce) Seal(dst, nonce, plaintext, data []byte) []byte {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 
-	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
+	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
 	if !g.ready {
 		// The first invocation sets the fixed name encoding and start counter.
 		g.ready = true
 		g.start = counter
-		g.fixedName = byteorder.BeUint32(nonce[:4])
+		g.fixedName = byteorder.BEUint32(nonce[:4])
 	}
-	if g.fixedName != byteorder.BeUint32(nonce[:4]) {
+	if g.fixedName != byteorder.BEUint32(nonce[:4]) {
 		panic("crypto/cipher: incorrect module name given to GCMWithCounterNonce")
 	}
 	counter -= g.start
@@ -130,7 +130,7 @@ func (g *GCMForTLS12) Seal(dst, nonce, plaintext, data []byte) []byte {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 
-	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
+	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
 
 	// Ensure the counter is monotonically increasing.
 	if counter == math.MaxUint64 {
@@ -176,7 +176,7 @@ func (g *GCMForTLS13) Seal(dst, nonce, plaintext, data []byte) []byte {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 
-	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
+	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
 	if !g.ready {
 		// In the first call, the counter is zero, so we learn the XOR mask.
 		g.ready = true
@@ -230,7 +230,7 @@ func (g *GCMForSSH) Seal(dst, nonce, plaintext, data []byte) []byte {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 
-	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
+	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
 	if !g.ready {
 		// In the first call we learn the start value.
 		g.ready = true
