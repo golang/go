@@ -8,9 +8,14 @@ import "internal/godebug"
 
 var Enabled bool
 
+var debug bool
+
 func init() {
 	switch godebug.New("#fips140").Value() {
-	case "on", "debug", "only":
+	case "on", "only":
 		Enabled = true
+	case "debug":
+		Enabled = true
+		debug = true
 	}
 }

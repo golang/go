@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package alias
+package fipstest
 
-import "testing"
+import (
+	"crypto/internal/fips/alias"
+	"testing"
+)
 
 var a, b [100]byte
 
@@ -28,11 +31,11 @@ var aliasingTests = []struct {
 }
 
 func testAliasing(t *testing.T, i int, x, y []byte, anyOverlap, inexactOverlap bool) {
-	any := AnyOverlap(x, y)
+	any := alias.AnyOverlap(x, y)
 	if any != anyOverlap {
 		t.Errorf("%d: wrong AnyOverlap result, expected %v, got %v", i, anyOverlap, any)
 	}
-	inexact := InexactOverlap(x, y)
+	inexact := alias.InexactOverlap(x, y)
 	if inexact != inexactOverlap {
 		t.Errorf("%d: wrong InexactOverlap result, expected %v, got %v", i, inexactOverlap, any)
 	}

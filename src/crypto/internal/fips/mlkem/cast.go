@@ -39,7 +39,7 @@ func init() {
 		dk := &DecapsulationKey768{}
 		kemKeyGen(dk, d, z)
 		ek := dk.EncapsulationKey()
-		c, Ke := kemEncaps(nil, ek, m)
+		c, Ke := ek.EncapsulateInternal(m)
 		Kd, err := dk.Decapsulate(c)
 		if err != nil {
 			return err

@@ -92,7 +92,16 @@ func generateKey1024(dk *DecapsulationKey1024) (*DecapsulationKey1024, error) {
 	drbg.Read(z[:])
 	kemKeyGen1024(dk, &d, &z)
 	fips.CAST("ML-KEM PCT", func() error { return kemPCT1024(dk) })
+	fips.RecordApproved()
 	return dk, nil
+}
+
+// GenerateKeyInternal1024 is a derandomized version of GenerateKey1024,
+// exclusively for use in tests.
+func GenerateKeyInternal1024(d, z *[32]byte) *DecapsulationKey1024 {
+	dk := &DecapsulationKey1024{}
+	kemKeyGen1024(dk, d, z)
+	return dk
 }
 
 // NewDecapsulationKey1024 parses a decapsulation key from a 64-byte
@@ -111,6 +120,7 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
 	z := (*[32]byte)(seed[32:])
 	kemKeyGen1024(dk, d, z)
 	fips.CAST("ML-KEM PCT", func() error { return kemPCT1024(dk) })
+	fips.RecordApproved()
 	return dk, nil
 }
 
@@ -120,8 +130,6 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
 // K-PKE.KeyGen according to FIPS 203, Algorithm 13. The two are merged to save
 // copies and allocations.
 func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) {
-	fips.RecordApproved()
-
 	dk.d = *d
 	dk.z = *z
 
@@ -201,18 +209,21 @@ func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (ciphe
 	drbg.Read(m[:])
 	// Note that the modulus check (step 2 of the encapsulation key check from
 	// FIPS 203, Section 7.2) is performed by polyByteDecode in parseEK1024.
+	fips.RecordApproved()
 	return kemEncaps1024(cc, ek, &m)
+}
+
+// EncapsulateInternal is a derandomized version of Encapsulate, exclusively for
+// use in tests.
+func (ek *EncapsulationKey1024) EncapsulateInternal(m *[32]byte) (ciphertext, sharedKey []byte) {
+	cc := &[CiphertextSize1024]byte{}
+	return kemEncaps1024(cc, ek, m)
 }
 
 // kemEncaps1024 generates a shared key and an associated ciphertext.
 //
 // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
 func kemEncaps1024(cc *[CiphertextSize1024]byte, ek *EncapsulationKey1024, m *[messageSize]byte) (c, K []byte) {
-	fips.RecordApproved()
-	if cc == nil {
-		cc = &[CiphertextSize1024]byte{}
-	}
-
 	g := sha3.New512()
 	g.Write(m[:])
 	g.Write(ek.h[:])

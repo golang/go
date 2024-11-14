@@ -31,10 +31,10 @@ func Enabled() bool {
 }
 
 var enabled bool  // set when verification is enabled
-var verified bool // set when verification succeeds, for testing
+var Verified bool // set when verification succeeds, for testing
 
-// supported reports whether the current GOOS/GOARCH is supported at all.
-func supported() bool {
+// Supported reports whether the current GOOS/GOARCH is Supported at all.
+func Supported() bool {
 	// See cmd/internal/obj/fips.go's EnableFIPS for commentary.
 	switch {
 	case runtime.GOARCH == "wasm",
@@ -46,11 +46,11 @@ func supported() bool {
 	return true
 }
 
-// linkinfo holds the go:fipsinfo symbol prepared by the linker.
+// Linkinfo holds the go:fipsinfo symbol prepared by the linker.
 // See cmd/link/internal/ld/fips.go for details.
 //
-//go:linkname linkinfo go:fipsinfo
-var linkinfo struct {
+//go:linkname Linkinfo go:fipsinfo
+var Linkinfo struct {
 	Magic [16]byte
 	Sum   [32]byte
 	Self  uintptr
@@ -95,11 +95,11 @@ func init() {
 		panic("fips140: unknown GODEBUG setting fips140=" + v)
 	}
 
-	if !supported() {
+	if !Supported() {
 		panic("fips140: unavailable on " + runtime.GOOS + "-" + runtime.GOARCH)
 	}
 
-	if linkinfo.Magic[0] != 0xff || string(linkinfo.Magic[1:]) != fipsMagic || linkinfo.Sum == zeroSum {
+	if Linkinfo.Magic[0] != 0xff || string(Linkinfo.Magic[1:]) != fipsMagic || Linkinfo.Sum == zeroSum {
 		panic("fips140: no verification checksum found")
 	}
 
@@ -120,7 +120,7 @@ func init() {
 	w.Write([]byte("go fips object v1\n"))
 
 	var nbuf [8]byte
-	for _, sect := range linkinfo.Sects {
+	for _, sect := range Linkinfo.Sects {
 		n := uintptr(sect.End) - uintptr(sect.Start)
 		byteorder.BePutUint64(nbuf[:], uint64(n))
 		w.Write(nbuf[:])
@@ -128,7 +128,7 @@ func init() {
 	}
 	sum := h.Sum(nil)
 
-	if [32]byte(sum) != linkinfo.Sum {
+	if [32]byte(sum) != Linkinfo.Sum {
 		panic("fips140: verification mismatch")
 	}
 
@@ -136,5 +136,5 @@ func init() {
 		println("fips140: verified code+data")
 	}
 
-	verified = true
+	Verified = true
 }

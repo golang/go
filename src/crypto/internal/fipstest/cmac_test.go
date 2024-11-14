@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gcm_test
+package fipstest
 
 import (
 	"bytes"
 	"crypto/internal/fips/aes"
 	"crypto/internal/fips/aes/gcm"
-	"encoding/hex"
-	"strings"
 	"testing"
 )
 
@@ -46,14 +44,4 @@ func TestCMAC(t *testing.T) {
 			t.Errorf("test %d: got %x, want %x", i, got, out)
 		}
 	}
-}
-
-func decodeHex(t *testing.T, s string) []byte {
-	t.Helper()
-	s = strings.ReplaceAll(s, " ", "")
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return b
 }

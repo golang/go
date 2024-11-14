@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gcm_test
+package fipstest
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 	"testing"
 )
 
-func TestAllocations(t *testing.T) {
+func TestXAESAllocations(t *testing.T) {
 	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
 		t.Skip("Test reports non-zero allocation count. See issue #70448")
 	}
@@ -85,7 +85,7 @@ func xaesOpen(dst, key, nonce, ciphertext, additionalData []byte) ([]byte, error
 	return g.Open(dst, n, ciphertext, additionalData)
 }
 
-func TestVectors(t *testing.T) {
+func TestXAESVectors(t *testing.T) {
 	key := bytes.Repeat([]byte{0x01}, 32)
 	nonce := []byte("ABCDEFGHIJKLMNOPQRSTUVWX")
 	plaintext := []byte("XAES-256-GCM")
@@ -114,7 +114,7 @@ func TestVectors(t *testing.T) {
 	}
 }
 
-func TestAccumulated(t *testing.T) {
+func TestXAESAccumulated(t *testing.T) {
 	iterations := 10_000
 	expected := "e6b9edf2df6cec60c8cbd864e2211b597fb69a529160cd040d56c0c210081939"
 

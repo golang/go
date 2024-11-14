@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+package fipstest
+
 // A module wrapper adapting the Go FIPS module to the protocol used by the
 // BoringSSL project's `acvptool`.
 //
@@ -15,7 +17,6 @@
 // and module wrappers.
 //
 // [0]:https://boringssl.googlesource.com/boringssl/+/refs/heads/master/util/fipstools/acvp/ACVP.md#testing-other-fips-modules
-package fips_test
 
 import (
 	"bufio"

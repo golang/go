@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package check_test
+package fipstest
 
 import (
 	. "crypto/internal/fips/check"
@@ -11,8 +11,8 @@ import (
 	"internal/abi"
 	"internal/asan"
 	"internal/godebug"
+	"internal/testenv"
 	"os"
-	"os/exec"
 	"runtime"
 	"testing"
 	"unicode"
@@ -21,8 +21,8 @@ import (
 
 const enableFIPSTest = true
 
-func TestVerify(t *testing.T) {
-	if *Verified {
+func TestFIPSCheckVerify(t *testing.T) {
+	if Verified {
 		t.Logf("verified")
 		return
 	}
@@ -44,7 +44,7 @@ func TestVerify(t *testing.T) {
 		return
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.v")
+	cmd := testenv.Command(t, os.Args[0], "-test.v", "-test.run=TestFIPSCheck")
 	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -53,7 +53,7 @@ func TestVerify(t *testing.T) {
 	t.Logf("exec'ed GODEBUG=fips140=on and succeeded:\n%s", out)
 }
 
-func TestInfo(t *testing.T) {
+func TestFIPSCheckInfo(t *testing.T) {
 	if !enableFIPSTest {
 		return
 	}

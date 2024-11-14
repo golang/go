@@ -1,7 +1,10 @@
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-package hkdf_test
+
+package fipstest_test
+
+// TODO(fips, #61477): move this to crypto/hkdf once it exists.
 
 import (
 	"bytes"

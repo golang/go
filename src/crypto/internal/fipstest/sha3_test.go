@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sha3_test
+package fipstest_test
+
+// TODO(fips, #69982): move to the crypto/sha3 package once it exists.
 
 import (
 	"bytes"
@@ -17,8 +19,6 @@ import (
 	"strings"
 	"testing"
 )
-
-// TODO(fips): move tests to the stdlib crypto/sha3 package.
 
 // Sum224 returns the SHA3-224 digest of the data.
 func Sum224(data []byte) (digest [28]byte) {
@@ -366,7 +366,7 @@ func testClone(t *testing.T) {
 	}
 }
 
-var sink byte
+var sinkSHA3 byte
 
 func TestAllocations(t *testing.T) {
 	cryptotest.SkipTestAllocations(t)
@@ -377,7 +377,7 @@ func TestAllocations(t *testing.T) {
 			h.Write(b)
 			out := make([]byte, 0, 32)
 			out = h.Sum(out)
-			sink ^= out[0]
+			sinkSHA3 ^= out[0]
 		}); allocs > 0 {
 			t.Errorf("expected zero allocations, got %0.1f", allocs)
 		}
@@ -389,9 +389,9 @@ func TestAllocations(t *testing.T) {
 			h.Write(b)
 			out := make([]byte, 0, 32)
 			out = h.Sum(out)
-			sink ^= out[0]
+			sinkSHA3 ^= out[0]
 			h.Read(out)
-			sink ^= out[0]
+			sinkSHA3 ^= out[0]
 		}); allocs > 0 {
 			t.Errorf("expected zero allocations, got %0.1f", allocs)
 		}
@@ -400,7 +400,7 @@ func TestAllocations(t *testing.T) {
 		if allocs := testing.AllocsPerRun(10, func() {
 			b := []byte("ABC")
 			out := Sum256(b)
-			sink ^= out[0]
+			sinkSHA3 ^= out[0]
 		}); allocs > 0 {
 			t.Errorf("expected zero allocations, got %0.1f", allocs)
 		}

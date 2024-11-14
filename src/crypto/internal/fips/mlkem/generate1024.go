@@ -40,8 +40,9 @@ var replacements = map[string]string{
 	"kemDecaps":  "kemDecaps1024",
 	"pkeDecrypt": "pkeDecrypt1024",
 
-	"GenerateKey768": "GenerateKey1024",
-	"generateKey":    "generateKey1024",
+	"GenerateKey768":         "GenerateKey1024",
+	"GenerateKeyInternal768": "GenerateKeyInternal1024",
+	"generateKey":            "generateKey1024",
 
 	"kemKeyGen": "kemKeyGen1024",
 	"kemPCT":    "kemPCT1024",

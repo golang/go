@@ -149,7 +149,16 @@ func generateKey(dk *DecapsulationKey768) (*DecapsulationKey768, error) {
 	drbg.Read(z[:])
 	kemKeyGen(dk, &d, &z)
 	fips.CAST("ML-KEM PCT", func() error { return kemPCT(dk) })
+	fips.RecordApproved()
 	return dk, nil
+}
+
+// GenerateKeyInternal768 is a derandomized version of GenerateKey768,
+// exclusively for use in tests.
+func GenerateKeyInternal768(d, z *[32]byte) *DecapsulationKey768 {
+	dk := &DecapsulationKey768{}
+	kemKeyGen(dk, d, z)
+	return dk
 }
 
 // NewDecapsulationKey768 parses a decapsulation key from a 64-byte
@@ -168,6 +177,7 @@ func newKeyFromSeed(dk *DecapsulationKey768, seed []byte) (*DecapsulationKey768,
 	z := (*[32]byte)(seed[32:])
 	kemKeyGen(dk, d, z)
 	fips.CAST("ML-KEM PCT", func() error { return kemPCT(dk) })
+	fips.RecordApproved()
 	return dk, nil
 }
 
@@ -177,8 +187,6 @@ func newKeyFromSeed(dk *DecapsulationKey768, seed []byte) (*DecapsulationKey768,
 // K-PKE.KeyGen according to FIPS 203, Algorithm 13. The two are merged to save
 // copies and allocations.
 func kemKeyGen(dk *DecapsulationKey768, d, z *[32]byte) {
-	fips.RecordApproved()
-
 	dk.d = *d
 	dk.z = *z
 
@@ -258,18 +266,21 @@ func (ek *EncapsulationKey768) encapsulate(cc *[CiphertextSize768]byte) (ciphert
 	drbg.Read(m[:])
 	// Note that the modulus check (step 2 of the encapsulation key check from
 	// FIPS 203, Section 7.2) is performed by polyByteDecode in parseEK.
+	fips.RecordApproved()
 	return kemEncaps(cc, ek, &m)
+}
+
+// EncapsulateInternal is a derandomized version of Encapsulate, exclusively for
+// use in tests.
+func (ek *EncapsulationKey768) EncapsulateInternal(m *[32]byte) (ciphertext, sharedKey []byte) {
+	cc := &[CiphertextSize768]byte{}
+	return kemEncaps(cc, ek, m)
 }
 
 // kemEncaps generates a shared key and an associated ciphertext.
 //
 // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
 func kemEncaps(cc *[CiphertextSize768]byte, ek *EncapsulationKey768, m *[messageSize]byte) (c, K []byte) {
-	fips.RecordApproved()
-	if cc == nil {
-		cc = &[CiphertextSize768]byte{}
-	}
-
 	g := sha3.New512()
 	g.Write(m[:])
 	g.Write(ek.h[:])
