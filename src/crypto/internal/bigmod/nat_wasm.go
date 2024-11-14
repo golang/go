@@ -2,25 +2,30 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !purego
+
 package bigmod
+
+import "unsafe"
 
 // The generic implementation relies on 64x64->128 bit multiplication and
 // 64-bit add-with-carry, which are compiler intrinsics on many architectures.
 // Wasm doesn't support those. Here we implement it with 32x32->64 bit
 // operations, which is more efficient on Wasm.
 
-// addMulVVW multiplies the multi-word value x by the single-word value y,
-// adding the result to the multi-word value z and returning the final carry.
-// It can be thought of as one row of a pen-and-paper column multiplication.
-func addMulVVW(z, x []uint, y uint) (carry uint) {
+func idx(x *uint, i uintptr) *uint {
+	return (*uint)(unsafe.Pointer(uintptr(unsafe.Pointer(x)) + i*8))
+}
+
+func addMulVVWWasm(z, x *uint, y uint, n uintptr) (carry uint) {
 	const mask32 = 1<<32 - 1
 	y0 := y & mask32
 	y1 := y >> 32
-	_ = x[len(z)-1] // bounds check elimination hint
-	for i, zi := range z {
-		xi := x[i]
+	for i := range n {
+		xi := *idx(x, i)
 		x0 := xi & mask32
 		x1 := xi >> 32
+		zi := *idx(z, i)
 		z0 := zi & mask32
 		z1 := zi >> 32
 		c0 := carry & mask32
@@ -38,7 +43,19 @@ func addMulVVW(z, x []uint, y uint) (carry uint) {
 		h10 := w10 >> 32
 
 		carry = x1*y1 + h10 + h01
-		z[i] = w10<<32 + l00
+		*idx(z, i) = w10<<32 + l00
 	}
 	return carry
+}
+
+func addMulVVW1024(z, x *uint, y uint) (c uint) {
+	return addMulVVWWasm(z, x, y, 1024/_W)
+}
+
+func addMulVVW1536(z, x *uint, y uint) (c uint) {
+	return addMulVVWWasm(z, x, y, 1536/_W)
+}
+
+func addMulVVW2048(z, x *uint, y uint) (c uint) {
+	return addMulVVWWasm(z, x, y, 2048/_W)
 }
