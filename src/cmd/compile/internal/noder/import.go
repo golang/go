@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/buildcfg"
+	"internal/exportdata"
 	"internal/pkgbits"
 	"os"
 	pathpkg "path"
@@ -22,7 +23,6 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
-	"cmd/internal/archive"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
@@ -207,7 +207,7 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
 	}
 	defer f.Close()
 
-	r, end, err := findExportData(f)
+	data, err := readExportData(f)
 	if err != nil {
 		return
 	}
@@ -216,94 +216,63 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
 		fmt.Printf("importing %s (%s)\n", path, f.Name())
 	}
 
-	c, err := r.ReadByte()
+	pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
+
+	// Read package descriptors for both types2 and compiler backend.
+	readPackage(newPkgReader(pr), pkg1, false)
+	pkg2 = importer.ReadPackage(env, packages, pr)
+
+	err = addFingerprint(path, data)
+	return
+}
+
+// readExportData returns the contents of GC-created unified export data.
+func readExportData(f *os.File) (data string, err error) {
+	r := bio.NewReader(f)
+
+	sz, err := exportdata.FindPackageDefinition(r.Reader)
+	if err != nil {
+		return
+	}
+	end := r.Offset() + int64(sz)
+
+	abihdr, _, err := exportdata.ReadObjectHeaders(r.Reader)
+	if err != nil {
+		return
+	}
+
+	if expect := objabi.HeaderString(); abihdr != expect {
+		err = fmt.Errorf("object is [%s] expected [%s]", abihdr, expect)
+		return
+	}
+
+	_, err = exportdata.ReadExportDataHeader(r.Reader)
 	if err != nil {
 		return
 	}
 
 	pos := r.Offset()
 
-	// Map export data section into memory as a single large
-	// string. This reduces heap fragmentation and allows returning
-	// individual substrings very efficiently.
-	var data string
-	data, err = base.MapFile(r.File(), pos, end-pos)
+	// Map export data section (+ end-of-section marker) into memory
+	// as a single large string. This reduces heap fragmentation and
+	// allows returning individual substrings very efficiently.
+	var mapped string
+	mapped, err = base.MapFile(r.File(), pos, end-pos)
 	if err != nil {
 		return
 	}
 
-	switch c {
-	case 'u':
-		// TODO(mdempsky): This seems a bit clunky.
-		data = strings.TrimSuffix(data, "\n$$\n")
+	// check for end-of-section marker "\n$$\n" and remove it
+	const marker = "\n$$\n"
 
-		pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
-
-		// Read package descriptors for both types2 and compiler backend.
-		readPackage(newPkgReader(pr), pkg1, false)
-		pkg2 = importer.ReadPackage(env, packages, pr)
-
-	default:
-		// Indexed format is distinguished by an 'i' byte,
-		// whereas previous export formats started with 'c', 'd', or 'v'.
-		err = fmt.Errorf("unexpected package format byte: %v", c)
-		return
-	}
-
-	err = addFingerprint(path, f, end)
-	return
-}
-
-// findExportData returns a *bio.Reader positioned at the start of the
-// binary export data section, and a file offset for where to stop
-// reading.
-func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
-	r = bio.NewReader(f)
-
-	// check object header
-	line, err := r.ReadString('\n')
-	if err != nil {
-		return
-	}
-
-	// Is the first line an archive file signature?
-	if line != "!<arch>\n" {
-		err = fmt.Errorf("not the start of an archive file (%q)", line)
-		return
-	}
-
-	// package export block should be first
-	sz := int64(archive.ReadHeader(r.Reader, "__.PKGDEF"))
-	if sz <= 0 {
-		err = errors.New("not a package file")
-		return
-	}
-	end = r.Offset() + sz
-	line, err = r.ReadString('\n')
-	if err != nil {
-		return
-	}
-
-	if !strings.HasPrefix(line, "go object ") {
-		err = fmt.Errorf("not a go object file: %s", line)
-		return
-	}
-	if expect := objabi.HeaderString(); line != expect {
-		err = fmt.Errorf("object is [%s] expected [%s]", line, expect)
-		return
-	}
-
-	// process header lines
-	for !strings.HasPrefix(line, "$$") {
-		line, err = r.ReadString('\n')
-		if err != nil {
-			return
+	var ok bool
+	data, ok = strings.CutSuffix(mapped, marker)
+	if !ok {
+		cutoff := data // include last 10 bytes in error message
+		if len(cutoff) >= 10 {
+			cutoff = cutoff[len(cutoff)-10:]
 		}
-	}
-
-	// Expect $$B\n to signal binary import format.
-	if line != "$$B\n" {
-		err = errors.New("old export format no longer supported (recompile package)")
+		err = fmt.Errorf("expected $$ marker, but found %q (recompile package)", cutoff)
 		return
 	}
 
@@ -312,24 +281,16 @@ func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
 
 // addFingerprint reads the linker fingerprint included at the end of
 // the exportdata.
-func addFingerprint(path string, f *os.File, end int64) error {
-	const eom = "\n$$\n"
+func addFingerprint(path string, data string) error {
 	var fingerprint goobj.FingerprintType
 
-	var buf [len(fingerprint) + len(eom)]byte
-	if _, err := f.ReadAt(buf[:], end-int64(len(buf))); err != nil {
-		return err
+	pos := len(data) - len(fingerprint)
+	if pos < 0 {
+		return fmt.Errorf("missing linker fingerprint in exportdata, but found %q", data)
 	}
+	buf := []byte(data[pos:])
 
-	// Caller should have given us the end position of the export data,
-	// which should end with the "\n$$\n" marker. As a consistency check
-	// to make sure we're reading at the right offset, make sure we
-	// found the marker.
-	if s := string(buf[len(fingerprint):]); s != eom {
-		return fmt.Errorf("expected $$ marker, but found %q", s)
-	}
-
-	copy(fingerprint[:], buf[:])
+	copy(fingerprint[:], buf)
 	base.Ctxt.AddImport(path, fingerprint)
 
 	return nil

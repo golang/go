@@ -6,12 +6,16 @@
 // and reading gc-generated object files.
 package exportdata
 
+// This file should be kept in sync with src/cmd/compile/internal/gc/obj.go .
+
 import (
 	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
 	"go/build"
+	"internal/saferio"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,13 +23,100 @@ import (
 	"sync"
 )
 
-// FindExportData positions the reader r at the beginning of the
-// export data section of an underlying GC-created object/archive
-// file by reading from it. The reader must be positioned at the
-// start of the file before calling this function. The hdr result
-// is the string before the export data, either "$$" or "$$B".
-func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
-	// TODO(taking): Merge with cmd/compile/internal/noder.findExportData.
+// ReadUnified reads the contents of the unified export data from a reader r
+// that contains the contents of a GC-created archive file.
+//
+// On success, the reader will be positioned after the end-of-section marker "\n$$\n".
+//
+// Supported GC-created archive files have 4 layers of nesting:
+//   - An archive file containing a package definition file.
+//   - The package definition file contains headers followed by a data section.
+//     Headers are lines (≤ 4kb) that do not start with "$$".
+//   - The data section starts with "$$B\n" followed by export data followed
+//     by an end of section marker "\n$$\n". (The section start "$$\n" is no
+//     longer supported.)
+//   - The export data starts with a format byte ('u') followed by the <data> in
+//     the given format. (See ReadExportDataHeader for older formats.)
+//
+// Putting this together, the bytes in a GC-created archive files are expected
+// to look like the following.
+// See cmd/internal/archive for more details on ar file headers.
+//
+// | <!arch>\n             | ar file signature
+// | __.PKGDEF...size...\n | ar header for __.PKGDEF including size.
+// | go object <...>\n     | objabi header
+// | <optional headers>\n  | other headers such as build id
+// | $$B\n                 | binary format marker
+// | u<data>\n             | unified export <data>
+// | $$\n                  | end-of-section marker
+// | [optional padding]    | padding byte (0x0A) if size is odd
+// | [ar file header]      | other ar files
+// | [ar file data]        |
+func ReadUnified(r *bufio.Reader) (data []byte, err error) {
+	// We historically guaranteed headers at the default buffer size (4096) work.
+	// This ensures we can use ReadSlice throughout.
+	const minBufferSize = 4096
+	r = bufio.NewReaderSize(r, minBufferSize)
+
+	size, err := FindPackageDefinition(r)
+	if err != nil {
+		return
+	}
+	n := size
+
+	objapi, headers, err := ReadObjectHeaders(r)
+	if err != nil {
+		return
+	}
+	n -= len(objapi)
+	for _, h := range headers {
+		n -= len(h)
+	}
+
+	hdrlen, err := ReadExportDataHeader(r)
+	if err != nil {
+		return
+	}
+	n -= hdrlen
+
+	// size also includes the end of section marker. Remove that many bytes from the end.
+	const marker = "\n$$\n"
+	n -= len(marker)
+
+	if n < 0 {
+		err = fmt.Errorf("invalid size (%d) in the archive file: %d bytes remain without section headers (recompile package)", size, n)
+	}
+
+	// Read n bytes from buf.
+	data, err = saferio.ReadData(r, uint64(n))
+	if err != nil {
+		return
+	}
+
+	// Check for marker at the end.
+	var suffix [len(marker)]byte
+	_, err = io.ReadFull(r, suffix[:])
+	if err != nil {
+		return
+	}
+	if s := string(suffix[:]); s != marker {
+		err = fmt.Errorf("read %q instead of end-of-section marker (%q)", s, marker)
+		return
+	}
+
+	return
+}
+
+// FindPackageDefinition positions the reader r at the beginning of a package
+// definition file ("__.PKGDEF") within a GC-created archive by reading
+// from it, and returns the size of the package definition file in the archive.
+//
+// The reader must be positioned at the start of the archive file before calling
+// this function, and "__.PKGDEF" is assumed to be the first file in the archive.
+//
+// See cmd/internal/archive for details on the archive format.
+func FindPackageDefinition(r *bufio.Reader) (size int, err error) {
+	// Uses ReadSlice to limit risk of malformed inputs.
 
 	// Read first line to make sure this is an object file.
 	line, err := r.ReadSlice('\n')
@@ -47,31 +138,96 @@ func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
 		return
 	}
 
-	// Read first line of __.PKGDEF data, so that line
-	// is once again the first line of the input.
+	return
+}
+
+// ReadObjectHeaders reads object headers from the reader. Object headers are
+// lines that do not start with an end-of-section marker "$$". The first header
+// is the objabi header. On success, the reader will be positioned at the beginning
+// of the end-of-section marker.
+//
+// It returns an error if any header does not fit in r.Size() bytes.
+func ReadObjectHeaders(r *bufio.Reader) (objapi string, headers []string, err error) {
+	// line is a temporary buffer for headers.
+	// Use bounded reads (ReadSlice, Peek) to limit risk of malformed inputs.
+	var line []byte
+
+	// objapi header should be the first line
 	if line, err = r.ReadSlice('\n'); err != nil {
 		err = fmt.Errorf("can't find export data (%v)", err)
 		return
 	}
+	objapi = string(line)
 
-	// Now at __.PKGDEF in archive. line should begin with "go object ".
-	if !strings.HasPrefix(string(line), "go object ") {
-		err = fmt.Errorf("not a Go object file")
+	// objapi header begins with "go object ".
+	if !strings.HasPrefix(objapi, "go object ") {
+		err = fmt.Errorf("not a go object file: %s", objapi)
 		return
 	}
-	size -= len(line)
 
-	// Skip over object header to export data.
-	// Begins after first line starting with $$.
-	for line[0] != '$' {
-		if line, err = r.ReadSlice('\n'); err != nil {
-			err = fmt.Errorf("can't find export data (%v)", err)
+	// process remaining object header lines
+	for {
+		// check for an end of section marker "$$"
+		line, err = r.Peek(2)
+		if err != nil {
 			return
 		}
-		size -= len(line)
-	}
-	hdr = string(line)
+		if string(line) == "$$" {
+			return // stop
+		}
 
+		// read next header
+		line, err = r.ReadSlice('\n')
+		if err != nil {
+			return
+		}
+		headers = append(headers, string(line))
+	}
+}
+
+// ReadExportDataHeader reads the export data header and format from r.
+// It returns the number of bytes read, or an error if the format is no longer
+// supported or it failed to read.
+//
+// The only currently supported format is binary export data in the
+// unified export format.
+func ReadExportDataHeader(r *bufio.Reader) (n int, err error) {
+	// Read export data header.
+	line, err := r.ReadSlice('\n')
+	if err != nil {
+		return
+	}
+
+	hdr := string(line)
+	switch hdr {
+	case "$$\n":
+		err = fmt.Errorf("old textual export format no longer supported (recompile package)")
+		return
+
+	case "$$B\n":
+		var format byte
+		format, err = r.ReadByte()
+		if err != nil {
+			return
+		}
+		// The unified export format starts with a 'u'.
+		switch format {
+		case 'u':
+		default:
+			// Older no longer supported export formats include:
+			// indexed export format which started with an 'i'; and
+			// the older binary export format which started with a 'c',
+			// 'd', or 'v' (from "version").
+			err = fmt.Errorf("binary export format %q is no longer supported (recompile package)", format)
+			return
+		}
+
+	default:
+		err = fmt.Errorf("unknown export data header: %q", hdr)
+		return
+	}
+
+	n = len(hdr) + 1 // + 1 is for 'u'
 	return
 }
 

@@ -11,10 +11,8 @@ import (
 	"fmt"
 	"internal/exportdata"
 	"internal/pkgbits"
-	"internal/saferio"
 	"io"
 	"os"
-	"strings"
 
 	"cmd/compile/internal/types2"
 )
@@ -75,50 +73,15 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 	defer rc.Close()
 
 	buf := bufio.NewReader(rc)
-	hdr, size, err := exportdata.FindExportData(buf)
+	data, err := exportdata.ReadUnified(buf)
 	if err != nil {
+		err = fmt.Errorf("import %q: %v", path, err)
 		return
 	}
+	s := string(data)
 
-	switch hdr {
-	case "$$\n":
-		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile package)", path)
-
-	case "$$B\n":
-		var exportFormat byte
-		if exportFormat, err = buf.ReadByte(); err != nil {
-			return
-		}
-		size--
-
-		// The unified export format starts with a 'u'; the indexed export
-		// format starts with an 'i'; and the older binary export format
-		// starts with a 'c', 'd', or 'v' (from "version"). Select
-		// appropriate importer.
-		switch exportFormat {
-		case 'u':
-			// exported strings may contain "\n$$\n" - search backwards
-			var data []byte
-			var r io.Reader = buf
-			if size >= 0 {
-				if data, err = saferio.ReadData(r, uint64(size)); err != nil {
-					return
-				}
-			} else if data, err = io.ReadAll(r); err != nil {
-				return
-			}
-			s := string(data)
-			s = s[:strings.LastIndex(s, "\n$$\n")]
-
-			input := pkgbits.NewPkgDecoder(id, s)
-			pkg = ReadPackage(nil, packages, input)
-		default:
-			err = fmt.Errorf("import %q: binary export format %q is no longer supported (recompile package)", path, exportFormat)
-		}
-
-	default:
-		err = fmt.Errorf("import %q: unknown export data header: %q", path, hdr)
-	}
+	input := pkgbits.NewPkgDecoder(id, s)
+	pkg = ReadPackage(nil, packages, input)
 
 	return
 }
