@@ -86,6 +86,7 @@ const (
 	ETXTBSY         Errno = 74
 	EXDEV           Errno = 75
 	ENOTCAPABLE     Errno = 76
+	EBADFD          Errno = 77
 	// needed by src/net/error_unix_test.go
 	EOPNOTSUPP = ENOTSUP
 )
@@ -100,6 +101,7 @@ var errorstr = [...]string{
 	EAGAIN:          "Try again",
 	EALREADY:        "Socket already connected",
 	EBADF:           "Bad file number",
+	EBADFD:          "file descriptor in bad state",
 	EBADMSG:         "Trying to read unreadable message",
 	EBUSY:           "Device or resource busy",
 	ECANCELED:       "Operation canceled.",
