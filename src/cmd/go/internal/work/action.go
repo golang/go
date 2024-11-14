@@ -298,7 +298,7 @@ func NewBuilder(workDir string) *Builder {
 	b.backgroundSh = NewShell(b.WorkDir, nil)
 
 	if printWorkDir {
-		b.BackgroundShell().Print("WORK=", b.WorkDir, "\n")
+		b.BackgroundShell().Printf("WORK=%s\n", b.WorkDir)
 	}
 
 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {

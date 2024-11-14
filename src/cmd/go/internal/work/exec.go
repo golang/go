@@ -520,11 +520,11 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		// different sections of the bootstrap script have to
 		// be merged, the banners give patch something
 		// to use to find its context.
-		sh.Print("\n#\n# " + p.ImportPath + "\n#\n\n")
+		sh.Printf("\n#\n# %s\n#\n\n", p.ImportPath)
 	}
 
 	if cfg.BuildV {
-		sh.Print(p.ImportPath + "\n")
+		sh.Printf("%s\n", p.ImportPath)
 	}
 
 	if p.Error != nil {

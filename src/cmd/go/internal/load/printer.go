@@ -17,15 +17,15 @@ import (
 
 // A Printer reports output about a Package.
 type Printer interface {
-	// Output reports output from building pkg. The arguments are of the form
-	// expected by fmt.Print.
+	// Printf reports output from building pkg. The arguments are of the form
+	// expected by [fmt.Printf].
 	//
 	// pkg may be nil if this output is not associated with the build of a
 	// particular package.
 	//
 	// The caller is responsible for checking if printing output is appropriate,
 	// for example by checking cfg.BuildN or cfg.BuildV.
-	Output(pkg *Package, args ...any)
+	Printf(pkg *Package, format string, args ...any)
 
 	// Errorf prints output in the form of `log.Errorf` and reports that
 	// building pkg failed.
@@ -68,8 +68,8 @@ type TextPrinter struct {
 	Writer io.Writer
 }
 
-func (p *TextPrinter) Output(_ *Package, args ...any) {
-	fmt.Fprint(p.Writer, args...)
+func (p *TextPrinter) Printf(_ *Package, format string, args ...any) {
+	fmt.Fprintf(p.Writer, format, args...)
 }
 
 func (p *TextPrinter) Errorf(_ *Package, format string, args ...any) {
@@ -92,10 +92,10 @@ type jsonBuildEvent struct {
 	Output     string `json:",omitempty"` // Non-empty if Action == “build-output”
 }
 
-func (p *JSONPrinter) Output(pkg *Package, args ...any) {
+func (p *JSONPrinter) Printf(pkg *Package, format string, args ...any) {
 	ev := &jsonBuildEvent{
 		Action: "build-output",
-		Output: fmt.Sprint(args...),
+		Output: fmt.Sprintf(format, args...),
 	}
 	if ev.Output == "" {
 		// There's no point in emitting a completely empty output event.
@@ -112,7 +112,7 @@ func (p *JSONPrinter) Errorf(pkg *Package, format string, args ...any) {
 	// For clarity, emit each line as a separate output event.
 	for len(s) > 0 {
 		i := strings.IndexByte(s, '\n')
-		p.Output(pkg, s[:i+1])
+		p.Printf(pkg, "%s", s[:i+1])
 		s = s[i+1:]
 	}
 	ev := &jsonBuildEvent{

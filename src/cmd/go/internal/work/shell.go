@@ -71,16 +71,16 @@ func (sh *Shell) pkg() *load.Package {
 	return sh.action.Package
 }
 
-// Print emits a to this Shell's output stream, formatting it like fmt.Print.
+// Printf emits a to this Shell's output stream, formatting it like fmt.Printf.
 // It is safe to call concurrently.
-func (sh *Shell) Print(a ...any) {
+func (sh *Shell) Printf(format string, a ...any) {
 	sh.printLock.Lock()
 	defer sh.printLock.Unlock()
-	sh.printer.Output(sh.pkg(), a...)
+	sh.printer.Printf(sh.pkg(), format, a...)
 }
 
-func (sh *Shell) printLocked(a ...any) {
-	sh.printer.Output(sh.pkg(), a...)
+func (sh *Shell) printfLocked(format string, a ...any) {
+	sh.printer.Printf(sh.pkg(), format, a...)
 }
 
 // Errorf reports an error on sh's package and sets the process exit status to 1.
@@ -371,7 +371,7 @@ func (sh *Shell) ShowCmd(dir string, format string, args ...any) {
 	if dir != "" && dir != "/" {
 		if dir != sh.scriptDir {
 			// Show changing to dir and update the current directory.
-			sh.printLocked(sh.fmtCmd("", "cd %s\n", dir))
+			sh.printfLocked("%s", sh.fmtCmd("", "cd %s\n", dir))
 			sh.scriptDir = dir
 		}
 		// Replace scriptDir is our working directory. Replace it
@@ -383,7 +383,7 @@ func (sh *Shell) ShowCmd(dir string, format string, args ...any) {
 		cmd = strings.ReplaceAll(" "+cmd, " "+dir, dot)[1:]
 	}
 
-	sh.printLocked(cmd + "\n")
+	sh.printfLocked("%s\n", cmd)
 }
 
 // reportCmd reports the output and exit status of a command. The cmdOut and
@@ -522,7 +522,7 @@ func (sh *Shell) reportCmd(desc, dir string, cmdOut []byte, cmdErr error) error 
 		a.output = append(a.output, err.Error()...)
 	} else {
 		// Write directly to the Builder output.
-		sh.Print(err.Error())
+		sh.Printf("%s", err)
 	}
 	return nil
 }

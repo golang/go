@@ -618,7 +618,7 @@ func showStdout(b *Builder, c cache.Cache, a *Action, key string) error {
 			sh.ShowCmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
 		}
 		if !cfg.BuildN {
-			sh.Print(string(stdout))
+			sh.Printf("%s", stdout)
 		}
 	}
 	return nil
@@ -626,7 +626,7 @@ func showStdout(b *Builder, c cache.Cache, a *Action, key string) error {
 
 // flushOutput flushes the output being queued in a.
 func (b *Builder) flushOutput(a *Action) {
-	b.Shell(a).Print(string(a.output))
+	b.Shell(a).Printf("%s", a.output)
 	a.output = nil
 }
 
