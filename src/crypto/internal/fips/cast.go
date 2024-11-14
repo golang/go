@@ -13,7 +13,7 @@ import (
 
 // fatal is [runtime.fatal], pushed via linkname.
 //
-//go:linkname fatal
+//go:linkname fatal crypto/internal/fips.fatal
 func fatal(string)
 
 // failfipscast is a GODEBUG key allowing simulation of a Cryptographic Algorithm

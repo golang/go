@@ -16,10 +16,10 @@ import _ "unsafe" // for go:linkname
 // negative. Finally, we expose indicatorUnset as negative to the user, so that
 // we don't need to explicitly annotate fully non-approved services.
 
-//go:linkname getIndicator
+//go:linkname getIndicator crypto/internal/fips.getIndicator
 func getIndicator() uint8
 
-//go:linkname setIndicator
+//go:linkname setIndicator crypto/internal/fips.setIndicator
 func setIndicator(uint8)
 
 const (
