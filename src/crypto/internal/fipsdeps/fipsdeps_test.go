@@ -24,6 +24,9 @@ var AllowedInternalPackages = map[string]bool{
 	// impl.Register is how the packages expose their alternative
 	// implementations to tests outside the module.
 	"crypto/internal/impl": true,
+
+	// randutil.MaybeReadByte is used in non-FIPS mode by GenerateKey functions.
+	"crypto/internal/randutil": true,
 }
 
 func TestImports(t *testing.T) {

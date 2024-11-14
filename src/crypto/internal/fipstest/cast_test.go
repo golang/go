@@ -17,6 +17,7 @@ import (
 	_ "crypto/internal/fips/aes"
 	_ "crypto/internal/fips/aes/gcm"
 	_ "crypto/internal/fips/drbg"
+	"crypto/internal/fips/ecdh"
 	_ "crypto/internal/fips/hkdf"
 	_ "crypto/internal/fips/hmac"
 	"crypto/internal/fips/mlkem"
@@ -25,6 +26,7 @@ import (
 	_ "crypto/internal/fips/sha512"
 	_ "crypto/internal/fips/tls12"
 	_ "crypto/internal/fips/tls13"
+	"crypto/rand"
 )
 
 func findAllCASTs(t *testing.T) map[string]struct{} {
@@ -65,9 +67,10 @@ func findAllCASTs(t *testing.T) map[string]struct{} {
 	return allCASTs
 }
 
-// TestPCTs causes the conditional PCTs to be invoked.
-func TestPCTs(t *testing.T) {
+// TestConditionals causes the conditional CASTs and PCTs to be invoked.
+func TestConditionals(t *testing.T) {
 	mlkem.GenerateKey768()
+	ecdh.GenerateKeyP256(rand.Reader)
 	t.Log("completed successfully")
 }
 
@@ -82,7 +85,7 @@ func TestCASTFailures(t *testing.T) {
 	for name := range allCASTs {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestPCTs", "-test.v")
+			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestConditionals", "-test.v")
 			cmd = testenv.CleanCmdEnv(cmd)
 			cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name))
 			out, err := cmd.CombinedOutput()
