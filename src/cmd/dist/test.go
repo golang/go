@@ -349,6 +349,12 @@ type goTest struct {
 	testFlags []string // Additional flags accepted by this test
 }
 
+// compileOnly reports whether this test is only for compiling,
+// indicated by runTests being set to '^$' and bench being false.
+func (opts *goTest) compileOnly() bool {
+	return opts.runTests == "^$" && !opts.bench
+}
+
 // bgCommand returns a go test Cmd and a post-Run flush function. The result
 // will write its output to stdout and stderr. If stdout==stderr, bgCommand
 // ensures Writes are serialized. The caller should call flush() after Cmd exits.
@@ -357,13 +363,13 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) (cmd *exec.Cm
 
 	// Combine the flags.
 	args := append([]string{"test"}, build...)
-	if t.compileOnly {
+	if t.compileOnly || opts.compileOnly() {
 		args = append(args, "-c", "-o", os.DevNull)
 	} else {
 		args = append(args, run...)
 	}
 	args = append(args, pkgs...)
-	if !t.compileOnly {
+	if !t.compileOnly && !opts.compileOnly() {
 		args = append(args, testFlags...)
 	}
 
@@ -698,6 +704,16 @@ func (t *tester) registerTests() {
 		pkg:      "crypto/...",
 		runTests: "^$", // only ensure they compile
 	})
+
+	// Check that all crypto packages compile with fips.
+	for _, version := range fipsVersions() {
+		t.registerTest("crypto with GOFIPS140", &goTest{
+			variant:  "gofips140-" + version,
+			pkg:      "crypto/...",
+			runTests: "^$", // only ensure they compile
+			env:      []string{"GOFIPS140=" + version, "GOMODCACHE=" + filepath.Join(workdir, "fips-"+version)},
+		})
+	}
 
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
@@ -1748,4 +1764,24 @@ func isEnvSet(evar string) bool {
 		}
 	}
 	return false
+}
+
+// fipsVersions returns the list of versions available in lib/fips140.
+func fipsVersions() []string {
+	var versions []string
+	zips, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.zip"))
+	if err != nil {
+		fatalf("%v", err)
+	}
+	for _, zip := range zips {
+		versions = append(versions, strings.TrimSuffix(filepath.Base(zip), ".zip"))
+	}
+	txts, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.txt"))
+	if err != nil {
+		fatalf("%v", err)
+	}
+	for _, txt := range txts {
+		versions = append(versions, strings.TrimSuffix(filepath.Base(txt), ".txt"))
+	}
+	return versions
 }
