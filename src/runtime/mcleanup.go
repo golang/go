@@ -64,40 +64,91 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 	if debug.sbrk != 0 {
 		// debug.sbrk never frees memory, so no cleanup will ever run
 		// (and we don't have the data structures to record them).
-		// return a noop cleanup.
+		// Return a noop cleanup.
 		return Cleanup{}
 	}
 
 	fn := func() {
 		cleanup(arg)
 	}
-	// closure must escape
+	// Closure must escape.
 	fv := *(**funcval)(unsafe.Pointer(&fn))
 	fv = abi.Escape(fv)
 
-	// find the containing object
+	// Find the containing object.
 	base, _, _ := findObject(usptr, 0, 0)
 	if base == 0 {
 		if isGoPointerWithoutSpan(unsafe.Pointer(ptr)) {
+			// Cleanup is a noop.
 			return Cleanup{}
 		}
 		throw("runtime.AddCleanup: ptr not in allocated block")
 	}
 
-	// ensure we have a finalizer processing goroutine running.
+	// Ensure we have a finalizer processing goroutine running.
 	createfing()
 
-	addCleanup(unsafe.Pointer(ptr), fv)
-	return Cleanup{}
+	id := addCleanup(unsafe.Pointer(ptr), fv)
+	return Cleanup{
+		id:  id,
+		ptr: usptr,
+	}
 }
 
 // Cleanup is a handle to a cleanup call for a specific object.
-type Cleanup struct{}
+type Cleanup struct {
+	// id is the unique identifier for the cleanup within the arena.
+	id uint64
+	// ptr contains the pointer to the object.
+	ptr uintptr
+}
 
 // Stop cancels the cleanup call. Stop will have no effect if the cleanup call
 // has already been queued for execution (because ptr became unreachable).
 // To guarantee that Stop removes the cleanup function, the caller must ensure
 // that the pointer that was passed to AddCleanup is reachable across the call to Stop.
-//
-// TODO(amedee) needs implementation.
-func (c Cleanup) Stop() {}
+func (c Cleanup) Stop() {
+	if c.id == 0 {
+		// id is set to zero when the cleanup is a noop.
+		return
+	}
+
+	// The following block removes the Special record of type cleanup for the object c.ptr.
+	span := spanOfHeap(uintptr(unsafe.Pointer(c.ptr)))
+	if span == nil {
+		return
+	}
+	// Ensure that the span is swept.
+	// Sweeping accesses the specials list w/o locks, so we have
+	// to synchronize with it. And it's just much safer.
+	mp := acquirem()
+	span.ensureSwept()
+
+	offset := uintptr(unsafe.Pointer(c.ptr)) - span.base()
+
+	var found *special
+	lock(&span.speciallock)
+
+	iter, exists := span.specialFindSplicePoint(offset, _KindSpecialCleanup)
+	if exists {
+		for s := *iter; s != nil && offset == uintptr(s.offset); iter = &s.next {
+			if (*specialCleanup)(unsafe.Pointer(s)).id == c.id {
+				*iter = s.next
+				found = s
+				break
+			}
+		}
+	}
+	if span.specials == nil {
+		spanHasNoSpecials(span)
+	}
+	unlock(&span.speciallock)
+	releasem(mp)
+
+	if found == nil {
+		return
+	}
+	lock(&mheap_.speciallock)
+	mheap_.specialCleanupAlloc.free(unsafe.Pointer(found))
+	unlock(&mheap_.speciallock)
+}

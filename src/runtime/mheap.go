@@ -231,6 +231,12 @@ type mheap struct {
 		readyList mSpanList
 	}
 
+	// cleanupID is a counter which is incremented each time a cleanup special is added
+	// to a span. It's used to create globally unique identifiers for individual cleanup.
+	// cleanupID is protected by mheap_.lock. It should only be incremented while holding
+	// the lock.
+	cleanupID uint64
+
 	unused *specialfinalizer // never set, just here to force the specialfinalizer type into DWARF
 }
 
@@ -2020,16 +2026,23 @@ type specialCleanup struct {
 	_       sys.NotInHeap
 	special special
 	fn      *funcval
+	// Globally unique ID for the cleanup, obtained from mheap_.cleanupID.
+	id uint64
 }
 
 // addCleanup attaches a cleanup function to the object. Multiple
 // cleanups are allowed on an object, and even the same pointer.
-func addCleanup(p unsafe.Pointer, f *funcval) {
+// A cleanup id is returned which can be used to uniquely identify
+// the cleanup.
+func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
 	lock(&mheap_.speciallock)
 	s := (*specialCleanup)(mheap_.specialCleanupAlloc.alloc())
+	mheap_.cleanupID++
+	id := mheap_.cleanupID
 	unlock(&mheap_.speciallock)
 	s.special.kind = _KindSpecialCleanup
 	s.fn = f
+	s.id = id
 
 	mp := acquirem()
 	addspecial(p, &s.special, true)
@@ -2044,6 +2057,7 @@ func addCleanup(p unsafe.Pointer, f *funcval) {
 		// special isn't part of the GC'd heap.
 		scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
 	}
+	return id
 }
 
 // The described object has a weak pointer.
