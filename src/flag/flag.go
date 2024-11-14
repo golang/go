@@ -420,9 +420,7 @@ func sortFlags(flags map[string]*Flag) []*Flag {
 		result[i] = f
 		i++
 	}
-	slices.SortFunc(result, func(a, b *Flag) int {
-		return strings.Compare(a.Name, b.Name)
-	})
+	slices.SortFunc(result, func { a, b -> strings.Compare(a.Name, b.Name) })
 	return result
 }
 
@@ -606,7 +604,7 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 // documentation for the global function PrintDefaults for more information.
 func (f *FlagSet) PrintDefaults() {
 	var isZeroValueErrs []error
-	f.VisitAll(func(flag *Flag) {
+	f.VisitAll(func { flag ->
 		var b strings.Builder
 		fmt.Fprintf(&b, "  -%s", flag.Name) // Two spaces before -; see next two comments.
 		name, usage := UnquoteUsage(flag)

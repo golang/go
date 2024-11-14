@@ -85,19 +85,13 @@ func TestScalarAliasing(t *testing.T) {
 			return checkAliasingTwoArgs((*Scalar).Subtract, v, x, y)
 		},
 		"MultiplyAdd1": func(v, x, y, fixed Scalar) bool {
-			return checkAliasingTwoArgs(func(v, x, y *Scalar) *Scalar {
-				return v.MultiplyAdd(&fixed, x, y)
-			}, v, x, y)
+			return checkAliasingTwoArgs(func { v, x, y -> v.MultiplyAdd(&fixed, x, y) }, v, x, y)
 		},
 		"MultiplyAdd2": func(v, x, y, fixed Scalar) bool {
-			return checkAliasingTwoArgs(func(v, x, y *Scalar) *Scalar {
-				return v.MultiplyAdd(x, &fixed, y)
-			}, v, x, y)
+			return checkAliasingTwoArgs(func { v, x, y -> v.MultiplyAdd(x, &fixed, y) }, v, x, y)
 		},
 		"MultiplyAdd3": func(v, x, y, fixed Scalar) bool {
-			return checkAliasingTwoArgs(func(v, x, y *Scalar) *Scalar {
-				return v.MultiplyAdd(x, y, &fixed)
-			}, v, x, y)
+			return checkAliasingTwoArgs(func { v, x, y -> v.MultiplyAdd(x, y, &fixed) }, v, x, y)
 		},
 	} {
 		err := quick.Check(f, quickCheckConfig(32))

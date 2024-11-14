@@ -15,9 +15,7 @@ func TestP256PrecomputedTable(t *testing.T) {
 	base := NewP256Point().SetGenerator()
 
 	for i := 0; i < 43; i++ {
-		t.Run(fmt.Sprintf("table[%d]", i), func(t *testing.T) {
-			testP256AffineTable(t, base, &p256Precomputed[i])
-		})
+		t.Run(fmt.Sprintf("table[%d]", i), func { t -> testP256AffineTable(t, base, &p256Precomputed[i]) })
 
 		for k := 0; k < 6; k++ {
 			base.Double(base)

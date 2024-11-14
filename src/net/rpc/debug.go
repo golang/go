@@ -73,21 +73,17 @@ type debugHTTP struct {
 func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Build a sorted version of the data.
 	var services serviceArray
-	server.serviceMap.Range(func(snamei, svci any) bool {
+	server.serviceMap.Range(func { snamei, svci ->
 		svc := svci.(*service)
 		ds := debugService{svc, snamei.(string), make([]debugMethod, 0, len(svc.method))}
 		for mname, method := range svc.method {
 			ds.Method = append(ds.Method, debugMethod{method, mname})
 		}
-		slices.SortFunc(ds.Method, func(a, b debugMethod) int {
-			return strings.Compare(a.Name, b.Name)
-		})
+		slices.SortFunc(ds.Method, func { a, b -> strings.Compare(a.Name, b.Name) })
 		services = append(services, ds)
 		return true
 	})
-	slices.SortFunc(services, func(a, b debugService) int {
-		return strings.Compare(a.Name, b.Name)
-	})
+	slices.SortFunc(services, func { a, b -> strings.Compare(a.Name, b.Name) })
 	err := debug.Execute(w, services)
 	if err != nil {
 		fmt.Fprintln(w, "rpc: error executing template:", err.Error())

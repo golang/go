@@ -69,7 +69,7 @@ type Variant struct {
 
 var (
 	traditionalVariants = []Variant{
-		Variant{
+		{
 			Name:       "interface",
 			Path:       "zsortinterface.go",
 			Package:    "sort",
@@ -88,7 +88,7 @@ var (
 				},
 			},
 		},
-		Variant{
+		{
 			Name:       "func",
 			Path:       "zsortfunc.go",
 			Package:    "sort",
@@ -110,7 +110,7 @@ var (
 	}
 
 	genericVariants = []Variant{
-		Variant{
+		{
 			Name:       "generic_ordered",
 			Path:       "zsortordered.go",
 			Package:    "slices",
@@ -129,7 +129,7 @@ var (
 				},
 			},
 		},
-		Variant{
+		{
 			Name:       "generic_func",
 			Path:       "zsortanyfunc.go",
 			Package:    "slices",
@@ -150,7 +150,7 @@ var (
 	}
 
 	expVariants = []Variant{
-		Variant{
+		{
 			Name:       "exp_ordered",
 			Path:       "zsortordered.go",
 			Package:    "slices",
@@ -169,7 +169,7 @@ var (
 				},
 			},
 		},
-		Variant{
+		{
 			Name:       "exp_func",
 			Path:       "zsortanyfunc.go",
 			Package:    "slices",

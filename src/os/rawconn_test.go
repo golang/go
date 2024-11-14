@@ -34,7 +34,7 @@ func TestRawConnReadWrite(t *testing.T) {
 	}
 
 	var operr error
-	err = wconn.Write(func(s uintptr) bool {
+	err = wconn.Write(func { s ->
 		_, operr = syscall.Write(syscallDescriptor(s), []byte{'b'})
 		return operr != syscall.EAGAIN
 	})
@@ -47,7 +47,7 @@ func TestRawConnReadWrite(t *testing.T) {
 
 	var n int
 	buf := make([]byte, 1)
-	err = rconn.Read(func(s uintptr) bool {
+	err = rconn.Read(func { s ->
 		n, operr = syscall.Read(syscallDescriptor(s), buf)
 		return operr != syscall.EAGAIN
 	})

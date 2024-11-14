@@ -25,7 +25,7 @@ func TestInlining(t *testing.T) {
 		t.Fatalf("go build: %v, %s", err, out)
 	}
 	got := map[string]bool{}
-	regexp.MustCompile(` can inline (\S+)`).ReplaceAllFunc(out, func(match []byte) []byte {
+	regexp.MustCompile(` can inline (\S+)`).ReplaceAllFunc(out, func { match ->
 		got[strings.TrimPrefix(string(match), " can inline ")] = true
 		return nil
 	})

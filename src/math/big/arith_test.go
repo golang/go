@@ -92,7 +92,7 @@ func BenchmarkAddVV(b *testing.B) {
 		x := rndV(n)
 		y := rndV(n)
 		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n * _W))
 			for i := 0; i < b.N; i++ {
 				addVV(z, x, y)
@@ -109,7 +109,7 @@ func BenchmarkSubVV(b *testing.B) {
 		x := rndV(n)
 		y := rndV(n)
 		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n * _W))
 			for i := 0; i < b.N; i++ {
 				subVV(z, x, y)
@@ -400,7 +400,7 @@ func BenchmarkAddVW(b *testing.B) {
 		x := rndV(n)
 		y := rndW()
 		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n * _S))
 			for i := 0; i < b.N; i++ {
 				addVW(z, x, y)
@@ -418,7 +418,7 @@ func BenchmarkAddVWext(b *testing.B) {
 		y := ^Word(0)
 		x := makeWordVec(y, n)
 		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n * _S))
 			for i := 0; i < b.N; i++ {
 				addVW(z, x, y)
@@ -435,7 +435,7 @@ func BenchmarkSubVW(b *testing.B) {
 		x := rndV(n)
 		y := rndW()
 		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n * _S))
 			for i := 0; i < b.N; i++ {
 				subVW(z, x, y)
@@ -453,7 +453,7 @@ func BenchmarkSubVWext(b *testing.B) {
 		x := makeWordVec(0, n)
 		y := Word(1)
 		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n * _S))
 			for i := 0; i < b.N; i++ {
 				subVW(z, x, y)
@@ -630,7 +630,7 @@ func BenchmarkMulAddVWW(b *testing.B) {
 		x := rndV(n)
 		y := rndW()
 		r := rndW()
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n * _W))
 			for i := 0; i < b.N; i++ {
 				mulAddVWW(z, x, y, r)
@@ -647,7 +647,7 @@ func BenchmarkAddMulVVW(b *testing.B) {
 		x := rndV(n)
 		y := rndW()
 		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n * _W))
 			for i := 0; i < b.N; i++ {
 				addMulVVW(z, x, y)
@@ -663,7 +663,7 @@ func BenchmarkDivWVW(b *testing.B) {
 		x := rndV(n)
 		y := rndW()
 		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n * _W))
 			for i := 0; i < b.N; i++ {
 				divWVW(z, 0, x, y)
@@ -680,18 +680,14 @@ func BenchmarkNonZeroShifts(b *testing.B) {
 		x := rndV(n)
 		s := uint(rand.Int63n(_W-2)) + 1 // avoid 0 and over-large shifts
 		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n * _W))
-			b.Run("shrVU", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					_ = shrVU(z, x, s)
-				}
-			})
-			b.Run("shlVU", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					_ = shlVU(z, x, s)
-				}
-			})
+			b.Run("shrVU", func { b -> for i := 0; i < b.N; i++ {
+				_ = shrVU(z, x, s)
+			} })
+			b.Run("shlVU", func { b -> for i := 0; i < b.N; i++ {
+				_ = shlVU(z, x, s)
+			} })
 		})
 	}
 }

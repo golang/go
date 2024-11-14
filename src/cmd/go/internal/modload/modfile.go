@@ -670,7 +670,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		// command-line-arguments module, which rawGoModData cannot read a go.mod for.
 		return &modFileSummary{module: m}, nil
 	}
-	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
+	return rawGoModSummaryCache.Do(m, func {
 		summary := new(modFileSummary)
 		name, data, err := rawGoModData(m)
 		if err != nil {
@@ -779,7 +779,7 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
 // If the queried latest version is replaced,
 // queryLatestVersionIgnoringRetractions returns the replacement.
 func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (latest module.Version, err error) {
-	return latestVersionIgnoringRetractionsCache.Do(path, func() (module.Version, error) {
+	return latestVersionIgnoringRetractionsCache.Do(path, func {
 		ctx, span := trace.StartSpan(ctx, "queryLatestVersionIgnoringRetractions "+path)
 		defer span.Done()
 

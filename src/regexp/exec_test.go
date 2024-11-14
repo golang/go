@@ -653,7 +653,7 @@ func BenchmarkMatch(b *testing.B) {
 				continue
 			}
 			t := makeText(size.n)
-			b.Run(data.name+"/"+size.name, func(b *testing.B) {
+			b.Run(data.name+"/"+size.name, func { b ->
 				b.SetBytes(int64(size.n))
 				for i := 0; i < b.N; i++ {
 					if r.Match(t) {
@@ -676,7 +676,7 @@ func BenchmarkMatch_onepass_regex(b *testing.B) {
 			continue
 		}
 		t := makeText(size.n)
-		b.Run(size.name, func(b *testing.B) {
+		b.Run(size.name, func { b ->
 			b.SetBytes(int64(size.n))
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {

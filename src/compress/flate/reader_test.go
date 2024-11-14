@@ -32,7 +32,7 @@ var suites = []struct{ name, file string }{
 }
 
 func BenchmarkDecode(b *testing.B) {
-	doBench(b, func(b *testing.B, buf0 []byte, level, n int) {
+	doBench(b, func { b, buf0, level, n ->
 		b.ReportAllocs()
 		b.StopTimer()
 		b.SetBytes(int64(n))
@@ -89,9 +89,7 @@ func doBench(b *testing.B, f func(b *testing.B, buf []byte, level, n int)) {
 		}
 		for _, l := range levelTests {
 			for _, s := range sizes {
-				b.Run(suite.name+"/"+l.name+"/"+s.name, func(b *testing.B) {
-					f(b, buf, l.level, s.n)
-				})
+				b.Run(suite.name+"/"+l.name+"/"+s.name, func { b -> f(b, buf, l.level, s.n) })
 			}
 		}
 	}

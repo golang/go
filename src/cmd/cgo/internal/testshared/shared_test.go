@@ -97,11 +97,11 @@ func goCmd(t *testing.T, args ...string) string {
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
-		globalSkip = func(t testing.TB) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
+		globalSkip = func { t -> t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run(), nil
 	}
 	if !platform.BuildModeSupported(runtime.Compiler, "shared", runtime.GOOS, runtime.GOARCH) {
-		globalSkip = func(t testing.TB) { t.Skip("shared build mode not supported") }
+		globalSkip = func { t -> t.Skip("shared build mode not supported") }
 		return m.Run(), nil
 	}
 	if !testenv.HasCGO() {
@@ -956,7 +956,7 @@ func TestRebuilding(t *testing.T) {
 	shlib := info[1]
 
 	// If the source is newer than both the .a file and the .so, both are rebuilt.
-	t.Run("newsource", func(t *testing.T) {
+	t.Run("newsource", func { t ->
 		resetFileStamps()
 		cleanup := touch(t, "./depBase/dep.go")
 		defer func() {
@@ -969,7 +969,7 @@ func TestRebuilding(t *testing.T) {
 	})
 
 	// If the .a file is newer than the .so, the .so is rebuilt (but not the .a)
-	t.Run("newarchive", func(t *testing.T) {
+	t.Run("newarchive", func { t ->
 		resetFileStamps()
 		AssertNotRebuilt(t, "new .a file before build", target)
 		goCmd(t, "list", "-linkshared", "-f={{.ImportPath}} {{.Stale}} {{.StaleReason}} {{.Target}}", "./depBase")

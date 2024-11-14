@@ -113,7 +113,7 @@ func ProfileGuided(fn *ir.Func, p *pgoir.Profile) {
 	}
 
 	var edit func(n ir.Node) ir.Node
-	edit = func(n ir.Node) ir.Node {
+	edit = func { n ->
 		if n == nil {
 			return n
 		}
@@ -758,7 +758,7 @@ func findHotConcreteCallee(p *pgoir.Profile, caller *ir.Func, call *ir.CallExpr,
 func findHotConcreteInterfaceCallee(p *pgoir.Profile, caller *ir.Func, call *ir.CallExpr) (*ir.Func, int64) {
 	inter, method := interfaceCallRecvTypeAndMethod(call)
 
-	return findHotConcreteCallee(p, caller, call, func(callerName string, callOffset int, e *pgoir.IREdge) bool {
+	return findHotConcreteCallee(p, caller, call, func { callerName, callOffset, e ->
 		ctyp := methodRecvType(e.Dst.AST)
 		if ctyp == nil {
 			// Not a method.
@@ -806,7 +806,7 @@ func findHotConcreteInterfaceCallee(p *pgoir.Profile, caller *ir.Func, call *ir.
 func findHotConcreteFunctionCallee(p *pgoir.Profile, caller *ir.Func, call *ir.CallExpr) (*ir.Func, int64) {
 	typ := call.Fun.Type().Underlying()
 
-	return findHotConcreteCallee(p, caller, call, func(callerName string, callOffset int, e *pgoir.IREdge) bool {
+	return findHotConcreteCallee(p, caller, call, func { callerName, callOffset, e ->
 		ctyp := e.Dst.AST.Type().Underlying()
 
 		// If ctyp doesn't match typ it is most likely from a different

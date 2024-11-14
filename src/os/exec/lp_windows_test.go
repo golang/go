@@ -290,7 +290,7 @@ func TestLookPathWindows(t *testing.T) {
 	}
 
 	for _, tt := range lookPathTests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			if tt.want == "" && tt.wantErr == nil {
 				t.Fatalf("test must specify either want or wantErr")
 			}
@@ -542,7 +542,7 @@ func TestCommand(t *testing.T) {
 	maySkipHelperCommand("printpath")
 
 	for _, tt := range commandTests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			if tt.PATH == nil {
 				t.Fatalf("test must specify PATH")
 			}

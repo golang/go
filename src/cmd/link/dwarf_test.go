@@ -79,7 +79,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 			}
 		}
 
-		t.Run(prog, func(t *testing.T) {
+		t.Run(prog, func { t ->
 			t.Parallel()
 
 			tmpDir := t.TempDir()
@@ -196,9 +196,7 @@ func TestDWARF(t *testing.T) {
 		if !platform.BuildModeSupported(runtime.Compiler, "c-archive", runtime.GOOS, runtime.GOARCH) {
 			t.Skipf("skipping c-archive test on unsupported platform %s-%s", runtime.GOOS, runtime.GOARCH)
 		}
-		t.Run("c-archive", func(t *testing.T) {
-			testDWARF(t, "c-archive", true)
-		})
+		t.Run("c-archive", func { t -> testDWARF(t, "c-archive", true) })
 	}
 }
 
@@ -224,11 +222,7 @@ func TestDWARFiOS(t *testing.T) {
 	}
 	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
 	// iOS doesn't allow unmapped segments, so iOS executables don't have DWARF.
-	t.Run("exe", func(t *testing.T) {
-		testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
-	})
+	t.Run("exe", func { t -> testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64") })
 	// However, c-archive iOS objects have embedded DWARF.
-	t.Run("c-archive", func(t *testing.T) {
-		testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
-	})
+	t.Run("c-archive", func { t -> testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64") })
 }

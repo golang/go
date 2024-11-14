@@ -23,7 +23,7 @@ func TestVMInfo(t *testing.T) {
 	var begin, end, offset uint64
 	var filename string
 	first := true
-	machVMInfo(func(lo, hi, off uint64, file, buildID string) {
+	machVMInfo(func { lo, hi, off, file, buildID ->
 		if first {
 			begin = lo
 			end = hi

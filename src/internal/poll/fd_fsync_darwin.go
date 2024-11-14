@@ -18,7 +18,7 @@ func (fd *FD) Fsync() error {
 		return err
 	}
 	defer fd.decref()
-	return ignoringEINTR(func() error {
+	return ignoringEINTR(func {
 		_, err := unix.Fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
 
 		// There are scenarios such as SMB mounts where fcntl will fail

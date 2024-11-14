@@ -729,7 +729,7 @@ func TestListenConfigControl(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	t.Run("StreamListen", func(t *testing.T) {
+	t.Run("StreamListen", func { t ->
 		for _, network := range []string{"tcp", "tcp4", "tcp6", "unix", "unixpacket"} {
 			if !testableNetwork(network) {
 				continue
@@ -738,7 +738,7 @@ func TestListenConfigControl(t *testing.T) {
 			ln.Close()
 		}
 	})
-	t.Run("PacketListen", func(t *testing.T) {
+	t.Run("PacketListen", func { t ->
 		for _, network := range []string{"udp", "udp4", "udp6", "unixgram"} {
 			if !testableNetwork(network) {
 				continue

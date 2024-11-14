@@ -26,7 +26,7 @@ func TestIssue33649(t *testing.T) {
 
 		// find corresponding token.File
 		var tf *token.File
-		fset.Iterate(func(f *token.File) bool {
+		fset.Iterate(func { f ->
 			tf = f
 			return true
 		})

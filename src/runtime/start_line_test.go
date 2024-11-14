@@ -54,9 +54,7 @@ var closureFn func() int
 
 func normalClosure() int {
 	// Assign to global to ensure this isn't inlined.
-	closureFn = func() int {
-		return callerStartLine(false)
-	}
+	closureFn = func { callerStartLine(false) }
 	return closureFn()
 }
 
@@ -109,7 +107,7 @@ func TestStartLine(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			got := tc.fn()
 			if got != tc.want {
 				t.Errorf("start line got %d want %d", got, tc.want)

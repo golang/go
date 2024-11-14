@@ -140,7 +140,7 @@ func testPGOIntendedInlining(t *testing.T, dir string, profFile string) {
 
 	// If the list expectedNotInlinedList is not empty, it indicates
 	// the functions in the expectedNotInlinedList are marked with caninline.
-	for fullName, _ := range expectedNotInlinedList {
+	for fullName := range expectedNotInlinedList {
 		t.Errorf("%s was expected not inlined", fullName)
 	}
 }
@@ -252,7 +252,7 @@ func TestPGOSingleIndex(t *testing.T) {
 	}, {
 		originalIndex: 1,
 	}} {
-		t.Run(fmt.Sprintf("originalIndex=%d", tc.originalIndex), func(t *testing.T) {
+		t.Run(fmt.Sprintf("originalIndex=%d", tc.originalIndex), func { t ->
 			wd, err := os.Getwd()
 			if err != nil {
 				t.Fatalf("error getting wd: %v", err)

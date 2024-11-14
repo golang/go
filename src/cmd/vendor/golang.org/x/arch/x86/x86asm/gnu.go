@@ -18,7 +18,7 @@ func GNUSyntax(inst Inst, pc uint64, symname SymLookup) string {
 	// and will not propagate back out to the caller.
 
 	if symname == nil {
-		symname = func(uint64) (string, uint64) { return "", 0 }
+		symname = func { "", 0 }
 	}
 
 	// Adjust opcode [sic].

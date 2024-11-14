@@ -34,7 +34,7 @@ func newosproc(mp *m) {
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := retryOnEAGAIN(func() int32 {
+	ret := retryOnEAGAIN(func {
 		errno := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, abi.FuncPCABI0(mstart))
 		// tfork returns negative errno
 		return -errno

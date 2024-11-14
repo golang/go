@@ -121,7 +121,7 @@ func Find(n int, cmp func(int) int) (i int, found bool) {
 // not present (it could be len(a)).
 // The slice must be sorted in ascending order.
 func SearchInts(a []int, x int) int {
-	return Search(len(a), func(i int) bool { return a[i] >= x })
+	return Search(len(a), func { i -> a[i] >= x })
 }
 
 // SearchFloat64s searches for x in a sorted slice of float64s and returns the index
@@ -129,7 +129,7 @@ func SearchInts(a []int, x int) int {
 // present (it could be len(a)).
 // The slice must be sorted in ascending order.
 func SearchFloat64s(a []float64, x float64) int {
-	return Search(len(a), func(i int) bool { return a[i] >= x })
+	return Search(len(a), func { i -> a[i] >= x })
 }
 
 // SearchStrings searches for x in a sorted slice of strings and returns the index
@@ -137,7 +137,7 @@ func SearchFloat64s(a []float64, x float64) int {
 // present (it could be len(a)).
 // The slice must be sorted in ascending order.
 func SearchStrings(a []string, x string) int {
-	return Search(len(a), func(i int) bool { return a[i] >= x })
+	return Search(len(a), func { i -> a[i] >= x })
 }
 
 // Search returns the result of applying [SearchInts] to the receiver and x.

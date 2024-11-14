@@ -140,7 +140,7 @@ func TestSorted(t *testing.T) {
 }
 
 func TestSortedFunc(t *testing.T) {
-	s := SortedFunc(Values(ints[:]), func(a, b int) int { return a - b })
+	s := SortedFunc(Values(ints[:]), func { a, b -> a - b })
 	if !IsSorted(s) {
 		t.Errorf("sorted %v", ints)
 		t.Errorf("   got %v", s)
@@ -229,7 +229,7 @@ func TestChunk(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			var chunks [][]int
 			for c := range Chunk(tc.s, tc.n) {
 				chunks = append(chunks, c)

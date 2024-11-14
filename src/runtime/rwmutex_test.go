@@ -141,7 +141,7 @@ func BenchmarkRWMutexUncontended(b *testing.B) {
 		RWMutex
 		pad [32]uint32
 	}
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var rwm PaddedRWMutex
 		rwm.Init()
 		for pb.Next() {
@@ -158,7 +158,7 @@ func BenchmarkRWMutexUncontended(b *testing.B) {
 func benchmarkRWMutex(b *testing.B, localWork, writeRatio int) {
 	var rwm RWMutex
 	rwm.Init()
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		foo := 0
 		for pb.Next() {
 			foo++

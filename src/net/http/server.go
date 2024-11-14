@@ -2269,7 +2269,7 @@ func StripPrefix(prefix string, h Handler) Handler {
 	if prefix == "" {
 		return h
 	}
-	return HandlerFunc(func(w ResponseWriter, r *Request) {
+	return HandlerFunc(func { w, r ->
 		p := strings.TrimPrefix(r.URL.Path, prefix)
 		rp := strings.TrimPrefix(r.URL.RawPath, prefix)
 		if len(p) < len(r.URL.Path) && (r.URL.RawPath == "" || len(rp) < len(r.URL.RawPath)) {
@@ -2628,7 +2628,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 		// matches except for the method.
 		allowedMethods := mux.matchingMethods(host, path)
 		if len(allowedMethods) > 0 {
-			return HandlerFunc(func(w ResponseWriter, r *Request) {
+			return HandlerFunc(func { w, r ->
 				w.Header().Set("Allow", strings.Join(allowedMethods, ", "))
 				Error(w, StatusText(StatusMethodNotAllowed), StatusMethodNotAllowed)
 			}), "", nil, nil
@@ -2826,7 +2826,7 @@ func (mux *ServeMux) registerErr(patstr string, handler Handler) error {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 	// Check for conflict.
-	if err := mux.index.possiblyConflictingPatterns(pat, func(pat2 *pattern) error {
+	if err := mux.index.possiblyConflictingPatterns(pat, func { pat2 ->
 		if pat.conflictsWith(pat2) {
 			d := describeConflict(pat, pat2)
 			return fmt.Errorf("pattern %q (registered at %s) conflicts with pattern %q (registered at %s):\n%s",
@@ -3058,7 +3058,7 @@ func (srv *Server) Shutdown(ctx context.Context) error {
 	srv.listenerGroup.Wait()
 
 	pollIntervalBase := time.Millisecond
-	nextPollInterval := func() time.Duration {
+	nextPollInterval := func {
 		// Add 10% jitter.
 		interval := pollIntervalBase + time.Duration(rand.Intn(int(pollIntervalBase/10)))
 		// Double and clamp for next time.
@@ -3222,7 +3222,7 @@ func badServeHTTP(serverHandler, ResponseWriter, *Request)
 //
 // AllowQuerySemicolons should be invoked before [Request.ParseForm] is called.
 func AllowQuerySemicolons(h Handler) Handler {
-	return HandlerFunc(func(w ResponseWriter, r *Request) {
+	return HandlerFunc(func { w, r ->
 		if strings.Contains(r.URL.RawQuery, ";") {
 			r2 := new(Request)
 			*r2 = *r
@@ -3900,7 +3900,7 @@ func tlsRecordHeaderLooksLikeHTTP(hdr [5]byte) bool {
 
 // MaxBytesHandler returns a [Handler] that runs h with its [ResponseWriter] and [Request.Body] wrapped by a MaxBytesReader.
 func MaxBytesHandler(h Handler, n int64) Handler {
-	return HandlerFunc(func(w ResponseWriter, r *Request) {
+	return HandlerFunc(func { w, r ->
 		r2 := *r
 		r2.Body = MaxBytesReader(w, r.Body, n)
 		h.ServeHTTP(w, &r2)

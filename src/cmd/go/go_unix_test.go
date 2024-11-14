@@ -86,7 +86,7 @@ func TestTestInterrupt(t *testing.T) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
-	cmd.Cancel = func() error {
+	cmd.Cancel = func {
 		pgid := cmd.Process.Pid
 		return syscall.Kill(-pgid, syscall.SIGINT)
 	}

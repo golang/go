@@ -28,7 +28,7 @@ func TestCall(t *testing.T) {
 	mustHaveSwig(t)
 	mustHaveCxx(t)
 	run(t, "testdata/callback", false, "Call")
-	t.Run("lto", func(t *testing.T) { run(t, "testdata/callback", true, "Call") })
+	t.Run("lto", func { t -> run(t, "testdata/callback", true, "Call") })
 }
 
 func TestCallback(t *testing.T) {
@@ -36,7 +36,7 @@ func TestCallback(t *testing.T) {
 	mustHaveSwig(t)
 	mustHaveCxx(t)
 	run(t, "testdata/callback", false, "Callback")
-	t.Run("lto", func(t *testing.T) { run(t, "testdata/callback", true, "Callback") })
+	t.Run("lto", func { t -> run(t, "testdata/callback", true, "Callback") })
 }
 
 func run(t *testing.T, dir string, lto bool, args ...string) {

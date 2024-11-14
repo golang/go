@@ -362,7 +362,7 @@ func TestShuffleSmall(t *testing.T) {
 	// Check that Shuffle allows n=0 and n=1, but that swap is never called for them.
 	r := testRand()
 	for n := 0; n <= 1; n++ {
-		r.Shuffle(n, func(i, j int) { t.Fatalf("swap called, n=%d i=%d j=%d", n, i, j) })
+		r.Shuffle(n, func { i, j -> t.Fatalf("swap called, n=%d i=%d j=%d", n, i, j) })
 	}
 }
 
@@ -397,7 +397,7 @@ func TestUniformFactorial(t *testing.T) {
 		top = 3
 	}
 	for n := 3; n <= top; n++ {
-		t.Run(fmt.Sprintf("n=%d", n), func(t *testing.T) {
+		t.Run(fmt.Sprintf("n=%d", n), func { t ->
 			// Calculate n!.
 			nfact := 1
 			for i := 2; i <= n; i++ {
@@ -417,13 +417,13 @@ func TestUniformFactorial(t *testing.T) {
 					for i := range p {
 						p[i] = i
 					}
-					r.Shuffle(n, func(i, j int) { p[i], p[j] = p[j], p[i] })
+					r.Shuffle(n, func { i, j -> p[i], p[j] = p[j], p[i] })
 					return encodePerm(p)
 				}},
 			}
 
 			for _, test := range tests {
-				t.Run(test.name, func(t *testing.T) {
+				t.Run(test.name, func { t ->
 					// Gather chi-squared values and check that they follow
 					// the expected normal distribution given n!-1 degrees of freedom.
 					// See https://en.wikipedia.org/wiki/Pearson%27s_chi-squared_test and
@@ -490,7 +490,7 @@ func BenchmarkGlobalInt64(b *testing.B) {
 }
 
 func BenchmarkGlobalInt64Parallel(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var t int64
 		for pb.Next() {
 			t += Int64()
@@ -508,7 +508,7 @@ func BenchmarkGlobalUint64(b *testing.B) {
 }
 
 func BenchmarkGlobalUint64Parallel(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var t uint64
 		for pb.Next() {
 			t += Uint64()
@@ -736,7 +736,7 @@ func BenchmarkPerm30ViaShuffle(b *testing.B) {
 		for i := range p {
 			p[i] = i
 		}
-		r.Shuffle(30, func(i, j int) { p[i], p[j] = p[j], p[i] })
+		r.Shuffle(30, func { i, j -> p[i], p[j] = p[j], p[i] })
 		t += p[0]
 	}
 	Sink = uint64(t)
@@ -747,11 +747,9 @@ func BenchmarkPerm30ViaShuffle(b *testing.B) {
 func BenchmarkShuffleOverhead(b *testing.B) {
 	r := testRand()
 	for n := b.N; n > 0; n-- {
-		r.Shuffle(30, func(i, j int) {
-			if i < 0 || i >= 30 || j < 0 || j >= 30 {
-				b.Fatalf("bad swap(%d, %d)", i, j)
-			}
-		})
+		r.Shuffle(30, func { i, j -> if i < 0 || i >= 30 || j < 0 || j >= 30 {
+			b.Fatalf("bad swap(%d, %d)", i, j)
+		} })
 	}
 }
 

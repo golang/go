@@ -33,9 +33,7 @@ func ExampleBinarySearchFunc() {
 		{"Bob", 24},
 		{"Gopher", 13},
 	}
-	n, found := slices.BinarySearchFunc(people, Person{"Bob", 0}, func(a, b Person) int {
-		return strings.Compare(a.Name, b.Name)
-	})
+	n, found := slices.BinarySearchFunc(people, Person{"Bob", 0}, func { a, b -> strings.Compare(a.Name, b.Name) })
 	fmt.Println("Bob:", n, found)
 	// Output:
 	// Bob: 1 true
@@ -73,7 +71,7 @@ func ExampleCompare() {
 func ExampleCompareFunc() {
 	numbers := []int{0, 43, 8}
 	strings := []string{"0", "0", "8"}
-	result := slices.CompareFunc(numbers, strings, func(n int, s string) int {
+	result := slices.CompareFunc(numbers, strings, func { n, s ->
 		sn, err := strconv.Atoi(s)
 		if err != nil {
 			return 1
@@ -87,13 +85,9 @@ func ExampleCompareFunc() {
 
 func ExampleContainsFunc() {
 	numbers := []int{0, 42, -10, 8}
-	hasNegative := slices.ContainsFunc(numbers, func(n int) bool {
-		return n < 0
-	})
+	hasNegative := slices.ContainsFunc(numbers, func { n -> n < 0 })
 	fmt.Println("Has a negative:", hasNegative)
-	hasOdd := slices.ContainsFunc(numbers, func(n int) bool {
-		return n%2 != 0
-	})
+	hasOdd := slices.ContainsFunc(numbers, func { n -> n%2 != 0 })
 	fmt.Println("Has an odd number:", hasOdd)
 	// Output:
 	// Has a negative: true
@@ -110,9 +104,8 @@ func ExampleDelete() {
 
 func ExampleDeleteFunc() {
 	seq := []int{0, 1, 1, 2, 3, 5, 8}
-	seq = slices.DeleteFunc(seq, func(n int) bool {
-		return n%2 != 0 // delete the odd numbers
-	})
+	seq = slices.DeleteFunc(seq, func { n -> n%2 != 0 })// delete the odd numbers
+
 	fmt.Println(seq)
 	// Output:
 	// [0 2 8]
@@ -130,7 +123,7 @@ func ExampleEqual() {
 func ExampleEqualFunc() {
 	numbers := []int{0, 42, 8}
 	strings := []string{"000", "42", "0o10"}
-	equal := slices.EqualFunc(numbers, strings, func(n int, s string) bool {
+	equal := slices.EqualFunc(numbers, strings, func { n, s ->
 		sn, err := strconv.ParseInt(s, 0, 64)
 		if err != nil {
 			return false
@@ -153,9 +146,7 @@ func ExampleIndex() {
 
 func ExampleIndexFunc() {
 	numbers := []int{0, 42, -10, 8}
-	i := slices.IndexFunc(numbers, func(n int) bool {
-		return n < 0
-	})
+	i := slices.IndexFunc(numbers, func { n -> n < 0 })
 	fmt.Println("First negative at index", i)
 	// Output:
 	// First negative at index 2
@@ -180,9 +171,7 @@ func ExampleIsSorted() {
 
 func ExampleIsSortedFunc() {
 	names := []string{"alice", "Bob", "VERA"}
-	isSortedInsensitive := slices.IsSortedFunc(names, func(a, b string) int {
-		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
-	})
+	isSortedInsensitive := slices.IsSortedFunc(names, func { a, b -> strings.Compare(strings.ToLower(a), strings.ToLower(b)) })
 	fmt.Println(isSortedInsensitive)
 	fmt.Println(slices.IsSorted(names))
 	// Output:
@@ -208,9 +197,7 @@ func ExampleMaxFunc() {
 		{"Vera", 24},
 		{"Bob", 55},
 	}
-	firstOldest := slices.MaxFunc(people, func(a, b Person) int {
-		return cmp.Compare(a.Age, b.Age)
-	})
+	firstOldest := slices.MaxFunc(people, func { a, b -> cmp.Compare(a.Age, b.Age) })
 	fmt.Println(firstOldest.Name)
 	// Output:
 	// Alice
@@ -234,9 +221,7 @@ func ExampleMinFunc() {
 		{"Vera", 24},
 		{"Bill", 5},
 	}
-	firstYoungest := slices.MinFunc(people, func(a, b Person) int {
-		return cmp.Compare(a.Age, b.Age)
-	})
+	firstYoungest := slices.MinFunc(people, func { a, b -> cmp.Compare(a.Age, b.Age) })
 	fmt.Println(firstYoungest.Name)
 	// Output:
 	// Bob
@@ -268,9 +253,7 @@ func ExampleSort() {
 
 func ExampleSortFunc_caseInsensitive() {
 	names := []string{"Bob", "alice", "VERA"}
-	slices.SortFunc(names, func(a, b string) int {
-		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
-	})
+	slices.SortFunc(names, func { a, b -> strings.Compare(strings.ToLower(a), strings.ToLower(b)) })
 	fmt.Println(names)
 	// Output:
 	// [alice Bob VERA]
@@ -287,7 +270,7 @@ func ExampleSortFunc_multiField() {
 		{"Bob", 24},
 		{"Alice", 20},
 	}
-	slices.SortFunc(people, func(a, b Person) int {
+	slices.SortFunc(people, func { a, b ->
 		if n := strings.Compare(a.Name, b.Name); n != 0 {
 			return n
 		}
@@ -311,9 +294,7 @@ func ExampleSortStableFunc() {
 		{"Alice", 55},
 	}
 	// Stable sort by name, keeping age ordering of Alices intact
-	slices.SortStableFunc(people, func(a, b Person) int {
-		return strings.Compare(a.Name, b.Name)
-	})
+	slices.SortStableFunc(people, func { a, b -> strings.Compare(a.Name, b.Name) })
 	fmt.Println(people)
 	// Output:
 	// [{Alice 20} {Alice 55} {Bob 24} {Gopher 13}]

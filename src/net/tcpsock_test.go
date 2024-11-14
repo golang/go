@@ -625,7 +625,7 @@ func TestTCPBig(t *testing.T) {
 	}
 
 	for _, writev := range []bool{false, true} {
-		t.Run(fmt.Sprintf("writev=%v", writev), func(t *testing.T) {
+		t.Run(fmt.Sprintf("writev=%v", writev), func { t ->
 			ln := newLocalListener(t, "tcp")
 			defer ln.Close()
 
@@ -775,8 +775,8 @@ func TestDialTCPDefaultKeepAlive(t *testing.T) {
 	defer ln.Close()
 
 	got := time.Duration(-1)
-	testHookSetKeepAlive = func(cfg KeepAliveConfig) { got = cfg.Idle }
-	defer func() { testHookSetKeepAlive = func(KeepAliveConfig) {} }()
+	testHookSetKeepAlive = func { cfg -> got = cfg.Idle }
+	defer func() { testHookSetKeepAlive = func {} }()
 
 	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
 	if err != nil {

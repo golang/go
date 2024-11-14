@@ -409,7 +409,7 @@ func (tw *Writer) writeRawHeader(blk *block, size int64, flag byte) error {
 // It walks the directory tree starting at the root of the filesystem
 // adding each file to the tar archive while maintaining the directory structure.
 func (tw *Writer) AddFS(fsys fs.FS) error {
-	return fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(fsys, ".", func { name, d, err ->
 		if err != nil {
 			return err
 		}

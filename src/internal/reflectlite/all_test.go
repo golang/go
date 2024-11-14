@@ -347,7 +347,7 @@ func TestCanSetField(t *testing.T) {
 	}}
 
 	for _, tt := range tests {
-		t.Run(tt.val.Type().Name(), func(t *testing.T) {
+		t.Run(tt.val.Type().Name(), func { t ->
 			for _, tc := range tt.cases {
 				f := tt.val
 				for _, i := range tc.index {
@@ -805,7 +805,7 @@ func noAlloc(t *testing.T, n int, f func(int)) {
 }
 
 func TestAllocations(t *testing.T) {
-	noAlloc(t, 100, func(j int) {
+	noAlloc(t, 100, func { j ->
 		var i any
 		var v Value
 
@@ -815,11 +815,11 @@ func TestAllocations(t *testing.T) {
 			panic("wrong length")
 		}
 	})
-	noAlloc(t, 100, func(j int) {
+	noAlloc(t, 100, func { j ->
 		var i any
 		var v Value
 
-		i = func(j int) int { return j }
+		i = func { j -> j }
 		v = ValueOf(i)
 		if ToInterface(v).(func(int) int)(j) != j {
 			panic("wrong result")

@@ -24,10 +24,10 @@ func TestSlogtest(t *testing.T) {
 		{"JSON", func(w io.Writer) slog.Handler { return slog.NewJSONHandler(w, nil) }, parseJSON},
 		{"Text", func(w io.Writer) slog.Handler { return slog.NewTextHandler(w, nil) }, parseText},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			var buf bytes.Buffer
 			h := test.new(&buf)
-			results := func() []map[string]any {
+			results := func {
 				ms, err := parseLines(buf.Bytes(), test.parse)
 				if err != nil {
 					t.Fatal(err)

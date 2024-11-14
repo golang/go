@@ -117,7 +117,7 @@ func TestZipSums(t *testing.T) {
 	for i := range tests {
 		test := &tests[i]
 		name := fmt.Sprintf("%s@%s", strings.ReplaceAll(test.m.Path, "/", "_"), test.m.Version)
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			t.Parallel()
 			ctx := context.Background()
 

@@ -1451,7 +1451,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 	}
 
 	// Sort variables from lowest to highest address.
-	sort.Slice(vars, func(i, j int) bool { return vars[i].FrameOffset() < vars[j].FrameOffset() })
+	sort.Slice(vars, func { i, j -> vars[i].FrameOffset() < vars[j].FrameOffset() })
 
 	// Populate the stack object data.
 	// Format must match runtime/stack.go:stackObjectRecord.

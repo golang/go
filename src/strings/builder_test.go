@@ -153,7 +153,7 @@ func TestBuilderWrite2(t *testing.T) {
 			s0,
 		},
 	} {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			var b Builder
 			n, err := tt.fn(&b)
 			if err != nil {
@@ -326,22 +326,22 @@ var someBytes = []byte("some bytes sdljlk jsklj3lkjlk djlkjw")
 var sinkS string
 
 func benchmarkBuilder(b *testing.B, f func(b *testing.B, numWrite int, grow bool)) {
-	b.Run("1Write_NoGrow", func(b *testing.B) {
+	b.Run("1Write_NoGrow", func { b ->
 		b.ReportAllocs()
 		f(b, 1, false)
 	})
-	b.Run("3Write_NoGrow", func(b *testing.B) {
+	b.Run("3Write_NoGrow", func { b ->
 		b.ReportAllocs()
 		f(b, 3, false)
 	})
-	b.Run("3Write_Grow", func(b *testing.B) {
+	b.Run("3Write_Grow", func { b ->
 		b.ReportAllocs()
 		f(b, 3, true)
 	})
 }
 
 func BenchmarkBuildString_Builder(b *testing.B) {
-	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
+	benchmarkBuilder(b, func { b, numWrite, grow ->
 		for i := 0; i < b.N; i++ {
 			var buf Builder
 			if grow {
@@ -357,7 +357,7 @@ func BenchmarkBuildString_Builder(b *testing.B) {
 
 func BenchmarkBuildString_WriteString(b *testing.B) {
 	someString := string(someBytes)
-	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
+	benchmarkBuilder(b, func { b, numWrite, grow ->
 		for i := 0; i < b.N; i++ {
 			var buf Builder
 			if grow {
@@ -372,7 +372,7 @@ func BenchmarkBuildString_WriteString(b *testing.B) {
 }
 
 func BenchmarkBuildString_ByteBuffer(b *testing.B) {
-	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
+	benchmarkBuilder(b, func { b, numWrite, grow ->
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
 			if grow {

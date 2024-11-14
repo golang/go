@@ -231,9 +231,7 @@ func benchmarkCompareBytesBigUnaligned(b *testing.B, offset int) {
 
 func BenchmarkCompareBytesBigUnaligned(b *testing.B) {
 	for i := 1; i < 8; i++ {
-		b.Run(fmt.Sprintf("offset=%d", i), func(b *testing.B) {
-			benchmarkCompareBytesBigUnaligned(b, i)
-		})
+		b.Run(fmt.Sprintf("offset=%d", i), func { b -> benchmarkCompareBytesBigUnaligned(b, i) })
 	}
 }
 
@@ -257,9 +255,7 @@ func benchmarkCompareBytesBigBothUnaligned(b *testing.B, offset int) {
 
 func BenchmarkCompareBytesBigBothUnaligned(b *testing.B) {
 	for i := 0; i < 8; i++ {
-		b.Run(fmt.Sprintf("offset=%d", i), func(b *testing.B) {
-			benchmarkCompareBytesBigBothUnaligned(b, i)
-		})
+		b.Run(fmt.Sprintf("offset=%d", i), func { b -> benchmarkCompareBytesBigBothUnaligned(b, i) })
 	}
 }
 

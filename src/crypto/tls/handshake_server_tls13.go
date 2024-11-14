@@ -185,9 +185,7 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 	var clientKeyShare *keyShare
 	preferredGroups := c.config.curvePreferences(c.vers)
 	for _, preferredGroup := range preferredGroups {
-		ki := slices.IndexFunc(hs.clientHello.keyShares, func(ks keyShare) bool {
-			return ks.group == preferredGroup
-		})
+		ki := slices.IndexFunc(hs.clientHello.keyShares, func { ks -> ks.group == preferredGroup })
 		if ki != -1 {
 			clientKeyShare = &hs.clientHello.keyShares[ki]
 			selectedGroup = clientKeyShare.group

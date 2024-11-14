@@ -744,7 +744,5 @@ func lineToKey(line string) string {
 // sortKeyValues sorts a sequence of lines by key.
 // It differs from sort.Strings in that GO386= sorts after GO=.
 func sortKeyValues(lines []string) {
-	sort.Slice(lines, func(i, j int) bool {
-		return lineToKey(lines[i]) < lineToKey(lines[j])
-	})
+	sort.Slice(lines, func { i, j -> lineToKey(lines[i]) < lineToKey(lines[j]) })
 }

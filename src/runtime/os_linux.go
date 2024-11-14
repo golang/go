@@ -176,7 +176,7 @@ func newosproc(mp *m) {
 	// with signals disabled. It will enable them in minit.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := retryOnEAGAIN(func() int32 {
+	ret := retryOnEAGAIN(func {
 		r := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
 		// clone returns positive TID, negative errno.
 		// We don't care about the TID.

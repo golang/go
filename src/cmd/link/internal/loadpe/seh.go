@@ -92,9 +92,7 @@ func findHandlerInXDataAMD64(ldr *loader.Loader, xsym sym.LoaderSym, add int64) 
 	targetOff := add + unwStaticDataSize + unwCodeSize*int64(codes)
 	xrels := ldr.Relocs(xsym)
 	xrelsCount := xrels.Count()
-	idx := sort.Search(xrelsCount, func(i int) bool {
-		return int64(xrels.At(i).Off()) >= targetOff
-	})
+	idx := sort.Search(xrelsCount, func { i -> int64(xrels.At(i).Off()) >= targetOff })
 	if idx == xrelsCount {
 		return 0
 	}

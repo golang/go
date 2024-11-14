@@ -179,7 +179,7 @@ func TestQuery(t *testing.T) {
 			return nil
 		}
 		tt := tt
-		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
+		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func { t ->
 			t.Parallel()
 
 			info, err := Query(ctx, tt.path, tt.query, tt.current, allowed)

@@ -38,9 +38,7 @@ func TestForeachHeaderElement(t *testing.T) {
 	}
 	for _, tt := range tests {
 		var got []string
-		foreachHeaderElement(tt.in, func(v string) {
-			got = append(got, v)
-		})
+		foreachHeaderElement(tt.in, func { v -> got = append(got, v) })
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("foreachHeaderElement(%q) = %q; want %q", tt.in, got, tt.want)
 		}
@@ -156,7 +154,7 @@ func TestNoUnicodeStrings(t *testing.T) {
 	}
 
 	re := regexp.MustCompile(`(strings|bytes).([A-Za-z]+)`)
-	if err := fs.WalkDir(os.DirFS("."), ".", func(path string, d fs.DirEntry, err error) error {
+	if err := fs.WalkDir(os.DirFS("."), ".", func { path, d, err ->
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -348,7 +348,7 @@ func TestStop(t *testing.T) {
 
 	for _, sig := range sigs {
 		sig := sig
-		t.Run(fmt.Sprint(sig), func(t *testing.T) {
+		t.Run(fmt.Sprint(sig), func { t ->
 			// When calling Notify with a specific signal,
 			// independent signals should not interfere with each other,
 			// and we end up needing to wait for signals to quiesce a lot.
@@ -427,7 +427,7 @@ func TestNohup(t *testing.T) {
 	//
 	// Both should fail without nohup and succeed with nohup.
 
-	t.Run("uncaught", func(t *testing.T) {
+	t.Run("uncaught", func { t ->
 		// Ugly: ask for SIGHUP so that child will not have no-hup set
 		// even if test is running under nohup environment.
 		// We have no intention of reading from c.
@@ -442,7 +442,7 @@ func TestNohup(t *testing.T) {
 		}
 		for i := 1; i <= 2; i++ {
 			i := i
-			t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%d", i), func { t ->
 				t.Parallel()
 
 				args := []string{
@@ -465,7 +465,7 @@ func TestNohup(t *testing.T) {
 		}
 	})
 
-	t.Run("nohup", func(t *testing.T) {
+	t.Run("nohup", func { t ->
 		// Skip the nohup test below when running in tmux on darwin, since nohup
 		// doesn't work correctly there. See issue #5135.
 		if runtime.GOOS == "darwin" && os.Getenv("TMUX") != "" {
@@ -485,7 +485,7 @@ func TestNohup(t *testing.T) {
 		}
 		for i := 1; i <= 2; i++ {
 			i := i
-			t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%d", i), func { t ->
 				t.Parallel()
 
 				// POSIX specifies that nohup writes to a file named nohup.out if standard
@@ -744,7 +744,7 @@ func TestNotifyContextNotifications(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			t.Parallel()
 
 			var subTimeout time.Duration

@@ -53,9 +53,7 @@ func Example_isIdentRune() {
 	s.Filename = "percent"
 
 	// treat leading '%' as part of an identifier
-	s.IsIdentRune = func(ch rune, i int) bool {
-		return ch == '%' && i == 0 || unicode.IsLetter(ch) || unicode.IsDigit(ch) && i > 0
-	}
+	s.IsIdentRune = func { ch, i -> ch == '%' && i == 0 || unicode.IsLetter(ch) || unicode.IsDigit(ch) && i > 0 }
 
 	for tok := s.Scan(); tok != scanner.EOF; tok = s.Scan() {
 		fmt.Printf("%s: %s\n", s.Position, s.TokenText())

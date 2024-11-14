@@ -35,7 +35,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 	var addObj func(obj types.Object)
 	var addType func(T types.Type)
 
-	addObj = func(obj types.Object) {
+	addObj = func { obj ->
 		if !objects[obj] {
 			objects[obj] = true
 			addType(obj.Type())
@@ -45,7 +45,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 		}
 	}
 
-	addType = func(T types.Type) {
+	addType = func { T ->
 		switch T := T.(type) {
 		case *aliases.Alias:
 			addType(aliases.Unalias(T))

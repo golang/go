@@ -842,7 +842,7 @@ func (ctxt *Context) matchAuto(text string, allTags map[string]bool) bool {
 }
 
 func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
-	return x.Eval(func(tag string) bool { return ctxt.matchTag(tag, allTags) })
+	return x.Eval(func { tag -> ctxt.matchTag(tag, allTags) })
 }
 
 // matchTag reports whether the name is one of:

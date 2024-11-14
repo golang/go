@@ -61,9 +61,7 @@ func (check *Checker) usage(scope *Scope) {
 			unused = append(unused, v)
 		}
 	}
-	sort.Slice(unused, func(i, j int) bool {
-		return cmpPos(unused[i].pos, unused[j].pos) < 0
-	})
+	sort.Slice(unused, func { i, j -> cmpPos(unused[i].pos, unused[j].pos) < 0 })
 	for _, v := range unused {
 		check.softErrorf(v, UnusedVar, "declared and not used: %s", v.name)
 	}
@@ -863,9 +861,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 	var key, val Type
 	if x.mode != invalid {
 		// Ranging over a type parameter is permitted if it has a core type.
-		k, v, cause, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
-			return check.allowVersion(x.expr, v)
-		})
+		k, v, cause, ok := rangeKeyVal(x.typ, func { v -> check.allowVersion(x.expr, v) })
 		switch {
 		case !ok && cause != "":
 			check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s: %s", &x, cause)

@@ -36,7 +36,7 @@ func TestEqualFold(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			if got := EqualFold(tt.a, tt.b); got != tt.want {
 				t.Errorf("AsciiEqualFold(%q,%q): got %v want %v", tt.a, tt.b, got, tt.want)
 			}
@@ -86,7 +86,7 @@ func TestIsPrint(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			if got := IsPrint(tt.in); got != tt.want {
 				t.Errorf("IsASCIIPrint(%q): got %v want %v", tt.in, got, tt.want)
 			}

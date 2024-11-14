@@ -292,7 +292,7 @@ func TestIssue25627(t *testing.T) {
 			}
 		}
 
-		syntax.Inspect(f, func(n syntax.Node) bool {
+		syntax.Inspect(f, func { n ->
 			if decl, _ := n.(*syntax.TypeDecl); decl != nil {
 				if tv, ok := info.Types[decl.Type]; ok && decl.Name.Value == "T" {
 					want := strings.Count(src, ";") + 1
@@ -895,9 +895,7 @@ func _cgoCheckPointer(interface{}, interface{})
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
 func _cgoCheckResult(interface{})
 `
-	testFiles(t, []string{"p.go", "_cgo_gotypes.go"}, [][]byte{[]byte(src), []byte(cgoTypes)}, 0, false, func(cfg *Config) {
-		*boolFieldAddr(cfg, "go115UsesCgo") = true
-	})
+	testFiles(t, []string{"p.go", "_cgo_gotypes.go"}, [][]byte{[]byte(src), []byte(cgoTypes)}, 0, false, func { cfg -> *boolFieldAddr(cfg, "go115UsesCgo") = true })
 }
 
 func TestIssue61931(t *testing.T) {
@@ -911,7 +909,7 @@ func _() {
 	A(B, nil // syntax error: missing ',' before newline in argument list
 }
 `
-	f, err := syntax.Parse(syntax.NewFileBase(pkgName(src)), strings.NewReader(src), func(error) {}, nil, 0)
+	f, err := syntax.Parse(syntax.NewFileBase(pkgName(src)), strings.NewReader(src), func {}, nil, 0)
 	if err == nil {
 		t.Fatal("expected syntax error")
 	}
@@ -932,7 +930,7 @@ func _()        { f() }
 	typecheck(src, &conf, nil) // must not panic
 
 	// with error handler (sanity check)
-	conf.Error = func(error) {}
+	conf.Error = func {}
 	typecheck(src, &conf, nil) // must not panic
 }
 

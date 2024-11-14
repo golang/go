@@ -26,7 +26,7 @@ func netipv6zone(f *ast.File) bool {
 	}
 
 	fixed := false
-	walk(f, func(n any) {
+	walk(f, func { n ->
 		cl, ok := n.(*ast.CompositeLit)
 		if !ok {
 			return

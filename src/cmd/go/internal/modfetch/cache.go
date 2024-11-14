@@ -216,9 +216,7 @@ func (r *cachingRepo) ModulePath() string {
 }
 
 func (r *cachingRepo) Versions(ctx context.Context, prefix string) (*Versions, error) {
-	v, err := r.versionsCache.Do(prefix, func() (*Versions, error) {
-		return r.repo(ctx).Versions(ctx, prefix)
-	})
+	v, err := r.versionsCache.Do(prefix, func { r.repo(ctx).Versions(ctx, prefix) })
 
 	if err != nil {
 		return nil, err
@@ -239,7 +237,7 @@ func (r *cachingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 		// Skip disk cache; the underlying golang.org/toolchain repo is cached instead.
 		return r.repo(ctx).Stat(ctx, rev)
 	}
-	info, err := r.statCache.Do(rev, func() (*RevInfo, error) {
+	info, err := r.statCache.Do(rev, func {
 		file, info, err := readDiskStat(ctx, r.path, rev)
 		if err == nil {
 			return info, err
@@ -251,9 +249,7 @@ func (r *cachingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 			// then save the information under the proper version, for future use.
 			if info.Version != rev {
 				file, _ = CachePath(ctx, module.Version{Path: r.path, Version: info.Version}, "info")
-				r.statCache.Do(info.Version, func() (*RevInfo, error) {
-					return info, nil
-				})
+				r.statCache.Do(info.Version, func { info, nil })
 			}
 
 			if err := writeDiskStat(ctx, file, info); err != nil {
@@ -274,14 +270,12 @@ func (r *cachingRepo) Latest(ctx context.Context) (*RevInfo, error) {
 		// Skip disk cache; the underlying golang.org/toolchain repo is cached instead.
 		return r.repo(ctx).Latest(ctx)
 	}
-	info, err := r.latestCache.Do(struct{}{}, func() (*RevInfo, error) {
+	info, err := r.latestCache.Do(struct{}{}, func {
 		info, err := r.repo(ctx).Latest(ctx)
 
 		// Save info for likely future Stat call.
 		if err == nil {
-			r.statCache.Do(info.Version, func() (*RevInfo, error) {
-				return info, nil
-			})
+			r.statCache.Do(info.Version, func { info, nil })
 			if file, _, err := readDiskStat(ctx, r.path, info.Version); err != nil {
 				writeDiskStat(ctx, file, info)
 			}
@@ -301,7 +295,7 @@ func (r *cachingRepo) GoMod(ctx context.Context, version string) ([]byte, error)
 		// Skip disk cache; the underlying golang.org/toolchain repo is cached instead.
 		return r.repo(ctx).GoMod(ctx, version)
 	}
-	text, err := r.gomodCache.Do(version, func() ([]byte, error) {
+	text, err := r.gomodCache.Do(version, func {
 		file, text, err := readDiskGoMod(ctx, r.path, version)
 		if err == nil {
 			// Note: readDiskGoMod already called checkGoMod.
@@ -345,7 +339,7 @@ func InfoFile(ctx context.Context, path, version string) (*RevInfo, string, erro
 
 	var info *RevInfo
 	var err2info map[error]*RevInfo
-	err := TryProxies(func(proxy string) error {
+	err := TryProxies(func { proxy ->
 		i, err := Lookup(ctx, proxy, path).Stat(ctx, version)
 		if err == nil {
 			info = i
@@ -382,7 +376,7 @@ func GoMod(ctx context.Context, path, rev string) ([]byte, error) {
 			if errors.Is(err, statCacheErr) {
 				return nil, err
 			}
-			err := TryProxies(func(proxy string) error {
+			err := TryProxies(func { proxy ->
 				info, err := Lookup(ctx, proxy, path).Stat(ctx, rev)
 				if err == nil {
 					rev = info.Version

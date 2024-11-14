@@ -81,7 +81,7 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
 		}
 	}
 
-	Visit(n, func(n Node) {
+	Visit(n, func { n ->
 		switch n.Op() {
 		case ONAME:
 			if n := n.(*Name); n.Class == PFUNC {

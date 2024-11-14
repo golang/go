@@ -92,7 +92,7 @@ func TestScripts(t *testing.T) {
 	// overview of the script status at an arbitrary point during the test.
 	// (We ignore the output because the expected failure mode is a friendly stack
 	// dump from the race detector.)
-	t.Run("overview", func(t *testing.T) {
+	t.Run("overview", func { t ->
 		t.Parallel()
 
 		time.Sleep(1 * time.Millisecond) // Give the other handlers time to race.
@@ -128,7 +128,7 @@ func TestScripts(t *testing.T) {
 		srv.Close()
 	})
 
-	err = filepath.WalkDir(scriptDir, func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(scriptDir, func { path, d, err ->
 		if err != nil || d.IsDir() {
 			return err
 		}
@@ -141,7 +141,7 @@ func TestScripts(t *testing.T) {
 			return nil
 		}
 
-		t.Run(filepath.ToSlash(rel), func(t *testing.T) {
+		t.Run(filepath.ToSlash(rel), func { t ->
 			t.Parallel()
 
 			buf := new(strings.Builder)
@@ -150,7 +150,7 @@ func TestScripts(t *testing.T) {
 			// different VCS tools have different handler protocols,
 			// and the tests that actually use these repos will ensure
 			// that they are served correctly as a side effect anyway.
-			err := s.HandleScript(rel, logger, func(http.Handler) {})
+			err := s.HandleScript(rel, logger, func {})
 			if buf.Len() > 0 {
 				t.Log(buf)
 			}

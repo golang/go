@@ -70,13 +70,9 @@ func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions,
 	}
 
 	if r.path == "go" {
-		sort.Slice(list, func(i, j int) bool {
-			return gover.Compare(list[i], list[j]) < 0
-		})
+		sort.Slice(list, func { i, j -> gover.Compare(list[i], list[j]) < 0 })
 	} else {
-		sort.Slice(list, func(i, j int) bool {
-			return gover.Compare(gover.FromToolchain(list[i]), gover.FromToolchain(list[j])) < 0
-		})
+		sort.Slice(list, func { i, j -> gover.Compare(gover.FromToolchain(list[i]), gover.FromToolchain(list[j])) < 0 })
 	}
 	versions.List = list
 	return versions, nil

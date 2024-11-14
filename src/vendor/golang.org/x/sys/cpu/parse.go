@@ -20,7 +20,7 @@ func parseRelease(rel string) (major, minor, patch int, ok bool) {
 		}
 	}
 
-	next := func() (int, bool) {
+	next := func {
 		for i := 0; i < len(rel); i++ {
 			if rel[i] == '.' {
 				ver, err := strconv.Atoi(rel[:i])

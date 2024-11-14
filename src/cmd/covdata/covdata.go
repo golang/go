@@ -164,7 +164,7 @@ func main() {
 			f := pkgpattern.MatchSimplePattern(p)
 			matchers = append(matchers, f)
 		}
-		matchpkg = func(name string) bool {
+		matchpkg = func { name ->
 			for _, f := range matchers {
 				if f(name) {
 					return true

@@ -35,7 +35,7 @@ func goenvs() {
 		return
 	}
 	defer closefd(dirfd)
-	dofiles(dirfd, func(name []byte) {
+	dofiles(dirfd, func { name ->
 		name = append(name, 0)
 		buf = buf[:len(envDir)]
 		copy(buf, envDir)

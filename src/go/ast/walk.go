@@ -380,7 +380,7 @@ func Inspect(node Node, f func(Node) bool) {
 func Preorder(root Node) iter.Seq[Node] {
 	return func(yield func(Node) bool) {
 		ok := true
-		Inspect(root, func(n Node) bool {
+		Inspect(root, func { n ->
 			if n != nil {
 				// yield must not be called once ok is false.
 				ok = ok && yield(n)

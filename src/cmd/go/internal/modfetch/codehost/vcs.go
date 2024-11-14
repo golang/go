@@ -52,7 +52,7 @@ type vcsCacheKey struct {
 }
 
 func NewRepo(ctx context.Context, vcs, remote string) (Repo, error) {
-	return vcsRepoCache.Do(vcsCacheKey{vcs, remote}, func() (Repo, error) {
+	return vcsRepoCache.Do(vcsCacheKey{vcs, remote}, func {
 		repo, err := newVCSRepo(ctx, vcs, remote)
 		if err != nil {
 			return nil, &VCSError{err}
@@ -323,9 +323,7 @@ func (r *vcsRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 			tags.List = append(tags.List, Tag{tag, ""})
 		}
 	}
-	sort.Slice(tags.List, func(i, j int) bool {
-		return tags.List[i].Name < tags.List[j].Name
-	})
+	sort.Slice(tags.List, func { i, j -> tags.List[i].Name < tags.List[j].Name })
 	return tags, nil
 }
 

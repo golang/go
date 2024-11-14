@@ -198,7 +198,7 @@ func (c *dbClient) initBase() {
 	// Any other response is treated as the database being unavailable.
 	//
 	// See https://golang.org/design/25530-sumdb#proxying-a-checksum-database.
-	err := TryProxies(func(proxy string) error {
+	err := TryProxies(func { proxy ->
 		switch proxy {
 		case "noproxy":
 			return errUseProxy

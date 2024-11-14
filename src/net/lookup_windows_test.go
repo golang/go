@@ -39,7 +39,7 @@ func testLookup(t *testing.T, fn func(*testing.T, *Resolver, string)) {
 			} else {
 				name = "go/"
 			}
-			t.Run(name+server, func(t *testing.T) {
+			t.Run(name+server, func { t ->
 				t.Parallel()
 				r := DefaultResolver
 				if !def {
@@ -54,7 +54,7 @@ func testLookup(t *testing.T, fn func(*testing.T, *Resolver, string)) {
 func TestNSLookupMX(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+	testLookup(t, func { t, r, server ->
 		mx, err := r.LookupMX(context.Background(), server)
 		if err != nil {
 			t.Fatal(err)
@@ -83,7 +83,7 @@ func TestNSLookupMX(t *testing.T) {
 func TestNSLookupCNAME(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+	testLookup(t, func { t, r, server ->
 		cname, err := r.LookupCNAME(context.Background(), server)
 		if err != nil {
 			t.Fatalf("failed %s: %s", server, err)
@@ -104,7 +104,7 @@ func TestNSLookupCNAME(t *testing.T) {
 func TestNSLookupNS(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+	testLookup(t, func { t, r, server ->
 		ns, err := r.LookupNS(context.Background(), server)
 		if err != nil {
 			t.Fatalf("failed %s: %s", server, err)
@@ -130,7 +130,7 @@ func TestNSLookupNS(t *testing.T) {
 func TestNSLookupTXT(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	testLookup(t, func(t *testing.T, r *Resolver, server string) {
+	testLookup(t, func { t, r, server ->
 		txt, err := r.LookupTXT(context.Background(), server)
 		if err != nil {
 			t.Fatalf("failed %s: %s", server, err)

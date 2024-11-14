@@ -27,11 +27,11 @@ var (
 )
 
 func TestParse(t *testing.T) {
-	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
+	ParseFile(*src_, func { err -> t.Error(err) }, nil, 0)
 }
 
 func TestVerify(t *testing.T) {
-	ast, err := ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
+	ast, err := ParseFile(*src_, func { err -> t.Error(err) }, nil, 0)
 	if err != nil {
 		return // error already reported
 	}
@@ -82,7 +82,7 @@ func TestStdLib(t *testing.T) {
 				}
 			}
 
-			walkDirs(t, dir, func(filename string) {
+			walkDirs(t, dir, func { filename ->
 				if skipRx != nil && skipRx.MatchString(filename) {
 					// Always report skipped files since regexp
 					// typos can lead to surprising results.
@@ -213,11 +213,9 @@ func TestParseFile(t *testing.T) {
 	}
 
 	var first error
-	_, err = ParseFile("", func(err error) {
-		if first == nil {
-			first = err
-		}
-	}, nil, 0)
+	_, err = ParseFile("", func { err -> if first == nil {
+		first = err
+	} }, nil, 0)
 	if err == nil || first == nil {
 		t.Error("missing io error")
 	}

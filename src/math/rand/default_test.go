@@ -35,7 +35,7 @@ func TestDefaultRace(t *testing.T) {
 
 	for i := 0; i < 6; i++ {
 		i := i
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func { t ->
 			t.Parallel()
 			exe, err := os.Executable()
 			if err != nil {

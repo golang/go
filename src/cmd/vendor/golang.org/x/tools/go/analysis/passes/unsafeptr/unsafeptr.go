@@ -39,7 +39,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.StarExpr)(nil),
 		(*ast.UnaryExpr)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		switch x := n.(type) {
 		case *ast.CallExpr:
 			if len(x.Args) == 1 &&

@@ -54,7 +54,7 @@ func TestResolverDialFunc(t *testing.T) {
 	ctx := context.Background()
 	const fakeDomain = "something-that-is-a-not-a-real-domain.fake-tld."
 
-	t.Run("LookupIP", func(t *testing.T) {
+	t.Run("LookupIP", func { t ->
 		ips, err := r.LookupIP(ctx, "ip", fakeDomain)
 		if err != nil {
 			t.Fatal(err)
@@ -64,7 +64,7 @@ func TestResolverDialFunc(t *testing.T) {
 		}
 	})
 
-	t.Run("LookupSRV", func(t *testing.T) {
+	t.Run("LookupSRV", func { t ->
 		_, got, err := r.LookupSRV(ctx, "some-service", "tcp", fakeDomain)
 		if err != nil {
 			t.Fatal(err)

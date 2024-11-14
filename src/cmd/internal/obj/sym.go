@@ -140,7 +140,7 @@ func (ctxt *Link) LookupInit(name string, init func(s *LSym)) *LSym {
 func (ctxt *Link) Float32Sym(f float32) *LSym {
 	i := math.Float32bits(f)
 	name := fmt.Sprintf("$f32.%08x", i)
-	return ctxt.LookupInit(name, func(s *LSym) {
+	return ctxt.LookupInit(name, func { s ->
 		s.Size = 4
 		s.WriteFloat32(ctxt, 0, f)
 		s.Type = objabi.SRODATA
@@ -153,7 +153,7 @@ func (ctxt *Link) Float32Sym(f float32) *LSym {
 func (ctxt *Link) Float64Sym(f float64) *LSym {
 	i := math.Float64bits(f)
 	name := fmt.Sprintf("$f64.%016x", i)
-	return ctxt.LookupInit(name, func(s *LSym) {
+	return ctxt.LookupInit(name, func { s ->
 		s.Size = 8
 		s.WriteFloat64(ctxt, 0, f)
 		s.Type = objabi.SRODATA
@@ -165,7 +165,7 @@ func (ctxt *Link) Float64Sym(f float64) *LSym {
 
 func (ctxt *Link) Int32Sym(i int64) *LSym {
 	name := fmt.Sprintf("$i32.%08x", uint64(i))
-	return ctxt.LookupInit(name, func(s *LSym) {
+	return ctxt.LookupInit(name, func { s ->
 		s.Size = 4
 		s.WriteInt(ctxt, 0, 4, i)
 		s.Type = objabi.SRODATA
@@ -177,7 +177,7 @@ func (ctxt *Link) Int32Sym(i int64) *LSym {
 
 func (ctxt *Link) Int64Sym(i int64) *LSym {
 	name := fmt.Sprintf("$i64.%016x", uint64(i))
-	return ctxt.LookupInit(name, func(s *LSym) {
+	return ctxt.LookupInit(name, func { s ->
 		s.Size = 8
 		s.WriteInt(ctxt, 0, 8, i)
 		s.Type = objabi.SRODATA
@@ -189,7 +189,7 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 
 func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
 	name := fmt.Sprintf("$i128.%016x%016x", uint64(hi), uint64(lo))
-	return ctxt.LookupInit(name, func(s *LSym) {
+	return ctxt.LookupInit(name, func { s ->
 		s.Size = 16
 		if ctxt.Arch.ByteOrder == binary.LittleEndian {
 			s.WriteInt(ctxt, 0, 8, lo)
@@ -209,7 +209,7 @@ func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
 func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
 	sum := notsha256.Sum256(data)
 	str := base64.StdEncoding.EncodeToString(sum[:16])
-	return ctxt.LookupInit(fmt.Sprintf("gclocals·%s", str), func(lsym *LSym) {
+	return ctxt.LookupInit(fmt.Sprintf("gclocals·%s", str), func { lsym ->
 		lsym.P = data
 		lsym.Set(AttrContentAddressable, true)
 	})
@@ -232,23 +232,17 @@ func (ctxt *Link) NumberSyms() {
 		// any original entries with the same name (all DWARFVAR symbols
 		// have empty names but different relocation sets) are not shuffled.
 		// TODO: Find a better place and optimize to only sort TOC symbols.
-		sort.SliceStable(ctxt.Data, func(i, j int) bool {
-			return ctxt.Data[i].Name < ctxt.Data[j].Name
-		})
+		sort.SliceStable(ctxt.Data, func { i, j -> ctxt.Data[i].Name < ctxt.Data[j].Name })
 	}
 
 	// Constant symbols are created late in the concurrent phase. Sort them
 	// to ensure a deterministic order.
-	sort.Slice(ctxt.constSyms, func(i, j int) bool {
-		return ctxt.constSyms[i].Name < ctxt.constSyms[j].Name
-	})
+	sort.Slice(ctxt.constSyms, func { i, j -> ctxt.constSyms[i].Name < ctxt.constSyms[j].Name })
 	ctxt.Data = append(ctxt.Data, ctxt.constSyms...)
 	ctxt.constSyms = nil
 
 	// So are SEH symbols.
-	sort.Slice(ctxt.SEHSyms, func(i, j int) bool {
-		return ctxt.SEHSyms[i].Name < ctxt.SEHSyms[j].Name
-	})
+	sort.Slice(ctxt.SEHSyms, func { i, j -> ctxt.SEHSyms[i].Name < ctxt.SEHSyms[j].Name })
 	ctxt.Data = append(ctxt.Data, ctxt.SEHSyms...)
 	ctxt.SEHSyms = nil
 
@@ -259,7 +253,7 @@ func (ctxt *Link) NumberSyms() {
 	ctxt.nonpkgdefs = []*LSym{}
 
 	var idx, hashedidx, hashed64idx, nonpkgidx int32
-	ctxt.traverseSyms(traverseDefs|traversePcdata, func(s *LSym) {
+	ctxt.traverseSyms(traverseDefs|traversePcdata, func { s ->
 		if s.ContentAddressable() {
 			if s.Size <= 8 && len(s.R) == 0 && contentHashSection(s) == 0 {
 				// We can use short hash only for symbols without relocations.
@@ -303,7 +297,7 @@ func (ctxt *Link) NumberSyms() {
 
 	ipkg := int32(1) // 0 is invalid index
 	nonpkgdef := nonpkgidx
-	ctxt.traverseSyms(traverseRefs|traverseAux, func(rs *LSym) {
+	ctxt.traverseSyms(traverseRefs|traverseAux, func { rs ->
 		if rs.PkgIdx != goobj.PkgIdxInvalid {
 			return
 		}
@@ -446,7 +440,7 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 	for f := range pc.UsedFiles {
 		usedFiles = append(usedFiles, f)
 	}
-	sort.Slice(usedFiles, func(i, j int) bool { return usedFiles[i] < usedFiles[j] })
+	sort.Slice(usedFiles, func { i, j -> usedFiles[i] < usedFiles[j] })
 	for _, f := range usedFiles {
 		if filesym := ctxt.Lookup(files[f]); filesym != nil {
 			fn(fsym, filesym)

@@ -54,9 +54,7 @@ func CountFlagValue(prefix string, flagSet flag.FlagSet, flagName string) {
 	// TODO(matloob): Maybe pass in a list of flagNames if we end up counting
 	// values for more than one?
 	// TODO(matloob): Add this to x/telemetry?
-	flagSet.Visit(func(f *flag.Flag) {
-		if f.Name == flagName {
-			counter.New(prefix + f.Name + ":" + f.Value.String()).Inc()
-		}
-	})
+	flagSet.Visit(func { f -> if f.Name == flagName {
+		counter.New(prefix + f.Name + ":" + f.Value.String()).Inc()
+	} })
 }

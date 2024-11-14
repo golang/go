@@ -39,7 +39,7 @@ const testdata = "testdata"
 
 // getFile assumes that each filename occurs at most once
 func getFile(fset *token.FileSet, filename string) (file *token.File) {
-	fset.Iterate(func(f *token.File) bool {
+	fset.Iterate(func { f ->
 		if f.Name() == filename {
 			if file != nil {
 				panic(filename + " used multiple times")
@@ -189,7 +189,7 @@ func TestErrors(t *testing.T) {
 	}
 	for _, d := range list {
 		name := d.Name()
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
 				mode := DeclarationErrors | AllErrors
 				if *traceErrs {

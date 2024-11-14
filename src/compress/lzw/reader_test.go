@@ -286,7 +286,7 @@ func BenchmarkDecoder(b *testing.B) {
 
 	for e := 4; e <= 6; e++ {
 		n := int(math.Pow10(e))
-		b.Run(fmt.Sprint("1e", e), func(b *testing.B) {
+		b.Run(fmt.Sprint("1e", e), func { b ->
 			b.StopTimer()
 			b.SetBytes(int64(n))
 			buf1 := getInputBuf(buf, n)
@@ -296,7 +296,7 @@ func BenchmarkDecoder(b *testing.B) {
 				io.Copy(io.Discard, NewReader(bytes.NewReader(buf1), LSB, 8))
 			}
 		})
-		b.Run(fmt.Sprint("1e-Reuse", e), func(b *testing.B) {
+		b.Run(fmt.Sprint("1e-Reuse", e), func { b ->
 			b.StopTimer()
 			b.SetBytes(int64(n))
 			buf1 := getInputBuf(buf, n)

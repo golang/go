@@ -345,9 +345,9 @@ func mustPanic(t *testing.T, msg string, f func()) {
 }
 
 func BenchmarkEncrypt(b *testing.B) {
-	b.Run("AES-128", func(b *testing.B) { benchmarkEncrypt(b, encryptTests[1]) })
-	b.Run("AES-192", func(b *testing.B) { benchmarkEncrypt(b, encryptTests[2]) })
-	b.Run("AES-256", func(b *testing.B) { benchmarkEncrypt(b, encryptTests[3]) })
+	b.Run("AES-128", func { b -> benchmarkEncrypt(b, encryptTests[1]) })
+	b.Run("AES-192", func { b -> benchmarkEncrypt(b, encryptTests[2]) })
+	b.Run("AES-256", func { b -> benchmarkEncrypt(b, encryptTests[3]) })
 }
 
 func benchmarkEncrypt(b *testing.B, tt CryptTest) {
@@ -364,9 +364,9 @@ func benchmarkEncrypt(b *testing.B, tt CryptTest) {
 }
 
 func BenchmarkDecrypt(b *testing.B) {
-	b.Run("AES-128", func(b *testing.B) { benchmarkDecrypt(b, encryptTests[1]) })
-	b.Run("AES-192", func(b *testing.B) { benchmarkDecrypt(b, encryptTests[2]) })
-	b.Run("AES-256", func(b *testing.B) { benchmarkDecrypt(b, encryptTests[3]) })
+	b.Run("AES-128", func { b -> benchmarkDecrypt(b, encryptTests[1]) })
+	b.Run("AES-192", func { b -> benchmarkDecrypt(b, encryptTests[2]) })
+	b.Run("AES-256", func { b -> benchmarkDecrypt(b, encryptTests[3]) })
 }
 
 func benchmarkDecrypt(b *testing.B, tt CryptTest) {
@@ -383,9 +383,9 @@ func benchmarkDecrypt(b *testing.B, tt CryptTest) {
 }
 
 func BenchmarkExpand(b *testing.B) {
-	b.Run("AES-128", func(b *testing.B) { benchmarkExpand(b, encryptTests[1]) })
-	b.Run("AES-192", func(b *testing.B) { benchmarkExpand(b, encryptTests[2]) })
-	b.Run("AES-256", func(b *testing.B) { benchmarkExpand(b, encryptTests[3]) })
+	b.Run("AES-128", func { b -> benchmarkExpand(b, encryptTests[1]) })
+	b.Run("AES-192", func { b -> benchmarkExpand(b, encryptTests[2]) })
+	b.Run("AES-256", func { b -> benchmarkExpand(b, encryptTests[3]) })
 }
 
 func benchmarkExpand(b *testing.B, tt CryptTest) {
@@ -397,9 +397,9 @@ func benchmarkExpand(b *testing.B, tt CryptTest) {
 }
 
 func BenchmarkCreateCipher(b *testing.B) {
-	b.Run("AES-128", func(b *testing.B) { benchmarkCreateCipher(b, encryptTests[1]) })
-	b.Run("AES-192", func(b *testing.B) { benchmarkCreateCipher(b, encryptTests[2]) })
-	b.Run("AES-256", func(b *testing.B) { benchmarkCreateCipher(b, encryptTests[3]) })
+	b.Run("AES-128", func { b -> benchmarkCreateCipher(b, encryptTests[1]) })
+	b.Run("AES-192", func { b -> benchmarkCreateCipher(b, encryptTests[2]) })
+	b.Run("AES-256", func { b -> benchmarkCreateCipher(b, encryptTests[3]) })
 }
 
 func benchmarkCreateCipher(b *testing.B, tt CryptTest) {

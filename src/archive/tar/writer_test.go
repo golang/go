@@ -482,7 +482,7 @@ func TestWriter(t *testing.T) {
 		return x == y
 	}
 	for _, v := range vectors {
-		t.Run(path.Base(v.file), func(t *testing.T) {
+		t.Run(path.Base(v.file), func { t ->
 			const maxSize = 10 << 10 // 10KiB
 			buf := new(bytes.Buffer)
 			tw := NewWriter(iotest.TruncateWriter(buf, maxSize))
@@ -837,7 +837,7 @@ func (w *failOnceWriter) Write(b []byte) (int, error) {
 }
 
 func TestWriterErrors(t *testing.T) {
-	t.Run("HeaderOnly", func(t *testing.T) {
+	t.Run("HeaderOnly", func { t ->
 		tw := NewWriter(new(bytes.Buffer))
 		hdr := &Header{Name: "dir/", Typeflag: TypeDir}
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -848,7 +848,7 @@ func TestWriterErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("NegativeSize", func(t *testing.T) {
+	t.Run("NegativeSize", func { t ->
 		tw := NewWriter(new(bytes.Buffer))
 		hdr := &Header{Name: "small.txt", Size: -1}
 		if err := tw.WriteHeader(hdr); err == nil {
@@ -856,14 +856,14 @@ func TestWriterErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("BeforeHeader", func(t *testing.T) {
+	t.Run("BeforeHeader", func { t ->
 		tw := NewWriter(new(bytes.Buffer))
 		if _, err := tw.Write([]byte("Kilts")); err != ErrWriteTooLong {
 			t.Fatalf("Write() = %v, want %v", err, ErrWriteTooLong)
 		}
 	})
 
-	t.Run("AfterClose", func(t *testing.T) {
+	t.Run("AfterClose", func { t ->
 		tw := NewWriter(new(bytes.Buffer))
 		hdr := &Header{Name: "small.txt"}
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -883,7 +883,7 @@ func TestWriterErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("PrematureFlush", func(t *testing.T) {
+	t.Run("PrematureFlush", func { t ->
 		tw := NewWriter(new(bytes.Buffer))
 		hdr := &Header{Name: "small.txt", Size: 5}
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -894,7 +894,7 @@ func TestWriterErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("PrematureClose", func(t *testing.T) {
+	t.Run("PrematureClose", func { t ->
 		tw := NewWriter(new(bytes.Buffer))
 		hdr := &Header{Name: "small.txt", Size: 5}
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -905,7 +905,7 @@ func TestWriterErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("Persistence", func(t *testing.T) {
+	t.Run("Persistence", func { t ->
 		tw := NewWriter(new(failOnceWriter))
 		if err := tw.WriteHeader(&Header{}); err != io.ErrShortWrite {
 			t.Fatalf("WriteHeader() = %v, want %v", err, io.ErrShortWrite)

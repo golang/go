@@ -1131,7 +1131,7 @@ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 // If addPosition is true, add position info to the idents of C names in arg.
 func (p *Package) mangle(f *File, arg *ast.Expr, addPosition bool) (ast.Expr, bool) {
 	needsUnsafe := false
-	f.walk(arg, ctxExpr, func(f *File, arg interface{}, context astContext) {
+	f.walk(arg, ctxExpr, func { f, arg, context ->
 		px, ok := arg.(*ast.Expr)
 		if !ok {
 			return
@@ -1574,7 +1574,7 @@ func (p *Package) rewriteRef(f *File) {
 func (p *Package) rewriteName(f *File, r *Ref, addPosition bool) ast.Expr {
 	getNewIdent := ast.NewIdent
 	if addPosition {
-		getNewIdent = func(newName string) *ast.Ident {
+		getNewIdent = func { newName ->
 			mangledIdent := ast.NewIdent(newName)
 			if len(newName) == len(r.Name.Go) {
 				return mangledIdent
@@ -1959,7 +1959,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 						// tag. Remove it so that
 						// we can find the associated
 						// data.
-						removeTag = func(v uint64) uint64 { return v &^ (0xff << (64 - 8)) }
+						removeTag = func { v -> v &^ (0xff << (64 - 8)) }
 						break
 					}
 				}

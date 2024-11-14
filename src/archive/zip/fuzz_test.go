@@ -28,7 +28,7 @@ func FuzzReader(f *testing.F) {
 		f.Add(b)
 	}
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		r, err := NewReader(bytes.NewReader(b), int64(len(b)))
 		if err != nil {
 			return

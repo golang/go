@@ -195,7 +195,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 	switch n.Op() {
 	case ir.OARRAYLIT, ir.OSLICELIT:
 		var k int64
-		splitnode = func(r ir.Node) (ir.Node, ir.Node) {
+		splitnode = func { r ->
 			if r.Op() == ir.OKEY {
 				kv := r.(*ir.KeyExpr)
 				k = typecheck.IndexConst(kv.Key)
@@ -212,7 +212,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 			return a, r
 		}
 	case ir.OSTRUCTLIT:
-		splitnode = func(rn ir.Node) (ir.Node, ir.Node) {
+		splitnode = func { rn ->
 			r := rn.(*ir.StructKeyExpr)
 			if r.Sym().IsBlank() || isBlank {
 				return ir.BlankNode, r.Value
@@ -642,7 +642,7 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 		return false
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
-		if ir.Any(n.Y, func(y ir.Node) bool { return ir.Uses(y, x) }) {
+		if ir.Any(n.Y, func { y -> ir.Uses(y, x) }) {
 			// not safe to do a special composite literal assignment if RHS uses LHS.
 			return false
 		}

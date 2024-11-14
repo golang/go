@@ -188,7 +188,7 @@ func findIndVar(f *Func) []indVar {
 		// the induction variable to wrap around.
 		// We use a function wrapper here for easy return true / return false / keep going logic.
 		// This function returns true if the increment will never overflow/underflow.
-		ok := func() bool {
+		ok := func {
 			if step > 0 {
 				if limit.isGenericIntConst() {
 					// Figure out the actual largest value.
@@ -267,7 +267,6 @@ func findIndVar(f *Func) []indVar {
 				}
 			}
 			return false
-
 		}
 
 		if ok() {

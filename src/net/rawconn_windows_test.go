@@ -13,7 +13,7 @@ import (
 func readRawConn(c syscall.RawConn, b []byte) (int, error) {
 	var operr error
 	var n int
-	err := c.Read(func(s uintptr) bool {
+	err := c.Read(func { s ->
 		var read uint32
 		var flags uint32
 		var buf syscall.WSABuf
@@ -31,7 +31,7 @@ func readRawConn(c syscall.RawConn, b []byte) (int, error) {
 
 func writeRawConn(c syscall.RawConn, b []byte) error {
 	var operr error
-	err := c.Write(func(s uintptr) bool {
+	err := c.Write(func { s ->
 		var written uint32
 		var buf syscall.WSABuf
 		buf.Buf = &b[0]
@@ -98,11 +98,9 @@ func controlOnConnSetup(network string, address string, c syscall.RawConn) error
 	default:
 		switch network[len(network)-1] {
 		case '4':
-			fn = func(s uintptr) {
-				operr = syscall.SetsockoptInt(syscall.Handle(s), syscall.IPPROTO_IP, syscall.IP_TTL, 1)
-			}
+			fn = func { s -> operr = syscall.SetsockoptInt(syscall.Handle(s), syscall.IPPROTO_IP, syscall.IP_TTL, 1) }
 		case '6':
-			fn = func(s uintptr) {
+			fn = func { s ->
 				operr = syscall.SetsockoptInt(syscall.Handle(s), syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, 1)
 			}
 		default:

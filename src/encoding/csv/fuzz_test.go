@@ -13,7 +13,7 @@ import (
 )
 
 func FuzzRoundtrip(f *testing.F) {
-	f.Fuzz(func(t *testing.T, in []byte) {
+	f.Fuzz(func { t, in ->
 		buf := new(bytes.Buffer)
 
 		t.Logf("input = %q", in)
@@ -80,9 +80,7 @@ func FuzzRoundtrip(f *testing.F) {
 			// Note that the reader parses the quoted record "" as an empty string,
 			// and the writer turns that into an empty line, which the reader skips over.
 			// Filter those out to avoid false positives.
-			records = slices.DeleteFunc(records, func(record []string) bool {
-				return len(record) == 1 && record[0] == ""
-			})
+			records = slices.DeleteFunc(records, func { record -> len(record) == 1 && record[0] == "" })
 			// The reader uses nil when returning no records at all.
 			if len(records) == 0 {
 				records = nil

@@ -242,7 +242,7 @@ func TestFailure(t *testing.T) {
 		t.Errorf("#1 Error was not a SetupError: %s", err)
 	}
 
-	err = CheckEqual(func(x, y int) {}, func(x int) {}, nil)
+	err = CheckEqual(func { x, y -> }, func { x -> }, nil)
 	if err == nil {
 		t.Errorf("#2 CheckEqual didn't return an error")
 	}
@@ -250,7 +250,7 @@ func TestFailure(t *testing.T) {
 		t.Errorf("#2 Error was not a SetupError: %s", err)
 	}
 
-	err = CheckEqual(func(x int) int { return 0 }, func(x int) int32 { return 0 }, nil)
+	err = CheckEqual(func { x -> 0 }, func { x -> 0 }, nil)
 	if err == nil {
 		t.Errorf("#3 CheckEqual didn't return an error")
 	}

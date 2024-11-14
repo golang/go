@@ -216,7 +216,7 @@ func TestParseIPError(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.ip, func(t *testing.T) {
+		t.Run(test.ip, func { t ->
 			_, err := ParseAddr(test.ip)
 			if err == nil {
 				t.Fatal("no error")
@@ -249,7 +249,7 @@ func TestParseAddrPort(t *testing.T) {
 		{in: ":0", wantErr: true}, // if we need to parse this form, there should be a separate function that explicitly allows it
 	}
 	for _, test := range tests {
-		t.Run(test.in, func(t *testing.T) {
+		t.Run(test.in, func { t ->
 			got, err := ParseAddrPort(test.in)
 			if err != nil {
 				if test.wantErr {
@@ -265,7 +265,7 @@ func TestParseAddrPort(t *testing.T) {
 			}
 		})
 
-		t.Run(test.in+"/AppendTo", func(t *testing.T) {
+		t.Run(test.in+"/AppendTo", func { t ->
 			got, err := ParseAddrPort(test.in)
 			if err == nil {
 				testAppendToMarshal(t, got)
@@ -275,7 +275,7 @@ func TestParseAddrPort(t *testing.T) {
 		// TextMarshal and TextUnmarshal mostly behave like
 		// ParseAddrPort and String. Divergent behavior are handled in
 		// TestAddrPortMarshalUnmarshal.
-		t.Run(test.in+"/Marshal", func(t *testing.T) {
+		t.Run(test.in+"/Marshal", func { t ->
 			var got AddrPort
 			jsin := `"` + test.in + `"`
 			err := json.Unmarshal([]byte(jsin), &got)
@@ -308,7 +308,7 @@ func TestAddrPortMarshalUnmarshal(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.in, func(t *testing.T) {
+		t.Run(test.in, func { t ->
 			orig := `"` + test.in + `"`
 
 			var ipp AddrPort

@@ -88,7 +88,7 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 		}
 		var mappings []*profile.Mapping
 		id := uint64(1)
-		parseProcSelfMaps(mmap, func(lo, hi, offset uint64, file, buildID string) {
+		parseProcSelfMaps(mmap, func { lo, hi, offset, file, buildID ->
 			mappings = append(mappings, &profile.Mapping{
 				ID:      id,
 				Start:   lo,
@@ -318,22 +318,16 @@ func TestProcSelfMaps(t *testing.T) {
 				out += "\n"
 			}
 			var buf strings.Builder
-			parseProcSelfMaps([]byte(in), func(lo, hi, offset uint64, file, buildID string) {
-				fmt.Fprintf(&buf, "%08x %08x %08x %s\n", lo, hi, offset, file)
-			})
+			parseProcSelfMaps([]byte(in), func { lo, hi, offset, file, buildID -> fmt.Fprintf(&buf, "%08x %08x %08x %s\n", lo, hi, offset, file) })
 			if buf.String() != out {
 				t.Errorf("#%d: have:\n%s\nwant:\n%s\n%q\n%q", tx, buf.String(), out, buf.String(), out)
 			}
 		}
 	}
 
-	t.Run("Normal", func(t *testing.T) {
-		f(t, profSelfMapsTests)
-	})
+	t.Run("Normal", func { t -> f(t, profSelfMapsTests) })
 
-	t.Run("WithDeletedFile", func(t *testing.T) {
-		f(t, profSelfMapsTestsWithDeleted)
-	})
+	t.Run("WithDeletedFile", func { t -> f(t, profSelfMapsTestsWithDeleted) })
 }
 
 // TestMapping checks the mapping section of CPU profiles
@@ -352,7 +346,7 @@ func TestMapping(t *testing.T) {
 	// GoOnly includes only Go symbols that runtime will symbolize.
 	// Go+C includes C symbols that runtime will not symbolize.
 	for _, traceback := range []string{"GoOnly", "Go+C"} {
-		t.Run("traceback"+traceback, func(t *testing.T) {
+		t.Run("traceback"+traceback, func { t ->
 			cmd := exec.Command(testenv.GoToolPath(t), "run", prog)
 			if traceback != "GoOnly" {
 				cmd.Env = append(os.Environ(), "SETCGOTRACEBACK=1")

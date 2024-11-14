@@ -312,7 +312,7 @@ func os_beforeExit(exitCode int) {
 
 func init() {
 	exithook.Gosched = Gosched
-	exithook.Goid = func() uint64 { return getg().goid }
+	exithook.Goid = func { getg().goid }
 	exithook.Throw = throw
 }
 
@@ -5957,7 +5957,7 @@ func checkdead() {
 	}
 
 	grunning := 0
-	forEachG(func(gp *g) {
+	forEachG(func { gp ->
 		if isSystemGoroutine(gp, false) {
 			return
 		}
@@ -6398,7 +6398,7 @@ func schedtrace(detailed bool) {
 		print("\n")
 	}
 
-	forEachG(func(gp *g) {
+	forEachG(func { gp ->
 		print("  G", gp.goid, ": status=", readgstatus(gp), "(", gp.waitreason.String(), ") m=")
 		if gp.m != nil {
 			print(gp.m.id)

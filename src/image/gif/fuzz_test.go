@@ -33,7 +33,7 @@ func FuzzDecode(f *testing.F) {
 		f.Add(b)
 	}
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
 		if err != nil {
 			return

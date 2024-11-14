@@ -400,9 +400,7 @@ func readScope(ctxt *scopexplainContext, scope *lexblock, entry *dwarf.Entry) {
 		}
 		switch e.Tag {
 		case 0:
-			sort.Slice(scope.vars, func(i, j int) bool {
-				return scope.vars[i].expr < scope.vars[j].expr
-			})
+			sort.Slice(scope.vars, func { i, j -> scope.vars[i].expr < scope.vars[j].expr })
 			return
 		case dwarf.TagFormalParameter:
 			typ, err := ctxt.dwarfData.Type(e.Val(dwarf.AttrType).(dwarf.Offset))

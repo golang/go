@@ -165,7 +165,7 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool,
 	var conf Config
 	*boolFieldAddr(&conf, "_Trace") = manual && testing.Verbose()
 	conf.Importer = importer.Default()
-	conf.Error = func(err error) {
+	conf.Error = func { err ->
 		if *haltOnError {
 			defer panic(err)
 		}
@@ -449,9 +449,7 @@ func testDirFiles(t *testing.T, dir string, manual bool) {
 		if fi.IsDir() {
 			testDir(t, path, manual)
 		} else {
-			t.Run(filepath.Base(path), func(t *testing.T) {
-				testPkg(t, []string{path}, manual)
-			})
+			t.Run(filepath.Base(path), func { t -> testPkg(t, []string{path}, manual) })
 		}
 	}
 }
@@ -470,9 +468,7 @@ func testDir(t *testing.T, dir string, manual bool) {
 		filenames = append(filenames, filepath.Join(dir, fi.Name()))
 	}
 
-	t.Run(filepath.Base(dir), func(t *testing.T) {
-		testPkg(t, filenames, manual)
-	})
+	t.Run(filepath.Base(dir), func { t -> testPkg(t, filenames, manual) })
 }
 
 func testPkg(t *testing.T, filenames []string, manual bool) {

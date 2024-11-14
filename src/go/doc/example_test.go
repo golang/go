@@ -27,7 +27,7 @@ func TestExamples(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, filename := range filenames {
-		t.Run(strings.TrimSuffix(filepath.Base(filename), ".go"), func(t *testing.T) {
+		t.Run(strings.TrimSuffix(filepath.Base(filename), ".go"), func { t ->
 			fset := token.NewFileSet()
 			astFile, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
 			if err != nil {

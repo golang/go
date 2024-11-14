@@ -344,7 +344,7 @@ func (sc *stackCheck) findRoots() []loader.Sym {
 	for k := range nodes {
 		roots = append(roots, k)
 	}
-	sort.Slice(roots, func(i, j int) bool {
+	sort.Slice(roots, func { i, j ->
 		h1, h2 := sc.height[roots[i]], sc.height[roots[j]]
 		if h1 != h2 {
 			return h1 > h2

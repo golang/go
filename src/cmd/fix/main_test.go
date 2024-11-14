@@ -87,15 +87,13 @@ func TestRewrite(t *testing.T) {
 		// Instead, simply set it to panic on error: the goroutine dump
 		// from the panic should help us determine which test failed.
 		prevReportCgoError := reportCgoError
-		reportCgoError = func(err error) {
-			panic(fmt.Sprintf("unexpected cgo error: %v", err))
-		}
+		reportCgoError = func { err -> panic(fmt.Sprintf("unexpected cgo error: %v", err)) }
 		t.Cleanup(func() { reportCgoError = prevReportCgoError })
 	}
 
 	for _, tt := range testCases {
 		tt := tt
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			if tt.Version == "" {
 				if testing.Verbose() {
 					// Don't run in parallel: cmd/fix sometimes writes directly to stderr,

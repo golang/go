@@ -192,7 +192,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	recvList, _ := check.collectParams(scope, recvPar, false, scopePos)
 	params, variadic := check.collectParams(scope, ftyp.Params, true, scopePos)
 	results, _ := check.collectParams(scope, ftyp.Results, false, scopePos)
-	scope.squash(func(obj, alt Object) {
+	scope.squash(func { obj, alt ->
 		err := check.newError(DuplicateDecl)
 		err.addf(obj, "%s redeclared in this block", obj.Name())
 		err.addAltDecl(alt)

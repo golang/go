@@ -648,11 +648,9 @@ func TestSchedLocalQueueEmpty(t *testing.T) {
 }
 
 func benchmarkStackGrowth(b *testing.B, rec int) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			stackGrowthRecursive(rec)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		stackGrowthRecursive(rec)
+	} })
 }
 
 func BenchmarkStackGrowth(b *testing.B) {
@@ -674,7 +672,7 @@ func BenchmarkCreateGoroutinesParallel(b *testing.B) {
 func benchmarkCreateGoroutines(b *testing.B, procs int) {
 	c := make(chan bool)
 	var f func(n int)
-	f = func(n int) {
+	f = func { n ->
 		if n == 0 {
 			c <- true
 			return
@@ -785,7 +783,7 @@ func benchmarkWakeupParallel(b *testing.B, spin func(time.Duration)) {
 		50 * time.Microsecond,
 		100 * time.Microsecond,
 	} {
-		b.Run(delay.String(), func(b *testing.B) {
+		b.Run(delay.String(), func { b ->
 			if b.N == 0 {
 				return
 			}
@@ -856,7 +854,7 @@ func benchmarkWakeupParallel(b *testing.B, spin func(time.Duration)) {
 }
 
 func BenchmarkWakeupParallelSpinning(b *testing.B) {
-	benchmarkWakeupParallel(b, func(d time.Duration) {
+	benchmarkWakeupParallel(b, func { d ->
 		end := time.Now().Add(d)
 		for time.Now().Before(end) {
 			// do nothing
@@ -874,9 +872,7 @@ func BenchmarkWakeupParallelSyscall(b *testing.B) {
 	if sysNanosleep == nil {
 		b.Skipf("skipping on %v; sysNanosleep not defined", runtime.GOOS)
 	}
-	benchmarkWakeupParallel(b, func(d time.Duration) {
-		sysNanosleep(d)
-	})
+	benchmarkWakeupParallel(b, func { d -> sysNanosleep(d) })
 }
 
 type Matrix [][]float64
@@ -1091,9 +1087,7 @@ func TestPreemptionAfterSyscall(t *testing.T) {
 
 	for _, i := range []time.Duration{10, 100, 1000} {
 		d := i * time.Microsecond
-		t.Run(fmt.Sprint(d), func(t *testing.T) {
-			testPreemptionAfterSyscall(t, d)
-		})
+		t.Run(fmt.Sprint(d), func { t -> testPreemptionAfterSyscall(t, d) })
 	}
 }
 

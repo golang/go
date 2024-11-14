@@ -354,7 +354,7 @@ func TestLoopCount(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			img, err := DecodeAll(bytes.NewReader(tc.data))
 			if err != nil {
 				t.Fatal("DecodeAll:", err)

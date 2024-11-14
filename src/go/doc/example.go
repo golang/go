@@ -105,9 +105,7 @@ func Examples(testFiles ...*ast.File) []*Example {
 		list = append(list, flist...)
 	}
 	// sort by name
-	slices.SortFunc(list, func(a, b *Example) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
+	slices.SortFunc(list, func { a, b -> cmp.Compare(a.Name, b.Name) })
 	return list
 }
 
@@ -310,12 +308,8 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	decls = append(decls, depDecls...)
 	decls = append(decls, funcDecl)
 
-	slices.SortFunc(decls, func(a, b ast.Decl) int {
-		return cmp.Compare(a.Pos(), b.Pos())
-	})
-	slices.SortFunc(comments, func(a, b *ast.CommentGroup) int {
-		return cmp.Compare(a.Pos(), b.Pos())
-	})
+	slices.SortFunc(decls, func { a, b -> cmp.Compare(a.Pos(), b.Pos()) })
+	slices.SortFunc(comments, func { a, b -> cmp.Compare(a.Pos(), b.Pos()) })
 
 	// Synthesize file.
 	return &ast.File{
@@ -344,7 +338,7 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 	usedObjs := make(map[*ast.Object]bool) // set of objects reachable from the body (each declared by a usedDecl)
 
 	var inspectFunc func(ast.Node) bool
-	inspectFunc = func(n ast.Node) bool {
+	inspectFunc = func { n ->
 		switch e := n.(type) {
 		case *ast.Ident:
 			if e.Obj == nil && e.Name != "_" {
@@ -492,7 +486,7 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 
 func hasIota(s ast.Spec) bool {
 	has := false
-	ast.Inspect(s, func(n ast.Node) bool {
+	ast.Inspect(s, func { n ->
 		// Check that this is the special built-in "iota" identifier, not
 		// a user-defined shadow.
 		if id, ok := n.(*ast.Ident); ok && id.Name == "iota" && id.Obj == nil {
@@ -521,9 +515,7 @@ func findImportGroupStarts1(origImps []*ast.ImportSpec) []*ast.ImportSpec {
 	imps := make([]*ast.ImportSpec, len(origImps))
 	copy(imps, origImps)
 	// Assume the imports are sorted by position.
-	slices.SortFunc(imps, func(a, b *ast.ImportSpec) int {
-		return cmp.Compare(a.Pos(), b.Pos())
-	})
+	slices.SortFunc(imps, func { a, b -> cmp.Compare(a.Pos(), b.Pos()) })
 	// Assume gofmt has been applied, so there is a blank line between adjacent imps
 	// if and only if they are more than 2 positions apart (newline, tab).
 	var groupStarts []*ast.ImportSpec
@@ -678,9 +670,7 @@ func classifyExamples(p *Package, examples []*Example) {
 
 	// Sort list of example according to the user-specified suffix name.
 	for _, exs := range ids {
-		slices.SortFunc(*exs, func(a, b *Example) int {
-			return cmp.Compare(a.Suffix, b.Suffix)
-		})
+		slices.SortFunc(*exs, func { a, b -> cmp.Compare(a.Suffix, b.Suffix) })
 	}
 }
 

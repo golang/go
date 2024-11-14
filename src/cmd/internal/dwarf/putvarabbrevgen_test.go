@@ -179,7 +179,7 @@ func pvacfgbody(t *testing.T, fset *token.FileSet, cm ast.CommentMap, body []ast
 			}
 		default:
 			// check that nothing under this contains a putattr call
-			ast.Inspect(stmt, func(n ast.Node) bool {
+			ast.Inspect(stmt, func { n ->
 				if call, _ := n.(*ast.CallExpr); call != nil {
 					if exprToString(call.Fun) == "putattr" {
 						t.Fatalf("%s use of putattr in unsupported block", fset.Position(call.Pos()))

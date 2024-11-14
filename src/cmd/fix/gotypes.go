@@ -36,7 +36,7 @@ func fixGoExact(f *ast.File) bool {
 	// This one is harder because the import name changes.
 	// First find the import spec.
 	var importSpec *ast.ImportSpec
-	walk(f, func(n any) {
+	walk(f, func { n ->
 		if importSpec != nil {
 			return
 		}
@@ -51,7 +51,6 @@ func fixGoExact(f *ast.File) bool {
 		if path == "golang.org/x/tools/go/exact" {
 			importSpec = spec
 		}
-
 	})
 	if importSpec == nil {
 		return false

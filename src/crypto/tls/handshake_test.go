@@ -50,7 +50,7 @@ var (
 )
 
 func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, update bool), wait bool) {
-	success := t.Run(name, func(t *testing.T) {
+	success := t.Run(name, func { t ->
 		if !*update && !wait {
 			t.Parallel()
 		}
@@ -58,9 +58,7 @@ func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, 
 	})
 
 	if !success && *update {
-		t.Run(name+"#update", func(t *testing.T) {
-			run(t, true)
-		})
+		t.Run(name+"#update", func { t -> run(t, true) })
 	}
 }
 

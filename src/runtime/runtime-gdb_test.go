@@ -464,7 +464,7 @@ func TestGdbBacktrace(t *testing.T) {
 	// by testenv.Command will cause the test to hang indefinitely, but that's
 	// what “no deadline” means, after all — and it's probably the right behavior
 	// anyway if someone is trying to investigate and fix the GDB bug.
-	cmd.Cancel = func() error {
+	cmd.Cancel = func {
 		t.Logf("GDB command timed out after %v: %v", time.Since(start), cmd)
 		return cmd.Process.Kill()
 	}

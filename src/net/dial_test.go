@@ -232,7 +232,7 @@ func TestDialParallel(t *testing.T) {
 
 	for i, tt := range testCases {
 		i, tt := i, tt
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			dialTCP := func(ctx context.Context, network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 				n := "tcp6"
 				if raddr.IP.To4() != nil {
@@ -438,7 +438,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 	dialing.Add(2)
 	origTestHookDialTCP := testHookDialTCP
 	defer func() { testHookDialTCP = origTestHookDialTCP }()
-	testHookDialTCP = func(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+	testHookDialTCP = func { ctx, net, laddr, raddr ->
 		// Wait until Happy Eyeballs kicks in and both connections are dialing,
 		// and inhibit cancellation.
 		// This forces dialParallel to juggle two successful connections.
@@ -691,7 +691,7 @@ func TestDialerDualStack(t *testing.T) {
 
 func TestDialerKeepAlive(t *testing.T) {
 	t.Cleanup(func() {
-		testHookSetKeepAlive = func(KeepAliveConfig) {}
+		testHookSetKeepAlive = func {}
 	})
 
 	handler := func(ls *localServer, ln Listener) {
@@ -723,7 +723,7 @@ func TestDialerKeepAlive(t *testing.T) {
 	}
 
 	var got time.Duration = -1
-	testHookSetKeepAlive = func(cfg KeepAliveConfig) { got = cfg.Idle }
+	testHookSetKeepAlive = func { cfg -> got = cfg.Idle }
 
 	for _, test := range tests {
 		got = -1
@@ -894,7 +894,7 @@ func TestDialClosedPortFailFast(t *testing.T) {
 		t.Skip("skipping windows only test")
 	}
 	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
-		t.Run(network, func(t *testing.T) {
+		t.Run(network, func { t ->
 			if !testableNetwork(network) {
 				t.Skipf("skipping: can't listen on %s", network)
 			}
@@ -993,7 +993,7 @@ func TestDialerControl(t *testing.T) {
 		t.Skipf("skipping: fake net does not support Dialer.Control")
 	}
 
-	t.Run("StreamDial", func(t *testing.T) {
+	t.Run("StreamDial", func { t ->
 		for _, network := range []string{"tcp", "tcp4", "tcp6", "unix", "unixpacket"} {
 			if !testableNetwork(network) {
 				continue
@@ -1009,7 +1009,7 @@ func TestDialerControl(t *testing.T) {
 			c.Close()
 		}
 	})
-	t.Run("PacketDial", func(t *testing.T) {
+	t.Run("PacketDial", func { t ->
 		for _, network := range []string{"udp", "udp4", "udp6", "unixgram"} {
 			if !testableNetwork(network) {
 				continue
@@ -1037,9 +1037,9 @@ func TestDialerControlContext(t *testing.T) {
 	case "js", "wasip1":
 		t.Skipf("skipping: fake net does not support Dialer.ControlContext")
 	}
-	t.Run("StreamDial", func(t *testing.T) {
+	t.Run("StreamDial", func { t ->
 		for i, network := range []string{"tcp", "tcp4", "tcp6", "unix", "unixpacket"} {
-			t.Run(network, func(t *testing.T) {
+			t.Run(network, func { t ->
 				if !testableNetwork(network) {
 					t.Skipf("skipping: %s not available", network)
 				}

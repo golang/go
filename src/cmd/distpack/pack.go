@@ -148,7 +148,7 @@ func main() {
 
 	// The binary distribution includes only a subset of bin and pkg.
 	binArch := base.Clone()
-	binArch.Filter(func(name string) bool {
+	binArch.Filter(func { name ->
 		// Discard bin/ for now, will add back later.
 		if strings.HasPrefix(name, "bin/") {
 			return false
@@ -351,7 +351,7 @@ func writeTgz(name string, a *Archive) {
 	// these tar files expect that. See go.dev/issue/61862.
 	haveDir := map[string]bool{".": true}
 	var mkdirAll func(string)
-	mkdirAll = func(dir string) {
+	mkdirAll = func { dir ->
 		if dir == "/" {
 			panic("mkdirAll /")
 		}
@@ -409,9 +409,7 @@ func writeZip(name string, a *Archive) {
 	}()
 
 	zw := zip.NewWriter(out)
-	zw.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
-		return flate.NewWriter(out, flate.BestCompression)
-	})
+	zw.RegisterCompressor(zip.Deflate, func { out -> flate.NewWriter(out, flate.BestCompression) })
 	for _, f = range a.Files {
 		h := check(zip.FileInfoHeader(f.Info()))
 		h.Name = f.Name

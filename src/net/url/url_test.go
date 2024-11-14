@@ -849,11 +849,9 @@ func TestURLRedacted(t *testing.T) {
 
 	for _, tt := range cases {
 		t := t
-		t.Run(tt.name, func(t *testing.T) {
-			if g, w := tt.url.Redacted(), tt.want; g != w {
-				t.Fatalf("got: %q\nwant: %q", g, w)
-			}
-		})
+		t.Run(tt.name, func { t -> if g, w := tt.url.Redacted(), tt.want; g != w {
+			t.Fatalf("got: %q\nwant: %q", g, w)
+		} })
 	}
 }
 
@@ -1436,7 +1434,7 @@ var parseTests = []parseTest{
 
 func TestParseQuery(t *testing.T) {
 	for _, test := range parseTests {
-		t.Run(test.query, func(t *testing.T) {
+		t.Run(test.query, func { t ->
 			form, err := ParseQuery(test.query)
 			if test.ok != (err == nil) {
 				want := "<error>"
@@ -2006,7 +2004,7 @@ var escapeBenchmarks = []struct {
 
 func BenchmarkQueryEscape(b *testing.B) {
 	for _, tc := range escapeBenchmarks {
-		b.Run("", func(b *testing.B) {
+		b.Run("", func { b ->
 			b.ReportAllocs()
 			var g string
 			for i := 0; i < b.N; i++ {
@@ -2016,14 +2014,13 @@ func BenchmarkQueryEscape(b *testing.B) {
 			if g != tc.query {
 				b.Errorf("QueryEscape(%q) == %q, want %q", tc.unescaped, g, tc.query)
 			}
-
 		})
 	}
 }
 
 func BenchmarkPathEscape(b *testing.B) {
 	for _, tc := range escapeBenchmarks {
-		b.Run("", func(b *testing.B) {
+		b.Run("", func { b ->
 			b.ReportAllocs()
 			var g string
 			for i := 0; i < b.N; i++ {
@@ -2033,14 +2030,13 @@ func BenchmarkPathEscape(b *testing.B) {
 			if g != tc.path {
 				b.Errorf("PathEscape(%q) == %q, want %q", tc.unescaped, g, tc.path)
 			}
-
 		})
 	}
 }
 
 func BenchmarkQueryUnescape(b *testing.B) {
 	for _, tc := range escapeBenchmarks {
-		b.Run("", func(b *testing.B) {
+		b.Run("", func { b ->
 			b.ReportAllocs()
 			var g string
 			for i := 0; i < b.N; i++ {
@@ -2050,14 +2046,13 @@ func BenchmarkQueryUnescape(b *testing.B) {
 			if g != tc.unescaped {
 				b.Errorf("QueryUnescape(%q) == %q, want %q", tc.query, g, tc.unescaped)
 			}
-
 		})
 	}
 }
 
 func BenchmarkPathUnescape(b *testing.B) {
 	for _, tc := range escapeBenchmarks {
-		b.Run("", func(b *testing.B) {
+		b.Run("", func { b ->
 			b.ReportAllocs()
 			var g string
 			for i := 0; i < b.N; i++ {
@@ -2067,7 +2062,6 @@ func BenchmarkPathUnescape(b *testing.B) {
 			if g != tc.unescaped {
 				b.Errorf("PathUnescape(%q) == %q, want %q", tc.path, g, tc.unescaped)
 			}
-
 		})
 	}
 }

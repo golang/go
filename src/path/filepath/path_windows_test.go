@@ -468,7 +468,7 @@ func testWalkMklink(t *testing.T, linktype string) {
 	if !strings.Contains(string(output), fmt.Sprintf(" /%s ", linktype)) {
 		t.Skipf(`skipping test; mklink does not supports /%s parameter`, linktype)
 	}
-	testWalkSymlink(t, func(target, link string) error {
+	testWalkSymlink(t, func { target, link ->
 		output, err := exec.Command("cmd", "/c", "mklink", "/"+linktype, link, target).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf(`"mklink /%s %v %v" command failed: %v\n%v`, linktype, link, target, err, string(output))

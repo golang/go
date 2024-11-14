@@ -508,7 +508,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 			// Slices have a header; we decode it to find the underlying array.
 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
 			helper := encSliceHelper[t.Elem().Kind()]
-			op = func(i *encInstr, state *encoderState, slice reflect.Value) {
+			op = func { i, state, slice ->
 				if !state.sendZero && slice.Len() == 0 {
 					return
 				}
@@ -519,14 +519,14 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 			// True arrays have size in the type.
 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
 			helper := encArrayHelper[t.Elem().Kind()]
-			op = func(i *encInstr, state *encoderState, array reflect.Value) {
+			op = func { i, state, array ->
 				state.update(i)
 				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len(), helper)
 			}
 		case reflect.Map:
 			keyOp, keyIndir := encOpFor(t.Key(), inProgress, building)
 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
-			op = func(i *encInstr, state *encoderState, mv reflect.Value) {
+			op = func { i, state, mv ->
 				// We send zero-length (but non-nil) maps because the
 				// receiver might want to use the map.  (Maps don't use append.)
 				if !state.sendZero && mv.IsNil() {
@@ -539,14 +539,14 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 			// Generate a closure that calls out to the engine for the nested type.
 			getEncEngine(userType(typ), building)
 			info := mustGetTypeInfo(typ)
-			op = func(i *encInstr, state *encoderState, sv reflect.Value) {
+			op = func { i, state, sv ->
 				state.update(i)
 				// indirect through info to delay evaluation for recursive structs
 				enc := info.encoder.Load()
 				state.enc.encodeStruct(state.b, enc, sv)
 			}
 		case reflect.Interface:
-			op = func(i *encInstr, state *encoderState, iv reflect.Value) {
+			op = func { i, state, iv ->
 				if !state.sendZero && (!iv.IsValid() || iv.IsNil()) {
 					return
 				}
@@ -572,7 +572,7 @@ func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 		}
 	}
 	var op encOp
-	op = func(i *encInstr, state *encoderState, v reflect.Value) {
+	op = func { i, state, v ->
 		if ut.encIndir == -1 {
 			// Need to climb up one level to turn value into pointer.
 			if !v.CanAddr() {

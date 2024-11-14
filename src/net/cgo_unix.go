@@ -115,9 +115,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 		*_C_ai_family(&hints) = _C_AF_INET6
 	}
 
-	return doBlockingWithCtx(ctx, network+"/"+service, func() (int, error) {
-		return cgoLookupServicePort(&hints, network, service)
-	})
+	return doBlockingWithCtx(ctx, network+"/"+service, func { cgoLookupServicePort(&hints, network, service) })
 }
 
 func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (port int, err error) {
@@ -222,9 +220,7 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 }
 
 func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error) {
-	return doBlockingWithCtx(ctx, name, func() ([]IPAddr, error) {
-		return cgoLookupHostIP(network, name)
-	})
+	return doBlockingWithCtx(ctx, name, func { cgoLookupHostIP(network, name) })
 }
 
 // These are roughly enough for the following:
@@ -250,9 +246,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error) 
 		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}
 	}
 
-	return doBlockingWithCtx(ctx, addr, func() ([]string, error) {
-		return cgoLookupAddrPTR(addr, sa, salen)
-	})
+	return doBlockingWithCtx(ctx, addr, func { cgoLookupAddrPTR(addr, sa, salen) })
 }
 
 func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (names []string, err error) {
@@ -309,9 +303,7 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 // resSearch will make a call to the 'res_nsearch' routine in the C library
 // and parse the output as a slice of DNS resources.
 func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
-	return doBlockingWithCtx(ctx, hostname, func() ([]dnsmessage.Resource, error) {
-		return cgoResSearch(hostname, rtype, class)
-	})
+	return doBlockingWithCtx(ctx, hostname, func { cgoResSearch(hostname, rtype, class) })
 }
 
 func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, error) {

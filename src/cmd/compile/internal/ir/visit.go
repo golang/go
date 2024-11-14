@@ -101,7 +101,7 @@ func Visit(n Node, visit func(Node)) {
 		return
 	}
 	var do func(Node) bool
-	do = func(x Node) bool {
+	do = func { x ->
 		visit(x)
 		return DoChildren(x, do)
 	}
@@ -118,7 +118,7 @@ func VisitList(list Nodes, visit func(Node)) {
 // VisitFuncAndClosures calls visit on each non-nil node in fn.Body,
 // including any nested closure bodies.
 func VisitFuncAndClosures(fn *Func, visit func(n Node)) {
-	VisitList(fn.Body, func(n Node) {
+	VisitList(fn.Body, func { n ->
 		visit(n)
 		if n, ok := n.(*ClosureExpr); ok && n.Op() == OCLOSURE {
 			VisitFuncAndClosures(n.Func, visit)
@@ -137,9 +137,7 @@ func Any(n Node, cond func(Node) bool) bool {
 		return false
 	}
 	var do func(Node) bool
-	do = func(x Node) bool {
-		return cond(x) || DoChildren(x, do)
-	}
+	do = func { x -> cond(x) || DoChildren(x, do) }
 	return do(n)
 }
 

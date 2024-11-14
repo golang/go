@@ -642,7 +642,7 @@ func TestSegv(t *testing.T) {
 			continue
 		}
 
-		t.Run(test, func(t *testing.T) {
+		t.Run(test, func { t ->
 			if test == "SegvInCgo" && runtime.GOOS == "ios" {
 				testenv.SkipFlaky(t, 59947) // Don't even try, in case it times out.
 			}

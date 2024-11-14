@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	isReadonlyError = func(err error) bool { return err == syscall.EROFS }
+	isReadonlyError = func { err -> err == syscall.EROFS }
 }
 
 // For TestRawConnReadWrite.
@@ -198,7 +198,7 @@ func TestLchown(t *testing.T) {
 func TestReaddirRemoveRace(t *testing.T) {
 	oldStat := *LstatP
 	defer func() { *LstatP = oldStat }()
-	*LstatP = func(name string) (FileInfo, error) {
+	*LstatP = func { name ->
 		if strings.HasSuffix(name, "some-file") {
 			// Act like it's been deleted.
 			return nil, ErrNotExist

@@ -1320,9 +1320,7 @@ HaveSpan:
 		track := pp.limiterEvent.start(limiterEventScavengeAssist, start)
 
 		// Scavenge, but back out if the limiter turns on.
-		released := h.pages.scavenge(bytesToScavenge, func() bool {
-			return gcCPULimiter.limiting()
-		}, forceScavenge)
+		released := h.pages.scavenge(bytesToScavenge, func { gcCPULimiter.limiting() }, forceScavenge)
 
 		mheap_.pages.scav.releasedEager.Add(released)
 

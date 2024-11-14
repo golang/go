@@ -15,7 +15,7 @@ func ExampleWalkDir() {
 	root := "/usr/local/go/bin"
 	fileSystem := os.DirFS(root)
 
-	fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
+	fs.WalkDir(fileSystem, ".", func { path, d, err ->
 		if err != nil {
 			log.Fatal(err)
 		}

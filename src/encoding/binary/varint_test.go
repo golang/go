@@ -182,7 +182,7 @@ func TestBufferTooBigWithOverflow(t *testing.T) {
 
 	for _, tt := range tests {
 		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			value, n := Uvarint(tt.in)
 			if g, w := n, tt.wantN; g != w {
 				t.Errorf("bytes returned=%d, want=%d", g, w)

@@ -151,7 +151,7 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
 }
 
 func TestReadGoInfo(t *testing.T) {
-	testRead(t, readGoInfoTests, func(r io.Reader) ([]byte, error) {
+	testRead(t, readGoInfoTests, func { r ->
 		var info fileInfo
 		err := readGoInfo(r, &info)
 		return info.header, err
@@ -241,7 +241,7 @@ func TestReadFailuresIgnored(t *testing.T) {
 			tt.err = ""
 		}
 	}
-	testRead(t, tests, func(r io.Reader) ([]byte, error) {
+	testRead(t, tests, func { r ->
 		var info fileInfo
 		err := readGoInfo(r, &info)
 		return info.header, err

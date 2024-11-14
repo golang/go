@@ -168,7 +168,7 @@ func TestCode(t *testing.T) {
 				// No point in running the soft float version if the test doesn't use floats.
 				continue
 			}
-			t.Run(fmt.Sprintf("%s%s", test.name[4:], flag), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s%s", test.name[4:], flag), func { t ->
 				out, err := testenv.Command(t, filepath.Join(tmpdir, "code.test"), "-test.run=^"+test.name+"$").CombinedOutput()
 				if err != nil || string(out) != "PASS\n" {
 					t.Errorf("Failed:\n%s\n", out)

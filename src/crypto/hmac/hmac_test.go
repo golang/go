@@ -577,7 +577,7 @@ func TestHMAC(t *testing.T) {
 			// Third and fourth iteration: make sure hmac works on
 			// hashes without MarshalBinary/UnmarshalBinary
 			if j == 1 {
-				h = New(func() hash.Hash { return justHash{tt.hash()} }, tt.key)
+				h = New(func { justHash{tt.hash()} }, tt.key)
 			}
 		}
 	}
@@ -594,7 +594,7 @@ func TestNonUniqueHash(t *testing.T) {
 			t.Error("expected panic when calling New with a non-unique hash generation function")
 		}
 	}()
-	New(func() hash.Hash { return sha }, []byte("bytes"))
+	New(func { sha }, []byte("bytes"))
 }
 
 // justHash implements just the hash.Hash methods and nothing else
@@ -626,9 +626,7 @@ func TestHMACHash(t *testing.T) {
 		baseHash := test.hash
 		key := test.key
 
-		t.Run(fmt.Sprintf("test-%d", i), func(t *testing.T) {
-			cryptotest.TestHash(t, func() hash.Hash { return New(baseHash, key) })
-		})
+		t.Run(fmt.Sprintf("test-%d", i), func { t -> cryptotest.TestHash(t, func { New(baseHash, key) }) })
 	}
 }
 

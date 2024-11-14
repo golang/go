@@ -67,7 +67,7 @@ func TestToSymbolFunc(t *testing.T) {
 	defer os.Unsetenv(testEnvName)
 
 	for _, test := range tests {
-		t.Run(test.env, func(t *testing.T) {
+		t.Run(test.env, func { t ->
 			os.Setenv(testEnvName, test.env)
 
 			fn, err := ToSymbolFunc(cmd, tmpdir)

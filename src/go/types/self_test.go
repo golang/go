@@ -44,20 +44,16 @@ func BenchmarkCheck(b *testing.B) {
 		"runtime",
 		filepath.Join("go", "internal", "gcimporter"),
 	} {
-		b.Run(path.Base(p), func(b *testing.B) {
+		b.Run(path.Base(p), func { b ->
 			path := filepath.Join("..", "..", p)
 			for _, ignoreFuncBodies := range []bool{false, true} {
 				name := "funcbodies"
 				if ignoreFuncBodies {
 					name = "nofuncbodies"
 				}
-				b.Run(name, func(b *testing.B) {
-					b.Run("info", func(b *testing.B) {
-						runbench(b, path, ignoreFuncBodies, true)
-					})
-					b.Run("noinfo", func(b *testing.B) {
-						runbench(b, path, ignoreFuncBodies, false)
-					})
+				b.Run(name, func { b ->
+					b.Run("info", func { b -> runbench(b, path, ignoreFuncBodies, true) })
+					b.Run("noinfo", func { b -> runbench(b, path, ignoreFuncBodies, false) })
 				})
 			}
 		})
@@ -72,7 +68,7 @@ func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
 	}
 	// determine line count
 	lines := 0
-	fset.Iterate(func(f *token.File) bool {
+	fset.Iterate(func { f ->
 		lines += f.LineCount()
 		return true
 	})

@@ -113,7 +113,7 @@ var tests = []struct {
 func TestSamples(t *testing.T) {
 	for _, test := range tests {
 		test := test
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			r := NewReader(strings.NewReader(test.compressed))
 			got, err := io.ReadAll(r)
 			if err != nil {
@@ -132,7 +132,7 @@ func TestReset(t *testing.T) {
 	r := NewReader(input)
 	for _, test := range tests {
 		test := test
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			input.Reset(test.compressed)
 			r.Reset(input)
 			got, err := io.ReadAll(r)
@@ -283,7 +283,7 @@ func TestFileSamples(t *testing.T) {
 			continue
 		}
 
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			f, err := os.Open(filepath.Join("testdata", name))
 			if err != nil {
 				t.Fatal(err)
@@ -306,7 +306,7 @@ func TestFileSamples(t *testing.T) {
 
 func TestReaderBad(t *testing.T) {
 	for i, s := range badStrings {
-		t.Run(fmt.Sprintf("badStrings#%d", i), func(t *testing.T) {
+		t.Run(fmt.Sprintf("badStrings#%d", i), func { t ->
 			_, err := io.Copy(io.Discard, NewReader(strings.NewReader(s)))
 			if err == nil {
 				t.Error("expected error")

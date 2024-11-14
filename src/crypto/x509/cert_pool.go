@@ -181,9 +181,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
 	if cert == nil {
 		panic("adding nil Certificate to CertPool")
 	}
-	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
-		return cert, nil
-	}, nil)
+	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func { cert, nil }, nil)
 }
 
 // addCertFunc adds metadata about a certificate to a pool, along with
@@ -236,7 +234,7 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 			sync.Once
 			v *Certificate
 		}
-		s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
+		s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func {
 			lazyCert.Do(func() {
 				// This can't fail, as the same bytes already parsed above.
 				lazyCert.v, _ = ParseCertificate(certBytes)
@@ -288,7 +286,5 @@ func (s *CertPool) AddCertWithConstraint(cert *Certificate, constraint func([]*C
 	if cert == nil {
 		panic("adding nil Certificate to CertPool")
 	}
-	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
-		return cert, nil
-	}, constraint)
+	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func { cert, nil }, constraint)
 }

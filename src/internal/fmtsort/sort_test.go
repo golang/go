@@ -197,9 +197,7 @@ func makeChans() []chan int {
 	for i := range cs {
 		pin.Pin(reflect.ValueOf(cs[i]).UnsafePointer())
 	}
-	slices.SortFunc(cs, func(a, b chan int) int {
-		return cmp.Compare(reflect.ValueOf(a).Pointer(), reflect.ValueOf(b).Pointer())
-	})
+	slices.SortFunc(cs, func { a, b -> cmp.Compare(reflect.ValueOf(a).Pointer(), reflect.ValueOf(b).Pointer()) })
 	return cs
 }
 

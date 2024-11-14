@@ -83,7 +83,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 		// we want to follow it (see https://go.dev/issue/50807).
 		// Add a trailing separator to force that to happen.
 		root = str.WithFilePathSeparator(filepath.Clean(root))
-		err := fsys.Walk(root, func(pkgDir string, fi fs.FileInfo, err error) error {
+		err := fsys.Walk(root, func { pkgDir, fi, err ->
 			if err != nil {
 				m.AddError(err)
 				return nil
@@ -219,7 +219,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 // is the module's root directory on disk, index is the modindex.Module for the
 // module, and importPathRoot is the module's path prefix.
 func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeCanMatch func(string) bool, tags, have map[string]bool, addPkg func(string)) {
-	index.Walk(func(reldir string) {
+	index.Walk(func { reldir ->
 		// Avoid .foo, _foo, and testdata subdirectory trees.
 		p := reldir
 		for {

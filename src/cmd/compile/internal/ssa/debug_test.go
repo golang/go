@@ -178,7 +178,7 @@ func TestNexting(t *testing.T) {
 // subTest creates a subtest that compiles basename.go with the specified gcflags and additional compiler arguments,
 // then runs the debugger on the resulting binary, with any comment-specified actions matching tag triggered.
 func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
-	t.Run(tag+"-"+basename, func(t *testing.T) {
+	t.Run(tag+"-"+basename, func { t ->
 		if t.Name() == "TestNexting/gdb-dbg-i22558" {
 			testenv.SkipFlaky(t, 31263)
 		}
@@ -188,7 +188,7 @@ func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs
 
 // skipSubTest is the same as subTest except that it skips the test if execution is not forced (-f)
 func skipSubTest(t *testing.T, tag string, basename string, gcflags string, count int, moreargs ...string) {
-	t.Run(tag+"-"+basename, func(t *testing.T) {
+	t.Run(tag+"-"+basename, func { t ->
 		if *force {
 			testNexting(t, basename, tag, gcflags, count, moreargs...)
 		} else {
@@ -202,7 +202,7 @@ func skipSubTest(t *testing.T, tag string, basename string, gcflags string, coun
 func optSubTest(t *testing.T, tag string, basename string, gcflags string, count int, moreargs ...string) {
 	// If optimized test is run with unoptimized libraries (compiled with -N -l), it is very likely to fail.
 	// This occurs in the noopt builders (for example).
-	t.Run(tag+"-"+basename, func(t *testing.T) {
+	t.Run(tag+"-"+basename, func { t ->
 		if *force || optimizedLibs {
 			testNexting(t, basename, tag, gcflags, count, moreargs...)
 		} else {
@@ -668,9 +668,7 @@ func (s *gdbState) stepnext(ss string) bool {
 	// Look for //gdb-<tag>=(v1,v2,v3) and print v1, v2, v3
 	vars := varsToPrint(excerpt, "//"+s.tag()+"=(")
 	for _, v := range vars {
-		response := printVariableAndNormalize(v, func(v string) string {
-			return s.ioState.writeReadExpect("p "+v+"\n", "[(]gdb[)] ").String()
-		})
+		response := printVariableAndNormalize(v, func { v -> s.ioState.writeReadExpect("p "+v+"\n", "[(]gdb[)] ").String() })
 		s.ioState.history.addVar(response)
 	}
 	return true

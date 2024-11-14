@@ -1566,7 +1566,7 @@ func testEncodeDecode(t *testing.T, in, out any) {
 }
 
 func TestLargeSlice(t *testing.T) {
-	t.Run("byte", func(t *testing.T) {
+	t.Run("byte", func { t ->
 		if unsafe.Sizeof(uintptr(0)) > 4 {
 			t.Parallel() // Only run in parallel in a large address space
 		}
@@ -1578,7 +1578,7 @@ func TestLargeSlice(t *testing.T) {
 		rt := &LargeSliceByte{}
 		testEncodeDecode(t, st, rt)
 	})
-	t.Run("int8", func(t *testing.T) {
+	t.Run("int8", func { t ->
 		if unsafe.Sizeof(uintptr(0)) > 4 {
 			t.Parallel()
 		}
@@ -1590,7 +1590,7 @@ func TestLargeSlice(t *testing.T) {
 		rt := &LargeSliceInt8{}
 		testEncodeDecode(t, st, rt)
 	})
-	t.Run("struct", func(t *testing.T) {
+	t.Run("struct", func { t ->
 		if unsafe.Sizeof(uintptr(0)) > 4 {
 			t.Parallel()
 		}
@@ -1603,7 +1603,7 @@ func TestLargeSlice(t *testing.T) {
 		rt := &LargeSliceStruct{}
 		testEncodeDecode(t, st, rt)
 	})
-	t.Run("string", func(t *testing.T) {
+	t.Run("string", func { t ->
 		if unsafe.Sizeof(uintptr(0)) > 4 {
 			t.Parallel()
 		}

@@ -123,9 +123,7 @@ func ReadDir(name string) ([]DirEntry, error) {
 	defer f.Close()
 
 	dirs, err := f.ReadDir(-1)
-	slices.SortFunc(dirs, func(a, b DirEntry) int {
-		return bytealg.CompareString(a.Name(), b.Name())
-	})
+	slices.SortFunc(dirs, func { a, b -> bytealg.CompareString(a.Name(), b.Name()) })
 	return dirs, err
 }
 
@@ -147,7 +145,7 @@ func ReadDir(name string) ([]DirEntry, error) {
 //
 // Copying stops at and returns the first error encountered.
 func CopyFS(dir string, fsys fs.FS) error {
-	return fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(fsys, ".", func { path, d, err ->
 		if err != nil {
 			return err
 		}

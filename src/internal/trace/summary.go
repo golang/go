@@ -394,7 +394,7 @@ func (s *Summarizer) Event(ev *Event) {
 				if stk != NoStack {
 					var frame StackFrame
 					var ok bool
-					stk.Frames(func(f StackFrame) bool {
+					stk.Frames(func { f ->
 						frame = f
 						ok = true
 						return true
@@ -594,7 +594,7 @@ func (s *Summarizer) Finalize() *Summary {
 		g.finalize(s.lastTs, nil)
 
 		// Sort based on region start time.
-		slices.SortFunc(g.Regions, func(a, b *UserRegionSummary) int {
+		slices.SortFunc(g.Regions, func { a, b ->
 			x := a.Start
 			y := b.Start
 			if x == nil {

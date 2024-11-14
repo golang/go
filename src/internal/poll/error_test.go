@@ -14,7 +14,7 @@ import (
 )
 
 func TestReadError(t *testing.T) {
-	t.Run("ErrNotPollable", func(t *testing.T) {
+	t.Run("ErrNotPollable", func { t ->
 		f, err := badStateFile()
 		if err != nil {
 			t.Skip(err)

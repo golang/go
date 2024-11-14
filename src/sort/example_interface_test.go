@@ -46,9 +46,7 @@ func Example() {
 	// case no methods are needed. (And if they exist, they
 	// are ignored.) Here we re-sort in reverse order: compare
 	// the closure with ByAge.Less.
-	sort.Slice(people, func(i, j int) bool {
-		return people[i].Age > people[j].Age
-	})
+	sort.Slice(people, func { i, j -> people[i].Age > people[j].Age })
 	fmt.Println(people)
 
 	// Output:

@@ -503,7 +503,7 @@ func TestPointerChecks(t *testing.T) {
 	var pending int32
 	for _, pt := range ptrTests {
 		pt := pt
-		t.Run(pt.name, func(t *testing.T) {
+		t.Run(pt.name, func { t ->
 			atomic.AddInt32(&pending, +1)
 			defer func() {
 				if atomic.AddInt32(&pending, -1) == 0 {

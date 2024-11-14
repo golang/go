@@ -165,7 +165,7 @@ func TestPageCacheAlloc(t *testing.T) {
 	}
 	for name, test := range tests {
 		test := test
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			c := test.cache
 			for i, h := range test.hits {
 				b, s := c.Alloc(h.npages)
@@ -405,7 +405,7 @@ func TestPageAllocAllocToCache(t *testing.T) {
 	}
 	for name, v := range tests {
 		v := v
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			b := NewPageAlloc(v.beforeAlloc, v.beforeScav)
 			defer FreePageAlloc(b)
 

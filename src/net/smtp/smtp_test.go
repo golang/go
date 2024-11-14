@@ -301,7 +301,7 @@ func TestExtensions(t *testing.T) {
 		return c, bcmdbuf, cmdbuf
 	}
 
-	t.Run("helo", func(t *testing.T) {
+	t.Run("helo", func { t ->
 		const (
 			basicServer = `250 mx.google.com at your service
 250 Sender OK
@@ -335,7 +335,7 @@ QUIT
 		}
 	})
 
-	t.Run("ehlo", func(t *testing.T) {
+	t.Run("ehlo", func { t ->
 		const (
 			basicServer = `250-mx.google.com at your service
 250 SIZE 35651584
@@ -375,7 +375,7 @@ QUIT
 		}
 	})
 
-	t.Run("ehlo 8bitmime", func(t *testing.T) {
+	t.Run("ehlo 8bitmime", func { t ->
 		const (
 			basicServer = `250-mx.google.com at your service
 250-SIZE 35651584
@@ -416,7 +416,7 @@ QUIT
 		}
 	})
 
-	t.Run("ehlo smtputf8", func(t *testing.T) {
+	t.Run("ehlo smtputf8", func { t ->
 		const (
 			basicServer = `250-mx.google.com at your service
 250-SIZE 35651584
@@ -457,7 +457,7 @@ QUIT
 		}
 	})
 
-	t.Run("ehlo 8bitmime smtputf8", func(t *testing.T) {
+	t.Run("ehlo 8bitmime smtputf8", func { t ->
 		const (
 			basicServer = `250-mx.google.com at your service
 250-SIZE 35651584
@@ -507,7 +507,7 @@ func TestNewClient(t *testing.T) {
 
 	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
-	out := func() string {
+	out := func {
 		bcmdbuf.Flush()
 		return cmdbuf.String()
 	}
@@ -1092,9 +1092,7 @@ func serverHandleTLS(c net.Conn, t *testing.T) error {
 func init() {
 	testRootCAs := x509.NewCertPool()
 	testRootCAs.AppendCertsFromPEM(localhostCert)
-	testHookStartTLS = func(config *tls.Config) {
-		config.RootCAs = testRootCAs
-	}
+	testHookStartTLS = func { config -> config.RootCAs = testRootCAs }
 }
 
 func sendMail(hostPort string) error {

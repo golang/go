@@ -90,7 +90,7 @@ func TestDetectContentType(t *testing.T) {
 
 func TestServerContentTypeSniff(t *testing.T) { run(t, testServerContentTypeSniff) }
 func testServerContentTypeSniff(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		i, _ := strconv.Atoi(r.FormValue("i"))
 		tt := sniffTests[i]
 		n, err := w.Write(tt.data)
@@ -132,7 +132,7 @@ func testServerContentTypeSniff(t *testing.T, mode testMode) {
 // even if it's the empty string.
 func TestServerIssue5953(t *testing.T) { run(t, testServerIssue5953) }
 func testServerIssue5953(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		w.Header()["Content-Type"] = []string{""}
 		fmt.Fprintf(w, "<html><head></head><body>hi</body></html>")
 	}))
@@ -228,7 +228,7 @@ func testContentTypeWithVariousSources(t *testing.T, mode testMode) {
 			}
 		},
 	}} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			cst := newClientServerTest(t, mode, HandlerFunc(test.handler))
 
 			resp, err := cst.c.Get(cst.ts.URL)
@@ -248,7 +248,6 @@ func testContentTypeWithVariousSources(t *testing.T, mode testMode) {
 				t.Errorf("data is %q, want %q", data, input)
 			}
 			resp.Body.Close()
-
 		})
 
 	}
@@ -256,7 +255,7 @@ func testContentTypeWithVariousSources(t *testing.T, mode testMode) {
 
 func TestSniffWriteSize(t *testing.T) { run(t, testSniffWriteSize) }
 func testSniffWriteSize(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		size, _ := strconv.Atoi(r.FormValue("size"))
 		written, err := io.WriteString(w, strings.Repeat("a", size))
 		if err != nil {

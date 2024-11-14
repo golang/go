@@ -373,7 +373,7 @@ func freePackage(pkg *types2.Package) {
 
 	// Set a finalizer on pkg so we can detect if/when it's collected.
 	done := make(chan struct{})
-	runtime.SetFinalizer(pkg, func(*types2.Package) { close(done) })
+	runtime.SetFinalizer(pkg, func { close(done) })
 
 	// Important: objects involved in cycles are not finalized, so zero
 	// out pkg to break its cycles and allow the finalizer to run.
@@ -501,7 +501,7 @@ func writeUnifiedExport(out io.Writer) {
 		for _, idx := range l.decls {
 			idxs = append(idxs, idx)
 		}
-		sort.Slice(idxs, func(i, j int) bool { return idxs[i] < idxs[j] })
+		sort.Slice(idxs, func { i, j -> idxs[i] < idxs[j] })
 
 		w := publicRootWriter
 
@@ -530,7 +530,7 @@ func writeUnifiedExport(out io.Writer) {
 		for sym, idx := range l.bodies {
 			bodies = append(bodies, symIdx{sym, idx})
 		}
-		sort.Slice(bodies, func(i, j int) bool { return bodies[i].idx < bodies[j].idx })
+		sort.Slice(bodies, func { i, j -> bodies[i].idx < bodies[j].idx })
 
 		w := privateRootWriter
 

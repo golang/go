@@ -46,7 +46,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		call := n.(*ast.CallExpr)
 		fn, ok := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
 		if !ok {

@@ -268,9 +268,7 @@ func goriscv64() int {
 	}
 	Error = fmt.Errorf("invalid GORISCV64: must be rva20u64, rva22u64")
 	v := defaultGORISCV64[len("rva"):]
-	i := strings.IndexFunc(v, func(r rune) bool {
-		return r < '0' || r > '9'
-	})
+	i := strings.IndexFunc(v, func { r -> r < '0' || r > '9' })
 	year, _ := strconv.Atoi(v[:i])
 	return year
 }

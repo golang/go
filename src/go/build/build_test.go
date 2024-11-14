@@ -341,7 +341,7 @@ var shouldBuildTests = []struct {
 
 func TestShouldBuild(t *testing.T) {
 	for _, tt := range shouldBuildTests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			ctx := &Context{BuildTags: []string{"yes"}}
 			tags := map[string]bool{}
 			shouldBuild, binaryOnly, err := ctx.shouldBuild([]byte(tt.content), tags)
@@ -412,9 +412,7 @@ func TestMatchFile(t *testing.T) {
 			}
 			return &readNopCloser{strings.NewReader(tt.data)}, nil
 		}
-		ctxt.JoinPath = func(elem ...string) string {
-			return strings.Join(elem, "+")
-		}
+		ctxt.JoinPath = func { elem -> strings.Join(elem, "+") }
 		match, err := ctxt.MatchFile("x", tt.name)
 		if match != tt.match || err != nil {
 			t.Fatalf("MatchFile(%q) = %v, %v, want %v, nil", tt.name, match, err, tt.match)
@@ -516,7 +514,7 @@ func TestImportDirNotExist(t *testing.T) {
 	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
 
 	for _, GO111MODULE := range []string{"off", "on"} {
-		t.Run("GO111MODULE="+GO111MODULE, func(t *testing.T) {
+		t.Run("GO111MODULE="+GO111MODULE, func { t ->
 			os.Setenv("GO111MODULE", GO111MODULE)
 
 			for _, test := range tests {

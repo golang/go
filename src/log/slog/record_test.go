@@ -27,7 +27,7 @@ func TestRecordAttrs(t *testing.T) {
 	// Hit both loops in Record.Attrs: front and back.
 	for _, stop := range []int{2, 6} {
 		var got []Attr
-		r.Attrs(func(a Attr) bool {
+		r.Attrs(func { a ->
 			got = append(got, a)
 			return len(got) < stop
 		})
@@ -121,7 +121,10 @@ func newRecordWithAttrs(as []Attr) Record {
 
 func attrsSlice(r Record) []Attr {
 	s := make([]Attr, 0, r.NumAttrs())
-	r.Attrs(func(a Attr) bool { s = append(s, a); return true })
+	r.Attrs(func { a ->
+		s = append(s, a)
+		return true
+	})
 	return s
 }
 
@@ -133,7 +136,7 @@ func attrsEqual(as1, as2 []Attr) bool {
 // to call it for every log message.
 func BenchmarkPC(b *testing.B) {
 	for depth := 0; depth < 5; depth++ {
-		b.Run(strconv.Itoa(depth), func(b *testing.B) {
+		b.Run(strconv.Itoa(depth), func { b ->
 			b.ReportAllocs()
 			var x uintptr
 			for i := 0; i < b.N; i++ {
@@ -153,7 +156,10 @@ func BenchmarkRecord(b *testing.B) {
 		for j := 0; j < nAttrs; j++ {
 			r.AddAttrs(Int("k", j))
 		}
-		r.Attrs(func(b Attr) bool { a = b; return true })
+		r.Attrs(func { b ->
+			a = b
+			return true
+		})
 	}
 	_ = a
 }

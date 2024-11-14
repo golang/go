@@ -388,7 +388,7 @@ func (ctxt *Link) DwarfIntConst(name, typename string, val int64) {
 	if myimportpath == "" {
 		return
 	}
-	s := ctxt.LookupInit(dwarf.ConstInfoPrefix+myimportpath, func(s *LSym) {
+	s := ctxt.LookupInit(dwarf.ConstInfoPrefix+myimportpath, func { s ->
 		s.Type = objabi.SDWARFCONST
 		ctxt.Data = append(ctxt.Data, s)
 	})

@@ -278,7 +278,7 @@ func wrap(words []string, max int) (seq []int) {
 	g := func(i, j int) score { return add(f[i], weight(i, j)) }
 
 	bridge := func(a, b, c int) bool {
-		k := c + sort.Search(len(words)+1-c, func(k int) bool {
+		k := c + sort.Search(len(words)+1-c, func { k ->
 			k += c
 			return cmp(g(a, k), g(b, k)) > 0
 		})

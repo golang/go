@@ -243,41 +243,41 @@ func TestPos(t *testing.T) {
 	// extract the node for each specific kind of construct.
 
 	testPos(t, decls, "package p; ", "",
-		func(f *File) Node { return f.DeclList[0] },
+		func { f -> f.DeclList[0] },
 	)
 
 	// embed expressions in a composite literal so we can test key:value and naked composite literals
 	testPos(t, exprs, "package p; var _ = T{ ", " }",
-		func(f *File) Node { return f.DeclList[0].(*VarDecl).Values.(*CompositeLit).ElemList[0] },
+		func { f -> f.DeclList[0].(*VarDecl).Values.(*CompositeLit).ElemList[0] },
 	)
 
 	// embed types in a function  signature so we can test ... types
 	testPos(t, types, "package p; func f(", ")",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Type.ParamList[0].Type },
+		func { f -> f.DeclList[0].(*FuncDecl).Type.ParamList[0].Type },
 	)
 
 	testPos(t, fields, "package p; func f(", ")",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Type.ParamList[0] },
+		func { f -> f.DeclList[0].(*FuncDecl).Type.ParamList[0] },
 	)
 
 	testPos(t, stmts, "package p; func _() { ", "; }",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body.List[0] },
+		func { f -> f.DeclList[0].(*FuncDecl).Body.List[0] },
 	)
 
 	testPos(t, ranges, "package p; func _() { for ", " {} }",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body.List[0].(*ForStmt).Init.(*RangeClause) },
+		func { f -> f.DeclList[0].(*FuncDecl).Body.List[0].(*ForStmt).Init.(*RangeClause) },
 	)
 
 	testPos(t, guards, "package p; func _() { switch ", " {} }",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body.List[0].(*SwitchStmt).Tag.(*TypeSwitchGuard) },
+		func { f -> f.DeclList[0].(*FuncDecl).Body.List[0].(*SwitchStmt).Tag.(*TypeSwitchGuard) },
 	)
 
 	testPos(t, cases, "package p; func _() { switch { ", " } }",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body.List[0].(*SwitchStmt).Body[0] },
+		func { f -> f.DeclList[0].(*FuncDecl).Body.List[0].(*SwitchStmt).Body[0] },
 	)
 
 	testPos(t, comms, "package p; func _() { select { ", " } }",
-		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body.List[0].(*SelectStmt).Body[0] },
+		func { f -> f.DeclList[0].(*FuncDecl).Body.List[0].(*SelectStmt).Body[0] },
 	)
 }
 

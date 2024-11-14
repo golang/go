@@ -42,7 +42,7 @@ func (h *fossilHandler) Handler(dir string, env []string, logger *log.Logger) (h
 		return nil, err
 	}
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func { w, req ->
 		if _, err := os.Stat(db); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

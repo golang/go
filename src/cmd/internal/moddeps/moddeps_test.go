@@ -49,7 +49,7 @@ func TestAllDependencies(t *testing.T) {
 	for _, m := range findGorootModules(t) {
 		// This short test does NOT ensure that the vendored contents match
 		// the unmodified contents of the corresponding dependency versions.
-		t.Run(m.Path+"(quick)", func(t *testing.T) {
+		t.Run(m.Path+"(quick)", func { t ->
 			t.Logf("module %s in directory %s", m.Path, m.Dir)
 
 			if m.hasVendor {
@@ -173,7 +173,7 @@ func TestAllDependencies(t *testing.T) {
 			gorootCopyDir = makeGOROOTCopy(t)
 		}
 
-		t.Run(m.Path+"(thorough)", func(t *testing.T) {
+		t.Run(m.Path+"(thorough)", func { t ->
 			t.Logf("module %s in directory %s", m.Path, m.Dir)
 
 			defer func() {
@@ -254,7 +254,7 @@ func makeGOROOTCopy(t *testing.T) string {
 	t.Helper()
 
 	gorootCopyDir := t.TempDir()
-	err := filepath.Walk(testenv.GOROOT(t), func(src string, info os.FileInfo, err error) error {
+	err := filepath.Walk(testenv.GOROOT(t), func { src, info, err ->
 		if err != nil {
 			return err
 		}
@@ -448,7 +448,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 		if !os.IsPathSeparator(root[len(root)-1]) {
 			root += string(filepath.Separator)
 		}
-		goroot.err = filepath.WalkDir(root, func(path string, info fs.DirEntry, err error) error {
+		goroot.err = filepath.WalkDir(root, func { path, info, err ->
 			if err != nil {
 				return err
 			}
@@ -521,9 +521,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 				break
 			}
 		}
-		sort.Slice(goroot.modules, func(i, j int) bool {
-			return goroot.modules[i].Dir < goroot.modules[j].Dir
-		})
+		sort.Slice(goroot.modules, func { i, j -> goroot.modules[i].Dir < goroot.modules[j].Dir })
 	})
 	if goroot.err != nil {
 		t.Fatal(goroot.err)

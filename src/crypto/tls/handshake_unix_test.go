@@ -12,7 +12,5 @@ import (
 )
 
 func init() {
-	isConnRefused = func(err error) bool {
-		return errors.Is(err, syscall.ECONNREFUSED)
-	}
+	isConnRefused = func { err -> errors.Is(err, syscall.ECONNREFUSED) }
 }

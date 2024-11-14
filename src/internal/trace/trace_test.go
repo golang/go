@@ -21,7 +21,7 @@ import (
 )
 
 func TestTraceAnnotations(t *testing.T) {
-	testTraceProg(t, "annotations.go", func(t *testing.T, tb, _ []byte, _ bool) {
+	testTraceProg(t, "annotations.go", func { t, tb, _, _ ->
 		type evDesc struct {
 			kind trace.EventKind
 			task trace.TaskID
@@ -96,7 +96,7 @@ func TestTraceCgoCallback(t *testing.T) {
 }
 
 func TestTraceCPUProfile(t *testing.T) {
-	testTraceProg(t, "cpu-profile.go", func(t *testing.T, tb, stderr []byte, _ bool) {
+	testTraceProg(t, "cpu-profile.go", func { t, tb, stderr, _ ->
 		// Parse stderr which has a CPU profile summary, if everything went well.
 		// (If it didn't, we shouldn't even make it here.)
 		scanner := bufio.NewScanner(bytes.NewReader(stderr))
@@ -148,7 +148,7 @@ func TestTraceCPUProfile(t *testing.T) {
 				if hogRegion != nil && ev.Goroutine() == hogRegion.Goroutine() {
 					traceSamples++
 					var fns []string
-					ev.Stack().Frames(func(frame trace.StackFrame) bool {
+					ev.Stack().Frames(func { frame ->
 						if frame.Func != "runtime.goexit" {
 							fns = append(fns, fmt.Sprintf("%s:%d", frame.Func, frame.Line))
 						}
@@ -210,7 +210,7 @@ func TestTraceCPUProfile(t *testing.T) {
 }
 
 func TestTraceFutileWakeup(t *testing.T) {
-	testTraceProg(t, "futile-wakeup.go", func(t *testing.T, tb, _ []byte, _ bool) {
+	testTraceProg(t, "futile-wakeup.go", func { t, tb, _, _ ->
 		// Check to make sure that no goroutine in the "special" trace region
 		// ends up blocking, unblocking, then immediately blocking again.
 		//
@@ -311,7 +311,7 @@ func TestTraceGOMAXPROCS(t *testing.T) {
 }
 
 func TestTraceStacks(t *testing.T) {
-	testTraceProg(t, "stacks.go", func(t *testing.T, tb, _ []byte, stress bool) {
+	testTraceProg(t, "stacks.go", func { t, tb, _, stress ->
 		type frame struct {
 			fn   string
 			line int
@@ -438,7 +438,7 @@ func TestTraceStacks(t *testing.T) {
 		stackMatches := func(stk trace.Stack, frames []frame) bool {
 			i := 0
 			match := true
-			stk.Frames(func(f trace.StackFrame) bool {
+			stk.Frames(func { f ->
 				if f.Func != frames[i].fn {
 					match = false
 					return false
@@ -611,16 +611,14 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 			t.Logf("wrote trace to file: %s", dumpTraceToFile(t, testName, stress, tb))
 		}
 	}
-	t.Run("Default", func(t *testing.T) {
-		runTest(t, false, "")
-	})
-	t.Run("Stress", func(t *testing.T) {
+	t.Run("Default", func { t -> runTest(t, false, "") })
+	t.Run("Stress", func { t ->
 		if testing.Short() {
 			t.Skip("skipping trace stress tests in short mode")
 		}
 		runTest(t, true, "")
 	})
-	t.Run("AllocFree", func(t *testing.T) {
+	t.Run("AllocFree", func { t ->
 		if testing.Short() {
 			t.Skip("skipping trace alloc/free tests in short mode")
 		}

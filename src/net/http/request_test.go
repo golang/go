@@ -119,7 +119,7 @@ func TestParseFormUnknownContentType(t *testing.T) {
 		{"unknown", "", Header{"Content-Type": {"application/unknown"}}},
 	} {
 		t.Run(test.name,
-			func(t *testing.T) {
+			func { t ->
 				req := &Request{
 					Method: "POST",
 					Header: test.contentType,
@@ -296,7 +296,7 @@ func TestMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T) {
 }
 func testMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T, mode testMode) {
 	payloadSize := 1 << 10
-	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func { rw, req ->
 		// The combination of:
 		//      MaxInt64 + payloadSize + (internal spare of 10MiB)
 		// triggers the overflow. See issue https://golang.org/issue/40430/
@@ -334,7 +334,7 @@ func testMaxInt64ForMultipartFormMaxMemoryOverflow(t *testing.T, mode testMode) 
 
 func TestRequestRedirect(t *testing.T) { run(t, testRequestRedirect) }
 func testRequestRedirect(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		switch r.URL.Path {
 		case "/":
 			w.Header().Set("Location", "/foo/")
@@ -1084,7 +1084,7 @@ func TestRequestClonePathValue(t *testing.T) {
 // Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
 func TestNoPanicOnRoundTripWithBasicAuth(t *testing.T) { run(t, testNoPanicWithBasicAuth) }
 func testNoPanicWithBasicAuth(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r -> }))
 
 	u, err := url.Parse(cst.ts.URL)
 	if err != nil {
@@ -1305,7 +1305,7 @@ func TestRequestCookiesByName(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.filter, func(t *testing.T) {
+		t.Run(tt.filter, func { t ->
 			req, err := NewRequest("GET", "http://example.com/", nil)
 			if err != nil {
 				t.Fatal(err)
@@ -1462,13 +1462,11 @@ func benchmarkFileAndServer(b *testing.B, n int64) {
 		b.Fatalf("Failed to copy %d bytes: %v", n, err)
 	}
 
-	run(b, func(b *testing.B, mode testMode) {
-		runFileAndServerBenchmarks(b, mode, f, n)
-	}, []testMode{http1Mode, https1Mode, http2Mode})
+	run(b, func { b, mode -> runFileAndServerBenchmarks(b, mode, f, n) }, []testMode{http1Mode, https1Mode, http2Mode})
 }
 
 func runFileAndServerBenchmarks(b *testing.B, mode testMode, f *os.File, n int64) {
-	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
+	handler := HandlerFunc(func { rw, req ->
 		defer req.Body.Close()
 		nc, err := io.Copy(io.Discard, req.Body)
 		if err != nil {
@@ -1569,7 +1567,7 @@ func TestPathValueAndPattern(t *testing.T) {
 		},
 	} {
 		mux := NewServeMux()
-		mux.HandleFunc(test.pattern, func(w ResponseWriter, r *Request) {
+		mux.HandleFunc(test.pattern, func { w, r ->
 			for name, want := range test.want {
 				got := r.PathValue(name)
 				if got != want {
@@ -1592,7 +1590,7 @@ func TestPathValueAndPattern(t *testing.T) {
 
 func TestSetPathValue(t *testing.T) {
 	mux := NewServeMux()
-	mux.HandleFunc("/a/{b}/c/{d...}", func(_ ResponseWriter, r *Request) {
+	mux.HandleFunc("/a/{b}/c/{d...}", func { _, r ->
 		kvs := map[string]string{
 			"b": "X",
 			"d": "Y",
@@ -1618,7 +1616,7 @@ func TestSetPathValue(t *testing.T) {
 
 func TestStatus(t *testing.T) {
 	// The main purpose of this test is to check 405 responses and the Allow header.
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	h := http.HandlerFunc(func { w, r -> })
 	mux := NewServeMux()
 	mux.Handle("GET /g", h)
 	mux.Handle("POST /p", h)

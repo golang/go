@@ -17,7 +17,7 @@ import (
 // This file contains tests derived from draft-ietf-tls-tls13-vectors-07.
 
 func parseVector(v string) []byte {
-	v = strings.Map(func(c rune) rune {
+	v = strings.Map(func { c ->
 		if unicode.IsSpace(c) {
 			return -1
 		}
@@ -95,7 +95,7 @@ func TestDeriveSecret(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			c := cipherSuitesTLS13[0]
 			if got := c.deriveSecret(tt.args.secret, tt.args.label, tt.args.transcript); !bytes.Equal(got, tt.want) {
 				t.Errorf("cipherSuiteTLS13.deriveSecret() = % x, want % x", got, tt.want)
@@ -166,7 +166,7 @@ func TestExtract(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			c := cipherSuitesTLS13[0]
 			if got := c.extract(tt.args.newSecret, tt.args.currentSecret); !bytes.Equal(got, tt.want) {
 				t.Errorf("cipherSuiteTLS13.extract() = % x, want % x", got, tt.want)

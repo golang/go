@@ -849,7 +849,7 @@ func sortedValues(m []*Value, tok token.Token) []*Value {
 	}
 	list = list[0:i]
 
-	slices.SortFunc(list, func(a, b *Value) int {
+	slices.SortFunc(list, func { a, b ->
 		r := strings.Compare(sortingName(a.Decl), sortingName(b.Decl))
 		if r != 0 {
 			return r
@@ -876,9 +876,7 @@ func sortedTypes(m map[string]*namedType, allMethods bool) []*Type {
 		i++
 	}
 
-	slices.SortFunc(list, func(a, b *Type) int {
-		return strings.Compare(a.Name, b.Name)
-	})
+	slices.SortFunc(list, func { a, b -> strings.Compare(a.Name, b.Name) })
 
 	return list
 }
@@ -906,9 +904,7 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
 		}
 	}
 	list = list[0:i]
-	slices.SortFunc(list, func(a, b *Func) int {
-		return strings.Compare(a.Name, b.Name)
-	})
+	slices.SortFunc(list, func { a, b -> strings.Compare(a.Name, b.Name) })
 	return list
 }
 

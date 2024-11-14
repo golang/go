@@ -44,7 +44,7 @@ func (q *T55357[T]) do(w, v bool, fn func(bk []byte, v T) error) error {
 }
 
 func (q *T55357[T]) Count() (n int, rerr error) {
-	err := q.do(false, false, func(kb []byte, _ T) error {
+	err := q.do(false, false, func { kb, _ ->
 		n++
 		return nil
 	})
@@ -53,7 +53,7 @@ func (q *T55357[T]) Count() (n int, rerr error) {
 
 func (q *T55357[T]) List() (list []T, rerr error) {
 	var l []T
-	err := q.do(false, true, func(_ []byte, v T) error {
+	err := q.do(false, true, func { _, v ->
 		l = append(l, v)
 		return nil
 	})

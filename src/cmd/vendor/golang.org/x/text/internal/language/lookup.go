@@ -27,9 +27,7 @@ func findIndex(idx tag.Index, key []byte, form string) (index int, err error) {
 }
 
 func searchUint(imap []uint16, key uint16) int {
-	return sort.Search(len(imap), func(i int) bool {
-		return imap[i] >= key
-	})
+	return sort.Search(len(imap), func { i -> imap[i] >= key })
 }
 
 type Language uint16
@@ -52,9 +50,7 @@ func (id Language) Canonicalize() (Language, AliasType) {
 
 // normLang returns the mapped langID of id according to mapping m.
 func normLang(id Language) (Language, AliasType) {
-	k := sort.Search(len(AliasMap), func(i int) bool {
-		return AliasMap[i].From >= uint16(id)
-	})
+	k := sort.Search(len(AliasMap), func { i -> AliasMap[i].From >= uint16(id) })
 	if k < len(AliasMap) && AliasMap[k].From == uint16(id) {
 		return Language(AliasMap[k].To), AliasTypes[k]
 	}
@@ -248,9 +244,7 @@ func getRegionM49(n int) (Region, error) {
 		idx := n >> searchBits
 		buf := fromM49[m49Index[idx]:m49Index[idx+1]]
 		val := uint16(n) << regionBits // we rely on bits shifting out
-		i := sort.Search(len(buf), func(i int) bool {
-			return buf[i] >= val
-		})
+		i := sort.Search(len(buf), func { i -> buf[i] >= val })
 		if r := fromM49[int(m49Index[idx])+i]; r&^regionMask == val {
 			return Region(r & regionMask), nil
 		}
@@ -265,9 +259,7 @@ func getRegionM49(n int) (Region, error) {
 // TODO: consider mapping split up regions to new most populous one (like CLDR).
 func normRegion(r Region) Region {
 	m := regionOldMap
-	k := sort.Search(len(m), func(i int) bool {
-		return m[i].From >= uint16(r)
-	})
+	k := sort.Search(len(m), func { i -> m[i].From >= uint16(r) })
 	if k < len(m) && m[k].From == uint16(r) {
 		return Region(m[k].To)
 	}
@@ -360,39 +352,39 @@ var (
 	// grandfatheredMap holds a mapping from legacy and grandfathered tags to
 	// their base language or index to more elaborate tag.
 	grandfatheredMap = map[[maxLen]byte]int16{
-		[maxLen]byte{'a', 'r', 't', '-', 'l', 'o', 'j', 'b', 'a', 'n'}: _jbo, // art-lojban
-		[maxLen]byte{'i', '-', 'a', 'm', 'i'}:                          _ami, // i-ami
-		[maxLen]byte{'i', '-', 'b', 'n', 'n'}:                          _bnn, // i-bnn
-		[maxLen]byte{'i', '-', 'h', 'a', 'k'}:                          _hak, // i-hak
-		[maxLen]byte{'i', '-', 'k', 'l', 'i', 'n', 'g', 'o', 'n'}:      _tlh, // i-klingon
-		[maxLen]byte{'i', '-', 'l', 'u', 'x'}:                          _lb,  // i-lux
-		[maxLen]byte{'i', '-', 'n', 'a', 'v', 'a', 'j', 'o'}:           _nv,  // i-navajo
-		[maxLen]byte{'i', '-', 'p', 'w', 'n'}:                          _pwn, // i-pwn
-		[maxLen]byte{'i', '-', 't', 'a', 'o'}:                          _tao, // i-tao
-		[maxLen]byte{'i', '-', 't', 'a', 'y'}:                          _tay, // i-tay
-		[maxLen]byte{'i', '-', 't', 's', 'u'}:                          _tsu, // i-tsu
-		[maxLen]byte{'n', 'o', '-', 'b', 'o', 'k'}:                     _nb,  // no-bok
-		[maxLen]byte{'n', 'o', '-', 'n', 'y', 'n'}:                     _nn,  // no-nyn
-		[maxLen]byte{'s', 'g', 'n', '-', 'b', 'e', '-', 'f', 'r'}:      _sfb, // sgn-BE-FR
-		[maxLen]byte{'s', 'g', 'n', '-', 'b', 'e', '-', 'n', 'l'}:      _vgt, // sgn-BE-NL
-		[maxLen]byte{'s', 'g', 'n', '-', 'c', 'h', '-', 'd', 'e'}:      _sgg, // sgn-CH-DE
-		[maxLen]byte{'z', 'h', '-', 'g', 'u', 'o', 'y', 'u'}:           _cmn, // zh-guoyu
-		[maxLen]byte{'z', 'h', '-', 'h', 'a', 'k', 'k', 'a'}:           _hak, // zh-hakka
-		[maxLen]byte{'z', 'h', '-', 'm', 'i', 'n', '-', 'n', 'a', 'n'}: _nan, // zh-min-nan
-		[maxLen]byte{'z', 'h', '-', 'x', 'i', 'a', 'n', 'g'}:           _hsn, // zh-xiang
+		{'a', 'r', 't', '-', 'l', 'o', 'j', 'b', 'a', 'n'}: _jbo, // art-lojban
+		{'i', '-', 'a', 'm', 'i'}:                          _ami, // i-ami
+		{'i', '-', 'b', 'n', 'n'}:                          _bnn, // i-bnn
+		{'i', '-', 'h', 'a', 'k'}:                          _hak, // i-hak
+		{'i', '-', 'k', 'l', 'i', 'n', 'g', 'o', 'n'}:      _tlh, // i-klingon
+		{'i', '-', 'l', 'u', 'x'}:                          _lb,  // i-lux
+		{'i', '-', 'n', 'a', 'v', 'a', 'j', 'o'}:           _nv,  // i-navajo
+		{'i', '-', 'p', 'w', 'n'}:                          _pwn, // i-pwn
+		{'i', '-', 't', 'a', 'o'}:                          _tao, // i-tao
+		{'i', '-', 't', 'a', 'y'}:                          _tay, // i-tay
+		{'i', '-', 't', 's', 'u'}:                          _tsu, // i-tsu
+		{'n', 'o', '-', 'b', 'o', 'k'}:                     _nb,  // no-bok
+		{'n', 'o', '-', 'n', 'y', 'n'}:                     _nn,  // no-nyn
+		{'s', 'g', 'n', '-', 'b', 'e', '-', 'f', 'r'}:      _sfb, // sgn-BE-FR
+		{'s', 'g', 'n', '-', 'b', 'e', '-', 'n', 'l'}:      _vgt, // sgn-BE-NL
+		{'s', 'g', 'n', '-', 'c', 'h', '-', 'd', 'e'}:      _sgg, // sgn-CH-DE
+		{'z', 'h', '-', 'g', 'u', 'o', 'y', 'u'}:           _cmn, // zh-guoyu
+		{'z', 'h', '-', 'h', 'a', 'k', 'k', 'a'}:           _hak, // zh-hakka
+		{'z', 'h', '-', 'm', 'i', 'n', '-', 'n', 'a', 'n'}: _nan, // zh-min-nan
+		{'z', 'h', '-', 'x', 'i', 'a', 'n', 'g'}:           _hsn, // zh-xiang
 
 		// Grandfathered tags with no modern replacement will be converted as
 		// follows:
-		[maxLen]byte{'c', 'e', 'l', '-', 'g', 'a', 'u', 'l', 'i', 's', 'h'}: -1, // cel-gaulish
-		[maxLen]byte{'e', 'n', '-', 'g', 'b', '-', 'o', 'e', 'd'}:           -2, // en-GB-oed
-		[maxLen]byte{'i', '-', 'd', 'e', 'f', 'a', 'u', 'l', 't'}:           -3, // i-default
-		[maxLen]byte{'i', '-', 'e', 'n', 'o', 'c', 'h', 'i', 'a', 'n'}:      -4, // i-enochian
-		[maxLen]byte{'i', '-', 'm', 'i', 'n', 'g', 'o'}:                     -5, // i-mingo
-		[maxLen]byte{'z', 'h', '-', 'm', 'i', 'n'}:                          -6, // zh-min
+		{'c', 'e', 'l', '-', 'g', 'a', 'u', 'l', 'i', 's', 'h'}: -1, // cel-gaulish
+		{'e', 'n', '-', 'g', 'b', '-', 'o', 'e', 'd'}:           -2, // en-GB-oed
+		{'i', '-', 'd', 'e', 'f', 'a', 'u', 'l', 't'}:           -3, // i-default
+		{'i', '-', 'e', 'n', 'o', 'c', 'h', 'i', 'a', 'n'}:      -4, // i-enochian
+		{'i', '-', 'm', 'i', 'n', 'g', 'o'}:                     -5, // i-mingo
+		{'z', 'h', '-', 'm', 'i', 'n'}:                          -6, // zh-min
 
 		// CLDR-specific tag.
-		[maxLen]byte{'r', 'o', 'o', 't'}:                                    0,  // root
-		[maxLen]byte{'e', 'n', '-', 'u', 's', '-', 'p', 'o', 's', 'i', 'x'}: -7, // en_US_POSIX"
+		{'r', 'o', 'o', 't'}: 0, // root
+		{'e', 'n', '-', 'u', 's', '-', 'p', 'o', 's', 'i', 'x'}: -7, // en_US_POSIX"
 	}
 
 	altTagIndex = [...]uint8{0, 17, 31, 45, 61, 74, 86, 102}

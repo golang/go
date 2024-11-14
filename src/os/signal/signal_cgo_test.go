@@ -278,7 +278,7 @@ func runSessionLeader(t *testing.T, pause time.Duration) {
 		os.Exit(1)
 	}
 
-	fn := func() error {
+	fn := func {
 		var b [8]byte
 		binary.LittleEndian.PutUint64(b[:], uint64(cmd.Process.Pid))
 		_, err := controlW.Write(b[:])

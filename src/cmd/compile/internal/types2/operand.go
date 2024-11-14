@@ -280,7 +280,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 		if Tp != nil {
 			// T is a type parameter: x is assignable to T if it is
 			// representable by each specific type in the type set of T.
-			return Tp.is(func(t *term) bool {
+			return Tp.is(func { t ->
 				if t == nil {
 					return false
 				}
@@ -360,7 +360,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 	if !hasName(V) && Tp != nil {
 		ok := false
 		code := IncompatibleAssign
-		Tp.is(func(T *term) bool {
+		Tp.is(func { T ->
 			if T == nil {
 				return false // no specific types
 			}
@@ -381,7 +381,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 		x := *x // don't clobber outer x
 		ok := false
 		code := IncompatibleAssign
-		Vp.is(func(V *term) bool {
+		Vp.is(func { V ->
 			if V == nil {
 				return false // no specific types
 			}

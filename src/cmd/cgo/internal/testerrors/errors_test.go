@@ -22,7 +22,7 @@ func path(file string) string {
 }
 
 func check(t *testing.T, file string) {
-	t.Run(file, func(t *testing.T) {
+	t.Run(file, func { t ->
 		testenv.MustHaveGoBuild(t)
 		testenv.MustHaveCGO(t)
 		t.Parallel()
@@ -148,7 +148,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
 		"-O",
 	} {
 		cflags := cflags
-		t.Run(cflags, func(t *testing.T) {
+		t.Run(cflags, func { t ->
 			testenv.MustHaveGoBuild(t)
 			testenv.MustHaveCGO(t)
 			t.Parallel()

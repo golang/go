@@ -47,9 +47,7 @@ func TestPermissions(t *testing.T) {
 	const maxWeight = 2 << 20
 	var buf, errBuf strings.Builder
 	s := newSequencer(maxWeight, &buf, &errBuf)
-	s.Add(fileWeight(fn, info), func(r *reporter) error {
-		return processFile(fn, info, nil, r)
-	})
+	s.Add(fileWeight(fn, info), func { r -> processFile(fn, info, nil, r) })
 	if s.GetExitCode() == 0 {
 		t.Fatal("rewrite of read-only file succeeded unexpectedly")
 	}

@@ -47,7 +47,7 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 		// handler is always at or after the current reading
 		// position, it is safe to use the most recent position
 		// base to compute the corresponding Pos value.
-		func(line, col uint, msg string) {
+		func { line, col, msg ->
 			if msg[0] != '/' {
 				p.errorAt(p.posAt(line, col), msg)
 				return
@@ -522,7 +522,7 @@ func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
 		g := new(Group)
 		p.clearPragma()
 		p.next() // must consume "(" after calling clearPragma!
-		p.list("grouped declaration", _Semi, _Rparen, func() bool {
+		p.list("grouped declaration", _Semi, _Rparen, func {
 			if x := f(g); x != nil {
 				list = append(list, x)
 			}
@@ -1271,7 +1271,7 @@ func (p *parser) complitexpr() *CompositeLit {
 
 	p.xnest++
 	p.want(_Lbrace)
-	x.Rbrace = p.list("composite literal", _Comma, _Rbrace, func() bool {
+	x.Rbrace = p.list("composite literal", _Comma, _Rbrace, func {
 		// value
 		e := p.bare_complitexpr()
 		if p.tok == _Colon {
@@ -1515,7 +1515,7 @@ func (p *parser) structType() *StructType {
 
 	p.want(_Struct)
 	p.want(_Lbrace)
-	p.list("struct type", _Semi, _Rbrace, func() bool {
+	p.list("struct type", _Semi, _Rbrace, func {
 		p.fieldDecl(typ)
 		return false
 	})
@@ -1534,7 +1534,7 @@ func (p *parser) interfaceType() *InterfaceType {
 
 	p.want(_Interface)
 	p.want(_Lbrace)
-	p.list("interface type", _Semi, _Rbrace, func() bool {
+	p.list("interface type", _Semi, _Rbrace, func {
 		var f *Field
 		if p.tok == _Name {
 			f = p.methodDecl()
@@ -1987,7 +1987,7 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 
 	var named int // number of parameters that have an explicit name and type
 	var typed int // number of parameters that have an explicit type
-	end := p.list("parameter list", _Comma, close, func() bool {
+	end := p.list("parameter list", _Comma, close, func {
 		var par *Field
 		if typ != nil {
 			if debug && name == nil {
@@ -2686,7 +2686,7 @@ func (p *parser) argList() (list []Expr, hasDots bool) {
 	}
 
 	p.xnest++
-	p.list("argument list", _Comma, _Rparen, func() bool {
+	p.list("argument list", _Comma, _Rparen, func {
 		list = append(list, p.expr())
 		hasDots = p.got(_DotDotDot)
 		return hasDots

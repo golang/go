@@ -188,9 +188,9 @@ func BenchmarkWorkerMinimize(b *testing.B) {
 		mem = <-ws.memMu
 		mem.setValue(encodedVals)
 		ws.memMu <- mem
-		b.Run(strconv.Itoa(sz), func(b *testing.B) {
+		b.Run(strconv.Itoa(sz), func { b ->
 			i := 0
-			ws.fuzzFn = func(_ CorpusEntry) (time.Duration, error) {
+			ws.fuzzFn = func { _ ->
 				if i == 0 {
 					i++
 					return time.Second, errors.New("initial failure for deflake")

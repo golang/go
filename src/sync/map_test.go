@@ -113,7 +113,7 @@ func applyCalls(m mapInterface, calls []mapCall) (results []mapResult, final map
 	}
 
 	final = make(map[any]any)
-	m.Range(func(k, v any) bool {
+	m.Range(func { k, v ->
 		final[k] = v
 		return true
 	})
@@ -188,7 +188,7 @@ func TestConcurrentRange(t *testing.T) {
 	for n := iters; n > 0; n-- {
 		seen := make(map[int64]bool, mapSize)
 
-		m.Range(func(ki, vi any) bool {
+		m.Range(func { ki, vi ->
 			k, v := ki.(int64), vi.(int64)
 			if v%k != 0 {
 				t.Fatalf("while Storing multiples of %v, Range saw value %v", k, v)
@@ -220,9 +220,7 @@ func TestIssue40999(t *testing.T) {
 	// indicates that keys have not been leaked.
 	for atomic.LoadUint32(&finalized) == 0 {
 		p := new(int)
-		runtime.SetFinalizer(p, func(*int) {
-			atomic.AddUint32(&finalized, 1)
-		})
+		runtime.SetFinalizer(p, func { atomic.AddUint32(&finalized, 1) })
 		m.Store(p, struct{}{})
 		m.Delete(p)
 		runtime.GC()
@@ -234,8 +232,8 @@ func TestMapRangeNestedCall(t *testing.T) { // Issue 46399
 	for i, v := range [3]string{"hello", "world", "Go"} {
 		m.Store(i, v)
 	}
-	m.Range(func(key, value any) bool {
-		m.Range(func(key, value any) bool {
+	m.Range(func { key, value ->
+		m.Range(func { key, value ->
 			// We should be able to load the key offered in the Range callback,
 			// because there are no concurrent Delete involved in this tested map.
 			if v, ok := m.Load(key); !ok || !reflect.DeepEqual(v, value) {
@@ -269,7 +267,7 @@ func TestMapRangeNestedCall(t *testing.T) { // Issue 46399
 	// After a Range of Delete, all keys should be removed and any
 	// further Range won't invoke the callback. Hence length remains 0.
 	length := 0
-	m.Range(func(key, value any) bool {
+	m.Range(func { key, value ->
 		length++
 		return true
 	})
@@ -291,9 +289,7 @@ func TestMapRangeNoAllocations(t *testing.T) { // Issue 62404
 	testenv.SkipIfOptimizationOff(t)
 	var m sync.Map
 	allocs := testing.AllocsPerRun(10, func() {
-		m.Range(func(key, value any) bool {
-			return true
-		})
+		m.Range(func { key, value -> true })
 	})
 	if allocs > 0 {
 		t.Errorf("AllocsPerRun of m.Range = %v; want 0", allocs)
@@ -340,7 +336,7 @@ func TestConcurrentClear(t *testing.T) {
 
 	m.Clear()
 
-	m.Range(func(k, v any) bool {
+	m.Range(func { k, v ->
 		t.Errorf("after Clear, Map contains (%v, %v); expected to be empty", k, v)
 
 		return true

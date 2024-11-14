@@ -329,7 +329,7 @@ func (s *Set) Encode() []byte {
 	s.mu.Unlock()
 
 	// Sort facts by (package, object, type) for determinism.
-	sort.Slice(gobFacts, func(i, j int) bool {
+	sort.Slice(gobFacts, func { i, j ->
 		x, y := gobFacts[i], gobFacts[j]
 		if x.PkgPath != y.PkgPath {
 			return x.PkgPath < y.PkgPath

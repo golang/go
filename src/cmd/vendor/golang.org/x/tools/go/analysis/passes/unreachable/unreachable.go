@@ -37,7 +37,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.FuncDecl)(nil),
 		(*ast.FuncLit)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		var body *ast.BlockStmt
 		switch n := n.(type) {
 		case *ast.FuncDecl:

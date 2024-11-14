@@ -504,9 +504,7 @@ func (csa *callSiteAnalyzer) scoreCallsRegion(fn *ir.Func, region ir.Nodes, csta
 		csl = append(csl, cs)
 	}
 	scoreCallsCache.csl = csl[:0]
-	sort.Slice(csl, func(i, j int) bool {
-		return csl[i].ID < csl[j].ID
-	})
+	sort.Slice(csl, func { i, j -> csl[i].ID < csl[j].ID })
 
 	// Score each call site.
 	var resultNameTab map[*ir.Name]resultPropAndCS
@@ -641,7 +639,7 @@ var allCallSites CallSiteTab
 func DumpInlCallSiteScores(profile *pgoir.Profile, budgetCallback func(fn *ir.Func, profile *pgoir.Profile) (int32, bool)) {
 
 	var indirectlyDueToPromotion func(cs *CallSite) bool
-	indirectlyDueToPromotion = func(cs *CallSite) bool {
+	indirectlyDueToPromotion = func { cs ->
 		bud, _ := budgetCallback(cs.Callee, profile)
 		hairyval := cs.Callee.Inl.Cost
 		score := int32(cs.Score)
@@ -702,7 +700,7 @@ func DumpInlCallSiteScores(profile *pgoir.Profile, budgetCallback func(fn *ir.Fu
 		for _, cs := range allCallSites {
 			sl = append(sl, cs)
 		}
-		sort.Slice(sl, func(i, j int) bool {
+		sort.Slice(sl, func { i, j ->
 			if sl[i].Score != sl[j].Score {
 				return sl[i].Score < sl[j].Score
 			}
@@ -730,7 +728,7 @@ func DumpInlCallSiteScores(profile *pgoir.Profile, budgetCallback func(fn *ir.Fu
 			if len(n) <= 64 {
 				return n
 			}
-			return n[:32] + "..." + n[len(n)-32:len(n)]
+			return n[:32] + "..." + n[len(n)-32:]
 		}
 
 		if len(sl) != 0 {

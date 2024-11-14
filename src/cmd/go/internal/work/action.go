@@ -339,7 +339,7 @@ func (b *Builder) Close() error {
 
 func closeBuilders() {
 	leakedBuilders := 0
-	builderWorkDirs.Range(func(bi, _ any) bool {
+	builderWorkDirs.Range(func { bi, _ ->
 		leakedBuilders++
 		if err := bi.(*Builder).Close(); err != nil {
 			base.Error(err)
@@ -543,7 +543,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 	}
 
 	// Construct package build action.
-	a := b.cacheAction("build", p, func() *Action {
+	a := b.cacheAction("build", p, func {
 		a := &Action{
 			Mode:    "build",
 			Package: p,
@@ -558,11 +558,11 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		}
 
 		if p.Internal.PGOProfile != "" {
-			pgoAction := b.cacheAction("preprocess PGO profile "+p.Internal.PGOProfile, nil, func() *Action {
+			pgoAction := b.cacheAction("preprocess PGO profile "+p.Internal.PGOProfile, nil, func {
 				a := &Action{
-					Mode:    "preprocess PGO profile",
-					Actor:   &pgoActor{input: p.Internal.PGOProfile},
-					Objdir:  b.NewObjdir(),
+					Mode:   "preprocess PGO profile",
+					Actor:  &pgoActor{input: p.Internal.PGOProfile},
+					Objdir: b.NewObjdir(),
 				}
 				a.Target = filepath.Join(a.Objdir, "pgo.preprofile")
 
@@ -626,7 +626,7 @@ func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
 
 func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct vet action.
-	a := b.cacheAction("vet", p, func() *Action {
+	a := b.cacheAction("vet", p, func {
 		a1 := b.CompileAction(mode|ModeVetOnly, depMode, p)
 
 		// vet expects to be able to import "fmt".
@@ -677,7 +677,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 // depMode is the action (build or install) to use when compiling dependencies.
 func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct link action.
-	a := b.cacheAction("link", p, func() *Action {
+	a := b.cacheAction("link", p, func {
 		a := &Action{
 			Mode:    "link",
 			Package: p,
@@ -751,7 +751,7 @@ func (b *Builder) installAction(a1 *Action, mode BuildMode) *Action {
 	}
 
 	p := a1.Package
-	return b.cacheAction(a1.Mode+"-install", p, func() *Action {
+	return b.cacheAction(a1.Mode+"-install", p, func {
 		// The install deletes the temporary build result,
 		// so we need all other actions, both past and future,
 		// that attempt to depend on the build to depend instead
@@ -888,7 +888,7 @@ func (b *Builder) buildmodeShared(mode, depMode BuildMode, args []string, pkgs [
 func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Action) *Action {
 	fullShlib := shlib
 	shlib = filepath.Base(shlib)
-	a := b.cacheAction("build-shlib "+shlib, nil, func() *Action {
+	a := b.cacheAction("build-shlib "+shlib, nil, func {
 		if a1 == nil {
 			// TODO(rsc): Need to find some other place to store config,
 			// not in pkg directory. See golang.org/issue/22196.
@@ -971,7 +971,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 	if (mode == ModeInstall || mode == ModeBuggyInstall) && a.Actor != nil {
 		buildAction := a
 
-		a = b.cacheAction("install-shlib "+shlib, nil, func() *Action {
+		a = b.cacheAction("install-shlib "+shlib, nil, func {
 			// Determine the eventual install target.
 			// The install target is root/pkg/shlib, where root is the source root
 			// in which all the packages lie.

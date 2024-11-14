@@ -157,9 +157,7 @@ func (c *UnixConn) writeMsg(b, oob []byte, addr *UnixAddr) (n, oobn int, err err
 func (sd *sysDialer) dialUnix(ctx context.Context, laddr, raddr *UnixAddr) (*UnixConn, error) {
 	ctrlCtxFn := sd.Dialer.ControlContext
 	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
-		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
-			return sd.Dialer.Control(network, address, c)
-		}
+		ctrlCtxFn = func { ctx, network, address, c -> sd.Dialer.Control(network, address, c) }
 	}
 	fd, err := unixSocket(ctx, sd.network, laddr, raddr, "dial", ctrlCtxFn)
 	if err != nil {
@@ -219,9 +217,7 @@ func (l *UnixListener) SetUnlinkOnClose(unlink bool) {
 func (sl *sysListener) listenUnix(ctx context.Context, laddr *UnixAddr) (*UnixListener, error) {
 	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
 	if sl.ListenConfig.Control != nil {
-		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
-			return sl.ListenConfig.Control(network, address, c)
-		}
+		ctrlCtxFn = func { ctx, network, address, c -> sl.ListenConfig.Control(network, address, c) }
 	}
 	fd, err := unixSocket(ctx, sl.network, laddr, nil, "listen", ctrlCtxFn)
 	if err != nil {
@@ -233,9 +229,7 @@ func (sl *sysListener) listenUnix(ctx context.Context, laddr *UnixAddr) (*UnixLi
 func (sl *sysListener) listenUnixgram(ctx context.Context, laddr *UnixAddr) (*UnixConn, error) {
 	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
 	if sl.ListenConfig.Control != nil {
-		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
-			return sl.ListenConfig.Control(network, address, c)
-		}
+		ctrlCtxFn = func { ctx, network, address, c -> sl.ListenConfig.Control(network, address, c) }
 	}
 	fd, err := unixSocket(ctx, sl.network, laddr, nil, "listen", ctrlCtxFn)
 	if err != nil {

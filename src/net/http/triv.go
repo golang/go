@@ -68,7 +68,7 @@ var booleanflag = flag.Bool("boolean", true, "another flag for testing")
 func FlagServer(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	fmt.Fprint(w, "Flags:\n")
-	flag.VisitAll(func(f *flag.Flag) {
+	flag.VisitAll(func { f ->
 		if f.Value.String() != f.DefValue {
 			fmt.Fprintf(w, "%s = %s [default = %s]\n", f.Name, f.Value.String(), f.DefValue)
 		} else {

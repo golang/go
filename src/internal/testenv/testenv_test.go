@@ -111,11 +111,11 @@ func TestHasGoBuild(t *testing.T) {
 
 	hasExec := false
 	hasExecGo := false
-	t.Run("MustHaveExec", func(t *testing.T) {
+	t.Run("MustHaveExec", func { t ->
 		testenv.MustHaveExec(t)
 		hasExec = true
 	})
-	t.Run("MustHaveExecPath", func(t *testing.T) {
+	t.Run("MustHaveExecPath", func { t ->
 		testenv.MustHaveExecPath(t, "go")
 		hasExecGo = true
 	})
@@ -140,7 +140,7 @@ func TestHasGoBuild(t *testing.T) {
 
 func TestMustHaveExec(t *testing.T) {
 	hasExec := false
-	t.Run("MustHaveExec", func(t *testing.T) {
+	t.Run("MustHaveExec", func { t ->
 		testenv.MustHaveExec(t)
 		t.Logf("MustHaveExec did not skip")
 		hasExec = true

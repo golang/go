@@ -219,7 +219,7 @@ func BenchmarkIntMap(b *testing.B) {
 
 func BenchmarkMapFirst(b *testing.B) {
 	for n := 1; n <= 16; n++ {
-		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d", n), func { b ->
 			m := make(map[int]bool)
 			for i := 0; i < n; i++ {
 				m[i] = true
@@ -233,7 +233,7 @@ func BenchmarkMapFirst(b *testing.B) {
 }
 func BenchmarkMapMid(b *testing.B) {
 	for n := 1; n <= 16; n++ {
-		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d", n), func { b ->
 			m := make(map[int]bool)
 			for i := 0; i < n; i++ {
 				m[i] = true
@@ -247,7 +247,7 @@ func BenchmarkMapMid(b *testing.B) {
 }
 func BenchmarkMapLast(b *testing.B) {
 	for n := 1; n <= 16; n++ {
-		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d", n), func { b ->
 			m := make(map[int]bool)
 			for i := 0; i < n; i++ {
 				m[i] = true
@@ -301,14 +301,14 @@ func BenchmarkRepeatedLookupStrMapKey32(b *testing.B) { benchmarkRepeatedLookup(
 func BenchmarkRepeatedLookupStrMapKey1M(b *testing.B) { benchmarkRepeatedLookup(b, 1<<20) }
 
 func BenchmarkMakeMap(b *testing.B) {
-	b.Run("[Byte]Byte", func(b *testing.B) {
+	b.Run("[Byte]Byte", func { b ->
 		var m map[byte]byte
 		for i := 0; i < b.N; i++ {
 			m = make(map[byte]byte, 10)
 		}
 		hugeSink = m
 	})
-	b.Run("[Int]Int", func(b *testing.B) {
+	b.Run("[Int]Int", func { b ->
 		var m map[int]int
 		for i := 0; i < b.N; i++ {
 			m = make(map[int]int, 10)
@@ -400,7 +400,7 @@ func BenchmarkSmallKeyMap(b *testing.B) {
 
 func BenchmarkMapPopulate(b *testing.B) {
 	for size := 1; size < 1000000; size *= 10 {
-		b.Run(strconv.Itoa(size), func(b *testing.B) {
+		b.Run(strconv.Itoa(size), func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				m := make(map[int]bool)
@@ -432,9 +432,9 @@ func BenchmarkComplexAlgMap(b *testing.B) {
 }
 
 func BenchmarkGoMapClear(b *testing.B) {
-	b.Run("Reflexive", func(b *testing.B) {
+	b.Run("Reflexive", func { b ->
 		for size := 1; size < 100000; size *= 10 {
-			b.Run(strconv.Itoa(size), func(b *testing.B) {
+			b.Run(strconv.Itoa(size), func { b ->
 				m := make(map[int]int, size)
 				for i := 0; i < b.N; i++ {
 					m[0] = size // Add one element so len(m) != 0 avoiding fast paths.
@@ -443,9 +443,9 @@ func BenchmarkGoMapClear(b *testing.B) {
 			})
 		}
 	})
-	b.Run("NonReflexive", func(b *testing.B) {
+	b.Run("NonReflexive", func { b ->
 		for size := 1; size < 100000; size *= 10 {
-			b.Run(strconv.Itoa(size), func(b *testing.B) {
+			b.Run(strconv.Itoa(size), func { b ->
 				m := make(map[float64]int, size)
 				for i := 0; i < b.N; i++ {
 					m[1.0] = size // Add one element so len(m) != 0 avoiding fast paths.
@@ -458,9 +458,9 @@ func BenchmarkGoMapClear(b *testing.B) {
 
 func BenchmarkMapStringConversion(b *testing.B) {
 	for _, length := range []int{32, 64} {
-		b.Run(strconv.Itoa(length), func(b *testing.B) {
+		b.Run(strconv.Itoa(length), func { b ->
 			bytes := make([]byte, length)
-			b.Run("simple", func(b *testing.B) {
+			b.Run("simple", func { b ->
 				b.ReportAllocs()
 				m := make(map[string]int)
 				m[string(bytes)] = 0
@@ -468,7 +468,7 @@ func BenchmarkMapStringConversion(b *testing.B) {
 					_ = m[string(bytes)]
 				}
 			})
-			b.Run("struct", func(b *testing.B) {
+			b.Run("struct", func { b ->
 				b.ReportAllocs()
 				type stringstruct struct{ s string }
 				m := make(map[stringstruct]int)
@@ -477,7 +477,7 @@ func BenchmarkMapStringConversion(b *testing.B) {
 					_ = m[stringstruct{string(bytes)}]
 				}
 			})
-			b.Run("array", func(b *testing.B) {
+			b.Run("array", func { b ->
 				b.ReportAllocs()
 				type stringarray [1]string
 				m := make(map[stringarray]int)

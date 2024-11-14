@@ -44,7 +44,7 @@ func ModCompare(path string, x, y string) int {
 // ModSort is like module.Sort but understands the "go" and "toolchain"
 // modules and their version ordering.
 func ModSort(list []module.Version) {
-	sort.Slice(list, func(i, j int) bool {
+	sort.Slice(list, func { i, j ->
 		mi := list[i]
 		mj := list[j]
 		if mi.Path != mj.Path {

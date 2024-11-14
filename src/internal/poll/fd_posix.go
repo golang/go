@@ -35,9 +35,7 @@ func (fd *FD) Fchown(uid, gid int) error {
 		return err
 	}
 	defer fd.decref()
-	return ignoringEINTR(func() error {
-		return syscall.Fchown(fd.Sysfd, uid, gid)
-	})
+	return ignoringEINTR(func { syscall.Fchown(fd.Sysfd, uid, gid) })
 }
 
 // Ftruncate wraps syscall.Ftruncate.
@@ -46,9 +44,7 @@ func (fd *FD) Ftruncate(size int64) error {
 		return err
 	}
 	defer fd.decref()
-	return ignoringEINTR(func() error {
-		return syscall.Ftruncate(fd.Sysfd, size)
-	})
+	return ignoringEINTR(func { syscall.Ftruncate(fd.Sysfd, size) })
 }
 
 // RawControl invokes the user-defined function f for a non-IO

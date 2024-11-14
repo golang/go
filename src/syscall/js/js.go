@@ -50,9 +50,7 @@ func makeValue(r ref) Value {
 	if (r>>32)&nanHead == nanHead && typeFlag != typeFlagNone {
 		gcPtr = new(ref)
 		*gcPtr = r
-		runtime.SetFinalizer(gcPtr, func(p *ref) {
-			finalizeRef(*p)
-		})
+		runtime.SetFinalizer(gcPtr, func { p -> finalizeRef(*p) })
 	}
 
 	return Value{ref: r, gcPtr: gcPtr}
@@ -213,7 +211,8 @@ func ValueOf(x any) Value {
 // stringVal copies string x to Javascript and returns a ref.
 //
 // (noescape): This is safe because no references are maintained to the
-//             Go string x after the syscall returns.
+//
+//	Go string x after the syscall returns.
 //
 //go:wasmimport gojs syscall/js.stringVal
 //go:noescape
@@ -303,7 +302,8 @@ func (v Value) Get(p string) Value {
 // valueGet returns a ref to JavaScript property p of ref v.
 //
 // (noescape): This is safe because no references are maintained to the
-//             Go string p after the syscall returns.
+//
+//	Go string p after the syscall returns.
 //
 //go:wasmimport gojs syscall/js.valueGet
 //go:noescape
@@ -324,7 +324,8 @@ func (v Value) Set(p string, x any) {
 // valueSet sets property p of ref v to ref x.
 //
 // (noescape): This is safe because no references are maintained to the
-//             Go string p after the syscall returns.
+//
+//	Go string p after the syscall returns.
 //
 //go:wasmimport gojs syscall/js.valueSet
 //go:noescape
@@ -343,7 +344,8 @@ func (v Value) Delete(p string) {
 // valueDelete deletes the JavaScript property p of ref v.
 //
 // (noescape): This is safe because no references are maintained to the
-//             Go string p after the syscall returns.
+//
+//	Go string p after the syscall returns.
 //
 //go:wasmimport gojs syscall/js.valueDelete
 //go:noescape
@@ -448,9 +450,10 @@ func (v Value) Call(m string, args ...any) Value {
 // valueCall does a JavaScript call to the method name m of ref v with the given arguments.
 //
 // (noescape): This is safe because no references are maintained to the
-//             Go string m after the syscall returns. Additionally, the args slice
-//             is only used temporarily to collect the JavaScript objects for
-//             the JavaScript method invocation.
+//
+//	Go string m after the syscall returns. Additionally, the args slice
+//	is only used temporarily to collect the JavaScript objects for
+//	the JavaScript method invocation.
 //
 //go:wasmimport gojs syscall/js.valueCall
 //go:nosplit
@@ -478,8 +481,9 @@ func (v Value) Invoke(args ...any) Value {
 // valueInvoke does a JavaScript call to value v with the given arguments.
 //
 // (noescape): This is safe because the args slice is only used temporarily
-//             to collect the JavaScript objects for the JavaScript method
-//             invocation.
+//
+//	to collect the JavaScript objects for the JavaScript method
+//	invocation.
 //
 //go:wasmimport gojs syscall/js.valueInvoke
 //go:noescape
@@ -506,7 +510,8 @@ func (v Value) New(args ...any) Value {
 // valueNew uses JavaScript's "new" operator with value v as a constructor and the given arguments.
 //
 // (noescape): This is safe because the args slice is only used temporarily
-//             to collect the JavaScript objects for the constructor execution.
+//
+//	to collect the JavaScript objects for the constructor execution.
 //
 //go:wasmimport gojs syscall/js.valueNew
 //go:noescape
@@ -615,7 +620,8 @@ func valuePrepareString(v ref) (ref, int)
 // valueLoadString loads string data located at ref v into byte slice b.
 //
 // (noescape): This is safe because the byte slice is only used as a destination
-//             for storing the string data and references to it are not maintained.
+//
+//	for storing the string data and references to it are not maintained.
 //
 //go:wasmimport gojs syscall/js.valueLoadString
 //go:noescape
@@ -659,7 +665,8 @@ func CopyBytesToGo(dst []byte, src Value) int {
 // copyBytesToGo copies bytes from src to dst.
 //
 // (noescape): This is safe because the dst byte slice is only used as a dst
-//             copy buffer and no references to it are maintained.
+//
+//	copy buffer and no references to it are maintained.
 //
 //go:wasmimport gojs syscall/js.copyBytesToGo
 //go:noescape
@@ -680,7 +687,8 @@ func CopyBytesToJS(dst Value, src []byte) int {
 // copyBytesToJs copies bytes from src to dst.
 //
 // (noescape): This is safe because the src byte slice is only used as a src
-//             copy buffer and no references to it are maintained.
+//
+//	copy buffer and no references to it are maintained.
 //
 //go:wasmimport gojs syscall/js.copyBytesToJS
 //go:noescape

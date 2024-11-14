@@ -43,9 +43,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
 	if s.terms.isAll() {
 		return s.comparable
 	}
-	return s.is(func(t *term) bool {
-		return t != nil && comparable(t.typ, false, seen, nil)
-	})
+	return s.is(func { t -> t != nil && comparable(t.typ, false, seen, nil) })
 }
 
 // NumMethods returns the number of methods available.

@@ -213,7 +213,7 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			var buf strings.Builder
 			enc := NewEncoder(&buf)
 			if err := enc.Encode(tt.v); err != nil {
@@ -363,7 +363,7 @@ func TestBlocking(t *testing.T) {
 		{Name(""), `[1, 2, 3]`},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			r, w := net.Pipe()
 			go w.Write([]byte(tt.in))
 			var val any
@@ -459,7 +459,7 @@ func TestDecodeInStream(t *testing.T) {
 		}},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			dec := NewDecoder(strings.NewReader(tt.json))
 			for i, want := range tt.expTokens {
 				var got any
@@ -491,9 +491,7 @@ func TestDecodeInStream(t *testing.T) {
 func TestHTTPDecoding(t *testing.T) {
 	const raw = `{ "foo": "bar" }`
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(raw))
-	}))
+	ts := httptest.NewServer(http.HandlerFunc(func { w, r -> w.Write([]byte(raw)) }))
 	defer ts.Close()
 	res, err := http.Get(ts.URL)
 	if err != nil {

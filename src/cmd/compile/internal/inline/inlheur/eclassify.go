@@ -46,7 +46,7 @@ import (
 func ShouldFoldIfNameConstant(n ir.Node, names []*ir.Name) bool {
 	cl := makeExprClassifier(names)
 	var doNode func(ir.Node) bool
-	doNode = func(n ir.Node) bool {
+	doNode = func { n ->
 		ir.DoChildren(n, doNode)
 		cl.Visit(n)
 		return false

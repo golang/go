@@ -28,7 +28,7 @@ func TestJSONTraceHandler(t *testing.T) {
 		t.Fatalf("discovering tests: %v", err)
 	}
 	for _, testPath := range testPaths {
-		t.Run(filepath.Base(testPath), func(t *testing.T) {
+		t.Run(filepath.Base(testPath), func { t ->
 			parsed := getTestTrace(t, testPath)
 			data := recordJSONTraceHandlerResponse(t, parsed)
 			// TODO(mknyszek): Check that there's one at most goroutine per proc at any given time.

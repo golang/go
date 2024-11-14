@@ -258,7 +258,7 @@ func (d *HashDebug) MatchPkgFunc(pkg, fn string, note func() string) bool {
 
 func (d *HashDebug) matchPkgFunc(pkg, fn string, note func() string) bool {
 	hash := bisect.Hash(pkg, fn)
-	return d.matchAndLog(hash, func() string { return pkg + "." + fn }, note)
+	return d.matchAndLog(hash, func { pkg + "." + fn }, note)
 }
 
 // MatchPos is similar to MatchPkgFunc, but for hash computation
@@ -284,7 +284,7 @@ func (d *HashDebug) matchPosWithInfo(ctxt *obj.Link, pos src.XPos, info any, not
 		hash = bisect.Hash(hash, info)
 	}
 	return d.matchAndLog(hash,
-		func() string {
+		func {
 			r := d.fmtPos(ctxt, pos)
 			if info != nil {
 				r += fmt.Sprintf(" (%v)", info)
@@ -365,9 +365,7 @@ func (d *HashDebug) hashPos(ctxt *obj.Link, pos src.XPos) uint64 {
 		return bisect.Hash(d.short(p.Filename()), p.Line(), p.Col())
 	}
 	h := bisect.Hash()
-	ctxt.AllPos(pos, func(p src.Pos) {
-		h = bisect.Hash(h, d.short(p.Filename()), p.Line(), p.Col())
-	})
+	ctxt.AllPos(pos, func { p -> h = bisect.Hash(h, d.short(p.Filename()), p.Line(), p.Col()) })
 	return h
 }
 
@@ -381,9 +379,7 @@ func (d *HashDebug) fmtPos(ctxt *obj.Link, pos src.XPos) string {
 		return format(ctxt.InnermostPos(pos))
 	}
 	var stk []string
-	ctxt.AllPos(pos, func(p src.Pos) {
-		stk = append(stk, format(p))
-	})
+	ctxt.AllPos(pos, func { p -> stk = append(stk, format(p)) })
 	return strings.Join(stk, "; ")
 }
 

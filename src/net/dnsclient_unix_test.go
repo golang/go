@@ -1226,7 +1226,7 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 			IsTemporary: true,
 		}
 	}
-	makeTimeout := func() error {
+	makeTimeout := func {
 		return &DNSError{
 			Err:         os.ErrDeadlineExceeded.Error(),
 			Name:        name,
@@ -1235,7 +1235,7 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 			IsTemporary: true,
 		}
 	}
-	makeNxDomain := func() error {
+	makeNxDomain := func {
 		return &DNSError{
 			Err:        errNoSuchHost.Error(),
 			Name:       name,
@@ -1643,7 +1643,7 @@ func TestNoSuchHost(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			lookups := 0
 			err := lookupWithFake(fakeDNSServer{
 				rh: func(n, s string, q dnsmessage.Message, d time.Time) (dnsmessage.Message, error) {
@@ -2258,7 +2258,7 @@ func TestNullMX(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookupMX: %v", err)
 	}
-	if want := []*MX{&MX{Host: "."}}; !reflect.DeepEqual(rrset, want) {
+	if want := []*MX{{Host: "."}}; !reflect.DeepEqual(rrset, want) {
 		records := []string{}
 		for _, rr := range rrset {
 			records = append(records, fmt.Sprintf("%v", rr))
@@ -2299,7 +2299,7 @@ func TestRootNS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookupNS: %v", err)
 	}
-	if want := []*NS{&NS{Host: "i.root-servers.net."}}; !reflect.DeepEqual(rrset, want) {
+	if want := []*NS{{Host: "i.root-servers.net."}}; !reflect.DeepEqual(rrset, want) {
 		records := []string{}
 		for _, rr := range rrset {
 			records = append(records, fmt.Sprintf("%v", rr))
@@ -2382,12 +2382,8 @@ func testGoLookupIPCNAMEOrderHostsAliases(t *testing.T, mode hostLookupOrder, lo
 // This isn't a great test as it just tests the dnsmessage package
 // against itself.
 func TestDNSPacketSize(t *testing.T) {
-	t.Run("enabled", func(t *testing.T) {
-		testDNSPacketSize(t, false)
-	})
-	t.Run("disabled", func(t *testing.T) {
-		testDNSPacketSize(t, true)
-	})
+	t.Run("enabled", func { t -> testDNSPacketSize(t, false) })
+	t.Run("disabled", func { t -> testDNSPacketSize(t, true) })
 }
 
 func testDNSPacketSize(t *testing.T, disable bool) {

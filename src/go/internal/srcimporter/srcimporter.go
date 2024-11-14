@@ -166,7 +166,7 @@ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, erro
 	// use build.Context's OpenFile if there is one
 	open := p.ctxt.OpenFile
 	if open == nil {
-		open = func(name string) (io.ReadCloser, error) { return os.Open(name) }
+		open = func { name -> os.Open(name) }
 	}
 
 	files := make([]*ast.File, len(filenames))

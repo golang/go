@@ -15,9 +15,7 @@ import (
 )
 
 func init() {
-	isEADDRINUSE = func(err error) bool {
-		return errors.Is(err, syscall.EADDRINUSE)
-	}
+	isEADDRINUSE = func { err -> errors.Is(err, syscall.EADDRINUSE) }
 }
 
 // Issue 16523
@@ -50,7 +48,7 @@ func TestDialContextCancelRace(t *testing.T) {
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
 
-	connectFunc = func(fd int, addr syscall.Sockaddr) error {
+	connectFunc = func { fd, addr ->
 		err := oldConnectFunc(fd, addr)
 		t.Logf("connect(%d, addr) = %v", fd, err)
 		if err == nil {

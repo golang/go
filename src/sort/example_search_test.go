@@ -15,7 +15,7 @@ func ExampleSearch() {
 	a := []int{1, 3, 6, 10, 15, 21, 28, 36, 45, 55}
 	x := 6
 
-	i := sort.Search(len(a), func(i int) bool { return a[i] >= x })
+	i := sort.Search(len(a), func { i -> a[i] >= x })
 	if i < len(a) && a[i] == x {
 		fmt.Printf("found %d at index %d in %v\n", x, i, a)
 	} else {
@@ -32,7 +32,7 @@ func ExampleSearch_descendingOrder() {
 	a := []int{55, 45, 36, 28, 21, 15, 10, 6, 3, 1}
 	x := 6
 
-	i := sort.Search(len(a), func(i int) bool { return a[i] <= x })
+	i := sort.Search(len(a), func { i -> a[i] <= x })
 	if i < len(a) && a[i] == x {
 		fmt.Printf("found %d at index %d in %v\n", x, i, a)
 	} else {
@@ -47,9 +47,7 @@ func ExampleFind() {
 	a := []string{"apple", "banana", "lemon", "mango", "pear", "strawberry"}
 
 	for _, x := range []string{"banana", "orange"} {
-		i, found := sort.Find(len(a), func(i int) int {
-			return strings.Compare(x, a[i])
-		})
+		i, found := sort.Find(len(a), func { i -> strings.Compare(x, a[i]) })
 		if found {
 			fmt.Printf("found %s at index %d\n", x, i)
 		} else {

@@ -236,9 +236,7 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 		isCall := func(n ir.Node) bool {
 			return n.Op() == ir.OCALL || n.Op() == ir.OCALLFUNC
 		}
-		sort.SliceStable(c, func(i, j int) bool {
-			return !isCall(c[i]) && isCall(c[j])
-		})
+		sort.SliceStable(c, func { i, j -> !isCall(c[i]) && isCall(c[j]) })
 		flatConds = append(flatConds, c...)
 	}
 	return flatConds, len(conds) > 1

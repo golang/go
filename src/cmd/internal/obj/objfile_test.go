@@ -39,13 +39,13 @@ func TestContentHash64(t *testing.T) {
 
 func TestContentHash(t *testing.T) {
 	syms := []*LSym{
-		&LSym{P: []byte("TestSymbol")},  // 0
-		&LSym{P: []byte("TestSymbol")},  // 1
-		&LSym{P: []byte("TestSymbol2")}, // 2
-		&LSym{P: []byte("")},            // 3
-		&LSym{P: []byte("")},            // 4
-		&LSym{P: []byte("")},            // 5
-		&LSym{P: []byte("")},            // 6
+		{P: []byte("TestSymbol")},  // 0
+		{P: []byte("TestSymbol")},  // 1
+		{P: []byte("TestSymbol2")}, // 2
+		{P: []byte("")},            // 3
+		{P: []byte("")},            // 4
+		{P: []byte("")},            // 5
+		{P: []byte("")},            // 6
 	}
 	for _, s := range syms {
 		s.Set(AttrContentAddressable, true)

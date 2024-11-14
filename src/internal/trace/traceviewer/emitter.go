@@ -44,11 +44,11 @@ func ViewerDataTraceConsumer(w io.Writer, startIdx, endIdx int64) TraceConsumer 
 				// not in the range. Skip!
 				return
 			}
-			WalkStackFrames(allFrames, v.Stack, func(id int) {
+			WalkStackFrames(allFrames, v.Stack, func { id ->
 				s := strconv.Itoa(id)
 				requiredFrames[s] = allFrames[s]
 			})
-			WalkStackFrames(allFrames, v.EndStack, func(id int) {
+			WalkStackFrames(allFrames, v.EndStack, func { id ->
 				s := strconv.Itoa(id)
 				requiredFrames[s] = allFrames[s]
 			})
@@ -103,11 +103,11 @@ func SplittingTraceConsumer(max int) (*splitter, TraceConsumer) {
 				// can include them in the required part of the
 				// trace.
 				data.Events = append(data.Events, v)
-				WalkStackFrames(allFrames, v.Stack, func(id int) {
+				WalkStackFrames(allFrames, v.Stack, func { id ->
 					s := strconv.Itoa(id)
 					data.Frames[s] = allFrames[s]
 				})
-				WalkStackFrames(allFrames, v.EndStack, func(id int) {
+				WalkStackFrames(allFrames, v.EndStack, func { id ->
 					s := strconv.Itoa(id)
 					data.Frames[s] = allFrames[s]
 				})
@@ -118,12 +118,9 @@ func SplittingTraceConsumer(max int) (*splitter, TraceConsumer) {
 			size := eventSz{Time: v.Time, Sz: cw.size + 1} // +1 for ",".
 			// Add referenced stack frames. Their size is computed
 			// in flush, where we can dedup across events.
-			WalkStackFrames(allFrames, v.Stack, func(id int) {
-				size.Frames = append(size.Frames, id)
-			})
-			WalkStackFrames(allFrames, v.EndStack, func(id int) {
-				size.Frames = append(size.Frames, id) // This may add duplicates. We'll dedup later.
-			})
+			WalkStackFrames(allFrames, v.Stack, func { id -> size.Frames = append(size.Frames, id) })
+			WalkStackFrames(allFrames, v.EndStack, func { id -> size.Frames = append(size.Frames, id) })// This may add duplicates. We'll dedup later.
+
 			sizes = append(sizes, size)
 			cw.size = 0
 		},

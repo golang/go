@@ -50,9 +50,7 @@ func OpenFile(name string, flag int, perm fs.FileMode) (*File, error) {
 	// especially don't want to leave a file locked after we're done with it. Our
 	// Close method is what releases the locks, so use a finalizer to report
 	// missing Close calls on a best-effort basis.
-	runtime.SetFinalizer(f, func(f *File) {
-		panic(fmt.Sprintf("lockedfile.File %s became unreachable without a call to Close", f.Name()))
-	})
+	runtime.SetFinalizer(f, func { f -> panic(fmt.Sprintf("lockedfile.File %s became unreachable without a call to Close", f.Name())) })
 
 	return f, nil
 }

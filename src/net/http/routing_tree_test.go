@@ -259,7 +259,7 @@ func TestMatchingMethods(t *testing.T) {
 			"",
 		},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			ms := map[string]bool{}
 			test.tree.matchingMethods(test.host, test.path, ms)
 			got := strings.Join(slices.Sorted(maps.Keys(ms)), ",")
@@ -281,7 +281,7 @@ func (n *routingNode) print(w io.Writer, level int) {
 	}
 
 	var keys []string
-	n.children.eachPair(func(k string, _ *routingNode) bool {
+	n.children.eachPair(func { k, _ ->
 		keys = append(keys, k)
 		return true
 	})

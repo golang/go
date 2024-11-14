@@ -226,7 +226,7 @@ func flagEditworkGodebug(arg string) {
 	if !ok || strings.ContainsAny(arg, "\"`',") {
 		base.Fatalf("go: -godebug=%s: need key=value", arg)
 	}
-	workedits = append(workedits, func(f *modfile.WorkFile) {
+	workedits = append(workedits, func { f ->
 		if err := f.AddGodebug(key, value); err != nil {
 			base.Fatalf("go: -godebug=%s: %v", arg, err)
 		}
@@ -235,16 +235,14 @@ func flagEditworkGodebug(arg string) {
 
 // flagEditworkDropGodebug implements the -dropgodebug flag.
 func flagEditworkDropGodebug(arg string) {
-	workedits = append(workedits, func(f *modfile.WorkFile) {
-		if err := f.DropGodebug(arg); err != nil {
-			base.Fatalf("go: -dropgodebug=%s: %v", arg, err)
-		}
-	})
+	workedits = append(workedits, func { f -> if err := f.DropGodebug(arg); err != nil {
+		base.Fatalf("go: -dropgodebug=%s: %v", arg, err)
+	} })
 }
 
 // flagEditworkUse implements the -use flag.
 func flagEditworkUse(arg string) {
-	workedits = append(workedits, func(f *modfile.WorkFile) {
+	workedits = append(workedits, func { f ->
 		_, mf, err := modload.ReadModFile(filepath.Join(arg, "go.mod"), nil)
 		modulePath := ""
 		if err == nil {
@@ -259,7 +257,7 @@ func flagEditworkUse(arg string) {
 
 // flagEditworkDropUse implements the -dropuse flag.
 func flagEditworkDropUse(arg string) {
-	workedits = append(workedits, func(f *modfile.WorkFile) {
+	workedits = append(workedits, func { f ->
 		if err := f.DropUse(modload.ToDirectoryPath(arg)); err != nil {
 			base.Fatalf("go: -dropdirectory=%s: %v", arg, err)
 		}
@@ -317,7 +315,7 @@ func flagEditworkReplace(arg string) {
 		base.Fatalf("go: -replace=%s: unversioned new path must be local directory", arg)
 	}
 
-	workedits = append(workedits, func(f *modfile.WorkFile) {
+	workedits = append(workedits, func { f ->
 		if err := f.AddReplace(oldPath, oldVersion, newPath, newVersion); err != nil {
 			base.Fatalf("go: -replace=%s: %v", arg, err)
 		}
@@ -330,7 +328,7 @@ func flagEditworkDropReplace(arg string) {
 	if err != nil {
 		base.Fatalf("go: -dropreplace=%s: %v", arg, err)
 	}
-	workedits = append(workedits, func(f *modfile.WorkFile) {
+	workedits = append(workedits, func { f ->
 		if err := f.DropReplace(path, version); err != nil {
 			base.Fatalf("go: -dropreplace=%s: %v", arg, err)
 		}

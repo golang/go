@@ -58,7 +58,7 @@ var marshalTests = []struct {
 
 func TestMarshalHash(t *testing.T) {
 	for _, tt := range marshalTests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			buf := make([]byte, 256)
 			for i := range buf {
 				buf[i] = byte(i)

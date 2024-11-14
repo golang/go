@@ -96,7 +96,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		// subexperiments, and not an experiment itself. Doing
 		// this as an alias make both "regabi" and "noregabi"
 		// do the right thing.
-		names["regabi"] = func(v bool) {
+		names["regabi"] = func { v ->
 			flags.RegabiWrappers = v
 			flags.RegabiArgs = v
 		}

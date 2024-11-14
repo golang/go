@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-var CPUName = sync.OnceValue(func() string {
+var CPUName = sync.OnceValue(func {
 	if name := cpu.Name(); name != "" {
 		return name
 	}

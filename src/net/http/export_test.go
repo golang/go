@@ -44,7 +44,7 @@ func init() {
 	// and never assigned to.
 	testHookMu = new(sync.Mutex)
 
-	testHookClientDoResult = func(res *Response, err error) {
+	testHookClientDoResult = func { res, err ->
 		if err != nil {
 			if _, ok := err.(*url.Error); !ok {
 				panic(fmt.Sprintf("unexpected Client.Do error of type %T; want *url.Error", err))

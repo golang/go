@@ -48,7 +48,7 @@ func TestTestdata(t *testing.T) {
 		return bytes.ReplaceAll(b, []byte("$\n"), []byte("\n"))
 	}
 	for _, file := range files {
-		t.Run(filepath.Base(file), func(t *testing.T) {
+		t.Run(filepath.Base(file), func { t ->
 			var pr Printer
 			a, err := txtar.ParseFile(file)
 			if err != nil {

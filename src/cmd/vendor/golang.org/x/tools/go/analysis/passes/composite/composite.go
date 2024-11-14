@@ -58,7 +58,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	nodeFilter := []ast.Node{
 		(*ast.CompositeLit)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		cl := n.(*ast.CompositeLit)
 
 		typ := pass.TypesInfo.Types[cl].Type

@@ -453,7 +453,7 @@ func TestShuffleSmall(t *testing.T) {
 	// Check that Shuffle allows n=0 and n=1, but that swap is never called for them.
 	r := New(NewSource(1))
 	for n := 0; n <= 1; n++ {
-		r.Shuffle(n, func(i, j int) { t.Fatalf("swap called, n=%d i=%d j=%d", n, i, j) })
+		r.Shuffle(n, func { i, j -> t.Fatalf("swap called, n=%d i=%d j=%d", n, i, j) })
 	}
 }
 
@@ -488,7 +488,7 @@ func TestUniformFactorial(t *testing.T) {
 		top = 3
 	}
 	for n := 3; n <= top; n++ {
-		t.Run(fmt.Sprintf("n=%d", n), func(t *testing.T) {
+		t.Run(fmt.Sprintf("n=%d", n), func { t ->
 			// Calculate n!.
 			nfact := 1
 			for i := 2; i <= n; i++ {
@@ -509,13 +509,13 @@ func TestUniformFactorial(t *testing.T) {
 					for i := range p {
 						p[i] = i
 					}
-					r.Shuffle(n, func(i, j int) { p[i], p[j] = p[j], p[i] })
+					r.Shuffle(n, func { i, j -> p[i], p[j] = p[j], p[i] })
 					return encodePerm(p)
 				}},
 			}
 
 			for _, test := range tests {
-				t.Run(test.name, func(t *testing.T) {
+				t.Run(test.name, func { t ->
 					// Gather chi-squared values and check that they follow
 					// the expected normal distribution given n!-1 degrees of freedom.
 					// See https://en.wikipedia.org/wiki/Pearson%27s_chi-squared_test and
@@ -565,11 +565,9 @@ func BenchmarkInt63Threadsafe(b *testing.B) {
 }
 
 func BenchmarkInt63ThreadsafeParallel(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			Int63()
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		Int63()
+	} })
 }
 
 func BenchmarkInt63Unthreadsafe(b *testing.B) {
@@ -635,7 +633,7 @@ func BenchmarkPerm30ViaShuffle(b *testing.B) {
 		for i := range p {
 			p[i] = i
 		}
-		r.Shuffle(30, func(i, j int) { p[i], p[j] = p[j], p[i] })
+		r.Shuffle(30, func { i, j -> p[i], p[j] = p[j], p[i] })
 	}
 }
 
@@ -644,11 +642,9 @@ func BenchmarkPerm30ViaShuffle(b *testing.B) {
 func BenchmarkShuffleOverhead(b *testing.B) {
 	r := New(NewSource(1))
 	for n := b.N; n > 0; n-- {
-		r.Shuffle(52, func(i, j int) {
-			if i < 0 || i >= 52 || j < 0 || j >= 52 {
-				b.Fatalf("bad swap(%d, %d)", i, j)
-			}
-		})
+		r.Shuffle(52, func { i, j -> if i < 0 || i >= 52 || j < 0 || j >= 52 {
+			b.Fatalf("bad swap(%d, %d)", i, j)
+		} })
 	}
 }
 

@@ -350,7 +350,7 @@ func TestPIESize(t *testing.T) {
 		} else {
 			name += "internal"
 		}
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			t.Parallel()
 
 			dir := t.TempDir()

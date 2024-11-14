@@ -63,7 +63,7 @@ func (p *parser) init(filename string, src io.Reader, imports map[string]*types.
 
 func (p *parser) initScanner(filename string, src io.Reader) {
 	p.scanner.Init(src)
-	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
+	p.scanner.Error = func { _, msg -> p.error(msg) }
 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanFloats | scanner.ScanStrings
 	p.scanner.Whitespace = 1<<'\t' | 1<<' '
 	p.scanner.Filename = filename // for good error messages

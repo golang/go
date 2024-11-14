@@ -36,7 +36,7 @@ func DefaultCmds() map[string]Cmd {
 		"cp":      Cp(),
 		"echo":    Echo(),
 		"env":     Env(),
-		"exec":    Exec(func(cmd *exec.Cmd) error { return cmd.Process.Signal(os.Interrupt) }, 100*time.Millisecond), // arbitrary grace period
+		"exec":    Exec(func { cmd -> cmd.Process.Signal(os.Interrupt) }, 100*time.Millisecond), // arbitrary grace period
 		"exists":  Exists(),
 		"grep":    Grep(),
 		"help":    Help(),
@@ -96,7 +96,7 @@ func Cat() Cmd {
 			Summary: "concatenate files and print to the script's stdout buffer",
 			Args:    "files...",
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) == 0 {
 				return nil, ErrUsage
 			}
@@ -135,7 +135,7 @@ func Cd() Cmd {
 			Summary: "change the working directory",
 			Args:    "dir",
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) != 1 {
 				return nil, ErrUsage
 			}
@@ -154,7 +154,7 @@ func Chmod() Cmd {
 				"Only numerical permissions are supported.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) < 2 {
 				return nil, ErrUsage
 			}
@@ -188,9 +188,7 @@ func Cmp() Cmd {
 				"File1 can be 'stdout' or 'stderr' to compare the stdout or stderr buffer from the most recent command.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
-			return nil, doCompare(s, false, args...)
-		})
+		func { s, args -> nil, doCompare(s, false, args...) })
 }
 
 // Cmpenv is like Compare, but also performs environment substitutions
@@ -206,9 +204,7 @@ func Cmpenv() Cmd {
 				"File1 can be 'stdout' or 'stderr' to compare the script's stdout or stderr buffer.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
-			return nil, doCompare(s, true, args...)
-		})
+		func { s, args -> nil, doCompare(s, true, args...) })
 }
 
 func doCompare(s *State, env bool, args ...string) error {
@@ -267,7 +263,7 @@ func Cp() Cmd {
 				"src can include 'stdout' or 'stderr' to copy from the script's stdout or stderr buffer.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) < 2 {
 				return nil, ErrUsage
 			}
@@ -327,7 +323,7 @@ func Echo() Cmd {
 			Summary: "display a line of text",
 			Args:    "string...",
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			var buf strings.Builder
 			for i, arg := range args {
 				if i > 0 {
@@ -366,7 +362,7 @@ func Env() Cmd {
 				"Otherwise, add the listed key=value pairs to the environment or print the listed keys.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			out := new(strings.Builder)
 			if len(args) == 0 {
 				for _, kv := range s.env {
@@ -410,7 +406,7 @@ func Exec(cancel func(*exec.Cmd) error, waitDelay time.Duration) Cmd {
 			},
 			Async: true,
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) < 1 {
 				return nil, ErrUsage
 			}
@@ -442,7 +438,7 @@ func startCommand(s *State, name, path string, args []string, cancel func(*exec.
 		if cancel == nil {
 			cmd.Cancel = nil
 		} else {
-			cmd.Cancel = func() error { return cancel(cmd) }
+			cmd.Cancel = func { cancel(cmd) }
 		}
 		cmd.WaitDelay = waitDelay
 		cmd.Args[0] = name
@@ -482,7 +478,7 @@ func lookPath(s *State, command string) (string, error) {
 		// TODO(bcmills): Remove this assumption.
 		strEqual = strings.EqualFold
 	} else {
-		strEqual = func(a, b string) bool { return a == b }
+		strEqual = func { a, b -> a == b }
 	}
 
 	var pathExt []string
@@ -503,13 +499,9 @@ func lookPath(s *State, command string) (string, error) {
 				break
 			}
 		}
-		isExecutable = func(fi os.FileInfo) bool {
-			return fi.Mode().IsRegular()
-		}
+		isExecutable = func { fi -> fi.Mode().IsRegular() }
 	} else {
-		isExecutable = func(fi os.FileInfo) bool {
-			return fi.Mode().IsRegular() && fi.Mode().Perm()&0111 != 0
-		}
+		isExecutable = func { fi -> fi.Mode().IsRegular() && fi.Mode().Perm()&0111 != 0 }
 	}
 
 	pathEnv, _ := s.LookupEnv(pathEnvName())
@@ -569,7 +561,7 @@ func Exists() Cmd {
 			Summary: "check that files exist",
 			Args:    "[-readonly] [-exec] file...",
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			var readonly, exec bool
 		loop:
 			for len(args) > 0 {
@@ -622,9 +614,7 @@ func Grep() Cmd {
 			},
 			RegexpArgs: firstNonFlag,
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
-			return nil, match(s, args, "", "grep")
-		})
+		func { s, args -> nil, match(s, args, "", "grep") })
 }
 
 const matchUsage = "[-count=N] [-q] 'pattern'"
@@ -712,7 +702,7 @@ func Help() Cmd {
 				"To display complete documentation when listing all commands, pass the -v flag.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if s.engine == nil {
 				return nil, errors.New("no engine configured")
 			}
@@ -767,7 +757,7 @@ func Mkdir() Cmd {
 				"Unlike Unix mkdir, parent directories are always created if needed.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) < 1 {
 				return nil, ErrUsage
 			}
@@ -790,7 +780,7 @@ func Mv() Cmd {
 				"OS-specific restrictions may apply when old and new are in different directories.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) != 2 {
 				return nil, ErrUsage
 			}
@@ -823,7 +813,7 @@ func Program(name string, cancel func(*exec.Cmd) error, waitDelay time.Duration)
 			Args:    "[args...]",
 			Async:   true,
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			lookPathOnce.Do(func() {
 				path, pathErr = cfg.LookPath(name)
 			})
@@ -844,7 +834,7 @@ func Replace() Cmd {
 				"The 'old' and 'new' arguments are unquoted as if in quoted Go strings.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args)%2 != 1 {
 				return nil, ErrUsage
 			}
@@ -884,7 +874,7 @@ func Rm() Cmd {
 				"If the path is a directory, its contents are removed recursively.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) < 1 {
 				return nil, ErrUsage
 			}
@@ -904,7 +894,7 @@ func Rm() Cmd {
 func removeAll(dir string) error {
 	// module cache has 0444 directories;
 	// make them writable in order to remove content.
-	filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
+	filepath.WalkDir(dir, func { path, info, err ->
 		// chmod not only directories, but also things that we couldn't even stat
 		// due to permission errors: they may also be unreadable directories.
 		if err != nil || info.IsDir() {
@@ -927,7 +917,7 @@ func Sleep() Cmd {
 			},
 			Async: true,
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) != 1 {
 				return nil, ErrUsage
 			}
@@ -964,9 +954,7 @@ func Stderr() Cmd {
 			},
 			RegexpArgs: firstNonFlag,
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
-			return nil, match(s, args, s.Stderr(), "stderr")
-		})
+		func { s, args -> nil, match(s, args, s.Stderr(), "stderr") })
 }
 
 // Stdout searches for a regular expression in the stdout buffer.
@@ -981,9 +969,7 @@ func Stdout() Cmd {
 			},
 			RegexpArgs: firstNonFlag,
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
-			return nil, match(s, args, s.Stdout(), "stdout")
-		})
+		func { s, args -> nil, match(s, args, s.Stdout(), "stdout") })
 }
 
 // Stop returns a sentinel error that causes script execution to halt
@@ -997,7 +983,7 @@ func Stop() Cmd {
 				"The message is written to the script log, but no error is reported from the script engine.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) > 1 {
 				return nil, ErrUsage
 			}
@@ -1033,7 +1019,7 @@ func Symlink() Cmd {
 				"The '->' token (like in 'ls -l' output on Unix) is required.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) != 3 || args[1] != "->" {
 				return nil, ErrUsage
 			}
@@ -1060,7 +1046,7 @@ func Wait() Cmd {
 				"After the call to 'wait', the script's stdout and stderr buffers contain the concatenation of the background commands' outputs.",
 			},
 		},
-		func(s *State, args ...string) (WaitFunc, error) {
+		func { s, args ->
 			if len(args) > 0 {
 				return nil, ErrUsage
 			}

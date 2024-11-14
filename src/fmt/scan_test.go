@@ -84,7 +84,7 @@ var (
 type Xs string
 
 func (x *Xs) Scan(state ScanState, verb rune) error {
-	tok, err := state.Token(true, func(r rune) bool { return r == verb })
+	tok, err := state.Token(true, func { r -> r == verb })
 	if err != nil {
 		return err
 	}
@@ -531,17 +531,13 @@ func testScan(t *testing.T, f func(string) io.Reader, scan func(r io.Reader, a .
 
 func TestScan(t *testing.T) {
 	for _, r := range readers {
-		t.Run(r.name, func(t *testing.T) {
-			testScan(t, r.f, Fscan)
-		})
+		t.Run(r.name, func { t -> testScan(t, r.f, Fscan) })
 	}
 }
 
 func TestScanln(t *testing.T) {
 	for _, r := range readers {
-		t.Run(r.name, func(t *testing.T) {
-			testScan(t, r.f, Fscanln)
-		})
+		t.Run(r.name, func { t -> testScan(t, r.f, Fscanln) })
 	}
 }
 
@@ -674,9 +670,7 @@ func testScanfMulti(t *testing.T, f func(string) io.Reader) {
 
 func TestScanfMulti(t *testing.T) {
 	for _, r := range readers {
-		t.Run(r.name, func(t *testing.T) {
-			testScanfMulti(t, r.f)
-		})
+		t.Run(r.name, func { t -> testScanfMulti(t, r.f) })
 	}
 }
 

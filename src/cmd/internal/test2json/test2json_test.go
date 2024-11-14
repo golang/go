@@ -27,7 +27,7 @@ func TestGolden(t *testing.T) {
 	}
 	for _, file := range files {
 		name := strings.TrimSuffix(filepath.Base(file), ".test")
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			orig, err := os.ReadFile(file)
 			if err != nil {
 				t.Fatal(err)
@@ -63,7 +63,7 @@ func TestGolden(t *testing.T) {
 			}
 
 			// Write entire input in bulk.
-			t.Run("bulk", func(t *testing.T) {
+			t.Run("bulk", func { t ->
 				buf.Reset()
 				c = NewConverter(&buf, "", 0)
 				in = append([]byte{}, orig...)
@@ -73,7 +73,7 @@ func TestGolden(t *testing.T) {
 			})
 
 			// In bulk again with \r\n.
-			t.Run("crlf", func(t *testing.T) {
+			t.Run("crlf", func { t ->
 				buf.Reset()
 				c = NewConverter(&buf, "", 0)
 				in = bytes.ReplaceAll(orig, []byte("\n"), []byte("\r\n"))
@@ -83,7 +83,7 @@ func TestGolden(t *testing.T) {
 			})
 
 			// Write 2 bytes at a time on even boundaries.
-			t.Run("even2", func(t *testing.T) {
+			t.Run("even2", func { t ->
 				buf.Reset()
 				c = NewConverter(&buf, "", 0)
 				in = append([]byte{}, orig...)
@@ -99,7 +99,7 @@ func TestGolden(t *testing.T) {
 			})
 
 			// Write 2 bytes at a time on odd boundaries.
-			t.Run("odd2", func(t *testing.T) {
+			t.Run("odd2", func { t ->
 				buf.Reset()
 				c = NewConverter(&buf, "", 0)
 				in = append([]byte{}, orig...)
@@ -120,7 +120,7 @@ func TestGolden(t *testing.T) {
 			// Test with very small output buffers, to check that
 			// UTF8 sequences are not broken up.
 			for b := 5; b <= 8; b++ {
-				t.Run(fmt.Sprintf("tiny%d", b), func(t *testing.T) {
+				t.Run(fmt.Sprintf("tiny%d", b), func { t ->
 					oldIn := inBuffer
 					oldOut := outBuffer
 					defer func() {

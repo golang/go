@@ -738,9 +738,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 	vals := make([]any, len(originalVals))
 	copy(vals, originalVals)
 
-	shouldStop := func() bool {
-		return args.Limit > 0 && mem.header().count >= args.Limit
-	}
+	shouldStop := func { args.Limit > 0 && mem.header().count >= args.Limit }
 	fuzzOnce := func(entry CorpusEntry) (dur time.Duration, cov []byte, errMsg string) {
 		mem.header().count++
 		var err error
@@ -852,10 +850,8 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []any, mem *shar
 	memBytes := mem.valueRef()
 	bPtr := &memBytes
 	count := &mem.header().count
-	shouldStop := func() bool {
-		return ctx.Err() != nil ||
-			(args.Limit > 0 && *count >= args.Limit)
-	}
+	shouldStop := func { ctx.Err() != nil ||
+		(args.Limit > 0 && *count >= args.Limit) }
 	if shouldStop() {
 		return false, nil
 	}

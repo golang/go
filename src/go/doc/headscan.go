@@ -63,7 +63,7 @@ func main() {
 	flag.Parse()
 	fset := token.NewFileSet()
 	nheadings := 0
-	err := filepath.WalkDir(*root, func(path string, info fs.DirEntry, err error) error {
+	err := filepath.WalkDir(*root, func { path, info, err ->
 		if !info.IsDir() {
 			return nil
 		}

@@ -244,7 +244,7 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 		data []byte
 		err  error
 	}
-	result := c.record.Do(file, func() interface{} {
+	result := c.record.Do(file, func {
 		// Try the on-disk cache, or else get from web.
 		writeCache := false
 		data, err := c.ops.ReadCache(file)
@@ -552,7 +552,7 @@ func (c *Client) readTile(tile tlog.Tile) ([]byte, error) {
 		err  error
 	}
 
-	result := c.tileCache.Do(tile, func() interface{} {
+	result := c.tileCache.Do(tile, func {
 		// Try the requested tile in on-disk cache.
 		data, err := c.ops.ReadCache(c.tileCacheKey(tile))
 		if err == nil {

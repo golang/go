@@ -37,9 +37,9 @@ func TestMergeLocalState(t *testing.T) {
 		{
 			vars: []*ir.Name{v1, v2, v3},
 			partition: map[*ir.Name][]int{
-				v1: []int{0, 1, 2},
-				v2: []int{0, 1, 2},
-				v3: []int{0, 1, 2},
+				v1: {0, 1, 2},
+				v2: {0, 1, 2},
+				v3: {0, 1, 2},
 			},
 			experr: false,
 		},
@@ -47,9 +47,9 @@ func TestMergeLocalState(t *testing.T) {
 			// invalid mls.v slot -1
 			vars: []*ir.Name{v1, v2, v3},
 			partition: map[*ir.Name][]int{
-				v1: []int{-1, 0},
-				v2: []int{0, 1, 2},
-				v3: []int{0, 1, 2},
+				v1: {-1, 0},
+				v2: {0, 1, 2},
+				v3: {0, 1, 2},
 			},
 			experr: true,
 		},
@@ -57,9 +57,9 @@ func TestMergeLocalState(t *testing.T) {
 			// duplicate var in v
 			vars: []*ir.Name{v1, v2, v2},
 			partition: map[*ir.Name][]int{
-				v1: []int{0, 1, 2},
-				v2: []int{0, 1, 2},
-				v3: []int{0, 1, 2},
+				v1: {0, 1, 2},
+				v2: {0, 1, 2},
+				v3: {0, 1, 2},
 			},
 			experr: true,
 		},
@@ -67,9 +67,9 @@ func TestMergeLocalState(t *testing.T) {
 			// single element in partition
 			vars: []*ir.Name{v1, v2, v3},
 			partition: map[*ir.Name][]int{
-				v1: []int{0},
-				v2: []int{0, 1, 2},
-				v3: []int{0, 1, 2},
+				v1: {0},
+				v2: {0, 1, 2},
+				v3: {0, 1, 2},
 			},
 			experr: true,
 		},
@@ -77,9 +77,9 @@ func TestMergeLocalState(t *testing.T) {
 			// missing element 2
 			vars: []*ir.Name{v1, v2, v3},
 			partition: map[*ir.Name][]int{
-				v1: []int{0, 1},
-				v2: []int{0, 1},
-				v3: []int{0, 1},
+				v1: {0, 1},
+				v2: {0, 1},
+				v3: {0, 1},
 			},
 			experr: true,
 		},
@@ -87,9 +87,9 @@ func TestMergeLocalState(t *testing.T) {
 			// partitions disagree for v1 vs v2
 			vars: []*ir.Name{v1, v2, v3},
 			partition: map[*ir.Name][]int{
-				v1: []int{0, 1, 2},
-				v2: []int{1, 0, 2},
-				v3: []int{0, 1, 2},
+				v1: {0, 1, 2},
+				v2: {1, 0, 2},
+				v3: {0, 1, 2},
 			},
 			experr: true,
 		},

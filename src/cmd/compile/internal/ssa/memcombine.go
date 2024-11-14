@@ -232,9 +232,7 @@ func combineLoads(root *Value, n int64) bool {
 	}
 
 	// Sort in memory address order.
-	sort.Slice(r, func(i, j int) bool {
-		return r[i].offset < r[j].offset
-	})
+	sort.Slice(r, func { i, j -> r[i].offset < r[j].offset })
 
 	// Check that we have contiguous offsets.
 	for i := int64(0); i < n; i++ {
@@ -516,9 +514,7 @@ func combineStores(root *Value, n int64) bool {
 	pos := a[n-1].store.Pos
 
 	// Sort stores in increasing address order.
-	sort.Slice(a, func(i, j int) bool {
-		return a[i].offset < a[j].offset
-	})
+	sort.Slice(a, func { i, j -> a[i].offset < a[j].offset })
 
 	// Check that everything is written to sequential locations.
 	for i := int64(0); i < n; i++ {

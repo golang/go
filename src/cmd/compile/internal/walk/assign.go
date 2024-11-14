@@ -293,7 +293,7 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 		if deferResultWrite {
 			return true
 		}
-		return ir.Any(n, func(n ir.Node) bool {
+		return ir.Any(n, func { n ->
 			if n.Op() == ir.ONAME && assigned.Has(n.(*ir.Name)) {
 				return true
 			}

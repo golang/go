@@ -257,7 +257,7 @@ func (f FS) lookup(name string) *file {
 	// and then check if name is at that position.
 	dir, elem, _ := split(name)
 	files := *f.files
-	i := sortSearch(len(files), func(i int) bool {
+	i := sortSearch(len(files), func { i ->
 		idir, ielem, _ := split(files[i].name)
 		return idir > dir || idir == dir && ielem >= elem
 	})
@@ -275,11 +275,11 @@ func (f FS) readDir(dir string) []file {
 	// Binary search to find where dir starts and ends in the list
 	// and then return that slice of the list.
 	files := *f.files
-	i := sortSearch(len(files), func(i int) bool {
+	i := sortSearch(len(files), func { i ->
 		idir, _, _ := split(files[i].name)
 		return idir >= dir
 	})
-	j := sortSearch(len(files), func(j int) bool {
+	j := sortSearch(len(files), func { j ->
 		jdir, _, _ := split(files[j].name)
 		return jdir > dir
 	})

@@ -56,7 +56,7 @@ func TestHandlers(t *testing.T) {
 		{"/debug/pprof/", Index, http.StatusOK, "text/html; charset=utf-8", "", []byte("Types of profiles available:")},
 	}
 	for _, tc := range testCases {
-		t.Run(tc.path, func(t *testing.T) {
+		t.Run(tc.path, func { t ->
 			req := httptest.NewRequest("GET", "http://example.com"+tc.path, nil)
 			w := httptest.NewRecorder()
 			tc.handler(w, req)

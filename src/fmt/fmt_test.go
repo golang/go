@@ -1236,80 +1236,62 @@ func TestReorder(t *testing.T) {
 }
 
 func BenchmarkSprintfPadding(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%16f", 1.0)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%16f", 1.0)
+	} })
 }
 
 func BenchmarkSprintfEmpty(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("")
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("")
+	} })
 }
 
 func BenchmarkSprintfString(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%s", "hello")
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%s", "hello")
+	} })
 }
 
 func BenchmarkSprintfTruncateString(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%.3s", "日本語日本語日本語日本語")
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%.3s", "日本語日本語日本語日本語")
+	} })
 }
 
 func BenchmarkSprintfTruncateBytes(b *testing.B) {
 	var bytes any = []byte("日本語日本語日本語日本語")
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%.3s", bytes)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%.3s", bytes)
+	} })
 }
 
 func BenchmarkSprintfSlowParsingPath(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%.v", nil)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%.v", nil)
+	} })
 }
 
 func BenchmarkSprintfQuoteString(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%q", "日本語日本語日本語")
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%q", "日本語日本語日本語")
+	} })
 }
 
 func BenchmarkSprintfInt(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%d", 5)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%d", 5)
+	} })
 }
 
 func BenchmarkSprintfIntInt(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%d %d", 5, 6)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%d %d", 5, 6)
+	} })
 }
 
 func BenchmarkSprintfPrefixedInt(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			_ = Sprintf("This is some meaningless prefix text that needs to be scanned %d", 6)
 		}
@@ -1317,75 +1299,59 @@ func BenchmarkSprintfPrefixedInt(b *testing.B) {
 }
 
 func BenchmarkSprintfFloat(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%g", 5.23184)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%g", 5.23184)
+	} })
 }
 
 func BenchmarkSprintfComplex(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%f", 5.23184+5.23184i)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%f", 5.23184+5.23184i)
+	} })
 }
 
 func BenchmarkSprintfBoolean(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%t", true)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%t", true)
+	} })
 }
 
 func BenchmarkSprintfHexString(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("% #x", "0123456789abcdef")
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("% #x", "0123456789abcdef")
+	} })
 }
 
 func BenchmarkSprintfHexBytes(b *testing.B) {
 	data := []byte("0123456789abcdef")
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("% #x", data)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("% #x", data)
+	} })
 }
 
 func BenchmarkSprintfBytes(b *testing.B) {
 	data := []byte("0123456789abcdef")
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%v", data)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%v", data)
+	} })
 }
 
 func BenchmarkSprintfStringer(b *testing.B) {
 	stringer := I(12345)
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%v", stringer)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%v", stringer)
+	} })
 }
 
 func BenchmarkSprintfStructure(b *testing.B) {
 	s := &[]any{SI{12345}, map[int]string{0: "hello"}}
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = Sprintf("%#v", s)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		_ = Sprintf("%#v", s)
+	} })
 }
 
 func BenchmarkManyArgs(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var buf bytes.Buffer
 		for pb.Next() {
 			buf.Reset()

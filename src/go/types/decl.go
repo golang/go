@@ -893,7 +893,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 func (check *Checker) declStmt(d ast.Decl) {
 	pkg := check.pkg
 
-	check.walkDecl(d, func(d decl) {
+	check.walkDecl(d, func { d ->
 		switch d := d.(type) {
 		case constDecl:
 			top := len(check.delayed)

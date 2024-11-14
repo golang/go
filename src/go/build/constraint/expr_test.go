@@ -39,7 +39,7 @@ var exprStringTests = []struct {
 
 func TestExprString(t *testing.T) {
 	for i, tt := range exprStringTests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			s := tt.x.String()
 			if s != tt.out {
 				t.Errorf("String() mismatch:\nhave %s\nwant %s", s, tt.out)
@@ -70,7 +70,7 @@ var lexTests = []struct {
 
 func TestLex(t *testing.T) {
 	for i, tt := range lexTests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			p := &exprParser{s: tt.in}
 			out := ""
 			for {
@@ -126,7 +126,7 @@ var parseExprTests = []struct {
 
 func TestParseExpr(t *testing.T) {
 	for i, tt := range parseExprTests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			x, err := parseExpr(tt.in)
 			if err != nil {
 				t.Fatal(err)
@@ -153,7 +153,7 @@ var parseExprErrorTests = []struct {
 
 func TestParseError(t *testing.T) {
 	for i, tt := range parseExprErrorTests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			x, err := parseExpr(tt.in)
 			if err == nil {
 				t.Fatalf("parseExpr(%q) = %v, want error", tt.in, x)
@@ -179,7 +179,7 @@ var exprEvalTests = []struct {
 
 func TestExprEval(t *testing.T) {
 	for i, tt := range exprEvalTests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			x, err := parseExpr(tt.in)
 			if err != nil {
 				t.Fatal(err)
@@ -221,7 +221,7 @@ var parsePlusBuildExprTests = []struct {
 
 func TestParsePlusBuildExpr(t *testing.T) {
 	for i, tt := range parsePlusBuildExprTests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			x, _ := parsePlusBuildExpr(tt.in)
 			if x.String() != tt.x.String() {
 				t.Errorf("parsePlusBuildExpr(%q):\nhave %v\nwant %v", tt.in, x, tt.x)
@@ -253,7 +253,7 @@ var constraintTests = []struct {
 
 func TestParse(t *testing.T) {
 	for i, tt := range constraintTests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			x, err := Parse(tt.in)
 			if err != nil {
 				if tt.err == "" {
@@ -291,7 +291,7 @@ var plusBuildLinesTests = []struct {
 
 func TestPlusBuildLines(t *testing.T) {
 	for i, tt := range plusBuildLinesTests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			x, err := parseExpr(tt.in)
 			if err != nil {
 				t.Fatal(err)
@@ -342,7 +342,7 @@ func TestSizeLimits(t *testing.T) {
 			expr: "//go:build " + strings.Repeat("(a ||", maxSize+2),
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			_, err := Parse(tc.expr)
 			if err == nil {
 				t.Error("expression did not trigger limit")
@@ -372,7 +372,7 @@ func TestPlusSizeLimits(t *testing.T) {
 			expr: "// +build " + strings.Repeat("a,", maxOldSize+2),
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			_, err := Parse(tc.expr)
 			if err == nil {
 				t.Error("expression did not trigger limit")

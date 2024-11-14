@@ -31,7 +31,7 @@ func FuzzReader(f *testing.F) {
 	}
 	f.Add(b.Bytes())
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		r := NewReader(bytes.NewReader(b))
 		type file struct {
 			header  *Header

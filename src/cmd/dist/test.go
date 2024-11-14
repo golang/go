@@ -484,7 +484,7 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 		testFlags = append(testFlags, "-target="+goos+"/"+goarch)
 	}
 
-	setupCmd = func(cmd *exec.Cmd) {
+	setupCmd = func { cmd ->
 		setDir(cmd, filepath.Join(goroot, "src"))
 		if len(opts.env) != 0 {
 			for _, kv := range opts.env {
@@ -550,7 +550,7 @@ func (t *tester) registerStdTest(pkg string) {
 	if t.runRx == nil || t.runRx.MatchString(name) == t.runRxWant {
 		stdMatches = append(stdMatches, pkg)
 	}
-	t.addTest(name, stdTestHeading, func(dt *distTest) error {
+	t.addTest(name, stdTestHeading, func { dt ->
 		if ranGoTest {
 			return nil
 		}
@@ -580,7 +580,7 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 	if t.runRx == nil || t.runRx.MatchString(name) == t.runRxWant {
 		benchMatches = append(benchMatches, pkg)
 	}
-	t.addTest(name, raceBenchHeading, func(dt *distTest) error {
+	t.addTest(name, raceBenchHeading, func { dt ->
 		if ranGoBench {
 			return nil
 		}
@@ -969,7 +969,7 @@ func (t *tester) registerTest(heading string, test *goTest, opts ...registerTest
 			panic("empty variant")
 		}
 		name := testName(test.pkg, test.variant)
-		t.addTest(name, heading, func(dt *distTest) error {
+		t.addTest(name, heading, func { dt ->
 			if skipFunc != nil {
 				msg, skip := skipFunc(dt)
 				if skip {
@@ -1206,18 +1206,14 @@ func (t *tester) registerCgoTests(heading string) {
 			ccName := compilerEnvLookup("CC", defaultcc, goos, goarch)
 			cc, err := exec.LookPath(ccName)
 			if err != nil {
-				staticCheck.skip = func(*distTest) (string, bool) {
-					return fmt.Sprintf("$CC (%q) not found, skip cgo static linking test.", ccName), true
-				}
+				staticCheck.skip = func { fmt.Sprintf("$CC (%q) not found, skip cgo static linking test.", ccName), true }
 			} else {
 				cmd := t.dirCmd("src/cmd/cgo/internal/test", cc, "-xc", "-o", "/dev/null", "-static", "-")
 				cmd.Stdin = strings.NewReader("int main() {}")
 				cmd.Stdout, cmd.Stderr = nil, nil // Discard output
 				if err := cmd.Run(); err != nil {
 					// Skip these tests
-					staticCheck.skip = func(*distTest) (string, bool) {
-						return "No support for static linking found (lacks libc.a?), skip cgo static linking test.", true
-					}
+					staticCheck.skip = func { "No support for static linking found (lacks libc.a?), skip cgo static linking test.", true }
 				}
 			}
 
@@ -1226,7 +1222,7 @@ func (t *tester) registerCgoTests(heading string) {
 			// in function `bio_ip_and_port_to_socket_and_addr':
 			// warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
 			if staticCheck.skip == nil && goos == "linux" && strings.Contains(goexperiment, "boringcrypto") {
-				staticCheck.skip = func(*distTest) (string, bool) {
+				staticCheck.skip = func {
 					return "skipping static linking check on Linux when using boringcrypto to avoid C linker warning about getaddrinfo", true
 				}
 			}
@@ -1522,7 +1518,7 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 		}
 	}
 
-	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	filepath.WalkDir(dir, func { path, d, err ->
 		if suffix := strings.TrimPrefix(path, dir+string(filepath.Separator)); suffix != "" {
 			if suffix == ".git" {
 				// Leave Git metadata in whatever state it was in. It may contain a lot

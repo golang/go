@@ -64,7 +64,7 @@ func TestScanDir(t *testing.T) {
 		if !dir.IsDir() || strings.HasPrefix(dir.Name(), ".") {
 			continue
 		}
-		t.Run(dir.Name(), func(t *testing.T) {
+		t.Run(dir.Name(), func { t ->
 			tagsData, err := os.ReadFile(filepath.Join("testdata", dir.Name(), "tags.txt"))
 			if err != nil {
 				t.Fatalf("error reading tags: %v", err)

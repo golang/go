@@ -60,9 +60,7 @@ func ReadFile(name string) (id string, err error) {
 		return "", err
 	}
 
-	tryGccgo := func() (string, error) {
-		return readGccgoArchive(name, f)
-	}
+	tryGccgo := func { readGccgoArchive(name, f) }
 
 	// Archive header.
 	for i := 0; ; i++ { // returns during i==3
@@ -105,9 +103,7 @@ func ReadFile(name string) (id string, err error) {
 // The _buildid.o entry is written by (*Builder).gccgoBuildIDELFFile
 // in cmd/go/internal/work/exec.go.
 func readGccgoArchive(name string, f *os.File) (string, error) {
-	bad := func() (string, error) {
-		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
-	}
+	bad := func { "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed} }
 
 	off := int64(8)
 	for {
@@ -163,9 +159,7 @@ func readGccgoArchive(name string, f *os.File) (string, error) {
 // The _buildid.o entry is written by (*Builder).gccgoBuildIDXCOFFFile
 // in cmd/go/internal/work/exec.go.
 func readGccgoBigArchive(name string, f *os.File) (string, error) {
-	bad := func() (string, error) {
-		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
-	}
+	bad := func { "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed} }
 
 	// Read fixed-length header.
 	if _, err := f.Seek(0, io.SeekStart); err != nil {

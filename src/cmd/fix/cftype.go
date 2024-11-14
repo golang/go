@@ -34,9 +34,7 @@ var cftypeFix = fix{
 // and similar for other *Ref types.
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func cftypefix(f *ast.File) bool {
-	return typefix(f, func(s string) bool {
-		return strings.HasPrefix(s, "C.") && strings.HasSuffix(s, "Ref") && s != "C.CFAllocatorRef"
-	})
+	return typefix(f, func { s -> strings.HasPrefix(s, "C.") && strings.HasSuffix(s, "Ref") && s != "C.CFAllocatorRef" })
 }
 
 // typefix replaces nil with 0 for all nils whose type, when passed to badType, returns true.
@@ -50,7 +48,7 @@ func typefix(f *ast.File, badType func(string) bool) bool {
 	// step 1: Find all the nils with the offending types.
 	// Compute their replacement.
 	badNils := map[any]ast.Expr{}
-	walk(f, func(n any) {
+	walk(f, func { n ->
 		if i, ok := n.(*ast.Ident); ok && i.Name == "nil" && badType(typeof[n]) {
 			badNils[n] = &ast.BasicLit{ValuePos: i.NamePos, Kind: token.INT, Value: "0"}
 		}
@@ -62,7 +60,7 @@ func typefix(f *ast.File, badType func(string) bool) bool {
 	if len(badNils) > 0 {
 		exprType := reflect.TypeFor[ast.Expr]()
 		exprSliceType := reflect.TypeFor[[]ast.Expr]()
-		walk(f, func(n any) {
+		walk(f, func { n ->
 			if n == nil {
 				return
 			}
@@ -103,7 +101,7 @@ func typefix(f *ast.File, badType func(string) bool) bool {
 	// Now we need unsafe.Pointer as an intermediate cast.
 	// (*unsafe.Pointer)(x) where x is type *bad -> (*unsafe.Pointer)(unsafe.Pointer(x))
 	// (*bad.type)(x) where x is type *unsafe.Pointer -> (*bad.type)(unsafe.Pointer(x))
-	walk(f, func(n any) {
+	walk(f, func { n ->
 		if n == nil {
 			return
 		}

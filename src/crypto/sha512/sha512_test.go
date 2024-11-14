@@ -732,7 +732,7 @@ func TestGoldenMarshal(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			for _, test := range tt.golden {
 				h := tt.newHash()
 				h2 := tt.newHash()
@@ -911,18 +911,10 @@ func TestAllocations(t *testing.T) {
 }
 
 func TestSHA512Hash(t *testing.T) {
-	t.Run("SHA-384", func(t *testing.T) {
-		cryptotest.TestHash(t, New384)
-	})
-	t.Run("SHA-512/224", func(t *testing.T) {
-		cryptotest.TestHash(t, New512_224)
-	})
-	t.Run("SHA-512/256", func(t *testing.T) {
-		cryptotest.TestHash(t, New512_256)
-	})
-	t.Run("SHA-512", func(t *testing.T) {
-		cryptotest.TestHash(t, New)
-	})
+	t.Run("SHA-384", func { t -> cryptotest.TestHash(t, New384) })
+	t.Run("SHA-512/224", func { t -> cryptotest.TestHash(t, New512_224) })
+	t.Run("SHA-512/256", func { t -> cryptotest.TestHash(t, New512_256) })
+	t.Run("SHA-512", func { t -> cryptotest.TestHash(t, New) })
 }
 
 var bench = New()
@@ -930,7 +922,7 @@ var buf = make([]byte, 8192)
 
 func benchmarkSize(b *testing.B, size int) {
 	sum := make([]byte, bench.Size())
-	b.Run("New", func(b *testing.B) {
+	b.Run("New", func { b ->
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
@@ -939,14 +931,14 @@ func benchmarkSize(b *testing.B, size int) {
 			bench.Sum(sum[:0])
 		}
 	})
-	b.Run("Sum384", func(b *testing.B) {
+	b.Run("Sum384", func { b ->
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
 			Sum384(buf[:size])
 		}
 	})
-	b.Run("Sum512", func(b *testing.B) {
+	b.Run("Sum512", func { b ->
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {

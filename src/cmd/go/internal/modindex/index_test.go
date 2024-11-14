@@ -63,7 +63,7 @@ func TestIndex(t *testing.T) {
 	for _, pkg := range pkgs {
 		raw := importRaw(src, pkg)
 		raws = append(raws, raw)
-		t.Run(pkg, func(t *testing.T) {
+		t.Run(pkg, func { t ->
 			data := encodeModuleBytes([]*rawPackage{raw})
 			m, err := fromBytes(src, data)
 			if err != nil {
@@ -74,7 +74,7 @@ func TestIndex(t *testing.T) {
 	}
 
 	// Check that a multi-package index works too.
-	t.Run("all", func(t *testing.T) {
+	t.Run("all", func { t ->
 		data := encodeModuleBytes(raws)
 		m, err := fromBytes(src, data)
 		if err != nil {

@@ -30,7 +30,7 @@ var X = f(3.14)*2 + c
 	}
 
 	// Inspect the AST and print all identifiers and literals.
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		var s string
 		switch x := n.(type) {
 		case *ast.BasicLit:

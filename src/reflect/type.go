@@ -1288,7 +1288,7 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
 	if !hasEmbeds {
 		return
 	}
-	return t.FieldByNameFunc(func(s string) bool { return s == name })
+	return t.FieldByNameFunc(func { s -> s == name })
 }
 
 // TypeOf returns the reflection [Type] that represents the dynamic type of i.
@@ -1842,9 +1842,7 @@ func MapOf(key, elem Type) Type {
 	mt.Key = ktyp
 	mt.Elem = etyp
 	mt.Bucket = bucketOf(ktyp, etyp)
-	mt.Hasher = func(p unsafe.Pointer, seed uintptr) uintptr {
-		return typehash(ktyp, p, seed)
-	}
+	mt.Hasher = func { p, seed -> typehash(ktyp, p, seed) }
 	mt.Flags = 0
 	if ktyp.Size_ > abi.MapMaxKeyBytes {
 		mt.KeySize = uint8(goarch.PtrSize)
@@ -2695,7 +2693,7 @@ func StructOf(fields []StructField) Type {
 	}
 	typ.Equal = nil
 	if comparable {
-		typ.Equal = func(p, q unsafe.Pointer) bool {
+		typ.Equal = func { p, q ->
 			for _, ft := range typ.Fields {
 				pi := add(p, ft.Offset, "&x.field safe")
 				qi := add(q, ft.Offset, "&x.field safe")
@@ -2889,7 +2887,7 @@ func ArrayOf(length int, elem Type) Type {
 
 	array.Equal = nil
 	if eequal := etyp.Equal; eequal != nil {
-		array.Equal = func(p, q unsafe.Pointer) bool {
+		array.Equal = func { p, q ->
 			for i := 0; i < length; i++ {
 				pi := arrayAt(p, i, esize, "i < length")
 				qi := arrayAt(q, i, esize, "i < length")

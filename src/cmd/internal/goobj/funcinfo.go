@@ -131,7 +131,7 @@ func (inl *InlTreeNode) Write(w *bytes.Buffer) {
 
 // Read an InlTreeNode from b, return the remaining bytes.
 func (inl *InlTreeNode) Read(b []byte) []byte {
-	readUint32 := func() uint32 {
+	readUint32 := func {
 		x := binary.LittleEndian.Uint32(b)
 		b = b[4:]
 		return x

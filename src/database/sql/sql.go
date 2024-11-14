@@ -888,7 +888,7 @@ func (db *DB) PingContext(ctx context.Context) error {
 	var dc *driverConn
 	var err error
 
-	err = db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func { strategy ->
 		dc, err = db.conn(ctx, strategy)
 		return err
 	})
@@ -1587,7 +1587,7 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var stmt *Stmt
 	var err error
 
-	err = db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func { strategy ->
 		stmt, err = db.prepare(ctx, query, strategy)
 		return err
 	})
@@ -1660,7 +1660,7 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (Resul
 	var res Result
 	var err error
 
-	err = db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func { strategy ->
 		res, err = db.exec(ctx, query, args, strategy)
 		return err
 	})
@@ -1730,7 +1730,7 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*Row
 	var rows *Rows
 	var err error
 
-	err = db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func { strategy ->
 		rows, err = db.query(ctx, query, args, strategy)
 		return err
 	})
@@ -1862,7 +1862,7 @@ func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 	var tx *Tx
 	var err error
 
-	err = db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func { strategy ->
 		tx, err = db.begin(ctx, opts, strategy)
 		return err
 	})
@@ -1938,7 +1938,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 	var dc *driverConn
 	var err error
 
-	err = db.retry(func(strategy connReuseStrategy) error {
+	err = db.retry(func { strategy ->
 		dc, err = db.conn(ctx, strategy)
 		return err
 	})
@@ -2637,7 +2637,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...any) (Result, error) {
 	defer s.closemu.RUnlock()
 
 	var res Result
-	err := s.db.retry(func(strategy connReuseStrategy) error {
+	err := s.db.retry(func { strategy ->
 		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
 		if err != nil {
 			return err
@@ -2781,7 +2781,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 	var rowsi driver.Rows
 	var rows *Rows
 
-	err := s.db.retry(func(strategy connReuseStrategy) error {
+	err := s.db.retry(func { strategy ->
 		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
 		if err != nil {
 			return err
@@ -2802,7 +2802,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 
 			// releaseConn must be set before initContextClose or it could
 			// release the connection before it is set.
-			rows.releaseConn = func(err error) {
+			rows.releaseConn = func { err ->
 				releaseConn(err)
 				s.db.removeDep(s, rows)
 			}

@@ -543,9 +543,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 
 	// Every module path in mods is a prefix of the import path.
 	// As in QueryPattern, prefer the longest prefix that satisfies the import.
-	sort.Slice(mods, func(i, j int) bool {
-		return len(mods[i].Path) > len(mods[j].Path)
-	})
+	sort.Slice(mods, func { i, j -> len(mods[i].Path) > len(mods[j].Path) })
 	for _, m := range mods {
 		root, isLocal, err := fetch(ctx, m)
 		if err != nil {
@@ -693,7 +691,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// (the main module, and any directory trees pointed at by replace directives).
 	if isLocal {
 		for d := dir; d != mdir && len(d) > len(mdir); {
-			haveGoMod := haveGoModCache.Do(d, func() bool {
+			haveGoMod := haveGoModCache.Do(d, func {
 				fi, err := fsys.Stat(filepath.Join(d, "go.mod"))
 				return err == nil && !fi.IsDir()
 			})
@@ -716,7 +714,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// Are there Go source files in the directory?
 	// We don't care about build tags, not even "go:build ignore".
 	// We're just looking for a plausible directory.
-	haveGoFiles, err = haveGoFilesCache.Do(dir, func() (bool, error) {
+	haveGoFiles, err = haveGoFilesCache.Do(dir, func {
 		// modindex.GetPackage will return ErrNotIndexed for any directories which
 		// are reached through a symlink, so that they will be handled by
 		// fsys.IsDirWithGoFiles below.

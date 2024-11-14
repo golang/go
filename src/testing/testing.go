@@ -2016,8 +2016,8 @@ func (m *M) Run() (code int) {
 		}
 		fmt.Println("-test.shuffle", n)
 		rng := rand.New(rand.NewSource(n))
-		rng.Shuffle(len(m.tests), func(i, j int) { m.tests[i], m.tests[j] = m.tests[j], m.tests[i] })
-		rng.Shuffle(len(m.benchmarks), func(i, j int) { m.benchmarks[i], m.benchmarks[j] = m.benchmarks[j], m.benchmarks[i] })
+		rng.Shuffle(len(m.tests), func { i, j -> m.tests[i], m.tests[j] = m.tests[j], m.tests[i] })
+		rng.Shuffle(len(m.benchmarks), func { i, j -> m.benchmarks[i], m.benchmarks[j] = m.benchmarks[j], m.benchmarks[i] })
 	}
 
 	parseCpuList()
@@ -2163,11 +2163,9 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			if Verbose() {
 				t.chatty = newChattyPrinter(t.w)
 			}
-			tRunner(t, func(t *T) {
-				for _, test := range tests {
-					t.Run(test.Name, test.F)
-				}
-			})
+			tRunner(t, func { t -> for _, test := range tests {
+				t.Run(test.Name, test.F)
+			} })
 			select {
 			case <-t.signal:
 			default:
@@ -2378,7 +2376,7 @@ func (m *M) startAlarm() time.Time {
 // runningList returns the list of running tests.
 func runningList() []string {
 	var list []string
-	running.Range(func(k, v any) bool {
+	running.Range(func { k, v ->
 		list = append(list, fmt.Sprintf("%s (%v)", k.(string), highPrecisionTimeSince(v.(highPrecisionTime)).Round(time.Second)))
 		return true
 	})

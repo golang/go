@@ -602,7 +602,7 @@ type State int
 func Rewrite(pkg *types2.Package, info *types2.Info, files []*syntax.File) map[*syntax.FuncLit]bool {
 	ri := make(map[*syntax.FuncLit]bool)
 	for _, file := range files {
-		syntax.Inspect(file, func(n syntax.Node) bool {
+		syntax.Inspect(file, func { n ->
 			switch n := n.(type) {
 			case *syntax.FuncDecl:
 				sig, _ := info.Defs[n.Name].Type().(*types2.Signature)
@@ -983,7 +983,7 @@ func (r *rewriter) computeBranchNext() {
 	var stack []syntax.Node
 	var forStack []*syntax.ForStmt
 	forStack = append(forStack, nil)
-	syntax.Inspect(r.body, func(n syntax.Node) bool {
+	syntax.Inspect(r.body, func { n ->
 		if n != nil {
 			stack = append(stack, n)
 			if nfor, ok := forRangeFunc(n); ok {
@@ -1500,7 +1500,7 @@ func setPos(x syntax.Node, pos syntax.Pos) {
 	if x == nil {
 		return
 	}
-	syntax.Inspect(x, func(n syntax.Node) bool {
+	syntax.Inspect(x, func { n ->
 		if n == nil || n.Pos() != nopos {
 			return false
 		}

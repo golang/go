@@ -13,7 +13,7 @@ import (
 )
 
 func TestRead(t *testing.T) {
-	t.Run("SpecialFile", func(t *testing.T) {
+	t.Run("SpecialFile", func { t ->
 		var wg sync.WaitGroup
 		for _, p := range specialFiles() {
 			for i := 0; i < 4; i++ {

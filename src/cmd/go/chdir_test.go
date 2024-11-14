@@ -22,7 +22,7 @@ func TestChdir(t *testing.T) {
 	}
 
 	var walk func(string, *base.Command)
-	walk = func(name string, cmd *base.Command) {
+	walk = func { name, cmd ->
 		if len(cmd.Commands) > 0 {
 			for _, sub := range cmd.Commands {
 				walk(name+" "+sub.Name(), sub)

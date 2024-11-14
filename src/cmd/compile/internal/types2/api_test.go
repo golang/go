@@ -634,7 +634,7 @@ type T[P any] []P
 		makePkg(lib)
 		pkg := makePkg(test.src)
 
-		t.Run(pkg.Name(), func(t *testing.T) {
+		t.Run(pkg.Name(), func { t ->
 			// Sort instances in source order for stability.
 			instances := sortedInstances(instMap)
 			if got, want := len(instances), len(test.instances); got != want {
@@ -694,9 +694,7 @@ func sortedInstances(m map[*syntax.Name]Instance) (instances []recordedInstance)
 	for id, inst := range m {
 		instances = append(instances, recordedInstance{id, inst})
 	}
-	sort.Slice(instances, func(i, j int) bool {
-		return CmpPos(instances[i].Name.Pos(), instances[j].Name.Pos()) < 0
-	})
+	sort.Slice(instances, func { i, j -> CmpPos(instances[i].Name.Pos(), instances[j].Name.Pos()) < 0 })
 	return instances
 }
 
@@ -852,7 +850,7 @@ func (r *N[C]) n() {  }
 		switch fdecl.Name.Value {
 		case "m":
 			dm = def
-			syntax.Inspect(fdecl.Body, func(n syntax.Node) bool {
+			syntax.Inspect(fdecl.Body, func { n ->
 				if call, ok := n.(*syntax.CallExpr); ok {
 					sel := call.Fun.(*syntax.SelectorExpr)
 					use := info.Uses[sel.Sel].(*Func)
@@ -1934,7 +1932,7 @@ func F[T *U, U any](param1, param2 int) /*param1=undef*/ (res1 /*res1=undef*/, r
 	rx := regexp.MustCompile(`^/\*(\w*)=([\w:]*)\*/$`)
 
 	base := syntax.NewFileBase("main")
-	syntax.CommentsDo(strings.NewReader(mainSrc), func(line, col uint, text string) {
+	syntax.CommentsDo(strings.NewReader(mainSrc), func { line, col, text ->
 		pos := syntax.MakePos(base, line, col)
 
 		// Syntax errors are not comments.
@@ -1990,7 +1988,7 @@ func F[T *U, U any](param1, param2 int) /*param1=undef*/ (res1 /*res1=undef*/, r
 		if gotObj != wantObj {
 			// Print the scope tree of mainScope in case of error.
 			var printScopeTree func(indent string, s *Scope)
-			printScopeTree = func(indent string, s *Scope) {
+			printScopeTree = func { indent, s ->
 				t.Logf("%sscope %s %v-%v = %v",
 					indent,
 					ScopeComment(s),
@@ -2629,7 +2627,7 @@ func fn() {
 
 	// Collect all identifiers by name.
 	idents := make(map[string][]*syntax.Name)
-	syntax.Inspect(f, func(n syntax.Node) bool {
+	syntax.Inspect(f, func { n ->
 		if id, ok := n.(*syntax.Name); ok {
 			idents[id.Value] = append(idents[id.Value], id)
 		}
@@ -2638,7 +2636,7 @@ func fn() {
 
 	for _, test := range tests {
 		test := test
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			if got := len(idents[test.name]); got != 1 {
 				t.Fatalf("found %d identifiers named %s, want 1", got, test.name)
 			}
@@ -3056,7 +3054,7 @@ type C = int
 // (concurrent) type checking.
 func TestAnyHijacking_Check(t *testing.T) {
 	for _, enableAlias := range []bool{false, true} {
-		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
+		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func { t ->
 			var wg sync.WaitGroup
 			for i := 0; i < 10; i++ {
 				wg.Add(1)

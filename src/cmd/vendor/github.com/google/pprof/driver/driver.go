@@ -44,9 +44,7 @@ func (o *Options) internalOptions() *plugin.Options {
 	}
 	var httpServer func(args *plugin.HTTPServerArgs) error
 	if o.HTTPServer != nil {
-		httpServer = func(args *plugin.HTTPServerArgs) error {
-			return o.HTTPServer(((*HTTPServerArgs)(args)))
-		}
+		httpServer = func { args -> o.HTTPServer(((*HTTPServerArgs)(args))) }
 	}
 	return &plugin.Options{
 		Writer:        o.Writer,

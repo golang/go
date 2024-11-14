@@ -163,7 +163,7 @@ func TestCacheTrim(t *testing.T) {
 	}
 	const start = 1000000000
 	now := int64(start)
-	c.now = func() time.Time { return time.Unix(now, 0) }
+	c.now = func { time.Unix(now, 0) }
 
 	checkTime := func(name string, mtime int64) {
 		t.Helper()

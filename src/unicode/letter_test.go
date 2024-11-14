@@ -464,7 +464,7 @@ func TestCalibrate(t *testing.T) {
 	// The 10% bias gives linear search an edge when they're close,
 	// because on predominantly ASCII inputs linear search is even
 	// better than our benchmarks measure.
-	n := sort.Search(64, func(n int) bool {
+	n := sort.Search(64, func { n ->
 		tab := fakeTable(n)
 		blinear := func(b *testing.B) {
 			tab := tab

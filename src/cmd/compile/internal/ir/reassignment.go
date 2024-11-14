@@ -46,7 +46,7 @@ func (ro *ReassignOracle) Init(fn *Func) {
 	// Walk the function body to discover any locals assigned
 	// via ":=" syntax (e.g. "a := <expr>").
 	var findLocals func(n Node) bool
-	findLocals = func(n Node) bool {
+	findLocals = func { n ->
 		if nn, ok := n.(*Name); ok {
 			if nn.Defn != nil && !nn.Addrtaken() && nn.Class == PAUTO {
 				ro.singleDef[nn] = nn.Defn
@@ -98,7 +98,7 @@ func (ro *ReassignOracle) Init(fn *Func) {
 	// similar code in ir.Reassigned; any changes there should be made
 	// here as well.
 	var do func(n Node) bool
-	do = func(n Node) bool {
+	do = func { n ->
 		switch n.Op() {
 		case OAS:
 			asn := n.(*AssignStmt)

@@ -54,7 +54,7 @@ func actionList(root *Action) []*Action {
 	seen := map[*Action]bool{}
 	all := []*Action{}
 	var walk func(*Action)
-	walk = func(a *Action) {
+	walk = func { a ->
 		if seen[a] {
 			return
 		}
@@ -2457,7 +2457,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	}
 
 	cmdArgs := str.StringList(compiler, flag)
-	if strings.HasPrefix(flag, "-Wl,") /* linker flag */ {
+	if strings.HasPrefix(flag, "-Wl,") /* linker flag */{
 		ldflags, err := buildFlags("LDFLAGS", DefaultCFlags, nil, checkLinkerFlags)
 		if err != nil {
 			return false
@@ -2887,7 +2887,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	// we need to make them short enough not to be truncated
 	// in the final archive.
 	oseq := 0
-	nextOfile := func() string {
+	nextOfile := func {
 		oseq++
 		return objdir + fmt.Sprintf("_x%03d.o", oseq)
 	}
@@ -3077,7 +3077,7 @@ func (b *Builder) dynimport(a *Action, objdir, importGo, cgoExe string, cflags, 
 	var syso []string
 	seen := make(map[*Action]bool)
 	var gatherSyso func(*Action)
-	gatherSyso = func(a1 *Action) {
+	gatherSyso = func { a1 ->
 		if seen[a1] {
 			return
 		}

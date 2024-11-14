@@ -53,7 +53,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 
 	for i, m := range tests {
 		ty := reflect.ValueOf(m).Type()
-		t.Run(ty.String(), func(t *testing.T) {
+		t.Run(ty.String(), func { t ->
 			n := 100
 			if testing.Short() {
 				n = 5

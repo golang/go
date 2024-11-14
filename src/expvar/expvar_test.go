@@ -67,21 +67,17 @@ func TestInt(t *testing.T) {
 func BenchmarkIntAdd(b *testing.B) {
 	var v Int
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			v.Add(1)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		v.Add(1)
+	} })
 }
 
 func BenchmarkIntSet(b *testing.B) {
 	var v Int
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			v.Set(1)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		v.Set(1)
+	} })
 }
 
 func TestFloat(t *testing.T) {
@@ -113,21 +109,17 @@ func TestFloat(t *testing.T) {
 func BenchmarkFloatAdd(b *testing.B) {
 	var f Float
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			f.Add(1.0)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		f.Add(1.0)
+	} })
 }
 
 func BenchmarkFloatSet(b *testing.B) {
 	var f Float
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			f.Set(1.0)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		f.Set(1.0)
+	} })
 }
 
 func TestString(t *testing.T) {
@@ -155,11 +147,9 @@ func TestString(t *testing.T) {
 func BenchmarkStringSet(b *testing.B) {
 	var s String
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			s.Set("red")
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		s.Set("red")
+	} })
 }
 
 func TestMapInit(t *testing.T) {
@@ -170,7 +160,7 @@ func TestMapInit(t *testing.T) {
 	colors.Add("chartreuse", 1)
 
 	n := 0
-	colors.Do(func(KeyValue) { n++ })
+	colors.Do(func { n++ })
 	if n != 3 {
 		t.Errorf("after three Add calls with distinct keys, Do should invoke f 3 times; got %v", n)
 	}
@@ -178,7 +168,7 @@ func TestMapInit(t *testing.T) {
 	colors.Init()
 
 	n = 0
-	colors.Do(func(KeyValue) { n++ })
+	colors.Do(func { n++ })
 	if n != 0 {
 		t.Errorf("after Init, Do should invoke f 0 times; got %v", n)
 	}
@@ -193,7 +183,7 @@ func TestMapDelete(t *testing.T) {
 	colors.Add("blue", 4)
 
 	n := 0
-	colors.Do(func(KeyValue) { n++ })
+	colors.Do(func { n++ })
 	if n != 2 {
 		t.Errorf("after two Add calls with distinct keys, Do should invoke f 2 times; got %v", n)
 	}
@@ -203,14 +193,14 @@ func TestMapDelete(t *testing.T) {
 		t.Errorf("removed red, Get should return nil; got %v", v)
 	}
 	n = 0
-	colors.Do(func(KeyValue) { n++ })
+	colors.Do(func { n++ })
 	if n != 1 {
 		t.Errorf("removed red, Do should invoke f 1 times; got %v", n)
 	}
 
 	colors.Delete("notfound")
 	n = 0
-	colors.Do(func(KeyValue) { n++ })
+	colors.Do(func { n++ })
 	if n != 1 {
 		t.Errorf("attempted to remove notfound, Do should invoke f 1 times; got %v", n)
 	}
@@ -221,7 +211,7 @@ func TestMapDelete(t *testing.T) {
 		t.Errorf("removed blue, Get should return nil; got %v", v)
 	}
 	n = 0
-	colors.Do(func(KeyValue) { n++ })
+	colors.Do(func { n++ })
 	if n != 0 {
 		t.Errorf("all keys removed, Do should invoke f 0 times; got %v", n)
 	}
@@ -295,11 +285,9 @@ func BenchmarkMapSet(b *testing.B) {
 
 	v := new(Int)
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			m.Set("red", v)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		m.Set("red", v)
+	} })
 }
 
 func BenchmarkMapSetDifferent(b *testing.B) {
@@ -317,7 +305,7 @@ func BenchmarkMapSetDifferent(b *testing.B) {
 	b.ResetTimer()
 
 	var n int32
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
 		keys := procKeys[i]
 
@@ -355,15 +343,13 @@ func BenchmarkMapSetString(b *testing.B) {
 	v := new(String)
 	v.Set("Hello, !")
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			m.Set("red", v)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		m.Set("red", v)
+	} })
 }
 
 func BenchmarkMapAddSame(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			m := new(Map).Init()
 			m.Add("red", 1)
@@ -387,7 +373,7 @@ func BenchmarkMapAddDifferent(b *testing.B) {
 	b.ResetTimer()
 
 	var n int32
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
 		keys := procKeys[i]
 
@@ -421,11 +407,9 @@ func BenchmarkMapAddDifferentRandom(b *testing.B) {
 
 func BenchmarkMapAddSameSteadyState(b *testing.B) {
 	m := new(Map).Init()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			m.Add("red", 1)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		m.Add("red", 1)
+	} })
 }
 
 func BenchmarkMapAddDifferentSteadyState(b *testing.B) {
@@ -442,7 +426,7 @@ func BenchmarkMapAddDifferentSteadyState(b *testing.B) {
 	b.ResetTimer()
 
 	var n int32
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		i := int(atomic.AddInt32(&n, 1)-1) % len(procKeys)
 		keys := procKeys[i]
 
@@ -457,7 +441,7 @@ func BenchmarkMapAddDifferentSteadyState(b *testing.B) {
 func TestFunc(t *testing.T) {
 	RemoveAll()
 	var x any = []string{"a", "b"}
-	f := Func(func() any { return x })
+	f := Func(func { x })
 	if s, exp := f.String(), `["a","b"]`; s != exp {
 		t.Errorf(`f.String() = %q, want %q`, s, exp)
 	}

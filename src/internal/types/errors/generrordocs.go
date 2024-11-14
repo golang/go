@@ -37,7 +37,7 @@ func main() {
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		log.Fatal("unable to create output directory: %s", err)
 	}
-	walkCodes(func(name string, vs *ast.ValueSpec) {
+	walkCodes(func { name, vs ->
 		// ignore unused errors
 		if name == "_" {
 			return

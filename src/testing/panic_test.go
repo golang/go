@@ -138,7 +138,7 @@ ran outer cleanup
 `,
 	}}
 	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
+		t.Run(tc.desc, func { t ->
 			cmd := exec.Command(os.Args[0], "-test.run=^TestPanicHelper$")
 			cmd.Args = append(cmd.Args, tc.flags...)
 			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
@@ -181,7 +181,7 @@ func TestPanicHelper(t *testing.T) {
 	})
 	for i := 0; i < 3; i++ {
 		i := i
-		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", i), func { t ->
 			chosen := t.Name() == *testPanicTest
 			if chosen && *testPanicCleanup {
 				t.Cleanup(func() {
@@ -250,9 +250,7 @@ func TestCallRunInCleanupHelper(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		t.Run("in-cleanup", func(t *testing.T) {
-			t.Log("must not be executed")
-		})
+		t.Run("in-cleanup", func { t -> t.Log("must not be executed") })
 	})
 }
 

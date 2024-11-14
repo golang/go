@@ -1232,18 +1232,14 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 					return nil, err
 				}
 
-				b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
-					b.AddASN1(cryptobyte_asn1.Tag(2).ContextSpecific(), func(b *cryptobyte.Builder) {
-						b.AddBytes([]byte(name))
-					})
+				b.AddASN1(cryptobyte_asn1.SEQUENCE, func { b ->
+					b.AddASN1(cryptobyte_asn1.Tag(2).ContextSpecific(), func { b -> b.AddBytes([]byte(name)) })
 				})
 			}
 
 			for _, ipNet := range ips {
-				b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
-					b.AddASN1(cryptobyte_asn1.Tag(7).ContextSpecific(), func(b *cryptobyte.Builder) {
-						b.AddBytes(ipAndMask(ipNet))
-					})
+				b.AddASN1(cryptobyte_asn1.SEQUENCE, func { b ->
+					b.AddASN1(cryptobyte_asn1.Tag(7).ContextSpecific(), func { b -> b.AddBytes(ipAndMask(ipNet)) })
 				})
 			}
 
@@ -1252,10 +1248,8 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 					return nil, err
 				}
 
-				b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
-					b.AddASN1(cryptobyte_asn1.Tag(1).ContextSpecific(), func(b *cryptobyte.Builder) {
-						b.AddBytes([]byte(email))
-					})
+				b.AddASN1(cryptobyte_asn1.SEQUENCE, func { b ->
+					b.AddASN1(cryptobyte_asn1.Tag(1).ContextSpecific(), func { b -> b.AddBytes([]byte(email)) })
 				})
 			}
 
@@ -1264,10 +1258,8 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 					return nil, err
 				}
 
-				b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
-					b.AddASN1(cryptobyte_asn1.Tag(6).ContextSpecific(), func(b *cryptobyte.Builder) {
-						b.AddBytes([]byte(uriDomain))
-					})
+				b.AddASN1(cryptobyte_asn1.SEQUENCE, func { b ->
+					b.AddASN1(cryptobyte_asn1.Tag(6).ContextSpecific(), func { b -> b.AddBytes([]byte(uriDomain)) })
 				})
 			}
 
@@ -1285,17 +1277,13 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 		}
 
 		var b cryptobyte.Builder
-		b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+		b.AddASN1(cryptobyte_asn1.SEQUENCE, func { b ->
 			if len(permitted) > 0 {
-				b.AddASN1(cryptobyte_asn1.Tag(0).ContextSpecific().Constructed(), func(b *cryptobyte.Builder) {
-					b.AddBytes(permitted)
-				})
+				b.AddASN1(cryptobyte_asn1.Tag(0).ContextSpecific().Constructed(), func { b -> b.AddBytes(permitted) })
 			}
 
 			if len(excluded) > 0 {
-				b.AddASN1(cryptobyte_asn1.Tag(1).ContextSpecific().Constructed(), func(b *cryptobyte.Builder) {
-					b.AddBytes(excluded)
-				})
+				b.AddASN1(cryptobyte_asn1.Tag(1).ContextSpecific().Constructed(), func { b -> b.AddBytes(excluded) })
 			}
 		})
 
@@ -1390,12 +1378,12 @@ func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectI
 	ext := pkix.Extension{Id: oidExtensionCertificatePolicies}
 
 	b := cryptobyte.NewBuilder(make([]byte, 0, 128))
-	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+	b.AddASN1(cryptobyte_asn1.SEQUENCE, func { child ->
 		if x509usepolicies.Value() == "1" {
 			x509usepolicies.IncNonDefault()
 			for _, v := range policies {
-				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
-					child.AddASN1(cryptobyte_asn1.OBJECT_IDENTIFIER, func(child *cryptobyte.Builder) {
+				child.AddASN1(cryptobyte_asn1.SEQUENCE, func { child ->
+					child.AddASN1(cryptobyte_asn1.OBJECT_IDENTIFIER, func { child ->
 						if len(v.der) == 0 {
 							child.SetError(errors.New("invalid policy object identifier"))
 							return
@@ -1406,9 +1394,7 @@ func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectI
 			}
 		} else {
 			for _, v := range policyIdentifiers {
-				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
-					child.AddASN1ObjectIdentifier(v)
-				})
+				child.AddASN1(cryptobyte_asn1.SEQUENCE, func { child -> child.AddASN1ObjectIdentifier(v) })
 			}
 		}
 	})

@@ -323,9 +323,7 @@ func (f *File) Line(p Pos) int {
 }
 
 func searchLineInfos(a []lineInfo, x int) int {
-	i, found := slices.BinarySearchFunc(a, x, func(a lineInfo, x int) int {
-		return cmp.Compare(a.Offset, x)
-	})
+	i, found := slices.BinarySearchFunc(a, x, func { a, x -> cmp.Compare(a.Offset, x) })
 	if !found {
 		// We want the lineInfo containing x, but if we didn't
 		// find x then i is the next one.
@@ -525,9 +523,7 @@ func (s *FileSet) Iterate(f func(*File) bool) {
 }
 
 func searchFiles(a []*File, x int) int {
-	i, found := slices.BinarySearchFunc(a, x, func(a *File, x int) int {
-		return cmp.Compare(a.base, x)
-	})
+	i, found := slices.BinarySearchFunc(a, x, func { a, x -> cmp.Compare(a.base, x) })
 	if !found {
 		// We want the File containing x, but if we didn't
 		// find x then i is the next one.

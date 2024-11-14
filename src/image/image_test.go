@@ -280,7 +280,7 @@ func TestRGBA64Image(t *testing.T) {
 
 func BenchmarkAt(b *testing.B) {
 	for _, tc := range testImages {
-		b.Run(tc.name, func(b *testing.B) {
+		b.Run(tc.name, func { b ->
 			m := tc.image()
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -294,7 +294,7 @@ func BenchmarkAt(b *testing.B) {
 func BenchmarkSet(b *testing.B) {
 	c := color.Gray{0xff}
 	for _, tc := range testImages {
-		b.Run(tc.name, func(b *testing.B) {
+		b.Run(tc.name, func { b ->
 			m := tc.image()
 			b.ReportAllocs()
 			b.ResetTimer()

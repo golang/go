@@ -239,9 +239,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	scriptPath += ".txt"
 
-	err := s.HandleScript(scriptPath, s.logger, func(handler http.Handler) {
-		handler.ServeHTTP(w, req)
-	})
+	err := s.HandleScript(scriptPath, s.logger, func { handler -> handler.ServeHTTP(w, req) })
 	if err != nil {
 		s.logger.Print(err)
 		if notFound := (ScriptNotFoundError{}); errors.As(err, &notFound) {
@@ -367,7 +365,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "<b>cache</b>\n")
 
 	tw := tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
-	err := filepath.WalkDir(s.scriptDir, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(s.scriptDir, func { path, d, err ->
 		if err != nil {
 			return err
 		}

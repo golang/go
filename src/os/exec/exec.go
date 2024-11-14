@@ -405,7 +405,7 @@ func Command(name string, arg ...string) *Cmd {
 			cmd.createdByStack = stack
 		}
 
-		runtime.SetFinalizer(cmd, func(c *Cmd) {
+		runtime.SetFinalizer(cmd, func { c ->
 			if c.Process != nil && c.ProcessState == nil {
 				debugHint := ""
 				if c.createdByStack == nil {
@@ -465,9 +465,7 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 	}
 	cmd := Command(name, arg...)
 	cmd.ctx = ctx
-	cmd.Cancel = func() error {
-		return cmd.Process.Kill()
-	}
+	cmd.Cancel = func { cmd.Process.Kill() }
 	return cmd
 }
 
@@ -527,7 +525,7 @@ func (c *Cmd) childStdin() (*os.File, error) {
 
 	c.childIOFiles = append(c.childIOFiles, pr)
 	c.parentIOPipes = append(c.parentIOPipes, pw)
-	c.goroutine = append(c.goroutine, func() error {
+	c.goroutine = append(c.goroutine, func {
 		_, err := io.Copy(pw, c.Stdin)
 		if skipStdinCopyError(err) {
 			err = nil
@@ -576,7 +574,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (*os.File, error) {
 
 	c.childIOFiles = append(c.childIOFiles, pw)
 	c.parentIOPipes = append(c.parentIOPipes, pr)
-	c.goroutine = append(c.goroutine, func() error {
+	c.goroutine = append(c.goroutine, func {
 		_, err := io.Copy(w, pr)
 		pr.Close() // in case io.Copy stopped due to write error
 		return err

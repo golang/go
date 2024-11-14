@@ -50,7 +50,7 @@ func Make[T comparable](value T) Handle[T] {
 		toInsert     *T // Keep this around to keep it alive.
 		toInsertWeak weak.Pointer[T]
 	)
-	newValue := func() (T, weak.Pointer[T]) {
+	newValue := func {
 		if toInsert == nil {
 			toInsert = new(T)
 			*toInsert = clone(value, &m.cloneSeq)
@@ -127,7 +127,7 @@ func addUniqueMap[T comparable](typ *abi.Type) *uniqueMap[T] {
 		cleanupFuncs = append(cleanupFuncs, func() {
 			// Delete all the entries whose weak references are nil and clean up
 			// deleted entries.
-			m.All()(func(key T, wp weak.Pointer[T]) bool {
+			m.All()(func { key, wp ->
 				if wp.Strong() == nil {
 					m.CompareAndDelete(key, wp)
 				}

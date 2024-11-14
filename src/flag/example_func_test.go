@@ -16,7 +16,7 @@ func ExampleFunc() {
 	fs := flag.NewFlagSet("ExampleFunc", flag.ContinueOnError)
 	fs.SetOutput(os.Stdout)
 	var ip net.IP
-	fs.Func("ip", "`IP address` to parse", func(s string) error {
+	fs.Func("ip", "`IP address` to parse", func { s ->
 		ip = net.ParseIP(s)
 		if ip == nil {
 			return errors.New("could not parse IP")
@@ -44,7 +44,7 @@ func ExampleBoolFunc() {
 	fs := flag.NewFlagSet("ExampleBoolFunc", flag.ContinueOnError)
 	fs.SetOutput(os.Stdout)
 
-	fs.BoolFunc("log", "logs a dummy message", func(s string) error {
+	fs.BoolFunc("log", "logs a dummy message", func { s ->
 		fmt.Println("dummy message:", s)
 		return nil
 	})

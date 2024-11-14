@@ -172,7 +172,7 @@ func TestStructSorts(t *testing.T) {
 	}
 
 	Sort(ss)
-	slices.SortFunc(ss2, func(a, b *myStruct) int { return a.n - b.n })
+	slices.SortFunc(ss2, func { a, b -> a.n - b.n })
 
 	for i := range ss {
 		if *ss[i] != *ss2[i] {

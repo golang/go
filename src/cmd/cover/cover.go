@@ -541,10 +541,8 @@ func (f *File) postFunc(fn ast.Node, funcname string, flit bool, body *ast.Block
 		return fmt.Sprintf("%s[%d] = %s", cv, which, val)
 	}
 	if *mode == "atomic" {
-		hookWrite = func(cv string, which int, val string) string {
-			return fmt.Sprintf("%sStoreUint32(&%s[%d], %s)",
-				atomicPackagePrefix(), cv, which, val)
-		}
+		hookWrite = func { cv, which, val -> fmt.Sprintf("%sStoreUint32(&%s[%d], %s)",
+			atomicPackagePrefix(), cv, which, val) }
 	}
 
 	// Generate the registration hook sequence for the function. This

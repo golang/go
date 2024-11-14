@@ -372,7 +372,7 @@ func forEachSAN(der cryptobyte.String, callback func(tag int, data []byte) error
 }
 
 func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string, ipAddresses []net.IP, uris []*url.URL, err error) {
-	err = forEachSAN(der, func(tag int, data []byte) error {
+	err = forEachSAN(der, func { tag, data ->
 		switch tag {
 		case nameTypeEmail:
 			email := string(data)

@@ -3739,9 +3739,7 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 				case typ.Kind() == types.TFLOAT32 && n.Op() == ir.OMAX:
 					op = ssa.OpMax32F
 				}
-				return fold(func(x, a *ssa.Value) *ssa.Value {
-					return s.newValue2(op, typ, x, a)
-				})
+				return fold(func { x, a -> s.newValue2(op, typ, x, a) })
 			}
 		}
 		var name string
@@ -3770,14 +3768,12 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
 		}
 		fn := typecheck.LookupRuntimeFunc(name)
 
-		return fold(func(x, a *ssa.Value) *ssa.Value {
-			return s.rtcall(fn, true, []*types.Type{typ}, x, a)[0]
-		})
+		return fold(func { x, a -> s.rtcall(fn, true, []*types.Type{typ}, x, a)[0] })
 	}
 
 	lt := s.ssaOp(ir.OLT, typ)
 
-	return fold(func(x, a *ssa.Value) *ssa.Value {
+	return fold(func { x, a ->
 		switch n.Op() {
 		case ir.OMIN:
 			// a < x ? a : x
@@ -4233,16 +4229,15 @@ func InitTables() {
 	/******** runtime ********/
 	if !base.Flag.Cfg.Instrumenting {
 		add("runtime", "slicebytetostringtmp",
-			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-				// Compiler frontend optimizations emit OBYTES2STRTMP nodes
-				// for the backend instead of slicebytetostringtmp calls
-				// when not instrumenting.
-				return s.newValue2(ssa.OpStringMake, n.Type(), args[0], args[1])
-			},
+			func { s, n, args ->
+			// Compiler frontend optimizations emit OBYTES2STRTMP nodes
+			// for the backend instead of slicebytetostringtmp calls
+			// when not instrumenting.
+			s.newValue2(ssa.OpStringMake, n.Type(), args[0], args[1]) },
 			all...)
 	}
 	addF("runtime/internal/math", "MulUintptr",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			if s.config.PtrSize == 4 {
 				return s.newValue2(ssa.OpMul32uover, types.NewTuple(types.Types[types.TUINT], types.Types[types.TUINT]), args[0], args[1])
 			}
@@ -4250,32 +4245,26 @@ func InitTables() {
 		},
 		sys.AMD64, sys.I386, sys.Loong64, sys.MIPS64, sys.RISCV64, sys.ARM64)
 	add("runtime", "KeepAlive",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			data := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, args[0])
 			s.vars[memVar] = s.newValue2(ssa.OpKeepAlive, types.TypeMem, data, s.mem())
 			return nil
 		},
 		all...)
 	add("runtime", "getclosureptr",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue0(ssa.OpGetClosurePtr, s.f.Config.Types.Uintptr)
-		},
+		func { s, n, args -> s.newValue0(ssa.OpGetClosurePtr, s.f.Config.Types.Uintptr) },
 		all...)
 
 	add("runtime", "getcallerpc",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
-		},
+		func { s, n, args -> s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr) },
 		all...)
 
 	add("runtime", "getcallersp",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr, s.mem())
-		},
+		func { s, n, args -> s.newValue1(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr, s.mem()) },
 		all...)
 
 	addF("runtime", "publicationBarrier",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue1(ssa.OpPubBarrier, types.TypeMem, s.mem())
 			return nil
 		},
@@ -4289,14 +4278,10 @@ func InitTables() {
 	}
 	/******** runtime/internal/sys ********/
 	addF("runtime/internal/sys", "Bswap32",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0]) },
 		brev_arch...)
 	addF("runtime/internal/sys", "Bswap64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0]) },
 		brev_arch...)
 
 	/****** Prefetch ******/
@@ -4316,42 +4301,42 @@ func InitTables() {
 
 	/******** internal/runtime/atomic ********/
 	addF("internal/runtime/atomic", "Load",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue2(ssa.OpAtomicLoad32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Load8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue2(ssa.OpAtomicLoad8, types.NewTuple(types.Types[types.TUINT8], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT8], v)
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Load64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT64], v)
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "LoadAcq",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue2(ssa.OpAtomicLoadAcq32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.PPC64, sys.S390X)
 	addF("internal/runtime/atomic", "LoadAcq64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue2(ssa.OpAtomicLoadAcq64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT64], v)
 		},
 		sys.PPC64)
 	addF("internal/runtime/atomic", "Loadp",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue2(ssa.OpAtomicLoadPtr, types.NewTuple(s.f.Config.Types.BytePtr, types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, s.f.Config.Types.BytePtr, v)
@@ -4359,51 +4344,51 @@ func InitTables() {
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 
 	addF("internal/runtime/atomic", "Store",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStore32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Store8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStore8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Store64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStore64, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "StorepNoWB",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStorePtrNoWB, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "StoreRel",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStoreRel32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.PPC64, sys.S390X)
 	addF("internal/runtime/atomic", "StoreRel64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStoreRel64, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.PPC64)
 
 	addF("internal/runtime/atomic", "Xchg",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue3(ssa.OpAtomicExchange32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Xchg64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue3(ssa.OpAtomicExchange64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT64], v)
@@ -4465,14 +4450,14 @@ func InitTables() {
 		sys.ARM64)
 
 	addF("internal/runtime/atomic", "Xadd",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue3(ssa.OpAtomicAdd32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Xadd64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue3(ssa.OpAtomicAdd64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT64], v)
@@ -4487,21 +4472,21 @@ func InitTables() {
 		sys.ARM64)
 
 	addF("internal/runtime/atomic", "Cas",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Cas64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "CasRel",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
@@ -4522,25 +4507,25 @@ func InitTables() {
 		sys.ARM64)
 
 	addF("internal/runtime/atomic", "And8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "And",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Or8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Or",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
@@ -4624,52 +4609,34 @@ func InitTables() {
 
 	/******** math ********/
 	addF("math", "sqrt",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpSqrt, types.Types[types.TFLOAT64], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpSqrt, types.Types[types.TFLOAT64], args[0]) },
 		sys.I386, sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X, sys.Wasm)
 	addF("math", "Trunc",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpTrunc, types.Types[types.TFLOAT64], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpTrunc, types.Types[types.TFLOAT64], args[0]) },
 		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math", "Ceil",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpCeil, types.Types[types.TFLOAT64], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpCeil, types.Types[types.TFLOAT64], args[0]) },
 		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math", "Floor",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpFloor, types.Types[types.TFLOAT64], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpFloor, types.Types[types.TFLOAT64], args[0]) },
 		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math", "Round",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpRound, types.Types[types.TFLOAT64], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpRound, types.Types[types.TFLOAT64], args[0]) },
 		sys.ARM64, sys.PPC64, sys.S390X)
 	addF("math", "RoundToEven",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpRoundToEven, types.Types[types.TFLOAT64], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpRoundToEven, types.Types[types.TFLOAT64], args[0]) },
 		sys.ARM64, sys.S390X, sys.Wasm)
 	addF("math", "Abs",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpAbs, types.Types[types.TFLOAT64], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpAbs, types.Types[types.TFLOAT64], args[0]) },
 		sys.ARM64, sys.ARM, sys.PPC64, sys.RISCV64, sys.Wasm, sys.MIPS, sys.MIPS64)
 	addF("math", "Copysign",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue2(ssa.OpCopysign, types.Types[types.TFLOAT64], args[0], args[1])
-		},
+		func { s, n, args -> s.newValue2(ssa.OpCopysign, types.Types[types.TFLOAT64], args[0], args[1]) },
 		sys.PPC64, sys.RISCV64, sys.Wasm)
 	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue3(ssa.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
-		},
+		func { s, n, args -> s.newValue3(ssa.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2]) },
 		sys.ARM64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			if !s.config.UseFMA {
 				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
 				return s.variable(n, types.Types[types.TFLOAT64])
@@ -4706,7 +4673,7 @@ func InitTables() {
 		},
 		sys.AMD64)
 	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			if !s.config.UseFMA {
 				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
 				return s.variable(n, types.Types[types.TFLOAT64])
@@ -4786,17 +4753,13 @@ func InitTables() {
 
 	/******** math/bits ********/
 	addF("math/bits", "TrailingZeros64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpCtz64, types.Types[types.TINT], args[0]) },
 		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "TrailingZeros32",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpCtz32, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpCtz32, types.Types[types.TINT], args[0]) },
 		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "TrailingZeros16",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			x := s.newValue1(ssa.OpZeroExt16to32, types.Types[types.TUINT32], args[0])
 			c := s.constInt32(types.Types[types.TUINT32], 1<<16)
 			y := s.newValue2(ssa.OpOr32, types.Types[types.TUINT32], x, c)
@@ -4804,12 +4767,10 @@ func InitTables() {
 		},
 		sys.MIPS)
 	addF("math/bits", "TrailingZeros16",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpCtz16, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpCtz16, types.Types[types.TINT], args[0]) },
 		sys.AMD64, sys.I386, sys.ARM, sys.ARM64, sys.Wasm)
 	addF("math/bits", "TrailingZeros16",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[types.TUINT64], args[0])
 			c := s.constInt64(types.Types[types.TUINT64], 1<<16)
 			y := s.newValue2(ssa.OpOr64, types.Types[types.TUINT64], x, c)
@@ -4817,7 +4778,7 @@ func InitTables() {
 		},
 		sys.S390X, sys.PPC64)
 	addF("math/bits", "TrailingZeros8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			x := s.newValue1(ssa.OpZeroExt8to32, types.Types[types.TUINT32], args[0])
 			c := s.constInt32(types.Types[types.TUINT32], 1<<8)
 			y := s.newValue2(ssa.OpOr32, types.Types[types.TUINT32], x, c)
@@ -4825,12 +4786,10 @@ func InitTables() {
 		},
 		sys.MIPS)
 	addF("math/bits", "TrailingZeros8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpCtz8, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpCtz8, types.Types[types.TINT], args[0]) },
 		sys.AMD64, sys.I386, sys.ARM, sys.ARM64, sys.Wasm)
 	addF("math/bits", "TrailingZeros8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[types.TUINT64], args[0])
 			c := s.constInt64(types.Types[types.TUINT64], 1<<8)
 			y := s.newValue2(ssa.OpOr64, types.Types[types.TUINT64], x, c)
@@ -4844,24 +4803,18 @@ func InitTables() {
 	// On Power10, 16-bit rotate is not available so use BRH instruction
 	if buildcfg.GOPPC64 >= 10 {
 		addF("math/bits", "ReverseBytes16",
-			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-				return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT], args[0])
-			},
+			func { s, n, args -> s.newValue1(ssa.OpBswap16, types.Types[types.TUINT], args[0]) },
 			sys.PPC64)
 	}
 
 	addF("math/bits", "Len64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], args[0]) },
 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "Len32",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitLen32, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBitLen32, types.Types[types.TINT], args[0]) },
 		sys.AMD64, sys.ARM64, sys.PPC64)
 	addF("math/bits", "Len32",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			if s.config.PtrSize == 4 {
 				return s.newValue1(ssa.OpBitLen32, types.Types[types.TINT], args[0])
 			}
@@ -4870,7 +4823,7 @@ func InitTables() {
 		},
 		sys.ARM, sys.S390X, sys.MIPS, sys.Wasm)
 	addF("math/bits", "Len16",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			if s.config.PtrSize == 4 {
 				x := s.newValue1(ssa.OpZeroExt16to32, types.Types[types.TUINT32], args[0])
 				return s.newValue1(ssa.OpBitLen32, types.Types[types.TINT], x)
@@ -4880,12 +4833,10 @@ func InitTables() {
 		},
 		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "Len16",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitLen16, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBitLen16, types.Types[types.TINT], args[0]) },
 		sys.AMD64)
 	addF("math/bits", "Len8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			if s.config.PtrSize == 4 {
 				x := s.newValue1(ssa.OpZeroExt8to32, types.Types[types.TUINT32], args[0])
 				return s.newValue1(ssa.OpBitLen32, types.Types[types.TINT], x)
@@ -4895,12 +4846,10 @@ func InitTables() {
 		},
 		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "Len8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitLen8, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBitLen8, types.Types[types.TINT], args[0]) },
 		sys.AMD64)
 	addF("math/bits", "Len",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			if s.config.PtrSize == 4 {
 				return s.newValue1(ssa.OpBitLen32, types.Types[types.TINT], args[0])
 			}
@@ -4909,49 +4858,31 @@ func InitTables() {
 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	// LeadingZeros is handled because it trivially calls Len.
 	addF("math/bits", "Reverse64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0]) },
 		sys.ARM64)
 	addF("math/bits", "Reverse32",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitRev32, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBitRev32, types.Types[types.TINT], args[0]) },
 		sys.ARM64)
 	addF("math/bits", "Reverse16",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitRev16, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBitRev16, types.Types[types.TINT], args[0]) },
 		sys.ARM64)
 	addF("math/bits", "Reverse8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitRev8, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBitRev8, types.Types[types.TINT], args[0]) },
 		sys.ARM64)
 	addF("math/bits", "Reverse",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0]) },
 		sys.ARM64)
 	addF("math/bits", "RotateLeft8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue2(ssa.OpRotateLeft8, types.Types[types.TUINT8], args[0], args[1])
-		},
+		func { s, n, args -> s.newValue2(ssa.OpRotateLeft8, types.Types[types.TUINT8], args[0], args[1]) },
 		sys.AMD64, sys.RISCV64)
 	addF("math/bits", "RotateLeft16",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue2(ssa.OpRotateLeft16, types.Types[types.TUINT16], args[0], args[1])
-		},
+		func { s, n, args -> s.newValue2(ssa.OpRotateLeft16, types.Types[types.TUINT16], args[0], args[1]) },
 		sys.AMD64, sys.RISCV64)
 	addF("math/bits", "RotateLeft32",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue2(ssa.OpRotateLeft32, types.Types[types.TUINT32], args[0], args[1])
-		},
+		func { s, n, args -> s.newValue2(ssa.OpRotateLeft32, types.Types[types.TUINT32], args[0], args[1]) },
 		sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X, sys.Wasm)
 	addF("math/bits", "RotateLeft64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue2(ssa.OpRotateLeft64, types.Types[types.TUINT64], args[0], args[1])
-		},
+		func { s, n, args -> s.newValue2(ssa.OpRotateLeft64, types.Types[types.TUINT64], args[0], args[1]) },
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X, sys.Wasm)
 	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
 
@@ -4991,56 +4922,48 @@ func InitTables() {
 		makeOnesCountAMD64(ssa.OpPopCount64),
 		sys.AMD64)
 	addF("math/bits", "OnesCount64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpPopCount64, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpPopCount64, types.Types[types.TINT], args[0]) },
 		sys.PPC64, sys.ARM64, sys.S390X, sys.Wasm)
 	addF("math/bits", "OnesCount32",
 		makeOnesCountAMD64(ssa.OpPopCount32),
 		sys.AMD64)
 	addF("math/bits", "OnesCount32",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpPopCount32, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpPopCount32, types.Types[types.TINT], args[0]) },
 		sys.PPC64, sys.ARM64, sys.S390X, sys.Wasm)
 	addF("math/bits", "OnesCount16",
 		makeOnesCountAMD64(ssa.OpPopCount16),
 		sys.AMD64)
 	addF("math/bits", "OnesCount16",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpPopCount16, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpPopCount16, types.Types[types.TINT], args[0]) },
 		sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
 	addF("math/bits", "OnesCount8",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpPopCount8, types.Types[types.TINT], args[0])
-		},
+		func { s, n, args -> s.newValue1(ssa.OpPopCount8, types.Types[types.TINT], args[0]) },
 		sys.S390X, sys.PPC64, sys.Wasm)
 	addF("math/bits", "OnesCount",
 		makeOnesCountAMD64(ssa.OpPopCount64),
 		sys.AMD64)
 	addF("math/bits", "Mul64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1])
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.MIPS64, sys.RISCV64, sys.Loong64)
 	alias("math/bits", "Mul", "math/bits", "Mul64", p8...)
 	alias("runtime/internal/math", "Mul64", "math/bits", "Mul64", p8...)
 	addF("math/bits", "Add64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
 	alias("math/bits", "Add", "math/bits", "Add64", p8...)
 	alias("runtime/internal/math", "Add64", "math/bits", "Add64", all...)
 	addF("math/bits", "Sub64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
 	alias("math/bits", "Sub", "math/bits", "Sub64", p8...)
 	addF("math/bits", "Div64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		func { s, n, args ->
 			// check for divide-by-zero/overflow and panic with appropriate message
 			cmpZero := s.newValue2(s.ssaOp(ir.ONE, types.Types[types.TUINT64]), types.Types[types.TBOOL], args[2], s.zeroVal(types.Types[types.TUINT64]))
 			s.check(cmpZero, ir.Syms.Panicdivide)
@@ -7174,7 +7097,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	// Visit t recursively and write it out.
 	// Returns whether to continue visiting.
 	var visitType func(baseOffset int64, t *types.Type, depth int) bool
-	visitType = func(baseOffset int64, t *types.Type, depth int) bool {
+	visitType = func { baseOffset, t, depth ->
 		if n >= rtabi.TraceArgsLimit {
 			writebyte(rtabi.TraceArgsDotdotdot)
 			return false
@@ -7261,7 +7184,7 @@ func emitWrappedFuncInfo(e *ssafn, pp *objw.Progs) {
 	}
 
 	wsym := wfn.Linksym()
-	x := base.Ctxt.LookupInit(fmt.Sprintf("%s.wrapinfo", wsym.Name), func(x *obj.LSym) {
+	x := base.Ctxt.LookupInit(fmt.Sprintf("%s.wrapinfo", wsym.Name), func { x ->
 		objw.SymPtrOff(x, 0, wsym)
 		x.Set(obj.AttrContentAddressable, true)
 	})
@@ -7644,7 +7567,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// Register a callback that will be used later to fill in PCs into location
 		// lists. At the moment, Prog.Pc is a sequence number; it's not a real PC
 		// until after assembly, so the translation needs to be deferred.
-		debugInfo.GetPC = func(b, v ssa.ID) int64 {
+		debugInfo.GetPC = func { b, v ->
 			switch v {
 			case ssa.BlockStart.ID:
 				if b == f.Entry.ID {
@@ -7764,7 +7687,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			for p := s.pp.Text; p != nil; p = p.Link {
 				if p.Pos.IsKnown() {
 					allPos = allPos[:0]
-					p.Ctxt.AllPos(p.Pos, func(pos src.Pos) { allPos = append(allPos, pos) })
+					p.Ctxt.AllPos(p.Pos, func { pos -> allPos = append(allPos, pos) })
 					if inliningDiffers(allPos, allPosOld) {
 						for _, pos := range allPos {
 							fmt.Fprintf(fi, "# %s:%d\n", pos.Filename(), pos.Line())

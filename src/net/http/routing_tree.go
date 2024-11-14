@@ -230,7 +230,7 @@ func (n *routingNode) matchingMethodsPath(path string, set map[string]bool) {
 	if n == nil {
 		return
 	}
-	n.children.eachPair(func(method string, c *routingNode) bool {
+	n.children.eachPair(func { method, c ->
 		if p, _ := c.matchPath(path, nil); p != nil {
 			set[method] = true
 		}

@@ -205,9 +205,7 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 
 	// record all referenced packages as imports
 	list := append(([]*types.Package)(nil), pkgList[1:]...)
-	slices.SortFunc(list, func(a, b *types.Package) int {
-		return strings.Compare(a.Path(), b.Path())
-	})
+	slices.SortFunc(list, func { a, b -> strings.Compare(a.Path(), b.Path()) })
 	localpkg.SetImports(list)
 
 	// package was imported completely and without errors

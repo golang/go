@@ -129,9 +129,7 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
 // AllPos invokes do with the position in f, then the position in g, then the position in h.
 func (ctxt *Link) AllPos(xpos src.XPos, do func(src.Pos)) {
 	pos := ctxt.InnermostPos(xpos)
-	ctxt.InlTree.AllParents(pos.Base().InliningIndex(), func(call InlinedCall) {
-		do(ctxt.InnermostPos(call.Pos))
-	})
+	ctxt.InlTree.AllParents(pos.Base().InliningIndex(), func { call -> do(ctxt.InnermostPos(call.Pos)) })
 	do(pos)
 }
 

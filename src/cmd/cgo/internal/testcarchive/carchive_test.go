@@ -59,12 +59,12 @@ func TestMain(m *testing.M) {
 
 func testMain(m *testing.M) int {
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
-		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
+		globalSkip = func { t -> t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run()
 	}
 	if runtime.GOOS == "linux" {
 		if _, err := os.Stat("/etc/alpine-release"); err == nil {
-			globalSkip = func(t *testing.T) { t.Skip("skipping failing test on alpine - go.dev/issue/19938") }
+			globalSkip = func { t -> t.Skip("skipping failing test on alpine - go.dev/issue/19938") }
 			return m.Run()
 		}
 	}

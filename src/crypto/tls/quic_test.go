@@ -399,7 +399,7 @@ func TestQUICStartContextPropagation(t *testing.T) {
 	config := &QUICConfig{TLSConfig: testConfig.Clone()}
 	config.TLSConfig.MinVersion = VersionTLS13
 	calls := 0
-	config.TLSConfig.GetConfigForClient = func(info *ClientHelloInfo) (*Config, error) {
+	config.TLSConfig.GetConfigForClient = func { info ->
 		calls++
 		got, _ := info.Context().Value(key).(string)
 		if got != value {
@@ -560,12 +560,8 @@ func TestQUICEarlyData(t *testing.T) {
 }
 
 func TestQUICEarlyDataDeclined(t *testing.T) {
-	t.Run("server", func(t *testing.T) {
-		testQUICEarlyDataDeclined(t, true)
-	})
-	t.Run("client", func(t *testing.T) {
-		testQUICEarlyDataDeclined(t, false)
-	})
+	t.Run("server", func { t -> testQUICEarlyDataDeclined(t, true) })
+	t.Run("client", func { t -> testQUICEarlyDataDeclined(t, false) })
 }
 
 func testQUICEarlyDataDeclined(t *testing.T, server bool) {

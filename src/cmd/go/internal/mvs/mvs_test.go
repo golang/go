@@ -447,7 +447,7 @@ func Test(t *testing.T) {
 	)
 	flush := func() {
 		if name != "" {
-			t.Run(name, func(t *testing.T) {
+			t.Run(name, func { t ->
 				for _, fn := range fns {
 					fn(t)
 				}
@@ -506,7 +506,7 @@ func Test(t *testing.T) {
 			if len(kf) != 2 {
 				t.Fatalf("build takes one argument: %q", line)
 			}
-			fns = append(fns, func(t *testing.T) {
+			fns = append(fns, func { t ->
 				list, err := BuildList([]module.Version{m(kf[1])}, reqs)
 				checkList(t, key, list, err, val)
 			})
@@ -515,7 +515,7 @@ func Test(t *testing.T) {
 			if len(kf) != 2 {
 				t.Fatalf("upgrade* takes one argument: %q", line)
 			}
-			fns = append(fns, func(t *testing.T) {
+			fns = append(fns, func { t ->
 				list, err := UpgradeAll(m(kf[1]), reqs)
 				checkList(t, key, list, err, val)
 			})
@@ -524,7 +524,7 @@ func Test(t *testing.T) {
 			if len(kf) < 2 {
 				t.Fatalf("upgrade takes at least one argument: %q", line)
 			}
-			fns = append(fns, func(t *testing.T) {
+			fns = append(fns, func { t ->
 				list, err := Upgrade(m(kf[1]), reqs, ms(kf[2:])...)
 				if err == nil {
 					// Copy the reqs map, but substitute the upgraded requirements in
@@ -544,7 +544,7 @@ func Test(t *testing.T) {
 			if len(kf) < 2 {
 				t.Fatalf("upgrade takes at least one argument: %q", line)
 			}
-			fns = append(fns, func(t *testing.T) {
+			fns = append(fns, func { t ->
 				list, err := Upgrade(m(kf[1]), reqs, ms(kf[2:])...)
 				checkList(t, key, list, err, val)
 			})
@@ -553,7 +553,7 @@ func Test(t *testing.T) {
 			if len(kf) < 2 {
 				t.Fatalf("downgrade takes at least one argument: %q", line)
 			}
-			fns = append(fns, func(t *testing.T) {
+			fns = append(fns, func { t ->
 				list, err := Downgrade(m(kf[1]), reqs, ms(kf[1:])...)
 				checkList(t, key, list, err, val)
 			})
@@ -562,7 +562,7 @@ func Test(t *testing.T) {
 			if len(kf) < 2 {
 				t.Fatalf("req takes at least one argument: %q", line)
 			}
-			fns = append(fns, func(t *testing.T) {
+			fns = append(fns, func { t ->
 				list, err := Req(m(kf[1]), kf[2:], reqs)
 				checkList(t, key, list, err, val)
 			})

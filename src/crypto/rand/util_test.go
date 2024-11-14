@@ -83,7 +83,7 @@ func (r *countingReader) Read(p []byte) (n int, err error) {
 func TestIntReads(t *testing.T) {
 	for i := 0; i < 32; i++ {
 		max := int64(1 << uint64(i))
-		t.Run(fmt.Sprintf("max=%d", max), func(t *testing.T) {
+		t.Run(fmt.Sprintf("max=%d", max), func { t ->
 			reader := &countingReader{r: rand.Reader}
 
 			_, err := rand.Int(reader, big.NewInt(max))
@@ -101,7 +101,7 @@ func TestIntReads(t *testing.T) {
 // Test that Int does not mask out valid return values
 func TestIntMask(t *testing.T) {
 	for max := 1; max <= 256; max++ {
-		t.Run(fmt.Sprintf("max=%d", max), func(t *testing.T) {
+		t.Run(fmt.Sprintf("max=%d", max), func { t ->
 			for i := 0; i < max; i++ {
 				if testing.Short() && i == 0 {
 					i = max - 1

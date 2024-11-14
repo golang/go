@@ -17,7 +17,7 @@ import (
 )
 
 func AssignConv(n ir.Node, t *types.Type, context string) ir.Node {
-	return assignconvfn(n, t, func() string { return context })
+	return assignconvfn(n, t, func { context })
 }
 
 // LookupNum returns types.LocalPkg.LookupNum(prefix, n).

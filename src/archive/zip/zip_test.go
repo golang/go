@@ -215,9 +215,7 @@ func (r *rleBuffer) ReadAt(p []byte, off int64) (n int, err error) {
 	if len(p) == 0 {
 		return
 	}
-	skipParts, _ := slices.BinarySearchFunc(r.buf, off, func(rb repeatedByte, off int64) int {
-		return cmp.Compare(rb.off+rb.n, off)
-	})
+	skipParts, _ := slices.BinarySearchFunc(r.buf, off, func { rb, off -> cmp.Compare(rb.off+rb.n, off) })
 	parts := r.buf[skipParts:]
 	if len(parts) > 0 {
 		skipBytes := off - parts[0].off
@@ -307,7 +305,7 @@ func TestZip64DirectoryOffset(t *testing.T) {
 	const filename = "huge.txt"
 	gen := func(wantOff uint64) func(*Writer) {
 		return func(w *Writer) {
-			w.testHookCloseSizeOffset = func(size, off uint64) {
+			w.testHookCloseSizeOffset = func { size, off ->
 				if off != wantOff {
 					t.Errorf("central directory offset = %d (%x); want %d", off, off, wantOff)
 				}
@@ -329,13 +327,13 @@ func TestZip64DirectoryOffset(t *testing.T) {
 			}
 		}
 	}
-	t.Run("uint32max-2_NoZip64", func(t *testing.T) {
+	t.Run("uint32max-2_NoZip64", func { t ->
 		t.Parallel()
 		if generatesZip64(t, gen(0xfffffffe)) {
 			t.Error("unexpected zip64")
 		}
 	})
-	t.Run("uint32max-1_Zip64", func(t *testing.T) {
+	t.Run("uint32max-1_Zip64", func { t ->
 		t.Parallel()
 		if !generatesZip64(t, gen(0xffffffff)) {
 			t.Error("expected zip64")
@@ -366,14 +364,14 @@ func TestZip64ManyRecords(t *testing.T) {
 		}
 	}
 	// 16k-1 records shouldn't make a zip64:
-	t.Run("uint16max-1_NoZip64", func(t *testing.T) {
+	t.Run("uint16max-1_NoZip64", func { t ->
 		t.Parallel()
 		if generatesZip64(t, gen(0xfffe)) {
 			t.Error("unexpected zip64")
 		}
 	})
 	// 16k records should make a zip64:
-	t.Run("uint16max_Zip64", func(t *testing.T) {
+	t.Run("uint16max_Zip64", func { t ->
 		t.Parallel()
 		if !generatesZip64(t, gen(0xffff)) {
 			t.Error("expected zip64")
@@ -505,7 +503,7 @@ func TestZip64LargeDirectory(t *testing.T) {
 	// of central directory.
 	gen := func(wantLen int64) func(*Writer) {
 		return func(w *Writer) {
-			w.testHookCloseSizeOffset = func(size, off uint64) {
+			w.testHookCloseSizeOffset = func { size, off ->
 				if size != uint64(wantLen) {
 					t.Errorf("Close central directory size = %d; want %d", size, wantLen)
 				}
@@ -536,13 +534,13 @@ func TestZip64LargeDirectory(t *testing.T) {
 			}
 		}
 	}
-	t.Run("uint32max-1_NoZip64", func(t *testing.T) {
+	t.Run("uint32max-1_NoZip64", func { t ->
 		t.Parallel()
 		if generatesZip64(t, gen(uint32max-1)) {
 			t.Error("unexpected zip64")
 		}
 	})
-	t.Run("uint32max_HasZip64", func(t *testing.T) {
+	t.Run("uint32max_HasZip64", func { t ->
 		t.Parallel()
 		if !generatesZip64(t, gen(uint32max)) {
 			t.Error("expected zip64")
@@ -766,13 +764,9 @@ func BenchmarkZip64Test(b *testing.B) {
 
 func BenchmarkZip64TestSizes(b *testing.B) {
 	for _, size := range []int64{1 << 12, 1 << 20, 1 << 26} {
-		b.Run(fmt.Sprint(size), func(b *testing.B) {
-			b.RunParallel(func(pb *testing.PB) {
-				for pb.Next() {
-					testZip64(b, size)
-				}
-			})
-		})
+		b.Run(fmt.Sprint(size), func { b -> b.RunParallel(func { pb -> for pb.Next() {
+			testZip64(b, size)
+		} }) })
 	}
 }
 

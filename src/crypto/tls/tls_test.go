@@ -580,7 +580,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 	defer sconn.Close()
 
 	connClosed := make(chan struct{})
-	conn.closeFunc = func() error {
+	conn.closeFunc = func {
 		close(connClosed)
 		return nil
 	}
@@ -617,7 +617,7 @@ func TestConnCloseWrite(t *testing.T) {
 
 	clientDoneChan := make(chan struct{})
 
-	serverCloseWrite := func() error {
+	serverCloseWrite := func {
 		sconn, err := ln.Accept()
 		if err != nil {
 			return fmt.Errorf("accept: %v", err)
@@ -651,7 +651,7 @@ func TestConnCloseWrite(t *testing.T) {
 		return nil
 	}
 
-	clientCloseWrite := func() error {
+	clientCloseWrite := func {
 		defer close(clientDoneChan)
 
 		clientConfig := testConfig.Clone()
@@ -721,7 +721,7 @@ func TestWarningAlertFlood(t *testing.T) {
 	ln := newLocalListener(t)
 	defer ln.Close()
 
-	server := func() error {
+	server := func {
 		sconn, err := ln.Accept()
 		if err != nil {
 			return fmt.Errorf("accept: %v", err)
@@ -987,13 +987,9 @@ func BenchmarkThroughput(b *testing.B) {
 	for _, mode := range []string{"Max", "Dynamic"} {
 		for size := 1; size <= 64; size <<= 1 {
 			name := fmt.Sprintf("%sPacket/%dMB", mode, size)
-			b.Run(name, func(b *testing.B) {
-				b.Run("TLSv12", func(b *testing.B) {
-					throughput(b, VersionTLS12, int64(size<<20), mode == "Max")
-				})
-				b.Run("TLSv13", func(b *testing.B) {
-					throughput(b, VersionTLS13, int64(size<<20), mode == "Max")
-				})
+			b.Run(name, func { b ->
+				b.Run("TLSv12", func { b -> throughput(b, VersionTLS12, int64(size<<20), mode == "Max") })
+				b.Run("TLSv13", func { b -> throughput(b, VersionTLS13, int64(size<<20), mode == "Max") })
 			})
 		}
 	}
@@ -1084,13 +1080,9 @@ func BenchmarkLatency(b *testing.B) {
 	for _, mode := range []string{"Max", "Dynamic"} {
 		for _, kbps := range []int{200, 500, 1000, 2000, 5000} {
 			name := fmt.Sprintf("%sPacket/%dkbps", mode, kbps)
-			b.Run(name, func(b *testing.B) {
-				b.Run("TLSv12", func(b *testing.B) {
-					latency(b, VersionTLS12, kbps*1000, mode == "Max")
-				})
-				b.Run("TLSv13", func(b *testing.B) {
-					latency(b, VersionTLS13, kbps*1000, mode == "Max")
-				})
+			b.Run(name, func { b ->
+				b.Run("TLSv12", func { b -> latency(b, VersionTLS12, kbps*1000, mode == "Max") })
+				b.Run("TLSv13", func { b -> latency(b, VersionTLS13, kbps*1000, mode == "Max") })
 			})
 		}
 	}
@@ -1112,7 +1104,7 @@ func TestConnectionState(t *testing.T) {
 	rootCAs := x509.NewCertPool()
 	rootCAs.AddCert(issuer)
 
-	now := func() time.Time { return time.Unix(1476984729, 0) }
+	now := func { time.Unix(1476984729, 0) }
 
 	const alpnProtocol = "golang"
 	const serverName = "example.golang"
@@ -1127,7 +1119,7 @@ func TestConnectionState(t *testing.T) {
 		case VersionTLS13:
 			name = "TLSv13"
 		}
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			config := &Config{
 				Time:         now,
 				Rand:         zeroSource{},
@@ -1695,8 +1687,8 @@ func TestPKCS1OnlyCert(t *testing.T) {
 
 func TestVerifyCertificates(t *testing.T) {
 	// See https://go.dev/issue/31641.
-	t.Run("TLSv12", func(t *testing.T) { testVerifyCertificates(t, VersionTLS12) })
-	t.Run("TLSv13", func(t *testing.T) { testVerifyCertificates(t, VersionTLS13) })
+	t.Run("TLSv12", func { t -> testVerifyCertificates(t, VersionTLS12) })
+	t.Run("TLSv13", func { t -> testVerifyCertificates(t, VersionTLS13) })
 }
 
 func testVerifyCertificates(t *testing.T, version uint16) {
@@ -1753,14 +1745,14 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 
 	for _, test := range tests {
 		test := test
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			t.Parallel()
 
 			var serverVerifyConnection, clientVerifyConnection bool
 			var serverVerifyPeerCertificates, clientVerifyPeerCertificates bool
 
 			clientConfig := testConfig.Clone()
-			clientConfig.Time = func() time.Time { return time.Unix(1476984729, 0) }
+			clientConfig.Time = func { time.Unix(1476984729, 0) }
 			clientConfig.MaxVersion = version
 			clientConfig.MinVersion = version
 			clientConfig.RootCAs = rootCAs
@@ -1769,19 +1761,19 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 			serverConfig := clientConfig.Clone()
 			serverConfig.ClientCAs = rootCAs
 
-			clientConfig.VerifyConnection = func(cs ConnectionState) error {
+			clientConfig.VerifyConnection = func { cs ->
 				clientVerifyConnection = true
 				return nil
 			}
-			clientConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			clientConfig.VerifyPeerCertificate = func { rawCerts, verifiedChains ->
 				clientVerifyPeerCertificates = true
 				return nil
 			}
-			serverConfig.VerifyConnection = func(cs ConnectionState) error {
+			serverConfig.VerifyConnection = func { cs ->
 				serverVerifyConnection = true
 				return nil
 			}
-			serverConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			serverConfig.VerifyPeerCertificate = func { rawCerts, verifiedChains ->
 				serverVerifyPeerCertificates = true
 				return nil
 			}
@@ -1909,7 +1901,7 @@ func TestHandshakeKyber(t *testing.T) {
 	baseConfig := testConfig.Clone()
 	baseConfig.CurvePreferences = nil
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			if test.preparation != nil {
 				test.preparation(t)
 			} else {
@@ -1919,7 +1911,7 @@ func TestHandshakeKyber(t *testing.T) {
 			if test.serverConfig != nil {
 				test.serverConfig(serverConfig)
 			}
-			serverConfig.GetConfigForClient = func(hello *ClientHelloInfo) (*Config, error) {
+			serverConfig.GetConfigForClient = func { hello ->
 				if !test.expectClientSupport && slices.Contains(hello.SupportedCurves, x25519Kyber768Draft00) {
 					return nil, errors.New("client supports Kyber768Draft00")
 				} else if test.expectClientSupport && !slices.Contains(hello.SupportedCurves, x25519Kyber768Draft00) {
@@ -1989,7 +1981,7 @@ func TestX509KeyPairPopulateCertificate(t *testing.T) {
 	}
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 
-	t.Run("x509keypairleaf=0", func(t *testing.T) {
+	t.Run("x509keypairleaf=0", func { t ->
 		t.Setenv("GODEBUG", "x509keypairleaf=0")
 		cert, err := X509KeyPair(certPEM, keyPEM)
 		if err != nil {
@@ -1999,7 +1991,7 @@ func TestX509KeyPairPopulateCertificate(t *testing.T) {
 			t.Fatal("Leaf should not be populated")
 		}
 	})
-	t.Run("x509keypairleaf=1", func(t *testing.T) {
+	t.Run("x509keypairleaf=1", func { t ->
 		t.Setenv("GODEBUG", "x509keypairleaf=1")
 		cert, err := X509KeyPair(certPEM, keyPEM)
 		if err != nil {
@@ -2009,7 +2001,7 @@ func TestX509KeyPairPopulateCertificate(t *testing.T) {
 			t.Fatal("Leaf should be populated")
 		}
 	})
-	t.Run("GODEBUG unset", func(t *testing.T) {
+	t.Run("GODEBUG unset", func { t ->
 		cert, err := X509KeyPair(certPEM, keyPEM)
 		if err != nil {
 			t.Fatal(err)

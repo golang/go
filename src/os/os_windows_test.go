@@ -737,9 +737,9 @@ func TestReadStdin(t *testing.T) {
 	for _, consoleSize := range []int{1, 2, 3, 10, 16, 100, 1000} {
 		for _, readSize := range []int{1, 2, 3, 4, 5, 8, 10, 16, 20, 50, 100} {
 			for _, s := range tests {
-				t.Run(fmt.Sprintf("c%d/r%d/%s", consoleSize, readSize, s), func(t *testing.T) {
+				t.Run(fmt.Sprintf("c%d/r%d/%s", consoleSize, readSize, s), func { t ->
 					s16 := utf16.Encode([]rune(s))
-					poll.ReadConsole = func(h syscall.Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) error {
+					poll.ReadConsole = func { h, buf, toread, read, inputControl ->
 						if inputControl != nil {
 							t.Fatalf("inputControl not nil")
 						}
@@ -1300,7 +1300,7 @@ func TestReadlink(t *testing.T) {
 			name += "_absolute"
 		}
 
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			if !tt.relative {
 				t.Parallel()
 			}

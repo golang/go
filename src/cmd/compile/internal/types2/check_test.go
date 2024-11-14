@@ -123,7 +123,7 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 // If provided, opts may be used to mutate the Config before type-checking.
 func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
 	enableAlias := true
-	opts = append(opts, func(conf *Config) { conf.EnableAlias = enableAlias })
+	opts = append(opts, func { conf -> conf.EnableAlias = enableAlias })
 	testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
 	if !manual {
 		enableAlias = false
@@ -154,7 +154,7 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uin
 	var conf Config
 	conf.Trace = manual && testing.Verbose()
 	conf.Importer = defaultImporter()
-	conf.Error = func(err error) {
+	conf.Error = func { err ->
 		if *haltOnError {
 			defer panic(err)
 		}
@@ -425,9 +425,7 @@ func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
 		if fi.IsDir() {
 			testDir(t, path, colDelta, manual)
 		} else {
-			t.Run(filepath.Base(path), func(t *testing.T) {
-				testPkg(t, []string{path}, colDelta, manual)
-			})
+			t.Run(filepath.Base(path), func { t -> testPkg(t, []string{path}, colDelta, manual) })
 		}
 	}
 }
@@ -444,9 +442,7 @@ func testDir(t *testing.T, dir string, colDelta uint, manual bool) {
 		filenames = append(filenames, filepath.Join(dir, fi.Name()))
 	}
 
-	t.Run(filepath.Base(dir), func(t *testing.T) {
-		testPkg(t, filenames, colDelta, manual)
-	})
+	t.Run(filepath.Base(dir), func { t -> testPkg(t, filenames, colDelta, manual) })
 }
 
 func testPkg(t *testing.T, filenames []string, colDelta uint, manual bool) {

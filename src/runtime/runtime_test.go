@@ -390,7 +390,7 @@ func BenchmarkGoroutineProfile(b *testing.B) {
 		return func(b *testing.B) {
 			b.Run("idle", runOne)
 
-			b.Run("loaded", func(b *testing.B) {
+			b.Run("loaded", func { b ->
 				stop := applyGCLoad(b)
 				runOne(b)
 				// Make sure to stop the timer before we wait! The load created above
@@ -403,7 +403,7 @@ func BenchmarkGoroutineProfile(b *testing.B) {
 	}
 
 	// Measure the cost of counting goroutines
-	b.Run("small-nil", run(func() bool {
+	b.Run("small-nil", run(func {
 		GoroutineProfile(nil)
 		return true
 	}))
@@ -411,7 +411,7 @@ func BenchmarkGoroutineProfile(b *testing.B) {
 	// Measure the cost with a small set of goroutines
 	n := NumGoroutine()
 	p := make([]StackRecord, 2*n+2*GOMAXPROCS(0))
-	b.Run("small", run(func() bool {
+	b.Run("small", run(func {
 		_, ok := GoroutineProfile(p)
 		return ok
 	}))
@@ -427,14 +427,14 @@ func BenchmarkGoroutineProfile(b *testing.B) {
 	ready.Wait()
 
 	// Count goroutines with a large allgs list
-	b.Run("large-nil", run(func() bool {
+	b.Run("large-nil", run(func {
 		GoroutineProfile(nil)
 		return true
 	}))
 
 	n = NumGoroutine()
 	p = make([]StackRecord, 2*n+2*GOMAXPROCS(0))
-	b.Run("large", run(func() bool {
+	b.Run("large", run(func {
 		_, ok := GoroutineProfile(p)
 		return ok
 	}))
@@ -443,7 +443,7 @@ func BenchmarkGoroutineProfile(b *testing.B) {
 	done.Wait()
 
 	// Count goroutines with a large (but unused) allgs list
-	b.Run("sparse-nil", run(func() bool {
+	b.Run("sparse-nil", run(func {
 		GoroutineProfile(nil)
 		return true
 	}))
@@ -451,7 +451,7 @@ func BenchmarkGoroutineProfile(b *testing.B) {
 	// Measure the cost of a large (but unused) allgs list
 	n = NumGoroutine()
 	p = make([]StackRecord, 2*n+2*GOMAXPROCS(0))
-	b.Run("sparse", run(func() bool {
+	b.Run("sparse", run(func {
 		_, ok := GoroutineProfile(p)
 		return ok
 	}))
@@ -517,7 +517,7 @@ func TestTimediv(t *testing.T) {
 		},
 	} {
 		name := fmt.Sprintf("%d div %d", tc.num, tc.div)
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			// Double check that the inputs make sense using
 			// standard 64-bit division.
 			ret64 := tc.num / int64(tc.div)

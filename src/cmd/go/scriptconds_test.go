@@ -33,7 +33,7 @@ func scriptConditions() map[string]script.Cond {
 	}
 
 	lazyBool := func(summary string, f func() bool) script.Cond {
-		return script.OnceCondition(summary, func() (bool, error) { return f(), nil })
+		return script.OnceCondition(summary, func { f(), nil })
 	}
 
 	add("abscc", script.Condition("default $CC path is absolute and exists", defaultCCIsAbsolute))
@@ -87,7 +87,7 @@ func ccIs(s *script.State, want string) (bool, error) {
 func sysCondition(flag string, f func(goos, goarch string) bool, needsCgo bool) script.Cond {
 	return script.Condition(
 		"GOOS/GOARCH supports "+flag,
-		func(s *script.State) (bool, error) {
+		func { s ->
 			GOOS, _ := s.LookupEnv("GOOS")
 			GOARCH, _ := s.LookupEnv("GOARCH")
 			cross := goHostOS != GOOS || goHostArch != GOARCH

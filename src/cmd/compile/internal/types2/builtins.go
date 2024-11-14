@@ -184,7 +184,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			if !isTypeParam(x.typ) {
 				break
 			}
-			if t.typeSet().underIs(func(t Type) bool {
+			if t.typeSet().underIs(func { t ->
 				switch t := arrayPtrDeref(t).(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
@@ -228,7 +228,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// clear(m)
 		check.verifyVersionf(call.Fun, go1_21, "clear")
 
-		if !underIs(x.typ, func(u Type) bool {
+		if !underIs(x.typ, func { u ->
 			switch u.(type) {
 			case *Map, *Slice:
 				return true
@@ -246,7 +246,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Close:
 		// close(c)
-		if !underIs(x.typ, func(u Type) bool {
+		if !underIs(x.typ, func { u ->
 			uch, _ := u.(*Chan)
 			if uch == nil {
 				check.errorf(x, InvalidClose, invalidOp+"cannot close non-channel %s", x)
@@ -388,7 +388,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// The key cannot be a type parameter for now.
 		map_ := x.typ
 		var key Type
-		if !underIs(map_, func(u Type) bool {
+		if !underIs(map_, func { u ->
 			map_, _ := u.(*Map)
 			if map_ == nil {
 				check.errorf(x, InvalidDelete, invalidArg+"%s is not a map", x)
@@ -964,7 +964,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var terms []*Term
-		if !tp.is(func(t *term) bool {
+		if !tp.is(func { t ->
 			if t == nil {
 				return false
 			}

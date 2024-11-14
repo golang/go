@@ -316,7 +316,7 @@ func TestIndex64(t *testing.T) {
 }
 
 func TestNew32(t *testing.T) {
-	test(t, func(x []byte) []int {
+	test(t, func { x ->
 		sa := make([]int32, len(x))
 		text_32(x, sa)
 		out := make([]int, len(sa))
@@ -328,7 +328,7 @@ func TestNew32(t *testing.T) {
 }
 
 func TestNew64(t *testing.T) {
-	test(t, func(x []byte) []int {
+	test(t, func { x ->
 		sa := make([]int64, len(x))
 		text_64(x, sa)
 		out := make([]int, len(sa))
@@ -342,7 +342,7 @@ func TestNew64(t *testing.T) {
 // test tests an arbitrary suffix array construction function.
 // Generates many inputs, builds and checks suffix arrays.
 func test(t *testing.T, build func([]byte) []int) {
-	t.Run("ababab...", func(t *testing.T) {
+	t.Run("ababab...", func { t ->
 		// Very repetitive input has numLMS = len(x)/2-1
 		// at top level, the largest it can be.
 		// But maxID is only two (aba and ab$).
@@ -357,7 +357,7 @@ func test(t *testing.T, build func([]byte) []int) {
 		testSA(t, x, build)
 	})
 
-	t.Run("forcealloc", func(t *testing.T) {
+	t.Run("forcealloc", func { t ->
 		// Construct a pathological input that forces
 		// recurse_32 to allocate a new temporary buffer.
 		// The input must have more than N/3 LMS-substrings,
@@ -391,7 +391,7 @@ func test(t *testing.T, build func([]byte) []int) {
 		testSA(t, x, build)
 	})
 
-	t.Run("exhaustive2", func(t *testing.T) {
+	t.Run("exhaustive2", func { t ->
 		// All inputs over {0,1} up to length 21.
 		// Runs in about 10 seconds on my laptop.
 		x := make([]byte, 30)
@@ -405,7 +405,7 @@ func test(t *testing.T, build func([]byte) []int) {
 		}
 	})
 
-	t.Run("exhaustive3", func(t *testing.T) {
+	t.Run("exhaustive3", func { t ->
 		// All inputs over {0,1,2} up to length 14.
 		// Runs in about 10 seconds on my laptop.
 		x := make([]byte, 30)
@@ -504,7 +504,7 @@ func makeText(name string) ([]byte, error) {
 			return nil, err
 		}
 	case "go":
-		err := filepath.WalkDir("../..", func(path string, info fs.DirEntry, err error) error {
+		err := filepath.WalkDir("../..", func { path, info, err ->
 			if err == nil && strings.HasSuffix(path, ".go") && !info.IsDir() {
 				file, err := os.ReadFile(path)
 				if err != nil {
@@ -541,7 +541,7 @@ func setBits(bits int) (cleanup func()) {
 
 func BenchmarkNew(b *testing.B) {
 	for _, text := range []string{"opticks", "go", "zero", "rand"} {
-		b.Run("text="+text, func(b *testing.B) {
+		b.Run("text="+text, func { b ->
 			data, err := makeText(text)
 			if err != nil {
 				b.Fatal(err)
@@ -558,12 +558,12 @@ func BenchmarkNew(b *testing.B) {
 				if size >= 1e6 {
 					name = fmt.Sprintf("%dM", size/1e6)
 				}
-				b.Run("size="+name, func(b *testing.B) {
+				b.Run("size="+name, func { b ->
 					for _, bits := range []int{32, 64} {
 						if ^uint(0) == 0xffffffff && bits == 64 {
 							continue
 						}
-						b.Run(fmt.Sprintf("bits=%d", bits), func(b *testing.B) {
+						b.Run(fmt.Sprintf("bits=%d", bits), func { b ->
 							cleanup := setBits(bits)
 							defer cleanup()
 
@@ -590,7 +590,7 @@ func BenchmarkSaveRestore(b *testing.B) {
 		if ^uint(0) == 0xffffffff && bits == 64 {
 			continue
 		}
-		b.Run(fmt.Sprintf("bits=%d", bits), func(b *testing.B) {
+		b.Run(fmt.Sprintf("bits=%d", bits), func { b ->
 			cleanup := setBits(bits)
 			defer cleanup()
 

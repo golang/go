@@ -142,7 +142,7 @@ func TestResolveIdents(t *testing.T) {
 
 	// check that qualified identifiers are resolved
 	for _, f := range files {
-		ast.Inspect(f, func(n ast.Node) bool {
+		ast.Inspect(f, func { n ->
 			if s, ok := n.(*ast.SelectorExpr); ok {
 				if x, ok := s.X.(*ast.Ident); ok {
 					obj := uses[x]
@@ -171,7 +171,7 @@ func TestResolveIdents(t *testing.T) {
 	// check that each identifier in the source is found in uses or defs or both
 	var both []string
 	for _, f := range files {
-		ast.Inspect(f, func(n ast.Node) bool {
+		ast.Inspect(f, func { n ->
 			if x, ok := n.(*ast.Ident); ok {
 				var objects int
 				if _, found := uses[x]; found {

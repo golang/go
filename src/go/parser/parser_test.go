@@ -227,7 +227,7 @@ func f() { L: }
 		"L":   ast.Lbl,
 	}
 
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		if ident, ok := n.(*ast.Ident); ok {
 			obj := ident.Obj
 			if obj == nil {
@@ -462,7 +462,7 @@ func TestIssue9979(t *testing.T) {
 		}
 
 		var pos, end token.Pos
-		ast.Inspect(f, func(x ast.Node) bool {
+		ast.Inspect(f, func { x ->
 			switch s := x.(type) {
 			case *ast.BlockStmt:
 				pos, end = s.Pos()+1, s.End()-1 // exclude "{", "}"
@@ -537,7 +537,7 @@ func TestIncompleteSelection(t *testing.T) {
 		}
 
 		var sel *ast.SelectorExpr
-		ast.Inspect(f, func(n ast.Node) bool {
+		ast.Inspect(f, func { n ->
 			if n, ok := n.(*ast.SelectorExpr); ok {
 				sel = n
 			}
@@ -650,7 +650,7 @@ func TestParseDepthLimit(t *testing.T) {
 	}
 	for _, tt := range parseDepthTests {
 		for _, size := range []string{"small", "big"} {
-			t.Run(tt.name+"/"+size, func(t *testing.T) {
+			t.Run(tt.name+"/"+size, func { t ->
 				n := maxNestLev + 1
 				if tt.parseMultiplier > 0 {
 					n /= tt.parseMultiplier
@@ -696,7 +696,7 @@ func TestScopeDepthLimit(t *testing.T) {
 			continue
 		}
 		for _, size := range []string{"small", "big"} {
-			t.Run(tt.name+"/"+size, func(t *testing.T) {
+			t.Run(tt.name+"/"+size, func { t ->
 				n := maxScopeDepth + 1
 				if tt.scopeMultiplier > 0 {
 					n /= tt.scopeMultiplier
@@ -753,7 +753,7 @@ func TestRangePos(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ast.Inspect(f, func(x ast.Node) bool {
+		ast.Inspect(f, func { x ->
 			switch s := x.(type) {
 			case *ast.RangeStmt:
 				pos := fset.Position(s.Range)

@@ -84,7 +84,7 @@ func HashDir(dir, prefix string, hash Hash) (string, error) {
 func DirFiles(dir, prefix string) ([]string, error) {
 	var files []string
 	dir = filepath.Clean(dir)
-	err := filepath.Walk(dir, func(file string, info os.FileInfo, err error) error {
+	err := filepath.Walk(dir, func { file, info, err ->
 		if err != nil {
 			return err
 		}

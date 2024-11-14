@@ -38,7 +38,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	nodeFilter := []ast.Node{
 		(*ast.AssignStmt)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(node ast.Node) {
+	inspect.Preorder(nodeFilter, func { node ->
 		n := node.(*ast.AssignStmt)
 		if len(n.Lhs) != len(n.Rhs) {
 			return

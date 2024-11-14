@@ -67,7 +67,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.FuncDecl)(nil),
 		(*ast.GoStmt)(nil),
 		(*ast.CallExpr)(nil),
-	}, func(node ast.Node, push bool) bool {
+	}, func { node, push ->
 		if !push {
 			return false
 		}
@@ -91,7 +91,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	//
 	// Also considers a special case when r is a go t.Forbidden() call.
 	for _, region := range regions {
-		ast.Inspect(region, func(n ast.Node) bool {
+		ast.Inspect(region, func { n ->
 			if n == region {
 				return true // always descend into the region itself.
 			} else if asyncs[n] != nil {

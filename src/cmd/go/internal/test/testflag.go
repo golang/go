@@ -224,7 +224,7 @@ func (f *shuffleFlag) Set(value string) error {
 func testFlags(args []string) (packageNames, passToTest []string) {
 	base.SetFromGOFLAGS(&CmdTest.Flag)
 	addFromGOFLAGS := map[string]bool{}
-	CmdTest.Flag.Visit(func(f *flag.Flag) {
+	CmdTest.Flag.Visit(func { f ->
 		if short := strings.TrimPrefix(f.Name, "test."); passFlagToTest[short] {
 			addFromGOFLAGS[f.Name] = true
 		}
@@ -358,7 +358,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 	// (They must appear before the flag terminator or first non-flag argument.)
 	// Also determine whether flags with awkward defaults have already been set.
 	var timeoutSet, outputDirSet bool
-	CmdTest.Flag.Visit(func(f *flag.Flag) {
+	CmdTest.Flag.Visit(func { f ->
 		short := strings.TrimPrefix(f.Name, "test.")
 		if addFromGOFLAGS[f.Name] {
 			injectedFlags = append(injectedFlags, fmt.Sprintf("-test.%s=%v", short, f.Value))

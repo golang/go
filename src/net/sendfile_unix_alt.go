@@ -73,7 +73,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	}
 
 	var werr error
-	err = sc.Read(func(fd uintptr) bool {
+	err = sc.Read(func { fd ->
 		written, werr, handled = poll.SendFile(&c.pfd, int(fd), pos, remain)
 		return true
 	})

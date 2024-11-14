@@ -40,7 +40,7 @@ func init() {
 func TestReverseProxy(t *testing.T) {
 	const backendResponse = "I am the backend"
 	const backendStatus = 404
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		if r.Method == "GET" && r.FormValue("mode") == "hangup" {
 			c, _, _ := w.(http.Hijacker).Hijack()
 			c.Close()
@@ -163,7 +163,7 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 	// in the Request's Connection header.
 	const someConnHeader = "X-Some-Conn-Header"
 
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		if c := r.Header.Get("Connection"); c != "" {
 			t.Errorf("handler got header %q = %q; want empty", "Connection", c)
 		}
@@ -185,7 +185,7 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	frontend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		proxyHandler.ServeHTTP(w, r)
 		if c := r.Header.Get(someConnHeader); c != "should be deleted" {
 			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "should be deleted")
@@ -247,7 +247,7 @@ func TestReverseProxyStripEmptyConnection(t *testing.T) {
 	// in the Request's Connection header.
 	const someConnHeader = "X-Some-Conn-Header"
 
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		if c := r.Header.Values("Connection"); len(c) != 0 {
 			t.Errorf("handler got header %q = %v; want empty", "Connection", c)
 		}
@@ -265,7 +265,7 @@ func TestReverseProxyStripEmptyConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	frontend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		proxyHandler.ServeHTTP(w, r)
 		if c := r.Header.Get(someConnHeader); c != "should be deleted" {
 			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "should be deleted")
@@ -301,7 +301,7 @@ func TestXForwardedFor(t *testing.T) {
 	const prevForwardedFor = "client ip"
 	const backendResponse = "I am the backend"
 	const backendStatus = 404
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		if r.Header.Get("X-Forwarded-For") == "" {
 			t.Errorf("didn't get X-Forwarded-For header")
 		}
@@ -339,7 +339,7 @@ func TestXForwardedFor(t *testing.T) {
 
 // Issue 38079: don't append to X-Forwarded-For if it's present but nil
 func TestXForwardedFor_Omit(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		if v := r.Header.Get("X-Forwarded-For"); v != "" {
 			t.Errorf("got X-Forwarded-For header: %q", v)
 		}
@@ -355,7 +355,7 @@ func TestXForwardedFor_Omit(t *testing.T) {
 	defer frontend.Close()
 
 	oldDirector := proxyHandler.Director
-	proxyHandler.Director = func(r *http.Request) {
+	proxyHandler.Director = func { r ->
 		r.Header["X-Forwarded-For"] = nil
 		oldDirector(r)
 	}
@@ -377,7 +377,7 @@ func TestReverseProxyRewriteStripsForwarded(t *testing.T) {
 		"X-Forwarded-Host",
 		"X-Forwarded-Proto",
 	}
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		for _, h := range headers {
 			if v := r.Header.Get(h); v != "" {
 				t.Errorf("got %v header: %q", h, v)
@@ -422,7 +422,7 @@ var proxyQueryTests = []struct {
 }
 
 func TestReverseProxyQuery(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		w.Header().Set("X-Got-Query", r.URL.RawQuery)
 		w.Write([]byte("hi"))
 	}))
@@ -450,9 +450,7 @@ func TestReverseProxyQuery(t *testing.T) {
 
 func TestReverseProxyFlushInterval(t *testing.T) {
 	const expected = "hi"
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(expected))
-	}))
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r -> w.Write([]byte(expected)) }))
 	defer backend.Close()
 
 	backendURL, err := url.Parse(backend.URL)
@@ -497,9 +495,7 @@ func (w *wrappedRW) Unwrap() http.ResponseWriter {
 
 func TestReverseProxyResponseControllerFlushInterval(t *testing.T) {
 	const expected = "hi"
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(expected))
-	}))
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r -> w.Write([]byte(expected)) }))
 	defer backend.Close()
 
 	backendURL, err := url.Parse(backend.URL)
@@ -510,7 +506,7 @@ func TestReverseProxyResponseControllerFlushInterval(t *testing.T) {
 	mf := &mockFlusher{}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
 	proxyHandler.FlushInterval = -1 // flush immediately
-	proxyWithMiddleware := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	proxyWithMiddleware := http.HandlerFunc(func { w, r ->
 		mf.ResponseWriter = w
 		w = &wrappedRW{mf}
 		proxyHandler.ServeHTTP(w, r)
@@ -537,7 +533,7 @@ func TestReverseProxyResponseControllerFlushInterval(t *testing.T) {
 func TestReverseProxyFlushIntervalHeaders(t *testing.T) {
 	const expected = "hi"
 	stopCh := make(chan struct{})
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		w.Header().Add("MyHeader", expected)
 		w.WriteHeader(200)
 		w.(http.Flusher).Flush()
@@ -579,7 +575,7 @@ func TestReverseProxyCancellation(t *testing.T) {
 	const backendResponse = "I am the backend"
 
 	reqInFlight := make(chan struct{})
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		close(reqInFlight) // cause the client to cancel its request
 
 		select {
@@ -641,12 +637,10 @@ func req(t *testing.T, v string) *http.Request {
 
 // Issue 12344
 func TestNilBody(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hi"))
-	}))
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r -> w.Write([]byte("hi")) }))
 	defer backend.Close()
 
-	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	frontend := httptest.NewServer(http.HandlerFunc(func { w, _ ->
 		backURL, _ := url.Parse(backend.URL)
 		rp := NewSingleHostReverseProxy(backURL)
 		r := req(t, "GET / HTTP/1.0\r\n\r\n")
@@ -672,9 +666,7 @@ func TestNilBody(t *testing.T) {
 // Issue 15524
 func TestUserAgentHeader(t *testing.T) {
 	var gotUA string
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotUA = r.Header.Get("User-Agent")
-	}))
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r -> gotUA = r.Header.Get("User-Agent") }))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
 	if err != nil {
@@ -683,9 +675,7 @@ func TestUserAgentHeader(t *testing.T) {
 
 	proxyHandler := new(ReverseProxy)
 	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
-	proxyHandler.Director = func(req *http.Request) {
-		req.URL = backendURL
-	}
+	proxyHandler.Director = func { req -> req.URL = backendURL }
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 	frontendClient := frontend.Client()
@@ -715,9 +705,7 @@ func (bp bufferPool) Put(v []byte) { bp.put(v) }
 
 func TestReverseProxyGetPutBuffer(t *testing.T) {
 	const msg = "hi"
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, msg)
-	}))
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r -> io.WriteString(w, msg) }))
 	defer backend.Close()
 
 	backendURL, err := url.Parse(backend.URL)
@@ -774,7 +762,7 @@ func TestReverseProxy_Post(t *testing.T) {
 	const backendResponse = "I am the backend"
 	const backendStatus = 200
 	var requestBody = bytes.Repeat([]byte("a"), 1<<20)
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		slurp, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("Backend body read = %v", err)
@@ -821,7 +809,7 @@ func TestReverseProxy_NilBody(t *testing.T) {
 	backendURL, _ := url.Parse("http://fake.tld/")
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
 	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
-	proxyHandler.Transport = RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	proxyHandler.Transport = RoundTripperFunc(func { req ->
 		if req.Body != nil {
 			t.Error("Body != nil; want a nil Body")
 		}
@@ -844,8 +832,8 @@ func TestReverseProxy_NilBody(t *testing.T) {
 func TestReverseProxy_AllocatedHeader(t *testing.T) {
 	proxyHandler := new(ReverseProxy)
 	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
-	proxyHandler.Director = func(*http.Request) {}     // noop
-	proxyHandler.Transport = RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	proxyHandler.Director = func {}                    // noop
+	proxyHandler.Transport = RoundTripperFunc(func { req ->
 		if req.Header == nil {
 			t.Error("Header == nil; want a non-nil Header")
 		}
@@ -863,15 +851,13 @@ func TestReverseProxy_AllocatedHeader(t *testing.T) {
 // Issue 14237. Test ModifyResponse and that an error from it
 // causes the proxy to return StatusBadGateway, or StatusOK otherwise.
 func TestReverseProxyModifyResponse(t *testing.T) {
-	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("X-Hit-Mod", fmt.Sprintf("%v", r.URL.Path == "/mod"))
-	}))
+	backendServer := httptest.NewServer(http.HandlerFunc(func { w, r -> w.Header().Add("X-Hit-Mod", fmt.Sprintf("%v", r.URL.Path == "/mod")) }))
 	defer backendServer.Close()
 
 	rpURL, _ := url.Parse(backendServer.URL)
 	rproxy := NewSingleHostReverseProxy(rpURL)
 	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
-	rproxy.ModifyResponse = func(resp *http.Response) error {
+	rproxy.ModifyResponse = func { resp ->
 		if resp.Header.Get("X-Hit-Mod") != "true" {
 			return fmt.Errorf("tried to by-pass proxy")
 		}
@@ -957,7 +943,7 @@ func TestReverseProxyErrorHandler(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			target := &url.URL{
 				Scheme: "http",
 				Host:   "dummy.tld",
@@ -990,7 +976,7 @@ func TestReverseProxyErrorHandler(t *testing.T) {
 
 // Issue 16659: log errors from short read
 func TestReverseProxy_CopyBuffer(t *testing.T) {
-	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backendServer := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		out := "this call was relayed by the reverse proxy"
 		// Coerce a wrong content length to induce io.UnexpectedEOF
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(out)*2))
@@ -1007,7 +993,7 @@ func TestReverseProxy_CopyBuffer(t *testing.T) {
 	rproxy := NewSingleHostReverseProxy(rpURL)
 	rproxy.ErrorLog = log.New(&proxyLog, "", log.Lshortfile)
 	donec := make(chan bool, 1)
-	frontendProxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	frontendProxy := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		defer func() { donec <- true }()
 		rproxy.ServeHTTP(w, r)
 	}))
@@ -1061,9 +1047,7 @@ func BenchmarkServeHTTP(b *testing.B) {
 }
 
 func TestServeHTTPDeepCopy(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello Gopher!"))
-	}))
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r -> w.Write([]byte("Hello Gopher!")) }))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
 	if err != nil {
@@ -1076,7 +1060,7 @@ func TestServeHTTPDeepCopy(t *testing.T) {
 
 	resultChan := make(chan result, 1)
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	frontend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		before := r.URL.String()
 		proxyHandler.ServeHTTP(w, r)
 		after := r.URL.String()
@@ -1109,7 +1093,7 @@ func TestClonesRequestHeaders(t *testing.T) {
 		Director: func(req *http.Request) {
 			req.Header.Set("From-Director", "1")
 		},
-		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		Transport: roundTripperFunc(func { req ->
 			if v := req.Header.Get("From-Director"); v != "1" {
 				t.Errorf("From-Directory value = %q; want 1", v)
 			}
@@ -1182,7 +1166,7 @@ func (cc *checkCloser) Read(b []byte) (int, error) {
 func TestReverseProxy_PanicBodyError(t *testing.T) {
 	log.SetOutput(io.Discard)
 	defer log.SetOutput(os.Stderr)
-	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backendServer := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		out := "this call was relayed by the reverse proxy"
 		// Coerce a wrong content length to induce io.ErrUnexpectedEOF
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(out)*2))
@@ -1214,7 +1198,7 @@ func TestReverseProxy_PanicBodyError(t *testing.T) {
 
 // Issue #46866: panic without closing incoming request body causes a panic
 func TestReverseProxy_PanicClosesIncomingBody(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		out := "this call was relayed by the reverse proxy"
 		// Coerce a wrong content length to induce io.ErrUnexpectedEOF
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(out)*2))
@@ -1322,7 +1306,7 @@ func TestSelectFlushInterval(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			got := tt.p.flushInterval(tt.res)
 			if got != tt.want {
 				t.Errorf("flushLatency = %v; want %v", got, tt.want)
@@ -1332,7 +1316,7 @@ func TestSelectFlushInterval(t *testing.T) {
 }
 
 func TestReverseProxyWebSocket(t *testing.T) {
-	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backendServer := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		if upgradeType(r.Header) != "websocket" {
 			t.Error("unexpected backend request")
 			http.Error(w, "unexpected request", 400)
@@ -1357,12 +1341,12 @@ func TestReverseProxyWebSocket(t *testing.T) {
 	backURL, _ := url.Parse(backendServer.URL)
 	rproxy := NewSingleHostReverseProxy(backURL)
 	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
-	rproxy.ModifyResponse = func(res *http.Response) error {
+	rproxy.ModifyResponse = func { res ->
 		res.Header.Add("X-Modified", "true")
 		return nil
 	}
 
-	handler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func { rw, req ->
 		rw.Header().Set("X-Header", "X-Value")
 		rproxy.ServeHTTP(rw, req)
 		if got, want := rw.Header().Get("X-Modified"), "true"; got != want {
@@ -1425,7 +1409,7 @@ func TestReverseProxyWebSocketCancellation(t *testing.T) {
 	}
 	terminalMsg := "final message"
 
-	cst := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	cst := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		if g, ws := upgradeType(r.Header), "websocket"; g != ws {
 			t.Errorf("Unexpected upgrade type %q, want %q", g, ws)
 			http.Error(w, "Unexpected request", 400)
@@ -1474,12 +1458,12 @@ func TestReverseProxyWebSocketCancellation(t *testing.T) {
 	backendURL, _ := url.Parse(cst.URL)
 	rproxy := NewSingleHostReverseProxy(backendURL)
 	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
-	rproxy.ModifyResponse = func(res *http.Response) error {
+	rproxy.ModifyResponse = func { res ->
 		res.Header.Add("X-Modified", "true")
 		return nil
 	}
 
-	handler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func { rw, req ->
 		rw.Header().Set("X-Header", "X-Value")
 		ctx, cancel := context.WithCancel(req.Context())
 		go func() {
@@ -1549,7 +1533,7 @@ func TestReverseProxyWebSocketCancellation(t *testing.T) {
 }
 
 func TestUnannouncedTrailer(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		w.WriteHeader(http.StatusOK)
 		w.(http.Flusher).Flush()
 		w.Header().Set(http.TrailerPrefix+"X-Unannounced-Trailer", "unannounced_trailer_value")
@@ -1579,9 +1563,7 @@ func TestUnannouncedTrailer(t *testing.T) {
 }
 
 func TestSetURL(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(r.Host))
-	}))
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r -> w.Write([]byte(r.Host)) }))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
 	if err != nil {
@@ -1664,9 +1646,7 @@ func TestJoinURLPath(t *testing.T) {
 
 func TestReverseProxyRewriteReplacesOut(t *testing.T) {
 	const content = "response_content"
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(content))
-	}))
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r -> w.Write([]byte(content)) }))
 	defer backend.Close()
 	proxyHandler := &ReverseProxy{
 		Rewrite: func(r *ProxyRequest) {
@@ -1692,11 +1672,9 @@ func Test1xxHeadersNotModifiedAfterRoundTrip(t *testing.T) {
 	// and proxy them. httptrace handlers can execute after RoundTrip returns, in particular
 	// after experiencing connection errors. When this happens, we shouldn't modify the
 	// ResponseWriter headers after ReverseProxy.ServeHTTP returns.
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for i := 0; i < 5; i++ {
-			w.WriteHeader(103)
-		}
-	}))
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r -> for i := 0; i < 5; i++ {
+		w.WriteHeader(103)
+	} }))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
 	if err != nil {
@@ -1724,12 +1702,12 @@ func Test1xxHeadersNotModifiedAfterRoundTrip(t *testing.T) {
 	// Trigger data race while iterating over response headers.
 	// When run with -race, this causes the condition in https://go.dev/issue/65123 often
 	// enough to detect reliably.
-	for _ = range rw.Header() {
+	for range rw.Header() {
 	}
 }
 
 func Test1xxResponses(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r ->
 		h := w.Header()
 		h.Add("Link", "</style.css>; rel=preload; as=style")
 		h.Add("Link", "</script.js>; rel=preload; as=script")
@@ -1814,21 +1792,19 @@ const (
 )
 
 func TestReverseProxyQueryParameterSmugglingDirectorDoesNotParseForm(t *testing.T) {
-	testReverseProxyQueryParameterSmuggling(t, testWantsRawQuery, func(u *url.URL) *ReverseProxy {
+	testReverseProxyQueryParameterSmuggling(t, testWantsRawQuery, func { u ->
 		proxyHandler := NewSingleHostReverseProxy(u)
 		oldDirector := proxyHandler.Director
-		proxyHandler.Director = func(r *http.Request) {
-			oldDirector(r)
-		}
+		proxyHandler.Director = func { r -> oldDirector(r) }
 		return proxyHandler
 	})
 }
 
 func TestReverseProxyQueryParameterSmugglingDirectorParsesForm(t *testing.T) {
-	testReverseProxyQueryParameterSmuggling(t, testWantsCleanQuery, func(u *url.URL) *ReverseProxy {
+	testReverseProxyQueryParameterSmuggling(t, testWantsCleanQuery, func { u ->
 		proxyHandler := NewSingleHostReverseProxy(u)
 		oldDirector := proxyHandler.Director
-		proxyHandler.Director = func(r *http.Request) {
+		proxyHandler.Director = func { r ->
 			// Parsing the form causes ReverseProxy to remove unparsable
 			// query parameters before forwarding.
 			r.FormValue("a")
@@ -1839,17 +1815,15 @@ func TestReverseProxyQueryParameterSmugglingDirectorParsesForm(t *testing.T) {
 }
 
 func TestReverseProxyQueryParameterSmugglingRewrite(t *testing.T) {
-	testReverseProxyQueryParameterSmuggling(t, testWantsCleanQuery, func(u *url.URL) *ReverseProxy {
-		return &ReverseProxy{
-			Rewrite: func(r *ProxyRequest) {
-				r.SetURL(u)
-			},
-		}
-	})
+	testReverseProxyQueryParameterSmuggling(t, testWantsCleanQuery, func { u -> &ReverseProxy{
+		Rewrite: func(r *ProxyRequest) {
+			r.SetURL(u)
+		},
+	} })
 }
 
 func TestReverseProxyQueryParameterSmugglingRewritePreservesRawQuery(t *testing.T) {
-	testReverseProxyQueryParameterSmuggling(t, testWantsRawQuery, func(u *url.URL) *ReverseProxy {
+	testReverseProxyQueryParameterSmuggling(t, testWantsRawQuery, func { u ->
 		return &ReverseProxy{
 			Rewrite: func(r *ProxyRequest) {
 				r.SetURL(u)
@@ -1861,9 +1835,7 @@ func TestReverseProxyQueryParameterSmugglingRewritePreservesRawQuery(t *testing.
 
 func testReverseProxyQueryParameterSmuggling(t *testing.T, wantCleanQuery bool, newProxy func(*url.URL) *ReverseProxy) {
 	const content = "response_content"
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(r.URL.RawQuery))
-	}))
+	backend := httptest.NewServer(http.HandlerFunc(func { w, r -> w.Write([]byte(r.URL.RawQuery)) }))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
 	if err != nil {

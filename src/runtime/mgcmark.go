@@ -128,7 +128,7 @@ func gcMarkRootCheck() {
 	// Since we don't care about newer Gs (see comment in
 	// gcMarkRootPrepare), no locking is required.
 	i := 0
-	forEachGRace(func(gp *g) {
+	forEachGRace(func { gp ->
 		if i >= work.nStackRoots {
 			return
 		}
@@ -1482,7 +1482,7 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 	if debugScanConservative {
 		printlock()
 		print("conservatively scanning [", hex(b), ",", hex(b+n), ")\n")
-		hexdumpWords(b, b+n, func(p uintptr) byte {
+		hexdumpWords(b, b+n, func { p ->
 			if ptrmask != nil {
 				word := (p - b) / goarch.PtrSize
 				bits := *addb(ptrmask, word/8)

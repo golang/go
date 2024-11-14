@@ -1582,7 +1582,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		cmd.Stdout = stdout
 		cmd.Stderr = stdout
 
-		cmd.Cancel = func() error {
+		cmd.Cancel = func {
 			if base.SignalTrace == nil {
 				err := cmd.Process.Kill()
 				if err == nil {

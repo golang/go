@@ -659,8 +659,8 @@ func BenchmarkTable(b *testing.B) {
 		line := bytes.Repeat([]byte("a\t"), w)
 		line = append(line, '\n')
 		for _, h := range [...]int{10, 1000, 100000} {
-			b.Run(fmt.Sprintf("%dx%d", w, h), func(b *testing.B) {
-				b.Run("new", func(b *testing.B) {
+			b.Run(fmt.Sprintf("%dx%d", w, h), func { b ->
+				b.Run("new", func { b ->
 					b.ReportAllocs()
 					for i := 0; i < b.N; i++ {
 						w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
@@ -672,7 +672,7 @@ func BenchmarkTable(b *testing.B) {
 					}
 				})
 
-				b.Run("reuse", func(b *testing.B) {
+				b.Run("reuse", func { b ->
 					b.ReportAllocs()
 					w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
 					for i := 0; i < b.N; i++ {
@@ -692,7 +692,7 @@ func BenchmarkPyramid(b *testing.B) {
 	for _, x := range [...]int{10, 100, 1000} {
 		// Build a line with x cells.
 		line := bytes.Repeat([]byte("a\t"), x)
-		b.Run(fmt.Sprintf("%d", x), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d", x), func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings
@@ -714,7 +714,7 @@ func BenchmarkRagged(b *testing.B) {
 		lines[i] = bytes.Repeat([]byte("a\t"), w)
 	}
 	for _, h := range [...]int{10, 100, 1000} {
-		b.Run(fmt.Sprintf("%d", h), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d", h), func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				w := NewWriter(io.Discard, 4, 4, 1, ' ', 0) // no particular reason for these settings

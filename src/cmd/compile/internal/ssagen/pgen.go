@@ -181,9 +181,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	// Use sort.SliceStable instead of sort.Slice so stack layout (and thus
 	// compiler output) is less sensitive to frontend changes that
 	// introduce or remove unused variables.
-	sort.SliceStable(fn.Dcl, func(i, j int) bool {
-		return cmpstackvarlt(fn.Dcl[i], fn.Dcl[j], mls)
-	})
+	sort.SliceStable(fn.Dcl, func { i, j -> cmpstackvarlt(fn.Dcl[i], fn.Dcl[j], mls) })
 
 	if mls != nil {
 		// Rewrite fn.Dcl to reposition followers (subsumed vars) to
@@ -414,7 +412,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
 	for sym := range tracked {
 		trackSyms = append(trackSyms, sym)
 	}
-	sort.Slice(trackSyms, func(i, j int) bool { return trackSyms[i].Name < trackSyms[j].Name })
+	sort.Slice(trackSyms, func { i, j -> trackSyms[i].Name < trackSyms[j].Name })
 	for _, sym := range trackSyms {
 		r := obj.Addrel(fnsym)
 		r.Sym = sym
@@ -437,9 +435,7 @@ var (
 
 func CheckLargeStacks() {
 	// Check whether any of the functions we have compiled have gigantic stack frames.
-	sort.Slice(largeStackFrames, func(i, j int) bool {
-		return largeStackFrames[i].pos.Before(largeStackFrames[j].pos)
-	})
+	sort.Slice(largeStackFrames, func { i, j -> largeStackFrames[i].pos.Before(largeStackFrames[j].pos) })
 	for _, large := range largeStackFrames {
 		if large.callee != 0 {
 			base.ErrorfAt(large.pos, 0, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)

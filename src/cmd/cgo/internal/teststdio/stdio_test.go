@@ -58,7 +58,7 @@ func TestTestRun(t *testing.T) {
 	} {
 		file := file
 		wantFile := strings.Replace(file, ".go", ".out", 1)
-		t.Run(file, func(t *testing.T) {
+		t.Run(file, func { t ->
 			cmd := exec.Command("go", "run", file)
 			got, err := cmd.CombinedOutput()
 			if err != nil {

@@ -42,7 +42,7 @@ func (h *gitHandler) Handler(dir string, env []string, logger *log.Logger) (http
 		"GIT_HTTP_EXPORT_ALL=1",
 	)
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func { w, req ->
 		// The Git client sends the requested Git protocol version as a
 		// "Git-Protocol" HTTP request header, which the CGI host then converts
 		// to an environment variable (HTTP_GIT_PROTOCOL).

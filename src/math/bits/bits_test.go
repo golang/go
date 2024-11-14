@@ -738,10 +738,10 @@ func TestAddSubUint(t *testing.T) {
 		test("Sub symmetric", Sub, a.z, a.y, a.c, a.x, a.cout)
 		// The above code can't test intrinsic implementation, because the passed function is not called directly.
 		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
-		test("Add intrinsic", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
-		test("Add intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
-		test("Sub intrinsic", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
-		test("Sub intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
+		test("Add intrinsic", func { x, y, c -> Add(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
+		test("Add intrinsic symmetric", func { x, y, c -> Add(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub intrinsic", func { x, y, c -> Sub(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub intrinsic symmetric", func { x, y, c -> Sub(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
 
 	}
 }
@@ -799,10 +799,10 @@ func TestAddSubUint64(t *testing.T) {
 		test("Sub64 symmetric", Sub64, a.z, a.y, a.c, a.x, a.cout)
 		// The above code can't test intrinsic implementation, because the passed function is not called directly.
 		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
-		test("Add64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
-		test("Add64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
-		test("Sub64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
-		test("Sub64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
+		test("Add64 intrinsic", func { x, y, c -> Add64(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
+		test("Add64 intrinsic symmetric", func { x, y, c -> Add64(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub64 intrinsic", func { x, y, c -> Sub64(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub64 intrinsic symmetric", func { x, y, c -> Sub64(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
 	}
 }
 
@@ -956,10 +956,10 @@ func TestMulDiv(t *testing.T) {
 		testDiv("Div symmetric", Div, a.hi, a.lo+a.r, a.x, a.y, a.r)
 		// The above code can't test intrinsic implementation, because the passed function is not called directly.
 		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
-		testMul("Mul intrinsic", func(x, y uint) (uint, uint) { return Mul(x, y) }, a.x, a.y, a.hi, a.lo)
-		testMul("Mul intrinsic symmetric", func(x, y uint) (uint, uint) { return Mul(x, y) }, a.y, a.x, a.hi, a.lo)
-		testDiv("Div intrinsic", func(hi, lo, y uint) (uint, uint) { return Div(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
-		testDiv("Div intrinsic symmetric", func(hi, lo, y uint) (uint, uint) { return Div(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		testMul("Mul intrinsic", func { x, y -> Mul(x, y) }, a.x, a.y, a.hi, a.lo)
+		testMul("Mul intrinsic symmetric", func { x, y -> Mul(x, y) }, a.y, a.x, a.hi, a.lo)
+		testDiv("Div intrinsic", func { hi, lo, y -> Div(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div intrinsic symmetric", func { hi, lo, y -> Div(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
 	}
 }
 
@@ -1018,10 +1018,10 @@ func TestMulDiv64(t *testing.T) {
 		testDiv("Div64 symmetric", Div64, a.hi, a.lo+a.r, a.x, a.y, a.r)
 		// The above code can't test intrinsic implementation, because the passed function is not called directly.
 		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
-		testMul("Mul64 intrinsic", func(x, y uint64) (uint64, uint64) { return Mul64(x, y) }, a.x, a.y, a.hi, a.lo)
-		testMul("Mul64 intrinsic symmetric", func(x, y uint64) (uint64, uint64) { return Mul64(x, y) }, a.y, a.x, a.hi, a.lo)
-		testDiv("Div64 intrinsic", func(hi, lo, y uint64) (uint64, uint64) { return Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
-		testDiv("Div64 intrinsic symmetric", func(hi, lo, y uint64) (uint64, uint64) { return Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		testMul("Mul64 intrinsic", func { x, y -> Mul64(x, y) }, a.x, a.y, a.hi, a.lo)
+		testMul("Mul64 intrinsic symmetric", func { x, y -> Mul64(x, y) }, a.y, a.x, a.hi, a.lo)
+		testDiv("Div64 intrinsic", func { hi, lo, y -> Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div64 intrinsic symmetric", func { hi, lo, y -> Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
 	}
 }
 

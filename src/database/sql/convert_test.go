@@ -583,7 +583,7 @@ func TestDecimal(t *testing.T) {
 		{name: "bad-form", in: dec{form: 200}, err: true},
 	}
 	for _, item := range list {
-		t.Run(item.name, func(t *testing.T) {
+		t.Run(item.name, func { t ->
 			out := dec{}
 			err := convertAssign(&out, item.in)
 			if item.err {

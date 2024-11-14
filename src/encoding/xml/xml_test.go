@@ -59,7 +59,7 @@ func TestDecodeEOF(t *testing.T) {
 	for _, tc := range tests {
 		for _, eof := range []bool{true, false} {
 			name := fmt.Sprintf("%s/earlyEOF=%v", tc.name, eof)
-			t.Run(name, func(t *testing.T) {
+			t.Run(name, func { t ->
 				d := NewTokenDecoder(&toks{
 					earlyEOF: eof,
 					t:        tc.tokens,
@@ -101,7 +101,7 @@ func (t *toksNil) Token() (Token, error) {
 func TestDecodeNilToken(t *testing.T) {
 	for _, strict := range []bool{true, false} {
 		name := fmt.Sprintf("Strict=%v", strict)
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			start := StartElement{Name: Name{Local: "test"}}
 			bad := StartElement{Name: Name{Local: "bad"}}
 			d := NewTokenDecoder(&toksNil{
@@ -351,7 +351,7 @@ func (d *downCaser) Read(p []byte) (int, error) {
 
 func TestRawTokenAltEncoding(t *testing.T) {
 	d := NewDecoder(strings.NewReader(testInputAltEncoding))
-	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+	d.CharsetReader = func { charset, input ->
 		if charset != "x-testing-uppercase" {
 			t.Fatalf("unexpected charset %q", charset)
 		}
@@ -1222,7 +1222,7 @@ func TestNewTokenDecoderIdempotent(t *testing.T) {
 
 func TestWrapDecoder(t *testing.T) {
 	d := NewDecoder(strings.NewReader(`<quote>[Re-enter Clown with a letter, and FABIAN]</quote>`))
-	m := tokenMap(func(t Token) Token {
+	m := tokenMap(func { t ->
 		switch tok := t.(type) {
 		case StartElement:
 			if tok.Name.Local == "quote" {
@@ -1328,7 +1328,7 @@ func TestRoundTrip(t *testing.T) {
 		"comments in directives": `<!ENTITY x<!<!-- c1 [ " -->--x --> > <e></e> <!DOCTYPE xxx [ x<!-- c2 " -->--x ]>`,
 	}
 	for name, input := range tests {
-		t.Run(name, func(t *testing.T) { testRoundTrip(t, input) })
+		t.Run(name, func { t -> testRoundTrip(t, input) })
 	}
 }
 
@@ -1396,7 +1396,7 @@ const testInputHTMLAutoClose = `<?xml version="1.0" encoding="UTF-8"?>
 <BR><span id="test">abc</span><br/><br/>`
 
 func BenchmarkHTMLAutoClose(b *testing.B) {
-	b.RunParallel(func(p *testing.PB) {
+	b.RunParallel(func { p ->
 		for p.Next() {
 			d := NewDecoder(strings.NewReader(testInputHTMLAutoClose))
 			d.Strict = false

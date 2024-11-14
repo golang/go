@@ -724,9 +724,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		rest, err := io.ReadAll(bufr)
 		checkErr(err, "ReadAll on remainder")
 		if e, g := "Next Request Here", string(rest); e != g {
-			g = regexp.MustCompile(`(xx+)`).ReplaceAllStringFunc(g, func(match string) string {
-				return fmt.Sprintf("x(repeated x%d)", len(match))
-			})
+			g = regexp.MustCompile(`(xx+)`).ReplaceAllStringFunc(g, func { match -> fmt.Sprintf("x(repeated x%d)", len(match)) })
 			fatalf("remainder = %q, expected %q", g, e)
 		}
 	}

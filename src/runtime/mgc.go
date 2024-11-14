@@ -844,7 +844,7 @@ top:
 
 	// Flush all local buffers and collect flushedWork flags.
 	gcMarkDoneFlushed = 0
-	forEachP(waitReasonGCMarkTermination, func(pp *p) {
+	forEachP(waitReasonGCMarkTermination, func { pp ->
 		// Flush the write barrier buffer, since this may add
 		// work to the gcWork.
 		wbBufFlush1(pp)
@@ -1150,7 +1150,7 @@ func gcMarkTermination(stw worldStop) {
 	//
 	// Also, flush the pinner cache, to avoid leaking that memory
 	// indefinitely.
-	forEachP(waitReasonFlushProcCaches, func(pp *p) {
+	forEachP(waitReasonFlushProcCaches, func { pp ->
 		pp.mcache.prepareForSweep()
 		if pp.status == _Pidle {
 			systemstack(func() {
@@ -1360,7 +1360,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 	for {
 		// Go to sleep until woken by
 		// gcController.findRunnableGCWorker.
-		gopark(func(g *g, nodep unsafe.Pointer) bool {
+		gopark(func { g, nodep ->
 			node := (*gcBgMarkWorkerNode)(nodep)
 
 			if mp := node.m.ptr(); mp != nil {
@@ -1679,7 +1679,7 @@ func gcSweep(mode gcMode) bool {
 func gcResetMarkState() {
 	// This may be called during a concurrent phase, so lock to make sure
 	// allgs doesn't change.
-	forEachG(func(gp *g) {
+	forEachG(func { gp ->
 		gp.gcscandone = false // set to true in gcphasework
 		gp.gcAssistBytes = 0
 	})

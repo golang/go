@@ -57,7 +57,7 @@ func indexModule(modroot string) ([]byte, error) {
 	// we want to follow it (see https://go.dev/issue/50807).
 	// Add a trailing separator to force that to happen.
 	root := str.WithFilePathSeparator(modroot)
-	err := fsys.Walk(root, func(path string, info fs.FileInfo, err error) error {
+	err := fsys.Walk(root, func { path, info, err ->
 		if err := moduleWalkErr(root, path, info, err); err != nil {
 			return err
 		}

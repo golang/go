@@ -22,7 +22,7 @@ type Bench struct {
 
 func benchmarkEndToEnd(b *testing.B, ctor func() any, pipe func() (r io.Reader, w io.Writer, err error)) {
 	b.ReportAllocs()
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		r, w, err := pipe()
 		if err != nil {
 			b.Fatal("can't get pipe:", err)
@@ -42,25 +42,21 @@ func benchmarkEndToEnd(b *testing.B, ctor func() any, pipe func() (r io.Reader, 
 }
 
 func BenchmarkEndToEndPipe(b *testing.B) {
-	benchmarkEndToEnd(b, func() any {
-		return &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
-	}, func() (r io.Reader, w io.Writer, err error) {
+	benchmarkEndToEnd(b, func { &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)} }, func() (r io.Reader, w io.Writer, err error) {
 		r, w, err = os.Pipe()
 		return
 	})
 }
 
 func BenchmarkEndToEndByteBuffer(b *testing.B) {
-	benchmarkEndToEnd(b, func() any {
-		return &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)}
-	}, func() (r io.Reader, w io.Writer, err error) {
+	benchmarkEndToEnd(b, func { &Bench{7, 3.2, "now is the time", bytes.Repeat([]byte("for all good men"), 100)} }, func() (r io.Reader, w io.Writer, err error) {
 		var buf bytes.Buffer
 		return &buf, &buf, nil
 	})
 }
 
 func BenchmarkEndToEndSliceByteBuffer(b *testing.B) {
-	benchmarkEndToEnd(b, func() any {
+	benchmarkEndToEnd(b, func {
 		v := &Bench{7, 3.2, "now is the time", nil}
 		Register(v)
 		arr := make([]any, 100)
@@ -137,7 +133,7 @@ func TestCountDecodeMallocs(t *testing.T) {
 func benchmarkEncodeSlice(b *testing.B, a any) {
 	b.ResetTimer()
 	b.ReportAllocs()
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var buf bytes.Buffer
 		enc := NewEncoder(&buf)
 
@@ -232,7 +228,7 @@ func benchmarkDecodeSlice(b *testing.B, a any) {
 	b.ResetTimer()
 
 	b.ReportAllocs()
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		// TODO(#19025): Move per-thread allocation before ResetTimer.
 		rp := reflect.New(rt)
 		rp.Elem().Set(reflect.MakeSlice(rt, ra.Len(), ra.Cap()))

@@ -103,7 +103,7 @@ func BenchmarkWaitGroupUncontended(b *testing.B) {
 		WaitGroup
 		pad [128]uint8
 	}
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var wg PaddedWaitGroup
 		for pb.Next() {
 			wg.Add(1)
@@ -115,7 +115,7 @@ func BenchmarkWaitGroupUncontended(b *testing.B) {
 
 func benchmarkWaitGroupAddDone(b *testing.B, localWork int) {
 	var wg WaitGroup
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		foo := 0
 		for pb.Next() {
 			wg.Add(1)
@@ -139,7 +139,7 @@ func BenchmarkWaitGroupAddDoneWork(b *testing.B) {
 
 func benchmarkWaitGroupWait(b *testing.B, localWork int) {
 	var wg WaitGroup
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		foo := 0
 		for pb.Next() {
 			wg.Wait()
@@ -162,7 +162,7 @@ func BenchmarkWaitGroupWaitWork(b *testing.B) {
 
 func BenchmarkWaitGroupActuallyWait(b *testing.B) {
 	b.ReportAllocs()
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			var wg WaitGroup
 			wg.Add(1)

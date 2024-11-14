@@ -29,7 +29,7 @@ func Format(fset *token.FileSet, x ast.Expr) string {
 // HasSideEffects reports whether evaluation of e has side effects.
 func HasSideEffects(info *types.Info, e ast.Expr) bool {
 	safe := true
-	ast.Inspect(e, func(node ast.Node) bool {
+	ast.Inspect(e, func { node ->
 		switch n := node.(type) {
 		case *ast.CallExpr:
 			typVal := info.Types[n.Fun]

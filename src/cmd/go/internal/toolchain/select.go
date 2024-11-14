@@ -354,7 +354,7 @@ func Exec(gotoolchain string) {
 		if info.Mode()&0111 == 0 {
 			// allowExec sets the exec permission bits on all files found in dir.
 			allowExec := func(dir string) {
-				err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+				err := filepath.WalkDir(dir, func { path, d, err ->
 					if err != nil {
 						return err
 					}
@@ -391,7 +391,7 @@ func Exec(gotoolchain string) {
 	srcUGoMod := filepath.Join(dir, "src/_go.mod")
 	srcGoMod := filepath.Join(dir, "src/go.mod")
 	if size(srcGoMod) != size(srcUGoMod) {
-		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		err := filepath.WalkDir(dir, func { path, d, err ->
 			if err != nil {
 				return err
 			}

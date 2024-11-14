@@ -900,12 +900,10 @@ func TestLookupContextCancel(t *testing.T) {
 	// Set testHookLookupIP to start a new, concurrent call to LookupIPAddr
 	// and cancel the original one, then block until the canceled call has returned
 	// (ensuring that it has performed any synchronous cleanup).
-	testHookLookupIP = func(
-		ctx context.Context,
-		fn func(context.Context, string, string) ([]IPAddr, error),
-		network string,
-		host string,
-	) ([]IPAddr, error) {
+	testHookLookupIP = func { ctx,
+		fn,
+		network,
+		host ->
 		select {
 		case <-unblockLookup:
 		default:
@@ -1174,7 +1172,7 @@ func TestLookupIPAddrConcurrentCallsForNetworks(t *testing.T) {
 	}
 	calls := int32(0)
 	waitCh := make(chan struct{})
-	testHookLookupIP = func(ctx context.Context, fn func(context.Context, string, string) ([]IPAddr, error), network, host string) ([]IPAddr, error) {
+	testHookLookupIP = func { ctx, fn, network, host ->
 		// We'll block until this is called one time for each different
 		// expected result. This will ensure that the lookup group would wait
 		// for the existing call if it was to be reused.
@@ -1269,7 +1267,7 @@ func TestResolverLookupIP(t *testing.T) {
 		{"go", forceGoDNS},
 		{"cgo", forceCgoDNS},
 	} {
-		t.Run("implementation: "+impl.name, func(t *testing.T) {
+		t.Run("implementation: "+impl.name, func { t ->
 			fixup := impl.fn()
 			if fixup == nil {
 				t.Skip("not supported")
@@ -1277,7 +1275,7 @@ func TestResolverLookupIP(t *testing.T) {
 			defer fixup()
 
 			for _, network := range []string{"ip", "ip4", "ip6"} {
-				t.Run("network: "+network, func(t *testing.T) {
+				t.Run("network: "+network, func { t ->
 					switch {
 					case network == "ip4" && !v4Ok:
 						t.Skip("IPv4 is not supported")
@@ -1464,7 +1462,7 @@ func testLookupNoData(t *testing.T, prefix string) {
 }
 
 func TestLookupPortNotFound(t *testing.T) {
-	allResolvers(t, func(t *testing.T) {
+	allResolvers(t, func { t ->
 		_, err := LookupPort("udp", "_-unknown-service-")
 		var dnsErr *DNSError
 		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
@@ -1484,7 +1482,7 @@ var tcpOnlyService = func() string {
 }()
 
 func TestLookupPortDifferentNetwork(t *testing.T) {
-	allResolvers(t, func(t *testing.T) {
+	allResolvers(t, func { t ->
 		_, err := LookupPort("udp", tcpOnlyService)
 		var dnsErr *DNSError
 		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
@@ -1494,7 +1492,7 @@ func TestLookupPortDifferentNetwork(t *testing.T) {
 }
 
 func TestLookupPortEmptyNetworkString(t *testing.T) {
-	allResolvers(t, func(t *testing.T) {
+	allResolvers(t, func { t ->
 		_, err := LookupPort("", tcpOnlyService)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -1503,7 +1501,7 @@ func TestLookupPortEmptyNetworkString(t *testing.T) {
 }
 
 func TestLookupPortIPNetworkString(t *testing.T) {
-	allResolvers(t, func(t *testing.T) {
+	allResolvers(t, func { t ->
 		_, err := LookupPort("ip", tcpOnlyService)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -1594,8 +1592,8 @@ func TestLookupNoSuchHost(t *testing.T) {
 	}
 
 	for _, v := range tests {
-		t.Run(v.name, func(t *testing.T) {
-			allResolvers(t, func(t *testing.T) {
+		t.Run(v.name, func { t ->
+			allResolvers(t, func { t ->
 				attempts := 0
 				for {
 					err := v.query()

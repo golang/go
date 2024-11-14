@@ -98,7 +98,7 @@ func ExampleCompare() {
 		constant.MakeFromLiteral(`"a"`, token.STRING, 0),
 	}
 
-	slices.SortFunc(vs, func(a, b constant.Value) int {
+	slices.SortFunc(vs, func { a, b ->
 		if constant.Compare(a, token.LSS, b) {
 			return -1
 		}

@@ -64,7 +64,7 @@ var unsafeFuncs = [...]struct {
 
 // InitUniverse initializes the universe block.
 func InitUniverse() {
-	types.InitTypes(func(sym *types.Sym, typ *types.Type) types.Object {
+	types.InitTypes(func { sym, typ ->
 		n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
 		n.SetType(typ)
 		n.SetTypecheck(1)

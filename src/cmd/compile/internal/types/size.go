@@ -93,7 +93,7 @@ func expandiface(t *Type) {
 
 	{
 		methods := t.Methods()
-		sort.SliceStable(methods, func(i, j int) bool {
+		sort.SliceStable(methods, func { i, j ->
 			mi, mj := methods[i], methods[j]
 
 			// Sort embedded types by type name (if any).

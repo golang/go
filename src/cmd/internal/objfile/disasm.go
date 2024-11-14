@@ -90,7 +90,7 @@ func (e *Entry) Disasm() (*Disasm, error) {
 
 // lookup finds the symbol name containing addr.
 func (d *Disasm) lookup(addr uint64) (name string, base uint64) {
-	i := sort.Search(len(d.syms), func(i int) bool { return addr < d.syms[i].Addr })
+	i := sort.Search(len(d.syms), func { i -> addr < d.syms[i].Addr })
 	if i > 0 {
 		s := d.syms[i-1]
 		if s.Addr != 0 && s.Addr <= addr && addr < s.Addr+uint64(s.Size) {
@@ -229,7 +229,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
 		var lastFile string
 		var lastLine int
 
-		d.Decode(symStart, symEnd, relocs, gnuAsm, func(pc, size uint64, file string, line int, text string) {
+		d.Decode(symStart, symEnd, relocs, gnuAsm, func { pc, size, file, line, text ->
 			i := pc - d.textStart
 
 			if printCode {

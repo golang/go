@@ -235,7 +235,7 @@ func TestLogValue(t *testing.T) {
 func TestValueTime(t *testing.T) {
 	// Validate that all representations of times work correctly.
 	for _, tm := range []time.Time{
-		time.Time{},
+		{},
 		time.Unix(0, 1e15), // UnixNanos is defined
 		time.Date(2300, 1, 1, 0, 0, 0, 0, time.UTC), // overflows UnixNanos
 	} {

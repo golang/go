@@ -2058,9 +2058,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		}
 
 		if !ctxt.IsDarwin() { // We don't need the special names on darwin.
-			genrelrosecname = func(suffix string) string {
-				return ".data.rel.ro" + suffix
-			}
+			genrelrosecname = func { suffix -> ".data.rel.ro" + suffix }
 		}
 
 		relroReadOnly := []sym.SymKind{}
@@ -2272,7 +2270,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 
 	// Perform the sort.
 	if symn != sym.SPCLNTAB {
-		sort.Slice(sl, func(i, j int) bool {
+		sort.Slice(sl, func { i, j ->
 			si, sj := sl[i].sym, sl[j].sym
 			isz, jsz := sl[i].sz, sl[j].sz
 			switch {
@@ -2417,9 +2415,7 @@ func (ctxt *Link) textaddress() {
 			i++
 		}
 		textp = textp[i:]
-		r.Shuffle(len(textp), func(i, j int) {
-			textp[i], textp[j] = textp[j], textp[i]
-		})
+		r.Shuffle(len(textp), func { i, j -> textp[i], textp[j] = textp[j], textp[i] })
 	}
 
 	text := ctxt.xdefine("runtime.text", sym.STEXT, 0)

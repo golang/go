@@ -963,13 +963,9 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 		fntype := fn.Type
 		forFieldList(fntype.Params,
-			func(i int, aname string, atype ast.Expr) {
-				argField(atype, "p%d", i)
-			})
+			func { i, aname, atype -> argField(atype, "p%d", i) })
 		forFieldList(fntype.Results,
-			func(i int, aname string, atype ast.Expr) {
-				argField(atype, "r%d", i)
-			})
+			func { i, aname, atype -> argField(atype, "r%d", i) })
 		if ctype == "struct {\n" {
 			ctype += "\t\tchar unused;\n" // avoid empty struct
 		}
@@ -987,7 +983,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			fmt.Fprintf(fgcch, "\n/* Return type for %s */\n", exp.ExpName)
 			fmt.Fprintf(fgcch, "struct %s_return {\n", exp.ExpName)
 			forFieldList(fntype.Results,
-				func(i int, aname string, atype ast.Expr) {
+				func { i, aname, atype ->
 					fmt.Fprintf(fgcch, "\t%s r%d;", p.cgoType(atype).C, i)
 					if len(aname) > 0 {
 						fmt.Fprintf(fgcch, " /* %s */", aname)
@@ -1009,7 +1005,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			s += " recv"
 		}
 		forFieldList(fntype.Params,
-			func(i int, aname string, atype ast.Expr) {
+			func { i, aname, atype ->
 				if i > 0 || fn.Recv != nil {
 					s += ", "
 				}
@@ -1049,9 +1045,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			fmt.Fprintf(fgcc, "\t_cgo_a.recv = recv;\n")
 		}
 		forFieldList(fntype.Params,
-			func(i int, aname string, atype ast.Expr) {
-				fmt.Fprintf(fgcc, "\t_cgo_a.p%d = %s;\n", i, exportParamName(aname, i))
-			})
+			func { i, aname, atype -> fmt.Fprintf(fgcc, "\t_cgo_a.p%d = %s;\n", i, exportParamName(aname, i)) })
 		fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
 		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &_cgo_a, %d, _cgo_ctxt);\n", cPrefix, exp.ExpName, off)
 		fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
@@ -1061,9 +1055,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 				fmt.Fprintf(fgcc, "\treturn _cgo_a.r0;\n")
 			} else {
 				forFieldList(fntype.Results,
-					func(i int, aname string, atype ast.Expr) {
-						fmt.Fprintf(fgcc, "\tr.r%d = _cgo_a.r%d;\n", i, i)
-					})
+					func { i, aname, atype -> fmt.Fprintf(fgcc, "\tr.r%d = _cgo_a.r%d;\n", i, i) })
 				fmt.Fprintf(fgcc, "\treturn r;\n")
 			}
 		}
@@ -1097,7 +1089,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		if gccResult != "void" {
 			// Write results back to frame.
 			forFieldList(fntype.Results,
-				func(i int, aname string, atype ast.Expr) {
+				func { i, aname, atype ->
 					if i > 0 {
 						fmt.Fprintf(fgo2, ", ")
 					}
@@ -1110,7 +1102,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 		fmt.Fprintf(fgo2, "%s(", exp.Func.Name)
 		forFieldList(fntype.Params,
-			func(i int, aname string, atype ast.Expr) {
+			func { i, aname, atype ->
 				if i > 0 {
 					fmt.Fprint(fgo2, ", ")
 				}
@@ -1121,7 +1113,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			// Verify that any results don't contain any
 			// Go pointers.
 			forFieldList(fntype.Results,
-				func(i int, aname string, atype ast.Expr) {
+				func { i, aname, atype ->
 					if !p.hasPointer(nil, atype, false) {
 						return
 					}
@@ -1154,13 +1146,13 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		cdeclBuf := new(strings.Builder)
 		resultCount := 0
 		forFieldList(fntype.Results,
-			func(i int, aname string, atype ast.Expr) { resultCount++ })
+			func { i, aname, atype -> resultCount++ })
 		switch resultCount {
 		case 0:
 			fmt.Fprintf(cdeclBuf, "void")
 		case 1:
 			forFieldList(fntype.Results,
-				func(i int, aname string, atype ast.Expr) {
+				func { i, aname, atype ->
 					t := p.cgoType(atype)
 					fmt.Fprintf(cdeclBuf, "%s", t.C)
 				})
@@ -1169,7 +1161,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			fmt.Fprintf(fgcch, "\n/* Return type for %s */\n", exp.ExpName)
 			fmt.Fprintf(fgcch, "struct %s_return {\n", exp.ExpName)
 			forFieldList(fntype.Results,
-				func(i int, aname string, atype ast.Expr) {
+				func { i, aname, atype ->
 					t := p.cgoType(atype)
 					fmt.Fprintf(fgcch, "\t%s r%d;", t.C, i)
 					if len(aname) > 0 {
@@ -1190,7 +1182,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 		// Function parameters.
 		forFieldList(fntype.Params,
-			func(i int, aname string, atype ast.Expr) {
+			func { i, aname, atype ->
 				if i > 0 || fn.Recv != nil {
 					fmt.Fprintf(cdeclBuf, ", ")
 				}
@@ -1231,7 +1223,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			fmt.Fprint(fgcc, "recv")
 		}
 		forFieldList(fntype.Params,
-			func(i int, aname string, atype ast.Expr) {
+			func { i, aname, atype ->
 				if i > 0 || fn.Recv != nil {
 					fmt.Fprintf(fgcc, ", ")
 				}
@@ -1261,7 +1253,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			printer.Fprint(fgo2, fset, fn.Recv.List[0].Type)
 		}
 		forFieldList(fntype.Params,
-			func(i int, aname string, atype ast.Expr) {
+			func { i, aname, atype ->
 				if i > 0 || fn.Recv != nil {
 					fmt.Fprintf(fgo2, ", ")
 				}
@@ -1272,7 +1264,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		if resultCount > 0 {
 			fmt.Fprintf(fgo2, " (")
 			forFieldList(fntype.Results,
-				func(i int, aname string, atype ast.Expr) {
+				func { i, aname, atype ->
 					if i > 0 {
 						fmt.Fprint(fgo2, ", ")
 					}
@@ -1292,7 +1284,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 		fmt.Fprintf(fgo2, "%s(", exp.Func.Name)
 		forFieldList(fntype.Params,
-			func(i int, aname string, atype ast.Expr) {
+			func { i, aname, atype ->
 				if i > 0 {
 					fmt.Fprint(fgo2, ", ")
 				}

@@ -64,7 +64,7 @@ func TestRFC9180Vectors(t *testing.T) {
 	}
 
 	for _, vector := range vectors {
-		t.Run(vector.Name, func(t *testing.T) {
+		t.Run(vector.Name, func { t ->
 			setup := parseVectorSetup(vector.Setup)
 
 			kemID, err := strconv.Atoi(setup["kem_id"])
@@ -98,9 +98,7 @@ func TestRFC9180Vectors(t *testing.T) {
 
 			ephemeralPrivKey := mustDecodeHex(t, setup["skEm"])
 
-			testingOnlyGenerateKey = func() (*ecdh.PrivateKey, error) {
-				return SupportedKEMs[uint16(kemID)].curve.NewPrivateKey(ephemeralPrivKey)
-			}
+			testingOnlyGenerateKey = func { SupportedKEMs[uint16(kemID)].curve.NewPrivateKey(ephemeralPrivKey) }
 			t.Cleanup(func() { testingOnlyGenerateKey = nil })
 
 			encap, context, err := SetupSender(
@@ -136,7 +134,7 @@ func TestRFC9180Vectors(t *testing.T) {
 			}
 
 			for _, enc := range parseVectorEncryptions(vector.Encryptions) {
-				t.Run("seq num "+enc["sequence number"], func(t *testing.T) {
+				t.Run("seq num "+enc["sequence number"], func { t ->
 					seqNum, err := strconv.Atoi(enc["sequence number"])
 					if err != nil {
 						t.Fatal(err)

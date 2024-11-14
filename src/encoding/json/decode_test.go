@@ -1076,7 +1076,7 @@ func TestMarshalInvalidUTF8(t *testing.T) {
 		{Name(""), "\xe6\x97\xa5\xe6\x9c\xac\xff\xaa\x9e", `"日本\ufffd\ufffd\ufffd"`},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			got, err := Marshal(tt.in)
 			if string(got) != tt.want || err != nil {
 				t.Errorf("%s: Marshal(%q):\n\tgot:  (%q, %v)\n\twant: (%q, nil)", tt.Where, tt.in, got, err, tt.want)
@@ -1148,7 +1148,7 @@ func equalError(a, b error) bool {
 
 func TestUnmarshal(t *testing.T) {
 	for _, tt := range unmarshalTests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			in := []byte(tt.in)
 			var scan scanner
 			if err := checkValid(in, &scan); err != nil {
@@ -1256,7 +1256,7 @@ func TestNumberAccessors(t *testing.T) {
 		{CaseName: Name(""), in: "1e1000", intErr: "strconv.ParseInt: parsing \"1e1000\": invalid syntax", floatErr: "strconv.ParseFloat: parsing \"1e1000\": value out of range"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			n := Number(tt.in)
 			if got := n.String(); got != tt.in {
 				t.Errorf("%s: Number(%q).String() = %s, want %s", tt.Where, tt.in, got, tt.in)
@@ -1351,7 +1351,7 @@ func TestErrorMessageFromMisusedString(t *testing.T) {
 		{Name(""), `{"result":"\"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "\"foo" into string`},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			r := strings.NewReader(tt.in)
 			var s WrongString
 			err := NewDecoder(r).Decode(&s)
@@ -1782,7 +1782,7 @@ func TestInterfaceSet(t *testing.T) {
 		{Name(""), intpp(intp(1)), `null`, intpp(nil)},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			b := struct{ X any }{tt.pre}
 			blob := `{"X":` + tt.json + `}`
 			if err := Unmarshal([]byte(blob), &b); err != nil {
@@ -2037,7 +2037,7 @@ func TestUnmarshalTypeError(t *testing.T) {
 		{Name(""), new(error), `true`},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			err := Unmarshal([]byte(tt.in), tt.dest)
 			if _, ok := err.(*UnmarshalTypeError); !ok {
 				t.Errorf("%s: Unmarshal(%#q, %T):\n\tgot:  %T\n\twant: %T",
@@ -2063,7 +2063,7 @@ func TestUnmarshalSyntax(t *testing.T) {
 		{Name(""), `{"key":1,`},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			err := Unmarshal([]byte(tt.in), &x)
 			if _, ok := err.(*SyntaxError); !ok {
 				t.Errorf("%s: Unmarshal(%#q, any):\n\tgot:  %T\n\twant: %T",
@@ -2178,7 +2178,7 @@ func TestPrefilled(t *testing.T) {
 		out:      &[...]int{3, 0},
 	}}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			ptrstr := fmt.Sprintf("%v", tt.ptr)
 			err := Unmarshal([]byte(tt.in), tt.ptr) // tt.ptr edited here
 			if err != nil {
@@ -2203,7 +2203,7 @@ func TestInvalidUnmarshal(t *testing.T) {
 		{Name(""), (*int)(nil), "json: Unmarshal(nil *int)"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			err := Unmarshal(buf, tt.v)
 			if err == nil {
 				t.Fatalf("%s: Unmarshal error: got nil, want non-nil", tt.Where)
@@ -2228,7 +2228,7 @@ func TestInvalidUnmarshalText(t *testing.T) {
 		{Name(""), new(net.IP), "json: cannot unmarshal number into Go value of type *net.IP"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			err := Unmarshal(buf, tt.v)
 			if err == nil {
 				t.Fatalf("%s: Unmarshal error: got nil, want non-nil", tt.Where)
@@ -2394,7 +2394,7 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 		out:      &S9{},
 	}}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			err := Unmarshal([]byte(tt.in), tt.ptr)
 			if !equalError(err, tt.err) {
 				t.Errorf("%s: Unmarshal error:\n\tgot:  %v\n\twant: %v", tt.Where, err, tt.err)
@@ -2433,7 +2433,7 @@ func TestUnmarshalErrorAfterMultipleJSON(t *testing.T) {
 		err:      &SyntaxError{"invalid character '#' in literal null (expecting 'l')", 13},
 	}}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			dec := NewDecoder(strings.NewReader(tt.in))
 			var err error
 			for err == nil {
@@ -2604,7 +2604,7 @@ func TestUnmarshalMaxDepth(t *testing.T) {
 
 	for _, tt := range tests {
 		for _, target := range targets {
-			t.Run(target.Name+"-"+tt.Name, func(t *testing.T) {
+			t.Run(target.Name+"-"+tt.Name, func { t ->
 				err := Unmarshal([]byte(tt.data), target.newValue())
 				if !tt.errMaxDepth {
 					if err != nil {

@@ -795,7 +795,7 @@ func TestHandshakeClientCertRSAPSS(t *testing.T) {
 
 	config := testConfig.Clone()
 	// Use GetClientCertificate to bypass the client certificate selection logic.
-	config.GetClientCertificate = func(*CertificateRequestInfo) (*Certificate, error) {
+	config.GetClientCertificate = func {
 		return &Certificate{
 			Certificate: [][]byte{testRSAPSSCertificate},
 			PrivateKey:  testRSAPrivateKey,
@@ -840,8 +840,8 @@ func TestClientKeyUpdate(t *testing.T) {
 }
 
 func TestResumption(t *testing.T) {
-	t.Run("TLSv12", func(t *testing.T) { testResumption(t, VersionTLS12) })
-	t.Run("TLSv13", func(t *testing.T) { testResumption(t, VersionTLS13) })
+	t.Run("TLSv12", func { t -> testResumption(t, VersionTLS12) })
+	t.Run("TLSv13", func { t -> testResumption(t, VersionTLS13) })
 }
 
 func testResumption(t *testing.T, version uint16) {
@@ -887,7 +887,7 @@ func testResumption(t *testing.T, version uint16) {
 		}
 	}
 
-	getTicket := func() []byte {
+	getTicket := func {
 		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.session.ticket
 	}
 	deleteTicket := func() {
@@ -897,7 +897,7 @@ func testResumption(t *testing.T, version uint16) {
 	corruptTicket := func() {
 		clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.session.secret[0] ^= 0xff
 	}
-	randomKey := func() [32]byte {
+	randomKey := func {
 		var k [32]byte
 		if _, err := io.ReadFull(serverConfig.rand(), k[:]); err != nil {
 			t.Fatalf("Failed to read new SessionTicketKey: %s", err)
@@ -914,7 +914,7 @@ func testResumption(t *testing.T, version uint16) {
 
 	// An old session ticket is replaced with a ticket encrypted with a fresh key.
 	ticket = getTicket()
-	serverConfig.Time = func() time.Time { return time.Now().Add(24*time.Hour + time.Minute) }
+	serverConfig.Time = func { time.Now().Add(24*time.Hour + time.Minute) }
 	testResumeState("ResumeWithOldTicket", true)
 	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("old first ticket matches the fresh one")
@@ -922,13 +922,13 @@ func testResumption(t *testing.T, version uint16) {
 
 	// Once the session master secret is expired, a full handshake should occur.
 	ticket = getTicket()
-	serverConfig.Time = func() time.Time { return time.Now().Add(24*8*time.Hour + time.Minute) }
+	serverConfig.Time = func { time.Now().Add(24*8*time.Hour + time.Minute) }
 	testResumeState("ResumeWithExpiredTicket", false)
 	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("expired first ticket matches the fresh one")
 	}
 
-	serverConfig.Time = func() time.Time { return time.Now() } // reset the time back
+	serverConfig.Time = func { time.Now() } // reset the time back
 	key1 := randomKey()
 	serverConfig.SetSessionTicketKeys([][32]byte{key1})
 
@@ -945,11 +945,11 @@ func testResumption(t *testing.T, version uint16) {
 	testResumeState("KeyChangeFinish", true)
 
 	// Age the session ticket a bit, but not yet expired.
-	serverConfig.Time = func() time.Time { return time.Now().Add(24*time.Hour + time.Minute) }
+	serverConfig.Time = func { time.Now().Add(24*time.Hour + time.Minute) }
 	testResumeState("OldSessionTicket", true)
 	ticket = getTicket()
 	// Expire the session ticket, which would force a full handshake.
-	serverConfig.Time = func() time.Time { return time.Now().Add(24*8*time.Hour + time.Minute) }
+	serverConfig.Time = func { time.Now().Add(24*8*time.Hour + time.Minute) }
 	testResumeState("ExpiredSessionTicket", false)
 	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("new ticket wasn't provided after old ticket expired")
@@ -957,7 +957,7 @@ func testResumption(t *testing.T, version uint16) {
 
 	// Age the session ticket a bit at a time, but don't expire it.
 	d := 0 * time.Hour
-	serverConfig.Time = func() time.Time { return time.Now().Add(d) }
+	serverConfig.Time = func { time.Now().Add(d) }
 	deleteTicket()
 	testResumeState("GetFreshSessionTicket", false)
 	for i := 0; i < 13; i++ {
@@ -1181,11 +1181,11 @@ func TestKeyLogTLS12(t *testing.T) {
 		if len(loggedLine) == 0 {
 			t.Fatalf("%s: no keylog line was produced", side)
 		}
-		const expectedLen = 13 /* "CLIENT_RANDOM" */ +
-			1 /* space */ +
-			32*2 /* hex client nonce */ +
-			1 /* space */ +
-			48*2 /* hex master secret */ +
+		const expectedLen = 13 /* "CLIENT_RANDOM" */+
+			1 /* space */+
+			32*2 /* hex client nonce */+
+			1 /* space */+
+			48*2 /* hex master secret */+
 			1 /* new line */
 		if len(loggedLine) != expectedLen {
 			t.Fatalf("%s: keylog line has incorrect length (want %d, got %d): %q", side, expectedLen, len(loggedLine), loggedLine)
@@ -1556,8 +1556,8 @@ func TestServerSelectingUnconfiguredCipherSuite(t *testing.T) {
 }
 
 func TestVerifyConnection(t *testing.T) {
-	t.Run("TLSv12", func(t *testing.T) { testVerifyConnection(t, VersionTLS12) })
-	t.Run("TLSv13", func(t *testing.T) { testVerifyConnection(t, VersionTLS13) })
+	t.Run("TLSv12", func { t -> testVerifyConnection(t, VersionTLS12) })
+	t.Run("TLSv13", func { t -> testVerifyConnection(t, VersionTLS13) })
 }
 
 func testVerifyConnection(t *testing.T, version uint16) {
@@ -1596,7 +1596,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 			name: "RequireAndVerifyClientCert",
 			configureServer: func(config *Config, called *int) {
 				config.ClientAuth = RequireAndVerifyClientCert
-				config.VerifyConnection = func(c ConnectionState) error {
+				config.VerifyConnection = func { c ->
 					*called++
 					if l := len(c.PeerCertificates); l != 1 {
 						return fmt.Errorf("server: got len(PeerCertificates) = %d, wanted 1", l)
@@ -1608,7 +1608,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 				}
 			},
 			configureClient: func(config *Config, called *int) {
-				config.VerifyConnection = func(c ConnectionState) error {
+				config.VerifyConnection = func { c ->
 					*called++
 					if l := len(c.PeerCertificates); l != 1 {
 						return fmt.Errorf("client: got len(PeerCertificates) = %d, wanted 1", l)
@@ -1636,7 +1636,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 			configureServer: func(config *Config, called *int) {
 				config.ClientAuth = RequireAnyClientCert
 				config.InsecureSkipVerify = true
-				config.VerifyConnection = func(c ConnectionState) error {
+				config.VerifyConnection = func { c ->
 					*called++
 					if l := len(c.PeerCertificates); l != 1 {
 						return fmt.Errorf("server: got len(PeerCertificates) = %d, wanted 1", l)
@@ -1649,7 +1649,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 			},
 			configureClient: func(config *Config, called *int) {
 				config.InsecureSkipVerify = true
-				config.VerifyConnection = func(c ConnectionState) error {
+				config.VerifyConnection = func { c ->
 					*called++
 					if l := len(c.PeerCertificates); l != 1 {
 						return fmt.Errorf("client: got len(PeerCertificates) = %d, wanted 1", l)
@@ -1676,13 +1676,13 @@ func testVerifyConnection(t *testing.T, version uint16) {
 			name: "NoClientCert",
 			configureServer: func(config *Config, called *int) {
 				config.ClientAuth = NoClientCert
-				config.VerifyConnection = func(c ConnectionState) error {
+				config.VerifyConnection = func { c ->
 					*called++
 					return checkFields(c, called, "server")
 				}
 			},
 			configureClient: func(config *Config, called *int) {
-				config.VerifyConnection = func(c ConnectionState) error {
+				config.VerifyConnection = func { c ->
 					*called++
 					return checkFields(c, called, "client")
 				}
@@ -1692,14 +1692,14 @@ func testVerifyConnection(t *testing.T, version uint16) {
 			name: "RequestClientCert",
 			configureServer: func(config *Config, called *int) {
 				config.ClientAuth = RequestClientCert
-				config.VerifyConnection = func(c ConnectionState) error {
+				config.VerifyConnection = func { c ->
 					*called++
 					return checkFields(c, called, "server")
 				}
 			},
 			configureClient: func(config *Config, called *int) {
 				config.Certificates = nil // clear the client cert
-				config.VerifyConnection = func(c ConnectionState) error {
+				config.VerifyConnection = func { c ->
 					*called++
 					if l := len(c.PeerCertificates); l != 1 {
 						return fmt.Errorf("client: got len(PeerCertificates) = %d, wanted 1", l)
@@ -1778,8 +1778,8 @@ func testVerifyConnection(t *testing.T, version uint16) {
 }
 
 func TestVerifyPeerCertificate(t *testing.T) {
-	t.Run("TLSv12", func(t *testing.T) { testVerifyPeerCertificate(t, VersionTLS12) })
-	t.Run("TLSv13", func(t *testing.T) { testVerifyPeerCertificate(t, VersionTLS13) })
+	t.Run("TLSv12", func { t -> testVerifyPeerCertificate(t, VersionTLS12) })
+	t.Run("TLSv13", func { t -> testVerifyPeerCertificate(t, VersionTLS13) })
 }
 
 func testVerifyPeerCertificate(t *testing.T, version uint16) {
@@ -1791,7 +1791,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 	rootCAs := x509.NewCertPool()
 	rootCAs.AddCert(issuer)
 
-	now := func() time.Time { return time.Unix(1476984729, 0) }
+	now := func { time.Unix(1476984729, 0) }
 
 	sentinelErr := errors.New("TestVerifyPeerCertificate")
 
@@ -1827,15 +1827,11 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 		{
 			configureServer: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
-					return verifyPeerCertificateCallback(called, rawCerts, validatedChains)
-				}
+				config.VerifyPeerCertificate = func { rawCerts, validatedChains -> verifyPeerCertificateCallback(called, rawCerts, validatedChains) }
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
-					return verifyPeerCertificateCallback(called, rawCerts, validatedChains)
-				}
+				config.VerifyPeerCertificate = func { rawCerts, validatedChains -> verifyPeerCertificateCallback(called, rawCerts, validatedChains) }
 			},
 			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
 				if clientErr != nil {
@@ -1855,9 +1851,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 		{
 			configureServer: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
-					return sentinelErr
-				}
+				config.VerifyPeerCertificate = func { rawCerts, validatedChains -> sentinelErr }
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.VerifyPeerCertificate = nil
@@ -1873,9 +1867,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 				config.InsecureSkipVerify = false
 			},
 			configureClient: func(config *Config, called *bool) {
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
-					return sentinelErr
-				}
+				config.VerifyPeerCertificate = func { rawCerts, validatedChains -> sentinelErr }
 			},
 			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
 				if clientErr != sentinelErr {
@@ -1889,7 +1881,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = true
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
+				config.VerifyPeerCertificate = func { rawCerts, validatedChains ->
 					if l := len(rawCerts); l != 1 {
 						return fmt.Errorf("got len(rawCerts) = %d, wanted 1", l)
 					}
@@ -1918,15 +1910,11 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 		{
 			configureServer: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyConnection = func(c ConnectionState) error {
-					return verifyConnectionCallback(called, false, c)
-				}
+				config.VerifyConnection = func { c -> verifyConnectionCallback(called, false, c) }
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyConnection = func(c ConnectionState) error {
-					return verifyConnectionCallback(called, true, c)
-				}
+				config.VerifyConnection = func { c -> verifyConnectionCallback(called, true, c) }
 			},
 			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
 				if clientErr != nil {
@@ -1946,9 +1934,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 		{
 			configureServer: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyConnection = func(c ConnectionState) error {
-					return sentinelErr
-				}
+				config.VerifyConnection = func { c -> sentinelErr }
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
@@ -1967,9 +1953,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyConnection = func(c ConnectionState) error {
-					return sentinelErr
-				}
+				config.VerifyConnection = func { c -> sentinelErr }
 			},
 			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
 				if clientErr != sentinelErr {
@@ -1980,12 +1964,8 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 		{
 			configureServer: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
-					return verifyPeerCertificateCallback(called, rawCerts, validatedChains)
-				}
-				config.VerifyConnection = func(c ConnectionState) error {
-					return sentinelErr
-				}
+				config.VerifyPeerCertificate = func { rawCerts, validatedChains -> verifyPeerCertificateCallback(called, rawCerts, validatedChains) }
+				config.VerifyConnection = func { c -> sentinelErr }
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
@@ -2009,12 +1989,8 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
-					return verifyPeerCertificateCallback(called, rawCerts, validatedChains)
-				}
-				config.VerifyConnection = func(c ConnectionState) error {
-					return sentinelErr
-				}
+				config.VerifyPeerCertificate = func { rawCerts, validatedChains -> verifyPeerCertificateCallback(called, rawCerts, validatedChains) }
+				config.VerifyConnection = func { c -> sentinelErr }
 			},
 			validate: func(t *testing.T, testNo int, clientCalled, serverCalled bool, clientErr, serverErr error) {
 				if clientErr != sentinelErr {
@@ -2128,8 +2104,8 @@ func (wcc *writeCountingConn) Write(data []byte) (int, error) {
 }
 
 func TestBuffering(t *testing.T) {
-	t.Run("TLSv12", func(t *testing.T) { testBuffering(t, VersionTLS12) })
-	t.Run("TLSv13", func(t *testing.T) { testBuffering(t, VersionTLS13) })
+	t.Run("TLSv12", func { t -> testBuffering(t, VersionTLS12) })
+	t.Run("TLSv13", func { t -> testBuffering(t, VersionTLS13) })
 }
 
 func testBuffering(t *testing.T, version uint16) {
@@ -2281,7 +2257,7 @@ var getClientCertificateTests = []struct {
 			// should result in an empty message being sent to the
 			// server.
 			serverConfig.ClientCAs = nil
-			clientConfig.GetClientCertificate = func(cri *CertificateRequestInfo) (*Certificate, error) {
+			clientConfig.GetClientCertificate = func { cri ->
 				if len(cri.SignatureSchemes) == 0 {
 					panic("empty SignatureSchemes")
 				}
@@ -2303,7 +2279,7 @@ var getClientCertificateTests = []struct {
 			// With TLS 1.1, the SignatureSchemes should be
 			// synthesised from the supported certificate types.
 			clientConfig.MaxVersion = VersionTLS11
-			clientConfig.GetClientCertificate = func(cri *CertificateRequestInfo) (*Certificate, error) {
+			clientConfig.GetClientCertificate = func { cri ->
 				if len(cri.SignatureSchemes) == 0 {
 					panic("empty SignatureSchemes")
 				}
@@ -2321,9 +2297,7 @@ var getClientCertificateTests = []struct {
 		func(clientConfig, serverConfig *Config) {
 			// Returning an error should abort the handshake with
 			// that error.
-			clientConfig.GetClientCertificate = func(cri *CertificateRequestInfo) (*Certificate, error) {
-				return nil, errors.New("GetClientCertificate")
-			}
+			clientConfig.GetClientCertificate = func { cri -> nil, errors.New("GetClientCertificate") }
 		},
 		"GetClientCertificate",
 		func(t *testing.T, testNum int, cs *ConnectionState) {
@@ -2331,7 +2305,7 @@ var getClientCertificateTests = []struct {
 	},
 	{
 		func(clientConfig, serverConfig *Config) {
-			clientConfig.GetClientCertificate = func(cri *CertificateRequestInfo) (*Certificate, error) {
+			clientConfig.GetClientCertificate = func { cri ->
 				if len(cri.AcceptableCAs) == 0 {
 					panic("empty AcceptableCAs")
 				}
@@ -2352,8 +2326,8 @@ var getClientCertificateTests = []struct {
 }
 
 func TestGetClientCertificate(t *testing.T) {
-	t.Run("TLSv12", func(t *testing.T) { testGetClientCertificate(t, VersionTLS12) })
-	t.Run("TLSv13", func(t *testing.T) { testGetClientCertificate(t, VersionTLS13) })
+	t.Run("TLSv12", func { t -> testGetClientCertificate(t, VersionTLS12) })
+	t.Run("TLSv13", func { t -> testGetClientCertificate(t, VersionTLS13) })
 }
 
 func testGetClientCertificate(t *testing.T, version uint16) {
@@ -2368,7 +2342,7 @@ func testGetClientCertificate(t *testing.T, version uint16) {
 		serverConfig.RootCAs = x509.NewCertPool()
 		serverConfig.RootCAs.AddCert(issuer)
 		serverConfig.ClientCAs = serverConfig.RootCAs
-		serverConfig.Time = func() time.Time { return time.Unix(1476984729, 0) }
+		serverConfig.Time = func { time.Unix(1476984729, 0) }
 		serverConfig.MaxVersion = version
 
 		clientConfig := testConfig.Clone()
@@ -2523,8 +2497,8 @@ func TestDowngradeCanary(t *testing.T) {
 }
 
 func TestResumptionKeepsOCSPAndSCT(t *testing.T) {
-	t.Run("TLSv12", func(t *testing.T) { testResumptionKeepsOCSPAndSCT(t, VersionTLS12) })
-	t.Run("TLSv13", func(t *testing.T) { testResumptionKeepsOCSPAndSCT(t, VersionTLS13) })
+	t.Run("TLSv12", func { t -> testResumptionKeepsOCSPAndSCT(t, VersionTLS12) })
+	t.Run("TLSv13", func { t -> testResumptionKeepsOCSPAndSCT(t, VersionTLS13) })
 }
 
 func testResumptionKeepsOCSPAndSCT(t *testing.T, ver uint16) {
@@ -2664,7 +2638,7 @@ func TestTLS13OnlyClientHelloCipherSuite(t *testing.T) {
 	}
 	for _, tt := range tls13Tests {
 		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			t.Parallel()
 			testTLS13OnlyClientHelloCipherSuite(t, tt.ciphers)
 		})
@@ -2853,7 +2827,7 @@ func TestTLS13ECHRejectionCallbacks(t *testing.T) {
 			expectedErr: "tls: server rejected ECH",
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			c, s := localPipe(t)
 			done := make(chan error)
 

@@ -21,7 +21,7 @@ func DefaultConds() map[string]Cond {
 
 	conds["GOOS"] = PrefixCondition(
 		"runtime.GOOS == <suffix>",
-		func(_ *State, suffix string) (bool, error) {
+		func { _, suffix ->
 			if suffix == runtime.GOOS {
 				return true, nil
 			}
@@ -33,7 +33,7 @@ func DefaultConds() map[string]Cond {
 
 	conds["GOARCH"] = PrefixCondition(
 		"runtime.GOARCH == <suffix>",
-		func(_ *State, suffix string) (bool, error) {
+		func { _, suffix ->
 			if suffix == runtime.GOARCH {
 				return true, nil
 			}
@@ -45,7 +45,7 @@ func DefaultConds() map[string]Cond {
 
 	conds["compiler"] = PrefixCondition(
 		"runtime.Compiler == <suffix>",
-		func(_ *State, suffix string) (bool, error) {
+		func { _, suffix ->
 			if suffix == runtime.Compiler {
 				return true, nil
 			}

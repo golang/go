@@ -47,7 +47,7 @@ var tls3des = godebug.New("tls3des")
 
 func defaultCipherSuites() []uint16 {
 	suites := slices.Clone(cipherSuitesPreferenceOrder)
-	return slices.DeleteFunc(suites, func(c uint16) bool {
+	return slices.DeleteFunc(suites, func { c ->
 		return disabledCipherSuites[c] ||
 			tlsrsakex.Value() != "1" && rsaKexCiphers[c] ||
 			tls3des.Value() != "1" && tdesCiphers[c]

@@ -747,9 +747,7 @@ func runInstall(pkg string, ch chan struct{}) {
 	// This is the same heuristic build.ScanDir uses.
 	// There do exist real C files beginning with _,
 	// so limit that check to just Go files.
-	files = filter(files, func(p string) bool {
-		return !strings.HasPrefix(p, ".") && (!strings.HasPrefix(p, "_") || !strings.HasSuffix(p, ".go"))
-	})
+	files = filter(files, func { p -> !strings.HasPrefix(p, ".") && (!strings.HasPrefix(p, "_") || !strings.HasSuffix(p, ".go")) })
 
 	// Add generated files for this package.
 	for _, gt := range gentab {
@@ -769,7 +767,7 @@ func runInstall(pkg string, ch chan struct{}) {
 	// Is the target up-to-date?
 	var gofiles, sfiles []string
 	stale := rebuildall
-	files = filter(files, func(p string) bool {
+	files = filter(files, func { p ->
 		for _, suf := range depsuffix {
 			if strings.HasSuffix(p, suf) {
 				goto ok
@@ -1166,7 +1164,7 @@ func clean() {
 	generated := []byte(generatedHeader)
 
 	// Remove generated source files.
-	filepath.WalkDir(pathf("%s/src", goroot), func(path string, d fs.DirEntry, err error) error {
+	filepath.WalkDir(pathf("%s/src", goroot), func { path, d, err ->
 		switch {
 		case err != nil:
 			// ignore

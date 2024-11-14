@@ -132,7 +132,7 @@ func measureSqr(words, nruns int, mode string) time.Duration {
 
 	var testval int64
 	for i := 0; i < nruns; i++ {
-		res := testing.Benchmark(func(b *testing.B) { benchmarkNatSqr(b, words) })
+		res := testing.Benchmark(func { b -> benchmarkNatSqr(b, words) })
 		testval += res.NsPerOp()
 	}
 	testval /= int64(nruns)

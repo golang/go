@@ -44,16 +44,15 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.IfStmt)(nil),
 		(*ast.SwitchStmt)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		// TODO(adonovan): move updateDead into this file.
-		updateDead(pass.TypesInfo, dead, n)
-	})
+	inspect.Preorder(nodeFilter, func { n ->
+	// TODO(adonovan): move updateDead into this file.
+	updateDead(pass.TypesInfo, dead, n) })
 
 	nodeFilter = []ast.Node{
 		(*ast.AssignStmt)(nil),
 		(*ast.BinaryExpr)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(node ast.Node) {
+	inspect.Preorder(nodeFilter, func { node ->
 		if dead[node] {
 			// Skip shift checks on unreachable nodes.
 			return

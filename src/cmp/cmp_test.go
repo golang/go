@@ -157,7 +157,7 @@ func ExampleOr_sort() {
 		{"foo", "bob", 4.00},
 	}
 	// Sort by customer first, product second, and last by higher price
-	slices.SortFunc(orders, func(a, b Order) int {
+	slices.SortFunc(orders, func { a, b ->
 		return cmp.Or(
 			strings.Compare(a.Customer, b.Customer),
 			strings.Compare(a.Product, b.Product),

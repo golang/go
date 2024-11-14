@@ -52,7 +52,7 @@ func TestFileFdBlocks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = rawconn.Control(func(fd uintptr) {
+	err = rawconn.Control(func { fd ->
 		nonblock, err := unix.IsNonblock(int(fd))
 		if err != nil {
 			t.Fatal(err)
@@ -75,7 +75,7 @@ func TestFileFdBlocks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = rawconn.Control(func(fd uintptr) {
+	err = rawconn.Control(func { fd ->
 		nonblock, err := unix.IsNonblock(int(fd))
 		if err != nil {
 			t.Fatal(err)

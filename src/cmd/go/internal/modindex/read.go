@@ -173,7 +173,7 @@ var mcache par.ErrCache[string, *Module]
 // It will return ErrNotIndexed if the module can not be read
 // using the index because it contains symlinks.
 func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
-	return mcache.Do(modroot, func() (*Module, error) {
+	return mcache.Do(modroot, func {
 		fsys.Trace("openIndexModule", modroot)
 		id, err := moduleHash(modroot, ismodcache)
 		if err != nil {
@@ -202,7 +202,7 @@ func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
 var pcache par.ErrCache[[2]string, *IndexPackage]
 
 func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
-	return pcache.Do([2]string{modroot, pkgdir}, func() (*IndexPackage, error) {
+	return pcache.Do([2]string{modroot, pkgdir}, func {
 		fsys.Trace("openIndexPackage", pkgdir)
 		id, err := dirHash(modroot, pkgdir)
 		if err != nil {
@@ -805,9 +805,7 @@ var errCannotFindPackage = errors.New("cannot find package")
 func (m *Module) Package(path string) *IndexPackage {
 	defer unprotect(protect(), nil)
 
-	i, ok := sort.Find(m.n, func(i int) int {
-		return strings.Compare(path, m.pkgDir(i))
-	})
+	i, ok := sort.Find(m.n, func { i -> strings.Compare(path, m.pkgDir(i)) })
 	if !ok {
 		return &IndexPackage{error: fmt.Errorf("%w %q in:\n\t%s", errCannotFindPackage, path, filepath.Join(m.modroot, path))}
 	}

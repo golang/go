@@ -20,9 +20,7 @@ func encodeModuleBytes(packages []*rawPackage) []byte {
 	e.Bytes([]byte(indexVersion + "\n"))
 	stringTableOffsetPos := e.Pos() // fill this at the end
 	e.Uint32(0)                     // string table offset
-	sort.Slice(packages, func(i, j int) bool {
-		return packages[i].dir < packages[j].dir
-	})
+	sort.Slice(packages, func { i, j -> packages[i].dir < packages[j].dir })
 	e.Int(len(packages))
 	packagesPos := e.Pos()
 	for _, p := range packages {

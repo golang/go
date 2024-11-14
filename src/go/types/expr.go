@@ -412,7 +412,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		}
 	case *Interface:
 		if isTypeParam(target) {
-			if !u.typeSet().underIs(func(u Type) bool {
+			if !u.typeSet().underIs(func { u ->
 				if u == nil {
 					return false
 				}
@@ -579,9 +579,7 @@ func (check *Checker) incomparableCause(typ Type) string {
 	}
 	// see if we can extract a more specific error
 	var cause string
-	comparable(typ, true, nil, func(format string, args ...interface{}) {
-		cause = check.sprintf(format, args...)
-	})
+	comparable(typ, true, nil, func { format, args -> cause = check.sprintf(format, args...) })
 	return cause
 }
 
@@ -1419,7 +1417,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			x.typ = &Pointer{base: x.typ}
 		default:
 			var base Type
-			if !underIs(x.typ, func(u Type) bool {
+			if !underIs(x.typ, func { u ->
 				p, _ := u.(*Pointer)
 				if p == nil {
 					check.errorf(x, InvalidIndirection, invalidOp+"cannot indirect %s", x)

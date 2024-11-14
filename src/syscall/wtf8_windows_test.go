@@ -133,7 +133,7 @@ var wtf8tests = []struct {
 
 func TestWTF16Rountrip(t *testing.T) {
 	for _, tt := range wtf8tests {
-		t.Run(fmt.Sprintf("%X", tt.str), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%X", tt.str), func { t ->
 			got := syscall.EncodeWTF16(tt.str, nil)
 			got2 := string(syscall.DecodeWTF16(got, nil))
 			if got2 != tt.str {
@@ -145,7 +145,7 @@ func TestWTF16Rountrip(t *testing.T) {
 
 func TestWTF16Golden(t *testing.T) {
 	for _, tt := range wtf8tests {
-		t.Run(fmt.Sprintf("%X", tt.str), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%X", tt.str), func { t ->
 			got := syscall.EncodeWTF16(tt.str, nil)
 			if !slices.Equal(got, tt.wstr) {
 				t.Errorf("got:\n%v\nwant:\n%v", got, tt.wstr)
@@ -158,7 +158,7 @@ func FuzzEncodeWTF16(f *testing.F) {
 	for _, tt := range wtf8tests {
 		f.Add(tt.str)
 	}
-	f.Fuzz(func(t *testing.T, b string) {
+	f.Fuzz(func { t, b ->
 		// test that there are no panics
 		got := syscall.EncodeWTF16(b, nil)
 		syscall.DecodeWTF16(got, nil)
@@ -179,7 +179,7 @@ func FuzzDecodeWTF16(f *testing.F) {
 		b := unsafe.Slice((*uint8)(unsafe.Pointer(unsafe.SliceData(tt.wstr))), len(tt.wstr)*2)
 		f.Add(b)
 	}
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		u16 := unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(b))), len(b)/2)
 		got := syscall.DecodeWTF16(u16, nil)
 		if utf8.Valid(got) {

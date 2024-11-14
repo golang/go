@@ -108,7 +108,7 @@ func Skip() script.Cmd {
 			Summary: "skip the current test",
 			Args:    "[msg]",
 		},
-		func(_ *script.State, args ...string) (script.WaitFunc, error) {
+		func { _, args ->
 			if len(args) > 1 {
 				return nil, script.ErrUsage
 			}
@@ -136,7 +136,7 @@ func (s skipError) Error() string {
 func CachedExec() script.Cond {
 	return script.CachedCondition(
 		"<suffix> names an executable in the test binary's PATH",
-		func(name string) (bool, error) {
+		func { name ->
 			_, err := cfg.LookPath(name)
 			return err == nil, nil
 		})

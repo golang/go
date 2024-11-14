@@ -172,7 +172,7 @@ func (s *exprSwitch) flush() {
 		// much cheaper to compare lengths than values, and
 		// all we need here is consistency. We respect this
 		// sorting below.
-		sort.Slice(cc, func(i, j int) bool {
+		sort.Slice(cc, func { i, j ->
 			si := ir.StringVal(cc[i].lo)
 			sj := ir.StringVal(cc[j].lo)
 			if len(si) != len(sj) {
@@ -248,9 +248,7 @@ func (s *exprSwitch) flush() {
 		return
 	}
 
-	sort.Slice(cc, func(i, j int) bool {
-		return constant.Compare(cc[i].lo.Val(), token.LSS, cc[j].lo.Val())
-	})
+	sort.Slice(cc, func { i, j -> constant.Compare(cc[i].lo.Val(), token.LSS, cc[j].lo.Val()) })
 
 	// Merge consecutive integer cases.
 	if s.exprname.Type().IsInteger() {
@@ -279,10 +277,8 @@ func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
 		return
 	}
 	binarySearch(len(cc), out,
-		func(i int) ir.Node {
-			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.exprname, cc[i-1].hi)
-		},
-		func(i int, nif *ir.IfStmt) {
+		func { i -> ir.NewBinaryExpr(base.Pos, ir.OLE, s.exprname, cc[i-1].hi) },
+		func { i, nif ->
 			c := &cc[i]
 			nif.Cond = c.test(s.exprname)
 			nif.Body = []ir.Node{c.jmp}
@@ -728,7 +724,7 @@ func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
 		return
 	}
 
-	sort.Slice(cc, func(i, j int) bool { return cc[i].hash < cc[j].hash })
+	sort.Slice(cc, func { i, j -> cc[i].hash < cc[j].hash })
 
 	// Combine adjacent cases with the same hash.
 	merged := cc[:1]
@@ -746,10 +742,8 @@ func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
 		return
 	}
 	binarySearch(len(cc), compiled,
-		func(i int) ir.Node {
-			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashName, ir.NewInt(base.Pos, int64(cc[i-1].hash)))
-		},
-		func(i int, nif *ir.IfStmt) {
+		func { i -> ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashName, ir.NewInt(base.Pos, int64(cc[i-1].hash))) },
+		func { i, nif ->
 			// TODO(mdempsky): Omit hash equality check if
 			// there's only one type.
 			c := cc[i]
@@ -783,9 +777,7 @@ func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
 				hashes = append(hashes, h)
 			}
 			// Order by increasing hash.
-			sort.Slice(hashes, func(j, k int) bool {
-				return hashes[j] < hashes[k]
-			})
+			sort.Slice(hashes, func { j, k -> hashes[j] < hashes[k] })
 			for j := 1; j < len(hashes); j++ {
 				if hashes[j] == hashes[j-1] {
 					// There is a duplicate hash; try a different b/i pair.
@@ -849,7 +841,7 @@ func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i in
 	const binarySearchMin = 4 // minimum number of cases for binary search
 
 	var do func(lo, hi int, out *ir.Nodes)
-	do = func(lo, hi int, out *ir.Nodes) {
+	do = func { lo, hi, out ->
 		n := hi - lo
 		if n < binarySearchMin {
 			for i := lo; i < hi; i++ {

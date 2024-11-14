@@ -488,7 +488,7 @@ func (t *fsTester) checkDirList(dir, desc string, list1, list2 []fs.DirEntry) {
 		return
 	}
 
-	slices.SortFunc(diffs, func(a, b string) int {
+	slices.SortFunc(diffs, func { a, b ->
 		fa := strings.Fields(a)
 		fb := strings.Fields(b)
 		// sort by name (i < j) and then +/- (j < i, because + < -)
@@ -546,7 +546,10 @@ func (t *fsTester) checkFile(file string) {
 		t.checkFileRead(file, "Readall vs second fsys.ReadFile", data, data2)
 
 		t.checkBadPath(file, "ReadFile",
-			func(name string) error { _, err := fsys.ReadFile(name); return err })
+			func { name ->
+				_, err := fsys.ReadFile(name)
+				return err
+			})
 	}
 
 	// Check that fs.ReadFile works with t.fsys.
@@ -578,7 +581,7 @@ func (t *fsTester) checkFileRead(file, desc string, data1, data2 []byte) {
 
 // checkBadPath checks that various invalid forms of file's name cannot be opened using t.fsys.Open.
 func (t *fsTester) checkOpen(file string) {
-	t.checkBadPath(file, "Open", func(file string) error {
+	t.checkBadPath(file, "Open", func { file ->
 		f, err := t.fsys.Open(file)
 		if err == nil {
 			f.Close()

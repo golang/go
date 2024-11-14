@@ -25,7 +25,7 @@ func benchmarkHashTrieMapLoad(b *testing.B, data []string) {
 		m.LoadOrStore(data[i], i)
 	}
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		i := 0
 		for pb.Next() {
 			_, _ = m.Load(data[i])
@@ -49,7 +49,7 @@ func benchmarkHashTrieMapLoadOrStore(b *testing.B, data []string) {
 	b.ReportAllocs()
 	m := NewHashTrieMap[string, int]()
 
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		i := 0
 		for pb.Next() {
 			_, _ = m.LoadOrStore(data[i], i)

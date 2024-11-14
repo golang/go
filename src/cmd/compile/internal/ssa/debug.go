@@ -360,7 +360,7 @@ type slotCanonicalizer struct {
 func newSlotCanonicalizer() *slotCanonicalizer {
 	return &slotCanonicalizer{
 		slmap:  make(map[slotKey]SlKeyIdx),
-		slkeys: []LocalSlot{LocalSlot{N: nil}},
+		slkeys: []LocalSlot{{N: nil}},
 	}
 }
 

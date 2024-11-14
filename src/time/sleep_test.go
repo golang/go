@@ -205,7 +205,7 @@ func benchmark(b *testing.B, bench func(*testing.PB)) {
 }
 
 func BenchmarkAfterFunc1000(b *testing.B) {
-	benchmark(b, func(pb *testing.PB) {
+	benchmark(b, func { pb ->
 		for pb.Next() {
 			n := 1000
 			c := make(chan bool)
@@ -225,32 +225,24 @@ func BenchmarkAfterFunc1000(b *testing.B) {
 }
 
 func BenchmarkAfter(b *testing.B) {
-	benchmark(b, func(pb *testing.PB) {
-		for pb.Next() {
-			<-After(1)
-		}
-	})
+	benchmark(b, func { pb -> for pb.Next() {
+		<-After(1)
+	} })
 }
 
 func BenchmarkStop(b *testing.B) {
-	b.Run("impl=chan", func(b *testing.B) {
-		benchmark(b, func(pb *testing.PB) {
-			for pb.Next() {
-				NewTimer(1 * Second).Stop()
-			}
-		})
-	})
-	b.Run("impl=func", func(b *testing.B) {
-		benchmark(b, func(pb *testing.PB) {
-			for pb.Next() {
-				newTimerFunc(1 * Second).Stop()
-			}
-		})
+	b.Run("impl=chan", func { b -> benchmark(b, func { pb -> for pb.Next() {
+		NewTimer(1 * Second).Stop()
+	} }) })
+	b.Run("impl=func", func { b ->
+		benchmark(b, func { pb -> for pb.Next() {
+			newTimerFunc(1 * Second).Stop()
+		} })
 	})
 }
 
 func BenchmarkSimultaneousAfterFunc1000(b *testing.B) {
-	benchmark(b, func(pb *testing.PB) {
+	benchmark(b, func { pb ->
 		for pb.Next() {
 			n := 1000
 			var wg sync.WaitGroup
@@ -264,7 +256,7 @@ func BenchmarkSimultaneousAfterFunc1000(b *testing.B) {
 }
 
 func BenchmarkStartStop1000(b *testing.B) {
-	benchmark(b, func(pb *testing.PB) {
+	benchmark(b, func { pb ->
 		for pb.Next() {
 			const N = 1000
 			timers := make([]*Timer, N)
@@ -280,8 +272,8 @@ func BenchmarkStartStop1000(b *testing.B) {
 }
 
 func BenchmarkReset(b *testing.B) {
-	b.Run("impl=chan", func(b *testing.B) {
-		benchmark(b, func(pb *testing.PB) {
+	b.Run("impl=chan", func { b ->
+		benchmark(b, func { pb ->
 			t := NewTimer(Hour)
 			for pb.Next() {
 				t.Reset(Hour)
@@ -289,8 +281,8 @@ func BenchmarkReset(b *testing.B) {
 			t.Stop()
 		})
 	})
-	b.Run("impl=func", func(b *testing.B) {
-		benchmark(b, func(pb *testing.PB) {
+	b.Run("impl=func", func { b ->
+		benchmark(b, func { pb ->
 			t := newTimerFunc(Hour)
 			for pb.Next() {
 				t.Reset(Hour)
@@ -301,7 +293,7 @@ func BenchmarkReset(b *testing.B) {
 }
 
 func BenchmarkSleep1000(b *testing.B) {
-	benchmark(b, func(pb *testing.PB) {
+	benchmark(b, func { pb ->
 		for pb.Next() {
 			const N = 1000
 			var wg sync.WaitGroup
@@ -353,12 +345,8 @@ func TestAfterTick(t *testing.T) {
 }
 
 func TestAfterStop(t *testing.T) {
-	t.Run("impl=chan", func(t *testing.T) {
-		testAfterStop(t, NewTimer)
-	})
-	t.Run("impl=func", func(t *testing.T) {
-		testAfterStop(t, newTimerFunc)
-	})
+	t.Run("impl=chan", func { t -> testAfterStop(t, NewTimer) })
+	t.Run("impl=func", func { t -> testAfterStop(t, newTimerFunc) })
 }
 
 func testAfterStop(t *testing.T, newTimer func(Duration) *Timer) {
@@ -418,12 +406,8 @@ func testAfterStop(t *testing.T, newTimer func(Duration) *Timer) {
 }
 
 func TestAfterQueuing(t *testing.T) {
-	t.Run("impl=chan", func(t *testing.T) {
-		testAfterQueuing(t, After)
-	})
-	t.Run("impl=func", func(t *testing.T) {
-		testAfterQueuing(t, func(d Duration) <-chan Time { return newTimerFunc(d).C })
-	})
+	t.Run("impl=chan", func { t -> testAfterQueuing(t, After) })
+	t.Run("impl=func", func { t -> testAfterQueuing(t, func { d -> newTimerFunc(d).C }) })
 }
 
 func testAfterQueuing(t *testing.T, after func(Duration) <-chan Time) {
@@ -650,15 +634,11 @@ func TestZeroTimerStopPanics(t *testing.T) {
 
 // Test that zero duration timers aren't missed by the scheduler. Regression test for issue 44868.
 func TestZeroTimer(t *testing.T) {
-	t.Run("impl=chan", func(t *testing.T) {
-		testZeroTimer(t, NewTimer)
-	})
-	t.Run("impl=func", func(t *testing.T) {
-		testZeroTimer(t, newTimerFunc)
-	})
-	t.Run("impl=cache", func(t *testing.T) {
+	t.Run("impl=chan", func { t -> testZeroTimer(t, NewTimer) })
+	t.Run("impl=func", func { t -> testZeroTimer(t, newTimerFunc) })
+	t.Run("impl=cache", func { t ->
 		timer := newTimerFunc(Hour)
-		testZeroTimer(t, func(d Duration) *Timer {
+		testZeroTimer(t, func { d ->
 			timer.Reset(d)
 			return timer
 		})
@@ -798,9 +778,7 @@ func TestResetResult(t *testing.T) {
 // Issue #69312.
 func testStopResetResult(t *testing.T, testStop bool) {
 	for _, name := range []string{"0", "1", "2"} {
-		t.Run("asynctimerchan="+name, func(t *testing.T) {
-			testStopResetResultGODEBUG(t, testStop, name)
-		})
+		t.Run("asynctimerchan="+name, func { t -> testStopResetResultGODEBUG(t, testStop, name) })
 	}
 }
 
@@ -992,10 +970,10 @@ func BenchmarkStaggeredTickerLatency(b *testing.B) {
 	const delay = 3 * Millisecond
 
 	for _, dur := range []Duration{300 * Microsecond, 2 * Millisecond} {
-		b.Run(fmt.Sprintf("work-dur=%s", dur), func(b *testing.B) {
+		b.Run(fmt.Sprintf("work-dur=%s", dur), func { b ->
 			for tickersPerP := 1; tickersPerP < int(delay/dur)+1; tickersPerP++ {
 				tickerCount := gmp * tickersPerP
-				b.Run(fmt.Sprintf("tickers-per-P=%d", tickersPerP), func(b *testing.B) {
+				b.Run(fmt.Sprintf("tickers-per-P=%d", tickersPerP), func { b ->
 					// allocate memory now to avoid GC interference later.
 					stats := make([]struct {
 						sum   float64
@@ -1086,7 +1064,7 @@ func doWork(dur Duration) {
 }
 
 func BenchmarkAdjustTimers10000(b *testing.B) {
-	benchmark(b, func(pb *testing.PB) {
+	benchmark(b, func { pb ->
 		for pb.Next() {
 			const n = 10000
 			timers := make([]*Timer, 0, n)

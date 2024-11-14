@@ -101,9 +101,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 		// subject to hash-variable debugging.
 		maybeReplaceVar := func(k ir.Node, x *ir.RangeStmt) ir.Node {
 			if n, ok := k.(*ir.Name); ok && possiblyLeaked[n] {
-				desc := func() string {
-					return describe(n)
-				}
+				desc := func { describe(n) }
 				if base.LoopVarHash.MatchPos(n.Pos(), desc) {
 					// Rename the loop key, prefix body with assignment from loop key
 					transformed = append(transformed, VarAndLoop{n, x, lastPos})
@@ -129,7 +127,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 		//  This is all much simpler for range loops; 3-clause loops can have an arbitrary number
 		//  of iteration variables and the transformation is more involved, range loops have at most 2.
 		var scanChildrenThenTransform func(x ir.Node) bool
-		scanChildrenThenTransform = func(n ir.Node) bool {
+		scanChildrenThenTransform = func { n ->
 
 			if loopDepth > 0 {
 				updateLastPos(n.Pos())
@@ -209,11 +207,9 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 				loopDepth--
 				var leaked []*ir.Name
 				// Collect the leaking variables for the much-more-complex transformation.
-				forAllDefInInit(x, func(z ir.Node) {
+				forAllDefInInit(x, func { z ->
 					if n, ok := z.(*ir.Name); ok && possiblyLeaked[n] {
-						desc := func() string {
-							return describe(n)
-						}
+						desc := func { describe(n) }
 						// Hash on n.Pos() for most precise failure location.
 						if base.LoopVarHash.MatchPos(n.Pos(), desc) {
 							leaked = append(leaked, n)
@@ -323,7 +319,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 					loopLabel := x.Label
 					loopDepth := 0
 					var editContinues func(x ir.Node) bool
-					editContinues = func(x ir.Node) bool {
+					editContinues = func { x ->
 
 						switch c := x.(type) {
 						case *ir.BranchStmt:
@@ -347,7 +343,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 					bodyContinue := x.Body
 
 					// (4) rewrite init
-					forAllDefInInitUpdate(x, func(z ir.Node, pz *ir.Node) {
+					forAllDefInInitUpdate(x, func { z, pz ->
 						// note tempFor[n] can be nil if hash searching.
 						if n, ok := z.(*ir.Name); ok && possiblyLeaked[n] && zPrimeForZ[n] != nil {
 							*pz = zPrimeForZ[n]
@@ -473,13 +469,13 @@ func forAllDefInInitUpdate(x *ir.ForStmt, do func(z ir.Node, update *ir.Node)) {
 
 // forAllDefInInit is forAllDefInInitUpdate without the update option.
 func forAllDefInInit(x *ir.ForStmt, do func(z ir.Node)) {
-	forAllDefInInitUpdate(x, func(z ir.Node, _ *ir.Node) { do(z) })
+	forAllDefInInitUpdate(x, func { z, _ -> do(z) })
 }
 
 // rewriteNodes applies editNodes to all statement lists in fn.
 func rewriteNodes(fn *ir.Func, editNodes func(c ir.Nodes) ir.Nodes) {
 	var forNodes func(x ir.Node) bool
-	forNodes = func(n ir.Node) bool {
+	forNodes = func { n ->
 		if stmt, ok := n.(ir.InitNode); ok {
 			// process init list
 			stmt.SetInit(editNodes(stmt.Init()))

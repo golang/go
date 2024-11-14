@@ -18,7 +18,7 @@ func indentNewlines(s string) string {
 }
 
 func stripWhitespace(s string) string {
-	return strings.Map(func(r rune) rune {
+	return strings.Map(func { r ->
 		if r == ' ' || r == '\n' || r == '\r' || r == '\t' {
 			return -1
 		}
@@ -40,7 +40,7 @@ func TestValid(t *testing.T) {
 		{Name(""), `{"foo":"bar","bar":{"baz":["qux"]}}`, true},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			if ok := Valid([]byte(tt.data)); ok != tt.ok {
 				t.Errorf("%s: Valid(`%s`) = %v, want %v", tt.Where, tt.data, ok, tt.ok)
 			}
@@ -75,7 +75,7 @@ func TestCompactAndIndent(t *testing.T) {
 	}
 	var buf bytes.Buffer
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			buf.Reset()
 			if err := Compact(&buf, []byte(tt.compact)); err != nil {
 				t.Errorf("%s: Compact error: %v", tt.Where, err)
@@ -118,7 +118,7 @@ func TestCompactSeparators(t *testing.T) {
 		{Name(""), "{\"\u2029\" :2}", "{\"\u2029\":2}"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			var buf bytes.Buffer
 			if err := Compact(&buf, []byte(tt.in)); err != nil {
 				t.Errorf("%s: Compact error: %v", tt.Where, err)
@@ -194,7 +194,7 @@ func TestIndentErrors(t *testing.T) {
 		{Name(""), `{"X": "foo" "Y": "bar"}`, &SyntaxError{"invalid character '\"' after object key:value pair", 13}},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			slice := make([]uint8, 0)
 			buf := bytes.NewBuffer(slice)
 			if err := Indent(buf, []uint8(tt.in), "", ""); err != nil {

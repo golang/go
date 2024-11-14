@@ -10,7 +10,7 @@ import (
 )
 
 func TestSevenBitEnc128(t *testing.T) {
-	t.Run("unsigned", func(t *testing.T) {
+	t.Run("unsigned", func { t ->
 		for v := int64(-255); v < 255; v++ {
 			s := sevenBitU(v)
 			if s == nil {
@@ -23,7 +23,7 @@ func TestSevenBitEnc128(t *testing.T) {
 		}
 	})
 
-	t.Run("signed", func(t *testing.T) {
+	t.Run("signed", func { t ->
 		for v := int64(-255); v < 255; v++ {
 			s := sevenBitS(v)
 			if s == nil {

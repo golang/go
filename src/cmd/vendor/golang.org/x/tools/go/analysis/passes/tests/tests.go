@@ -96,7 +96,7 @@ func checkFuzz(pass *analysis.Pass, fn *ast.FuncDecl) {
 //
 // Returns the list of parameters to the fuzz function, if they are valid fuzz parameters.
 func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple) {
-	ast.Inspect(fn, func(n ast.Node) bool {
+	ast.Inspect(fn, func { n ->
 		call, ok := n.(*ast.CallExpr)
 		if ok {
 			if !isFuzzTargetDotFuzz(pass, call) {
@@ -133,7 +133,7 @@ func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple) 
 			}
 			// Inspect the function that was passed as an argument to make sure that
 			// there are no calls to *F methods, except for Name and Failed.
-			ast.Inspect(expr, func(n ast.Node) bool {
+			ast.Inspect(expr, func { n ->
 				if call, ok := n.(*ast.CallExpr); ok {
 					if !isFuzzTargetDot(pass, call, "") {
 						return true
@@ -156,7 +156,7 @@ func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple) 
 // checkAddCalls checks that the arguments of f.Add calls have the same number and type of arguments as
 // the signature of the function passed to (*testing.F).Fuzz
 func checkAddCalls(pass *analysis.Pass, fn *ast.FuncDecl, params *types.Tuple) {
-	ast.Inspect(fn, func(n ast.Node) bool {
+	ast.Inspect(fn, func { n ->
 		call, ok := n.(*ast.CallExpr)
 		if ok {
 			if !isFuzzTargetDotAdd(pass, call) {

@@ -171,7 +171,7 @@ func TestByteSliceMutators(t *testing.T) {
 			expected: []byte{3, 2, 1, 4},
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			r := &mockRand{values: []int{0, 1, 2, 3, 4, 5}}
 			if tc.randVals != nil {
 				r.values = tc.randVals

@@ -73,7 +73,7 @@ func TestFileInfoToDirEntry(t *testing.T) {
 
 	for _, test := range tests {
 		test := test
-		t.Run(test.path, func(t *testing.T) {
+		t.Run(test.path, func { t ->
 			fi, err := Stat(testFs, test.path)
 			if err != nil {
 				t.Fatal(err)

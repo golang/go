@@ -403,7 +403,7 @@ func TestAddressParsingError(t *testing.T) {
 		}
 	}
 
-	t.Run("CustomWordDecoder", func(t *testing.T) {
+	t.Run("CustomWordDecoder", func { t ->
 		p := &AddressParser{WordDecoder: &mime.WordDecoder{}}
 		for i, tc := range mustErrTestCases {
 			_, err := p.Parse(tc.text)

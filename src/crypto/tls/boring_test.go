@@ -27,7 +27,7 @@ import (
 
 func TestBoringServerProtocolVersion(t *testing.T) {
 	test := func(t *testing.T, name string, v uint16, msg string) {
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			serverConfig := testConfig.Clone()
 			serverConfig.MinVersion = VersionSSL30
 			clientConfig := testConfig.Clone()
@@ -54,7 +54,7 @@ func TestBoringServerProtocolVersion(t *testing.T) {
 	test(t, "VersionTLS12", VersionTLS12, "")
 	test(t, "VersionTLS13", VersionTLS13, "")
 
-	t.Run("fipstls", func(t *testing.T) {
+	t.Run("fipstls", func { t ->
 		fipstls.Force()
 		defer fipstls.Abandon()
 		test(t, "VersionTLS10", VersionTLS10, "supported versions")
@@ -130,7 +130,7 @@ func TestBoringServerCipherSuites(t *testing.T) {
 			serverConfig.Certificates[0].PrivateKey = testRSAPrivateKey
 		}
 		serverConfig.BuildNameToCertificate()
-		t.Run(fmt.Sprintf("suite=%#x", id), func(t *testing.T) {
+		t.Run(fmt.Sprintf("suite=%#x", id), func { t ->
 			clientHello := &clientHelloMsg{
 				vers:               VersionTLS12,
 				random:             make([]byte, 32),
@@ -141,7 +141,7 @@ func TestBoringServerCipherSuites(t *testing.T) {
 			}
 
 			testClientHello(t, serverConfig, clientHello)
-			t.Run("fipstls", func(t *testing.T) {
+			t.Run("fipstls", func { t ->
 				fipstls.Force()
 				defer fipstls.Abandon()
 				msg := ""
@@ -162,7 +162,7 @@ func TestBoringServerCurves(t *testing.T) {
 	serverConfig.BuildNameToCertificate()
 
 	for _, curveid := range defaultCurvePreferences() {
-		t.Run(fmt.Sprintf("curve=%d", curveid), func(t *testing.T) {
+		t.Run(fmt.Sprintf("curve=%d", curveid), func { t ->
 			clientConfig := testConfig.Clone()
 			clientConfig.CurvePreferences = []CurveID{curveid}
 			if curveid == x25519Kyber768Draft00 {
@@ -174,7 +174,7 @@ func TestBoringServerCurves(t *testing.T) {
 			}
 
 			// With fipstls forced, bad curves should be rejected.
-			t.Run("fipstls", func(t *testing.T) {
+			t.Run("fipstls", func { t ->
 				fipstls.Force()
 				defer fipstls.Abandon()
 				_, _, err := testHandshake(t, clientConfig, serverConfig)
@@ -209,7 +209,7 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 	}()
 
 	for _, sigHash := range defaultSupportedSignatureAlgorithms {
-		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", sigHash), func { t ->
 			serverConfig := testConfig.Clone()
 			serverConfig.Certificates = make([]Certificate, 1)
 
@@ -241,7 +241,7 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 			}
 
 			// With fipstls forced, bad curves should be rejected.
-			t.Run("fipstls", func(t *testing.T) {
+			t.Run("fipstls", func { t ->
 				fipstls.Force()
 				defer fipstls.Abandon()
 				clientErr, _ := boringHandshake(t, testConfig, serverConfig)

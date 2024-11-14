@@ -35,7 +35,7 @@ func (h *authHandler) Available() bool { return true }
 func (h *authHandler) Handler(dir string, env []string, logger *log.Logger) (http.Handler, error) {
 	fs := http.Dir(dir)
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func { w, req ->
 		urlPath := req.URL.Path
 		if urlPath != "" && strings.HasPrefix(path.Base(urlPath), ".") {
 			http.Error(w, "filename contains leading dot", http.StatusBadRequest)

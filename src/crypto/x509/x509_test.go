@@ -105,21 +105,21 @@ func testParsePKIXPublicKey(t *testing.T, pemBytes string) (pub any) {
 }
 
 func TestParsePKIXPublicKey(t *testing.T) {
-	t.Run("RSA", func(t *testing.T) {
+	t.Run("RSA", func { t ->
 		pub := testParsePKIXPublicKey(t, pemPublicKey)
 		_, ok := pub.(*rsa.PublicKey)
 		if !ok {
 			t.Errorf("Value returned from ParsePKIXPublicKey was not an RSA public key")
 		}
 	})
-	t.Run("Ed25519", func(t *testing.T) {
+	t.Run("Ed25519", func { t ->
 		pub := testParsePKIXPublicKey(t, pemEd25519Key)
 		_, ok := pub.(ed25519.PublicKey)
 		if !ok {
 			t.Errorf("Value returned from ParsePKIXPublicKey was not an Ed25519 public key")
 		}
 	})
-	t.Run("X25519", func(t *testing.T) {
+	t.Run("X25519", func { t ->
 		pub := testParsePKIXPublicKey(t, pemX25519Key)
 		k, ok := pub.(*ecdh.PublicKey)
 		if !ok || k.Curve() != ecdh.X25519() {
@@ -2784,7 +2784,7 @@ func TestCreateRevocationList(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			crl, err := CreateRevocationList(rand.Reader, tc.template, tc.issuer, tc.key)
 			if err != nil && tc.expectedError == "" {
 				t.Fatalf("CreateRevocationList failed unexpectedly: %s", err)
@@ -3034,7 +3034,7 @@ func TestIA5SANEnforcement(t *testing.T) {
 	}
 
 	for _, tc := range marshalTests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			_, err := CreateCertificate(rand.Reader, tc.template, tc.template, k.Public(), k)
 			if err == nil {
 				t.Errorf("expected CreateCertificate to fail with template: %v", tc.template)
@@ -3114,7 +3114,7 @@ func BenchmarkCreateCertificate(b *testing.B) {
 	for _, tc := range tests {
 		k := tc.gen()
 		b.ResetTimer()
-		b.Run(tc.name, func(b *testing.B) {
+		b.Run(tc.name, func { b ->
 			for i := 0; i < b.N; i++ {
 				_, err := CreateCertificate(rand.Reader, template, template, k.Public(), k)
 				if err != nil {
@@ -3359,7 +3359,7 @@ Qc4=
 		},
 	}
 	for _, c := range cases {
-		b.Run(c.name, func(b *testing.B) {
+		b.Run(c.name, func { b ->
 			pemBlock, _ := pem.Decode([]byte(c.pem))
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -3775,7 +3775,7 @@ func TestRevocationListCheckSignatureFrom(t *testing.T) {
 		SubjectKeyId:          []byte{1, 2, 3},
 	}
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			crlDER, err := CreateRevocationList(rand.Reader, &RevocationList{Number: big.NewInt(1)}, crlIssuer, goodKey)
 			if err != nil {
 				t.Fatalf("failed to generate CRL: %s", err)

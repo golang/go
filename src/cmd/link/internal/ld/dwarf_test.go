@@ -406,7 +406,7 @@ func main() {}
 	}
 	for _, tc := range tests {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			t.Parallel()
 
 			d, ex := gobuildAndExamine(t, tc.prog, NoOpt)
@@ -471,7 +471,7 @@ func main() {
 	}
 	for _, tc := range tests {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			t.Parallel()
 
 			_, ex := gobuildAndExamine(t, tc.prog, NoOpt)
@@ -553,7 +553,7 @@ func main() {
 	}
 	for _, tc := range tests {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			t.Parallel()
 
 			// Note: this is a build with "-l=4", as opposed to "-l -N". The
@@ -2014,7 +2014,7 @@ func TestZeroSizedVariable(t *testing.T) {
 
 	for _, opt := range []string{NoOpt, DefaultOpt} {
 		opt := opt
-		t.Run(opt, func(t *testing.T) {
+		t.Run(opt, func { t ->
 			_, ex := gobuildAndExamine(t, zeroSizedVarProg, opt)
 
 			// Locate the main.zeroSizedVariable DIE

@@ -135,7 +135,7 @@ func TestParseAddr(t *testing.T) {
 	}
 
 	for _, test := range validIPs {
-		t.Run(test.in, func(t *testing.T) {
+		t.Run(test.in, func { t ->
 			got, err := ParseAddr(test.in)
 			if err != nil {
 				if err.Error() == test.wantErr {
@@ -280,7 +280,7 @@ func TestParseAddr(t *testing.T) {
 	}
 
 	for _, s := range invalidIPs {
-		t.Run(s, func(t *testing.T) {
+		t.Run(s, func { t ->
 			got, err := ParseAddr(s)
 			if err == nil {
 				t.Errorf("ParseAddr(%q) = %#v, want error", s, got)
@@ -567,7 +567,7 @@ func TestAddrFrom16(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			got := AddrFrom16(tt.in)
 			if got != tt.want {
 				t.Errorf("got %#v; want %#v", got, tt.want)
@@ -780,7 +780,7 @@ func TestIPProperties(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			gu := tt.ip.IsGlobalUnicast()
 			if gu != tt.globalUnicast {
 				t.Errorf("IsGlobalUnicast(%v) = %v; want %v", tt.ip, gu, tt.globalUnicast)
@@ -858,7 +858,7 @@ func TestAddrWellKnown(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			want := tt.std.String()
 			got := tt.ip.String()
 
@@ -941,7 +941,7 @@ func TestAddrLessCompare(t *testing.T) {
 	values := []Addr{
 		mustIP("::1"),
 		mustIP("::2"),
-		Addr{},
+		{},
 		mustIP("1.2.3.4"),
 		mustIP("8.8.8.8"),
 		mustIP("::1%foo"),
@@ -992,7 +992,7 @@ func TestAddrPortCompare(t *testing.T) {
 	values := []AddrPort{
 		mustIPPort("[::1]:80"),
 		mustIPPort("[::2]:80"),
-		AddrPort{},
+		{},
 		mustIPPort("1.2.3.4:443"),
 		mustIPPort("8.8.8.8:8080"),
 		mustIPPort("[::1%foo]:1024"),
@@ -1045,7 +1045,7 @@ func TestPrefixCompare(t *testing.T) {
 		mustPrefix("fe90::/64"),
 		mustPrefix("fe80::/64"),
 		mustPrefix("1.2.0.0/16"),
-		Prefix{},
+		{},
 		mustPrefix("fe80::/48"),
 		mustPrefix("1.2.0.0/24"),
 	}
@@ -1085,7 +1085,7 @@ func TestIPStringExpanded(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.ip.String(), func(t *testing.T) {
+		t.Run(tt.ip.String(), func { t ->
 			want := tt.s
 			got := tt.ip.StringExpanded()
 
@@ -1199,9 +1199,9 @@ func TestPrefixMasking(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.family, func(t *testing.T) {
+		t.Run(tt.family, func { t ->
 			for _, st := range tt.subtests {
-				t.Run(st.p.String(), func(t *testing.T) {
+				t.Run(st.p.String(), func { t ->
 					// Ensure st.ip is not mutated.
 					orig := st.ip.String()
 
@@ -1241,7 +1241,7 @@ func TestPrefixMarshalUnmarshal(t *testing.T) {
 	}
 
 	for _, s := range tests {
-		t.Run(s, func(t *testing.T) {
+		t.Run(s, func { t ->
 			// Ensure that JSON  (and by extension, text) marshaling is
 			// sane by entering quoted input.
 			orig := `"` + s + `"`
@@ -1351,7 +1351,7 @@ func TestPrefixMasked(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.prefix.String(), func(t *testing.T) {
+		t.Run(test.prefix.String(), func { t ->
 			got := test.prefix.Masked()
 			if got != test.masked {
 				t.Errorf("Masked=%s, want %s", got, test.masked)
@@ -1420,7 +1420,7 @@ func TestPrefix(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.prefix, func(t *testing.T) {
+		t.Run(test.prefix, func { t ->
 			prefix, err := ParsePrefix(test.prefix)
 			if err != nil {
 				t.Fatal(err)
@@ -1493,7 +1493,7 @@ func TestParsePrefixAllocs(t *testing.T) {
 	}
 	for _, test := range tests {
 		prefix := test.ip + test.slash
-		t.Run(prefix, func(t *testing.T) {
+		t.Run(prefix, func { t ->
 			ipAllocs := int(testing.AllocsPerRun(5, func() {
 				ParseAddr(test.ip)
 			}))
@@ -1563,7 +1563,7 @@ func TestParsePrefixError(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.prefix, func(t *testing.T) {
+		t.Run(test.prefix, func { t ->
 			_, err := ParsePrefix(test.prefix)
 			if err == nil {
 				t.Fatal("no error")
@@ -1615,7 +1615,7 @@ func BenchmarkBinaryMarshalRoundTrip(b *testing.B) {
 		{"ipv6+zone", "2001:db8::1%eth0"},
 	}
 	for _, tc := range tests {
-		b.Run(tc.name, func(b *testing.B) {
+		b.Run(tc.name, func { b ->
 			ip := mustIP(tc.ip)
 			for i := 0; i < b.N; i++ {
 				bt, err := ip.MarshalBinary()
@@ -1740,7 +1740,7 @@ var parseBenchInputs = []struct {
 func BenchmarkParseAddr(b *testing.B) {
 	sinkInternValue = unique.Make(MakeAddrDetail(true, "eth1")) // Pin to not benchmark the intern package
 	for _, test := range parseBenchInputs {
-		b.Run(test.name, func(b *testing.B) {
+		b.Run(test.name, func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				sinkIP, _ = ParseAddr(test.ip)
@@ -1751,7 +1751,7 @@ func BenchmarkParseAddr(b *testing.B) {
 
 func BenchmarkStdParseIP(b *testing.B) {
 	for _, test := range parseBenchInputs {
-		b.Run(test.name, func(b *testing.B) {
+		b.Run(test.name, func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				sinkStdIP = net.ParseIP(test.ip)
@@ -1763,7 +1763,7 @@ func BenchmarkStdParseIP(b *testing.B) {
 func BenchmarkAddrString(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		ip := MustParseAddr(test.ip)
-		b.Run(test.name, func(b *testing.B) {
+		b.Run(test.name, func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				sinkString = ip.String()
@@ -1775,7 +1775,7 @@ func BenchmarkAddrString(b *testing.B) {
 func BenchmarkIPStringExpanded(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		ip := MustParseAddr(test.ip)
-		b.Run(test.name, func(b *testing.B) {
+		b.Run(test.name, func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				sinkString = ip.StringExpanded()
@@ -1787,7 +1787,7 @@ func BenchmarkIPStringExpanded(b *testing.B) {
 func BenchmarkAddrMarshalText(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		ip := MustParseAddr(test.ip)
-		b.Run(test.name, func(b *testing.B) {
+		b.Run(test.name, func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				sinkBytes, _ = ip.MarshalText()
@@ -1800,7 +1800,7 @@ func BenchmarkAddrPortString(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		ip := MustParseAddr(test.ip)
 		ipp := AddrPortFrom(ip, 60000)
-		b.Run(test.name, func(b *testing.B) {
+		b.Run(test.name, func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				sinkString = ipp.String()
@@ -1813,7 +1813,7 @@ func BenchmarkAddrPortMarshalText(b *testing.B) {
 	for _, test := range parseBenchInputs {
 		ip := MustParseAddr(test.ip)
 		ipp := AddrPortFrom(ip, 60000)
-		b.Run(test.name, func(b *testing.B) {
+		b.Run(test.name, func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				sinkBytes, _ = ipp.MarshalText()
@@ -1876,7 +1876,7 @@ func BenchmarkPrefixMasking(b *testing.B) {
 	}
 
 	for _, tt := range tests {
-		b.Run(tt.name, func(b *testing.B) {
+		b.Run(tt.name, func { b ->
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
@@ -1902,7 +1902,7 @@ func BenchmarkParseAddrPort(b *testing.B) {
 		} else {
 			ipp = fmt.Sprintf("%s:1234", test.ip)
 		}
-		b.Run(test.name, func(b *testing.B) {
+		b.Run(test.name, func { b ->
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
@@ -2054,7 +2054,7 @@ func TestNoAllocs(t *testing.T) {
 		return ipp
 	}
 	test := func(name string, f func()) {
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			n := testing.AllocsPerRun(1000, f)
 			if n != 0 {
 				t.Fatalf("allocs = %d; want 0", int(n))
@@ -2147,7 +2147,7 @@ func TestAddrStringAllocs(t *testing.T) {
 	}
 	optimizationOff := testenv.OptimizationOff()
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			if optimizationOff && strings.HasPrefix(tc.name, "ipv4-in-ipv6") {
 				// Optimizations are required to remove some allocs.
 				t.Skipf("skipping on %v", testenv.Builder())

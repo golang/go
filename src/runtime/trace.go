@@ -357,7 +357,7 @@ func traceAdvance(stopTrace bool) {
 		inMarkAssist bool
 	}
 	var untracedGs []untracedG
-	forEachGRace(func(gp *g) {
+	forEachGRace(func { gp ->
 		// Make absolutely sure all Gs are ready for the next
 		// generation. We need to do this even for dead Gs because
 		// they may come alive with a new identity, and its status
@@ -635,7 +635,7 @@ func traceAdvance(stopTrace bool) {
 		// preempt all Ps anyway, might as well stay consistent with StartTrace
 		// which does this during the STW.
 		semacquire(&worldsema)
-		forEachP(waitReasonTraceProcStatus, func(pp *p) {
+		forEachP(waitReasonTraceProcStatus, func { pp ->
 			tl := traceAcquire()
 			if !pp.trace.statusWasTraced(tl.gen) {
 				tl.writer().writeProcStatusForP(pp, false).end()
@@ -754,7 +754,7 @@ top:
 		buf, park = readTrace0()
 	})
 	if park {
-		gopark(func(gp *g, _ unsafe.Pointer) bool {
+		gopark(func { gp, _ ->
 			if !trace.reader.CompareAndSwapNoWB(nil, gp) {
 				// We're racing with another reader.
 				// Wake up and handle this case.

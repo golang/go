@@ -23,7 +23,7 @@ func init() {
 	pid, tid = syscall.Getpid(), syscall.Gettid()
 	LockOSThread()
 
-	sysNanosleep = func(d time.Duration) {
+	sysNanosleep = func { d ->
 		// Invoke a blocking syscall directly; calling time.Sleep()
 		// would deschedule the goroutine instead.
 		ts := syscall.NsecToTimespec(d.Nanoseconds())

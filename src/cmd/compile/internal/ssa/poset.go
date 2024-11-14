@@ -591,9 +591,7 @@ func (po *poset) dfs(r uint32, strict bool, f func(i uint32) bool) bool {
 // If strict == false: if the function returns true, then i1 <= i2.
 // If the function returns false, no relation is known.
 func (po *poset) reaches(i1, i2 uint32, strict bool) bool {
-	return po.dfs(i1, strict, func(n uint32) bool {
-		return n == i2
-	})
+	return po.dfs(i1, strict, func { n -> n == i2 })
 }
 
 // findroot finds i's root, that is which DAG contains i.
@@ -752,7 +750,7 @@ func (po *poset) CheckIntegrity() {
 			panic("empty root")
 		}
 
-		po.dfs(r, false, func(i uint32) bool {
+		po.dfs(r, false, func { i ->
 			if seen.Test(i) {
 				panic("duplicate node")
 			}
@@ -848,7 +846,7 @@ func (po *poset) DotDump(fn string, title string) error {
 	fmt.Fprintf(f, "\tedge [ fontsize=10 ]\n")
 	for ridx, r := range po.roots {
 		fmt.Fprintf(f, "\tsubgraph root%d {\n", ridx)
-		po.dfs(r, false, func(i uint32) bool {
+		po.dfs(r, false, func { i ->
 			if val, ok := consts[i]; ok {
 				// Constant
 				var vals string

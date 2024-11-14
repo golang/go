@@ -22,8 +22,8 @@ import (
 func TestErrorCodeExamples(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // go command needed to resolve std .a files for importer.Default().
 
-	walkCodes(t, func(name string, value int, spec *ast.ValueSpec) {
-		t.Run(name, func(t *testing.T) {
+	walkCodes(t, func { name, value, spec ->
+		t.Run(name, func { t ->
 			doc := spec.Doc.Text()
 			examples := strings.Split(doc, "Example:")
 			for i := 1; i < len(examples); i++ {
@@ -148,7 +148,7 @@ func TestErrorCodeStyle(t *testing.T) {
 	longestName := ""
 	maxValue := 0
 
-	walkCodes(t, func(name string, value int, spec *ast.ValueSpec) {
+	walkCodes(t, func { name, value, spec ->
 		if name == "_" {
 			return
 		}

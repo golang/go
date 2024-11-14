@@ -73,7 +73,7 @@ func BenchmarkFormat(b *testing.B) {
 			}
 		}
 
-		b.Run(fmt.Sprintf("%s-%d", t.name, t.n), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%s-%d", t.name, t.n), func { b ->
 			b.SetBytes(int64(len(data)))
 			b.ReportAllocs()
 			b.ResetTimer()

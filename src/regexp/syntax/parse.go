@@ -1860,7 +1860,7 @@ func cleanClass(rp *[]rune) []rune {
 // inCharClass reports whether r is in the class.
 // It assumes the class has been cleaned by cleanClass.
 func inCharClass(r rune, class []rune) bool {
-	_, ok := sort.Find(len(class)/2, func(i int) int {
+	_, ok := sort.Find(len(class)/2, func { i ->
 		lo, hi := class[2*i], class[2*i+1]
 		if r > hi {
 			return +1

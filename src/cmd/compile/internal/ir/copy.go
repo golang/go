@@ -18,7 +18,7 @@ func Copy(n Node) Node {
 // If pos.IsKnown(), it sets the source position of newly allocated Nodes to pos.
 func DeepCopy(pos src.XPos, n Node) Node {
 	var edit func(Node) Node
-	edit = func(x Node) Node {
+	edit = func { x ->
 		switch x.Op() {
 		case ONAME, ONONAME, OLITERAL, ONIL, OTYPE:
 			return x

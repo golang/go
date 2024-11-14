@@ -47,15 +47,15 @@ func prettyPrintf(format string, args ...interface{}) {
 
 func testMain(m *testing.M) int {
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
-		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
+		globalSkip = func { t -> t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run()
 	}
 	if !platform.BuildModeSupported(runtime.Compiler, "plugin", runtime.GOOS, runtime.GOARCH) {
-		globalSkip = func(t *testing.T) { t.Skip("plugin build mode not supported") }
+		globalSkip = func { t -> t.Skip("plugin build mode not supported") }
 		return m.Run()
 	}
 	if !testenv.HasCGO() {
-		globalSkip = func(t *testing.T) { t.Skip("cgo not supported") }
+		globalSkip = func { t -> t.Skip("cgo not supported") }
 		return m.Run()
 	}
 
@@ -304,7 +304,7 @@ func TestIssue25756(t *testing.T) {
 	goCmd(t, "build", "-o", "issue25756.exe", "./issue25756/main.go")
 	// Fails intermittently, but 20 runs should cause the failure
 	for n := 20; n > 0; n-- {
-		t.Run(fmt.Sprint(n), func(t *testing.T) {
+		t.Run(fmt.Sprint(n), func { t ->
 			t.Parallel()
 			run(t, "./issue25756.exe")
 		})

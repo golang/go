@@ -574,9 +574,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 	if strings.Contains(repl, "$") {
 		n = 2 * (re.numSubexp + 1)
 	}
-	b := re.replaceAll(nil, src, n, func(dst []byte, match []int) []byte {
-		return re.expand(dst, repl, nil, src, match)
-	})
+	b := re.replaceAll(nil, src, n, func { dst, match -> re.expand(dst, repl, nil, src, match) })
 	return string(b)
 }
 
@@ -584,9 +582,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 // with the replacement string repl. The replacement repl is substituted directly,
 // without using [Regexp.Expand].
 func (re *Regexp) ReplaceAllLiteralString(src, repl string) string {
-	return string(re.replaceAll(nil, src, 2, func(dst []byte, match []int) []byte {
-		return append(dst, repl...)
-	}))
+	return string(re.replaceAll(nil, src, 2, func { dst, match -> append(dst, repl...) }))
 }
 
 // ReplaceAllStringFunc returns a copy of src in which all matches of the
@@ -594,9 +590,7 @@ func (re *Regexp) ReplaceAllLiteralString(src, repl string) string {
 // to the matched substring. The replacement returned by repl is substituted
 // directly, without using [Regexp.Expand].
 func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
-	b := re.replaceAll(nil, src, 2, func(dst []byte, match []int) []byte {
-		return append(dst, repl(src[match[0]:match[1]])...)
-	})
+	b := re.replaceAll(nil, src, 2, func { dst, match -> append(dst, repl(src[match[0]:match[1]])...) })
 	return string(b)
 }
 
@@ -674,7 +668,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 		n = 2 * (re.numSubexp + 1)
 	}
 	srepl := ""
-	b := re.replaceAll(src, "", n, func(dst []byte, match []int) []byte {
+	b := re.replaceAll(src, "", n, func { dst, match ->
 		if len(srepl) != len(repl) {
 			srepl = string(repl)
 		}
@@ -687,9 +681,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 // with the replacement bytes repl. The replacement repl is substituted directly,
 // without using [Regexp.Expand].
 func (re *Regexp) ReplaceAllLiteral(src, repl []byte) []byte {
-	return re.replaceAll(src, "", 2, func(dst []byte, match []int) []byte {
-		return append(dst, repl...)
-	})
+	return re.replaceAll(src, "", 2, func { dst, match -> append(dst, repl...) })
 }
 
 // ReplaceAllFunc returns a copy of src in which all matches of the
@@ -697,9 +689,7 @@ func (re *Regexp) ReplaceAllLiteral(src, repl []byte) []byte {
 // to the matched byte slice. The replacement returned by repl is substituted
 // directly, without using [Regexp.Expand].
 func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
-	return re.replaceAll(src, "", 2, func(dst []byte, match []int) []byte {
-		return append(dst, repl(src[match[0]:match[1]])...)
-	})
+	return re.replaceAll(src, "", 2, func { dst, match -> append(dst, repl(src[match[0]:match[1]])...) })
 }
 
 // Bitmap used by func special to check whether a character needs to be escaped.
@@ -1079,7 +1069,7 @@ func (re *Regexp) FindAll(b []byte, n int) [][]byte {
 		n = len(b) + 1
 	}
 	var result [][]byte
-	re.allMatches("", b, n, func(match []int) {
+	re.allMatches("", b, n, func { match ->
 		if result == nil {
 			result = make([][]byte, 0, startSize)
 		}
@@ -1097,7 +1087,7 @@ func (re *Regexp) FindAllIndex(b []byte, n int) [][]int {
 		n = len(b) + 1
 	}
 	var result [][]int
-	re.allMatches("", b, n, func(match []int) {
+	re.allMatches("", b, n, func { match ->
 		if result == nil {
 			result = make([][]int, 0, startSize)
 		}
@@ -1115,7 +1105,7 @@ func (re *Regexp) FindAllString(s string, n int) []string {
 		n = len(s) + 1
 	}
 	var result []string
-	re.allMatches(s, nil, n, func(match []int) {
+	re.allMatches(s, nil, n, func { match ->
 		if result == nil {
 			result = make([]string, 0, startSize)
 		}
@@ -1133,7 +1123,7 @@ func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
 		n = len(s) + 1
 	}
 	var result [][]int
-	re.allMatches(s, nil, n, func(match []int) {
+	re.allMatches(s, nil, n, func { match ->
 		if result == nil {
 			result = make([][]int, 0, startSize)
 		}
@@ -1151,7 +1141,7 @@ func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
 		n = len(b) + 1
 	}
 	var result [][][]byte
-	re.allMatches("", b, n, func(match []int) {
+	re.allMatches("", b, n, func { match ->
 		if result == nil {
 			result = make([][][]byte, 0, startSize)
 		}
@@ -1175,7 +1165,7 @@ func (re *Regexp) FindAllSubmatchIndex(b []byte, n int) [][]int {
 		n = len(b) + 1
 	}
 	var result [][]int
-	re.allMatches("", b, n, func(match []int) {
+	re.allMatches("", b, n, func { match ->
 		if result == nil {
 			result = make([][]int, 0, startSize)
 		}
@@ -1193,7 +1183,7 @@ func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
 		n = len(s) + 1
 	}
 	var result [][]string
-	re.allMatches(s, nil, n, func(match []int) {
+	re.allMatches(s, nil, n, func { match ->
 		if result == nil {
 			result = make([][]string, 0, startSize)
 		}
@@ -1218,7 +1208,7 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 		n = len(s) + 1
 	}
 	var result [][]int
-	re.allMatches(s, nil, n, func(match []int) {
+	re.allMatches(s, nil, n, func { match ->
 		if result == nil {
 			result = make([][]int, 0, startSize)
 		}

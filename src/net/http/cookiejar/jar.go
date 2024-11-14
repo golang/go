@@ -211,7 +211,7 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 
 	// sort according to RFC 6265 section 5.4 point 2: by longest
 	// path and then by earliest creation time.
-	slices.SortFunc(selected, func(a, b entry) int {
+	slices.SortFunc(selected, func { a, b ->
 		if r := cmp.Compare(b.Path, a.Path); r != 0 {
 			return r
 		}

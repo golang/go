@@ -40,7 +40,7 @@ func trueConflicts(pat *pattern, pats []*pattern) []string {
 
 func indexConflicts(pat *pattern, idx *routingIndex) []string {
 	var s []string
-	idx.possiblyConflictingPatterns(pat, func(p *pattern) error {
+	idx.possiblyConflictingPatterns(pat, func { p ->
 		if pat.conflictsWith(p) {
 			s = append(s, p.String())
 		}
@@ -117,11 +117,7 @@ func genChoice(choices []string) generator {
 // with those of g2.
 func genConcat2(g1, g2 generator) generator {
 	return func(collect func(string)) {
-		g1(func(s1 string) {
-			g2(func(s2 string) {
-				collect(s1 + s2)
-			})
-		})
+		g1(func { s1 -> g2(func { s2 -> collect(s1 + s2) }) })
 	}
 }
 

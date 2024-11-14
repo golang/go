@@ -35,11 +35,9 @@ func forEachGC(fn func() bool) {
 	type T [32]byte // large enough to avoid runtime's tiny object allocator
 
 	var finalizer func(*T)
-	finalizer = func(p *T) {
-		if fn() {
-			runtime.SetFinalizer(p, finalizer)
-		}
-	}
+	finalizer = func { p -> if fn() {
+		runtime.SetFinalizer(p, finalizer)
+	} }
 
 	finalizer(new(T))
 }
@@ -159,7 +157,7 @@ func AdjustStartingHeap(requestedHeapGoal uint64) {
 
 	debug.SetGCPercent(int(myGogc))
 
-	adjustFunc := func() bool {
+	adjustFunc := func {
 
 		metrics.Read(sample)
 		goal := sample[GOAL].Value.Uint64()

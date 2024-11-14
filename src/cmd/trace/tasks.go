@@ -39,9 +39,7 @@ func UserTasksHandlerFunc(t *parsedTrace) http.HandlerFunc {
 		for _, stats := range summary {
 			userTasks = append(userTasks, stats)
 		}
-		slices.SortFunc(userTasks, func(a, b taskStats) int {
-			return cmp.Compare(a.Type, b.Type)
-		})
+		slices.SortFunc(userTasks, func { a, b -> cmp.Compare(a.Type, b.Type) })
 
 		// Emit table.
 		err := templUserTaskTypes.Execute(w, userTasks)
@@ -163,9 +161,7 @@ func UserTaskHandlerFunc(t *parsedTrace) http.HandlerFunc {
 			}
 
 			// Sort them.
-			slices.SortStableFunc(rawEvents, func(a, b *trace.Event) int {
-				return cmp.Compare(a.Time(), b.Time())
-			})
+			slices.SortStableFunc(rawEvents, func { a, b -> cmp.Compare(a.Time(), b.Time()) })
 
 			// Summarize them.
 			var events []event
@@ -199,9 +195,7 @@ func UserTaskHandlerFunc(t *parsedTrace) http.HandlerFunc {
 			})
 		}
 		// Sort the tasks by duration.
-		slices.SortFunc(tasks, func(a, b task) int {
-			return cmp.Compare(a.Duration, b.Duration)
-		})
+		slices.SortFunc(tasks, func { a, b -> cmp.Compare(a.Duration, b.Duration) })
 
 		// Emit table.
 		err = templUserTaskType.Execute(w, struct {
@@ -335,38 +329,26 @@ func newTaskFilter(r *http.Request) (*taskFilter, error) {
 	param := r.Form
 	if typ, ok := param["type"]; ok && len(typ) > 0 {
 		name = append(name, fmt.Sprintf("%q", typ[0]))
-		conditions = append(conditions, func(_ *parsedTrace, task *trace.UserTaskSummary) bool {
-			return task.Name == typ[0]
-		})
+		conditions = append(conditions, func { _, task -> task.Name == typ[0] })
 	}
 	if complete := r.FormValue("complete"); complete == "1" {
 		name = append(name, "complete")
-		conditions = append(conditions, func(_ *parsedTrace, task *trace.UserTaskSummary) bool {
-			return task.Complete()
-		})
+		conditions = append(conditions, func { _, task -> task.Complete() })
 	} else if complete == "0" {
 		name = append(name, "incomplete")
-		conditions = append(conditions, func(_ *parsedTrace, task *trace.UserTaskSummary) bool {
-			return !task.Complete()
-		})
+		conditions = append(conditions, func { _, task -> !task.Complete() })
 	}
 	if lat, err := time.ParseDuration(r.FormValue("latmin")); err == nil {
 		name = append(name, fmt.Sprintf("latency >= %s", lat))
-		conditions = append(conditions, func(t *parsedTrace, task *trace.UserTaskSummary) bool {
-			return task.Complete() && taskInterval(t, task).duration() >= lat
-		})
+		conditions = append(conditions, func { t, task -> task.Complete() && taskInterval(t, task).duration() >= lat })
 	}
 	if lat, err := time.ParseDuration(r.FormValue("latmax")); err == nil {
 		name = append(name, fmt.Sprintf("latency <= %s", lat))
-		conditions = append(conditions, func(t *parsedTrace, task *trace.UserTaskSummary) bool {
-			return task.Complete() && taskInterval(t, task).duration() <= lat
-		})
+		conditions = append(conditions, func { t, task -> task.Complete() && taskInterval(t, task).duration() <= lat })
 	}
 	if text := r.FormValue("logtext"); text != "" {
 		name = append(name, fmt.Sprintf("log contains %q", text))
-		conditions = append(conditions, func(_ *parsedTrace, task *trace.UserTaskSummary) bool {
-			return taskMatches(task, text)
-		})
+		conditions = append(conditions, func { _, task -> taskMatches(task, text) })
 	}
 
 	return &taskFilter{name: strings.Join(name, ","), cond: conditions}, nil

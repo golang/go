@@ -45,18 +45,18 @@ func testMain(m *testing.M) int {
 	log.SetFlags(log.Lshortfile)
 	flag.Parse()
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
-		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
+		globalSkip = func { t -> t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run()
 	}
 	if runtime.GOOS == "linux" {
 		if _, err := os.Stat("/etc/alpine-release"); err == nil {
-			globalSkip = func(t *testing.T) { t.Skip("skipping failing test on alpine - go.dev/issue/19938") }
+			globalSkip = func { t -> t.Skip("skipping failing test on alpine - go.dev/issue/19938") }
 			return m.Run()
 		}
 	}
 	if !testenv.HasGoBuild() {
 		// Checking for "go build" is a proxy for whether or not we can run "go env".
-		globalSkip = func(t *testing.T) { t.Skip("no go build") }
+		globalSkip = func { t -> t.Skip("no go build") }
 		return m.Run()
 	}
 
@@ -467,12 +467,8 @@ func TestNumberOfExportedFunctions(t *testing.T) {
 
 	t.Parallel()
 
-	t.Run("OnlyExported", func(t *testing.T) {
-		checkNumberOfExportedFunctionsWindows(t, false)
-	})
-	t.Run("All", func(t *testing.T) {
-		checkNumberOfExportedFunctionsWindows(t, true)
-	})
+	t.Run("OnlyExported", func { t -> checkNumberOfExportedFunctionsWindows(t, false) })
+	t.Run("All", func { t -> checkNumberOfExportedFunctionsWindows(t, true) })
 }
 
 // test1: shared library can be dynamically loaded and exported symbols are accessible.

@@ -62,7 +62,7 @@ func PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Nod
 
 	// Precondition: node.[Pos..End) and adjoining whitespace contain [start, end).
 	var visit func(node ast.Node) bool
-	visit = func(node ast.Node) bool {
+	visit = func { node ->
 		path = append(path, node)
 
 		nodePos := node.Pos()
@@ -184,7 +184,7 @@ func childrenOf(n ast.Node) []ast.Node {
 	var children []ast.Node
 
 	// First add nodes for all true subtrees.
-	ast.Inspect(n, func(node ast.Node) bool {
+	ast.Inspect(n, func { node ->
 		if node == n { // push n
 			return true // recur
 		}

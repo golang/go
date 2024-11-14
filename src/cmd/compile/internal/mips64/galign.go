@@ -22,7 +22,7 @@ func Init(arch *ssagen.ArchInfo) {
 	arch.ZeroRange = zerorange
 	arch.Ginsnop = ginsnop
 
-	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
+	arch.SSAMarkMoves = func { s, b -> }
 	arch.SSAGenValue = ssaGenValue
 	arch.SSAGenBlock = ssaGenBlock
 }

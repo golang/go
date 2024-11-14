@@ -38,7 +38,7 @@ func TestStackMem(t *testing.T) {
 		for i := 0; i < BatchSize; i++ {
 			go func() {
 				var f func(k int, a [ArraySize]byte)
-				f = func(k int, a [ArraySize]byte) {
+				f = func { k, a ->
 					if k == 0 {
 						time.Sleep(time.Millisecond)
 						return
@@ -111,7 +111,7 @@ func TestStackGrowth(t *testing.T) {
 	var progress atomic.Uint32
 	wg.Add(1)
 	s := new(string) // Must be of a type that avoids the tiny allocator, or else the finalizer might not run.
-	SetFinalizer(s, func(ss *string) {
+	SetFinalizer(s, func { ss ->
 		defer wg.Done()
 		finalizerStart = time.Now()
 		started.Store(true)
@@ -223,7 +223,7 @@ func TestStackGrowthCallback(t *testing.T) {
 
 func growStackWithCallback(cb func()) {
 	var f func(n int)
-	f = func(n int) {
+	f = func { n ->
 		if n == 0 {
 			cb()
 			return
@@ -722,11 +722,10 @@ type I interface {
 }
 
 func TestStackWrapperStackPanic(t *testing.T) {
-	t.Run("sigpanic", func(t *testing.T) {
-		// nil calls to interface methods cause a sigpanic.
-		testStackWrapperPanic(t, func() { I.M(nil) }, "runtime_test.I.M")
-	})
-	t.Run("panicwrap", func(t *testing.T) {
+	t.Run("sigpanic", func { t ->
+	// nil calls to interface methods cause a sigpanic.
+	testStackWrapperPanic(t, func() { I.M(nil) }, "runtime_test.I.M") })
+	t.Run("panicwrap", func { t ->
 		// Nil calls to value method wrappers call panicwrap.
 		wrapper := (*structWithMethod).nop
 		testStackWrapperPanic(t, func() { wrapper(nil) }, "runtime_test.(*structWithMethod).nop")
@@ -736,7 +735,7 @@ func TestStackWrapperStackPanic(t *testing.T) {
 func testStackWrapperPanic(t *testing.T, cb func(), expect string) {
 	// Test that the stack trace from a panicking wrapper includes
 	// the wrapper, even though elide these when they don't panic.
-	t.Run("CallersFrames", func(t *testing.T) {
+	t.Run("CallersFrames", func { t ->
 		defer func() {
 			err := recover()
 			if err == nil {
@@ -759,7 +758,7 @@ func testStackWrapperPanic(t *testing.T, cb func(), expect string) {
 		}()
 		cb()
 	})
-	t.Run("Stack", func(t *testing.T) {
+	t.Run("Stack", func { t ->
 		defer func() {
 			err := recover()
 			if err == nil {

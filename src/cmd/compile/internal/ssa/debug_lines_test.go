@@ -175,7 +175,7 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 }
 
 func sortInlineStacks(x [][]int) {
-	sort.Slice(x, func(i, j int) bool {
+	sort.Slice(x, func { i, j ->
 		if len(x[i]) != len(x[j]) {
 			return len(x[i]) < len(x[j])
 		}

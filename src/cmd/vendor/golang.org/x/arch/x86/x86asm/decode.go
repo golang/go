@@ -1299,7 +1299,7 @@ Decode:
 
 	// defaultSeg returns the default segment for an implicit
 	// memory reference: the final override if present, or else DS.
-	defaultSeg := func() Reg {
+	defaultSeg := func {
 		if segIndex >= 0 {
 			inst.Prefix[segIndex] |= PrefixImplicit
 			return prefixToSegment(inst.Prefix[segIndex])

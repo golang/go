@@ -32,12 +32,12 @@ func TestTopo(t *testing.T) {
 }
 
 func TestTransitiveReduction(t *testing.T) {
-	t.Run("diamond", func(t *testing.T) {
+	t.Run("diamond", func { t ->
 		g := mustParse(t, diamond)
 		g.TransitiveReduction()
 		wantEdges(t, g, "b->a c->a d->b d->c")
 	})
-	t.Run("chain", func(t *testing.T) {
+	t.Run("chain", func { t ->
 		const chain = `NONE < a < b < c < d; a, d < e;`
 		g := mustParse(t, chain)
 		g.TransitiveReduction()

@@ -157,13 +157,11 @@ func TestValueSeq(t *testing.T) {
 				t.Fatalf("should loop three times")
 			}
 		}},
-		{"func", ValueOf(func(yield func(int) bool) {
-			for i := range 4 {
-				if !yield(i) {
-					return
-				}
+		{"func", ValueOf(func { yield -> for i := range 4 {
+			if !yield(i) {
+				return
 			}
-		}), func(t *testing.T, s iter.Seq[Value]) {
+		} }), func(t *testing.T, s iter.Seq[Value]) {
 			i := int64(0)
 			for v := range s {
 				if v.Int() != i {
@@ -277,11 +275,9 @@ func TestValueSeq2(t *testing.T) {
 				t.Fatalf("should loop four times")
 			}
 		}},
-		{"func", ValueOf(func(f func(int, int) bool) {
-			for i := range 4 {
-				f(i, i+1)
-			}
-		}), func(t *testing.T, s iter.Seq2[Value, Value]) {
+		{"func", ValueOf(func { f -> for i := range 4 {
+			f(i, i+1)
+		} }), func(t *testing.T, s iter.Seq2[Value, Value]) {
 			i := int64(0)
 			for v1, v2 := range s {
 				if v1.Int() != i {

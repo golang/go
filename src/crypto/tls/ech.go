@@ -201,8 +201,8 @@ func generateOuterECHExt(id uint8, kdfID, aeadID uint16, encodedKey []byte, payl
 	b.AddUint16(kdfID)
 	b.AddUint16(aeadID)
 	b.AddUint8(id)
-	b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) { b.AddBytes(encodedKey) })
-	b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) { b.AddBytes(payload) })
+	b.AddUint16LengthPrefixed(func { b -> b.AddBytes(encodedKey) })
+	b.AddUint16LengthPrefixed(func { b -> b.AddBytes(payload) })
 	return b.Bytes()
 }
 

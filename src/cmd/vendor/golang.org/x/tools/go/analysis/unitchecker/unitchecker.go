@@ -194,7 +194,7 @@ type factImporter = func(pkgPath string) ([]byte, error)
 // The defaults honor a Config in a manner compatible with 'go vet'.
 var (
 	makeTypesImporter = func(cfg *Config, fset *token.FileSet) types.Importer {
-		compilerImporter := importer.ForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
+		compilerImporter := importer.ForCompiler(fset, cfg.Compiler, func { path ->
 			// path is a resolved package path, not an import path.
 			file, ok := cfg.PackageFile[path]
 			if !ok {
@@ -205,7 +205,7 @@ var (
 			}
 			return os.Open(file)
 		})
-		return importerFunc(func(importPath string) (*types.Package, error) {
+		return importerFunc(func { importPath ->
 			path, ok := cfg.ImportMap[importPath] // resolve vendoring, etc
 			if !ok {
 				return nil, fmt.Errorf("can't resolve import %q", path)
@@ -293,7 +293,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	}
 	actions := make(map[*analysis.Analyzer]*action)
 	var registerFacts func(a *analysis.Analyzer) bool
-	registerFacts = func(a *analysis.Analyzer) bool {
+	registerFacts = func { a ->
 		act, ok := actions[a]
 		if !ok {
 			act = new(action)
@@ -329,7 +329,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	// In parallel, execute the DAG of analyzers.
 	var exec func(a *analysis.Analyzer) *action
 	var execAll func(analyzers []*analysis.Analyzer)
-	exec = func(a *analysis.Analyzer) *action {
+	exec = func { a ->
 		act := actions[a]
 		act.once.Do(func() {
 			execAll(a.Requires) // prefetch dependencies in parallel
@@ -398,7 +398,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 		})
 		return act
 	}
-	execAll = func(analyzers []*analysis.Analyzer) {
+	execAll = func { analyzers ->
 		var wg sync.WaitGroup
 		for _, a := range analyzers {
 			wg.Add(1)

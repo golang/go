@@ -69,19 +69,19 @@ func TestExpand(t *testing.T) {
 var global any
 
 func BenchmarkExpand(b *testing.B) {
-	b.Run("noop", func(b *testing.B) {
+	b.Run("noop", func { b ->
 		var s string
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			s = Expand("tick tick tick tick", func(string) string { return "" })
+			s = Expand("tick tick tick tick", func { "" })
 		}
 		global = s
 	})
-	b.Run("multiple", func(b *testing.B) {
+	b.Run("multiple", func { b ->
 		var s string
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			s = Expand("$a $a $a $a", func(string) string { return "boom" })
+			s = Expand("$a $a $a $a", func { "boom" })
 		}
 		global = s
 	})
@@ -99,7 +99,7 @@ func TestConsistentEnviron(t *testing.T) {
 
 func TestUnsetenv(t *testing.T) {
 	const testKey = "GO_TEST_UNSETENV"
-	set := func() bool {
+	set := func {
 		prefix := testKey + "="
 		for _, key := range Environ() {
 			if strings.HasPrefix(key, prefix) {

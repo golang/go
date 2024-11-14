@@ -20,7 +20,7 @@ func (b *profileBuilder) readMapping() {
 
 func readMainModuleMapping() (start, end uint64, exe, buildID string, err error) {
 	first := true
-	ok := machVMInfo(func(lo, hi, off uint64, file, build string) {
+	ok := machVMInfo(func { lo, hi, off, file, build ->
 		if first {
 			start, end = lo, hi
 			exe, buildID = file, build

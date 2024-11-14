@@ -17,7 +17,7 @@ func TestRawConnReadWrite(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	t.Run("TCP", func(t *testing.T) {
+	t.Run("TCP", func { t ->
 		handler := func(ls *localServer, ln Listener) {
 			c, err := ln.Accept()
 			if err != nil {
@@ -91,7 +91,7 @@ func TestRawConnReadWrite(t *testing.T) {
 			t.Fatalf("got %q; want %q", b[:n], data)
 		}
 	})
-	t.Run("Deadline", func(t *testing.T) {
+	t.Run("Deadline", func { t ->
 		switch runtime.GOOS {
 		case "windows":
 			t.Skipf("not supported on %s", runtime.GOOS)
@@ -171,7 +171,7 @@ func TestRawConnControl(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	t.Run("TCP", func(t *testing.T) {
+	t.Run("TCP", func { t ->
 		ln := newLocalListener(t, "tcp")
 		defer ln.Close()
 

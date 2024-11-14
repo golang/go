@@ -63,7 +63,7 @@ func TestDialTimeout(t *testing.T) {
 	}()
 
 	for _, tt := range dialTimeoutTests {
-		t.Run(fmt.Sprintf("%v/%v", tt.initialTimeout, tt.initialDelta), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v/%v", tt.initialTimeout, tt.initialDelta), func { t ->
 			// We don't run these subtests in parallel because we don't know how big
 			// the kernel's accept queue is, and we don't want to accidentally saturate
 			// it with concurrent calls. (That could cause the Dial to fail with
@@ -150,7 +150,7 @@ func TestDialTimeoutMaxDuration(t *testing.T) {
 		{1<<63 - 1, 0},
 		{0, 1<<63 - 1},
 	} {
-		t.Run(fmt.Sprintf("timeout=%s/delta=%s", tt.timeout, tt.delta), func(t *testing.T) {
+		t.Run(fmt.Sprintf("timeout=%s/delta=%s", tt.timeout, tt.delta), func { t ->
 			d := Dialer{Timeout: tt.timeout}
 			if tt.delta != 0 {
 				d.Deadline = time.Now().Add(tt.delta)
@@ -181,7 +181,7 @@ func TestAcceptTimeout(t *testing.T) {
 
 	for _, timeout := range timeouts {
 		timeout := timeout
-		t.Run(fmt.Sprintf("%v", timeout), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", timeout), func { t ->
 			t.Parallel()
 
 			ln := newLocalListener(t, "tcp")
@@ -634,7 +634,7 @@ func TestWriteToTimeout(t *testing.T) {
 	}
 
 	for _, timeout := range timeouts {
-		t.Run(fmt.Sprint(timeout), func(t *testing.T) {
+		t.Run(fmt.Sprint(timeout), func { t ->
 			c2, err := ListenPacket(c1.LocalAddr().Network(), JoinHostPort(host, "0"))
 			if err != nil {
 				t.Fatal(err)

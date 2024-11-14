@@ -33,7 +33,7 @@ func TestSplit(t *testing.T) {
 		{name: "escape", value: `\'`, want: []string{`\'`}},
 		{name: "quote_unclosed", value: `'a`, wantErr: "unterminated ' string"},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			got, err := Split(test.value)
 			if err != nil {
 				if test.wantErr == "" {
@@ -67,7 +67,7 @@ func TestJoin(t *testing.T) {
 		{name: "quote", args: []string{`'a `, "b"}, want: `"'a " b`},
 		{name: "unquoteable", args: []string{`'"`}, wantErr: "contains both single and double quotes and cannot be quoted"},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			got, err := Join(test.args)
 			if err != nil {
 				if test.wantErr == "" {

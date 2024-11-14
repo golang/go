@@ -140,7 +140,7 @@ func TestNestedDeadBlocks(t *testing.T) {
 
 func BenchmarkDeadCode(b *testing.B) {
 	for _, n := range [...]int{1, 10, 100, 1000, 10000, 100000, 200000} {
-		b.Run(strconv.Itoa(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func { b ->
 			c := testConfig(b)
 			blocks := make([]bloc, 0, n+2)
 			blocks = append(blocks,

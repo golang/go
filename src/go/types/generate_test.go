@@ -229,7 +229,7 @@ func (m renameMap) renameSel(n *ast.SelectorExpr) {
 // Note: This doesn't change the use of the identifiers in comments.
 func renameIdents(f *ast.File, renames ...string) {
 	m := makeRenameMap(renames...)
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.Ident:
 			m.rename(&n.Name)
@@ -242,7 +242,7 @@ func renameIdents(f *ast.File, renames ...string) {
 // renameSelectors is like renameIdents but only looks at selectors.
 func renameSelectors(f *ast.File, renames ...string) {
 	m := makeRenameMap(renames...)
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
 			m.rename(&n.Sel.Name)
@@ -257,7 +257,7 @@ func renameSelectors(f *ast.File, renames ...string) {
 // Each renames entry must be of the form "x.a->y.b".
 func renameSelectorExprs(f *ast.File, renames ...string) {
 	m := makeRenameMap(renames...)
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
 			m.renameSel(n)
@@ -270,7 +270,7 @@ func renameSelectorExprs(f *ast.File, renames ...string) {
 // renameImportPath is like renameIdents but renames import paths.
 func renameImportPath(f *ast.File, renames ...string) {
 	m := makeRenameMap(renames...)
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.ImportSpec:
 			if n.Path.Kind != token.STRING {
@@ -299,7 +299,7 @@ func insertImportPath(f *ast.File, path string) {
 // uses of syntax.Pos to token.Pos, and calls to x.IsKnown() to x.IsValid().
 func fixTokenPos(f *ast.File) {
 	m := makeRenameMap(`"cmd/compile/internal/syntax"->"go/token"`, "syntax.Pos->token.Pos", "IsKnown->IsValid")
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.ImportSpec:
 			// rewrite import path "cmd/compile/internal/syntax" to "go/token"
@@ -324,7 +324,7 @@ func fixTokenPos(f *ast.File) {
 
 // fixSelValue updates the selector x.Sel.Value to x.Sel.Name.
 func fixSelValue(f *ast.File) {
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
 			if n.Sel.Name == "Value" {
@@ -342,7 +342,7 @@ func fixSelValue(f *ast.File) {
 // as first argument, renames the argument from "pos" to "posn", and updates a few internal uses of
 // "pos" to "posn" and "posn.Pos()" respectively.
 func fixInferSig(f *ast.File) {
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.FuncDecl:
 			if n.Name.Name == "infer" {
@@ -392,7 +392,7 @@ func fixInferSig(f *ast.File) {
 // fixAtPosCall updates calls of the form atPos(x) to x.Pos() in argument lists of (check).dump calls.
 // TODO(gri) can we avoid this and just use atPos consistently in go/types and types2?
 func fixAtPosCall(f *ast.File) {
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.CallExpr:
 			if selx, _ := n.Fun.(*ast.SelectorExpr); selx != nil && selx.Sel.Name == "dump" {
@@ -415,7 +415,7 @@ func fixAtPosCall(f *ast.File) {
 
 // fixErrErrorfCall updates calls of the form err.addf(obj, ...) to err.addf(obj.Pos(), ...).
 func fixErrErrorfCall(f *ast.File) {
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.CallExpr:
 			if selx, _ := n.Fun.(*ast.SelectorExpr); selx != nil {
@@ -439,7 +439,7 @@ func fixErrErrorfCall(f *ast.File) {
 
 // fixCheckErrorfCall updates calls of the form check.errorf(pos, ...) to check.errorf(atPos(pos), ...).
 func fixCheckErrorfCall(f *ast.File) {
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.CallExpr:
 			if selx, _ := n.Fun.(*ast.SelectorExpr); selx != nil {
@@ -465,7 +465,7 @@ func fixCheckErrorfCall(f *ast.File) {
 // (in types2 we use an array for efficiency, in go/types it's a slice and we
 // cannot change that).
 func fixGlobalTypVarDecl(f *ast.File) {
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.ValueSpec:
 			// rewrite type Typ = [...]Type{...} to type Typ = []Type{...}
@@ -480,10 +480,10 @@ func fixGlobalTypVarDecl(f *ast.File) {
 
 // fixSprintf adds an extra nil argument for the *token.FileSet parameter in sprintf calls.
 func fixSprintf(f *ast.File) {
-	ast.Inspect(f, func(n ast.Node) bool {
+	ast.Inspect(f, func { n ->
 		switch n := n.(type) {
 		case *ast.CallExpr:
-			if isIdent(n.Fun, "sprintf") && len(n.Args) >= 4 /* ... args */ {
+			if isIdent(n.Fun, "sprintf") && len(n.Args) >= 4 /* ... args */{
 				n.Args = insert(n.Args, 1, newIdent(n.Args[1].Pos(), "nil"))
 				return false
 			}

@@ -267,7 +267,7 @@ func TestAddrListPartition(t *testing.T) {
 	for i, tt := range cases {
 		// Inverting the function's output should not affect the outcome.
 		for _, invert := range []bool{false, true} {
-			primaries, fallbacks := addrs.partition(func(a Addr) bool {
+			primaries, fallbacks := addrs.partition(func { a ->
 				ip := a.(*IPAddr).IP
 				return (ip[len(ip)-1] == tt.lastByte) != invert
 			})

@@ -37,9 +37,7 @@ func TestSmoke(t *testing.T) {
 func TestTokens(t *testing.T) {
 	var got scanner
 	for _, want := range sampleTokens {
-		got.init(strings.NewReader(want.src), func(line, col uint, msg string) {
-			t.Errorf("%s:%d:%d: %s", want.src, line, col, msg)
-		}, 0)
+		got.init(strings.NewReader(want.src), func { line, col, msg -> t.Errorf("%s:%d:%d: %s", want.src, line, col, msg) }, 0)
 		got.next()
 		if got.tok != want.tok {
 			t.Errorf("%s: got %s; want %s", want.src, got.tok, want.tok)
@@ -97,9 +95,7 @@ func TestEmbeddedTokens(t *testing.T) {
 	// scan source
 	var got scanner
 	var src string
-	got.init(&buf, func(line, col uint, msg string) {
-		t.Fatalf("%s:%d:%d: %s", src, line, col, msg)
-	}, 0)
+	got.init(&buf, func { line, col, msg -> t.Fatalf("%s:%d:%d: %s", src, line, col, msg) }, 0)
 	got.next()
 	for i, want := range sampleTokens {
 		src = want.src
@@ -352,7 +348,7 @@ func TestComments(t *testing.T) {
 	} {
 		var s scanner
 		var got comment
-		s.init(strings.NewReader(test.src), func(line, col uint, msg string) {
+		s.init(strings.NewReader(test.src), func { line, col, msg ->
 			if msg[0] != '/' {
 				// error
 				if msg != "comment not terminated" {
@@ -536,11 +532,9 @@ func TestNumbers(t *testing.T) {
 	} {
 		var s scanner
 		var err string
-		s.init(strings.NewReader(test.src), func(_, _ uint, msg string) {
-			if err == "" {
-				err = msg
-			}
-		}, 0)
+		s.init(strings.NewReader(test.src), func { _, _, msg -> if err == "" {
+			err = msg
+		} }, 0)
 
 		for i, want := range strings.Split(test.tokens, " ") {
 			err = ""
@@ -600,9 +594,9 @@ func TestScanErrors(t *testing.T) {
 
 		// token-level errors
 		{"\u00BD" /* ½ */, "invalid character U+00BD '½' in identifier", 0, 0},
-		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid character U+00BD '½' in identifier", 0, 13 /* byte offset */},
+		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid character U+00BD '½' in identifier", 0, 13 /* byte offset */ },
 		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 0, 0},
-		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid character U+00BD '½' in identifier", 0, 8 /* byte offset */},
+		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid character U+00BD '½' in identifier", 0, 8 /* byte offset */ },
 
 		{"x + #y", "invalid character U+0023 '#'", 0, 4},
 		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
@@ -660,12 +654,10 @@ func TestScanErrors(t *testing.T) {
 		var s scanner
 		var line, col uint
 		var err string
-		s.init(strings.NewReader(test.src), func(l, c uint, msg string) {
-			if err == "" {
-				line, col = l-linebase, c-colbase
-				err = msg
-			}
-		}, 0)
+		s.init(strings.NewReader(test.src), func { l, c, msg -> if err == "" {
+			line, col = l-linebase, c-colbase
+			err = msg
+		} }, 0)
 
 		for {
 			s.next()
@@ -707,7 +699,7 @@ func TestDirectives(t *testing.T) {
 	} {
 		got := ""
 		var s scanner
-		s.init(strings.NewReader(src), func(_, col uint, msg string) {
+		s.init(strings.NewReader(src), func { _, col, msg ->
 			if col != colbase {
 				t.Errorf("%s: got col = %d; want %d", src, col, colbase)
 			}
@@ -749,10 +741,9 @@ func TestIssue33961(t *testing.T) {
 	for _, lit := range strings.Split(literals, " ") {
 		n := 0
 		var got scanner
-		got.init(strings.NewReader(lit), func(_, _ uint, msg string) {
-			// fmt.Printf("%s: %s\n", lit, msg) // uncomment for debugging
-			n++
-		}, 0)
+		got.init(strings.NewReader(lit), func { _, _, msg ->
+		// fmt.Printf("%s: %s\n", lit, msg) // uncomment for debugging
+		n++ }, 0)
 		got.next()
 
 		if n != 1 {

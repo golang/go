@@ -75,7 +75,7 @@ func TestEqStructCost(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			fields := make([]*types.Field, len(tc.fieldTypes))
 			for i, ftyp := range tc.fieldTypes {
 				fields[i] = types.NewField(src.NoXPos, typecheck.LookupNum("f", i), ftyp)

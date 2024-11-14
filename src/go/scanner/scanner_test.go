@@ -575,7 +575,7 @@ func testSegments(t *testing.T, segments []segment, filename string) {
 	// verify scan
 	var S Scanner
 	file := fset.AddFile(filename, fset.Base(), len(src))
-	S.Init(file, []byte(src), func(pos token.Position, msg string) { t.Error(Error{pos, msg}) }, dontInsertSemis)
+	S.Init(file, []byte(src), func { pos, msg -> t.Error(Error{pos, msg}) }, dontInsertSemis)
 	for _, s := range segments {
 		p, _, lit := S.Scan()
 		pos := file.Position(p)
@@ -614,7 +614,7 @@ func TestInvalidLineDirectives(t *testing.T) {
 	var S Scanner
 	var s segment // current segment
 	file := fset.AddFile(filepath.Join("dir", "TestInvalidLineDirectives"), fset.Base(), len(src))
-	S.Init(file, []byte(src), func(pos token.Position, msg string) {
+	S.Init(file, []byte(src), func { pos, msg ->
 		if msg != s.filename {
 			t.Errorf("got error %q; want %q", msg, s.filename)
 		}
@@ -900,7 +900,7 @@ func BenchmarkScanFiles(b *testing.B) {
 		"net/http/server.go",
 		"go/scanner/errors.go",
 	} {
-		b.Run(p, func(b *testing.B) {
+		b.Run(p, func { b ->
 			b.StopTimer()
 			filename := filepath.Join("..", "..", filepath.FromSlash(p))
 			src, err := os.ReadFile(filename)
@@ -1081,11 +1081,9 @@ func TestNumbers(t *testing.T) {
 	} {
 		var s Scanner
 		var err string
-		s.Init(fset.AddFile("", fset.Base(), len(test.src)), []byte(test.src), func(_ token.Position, msg string) {
-			if err == "" {
-				err = msg
-			}
-		}, 0)
+		s.Init(fset.AddFile("", fset.Base(), len(test.src)), []byte(test.src), func { _, msg -> if err == "" {
+			err = msg
+		} }, 0)
 		for i, want := range strings.Split(test.tokens, " ") {
 			err = ""
 			_, tok, lit := s.Scan()

@@ -62,7 +62,7 @@ func ExampleOnce() {
 // This example uses OnceValue to perform an "expensive" computation just once,
 // even when used concurrently.
 func ExampleOnceValue() {
-	once := sync.OnceValue(func() int {
+	once := sync.OnceValue(func {
 		sum := 0
 		for i := 0; i < 1000; i++ {
 			sum += i
@@ -90,7 +90,7 @@ func ExampleOnceValue() {
 
 // This example uses OnceValues to read a file just once.
 func ExampleOnceValues() {
-	once := sync.OnceValues(func() ([]byte, error) {
+	once := sync.OnceValues(func {
 		fmt.Println("Reading file once")
 		return os.ReadFile("example_test.go")
 	})

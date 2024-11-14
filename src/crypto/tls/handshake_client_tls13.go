@@ -318,9 +318,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: server selected unsupported group")
 		}
-		if slices.ContainsFunc(hs.hello.keyShares, func(ks keyShare) bool {
-			return ks.group == curveID
-		}) {
+		if slices.ContainsFunc(hs.hello.keyShares, func { ks -> ks.group == curveID }) {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: server sent an unnecessary HelloRetryRequest key_share")
 		}
@@ -440,9 +438,7 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: server did not send a key share")
 	}
-	if !slices.ContainsFunc(hs.hello.keyShares, func(ks keyShare) bool {
-		return ks.group == hs.serverHello.serverShare.group
-	}) {
+	if !slices.ContainsFunc(hs.hello.keyShares, func { ks -> ks.group == hs.serverHello.serverShare.group }) {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: server selected unsupported group")
 	}

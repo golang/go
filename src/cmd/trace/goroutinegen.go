@@ -34,7 +34,7 @@ func newGoroutineGenerator(ctx *traceContext, focus trace.GoID, filter map[trace
 
 	// Enable a filter on the emitter.
 	if filter != nil {
-		ctx.SetResourceFilter(func(resource uint64) bool {
+		ctx.SetResourceFilter(func { resource ->
 			_, ok := filter[trace.GoID(resource)]
 			return ok
 		})

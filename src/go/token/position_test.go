@@ -179,7 +179,7 @@ func TestFiles(t *testing.T) {
 		}
 		fset.AddFile(test.filename, base, test.size)
 		j := 0
-		fset.Iterate(func(f *File) bool {
+		fset.Iterate(func { f ->
 			if f.Name() != tests[j].filename {
 				t.Errorf("got filename = %s; want %s", f.Name(), tests[j].filename)
 			}
@@ -360,7 +360,10 @@ func TestRemoveFile(t *testing.T) {
 	}
 	checkNumFiles := func(want int) {
 		got := 0
-		fset.Iterate(func(*File) bool { got++; return true })
+		fset.Iterate(func {
+			got++
+			return true
+		})
 		if got != want {
 			t.Errorf("Iterate called %d times, want %d", got, want)
 		}
@@ -466,7 +469,7 @@ func TestFileAddLineColumnInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			fs := NewFileSet()
 			f := fs.AddFile(filename, -1, filesize)
 			for _, info := range test.infos {

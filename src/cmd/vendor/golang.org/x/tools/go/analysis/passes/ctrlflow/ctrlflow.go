@@ -100,7 +100,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.FuncDecl)(nil),
 		(*ast.FuncLit)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		switch n := n.(type) {
 		case *ast.FuncDecl:
 			// Type information may be incomplete.

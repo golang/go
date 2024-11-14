@@ -1044,9 +1044,7 @@ func opset(a, b0 obj.As) {
 
 func buildop(ctxt *obj.Link) {
 	if ctxt.DiagFunc == nil {
-		ctxt.DiagFunc = func(format string, args ...interface{}) {
-			log.Printf(format, args...)
-		}
+		ctxt.DiagFunc = func { format, args -> log.Printf(format, args...) }
 	}
 
 	if oprange[AOR&obj.AMask] != nil {

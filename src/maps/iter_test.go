@@ -74,13 +74,11 @@ func TestInsert(t *testing.T) {
 		1: 1,
 		2: 1,
 	}
-	Insert(got, func(yield func(int, int) bool) {
-		for i := 0; i < 10; i += 2 {
-			if !yield(i, i+1) {
-				return
-			}
+	Insert(got, func { yield -> for i := 0; i < 10; i += 2 {
+		if !yield(i, i+1) {
+			return
 		}
-	})
+	} })
 
 	want := map[int]int{
 		1: 1,

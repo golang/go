@@ -37,9 +37,7 @@ func TestStdlib(t *testing.T) {
 	// Collect non-test files.
 	dirFiles := make(map[string][]string)
 	root := filepath.Join(testenv.GOROOT(t), "src")
-	walkPkgDirs(root, func(dir string, filenames []string) {
-		dirFiles[dir] = filenames
-	}, t.Error)
+	walkPkgDirs(root, func { dir, filenames -> dirFiles[dir] = filenames }, t.Error)
 
 	c := &stdlibChecker{
 		dirFiles: dirFiles,
@@ -180,7 +178,7 @@ func firstComment(filename string) (first string) {
 		}
 	}()
 
-	syntax.CommentsDo(src, func(_, _ uint, text string) {
+	syntax.CommentsDo(src, func { _, _, text ->
 		if text[0] != '/' {
 			return // not a comment
 		}

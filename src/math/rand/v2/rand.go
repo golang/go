@@ -223,7 +223,7 @@ func (r *Rand) Perm(n int) []int {
 	for i := range p {
 		p[i] = i
 	}
-	r.Shuffle(len(p), func(i, j int) { p[i], p[j] = p[j], p[i] })
+	r.Shuffle(len(p), func { i, j -> p[i], p[j] = p[j], p[i] })
 	return p
 }
 

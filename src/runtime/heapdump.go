@@ -408,7 +408,7 @@ func dumpgs() {
 	assertWorldStopped()
 
 	// goroutines & stacks
-	forEachG(func(gp *g) {
+	forEachG(func { gp ->
 		status := readgstatus(gp) // The world is stopped so gp will not be in a scan state.
 		switch status {
 		default:

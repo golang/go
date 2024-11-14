@@ -862,9 +862,7 @@ func (r *Reader) initFileList() {
 			}
 		}
 
-		slices.SortFunc(r.fileList, func(a, b fileListEntry) int {
-			return fileEntryCompare(a.name, b.name)
-		})
+		slices.SortFunc(r.fileList, func { a, b -> fileEntryCompare(a.name, b.name) })
 	})
 }
 
@@ -943,7 +941,7 @@ func (r *Reader) openLookup(name string) *fileListEntry {
 
 func (r *Reader) openReadDir(dir string) []fileListEntry {
 	files := r.fileList
-	i, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) int {
+	i, _ := slices.BinarySearchFunc(files, dir, func { a, dir ->
 		idir, _, _ := split(a.name)
 		if dir != idir {
 			return strings.Compare(idir, dir)
@@ -951,7 +949,7 @@ func (r *Reader) openReadDir(dir string) []fileListEntry {
 		// find the first entry with dir
 		return +1
 	})
-	j, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) int {
+	j, _ := slices.BinarySearchFunc(files, dir, func { a, dir ->
 		jdir, _, _ := split(a.name)
 		if dir != jdir {
 			return strings.Compare(jdir, dir)

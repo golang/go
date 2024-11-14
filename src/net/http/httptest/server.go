@@ -316,7 +316,7 @@ func (s *Server) goServe() {
 // connections are idle.
 func (s *Server) wrap() {
 	oldHook := s.Config.ConnState
-	s.Config.ConnState = func(c net.Conn, cs http.ConnState) {
+	s.Config.ConnState = func { c, cs ->
 		s.mu.Lock()
 		defer s.mu.Unlock()
 

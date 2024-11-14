@@ -786,43 +786,43 @@ func TestSelectStackAdjust(t *testing.T) {
 type struct0 struct{}
 
 func BenchmarkMakeChan(b *testing.B) {
-	b.Run("Byte", func(b *testing.B) {
+	b.Run("Byte", func { b ->
 		var x chan byte
 		for i := 0; i < b.N; i++ {
 			x = make(chan byte, 8)
 		}
 		close(x)
 	})
-	b.Run("Int", func(b *testing.B) {
+	b.Run("Int", func { b ->
 		var x chan int
 		for i := 0; i < b.N; i++ {
 			x = make(chan int, 8)
 		}
 		close(x)
 	})
-	b.Run("Ptr", func(b *testing.B) {
+	b.Run("Ptr", func { b ->
 		var x chan *byte
 		for i := 0; i < b.N; i++ {
 			x = make(chan *byte, 8)
 		}
 		close(x)
 	})
-	b.Run("Struct", func(b *testing.B) {
-		b.Run("0", func(b *testing.B) {
+	b.Run("Struct", func { b ->
+		b.Run("0", func { b ->
 			var x chan struct0
 			for i := 0; i < b.N; i++ {
 				x = make(chan struct0, 8)
 			}
 			close(x)
 		})
-		b.Run("32", func(b *testing.B) {
+		b.Run("32", func { b ->
 			var x chan struct32
 			for i := 0; i < b.N; i++ {
 				x = make(chan struct32, 8)
 			}
 			close(x)
 		})
-		b.Run("40", func(b *testing.B) {
+		b.Run("40", func { b ->
 			var x chan struct40
 			for i := 0; i < b.N; i++ {
 				x = make(chan struct40, 8)
@@ -834,18 +834,16 @@ func BenchmarkMakeChan(b *testing.B) {
 
 func BenchmarkChanNonblocking(b *testing.B) {
 	myc := make(chan int)
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			select {
-			case <-myc:
-			default:
-			}
+	b.RunParallel(func { pb -> for pb.Next() {
+		select {
+		case <-myc:
+		default:
 		}
-	})
+	} })
 }
 
 func BenchmarkSelectUncontended(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		myc1 := make(chan int, 1)
 		myc2 := make(chan int, 1)
 		myc1 <- 0
@@ -865,7 +863,7 @@ func BenchmarkSelectSyncContended(b *testing.B) {
 	myc2 := make(chan int)
 	myc3 := make(chan int)
 	done := make(chan int)
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		go func() {
 			for {
 				select {
@@ -892,7 +890,7 @@ func BenchmarkSelectAsyncContended(b *testing.B) {
 	procs := runtime.GOMAXPROCS(0)
 	myc1 := make(chan int, procs)
 	myc2 := make(chan int, procs)
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		myc1 <- 0
 		for pb.Next() {
 			select {
@@ -910,7 +908,7 @@ func BenchmarkSelectNonblock(b *testing.B) {
 	myc2 := make(chan int)
 	myc3 := make(chan int, 1)
 	myc4 := make(chan int, 1)
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			select {
 			case <-myc1:
@@ -934,7 +932,7 @@ func BenchmarkSelectNonblock(b *testing.B) {
 
 func BenchmarkChanUncontended(b *testing.B) {
 	const C = 100
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		myc := make(chan int, C)
 		for pb.Next() {
 			for i := 0; i < C; i++ {
@@ -950,7 +948,7 @@ func BenchmarkChanUncontended(b *testing.B) {
 func BenchmarkChanContended(b *testing.B) {
 	const C = 100
 	myc := make(chan int, C*runtime.GOMAXPROCS(0))
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			for i := 0; i < C; i++ {
 				myc <- 0
@@ -1145,24 +1143,20 @@ func BenchmarkReceiveDataFromClosedChan(b *testing.B) {
 }
 
 func BenchmarkChanCreation(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			myc := make(chan int, 1)
-			myc <- 0
-			<-myc
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		myc := make(chan int, 1)
+		myc <- 0
+		<-myc
+	} })
 }
 
 func BenchmarkChanSem(b *testing.B) {
 	type Empty struct{}
 	myc := make(chan Empty, runtime.GOMAXPROCS(0))
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			myc <- Empty{}
-			<-myc
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		myc <- Empty{}
+		<-myc
+	} })
 }
 
 func BenchmarkChanPopular(b *testing.B) {
@@ -1195,15 +1189,13 @@ func BenchmarkChanPopular(b *testing.B) {
 func BenchmarkChanClosed(b *testing.B) {
 	c := make(chan struct{})
 	close(c)
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			select {
-			case <-c:
-			default:
-				b.Error("Unreachable")
-			}
+	b.RunParallel(func { pb -> for pb.Next() {
+		select {
+		case <-c:
+		default:
+			b.Error("Unreachable")
 		}
-	})
+	} })
 }
 
 var (

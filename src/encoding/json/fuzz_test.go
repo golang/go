@@ -27,7 +27,7 @@ func FuzzUnmarshalJSON(f *testing.F) {
 "float": 3e-9"
 }`))
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		for _, typ := range []func() interface{}{
 			func() interface{} { return new(interface{}) },
 			func() interface{} { return new(map[string]interface{}) },
@@ -67,7 +67,7 @@ func FuzzDecoderToken(f *testing.F) {
 "float": 3e-9"
 }`))
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		r := bytes.NewReader(b)
 		d := NewDecoder(r)
 		for {

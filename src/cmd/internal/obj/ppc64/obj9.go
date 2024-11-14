@@ -351,7 +351,7 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 			sym = c.ctxt.Lookup("runtime.duffcopy")
 		}
 		// Retrieve or create the TOC anchor.
-		symtoc := c.ctxt.LookupInit("TOC."+sym.Name, func(s *obj.LSym) {
+		symtoc := c.ctxt.LookupInit("TOC."+sym.Name, func { s ->
 			s.Type = objabi.SDATA
 			s.Set(obj.AttrDuplicateOK, true)
 			s.Set(obj.AttrStatic, true)
@@ -433,7 +433,7 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
 	}
 
 	// Retrieve or create the TOC anchor.
-	symtoc := c.ctxt.LookupInit("TOC."+source.Sym.Name, func(s *obj.LSym) {
+	symtoc := c.ctxt.LookupInit("TOC."+source.Sym.Name, func { s ->
 		s.Type = objabi.SDATA
 		s.Set(obj.AttrDuplicateOK, true)
 		s.Set(obj.AttrStatic, true)

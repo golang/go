@@ -384,19 +384,19 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 		var h64 uint64        // only used for hashed64Def
 		var h *goobj.HashType // only used for hashedDef
 		if kind == hashed64Def {
-			checkHash = func() (symAndSize, bool) {
+			checkHash = func {
 				h64 = r.Hash64(li - uint32(r.ndef))
 				s, existed := st.hashed64Syms[h64]
 				return s, existed
 			}
-			addToHashMap = func(ss symAndSize) { st.hashed64Syms[h64] = ss }
+			addToHashMap = func { ss -> st.hashed64Syms[h64] = ss }
 		} else {
-			checkHash = func() (symAndSize, bool) {
+			checkHash = func {
 				h = r.Hash(li - uint32(r.ndef+r.nhashed64def))
 				s, existed := st.hashedSyms[*h]
 				return s, existed
 			}
-			addToHashMap = func(ss symAndSize) { st.hashedSyms[*h] = ss }
+			addToHashMap = func { ss -> st.hashedSyms[*h] = ss }
 		}
 		siz := osym.Siz()
 		if s, existed := checkHash(); existed {
@@ -1513,7 +1513,7 @@ func (l *Loader) DynidSyms() []Sym {
 	for s := range l.dynid {
 		sl = append(sl, s)
 	}
-	sort.Slice(sl, func(i, j int) bool { return sl[i] < sl[j] })
+	sort.Slice(sl, func { i, j -> sl[i] < sl[j] })
 	return sl
 }
 
@@ -1842,7 +1842,7 @@ func (l *Loader) SortSub(s Sym) Sym {
 
 // SortSyms sorts a list of symbols by their value.
 func (l *Loader) SortSyms(ss []Sym) {
-	sort.SliceStable(ss, func(i, j int) bool { return l.SymValue(ss[i]) < l.SymValue(ss[j]) })
+	sort.SliceStable(ss, func { i, j -> l.SymValue(ss[i]) < l.SymValue(ss[j]) })
 }
 
 // Insure that reachable bitmap and its siblings have enough size.

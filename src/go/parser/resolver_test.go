@@ -35,7 +35,7 @@ func TestResolution(t *testing.T) {
 	}
 
 	for _, fi := range fis {
-		t.Run(fi.Name(), func(t *testing.T) {
+		t.Run(fi.Name(), func { t ->
 			fset := token.NewFileSet()
 			path := filepath.Join(dir, fi.Name())
 			src := readFile(path) // panics on failure
@@ -77,7 +77,7 @@ func TestResolution(t *testing.T) {
 // identifier position with its declaration position.
 func declsFromParser(file *ast.File) map[token.Pos]token.Pos {
 	objmap := map[token.Pos]token.Pos{}
-	ast.Inspect(file, func(node ast.Node) bool {
+	ast.Inspect(file, func { node ->
 		// Ignore blank identifiers to reduce noise.
 		if ident, _ := node.(*ast.Ident); ident != nil && ident.Obj != nil && ident.Name != "_" {
 			objmap[ident.Pos()] = ident.Obj.Pos()

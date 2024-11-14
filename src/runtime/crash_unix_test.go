@@ -305,9 +305,7 @@ func TestSignalM(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		runtime.LockOSThread()
-		want, got = runtime.WaitForSigusr1(r, w, func(mp *runtime.M) {
-			ready <- mp
-		})
+		want, got = runtime.WaitForSigusr1(r, w, func { mp -> ready <- mp })
 		runtime.UnlockOSThread()
 		wg.Done()
 	}()

@@ -35,9 +35,7 @@ func ExampleResponseRecorder() {
 }
 
 func ExampleServer() {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Hello, client")
-	}))
+	ts := httptest.NewServer(http.HandlerFunc(func { w, r -> fmt.Fprintln(w, "Hello, client") }))
 	defer ts.Close()
 
 	res, err := http.Get(ts.URL)
@@ -55,9 +53,7 @@ func ExampleServer() {
 }
 
 func ExampleServer_hTTP2() {
-	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, %s", r.Proto)
-	}))
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func { w, r -> fmt.Fprintf(w, "Hello, %s", r.Proto) }))
 	ts.EnableHTTP2 = true
 	ts.StartTLS()
 	defer ts.Close()
@@ -77,9 +73,7 @@ func ExampleServer_hTTP2() {
 }
 
 func ExampleNewTLSServer() {
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Hello, client")
-	}))
+	ts := httptest.NewTLSServer(http.HandlerFunc(func { w, r -> fmt.Fprintln(w, "Hello, client") }))
 	defer ts.Close()
 
 	client := ts.Client()

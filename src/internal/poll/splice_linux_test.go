@@ -37,7 +37,7 @@ func TestSplicePipePool(t *testing.T) {
 		err        error
 	)
 
-	closeHook.Store(func(fd int) { pendingFDs.Delete(fd) })
+	closeHook.Store(func { fd -> pendingFDs.Delete(fd) })
 	t.Cleanup(func() { closeHook.Store((func(int))(nil)) })
 
 	for i := 0; i < N; i++ {
@@ -73,7 +73,7 @@ func TestSplicePipePool(t *testing.T) {
 
 		// Detect whether all pipes are closed properly.
 		var leakedFDs []int
-		pendingFDs.Range(func(k, v any) bool {
+		pendingFDs.Range(func { k, v ->
 			leakedFDs = append(leakedFDs, k.(int))
 			return true
 		})
@@ -91,7 +91,7 @@ func TestSplicePipePool(t *testing.T) {
 }
 
 func BenchmarkSplicePipe(b *testing.B) {
-	b.Run("SplicePipeWithPool", func(b *testing.B) {
+	b.Run("SplicePipeWithPool", func { b ->
 		for i := 0; i < b.N; i++ {
 			p, err := poll.GetPipe()
 			if err != nil {
@@ -100,7 +100,7 @@ func BenchmarkSplicePipe(b *testing.B) {
 			poll.PutPipe(p)
 		}
 	})
-	b.Run("SplicePipeWithoutPool", func(b *testing.B) {
+	b.Run("SplicePipeWithoutPool", func { b ->
 		for i := 0; i < b.N; i++ {
 			p := poll.NewPipe()
 			if p == nil {
@@ -112,7 +112,7 @@ func BenchmarkSplicePipe(b *testing.B) {
 }
 
 func BenchmarkSplicePipePoolParallel(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			p, err := poll.GetPipe()
 			if err != nil {
@@ -124,7 +124,7 @@ func BenchmarkSplicePipePoolParallel(b *testing.B) {
 }
 
 func BenchmarkSplicePipeNativeParallel(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			p := poll.NewPipe()
 			if p == nil {

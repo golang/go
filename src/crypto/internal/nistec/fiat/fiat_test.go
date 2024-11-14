@@ -10,7 +10,7 @@ import (
 )
 
 func BenchmarkMul(b *testing.B) {
-	b.Run("P224", func(b *testing.B) {
+	b.Run("P224", func { b ->
 		v := new(fiat.P224Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -18,7 +18,7 @@ func BenchmarkMul(b *testing.B) {
 			v.Mul(v, v)
 		}
 	})
-	b.Run("P384", func(b *testing.B) {
+	b.Run("P384", func { b ->
 		v := new(fiat.P384Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -26,7 +26,7 @@ func BenchmarkMul(b *testing.B) {
 			v.Mul(v, v)
 		}
 	})
-	b.Run("P521", func(b *testing.B) {
+	b.Run("P521", func { b ->
 		v := new(fiat.P521Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -37,7 +37,7 @@ func BenchmarkMul(b *testing.B) {
 }
 
 func BenchmarkSquare(b *testing.B) {
-	b.Run("P224", func(b *testing.B) {
+	b.Run("P224", func { b ->
 		v := new(fiat.P224Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -45,7 +45,7 @@ func BenchmarkSquare(b *testing.B) {
 			v.Square(v)
 		}
 	})
-	b.Run("P384", func(b *testing.B) {
+	b.Run("P384", func { b ->
 		v := new(fiat.P384Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -53,7 +53,7 @@ func BenchmarkSquare(b *testing.B) {
 			v.Square(v)
 		}
 	})
-	b.Run("P521", func(b *testing.B) {
+	b.Run("P521", func { b ->
 		v := new(fiat.P521Element).One()
 		b.ReportAllocs()
 		b.ResetTimer()

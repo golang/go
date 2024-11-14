@@ -12,7 +12,7 @@ import (
 // IntelSyntax returns the Intel assembler syntax for the instruction, as defined by Intel's XED tool.
 func IntelSyntax(inst Inst, pc uint64, symname SymLookup) string {
 	if symname == nil {
-		symname = func(uint64) (string, uint64) { return "", 0 }
+		symname = func { "", 0 }
 	}
 
 	var iargs []Arg

@@ -753,7 +753,7 @@ func TestToValidUTF8(t *testing.T) {
 
 func BenchmarkToUpper(b *testing.B) {
 	for _, tc := range upperTests {
-		b.Run(tc.in, func(b *testing.B) {
+		b.Run(tc.in, func { b ->
 			for i := 0; i < b.N; i++ {
 				actual := ToUpper(tc.in)
 				if actual != tc.out {
@@ -766,7 +766,7 @@ func BenchmarkToUpper(b *testing.B) {
 
 func BenchmarkToLower(b *testing.B) {
 	for _, tc := range lowerTests {
-		b.Run(tc.in, func(b *testing.B) {
+		b.Run(tc.in, func { b ->
 			for i := 0; i < b.N; i++ {
 				actual := ToLower(tc.in)
 				if actual != tc.out {
@@ -911,11 +911,9 @@ func BenchmarkToValidUTF8(b *testing.B) {
 	replacement := "\uFFFD"
 	b.ResetTimer()
 	for _, test := range tests {
-		b.Run(test.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ToValidUTF8(test.input, replacement)
-			}
-		})
+		b.Run(test.name, func { b -> for i := 0; i < b.N; i++ {
+			ToValidUTF8(test.input, replacement)
+		} })
 	}
 }
 
@@ -1565,9 +1563,7 @@ func TestContainsRune(t *testing.T) {
 
 func TestContainsFunc(t *testing.T) {
 	for _, ct := range ContainsRuneTests {
-		if ContainsFunc(ct.str, func(r rune) bool {
-			return ct.r == r
-		}) != ct.expected {
+		if ContainsFunc(ct.str, func { r -> ct.r == r }) != ct.expected {
 			t.Errorf("ContainsFunc(%q, func(%q)) = %v, want %v",
 				ct.str, ct.r, !ct.expected, ct.expected)
 		}
@@ -1605,7 +1601,7 @@ func TestEqualFold(t *testing.T) {
 }
 
 func BenchmarkEqualFold(b *testing.B) {
-	b.Run("Tests", func(b *testing.B) {
+	b.Run("Tests", func { b ->
 		for i := 0; i < b.N; i++ {
 			for _, tt := range EqualFoldTests {
 				if out := EqualFold(tt.s, tt.t); out != tt.out {
@@ -1618,23 +1614,17 @@ func BenchmarkEqualFold(b *testing.B) {
 	const s1 = "abcdefghijKz"
 	const s2 = "abcDefGhijKz"
 
-	b.Run("ASCII", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			EqualFold(s1, s2)
-		}
-	})
+	b.Run("ASCII", func { b -> for i := 0; i < b.N; i++ {
+		EqualFold(s1, s2)
+	} })
 
-	b.Run("UnicodePrefix", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			EqualFold("αβδ"+s1, "ΑΒΔ"+s2)
-		}
-	})
+	b.Run("UnicodePrefix", func { b -> for i := 0; i < b.N; i++ {
+		EqualFold("αβδ"+s1, "ΑΒΔ"+s2)
+	} })
 
-	b.Run("UnicodeSuffix", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			EqualFold(s1+"αβδ", s2+"ΑΒΔ")
-		}
-	})
+	b.Run("UnicodeSuffix", func { b -> for i := 0; i < b.N; i++ {
+		EqualFold(s1+"αβδ", s2+"ΑΒΔ")
+	} })
 }
 
 var CountTests = []struct {
@@ -1812,9 +1802,7 @@ func BenchmarkCountByte(b *testing.B) {
 		}
 	}
 	for _, size := range indexSizes {
-		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
-			benchFunc(b, benchStr[:size])
-		})
+		b.Run(fmt.Sprintf("%d", size), func { b -> benchFunc(b, benchStr[:size]) })
 	}
 
 }
@@ -1859,9 +1847,9 @@ var stringdata = []struct{ name, data string }{
 
 func BenchmarkFields(b *testing.B) {
 	for _, sd := range stringdata {
-		b.Run(sd.name, func(b *testing.B) {
+		b.Run(sd.name, func { b ->
 			for j := 1 << 4; j <= 1<<20; j <<= 4 {
-				b.Run(fmt.Sprintf("%d", j), func(b *testing.B) {
+				b.Run(fmt.Sprintf("%d", j), func { b ->
 					b.ReportAllocs()
 					b.SetBytes(int64(j))
 					data := sd.data[:j]
@@ -1876,9 +1864,9 @@ func BenchmarkFields(b *testing.B) {
 
 func BenchmarkFieldsFunc(b *testing.B) {
 	for _, sd := range stringdata {
-		b.Run(sd.name, func(b *testing.B) {
+		b.Run(sd.name, func { b ->
 			for j := 1 << 4; j <= 1<<20; j <<= 4 {
-				b.Run(fmt.Sprintf("%d", j), func(b *testing.B) {
+				b.Run(fmt.Sprintf("%d", j), func { b ->
 					b.ReportAllocs()
 					b.SetBytes(int64(j))
 					data := sd.data[:j]
@@ -1925,11 +1913,9 @@ func BenchmarkRepeat(b *testing.B) {
 	s := "0123456789"
 	for _, n := range []int{5, 10} {
 		for _, c := range []int{0, 1, 2, 6} {
-			b.Run(fmt.Sprintf("%dx%d", n, c), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					Repeat(s[:n], c)
-				}
-			})
+			b.Run(fmt.Sprintf("%dx%d", n, c), func { b -> for i := 0; i < b.N; i++ {
+				Repeat(s[:n], c)
+			} })
 		}
 	}
 }
@@ -1943,7 +1929,7 @@ func BenchmarkRepeatLarge(b *testing.B) {
 			if n == 0 {
 				continue
 			}
-			b.Run(fmt.Sprintf("%d/%d", 1<<j, k), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%d/%d", 1<<j, k), func { b ->
 				for i := 0; i < b.N; i++ {
 					Repeat(s, n)
 				}
@@ -1965,11 +1951,9 @@ func BenchmarkIndexAnyASCII(b *testing.B) {
 	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
-			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					IndexAny(x[:k], cs[:j])
-				}
-			})
+			b.Run(fmt.Sprintf("%d:%d", k, j), func { b -> for i := 0; i < b.N; i++ {
+				IndexAny(x[:k], cs[:j])
+			} })
 		}
 	}
 }
@@ -1979,11 +1963,9 @@ func BenchmarkIndexAnyUTF8(b *testing.B) {
 	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
-			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					IndexAny(x[:k], cs[:j])
-				}
-			})
+			b.Run(fmt.Sprintf("%d:%d", k, j), func { b -> for i := 0; i < b.N; i++ {
+				IndexAny(x[:k], cs[:j])
+			} })
 		}
 	}
 }
@@ -1993,11 +1975,9 @@ func BenchmarkLastIndexAnyASCII(b *testing.B) {
 	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
-			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					LastIndexAny(x[:k], cs[:j])
-				}
-			})
+			b.Run(fmt.Sprintf("%d:%d", k, j), func { b -> for i := 0; i < b.N; i++ {
+				LastIndexAny(x[:k], cs[:j])
+			} })
 		}
 	}
 }
@@ -2007,11 +1987,9 @@ func BenchmarkLastIndexAnyUTF8(b *testing.B) {
 	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
 	for k := 1; k <= 2048; k <<= 4 {
 		for j := 1; j <= 64; j <<= 1 {
-			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					LastIndexAny(x[:k], cs[:j])
-				}
-			})
+			b.Run(fmt.Sprintf("%d:%d", k, j), func { b -> for i := 0; i < b.N; i++ {
+				LastIndexAny(x[:k], cs[:j])
+			} })
 		}
 	}
 }
@@ -2020,7 +1998,7 @@ func BenchmarkTrimASCII(b *testing.B) {
 	cs := "0123456789abcdef"
 	for k := 1; k <= 4096; k <<= 4 {
 		for j := 1; j <= 16; j <<= 1 {
-			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%d:%d", k, j), func { b ->
 				x := Repeat(cs[:j], k) // Always matches set
 				for i := 0; i < b.N; i++ {
 					Trim(x[:k], cs[:j])
@@ -2040,7 +2018,7 @@ func BenchmarkTrimByte(b *testing.B) {
 func BenchmarkIndexPeriodic(b *testing.B) {
 	key := "aa"
 	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {
-		b.Run(fmt.Sprintf("IndexPeriodic%d", skip), func(b *testing.B) {
+		b.Run(fmt.Sprintf("IndexPeriodic%d", skip), func { b ->
 			s := Repeat("a"+Repeat(" ", skip-1), 1<<16/skip)
 			for i := 0; i < b.N; i++ {
 				Index(s, key)
@@ -2052,7 +2030,7 @@ func BenchmarkIndexPeriodic(b *testing.B) {
 func BenchmarkJoin(b *testing.B) {
 	vals := []string{"red", "yellow", "pink", "green", "purple", "orange", "blue"}
 	for l := 0; l <= len(vals); l++ {
-		b.Run(strconv.Itoa(l), func(b *testing.B) {
+		b.Run(strconv.Itoa(l), func { b ->
 			b.ReportAllocs()
 			vals := vals[:l]
 			for i := 0; i < b.N; i++ {
@@ -2070,11 +2048,9 @@ func BenchmarkTrimSpace(b *testing.B) {
 		{"JustNonASCII", "\u2000\u2000\u2000☺☺☺☺\u3000\u3000\u3000"},
 	}
 	for _, test := range tests {
-		b.Run(test.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				TrimSpace(test.input)
-			}
-		})
+		b.Run(test.name, func { b -> for i := 0; i < b.N; i++ {
+			TrimSpace(test.input)
+		} })
 	}
 }
 

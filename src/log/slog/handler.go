@@ -338,7 +338,7 @@ func (s *handleState) appendNonBuiltIns(r Record) {
 		s.openGroups()
 		nOpenGroups = len(s.h.groups)
 		empty := true
-		r.Attrs(func(a Attr) bool {
+		r.Attrs(func { a ->
 			if s.appendAttr(a) {
 				empty = false
 			}

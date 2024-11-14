@@ -12,14 +12,14 @@ import (
 
 func allResolvers(t *testing.T, f func(t *testing.T)) {
 	t.Run("default resolver", f)
-	t.Run("forced go resolver", func(t *testing.T) {
+	t.Run("forced go resolver", func { t ->
 		// On plan9 the forceGoDNS might not force the go resolver, currently
 		// it is only forced when the Resolver.Dial field is populated.
 		// See conf.go mustUseGoResolver.
 		defer forceGoDNS()()
 		f(t)
 	})
-	t.Run("forced cgo resolver", func(t *testing.T) {
+	t.Run("forced cgo resolver", func { t ->
 		defer forceCgoDNS()()
 		f(t)
 	})

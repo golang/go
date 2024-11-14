@@ -84,7 +84,7 @@ func SupportTCPKeepAliveCount() bool {
 // SupportTCPInitialRTONoSYNRetransmissions indicates whether the current
 // Windows version supports the TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS.
 // The minimal requirement is Windows 10.0.16299.
-var SupportTCPInitialRTONoSYNRetransmissions = sync.OnceValue(func() bool {
+var SupportTCPInitialRTONoSYNRetransmissions = sync.OnceValue(func {
 	major, _, build := version()
 	return major >= 10 && build >= 16299
 })
@@ -92,7 +92,7 @@ var SupportTCPInitialRTONoSYNRetransmissions = sync.OnceValue(func() bool {
 // SupportUnixSocket indicates whether the current Windows version supports
 // Unix Domain Sockets.
 // The minimal requirement is Windows 10.0.17063.
-var SupportUnixSocket = sync.OnceValue(func() bool {
+var SupportUnixSocket = sync.OnceValue(func {
 	var size uint32
 	// First call to get the required buffer size in bytes.
 	// Ignore the error, it will always fail.

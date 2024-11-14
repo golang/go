@@ -100,7 +100,7 @@ func TestPointerFinalizer(t *testing.T) {
 	bt := new(T)
 	wt := weak.Make(bt)
 	done := make(chan struct{}, 1)
-	runtime.SetFinalizer(bt, func(bt *T) {
+	runtime.SetFinalizer(bt, func { bt ->
 		if wt.Strong() != nil {
 			t.Errorf("weak pointer did not go nil before finalizer ran")
 		}

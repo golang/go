@@ -439,7 +439,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 	nextDepth := 0
 
 	// Get next child; set err if error happens.
-	next := func() *Entry {
+	next := func {
 		if !e.Children {
 			return nil
 		}

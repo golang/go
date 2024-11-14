@@ -289,7 +289,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 		defer unlock()
 	}
 
-	err = lockedfile.Transform(gomod, func(lockedData []byte) ([]byte, error) {
+	err = lockedfile.Transform(gomod, func { lockedData ->
 		if !bytes.Equal(lockedData, data) {
 			return nil, errors.New("go.mod changed during editing; not overwriting")
 		}
@@ -393,7 +393,7 @@ func flagGodebug(arg string) {
 	if !ok || strings.ContainsAny(arg, "\"`',") {
 		base.Fatalf("go: -godebug=%s: need key=value", arg)
 	}
-	edits = append(edits, func(f *modfile.File) {
+	edits = append(edits, func { f ->
 		if err := f.AddGodebug(key, value); err != nil {
 			base.Fatalf("go: -godebug=%s: %v", arg, err)
 		}
@@ -402,17 +402,15 @@ func flagGodebug(arg string) {
 
 // flagDropGodebug implements the -dropgodebug flag.
 func flagDropGodebug(arg string) {
-	edits = append(edits, func(f *modfile.File) {
-		if err := f.DropGodebug(arg); err != nil {
-			base.Fatalf("go: -dropgodebug=%s: %v", arg, err)
-		}
-	})
+	edits = append(edits, func { f -> if err := f.DropGodebug(arg); err != nil {
+		base.Fatalf("go: -dropgodebug=%s: %v", arg, err)
+	} })
 }
 
 // flagRequire implements the -require flag.
 func flagRequire(arg string) {
 	path, version := parsePathVersion("require", arg)
-	edits = append(edits, func(f *modfile.File) {
+	edits = append(edits, func { f ->
 		if err := f.AddRequire(path, version); err != nil {
 			base.Fatalf("go: -require=%s: %v", arg, err)
 		}
@@ -422,7 +420,7 @@ func flagRequire(arg string) {
 // flagDropRequire implements the -droprequire flag.
 func flagDropRequire(arg string) {
 	path := parsePath("droprequire", arg)
-	edits = append(edits, func(f *modfile.File) {
+	edits = append(edits, func { f ->
 		if err := f.DropRequire(path); err != nil {
 			base.Fatalf("go: -droprequire=%s: %v", arg, err)
 		}
@@ -432,7 +430,7 @@ func flagDropRequire(arg string) {
 // flagExclude implements the -exclude flag.
 func flagExclude(arg string) {
 	path, version := parsePathVersion("exclude", arg)
-	edits = append(edits, func(f *modfile.File) {
+	edits = append(edits, func { f ->
 		if err := f.AddExclude(path, version); err != nil {
 			base.Fatalf("go: -exclude=%s: %v", arg, err)
 		}
@@ -442,7 +440,7 @@ func flagExclude(arg string) {
 // flagDropExclude implements the -dropexclude flag.
 func flagDropExclude(arg string) {
 	path, version := parsePathVersion("dropexclude", arg)
-	edits = append(edits, func(f *modfile.File) {
+	edits = append(edits, func { f ->
 		if err := f.DropExclude(path, version); err != nil {
 			base.Fatalf("go: -dropexclude=%s: %v", arg, err)
 		}
@@ -471,7 +469,7 @@ func flagReplace(arg string) {
 		base.Fatalf("go: -replace=%s: unversioned new path must be local directory", arg)
 	}
 
-	edits = append(edits, func(f *modfile.File) {
+	edits = append(edits, func { f ->
 		if err := f.AddReplace(oldPath, oldVersion, newPath, newVersion); err != nil {
 			base.Fatalf("go: -replace=%s: %v", arg, err)
 		}
@@ -484,7 +482,7 @@ func flagDropReplace(arg string) {
 	if err != nil {
 		base.Fatalf("go: -dropreplace=%s: %v", arg, err)
 	}
-	edits = append(edits, func(f *modfile.File) {
+	edits = append(edits, func { f ->
 		if err := f.DropReplace(path, version); err != nil {
 			base.Fatalf("go: -dropreplace=%s: %v", arg, err)
 		}
@@ -497,11 +495,9 @@ func flagRetract(arg string) {
 	if err != nil {
 		base.Fatalf("go: -retract=%s: %v", arg, err)
 	}
-	edits = append(edits, func(f *modfile.File) {
-		if err := f.AddRetract(vi, ""); err != nil {
-			base.Fatalf("go: -retract=%s: %v", arg, err)
-		}
-	})
+	edits = append(edits, func { f -> if err := f.AddRetract(vi, ""); err != nil {
+		base.Fatalf("go: -retract=%s: %v", arg, err)
+	} })
 }
 
 // flagDropRetract implements the -dropretract flag.
@@ -510,11 +506,9 @@ func flagDropRetract(arg string) {
 	if err != nil {
 		base.Fatalf("go: -dropretract=%s: %v", arg, err)
 	}
-	edits = append(edits, func(f *modfile.File) {
-		if err := f.DropRetract(vi); err != nil {
-			base.Fatalf("go: -dropretract=%s: %v", arg, err)
-		}
-	})
+	edits = append(edits, func { f -> if err := f.DropRetract(vi); err != nil {
+		base.Fatalf("go: -dropretract=%s: %v", arg, err)
+	} })
 }
 
 // fileJSON is the -json output data structure.

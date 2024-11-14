@@ -61,7 +61,7 @@ func TestIs(t *testing.T) {
 		{multiErr{nil}, nil, false},
 	}
 	for _, tc := range testCases {
-		t.Run("", func(t *testing.T) {
+		t.Run("", func { t ->
 			if got := errors.Is(tc.err, tc.target); got != tc.match {
 				t.Errorf("Is(%v, %v) = %v, want %v", tc.err, tc.target, got, tc.match)
 			}
@@ -201,7 +201,7 @@ func TestAs(t *testing.T) {
 		// Clear the target pointer, in case it was set in a previous test.
 		rtarget := reflect.ValueOf(tc.target)
 		rtarget.Elem().Set(reflect.Zero(reflect.TypeOf(tc.target).Elem()))
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			match := errors.As(tc.err, tc.target)
 			if match != tc.match {
 				t.Fatalf("match: got %v; want %v", match, tc.match)
@@ -226,7 +226,7 @@ func TestAsValidation(t *testing.T) {
 	}
 	err := errors.New("error")
 	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("%T(%v)", tc, tc), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%T(%v)", tc, tc), func { t ->
 			defer func() {
 				recover()
 			}()

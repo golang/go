@@ -222,7 +222,7 @@ func FuzzUTF16FromString(f *testing.F) {
 	f.Add("\xe3\x81")     // truncated
 	f.Add("\xe3\xc1\x81") // invalid middle byte
 
-	f.Fuzz(func(t *testing.T, tst string) {
+	f.Fuzz(func { t, tst ->
 		res, err := syscall.UTF16FromString(tst)
 		if err != nil {
 			if strings.Contains(tst, "\x00") {

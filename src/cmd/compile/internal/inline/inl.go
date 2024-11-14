@@ -165,7 +165,7 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
 		return
 	}
 
-	ir.VisitFuncsBottomUp(funcs, func(funcs []*ir.Func, recursive bool) {
+	ir.VisitFuncsBottomUp(funcs, func { funcs, recursive ->
 		numfns := numNonClosures(funcs)
 
 		for _, fn := range funcs {
@@ -196,16 +196,14 @@ func GarbageCollectUnreferencedHiddenClosures() {
 	liveFuncs := make(map[*ir.Func]bool)
 
 	var markLiveFuncs func(fn *ir.Func)
-	markLiveFuncs = func(fn *ir.Func) {
+	markLiveFuncs = func { fn ->
 		if liveFuncs[fn] {
 			return
 		}
 		liveFuncs[fn] = true
-		ir.Visit(fn, func(n ir.Node) {
-			if clo, ok := n.(*ir.ClosureExpr); ok {
-				markLiveFuncs(clo.Func)
-			}
-		})
+		ir.Visit(fn, func { n -> if clo, ok := n.(*ir.ClosureExpr); ok {
+			markLiveFuncs(clo.Func)
+		} })
 	}
 
 	for i := 0; i < len(typecheck.Target.Funcs); i++ {
@@ -432,7 +430,7 @@ func canDelayResults(fn *ir.Func) bool {
 	// (3) the result parameters aren't named.
 
 	nreturns := 0
-	ir.VisitList(fn.Body, func(n ir.Node) {
+	ir.VisitList(fn.Body, func { n ->
 		if n, ok := n.(*ir.ReturnStmt); ok {
 			nreturns++
 			if len(n.Results) == 0 {
@@ -788,7 +786,7 @@ opSwitch:
 // Note: The criteria for "big" is heuristic and subject to change.
 func IsBigFunc(fn *ir.Func) bool {
 	budget := inlineBigFunctionNodes
-	return ir.Any(fn, func(n ir.Node) bool {
+	return ir.Any(fn, func { n ->
 		// See logic in hairyVisitor.doNode, explaining unified IR's
 		// handling of "a, b = f()" assignments.
 		if n, ok := n.(*ir.AssignListStmt); ok && n.Op() == ir.OAS2 && len(n.Rhs) > 0 {

@@ -407,7 +407,7 @@ func checkInlCall(funcName string, inlCalls dwarf.InlCalls, funcSize int64, idx,
 
 	// Caller
 	caller := funcName
-	parentRanges := []dwarf.Range{dwarf.Range{Start: int64(0), End: funcSize}}
+	parentRanges := []dwarf.Range{{Start: int64(0), End: funcSize}}
 	if parentIdx != -1 {
 		pic := inlCalls.Calls[parentIdx]
 		caller = base.Ctxt.InlTree.InlinedFunction(pic.InlIndex).Name

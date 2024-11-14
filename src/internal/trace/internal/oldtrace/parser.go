@@ -370,9 +370,7 @@ func (p *parser) parseEventBatches() (Events, error) {
 	// with original timestamps corresponding to when ReadTrace pulled the data
 	// off of the profBuf queue. Re-sort them by the timestamp we captured
 	// inside the signal handler.
-	slices.SortFunc(p.cpuSamples, func(a, b Event) int {
-		return cmp.Compare(a.Ts, b.Ts)
-	})
+	slices.SortFunc(p.cpuSamples, func { a, b -> cmp.Compare(a.Ts, b.Ts) })
 
 	allProcs := make([]proc, 0, len(p.batchOffsets))
 	for pid := range p.batchOffsets {

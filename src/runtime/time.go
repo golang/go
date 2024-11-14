@@ -1102,7 +1102,7 @@ func (t *timer) unlockAndRun(now int64) {
 		}
 
 		if t.seq != seq {
-			f = func(any, uintptr, int64) {}
+			f = func {}
 		}
 	}
 

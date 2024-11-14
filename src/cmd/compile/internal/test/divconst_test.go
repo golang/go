@@ -67,56 +67,56 @@ func TestDivmodConstU64(t *testing.T) {
 			}
 		}
 	}
-	t.Run("2", testdiv(2, func(n uint64) (uint64, uint64) { return n / 2, n % 2 }))
-	t.Run("3", testdiv(3, func(n uint64) (uint64, uint64) { return n / 3, n % 3 }))
-	t.Run("4", testdiv(4, func(n uint64) (uint64, uint64) { return n / 4, n % 4 }))
-	t.Run("5", testdiv(5, func(n uint64) (uint64, uint64) { return n / 5, n % 5 }))
-	t.Run("6", testdiv(6, func(n uint64) (uint64, uint64) { return n / 6, n % 6 }))
-	t.Run("7", testdiv(7, func(n uint64) (uint64, uint64) { return n / 7, n % 7 }))
-	t.Run("8", testdiv(8, func(n uint64) (uint64, uint64) { return n / 8, n % 8 }))
-	t.Run("9", testdiv(9, func(n uint64) (uint64, uint64) { return n / 9, n % 9 }))
-	t.Run("10", testdiv(10, func(n uint64) (uint64, uint64) { return n / 10, n % 10 }))
-	t.Run("11", testdiv(11, func(n uint64) (uint64, uint64) { return n / 11, n % 11 }))
-	t.Run("12", testdiv(12, func(n uint64) (uint64, uint64) { return n / 12, n % 12 }))
-	t.Run("13", testdiv(13, func(n uint64) (uint64, uint64) { return n / 13, n % 13 }))
-	t.Run("14", testdiv(14, func(n uint64) (uint64, uint64) { return n / 14, n % 14 }))
-	t.Run("15", testdiv(15, func(n uint64) (uint64, uint64) { return n / 15, n % 15 }))
-	t.Run("16", testdiv(16, func(n uint64) (uint64, uint64) { return n / 16, n % 16 }))
-	t.Run("17", testdiv(17, func(n uint64) (uint64, uint64) { return n / 17, n % 17 }))
-	t.Run("255", testdiv(255, func(n uint64) (uint64, uint64) { return n / 255, n % 255 }))
-	t.Run("256", testdiv(256, func(n uint64) (uint64, uint64) { return n / 256, n % 256 }))
-	t.Run("257", testdiv(257, func(n uint64) (uint64, uint64) { return n / 257, n % 257 }))
-	t.Run("65535", testdiv(65535, func(n uint64) (uint64, uint64) { return n / 65535, n % 65535 }))
-	t.Run("65536", testdiv(65536, func(n uint64) (uint64, uint64) { return n / 65536, n % 65536 }))
-	t.Run("65537", testdiv(65537, func(n uint64) (uint64, uint64) { return n / 65537, n % 65537 }))
-	t.Run("1<<32-1", testdiv(1<<32-1, func(n uint64) (uint64, uint64) { return n / (1<<32 - 1), n % (1<<32 - 1) }))
-	t.Run("1<<32+1", testdiv(1<<32+1, func(n uint64) (uint64, uint64) { return n / (1<<32 + 1), n % (1<<32 + 1) }))
-	t.Run("1<<64-1", testdiv(1<<64-1, func(n uint64) (uint64, uint64) { return n / (1<<64 - 1), n % (1<<64 - 1) }))
+	t.Run("2", testdiv(2, func { n -> n / 2, n % 2 }))
+	t.Run("3", testdiv(3, func { n -> n / 3, n % 3 }))
+	t.Run("4", testdiv(4, func { n -> n / 4, n % 4 }))
+	t.Run("5", testdiv(5, func { n -> n / 5, n % 5 }))
+	t.Run("6", testdiv(6, func { n -> n / 6, n % 6 }))
+	t.Run("7", testdiv(7, func { n -> n / 7, n % 7 }))
+	t.Run("8", testdiv(8, func { n -> n / 8, n % 8 }))
+	t.Run("9", testdiv(9, func { n -> n / 9, n % 9 }))
+	t.Run("10", testdiv(10, func { n -> n / 10, n % 10 }))
+	t.Run("11", testdiv(11, func { n -> n / 11, n % 11 }))
+	t.Run("12", testdiv(12, func { n -> n / 12, n % 12 }))
+	t.Run("13", testdiv(13, func { n -> n / 13, n % 13 }))
+	t.Run("14", testdiv(14, func { n -> n / 14, n % 14 }))
+	t.Run("15", testdiv(15, func { n -> n / 15, n % 15 }))
+	t.Run("16", testdiv(16, func { n -> n / 16, n % 16 }))
+	t.Run("17", testdiv(17, func { n -> n / 17, n % 17 }))
+	t.Run("255", testdiv(255, func { n -> n / 255, n % 255 }))
+	t.Run("256", testdiv(256, func { n -> n / 256, n % 256 }))
+	t.Run("257", testdiv(257, func { n -> n / 257, n % 257 }))
+	t.Run("65535", testdiv(65535, func { n -> n / 65535, n % 65535 }))
+	t.Run("65536", testdiv(65536, func { n -> n / 65536, n % 65536 }))
+	t.Run("65537", testdiv(65537, func { n -> n / 65537, n % 65537 }))
+	t.Run("1<<32-1", testdiv(1<<32-1, func { n -> n / (1<<32 - 1), n % (1<<32 - 1) }))
+	t.Run("1<<32+1", testdiv(1<<32+1, func { n -> n / (1<<32 + 1), n % (1<<32 + 1) }))
+	t.Run("1<<64-1", testdiv(1<<64-1, func { n -> n / (1<<64 - 1), n % (1<<64 - 1) }))
 }
 
 func BenchmarkDivconstU64(b *testing.B) {
-	b.Run("3", func(b *testing.B) {
+	b.Run("3", func { b ->
 		x := uint64(123456789123456789)
 		for i := 0; i < b.N; i++ {
 			x += x << 4
 			u64res = uint64(x) / 3
 		}
 	})
-	b.Run("5", func(b *testing.B) {
+	b.Run("5", func { b ->
 		x := uint64(123456789123456789)
 		for i := 0; i < b.N; i++ {
 			x += x << 4
 			u64res = uint64(x) / 5
 		}
 	})
-	b.Run("37", func(b *testing.B) {
+	b.Run("37", func { b ->
 		x := uint64(123456789123456789)
 		for i := 0; i < b.N; i++ {
 			x += x << 4
 			u64res = uint64(x) / 37
 		}
 	})
-	b.Run("1234567", func(b *testing.B) {
+	b.Run("1234567", func { b ->
 		x := uint64(123456789123456789)
 		for i := 0; i < b.N; i++ {
 			x += x << 4

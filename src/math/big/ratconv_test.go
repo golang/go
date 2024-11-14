@@ -708,7 +708,7 @@ func BenchmarkFloatPrecExact(b *testing.B) {
 		var r Rat
 		r.SetFrac(NewInt(1), d)
 
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			for i := 0; i < b.N; i++ {
 				prec, ok := r.FloatPrec()
 				if prec != n || !ok {
@@ -730,7 +730,7 @@ func BenchmarkFloatPrecMixed(b *testing.B) {
 		var r Rat
 		r.SetFrac(NewInt(1), d)
 
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			for i := 0; i < b.N; i++ {
 				prec, ok := r.FloatPrec()
 				if prec != n || ok {
@@ -753,7 +753,7 @@ func BenchmarkFloatPrecInexact(b *testing.B) {
 		var r Rat
 		r.SetFrac(NewInt(1), d)
 
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			for i := 0; i < b.N; i++ {
 				_, ok := r.FloatPrec()
 				if ok {

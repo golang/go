@@ -384,7 +384,7 @@ func TestParseWithComments(t *testing.T) {
 		{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x"{{/* */}}"y"`},
 	}
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			tr := New(test.name)
 			tr.Mode = ParseComments
 			tmpl, err := tr.Parse(test.input, "", "", make(map[string]*Tree))
@@ -598,7 +598,7 @@ var errorTests = []parseTest{
 
 func TestErrors(t *testing.T) {
 	for _, test := range errorTests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			_, err := New(test.name).Parse(test.input, "", "", make(map[string]*Tree))
 			if err == nil {
 				t.Fatalf("expected error %q, got nil", test.result)

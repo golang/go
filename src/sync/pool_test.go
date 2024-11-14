@@ -112,9 +112,7 @@ loop:
 		var fin, fin1 uint32
 		for i := 0; i < N; i++ {
 			v := new(string)
-			runtime.SetFinalizer(v, func(vv *string) {
-				atomic.AddUint32(&fin, 1)
-			})
+			runtime.SetFinalizer(v, func { vv -> atomic.AddUint32(&fin, 1) })
 			p.Put(v)
 		}
 		if drain {
@@ -255,14 +253,14 @@ func TestNilPool(t *testing.T) {
 	}
 
 	var p *Pool
-	t.Run("Get", func(t *testing.T) {
+	t.Run("Get", func { t ->
 		defer catch()
 		if p.Get() != nil {
 			t.Error("expected empty")
 		}
 		t.Error("should have panicked already")
 	})
-	t.Run("Put", func(t *testing.T) {
+	t.Run("Put", func { t ->
 		defer catch()
 		p.Put("a")
 		t.Error("should have panicked already")
@@ -271,17 +269,15 @@ func TestNilPool(t *testing.T) {
 
 func BenchmarkPool(b *testing.B) {
 	var p Pool
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			p.Put(1)
-			p.Get()
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		p.Put(1)
+		p.Get()
+	} })
 }
 
 func BenchmarkPoolOverflow(b *testing.B) {
 	var p Pool
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			for b := 0; b < 100; b++ {
 				p.Put(1)
@@ -301,7 +297,7 @@ func BenchmarkPoolStarvation(b *testing.B) {
 	// Reduce number of putted objects by 33 %. It creates objects starvation
 	// that force P-local storage to steal objects from other Ps.
 	countStarved := count - int(float32(count)*0.33)
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			for b := 0; b < countStarved; b++ {
 				p.Put(1)
@@ -361,14 +357,14 @@ func BenchmarkPoolExpensiveNew(b *testing.B) {
 	// Create a pool that's "expensive" to fill.
 	var p Pool
 	var nNew uint64
-	p.New = func() any {
+	p.New = func {
 		atomic.AddUint64(&nNew, 1)
 		time.Sleep(time.Millisecond)
 		return 42
 	}
 	var mstats1, mstats2 runtime.MemStats
 	runtime.ReadMemStats(&mstats1)
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		// Simulate 100X the number of goroutines having items
 		// checked out from the Pool simultaneously.
 		items := make([]any, 100)

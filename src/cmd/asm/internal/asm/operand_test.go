@@ -153,7 +153,7 @@ func TestFuncAddress(t *testing.T) {
 		{"loong64", loong64OperandTests},
 		{"s390x", s390xOperandTests},
 	} {
-		t.Run(sub.arch, func(t *testing.T) {
+		t.Run(sub.arch, func { t ->
 			parser := newParser(sub.arch)
 			for _, test := range sub.tests {
 				parser.start(lex.Tokenize(test.input))

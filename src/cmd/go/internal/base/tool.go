@@ -31,7 +31,7 @@ func Tool(toolName string) string {
 // (for example, "vet"), and the error (if any) from statting that path.
 func ToolPath(toolName string) (string, error) {
 	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
-	err := toolStatCache.Do(toolPath, func() error {
+	err := toolStatCache.Do(toolPath, func {
 		_, err := os.Stat(toolPath)
 		return err
 	})

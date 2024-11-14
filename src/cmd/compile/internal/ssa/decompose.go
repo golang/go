@@ -433,12 +433,11 @@ type namedVal struct {
 // removes all values with OpInvalid, and re-sorts the list of Names.
 func deleteNamedVals(f *Func, toDelete []namedVal) {
 	// Arrange to delete from larger indices to smaller, to ensure swap-with-end deletion does not invalidate pending indices.
-	sort.Slice(toDelete, func(i, j int) bool {
+	sort.Slice(toDelete, func { i, j ->
 		if toDelete[i].locIndex != toDelete[j].locIndex {
 			return toDelete[i].locIndex > toDelete[j].locIndex
 		}
 		return toDelete[i].valIndex > toDelete[j].valIndex
-
 	})
 
 	// Get rid of obsolete names

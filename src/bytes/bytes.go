@@ -780,7 +780,7 @@ func Title(s []byte) []byte {
 	// the closure once per rune.
 	prev := ' '
 	return Map(
-		func(r rune) rune {
+		func { r ->
 			if isSeparator(prev) {
 				prev = r
 				return unicode.ToTitle(r)

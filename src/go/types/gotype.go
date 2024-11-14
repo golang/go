@@ -320,7 +320,7 @@ func checkPkgFiles(files []*ast.File) {
 func printStats(d time.Duration) {
 	fileCount := 0
 	lineCount := 0
-	fset.Iterate(func(f *token.File) bool {
+	fset.Iterate(func { f ->
 		fileCount++
 		lineCount += f.LineCount()
 		return true

@@ -26,7 +26,7 @@ import (
 // stackView generates the flamegraph view.
 func (ui *webInterface) stackView(w http.ResponseWriter, req *http.Request) {
 	// Get all data in a report.
-	rpt, errList := ui.makeReport(w, req, []string{"svg"}, func(cfg *config) {
+	rpt, errList := ui.makeReport(w, req, []string{"svg"}, func { cfg ->
 		cfg.CallTree = true
 		cfg.Trim = false
 		cfg.Granularity = "filefunctions"

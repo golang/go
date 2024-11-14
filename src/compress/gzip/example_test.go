@@ -137,7 +137,7 @@ func Example_compressingReader() {
 	const testdata = "the data to be compressed"
 
 	// This HTTP handler is just for testing purposes.
-	handler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func { rw, req ->
 		zr, err := gzip.NewReader(req.Body)
 		if err != nil {
 			log.Fatal(err)

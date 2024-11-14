@@ -37,7 +37,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.RangeStmt)(nil),
 		(*ast.ForStmt)(nil),
 	}
-	inspect.Nodes(nodeFilter, func(n ast.Node, push bool) bool {
+	inspect.Nodes(nodeFilter, func { n, push ->
 		if !push {
 			// inspect.Nodes is slightly suboptimal as we only use push=true.
 			return true
@@ -90,7 +90,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// so that that checker could, for example, conclude that a go statement is
 		// followed by an if statement made of only trivial statements and trivial expressions,
 		// and hence the go statement could still be checked.
-		forEachLastStmt(body.List, func(last ast.Stmt) {
+		forEachLastStmt(body.List, func { last ->
 			var stmts []ast.Stmt
 			switch s := last.(type) {
 			case *ast.GoStmt:
@@ -134,7 +134,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 // references to vars. vars is expected to be variables updated by a loop statement,
 // and checkStmt is expected to be a statements from the body of a func literal in the loop.
 func reportCaptured(pass *analysis.Pass, vars []types.Object, checkStmt ast.Stmt) {
-	ast.Inspect(checkStmt, func(n ast.Node) bool {
+	ast.Inspect(checkStmt, func { n ->
 		id, ok := n.(*ast.Ident)
 		if !ok {
 			return true

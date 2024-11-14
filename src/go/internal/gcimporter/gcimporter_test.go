@@ -166,7 +166,7 @@ func TestImportTypeparamTests(t *testing.T) {
 			continue
 		}
 
-		t.Run(entry.Name(), func(t *testing.T) {
+		t.Run(entry.Name(), func { t ->
 			filename := filepath.Join(rootDir, entry.Name())
 			src, err := os.ReadFile(filename)
 			if err != nil {
@@ -365,7 +365,7 @@ func TestImportStdLib(t *testing.T) {
 
 	var nimports int
 	for _, pkg := range pkgs {
-		t.Run(pkg, func(t *testing.T) {
+		t.Run(pkg, func { t ->
 			if testPath(t, pkg, filepath.Join(testenv.GOROOT(t), "src", path.Dir(pkg))) != nil {
 				nimports++
 			}

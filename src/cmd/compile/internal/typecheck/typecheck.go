@@ -634,7 +634,7 @@ func RewriteNonNameCall(n *ir.CallExpr) {
 	// Check for side effects in the callee expression.
 	// We explicitly special case new(T) though, because it doesn't have
 	// observable side effects, and keeping it in place allows better escape analysis.
-	if !ir.Any(*np, func(n ir.Node) bool { return n.Op() != ir.ONEW && callOrChan(n) }) {
+	if !ir.Any(*np, func { n -> n.Op() != ir.ONEW && callOrChan(n) }) {
 		return
 	}
 

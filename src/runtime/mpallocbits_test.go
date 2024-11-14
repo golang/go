@@ -44,28 +44,28 @@ func TestPallocBitsAllocRange(t *testing.T) {
 	test := func(t *testing.T, i, n uint, want *PallocBits) {
 		checkPallocBits(t, makePallocBits([]BitRange{{i, n}}), want)
 	}
-	t.Run("OneLow", func(t *testing.T) {
+	t.Run("OneLow", func { t ->
 		want := new(PallocBits)
 		want[0] = 0x1
 		test(t, 0, 1, want)
 	})
-	t.Run("OneHigh", func(t *testing.T) {
+	t.Run("OneHigh", func { t ->
 		want := new(PallocBits)
 		want[PallocChunkPages/64-1] = 1 << 63
 		test(t, PallocChunkPages-1, 1, want)
 	})
-	t.Run("Inner", func(t *testing.T) {
+	t.Run("Inner", func { t ->
 		want := new(PallocBits)
 		want[2] = 0x3e
 		test(t, 129, 5, want)
 	})
-	t.Run("Aligned", func(t *testing.T) {
+	t.Run("Aligned", func { t ->
 		want := new(PallocBits)
 		want[2] = ^uint64(0)
 		want[3] = ^uint64(0)
 		test(t, 128, 128, want)
 	})
-	t.Run("Begin", func(t *testing.T) {
+	t.Run("Begin", func { t ->
 		want := new(PallocBits)
 		want[0] = ^uint64(0)
 		want[1] = ^uint64(0)
@@ -75,7 +75,7 @@ func TestPallocBitsAllocRange(t *testing.T) {
 		want[5] = 0x1
 		test(t, 0, 321, want)
 	})
-	t.Run("End", func(t *testing.T) {
+	t.Run("End", func { t ->
 		want := new(PallocBits)
 		want[PallocChunkPages/64-1] = ^uint64(0)
 		want[PallocChunkPages/64-2] = ^uint64(0)
@@ -83,7 +83,7 @@ func TestPallocBitsAllocRange(t *testing.T) {
 		want[PallocChunkPages/64-4] = 1 << 63
 		test(t, PallocChunkPages-(64*3+1), 64*3+1, want)
 	})
-	t.Run("All", func(t *testing.T) {
+	t.Run("All", func { t ->
 		want := new(PallocBits)
 		for i := range want {
 			want[i] = ^uint64(0)
@@ -194,7 +194,7 @@ func TestMallocBitsPopcntRange(t *testing.T) {
 	}
 	for name, v := range tests {
 		v := v
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			b := makePallocBits(v.init)
 			for _, h := range v.tests {
 				if got := b.PopcntRange(h.i, h.n); got != h.want {
@@ -283,7 +283,7 @@ func TestPallocBitsSummarize(t *testing.T) {
 	}
 	for name, v := range tests {
 		v := v
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			b := makePallocBits(v.free)
 			// In the PallocBits we create 1's represent free spots, but in our actual
 			// PallocBits 1 means not free, so invert.
@@ -318,7 +318,7 @@ func BenchmarkPallocBitsSummarize(b *testing.B) {
 		for i := 0; i < len(buf); i++ {
 			buf[i] = p
 		}
-		b.Run(fmt.Sprintf("Unpacked%02X", p), func(b *testing.B) {
+		b.Run(fmt.Sprintf("Unpacked%02X", p), func { b ->
 			checkPallocSum(b, buf.Summarize(), SummarizeSlow(buf))
 			for i := 0; i < b.N; i++ {
 				buf.Summarize()
@@ -423,7 +423,7 @@ func TestPallocBitsAlloc(t *testing.T) {
 	}
 	for name, v := range tests {
 		v := v
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			b := makePallocBits(v.before)
 			for iter, i := range v.hits {
 				a, _ := b.Find(v.npages, 0)
@@ -482,7 +482,7 @@ func TestPallocBitsFree(t *testing.T) {
 	}
 	for name, v := range tests {
 		v := v
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			b := makePallocBits(v.beforeInv)
 			invertPallocBits(b)
 			for _, i := range v.frees {
@@ -541,11 +541,9 @@ func BenchmarkFindBitRange64(b *testing.B) {
 	}
 	for _, pattern := range patterns {
 		for _, size := range sizes {
-			b.Run(fmt.Sprintf("Pattern%02XSize%d", pattern, size), func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					FindBitRange64(pattern, size)
-				}
-			})
+			b.Run(fmt.Sprintf("Pattern%02XSize%d", pattern, size), func { b -> for i := 0; i < b.N; i++ {
+				FindBitRange64(pattern, size)
+			} })
 		}
 	}
 }

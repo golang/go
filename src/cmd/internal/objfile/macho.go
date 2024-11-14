@@ -51,7 +51,7 @@ func (f *machoFile) symbols() ([]Sym, error) {
 			continue
 		}
 		sym := Sym{Name: s.Name, Addr: s.Value, Code: '?'}
-		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
+		i := sort.Search(len(addrs), func { x -> addrs[x] > s.Value })
 		if i < len(addrs) {
 			sym.Size = int64(addrs[i] - s.Value)
 		}

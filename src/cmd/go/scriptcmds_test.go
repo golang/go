@@ -23,9 +23,7 @@ func scriptCommands(interrupt os.Signal, waitDelay time.Duration) map[string]scr
 	// Customize the "exec" interrupt signal and grace period.
 	var cancel func(cmd *exec.Cmd) error
 	if interrupt != nil {
-		cancel = func(cmd *exec.Cmd) error {
-			return cmd.Process.Signal(interrupt)
-		}
+		cancel = func { cmd -> cmd.Process.Signal(interrupt) }
 	}
 
 	cmdExec := script.Exec(cancel, waitDelay)
@@ -53,7 +51,7 @@ func scriptCC(cmdExec script.Cmd) script.Cmd {
 			Summary: "run the platform C compiler",
 			Args:    "args...",
 		},
-		func(s *script.State, args ...string) (script.WaitFunc, error) {
+		func { s, args ->
 			b := work.NewBuilder(s.Getwd())
 			wait, err := cmdExec.Run(s, append(b.GccCmd(".", ""), args...)...)
 			if err != nil {
@@ -76,7 +74,7 @@ var scriptGoInvoked sync.Map // testing.TB → go command was invoked
 func scriptGo(cancel func(*exec.Cmd) error, waitDelay time.Duration) script.Cmd {
 	cmd := script.Program(testGo, cancel, waitDelay)
 	// Inject code to update scriptGoInvoked before invoking the Go command.
-	return script.Command(*cmd.Usage(), func(state *script.State, s ...string) (script.WaitFunc, error) {
+	return script.Command(*cmd.Usage(), func { state, s ->
 		t, ok := tbFromContext(state.Context())
 		if !ok {
 			return nil, errors.New("script Context unexpectedly missing testing.TB key")
@@ -96,7 +94,7 @@ func scriptStale(cmdGo script.Cmd) script.Cmd {
 			Summary: "check that build targets are stale",
 			Args:    "target...",
 		},
-		func(s *script.State, args ...string) (script.WaitFunc, error) {
+		func { s, args ->
 			if len(args) == 0 {
 				return nil, script.ErrUsage
 			}

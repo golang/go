@@ -1064,9 +1064,7 @@ func (c *Config) cipherSuites() []uint16 {
 	}
 	if needFIPS() {
 		cipherSuites := slices.Clone(c.CipherSuites)
-		return slices.DeleteFunc(cipherSuites, func(id uint16) bool {
-			return !slices.Contains(defaultCipherSuitesFIPS, id)
-		})
+		return slices.DeleteFunc(cipherSuites, func { id -> !slices.Contains(defaultCipherSuitesFIPS, id) })
 	}
 	return c.CipherSuites
 }
@@ -1137,9 +1135,7 @@ func (c *Config) curvePreferences(version uint16) []CurveID {
 	if c != nil && len(c.CurvePreferences) != 0 {
 		curvePreferences = slices.Clone(c.CurvePreferences)
 		if needFIPS() {
-			return slices.DeleteFunc(curvePreferences, func(c CurveID) bool {
-				return !slices.Contains(defaultCurvePreferencesFIPS, c)
-			})
+			return slices.DeleteFunc(curvePreferences, func { c -> !slices.Contains(defaultCurvePreferencesFIPS, c) })
 		}
 	} else if needFIPS() {
 		curvePreferences = slices.Clone(defaultCurvePreferencesFIPS)
@@ -1147,9 +1143,7 @@ func (c *Config) curvePreferences(version uint16) []CurveID {
 		curvePreferences = defaultCurvePreferences()
 	}
 	if version < VersionTLS13 {
-		return slices.DeleteFunc(curvePreferences, func(c CurveID) bool {
-			return c == x25519Kyber768Draft00
-		})
+		return slices.DeleteFunc(curvePreferences, func { c -> c == x25519Kyber768Draft00 })
 	}
 	return curvePreferences
 }
@@ -1292,7 +1286,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 		}
 		// Finally, there needs to be a mutual cipher suite that uses the static
 		// RSA key exchange instead of ECDHE.
-		rsaCipherSuite := selectCipherSuite(chi.CipherSuites, config.cipherSuites(), func(c *cipherSuite) bool {
+		rsaCipherSuite := selectCipherSuite(chi.CipherSuites, config.cipherSuites(), func { c ->
 			if c.flags&suiteECDHE != 0 {
 				return false
 			}
@@ -1369,7 +1363,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 	// Make sure that there is a mutually supported cipher suite that works with
 	// this certificate. Cipher suite selection will then apply the logic in
 	// reverse to pick it. See also serverHandshakeState.cipherSuiteOk.
-	cipherSuite := selectCipherSuite(chi.CipherSuites, config.cipherSuites(), func(c *cipherSuite) bool {
+	cipherSuite := selectCipherSuite(chi.CipherSuites, config.cipherSuites(), func { c ->
 		if c.flags&suiteECDHE == 0 {
 			return false
 		}

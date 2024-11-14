@@ -192,7 +192,7 @@ func relocSectFn(ctxt *Link, relocSect func(*Link, *OutBuf, *sym.Section, []load
 	if ctxt.Out.isMmapped() {
 		// Write sections in parallel.
 		sem = make(chan int, 2*runtime.GOMAXPROCS(0))
-		fn = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+		fn = func { ctxt, sect, syms ->
 			wg.Add(1)
 			sem <- 1
 			out, err := ctxt.Out.View(sect.Reloff)
@@ -207,9 +207,7 @@ func relocSectFn(ctxt *Link, relocSect func(*Link, *OutBuf, *sym.Section, []load
 		}
 	} else {
 		// We cannot Mmap. Write sequentially.
-		fn = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
-			relocSect(ctxt, ctxt.Out, sect, syms)
-		}
+		fn = func { ctxt, sect, syms -> relocSect(ctxt, ctxt.Out, sect, syms) }
 	}
 	return fn, &wg
 }

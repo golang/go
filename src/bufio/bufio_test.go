@@ -1462,7 +1462,7 @@ func TestWriterReadFromWithBufferedData(t *testing.T) {
 
 func TestReadZero(t *testing.T) {
 	for _, size := range []int{100, 2} {
-		t.Run(fmt.Sprintf("bufsize=%d", size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("bufsize=%d", size), func { t ->
 			r := io.MultiReader(strings.NewReader("abc"), &emptyThenNonEmptyReader{r: strings.NewReader("def"), n: 1})
 			br := NewReaderSize(r, size)
 			want := func(s string, wantErr error) {

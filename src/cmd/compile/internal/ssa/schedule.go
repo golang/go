@@ -260,9 +260,7 @@ func schedule(f *Func) {
 		}
 
 		// Sort all the edges by source Value ID.
-		sort.Slice(edges, func(i, j int) bool {
-			return edges[i].x.ID < edges[j].x.ID
-		})
+		sort.Slice(edges, func { i, j -> edges[i].x.ID < edges[j].x.ID })
 		// Compute inEdges for values in this block.
 		for _, e := range edges {
 			inEdges[e.y.ID]++
@@ -287,12 +285,8 @@ func schedule(f *Func) {
 			b.Values = append(b.Values, v)
 
 			// Find all the scheduling edges out from this value.
-			i := sort.Search(len(edges), func(i int) bool {
-				return edges[i].x.ID >= v.ID
-			})
-			j := sort.Search(len(edges), func(i int) bool {
-				return edges[i].x.ID > v.ID
-			})
+			i := sort.Search(len(edges), func { i -> edges[i].x.ID >= v.ID })
+			j := sort.Search(len(edges), func { i -> edges[i].x.ID > v.ID })
 			// Decrement inEdges for each target of edges from v.
 			for _, e := range edges[i:j] {
 				inEdges[e.y.ID]--

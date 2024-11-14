@@ -183,7 +183,7 @@ func CommandContext(t testing.TB, ctx context.Context, name string, args ...stri
 	}
 
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Cancel = func() error {
+	cmd.Cancel = func {
 		if cancelCtx != nil && ctx.Err() == context.DeadlineExceeded {
 			// The command timed out due to running too close to the test's deadline.
 			// There is no way the test did that intentionally — it's too close to the

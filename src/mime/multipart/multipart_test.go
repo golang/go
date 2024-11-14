@@ -429,9 +429,7 @@ func TestLineContinuation(t *testing.T) {
 
 func TestQuotedPrintableEncoding(t *testing.T) {
 	for _, cte := range []string{"quoted-printable", "Quoted-PRINTABLE"} {
-		t.Run(cte, func(t *testing.T) {
-			testQuotedPrintableEncoding(t, cte)
-		})
+		t.Run(cte, func { t -> testQuotedPrintableEncoding(t, cte) })
 	}
 }
 

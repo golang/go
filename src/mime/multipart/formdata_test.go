@@ -290,7 +290,7 @@ func TestReadForm_MetadataTooLarge(t *testing.T) {
 			}
 		},
 	}} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			var buf bytes.Buffer
 			fw := NewWriter(&buf)
 			test.f(fw)
@@ -416,7 +416,7 @@ func TestReadFormLimits(t *testing.T) {
 		if test.godebug != "" {
 			name += fmt.Sprintf("/godebug=%v", test.godebug)
 		}
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			if test.godebug != "" {
 				t.Setenv("GODEBUG", test.godebug)
 			}
@@ -466,7 +466,7 @@ func TestReadFormEndlessHeaderLine(t *testing.T) {
 		name:   "continuation",
 		prefix: "X-Header: foo\r\n  ",
 	}} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			const eol = "\r\n"
 			s := `--boundary` + eol
 			s += `Content-Disposition: form-data; name="a"` + eol
@@ -515,7 +515,7 @@ func BenchmarkReadForm(b *testing.B) {
 			}
 		},
 	}} {
-		b.Run(test.name, func(b *testing.B) {
+		b.Run(test.name, func { b ->
 			for _, maxMemory := range []int64{
 				0,
 				1 << 20,
@@ -526,7 +526,7 @@ func BenchmarkReadForm(b *testing.B) {
 				if err := fw.Close(); err != nil {
 					b.Fatal(err)
 				}
-				b.Run(fmt.Sprintf("maxMemory=%v", maxMemory), func(b *testing.B) {
+				b.Run(fmt.Sprintf("maxMemory=%v", maxMemory), func { b ->
 					b.ReportAllocs()
 					for i := 0; i < b.N; i++ {
 						fr := NewReader(bytes.NewReader(buf.Bytes()), fw.Boundary())
@@ -536,7 +536,6 @@ func BenchmarkReadForm(b *testing.B) {
 						}
 						form.RemoveAll()
 					}
-
 				})
 			}
 		})

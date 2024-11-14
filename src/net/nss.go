@@ -220,7 +220,7 @@ func parseNSSConf(f *file) *nssConf {
 
 // parses "foo=bar !foo=bar"
 func parseCriteria(x string) (c []nssCriterion, err error) {
-	err = foreachField(x, func(f string) error {
+	err = foreachField(x, func { f ->
 		not := false
 		if len(f) > 0 && f[0] == '!' {
 			not = true

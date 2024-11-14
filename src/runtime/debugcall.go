@@ -160,7 +160,7 @@ func debugCallWrap(dispatch uintptr) {
 	})
 
 	// Switch to the new goroutine.
-	mcall(func(gp *g) {
+	mcall(func { gp ->
 		// Get newg.
 		newg := gp.schedlink.ptr()
 		gp.schedlink = 0
@@ -218,7 +218,7 @@ func debugCallWrap1() {
 
 	// Resume the caller goroutine.
 	getg().schedlink.set(callingG)
-	mcall(func(gp *g) {
+	mcall(func { gp ->
 		callingG := gp.schedlink.ptr()
 		gp.schedlink = 0
 

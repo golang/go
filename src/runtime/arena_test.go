@@ -41,7 +41,7 @@ func TestUserArena(t *testing.T) {
 	defer GOMAXPROCS(GOMAXPROCS(2))
 
 	// Start a subtest so that we can clean up after any parallel tests within.
-	t.Run("Alloc", func(t *testing.T) {
+	t.Run("Alloc", func { t ->
 		ss := &smallScalar{5}
 		runSubTestUserArenaNew(t, ss, true)
 
@@ -109,7 +109,7 @@ func TestUserArena(t *testing.T) {
 		runSubTestUserArenaSlice(t, sps, false)
 
 		// Test zero-sized types.
-		t.Run("struct{}", func(t *testing.T) {
+		t.Run("struct{}", func { t ->
 			arena := NewUserArena()
 			var x any
 			x = (*struct{})(nil)
@@ -119,7 +119,7 @@ func TestUserArena(t *testing.T) {
 			}
 			arena.Free()
 		})
-		t.Run("[]struct{}", func(t *testing.T) {
+		t.Run("[]struct{}", func { t ->
 			arena := NewUserArena()
 			var sl []struct{}
 			arena.Slice(&sl, 10)
@@ -128,7 +128,7 @@ func TestUserArena(t *testing.T) {
 			}
 			arena.Free()
 		})
-		t.Run("[]int (cap 0)", func(t *testing.T) {
+		t.Run("[]int (cap 0)", func { t ->
 			arena := NewUserArena()
 			var sl []int
 			arena.Slice(&sl, 0)
@@ -148,7 +148,7 @@ func TestUserArena(t *testing.T) {
 }
 
 func runSubTestUserArenaNew[S comparable](t *testing.T, value *S, parallel bool) {
-	t.Run(reflect.TypeOf(value).Elem().Name(), func(t *testing.T) {
+	t.Run(reflect.TypeOf(value).Elem().Name(), func { t ->
 		if parallel {
 			t.Parallel()
 		}
@@ -187,7 +187,7 @@ func runSubTestUserArenaNew[S comparable](t *testing.T, value *S, parallel bool)
 }
 
 func runSubTestUserArenaSlice[S comparable](t *testing.T, value []S, parallel bool) {
-	t.Run("[]"+reflect.TypeOf(value).Elem().Name(), func(t *testing.T) {
+	t.Run("[]"+reflect.TypeOf(value).Elem().Name(), func { t ->
 		if parallel {
 			t.Parallel()
 		}
@@ -228,12 +228,8 @@ func runSubTestUserArenaSlice[S comparable](t *testing.T, value []S, parallel bo
 }
 
 func TestUserArenaLiveness(t *testing.T) {
-	t.Run("Free", func(t *testing.T) {
-		testUserArenaLiveness(t, false)
-	})
-	t.Run("Finalizer", func(t *testing.T) {
-		testUserArenaLiveness(t, true)
-	})
+	t.Run("Free", func { t -> testUserArenaLiveness(t, false) })
+	t.Run("Finalizer", func { t -> testUserArenaLiveness(t, true) })
 }
 
 func testUserArenaLiveness(t *testing.T, useArenaFinalizer bool) {
@@ -263,7 +259,7 @@ func testUserArenaLiveness(t *testing.T, useArenaFinalizer bool) {
 	var safeToFinalize atomic.Bool
 	var finalized atomic.Bool
 	v.C = new(smallPointer)
-	SetFinalizer(v.C, func(_ *smallPointer) {
+	SetFinalizer(v.C, func { _ ->
 		if !safeToFinalize.Load() {
 			t.Error("finalized arena-referenced object unexpectedly")
 		}
@@ -328,9 +324,7 @@ func TestUserArenaClearsPointerBits(t *testing.T) {
 	x := new([8 << 20]byte)
 	xp := uintptr(unsafe.Pointer(&x[124]))
 	var finalized atomic.Bool
-	SetFinalizer(x, func(_ *[8 << 20]byte) {
-		finalized.Store(true)
-	})
+	SetFinalizer(x, func { _ -> finalized.Store(true) })
 
 	// Write three chunks worth of pointer data. Three gives us a
 	// high likelihood that when we write 2 later, we'll get the behavior

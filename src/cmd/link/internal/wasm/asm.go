@@ -77,7 +77,7 @@ func readWasmImport(ldr *loader.Loader, s loader.Sym) obj.WasmImport {
 		return
 	}
 
-	readByte := func() byte {
+	readByte := func {
 		if len(data) == 0 {
 			reportError(io.EOF)
 		}
@@ -87,7 +87,7 @@ func readWasmImport(ldr *loader.Loader, s loader.Sym) obj.WasmImport {
 		return b
 	}
 
-	readString := func() string {
+	readString := func {
 		n := readUint32()
 
 		s := string(data[:n])

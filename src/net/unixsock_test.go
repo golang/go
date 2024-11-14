@@ -389,7 +389,7 @@ func TestUnixUnlink(t *testing.T) {
 	}
 
 	// Listener should remove on close.
-	t.Run("Listen", func(t *testing.T) {
+	t.Run("Listen", func { t ->
 		l := listen(t)
 		checkExists(t, "after Listen")
 		l.Close()
@@ -397,7 +397,7 @@ func TestUnixUnlink(t *testing.T) {
 	})
 
 	// FileListener should not.
-	t.Run("FileListener", func(t *testing.T) {
+	t.Run("FileListener", func { t ->
 		l := listen(t)
 		f, _ := l.File()
 		l1, _ := FileListener(f)
@@ -411,7 +411,7 @@ func TestUnixUnlink(t *testing.T) {
 	})
 
 	// Only first call to l.Close should remove.
-	t.Run("SecondClose", func(t *testing.T) {
+	t.Run("SecondClose", func { t ->
 		l := listen(t)
 		checkExists(t, "after Listen")
 		l.Close()
@@ -427,7 +427,7 @@ func TestUnixUnlink(t *testing.T) {
 
 	// SetUnlinkOnClose should do what it says.
 
-	t.Run("Listen/SetUnlinkOnClose(true)", func(t *testing.T) {
+	t.Run("Listen/SetUnlinkOnClose(true)", func { t ->
 		l := listen(t)
 		checkExists(t, "after Listen")
 		l.SetUnlinkOnClose(true)
@@ -435,7 +435,7 @@ func TestUnixUnlink(t *testing.T) {
 		checkNotExists(t, "after Listener close")
 	})
 
-	t.Run("Listen/SetUnlinkOnClose(false)", func(t *testing.T) {
+	t.Run("Listen/SetUnlinkOnClose(false)", func { t ->
 		l := listen(t)
 		checkExists(t, "after Listen")
 		l.SetUnlinkOnClose(false)
@@ -444,7 +444,7 @@ func TestUnixUnlink(t *testing.T) {
 		os.Remove(name)
 	})
 
-	t.Run("FileListener/SetUnlinkOnClose(true)", func(t *testing.T) {
+	t.Run("FileListener/SetUnlinkOnClose(true)", func { t ->
 		l := listen(t)
 		f, _ := l.File()
 		l1, _ := FileListener(f)
@@ -457,7 +457,7 @@ func TestUnixUnlink(t *testing.T) {
 		l.Close()
 	})
 
-	t.Run("FileListener/SetUnlinkOnClose(false)", func(t *testing.T) {
+	t.Run("FileListener/SetUnlinkOnClose(false)", func { t ->
 		l := listen(t)
 		f, _ := l.File()
 		l1, _ := FileListener(f)

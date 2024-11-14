@@ -51,9 +51,9 @@ type Inst = G[int]
 		{"user instance", UserInst},
 	}
 
-	b.Run("Underlying", func(b *testing.B) {
+	b.Run("Underlying", func { b ->
 		for _, test := range tests {
-			b.Run(test.name, func(b *testing.B) {
+			b.Run(test.name, func { b ->
 				// Access underlying once, to trigger any lazy calculation.
 				_ = test.typ.Underlying()
 				b.ResetTimer()
@@ -64,9 +64,9 @@ type Inst = G[int]
 		}
 	})
 
-	b.Run("NewMethodSet", func(b *testing.B) {
+	b.Run("NewMethodSet", func { b ->
 		for _, test := range tests {
-			b.Run(test.name, func(b *testing.B) {
+			b.Run(test.name, func { b ->
 				// Access underlying once, to trigger any lazy calculation.
 				_ = NewMethodSet(test.typ)
 				b.ResetTimer()

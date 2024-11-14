@@ -67,25 +67,25 @@ func TestRoundTrip(t *testing.T) {
 		NamedEdgeMap: NamedEdgeMap{
 			ByWeight: []NamedCallEdge{
 				{
-					CallerName: "a",
-					CalleeName: "b",
+					CallerName:     "a",
+					CalleeName:     "b",
 					CallSiteOffset: 14,
 				},
 				{
-					CallerName: "c",
-					CalleeName: "d",
+					CallerName:     "c",
+					CalleeName:     "d",
 					CallSiteOffset: 15,
 				},
 			},
 			Weight: map[NamedCallEdge]int64{
 				{
-					CallerName: "a",
-					CalleeName: "b",
+					CallerName:     "a",
+					CalleeName:     "b",
 					CallSiteOffset: 14,
 				}: 2,
 				{
-					CallerName: "c",
-					CalleeName: "d",
+					CallerName:     "c",
+					CalleeName:     "d",
 					CallSiteOffset: 15,
 				}: 1,
 			},
@@ -99,7 +99,7 @@ func constructFuzzProfile(t *testing.T, b []byte) *Profile {
 	// The fuzzer can't construct an arbitrary structure, so instead we
 	// consume bytes from b to act as our edge data.
 	r := bytes.NewReader(b)
-	consumeString := func() (string, bool) {
+	consumeString := func {
 		// First byte: how many bytes to read for this string? We only
 		// use a byte to avoid making humongous strings.
 		length, err := r.ReadByte()
@@ -118,7 +118,7 @@ func constructFuzzProfile(t *testing.T, b []byte) *Profile {
 
 		return string(b), true
 	}
-	consumeInt64 := func() (int64, bool) {
+	consumeInt64 := func {
 		b := make([]byte, 8)
 		_, err := r.Read(b)
 		if err != nil {
@@ -157,8 +157,8 @@ func constructFuzzProfile(t *testing.T, b []byte) *Profile {
 		}
 
 		edge := NamedCallEdge{
-			CallerName: caller,
-			CalleeName: callee,
+			CallerName:     caller,
+			CalleeName:     callee,
 			CallSiteOffset: int(line),
 		}
 
@@ -183,7 +183,7 @@ func constructFuzzProfile(t *testing.T, b []byte) *Profile {
 func FuzzRoundTrip(f *testing.F) {
 	f.Add([]byte("")) // empty profile
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		d := constructFuzzProfile(t, b)
 		testRoundTrip(t, d)
 	})

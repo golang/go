@@ -1868,7 +1868,7 @@ func TestConstraintCases(t *testing.T) {
 	}
 
 	for i, test := range nameConstraintsTests {
-		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+		t.Run(fmt.Sprintf("#%d", i), func { t ->
 			rootPool := NewCertPool()
 			rootKey := privateKeys.Get().(*ecdsa.PrivateKey)
 			rootName := "Root " + strconv.Itoa(i)

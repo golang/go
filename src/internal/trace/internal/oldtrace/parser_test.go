@@ -103,7 +103,7 @@ func TestBuckets(t *testing.T) {
 	}
 
 	var n int
-	evs.All()(func(ev *Event) bool {
+	evs.All()(func { ev ->
 		n++
 		return true
 	})

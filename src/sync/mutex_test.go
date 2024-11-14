@@ -233,7 +233,7 @@ func BenchmarkMutexUncontended(b *testing.B) {
 		Mutex
 		pad [128]uint8
 	}
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var mu PaddedMutex
 		for pb.Next() {
 			mu.Lock()
@@ -247,7 +247,7 @@ func benchmarkMutex(b *testing.B, slack, work bool) {
 	if slack {
 		b.SetParallelism(10)
 	}
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		foo := 0
 		for pb.Next() {
 			mu.Lock()
@@ -289,7 +289,7 @@ func BenchmarkMutexNoSpin(b *testing.B) {
 	var m Mutex
 	var acc0, acc1 uint64
 	b.SetParallelism(4)
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		c := make(chan bool)
 		var data [4 << 10]uint64
 		for i := 0; pb.Next(); i++ {
@@ -320,7 +320,7 @@ func BenchmarkMutexSpin(b *testing.B) {
 	// unnecessary rescheduling is penalized by cache misses.
 	var m Mutex
 	var acc0, acc1 uint64
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var data [16 << 10]uint64
 		for i := 0; pb.Next(); i++ {
 			m.Lock()

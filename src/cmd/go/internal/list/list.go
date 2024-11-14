@@ -449,7 +449,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	var do func(x any)
 	if listJson {
-		do = func(x any) {
+		do = func { x ->
 			if !listJsonFields.needAll() {
 				//  Set x to a copy of itself with all non-requested fields cleared.
 				v := reflect.New(reflect.TypeOf(x).Elem()).Elem() // do is always called with a non-nil pointer.
@@ -471,7 +471,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	} else {
 		var cachedCtxt *Context
-		context := func() *Context {
+		context := func {
 			if cachedCtxt == nil {
 				cachedCtxt = newContext(&cfg.BuildContext)
 			}
@@ -486,7 +486,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if err != nil {
 			base.Fatalf("%s", err)
 		}
-		do = func(x any) {
+		do = func { x ->
 			if err := tmpl.Execute(out, x); err != nil {
 				out.Flush()
 				base.Fatalf("%s", err)
@@ -952,7 +952,7 @@ func collectDepsErrors(p *load.Package) {
 	// Sort packages by the package on the top of the stack, which should be
 	// the package the error was produced for. Each package can have at most
 	// one error set on it.
-	sort.Slice(p.DepsErrors, func(i, j int) bool {
+	sort.Slice(p.DepsErrors, func { i, j ->
 		stki, stkj := p.DepsErrors[i].ImportStack, p.DepsErrors[j].ImportStack
 		// Some packages are missing import stacks. To ensure deterministic
 		// sort order compare two errors that are missing import stacks by

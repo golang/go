@@ -406,7 +406,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		// Look for the next event for the same G to determine if the syscall
 		// blocked.
 		blocked := false
-		it.events.All()(func(nev *oldtrace.Event) bool {
+		it.events.All()(func { nev ->
 			if nev.G != ev.G {
 				return true
 			}

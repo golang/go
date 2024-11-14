@@ -264,9 +264,7 @@ func GlobalLinksym(n *ir.Name) *obj.LSym {
 }
 
 func WriteFuncSyms() {
-	sort.Slice(funcsyms, func(i, j int) bool {
-		return funcsyms[i].Linksym().Name < funcsyms[j].Linksym().Name
-	})
+	sort.Slice(funcsyms, func { i, j -> funcsyms[i].Linksym().Name < funcsyms[j].Linksym().Name })
 	for _, nam := range funcsyms {
 		s := nam.Sym()
 		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()

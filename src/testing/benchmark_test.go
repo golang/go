@@ -73,11 +73,11 @@ func TestRunParallel(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	testing.Benchmark(func(b *testing.B) {
+	testing.Benchmark(func { b ->
 		procs := uint32(0)
 		iters := uint64(0)
 		b.SetParallelism(3)
-		b.RunParallel(func(pb *testing.PB) {
+		b.RunParallel(func { pb ->
 			atomic.AddUint32(&procs, 1)
 			for pb.Next() {
 				atomic.AddUint64(&iters, 1)
@@ -93,8 +93,8 @@ func TestRunParallel(t *testing.T) {
 }
 
 func TestRunParallelFail(t *testing.T) {
-	testing.Benchmark(func(b *testing.B) {
-		b.RunParallel(func(pb *testing.PB) {
+	testing.Benchmark(func { b ->
+		b.RunParallel(func { pb ->
 			// The function must be able to log/abort
 			// w/o crashing/deadlocking the whole benchmark.
 			b.Log("log")
@@ -104,36 +104,32 @@ func TestRunParallelFail(t *testing.T) {
 }
 
 func TestRunParallelFatal(t *testing.T) {
-	testing.Benchmark(func(b *testing.B) {
-		b.RunParallel(func(pb *testing.PB) {
-			for pb.Next() {
-				if b.N > 1 {
-					b.Fatal("error")
-				}
+	testing.Benchmark(func { b ->
+		b.RunParallel(func { pb -> for pb.Next() {
+			if b.N > 1 {
+				b.Fatal("error")
 			}
-		})
+		} })
 	})
 }
 
 func TestRunParallelSkipNow(t *testing.T) {
-	testing.Benchmark(func(b *testing.B) {
-		b.RunParallel(func(pb *testing.PB) {
-			for pb.Next() {
-				if b.N > 1 {
-					b.SkipNow()
-				}
+	testing.Benchmark(func { b ->
+		b.RunParallel(func { pb -> for pb.Next() {
+			if b.N > 1 {
+				b.SkipNow()
 			}
-		})
+		} })
 	})
 }
 
 func ExampleB_RunParallel() {
 	// Parallel benchmark for text/template.Template.Execute on a single object.
-	testing.Benchmark(func(b *testing.B) {
+	testing.Benchmark(func { b ->
 		templ := template.Must(template.New("test").Parse("Hello, {{.}}!"))
 		// RunParallel will create GOMAXPROCS goroutines
 		// and distribute work among them.
-		b.RunParallel(func(pb *testing.PB) {
+		b.RunParallel(func { pb ->
 			// Each goroutine has its own bytes.Buffer.
 			var buf bytes.Buffer
 			for pb.Next() {
@@ -146,7 +142,7 @@ func ExampleB_RunParallel() {
 }
 
 func TestReportMetric(t *testing.T) {
-	res := testing.Benchmark(func(b *testing.B) {
+	res := testing.Benchmark(func { b ->
 		b.ReportMetric(12345, "ns/op")
 		b.ReportMetric(0.2, "frobs/op")
 	})
@@ -165,11 +161,11 @@ func TestReportMetric(t *testing.T) {
 func ExampleB_ReportMetric() {
 	// This reports a custom benchmark metric relevant to a
 	// specific algorithm (in this case, sorting).
-	testing.Benchmark(func(b *testing.B) {
+	testing.Benchmark(func { b ->
 		var compares int64
 		for i := 0; i < b.N; i++ {
 			s := []int{5, 4, 3, 2, 1}
-			slices.SortFunc(s, func(a, b int) int {
+			slices.SortFunc(s, func { a, b ->
 				compares++
 				return cmp.Compare(a, b)
 			})
@@ -186,12 +182,12 @@ func ExampleB_ReportMetric() {
 func ExampleB_ReportMetric_parallel() {
 	// This reports a custom benchmark metric relevant to a
 	// specific algorithm (in this case, sorting) in parallel.
-	testing.Benchmark(func(b *testing.B) {
+	testing.Benchmark(func { b ->
 		var compares atomic.Int64
-		b.RunParallel(func(pb *testing.PB) {
+		b.RunParallel(func { pb ->
 			for pb.Next() {
 				s := []int{5, 4, 3, 2, 1}
-				slices.SortFunc(s, func(a, b int) int {
+				slices.SortFunc(s, func { a, b ->
 					// Because RunParallel runs the function many
 					// times in parallel, we must increment the
 					// counter atomically to avoid racing writes.

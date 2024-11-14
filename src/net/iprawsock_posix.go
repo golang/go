@@ -124,9 +124,7 @@ func (sd *sysDialer) dialIP(ctx context.Context, laddr, raddr *IPAddr) (*IPConn,
 	}
 	ctrlCtxFn := sd.Dialer.ControlContext
 	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
-		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
-			return sd.Dialer.Control(network, address, c)
-		}
+		ctrlCtxFn = func { ctx, network, address, c -> sd.Dialer.Control(network, address, c) }
 	}
 	fd, err := internetSocket(ctx, network, laddr, raddr, syscall.SOCK_RAW, proto, "dial", ctrlCtxFn)
 	if err != nil {
@@ -147,9 +145,7 @@ func (sl *sysListener) listenIP(ctx context.Context, laddr *IPAddr) (*IPConn, er
 	}
 	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
 	if sl.ListenConfig.Control != nil {
-		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
-			return sl.ListenConfig.Control(network, address, c)
-		}
+		ctrlCtxFn = func { ctx, network, address, c -> sl.ListenConfig.Control(network, address, c) }
 	}
 	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_RAW, proto, "listen", ctrlCtxFn)
 	if err != nil {

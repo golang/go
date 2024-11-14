@@ -103,7 +103,7 @@ func createNamedEdgeMap(g *profile.Graph) (edgeMap NamedEdgeMap, totalWeight int
 }
 
 func sortByWeight(edges []NamedCallEdge, weight map[NamedCallEdge]int64) {
-	sort.Slice(edges, func(i, j int) bool {
+	sort.Slice(edges, func { i, j ->
 		ei, ej := edges[i], edges[j]
 		if wi, wj := weight[ei], weight[ej]; wi != wj {
 			return wi > wj // want larger weight first

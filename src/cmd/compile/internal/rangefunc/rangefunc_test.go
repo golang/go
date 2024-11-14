@@ -184,7 +184,7 @@ const MISSING_PANIC = 4 // overload "READY" for panic call
 func Check2[U, V any](forall Seq2[U, V]) Seq2[U, V] {
 	return func(body func(U, V) bool) {
 		state := READY
-		forall(func(u U, v V) bool {
+		forall(func { u, v ->
 			if state != READY {
 				panic(fail[state])
 			}
@@ -207,7 +207,7 @@ func Check2[U, V any](forall Seq2[U, V]) Seq2[U, V] {
 func Check[U any](forall Seq[U]) Seq[U] {
 	return func(body func(U) bool) {
 		state := READY
-		forall(func(u U) bool {
+		forall(func { u ->
 			if state != READY {
 				panic(fail[state])
 			}
@@ -1878,7 +1878,7 @@ func once[T any](x T) Seq[T] {
 // continue, or return).
 func terrify[T any](s string, forall Seq[T]) Seq[T] {
 	return func(yield func(T) bool) {
-		forall(func(v T) bool {
+		forall(func { v ->
 			if !yield(v) {
 				panic(s)
 			}
@@ -2063,7 +2063,7 @@ func TestRunBodyAfterPanicCheck(t *testing.T) {
 }
 
 func TestTwoLevelReturn(t *testing.T) {
-	f := func() int {
+	f := func {
 		for a := range twice(0, 1) {
 			for b := range twice(0, 2) {
 				x := a + b
@@ -2082,7 +2082,7 @@ func TestTwoLevelReturn(t *testing.T) {
 }
 
 func TestTwoLevelReturnCheck(t *testing.T) {
-	f := func() int {
+	f := func {
 		for a := range Check(twice(0, 1)) {
 			for b := range Check(twice(0, 2)) {
 				x := a + b

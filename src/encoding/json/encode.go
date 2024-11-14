@@ -354,7 +354,7 @@ func typeEncoder(t reflect.Type) encoderFunc {
 		f  encoderFunc
 	)
 	wg.Add(1)
-	fi, loaded := encoderCache.LoadOrStore(t, encoderFunc(func(e *encodeState, v reflect.Value, opts encOpts) {
+	fi, loaded := encoderCache.LoadOrStore(t, encoderFunc(func { e, v, opts ->
 		wg.Wait()
 		f(e, v, opts)
 	}))
@@ -759,9 +759,7 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		}
 		sv[i].v = mi.Value()
 	}
-	slices.SortFunc(sv, func(i, j reflectWithString) int {
-		return strings.Compare(i.ks, j.ks)
-	})
+	slices.SortFunc(sv, func { i, j -> strings.Compare(i.ks, j.ks) })
 
 	for i, kv := range sv {
 		if i > 0 {
@@ -1183,7 +1181,7 @@ func typeFields(t reflect.Type) structFields {
 		}
 	}
 
-	slices.SortFunc(fields, func(a, b field) int {
+	slices.SortFunc(fields, func { a, b ->
 		// sort field by name, breaking ties with depth, then
 		// breaking ties with "name came from json tag", then
 		// breaking ties with index sequence.
@@ -1231,9 +1229,7 @@ func typeFields(t reflect.Type) structFields {
 	}
 
 	fields = out
-	slices.SortFunc(fields, func(i, j field) int {
-		return slices.Compare(i.index, j.index)
-	})
+	slices.SortFunc(fields, func { i, j -> slices.Compare(i.index, j.index) })
 
 	for i := range fields {
 		f := &fields[i]

@@ -119,9 +119,7 @@ func OpenDir(telemetryDir string) {
 //
 //	For instance, CountFlags("gopls/flag:", *flag.CommandLine)
 func CountFlags(prefix string, fs flag.FlagSet) {
-	fs.Visit(func(f *flag.Flag) {
-		New(prefix + f.Name).Inc()
-	})
+	fs.Visit(func { f -> New(prefix + f.Name).Inc() })
 }
 
 // CountCommandLineFlags creates a counter for every flag

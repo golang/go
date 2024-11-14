@@ -14,7 +14,7 @@ import (
 
 func BenchmarkBinarySearchFloats(b *testing.B) {
 	for _, size := range []int{16, 32, 64, 128, 512, 1024} {
-		b.Run(fmt.Sprintf("Size%d", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("Size%d", size), func { b ->
 			floats := make([]float64, size)
 			for i := range floats {
 				floats[i] = float64(i)
@@ -36,7 +36,7 @@ type myStruct struct {
 
 func BenchmarkBinarySearchFuncStruct(b *testing.B) {
 	for _, size := range []int{16, 32, 64, 128, 512, 1024} {
-		b.Run(fmt.Sprintf("Size%d", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("Size%d", size), func { b ->
 			structs := make([]*myStruct, size)
 			for i := range structs {
 				structs[i] = &myStruct{n: i}
@@ -54,7 +54,7 @@ func BenchmarkBinarySearchFuncStruct(b *testing.B) {
 
 func BenchmarkSortFuncStruct(b *testing.B) {
 	for _, size := range []int{16, 32, 64, 128, 512, 1024} {
-		b.Run(fmt.Sprintf("Size%d", size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("Size%d", size), func { b ->
 			structs := make([]*myStruct, size)
 			for i := range structs {
 				structs[i] = &myStruct{
@@ -73,7 +73,7 @@ func BenchmarkSortFuncStruct(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				// Sort the slice twice because slices.SortFunc modifies the slice in place.
-				slices.SortFunc(structs, func(a, b *myStruct) int { return cmpFunc(b, a) })
+				slices.SortFunc(structs, func { a, b -> cmpFunc(b, a) })
 				slices.SortFunc(structs, cmpFunc)
 			}
 		})

@@ -934,21 +934,21 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 		case *bytes.Buffer:
 			req.ContentLength = int64(v.Len())
 			buf := v.Bytes()
-			req.GetBody = func() (io.ReadCloser, error) {
+			req.GetBody = func {
 				r := bytes.NewReader(buf)
 				return io.NopCloser(r), nil
 			}
 		case *bytes.Reader:
 			req.ContentLength = int64(v.Len())
 			snapshot := *v
-			req.GetBody = func() (io.ReadCloser, error) {
+			req.GetBody = func {
 				r := snapshot
 				return io.NopCloser(&r), nil
 			}
 		case *strings.Reader:
 			req.ContentLength = int64(v.Len())
 			snapshot := *v
-			req.GetBody = func() (io.ReadCloser, error) {
+			req.GetBody = func {
 				r := snapshot
 				return io.NopCloser(&r), nil
 			}
@@ -969,7 +969,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 		// variable to mean explicitly zero.
 		if req.GetBody != nil && req.ContentLength == 0 {
 			req.Body = NoBody
-			req.GetBody = func() (io.ReadCloser, error) { return NoBody, nil }
+			req.GetBody = func { NoBody, nil }
 		}
 	}
 

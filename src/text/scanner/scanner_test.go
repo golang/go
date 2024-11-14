@@ -293,7 +293,7 @@ func TestScan(t *testing.T) {
 func TestInvalidExponent(t *testing.T) {
 	const src = "1.5e 1.5E 1e+ 1e- 1.5z"
 	s := new(Scanner).Init(strings.NewReader(src))
-	s.Error = func(s *Scanner, msg string) {
+	s.Error = func { s, msg ->
 		const want = "exponent has no digits"
 		if msg != want {
 			t.Errorf("%s: got error %q; want %q", s.TokenText(), msg, want)
@@ -392,9 +392,7 @@ func TestScanCustomIdent(t *testing.T) {
 	// ident = ( 'a' | 'b' ) { digit } .
 	// digit = '0' .. '3' .
 	// with a maximum length of 4
-	s.IsIdentRune = func(ch rune, i int) bool {
-		return i == 0 && (ch == 'a' || ch == 'b') || 0 < i && i < 4 && '0' <= ch && ch <= '3'
-	}
+	s.IsIdentRune = func { ch, i -> i == 0 && (ch == 'a' || ch == 'b') || 0 < i && i < 4 && '0' <= ch && ch <= '3' }
 	checkTok(t, s, 1, s.Scan(), 'f', "f")
 	checkTok(t, s, 1, s.Scan(), Ident, "a")
 	checkTok(t, s, 1, s.Scan(), Ident, "a")
@@ -455,7 +453,7 @@ func TestScanWhitespace(t *testing.T) {
 func testError(t *testing.T, src, pos, msg string, tok rune) {
 	s := new(Scanner).Init(strings.NewReader(src))
 	errorCalled := false
-	s.Error = func(s *Scanner, m string) {
+	s.Error = func { s, m ->
 		if !errorCalled {
 			// only look at first error
 			if p := s.Pos().String(); p != pos {
@@ -527,7 +525,7 @@ func (errReader) Read(b []byte) (int, error) {
 func TestIOError(t *testing.T) {
 	s := new(Scanner).Init(errReader{})
 	errorCalled := false
-	s.Error = func(s *Scanner, msg string) {
+	s.Error = func { s, msg ->
 		if !errorCalled {
 			if want := io.ErrNoProgress.Error(); msg != want {
 				t.Errorf("msg = %q, want %q", msg, want)
@@ -701,7 +699,7 @@ func TestScanEOFHandling(t *testing.T) {
 
 func TestIssue29723(t *testing.T) {
 	s := new(Scanner).Init(strings.NewReader(`x "`))
-	s.Error = func(s *Scanner, _ string) {
+	s.Error = func { s, _ ->
 		got := s.TokenText() // this call shouldn't panic
 		const want = `"`
 		if got != want {
@@ -848,11 +846,9 @@ func TestNumbers(t *testing.T) {
 	} {
 		s := new(Scanner).Init(strings.NewReader(test.src))
 		var err string
-		s.Error = func(s *Scanner, msg string) {
-			if err == "" {
-				err = msg
-			}
-		}
+		s.Error = func { s, msg -> if err == "" {
+			err = msg
+		} }
 
 		for i, want := range strings.Split(test.tokens, " ") {
 			err = ""
@@ -917,7 +913,7 @@ func extractInts(t string, mode uint) (res string) {
 func TestIssue50909(t *testing.T) {
 	var s Scanner
 	s.Init(strings.NewReader("hello \n\nworld\n!\n"))
-	s.IsIdentRune = func(ch rune, _ int) bool { return ch != '\n' }
+	s.IsIdentRune = func { ch, _ -> ch != '\n' }
 
 	r := ""
 	n := 0

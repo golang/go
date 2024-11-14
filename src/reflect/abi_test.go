@@ -166,7 +166,7 @@ func TestReflectCallABI(t *testing.T) {
 	r := rand.New(rand.NewSource(genValueRandSeed))
 	for _, fn := range abiCallTestCases {
 		fn := reflect.ValueOf(fn)
-		t.Run(runtime.FuncForPC(fn.Pointer()).Name(), func(t *testing.T) {
+		t.Run(runtime.FuncForPC(fn.Pointer()).Name(), func { t ->
 			typ := fn.Type()
 			if typ.Kind() != reflect.Func {
 				t.Fatalf("test case is not a function, has type: %s", typ.String())
@@ -211,9 +211,9 @@ func TestReflectMakeFuncCallABI(t *testing.T) {
 		fnTyp := reflect.TypeOf(callFn).In(0)
 		fn := reflect.MakeFunc(fnTyp, makeFuncHandler)
 		callFn := reflect.ValueOf(callFn)
-		t.Run(runtime.FuncForPC(callFn.Pointer()).Name(), func(t *testing.T) {
+		t.Run(runtime.FuncForPC(callFn.Pointer()).Name(), func { t ->
 			args := []reflect.Value{fn}
-			for i := 0; i < fnTyp.NumIn()-1; /* last one is magic type */ i++ {
+			for i := 0; i < fnTyp.NumIn()-1; /* last one is magic type */i++ {
 				args = append(args, genValue(t, fnTyp.In(i), r))
 			}
 			results := callFn.Call(args)
@@ -226,7 +226,7 @@ func TestReflectMakeFuncCallABI(t *testing.T) {
 			}
 		})
 	}
-	t.Run("OnlyPointerInRegisterGC", func(t *testing.T) {
+	t.Run("OnlyPointerInRegisterGC", func { t ->
 		// This test attempts to induce a failure wherein
 		// the last pointer to an object is passed via registers.
 		// If makeFuncStub doesn't successfully store the pointer
@@ -234,7 +234,7 @@ func TestReflectMakeFuncCallABI(t *testing.T) {
 		// freed and then the next GC should notice that an object
 		// was inexplicably revived.
 		var f func(b *uint64, _ MagicLastTypeNameForTestingRegisterABI) *uint64
-		mkfn := reflect.MakeFunc(reflect.TypeOf(f), func(args []reflect.Value) []reflect.Value {
+		mkfn := reflect.MakeFunc(reflect.TypeOf(f), func { args ->
 			*(args[0].Interface().(*uint64)) = 5
 			return args[:1]
 		})
@@ -965,7 +965,7 @@ func genValue(t *testing.T, typ reflect.Type, r *rand.Rand) reflect.Value {
 }
 
 func TestSignalingNaNArgument(t *testing.T) {
-	v := reflect.ValueOf(func(x float32) {
+	v := reflect.ValueOf(func { x ->
 		// make sure x is a signaling NaN.
 		u := math.Float32bits(x)
 		if u != snan {
@@ -976,9 +976,7 @@ func TestSignalingNaNArgument(t *testing.T) {
 }
 
 func TestSignalingNaNReturn(t *testing.T) {
-	v := reflect.ValueOf(func() float32 {
-		return math.Float32frombits(snan)
-	})
+	v := reflect.ValueOf(func { math.Float32frombits(snan) })
 	var x float32
 	reflect.ValueOf(&x).Elem().Set(v.Call(nil)[0])
 	// make sure x is a signaling NaN.

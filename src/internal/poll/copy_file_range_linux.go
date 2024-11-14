@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-var isKernelVersionGE53 = sync.OnceValue(func() bool {
+var isKernelVersionGE53 = sync.OnceValue(func {
 	major, minor := unix.KernelVersion()
 	// copy_file_range(2) is broken in various ways on kernels older than 5.3,
 	// see https://go.dev/issue/42400 and

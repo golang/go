@@ -39,7 +39,7 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 		return nil, ServerNotInstalledError{name: "hg"}
 	}
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func { w, req ->
 		// Mercurial has a CGI server implementation (called hgweb). In theory we
 		// could use that — however, assuming that hgweb is even installed, the
 		// configuration for hgweb varies by Python version (2 vs 3), and we would
@@ -57,7 +57,7 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 		cmd.Dir = dir
 		cmd.Env = append(slices.Clip(env), "PWD="+dir)
 
-		cmd.Cancel = func() error {
+		cmd.Cancel = func {
 			err := cmd.Process.Signal(os.Interrupt)
 			if err != nil && !errors.Is(err, os.ErrProcessDone) {
 				err = cmd.Process.Kill()

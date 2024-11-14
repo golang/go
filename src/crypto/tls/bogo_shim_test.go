@@ -431,7 +431,7 @@ func TestBogoSuite(t *testing.T) {
 
 	for name, result := range results.Tests {
 		// This is not really the intended way to do this... but... it works?
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			if result.Actual == "FAIL" && result.IsUnexpected {
 				t.Fatal(result.Error)
 			}
@@ -447,7 +447,7 @@ func TestBogoSuite(t *testing.T) {
 	if *bogoFilter == "" {
 		// Anything still in assertResults did not show up in the results, so we should fail
 		for name, expectedResult := range assertResults {
-			t.Run(name, func(t *testing.T) {
+			t.Run(name, func { t ->
 				t.Fatalf("expected test to run with result %s, but it was not present in the test results", expectedResult)
 			})
 		}

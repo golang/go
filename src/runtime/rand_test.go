@@ -23,19 +23,15 @@ func TestReadRandom(t *testing.T) {
 }
 
 func BenchmarkFastrand(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			Fastrand()
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		Fastrand()
+	} })
 }
 
 func BenchmarkFastrand64(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			Fastrand64()
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		Fastrand64()
+	} })
 }
 
 func BenchmarkFastrandHashiter(b *testing.B) {
@@ -43,24 +39,20 @@ func BenchmarkFastrandHashiter(b *testing.B) {
 	for i := 0; i < 10; i++ {
 		m[i] = i
 	}
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			for range m {
-				break
-			}
+	b.RunParallel(func { pb -> for pb.Next() {
+		for range m {
+			break
 		}
-	})
+	} })
 }
 
 var sink32 uint32
 
 func BenchmarkFastrandn(b *testing.B) {
 	for n := uint32(2); n <= 5; n++ {
-		b.Run(strconv.Itoa(int(n)), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				sink32 = Fastrandn(n)
-			}
-		})
+		b.Run(strconv.Itoa(int(n)), func { b -> for i := 0; i < b.N; i++ {
+			sink32 = Fastrandn(n)
+		} })
 	}
 }
 

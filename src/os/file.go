@@ -306,9 +306,7 @@ func (f *File) WriteString(s string) (n int, err error) {
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
 	longName := fixLongPath(name)
-	e := ignoringEINTR(func() error {
-		return syscall.Mkdir(longName, syscallMode(perm))
-	})
+	e := ignoringEINTR(func { syscall.Mkdir(longName, syscallMode(perm)) })
 
 	if e != nil {
 		return &PathError{Op: "mkdir", Path: name, Err: e}

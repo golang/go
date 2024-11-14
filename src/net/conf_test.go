@@ -400,7 +400,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			t.Errorf("%s: failed to change resolv config", tt.name)
 		}
 		for _, ht := range tt.hostTests {
-			getHostname = func() (string, error) { return ht.localhost, nil }
+			getHostname = func { ht.localhost, nil }
 			setSystemNSS(tt.nss, time.Hour)
 
 			gotOrder, _ := tt.c.hostLookupOrder(tt.resolver, ht.host)

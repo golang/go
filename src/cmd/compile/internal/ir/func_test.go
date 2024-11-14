@@ -69,7 +69,7 @@ func TestSplitPkg(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.in, func(t *testing.T) {
+		t.Run(tc.in, func { t ->
 			pkg, sym := splitPkg(tc.in)
 			if pkg != tc.pkg {
 				t.Errorf("splitPkg(%q) got pkg %q want %q", tc.in, pkg, tc.pkg)

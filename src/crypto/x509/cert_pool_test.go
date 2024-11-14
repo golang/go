@@ -98,7 +98,7 @@ func TestCertPoolEqual(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			equal := tc.a.Equal(tc.b)
 			if equal != tc.equal {
 				t.Errorf("Unexpected Equal result: got %t, want %t", equal, tc.equal)

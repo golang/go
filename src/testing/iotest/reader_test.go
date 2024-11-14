@@ -239,7 +239,7 @@ func TestErrReader(t *testing.T) {
 
 	for _, tt := range cases {
 		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			n, err := ErrReader(tt.err).Read(nil)
 			if err != tt.err {
 				t.Fatalf("Error mismatch\nGot:  %v\nWant: %v", err, tt.err)

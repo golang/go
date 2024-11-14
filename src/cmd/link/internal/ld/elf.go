@@ -1852,7 +1852,7 @@ func asmbElf(ctxt *Link) {
 
 	var pph *ElfPhdr
 	var pnote *ElfPhdr
-	getpnote := func() *ElfPhdr {
+	getpnote := func {
 		if pnote == nil {
 			pnote = newElfPhdr()
 			pnote.Type = elf.PT_NOTE

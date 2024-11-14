@@ -20,7 +20,7 @@ import (
 func TestNextProtoUpgrade(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
-	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := httptest.NewUnstartedServer(HandlerFunc(func { w, r ->
 		fmt.Fprintf(w, "path=%s,proto=", r.URL.Path)
 		if r.TLS != nil {
 			w.Write([]byte(r.TLS.NegotiatedProtocol))

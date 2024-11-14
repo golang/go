@@ -105,7 +105,7 @@ func testSemaHandoff() bool {
 
 func BenchmarkSemTable(b *testing.B) {
 	for _, n := range []int{1000, 2000, 4000, 8000} {
-		b.Run(fmt.Sprintf("OneAddrCollision/n=%d", n), func(b *testing.B) {
+		b.Run(fmt.Sprintf("OneAddrCollision/n=%d", n), func { b ->
 			tab := Escape(new(SemTable))
 			u := make([]uint32, SemTableSize+1)
 
@@ -144,7 +144,7 @@ func BenchmarkSemTable(b *testing.B) {
 				}
 			}
 		})
-		b.Run(fmt.Sprintf("ManyAddrCollision/n=%d", n), func(b *testing.B) {
+		b.Run(fmt.Sprintf("ManyAddrCollision/n=%d", n), func { b ->
 			tab := Escape(new(SemTable))
 			u := make([]uint32, n*SemTableSize)
 

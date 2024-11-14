@@ -338,7 +338,7 @@ func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog
 func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, isRestartable func(*Prog) bool) {
 	if isRestartable == nil {
 		// Default implementation: nothing is restartable.
-		isRestartable = func(*Prog) bool { return false }
+		isRestartable = func { false }
 	}
 	prev := p0
 	prevPcdata := int64(-1) // entry PC data value

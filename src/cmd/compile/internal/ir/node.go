@@ -434,7 +434,7 @@ func (s NameSet) Sorted(less func(*Name, *Name) bool) []*Name {
 	for n := range s {
 		res = append(res, n)
 	}
-	sort.Slice(res, func(i, j int) bool { return less(res[i], res[j]) })
+	sort.Slice(res, func { i, j -> less(res[i], res[j]) })
 	return res
 }
 

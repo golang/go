@@ -902,7 +902,7 @@ func (ffd *fakeNetFD) assignFakeAddr(addr sockaddr) error {
 		if port == 0 {
 			var prevPort int32
 			portWrapped := false
-			nextPort := func() (int, bool) {
+			nextPort := func {
 				for {
 					port := nextPortCounter.Add(1)
 					if port <= 0 || port >= 1<<16 {
@@ -1021,7 +1021,7 @@ func (ffd *fakeNetFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error)
 }
 
 func (ffd *fakeNetFD) readFromInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
-	n, _, err = ffd.queue.recvfrom(ffd.readDeadline.Load(), p, true, func(from sockaddr) error {
+	n, _, err = ffd.queue.recvfrom(ffd.readDeadline.Load(), p, true, func { from ->
 		fromSA, err := from.sockaddr(syscall.AF_INET)
 		if err != nil {
 			return err
@@ -1036,7 +1036,7 @@ func (ffd *fakeNetFD) readFromInet4(p []byte, sa *syscall.SockaddrInet4) (n int,
 }
 
 func (ffd *fakeNetFD) readFromInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
-	n, _, err = ffd.queue.recvfrom(ffd.readDeadline.Load(), p, true, func(from sockaddr) error {
+	n, _, err = ffd.queue.recvfrom(ffd.readDeadline.Load(), p, true, func { from ->
 		fromSA, err := from.sockaddr(syscall.AF_INET6)
 		if err != nil {
 			return err

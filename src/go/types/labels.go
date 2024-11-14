@@ -126,7 +126,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 	}
 
 	var stmtBranches func(ast.Stmt)
-	stmtBranches = func(s ast.Stmt) {
+	stmtBranches = func { s ->
 		switch s := s.(type) {
 		case *ast.DeclStmt:
 			if d, _ := s.Decl.(*ast.GenDecl); d != nil && d.Tok == token.VAR {

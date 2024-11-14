@@ -115,7 +115,7 @@ type errValue[V any] struct {
 }
 
 func (c *ErrCache[K, V]) Do(key K, f func() (V, error)) (V, error) {
-	v := c.Cache.Do(key, func() errValue[V] {
+	v := c.Cache.Do(key, func {
 		v, err := f()
 		return errValue[V]{v, err}
 	})

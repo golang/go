@@ -42,9 +42,7 @@ func GoroutinesHandlerFunc(summaries map[trace.GoID]*trace.GoroutineSummary) htt
 		for _, group := range groupsByName {
 			groups = append(groups, group)
 		}
-		slices.SortFunc(groups, func(a, b goroutineGroup) int {
-			return cmp.Compare(b.ExecTime, a.ExecTime)
-		})
+		slices.SortFunc(groups, func { a, b -> cmp.Compare(b.ExecTime, a.ExecTime) })
 		w.Header().Set("Content-Type", "text/html;charset=utf-8")
 		if err := templGoroutines.Execute(w, groups); err != nil {
 			log.Printf("failed to execute template: %v", err)
@@ -149,14 +147,10 @@ func GoroutineHandler(summaries map[trace.GoID]*trace.GoroutineSummary) http.Han
 		// Sort.
 		sortBy := r.FormValue("sortby")
 		if _, ok := validNonOverlappingStats[sortBy]; ok {
-			slices.SortFunc(goroutines, func(a, b goroutine) int {
-				return cmp.Compare(b.NonOverlappingStats[sortBy], a.NonOverlappingStats[sortBy])
-			})
+			slices.SortFunc(goroutines, func { a, b -> cmp.Compare(b.NonOverlappingStats[sortBy], a.NonOverlappingStats[sortBy]) })
 		} else {
 			// Sort by total time by default.
-			slices.SortFunc(goroutines, func(a, b goroutine) int {
-				return cmp.Compare(b.TotalTime, a.TotalTime)
-			})
+			slices.SortFunc(goroutines, func { a, b -> cmp.Compare(b.TotalTime, a.TotalTime) })
 		}
 
 		// Write down all the non-overlapping stats and sort them.
@@ -164,7 +158,7 @@ func GoroutineHandler(summaries map[trace.GoID]*trace.GoroutineSummary) http.Han
 		for name := range validNonOverlappingStats {
 			allNonOverlappingStats = append(allNonOverlappingStats, name)
 		}
-		slices.SortFunc(allNonOverlappingStats, func(a, b string) int {
+		slices.SortFunc(allNonOverlappingStats, func { a, b ->
 			if a == b {
 				return 0
 			}

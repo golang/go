@@ -757,7 +757,7 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 	args := &Args{7, 8}
 	b.ResetTimer()
 
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		reply := new(Reply)
 		for pb.Next() {
 			err := client.Call("Arith.Add", args, reply)

@@ -573,7 +573,7 @@ func dextratype(lsym *obj.LSym, off int64, t *types.Type, dataAdd int) {
 	if mcount != int(uint16(mcount)) {
 		base.Fatalf("too many methods on %v: %d", t, mcount)
 	}
-	xcount := sort.Search(mcount, func(i int) bool { return !types.IsExported(m[i].name.Name) })
+	xcount := sort.Search(mcount, func { i -> !types.IsExported(m[i].name.Name) })
 	if dataAdd != int(uint32(dataAdd)) {
 		base.Fatalf("methods are too far away on %v: %d", t, dataAdd)
 	}
@@ -1607,7 +1607,7 @@ func (p *gcProg) init(lsym *obj.LSym, write bool) {
 	p.write = write && !lsym.OnList()
 	p.symoff = 4 // first 4 bytes hold program length
 	if !write {
-		p.w.Init(func(byte) {})
+		p.w.Init(func {})
 		return
 	}
 	p.w.Init(p.writeByte)

@@ -512,7 +512,7 @@ func fsCall(name string, args ...any) (js.Value, error) {
 	}
 
 	c := make(chan callResult, 1)
-	f := js.FuncOf(func(this js.Value, args []js.Value) any {
+	f := js.FuncOf(func { this, args ->
 		var res callResult
 
 		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments

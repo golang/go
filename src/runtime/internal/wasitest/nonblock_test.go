@@ -42,7 +42,7 @@ func TestNonblock(t *testing.T) {
 	}
 
 	for _, mode := range []string{"os.OpenFile", "os.NewFile"} {
-		t.Run(mode, func(t *testing.T) {
+		t.Run(mode, func { t ->
 			args := []string{"run", "./testdata/nonblock.go", mode}
 
 			fifos := make([]*fifo, 8)

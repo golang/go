@@ -344,7 +344,7 @@ func Benchmark115(b *testing.B) {
 	dat := read115Executable(b)
 	const textStart = 0x1001000
 
-	b.Run("NewLineTable", func(b *testing.B) {
+	b.Run("NewLineTable", func { b ->
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			sinkLineTable = NewLineTable(dat, textStart)
@@ -352,7 +352,7 @@ func Benchmark115(b *testing.B) {
 	})
 
 	pcln := NewLineTable(dat, textStart)
-	b.Run("NewTable", func(b *testing.B) {
+	b.Run("NewTable", func { b ->
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			var err error
@@ -368,7 +368,7 @@ func Benchmark115(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.Run("LineToPC", func(b *testing.B) {
+	b.Run("LineToPC", func { b ->
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			var f *Func
@@ -389,7 +389,7 @@ func Benchmark115(b *testing.B) {
 		}
 	})
 
-	b.Run("PCToLine", func(b *testing.B) {
+	b.Run("PCToLine", func { b ->
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			file, line, fn := tab.PCToLine(0x105c280)

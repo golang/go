@@ -353,7 +353,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "zip":
-		zipBytes, err := zipCache.Do(a, func() ([]byte, error) {
+		zipBytes, err := zipCache.Do(a, func {
 			var buf bytes.Buffer
 			z := zip.NewWriter(&buf)
 			for _, f := range a.Files {
@@ -427,7 +427,7 @@ func readArchive(path, vers string) (*txtar.Archive, error) {
 
 	prefix := strings.ReplaceAll(enc, "/", "_")
 	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+encVers+".txt")
-	a := archiveCache.Do(name, func() *txtar.Archive {
+	a := archiveCache.Do(name, func {
 		a, err := txtar.ParseFile(name)
 		if err != nil {
 			if testing.Verbose() || !os.IsNotExist(err) {
@@ -463,16 +463,14 @@ func proxyGoSum(path, vers string) ([]byte, error) {
 		names = append(names, name)
 		files[name] = f.Data
 	}
-	h1, err := dirhash.Hash1(names, func(name string) (io.ReadCloser, error) {
+	h1, err := dirhash.Hash1(names, func { name ->
 		data := files[name]
 		return io.NopCloser(bytes.NewReader(data)), nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	h1mod, err := dirhash.Hash1([]string{"go.mod"}, func(string) (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewReader(gomod)), nil
-	})
+	h1mod, err := dirhash.Hash1([]string{"go.mod"}, func { io.NopCloser(bytes.NewReader(gomod)), nil })
 	if err != nil {
 		return nil, err
 	}

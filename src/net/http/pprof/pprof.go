@@ -412,9 +412,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	sort.Slice(profiles, func(i, j int) bool {
-		return profiles[i].Name < profiles[j].Name
-	})
+	sort.Slice(profiles, func { i, j -> profiles[i].Name < profiles[j].Name })
 
 	if err := indexTmplExecute(w, profiles); err != nil {
 		log.Print(err)

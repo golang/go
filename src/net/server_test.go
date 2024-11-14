@@ -55,7 +55,7 @@ func TestTCPServer(t *testing.T) {
 	const N = 3
 
 	for i, tt := range tcpServerTests {
-		t.Run(tt.snet+" "+tt.saddr+"<-"+tt.taddr, func(t *testing.T) {
+		t.Run(tt.snet+" "+tt.saddr+"<-"+tt.taddr, func { t ->
 			if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
 				t.Skip("not testable")
 			}
@@ -251,7 +251,7 @@ var udpServerTests = []struct {
 func TestUDPServer(t *testing.T) {
 	for i, tt := range udpServerTests {
 		i, tt := i, tt
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
 				t.Skipf("skipping %s %s<-%s test", tt.snet, tt.saddr, tt.taddr)
 			}
@@ -341,7 +341,7 @@ func TestUnixgramServer(t *testing.T) {
 
 	for i, tt := range unixgramServerTests {
 		i, tt := i, tt
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			if !testableListenArgs("unixgram", tt.saddr, "") {
 				t.Skipf("skipping unixgram %s<-%s test", tt.saddr, tt.caddr)
 			}

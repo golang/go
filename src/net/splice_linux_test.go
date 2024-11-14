@@ -17,14 +17,14 @@ import (
 )
 
 func TestSplice(t *testing.T) {
-	t.Run("tcp-to-tcp", func(t *testing.T) { testSplice(t, "tcp", "tcp") })
+	t.Run("tcp-to-tcp", func { t -> testSplice(t, "tcp", "tcp") })
 	if !testableNetwork("unixgram") {
 		t.Skip("skipping unix-to-tcp tests")
 	}
-	t.Run("unix-to-tcp", func(t *testing.T) { testSplice(t, "unix", "tcp") })
-	t.Run("tcp-to-unix", func(t *testing.T) { testSplice(t, "tcp", "unix") })
-	t.Run("tcp-to-file", func(t *testing.T) { testSpliceToFile(t, "tcp", "file") })
-	t.Run("unix-to-file", func(t *testing.T) { testSpliceToFile(t, "unix", "file") })
+	t.Run("unix-to-tcp", func { t -> testSplice(t, "unix", "tcp") })
+	t.Run("tcp-to-unix", func { t -> testSplice(t, "tcp", "unix") })
+	t.Run("tcp-to-file", func { t -> testSpliceToFile(t, "tcp", "file") })
+	t.Run("unix-to-file", func { t -> testSpliceToFile(t, "unix", "file") })
 	t.Run("no-unixpacket", testSpliceNoUnixpacket)
 	t.Run("no-unixgram", testSpliceNoUnixgram)
 }
@@ -45,8 +45,8 @@ func testSplice(t *testing.T, upNet, downNet string) {
 	t.Run("honorsLimitedReader", spliceTestCase{upNet, downNet, 4096, 1 << 20, 1 << 10}.test)
 	t.Run("updatesLimitedReaderN", spliceTestCase{upNet, downNet, 1024, 4096, 4096 + 100}.test)
 	t.Run("limitedReaderAtLimit", spliceTestCase{upNet, downNet, 32, 128, 128}.test)
-	t.Run("readerAtEOF", func(t *testing.T) { testSpliceReaderAtEOF(t, upNet, downNet) })
-	t.Run("issue25985", func(t *testing.T) { testSpliceIssue25985(t, upNet, downNet) })
+	t.Run("readerAtEOF", func { t -> testSpliceReaderAtEOF(t, upNet, downNet) })
+	t.Run("issue25985", func { t -> testSpliceIssue25985(t, upNet, downNet) })
 }
 
 type spliceTestCase struct {
@@ -155,7 +155,7 @@ func verifySpliceFds(t *testing.T, c Conn, hook *spliceHook, fdType string) {
 	default:
 		t.Fatalf("unknown fdType %q", fdType)
 	}
-	if err := rc.Control(func(fd uintptr) {
+	if err := rc.Control(func { fd ->
 		if hook.called && hookFd != int(fd) {
 			t.Fatalf("wrong %s file descriptor: got %d, want %d", fdType, hook.dstfd, int(fd))
 		}
@@ -390,9 +390,9 @@ func testSpliceNoUnixgram(t *testing.T) {
 func BenchmarkSplice(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
-	b.Run("tcp-to-tcp", func(b *testing.B) { benchSplice(b, "tcp", "tcp") })
-	b.Run("unix-to-tcp", func(b *testing.B) { benchSplice(b, "unix", "tcp") })
-	b.Run("tcp-to-unix", func(b *testing.B) { benchSplice(b, "tcp", "unix") })
+	b.Run("tcp-to-tcp", func { b -> benchSplice(b, "tcp", "tcp") })
+	b.Run("unix-to-tcp", func { b -> benchSplice(b, "unix", "tcp") })
+	b.Run("tcp-to-unix", func { b -> benchSplice(b, "tcp", "unix") })
 }
 
 func benchSplice(b *testing.B, upNet, downNet string) {
@@ -450,8 +450,8 @@ func (tc spliceTestCase) bench(b *testing.B) {
 }
 
 func BenchmarkSpliceFile(b *testing.B) {
-	b.Run("tcp-to-file", func(b *testing.B) { benchmarkSpliceFile(b, "tcp") })
-	b.Run("unix-to-file", func(b *testing.B) { benchmarkSpliceFile(b, "unix") })
+	b.Run("tcp-to-file", func { b -> benchmarkSpliceFile(b, "tcp") })
+	b.Run("unix-to-file", func { b -> benchmarkSpliceFile(b, "unix") })
 }
 
 func benchmarkSpliceFile(b *testing.B, proto string) {
@@ -526,7 +526,7 @@ type spliceHook struct {
 
 func (h *spliceHook) install() {
 	h.original = pollSplice
-	pollSplice = func(dst, src *poll.FD, remain int64) (int64, bool, error) {
+	pollSplice = func { dst, src, remain ->
 		h.called = true
 		h.dstfd = dst.Sysfd
 		h.srcfd = src.Sysfd

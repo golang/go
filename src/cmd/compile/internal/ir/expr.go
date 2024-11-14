@@ -958,7 +958,7 @@ func Reassigned(name *Name) bool {
 	}
 
 	var do func(n Node) bool
-	do = func(n Node) bool {
+	do = func { n ->
 		switch n.Op() {
 		case OAS:
 			n := n.(*AssignStmt)

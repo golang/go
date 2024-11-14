@@ -236,7 +236,7 @@ func normalizeGoDeferCall(pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) 
 	var argps []*ir.Node
 
 	var visit func(argp *ir.Node)
-	visit = func(argp *ir.Node) {
+	visit = func { argp ->
 		arg := *argp
 		if arg == nil {
 			return
@@ -434,7 +434,7 @@ func tcReturn(n *ir.ReturnStmt) ir.Node {
 
 	typecheckargs(n)
 	if len(n.Results) != 0 {
-		typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, func() string { return "return argument" })
+		typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, func { "return argument" })
 	}
 	return n
 }

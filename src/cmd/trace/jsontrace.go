@@ -18,7 +18,7 @@ import (
 )
 
 func JSONTraceHandler(parsed *parsedTrace) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func { w, r ->
 		opts := defaultGenOpts()
 
 		switch r.FormValue("view") {
@@ -177,7 +177,7 @@ func (opts *genOpts) setTask(parsed *parsedTrace, task *trace.UserTaskSummary) {
 		opts.endTime = parsed.endTime().Sub(parsed.startTime())
 	}
 	opts.tasks = task.Descendents()
-	slices.SortStableFunc(opts.tasks, func(a, b *trace.UserTaskSummary) int {
+	slices.SortStableFunc(opts.tasks, func { a, b ->
 		aStart, bStart := parsed.startTime(), parsed.startTime()
 		if a.Start != nil {
 			aStart = a.Start.Time()

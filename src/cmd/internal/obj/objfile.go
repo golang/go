@@ -282,7 +282,7 @@ func (w *writer) StringTable() {
 	for _, pkg := range w.pkglist {
 		w.AddString(pkg)
 	}
-	w.ctxt.traverseSyms(traverseAll, func(s *LSym) {
+	w.ctxt.traverseSyms(traverseAll, func { s ->
 		// Don't put names of builtins into the string table (to save
 		// space).
 		if s.PkgIdx == goobj.PkgIdxBuiltin {
@@ -637,7 +637,7 @@ func (w *writer) Aux(s *LSym) {
 // Emits flags of referenced indexed symbols.
 func (w *writer) refFlags() {
 	seen := make(map[*LSym]bool)
-	w.ctxt.traverseSyms(traverseRefs, func(rs *LSym) { // only traverse refs, not auxs, as tools don't need auxs
+	w.ctxt.traverseSyms(traverseRefs, func { rs -> // only traverse refs, not auxs, as tools don't need auxs
 		switch rs.PkgIdx {
 		case goobj.PkgIdxNone, goobj.PkgIdxHashed64, goobj.PkgIdxHashed, goobj.PkgIdxBuiltin, goobj.PkgIdxSelf: // not an external indexed reference
 			return
@@ -670,7 +670,7 @@ func (w *writer) refNames() {
 		return
 	}
 	seen := make(map[*LSym]bool)
-	w.ctxt.traverseSyms(traverseRefs, func(rs *LSym) { // only traverse refs, not auxs, as tools don't need auxs
+	w.ctxt.traverseSyms(traverseRefs, func { rs -> // only traverse refs, not auxs, as tools don't need auxs
 		switch rs.PkgIdx {
 		case goobj.PkgIdxNone, goobj.PkgIdxHashed64, goobj.PkgIdxHashed, goobj.PkgIdxBuiltin, goobj.PkgIdxSelf: // not an external indexed reference
 			return
@@ -769,7 +769,7 @@ func genFuncInfoSyms(ctxt *Link) {
 			o.File[i] = f
 			i++
 		}
-		sort.Slice(o.File, func(i, j int) bool { return o.File[i] < o.File[j] })
+		sort.Slice(o.File, func { i, j -> o.File[i] < o.File[j] })
 		o.InlTree = make([]goobj.InlTreeNode, len(pc.InlTree.nodes))
 		for i, inl := range pc.InlTree.nodes {
 			f, l := ctxt.getFileIndexAndLine(inl.Pos)

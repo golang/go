@@ -24,7 +24,7 @@ func TestCloseRead(t *testing.T) {
 
 	for _, network := range []string{"tcp", "unix", "unixpacket"} {
 		network := network
-		t.Run(network, func(t *testing.T) {
+		t.Run(network, func { t ->
 			if !testableNetwork(network) {
 				t.Skipf("network %s is not testable on the current platform", network)
 			}
@@ -83,7 +83,7 @@ func TestCloseWrite(t *testing.T) {
 
 	for _, network := range []string{"tcp", "unix", "unixpacket"} {
 		network := network
-		t.Run(network, func(t *testing.T) {
+		t.Run(network, func { t ->
 			if !testableNetwork(network) {
 				t.Skipf("network %s is not testable on the current platform", network)
 			}
@@ -185,7 +185,7 @@ func TestConnClose(t *testing.T) {
 	t.Parallel()
 	for _, network := range []string{"tcp", "unix", "unixpacket"} {
 		network := network
-		t.Run(network, func(t *testing.T) {
+		t.Run(network, func { t ->
 			if !testableNetwork(network) {
 				t.Skipf("network %s is not testable on the current platform", network)
 			}
@@ -227,7 +227,7 @@ func TestListenerClose(t *testing.T) {
 	t.Parallel()
 	for _, network := range []string{"tcp", "unix", "unixpacket"} {
 		network := network
-		t.Run(network, func(t *testing.T) {
+		t.Run(network, func { t ->
 			if !testableNetwork(network) {
 				t.Skipf("network %s is not testable on the current platform", network)
 			}
@@ -265,7 +265,7 @@ func TestPacketConnClose(t *testing.T) {
 	t.Parallel()
 	for _, network := range []string{"udp", "unixgram"} {
 		network := network
-		t.Run(network, func(t *testing.T) {
+		t.Run(network, func { t ->
 			if !testableNetwork(network) {
 				t.Skipf("network %s is not testable on the current platform", network)
 			}
@@ -307,7 +307,7 @@ func TestAcceptIgnoreAbortedConnRequest(t *testing.T) {
 			syserr <- err
 		}
 	}()
-	sw.Set(socktest.FilterAccept, func(so *socktest.Status) (socktest.AfterFilter, error) {
+	sw.Set(socktest.FilterAccept, func { so ->
 		if err, ok := <-syserr; ok {
 			return nil, err
 		}
@@ -349,7 +349,7 @@ func TestZeroByteRead(t *testing.T) {
 	t.Parallel()
 	for _, network := range []string{"tcp", "unix", "unixpacket"} {
 		network := network
-		t.Run(network, func(t *testing.T) {
+		t.Run(network, func { t ->
 			if !testableNetwork(network) {
 				t.Skipf("network %s is not testable on the current platform", network)
 			}

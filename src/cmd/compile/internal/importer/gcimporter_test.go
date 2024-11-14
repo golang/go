@@ -242,7 +242,7 @@ func TestImportStdLib(t *testing.T) {
 
 	var nimports int
 	for _, pkg := range pkgs {
-		t.Run(pkg, func(t *testing.T) {
+		t.Run(pkg, func { t ->
 			if testPath(t, pkg, filepath.Join(testenv.GOROOT(t), "src", path.Dir(pkg))) != nil {
 				nimports++
 			}
@@ -341,7 +341,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types2.Named, level int) {
 	// the go/types importer, we duplicate the Interface and rewrite its
 	// receiver methods to match historical behavior.
 	var want types2.Type = named
-	if true /* was goexperiment.Unified */ {
+	if true /* was goexperiment.Unified */{
 		want = iface
 	}
 

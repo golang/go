@@ -14,7 +14,7 @@ import (
 )
 
 func TestBatched(t *testing.T) {
-	fillBatched := batched(func(p []byte) error {
+	fillBatched := batched(func { p ->
 		for i := range p {
 			p[i] = byte(i)
 		}
@@ -38,7 +38,7 @@ func TestBatchedBuffering(t *testing.T) {
 	output := make([]byte, len(backingStore))
 	outputMarker := output[:]
 
-	fillBatched := batched(func(p []byte) error {
+	fillBatched := batched(func { p ->
 		n := copy(p, backingMarker)
 		backingMarker = backingMarker[n:]
 		return nil
@@ -61,14 +61,14 @@ func TestBatchedBuffering(t *testing.T) {
 }
 
 func TestBatchedError(t *testing.T) {
-	b := batched(func(p []byte) error { return errors.New("failure") }, 5)
+	b := batched(func { p -> errors.New("failure") }, 5)
 	if b(make([]byte, 13)) == nil {
 		t.Fatal("batched function should have returned an error")
 	}
 }
 
 func TestBatchedEmpty(t *testing.T) {
-	b := batched(func(p []byte) error { return errors.New("failure") }, 5)
+	b := batched(func { p -> errors.New("failure") }, 5)
 	if b(make([]byte, 0)) != nil {
 		t.Fatal("empty slice should always return successful")
 	}

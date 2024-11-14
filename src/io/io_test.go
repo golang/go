@@ -512,7 +512,7 @@ func TestOffsetWriter_Seek(t *testing.T) {
 	w := NewOffsetWriter(tmpfile, 0)
 
 	// Should throw error errWhence if whence is not valid
-	t.Run("errWhence", func(t *testing.T) {
+	t.Run("errWhence", func { t ->
 		for _, whence := range []int{-3, -2, -1, 3, 4, 5} {
 			var offset int64 = 0
 			gotOff, gotErr := w.Seek(offset, whence)
@@ -524,7 +524,7 @@ func TestOffsetWriter_Seek(t *testing.T) {
 	})
 
 	// Should throw error errOffset if offset is negative
-	t.Run("errOffset", func(t *testing.T) {
+	t.Run("errOffset", func { t ->
 		for _, whence := range []int{SeekStart, SeekCurrent} {
 			for offset := int64(-3); offset < 0; offset++ {
 				gotOff, gotErr := w.Seek(offset, whence)
@@ -537,7 +537,7 @@ func TestOffsetWriter_Seek(t *testing.T) {
 	})
 
 	// Normal tests
-	t.Run("normal", func(t *testing.T) {
+	t.Run("normal", func { t ->
 		tests := []struct {
 			offset    int64
 			whence    int
@@ -663,7 +663,7 @@ func TestOffsetWriter_Write(t *testing.T) {
 
 	var name string
 	name = "Write"
-	t.Run(name, func(t *testing.T) {
+	t.Run(name, func { t ->
 		// Write directly (off: 0, at: 0)
 		// Write content to file
 		w, f := makeOffsetWriter(name)
@@ -688,7 +688,7 @@ func TestOffsetWriter_Write(t *testing.T) {
 	// Copy -> WriteTo -> Write
 	// Note: strings.Reader implements the io.WriterTo interface.
 	name = "Write_Of_Copy_WriteTo"
-	t.Run(name, func(t *testing.T) {
+	t.Run(name, func { t ->
 		w, f := makeOffsetWriter(name)
 		defer f.Close()
 		Copy(w, strings.NewReader(content))

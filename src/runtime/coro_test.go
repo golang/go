@@ -24,9 +24,7 @@ func TestCoroLockOSThread(t *testing.T) {
 		"CoroLockOSThreadStopLocked",
 		"CoroLockOSThreadStopLockedIterNested",
 	} {
-		t.Run(test, func(t *testing.T) {
-			checkCoroTestProgOutput(t, runTestProg(t, "testprog", test))
-		})
+		t.Run(test, func { t -> checkCoroTestProgOutput(t, runTestProg(t, "testprog", test)) })
 	}
 }
 
@@ -46,9 +44,7 @@ func TestCoroCgoCallback(t *testing.T) {
 		"CoroCgoStopCallback",
 		"CoroCgoStopCallbackIterNested",
 	} {
-		t.Run(test, func(t *testing.T) {
-			checkCoroTestProgOutput(t, runTestProg(t, "testprogcgo", test))
-		})
+		t.Run(test, func { t -> checkCoroTestProgOutput(t, runTestProg(t, "testprogcgo", test)) })
 	}
 }
 

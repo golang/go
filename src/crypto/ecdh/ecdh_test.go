@@ -36,7 +36,7 @@ var _ interface {
 } = &ecdh.PrivateKey{}
 
 func TestECDH(t *testing.T) {
-	testAllCurves(t, func(t *testing.T, curve ecdh.Curve) {
+	testAllCurves(t, func { t, curve ->
 		aliceKey, err := curve.GenerateKey(rand.Reader)
 		if err != nil {
 			t.Fatal(err)
@@ -95,7 +95,7 @@ func (r *countingReader) Read(p []byte) (int, error) {
 }
 
 func TestGenerateKey(t *testing.T) {
-	testAllCurves(t, func(t *testing.T, curve ecdh.Curve) {
+	testAllCurves(t, func { t, curve ->
 		r := &countingReader{r: rand.Reader}
 		k, err := curve.GenerateKey(r)
 		if err != nil {
@@ -156,7 +156,7 @@ var vectors = map[ecdh.Curve]struct {
 }
 
 func TestVectors(t *testing.T) {
-	testAllCurves(t, func(t *testing.T, curve ecdh.Curve) {
+	testAllCurves(t, func { t, curve ->
 		v := vectors[curve]
 		key, err := curve.NewPrivateKey(hexDecode(t, v.PrivateKey))
 		if err != nil {
@@ -189,7 +189,7 @@ func hexDecode(t *testing.T, s string) []byte {
 }
 
 func TestString(t *testing.T) {
-	testAllCurves(t, func(t *testing.T, curve ecdh.Curve) {
+	testAllCurves(t, func { t, curve ->
 		s := fmt.Sprintf("%s", curve)
 		if s[:1] != "P" && s[:1] != "X" {
 			t.Errorf("unexpected Curve string encoding: %q", s)
@@ -203,8 +203,8 @@ func TestX25519Failure(t *testing.T) {
 	randomScalar := make([]byte, 32)
 	rand.Read(randomScalar)
 
-	t.Run("identity point", func(t *testing.T) { testX25519Failure(t, randomScalar, identity) })
-	t.Run("low order point", func(t *testing.T) { testX25519Failure(t, randomScalar, lowOrderPoint) })
+	t.Run("identity point", func { t -> testX25519Failure(t, randomScalar, identity) })
+	t.Run("low order point", func { t -> testX25519Failure(t, randomScalar, lowOrderPoint) })
 }
 
 func testX25519Failure(t *testing.T, private, public []byte) {
@@ -280,7 +280,7 @@ var invalidPrivateKeys = map[ecdh.Curve][]string{
 }
 
 func TestNewPrivateKey(t *testing.T) {
-	testAllCurves(t, func(t *testing.T, curve ecdh.Curve) {
+	testAllCurves(t, func { t, curve ->
 		for _, input := range invalidPrivateKeys[curve] {
 			k, err := curve.NewPrivateKey(hexDecode(t, input))
 			if err == nil {
@@ -341,7 +341,7 @@ var invalidPublicKeys = map[ecdh.Curve][]string{
 }
 
 func TestNewPublicKey(t *testing.T) {
-	testAllCurves(t, func(t *testing.T, curve ecdh.Curve) {
+	testAllCurves(t, func { t, curve ->
 		for _, input := range invalidPublicKeys[curve] {
 			k, err := curve.NewPublicKey(hexDecode(t, input))
 			if err == nil {
@@ -356,14 +356,14 @@ func TestNewPublicKey(t *testing.T) {
 }
 
 func testAllCurves(t *testing.T, f func(t *testing.T, curve ecdh.Curve)) {
-	t.Run("P256", func(t *testing.T) { f(t, ecdh.P256()) })
-	t.Run("P384", func(t *testing.T) { f(t, ecdh.P384()) })
-	t.Run("P521", func(t *testing.T) { f(t, ecdh.P521()) })
-	t.Run("X25519", func(t *testing.T) { f(t, ecdh.X25519()) })
+	t.Run("P256", func { t -> f(t, ecdh.P256()) })
+	t.Run("P384", func { t -> f(t, ecdh.P384()) })
+	t.Run("P521", func { t -> f(t, ecdh.P521()) })
+	t.Run("X25519", func { t -> f(t, ecdh.X25519()) })
 }
 
 func BenchmarkECDH(b *testing.B) {
-	benchmarkAllCurves(b, func(b *testing.B, curve ecdh.Curve) {
+	benchmarkAllCurves(b, func { b, curve ->
 		c, err := chacha20.NewUnauthenticatedCipher(make([]byte, 32), make([]byte, 12))
 		if err != nil {
 			b.Fatal(err)
@@ -402,10 +402,10 @@ func BenchmarkECDH(b *testing.B) {
 }
 
 func benchmarkAllCurves(b *testing.B, f func(b *testing.B, curve ecdh.Curve)) {
-	b.Run("P256", func(b *testing.B) { f(b, ecdh.P256()) })
-	b.Run("P384", func(b *testing.B) { f(b, ecdh.P384()) })
-	b.Run("P521", func(b *testing.B) { f(b, ecdh.P521()) })
-	b.Run("X25519", func(b *testing.B) { f(b, ecdh.X25519()) })
+	b.Run("P256", func { b -> f(b, ecdh.P256()) })
+	b.Run("P384", func { b -> f(b, ecdh.P384()) })
+	b.Run("P521", func { b -> f(b, ecdh.P521()) })
+	b.Run("X25519", func { b -> f(b, ecdh.X25519()) })
 }
 
 type zr struct{}
@@ -507,7 +507,7 @@ func TestMismatchedCurves(t *testing.T) {
 			if privCurve == pubCurve {
 				continue
 			}
-			t.Run(fmt.Sprintf("%s/%s", privCurve.name, pubCurve.name), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/%s", privCurve.name, pubCurve.name), func { t ->
 				pub, err := pubCurve.curve.GenerateKey(rand.Reader)
 				if err != nil {
 					t.Fatalf("failed to generate test key: %s", err)

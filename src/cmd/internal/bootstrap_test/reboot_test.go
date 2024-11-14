@@ -83,7 +83,7 @@ func TestRepeatBootstrap(t *testing.T) {
 	}
 
 	// Test that go.dev/issue/42563 hasn't regressed.
-	t.Run("PATH reminder", func(t *testing.T) {
+	t.Run("PATH reminder", func { t ->
 		var want string
 		switch gorootBin := filepath.Join(goroot, "bin"); runtime.GOOS {
 		default:

@@ -29,9 +29,7 @@ func rangeNum[T int8 | int16 | int32 | int64 | int |
 func (v Value) Seq() iter.Seq[Value] {
 	if canRangeFunc(v.typ()) {
 		return func(yield func(Value) bool) {
-			rf := MakeFunc(v.Type().In(0), func(in []Value) []Value {
-				return []Value{ValueOf(yield(in[0]))}
-			})
+			rf := MakeFunc(v.Type().In(0), func { in -> []Value{ValueOf(yield(in[0]))} })
 			v.Call([]Value{rf})
 		}
 	}
@@ -115,9 +113,7 @@ func (v Value) Seq() iter.Seq[Value] {
 func (v Value) Seq2() iter.Seq2[Value, Value] {
 	if canRangeFunc2(v.typ()) {
 		return func(yield func(Value, Value) bool) {
-			rf := MakeFunc(v.Type().In(0), func(in []Value) []Value {
-				return []Value{ValueOf(yield(in[0], in[1]))}
-			})
+			rf := MakeFunc(v.Type().In(0), func { in -> []Value{ValueOf(yield(in[0], in[1]))} })
 			v.Call([]Value{rf})
 		}
 	}

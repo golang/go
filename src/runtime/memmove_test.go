@@ -229,7 +229,7 @@ func TestMemmoveAtomicity(t *testing.T) {
 			} else {
 				name += "-forward"
 			}
-			t.Run(name, func(t *testing.T) {
+			t.Run(name, func { t ->
 				// Use overlapping src and dst to force forward/backward copy.
 				var s [100]*int
 				src := s[n-1 : 2*n-1]
@@ -273,7 +273,7 @@ func TestMemmoveAtomicity(t *testing.T) {
 
 func benchmarkSizes(b *testing.B, sizes []int, fn func(b *testing.B, n int)) {
 	for _, n := range sizes {
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n))
 			fn(b, n)
 		})
@@ -289,7 +289,7 @@ var bufSizesOverlap = []int{
 }
 
 func BenchmarkMemmove(b *testing.B) {
-	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
+	benchmarkSizes(b, bufSizes, func { b, n ->
 		x := make([]byte, n)
 		y := make([]byte, n)
 		for i := 0; i < b.N; i++ {
@@ -299,7 +299,7 @@ func BenchmarkMemmove(b *testing.B) {
 }
 
 func BenchmarkMemmoveOverlap(b *testing.B) {
-	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
+	benchmarkSizes(b, bufSizesOverlap, func { b, n ->
 		x := make([]byte, n+16)
 		for i := 0; i < b.N; i++ {
 			copy(x[16:n+16], x[:n])
@@ -308,7 +308,7 @@ func BenchmarkMemmoveOverlap(b *testing.B) {
 }
 
 func BenchmarkMemmoveUnalignedDst(b *testing.B) {
-	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
+	benchmarkSizes(b, bufSizes, func { b, n ->
 		x := make([]byte, n+1)
 		y := make([]byte, n)
 		for i := 0; i < b.N; i++ {
@@ -318,7 +318,7 @@ func BenchmarkMemmoveUnalignedDst(b *testing.B) {
 }
 
 func BenchmarkMemmoveUnalignedDstOverlap(b *testing.B) {
-	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
+	benchmarkSizes(b, bufSizesOverlap, func { b, n ->
 		x := make([]byte, n+16)
 		for i := 0; i < b.N; i++ {
 			copy(x[16:n+16], x[1:n+1])
@@ -327,7 +327,7 @@ func BenchmarkMemmoveUnalignedDstOverlap(b *testing.B) {
 }
 
 func BenchmarkMemmoveUnalignedSrc(b *testing.B) {
-	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
+	benchmarkSizes(b, bufSizes, func { b, n ->
 		x := make([]byte, n)
 		y := make([]byte, n+1)
 		for i := 0; i < b.N; i++ {
@@ -342,14 +342,14 @@ func BenchmarkMemmoveUnalignedSrcDst(b *testing.B) {
 		x := buf[:len(buf)/2]
 		y := buf[len(buf)/2:]
 		for _, off := range []int{0, 1, 4, 7} {
-			b.Run(fmt.Sprint("f_", n, off), func(b *testing.B) {
+			b.Run(fmt.Sprint("f_", n, off), func { b ->
 				b.SetBytes(int64(n))
 				for i := 0; i < b.N; i++ {
 					copy(x[off:n+off], y[off:n+off])
 				}
 			})
 
-			b.Run(fmt.Sprint("b_", n, off), func(b *testing.B) {
+			b.Run(fmt.Sprint("b_", n, off), func { b ->
 				b.SetBytes(int64(n))
 				for i := 0; i < b.N; i++ {
 					copy(y[off:n+off], x[off:n+off])
@@ -360,7 +360,7 @@ func BenchmarkMemmoveUnalignedSrcDst(b *testing.B) {
 }
 
 func BenchmarkMemmoveUnalignedSrcOverlap(b *testing.B) {
-	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
+	benchmarkSizes(b, bufSizesOverlap, func { b, n ->
 		x := make([]byte, n+1)
 		for i := 0; i < b.N; i++ {
 			copy(x[1:n+1], x[:n])
@@ -403,7 +403,7 @@ func TestMemclr(t *testing.T) {
 func BenchmarkMemclr(b *testing.B) {
 	for _, n := range []int{5, 16, 64, 256, 4096, 65536} {
 		x := make([]byte, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.Run(fmt.Sprint(n), func { b ->
 			b.SetBytes(int64(n))
 			for i := 0; i < b.N; i++ {
 				MemclrBytes(x)
@@ -412,7 +412,7 @@ func BenchmarkMemclr(b *testing.B) {
 	}
 	for _, m := range []int{1, 4, 8, 16, 64} {
 		x := make([]byte, m<<20)
-		b.Run(fmt.Sprint(m, "M"), func(b *testing.B) {
+		b.Run(fmt.Sprint(m, "M"), func { b ->
 			b.SetBytes(int64(m << 20))
 			for i := 0; i < b.N; i++ {
 				MemclrBytes(x)
@@ -425,7 +425,7 @@ func BenchmarkMemclrUnaligned(b *testing.B) {
 	for _, off := range []int{0, 1, 4, 7} {
 		for _, n := range []int{5, 16, 64, 256, 4096, 65536} {
 			x := make([]byte, n+off)
-			b.Run(fmt.Sprint(off, n), func(b *testing.B) {
+			b.Run(fmt.Sprint(off, n), func { b ->
 				b.SetBytes(int64(n))
 				for i := 0; i < b.N; i++ {
 					MemclrBytes(x[off:])
@@ -437,7 +437,7 @@ func BenchmarkMemclrUnaligned(b *testing.B) {
 	for _, off := range []int{0, 1, 4, 7} {
 		for _, m := range []int{1, 4, 8, 16, 64} {
 			x := make([]byte, (m<<20)+off)
-			b.Run(fmt.Sprint(off, m, "M"), func(b *testing.B) {
+			b.Run(fmt.Sprint(off, m, "M"), func { b ->
 				b.SetBytes(int64(m << 20))
 				for i := 0; i < b.N; i++ {
 					MemclrBytes(x[off:])
@@ -448,7 +448,7 @@ func BenchmarkMemclrUnaligned(b *testing.B) {
 }
 
 func BenchmarkGoMemclr(b *testing.B) {
-	benchmarkSizes(b, []int{5, 16, 64, 256}, func(b *testing.B, n int) {
+	benchmarkSizes(b, []int{5, 16, 64, 256}, func { b, n ->
 		x := make([]byte, n)
 		for i := 0; i < b.N; i++ {
 			clear(x)
@@ -500,7 +500,7 @@ func BenchmarkMemclrRange(b *testing.B) {
 		} else {
 			text = fmt.Sprint(minLen, " ", maxLen)
 		}
-		b.Run(text, func(b *testing.B) {
+		b.Run(text, func { b ->
 			b.SetBytes(int64(total))
 			for i := 0; i < b.N; i++ {
 				for _, clrLen := range t.data {
@@ -907,7 +907,7 @@ func BenchmarkIssue18740(b *testing.B) {
 	var g [4096]byte
 	for _, bm := range benchmarks {
 		buf := make([]byte, bm.nbyte)
-		b.Run(bm.name, func(b *testing.B) {
+		b.Run(bm.name, func { b ->
 			for j := 0; j < b.N; j++ {
 				for i := 0; i < 4096; i += bm.nbyte {
 					copy(buf[:], g[i:])

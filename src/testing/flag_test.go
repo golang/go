@@ -26,7 +26,7 @@ func TestFlag(t *testing.T) {
 
 	for _, flag := range []string{"", "-test.v", "-test.v=test2json"} {
 		flag := flag
-		t.Run(flag, func(t *testing.T) {
+		t.Run(flag, func { t ->
 			t.Parallel()
 			exe, err := os.Executable()
 			if err != nil {

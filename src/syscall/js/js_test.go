@@ -400,7 +400,7 @@ func TestZeroValue(t *testing.T) {
 
 func TestFuncOf(t *testing.T) {
 	c := make(chan struct{})
-	cb := js.FuncOf(func(this js.Value, args []js.Value) any {
+	cb := js.FuncOf(func { this, args ->
 		if got := args[0].Int(); got != 42 {
 			t.Errorf("got %#v, want %#v", got, 42)
 		}
@@ -414,8 +414,8 @@ func TestFuncOf(t *testing.T) {
 
 func TestInvokeFunction(t *testing.T) {
 	called := false
-	cb := js.FuncOf(func(this js.Value, args []js.Value) any {
-		cb2 := js.FuncOf(func(this js.Value, args []js.Value) any {
+	cb := js.FuncOf(func { this, args ->
+		cb2 := js.FuncOf(func { this, args ->
 			called = true
 			return 42
 		})
@@ -435,7 +435,7 @@ func TestInterleavedFunctions(t *testing.T) {
 	c1 := make(chan struct{})
 	c2 := make(chan struct{})
 
-	js.Global().Get("setTimeout").Invoke(js.FuncOf(func(this js.Value, args []js.Value) any {
+	js.Global().Get("setTimeout").Invoke(js.FuncOf(func { this, args ->
 		c1 <- struct{}{}
 		<-c2
 		return nil
@@ -444,15 +444,13 @@ func TestInterleavedFunctions(t *testing.T) {
 	<-c1
 	c2 <- struct{}{}
 	// this goroutine is running, but the callback of setTimeout did not return yet, invoke another function now
-	f := js.FuncOf(func(this js.Value, args []js.Value) any {
-		return nil
-	})
+	f := js.FuncOf(func { this, args -> nil })
 	f.Invoke()
 }
 
 func ExampleFuncOf() {
 	var cb js.Func
-	cb = js.FuncOf(func(this js.Value, args []js.Value) any {
+	cb = js.FuncOf(func { this, args ->
 		fmt.Println("button clicked")
 		cb.Release() // release the function if the button will not be clicked again
 		return nil
@@ -529,7 +527,7 @@ var copyTests = []struct {
 
 func TestCopyBytesToGo(t *testing.T) {
 	for _, tt := range copyTests {
-		t.Run(fmt.Sprintf("%d-to-%d", tt.srcLen, tt.dstLen), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d-to-%d", tt.srcLen, tt.dstLen), func { t ->
 			src := js.Global().Get("Uint8Array").New(tt.srcLen)
 			if tt.srcLen >= 2 {
 				src.SetIndex(1, 42)
@@ -550,7 +548,7 @@ func TestCopyBytesToGo(t *testing.T) {
 
 func TestCopyBytesToJS(t *testing.T) {
 	for _, tt := range copyTests {
-		t.Run(fmt.Sprintf("%d-to-%d", tt.srcLen, tt.dstLen), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d-to-%d", tt.srcLen, tt.dstLen), func { t ->
 			src := make([]byte, tt.srcLen)
 			if tt.srcLen >= 2 {
 				src[1] = 42
@@ -587,13 +585,13 @@ func TestGarbageCollection(t *testing.T) {
 // Note: All JavaScript functions return a JavaScript array, which will cause
 // one allocation to be created to track the Value.gcPtr for the Value finalizer.
 var allocTests = []struct {
-	argLen  int // The number of arguments to use for the syscall
+	argLen   int // The number of arguments to use for the syscall
 	expected int // The expected number of allocations
 }{
 	// For less than or equal to 16 arguments, we expect 1 alloction:
 	// - makeValue new(ref)
-	{0,  1},
-	{2,  1},
+	{0, 1},
+	{2, 1},
 	{15, 1},
 	{16, 1},
 	// For greater than 16 arguments, we expect 3 alloction:
@@ -613,7 +611,7 @@ func TestCallAllocations(t *testing.T) {
 		tmpArray := js.Global().Get("Array").New(0)
 		numAllocs := testing.AllocsPerRun(100, func() {
 			tmpArray.Call("concat", args...)
-		});
+		})
 
 		if numAllocs != float64(test.expected) {
 			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
@@ -630,7 +628,7 @@ func TestInvokeAllocations(t *testing.T) {
 		concatFunc := tmpArray.Get("concat").Call("bind", tmpArray)
 		numAllocs := testing.AllocsPerRun(100, func() {
 			concatFunc.Invoke(args...)
-		});
+		})
 
 		if numAllocs != float64(test.expected) {
 			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
@@ -647,7 +645,7 @@ func TestNewAllocations(t *testing.T) {
 
 		numAllocs := testing.AllocsPerRun(100, func() {
 			arrayConstructor.New(args...)
-		});
+		})
 
 		if numAllocs != float64(test.expected) {
 			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
@@ -679,9 +677,7 @@ func BenchmarkDOM(b *testing.B) {
 }
 
 func TestGlobal(t *testing.T) {
-	ident := js.FuncOf(func(this js.Value, args []js.Value) any {
-		return args[0]
-	})
+	ident := js.FuncOf(func { this, args -> args[0] })
 	defer ident.Release()
 
 	if got := ident.Invoke(js.Global()); !got.Equal(js.Global()) {

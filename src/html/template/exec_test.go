@@ -1490,7 +1490,7 @@ func TestEvalFieldErrors(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			tmpl := Must(New("tmpl").Parse(tc.src))
 			err := tmpl.Execute(io.Discard, tc.value)
 			got := "<nil>"
@@ -1698,7 +1698,7 @@ func TestIssue31810(t *testing.T) {
 	}
 
 	// Even a plain function fails - need to use call.
-	f := func() string { return "result" }
+	f := func { "result" }
 	b.Reset()
 	err = tmpl.Execute(&b, f)
 	if err == nil {
@@ -1762,7 +1762,7 @@ func TestEscapeRace(t *testing.T) {
 func TestRecursiveExecute(t *testing.T) {
 	tmpl := New("")
 
-	recur := func() (HTML, error) {
+	recur := func {
 		var sb strings.Builder
 		if err := tmpl.ExecuteTemplate(&sb, "subroutine", nil); err != nil {
 			t.Fatal(err)

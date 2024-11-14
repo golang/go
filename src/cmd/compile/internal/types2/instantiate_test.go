@@ -109,7 +109,7 @@ func TestInstantiateEquality(t *testing.T) {
 	for _, test := range tests {
 		pkg := mustTypecheck(test.src, nil, nil)
 
-		t.Run(pkg.Name(), func(t *testing.T) {
+		t.Run(pkg.Name(), func { t ->
 			ctxt := NewContext()
 
 			T1 := pkg.Scope().Lookup(test.name1).Type()

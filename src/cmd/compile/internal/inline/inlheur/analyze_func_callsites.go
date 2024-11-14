@@ -56,7 +56,7 @@ func makeCallSiteTableBuilder(fn *ir.Func, cstab CallSiteTab, ptab map[ir.Node]p
 func computeCallSiteTable(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, ptab map[ir.Node]pstate, loopNestingLevel int, nf *nameFinder) CallSiteTab {
 	cstb := makeCallSiteTableBuilder(fn, cstab, ptab, loopNestingLevel, nf)
 	var doNode func(ir.Node) bool
-	doNode = func(n ir.Node) bool {
+	doNode = func { n ->
 		cstb.nodeVisitPre(n)
 		ir.DoChildren(n, doNode)
 		cstb.nodeVisitPost(n)

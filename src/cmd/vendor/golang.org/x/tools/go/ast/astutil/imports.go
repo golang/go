@@ -366,7 +366,7 @@ func UsesImport(f *ast.File, path string) (used bool) {
 		return true
 	}
 
-	ast.Walk(visitFn(func(n ast.Node) {
+	ast.Walk(visitFn(func { n ->
 		sel, ok := n.(*ast.SelectorExpr)
 		if ok && isTopName(sel.X, name) {
 			used = true

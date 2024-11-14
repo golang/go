@@ -32,7 +32,7 @@ func coreType(t Type) Type {
 	}
 
 	var su Type
-	if tpar.underIs(func(u Type) bool {
+	if tpar.underIs(func { u ->
 		if u == nil {
 			return false
 		}
@@ -63,7 +63,7 @@ func coreString(t Type) Type {
 
 	var su Type
 	hasString := false
-	if tpar.underIs(func(u Type) bool {
+	if tpar.underIs(func { u ->
 		if u == nil {
 			return false
 		}

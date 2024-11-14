@@ -38,7 +38,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
 	failed := false
-	ctxt.DiagFunc = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func { format, args ->
 		failed = true
 		t.Errorf(format, args...)
 	}
@@ -193,7 +193,7 @@ Diff:
 	top := pList.Firstpc
 	var text *obj.LSym
 	ok = true
-	ctxt.DiagFunc = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func { format, args ->
 		t.Errorf(format, args...)
 		ok = false
 	}
@@ -294,7 +294,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	failed := false
 	var errBuf bytes.Buffer
 	parser.errorWriter = &errBuf
-	ctxt.DiagFunc = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func { format, args ->
 		failed = true
 		s := fmt.Sprintf(format, args...)
 		if !strings.HasSuffix(s, "\n") {

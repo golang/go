@@ -108,9 +108,9 @@ func TestWriter(t *testing.T) {
 
 func TestWriterReset(t *testing.T) {
 	for _, order := range [...]Order{LSB, MSB} {
-		t.Run(fmt.Sprintf("Order %d", order), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Order %d", order), func { t ->
 			for litWidth := 6; litWidth <= 8; litWidth++ {
-				t.Run(fmt.Sprintf("LitWidth %d", litWidth), func(t *testing.T) {
+				t.Run(fmt.Sprintf("LitWidth %d", litWidth), func { t ->
 					var data []byte
 					if litWidth == 6 {
 						data = []byte{1, 2, 3}
@@ -217,7 +217,7 @@ func BenchmarkEncoder(b *testing.B) {
 		}
 		buf0 = nil
 		runtime.GC()
-		b.Run(fmt.Sprint("1e", e), func(b *testing.B) {
+		b.Run(fmt.Sprint("1e", e), func { b ->
 			b.SetBytes(int64(n))
 			for i := 0; i < b.N; i++ {
 				w := NewWriter(io.Discard, LSB, 8)
@@ -225,7 +225,7 @@ func BenchmarkEncoder(b *testing.B) {
 				w.Close()
 			}
 		})
-		b.Run(fmt.Sprint("1e-Reuse", e), func(b *testing.B) {
+		b.Run(fmt.Sprint("1e-Reuse", e), func { b ->
 			b.SetBytes(int64(n))
 			w := NewWriter(io.Discard, LSB, 8)
 			for i := 0; i < b.N; i++ {

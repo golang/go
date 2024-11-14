@@ -176,7 +176,7 @@ func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *h
 		}
 	}
 	hs.kvs = kvs
-	slices.SortFunc(hs.kvs, func(a, b keyValues) int { return strings.Compare(a.key, b.key) })
+	slices.SortFunc(hs.kvs, func { a, b -> strings.Compare(a.key, b.key) })
 	return kvs, hs
 }
 

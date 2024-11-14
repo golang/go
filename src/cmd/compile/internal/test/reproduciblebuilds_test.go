@@ -27,7 +27,7 @@ func TestReproducibleBuilds(t *testing.T) {
 	t.Parallel()
 	for _, test := range tests {
 		test := test
-		t.Run(test, func(t *testing.T) {
+		t.Run(test, func { t ->
 			t.Parallel()
 			var want []byte
 			tmp, err := os.CreateTemp("", "")

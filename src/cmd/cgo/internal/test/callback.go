@@ -266,7 +266,7 @@ func testReturnAfterGrowFromGo(t *testing.T) {
 func goReturnVal() (r C.int) {
 	// Force a stack copy.
 	var f func(int) int
-	f = func(i int) int {
+	f = func { i ->
 		var buf [256]byte
 		use(buf[:])
 		if i == 0 {

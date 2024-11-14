@@ -25,7 +25,7 @@ func lookupUser(username string) (*User, error) {
 	nameC := make([]byte, len(username)+1)
 	copy(nameC, username)
 
-	err := retryWithBuffer(userBuffer, func(buf []byte) syscall.Errno {
+	err := retryWithBuffer(userBuffer, func { buf ->
 		var errno syscall.Errno
 		pwd, found, errno = _C_getpwnam_r((*_C_char)(unsafe.Pointer(&nameC[0])),
 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
@@ -52,7 +52,7 @@ func lookupUnixUid(uid int) (*User, error) {
 	var pwd _C_struct_passwd
 	var found bool
 
-	err := retryWithBuffer(userBuffer, func(buf []byte) syscall.Errno {
+	err := retryWithBuffer(userBuffer, func { buf ->
 		var errno syscall.Errno
 		pwd, found, errno = _C_getpwuid_r(_C_uid_t(uid),
 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
@@ -90,7 +90,7 @@ func lookupGroup(groupname string) (*Group, error) {
 	cname := make([]byte, len(groupname)+1)
 	copy(cname, groupname)
 
-	err := retryWithBuffer(groupBuffer, func(buf []byte) syscall.Errno {
+	err := retryWithBuffer(groupBuffer, func { buf ->
 		var errno syscall.Errno
 		grp, found, errno = _C_getgrnam_r((*_C_char)(unsafe.Pointer(&cname[0])),
 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
@@ -117,7 +117,7 @@ func lookupUnixGid(gid int) (*Group, error) {
 	var grp _C_struct_group
 	var found bool
 
-	err := retryWithBuffer(groupBuffer, func(buf []byte) syscall.Errno {
+	err := retryWithBuffer(groupBuffer, func { buf ->
 		var errno syscall.Errno
 		grp, found, errno = _C_getgrgid_r(_C_gid_t(gid),
 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))

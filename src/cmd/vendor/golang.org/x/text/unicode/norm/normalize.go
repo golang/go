@@ -117,7 +117,7 @@ func (f Form) IsNormalString(s string) bool {
 		return true
 	}
 	rb := reorderBuffer{f: *ft, src: src, nsrc: len(s)}
-	rb.setFlusher(nil, func(rb *reorderBuffer) bool {
+	rb.setFlusher(nil, func { rb ->
 		for i := 0; i < rb.nrune; i++ {
 			info := rb.rune[i]
 			if bp+int(info.size) > len(s) {

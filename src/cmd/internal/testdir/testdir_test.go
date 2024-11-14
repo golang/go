@@ -133,7 +133,7 @@ func Test(t *testing.T) {
 	for _, dir := range dirs {
 		for _, goFile := range goFiles(t, dir) {
 			test := test{testCommon: common, dir: dir, goFile: goFile}
-			t.Run(path.Join(dir, goFile), func(t *testing.T) {
+			t.Run(path.Join(dir, goFile), func { t ->
 				t.Parallel()
 				test.T = t
 				testError := test.run()
@@ -1410,7 +1410,7 @@ func (t test) wantedErrors(file, short string) (errs []wantedError) {
 			t.Fatalf("%s:%d: invalid errchk line: %s", t.goFileName(), lineNum, line)
 		}
 		for _, m := range mm {
-			rx := lineRx.ReplaceAllStringFunc(m[1], func(m string) string {
+			rx := lineRx.ReplaceAllStringFunc(m[1], func { m ->
 				n := lineNum
 				if strings.HasPrefix(m, "LINE+") {
 					delta, _ := strconv.Atoi(m[5:])
@@ -1535,9 +1535,7 @@ func (a asmChecks) Envs() []buildEnv {
 	for e := range a {
 		envs = append(envs, e)
 	}
-	sort.Slice(envs, func(i, j int) bool {
-		return string(envs[i]) < string(envs[j])
-	})
+	sort.Slice(envs, func { i, j -> string(envs[i]) < string(envs[j]) })
 	return envs
 }
 
@@ -1709,7 +1707,7 @@ func (t test) asmCheck(outStr string, fn string, env buildEnv, fullops map[strin
 	lastFunction := -1
 	var errbuf bytes.Buffer
 	fmt.Fprintln(&errbuf)
-	sort.Slice(failed, func(i, j int) bool { return failed[i].line < failed[j].line })
+	sort.Slice(failed, func { i, j -> failed[i].line < failed[j].line })
 	for _, o := range failed {
 		// Dump the function in which this opcode check was supposed to
 		// pass but failed.
@@ -1792,7 +1790,7 @@ func overlayDir(dstRoot, srcRoot string) error {
 		return err
 	}
 
-	return filepath.WalkDir(srcRoot, func(srcPath string, d fs.DirEntry, err error) error {
+	return filepath.WalkDir(srcRoot, func { srcPath, d, err ->
 		if err != nil || srcPath == srcRoot {
 			return err
 		}

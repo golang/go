@@ -38,17 +38,17 @@ type Cache struct {
 }
 
 func (c *Cache) Reset() {
-	nv := sort.Search(len(c.values), func(i int) bool { return c.values[i].ID == 0 })
+	nv := sort.Search(len(c.values), func { i -> c.values[i].ID == 0 })
 	xv := c.values[:nv]
 	for i := range xv {
 		xv[i] = Value{}
 	}
-	nb := sort.Search(len(c.blocks), func(i int) bool { return c.blocks[i].ID == 0 })
+	nb := sort.Search(len(c.blocks), func { i -> c.blocks[i].ID == 0 })
 	xb := c.blocks[:nb]
 	for i := range xb {
 		xb[i] = Block{}
 	}
-	nl := sort.Search(len(c.locs), func(i int) bool { return c.locs[i] == nil })
+	nl := sort.Search(len(c.locs), func { i -> c.locs[i] == nil })
 	xl := c.locs[:nl]
 	for i := range xl {
 		xl[i] = nil

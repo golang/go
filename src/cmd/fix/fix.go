@@ -390,7 +390,7 @@ func renameTop(f *ast.File, old, new string) bool {
 	// Rename top-level old to new, both unresolved names
 	// (probably defined in another file) and names that resolve
 	// to a declaration we renamed.
-	walk(f, func(n any) {
+	walk(f, func { n ->
 		id, ok := n.(*ast.Ident)
 		if ok && isTopName(id, old) {
 			id.Name = new

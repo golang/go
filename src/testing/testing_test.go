@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 func TestTempDirInCleanup(t *testing.T) {
 	var dir string
 
-	t.Run("test", func(t *testing.T) {
+	t.Run("test", func { t ->
 		t.Cleanup(func() {
 			dir = t.TempDir()
 		})
@@ -63,13 +63,12 @@ func TestTempDirInCleanup(t *testing.T) {
 }
 
 func TestTempDirInBenchmark(t *testing.T) {
-	testing.Benchmark(func(b *testing.B) {
-		if !b.Run("test", func(b *testing.B) {
-			// Add a loop so that the test won't fail. See issue 38677.
-			for i := 0; i < b.N; i++ {
-				_ = b.TempDir()
-			}
-		}) {
+	testing.Benchmark(func { b ->
+		if !b.Run("test", func { b ->
+		// Add a loop so that the test won't fail. See issue 38677.
+		for i := 0; i < b.N; i++ {
+			_ = b.TempDir()
+		} }) {
 			t.Fatal("Sub test failure in a benchmark")
 		}
 	})
@@ -183,7 +182,7 @@ func TestSetenv(t *testing.T) {
 			os.Unsetenv(test.key)
 		}
 
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			t.Setenv(test.key, test.newValue)
 			if os.Getenv(test.key) != test.newValue {
 				t.Fatalf("unexpected value after t.Setenv: got %s, want %s", os.Getenv(test.key), test.newValue)
@@ -229,7 +228,7 @@ func TestSetenvWithParallelBeforeSetenv(t *testing.T) {
 func TestSetenvWithParallelParentBeforeSetenv(t *testing.T) {
 	t.Parallel()
 
-	t.Run("child", func(t *testing.T) {
+	t.Run("child", func { t ->
 		defer func() {
 			want := "testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests"
 			if got := recover(); got != want {
@@ -244,8 +243,8 @@ func TestSetenvWithParallelParentBeforeSetenv(t *testing.T) {
 func TestSetenvWithParallelGrandParentBeforeSetenv(t *testing.T) {
 	t.Parallel()
 
-	t.Run("child", func(t *testing.T) {
-		t.Run("grand-child", func(t *testing.T) {
+	t.Run("child", func { t ->
+		t.Run("grand-child", func { t ->
 			defer func() {
 				want := "testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests"
 				if got := recover(); got != want {
@@ -354,9 +353,7 @@ func doRace() {
 func TestRaceReports(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		// Generate a race detector report in a sub test.
-		t.Run("Sub", func(t *testing.T) {
-			doRace()
-		})
+		t.Run("Sub", func { t -> doRace() })
 		return
 	}
 
@@ -391,13 +388,13 @@ func TestRaceSubReports(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		t.Parallel()
 		c1 := make(chan bool, 1)
-		t.Run("sub", func(t *testing.T) {
-			t.Run("subsub1", func(t *testing.T) {
+		t.Run("sub", func { t ->
+			t.Run("subsub1", func { t ->
 				t.Parallel()
 				doRace()
 				c1 <- true
 			})
-			t.Run("subsub2", func(t *testing.T) {
+			t.Run("subsub2", func { t ->
 				t.Parallel()
 				doRace()
 				<-c1
@@ -438,10 +435,8 @@ func TestRaceInCleanup(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		t.Cleanup(doRace)
 		t.Parallel()
-		t.Run("sub", func(t *testing.T) {
-			t.Parallel()
-			// No race should be reported for sub.
-		})
+		t.Run("sub", func { t -> t.Parallel() })// No race should be reported for sub.
+
 		return
 	}
 
@@ -471,12 +466,8 @@ func TestRaceInCleanup(t *testing.T) {
 
 func TestDeepSubtestRace(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
-		t.Run("sub", func(t *testing.T) {
-			t.Run("subsub", func(t *testing.T) {
-				t.Run("subsubsub", func(t *testing.T) {
-					doRace()
-				})
-			})
+		t.Run("sub", func { t ->
+			t.Run("subsub", func { t -> t.Run("subsubsub", func { t -> doRace() }) })
 			doRace()
 		})
 		return
@@ -506,13 +497,13 @@ func TestRaceDuringParallelFailsAllSubtests(t *testing.T) {
 			close(done)
 		}()
 
-		t.Run("sub", func(t *testing.T) {
-			t.Run("subsub1", func(t *testing.T) {
+		t.Run("sub", func { t ->
+			t.Run("subsub1", func { t ->
 				t.Parallel()
 				ready.Done()
 				<-done
 			})
-			t.Run("subsub2", func(t *testing.T) {
+			t.Run("subsub2", func { t ->
 				t.Parallel()
 				ready.Done()
 				<-done
@@ -537,7 +528,7 @@ func TestRaceDuringParallelFailsAllSubtests(t *testing.T) {
 
 func TestRaceBeforeParallel(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
-		t.Run("sub", func(t *testing.T) {
+		t.Run("sub", func { t ->
 			doRace()
 			t.Parallel()
 		})
@@ -625,7 +616,7 @@ func BenchmarkSubRacy(b *testing.B) {
 		b.Skipf("skipping intentionally-racy benchmark")
 	}
 
-	b.Run("non-racy", func(b *testing.B) {
+	b.Run("non-racy", func { b ->
 		tot := 0
 		for i := 0; i < b.N; i++ {
 			tot++
@@ -633,11 +624,9 @@ func BenchmarkSubRacy(b *testing.B) {
 		_ = tot
 	})
 
-	b.Run("racy", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			doRace()
-		}
-	})
+	b.Run("racy", func { b -> for i := 0; i < b.N; i++ {
+		doRace()
+	} })
 
 	doRace() // should be reported separately
 }
@@ -651,10 +640,10 @@ func TestRunningTests(t *testing.T) {
 
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		for i := 0; i < 2; i++ {
-			t.Run(fmt.Sprintf("outer%d", i), func(t *testing.T) {
+			t.Run(fmt.Sprintf("outer%d", i), func { t ->
 				t.Parallel()
 				for j := 0; j < 2; j++ {
-					t.Run(fmt.Sprintf("inner%d", j), func(t *testing.T) {
+					t.Run(fmt.Sprintf("inner%d", j), func { t ->
 						t.Parallel()
 						for {
 							time.Sleep(1 * time.Millisecond)
@@ -705,7 +694,7 @@ func TestRunningTestsInCleanup(t *testing.T) {
 
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		for i := 0; i < 2; i++ {
-			t.Run(fmt.Sprintf("outer%d", i), func(t *testing.T) {
+			t.Run(fmt.Sprintf("outer%d", i), func { t ->
 				// Not parallel: we expect to see only one outer test,
 				// stuck in cleanup after its subtest finishes.
 
@@ -716,9 +705,7 @@ func TestRunningTestsInCleanup(t *testing.T) {
 				})
 
 				for j := 0; j < 2; j++ {
-					t.Run(fmt.Sprintf("inner%d", j), func(t *testing.T) {
-						t.Parallel()
-					})
+					t.Run(fmt.Sprintf("inner%d", j), func { t -> t.Parallel() })
 				}
 			})
 		}
@@ -791,7 +778,7 @@ func TestConcurrentRun(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		ready.Add(1)
 		done.Add(1)
-		go t.Run("", func(*testing.T) {
+		go t.Run("", func {
 			ready.Done()
 			<-block
 			done.Done()
@@ -806,10 +793,9 @@ func TestParentRun(t1 *testing.T) {
 	// Regression test for https://go.dev/issue/64402:
 	// this deadlocked after https://go.dev/cl/506755.
 
-	t1.Run("outer", func(t2 *testing.T) {
+	t1.Run("outer", func { t2 ->
 		t2.Log("Hello outer!")
-		t1.Run("not_inner", func(t3 *testing.T) { // Note: this is t1.Run, not t2.Run.
-			t3.Log("Hello inner!")
-		})
+		t1.Run("not_inner", func { t3 -> // Note: this is t1.Run, not t2.Run.
+		t3.Log("Hello inner!") })
 	})
 }

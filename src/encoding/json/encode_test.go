@@ -115,7 +115,7 @@ func TestRoundtripStringTag(t *testing.T) {
 }`,
 	}}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			got, err := MarshalIndent(&tt.in, "", "\t")
 			if err != nil {
 				t.Fatalf("%s: MarshalIndent error: %v", tt.Where, err)
@@ -231,7 +231,7 @@ func TestUnsupportedValues(t *testing.T) {
 		{Name(""), recursiveSliceCycle},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			if _, err := Marshal(tt.in); err != nil {
 				if _, ok := err.(*UnsupportedValueError); !ok {
 					t.Errorf("%s: Marshal error:\n\tgot:  %T\n\twant: %T", tt.Where, err, new(UnsupportedValueError))
@@ -528,7 +528,7 @@ func TestAnonymousFields(t *testing.T) {
 	}}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			b, err := Marshal(tt.makeInput())
 			if err != nil {
 				t.Fatalf("%s: Marshal error: %v", tt.Where, err)
@@ -606,7 +606,7 @@ func TestNilMarshal(t *testing.T) {
 		{Name(""), struct{ M any }{(*nilTextMarshaler)(nil)}, `{"M":null}`},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			switch got, err := Marshal(tt.in); {
 			case err != nil:
 				t.Fatalf("%s: Marshal error: %v", tt.Where, err)
@@ -881,7 +881,7 @@ func TestEncodeBytekind(t *testing.T) {
 		{Name(""), []textfloat{12, 3}, `["TF:12.00","TF:3.00"]`},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			b, err := Marshal(tt.in)
 			if err != nil {
 				t.Errorf("%s: Marshal error: %v", tt.Where, err)
@@ -1012,9 +1012,7 @@ func TestMarshalFloat(t *testing.T) {
 					}
 					next := math.Nextafter
 					if bits == 32 {
-						next = func(g, h float64) float64 {
-							return float64(math.Nextafter32(float32(g), float32(h)))
-						}
+						next = func { g, h -> float64(math.Nextafter32(float32(g), float32(h))) }
 					}
 					test(f, bits)
 					test(next(f, bigger), bits)
@@ -1120,7 +1118,7 @@ func TestMarshalRawMessageValue(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			b, err := Marshal(tt.in)
 			if ok := (err == nil); ok != tt.ok {
 				if err != nil {
@@ -1185,7 +1183,7 @@ func TestMarshalerError(t *testing.T) {
 	}}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			got := tt.err.Error()
 			if got != tt.want {
 				t.Errorf("%s: Error:\n\tgot:  %s\n\twant: %s", tt.Where, got, tt.want)

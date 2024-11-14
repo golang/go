@@ -101,7 +101,7 @@ func TestReaderReusesReaderBuffer(t *testing.T) {
 	encodedReader := bytes.NewReader([]byte{})
 	encodedNotByteReader := struct{ io.Reader }{encodedReader}
 
-	t.Run("BufferIsReused", func(t *testing.T) {
+	t.Run("BufferIsReused", func { t ->
 		f := NewReader(encodedNotByteReader).(*decompressor)
 		bufioR, ok := f.r.(*bufio.Reader)
 		if !ok {
@@ -112,7 +112,7 @@ func TestReaderReusesReaderBuffer(t *testing.T) {
 			t.Fatalf("bufio.Reader was not reused")
 		}
 	})
-	t.Run("BufferIsNotReusedWhenGotByteReader", func(t *testing.T) {
+	t.Run("BufferIsNotReusedWhenGotByteReader", func { t ->
 		f := NewReader(encodedNotByteReader).(*decompressor)
 		if _, ok := f.r.(*bufio.Reader); !ok {
 			t.Fatalf("bufio.Reader should be created")
@@ -122,7 +122,7 @@ func TestReaderReusesReaderBuffer(t *testing.T) {
 			t.Fatalf("provided io.ByteReader should be used directly")
 		}
 	})
-	t.Run("BufferIsCreatedAfterByteReader", func(t *testing.T) {
+	t.Run("BufferIsCreatedAfterByteReader", func { t ->
 		for i, r := range []io.Reader{encodedReader, bufio.NewReader(encodedReader)} {
 			f := NewReader(r).(*decompressor)
 			if f.r != r {

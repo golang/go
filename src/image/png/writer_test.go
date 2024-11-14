@@ -128,7 +128,7 @@ func TestWriterPaletted(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("plen-%d", tc.plen), func(t *testing.T) {
+		t.Run(fmt.Sprintf("plen-%d", tc.plen), func { t ->
 			// Create a paletted image with the correct palette length
 			palette := make(color.Palette, tc.plen)
 			for i := range palette {
@@ -264,7 +264,7 @@ func TestWriteRGBA(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			m0 := tc.img
 			m1, err := encodeDecode(m0)
 			if err != nil {

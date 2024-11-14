@@ -23,10 +23,10 @@ func TestNoAsm(t *testing.T) {
 
 	for _, curve := range curves {
 		name := curve.Params().Name
-		t.Run(name, func(t *testing.T) { testKeyGeneration(t, curve) })
-		t.Run(name, func(t *testing.T) { testSignAndVerify(t, curve) })
-		t.Run(name, func(t *testing.T) { testNonceSafety(t, curve) })
-		t.Run(name, func(t *testing.T) { testINDCCA(t, curve) })
-		t.Run(name, func(t *testing.T) { testNegativeInputs(t, curve) })
+		t.Run(name, func { t -> testKeyGeneration(t, curve) })
+		t.Run(name, func { t -> testSignAndVerify(t, curve) })
+		t.Run(name, func { t -> testNonceSafety(t, curve) })
+		t.Run(name, func { t -> testINDCCA(t, curve) })
+		t.Run(name, func { t -> testNegativeInputs(t, curve) })
 	}
 }

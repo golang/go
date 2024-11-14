@@ -341,7 +341,7 @@ func signNISTEC[Point nistPoint[Point]](c *nistCurve[Point], priv *PrivateKey, c
 
 func encodeSignature(r, s []byte) ([]byte, error) {
 	var b cryptobyte.Builder
-	b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+	b.AddASN1(asn1.SEQUENCE, func { b ->
 		addASN1IntBytes(b, r)
 		addASN1IntBytes(b, s)
 	})
@@ -358,7 +358,7 @@ func addASN1IntBytes(b *cryptobyte.Builder, bytes []byte) {
 		b.SetError(errors.New("invalid integer"))
 		return
 	}
-	b.AddASN1(asn1.INTEGER, func(c *cryptobyte.Builder) {
+	b.AddASN1(asn1.INTEGER, func { c ->
 		if bytes[0]&0x80 != 0 {
 			c.AddUint8(0)
 		}

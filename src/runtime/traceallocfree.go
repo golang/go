@@ -74,9 +74,7 @@ func traceSnapshotMemory(gen uintptr) {
 	}
 
 	// Write out all the goroutine stacks.
-	forEachGRace(func(gp *g) {
-		trace.GoroutineStackExists(gp.stack.lo, gp.stack.hi-gp.stack.lo)
-	})
+	forEachGRace(func { gp -> trace.GoroutineStackExists(gp.stack.lo, gp.stack.hi-gp.stack.lo) })
 	traceRelease(trace)
 }
 

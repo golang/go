@@ -157,7 +157,7 @@ func TestWriteTimeout(t *testing.T) {
 	t.Parallel()
 
 	for i, tt := range writeTimeoutTests {
-		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+		t.Run(fmt.Sprintf("#%d", i), func { t ->
 			r, w, err := os.Pipe()
 			if err != nil {
 				t.Fatal(err)
@@ -489,7 +489,7 @@ func testVariousDeadlines(t *testing.T) {
 			}
 		}
 		for run := 0; run < numRuns; run++ {
-			t.Run(fmt.Sprintf("%v-%d", timeout, run+1), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%v-%d", timeout, run+1), func { t ->
 				r, w, err := os.Pipe()
 				if err != nil {
 					t.Fatal(err)

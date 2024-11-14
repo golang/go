@@ -72,7 +72,7 @@ func TestConvertMemProfile(t *testing.T) {
 		{"heap", ""},
 		{"allocs", "alloc_space"},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			var buf bytes.Buffer
 			if err := writeHeapProto(&buf, rec, rate, tc.defaultSampleType); err != nil {
 				t.Fatalf("writing profile: %v", err)

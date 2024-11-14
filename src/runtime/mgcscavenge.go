@@ -390,7 +390,7 @@ func (s *scavengerState) init() {
 
 	// Install real functions if stubs aren't present.
 	if s.scavenge == nil {
-		s.scavenge = func(n uintptr) (uintptr, int64) {
+		s.scavenge = func { n ->
 			start := nanotime()
 			r := mheap_.pages.scavenge(n, nil, false)
 			end := nanotime()
@@ -402,16 +402,14 @@ func (s *scavengerState) init() {
 		}
 	}
 	if s.shouldStop == nil {
-		s.shouldStop = func() bool {
+		s.shouldStop = func {
 			// If background scavenging is disabled or if there's no work to do just stop.
 			return heapRetained() <= scavenge.gcPercentGoal.Load() &&
 				gcController.mappedReady.Load() <= scavenge.memoryLimitGoal.Load()
 		}
 	}
 	if s.gomaxprocs == nil {
-		s.gomaxprocs = func() int32 {
-			return gomaxprocs
-		}
+		s.gomaxprocs = func { gomaxprocs }
 	}
 }
 

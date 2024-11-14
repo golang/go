@@ -551,13 +551,11 @@ func BenchmarkMap(b *testing.B) {
 		return r
 	}
 
-	b.Run("identity", func(b *testing.B) {
+	b.Run("identity", func { b ->
 		for _, md := range mapdata {
-			b.Run(md.name, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					Map(mapidentity, md.data)
-				}
-			})
+			b.Run(md.name, func { b -> for i := 0; i < b.N; i++ {
+				Map(mapidentity, md.data)
+			} })
 		}
 	})
 
@@ -571,13 +569,11 @@ func BenchmarkMap(b *testing.B) {
 		return r
 	}
 
-	b.Run("change", func(b *testing.B) {
+	b.Run("change", func { b ->
 		for _, md := range mapdata {
-			b.Run(md.name, func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					Map(mapchange, md.data)
-				}
-			})
+			b.Run(md.name, func { b -> for i := 0; i < b.N; i++ {
+				Map(mapchange, md.data)
+			} })
 		}
 	})
 }

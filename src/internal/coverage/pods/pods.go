@@ -167,7 +167,7 @@ func collectPodsImpl(files []string, dirIndices []int, warn bool) []Pod {
 	}
 	pods := make([]Pod, 0, len(mm))
 	for _, p := range mm {
-		slices.SortFunc(p.elements, func(a, b fileWithAnnotations) int {
+		slices.SortFunc(p.elements, func { a, b ->
 			if r := cmp.Compare(a.origin, b.origin); r != 0 {
 				return r
 			}
@@ -186,9 +186,7 @@ func collectPodsImpl(files []string, dirIndices []int, warn bool) []Pod {
 		}
 		pods = append(pods, pod)
 	}
-	slices.SortFunc(pods, func(a, b Pod) int {
-		return strings.Compare(a.MetaFile, b.MetaFile)
-	})
+	slices.SortFunc(pods, func { a, b -> strings.Compare(a.MetaFile, b.MetaFile) })
 	return pods
 }
 

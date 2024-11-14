@@ -83,9 +83,8 @@ func ExampleDeleteFunc() {
 		"three": 3,
 		"four":  4,
 	}
-	maps.DeleteFunc(m, func(k string, v int) bool {
-		return v%2 != 0 // delete odd values
-	})
+	maps.DeleteFunc(m, func { k, v -> v%2 != 0 })// delete odd values
+
 	fmt.Println(m)
 	// Output:
 	// map[four:4 two:2]
@@ -126,9 +125,7 @@ func ExampleEqualFunc() {
 		10:   []byte("Ten"),
 		1000: []byte("Thousand"),
 	}
-	eq := maps.EqualFunc(m1, m2, func(v1 string, v2 []byte) bool {
-		return strings.ToLower(v1) == strings.ToLower(string(v2))
-	})
+	eq := maps.EqualFunc(m1, m2, func { v1, v2 -> strings.ToLower(v1) == strings.ToLower(string(v2)) })
 	fmt.Println(eq)
 	// Output:
 	// true

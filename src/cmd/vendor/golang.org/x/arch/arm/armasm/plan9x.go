@@ -24,7 +24,7 @@ import (
 // as offsets; it is used to display pc-relative loads as constant loads.
 func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text io.ReaderAt) string {
 	if symname == nil {
-		symname = func(uint64) (string, uint64) { return "", 0 }
+		symname = func { "", 0 }
 	}
 
 	var args []string

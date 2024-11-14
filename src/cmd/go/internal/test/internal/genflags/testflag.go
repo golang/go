@@ -16,7 +16,7 @@ func ShortTestFlags() []string {
 	testing.Init()
 
 	var names []string
-	flag.VisitAll(func(f *flag.Flag) {
+	flag.VisitAll(func { f ->
 		var name string
 		var found bool
 		if name, found = strings.CutPrefix(f.Name, "test."); !found {

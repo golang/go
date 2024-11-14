@@ -176,7 +176,7 @@ func TestChildContentType(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			expectedMap := map[string]string{"_body": tt.body}
 			req := fmt.Sprintf("GET /test.go?exact-body=%s HTTP/1.0\nHost: example.com\n\n", url.QueryEscape(tt.body))
 			replay := runCgiTest(t, h, req, expectedMap)

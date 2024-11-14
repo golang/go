@@ -769,7 +769,7 @@ func (p *addrParser) consumeDisplayNameComment() (string, error) {
 	}
 
 	// TODO(stapelberg): parse quoted-string within comment
-	words := strings.FieldsFunc(comment, func(r rune) bool { return r == ' ' || r == '\t' })
+	words := strings.FieldsFunc(comment, func { r -> r == ' ' || r == '\t' })
 	for idx, word := range words {
 		decoded, isEncoded, err := p.decodeRFC2047Word(word)
 		if err != nil {
@@ -867,7 +867,7 @@ func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, e
 	// one in rfc2047Decoder.
 	adec := *dec
 	charsetReaderError := false
-	adec.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+	adec.CharsetReader = func { charset, input ->
 		if dec.CharsetReader == nil {
 			charsetReaderError = true
 			return nil, charsetError(charset)

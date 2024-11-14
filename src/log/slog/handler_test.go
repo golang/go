@@ -85,9 +85,9 @@ func TestDefaultHandle(t *testing.T) {
 			want:  "INFO message p1=1 s1.s2.a=1 s1.s2.b=two",
 		},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			var got string
-			var h Handler = newDefaultHandler(func(_ uintptr, b []byte) error {
+			var h Handler = newDefaultHandler(func { _, b ->
 				got = string(b)
 				return nil
 			})
@@ -110,7 +110,7 @@ func TestConcurrentWrites(t *testing.T) {
 	ctx := context.Background()
 	count := 1000
 	for _, handlerType := range []string{"text", "json"} {
-		t.Run(handlerType, func(t *testing.T) {
+		t.Run(handlerType, func { t ->
 			var buf bytes.Buffer
 			var h Handler
 			switch handlerType {
@@ -534,7 +534,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
 		r.AddAttrs(test.attrs...)
 		var buf bytes.Buffer
 		opts := HandlerOptions{ReplaceAttr: test.replace, AddSource: test.addSource}
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			for _, handler := range []struct {
 				name string
 				h    Handler
@@ -543,7 +543,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
 				{"text", NewTextHandler(&buf, &opts), test.wantText},
 				{"json", NewJSONHandler(&buf, &opts), test.wantJSON},
 			} {
-				t.Run(handler.name, func(t *testing.T) {
+				t.Run(handler.name, func { t ->
 					h := handler.h
 					if test.with != nil {
 						h = test.with(h)

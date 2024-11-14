@@ -15,5 +15,8 @@ func init() {
 	//
 	// Note that despite its legacy name, it uses a secure CSPRNG (not RC4) in
 	// all supported macOS versions.
-	altGetRandom = func(b []byte) error { unix.ARC4Random(b); return nil }
+	altGetRandom = func { b ->
+		unix.ARC4Random(b)
+		return nil
+	}
 }

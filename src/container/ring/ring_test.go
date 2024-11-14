@@ -33,7 +33,7 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 	// iteration
 	n = 0
 	s := 0
-	r.Do(func(p any) {
+	r.Do(func { p ->
 		n++
 		if p != nil {
 			s += p.(int)

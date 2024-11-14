@@ -13,7 +13,7 @@ import (
 // fmtFrames formats a backtrace for reporting reader/writer desyncs.
 func fmtFrames(pcs ...uintptr) []string {
 	res := make([]string, 0, len(pcs))
-	walkFrames(pcs, func(file string, line int, name string, offset uintptr) {
+	walkFrames(pcs, func { file, line, name, offset ->
 		// Trim package from function name. It's just redundant noise.
 		name = strings.TrimPrefix(name, "cmd/compile/internal/noder.")
 

@@ -530,9 +530,7 @@ func (ctxt *Link) loadlib() {
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
 	}
 	ctxt.loader = loader.NewLoader(flags, &ctxt.ErrorReporter.ErrorReporter)
-	ctxt.ErrorReporter.SymName = func(s loader.Sym) string {
-		return ctxt.loader.SymName(s)
-	}
+	ctxt.ErrorReporter.SymName = func { s -> ctxt.loader.SymName(s) }
 
 	// ctxt.Library grows during the loop, so not a range loop.
 	i := 0
@@ -1732,9 +1730,7 @@ func (ctxt *Link) hostlink() {
 			argv = append(argv, "-rdynamic")
 		} else {
 			var exports []string
-			ctxt.loader.ForAllCgoExportDynamic(func(s loader.Sym) {
-				exports = append(exports, "-Wl,--export-dynamic-symbol="+ctxt.loader.SymExtname(s))
-			})
+			ctxt.loader.ForAllCgoExportDynamic(func { s -> exports = append(exports, "-Wl,--export-dynamic-symbol="+ctxt.loader.SymExtname(s)) })
 			sort.Strings(exports)
 			argv = append(argv, exports...)
 		}
@@ -2052,17 +2048,13 @@ func (ctxt *Link) hostlink() {
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
 		if _, err := os.Stat(dsym); err == nil {
 			updateMachoOutFile("combining dwarf",
-				func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
-					return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
-				})
+				func { ctxt, exef, exem, outexe -> machoCombineDwarf(ctxt, exef, exem, dsym, outexe) })
 			uuidUpdated = true
 		}
 	}
 	if ctxt.IsDarwin() && !uuidUpdated && *flagBuildid != "" {
 		updateMachoOutFile("rewriting uuid",
-			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
-				return machoRewriteUuid(ctxt, exef, exem, outexe)
-			})
+			func { ctxt, exef, exem, outexe -> machoRewriteUuid(ctxt, exef, exem, outexe) })
 	}
 	if ctxt.NeedCodeSign() {
 		err := machoCodeSign(ctxt, *flagOutfile)
@@ -2890,7 +2882,7 @@ func captureHostObj(h *Hostobj) {
 		log.Fatalf("error writing captured host obj info %s: %v", ipath, err)
 	}
 
-	readObjData := func() []byte {
+	readObjData := func {
 		inf, err := os.Open(h.file)
 		if err != nil {
 			log.Fatalf("capturing host obj: open failed on %s: %v", h.pn, err)

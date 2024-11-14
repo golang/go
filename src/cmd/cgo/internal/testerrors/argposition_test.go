@@ -104,19 +104,19 @@ func TestArgumentsPositions(t *testing.T) {
 
 	expectation := IdentPositionInfo{
 		"checkedPointer": []ShortPosition{
-			ShortPosition{
+			{
 				Line:   32,
 				Column: 56,
 			},
 		},
 		"singleInnerPointerChecked": []ShortPosition{
-			ShortPosition{
+			{
 				Line:   37,
 				Column: 91,
 			},
 		},
 		"doublePointerChecked": []ShortPosition{
-			ShortPosition{
+			{
 				Line:   42,
 				Column: 91,
 			},

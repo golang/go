@@ -55,7 +55,7 @@ func testHelper(t *testing.T) {
 	}
 	fn("4")
 
-	t.Run("sub", func(t *testing.T) {
+	t.Run("sub", func { t ->
 		helper(t, "5")
 		notHelperCallingHelper(t, "6")
 		// Check that calling Helper from inside a subtest entry function
@@ -101,7 +101,7 @@ func parallelTestHelper(t *testing.T) {
 
 func helperSubCallingHelper(t *testing.T, msg string) {
 	t.Helper()
-	t.Run("sub2", func(t *testing.T) {
+	t.Run("sub2", func { t ->
 		t.Helper()
 		t.Fatal(msg)
 	})

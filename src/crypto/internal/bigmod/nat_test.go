@@ -65,7 +65,7 @@ func TestModSubThenAddIdentity(t *testing.T) {
 }
 
 func TestMontgomeryRoundtrip(t *testing.T) {
-	err := quick.Check(func(a *Nat) bool {
+	err := quick.Check(func { a ->
 		one := &Nat{make([]uint, len(a.limbs))}
 		one.limbs[0] = 1
 		aPlusOne := new(big.Int).SetBytes(natBytes(a))

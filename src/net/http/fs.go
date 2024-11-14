@@ -152,7 +152,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
 		Error(w, "Error reading directory", StatusInternalServerError)
 		return
 	}
-	sort.Slice(dirs, func(i, j int) bool { return dirs.name(i) < dirs.name(j) })
+	sort.Slice(dirs, func { i, j -> dirs.name(i) < dirs.name(j) })
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, "<!doctype html>\n")
@@ -238,7 +238,7 @@ func serveError(w ResponseWriter, text string, code int) {
 // The GODEBUG setting httpservecontentkeepheaders=1 causes ServeContent
 // to preserve these headers.
 func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
-	sizeFunc := func() (int64, error) {
+	sizeFunc := func {
 		size, err := content.Seek(0, io.SeekEnd)
 		if err != nil {
 			return 0, errSeeker
@@ -752,7 +752,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	}
 
 	// serveContent will check modification time
-	sizeFunc := func() (int64, error) { return d.Size(), nil }
+	sizeFunc := func { d.Size(), nil }
 	serveContent(w, r, d.Name(), d.ModTime(), sizeFunc, f)
 }
 
@@ -884,9 +884,7 @@ func (f ioFS) Open(name string) (File, error) {
 	}
 	file, err := f.fsys.Open(name)
 	if err != nil {
-		return nil, mapOpenError(err, name, '/', func(path string) (fs.FileInfo, error) {
-			return fs.Stat(f.fsys, path)
-		})
+		return nil, mapOpenError(err, name, '/', func { path -> fs.Stat(f.fsys, path) })
 	}
 	return ioFile{file}, nil
 }

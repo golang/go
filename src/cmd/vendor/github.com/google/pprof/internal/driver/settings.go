@@ -132,7 +132,7 @@ func setConfig(fname string, request url.URL) error {
 	if err := cfg.applyURL(q); err != nil {
 		return err
 	}
-	return editSettings(fname, func(s *settings) error {
+	return editSettings(fname, func { s ->
 		for i, c := range s.Configs {
 			if c.Name == name {
 				s.Configs[i].config = cfg
@@ -146,7 +146,7 @@ func setConfig(fname string, request url.URL) error {
 
 // removeConfig removes config from fname.
 func removeConfig(fname, config string) error {
-	return editSettings(fname, func(s *settings) error {
+	return editSettings(fname, func { s ->
 		for i, c := range s.Configs {
 			if c.Name == config {
 				s.Configs = append(s.Configs[:i], s.Configs[i+1:]...)

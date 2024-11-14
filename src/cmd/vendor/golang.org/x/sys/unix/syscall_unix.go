@@ -51,9 +51,7 @@ func errnoErr(e syscall.Errno) error {
 
 // ErrnoName returns the error name for error number e.
 func ErrnoName(e syscall.Errno) string {
-	i := sort.Search(len(errorList), func(i int) bool {
-		return errorList[i].num >= e
-	})
+	i := sort.Search(len(errorList), func { i -> errorList[i].num >= e })
 	if i < len(errorList) && errorList[i].num == e {
 		return errorList[i].name
 	}
@@ -62,9 +60,7 @@ func ErrnoName(e syscall.Errno) string {
 
 // SignalName returns the signal name for signal number s.
 func SignalName(s syscall.Signal) string {
-	i := sort.Search(len(signalList), func(i int) bool {
-		return signalList[i].num >= s
-	})
+	i := sort.Search(len(signalList), func { i -> signalList[i].num >= s })
 	if i < len(signalList) && signalList[i].num == s {
 		return signalList[i].name
 	}

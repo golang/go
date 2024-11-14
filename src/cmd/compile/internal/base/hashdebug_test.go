@@ -61,7 +61,7 @@ func TestHash(t *testing.T) {
 func TestHashMatch(t *testing.T) {
 	b := new(bytes.Buffer)
 	hd := NewHashDebug("GOSSAHASH", "v1110", b)
-	check := hd.MatchPkgFunc("bar", "0", func() string { return "note" })
+	check := hd.MatchPkgFunc("bar", "0", func { "note" })
 	msg := b.String()
 	t.Logf("message was '%s'", msg)
 	if !check {

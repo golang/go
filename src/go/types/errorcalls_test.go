@@ -27,7 +27,7 @@ func TestErrorCalls(t *testing.T) {
 	}
 
 	for _, file := range files {
-		ast.Inspect(file, func(n ast.Node) bool {
+		ast.Inspect(file, func { n ->
 			call, _ := n.(*ast.CallExpr)
 			if call == nil {
 				return true
@@ -46,7 +46,7 @@ func TestErrorCalls(t *testing.T) {
 				return false
 			}
 			format := call.Args[errorfFormatIndex]
-			ast.Inspect(format, func(n ast.Node) bool {
+			ast.Inspect(format, func { n ->
 				if lit, _ := n.(*ast.BasicLit); lit != nil && lit.Kind == token.STRING {
 					if s, err := strconv.Unquote(lit.Value); err == nil {
 						if !balancedParentheses(s) {

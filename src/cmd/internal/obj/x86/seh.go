@@ -146,7 +146,7 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 	// Dedup them when possible.
 	hash := base64.StdEncoding.EncodeToString(buf.data)
 	symname := fmt.Sprintf("%d.%s", len(buf.data), hash)
-	return ctxt.LookupInit("go:sehuw."+symname, func(s *obj.LSym) {
+	return ctxt.LookupInit("go:sehuw."+symname, func { s ->
 		s.WriteBytes(ctxt, 0, buf.data)
 		s.Type = objabi.SSEHUNWINDINFO
 		s.Set(obj.AttrDuplicateOK, true)

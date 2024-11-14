@@ -206,7 +206,7 @@ func (w *monoGraph) assign(pkg *Package, pos syntax.Pos, tpar *TypeParam, targ T
 	// Recursively walk the type argument to find any defined types or
 	// type parameters.
 	var do func(typ Type)
-	do = func(typ Type) {
+	do = func { typ ->
 		switch typ := Unalias(typ).(type) {
 		default:
 			panic("unexpected type")

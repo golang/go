@@ -205,9 +205,7 @@ func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn 
 func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	ctrlCtxFn := sd.Dialer.ControlContext
 	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
-		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
-			return sd.Dialer.Control(network, address, c)
-		}
+		ctrlCtxFn = func { ctx, network, address, c -> sd.Dialer.Control(network, address, c) }
 	}
 	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_DGRAM, 0, "dial", ctrlCtxFn)
 	if err != nil {
@@ -219,9 +217,7 @@ func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPCo
 func (sl *sysListener) listenUDP(ctx context.Context, laddr *UDPAddr) (*UDPConn, error) {
 	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
 	if sl.ListenConfig.Control != nil {
-		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
-			return sl.ListenConfig.Control(network, address, c)
-		}
+		ctrlCtxFn = func { ctx, network, address, c -> sl.ListenConfig.Control(network, address, c) }
 	}
 	fd, err := internetSocket(ctx, sl.network, laddr, nil, syscall.SOCK_DGRAM, 0, "listen", ctrlCtxFn)
 	if err != nil {
@@ -233,9 +229,7 @@ func (sl *sysListener) listenUDP(ctx context.Context, laddr *UDPAddr) (*UDPConn,
 func (sl *sysListener) listenMulticastUDP(ctx context.Context, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
 	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
 	if sl.ListenConfig.Control != nil {
-		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
-			return sl.ListenConfig.Control(network, address, c)
-		}
+		ctrlCtxFn = func { ctx, network, address, c -> sl.ListenConfig.Control(network, address, c) }
 	}
 	fd, err := internetSocket(ctx, sl.network, gaddr, nil, syscall.SOCK_DGRAM, 0, "listen", ctrlCtxFn)
 	if err != nil {

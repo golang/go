@@ -24,7 +24,7 @@ func BenchmarkExecGoEnv(b *testing.B) {
 	var n, userTime, systemTime int64
 
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			cmd := testenv.Command(b, gotool, "env", "GOARCH")
 

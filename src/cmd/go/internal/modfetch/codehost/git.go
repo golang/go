@@ -58,9 +58,7 @@ type gitCacheKey struct {
 }
 
 func newGitRepoCached(ctx context.Context, remote string, localOK bool) (Repo, error) {
-	return gitRepoCache.Do(gitCacheKey{remote, localOK}, func() (Repo, error) {
-		return newGitRepo(ctx, remote, localOK)
-	})
+	return gitRepoCache.Do(gitCacheKey{remote, localOK}, func { newGitRepo(ctx, remote, localOK) })
 }
 
 func newGitRepo(ctx context.Context, remote string, localOK bool) (Repo, error) {
@@ -315,9 +313,7 @@ func (r *gitRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 		}
 		tags.List = append(tags.List, Tag{tag, hash})
 	}
-	sort.Slice(tags.List, func(i, j int) bool {
-		return tags.List[i].Name < tags.List[j].Name
-	})
+	sort.Slice(tags.List, func { i, j -> tags.List[i].Name < tags.List[j].Name })
 
 	dir := prefix[:strings.LastIndex(prefix, "/")+1]
 	h := sha256.New()
@@ -680,9 +676,7 @@ func (r *gitRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 	if rev == "latest" {
 		return r.Latest(ctx)
 	}
-	return r.statCache.Do(rev, func() (*RevInfo, error) {
-		return r.stat(ctx, rev)
-	})
+	return r.statCache.Do(rev, func { r.stat(ctx, rev) })
 }
 
 func (r *gitRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64) ([]byte, error) {

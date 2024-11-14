@@ -47,7 +47,7 @@ var modIsValidTests = []testCase2[string, string, bool]{
 }
 
 func TestModSort(t *testing.T) {
-	test1(t, modSortTests, "ModSort", func(list []module.Version) []module.Version {
+	test1(t, modSortTests, "ModSort", func { list ->
 		out := slices.Clone(list)
 		ModSort(out)
 		return out

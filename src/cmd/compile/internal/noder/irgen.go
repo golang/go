@@ -72,7 +72,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 		FileVersions:       make(map[*syntax.PosBase]string),
 		// expand as needed
 	}
-	conf.Error = func(err error) {
+	conf.Error = func { err ->
 		terr := err.(types2.Error)
 		msg := terr.Msg
 		if versionErrorRx.MatchString(msg) {
@@ -102,7 +102,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 	// TODO(gri) move this code into the type checkers (types2 and go/types)
 	var f cycleFinder
 	for _, file := range files {
-		syntax.Inspect(file, func(n syntax.Node) bool {
+		syntax.Inspect(file, func { n ->
 			if n, ok := n.(*syntax.InterfaceType); ok {
 				if f.hasCycle(types2.Unalias(n.GetTypeInfo().Type).(*types2.Interface)) {
 					base.ErrorfAt(m.makeXPos(n.Pos()), errors.InvalidTypeCycle, "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
@@ -134,7 +134,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 				}
 			}
 		}
-		sort.Slice(nihTargs, func(i, j int) bool {
+		sort.Slice(nihTargs, func { i, j ->
 			ti, tj := nihTargs[i], nihTargs[j]
 			return ti.pos.Before(tj.pos)
 		})

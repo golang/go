@@ -15,15 +15,13 @@ func TestTCPConnKeepAliveConfigDialer(t *testing.T) {
 	maybeSkipKeepAliveTest(t)
 
 	t.Cleanup(func() {
-		testPreHookSetKeepAlive = func(*netFD) {}
+		testPreHookSetKeepAlive = func {}
 	})
 	var (
 		errHook error
 		oldCfg  KeepAliveConfig
 	)
-	testPreHookSetKeepAlive = func(nfd *netFD) {
-		oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd))
-	}
+	testPreHookSetKeepAlive = func { nfd -> oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd)) }
 
 	handler := func(ls *localServer, ln Listener) {
 		for {
@@ -61,9 +59,7 @@ func TestTCPConnKeepAliveConfigDialer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := sc.Control(func(fd uintptr) {
-			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
-		}); err != nil {
+		if err := sc.Control(func { fd -> verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg) }); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -73,15 +69,13 @@ func TestTCPConnKeepAliveConfigListener(t *testing.T) {
 	maybeSkipKeepAliveTest(t)
 
 	t.Cleanup(func() {
-		testPreHookSetKeepAlive = func(*netFD) {}
+		testPreHookSetKeepAlive = func {}
 	})
 	var (
 		errHook error
 		oldCfg  KeepAliveConfig
 	)
-	testPreHookSetKeepAlive = func(nfd *netFD) {
-		oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd))
-	}
+	testPreHookSetKeepAlive = func { nfd -> oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd)) }
 
 	ch := make(chan Conn, 1)
 	handler := func(ls *localServer, ln Listener) {
@@ -116,9 +110,7 @@ func TestTCPConnKeepAliveConfigListener(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := sc.Control(func(fd uintptr) {
-			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
-		}); err != nil {
+		if err := sc.Control(func { fd -> verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg) }); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -158,9 +150,7 @@ func TestTCPConnKeepAliveConfig(t *testing.T) {
 			errHook error
 			oldCfg  KeepAliveConfig
 		)
-		if err := sc.Control(func(fd uintptr) {
-			oldCfg, errHook = getCurrentKeepAliveSettings(fdType(fd))
-		}); err != nil {
+		if err := sc.Control(func { fd -> oldCfg, errHook = getCurrentKeepAliveSettings(fdType(fd)) }); err != nil {
 			t.Fatal(err)
 		}
 		if errHook != nil {
@@ -181,9 +171,7 @@ func TestTCPConnKeepAliveConfig(t *testing.T) {
 			}
 		}
 
-		if err := sc.Control(func(fd uintptr) {
-			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
-		}); err != nil {
+		if err := sc.Control(func { fd -> verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg) }); err != nil {
 			t.Fatal(err)
 		}
 	}

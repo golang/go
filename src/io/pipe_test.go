@@ -348,7 +348,7 @@ func TestPipeConcurrent(t *testing.T) {
 		readSize = 2
 	)
 
-	t.Run("Write", func(t *testing.T) {
+	t.Run("Write", func { t ->
 		r, w := Pipe()
 
 		for i := 0; i < count; i++ {
@@ -376,7 +376,7 @@ func TestPipeConcurrent(t *testing.T) {
 		}
 	})
 
-	t.Run("Read", func(t *testing.T) {
+	t.Run("Read", func { t ->
 		r, w := Pipe()
 
 		c := make(chan []byte, count*len(input)/readSize)

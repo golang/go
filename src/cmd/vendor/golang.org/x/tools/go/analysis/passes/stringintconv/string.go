@@ -78,7 +78,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.CallExpr)(nil),
 	}
 	var file *ast.File
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		if n, ok := n.(*ast.File); ok {
 			file = n
 			return

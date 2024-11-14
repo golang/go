@@ -65,9 +65,7 @@ var matchPatternTests = `
 `
 
 func TestMatchPattern(t *testing.T) {
-	testPatterns(t, "MatchPattern", matchPatternTests, func(pattern, name string) bool {
-		return MatchPattern(pattern)(name)
-	})
+	testPatterns(t, "MatchPattern", matchPatternTests, func { pattern, name -> MatchPattern(pattern)(name) })
 }
 
 var matchSimplePatternTests = `
@@ -99,9 +97,7 @@ var matchSimplePatternTests = `
 `
 
 func TestSimpleMatchPattern(t *testing.T) {
-	testPatterns(t, "MatchSimplePattern", matchSimplePatternTests, func(pattern, name string) bool {
-		return MatchSimplePattern(pattern)(name)
-	})
+	testPatterns(t, "MatchSimplePattern", matchSimplePatternTests, func { pattern, name -> MatchSimplePattern(pattern)(name) })
 }
 
 var treeCanMatchPatternTests = `
@@ -140,9 +136,7 @@ var treeCanMatchPatternTests = `
 `
 
 func TestTreeCanMatchPattern(t *testing.T) {
-	testPatterns(t, "TreeCanMatchPattern", treeCanMatchPatternTests, func(pattern, name string) bool {
-		return TreeCanMatchPattern(pattern)(name)
-	})
+	testPatterns(t, "TreeCanMatchPattern", treeCanMatchPatternTests, func { pattern, name -> TreeCanMatchPattern(pattern)(name) })
 }
 
 var hasPathPrefixTests = []stringPairTest{

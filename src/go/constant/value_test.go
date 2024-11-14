@@ -689,7 +689,7 @@ func TestMake(t *testing.T) {
 
 func BenchmarkStringAdd(b *testing.B) {
 	for size := 1; size <= 65536; size *= 4 {
-		b.Run(fmt.Sprint(size), func(b *testing.B) {
+		b.Run(fmt.Sprint(size), func { b ->
 			b.ReportAllocs()
 			n := int64(0)
 			for i := 0; i < b.N; i++ {

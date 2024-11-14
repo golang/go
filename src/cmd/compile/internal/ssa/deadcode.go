@@ -267,7 +267,7 @@ func deadcode(f *Func) {
 	}
 
 	// Any boundary that failed to match a live value can move to a block end
-	pendingLines.foreachEntry(func(j int32, l uint, bi int32) {
+	pendingLines.foreachEntry(func { j, l, bi ->
 		b := f.Blocks[bi]
 		if b.Pos.Line() == l && b.Pos.FileIndex() == j {
 			b.Pos = b.Pos.WithIsStmt()

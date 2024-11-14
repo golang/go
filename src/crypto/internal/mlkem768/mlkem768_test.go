@@ -439,7 +439,7 @@ func BenchmarkRoundTrip(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	b.Run("Alice", func(b *testing.B) {
+	b.Run("Alice", func { b ->
 		for i := 0; i < b.N; i++ {
 			dkS, err := GenerateKey()
 			if err != nil {
@@ -455,7 +455,7 @@ func BenchmarkRoundTrip(b *testing.B) {
 			sink ^= Ks[0]
 		}
 	})
-	b.Run("Bob", func(b *testing.B) {
+	b.Run("Bob", func { b ->
 		for i := 0; i < b.N; i++ {
 			cS, Ks, err := Encapsulate(ek)
 			if err != nil {

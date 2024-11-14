@@ -221,7 +221,7 @@ uint(18446744073709551615)`
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
+		t.Run(test.desc, func { t ->
 			vals, err := unmarshalCorpusFile([]byte(test.in))
 			if test.reject {
 				if err == nil {
@@ -261,12 +261,10 @@ func BenchmarkMarshalCorpusFile(b *testing.B) {
 
 	for sz := 1; sz <= len(buf); sz <<= 1 {
 		sz := sz
-		b.Run(strconv.Itoa(sz), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				b.SetBytes(int64(sz))
-				marshalCorpusFile(buf[:sz])
-			}
-		})
+		b.Run(strconv.Itoa(sz), func { b -> for i := 0; i < b.N; i++ {
+			b.SetBytes(int64(sz))
+			marshalCorpusFile(buf[:sz])
+		} })
 	}
 }
 
@@ -282,12 +280,10 @@ func BenchmarkUnmarshalCorpusFile(b *testing.B) {
 	for sz := 1; sz <= len(buf); sz <<= 1 {
 		sz := sz
 		data := marshalCorpusFile(buf[:sz])
-		b.Run(strconv.Itoa(sz), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				b.SetBytes(int64(sz))
-				unmarshalCorpusFile(data)
-			}
-		})
+		b.Run(strconv.Itoa(sz), func { b -> for i := 0; i < b.N; i++ {
+			b.SetBytes(int64(sz))
+			unmarshalCorpusFile(data)
+		} })
 	}
 }
 
@@ -331,7 +327,7 @@ func FuzzFloat64RoundTrip(f *testing.F) {
 	f.Add(math.Float64bits(math.Inf(1)))
 	f.Add(math.Float64bits(math.Inf(-1)))
 
-	f.Fuzz(func(t *testing.T, u1 uint64) {
+	f.Fuzz(func { t, u1 ->
 		x1 := math.Float64frombits(u1)
 
 		b := marshalCorpusFile(x1)
@@ -364,7 +360,7 @@ func FuzzRuneRoundTrip(f *testing.F) {
 	f.Add(rune(-0x80000000))
 	f.Add(rune(0x7fffffff))
 
-	f.Fuzz(func(t *testing.T, r1 rune) {
+	f.Fuzz(func { t, r1 ->
 		b := marshalCorpusFile(r1)
 		t.Logf("marshaled rune(0x%x):\n%s", r1, b)
 
@@ -387,7 +383,7 @@ func FuzzStringRoundTrip(f *testing.F) {
 	f.Add("\x00")
 	f.Add(string([]rune{unicode.ReplacementChar}))
 
-	f.Fuzz(func(t *testing.T, s1 string) {
+	f.Fuzz(func { t, s1 ->
 		b := marshalCorpusFile(s1)
 		t.Logf("marshaled %q:\n%s", s1, b)
 

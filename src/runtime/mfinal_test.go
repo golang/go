@@ -83,7 +83,7 @@ func TestFinalizerInterfaceBig(t *testing.T) {
 	go func() {
 		v := &bigValue{0xDEADBEEFDEADBEEF, true, "It matters not how strait the gate"}
 		old := *v
-		runtime.SetFinalizer(v, func(v any) {
+		runtime.SetFinalizer(v, func { v ->
 			i, ok := v.(*bigValue)
 			if !ok {
 				t.Errorf("finalizer called with type %T, want *bigValue", v)
@@ -108,12 +108,12 @@ func fin(v *int) {
 func TestFinalizerZeroSizedStruct(t *testing.T) {
 	type Z struct{}
 	z := new(Z)
-	runtime.SetFinalizer(z, func(*Z) {})
+	runtime.SetFinalizer(z, func {})
 }
 
 func BenchmarkFinalizer(b *testing.B) {
 	const Batch = 1000
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var data [Batch]*int
 		for i := 0; i < Batch; i++ {
 			data[i] = new(int)
@@ -130,12 +130,10 @@ func BenchmarkFinalizer(b *testing.B) {
 }
 
 func BenchmarkFinalizerRun(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			v := new(int)
-			runtime.SetFinalizer(v, fin)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		v := new(int)
+		runtime.SetFinalizer(v, fin)
+	} })
 }
 
 // One chunk must be exactly one sizeclass in size.
@@ -171,7 +169,7 @@ func TestEmptySlice(t *testing.T) {
 	xs := x[objsize:] // change objsize to objsize-1 and the test passes
 
 	fin := make(chan bool, 1)
-	runtime.SetFinalizer(y, func(z *objtype) { fin <- true })
+	runtime.SetFinalizer(y, func { z -> fin <- true })
 	runtime.GC()
 	<-fin
 	xsglobal = xs // keep empty slice alive until here
@@ -199,7 +197,7 @@ func TestEmptyString(t *testing.T) {
 	ss := x[objsize:] // change objsize to objsize-1 and the test passes
 	fin := make(chan bool, 1)
 	// set finalizer on string contents of y
-	runtime.SetFinalizer(y, func(z *objtype) { fin <- true })
+	runtime.SetFinalizer(y, func { z -> fin <- true })
 	runtime.GC()
 	<-fin
 	ssglobal = ss // keep 0-length string live until here
@@ -209,8 +207,8 @@ var ssglobal string
 
 // Test for issue 7656.
 func TestFinalizerOnGlobal(t *testing.T) {
-	runtime.SetFinalizer(Foo1, func(p *Object1) {})
-	runtime.SetFinalizer(Foo2, func(p *Object2) {})
+	runtime.SetFinalizer(Foo1, func { p -> })
+	runtime.SetFinalizer(Foo2, func { p -> })
 	runtime.SetFinalizer(Foo1, nil)
 	runtime.SetFinalizer(Foo2, nil)
 }
@@ -238,9 +236,7 @@ func TestDeferKeepAlive(t *testing.T) {
 	type T *int // needs to be a pointer base type to avoid tinyalloc and its never-finalized behavior.
 	x := new(T)
 	finRun := false
-	runtime.SetFinalizer(x, func(x *T) {
-		finRun = true
-	})
+	runtime.SetFinalizer(x, func { x -> finRun = true })
 	defer runtime.KeepAlive(x)
 	runtime.GC()
 	time.Sleep(time.Second)

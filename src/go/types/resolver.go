@@ -254,7 +254,7 @@ func (check *Checker) collectObjects() {
 		// we get "." as the directory which is what we would want.
 		fileDir := dir(check.fset.Position(file.Name.Pos()).Filename)
 
-		check.walkDecls(file.Decls, func(d decl) {
+		check.walkDecls(file.Decls, func { d ->
 			switch d := d.(type) {
 			case importDecl:
 				// import package

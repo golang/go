@@ -73,8 +73,8 @@ func TestMetaDataEncoderDecoder(t *testing.T) {
 		Funcname: "func",
 		Srcfile:  "foo.go",
 		Units: []coverage.CoverableUnit{
-			coverage.CoverableUnit{StLine: 1, StCol: 2, EnLine: 3, EnCol: 4, NxStmts: 5},
-			coverage.CoverableUnit{StLine: 6, StCol: 7, EnLine: 8, EnCol: 9, NxStmts: 10},
+			{StLine: 1, StCol: 2, EnLine: 3, EnCol: 4, NxStmts: 5},
+			{StLine: 6, StCol: 7, EnLine: 8, EnCol: 9, NxStmts: 10},
 		},
 	}
 	idx := b.AddFunc(f1)
@@ -86,9 +86,9 @@ func TestMetaDataEncoderDecoder(t *testing.T) {
 		Funcname: "xfunc",
 		Srcfile:  "bar.go",
 		Units: []coverage.CoverableUnit{
-			coverage.CoverableUnit{StLine: 1, StCol: 2, EnLine: 3, EnCol: 4, NxStmts: 5},
-			coverage.CoverableUnit{StLine: 6, StCol: 7, EnLine: 8, EnCol: 9, NxStmts: 10},
-			coverage.CoverableUnit{StLine: 11, StCol: 12, EnLine: 13, EnCol: 14, NxStmts: 15},
+			{StLine: 1, StCol: 2, EnLine: 3, EnCol: 4, NxStmts: 5},
+			{StLine: 6, StCol: 7, EnLine: 8, EnCol: 9, NxStmts: 10},
+			{StLine: 11, StCol: 12, EnLine: 13, EnCol: 14, NxStmts: 15},
 		},
 	}
 	idx = b.AddFunc(f2)
@@ -296,7 +296,7 @@ func TestMetaDataDecodeLitFlagIssue57942(t *testing.T) {
 			Funcname: "func" + fis,
 			Srcfile:  "foo" + fis + ".go",
 			Units: []coverage.CoverableUnit{
-				coverage.CoverableUnit{StLine: ln + 1, StCol: 2, EnLine: ln + 3, EnCol: 4, NxStmts: fi + 2},
+				{StLine: ln + 1, StCol: 2, EnLine: ln + 3, EnCol: 4, NxStmts: fi + 2},
 			},
 			Lit: (fi % 2) == 0,
 		}

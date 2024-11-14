@@ -464,9 +464,7 @@ func BenchmarkReadMetricsLatency(b *testing.B) {
 	b.ReportMetric(0, "allocs/op")
 
 	// Sort latencies then report percentiles.
-	sort.Slice(latencies, func(i, j int) bool {
-		return latencies[i] < latencies[j]
-	})
+	sort.Slice(latencies, func { i, j -> latencies[i] < latencies[j] })
 	b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
 	b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
 	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
@@ -572,7 +570,7 @@ func TestMutexWaitTimeMetric(t *testing.T) {
 		new(rwmutexWriteRead),
 	}
 	for _, lock := range locks {
-		t.Run(reflect.TypeOf(lock).Elem().Name(), func(t *testing.T) {
+		t.Run(reflect.TypeOf(lock).Elem().Name(), func { t ->
 			metrics.Read(sample[:])
 			before := time.Duration(sample[0].Value.Float64() * 1e9)
 
@@ -708,7 +706,7 @@ func TestCPUMetricsSleep(t *testing.T) {
 		"/cpu/classes/total:cpu-seconds",
 		"/cpu/classes/user:cpu-seconds",
 	}
-	prep := func() []metrics.Sample {
+	prep := func {
 		mm := make([]metrics.Sample, len(names))
 		for i := range names {
 			mm[i].Name = names[i]
@@ -942,9 +940,7 @@ func TestSchedPauseMetrics(t *testing.T) {
 	runtime.GC()
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			testSchedPauseMetrics(t, tc.fn, tc.isGC)
-		})
+		t.Run(tc.name, func { t -> testSchedPauseMetrics(t, tc.fn, tc.isGC) })
 	}
 }
 
@@ -1068,9 +1064,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			acceptStacks = append([][]string(nil), acceptStacks...)
 			for i, stk := range acceptStacks {
 				if goexperiment.StaticLockRanking {
-					if !slices.ContainsFunc(stk, func(s string) bool {
-						return s == "runtime.systemstack" || s == "runtime.mcall" || s == "runtime.mstart"
-					}) {
+					if !slices.ContainsFunc(stk, func { s -> s == "runtime.systemstack" || s == "runtime.mcall" || s == "runtime.mstart" }) {
 						// stk is a call stack that is still on the user stack when
 						// it calls runtime.unlock. Add the extra function that
 						// we'll see, when the static lock ranking implementation of
@@ -1119,7 +1113,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 
 	name := t.Name()
 
-	t.Run("runtime.lock", func(t *testing.T) {
+	t.Run("runtime.lock", func { t ->
 		mus := make([]runtime.Mutex, 200)
 		var needContention atomic.Int64
 		delay := 100 * time.Microsecond // large relative to system noise, for comparison between clocks
@@ -1139,7 +1133,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			t.Skipf("contention on runtime-internal locks requires GOMAXPROCS >= %d", workers)
 		}
 
-		fn := func() bool {
+		fn := func {
 			n := int(needContention.Load())
 			if n < 0 {
 				return false
@@ -1168,14 +1162,14 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			"runtime_test.(*contentionWorker).run",
 		}}
 
-		t.Run("sample-1", func(t *testing.T) {
+		t.Run("sample-1", func { t ->
 			old := runtime.SetMutexProfileFraction(1)
 			defer runtime.SetMutexProfileFraction(old)
 
 			needContention.Store(int64(len(mus) - 1))
 			metricGrowth, profileGrowth, n, _ := testcase(true, stks, workers, fn)(t)
 
-			t.Run("metric", func(t *testing.T) {
+			t.Run("metric", func { t ->
 				// The runtime/metrics view may be sampled at 1 per
 				// gTrackingPeriod, so we don't have a hard lower bound here.
 				testenv.SkipFlaky(t, 64253)
@@ -1193,7 +1187,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			}
 
 			const slop = 1.5 // account for nanotime vs cputicks
-			t.Run("compare timers", func(t *testing.T) {
+			t.Run("compare timers", func { t ->
 				testenv.SkipFlaky(t, 64253)
 				if profileGrowth > slop*metricGrowth || metricGrowth > slop*profileGrowth {
 					t.Errorf("views differ by more than %fx", slop)
@@ -1201,7 +1195,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			})
 		})
 
-		t.Run("sample-2", func(t *testing.T) {
+		t.Run("sample-2", func { t ->
 			testenv.SkipFlaky(t, 64253)
 
 			old := runtime.SetMutexProfileFraction(2)
@@ -1234,7 +1228,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 		})
 	})
 
-	t.Run("runtime.semrelease", func(t *testing.T) {
+	t.Run("runtime.semrelease", func { t ->
 		testenv.SkipFlaky(t, 64253)
 
 		old := runtime.SetMutexProfileFraction(1)
@@ -1250,7 +1244,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 		tries.Store(10_000_000) // prefer controlled failure to timeout
 		var sawContention atomic.Int32
 		var need int32 = 1
-		fn := func() bool {
+		fn := func {
 			if sawContention.Load() >= need {
 				return false
 			}

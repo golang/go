@@ -36,7 +36,7 @@ func FuzzReader(f *testing.F) {
 	for _, s := range badStrings {
 		f.Add([]byte(s))
 	}
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		r := NewReader(bytes.NewReader(b))
 		io.Copy(io.Discard, r)
 	})
@@ -62,7 +62,7 @@ func FuzzDecompressor(f *testing.F) {
 	f.Add(bytes.Repeat(buf.Bytes(), 64))
 	f.Add(bigData(f))
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		cmd := exec.Command(zstd, "-z")
 		cmd.Stdin = bytes.NewReader(b)
 		var compressed bytes.Buffer
@@ -96,7 +96,7 @@ func FuzzReverse(f *testing.F) {
 	fuzzing = true
 	defer func() { fuzzing = false }()
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		r := NewReader(bytes.NewReader(b))
 		goExp, goErr := io.ReadAll(r)
 

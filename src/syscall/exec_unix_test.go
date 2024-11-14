@@ -275,7 +275,7 @@ func TestForegroundSignal(t *testing.T) {
 // Test a couple of cases that SysProcAttr can't handle. Issue 29458.
 func TestInvalidExec(t *testing.T) {
 	t.Parallel()
-	t.Run("SetCtty-Foreground", func(t *testing.T) {
+	t.Run("SetCtty-Foreground", func { t ->
 		t.Parallel()
 		cmd := create(t)
 		cmd.proc.SysProcAttr = &syscall.SysProcAttr{
@@ -287,7 +287,7 @@ func TestInvalidExec(t *testing.T) {
 			t.Error("expected error setting both SetCtty and Foreground")
 		}
 	})
-	t.Run("invalid-Ctty", func(t *testing.T) {
+	t.Run("invalid-Ctty", func { t ->
 		t.Parallel()
 		cmd := create(t)
 		cmd.proc.SysProcAttr = &syscall.SysProcAttr{

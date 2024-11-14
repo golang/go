@@ -486,7 +486,7 @@ func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	// pointers, usually for alignment."
 	var originals []ir.Node
 	var walk func(n ir.Node)
-	walk = func(n ir.Node) {
+	walk = func { n ->
 		switch n.Op() {
 		case ir.OADD:
 			n := n.(*ir.BinaryExpr)

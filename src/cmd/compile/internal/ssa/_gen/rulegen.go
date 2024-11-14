@@ -1586,7 +1586,7 @@ func varCount(rr *RuleRewrite) map[string]int {
 		if err != nil {
 			log.Fatalf("%s: failed to parse cond %q: %v", rr.Loc, rr.Cond, err)
 		}
-		ast.Inspect(expr, func(n ast.Node) bool {
+		ast.Inspect(expr, func { n ->
 			if id, ok := n.(*ast.Ident); ok {
 				cnt[id.Name]++
 			}

@@ -25,7 +25,7 @@ func TestErrorCalls(t *testing.T) {
 	}
 
 	for _, file := range files {
-		syntax.Inspect(file, func(n syntax.Node) bool {
+		syntax.Inspect(file, func { n ->
 			call, _ := n.(*syntax.CallExpr)
 			if call == nil {
 				return true
@@ -44,7 +44,7 @@ func TestErrorCalls(t *testing.T) {
 				return false
 			}
 			format := call.ArgList[errorfFormatIndex]
-			syntax.Inspect(format, func(n syntax.Node) bool {
+			syntax.Inspect(format, func { n ->
 				if lit, _ := n.(*syntax.BasicLit); lit != nil && lit.Kind == syntax.StringLit {
 					if s, err := strconv.Unquote(lit.Value); err == nil {
 						if !balancedParentheses(s) {

@@ -62,7 +62,7 @@ func BenchmarkAnd(b *testing.B) {
 func BenchmarkAnd8Parallel(b *testing.B) {
 	var x [512]uint8 // give byte its own cache line
 	sink = &x
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		i := uint8(0)
 		for pb.Next() {
 			atomic.And8(&x[255], i)
@@ -74,7 +74,7 @@ func BenchmarkAnd8Parallel(b *testing.B) {
 func BenchmarkAndParallel(b *testing.B) {
 	var x [128]uint32 // give x its own cache line
 	sink = &x
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		i := uint32(0)
 		for pb.Next() {
 			atomic.And(&x[63], i)
@@ -102,7 +102,7 @@ func BenchmarkOr(b *testing.B) {
 func BenchmarkOr8Parallel(b *testing.B) {
 	var x [512]uint8 // give byte its own cache line
 	sink = &x
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		i := uint8(0)
 		for pb.Next() {
 			atomic.Or8(&x[255], i)
@@ -114,7 +114,7 @@ func BenchmarkOr8Parallel(b *testing.B) {
 func BenchmarkOrParallel(b *testing.B) {
 	var x [128]uint32 // give x its own cache line
 	sink = &x
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		i := uint32(0)
 		for pb.Next() {
 			atomic.Or(&x[63], i)
@@ -126,51 +126,43 @@ func BenchmarkOrParallel(b *testing.B) {
 func BenchmarkXadd(b *testing.B) {
 	var x uint32
 	ptr := &x
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			atomic.Xadd(ptr, 1)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		atomic.Xadd(ptr, 1)
+	} })
 }
 
 func BenchmarkXadd64(b *testing.B) {
 	var x uint64
 	ptr := &x
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			atomic.Xadd64(ptr, 1)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		atomic.Xadd64(ptr, 1)
+	} })
 }
 
 func BenchmarkCas(b *testing.B) {
 	var x uint32
 	x = 1
 	ptr := &x
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			atomic.Cas(ptr, 1, 0)
-			atomic.Cas(ptr, 0, 1)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		atomic.Cas(ptr, 1, 0)
+		atomic.Cas(ptr, 0, 1)
+	} })
 }
 
 func BenchmarkCas64(b *testing.B) {
 	var x uint64
 	x = 1
 	ptr := &x
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			atomic.Cas64(ptr, 1, 0)
-			atomic.Cas64(ptr, 0, 1)
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		atomic.Cas64(ptr, 1, 0)
+		atomic.Cas64(ptr, 0, 1)
+	} })
 }
 func BenchmarkXchg(b *testing.B) {
 	var x uint32
 	x = 1
 	ptr := &x
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var y uint32
 		y = 1
 		for pb.Next() {
@@ -184,7 +176,7 @@ func BenchmarkXchg64(b *testing.B) {
 	var x uint64
 	x = 1
 	ptr := &x
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		var y uint64
 		y = 1
 		for pb.Next() {

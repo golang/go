@@ -1928,7 +1928,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 		defer unlock()
 	}
 
-	err = lockedfile.Transform(modFilePath, func(old []byte) ([]byte, error) {
+	err = lockedfile.Transform(modFilePath, func { old ->
 		if bytes.Equal(old, updatedGoMod) {
 			// The go.mod file is already equal to new, possibly as the result of some
 			// other process.
@@ -2042,7 +2042,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 		}
 	} else {
 		mg, _ := rs.Graph(ctx)
-		mg.WalkBreadthFirst(func(m module.Version) {
+		mg.WalkBreadthFirst(func { m ->
 			if _, ok := mg.RequiredBy(m); ok {
 				// The requirements from m's go.mod file are present in the module graph,
 				// so they are relevant to the MVS result regardless of whether m was

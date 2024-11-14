@@ -132,7 +132,7 @@ func BenchmarkEqualFunc_Large(b *testing.B) {
 	xs := make([]Large, 1024)
 	ys := make([]Large, 1024)
 	for i := 0; i < b.N; i++ {
-		_ = EqualFunc(xs, ys, func(x, y Large) bool { return x == y })
+		_ = EqualFunc(xs, ys, func { x, y -> x == y })
 	}
 }
 
@@ -419,9 +419,7 @@ func BenchmarkIndexFunc_Large(b *testing.B) {
 
 	ss := make([]Large, 1024)
 	for i := 0; i < b.N; i++ {
-		_ = IndexFunc(ss, func(e Large) bool {
-			return e == Large{1}
-		})
+		_ = IndexFunc(ss, func { e -> e == Large{1} })
 	}
 }
 
@@ -710,9 +708,7 @@ func TestDeleteFuncClearTail(t *testing.T) {
 	*mem[2], *mem[3] = 42, 42
 	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
 
-	s = DeleteFunc(s, func(i *int) bool {
-		return i != nil && *i == 42
-	})
+	s = DeleteFunc(s, func { i -> i != nil && *i == 42 })
 
 	if mem[3] != nil || mem[4] != nil {
 		// Check that potential memory leak is avoided
@@ -790,7 +786,7 @@ func TestCompact(t *testing.T) {
 
 func BenchmarkCompact(b *testing.B) {
 	for _, c := range compactTests {
-		b.Run(c.name, func(b *testing.B) {
+		b.Run(c.name, func { b ->
 			ss := make([]int, 0, 64)
 			for k := 0; k < b.N; k++ {
 				ss = ss[:0]
@@ -805,14 +801,14 @@ func BenchmarkCompact_Large(b *testing.B) {
 	type Large [16]int
 	const N = 1024
 
-	b.Run("all_dup", func(b *testing.B) {
+	b.Run("all_dup", func { b ->
 		ss := make([]Large, N)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = Compact(ss)
 		}
 	})
-	b.Run("no_dup", func(b *testing.B) {
+	b.Run("no_dup", func { b ->
 		ss := make([]Large, N)
 		for i := range ss {
 			ss[i][0] = i
@@ -867,7 +863,7 @@ func TestCompactFuncClearTail(t *testing.T) {
 	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
 	copy := Clone(s)
 
-	s = CompactFunc(s, func(x, y *int) bool {
+	s = CompactFunc(s, func { x, y ->
 		if x == nil || y == nil {
 			return x == y
 		}
@@ -889,12 +885,12 @@ func TestCompactFuncClearTail(t *testing.T) {
 
 func BenchmarkCompactFunc(b *testing.B) {
 	for _, c := range compactTests {
-		b.Run(c.name, func(b *testing.B) {
+		b.Run(c.name, func { b ->
 			ss := make([]int, 0, 64)
 			for k := 0; k < b.N; k++ {
 				ss = ss[:0]
 				ss = append(ss, c.s...)
-				_ = CompactFunc(ss, func(a, b int) bool { return a == b })
+				_ = CompactFunc(ss, func { a, b -> a == b })
 			}
 		})
 	}
@@ -904,21 +900,21 @@ func BenchmarkCompactFunc_Large(b *testing.B) {
 	type Element = int
 	const N = 1024 * 1024
 
-	b.Run("all_dup", func(b *testing.B) {
+	b.Run("all_dup", func { b ->
 		ss := make([]Element, N)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = CompactFunc(ss, func(a, b Element) bool { return a == b })
+			_ = CompactFunc(ss, func { a, b -> a == b })
 		}
 	})
-	b.Run("no_dup", func(b *testing.B) {
+	b.Run("no_dup", func { b ->
 		ss := make([]Element, N)
 		for i := range ss {
 			ss[i] = i
 		}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = CompactFunc(ss, func(a, b Element) bool { return a == b })
+			_ = CompactFunc(ss, func { a, b -> a == b })
 		}
 	})
 }
@@ -1205,20 +1201,18 @@ func BenchmarkReplace(b *testing.B) {
 	}
 
 	for _, c := range cases {
-		b.Run("naive-"+c.name, func(b *testing.B) {
+		b.Run("naive-"+c.name, func { b ->
 			for k := 0; k < b.N; k++ {
 				s := c.s()
 				v := c.v()
 				_ = naiveReplace(s, c.i, c.j, v...)
 			}
 		})
-		b.Run("optimized-"+c.name, func(b *testing.B) {
-			for k := 0; k < b.N; k++ {
-				s := c.s()
-				v := c.v()
-				_ = Replace(s, c.i, c.j, v...)
-			}
-		})
+		b.Run("optimized-"+c.name, func { b -> for k := 0; k < b.N; k++ {
+			s := c.s()
+			v := c.v()
+			_ = Replace(s, c.i, c.j, v...)
+		} })
 	}
 
 }

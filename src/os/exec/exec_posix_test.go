@@ -162,7 +162,7 @@ func TestImplicitPWD(t *testing.T) {
 
 	for _, tc := range cases {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			t.Parallel()
 
 			cmd := helperCommand(t, "pwd")
@@ -239,7 +239,7 @@ func TestExplicitPWD(t *testing.T) {
 	}
 	for _, tc := range cases {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			t.Parallel()
 
 			cmd := helperCommand(t, "pwd")

@@ -28,7 +28,7 @@ func findHI20Reloc(ldr *loader.Loader, s loader.Sym, val int64) *loader.Reloc {
 		return nil
 	}
 	relocs := ldr.Relocs(outer)
-	start := sort.Search(relocs.Count(), func(i int) bool { return ldr.SymValue(outer)+int64(relocs.At(i).Off()) >= val })
+	start := sort.Search(relocs.Count(), func { i -> ldr.SymValue(outer)+int64(relocs.At(i).Off()) >= val })
 	for idx := start; idx < relocs.Count(); idx++ {
 		r := relocs.At(idx)
 		if ldr.SymValue(outer)+int64(r.Off()) != val {
@@ -202,7 +202,7 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
 func findHI20Symbol(ctxt *ld.Link, ldr *loader.Loader, val int64) loader.Sym {
-	idx := sort.Search(len(ctxt.Textp), func(i int) bool { return ldr.SymValue(ctxt.Textp[i]) >= val })
+	idx := sort.Search(len(ctxt.Textp), func { i -> ldr.SymValue(ctxt.Textp[i]) >= val })
 	if idx >= len(ctxt.Textp) {
 		return 0
 	}

@@ -138,7 +138,7 @@ func (fm *Formatter) AddUnit(file string, fname string, isfnlit bool, unit cover
 // include function name as part of the sorting criteria, the thinking
 // being that is better to provide things in the original source order.
 func (p *pstate) sortUnits(units []extcu) {
-	slices.SortFunc(units, func(ui, uj extcu) int {
+	slices.SortFunc(units, func { ui, uj ->
 		ifile := p.funcs[ui.fnfid].file
 		jfile := p.funcs[uj.fnfid].file
 		if r := strings.Compare(ifile, jfile); r != 0 {

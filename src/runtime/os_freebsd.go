@@ -215,7 +215,7 @@ func newosproc(mp *m) {
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := retryOnEAGAIN(func() int32 {
+	ret := retryOnEAGAIN(func {
 		errno := thr_new(&param, int32(unsafe.Sizeof(param)))
 		// thr_new returns negative errno
 		return -errno

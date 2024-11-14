@@ -96,7 +96,7 @@ func TestIsRegularMemory(t *testing.T) {
 		{"struct {_ int32 }", args{reflect.TypeOf(struct{ _ int32 }{})}, false},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			if got := reflect.IsRegularMemory(tt.args.t); got != tt.want {
 				t.Errorf("isRegularMemory() = %v, want %v", got, tt.want)
 			}
@@ -124,8 +124,8 @@ func TestType_CanSeq(t *testing.T) {
 		tr   reflect.Type
 		want bool
 	}{
-		{"func(func(int) bool)", reflect.TypeOf(func(func(int) bool) {}), true},
-		{"func(func(int))", reflect.TypeOf(func(func(int)) {}), false},
+		{"func(func(int) bool)", reflect.TypeOf(func {}), true},
+		{"func(func(int))", reflect.TypeOf(func {}), false},
 		{"int64", reflect.TypeOf(int64(1)), true},
 		{"uint64", reflect.TypeOf(uint64(1)), true},
 		{"*[4]int", reflect.TypeOf(&[4]int{}), true},
@@ -135,7 +135,7 @@ func TestType_CanSeq(t *testing.T) {
 		{"[]int", reflect.TypeOf([]int{}), true},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			if got := tt.tr.CanSeq(); got != tt.want {
 				t.Errorf("Type.CanSeq() = %v, want %v", got, tt.want)
 			}
@@ -149,8 +149,8 @@ func TestType_CanSeq2(t *testing.T) {
 		tr   reflect.Type
 		want bool
 	}{
-		{"func(func(int, int) bool)", reflect.TypeOf(func(func(int, int) bool) {}), true},
-		{"func(func(int, int))", reflect.TypeOf(func(func(int, int)) {}), false},
+		{"func(func(int, int) bool)", reflect.TypeOf(func {}), true},
+		{"func(func(int, int))", reflect.TypeOf(func {}), false},
 		{"int64", reflect.TypeOf(int64(1)), false},
 		{"uint64", reflect.TypeOf(uint64(1)), false},
 		{"*[4]int", reflect.TypeOf(&[4]int{}), true},
@@ -160,7 +160,7 @@ func TestType_CanSeq2(t *testing.T) {
 		{"[]int", reflect.TypeOf([]int{}), true},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			if got := tt.tr.CanSeq2(); got != tt.want {
 				t.Errorf("Type.CanSeq2() = %v, want %v", got, tt.want)
 			}

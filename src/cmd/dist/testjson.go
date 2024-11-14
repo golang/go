@@ -155,7 +155,7 @@ func decodeJSONValue(dec *json.Decoder) (jsonValue, error) {
 func (v jsonValue) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	var marshal1 func(v jsonValue) error
-	marshal1 = func(v jsonValue) error {
+	marshal1 = func { v ->
 		if t, ok := v.atom.(json.Delim); ok {
 			buf.WriteRune(rune(t))
 			for i, v2 := range v.seq {

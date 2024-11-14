@@ -34,7 +34,7 @@ func Validate(analyzers []*Analyzer) error {
 	)
 	color := make(map[*Analyzer]uint8)
 	var visit func(a *Analyzer) error
-	visit = func(a *Analyzer) error {
+	visit = func { a ->
 		if a == nil {
 			return fmt.Errorf("nil *Analyzer")
 		}

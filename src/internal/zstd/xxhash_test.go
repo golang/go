@@ -89,7 +89,7 @@ func FuzzXXHash(f *testing.F) {
 	f.Add(bytes.Repeat(buf.Bytes(), 64))
 	f.Add(bigData(f))
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		cmd := exec.Command(xxhsum, "-H64")
 		cmd.Stdin = bytes.NewReader(b)
 		var hhsumHash bytes.Buffer

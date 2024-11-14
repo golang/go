@@ -99,7 +99,7 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 
 // scanDir scans a directory for binary to run scanFile on.
 func scanDir(dir string) {
-	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	filepath.WalkDir(dir, func { path, d, err ->
 		if d.Type().IsRegular() || d.Type()&fs.ModeSymlink != 0 {
 			info, err := d.Info()
 			if err != nil {

@@ -114,7 +114,7 @@ func TestMain(m *testing.M) {
 		if testGOROOT := os.Getenv("TESTGO_GOROOT"); testGOROOT != "" {
 			// Disallow installs to the GOROOT from which testgo was built.
 			// Installs to other GOROOTs — such as one set explicitly within a test — are ok.
-			work.AllowInstall = func(a *work.Action) error {
+			work.AllowInstall = func { a ->
 				if cfg.BuildN {
 					return nil
 				}
@@ -327,7 +327,7 @@ func TestMain(m *testing.M) {
 	if !*testWork {
 		// There shouldn't be anything left in topTmpdir.
 		var extraFiles, extraDirs []string
-		err := filepath.WalkDir(topTmpdir, func(path string, d fs.DirEntry, err error) error {
+		err := filepath.WalkDir(topTmpdir, func { path, d, err ->
 			if err != nil {
 				return err
 			}
@@ -846,7 +846,7 @@ func (tg *testgoData) cleanup() {
 func removeAll(dir string) error {
 	// module cache has 0444 directories;
 	// make them writable in order to remove content.
-	filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
+	filepath.WalkDir(dir, func { path, info, err ->
 		// chmod not only directories, but also things that we couldn't even stat
 		// due to permission errors: they may also be unreadable directories.
 		if err != nil || info.IsDir() {
@@ -887,7 +887,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		srcdir := filepath.Join(testGOROOT, copydir)
 		tg.tempDir(filepath.Join("goroot", copydir))
 		err := filepath.WalkDir(srcdir,
-			func(path string, info fs.DirEntry, err error) error {
+			func { path, info, err ->
 				if err != nil {
 					return err
 				}
@@ -1539,7 +1539,7 @@ func TestListTemplateContextFunction(t *testing.T) {
 		{"InstallSuffix", ""},
 	} {
 		tt := tt
-		t.Run(tt.v, func(t *testing.T) {
+		t.Run(tt.v, func { t ->
 			tg := testgo(t)
 			tg.parallel()
 			defer tg.cleanup()
@@ -2033,10 +2033,8 @@ func TestBuildmodePIE(t *testing.T) {
 	if strings.HasSuffix(testenv.Builder(), "-alpine") {
 		t.Skip("skipping PIE tests on alpine; see https://go.dev/issues/54354")
 	}
-	t.Run("non-cgo", func(t *testing.T) {
-		testBuildmodePIE(t, false, true)
-	})
-	t.Run("cgo", func(t *testing.T) {
+	t.Run("non-cgo", func { t -> testBuildmodePIE(t, false, true) })
+	t.Run("cgo", func { t ->
 		testenv.MustHaveCGO(t)
 		testBuildmodePIE(t, true, true)
 	})
@@ -2048,10 +2046,8 @@ func TestWindowsDefaultBuildmodIsPIE(t *testing.T) {
 	}
 	tooSlow(t, "links binaries")
 
-	t.Run("non-cgo", func(t *testing.T) {
-		testBuildmodePIE(t, false, false)
-	})
-	t.Run("cgo", func(t *testing.T) {
+	t.Run("non-cgo", func { t -> testBuildmodePIE(t, false, false) })
+	t.Run("cgo", func { t ->
 		testenv.MustHaveCGO(t)
 		testBuildmodePIE(t, true, false)
 	})

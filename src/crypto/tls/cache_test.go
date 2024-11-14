@@ -92,7 +92,7 @@ func BenchmarkCertCache(b *testing.B) {
 	// We expect that calling newCert additional times after
 	// the initial call should not cause additional allocations.
 	for extra := 0; extra < 4; extra++ {
-		b.Run(fmt.Sprint(extra), func(b *testing.B) {
+		b.Run(fmt.Sprint(extra), func { b ->
 			actives := make([]*activeCert, extra+1)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

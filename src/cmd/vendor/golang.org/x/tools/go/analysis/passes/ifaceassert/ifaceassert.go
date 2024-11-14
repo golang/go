@@ -59,7 +59,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.TypeSwitchStmt)(nil),
 	}
 	var free typeparams.Free
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		var (
 			assert  *ast.TypeAssertExpr // v.(T) expression
 			targets []ast.Expr          // interfaces T in v.(T)

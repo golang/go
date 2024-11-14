@@ -77,9 +77,7 @@ func ReadDir(dirname string) ([]fs.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	slices.SortFunc(list, func(a, b os.FileInfo) int {
-		return strings.Compare(a.Name(), b.Name())
-	})
+	slices.SortFunc(list, func { a, b -> strings.Compare(a.Name(), b.Name()) })
 	return list, nil
 }
 

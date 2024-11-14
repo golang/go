@@ -169,7 +169,7 @@ func TestEverything(t *testing.T) {
 	}
 	for size := min; size <= max; size++ {
 		size := size
-		t.Run(fmt.Sprintf("%d", size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", size), func { t ->
 			t.Parallel()
 			priv, err := GenerateKey(rand.Reader, size)
 			if err != nil {
@@ -468,9 +468,9 @@ Axreud3rJ0rekUp6rI1joG717Wls
 -----END TESTING KEY-----`))
 
 func BenchmarkDecryptPKCS1v15(b *testing.B) {
-	b.Run("2048", func(b *testing.B) { benchmarkDecryptPKCS1v15(b, test2048Key) })
-	b.Run("3072", func(b *testing.B) { benchmarkDecryptPKCS1v15(b, test3072Key) })
-	b.Run("4096", func(b *testing.B) { benchmarkDecryptPKCS1v15(b, test4096Key) })
+	b.Run("2048", func { b -> benchmarkDecryptPKCS1v15(b, test2048Key) })
+	b.Run("3072", func { b -> benchmarkDecryptPKCS1v15(b, test3072Key) })
+	b.Run("4096", func { b -> benchmarkDecryptPKCS1v15(b, test4096Key) })
 }
 
 func benchmarkDecryptPKCS1v15(b *testing.B, k *PrivateKey) {
@@ -497,7 +497,7 @@ func benchmarkDecryptPKCS1v15(b *testing.B, k *PrivateKey) {
 }
 
 func BenchmarkEncryptPKCS1v15(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
+	b.Run("2048", func { b ->
 		r := bufio.NewReaderSize(rand.Reader, 1<<15)
 		m := []byte("Hello Gophers")
 
@@ -513,7 +513,7 @@ func BenchmarkEncryptPKCS1v15(b *testing.B) {
 }
 
 func BenchmarkDecryptOAEP(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
+	b.Run("2048", func { b ->
 		r := bufio.NewReaderSize(rand.Reader, 1<<15)
 
 		m := []byte("Hello Gophers")
@@ -538,7 +538,7 @@ func BenchmarkDecryptOAEP(b *testing.B) {
 }
 
 func BenchmarkEncryptOAEP(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
+	b.Run("2048", func { b ->
 		r := bufio.NewReaderSize(rand.Reader, 1<<15)
 		m := []byte("Hello Gophers")
 
@@ -554,7 +554,7 @@ func BenchmarkEncryptOAEP(b *testing.B) {
 }
 
 func BenchmarkSignPKCS1v15(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
+	b.Run("2048", func { b ->
 		hashed := sha256.Sum256([]byte("testing"))
 
 		var sink byte
@@ -570,7 +570,7 @@ func BenchmarkSignPKCS1v15(b *testing.B) {
 }
 
 func BenchmarkVerifyPKCS1v15(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
+	b.Run("2048", func { b ->
 		hashed := sha256.Sum256([]byte("testing"))
 		s, err := SignPKCS1v15(rand.Reader, test2048Key, crypto.SHA256, hashed[:])
 		if err != nil {
@@ -588,7 +588,7 @@ func BenchmarkVerifyPKCS1v15(b *testing.B) {
 }
 
 func BenchmarkSignPSS(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
+	b.Run("2048", func { b ->
 		hashed := sha256.Sum256([]byte("testing"))
 
 		var sink byte
@@ -604,7 +604,7 @@ func BenchmarkSignPSS(b *testing.B) {
 }
 
 func BenchmarkVerifyPSS(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
+	b.Run("2048", func { b ->
 		hashed := sha256.Sum256([]byte("testing"))
 		s, err := SignPSS(rand.Reader, test2048Key, crypto.SHA256, hashed[:], nil)
 		if err != nil {

@@ -17,7 +17,7 @@ import (
 // containing the target, if any; otherwise it returns "", 0.
 func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) string {
 	if symname == nil {
-		symname = func(uint64) (string, uint64) { return "", 0 }
+		symname = func { "", 0 }
 	}
 	if inst.Op == 0 && inst.Enc == 0 {
 		return "WORD $0"

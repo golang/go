@@ -43,7 +43,7 @@ func lookupGorootExport(pkgDir string) (string, error) {
 			exportPath string
 			err        error
 		)
-		f, _ = exportMap.LoadOrStore(pkgDir, func() (string, error) {
+		f, _ = exportMap.LoadOrStore(pkgDir, func {
 			listOnce.Do(func() {
 				cmd := exec.Command(filepath.Join(build.Default.GOROOT, "bin", "go"), "list", "-export", "-f", "{{.Export}}", pkgDir)
 				cmd.Dir = build.Default.GOROOT

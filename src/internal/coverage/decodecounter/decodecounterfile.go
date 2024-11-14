@@ -154,7 +154,7 @@ func (cdr *CounterDataReader) readArgs() error {
 		return fmt.Errorf("error: short read on args table")
 	}
 	slr := slicereader.NewReader(b, false /* not readonly */)
-	sget := func() (string, error) {
+	sget := func {
 		kidx := slr.ReadULEB128()
 		if int(kidx) >= cdr.stab.Entries() {
 			return "", fmt.Errorf("malformed string table ref")
@@ -278,7 +278,7 @@ func (cdr *CounterDataReader) NextFunc(p *FuncPayload) (bool, error) {
 	cdr.fcnCount++
 	var rdu32 func() (uint32, error)
 	if cdr.hdr.CFlavor == coverage.CtrULeb128 {
-		rdu32 = func() (uint32, error) {
+		rdu32 = func {
 			var shift uint
 			var value uint64
 			for {
@@ -297,7 +297,7 @@ func (cdr *CounterDataReader) NextFunc(p *FuncPayload) (bool, error) {
 		}
 	} else if cdr.hdr.CFlavor == coverage.CtrRaw {
 		if cdr.hdr.BigEndian {
-			rdu32 = func() (uint32, error) {
+			rdu32 = func {
 				n, err := cdr.mr.Read(cdr.u32b)
 				if err != nil {
 					return 0, err
@@ -308,7 +308,7 @@ func (cdr *CounterDataReader) NextFunc(p *FuncPayload) (bool, error) {
 				return binary.BigEndian.Uint32(cdr.u32b), nil
 			}
 		} else {
-			rdu32 = func() (uint32, error) {
+			rdu32 = func {
 				n, err := cdr.mr.Read(cdr.u32b)
 				if err != nil {
 					return 0, err

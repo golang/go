@@ -111,7 +111,7 @@ func childCGIProcess() {
 		fmt.Printf("\nHello")
 		os.Exit(0)
 	}
-	Serve(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+	Serve(http.HandlerFunc(func { rw, req ->
 		if req.FormValue("nil-request-body") == "1" {
 			fmt.Fprintf(rw, "nil-request-body=%v\n", req.Body == nil)
 			return

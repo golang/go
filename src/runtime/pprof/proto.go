@@ -680,7 +680,7 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 	var line []byte
 	// next removes and returns the next field in the line.
 	// It also removes from line any spaces following the field.
-	next := func() []byte {
+	next := func {
 		var f []byte
 		f, line, _ = bytes.Cut(line, space)
 		line = bytes.TrimLeft(line, " ")

@@ -852,9 +852,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			elemOp := dec.decOpFor(elemId, t.Elem(), name, inProgress)
 			ovfl := overflow(name)
 			helper := decArrayHelper[t.Elem().Kind()]
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeArray(state, value, *elemOp, t.Len(), ovfl, helper)
-			}
+			op = func { i, state, value -> state.dec.decodeArray(state, value, *elemOp, t.Len(), ovfl, helper) }
 
 		case reflect.Map:
 			keyId := dec.wireType[wireId].MapT.Key
@@ -862,9 +860,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			keyOp := dec.decOpFor(keyId, t.Key(), "key of "+name, inProgress)
 			elemOp := dec.decOpFor(elemId, t.Elem(), "element of "+name, inProgress)
 			ovfl := overflow(name)
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeMap(t, state, value, *keyOp, *elemOp, ovfl)
-			}
+			op = func { i, state, value -> state.dec.decodeMap(t, state, value, *keyOp, *elemOp, ovfl) }
 
 		case reflect.Slice:
 			name = "element of " + name
@@ -881,9 +877,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			elemOp := dec.decOpFor(elemId, t.Elem(), name, inProgress)
 			ovfl := overflow(name)
 			helper := decSliceHelper[t.Elem().Kind()]
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeSlice(state, value, *elemOp, ovfl, helper)
-			}
+			op = func { i, state, value -> state.dec.decodeSlice(state, value, *elemOp, ovfl, helper) }
 
 		case reflect.Struct:
 			// Generate a closure that calls out to the engine for the nested type.
@@ -892,14 +886,11 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			if err != nil {
 				error_(err)
 			}
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				// indirect through enginePtr to delay evaluation for recursive structs.
-				dec.decodeStruct(*enginePtr, value)
-			}
+			op = func { i, state, value ->
+			// indirect through enginePtr to delay evaluation for recursive structs.
+			dec.decodeStruct(*enginePtr, value) }
 		case reflect.Interface:
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.decodeInterface(t, state, value)
-			}
+			op = func { i, state, value -> state.dec.decodeInterface(t, state, value) }
 		}
 	}
 	if op == nil {
@@ -929,9 +920,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId, inProgress map[typeId]*decOp) 
 		if wireId == tInterface {
 			// Special case because it's a method: the ignored item might
 			// define types and we need to record their state in the decoder.
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.ignoreInterface(state)
-			}
+			op = func { i, state, value -> state.dec.ignoreInterface(state) }
 			return &op
 		}
 		// Special cases
@@ -942,25 +931,19 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId, inProgress map[typeId]*decOp) 
 		case wire.ArrayT != nil:
 			elemId := wire.ArrayT.Elem
 			elemOp := dec.decIgnoreOpFor(elemId, inProgress)
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.ignoreArray(state, *elemOp, wire.ArrayT.Len)
-			}
+			op = func { i, state, value -> state.dec.ignoreArray(state, *elemOp, wire.ArrayT.Len) }
 
 		case wire.MapT != nil:
 			keyId := dec.wireType[wireId].MapT.Key
 			elemId := dec.wireType[wireId].MapT.Elem
 			keyOp := dec.decIgnoreOpFor(keyId, inProgress)
 			elemOp := dec.decIgnoreOpFor(elemId, inProgress)
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.ignoreMap(state, *keyOp, *elemOp)
-			}
+			op = func { i, state, value -> state.dec.ignoreMap(state, *keyOp, *elemOp) }
 
 		case wire.SliceT != nil:
 			elemId := wire.SliceT.Elem
 			elemOp := dec.decIgnoreOpFor(elemId, inProgress)
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.ignoreSlice(state, *elemOp)
-			}
+			op = func { i, state, value -> state.dec.ignoreSlice(state, *elemOp) }
 
 		case wire.StructT != nil:
 			// Generate a closure that calls out to the engine for the nested type.
@@ -968,15 +951,12 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId, inProgress map[typeId]*decOp) 
 			if err != nil {
 				error_(err)
 			}
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				// indirect through enginePtr to delay evaluation for recursive structs
-				state.dec.ignoreStruct(*enginePtr)
-			}
+			op = func { i, state, value ->
+			// indirect through enginePtr to delay evaluation for recursive structs
+			state.dec.ignoreStruct(*enginePtr) }
 
 		case wire.GobEncoderT != nil, wire.BinaryMarshalerT != nil, wire.TextMarshalerT != nil:
-			op = func(i *decInstr, state *decoderState, value reflect.Value) {
-				state.dec.ignoreGobDecoder(state)
-			}
+			op = func { i, state, value -> state.dec.ignoreGobDecoder(state) }
 		}
 	}
 	if op == nil {
@@ -997,7 +977,7 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) *decOp {
 		}
 	}
 	var op decOp
-	op = func(i *decInstr, state *decoderState, value reflect.Value) {
+	op = func { i, state, value ->
 		// We now have the base type. We need its address if the receiver is a pointer.
 		if value.Kind() != reflect.Pointer && rcvrType.Kind() == reflect.Pointer {
 			value = value.Addr()

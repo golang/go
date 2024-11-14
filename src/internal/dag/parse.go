@@ -85,9 +85,7 @@ func (g *Graph) Edges(from string) []string {
 	for k := range g.edges[from] {
 		edges = append(edges, k)
 	}
-	slices.SortFunc(edges, func(a, b string) int {
-		return cmp.Compare(g.byLabel[a], g.byLabel[b])
-	})
+	slices.SortFunc(edges, func { a, b -> cmp.Compare(g.byLabel[a], g.byLabel[b]) })
 	return edges
 }
 

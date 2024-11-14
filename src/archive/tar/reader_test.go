@@ -622,7 +622,7 @@ func TestReader(t *testing.T) {
 	}}
 
 	for _, v := range vectors {
-		t.Run(path.Base(v.file), func(t *testing.T) {
+		t.Run(path.Base(v.file), func { t ->
 			f, err := os.Open(v.file)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -718,7 +718,7 @@ func TestPartialRead(t *testing.T) {
 	}}
 
 	for _, v := range vectors {
-		t.Run(path.Base(v.file), func(t *testing.T) {
+		t.Run(path.Base(v.file), func { t ->
 			f, err := os.Open(v.file)
 			if err != nil {
 				t.Fatalf("Open() error: %v", err)

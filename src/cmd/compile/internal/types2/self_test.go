@@ -41,20 +41,16 @@ func BenchmarkCheck(b *testing.B) {
 		filepath.Join("src", "runtime"),
 		filepath.Join("src", "go", "internal", "gcimporter"),
 	} {
-		b.Run(path.Base(p), func(b *testing.B) {
+		b.Run(path.Base(p), func { b ->
 			path := filepath.Join(runtime.GOROOT(), p)
 			for _, ignoreFuncBodies := range []bool{false, true} {
 				name := "funcbodies"
 				if ignoreFuncBodies {
 					name = "nofuncbodies"
 				}
-				b.Run(name, func(b *testing.B) {
-					b.Run("info", func(b *testing.B) {
-						runbench(b, path, ignoreFuncBodies, true)
-					})
-					b.Run("noinfo", func(b *testing.B) {
-						runbench(b, path, ignoreFuncBodies, false)
-					})
+				b.Run(name, func { b ->
+					b.Run("info", func { b -> runbench(b, path, ignoreFuncBodies, true) })
+					b.Run("noinfo", func { b -> runbench(b, path, ignoreFuncBodies, false) })
 				})
 			}
 		})

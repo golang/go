@@ -173,7 +173,7 @@ func TestNewRequestWithContext(t *testing.T) {
 			},
 		},
 	} {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			got := NewRequestWithContext(context.Background(), tt.method, tt.uri, tt.body)
 			slurp, err := io.ReadAll(got.Body)
 			if err != nil {

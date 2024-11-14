@@ -783,7 +783,7 @@ func fixTrailer(header Header, chunked bool) (Header, error) {
 	trailer := make(Header)
 	var err error
 	for _, v := range vv {
-		foreachHeaderElement(v, func(key string) {
+		foreachHeaderElement(v, func { key ->
 			key = CanonicalHeaderKey(key)
 			switch key {
 			case "Transfer-Encoding", "Trailer", "Content-Length":

@@ -257,9 +257,7 @@ func dependencyGraph(objMap map[Object]*declInfo) []*graphNode {
 	// throughout the function graph, the cost of removing a function at
 	// position X is proportional to cost * (len(funcG)-X). Therefore, we should
 	// remove high-cost functions last.
-	sort.Slice(funcG, func(i, j int) bool {
-		return funcG[i].cost() < funcG[j].cost()
-	})
+	sort.Slice(funcG, func { i, j -> funcG[i].cost() < funcG[j].cost() })
 	for _, n := range funcG {
 		// connect each predecessor p of n with each successor s
 		// and drop the function node (don't collect it in G)

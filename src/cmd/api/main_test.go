@@ -368,7 +368,7 @@ func NewWalker(context *build.Context, root string) *Walker {
 		context:  context,
 		root:     root,
 		features: map[string]bool{},
-		imported: map[string]*apiPackage{"unsafe": &apiPackage{Package: types.Unsafe}},
+		imported: map[string]*apiPackage{"unsafe": {Package: types.Unsafe}},
 	}
 	w.loadImports()
 	return w
@@ -1171,7 +1171,7 @@ func (w *Walker) collectDeprecated() {
 		}
 	}
 	for _, file := range w.current.Files {
-		ast.Inspect(file, func(n ast.Node) bool {
+		ast.Inspect(file, func { n ->
 			switch n := n.(type) {
 			case *ast.File:
 				if isDeprecated(n.Doc) {

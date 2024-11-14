@@ -657,7 +657,7 @@ func CanonicalVersion(v string) string {
 // optionally followed by a tie-breaking suffix introduced by a slash character,
 // like in "v0.0.1/go.mod".
 func Sort(list []Version) {
-	sort.Slice(list, func(i, j int) bool {
+	sort.Slice(list, func { i, j ->
 		mi := list[i]
 		mj := list[j]
 		if mi.Path != mj.Path {

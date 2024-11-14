@@ -13,7 +13,7 @@ import (
 )
 
 func MainHandler(views []View) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	return http.HandlerFunc(func { w, _ ->
 		if err := templMain.Execute(w, views); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -276,7 +276,7 @@ func (r Range) URL(viewType ViewType) string {
 }
 
 func TraceHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func { w, r ->
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -85,11 +85,9 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func), budgetForFunc func(*ir.F
 	// the way, test to see whether each closure is inlinable in case
 	// we might be returning it.
 	funcs := []*ir.Func{fn}
-	ir.VisitFuncAndClosures(fn, func(n ir.Node) {
-		if clo, ok := n.(*ir.ClosureExpr); ok {
-			funcs = append(funcs, clo.Func)
-		}
-	})
+	ir.VisitFuncAndClosures(fn, func { n -> if clo, ok := n.(*ir.ClosureExpr); ok {
+		funcs = append(funcs, clo.Func)
+	} })
 
 	// Analyze the list of functions. We want to visit a given func
 	// only after the closures it contains have been processed, so
@@ -184,7 +182,7 @@ func computeFuncProps(fn *ir.Func, inlineMaxBudget int, nf *nameFinder) (*FuncPr
 
 func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
 	var doNode func(ir.Node) bool
-	doNode = func(n ir.Node) bool {
+	doNode = func { n ->
 		for _, a := range analyzers {
 			a.nodeVisitPre(n)
 		}
@@ -234,11 +232,9 @@ func DumpFuncProps(fn *ir.Func, dumpfile string) {
 			return
 		}
 		captureFuncDumpEntry(fn)
-		ir.VisitFuncAndClosures(fn, func(n ir.Node) {
-			if clo, ok := n.(*ir.ClosureExpr); ok {
-				captureFuncDumpEntry(clo.Func)
-			}
-		})
+		ir.VisitFuncAndClosures(fn, func { n -> if clo, ok := n.(*ir.ClosureExpr); ok {
+			captureFuncDumpEntry(clo.Func)
+		} })
 	} else {
 		emitDumpToFile(dumpfile)
 	}
@@ -349,7 +345,7 @@ func dumpFnPreamble(w io.Writer, funcInlHeur *fnInlHeur, ecst encodedCallSiteTab
 // sortFnInlHeurSlice sorts a slice of fnInlHeur based on
 // the starting line of the function definition, then by name.
 func sortFnInlHeurSlice(sl []fnInlHeur) []fnInlHeur {
-	sort.SliceStable(sl, func(i, j int) bool {
+	sort.SliceStable(sl, func { i, j ->
 		if sl[i].line != sl[j].line {
 			return sl[i].line < sl[j].line
 		}

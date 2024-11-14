@@ -28,7 +28,7 @@ func cSeq(stringOffsets ...uintptr) cloneSeq {
 func testCloneSeq[T any](t *testing.T, want cloneSeq) {
 	typName := reflect.TypeFor[T]().Name()
 	typ := abi.TypeFor[T]()
-	t.Run(typName, func(t *testing.T) {
+	t.Run(typName, func { t ->
 		got := makeCloneSeq(typ)
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("unexpected cloneSeq for type %s: got %#v, want %#v", typName, got, want)

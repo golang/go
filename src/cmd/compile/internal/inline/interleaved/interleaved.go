@@ -22,11 +22,9 @@ import (
 func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 	if profile != nil && base.Debug.PGODevirtualize > 0 {
 		// TODO(mdempsky): Integrate into DevirtualizeAndInlineFunc below.
-		ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
-			for _, fn := range list {
-				devirtualize.ProfileGuided(fn, profile)
-			}
-		})
+		ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func { list, recursive -> for _, fn := range list {
+			devirtualize.ProfileGuided(fn, profile)
+		} })
 		ir.CurFunc = nil
 	}
 
@@ -133,7 +131,7 @@ func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node)
 
 	var parens []*ir.ParenExpr
 	var mark func(ir.Node) ir.Node
-	mark = func(n ir.Node) ir.Node {
+	mark = func { n ->
 		if _, ok := n.(*ir.ParenExpr); ok {
 			return n // already visited n.X before wrapping
 		}
@@ -179,7 +177,7 @@ func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node)
 		return // short circuit
 	}
 	var unparen func(ir.Node) ir.Node
-	unparen = func(n ir.Node) ir.Node {
+	unparen = func { n ->
 		if paren, ok := n.(*ir.ParenExpr); ok {
 			n = paren.X
 		}

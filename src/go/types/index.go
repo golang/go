@@ -109,7 +109,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 		var key, elem Type // key != nil: we must have all maps
 		mode := variable   // non-maps result mode
 		// TODO(gri) factor out closure and use it for non-typeparam cases as well
-		if typ.typeSet().underIs(func(u Type) bool {
+		if typ.typeSet().underIs(func { u ->
 			l := int64(-1) // valid if >= 0
 			var k, e Type  // k is only set for maps
 			switch t := u.(type) {

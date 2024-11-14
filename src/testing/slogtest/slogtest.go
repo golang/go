@@ -282,7 +282,7 @@ func TestHandler(h slog.Handler, results func() []map[string]any) error {
 // calls result to get the result. If the test case fails, it calls t.Error.
 func Run(t *testing.T, newHandler func(*testing.T) slog.Handler, result func(*testing.T) map[string]any) {
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
+		t.Run(c.name, func { t ->
 			h := newHandler(t)
 			if c.mod != nil {
 				h = &wrapper{h, c.mod}

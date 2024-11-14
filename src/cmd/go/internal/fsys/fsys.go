@@ -380,7 +380,7 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
 	for _, f := range files {
 		sortedFiles = append(sortedFiles, f)
 	}
-	sort.Slice(sortedFiles, func(i, j int) bool { return sortedFiles[i].Name() < sortedFiles[j].Name() })
+	sort.Slice(sortedFiles, func { i, j -> sortedFiles[i].Name() < sortedFiles[j].Name() })
 	return sortedFiles, nil
 }
 

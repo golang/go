@@ -149,7 +149,7 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
 		// If the root itself is a symlink to a directory,
 		// we want to follow it (see https://go.dev/issue/50807).
 		// Add a trailing separator to force that to happen.
-		fsys.Walk(str.WithFilePathSeparator(useDir), func(path string, info fs.FileInfo, err error) error {
+		fsys.Walk(str.WithFilePathSeparator(useDir), func { path, info, err ->
 			if err != nil {
 				return err
 			}

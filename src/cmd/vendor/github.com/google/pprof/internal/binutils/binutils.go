@@ -119,7 +119,7 @@ func (bu *Binutils) String() string {
 // symbolization (using nm), which is much faster than addr2line but
 // provides only symbol name information (no file/line).
 func (bu *Binutils) SetFastSymbolization(fast bool) {
-	bu.update(func(r *binrep) { r.fast = fast })
+	bu.update(func { r -> r.fast = fast })
 }
 
 // SetTools processes the contents of the tools option. It
@@ -128,7 +128,7 @@ func (bu *Binutils) SetFastSymbolization(fast bool) {
 // tool named t. If t is not specified, the path is searched for all
 // tools.
 func (bu *Binutils) SetTools(config string) {
-	bu.update(func(r *binrep) { initTools(r, config) })
+	bu.update(func { r -> initTools(r, config) })
 }
 
 func initTools(b *binrep, config string) {

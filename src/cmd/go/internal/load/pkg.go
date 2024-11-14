@@ -840,7 +840,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 		parentIsStd: parentIsStd,
 		mode:        mode,
 	}
-	r := resolvedImportCache.Do(importKey, func() resolvedImport {
+	r := resolvedImportCache.Do(importKey, func {
 		var r resolvedImport
 		if cfg.ModulesEnabled {
 			r.dir, r.path, r.err = modload.Lookup(parentPath, parentIsStd, path)
@@ -867,7 +867,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 
 	// Load the package from its directory. If we already found the package's
 	// directory when resolving its import path, use that.
-	p, err := packageDataCache.Do(r.path, func() (*build.Package, error) {
+	p, err := packageDataCache.Do(r.path, func {
 		loaded = true
 		var data struct {
 			p   *build.Package
@@ -1100,7 +1100,7 @@ func cleanImport(path string) string {
 var isDirCache par.Cache[string, bool]
 
 func isDir(path string) bool {
-	return isDirCache.Do(path, func() bool {
+	return isDirCache.Do(path, func {
 		fi, err := fsys.Stat(path)
 		return err == nil && fi.IsDir()
 	})
@@ -1229,7 +1229,7 @@ var (
 
 // goModPath returns the module path in the go.mod in dir, if any.
 func goModPath(dir string) (path string) {
-	return goModPathCache.Do(dir, func() string {
+	return goModPathCache.Do(dir, func {
 		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err != nil {
 			return ""
@@ -2144,7 +2144,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 				// Gather all files in the named directory, stopping at module boundaries
 				// and ignoring files that wouldn't be packaged into a module.
 				count := 0
-				err := fsys.Walk(file, func(path string, info os.FileInfo, err error) error {
+				err := fsys.Walk(file, func { path, info, err ->
 					if err != nil {
 						return err
 					}
@@ -2247,7 +2247,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 	}
 
 	var debugModFromModinfo func(*modinfo.ModulePublic) *debug.Module
-	debugModFromModinfo = func(mi *modinfo.ModulePublic) *debug.Module {
+	debugModFromModinfo = func { mi ->
 		version := mi.Version
 		if version == "" {
 			version = "(devel)"
@@ -2480,9 +2480,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 			goto omitVCS
 		}
 
-		st, err := vcsStatusCache.Do(repoDir, func() (vcs.Status, error) {
-			return vcsCmd.Status(vcsCmd, repoDir)
-		})
+		st, err := vcsStatusCache.Do(repoDir, func { vcsCmd.Status(vcsCmd, repoDir) })
 		if err != nil {
 			setVCSError(err)
 			return
@@ -2659,7 +2657,7 @@ func PackageList(roots []*Package) []*Package {
 	seen := map[*Package]bool{}
 	all := []*Package{}
 	var walk func(*Package)
-	walk = func(p *Package) {
+	walk = func { p ->
 		if seen[p] {
 			return
 		}
@@ -2682,7 +2680,7 @@ func TestPackageList(ctx context.Context, opts PackageOpts, roots []*Package) []
 	seen := map[*Package]bool{}
 	all := []*Package{}
 	var walk func(*Package)
-	walk = func(p *Package) {
+	walk = func { p ->
 		if seen[p] {
 			return
 		}
@@ -2896,9 +2894,7 @@ func setPGOProfilePath(pkgs []*Package) {
 			appendBuildSetting(p.Internal.BuildInfo, "-pgo", file)
 		}
 		// Adding -pgo breaks the sort order in BuildInfo.Settings. Restore it.
-		slices.SortFunc(p.Internal.BuildInfo.Settings, func(x, y debug.BuildSetting) int {
-			return strings.Compare(x.Key, y.Key)
-		})
+		slices.SortFunc(p.Internal.BuildInfo.Settings, func { x, y -> strings.Compare(x.Key, y.Key) })
 	}
 
 	switch cfg.BuildPGO {
@@ -2928,7 +2924,7 @@ func setPGOProfilePath(pkgs []*Package) {
 			// Package.
 			visited := make(map[*Package]*Package)
 			var split func(p *Package) *Package
-			split = func(p *Package) *Package {
+			split = func { p ->
 				if p1 := visited[p]; p1 != nil {
 					return p1
 				}
@@ -3155,7 +3151,7 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
 		}
 		dirent = append(dirent, fi)
 	}
-	ctxt.ReadDir = func(string) ([]fs.FileInfo, error) { return dirent, nil }
+	ctxt.ReadDir = func { dirent, nil }
 
 	if cfg.ModulesEnabled {
 		modload.ImportFromFiles(ctx, gofiles)

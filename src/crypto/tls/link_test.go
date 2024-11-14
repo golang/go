@@ -75,7 +75,7 @@ func main() { tls.Dial("", "", nil) }
 	goFile := filepath.Join(tmpDir, "x.go")
 	exeFile := filepath.Join(tmpDir, "x.exe")
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			if err := os.WriteFile(goFile, []byte(tt.program), 0644); err != nil {
 				t.Fatal(err)
 			}

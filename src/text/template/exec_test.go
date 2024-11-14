@@ -934,9 +934,7 @@ func (*CustomError) Error() string { return "heyo !" }
 
 // Check that a custom error can be returned.
 func TestExecError_CustomError(t *testing.T) {
-	failingFunc := func() (string, error) {
-		return "", &CustomError{}
-	}
+	failingFunc := func { "", &CustomError{} }
 	tmpl := Must(New("top").Funcs(FuncMap{
 		"err": failingFunc,
 	}).Parse("{{ err }}"))
@@ -1529,7 +1527,7 @@ func TestEvalFieldErrors(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			tmpl := Must(New("tmpl").Parse(tc.src))
 			err := tmpl.Execute(io.Discard, tc.value)
 			got := "<nil>"
@@ -1809,7 +1807,7 @@ func TestIssue31810(t *testing.T) {
 	}
 
 	// Even a plain function fails - need to use call.
-	f := func() string { return "result" }
+	f := func { "result" }
 	b.Reset()
 	err = tmpl.Execute(&b, f)
 	if err == nil {

@@ -94,9 +94,7 @@ func TestScript(t *testing.T) {
 		Quiet: !testing.Verbose(),
 	}
 
-	t.Run("README", func(t *testing.T) {
-		checkScriptReadme(t, engine, env)
-	})
+	t.Run("README", func { t -> checkScriptReadme(t, engine, env) })
 
 	files, err := filepath.Glob("testdata/script/*.txt")
 	if err != nil {
@@ -105,7 +103,7 @@ func TestScript(t *testing.T) {
 	for _, file := range files {
 		file := file
 		name := strings.TrimSuffix(filepath.Base(file), ".txt")
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			t.Parallel()
 			StartProxy()
 

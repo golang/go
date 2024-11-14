@@ -51,7 +51,7 @@ func whoamiNEWUSER(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
 func TestCloneNEWUSERAndRemap(t *testing.T) {
 	for _, setgroups := range []bool{false, true} {
 		setgroups := setgroups
-		t.Run(fmt.Sprintf("setgroups=%v", setgroups), func(t *testing.T) {
+		t.Run(fmt.Sprintf("setgroups=%v", setgroups), func { t ->
 			uid := os.Getuid()
 			gid := os.Getgid()
 

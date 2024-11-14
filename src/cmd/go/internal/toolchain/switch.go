@@ -137,7 +137,7 @@ func NewerToolchain(ctx context.Context, version string) (string, error) {
 // autoToolchains returns the list of toolchain versions available to GOTOOLCHAIN=auto or =min+auto mode.
 func autoToolchains(ctx context.Context) ([]string, error) {
 	var versions *modfetch.Versions
-	err := modfetch.TryProxies(func(proxy string) error {
+	err := modfetch.TryProxies(func { proxy ->
 		v, err := modfetch.Lookup(ctx, proxy, "go").Versions(ctx, "")
 		if err != nil {
 			return err
@@ -180,9 +180,7 @@ func pathToolchains(ctx context.Context) ([]string, error) {
 			list = append(list, v)
 		}
 	}
-	sort.Slice(list, func(i, j int) bool {
-		return gover.Compare(list[i], list[j]) < 0
-	})
+	sort.Slice(list, func { i, j -> gover.Compare(list[i], list[j]) < 0 })
 	return list, nil
 }
 

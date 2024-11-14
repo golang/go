@@ -200,7 +200,7 @@ func findPrintfLike(pass *analysis.Pass, res *Result) (interface{}, error) {
 	// Walk the graph to figure out which are really printf wrappers.
 	for _, w := range wrappers {
 		// Scan function for calls that could be to other printf-like functions.
-		ast.Inspect(w.fdecl.Body, func(n ast.Node) bool {
+		ast.Inspect(w.fdecl.Body, func { n ->
 			if w.failed {
 				return false
 			}
@@ -450,7 +450,7 @@ func checkCall(pass *analysis.Pass) {
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		call := n.(*ast.CallExpr)
 		fn, kind := printfNameAndKind(pass, call)
 		switch kind {

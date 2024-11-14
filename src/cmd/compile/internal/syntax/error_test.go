@@ -60,7 +60,7 @@ func sortedPositions(m map[position]string) []position {
 		list[i] = pos
 		i++
 	}
-	sort.Slice(list, func(i, j int) bool {
+	sort.Slice(list, func { i, j ->
 		a, b := list[i], list[j]
 		return a.line < b.line || a.line == b.line && a.col < b.col
 	})
@@ -82,7 +82,7 @@ func declaredErrors(t *testing.T, filename string) map[position]string {
 
 	var s scanner
 	var pattern string
-	s.init(f, func(line, col uint, msg string) {
+	s.init(f, func { line, col, msg ->
 		// errors never start with '/' so they are automatically excluded here
 		switch {
 		case strings.HasPrefix(msg, "// ERROR "):
@@ -127,7 +127,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
 	}
 	defer f.Close()
 
-	ParseFile(filename, func(err error) {
+	ParseFile(filename, func { err ->
 		e, ok := err.(Error)
 		if !ok {
 			return

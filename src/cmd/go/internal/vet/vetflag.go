@@ -118,11 +118,9 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 	// the vet tool, but only if they aren't overridden by an explicit argument.
 	base.SetFromGOFLAGS(&CmdVet.Flag)
 	addFromGOFLAGS := map[string]bool{}
-	CmdVet.Flag.Visit(func(f *flag.Flag) {
-		if isVetFlag[f.Name] {
-			addFromGOFLAGS[f.Name] = true
-		}
-	})
+	CmdVet.Flag.Visit(func { f -> if isVetFlag[f.Name] {
+		addFromGOFLAGS[f.Name] = true
+	} })
 
 	explicitFlags := make([]string, 0, len(args))
 	for len(args) > 0 {
@@ -165,7 +163,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 	}
 
 	// Prepend arguments from GOFLAGS before other arguments.
-	CmdVet.Flag.Visit(func(f *flag.Flag) {
+	CmdVet.Flag.Visit(func { f ->
 		if addFromGOFLAGS[f.Name] {
 			passToVet = append(passToVet, fmt.Sprintf("-%s=%s", f.Name, f.Value))
 		}

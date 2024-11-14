@@ -88,7 +88,7 @@ func TestParseASN1String(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			out, err := parseASN1String(tc.tag, tc.value)
 			if err != nil && err.Error() != tc.expectedErr {
 				t.Fatalf("parseASN1String returned unexpected error: got %q, want %q", err, tc.expectedErr)

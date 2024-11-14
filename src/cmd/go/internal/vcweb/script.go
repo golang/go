@@ -225,7 +225,7 @@ func scriptAt() script.Cmd {
 				"The argument must be an absolute timestamp in RFC3339 format.",
 			},
 		},
-		func(st *script.State, args ...string) (script.WaitFunc, error) {
+		func { st, args ->
 			if len(args) != 1 {
 				return nil, script.ErrUsage
 			}
@@ -254,7 +254,7 @@ func scriptHandle() script.Cmd {
 				"Valid handlers include 'dir' (for general http.Dir serving), 'bzr', 'fossil', 'git', and 'hg'",
 			},
 		},
-		func(st *script.State, args ...string) (script.WaitFunc, error) {
+		func { st, args ->
 			if len(args) == 0 || len(args) > 2 {
 				return nil, script.ErrUsage
 			}
@@ -327,7 +327,7 @@ func scriptUnquote() script.Cmd {
 			Summary: "unquote the argument as a Go string",
 			Args:    "string",
 		},
-		func(st *script.State, args ...string) (script.WaitFunc, error) {
+		func { st, args ->
 			if len(args) != 1 {
 				return nil, script.ErrUsage
 			}

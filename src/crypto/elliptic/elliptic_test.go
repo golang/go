@@ -40,7 +40,7 @@ func testAllCurves(t *testing.T, f func(*testing.T, Curve)) {
 	}
 	for _, test := range tests {
 		curve := test.curve
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			t.Parallel()
 			f(t, curve)
 		})
@@ -49,7 +49,7 @@ func testAllCurves(t *testing.T, f func(*testing.T, Curve)) {
 
 func TestOnCurve(t *testing.T) {
 	t.Parallel()
-	testAllCurves(t, func(t *testing.T, curve Curve) {
+	testAllCurves(t, func { t, curve ->
 		if !curve.IsOnCurve(curve.Params().Gx, curve.Params().Gy) {
 			t.Error("basepoint is not on the curve")
 		}
@@ -58,7 +58,7 @@ func TestOnCurve(t *testing.T) {
 
 func TestOffCurve(t *testing.T) {
 	t.Parallel()
-	testAllCurves(t, func(t *testing.T, curve Curve) {
+	testAllCurves(t, func { t, curve ->
 		x, y := new(big.Int).SetInt64(1), new(big.Int).SetInt64(1)
 		if curve.IsOnCurve(x, y) {
 			t.Errorf("point off curve is claimed to be on the curve")
@@ -154,7 +154,7 @@ func testInfinity(t *testing.T, curve Curve) {
 
 func TestMarshal(t *testing.T) {
 	t.Parallel()
-	testAllCurves(t, func(t *testing.T, curve Curve) {
+	testAllCurves(t, func { t, curve ->
 		_, x, y, err := GenerateKey(curve, rand.Reader)
 		if err != nil {
 			t.Fatal(err)
@@ -275,20 +275,20 @@ func testInvalidCoordinates(t *testing.T, curve Curve) {
 
 func TestMarshalCompressed(t *testing.T) {
 	t.Parallel()
-	t.Run("P-256/03", func(t *testing.T) {
+	t.Run("P-256/03", func { t ->
 		data, _ := hex.DecodeString("031e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")
 		x, _ := new(big.Int).SetString("13671033352574878777044637384712060483119675368076128232297328793087057702265", 10)
 		y, _ := new(big.Int).SetString("66200849279091436748794323380043701364391950689352563629885086590854940586447", 10)
 		testMarshalCompressed(t, P256(), x, y, data)
 	})
-	t.Run("P-256/02", func(t *testing.T) {
+	t.Run("P-256/02", func { t ->
 		data, _ := hex.DecodeString("021e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")
 		x, _ := new(big.Int).SetString("13671033352574878777044637384712060483119675368076128232297328793087057702265", 10)
 		y, _ := new(big.Int).SetString("49591239931264812013903123569363872165694192725937750565648544718012157267504", 10)
 		testMarshalCompressed(t, P256(), x, y, data)
 	})
 
-	t.Run("Invalid", func(t *testing.T) {
+	t.Run("Invalid", func { t ->
 		data, _ := hex.DecodeString("02fd4bf61763b46581fd9174d623516cf3c81edd40e29ffa2777fb6cb0ae3ce535")
 		X, Y := UnmarshalCompressed(P256(), data)
 		if X != nil || Y != nil {
@@ -300,7 +300,7 @@ func TestMarshalCompressed(t *testing.T) {
 		t.Skip("skipping other curves on short test")
 	}
 
-	testAllCurves(t, func(t *testing.T, curve Curve) {
+	testAllCurves(t, func { t, curve ->
 		_, x, y, err := GenerateKey(curve, rand.Reader)
 		if err != nil {
 			t.Fatal(err)
@@ -334,7 +334,7 @@ func testMarshalCompressed(t *testing.T, curve Curve, x, y *big.Int, want []byte
 
 func TestLargeIsOnCurve(t *testing.T) {
 	t.Parallel()
-	testAllCurves(t, func(t *testing.T, curve Curve) {
+	testAllCurves(t, func { t, curve ->
 		large := big.NewInt(1)
 		large.Lsh(large, 1000)
 		if curve.IsOnCurve(large, large) {
@@ -355,14 +355,12 @@ func benchmarkAllCurves(b *testing.B, f func(*testing.B, Curve)) {
 	}
 	for _, test := range tests {
 		curve := test.curve
-		b.Run(test.name, func(b *testing.B) {
-			f(b, curve)
-		})
+		b.Run(test.name, func { b -> f(b, curve) })
 	}
 }
 
 func BenchmarkScalarBaseMult(b *testing.B) {
-	benchmarkAllCurves(b, func(b *testing.B, curve Curve) {
+	benchmarkAllCurves(b, func { b, curve ->
 		priv, _, _, _ := GenerateKey(curve, rand.Reader)
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -375,7 +373,7 @@ func BenchmarkScalarBaseMult(b *testing.B) {
 }
 
 func BenchmarkScalarMult(b *testing.B) {
-	benchmarkAllCurves(b, func(b *testing.B, curve Curve) {
+	benchmarkAllCurves(b, func { b, curve ->
 		_, x, y, _ := GenerateKey(curve, rand.Reader)
 		priv, _, _, _ := GenerateKey(curve, rand.Reader)
 		b.ReportAllocs()
@@ -387,9 +385,9 @@ func BenchmarkScalarMult(b *testing.B) {
 }
 
 func BenchmarkMarshalUnmarshal(b *testing.B) {
-	benchmarkAllCurves(b, func(b *testing.B, curve Curve) {
+	benchmarkAllCurves(b, func { b, curve ->
 		_, x, y, _ := GenerateKey(curve, rand.Reader)
-		b.Run("Uncompressed", func(b *testing.B) {
+		b.Run("Uncompressed", func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				buf := Marshal(curve, x, y)
@@ -399,7 +397,7 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 				}
 			}
 		})
-		b.Run("Compressed", func(b *testing.B) {
+		b.Run("Compressed", func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				buf := MarshalCompressed(curve, x, y)

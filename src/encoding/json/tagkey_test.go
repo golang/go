@@ -97,7 +97,7 @@ func TestStructTagObjectKey(t *testing.T) {
 		{Name(""), unicodeTag{"Loukanikos"}, "Loukanikos", "Ελλάδα"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.Name, func { t ->
 			b, err := Marshal(tt.raw)
 			if err != nil {
 				t.Fatalf("%s: Marshal error: %v", tt.Where, err)

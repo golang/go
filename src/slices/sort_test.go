@@ -30,7 +30,7 @@ func TestSortIntSlice(t *testing.T) {
 
 func TestSortFuncIntSlice(t *testing.T) {
 	data := Clone(ints[:])
-	SortFunc(data, func(a, b int) int { return a - b })
+	SortFunc(data, func { a, b -> a - b })
 	if !IsSorted(data) {
 		t.Errorf("sorted %v", ints)
 		t.Errorf("   got %v", data)
@@ -190,7 +190,7 @@ func TestMinMax(t *testing.T) {
 		{[]int{0, 2, -9}, -9, 2},
 	}
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v", tt.data), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", tt.data), func { t ->
 			gotMin := Min(tt.data)
 			if gotMin != tt.wantMin {
 				t.Errorf("Min got %v, want %v", gotMin, tt.wantMin)
@@ -341,7 +341,7 @@ func TestBinarySearch(t *testing.T) {
 		{strSame, "zz", 3, false},
 	}
 	for _, tt := range tests {
-		t.Run(tt.target, func(t *testing.T) {
+		t.Run(tt.target, func { t ->
 			{
 				pos, found := BinarySearch(tt.data, tt.target)
 				if pos != tt.wantPos || found != tt.wantFound {
@@ -372,7 +372,7 @@ func TestBinarySearchInts(t *testing.T) {
 		{80, 6, true},
 	}
 	for _, tt := range tests {
-		t.Run(strconv.Itoa(tt.target), func(t *testing.T) {
+		t.Run(strconv.Itoa(tt.target), func { t ->
 			{
 				pos, found := BinarySearch(data, tt.target)
 				if pos != tt.wantPos || found != tt.wantFound {
@@ -408,7 +408,7 @@ func TestBinarySearchFloats(t *testing.T) {
 		{1.5, 4, false},
 	}
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v", tt.target), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", tt.target), func { t ->
 			{
 				pos, found := BinarySearch(data, tt.target)
 				if pos != tt.wantPos || found != tt.wantFound {

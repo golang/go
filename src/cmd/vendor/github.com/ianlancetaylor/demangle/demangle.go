@@ -435,7 +435,7 @@ func (st *state) encoding(params bool, local forLocalNameType) AST {
 	mwq, _ := a.(*MethodWithQualifiers)
 
 	var findTemplate func(AST) *Template
-	findTemplate = func(check AST) *Template {
+	findTemplate = func { check ->
 		switch check := check.(type) {
 		case *Template:
 			return check
@@ -2288,7 +2288,7 @@ func (st *state) templateParam() AST {
 // cast operators.
 func (st *state) setTemplate(a AST, tmpl *Template) {
 	seen := make(map[AST]bool)
-	a.Traverse(func(a AST) bool {
+	a.Traverse(func { a ->
 		switch a := a.(type) {
 		case *TemplateParam:
 			if a.Template != nil {
@@ -3659,7 +3659,7 @@ func simplifyOne(a AST) AST {
 func (st *state) findArgumentPack(a AST) *ArgumentPack {
 	seen := make(map[AST]bool)
 	var ret *ArgumentPack
-	a.Traverse(func(a AST) bool {
+	a.Traverse(func { a ->
 		if ret != nil {
 			return false
 		}

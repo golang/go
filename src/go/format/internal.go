@@ -42,7 +42,7 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 	psrc := append([]byte("package p;"), src...)
 	file, err = parser.ParseFile(fset, filename, psrc, parserMode)
 	if err == nil {
-		sourceAdj = func(src []byte, indent int) []byte {
+		sourceAdj = func { src, indent ->
 			// Remove the package clause.
 			// Gofmt has turned the ';' into a '\n'.
 			src = src[indent+len("package p\n"):]
@@ -66,7 +66,7 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '\n', '}')
 	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
 	if err == nil {
-		sourceAdj = func(src []byte, indent int) []byte {
+		sourceAdj = func { src, indent ->
 			// Cap adjusted indent to zero.
 			if indent < 0 {
 				indent = 0

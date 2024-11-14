@@ -51,7 +51,7 @@ var securityPreservingDefaultClient = securityPreservingHTTPClient(http.DefaultC
 func securityPreservingHTTPClient(original *http.Client) *http.Client {
 	c := new(http.Client)
 	*c = *original
-	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+	c.CheckRedirect = func { req, via ->
 		if len(via) > 0 && via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
 			lastHop := via[len(via)-1].URL
 			return fmt.Errorf("redirected from secure URL %s to insecure URL %s", lastHop, req.URL)

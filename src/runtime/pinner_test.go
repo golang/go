@@ -71,9 +71,7 @@ func TestPinnerPinKeepsAliveAndReleases(t *testing.T) {
 	var pinner runtime.Pinner
 	p := new(obj)
 	done := make(chan struct{})
-	runtime.SetFinalizer(p, func(any) {
-		done <- struct{}{}
-	})
+	runtime.SetFinalizer(p, func { done <- struct{}{} })
 	pinner.Pin(p)
 	p = nil
 	runtime.GC()
@@ -448,7 +446,7 @@ func BenchmarkPinnerPinUnpinDouble(b *testing.B) {
 }
 
 func BenchmarkPinnerPinUnpinParallel(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		p := new(obj)
 		for pb.Next() {
 			var pinner runtime.Pinner
@@ -459,7 +457,7 @@ func BenchmarkPinnerPinUnpinParallel(b *testing.B) {
 }
 
 func BenchmarkPinnerPinUnpinParallelTiny(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		p := new(bool)
 		for pb.Next() {
 			var pinner runtime.Pinner
@@ -470,7 +468,7 @@ func BenchmarkPinnerPinUnpinParallelTiny(b *testing.B) {
 }
 
 func BenchmarkPinnerPinUnpinParallelDouble(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		p := new(obj)
 		for pb.Next() {
 			var pinner runtime.Pinner
@@ -505,22 +503,18 @@ func BenchmarkPinnerIsPinnedOnPinnedParallel(b *testing.B) {
 	ptr := new(obj)
 	pinner.Pin(ptr)
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			runtime.IsPinned(unsafe.Pointer(ptr))
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		runtime.IsPinned(unsafe.Pointer(ptr))
+	} })
 	pinner.Unpin()
 }
 
 func BenchmarkPinnerIsPinnedOnUnpinnedParallel(b *testing.B) {
 	ptr := new(obj)
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			runtime.IsPinned(unsafe.Pointer(ptr))
-		}
-	})
+	b.RunParallel(func { pb -> for pb.Next() {
+		runtime.IsPinned(unsafe.Pointer(ptr))
+	} })
 }
 
 // const string data is not in span.

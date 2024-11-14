@@ -694,11 +694,11 @@ contents of other file
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			initOverlay(t, tc.overlay)
 
 			var got []file
-			Walk(tc.root, func(path string, info fs.FileInfo, err error) error {
+			Walk(tc.root, func { path, info, err ->
 				got = append(got, file{path, info.Name(), info.Size(), info.Mode(), info.IsDir()})
 				return nil
 			})
@@ -744,7 +744,7 @@ func TestWalkSkipDir(t *testing.T) {
 `)
 
 	var seen []string
-	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+	Walk("dir", func { path, info, err ->
 		seen = append(seen, filepath.ToSlash(path))
 		if info.Name() == "skip" {
 			return filepath.SkipDir
@@ -780,7 +780,7 @@ func TestWalkSkipAll(t *testing.T) {
 `)
 
 	var seen []string
-	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+	Walk("dir", func { path, info, err ->
 		seen = append(seen, filepath.ToSlash(path))
 		if info.Name() == "foo2" {
 			return filepath.SkipAll
@@ -805,7 +805,7 @@ func TestWalkError(t *testing.T) {
 	initOverlay(t, "{}")
 
 	alreadyCalled := false
-	err := Walk("foo", func(path string, info fs.FileInfo, err error) error {
+	err := Walk("foo", func { path, info, err ->
 		if alreadyCalled {
 			t.Fatal("expected walk function to be called exactly once, but it was called more than once")
 		}
@@ -854,10 +854,10 @@ func TestWalkSymlink(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			var got []string
 
-			err := Walk(tc.dir, func(path string, info fs.FileInfo, err error) error {
+			err := Walk(tc.dir, func { path, info, err ->
 				t.Logf("walk %q", path)
 				got = append(got, path)
 				if err != nil {
@@ -961,7 +961,7 @@ contents`,
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			initOverlay(t, tc.overlay)
 			got, err := Lstat(tc.path)
 			if tc.wantErr {
@@ -1078,7 +1078,7 @@ contents`,
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			initOverlay(t, tc.overlay)
 			got, err := Stat(tc.path)
 			if tc.wantErr {

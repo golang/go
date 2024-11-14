@@ -12,14 +12,12 @@ import (
 )
 
 func TestPanicNil(t *testing.T) {
-	t.Run("default", func(t *testing.T) {
-		checkPanicNil(t, new(runtime.PanicNilError))
-	})
-	t.Run("GODEBUG=panicnil=0", func(t *testing.T) {
+	t.Run("default", func { t -> checkPanicNil(t, new(runtime.PanicNilError)) })
+	t.Run("GODEBUG=panicnil=0", func { t ->
 		t.Setenv("GODEBUG", "panicnil=0")
 		checkPanicNil(t, new(runtime.PanicNilError))
 	})
-	t.Run("GODEBUG=panicnil=1", func(t *testing.T) {
+	t.Run("GODEBUG=panicnil=1", func { t ->
 		t.Setenv("GODEBUG", "panicnil=1")
 		checkPanicNil(t, nil)
 	})

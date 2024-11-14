@@ -248,7 +248,7 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 		panicValue any
 		seqDone    bool // to detect Goexit
 	)
-	c := newcoro(func(c *coro) {
+	c := newcoro(func { c ->
 		race.Acquire(unsafe.Pointer(&racer))
 		if done {
 			race.Release(unsafe.Pointer(&racer))
@@ -364,7 +364,7 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 		panicValue any
 		seqDone    bool
 	)
-	c := newcoro(func(c *coro) {
+	c := newcoro(func { c ->
 		race.Acquire(unsafe.Pointer(&racer))
 		if done {
 			race.Release(unsafe.Pointer(&racer))

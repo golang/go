@@ -46,7 +46,7 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
 	}
 
 	key := Id(pkg, name)
-	i := sort.Search(len(s.list), func(i int) bool {
+	i := sort.Search(len(s.list), func { i ->
 		m := s.list[i]
 		return m.obj.Id() >= key
 	})
@@ -201,9 +201,7 @@ func NewMethodSet(T Type) *MethodSet {
 		}
 	}
 	// sort by unique name
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].obj.Id() < list[j].obj.Id()
-	})
+	sort.Slice(list, func { i, j -> list[i].obj.Id() < list[j].obj.Id() })
 	return &MethodSet{list}
 }
 

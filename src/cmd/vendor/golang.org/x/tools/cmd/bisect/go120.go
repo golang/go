@@ -13,7 +13,7 @@ import (
 )
 
 func cmdInterrupt(cmd *exec.Cmd) {
-	cmd.Cancel = func() error {
+	cmd.Cancel = func {
 		// On timeout, send interrupt,
 		// in hopes of shutting down process tree.
 		// Ignore errors sending signal; it's all best effort

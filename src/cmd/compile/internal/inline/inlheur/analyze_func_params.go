@@ -150,9 +150,7 @@ func (pa *paramsAnalyzer) checkParams(x ir.Node, flag ParamPropBits, mayflag Par
 // specific parameter had a constant value.
 func (pa *paramsAnalyzer) foldCheckParams(x ir.Node) {
 	pa.checkParams(x, ParamFeedsIfOrSwitch, ParamMayFeedIfOrSwitch,
-		func(x ir.Node, p *ir.Name, idx int) (bool, bool) {
-			return ShouldFoldIfNameConstant(x, []*ir.Name{p}), false
-		})
+		func { x, p, idx -> ShouldFoldIfNameConstant(x, []*ir.Name{p}), false })
 }
 
 // callCheckParams examines the target of call expression 'ce' to see
@@ -174,7 +172,7 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
 		}
 		pa.checkParams(r, ParamFeedsInterfaceMethodCall,
 			ParamMayFeedInterfaceMethodCall,
-			func(x ir.Node, p *ir.Name, idx int) (bool, bool) {
+			func { x, p, idx ->
 				name := x.(*ir.Name)
 				return name == p, false
 			})
@@ -190,7 +188,7 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
 		if name.Class == ir.PPARAM {
 			pa.checkParams(called, ParamFeedsIndirectCall,
 				ParamMayFeedIndirectCall,
-				func(x ir.Node, p *ir.Name, idx int) (bool, bool) {
+				func { x, p, idx ->
 					name := x.(*ir.Name)
 					return name == p, false
 				})

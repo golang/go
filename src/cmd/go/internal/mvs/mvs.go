@@ -115,7 +115,7 @@ func buildList(targets []module.Version, reqs Reqs, upgrade func(module.Version)
 	for _, target := range targets {
 		work.Add(target)
 	}
-	work.Do(10, func(m module.Version) {
+	work.Do(10, func { m ->
 
 		var required []module.Version
 		var err error
@@ -152,9 +152,7 @@ func buildList(targets []module.Version, reqs Reqs, upgrade func(module.Version)
 	// If there was an error, find the shortest path from the target to the
 	// node where the error occurred so we can report a useful error message.
 	if len(errs) > 0 {
-		errPath := g.FindPath(func(m module.Version) bool {
-			return errs[m] != nil
-		})
+		errPath := g.FindPath(func { m -> errs[m] != nil })
 		if len(errPath) == 0 {
 			panic("internal error: could not reconstruct path to module with error")
 		}
@@ -205,7 +203,7 @@ func Req(mainModule module.Version, base []string, reqs Reqs) ([]module.Version,
 	reqCache[mainModule] = nil
 
 	var walk func(module.Version) error
-	walk = func(m module.Version) error {
+	walk = func { m ->
 		_, ok := reqCache[m]
 		if ok {
 			return nil
@@ -231,7 +229,7 @@ func Req(mainModule module.Version, base []string, reqs Reqs) ([]module.Version,
 
 	// Walk modules in reverse post-order, only adding those not implied already.
 	have := map[module.Version]bool{}
-	walk = func(m module.Version) error {
+	walk = func { m ->
 		if have[m] {
 			return nil
 		}
@@ -265,16 +263,14 @@ func Req(mainModule module.Version, base []string, reqs Reqs) ([]module.Version,
 			walk(m)
 		}
 	}
-	sort.Slice(min, func(i, j int) bool {
-		return min[i].Path < min[j].Path
-	})
+	sort.Slice(min, func { i, j -> min[i].Path < min[j].Path })
 	return min, nil
 }
 
 // UpgradeAll returns a build list for the target module
 // in which every module is upgraded to its latest version.
 func UpgradeAll(target module.Version, reqs UpgradeReqs) ([]module.Version, error) {
-	return buildList([]module.Version{target}, reqs, func(m module.Version) (module.Version, error) {
+	return buildList([]module.Version{target}, reqs, func { m ->
 		if m.Path == target.Path {
 			return target, nil
 		}
@@ -309,7 +305,7 @@ func Upgrade(target module.Version, reqs UpgradeReqs, upgrade ...module.Version)
 		}
 	}
 
-	return buildList([]module.Version{target}, &override{target, list, reqs}, func(m module.Version) (module.Version, error) {
+	return buildList([]module.Version{target}, &override{target, list, reqs}, func { m ->
 		if v, ok := upgradeTo[m.Path]; ok {
 			return module.Version{Path: m.Path, Version: v}, nil
 		}
@@ -354,7 +350,7 @@ func Downgrade(target module.Version, reqs DowngradeReqs, downgrade ...module.Ve
 		excluded = make(map[module.Version]bool)
 	)
 	var exclude func(module.Version)
-	exclude = func(m module.Version) {
+	exclude = func { m ->
 		if excluded[m] {
 			return
 		}
@@ -364,7 +360,7 @@ func Downgrade(target module.Version, reqs DowngradeReqs, downgrade ...module.Ve
 		}
 	}
 	var add func(module.Version)
-	add = func(m module.Version) {
+	add = func { m ->
 		if added[m] {
 			return
 		}

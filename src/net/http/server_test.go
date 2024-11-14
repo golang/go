@@ -148,7 +148,7 @@ func TestRegisterErr(t *testing.T) {
 		{"/{x", h, `parsing "/\{x": at offset 1: bad wildcard segment`},
 		{"/a", h, `conflicts with pattern.* \(registered at .*/server_test.go:\d+`},
 	} {
-		t.Run(fmt.Sprintf("%s:%#v", test.pattern, test.handler), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s:%#v", test.pattern, test.handler), func { t ->
 			err := mux.registerErr(test.pattern, test.handler)
 			if err == nil {
 				t.Fatal("got nil error")
@@ -222,7 +222,7 @@ func TestEscapedPathsAndPatterns(t *testing.T) {
 
 		mux := NewServeMux()
 		for _, m := range matches {
-			mux.HandleFunc(m.pattern, func(w ResponseWriter, r *Request) {})
+			mux.HandleFunc(m.pattern, func { w, r -> })
 		}
 
 		for _, m := range matches {
@@ -246,8 +246,8 @@ func TestEscapedPathsAndPatterns(t *testing.T) {
 		}
 	}
 
-	t.Run("latest", func(t *testing.T) { run(t, false) })
-	t.Run("1.21", func(t *testing.T) { run(t, true) })
+	t.Run("latest", func { t -> run(t, false) })
+	t.Run("1.21", func { t -> run(t, true) })
 }
 
 func TestCleanPath(t *testing.T) {

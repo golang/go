@@ -49,19 +49,11 @@ func benchmarkAESGCMOpen(b *testing.B, buf []byte, keySize int) {
 
 func BenchmarkAESGCM(b *testing.B) {
 	for _, length := range []int{64, 1350, 8 * 1024} {
-		b.Run("Open-128-"+strconv.Itoa(length), func(b *testing.B) {
-			benchmarkAESGCMOpen(b, make([]byte, length), 128/8)
-		})
-		b.Run("Seal-128-"+strconv.Itoa(length), func(b *testing.B) {
-			benchmarkAESGCMSeal(b, make([]byte, length), 128/8)
-		})
+		b.Run("Open-128-"+strconv.Itoa(length), func { b -> benchmarkAESGCMOpen(b, make([]byte, length), 128/8) })
+		b.Run("Seal-128-"+strconv.Itoa(length), func { b -> benchmarkAESGCMSeal(b, make([]byte, length), 128/8) })
 
-		b.Run("Open-256-"+strconv.Itoa(length), func(b *testing.B) {
-			benchmarkAESGCMOpen(b, make([]byte, length), 256/8)
-		})
-		b.Run("Seal-256-"+strconv.Itoa(length), func(b *testing.B) {
-			benchmarkAESGCMSeal(b, make([]byte, length), 256/8)
-		})
+		b.Run("Open-256-"+strconv.Itoa(length), func { b -> benchmarkAESGCMOpen(b, make([]byte, length), 256/8) })
+		b.Run("Seal-256-"+strconv.Itoa(length), func { b -> benchmarkAESGCMSeal(b, make([]byte, length), 256/8) })
 	}
 }
 

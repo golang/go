@@ -556,7 +556,7 @@ func TestCanSetField(t *testing.T) {
 	}}
 
 	for _, tt := range tests {
-		t.Run(tt.val.Type().Name(), func(t *testing.T) {
+		t.Run(tt.val.Type().Name(), func { t ->
 			for _, tc := range tt.cases {
 				f := tt.val
 				for _, i := range tc.index {
@@ -761,7 +761,7 @@ func TestGrow(t *testing.T) {
 		t.Errorf("noop v.Grow should not change pointers")
 	}
 
-	t.Run("Append", func(t *testing.T) {
+	t.Run("Append", func { t ->
 		var got, want []T
 		v := ValueOf(&got).Elem()
 		appendValue := func(vt T) {
@@ -779,7 +779,7 @@ func TestGrow(t *testing.T) {
 		}
 	})
 
-	t.Run("Rate", func(t *testing.T) {
+	t.Run("Rate", func { t ->
 		var b []byte
 		v := ValueOf(new([]byte)).Elem()
 		for i := 0; i < 10; i++ {
@@ -792,7 +792,7 @@ func TestGrow(t *testing.T) {
 		}
 	})
 
-	t.Run("ZeroCapacity", func(t *testing.T) {
+	t.Run("ZeroCapacity", func { t ->
 		for i := 0; i < 10; i++ {
 			v := ValueOf(new([]byte)).Elem()
 			v.Grow(61)
@@ -923,7 +923,7 @@ func TestCopy(t *testing.T) {
 }
 
 func TestCopyString(t *testing.T) {
-	t.Run("Slice", func(t *testing.T) {
+	t.Run("Slice", func { t ->
 		s := bytes.Repeat([]byte{'_'}, 8)
 		val := ValueOf(s)
 
@@ -942,7 +942,7 @@ func TestCopyString(t *testing.T) {
 			t.Errorf("got n = %d, s = %s, expecting n = 8, s = %s", n, s, expecting)
 		}
 	})
-	t.Run("Array", func(t *testing.T) {
+	t.Run("Array", func { t ->
 		s := [...]byte{'_', '_', '_', '_', '_', '_', '_', '_'}
 		val := ValueOf(&s).Elem()
 
@@ -1269,12 +1269,12 @@ var deepEqualPerfTests = []struct {
 	{x: [][]byte{[]byte("abcdef")}, y: [][]byte{[]byte("abcdef")}},
 
 	{x: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}, y: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}},
-	{x: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}, y: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}},
+	{x: [][6]byte{{'a', 'b', 'c', 'a', 'b', 'c'}}, y: [][6]byte{{'a', 'b', 'c', 'a', 'b', 'c'}}},
 }
 
 func TestDeepEqualAllocs(t *testing.T) {
 	for _, tt := range deepEqualPerfTests {
-		t.Run(ValueOf(tt.x).Type().String(), func(t *testing.T) {
+		t.Run(ValueOf(tt.x).Type().String(), func { t ->
 			got := testing.AllocsPerRun(100, func() {
 				if !DeepEqual(tt.x, tt.y) {
 					t.Errorf("DeepEqual(%v, %v)=false", tt.x, tt.y)
@@ -2179,7 +2179,7 @@ func TestFunc(t *testing.T) {
 
 func TestCallConvert(t *testing.T) {
 	v := ValueOf(new(io.ReadWriter)).Elem()
-	f := ValueOf(func(r io.Reader) io.Reader { return r })
+	f := ValueOf(func { r -> r })
 	out := f.Call([]Value{v})
 	if len(out) != 1 || out[0].Type() != TypeOf(new(io.Reader)).Elem() || !out[0].IsNil() {
 		t.Errorf("expected [nil], got %v", out)
@@ -2231,9 +2231,9 @@ func TestCallReturnsEmpty(t *testing.T) {
 	// nonzero-sized frame and zero-sized return value.
 	runtime.GC()
 	var finalized uint32
-	f := func() (emptyStruct, *[2]int64) {
+	f := func {
 		i := new([2]int64) // big enough to not be tinyalloc'd, so finalizer always runs when i dies
-		runtime.SetFinalizer(i, func(*[2]int64) { atomic.StoreUint32(&finalized, 1) })
+		runtime.SetFinalizer(i, func { atomic.StoreUint32(&finalized, 1) })
 		return emptyStruct{}, i
 	}
 	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the finalizer should run.
@@ -2252,7 +2252,7 @@ func TestCallReturnsEmpty(t *testing.T) {
 
 func TestMakeFunc(t *testing.T) {
 	f := dummy
-	fv := MakeFunc(TypeOf(f), func(in []Value) []Value { return in })
+	fv := MakeFunc(TypeOf(f), func { in -> in })
 	ValueOf(&f).Elem().Set(fv)
 
 	// Call g with small arguments so that there is
@@ -2289,7 +2289,7 @@ func TestMakeFuncInterface(t *testing.T) {
 func TestMakeFuncVariadic(t *testing.T) {
 	// Test that variadic arguments are packed into a slice and passed as last arg
 	fn := func(_ int, is ...int) []int { return nil }
-	fv := MakeFunc(TypeOf(fn), func(in []Value) []Value { return in[1:2] })
+	fv := MakeFunc(TypeOf(fn), func { in -> in[1:2] })
 	ValueOf(&fn).Elem().Set(fv)
 
 	r := fn(1, 2, 3)
@@ -2341,14 +2341,12 @@ func TestMakeFuncValidReturnAssignments(t *testing.T) {
 
 	// Concrete types should be promotable to interfaces they implement.
 	var f func() error
-	f = MakeFunc(TypeOf(f), func([]Value) []Value {
-		return []Value{ValueOf(io.EOF)}
-	}).Interface().(func() error)
+	f = MakeFunc(TypeOf(f), func { []Value{ValueOf(io.EOF)} }).Interface().(func() error)
 	f()
 
 	// Super-interfaces should be promotable to simpler interfaces.
 	var g func() io.Writer
-	g = MakeFunc(TypeOf(g), func([]Value) []Value {
+	g = MakeFunc(TypeOf(g), func {
 		var w io.WriteCloser = &WC{}
 		return []Value{ValueOf(&w).Elem()}
 	}).Interface().(func() io.Writer)
@@ -2356,17 +2354,13 @@ func TestMakeFuncValidReturnAssignments(t *testing.T) {
 
 	// Channels should be promotable to directional channels.
 	var h func() <-chan int
-	h = MakeFunc(TypeOf(h), func([]Value) []Value {
-		return []Value{ValueOf(make(chan int))}
-	}).Interface().(func() <-chan int)
+	h = MakeFunc(TypeOf(h), func { []Value{ValueOf(make(chan int))} }).Interface().(func() <-chan int)
 	h()
 
 	// Unnamed types should be promotable to named types.
 	type T struct{ a, b, c int }
 	var i func() T
-	i = MakeFunc(TypeOf(i), func([]Value) []Value {
-		return []Value{ValueOf(struct{ a, b, c int }{a: 1, b: 2, c: 3})}
-	}).Interface().(func() T)
+	i = MakeFunc(TypeOf(i), func { []Value{ValueOf(struct{ a, b, c int }{a: 1, b: 2, c: 3})} }).Interface().(func() T)
 	i()
 }
 
@@ -2374,15 +2368,13 @@ func TestMakeFuncInvalidReturnAssignments(t *testing.T) {
 	// Type doesn't implement the required interface.
 	shouldPanic("", func() {
 		var f func() error
-		f = MakeFunc(TypeOf(f), func([]Value) []Value {
-			return []Value{ValueOf(int(7))}
-		}).Interface().(func() error)
+		f = MakeFunc(TypeOf(f), func { []Value{ValueOf(int(7))} }).Interface().(func() error)
 		f()
 	})
 	// Assigning to an interface with additional methods.
 	shouldPanic("", func() {
 		var f func() io.ReadWriteCloser
-		f = MakeFunc(TypeOf(f), func([]Value) []Value {
+		f = MakeFunc(TypeOf(f), func {
 			var w io.WriteCloser = &WC{}
 			return []Value{ValueOf(&w).Elem()}
 		}).Interface().(func() io.ReadWriteCloser)
@@ -2391,7 +2383,7 @@ func TestMakeFuncInvalidReturnAssignments(t *testing.T) {
 	// Directional channels can't be assigned to bidirectional ones.
 	shouldPanic("", func() {
 		var f func() chan int
-		f = MakeFunc(TypeOf(f), func([]Value) []Value {
+		f = MakeFunc(TypeOf(f), func {
 			var c <-chan int = make(chan int)
 			return []Value{ValueOf(c)}
 		}).Interface().(func() chan int)
@@ -2402,9 +2394,7 @@ func TestMakeFuncInvalidReturnAssignments(t *testing.T) {
 		type T struct{ a, b, c int }
 		type U struct{ a, b, c int }
 		var f func() T
-		f = MakeFunc(TypeOf(f), func([]Value) []Value {
-			return []Value{ValueOf(U{a: 1, b: 2, c: 3})}
-		}).Interface().(func() T)
+		f = MakeFunc(TypeOf(f), func { []Value{ValueOf(U{a: 1, b: 2, c: 3})} }).Interface().(func() T)
 		f()
 	})
 }
@@ -3505,7 +3495,7 @@ func noAlloc(t *testing.T, n int, f func(int)) {
 }
 
 func TestAllocations(t *testing.T) {
-	noAlloc(t, 100, func(j int) {
+	noAlloc(t, 100, func { j ->
 		var i any
 		var v Value
 
@@ -3515,7 +3505,7 @@ func TestAllocations(t *testing.T) {
 			panic("wrong int")
 		}
 	})
-	noAlloc(t, 100, func(j int) {
+	noAlloc(t, 100, func { j ->
 		var i any
 		var v Value
 		i = [3]int{j, j, j}
@@ -3524,10 +3514,10 @@ func TestAllocations(t *testing.T) {
 			panic("wrong length")
 		}
 	})
-	noAlloc(t, 100, func(j int) {
+	noAlloc(t, 100, func { j ->
 		var i any
 		var v Value
-		i = func(j int) int { return j }
+		i = func { j -> j }
 		v = ValueOf(i)
 		if v.Interface().(func(int) int)(j) != j {
 			panic("wrong result")
@@ -6754,11 +6744,9 @@ func TestCallArgLive(t *testing.T) {
 	*CallGC = true
 
 	x := new(string)
-	runtime.SetFinalizer(x, func(p *string) {
-		if *p != "ok" {
-			t.Errorf("x dead prematurely")
-		}
-	})
+	runtime.SetFinalizer(x, func { p -> if *p != "ok" {
+		t.Errorf("x dead prematurely")
+	} })
 	v := T{x, nil}
 
 	ValueOf(F).Call([]Value{ValueOf(v)})
@@ -6824,7 +6812,7 @@ func TestInvalid(t *testing.T) {
 
 // Issue 8917.
 func TestLargeGCProg(t *testing.T) {
-	fv := ValueOf(func([256]*byte) {})
+	fv := ValueOf(func {})
 	fv.Call([]Value{ValueOf([256]*byte{})})
 }
 
@@ -6880,9 +6868,9 @@ func TestCallGC(t *testing.T) {
 func TestKeepFuncLive(t *testing.T) {
 	// Test that we keep makeFuncImpl live as long as it is
 	// referenced on the stack.
-	typ := TypeOf(func(i int) {})
+	typ := TypeOf(func { i -> })
 	var f, g func(in []Value) []Value
-	f = func(in []Value) []Value {
+	f = func { in ->
 		clobber()
 		i := int(in[0].Int())
 		if i > 0 {
@@ -6900,7 +6888,7 @@ func TestKeepFuncLive(t *testing.T) {
 		}
 		return nil
 	}
-	g = func(in []Value) []Value {
+	g = func { in ->
 		clobber()
 		i := int(in[0].Int())
 		MakeFunc(typ, f).Interface().(func(i int))(i)
@@ -6986,7 +6974,7 @@ func TestFuncLayout(t *testing.T) {
 	}
 	tests := []test{
 		{
-			typ:       ValueOf(func(a, b string) string { return "" }).Type(),
+			typ:       ValueOf(func { a, b -> "" }).Type(),
 			size:      6 * goarch.PtrSize,
 			argsize:   4 * goarch.PtrSize,
 			retOffset: 4 * goarch.PtrSize,
@@ -6994,7 +6982,7 @@ func TestFuncLayout(t *testing.T) {
 			gc:        []byte{1, 0, 1, 0, 1},
 		},
 		{
-			typ:       ValueOf(func(a, b, c uint32, p *byte, d uint16) {}).Type(),
+			typ:       ValueOf(func { a, b, c, p, d -> }).Type(),
 			size:      align(align(3*4) + goarch.PtrSize + 2),
 			argsize:   align(3*4) + goarch.PtrSize + 2,
 			retOffset: align(align(3*4) + goarch.PtrSize + 2),
@@ -7002,7 +6990,7 @@ func TestFuncLayout(t *testing.T) {
 			gc:        r,
 		},
 		{
-			typ:       ValueOf(func(a map[int]int, b uintptr, c any) {}).Type(),
+			typ:       ValueOf(func { a, b, c -> }).Type(),
 			size:      4 * goarch.PtrSize,
 			argsize:   4 * goarch.PtrSize,
 			retOffset: 4 * goarch.PtrSize,
@@ -7010,7 +6998,7 @@ func TestFuncLayout(t *testing.T) {
 			gc:        []byte{1, 0, 1, 1},
 		},
 		{
-			typ:       ValueOf(func(a S) {}).Type(),
+			typ:       ValueOf(func { a -> }).Type(),
 			size:      4 * goarch.PtrSize,
 			argsize:   4 * goarch.PtrSize,
 			retOffset: 4 * goarch.PtrSize,
@@ -7019,7 +7007,7 @@ func TestFuncLayout(t *testing.T) {
 		},
 		{
 			rcvr:      ValueOf((*byte)(nil)).Type(),
-			typ:       ValueOf(func(a uintptr, b *int) {}).Type(),
+			typ:       ValueOf(func { a, b -> }).Type(),
 			size:      3 * goarch.PtrSize,
 			argsize:   3 * goarch.PtrSize,
 			retOffset: 3 * goarch.PtrSize,
@@ -7027,7 +7015,7 @@ func TestFuncLayout(t *testing.T) {
 			gc:        []byte{1, 0, 1},
 		},
 		{
-			typ:       ValueOf(func(a uintptr) {}).Type(),
+			typ:       ValueOf(func { a -> }).Type(),
 			size:      goarch.PtrSize,
 			argsize:   goarch.PtrSize,
 			retOffset: goarch.PtrSize,
@@ -7035,7 +7023,7 @@ func TestFuncLayout(t *testing.T) {
 			gc:        []byte{},
 		},
 		{
-			typ:       ValueOf(func() uintptr { return 0 }).Type(),
+			typ:       ValueOf(func { 0 }).Type(),
 			size:      goarch.PtrSize,
 			argsize:   0,
 			retOffset: 0,
@@ -7044,7 +7032,7 @@ func TestFuncLayout(t *testing.T) {
 		},
 		{
 			rcvr:      ValueOf(uintptr(0)).Type(),
-			typ:       ValueOf(func(a uintptr) {}).Type(),
+			typ:       ValueOf(func { a -> }).Type(),
 			size:      2 * goarch.PtrSize,
 			argsize:   2 * goarch.PtrSize,
 			retOffset: 2 * goarch.PtrSize,
@@ -7061,7 +7049,7 @@ func TestFuncLayout(t *testing.T) {
 		if lt.rcvr != nil {
 			name = lt.rcvr.String() + "." + name
 		}
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			defer SetArgRegs(SetArgRegs(lt.intRegs, lt.floatRegs, lt.floatRegSize))
 
 			typ, argsize, retOffset, stack, gc, inRegs, outRegs, ptrs := FuncLayout(lt.typ, lt.rcvr)
@@ -7478,7 +7466,7 @@ func TestTypeStrings(t *testing.T) {
 		want string
 	}
 	stringTests := []stringTest{
-		{TypeOf(func(int) {}), "func(int)"},
+		{TypeOf(func {}), "func(int)"},
 		{FuncOf([]Type{TypeOf(int(0))}, nil, false), "func(int)"},
 		{TypeOf(XM{}), "reflect_test.XM"},
 		{TypeOf(new(XM)), "*reflect_test.XM"},
@@ -8518,7 +8506,7 @@ func TestClear(t *testing.T) {
 
 	for _, tc := range tests {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			t.Parallel()
 			if !tc.testFunc(tc.value) {
 				t.Errorf("unexpected result for value.Clear(): %v", tc.value)
@@ -8552,7 +8540,7 @@ func TestValuePointerAndUnsafePointer(t *testing.T) {
 
 	for _, tc := range tests {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			if got := tc.val.Pointer(); got != uintptr(tc.wantUnsafePointer) {
 				t.Errorf("unexpected uintptr result, got %#x, want %#x", got, uintptr(tc.wantUnsafePointer))
 			}

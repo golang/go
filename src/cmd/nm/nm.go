@@ -129,11 +129,11 @@ func nm(file string) {
 
 		switch *sortOrder {
 		case "address":
-			sort.Slice(syms, func(i, j int) bool { return syms[i].Addr < syms[j].Addr })
+			sort.Slice(syms, func { i, j -> syms[i].Addr < syms[j].Addr })
 		case "name":
-			sort.Slice(syms, func(i, j int) bool { return syms[i].Name < syms[j].Name })
+			sort.Slice(syms, func { i, j -> syms[i].Name < syms[j].Name })
 		case "size":
-			sort.Slice(syms, func(i, j int) bool { return syms[i].Size > syms[j].Size })
+			sort.Slice(syms, func { i, j -> syms[i].Size > syms[j].Size })
 		}
 
 		for _, sym := range syms {

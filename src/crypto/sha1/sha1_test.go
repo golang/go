@@ -244,7 +244,7 @@ var buf = make([]byte, 8192)
 
 func benchmarkSize(b *testing.B, size int) {
 	sum := make([]byte, bench.Size())
-	b.Run("New", func(b *testing.B) {
+	b.Run("New", func { b ->
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
@@ -253,7 +253,7 @@ func benchmarkSize(b *testing.B, size int) {
 			bench.Sum(sum[:0])
 		}
 	})
-	b.Run("Sum", func(b *testing.B) {
+	b.Run("Sum", func { b ->
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {

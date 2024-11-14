@@ -37,13 +37,11 @@ const (
 func (c *cipherSuiteTLS13) expandLabel(secret []byte, label string, context []byte, length int) []byte {
 	var hkdfLabel cryptobyte.Builder
 	hkdfLabel.AddUint16(uint16(length))
-	hkdfLabel.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+	hkdfLabel.AddUint8LengthPrefixed(func { b ->
 		b.AddBytes([]byte("tls13 "))
 		b.AddBytes([]byte(label))
 	})
-	hkdfLabel.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
-		b.AddBytes(context)
-	})
+	hkdfLabel.AddUint8LengthPrefixed(func { b -> b.AddBytes(context) })
 	hkdfLabelBytes, err := hkdfLabel.Bytes()
 	if err != nil {
 		// Rather than calling BytesOrPanic, we explicitly handle this error, in

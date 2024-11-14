@@ -82,7 +82,7 @@ func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
 func versions(ctx context.Context, path string, allowed AllowedFunc) (versions []string, origin *codehost.Origin, err error) {
 	// Note: modfetch.Lookup and repo.Versions are cached,
 	// so there's no need for us to add extra caching here.
-	err = modfetch.TryProxies(func(proxy string) error {
+	err = modfetch.TryProxies(func { proxy ->
 		repo, err := lookupRepo(ctx, proxy, path)
 		if err != nil {
 			return err
@@ -123,7 +123,7 @@ func previousVersion(ctx context.Context, m module.Version) (module.Version, err
 		}
 		return module.Version{}, err
 	}
-	i := sort.Search(len(list), func(i int) bool { return gover.ModCompare(m.Path, list[i], m.Version) >= 0 })
+	i := sort.Search(len(list), func { i -> gover.ModCompare(m.Path, list[i], m.Version) >= 0 })
 	if i > 0 {
 		return module.Version{Path: m.Path, Version: list[i-1]}, nil
 	}

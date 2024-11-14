@@ -60,7 +60,7 @@ func TestTextHandler(t *testing.T) {
 			`a`, `<nil>`,
 		},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			for _, opts := range []struct {
 				name       string
 				opts       HandlerOptions
@@ -80,7 +80,7 @@ func TestTextHandler(t *testing.T) {
 					strings.ToUpper,
 				},
 			} {
-				t.Run(opts.name, func(t *testing.T) {
+				t.Run(opts.name, func { t ->
 					var buf bytes.Buffer
 					h := NewTextHandler(&buf, &opts.opts)
 					r := NewRecord(testTime, LevelInfo, "a message", 0)

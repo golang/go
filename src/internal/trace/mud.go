@@ -167,9 +167,7 @@ func (d *mud) invCumulativeSum(y float64) (float64, bool) {
 
 	// Sort edges.
 	edges := d.unsorted
-	slices.SortFunc(edges, func(a, b edge) int {
-		return cmp.Compare(a.x, b.x)
-	})
+	slices.SortFunc(edges, func { a, b -> cmp.Compare(a.x, b.x) })
 	// Merge with sorted edges.
 	d.unsorted = nil
 	if d.sorted == nil {

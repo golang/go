@@ -39,7 +39,7 @@ func CommentMap(src io.Reader, rx *regexp.Regexp) (res map[uint][]Error) {
 	var prev struct{ line, col uint }
 
 	var s scanner
-	s.init(src, func(_, _ uint, text string) {
+	s.init(src, func { _, _, text ->
 		if text[0] != '/' {
 			return // not a comment, ignore
 		}

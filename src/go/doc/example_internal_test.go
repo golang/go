@@ -98,7 +98,7 @@ import (
 			want: []string{"a", "b", "c"},
 		},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			fset := token.NewFileSet()
 			file, err := parser.ParseFile(fset, "test.go", strings.NewReader(test.in), parser.ParseComments)
 			if err != nil {

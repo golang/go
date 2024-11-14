@@ -75,9 +75,7 @@ func syscallMode(i FileMode) (o uint32) {
 // See docs in file.go:Chmod.
 func chmod(name string, mode FileMode) error {
 	longName := fixLongPath(name)
-	e := ignoringEINTR(func() error {
-		return syscall.Chmod(longName, syscallMode(mode))
-	})
+	e := ignoringEINTR(func { syscall.Chmod(longName, syscallMode(mode)) })
 	if e != nil {
 		return &PathError{Op: "chmod", Path: name, Err: e}
 	}
@@ -103,9 +101,7 @@ func (f *File) chmod(mode FileMode) error {
 // On Windows or Plan 9, Chown always returns the [syscall.EWINDOWS] or
 // EPLAN9 error, wrapped in *PathError.
 func Chown(name string, uid, gid int) error {
-	e := ignoringEINTR(func() error {
-		return syscall.Chown(name, uid, gid)
-	})
+	e := ignoringEINTR(func { syscall.Chown(name, uid, gid) })
 	if e != nil {
 		return &PathError{Op: "chown", Path: name, Err: e}
 	}
@@ -119,9 +115,7 @@ func Chown(name string, uid, gid int) error {
 // On Windows, it always returns the [syscall.EWINDOWS] error, wrapped
 // in *PathError.
 func Lchown(name string, uid, gid int) error {
-	e := ignoringEINTR(func() error {
-		return syscall.Lchown(name, uid, gid)
-	})
+	e := ignoringEINTR(func { syscall.Lchown(name, uid, gid) })
 	if e != nil {
 		return &PathError{Op: "lchown", Path: name, Err: e}
 	}

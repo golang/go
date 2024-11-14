@@ -188,12 +188,8 @@ func TestWindowsBuildmodeCSharedASLR(t *testing.T) {
 
 	testenv.MustHaveCGO(t)
 
-	t.Run("aslr", func(t *testing.T) {
-		testWindowsBuildmodeCSharedASLR(t, true)
-	})
-	t.Run("no-aslr", func(t *testing.T) {
-		testWindowsBuildmodeCSharedASLR(t, false)
-	})
+	t.Run("aslr", func { t -> testWindowsBuildmodeCSharedASLR(t, true) })
+	t.Run("no-aslr", func { t -> testWindowsBuildmodeCSharedASLR(t, false) })
 }
 
 func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
@@ -352,7 +348,7 @@ func main() {
 	}
 	for _, tt := range tests {
 		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			t.Parallel()
 			tempDir := t.TempDir()
 			src := filepath.Join(tempDir, "x.go")

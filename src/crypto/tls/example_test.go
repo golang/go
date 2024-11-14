@@ -76,7 +76,7 @@ func ExampleConfig_keyLogWriter() {
 
 	// Dummy test HTTP server for the example with insecure random so output is
 	// reproducible.
-	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func { w, r -> }))
 	server.TLS = &tls.Config{
 		Rand: zeroSource{}, // for example only; don't do this.
 	}

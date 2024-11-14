@@ -1277,9 +1277,7 @@ func NewDefault(prof *profile.Profile, options Options) *Report {
 	}
 	o.SampleType = prof.SampleType[index].Type
 	o.SampleUnit = strings.ToLower(prof.SampleType[index].Unit)
-	o.SampleValue = func(v []int64) int64 {
-		return v[index]
-	}
+	o.SampleValue = func { v -> v[index] }
 	return New(prof, o)
 }
 

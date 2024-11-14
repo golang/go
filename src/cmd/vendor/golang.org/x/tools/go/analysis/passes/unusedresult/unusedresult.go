@@ -100,7 +100,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	nodeFilter := []ast.Node{
 		(*ast.ExprStmt)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		call, ok := astutil.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
 		if !ok {
 			return // not a call statement

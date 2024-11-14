@@ -54,7 +54,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
 	}
-	inspect.WithStack(nodeFilter, func(n ast.Node, push bool, stack []ast.Node) bool {
+	inspect.WithStack(nodeFilter, func { n, push, stack ->
 		if !push {
 			return true
 		}

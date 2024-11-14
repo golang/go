@@ -135,7 +135,7 @@ func (m *Match) MatchPackages() {
 			root += "cmd" + string(filepath.Separator)
 		}
 
-		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
+		err := fsys.Walk(root, func { path, fi, err ->
 			if err != nil {
 				return err // Likely a permission error, which could interfere with matching.
 			}
@@ -278,7 +278,7 @@ func (m *Match) MatchDirs(modRoots []string) {
 	// we want to follow it (see https://go.dev/issue/50807).
 	// Add a trailing separator to force that to happen.
 	dir = str.WithFilePathSeparator(dir)
-	err := fsys.Walk(dir, func(path string, fi fs.FileInfo, err error) error {
+	err := fsys.Walk(dir, func { path, fi, err ->
 		if err != nil {
 			return err // Likely a permission error, which could interfere with matching.
 		}

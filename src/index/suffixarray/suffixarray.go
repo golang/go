@@ -243,9 +243,9 @@ func (x *Index) at(i int) []byte {
 func (x *Index) lookupAll(s []byte) ints {
 	// find matching suffix index range [i:j]
 	// find the first index where s would be the prefix
-	i := sort.Search(x.sa.len(), func(i int) bool { return bytes.Compare(x.at(i), s) >= 0 })
+	i := sort.Search(x.sa.len(), func { i -> bytes.Compare(x.at(i), s) >= 0 })
 	// starting at i, find the first index at which s is not a prefix
-	j := i + sort.Search(x.sa.len()-i, func(j int) bool { return !bytes.HasPrefix(x.at(j+i), s) })
+	j := i + sort.Search(x.sa.len()-i, func { j -> !bytes.HasPrefix(x.at(j+i), s) })
 	return x.sa.slice(i, j)
 }
 

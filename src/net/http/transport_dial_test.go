@@ -118,7 +118,7 @@ func newTransportDialTester(t *testing.T, mode testMode) *transportDialTester {
 		t:     t,
 		dials: make(chan *transportDialTesterConn),
 	}
-	dt.cst = newClientServerTest(t, mode, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	dt.cst = newClientServerTest(t, mode, http.HandlerFunc(func { w, r ->
 		// Write response headers when we receive a request.
 		http.NewResponseController(w).EnableFullDuplex()
 		w.WriteHeader(200)
@@ -126,8 +126,8 @@ func newTransportDialTester(t *testing.T, mode testMode) *transportDialTester {
 		// Wait for the client to send the request body,
 		// to synchronize with the rest of the test.
 		io.ReadAll(r.Body)
-	}), func(tr *http.Transport) {
-		tr.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+	}), func { tr ->
+		tr.DialContext = func { ctx, network, address ->
 			c := &transportDialTesterConn{
 				t:     t,
 				ready: make(chan error),

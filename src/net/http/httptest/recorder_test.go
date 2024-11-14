@@ -295,7 +295,7 @@ func TestRecorder(t *testing.T) {
 
 		},
 	} {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			r, _ := http.NewRequest("GET", "http://foo.com/", nil)
 			h := http.HandlerFunc(tt.h)
 			rec := NewRecorder()
@@ -353,7 +353,7 @@ func TestRecorderPanicsOnNonXXXStatusCode(t *testing.T) {
 	}
 	for _, badCode := range badCodes {
 		badCode := badCode
-		t.Run(fmt.Sprintf("Code=%d", badCode), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Code=%d", badCode), func { t ->
 			defer func() {
 				if r := recover(); r == nil {
 					t.Fatal("Expected a panic")

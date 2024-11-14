@@ -20,7 +20,7 @@ type SymLookup func(uint64) (string, uint64)
 // address of the symbol containing the target, if any; otherwise it returns "", 0.
 func GoSyntax(inst Inst, pc uint64, symname SymLookup) string {
 	if symname == nil {
-		symname = func(uint64) (string, uint64) { return "", 0 }
+		symname = func { "", 0 }
 	}
 	var args []string
 	for i := len(inst.Args) - 1; i >= 0; i-- {

@@ -23,7 +23,7 @@ func OverlayDir(dstRoot, srcRoot string) error {
 		return err
 	}
 
-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+	return filepath.Walk(srcRoot, func { srcPath, info, err ->
 		if err != nil || srcPath == srcRoot {
 			return err
 		}

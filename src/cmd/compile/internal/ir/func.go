@@ -465,9 +465,7 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
 	// too (#60324).
 	if inlIndex := base.Ctxt.InnermostPos(pos).Base().InliningIndex(); inlIndex >= 0 {
 		names := []string{outer}
-		base.Ctxt.InlTree.AllParents(inlIndex, func(call obj.InlinedCall) {
-			names = append(names, call.Name)
-		})
+		base.Ctxt.InlTree.AllParents(inlIndex, func { call -> names = append(names, call.Name) })
 		outer = strings.Join(names, ".")
 	}
 

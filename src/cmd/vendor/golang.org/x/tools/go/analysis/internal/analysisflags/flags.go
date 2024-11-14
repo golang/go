@@ -56,7 +56,7 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 			enabled[a] = enable
 		}
 
-		a.Flags.VisitAll(func(f *flag.Flag) {
+		a.Flags.VisitAll(func { f ->
 			if !multi && flag.Lookup(f.Name) != nil {
 				log.Printf("%s flag -%s would conflict with driver; skipping", a.Name, f.Name)
 				return
@@ -146,7 +146,7 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 func expand(analyzers []*analysis.Analyzer) map[*analysis.Analyzer]bool {
 	seen := make(map[*analysis.Analyzer]bool)
 	var visitAll func([]*analysis.Analyzer)
-	visitAll = func(analyzers []*analysis.Analyzer) {
+	visitAll = func { analyzers ->
 		for _, a := range analyzers {
 			if !seen[a] {
 				seen[a] = true
@@ -165,7 +165,7 @@ func printFlags() {
 		Usage string
 	}
 	var flags []jsonFlag = nil
-	flag.VisitAll(func(f *flag.Flag) {
+	flag.VisitAll(func { f ->
 		// Don't report {single,multi}checker debugging
 		// flags or fix as these have no effect on unitchecker
 		// (as invoked by 'go vet').

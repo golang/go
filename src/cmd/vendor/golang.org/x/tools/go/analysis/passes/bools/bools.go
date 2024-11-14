@@ -35,7 +35,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.BinaryExpr)(nil),
 	}
 	seen := make(map[*ast.BinaryExpr]bool)
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		e := n.(*ast.BinaryExpr)
 		if seen[e] {
 			// Already processed as a subexpression of an earlier node.

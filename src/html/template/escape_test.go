@@ -737,7 +737,7 @@ func TestEscape(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			tmpl := New(test.name)
 			tmpl = Must(tmpl.Parse(test.input))
 			// Check for bug 6459: Tree field was not set in Parse.
@@ -2067,7 +2067,7 @@ func (Issue7379) SomeMethod(x int) string {
 // the discussion for issue 7379.
 func TestPipeToMethodIsEscaped(t *testing.T) {
 	tmpl := Must(New("x").Parse("<html>{{0 | .SomeMethod}}</html>\n"))
-	tryExec := func() string {
+	tryExec := func {
 		defer func() {
 			panicValue := recover()
 			if panicValue != nil {

@@ -14,7 +14,7 @@ import (
 )
 
 func BenchmarkEncode(b *testing.B) {
-	doBench(b, func(b *testing.B, buf0 []byte, level, n int) {
+	doBench(b, func { b, buf0, level, n ->
 		b.StopTimer()
 		b.SetBytes(int64(n))
 
@@ -115,9 +115,9 @@ func TestWriteError(t *testing.T) {
 func TestDeterministic(t *testing.T) {
 	t.Parallel()
 	for i := 0; i <= 9; i++ {
-		t.Run(fmt.Sprint("L", i), func(t *testing.T) { testDeterministic(i, t) })
+		t.Run(fmt.Sprint("L", i), func { t -> testDeterministic(i, t) })
 	}
-	t.Run("LM2", func(t *testing.T) { testDeterministic(-2, t) })
+	t.Run("LM2", func { t -> testDeterministic(-2, t) })
 }
 
 func testDeterministic(i int, t *testing.T) {

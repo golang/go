@@ -401,7 +401,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 		return objPkg, objName
 	}
 
-	objPkg.Scope().InsertLazy(objName, func() types2.Object {
+	objPkg.Scope().InsertLazy(objName, func {
 		dict := pr.objDictIdx(idx)
 
 		r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)

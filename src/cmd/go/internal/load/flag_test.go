@@ -115,7 +115,7 @@ func TestPerPackageFlag(t *testing.T) {
 	}
 
 	for i, tt := range ppfTests {
-		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+		t.Run(fmt.Sprintf("#%d", i), func { t ->
 			ppFlags := new(PerPackageFlag)
 			for _, arg := range tt.args {
 				t.Logf("set(%s)", arg)

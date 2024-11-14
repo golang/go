@@ -93,9 +93,7 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 			imps = append(imps, imp)
 		}
 	}
-	slices.SortFunc(imps, func(a, b *types.Package) int {
-		return strings.Compare(a.Path(), b.Path())
-	})
+	slices.SortFunc(imps, func { a, b -> strings.Compare(a.Path(), b.Path()) })
 	pkg.SetImports(imps)
 
 	pkg.MarkComplete()

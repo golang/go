@@ -37,9 +37,7 @@ func TestCGOLTO(t *testing.T) {
 	cgoCflags := goEnv("CGO_CFLAGS")
 
 	for test := 0; test < 2; test++ {
-		t.Run(strconv.Itoa(test), func(t *testing.T) {
-			testCGOLTO(t, cc, cgoCflags, test)
-		})
+		t.Run(strconv.Itoa(test), func { t -> testCGOLTO(t, cc, cgoCflags, test) })
 	}
 }
 

@@ -85,7 +85,7 @@ func TestFileFdsAreInitialised(t *testing.T) {
 
 func TestSerialFdsAreInitialised(t *testing.T) {
 	for _, name := range []string{"COM1", "COM2", "COM3", "COM4"} {
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			h, err := syscall.CreateFile(syscall.StringToUTF16Ptr(name),
 				syscall.GENERIC_READ|syscall.GENERIC_WRITE,
 				0,

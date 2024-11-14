@@ -816,10 +816,10 @@ func Lstat(path string, stat *Stat_t) (err error) {
 // for checking symlinks begins with $VERSION/ $SYSNAME/ $SYSSYMR/ $SYSSYMA/
 func isSpecialPath(path []byte) (v bool) {
 	var special = [4][8]byte{
-		[8]byte{'V', 'E', 'R', 'S', 'I', 'O', 'N', '/'},
-		[8]byte{'S', 'Y', 'S', 'N', 'A', 'M', 'E', '/'},
-		[8]byte{'S', 'Y', 'S', 'S', 'Y', 'M', 'R', '/'},
-		[8]byte{'S', 'Y', 'S', 'S', 'Y', 'M', 'A', '/'}}
+		{'V', 'E', 'R', 'S', 'I', 'O', 'N', '/'},
+		{'S', 'Y', 'S', 'N', 'A', 'M', 'E', '/'},
+		{'S', 'Y', 'S', 'S', 'Y', 'M', 'R', '/'},
+		{'S', 'Y', 'S', 'S', 'Y', 'M', 'A', '/'}}
 
 	var i, j int
 	for i = 0; i < len(special); i++ {
@@ -2363,9 +2363,7 @@ func errnoErr2(e Errno, e2 uintptr) error {
 
 // ErrnoName returns the error name for error number e.
 func ErrnoName(e Errno) string {
-	i := sort.Search(len(errorList), func(i int) bool {
-		return errorList[i].num >= e
-	})
+	i := sort.Search(len(errorList), func { i -> errorList[i].num >= e })
 	if i < len(errorList) && errorList[i].num == e {
 		return errorList[i].name
 	}
@@ -2374,9 +2372,7 @@ func ErrnoName(e Errno) string {
 
 // SignalName returns the signal name for signal number s.
 func SignalName(s syscall.Signal) string {
-	i := sort.Search(len(signalList), func(i int) bool {
-		return signalList[i].num >= s
-	})
+	i := sort.Search(len(signalList), func { i -> signalList[i].num >= s })
 	if i < len(signalList) && signalList[i].num == s {
 		return signalList[i].name
 	}

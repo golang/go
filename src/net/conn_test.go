@@ -20,7 +20,7 @@ const someTimeout = 1 * time.Hour
 func TestConnAndListener(t *testing.T) {
 	for i, network := range []string{"tcp", "unix", "unixpacket"} {
 		i, network := i, network
-		t.Run(network, func(t *testing.T) {
+		t.Run(network, func { t ->
 			if !testableNetwork(network) {
 				t.Skipf("skipping %s test", network)
 			}

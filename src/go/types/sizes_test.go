@@ -115,7 +115,7 @@ var s struct {
 
 	want := []int64{0, 8, 16}
 	for _, arch := range []string{"386", "amd64"} {
-		t.Run(arch, func(t *testing.T) {
+		t.Run(arch, func { t ->
 			conf := types.Config{
 				Importer: importer.Default(),
 				Sizes:    types.SizesFor("gc", arch),
@@ -186,7 +186,7 @@ func TestGCSizes(t *testing.T) {
 	types.DefPredeclaredTestFuncs()
 	for _, tc := range gcSizesTests {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			t.Parallel()
 			conf := types.Config{Importer: importer.Default(), Sizes: types.SizesFor("gc", "amd64")}
 			mustTypecheck(tc.src, &conf, nil)

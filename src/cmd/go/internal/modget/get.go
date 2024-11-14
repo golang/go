@@ -653,7 +653,7 @@ func (r *resolver) checkAllowedOr(requested string, selected func(string) string
 
 // matchInModule is a caching wrapper around modload.MatchInModule.
 func (r *resolver) matchInModule(ctx context.Context, pattern string, m module.Version) (packages []string, err error) {
-	return r.matchInModuleCache.Do(matchInModuleKey{pattern, m}, func() ([]string, error) {
+	return r.matchInModuleCache.Do(matchInModuleKey{pattern, m}, func {
 		match := modload.MatchInModule(ctx, pattern, m, imports.AnyTags())
 		if len(match.Errs) > 0 {
 			return match.Pkgs, match.Errs[0]
@@ -676,7 +676,7 @@ func (r *resolver) queryNone(ctx context.Context, q *query) {
 	}
 
 	if !q.isWildcard() {
-		q.pathOnce(q.pattern, func() pathSet {
+		q.pathOnce(q.pattern, func {
 			hasModRoot := modload.HasModRoot()
 			if hasModRoot && modload.MainModules.Contains(q.pattern) {
 				v := module.Version{Path: q.pattern}
@@ -701,7 +701,7 @@ func (r *resolver) queryNone(ctx context.Context, q *query) {
 		if !q.matchesPath(curM.Path) {
 			continue
 		}
-		q.pathOnce(curM.Path, func() pathSet {
+		q.pathOnce(curM.Path, func {
 			if modload.HasModRoot() && curM.Version == "" && modload.MainModules.Contains(curM.Path) {
 				return errSet(&modload.QueryMatchesMainModulesError{MainModules: []module.Version{curM}, Pattern: q.pattern, Query: q.version})
 			}
@@ -712,7 +712,7 @@ func (r *resolver) queryNone(ctx context.Context, q *query) {
 
 func (r *resolver) performLocalQueries(ctx context.Context) {
 	for _, q := range r.localQueries {
-		q.pathOnce(q.pattern, func() pathSet {
+		q.pathOnce(q.pattern, func {
 			absDetail := ""
 			if !filepath.IsAbs(q.pattern) {
 				if absPath, err := filepath.Abs(q.pattern); err == nil {
@@ -796,7 +796,7 @@ func (r *resolver) queryWildcard(ctx context.Context, q *query) {
 		if !q.canMatchInModule(curM.Path) {
 			continue
 		}
-		q.pathOnce(curM.Path, func() pathSet {
+		q.pathOnce(curM.Path, func {
 			if _, hit := r.noneForPath(curM.Path); hit {
 				// This module is being removed, so it will no longer be in the build list
 				// (and thus will no longer match the pattern).
@@ -883,7 +883,7 @@ func (r *resolver) findMissingWildcards(ctx context.Context) {
 			continue // q is not “missing”
 		}
 		r.work.Add(func() {
-			q.pathOnce(q.pattern, func() pathSet {
+			q.pathOnce(q.pattern, func {
 				pkgMods, mod, err := r.queryPattern(ctx, q.pattern, q.version, r.initialSelected)
 				if err != nil {
 					if isNoSuchPackageVersion(err) && len(q.resolved) > 0 {
@@ -987,7 +987,7 @@ func (r *resolver) performPathQueries(ctx context.Context) {
 // and have a version matching q, plus (if it exists) the module whose path
 // is itself q.pattern (at a matching version).
 func (r *resolver) queryPath(ctx context.Context, q *query) {
-	q.pathOnce(q.pattern, func() pathSet {
+	q.pathOnce(q.pattern, func {
 		if search.IsMetaPackage(q.pattern) || q.isWildcard() {
 			panic(fmt.Sprintf("internal error: queryPath called with pattern %q", q.pattern))
 		}
@@ -1032,7 +1032,7 @@ func (r *resolver) performPatternAllQueries(ctx context.Context) {
 	findPackage := func(ctx context.Context, path string, m module.Version) (versionOk bool) {
 		versionOk = true
 		for _, q := range r.patternAllQueries {
-			q.pathOnce(path, func() pathSet {
+			q.pathOnce(path, func {
 				pkgMods, err := r.queryPackages(ctx, path, q.version, r.initialSelected)
 				if len(pkgMods) != 1 || pkgMods[0] != m {
 					// There are candidates other than m for the given path, so we can't
@@ -1055,9 +1055,7 @@ func (r *resolver) performPatternAllQueries(ctx context.Context) {
 	// including in which errors it chooses to report, so sort the candidates
 	// into a deterministic-but-arbitrary order.
 	for _, q := range r.patternAllQueries {
-		sort.Slice(q.candidates, func(i, j int) bool {
-			return q.candidates[i].path < q.candidates[j].path
-		})
+		sort.Slice(q.candidates, func { i, j -> q.candidates[i].path < q.candidates[j].path })
 	}
 }
 
@@ -1146,9 +1144,7 @@ func (r *resolver) findAndUpgradeImports(ctx context.Context, queries []*query) 
 	// nondeterministic order. We want 'go get' to be fully deterministic,
 	// including in which errors it chooses to report, so sort the candidates
 	// into a deterministic-but-arbitrary order.
-	sort.Slice(upgrades, func(i, j int) bool {
-		return upgrades[i].path < upgrades[j].path
-	})
+	sort.Slice(upgrades, func { i, j -> upgrades[i].path < upgrades[j].path })
 	return upgrades
 }
 
@@ -1174,7 +1170,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 		Switcher:                 new(toolchain.Switcher),
 	}
 
-	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
+	opts.AllowPackage = func { ctx, path, m ->
 		if m.Path == "" || m.Version == "" {
 			// Packages in the standard library and main modules are already at their
 			// latest (and only) available versions.
@@ -1598,7 +1594,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			retractions = append(retractions, modMessage{m: m})
 		}
 	}
-	sort.Slice(retractions, func(i, j int) bool { return retractions[i].m.Path < retractions[j].m.Path })
+	sort.Slice(retractions, func { i, j -> retractions[i].m.Path < retractions[j].m.Path })
 	for i := range retractions {
 		i := i
 		r.work.Add(func() {
@@ -1619,7 +1615,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			deprecations = append(deprecations, modMessage{m: m})
 		}
 	}
-	sort.Slice(deprecations, func(i, j int) bool { return deprecations[i].m.Path < deprecations[j].m.Path })
+	sort.Slice(deprecations, func { i, j -> deprecations[i].m.Path < deprecations[j].m.Path })
 	for i := range deprecations {
 		i := i
 		r.work.Add(func() {
@@ -1777,7 +1773,7 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
 	for _, c := range changes {
 		sortedChanges = append(sortedChanges, c)
 	}
-	sort.Slice(sortedChanges, func(i, j int) bool {
+	sort.Slice(sortedChanges, func { i, j ->
 		pi := sortedChanges[i].path
 		pj := sortedChanges[j].path
 		if pi == pj {

@@ -55,7 +55,7 @@ func TestProfBuf(t *testing.T) {
 	myTags := make([]byte, 100)
 	t.Logf("myTags is %p", &myTags[0])
 
-	t.Run("BasicWriteRead", func(t *testing.T) {
+	t.Run("BasicWriteRead", func { t ->
 		b := NewProfBuf(2, 11, 1)
 		write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})
 		read(t, b, []uint64{10, 1, 2, 3, 4, 5, 6, 7, 8, 9}, []unsafe.Pointer{unsafe.Pointer(&myTags[0])})
@@ -64,7 +64,7 @@ func TestProfBuf(t *testing.T) {
 		read(t, b, []uint64{8, 99, 101, 102, 201, 202, 203, 204}, []unsafe.Pointer{unsafe.Pointer(&myTags[2])})
 	})
 
-	t.Run("ReadMany", func(t *testing.T) {
+	t.Run("ReadMany", func { t ->
 		b := NewProfBuf(2, 50, 50)
 		write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})
 		write(t, b, unsafe.Pointer(&myTags[2]), 99, []uint64{101, 102}, []uintptr{201, 202, 203, 204})
@@ -72,21 +72,21 @@ func TestProfBuf(t *testing.T) {
 		read(t, b, []uint64{10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 99, 101, 102, 201, 202, 203, 204, 5, 500, 502, 504, 506}, []unsafe.Pointer{unsafe.Pointer(&myTags[0]), unsafe.Pointer(&myTags[2]), unsafe.Pointer(&myTags[1])})
 	})
 
-	t.Run("ReadManyShortData", func(t *testing.T) {
+	t.Run("ReadManyShortData", func { t ->
 		b := NewProfBuf(2, 50, 50)
 		write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})
 		write(t, b, unsafe.Pointer(&myTags[2]), 99, []uint64{101, 102}, []uintptr{201, 202, 203, 204})
 		read(t, b, []uint64{10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 99, 101, 102, 201, 202, 203, 204}, []unsafe.Pointer{unsafe.Pointer(&myTags[0]), unsafe.Pointer(&myTags[2])})
 	})
 
-	t.Run("ReadManyShortTags", func(t *testing.T) {
+	t.Run("ReadManyShortTags", func { t ->
 		b := NewProfBuf(2, 50, 50)
 		write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})
 		write(t, b, unsafe.Pointer(&myTags[2]), 99, []uint64{101, 102}, []uintptr{201, 202, 203, 204})
 		read(t, b, []uint64{10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 99, 101, 102, 201, 202, 203, 204}, []unsafe.Pointer{unsafe.Pointer(&myTags[0]), unsafe.Pointer(&myTags[2])})
 	})
 
-	t.Run("ReadAfterOverflow1", func(t *testing.T) {
+	t.Run("ReadAfterOverflow1", func { t ->
 		// overflow record synthesized by write
 		b := NewProfBuf(2, 16, 5)
 		write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})           // uses 10
@@ -102,7 +102,7 @@ func TestProfBuf(t *testing.T) {
 		read(t, b, []uint64{5, 99, 0, 0, 300, 5, 500, 502, 504, 506}, []unsafe.Pointer{nil, unsafe.Pointer(&myTags[1])})
 	})
 
-	t.Run("ReadAfterOverflow2", func(t *testing.T) {
+	t.Run("ReadAfterOverflow2", func { t ->
 		// overflow record synthesized by read
 		b := NewProfBuf(2, 16, 5)
 		write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})
@@ -117,7 +117,7 @@ func TestProfBuf(t *testing.T) {
 		read(t, b, []uint64{5, 500, 502, 505, 506}, []unsafe.Pointer{unsafe.Pointer(&myTags[1])})
 	})
 
-	t.Run("ReadAtEndAfterOverflow", func(t *testing.T) {
+	t.Run("ReadAtEndAfterOverflow", func { t ->
 		b := NewProfBuf(2, 12, 5)
 		write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})
 		write(t, b, unsafe.Pointer(&myTags[2]), 99, []uint64{101, 102}, []uintptr{201, 202, 203, 204})
@@ -130,7 +130,7 @@ func TestProfBuf(t *testing.T) {
 		read(t, b, []uint64{5, 500, 502, 504, 506}, []unsafe.Pointer{unsafe.Pointer(&myTags[1])})
 	})
 
-	t.Run("BlockingWriteRead", func(t *testing.T) {
+	t.Run("BlockingWriteRead", func { t ->
 		b := NewProfBuf(2, 11, 1)
 		wait := readBlock(t, b, []uint64{10, 1, 2, 3, 4, 5, 6, 7, 8, 9}, []unsafe.Pointer{unsafe.Pointer(&myTags[0])})
 		write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})
@@ -147,7 +147,7 @@ func TestProfBuf(t *testing.T) {
 		readEOF(t, b)
 	})
 
-	t.Run("DataWraparound", func(t *testing.T) {
+	t.Run("DataWraparound", func { t ->
 		b := NewProfBuf(2, 16, 1024)
 		for i := 0; i < 10; i++ {
 			write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})
@@ -156,7 +156,7 @@ func TestProfBuf(t *testing.T) {
 		}
 	})
 
-	t.Run("TagWraparound", func(t *testing.T) {
+	t.Run("TagWraparound", func { t ->
 		b := NewProfBuf(2, 1024, 2)
 		for i := 0; i < 10; i++ {
 			write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})
@@ -165,7 +165,7 @@ func TestProfBuf(t *testing.T) {
 		}
 	})
 
-	t.Run("BothWraparound", func(t *testing.T) {
+	t.Run("BothWraparound", func { t ->
 		b := NewProfBuf(2, 16, 2)
 		for i := 0; i < 10; i++ {
 			write(t, b, unsafe.Pointer(&myTags[0]), 1, []uint64{2, 3}, []uintptr{4, 5, 6, 7, 8, 9})

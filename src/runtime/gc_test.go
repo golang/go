@@ -490,7 +490,7 @@ func applyGCLoad(b *testing.B) func() {
 		children [16]*node
 	}
 	var buildTree func(depth int) *node
-	buildTree = func(depth int) *node {
+	buildTree = func { depth ->
 		tree := new(node)
 		if depth != 0 {
 			for i := range tree.children {
@@ -619,7 +619,7 @@ func BenchmarkWriteBarrier(b *testing.B) {
 	}
 	var wbRoots []*node
 	var mkTree func(level int) *node
-	mkTree = func(level int) *node {
+	mkTree = func { level ->
 		if level == 0 {
 			return nil
 		}
@@ -733,7 +733,7 @@ func BenchmarkMSpanCountAlloc(b *testing.B) {
 	// n must always be a multiple of 8, since gcBits is
 	// always rounded up 8 bytes.
 	for _, n := range []int{8, 16, 32, 64, 128} {
-		b.Run(fmt.Sprintf("bits=%d", n*8), func(b *testing.B) {
+		b.Run(fmt.Sprintf("bits=%d", n*8), func { b ->
 			// Initialize a new byte slice with pseduo-random data.
 			bits := make([]byte, n)
 			rand.Read(bits)

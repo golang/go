@@ -108,7 +108,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 		family = syscall.AF_INET6
 	}
 
-	getaddr := func() ([]IPAddr, error) {
+	getaddr := func {
 		if err := acquireThread(ctx); err != nil {
 			return nil, &DNSError{
 				Name:      name,

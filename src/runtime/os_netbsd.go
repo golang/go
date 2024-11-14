@@ -229,7 +229,7 @@ func newosproc(mp *m) {
 
 	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, abi.FuncPCABI0(netbsdMstart))
 
-	ret := retryOnEAGAIN(func() int32 {
+	ret := retryOnEAGAIN(func {
 		errno := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
 		// lwp_create returns negative errno
 		return -errno

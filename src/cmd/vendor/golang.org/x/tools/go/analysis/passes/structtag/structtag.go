@@ -40,7 +40,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	nodeFilter := []ast.Node{
 		(*ast.StructType)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		styp, ok := pass.TypesInfo.Types[n.(*ast.StructType)].Type.(*types.Struct)
 		// Type information may be incomplete.
 		if !ok {

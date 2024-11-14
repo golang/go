@@ -570,7 +570,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	r.RegTo2 = 1
 	q.As = obj.ACALL
 	thunkname := "__x86.get_pc_thunk." + strings.ToLower(rconv(int(dst)))
-	q.To.Sym = ctxt.LookupInit(thunkname, func(s *obj.LSym) { s.Set(obj.AttrLocal, true) })
+	q.To.Sym = ctxt.LookupInit(thunkname, func { s -> s.Set(obj.AttrLocal, true) })
 	q.To.Type = obj.TYPE_MEM
 	q.To.Name = obj.NAME_EXTERN
 	r.As = p.As

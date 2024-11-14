@@ -37,7 +37,7 @@ func TestJSONHandler(t *testing.T) {
 			`{"TIME":"2000-01-02T03:04:05Z","LEVEL":"INFO","MSG":"m","A":1,"M":{"b":2}}`,
 		},
 	} {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			var buf bytes.Buffer
 			h := NewJSONHandler(&buf, &test.opts)
 			r := NewRecord(testTime, LevelInfo, "m", 0)
@@ -173,7 +173,7 @@ func BenchmarkJSONHandler(b *testing.B) {
 			},
 		}},
 	} {
-		b.Run(bench.name, func(b *testing.B) {
+		b.Run(bench.name, func { b ->
 			ctx := context.Background()
 			l := New(NewJSONHandler(io.Discard, &bench.opts)).With(
 				String("program", "my-test-program"),
@@ -240,7 +240,7 @@ func BenchmarkPreformatting(b *testing.B) {
 		{"struct file", outFile, structAttrs},
 	} {
 		ctx := context.Background()
-		b.Run(bench.name, func(b *testing.B) {
+		b.Run(bench.name, func { b ->
 			l := New(NewJSONHandler(bench.wc, nil)).With(bench.attrs...)
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -260,7 +260,7 @@ func BenchmarkJSONEncoding(b *testing.B) {
 	value := 3.14
 	buf := buffer.New()
 	defer buf.Free()
-	b.Run("json.Marshal", func(b *testing.B) {
+	b.Run("json.Marshal", func { b ->
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			by, err := json.Marshal(value)
@@ -271,7 +271,7 @@ func BenchmarkJSONEncoding(b *testing.B) {
 			*buf = (*buf)[:0]
 		}
 	})
-	b.Run("Encoder.Encode", func(b *testing.B) {
+	b.Run("Encoder.Encode", func { b ->
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			if err := json.NewEncoder(buf).Encode(value); err != nil {

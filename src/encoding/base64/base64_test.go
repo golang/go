@@ -536,9 +536,7 @@ func BenchmarkDecodeString(b *testing.B) {
 		}
 	}
 	for _, size := range sizes {
-		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
-			benchFunc(b, size)
-		})
+		b.Run(fmt.Sprintf("%d", size), func { b -> benchFunc(b, size) })
 	}
 }
 

@@ -100,9 +100,7 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 	for name := range need {
 		list = append(list, mapFileInfo{name, &MapFile{Mode: fs.ModeDir | 0555}})
 	}
-	slices.SortFunc(list, func(a, b mapFileInfo) int {
-		return strings.Compare(a.name, b.name)
-	})
+	slices.SortFunc(list, func { a, b -> strings.Compare(a.name, b.name) })
 
 	if file == nil {
 		file = &MapFile{Mode: fs.ModeDir | 0555}

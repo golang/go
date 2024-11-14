@@ -197,7 +197,7 @@ func (addrs byPriorityWeight) shuffleByWeight() {
 
 // sort reorders SRV records as specified in RFC 2782.
 func (addrs byPriorityWeight) sort() {
-	slices.SortFunc(addrs, func(a, b *SRV) int {
+	slices.SortFunc(addrs, func { a, b ->
 		if r := cmp.Compare(a.Priority, b.Priority); r != 0 {
 			return r
 		}
@@ -228,9 +228,7 @@ func (s byPref) sort() {
 		j := randIntn(i + 1)
 		s[i], s[j] = s[j], s[i]
 	}
-	slices.SortFunc(s, func(a, b *MX) int {
-		return cmp.Compare(a.Pref, b.Pref)
-	})
+	slices.SortFunc(s, func { a, b -> cmp.Compare(a.Pref, b.Pref) })
 }
 
 // An NS represents a single DNS NS record.

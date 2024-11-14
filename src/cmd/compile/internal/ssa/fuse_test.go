@@ -269,7 +269,7 @@ func TestFuseSideEffects(t *testing.T) {
 
 func BenchmarkFuse(b *testing.B) {
 	for _, n := range [...]int{1, 10, 100, 1000, 10000} {
-		b.Run(strconv.Itoa(n), func(b *testing.B) {
+		b.Run(strconv.Itoa(n), func { b ->
 			c := testConfig(b)
 
 			blocks := make([]bloc, 0, 2*n+3)

@@ -20,7 +20,7 @@ type MakeHash func() hash.Hash
 func TestHash(t *testing.T, mh MakeHash) {
 
 	// Test that Sum returns an appended digest matching output of Size
-	t.Run("SumAppend", func(t *testing.T) {
+	t.Run("SumAppend", func { t ->
 		h := mh()
 		rng := newRandReader(t)
 
@@ -56,7 +56,7 @@ func TestHash(t *testing.T, mh MakeHash) {
 	})
 
 	// Test that Hash.Write never returns error.
-	t.Run("WriteWithoutError", func(t *testing.T) {
+	t.Run("WriteWithoutError", func { t ->
 		h := mh()
 		rng := newRandReader(t)
 
@@ -73,7 +73,7 @@ func TestHash(t *testing.T, mh MakeHash) {
 		}
 	})
 
-	t.Run("ResetState", func(t *testing.T) {
+	t.Run("ResetState", func { t ->
 		h := mh()
 		rng := newRandReader(t)
 
@@ -92,7 +92,7 @@ func TestHash(t *testing.T, mh MakeHash) {
 	})
 
 	// Check that Write isn't reading from beyond input slice's bounds
-	t.Run("OutOfBoundsRead", func(t *testing.T) {
+	t.Run("OutOfBoundsRead", func { t ->
 		h := mh()
 		blockSize := h.BlockSize()
 		rng := newRandReader(t)
@@ -121,7 +121,7 @@ func TestHash(t *testing.T, mh MakeHash) {
 	})
 
 	// Test that multiple calls to Write is stateful
-	t.Run("StatefulWrite", func(t *testing.T) {
+	t.Run("StatefulWrite", func { t ->
 		h := mh()
 		rng := newRandReader(t)
 

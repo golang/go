@@ -281,9 +281,7 @@ func Profiles() []*Profile {
 		all = append(all, p)
 	}
 
-	slices.SortFunc(all, func(a, b *Profile) int {
-		return strings.Compare(a.name, b.name)
-	})
+	slices.SortFunc(all, func { a, b -> strings.Compare(a.name, b.name) })
 	return all
 }
 
@@ -631,9 +629,7 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 		return writeHeapProto(w, p, int64(runtime.MemProfileRate), defaultSampleType)
 	}
 
-	slices.SortFunc(p, func(a, b profilerecord.MemProfileRecord) int {
-		return cmp.Compare(a.InUseBytes(), b.InUseBytes())
-	})
+	slices.SortFunc(p, func { a, b -> cmp.Compare(a.InUseBytes(), b.InUseBytes()) })
 
 	b := bufio.NewWriter(w)
 	tw := tabwriter.NewWriter(b, 1, 8, 1, '\t', 0)
@@ -933,9 +929,7 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
 		}
 	}
 
-	slices.SortFunc(p, func(a, b profilerecord.BlockProfileRecord) int {
-		return cmp.Compare(b.Cycles, a.Cycles)
-	})
+	slices.SortFunc(p, func { a, b -> cmp.Compare(b.Cycles, a.Cycles) })
 
 	if debug <= 0 {
 		return printCountCycleProfile(w, "contentions", "delay", p)

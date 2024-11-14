@@ -80,7 +80,7 @@ func (f *peFile) symbols() ([]Sym, error) {
 
 	sort.Sort(uint64s(addrs))
 	for i := range syms {
-		j := sort.Search(len(addrs), func(x int) bool { return addrs[x] > syms[i].Addr })
+		j := sort.Search(len(addrs), func { x -> addrs[x] > syms[i].Addr })
 		if j < len(addrs) {
 			syms[i].Size = int64(addrs[j] - syms[i].Addr)
 		}

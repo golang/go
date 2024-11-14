@@ -144,7 +144,7 @@ func TestStmtLines(t *testing.T) {
 	}
 	t.Logf("Saw %d out of %d lines without statement marks", len(nonStmtLines), len(lines))
 	if testing.Verbose() {
-		sort.Slice(nonStmtLines, func(i, j int) bool {
+		sort.Slice(nonStmtLines, func { i, j ->
 			if nonStmtLines[i].File != nonStmtLines[j].File {
 				return nonStmtLines[i].File < nonStmtLines[j].File
 			}

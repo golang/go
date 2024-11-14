@@ -85,7 +85,7 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.Ident)(nil),
 	}
 	var fileVersion string // "" => no check
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		switch n := n.(type) {
 		case *ast.File:
 			if isGenerated(n) {

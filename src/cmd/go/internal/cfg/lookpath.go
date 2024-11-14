@@ -15,7 +15,5 @@ var lookPathCache par.ErrCache[string, string]
 // which can be called by multiple Goroutines at the same time.
 func LookPath(file string) (path string, err error) {
 	return lookPathCache.Do(file,
-		func() (string, error) {
-			return exec.LookPath(file)
-		})
+		func { exec.LookPath(file) })
 }

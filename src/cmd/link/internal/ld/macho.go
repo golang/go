@@ -1022,7 +1022,7 @@ func machosymorder(ctxt *Link) {
 		}
 	}
 	collectmachosyms(ctxt)
-	sort.Slice(sortsym[:nsortsym], func(i, j int) bool {
+	sort.Slice(sortsym[:nsortsym], func { i, j ->
 		s1 := sortsym[i]
 		s2 := sortsym[j]
 		k1 := symkind(ldr, s1)

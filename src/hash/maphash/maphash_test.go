@@ -219,7 +219,7 @@ func benchmarkSize(b *testing.B, size int) {
 	buf := make([]byte, size)
 	s := string(buf)
 
-	b.Run("Write", func(b *testing.B) {
+	b.Run("Write", func { b ->
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
 			h.Reset()
@@ -228,7 +228,7 @@ func benchmarkSize(b *testing.B, size int) {
 		}
 	})
 
-	b.Run("Bytes", func(b *testing.B) {
+	b.Run("Bytes", func { b ->
 		b.SetBytes(int64(size))
 		seed := h.Seed()
 		for i := 0; i < b.N; i++ {
@@ -236,7 +236,7 @@ func benchmarkSize(b *testing.B, size int) {
 		}
 	})
 
-	b.Run("String", func(b *testing.B) {
+	b.Run("String", func { b ->
 		b.SetBytes(int64(size))
 		seed := h.Seed()
 		for i := 0; i < b.N; i++ {
@@ -248,8 +248,6 @@ func benchmarkSize(b *testing.B, size int) {
 func BenchmarkHash(b *testing.B) {
 	sizes := []int{4, 8, 16, 32, 64, 256, 320, 1024, 4096, 16384}
 	for _, size := range sizes {
-		b.Run(fmt.Sprint("n=", size), func(b *testing.B) {
-			benchmarkSize(b, size)
-		})
+		b.Run(fmt.Sprint("n=", size), func { b -> benchmarkSize(b, size) })
 	}
 }

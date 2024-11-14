@@ -88,7 +88,7 @@ func TestVet(t *testing.T) {
 		"unused",
 	} {
 		pkg := pkg
-		t.Run(pkg, func(t *testing.T) {
+		t.Run(pkg, func { t ->
 			t.Parallel()
 
 			// Skip cgo test on platforms without cgo.
@@ -125,7 +125,7 @@ func TestVet(t *testing.T) {
 	// go.mod file in the rangeloop directory to "downgrade".
 	//
 	// TOOD(adonovan): delete when go1.21 goes away.
-	t.Run("loopclosure", func(t *testing.T) {
+	t.Run("loopclosure", func { t ->
 		cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
 		cmd.Env = append(os.Environ(), "GOWORK=off")
 		cmd.Dir = "testdata/rangeloop"
@@ -156,7 +156,7 @@ func TestVet(t *testing.T) {
 	// The stdversion analyzer requires a lower-than-tip go
 	// version in its go.mod file for it to report anything.
 	// So again we use a testdata go.mod file to "downgrade".
-	t.Run("stdversion", func(t *testing.T) {
+	t.Run("stdversion", func { t ->
 		cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
 		cmd.Env = append(os.Environ(), "GOWORK=off")
 		cmd.Dir = "testdata/stdversion"
@@ -221,7 +221,7 @@ func TestTags(t *testing.T) {
 		"othertag":    2,
 	} {
 		tag, wantFile := tag, wantFile
-		t.Run(tag, func(t *testing.T) {
+		t.Run(tag, func { t ->
 			t.Parallel()
 			t.Logf("-tags=%s", tag)
 			cmd := vetCmd(t, "-tags="+tag, "tagtest")
@@ -423,7 +423,7 @@ func wantedErrors(file, short string) (errs []wantedError) {
 		}
 		for _, m := range mm {
 			replacedOnce := false
-			rx := lineRx.ReplaceAllStringFunc(m[1], func(m string) string {
+			rx := lineRx.ReplaceAllStringFunc(m[1], func { m ->
 				if replacedOnce {
 					return m
 				}

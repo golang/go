@@ -84,7 +84,7 @@ func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[trace.GoID]
 		// consider only the outermost regions,
 		// first, we sort based on the start time
 		// and then scan through to select only the outermost regions.
-		slices.SortFunc(intervals, func(a, b interval) int {
+		slices.SortFunc(intervals, func { a, b ->
 			if c := cmp.Compare(a.start, b.start); c != 0 {
 				return c
 			}
@@ -111,15 +111,13 @@ type computePprofFunc func(gToIntervals map[trace.GoID][]interval, events []trac
 // computePprofIO returns a computePprofFunc that generates IO pprof-like profile (time spent in
 // IO wait, currently only network blocking event).
 func computePprofIO() computePprofFunc {
-	return makeComputePprofFunc(trace.GoWaiting, func(reason string) bool {
-		return reason == "network"
-	})
+	return makeComputePprofFunc(trace.GoWaiting, func { reason -> reason == "network" })
 }
 
 // computePprofBlock returns a computePprofFunc that generates blocking pprof-like profile
 // (time spent blocked on synchronization primitives).
 func computePprofBlock() computePprofFunc {
-	return makeComputePprofFunc(trace.GoWaiting, func(reason string) bool {
+	return makeComputePprofFunc(trace.GoWaiting, func { reason ->
 		return strings.Contains(reason, "chan") || strings.Contains(reason, "sync") || strings.Contains(reason, "select")
 	})
 }
@@ -127,17 +125,13 @@ func computePprofBlock() computePprofFunc {
 // computePprofSyscall returns a computePprofFunc that generates a syscall pprof-like
 // profile (time spent in syscalls).
 func computePprofSyscall() computePprofFunc {
-	return makeComputePprofFunc(trace.GoSyscall, func(_ string) bool {
-		return true
-	})
+	return makeComputePprofFunc(trace.GoSyscall, func { _ -> true })
 }
 
 // computePprofSched returns a computePprofFunc that generates a scheduler latency pprof-like profile
 // (time between a goroutine become runnable and actually scheduled for execution).
 func computePprofSched() computePprofFunc {
-	return makeComputePprofFunc(trace.GoRunnable, func(_ string) bool {
-		return true
-	})
+	return makeComputePprofFunc(trace.GoRunnable, func { _ -> true })
 }
 
 // makeComputePprofFunc returns a computePprofFunc that generates a profile of time goroutines spend
@@ -307,7 +301,7 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
 	for stack, record := range m.stacks {
 		rec := *record
 		i := 0
-		stack.Frames(func(frame trace.StackFrame) bool {
+		stack.Frames(func { frame ->
 			rec.Stack = append(rec.Stack, &trace.Frame{
 				PC:   frame.PC,
 				Fn:   frame.Func,
@@ -327,7 +321,7 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
 // pcsForStack extracts the first pprofMaxStack PCs from stack into pcs.
 func pcsForStack(stack trace.Stack, pcs *[pprofMaxStack]uint64) {
 	i := 0
-	stack.Frames(func(frame trace.StackFrame) bool {
+	stack.Frames(func { frame ->
 		pcs[i] = frame.PC
 		i++
 		return i < len(pcs)

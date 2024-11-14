@@ -54,9 +54,7 @@ type shellShared struct {
 // If print is nil, it defaults to printing to stderr.
 func NewShell(workDir string, print func(a ...any) (int, error)) *Shell {
 	if print == nil {
-		print = func(a ...any) (int, error) {
-			return fmt.Fprint(os.Stderr, a...)
-		}
+		print = func { a -> fmt.Fprint(os.Stderr, a...) }
 	}
 	shared := &shellShared{
 		workDir:   workDir,
@@ -263,7 +261,7 @@ func (sh *Shell) Mkdir(dir string) error {
 
 	// We can be a little aggressive about being
 	// sure directories exist. Skip repeated calls.
-	return sh.mkdirCache.Do(dir, func() error {
+	return sh.mkdirCache.Do(dir, func {
 		if cfg.BuildN || cfg.BuildX {
 			sh.ShowCmd("", "mkdir -p %s", dir)
 			if cfg.BuildN {
@@ -280,7 +278,7 @@ func (sh *Shell) Mkdir(dir string) error {
 func (sh *Shell) RemoveAll(paths ...string) error {
 	if cfg.BuildN || cfg.BuildX {
 		// Don't say we are removing the directory if we never created it.
-		show := func() bool {
+		show := func {
 			for _, path := range paths {
 				if _, ok := sh.mkdirCache.Get(path); ok {
 					return true

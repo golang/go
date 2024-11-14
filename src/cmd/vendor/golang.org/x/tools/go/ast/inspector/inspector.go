@@ -187,7 +187,7 @@ func traverse(files []*ast.File) []event {
 	var stack []event
 	stack = append(stack, event{}) // include an extra event so file nodes have a parent
 	for _, f := range files {
-		ast.Inspect(f, func(n ast.Node) bool {
+		ast.Inspect(f, func { n ->
 			if n != nil {
 				// push
 				ev := event{

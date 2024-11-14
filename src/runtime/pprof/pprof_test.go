@@ -92,15 +92,13 @@ func avoidFunctions() []string {
 
 func TestCPUProfile(t *testing.T) {
 	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.cpuHog1"}, avoidFunctions())
-	testCPUProfile(t, matches, func(dur time.Duration) {
-		cpuHogger(cpuHog1, &salt1, dur)
-	})
+	testCPUProfile(t, matches, func { dur -> cpuHogger(cpuHog1, &salt1, dur) })
 }
 
 func TestCPUProfileMultithreaded(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
 	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog2"}, avoidFunctions())
-	testCPUProfile(t, matches, func(dur time.Duration) {
+	testCPUProfile(t, matches, func { dur ->
 		c := make(chan int)
 		go func() {
 			cpuHogger(cpuHog1, &salt1, dur)
@@ -184,7 +182,7 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 		},
 	} {
 		// check that the OS's perspective matches what the Go runtime measures.
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			t.Logf("Running with %d workers", tc.workers)
 
 			var userTime, systemTime time.Duration
@@ -222,7 +220,7 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 				return ok
 			}
 
-			testCPUProfile(t, acceptProfile, func(dur time.Duration) {
+			testCPUProfile(t, acceptProfile, func { dur ->
 				userTime, systemTime = diffCPUTime(t, func() {
 					var wg sync.WaitGroup
 					var once sync.Once
@@ -285,9 +283,7 @@ func TestCPUProfileInlining(t *testing.T) {
 	}
 
 	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}, avoidFunctions())
-	p := testCPUProfile(t, matches, func(dur time.Duration) {
-		cpuHogger(inlinedCaller, &salt1, dur)
-	})
+	p := testCPUProfile(t, matches, func { dur -> cpuHogger(inlinedCaller, &salt1, dur) })
 
 	// Check if inlined function locations are encoded correctly. The inlinedCalee and inlinedCaller should be in one location.
 	for _, loc := range p.Location {
@@ -353,9 +349,7 @@ func inlinedWrapperCallerDump(pcs []uintptr) {
 
 func TestCPUProfileRecursion(t *testing.T) {
 	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.recursionCallee", "runtime/pprof.recursionCaller"}, avoidFunctions())
-	p := testCPUProfile(t, matches, func(dur time.Duration) {
-		cpuHogger(recursionCaller, &salt1, dur)
-	})
+	p := testCPUProfile(t, matches, func { dur -> cpuHogger(recursionCaller, &salt1, dur) })
 
 	// check the Location encoding was not confused by recursive calls.
 	for i, loc := range p.Location {
@@ -549,7 +543,7 @@ func profileOk(t *testing.T, matches profileMatchFunc, prof bytes.Buffer, durati
 
 	var samples uintptr
 	var buf strings.Builder
-	p := parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, labels map[string][]string) {
+	p := parseProfile(t, prof.Bytes(), func { count, stk, labels ->
 		fmt.Fprintf(&buf, "%d:", count)
 		fprintStack(&buf, stk)
 		fmt.Fprintf(&buf, " labels: %v\n", labels)
@@ -723,7 +717,7 @@ func TestGoroutineSwitch(t *testing.T) {
 		// "runtime.gogo" is OK, because that's the part of the context switch
 		// before the actual switch begins. But we should not see "gogo",
 		// aka "gogo<>(SB)", which does the actual switch and is marked SPWRITE.
-		parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, _ map[string][]string) {
+		parseProfile(t, prof.Bytes(), func { count, stk, _ ->
 			// An entry with two frames with 'System' in its top frame
 			// exists to record a PC without a traceback. Those are okay.
 			if len(stk) == 2 {
@@ -770,7 +764,7 @@ func fprintStack(w io.Writer, stk []*profile.Location) {
 
 // Test that profiling of division operations is okay, especially on ARM. See issue 6681.
 func TestMathBigDivide(t *testing.T) {
-	testCPUProfile(t, nil, func(duration time.Duration) {
+	testCPUProfile(t, nil, func { duration ->
 		t := time.After(duration)
 		pi := new(big.Int)
 		for {
@@ -800,7 +794,7 @@ func stackContainsAll(spec string, count uintptr, stk []*profile.Location, label
 
 func TestMorestack(t *testing.T) {
 	matches := matchAndAvoidStacks(stackContainsAll, []string{"runtime.newstack,runtime/pprof.growstack"}, avoidFunctions())
-	testCPUProfile(t, matches, func(duration time.Duration) {
+	testCPUProfile(t, matches, func { duration ->
 		t := time.After(duration)
 		c := make(chan bool)
 		for {
@@ -949,7 +943,7 @@ func TestBlockProfile(t *testing.T) {
 		test.f(t)
 	}
 
-	t.Run("debug=1", func(t *testing.T) {
+	t.Run("debug=1", func { t ->
 		var w strings.Builder
 		Lookup("block").WriteTo(&w, 1)
 		prof := w.String()
@@ -969,7 +963,7 @@ func TestBlockProfile(t *testing.T) {
 		}
 	})
 
-	t.Run("proto", func(t *testing.T) {
+	t.Run("proto", func { t ->
 		// proto format
 		var w bytes.Buffer
 		Lookup("block").WriteTo(&w, 0)
@@ -1267,7 +1261,7 @@ func TestMutexProfile(t *testing.T) {
 	blockMutexN(t, N, D)
 	blockMutexNTime := time.Since(start)
 
-	t.Run("debug=1", func(t *testing.T) {
+	t.Run("debug=1", func { t ->
 		var w strings.Builder
 		Lookup("mutex").WriteTo(&w, 1)
 		prof := w.String()
@@ -1292,7 +1286,7 @@ func TestMutexProfile(t *testing.T) {
 		}
 		t.Log(prof)
 	})
-	t.Run("proto", func(t *testing.T) {
+	t.Run("proto", func { t ->
 		// proto format
 		var w bytes.Buffer
 		Lookup("mutex").WriteTo(&w, 0)
@@ -1346,7 +1340,7 @@ func TestMutexProfile(t *testing.T) {
 		}
 	})
 
-	t.Run("records", func(t *testing.T) {
+	t.Run("records", func { t ->
 		// Record a mutex profile using the structured record API.
 		var records []runtime.BlockProfileRecord
 		for {
@@ -1449,7 +1443,7 @@ func TestGoroutineCounts(t *testing.T) {
 
 	// ... and again, with labels this time (just with fewer iterations to keep
 	// sorting deterministic).
-	Do(ctx, Labels("label", "value"), func(context.Context) {
+	Do(ctx, Labels("label", "value"), func {
 		for i := 0; i < 89; i++ {
 			switch {
 			case i%10 == 0:
@@ -1471,8 +1465,8 @@ func TestGoroutineCounts(t *testing.T) {
 
 	garbage := new(*int)
 	fingReady := make(chan struct{})
-	runtime.SetFinalizer(garbage, func(v **int) {
-		Do(context.Background(), Labels("fing-label", "fing-value"), func(ctx context.Context) {
+	runtime.SetFinalizer(garbage, func { v ->
+		Do(context.Background(), Labels("fing-label", "fing-value"), func { ctx ->
 			close(fingReady)
 			<-c
 		})
@@ -1612,7 +1606,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 
 	// Concurrent calls to the goroutine profiler should not trigger data races
 	// or corruption.
-	t.Run("overlapping profile requests", func(t *testing.T) {
+	t.Run("overlapping profile requests", func { t ->
 		ctx := context.Background()
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
@@ -1620,7 +1614,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 		var wg sync.WaitGroup
 		for i := 0; i < 2; i++ {
 			wg.Add(1)
-			Do(ctx, Labels("i", fmt.Sprint(i)), func(context.Context) {
+			Do(ctx, Labels("i", fmt.Sprint(i)), func {
 				go func() {
 					defer wg.Done()
 					for ctx.Err() == nil {
@@ -1641,7 +1635,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 
 	// The finalizer goroutine should not show up in most profiles, since it's
 	// marked as a system goroutine when idle.
-	t.Run("finalizer not present", func(t *testing.T) {
+	t.Run("finalizer not present", func { t ->
 		var w strings.Builder
 		goroutineProf.WriteTo(&w, 1)
 		prof := w.String()
@@ -1651,7 +1645,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 	})
 
 	// The finalizer goroutine should show up when it's running user code.
-	t.Run("finalizer present", func(t *testing.T) {
+	t.Run("finalizer present", func { t ->
 		// T is a pointer type so it won't be allocated by the tiny
 		// allocator, which can lead to its finalizer not being called
 		// during this test
@@ -1659,7 +1653,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 		obj := new(T)
 		ch1, ch2 := make(chan int), make(chan int)
 		defer close(ch2)
-		runtime.SetFinalizer(obj, func(_ interface{}) {
+		runtime.SetFinalizer(obj, func { _ ->
 			close(ch1)
 			<-ch2
 		})
@@ -1732,7 +1726,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 		// we can test directly, but does help to shake out data races.
 		ready.Add(1)
 		var churn func(i int)
-		churn = func(i int) {
+		churn = func { i ->
 			SetGoroutineLabels(WithLabels(ctx, Labels(t.Name()+"-churn-i", fmt.Sprint(i))))
 			if i == 0 {
 				ready.Done()
@@ -1802,13 +1796,11 @@ func TestGoroutineProfileCoro(t *testing.T) {
 	// Set up a goroutine to just create and run coroutine goroutines all day.
 	iterFunc := func() {
 		p, stop := iter.Pull2(
-			func(yield func(int, int) bool) {
-				for i := 0; i < 10000; i++ {
-					if !yield(i, i) {
-						return
-					}
+			func { yield -> for i := 0; i < 10000; i++ {
+				if !yield(i, i) {
+					return
 				}
-			},
+			} },
 		)
 		defer stop()
 		for {
@@ -1876,7 +1868,7 @@ func BenchmarkGoroutine(b *testing.B) {
 			ready.Add(1)
 			var count int64
 			var churn func(i int)
-			churn = func(i int) {
+			churn = func { i ->
 				SetGoroutineLabels(WithLabels(ctx, Labels("churn-i", fmt.Sprint(i))))
 				atomic.AddInt64(&count, 1)
 				if i == 0 {
@@ -1968,10 +1960,8 @@ func stackContainsLabeled(spec string, count uintptr, stk []*profile.Location, l
 
 func TestCPUProfileLabel(t *testing.T) {
 	matches := matchAndAvoidStacks(stackContainsLabeled, []string{"runtime/pprof.cpuHogger;key=value"}, avoidFunctions())
-	testCPUProfile(t, matches, func(dur time.Duration) {
-		Do(context.Background(), Labels("key", "value"), func(context.Context) {
-			cpuHogger(cpuHog1, &salt1, dur)
-		})
+	testCPUProfile(t, matches, func { dur ->
+		Do(context.Background(), Labels("key", "value"), func { cpuHogger(cpuHog1, &salt1, dur) })
 	})
 }
 
@@ -1981,7 +1971,7 @@ func TestLabelRace(t *testing.T) {
 	// between setting labels and consuming them from the
 	// profile.
 	matches := matchAndAvoidStacks(stackContainsLabeled, []string{"runtime/pprof.cpuHogger;key=value"}, nil)
-	testCPUProfile(t, matches, func(dur time.Duration) {
+	testCPUProfile(t, matches, func { dur ->
 		start := time.Now()
 		var wg sync.WaitGroup
 		for time.Since(start) < dur {
@@ -1989,9 +1979,7 @@ func TestLabelRace(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				wg.Add(1)
 				go func(j int) {
-					Do(context.Background(), Labels("key", "value"), func(context.Context) {
-						cpuHogger(cpuHog1, &salts[j], time.Millisecond)
-					})
+					Do(context.Background(), Labels("key", "value"), func { cpuHogger(cpuHog1, &salts[j], time.Millisecond) })
 					wg.Done()
 				}(i)
 			}
@@ -2006,7 +1994,7 @@ func TestGoroutineProfileLabelRace(t *testing.T) {
 	// between setting labels and consuming them from the
 	// goroutine profile. See issue #50292.
 
-	t.Run("reset", func(t *testing.T) {
+	t.Run("reset", func { t ->
 		ctx := context.Background()
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -2024,12 +2012,11 @@ func TestGoroutineProfileLabelRace(t *testing.T) {
 		}()
 
 		for i := 0; ctx.Err() == nil; i++ {
-			Do(ctx, Labels("loop-i", fmt.Sprint(i)), func(ctx context.Context) {
-			})
+			Do(ctx, Labels("loop-i", fmt.Sprint(i)), func { ctx -> })
 		}
 	})
 
-	t.Run("churn", func(t *testing.T) {
+	t.Run("churn", func { t ->
 		ctx := context.Background()
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -2037,7 +2024,7 @@ func TestGoroutineProfileLabelRace(t *testing.T) {
 		var ready sync.WaitGroup
 		ready.Add(1)
 		var churn func(i int)
-		churn = func(i int) {
+		churn = func { i ->
 			SetGoroutineLabels(WithLabels(ctx, Labels("churn-i", fmt.Sprint(i))))
 			if i == 0 {
 				ready.Done()
@@ -2067,10 +2054,8 @@ func TestLabelSystemstack(t *testing.T) {
 	debug.SetGCPercent(gogc)
 
 	matches := matchAndAvoidStacks(stackContainsLabeled, []string{"runtime.systemstack;key=value"}, avoidFunctions())
-	p := testCPUProfile(t, matches, func(dur time.Duration) {
-		Do(context.Background(), Labels("key", "value"), func(ctx context.Context) {
-			parallelLabelHog(ctx, dur, gogc)
-		})
+	p := testCPUProfile(t, matches, func { dur ->
+		Do(context.Background(), Labels("key", "value"), func { ctx -> parallelLabelHog(ctx, dur, gogc) })
 	})
 
 	// Two conditions to check:
@@ -2452,7 +2437,7 @@ func TestTryAdd(t *testing.T) {
 	}}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			p, err := translateCPUProfile(tc.input, tc.count)
 			if err != nil {
 				t.Fatalf("translating profile: %v", err)
@@ -2497,7 +2482,7 @@ func TestTimeVDSO(t *testing.T) {
 	}
 
 	matches := matchAndAvoidStacks(stackContains, []string{"time.now"}, avoidFunctions())
-	p := testCPUProfile(t, matches, func(dur time.Duration) {
+	p := testCPUProfile(t, matches, func { dur ->
 		t0 := time.Now()
 		for {
 			t := time.Now()
@@ -2541,7 +2526,7 @@ func TestProfilerStackDepth(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.profiler, func(t *testing.T) {
+		t.Run(test.profiler, func { t ->
 			var buf bytes.Buffer
 			if err := Lookup(test.profiler).WriteTo(&buf, 0); err != nil {
 				t.Fatalf("failed to write heap profile: %v", err)
@@ -2740,12 +2725,8 @@ func TestMutexBlockFullAggregation(t *testing.T) {
 			t.Errorf("did not see any samples in %s profile for this test", name)
 		}
 	}
-	t.Run("mutex", func(t *testing.T) {
-		assertNoDuplicates("mutex", runtime.MutexProfile)
-	})
-	t.Run("block", func(t *testing.T) {
-		assertNoDuplicates("block", runtime.BlockProfile)
-	})
+	t.Run("mutex", func { t -> assertNoDuplicates("mutex", runtime.MutexProfile) })
+	t.Run("block", func { t -> assertNoDuplicates("block", runtime.BlockProfile) })
 }
 
 func inlineA(mu *sync.Mutex, wg *sync.WaitGroup) { inlineB(mu, wg) }
@@ -2803,7 +2784,7 @@ runtime/pprof.inlineA`,
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.Name, func(t *testing.T) {
+		t.Run(tc.Name, func { t ->
 			stacks := getProfileStacks(tc.Collect, false)
 			for _, s := range stacks {
 				if strings.Contains(s, tc.SubStack) {
@@ -2829,12 +2810,8 @@ func TestProfileRecordNullPadding(t *testing.T) {
 	testProfileRecordNullPadding(t, "MutexProfile", runtime.MutexProfile)
 	testProfileRecordNullPadding(t, "GoroutineProfile", runtime.GoroutineProfile)
 	testProfileRecordNullPadding(t, "BlockProfile", runtime.BlockProfile)
-	testProfileRecordNullPadding(t, "MemProfile/inUseZero=true", func(p []runtime.MemProfileRecord) (int, bool) {
-		return runtime.MemProfile(p, true)
-	})
-	testProfileRecordNullPadding(t, "MemProfile/inUseZero=false", func(p []runtime.MemProfileRecord) (int, bool) {
-		return runtime.MemProfile(p, false)
-	})
+	testProfileRecordNullPadding(t, "MemProfile/inUseZero=true", func { p -> runtime.MemProfile(p, true) })
+	testProfileRecordNullPadding(t, "MemProfile/inUseZero=false", func { p -> runtime.MemProfile(p, false) })
 	// Not testing ThreadCreateProfile because it is broken, see issue 6104.
 }
 
@@ -2852,7 +2829,7 @@ func testProfileRecordNullPadding[T runtime.StackRecord | runtime.MemProfileReco
 		}
 	}
 
-	t.Run(name, func(t *testing.T) {
+	t.Run(name, func { t ->
 		var p []T
 		for {
 			n, ok := fn(p)

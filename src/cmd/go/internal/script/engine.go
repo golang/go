@@ -358,7 +358,7 @@ func parse(filename string, lineno int, line string) (cmd *command, err error) {
 		quoted = false       // currently processing quoted text
 	)
 
-	flushArg := func() error {
+	flushArg := func {
 		if len(rawArg) == 0 {
 			return nil // Nothing to flush.
 		}

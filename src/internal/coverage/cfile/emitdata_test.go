@@ -54,39 +54,39 @@ func TestCoverageApis(t *testing.T) {
 
 	// Sub-tests for each API we want to inspect, plus
 	// extras for error testing.
-	t.Run("emitToDir", func(t *testing.T) {
+	t.Run("emitToDir", func { t ->
 		t.Parallel()
 		testEmitToDir(t, atomicHarnessPath, dir)
 	})
-	t.Run("emitToWriter", func(t *testing.T) {
+	t.Run("emitToWriter", func { t ->
 		t.Parallel()
 		testEmitToWriter(t, atomicHarnessPath, dir)
 	})
-	t.Run("emitToNonexistentDir", func(t *testing.T) {
+	t.Run("emitToNonexistentDir", func { t ->
 		t.Parallel()
 		testEmitToNonexistentDir(t, atomicHarnessPath, dir)
 	})
-	t.Run("emitToNilWriter", func(t *testing.T) {
+	t.Run("emitToNilWriter", func { t ->
 		t.Parallel()
 		testEmitToNilWriter(t, atomicHarnessPath, dir)
 	})
-	t.Run("emitToFailingWriter", func(t *testing.T) {
+	t.Run("emitToFailingWriter", func { t ->
 		t.Parallel()
 		testEmitToFailingWriter(t, atomicHarnessPath, dir)
 	})
-	t.Run("emitWithCounterClear", func(t *testing.T) {
+	t.Run("emitWithCounterClear", func { t ->
 		t.Parallel()
 		testEmitWithCounterClear(t, atomicHarnessPath, dir)
 	})
-	t.Run("emitToDirNonAtomic", func(t *testing.T) {
+	t.Run("emitToDirNonAtomic", func { t ->
 		t.Parallel()
 		testEmitToDirNonAtomic(t, nonAtomicHarnessPath, nonAtomicMode, dir)
 	})
-	t.Run("emitToWriterNonAtomic", func(t *testing.T) {
+	t.Run("emitToWriterNonAtomic", func { t ->
 		t.Parallel()
 		testEmitToWriterNonAtomic(t, nonAtomicHarnessPath, nonAtomicMode, dir)
 	})
-	t.Run("emitWithCounterClearNonAtomic", func(t *testing.T) {
+	t.Run("emitWithCounterClearNonAtomic", func { t ->
 		t.Parallel()
 		testEmitWithCounterClearNonAtomic(t, nonAtomicHarnessPath, nonAtomicMode, dir)
 	})
@@ -223,7 +223,7 @@ func mktestdirs(t *testing.T, tag, tp, dir string) (string, string) {
 }
 
 func testEmitToDir(t *testing.T, harnessPath string, dir string) {
-	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
+	withAndWithoutRunner(func { setGoCoverDir, tag ->
 		tp := "emitToDir"
 		rdir, edir := mktestdirs(t, tag, tp, dir)
 		output, err := runHarness(t, harnessPath, tp,
@@ -266,7 +266,7 @@ func testEmitToDir(t *testing.T, harnessPath string, dir string) {
 }
 
 func testEmitToWriter(t *testing.T, harnessPath string, dir string) {
-	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
+	withAndWithoutRunner(func { setGoCoverDir, tag ->
 		tp := "emitToWriter"
 		rdir, edir := mktestdirs(t, tag, tp, dir)
 		output, err := runHarness(t, harnessPath, tp, setGoCoverDir, rdir, edir)
@@ -285,7 +285,7 @@ func testEmitToWriter(t *testing.T, harnessPath string, dir string) {
 }
 
 func testEmitToNonexistentDir(t *testing.T, harnessPath string, dir string) {
-	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
+	withAndWithoutRunner(func { setGoCoverDir, tag ->
 		tp := "emitToNonexistentDir"
 		rdir, edir := mktestdirs(t, tag, tp, dir)
 		output, err := runHarness(t, harnessPath, tp, setGoCoverDir, rdir, edir)
@@ -299,7 +299,7 @@ func testEmitToNonexistentDir(t *testing.T, harnessPath string, dir string) {
 }
 
 func testEmitToUnwritableDir(t *testing.T, harnessPath string, dir string) {
-	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
+	withAndWithoutRunner(func { setGoCoverDir, tag ->
 
 		tp := "emitToUnwritableDir"
 		rdir, edir := mktestdirs(t, tag, tp, dir)
@@ -321,7 +321,7 @@ func testEmitToUnwritableDir(t *testing.T, harnessPath string, dir string) {
 }
 
 func testEmitToNilWriter(t *testing.T, harnessPath string, dir string) {
-	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
+	withAndWithoutRunner(func { setGoCoverDir, tag ->
 		tp := "emitToNilWriter"
 		rdir, edir := mktestdirs(t, tag, tp, dir)
 		output, err := runHarness(t, harnessPath, tp, setGoCoverDir, rdir, edir)
@@ -335,7 +335,7 @@ func testEmitToNilWriter(t *testing.T, harnessPath string, dir string) {
 }
 
 func testEmitToFailingWriter(t *testing.T, harnessPath string, dir string) {
-	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
+	withAndWithoutRunner(func { setGoCoverDir, tag ->
 		tp := "emitToFailingWriter"
 		rdir, edir := mktestdirs(t, tag, tp, dir)
 		output, err := runHarness(t, harnessPath, tp, setGoCoverDir, rdir, edir)
@@ -349,7 +349,7 @@ func testEmitToFailingWriter(t *testing.T, harnessPath string, dir string) {
 }
 
 func testEmitWithCounterClear(t *testing.T, harnessPath string, dir string) {
-	withAndWithoutRunner(func(setGoCoverDir bool, tag string) {
+	withAndWithoutRunner(func { setGoCoverDir, tag ->
 		tp := "emitWithCounterClear"
 		rdir, edir := mktestdirs(t, tag, tp, dir)
 		output, err := runHarness(t, harnessPath, tp,

@@ -697,7 +697,7 @@ func BenchmarkExpMont(b *testing.B) {
 	for _, mod := range mods {
 		n, _ := new(Int).SetString(mod.val, 0)
 		out := new(Int)
-		b.Run(mod.name, func(b *testing.B) {
+		b.Run(mod.name, func { b ->
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				out.Exp(x, y, n)
@@ -1849,9 +1849,7 @@ func BenchmarkIntSqr(b *testing.B) {
 		if isRaceBuilder && n > 1e3 {
 			continue
 		}
-		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
-			benchmarkIntSqr(b, n)
-		})
+		b.Run(fmt.Sprintf("%d", n), func { b -> benchmarkIntSqr(b, n) })
 	}
 }
 
@@ -1878,9 +1876,7 @@ func BenchmarkDiv(b *testing.B) {
 	}
 	for _, i := range sizes {
 		j := 2 * i
-		b.Run(fmt.Sprintf("%d/%d", j, i), func(b *testing.B) {
-			benchmarkDiv(b, j, i)
-		})
+		b.Run(fmt.Sprintf("%d/%d", j, i), func { b -> benchmarkDiv(b, j, i) })
 	}
 }
 
@@ -1908,7 +1904,7 @@ func TestFillBytes(t *testing.T) {
 		"0xabababababababababababababababababababababababababa",
 		"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	} {
-		t.Run(n, func(t *testing.T) {
+		t.Run(n, func { t ->
 			t.Log(n)
 			x, ok := new(Int).SetString(n, 0)
 			if !ok {

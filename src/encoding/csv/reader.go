@@ -330,9 +330,7 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 parseField:
 	for {
 		if r.TrimLeadingSpace {
-			i := bytes.IndexFunc(line, func(r rune) bool {
-				return !unicode.IsSpace(r)
-			})
+			i := bytes.IndexFunc(line, func { r -> !unicode.IsSpace(r) })
 			if i < 0 {
 				i = len(line)
 				pos.col -= lengthNL(line)

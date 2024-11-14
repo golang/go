@@ -26,9 +26,7 @@ func TestWindow(t *testing.T) {
 				for k := 0; k <= 2*size; k++ {
 					c := makeSequence('a'+i+j, k)
 
-					t.Run(fmt.Sprintf("%d-%d-%d-%d", size, i, j, k), func(t *testing.T) {
-						testWindow(t, size, a, b, c)
-					})
+					t.Run(fmt.Sprintf("%d-%d-%d-%d", size, i, j, k), func { t -> testWindow(t, size, a, b, c) })
 				}
 			}
 		}

@@ -127,7 +127,7 @@ func TestValueConcurrent(t *testing.T) {
 func BenchmarkValueRead(b *testing.B) {
 	var v Value
 	v.Store(new(int))
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		for pb.Next() {
 			x := v.Load().(*int)
 			if *x != 0 {
@@ -151,7 +151,7 @@ var Value_SwapTests = []struct {
 
 func TestValue_Swap(t *testing.T) {
 	for i, tt := range Value_SwapTests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func { t ->
 			var v Value
 			if tt.init != nil {
 				v.Store(tt.init)
@@ -225,7 +225,7 @@ var Value_CompareAndSwapTests = []struct {
 
 func TestValue_CompareAndSwap(t *testing.T) {
 	for i, tt := range Value_CompareAndSwapTests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func { t ->
 			var v Value
 			if tt.init != nil {
 				v.Store(tt.init)

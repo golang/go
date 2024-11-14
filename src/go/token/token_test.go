@@ -24,7 +24,7 @@ func TestIsIdentifier(t *testing.T) {
 		{"LettersUnicode", "fóö", true},
 	}
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			if got := IsIdentifier(test.in); got != test.want {
 				t.Fatalf("IsIdentifier(%q) = %t, want %v", test.in, got, test.want)
 			}

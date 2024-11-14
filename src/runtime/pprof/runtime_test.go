@@ -61,7 +61,7 @@ func TestDo(t *testing.T) {
 		t.Errorf("Expected parent goroutine's profile labels to be empty before Do, got %v", gotLabels)
 	}
 
-	Do(context.Background(), Labels("key1", "value1", "key2", "value2"), func(ctx context.Context) {
+	Do(context.Background(), Labels("key1", "value1", "key2", "value2"), func { ctx ->
 		wantLabels := map[string]string{"key1": "value1", "key2": "value2"}
 		if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
 			t.Errorf("parent goroutine's profile labels: got %v, want %v", gotLabels, wantLabels)
@@ -76,7 +76,6 @@ func TestDo(t *testing.T) {
 			sync <- struct{}{}
 		}()
 		<-sync
-
 	})
 
 	wantLabels = map[string]string{}

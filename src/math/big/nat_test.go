@@ -240,9 +240,7 @@ func BenchmarkNatMul(b *testing.B) {
 		if isRaceBuilder && n > 1e3 {
 			continue
 		}
-		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
-			benchmarkNatMul(b, n)
-		})
+		b.Run(fmt.Sprintf("%d", n), func { b -> benchmarkNatMul(b, n) })
 	}
 }
 
@@ -310,29 +308,21 @@ func TestShiftRight(t *testing.T) {
 func BenchmarkZeroShifts(b *testing.B) {
 	x := rndNat(800)
 
-	b.Run("Shl", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			var z nat
-			z.shl(x, 0)
-		}
-	})
-	b.Run("ShlSame", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x.shl(x, 0)
-		}
-	})
+	b.Run("Shl", func { b -> for i := 0; i < b.N; i++ {
+		var z nat
+		z.shl(x, 0)
+	} })
+	b.Run("ShlSame", func { b -> for i := 0; i < b.N; i++ {
+		x.shl(x, 0)
+	} })
 
-	b.Run("Shr", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			var z nat
-			z.shr(x, 0)
-		}
-	})
-	b.Run("ShrSame", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x.shr(x, 0)
-		}
-	})
+	b.Run("Shr", func { b -> for i := 0; i < b.N; i++ {
+		var z nat
+		z.shr(x, 0)
+	} })
+	b.Run("ShrSame", func { b -> for i := 0; i < b.N; i++ {
+		x.shr(x, 0)
+	} })
 }
 
 type modWTest struct {
@@ -555,7 +545,7 @@ func TestExpNN(t *testing.T) {
 }
 
 func FuzzExpMont(f *testing.F) {
-	f.Fuzz(func(t *testing.T, x1, x2, x3, y1, y2, y3, m1, m2, m3 uint) {
+	f.Fuzz(func { t, x1, x2, x3, y1, y2, y3, m1, m2, m3 ->
 		if m1 == 0 && m2 == 0 && m3 == 0 {
 			return
 		}
@@ -575,7 +565,7 @@ func BenchmarkExp3Power(b *testing.B) {
 	for _, y := range []Word{
 		0x10, 0x40, 0x100, 0x400, 0x1000, 0x4000, 0x10000, 0x40000, 0x100000, 0x400000,
 	} {
-		b.Run(fmt.Sprintf("%#x", y), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%#x", y), func { b ->
 			var z nat
 			for i := 0; i < b.N; i++ {
 				z.expWW(x, y)
@@ -754,9 +744,7 @@ func BenchmarkNatSqr(b *testing.B) {
 		if isRaceBuilder && n > 1e3 {
 			continue
 		}
-		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
-			benchmarkNatSqr(b, n)
-		})
+		b.Run(fmt.Sprintf("%d", n), func { b -> benchmarkNatSqr(b, n) })
 	}
 }
 
@@ -779,7 +767,7 @@ var subMod2NTests = []struct {
 
 func TestNatSubMod2N(t *testing.T) {
 	for _, mode := range []string{"noalias", "aliasX", "aliasY"} {
-		t.Run(mode, func(t *testing.T) {
+		t.Run(mode, func { t ->
 			for _, tt := range subMod2NTests {
 				x0 := natFromString(tt.x)
 				y0 := natFromString(tt.y)
@@ -819,11 +807,9 @@ func BenchmarkNatSetBytes(b *testing.B) {
 	n := make(nat, maxLength/_W) // ensure n doesn't need to grow during the test
 	buf := make([]byte, maxLength)
 	for _, l := range lengths {
-		b.Run(fmt.Sprint(l), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				n.setBytes(buf[:l])
-			}
-		})
+		b.Run(fmt.Sprint(l), func { b -> for i := 0; i < b.N; i++ {
+			n.setBytes(buf[:l])
+		} })
 	}
 }
 

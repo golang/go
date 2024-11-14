@@ -119,7 +119,7 @@ func TestExhaustive(t *testing.T) {
 	if testing.Short() {
 		n = 4
 	}
-	everySequence("", "0A \r\n=", n, func(s string) {
+	everySequence("", "0A \r\n=", n, func { s ->
 		if strings.HasSuffix(s, "=") || strings.Contains(s, "==") {
 			return
 		}

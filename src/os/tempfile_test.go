@@ -77,7 +77,7 @@ func TestCreateTempBadPattern(t *testing.T) {
 		{"tempfile_test*foo" + sep, true},
 	}
 	for _, tt := range tests {
-		t.Run(tt.pattern, func(t *testing.T) {
+		t.Run(tt.pattern, func { t ->
 			tmpfile, err := CreateTemp(tmpDir, tt.pattern)
 			if tmpfile != nil {
 				defer tmpfile.Close()
@@ -129,7 +129,7 @@ func TestMkdirTemp(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.pattern, func(t *testing.T) {
+		t.Run(tt.pattern, func { t ->
 			wantRePat := "^" + regexp.QuoteMeta(filepath.Join(dir, tt.wantPrefix)) + "[0-9]+" + regexp.QuoteMeta(tt.wantSuffix) + "$"
 			runTestMkdirTemp(t, tt.pattern, wantRePat)
 		})
@@ -141,7 +141,7 @@ func TestMkdirTemp(t *testing.T) {
 	//     ^<DIR>[0-9]+xyz$
 	// yet we just want to match
 	//     "^<DIR>/[0-9]+xyz"
-	t.Run("*xyz", func(t *testing.T) {
+	t.Run("*xyz", func { t ->
 		wantRePat := "^" + regexp.QuoteMeta(filepath.Join(dir)) + regexp.QuoteMeta(string(filepath.Separator)) + "[0-9]+xyz$"
 		runTestMkdirTemp(t, "*xyz", wantRePat)
 	})
@@ -188,7 +188,7 @@ func TestMkdirTempBadPattern(t *testing.T) {
 		{"tempfile_test*foo" + sep, true},
 	}
 	for _, tt := range tests {
-		t.Run(tt.pattern, func(t *testing.T) {
+		t.Run(tt.pattern, func { t ->
 			_, err := MkdirTemp(tmpDir, tt.pattern)
 			if tt.wantErr {
 				if err == nil {

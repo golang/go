@@ -19,7 +19,7 @@ type bench struct {
 
 func benchMap(b *testing.B, bench bench) {
 	for _, m := range [...]mapInterface{&DeepCopyMap{}, &RWMutexMap{}, &sync.Map{}} {
-		b.Run(fmt.Sprintf("%T", m), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%T", m), func { b ->
 			m = reflect.New(reflect.TypeOf(m).Elem()).Interface().(mapInterface)
 			if bench.setup != nil {
 				bench.setup(b, m)
@@ -28,7 +28,7 @@ func benchMap(b *testing.B, bench bench) {
 			b.ResetTimer()
 
 			var i int64
-			b.RunParallel(func(pb *testing.PB) {
+			b.RunParallel(func { pb ->
 				id := int(atomic.AddInt64(&i, 1) - 1)
 				bench.perG(b, pb, id*b.N, m)
 			})
@@ -218,7 +218,7 @@ func BenchmarkRange(b *testing.B) {
 
 		perG: func(b *testing.B, pb *testing.PB, i int, m mapInterface) {
 			for ; pb.Next(); i++ {
-				m.Range(func(_, _ any) bool { return true })
+				m.Range(func { _, _ -> true })
 			}
 		},
 	})
@@ -265,7 +265,7 @@ func BenchmarkAdversarialDelete(b *testing.B) {
 				m.Load(i)
 
 				if i%mapSize == 0 {
-					m.Range(func(k, _ any) bool {
+					m.Range(func { k, _ ->
 						m.Delete(k)
 						return false
 					})

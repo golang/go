@@ -110,9 +110,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	slices.SortFunc(zs, func(a, b *zone) int {
-		return strings.Compare(a.UnixName, b.UnixName)
-	})
+	slices.SortFunc(zs, func { a, b -> strings.Compare(a.UnixName, b.UnixName) })
 	var v = struct {
 		URL string
 		Zs  []*zone

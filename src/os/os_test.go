@@ -768,7 +768,7 @@ func TestReaddirStatFailures(t *testing.T) {
 	}
 
 	var xerr error // error to return for x
-	*LstatP = func(path string) (FileInfo, error) {
+	*LstatP = func { path ->
 		if xerr != nil && strings.HasSuffix(path, "x") {
 			return nil, xerr
 		}
@@ -780,7 +780,7 @@ func TestReaddirStatFailures(t *testing.T) {
 	touch(t, filepath.Join(dir, "good1"))
 	touch(t, filepath.Join(dir, "x")) // will disappear or have an error
 	touch(t, filepath.Join(dir, "good2"))
-	readDir := func() ([]FileInfo, error) {
+	readDir := func {
 		d, err := Open(dir)
 		if err != nil {
 			t.Fatal(err)
@@ -1149,7 +1149,7 @@ func TestRenameCaseDifference(pt *testing.T) {
 	}
 
 	for _, test := range tests {
-		pt.Run(test.name, func(t *testing.T) {
+		pt.Run(test.name, func { t ->
 			defer chtmpdir(t)()
 
 			if err := test.create(); err != nil {
@@ -1361,7 +1361,7 @@ func TestTruncateNonexistentFile(t *testing.T) {
 	assertPathError(t, path, err)
 }
 
-var hasNoatime = sync.OnceValue(func() bool {
+var hasNoatime = sync.OnceValue(func {
 	// A sloppy way to check if noatime flag is set (as all filesystems are
 	// checked, not just the one we're interested in). A correct way
 	// would be to use statvfs syscall and check if flags has ST_NOATIME,
@@ -2457,7 +2457,7 @@ func TestLongPath(t *testing.T) {
 		tmpdir += "/dir3456789"
 	}
 	for _, sz := range sizes {
-		t.Run(fmt.Sprintf("length=%d", sz), func(t *testing.T) {
+		t.Run(fmt.Sprintf("length=%d", sz), func { t ->
 			sizedTempDir := tmpdir[:sz-1] + "x" // Ensure it does not end with a slash.
 
 			// The various sized runs are for this call to trigger the boundary
@@ -2550,7 +2550,7 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 }
 
 func TestKillStartProcess(t *testing.T) {
-	testKillProcess(t, func(p *Process) {
+	testKillProcess(t, func { p ->
 		err := p.Kill()
 		if err != nil {
 			t.Fatalf("Failed to kill test process: %v", err)
@@ -2589,7 +2589,7 @@ func TestGetppid(t *testing.T) {
 }
 
 func TestKillFindProcess(t *testing.T) {
-	testKillProcess(t, func(p *Process) {
+	testKillProcess(t, func { p ->
 		p2, err := FindProcess(p.Pid)
 		if err != nil {
 			t.Fatalf("Failed to find test process: %v", err)
@@ -2989,7 +2989,7 @@ func forceMFTUpdateOnWindows(t *testing.T, path string) {
 
 	// On Windows, we force the MFT to update by reading the actual metadata from GetFileInformationByHandle and then
 	// explicitly setting that. Otherwise it might get out of sync with FindFirstFile. See golang.org/issues/42637.
-	if err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+	if err := filepath.WalkDir(path, func { path, d, err ->
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3111,7 +3111,7 @@ func TestDirFSPathsValid(t *testing.T) {
 	}
 
 	fsys := DirFS(d)
-	err := fs.WalkDir(fsys, ".", func(path string, e fs.DirEntry, err error) error {
+	err := fs.WalkDir(fsys, ".", func { path, e, err ->
 		if fs.ValidPath(e.Name()) {
 			t.Logf("%q ok", e.Name())
 		} else {
@@ -3333,7 +3333,7 @@ func TestCopyFS(t *testing.T) {
 	if err := fstest.TestFS(tmpFsys, "a", "b", "dir/x"); err != nil {
 		t.Fatal("TestFS:", err)
 	}
-	if err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+	if err := fs.WalkDir(fsys, ".", func { path, d, err ->
 		if d.IsDir() {
 			return nil
 		}
@@ -3379,7 +3379,7 @@ func TestCopyFS(t *testing.T) {
 	if err := fstest.TestFS(tmpFsys, "william", "carl", "daVinci", "einstein", "dir/newton"); err != nil {
 		t.Fatal("TestFS:", err)
 	}
-	if err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+	if err := fs.WalkDir(fsys, ".", func { path, d, err ->
 		if d.IsDir() {
 			return nil
 		}
@@ -3492,7 +3492,7 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 	if err := fstest.TestFS(tmpFsys, "file.in.txt", "out_symlinks/file.abs.out.link", "out_symlinks/file.rel.out.link", "in_symlinks/file.rel.in.link"); err != nil {
 		t.Fatal("TestFS:", err)
 	}
-	if err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+	if err := fs.WalkDir(fsys, ".", func { path, d, err ->
 		if d.IsDir() {
 			return nil
 		}

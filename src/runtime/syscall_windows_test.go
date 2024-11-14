@@ -138,7 +138,7 @@ func TestEnumWindows(t *testing.T) {
 	d := GetDLL(t, "user32.dll")
 	isWindows := d.Proc("IsWindow")
 	counter := 0
-	cb := syscall.NewCallback(func(hwnd syscall.Handle, lparam uintptr) uintptr {
+	cb := syscall.NewCallback(func { hwnd, lparam ->
 		if lparam != 888 {
 			t.Error("lparam was not passed to callback")
 		}
@@ -562,16 +562,16 @@ func TestStdcallAndCDeclCallbacks(t *testing.T) {
 	defer runtime.SetIntArgRegs(oldRegs)
 
 	for _, dll := range cbDLLs {
-		t.Run(dll.name, func(t *testing.T) {
+		t.Run(dll.name, func { t ->
 			dllPath := dll.build(t, tmp)
 			dll := syscall.MustLoadDLL(dllPath)
 			defer dll.Release()
 			for _, cbf := range getCallbackTestFuncs() {
-				t.Run(cbf.cName(false), func(t *testing.T) {
+				t.Run(cbf.cName(false), func { t ->
 					stdcall := syscall.NewCallback(cbf.goFunc)
 					cbf.testOne(t, dll, false, stdcall)
 				})
-				t.Run(cbf.cName(true), func(t *testing.T) {
+				t.Run(cbf.cName(true), func { t ->
 					cdecl := syscall.NewCallbackCDecl(cbf.goFunc)
 					cbf.testOne(t, dll, true, cdecl)
 				})
@@ -688,7 +688,7 @@ func use(buf []byte) {
 
 func forceStackCopy() (r int) {
 	var f func(int) int
-	f = func(i int) int {
+	f = func { i ->
 		var buf [256]byte
 		use(buf[:])
 		if i == 0 {
@@ -739,7 +739,7 @@ uintptr_t cfunc(callback f, uintptr_t n) {
 
 	proc := dll.MustFindProc("cfunc")
 
-	cb := syscall.NewCallback(func(n uintptr) uintptr {
+	cb := syscall.NewCallback(func { n ->
 		forceStackCopy()
 		return n
 	})
@@ -774,7 +774,7 @@ func TestSyscallN(t *testing.T) {
 
 	for arglen := 0; arglen <= runtime.MaxArgs; arglen++ {
 		arglen := arglen
-		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
+		t.Run(fmt.Sprintf("arg-%d", arglen), func { t ->
 			t.Parallel()
 			args := make([]string, arglen)
 			rets := make([]string, arglen+1)
@@ -1200,7 +1200,7 @@ func TestBigStackCallbackSyscall(t *testing.T) {
 
 	var ok bool
 	proc := dll.MustFindProc("bigStack")
-	cb := syscall.NewCallback(func() uintptr {
+	cb := syscall.NewCallback(func {
 		// Do something interesting to force stack checks.
 		forceStackCopy()
 		ok = true

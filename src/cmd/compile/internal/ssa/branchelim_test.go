@@ -22,7 +22,7 @@ func TestBranchElimIf(t *testing.T) {
 	}
 
 	for _, data := range testData {
-		t.Run(data.arch+"/"+data.intType, func(t *testing.T) {
+		t.Run(data.arch+"/"+data.intType, func { t ->
 			c := testConfigArch(t, data.arch)
 			boolType := c.config.Types.Bool
 			var intType *types.Type
@@ -82,7 +82,7 @@ func TestBranchElimIf(t *testing.T) {
 // Test that a trivial if/else is eliminated
 func TestBranchElimIfElse(t *testing.T) {
 	for _, arch := range []string{"arm64", "amd64"} {
-		t.Run(arch, func(t *testing.T) {
+		t.Run(arch, func { t ->
 			c := testConfigArch(t, arch)
 			boolType := c.config.Types.Bool
 			intType := c.config.Types.Int32
@@ -130,7 +130,7 @@ func TestBranchElimIfElse(t *testing.T) {
 // into itself does *not* get eliminated.
 func TestNoBranchElimLoop(t *testing.T) {
 	for _, arch := range []string{"arm64", "amd64"} {
-		t.Run(arch, func(t *testing.T) {
+		t.Run(arch, func { t ->
 			c := testConfigArch(t, arch)
 			boolType := c.config.Types.Bool
 			intType := c.config.Types.Int32

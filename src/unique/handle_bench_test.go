@@ -31,7 +31,7 @@ func benchmarkMake(b *testing.B, testData []string) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		i := 0
 		for pb.Next() {
 			_ = Make(testData[i])

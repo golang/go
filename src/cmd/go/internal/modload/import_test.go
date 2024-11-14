@@ -72,7 +72,7 @@ func TestQueryImport(t *testing.T) {
 	rs := LoadModFile(ctx)
 
 	for _, tt := range importTests {
-		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func { t ->
 			// Note that there is no build list, so Import should always fail.
 			m, err := queryImport(ctx, tt.path, rs)
 

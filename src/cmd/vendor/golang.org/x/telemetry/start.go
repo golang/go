@@ -278,13 +278,13 @@ func child(config Config) {
 	var g errgroup.Group
 
 	if reportCrashes {
-		g.Go(func() error {
+		g.Go(func {
 			crashmonitor.Child()
 			return nil
 		})
 	}
 	if upload {
-		g.Go(func() error {
+		g.Go(func {
 			uploaderChild(uploadStartTime, uploadURL)
 			return nil
 		})

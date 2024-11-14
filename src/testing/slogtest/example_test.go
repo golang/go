@@ -21,7 +21,7 @@ func Example_parsing() {
 	var buf bytes.Buffer
 	h := slog.NewJSONHandler(&buf, nil)
 
-	results := func() []map[string]any {
+	results := func {
 		var ms []map[string]any
 		for _, line := range bytes.Split(buf.Bytes(), []byte{'\n'}) {
 			if len(line) == 0 {

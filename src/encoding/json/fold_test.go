@@ -40,7 +40,7 @@ func FuzzEqualFold(f *testing.F) {
 		f.Add([]byte(ss[0]), []byte(ss[1]))
 	}
 	equalFold := func(x, y []byte) bool { return string(foldName(x)) == string(foldName(y)) }
-	f.Fuzz(func(t *testing.T, x, y []byte) {
+	f.Fuzz(func { t, x, y ->
 		got := equalFold(x, y)
 		want := bytes.EqualFold(x, y)
 		if got != want {

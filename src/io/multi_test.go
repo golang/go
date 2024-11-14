@@ -179,7 +179,7 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 	n := runtime.Callers(0, pc)
 	var myDepth = callDepth(pc[:n])
 	var writeDepth int // will contain the depth from which writerFunc.Writer was called
-	var w Writer = MultiWriter(writerFunc(func(p []byte) (int, error) {
+	var w Writer = MultiWriter(writerFunc(func { p ->
 		n := runtime.Callers(1, pc)
 		writeDepth += callDepth(pc[:n])
 		return 0, nil
@@ -201,10 +201,8 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 }
 
 func TestMultiWriterError(t *testing.T) {
-	f1 := writerFunc(func(p []byte) (int, error) {
-		return len(p) / 2, ErrShortWrite
-	})
-	f2 := writerFunc(func(p []byte) (int, error) {
+	f1 := writerFunc(func { p -> len(p) / 2, ErrShortWrite })
+	f2 := writerFunc(func { p ->
 		t.Errorf("MultiWriter called f2.Write")
 		return len(p), nil
 	})
@@ -265,7 +263,7 @@ func TestMultiReaderFlatten(t *testing.T) {
 	n := runtime.Callers(0, pc)
 	var myDepth = callDepth(pc[:n])
 	var readDepth int // will contain the depth from which fakeReader.Read was called
-	var r Reader = MultiReader(readerFunc(func(p []byte) (int, error) {
+	var r Reader = MultiReader(readerFunc(func { p ->
 		n := runtime.Callers(1, pc)
 		readDepth = callDepth(pc[:n])
 		return 0, errors.New("irrelevant")
@@ -332,9 +330,7 @@ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 		buf1 := bytes.NewReader([]byte("foo"))
 		buf2 := bytes.NewReader([]byte("bar"))
 		mr = MultiReader(buf1, buf2)
-		runtime.SetFinalizer(buf1, func(*bytes.Reader) {
-			close(closed)
-		})
+		runtime.SetFinalizer(buf1, func { close(closed) })
 	}()
 
 	buf := make([]byte, 4)

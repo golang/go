@@ -138,19 +138,15 @@ func TestTRun(t *T) {
 		f: func(t *T) {
 			ranSeq := false
 			ranPar := false
-			t.Run("", func(t *T) {
-				t.Run("par", func(t *T) {
+			t.Run("", func { t ->
+				t.Run("par", func { t ->
 					t.Parallel()
 					ranPar = true
 				})
-				t.Run("seq", func(t *T) {
-					ranSeq = true
-				})
+				t.Run("seq", func { t -> ranSeq = true })
 				t.FailNow()
-				t.Run("seq", func(t *T) {
-					realTest.Error("test must be skipped")
-				})
-				t.Run("par", func(t *T) {
+				t.Run("seq", func { t -> realTest.Error("test must be skipped") })
+				t.Run("par", func { t ->
 					t.Parallel()
 					realTest.Error("test must be skipped.")
 				})
@@ -172,9 +168,9 @@ func TestTRun(t *T) {
         --- FAIL: failure in parallel test propagates upwards/#00/par (N.NNs)
         `,
 		f: func(t *T) {
-			t.Run("", func(t *T) {
+			t.Run("", func { t ->
 				t.Parallel()
-				t.Run("par", func(t *T) {
+				t.Run("par", func { t ->
 					t.Parallel()
 					t.Fail()
 				})
@@ -200,9 +196,7 @@ func TestTRun(t *T) {
     --- PASS: chatty with recursion/#00 (N.NNs)
         --- PASS: chatty with recursion/#00/#00 (N.NNs)`,
 		f: func(t *T) {
-			t.Run("", func(t *T) {
-				t.Run("", func(t *T) {})
-			})
+			t.Run("", func { t -> t.Run("", func { t -> }) })
 		},
 	}, {
 		desc:   "chatty with recursion and json",
@@ -228,10 +222,10 @@ func TestTRun(t *T) {
 ^V--- FAIL: chatty with recursion and json (N.NNs)
 ^V=== NAME  `,
 		f: func(t *T) {
-			t.Run("", func(t *T) {
-				t.Run("", func(t *T) {})
-				t.Run("", func(t *T) { t.Skip("skip") })
-				t.Run("", func(t *T) { t.Fatal("fail") })
+			t.Run("", func { t ->
+				t.Run("", func { t -> })
+				t.Run("", func { t -> t.Skip("skip") })
+				t.Run("", func { t -> t.Fatal("fail") })
 			})
 		},
 	}, {
@@ -254,9 +248,9 @@ func TestTRun(t *T) {
 		maxPar: 1,
 		f: func(t *T) {
 			var count uint32
-			t.Run("waitGroup", func(t *T) {
+			t.Run("waitGroup", func { t ->
 				for i := 0; i < 4; i++ {
-					t.Run("par", func(t *T) {
+					t.Run("par", func { t ->
 						t.Parallel()
 						atomic.AddUint32(&count, 1)
 					})
@@ -274,15 +268,11 @@ func TestTRun(t *T) {
 		ok:     true,
 		maxPar: 1,
 		f: func(t *T) {
-			t.Run("a", func(t *T) {
+			t.Run("a", func { t ->
 				t.Parallel()
-				t.Run("b", func(t *T) {
-					// Sequential: ensure running count is decremented.
-					t.Run("c", func(t *T) {
-						t.Parallel()
-					})
-
-				})
+				t.Run("b", func { t ->
+				// Sequential: ensure running count is decremented.
+				t.Run("c", func { t -> t.Parallel() }) })
 			})
 		},
 	}, {
@@ -294,19 +284,18 @@ func TestTRun(t *T) {
 		maxPar: 2,
 		f: func(t *T) {
 			for i := 0; i < 2; i++ {
-				t.Run("a", func(t *T) {
+				t.Run("a", func { t ->
 					t.Parallel()
 					time.Sleep(time.Nanosecond)
 					for i := 0; i < 2; i++ {
-						t.Run("b", func(t *T) {
+						t.Run("b", func { t ->
 							time.Sleep(time.Nanosecond)
 							for i := 0; i < 2; i++ {
-								t.Run("c", func(t *T) {
+								t.Run("c", func { t ->
 									t.Parallel()
 									time.Sleep(time.Nanosecond)
 								})
 							}
-
 						})
 					}
 				})
@@ -319,20 +308,20 @@ func TestTRun(t *T) {
 		f: func(t *T) {
 			t.Parallel()
 			for i := 0; i < 12; i++ {
-				t.Run("a", func(t *T) {
+				t.Run("a", func { t ->
 					t.Parallel()
 					time.Sleep(time.Nanosecond)
 					for i := 0; i < 12; i++ {
-						t.Run("b", func(t *T) {
+						t.Run("b", func { t ->
 							time.Sleep(time.Nanosecond)
 							for i := 0; i < 12; i++ {
-								t.Run("c", func(t *T) {
+								t.Run("c", func { t ->
 									t.Parallel()
 									time.Sleep(time.Nanosecond)
-									t.Run("d1", func(t *T) {})
-									t.Run("d2", func(t *T) {})
-									t.Run("d3", func(t *T) {})
-									t.Run("d4", func(t *T) {})
+									t.Run("d1", func { t -> })
+									t.Run("d2", func { t -> })
+									t.Run("d3", func { t -> })
+									t.Run("d4", func { t -> })
 								})
 							}
 						})
@@ -359,9 +348,7 @@ func TestTRun(t *T) {
 		f: func(t *T) {
 			t.Errorf("first this")
 			outer := t
-			t.Run("", func(t *T) {
-				outer.Errorf("and now this!")
-			})
+			t.Run("", func { t -> outer.Errorf("and now this!") })
 			t.Errorf("oh, and this too")
 		},
 	}, {
@@ -377,9 +364,7 @@ func TestTRun(t *T) {
 		f: func(t *T) {
 			outer := t
 			t.Errorf("first this")
-			t.Run("", func(t *T) {
-				outer.Fatalf("and now this!")
-			})
+			t.Run("", func { t -> outer.Fatalf("and now this!") })
 			t.Errorf("Should not reach here.")
 		},
 	}, {
@@ -394,10 +379,8 @@ func TestTRun(t *T) {
 		maxPar: 1,
 		f: func(t *T) {
 			outer := t
-			t.Run("", func(t *T) {
-				t.Run("", func(t *T) {
-					outer.Errorf("Report to ancestor")
-				})
+			t.Run("", func { t ->
+				t.Run("", func { t -> outer.Errorf("Report to ancestor") })
 				t.Errorf("Still do this")
 			})
 			t.Errorf("Also do this")
@@ -411,11 +394,9 @@ func TestTRun(t *T) {
 		maxPar: 1,
 		f: func(t *T) {
 			outer := t
-			t.Run("", func(t *T) {
+			t.Run("", func { t ->
 				for i := 0; i < 4; i++ {
-					t.Run("", func(t *T) {
-						outer.Fatalf("Nope")
-					})
+					t.Run("", func { t -> outer.Fatalf("Nope") })
 					t.Errorf("Don't do this")
 				}
 				t.Errorf("And neither do this")
@@ -428,7 +409,7 @@ func TestTRun(t *T) {
 		maxPar: 4,
 		f: func(t *T) {
 			ch := make(chan bool)
-			t.Run("", func(t *T) {
+			t.Run("", func { t ->
 				go func() {
 					<-ch
 					defer func() {
@@ -454,13 +435,11 @@ func TestTRun(t *T) {
 		maxPar: 1,
 		f: func(t *T) {
 			ch := make(chan bool)
-			t.Run("sub", func(t2 *T) {
-				go func() {
-					<-ch
-					t2.Log("message1")
-					ch <- true
-				}()
-			})
+			t.Run("sub", func { t2 -> go func() {
+				<-ch
+				t2.Log("message1")
+				ch <- true
+			}() })
 			t.Log("message2")
 			ch <- true
 			<-ch
@@ -477,13 +456,11 @@ func TestTRun(t *T) {
 		maxPar: 1,
 		f: func(t *T) {
 			ch := make(chan bool)
-			t.Run("sub", func(t2 *T) {
-				go func() {
-					<-ch
-					t2.Log("message1")
-					ch <- true
-				}()
-			})
+			t.Run("sub", func { t2 -> go func() {
+				<-ch
+				t2.Log("message1")
+				ch <- true
+			}() })
 			t.Log("message2")
 			ch <- true
 			<-ch
@@ -500,13 +477,11 @@ func TestTRun(t *T) {
     sub_test.go:NNN: running cleanup`,
 		f: func(t *T) {
 			t.Cleanup(func() { t.Log("running cleanup") })
-			t.Run("sub", func(t2 *T) {
-				t2.FailNow()
-			})
+			t.Run("sub", func { t2 -> t2.FailNow() })
 		},
 	}}
 	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *T) {
+		t.Run(tc.desc, func { t ->
 			ctx := newTestContext(tc.maxPar, allMatcher())
 			buf := &strings.Builder{}
 			root := &T{
@@ -559,9 +534,9 @@ func TestBRun(t *T) {
 	}{{
 		desc: "simulate sequential run of subbenchmarks.",
 		f: func(b *B) {
-			b.Run("", func(b *B) { work(b) })
+			b.Run("", func { b -> work(b) })
 			time1 := b.result.NsPerOp()
-			b.Run("", func(b *B) { work(b) })
+			b.Run("", func { b -> work(b) })
 			time2 := b.result.NsPerOp()
 			if time1 >= time2 {
 				t.Errorf("no time spent in benchmark t1 >= t2 (%d >= %d)", time1, time2)
@@ -570,8 +545,14 @@ func TestBRun(t *T) {
 	}, {
 		desc: "bytes set by all benchmarks",
 		f: func(b *B) {
-			b.Run("", func(b *B) { b.SetBytes(10); work(b) })
-			b.Run("", func(b *B) { b.SetBytes(10); work(b) })
+			b.Run("", func { b ->
+				b.SetBytes(10)
+				work(b)
+			})
+			b.Run("", func { b ->
+				b.SetBytes(10)
+				work(b)
+			})
 			if b.result.Bytes != 20 {
 				t.Errorf("bytes: got: %d; want 20", b.result.Bytes)
 			}
@@ -580,9 +561,15 @@ func TestBRun(t *T) {
 		desc: "bytes set by some benchmarks",
 		// In this case the bytes result is meaningless, so it must be 0.
 		f: func(b *B) {
-			b.Run("", func(b *B) { b.SetBytes(10); work(b) })
-			b.Run("", func(b *B) { work(b) })
-			b.Run("", func(b *B) { b.SetBytes(10); work(b) })
+			b.Run("", func { b ->
+				b.SetBytes(10)
+				work(b)
+			})
+			b.Run("", func { b -> work(b) })
+			b.Run("", func { b ->
+				b.SetBytes(10)
+				work(b)
+			})
 			if b.result.Bytes != 0 {
 				t.Errorf("bytes: got: %d; want 0", b.result.Bytes)
 			}
@@ -601,9 +588,7 @@ func TestBRun(t *T) {
 		desc:   "chatty with recursion",
 		chatty: true,
 		f: func(b *B) {
-			b.Run("", func(b *B) {
-				b.Run("", func(b *B) {})
-			})
+			b.Run("", func { b -> b.Run("", func { b -> }) })
 		},
 	}, {
 		desc: "skipping without message, not chatty",
@@ -629,11 +614,11 @@ func TestBRun(t *T) {
 					_ = append([]byte(nil), buf[:]...)
 				}
 			}
-			b.Run("", func(b *B) {
+			b.Run("", func { b ->
 				alloc(b)
 				b.ReportAllocs()
 			})
-			b.Run("", func(b *B) {
+			b.Run("", func { b ->
 				alloc(b)
 				b.ReportAllocs()
 			})
@@ -652,12 +637,12 @@ func TestBRun(t *T) {
 		desc: "cleanup is called",
 		f: func(b *B) {
 			var calls, cleanups, innerCalls, innerCleanups int
-			b.Run("", func(b *B) {
+			b.Run("", func { b ->
 				calls++
 				b.Cleanup(func() {
 					cleanups++
 				})
-				b.Run("", func(b *B) {
+				b.Run("", func { b ->
 					b.Cleanup(func() {
 						innerCleanups++
 					})
@@ -677,7 +662,7 @@ func TestBRun(t *T) {
 		failed: true,
 		f: func(b *B) {
 			var calls, cleanups int
-			b.Run("", func(b *B) {
+			b.Run("", func { b ->
 				calls++
 				b.Cleanup(func() {
 					cleanups++
@@ -694,7 +679,7 @@ func TestBRun(t *T) {
 		hideStdoutForTesting = false
 	}()
 	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *T) {
+		t.Run(tc.desc, func { t ->
 			var ok bool
 			buf := &strings.Builder{}
 			// This is almost like the Benchmark function, except that we override
@@ -743,13 +728,13 @@ func makeRegexp(s string) string {
 func TestBenchmarkOutput(t *T) {
 	// Ensure Benchmark initialized common.w by invoking it with an error and
 	// normal case.
-	Benchmark(func(b *B) { b.Error("do not print this output") })
-	Benchmark(func(b *B) {})
+	Benchmark(func { b -> b.Error("do not print this output") })
+	Benchmark(func { b -> })
 }
 
 func TestBenchmarkStartsFrom1(t *T) {
 	var first = true
-	Benchmark(func(b *B) {
+	Benchmark(func { b ->
 		if first && b.N != 1 {
 			panic(fmt.Sprintf("Benchmark() first N=%v; want 1", b.N))
 		}
@@ -759,7 +744,7 @@ func TestBenchmarkStartsFrom1(t *T) {
 
 func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
 	var first = true
-	Benchmark(func(b *B) {
+	Benchmark(func { b ->
 		if first && (b.startAllocs == 0 || b.startBytes == 0) {
 			panic("ReadMemStats not called before first run")
 		}
@@ -794,15 +779,13 @@ func TestRacyOutput(t *T) {
 		context: newTestContext(1, allMatcher()),
 	}
 	root.chatty = newChattyPrinter(root.w)
-	root.Run("", func(t *T) {
+	root.Run("", func { t ->
 		var wg sync.WaitGroup
 		for i := 0; i < 100; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
-				t.Run(fmt.Sprint(i), func(t *T) {
-					t.Logf("testing run %d", i)
-				})
+				t.Run(fmt.Sprint(i), func { t -> t.Logf("testing run %d", i) })
 			}(i)
 		}
 		wg.Wait()
@@ -829,8 +812,8 @@ func TestLogAfterComplete(t *T) {
 
 	c1 := make(chan bool)
 	c2 := make(chan string)
-	tRunner(t1, func(t *T) {
-		t.Run("TestLateLog", func(t *T) {
+	tRunner(t1, func { t ->
+		t.Run("TestLateLog", func { t ->
 			go func() {
 				defer close(c2)
 				defer func() {
@@ -866,13 +849,11 @@ func TestBenchmark(t *T) {
 	if Short() {
 		t.Skip("skipping in short mode")
 	}
-	res := Benchmark(func(b *B) {
+	res := Benchmark(func { b ->
 		for i := 0; i < 5; i++ {
-			b.Run("", func(b *B) {
-				for i := 0; i < b.N; i++ {
-					time.Sleep(time.Millisecond)
-				}
-			})
+			b.Run("", func { b -> for i := 0; i < b.N; i++ {
+				time.Sleep(time.Millisecond)
+			} })
 		}
 	})
 	if res.NsPerOp() < 4000000 {
@@ -882,7 +863,7 @@ func TestBenchmark(t *T) {
 
 func TestCleanup(t *T) {
 	var cleanups []int
-	t.Run("test", func(t *T) {
+	t.Run("test", func { t ->
 		t.Cleanup(func() { cleanups = append(cleanups, 1) })
 		t.Cleanup(func() { cleanups = append(cleanups, 2) })
 	})
@@ -893,7 +874,7 @@ func TestCleanup(t *T) {
 
 func TestConcurrentCleanup(t *T) {
 	cleanups := 0
-	t.Run("test", func(t *T) {
+	t.Run("test", func { t ->
 		var wg sync.WaitGroup
 		wg.Add(2)
 		for i := 0; i < 2; i++ {
@@ -918,7 +899,7 @@ func TestConcurrentCleanup(t *T) {
 
 func TestCleanupCalledEvenAfterGoexit(t *T) {
 	cleanups := 0
-	t.Run("test", func(t *T) {
+	t.Run("test", func { t ->
 		t.Cleanup(func() {
 			cleanups++
 		})
@@ -934,11 +915,9 @@ func TestCleanupCalledEvenAfterGoexit(t *T) {
 func TestRunCleanup(t *T) {
 	outerCleanup := 0
 	innerCleanup := 0
-	t.Run("test", func(t *T) {
+	t.Run("test", func { t ->
 		t.Cleanup(func() { outerCleanup++ })
-		t.Run("x", func(t *T) {
-			t.Cleanup(func() { innerCleanup++ })
-		})
+		t.Run("x", func { t -> t.Cleanup(func() { innerCleanup++ }) })
 	})
 	if innerCleanup != 1 {
 		t.Errorf("unexpected inner cleanup count; got %d want 1", innerCleanup)
@@ -950,9 +929,9 @@ func TestRunCleanup(t *T) {
 
 func TestCleanupParallelSubtests(t *T) {
 	ranCleanup := 0
-	t.Run("test", func(t *T) {
+	t.Run("test", func { t ->
 		t.Cleanup(func() { ranCleanup++ })
-		t.Run("x", func(t *T) {
+		t.Run("x", func { t ->
 			t.Parallel()
 			if ranCleanup > 0 {
 				t.Error("outer cleanup ran before parallel subtest")
@@ -966,7 +945,7 @@ func TestCleanupParallelSubtests(t *T) {
 
 func TestNestedCleanup(t *T) {
 	ranCleanup := 0
-	t.Run("test", func(t *T) {
+	t.Run("test", func { t ->
 		t.Cleanup(func() {
 			if ranCleanup != 2 {
 				t.Errorf("unexpected cleanup count in first cleanup: got %d want 2", ranCleanup)

@@ -38,11 +38,11 @@ func TestWrap(t *testing.T) {
 	}
 
 	for n := 1; n <= len(words) && !t.Failed(); n++ {
-		t.Run(fmt.Sprint("n=", n), func(t *testing.T) {
+		t.Run(fmt.Sprint("n=", n), func { t ->
 			words := words[:n]
 			t.Logf("words: %v", words)
 			for max := 1; max < 100 && !t.Failed(); max++ {
-				t.Run(fmt.Sprint("max=", max), func(t *testing.T) {
+				t.Run(fmt.Sprint("max=", max), func { t ->
 					seq := wrap(words, max)
 
 					// Compute score for seq.

@@ -311,7 +311,7 @@ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[lo
 
 	// Loop through the CUs, and calculate the size needed.
 	var size int64
-	walkFuncs(ctxt, funcs, func(s loader.Sym) {
+	walkFuncs(ctxt, funcs, func { s ->
 		nameOffsets[s] = uint32(size)
 		size += int64(len(ctxt.loader.SymName(s)) + 1) // NULL terminate
 	})
@@ -386,7 +386,7 @@ func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.Compilat
 	// file index we've seen per CU so we can calculate how large the
 	// CU->global table needs to be.
 	var fileSize int64
-	walkFilenames(ctxt, funcs, func(cu *sym.CompilationUnit, i goobj.CUFileIndex) {
+	walkFilenames(ctxt, funcs, func { cu, i ->
 		// Note we use the raw filename for lookup, but use the expanded filename
 		// when we save the size.
 		filename := cu.FileTable[i]

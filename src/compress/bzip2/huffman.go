@@ -103,7 +103,7 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 		pairs[i].length = length
 	}
 
-	slices.SortFunc(pairs, func(a, b huffmanSymbolLengthPair) int {
+	slices.SortFunc(pairs, func { a, b ->
 		if c := cmp.Compare(a.length, b.length); c != 0 {
 			return c
 		}
@@ -132,9 +132,7 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 
 	// Now we can sort by the code so that the left half of each branch are
 	// grouped together, recursively.
-	slices.SortFunc(codes, func(a, b huffmanCode) int {
-		return cmp.Compare(a.code, b.code)
-	})
+	slices.SortFunc(codes, func { a, b -> cmp.Compare(a.code, b.code) })
 
 	t.nodes = make([]huffmanNode, len(codes))
 	_, err := buildHuffmanNode(&t, codes, 0)

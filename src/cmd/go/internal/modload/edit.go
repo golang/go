@@ -256,7 +256,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 
 		// Now check the resulting extended graph for errors and incompatibilities.
 		t := dqTracker{extendedRootPruning: extendedRootPruning}
-		mg.g.WalkBreadthFirst(func(m module.Version) {
+		mg.g.WalkBreadthFirst(func { m ->
 			if max, ok := mustSelectVersion[m.Path]; ok && gover.ModCompare(m.Path, m.Version, max) > 0 {
 				// m itself violates mustSelect, so it cannot appear in the module graph
 				// even if its transitive dependencies would be pruned out.

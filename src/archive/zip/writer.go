@@ -501,7 +501,7 @@ func (w *Writer) RegisterCompressor(method uint16, comp Compressor) {
 // It walks the directory tree starting at the root of the filesystem
 // adding each file to the zip using deflate while maintaining the directory structure.
 func (w *Writer) AddFS(fsys fs.FS) error {
-	return fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(fsys, ".", func { name, d, err ->
 		if err != nil {
 			return err
 		}

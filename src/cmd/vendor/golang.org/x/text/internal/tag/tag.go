@@ -25,9 +25,7 @@ func (s Index) Index(key []byte) int {
 	n := len(key)
 	// search the index of the first entry with an equal or higher value than
 	// key in s.
-	index := sort.Search(len(s)/4, func(i int) bool {
-		return cmp(s[i*4:i*4+n], key) != -1
-	})
+	index := sort.Search(len(s)/4, func { i -> cmp(s[i*4:i*4+n], key) != -1 })
 	i := index * 4
 	if cmp(s[i:i+len(key)], key) != 0 {
 		return -1

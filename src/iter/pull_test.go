@@ -33,7 +33,7 @@ func squares(n int) Seq2[int, int64] {
 
 func TestPull(t *testing.T) {
 	for end := 0; end <= 3; end++ {
-		t.Run(fmt.Sprint(end), func(t *testing.T) {
+		t.Run(fmt.Sprint(end), func { t ->
 			ng := stableNumGoroutine()
 			wantNG := func(want int) {
 				if xg := runtime.NumGoroutine() - ng; xg != want {
@@ -75,7 +75,7 @@ func TestPull(t *testing.T) {
 
 func TestPull2(t *testing.T) {
 	for end := 0; end <= 3; end++ {
-		t.Run(fmt.Sprint(end), func(t *testing.T) {
+		t.Run(fmt.Sprint(end), func { t ->
 			ng := stableNumGoroutine()
 			wantNG := func(want int) {
 				if xg := runtime.NumGoroutine() - ng; xg != want {
@@ -243,7 +243,7 @@ func storeYield2() Seq2[int, int] {
 var yieldSlot2 func(int, int) bool
 
 func TestPullPanic(t *testing.T) {
-	t.Run("next", func(t *testing.T) {
+	t.Run("next", func { t ->
 		next, stop := Pull(panicSeq())
 		if !panicsWith("boom", func() { next() }) {
 			t.Fatal("failed to propagate panic on first next")
@@ -255,7 +255,7 @@ func TestPullPanic(t *testing.T) {
 		// Calling stop again should be a no-op.
 		stop()
 	})
-	t.Run("stop", func(t *testing.T) {
+	t.Run("stop", func { t ->
 		next, stop := Pull(panicCleanupSeq())
 		x, ok := next()
 		if !ok || x != 55 {
@@ -290,7 +290,7 @@ func panicCleanupSeq() Seq[int] {
 }
 
 func TestPull2Panic(t *testing.T) {
-	t.Run("next", func(t *testing.T) {
+	t.Run("next", func { t ->
 		next, stop := Pull2(panicSeq2())
 		if !panicsWith("boom", func() { next() }) {
 			t.Fatal("failed to propagate panic on first next")
@@ -302,7 +302,7 @@ func TestPull2Panic(t *testing.T) {
 		// Calling stop again should be a no-op.
 		stop()
 	})
-	t.Run("stop", func(t *testing.T) {
+	t.Run("stop", func { t ->
 		next, stop := Pull2(panicCleanupSeq2())
 		x, y, ok := next()
 		if !ok || x != 55 || y != 100 {
@@ -350,7 +350,7 @@ func panicsWith(v any, f func()) (panicked bool) {
 }
 
 func TestPullGoexit(t *testing.T) {
-	t.Run("next", func(t *testing.T) {
+	t.Run("next", func { t ->
 		var next func() (int, bool)
 		var stop func()
 		if !goexits(t, func() {
@@ -364,7 +364,7 @@ func TestPullGoexit(t *testing.T) {
 		}
 		stop()
 	})
-	t.Run("stop", func(t *testing.T) {
+	t.Run("stop", func { t ->
 		next, stop := Pull(goexitCleanupSeq())
 		x, ok := next()
 		if !ok || x != 55 {
@@ -401,7 +401,7 @@ func goexitCleanupSeq() Seq[int] {
 }
 
 func TestPull2Goexit(t *testing.T) {
-	t.Run("next", func(t *testing.T) {
+	t.Run("next", func { t ->
 		var next func() (int, int, bool)
 		var stop func()
 		if !goexits(t, func() {
@@ -415,7 +415,7 @@ func TestPull2Goexit(t *testing.T) {
 		}
 		stop()
 	})
-	t.Run("stop", func(t *testing.T) {
+	t.Run("stop", func { t ->
 		next, stop := Pull2(goexitCleanupSeq2())
 		x, y, ok := next()
 		if !ok || x != 55 || y != 100 {

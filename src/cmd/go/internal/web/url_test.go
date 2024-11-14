@@ -16,7 +16,7 @@ func TestURLToFilePath(t *testing.T) {
 		}
 		tc := tc
 
-		t.Run(tc.url, func(t *testing.T) {
+		t.Run(tc.url, func { t ->
 			u, err := url.Parse(tc.url)
 			if err != nil {
 				t.Fatalf("url.Parse(%q): %v", tc.url, err)
@@ -48,7 +48,7 @@ func TestURLFromFilePath(t *testing.T) {
 		}
 		tc := tc
 
-		t.Run(tc.filePath, func(t *testing.T) {
+		t.Run(tc.filePath, func { t ->
 			u, err := urlFromFilePath(tc.filePath)
 			if err != nil {
 				if err.Error() == tc.wantErr {

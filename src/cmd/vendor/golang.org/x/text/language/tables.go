@@ -102,9 +102,9 @@ var regionToGroups = []uint8{ // 359 elements
 } // Size: 383 bytes
 
 var paradigmLocales = [][3]uint16{ // 3 elements
-	0: [3]uint16{0x139, 0x0, 0x7c},
-	1: [3]uint16{0x13e, 0x0, 0x1f},
-	2: [3]uint16{0x3c0, 0x41, 0xef},
+	0: {0x139, 0x0, 0x7c},
+	1: {0x13e, 0x0, 0x1f},
+	2: {0x3c0, 0x41, 0xef},
 } // Size: 42 bytes
 
 type mutualIntelligibility struct {

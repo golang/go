@@ -22,7 +22,7 @@ func updateDead(info *types.Info, dead map[ast.Node]bool, node ast.Node) {
 
 	// setDead marks the node and all the children as dead.
 	setDead := func(n ast.Node) {
-		ast.Inspect(n, func(node ast.Node) bool {
+		ast.Inspect(n, func { node ->
 			if node != nil {
 				dead[node] = true
 			}

@@ -109,20 +109,23 @@ func LookupPkgSpecial(pkgPath string) PkgSpecial {
 			pkgSpecials[elt] = s
 		}
 		for _, pkg := range runtimePkgs {
-			set(pkg, func(ps *PkgSpecial) { ps.Runtime = true; ps.NoInstrument = true })
+			set(pkg, func { ps ->
+				ps.Runtime = true
+				ps.NoInstrument = true
+			})
 		}
 		for _, pkg := range extraNoInstrumentPkgs {
 			if pkg[0] == '-' {
-				set(pkg[1:], func(ps *PkgSpecial) { ps.NoInstrument = false })
+				set(pkg[1:], func { ps -> ps.NoInstrument = false })
 			} else {
-				set(pkg, func(ps *PkgSpecial) { ps.NoInstrument = true })
+				set(pkg, func { ps -> ps.NoInstrument = true })
 			}
 		}
 		for _, pkg := range noRaceFuncPkgs {
-			set(pkg, func(ps *PkgSpecial) { ps.NoRaceFunc = true })
+			set(pkg, func { ps -> ps.NoRaceFunc = true })
 		}
 		for _, pkg := range allowAsmABIPkgs {
-			set(pkg, func(ps *PkgSpecial) { ps.AllowAsmABI = true })
+			set(pkg, func { ps -> ps.AllowAsmABI = true })
 		}
 	})
 	return pkgSpecials[pkgPath]

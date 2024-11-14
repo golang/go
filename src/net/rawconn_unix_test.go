@@ -14,7 +14,7 @@ import (
 func readRawConn(c syscall.RawConn, b []byte) (int, error) {
 	var operr error
 	var n int
-	err := c.Read(func(s uintptr) bool {
+	err := c.Read(func { s ->
 		n, operr = syscall.Read(int(s), b)
 		if operr == syscall.EAGAIN {
 			return false
@@ -29,7 +29,7 @@ func readRawConn(c syscall.RawConn, b []byte) (int, error) {
 
 func writeRawConn(c syscall.RawConn, b []byte) error {
 	var operr error
-	err := c.Write(func(s uintptr) bool {
+	err := c.Write(func { s ->
 		_, operr = syscall.Write(int(s), b)
 		if operr == syscall.EAGAIN {
 			return false
@@ -91,19 +91,13 @@ func controlOnConnSetup(network string, address string, c syscall.RawConn) error
 	case "tcp", "udp", "ip":
 		return errors.New("ambiguous network: " + network)
 	case "unix", "unixpacket", "unixgram":
-		fn = func(s uintptr) {
-			_, operr = syscall.GetsockoptInt(int(s), syscall.SOL_SOCKET, syscall.SO_ERROR)
-		}
+		fn = func { s -> _, operr = syscall.GetsockoptInt(int(s), syscall.SOL_SOCKET, syscall.SO_ERROR) }
 	default:
 		switch network[len(network)-1] {
 		case '4':
-			fn = func(s uintptr) {
-				operr = syscall.SetsockoptInt(int(s), syscall.IPPROTO_IP, syscall.IP_TTL, 1)
-			}
+			fn = func { s -> operr = syscall.SetsockoptInt(int(s), syscall.IPPROTO_IP, syscall.IP_TTL, 1) }
 		case '6':
-			fn = func(s uintptr) {
-				operr = syscall.SetsockoptInt(int(s), syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, 1)
-			}
+			fn = func { s -> operr = syscall.SetsockoptInt(int(s), syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, 1) }
 		default:
 			return errors.New("unknown network: " + network)
 		}

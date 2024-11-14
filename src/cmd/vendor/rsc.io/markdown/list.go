@@ -265,7 +265,7 @@ Switch:
 		p.addBlock(list)
 	}
 	b := &itemBuilder{list: list, width: n, haveContent: !t.isBlank()}
-	list.todo = func() line {
+	list.todo = func {
 		p.addBlock(b)
 		list.item = b
 		return t

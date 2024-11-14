@@ -243,7 +243,7 @@ func update(def, env string) {
 	parse(did, def)
 
 	// Clear any cached values that are no longer present.
-	cache.Range(func(name, s any) bool {
+	cache.Range(func { name, s ->
 		if !did[name.(string)] {
 			s.(*setting).value.Store(&empty)
 		}

@@ -138,9 +138,7 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
 		return f, done, nil
 	}
 
-	newBufferFunc := func() (io.Reader, func(), error) {
-		return bytes.NewBuffer(make([]byte, nBytes)), func() {}, nil
-	}
+	newBufferFunc := func { bytes.NewBuffer(make([]byte, nBytes)), func() {}, nil }
 
 	cases := []struct {
 		name             string
@@ -235,7 +233,7 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func { t ->
 			body, cleanup, err := tc.bodyFunc()
 			if err != nil {
 				t.Fatal(err)

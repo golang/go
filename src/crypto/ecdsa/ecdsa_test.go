@@ -39,7 +39,7 @@ func testAllCurves(t *testing.T, f func(*testing.T, elliptic.Curve)) {
 	}
 	for _, test := range tests {
 		curve := test.curve
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func { t ->
 			t.Parallel()
 			f(t, curve)
 		})
@@ -340,10 +340,10 @@ func testZeroHashSignature(t *testing.T, curve elliptic.Curve) {
 }
 
 func TestRandomPoint(t *testing.T) {
-	t.Run("P-224", func(t *testing.T) { testRandomPoint(t, p224()) })
-	t.Run("P-256", func(t *testing.T) { testRandomPoint(t, p256()) })
-	t.Run("P-384", func(t *testing.T) { testRandomPoint(t, p384()) })
-	t.Run("P-521", func(t *testing.T) { testRandomPoint(t, p521()) })
+	t.Run("P-224", func { t -> testRandomPoint(t, p224()) })
+	t.Run("P-256", func { t -> testRandomPoint(t, p256()) })
+	t.Run("P-384", func { t -> testRandomPoint(t, p384()) })
+	t.Run("P-521", func { t -> testRandomPoint(t, p521()) })
 }
 
 func testRandomPoint[Point nistPoint[Point]](t *testing.T, c *nistCurve[Point]) {
@@ -400,10 +400,10 @@ func testRandomPoint[Point nistPoint[Point]](t *testing.T, c *nistCurve[Point]) 
 }
 
 func TestHashToNat(t *testing.T) {
-	t.Run("P-224", func(t *testing.T) { testHashToNat(t, p224()) })
-	t.Run("P-256", func(t *testing.T) { testHashToNat(t, p256()) })
-	t.Run("P-384", func(t *testing.T) { testHashToNat(t, p384()) })
-	t.Run("P-521", func(t *testing.T) { testHashToNat(t, p521()) })
+	t.Run("P-224", func { t -> testHashToNat(t, p224()) })
+	t.Run("P-256", func { t -> testHashToNat(t, p256()) })
+	t.Run("P-384", func { t -> testHashToNat(t, p384()) })
+	t.Run("P-521", func { t -> testHashToNat(t, p521()) })
 }
 
 func testHashToNat[Point nistPoint[Point]](t *testing.T, c *nistCurve[Point]) {
@@ -524,14 +524,12 @@ func benchmarkAllCurves(b *testing.B, f func(*testing.B, elliptic.Curve)) {
 	}
 	for _, test := range tests {
 		curve := test.curve
-		b.Run(test.name, func(b *testing.B) {
-			f(b, curve)
-		})
+		b.Run(test.name, func { b -> f(b, curve) })
 	}
 }
 
 func BenchmarkSign(b *testing.B) {
-	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
+	benchmarkAllCurves(b, func { b, curve ->
 		r := bufio.NewReaderSize(rand.Reader, 1<<15)
 		priv, err := GenerateKey(curve, r)
 		if err != nil {
@@ -553,7 +551,7 @@ func BenchmarkSign(b *testing.B) {
 }
 
 func BenchmarkVerify(b *testing.B) {
-	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
+	benchmarkAllCurves(b, func { b, curve ->
 		r := bufio.NewReaderSize(rand.Reader, 1<<15)
 		priv, err := GenerateKey(curve, r)
 		if err != nil {
@@ -576,7 +574,7 @@ func BenchmarkVerify(b *testing.B) {
 }
 
 func BenchmarkGenerateKey(b *testing.B) {
-	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
+	benchmarkAllCurves(b, func { b, curve ->
 		r := bufio.NewReaderSize(rand.Reader, 1<<15)
 		b.ReportAllocs()
 		b.ResetTimer()

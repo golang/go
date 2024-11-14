@@ -1008,7 +1008,7 @@ func FuzzFormatRFC3339(f *testing.F) {
 		}
 	}
 
-	f.Fuzz(func(t *testing.T, sec, nsec int64, useUTC, useLocal bool, tzOffset int) {
+	f.Fuzz(func { t, sec, nsec, useUTC, useLocal, tzOffset ->
 		var loc *Location
 		switch {
 		case useUTC:
@@ -1048,7 +1048,7 @@ func FuzzParseRFC3339(f *testing.F) {
 		f.Add(tt.value)
 	}
 
-	f.Fuzz(func(t *testing.T, s string) {
+	f.Fuzz(func { t, s ->
 		// equalTime is like time.Time.Equal, but also compares the time zone.
 		equalTime := func(t1, t2 Time) bool {
 			name1, offset1 := t1.Zone()

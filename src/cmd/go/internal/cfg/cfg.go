@@ -174,11 +174,9 @@ func defaultContext() build.Context {
 	}
 	CGOChanged = ctxt.CgoEnabled != defaultCgoEnabled
 
-	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
-		return fsys.Open(path)
-	}
+	ctxt.OpenFile = func { path -> fsys.Open(path) }
 	ctxt.ReadDir = fsys.ReadDir
-	ctxt.IsDir = func(path string) bool {
+	ctxt.IsDir = func { path ->
 		isDir, err := fsys.IsDir(path)
 		return err == nil && isDir
 	}

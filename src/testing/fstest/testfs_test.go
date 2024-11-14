@@ -62,9 +62,7 @@ func (f *shuffledFile) ReadDir(n int) ([]fs.DirEntry, error) {
 	//
 	// We do this to make sure that the TestFS test suite is not affected by the
 	// order of directory entries.
-	slices.SortFunc(dirents, func(a, b fs.DirEntry) int {
-		return strings.Compare(b.Name(), a.Name())
-	})
+	slices.SortFunc(dirents, func { a, b -> strings.Compare(b.Name(), a.Name()) })
 	return dirents, err
 }
 

@@ -116,7 +116,7 @@ func BenchmarkFloatSqrt(b *testing.B) {
 	for _, prec := range []uint{64, 128, 256, 1e3, 1e4, 1e5, 1e6} {
 		x := NewFloat(2)
 		z := new(Float).SetPrec(prec)
-		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%v", prec), func { b ->
 			b.ReportAllocs()
 			for n := 0; n < b.N; n++ {
 				z.Sqrt(x)

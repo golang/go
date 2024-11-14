@@ -65,11 +65,11 @@ func testEqual(t *testing.T, c elliptic.Curve) {
 }
 
 func TestEqual(t *testing.T) {
-	t.Run("P224", func(t *testing.T) { testEqual(t, elliptic.P224()) })
+	t.Run("P224", func { t -> testEqual(t, elliptic.P224()) })
 	if testing.Short() {
 		return
 	}
-	t.Run("P256", func(t *testing.T) { testEqual(t, elliptic.P256()) })
-	t.Run("P384", func(t *testing.T) { testEqual(t, elliptic.P384()) })
-	t.Run("P521", func(t *testing.T) { testEqual(t, elliptic.P521()) })
+	t.Run("P256", func { t -> testEqual(t, elliptic.P256()) })
+	t.Run("P384", func { t -> testEqual(t, elliptic.P384()) })
+	t.Run("P521", func { t -> testEqual(t, elliptic.P521()) })
 }

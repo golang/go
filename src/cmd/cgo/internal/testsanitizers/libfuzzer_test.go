@@ -45,7 +45,7 @@ func TestLibFuzzer(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		name := strings.TrimSuffix(tc.goSrc, ".go")
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			t.Parallel()
 
 			dir := newTempDir(t)

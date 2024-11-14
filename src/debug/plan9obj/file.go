@@ -264,7 +264,7 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
 // returning an in-memory representation.
 func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
 	var n int
-	err := walksymtab(symtab, ptrsz, func(s sym) error {
+	err := walksymtab(symtab, ptrsz, func { s ->
 		n++
 		return nil
 	})
@@ -274,7 +274,7 @@ func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
 
 	fname := make(map[uint16]string)
 	syms := make([]Sym, 0, n)
-	err = walksymtab(symtab, ptrsz, func(s sym) error {
+	err = walksymtab(symtab, ptrsz, func { s ->
 		n := len(syms)
 		syms = syms[0 : n+1]
 		ts := &syms[n]

@@ -290,7 +290,7 @@ func TestUnitIteration(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, file := range files {
-		t.Run(file, func(t *testing.T) {
+		t.Run(file, func { t ->
 			d := elfData(t, file)
 			var units [2][]any
 			for method := range units {

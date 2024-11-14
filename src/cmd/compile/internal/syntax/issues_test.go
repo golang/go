@@ -38,7 +38,7 @@ func TestIssue67866(t *testing.T) {
 		}
 
 		// locate KeyValueExpr
-		Inspect(f, func(n Node) bool {
+		Inspect(f, func { n ->
 			_, ok := n.(*KeyValueExpr)
 			if ok {
 				if got := StartPos(n).Col(); got != want {

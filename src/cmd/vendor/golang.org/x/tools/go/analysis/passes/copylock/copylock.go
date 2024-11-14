@@ -50,7 +50,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.RangeStmt)(nil),
 		(*ast.ReturnStmt)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(node ast.Node) {
+	inspect.Preorder(nodeFilter, func { node ->
 		switch node := node.(type) {
 		case *ast.RangeStmt:
 			checkCopyLocksRange(pass, node)

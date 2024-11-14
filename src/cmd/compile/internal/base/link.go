@@ -49,5 +49,5 @@ func Linkname(name string, abi obj.ABI) *obj.LSym {
 // linksym is an internal helper function for implementing the above
 // exported APIs.
 func linksym(pkg, name string, abi obj.ABI) *obj.LSym {
-	return Ctxt.LookupABIInit(name, abi, func(r *obj.LSym) { r.Pkg = pkg })
+	return Ctxt.LookupABIInit(name, abi, func { r -> r.Pkg = pkg })
 }

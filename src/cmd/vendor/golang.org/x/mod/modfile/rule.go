@@ -1587,9 +1587,7 @@ func (f *File) SortBlocks() {
 		} else if block.Token[0] == "retract" {
 			less = lineRetractLess
 		}
-		sort.SliceStable(block.Line, func(i, j int) bool {
-			return less(block.Line[i], block.Line[j])
-		})
+		sort.SliceStable(block.Line, func { i, j -> less(block.Line[i], block.Line[j]) })
 	}
 }
 

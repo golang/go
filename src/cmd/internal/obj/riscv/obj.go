@@ -2309,10 +2309,10 @@ func instructionsForRotate(p *obj.Prog, ins *instruction) []*instruction {
 			shift1, shift2 = shift2, shift1
 		}
 		return []*instruction{
-			&instruction{as: ASUB, rs1: REG_ZERO, rs2: ins.rs2, rd: REG_TMP},
-			&instruction{as: shift2, rs1: ins.rs1, rs2: REG_TMP, rd: REG_TMP},
-			&instruction{as: shift1, rs1: ins.rs1, rs2: ins.rs2, rd: ins.rd},
-			&instruction{as: AOR, rs1: REG_TMP, rs2: ins.rd, rd: ins.rd},
+			{as: ASUB, rs1: REG_ZERO, rs2: ins.rs2, rd: REG_TMP},
+			{as: shift2, rs1: ins.rs1, rs2: REG_TMP, rd: REG_TMP},
+			{as: shift1, rs1: ins.rs1, rs2: ins.rs2, rd: ins.rd},
+			{as: AOR, rs1: REG_TMP, rs2: ins.rd, rd: ins.rd},
 		}
 
 	case ARORI, ARORIW:
@@ -2324,9 +2324,9 @@ func instructionsForRotate(p *obj.Prog, ins *instruction) []*instruction {
 			sllImm = int64(int8(-ins.imm) & 31)
 		}
 		return []*instruction{
-			&instruction{as: srlOp, rs1: ins.rs1, rd: REG_TMP, imm: ins.imm},
-			&instruction{as: sllOp, rs1: ins.rs1, rd: ins.rd, imm: sllImm},
-			&instruction{as: AOR, rs1: REG_TMP, rs2: ins.rd, rd: ins.rd},
+			{as: srlOp, rs1: ins.rs1, rd: REG_TMP, imm: ins.imm},
+			{as: sllOp, rs1: ins.rs1, rd: ins.rd, imm: sllImm},
+			{as: AOR, rs1: REG_TMP, rs2: ins.rd, rd: ins.rd},
 		}
 
 	default:

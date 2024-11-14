@@ -3527,7 +3527,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 
 		// Replace any "return" statements within the function body.
 		var edit func(ir.Node) ir.Node
-		edit = func(n ir.Node) ir.Node {
+		edit = func { n ->
 			if ret, ok := n.(*ir.ReturnStmt); ok {
 				n = typecheck.Stmt(r.inlReturn(ret, retvars))
 			}
@@ -3635,11 +3635,9 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 // usedLocals returns a set of local variables that are used within body.
 func usedLocals(body []ir.Node) ir.NameSet {
 	var used ir.NameSet
-	ir.VisitList(body, func(n ir.Node) {
-		if n, ok := n.(*ir.Name); ok && n.Op() == ir.ONAME && n.Class == ir.PAUTO {
-			used.Add(n)
-		}
-	})
+	ir.VisitList(body, func { n -> if n, ok := n.(*ir.Name); ok && n.Op() == ir.ONAME && n.Class == ir.PAUTO {
+		used.Add(n)
+	} })
 	return used
 }
 
@@ -3917,7 +3915,7 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 	// Further, after CL 492017, function that construct closures is allowed to be inlined,
 	// even though the closure itself can't be inline. So we also need to visit body of any
 	// closure that we see when visiting body of the wrapper function.
-	ir.VisitFuncAndClosures(fn, func(n ir.Node) {
+	ir.VisitFuncAndClosures(fn, func { n ->
 		if n, ok := n.(*ir.SelectorExpr); ok && n.Op() == ir.OMETHVALUE {
 			wrapMethodValue(n.X.Type(), n.Selection, target, true)
 		}

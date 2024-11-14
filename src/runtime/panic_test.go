@@ -38,7 +38,7 @@ func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t := t
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func { t ->
 			output := runTestProg(t, "testprog", tt.name)
 			if !strings.HasPrefix(output, tt.wantPanicPrefix) {
 				t.Fatalf("%q\nis not present in\n%s", tt.wantPanicPrefix, output)

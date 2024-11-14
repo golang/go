@@ -128,9 +128,7 @@ func setupRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
 	if pkey == nil {
 		return pkey, ctx, fail("EVP_PKEY_new")
 	}
-	if withKey(func(key *C.GO_RSA) C.int {
-		return C._goboringcrypto_EVP_PKEY_set1_RSA(pkey, key)
-	}) == 0 {
+	if withKey(func { key -> C._goboringcrypto_EVP_PKEY_set1_RSA(pkey, key) }) == 0 {
 		return pkey, ctx, fail("EVP_PKEY_set1_RSA")
 	}
 	ctx = C._goboringcrypto_EVP_PKEY_CTX_new(pkey, nil)
@@ -276,7 +274,7 @@ func SignRSAPSS(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte, saltLen int) 
 
 	var out []byte
 	var outLen C.size_t
-	if priv.withKey(func(key *C.GO_RSA) C.int {
+	if priv.withKey(func { key ->
 		out = make([]byte, C._goboringcrypto_RSA_size(key))
 		return C._goboringcrypto_RSA_sign_pss_mgf1(key, &outLen, base(out), C.size_t(len(out)),
 			base(hashed), C.size_t(len(hashed)), md, nil, C.int(saltLen))
@@ -307,7 +305,7 @@ func VerifyRSAPSS(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte, saltLen 
 		saltLen = -2
 	}
 
-	if pub.withKey(func(key *C.GO_RSA) C.int {
+	if pub.withKey(func { key ->
 		return C._goboringcrypto_RSA_verify_pss_mgf1(key, base(hashed), C.size_t(len(hashed)),
 			md, nil, C.int(saltLen), base(sig), C.size_t(len(sig)))
 	}) == 0 {
@@ -321,7 +319,7 @@ func SignRSAPKCS1v15(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte) ([]byte,
 		// No hashing.
 		var out []byte
 		var outLen C.size_t
-		if priv.withKey(func(key *C.GO_RSA) C.int {
+		if priv.withKey(func { key ->
 			out = make([]byte, C._goboringcrypto_RSA_size(key))
 			return C._goboringcrypto_RSA_sign_raw(key, &outLen, base(out), C.size_t(len(out)),
 				base(hashed), C.size_t(len(hashed)), C.GO_RSA_PKCS1_PADDING)
@@ -338,7 +336,7 @@ func SignRSAPKCS1v15(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte) ([]byte,
 	nid := C._goboringcrypto_EVP_MD_type(md)
 	var out []byte
 	var outLen C.uint
-	if priv.withKey(func(key *C.GO_RSA) C.int {
+	if priv.withKey(func { key ->
 		out = make([]byte, C._goboringcrypto_RSA_size(key))
 		return C._goboringcrypto_RSA_sign(nid, base(hashed), C.uint(len(hashed)),
 			base(out), &outLen, key)
@@ -352,7 +350,7 @@ func VerifyRSAPKCS1v15(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte) err
 	if h == 0 {
 		var out []byte
 		var outLen C.size_t
-		if pub.withKey(func(key *C.GO_RSA) C.int {
+		if pub.withKey(func { key ->
 			out = make([]byte, C._goboringcrypto_RSA_size(key))
 			return C._goboringcrypto_RSA_verify_raw(key, &outLen, base(out),
 				C.size_t(len(out)), base(sig), C.size_t(len(sig)), C.GO_RSA_PKCS1_PADDING)
@@ -369,7 +367,7 @@ func VerifyRSAPKCS1v15(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte) err
 		return errors.New("crypto/rsa: unsupported hash function")
 	}
 	nid := C._goboringcrypto_EVP_MD_type(md)
-	if pub.withKey(func(key *C.GO_RSA) C.int {
+	if pub.withKey(func { key ->
 		return C._goboringcrypto_RSA_verify(nid, base(hashed), C.size_t(len(hashed)),
 			base(sig), C.size_t(len(sig)), key)
 	}) == 0 {

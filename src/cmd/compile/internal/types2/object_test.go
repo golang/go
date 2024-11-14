@@ -112,7 +112,7 @@ func TestObjectString(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	for i, test := range testObjects {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+		t.Run(fmt.Sprint(i), func { t ->
 			src := "package p; " + test.src
 			conf := Config{Error: func(error) {}, Importer: defaultImporter(), EnableAlias: test.alias}
 			pkg, err := typecheck(src, &conf, nil)

@@ -31,7 +31,7 @@ import (
 	"time"
 )
 
-var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
+var robotsTxtHandler = HandlerFunc(func { w, r ->
 	w.Header().Set("Last-Modified", "sometime")
 	fmt.Fprintf(w, "User-agent: go\nDisallow: /something/")
 })
@@ -189,7 +189,7 @@ func TestPostFormRequestFormat(t *testing.T) {
 func TestClientRedirects(t *testing.T) { run(t, testClientRedirects) }
 func testClientRedirects(t *testing.T, mode testMode) {
 	var ts *httptest.Server
-	ts = newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts = newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		n, _ := strconv.Atoi(r.FormValue("n"))
 		// Test Referer header. (7 is arbitrary position to test at)
 		if n == 7 {
@@ -233,7 +233,7 @@ func testClientRedirects(t *testing.T, mode testMode) {
 	var checkErr error
 	var lastVia []*Request
 	var lastReq *Request
-	c.CheckRedirect = func(req *Request, via []*Request) error {
+	c.CheckRedirect = func { req, via ->
 		lastReq = req
 		lastVia = via
 		return checkErr
@@ -285,13 +285,11 @@ func testClientRedirects(t *testing.T, mode testMode) {
 // Tests that Client redirects' contexts are derived from the original request's context.
 func TestClientRedirectsContext(t *testing.T) { run(t, testClientRedirectsContext) }
 func testClientRedirectsContext(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		Redirect(w, r, "/", StatusTemporaryRedirect)
-	})).ts
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r -> Redirect(w, r, "/", StatusTemporaryRedirect) })).ts
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c := ts.Client()
-	c.CheckRedirect = func(req *Request, via []*Request) error {
+	c.CheckRedirect = func { req, via ->
 		cancel()
 		select {
 		case <-req.Context().Done():
@@ -355,9 +353,7 @@ func TestPostRedirects(t *testing.T) {
 		`POST /?code=404 "c404"`,
 	}
 	want := strings.Join(wantSegments, "\n")
-	run(t, func(t *testing.T, mode testMode) {
-		testRedirectsByMethod(t, mode, "POST", postRedirectTests, want)
-	})
+	run(t, func { t, mode -> testRedirectsByMethod(t, mode, "POST", postRedirectTests, want) })
 }
 
 func TestDeleteRedirects(t *testing.T) {
@@ -394,9 +390,7 @@ func TestDeleteRedirects(t *testing.T) {
 		`DELETE /?code=404 "c404"`,
 	}
 	want := strings.Join(wantSegments, "\n")
-	run(t, func(t *testing.T, mode testMode) {
-		testRedirectsByMethod(t, mode, "DELETE", deleteRedirectTests, want)
-	})
+	run(t, func { t, mode -> testRedirectsByMethod(t, mode, "DELETE", deleteRedirectTests, want) })
 }
 
 func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []redirectTest, want string) {
@@ -405,7 +399,7 @@ func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []r
 		bytes.Buffer
 	}
 	var ts *httptest.Server
-	ts = newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts = newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		log.Lock()
 		slurp, _ := io.ReadAll(r.Body)
 		fmt.Fprintf(&log.Buffer, "%s %s %q", r.Method, r.RequestURI, slurp)
@@ -436,7 +430,7 @@ func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []r
 	for _, tt := range table {
 		content := tt.redirectBody
 		req, _ := NewRequest(method, ts.URL+tt.suffix, strings.NewReader(content))
-		req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(strings.NewReader(content)), nil }
+		req.GetBody = func { io.NopCloser(strings.NewReader(content)), nil }
 		res, err := c.Do(req)
 
 		if err != nil {
@@ -479,7 +473,7 @@ func TestClientRedirectUseResponse(t *testing.T) { run(t, testClientRedirectUseR
 func testClientRedirectUseResponse(t *testing.T, mode testMode) {
 	const body = "Hello, world."
 	var ts *httptest.Server
-	ts = newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts = newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		if strings.Contains(r.URL.Path, "/other") {
 			io.WriteString(w, "wrong body")
 		} else {
@@ -490,7 +484,7 @@ func testClientRedirectUseResponse(t *testing.T, mode testMode) {
 	})).ts
 
 	c := ts.Client()
-	c.CheckRedirect = func(req *Request, via []*Request) error {
+	c.CheckRedirect = func { req, via ->
 		if req.Response == nil {
 			t.Error("expected non-nil Request.Response")
 		}
@@ -518,9 +512,9 @@ func testClientRedirectUseResponse(t *testing.T, mode testMode) {
 func TestClientRedirectNoLocation(t *testing.T) { run(t, testClientRedirectNoLocation) }
 func testClientRedirectNoLocation(t *testing.T, mode testMode) {
 	for _, code := range []int{301, 308} {
-		t.Run(fmt.Sprint(code), func(t *testing.T) {
+		t.Run(fmt.Sprint(code), func { t ->
 			setParallel(t)
-			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+			cst := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 				w.Header().Set("Foo", "Bar")
 				w.WriteHeader(code)
 			}))
@@ -543,7 +537,7 @@ func testClientRedirectNoLocation(t *testing.T, mode testMode) {
 func TestClientRedirect308NoGetBody(t *testing.T) { run(t, testClientRedirect308NoGetBody) }
 func testClientRedirect308NoGetBody(t *testing.T, mode testMode) {
 	const fakeURL = "https://localhost:1234/" // won't be hit
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		w.Header().Set("Location", fakeURL)
 		w.WriteHeader(308)
 	})).ts
@@ -572,7 +566,7 @@ var expectedCookies = []*Cookie{
 	{Name: "Second", Value: "Hit"},
 }
 
-var echoCookiesRedirectHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
+var echoCookiesRedirectHandler = HandlerFunc(func { w, r ->
 	for _, cookie := range r.Cookies() {
 		SetCookie(w, cookie)
 	}
@@ -674,7 +668,7 @@ func matchReturnedCookies(t *testing.T, expected, given []*Cookie) {
 
 func TestJarCalls(t *testing.T) { run(t, testJarCalls, []testMode{http1Mode}) }
 func testJarCalls(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		pathSuffix := r.RequestURI[1:]
 		if r.RequestURI == "/nosetcookie" {
 			return // don't set cookies for this path
@@ -687,9 +681,7 @@ func testJarCalls(t *testing.T, mode testMode) {
 	jar := new(RecordingJar)
 	c := ts.Client()
 	c.Jar = jar
-	c.Transport.(*Transport).Dial = func(_ string, _ string) (net.Conn, error) {
-		return net.Dial("tcp", ts.Listener.Addr().String())
-	}
+	c.Transport.(*Transport).Dial = func { _, _ -> net.Dial("tcp", ts.Listener.Addr().String()) }
 	_, err := c.Get("http://firsthost.fake/")
 	if err != nil {
 		t.Fatal(err)
@@ -735,7 +727,7 @@ func (j *RecordingJar) logf(format string, args ...any) {
 func TestStreamingGet(t *testing.T) { run(t, testStreamingGet) }
 func testStreamingGet(t *testing.T, mode testMode) {
 	say := make(chan string)
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		w.(Flusher).Flush()
 		for str := range say {
 			w.Write([]byte(str))
@@ -784,8 +776,7 @@ func (c *writeCountingConn) Write(p []byte) (int, error) {
 // don't send a TCP packet per line of the http request + body.
 func TestClientWrites(t *testing.T) { run(t, testClientWrites, []testMode{http1Mode}) }
 func testClientWrites(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-	})).ts
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r -> })).ts
 
 	writes := 0
 	dialer := func(netz string, addr string) (net.Conn, error) {
@@ -820,9 +811,7 @@ func TestClientInsecureTransport(t *testing.T) {
 	run(t, testClientInsecureTransport, []testMode{https1Mode, http2Mode})
 }
 func testClientInsecureTransport(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Write([]byte("Hello"))
-	}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r -> w.Write([]byte("Hello")) }))
 	ts := cst.ts
 	errLog := new(strings.Builder)
 	ts.Config.ErrorLog = log.New(errLog, "", 0)
@@ -868,7 +857,7 @@ func TestClientWithCorrectTLSServerName(t *testing.T) {
 }
 func testClientWithCorrectTLSServerName(t *testing.T, mode testMode) {
 	const serverName = "example.com"
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		if r.TLS.ServerName != serverName {
 			t.Errorf("expected client to set ServerName %q, got: %q", serverName, r.TLS.ServerName)
 		}
@@ -885,7 +874,7 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
 	run(t, testClientWithIncorrectTLSServerName, []testMode{https1Mode, http2Mode})
 }
 func testClientWithIncorrectTLSServerName(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r -> }))
 	ts := cst.ts
 	errLog := new(strings.Builder)
 	ts.Config.ErrorLog = log.New(errLog, "", 0)
@@ -919,16 +908,12 @@ func TestTransportUsesTLSConfigServerName(t *testing.T) {
 	run(t, testTransportUsesTLSConfigServerName, []testMode{https1Mode, http2Mode})
 }
 func testTransportUsesTLSConfigServerName(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Write([]byte("Hello"))
-	})).ts
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r -> w.Write([]byte("Hello")) })).ts
 
 	c := ts.Client()
 	tr := c.Transport.(*Transport)
 	tr.TLSClientConfig.ServerName = "example.com" // one of httptest's Server cert names
-	tr.Dial = func(netw, addr string) (net.Conn, error) {
-		return net.Dial(netw, ts.Listener.Addr().String())
-	}
+	tr.Dial = func { netw, addr -> net.Dial(netw, ts.Listener.Addr().String()) }
 	res, err := c.Get("https://some-other-host.tld/")
 	if err != nil {
 		t.Fatal(err)
@@ -940,17 +925,13 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
 	run(t, testResponseSetsTLSConnectionState, []testMode{https1Mode})
 }
 func testResponseSetsTLSConnectionState(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Write([]byte("Hello"))
-	})).ts
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r -> w.Write([]byte("Hello")) })).ts
 
 	c := ts.Client()
 	tr := c.Transport.(*Transport)
 	tr.TLSClientConfig.CipherSuites = []uint16{tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
 	tr.TLSClientConfig.MaxVersion = tls.VersionTLS12 // to get to pick the cipher suite
-	tr.Dial = func(netw, addr string) (net.Conn, error) {
-		return net.Dial(netw, ts.Listener.Addr().String())
-	}
+	tr.Dial = func { netw, addr -> net.Dial(netw, ts.Listener.Addr().String()) }
 	res, err := c.Get("https://example.com/")
 	if err != nil {
 		t.Fatal(err)
@@ -971,7 +952,7 @@ func TestHTTPSClientDetectsHTTPServer(t *testing.T) {
 	run(t, testHTTPSClientDetectsHTTPServer, []testMode{http1Mode})
 }
 func testHTTPSClientDetectsHTTPServer(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {})).ts
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r -> })).ts
 	ts.Config.ErrorLog = quietLog
 
 	_, err := Get(strings.Replace(ts.URL, "http", "https", 1))
@@ -983,11 +964,9 @@ func testHTTPSClientDetectsHTTPServer(t *testing.T, mode testMode) {
 // Verify Response.ContentLength is populated. https://golang.org/issue/4126
 func TestClientHeadContentLength(t *testing.T) { run(t, testClientHeadContentLength) }
 func testClientHeadContentLength(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		if v := r.FormValue("cl"); v != "" {
-			w.Header().Set("Content-Length", v)
-		}
-	}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r -> if v := r.FormValue("cl"); v != "" {
+		w.Header().Set("Content-Length", v)
+	} }))
 	tests := []struct {
 		suffix string
 		want   int64
@@ -1018,7 +997,7 @@ func testClientHeadContentLength(t *testing.T, mode testMode) {
 func TestEmptyPasswordAuth(t *testing.T) { run(t, testEmptyPasswordAuth) }
 func testEmptyPasswordAuth(t *testing.T, mode testMode) {
 	gopher := "gopher"
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		auth := r.Header.Get("Authorization")
 		if strings.HasPrefix(auth, "Basic ") {
 			encoded := auth[6:]
@@ -1153,7 +1132,7 @@ func TestStripPasswordFromError(t *testing.T) {
 		},
 	}
 	for _, tC := range testCases {
-		t.Run(tC.desc, func(t *testing.T) {
+		t.Run(tC.desc, func { t ->
 			_, err := client.Get(tC.in)
 			if err.Error() != tC.out {
 				t.Errorf("Unexpected output for %q: expected %q, actual %q",
@@ -1170,7 +1149,7 @@ func testClientTimeout(t *testing.T, mode testMode) {
 		nonce        string // a unique per-request string
 		sawSlowNonce bool   // true if the handler saw /slow?nonce=<nonce>
 	)
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		_ = r.ParseForm()
 		if r.URL.Path == "/" {
 			Redirect(w, r, "/slow?nonce="+r.Form.Get("nonce"), StatusFound)
@@ -1267,9 +1246,7 @@ func testClientTimeout(t *testing.T, mode testMode) {
 func TestClientTimeout_Headers(t *testing.T) { run(t, testClientTimeout_Headers) }
 func testClientTimeout_Headers(t *testing.T, mode testMode) {
 	donec := make(chan bool, 1)
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		<-donec
-	}), optQuietLog)
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r -> <-donec }), optQuietLog)
 	// Note that we use a channel send here and not a close.
 	// The race detector doesn't know that we're waiting for a timeout
 	// and thinks that the waitgroup inside httptest.Server is added to concurrently
@@ -1313,7 +1290,7 @@ func testClientTimeoutCancel(t *testing.T, mode testMode) {
 	testDone := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
 
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		w.(Flusher).Flush()
 		<-testDone
 	}))
@@ -1336,9 +1313,7 @@ func testClientTimeoutCancel(t *testing.T, mode testMode) {
 // Issue 49366: if Client.Timeout is set but not hit, no error should be returned.
 func TestClientTimeoutDoesNotExpire(t *testing.T) { run(t, testClientTimeoutDoesNotExpire) }
 func testClientTimeoutDoesNotExpire(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Write([]byte("body"))
-	}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r -> w.Write([]byte("body")) }))
 
 	cst.c.Timeout = 1 * time.Hour
 	req, _ := NewRequest("GET", cst.ts.URL, nil)
@@ -1357,7 +1332,7 @@ func testClientTimeoutDoesNotExpire(t *testing.T, mode testMode) {
 func TestClientRedirectEatsBody_h1(t *testing.T) { run(t, testClientRedirectEatsBody) }
 func testClientRedirectEatsBody(t *testing.T, mode testMode) {
 	saw := make(chan string, 2)
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		saw <- r.RemoteAddr
 		if r.URL.Path == "/" {
 			Redirect(w, r, "/foo", StatusFound) // which includes a body
@@ -1480,7 +1455,7 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 		xfoo = "foo-val"
 	)
 	var ts2URL string
-	ts1 := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts1 := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		want := Header{
 			"User-Agent":      []string{ua},
 			"X-Foo":           []string{xfoo},
@@ -1498,13 +1473,11 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 			w.Header().Set("Result", "ok")
 		}
 	})).ts
-	ts2 := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		Redirect(w, r, ts1.URL, StatusFound)
-	})).ts
+	ts2 := newClientServerTest(t, mode, HandlerFunc(func { w, r -> Redirect(w, r, ts1.URL, StatusFound) })).ts
 	ts2URL = ts2.URL
 
 	c := ts1.Client()
-	c.CheckRedirect = func(r *Request, via []*Request) error {
+	c.CheckRedirect = func { r, via ->
 		want := Header{
 			"User-Agent":    []string{ua},
 			"X-Foo":         []string{xfoo},
@@ -1540,7 +1513,7 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 func TestClientCopyHostOnRedirect(t *testing.T) { run(t, testClientCopyHostOnRedirect) }
 func testClientCopyHostOnRedirect(t *testing.T, mode testMode) {
 	// Virtual hostname: should not receive any request.
-	virtual := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	virtual := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		t.Errorf("Virtual host received request %v", r.URL)
 		w.WriteHeader(403)
 		io.WriteString(w, "should not see this response")
@@ -1554,7 +1527,7 @@ func testClientCopyHostOnRedirect(t *testing.T, mode testMode) {
 	const wantBody = "response body"
 	var tsURL string
 	var tsHost string
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		switch r.URL.Path {
 		case "/":
 			// Relative redirect.
@@ -1619,7 +1592,7 @@ func testClientAltersCookiesOnRedirect(t *testing.T, mode testMode) {
 		return m
 	}
 
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		var want map[string][]string
 		got := cookieMap(r.Cookies())
 
@@ -1805,7 +1778,7 @@ func testClientRedirectTypes(t *testing.T, mode testMode) {
 
 	handlerc := make(chan HandlerFunc, 1)
 
-	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func { rw, req ->
 		h := <-handlerc
 		h(rw, req)
 	})).ts
@@ -1823,7 +1796,7 @@ func testClientRedirectTypes(t *testing.T, mode testMode) {
 			continue
 		}
 
-		c.CheckRedirect = func(req *Request, via []*Request) error {
+		c.CheckRedirect = func { req, via ->
 			if got, want := req.Method, tt.wantMethod; got != want {
 				return fmt.Errorf("#%d: got next method %q; want %q", i, got, want)
 			}
@@ -1866,7 +1839,7 @@ func (b issue18239Body) Close() error {
 // if Request.GetBody is not defined.
 func TestTransportBodyReadError(t *testing.T) { run(t, testTransportBodyReadError) }
 func testTransportBodyReadError(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		if r.URL.Path == "/ping" {
 			return
 		}
@@ -1947,7 +1920,7 @@ func (t testRoundTripper) RoundTrip(req *Request) (*Response, error) {
 func TestClientPropagatesTimeoutToContext(t *testing.T) {
 	c := &Client{
 		Timeout: 5 * time.Second,
-		Transport: testRoundTripper(func(req *Request) (*Response, error) {
+		Transport: testRoundTripper(func { req ->
 			ctx := req.Context()
 			deadline, ok := ctx.Deadline()
 			if !ok {
@@ -1965,14 +1938,12 @@ func TestClientPropagatesTimeoutToContext(t *testing.T) {
 // docs about request cancellation vs timing out.
 func TestClientDoCanceledVsTimeout(t *testing.T) { run(t, testClientDoCanceledVsTimeout) }
 func testClientDoCanceledVsTimeout(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Write([]byte("Hello, World!"))
-	}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r -> w.Write([]byte("Hello, World!")) }))
 
 	cases := []string{"timeout", "canceled"}
 
 	for _, name := range cases {
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			var ctx context.Context
 			var cancel func()
 			if name == "timeout" {
@@ -2048,9 +2019,7 @@ func TestClientPopulatesNilResponseBody(t *testing.T) {
 // Issue 40382: Client calls Close multiple times on Request.Body.
 func TestClientCallsCloseOnlyOnce(t *testing.T) { run(t, testClientCallsCloseOnlyOnce) }
 func testClientCallsCloseOnlyOnce(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.WriteHeader(StatusNoContent)
-	}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r -> w.WriteHeader(StatusNoContent) }))
 
 	// Issue occurred non-deterministically: needed to occur after a successful
 	// write (into TCP buffer) but before end of body.
@@ -2103,7 +2072,7 @@ func (b *issue40382Body) Close() error {
 func TestProbeZeroLengthBody(t *testing.T) { run(t, testProbeZeroLengthBody) }
 func testProbeZeroLengthBody(t *testing.T, mode testMode) {
 	reqc := make(chan struct{})
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func { w, r ->
 		close(reqc)
 		if _, err := io.Copy(w, r.Body); err != nil {
 			t.Errorf("error copying request body: %v", err)

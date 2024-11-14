@@ -642,7 +642,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		sects = append(sects, relsect{f.xdataSect, &Segxdata, sehp.xdata})
 	}
 	for _, s := range sects {
-		s.peSect.emitRelocations(ctxt.Out, func() int {
+		s.peSect.emitRelocations(ctxt.Out, func {
 			var n int
 			for _, sect := range s.seg.Sections {
 				n += relocsect(sect, s.syms, s.seg.Vaddr)
@@ -661,9 +661,7 @@ dwarfLoop:
 		}
 		for _, pesect := range f.sections {
 			if sect.Name == pesect.name {
-				pesect.emitRelocations(ctxt.Out, func() int {
-					return relocsect(sect, si.syms, sect.Vaddr)
-				})
+				pesect.emitRelocations(ctxt.Out, func { relocsect(sect, si.syms, sect.Vaddr) })
 				continue dwarfLoop
 			}
 		}
@@ -674,7 +672,7 @@ dwarfLoop:
 		return
 	}
 
-	f.ctorsSect.emitRelocations(ctxt.Out, func() int {
+	f.ctorsSect.emitRelocations(ctxt.Out, func {
 		dottext := ldr.Lookup(".text", 0)
 		ctxt.Out.Write32(0)
 		ctxt.Out.Write32(uint32(ldr.SymDynid(dottext)))
@@ -1398,7 +1396,7 @@ func initdynexport(ctxt *Link) {
 		dexport = append(dexport, s)
 	}
 
-	sort.Slice(dexport, func(i, j int) bool { return ldr.SymExtname(dexport[i]) < ldr.SymExtname(dexport[j]) })
+	sort.Slice(dexport, func { i, j -> ldr.SymExtname(dexport[i]) < ldr.SymExtname(dexport[j]) })
 }
 
 func addexports(ctxt *Link) {

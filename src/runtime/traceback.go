@@ -1260,7 +1260,7 @@ func tracebackothers(me *g) {
 	// Instead, use forEachGRace, which requires no locking. We don't lock
 	// against concurrent creation of new Gs, but even with allglock we may
 	// miss Gs created after this loop.
-	forEachGRace(func(gp *g) {
+	forEachGRace(func { gp ->
 		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
 			return
 		}
@@ -1313,7 +1313,7 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 
 	// Print the hex dump.
 	print("stack: frame={sp:", hex(frame.sp), ", fp:", hex(frame.fp), "} stack=[", hex(stk.lo), ",", hex(stk.hi), ")\n")
-	hexdumpWords(lo, hi, func(p uintptr) byte {
+	hexdumpWords(lo, hi, func { p ->
 		switch p {
 		case frame.fp:
 			return '>'

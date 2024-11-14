@@ -129,7 +129,7 @@ func (s *State) Environ() []string {
 // the environment variables in s. References to undefined variables are
 // replaced by the empty string.
 func (s *State) ExpandEnv(str string, inRegexp bool) string {
-	return os.Expand(str, func(key string) string {
+	return os.Expand(str, func { key ->
 		e := s.envMap[key]
 		if inRegexp {
 			// Quote to literal strings: we want paths like C:\work\go1.4 to remain

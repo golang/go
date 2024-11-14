@@ -53,25 +53,25 @@ func TestTracebackInlined(t *testing.T) {
 		}
 	}
 
-	t.Run("simple", func(t *testing.T) {
+	t.Run("simple", func { t ->
 		// Check a simple case of inlining
 		r := ttiSimple1()
 		check(t, r, "runtime_test.ttiSimple3(...)", "runtime_test.ttiSimple2(...)", "runtime_test.ttiSimple1()")
 	})
 
-	t.Run("sigpanic", func(t *testing.T) {
+	t.Run("sigpanic", func { t ->
 		// Check that sigpanic from an inlined function prints correctly
 		r := ttiSigpanic1()
 		check(t, r, "runtime_test.ttiSigpanic1.func1()", "panic", "runtime_test.ttiSigpanic3(...)", "runtime_test.ttiSigpanic2(...)", "runtime_test.ttiSigpanic1()")
 	})
 
-	t.Run("wrapper", func(t *testing.T) {
+	t.Run("wrapper", func { t ->
 		// Check that a method inlined into a wrapper prints correctly
 		r := ttiWrapper1()
 		check(t, r, "runtime_test.ttiWrapper.m1(...)", "runtime_test.ttiWrapper1()")
 	})
 
-	t.Run("excluded", func(t *testing.T) {
+	t.Run("excluded", func { t ->
 		// Check that when F -> G is inlined and F is excluded from stack
 		// traces, G still appears.
 		r := ttiExcluded1()
@@ -166,7 +166,7 @@ func TestTracebackElision(t *testing.T) {
 	// in the paused physical frame, and eliding 10 so we have to advance the
 	// physical frame forward.
 	for _, elided := range []int{0, 1, 10} {
-		t.Run(fmt.Sprintf("elided=%d", elided), func(t *testing.T) {
+		t.Run(fmt.Sprintf("elided=%d", elided), func { t ->
 			n := elided + runtime.TracebackInnerFrames + runtime.TracebackOuterFrames
 
 			// Start a new goroutine so we have control over the whole stack.

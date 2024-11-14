@@ -318,7 +318,7 @@ func (v *Validator) deleteRange(r trace.ResourceID, name string) {
 }
 
 func (v *Validator) getOrCreateThread(e *errAccumulator, ev trace.Event, m trace.ThreadID) *schedContext {
-	lenient := func() bool {
+	lenient := func {
 		// Be lenient about GoUndetermined -> GoSyscall transitions if they
 		// originate from an old trace. These transitions lack thread
 		// information in trace formats older than 1.22.
@@ -351,7 +351,7 @@ func (v *Validator) getOrCreateThread(e *errAccumulator, ev trace.Event, m trace
 func checkStack(e *errAccumulator, stk trace.Stack) {
 	// Check for non-empty values, but we also check for crashes due to incorrect validation.
 	i := 0
-	stk.Frames(func(f trace.StackFrame) bool {
+	stk.Frames(func { f ->
 		if i == 0 {
 			// Allow for one fully zero stack.
 			//

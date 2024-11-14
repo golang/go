@@ -68,7 +68,7 @@ func KernelVersion() (major int, minor int) {
 
 // SupportSockNonblockCloexec tests if SOCK_NONBLOCK and SOCK_CLOEXEC are supported
 // for socket() system call, returns true if affirmative.
-var SupportSockNonblockCloexec = sync.OnceValue(func() bool {
+var SupportSockNonblockCloexec = sync.OnceValue(func {
 	// First test if socket() supports SOCK_NONBLOCK and SOCK_CLOEXEC directly.
 	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, 0)
 	if err == nil {
@@ -87,7 +87,7 @@ var SupportSockNonblockCloexec = sync.OnceValue(func() bool {
 })
 
 // SupportAccept4 tests whether accept4 system call is available.
-var SupportAccept4 = sync.OnceValue(func() bool {
+var SupportAccept4 = sync.OnceValue(func {
 	for {
 		// Test if the accept4() is available.
 		_, _, err := syscall.Accept4(0, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
@@ -100,7 +100,7 @@ var SupportAccept4 = sync.OnceValue(func() bool {
 
 // SupportTCPKeepAliveIdleIntvlCNT determines whether the TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT
 // are available by checking the kernel version for Solaris 11.4.
-var SupportTCPKeepAliveIdleIntvlCNT = sync.OnceValue(func() bool {
+var SupportTCPKeepAliveIdleIntvlCNT = sync.OnceValue(func {
 	major, minor := KernelVersion()
 	return major > 11 || (major == 11 && minor >= 4)
 })

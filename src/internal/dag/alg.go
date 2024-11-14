@@ -26,7 +26,7 @@ func (g *Graph) Topo() []string {
 	marks := make(map[string]bool)
 
 	var visit func(n string)
-	visit = func(n string) {
+	visit = func { n ->
 		if marks[n] {
 			return
 		}

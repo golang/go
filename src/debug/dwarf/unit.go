@@ -123,9 +123,7 @@ func (d *Data) parseUnits() ([]unit, error) {
 // It returns -1 if no unit contains this offset.
 func (d *Data) offsetToUnit(off Offset) int {
 	// Find the unit after off
-	next := sort.Search(len(d.unit), func(i int) bool {
-		return d.unit[i].off > off
-	})
+	next := sort.Search(len(d.unit), func { i -> d.unit[i].off > off })
 	if next == 0 {
 		return -1
 	}

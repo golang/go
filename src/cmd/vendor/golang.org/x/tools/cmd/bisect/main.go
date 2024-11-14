@@ -172,7 +172,7 @@ func main() {
 
 	env := ""
 	envFlag := ""
-	flag.Func("compile", "bisect source locations affected by Go compiler `rewrite` (fma, loopvar, ...)", func(value string) error {
+	flag.Func("compile", "bisect source locations affected by Go compiler `rewrite` (fma, loopvar, ...)", func { value ->
 		if envFlag != "" {
 			return fmt.Errorf("cannot use -%s and -compile", envFlag)
 		}
@@ -180,7 +180,7 @@ func main() {
 		env = "GOCOMPILEDEBUG=" + value + "hash=PATTERN"
 		return nil
 	})
-	flag.Func("godebug", "bisect call stacks affected by GODEBUG setting `name=value`", func(value string) error {
+	flag.Func("godebug", "bisect call stacks affected by GODEBUG setting `name=value`", func { value ->
 		if envFlag != "" {
 			return fmt.Errorf("cannot use -%s and -godebug", envFlag)
 		}
@@ -448,8 +448,8 @@ func skipHexDigits(idY, idN []uint64) int {
 			all = append(all, x)
 		}
 	}
-	sort.Slice(all, func(i, j int) bool { return bits.Reverse64(all[i]) < bits.Reverse64(all[j]) })
-	digits := sort.Search(64/4, func(digits int) bool {
+	sort.Slice(all, func { i, j -> bits.Reverse64(all[i]) < bits.Reverse64(all[j]) })
+	digits := sort.Search(64/4, func { digits ->
 		mask := uint64(1)<<(4*digits) - 1
 		for i := 0; i+1 < len(all); i++ {
 			if all[i]&mask == all[i+1]&mask {

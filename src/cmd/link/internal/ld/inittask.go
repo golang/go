@@ -146,9 +146,7 @@ func (ctxt *Link) inittaskSym(rootNames []string, symName string) loader.Sym {
 	}
 
 	// Sort edges so we can look them up by edge destination.
-	sort.Slice(edges, func(i, j int) bool {
-		return edges[i].to < edges[j].to
-	})
+	sort.Slice(edges, func { i, j -> edges[i].to < edges[j].to })
 
 	// Figure out the schedule.
 	sched := ldr.MakeSymbolBuilder(symName)
@@ -167,8 +165,8 @@ func (ctxt *Link) inittaskSym(rootNames []string, symName string) loader.Sym {
 		}
 
 		// Find all incoming edges into s.
-		a := sort.Search(len(edges), func(i int) bool { return edges[i].to >= s })
-		b := sort.Search(len(edges), func(i int) bool { return edges[i].to > s })
+		a := sort.Search(len(edges), func { i -> edges[i].to >= s })
+		b := sort.Search(len(edges), func { i -> edges[i].to > s })
 
 		// Decrement the import count for all packages that import s.
 		// If the count reaches 0, that package is now ready to schedule.

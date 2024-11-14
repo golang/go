@@ -361,7 +361,7 @@ func RunWithStdin(ctx context.Context, dir string, stdin io.Reader, cmdline ...a
 	var stderr bytes.Buffer
 	var stdout bytes.Buffer
 	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
-	c.Cancel = func() error { return c.Process.Signal(os.Interrupt) }
+	c.Cancel = func { c.Process.Signal(os.Interrupt) }
 	c.Dir = dir
 	c.Stdin = stdin
 	c.Stderr = &stderr

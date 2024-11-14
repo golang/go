@@ -378,7 +378,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name, closureVars map[*ir.Name]int64
 	var tag int
 	var offs int64
 
-	localAutoOffset := func() int64 {
+	localAutoOffset := func {
 		offs = n.FrameOffset()
 		if base.Ctxt.Arch.FixedFrameSize == 0 {
 			offs -= int64(types.PtrSize)
@@ -541,9 +541,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID, closureVars
 	}
 	list := debug.LocationLists[varID]
 	if len(list) != 0 {
-		dvar.PutLocationList = func(listSym, startPC dwarf.Sym) {
-			debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym))
-		}
+		dvar.PutLocationList = func { listSym, startPC -> debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym)) }
 	}
 	return dvar
 }

@@ -91,9 +91,7 @@ func TestBuffers_consume(t *testing.T) {
 func TestBuffers_WriteTo(t *testing.T) {
 	for _, name := range []string{"WriteTo", "Copy"} {
 		for _, size := range []int{0, 10, 1023, 1024, 1025} {
-			t.Run(fmt.Sprintf("%s/%d", name, size), func(t *testing.T) {
-				testBuffer_writeTo(t, size, name == "Copy")
-			})
+			t.Run(fmt.Sprintf("%s/%d", name, size), func { t -> testBuffer_writeTo(t, size, name == "Copy") })
 		}
 	}
 }
@@ -105,7 +103,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
 		sync.Mutex
 		log []int
 	}
-	poll.TestHookDidWritev = func(size int) {
+	poll.TestHookDidWritev = func { size ->
 		writeLog.Lock()
 		writeLog.log = append(writeLog.log, size)
 		writeLog.Unlock()
@@ -115,7 +113,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
 		want.WriteByte(byte(i))
 	}
 
-	withTCPConnPair(t, func(c *TCPConn) error {
+	withTCPConnPair(t, func { c ->
 		buffers := make(Buffers, chunks)
 		for i := range buffers {
 			buffers[i] = want.Bytes()[i : i+1]
@@ -137,7 +135,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
 			return fmt.Errorf("Buffers.WriteTo returned %d; want %d", n, want.Len())
 		}
 		return nil
-	}, func(c *TCPConn) error {
+	}, func { c ->
 		all, err := io.ReadAll(c)
 		if !bytes.Equal(all, want.Bytes()) || err != nil {
 			return fmt.Errorf("client read %q, %v; want %q, nil", all, err, want.Bytes())

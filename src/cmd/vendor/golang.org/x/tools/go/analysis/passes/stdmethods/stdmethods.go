@@ -73,7 +73,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.FuncDecl)(nil),
 		(*ast.InterfaceType)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		switch n := n.(type) {
 		case *ast.FuncDecl:
 			if n.Recv != nil {

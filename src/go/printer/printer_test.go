@@ -200,7 +200,7 @@ func TestFiles(t *testing.T) {
 		source := filepath.Join(dataDir, e.source)
 		golden := filepath.Join(dataDir, e.golden)
 		mode := e.mode
-		t.Run(e.source, func(t *testing.T) {
+		t.Run(e.source, func { t ->
 			t.Parallel()
 			check(t, source, golden, mode)
 			// TODO(gri) check that golden is idempotent
@@ -549,7 +549,7 @@ func TestBaseIndent(t *testing.T) {
 
 	for indent := 0; indent < 4; indent++ {
 		indent := indent
-		t.Run(fmt.Sprint(indent), func(t *testing.T) {
+		t.Run(fmt.Sprint(indent), func { t ->
 			t.Parallel()
 			var buf bytes.Buffer
 			(&Config{Tabwidth: tabwidth, Indent: indent}).Fprint(&buf, fset, file)

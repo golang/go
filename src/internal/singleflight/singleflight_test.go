@@ -15,9 +15,7 @@ import (
 
 func TestDo(t *testing.T) {
 	var g Group
-	v, err, _ := g.Do("key", func() (any, error) {
-		return "bar", nil
-	})
+	v, err, _ := g.Do("key", func { "bar", nil })
 	if got, want := fmt.Sprintf("%v (%T)", v, v), "bar (string)"; got != want {
 		t.Errorf("Do = %v; want %v", got, want)
 	}
@@ -29,9 +27,7 @@ func TestDo(t *testing.T) {
 func TestDoErr(t *testing.T) {
 	var g Group
 	someErr := errors.New("some error")
-	v, err, _ := g.Do("key", func() (any, error) {
-		return nil, someErr
-	})
+	v, err, _ := g.Do("key", func { nil, someErr })
 	if err != someErr {
 		t.Errorf("Do error = %v; want someErr %v", err, someErr)
 	}
@@ -45,7 +41,7 @@ func TestDoDupSuppress(t *testing.T) {
 	var wg1, wg2 sync.WaitGroup
 	c := make(chan string, 1)
 	var calls atomic.Int32
-	fn := func() (any, error) {
+	fn := func {
 		if calls.Add(1) == 1 {
 			// First invocation.
 			wg1.Done()
@@ -155,7 +151,7 @@ func TestDoAndForgetUnsharedRace(t *testing.T) {
 		wg.Add(n)
 		for i := 0; i < n; i++ {
 			go func() {
-				g.Do(key, func() (interface{}, error) {
+				g.Do(key, func {
 					time.Sleep(d)
 					return calls.Add(1), nil
 				})

@@ -36,7 +36,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	nodeFilter := []ast.Node{
 		(*ast.BinaryExpr)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		e := n.(*ast.BinaryExpr)
 
 		// Only want == or != comparisons.

@@ -175,12 +175,8 @@ func TestCoverOnPackageWithNoTestFiles(t *testing.T) {
 	// simulating the effect that you would get if you added a dummy
 	// "no-op" x_test.go file and then did a build and run of the test.
 
-	t.Run("YesFuncsNoTests", func(t *testing.T) {
-		testCoverNoTestsYesFuncs(t)
-	})
-	t.Run("NoFuncsNoTests", func(t *testing.T) {
-		testCoverNoTestsNoFuncs(t)
-	})
+	t.Run("YesFuncsNoTests", func { t -> testCoverNoTestsYesFuncs(t) })
+	t.Run("NoFuncsNoTests", func { t -> testCoverNoTestsNoFuncs(t) })
 }
 
 func testCoverNoTestsYesFuncs(t *testing.T) {

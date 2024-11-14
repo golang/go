@@ -19,7 +19,7 @@ func BenchmarkCommonParentCancel(b *testing.B) {
 	defer sharedcancel()
 
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		x := 0
 		for pb.Next() {
 			ctx, cancel := WithCancel(shared)
@@ -40,9 +40,7 @@ func BenchmarkCommonParentCancel(b *testing.B) {
 func BenchmarkWithTimeout(b *testing.B) {
 	for concurrency := 40; concurrency <= 4e5; concurrency *= 100 {
 		name := fmt.Sprintf("concurrency=%d", concurrency)
-		b.Run(name, func(b *testing.B) {
-			benchmarkWithTimeout(b, concurrency)
-		})
+		b.Run(name, func { b -> benchmarkWithTimeout(b, concurrency) })
 	}
 }
 
@@ -68,7 +66,7 @@ func benchmarkWithTimeout(b *testing.B, concurrentContexts int) {
 	wg.Wait()
 
 	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
+	b.RunParallel(func { pb ->
 		wcf := make([]CancelFunc, 10)
 		for pb.Next() {
 			for i := range wcf {
@@ -91,20 +89,18 @@ func benchmarkWithTimeout(b *testing.B, concurrentContexts int) {
 func BenchmarkCancelTree(b *testing.B) {
 	depths := []int{1, 10, 100, 1000}
 	for _, d := range depths {
-		b.Run(fmt.Sprintf("depth=%d", d), func(b *testing.B) {
-			b.Run("Root=Background", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					buildContextTree(Background(), d)
-				}
-			})
-			b.Run("Root=OpenCanceler", func(b *testing.B) {
+		b.Run(fmt.Sprintf("depth=%d", d), func { b ->
+			b.Run("Root=Background", func { b -> for i := 0; i < b.N; i++ {
+				buildContextTree(Background(), d)
+			} })
+			b.Run("Root=OpenCanceler", func { b ->
 				for i := 0; i < b.N; i++ {
 					ctx, cancel := WithCancel(Background())
 					buildContextTree(ctx, d)
 					cancel()
 				}
 			})
-			b.Run("Root=ClosedCanceler", func(b *testing.B) {
+			b.Run("Root=ClosedCanceler", func { b ->
 				for i := 0; i < b.N; i++ {
 					ctx, cancel := WithCancel(Background())
 					cancel()
@@ -124,33 +120,27 @@ func buildContextTree(root Context, depth int) {
 func BenchmarkCheckCanceled(b *testing.B) {
 	ctx, cancel := WithCancel(Background())
 	cancel()
-	b.Run("Err", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ctx.Err()
+	b.Run("Err", func { b -> for i := 0; i < b.N; i++ {
+		ctx.Err()
+	} })
+	b.Run("Done", func { b -> for i := 0; i < b.N; i++ {
+		select {
+		case <-ctx.Done():
+		default:
 		}
-	})
-	b.Run("Done", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			select {
-			case <-ctx.Done():
-			default:
-			}
-		}
-	})
+	} })
 }
 
 func BenchmarkContextCancelDone(b *testing.B) {
 	ctx, cancel := WithCancel(Background())
 	defer cancel()
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			select {
-			case <-ctx.Done():
-			default:
-			}
+	b.RunParallel(func { pb -> for pb.Next() {
+		select {
+		case <-ctx.Done():
+		default:
 		}
-	})
+	} })
 }
 
 func BenchmarkDeepValueNewGoRoutine(b *testing.B) {
@@ -160,7 +150,7 @@ func BenchmarkDeepValueNewGoRoutine(b *testing.B) {
 			ctx = WithValue(ctx, i, i)
 		}
 
-		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
+		b.Run(fmt.Sprintf("depth=%d", depth), func { b ->
 			for i := 0; i < b.N; i++ {
 				var wg sync.WaitGroup
 				wg.Add(1)
@@ -181,10 +171,8 @@ func BenchmarkDeepValueSameGoRoutine(b *testing.B) {
 			ctx = WithValue(ctx, i, i)
 		}
 
-		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ctx.Value(-1)
-			}
-		})
+		b.Run(fmt.Sprintf("depth=%d", depth), func { b -> for i := 0; i < b.N; i++ {
+			ctx.Value(-1)
+		} })
 	}
 }

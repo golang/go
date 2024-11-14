@@ -231,7 +231,7 @@ func TestLongAdjustTimers(t *testing.T) {
 	}
 }
 func BenchmarkTicker(b *testing.B) {
-	benchmark(b, func(pb *testing.PB) {
+	benchmark(b, func { pb ->
 		ticker := NewTicker(Nanosecond)
 		for pb.Next() {
 			<-ticker.C
@@ -241,7 +241,7 @@ func BenchmarkTicker(b *testing.B) {
 }
 
 func BenchmarkTickerReset(b *testing.B) {
-	benchmark(b, func(pb *testing.PB) {
+	benchmark(b, func { pb ->
 		ticker := NewTicker(Nanosecond)
 		for pb.Next() {
 			ticker.Reset(Nanosecond * 2)
@@ -251,7 +251,7 @@ func BenchmarkTickerReset(b *testing.B) {
 }
 
 func BenchmarkTickerResetNaive(b *testing.B) {
-	benchmark(b, func(pb *testing.PB) {
+	benchmark(b, func { pb ->
 		ticker := NewTicker(Nanosecond)
 		for pb.Next() {
 			ticker.Stop()
@@ -264,7 +264,7 @@ func BenchmarkTickerResetNaive(b *testing.B) {
 func TestTimerGC(t *testing.T) {
 	run := func(t *testing.T, what string, f func()) {
 		t.Helper()
-		t.Run(what, func(t *testing.T) {
+		t.Run(what, func { t ->
 			t.Helper()
 			const N = 1e4
 			var stats runtime.MemStats
@@ -308,13 +308,13 @@ func TestTimerGC(t *testing.T) {
 
 func TestChan(t *testing.T) {
 	for _, name := range []string{"0", "1", "2"} {
-		t.Run("asynctimerchan="+name, func(t *testing.T) {
+		t.Run("asynctimerchan="+name, func { t ->
 			t.Setenv("GODEBUG", "asynctimerchan="+name)
-			t.Run("Timer", func(t *testing.T) {
+			t.Run("Timer", func { t ->
 				tim := NewTimer(10000 * Second)
 				testTimerChan(t, tim, tim.C, name == "0")
 			})
-			t.Run("Ticker", func(t *testing.T) {
+			t.Run("Ticker", func { t ->
 				tim := &tickerTimer{Ticker: NewTicker(10000 * Second)}
 				testTimerChan(t, tim, tim.C, name == "0")
 			})

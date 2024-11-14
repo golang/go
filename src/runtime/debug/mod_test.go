@@ -52,7 +52,7 @@ func FuzzParseBuildInfoRoundTrip(f *testing.F) {
 		build CRAZY_ENV="requires\nescaping"
 		`))
 
-	f.Fuzz(func(t *testing.T, s string) {
+	f.Fuzz(func { t, s ->
 		bi, err := debug.ParseBuildInfo(s)
 		if err != nil {
 			// Not a round-trippable BuildInfo string.

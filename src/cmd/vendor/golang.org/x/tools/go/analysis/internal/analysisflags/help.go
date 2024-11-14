@@ -32,9 +32,7 @@ func Help(progname string, analyzers []*analysis.Analyzer, args []string) {
 		fmt.Println(strings.Replace(help, "PROGNAME", progname, -1))
 		fmt.Println("Registered analyzers:")
 		fmt.Println()
-		sort.Slice(analyzers, func(i, j int) bool {
-			return analyzers[i].Name < analyzers[j].Name
-		})
+		sort.Slice(analyzers, func { i, j -> analyzers[i].Name < analyzers[j].Name })
 		for _, a := range analyzers {
 			title := strings.Split(a.Doc, "\n\n")[0]
 			fmt.Printf("    %-12s %s\n", a.Name, title)
@@ -47,11 +45,9 @@ func Help(progname string, analyzers []*analysis.Analyzer, args []string) {
 		fmt.Println("\nCore flags:")
 		fmt.Println()
 		fs := flag.NewFlagSet("", flag.ExitOnError)
-		flag.VisitAll(func(f *flag.Flag) {
-			if !strings.Contains(f.Name, ".") {
-				fs.Var(f.Value, f.Name, f.Usage)
-			}
-		})
+		flag.VisitAll(func { f -> if !strings.Contains(f.Name, ".") {
+			fs.Var(f.Value, f.Name, f.Usage)
+		} })
 		fs.SetOutput(os.Stdout)
 		fs.PrintDefaults()
 
@@ -73,7 +69,7 @@ outer:
 				// properly prefixed.
 				first := true
 				fs := flag.NewFlagSet(a.Name, flag.ExitOnError)
-				a.Flags.VisitAll(func(f *flag.Flag) {
+				a.Flags.VisitAll(func { f ->
 					if first {
 						first = false
 						fmt.Println("\nAnalyzer flags:")

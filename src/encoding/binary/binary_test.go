@@ -184,7 +184,7 @@ var decoders = []struct {
 
 func testRead(t *testing.T, order ByteOrder, b []byte, s1 any) {
 	for _, dec := range decoders {
-		t.Run(dec.name, func(t *testing.T) {
+		t.Run(dec.name, func { t ->
 			var s2 Struct
 			err := dec.fn(order, &s2, b)
 			checkResult(t, dec.name, order, err, s2, s1)
@@ -194,7 +194,7 @@ func testRead(t *testing.T, order ByteOrder, b []byte, s1 any) {
 
 func testWrite(t *testing.T, order ByteOrder, b []byte, s1 any) {
 	for _, enc := range encoders {
-		t.Run(enc.name, func(t *testing.T) {
+		t.Run(enc.name, func { t ->
 			buf, err := enc.fn(order, s1)
 			checkResult(t, enc.name, order, err, buf, b)
 		})
@@ -210,13 +210,13 @@ func TestBigEndianWrite(t *testing.T)    { testWrite(t, BigEndian, big, s) }
 func TestBigEndianPtrWrite(t *testing.T) { testWrite(t, BigEndian, big, &s) }
 
 func TestReadSlice(t *testing.T) {
-	t.Run("Read", func(t *testing.T) {
+	t.Run("Read", func { t ->
 		slice := make([]int32, 2)
 		err := Read(bytes.NewReader(src), BigEndian, slice)
 		checkResult(t, "ReadSlice", BigEndian, err, slice, res)
 	})
 
-	t.Run("Decode", func(t *testing.T) {
+	t.Run("Decode", func { t ->
 		slice := make([]int32, 2)
 		_, err := Decode(src, BigEndian, slice)
 		checkResult(t, "ReadSlice", BigEndian, err, slice, res)
@@ -229,7 +229,7 @@ func TestWriteSlice(t *testing.T) {
 
 func TestReadBool(t *testing.T) {
 	for _, dec := range decoders {
-		t.Run(dec.name, func(t *testing.T) {
+		t.Run(dec.name, func { t ->
 			var res bool
 			var err error
 			err = dec.fn(BigEndian, &res, []byte{0})
@@ -247,7 +247,7 @@ func TestReadBool(t *testing.T) {
 
 func TestReadBoolSlice(t *testing.T) {
 	for _, dec := range decoders {
-		t.Run(dec.name, func(t *testing.T) {
+		t.Run(dec.name, func { t ->
 			slice := make([]bool, 4)
 			err := dec.fn(BigEndian, slice, []byte{0, 1, 2, 255})
 			checkResult(t, dec.name, BigEndian, err, slice, []bool{false, true, true, true})
@@ -270,10 +270,10 @@ var intArrays = []any{
 func TestSliceRoundTrip(t *testing.T) {
 	for _, enc := range encoders {
 		for _, dec := range decoders {
-			t.Run(fmt.Sprintf("%s,%s", enc.name, dec.name), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s,%s", enc.name, dec.name), func { t ->
 				for _, array := range intArrays {
 					src := reflect.ValueOf(array).Elem()
-					t.Run(src.Index(0).Type().Name(), func(t *testing.T) {
+					t.Run(src.Index(0).Type().Name(), func { t ->
 						unsigned := false
 						switch src.Index(0).Kind() {
 						case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -310,7 +310,7 @@ func TestSliceRoundTrip(t *testing.T) {
 
 func TestWriteT(t *testing.T) {
 	for _, enc := range encoders {
-		t.Run(enc.name, func(t *testing.T) {
+		t.Run(enc.name, func { t ->
 			ts := T{}
 			if _, err := enc.fn(BigEndian, ts); err == nil {
 				t.Errorf("WriteT: have err == nil, want non-nil")
@@ -358,7 +358,7 @@ type BlankFieldsProbe struct {
 
 func TestBlankFields(t *testing.T) {
 	for _, enc := range encoders {
-		t.Run(enc.name, func(t *testing.T) {
+		t.Run(enc.name, func { t ->
 			b1 := BlankFields{A: 1234567890, B: 2.718281828, C: 42}
 			buf, err := enc.fn(LittleEndian, &b1)
 			if err != nil {
@@ -398,9 +398,9 @@ func TestSizeStructCache(t *testing.T) {
 	// Reset the cache, otherwise multiple test runs fail.
 	structSize = sync.Map{}
 
-	count := func() int {
+	count := func {
 		var i int
-		structSize.Range(func(_, _ any) bool {
+		structSize.Range(func { _, _ ->
 			i++
 			return true
 		})
@@ -408,7 +408,7 @@ func TestSizeStructCache(t *testing.T) {
 	}
 
 	var total int
-	added := func() int {
+	added := func {
 		delta := count() - total
 		total += delta
 		return delta
@@ -498,7 +498,7 @@ func TestUnexportedRead(t *testing.T) {
 	}
 
 	for _, dec := range decoders {
-		t.Run(dec.name, func(t *testing.T) {
+		t.Run(dec.name, func { t ->
 			defer func() {
 				if recover() == nil {
 					t.Fatal("did not panic")
@@ -513,7 +513,7 @@ func TestUnexportedRead(t *testing.T) {
 
 func TestReadErrorMsg(t *testing.T) {
 	for _, dec := range decoders {
-		t.Run(dec.name, func(t *testing.T) {
+		t.Run(dec.name, func { t ->
 			read := func(data any) {
 				err := dec.fn(LittleEndian, data, nil)
 				want := fmt.Sprintf("binary.%s: invalid type %s", dec.name, reflect.TypeOf(data).String())
@@ -693,7 +693,7 @@ func TestNoFixedSize(t *testing.T) {
 	}
 
 	for _, enc := range encoders {
-		t.Run(enc.name, func(t *testing.T) {
+		t.Run(enc.name, func { t ->
 			_, err := enc.fn(LittleEndian, &person)
 			if err == nil {
 				t.Fatalf("binary.%s: unexpected success as size of type *binary.Person is not fixed", enc.name)
@@ -743,7 +743,7 @@ var sizableTypes = []any{
 
 func TestSizeAllocs(t *testing.T) {
 	for _, data := range sizableTypes {
-		t.Run(fmt.Sprintf("%T", data), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%T", data), func { t ->
 			// Size uses a sync.Map behind the scenes. The slow lookup path of
 			// that does allocate, so we need a couple of runs here to be
 			// allocation free.
@@ -1130,11 +1130,9 @@ func BenchmarkWriteSlice1000Uint8s(b *testing.B) {
 
 func BenchmarkSize(b *testing.B) {
 	for _, data := range sizableTypes {
-		b.Run(fmt.Sprintf("%T", data), func(b *testing.B) {
-			for range b.N {
-				_ = Size(data)
-			}
-		})
+		b.Run(fmt.Sprintf("%T", data), func { b -> for range b.N {
+			_ = Size(data)
+		} })
 	}
 }
 

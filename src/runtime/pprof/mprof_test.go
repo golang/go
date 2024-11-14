@@ -121,7 +121,7 @@ func TestMemoryProfiler(t *testing.T) {
 `, memoryProfilerRun, (2<<20)*memoryProfilerRun),
 	}}
 
-	t.Run("debug=1", func(t *testing.T) {
+	t.Run("debug=1", func { t ->
 		var buf bytes.Buffer
 		if err := Lookup("heap").WriteTo(&buf, 1); err != nil {
 			t.Fatalf("failed to write heap profile: %v", err)
@@ -134,7 +134,7 @@ func TestMemoryProfiler(t *testing.T) {
 		}
 	})
 
-	t.Run("proto", func(t *testing.T) {
+	t.Run("proto", func { t ->
 		var buf bytes.Buffer
 		if err := Lookup("heap").WriteTo(&buf, 0); err != nil {
 			t.Fatalf("failed to write heap profile: %v", err)

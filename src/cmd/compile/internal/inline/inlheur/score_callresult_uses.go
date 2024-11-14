@@ -55,7 +55,7 @@ func (csa *callSiteAnalyzer) rescoreBasedOnCallResultUses(fn *ir.Func, resultNam
 		condLevelTracker: new(condLevelTracker),
 	}
 	var doNode func(ir.Node) bool
-	doNode = func(n ir.Node) bool {
+	doNode = func { n ->
 		rua.nodeVisitPre(n)
 		ir.DoChildren(n, doNode)
 		rua.nodeVisitPost(n)
@@ -350,7 +350,7 @@ func (rua *resultUseAnalyzer) foldCheckResults(cond ir.Node) {
 
 func collectNamesUsed(expr ir.Node) []*ir.Name {
 	res := []*ir.Name{}
-	ir.Visit(expr, func(n ir.Node) {
+	ir.Visit(expr, func { n ->
 		if n.Op() != ir.ONAME {
 			return
 		}

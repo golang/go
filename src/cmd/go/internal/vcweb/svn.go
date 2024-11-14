@@ -124,7 +124,7 @@ func (h *svnHandler) Handler(dir string, env []string, logger *log.Logger) (http
 		return nil, err
 	}
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func { w, req ->
 		if req.FormValue("vcwebsvn") != "" {
 			w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
 			io.WriteString(w, "svn://"+addr+"\n")

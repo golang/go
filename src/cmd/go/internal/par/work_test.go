@@ -16,7 +16,7 @@ func TestWork(t *testing.T) {
 	const N = 10000
 	n := int32(0)
 	w.Add(N)
-	w.Do(100, func(i int) {
+	w.Do(100, func { i ->
 		atomic.AddInt32(&n, 1)
 		if i >= 2 {
 			w.Add(i - 1)
@@ -39,7 +39,7 @@ func TestWorkParallel(t *testing.T) {
 		}
 		start := time.Now()
 		var n int32
-		w.Do(N, func(x int) {
+		w.Do(N, func { x ->
 			time.Sleep(1 * time.Millisecond)
 			atomic.AddInt32(&n, +1)
 		})
@@ -57,19 +57,31 @@ func TestCache(t *testing.T) {
 	var cache Cache[int, int]
 
 	n := 1
-	v := cache.Do(1, func() int { n++; return n })
+	v := cache.Do(1, func {
+		n++
+		return n
+	})
 	if v != 2 {
 		t.Fatalf("cache.Do(1) did not run f")
 	}
-	v = cache.Do(1, func() int { n++; return n })
+	v = cache.Do(1, func {
+		n++
+		return n
+	})
 	if v != 2 {
 		t.Fatalf("cache.Do(1) ran f again!")
 	}
-	v = cache.Do(2, func() int { n++; return n })
+	v = cache.Do(2, func {
+		n++
+		return n
+	})
 	if v != 3 {
 		t.Fatalf("cache.Do(2) did not run f")
 	}
-	v = cache.Do(1, func() int { n++; return n })
+	v = cache.Do(1, func {
+		n++
+		return n
+	})
 	if v != 2 {
 		t.Fatalf("cache.Do(1) did not returned saved value from original cache.Do(1)")
 	}

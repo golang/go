@@ -667,7 +667,7 @@ func TestPipeLookPathLeak(t *testing.T) {
 	}
 	// Not parallel: checks for leaked file descriptors
 
-	openFDs := func() []uintptr {
+	openFDs := func {
 		var fds []uintptr
 		for i := uintptr(0); i < 100; i++ {
 			if fdtest.Exists(i) {
@@ -759,7 +759,7 @@ func TestExtraFiles(t *testing.T) {
 
 	// Force TLS root certs to be loaded (which might involve
 	// cgo), to make sure none of that potential C code leaks fds.
-	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func { w, r -> }))
 	// quiet expected TLS handshake error "remote error: bad certificate"
 	ts.Config.ErrorLog = log.New(io.Discard, "", 0)
 	ts.StartTLS()
@@ -843,7 +843,7 @@ func TestExtraFilesRace(t *testing.T) {
 	}
 	t.Parallel()
 
-	listen := func() net.Listener {
+	listen := func {
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
 			t.Fatal(err)
@@ -1308,9 +1308,7 @@ func startHang(t *testing.T, ctx context.Context, hangTime time.Duration, interr
 	if interrupt == nil {
 		cmd.Cancel = nil
 	} else {
-		cmd.Cancel = func() error {
-			return cmd.Process.Signal(interrupt)
-		}
+		cmd.Cancel = func { cmd.Process.Signal(interrupt) }
 	}
 	cmd.WaitDelay = waitDelay
 	out, err := cmd.StdoutPipe()
@@ -1348,7 +1346,7 @@ func TestWaitInterrupt(t *testing.T) {
 
 	// Control case: with no cancellation and no WaitDelay, we should wait for the
 	// process to exit.
-	t.Run("Wait", func(t *testing.T) {
+	t.Run("Wait", func { t ->
 		t.Parallel()
 		cmd := startHang(t, context.Background(), 1*time.Millisecond, os.Kill, 0)
 		err := cmd.Wait()
@@ -1367,7 +1365,7 @@ func TestWaitInterrupt(t *testing.T) {
 
 	// With a very long WaitDelay and no Cancel function, we should wait for the
 	// process to exit even if the command's Context is canceled.
-	t.Run("WaitDelay", func(t *testing.T) {
+	t.Run("WaitDelay", func { t ->
 		if runtime.GOOS == "windows" {
 			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
 		}
@@ -1408,7 +1406,7 @@ func TestWaitInterrupt(t *testing.T) {
 	// the process should be terminated immediately, and its output
 	// pipes should be closed (causing Wait to return) after WaitDelay
 	// even if a child process is still writing to them.
-	t.Run("SIGKILL-hang", func(t *testing.T) {
+	t.Run("SIGKILL-hang", func { t ->
 		t.Parallel()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1433,7 +1431,7 @@ func TestWaitInterrupt(t *testing.T) {
 	// closing the pipes and returning.  Wait should return ErrWaitDelay
 	// to indicate that the piped output may be incomplete even though the
 	// command returned a “success” code.
-	t.Run("Exit-hang", func(t *testing.T) {
+	t.Run("Exit-hang", func { t ->
 		t.Parallel()
 
 		cmd := startHang(t, context.Background(), 1*time.Millisecond, nil, 10*time.Millisecond, "-subsleep=10m", "-probe=1ms")
@@ -1453,7 +1451,7 @@ func TestWaitInterrupt(t *testing.T) {
 	// If the Cancel function sends a signal that the process can handle, and it
 	// handles that signal without actually exiting, then it should be terminated
 	// after the WaitDelay.
-	t.Run("SIGINT-ignored", func(t *testing.T) {
+	t.Run("SIGINT-ignored", func { t ->
 		if runtime.GOOS == "windows" {
 			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
 		}
@@ -1477,7 +1475,7 @@ func TestWaitInterrupt(t *testing.T) {
 	// Wait should report a non-nil error (because the process had to be
 	// interrupted), and it should be a context error (because there is no error
 	// to report from the child process itself).
-	t.Run("SIGINT-handled", func(t *testing.T) {
+	t.Run("SIGINT-handled", func { t ->
 		if runtime.GOOS == "windows" {
 			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
 		}
@@ -1503,7 +1501,7 @@ func TestWaitInterrupt(t *testing.T) {
 	// If the Cancel function sends SIGQUIT, it should be handled in the usual
 	// way: a Go program should dump its goroutines and exit with non-success
 	// status. (We expect SIGQUIT to be a common pattern in real-world use.)
-	t.Run("SIGQUIT", func(t *testing.T) {
+	t.Run("SIGQUIT", func { t ->
 		if quitSignal == nil {
 			t.Skipf("skipping: SIGQUIT is not supported on %v", runtime.GOOS)
 		}
@@ -1538,7 +1536,7 @@ func TestCancelErrors(t *testing.T) {
 
 	// If Cancel returns a non-ErrProcessDone error and the process
 	// exits successfully, Wait should wrap the error from Cancel.
-	t.Run("success after error", func(t *testing.T) {
+	t.Run("success after error", func { t ->
 		t.Parallel()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1551,7 +1549,7 @@ func TestCancelErrors(t *testing.T) {
 		}
 
 		errArbitrary := errors.New("arbitrary error")
-		cmd.Cancel = func() error {
+		cmd.Cancel = func {
 			stdin.Close()
 			t.Logf("Cancel returning %v", errArbitrary)
 			return errArbitrary
@@ -1572,7 +1570,7 @@ func TestCancelErrors(t *testing.T) {
 	// Wait should ignore that error. (ErrProcessDone indicates that the
 	// process was already done before we tried to interrupt it — maybe we
 	// just didn't notice because Wait hadn't been called yet.)
-	t.Run("success after ErrProcessDone", func(t *testing.T) {
+	t.Run("success after ErrProcessDone", func { t ->
 		t.Parallel()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1594,7 +1592,7 @@ func TestCancelErrors(t *testing.T) {
 		// from Cancel to report that).
 		interruptCalled := make(chan struct{})
 		done := make(chan struct{})
-		cmd.Cancel = func() error {
+		cmd.Cancel = func {
 			close(interruptCalled)
 			<-done
 			t.Logf("Cancel returning an error wrapping ErrProcessDone")
@@ -1621,7 +1619,7 @@ func TestCancelErrors(t *testing.T) {
 	// If Cancel returns an error and the process is killed after
 	// WaitDelay, Wait should report the usual SIGKILL ExitError, not the
 	// error from Cancel.
-	t.Run("killed after error", func(t *testing.T) {
+	t.Run("killed after error", func { t ->
 		t.Parallel()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1636,7 +1634,7 @@ func TestCancelErrors(t *testing.T) {
 
 		errArbitrary := errors.New("arbitrary error")
 		var interruptCalled atomic.Bool
-		cmd.Cancel = func() error {
+		cmd.Cancel = func {
 			t.Logf("Cancel called")
 			interruptCalled.Store(true)
 			return errArbitrary
@@ -1667,7 +1665,7 @@ func TestCancelErrors(t *testing.T) {
 	// If Cancel returns ErrProcessDone but the process is not actually done
 	// (and has to be killed), Wait should report the usual SIGKILL ExitError,
 	// not the error from Cancel.
-	t.Run("killed after spurious ErrProcessDone", func(t *testing.T) {
+	t.Run("killed after spurious ErrProcessDone", func { t ->
 		t.Parallel()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1681,7 +1679,7 @@ func TestCancelErrors(t *testing.T) {
 		defer stdin.Close()
 
 		var interruptCalled atomic.Bool
-		cmd.Cancel = func() error {
+		cmd.Cancel = func {
 			t.Logf("Cancel returning an error wrapping ErrProcessDone")
 			interruptCalled.Store(true)
 			return fmt.Errorf("%w: stdout closed", os.ErrProcessDone)
@@ -1712,7 +1710,7 @@ func TestCancelErrors(t *testing.T) {
 	// If Cancel returns an error and the process exits with an
 	// unsuccessful exit code, the process error should take precedence over the
 	// Cancel error.
-	t.Run("nonzero exit after error", func(t *testing.T) {
+	t.Run("nonzero exit after error", func { t ->
 		t.Parallel()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1726,7 +1724,7 @@ func TestCancelErrors(t *testing.T) {
 
 		errArbitrary := errors.New("arbitrary error")
 		interrupted := make(chan struct{})
-		cmd.Cancel = func() error {
+		cmd.Cancel = func {
 			close(interrupted)
 			return errArbitrary
 		}
@@ -1866,7 +1864,7 @@ func TestAbsPathExec(t *testing.T) {
 
 	// A simple exec after modifying Cmd.Path should work.
 	// This broke on Windows. See go.dev/issue/68314.
-	t.Run("modified", func(t *testing.T) {
+	t.Run("modified", func { t ->
 		if exec.Command(filepath.Join(testenv.GOROOT(t), "bin/go")).Run() == nil {
 			// The implementation of the test case below relies on the go binary
 			// exiting with a non-zero exit code when run without any arguments.

@@ -15,9 +15,7 @@ import (
 
 // sortComments sorts the list of comment groups in source order.
 func sortComments(list []*CommentGroup) {
-	slices.SortFunc(list, func(a, b *CommentGroup) int {
-		return cmp.Compare(a.Pos(), b.Pos())
-	})
+	slices.SortFunc(list, func { a, b -> cmp.Compare(a.Pos(), b.Pos()) })
 }
 
 // A CommentMap maps an AST node to a list of comment groups
@@ -47,7 +45,7 @@ func (a byInterval) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 // nodeList returns the list of nodes of the AST n in source order.
 func nodeList(n Node) []Node {
 	var list []Node
-	Inspect(n, func(n Node) bool {
+	Inspect(n, func { n ->
 		// don't collect comments
 		switch n.(type) {
 		case nil, *CommentGroup, *Comment:
@@ -248,7 +246,7 @@ func (cmap CommentMap) Update(old, new Node) Node {
 // the AST specified by node.
 func (cmap CommentMap) Filter(node Node) CommentMap {
 	umap := make(CommentMap)
-	Inspect(node, func(n Node) bool {
+	Inspect(node, func { n ->
 		if g := cmap[n]; len(g) > 0 {
 			umap[n] = g
 		}
@@ -310,7 +308,7 @@ func (cmap CommentMap) String() string {
 	for node := range cmap {
 		nodes = append(nodes, node)
 	}
-	slices.SortFunc(nodes, func(a, b Node) int {
+	slices.SortFunc(nodes, func { a, b ->
 		r := cmp.Compare(a.Pos(), b.Pos())
 		if r != 0 {
 			return r

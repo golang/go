@@ -13,7 +13,7 @@ import (
 
 func labelsSorted(ctx context.Context) []label {
 	ls := []label{}
-	ForLabels(ctx, func(key, value string) bool {
+	ForLabels(ctx, func { key, value ->
 		ls = append(ls, label{key, value})
 		return true
 	})

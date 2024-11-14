@@ -16,7 +16,7 @@ func TestHandlers(t *testing.T) {
 	ctx := context.Background()
 	r := slog.NewRecord(testTime, slog.LevelInfo, testMessage, 0)
 	r.AddAttrs(testAttrs...)
-	t.Run("text", func(t *testing.T) {
+	t.Run("text", func { t ->
 		var b bytes.Buffer
 		h := newFastTextHandler(&b)
 		if err := h.Handle(ctx, r); err != nil {
@@ -27,7 +27,7 @@ func TestHandlers(t *testing.T) {
 			t.Errorf("\ngot  %q\nwant %q", got, wantText)
 		}
 	})
-	t.Run("async", func(t *testing.T) {
+	t.Run("async", func { t ->
 		h := newAsyncHandler()
 		if err := h.Handle(ctx, r); err != nil {
 			t.Fatal(err)
@@ -41,6 +41,9 @@ func TestHandlers(t *testing.T) {
 
 func attrSlice(r slog.Record) []slog.Attr {
 	var as []slog.Attr
-	r.Attrs(func(a slog.Attr) bool { as = append(as, a); return true })
+	r.Attrs(func { a ->
+		as = append(as, a)
+		return true
+	})
 	return as
 }

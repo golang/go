@@ -892,7 +892,7 @@ func (cc collisionChecker) check(p string, isDir bool) error {
 // files, as well as a list of directories and files that were skipped (for
 // example, nested modules and symbolic links).
 func listFilesInDir(dir string) (files []File, omitted []FileError, err error) {
-	err = filepath.Walk(dir, func(filePath string, info os.FileInfo, err error) error {
+	err = filepath.Walk(dir, func { filePath, info, err ->
 		if err != nil {
 			return err
 		}

@@ -53,7 +53,7 @@ func FuzzReader(f *testing.F) {
 		f.Add(b)
 	}
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		for _, multistream := range []bool{true, false} {
 			r, err := NewReader(bytes.NewBuffer(b))
 			if err != nil {

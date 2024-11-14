@@ -50,7 +50,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.DeferStmt)(nil),
 	}
 
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		d := n.(*ast.DeferStmt)
 		ast.Inspect(d.Call, checkDeferCall)
 	})

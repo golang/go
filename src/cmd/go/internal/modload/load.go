@@ -1253,9 +1253,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 					rs = tidy
 				} else {
 					conflict := Conflict{
-						Path: mg.g.FindPath(func(m module.Version) bool {
-							return m.Path == "go" && m.Version == v
-						})[1:],
+						Path:       mg.g.FindPath(func { m -> m.Path == "go" && m.Version == v })[1:],
 						Constraint: module.Version{Path: "go", Version: ld.TidyGoVersion},
 					}
 					msg := conflict.Summary()
@@ -1656,7 +1654,7 @@ func (ld *loader) pkg(ctx context.Context, path string, flags loadPkgFlags) *loa
 		panic("internal error: (*loader).pkg called with pkgImportsLoaded flag set")
 	}
 
-	pkg := ld.pkgCache.Do(path, func() *loadPkg {
+	pkg := ld.pkgCache.Do(path, func {
 		pkg := &loadPkg{
 			path: path,
 		}

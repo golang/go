@@ -173,7 +173,7 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 	// Reassign the import paths to have the same position sequence.
 	// Reassign each comment to the spec on the same line.
 	// Sort the comments by new position.
-	slices.SortFunc(specs, func(a, b Spec) int {
+	slices.SortFunc(specs, func { a, b ->
 		ipath := importPath(a)
 		jpath := importPath(b)
 		r := cmp.Compare(ipath, jpath)
@@ -225,9 +225,7 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 		}
 	}
 
-	slices.SortFunc(comments, func(a, b *CommentGroup) int {
-		return cmp.Compare(a.Pos(), b.Pos())
-	})
+	slices.SortFunc(comments, func { a, b -> cmp.Compare(a.Pos(), b.Pos()) })
 
 	return specs
 }

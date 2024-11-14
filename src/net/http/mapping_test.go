@@ -51,13 +51,11 @@ func TestMappingEachPair(t *testing.T) {
 	}
 
 	var got []entry[int, string]
-	m.eachPair(func(k int, v string) bool {
+	m.eachPair(func { k, v ->
 		got = append(got, entry[int, string]{k, v})
 		return true
 	})
-	slices.SortFunc(got, func(e1, e2 entry[int, string]) int {
-		return cmp.Compare(e1.key, e2.key)
-	})
+	slices.SortFunc(got, func { e1, e2 -> cmp.Compare(e1.key, e2.key) })
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
@@ -104,9 +102,9 @@ func BenchmarkFindChild(b *testing.B) {
 	}
 	for _, n := range []int{2, 4, 8, 16, 32} {
 		list := children[:n]
-		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
+		b.Run(fmt.Sprintf("n=%d", n), func { b ->
 
-			b.Run("rep=linear", func(b *testing.B) {
+			b.Run("rep=linear", func { b ->
 				var entries []entry[string, any]
 				for _, c := range list {
 					entries = append(entries, entry[string, any]{c, nil})
@@ -116,7 +114,7 @@ func BenchmarkFindChild(b *testing.B) {
 					findChildLinear(key, entries)
 				}
 			})
-			b.Run("rep=map", func(b *testing.B) {
+			b.Run("rep=map", func { b ->
 				m := map[string]any{}
 				for _, c := range list {
 					m[c] = nil
@@ -128,7 +126,7 @@ func BenchmarkFindChild(b *testing.B) {
 				}
 				_ = x
 			})
-			b.Run(fmt.Sprintf("rep=hybrid%d", maxSlice), func(b *testing.B) {
+			b.Run(fmt.Sprintf("rep=hybrid%d", maxSlice), func { b ->
 				var h mapping[string, any]
 				for _, c := range list {
 					h.add(c, nil)

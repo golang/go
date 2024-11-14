@@ -375,9 +375,7 @@ func (sp *sourcePrinter) expandAddresses(rpt *Report, addrs map[uint64]addrInfo,
 
 	// Trim ranges if there are too many.
 	const maxRanges = 25
-	sort.Slice(ranges, func(i, j int) bool {
-		return ranges[i].score > ranges[j].score
-	})
+	sort.Slice(ranges, func { i, j -> ranges[i].score > ranges[j].score })
 	if len(ranges) > maxRanges {
 		ranges = ranges[:maxRanges]
 	}
@@ -553,7 +551,7 @@ func (sp *sourcePrinter) splitIntoRanges(prof *profile.Profile, addrMap map[uint
 			unprocessed = append(unprocessed, addr)
 		}
 	}
-	sort.Slice(addrs, func(i, j int) bool { return addrs[i] < addrs[j] })
+	sort.Slice(addrs, func { i, j -> addrs[i] < addrs[j] })
 
 	const expand = 500 // How much to expand range to pick up nearby addresses.
 	var result []addressRange
@@ -632,7 +630,7 @@ func (sp *sourcePrinter) generate(maxFiles int, rpt *Report) WebListData {
 	order := func(i, j int) bool { return files[i].flat > files[j].flat }
 	if maxFiles < 0 {
 		// Order by name for compatibility with old code.
-		order = func(i, j int) bool { return files[i].fname < files[j].fname }
+		order = func { i, j -> files[i].fname < files[j].fname }
 		maxFiles = len(files)
 	}
 	sort.Slice(files, order)

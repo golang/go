@@ -335,7 +335,7 @@ func walksymtab(data []byte, fn func(sym) error) error {
 // Starting with Go 1.3, the Go symbol table no longer includes symbol data.
 func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 	var n int
-	err := walksymtab(symtab, func(s sym) error {
+	err := walksymtab(symtab, func { s ->
 		n++
 		return nil
 	})
@@ -352,7 +352,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 	nf := 0
 	nz := 0
 	lasttyp := uint8(0)
-	err = walksymtab(symtab, func(s sym) error {
+	err = walksymtab(symtab, func { s ->
 		n := len(t.Syms)
 		t.Syms = t.Syms[0 : n+1]
 		ts := &t.Syms[n]

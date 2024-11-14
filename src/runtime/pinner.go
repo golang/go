@@ -48,7 +48,7 @@ func (p *Pinner) Pin(pointer any) {
 			// when reusing from the cache. The finalizer however has to be
 			// resilient to an empty pinner being finalized, which is done
 			// by checking p.refs' length.
-			SetFinalizer(p.pinner, func(i *pinner) {
+			SetFinalizer(p.pinner, func { i ->
 				if len(i.refs) != 0 {
 					i.unpin() // only required to make the test idempotent
 					pinnerLeakPanic()

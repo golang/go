@@ -228,10 +228,10 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 		// Module path or pattern.
 		var match func(string) bool
 		if arg == "all" {
-			match = func(p string) bool { return !gover.IsToolchain(p) }
+			match = func { p -> !gover.IsToolchain(p) }
 		} else if strings.Contains(arg, "...") {
 			mp := pkgpattern.MatchPattern(arg)
-			match = func(p string) bool { return mp(p) && !gover.IsToolchain(p) }
+			match = func { p -> mp(p) && !gover.IsToolchain(p) }
 		} else {
 			var v string
 			if mg == nil {

@@ -59,7 +59,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// If T's type set is empty, or if it doesn't
 		// have specific types, constant x cannot be
 		// converted.
-		ok = Unalias(T).(*TypeParam).underIs(func(u Type) bool {
+		ok = Unalias(T).(*TypeParam).underIs(func { u ->
 			// u is nil if there are no specific type terms
 			if u == nil {
 				cause = check.sprintf("%s does not contain specific types", T)
@@ -249,12 +249,12 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 	switch {
 	case Vp != nil && Tp != nil:
 		x := *x // don't clobber outer x
-		return Vp.is(func(V *term) bool {
+		return Vp.is(func { V ->
 			if V == nil {
 				return false // no specific types
 			}
 			x.typ = V.typ
-			return Tp.is(func(T *term) bool {
+			return Tp.is(func { T ->
 				if T == nil {
 					return false // no specific types
 				}
@@ -267,7 +267,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		})
 	case Vp != nil:
 		x := *x // don't clobber outer x
-		return Vp.is(func(V *term) bool {
+		return Vp.is(func { V ->
 			if V == nil {
 				return false // no specific types
 			}
@@ -279,7 +279,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 			return true
 		})
 	case Tp != nil:
-		return Tp.is(func(T *term) bool {
+		return Tp.is(func { T ->
 			if T == nil {
 				return false // no specific types
 			}

@@ -58,9 +58,7 @@ func removeAll(path string) error {
 func removeAllFrom(parent *File, base string) error {
 	parentFd := int(parent.Fd())
 	// Simple case: if Unlink (aka remove) works, we're done.
-	err := ignoringEINTR(func() error {
-		return unix.Unlinkat(parentFd, base, 0)
-	})
+	err := ignoringEINTR(func { unix.Unlinkat(parentFd, base, 0) })
 	if err == nil || IsNotExist(err) {
 		return nil
 	}
@@ -144,9 +142,7 @@ func removeAllFrom(parent *File, base string) error {
 	}
 
 	// Remove the directory itself.
-	unlinkError := ignoringEINTR(func() error {
-		return unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR)
-	})
+	unlinkError := ignoringEINTR(func { unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR) })
 	if unlinkError == nil || IsNotExist(unlinkError) {
 		return nil
 	}

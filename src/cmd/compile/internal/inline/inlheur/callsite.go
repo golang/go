@@ -99,7 +99,7 @@ func (cst CallSiteTab) merge(other CallSiteTab) error {
 func fmtFullPos(p src.XPos) string {
 	var sb strings.Builder
 	sep := ""
-	base.Ctxt.AllPos(p, func(pos src.Pos) {
+	base.Ctxt.AllPos(p, func { pos ->
 		fmt.Fprintf(&sb, sep)
 		sep = "|"
 		file := filepath.Base(pos.Filename())

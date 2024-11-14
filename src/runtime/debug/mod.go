@@ -110,7 +110,7 @@ func (bi *BuildInfo) String() string {
 		fmt.Fprintf(buf, "path\t%s\n", bi.Path)
 	}
 	var formatMod func(string, Module)
-	formatMod = func(word string, m Module) {
+	formatMod = func { word, m ->
 		buf.WriteString(word)
 		buf.WriteByte('\t')
 		buf.WriteString(m.Path)

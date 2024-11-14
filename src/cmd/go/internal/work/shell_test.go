@@ -74,7 +74,7 @@ func FuzzSplitPkgConfigOutput(f *testing.F) {
 	f.Add([]byte(`\`))
 	f.Add([]byte(`"broken\"" "extra" \`))
 
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func { t, b ->
 		t.Parallel()
 
 		if bytes.ContainsAny(b, "*?[#~%\x00{}!") {

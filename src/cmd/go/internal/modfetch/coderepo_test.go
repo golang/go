@@ -820,7 +820,7 @@ func TestCodeRepoVersions(t *testing.T) {
 
 	for _, tt := range codeRepoVersionsTests {
 		tt := tt
-		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func { t ->
 			if strings.Contains(tt.path, "gopkg.in") {
 				testenv.SkipFlaky(t, 54503)
 			}
@@ -891,7 +891,7 @@ func TestLatest(t *testing.T) {
 
 	for _, tt := range latestTests {
 		name := strings.ReplaceAll(tt.path, "/", "_")
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func { t ->
 			tt := tt
 			t.Parallel()
 			if tt.vcs != "mod" {

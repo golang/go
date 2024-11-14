@@ -65,7 +65,7 @@ func TestEncodeIntSlice(t *testing.T) {
 	s32 := []int32{532, 590, 651, 715, 782, 852, 925, 1001, 1080}
 	s64 := []int64{1162, 1247, 1335, 1426, 1520, 1617, 1717, 1820, 1926}
 
-	t.Run("int8", func(t *testing.T) {
+	t.Run("int8", func { t ->
 		var sink bytes.Buffer
 		enc := NewEncoder(&sink)
 		enc.Encode(s8)
@@ -79,7 +79,7 @@ func TestEncodeIntSlice(t *testing.T) {
 		}
 	})
 
-	t.Run("int16", func(t *testing.T) {
+	t.Run("int16", func { t ->
 		var sink bytes.Buffer
 		enc := NewEncoder(&sink)
 		enc.Encode(s16)
@@ -93,7 +93,7 @@ func TestEncodeIntSlice(t *testing.T) {
 		}
 	})
 
-	t.Run("int32", func(t *testing.T) {
+	t.Run("int32", func { t ->
 		var sink bytes.Buffer
 		enc := NewEncoder(&sink)
 		enc.Encode(s32)
@@ -107,7 +107,7 @@ func TestEncodeIntSlice(t *testing.T) {
 		}
 	})
 
-	t.Run("int64", func(t *testing.T) {
+	t.Run("int64", func { t ->
 		var sink bytes.Buffer
 		enc := NewEncoder(&sink)
 		enc.Encode(s64)
@@ -1187,7 +1187,7 @@ func TestMarshalFloatMap(t *testing.T) {
 		for k, v := range m {
 			entries = append(entries, mapEntry{math.Float64bits(k), v})
 		}
-		slices.SortFunc(entries, func(a, b mapEntry) int {
+		slices.SortFunc(entries, func { a, b ->
 			r := cmp.Compare(a.keyBits, b.keyBits)
 			if r != 0 {
 				return r

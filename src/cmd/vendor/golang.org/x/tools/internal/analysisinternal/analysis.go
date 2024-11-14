@@ -325,7 +325,7 @@ func MatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *types
 	}
 
 	seen := map[types.Object]struct{}{}
-	ast.Inspect(node, func(n ast.Node) bool {
+	ast.Inspect(node, func { n ->
 		if n == nil {
 			return false
 		}

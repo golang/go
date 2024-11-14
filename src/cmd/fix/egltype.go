@@ -31,9 +31,7 @@ var eglFixDisplay = fix{
 //
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func eglfixDisp(f *ast.File) bool {
-	return typefix(f, func(s string) bool {
-		return s == "C.EGLDisplay"
-	})
+	return typefix(f, func { s -> s == "C.EGLDisplay" })
 }
 
 var eglFixConfig = fix{
@@ -54,7 +52,5 @@ var eglFixConfig = fix{
 //
 // This fix finds nils initializing these types and replaces the nils with 0s.
 func eglfixConfig(f *ast.File) bool {
-	return typefix(f, func(s string) bool {
-		return s == "C.EGLConfig"
-	})
+	return typefix(f, func { s -> s == "C.EGLConfig" })
 }

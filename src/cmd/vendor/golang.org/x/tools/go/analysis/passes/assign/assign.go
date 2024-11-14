@@ -39,7 +39,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	nodeFilter := []ast.Node{
 		(*ast.AssignStmt)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nodeFilter, func { n ->
 		stmt := n.(*ast.AssignStmt)
 		if stmt.Tok != token.ASSIGN {
 			return // ignore :=

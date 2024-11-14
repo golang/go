@@ -47,7 +47,7 @@ func expectSendfile(t *testing.T, wantConn Conn, f func()) {
 		gotHandled bool
 		gotFD      *poll.FD
 	)
-	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
+	poll.TestHookDidSendFile = func { dstFD, src, written, err, handled ->
 		if called {
 			t.Error("internal/poll.SendFile called multiple times, want one call")
 		}
@@ -520,8 +520,8 @@ func BenchmarkSendFile(b *testing.B) {
 		b.Skipf("skipping on %s", runtime.GOOS)
 	}
 
-	b.Run("file-to-tcp", func(b *testing.B) { benchmarkSendFile(b, "tcp") })
-	b.Run("file-to-unix", func(b *testing.B) { benchmarkSendFile(b, "unix") })
+	b.Run("file-to-tcp", func { b -> benchmarkSendFile(b, "tcp") })
+	b.Run("file-to-unix", func { b -> benchmarkSendFile(b, "unix") })
 }
 
 func benchmarkSendFile(b *testing.B, proto string) {

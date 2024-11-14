@@ -134,7 +134,7 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 			"/flamegraphold": redirectWithQuery("flamegraph", http.StatusMovedPermanently), // Keep legacy URL working.
 			"/saveconfig":    http.HandlerFunc(ui.saveConfig),
 			"/deleteconfig":  http.HandlerFunc(ui.deleteConfig),
-			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			"/download": http.HandlerFunc(func { w, req ->
 				w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
 				w.Header().Set("Content-Disposition", "attachment;filename=profile.pb.gz")
 				p.Write(w)
@@ -185,7 +185,7 @@ func defaultWebServer(args *plugin.HTTPServerArgs) error {
 		return err
 	}
 	isLocal := isLocalhost(args.Host)
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func { w, req ->
 		if isLocal {
 			// Only allow local clients
 			host, _, err := net.SplitHostPort(req.RemoteAddr)
@@ -364,9 +364,7 @@ func dotToSvg(dot []byte) ([]byte, error) {
 }
 
 func (ui *webInterface) top(w http.ResponseWriter, req *http.Request) {
-	rpt, errList := ui.makeReport(w, req, []string{"top"}, func(cfg *config) {
-		cfg.NodeCount = 500
-	})
+	rpt, errList := ui.makeReport(w, req, []string{"top"}, func { cfg -> cfg.NodeCount = 500 })
 	if rpt == nil {
 		return // error already reported
 	}
@@ -430,9 +428,7 @@ func (ui *webInterface) source(w http.ResponseWriter, req *http.Request) {
 // peek generates a web page listing callers/callers.
 func (ui *webInterface) peek(w http.ResponseWriter, req *http.Request) {
 	args := []string{"peek", req.URL.Query().Get("f")}
-	rpt, errList := ui.makeReport(w, req, args, func(cfg *config) {
-		cfg.Granularity = "lines"
-	})
+	rpt, errList := ui.makeReport(w, req, args, func { cfg -> cfg.Granularity = "lines" })
 	if rpt == nil {
 		return // error already reported
 	}

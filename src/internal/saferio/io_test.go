@@ -14,7 +14,7 @@ func TestReadData(t *testing.T) {
 	const count = 100
 	input := bytes.Repeat([]byte{'a'}, count)
 
-	t.Run("small", func(t *testing.T) {
+	t.Run("small", func { t ->
 		got, err := ReadData(bytes.NewReader(input), count)
 		if err != nil {
 			t.Fatal(err)
@@ -24,35 +24,35 @@ func TestReadData(t *testing.T) {
 		}
 	})
 
-	t.Run("large", func(t *testing.T) {
+	t.Run("large", func { t ->
 		_, err := ReadData(bytes.NewReader(input), 10<<30)
 		if err == nil {
 			t.Error("large read succeeded unexpectedly")
 		}
 	})
 
-	t.Run("maxint", func(t *testing.T) {
+	t.Run("maxint", func { t ->
 		_, err := ReadData(bytes.NewReader(input), 1<<62)
 		if err == nil {
 			t.Error("large read succeeded unexpectedly")
 		}
 	})
 
-	t.Run("small-EOF", func(t *testing.T) {
+	t.Run("small-EOF", func { t ->
 		_, err := ReadData(bytes.NewReader(nil), chunk-1)
 		if err != io.EOF {
 			t.Errorf("ReadData = %v, want io.EOF", err)
 		}
 	})
 
-	t.Run("large-EOF", func(t *testing.T) {
+	t.Run("large-EOF", func { t ->
 		_, err := ReadData(bytes.NewReader(nil), chunk+1)
 		if err != io.EOF {
 			t.Errorf("ReadData = %v, want io.EOF", err)
 		}
 	})
 
-	t.Run("large-UnexpectedEOF", func(t *testing.T) {
+	t.Run("large-UnexpectedEOF", func { t ->
 		_, err := ReadData(bytes.NewReader(make([]byte, chunk)), chunk+1)
 		if err != io.ErrUnexpectedEOF {
 			t.Errorf("ReadData = %v, want io.ErrUnexpectedEOF", err)
@@ -64,7 +64,7 @@ func TestReadDataAt(t *testing.T) {
 	const count = 100
 	input := bytes.Repeat([]byte{'a'}, count)
 
-	t.Run("small", func(t *testing.T) {
+	t.Run("small", func { t ->
 		got, err := ReadDataAt(bytes.NewReader(input), count, 0)
 		if err != nil {
 			t.Fatal(err)
@@ -74,21 +74,21 @@ func TestReadDataAt(t *testing.T) {
 		}
 	})
 
-	t.Run("large", func(t *testing.T) {
+	t.Run("large", func { t ->
 		_, err := ReadDataAt(bytes.NewReader(input), 10<<30, 0)
 		if err == nil {
 			t.Error("large read succeeded unexpectedly")
 		}
 	})
 
-	t.Run("maxint", func(t *testing.T) {
+	t.Run("maxint", func { t ->
 		_, err := ReadDataAt(bytes.NewReader(input), 1<<62, 0)
 		if err == nil {
 			t.Error("large read succeeded unexpectedly")
 		}
 	})
 
-	t.Run("SectionReader", func(t *testing.T) {
+	t.Run("SectionReader", func { t ->
 		// Reading 0 bytes from an io.SectionReader at the end
 		// of the section will return EOF, but ReadDataAt
 		// should succeed and return 0 bytes.
@@ -104,14 +104,14 @@ func TestReadDataAt(t *testing.T) {
 }
 
 func TestSliceCap(t *testing.T) {
-	t.Run("small", func(t *testing.T) {
+	t.Run("small", func { t ->
 		c := SliceCap[int](10)
 		if c != 10 {
 			t.Errorf("got capacity %d, want %d", c, 10)
 		}
 	})
 
-	t.Run("large", func(t *testing.T) {
+	t.Run("large", func { t ->
 		c := SliceCap[byte](1 << 30)
 		if c < 0 {
 			t.Error("SliceCap failed unexpectedly")
@@ -120,14 +120,14 @@ func TestSliceCap(t *testing.T) {
 		}
 	})
 
-	t.Run("maxint", func(t *testing.T) {
+	t.Run("maxint", func { t ->
 		c := SliceCap[byte](1 << 63)
 		if c >= 0 {
 			t.Errorf("SliceCap returned %d, expected failure", c)
 		}
 	})
 
-	t.Run("overflow", func(t *testing.T) {
+	t.Run("overflow", func { t ->
 		c := SliceCap[int64](1 << 62)
 		if c >= 0 {
 			t.Errorf("SliceCap returned %d, expected failure", c)

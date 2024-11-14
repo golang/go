@@ -155,7 +155,7 @@ func bootstrapBuildTools() {
 	for _, dir := range bootstrapDirs {
 		recurse := strings.HasSuffix(dir, "/...")
 		dir = strings.TrimSuffix(dir, "/...")
-		filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		filepath.Walk(dir, func { path, info, err ->
 			if err != nil {
 				fatalf("walking bootstrap dirs failed: %v: %v", path, err)
 			}

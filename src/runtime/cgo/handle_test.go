@@ -44,7 +44,7 @@ func TestHandle(t *testing.T) {
 	}
 
 	siz := 0
-	handles.Range(func(k, v any) bool {
+	handles.Range(func { k, v ->
 		siz++
 		return true
 	})
@@ -54,7 +54,7 @@ func TestHandle(t *testing.T) {
 }
 
 func TestInvalidHandle(t *testing.T) {
-	t.Run("zero", func(t *testing.T) {
+	t.Run("zero", func { t ->
 		h := Handle(0)
 
 		defer func() {
@@ -67,7 +67,7 @@ func TestInvalidHandle(t *testing.T) {
 		h.Delete()
 	})
 
-	t.Run("invalid", func(t *testing.T) {
+	t.Run("invalid", func { t ->
 		h := NewHandle(42)
 
 		defer func() {
@@ -83,15 +83,13 @@ func TestInvalidHandle(t *testing.T) {
 }
 
 func BenchmarkHandle(b *testing.B) {
-	b.Run("non-concurrent", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			h := NewHandle(i)
-			_ = h.Value()
-			h.Delete()
-		}
-	})
-	b.Run("concurrent", func(b *testing.B) {
-		b.RunParallel(func(pb *testing.PB) {
+	b.Run("non-concurrent", func { b -> for i := 0; i < b.N; i++ {
+		h := NewHandle(i)
+		_ = h.Value()
+		h.Delete()
+	} })
+	b.Run("concurrent", func { b ->
+		b.RunParallel(func { pb ->
 			var v int
 			for pb.Next() {
 				h := NewHandle(v)

@@ -675,7 +675,7 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 	}
 
 	hasNonTrivialClosure := false
-	ir.Visit(as2body.Rhs[0], func(n ir.Node) {
+	ir.Visit(as2body.Rhs[0], func { n ->
 		if name, ok := n.(*ir.Name); ok {
 			if c, ok := count[name]; ok {
 				count[name] = c + 1
@@ -905,7 +905,7 @@ func mayModifyPkgVar(n ir.Node) bool {
 		return ok && v.Op() == ir.ONAME && !(v.Class == ir.PEXTERN && v.Sym().Pkg == types.LocalPkg)
 	}
 
-	return ir.Any(n, func(n ir.Node) bool {
+	return ir.Any(n, func { n ->
 		switch n.Op() {
 		case ir.OCALLFUNC, ir.OCALLINTER:
 			return !ir.IsFuncPCIntrinsic(n.(*ir.CallExpr))
@@ -977,7 +977,7 @@ func isvaluelit(n ir.Node) bool {
 func subst(n ir.Node, m map[*ir.Name]ir.Node) (ir.Node, bool) {
 	valid := true
 	var edit func(ir.Node) ir.Node
-	edit = func(x ir.Node) ir.Node {
+	edit = func { x ->
 		switch x.Op() {
 		case ir.ONAME:
 			x := x.(*ir.Name)
@@ -1110,7 +1110,7 @@ func tryWrapGlobalInit(n ir.Node) *ir.Func {
 
 	// Determine size of RHS.
 	rsiz := 0
-	ir.Any(as.Y, func(n ir.Node) bool {
+	ir.Any(as.Y, func { n ->
 		rsiz++
 		return false
 	})

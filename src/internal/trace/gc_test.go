@@ -116,7 +116,7 @@ func TestMMUTrace(t *testing.T) {
 			}
 		}
 	}
-	t.Run("V2", func(t *testing.T) {
+	t.Run("V2", func { t ->
 		testPath := "testdata/tests/go122-gc-stress.test"
 		r, _, err := testtrace.ParseFile(testPath)
 		if err != nil {

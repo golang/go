@@ -16,13 +16,9 @@ import (
 // unsafeheader types matches the corresponding Header types in the reflect
 // package.
 func TestTypeMatchesReflectType(t *testing.T) {
-	t.Run("Slice", func(t *testing.T) {
-		testHeaderMatchesReflect(t, unsafeheader.Slice{}, reflect.SliceHeader{})
-	})
+	t.Run("Slice", func { t -> testHeaderMatchesReflect(t, unsafeheader.Slice{}, reflect.SliceHeader{}) })
 
-	t.Run("String", func(t *testing.T) {
-		testHeaderMatchesReflect(t, unsafeheader.String{}, reflect.StringHeader{})
-	})
+	t.Run("String", func { t -> testHeaderMatchesReflect(t, unsafeheader.String{}, reflect.StringHeader{}) })
 }
 
 func testHeaderMatchesReflect(t *testing.T, header, reflectHeader any) {
@@ -68,7 +64,7 @@ func typeCompatible(t, rt reflect.Type) bool {
 // -d=checkptr) if the runtime views the header types as incompatible with the
 // underlying built-in types.
 func TestWriteThroughHeader(t *testing.T) {
-	t.Run("Slice", func(t *testing.T) {
+	t.Run("Slice", func { t ->
 		s := []byte("Hello, checkptr!")[:5]
 
 		var alias []byte
@@ -85,7 +81,7 @@ func TestWriteThroughHeader(t *testing.T) {
 		}
 	})
 
-	t.Run("String", func(t *testing.T) {
+	t.Run("String", func { t ->
 		s := "Hello, checkptr!"
 
 		var alias string

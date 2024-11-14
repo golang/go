@@ -40,7 +40,7 @@ func UserRegionsHandlerFunc(t *parsedTrace) http.HandlerFunc {
 		for _, stats := range summary {
 			userRegions = append(userRegions, stats)
 		}
-		slices.SortFunc(userRegions, func(a, b regionStats) int {
+		slices.SortFunc(userRegions, func { a, b ->
 			if c := cmp.Compare(a.Type, b.Type); c != 0 {
 				return c
 			}
@@ -72,7 +72,7 @@ func fingerprintRegion(r *trace.UserRegionSummary) regionFingerprint {
 func regionTopStackFrame(r *trace.UserRegionSummary) trace.StackFrame {
 	var frame trace.StackFrame
 	if r.Start != nil && r.Start.Stack() != trace.NoStack {
-		r.Start.Stack().Frames(func(f trace.StackFrame) bool {
+		r.Start.Stack().Frames(func { f ->
 			frame = f
 			return false
 		})
@@ -203,14 +203,10 @@ func UserRegionHandlerFunc(t *parsedTrace) http.HandlerFunc {
 		// Sort.
 		sortBy := r.FormValue("sortby")
 		if _, ok := validNonOverlappingStats[sortBy]; ok {
-			slices.SortFunc(regions, func(a, b region) int {
-				return cmp.Compare(b.NonOverlappingStats[sortBy], a.NonOverlappingStats[sortBy])
-			})
+			slices.SortFunc(regions, func { a, b -> cmp.Compare(b.NonOverlappingStats[sortBy], a.NonOverlappingStats[sortBy]) })
 		} else {
 			// Sort by total time by default.
-			slices.SortFunc(regions, func(a, b region) int {
-				return cmp.Compare(b.TotalTime, a.TotalTime)
-			})
+			slices.SortFunc(regions, func { a, b -> cmp.Compare(b.TotalTime, a.TotalTime) })
 		}
 
 		// Write down all the non-overlapping stats and sort them.
@@ -218,7 +214,7 @@ func UserRegionHandlerFunc(t *parsedTrace) http.HandlerFunc {
 		for name := range validNonOverlappingStats {
 			allNonOverlappingStats = append(allNonOverlappingStats, name)
 		}
-		slices.SortFunc(allNonOverlappingStats, func(a, b string) int {
+		slices.SortFunc(allNonOverlappingStats, func { a, b ->
 			if a == b {
 				return 0
 			}
@@ -476,32 +472,24 @@ func newRegionFilter(r *http.Request) (*regionFilter, error) {
 	param := r.Form
 	if typ, ok := param["type"]; ok && len(typ) > 0 {
 		name = append(name, fmt.Sprintf("%q", typ[0]))
-		conditions = append(conditions, func(_ *parsedTrace, r *trace.UserRegionSummary) bool {
-			return r.Name == typ[0]
-		})
+		conditions = append(conditions, func { _, r -> r.Name == typ[0] })
 		filterParams.Add("type", typ[0])
 	}
 	if pc, err := strconv.ParseUint(r.FormValue("pc"), 16, 64); err == nil {
 		encPC := fmt.Sprintf("0x%x", pc)
 		name = append(name, "@ "+encPC)
-		conditions = append(conditions, func(_ *parsedTrace, r *trace.UserRegionSummary) bool {
-			return regionTopStackFrame(r).PC == pc
-		})
+		conditions = append(conditions, func { _, r -> regionTopStackFrame(r).PC == pc })
 		filterParams.Add("pc", encPC)
 	}
 
 	if lat, err := time.ParseDuration(r.FormValue("latmin")); err == nil {
 		name = append(name, fmt.Sprintf("(latency >= %s)", lat))
-		conditions = append(conditions, func(t *parsedTrace, r *trace.UserRegionSummary) bool {
-			return regionInterval(t, r).duration() >= lat
-		})
+		conditions = append(conditions, func { t, r -> regionInterval(t, r).duration() >= lat })
 		filterParams.Add("latmin", lat.String())
 	}
 	if lat, err := time.ParseDuration(r.FormValue("latmax")); err == nil {
 		name = append(name, fmt.Sprintf("(latency <= %s)", lat))
-		conditions = append(conditions, func(t *parsedTrace, r *trace.UserRegionSummary) bool {
-			return regionInterval(t, r).duration() <= lat
-		})
+		conditions = append(conditions, func { t, r -> regionInterval(t, r).duration() <= lat })
 		filterParams.Add("latmax", lat.String())
 	}
 

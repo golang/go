@@ -19,9 +19,7 @@ import (
 
 func TestGetdirentries(t *testing.T) {
 	for _, count := range []int{10, 1000} {
-		t.Run(fmt.Sprintf("n=%d", count), func(t *testing.T) {
-			testGetdirentries(t, count)
-		})
+		t.Run(fmt.Sprintf("n=%d", count), func { t -> testGetdirentries(t, count) })
 	}
 }
 func testGetdirentries(t *testing.T, count int) {

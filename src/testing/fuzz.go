@@ -319,7 +319,7 @@ func (f *F) Fuzz(ff any) {
 			t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 		}
 		f.common.inFuzzFn, f.inFuzzFn = true, true
-		go tRunner(t, func(t *T) {
+		go tRunner(t, func { t ->
 			args := []reflect.Value{reflect.ValueOf(t)}
 			for _, v := range e.Values {
 				args = append(args, reflect.ValueOf(v))
@@ -376,7 +376,7 @@ func (f *F) Fuzz(ff any) {
 	case fuzzWorker:
 		// Fuzzing is enabled, and this is a worker process. Follow instructions
 		// from the coordinator.
-		if err := f.fuzzContext.deps.RunFuzzWorker(func(e corpusEntry) error {
+		if err := f.fuzzContext.deps.RunFuzzWorker(func { e ->
 			// Don't write to f.w (which points to Stdout) if running from a
 			// fuzz worker. This would become very verbose, particularly during
 			// minimization. Return the error instead, and let the caller deal

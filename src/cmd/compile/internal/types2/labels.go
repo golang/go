@@ -119,7 +119,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 	}
 
 	var stmtBranches func(syntax.Stmt)
-	stmtBranches = func(s syntax.Stmt) {
+	stmtBranches = func { s ->
 		switch s := s.(type) {
 		case *syntax.DeclStmt:
 			for _, d := range s.DeclList {

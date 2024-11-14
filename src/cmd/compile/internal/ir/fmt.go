@@ -1037,7 +1037,7 @@ func dumpNodeHeader(w io.Writer, n Node) {
 			fmt.Fprint(w, "+")
 		}
 		sep := ""
-		base.Ctxt.AllPos(n.Pos(), func(pos src.Pos) {
+		base.Ctxt.AllPos(n.Pos(), func { pos ->
 			fmt.Fprint(w, sep)
 			sep = " "
 			// TODO(mdempsky): Print line pragma details too.

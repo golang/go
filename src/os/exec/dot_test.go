@@ -47,10 +47,10 @@ func TestLookPath(t *testing.T) {
 	// Add "." to PATH so that exec.LookPath looks in the current directory on all systems.
 	// And try to trick it with "../testdir" too.
 	for _, errdot := range []string{"1", "0"} {
-		t.Run("GODEBUG=execerrdot="+errdot, func(t *testing.T) {
+		t.Run("GODEBUG=execerrdot="+errdot, func { t ->
 			t.Setenv("GODEBUG", "execerrdot="+errdot+",execwait=2")
 			for _, dir := range []string{".", "../testdir"} {
-				t.Run(pathVar+"="+dir, func(t *testing.T) {
+				t.Run(pathVar+"="+dir, func { t ->
 					t.Setenv(pathVar, dir+string(filepath.ListSeparator)+origPath)
 					good := dir + "/execabs-test"
 					if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
@@ -118,7 +118,7 @@ func TestLookPath(t *testing.T) {
 	// Windows configured with NoDefaultCurrentDirectoryInExePath), then this
 	// lookup should succeed regardless of the behavior for ".", so it may be
 	// useful to run as a control case even on those platforms.
-	t.Run(pathVar+"=$PWD", func(t *testing.T) {
+	t.Run(pathVar+"=$PWD", func { t ->
 		t.Setenv(pathVar, tmpDir+string(filepath.ListSeparator)+origPath)
 		good := filepath.Join(tmpDir, "execabs-test")
 		if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
@@ -135,7 +135,7 @@ func TestLookPath(t *testing.T) {
 		}
 	})
 
-	t.Run(pathVar+"=$OTHER", func(t *testing.T) {
+	t.Run(pathVar+"=$OTHER", func { t ->
 		// Control case: if the lookup returns ErrDot when PATH is empty, then we
 		// know that PATH implicitly includes ".". If it does not, then we don't
 		// expect to see ErrDot at all in this test (because the path will be

@@ -1405,7 +1405,7 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 
 	/* Reloc */
 	// Ensure deterministic order
-	sort.Slice(f.loaderReloc, func(i, j int) bool {
+	sort.Slice(f.loaderReloc, func { i, j ->
 		r1, r2 := f.loaderReloc[i], f.loaderReloc[j]
 		if r1.sym != r2.sym {
 			return r1.sym < r2.sym
@@ -1704,9 +1704,7 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 			for i := 0; i < relocs.Count(); i++ {
 				sorted[i] = i
 			}
-			sort.Slice(sorted, func(i, j int) bool {
-				return relocs.At(sorted[i]).Off() < relocs.At(sorted[j]).Off()
-			})
+			sort.Slice(sorted, func { i, j -> relocs.At(sorted[i]).Off() < relocs.At(sorted[j]).Off() })
 
 			for _, ri := range sorted {
 				r := relocs.At(ri)

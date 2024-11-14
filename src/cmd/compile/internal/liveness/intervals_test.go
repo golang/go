@@ -301,7 +301,7 @@ func TestRandomIntervalsOverlap(t *testing.T) {
 
 	// Return a pseudo-random intervals object with 0-3 segments within
 	// the range of 0 to limit
-	mk := func() Intervals {
+	mk := func {
 		vals := rand.Perm(int(*limitflag))
 		// decide how many segments
 		segs := rand.Intn(int(*segsflag))
@@ -417,15 +417,15 @@ func TestBuilder(t *testing.T) {
 		// error case, position non-decreasing
 		{
 			inp: []posLiveKill{
-				posLiveKill{pos: 10, becomesLive: true},
-				posLiveKill{pos: 18, isKill: true},
+				{pos: 10, becomesLive: true},
+				{pos: 18, isKill: true},
 			},
 			aerr: true,
 		},
 		// error case, position negative
 		{
 			inp: []posLiveKill{
-				posLiveKill{pos: -1, becomesLive: true},
+				{pos: -1, becomesLive: true},
 			},
 			aerr: true,
 		},
@@ -436,32 +436,32 @@ func TestBuilder(t *testing.T) {
 		// single BB
 		{
 			inp: []posLiveKill{
-				posLiveKill{pos: 10, becomesLive: true},
-				posLiveKill{pos: 9, isKill: true},
+				{pos: 10, becomesLive: true},
+				{pos: 9, isKill: true},
 			},
 			exp: []int{10, 11},
 		},
 		// couple of BBs
 		{
 			inp: []posLiveKill{
-				posLiveKill{pos: 11, becomesLive: true},
-				posLiveKill{pos: 10, becomesLive: true},
-				posLiveKill{pos: 9, isKill: true},
-				posLiveKill{pos: 4, becomesLive: true},
-				posLiveKill{pos: 1, isKill: true},
+				{pos: 11, becomesLive: true},
+				{pos: 10, becomesLive: true},
+				{pos: 9, isKill: true},
+				{pos: 4, becomesLive: true},
+				{pos: 1, isKill: true},
 			},
 			exp: []int{2, 5, 10, 12},
 		},
 		// couple of BBs
 		{
 			inp: []posLiveKill{
-				posLiveKill{pos: 20, isKill: true},
-				posLiveKill{pos: 19, isKill: true},
-				posLiveKill{pos: 17, becomesLive: true},
-				posLiveKill{pos: 14, becomesLive: true},
-				posLiveKill{pos: 10, isKill: true},
-				posLiveKill{pos: 4, becomesLive: true},
-				posLiveKill{pos: 0, isKill: true},
+				{pos: 20, isKill: true},
+				{pos: 19, isKill: true},
+				{pos: 17, becomesLive: true},
+				{pos: 14, becomesLive: true},
+				{pos: 10, isKill: true},
+				{pos: 4, becomesLive: true},
+				{pos: 0, isKill: true},
 			},
 			exp: []int{1, 5, 11, 18},
 		},

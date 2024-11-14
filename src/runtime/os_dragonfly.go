@@ -164,7 +164,7 @@ func newosproc(mp *m) {
 	}
 
 	// TODO: Check for error.
-	retryOnEAGAIN(func() int32 {
+	retryOnEAGAIN(func {
 		lwp_create(&params)
 		return 0
 	})

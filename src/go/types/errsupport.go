@@ -107,7 +107,7 @@ func (check *Checker) lookupError(typ Type, sel string, obj Object, structLit bo
 // tail returns the string s without its first (UTF-8) character.
 // If len(s) == 0, the result is s.
 func tail(s string) string {
-	for i, _ := range s {
+	for i := range s {
 		if i > 0 {
 			return s[i:]
 		}

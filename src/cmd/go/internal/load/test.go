@@ -773,7 +773,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 		}
 	}
 	ex := doc.Examples(f)
-	sort.Slice(ex, func(i, j int) bool { return ex[i].Order < ex[j].Order })
+	sort.Slice(ex, func { i, j -> ex[i].Order < ex[j].Order })
 	for _, e := range ex {
 		*doImport = true // import test file whether executed or not
 		if e.Output == "" && !e.EmptyOutput {
