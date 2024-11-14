@@ -7,11 +7,11 @@
 package nistec
 
 import (
-	"crypto/internal/nistec/fiat"
-	"crypto/subtle"
+	"crypto/internal/fips/nistec/fiat"
+	"crypto/internal/fips/subtle"
+	"crypto/internal/fipsdeps/byteorder"
+	"crypto/internal/fipsdeps/cpu"
 	"errors"
-	"internal/byteorder"
-	"internal/goarch"
 	"math/bits"
 	"sync"
 	"unsafe"
@@ -402,10 +402,10 @@ func (s *p256OrdElement) SetBytes(x []byte) (*p256OrdElement, error) {
 		return nil, errors.New("invalid scalar length")
 	}
 
-	s[0] = byteorder.BeUint64(x[24:])
-	s[1] = byteorder.BeUint64(x[16:])
-	s[2] = byteorder.BeUint64(x[8:])
-	s[3] = byteorder.BeUint64(x[:])
+	s[0] = byteorder.BEUint64(x[24:])
+	s[1] = byteorder.BEUint64(x[16:])
+	s[2] = byteorder.BEUint64(x[8:])
+	s[3] = byteorder.BEUint64(x[:])
 
 	// Ensure s is in the range [0, ord(G)-1]. Since 2 * ord(G) > 2²⁵⁶, we can
 	// just conditionally subtract ord(G), keeping the result if it doesn't
@@ -425,10 +425,10 @@ func (s *p256OrdElement) SetBytes(x []byte) (*p256OrdElement, error) {
 
 func (s *p256OrdElement) Bytes() []byte {
 	var out [32]byte
-	byteorder.BePutUint64(out[24:], s[0])
-	byteorder.BePutUint64(out[16:], s[1])
-	byteorder.BePutUint64(out[8:], s[2])
-	byteorder.BePutUint64(out[:], s[3])
+	byteorder.BEPutUint64(out[24:], s[0])
+	byteorder.BEPutUint64(out[16:], s[1])
+	byteorder.BEPutUint64(out[8:], s[2])
+	byteorder.BEPutUint64(out[:], s[3])
 	return out[:]
 }
 
@@ -570,10 +570,10 @@ var p256GeneratorTables *[43]p256AffineTable
 
 func init() {
 	p256GeneratorTablesPtr := unsafe.Pointer(&p256PrecomputedEmbed)
-	if goarch.BigEndian {
+	if cpu.BigEndian {
 		var newTable [43 * 32 * 2 * 4]uint64
 		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(p256GeneratorTablesPtr) {
-			newTable[i] = byteorder.LeUint64(x[:])
+			newTable[i] = byteorder.LEUint64(x[:])
 		}
 		p256GeneratorTablesPtr = unsafe.Pointer(&newTable)
 	}

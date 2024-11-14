@@ -33,7 +33,7 @@ import (
 	"crypto/internal/bigmod"
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
-	"crypto/internal/nistec"
+	"crypto/internal/fips/nistec"
 	"crypto/internal/randutil"
 	"crypto/sha512"
 	"crypto/subtle"

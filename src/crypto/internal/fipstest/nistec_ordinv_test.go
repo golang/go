@@ -4,12 +4,12 @@
 
 //go:build (amd64 || arm64) && !purego
 
-package nistec_test
+package fipstest
 
 import (
 	"bytes"
 	"crypto/elliptic"
-	"crypto/internal/nistec"
+	"crypto/internal/fips/nistec"
 	"math/big"
 	"testing"
 )

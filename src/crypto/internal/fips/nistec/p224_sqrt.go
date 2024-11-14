@@ -5,7 +5,7 @@
 package nistec
 
 import (
-	"crypto/internal/nistec/fiat"
+	"crypto/internal/fips/nistec/fiat"
 	"sync"
 )
 

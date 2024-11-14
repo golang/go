@@ -7,7 +7,7 @@
 package fiat
 
 import (
-	"crypto/subtle"
+	"crypto/internal/fips/subtle"
 	"errors"
 )
 

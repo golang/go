@@ -8,7 +8,7 @@ package nistec
 
 import (
 	"bytes"
-	"crypto/internal/nistec/fiat"
+	"crypto/internal/fips/nistec/fiat"
 	"fmt"
 	"testing"
 )

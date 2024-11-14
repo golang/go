@@ -43,7 +43,7 @@ var (
 )
 
 func main() {
-	Package("crypto/internal/nistec")
+	Package("crypto/internal/fips/nistec")
 	ConstraintExpr("!purego")
 	p256MovCond()
 	p256NegCond()

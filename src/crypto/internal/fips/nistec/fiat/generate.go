@@ -152,7 +152,7 @@ const tmplWrapper = `// Copyright 2021 The Go Authors. All rights reserved.
 package fiat
 
 import (
-	"crypto/subtle"
+	"crypto/internal/fips/subtle"
 	"errors"
 )
 

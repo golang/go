@@ -6,7 +6,7 @@ package ecdh
 
 import (
 	"crypto/internal/boring"
-	"crypto/internal/nistec"
+	"crypto/internal/fips/nistec"
 	"crypto/internal/randutil"
 	"errors"
 	"internal/byteorder"

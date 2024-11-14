@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package nistec implements the NIST P elliptic curves from FIPS 186-4.
+// Package nistec implements the elliptic curves from NIST SP 800-186.
 //
 // This package uses fiat-crypto or specialized assembly and Go code for its
 // backend field arithmetic (not math/big) and exposes constant-time, heap

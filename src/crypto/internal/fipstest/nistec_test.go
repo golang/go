@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package nistec_test
+package fipstest
 
 import (
 	"bytes"
 	"crypto/elliptic"
 	"crypto/internal/cryptotest"
-	"crypto/internal/nistec"
+	"crypto/internal/fips/nistec"
 	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
 )
 
-func TestAllocations(t *testing.T) {
+func TestNISTECAllocations(t *testing.T) {
 	cryptotest.SkipTestAllocations(t)
 	t.Run("P224", func(t *testing.T) {
 		if allocs := testing.AllocsPerRun(10, func() {
@@ -256,55 +256,5 @@ func fatalIfErr(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatal(err)
-	}
-}
-
-func BenchmarkScalarMult(b *testing.B) {
-	b.Run("P224", func(b *testing.B) {
-		benchmarkScalarMult(b, nistec.NewP224Point().SetGenerator(), 28)
-	})
-	b.Run("P256", func(b *testing.B) {
-		benchmarkScalarMult(b, nistec.NewP256Point().SetGenerator(), 32)
-	})
-	b.Run("P384", func(b *testing.B) {
-		benchmarkScalarMult(b, nistec.NewP384Point().SetGenerator(), 48)
-	})
-	b.Run("P521", func(b *testing.B) {
-		benchmarkScalarMult(b, nistec.NewP521Point().SetGenerator(), 66)
-	})
-}
-
-func benchmarkScalarMult[P nistPoint[P]](b *testing.B, p P, scalarSize int) {
-	scalar := make([]byte, scalarSize)
-	rand.Read(scalar)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		p.ScalarMult(p, scalar)
-	}
-}
-
-func BenchmarkScalarBaseMult(b *testing.B) {
-	b.Run("P224", func(b *testing.B) {
-		benchmarkScalarBaseMult(b, nistec.NewP224Point().SetGenerator(), 28)
-	})
-	b.Run("P256", func(b *testing.B) {
-		benchmarkScalarBaseMult(b, nistec.NewP256Point().SetGenerator(), 32)
-	})
-	b.Run("P384", func(b *testing.B) {
-		benchmarkScalarBaseMult(b, nistec.NewP384Point().SetGenerator(), 48)
-	})
-	b.Run("P521", func(b *testing.B) {
-		benchmarkScalarBaseMult(b, nistec.NewP521Point().SetGenerator(), 66)
-	})
-}
-
-func benchmarkScalarBaseMult[P nistPoint[P]](b *testing.B, p P, scalarSize int) {
-	scalar := make([]byte, scalarSize)
-	rand.Read(scalar)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		p.ScalarBaseMult(scalar)
 	}
 }

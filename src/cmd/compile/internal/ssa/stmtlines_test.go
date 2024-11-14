@@ -103,7 +103,7 @@ func TestStmtLines(t *testing.T) {
 		if pkgname == "runtime" {
 			continue
 		}
-		if pkgname == "crypto/internal/nistec/fiat" {
+		if pkgname == "crypto/internal/fips/nistec/fiat" {
 			continue // golang.org/issue/49372
 		}
 		if e.Val(dwarf.AttrStmtList) == nil {
