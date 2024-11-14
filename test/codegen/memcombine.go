@@ -944,3 +944,29 @@ func issue66413(p *struct {
 	p.c = true
 	p.d = 12
 }
+
+func issue70300(v uint64) (b [8]byte) {
+	// amd64:"MOVQ",-"MOVB"
+	b[0] = byte(v)
+	b[1] = byte(v >> 8)
+	b[2] = byte(v >> 16)
+	b[3] = byte(v >> 24)
+	b[4] = byte(v >> 32)
+	b[5] = byte(v >> 40)
+	b[6] = byte(v >> 48)
+	b[7] = byte(v >> 56)
+	return b
+}
+
+func issue70300Reverse(v uint64) (b [8]byte) {
+	// amd64:"MOVQ",-"MOVB"
+	b[7] = byte(v >> 56)
+	b[6] = byte(v >> 48)
+	b[5] = byte(v >> 40)
+	b[4] = byte(v >> 32)
+	b[3] = byte(v >> 24)
+	b[2] = byte(v >> 16)
+	b[1] = byte(v >> 8)
+	b[0] = byte(v)
+	return b
+}

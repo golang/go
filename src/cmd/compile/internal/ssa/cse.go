@@ -35,6 +35,8 @@ func cse(f *Func) {
 	a := f.Cache.allocValueSlice(f.NumValues())
 	defer func() { f.Cache.freeValueSlice(a) }() // inside closure to use final value of a
 	a = a[:0]
+	o := f.Cache.allocInt32Slice(f.NumValues()) // the ordering score for stores
+	defer func() { f.Cache.freeInt32Slice(o) }()
 	if f.auxmap == nil {
 		f.auxmap = auxmap{}
 	}
@@ -125,6 +127,9 @@ func cse(f *Func) {
 				// Note: commutative args already correctly ordered by byArgClass.
 				eqArgs := true
 				for k, a := range v.Args {
+					if v.Op == OpLocalAddr && k == 1 {
+						continue
+					}
 					b := w.Args[k]
 					if valueEqClass[a.ID] != valueEqClass[b.ID] {
 						eqArgs = false
@@ -175,7 +180,35 @@ func cse(f *Func) {
 	defer f.Cache.freeValueSlice(rewrite)
 	for _, e := range partition {
 		slices.SortFunc(e, func(v, w *Value) int {
-			return cmp.Compare(sdom.domorder(v.Block), sdom.domorder(w.Block))
+			c := cmp.Compare(sdom.domorder(v.Block), sdom.domorder(w.Block))
+			if v.Op != OpLocalAddr || c != 0 {
+				return c
+			}
+			// compare the memory args for OpLocalAddrs in the same block
+			vm := v.Args[1]
+			wm := w.Args[1]
+			if vm == wm {
+				return 0
+			}
+			// if the two OpLocalAddrs are in the same block, and one's memory
+			// arg also in the same block, but the other one's memory arg not,
+			// the latter must be in an ancestor block
+			if vm.Block != v.Block {
+				return -1
+			}
+			if wm.Block != w.Block {
+				return +1
+			}
+			// use store order if the memory args are in the same block
+			vs := storeOrdering(vm, o)
+			ws := storeOrdering(wm, o)
+			if vs <= 0 {
+				f.Fatalf("unable to determine the order of %s", vm.LongString())
+			}
+			if ws <= 0 {
+				f.Fatalf("unable to determine the order of %s", wm.LongString())
+			}
+			return cmp.Compare(vs, ws)
 		})
 
 		for i := 0; i < len(e)-1; i++ {
@@ -239,6 +272,41 @@ func cse(f *Func) {
 	if f.pass.stats > 0 {
 		f.LogStat("CSE REWRITES", rewrites)
 	}
+}
+
+// storeOrdering computes the order for stores by iterate over the store
+// chain, assigns a score to each store. The scores only make sense for
+// stores within the same block, and the first store by store order has
+// the lowest score. The cache was used to ensure only compute once.
+func storeOrdering(v *Value, cache []int32) int32 {
+	const minScore int32 = 1
+	score := minScore
+	w := v
+	for {
+		if s := cache[w.ID]; s >= minScore {
+			score += s
+			break
+		}
+		if w.Op == OpPhi || w.Op == OpInitMem {
+			break
+		}
+		a := w.MemoryArg()
+		if a.Block != w.Block {
+			break
+		}
+		w = a
+		score++
+	}
+	w = v
+	for cache[w.ID] == 0 {
+		cache[w.ID] = score
+		if score == minScore {
+			break
+		}
+		w = w.MemoryArg()
+		score--
+	}
+	return cache[v.ID]
 }
 
 // An eqclass approximates an equivalence class. During the
