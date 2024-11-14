@@ -855,7 +855,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 // pointer to that object and marked it.
 func (s *mspan) reportZombies() {
 	printlock()
-	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer? try -d=checkptr)\n")
+	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer or having race conditions? try -d=checkptr or -race)\n")
 	mbits := s.markBitsForBase()
 	abits := s.allocBitsForIndex(0)
 	for i := uintptr(0); i < uintptr(s.nelems); i++ {
