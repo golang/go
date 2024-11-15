@@ -2184,28 +2184,28 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 				// Gather all files in the named directory, stopping at module boundaries
 				// and ignoring files that wouldn't be packaged into a module.
 				count := 0
-				err := fsys.Walk(file, func(path string, info os.FileInfo, err error) error {
+				err := fsys.WalkDir(file, func(path string, d fs.DirEntry, err error) error {
 					if err != nil {
 						return err
 					}
 					rel := filepath.ToSlash(str.TrimFilePathPrefix(path, pkgdir))
-					name := info.Name()
+					name := d.Name()
 					if path != file && (isBadEmbedName(name) || ((name[0] == '.' || name[0] == '_') && !all)) {
 						// Ignore bad names, assuming they won't go into modules.
 						// Also avoid hidden files that user may not know about.
 						// See golang.org/issue/42328.
-						if info.IsDir() {
+						if d.IsDir() {
 							return fs.SkipDir
 						}
 						return nil
 					}
-					if info.IsDir() {
+					if d.IsDir() {
 						if _, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil {
 							return filepath.SkipDir
 						}
 						return nil
 					}
-					if !info.Mode().IsRegular() {
+					if !d.Type().IsRegular() {
 						return nil
 					}
 					count++

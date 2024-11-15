@@ -301,32 +301,20 @@ func nonFileInOverlayError(overlayPath string) error {
 	return fmt.Errorf("replacement path %q is a directory, not a file", overlayPath)
 }
 
-// osReadDir is like os.ReadDir but returns []fs.FileInfo and corrects the error to be errNotDir
+// osReadDir is like os.ReadDir corrects the error to be errNotDir
 // if the problem is that name exists but is not a directory.
-func osReadDir(name string) ([]fs.FileInfo, error) {
+func osReadDir(name string) ([]fs.DirEntry, error) {
 	dirs, err := os.ReadDir(name)
 	if err != nil && !os.IsNotExist(err) {
 		if info, err := os.Stat(name); err == nil && !info.IsDir() {
 			return nil, &fs.PathError{Op: "ReadDir", Path: name, Err: errNotDir}
 		}
 	}
-
-	// Convert dirs to infos, even if there is an error,
-	// so that we preserve any partial read from os.ReadDir.
-	infos := make([]fs.FileInfo, 0, len(dirs))
-	for _, dir := range dirs {
-		info, err := dir.Info()
-		if err != nil {
-			continue
-		}
-		infos = append(infos, info)
-	}
-
-	return infos, err
+	return dirs, err
 }
 
 // ReadDir reads the named directory in the virtual file system.
-func ReadDir(dir string) ([]fs.FileInfo, error) {
+func ReadDir(dir string) ([]fs.DirEntry, error) {
 	Trace("ReadDir", dir)
 	dir = abs(dir)
 	if _, ok := parentIsOverlayFile(dir); ok {
@@ -346,14 +334,14 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
 	}
 
 	// Stat files in overlay to make composite list of fileinfos
-	files := make(map[string]fs.FileInfo)
+	files := make(map[string]fs.DirEntry)
 	for _, f := range diskfis {
 		files[f.Name()] = f
 	}
 	for name, to := range dirNode.children {
 		switch {
 		case to.isDir():
-			files[name] = fakeDir(name)
+			files[name] = fs.FileInfoToDirEntry(fakeDir(name))
 		case to.isDeleted():
 			delete(files, name)
 		default:
@@ -364,14 +352,14 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
 			// ordinary directory.
 			fi, err := os.Stat(to.actualFilePath)
 			if err != nil {
-				files[name] = missingFile(name)
+				files[name] = fs.FileInfoToDirEntry(missingFile(name))
 				continue
 			} else if fi.IsDir() {
 				return nil, &fs.PathError{Op: "Stat", Path: filepath.Join(dir, name), Err: nonFileInOverlayError(to.actualFilePath)}
 			}
 			// Add a fileinfo for the overlaid file, so that it has
 			// the original file's name, but the overlaid file's metadata.
-			files[name] = fakeFile{name, fi}
+			files[name] = fs.FileInfoToDirEntry(fakeFile{name, fi})
 		}
 	}
 	sortedFiles := diskfis[:0]
@@ -456,18 +444,18 @@ func IsGoDir(name string) (bool, error) {
 	}
 
 	var firstErr error
-	for _, fi := range fis {
-		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".go") {
+	for _, d := range fis {
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
 			continue
 		}
-		if fi.Mode().IsRegular() {
+		if d.Type().IsRegular() {
 			return true, nil
 		}
 
 		// fi is the result of an Lstat, so it doesn't follow symlinks.
 		// But it's okay if the file is a symlink pointing to a regular
 		// file, so use os.Stat to follow symlinks and check that.
-		fi, err := os.Stat(Actual(filepath.Join(name, fi.Name())))
+		fi, err := os.Stat(Actual(filepath.Join(name, d.Name())))
 		if err == nil && fi.Mode().IsRegular() {
 			return true, nil
 		}

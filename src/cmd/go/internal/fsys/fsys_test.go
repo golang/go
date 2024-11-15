@@ -31,8 +31,8 @@ func initOverlay(t *testing.T, config string) {
 	t.Chdir(t.TempDir())
 	resetForTesting()
 	t.Cleanup(resetForTesting)
-
 	cwd := cwd()
+
 	a := txtar.Parse([]byte(config))
 	for _, f := range a.Files {
 		name := filepath.Join(cwd, f.Name)
@@ -302,18 +302,14 @@ func TestReadDir(t *testing.T) {
 		for len(infos) > 0 || len(want) > 0 {
 			switch {
 			case len(want) == 0 || len(infos) > 0 && infos[0].Name() < want[0].name:
-				t.Errorf("ReadDir(%q): unexpected entry: %s IsDir=%v Size=%v", dir, infos[0].Name(), infos[0].IsDir(), infos[0].Size())
+				t.Errorf("ReadDir(%q): unexpected entry: %s IsDir=%v", dir, infos[0].Name(), infos[0].IsDir())
 				infos = infos[1:]
 			case len(infos) == 0 || len(want) > 0 && want[0].name < infos[0].Name():
-				t.Errorf("ReadDir(%q): missing entry: %s IsDir=%v Size=%v", dir, want[0].name, want[0].isDir, want[0].size)
+				t.Errorf("ReadDir(%q): missing entry: %s IsDir=%v", dir, want[0].name, want[0].isDir)
 				want = want[1:]
 			default:
-				infoSize := infos[0].Size()
-				if want[0].isDir {
-					infoSize = 0
-				}
-				if infos[0].IsDir() != want[0].isDir || want[0].isDir && infoSize != want[0].size {
-					t.Errorf("ReadDir(%q): %s: IsDir=%v Size=%v, want IsDir=%v Size=%v", dir, want[0].name, infos[0].IsDir(), infoSize, want[0].isDir, want[0].size)
+				if infos[0].IsDir() != want[0].isDir {
+					t.Errorf("ReadDir(%q): %s: IsDir=%v, want IsDir=%v", dir, want[0].name, infos[0].IsDir(), want[0].isDir)
 				}
 				infos = infos[1:]
 				want = want[1:]
@@ -689,8 +685,21 @@ contents of other file
 			initOverlay(t, tc.overlay)
 
 			var got []file
-			Walk(tc.root, func(path string, info fs.FileInfo, err error) error {
-				got = append(got, file{path, info.Name(), info.Size(), info.Mode(), info.IsDir()})
+			WalkDir(tc.root, func(path string, d fs.DirEntry, err error) error {
+				info, err := d.Info()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if info.Name() != d.Name() {
+					t.Errorf("walk %s: d.Name() = %q, but info.Name() = %q", path, d.Name(), info.Name())
+				}
+				if info.IsDir() != d.IsDir() {
+					t.Errorf("walk %s: d.IsDir() = %v, but info.IsDir() = %v", path, d.IsDir(), info.IsDir())
+				}
+				if info.Mode().Type() != d.Type() {
+					t.Errorf("walk %s: d.Type() = %v, but info.Mode().Type() = %v", path, d.Type(), info.Mode().Type())
+				}
+				got = append(got, file{path, d.Name(), info.Size(), info.Mode(), d.IsDir()})
 				return nil
 			})
 
@@ -700,22 +709,16 @@ contents of other file
 			for i := 0; i < len(got) && i < len(tc.wantFiles); i++ {
 				wantPath := filepath.FromSlash(tc.wantFiles[i].path)
 				if got[i].path != wantPath {
-					t.Errorf("path of file #%v in walk, got %q, want %q", i, got[i].path, wantPath)
+					t.Errorf("walk #%d: path = %q, want %q", i, got[i].path, wantPath)
 				}
 				if got[i].name != tc.wantFiles[i].name {
-					t.Errorf("name of file #%v in walk, got %q, want %q", i, got[i].name, tc.wantFiles[i].name)
+					t.Errorf("walk %s: Name = %q, want %q", got[i].path, got[i].name, tc.wantFiles[i].name)
 				}
 				if got[i].mode&(fs.ModeDir|0700) != tc.wantFiles[i].mode {
-					t.Errorf("mode&(fs.ModeDir|0700) for mode of file #%v in walk, got %v, want %v", i, got[i].mode&(fs.ModeDir|0700), tc.wantFiles[i].mode)
+					t.Errorf("walk %s: Mode = %q, want %q", got[i].path, got[i].mode&(fs.ModeDir|0700), tc.wantFiles[i].mode)
 				}
 				if got[i].isDir != tc.wantFiles[i].isDir {
-					t.Errorf("isDir for file #%v in walk, got %v, want %v", i, got[i].isDir, tc.wantFiles[i].isDir)
-				}
-				if tc.wantFiles[i].isDir {
-					continue // don't check size for directories
-				}
-				if got[i].size != tc.wantFiles[i].size {
-					t.Errorf("size of file #%v in walk, got %v, want %v", i, got[i].size, tc.wantFiles[i].size)
+					t.Errorf("walk %s: IsDir = %v, want %v", got[i].path, got[i].isDir, tc.wantFiles[i].isDir)
 				}
 			}
 		})
@@ -735,9 +738,9 @@ func TestWalkSkipDir(t *testing.T) {
 `)
 
 	var seen []string
-	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+	WalkDir("dir", func(path string, d fs.DirEntry, err error) error {
 		seen = append(seen, filepath.ToSlash(path))
-		if info.Name() == "skip" {
+		if d.Name() == "skip" {
 			return filepath.SkipDir
 		}
 		return nil
@@ -771,9 +774,9 @@ func TestWalkSkipAll(t *testing.T) {
 `)
 
 	var seen []string
-	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+	WalkDir("dir", func(path string, d fs.DirEntry, err error) error {
 		seen = append(seen, filepath.ToSlash(path))
-		if info.Name() == "foo2" {
+		if d.Name() == "foo2" {
 			return filepath.SkipAll
 		}
 		return nil
@@ -796,7 +799,7 @@ func TestWalkError(t *testing.T) {
 	initOverlay(t, "{}")
 
 	alreadyCalled := false
-	err := Walk("foo", func(path string, info fs.FileInfo, err error) error {
+	err := WalkDir("foo", func(path string, d fs.DirEntry, err error) error {
 		if alreadyCalled {
 			t.Fatal("expected walk function to be called exactly once, but it was called more than once")
 		}
@@ -848,7 +851,7 @@ func TestWalkSymlink(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var got []string
 
-			err := Walk(tc.dir, func(path string, info fs.FileInfo, err error) error {
+			err := WalkDir(tc.dir, func(path string, d fs.DirEntry, err error) error {
 				t.Logf("walk %q", path)
 				got = append(got, path)
 				if err != nil {

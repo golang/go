@@ -15,26 +15,27 @@ import (
 	"cmd/go/internal/fsys"
 )
 
-func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
-	infos, err := fsys.ReadDir(dir)
+func ScanDir(path string, tags map[string]bool) ([]string, []string, error) {
+	dirs, err := fsys.ReadDir(path)
 	if err != nil {
 		return nil, nil, err
 	}
 	var files []string
-	for _, info := range infos {
-		name := info.Name()
+	for _, dir := range dirs {
+		name := dir.Name()
 
 		// If the directory entry is a symlink, stat it to obtain the info for the
 		// link target instead of the link itself.
-		if info.Mode()&fs.ModeSymlink != 0 {
-			info, err = fsys.Stat(filepath.Join(dir, name))
+		if dir.Type()&fs.ModeSymlink != 0 {
+			info, err := fsys.Stat(filepath.Join(path, name))
 			if err != nil {
 				continue // Ignore broken symlinks.
 			}
+			dir = fs.FileInfoToDirEntry(info)
 		}
 
-		if info.Mode().IsRegular() && !strings.HasPrefix(name, "_") && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
-			files = append(files, filepath.Join(dir, name))
+		if dir.Type().IsRegular() && !strings.HasPrefix(name, "_") && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
+			files = append(files, filepath.Join(path, name))
 		}
 	}
 	return scanFiles(files, tags, false)

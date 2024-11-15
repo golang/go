@@ -135,7 +135,7 @@ func (m *Match) MatchPackages() {
 			root += "cmd" + string(filepath.Separator)
 		}
 
-		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
+		err := fsys.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err // Likely a permission error, which could interfere with matching.
 			}
@@ -160,8 +160,8 @@ func (m *Match) MatchPackages() {
 				want = false
 			}
 
-			if !fi.IsDir() {
-				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.pattern, "...") {
+			if !d.IsDir() {
+				if d.Type()&fs.ModeSymlink != 0 && want && strings.Contains(m.pattern, "...") {
 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
@@ -278,11 +278,11 @@ func (m *Match) MatchDirs(modRoots []string) {
 	// we want to follow it (see https://go.dev/issue/50807).
 	// Add a trailing separator to force that to happen.
 	dir = str.WithFilePathSeparator(dir)
-	err := fsys.Walk(dir, func(path string, fi fs.FileInfo, err error) error {
+	err := fsys.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err // Likely a permission error, which could interfere with matching.
 		}
-		if !fi.IsDir() {
+		if !d.IsDir() {
 			return nil
 		}
 		top := false
@@ -308,7 +308,7 @@ func (m *Match) MatchDirs(modRoots []string) {
 
 		if !top && cfg.ModulesEnabled {
 			// Ignore other modules found in subdirectories.
-			if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+			if info, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !info.IsDir() {
 				return filepath.SkipDir
 			}
 		}

@@ -86,18 +86,18 @@ func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
 	h := cache.NewHash("moduleIndex")
 	fmt.Fprintf(h, "modroot %s\n", modroot)
 	fmt.Fprintf(h, "package %s %s %v\n", runtime.Version(), indexVersion, pkgdir)
-	entries, err := fsys.ReadDir(pkgdir)
+	dirs, err := fsys.ReadDir(pkgdir)
 	if err != nil {
 		// pkgdir might not be a directory. give up on hashing.
 		return cache.ActionID{}, ErrNotIndexed
 	}
 	cutoff := time.Now().Add(-modTimeCutoff)
-	for _, info := range entries {
-		if info.IsDir() {
+	for _, d := range dirs {
+		if d.IsDir() {
 			continue
 		}
 
-		if !info.Mode().IsRegular() {
+		if !d.Type().IsRegular() {
 			return cache.ActionID{}, ErrNotIndexed
 		}
 		// To avoid problems for very recent files where a new
@@ -108,6 +108,10 @@ func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
 		// This is the same strategy used for hashing test inputs.
 		// See hashOpen in cmd/go/internal/test/test.go for the
 		// corresponding code.
+		info, err := d.Info()
+		if err != nil {
+			return cache.ActionID{}, ErrNotIndexed
+		}
 		if info.ModTime().After(cutoff) {
 			return cache.ActionID{}, ErrNotIndexed
 		}

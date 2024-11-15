@@ -14,11 +14,13 @@ import (
 	"internal/buildcfg"
 	"internal/cfg"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/go/internal/fsys"
 	"cmd/internal/pathcache"
@@ -181,7 +183,15 @@ func defaultContext() build.Context {
 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
 		return fsys.Open(path)
 	}
-	ctxt.ReadDir = fsys.ReadDir
+	ctxt.ReadDir = func(path string) ([]fs.FileInfo, error) {
+		// Convert []fs.DirEntry to []fs.FileInfo using dirInfo.
+		dirs, err := fsys.ReadDir(path)
+		infos := make([]fs.FileInfo, len(dirs))
+		for i, dir := range dirs {
+			infos[i] = &dirInfo{dir}
+		}
+		return infos, err
+	}
 	ctxt.IsDir = func(path string) bool {
 		isDir, err := fsys.IsDir(path)
 		return err == nil && isDir
@@ -641,3 +651,18 @@ func BuildXWriter(ctx context.Context) (io.Writer, bool) {
 	}
 	return os.Stderr, true
 }
+
+// A dirInfo implements fs.FileInfo from fs.DirEntry.
+// We know that go/build doesn't use the non-DirEntry parts,
+// so we can panic instead of doing difficult work.
+type dirInfo struct {
+	dir fs.DirEntry
+}
+
+func (d *dirInfo) Name() string      { return d.dir.Name() }
+func (d *dirInfo) IsDir() bool       { return d.dir.IsDir() }
+func (d *dirInfo) Mode() fs.FileMode { return d.dir.Type() }
+
+func (d *dirInfo) Size() int64        { panic("dirInfo.Size") }
+func (d *dirInfo) ModTime() time.Time { panic("dirInfo.ModTime") }
+func (d *dirInfo) Sys() any           { panic("dirInfo.Sys") }
