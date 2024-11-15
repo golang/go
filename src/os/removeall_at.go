@@ -166,20 +166,11 @@ func removeAllFrom(parent *File, base string) error {
 // we are going to (try to) remove the file.
 // The contents of this file are not relevant for test caching.
 func openDirAt(dirfd int, name string) (*File, error) {
-	var r int
-	for {
-		var e error
-		r, e = unix.Openat(dirfd, name, O_RDONLY|syscall.O_CLOEXEC|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
-		if e == nil {
-			break
-		}
-
-		// See comment in openFileNolog.
-		if e == syscall.EINTR {
-			continue
-		}
-
-		return nil, e
+	r, err := ignoringEINTR2(func() (int, error) {
+		return unix.Openat(dirfd, name, O_RDONLY|syscall.O_CLOEXEC|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	if !supportsCloseOnExec {

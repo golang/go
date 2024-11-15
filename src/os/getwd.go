@@ -53,12 +53,7 @@ func Getwd() (dir string, err error) {
 
 	// If the operating system provides a Getwd call, use it.
 	if syscall.ImplementsGetwd {
-		for {
-			dir, err = syscall.Getwd()
-			if err != syscall.EINTR {
-				break
-			}
-		}
+		dir, err = ignoringEINTR2(syscall.Getwd)
 		// Linux returns ENAMETOOLONG if the result is too long.
 		// Some BSD systems appear to return EINVAL.
 		// FreeBSD systems appear to use ENOMEM

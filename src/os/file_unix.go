@@ -446,22 +446,15 @@ func Symlink(oldname, newname string) error {
 func readlink(name string) (string, error) {
 	for len := 128; ; len *= 2 {
 		b := make([]byte, len)
-		var (
-			n int
-			e error
-		)
-		for {
-			n, e = fixCount(syscall.Readlink(name, b))
-			if e != syscall.EINTR {
-				break
-			}
-		}
+		n, err := ignoringEINTR2(func() (int, error) {
+			return fixCount(syscall.Readlink(name, b))
+		})
 		// buffer too small
-		if (runtime.GOOS == "aix" || runtime.GOOS == "wasip1") && e == syscall.ERANGE {
+		if (runtime.GOOS == "aix" || runtime.GOOS == "wasip1") && err == syscall.ERANGE {
 			continue
 		}
-		if e != nil {
-			return "", &PathError{Op: "readlink", Path: name, Err: e}
+		if err != nil {
+			return "", &PathError{Op: "readlink", Path: name, Err: err}
 		}
 		if n < len {
 			return string(b[0:n]), nil
