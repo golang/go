@@ -34,13 +34,16 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
 		g := groupReference{
 			data: m.dirPtr,
 		}
-
+		full := g.ctrls().matchFull()
+		slotKey := g.key(typ, 0)
 		slotSize := typ.SlotSize
-		for i, slotKey := uintptr(0), g.key(typ, 0); i < abi.SwissMapGroupSlots; i, slotKey = i+1, unsafe.Pointer(uintptr(slotKey)+slotSize) {
-			if key == *(*uint64)(slotKey) && (g.ctrls().get(i)&(1<<7)) == 0 {
+		for full != 0 {
+			if key == *(*uint64)(slotKey) && full&(1<<7) != 0 {
 				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
 				return slotElem
 			}
+			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+			full >>= 8
 		}
 		return unsafe.Pointer(&zeroVal[0])
 	}
@@ -99,12 +102,16 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
 		g := groupReference{
 			data: m.dirPtr,
 		}
+		full := g.ctrls().matchFull()
+		slotKey := g.key(typ, 0)
 		slotSize := typ.SlotSize
-		for i, slotKey := uintptr(0), g.key(typ, 0); i < abi.SwissMapGroupSlots; i, slotKey = i+1, unsafe.Pointer(uintptr(slotKey)+slotSize) {
-			if key == *(*uint64)(slotKey) && (g.ctrls().get(i)&(1<<7)) == 0 {
+		for full != 0 {
+			if key == *(*uint64)(slotKey) && full&(1<<7) != 0 {
 				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
 				return slotElem, true
 			}
+			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+			full >>= 8
 		}
 		return unsafe.Pointer(&zeroVal[0]), false
 	}

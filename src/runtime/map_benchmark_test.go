@@ -539,6 +539,15 @@ func benchSizes(f func(b *testing.B, n int)) func(*testing.B) {
 		}
 	}
 }
+func smallBenchSizes(f func(b *testing.B, n int)) func(*testing.B) {
+	return func(b *testing.B) {
+		for n := 1; n <= 8; n++ {
+			b.Run("len="+strconv.Itoa(n), func(b *testing.B) {
+				f(b, n)
+			})
+		}
+	}
+}
 
 // A 16 byte type.
 type smallType [16]byte
@@ -1138,4 +1147,15 @@ func BenchmarkMapDeleteLargeKey(b *testing.B) {
 	for range b.N {
 		delete(m, key)
 	}
+}
+
+func BenchmarkMapSmallAccessHit(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessHit[int32, int32]))
+	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessHit[int64, int64]))
+	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessHit[string, string]))
+}
+func BenchmarkMapSmallAccessMiss(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[int32, int32]))
+	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessMiss[int64, int64]))
+	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessMiss[string, string]))
 }
