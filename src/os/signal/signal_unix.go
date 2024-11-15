@@ -8,6 +8,7 @@ package signal
 
 import (
 	"os"
+	"reflect"
 	"syscall"
 )
 
@@ -41,7 +42,24 @@ func signum(sig os.Signal) int {
 		}
 		return i
 	default:
-		return -1
+		// Use reflection to determine if sig has an underlying integer type.
+		// In some systems like Windows, os.Signal may have implementations
+		// with underlying integer types that are not directly accessible,
+		// as they might be defined in external packages like golang.org/x/sys.
+		// Since we cannot import those platform-specific signal types,
+		// reflection allows us to handle them in a generic way.
+		kind := reflect.TypeOf(sig).Kind()
+		switch kind {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			// Extract the integer value from sig and validate it.
+			i := int(reflect.ValueOf(sig).Int())
+			if i < 0 || i >= numSig {
+				return -1
+			}
+			return i
+		default:
+			return -1
+		}
 	}
 }
 
