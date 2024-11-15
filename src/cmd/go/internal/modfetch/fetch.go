@@ -481,11 +481,11 @@ func readGoSumFile(dst map[module.Version][]string, file string) (bool, error) {
 		data []byte
 		err  error
 	)
-	if actualSumFile, ok := fsys.OverlayPath(file); ok {
+	if fsys.Replaced(file) {
 		// Don't lock go.sum if it's part of the overlay.
 		// On Plan 9, locking requires chmod, and we don't want to modify any file
 		// in the overlay. See #44700.
-		data, err = os.ReadFile(actualSumFile)
+		data, err = os.ReadFile(fsys.Actual(file))
 	} else {
 		data, err = lockedfile.Read(file)
 	}
@@ -861,7 +861,7 @@ Outer:
 	if readonly {
 		return ErrGoSumDirty
 	}
-	if _, ok := fsys.OverlayPath(GoSumFile); ok {
+	if fsys.Replaced(GoSumFile) {
 		base.Fatalf("go: updates to go.sum needed, but go.sum is part of the overlay specified with -overlay")
 	}
 

@@ -107,8 +107,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
 		if fsys.OverlayFile != "" {
 			for _, name := range gofiles {
 				absPath := mkAbs(p.Dir, name)
-				overlayPath, ok := fsys.OverlayPath(absPath)
-				if !ok {
+				if !fsys.Replaced(absPath) {
 					continue
 				}
 				toPath := absPath
@@ -117,7 +116,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
 				if cfg.BuildTrimpath && str.HasFilePathPrefix(toPath, base.Cwd()) {
 					toPath = "." + toPath[len(base.Cwd()):]
 				}
-				args = append(args, "-ffile-prefix-map="+overlayPath+"="+toPath)
+				args = append(args, "-ffile-prefix-map="+fsys.Actual(absPath)+"="+toPath)
 			}
 		}
 	}
@@ -127,8 +126,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
 		f := mkAbs(p.Dir, f)
 		// Overlay files if necessary.
 		// See comment on gctoolchain.gc about overlay TODOs
-		f, _ = fsys.OverlayPath(f)
-		args = append(args, f)
+		args = append(args, fsys.Actual(f))
 	}
 
 	output, err = sh.runOut(p.Dir, nil, args)
@@ -200,7 +198,7 @@ func (tools gccgoToolchain) asm(b *Builder, a *Action, sfiles []string) ([]strin
 		base := filepath.Base(sfile)
 		ofile := a.Objdir + base[:len(base)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
-		sfile, _ = fsys.OverlayPath(mkAbs(p.Dir, sfile))
+		sfile = fsys.Actual(mkAbs(p.Dir, sfile))
 		defs := []string{"-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch}
 		if pkgpath := tools.gccgoCleanPkgpath(b, p); pkgpath != "" {
 			defs = append(defs, `-D`, `GOPKGPATH=`+pkgpath)

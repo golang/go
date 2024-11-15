@@ -306,7 +306,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	env := cfg.CmdEnv
 	env = append(env, ExtraEnvVars()...)
 
-	if err := fsys.Init(base.Cwd()); err != nil {
+	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
 	}
 

@@ -355,7 +355,7 @@ func BinDir() string {
 // for example 'go mod tidy', that don't operate in workspace mode.
 func InitWorkfile() {
 	// Initialize fsys early because we need overlay to read go.work file.
-	if err := fsys.Init(base.Cwd()); err != nil {
+	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
 	}
 	workFilePath = FindGoWork(base.Cwd())
@@ -434,7 +434,7 @@ func Init() {
 		return
 	}
 
-	if err := fsys.Init(base.Cwd()); err != nil {
+	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
 	}
 
@@ -1938,7 +1938,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
 
 	mainModule := MainModules.mustGetSingleMainModule()
 	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
-	if _, ok := fsys.OverlayPath(modFilePath); ok {
+	if fsys.Replaced(modFilePath) {
 		if dirty {
 			return errors.New("updates to go.mod needed, but go.mod is part of the overlay specified with -overlay")
 		}

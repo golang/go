@@ -159,10 +159,10 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	for _, f := range gofiles {
 		f := mkAbs(p.Dir, f)
 
-		// Handle overlays. Convert path names using OverlayPath
+		// Handle overlays. Convert path names using fsys.Actual
 		// so these paths can be handed directly to tools.
 		// Deleted files won't show up in when scanning directories earlier,
-		// so OverlayPath will never return "" (meaning a deleted file) here.
+		// so Actual will never return "" (meaning a deleted file) here.
 		// TODO(#39958): Handle cases where the package directory
 		// doesn't exist on disk (this can happen when all the package's
 		// files are in an overlay): the code expects the package directory
@@ -171,9 +171,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		// gofiles, cgofiles, cfiles, sfiles, and cxxfiles variables are
 		// created in (*Builder).build. Doing that requires rewriting the
 		// code that uses those values to expect absolute paths.
-		f, _ = fsys.OverlayPath(f)
-
-		args = append(args, f)
+		args = append(args, fsys.Actual(f))
 	}
 
 	output, err = sh.runOut(base.Cwd(), nil, args...)
@@ -286,12 +284,12 @@ func (a *Action) trimpath() string {
 			base := filepath.Base(path)
 			isGo := strings.HasSuffix(filename, ".go") || strings.HasSuffix(filename, ".s")
 			isCgo := cgoFiles[filename] || !isGo
-			overlayPath, isOverlay := fsys.OverlayPath(path)
-			if isCgo && isOverlay {
-				hasCgoOverlay = true
-			}
-			if !isCgo && isOverlay {
-				rewrite += overlayPath + "=>" + filepath.Join(rewriteDir, base) + ";"
+			if fsys.Replaced(path) {
+				if isCgo {
+					hasCgoOverlay = true
+				} else {
+					rewrite += fsys.Actual(path) + "=>" + filepath.Join(rewriteDir, base) + ";"
+				}
 			} else if isCgo {
 				// Generate rewrites for non-Go files copied to files in objdir.
 				if filepath.Dir(path) == a.Package.Dir {
@@ -395,10 +393,9 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 
 	var ofiles []string
 	for _, sfile := range sfiles {
-		overlayPath, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
 		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
 		ofiles = append(ofiles, ofile)
-		args1 := append(args, "-o", ofile, overlayPath)
+		args1 := append(args, "-o", ofile, fsys.Actual(mkAbs(p.Dir, sfile)))
 		if err := b.Shell(a).run(p.Dir, p.ImportPath, nil, args1...); err != nil {
 			return nil, err
 		}
@@ -416,8 +413,7 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 			if p.ImportPath == "runtime/cgo" && strings.HasPrefix(sfile, "gcc_") {
 				continue
 			}
-			op, _ := fsys.OverlayPath(mkAbs(p.Dir, sfile))
-			args = append(args, op)
+			args = append(args, fsys.Actual(mkAbs(p.Dir, sfile)))
 		}
 
 		// Supply an empty go_asm.h as if the compiler had been run.

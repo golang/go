@@ -398,8 +398,7 @@ func (b *Builder) buildID(file string) string {
 
 // fileHash returns the content hash of the named file.
 func (b *Builder) fileHash(file string) string {
-	file, _ = fsys.OverlayPath(file)
-	sum, err := cache.FileHash(file)
+	sum, err := cache.FileHash(fsys.Actual(file))
 	if err != nil {
 		return ""
 	}

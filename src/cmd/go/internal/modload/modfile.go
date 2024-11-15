@@ -34,13 +34,13 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 	// so a more convenient path is displayed in the errors. ShortPath isn't used
 	// because it's meant only to be used in errors, not to open files.
 	gomod = base.ShortPathConservative(gomod)
-	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+	if fsys.Replaced(gomod) {
 		// Don't lock go.mod if it's part of the overlay.
 		// On Plan 9, locking requires chmod, and we don't want to modify any file
 		// in the overlay. See #44700.
-		data, err = os.ReadFile(gomodActual)
+		data, err = os.ReadFile(fsys.Actual(gomod))
 	} else {
-		data, err = lockedfile.Read(gomodActual)
+		data, err = lockedfile.Read(gomod)
 	}
 	if err != nil {
 		return nil, nil, err
@@ -749,13 +749,13 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
 			}
 		}
 		name = filepath.Join(dir, "go.mod")
-		if gomodActual, ok := fsys.OverlayPath(name); ok {
+		if fsys.Replaced(name) {
 			// Don't lock go.mod if it's part of the overlay.
 			// On Plan 9, locking requires chmod, and we don't want to modify any file
 			// in the overlay. See #44700.
-			data, err = os.ReadFile(gomodActual)
+			data, err = os.ReadFile(fsys.Actual(name))
 		} else {
-			data, err = lockedfile.Read(gomodActual)
+			data, err = lockedfile.Read(name)
 		}
 		if err != nil {
 			return "", nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(name), err))

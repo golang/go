@@ -617,7 +617,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 OverlayLoop:
 	for _, fs := range nonGoFileLists {
 		for _, f := range fs {
-			if _, ok := fsys.OverlayPath(mkAbs(p.Dir, f)); ok {
+			if fsys.Replaced(mkAbs(p.Dir, f)) {
 				a.nonGoOverlay = make(map[string]string)
 				break OverlayLoop
 			}
@@ -627,9 +627,8 @@ OverlayLoop:
 		for _, fs := range nonGoFileLists {
 			for i := range fs {
 				from := mkAbs(p.Dir, fs[i])
-				opath, _ := fsys.OverlayPath(from)
 				dst := objdir + filepath.Base(fs[i])
-				if err := sh.CopyFile(dst, opath, 0666, false); err != nil {
+				if err := sh.CopyFile(dst, fsys.Actual(from), 0666, false); err != nil {
 					return err
 				}
 				a.nonGoOverlay[from] = dst
@@ -2840,9 +2839,10 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	var trimpath []string
 	for i := range cgofiles {
 		path := mkAbs(p.Dir, cgofiles[i])
-		if opath, ok := fsys.OverlayPath(path); ok {
-			cgofiles[i] = opath
-			trimpath = append(trimpath, opath+"=>"+path)
+		if fsys.Replaced(path) {
+			actual := fsys.Actual(path)
+			cgofiles[i] = actual
+			trimpath = append(trimpath, actual+"=>"+path)
 		}
 	}
 	if len(trimpath) > 0 {

@@ -671,7 +671,7 @@ func IsStandardPackage(goroot_, compiler, path string) bool {
 		modroot = filepath.Join(modroot, "cmd")
 	}
 	if pkg, err := GetPackage(modroot, filepath.Join(modroot, reldir)); err == nil {
-		hasGo, err := pkg.IsDirWithGoFiles()
+		hasGo, err := pkg.IsGoDir()
 		return err == nil && hasGo
 	} else if errors.Is(err, ErrNotIndexed) {
 		// Fall back because package isn't indexable. (Probably because
@@ -681,8 +681,8 @@ func IsStandardPackage(goroot_, compiler, path string) bool {
 	return false
 }
 
-// IsDirWithGoFiles is the equivalent of fsys.IsDirWithGoFiles using the information in the index.
-func (rp *IndexPackage) IsDirWithGoFiles() (_ bool, err error) {
+// IsGoDir is the equivalent of fsys.IsGoDir using the information in the index.
+func (rp *IndexPackage) IsGoDir() (_ bool, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("error reading module index: %v", e)

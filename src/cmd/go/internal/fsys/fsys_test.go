@@ -5,7 +5,6 @@
 package fsys
 
 import (
-	"encoding/json"
 	"errors"
 	"internal/testenv"
 	"internal/txtar"
@@ -14,8 +13,14 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 )
+
+func resetForTesting() {
+	cwd = sync.OnceValue(cwdOnce)
+	overlay = nil
+}
 
 // initOverlay resets the overlay state to reflect the config.
 // config should be a text archive string. The comment is the overlay config
@@ -23,14 +28,11 @@ import (
 // that cwd is set to.
 func initOverlay(t *testing.T, config string) {
 	t.Helper()
+	t.Chdir(t.TempDir())
+	resetForTesting()
+	t.Cleanup(resetForTesting)
 
-	// Create a temporary directory and chdir to it.
-	cwd = filepath.Join(t.TempDir(), "root")
-	if err := os.Mkdir(cwd, 0777); err != nil {
-		t.Fatal(err)
-	}
-	t.Chdir(cwd)
-
+	cwd := cwd()
 	a := txtar.Parse([]byte(config))
 	for _, f := range a.Files {
 		name := filepath.Join(cwd, f.Name)
@@ -42,15 +44,9 @@ func initOverlay(t *testing.T, config string) {
 		}
 	}
 
-	var overlayJSON OverlayJSON
-	if err := json.Unmarshal(a.Comment, &overlayJSON); err != nil {
-		t.Fatal("parsing overlay JSON:", err)
-	}
-
-	if err := initFromJSON(overlayJSON); err != nil {
+	if err := initFromJSON(a.Comment); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { overlay = nil })
 }
 
 func TestIsDir(t *testing.T) {
@@ -80,6 +76,7 @@ x
 six
 `)
 
+	cwd := cwd()
 	testCases := []struct {
 		path          string
 		want, wantErr bool
@@ -414,7 +411,7 @@ func TestGlob(t *testing.T) {
 	}
 }
 
-func TestOverlayPath(t *testing.T) {
+func TestActual(t *testing.T) {
 	initOverlay(t, `
 {
 	"Replace": {
@@ -438,16 +435,17 @@ file 2
 99999999
 `)
 
+	cwd := cwd()
 	testCases := []struct {
 		path     string
 		wantPath string
 		wantOK   bool
 	}{
 		{"subdir1/file1.txt", "subdir1/file1.txt", false},
-		// OverlayPath returns false for directories
+		// Actual returns false for directories
 		{"subdir2", "subdir2", false},
 		{"subdir2/file2.txt", filepath.Join(cwd, "overlayfiles/subdir2_file2.txt"), true},
-		// OverlayPath doesn't stat a file to see if it exists, so it happily returns
+		// Actual doesn't stat a file to see if it exists, so it happily returns
 		// the 'to' path and true even if the 'to' path doesn't exist on disk.
 		{"subdir3/doesntexist", filepath.Join(cwd, "this_file_doesnt_exist_anywhere"), true},
 		// Like the subdir2/file2.txt case above, but subdir4 exists on disk, but subdir2 does not.
@@ -457,10 +455,14 @@ file 2
 	}
 
 	for _, tc := range testCases {
-		gotPath, gotOK := OverlayPath(tc.path)
-		if gotPath != tc.wantPath || gotOK != tc.wantOK {
-			t.Errorf("OverlayPath(%q): got %v, %v; want %v, %v",
-				tc.path, gotPath, gotOK, tc.wantPath, tc.wantOK)
+		path := Actual(tc.path)
+		ok := Replaced(tc.path)
+
+		if path != tc.wantPath {
+			t.Errorf("Actual(%q) = %q, want %q", tc.path, path, tc.wantPath)
+		}
+		if ok != tc.wantOK {
+			t.Errorf("Replaced(%q) = %v, want %v", tc.path, ok, tc.wantOK)
 		}
 	}
 }
@@ -546,7 +548,7 @@ this can exist because the parent directory is deleted
 	}
 }
 
-func TestIsDirWithGoFiles(t *testing.T) {
+func TestIsGoDir(t *testing.T) {
 	initOverlay(t, `
 {
 	"Replace": {
@@ -585,18 +587,18 @@ contents don't matter for this test
 	}
 
 	for _, tc := range testCases {
-		got, gotErr := IsDirWithGoFiles(tc.dir)
+		got, gotErr := IsGoDir(tc.dir)
 		if tc.wantErr {
 			if gotErr == nil {
-				t.Errorf("IsDirWithGoFiles(%q): got %v, %v; want non-nil error", tc.dir, got, gotErr)
+				t.Errorf("IsGoDir(%q): got %v, %v; want non-nil error", tc.dir, got, gotErr)
 			}
 			continue
 		}
 		if gotErr != nil {
-			t.Errorf("IsDirWithGoFiles(%q): got %v, %v; want nil error", tc.dir, got, gotErr)
+			t.Errorf("IsGoDir(%q): got %v, %v; want nil error", tc.dir, got, gotErr)
 		}
 		if got != tc.want {
-			t.Errorf("IsDirWithGoFiles(%q) = %v; want %v", tc.dir, got, tc.want)
+			t.Errorf("IsGoDir(%q) = %v; want %v", tc.dir, got, tc.want)
 		}
 	}
 }

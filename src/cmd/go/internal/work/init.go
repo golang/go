@@ -36,7 +36,7 @@ func BuildInit() {
 	modload.Init()
 	instrumentInit()
 	buildModeInit()
-	if err := fsys.Init(base.Cwd()); err != nil {
+	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
 	}
 
