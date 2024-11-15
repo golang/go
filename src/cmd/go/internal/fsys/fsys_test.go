@@ -13,6 +13,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -1130,5 +1132,48 @@ func TestStatSymlink(t *testing.T) {
 
 	if fi.Size() != 11 {
 		t.Errorf("Stat(%q).Size(): got %v, want 11", f, fi.Size())
+	}
+}
+
+var badOverlayTests = []struct {
+	json string
+	err  string
+}{
+	{`{`,
+		"parsing overlay JSON: unexpected end of JSON input"},
+	{`{"Replace": {"":"a"}}`,
+		"empty string key in overlay map"},
+	{`{"Replace": {"/tmp/x": "y", "x": "y"}}`,
+		`duplicate paths /tmp/x and x in overlay map`},
+	{`{"Replace": {"/tmp/x/z": "z", "x":"y"}}`,
+		`inconsistent files /tmp/x/z and /tmp/x in overlay map`},
+	{`{"Replace": {"/tmp/x/z/z2": "z", "x":"y"}}`,
+		// TODO: Error should say /tmp/x/z/z2
+		`inconsistent files /tmp/x/z and /tmp/x in overlay map`},
+	{`{"Replace": {"/tmp/x": "y", "x/z/z2": "z"}}`,
+		// TODO: Error should say /tmp/x/z/z2
+		`inconsistent files /tmp/x and /tmp/x/z/z2 in overlay map`},
+}
+
+func TestBadOverlay(t *testing.T) {
+	tmp := "/tmp"
+	if runtime.GOOS == "windows" {
+		tmp = `C:\tmp`
+	}
+	cwd = sync.OnceValue(func() string { return tmp })
+	defer resetForTesting()
+
+	for i, tt := range badOverlayTests {
+		if runtime.GOOS == "windows" {
+			tt.json = strings.ReplaceAll(tt.json, `/tmp`, tmp) // fix tmp
+			tt.json = strings.ReplaceAll(tt.json, `/`, `\`)    // use backslashes
+			tt.json = strings.ReplaceAll(tt.json, `\`, `\\`)   // JSON escaping
+			tt.err = strings.ReplaceAll(tt.err, `/tmp`, tmp)   // fix tmp
+			tt.err = strings.ReplaceAll(tt.err, `/`, `\`)      // use backslashes
+		}
+		err := initFromJSON([]byte(tt.json))
+		if err == nil || err.Error() != tt.err {
+			t.Errorf("#%d: err=%v, want %q", i, err, tt.err)
+		}
 	}
 }

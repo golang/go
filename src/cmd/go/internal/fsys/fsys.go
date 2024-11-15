@@ -17,6 +17,7 @@ import (
 	"internal/godebug"
 	"io"
 	"io/fs"
+	"iter"
 	"log"
 	"maps"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -89,16 +89,16 @@ type overlayJSON struct {
 }
 
 type node struct {
-	actualFilePath string           // empty if a directory
-	children       map[string]*node // path element → file or directory
+	actual   string           // empty if a directory
+	children map[string]*node // path element → file or directory
 }
 
 func (n *node) isDir() bool {
-	return n.actualFilePath == "" && n.children != nil
+	return n.actual == "" && n.children != nil
 }
 
 func (n *node) isDeleted() bool {
-	return n.actualFilePath == "" && n.children == nil
+	return n.actual == "" && n.children == nil
 }
 
 // TODO(matloob): encapsulate these in an io/fs-like interface
@@ -138,6 +138,73 @@ func abs(path string) string {
 	return filepath.Join(dir, path)
 }
 
+// info is a summary of the known information about a path
+// being looked up in the virtual file system.
+type info struct {
+	abs      string
+	deleted  bool
+	replaced bool
+	dir      bool
+	actual   string
+}
+
+// stat returns info about the path in the virtual file system.
+func stat(path string) info {
+	apath := abs(path)
+	if n, ok := overlay[apath]; ok {
+		if n.isDir() {
+			return info{abs: apath, replaced: true, dir: true, actual: path}
+		}
+		if n.isDeleted() {
+			return info{abs: apath, deleted: true}
+		}
+		return info{abs: apath, replaced: true, actual: n.actual}
+	}
+
+	// Check whether any parents are replaced by files,
+	// meaning this path and the directory that contained it
+	// have been deleted.
+	prefix := apath
+	for {
+		if n, ok := overlay[prefix]; ok {
+			if n.children == nil {
+				return info{abs: apath, deleted: true}
+			}
+			break
+		}
+		parent := filepath.Dir(prefix)
+		if parent == prefix {
+			break
+		}
+		prefix = parent
+	}
+
+	return info{abs: apath, actual: path}
+}
+
+// children returns a sequence of (name, info)
+// for all the children of the directory i.
+func (i *info) children() iter.Seq2[string, info] {
+	return func(yield func(string, info) bool) {
+		n := overlay[i.abs]
+		if n == nil {
+			return
+		}
+		for name, c := range n.children {
+			ci := info{
+				abs:      filepath.Join(i.abs, name),
+				deleted:  c.isDeleted(),
+				replaced: c.children != nil || c.actual != "",
+				dir:      c.isDir(),
+				actual:   c.actual,
+			}
+			if !yield(name, ci) {
+				return
+			}
+		}
+	}
+}
+
 // Init initializes the overlay, if one is being used.
 func Init() error {
 	if overlay != nil {
@@ -154,14 +221,13 @@ func Init() error {
 	if err != nil {
 		return fmt.Errorf("reading overlay: %v", err)
 	}
-
 	return initFromJSON(b)
 }
 
 func initFromJSON(js []byte) error {
 	var ojs overlayJSON
 	if err := json.Unmarshal(js, &ojs); err != nil {
-		return err
+		return fmt.Errorf("parsing overlay JSON: %v", err)
 	}
 
 	// Canonicalize the paths in the overlay map.
@@ -175,16 +241,13 @@ func initFromJSON(js []byte) error {
 		to := ojs.Replace[from]
 		// Canonicalize paths and check for a collision.
 		if from == "" {
-			return fmt.Errorf("empty string key in overlay file Replace map")
+			return fmt.Errorf("empty string key in overlay map")
 		}
 		cfrom := abs(from)
-		if to != "" {
-			// Don't abs "", meaning to delete a file, because then it will turn into ".".
-			to = abs(to)
-		}
+		to = abs(to)
 		if otherFrom, seen := reverseCanonicalized[cfrom]; seen {
 			return fmt.Errorf(
-				"paths %q and %q both abs to %q in overlay file Replace map", otherFrom, from, cfrom)
+				"duplicate paths %s and %s in overlay map", otherFrom, from)
 		}
 		reverseCanonicalized[cfrom] = from
 		from = cfrom
@@ -201,13 +264,13 @@ func initFromJSON(js []byte) error {
 			// This only applies if the overlay directory has any files or directories
 			// in it: placeholder directories that only contain deleted files don't
 			// count. They are safe to be overwritten with actual files.
-			for _, f := range n.children {
+			for fname, f := range n.children {
 				if !f.isDeleted() {
-					return fmt.Errorf("invalid overlay: path %v is used as both file and directory", from)
+					return fmt.Errorf("inconsistent files %s and %s in overlay map", filepath.Join(from, fname), from)
 				}
 			}
 		}
-		overlay[from] = &node{actualFilePath: to}
+		overlay[from] = &node{actual: to}
 
 		// Add parent directory nodes to overlay structure.
 		childNode := overlay[from]
@@ -230,7 +293,7 @@ func initFromJSON(js []byte) error {
 			if !dirNode.isDir() {
 				// This path already exists as a file, so it can't be a parent
 				// directory. See comment at error above.
-				return fmt.Errorf("invalid overlay: path %v is used as both file and directory", dir)
+				return fmt.Errorf("inconsistent files %s and %s in overlay map", dir, from)
 			}
 			dirNode.children[base] = childNode
 			parent := filepath.Dir(dir)
@@ -249,57 +312,25 @@ func initFromJSON(js []byte) error {
 // overlay.
 func IsDir(path string) (bool, error) {
 	Trace("IsDir", path)
-	path = abs(path)
 
-	if _, ok := parentIsOverlayFile(path); ok {
+	switch info := stat(path); {
+	case info.dir:
+		return true, nil
+	case info.deleted, info.replaced:
 		return false, nil
 	}
 
-	if n, ok := overlay[path]; ok {
-		return n.isDir(), nil
-	}
-
-	fi, err := os.Stat(path)
+	info, err := os.Stat(path)
 	if err != nil {
 		return false, err
 	}
-
-	return fi.IsDir(), nil
-}
-
-// parentIsOverlayFile returns whether name or any of
-// its parents are files in the overlay, and the first parent found,
-// including name itself, that's a file in the overlay.
-func parentIsOverlayFile(name string) (string, bool) {
-	if overlay != nil {
-		// Check if name can't possibly be a directory because
-		// it or one of its parents is overlaid with a file.
-		// TODO(matloob): Maybe save this to avoid doing it every time?
-		prefix := name
-		for {
-			node := overlay[prefix]
-			if node != nil && !node.isDir() {
-				return prefix, true
-			}
-			parent := filepath.Dir(prefix)
-			if parent == prefix {
-				break
-			}
-			prefix = parent
-		}
-	}
-
-	return "", false
+	return info.IsDir(), nil
 }
 
 // errNotDir is used to communicate from ReadDir to IsGoDir
 // that the argument is not a directory, so that IsGoDir doesn't
 // return an error.
 var errNotDir = errors.New("not a directory")
-
-func nonFileInOverlayError(overlayPath string) error {
-	return fmt.Errorf("replacement path %q is a directory, not a file", overlayPath)
-}
 
 // osReadDir is like os.ReadDir corrects the error to be errNotDir
 // if the problem is that name exists but is not a directory.
@@ -314,67 +345,72 @@ func osReadDir(name string) ([]fs.DirEntry, error) {
 }
 
 // ReadDir reads the named directory in the virtual file system.
-func ReadDir(dir string) ([]fs.DirEntry, error) {
-	Trace("ReadDir", dir)
-	dir = abs(dir)
-	if _, ok := parentIsOverlayFile(dir); ok {
-		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+func ReadDir(name string) ([]fs.DirEntry, error) {
+	Trace("ReadDir", name)
+
+	info := stat(name)
+	if info.deleted {
+		return nil, &fs.PathError{Op: "read", Path: name, Err: fs.ErrNotExist}
+	}
+	if !info.replaced {
+		return osReadDir(name)
+	}
+	if !info.dir {
+		return nil, &fs.PathError{Op: "read", Path: name, Err: errNotDir}
 	}
 
-	dirNode := overlay[dir]
-	if dirNode == nil {
-		return osReadDir(dir)
-	}
-	if dirNode.isDeleted() {
-		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: fs.ErrNotExist}
-	}
-	diskfis, err := osReadDir(dir)
+	// Start with normal disk listing.
+	dirs, err := osReadDir(name)
 	if err != nil && !os.IsNotExist(err) && !errors.Is(err, errNotDir) {
 		return nil, err
 	}
 
-	// Stat files in overlay to make composite list of fileinfos
-	files := make(map[string]fs.DirEntry)
-	for _, f := range diskfis {
-		files[f.Name()] = f
+	// Merge disk listing and overlay entries in map.
+	all := make(map[string]fs.DirEntry)
+	for _, d := range dirs {
+		all[d.Name()] = d
 	}
-	for name, to := range dirNode.children {
-		switch {
-		case to.isDir():
-			files[name] = fs.FileInfoToDirEntry(fakeDir(name))
-		case to.isDeleted():
-			delete(files, name)
-		default:
-			// To keep the data model simple, if the overlay contains a symlink we
-			// always stat through it (using Stat, not Lstat). That way we don't need
-			// to worry about the interaction between Lstat and directories: if a
-			// symlink in the overlay points to a directory, we reject it like an
-			// ordinary directory.
-			fi, err := os.Stat(to.actualFilePath)
-			if err != nil {
-				files[name] = fs.FileInfoToDirEntry(missingFile(name))
-				continue
-			} else if fi.IsDir() {
-				return nil, &fs.PathError{Op: "Stat", Path: filepath.Join(dir, name), Err: nonFileInOverlayError(to.actualFilePath)}
-			}
-			// Add a fileinfo for the overlaid file, so that it has
-			// the original file's name, but the overlaid file's metadata.
-			files[name] = fs.FileInfoToDirEntry(fakeFile{name, fi})
+	for cname, cinfo := range info.children() {
+		if cinfo.dir {
+			all[cname] = fs.FileInfoToDirEntry(fakeDir(cname))
+			continue
 		}
+		if cinfo.deleted {
+			delete(all, cname)
+			continue
+		}
+
+		// Overlay is not allowed to have targets that are directories.
+		// And we hide symlinks, although it's not clear it helps callers.
+		cinfo, err := os.Stat(cinfo.actual)
+		if err != nil {
+			all[cname] = fs.FileInfoToDirEntry(missingFile(cname))
+			continue
+		}
+		if cinfo.IsDir() {
+			return nil, &fs.PathError{Op: "read", Path: name, Err: fmt.Errorf("overlay maps child %s to directory", cname)}
+		}
+		all[cname] = fs.FileInfoToDirEntry(fakeFile{cname, cinfo})
 	}
-	sortedFiles := diskfis[:0]
-	for _, f := range files {
-		sortedFiles = append(sortedFiles, f)
+
+	// Rebuild list using same storage.
+	dirs = dirs[:0]
+	for _, d := range all {
+		dirs = append(dirs, d)
 	}
-	sort.Slice(sortedFiles, func(i, j int) bool { return sortedFiles[i].Name() < sortedFiles[j].Name() })
-	return sortedFiles, nil
+	slices.SortFunc(dirs, func(x, y fs.DirEntry) int { return strings.Compare(x.Name(), y.Name()) })
+	return dirs, nil
 }
 
 // Actual returns the actual file system path for the named file.
 // It returns the empty string if name has been deleted in the virtual file system.
 func Actual(name string) string {
-	if p, ok := overlay[abs(name)]; ok && !p.isDir() {
-		return p.actualFilePath
+	info := stat(name)
+	if info.deleted {
+		return ""
+	}
+	if info.dir || info.replaced {
+		return info.actual
 	}
 	return name
 }
@@ -390,33 +426,27 @@ func Replaced(name string) bool {
 // It must be an ordinary file, not a directory.
 func Open(name string) (*os.File, error) {
 	Trace("Open", name)
-	return openFile(name, os.O_RDONLY, 0)
-}
 
-func openFile(path string, flag int, perm os.FileMode) (*os.File, error) {
-	cpath := abs(path)
-	if node, ok := overlay[cpath]; ok {
-		// Opening a file in the overlay.
-		if node.isDir() {
-			return nil, &fs.PathError{Op: "OpenFile", Path: path, Err: errors.New("fsys.OpenFile doesn't support opening directories yet")}
-		}
-		// We can't open overlaid paths for write.
-		if perm != os.FileMode(os.O_RDONLY) {
-			return nil, &fs.PathError{Op: "OpenFile", Path: path, Err: errors.New("overlaid files can't be opened for write")}
-		}
-		return os.OpenFile(node.actualFilePath, flag, perm)
-	}
-	if parent, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
-		// The file is deleted explicitly in the Replace map,
-		// or implicitly because one of its parent directories was
-		// replaced by a file.
+	bad := func(msg string) (*os.File, error) {
 		return nil, &fs.PathError{
 			Op:   "Open",
-			Path: path,
-			Err:  fmt.Errorf("file %s does not exist: parent directory %s is replaced by a file in overlay", path, parent),
+			Path: name,
+			Err:  errors.New(msg),
 		}
 	}
-	return os.OpenFile(cpath, flag, perm)
+
+	info := stat(name)
+	if info.deleted {
+		return bad("deleted in overlay")
+	}
+	if info.dir {
+		return bad("cannot open directory in overlay")
+	}
+	if info.replaced {
+		name = info.actual
+	}
+
+	return os.Open(name)
 }
 
 // ReadFile reads the named file from the virtual file system
@@ -452,15 +482,16 @@ func IsGoDir(name string) (bool, error) {
 			return true, nil
 		}
 
-		// fi is the result of an Lstat, so it doesn't follow symlinks.
-		// But it's okay if the file is a symlink pointing to a regular
-		// file, so use os.Stat to follow symlinks and check that.
-		fi, err := os.Stat(Actual(filepath.Join(name, d.Name())))
-		if err == nil && fi.Mode().IsRegular() {
-			return true, nil
-		}
-		if err != nil && firstErr == nil {
-			firstErr = err
+		// d is a non-directory, non-regular .go file.
+		// Stat to see if it is a symlink, which we allow.
+		if actual := Actual(filepath.Join(name, d.Name())); actual != "" {
+			fi, err := os.Stat(actual)
+			if err == nil && fi.Mode().IsRegular() {
+				return true, nil
+			}
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
 
@@ -484,38 +515,29 @@ func Stat(name string) (fs.FileInfo, error) {
 
 // overlayStat implements lstat or Stat (depending on whether os.Lstat or os.Stat is passed in).
 func overlayStat(op, path string, osStat func(string) (fs.FileInfo, error)) (fs.FileInfo, error) {
-	cpath := abs(path)
-
-	if _, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
+	info := stat(path)
+	if info.deleted {
 		return nil, &fs.PathError{Op: op, Path: path, Err: fs.ErrNotExist}
 	}
-
-	node, ok := overlay[cpath]
-	if !ok {
-		// The file or directory is not overlaid.
-		return osStat(path)
-	}
-
-	switch {
-	case node.isDeleted():
-		return nil, &fs.PathError{Op: op, Path: path, Err: fs.ErrNotExist}
-	case node.isDir():
+	if info.dir {
 		return fakeDir(filepath.Base(path)), nil
-	default:
+	}
+	if info.replaced {
 		// To keep the data model simple, if the overlay contains a symlink we
 		// always stat through it (using Stat, not Lstat). That way we don't need to
 		// worry about the interaction between Lstat and directories: if a symlink
 		// in the overlay points to a directory, we reject it like an ordinary
 		// directory.
-		fi, err := os.Stat(node.actualFilePath)
+		ainfo, err := os.Stat(info.actual)
 		if err != nil {
 			return nil, err
 		}
-		if fi.IsDir() {
-			return nil, &fs.PathError{Op: op, Path: path, Err: nonFileInOverlayError(node.actualFilePath)}
+		if ainfo.IsDir() {
+			return nil, &fs.PathError{Op: op, Path: path, Err: fmt.Errorf("overlay maps to directory")}
 		}
-		return fakeFile{name: filepath.Base(path), real: fi}, nil
+		return fakeFile{name: filepath.Base(path), real: ainfo}, nil
 	}
+	return osStat(path)
 }
 
 // fakeFile provides an fs.FileInfo implementation for an overlaid file,
