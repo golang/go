@@ -206,6 +206,9 @@ func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose boo
 	if relaxed {
 		budget += inlheur.BudgetExpansion(inlineMaxBudget)
 	}
+	if fn.ClosureParent != nil {
+		budget *= 2
+	}
 	return budget
 }
 
@@ -861,6 +864,10 @@ var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInde
 //   - whether the inlined function is "hot" according to PGO.
 func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool, int32, int32, bool) {
 	maxCost := int32(inlineMaxBudget)
+	if callee.ClosureParent != nil {
+		maxCost *= 2 // favor inlining closures
+	}
+
 	if bigCaller {
 		// We use this to restrict inlining into very big functions.
 		// See issue 26546 and 17566.
