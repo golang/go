@@ -36,6 +36,8 @@ import (
 //
 // [the Go memory model]: https://go.dev/ref/mem
 type Map struct {
+	_ noCopy
+
 	mu Mutex
 
 	// read contains the portion of the map's contents that are safe for

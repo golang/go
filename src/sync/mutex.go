@@ -34,6 +34,8 @@ func fatal(string)
 //
 // [the Go memory model]: https://go.dev/ref/mem
 type Mutex struct {
+	_ noCopy
+
 	state int32
 	sema  uint32
 }

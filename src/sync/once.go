@@ -18,6 +18,8 @@ import (
 //
 // [the Go memory model]: https://go.dev/ref/mem
 type Once struct {
+	_ noCopy
+
 	// done indicates whether the action has been performed.
 	// It is first in the struct because it is used in the hot path.
 	// The hot path is inlined at every call site.
