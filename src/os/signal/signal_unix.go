@@ -48,11 +48,11 @@ func signum(sig os.Signal) int {
 		// as they might be defined in external packages like golang.org/x/sys.
 		// Since we cannot import those platform-specific signal types,
 		// reflection allows us to handle them in a generic way.
-		kind := reflect.TypeOf(sig).Kind()
-		switch kind {
+		v := reflect.ValueOf(sig)
+		switch v.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			// Extract the integer value from sig and validate it.
-			i := int(reflect.ValueOf(sig).Int())
+			i := int(v.Int())
 			if i < 0 || i >= numSig {
 				return -1
 			}
