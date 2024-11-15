@@ -86,7 +86,6 @@ func init() {
 		// false negatives. For now, FIPS+ASAN doesn't need to work.
 		// If this is made to work, also re-enable the test in check_test.go.
 		panic("fips140: cannot verify in asan mode")
-		return
 	}
 
 	switch v {
