@@ -114,7 +114,7 @@ func checkMapsFor[T comparable](t *testing.T, value T) {
 	if !ok {
 		return
 	}
-	if wp.Strong() != nil {
+	if wp.Value() != nil {
 		t.Errorf("value %v still referenced a handle (or tiny block?) ", value)
 		return
 	}

@@ -564,7 +564,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			}
 			if hasFinAndRevived {
 				// Pass 2: queue all finalizers and clear any weak handles. Weak handles are cleared
-				// before finalization as specified by the internal/weak package. See the documentation
+				// before finalization as specified by the weak package. See the documentation
 				// for that package for more details.
 				for siter.valid() && uintptr(siter.s.offset) < endOffset {
 					// Find the exact byte for which the special was setup

@@ -2336,9 +2336,6 @@ var blockedLinknames = map[string][]string{
 	// coroutines
 	"runtime.coroswitch": {"iter"},
 	"runtime.newcoro":    {"iter"},
-	// weak references
-	"internal/weak.runtime_registerWeakPointer": {"internal/weak"},
-	"internal/weak.runtime_makeStrongFromWeak":  {"internal/weak"},
 	// fips info
 	"go:fipsinfo": {"crypto/internal/fips/check"},
 }

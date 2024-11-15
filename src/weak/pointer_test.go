@@ -6,11 +6,11 @@ package weak_test
 
 import (
 	"context"
-	"internal/weak"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
+	"weak"
 )
 
 type T struct {
@@ -23,19 +23,19 @@ type T struct {
 func TestPointer(t *testing.T) {
 	bt := new(T)
 	wt := weak.Make(bt)
-	if st := wt.Strong(); st != bt {
+	if st := wt.Value(); st != bt {
 		t.Fatalf("weak pointer is not the same as strong pointer: %p vs. %p", st, bt)
 	}
 	// bt is still referenced.
 	runtime.GC()
 
-	if st := wt.Strong(); st != bt {
+	if st := wt.Value(); st != bt {
 		t.Fatalf("weak pointer is not the same as strong pointer after GC: %p vs. %p", st, bt)
 	}
 	// bt is no longer referenced.
 	runtime.GC()
 
-	if st := wt.Strong(); st != nil {
+	if st := wt.Value(); st != nil {
 		t.Fatalf("expected weak pointer to be nil, got %p", st)
 	}
 }
@@ -48,7 +48,7 @@ func TestPointerEquality(t *testing.T) {
 		wt[i] = weak.Make(bt[i])
 	}
 	for i := range bt {
-		st := wt[i].Strong()
+		st := wt[i].Value()
 		if st != bt[i] {
 			t.Fatalf("weak pointer is not the same as strong pointer: %p vs. %p", st, bt[i])
 		}
@@ -65,7 +65,7 @@ func TestPointerEquality(t *testing.T) {
 	// bt is still referenced.
 	runtime.GC()
 	for i := range bt {
-		st := wt[i].Strong()
+		st := wt[i].Value()
 		if st != bt[i] {
 			t.Fatalf("weak pointer is not the same as strong pointer: %p vs. %p", st, bt[i])
 		}
@@ -83,7 +83,7 @@ func TestPointerEquality(t *testing.T) {
 	// bt is no longer referenced.
 	runtime.GC()
 	for i := range bt {
-		st := wt[i].Strong()
+		st := wt[i].Value()
 		if st != nil {
 			t.Fatalf("expected weak pointer to be nil, got %p", st)
 		}
@@ -101,7 +101,7 @@ func TestPointerFinalizer(t *testing.T) {
 	wt := weak.Make(bt)
 	done := make(chan struct{}, 1)
 	runtime.SetFinalizer(bt, func(bt *T) {
-		if wt.Strong() != nil {
+		if wt.Value() != nil {
 			t.Errorf("weak pointer did not go nil before finalizer ran")
 		}
 		done <- struct{}{}
@@ -109,7 +109,7 @@ func TestPointerFinalizer(t *testing.T) {
 
 	// Make sure the weak pointer stays around while bt is live.
 	runtime.GC()
-	if wt.Strong() == nil {
+	if wt.Value() == nil {
 		t.Errorf("weak pointer went nil too soon")
 	}
 	runtime.KeepAlive(bt)
@@ -118,7 +118,7 @@ func TestPointerFinalizer(t *testing.T) {
 	//
 	// Run one cycle to queue the finalizer.
 	runtime.GC()
-	if wt.Strong() != nil {
+	if wt.Value() != nil {
 		t.Errorf("weak pointer did not go nil when finalizer was enqueued")
 	}
 
@@ -127,7 +127,7 @@ func TestPointerFinalizer(t *testing.T) {
 
 	// The weak pointer should still be nil after the finalizer runs.
 	runtime.GC()
-	if wt.Strong() != nil {
+	if wt.Value() != nil {
 		t.Errorf("weak pointer is non-nil even after finalization: %v", wt)
 	}
 }
@@ -150,7 +150,7 @@ func TestIssue69210(t *testing.T) {
 	// bug happens. Specifically, we want:
 	//
 	// 1. To create a whole bunch of objects that are only weakly-pointed-to,
-	// 2. To call Strong while the GC is in the mark phase,
+	// 2. To call Value while the GC is in the mark phase,
 	// 3. The new strong pointer to be missed by the GC,
 	// 4. The following GC cycle to mark a free object.
 	//
@@ -192,7 +192,7 @@ func TestIssue69210(t *testing.T) {
 					wt := weak.Make(bt)
 					bt = nil
 					time.Sleep(1 * time.Millisecond)
-					bt = wt.Strong()
+					bt = wt.Value()
 					if bt != nil {
 						time.Sleep(4 * time.Millisecond)
 						bt.t = bt

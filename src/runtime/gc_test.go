@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/asan"
 	"internal/testenv"
-	"internal/weak"
 	"math/bits"
 	"math/rand"
 	"os"
@@ -22,6 +21,7 @@ import (
 	"testing"
 	"time"
 	"unsafe"
+	"weak"
 )
 
 func TestGcSys(t *testing.T) {
@@ -826,7 +826,7 @@ func TestWeakToStrongMarkTermination(t *testing.T) {
 
 	// Start a GC, and wait a little bit to get something spinning in mark termination.
 	// Simultaneously, fire off another goroutine to disable spinning. If everything's
-	// working correctly, then weak.Strong will block, so we need to make sure something
+	// working correctly, then weak.Value will block, so we need to make sure something
 	// prevents the GC from continuing to spin.
 	done := make(chan struct{})
 	go func() {
@@ -847,7 +847,7 @@ func TestWeakToStrongMarkTermination(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			wp.Strong()
+			wp.Value()
 		}()
 	}
 

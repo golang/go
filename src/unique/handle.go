@@ -7,10 +7,10 @@ package unique
 import (
 	"internal/abi"
 	isync "internal/sync"
-	"internal/weak"
 	"runtime"
 	"sync"
 	"unsafe"
+	"weak"
 )
 
 var zero uintptr
@@ -76,7 +76,7 @@ func Make[T comparable](value T) Handle[T] {
 		}
 		// Now that we're sure there's a value in the map, let's
 		// try to get the pointer we need out of it.
-		ptr = wp.Strong()
+		ptr = wp.Value()
 		if ptr != nil {
 			break
 		}
@@ -132,7 +132,7 @@ func addUniqueMap[T comparable](typ *abi.Type) *uniqueMap[T] {
 			// Delete all the entries whose weak references are nil and clean up
 			// deleted entries.
 			m.All()(func(key T, wp weak.Pointer[T]) bool {
-				if wp.Strong() == nil {
+				if wp.Value() == nil {
 					m.CompareAndDelete(key, wp)
 				}
 				return true

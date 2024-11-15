@@ -2092,12 +2092,12 @@ type specialWeakHandle struct {
 	handle *atomic.Uintptr
 }
 
-//go:linkname internal_weak_runtime_registerWeakPointer internal/weak.runtime_registerWeakPointer
+//go:linkname internal_weak_runtime_registerWeakPointer weak.runtime_registerWeakPointer
 func internal_weak_runtime_registerWeakPointer(p unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(getOrAddWeakHandle(unsafe.Pointer(p)))
 }
 
-//go:linkname internal_weak_runtime_makeStrongFromWeak internal/weak.runtime_makeStrongFromWeak
+//go:linkname internal_weak_runtime_makeStrongFromWeak weak.runtime_makeStrongFromWeak
 func internal_weak_runtime_makeStrongFromWeak(u unsafe.Pointer) unsafe.Pointer {
 	handle := (*atomic.Uintptr)(u)
 
