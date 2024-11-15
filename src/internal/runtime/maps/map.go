@@ -296,7 +296,7 @@ func NewMap(mt *abi.SwissMapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
 	if overflow {
 		return m // return an empty map.
 	} else {
-		mem, overflow := math.MulUintptr(groups, mt.Group.Size_)
+		mem, overflow := math.MulUintptr(groups, mt.GroupSize)
 		if overflow || mem > maxAlloc {
 			return m // return an empty map.
 		}

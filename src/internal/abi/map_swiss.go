@@ -22,8 +22,8 @@ const (
 	SwissMapMaxKeyBytes  = 128
 	SwissMapMaxElemBytes = 128
 
-	ctrlEmpty   = 0b10000000
-	bitsetLSB   = 0x0101010101010101
+	ctrlEmpty = 0b10000000
+	bitsetLSB = 0x0101010101010101
 
 	// Value of control word with all empty slots.
 	SwissMapCtrlEmpty = bitsetLSB * uint64(ctrlEmpty)
@@ -35,10 +35,11 @@ type SwissMapType struct {
 	Elem  *Type
 	Group *Type // internal type representing a slot group
 	// function for hashing keys (ptr to key, seed) -> hash
-	Hasher   func(unsafe.Pointer, uintptr) uintptr
-	SlotSize uintptr // size of key/elem slot
-	ElemOff  uintptr // offset of elem in key/elem slot
-	Flags    uint32
+	Hasher    func(unsafe.Pointer, uintptr) uintptr
+	GroupSize uintptr // == Group.Size_
+	SlotSize  uintptr // size of key/elem slot
+	ElemOff   uintptr // offset of elem in key/elem slot
+	Flags     uint32
 }
 
 // Flag values

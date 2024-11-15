@@ -517,8 +517,8 @@ func testTableIterationGrowDuplicate(t *testing.T, grow int) {
 
 		key := *(*uint32)(keyPtr)
 		elem := *(*uint64)(elemPtr)
-		if elem != 256 + uint64(key) {
-			t.Errorf("iteration got key %d elem %d want elem %d", key, elem, 256 + uint64(key))
+		if elem != 256+uint64(key) {
+			t.Errorf("iteration got key %d elem %d want elem %d", key, elem, 256+uint64(key))
 		}
 		if _, ok := got[key]; ok {
 			t.Errorf("iteration got key %d more than once", key)
@@ -623,7 +623,7 @@ func TestMapZeroSizeSlot(t *testing.T) {
 	tab := m.TableFor(typ, unsafe.Pointer(&key))
 	start := tab.GroupsStart()
 	length := tab.GroupsLength()
-	end := unsafe.Pointer(uintptr(start) + length*typ.Group.Size() - 1) // inclusive to ensure we have a valid pointer
+	end := unsafe.Pointer(uintptr(start) + length*typ.GroupSize - 1) // inclusive to ensure we have a valid pointer
 	if uintptr(got) < uintptr(start) || uintptr(got) > uintptr(end) {
 		t.Errorf("elem address outside groups allocation; got %p want [%p, %p]", got, start, end)
 	}

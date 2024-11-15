@@ -276,6 +276,7 @@ func writeSwissMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
 	c.Field("Elem").WritePtr(s2)
 	c.Field("Group").WritePtr(s3)
 	c.Field("Hasher").WritePtr(hasher)
+	c.Field("GroupSize").WriteUintptr(uint64(gtyp.Size()))
 	c.Field("SlotSize").WriteUintptr(uint64(slotTyp.Size()))
 	c.Field("ElemOff").WriteUintptr(uint64(elemOff))
 	var flags uint32

@@ -561,7 +561,7 @@ func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, sym
 		off += 2 * arch.PtrSize
 	case abi.Map:
 		if buildcfg.Experiment.SwissMap {
-			off += 6*arch.PtrSize + 4 // internal/abi.SwissMapType
+			off += 7*arch.PtrSize + 4 // internal/abi.SwissMapType
 			if arch.PtrSize == 8 {
 				off += 4 // padding for final uint32 field (Flags).
 			}
