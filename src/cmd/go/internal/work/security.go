@@ -312,7 +312,7 @@ Args:
 		for _, re := range valid {
 			if match := re.FindString(arg); match == arg { // must be complete match
 				continue Args
-			} else if match == "-Wl,--push-state" {
+			} else if strings.HasPrefix(arg, "-Wl,--push-state,") {
 				// Examples for --push-state are written
 				//     -Wl,--push-state,--as-needed
 				// Support other commands in the same -Wl arg.

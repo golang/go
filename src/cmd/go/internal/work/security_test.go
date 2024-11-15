@@ -250,6 +250,8 @@ var badLinkerFlags = [][]string{
 	{"-Wl,-R,-flag"},
 	{"-Wl,--push-state,"},
 	{"-Wl,--push-state,@foo"},
+	{"-fplugin=./-Wl,--push-state,-R.so"},
+	{"./-Wl,--push-state,-R.c"},
 }
 
 func TestCheckLinkerFlags(t *testing.T) {
