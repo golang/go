@@ -767,9 +767,6 @@ var statuniqgen int // name generator for static temps
 func StaticName(t *types.Type) *ir.Name {
 	// Don't use LookupNum; it interns the resulting string, but these are all unique.
 	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePrefix, statuniqgen))
-	if sym.Name == ".stmp_0" && sym.Pkg.Path == "crypto/internal/fips/check" {
-		panic("bad")
-	}
 	statuniqgen++
 
 	n := ir.NewNameAt(base.Pos, sym, t)
