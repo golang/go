@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"math/big"
+	"os"
 	"os/exec"
 	"runtime"
 	"slices"
@@ -2518,7 +2519,7 @@ func TestEKUEnforcement(t *testing.T) {
 			if err == nil && tc.err != "" {
 				t.Errorf("expected error")
 			} else if err != nil && err.Error() != tc.err {
-				t.Errorf("unexpected error: want %q, got %q", err.Error(), tc.err)
+				t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.err)
 			}
 		})
 	}
@@ -2637,5 +2638,377 @@ func TestVerifyBareWildcard(t *testing.T) {
 
 	if err := c.VerifyHostname("label"); err == nil {
 		t.Fatalf("VerifyHostname unexpected success with bare wildcard SAN")
+	}
+}
+
+func TestPoliciesValid(t *testing.T) {
+	// These test cases, the comments, and the certificates they rely on, are
+	// stolen from BoringSSL [0]. We skip the tests which involve certificate
+	// parsing as part of the verification process. Those tests are in
+	// TestParsePolicies.
+	//
+	// [0] https://boringssl.googlesource.com/boringssl/+/264f4f7a958af6c4ccb04662e302a99dfa7c5b85/crypto/x509/x509_test.cc#5913
+
+	testOID1 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 1})
+	testOID2 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 2})
+	testOID3 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 3})
+	testOID4 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 4})
+	testOID5 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 5})
+
+	loadTestCert := func(t *testing.T, path string) *Certificate {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, _ := pem.Decode(b)
+		c, err := ParseCertificate(p.Bytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+
+	root := loadTestCert(t, "testdata/policy_root.pem")
+	root_cross_inhibit_mapping := loadTestCert(t, "testdata/policy_root_cross_inhibit_mapping.pem")
+	root2 := loadTestCert(t, "testdata/policy_root2.pem")
+	intermediate := loadTestCert(t, "testdata/policy_intermediate.pem")
+	intermediate_any := loadTestCert(t, "testdata/policy_intermediate_any.pem")
+	intermediate_mapped := loadTestCert(t, "testdata/policy_intermediate_mapped.pem")
+	intermediate_mapped_any := loadTestCert(t, "testdata/policy_intermediate_mapped_any.pem")
+	intermediate_mapped_oid3 := loadTestCert(t, "testdata/policy_intermediate_mapped_oid3.pem")
+	intermediate_require := loadTestCert(t, "testdata/policy_intermediate_require.pem")
+	intermediate_require1 := loadTestCert(t, "testdata/policy_intermediate_require1.pem")
+	intermediate_require2 := loadTestCert(t, "testdata/policy_intermediate_require2.pem")
+	intermediate_require_no_policies := loadTestCert(t, "testdata/policy_intermediate_require_no_policies.pem")
+	leaf := loadTestCert(t, "testdata/policy_leaf.pem")
+	leaf_any := loadTestCert(t, "testdata/policy_leaf_any.pem")
+	leaf_none := loadTestCert(t, "testdata/policy_leaf_none.pem")
+	leaf_oid1 := loadTestCert(t, "testdata/policy_leaf_oid1.pem")
+	leaf_oid2 := loadTestCert(t, "testdata/policy_leaf_oid2.pem")
+	leaf_oid3 := loadTestCert(t, "testdata/policy_leaf_oid3.pem")
+	leaf_oid4 := loadTestCert(t, "testdata/policy_leaf_oid4.pem")
+	leaf_oid5 := loadTestCert(t, "testdata/policy_leaf_oid5.pem")
+	leaf_require := loadTestCert(t, "testdata/policy_leaf_require.pem")
+	leaf_require1 := loadTestCert(t, "testdata/policy_leaf_require1.pem")
+
+	type testCase struct {
+		chain                 []*Certificate
+		policies              []OID
+		requireExplicitPolicy bool
+		inhibitPolicyMapping  bool
+		inhibitAnyPolicy      bool
+		valid                 bool
+	}
+
+	tests := []testCase{
+		// The chain is good for |oid1| and |oid2|, but not |oid3|.
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			policies:              []OID{testOID1},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			policies:              []OID{testOID2},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			policies:              []OID{testOID1, testOID2},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			policies:              []OID{testOID1, testOID3},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		// Without |X509_V_FLAG_EXPLICIT_POLICY|, the policy tree is built and
+		// intersected with user-specified policies, but it is not required to result
+		// in any valid policies.
+		{
+			chain:    []*Certificate{leaf, intermediate, root},
+			policies: []OID{testOID1},
+			valid:    true,
+		},
+		{
+			chain:    []*Certificate{leaf, intermediate, root},
+			policies: []OID{testOID3},
+			valid:    true,
+		},
+		// However, a CA with policy constraints can require an explicit policy.
+		{
+			chain:    []*Certificate{leaf, intermediate_require, root},
+			policies: []OID{testOID1},
+			valid:    true,
+		},
+		{
+			chain:    []*Certificate{leaf, intermediate_require, root},
+			policies: []OID{testOID3},
+			valid:    false,
+		},
+		// requireExplicitPolicy applies even if the application does not configure a
+		// user-initial-policy-set. If the validation results in no policies, the
+		// chain is invalid.
+		{
+			chain:                 []*Certificate{leaf_none, intermediate_require, root},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+		// A leaf can also set requireExplicitPolicy.
+		{
+			chain: []*Certificate{leaf_require, intermediate, root},
+			valid: true,
+		},
+		{
+			chain:    []*Certificate{leaf_require, intermediate, root},
+			policies: []OID{testOID1},
+			valid:    true,
+		},
+		{
+			chain:    []*Certificate{leaf_require, intermediate, root},
+			policies: []OID{testOID3},
+			valid:    false,
+		},
+		// requireExplicitPolicy is a count of certificates to skip. If the value is
+		// not zero by the end of the chain, it doesn't count.
+		{
+			chain:    []*Certificate{leaf, intermediate_require1, root},
+			policies: []OID{testOID3},
+			valid:    false,
+		},
+		{
+			chain:    []*Certificate{leaf, intermediate_require2, root},
+			policies: []OID{testOID3},
+			valid:    true,
+		},
+		{
+			chain:    []*Certificate{leaf_require1, intermediate, root},
+			policies: []OID{testOID3},
+			valid:    true,
+		},
+		// If multiple certificates specify the constraint, the more constrained value
+		// wins.
+		{
+			chain:    []*Certificate{leaf_require1, intermediate_require1, root},
+			policies: []OID{testOID3},
+			valid:    false,
+		},
+		{
+			chain:    []*Certificate{leaf_require, intermediate_require2, root},
+			policies: []OID{testOID3},
+			valid:    false,
+		},
+		// An intermediate that requires an explicit policy, but then specifies no
+		// policies should fail verification as a result.
+		{
+			chain:    []*Certificate{leaf, intermediate_require_no_policies, root},
+			policies: []OID{testOID1},
+			valid:    false,
+		},
+		// A constrained intermediate's policy extension has a duplicate policy, which
+		// is invalid.
+		// {
+		// 	chain:    []*Certificate{leaf, intermediate_require_duplicate, root},
+		// 	policies: []OID{testOID1},
+		// 	valid:    false,
+		// },
+		// The leaf asserts anyPolicy, but the intermediate does not. The resulting
+		// valid policies are the intersection.
+		{
+			chain:                 []*Certificate{leaf_any, intermediate, root},
+			policies:              []OID{testOID1},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf_any, intermediate, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+		// The intermediate asserts anyPolicy, but the leaf does not. The resulting
+		// valid policies are the intersection.
+		{
+			chain:                 []*Certificate{leaf, intermediate_any, root},
+			policies:              []OID{testOID1},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate_any, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+		// Both assert anyPolicy. All policies are valid.
+		{
+			chain:                 []*Certificate{leaf_any, intermediate_any, root},
+			policies:              []OID{testOID1},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf_any, intermediate_any, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		// With just a trust anchor, policy checking silently succeeds.
+		{
+			chain:                 []*Certificate{root},
+			policies:              []OID{testOID1},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		// Although |intermediate_mapped_oid3| contains many mappings, it only accepts
+		// OID3. Nodes should not be created for the other mappings.
+		{
+			chain:                 []*Certificate{leaf_oid1, intermediate_mapped_oid3, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf_oid4, intermediate_mapped_oid3, root},
+			policies:              []OID{testOID4},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+		// Policy mapping can be inhibited, either by the caller or a certificate in
+		// the chain, in which case mapped policies are unassertable (apart from some
+		// anyPolicy edge cases).
+		{
+			chain:                 []*Certificate{leaf_oid1, intermediate_mapped_oid3, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			inhibitPolicyMapping:  true,
+			valid:                 false,
+		},
+		{
+			chain:                 []*Certificate{leaf_oid1, intermediate_mapped_oid3, root_cross_inhibit_mapping, root2},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+	}
+
+	for _, useAny := range []bool{false, true} {
+		var intermediate *Certificate
+		if useAny {
+			intermediate = intermediate_mapped_any
+		} else {
+			intermediate = intermediate_mapped
+		}
+		extraTests := []testCase{
+			// OID3 is mapped to {OID1, OID2}, which means OID1 and OID2 (or both) are
+			// acceptable for OID3.
+			{
+				chain:                 []*Certificate{leaf, intermediate, root},
+				policies:              []OID{testOID3},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid1, intermediate, root},
+				policies:              []OID{testOID3},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid2, intermediate, root},
+				policies:              []OID{testOID3},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			// If the intermediate's policies were anyPolicy, OID3 at the leaf, despite
+			// being mapped, is still acceptable as OID3 at the root. Despite the OID3
+			// having expected_policy_set = {OID1, OID2}, it can match the anyPolicy
+			// node instead.
+			//
+			// If the intermediate's policies listed OIDs explicitly, OID3 at the leaf
+			// is not acceptable as OID3 at the root. OID3 has expected_polciy_set =
+			// {OID1, OID2} and no other node allows OID3.
+			{
+				chain:                 []*Certificate{leaf_oid3, intermediate, root},
+				policies:              []OID{testOID3},
+				requireExplicitPolicy: true,
+				valid:                 useAny,
+			},
+			// If the intermediate's policies were anyPolicy, OID1 at the leaf is no
+			// longer acceptable as OID1 at the root because policies only match
+			// anyPolicy when they match no other policy.
+			//
+			// If the intermediate's policies listed OIDs explicitly, OID1 at the leaf
+			// is acceptable as OID1 at the root because it will match both OID1 and
+			// OID3 (mapped) policies.
+			{
+				chain:                 []*Certificate{leaf_oid1, intermediate, root},
+				policies:              []OID{testOID1},
+				requireExplicitPolicy: true,
+				valid:                 !useAny,
+			},
+			// All pairs of OID4 and OID5 are mapped together, so either can stand for
+			// the other.
+			{
+				chain:                 []*Certificate{leaf_oid4, intermediate, root},
+				policies:              []OID{testOID4},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid4, intermediate, root},
+				policies:              []OID{testOID5},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid5, intermediate, root},
+				policies:              []OID{testOID4},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid5, intermediate, root},
+				policies:              []OID{testOID5},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid4, intermediate, root},
+				policies:              []OID{testOID4, testOID5},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+		}
+		tests = append(tests, extraTests...)
+	}
+
+	for i, tc := range tests {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			valid := policiesValid(tc.chain, VerifyOptions{
+				CertificatePolicies:   tc.policies,
+				requireExplicitPolicy: tc.requireExplicitPolicy,
+				inhibitPolicyMapping:  tc.inhibitPolicyMapping,
+				inhibitAnyPolicy:      tc.inhibitAnyPolicy,
+			})
+			if valid != tc.valid {
+				t.Errorf("policiesValid: got %t, want %t", valid, tc.valid)
+			}
+		})
 	}
 }

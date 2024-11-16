@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	testDir     = "testdata"
 	testDirCN   = "test-dir"
 	testFile    = "test-file.crt"
 	testFileCN  = "test-file"
@@ -25,6 +24,17 @@ const (
 )
 
 func TestEnvVars(t *testing.T) {
+	tmpDir := t.TempDir()
+	testCert, err := os.ReadFile("testdata/test-dir.crt")
+	if err != nil {
+		t.Fatalf("failed to read test cert: %s", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, testFile), testCert, 0644); err != nil {
+		if err != nil {
+			t.Fatalf("failed to write test cert: %s", err)
+		}
+	}
+
 	testCases := []struct {
 		name    string
 		fileEnv string
@@ -39,7 +49,7 @@ func TestEnvVars(t *testing.T) {
 			fileEnv: testMissing,
 			dirEnv:  testMissing,
 			files:   []string{testFile},
-			dirs:    []string{testDir},
+			dirs:    []string{tmpDir},
 			cns:     nil,
 		},
 		{
@@ -55,7 +65,7 @@ func TestEnvVars(t *testing.T) {
 			// Directory environment overrides default directory locations.
 			name:    "dir",
 			fileEnv: "",
-			dirEnv:  testDir,
+			dirEnv:  tmpDir,
 			files:   nil,
 			dirs:    nil,
 			cns:     []string{testDirCN},
@@ -64,7 +74,7 @@ func TestEnvVars(t *testing.T) {
 			// File & directory environment overrides both default locations.
 			name:    "file+dir",
 			fileEnv: testFile,
-			dirEnv:  testDir,
+			dirEnv:  tmpDir,
 			files:   nil,
 			dirs:    nil,
 			cns:     []string{testFileCN, testDirCN},
@@ -75,7 +85,7 @@ func TestEnvVars(t *testing.T) {
 			fileEnv: "",
 			dirEnv:  "",
 			files:   []string{testFile},
-			dirs:    []string{testDir},
+			dirs:    []string{tmpDir},
 			cns:     []string{testFileCN, testDirCN},
 		},
 	}
