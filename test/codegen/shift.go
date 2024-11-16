@@ -145,6 +145,7 @@ func lshConst64x2Add(x int64) int64 {
 
 func lshMask64x64(v int64, s uint64) int64 {
 	// arm64:"LSL",-"AND"
+	// loong64:"SLLV",-"AND"
 	// ppc64x:"RLDICL",-"ORN",-"ISEL"
 	// riscv64:"SLL",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
@@ -153,6 +154,7 @@ func lshMask64x64(v int64, s uint64) int64 {
 
 func rshMask64Ux64(v uint64, s uint64) uint64 {
 	// arm64:"LSR",-"AND",-"CSEL"
+	// loong64:"SRLV",-"AND"
 	// ppc64x:"RLDICL",-"ORN",-"ISEL"
 	// riscv64:"SRL\t",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
@@ -161,6 +163,7 @@ func rshMask64Ux64(v uint64, s uint64) uint64 {
 
 func rshMask64x64(v int64, s uint64) int64 {
 	// arm64:"ASR",-"AND",-"CSEL"
+	// loong64:"SRAV",-"AND"
 	// ppc64x:"RLDICL",-"ORN",-"ISEL"
 	// riscv64:"SRA\t",-"OR",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
@@ -169,14 +172,21 @@ func rshMask64x64(v int64, s uint64) int64 {
 
 func lshMask32x64(v int32, s uint64) int32 {
 	// arm64:"LSL",-"AND"
+	// loong64:"SLL\t","AND","SGTU","MASKEQZ"
 	// ppc64x:"ISEL",-"ORN"
 	// riscv64:"SLL",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v << (s & 63)
 }
 
+func lsh5Mask32x64(v int32, s uint64) int32 {
+	// loong64:"SLL\t",-"AND"
+	return v << (s & 31)
+}
+
 func rshMask32Ux64(v uint32, s uint64) uint32 {
 	// arm64:"LSR",-"AND"
+	// loong64:"SRL\t","AND","SGTU","MASKEQZ"
 	// ppc64x:"ISEL",-"ORN"
 	// riscv64:"SRLW","SLTIU","NEG","AND\t",-"SRL\t"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
@@ -184,12 +194,14 @@ func rshMask32Ux64(v uint32, s uint64) uint32 {
 }
 
 func rsh5Mask32Ux64(v uint32, s uint64) uint32 {
+	// loong64:"SRL\t",-"AND"
 	// riscv64:"SRLW",-"AND\t",-"SLTIU",-"SRL\t"
 	return v >> (s & 31)
 }
 
 func rshMask32x64(v int32, s uint64) int32 {
 	// arm64:"ASR",-"AND"
+	// loong64:"SRA\t","AND","SGTU","SUBVU","OR"
 	// ppc64x:"ISEL",-"ORN"
 	// riscv64:"SRAW","OR","SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
@@ -197,12 +209,14 @@ func rshMask32x64(v int32, s uint64) int32 {
 }
 
 func rsh5Mask32x64(v int32, s uint64) int32 {
+	// loong64:"SRA\t",-"AND"
 	// riscv64:"SRAW",-"OR",-"SLTIU"
 	return v >> (s & 31)
 }
 
 func lshMask64x32(v int64, s uint32) int64 {
 	// arm64:"LSL",-"AND"
+	// loong64:"SLLV",-"AND"
 	// ppc64x:"RLDICL",-"ORN"
 	// riscv64:"SLL",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
@@ -211,6 +225,7 @@ func lshMask64x32(v int64, s uint32) int64 {
 
 func rshMask64Ux32(v uint64, s uint32) uint64 {
 	// arm64:"LSR",-"AND",-"CSEL"
+	// loong64:"SRLV",-"AND"
 	// ppc64x:"RLDICL",-"ORN"
 	// riscv64:"SRL\t",-"AND\t",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
@@ -219,6 +234,7 @@ func rshMask64Ux32(v uint64, s uint32) uint64 {
 
 func rshMask64x32(v int64, s uint32) int64 {
 	// arm64:"ASR",-"AND",-"CSEL"
+	// loong64:"SRAV",-"AND"
 	// ppc64x:"RLDICL",-"ORN",-"ISEL"
 	// riscv64:"SRA\t",-"OR",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
