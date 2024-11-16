@@ -47,8 +47,8 @@ Floating-point and complex constituents:
 	%F	synonym for %f
 	%g	%e for large exponents, %f otherwise. Precision is discussed below.
 	%G	%E for large exponents, %F otherwise
-	%x	hexadecimal notation (with decimal power of two exponent), e.g. -0x1.23abcp+20
-	%X	upper-case hexadecimal notation, e.g. -0X1.23ABCP+20
+	%x	hexadecimal notation (with decimal power of two exponent), e.g. -0x1.23abcd+20
+	%X	upper-case hexadecimal notation, e.g. -0X1.23ABCD+20
 
 String and slice of bytes (treated equivalently with these verbs):
 
