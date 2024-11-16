@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"math/big"
+	"math/rand/v2"
 
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
@@ -76,6 +77,19 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 
 func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err error) {
 	c := priv.Curve
+
+	// A cheap version of hedged signatures, for the deprecated path.
+	var seed [32]byte
+	if _, err := io.ReadFull(csprng, seed[:]); err != nil {
+		return nil, err
+	}
+	for i, b := range priv.D.Bytes() {
+		seed[i%32] ^= b
+	}
+	for i, b := range hash {
+		seed[i%32] ^= b
+	}
+	csprng = rand.NewChaCha8(seed)
 
 	// SEC 1, Version 2.0, Section 4.1.3
 	N := c.Params().N

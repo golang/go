@@ -11,7 +11,6 @@ import (
 	"crypto/internal/fipsdeps/cpu"
 	"crypto/internal/impl"
 	"errors"
-	"io"
 )
 
 // kdsa invokes the "compute digital signature authentication"
@@ -59,13 +58,16 @@ func hashToBytes[P Point[P]](c *Curve[P], dst, hash []byte) {
 	copy(dst, e.Bytes(c.N))
 }
 
-func sign[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
+func sign[P Point[P]](c *Curve[P], priv *PrivateKey, drbg *hmacDRBG, hash []byte) (*Signature, error) {
 	functionCode, blockSize, ok := canUseKDSA(c.curve)
 	if !ok {
-		return signGeneric(c, priv, csprng, hash)
+		return signGeneric(c, priv, drbg, hash)
 	}
 	for {
-		k, _, err := randomPoint(c, csprng)
+		k, _, err := randomPoint(c, func(b []byte) error {
+			drbg.Generate(b)
+			return nil
+		})
 		if err != nil {
 			return nil, err
 		}

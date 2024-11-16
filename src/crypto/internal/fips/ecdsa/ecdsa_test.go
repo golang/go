@@ -27,7 +27,10 @@ func testRandomPoint[P Point[P]](t *testing.T, c *Curve[P]) {
 	// A sequence of all ones will generate 2^N-1, which should be rejected.
 	// (Unless, for example, we are masking too many bits.)
 	r := io.MultiReader(bytes.NewReader(bytes.Repeat([]byte{0xff}, 100)), rand.Reader)
-	if k, p, err := randomPoint(c, r); err != nil {
+	if k, p, err := randomPoint(c, func(b []byte) error {
+		_, err := r.Read(b)
+		return err
+	}); err != nil {
 		t.Fatal(err)
 	} else if k.IsZero() == 1 {
 		t.Error("k is zero")
@@ -41,7 +44,10 @@ func testRandomPoint[P Point[P]](t *testing.T, c *Curve[P]) {
 
 	// A sequence of all zeroes will generate zero, which should be rejected.
 	r = io.MultiReader(bytes.NewReader(bytes.Repeat([]byte{0}, 100)), rand.Reader)
-	if k, p, err := randomPoint(c, r); err != nil {
+	if k, p, err := randomPoint(c, func(b []byte) error {
+		_, err := r.Read(b)
+		return err
+	}); err != nil {
 		t.Fatal(err)
 	} else if k.IsZero() == 1 {
 		t.Error("k is zero")
@@ -53,14 +59,17 @@ func testRandomPoint[P Point[P]](t *testing.T, c *Curve[P]) {
 	}
 	loopCount = 0
 
-	// P-256 has a 2⁻³² chance or randomly hitting a rejection. For P-224 it's
+	// P-256 has a 2⁻³² chance of randomly hitting a rejection. For P-224 it's
 	// 2⁻¹¹², for P-384 it's 2⁻¹⁹⁴, and for P-521 it's 2⁻²⁶², so if we hit in
 	// tests, something is horribly wrong. (For example, we are masking the
 	// wrong bits.)
 	if c.curve == p256 {
 		return
 	}
-	if k, p, err := randomPoint(c, rand.Reader); err != nil {
+	if k, p, err := randomPoint(c, func(b []byte) error {
+		_, err := rand.Reader.Read(b)
+		return err
+	}); err != nil {
 		t.Fatal(err)
 	} else if k.IsZero() == 1 {
 		t.Error("k is zero")

@@ -32,7 +32,23 @@ const (
 	maxRequestSize = (1 << 19) / 8
 )
 
-func newDRBG[H fips.Hash](hash func() H, entropy, nonce, personalizationString []byte) *hmacDRBG {
+// plainPersonalizationString is used by HMAC_DRBG as-is.
+type plainPersonalizationString []byte
+
+func (plainPersonalizationString) isPersonalizationString() {}
+
+// Each entry in blockAlignedPersonalizationString is written to the HMAC at a
+// block boundary, as specified in draft-irtf-cfrg-det-sigs-with-noise-04,
+// Section 4.
+type blockAlignedPersonalizationString [][]byte
+
+func (blockAlignedPersonalizationString) isPersonalizationString() {}
+
+type personalizationString interface {
+	isPersonalizationString()
+}
+
+func newDRBG[H fips.Hash](hash func() H, entropy, nonce []byte, s personalizationString) *hmacDRBG {
 	// HMAC_DRBG_Instantiate_algorithm, per Section 10.1.2.3.
 	fips.RecordApproved()
 
@@ -56,7 +72,17 @@ func newDRBG[H fips.Hash](hash func() H, entropy, nonce, personalizationString [
 	h.Write([]byte{0x00})
 	h.Write(entropy)
 	h.Write(nonce)
-	h.Write(personalizationString)
+	switch s := s.(type) {
+	case plainPersonalizationString:
+		h.Write(s)
+	case blockAlignedPersonalizationString:
+		l := len(d.V) + 1 + len(entropy) + len(nonce)
+		for _, b := range s {
+			pad000(h, l)
+			h.Write(b)
+			l = len(b)
+		}
+	}
 	K = h.Sum(K[:0])
 	// V = HMAC (K, V)
 	h = hmac.New(hash, K)
@@ -68,7 +94,17 @@ func newDRBG[H fips.Hash](hash func() H, entropy, nonce, personalizationString [
 	h.Write([]byte{0x01})
 	h.Write(entropy)
 	h.Write(nonce)
-	h.Write(personalizationString)
+	switch s := s.(type) {
+	case plainPersonalizationString:
+		h.Write(s)
+	case blockAlignedPersonalizationString:
+		l := len(d.V) + 1 + len(entropy) + len(nonce)
+		for _, b := range s {
+			pad000(h, l)
+			h.Write(b)
+			l = len(b)
+		}
+	}
 	K = h.Sum(K[:0])
 	// V = HMAC (K, V)
 	h = hmac.New(hash, K)
@@ -78,6 +114,13 @@ func newDRBG[H fips.Hash](hash func() H, entropy, nonce, personalizationString [
 	d.hK = h
 	d.reseedCounter = 1
 	return d
+}
+
+func pad000(h *hmac.HMAC, writtenSoFar int) {
+	blockSize := h.BlockSize()
+	if rem := writtenSoFar % blockSize; rem != 0 {
+		h.Write(make([]byte, blockSize-rem))
+	}
 }
 
 // Generate produces at most maxRequestSize bytes of random data in out.

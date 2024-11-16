@@ -16,8 +16,6 @@ package ecdsa
 
 import (
 	"crypto"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/ecdh"
 	"crypto/elliptic"
 	"crypto/internal/boring"
@@ -131,14 +129,24 @@ func bigIntEqual(a, b *big.Int) bool {
 	return subtle.ConstantTimeCompare(a.Bytes(), b.Bytes()) == 1
 }
 
-// Sign signs digest with priv, reading randomness from rand. The opts argument
-// is not currently used but, in keeping with the crypto.Signer interface,
-// should be the hash function used to digest the message.
+// Sign signs a hash (which should be the result of hashing a larger message
+// with opts.HashFunc()) using the private key, priv. If the hash is longer than
+// the bit-length of the private key's curve order, the hash will be truncated
+// to that length. It returns the ASN.1 encoded signature, like [SignASN1].
 //
-// This method implements crypto.Signer, which is an interface to support keys
-// where the private part is kept in, for example, a hardware module. Common
-// uses can use the [SignASN1] function in this package directly.
+// If rand is not nil, the signature is randomized. Most applications should use
+// [crypto/rand.Reader] as rand. Note that the returned signature does not
+// depend deterministically on the bytes read from rand, and may change between
+// calls and/or between versions.
+//
+// If rand is nil, Sign will produce a deterministic signature according to RFC
+// 6979. When producing a deterministic signature, opts.HashFunc() must be the
+// function used to produce digest and priv.Curve must be one of
+// [elliptic.P224], [elliptic.P256], [elliptic.P384], or [elliptic.P521].
 func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if rand == nil {
+		return signRFC6979(priv, digest, opts)
+	}
 	return SignASN1(rand, priv, digest)
 }
 
@@ -205,26 +213,21 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 	}
 	boring.UnreachableExceptTests()
 
-	csprng, err := mixedCSPRNG(rand, priv, hash)
-	if err != nil {
-		return nil, err
-	}
-
 	switch priv.Curve.Params() {
 	case elliptic.P224().Params():
-		return signFIPS(ecdsa.P224(), priv, csprng, hash)
+		return signFIPS(ecdsa.P224(), priv, rand, hash)
 	case elliptic.P256().Params():
-		return signFIPS(ecdsa.P256(), priv, csprng, hash)
+		return signFIPS(ecdsa.P256(), priv, rand, hash)
 	case elliptic.P384().Params():
-		return signFIPS(ecdsa.P384(), priv, csprng, hash)
+		return signFIPS(ecdsa.P384(), priv, rand, hash)
 	case elliptic.P521().Params():
-		return signFIPS(ecdsa.P521(), priv, csprng, hash)
+		return signFIPS(ecdsa.P521(), priv, rand, hash)
 	default:
-		return signLegacy(priv, csprng, hash)
+		return signLegacy(priv, rand, hash)
 	}
 }
 
-func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) ([]byte, error) {
+func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, rand io.Reader, hash []byte) ([]byte, error) {
 	// privateKeyToFIPS is very slow in FIPS mode because it performs a
 	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
 	// it or attach it to the PrivateKey.
@@ -232,7 +235,44 @@ func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, csprng io.R
 	if err != nil {
 		return nil, err
 	}
-	sig, err := ecdsa.Sign(c, k, csprng, hash)
+	// Always using SHA-512 instead of the hash that computed hash is
+	// technically a violation of draft-irtf-cfrg-det-sigs-with-noise-04 but in
+	// our API we don't get to know what it was, and this has no security impact.
+	sig, err := ecdsa.Sign(c, sha512.New, k, rand, hash)
+	if err != nil {
+		return nil, err
+	}
+	return encodeSignature(sig.R, sig.S)
+}
+
+func signRFC6979(priv *PrivateKey, hash []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if opts == nil {
+		return nil, errors.New("ecdsa: Sign called with nil opts")
+	}
+	h := opts.HashFunc()
+	if h.Size() != len(hash) {
+		return nil, errors.New("ecdsa: hash length does not match hash function")
+	}
+	switch priv.Curve.Params() {
+	case elliptic.P224().Params():
+		return signFIPSDeterministic(ecdsa.P224(), h, priv, hash)
+	case elliptic.P256().Params():
+		return signFIPSDeterministic(ecdsa.P256(), h, priv, hash)
+	case elliptic.P384().Params():
+		return signFIPSDeterministic(ecdsa.P384(), h, priv, hash)
+	case elliptic.P521().Params():
+		return signFIPSDeterministic(ecdsa.P521(), h, priv, hash)
+	default:
+		return nil, errors.New("ecdsa: curve not supported by deterministic signatures")
+	}
+}
+
+func signFIPSDeterministic[P ecdsa.Point[P]](c *ecdsa.Curve[P], hashFunc crypto.Hash, priv *PrivateKey, hash []byte) ([]byte, error) {
+	k, err := privateKeyToFIPS(c, priv)
+	if err != nil {
+		return nil, err
+	}
+	sig, err := ecdsa.SignDeterministic(c, hashFunc.New, k, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -264,61 +304,6 @@ func addASN1IntBytes(b *cryptobyte.Builder, bytes []byte) {
 		}
 		c.AddBytes(bytes)
 	})
-}
-
-// mixedCSPRNG returns a CSPRNG that mixes entropy from rand with the message
-// and the private key, to protect the key in case rand fails. This is
-// equivalent in security to RFC 6979 deterministic nonce generation, but still
-// produces randomized signatures.
-func mixedCSPRNG(rand io.Reader, priv *PrivateKey, hash []byte) (io.Reader, error) {
-	// This implementation derives the nonce from an AES-CTR CSPRNG keyed by:
-	//
-	//    SHA2-512(priv.D || entropy || hash)[:32]
-	//
-	// The CSPRNG key is indifferentiable from a random oracle as shown in
-	// [Coron], the AES-CTR stream is indifferentiable from a random oracle
-	// under standard cryptographic assumptions (see [Larsson] for examples).
-	//
-	// [Coron]: https://cs.nyu.edu/~dodis/ps/merkle.pdf
-	// [Larsson]: https://web.archive.org/web/20040719170906/https://www.nada.kth.se/kurser/kth/2D1441/semteo03/lecturenotes/assump.pdf
-
-	// Get 256 bits of entropy from rand.
-	entropy := make([]byte, 32)
-	if _, err := io.ReadFull(rand, entropy); err != nil {
-		return nil, err
-	}
-
-	// Initialize an SHA-512 hash context; digest...
-	md := sha512.New()
-	md.Write(priv.D.Bytes()) // the private key,
-	md.Write(entropy)        // the entropy,
-	md.Write(hash)           // and the input hash;
-	key := md.Sum(nil)[:32]  // and compute ChopMD-256(SHA-512),
-	// which is an indifferentiable MAC.
-
-	// Create an AES-CTR instance to use as a CSPRNG.
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a CSPRNG that xors a stream of zeros with
-	// the output of the AES-CTR instance.
-	const aesIV = "IV for ECDSA CTR"
-	return &cipher.StreamReader{
-		R: zeroReader,
-		S: cipher.NewCTR(block, []byte(aesIV)),
-	}, nil
-}
-
-type zr struct{}
-
-var zeroReader = zr{}
-
-// Read replaces the contents of dst with zeros. It is safe for concurrent use.
-func (zr) Read(dst []byte) (n int, err error) {
-	clear(dst)
-	return len(dst), nil
 }
 
 // VerifyASN1 verifies the ASN.1 encoded signature, sig, of hash using the

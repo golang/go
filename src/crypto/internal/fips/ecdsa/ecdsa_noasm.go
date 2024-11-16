@@ -6,10 +6,8 @@
 
 package ecdsa
 
-import "io"
-
-func sign[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
-	return signGeneric(c, priv, csprng, hash)
+func sign[P Point[P]](c *Curve[P], priv *PrivateKey, drbg *hmacDRBG, hash []byte) (*Signature, error) {
+	return signGeneric(c, priv, drbg, hash)
 }
 
 func verify[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature) error {

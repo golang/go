@@ -10,6 +10,7 @@ import (
 	"crypto/internal/fips/bigmod"
 	"crypto/internal/fips/drbg"
 	"crypto/internal/fips/nistec"
+	"crypto/internal/randutil"
 	"errors"
 	"io"
 	"sync"
@@ -186,10 +187,21 @@ func NewPublicKey[P Point[P]](c *Curve[P], Q []byte) (*PublicKey, error) {
 // In FIPS mode, rand is ignored.
 func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
 	fips.RecordApproved()
-	k, Q, err := randomPoint(c, rand)
+
+	k, Q, err := randomPoint(c, func(b []byte) error {
+		if fips.Enabled {
+			drbg.Read(b)
+			return nil
+		} else {
+			randutil.MaybeReadByte(rand)
+			_, err := io.ReadFull(rand, b)
+			return err
+		}
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	priv := &PrivateKey{
 		pub: PublicKey{
 			curve: c.curve,
@@ -201,62 +213,35 @@ func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
 	return priv, nil
 }
 
-func fipsPCT[P Point[P]](c *Curve[P], k *PrivateKey) error {
-	hash := []byte{
-		0x32, 0xb3, 0xda, 0x19, 0xf9, 0x44, 0xb0, 0x48,
-		0x66, 0xd9, 0x31, 0xa6, 0x6c, 0x30, 0xb9, 0x4a,
-		0xe7, 0x28, 0xcc, 0xe7, 0x00, 0xe4, 0xb0, 0xa5,
-		0xb4, 0xfe, 0xae, 0x8f, 0x43, 0x8f, 0xde, 0xc2,
-	}
-	sig, err := Sign(c, k, nil, hash)
-	if err != nil {
-		return err
-	}
-	return Verify(c, &k.pub, hash, sig)
-}
-
-type testingOnlyFixedRandomPointReader struct{}
-
-func (testingOnlyFixedRandomPointReader) Read(p []byte) (int, error) { panic("not implemented") }
-
-// testingOnlyFixedRandomPoint is a signal to Sign that it should use a fixed
-// random point to enable the CAST. This is extremely dangerous because if it
-// were used with a production private key it would leak the private key.
-// We use this rather than a global variable to avoid accidentally using it in
-// production code. Still wish we didn't have to do this.
-var testingOnlyFixedRandomPoint = testingOnlyFixedRandomPointReader{}
-
 // randomPoint returns a random scalar and the corresponding point using a
 // procedure equivalent to FIPS 186-5, Appendix A.2.2 (ECDSA Key Pair Generation
-// by Rejection Sampling) and to Appendix A.2.2 (Per-Message Secret Number
-// Generation of Private Keys by Rejection Sampling) followed by Step 5 of
-// Section 6.4.1.
-func randomPoint[P Point[P]](c *Curve[P], rand io.Reader) (k *bigmod.Nat, p P, err error) {
+// by Rejection Sampling) and to Appendix A.3.2 (Per-Message Secret Number
+// Generation of Private Keys by Rejection Sampling) or Appendix A.3.3
+// (Per-Message Secret Number Generation for Deterministic ECDSA) followed by
+// Step 5 of Section 6.4.1.
+func randomPoint[P Point[P]](c *Curve[P], generate func([]byte) error) (k *bigmod.Nat, p P, err error) {
 	for {
 		b := make([]byte, c.N.Size())
-		if fips.Enabled {
-			if rand == testingOnlyFixedRandomPoint {
-				b[len(b)-1] = 1
-			} else {
-				drbg.Read(b)
-			}
-		} else {
-			if _, err := io.ReadFull(rand, b); err != nil {
-				return nil, nil, err
-			}
+		if err := generate(b); err != nil {
+			return nil, nil, err
 		}
 
-		// Mask off any excess bits to increase the chance of hitting a value in
-		// (0, N). These are the most dangerous lines in the package and maybe in
-		// the library: a single bit of bias in the selection of nonces would likely
+		// Take only the leftmost bits of the generated random value. This is
+		// both necessary to increase the chance of the random value being in
+		// the correct range and to match the specification. It's unfortunate
+		// that we need to do a shift instead of a mask, but see the comment on
+		// rightShift.
+		//
+		// These are the most dangerous lines in the package and maybe in the
+		// library: a single bit of bias in the selection of nonces would likely
 		// lead to key recovery, but no tests would fail. Look but DO NOT TOUCH.
 		if excess := len(b)*8 - c.N.BitLen(); excess > 0 {
 			// Just to be safe, assert that this only happens for the one curve that
 			// doesn't have a round number of bits.
-			if excess != 0 && c.curve != p521 {
+			if c.curve != p521 {
 				panic("ecdsa: internal error: unexpectedly masking off bits")
 			}
-			b[0] >>= excess
+			b = rightShift(b, excess)
 		}
 
 		// FIPS 186-5, Appendix A.4.2 makes us check x <= N - 2 and then return
@@ -285,24 +270,75 @@ type Signature struct {
 	R, S []byte
 }
 
-// Sign signs a hash (which should be the result of hashing a larger message)
-// using the private key, priv. If the hash is longer than the bit-length of the
-// private key's curve order, the hash will be truncated to that length.
+// Sign signs a hash (which shall be the result of hashing a larger message with
+// the hash function H) using the private key, priv. If the hash is longer than
+// the bit-length of the private key's curve order, the hash will be truncated
+// to that length.
 //
-// The signature is randomized. If FIPS mode is enabled, csprng is ignored.
-func Sign[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
+// The signature is randomized. If FIPS mode is enabled, rand is ignored.
+func Sign[P Point[P], H fips.Hash](c *Curve[P], h func() H, priv *PrivateKey, rand io.Reader, hash []byte) (*Signature, error) {
 	if priv.pub.curve != c.curve {
 		return nil, errors.New("ecdsa: private key does not match curve")
 	}
 	fips.RecordApproved()
 	fipsSelfTest()
-	return sign(c, priv, csprng, hash)
+
+	// Random ECDSA is dangerous, because a failure of the RNG would immediately
+	// leak the private key. Instead, we use a "hedged" approach, as specified
+	// in draft-irtf-cfrg-det-sigs-with-noise-04, Section 4. This has also the
+	// advantage of closely resembling Deterministic ECDSA.
+
+	Z := make([]byte, len(priv.d))
+	if fips.Enabled {
+		drbg.Read(Z)
+	} else {
+		randutil.MaybeReadByte(rand)
+		if _, err := io.ReadFull(rand, Z); err != nil {
+			return nil, err
+		}
+	}
+
+	// See https://github.com/cfrg/draft-irtf-cfrg-det-sigs-with-noise/issues/6
+	// for the FIPS compliance of this method. In short Z is entropy from the
+	// main DRBG, of length 3/2 of security_strength, so the nonce is optional
+	// per SP 800-90Ar1, Section 8.6.7, and the rest is a personalization
+	// string, which per SP 800-90Ar1, Section 8.7.1 may contain secret
+	// information.
+	drbg := newDRBG(h, Z, nil, blockAlignedPersonalizationString{priv.d, bits2octets(c, hash)})
+
+	return sign(c, priv, drbg, hash)
 }
 
-func signGeneric[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
+// SignDeterministic signs a hash (which shall be the result of hashing a
+// larger message with the hash function H) using the private key, priv. If the
+// hash is longer than the bit-length of the private key's curve order, the hash
+// will be truncated to that length. This applies Deterministic ECDSA as
+// specified in FIPS 186-5 and RFC 6979.
+func SignDeterministic[P Point[P], H fips.Hash](c *Curve[P], h func() H, priv *PrivateKey, hash []byte) (*Signature, error) {
+	if priv.pub.curve != c.curve {
+		return nil, errors.New("ecdsa: private key does not match curve")
+	}
+	fips.RecordApproved()
+	fipsSelfTestDeterministic()
+	drbg := newDRBG(h, priv.d, bits2octets(c, hash), nil) // RFC 6979, Section 3.3
+	return sign(c, priv, drbg, hash)
+}
+
+// bits2octets as specified in FIPS 186-5, Appendix B.2.4 or RFC 6979,
+// Section 2.3.4. See RFC 6979, Section 3.5 for the rationale.
+func bits2octets[P Point[P]](c *Curve[P], hash []byte) []byte {
+	e := bigmod.NewNat()
+	hashToNat(c, e, hash)
+	return e.Bytes(c.N)
+}
+
+func signGeneric[P Point[P]](c *Curve[P], priv *PrivateKey, drbg *hmacDRBG, hash []byte) (*Signature, error) {
 	// FIPS 186-5, Section 6.4.1
 
-	k, R, err := randomPoint(c, csprng)
+	k, R, err := randomPoint(c, func(b []byte) error {
+		drbg.Generate(b)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -375,19 +411,32 @@ func hashToNat[P Point[P]](c *Curve[P], e *bigmod.Nat, hash []byte) {
 	if size := c.N.Size(); len(hash) >= size {
 		hash = hash[:size]
 		if excess := len(hash)*8 - c.N.BitLen(); excess > 0 {
-			hash = bytes.Clone(hash)
-			for i := len(hash) - 1; i >= 0; i-- {
-				hash[i] >>= excess
-				if i > 0 {
-					hash[i] |= hash[i-1] << (8 - excess)
-				}
-			}
+			hash = rightShift(hash, excess)
 		}
 	}
 	_, err := e.SetOverflowingBytes(hash, c.N)
 	if err != nil {
 		panic("ecdsa: internal error: truncated hash is too long")
 	}
+}
+
+// rightShift implements the right shift necessary for bits2int, which takes the
+// leftmost bits of either the hash or HMAC_DRBG output.
+//
+// Note how taking the rightmost bits would have been as easy as masking the
+// first byte, but we can't have nice things.
+func rightShift(b []byte, shift int) []byte {
+	if shift <= 0 || shift >= 8 {
+		panic("ecdsa: internal error: shift can only be by 1 to 7 bits")
+	}
+	b = bytes.Clone(b)
+	for i := len(b) - 1; i >= 0; i-- {
+		b[i] >>= shift
+		if i > 0 {
+			b[i] |= b[i-1] << (8 - shift)
+		}
+	}
+	return b
 }
 
 // Verify verifies the signature, sig, of hash (which should be the result of

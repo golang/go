@@ -22,6 +22,7 @@ import (
 	_ "crypto/internal/fips/hkdf"
 	_ "crypto/internal/fips/hmac"
 	"crypto/internal/fips/mlkem"
+	"crypto/internal/fips/sha256"
 	_ "crypto/internal/fips/sha256"
 	_ "crypto/internal/fips/sha3"
 	_ "crypto/internal/fips/sha512"
@@ -72,7 +73,11 @@ func findAllCASTs(t *testing.T) map[string]struct{} {
 func TestConditionals(t *testing.T) {
 	mlkem.GenerateKey768()
 	ecdh.GenerateKeyP256(rand.Reader)
-	ecdsa.GenerateKey(ecdsa.P256(), rand.Reader)
+	k, err := ecdsa.GenerateKey(ecdsa.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ecdsa.SignDeterministic(ecdsa.P256(), sha256.New, k, make([]byte, 32))
 	t.Log("completed successfully")
 }
 
