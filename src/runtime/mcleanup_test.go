@@ -157,3 +157,115 @@ func TestCleanupInteriorPointer(t *testing.T) {
 	<-ch
 	<-ch
 }
+
+func TestCleanupStop(t *testing.T) {
+	done := make(chan bool, 1)
+	go func() {
+		// allocate struct with pointer to avoid hitting tinyalloc.
+		// Otherwise we can't be sure when the allocation will
+		// be freed.
+		type T struct {
+			v int
+			p unsafe.Pointer
+		}
+		v := &new(T).v
+		*v = 97531
+		cleanup := func(x int) {
+			t.Error("cleanup called, want no cleanup called")
+		}
+		c := runtime.AddCleanup(v, cleanup, 97531)
+		c.Stop()
+		v = nil
+		done <- true
+	}()
+	<-done
+	runtime.GC()
+}
+
+func TestCleanupStopMultiple(t *testing.T) {
+	done := make(chan bool, 1)
+	go func() {
+		// allocate struct with pointer to avoid hitting tinyalloc.
+		// Otherwise we can't be sure when the allocation will
+		// be freed.
+		type T struct {
+			v int
+			p unsafe.Pointer
+		}
+		v := &new(T).v
+		*v = 97531
+		cleanup := func(x int) {
+			t.Error("cleanup called, want no cleanup called")
+		}
+		c := runtime.AddCleanup(v, cleanup, 97531)
+		c.Stop()
+		c.Stop()
+		c.Stop()
+		v = nil
+		done <- true
+	}()
+	<-done
+	runtime.GC()
+}
+
+func TestCleanupStopinterleavedMultiple(t *testing.T) {
+	ch := make(chan bool, 3)
+	done := make(chan bool, 1)
+	go func() {
+		// allocate struct with pointer to avoid hitting tinyalloc.
+		// Otherwise we can't be sure when the allocation will
+		// be freed.
+		type T struct {
+			v int
+			p unsafe.Pointer
+		}
+		v := &new(T).v
+		*v = 97531
+		cleanup := func(x int) {
+			if x != 1 {
+				t.Error("cleanup called, want no cleanup called")
+			}
+			ch <- true
+		}
+		runtime.AddCleanup(v, cleanup, 1)
+		runtime.AddCleanup(v, cleanup, 2).Stop()
+		runtime.AddCleanup(v, cleanup, 1)
+		runtime.AddCleanup(v, cleanup, 2).Stop()
+		runtime.AddCleanup(v, cleanup, 1)
+		v = nil
+		done <- true
+	}()
+	<-done
+	runtime.GC()
+	<-ch
+	<-ch
+	<-ch
+}
+
+func TestCleanupStopAfterCleanupRuns(t *testing.T) {
+	ch := make(chan bool, 1)
+	done := make(chan bool, 1)
+	var stop func()
+	go func() {
+		// Allocate struct with pointer to avoid hitting tinyalloc.
+		// Otherwise we can't be sure when the allocation will
+		// be freed.
+		type T struct {
+			v int
+			p unsafe.Pointer
+		}
+		v := &new(T).v
+		*v = 97531
+		cleanup := func(x int) {
+			ch <- true
+		}
+		cl := runtime.AddCleanup(v, cleanup, 97531)
+		v = nil
+		stop = cl.Stop
+		done <- true
+	}()
+	<-done
+	runtime.GC()
+	<-ch
+	stop()
+}
