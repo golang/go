@@ -34,7 +34,7 @@ See golang.org to learn more about Go.
 // initDefaultCache does the work of finding the default cache
 // the first time Default is called.
 func initDefaultCache() Cache {
-	dir, _ := DefaultDir()
+	dir, _, _ := DefaultDir()
 	if dir == "off" {
 		if defaultDirErr != nil {
 			base.Fatalf("build cache is required, but could not be located: %v", defaultDirErr)
@@ -71,7 +71,7 @@ var (
 // DefaultDir returns the effective GOCACHE setting.
 // It returns "off" if the cache is disabled,
 // and reports whether the effective value differs from GOCACHE.
-func DefaultDir() (string, bool) {
+func DefaultDir() (string, bool, error) {
 	// Save the result of the first call to DefaultDir for later use in
 	// initDefaultCache. cmd/go/main.go explicitly sets GOCACHE so that
 	// subprocesses will inherit it, but that means initDefaultCache can't
@@ -100,5 +100,5 @@ func DefaultDir() (string, bool) {
 		defaultDir = filepath.Join(dir, "go-build")
 	})
 
-	return defaultDir, defaultDirChanged
+	return defaultDir, defaultDirChanged, defaultDirErr
 }
