@@ -6,7 +6,9 @@ package ecdsa
 
 import (
 	"bytes"
+	"crypto/internal/fips"
 	"crypto/internal/fips/bigmod"
+	"crypto/internal/fips/drbg"
 	"crypto/internal/fips/nistec"
 	"errors"
 	"io"
@@ -154,7 +156,8 @@ var p521Order = []byte{0x01, 0xff,
 	0xbb, 0x6f, 0xb7, 0x1e, 0x91, 0x38, 0x64, 0x09}
 
 func NewPrivateKey[P Point[P]](c *Curve[P], D, Q []byte) (*PrivateKey, error) {
-	_, err := c.newPoint().SetBytes(Q)
+	fips.RecordApproved()
+	pub, err := NewPublicKey(c, Q)
 	if err != nil {
 		return nil, err
 	}
@@ -162,49 +165,85 @@ func NewPrivateKey[P Point[P]](c *Curve[P], D, Q []byte) (*PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PrivateKey{
-		pub: PublicKey{
-			curve: c.curve,
-			q:     Q,
-		},
-		d: d.Bytes(c.N),
-	}, nil
+	priv := &PrivateKey{pub: *pub, d: d.Bytes(c.N)}
+	fips.CAST("ECDSA PCT", func() error { return fipsPCT(c, priv) })
+	return priv, nil
 }
 
 func NewPublicKey[P Point[P]](c *Curve[P], Q []byte) (*PublicKey, error) {
+	// SetBytes checks that Q is a valid point on the curve, and that its
+	// coordinates are reduced modulo p, fulfilling the requirements of SP
+	// 800-89, Section 5.3.2.
 	_, err := c.newPoint().SetBytes(Q)
 	if err != nil {
 		return nil, err
 	}
-	return &PublicKey{
-		curve: c.curve,
-		q:     Q,
-	}, nil
+	return &PublicKey{curve: c.curve, q: Q}, nil
 }
 
 // GenerateKey generates a new ECDSA private key pair for the specified curve.
+//
+// In FIPS mode, rand is ignored.
 func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
+	fips.RecordApproved()
 	k, Q, err := randomPoint(c, rand)
 	if err != nil {
 		return nil, err
 	}
-	return &PrivateKey{
+	priv := &PrivateKey{
 		pub: PublicKey{
 			curve: c.curve,
 			q:     Q.Bytes(),
 		},
 		d: k.Bytes(c.N),
-	}, nil
+	}
+	fips.CAST("ECDSA PCT", func() error { return fipsPCT(c, priv) })
+	return priv, nil
 }
 
-// randomPoint returns a random scalar and the corresponding point using the
-// procedure given in FIPS 186-4, Appendix B.5.2 (rejection sampling).
+func fipsPCT[P Point[P]](c *Curve[P], k *PrivateKey) error {
+	hash := []byte{
+		0x32, 0xb3, 0xda, 0x19, 0xf9, 0x44, 0xb0, 0x48,
+		0x66, 0xd9, 0x31, 0xa6, 0x6c, 0x30, 0xb9, 0x4a,
+		0xe7, 0x28, 0xcc, 0xe7, 0x00, 0xe4, 0xb0, 0xa5,
+		0xb4, 0xfe, 0xae, 0x8f, 0x43, 0x8f, 0xde, 0xc2,
+	}
+	sig, err := Sign(c, k, nil, hash)
+	if err != nil {
+		return err
+	}
+	return Verify(c, &k.pub, hash, sig)
+}
+
+type testingOnlyFixedRandomPointReader struct{}
+
+func (testingOnlyFixedRandomPointReader) Read(p []byte) (int, error) { panic("not implemented") }
+
+// testingOnlyFixedRandomPoint is a signal to Sign that it should use a fixed
+// random point to enable the CAST. This is extremely dangerous because if it
+// were used with a production private key it would leak the private key.
+// We use this rather than a global variable to avoid accidentally using it in
+// production code. Still wish we didn't have to do this.
+var testingOnlyFixedRandomPoint = testingOnlyFixedRandomPointReader{}
+
+// randomPoint returns a random scalar and the corresponding point using a
+// procedure equivalent to FIPS 186-5, Appendix A.2.2 (ECDSA Key Pair Generation
+// by Rejection Sampling) and to Appendix A.2.2 (Per-Message Secret Number
+// Generation of Private Keys by Rejection Sampling) followed by Step 5 of
+// Section 6.4.1.
 func randomPoint[P Point[P]](c *Curve[P], rand io.Reader) (k *bigmod.Nat, p P, err error) {
-	k = bigmod.NewNat()
 	for {
 		b := make([]byte, c.N.Size())
-		if _, err = io.ReadFull(rand, b); err != nil {
-			return
+		if fips.Enabled {
+			if rand == testingOnlyFixedRandomPoint {
+				b[len(b)-1] = 1
+			} else {
+				drbg.Read(b)
+			}
+		} else {
+			if _, err := io.ReadFull(rand, b); err != nil {
+				return nil, nil, err
+			}
 		}
 
 		// Mask off any excess bits to increase the chance of hitting a value in
@@ -220,21 +259,20 @@ func randomPoint[P Point[P]](c *Curve[P], rand io.Reader) (k *bigmod.Nat, p P, e
 			b[0] >>= excess
 		}
 
-		// FIPS 186-4 makes us check k <= N - 2 and then add one.
-		// Checking 0 < k <= N - 1 is strictly equivalent.
-		// None of this matters anyway because the chance of selecting
-		// zero is cryptographically negligible.
-		if _, err = k.SetBytes(b, c.N); err == nil && k.IsZero() == 0 {
-			break
+		// FIPS 186-5, Appendix A.4.2 makes us check x <= N - 2 and then return
+		// x + 1. Note that it follows that 0 < x + 1 < N. Instead, SetBytes
+		// checks that k < N, and we explicitly check 0 != k. Since k can't be
+		// negative, this is strictly equivalent. None of this matters anyway
+		// because the chance of selecting zero is cryptographically negligible.
+		if k, err := bigmod.NewNat().SetBytes(b, c.N); err == nil && k.IsZero() == 0 {
+			p, err := c.newPoint().ScalarBaseMult(k.Bytes(c.N))
+			return k, p, err
 		}
 
 		if testingOnlyRejectionSamplingLooped != nil {
 			testingOnlyRejectionSamplingLooped()
 		}
 	}
-
-	p, err = c.newPoint().ScalarBaseMult(k.Bytes(c.N))
-	return
 }
 
 // testingOnlyRejectionSamplingLooped is called when rejection sampling in
@@ -251,16 +289,18 @@ type Signature struct {
 // using the private key, priv. If the hash is longer than the bit-length of the
 // private key's curve order, the hash will be truncated to that length.
 //
-// The signature is randomized.
+// The signature is randomized. If FIPS mode is enabled, csprng is ignored.
 func Sign[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
 	if priv.pub.curve != c.curve {
 		return nil, errors.New("ecdsa: private key does not match curve")
 	}
+	fips.RecordApproved()
+	fipsSelfTest()
 	return sign(c, priv, csprng, hash)
 }
 
 func signGeneric[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
-	// SEC 1, Version 2.0, Section 4.1.3
+	// FIPS 186-5, Section 6.4.1
 
 	k, R, err := randomPoint(c, csprng)
 	if err != nil {
@@ -326,7 +366,7 @@ func inverse[P Point[P]](c *Curve[P], kInv, k *bigmod.Nat) {
 }
 
 // hashToNat sets e to the left-most bits of hash, according to
-// SEC 1, Section 4.1.3, point 5 and Section 4.1.4, point 3.
+// FIPS 186-5, Section 6.4.1, point 2 and Section 6.4.2, point 3.
 func hashToNat[P Point[P]](c *Curve[P], e *bigmod.Nat, hash []byte) {
 	// ECDSA asks us to take the left-most log2(N) bits of hash, and use them as
 	// an integer modulo N. This is the absolute worst of all worlds: we still
@@ -361,16 +401,18 @@ func Verify[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature
 	if pub.curve != c.curve {
 		return errors.New("ecdsa: public key does not match curve")
 	}
+	fips.RecordApproved()
+	fipsSelfTest()
 	return verify(c, pub, hash, sig)
 }
 
 func verifyGeneric[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature) error {
+	// FIPS 186-5, Section 6.4.2
+
 	Q, err := c.newPoint().SetBytes(pub.q)
 	if err != nil {
 		return err
 	}
-
-	// SEC 1, Version 2.0, Section 4.1.4
 
 	r, err := bigmod.NewNat().SetBytes(sig.R, c.N)
 	if err != nil {
