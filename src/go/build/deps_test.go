@@ -479,6 +479,7 @@ var depsRules = `
 	< crypto/internal/fips/nistec/fiat
 	< crypto/internal/fips/nistec
 	< crypto/internal/fips/ecdh
+	< crypto/internal/fips/ecdsa
 	< FIPS;
 
 	FIPS < crypto/internal/fips/check/checktest;
