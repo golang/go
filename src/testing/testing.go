@@ -563,8 +563,10 @@ func (f *chattyFlag) Get() any {
 }
 
 const (
-	markFraming byte = 'V' &^ '@' // ^V: framing
-	markEscape  byte = '[' &^ '@' // ^[: escape
+	markFraming  byte = 'V' &^ '@' // ^V: framing
+	markErrBegin byte = 'O' &^ '@' // ^O: start of error
+	markErrEnd   byte = 'N' &^ '@' // ^N: end of error
+	markEscape   byte = '[' &^ '@' // ^[: escape
 )
 
 func (f *chattyFlag) prefix() string {
@@ -625,6 +627,60 @@ func (p *chattyPrinter) Printf(testName, format string, args ...any) {
 	}
 
 	fmt.Fprintf(p.w, format, args...)
+}
+
+type stringWriter interface {
+	io.Writer
+	io.StringWriter
+}
+
+// escapeWriter is a [io.Writer] that escapes test framing markers.
+type escapeWriter struct {
+	w stringWriter
+}
+
+func (w escapeWriter) WriteString(s string) (int, error) {
+	return w.Write([]byte(s))
+}
+
+func (w escapeWriter) Write(p []byte) (int, error) {
+	var n, m int
+	var err error
+	for len(p) > 0 {
+		i := w.nextMark(p)
+		if i < 0 {
+			break
+		}
+
+		m, err = w.w.Write(p[:i])
+		n += m
+		if err != nil {
+			break
+		}
+
+		m, err = w.w.Write([]byte{markEscape, p[i]})
+		if err != nil {
+			break
+		}
+		if m != 2 {
+			return n, fmt.Errorf("short write")
+		}
+		n++
+		p = p[i+1:]
+	}
+	m, err = w.w.Write(p)
+	n += m
+	return n, err
+}
+
+func (escapeWriter) nextMark(p []byte) int {
+	for i, b := range p {
+		switch b {
+		case markFraming, markErrBegin, markErrEnd, markEscape:
+			return i
+		}
+	}
+	return -1
 }
 
 // The maximum number of stack frames to go through when skipping helper functions for
@@ -1028,7 +1084,7 @@ func (c *common) FailNow() {
 // log generates the output. It is always at the same stack depth. log inserts
 // indentation and the final newline if necessary. It prefixes the string
 // with the file and line of the call site.
-func (c *common) log(s string) {
+func (c *common) log(s string, isErr bool) {
 	s = strings.TrimSuffix(s, "\n")
 
 	// Second and subsequent lines are indented 4 spaces. This is in addition to
@@ -1049,7 +1105,7 @@ func (c *common) log(s string) {
 	// Output buffered logs.
 	n.flushPartial()
 
-	n.o.Write([]byte(s))
+	n.o.write([]byte(s), isErr)
 }
 
 // destination selects the test to which output should be appended. It returns the
@@ -1137,6 +1193,10 @@ type outputWriter struct {
 // Write writes a log message to the test's output stream, properly formatted and
 // indented. It may not be called after a test function and all its parents return.
 func (o *outputWriter) Write(p []byte) (int, error) {
+	return o.write(p, false)
+}
+
+func (o *outputWriter) write(p []byte, isErr bool) (int, error) {
 	// o can be nil if this is called from a top-level *TB that is no longer active.
 	// Just ignore the message in that case.
 	if o == nil || o.c == nil {
@@ -1158,7 +1218,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 			line = slices.Concat(o.partial, line)
 			o.partial = o.partial[:0]
 		}
-		o.writeLine(line)
+		o.writeLine(line, isErr && i == 0, isErr && i == last-1)
 	}
 	// Save partial line for next call.
 	o.partial = append(o.partial, lines[last]...)
@@ -1167,22 +1227,41 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 }
 
 // writeLine generates the output for a given line.
-func (o *outputWriter) writeLine(b []byte) {
-	if !o.c.done && (o.c.chatty != nil) {
-		// Escape the framing marker.
-		b = escapeMarkers(b)
-
-		if o.c.bench {
-			// Benchmarks don't print === CONT, so we should skip the test
-			// printer and just print straight to stdout.
-			fmt.Printf("%s%s", indent, b)
-		} else {
-			o.c.chatty.Printf(o.c.name, "%s%s", indent, b)
-		}
+func (o *outputWriter) writeLine(b []byte, errBegin, errEnd bool) {
+	if o.c.done || (o.c.chatty == nil) {
+		o.c.output = append(o.c.output, indent...)
+		o.c.output = append(o.c.output, b...)
 		return
 	}
-	o.c.output = append(o.c.output, indent...)
-	o.c.output = append(o.c.output, b...)
+
+	// Escape the framing marker.
+	b = escapeMarkers(b)
+
+	// If this is the start of an error, add ^O to the start of the output.
+	var strErrBegin, strErrEnd string
+	if errBegin && o.c.chatty.json {
+		strErrBegin = string(markErrBegin)
+	}
+
+	// If this is the end of an error, add ^N to the end of the output. If the
+	// last character of the output is \n, add ^N before the \n, otherwise
+	// test2json will not handle it correctly.
+	var c []byte
+	if errEnd && o.c.chatty.json {
+		i := len(b)
+		if len(b) > 0 && b[i-1] == '\n' {
+			b, c = b[:i-1], b[i-1:]
+		}
+		strErrEnd = string(markErrEnd)
+	}
+
+	if o.c.bench {
+		// Benchmarks don't print === CONT, so we should skip the test
+		// printer and just print straight to stdout.
+		fmt.Printf("%s%s%s%s%s", strErrBegin, indent, b, strErrEnd, c)
+	} else {
+		o.c.chatty.Printf(o.c.name, "%s%s%s%s%s", strErrBegin, indent, b, strErrEnd, c)
+	}
 }
 
 func escapeMarkers(b []byte) []byte {
@@ -1211,7 +1290,7 @@ func escapeMarkers(b []byte) []byte {
 func nextMark(b []byte) int {
 	for i, b := range b {
 		switch b {
-		case markFraming, markEscape:
+		case markFraming, markEscape, markErrBegin, markErrEnd:
 			return i
 		}
 	}
@@ -1225,7 +1304,7 @@ func nextMark(b []byte) int {
 // It is an error to call Log after a test or benchmark returns.
 func (c *common) Log(args ...any) {
 	c.checkFuzzFn("Log")
-	c.log(fmt.Sprintln(args...))
+	c.log(fmt.Sprintln(args...), false)
 }
 
 // Logf formats its arguments according to the format, analogous to [fmt.Printf], and
@@ -1236,48 +1315,48 @@ func (c *common) Log(args ...any) {
 // It is an error to call Logf after a test or benchmark returns.
 func (c *common) Logf(format string, args ...any) {
 	c.checkFuzzFn("Logf")
-	c.log(fmt.Sprintf(format, args...))
+	c.log(fmt.Sprintf(format, args...), false)
 }
 
 // Error is equivalent to Log followed by Fail.
 func (c *common) Error(args ...any) {
 	c.checkFuzzFn("Error")
-	c.log(fmt.Sprintln(args...))
+	c.log(fmt.Sprintln(args...), true)
 	c.Fail()
 }
 
 // Errorf is equivalent to Logf followed by Fail.
 func (c *common) Errorf(format string, args ...any) {
 	c.checkFuzzFn("Errorf")
-	c.log(fmt.Sprintf(format, args...))
+	c.log(fmt.Sprintf(format, args...), true)
 	c.Fail()
 }
 
 // Fatal is equivalent to Log followed by FailNow.
 func (c *common) Fatal(args ...any) {
 	c.checkFuzzFn("Fatal")
-	c.log(fmt.Sprintln(args...))
+	c.log(fmt.Sprintln(args...), true)
 	c.FailNow()
 }
 
 // Fatalf is equivalent to Logf followed by FailNow.
 func (c *common) Fatalf(format string, args ...any) {
 	c.checkFuzzFn("Fatalf")
-	c.log(fmt.Sprintf(format, args...))
+	c.log(fmt.Sprintf(format, args...), true)
 	c.FailNow()
 }
 
 // Skip is equivalent to Log followed by SkipNow.
 func (c *common) Skip(args ...any) {
 	c.checkFuzzFn("Skip")
-	c.log(fmt.Sprintln(args...))
+	c.log(fmt.Sprintln(args...), false)
 	c.SkipNow()
 }
 
 // Skipf is equivalent to Logf followed by SkipNow.
 func (c *common) Skipf(format string, args ...any) {
 	c.checkFuzzFn("Skipf")
-	c.log(fmt.Sprintf(format, args...))
+	c.log(fmt.Sprintf(format, args...), false)
 	c.SkipNow()
 }
 

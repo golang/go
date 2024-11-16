@@ -219,12 +219,12 @@ func TestTRun(t *T) {
 ^V--- SKIP: chatty with recursion and json/#00/#01 (N.NNs)
 ^V=== NAME  chatty with recursion and json/#00
 ^V=== RUN   chatty with recursion and json/#00/#02
-    sub_test.go:NNN: fail
+^O    sub_test.go:NNN: fail^N
 ^V--- FAIL: chatty with recursion and json/#00/#02 (N.NNs)
 ^V=== NAME  chatty with recursion and json/#00
 ^V=== RUN   chatty with recursion and json/#00/#03
-    sub_test.go:NNN: ^[^V^[^[
-^V--- PASS: chatty with recursion and json/#00/#03 (N.NNs)
+^O    sub_test.go:NNN: ^[^O^[^N^[^[^N
+^V--- FAIL: chatty with recursion and json/#00/#03 (N.NNs)
 ^V=== NAME  chatty with recursion and json/#00
 ^V--- FAIL: chatty with recursion and json/#00 (N.NNs)
 ^V=== NAME  chatty with recursion and json
@@ -235,7 +235,7 @@ func TestTRun(t *T) {
 				t.Run("", func(t *T) {})
 				t.Run("", func(t *T) { t.Skip("skip") })
 				t.Run("", func(t *T) { t.Fatal("fail") })
-				t.Run("", func(t *T) { t.Log(string(markFraming) + string(markEscape)) })
+				t.Run("", func(t *T) { t.Error(string(markErrBegin) + string(markErrEnd) + string(markEscape)) })
 			})
 		},
 	}, {
@@ -832,6 +832,8 @@ func TestBRun(t *T) {
 func makeRegexp(s string) string {
 	s = regexp.QuoteMeta(s)
 	s = strings.ReplaceAll(s, "^V", string(markFraming))
+	s = strings.ReplaceAll(s, "^O", string(markErrBegin))
+	s = strings.ReplaceAll(s, "^N", string(markErrEnd))
 	s = strings.ReplaceAll(s, "^\\[", string(markEscape))
 	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d\d?:`)
 	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
@@ -842,6 +844,8 @@ func makeRegexp(s string) string {
 // to text notation.
 func notateOutput(s string) string {
 	s = strings.ReplaceAll(s, string(markFraming), "^V")
+	s = strings.ReplaceAll(s, string(markErrBegin), "^O")
+	s = strings.ReplaceAll(s, string(markErrEnd), "^N")
 	s = strings.ReplaceAll(s, string(markEscape), "^[")
 	return s
 }

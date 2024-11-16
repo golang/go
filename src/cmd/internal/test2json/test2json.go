@@ -35,6 +35,7 @@ type event struct {
 	Test        string     `json:",omitempty"`
 	Elapsed     *float64   `json:",omitempty"`
 	Output      *textBytes `json:",omitempty"`
+	OutputType  string     `json:",omitempty"`
 	FailedBuild string     `json:",omitempty"`
 	Key         string     `json:",omitempty"`
 	Value       string     `json:",omitempty"`
@@ -63,6 +64,7 @@ type Converter struct {
 	input       lineBuffer // input buffer
 	output      lineBuffer // output buffer
 	markFraming bool       // require ^V marker to introduce test framing line
+	markErrEnd  bool       // within an error, require ^N marker to end
 	markEscape  bool       // the next character should be considered to be escaped
 	isFraming   bool       // indicates the output being written is framing
 
@@ -101,8 +103,12 @@ var (
 //
 // Writes on the returned writer are expected to contain markers. Test framing
 // such as "=== RUN" and friends are expected to be prefixed with ^V (\x22).
-// Other occurrences of this control character (e.g. calls to T.Log) must be
-// escaped with ^[ (\x1b).
+// Error output is expected to be prefixed with ^O (\x0f) and suffixed with ^N
+// (\x0e). Other occurrences of these control characters (e.g. calls to T.Log)
+// must be escaped with ^[ (\x1b). Test framing will generate events such as
+// start, run, etc as well as output events with an output type of "frame".
+// Error output will generate output events with an output type of "error" or
+// "error-continue". See cmd/test2json help for details.
 //
 // The writes to w are whole JSON events ending in \n,
 // so that it is safe to run multiple tests writing to multiple converters
@@ -163,8 +169,10 @@ func (c *Converter) SetFailedBuild(pkgID string) {
 }
 
 const (
-	markFraming byte = 'V' &^ '@' // ^V: framing
-	markEscape  byte = '[' &^ '@' // ^[: escape
+	markFraming  byte = 'V' &^ '@' // ^V: framing
+	markErrBegin byte = 'O' &^ '@' // ^O: start of error
+	markErrEnd   byte = 'N' &^ '@' // ^N: end of error
+	markEscape   byte = '[' &^ '@' // ^[: escape
 )
 
 var (
@@ -415,32 +423,91 @@ func (c *Converter) Close() error {
 
 // writeOutputEvent writes a single output event with the given bytes.
 func (c *Converter) writeOutputEvent(out []byte) {
+	var typ string
+	if c.isFraming {
+		typ = "frame"
+	} else if c.markErrEnd {
+		typ = "error-continue"
+	}
+
 	// Check for markers.
 	//
 	// An escape mark and the character it escapes may be passed in separate
 	// buffers. We must maintain state between calls to account for this, thus
 	// [Converter.markEscape] is set on one loop iteration and used to skip a
 	// character on the next.
+	//
+	// In most cases, [markErrBegin] will be the first character of a line and
+	// [markErrEnd] will be the last. However we cannot rely on that. For
+	// example, if a call to [T.Error] is preceded by a call to [fmt.Print] that
+	// does not print a newline. Thus we track the error status with
+	// [Converter.markErrEnd] and issue separate events if there is content
+	// before [markErrBegin] or after [markErrEnd].
 	for i := 0; i < len(out); i++ {
 		if c.markEscape {
 			c.markEscape = false
 			continue
 		}
 
-		if out[i] == markEscape {
+		switch out[i] {
+		case markEscape:
 			// Elide the mark
 			out = append(out[:i], out[i+1:]...)
 			i--
 
 			// Skip the next character
 			c.markEscape = true
+
+		case markErrBegin:
+			// If there is content before the mark, emit it as a separate event
+			if i > 0 {
+				out2 := out[:i]
+				c.writeEvent(&event{
+					Action:     "output",
+					Output:     (*textBytes)(&out2),
+					OutputType: typ,
+				})
+			}
+
+			// Process the error
+			c.markErrEnd = true
+			typ = "error"
+			out = out[i+1:]
+			i = 0
+
+		case markErrEnd:
+			// Elide the mark
+			out = append(out[:i], out[i+1:]...)
+
+			// If the next character is \n, include it
+			if i < len(out) && out[i] == '\n' {
+				i++
+			}
+
+			// Emit the error
+			out2 := out[:i]
+			c.writeEvent(&event{
+				Action:     "output",
+				Output:     (*textBytes)(&out2),
+				OutputType: typ,
+			})
+
+			// Process the rest
+			c.markErrEnd = false
+			typ = ""
+			out = out[i:]
+			i = 0
 		}
 	}
 
-	c.writeEvent(&event{
-		Action: "output",
-		Output: (*textBytes)(&out),
-	})
+	// Send the remaining output
+	if len(out) > 0 {
+		c.writeEvent(&event{
+			Action:     "output",
+			Output:     (*textBytes)(&out),
+			OutputType: typ,
+		})
+	}
 }
 
 // writeEvent writes a single event.
