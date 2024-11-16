@@ -28,6 +28,7 @@ var S390XHasSHA256 = cpu.S390X.HasSHA256
 var S390XHasSHA3 = cpu.S390X.HasSHA3
 var S390XHasSHA512 = cpu.S390X.HasSHA512
 var X86HasAES = cpu.X86.HasAES
+var X86HasADX = cpu.X86.HasADX
 var X86HasAVX = cpu.X86.HasAVX
 var X86HasAVX2 = cpu.X86.HasAVX2
 var X86HasBMI2 = cpu.X86.HasBMI2

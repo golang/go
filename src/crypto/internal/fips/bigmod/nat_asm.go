@@ -6,7 +6,10 @@
 
 package bigmod
 
-import "internal/cpu"
+import (
+	"crypto/internal/fipsdeps/cpu"
+	"crypto/internal/impl"
+)
 
 // amd64 assembly uses ADCX/ADOX/MULX if ADX is available to run two carry
 // chains in the flags in parallel across the whole operation, and aggressively
@@ -16,7 +19,13 @@ import "internal/cpu"
 // amd64 without ADX, perform better than the compiler output.
 // TODO(filippo): file cmd/compile performance issue.
 
-var supportADX = cpu.X86.HasADX && cpu.X86.HasBMI2
+var supportADX = cpu.X86HasADX && cpu.X86HasBMI2
+
+func init() {
+	if cpu.AMD64 {
+		impl.Register("aes", "ADX", &supportADX)
+	}
+}
 
 //go:noescape
 func addMulVVW1024(z, x *uint, y uint) (c uint)

@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"compress/bzip2"
 	"crypto/elliptic"
-	"crypto/internal/bigmod"
+	"crypto/internal/fips/bigmod"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"

@@ -26,9 +26,9 @@ package rsa
 
 import (
 	"crypto"
-	"crypto/internal/bigmod"
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
+	"crypto/internal/fips/bigmod"
 	"crypto/internal/randutil"
 	"crypto/rand"
 	"crypto/subtle"

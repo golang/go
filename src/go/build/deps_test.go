@@ -475,6 +475,7 @@ var depsRules = `
 	< crypto/internal/fips/ssh
 	< crypto/internal/fips/tls12
 	< crypto/internal/fips/tls13
+	< crypto/internal/fips/bigmod
 	< crypto/internal/fips/nistec/fiat
 	< crypto/internal/fips/nistec
 	< crypto/internal/fips/ecdh
@@ -539,7 +540,6 @@ var depsRules = `
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
 	< golang.org/x/crypto/cryptobyte
-	< crypto/internal/bigmod
 	< crypto/dsa, crypto/elliptic, crypto/rsa
 	< crypto/ecdsa
 	< CRYPTO-MATH;
