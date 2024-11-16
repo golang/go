@@ -88,6 +88,11 @@ type overlayJSON struct {
 	Replace map[string]string
 }
 
+type replace struct {
+	from string
+	to   string
+}
+
 type node struct {
 	actual   string           // empty if a directory
 	children map[string]*node // path element → file or directory
@@ -230,78 +235,69 @@ func initFromJSON(js []byte) error {
 		return fmt.Errorf("parsing overlay JSON: %v", err)
 	}
 
-	// Canonicalize the paths in the overlay map.
-	// Use reverseCanonicalized to check for collisions:
-	// no two 'from' paths should abs to the same path.
-	overlay = make(map[string]*node)
-	reverseCanonicalized := make(map[string]string) // inverse of abs operation, to check for duplicates
-	// Build a table of file and directory nodes from the replacement map.
-
+	seen := make(map[string]string)
+	var list []replace
 	for _, from := range slices.Sorted(maps.Keys(ojs.Replace)) {
-		to := ojs.Replace[from]
-		// Canonicalize paths and check for a collision.
 		if from == "" {
 			return fmt.Errorf("empty string key in overlay map")
 		}
-		cfrom := abs(from)
-		to = abs(to)
-		if otherFrom, seen := reverseCanonicalized[cfrom]; seen {
-			return fmt.Errorf(
-				"duplicate paths %s and %s in overlay map", otherFrom, from)
+		afrom := abs(from)
+		if old, ok := seen[afrom]; ok {
+			return fmt.Errorf("duplicate paths %s and %s in overlay map", old, from)
 		}
-		reverseCanonicalized[cfrom] = from
-		from = cfrom
+		seen[afrom] = from
+		list = append(list, replace{from: afrom, to: ojs.Replace[from]})
+	}
 
-		// Create node for overlaid file.
-		dir, base := filepath.Dir(from), filepath.Base(from)
-		if n, ok := overlay[from]; ok {
-			// All 'from' paths in the overlay are file paths. Since the from paths
-			// are in a map, they are unique, so if the node already exists we added
-			// it below when we create parent directory nodes. That is, that
-			// both a file and a path to one of its parent directories exist as keys
-			// in the Replace map.
-			//
-			// This only applies if the overlay directory has any files or directories
-			// in it: placeholder directories that only contain deleted files don't
-			// count. They are safe to be overwritten with actual files.
-			for fname, f := range n.children {
-				if !f.isDeleted() {
-					return fmt.Errorf("inconsistent files %s and %s in overlay map", filepath.Join(from, fname), from)
-				}
-			}
+	slices.SortFunc(list, func(x, y replace) int { return cmp(x.from, y.from) })
+
+	for i, r := range list {
+		if r.to == "" { // deleted
+			continue
 		}
-		overlay[from] = &node{actual: to}
-
-		// Add parent directory nodes to overlay structure.
-		childNode := overlay[from]
-		for {
-			dirNode := overlay[dir]
-			if dirNode == nil || dirNode.isDeleted() {
-				dirNode = &node{children: make(map[string]*node)}
-				overlay[dir] = dirNode
-			}
-			if childNode.isDeleted() {
-				// Only create one parent for a deleted file:
-				// the directory only conditionally exists if
-				// there are any non-deleted children, so
-				// we don't create their parents.
-				if dirNode.isDir() {
-					dirNode.children[base] = childNode
-				}
+		// have file for r.from; look for child file implying r.from is a directory
+		prefix := r.from + string(filepath.Separator)
+		for _, next := range list[i+1:] {
+			if !strings.HasPrefix(next.from, prefix) {
 				break
 			}
-			if !dirNode.isDir() {
-				// This path already exists as a file, so it can't be a parent
-				// directory. See comment at error above.
-				return fmt.Errorf("inconsistent files %s and %s in overlay map", dir, from)
+			if next.to != "" {
+				// found child file
+				return fmt.Errorf("inconsistent files %s and %s in overlay map", r.from, next.from)
 			}
-			dirNode.children[base] = childNode
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break // reached the top; there is no parent
+		}
+	}
+
+	overlay = make(map[string]*node)
+	for _, r := range list {
+		n := &node{actual: abs(r.to)}
+		from := r.from
+		overlay[from] = n
+
+		for {
+			dir, base := filepath.Dir(from), filepath.Base(from)
+			if dir == from {
+				break
 			}
-			dir, base = parent, filepath.Base(dir)
-			childNode = dirNode
+			dn := overlay[dir]
+			if dn == nil || dn.isDeleted() {
+				dn = &node{children: make(map[string]*node)}
+				overlay[dir] = dn
+			}
+			if n.isDeleted() && !dn.isDir() {
+				break
+			}
+			if !dn.isDir() {
+				panic("fsys inconsistency")
+			}
+			dn.children[base] = n
+			if n.isDeleted() {
+				// Deletion is recorded now.
+				// Don't need to create entire parent chain,
+				// because we don't need to force parents to exist.
+				break
+			}
+			from, n = dir, dn
 		}
 	}
 
@@ -590,4 +586,21 @@ func (f fakeDir) Sys() any           { return nil }
 
 func (f fakeDir) String() string {
 	return fs.FormatFileInfo(f)
+}
+
+func cmp(x, y string) int {
+	for i := 0; i < len(x) && i < len(y); i++ {
+		xi := int(x[i])
+		yi := int(y[i])
+		if xi == filepath.Separator {
+			xi = -1
+		}
+		if yi == filepath.Separator {
+			yi = -1
+		}
+		if xi != yi {
+			return xi - yi
+		}
+	}
+	return len(x) - len(y)
 }

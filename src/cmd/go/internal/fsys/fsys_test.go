@@ -1146,12 +1146,10 @@ var badOverlayTests = []struct {
 	{`{"Replace": {"/tmp/x": "y", "x": "y"}}`,
 		`duplicate paths /tmp/x and x in overlay map`},
 	{`{"Replace": {"/tmp/x/z": "z", "x":"y"}}`,
-		`inconsistent files /tmp/x/z and /tmp/x in overlay map`},
+		`inconsistent files /tmp/x and /tmp/x/z in overlay map`},
 	{`{"Replace": {"/tmp/x/z/z2": "z", "x":"y"}}`,
-		// TODO: Error should say /tmp/x/z/z2
-		`inconsistent files /tmp/x/z and /tmp/x in overlay map`},
+		`inconsistent files /tmp/x and /tmp/x/z/z2 in overlay map`},
 	{`{"Replace": {"/tmp/x": "y", "x/z/z2": "z"}}`,
-		// TODO: Error should say /tmp/x/z/z2
 		`inconsistent files /tmp/x and /tmp/x/z/z2 in overlay map`},
 }
 
