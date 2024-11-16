@@ -4216,22 +4216,22 @@ type rcsConn struct {
 }
 
 func (c *rcsConn) PrepareContext(ctx context.Context, q string) (driver.Stmt, error) {
-  stmt, err := c.fakeConn.PrepareContext(ctx, q)
-  if err != nil {
-    return stmt, err
-  }
-  return &rcsStmt{stmt.(*fakeStmt)}, nil
+	stmt, err := c.fakeConn.PrepareContext(ctx, q)
+	if err != nil {
+		return stmt, err
+	}
+	return &rcsStmt{stmt.(*fakeStmt)}, nil
 }
 
 type rcsStmt struct {
-  *fakeStmt
+	*fakeStmt
 }
 
 func (s *rcsStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
-  rows, err := s.fakeStmt.QueryContext(ctx, args)
-  if err != nil {
-    return rows, err
-  }
+	rows, err := s.fakeStmt.QueryContext(ctx, args)
+	if err != nil {
+		return rows, err
+	}
 	return &rcsRows{rows.(*rowsCursor)}, nil
 }
 
@@ -4241,8 +4241,8 @@ type rcsRows struct {
 
 func (r *rcsRows) ScanColumn(dest any, index int) error {
 	switch d := dest.(type) {
-  // Override int64 to set a specific value. This will prove that
-  // RowsColumnScanner is overriding normal database/sql Scan behavior.
+	// Override int64 to set a specific value. This will prove that
+	// RowsColumnScanner is overriding normal database/sql Scan behavior.
 	case *int64:
 		*d = 42
 		return nil
