@@ -171,9 +171,6 @@ var one = new(big.Int).SetInt64(1)
 // randFieldElement returns a random element of the order of the given
 // curve using the procedure given in FIPS 186-4, Appendix B.5.2.
 func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) {
-	// See randomPoint for notes on the algorithm. This has to match, or s390x
-	// signatures will come out different from other architectures, which will
-	// break TLS recorded tests.
 	for {
 		N := c.Params().N
 		b := make([]byte, (N.BitLen()+7)/8)

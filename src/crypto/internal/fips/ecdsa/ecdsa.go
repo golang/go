@@ -256,7 +256,10 @@ func Sign[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []by
 	if priv.pub.curve != c.curve {
 		return nil, errors.New("ecdsa: private key does not match curve")
 	}
+	return sign(c, priv, csprng, hash)
+}
 
+func signGeneric[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
 	// SEC 1, Version 2.0, Section 4.1.3
 
 	k, R, err := randomPoint(c, csprng)
@@ -358,7 +361,10 @@ func Verify[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature
 	if pub.curve != c.curve {
 		return errors.New("ecdsa: public key does not match curve")
 	}
+	return verify(c, pub, hash, sig)
+}
 
+func verifyGeneric[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature) error {
 	Q, err := c.newPoint().SetBytes(pub.q)
 	if err != nil {
 		return err

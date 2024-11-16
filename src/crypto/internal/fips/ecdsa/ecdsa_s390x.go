@@ -7,11 +7,11 @@
 package ecdsa
 
 import (
-	"crypto/elliptic"
+	"crypto/internal/fips/bigmod"
+	"crypto/internal/fipsdeps/cpu"
+	"crypto/internal/impl"
 	"errors"
-	"internal/cpu"
 	"io"
-	"math/big"
 )
 
 // kdsa invokes the "compute digital signature authentication"
@@ -25,62 +25,47 @@ import (
 //go:noescape
 func kdsa(fc uint64, params *[4096]byte) (errn uint64)
 
-// testingDisableKDSA forces the generic fallback path. It must only be set in tests.
-var testingDisableKDSA bool
+var supportsKDSA = cpu.S390XHasECDSA
+
+func init() {
+	// CP Assist for Cryptographic Functions (CPACF)
+	// https://www.ibm.com/docs/en/zos/3.1.0?topic=icsf-cp-assist-cryptographic-functions-cpacf
+	impl.Register("ecdsa", "CPACF", &supportsKDSA)
+}
 
 // canUseKDSA checks if KDSA instruction is available, and if it is, it checks
 // the name of the curve to see if it matches the curves supported(P-256, P-384, P-521).
 // Then, based on the curve name, a function code and a block size will be assigned.
 // If KDSA instruction is not available or if the curve is not supported, canUseKDSA
 // will set ok to false.
-func canUseKDSA(c elliptic.Curve) (functionCode uint64, blockSize int, ok bool) {
-	if testingDisableKDSA {
+func canUseKDSA(c curveID) (functionCode uint64, blockSize int, ok bool) {
+	if !supportsKDSA {
 		return 0, 0, false
 	}
-	if !cpu.S390X.HasECDSA {
-		return 0, 0, false
-	}
-	switch c.Params().Name {
-	case "P-256":
+	switch c {
+	case p256:
 		return 1, 32, true
-	case "P-384":
+	case p384:
 		return 2, 48, true
-	case "P-521":
+	case p521:
 		return 3, 80, true
 	}
 	return 0, 0, false // A mismatch
 }
 
-func hashToBytes(dst, hash []byte, c elliptic.Curve) {
-	l := len(dst)
-	if n := c.Params().N.BitLen(); n == l*8 {
-		// allocation free path for curves with a length that is a whole number of bytes
-		if len(hash) >= l {
-			// truncate hash
-			copy(dst, hash[:l])
-			return
-		}
-		// pad hash with leading zeros
-		p := l - len(hash)
-		for i := 0; i < p; i++ {
-			dst[i] = 0
-		}
-		copy(dst[p:], hash)
-		return
-	}
-	// TODO(mundaym): avoid hashToInt call here
-	hashToInt(hash, c).FillBytes(dst)
+func hashToBytes[P Point[P]](c *Curve[P], dst, hash []byte) {
+	e := bigmod.NewNat()
+	hashToNat(c, e, hash)
+	copy(dst, e.Bytes(c.N))
 }
 
-func signAsm(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err error) {
-	c := priv.Curve
-	functionCode, blockSize, ok := canUseKDSA(c)
+func sign[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
+	functionCode, blockSize, ok := canUseKDSA(c.curve)
 	if !ok {
-		return nil, errNoAsm
+		return signGeneric(c, priv, csprng, hash)
 	}
 	for {
-		var k *big.Int
-		k, err = randFieldElement(c, csprng)
+		k, _, err := randomPoint(c, csprng)
 		if err != nil {
 			return nil, err
 		}
@@ -109,36 +94,31 @@ func signAsm(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err e
 		// Copy content into the parameter block. In the sign case,
 		// we copy hashed message, private key and random number into
 		// the parameter block.
-		hashToBytes(params[2*blockSize:3*blockSize], hash, c)
-		priv.D.FillBytes(params[3*blockSize : 4*blockSize])
-		k.FillBytes(params[4*blockSize : 5*blockSize])
+		hashToBytes(c, params[2*blockSize:3*blockSize], hash)
+		copy(params[3*blockSize+blockSize-len(priv.d):], priv.d)
+		copy(params[4*blockSize:5*blockSize], k.Bytes(c.N))
 		// Convert verify function code into a sign function code by adding 8.
 		// We also need to set the 'deterministic' bit in the function code, by
 		// adding 128, in order to stop the instruction using its own random number
 		// generator in addition to the random number we supply.
 		switch kdsa(functionCode+136, &params) {
 		case 0: // success
-			return encodeSignature(params[:blockSize], params[blockSize:2*blockSize])
+			return &Signature{R: params[:blockSize], S: params[blockSize : 2*blockSize]}, nil
 		case 1: // error
-			return nil, errZeroParam
+			return nil, errors.New("zero parameter")
 		case 2: // retry
 			continue
 		}
-		panic("unreachable")
 	}
 }
 
-func verifyAsm(pub *PublicKey, hash []byte, sig []byte) error {
-	c := pub.Curve
-	functionCode, blockSize, ok := canUseKDSA(c)
+func verify[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature) error {
+	functionCode, blockSize, ok := canUseKDSA(c.curve)
 	if !ok {
-		return errNoAsm
+		return verifyGeneric(c, pub, hash, sig)
 	}
 
-	r, s, err := parseSignature(sig)
-	if err != nil {
-		return err
-	}
+	r, s := sig.R, sig.S
 	if len(r) > blockSize || len(s) > blockSize {
 		return errors.New("invalid signature")
 	}
@@ -169,9 +149,8 @@ func verifyAsm(pub *PublicKey, hash []byte, sig []byte) error {
 	// and public key y component into the parameter block.
 	copy(params[0*blockSize+blockSize-len(r):], r)
 	copy(params[1*blockSize+blockSize-len(s):], s)
-	hashToBytes(params[2*blockSize:3*blockSize], hash, c)
-	pub.X.FillBytes(params[3*blockSize : 4*blockSize])
-	pub.Y.FillBytes(params[4*blockSize : 5*blockSize])
+	hashToBytes(c, params[2*blockSize:3*blockSize], hash)
+	copy(params[3*blockSize:5*blockSize], pub.q[1:]) // strip 0x04 prefix
 	if kdsa(functionCode, &params) != 0 {
 		return errors.New("invalid signature")
 	}

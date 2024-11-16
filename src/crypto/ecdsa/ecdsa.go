@@ -219,10 +219,6 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	if sig, err := signAsm(priv, csprng, hash); err != errNoAsm {
-		return sig, err
-	}
-
 	switch priv.Curve.Params() {
 	case elliptic.P224().Params():
 		return signFIPS(ecdsa.P224(), priv, csprng, hash)
@@ -345,10 +341,6 @@ func VerifyASN1(pub *PublicKey, hash, sig []byte) bool {
 		return boring.VerifyECDSA(key, hash, sig)
 	}
 	boring.UnreachableExceptTests()
-
-	if err := verifyAsm(pub, hash, sig); err != errNoAsm {
-		return err == nil
-	}
 
 	switch pub.Curve.Params() {
 	case elliptic.P224().Params():

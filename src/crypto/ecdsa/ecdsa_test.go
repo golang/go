@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"compress/bzip2"
 	"crypto/elliptic"
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -37,9 +38,11 @@ func testAllCurves(t *testing.T, f func(*testing.T, elliptic.Curve)) {
 	}
 	for _, test := range tests {
 		curve := test.curve
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			f(t, curve)
+		cryptotest.TestAllImplementations(t, "ecdsa", func(t *testing.T) {
+			t.Run(test.name, func(t *testing.T) {
+				t.Parallel()
+				f(t, curve)
+			})
 		})
 	}
 }
@@ -184,6 +187,10 @@ func fromHex(s string) *big.Int {
 }
 
 func TestVectors(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "ecdsa", testVectors)
+}
+
+func testVectors(t *testing.T) {
 	// This test runs the full set of NIST test vectors from
 	// https://csrc.nist.gov/groups/STM/cavp/documents/dss/186-3ecdsatestvectors.zip
 	//
