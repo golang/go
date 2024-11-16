@@ -4271,16 +4271,22 @@ func TestRowsColumnScanner(t *testing.T) {
 	}
 	var (
 		str string
-		n   int64
+		i64 int64
+		i   int
+		f64 float64
+		ui  uint
 	)
-	err = db.QueryRowContext(ctx, "SELECT|t|str,n|").Scan(&str, &n)
+	err = db.QueryRowContext(ctx, "SELECT|t|str,n,n,n,n|").Scan(&str, &i64, &i, &f64, &ui)
 	if err != nil {
 		t.Fatal("select", err)
 	}
 
 	list := []struct{ got, want any }{
 		{str, "foo"},
-		{n, int64(42)},
+		{i64, int64(42)},
+		{i, int(1)},
+		{f64, float64(1)},
+		{ui, uint(1)},
 	}
 
 	for index, item := range list {
