@@ -28,13 +28,13 @@ import (
 // on a reader, should use [bufio.Reader] instead.
 type Scanner struct {
 	r            io.Reader // The reader provided by the client.
+	err          error     // Sticky error.
 	split        SplitFunc // The function to split the tokens.
-	maxTokenSize int       // Maximum size of a token; modified by tests.
 	token        []byte    // Last token returned by split.
 	buf          []byte    // Buffer used as argument to split.
+	maxTokenSize int       // Maximum size of a token; modified by tests.
 	start        int       // First non-processed byte in buf.
 	end          int       // End of data in buf.
-	err          error     // Sticky error.
 	empties      int       // Count of successive empty tokens.
 	scanCalled   bool      // Scan has been called; buffer is in use.
 	done         bool      // Scan has finished.

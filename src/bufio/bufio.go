@@ -38,8 +38,10 @@ type Reader struct {
 	lastRuneSize int // size of last rune read for UnreadRune; -1 means invalid
 }
 
-const minReadBufferSize = 16
-const maxConsecutiveEmptyReads = 100
+const (
+	minReadBufferSize        = 16
+	maxConsecutiveEmptyReads = 100
+)
 
 // NewReaderSize returns a new [Reader] whose buffer has at least the specified
 // size. If the argument io.Reader is already a [Reader] with large enough
@@ -575,9 +577,9 @@ func (b *Reader) writeBuf(w io.Writer) (int64, error) {
 // the underlying [io.Writer].
 type Writer struct {
 	err error
+	wr  io.Writer
 	buf []byte
 	n   int
-	wr  io.Writer
 }
 
 // NewWriterSize returns a new [Writer] whose buffer has at least the specified
