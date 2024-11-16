@@ -7,7 +7,6 @@ package bigmod
 import (
 	"errors"
 	"internal/byteorder"
-	"math/big"
 	"math/bits"
 )
 
@@ -92,23 +91,31 @@ func (x *Nat) reset(n int) *Nat {
 	return x
 }
 
+// resetToBytes assigns x = b, where b is a slice of big-endian bytes, resizing
+// n to the appropriate size.
+//
+// The announced length of x is set based on the actual bit size of the input,
+// ignoring leading zeroes.
+func (x *Nat) resetToBytes(b []byte) *Nat {
+	x.reset((len(b) + _S - 1) / _S)
+	if err := x.setBytes(b); err != nil {
+		panic("bigmod: internal error: bad arithmetic")
+	}
+	// Trim most significant (trailing in little-endian) zero limbs.
+	// We assume comparison with zero (but not the branch) is constant time.
+	for i := len(x.limbs) - 1; i >= 0; i-- {
+		if x.limbs[i] != 0 {
+			break
+		}
+		x.limbs = x.limbs[:i]
+	}
+	return x
+}
+
 // set assigns x = y, optionally resizing x to the appropriate size.
 func (x *Nat) set(y *Nat) *Nat {
 	x.reset(len(y.limbs))
 	copy(x.limbs, y.limbs)
-	return x
-}
-
-// setBig assigns x = n, optionally resizing n to the appropriate size.
-//
-// The announced length of x is set based on the actual bit size of the input,
-// ignoring leading zeroes.
-func (x *Nat) setBig(n *big.Int) *Nat {
-	limbs := n.Bits()
-	x.reset(len(limbs))
-	for i := range limbs {
-		x.limbs[i] = uint(limbs[i])
-	}
 	return x
 }
 
@@ -140,7 +147,8 @@ func (x *Nat) Bytes(m *Modulus) []byte {
 //
 // The output will be resized to the size of m and overwritten.
 func (x *Nat) SetBytes(b []byte, m *Modulus) (*Nat, error) {
-	if err := x.setBytes(b, m); err != nil {
+	x.resetFor(m)
+	if err := x.setBytes(b); err != nil {
 		return nil, err
 	}
 	if x.cmpGeq(m.nat) == yes {
@@ -155,7 +163,8 @@ func (x *Nat) SetBytes(b []byte, m *Modulus) (*Nat, error) {
 //
 // The output will be resized to the size of m and overwritten.
 func (x *Nat) SetOverflowingBytes(b []byte, m *Modulus) (*Nat, error) {
-	if err := x.setBytes(b, m); err != nil {
+	x.resetFor(m)
+	if err := x.setBytes(b); err != nil {
 		return nil, err
 	}
 	leading := _W - bitLen(x.limbs[len(x.limbs)-1])
@@ -175,8 +184,7 @@ func bigEndianUint(buf []byte) uint {
 	return uint(byteorder.BeUint32(buf))
 }
 
-func (x *Nat) setBytes(b []byte, m *Modulus) error {
-	x.resetFor(m)
+func (x *Nat) setBytes(b []byte) error {
 	i, k := len(b), 0
 	for k < len(x.limbs) && i >= _S {
 		x.limbs[k] = bigEndianUint(b[i-_S : i])
@@ -369,18 +377,16 @@ func minusInverseModW(x uint) uint {
 	return -y
 }
 
-// NewModulusFromBig creates a new Modulus from a [big.Int].
+// NewModulus creates a new Modulus from a slice of big-endian bytes.
 //
-// The Int must be odd. The number of significant bits (and nothing else) is
+// The value must be odd. The number of significant bits (and nothing else) is
 // leaked through timing side-channels.
-func NewModulusFromBig(n *big.Int) (*Modulus, error) {
-	if b := n.Bits(); len(b) == 0 {
-		return nil, errors.New("modulus must be >= 0")
-	} else if b[0]&1 != 1 {
-		return nil, errors.New("modulus must be odd")
+func NewModulus(b []byte) (*Modulus, error) {
+	if len(b) == 0 || b[len(b)-1]&1 != 1 {
+		return nil, errors.New("modulus must be > 0 and odd")
 	}
 	m := &Modulus{}
-	m.nat = NewNat().setBig(n)
+	m.nat = NewNat().resetToBytes(b)
 	m.leading = _W - bitLen(m.nat.limbs[len(m.nat.limbs)-1])
 	m.m0inv = minusInverseModW(m.nat.limbs[0])
 	m.rr = rr(m)

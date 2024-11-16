@@ -669,7 +669,7 @@ func precomputeParams[Point nistPoint[Point]](c *nistCurve[Point], curve ellipti
 	params := curve.Params()
 	c.curve = curve
 	var err error
-	c.N, err = bigmod.NewModulusFromBig(params.N)
+	c.N, err = bigmod.NewModulus(params.N.Bytes())
 	if err != nil {
 		panic(err)
 	}

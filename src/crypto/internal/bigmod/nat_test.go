@@ -16,6 +16,19 @@ import (
 	"testing/quick"
 )
 
+// setBig assigns x = n, optionally resizing n to the appropriate size.
+//
+// The announced length of x is set based on the actual bit size of the input,
+// ignoring leading zeroes.
+func (x *Nat) setBig(n *big.Int) *Nat {
+	limbs := n.Bits()
+	x.reset(len(limbs))
+	for i := range limbs {
+		x.limbs[i] = uint(limbs[i])
+	}
+	return x
+}
+
 func (n *Nat) String() string {
 	var limbs []string
 	for i := range n.limbs {
@@ -71,7 +84,7 @@ func TestMontgomeryRoundtrip(t *testing.T) {
 		one.limbs[0] = 1
 		aPlusOne := new(big.Int).SetBytes(natBytes(a))
 		aPlusOne.Add(aPlusOne, big.NewInt(1))
-		m, _ := NewModulusFromBig(aPlusOne)
+		m, _ := NewModulus(aPlusOne.Bytes())
 		monty := new(Nat).set(a)
 		monty.montgomeryRepresentation(m)
 		aAgain := new(Nat).set(monty)
@@ -320,7 +333,7 @@ func TestMulReductions(t *testing.T) {
 	b, _ := new(big.Int).SetString("180692823610368451951102211649591374573781973061758082626801", 10)
 	n := new(big.Int).Mul(a, b)
 
-	N, _ := NewModulusFromBig(n)
+	N, _ := NewModulus(n.Bytes())
 	A := NewNat().setBig(a).ExpandFor(N)
 	B := NewNat().setBig(b).ExpandFor(N)
 
@@ -329,7 +342,7 @@ func TestMulReductions(t *testing.T) {
 	}
 
 	i := new(big.Int).ModInverse(a, b)
-	N, _ = NewModulusFromBig(b)
+	N, _ = NewModulus(b.Bytes())
 	A = NewNat().setBig(a).ExpandFor(N)
 	I := NewNat().setBig(i).ExpandFor(N)
 	one := NewNat().setBig(big.NewInt(1)).ExpandFor(N)
@@ -351,7 +364,7 @@ func natFromBytes(b []byte) *Nat {
 
 func modulusFromBytes(b []byte) *Modulus {
 	bb := new(big.Int).SetBytes(b)
-	m, _ := NewModulusFromBig(bb)
+	m, _ := NewModulus(bb.Bytes())
 	return m
 }
 
@@ -360,7 +373,7 @@ func maxModulus(n uint) *Modulus {
 	b := big.NewInt(1)
 	b.Lsh(b, n*_W)
 	b.Sub(b, big.NewInt(1))
-	m, _ := NewModulusFromBig(b)
+	m, _ := NewModulus(b.Bytes())
 	return m
 }
 
@@ -466,17 +479,23 @@ func BenchmarkExp(b *testing.B) {
 	}
 }
 
-func TestNewModFromBigZero(t *testing.T) {
-	expected := "modulus must be >= 0"
-	_, err := NewModulusFromBig(big.NewInt(0))
+func TestNewModulus(t *testing.T) {
+	expected := "modulus must be > 0 and odd"
+	_, err := NewModulus([]byte{})
 	if err == nil || err.Error() != expected {
-		t.Errorf("NewModulusFromBig(0) got %q, want %q", err, expected)
+		t.Errorf("NewModulus(0) got %q, want %q", err, expected)
 	}
-
-	expected = "modulus must be odd"
-	_, err = NewModulusFromBig(big.NewInt(2))
+	_, err = NewModulus([]byte{0})
 	if err == nil || err.Error() != expected {
-		t.Errorf("NewModulusFromBig(2) got %q, want %q", err, expected)
+		t.Errorf("NewModulus(0) got %q, want %q", err, expected)
+	}
+	_, err = NewModulus([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	if err == nil || err.Error() != expected {
+		t.Errorf("NewModulus(0) got %q, want %q", err, expected)
+	}
+	_, err = NewModulus([]byte{1, 1, 1, 1, 2})
+	if err == nil || err.Error() != expected {
+		t.Errorf("NewModulus(2) got %q, want %q", err, expected)
 	}
 }
 
