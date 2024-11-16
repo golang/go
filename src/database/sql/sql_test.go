@@ -4241,8 +4241,6 @@ type rcsRows struct {
 
 func (r *rcsRows) ScanColumn(dest any, index int) error {
 	switch d := dest.(type) {
-	// Override int64 to set a specific value. This will prove that
-	// RowsColumnScanner is overriding normal database/sql Scan behavior.
 	case *int64:
 		*d = 42
 		return nil
