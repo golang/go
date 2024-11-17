@@ -5,8 +5,7 @@
 package edwards25519
 
 import (
-	"crypto/internal/cryptotest"
-	"crypto/internal/edwards25519/field"
+	"crypto/internal/fips/edwards25519/field"
 	"encoding/hex"
 	"reflect"
 	"testing"
@@ -274,21 +273,6 @@ func TestNonCanonicalPoints(t *testing.T) {
 			}
 			checkOnCurve(t, p1, p2)
 		})
-	}
-}
-
-var testAllocationsSink byte
-
-func TestAllocations(t *testing.T) {
-	cryptotest.SkipTestAllocations(t)
-	if allocs := testing.AllocsPerRun(100, func() {
-		p := NewIdentityPoint()
-		p.Add(p, NewGeneratorPoint())
-		s := NewScalar()
-		testAllocationsSink ^= s.Bytes()[0]
-		testAllocationsSink ^= p.Bytes()[0]
-	}); allocs > 0 {
-		t.Errorf("expected zero allocations, got %0.1v", allocs)
 	}
 }
 

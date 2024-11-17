@@ -5,7 +5,7 @@
 package edwards25519
 
 import (
-	"crypto/subtle"
+	"crypto/internal/fips/subtle"
 )
 
 // A dynamic lookup table for variable-base, constant-time scalar muls.

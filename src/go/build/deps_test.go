@@ -480,6 +480,8 @@ var depsRules = `
 	< crypto/internal/fips/nistec
 	< crypto/internal/fips/ecdh
 	< crypto/internal/fips/ecdsa
+	< crypto/internal/fips/edwards25519/field
+	< crypto/internal/fips/edwards25519
 	< FIPS;
 
 	FIPS < crypto/internal/fips/check/checktest;
@@ -503,16 +505,11 @@ var depsRules = `
 	< crypto/internal/boring
 	< crypto/boring;
 
-	crypto/internal/fips/alias,
-	crypto/subtle, embed
-	< crypto/internal/edwards25519/field
-	< crypto/internal/edwards25519;
-
 	crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
 	  crypto/sha1, crypto/sha256, crypto/sha512;
 
-	crypto/boring, crypto/internal/edwards25519/field
+	crypto/boring, crypto/internal/fips/edwards25519/field
 	< crypto/ecdh;
 
 	# Unfortunately, stuck with reflect via encoding/binary.
@@ -522,7 +519,6 @@ var depsRules = `
 	crypto/des,
 	crypto/ecdh,
 	crypto/hmac,
-	crypto/internal/edwards25519,
 	crypto/md5,
 	crypto/rc4,
 	crypto/sha1,
