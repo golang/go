@@ -23,6 +23,7 @@ import (
 func resetForTesting() {
 	cwd = sync.OnceValue(cwdOnce)
 	overlay = nil
+	binds = nil
 }
 
 // initOverlay resets the overlay state to reflect the config.
@@ -64,12 +65,12 @@ var statInfoTests = []struct {
 }{
 	{"foo", info{abs: "/tmp/foo", actual: "foo"}},
 	{"foo/bar/baz/quux", info{abs: "/tmp/foo/bar/baz/quux", actual: "foo/bar/baz/quux"}},
-	{"x", info{abs: "/tmp/x", replaced: true, actual: "/tmp/replace/x"}},
-	{"/tmp/x", info{abs: "/tmp/x", replaced: true, actual: "/tmp/replace/x"}},
+	{"x", info{abs: "/tmp/x", replaced: true, file: true, actual: "/tmp/replace/x"}},
+	{"/tmp/x", info{abs: "/tmp/x", replaced: true, file: true, actual: "/tmp/replace/x"}},
 	{"x/y", info{abs: "/tmp/x/y", deleted: true}},
 	{"a", info{abs: "/tmp/a", replaced: true, dir: true, actual: "a"}},
 	{"a/b", info{abs: "/tmp/a/b", replaced: true, dir: true, actual: "a/b"}},
-	{"a/b/c", info{abs: "/tmp/a/b/c", replaced: true, actual: "/tmp/replace/c"}},
+	{"a/b/c", info{abs: "/tmp/a/b/c", replaced: true, file: true, actual: "/tmp/replace/c"}},
 	{"d/e", info{abs: "/tmp/d/e", deleted: true}},
 	{"d", info{abs: "/tmp/d", replaced: true, dir: true, actual: "d"}},
 }
@@ -1232,6 +1233,38 @@ func TestStatSymlink(t *testing.T) {
 	}
 }
 
+func TestBindOverlay(t *testing.T) {
+	initOverlay(t, `{"Replace": {"mtpt/x.go": "xx.go"}}
+-- mtpt/x.go --
+mtpt/x.go
+-- mtpt/y.go --
+mtpt/y.go
+-- mtpt2/x.go --
+mtpt/x.go
+-- replaced/x.go --
+replaced/x.go
+-- replaced/x/y/z.go --
+replaced/x/y/z.go
+-- xx.go --
+xx.go
+`)
+
+	testReadFile(t, "mtpt/x.go", "xx.go\n")
+
+	Bind("replaced", "mtpt")
+	testReadFile(t, "mtpt/x.go", "replaced/x.go\n")
+	testReadDir(t, "mtpt/x", "y/")
+	testReadDir(t, "mtpt/x/y", "z.go")
+	testReadFile(t, "mtpt/x/y/z.go", "replaced/x/y/z.go\n")
+	testReadFile(t, "mtpt/y.go", "ERROR")
+
+	Bind("replaced", "mtpt2/a/b")
+	testReadDir(t, "mtpt2", "a/", "x.go")
+	testReadDir(t, "mtpt2/a", "b/")
+	testReadDir(t, "mtpt2/a/b", "x/", "x.go")
+	testReadFile(t, "mtpt2/a/b/x.go", "replaced/x.go\n")
+}
+
 var badOverlayTests = []struct {
 	json string
 	err  string
@@ -1270,5 +1303,35 @@ func TestBadOverlay(t *testing.T) {
 		if err == nil || err.Error() != tt.err {
 			t.Errorf("#%d: err=%v, want %q", i, err, tt.err)
 		}
+	}
+}
+
+func testReadFile(t *testing.T, name string, want string) {
+	t.Helper()
+	data, err := ReadFile(name)
+	if want == "ERROR" {
+		if data != nil || err == nil {
+			t.Errorf("ReadFile(%q) = %q, %v, want nil, error", name, data, err)
+		}
+		return
+	}
+	if string(data) != want || err != nil {
+		t.Errorf("ReadFile(%q) = %q, %v, want %q, nil", name, data, err, want)
+	}
+}
+
+func testReadDir(t *testing.T, name string, want ...string) {
+	t.Helper()
+	dirs, err := ReadDir(name)
+	var names []string
+	for _, d := range dirs {
+		name := d.Name()
+		if d.IsDir() {
+			name += "/"
+		}
+		names = append(names, name)
+	}
+	if !slices.Equal(names, want) || err != nil {
+		t.Errorf("ReadDir(%q) = %q, %v, want %q, nil", name, names, err, want)
 	}
 }
