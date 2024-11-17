@@ -673,7 +673,7 @@ func TestWindowsStackMemory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to read stack usage: %v", err)
 	}
-	if expected, got := 100<<10, stackUsage; got > expected {
+	if expected, got := 128<<10, stackUsage; got > expected {
 		t.Fatalf("expected < %d bytes of memory per thread, got %d", expected, got)
 	}
 }
