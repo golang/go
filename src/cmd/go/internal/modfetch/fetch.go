@@ -72,6 +72,30 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 	})
 }
 
+// Unzip is like Download but is given the explicit zip file to use,
+// rather than downloading it. This is used for the GOFIPS140 zip files,
+// which ship in the Go distribution itself.
+func Unzip(ctx context.Context, mod module.Version, zipfile string) (dir string, err error) {
+	if err := checkCacheDir(ctx); err != nil {
+		base.Fatal(err)
+	}
+
+	return downloadCache.Do(mod, func() (string, error) {
+		ctx, span := trace.StartSpan(ctx, "modfetch.Unzip "+mod.String())
+		defer span.Done()
+
+		dir, err = DownloadDir(ctx, mod)
+		if err == nil {
+			// The directory has already been completely extracted (no .partial file exists).
+			return dir, nil
+		} else if dir == "" || !errors.Is(err, fs.ErrNotExist) {
+			return "", err
+		}
+
+		return unzip(ctx, mod, zipfile)
+	})
+}
+
 func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	ctx, span := trace.StartSpan(ctx, "modfetch.download "+mod.String())
 	defer span.Done()
@@ -92,17 +116,21 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 		return "", err
 	}
 
+	return unzip(ctx, mod, zipfile)
+}
+
+func unzip(ctx context.Context, mod module.Version, zipfile string) (dir string, err error) {
 	unlock, err := lockVersion(ctx, mod)
 	if err != nil {
 		return "", err
 	}
 	defer unlock()
 
-	ctx, span = trace.StartSpan(ctx, "unzip "+zipfile)
+	ctx, span := trace.StartSpan(ctx, "unzip "+zipfile)
 	defer span.Done()
 
 	// Check whether the directory was populated while we were waiting on the lock.
-	_, dirErr := DownloadDir(ctx, mod)
+	dir, dirErr := DownloadDir(ctx, mod)
 	if dirErr == nil {
 		return dir, nil
 	}
