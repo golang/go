@@ -482,6 +482,7 @@ var depsRules = `
 	< crypto/internal/fips/ecdsa
 	< crypto/internal/fips/edwards25519/field
 	< crypto/internal/fips/edwards25519
+	< crypto/internal/fips/ed25519
 	< FIPS;
 
 	FIPS < crypto/internal/fips/check/checktest;

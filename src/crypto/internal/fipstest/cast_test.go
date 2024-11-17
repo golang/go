@@ -19,6 +19,7 @@ import (
 	_ "crypto/internal/fips/drbg"
 	"crypto/internal/fips/ecdh"
 	"crypto/internal/fips/ecdsa"
+	"crypto/internal/fips/ed25519"
 	_ "crypto/internal/fips/hkdf"
 	_ "crypto/internal/fips/hmac"
 	"crypto/internal/fips/mlkem"
@@ -77,6 +78,11 @@ func TestConditionals(t *testing.T) {
 		t.Fatal(err)
 	}
 	ecdsa.SignDeterministic(ecdsa.P256(), sha256.New, k, make([]byte, 32))
+	k25519, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ed25519.Sign(k25519, make([]byte, 32))
 	t.Log("completed successfully")
 }
 
