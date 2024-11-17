@@ -858,7 +858,7 @@ OverlayLoop:
 		embed.Patterns = p.Internal.Embed
 		embed.Files = make(map[string]string)
 		for _, file := range p.EmbedFiles {
-			embed.Files[file] = filepath.Join(p.Dir, file)
+			embed.Files[file] = fsys.Actual(filepath.Join(p.Dir, file))
 		}
 		js, err := json.MarshalIndent(&embed, "", "\t")
 		if err != nil {
@@ -1175,9 +1175,9 @@ func buildVetConfig(a *Action, srcfiles []string) {
 		ID:           a.Package.ImportPath,
 		Compiler:     cfg.BuildToolchainName,
 		Dir:          a.Package.Dir,
-		GoFiles:      mkAbsFiles(a.Package.Dir, gofiles),
-		NonGoFiles:   mkAbsFiles(a.Package.Dir, nongofiles),
-		IgnoredFiles: mkAbsFiles(a.Package.Dir, ignored),
+		GoFiles:      actualFiles(mkAbsFiles(a.Package.Dir, gofiles)),
+		NonGoFiles:   actualFiles(mkAbsFiles(a.Package.Dir, nongofiles)),
+		IgnoredFiles: actualFiles(mkAbsFiles(a.Package.Dir, ignored)),
 		ImportPath:   a.Package.ImportPath,
 		ImportMap:    make(map[string]string),
 		PackageFile:  make(map[string]string),
@@ -3381,6 +3381,15 @@ func mkAbsFiles(dir string, files []string) []string {
 		abs[i] = f
 	}
 	return abs
+}
+
+// actualFiles applies fsys.Actual to the list of files.
+func actualFiles(files []string) []string {
+	a := make([]string, len(files))
+	for i, f := range files {
+		a[i] = fsys.Actual(f)
+	}
+	return a
 }
 
 // passLongArgsInResponseFiles modifies cmd such that, for
