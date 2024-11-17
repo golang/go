@@ -1073,13 +1073,47 @@ func (o *Optab) size(ctxt *obj.Link, p *obj.Prog) int {
 		// 2-byte and 1-byte aligned addresses, so the address of load/store must be aligned.
 		// Also symbols with prefix of "go:string." are Go strings, which will go into
 		// the symbol table, their addresses are not necessary aligned, rule this out.
+		//
+		// Note that the code generation routines for these addressing forms call o.size
+		// to decide whether to use the unaligned/aligned forms, so o.size's result is always
+		// in sync with the code generation decisions, because it *is* the code generation decision.
 		align := int64(1 << sz)
-		if o.a1 == C_ADDR && p.From.Offset%align == 0 && !strings.HasPrefix(p.From.Sym.Name, "go:string.") ||
-			o.a4 == C_ADDR && p.To.Offset%align == 0 && !strings.HasPrefix(p.To.Sym.Name, "go:string.") {
+		if o.a1 == C_ADDR && p.From.Offset%align == 0 && symAlign(p.From.Sym) >= align ||
+			o.a4 == C_ADDR && p.To.Offset%align == 0 && symAlign(p.To.Sym) >= align {
 			return 8
 		}
 	}
 	return int(o.size_)
+}
+
+// symAlign returns the expected symbol alignment of the symbol s.
+// This must match the linker's own default alignment decisions.
+func symAlign(s *obj.LSym) int64 {
+	name := s.Name
+	switch {
+	case strings.HasPrefix(name, "go:string."),
+		strings.HasPrefix(name, "type:.namedata."),
+		strings.HasPrefix(name, "type:.importpath."),
+		strings.HasSuffix(name, ".opendefer"),
+		strings.HasSuffix(name, ".arginfo0"),
+		strings.HasSuffix(name, ".arginfo1"),
+		strings.HasSuffix(name, ".argliveinfo"):
+		// These are just bytes, or varints.
+		return 1
+	case strings.HasPrefix(name, "gclocals·"):
+		// It has 32-bit fields.
+		return 4
+	default:
+		switch {
+		case s.Size%8 == 0:
+			return 8
+		case s.Size%4 == 0:
+			return 4
+		case s.Size%2 == 0:
+			return 2
+		}
+	}
+	return 1
 }
 
 func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
