@@ -2,6 +2,7 @@ package tls
 
 import (
 	"bytes"
+	"crypto/internal/cryptotest"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -14,7 +15,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -370,11 +370,6 @@ func bogoShim() {
 }
 
 func TestBogoSuite(t *testing.T) {
-	testenv.SkipIfShortAndSlow(t)
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveGoRun(t)
-	testenv.MustHaveExec(t)
-
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -395,17 +390,7 @@ func TestBogoSuite(t *testing.T) {
 		bogoDir = *bogoLocalDir
 	} else {
 		const boringsslModVer = "v0.0.0-20240523173554-273a920f84e8"
-		output, err := exec.Command("go", "mod", "download", "-json", "boringssl.googlesource.com/boringssl.git@"+boringsslModVer).CombinedOutput()
-		if err != nil {
-			t.Fatalf("failed to download boringssl: %s", err)
-		}
-		var j struct {
-			Dir string
-		}
-		if err := json.Unmarshal(output, &j); err != nil {
-			t.Fatalf("failed to parse 'go mod download' output: %s", err)
-		}
-		bogoDir = j.Dir
+		bogoDir = cryptotest.FetchModule(t, "boringssl.googlesource.com/boringssl.git", boringsslModVer)
 	}
 
 	cwd, err := os.Getwd()
@@ -429,11 +414,7 @@ func TestBogoSuite(t *testing.T) {
 		args = append(args, fmt.Sprintf("-test=%s", *bogoFilter))
 	}
 
-	goCmd, err := testenv.GoTool()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command(goCmd, args...)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	out := &strings.Builder{}
 	cmd.Stderr = out
 	cmd.Dir = filepath.Join(bogoDir, "ssl/test/runner")

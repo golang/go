@@ -684,7 +684,7 @@ var depsRules = `
 	FMT
 	< internal/txtar;
 
-	CRYPTO-MATH, testing, internal/testenv
+	CRYPTO-MATH, testing, internal/testenv, encoding/json
 	< crypto/internal/cryptotest;
 
 	CGO, FMT

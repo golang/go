@@ -16,11 +16,12 @@ package fipstest
 // for a more detailed description of the protocol used between the acvptool
 // and module wrappers.
 //
-// [0]:https://boringssl.googlesource.com/boringssl/+/refs/heads/master/util/fipstools/acvp/ACVP.md#testing-other-fips-modules
+// [0]: https://boringssl.googlesource.com/boringssl/+/refs/heads/master/util/fipstools/acvp/ACVP.md#testing-other-fips-modules
 
 import (
 	"bufio"
 	"bytes"
+	"crypto/internal/cryptotest"
 	"crypto/internal/fips"
 	"crypto/internal/fips/hmac"
 	"crypto/internal/fips/sha256"
@@ -28,13 +29,11 @@ import (
 	"crypto/internal/fips/sha512"
 	_ "embed"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -346,9 +345,6 @@ func cmdHmacAft(h func() fips.Hash) command {
 
 func TestACVP(t *testing.T) {
 	testenv.SkipIfShortAndSlow(t)
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveGoRun(t)
-	testenv.MustHaveExec(t)
 
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
@@ -366,23 +362,14 @@ func TestACVP(t *testing.T) {
 		t.Fatalf("failed to stat config file: %s", err)
 	}
 
-	// Create a temporary mod cache dir for the test module/tooling.
-	d := t.TempDir()
-	modcache := filepath.Join(d, "modcache")
-	if err := os.Mkdir(modcache, 0777); err != nil {
-		t.Fatal(err)
-	}
-	fmt.Printf("caching dependent modules in %q\n", modcache)
-	t.Setenv("GOMODCACHE", modcache)
-
 	// Fetch the BSSL module and use the JSON output to find the absolute path to the dir.
-	bsslDir := fetchModule(t, bsslModule, bsslVersion)
+	bsslDir := cryptotest.FetchModule(t, bsslModule, bsslVersion)
 
-	fmt.Println("building acvptool")
+	t.Log("building acvptool")
 
 	// Build the acvptool binary.
 	goTool := testenv.GoToolPath(t)
-	cmd := exec.Command(goTool,
+	cmd := testenv.Command(t, goTool,
 		"build",
 		"./util/fipstools/acvp/acvptool")
 	cmd.Dir = bsslDir
@@ -393,7 +380,7 @@ func TestACVP(t *testing.T) {
 	}
 
 	// Similarly, fetch the ACVP data module that has vectors/expected answers.
-	dataDir := fetchModule(t, goAcvpModule, goAcvpVersion)
+	dataDir := cryptotest.FetchModule(t, goAcvpModule, goAcvpVersion)
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -401,7 +388,7 @@ func TestACVP(t *testing.T) {
 	}
 	configPath := filepath.Join(cwd, "acvp_test.config.json")
 	toolPath := filepath.Join(bsslDir, "acvptool")
-	fmt.Printf("running check_expected.go\ncwd: %q\ndata_dir: %q\nconfig: %q\ntool: %q\nmodule-wrapper: %q\n",
+	t.Logf("running check_expected.go\ncwd: %q\ndata_dir: %q\nconfig: %q\ntool: %q\nmodule-wrapper: %q\n",
 		cwd, dataDir, configPath, toolPath, os.Args[0])
 
 	// Run the check_expected test driver using the acvptool we built, and this test binary as the
@@ -416,32 +403,14 @@ func TestACVP(t *testing.T) {
 		"-module-wrappers", "go:" + os.Args[0],
 		"-tests", configPath,
 	}
-	cmd = exec.Command(goTool, args...)
+	cmd = testenv.Command(t, goTool, args...)
 	cmd.Dir = dataDir
-	cmd.Env = []string{"ACVP_WRAPPER=1", "GOCACHE=" + modcache}
+	cmd.Env = append(os.Environ(), "ACVP_WRAPPER=1")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run acvp tests: %s\n%s", err, string(output))
 	}
-	fmt.Println(string(output))
-}
-
-func fetchModule(t *testing.T, module, version string) string {
-	goTool := testenv.GoToolPath(t)
-	fmt.Printf("fetching %s@%s\n", module, version)
-
-	output, err := exec.Command(goTool, "mod", "download", "-json", "-modcacherw", module+"@"+version).CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to download %s@%s: %s\n%s\n", module, version, err, output)
-	}
-	var j struct {
-		Dir string
-	}
-	if err := json.Unmarshal(output, &j); err != nil {
-		t.Fatalf("failed to parse 'go mod download': %s\n%s\n", err, output)
-	}
-
-	return j.Dir
+	t.Log(string(output))
 }
 
 func TestTooFewArgs(t *testing.T) {
