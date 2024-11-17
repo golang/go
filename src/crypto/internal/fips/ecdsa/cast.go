@@ -51,12 +51,14 @@ func testHash() []byte {
 }
 
 func fipsPCT[P Point[P]](c *Curve[P], k *PrivateKey) error {
-	hash := testHash()
-	sig, err := Sign(c, sha512.New, k, nil, hash)
-	if err != nil {
-		return err
-	}
-	return Verify(c, &k.pub, hash, sig)
+	return fips.PCT("ECDSA PCT", func() error {
+		hash := testHash()
+		sig, err := Sign(c, sha512.New, k, nil, hash)
+		if err != nil {
+			return err
+		}
+		return Verify(c, &k.pub, hash, sig)
+	})
 }
 
 var fipsSelfTest = sync.OnceFunc(func() {

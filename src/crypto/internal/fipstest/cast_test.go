@@ -23,7 +23,6 @@ import (
 	_ "crypto/internal/fips/hmac"
 	"crypto/internal/fips/mlkem"
 	"crypto/internal/fips/sha256"
-	_ "crypto/internal/fips/sha256"
 	_ "crypto/internal/fips/sha3"
 	_ "crypto/internal/fips/sha512"
 	_ "crypto/internal/fips/tls12"
@@ -44,9 +43,9 @@ func findAllCASTs(t *testing.T) map[string]struct{} {
 	fipsDir := strings.TrimSpace(string(out))
 	t.Logf("FIPS module directory: %s", fipsDir)
 
-	// Find all invocations of fips.CAST.
+	// Find all invocations of fips.CAST or fips.PCT.
 	allCASTs := make(map[string]struct{})
-	castRe := regexp.MustCompile(`fips\.CAST\("([^"]+)"`)
+	castRe := regexp.MustCompile(`fips\.(CAST|PCT)\("([^"]+)"`)
 	if err := fs.WalkDir(os.DirFS(fipsDir), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -59,7 +58,7 @@ func findAllCASTs(t *testing.T) map[string]struct{} {
 			return err
 		}
 		for _, m := range castRe.FindAllSubmatch(data, -1) {
-			allCASTs[string(m[1])] = struct{}{}
+			allCASTs[string(m[2])] = struct{}{}
 		}
 		return nil
 	}); err != nil {
@@ -99,11 +98,11 @@ func TestCASTFailures(t *testing.T) {
 			if err == nil {
 				t.Error(err)
 			} else {
-				t.Logf("CAST %s failed and caused the program to exit", name)
+				t.Logf("CAST/PCT %s failed and caused the program to exit or the test to fail", name)
 				t.Logf("%s", out)
 			}
 			if strings.Contains(string(out), "completed successfully") {
-				t.Errorf("CAST %s failure did not stop the program", name)
+				t.Errorf("CAST/PCT %s failure did not stop the program", name)
 			}
 		})
 	}

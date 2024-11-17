@@ -156,7 +156,7 @@ func checkKeyAndComputePublicKey[P point[P]](key []byte, newPoint func() P, scal
 	// Comment 1 goes out of its way to say that "the PCT shall be performed
 	// consistent [...], even if the underlying standard does not require a
 	// PCT". So we do it. And make ECDH nearly 50% slower (only) in FIPS mode.
-	fips.CAST("ECDH PCT", func() error {
+	if err := fips.PCT("ECDH PCT", func() error {
 		p1, err := newPoint().ScalarBaseMult(key)
 		if err != nil {
 			return err
@@ -165,7 +165,9 @@ func checkKeyAndComputePublicKey[P point[P]](key []byte, newPoint func() P, scal
 			return errors.New("crypto/ecdh: public key does not match private key")
 		}
 		return nil
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	return publicKey, nil
 }
