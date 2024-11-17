@@ -1,0 +1,69 @@
+## Note: Need a snapshot in lib/fips140 to run this test.
+## For local testing, can run 'cd lib/fips140; make v0.0.1.test'
+## and then remove the skip.
+env snap=v0.0.1
+env alias=inprocess
+
+skip 'no snapshots yet'
+env GOFIPS140=$snap
+
+# default GODEBUG includes fips140=on
+go list -f '{{.DefaultGODEBUG}}'
+stdout fips140=on
+
+# std lists fips snapshot and not regular fips
+go list std
+stdout crypto/internal/fips/$snap/sha256
+! stdout crypto/internal/fips/sha256
+! stdout crypto/internal/fips/check
+
+# build does not use regular fips
+go list -json -test
+stdout crypto/internal/fips/$snap/sha256
+! stdout crypto/internal/fips/sha256
+! stdout crypto/internal/fips/check
+
+# again with GOFIPS140=$alias
+env GOFIPS140=$alias
+
+# default GODEBUG includes fips140=on
+go list -f '{{.DefaultGODEBUG}}'
+stdout fips140=on
+
+# std lists fips snapshot and not regular fips
+go list std
+stdout crypto/internal/fips/$snap/sha256
+! stdout crypto/internal/fips/sha256
+! stdout crypto/internal/fips/check
+
+# build does not use regular fips
+go list -json -test
+stdout crypto/internal/fips/$snap/sha256
+! stdout crypto/internal/fips/sha256
+! stdout crypto/internal/fips/check
+
+[short] skip
+
+# build with GOFIPS140=snap is NOT cached (need fipso)
+go build -x -o x.exe
+stderr link.*-fipso
+go build -x -o x.exe
+stderr link.*-fipso
+
+# build test with GOFIPS140=snap is cached
+go test -x -c
+stderr link.*-fipso
+go test -x -c
+! stderr link
+
+-- go.mod --
+module m
+-- x.go --
+package main
+import _ "crypto/sha256"
+func main() {
+}
+-- x_test.go --
+package main
+import "testing"
+func Test(t *testing.T) {}

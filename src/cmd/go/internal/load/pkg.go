@@ -407,7 +407,7 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
 	p.BinaryOnly = pp.BinaryOnly
 
 	// TODO? Target
-	p.Goroot = pp.Goroot
+	p.Goroot = pp.Goroot || fips.Snapshot() && str.HasFilePathPrefix(p.Dir, fips.Dir())
 	p.Standard = p.Goroot && p.ImportPath != "" && search.IsStandardImportPath(p.ImportPath)
 	p.GoFiles = pp.GoFiles
 	p.CgoFiles = pp.CgoFiles
@@ -885,7 +885,10 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 	}
 	r := resolvedImportCache.Do(importKey, func() resolvedImport {
 		var r resolvedImport
-		if cfg.ModulesEnabled {
+		if newPath, dir, ok := fips.ResolveImport(path); ok {
+			r.path = newPath
+			r.dir = dir
+		} else if cfg.ModulesEnabled {
 			r.dir, r.path, r.err = modload.Lookup(parentPath, parentIsStd, path)
 		} else if build.IsLocalImport(path) {
 			r.dir = filepath.Join(parentDir, path)
@@ -1516,6 +1519,34 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 		i-- // rewind over slash in ".../internal"
 	}
 
+	// FIPS-140 snapshots are special, because they comes from a non-GOROOT
+	// directory, so the usual directory rules don't work apply, or rather they
+	// apply differently depending on whether we are using a snapshot or the
+	// in-tree copy of the code. We apply a consistent rule here:
+	// crypto/internal/fips can only see crypto/internal, never top-of-tree internal.
+	// Similarly, crypto/... can see crypto/internal/fips even though the usual rules
+	// would not allow it in snapshot mode.
+	if str.HasPathPrefix(importerPath, "crypto") && str.HasPathPrefix(p.ImportPath, "crypto/internal/fips") {
+		return nil // crypto can use crypto/internal/fips
+	}
+	if str.HasPathPrefix(importerPath, "crypto/internal/fips") {
+		if str.HasPathPrefix(p.ImportPath, "crypto/internal") {
+			return nil // crypto/internal/fips can use crypto/internal
+		}
+		// TODO: Delete this switch once the usages are removed.
+		switch p.ImportPath {
+		case "internal/abi",
+			"internal/testenv",
+			"internal/cpu",
+			"internal/goarch",
+			"internal/asan",
+			"internal/byteorder",
+			"internal/godebug":
+			return nil
+		}
+		goto Error
+	}
+
 	if p.Module == nil {
 		parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
 
@@ -1546,6 +1577,7 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 		}
 	}
 
+Error:
 	// Internal is present, and srcDir is outside parent's tree. Not allowed.
 	perr := &PackageError{
 		alwaysPrintStack: true,

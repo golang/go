@@ -54,12 +54,59 @@
 // of crypto/internal/fips with an earlier snapshot. The reason to do
 // this is to use a copy that has been through additional lab validation
 // (an "in-process" module) or NIST certification (a "certified" module).
-// This functionality is not yet implemented.
+// The snapshots are stored in GOROOT/lib/fips140 in module zip form.
+// When a snapshot is being used, Init unpacks it into the module cache
+// and then uses that directory as the source location.
+//
+// A FIPS snapshot like v1.2.3 is integrated into the build in two different ways.
+//
+// First, the snapshot's fips140 directory replaces crypto/internal/fips
+// using fsys.Bind. The effect is to appear to have deleted crypto/internal/fips
+// and everything below it, replacing it with the single subdirectory
+// crypto/internal/fips/v1.2.3, which now has the FIPS packages.
+// This virtual file system replacement makes patterns like std and crypto...
+// automatically see the snapshot packages instead of the original packages
+// as they walk GOROOT/src/crypto/internal/fips.
+//
+// Second, ResolveImport is called to resolve an import like crypto/internal/fips/sha256.
+// When snapshot v1.2.3 is being used, ResolveImport translates that path to
+// crypto/internal/fips/v1.2.3/sha256 and returns the actual source directory
+// in the unpacked snapshot. Using the actual directory instead of the
+// virtual directory GOROOT/src/crypto/internal/fips/v1.2.3 makes sure
+// that other tools using go list -json output can find the sources,
+// as well as making sure builds have a real directory in which to run the
+// assembler, compiler, and so on. The translation of the import path happens
+// in the same code that handles mapping golang.org/x/mod to
+// cmd/vendor/golang.org/x/mod when building commands.
+//
+// It is not strictly required to include v1.2.3 in the import path when using
+// a snapshot - we could make things work without doing that - but including
+// the v1.2.3 gives a different version of the code a different name, which is
+// always a good general rule. In particular, it will mean that govulncheck need
+// not have any special cases for crypto/internal/fips at all. The reports simply
+// need to list the relevant symbols in a given Go version. (For example, if a bug
+// is only in the in-tree copy but not the snapshots, it doesn't list the snapshot
+// symbols; if it's in any snapshots, it has to list the specific snapshot symbols
+// in addition to the “normal” symbol.)
+//
+// TODO: crypto/internal/fips is going to move to crypto/internal/fips140,
+// at which point all the crypto/internal/fips references need to be updated.
 package fips
 
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
+	"cmd/go/internal/modfetch"
+	"cmd/go/internal/str"
+	"context"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 // Init initializes the FIPS settings.
@@ -71,6 +118,10 @@ func Init() {
 	}
 	initDone = true
 	initVersion()
+	initDir()
+	if Snapshot() {
+		fsys.Bind(Dir(), filepath.Join(cfg.GOROOT, "src/crypto/internal/fips"))
+	}
 }
 
 var initDone bool
@@ -120,5 +171,85 @@ func initVersion() {
 		return
 	}
 
+	// Otherwise version must exist in lib/fips140, either as
+	// a .zip (a source snapshot like v1.2.0.zip)
+	// or a .txt (a redirect like inprocess.txt, containing a version number).
+	if strings.Contains(v, "/") || strings.Contains(v, `\`) || strings.Contains(v, "..") {
+		base.Fatalf("go: malformed GOFIPS140 version %q", cfg.GOFIPS140)
+	}
+	if cfg.GOROOT == "" {
+		base.Fatalf("go: missing GOROOT for GOFIPS140")
+	}
+
+	file := filepath.Join(cfg.GOROOT, "lib", "fips140", v)
+	if data, err := os.ReadFile(file + ".txt"); err == nil {
+		v = strings.TrimSpace(string(data))
+		file = filepath.Join(cfg.GOROOT, "lib", "fips140", v)
+		if _, err := os.Stat(file + ".zip"); err != nil {
+			base.Fatalf("go: unknown GOFIPS140 version %q (from %q)", v, cfg.GOFIPS140)
+		}
+	}
+
+	if _, err := os.Stat(file + ".zip"); err == nil {
+		// Found version. Add a build tag.
+		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "fips140"+semver.MajorMinor(v))
+		version = v
+		return
+	}
+
 	base.Fatalf("go: unknown GOFIPS140 version %q", v)
+}
+
+// Dir reports the directory containing the crypto/internal/fips source code.
+// If Snapshot() is false, Dir returns GOROOT/src/crypto/internal/fips.
+// Otherwise Dir ensures that the snapshot has been unpacked into the
+// module cache and then returns the directory in the module cache
+// corresponding to the crypto/internal/fips directory.
+func Dir() string {
+	checkInit()
+	return dir
+}
+
+var dir string
+
+func initDir() {
+	v := version
+	if v == "latest" || v == "off" {
+		dir = filepath.Join(cfg.GOROOT, "src/crypto/internal/fips")
+		return
+	}
+
+	mod := module.Version{Path: "golang.org/fips140", Version: v}
+	file := filepath.Join(cfg.GOROOT, "lib/fips140", v+".zip")
+	zdir, err := modfetch.Unzip(context.Background(), mod, file)
+	if err != nil {
+		base.Fatalf("go: unpacking GOFIPS140=%v: %v", v, err)
+	}
+	dir = filepath.Join(zdir, "fips140")
+	return
+}
+
+// ResolveImport resolves the import path imp.
+// If it is of the form crypto/internal/fips/foo
+// (not crypto/internal/fips/v1.2.3/foo)
+// and we are using a snapshot, then LookupImport
+// rewrites the path to crypto/internal/fips/v1.2.3/foo
+// and returns that path and its location in the unpacked
+// FIPS snapshot.
+func ResolveImport(imp string) (newPath, dir string, ok bool) {
+	checkInit()
+	const fips = "crypto/internal/fips"
+	if !Snapshot() || !str.HasPathPrefix(imp, fips) {
+		return "", "", false
+	}
+	fipsv := path.Join(fips, version)
+	var sub string
+	if str.HasPathPrefix(imp, fipsv) {
+		sub = "." + imp[len(fipsv):]
+	} else {
+		sub = "." + imp[len(fips):]
+	}
+	newPath = path.Join(fips, version, sub)
+	dir = filepath.Join(Dir(), version, sub)
+	return newPath, dir, true
 }
