@@ -590,10 +590,6 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			nExtReloc++
 			continue
 
-		case objabi.R_DWARFFILEREF:
-			// We don't renumber files in dwarf.go:writelines anymore.
-			continue
-
 		case objabi.R_CONST:
 			o = r.Add()
 

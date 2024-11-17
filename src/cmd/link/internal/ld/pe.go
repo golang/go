@@ -1582,9 +1582,6 @@ func addPEBaseRelocSym(ldr *loader.Loader, s loader.Sym, rt *peBaseRelocTable) {
 		if r.Siz() == 0 { // informational relocation
 			continue
 		}
-		if r.Type() == objabi.R_DWARFFILEREF {
-			continue
-		}
 		rs := r.Sym()
 		if rs == 0 {
 			continue

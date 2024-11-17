@@ -118,11 +118,6 @@ const (
 	// Target of relocation must be size 4 (in current implementation).
 	R_DWARFSECREF
 
-	// R_DWARFFILEREF resolves to an index into the DWARF .debug_line
-	// file table for the specified file symbol. Must be applied to an
-	// attribute of form DW_FORM_data4.
-	R_DWARFFILEREF
-
 	// Platform dependent relocations. Architectures with fixed width instructions
 	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be
 	// stuffed into a 32-bit instruction, so an address needs to be spread across
