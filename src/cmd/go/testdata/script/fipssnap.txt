@@ -1,10 +1,6 @@
-## Note: Need a snapshot in lib/fips140 to run this test.
-## For local testing, can run 'cd lib/fips140; make v0.0.1.test'
-## and then remove the skip.
-env snap=v0.0.1
+env snap=v1.0.0
 env alias=inprocess
 
-skip 'no snapshots yet'
 env GOFIPS140=$snap
 
 # Go+BoringCrypto conflicts with GOFIPS140.
@@ -27,7 +23,8 @@ stdout crypto/internal/fips140/$snap/sha256
 ! stdout crypto/internal/fips140/check
 
 # again with GOFIPS140=$alias
-env GOFIPS140=$alias
+# TODO: enable when we add inprocess.txt
+# env GOFIPS140=$alias
 
 # default GODEBUG includes fips140=on
 go list -f '{{.DefaultGODEBUG}}'
