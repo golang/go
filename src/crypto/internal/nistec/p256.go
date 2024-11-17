@@ -9,7 +9,6 @@ package nistec
 import (
 	"crypto/internal/nistec/fiat"
 	"crypto/subtle"
-	_ "embed"
 	"errors"
 	"internal/byteorder"
 	"internal/goarch"
@@ -566,23 +565,19 @@ func (table *p256AffineTable) Select(p *p256AffinePoint, n uint8) {
 // table is the previous table doubled six times. Six is the width of the
 // sliding window used in ScalarBaseMult, and having each table already
 // pre-doubled lets us avoid the doublings between windows entirely. This table
-// MUST NOT be modified, as it aliases into p256GeneratorTablesEmbed below.
+// aliases into p256PrecomputedEmbed.
 var p256GeneratorTables *[43]p256AffineTable
 
-//go:embed p256_table.bin
-var p256GeneratorTablesEmbed string
-
 func init() {
-	p256GeneratorTablesPtr := (*unsafe.Pointer)(unsafe.Pointer(&p256GeneratorTablesEmbed))
+	p256GeneratorTablesPtr := unsafe.Pointer(&p256PrecomputedEmbed)
 	if goarch.BigEndian {
 		var newTable [43 * 32 * 2 * 4]uint64
-		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(*p256GeneratorTablesPtr) {
+		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(p256GeneratorTablesPtr) {
 			newTable[i] = byteorder.LeUint64(x[:])
 		}
-		newTablePtr := unsafe.Pointer(&newTable)
-		p256GeneratorTablesPtr = &newTablePtr
+		p256GeneratorTablesPtr = unsafe.Pointer(&newTable)
 	}
-	p256GeneratorTables = (*[43]p256AffineTable)(*p256GeneratorTablesPtr)
+	p256GeneratorTables = (*[43]p256AffineTable)(p256GeneratorTablesPtr)
 }
 
 func boothW6(in uint64) (uint8, int) {

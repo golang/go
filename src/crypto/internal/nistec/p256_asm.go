@@ -15,7 +15,6 @@
 package nistec
 
 import (
-	_ "embed"
 	"errors"
 	"internal/byteorder"
 	"math/bits"
@@ -326,23 +325,19 @@ type p256AffineTable [32]p256AffinePoint
 // table is the previous table doubled six times. Six is the width of the
 // sliding window used in p256ScalarBaseMult, and having each table already
 // pre-doubled lets us avoid the doublings between windows entirely. This table
-// MUST NOT be modified, as it aliases into p256PrecomputedEmbed below.
+// aliases into p256PrecomputedEmbed.
 var p256Precomputed *[43]p256AffineTable
 
-//go:embed p256_table.bin
-var p256PrecomputedEmbed string
-
 func init() {
-	p256PrecomputedPtr := (*unsafe.Pointer)(unsafe.Pointer(&p256PrecomputedEmbed))
+	p256PrecomputedPtr := unsafe.Pointer(&p256PrecomputedEmbed)
 	if runtime.GOARCH == "s390x" {
 		var newTable [43 * 32 * 2 * 4]uint64
-		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(*p256PrecomputedPtr) {
+		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(p256PrecomputedPtr) {
 			newTable[i] = byteorder.LeUint64(x[:])
 		}
-		newTablePtr := unsafe.Pointer(&newTable)
-		p256PrecomputedPtr = &newTablePtr
+		p256PrecomputedPtr = unsafe.Pointer(&newTable)
 	}
-	p256Precomputed = (*[43]p256AffineTable)(*p256PrecomputedPtr)
+	p256Precomputed = (*[43]p256AffineTable)(p256PrecomputedPtr)
 }
 
 // p256SelectAffine sets res to the point at index idx in the table.
