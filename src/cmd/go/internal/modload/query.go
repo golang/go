@@ -234,8 +234,8 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 				Version: old.Version,
 				Origin:  old.Origin,
 			}
-			if old.Time != nil {
-				info.Time = *old.Time
+			if !old.Time.IsZero() {
+				info.Time = old.Time
 			}
 			return info, nil
 		}
