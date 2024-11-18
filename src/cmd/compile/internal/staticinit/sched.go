@@ -332,6 +332,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		if ir.IsZero(r) {
 			return true
 		}
+		if disableGlobalAddrs && r.Type().IsString() {
+			return false
+		}
 		staticdata.InitConst(l, loff, r, int(typ.Size()))
 		return true
 

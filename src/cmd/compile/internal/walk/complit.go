@@ -85,7 +85,9 @@ const (
 func getdyn(n ir.Node, top bool) initGenType {
 	switch n.Op() {
 	default:
-		if ir.IsConstNode(n) {
+		// Handle constants in linker, except that linker cannot do
+		// the relocations necessary for string constants in FIPS packages.
+		if ir.IsConstNode(n) && (!n.Type().IsString() || !base.Ctxt.IsFIPS()) {
 			return initConst
 		}
 		return initDynamic
