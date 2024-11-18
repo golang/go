@@ -7,6 +7,7 @@ package ecdh
 import (
 	"bytes"
 	"crypto/internal/fips"
+	_ "crypto/internal/fips/check"
 	"crypto/internal/fips/nistec"
 	"errors"
 	"sync"

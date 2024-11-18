@@ -6,6 +6,7 @@
 package field
 
 import (
+	_ "crypto/internal/fips/check"
 	"crypto/internal/fips/subtle"
 	"crypto/internal/fipsdeps/byteorder"
 	"errors"

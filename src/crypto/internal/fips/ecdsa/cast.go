@@ -7,6 +7,7 @@ package ecdsa
 import (
 	"bytes"
 	"crypto/internal/fips"
+	_ "crypto/internal/fips/check"
 	"crypto/internal/fips/sha512"
 	"errors"
 	"sync"

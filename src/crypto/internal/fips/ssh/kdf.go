@@ -6,7 +6,10 @@
 // Section 7.2 and allowed by SP 800-135 Revision 1.
 package ssh
 
-import "crypto/internal/fips"
+import (
+	"crypto/internal/fips"
+	_ "crypto/internal/fips/check"
+)
 
 type Direction struct {
 	ivTag     []byte

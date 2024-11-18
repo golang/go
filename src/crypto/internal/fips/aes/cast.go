@@ -7,6 +7,7 @@ package aes
 import (
 	"bytes"
 	"crypto/internal/fips"
+	_ "crypto/internal/fips/check"
 	"errors"
 )
 

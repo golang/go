@@ -7,6 +7,7 @@ package hkdf
 import (
 	"bytes"
 	"crypto/internal/fips"
+	_ "crypto/internal/fips/check"
 	"crypto/internal/fips/sha256"
 	"errors"
 )

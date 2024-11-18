@@ -462,14 +462,14 @@ var depsRules = `
 	< crypto/internal/fips
 	< crypto/internal/fips/alias
 	< crypto/internal/fips/subtle
-	< crypto/internal/fips/aes
-	< crypto/internal/fips/drbg
-	< crypto/internal/fips/aes/gcm
 	< crypto/internal/fips/sha256
 	< crypto/internal/fips/sha512
 	< crypto/internal/fips/sha3
 	< crypto/internal/fips/hmac
 	< crypto/internal/fips/check
+	< crypto/internal/fips/aes
+	< crypto/internal/fips/drbg
+	< crypto/internal/fips/aes/gcm
 	< crypto/internal/fips/hkdf
 	< crypto/internal/fips/mlkem
 	< crypto/internal/fips/ssh
