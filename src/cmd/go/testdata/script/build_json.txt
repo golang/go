@@ -3,7 +3,7 @@
 # Basic build error. This test also checks that the output is fully-formed JSON.
 ! go build -json -o=$devnull ./compileerror
 stdout '^\{"ImportPath":"m/compileerror","Action":"build-output","Output":"# m/compileerror\\n"\}$'
-stdout '^\{"ImportPath":"m/compileerror","Action":"build-output","Output":"compileerror/main.go:3:11: undefined: y\\n"}$'
+stdout '^\{"ImportPath":"m/compileerror","Action":"build-output","Output":"compileerror(/|\\\\)main.go:3:11: undefined: y\\n"}$'
 stdout '^\{"ImportPath":"m/compileerror","Action":"build-fail"\}$'
 ! stderr '.'
 
