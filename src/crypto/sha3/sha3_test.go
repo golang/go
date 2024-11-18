@@ -2,82 +2,30 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package fipstest_test
-
-// TODO(fips, #69982): move to the crypto/sha3 package once it exists.
+package sha3_test
 
 import (
 	"bytes"
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
-	. "crypto/internal/fips140/sha3"
-	"encoding"
+	. "crypto/sha3"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"math/rand"
 	"strings"
 	"testing"
 )
 
-// Sum224 returns the SHA3-224 digest of the data.
-func Sum224(data []byte) (digest [28]byte) {
-	h := New224()
-	h.Write(data)
-	h.Sum(digest[:0])
-	return
-}
-
-// Sum256 returns the SHA3-256 digest of the data.
-func Sum256(data []byte) (digest [32]byte) {
-	h := New256()
-	h.Write(data)
-	h.Sum(digest[:0])
-	return
-}
-
-// Sum384 returns the SHA3-384 digest of the data.
-func Sum384(data []byte) (digest [48]byte) {
-	h := New384()
-	h.Write(data)
-	h.Sum(digest[:0])
-	return
-}
-
-// Sum512 returns the SHA3-512 digest of the data.
-func Sum512(data []byte) (digest [64]byte) {
-	h := New512()
-	h.Write(data)
-	h.Sum(digest[:0])
-	return
-}
-
-// ShakeSum128 writes an arbitrary-length digest of data into hash.
-func ShakeSum128(hash, data []byte) {
-	h := NewShake128()
-	h.Write(data)
-	h.Read(hash)
-}
-
-// ShakeSum256 writes an arbitrary-length digest of data into hash.
-func ShakeSum256(hash, data []byte) {
-	h := NewShake256()
-	h.Write(data)
-	h.Read(hash)
-}
-
 const testString = "brekeccakkeccak koax koax"
 
 // testDigests contains functions returning hash.Hash instances
 // with output-length equal to the KAT length for SHA-3, Keccak
 // and SHAKE instances.
-var testDigests = map[string]func() *Digest{
-	"SHA3-224":   New224,
-	"SHA3-256":   New256,
-	"SHA3-384":   New384,
-	"SHA3-512":   New512,
-	"Keccak-256": NewLegacyKeccak256,
-	"Keccak-512": NewLegacyKeccak512,
+var testDigests = map[string]func() *SHA3{
+	"SHA3-224": New224,
+	"SHA3-256": New256,
+	"SHA3-384": New384,
+	"SHA3-512": New512,
 }
 
 // testShakes contains functions that return *sha3.SHAKE instances for
@@ -87,11 +35,11 @@ var testShakes = map[string]struct {
 	defAlgoName  string
 	defCustomStr string
 }{
-	// NewCShake without customization produces same result as SHAKE
-	"SHAKE128":  {NewCShake128, "", ""},
-	"SHAKE256":  {NewCShake256, "", ""},
-	"cSHAKE128": {NewCShake128, "CSHAKE128", "CustomString"},
-	"cSHAKE256": {NewCShake256, "CSHAKE256", "CustomString"},
+	// NewCSHAKE without customization produces same result as SHAKE
+	"SHAKE128":  {NewCSHAKE128, "", ""},
+	"SHAKE256":  {NewCSHAKE256, "", ""},
+	"cSHAKE128": {NewCSHAKE128, "CSHAKE128", "CustomString"},
+	"cSHAKE256": {NewCSHAKE256, "CSHAKE256", "CustomString"},
 }
 
 // decodeHex converts a hex-encoded string into a raw byte string.
@@ -101,72 +49,6 @@ func decodeHex(s string) []byte {
 		panic(err)
 	}
 	return b
-}
-
-// TestKeccak does a basic test of the non-standardized Keccak hash functions.
-func TestKeccak(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "sha3", testKeccak)
-}
-
-func testKeccak(t *testing.T) {
-	tests := []struct {
-		fn   func() *Digest
-		data []byte
-		want string
-	}{
-		{
-			NewLegacyKeccak256,
-			[]byte("abc"),
-			"4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45",
-		},
-		{
-			NewLegacyKeccak512,
-			[]byte("abc"),
-			"18587dc2ea106b9a1563e32b3312421ca164c7f1f07bc922a9c83d77cea3a1e5d0c69910739025372dc14ac9642629379540c17e2a65b19d77aa511a9d00bb96",
-		},
-	}
-
-	for _, u := range tests {
-		h := u.fn()
-		h.Write(u.data)
-		got := h.Sum(nil)
-		want := decodeHex(u.want)
-		if !bytes.Equal(got, want) {
-			t.Errorf("unexpected hash for size %d: got '%x' want '%s'", h.Size()*8, got, u.want)
-		}
-	}
-}
-
-// TestShakeSum tests that the output of Sum matches the output of Read.
-func TestShakeSum(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "sha3", testShakeSum)
-}
-
-func testShakeSum(t *testing.T) {
-	tests := [...]struct {
-		name        string
-		hash        *SHAKE
-		expectedLen int
-	}{
-		{"SHAKE128", NewShake128(), 32},
-		{"SHAKE256", NewShake256(), 64},
-		{"cSHAKE128", NewCShake128([]byte{'X'}, nil), 32},
-		{"cSHAKE256", NewCShake256([]byte{'X'}, nil), 64},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			s := test.hash.Sum(nil)
-			if len(s) != test.expectedLen {
-				t.Errorf("Unexpected digest length: got %d, want %d", len(s), test.expectedLen)
-			}
-			r := make([]byte, test.expectedLen)
-			test.hash.Read(r)
-			if !bytes.Equal(s, r) {
-				t.Errorf("Mismatch between Sum and Read:\nSum:  %s\nRead: %s", hex.EncodeToString(s), hex.EncodeToString(r))
-			}
-		})
-	}
 }
 
 // TestUnalignedWrite tests that writing data in an arbitrary pattern with
@@ -336,36 +218,6 @@ func testReset(t *testing.T) {
 	}
 }
 
-func TestClone(t *testing.T) {
-	cryptotest.TestAllImplementations(t, "sha3", testClone)
-}
-
-func testClone(t *testing.T) {
-	out1 := make([]byte, 16)
-	out2 := make([]byte, 16)
-
-	// Test for sizes smaller and larger than block size.
-	for _, size := range []int{0x1, 0x100} {
-		in := sequentialBytes(size)
-		for _, v := range testShakes {
-			h1 := v.constructor(nil, []byte{0x01})
-			h1.Write([]byte{0x01})
-
-			h2 := h1.Clone()
-
-			h1.Write(in)
-			h1.Read(out1)
-
-			h2.Write(in)
-			h2.Read(out2)
-
-			if !bytes.Equal(out1, out2) {
-				t.Error("\nExpected:\n", hex.EncodeToString(out1), "\ngot:\n", hex.EncodeToString(out2))
-			}
-		}
-	}
-}
-
 var sinkSHA3 byte
 
 func TestAllocations(t *testing.T) {
@@ -382,14 +234,12 @@ func TestAllocations(t *testing.T) {
 			t.Errorf("expected zero allocations, got %0.1f", allocs)
 		}
 	})
-	t.Run("NewShake", func(t *testing.T) {
+	t.Run("NewSHAKE", func(t *testing.T) {
 		if allocs := testing.AllocsPerRun(10, func() {
-			h := NewShake128()
+			h := NewSHAKE128()
 			b := []byte("ABC")
 			h.Write(b)
-			out := make([]byte, 0, 32)
-			out = h.Sum(out)
-			sinkSHA3 ^= out[0]
+			out := make([]byte, 32)
 			h.Read(out)
 			sinkSHA3 ^= out[0]
 		}); allocs > 0 {
@@ -400,6 +250,15 @@ func TestAllocations(t *testing.T) {
 		if allocs := testing.AllocsPerRun(10, func() {
 			b := []byte("ABC")
 			out := Sum256(b)
+			sinkSHA3 ^= out[0]
+		}); allocs > 0 {
+			t.Errorf("expected zero allocations, got %0.1f", allocs)
+		}
+	})
+	t.Run("SumSHAKE", func(t *testing.T) {
+		if allocs := testing.AllocsPerRun(10, func() {
+			b := []byte("ABC")
+			out := SumSHAKE128(b, 10)
 			sinkSHA3 ^= out[0]
 		}); allocs > 0 {
 			t.Errorf("expected zero allocations, got %0.1f", allocs)
@@ -453,19 +312,19 @@ func TestCSHAKEAccumulated(t *testing.T) {
 	//
 	cryptotest.TestAllImplementations(t, "sha3", func(t *testing.T) {
 		t.Run("cSHAKE128", func(t *testing.T) {
-			testCSHAKEAccumulated(t, NewCShake128, (1600-256)/8,
+			testCSHAKEAccumulated(t, NewCSHAKE128, (1600-256)/8,
 				"bb14f8657c6ec5403d0b0e2ef3d3393497e9d3b1a9a9e8e6c81dbaa5fd809252")
 		})
 		t.Run("cSHAKE256", func(t *testing.T) {
-			testCSHAKEAccumulated(t, NewCShake256, (1600-512)/8,
+			testCSHAKEAccumulated(t, NewCSHAKE256, (1600-512)/8,
 				"0baaf9250c6e25f0c14ea5c7f9bfde54c8a922c8276437db28f3895bdf6eeeef")
 		})
 	})
 }
 
-func testCSHAKEAccumulated(t *testing.T, newCShake func(N, S []byte) *SHAKE, rate int64, exp string) {
-	rnd := newCShake(nil, nil)
-	acc := newCShake(nil, nil)
+func testCSHAKEAccumulated(t *testing.T, newCSHAKE func(N, S []byte) *SHAKE, rate int64, exp string) {
+	rnd := newCSHAKE(nil, nil)
+	acc := newCSHAKE(nil, nil)
 	for n := 0; n < 200; n++ {
 		N := make([]byte, n)
 		rnd.Read(N)
@@ -473,7 +332,7 @@ func testCSHAKEAccumulated(t *testing.T, newCShake func(N, S []byte) *SHAKE, rat
 			S := make([]byte, s)
 			rnd.Read(S)
 
-			c := newCShake(N, S)
+			c := newCSHAKE(N, S)
 			io.CopyN(c, rnd, 100 /* < rate */)
 			io.CopyN(acc, c, 200)
 
@@ -486,7 +345,9 @@ func testCSHAKEAccumulated(t *testing.T, newCShake func(N, S []byte) *SHAKE, rat
 			io.CopyN(acc, c, 200)
 		}
 	}
-	if got := hex.EncodeToString(acc.Sum(nil)[:32]); got != exp {
+	out := make([]byte, 32)
+	acc.Read(out)
+	if got := hex.EncodeToString(out); got != exp {
 		t.Errorf("got %s, want %s", got, exp)
 	}
 }
@@ -503,10 +364,12 @@ func testCSHAKELargeS(t *testing.T) {
 	// See https://go.dev/issue/66232.
 	const s = (1<<32)/8 + 1000 // s * 8 > 2^32
 	S := make([]byte, s)
-	rnd := NewShake128()
+	rnd := NewSHAKE128()
 	rnd.Read(S)
-	c := NewCShake128(nil, S)
+	c := NewCSHAKE128(nil, S)
 	io.CopyN(c, rnd, 1000)
+	out := make([]byte, 32)
+	c.Read(out)
 
 	// Generated with pycryptodome@3.20.0
 	//
@@ -518,7 +381,7 @@ func testCSHAKELargeS(t *testing.T) {
 	//    print(c.read(32).hex())
 	//
 	exp := "2cb9f237767e98f2614b8779cf096a52da9b3a849280bbddec820771ae529cf0"
-	if got := hex.EncodeToString(c.Sum(nil)); got != exp {
+	if got := hex.EncodeToString(out); got != exp {
 		t.Errorf("got %s, want %s", got, exp)
 	}
 }
@@ -529,17 +392,15 @@ func TestMarshalUnmarshal(t *testing.T) {
 		t.Run("SHA3-256", func(t *testing.T) { testMarshalUnmarshal(t, New256()) })
 		t.Run("SHA3-384", func(t *testing.T) { testMarshalUnmarshal(t, New384()) })
 		t.Run("SHA3-512", func(t *testing.T) { testMarshalUnmarshal(t, New512()) })
-		t.Run("SHAKE128", func(t *testing.T) { testMarshalUnmarshal(t, NewShake128()) })
-		t.Run("SHAKE256", func(t *testing.T) { testMarshalUnmarshal(t, NewShake256()) })
-		t.Run("cSHAKE128", func(t *testing.T) { testMarshalUnmarshal(t, NewCShake128([]byte("N"), []byte("S"))) })
-		t.Run("cSHAKE256", func(t *testing.T) { testMarshalUnmarshal(t, NewCShake256([]byte("N"), []byte("S"))) })
-		t.Run("Keccak-256", func(t *testing.T) { testMarshalUnmarshal(t, NewLegacyKeccak256()) })
-		t.Run("Keccak-512", func(t *testing.T) { testMarshalUnmarshal(t, NewLegacyKeccak512()) })
+		t.Run("SHAKE128", func(t *testing.T) { testMarshalUnmarshalSHAKE(t, NewSHAKE128()) })
+		t.Run("SHAKE256", func(t *testing.T) { testMarshalUnmarshalSHAKE(t, NewSHAKE256()) })
+		t.Run("cSHAKE128", func(t *testing.T) { testMarshalUnmarshalSHAKE(t, NewCSHAKE128([]byte("N"), []byte("S"))) })
+		t.Run("cSHAKE256", func(t *testing.T) { testMarshalUnmarshalSHAKE(t, NewCSHAKE256([]byte("N"), []byte("S"))) })
 	})
 }
 
 // TODO(filippo): move this to crypto/internal/cryptotest.
-func testMarshalUnmarshal(t *testing.T, h fips140.Hash) {
+func testMarshalUnmarshal(t *testing.T, h *SHA3) {
 	buf := make([]byte, 200)
 	rand.Read(buf)
 	n := rand.Intn(200)
@@ -547,16 +408,42 @@ func testMarshalUnmarshal(t *testing.T, h fips140.Hash) {
 	want := h.Sum(nil)
 	h.Reset()
 	h.Write(buf[:n])
-	b, err := h.(encoding.BinaryMarshaler).MarshalBinary()
+	b, err := h.MarshalBinary()
 	if err != nil {
 		t.Errorf("MarshalBinary: %v", err)
 	}
 	h.Write(bytes.Repeat([]byte{0}, 200))
-	if err := h.(encoding.BinaryUnmarshaler).UnmarshalBinary(b); err != nil {
+	if err := h.UnmarshalBinary(b); err != nil {
 		t.Errorf("UnmarshalBinary: %v", err)
 	}
 	h.Write(buf[n:])
 	got := h.Sum(nil)
+	if !bytes.Equal(got, want) {
+		t.Errorf("got %x, want %x", got, want)
+	}
+}
+
+// TODO(filippo): move this to crypto/internal/cryptotest.
+func testMarshalUnmarshalSHAKE(t *testing.T, h *SHAKE) {
+	buf := make([]byte, 200)
+	rand.Read(buf)
+	n := rand.Intn(200)
+	h.Write(buf)
+	want := make([]byte, 32)
+	h.Read(want)
+	h.Reset()
+	h.Write(buf[:n])
+	b, err := h.MarshalBinary()
+	if err != nil {
+		t.Errorf("MarshalBinary: %v", err)
+	}
+	h.Write(bytes.Repeat([]byte{0}, 200))
+	if err := h.UnmarshalBinary(b); err != nil {
+		t.Errorf("UnmarshalBinary: %v", err)
+	}
+	h.Write(buf[n:])
+	got := make([]byte, 32)
+	h.Read(got)
 	if !bytes.Equal(got, want) {
 		t.Errorf("got %x, want %x", got, want)
 	}
@@ -606,69 +493,9 @@ func BenchmarkSha3_384_MTU(b *testing.B) { benchmarkHash(b, New384(), 1350, 1) }
 func BenchmarkSha3_256_MTU(b *testing.B) { benchmarkHash(b, New256(), 1350, 1) }
 func BenchmarkSha3_224_MTU(b *testing.B) { benchmarkHash(b, New224(), 1350, 1) }
 
-func BenchmarkShake128_MTU(b *testing.B)  { benchmarkShake(b, NewShake128(), 1350, 1) }
-func BenchmarkShake256_MTU(b *testing.B)  { benchmarkShake(b, NewShake256(), 1350, 1) }
-func BenchmarkShake256_16x(b *testing.B)  { benchmarkShake(b, NewShake256(), 16, 1024) }
-func BenchmarkShake256_1MiB(b *testing.B) { benchmarkShake(b, NewShake256(), 1024, 1024) }
+func BenchmarkShake128_MTU(b *testing.B)  { benchmarkShake(b, NewSHAKE128(), 1350, 1) }
+func BenchmarkShake256_MTU(b *testing.B)  { benchmarkShake(b, NewSHAKE256(), 1350, 1) }
+func BenchmarkShake256_16x(b *testing.B)  { benchmarkShake(b, NewSHAKE256(), 16, 1024) }
+func BenchmarkShake256_1MiB(b *testing.B) { benchmarkShake(b, NewSHAKE256(), 1024, 1024) }
 
 func BenchmarkSha3_512_1MiB(b *testing.B) { benchmarkHash(b, New512(), 1024, 1024) }
-
-func Example_sum() {
-	buf := []byte("some data to hash")
-	// A hash needs to be 64 bytes long to have 256-bit collision resistance.
-	h := make([]byte, 64)
-	// Compute a 64-byte hash of buf and put it in h.
-	ShakeSum256(h, buf)
-	fmt.Printf("%x\n", h)
-	// Output: 0f65fe41fc353e52c55667bb9e2b27bfcc8476f2c413e9437d272ee3194a4e3146d05ec04a25d16b8f577c19b82d16b1424c3e022e783d2b4da98de3658d363d
-}
-
-func Example_mac() {
-	k := []byte("this is a secret key; you should generate a strong random key that's at least 32 bytes long")
-	buf := []byte("and this is some data to authenticate")
-	// A MAC with 32 bytes of output has 256-bit security strength -- if you use at least a 32-byte-long key.
-	h := make([]byte, 32)
-	d := NewShake256()
-	// Write the key into the hash.
-	d.Write(k)
-	// Now write the data.
-	d.Write(buf)
-	// Read 32 bytes of output from the hash into h.
-	d.Read(h)
-	fmt.Printf("%x\n", h)
-	// Output: 78de2974bd2711d5549ffd32b753ef0f5fa80a0db2556db60f0987eb8a9218ff
-}
-
-func ExampleNewCShake256() {
-	out := make([]byte, 32)
-	msg := []byte("The quick brown fox jumps over the lazy dog")
-
-	// Example 1: Simple cshake
-	c1 := NewCShake256([]byte("NAME"), []byte("Partition1"))
-	c1.Write(msg)
-	c1.Read(out)
-	fmt.Println(hex.EncodeToString(out))
-
-	// Example 2: Different customization string produces different digest
-	c1 = NewCShake256([]byte("NAME"), []byte("Partition2"))
-	c1.Write(msg)
-	c1.Read(out)
-	fmt.Println(hex.EncodeToString(out))
-
-	// Example 3: Longer output length produces longer digest
-	out = make([]byte, 64)
-	c1 = NewCShake256([]byte("NAME"), []byte("Partition1"))
-	c1.Write(msg)
-	c1.Read(out)
-	fmt.Println(hex.EncodeToString(out))
-
-	// Example 4: Next read produces different result
-	c1.Read(out)
-	fmt.Println(hex.EncodeToString(out))
-
-	// Output:
-	//a90a4c6ca9af2156eba43dc8398279e6b60dcd56fb21837afe6c308fd4ceb05b
-	//a8db03e71f3e4da5c4eee9d28333cdd355f51cef3c567e59be5beb4ecdbb28f0
-	//a90a4c6ca9af2156eba43dc8398279e6b60dcd56fb21837afe6c308fd4ceb05b9dd98c6ee866ca7dc5a39d53e960f400bcd5a19c8a2d6ec6459f63696543a0d8
-	//85e73a72228d08b46515553ca3a29d47df3047e5d84b12d6c2c63e579f4fd1105716b7838e92e981863907f434bfd4443c9e56ea09da998d2f9b47db71988109
-}
