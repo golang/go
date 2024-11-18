@@ -4,9 +4,13 @@
 
 The `go build` and `go install` commands now accept a `-json` flag that reports
 build output and failures as structured JSON output on standard output.
-Furthermore, passing `-json` to `go test` now reports build output and failures
-in addition to test results in JSON. For details of the reporting format, see
-`go help buildjson`.
+For details of the reporting format, see `go help buildjson`.
+
+Furthermore, `go test -json` now reports build output and failures in JSON,
+interleaved with test result JSON.
+These are distinguished by new `Action` types, but if they cause problems in
+a test integration system, you can revert to the text build output by setting
+`GODEBUG=gotestjsonbuildtext=1`.
 
 ### Cgo {#cgo}
 

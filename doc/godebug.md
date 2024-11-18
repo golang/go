@@ -168,6 +168,14 @@ For Go 1.24, it now defaults to multipathtcp="2", thus
 enabled by default on listerners. Using multipathtcp="0" reverts to the
 pre-Go 1.24 behavior.
 
+Go 1.24 changed the behavior of `go test -json` to emit build errors as JSON
+instead of text.
+These new JSON events are distinguished by new `Action` values,
+but can still cause problems with CI systems that aren't robust to these events.
+This behavior can be controlled with the `gotestjsonbuildtext` setting.
+Using `gotestjsonbuildtext=1` restores the 1.23 behavior.
+This setting will be removed in a future release, Go 1.28 at the earliest.
+
 ### Go 1.23
 
 Go 1.23 changed the channels created by package time to be unbuffered

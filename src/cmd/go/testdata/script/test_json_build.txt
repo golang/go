@@ -1,7 +1,6 @@
-# TODO(austin,#70402)
-skip
-
 [short] skip
+
+env GODEBUG=gotestjsonbuildtext=0
 
 # There are several places where paths appear in JSON in regexps here.
 # For the path separator we use (/|\\\\).
@@ -51,6 +50,16 @@ stdout '"Action":"start","Package":"m/veterror"'
 stdout '"Action":"output","Package":"m/veterror","Output":"FAIL\\tm/veterror \[build failed\]\\n"'
 stdout '"Action":"fail","Package":"m/veterror","Elapsed":.*,"FailedBuild":"m/veterror \[m/veterror.test\]"'
 ! stderr '.'
+
+# Test that the GODEBUG fallback works.
+env GODEBUG=gotestjsonbuildtext=1
+! go test -json -o=$devnull ./builderror
+stderr '# m/builderror \[m/builderror.test\]\n'
+stderr 'builderror'${/}'main_test.go:3:11: undefined: y\n'
+stdout '"Action":"start","Package":"m/builderror"'
+stdout '"Action":"output","Package":"m/builderror","Output":"FAIL\\tm/builderror \[build failed\]\\n"'
+stdout '"Action":"fail","Package":"m/builderror","Elapsed":.*,"FailedBuild":"m/builderror \[m/builderror\.test\]"'
+
 
 -- go.mod --
 module m
