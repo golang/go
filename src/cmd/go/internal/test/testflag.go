@@ -6,7 +6,6 @@ package test
 
 import (
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/cmdflag"
 	"cmd/go/internal/work"
 	"errors"
@@ -355,7 +354,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		delete(addFromGOFLAGS, "v")
 		delete(addFromGOFLAGS, "test.v")
 
-		cfg.BuildJSON = true
+		// TODO(austin,#70402): Re-enable this once LUCI can handle build JSON in the test stream.
+		//cfg.BuildJSON = true
 	}
 
 	// Inject flags from GOFLAGS before the explicit command-line arguments.

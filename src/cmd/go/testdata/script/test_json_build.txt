@@ -1,3 +1,6 @@
+# TODO(austin,#70402)
+skip
+
 [short] skip
 
 # Test a build error directly in a test file.
