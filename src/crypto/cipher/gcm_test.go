@@ -795,3 +795,76 @@ func TestFIPSServiceIndicator(t *testing.T) {
 	// Wrap with overflow.
 	expectPanic(t, g, []byte{1, 2, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0})
 }
+
+func TestGCMForSSH(t *testing.T) {
+	// incIV from x/crypto/ssh/cipher.go.
+	incIV := func(iv []byte) {
+		for i := 4 + 7; i >= 4; i-- {
+			iv[i]++
+			if iv[i] != 0 {
+				break
+			}
+		}
+	}
+
+	expectOK := func(aead cipher.AEAD, iv []byte) {
+		aead.Seal(nil, iv, []byte("hello, world"), nil)
+	}
+
+	expectPanic := func(aead cipher.AEAD, iv []byte) {
+		defer func() {
+			if recover() == nil {
+				t.Errorf("expected panic")
+			}
+		}()
+		aead.Seal(nil, iv, []byte("hello, world"), nil)
+	}
+
+	key := make([]byte, 16)
+	block, _ := fipsaes.New(key)
+	aead, err := gcm.NewGCMForSSH(block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	iv := decodeHex(t, "11223344"+"0000000000000000")
+	expectOK(aead, iv)
+	incIV(iv)
+	expectOK(aead, iv)
+	iv = decodeHex(t, "11223344"+"fffffffffffffffe")
+	expectOK(aead, iv)
+	incIV(iv)
+	expectPanic(aead, iv)
+
+	aead, _ = gcm.NewGCMForSSH(block)
+	iv = decodeHex(t, "11223344"+"fffffffffffffffe")
+	expectOK(aead, iv)
+	incIV(iv)
+	expectOK(aead, iv)
+	incIV(iv)
+	expectOK(aead, iv)
+	incIV(iv)
+	expectOK(aead, iv)
+
+	aead, _ = gcm.NewGCMForSSH(block)
+	iv = decodeHex(t, "11223344"+"aaaaaaaaaaaaaaaa")
+	expectOK(aead, iv)
+	iv = decodeHex(t, "11223344"+"ffffffffffffffff")
+	expectOK(aead, iv)
+	incIV(iv)
+	expectOK(aead, iv)
+	iv = decodeHex(t, "11223344"+"aaaaaaaaaaaaaaa8")
+	expectOK(aead, iv)
+	incIV(iv)
+	expectPanic(aead, iv)
+	iv = decodeHex(t, "11223344"+"bbbbbbbbbbbbbbbb")
+	expectPanic(aead, iv)
+}
+
+func decodeHex(t *testing.T, s string) []byte {
+	t.Helper()
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}

@@ -201,3 +201,57 @@ func (g *GCMForTLS13) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) 
 	fips.RecordApproved()
 	return g.g.Open(dst, nonce, ciphertext, data)
 }
+
+// NewGCMForSSH returns a new AEAD that works like GCM, but enforces the
+// construction of nonces as specified in RFC 5647.
+//
+// This complies with FIPS 140-3 IG C.H Scenario 1.d.
+func NewGCMForSSH(cipher *aes.Block) (*GCMForSSH, error) {
+	g, err := newGCM(&GCM{}, cipher, gcmStandardNonceSize, gcmTagSize)
+	if err != nil {
+		return nil, err
+	}
+	return &GCMForSSH{g: *g}, nil
+}
+
+type GCMForSSH struct {
+	g     GCM
+	ready bool
+	start uint64
+	next  uint64
+}
+
+func (g *GCMForSSH) NonceSize() int { return gcmStandardNonceSize }
+
+func (g *GCMForSSH) Overhead() int { return gcmTagSize }
+
+func (g *GCMForSSH) Seal(dst, nonce, plaintext, data []byte) []byte {
+	if len(nonce) != gcmStandardNonceSize {
+		panic("crypto/cipher: incorrect nonce length given to GCM")
+	}
+
+	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
+	if !g.ready {
+		// In the first call we learn the start value.
+		g.ready = true
+		g.start = counter
+	}
+	counter -= g.start
+
+	// Ensure the counter is monotonically increasing.
+	if counter == math.MaxUint64 {
+		panic("crypto/cipher: counter wrapped")
+	}
+	if counter < g.next {
+		panic("crypto/cipher: counter decreased")
+	}
+	g.next = counter + 1
+
+	fips.RecordApproved()
+	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
+}
+
+func (g *GCMForSSH) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+	fips.RecordApproved()
+	return g.g.Open(dst, nonce, ciphertext, data)
+}
