@@ -24,6 +24,13 @@ import (
 // If the user already exists, it will be deleted and recreated.
 // The caller is responsible for closing the token.
 func windowsTestAccount(t *testing.T) (syscall.Token, *User) {
+	if testenv.Builder() == "" {
+		// Adding and deleting users requires special permissions.
+		// Even if we have them, we don't want to create users on
+		// on dev machines, as they may not be cleaned up.
+		// See https://dev.go/issue/70396.
+		t.Skip("skipping non-hermetic test outside of Go builders")
+	}
 	const testUserName = "GoStdTestUser01"
 	var password [33]byte
 	rand.Read(password[:])
