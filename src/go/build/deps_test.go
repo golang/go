@@ -488,9 +488,11 @@ var depsRules = `
 
 	FIPS < crypto/internal/fips140/check/checktest;
 
+	FIPS, sync/atomic < crypto/tls/internal/fips140tls;
+
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
-	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
-	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
+	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fips140tls;
+	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
 	FIPS,
@@ -556,7 +558,7 @@ var depsRules = `
 	< crypto/x509/internal/macos
 	< crypto/x509/pkix;
 
-	crypto/internal/boring/fipstls, crypto/x509/pkix
+	crypto/tls/internal/fips140tls, crypto/x509/pkix
 	< crypto/x509
 	< crypto/tls;
 

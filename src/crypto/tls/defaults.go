@@ -90,7 +90,9 @@ var defaultCipherSuitesTLS13NoAES = []uint16{
 	TLS_AES_256_GCM_SHA384,
 }
 
-// The FIPS-only policies below match BoringSSL's ssl_policy_fips_202205.
+// The FIPS-only policies below match BoringSSL's
+// ssl_compliance_policy_fips_202205, which is based on NIST SP 800-52r2.
+// https://cs.opensource.google/boringssl/boringssl/+/master:ssl/ssl_lib.cc;l=3289;drc=ea7a88fa
 
 var defaultSupportedVersionsFIPS = []uint16{
 	VersionTLS12,

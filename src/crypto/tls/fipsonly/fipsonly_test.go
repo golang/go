@@ -7,12 +7,12 @@
 package fipsonly
 
 import (
-	"crypto/internal/boring/fipstls"
+	"crypto/tls/internal/fips140tls"
 	"testing"
 )
 
 func Test(t *testing.T) {
-	if !fipstls.Required() {
-		t.Fatal("fipstls.Required() = false, must be true")
+	if !fips140tls.Required() {
+		t.Fatal("fips140tls.Required() = false, must be true")
 	}
 }

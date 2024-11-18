@@ -708,13 +708,6 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		}
 	}
 
-	if !boringAllowCert(c) {
-		// IncompatibleUsage is not quite right here,
-		// but it's also the "no chains found" error
-		// and is close enough.
-		return CertificateInvalidError{c, IncompatibleUsage, ""}
-	}
-
 	return nil
 }
 
