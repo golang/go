@@ -8,10 +8,10 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 
+	"encoding/binary"
+
 	"github.com/open-quantum-safe/liboqs-go/oqs"
 	"golang.org/x/crypto/cryptobyte"
-
-	"errors"
 )
 
 // Object IDentifiers for PQC and Composite
@@ -26,9 +26,9 @@ const (
 )
 
 const (
-	HYBRID_SIG uint8 = 0 // used for Verify(), which signature to check for
-	PQC_SIG
-	CLASSIC_SIG
+	HYBRID_SIGNATURE uint8 = iota
+	PQC_SIGNATURE
+	CLASSIC_SIGNATURE
 )
 
 type SigName struct {
@@ -56,16 +56,16 @@ type PrivateKey struct {
 	public  *PublicKey
 }
 
-func (pub *PublicKey) ExportPublicKeys() (pqc []byte, classic *ecdsa.PublicKey) {
+func (pub *PublicKey) GetPublicKeys() (pqc []byte, classic *ecdsa.PublicKey) {
 	return pub.pqc, pub.classic
 }
 
-func (priv *PrivateKey) ExportPublicKeys() (pqc []byte, classic *ecdsa.PublicKey) {
-	return priv.public.pqc, priv.public.classic
+func (priv *PrivateKey) GetPrivateKeys() (pqc []byte, classic *ecdsa.PrivateKey) {
+	return priv.pqc, priv.classic
 }
 
-func (priv *PrivateKey) ExportPrivateKeys() (pqc []byte, classic *ecdsa.PrivateKey) {
-	return priv.pqc, priv.classic
+func (priv *PrivateKey) ExportPublicKey() (pub PublicKey) {
+	return *priv.public
 }
 
 func GenerateKey(sigOID OID) (priv PrivateKey, err error) {
@@ -114,14 +114,58 @@ func (priv *PrivateKey) Sign(message []byte) (signature []byte, err error) {
 	}
 
 	// Concat both to make the hybrid signature
-	hybridSig.AddUint16(uint16(len(classicSig)))
-	hybridSig.AddBytes(classicSig)
 	hybridSig.AddUint16(uint16(len(pqcSig)))
 	hybridSig.AddBytes(pqcSig)
+	hybridSig.AddUint16(uint16(len(classicSig)))
+	hybridSig.AddBytes(classicSig)
 
 	return hybridSig.BytesOrPanic(), err
 }
 
-func Verify(option uint8, pub PublicKey, signature []byte) (valid bool, err error) {
-	return false, errors.New("not implemented yet")
+func VerifyClassic(pub PublicKey, message []byte, signature []byte) bool {
+	return ecdsa.VerifyASN1(pub.classic, message, signature)
+}
+
+func VerifyPQC(pub PublicKey, message []byte, signature []byte) bool {
+	var valid bool
+	var err error
+
+	var verifier oqs.Signature
+	if err = verifier.Init(SigOIDtoName[pub.SigOID].pqc, nil); err != nil {
+		return false
+	}
+
+	if valid, err = verifier.Verify(message, signature, pub.pqc); err != nil {
+		return false
+	}
+
+	return valid
+}
+
+func Verify(option uint8, pub PublicKey, message []byte, signature []byte) bool {
+	var current uint16 = 0
+
+	pqcSize := binary.BigEndian.Uint16(signature[current : current+2])
+	current = current + 2
+	pqcSig := signature[current : current+pqcSize]
+	current = current + pqcSize
+
+	if option == PQC_SIGNATURE {
+		return VerifyPQC(pub, message, pqcSig)
+	}
+
+	classicSize := binary.BigEndian.Uint16(signature[current : current+2])
+	current = current + 2
+	classicSig := signature[current : current+classicSize]
+	current = current + classicSize
+
+	switch option {
+	case CLASSIC_SIGNATURE:
+		return VerifyClassic(pub, message, classicSig)
+
+	default:
+		return VerifyPQC(pub, message, pqcSig) && VerifyClassic(pub, message, classicSig)
+	}
+
+	return false
 }
