@@ -9,13 +9,13 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ecdh"
+	"crypto/internal/fips/hkdf"
 	"crypto/rand"
 	"errors"
 	"internal/byteorder"
 	"math/bits"
 
 	"golang.org/x/crypto/chacha20poly1305"
-	"golang.org/x/crypto/hkdf"
 )
 
 // testingOnlyGenerateKey is only used during testing, to provide
@@ -42,12 +42,7 @@ func (kdf *hkdfKDF) LabeledExpand(suiteID []byte, randomKey []byte, label string
 	labeledInfo = append(labeledInfo, suiteID...)
 	labeledInfo = append(labeledInfo, label...)
 	labeledInfo = append(labeledInfo, info...)
-	out := make([]byte, length)
-	n, err := hkdf.Expand(kdf.hash.New, randomKey, labeledInfo).Read(out)
-	if err != nil || n != int(length) {
-		panic("hpke: LabeledExpand failed unexpectedly")
-	}
-	return out
+	return hkdf.Expand(kdf.hash.New, randomKey, labeledInfo, int(length))
 }
 
 // dhKEM implements the KEM specified in RFC 9180, Section 4.1.
