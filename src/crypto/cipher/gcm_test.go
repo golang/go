@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips"
 	fipsaes "crypto/internal/fips/aes"
@@ -723,6 +724,14 @@ func testGCMAEAD(t *testing.T, newCipher func(key []byte) cipher.Block) {
 					cryptotest.TestAEAD(t, func() (cipher.AEAD, error) { return cipher.NewGCMWithNonceSize(block, nonceSize) })
 				})
 			}
+
+			// Test NewGCMWithRandomNonce.
+			t.Run("GCMWithRandomNonce", func(t *testing.T) {
+				if _, ok := block.(*wrapper); ok || boring.Enabled {
+					t.Skip("NewGCMWithRandomNonce requires an AES block cipher")
+				}
+				cryptotest.TestAEAD(t, func() (cipher.AEAD, error) { return cipher.NewGCMWithRandomNonce(block) })
+			})
 		})
 	}
 }
