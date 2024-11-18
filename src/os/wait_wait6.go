@@ -17,7 +17,10 @@ import (
 func (p *Process) blockUntilWaitable() (bool, error) {
 	err := ignoringEINTR(func() error {
 		_, errno := wait6(_P_PID, p.Pid, syscall.WEXITED|syscall.WNOWAIT)
-		return errno
+		if errno != 0 {
+			return errno
+		}
+		return nil
 	})
 	runtime.KeepAlive(p)
 	if err == syscall.ENOSYS {
