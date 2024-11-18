@@ -42,11 +42,65 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 	// First compute inlinability of all functions in the package.
 	inline.CanInlineFuncs(pkg.Funcs, inlProfile)
 
-	// Now we make a second pass to do devirtualization and inlining of
-	// calls. Order here should not matter.
-	for _, fn := range pkg.Funcs {
-		DevirtualizeAndInlineFunc(fn, inlProfile)
+	inlState := make(map[*ir.Func]*inlClosureState)
+
+	for _, fn := range typecheck.Target.Funcs {
+		// Pre-process all the functions, adding parentheses around call sites.
+		bigCaller := base.Flag.LowerL != 0 && inline.IsBigFunc(fn)
+		if bigCaller && base.Flag.LowerM > 1 {
+			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
+		}
+
+		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool)}
+		s.parenthesize()
+		inlState[fn] = s
 	}
+
+	ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
+
+		anyInlineHeuristics := false
+
+		// inline heuristics, placed here because they have static state and that's what seems to work.
+		for _, fn := range list {
+			if base.Flag.LowerL != 0 {
+				if inlheur.Enabled() && !fn.Wrapper() {
+					inlheur.ScoreCalls(fn)
+					anyInlineHeuristics = true
+				}
+				if base.Debug.DumpInlFuncProps != "" && !fn.Wrapper() {
+					inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps)
+				}
+			}
+		}
+
+		if anyInlineHeuristics {
+			defer inlheur.ScoreCallsCleanup()
+		}
+
+		// Iterate to a fixed point over all the functions.
+		done := false
+		for !done {
+			done = true
+			for _, fn := range list {
+				s := inlState[fn]
+
+				ir.WithFunc(fn, func() {
+					for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
+						paren := s.parens[i]
+						if new := s.edit(paren.X); new != nil {
+							// Update AST and recursively mark nodes.
+							paren.X = new
+							ir.EditChildren(new, s.mark) // mark may append to parens
+							done = false
+						}
+					}
+				}) // WithFunc
+
+			}
+		}
+	})
+
+	ir.CurFunc = nil
 
 	if base.Flag.LowerL != 0 {
 		if base.Debug.DumpInlFuncProps != "" {
@@ -57,6 +111,12 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 			inlheur.TearDown()
 		}
 	}
+
+	// remove parentheses
+	for _, fn := range typecheck.Target.Funcs {
+		inlState[fn].unparenthesize()
+	}
+
 }
 
 // DevirtualizeAndInlineFunc interleaves devirtualization and inlining
@@ -78,31 +138,167 @@ func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
 			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
 		}
 
-		match := func(n ir.Node) bool {
-			switch n := n.(type) {
-			case *ir.CallExpr:
-				return true
-			case *ir.TailCallStmt:
-				n.Call.NoInline = true // can't inline yet
-			}
-			return false
-		}
-
-		edit := func(n ir.Node) ir.Node {
-			call, ok := n.(*ir.CallExpr)
-			if !ok { // previously inlined
-				return nil
-			}
-
-			devirtualize.StaticCall(call)
-			if inlCall := inline.TryInlineCall(fn, call, bigCaller, profile); inlCall != nil {
-				return inlCall
-			}
-			return nil
-		}
-
-		fixpoint(fn, match, edit)
+		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool)}
+		s.parenthesize()
+		s.fixpoint()
+		s.unparenthesize()
 	})
+}
+
+type inlClosureState struct {
+	fn        *ir.Func
+	profile   *pgoir.Profile
+	callSites map[*ir.ParenExpr]bool // callSites[p] == "p appears in parens" (do not append again)
+	parens    []*ir.ParenExpr
+	bigCaller bool
+}
+
+func (s *inlClosureState) edit(n ir.Node) ir.Node {
+	call, ok := n.(*ir.CallExpr)
+	if !ok { // previously inlined
+		return nil
+	}
+
+	devirtualize.StaticCall(call)
+	if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile); inlCall != nil {
+		return inlCall
+	}
+	return nil
+}
+
+// Mark inserts parentheses, and is called repeatedly.
+// These inserted parentheses mark the call sites where
+// inlining will be attempted.
+func (s *inlClosureState) mark(n ir.Node) ir.Node {
+	// Consider the expression "f(g())". We want to be able to replace
+	// "g()" in-place with its inlined representation. But if we first
+	// replace "f(...)" with its inlined representation, then "g()" will
+	// instead appear somewhere within this new AST.
+	//
+	// To mitigate this, each matched node n is wrapped in a ParenExpr,
+	// so we can reliably replace n in-place by assigning ParenExpr.X.
+	// It's safe to use ParenExpr here, because typecheck already
+	// removed them all.
+
+	p, _ := n.(*ir.ParenExpr)
+	if p != nil && s.callSites[p] {
+		return n // already visited n.X before wrapping
+	}
+
+	if isTestingBLoop(n) {
+		// No inlining nor devirtualization performed on b.Loop body
+		if base.Flag.LowerM > 1 {
+			fmt.Printf("%v: skip inlining within testing.B.loop for %v\n", ir.Line(n), n)
+		}
+		// We still want to explore inlining opportunities in other parts of ForStmt.
+		nFor, _ := n.(*ir.ForStmt)
+		nForInit := nFor.Init()
+		for i, x := range nForInit {
+			if x != nil {
+				nForInit[i] = s.mark(x)
+			}
+		}
+		if nFor.Cond != nil {
+			nFor.Cond = s.mark(nFor.Cond)
+		}
+		if nFor.Post != nil {
+			nFor.Post = s.mark(nFor.Post)
+		}
+		return n
+	}
+
+	if p != nil {
+		n = p.X // in this case p was copied in from a (marked) inlined function, this is a new unvisited node.
+	}
+
+	ok := match(n)
+
+	// can't wrap TailCall's child into ParenExpr
+	if t, ok := n.(*ir.TailCallStmt); ok {
+		ir.EditChildren(t.Call, s.mark)
+	} else {
+		ir.EditChildren(n, s.mark)
+	}
+
+	if ok {
+		if p == nil {
+			p = ir.NewParenExpr(n.Pos(), n)
+			p.SetType(n.Type())
+			p.SetTypecheck(n.Typecheck())
+			s.callSites[p] = true
+		}
+
+		s.parens = append(s.parens, p)
+		n = p
+	} else if p != nil {
+		n = p // didn't change anything, restore n
+	}
+	return n
+}
+
+// parenthesize applies s.mark to all the nodes within
+// s.fn to mark calls and simplify rewriting them in place.
+func (s *inlClosureState) parenthesize() {
+	ir.EditChildren(s.fn, s.mark)
+}
+
+func (s *inlClosureState) unparenthesize() {
+	if s == nil {
+		return
+	}
+	if len(s.parens) == 0 {
+		return // short circuit
+	}
+
+	var unparen func(ir.Node) ir.Node
+	unparen = func(n ir.Node) ir.Node {
+		if paren, ok := n.(*ir.ParenExpr); ok {
+			n = paren.X
+		}
+		ir.EditChildren(n, unparen)
+		return n
+	}
+	ir.EditChildren(s.fn, unparen)
+}
+
+// fixpoint repeatedly edits a function until it stabilizes, returning
+// whether anything changed in any of the fixpoint iterations.
+//
+// It applies s.edit(n) to each node n within the parentheses in s.parens.
+// If s.edit(n) returns nil, no change is made. Otherwise, the result
+// replaces n in fn's body, and fixpoint iterates at least once more.
+//
+// After an iteration where all edit calls return nil, fixpoint
+// returns.
+func (s *inlClosureState) fixpoint() bool {
+	changed := false
+	ir.WithFunc(s.fn, func() {
+		done := false
+		for !done {
+			done = true
+			for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
+				paren := s.parens[i]
+				if new := s.edit(paren.X); new != nil {
+					// Update AST and recursively mark nodes.
+					paren.X = new
+					ir.EditChildren(new, s.mark) // mark may append to parens
+					done = false
+					changed = true
+				}
+			}
+		}
+	})
+	return changed
+}
+
+func match(n ir.Node) bool {
+	switch n := n.(type) {
+	case *ir.CallExpr:
+		return true
+	case *ir.TailCallStmt:
+		n.Call.NoInline = true // can't inline yet
+	}
+	return false
 }
 
 // isTestingBLoop returns true if it matches the node as a
@@ -129,110 +325,4 @@ func isTestingBLoop(t ir.Node) bool {
 		return true
 	}
 	return false
-}
-
-// fixpoint repeatedly edits a function until it stabilizes.
-//
-// First, fixpoint applies match to every node n within fn. Then it
-// iteratively applies edit to each node satisfying match(n).
-//
-// If edit(n) returns nil, no change is made. Otherwise, the result
-// replaces n in fn's body, and fixpoint iterates at least once more.
-//
-// After an iteration where all edit calls return nil, fixpoint
-// returns.
-func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node) {
-	// Consider the expression "f(g())". We want to be able to replace
-	// "g()" in-place with its inlined representation. But if we first
-	// replace "f(...)" with its inlined representation, then "g()" will
-	// instead appear somewhere within this new AST.
-	//
-	// To mitigate this, each matched node n is wrapped in a ParenExpr,
-	// so we can reliably replace n in-place by assigning ParenExpr.X.
-	// It's safe to use ParenExpr here, because typecheck already
-	// removed them all.
-
-	var parens []*ir.ParenExpr
-	var mark func(ir.Node) ir.Node
-	mark = func(n ir.Node) ir.Node {
-		if _, ok := n.(*ir.ParenExpr); ok {
-			return n // already visited n.X before wrapping
-		}
-
-		if isTestingBLoop(n) {
-			// No inlining nor devirtualization performed on b.Loop body
-			if base.Flag.LowerM > 1 {
-				fmt.Printf("%v: skip inlining within testing.B.loop for %v\n", ir.Line(n), n)
-			}
-			// We still want to explore inlining opportunities in other parts of ForStmt.
-			nFor, _ := n.(*ir.ForStmt)
-			nForInit := nFor.Init()
-			for i, x := range nForInit {
-				if x != nil {
-					nForInit[i] = edit(x).(ir.Node)
-				}
-			}
-			if nFor.Cond != nil {
-				nFor.Cond = mark(nFor.Cond).(ir.Node)
-			}
-			if nFor.Post != nil {
-				nFor.Post = mark(nFor.Post).(ir.Node)
-			}
-			return n
-		}
-
-		ok := match(n)
-
-		// can't wrap TailCall's child into ParenExpr
-		if t, ok := n.(*ir.TailCallStmt); ok {
-			ir.EditChildren(t.Call, mark)
-		} else {
-			ir.EditChildren(n, mark)
-		}
-
-		if ok {
-			paren := ir.NewParenExpr(n.Pos(), n)
-			paren.SetType(n.Type())
-			paren.SetTypecheck(n.Typecheck())
-
-			parens = append(parens, paren)
-			n = paren
-		}
-
-		return n
-	}
-	ir.EditChildren(fn, mark)
-
-	// Edit until stable.
-	for {
-		done := true
-
-		for i := 0; i < len(parens); i++ { // can't use "range parens" here
-			paren := parens[i]
-			if new := edit(paren.X); new != nil {
-				// Update AST and recursively mark nodes.
-				paren.X = new
-				ir.EditChildren(new, mark) // mark may append to parens
-				done = false
-			}
-		}
-
-		if done {
-			break
-		}
-	}
-
-	// Finally, remove any parens we inserted.
-	if len(parens) == 0 {
-		return // short circuit
-	}
-	var unparen func(ir.Node) ir.Node
-	unparen = func(n ir.Node) ir.Node {
-		if paren, ok := n.(*ir.ParenExpr); ok {
-			n = paren.X
-		}
-		ir.EditChildren(n, unparen)
-		return n
-	}
-	ir.EditChildren(fn, unparen)
 }
