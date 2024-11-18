@@ -5,6 +5,7 @@
 package windows
 
 import (
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -231,6 +232,33 @@ var SECURITY_NT_AUTHORITY = SID_IDENTIFIER_AUTHORITY{
 }
 
 //sys	IsValidSid(sid *syscall.SID) (valid bool) = advapi32.IsValidSid
-//sys	GetSidIdentifierAuthority(sid *syscall.SID) (idauth *SID_IDENTIFIER_AUTHORITY) = advapi32.GetSidIdentifierAuthority
-//sys	GetSidSubAuthority(sid *syscall.SID, subAuthorityIdx uint32) (subAuth *uint32) = advapi32.GetSidSubAuthority
-//sys	GetSidSubAuthorityCount(sid *syscall.SID) (count *uint8) = advapi32.GetSidSubAuthorityCount
+//sys	getSidIdentifierAuthority(sid *syscall.SID) (idauth uintptr) = advapi32.GetSidIdentifierAuthority
+//sys	getSidSubAuthority(sid *syscall.SID, subAuthorityIdx uint32) (subAuth uintptr) = advapi32.GetSidSubAuthority
+//sys	getSidSubAuthorityCount(sid *syscall.SID) (count uintptr) = advapi32.GetSidSubAuthorityCount
+
+// The following GetSid* functions are marked as //go:nocheckptr because checkptr
+// instrumentation can't see that the pointer returned by the syscall is pointing
+// into the sid's memory, which is normally allocated on the Go heap. Therefore,
+// the checkptr instrumentation would incorrectly flag the pointer dereference
+// as pointing to an invalid allocation.
+// Also, use runtime.KeepAlive to ensure that the sid is not garbage collected
+// before the GetSid* functions return, as the Go GC is not aware that the
+// pointers returned by the syscall are pointing into the sid's memory.
+
+//go:nocheckptr
+func GetSidIdentifierAuthority(sid *syscall.SID) SID_IDENTIFIER_AUTHORITY {
+	defer runtime.KeepAlive(sid)
+	return *(*SID_IDENTIFIER_AUTHORITY)(unsafe.Pointer(getSidIdentifierAuthority(sid)))
+}
+
+//go:nocheckptr
+func GetSidSubAuthority(sid *syscall.SID, subAuthorityIdx uint32) uint32 {
+	defer runtime.KeepAlive(sid)
+	return *(*uint32)(unsafe.Pointer(getSidSubAuthority(sid, subAuthorityIdx)))
+}
+
+//go:nocheckptr
+func GetSidSubAuthorityCount(sid *syscall.SID) uint8 {
+	defer runtime.KeepAlive(sid)
+	return *(*uint8)(unsafe.Pointer(getSidSubAuthorityCount(sid)))
+}

@@ -98,11 +98,11 @@ func isServiceAccount(sid *syscall.SID) bool {
 	// - "S-1-5-18": LocalSystem
 	// - "S-1-5-19": LocalService
 	// - "S-1-5-20": NetworkService
-	if *windows.GetSidSubAuthorityCount(sid) != windows.SID_REVISION ||
-		*windows.GetSidIdentifierAuthority(sid) != windows.SECURITY_NT_AUTHORITY {
+	if windows.GetSidSubAuthorityCount(sid) != windows.SID_REVISION ||
+		windows.GetSidIdentifierAuthority(sid) != windows.SECURITY_NT_AUTHORITY {
 		return false
 	}
-	switch *windows.GetSidSubAuthority(sid, 0) {
+	switch windows.GetSidSubAuthority(sid, 0) {
 	case windows.SECURITY_LOCAL_SYSTEM_RID,
 		windows.SECURITY_LOCAL_SERVICE_RID,
 		windows.SECURITY_NETWORK_SERVICE_RID:

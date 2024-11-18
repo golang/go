@@ -124,21 +124,21 @@ func DuplicateTokenEx(hExistingToken syscall.Token, dwDesiredAccess uint32, lpTo
 	return
 }
 
-func GetSidIdentifierAuthority(sid *syscall.SID) (idauth *SID_IDENTIFIER_AUTHORITY) {
+func getSidIdentifierAuthority(sid *syscall.SID) (idauth uintptr) {
 	r0, _, _ := syscall.Syscall(procGetSidIdentifierAuthority.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
-	idauth = (*SID_IDENTIFIER_AUTHORITY)(unsafe.Pointer(r0))
+	idauth = uintptr(r0)
 	return
 }
 
-func GetSidSubAuthority(sid *syscall.SID, subAuthorityIdx uint32) (subAuth *uint32) {
+func getSidSubAuthority(sid *syscall.SID, subAuthorityIdx uint32) (subAuth uintptr) {
 	r0, _, _ := syscall.Syscall(procGetSidSubAuthority.Addr(), 2, uintptr(unsafe.Pointer(sid)), uintptr(subAuthorityIdx), 0)
-	subAuth = (*uint32)(unsafe.Pointer(r0))
+	subAuth = uintptr(r0)
 	return
 }
 
-func GetSidSubAuthorityCount(sid *syscall.SID) (count *uint8) {
+func getSidSubAuthorityCount(sid *syscall.SID) (count uintptr) {
 	r0, _, _ := syscall.Syscall(procGetSidSubAuthorityCount.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
-	count = (*uint8)(unsafe.Pointer(r0))
+	count = uintptr(r0)
 	return
 }
 
