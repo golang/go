@@ -354,7 +354,8 @@ func TestStdKen(t *testing.T) {
 
 // Package paths of excluded packages.
 var excluded = map[string]bool{
-	"builtin": true,
+	"builtin":                       true,
+	"cmd/compile/internal/ssa/_gen": true,
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in
