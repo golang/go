@@ -159,9 +159,8 @@ func lock2(l *mutex) {
 
 	k8 := key8(&l.key)
 
-	var v8 uint8
 	// Speculative grab for lock.
-	v8 = atomic.Xchg8(k8, mutexLocked)
+	v8 := atomic.Xchg8(k8, mutexLocked)
 	if v8&mutexLocked == 0 {
 		if v8&mutexSleeping != 0 {
 			atomic.Or8(k8, mutexSleeping)
@@ -183,11 +182,13 @@ func lock2(l *mutex) {
 	v := atomic.Loaduintptr(&l.key)
 tryAcquire:
 	for i := 0; ; i++ {
-		for v&mutexLocked == 0 {
+		if v&mutexLocked == 0 {
 			if weSpin {
-				next := (v &^ mutexMMask) | (v & (mutexMMask &^ mutexSpinning)) | mutexLocked
-				if next&^mutexMMask != 0 {
-					next |= mutexSleeping
+				next := (v &^ mutexSpinning) | mutexSleeping | mutexLocked
+				if next&^mutexMMask == 0 {
+					// The fast-path Xchg8 may have cleared mutexSleeping. Fix
+					// the hint so unlock2 knows when to use its slow path.
+					next = next &^ mutexSleeping
 				}
 				if atomic.Casuintptr(&l.key, v, next) {
 					timer.end()
@@ -201,6 +202,7 @@ tryAcquire:
 				}
 			}
 			v = atomic.Loaduintptr(&l.key)
+			continue tryAcquire
 		}
 
 		if !weSpin && v&mutexSpinning == 0 && atomic.Casuintptr(&l.key, v, v|mutexSpinning) {
@@ -214,35 +216,36 @@ tryAcquire:
 				v = atomic.Loaduintptr(&l.key)
 				continue tryAcquire
 			} else if i < spin+mutexPassiveSpinCount {
-				osyield() // TODO: Consider removing this step. See https://go.dev/issue/69268
+				osyield() // TODO: Consider removing this step. See https://go.dev/issue/69268.
 				v = atomic.Loaduintptr(&l.key)
 				continue tryAcquire
 			}
 		}
 
 		// Go to sleep
-		for v&mutexLocked != 0 {
-			// Store the current head of the list of sleeping Ms in our gp.m.mWaitList.next field
-			gp.m.mWaitList.next = mutexWaitListHead(v)
-
-			// Pack a (partial) pointer to this M with the current lock state bits
-			next := (uintptr(unsafe.Pointer(gp.m)) &^ mutexMMask) | v&mutexMMask | mutexSleeping
-			if weSpin { // If we were spinning, prepare to retire
-				next = next &^ mutexSpinning
-			}
-
-			if atomic.Casuintptr(&l.key, v, next) {
-				weSpin = false
-				// We've pushed ourselves onto the stack of waiters. Wait.
-				semasleep(-1)
-				atTail = gp.m.mWaitList.next == 0 // we were at risk of starving
-				gp.m.mWaitList.next = 0
-				i = 0
-				v = atomic.Loaduintptr(&l.key)
-				continue tryAcquire
-			}
-			v = atomic.Loaduintptr(&l.key)
+		if v&mutexLocked == 0 {
+			throw("runtime·lock: sleeping while lock is available")
 		}
+
+		// Store the current head of the list of sleeping Ms in our gp.m.mWaitList.next field
+		gp.m.mWaitList.next = mutexWaitListHead(v)
+
+		// Pack a (partial) pointer to this M with the current lock state bits
+		next := (uintptr(unsafe.Pointer(gp.m)) &^ mutexMMask) | v&mutexMMask | mutexSleeping
+		if weSpin { // If we were spinning, prepare to retire
+			next = next &^ mutexSpinning
+		}
+
+		if atomic.Casuintptr(&l.key, v, next) {
+			weSpin = false
+			// We've pushed ourselves onto the stack of waiters. Wait.
+			semasleep(-1)
+			atTail = gp.m.mWaitList.next == 0 // we were at risk of starving
+			i = 0
+		}
+
+		gp.m.mWaitList.next = 0
+		v = atomic.Loaduintptr(&l.key)
 	}
 }
 
