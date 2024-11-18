@@ -136,7 +136,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 // collectRecv extracts the method receiver and its type parameters (if any) from rparam.
 // It declares the type parameters (but not the receiver) in the current scope, and
 // returns the receiver variable and its type parameter list (if any).
-func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (recv *Var, recvTParamsList *TypeParamList) {
+func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (*Var, *TypeParamList) {
 	// Unpack the receiver parameter which is of the form
 	//
 	//	"(" [rname] ["*"] rbase ["[" rtparams "]"] ")"
@@ -147,6 +147,7 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (re
 
 	// Determine the receiver base type.
 	var recvType Type = Typ[Invalid]
+	var recvTParamsList *TypeParamList
 	if rtparams == nil {
 		// If there are no type parameters, we can simply typecheck rparam.Type.
 		// If that is a generic type, varType will complain.
@@ -154,15 +155,44 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (re
 		// We use rparam.Type (rather than base) to correctly record pointer
 		// and parentheses in types2.Info (was bug, see go.dev/issue/68639).
 		recvType = check.varType(rparam.Type)
+		// Defining new methods on instantiated (alias or defined) types is not permitted.
+		// Follow literal pointer/alias type chain and check.
+		// (Correct code permits at most one pointer indirection, but for this check it
+		// doesn't matter if we have multiple pointers.)
+		a, _ := unpointer(recvType).(*Alias) // recvType is not generic per above
+		for a != nil {
+			baseType := unpointer(a.fromRHS)
+			if g, _ := baseType.(genericType); g != nil && g.TypeParams() != nil {
+				check.errorf(rbase, InvalidRecv, "cannot define new methods on instantiated type %s", g)
+				recvType = Typ[Invalid] // avoid follow-on errors by Checker.validRecv
+				break
+			}
+			a, _ = baseType.(*Alias)
+		}
 	} else {
 		// If there are type parameters, rbase must denote a generic base type.
-		var baseType *Named
+		// Important: rbase must be resolved before declaring any receiver type
+		// parameters (wich may have the same name, see below).
+		var baseType *Named // nil if not valid
 		var cause string
-		if t := check.genericType(rbase, &cause); cause == "" {
-			baseType = asNamed(t)
-		} else {
+		if t := check.genericType(rbase, &cause); cause != "" {
 			check.errorf(rbase, InvalidRecv, "%s", cause)
 			// ok to continue
+		} else {
+			switch t := t.(type) {
+			case *Named:
+				baseType = t
+			case *Alias:
+				// Methods on generic aliases are not permitted.
+				// Only report an error if the alias type is valid.
+				if isValid(unalias(t)) {
+					check.errorf(rbase, InvalidRecv, "cannot define new methods on generic alias type %s", t)
+				}
+				// Ok to continue but do not set basetype in this case so that
+				// recvType remains invalid (was bug, see go.dev/issue/70417).
+			default:
+				panic("unreachable")
+			}
 		}
 
 		// Collect the type parameters declared by the receiver (see also
@@ -219,11 +249,15 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (re
 		}
 	}
 
-	//  Create the receiver parameter.
+	// Create the receiver parameter.
+	// recvType is invalid if baseType was never set.
+	var recv *Var
 	if rname := rparam.Name; rname != nil && rname.Value != "" {
 		// named receiver
 		recv = NewParam(rname.Pos(), check.pkg, rname.Value, recvType)
-		// named receiver is declared by caller
+		// In this case, the receiver is declared by the caller
+		// because it must be declared after any type parameters
+		// (otherwise it might shadow one of them).
 	} else {
 		// anonymous receiver
 		recv = NewParam(rparam.Pos(), check.pkg, "", recvType)
@@ -233,10 +267,20 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (re
 	// Delay validation of receiver type as it may cause premature expansion of types
 	// the receiver type is dependent on (see go.dev/issue/51232, go.dev/issue/51233).
 	check.later(func() {
-		check.validRecv(recv, len(rtparams) != 0)
+		check.validRecv(recv)
 	}).describef(recv, "validRecv(%s)", recv)
 
-	return
+	return recv, recvTParamsList
+}
+
+func unpointer(t Type) Type {
+	for {
+		p, _ := t.(*Pointer)
+		if p == nil {
+			return t
+		}
+		t = p.base
+	}
 }
 
 // recordParenthesizedRecvTypes records parenthesized intermediate receiver type
@@ -353,9 +397,8 @@ func (check *Checker) declareParams(names []*syntax.Name, params []*Var, scopePo
 }
 
 // validRecv verifies that the receiver satisfies its respective spec requirements
-// and reports an error otherwise. If hasTypeParams is set, the receiver declares
-// type parameters.
-func (check *Checker) validRecv(recv *Var, hasTypeParams bool) {
+// and reports an error otherwise.
+func (check *Checker) validRecv(recv *Var) {
 	// spec: "The receiver type must be of the form T or *T where T is a type name."
 	rtyp, _ := deref(recv.typ)
 	atyp := Unalias(rtyp)
@@ -367,14 +410,6 @@ func (check *Checker) validRecv(recv *Var, hasTypeParams bool) {
 	// as the method."
 	switch T := atyp.(type) {
 	case *Named:
-		// The receiver type may be an instantiated type referred to
-		// by an alias (which cannot have receiver parameters for now).
-		// TODO(gri) revisit this logic since alias types can have
-		//           type parameters in 1.24
-		if T.TypeArgs() != nil && !hasTypeParams {
-			check.errorf(recv, InvalidRecv, "cannot define new methods on instantiated type %s", rtyp)
-			break
-		}
 		if T.obj.pkg != check.pkg {
 			check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
 			break
