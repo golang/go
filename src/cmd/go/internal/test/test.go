@@ -933,7 +933,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		var skipInstrumentation = map[string]bool{
 			"context":               true,
 			"internal/fuzz":         true,
+			"internal/godebug":      true,
 			"internal/runtime/maps": true,
+			"internal/sync":         true,
 			"reflect":               true,
 			"runtime":               true,
 			"sync":                  true,
