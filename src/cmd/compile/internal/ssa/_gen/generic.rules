@@ -988,6 +988,9 @@
 // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
 (Convert (Add(64|32) (Convert ptr mem) off) mem) => (AddPtr ptr off)
 (Convert (Convert ptr mem) mem) => ptr
+// Note: it is important that the target rewrite is ptr+(off1+off2), not (ptr+off1)+off2.
+// We must ensure that no intermediate computations are invalid pointers.
+(Convert a:(Add(64|32) (Add(64|32) (Convert ptr mem) off1) off2) mem) => (AddPtr ptr (Add(64|32) <a.Type> off1 off2))
 
 // strength reduction of divide by a constant.
 // See ../magic.go for a detailed description of these algorithms.

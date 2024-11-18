@@ -5759,6 +5759,7 @@ func rewriteValuegeneric_OpConstString(v *Value) bool {
 func rewriteValuegeneric_OpConvert(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
 	// match: (Convert (Add64 (Convert ptr mem) off) mem)
 	// result: (AddPtr ptr off)
 	for {
@@ -5822,6 +5823,80 @@ func rewriteValuegeneric_OpConvert(v *Value) bool {
 		}
 		v.copyOf(ptr)
 		return true
+	}
+	// match: (Convert a:(Add64 (Add64 (Convert ptr mem) off1) off2) mem)
+	// result: (AddPtr ptr (Add64 <a.Type> off1 off2))
+	for {
+		a := v_0
+		if a.Op != OpAdd64 {
+			break
+		}
+		_ = a.Args[1]
+		a_0 := a.Args[0]
+		a_1 := a.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, a_0, a_1 = _i0+1, a_1, a_0 {
+			if a_0.Op != OpAdd64 {
+				continue
+			}
+			_ = a_0.Args[1]
+			a_0_0 := a_0.Args[0]
+			a_0_1 := a_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, a_0_0, a_0_1 = _i1+1, a_0_1, a_0_0 {
+				if a_0_0.Op != OpConvert {
+					continue
+				}
+				mem := a_0_0.Args[1]
+				ptr := a_0_0.Args[0]
+				off1 := a_0_1
+				off2 := a_1
+				if mem != v_1 {
+					continue
+				}
+				v.reset(OpAddPtr)
+				v0 := b.NewValue0(v.Pos, OpAdd64, a.Type)
+				v0.AddArg2(off1, off2)
+				v.AddArg2(ptr, v0)
+				return true
+			}
+		}
+		break
+	}
+	// match: (Convert a:(Add32 (Add32 (Convert ptr mem) off1) off2) mem)
+	// result: (AddPtr ptr (Add32 <a.Type> off1 off2))
+	for {
+		a := v_0
+		if a.Op != OpAdd32 {
+			break
+		}
+		_ = a.Args[1]
+		a_0 := a.Args[0]
+		a_1 := a.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, a_0, a_1 = _i0+1, a_1, a_0 {
+			if a_0.Op != OpAdd32 {
+				continue
+			}
+			_ = a_0.Args[1]
+			a_0_0 := a_0.Args[0]
+			a_0_1 := a_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, a_0_0, a_0_1 = _i1+1, a_0_1, a_0_0 {
+				if a_0_0.Op != OpConvert {
+					continue
+				}
+				mem := a_0_0.Args[1]
+				ptr := a_0_0.Args[0]
+				off1 := a_0_1
+				off2 := a_1
+				if mem != v_1 {
+					continue
+				}
+				v.reset(OpAddPtr)
+				v0 := b.NewValue0(v.Pos, OpAdd32, a.Type)
+				v0.AddArg2(off1, off2)
+				v.AddArg2(ptr, v0)
+				return true
+			}
+		}
+		break
 	}
 	return false
 }
