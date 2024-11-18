@@ -20,10 +20,10 @@ import (
 	"unsafe"
 )
 
-// windowsTestAcount creates a test user and returns a token for that user.
+// windowsTestAccount creates a test user and returns a token for that user.
 // If the user already exists, it will be deleted and recreated.
 // The caller is responsible for closing the token.
-func windowsTestAcount(t *testing.T) (syscall.Token, *User) {
+func windowsTestAccount(t *testing.T) (syscall.Token, *User) {
 	const testUserName = "GoStdTestUser01"
 	var password [33]byte
 	rand.Read(password[:])
@@ -134,7 +134,7 @@ func TestImpersonated(t *testing.T) {
 	}
 
 	// Create a test user and log in as that user.
-	token, _ := windowsTestAcount(t)
+	token, _ := windowsTestAccount(t)
 
 	// Impersonate the test user.
 	if err = windows.ImpersonateLoggedOnUser(token); err != nil {
@@ -188,7 +188,7 @@ func TestCurrentNetapi32(t *testing.T) {
 
 func TestGroupIdsTestUser(t *testing.T) {
 	// Create a test user and log in as that user.
-	_, user := windowsTestAcount(t)
+	_, user := windowsTestAccount(t)
 
 	gids, err := user.GroupIds()
 	if err != nil {
