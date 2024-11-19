@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.23 (Oct 1, 2024)",
+	"Subtitle": "Language version go1.24 (Nov 20, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -3093,7 +3093,7 @@ to the base type <code>Point</code>.
 </p>
 
 <p>
-If the receiver base type is a <a href="#Type_declarations">generic type</a>, the
+If the receiver base type is a <a href="#Type_definitions">generic type</a>, the
 receiver specification must declare corresponding type parameters for the method
 to use. This makes the receiver type parameters available to the method.
 Syntactically, this type parameter declaration looks like an
@@ -3115,6 +3115,22 @@ type Pair[A, B any] struct {
 
 func (p Pair[A, B]) Swap() Pair[B, A]  { … }  // receiver declares A, B
 func (p Pair[First, _]) First() First  { … }  // receiver declares First, corresponds to A in Pair
+</pre>
+
+<p>
+If the receiver type is denoted by (a pointer to) an <a href="#Alias_declarations">alias</a>,
+the alias must not be generic and it must not denote an instantiated generic type, neither
+directly nor indirectly via another alias, and irrespective of pointer indirections.
+</p>
+
+<pre>
+type GPoint[P any] = Point
+type HPoint        = *GPoint[int]
+type IPair         = Pair[int, int]
+
+func (*GPoint[P]) Draw(P)   { … }  // illegal: alias must not be generic
+func (HPoint) Draw(P)       { … }  // illegal: alias must not denote instantiated type GPoint[int]
+func (*IPair) Second() int  { … }  // illegal: alias must not denote instantiated type Pair[int, int]
 </pre>
 
 <h2 id="Expressions">Expressions</h2>
