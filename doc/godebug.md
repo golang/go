@@ -195,6 +195,14 @@ This currently only affects arm64 programs. For all other platforms it is a no-o
 Go 1.24 removed the `x509sha1` setting.  `crypto/x509` no longer supports verifying
 signatures on certificates that use SHA-1 based signature algorithms.
 
+Go 1.24 changes the default value of the [`x509usepolicies`
+setting.](/pkg/crypto/x509/#CreateCertificate) from `0` to `1`. When marshalling
+certificates, policies are now taken from the
+[`Certificate.Policies`](/pkg/crypto/x509/#Certificate.Policies) field rather
+than the
+[`Certificate.PolicyIdentifiers`](/pkg/crypto/x509/#Certificate.PolicyIdentifiers)
+field by default.
+
 ### Go 1.23
 
 Go 1.23 changed the channels created by package time to be unbuffered

@@ -63,7 +63,7 @@ var All = []Info{
 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
 	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
-	{Name: "x509usepolicies", Package: "crypto/x509"},
+	{Name: "x509usepolicies", Package: "crypto/x509", Changed: 24, Old: "0"},
 	{Name: "zipinsecurepath", Package: "archive/zip"},
 }
 
