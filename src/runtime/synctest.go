@@ -36,12 +36,20 @@ type synctestGroup struct {
 // changegstatus is called when the non-lock status of a g changes.
 // It is never called with a Gscanstatus.
 func (sg *synctestGroup) changegstatus(gp *g, oldval, newval uint32) {
-	lock(&sg.mu)
+	// Determine whether this change in status affects the idleness of the group.
+	// If this isn't a goroutine starting, stopping, durably blocking,
+	// or waking up after durably blocking, then return immediately without
+	// locking sg.mu.
+	//
+	// For example, stack growth (newstack) will changegstatus
+	// from _Grunning to _Gcopystack. This is uninteresting to synctest,
+	// but if stack growth occurs while sg.mu is held, we must not recursively lock.
+	totalDelta := 0
 	wasRunning := true
 	switch oldval {
 	case _Gdead:
 		wasRunning = false
-		sg.total++
+		totalDelta++
 	case _Gwaiting:
 		if gp.waitreason.isIdleInSynctest() {
 			wasRunning = false
@@ -51,12 +59,20 @@ func (sg *synctestGroup) changegstatus(gp *g, oldval, newval uint32) {
 	switch newval {
 	case _Gdead:
 		isRunning = false
-		sg.total--
+		totalDelta--
 	case _Gwaiting:
 		if gp.waitreason.isIdleInSynctest() {
 			isRunning = false
 		}
 	}
+	// It's possible for wasRunning == isRunning while totalDelta != 0;
+	// for example, if a new goroutine is created in a non-running state.
+	if wasRunning == isRunning && totalDelta == 0 {
+		return
+	}
+
+	lock(&sg.mu)
+	sg.total += totalDelta
 	if wasRunning != isRunning {
 		if isRunning {
 			sg.running++
