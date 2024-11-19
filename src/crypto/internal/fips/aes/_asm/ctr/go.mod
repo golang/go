@@ -1,4 +1,4 @@
-module std/crypto/aes/_asm/ctr
+module crypto/aes/_asm/ctr
 
 go 1.24
 

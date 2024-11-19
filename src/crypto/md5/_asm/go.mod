@@ -1,4 +1,4 @@
-module std/crypto/md5/_asm
+module crypto/md5/_asm
 
 go 1.24
 

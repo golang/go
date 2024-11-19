@@ -1,4 +1,4 @@
-module std/crypto/internal/fips/edwards25519/field/_asm
+module crypto/internal/fips/edwards25519/field/_asm
 
 go 1.19
 

@@ -1,4 +1,4 @@
-module std/crypto/aes/_asm/gcm
+module crypto/aes/_asm/gcm
 
 go 1.24
 

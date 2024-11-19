@@ -1,4 +1,4 @@
-module std/crypto/sha512/_asm
+module crypto/sha512/_asm
 
 go 1.24
 

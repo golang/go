@@ -1,4 +1,4 @@
-module std/crypto/sha256/_asm
+module crypto/sha256/_asm
 
 go 1.24
 

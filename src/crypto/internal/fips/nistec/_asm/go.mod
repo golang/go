@@ -1,4 +1,4 @@
-module std/crypto/internal/fips/nistec/_asm
+module crypto/internal/fips/nistec/_asm
 
 go 1.24
 
