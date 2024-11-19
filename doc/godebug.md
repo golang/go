@@ -34,6 +34,7 @@ For example, if a Go program is running in an environment that contains
 
 then that Go program will disable the use of HTTP/2 by default in both
 the HTTP client and the HTTP server.
+Unrecognized settings in the `GODEBUG` environment variable are ignored.
 It is also possible to set the default `GODEBUG` for a given program
 (discussed below).
 
