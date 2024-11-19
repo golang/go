@@ -491,12 +491,12 @@ See 'go help env' for details.
 
 General-purpose environment variables:
 
+	GCCGO
+		The gccgo command to run for 'go build -compiler=gccgo'.
 	GO111MODULE
 		Controls whether the go command runs in module-aware mode or GOPATH mode.
 		May be "off", "on", or "auto".
 		See https://golang.org/ref/mod#mod-commands.
-	GCCGO
-		The gccgo command to run for 'go build -compiler=gccgo'.
 	GOARCH
 		The architecture, or processor, for which to compile code.
 		Examples are amd64, 386, arm, ppc64.
@@ -508,8 +508,6 @@ General-purpose environment variables:
 	GOCACHE
 		The directory where the go command will store cached
 		information for reuse in future builds.
-	GOMODCACHE
-		The directory where the go command will store downloaded modules.
 	GODEBUG
 		Enable various debugging facilities. See https://go.dev/doc/godebug
 		for details.
@@ -531,29 +529,31 @@ General-purpose environment variables:
 		manner. Only applies to dependencies that are being fetched directly.
 		GOINSECURE does not disable checksum database validation. GOPRIVATE or
 		GONOSUMDB may be used to achieve that.
+	GOMODCACHE
+		The directory where the go command will store downloaded modules.
 	GOOS
 		The operating system for which to compile code.
 		Examples are linux, darwin, windows, netbsd.
 	GOPATH
 		Controls where various files are stored. See: 'go help gopath'.
-	GOPROXY
-		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
-		and https://golang.org/ref/mod#module-proxy for details.
 	GOPRIVATE, GONOPROXY, GONOSUMDB
 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 		of module path prefixes that should always be fetched directly
 		or that should not be compared against the checksum database.
 		See https://golang.org/ref/mod#private-modules.
+	GOPROXY
+		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
+		and https://golang.org/ref/mod#module-proxy for details.
 	GOROOT
 		The root of the go tree.
 	GOSUMDB
 		The name of checksum database to use and optionally its public key and
 		URL. See https://golang.org/ref/mod#authenticating.
-	GOTOOLCHAIN
-		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
 	GOTMPDIR
 		The directory where the go command will write
 		temporary source files, packages, and binaries.
+	GOTOOLCHAIN
+		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
 	GOVCS
 		Lists version control commands that may be used with matching servers.
 		See 'go help vcs'.
@@ -574,8 +574,6 @@ Environment variables for use with cgo:
 		The default is 'ar'.
 	CC
 		The command to use to compile C code.
-	CGO_ENABLED
-		Whether the cgo command is supported. Either 0 or 1.
 	CGO_CFLAGS
 		Flags that cgo will pass to the compiler when compiling
 		C code.
@@ -593,6 +591,8 @@ Environment variables for use with cgo:
 	CGO_CXXFLAGS, CGO_CXXFLAGS_ALLOW, CGO_CXXFLAGS_DISALLOW
 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
 		but for the C++ compiler.
+	CGO_ENABLED
+		Whether the cgo command is supported. Either 0 or 1.
 	CGO_FFLAGS, CGO_FFLAGS_ALLOW, CGO_FFLAGS_DISALLOW
 		Like CGO_CFLAGS, CGO_CFLAGS_ALLOW, and CGO_CFLAGS_DISALLOW,
 		but for the Fortran compiler.
@@ -608,6 +608,13 @@ Environment variables for use with cgo:
 
 Architecture-specific environment variables:
 
+	GO386
+		For GOARCH=386, how to implement floating point instructions.
+		Valid values are sse2 (default), softfloat.
+	GOAMD64
+		For GOARCH=amd64, the microarchitecture level for which to compile.
+		Valid values are v1 (default), v2, v3, v4.
+		See https://golang.org/wiki/MinimumRequirements#amd64
 	GOARM
 		For GOARCH=arm, the ARM architecture for which to compile.
 		Valid values are 5, 6, 7.
@@ -620,13 +627,6 @@ Architecture-specific environment variables:
 		Valid options are ,lse and ,crypto.
 		Note that some extensions are enabled by default starting from a certain GOARM64 version;
 		for example, lse is enabled by default starting from v8.1.
-	GO386
-		For GOARCH=386, how to implement floating point instructions.
-		Valid values are sse2 (default), softfloat.
-	GOAMD64
-		For GOARCH=amd64, the microarchitecture level for which to compile.
-		Valid values are v1 (default), v2, v3, v4.
-		See https://golang.org/wiki/MinimumRequirements#amd64
 	GOMIPS
 		For GOARCH=mips{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
@@ -659,9 +659,15 @@ Special-purpose environment variables:
 	GOEXPERIMENT
 		Comma-separated list of toolchain experiments to enable or disable.
 		The list of available experiments may change arbitrarily over time.
-		See src/internal/goexperiment/flags.go for currently valid values.
+		See GOROOT/src/internal/goexperiment/flags.go for currently valid values.
 		Warning: This variable is provided for the development and testing
 		of the Go toolchain itself. Use beyond that purpose is unsupported.
+	GOFIPS140
+		The FIPS-140 cryptography mode to use when building binaries.
+		The default is GOFIPS140=off, which makes no FIPS-140 changes at all.
+		Other values enable FIPS-140 compliance measures and select alternate
+		versions of the cryptography source code.
+		See https://go.dev/security/fips140 for details.
 	GO_EXTLINK_ENABLED
 		Whether the linker should use external linking mode
 		when using -linkmode=auto with code that uses cgo.
