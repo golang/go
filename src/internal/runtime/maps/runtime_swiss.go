@@ -90,11 +90,12 @@ func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsaf
 			i := match.first()
 
 			slotKey := g.key(typ, i)
+			slotKeyOrig := slotKey
 			if typ.IndirectKey() {
 				slotKey = *((*unsafe.Pointer)(slotKey))
 			}
 			if typ.Key.Equal(key, slotKey) {
-				slotElem := g.elem(typ, i)
+				slotElem := unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
 				if typ.IndirectElem() {
 					slotElem = *((*unsafe.Pointer)(slotElem))
 				}
@@ -163,11 +164,12 @@ func runtime_mapaccess2(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsa
 			i := match.first()
 
 			slotKey := g.key(typ, i)
+			slotKeyOrig := slotKey
 			if typ.IndirectKey() {
 				slotKey = *((*unsafe.Pointer)(slotKey))
 			}
 			if typ.Key.Equal(key, slotKey) {
-				slotElem := g.elem(typ, i)
+				slotElem := unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
 				if typ.IndirectElem() {
 					slotElem = *((*unsafe.Pointer)(slotElem))
 				}
@@ -256,6 +258,7 @@ outer:
 				i := match.first()
 
 				slotKey := g.key(typ, i)
+				slotKeyOrig := slotKey
 				if typ.IndirectKey() {
 					slotKey = *((*unsafe.Pointer)(slotKey))
 				}
@@ -264,7 +267,7 @@ outer:
 						typedmemmove(typ.Key, slotKey, key)
 					}
 
-					slotElem = g.elem(typ, i)
+					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
 					if typ.IndirectElem() {
 						slotElem = *((*unsafe.Pointer)(slotElem))
 					}
@@ -298,6 +301,7 @@ outer:
 				// If there is room left to grow, just insert the new entry.
 				if t.growthLeft > 0 {
 					slotKey := g.key(typ, i)
+					slotKeyOrig := slotKey
 					if typ.IndirectKey() {
 						kmem := newobject(typ.Key)
 						*(*unsafe.Pointer)(slotKey) = kmem
@@ -305,7 +309,7 @@ outer:
 					}
 					typedmemmove(typ.Key, slotKey, key)
 
-					slotElem = g.elem(typ, i)
+					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
 					if typ.IndirectElem() {
 						emem := newobject(typ.Elem)
 						*(*unsafe.Pointer)(slotElem) = emem

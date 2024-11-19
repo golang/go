@@ -66,7 +66,7 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
 
 			slotKey := g.key(typ, i)
 			if key == *(*uint64)(slotKey) {
-				slotElem := g.elem(typ, i)
+				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
 				return slotElem
 			}
 			match = match.removeFirst()
@@ -134,7 +134,7 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
 
 			slotKey := g.key(typ, i)
 			if key == *(*uint64)(slotKey) {
-				slotElem := g.elem(typ, i)
+				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
 				return slotElem, true
 			}
 			match = match.removeFirst()
