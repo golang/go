@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -48,6 +49,102 @@ func initOverlay(t *testing.T, config string) {
 
 	if err := initFromJSON(a.Comment); err != nil {
 		t.Fatal(err)
+	}
+}
+
+var statInfoOverlay = `{"Replace": {
+	"x": "replace/x",
+	"a/b/c": "replace/c",
+	"d/e": ""
+}}`
+
+var statInfoTests = []struct {
+	path string
+	info info
+}{
+	{"foo", info{abs: "/tmp/foo", actual: "foo"}},
+	{"foo/bar/baz/quux", info{abs: "/tmp/foo/bar/baz/quux", actual: "foo/bar/baz/quux"}},
+	{"x", info{abs: "/tmp/x", replaced: true, actual: "/tmp/replace/x"}},
+	{"/tmp/x", info{abs: "/tmp/x", replaced: true, actual: "/tmp/replace/x"}},
+	{"x/y", info{abs: "/tmp/x/y", deleted: true}},
+	{"a", info{abs: "/tmp/a", replaced: true, dir: true, actual: "a"}},
+	{"a/b", info{abs: "/tmp/a/b", replaced: true, dir: true, actual: "a/b"}},
+	{"a/b/c", info{abs: "/tmp/a/b/c", replaced: true, actual: "/tmp/replace/c"}},
+	{"d/e", info{abs: "/tmp/d/e", deleted: true}},
+	{"d", info{abs: "/tmp/d", replaced: true, dir: true, actual: "d"}},
+}
+
+var statInfoChildrenTests = []struct {
+	path     string
+	children []info
+}{
+	{"foo", nil},
+	{"foo/bar", nil},
+	{"foo/bar/baz", nil},
+	{"x", nil},
+	{"x/y", nil},
+	{"a", []info{{abs: "/tmp/a/b", replaced: true, dir: true, actual: ""}}},
+	{"a/b", []info{{abs: "/tmp/a/b/c", replaced: true, actual: "/tmp/replace/c"}}},
+	{"d", []info{{abs: "/tmp/d/e", deleted: true}}},
+	{"d/e", nil},
+	{".", []info{
+		{abs: "/tmp/a", replaced: true, dir: true, actual: ""},
+		// {abs: "/tmp/d", replaced: true, dir: true, actual: ""},
+		{abs: "/tmp/x", replaced: true, actual: "/tmp/replace/x"},
+	}},
+}
+
+func TestStatInfo(t *testing.T) {
+	tmp := "/tmp"
+	if runtime.GOOS == "windows" {
+		tmp = `C:\tmp`
+	}
+	cwd = sync.OnceValue(func() string { return tmp })
+
+	winFix := func(s string) string {
+		if runtime.GOOS == "windows" {
+			s = strings.ReplaceAll(s, `/tmp`, tmp) // fix tmp
+			s = strings.ReplaceAll(s, `/`, `\`)    // use backslashes
+		}
+		return s
+	}
+
+	overlay := statInfoOverlay
+	overlay = winFix(overlay)
+	overlay = strings.ReplaceAll(overlay, `\`, `\\`) // JSON escaping
+	if err := initFromJSON([]byte(overlay)); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range statInfoTests {
+		tt.path = winFix(tt.path)
+		tt.info.abs = winFix(tt.info.abs)
+		tt.info.actual = winFix(tt.info.actual)
+		info := stat(tt.path)
+		if info != tt.info {
+			t.Errorf("stat(%#q):\nhave %+v\nwant %+v", tt.path, info, tt.info)
+		}
+	}
+
+	for _, tt := range statInfoChildrenTests {
+		tt.path = winFix(tt.path)
+		for i, info := range tt.children {
+			info.abs = winFix(info.abs)
+			info.actual = winFix(info.actual)
+			tt.children[i] = info
+		}
+		parent := stat(winFix(tt.path))
+		var children []info
+		for name, child := range parent.children() {
+			if name != filepath.Base(child.abs) {
+				t.Errorf("stat(%#q): child %#q has inconsistent abs %#q", tt.path, name, child.abs)
+			}
+			children = append(children, child)
+		}
+		slices.SortFunc(children, func(x, y info) int { return cmp(x.abs, y.abs) })
+		if !slices.Equal(children, tt.children) {
+			t.Errorf("stat(%#q) children:\nhave %+v\nwant %+v", tt.path, children, tt.children)
+		}
 	}
 }
 
