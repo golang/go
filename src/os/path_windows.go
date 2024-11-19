@@ -6,7 +6,6 @@ package os
 
 import (
 	"internal/filepathlite"
-	"internal/stringslite"
 	"internal/syscall/windows"
 	"syscall"
 )
@@ -150,32 +149,4 @@ func addExtendedPrefix(path string) string {
 	}
 	copy(buf, prefix)
 	return syscall.UTF16ToString(buf)
-}
-
-// validatePathForCreate checks if a given path is valid for creation on a Windows system.
-// It returns true if the path is considered valid, and false otherwise.
-// The function performs the following checks:
-// 1. If the path is empty, it is considered valid.
-// 2. If the path starts with `\\?\` or \??\, it is considered valid without further checks.
-// 3. Otherwise, a path ending with a space or . is invalid.
-func validatePathForCreate(path string) bool {
-	// Check if the path is empty.
-	if len(path) == 0 {
-		return true
-	}
-	// Paths starting with \\?\ should be considered valid without further checks.
-	if stringslite.HasPrefix(path, `\\?\`) || stringslite.HasPrefix(path, `\??\`) {
-		return true
-	}
-	// Get the base name of the path to check only the last component.
-	base := filepathlite.Base(path)
-	// Check if the last character of the base name is a space or period, which is invalid.
-	switch base[len(base)-1] {
-	case ' ':
-		return false
-	case '.':
-		return base == "." || base == ".."
-	default:
-		return true
-	}
 }

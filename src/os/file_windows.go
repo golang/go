@@ -17,8 +17,6 @@ import (
 	"unsafe"
 )
 
-var errInvalidPath = errors.New("invalid path: cannot end with a space or period")
-
 // This matches the value in syscall/syscall_windows.go.
 const _UTIME_OMIT = -1
 
@@ -104,9 +102,6 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if name == "" {
 		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOENT}
 	}
-	if flag&O_CREATE != 0 && !validatePathForCreate(name) {
-		return nil, &PathError{Op: "open", Path: name, Err: errInvalidPath}
-	}
 	path := fixLongPath(name)
 	r, err := syscall.Open(path, flag|syscall.O_CLOEXEC, syscallMode(perm))
 	if err != nil {
@@ -117,14 +112,6 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 
 func openDirNolog(name string) (*File, error) {
 	return openFileNolog(name, O_RDONLY, 0)
-}
-
-func mkdir(name string, perm FileMode) error {
-	if !validatePathForCreate(name) {
-		return errInvalidPath
-	}
-	longName := fixLongPath(name)
-	return syscall.Mkdir(longName, syscallMode(perm))
 }
 
 func (file *file) close() error {
@@ -217,9 +204,6 @@ func Remove(name string) error {
 }
 
 func rename(oldname, newname string) error {
-	if !validatePathForCreate(newname) {
-		return &LinkError{"rename", oldname, newname, errInvalidPath}
-	}
 	e := windows.Rename(fixLongPath(oldname), fixLongPath(newname))
 	if e != nil {
 		return &LinkError{"rename", oldname, newname, e}
@@ -268,9 +252,6 @@ func tempDir() string {
 // Link creates newname as a hard link to the oldname file.
 // If there is an error, it will be of type *LinkError.
 func Link(oldname, newname string) error {
-	if !validatePathForCreate(newname) {
-		return &LinkError{"link", oldname, newname, errInvalidPath}
-	}
 	n, err := syscall.UTF16PtrFromString(fixLongPath(newname))
 	if err != nil {
 		return &LinkError{"link", oldname, newname, err}
@@ -291,9 +272,6 @@ func Link(oldname, newname string) error {
 // if oldname is later created as a directory the symlink will not work.
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
-	if !validatePathForCreate(newname) {
-		return &LinkError{"symlink", oldname, newname, errInvalidPath}
-	}
 	// '/' does not work in link's content
 	oldname = filepathlite.FromSlash(oldname)
 

@@ -305,18 +305,25 @@ func (f *File) WriteString(s string) (n int, err error) {
 // bits (before umask).
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
-	err := mkdir(name, perm)
-	if err != nil {
-		return &PathError{Op: "mkdir", Path: name, Err: err}
+	longName := fixLongPath(name)
+	e := ignoringEINTR(func() error {
+		return syscall.Mkdir(longName, syscallMode(perm))
+	})
+
+	if e != nil {
+		return &PathError{Op: "mkdir", Path: name, Err: e}
 	}
+
 	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
 	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
-		err = setStickyBit(name)
-		if err != nil {
+		e = setStickyBit(name)
+
+		if e != nil {
 			Remove(name)
-			return err
+			return e
 		}
 	}
+
 	return nil
 }
 
