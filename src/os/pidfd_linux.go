@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
-	"unsafe"
+	_ "unsafe" // for linkname
 )
 
 // ensurePidfd initializes the PidFD field in sysAttr if it is not already set.
@@ -78,9 +78,6 @@ func pidfdFind(pid int) (uintptr, error) {
 	return h, nil
 }
 
-// _P_PIDFD is used as idtype argument to waitid syscall.
-const _P_PIDFD = 3
-
 func (p *Process) pidfdWait() (*ProcessState, error) {
 	// When pidfd is used, there is no wait/kill race (described in CL 23967)
 	// because the PID recycle issue doesn't exist (IOW, pidfd, unlike PID,
@@ -104,16 +101,12 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
 	var (
 		info   unix.SiginfoChild
 		rusage syscall.Rusage
-		e      syscall.Errno
 	)
-	for {
-		_, _, e = syscall.Syscall6(syscall.SYS_WAITID, _P_PIDFD, handle, uintptr(unsafe.Pointer(&info)), syscall.WEXITED, uintptr(unsafe.Pointer(&rusage)), 0)
-		if e != syscall.EINTR {
-			break
-		}
-	}
-	if e != 0 {
-		return nil, NewSyscallError("waitid", e)
+	err := ignoringEINTR(func() error {
+		return unix.Waitid(unix.P_PIDFD, int(handle), &info, syscall.WEXITED, &rusage)
+	})
+	if err != nil {
+		return nil, NewSyscallError("waitid", err)
 	}
 	// Release the Process' handle reference, in addition to the reference
 	// we took above.
@@ -168,12 +161,9 @@ func checkPidfd() error {
 	defer syscall.Close(int(fd))
 
 	// Check waitid(P_PIDFD) works.
-	for {
-		_, _, err = syscall.Syscall6(syscall.SYS_WAITID, _P_PIDFD, fd, 0, syscall.WEXITED, 0, 0)
-		if err != syscall.EINTR {
-			break
-		}
-	}
+	err = ignoringEINTR(func() error {
+		return unix.Waitid(unix.P_PIDFD, int(fd), nil, syscall.WEXITED, nil)
+	})
 	// Expect ECHILD from waitid since we're not our own parent.
 	if err != syscall.ECHILD {
 		return NewSyscallError("pidfd_wait", err)

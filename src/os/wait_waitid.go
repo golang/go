@@ -10,29 +10,18 @@
 package os
 
 import (
+	"internal/syscall/unix"
 	"runtime"
 	"syscall"
-	"unsafe"
 )
-
-const _P_PID = 1
 
 // blockUntilWaitable attempts to block until a call to p.Wait will
 // succeed immediately, and reports whether it has done so.
 // It does not actually call p.Wait.
 func (p *Process) blockUntilWaitable() (bool, error) {
-	// The waitid system call expects a pointer to a siginfo_t,
-	// which is 128 bytes on all Linux systems.
-	// On darwin/amd64, it requires 104 bytes.
-	// We don't care about the values it returns.
-	var siginfo [16]uint64
-	psig := &siginfo[0]
+	var info unix.SiginfoChild
 	err := ignoringEINTR(func() error {
-		_, _, errno := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
-		if errno != 0 {
-			return errno
-		}
-		return nil
+		return unix.Waitid(unix.P_PID, p.Pid, &info, syscall.WEXITED|syscall.WNOWAIT, nil)
 	})
 	runtime.KeepAlive(p)
 	if err != nil {
