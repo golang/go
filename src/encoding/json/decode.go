@@ -128,13 +128,22 @@ type UnmarshalTypeError struct {
 	Offset int64        // error occurred after reading Offset bytes
 	Struct string       // name of the struct type containing the field
 	Field  string       // the full path from root node to the field, include embedded struct
+	Err    error        // Error which occurred during unmarshal
 }
 
 func (e *UnmarshalTypeError) Error() string {
+	if e.Err != nil {
+		return e.Err.Error()
+	}
+
 	if e.Struct != "" || e.Field != "" {
 		return "json: cannot unmarshal " + e.Value + " into Go struct field " + e.Struct + "." + e.Field + " of type " + e.Type.String()
 	}
 	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
+}
+
+func (e *UnmarshalTypeError) Unwrap() error {
+	return e.Err
 }
 
 // An UnmarshalFieldError describes a JSON object key that
@@ -508,7 +517,15 @@ func (d *decodeState) array(v reflect.Value) error {
 	if u != nil {
 		start := d.readIndex()
 		d.skip()
-		return u.UnmarshalJSON(d.data[start:d.off])
+		if err := u.UnmarshalJSON(d.data[start:d.off]); err != nil {
+			if e, ok := err.(*UnmarshalTypeError); ok {
+				return e
+			}
+
+			d.saveError(&UnmarshalTypeError{Value: "array", Type: v.Type(), Offset: int64(d.off), Err: err})
+		}
+
+		return nil
 	}
 	if ut != nil {
 		d.saveError(&UnmarshalTypeError{Value: "array", Type: v.Type(), Offset: int64(d.off)})
@@ -605,7 +622,16 @@ func (d *decodeState) object(v reflect.Value) error {
 	if u != nil {
 		start := d.readIndex()
 		d.skip()
-		return u.UnmarshalJSON(d.data[start:d.off])
+		err := u.UnmarshalJSON(d.data[start:d.off])
+		if err != nil {
+			if e, ok := err.(*UnmarshalTypeError); ok {
+				return e
+			}
+
+			d.saveError(&UnmarshalTypeError{Value: "object", Type: v.Type(), Offset: int64(d.off), Err: err})
+		}
+
+		return nil
 	}
 	if ut != nil {
 		d.saveError(&UnmarshalTypeError{Value: "object", Type: v.Type(), Offset: int64(d.off)})
@@ -861,7 +887,28 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 	isNull := item[0] == 'n' // null
 	u, ut, pv := indirect(v, isNull)
 	if u != nil {
-		return u.UnmarshalJSON(item)
+		err := u.UnmarshalJSON(item)
+		if err != nil {
+			if e, ok := err.(*UnmarshalTypeError); ok {
+				return e
+			}
+
+			var val string
+			switch item[0] {
+			case '"':
+				val = "string"
+			case 'n':
+				val = "null"
+			case 't', 'f':
+				val = "bool"
+			default:
+				val = "number"
+			}
+
+			d.saveError(&UnmarshalTypeError{Value: val, Type: v.Type(), Offset: int64(d.readIndex()), Err: err})
+		}
+
+		return nil
 	}
 	if ut != nil {
 		if item[0] != '"' {
@@ -886,7 +933,13 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			}
 			panic(phasePanicMsg)
 		}
-		return ut.UnmarshalText(s)
+
+		err := ut.UnmarshalText(s)
+		if err != nil {
+			d.saveError(&UnmarshalTypeError{Value: "string", Type: v.Type(), Offset: int64(d.readIndex()), Err: err})
+		}
+
+		return nil
 	}
 
 	v = pv
