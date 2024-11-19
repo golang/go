@@ -14,6 +14,22 @@ import (
 	"slices"
 )
 
+// OpenInRoot opens the file name in the directory dir.
+// It is equivalent to OpenRoot(dir) followed by opening the file in the root.
+//
+// OpenInRoot returns an error if any component of the name
+// references a location outside of dir.
+//
+// See [Root] for details and limitations.
+func OpenInRoot(dir, name string) (*File, error) {
+	r, err := OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return r.Open(name)
+}
+
 // Root may be used to only access files within a single directory tree.
 //
 // Methods on Root can only access files and directories beneath a root directory.

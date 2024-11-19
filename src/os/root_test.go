@@ -1157,3 +1157,26 @@ func TestRootRaceRenameDir(t *testing.T) {
 		}
 	}
 }
+
+func TestOpenInRoot(t *testing.T) {
+	dir := makefs(t, []string{
+		"file",
+		"link => ../ROOT/file",
+	})
+	f, err := os.OpenInRoot(dir, "file")
+	if err != nil {
+		t.Fatalf("OpenInRoot(`file`) = %v, want success", err)
+	}
+	f.Close()
+	for _, name := range []string{
+		"link",
+		"../ROOT/file",
+		dir + "/file",
+	} {
+		f, err := os.OpenInRoot(dir, name)
+		if err == nil {
+			f.Close()
+			t.Fatalf("OpenInRoot(%q) = nil, want error", name)
+		}
+	}
+}
