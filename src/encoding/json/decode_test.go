@@ -443,7 +443,7 @@ var unmarshalTests = []struct {
 	{CaseName: Name(""), in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{CaseName: Name(""), in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("json: unknown field \"x\""), disallowUnknownFields: true},
 	{CaseName: Name(""), in: `{"S": 23}`, ptr: new(W), out: W{}, err: &UnmarshalTypeError{"number", reflect.TypeFor[SS](), 0, "W", "S"}},
-	{CaseName: Name(""), in: `{"T": {"X": 23}}`, ptr: new(TOuter), out: TOuter{}, err: &UnmarshalTypeError{"number", reflect.TypeFor[string](), 0, "TOuter", "T.X"}},
+	{CaseName: Name(""), in: `{"T": {"X": 23}}`, ptr: new(TOuter), out: TOuter{}, err: &UnmarshalTypeError{"number", reflect.TypeFor[string](), 8, "TOuter", "T.X"}},
 	{CaseName: Name(""), in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{CaseName: Name(""), in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
 	{CaseName: Name(""), in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(any), out: ifaceNumAsFloat64},
@@ -907,7 +907,7 @@ var unmarshalTests = []struct {
 			Struct: "Top",
 			Field:  "Embed0a.Level1a",
 			Type:   reflect.TypeFor[int](),
-			Offset: 10,
+			Offset: 19,
 		},
 	},
 
@@ -1029,7 +1029,7 @@ var unmarshalTests = []struct {
 			Struct: "T",
 			Field:  "Ts.Y",
 			Type:   reflect.TypeFor[int](),
-			Offset: 29,
+			Offset: 44,
 		},
 	},
 	// #14702
@@ -1170,8 +1170,27 @@ func TestMarshalEmbeds(t *testing.T) {
 }
 
 func equalError(a, b error) bool {
+	isJSONError := func(err error) bool {
+		switch err.(type) {
+		case
+			*InvalidUTF8Error,
+			*InvalidUnmarshalError,
+			*MarshalerError,
+			*SyntaxError,
+			*UnmarshalFieldError,
+			*UnmarshalTypeError,
+			*UnsupportedTypeError,
+			*UnsupportedValueError:
+			return true
+		}
+		return false
+	}
+
 	if a == nil || b == nil {
 		return a == nil && b == nil
+	}
+	if isJSONError(a) || isJSONError(b) {
+		return reflect.DeepEqual(a, b) // safe for locally defined error types
 	}
 	return a.Error() == b.Error()
 }
@@ -1217,7 +1236,7 @@ func TestUnmarshal(t *testing.T) {
 				dec.DisallowUnknownFields()
 			}
 			if err := dec.Decode(v.Interface()); !equalError(err, tt.err) {
-				t.Fatalf("%s: Decode error:\n\tgot:  %v\n\twant: %v", tt.Where, err, tt.err)
+				t.Fatalf("%s: Decode error:\n\tgot:  %#v\n\twant: %#v", tt.Where, err, tt.err)
 			} else if err != nil {
 				return
 			}
@@ -2222,49 +2241,27 @@ func TestPrefilled(t *testing.T) {
 }
 
 func TestInvalidUnmarshal(t *testing.T) {
-	buf := []byte(`{"a":"1"}`)
 	tests := []struct {
 		CaseName
-		v    any
-		want string
+		in      string
+		v       any
+		wantErr error
 	}{
-		{Name(""), nil, "json: Unmarshal(nil)"},
-		{Name(""), struct{}{}, "json: Unmarshal(non-pointer struct {})"},
-		{Name(""), (*int)(nil), "json: Unmarshal(nil *int)"},
+		{Name(""), `{"a":"1"}`, nil, &InvalidUnmarshalError{}},
+		{Name(""), `{"a":"1"}`, struct{}{}, &InvalidUnmarshalError{reflect.TypeFor[struct{}]()}},
+		{Name(""), `{"a":"1"}`, (*int)(nil), &InvalidUnmarshalError{reflect.TypeFor[*int]()}},
+		{Name(""), `123`, nil, &InvalidUnmarshalError{}},
+		{Name(""), `123`, struct{}{}, &InvalidUnmarshalError{reflect.TypeFor[struct{}]()}},
+		{Name(""), `123`, (*int)(nil), &InvalidUnmarshalError{reflect.TypeFor[*int]()}},
+		{Name(""), `123`, new(net.IP), &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[*net.IP](), Offset: 3}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			err := Unmarshal(buf, tt.v)
-			if err == nil {
+			switch gotErr := Unmarshal([]byte(tt.in), tt.v); {
+			case gotErr == nil:
 				t.Fatalf("%s: Unmarshal error: got nil, want non-nil", tt.Where)
-			}
-			if got := err.Error(); got != tt.want {
-				t.Errorf("%s: Unmarshal error:\n\tgot:  %s\n\twant: %s", tt.Where, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestInvalidUnmarshalText(t *testing.T) {
-	buf := []byte(`123`)
-	tests := []struct {
-		CaseName
-		v    any
-		want string
-	}{
-		{Name(""), nil, "json: Unmarshal(nil)"},
-		{Name(""), struct{}{}, "json: Unmarshal(non-pointer struct {})"},
-		{Name(""), (*int)(nil), "json: Unmarshal(nil *int)"},
-		{Name(""), new(net.IP), "json: cannot unmarshal number into Go value of type *net.IP"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			err := Unmarshal(buf, tt.v)
-			if err == nil {
-				t.Fatalf("%s: Unmarshal error: got nil, want non-nil", tt.Where)
-			}
-			if got := err.Error(); got != tt.want {
-				t.Errorf("%s: Unmarshal error:\n\tgot:  %s\n\twant: %s", tt.Where, got, tt.want)
+			case !reflect.DeepEqual(gotErr, tt.wantErr):
+				t.Errorf("%s: Unmarshal error:\n\tgot:  %#v\n\twant: %#v", tt.Where, gotErr, tt.wantErr)
 			}
 		})
 	}
