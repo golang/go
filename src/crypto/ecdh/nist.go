@@ -93,7 +93,7 @@ func (c *nistCurve[Point]) NewPrivateKey(key []byte) (*PrivateKey, error) {
 	return k, nil
 }
 
-func newBoringPrivateKey(c Curve, bk *boring.PrivateKeyECDH, privateKey []byte) (*PrivateKey, error) {
+func newBoringPrivateKey(c Curve, bk boring.PrivateKeyECDH, privateKey []byte) (*PrivateKey, error) {
 	k := &PrivateKey{
 		curve:      c,
 		boring:     bk,

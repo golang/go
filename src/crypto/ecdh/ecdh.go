@@ -66,9 +66,10 @@ type Curve interface {
 // with [crypto/x509.MarshalPKIXPublicKey]. For NIST curves, they then need to
 // be converted with [crypto/ecdsa.PublicKey.ECDH] after parsing.
 type PublicKey struct {
+	boring boring.PublicKeyECDH
+
 	curve     Curve
 	publicKey []byte
-	boring    *boring.PublicKeyECDH
 }
 
 // Bytes returns a copy of the encoding of the public key.
@@ -105,9 +106,10 @@ func (k *PublicKey) Curve() Curve {
 // with [crypto/x509.MarshalPKCS8PrivateKey]. For NIST curves, they then need to
 // be converted with [crypto/ecdsa.PrivateKey.ECDH] after parsing.
 type PrivateKey struct {
+	boring boring.PrivateKeyECDH
+
 	curve      Curve
 	privateKey []byte
-	boring     *boring.PrivateKeyECDH
 	// publicKey is set under publicKeyOnce, to allow loading private keys with
 	// NewPrivateKey without having to perform a scalar multiplication.
 	publicKey     *PublicKey
@@ -160,7 +162,7 @@ func (k *PrivateKey) Curve() Curve {
 
 func (k *PrivateKey) PublicKey() *PublicKey {
 	k.publicKeyOnce.Do(func() {
-		if k.boring != nil {
+		if boring.Enabled && k.boring.Valid() {
 			// Because we already checked in NewPrivateKey that the key is valid,
 			// there should not be any possible errors from BoringCrypto,
 			// so we turn the error into a panic.
