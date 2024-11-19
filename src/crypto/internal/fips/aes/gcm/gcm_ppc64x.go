@@ -29,7 +29,7 @@ func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *u
 // at runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG
 // knob for that. It's intentionally only checked at init() time, to
 // avoid the performance overhead of checking it every time.
-var supportsAESGCM = godebug.New("#ppc64gcm").Value() == "off"
+var supportsAESGCM = godebug.New("#ppc64gcm").Value() != "off"
 
 func init() {
 	impl.Register("gcm", "POWER8", &supportsAESGCM)
