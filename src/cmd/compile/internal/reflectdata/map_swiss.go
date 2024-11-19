@@ -269,6 +269,12 @@ func writeSwissMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
 
 	slotTyp := gtyp.Field(1).Type.Elem()
 	elemOff := slotTyp.Field(1).Offset
+	if AlgType(t.Key()) == types.AMEM64 && elemOff != 8 {
+		base.Fatalf("runtime assumes elemOff for 8-byte keys is 8, got %d", elemOff)
+	}
+	if AlgType(t.Key()) == types.ASTRING && elemOff != int64(2*types.PtrSize) {
+		base.Fatalf("runtime assumes elemOff for string keys is %d, got %d", 2*types.PtrSize, elemOff)
+	}
 
 	c.Field("Key").WritePtr(s1)
 	c.Field("Elem").WritePtr(s2)

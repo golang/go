@@ -39,7 +39,7 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
 		slotSize := typ.SlotSize
 		for full != 0 {
 			if key == *(*uint64)(slotKey) && full&(1<<7) != 0 {
-				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
 				return slotElem
 			}
 			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
@@ -66,7 +66,7 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
 
 			slotKey := g.key(typ, i)
 			if key == *(*uint64)(slotKey) {
-				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
 				return slotElem
 			}
 			match = match.removeFirst()
@@ -107,7 +107,7 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
 		slotSize := typ.SlotSize
 		for full != 0 {
 			if key == *(*uint64)(slotKey) && full&(1<<7) != 0 {
-				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
 				return slotElem, true
 			}
 			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
@@ -134,7 +134,7 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
 
 			slotKey := g.key(typ, i)
 			if key == *(*uint64)(slotKey) {
-				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
 				return slotElem, true
 			}
 			match = match.removeFirst()
