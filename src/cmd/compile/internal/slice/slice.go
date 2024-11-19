@@ -124,6 +124,11 @@ func Funcs(all []*ir.Func) {
 	for _, fn := range all {
 		analyze(fn)
 	}
+	for _, fn := range all {
+		if ir.MatchAstDump(fn, "slice") {
+			ir.AstDump(fn, "slice, "+ir.FuncName(fn))
+		}
+	}
 }
 
 func analyze(fn *ir.Func) {

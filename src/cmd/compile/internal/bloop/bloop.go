@@ -320,5 +320,9 @@ func Walk(pkg *ir.Package) {
 	for _, fn := range pkg.Funcs {
 		e := editor{false, fn}
 		ir.EditChildren(fn, e.edit)
+		if ir.MatchAstDump(fn, "bloop") {
+			ir.AstDump(fn, "bloop, "+ir.FuncName(fn))
+		}
 	}
+
 }

@@ -448,6 +448,11 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 		}
 	}
 	ir.WithFunc(fn, forCapture)
+
+	if ir.MatchAstDump(fn, "loopvar") {
+		ir.AstDump(fn, "loopvar, "+ir.FuncName(fn))
+	}
+
 	return transformed
 }
 
