@@ -1840,9 +1840,11 @@ func testOpenError(t *testing.T, dir string, rooted bool) {
 				expectedErrStr := strings.Replace(tt.error.Error(), "file ", "", 1)
 				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
 					// Some Plan 9 file servers incorrectly return
-					// EACCES rather than EISDIR when a directory is
+					// EPERM or EACCES rather than EISDIR when a directory is
 					// opened for write.
-					if tt.error == syscall.EISDIR && strings.HasSuffix(syscallErrStr, syscall.EACCES.Error()) {
+					if tt.error == syscall.EISDIR &&
+						(strings.HasSuffix(syscallErrStr, syscall.EPERM.Error()) ||
+							strings.HasSuffix(syscallErrStr, syscall.EACCES.Error())) {
 						continue
 					}
 					t.Errorf("%v = _, %q; want suffix %q", name, syscallErrStr, expectedErrStr)
