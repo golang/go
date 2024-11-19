@@ -839,7 +839,8 @@ func TestIssue59944(t *testing.T) {
 	testenv.MustHaveCGO(t)
 
 	// The typechecker should resolve methods declared on aliases of cgo types.
-	const src = `
+	const src = `// -gotypesalias=1
+
 package p
 
 /*
@@ -851,7 +852,7 @@ import "C"
 
 type Layout = C.struct_layout
 
-func (l *Layout) Binding() {}
+func (l /* ERROR "cannot define new methods on non-local type Layout" */ *Layout) Binding() {}
 
 func _() {
 	_ = (*Layout).Binding

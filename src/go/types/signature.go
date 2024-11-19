@@ -9,6 +9,8 @@ import (
 	"go/ast"
 	"go/token"
 	. "internal/types/errors"
+	"path/filepath"
+	"strings"
 )
 
 // ----------------------------------------------------------------------------
@@ -430,7 +432,7 @@ func (check *Checker) validRecv(recv *Var) {
 	// as the method."
 	switch T := atyp.(type) {
 	case *Named:
-		if T.obj.pkg != check.pkg {
+		if T.obj.pkg != check.pkg || isCGoTypeObj(check.fset, T.obj) {
 			check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
 			break
 		}
@@ -456,4 +458,10 @@ func (check *Checker) validRecv(recv *Var) {
 	default:
 		check.errorf(recv, InvalidRecv, "invalid receiver type %s", recv.typ)
 	}
+}
+
+// isCGoTypeObj reports whether the given type name was created by cgo.
+func isCGoTypeObj(fset *token.FileSet, obj *TypeName) bool {
+	return strings.HasPrefix(obj.name, "_Ctype_") ||
+		strings.HasPrefix(filepath.Base(fset.File(obj.pos).Name()), "_cgo_")
 }
