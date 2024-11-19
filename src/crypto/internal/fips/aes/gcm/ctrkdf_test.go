@@ -12,10 +12,14 @@ import (
 	"crypto/internal/fips/drbg"
 	"crypto/internal/fips/sha3"
 	"encoding/hex"
+	"runtime"
 	"testing"
 )
 
 func TestAllocations(t *testing.T) {
+	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
+		t.Skip("Test reports non-zero allocation count. See issue #70448")
+	}
 	cryptotest.SkipTestAllocations(t)
 	if allocs := testing.AllocsPerRun(10, func() {
 		key := make([]byte, 32)
