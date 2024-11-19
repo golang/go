@@ -4,12 +4,14 @@
 
 package rsa
 
-// This file implements the RSASSA-PSS signature scheme according to RFC 8017.
+// This file implements the RSASSA-PSS signature scheme and the RSAES-OAEP
+// encryption scheme according to RFC 8017, aka PKCS #1 v2.2.
 
 import (
 	"bytes"
 	"crypto"
 	"crypto/internal/boring"
+	"crypto/subtle"
 	"errors"
 	"hash"
 	"io"
@@ -27,6 +29,41 @@ import (
 //
 //     emLen = dbLen + hLen + 1 = psLen + sLen + hLen + 2
 //
+
+// incCounter increments a four byte, big-endian counter.
+func incCounter(c *[4]byte) {
+	if c[3]++; c[3] != 0 {
+		return
+	}
+	if c[2]++; c[2] != 0 {
+		return
+	}
+	if c[1]++; c[1] != 0 {
+		return
+	}
+	c[0]++
+}
+
+// mgf1XOR XORs the bytes in out with a mask generated using the MGF1 function
+// specified in PKCS #1 v2.1.
+func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
+	var counter [4]byte
+	var digest []byte
+
+	done := 0
+	for done < len(out) {
+		hash.Write(seed)
+		hash.Write(counter[0:4])
+		digest = hash.Sum(digest[:0])
+		hash.Reset()
+
+		for i := 0; i < len(digest) && done < len(out); i++ {
+			out[done] ^= digest[i]
+			done++
+		}
+		incCounter(&counter)
+	}
+}
 
 func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byte, error) {
 	// See RFC 8017, Section 9.1.1.
@@ -382,4 +419,164 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 	}
 
 	return emsaPSSVerify(digest, em, emBits, opts.saltLength(), hash.New())
+}
+
+// EncryptOAEP encrypts the given message with RSA-OAEP.
+//
+// OAEP is parameterised by a hash function that is used as a random oracle.
+// Encryption and decryption of a given message must use the same hash function
+// and sha256.New() is a reasonable choice.
+//
+// The random parameter is used as a source of entropy to ensure that
+// encrypting the same message twice doesn't result in the same ciphertext.
+// Most applications should use [crypto/rand.Reader] as random.
+//
+// The label parameter may contain arbitrary data that will not be encrypted,
+// but which gives important context to the message. For example, if a given
+// public key is used to encrypt two types of messages then distinct label
+// values could be used to ensure that a ciphertext for one purpose cannot be
+// used for another by an attacker. If not required it can be empty.
+//
+// The message must be no longer than the length of the public modulus minus
+// twice the hash length, minus a further 2.
+func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+	// Note that while we don't commit to deterministic execution with respect
+	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
+	// Law it's probably relied upon by some. It's a tolerable promise because a
+	// well-specified number of random bytes is included in the ciphertext, in a
+	// well-specified way.
+
+	if err := checkPub(pub); err != nil {
+		return nil, err
+	}
+	hash.Reset()
+	k := pub.Size()
+	if len(msg) > k-2*hash.Size()-2 {
+		return nil, ErrMessageTooLong
+	}
+
+	if boring.Enabled && random == boring.RandReader {
+		bkey, err := boringPublicKey(pub)
+		if err != nil {
+			return nil, err
+		}
+		return boring.EncryptRSAOAEP(hash, hash, bkey, msg, label)
+	}
+	boring.UnreachableExceptTests()
+
+	hash.Write(label)
+	lHash := hash.Sum(nil)
+	hash.Reset()
+
+	em := make([]byte, k)
+	seed := em[1 : 1+hash.Size()]
+	db := em[1+hash.Size():]
+
+	copy(db[0:hash.Size()], lHash)
+	db[len(db)-len(msg)-1] = 1
+	copy(db[len(db)-len(msg):], msg)
+
+	_, err := io.ReadFull(random, seed)
+	if err != nil {
+		return nil, err
+	}
+
+	mgf1XOR(db, hash, seed)
+	mgf1XOR(seed, hash, db)
+
+	if boring.Enabled {
+		var bkey *boring.PublicKeyRSA
+		bkey, err = boringPublicKey(pub)
+		if err != nil {
+			return nil, err
+		}
+		return boring.EncryptRSANoPadding(bkey, em)
+	}
+
+	return encrypt(pub, em)
+}
+
+// DecryptOAEP decrypts ciphertext using RSA-OAEP.
+//
+// OAEP is parameterised by a hash function that is used as a random oracle.
+// Encryption and decryption of a given message must use the same hash function
+// and sha256.New() is a reasonable choice.
+//
+// The random parameter is legacy and ignored, and it can be nil.
+//
+// The label parameter must match the value given when encrypting. See
+// [EncryptOAEP] for details.
+func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+	return decryptOAEP(hash, hash, random, priv, ciphertext, label)
+}
+
+func decryptOAEP(hash, mgfHash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+	if err := checkPub(&priv.PublicKey); err != nil {
+		return nil, err
+	}
+	k := priv.Size()
+	if len(ciphertext) > k ||
+		k < hash.Size()*2+2 {
+		return nil, ErrDecryption
+	}
+
+	if boring.Enabled {
+		bkey, err := boringPrivateKey(priv)
+		if err != nil {
+			return nil, err
+		}
+		out, err := boring.DecryptRSAOAEP(hash, mgfHash, bkey, ciphertext, label)
+		if err != nil {
+			return nil, ErrDecryption
+		}
+		return out, nil
+	}
+
+	em, err := decrypt(priv, ciphertext, noCheck)
+	if err != nil {
+		return nil, err
+	}
+
+	hash.Write(label)
+	lHash := hash.Sum(nil)
+	hash.Reset()
+
+	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
+
+	seed := em[1 : hash.Size()+1]
+	db := em[hash.Size()+1:]
+
+	mgf1XOR(seed, mgfHash, db)
+	mgf1XOR(db, mgfHash, seed)
+
+	lHash2 := db[0:hash.Size()]
+
+	// We have to validate the plaintext in constant time in order to avoid
+	// attacks like: J. Manger. A Chosen Ciphertext Attack on RSA Optimal
+	// Asymmetric Encryption Padding (OAEP) as Standardized in PKCS #1
+	// v2.0. In J. Kilian, editor, Advances in Cryptology.
+	lHash2Good := subtle.ConstantTimeCompare(lHash, lHash2)
+
+	// The remainder of the plaintext must be zero or more 0x00, followed
+	// by 0x01, followed by the message.
+	//   lookingForIndex: 1 iff we are still looking for the 0x01
+	//   index: the offset of the first 0x01 byte
+	//   invalid: 1 iff we saw a non-zero byte before the 0x01.
+	var lookingForIndex, index, invalid int
+	lookingForIndex = 1
+	rest := db[hash.Size():]
+
+	for i := 0; i < len(rest); i++ {
+		equals0 := subtle.ConstantTimeByteEq(rest[i], 0)
+		equals1 := subtle.ConstantTimeByteEq(rest[i], 1)
+		index = subtle.ConstantTimeSelect(lookingForIndex&equals1, i, index)
+		lookingForIndex = subtle.ConstantTimeSelect(equals1, 0, lookingForIndex)
+		invalid = subtle.ConstantTimeSelect(lookingForIndex&^equals0, 1, invalid)
+	}
+
+	if firstByteIsZero&lHash2Good&^invalid&^lookingForIndex != 1 {
+		return nil, ErrDecryption
+	}
+
+	return rest[index+1:], nil
 }
