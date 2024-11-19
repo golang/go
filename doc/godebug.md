@@ -165,7 +165,7 @@ The possible values for `multipathtcp` are now:
 - "3": enable MPTCP on dialers only by default
 
 For Go 1.24, it now defaults to multipathtcp="2", thus
-enabled by default on listerners. Using multipathtcp="0" reverts to the
+enabled by default on listeners. Using multipathtcp="0" reverts to the
 pre-Go 1.24 behavior.
 
 Go 1.24 changed the behavior of `go test -json` to emit build errors as JSON
