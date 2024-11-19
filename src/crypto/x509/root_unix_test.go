@@ -151,7 +151,6 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
 	rootPEMs := []string{
 		gtsRoot,
 		googleLeaf,
-		startComRoot,
 	}
 
 	var certDirs []string
