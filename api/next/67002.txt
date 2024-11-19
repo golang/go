@@ -1,6 +1,7 @@
 pkg os, func OpenRoot(string) (*Root, error) #67002
 pkg os, method (*Root) Close() error #67002
 pkg os, method (*Root) Create(string) (*File, error) #67002
+pkg os, method (*Root) FS() fs.FS #67002
 pkg os, method (*Root) Lstat(string) (fs.FileInfo, error) #67002
 pkg os, method (*Root) Mkdir(string, fs.FileMode) error #67002
 pkg os, method (*Root) Name() string #67002

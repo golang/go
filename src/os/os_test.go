@@ -3188,10 +3188,21 @@ func forceMFTUpdateOnWindows(t *testing.T, path string) {
 
 func TestDirFS(t *testing.T) {
 	t.Parallel()
+	testDirFS(t, DirFS("./testdata/dirfs"))
+}
 
+func TestRootDirFS(t *testing.T) {
+	t.Parallel()
+	r, err := OpenRoot("./testdata/dirfs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	testDirFS(t, r.FS())
+}
+
+func testDirFS(t *testing.T, fsys fs.FS) {
 	forceMFTUpdateOnWindows(t, "./testdata/dirfs")
 
-	fsys := DirFS("./testdata/dirfs")
 	if err := fstest.TestFS(fsys, "a", "b", "dir/x"); err != nil {
 		t.Fatal(err)
 	}
