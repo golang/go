@@ -53,8 +53,9 @@ const (
 	inlineExtraPanicCost = 1               // do not penalize inlining panics.
 	inlineExtraThrowCost = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
 
-	inlineBigFunctionNodes   = 5000 // Functions with this many nodes are considered "big".
-	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
+	inlineBigFunctionNodes      = 5000                 // Functions with this many nodes are considered "big".
+	inlineBigFunctionMaxCost    = 20                   // Max cost of inlinee when inlining into a "big" function.
+	inlineClosureCalledOnceCost = 10 * inlineMaxBudget // if a closure is just called once, inline it.
 )
 
 var (
@@ -207,7 +208,8 @@ func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose boo
 		budget += inlheur.BudgetExpansion(inlineMaxBudget)
 	}
 	if fn.ClosureParent != nil {
-		budget *= 2
+		// be very liberal here, if the closure is only called once, the budget is large
+		budget = max(budget, inlineClosureCalledOnceCost)
 	}
 	return budget
 }
@@ -561,11 +563,11 @@ opSwitch:
 			break
 		}
 
-		if callee := inlCallee(v.curFunc, n.Fun, v.profile); callee != nil && typecheck.HaveInlineBody(callee) {
+		if callee := inlCallee(v.curFunc, n.Fun, v.profile, false); callee != nil && typecheck.HaveInlineBody(callee) {
 			// Check whether we'd actually inline this call. Set
 			// log == false since we aren't actually doing inlining
 			// yet.
-			if ok, _, _ := canInlineCallExpr(v.curFunc, n, callee, v.isBigFunc, false); ok {
+			if ok, _, _ := canInlineCallExpr(v.curFunc, n, callee, v.isBigFunc, false, false); ok {
 				// mkinlcall would inline this call [1], so use
 				// the cost of the inline body as the cost of
 				// the call, as that is what will actually
@@ -577,6 +579,9 @@ opSwitch:
 				// by looking at what has already been inlined.
 				// Since we haven't done any inlining yet we
 				// will miss those.
+				//
+				// TODO: in the case of a single-call closure, the inlining budget here is potentially much, much larger.
+				//
 				v.budget -= callee.Inl.Cost
 				break
 			}
@@ -774,17 +779,18 @@ func IsBigFunc(fn *ir.Func) bool {
 	})
 }
 
-// TryInlineCall returns an inlined call expression for call, or nil
-// if inlining is not possible.
-func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile *pgoir.Profile) *ir.InlinedCallExpr {
+// inlineCallCheck returns whether a call will never be inlineable
+// for basic reasons, and whether the call is an intrinisic call.
+// The intrinsic result singles out intrinsic calls for debug logging.
+func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
 	if base.Flag.LowerL == 0 {
-		return nil
+		return false, false
 	}
 	if call.Op() != ir.OCALLFUNC {
-		return nil
+		return false, false
 	}
 	if call.GoDefer || call.NoInline {
-		return nil
+		return false, false
 	}
 
 	// Prevent inlining some reflect.Value methods when using checkptr,
@@ -793,26 +799,49 @@ func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile
 		if method := ir.MethodExprName(call.Fun); method != nil {
 			switch types.ReflectSymName(method.Sym()) {
 			case "Value.UnsafeAddr", "Value.Pointer":
-				return nil
+				return false, false
 			}
 		}
 	}
-
-	if base.Flag.LowerM > 3 {
-		fmt.Printf("%v:call to func %+v\n", ir.Line(call), call.Fun)
-	}
 	if ir.IsIntrinsicCall(call) {
+		return false, true
+	}
+	return true, false
+}
+
+// InlineCallTarget returns the resolved-for-inlining target of a call.
+// It does not necessarily guarantee that the target can be inlined, though
+// obvious exclusions are applied.
+func InlineCallTarget(callerfn *ir.Func, call *ir.CallExpr, profile *pgoir.Profile) *ir.Func {
+	if mightInline, _ := inlineCallCheck(callerfn, call); !mightInline {
 		return nil
 	}
-	if fn := inlCallee(callerfn, call.Fun, profile); fn != nil && typecheck.HaveInlineBody(fn) {
-		return mkinlcall(callerfn, call, fn, bigCaller)
+	return inlCallee(callerfn, call.Fun, profile, true)
+}
+
+// TryInlineCall returns an inlined call expression for call, or nil
+// if inlining is not possible.
+func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile *pgoir.Profile, closureCalledOnce bool) *ir.InlinedCallExpr {
+	mightInline, isIntrinsic := inlineCallCheck(callerfn, call)
+
+	// Preserve old logging behavior
+	if (mightInline || isIntrinsic) && base.Flag.LowerM > 3 {
+		fmt.Printf("%v:call to func %+v\n", ir.Line(call), call.Fun)
+	}
+	if !mightInline {
+		return nil
+	}
+
+	if fn := inlCallee(callerfn, call.Fun, profile, false); fn != nil && typecheck.HaveInlineBody(fn) {
+		return mkinlcall(callerfn, call, fn, bigCaller, closureCalledOnce)
 	}
 	return nil
 }
 
 // inlCallee takes a function-typed expression and returns the underlying function ONAME
 // that it refers to if statically known. Otherwise, it returns nil.
-func inlCallee(caller *ir.Func, fn ir.Node, profile *pgoir.Profile) (res *ir.Func) {
+// resolveOnly skips cost-based inlineability checks for closures; the result may not actually be inlineable.
+func inlCallee(caller *ir.Func, fn ir.Node, profile *pgoir.Profile, resolveOnly bool) (res *ir.Func) {
 	fn = ir.StaticValue(fn)
 	switch fn.Op() {
 	case ir.OMETHEXPR:
@@ -836,7 +865,9 @@ func inlCallee(caller *ir.Func, fn ir.Node, profile *pgoir.Profile) (res *ir.Fun
 		if len(c.ClosureVars) != 0 && c.ClosureVars[0].Outer.Curfn != caller {
 			return nil // inliner doesn't support inlining across closure frames
 		}
-		CanInline(c, profile)
+		if !resolveOnly {
+			CanInline(c, profile)
+		}
 		return c
 	}
 	return nil
@@ -862,16 +893,20 @@ var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInde
 //   - the "max cost" limit used to make the decision (which may differ depending on func size)
 //   - the score assigned to this specific callsite
 //   - whether the inlined function is "hot" according to PGO.
-func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool, int32, int32, bool) {
+func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCalledOnce bool) (bool, int32, int32, bool) {
 	maxCost := int32(inlineMaxBudget)
-	if callee.ClosureParent != nil {
-		maxCost *= 2 // favor inlining closures
-	}
 
 	if bigCaller {
 		// We use this to restrict inlining into very big functions.
 		// See issue 26546 and 17566.
 		maxCost = inlineBigFunctionMaxCost
+	}
+
+	if callee.ClosureParent != nil {
+		maxCost *= 2           // favor inlining closures
+		if closureCalledOnce { // really favor inlining the one call to this closure
+			maxCost = max(maxCost, inlineClosureCalledOnceCost)
+		}
 	}
 
 	metric := callee.Inl.Cost
@@ -931,7 +966,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 // indicates that the 'cannot inline' reason should be logged.
 //
 // Preconditions: CanInline(callee) has already been called.
-func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCaller bool, log bool) (bool, int32, bool) {
+func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCaller, closureCalledOnce bool, log bool) (bool, int32, bool) {
 	if callee.Inl == nil {
 		// callee is never inlinable.
 		if log && logopt.Enabled() {
@@ -941,7 +976,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 		return false, 0, false
 	}
 
-	ok, maxCost, callSiteScore, hot := inlineCostOK(n, callerfn, callee, bigCaller)
+	ok, maxCost, callSiteScore, hot := inlineCostOK(n, callerfn, callee, bigCaller, closureCalledOnce)
 	if !ok {
 		// callee cost too high for this call site.
 		if log && logopt.Enabled() {
@@ -1024,8 +1059,8 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 // The result of mkinlcall MUST be assigned back to n, e.g.
 //
 //	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *ir.InlinedCallExpr {
-	ok, score, hot := canInlineCallExpr(callerfn, n, fn, bigCaller, true)
+func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closureCalledOnce bool) *ir.InlinedCallExpr {
+	ok, score, hot := canInlineCallExpr(callerfn, n, fn, bigCaller, closureCalledOnce, true)
 	if !ok {
 		return nil
 	}

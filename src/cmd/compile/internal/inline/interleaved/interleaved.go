@@ -43,17 +43,23 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 	inline.CanInlineFuncs(pkg.Funcs, inlProfile)
 
 	inlState := make(map[*ir.Func]*inlClosureState)
+	calleeUseCounts := make(map[*ir.Func]int)
 
+	// Pre-process all the functions, adding parentheses around call sites and starting their "inl state".
 	for _, fn := range typecheck.Target.Funcs {
-		// Pre-process all the functions, adding parentheses around call sites.
 		bigCaller := base.Flag.LowerL != 0 && inline.IsBigFunc(fn)
 		if bigCaller && base.Flag.LowerM > 1 {
 			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
 		}
 
-		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool)}
+		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool), useCounts: calleeUseCounts}
 		s.parenthesize()
 		inlState[fn] = s
+
+		// Do a first pass at counting call sites.
+		for i := range s.parens {
+			s.resolve(i)
+		}
 	}
 
 	ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
@@ -85,15 +91,34 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 				s := inlState[fn]
 
 				ir.WithFunc(fn, func() {
-					for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
-						paren := s.parens[i]
-						if new := s.edit(paren.X); new != nil {
-							// Update AST and recursively mark nodes.
-							paren.X = new
-							ir.EditChildren(new, s.mark) // mark may append to parens
-							done = false
+					l1 := len(s.parens)
+					l0 := 0
+
+					// Batch iterations so that newly discovered call sites are
+					// resolved in a batch before inlining attempts.
+					// Do this to avoid discovering new closure calls 1 at a time
+					// which might cause first call to be seen as a single (high-budget)
+					// call before the second is observed.
+					for {
+						for i := l0; i < l1; i++ { // can't use "range parens" here
+							paren := s.parens[i]
+							if new := s.edit(i); new != nil {
+								// Update AST and recursively mark nodes.
+								paren.X = new
+								ir.EditChildren(new, s.mark) // mark may append to parens
+								done = false
+							}
 						}
+						l0, l1 = l1, len(s.parens)
+						if l0 == l1 {
+							break
+						}
+						for i := l0; i < l1; i++ {
+							s.resolve(i)
+						}
+
 					}
+
 				}) // WithFunc
 
 			}
@@ -138,29 +163,70 @@ func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
 			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
 		}
 
-		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool)}
+		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool), useCounts: make(map[*ir.Func]int)}
 		s.parenthesize()
 		s.fixpoint()
 		s.unparenthesize()
 	})
 }
 
+type callSite struct {
+	fn         *ir.Func
+	whichParen int
+}
+
 type inlClosureState struct {
 	fn        *ir.Func
 	profile   *pgoir.Profile
 	callSites map[*ir.ParenExpr]bool // callSites[p] == "p appears in parens" (do not append again)
+	resolved  []*ir.Func             // for each call in parens, the resolved target of the call
+	useCounts map[*ir.Func]int       // shared among all InlClosureStates
 	parens    []*ir.ParenExpr
 	bigCaller bool
 }
 
-func (s *inlClosureState) edit(n ir.Node) ir.Node {
+// resolve attempts to resolve a call to a potentially inlineable callee
+// and updates use counts on the callees.  Returns the call site count
+// for that callee.
+func (s *inlClosureState) resolve(i int) (*ir.Func, int) {
+	p := s.parens[i]
+	if i < len(s.resolved) {
+		if callee := s.resolved[i]; callee != nil {
+			return callee, s.useCounts[callee]
+		}
+	}
+	n := p.X
 	call, ok := n.(*ir.CallExpr)
 	if !ok { // previously inlined
+		return nil, -1
+	}
+	devirtualize.StaticCall(call)
+	if callee := inline.InlineCallTarget(s.fn, call, s.profile); callee != nil {
+		for len(s.resolved) <= i {
+			s.resolved = append(s.resolved, nil)
+		}
+		s.resolved[i] = callee
+		c := s.useCounts[callee] + 1
+		s.useCounts[callee] = c
+		return callee, c
+	}
+	return nil, 0
+}
+
+func (s *inlClosureState) edit(i int) ir.Node {
+	n := s.parens[i].X
+	call, ok := n.(*ir.CallExpr)
+	if !ok {
 		return nil
 	}
-
-	devirtualize.StaticCall(call)
-	if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile); inlCall != nil {
+	// This is redundant with earlier calls to
+	// resolve, but because things can change it
+	// must be re-checked.
+	callee, count := s.resolve(i)
+	if count <= 0 {
+		return nil
+	}
+	if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile, count == 1 && callee.ClosureParent != nil); inlCall != nil {
 		return inlCall
 	}
 	return nil
@@ -278,7 +344,7 @@ func (s *inlClosureState) fixpoint() bool {
 			done = true
 			for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
 				paren := s.parens[i]
-				if new := s.edit(paren.X); new != nil {
+				if new := s.edit(i); new != nil {
 					// Update AST and recursively mark nodes.
 					paren.X = new
 					ir.EditChildren(new, s.mark) // mark may append to parens
