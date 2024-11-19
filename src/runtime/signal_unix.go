@@ -584,15 +584,23 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 	}
 
 	// sp is not within gsignal stack, g0 stack, or sigaltstack. Bad.
+	// Call indirectly to avoid nosplit stack overflow on OpenBSD.
+	adjustSignalStack2Indirect(sig, sp, mp, st.ss_flags&_SS_DISABLE != 0)
+	return false
+}
+
+var adjustSignalStack2Indirect = adjustSignalStack2
+
+//go:nosplit
+func adjustSignalStack2(sig uint32, sp uintptr, mp *m, ssDisable bool) {
 	setg(nil)
 	needm(true)
-	if st.ss_flags&_SS_DISABLE != 0 {
+	if ssDisable {
 		noSignalStack(sig)
 	} else {
 		sigNotOnStack(sig, sp, mp)
 	}
 	dropm()
-	return false
 }
 
 // crashing is the number of m's we have waited for when implementing
