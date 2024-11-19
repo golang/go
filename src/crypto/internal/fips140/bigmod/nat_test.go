@@ -5,6 +5,8 @@
 package bigmod
 
 import (
+	"bytes"
+	cryptorand "crypto/rand"
 	"fmt"
 	"math/big"
 	"math/bits"
@@ -352,6 +354,56 @@ func TestMulReductions(t *testing.T) {
 	}
 }
 
+func TestMul(t *testing.T) {
+	t.Run("small", func(t *testing.T) { testMul(t, 760/8) })
+	t.Run("1024", func(t *testing.T) { testMul(t, 1024/8) })
+	t.Run("1536", func(t *testing.T) { testMul(t, 1536/8) })
+	t.Run("2048", func(t *testing.T) { testMul(t, 2048/8) })
+}
+
+func testMul(t *testing.T, n int) {
+	a, b, m := make([]byte, n), make([]byte, n), make([]byte, n)
+	cryptorand.Read(a)
+	cryptorand.Read(b)
+	cryptorand.Read(m)
+
+	// Pick the highest as the modulus.
+	if bytes.Compare(a, m) > 0 {
+		a, m = m, a
+	}
+	if bytes.Compare(b, m) > 0 {
+		b, m = m, b
+	}
+
+	M, err := NewModulus(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	A, err := NewNat().SetBytes(a, M)
+	if err != nil {
+		t.Fatal(err)
+	}
+	B, err := NewNat().SetBytes(b, M)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	A.Mul(B, M)
+	ABytes := A.Bytes(M)
+
+	mBig := new(big.Int).SetBytes(m)
+	aBig := new(big.Int).SetBytes(a)
+	bBig := new(big.Int).SetBytes(b)
+	nBig := new(big.Int).Mul(aBig, bBig)
+	nBig.Mod(nBig, mBig)
+	nBigBytes := make([]byte, len(ABytes))
+	nBig.FillBytes(nBigBytes)
+
+	if !bytes.Equal(ABytes, nBigBytes) {
+		t.Errorf("got %x, want %x", ABytes, nBigBytes)
+	}
+}
+
 func natBytes(n *Nat) []byte {
 	return n.Bytes(maxModulus(uint(len(n.limbs))))
 }
@@ -480,7 +532,7 @@ func BenchmarkExp(b *testing.B) {
 }
 
 func TestNewModulus(t *testing.T) {
-	expected := "modulus must be > 0 and odd"
+	expected := "modulus must be > 0"
 	_, err := NewModulus([]byte{})
 	if err == nil || err.Error() != expected {
 		t.Errorf("NewModulus(0) got %q, want %q", err, expected)
@@ -492,10 +544,6 @@ func TestNewModulus(t *testing.T) {
 	_, err = NewModulus([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 	if err == nil || err.Error() != expected {
 		t.Errorf("NewModulus(0) got %q, want %q", err, expected)
-	}
-	_, err = NewModulus([]byte{1, 1, 1, 1, 2})
-	if err == nil || err.Error() != expected {
-		t.Errorf("NewModulus(2) got %q, want %q", err, expected)
 	}
 }
 
