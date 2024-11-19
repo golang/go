@@ -124,7 +124,8 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
 		return elem
 	}
 
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
+	k := key
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -182,7 +183,8 @@ func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsa
 		return elem, true
 	}
 
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
+	k := key
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -271,7 +273,8 @@ func runtime_mapassign_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe
 		fatal("concurrent map writes")
 	}
 
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
+	k := key
+	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.
