@@ -650,7 +650,8 @@ var depsRules = `
 	< testing;
 
 	RUNTIME
-	< internal/synctest;
+	< internal/synctest
+	< testing/synctest;
 
 	log/slog, testing
 	< testing/slogtest;
