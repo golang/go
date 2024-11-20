@@ -641,19 +641,17 @@ func (t *tester) registerTests() {
 		// Use 'go list std cmd' to get a list of all Go packages
 		// that running 'go test std cmd' could find problems in.
 		// (In race test mode, also set -tags=race.)
-		//
-		// In long test mode, this includes vendored packages and other
+		// This includes vendored packages and other
 		// packages without tests so that 'dist test' finds if any of
 		// them don't build, have a problem reported by high-confidence
 		// vet checks that come with 'go test', and anything else it
 		// may check in the future. See go.dev/issue/60463.
+		// Most packages have tests, so there is not much saved
+		// by skipping non-test packages.
+		// For the packages without any test files,
+		// 'go test' knows not to actually build a test binary,
+		// so the only cost is the vet, and we still want to run vet.
 		cmd := exec.Command(gorootBinGo, "list")
-		if t.short {
-			// In short test mode, use a format string to only
-			// list packages and commands that have tests.
-			const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
-			cmd.Args = append(cmd.Args, "-f", format)
-		}
 		if t.race {
 			cmd.Args = append(cmd.Args, "-tags=race")
 		}
@@ -666,6 +664,12 @@ func (t *tester) registerTests() {
 		pkgs := strings.Fields(string(all))
 		for _, pkg := range pkgs {
 			if registerStdTestSpecially[pkg] {
+				continue
+			}
+			if t.short && (strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "cmd/vendor/")) {
+				// Vendored code has no tests, and we don't care too much about vet errors
+				// since we can't modify the code, so skip the tests in short mode.
+				// We still let the longtest builders vet them.
 				continue
 			}
 			t.registerStdTest(pkg)
