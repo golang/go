@@ -16,6 +16,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"io"
+	"math/big"
 	"testing"
 	"testing/quick"
 )
@@ -210,6 +211,25 @@ func TestSignPKCS1v15(t *testing.T) {
 		if !bytes.Equal(s, expected) {
 			t.Errorf("#%d got: %x want: %x", i, s, expected)
 		}
+	}
+}
+
+func TestSignPKCS1v15WithPublicKeySizeZero(t *testing.T) {
+	h := sha1.New()
+	h.Write([]byte("key"))
+	digest := h.Sum(nil)
+	_, err := SignPKCS1v15(nil,
+		&PrivateKey{
+			PublicKey: PublicKey{
+				N: big.NewInt(0),
+				E: 65537,
+			},
+		}, crypto.SHA1, digest)
+	if err == nil {
+		t.Error("expected error but got nil")
+	}
+	if err != nil && err.Error() != "crypto/rsa: public key size zero" {
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 
