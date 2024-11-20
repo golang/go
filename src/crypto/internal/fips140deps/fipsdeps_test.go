@@ -40,9 +40,19 @@ func TestImports(t *testing.T) {
 {{range .XTestImports -}}
 {{$path}} {{.}}
 {{end -}}`, "crypto/internal/fips140/...")
-	out, err := cmd.CombinedOutput()
+	bout, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("go list: %v\n%s", err, out)
+		t.Fatalf("go list: %v\n%s", err, bout)
+	}
+	out := string(bout)
+
+	// In a snapshot, all the paths are crypto/internal/fips140/v1.2.3/...
+	// Determine the version number and remove it for the test.
+	_, v, _ := strings.Cut(out, "crypto/internal/fips140/")
+	v, _, _ = strings.Cut(v, "/")
+	v, _, _ = strings.Cut(v, " ")
+	if strings.HasPrefix(v, "v") && strings.Count(v, ".") == 2 {
+		out = strings.ReplaceAll(out, "crypto/internal/fips140/"+v, "crypto/internal/fips140")
 	}
 
 	allPackages := make(map[string]bool)
@@ -50,7 +60,7 @@ func TestImports(t *testing.T) {
 	// importCheck is the set of packages that import crypto/internal/fips140/check.
 	importCheck := make(map[string]bool)
 
-	for _, line := range strings.Split(string(out), "\n") {
+	for _, line := range strings.Split(out, "\n") {
 		if line == "" {
 			continue
 		}
