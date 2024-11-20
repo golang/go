@@ -188,7 +188,7 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
 
 // Print prints a disassembly of the file to w.
 // If filter is non-nil, the disassembly only includes functions with names matching filter.
-// If printCode is true, the disassembly includs corresponding source lines.
+// If printCode is true, the disassembly includes corresponding source lines.
 // The disassembly only includes functions that overlap the range [start, end).
 func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, printCode bool, gnuAsm bool) {
 	if start < d.textStart {

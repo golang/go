@@ -59,7 +59,7 @@ var initTCPKeepAlive = sync.OnceFunc(func() {
 	supportTCPKeepAliveCount = optSupported(TCP_KEEPCNT)
 })
 
-// SupportTCPKeepAliveInterval indicates whether TCP_KEEPIDLE is supported.
+// SupportTCPKeepAliveIdle indicates whether TCP_KEEPIDLE is supported.
 // The minimal requirement is Windows 10.0.16299.
 func SupportTCPKeepAliveIdle() bool {
 	initTCPKeepAlive()

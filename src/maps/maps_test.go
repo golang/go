@@ -48,7 +48,7 @@ func equalNaN[T comparable](v1, v2 T) bool {
 	return v1 == v2 || (isNaN(v1) && isNaN(v2))
 }
 
-// equalStr compares ints and strings.
+// equalIntStr compares ints and strings.
 func equalIntStr(v1 int, v2 string) bool {
 	return strconv.Itoa(v1) == v2
 }

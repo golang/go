@@ -749,7 +749,7 @@ func (t *dqTracker) require(m, r module.Version) (ok bool) {
 		}
 	}
 
-	// Record that m is a dependant of r, so that if r is later disqualified
+	// Record that m is a dependent of r, so that if r is later disqualified
 	// m will be disqualified as well.
 	if t.requiring == nil {
 		t.requiring = make(map[module.Version][]module.Version)

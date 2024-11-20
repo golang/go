@@ -368,7 +368,7 @@ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
 	memclrNoHeapPointers(ptr, typ.Size_)
 }
 
-// reflect_typedslicecopy is meant for package reflect,
+// reflect_typedmemclr is meant for package reflect,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/ugorji/go/codec

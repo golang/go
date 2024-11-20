@@ -448,7 +448,7 @@ func Encode(buf []byte, order ByteOrder, data any) (int, error) {
 // Append appends the binary representation of data to buf.
 // buf may be nil, in which case a new buffer will be allocated.
 // See [Write] on which data are acceptable.
-// It returns the (possibily extended) buffer containing data or an error.
+// It returns the (possibly extended) buffer containing data or an error.
 func Append(buf []byte, order ByteOrder, data any) ([]byte, error) {
 	// Fast path for basic types and slices.
 	if n, _ := intDataSize(data); n != 0 {

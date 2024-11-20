@@ -801,7 +801,7 @@ type Config struct {
 	// be VersionTLS13.
 	//
 	// When EncryptedClientHelloConfigList is set, the handshake will only
-	// succeed if ECH is sucessfully negotiated. If the server rejects ECH,
+	// succeed if ECH is successfully negotiated. If the server rejects ECH,
 	// an ECHRejectionError error will be returned, which may contain a new
 	// ECHConfigList that the server suggests using.
 	//

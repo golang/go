@@ -20,7 +20,7 @@ type Spec struct {
 	//
 	// Argument names follow a certain structure and this structure
 	// is relied on by the testing framework to type-check arguments.
-	// The structure is is:
+	// The structure is:
 	//
 	//     (?P<name>[A-Za-z]+_)?(?P<type>[A-Za-z]+)
 	//

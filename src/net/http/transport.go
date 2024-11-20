@@ -454,7 +454,7 @@ func (t *Transport) protocols() Protocols {
 	p.SetHTTP1(true) // default always includes HTTP/1
 	switch {
 	case t.TLSNextProto != nil:
-		// Setting TLSNextProto to an empty map is is a documented way
+		// Setting TLSNextProto to an empty map is a documented way
 		// to disable HTTP/2 on a Transport.
 		if t.TLSNextProto["h2"] != nil {
 			p.SetHTTP2(true)

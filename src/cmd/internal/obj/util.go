@@ -717,7 +717,7 @@ func AlignmentPaddingLength(pc int32, p *Prog, ctxt *Link) int {
 	// emit as many as s bytes of padding to obtain alignment
 	s := p.To.Offset
 	if s < 0 || s >= a {
-		ctxt.Diag("PCALIGNMAX 'amount' %d must be non-negative and smaller than the aligment %d\n", s, a)
+		ctxt.Diag("PCALIGNMAX 'amount' %d must be non-negative and smaller than the alignment %d\n", s, a)
 		return 0
 	}
 	if s >= a-lob {

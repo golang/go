@@ -1155,7 +1155,7 @@ func recovery(gp *g) {
 		// frames that we've already processed.
 		//
 		// There's a similar issue with nested panics, when the inner
-		// panic supercedes the outer panic. Again, we end up needing to
+		// panic supersedes the outer panic. Again, we end up needing to
 		// walk the same stack frames.
 		//
 		// These are probably pretty rare occurrences in practice, and

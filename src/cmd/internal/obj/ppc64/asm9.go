@@ -2520,7 +2520,7 @@ func decodeMask64(mask int64) (mb, me uint32, valid bool) {
 func loadl16(r int, d int64) uint32 {
 	v := uint16(d)
 	if v == 0 {
-		// Avoid generating "ori r,r,0", r != 0. Instead, generate the architectually preferred nop.
+		// Avoid generating "ori r,r,0", r != 0. Instead, generate the architecturally preferred nop.
 		// For example, "ori r31,r31,0" is a special execution serializing nop on Power10 called "exser".
 		return NOP
 	}

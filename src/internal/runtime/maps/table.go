@@ -549,7 +549,7 @@ func (it *Iter) Init(typ *abi.SwissMapType, m *Map) {
 	dirIdx := 0
 	var groupSmall groupReference
 	if m.dirLen <= 0 {
-		// Use dirIdx == -1 as sentinal for small maps.
+		// Use dirIdx == -1 as sentinel for small maps.
 		dirIdx = -1
 		groupSmall.data = m.dirPtr
 	}
@@ -598,7 +598,7 @@ func (it *Iter) nextDirIdx() {
 	// - 2: *t2a
 	// - 3: *t2b
 	//
-	// At some point, the directory grew to accomodate a split of
+	// At some point, the directory grew to accommodate a split of
 	// t2. t1 did not split, so entries 0 and 1 both point to t1.
 	// t2 did split, so the two halves were installed in entries 2
 	// and 3.

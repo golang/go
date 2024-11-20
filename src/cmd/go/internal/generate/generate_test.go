@@ -208,7 +208,7 @@ func TestGenerateCommandShorthand(t *testing.T) {
 }
 
 // Command-related tests for TestGenerateCommandShortHand2
-// -- Note line numbers included to check substitutions from "build-in" variable - $GOLINE
+// -- Note line numbers included to check substitutions from "built-in" variable - $GOLINE
 var splitTestsLines = []splitTestWithLine{
 	{"-command TEST1 $GOLINE", []string{"-command", "TEST1", "22"}, 22},
 	{"-command TEST2 ${DOLLAR}GOLINE", []string{"-command", "TEST2", "$GOLINE"}, 26},

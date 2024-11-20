@@ -468,7 +468,7 @@ func TestMachOUUID(t *testing.T) {
 			uuid := extractUUID(exe)
 			if test.expect == "gobuildid" {
 				// Go buildid is not known in source code. Check UUID is present,
-				// and satisifies UUIDv3.
+				// and satisfies UUIDv3.
 				if uuid == "" {
 					t.Fatal("expect nonempty UUID, got empty")
 				}

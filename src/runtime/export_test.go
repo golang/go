@@ -1264,7 +1264,7 @@ const (
 
 type TimeHistogram timeHistogram
 
-// Counts returns the counts for the given bucket, subBucket indices.
+// Count returns the counts for the given bucket, subBucket indices.
 // Returns true if the bucket was valid, otherwise returns the counts
 // for the overflow bucket if bucket > 0 or the underflow bucket if
 // bucket < 0, and false.

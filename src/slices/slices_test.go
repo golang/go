@@ -1012,7 +1012,7 @@ func TestReverse(t *testing.T) {
 	singleton := []string{"one"}
 	Reverse(singleton)
 	if want := []string{"one"}; !Equal(singleton, want) {
-		t.Errorf("Reverse(singeleton) = %v, want %v", singleton, want)
+		t.Errorf("Reverse(singleton) = %v, want %v", singleton, want)
 	}
 
 	Reverse[[]string](nil)
