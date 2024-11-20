@@ -5,6 +5,7 @@
 package fipstest
 
 import (
+	"crypto/rand"
 	"fmt"
 	"internal/testenv"
 	"io/fs"
@@ -23,12 +24,12 @@ import (
 	_ "crypto/internal/fips/hkdf"
 	_ "crypto/internal/fips/hmac"
 	"crypto/internal/fips/mlkem"
+	"crypto/internal/fips/rsa"
 	"crypto/internal/fips/sha256"
 	_ "crypto/internal/fips/sha3"
 	_ "crypto/internal/fips/sha512"
 	_ "crypto/internal/fips/tls12"
 	_ "crypto/internal/fips/tls13"
-	"crypto/rand"
 )
 
 func findAllCASTs(t *testing.T) map[string]struct{} {
@@ -83,6 +84,7 @@ func TestConditionals(t *testing.T) {
 		t.Fatal(err)
 	}
 	ed25519.Sign(k25519, make([]byte, 32))
+	rsa.VerifyPKCS1v15(&rsa.PublicKey{}, "", nil, nil)
 	t.Log("completed successfully")
 }
 

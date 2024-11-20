@@ -9,11 +9,13 @@ package rsa
 
 import (
 	"bytes"
-	"crypto"
-	"crypto/internal/boring"
-	"crypto/subtle"
+	"crypto/internal/fips"
+	"crypto/internal/fips/drbg"
+	"crypto/internal/fips/sha256"
+	"crypto/internal/fips/sha3"
+	"crypto/internal/fips/sha512"
+	"crypto/internal/fips/subtle"
 	"errors"
-	"hash"
 	"io"
 )
 
@@ -46,16 +48,16 @@ func incCounter(c *[4]byte) {
 
 // mgf1XOR XORs the bytes in out with a mask generated using the MGF1 function
 // specified in PKCS #1 v2.1.
-func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
+func mgf1XOR(out []byte, hash fips.Hash, seed []byte) {
 	var counter [4]byte
 	var digest []byte
 
 	done := 0
 	for done < len(out) {
+		hash.Reset()
 		hash.Write(seed)
 		hash.Write(counter[0:4])
 		digest = hash.Sum(digest[:0])
-		hash.Reset()
 
 		for i := 0; i < len(digest) && done < len(out); i++ {
 			out[done] ^= digest[i]
@@ -65,7 +67,7 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 	}
 }
 
-func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byte, error) {
+func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash fips.Hash) ([]byte, error) {
 	// See RFC 8017, Section 9.1.1.
 
 	hLen := hash.Size()
@@ -106,12 +108,12 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
 
 	var prefix [8]byte
 
+	hash.Reset()
 	hash.Write(prefix[:])
 	hash.Write(mHash)
 	hash.Write(salt)
 
 	h = hash.Sum(h[:0])
-	hash.Reset()
 
 	// 7.  Generate an octet string PS consisting of emLen - sLen - hLen - 2
 	//     zero octets. The length of PS may be 0.
@@ -140,13 +142,12 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
 	return em, nil
 }
 
-func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
+const pssSaltLengthAutodetect = -1
+
+func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash fips.Hash) error {
 	// See RFC 8017, Section 9.1.2.
 
 	hLen := hash.Size()
-	if sLen == PSSSaltLengthEqualsHash {
-		sLen = hLen
-	}
 	emLen := (emBits + 7) / 8
 	if emLen != len(em) {
 		return errors.New("rsa: internal error: inconsistent length")
@@ -195,12 +196,18 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
 	db[0] &= bitMask
 
 	// If we don't know the salt length, look for the 0x01 delimiter.
-	if sLen == PSSSaltLengthAuto {
+	if sLen == pssSaltLengthAutodetect {
 		psLen := bytes.IndexByte(db, 0x01)
 		if psLen < 0 {
 			return ErrVerification
 		}
 		sLen = len(db) - psLen - 1
+	}
+
+	// FIPS 186-5, Section 5.4(g): "the length (in bytes) of the salt (sLen)
+	// shall satisfy 0 ≤ sLen ≤ hLen".
+	if sLen > hLen {
+		fips.RecordNonApproved()
 	}
 
 	// 10. If the emLen - hLen - sLen - 2 leftmost octets of DB are not zero
@@ -226,6 +233,7 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
 	//     initial zero octets.
 	//
 	// 13. Let H' = Hash(M'), an octet string of length hLen.
+	hash.Reset()
 	var prefix [8]byte
 	hash.Write(prefix[:])
 	hash.Write(mHash)
@@ -240,29 +248,56 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
 	return nil
 }
 
-// signPSSWithSalt calculates the signature of hashed using PSS with specified salt.
-// Note that hashed must be the result of hashing the input message using the
-// given hash function. salt is a random sequence of bytes whose length will be
-// later used to verify the signature.
-func signPSSWithSalt(priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) ([]byte, error) {
-	emBits := priv.N.BitLen() - 1
-	em, err := emsaPSSEncode(hashed, emBits, salt, hash.New())
-	if err != nil {
-		return nil, err
+// PSSMaxSaltLength returns the maximum salt length for a given public key and
+// hash function.
+func PSSMaxSaltLength(pub *PublicKey, hash fips.Hash) (int, error) {
+	saltLength := (pub.N.BitLen()-1+7)/8 - 2 - hash.Size()
+	if saltLength < 0 {
+		return 0, ErrMessageTooLong
+	}
+	// FIPS 186-5, Section 5.4(g): "the length (in bytes) of the salt (sLen)
+	// shall satisfy 0 ≤ sLen ≤ hLen".
+	if fips.Enabled && saltLength > hash.Size() {
+		return hash.Size(), nil
+	}
+	return saltLength, nil
+}
+
+// SignPSS calculates the signature of hashed using RSASSA-PSS.
+//
+// In FIPS mode, rand is ignored and can be nil.
+func SignPSS(rand io.Reader, priv *PrivateKey, hash fips.Hash, hashed []byte, saltLength int) ([]byte, error) {
+	fipsSelfTest()
+	fips.RecordApproved()
+	checkApprovedHash(hash)
+
+	// Note that while we don't commit to deterministic execution with respect
+	// to the rand stream, we also don't apply MaybeReadByte, so per Hyrum's Law
+	// it's probably relied upon by some. It's a tolerable promise because a
+	// well-specified number of random bytes is included in the signature, in a
+	// well-specified way.
+
+	if saltLength < 0 {
+		return nil, errors.New("crypto/rsa: salt length cannot be negative")
+	}
+	// FIPS 186-5, Section 5.4(g): "the length (in bytes) of the salt (sLen)
+	// shall satisfy 0 ≤ sLen ≤ hLen".
+	if saltLength > hash.Size() {
+		fips.RecordNonApproved()
+	}
+	salt := make([]byte, saltLength)
+	if fips.Enabled {
+		drbg.Read(salt)
+	} else {
+		if _, err := io.ReadFull(rand, salt); err != nil {
+			return nil, err
+		}
 	}
 
-	if boring.Enabled {
-		bkey, err := boringPrivateKey(priv)
-		if err != nil {
-			return nil, err
-		}
-		// Note: BoringCrypto always does decrypt "withCheck".
-		// (It's not just decrypt.)
-		s, err := boring.DecryptRSANoPadding(bkey, em)
-		if err != nil {
-			return nil, err
-		}
-		return s, nil
+	emBits := priv.pub.N.BitLen() - 1
+	em, err := emsaPSSEncode(hashed, emBits, salt, hash)
+	if err != nil {
+		return nil, err
 	}
 
 	// RFC 8017: "Note that the octet length of EM will be one less than k if
@@ -272,7 +307,7 @@ func signPSSWithSalt(priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) ([
 	// This is extremely annoying, as all other encrypt and decrypt inputs are
 	// always the exact same size as the modulus. Since it only happens for
 	// weird modulus sizes, fix it by padding inefficiently.
-	if emLen, k := len(em), priv.Size(); emLen < k {
+	if emLen, k := len(em), priv.pub.Size(); emLen < k {
 		emNew := make([]byte, k)
 		copy(emNew[k-emLen:], em)
 		em = emNew
@@ -281,122 +316,29 @@ func signPSSWithSalt(priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) ([
 	return decrypt(priv, em, withCheck)
 }
 
-const (
-	// PSSSaltLengthAuto causes the salt in a PSS signature to be as large
-	// as possible when signing, and to be auto-detected when verifying.
-	PSSSaltLengthAuto = 0
-	// PSSSaltLengthEqualsHash causes the salt length to equal the length
-	// of the hash used in the signature.
-	PSSSaltLengthEqualsHash = -1
-)
-
-// PSSOptions contains options for creating and verifying PSS signatures.
-type PSSOptions struct {
-	// SaltLength controls the length of the salt used in the PSS signature. It
-	// can either be a positive number of bytes, or one of the special
-	// PSSSaltLength constants.
-	SaltLength int
-
-	// Hash is the hash function used to generate the message digest. If not
-	// zero, it overrides the hash function passed to SignPSS. It's required
-	// when using PrivateKey.Sign.
-	Hash crypto.Hash
+// VerifyPSS verifies sig with RSASSA-PSS automatically detecting the salt length.
+func VerifyPSS(pub *PublicKey, hash fips.Hash, digest []byte, sig []byte) error {
+	return verifyPSS(pub, hash, digest, sig, pssSaltLengthAutodetect)
 }
 
-// HashFunc returns opts.Hash so that [PSSOptions] implements [crypto.SignerOpts].
-func (opts *PSSOptions) HashFunc() crypto.Hash {
-	return opts.Hash
+// VerifyPSS verifies sig with RSASSA-PSS and an expected salt length.
+func VerifyPSSWithSaltLength(pub *PublicKey, hash fips.Hash, digest []byte, sig []byte, saltLength int) error {
+	if saltLength < 0 {
+		return errors.New("crypto/rsa: salt length cannot be negative")
+	}
+	return verifyPSS(pub, hash, digest, sig, saltLength)
 }
 
-func (opts *PSSOptions) saltLength() int {
-	if opts == nil {
-		return PSSSaltLengthAuto
-	}
-	return opts.SaltLength
-}
-
-var invalidSaltLenErr = errors.New("crypto/rsa: PSSOptions.SaltLength cannot be negative")
-
-// SignPSS calculates the signature of digest using PSS.
-//
-// digest must be the result of hashing the input message using the given hash
-// function. The opts argument may be nil, in which case sensible defaults are
-// used. If opts.Hash is set, it overrides hash.
-//
-// The signature is randomized depending on the message, key, and salt size,
-// using bytes from rand. Most applications should use [crypto/rand.Reader] as
-// rand.
-func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
-	// Note that while we don't commit to deterministic execution with respect
-	// to the rand stream, we also don't apply MaybeReadByte, so per Hyrum's Law
-	// it's probably relied upon by some. It's a tolerable promise because a
-	// well-specified number of random bytes is included in the signature, in a
-	// well-specified way.
-
-	if opts != nil && opts.Hash != 0 {
-		hash = opts.Hash
+func verifyPSS(pub *PublicKey, hash fips.Hash, digest []byte, sig []byte, saltLength int) error {
+	fipsSelfTest()
+	fips.RecordApproved()
+	checkApprovedHash(hash)
+	if err := checkPublicKey(pub); err != nil {
+		return err
 	}
 
-	if boring.Enabled && rand == boring.RandReader {
-		bkey, err := boringPrivateKey(priv)
-		if err != nil {
-			return nil, err
-		}
-		return boring.SignRSAPSS(bkey, hash, digest, opts.saltLength())
-	}
-	boring.UnreachableExceptTests()
-
-	saltLength := opts.saltLength()
-	switch saltLength {
-	case PSSSaltLengthAuto:
-		saltLength = (priv.N.BitLen()-1+7)/8 - 2 - hash.Size()
-		if saltLength < 0 {
-			return nil, ErrMessageTooLong
-		}
-	case PSSSaltLengthEqualsHash:
-		saltLength = hash.Size()
-	default:
-		// If we get here saltLength is either > 0 or < -1, in the
-		// latter case we fail out.
-		if saltLength <= 0 {
-			return nil, invalidSaltLenErr
-		}
-	}
-	salt := make([]byte, saltLength)
-	if _, err := io.ReadFull(rand, salt); err != nil {
-		return nil, err
-	}
-	return signPSSWithSalt(priv, hash, digest, salt)
-}
-
-// VerifyPSS verifies a PSS signature.
-//
-// A valid signature is indicated by returning a nil error. digest must be the
-// result of hashing the input message using the given hash function. The opts
-// argument may be nil, in which case sensible defaults are used. opts.Hash is
-// ignored.
-//
-// The inputs are not considered confidential, and may leak through timing side
-// channels, or if an attacker has control of part of the inputs.
-func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts *PSSOptions) error {
-	if boring.Enabled {
-		bkey, err := boringPublicKey(pub)
-		if err != nil {
-			return err
-		}
-		if err := boring.VerifyRSAPSS(bkey, hash, digest, sig, opts.saltLength()); err != nil {
-			return ErrVerification
-		}
-		return nil
-	}
 	if len(sig) != pub.Size() {
 		return ErrVerification
-	}
-	// Salt length must be either one of the special constants (-1 or 0)
-	// or otherwise positive. If it is < PSSSaltLengthEqualsHash (-1)
-	// we return an error.
-	if opts.saltLength() < PSSSaltLengthEqualsHash {
-		return invalidSaltLenErr
 	}
 
 	emBits := pub.N.BitLen() - 1
@@ -418,55 +360,41 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 		em = em[1:]
 	}
 
-	return emsaPSSVerify(digest, em, emBits, opts.saltLength(), hash.New())
+	return emsaPSSVerify(digest, em, emBits, saltLength, hash)
 }
 
-// EncryptOAEP encrypts the given message with RSA-OAEP.
+func checkApprovedHash(hash fips.Hash) {
+	switch hash.(type) {
+	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
+	default:
+		fips.RecordNonApproved()
+	}
+}
+
+// EncryptOAEP encrypts the given message with RSAES-OAEP.
 //
-// OAEP is parameterised by a hash function that is used as a random oracle.
-// Encryption and decryption of a given message must use the same hash function
-// and sha256.New() is a reasonable choice.
-//
-// The random parameter is used as a source of entropy to ensure that
-// encrypting the same message twice doesn't result in the same ciphertext.
-// Most applications should use [crypto/rand.Reader] as random.
-//
-// The label parameter may contain arbitrary data that will not be encrypted,
-// but which gives important context to the message. For example, if a given
-// public key is used to encrypt two types of messages then distinct label
-// values could be used to ensure that a ciphertext for one purpose cannot be
-// used for another by an attacker. If not required it can be empty.
-//
-// The message must be no longer than the length of the public modulus minus
-// twice the hash length, minus a further 2.
-func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+// In FIPS mode, random is ignored and can be nil.
+func EncryptOAEP(hash fips.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
 	// Note that while we don't commit to deterministic execution with respect
 	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
 	// Law it's probably relied upon by some. It's a tolerable promise because a
 	// well-specified number of random bytes is included in the ciphertext, in a
 	// well-specified way.
 
-	if err := checkPub(pub); err != nil {
+	fipsSelfTest()
+	fips.RecordApproved()
+	checkApprovedHash(hash)
+	if err := checkPublicKey(pub); err != nil {
 		return nil, err
 	}
-	hash.Reset()
 	k := pub.Size()
 	if len(msg) > k-2*hash.Size()-2 {
 		return nil, ErrMessageTooLong
 	}
 
-	if boring.Enabled && random == boring.RandReader {
-		bkey, err := boringPublicKey(pub)
-		if err != nil {
-			return nil, err
-		}
-		return boring.EncryptRSAOAEP(hash, hash, bkey, msg, label)
-	}
-	boring.UnreachableExceptTests()
-
+	hash.Reset()
 	hash.Write(label)
 	lHash := hash.Sum(nil)
-	hash.Reset()
 
 	em := make([]byte, k)
 	seed := em[1 : 1+hash.Size()]
@@ -476,60 +404,31 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	db[len(db)-len(msg)-1] = 1
 	copy(db[len(db)-len(msg):], msg)
 
-	_, err := io.ReadFull(random, seed)
-	if err != nil {
-		return nil, err
+	if fips.Enabled {
+		drbg.Read(seed)
+	} else {
+		_, err := io.ReadFull(random, seed)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	mgf1XOR(db, hash, seed)
 	mgf1XOR(seed, hash, db)
 
-	if boring.Enabled {
-		var bkey *boring.PublicKeyRSA
-		bkey, err = boringPublicKey(pub)
-		if err != nil {
-			return nil, err
-		}
-		return boring.EncryptRSANoPadding(bkey, em)
-	}
-
 	return encrypt(pub, em)
 }
 
-// DecryptOAEP decrypts ciphertext using RSA-OAEP.
-//
-// OAEP is parameterised by a hash function that is used as a random oracle.
-// Encryption and decryption of a given message must use the same hash function
-// and sha256.New() is a reasonable choice.
-//
-// The random parameter is legacy and ignored, and it can be nil.
-//
-// The label parameter must match the value given when encrypting. See
-// [EncryptOAEP] for details.
-func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
-	return decryptOAEP(hash, hash, random, priv, ciphertext, label)
-}
+// DecryptOAEP decrypts ciphertext using RSAES-OAEP.
+func DecryptOAEP(hash, mgfHash fips.Hash, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+	fipsSelfTest()
+	fips.RecordApproved()
+	checkApprovedHash(hash)
 
-func decryptOAEP(hash, mgfHash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
-	if err := checkPub(&priv.PublicKey); err != nil {
-		return nil, err
-	}
-	k := priv.Size()
+	k := priv.pub.Size()
 	if len(ciphertext) > k ||
 		k < hash.Size()*2+2 {
 		return nil, ErrDecryption
-	}
-
-	if boring.Enabled {
-		bkey, err := boringPrivateKey(priv)
-		if err != nil {
-			return nil, err
-		}
-		out, err := boring.DecryptRSAOAEP(hash, mgfHash, bkey, ciphertext, label)
-		if err != nil {
-			return nil, ErrDecryption
-		}
-		return out, nil
 	}
 
 	em, err := decrypt(priv, ciphertext, noCheck)
@@ -537,9 +436,9 @@ func decryptOAEP(hash, mgfHash hash.Hash, random io.Reader, priv *PrivateKey, ci
 		return nil, err
 	}
 
+	hash.Reset()
 	hash.Write(label)
 	lHash := hash.Sum(nil)
-	hash.Reset()
 
 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
 

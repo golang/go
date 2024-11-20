@@ -29,6 +29,7 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
 	"crypto/internal/fips/bigmod"
+	"crypto/internal/fips/rsa"
 	"crypto/internal/randutil"
 	"crypto/rand"
 	"crypto/subtle"
@@ -81,30 +82,6 @@ type OAEPOptions struct {
 	// Label is an arbitrary byte string that must be equal to the value
 	// used when encrypting.
 	Label []byte
-}
-
-var (
-	errPublicModulus       = errors.New("crypto/rsa: missing public modulus")
-	errPublicExponentSmall = errors.New("crypto/rsa: public exponent too small")
-	errPublicExponentLarge = errors.New("crypto/rsa: public exponent too large")
-)
-
-// checkPub sanity checks the public key before we use it.
-// We require pub.E to fit into a 32-bit integer so that we
-// do not have different behavior depending on whether
-// int is 32 or 64 bits. See also
-// https://www.imperialviolet.org/2012/03/16/rsae.html.
-func checkPub(pub *PublicKey) error {
-	if pub.N == nil {
-		return errPublicModulus
-	}
-	if pub.E < 2 {
-		return errPublicExponentSmall
-	}
-	if pub.E > 1<<31-1 {
-		return errPublicExponentLarge
-	}
-	return nil
 }
 
 // A PrivateKey represents an RSA key
@@ -178,9 +155,9 @@ func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.D
 	switch opts := opts.(type) {
 	case *OAEPOptions:
 		if opts.MGFHash == 0 {
-			return decryptOAEP(opts.Hash.New(), opts.Hash.New(), rand, priv, ciphertext, opts.Label)
+			return decryptOAEP(opts.Hash.New(), opts.Hash.New(), priv, ciphertext, opts.Label)
 		} else {
-			return decryptOAEP(opts.Hash.New(), opts.MGFHash.New(), rand, priv, ciphertext, opts.Label)
+			return decryptOAEP(opts.Hash.New(), opts.MGFHash.New(), priv, ciphertext, opts.Label)
 		}
 
 	case *PKCS1v15DecryptOptions:
@@ -217,7 +194,7 @@ type PrecomputedValues struct {
 	// complexity.
 	CRTValues []CRTValue
 
-	n, p, q *bigmod.Modulus // moduli for CRT with Montgomery precomputed constants
+	fips *rsa.PrivateKey
 }
 
 // CRTValue contains the precomputed Chinese remainder theorem values.
@@ -230,8 +207,15 @@ type CRTValue struct {
 // Validate performs basic sanity checks on the key.
 // It returns nil if the key is valid, or else an error describing a problem.
 func (priv *PrivateKey) Validate() error {
-	if err := checkPub(&priv.PublicKey); err != nil {
-		return err
+	pub := &priv.PublicKey
+	if pub.N == nil {
+		return errors.New("crypto/rsa: missing public modulus")
+	}
+	if pub.E < 2 {
+		return errors.New("crypto/rsa: public exponent is less than 2")
+	}
+	if pub.E > 1<<31-1 {
+		return errors.New("crypto/rsa: public exponent too large")
 	}
 
 	// Check that Πprimes == n.
@@ -315,19 +299,6 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 			return nil, errors.New("crypto/rsa: generated key exponent too large")
 		}
 
-		mn, err := bigmod.NewModulus(N.Bytes())
-		if err != nil {
-			return nil, err
-		}
-		mp, err := bigmod.NewModulus(P.Bytes())
-		if err != nil {
-			return nil, err
-		}
-		mq, err := bigmod.NewModulus(Q.Bytes())
-		if err != nil {
-			return nil, err
-		}
-
 		key := &PrivateKey{
 			PublicKey: PublicKey{
 				N: N,
@@ -340,9 +311,6 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 				Dq:        Dq,
 				Qinv:      Qinv,
 				CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
-				n:         mn,
-				p:         mp,
-				q:         mq,
 			},
 		}
 		return key, nil
@@ -442,22 +410,6 @@ NextSetOfPrimes:
 // be returned if the size of the salt is too large.
 var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key size")
 
-func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
-	boring.Unreachable()
-
-	N, err := bigmod.NewModulus(pub.N.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	m, err := bigmod.NewNat().SetBytes(plaintext, N)
-	if err != nil {
-		return nil, err
-	}
-	e := uint(pub.E)
-
-	return bigmod.NewNat().ExpShortVarTime(m, e, N).Bytes(N), nil
-}
-
 // ErrDecryption represents a failure to decrypt a message.
 // It is deliberately vague to avoid adaptive attacks.
 var ErrDecryption = errors.New("crypto/rsa: decryption error")
@@ -469,30 +421,13 @@ var ErrVerification = errors.New("crypto/rsa: verification error")
 // Precompute performs some calculations that speed up private key operations
 // in the future.
 func (priv *PrivateKey) Precompute() {
-	if priv.Precomputed.n == nil && len(priv.Primes) == 2 {
-		// Precomputed values _should_ always be valid, but if they aren't
-		// just return. We could also panic.
-		var err error
-		priv.Precomputed.n, err = bigmod.NewModulus(priv.N.Bytes())
-		if err != nil {
-			return
-		}
-		priv.Precomputed.p, err = bigmod.NewModulus(priv.Primes[0].Bytes())
-		if err != nil {
-			// Unset previous values, so we either have everything or nothing
-			priv.Precomputed.n = nil
-			return
-		}
-		priv.Precomputed.q, err = bigmod.NewModulus(priv.Primes[1].Bytes())
-		if err != nil {
-			// Unset previous values, so we either have everything or nothing
-			priv.Precomputed.n, priv.Precomputed.p = nil, nil
-			return
-		}
+	if priv.Precomputed.fips != nil {
+		return
 	}
 
-	// Fill in the backwards-compatibility *big.Int values.
-	if priv.Precomputed.Dp != nil {
+	if len(priv.Primes) < 2 {
+		priv.Precomputed.fips, _ = rsa.NewPrivateKeyWithoutCRT(
+			priv.N.Bytes(), priv.E, priv.D.Bytes())
 		return
 	}
 
@@ -518,67 +453,41 @@ func (priv *PrivateKey) Precompute() {
 
 		r.Mul(r, prime)
 	}
+
+	// Errors are discarded because we don't have a way to report them.
+	// Anything that relies on Precomputed.fips will need to check for nil.
+	if len(priv.Primes) == 2 {
+		priv.Precomputed.fips, _ = rsa.NewPrivateKey(
+			priv.N.Bytes(), priv.E, priv.D.Bytes(),
+			priv.Primes[0].Bytes(), priv.Primes[1].Bytes(),
+			priv.Precomputed.Dp.Bytes(), priv.Precomputed.Dq.Bytes(),
+			priv.Precomputed.Qinv.Bytes())
+	} else {
+		priv.Precomputed.fips, _ = rsa.NewPrivateKeyWithoutCRT(
+			priv.N.Bytes(), priv.E, priv.D.Bytes())
+	}
 }
 
-const withCheck = true
-const noCheck = false
-
-// decrypt performs an RSA decryption of ciphertext into out. If check is true,
-// m^e is calculated and compared with ciphertext, in order to defend against
-// errors in the CRT computation.
-func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
-	if len(priv.Primes) <= 2 {
-		boring.Unreachable()
+func fipsPublicKey(pub *PublicKey) (*rsa.PublicKey, error) {
+	N, err := bigmod.NewModulus(pub.N.Bytes())
+	if err != nil {
+		return nil, err
 	}
-
-	var (
-		err  error
-		m, c *bigmod.Nat
-		N    *bigmod.Modulus
-		t0   = bigmod.NewNat()
-	)
-	if priv.Precomputed.n == nil {
-		N, err = bigmod.NewModulus(priv.N.Bytes())
-		if err != nil {
-			return nil, ErrDecryption
-		}
-		c, err = bigmod.NewNat().SetBytes(ciphertext, N)
-		if err != nil {
-			return nil, ErrDecryption
-		}
-		m = bigmod.NewNat().Exp(c, priv.D.Bytes(), N)
-	} else {
-		N = priv.Precomputed.n
-		P, Q := priv.Precomputed.p, priv.Precomputed.q
-		Qinv, err := bigmod.NewNat().SetBytes(priv.Precomputed.Qinv.Bytes(), P)
-		if err != nil {
-			return nil, ErrDecryption
-		}
-		c, err = bigmod.NewNat().SetBytes(ciphertext, N)
-		if err != nil {
-			return nil, ErrDecryption
-		}
-
-		// m = c ^ Dp mod p
-		m = bigmod.NewNat().Exp(t0.Mod(c, P), priv.Precomputed.Dp.Bytes(), P)
-		// m2 = c ^ Dq mod q
-		m2 := bigmod.NewNat().Exp(t0.Mod(c, Q), priv.Precomputed.Dq.Bytes(), Q)
-		// m = m - m2 mod p
-		m.Sub(t0.Mod(m2, P), P)
-		// m = m * Qinv mod p
-		m.Mul(Qinv, P)
-		// m = m * q mod N
-		m.ExpandFor(N).Mul(t0.Mod(Q.Nat(), N), N)
-		// m = m + m2 mod N
-		m.Add(m2.ExpandFor(N), N)
+	if pub.E < 0 {
+		return nil, errors.New("crypto/rsa: negative public exponent")
 	}
+	return &rsa.PublicKey{N: N, E: pub.E}, nil
+}
 
-	if check {
-		c1 := bigmod.NewNat().ExpShortVarTime(m, uint(priv.E), N)
-		if c1.Equal(c) != 1 {
-			return nil, ErrDecryption
-		}
+func fipsPrivateKey(priv *PrivateKey) (*rsa.PrivateKey, error) {
+	if priv.Precomputed.fips != nil {
+		return priv.Precomputed.fips, nil
 	}
-
-	return m.Bytes(N), nil
+	// Make a copy of the private key to avoid modifying the original.
+	k := *priv
+	k.Precompute()
+	if k.Precomputed.fips == nil {
+		return nil, errors.New("crypto/rsa: invalid private key")
+	}
+	return k.Precomputed.fips, nil
 }

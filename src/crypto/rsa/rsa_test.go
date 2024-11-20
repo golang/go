@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/internal/cryptotest"
+	"crypto/internal/fips"
 	"crypto/rand"
 	. "crypto/rsa"
 	"crypto/sha1"
@@ -631,6 +632,9 @@ type testEncryptOAEPStruct struct {
 }
 
 func TestEncryptOAEP(t *testing.T) {
+	if fips.Enabled {
+		t.Skip("FIPS mode overrides the deterministic random source")
+	}
 	sha1 := sha1.New()
 	n := new(big.Int)
 	for i, test := range testEncryptOAEPData {
