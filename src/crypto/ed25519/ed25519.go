@@ -17,7 +17,7 @@ package ed25519
 
 import (
 	"crypto"
-	"crypto/internal/fips/ed25519"
+	"crypto/internal/fips140/ed25519"
 	cryptorand "crypto/rand"
 	"crypto/subtle"
 	"errors"

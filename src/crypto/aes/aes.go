@@ -16,7 +16,7 @@ package aes
 import (
 	"crypto/cipher"
 	"crypto/internal/boring"
-	"crypto/internal/fips/aes"
+	"crypto/internal/fips140/aes"
 	"strconv"
 )
 

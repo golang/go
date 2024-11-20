@@ -10,7 +10,7 @@
 package rc4
 
 import (
-	"crypto/internal/fips/alias"
+	"crypto/internal/fips140/alias"
 	"strconv"
 )
 

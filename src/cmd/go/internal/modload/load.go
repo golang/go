@@ -115,7 +115,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/fips"
+	"cmd/go/internal/fips140"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
@@ -1958,7 +1958,7 @@ func (ld *loader) pkgTest(ctx context.Context, pkg *loadPkg, testFlags loadPkgFl
 // stdVendor returns the canonical import path for the package with the given
 // path when imported from the standard-library package at parentPath.
 func (ld *loader) stdVendor(parentPath, path string) string {
-	if p, _, ok := fips.ResolveImport(path); ok {
+	if p, _, ok := fips140.ResolveImport(path); ok {
 		return p
 	}
 	if search.IsStandardImportPath(path) {

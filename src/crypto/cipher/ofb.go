@@ -7,7 +7,7 @@
 package cipher
 
 import (
-	"crypto/internal/fips/alias"
+	"crypto/internal/fips140/alias"
 	"crypto/subtle"
 )
 

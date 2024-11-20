@@ -11,8 +11,8 @@ import (
 	"crypto/des"
 	"crypto/hmac"
 	"crypto/internal/boring"
-	fipsaes "crypto/internal/fips/aes"
-	"crypto/internal/fips/aes/gcm"
+	fipsaes "crypto/internal/fips140/aes"
+	"crypto/internal/fips140/aes/gcm"
 	"crypto/rc4"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -367,7 +367,7 @@ var tdesCiphers = map[uint16]bool{
 }
 
 var (
-	// Keep in sync with crypto/internal/fips/aes/gcm.supportsAESGCM.
+	// Keep in sync with crypto/internal/fips140/aes/gcm.supportsAESGCM.
 	hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3
 	hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
 	hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCTR && cpu.S390X.HasGHASH

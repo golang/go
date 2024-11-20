@@ -2337,7 +2337,7 @@ var blockedLinknames = map[string][]string{
 	"runtime.coroswitch": {"iter"},
 	"runtime.newcoro":    {"iter"},
 	// fips info
-	"go:fipsinfo": {"crypto/internal/fips/check"},
+	"go:fipsinfo": {"crypto/internal/fips140/check"},
 }
 
 // check if a linkname reference to symbol s from pkg is allowed

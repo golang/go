@@ -6,7 +6,7 @@ package rsa
 
 import (
 	"crypto/internal/boring"
-	"crypto/internal/fips/rsa"
+	"crypto/internal/fips140/rsa"
 	"crypto/internal/randutil"
 	"crypto/subtle"
 	"io"

@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"cmd/go/internal/fips"
+	"cmd/go/internal/fips140"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
 )
@@ -65,7 +65,7 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 
 	// If GOFIPS140 is set to anything but "off",
 	// default to GODEBUG=fips140=on.
-	if fips.Enabled() {
+	if fips140.Enabled() {
 		if m == nil {
 			m = make(map[string]string)
 		}

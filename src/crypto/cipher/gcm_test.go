@@ -10,9 +10,9 @@ import (
 	"crypto/cipher"
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
-	"crypto/internal/fips"
-	fipsaes "crypto/internal/fips/aes"
-	"crypto/internal/fips/aes/gcm"
+	"crypto/internal/fips140"
+	fipsaes "crypto/internal/fips140/aes"
+	"crypto/internal/fips140/aes/gcm"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -744,9 +744,9 @@ func TestFIPSServiceIndicator(t *testing.T) {
 		return aead
 	}
 	tryNonce := func(aead cipher.AEAD, nonce []byte) bool {
-		fips.ResetServiceIndicator()
+		fips140.ResetServiceIndicator()
 		aead.Seal(nil, nonce, []byte("x"), nil)
-		return fips.ServiceIndicator()
+		return fips140.ServiceIndicator()
 	}
 	expectTrue := func(t *testing.T, aead cipher.AEAD, nonce []byte) {
 		t.Helper()

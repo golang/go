@@ -7,7 +7,7 @@ package tls
 import (
 	"crypto"
 	"crypto/hmac"
-	"crypto/internal/fips/tls12"
+	"crypto/internal/fips140/tls12"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"

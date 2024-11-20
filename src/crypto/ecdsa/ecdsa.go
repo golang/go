@@ -20,7 +20,7 @@ import (
 	"crypto/elliptic"
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
-	"crypto/internal/fips/ecdsa"
+	"crypto/internal/fips140/ecdsa"
 	"crypto/internal/randutil"
 	"crypto/sha512"
 	"crypto/subtle"

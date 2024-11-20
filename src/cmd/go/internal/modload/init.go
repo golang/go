@@ -23,7 +23,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/fips"
+	"cmd/go/internal/fips140"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
@@ -356,7 +356,7 @@ func BinDir() string {
 // for example 'go mod tidy', that don't operate in workspace mode.
 func InitWorkfile() {
 	// Initialize fsys early because we need overlay to read go.work file.
-	fips.Init()
+	fips140.Init()
 	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
 	}
@@ -416,7 +416,7 @@ func Init() {
 	}
 	initialized = true
 
-	fips.Init()
+	fips140.Init()
 
 	// Keep in sync with WillBeEnabled. We perform extra validation here, and
 	// there are lots of diagnostics and side effects, so we can't use

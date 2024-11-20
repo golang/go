@@ -8,8 +8,8 @@ package rand
 
 import (
 	"crypto/internal/boring"
-	"crypto/internal/fips"
-	"crypto/internal/fips/drbg"
+	"crypto/internal/fips140"
+	"crypto/internal/fips140/drbg"
 	"crypto/internal/sysrand"
 	"io"
 	_ "unsafe"
@@ -42,7 +42,7 @@ type reader struct{}
 
 func (r *reader) Read(b []byte) (n int, err error) {
 	boring.Unreachable()
-	if fips.Enabled {
+	if fips140.Enabled {
 		drbg.Read(b)
 	} else {
 		sysrand.Read(b)

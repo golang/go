@@ -727,12 +727,12 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
 	return id
 }
 
-//go:linkname fips_getIndicator crypto/internal/fips.getIndicator
+//go:linkname fips_getIndicator crypto/internal/fips140.getIndicator
 func fips_getIndicator() uint8 {
 	return getg().fipsIndicator
 }
 
-//go:linkname fips_setIndicator crypto/internal/fips.setIndicator
+//go:linkname fips_setIndicator crypto/internal/fips140.setIndicator
 func fips_setIndicator(indicator uint8) {
 	getg().fipsIndicator = indicator
 }

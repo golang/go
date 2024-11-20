@@ -5,9 +5,9 @@
 package cipher
 
 import (
-	"crypto/internal/fips/aes"
-	"crypto/internal/fips/aes/gcm"
-	"crypto/internal/fips/alias"
+	"crypto/internal/fips140/aes"
+	"crypto/internal/fips140/aes/gcm"
+	"crypto/internal/fips140/alias"
 	"crypto/subtle"
 	"errors"
 	"internal/byteorder"
@@ -127,7 +127,7 @@ func (g gcmWithRandomNonce) Seal(dst, nonce, plaintext, additionalData []byte) [
 	// In Seal, we could work through the input backwards or intentionally load
 	// ahead before writing.
 	//
-	// However, the crypto/internal/fips/aes/gcm APIs also check for exact overlap,
+	// However, the crypto/internal/fips140/aes/gcm APIs also check for exact overlap,
 	// so for now we just do a memmove if we detect overlap.
 	//
 	//     ┌───────────────────────────┬ ─ ─
@@ -209,7 +209,7 @@ func newGCMFallback(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 
 // gcmFallback is only used for non-AES ciphers, which regrettably we
 // theoretically support. It's a copy of the generic implementation from
-// crypto/internal/fips/aes/gcm/gcm_generic.go, refer to that file for more details.
+// crypto/internal/fips140/aes/gcm/gcm_generic.go, refer to that file for more details.
 type gcmFallback struct {
 	cipher    Block
 	nonceSize int

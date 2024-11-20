@@ -6,7 +6,7 @@ package des
 
 import (
 	"crypto/cipher"
-	"crypto/internal/fips/alias"
+	"crypto/internal/fips140/alias"
 	"internal/byteorder"
 	"strconv"
 )

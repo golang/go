@@ -9,7 +9,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ecdh"
-	"crypto/internal/fips/hkdf"
+	"crypto/internal/fips140/hkdf"
 	"crypto/rand"
 	"errors"
 	"internal/byteorder"

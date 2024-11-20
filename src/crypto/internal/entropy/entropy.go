@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package entropy provides the passive entropy source for the FIPS 140-3
-// module. It is only used in FIPS mode by [crypto/internal/fips/drbg.Read].
+// module. It is only used in FIPS mode by [crypto/internal/fips140/drbg.Read].
 //
 // This complies with IG 9.3.A, Additional Comment 12, which until January 1,
 // 2026 allows new modules to meet an [earlier version] of Resolution 2(b):

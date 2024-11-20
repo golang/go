@@ -7,7 +7,7 @@ package ecdh
 import (
 	"bytes"
 	"crypto/internal/boring"
-	"crypto/internal/fips/ecdh"
+	"crypto/internal/fips140/ecdh"
 	"errors"
 	"io"
 )

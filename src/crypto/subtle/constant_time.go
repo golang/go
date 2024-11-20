@@ -6,7 +6,7 @@
 // code but require careful thought to use correctly.
 package subtle
 
-import "crypto/internal/fips/subtle"
+import "crypto/internal/fips140/subtle"
 
 // ConstantTimeCompare returns 1 if the two slices, x and y, have equal contents
 // and 0 otherwise. The time taken is a function of the length of the slices and

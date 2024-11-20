@@ -6,7 +6,7 @@ package ecdh
 
 import (
 	"bytes"
-	"crypto/internal/fips/edwards25519/field"
+	"crypto/internal/fips140/edwards25519/field"
 	"crypto/internal/randutil"
 	"errors"
 	"io"

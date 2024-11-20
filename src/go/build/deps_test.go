@@ -447,46 +447,46 @@ var depsRules = `
 	OS < crypto/internal/sysrand
 	< crypto/internal/entropy;
 
-	internal/byteorder < crypto/internal/fipsdeps/byteorder;
-	internal/cpu, internal/goarch < crypto/internal/fipsdeps/cpu;
-	internal/godebug < crypto/internal/fipsdeps/godebug;
+	internal/byteorder < crypto/internal/fips140deps/byteorder;
+	internal/cpu, internal/goarch < crypto/internal/fips140deps/cpu;
+	internal/godebug < crypto/internal/fips140deps/godebug;
 
 	# FIPS is the FIPS 140 module.
 	# It must not depend on external crypto packages.
 	STR, crypto/internal/impl,
 	crypto/internal/entropy,
 	crypto/internal/randutil,
-	crypto/internal/fipsdeps/byteorder,
-	crypto/internal/fipsdeps/cpu,
-	crypto/internal/fipsdeps/godebug
-	< crypto/internal/fips
-	< crypto/internal/fips/alias
-	< crypto/internal/fips/subtle
-	< crypto/internal/fips/sha256
-	< crypto/internal/fips/sha512
-	< crypto/internal/fips/sha3
-	< crypto/internal/fips/hmac
-	< crypto/internal/fips/check
-	< crypto/internal/fips/aes
-	< crypto/internal/fips/drbg
-	< crypto/internal/fips/aes/gcm
-	< crypto/internal/fips/hkdf
-	< crypto/internal/fips/mlkem
-	< crypto/internal/fips/ssh
-	< crypto/internal/fips/tls12
-	< crypto/internal/fips/tls13
-	< crypto/internal/fips/bigmod
-	< crypto/internal/fips/nistec/fiat
-	< crypto/internal/fips/nistec
-	< crypto/internal/fips/ecdh
-	< crypto/internal/fips/ecdsa
-	< crypto/internal/fips/edwards25519/field
-	< crypto/internal/fips/edwards25519
-	< crypto/internal/fips/ed25519
-	< crypto/internal/fips/rsa
+	crypto/internal/fips140deps/byteorder,
+	crypto/internal/fips140deps/cpu,
+	crypto/internal/fips140deps/godebug
+	< crypto/internal/fips140
+	< crypto/internal/fips140/alias
+	< crypto/internal/fips140/subtle
+	< crypto/internal/fips140/sha256
+	< crypto/internal/fips140/sha512
+	< crypto/internal/fips140/sha3
+	< crypto/internal/fips140/hmac
+	< crypto/internal/fips140/check
+	< crypto/internal/fips140/aes
+	< crypto/internal/fips140/drbg
+	< crypto/internal/fips140/aes/gcm
+	< crypto/internal/fips140/hkdf
+	< crypto/internal/fips140/mlkem
+	< crypto/internal/fips140/ssh
+	< crypto/internal/fips140/tls12
+	< crypto/internal/fips140/tls13
+	< crypto/internal/fips140/bigmod
+	< crypto/internal/fips140/nistec/fiat
+	< crypto/internal/fips140/nistec
+	< crypto/internal/fips140/ecdh
+	< crypto/internal/fips140/ecdsa
+	< crypto/internal/fips140/edwards25519/field
+	< crypto/internal/fips140/edwards25519
+	< crypto/internal/fips140/ed25519
+	< crypto/internal/fips140/rsa
 	< FIPS;
 
-	FIPS < crypto/internal/fips/check/checktest;
+	FIPS < crypto/internal/fips140/check/checktest;
 
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
 	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
@@ -511,7 +511,7 @@ var depsRules = `
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
 	  crypto/sha1, crypto/sha256, crypto/sha512;
 
-	crypto/boring, crypto/internal/fips/edwards25519/field
+	crypto/boring, crypto/internal/fips140/edwards25519/field
 	< crypto/ecdh;
 
 	# Unfortunately, stuck with reflect via encoding/binary.

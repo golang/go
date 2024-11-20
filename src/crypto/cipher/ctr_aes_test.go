@@ -16,7 +16,7 @@ import (
 	"crypto/cipher"
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
-	fipsaes "crypto/internal/fips/aes"
+	fipsaes "crypto/internal/fips140/aes"
 	"encoding/hex"
 	"fmt"
 	"math/rand"

@@ -32,7 +32,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/fips"
+	"cmd/go/internal/fips140"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
@@ -407,7 +407,7 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
 	p.BinaryOnly = pp.BinaryOnly
 
 	// TODO? Target
-	p.Goroot = pp.Goroot || fips.Snapshot() && str.HasFilePathPrefix(p.Dir, fips.Dir())
+	p.Goroot = pp.Goroot || fips140.Snapshot() && str.HasFilePathPrefix(p.Dir, fips140.Dir())
 	p.Standard = p.Goroot && p.ImportPath != "" && search.IsStandardImportPath(p.ImportPath)
 	p.GoFiles = pp.GoFiles
 	p.CgoFiles = pp.CgoFiles
@@ -885,7 +885,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 	}
 	r := resolvedImportCache.Do(importKey, func() resolvedImport {
 		var r resolvedImport
-		if newPath, dir, ok := fips.ResolveImport(path); ok {
+		if newPath, dir, ok := fips140.ResolveImport(path); ok {
 			r.path = newPath
 			r.dir = dir
 		} else if cfg.ModulesEnabled {
@@ -1523,15 +1523,15 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 	// directory, so the usual directory rules don't work apply, or rather they
 	// apply differently depending on whether we are using a snapshot or the
 	// in-tree copy of the code. We apply a consistent rule here:
-	// crypto/internal/fips can only see crypto/internal, never top-of-tree internal.
-	// Similarly, crypto/... can see crypto/internal/fips even though the usual rules
+	// crypto/internal/fips140 can only see crypto/internal, never top-of-tree internal.
+	// Similarly, crypto/... can see crypto/internal/fips140 even though the usual rules
 	// would not allow it in snapshot mode.
-	if str.HasPathPrefix(importerPath, "crypto") && str.HasPathPrefix(p.ImportPath, "crypto/internal/fips") {
-		return nil // crypto can use crypto/internal/fips
+	if str.HasPathPrefix(importerPath, "crypto") && str.HasPathPrefix(p.ImportPath, "crypto/internal/fips140") {
+		return nil // crypto can use crypto/internal/fips140
 	}
-	if str.HasPathPrefix(importerPath, "crypto/internal/fips") {
+	if str.HasPathPrefix(importerPath, "crypto/internal/fips140") {
 		if str.HasPathPrefix(p.ImportPath, "crypto/internal") {
-			return nil // crypto/internal/fips can use crypto/internal
+			return nil // crypto/internal/fips140 can use crypto/internal
 		}
 		// TODO: Delete this switch once the usages are removed.
 		switch p.ImportPath {
@@ -2462,8 +2462,8 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 	if cfg.RawGOEXPERIMENT != "" {
 		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
 	}
-	if fips.Enabled() {
-		appendSetting("GOFIPS140", fips.Version())
+	if fips140.Enabled() {
+		appendSetting("GOFIPS140", fips140.Version())
 	}
 	appendSetting("GOOS", cfg.BuildContext.GOOS)
 	if key, val, _ := cfg.GetArchEnv(); key != "" && val != "" {

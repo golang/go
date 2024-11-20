@@ -8,7 +8,7 @@ import (
 	"bufio"
 	"compress/bzip2"
 	"crypto"
-	"crypto/internal/fips"
+	"crypto/internal/fips140"
 	"crypto/rand"
 	. "crypto/rsa"
 	"crypto/sha256"
@@ -181,7 +181,7 @@ func TestPSSSigning(t *testing.T) {
 		opts.SaltLength = test.verifySaltLength
 		err = VerifyPSS(&rsaPrivateKey.PublicKey, hash, hashed, sig, &opts)
 		good := test.good
-		if fips.Enabled {
+		if fips140.Enabled {
 			good = test.fipsGood
 		}
 		if (err == nil) != good {

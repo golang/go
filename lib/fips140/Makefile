@@ -13,7 +13,7 @@
 #
 # Note that once published a snapshot zip file should never
 # be modified. We record the sha256 hashes of the zip files
-# in fips140.sum, and the cmd/go/internal/fips test checks
+# in fips140.sum, and the cmd/go/internal/fips140 test checks
 # that the zips match.
 #
 # When the zip file is finalized, run 'make updatesum' to update
@@ -27,7 +27,7 @@ default:
 # copy and edit the 'go run' command by hand to use a different branch.
 v%.zip:
 	git fetch origin master
-	go run ../../src/cmd/go/internal/fips/mkzip.go -b master v$*
+	go run ../../src/cmd/go/internal/fips140/mkzip.go -b master v$*
 
 # normally mkzip refuses to overwrite an existing zip file.
 # make v1.2.3.rm removes the zip file and and unpacked
@@ -43,4 +43,4 @@ v%.test:
 
 # make updatesum updates the fips140.sum file.
 updatesum:
-	go test cmd/go/internal/fips -update
+	go test cmd/go/internal/fips140 -update

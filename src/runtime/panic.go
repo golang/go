@@ -1043,7 +1043,7 @@ func sysrand_fatal(s string) {
 	fatal(s)
 }
 
-//go:linkname fips_fatal crypto/internal/fips.fatal
+//go:linkname fips_fatal crypto/internal/fips140.fatal
 func fips_fatal(s string) {
 	fatal(s)
 }

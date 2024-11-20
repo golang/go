@@ -7,7 +7,7 @@ package rsa
 import (
 	"crypto"
 	"crypto/internal/boring"
-	"crypto/internal/fips/rsa"
+	"crypto/internal/fips140/rsa"
 	"errors"
 	"hash"
 	"io"

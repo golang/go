@@ -7,5 +7,5 @@
 # remove zip files from the list when they are removed from
 # this directory. To update this file:
 #
-#	go test cmd/go/internal/fips -update
+#	go test cmd/go/internal/fips140 -update
 #
