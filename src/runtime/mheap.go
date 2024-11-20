@@ -2224,8 +2224,14 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 
 		// Keep p alive for the duration of the function to ensure
 		// that it cannot die while we're trying to do this.
+		//
+		// Same for handle, which is only stored in the special.
+		// There's a window where it might die if we don't keep it
+		// alive explicitly. Returning it here is probably good enough,
+		// but let's be defensive and explicit. See #70455.
 		KeepAlive(p)
-		return s.handle
+		KeepAlive(handle)
+		return handle
 	}
 
 	// There was an existing handle. Free the special
@@ -2245,7 +2251,10 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 
 	// Keep p alive for the duration of the function to ensure
 	// that it cannot die while we're trying to do this.
+	//
+	// Same for handle, just to be defensive.
 	KeepAlive(p)
+	KeepAlive(handle)
 	return handle
 }
 
