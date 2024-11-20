@@ -1533,17 +1533,6 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 		if str.HasPathPrefix(p.ImportPath, "crypto/internal") {
 			return nil // crypto/internal/fips140 can use crypto/internal
 		}
-		// TODO: Delete this switch once the usages are removed.
-		switch p.ImportPath {
-		case "internal/abi",
-			"internal/testenv",
-			"internal/cpu",
-			"internal/goarch",
-			"internal/asan",
-			"internal/byteorder",
-			"internal/godebug":
-			return nil
-		}
 		goto Error
 	}
 
