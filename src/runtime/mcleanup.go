@@ -131,12 +131,26 @@ func (c Cleanup) Stop() {
 
 	iter, exists := span.specialFindSplicePoint(offset, _KindSpecialCleanup)
 	if exists {
-		for s := *iter; s != nil && offset == uintptr(s.offset); iter = &s.next {
-			if (*specialCleanup)(unsafe.Pointer(s)).id == c.id {
+		for {
+			s := *iter
+			if s == nil {
+				// Reached the end of the linked list. Stop searching at this point.
+				break
+			}
+			if offset == uintptr(s.offset) && _KindSpecialCleanup == s.kind &&
+				(*specialCleanup)(unsafe.Pointer(s)).id == c.id {
+				// The special is a cleanup and contains a matching cleanup id.
 				*iter = s.next
 				found = s
 				break
 			}
+			if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && _KindSpecialCleanup < s.kind) {
+				// The special is outside the region specified for that kind of
+				// special. The specials are sorted by kind.
+				break
+			}
+			// Try the next special.
+			iter = &s.next
 		}
 	}
 	if span.specials == nil {

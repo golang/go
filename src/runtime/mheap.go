@@ -2046,7 +2046,6 @@ func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
 
 	mp := acquirem()
 	addspecial(p, &s.special, true)
-	releasem(mp)
 	// This is responsible for maintaining the same
 	// GC-related invariants as markrootSpans in any
 	// situation where it's possible that markrootSpans
@@ -2057,6 +2056,7 @@ func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
 		// special isn't part of the GC'd heap.
 		scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
 	}
+	releasem(mp)
 	// Keep f alive. There's a window in this function where it's
 	// only reachable via the special while the special hasn't been
 	// added to the specials list yet. This is similar to a bug
