@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"internal/platform"
 	"internal/testenv"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -114,9 +115,19 @@ func TestASANFuzz(t *testing.T) {
 	dir := newTempDir(t)
 	defer dir.RemoveAll(t)
 
-	cmd := config.goCmd("test", "-fuzz=Fuzz", srcPath("asan_fuzz_test.go"))
+	exe := dir.Join("asan_fuzz_test.exe")
+	cmd := config.goCmd("test", "-c", "-o", exe, srcPath("asan_fuzz_test.go"))
 	t.Logf("%v", cmd)
 	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(exe, "-test.fuzz=Fuzz", "-test.fuzzcachedir="+dir.Base())
+	cmd.Dir = dir.Base()
+	t.Logf("%v", cmd)
+	out, err = cmd.CombinedOutput()
 	t.Logf("%s", out)
 	if err == nil {
 		t.Error("expected fuzzing failure")
