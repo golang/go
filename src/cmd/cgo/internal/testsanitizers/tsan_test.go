@@ -71,12 +71,19 @@ func TestTSAN(t *testing.T) {
 
 			cmdArgs := []string{outPath}
 			if goos == "linux" {
-				// Disable ASLR. See #59418.
-				arch, err := exec.Command("uname", "-m").Output()
+				// Disable ASLR for TSAN. See https://go.dev/issue/59418.
+				out, err := exec.Command("uname", "-m").Output()
 				if err != nil {
 					t.Fatalf("failed to run `uname -m`: %v", err)
 				}
-				cmdArgs = []string{"setarch", strings.TrimSpace(string(arch)), "-R", outPath}
+				arch := strings.TrimSpace(string(out))
+				if _, err := exec.Command("setarch", arch, "-R", "true").Output(); err != nil {
+					// Some systems don't have permission to run `setarch`.
+					// See https://go.dev/issue/70463.
+					t.Logf("failed to run `setarch %s -R true`: %v", arch, err)
+				} else {
+					cmdArgs = []string{"setarch", arch, "-R", outPath}
+				}
 			}
 			cmd := hangProneCmd(cmdArgs[0], cmdArgs[1:]...)
 			if tc.needsRuntime {
