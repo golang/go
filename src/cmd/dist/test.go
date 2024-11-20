@@ -323,6 +323,7 @@ type goTest struct {
 	bench    bool          // Run benchmarks (briefly), not tests.
 	runTests string        // Regexp of tests to run
 	cpu      string        // If non-empty, -cpu flag
+	skip     string        // If non-empty, -skip flag
 
 	gcflags   string // If non-empty, build with -gcflags=all=X
 	ldflags   string // If non-empty, build with -ldflags=X
@@ -463,6 +464,9 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 	}
 	if opts.cpu != "" {
 		run = append(run, "-cpu="+opts.cpu)
+	}
+	if opts.skip != "" {
+		run = append(run, "-skip="+opts.skip)
 	}
 	if t.json {
 		run = append(run, "-json")
@@ -698,21 +702,39 @@ func (t *tester) registerTests() {
 	}
 
 	// Check that all crypto packages compile with the purego build tag.
-	t.registerTest("crypto with tag purego", &goTest{
+	t.registerTest("crypto with tag purego (build and vet only)", &goTest{
 		variant:  "purego",
 		tags:     []string{"purego"},
 		pkg:      "crypto/...",
 		runTests: "^$", // only ensure they compile
 	})
 
-	// Check that all crypto packages compile with fips.
-	for _, version := range fipsVersions() {
-		t.registerTest("crypto with GOFIPS140", &goTest{
-			variant:  "gofips140-" + version,
-			pkg:      "crypto/...",
-			runTests: "^$", // only ensure they compile
-			env:      []string{"GOFIPS140=" + version, "GOMODCACHE=" + filepath.Join(workdir, "fips-"+version)},
+	// Check that all crypto packages compile (and test correctly, in longmode) with fips.
+	if fipsSupported() {
+		// Test standard crypto packages with fips140=on.
+		t.registerTest("GODEBUG=fips140=on go test crypto/...", &goTest{
+			variant: "gofips140",
+			env:     []string{"GODEBUG=fips140=on"},
+			skip:    "TestHandshake|TestServerResumption|TestClientAuth|TestRenegotiate", // TODO(valsorda): remove once crypto/tls passes
+			pkg:     "crypto/...",
 		})
+
+		// Test that earlier FIPS snapshots build.
+		// In long mode, test that they work too.
+		for _, version := range fipsVersions(t.short) {
+			suffix := " # (build and vet only)"
+			run := "^$" // only ensure they compile
+			if !t.short {
+				suffix = ""
+				run = ""
+			}
+			t.registerTest("GOFIPS140="+version+" go test crypto/..."+suffix, &goTest{
+				variant:  "gofips140-" + version,
+				pkg:      "crypto/...",
+				runTests: run,
+				env:      []string{"GOFIPS140=" + version, "GOMODCACHE=" + filepath.Join(workdir, "fips-"+version)},
+			})
+		}
 	}
 
 	// Test ios/amd64 for the iOS simulator.
@@ -834,7 +856,8 @@ func (t *tester) registerTests() {
 				buildmode: "pie",
 				ldflags:   "-linkmode=internal",
 				env:       []string{"CGO_ENABLED=0"},
-				pkg:       "crypto/internal/fips140/check",
+				pkg:       "crypto/internal/fips140test",
+				runTests:  "TestFIPSCheck",
 			})
 		// Also test a cgo package.
 		if t.cgoEnabled && t.internalLink() && !disablePIE {
@@ -857,7 +880,8 @@ func (t *tester) registerTests() {
 				buildmode: "exe",
 				ldflags:   "-linkmode=external",
 				env:       []string{"CGO_ENABLED=1"},
-				pkg:       "crypto/internal/fips140/check",
+				pkg:       "crypto/internal/fips140test",
+				runTests:  "TestFIPSCheck",
 			})
 		if t.externalLinkPIE() && !disablePIE {
 			t.registerTest("external linking, -buildmode=pie",
@@ -867,7 +891,8 @@ func (t *tester) registerTests() {
 					buildmode: "pie",
 					ldflags:   "-linkmode=external",
 					env:       []string{"CGO_ENABLED=1"},
-					pkg:       "crypto/internal/fips140/check",
+					pkg:       "crypto/internal/fips140test",
+					runTests:  "TestFIPSCheck",
 				})
 		}
 	}
@@ -1766,8 +1791,28 @@ func isEnvSet(evar string) bool {
 	return false
 }
 
+func fipsSupported() bool {
+	// Use GOFIPS140 or GOEXPERIMENT=boringcrypto, but not both.
+	if strings.Contains(goexperiment, "boringcrypto") {
+		return false
+	}
+
+	// If this goos/goarch does not support FIPS at all, return no versions.
+	// The logic here matches crypto/internal/fips140/check.Supported for now.
+	// In the future, if some snapshots add support for these, we will have
+	// to make a decision on a per-version basis.
+	switch {
+	case goarch == "wasm",
+		goos == "windows" && goarch == "386",
+		goos == "windows" && goarch == "arm",
+		goos == "aix":
+		return false
+	}
+	return true
+}
+
 // fipsVersions returns the list of versions available in lib/fips140.
-func fipsVersions() []string {
+func fipsVersions(short bool) []string {
 	var versions []string
 	zips, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.zip"))
 	if err != nil {
