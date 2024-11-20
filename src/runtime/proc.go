@@ -1317,28 +1317,6 @@ func casGToWaitingForGC(gp *g, old uint32, reason waitReason) {
 	casGToWaiting(gp, old, reason)
 }
 
-// casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
-// Returns old status. Cannot call casgstatus directly, because we are racing with an
-// async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
-// it might have become Grunnable by the time we get to the cas. If we called casgstatus,
-// it would loop waiting for the status to go back to Gwaiting, which it never will.
-//
-//go:nosplit
-func casgcopystack(gp *g) uint32 {
-	for {
-		oldstatus := readgstatus(gp) &^ _Gscan
-		if oldstatus != _Gwaiting && oldstatus != _Grunnable {
-			throw("copystack: bad status, not Gwaiting or Grunnable")
-		}
-		if gp.atomicstatus.CompareAndSwap(oldstatus, _Gcopystack) {
-			if sg := gp.syncGroup; sg != nil {
-				sg.changegstatus(gp, oldstatus, _Gcopystack)
-			}
-			return oldstatus
-		}
-	}
-}
-
 // casGToPreemptScan transitions gp from _Grunning to _Gscan|_Gpreempted.
 //
 // TODO(austin): This is the only status operation that both changes
