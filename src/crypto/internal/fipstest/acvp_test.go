@@ -368,9 +368,11 @@ func TestACVP(t *testing.T) {
 	t.Log("building acvptool")
 
 	// Build the acvptool binary.
+	toolPath := filepath.Join(t.TempDir(), "acvptool.exe")
 	goTool := testenv.GoToolPath(t)
 	cmd := testenv.Command(t, goTool,
 		"build",
+		"-o", toolPath,
 		"./util/fipstools/acvp/acvptool")
 	cmd.Dir = bsslDir
 	out := &strings.Builder{}
@@ -387,7 +389,6 @@ func TestACVP(t *testing.T) {
 		t.Fatalf("failed to fetch cwd: %s", err)
 	}
 	configPath := filepath.Join(cwd, "acvp_test.config.json")
-	toolPath := filepath.Join(bsslDir, "acvptool")
 	t.Logf("running check_expected.go\ncwd: %q\ndata_dir: %q\nconfig: %q\ntool: %q\nmodule-wrapper: %q\n",
 		cwd, dataDir, configPath, toolPath, os.Args[0])
 
