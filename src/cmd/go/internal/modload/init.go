@@ -944,7 +944,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 					err = errWorkTooOld(gomod, workFile, tooNew.GoVersion)
 				} else {
 					err = fmt.Errorf("cannot load module %s listed in go.work file: %w",
-						base.ShortPath(filepath.Dir(gomod)), base.ShortPathError(err))
+						base.ShortPath(filepath.Dir(gomod)), err)
 				}
 			}
 			errs = append(errs, err)
