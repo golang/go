@@ -73,12 +73,16 @@ func findAllCASTs(t *testing.T) map[string]struct{} {
 // TestConditionals causes the conditional CASTs and PCTs to be invoked.
 func TestConditionals(t *testing.T) {
 	mlkem.GenerateKey768()
-	ecdh.GenerateKeyP256(rand.Reader)
-	k, err := ecdsa.GenerateKey(ecdsa.P256(), rand.Reader)
+	k, err := ecdh.GenerateKey(ecdh.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ecdsa.SignDeterministic(ecdsa.P256(), sha256.New, k, make([]byte, 32))
+	ecdh.ECDH(ecdh.P256(), k, k.PublicKey())
+	kDSA, err := ecdsa.GenerateKey(ecdsa.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ecdsa.SignDeterministic(ecdsa.P256(), sha256.New, kDSA, make([]byte, 32))
 	k25519, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)

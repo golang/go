@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"crypto/internal/fips140"
 	_ "crypto/internal/fips140/check"
-	"crypto/internal/fips140/nistec"
 	"errors"
 	"sync"
 )
@@ -39,7 +38,9 @@ var fipsSelfTest = sync.OnceFunc(func() {
 			0x83, 0x48, 0x40, 0x56, 0x69, 0xa1, 0x95, 0xfa,
 			0xc5, 0x35, 0x04, 0x06, 0xba, 0x76, 0xbc, 0xce,
 		}
-		got, err := ecdh(privateKey, publicKey, nistec.NewP256Point)
+		k := &PrivateKey{d: privateKey, pub: PublicKey{curve: p256}}
+		peer := &PublicKey{curve: p256, q: publicKey}
+		got, err := ecdh(P256(), k, peer)
 		if err != nil {
 			return err
 		}

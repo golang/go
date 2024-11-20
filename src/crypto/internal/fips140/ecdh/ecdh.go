@@ -16,72 +16,142 @@ import (
 	"math/bits"
 )
 
-// point is a generic constraint for the [nistec] point types.
-type point[T any] interface {
+// PrivateKey and PublicKey are not generic to make it possible to use them
+// in other types without instantiating them with a specific point type.
+// They are tied to one of the Curve types below through the curveID field.
+
+// All this is duplicated from crypto/internal/fips/ecdsa, but the standards are
+// different and FIPS 140 does not allow reusing keys across them.
+
+type PrivateKey struct {
+	pub PublicKey
+	d   []byte // bigmod.(*Nat).Bytes output (fixed length)
+}
+
+func (priv *PrivateKey) Bytes() []byte {
+	return priv.d
+}
+
+func (priv *PrivateKey) PublicKey() *PublicKey {
+	return &priv.pub
+}
+
+type PublicKey struct {
+	curve curveID
+	q     []byte // uncompressed nistec Point.Bytes output
+}
+
+func (pub *PublicKey) Bytes() []byte {
+	return pub.q
+}
+
+type curveID string
+
+const (
+	p224 curveID = "P-224"
+	p256 curveID = "P-256"
+	p384 curveID = "P-384"
+	p521 curveID = "P-521"
+)
+
+type Curve[P Point[P]] struct {
+	curve    curveID
+	newPoint func() P
+	N        []byte
+}
+
+// Point is a generic constraint for the [nistec] Point types.
+type Point[P any] interface {
 	*nistec.P224Point | *nistec.P256Point | *nistec.P384Point | *nistec.P521Point
 	Bytes() []byte
 	BytesX() ([]byte, error)
-	SetBytes([]byte) (T, error)
-	ScalarMult(T, []byte) (T, error)
-	ScalarBaseMult([]byte) (T, error)
+	SetBytes([]byte) (P, error)
+	ScalarMult(P, []byte) (P, error)
+	ScalarBaseMult([]byte) (P, error)
 }
 
-// GenerateKeyP224 generates a random P-224 private key for ECDH.
+func P224() *Curve[*nistec.P224Point] {
+	return &Curve[*nistec.P224Point]{
+		curve:    p224,
+		newPoint: nistec.NewP224Point,
+		N:        p224Order,
+	}
+}
+
+var p224Order = []byte{
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x16, 0xa2,
+	0xe0, 0xb8, 0xf0, 0x3e, 0x13, 0xdd, 0x29, 0x45,
+	0x5c, 0x5c, 0x2a, 0x3d,
+}
+
+func P256() *Curve[*nistec.P256Point] {
+	return &Curve[*nistec.P256Point]{
+		curve:    p256,
+		newPoint: nistec.NewP256Point,
+		N:        p256Order,
+	}
+}
+
+var p256Order = []byte{
+	0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17, 0x9e, 0x84,
+	0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51,
+}
+
+func P384() *Curve[*nistec.P384Point] {
+	return &Curve[*nistec.P384Point]{
+		curve:    p384,
+		newPoint: nistec.NewP384Point,
+		N:        p384Order,
+	}
+}
+
+var p384Order = []byte{
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xc7, 0x63, 0x4d, 0x81, 0xf4, 0x37, 0x2d, 0xdf,
+	0x58, 0x1a, 0x0d, 0xb2, 0x48, 0xb0, 0xa7, 0x7a,
+	0xec, 0xec, 0x19, 0x6a, 0xcc, 0xc5, 0x29, 0x73,
+}
+
+func P521() *Curve[*nistec.P521Point] {
+	return &Curve[*nistec.P521Point]{
+		curve:    p521,
+		newPoint: nistec.NewP521Point,
+		N:        p521Order,
+	}
+}
+
+var p521Order = []byte{0x01, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfa,
+	0x51, 0x86, 0x87, 0x83, 0xbf, 0x2f, 0x96, 0x6b,
+	0x7f, 0xcc, 0x01, 0x48, 0xf7, 0x09, 0xa5, 0xd0,
+	0x3b, 0xb5, 0xc9, 0xb8, 0x89, 0x9c, 0x47, 0xae,
+	0xbb, 0x6f, 0xb7, 0x1e, 0x91, 0x38, 0x64, 0x09,
+}
+
+// GenerateKey generates a new ECDSA private key pair for the specified curve.
 //
-// If FIPS mode is disabled, privateKey is generated from rand. If FIPS mode is
-// enabled, rand is ignored and the key pair is generated using the approved
-// DRBG (and the function runs considerably slower).
-func GenerateKeyP224(rand io.Reader) (privateKey, publicKey []byte, err error) {
-	fipsSelfTest()
+// In FIPS mode, rand is ignored.
+func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
 	fips140.RecordApproved()
-	return generateKey(rand, nistec.NewP224Point, p224Order)
-}
-
-// GenerateKeyP256 generates a random P-256 private key for ECDH.
-//
-// If FIPS mode is disabled, privateKey is generated from rand. If FIPS mode is
-// enabled, rand is ignored and the key pair is generated using the approved
-// DRBG (and the function runs considerably slower).
-func GenerateKeyP256(rand io.Reader) (privateKey, publicKey []byte, err error) {
-	fipsSelfTest()
-	fips140.RecordApproved()
-	return generateKey(rand, nistec.NewP256Point, p256Order)
-}
-
-// GenerateKeyP384 generates a random P-384 private key for ECDH.
-//
-// If FIPS mode is disabled, privateKey is generated from rand. If FIPS mode is
-// enabled, rand is ignored and the key pair is generated using the approved
-// DRBG (and the function runs considerably slower).
-func GenerateKeyP384(rand io.Reader) (privateKey, publicKey []byte, err error) {
-	fipsSelfTest()
-	fips140.RecordApproved()
-	return generateKey(rand, nistec.NewP384Point, p384Order)
-}
-
-// GenerateKeyP521 generates a random P-521 private key for ECDH.
-//
-// If FIPS mode is disabled, privateKey is generated from rand. If FIPS mode is
-// enabled, rand is ignored and the key pair is generated using the approved
-// DRBG (and the function runs considerably slower).
-func GenerateKeyP521(rand io.Reader) (privateKey, publicKey []byte, err error) {
-	fipsSelfTest()
-	fips140.RecordApproved()
-	return generateKey(rand, nistec.NewP521Point, p521Order)
-}
-
-func generateKey[P point[P]](rand io.Reader, newPoint func() P, scalarOrder []byte) (privateKey, publicKey []byte, err error) {
 	// This procedure is equivalent to Key Pair Generation by Testing
 	// Candidates, specified in NIST SP 800-56A Rev. 3, Section 5.6.1.2.2.
 
 	for {
-		key := make([]byte, len(scalarOrder))
+		key := make([]byte, len(c.N))
 		if fips140.Enabled {
 			drbg.Read(key)
 		} else {
 			randutil.MaybeReadByte(rand)
 			if _, err := io.ReadFull(rand, key); err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			// In tests, rand will return all zeros and NewPrivateKey will reject
 			// the zero key as it generates the identity as a public key. This also
@@ -91,55 +161,34 @@ func generateKey[P point[P]](rand io.Reader, newPoint func() P, scalarOrder []by
 
 		// Mask off any excess bits if the size of the underlying field is not a
 		// whole number of bytes, which is only the case for P-521.
-		if len(scalarOrder) == len(p521Order) && scalarOrder[0]&0b1111_1110 == 0 {
+		if c.curve == p521 && c.N[0]&0b1111_1110 == 0 {
 			key[0] &= 0b0000_0001
 		}
 
-		publicKey, err := checkKeyAndComputePublicKey(key, newPoint, scalarOrder)
+		privateKey, err := NewPrivateKey(c, key)
 		if err != nil {
 			continue
 		}
-
-		return key, publicKey, nil
+		return privateKey, nil
 	}
 }
 
-func ImportKeyP224(privateKey []byte) (publicKey []byte, err error) {
-	fips140.RecordNonApproved()
-	return checkKeyAndComputePublicKey(privateKey, nistec.NewP224Point, p224Order)
-}
-
-func ImportKeyP256(privateKey []byte) (publicKey []byte, err error) {
-	fips140.RecordNonApproved()
-	return checkKeyAndComputePublicKey(privateKey, nistec.NewP256Point, p256Order)
-}
-
-func ImportKeyP384(privateKey []byte) (publicKey []byte, err error) {
-	fips140.RecordNonApproved()
-	return checkKeyAndComputePublicKey(privateKey, nistec.NewP384Point, p384Order)
-}
-
-func ImportKeyP521(privateKey []byte) (publicKey []byte, err error) {
-	fips140.RecordNonApproved()
-	return checkKeyAndComputePublicKey(privateKey, nistec.NewP521Point, p521Order)
-}
-
-func checkKeyAndComputePublicKey[P point[P]](key []byte, newPoint func() P, scalarOrder []byte) (publicKey []byte, err error) {
+func NewPrivateKey[P Point[P]](c *Curve[P], key []byte) (*PrivateKey, error) {
 	// SP 800-56A Rev. 3, Section 5.6.1.2.2 checks that c <= n – 2 and then
 	// returns d = c + 1. Note that it follows that 0 < d < n. Equivalently,
 	// we check that 0 < d < n, and return d.
-	if len(key) != len(scalarOrder) || isZero(key) || !isLess(key, scalarOrder) {
+	if len(key) != len(c.N) || isZero(key) || !isLess(key, c.N) {
 		return nil, errors.New("crypto/ecdh: invalid private key")
 	}
 
-	p, err := newPoint().ScalarBaseMult(key)
+	p, err := c.newPoint().ScalarBaseMult(key)
 	if err != nil {
 		// This is unreachable because the only error condition of
 		// ScalarBaseMult is if the input is not the right size.
 		panic("crypto/ecdh: internal error: nistec ScalarBaseMult failed for a fixed-size input")
 	}
 
-	publicKey = p.Bytes()
+	publicKey := p.Bytes()
 	if len(publicKey) == 1 {
 		// The encoding of the identity is a single 0x00 byte. This is
 		// unreachable because the only scalar that generates the identity is
@@ -157,7 +206,7 @@ func checkKeyAndComputePublicKey[P point[P]](key []byte, newPoint func() P, scal
 	// consistent [...], even if the underlying standard does not require a
 	// PCT". So we do it. And make ECDH nearly 50% slower (only) in FIPS mode.
 	if err := fips140.PCT("ECDH PCT", func() error {
-		p1, err := newPoint().ScalarBaseMult(key)
+		p1, err := c.newPoint().ScalarBaseMult(key)
 		if err != nil {
 			return err
 		}
@@ -169,92 +218,58 @@ func checkKeyAndComputePublicKey[P point[P]](key []byte, newPoint func() P, scal
 		panic(err)
 	}
 
-	return publicKey, nil
+	k := &PrivateKey{d: bytes.Clone(key), pub: PublicKey{curve: c.curve, q: publicKey}}
+	return k, nil
 }
 
-func CheckPublicKeyP224(publicKey []byte) error {
-	fipsSelfTest()
-	fips140.RecordApproved()
-	return checkPublicKey(publicKey, nistec.NewP224Point)
-}
-
-func CheckPublicKeyP256(publicKey []byte) error {
-	fipsSelfTest()
-	fips140.RecordApproved()
-	return checkPublicKey(publicKey, nistec.NewP256Point)
-}
-
-func CheckPublicKeyP384(publicKey []byte) error {
-	fipsSelfTest()
-	fips140.RecordApproved()
-	return checkPublicKey(publicKey, nistec.NewP384Point)
-}
-
-func CheckPublicKeyP521(publicKey []byte) error {
-	fipsSelfTest()
-	fips140.RecordApproved()
-	return checkPublicKey(publicKey, nistec.NewP521Point)
-}
-
-func checkPublicKey[P point[P]](key []byte, newPoint func() P) error {
+func NewPublicKey[P Point[P]](c *Curve[P], key []byte) (*PublicKey, error) {
 	// Reject the point at infinity and compressed encodings.
 	if len(key) == 0 || key[0] != 4 {
-		return errors.New("crypto/ecdh: invalid public key")
+		return nil, errors.New("crypto/ecdh: invalid public key")
 	}
 
 	// SetBytes checks that x and y are in the interval [0, p - 1], and that
 	// the point is on the curve. Along with the rejection of the point at
 	// infinity (the identity element) above, this fulfills the requirements
 	// of NIST SP 800-56A Rev. 3, Section 5.6.2.3.4.
-	if _, err := newPoint().SetBytes(key); err != nil {
-		return err
+	if _, err := c.newPoint().SetBytes(key); err != nil {
+		return nil, err
 	}
 
-	return nil
+	return &PublicKey{curve: c.curve, q: bytes.Clone(key)}, nil
 }
 
-func ECDHP224(privateKey, publicKey []byte) ([]byte, error) {
+func ECDH[P Point[P]](c *Curve[P], k *PrivateKey, peer *PublicKey) ([]byte, error) {
 	fipsSelfTest()
 	fips140.RecordApproved()
-	return ecdh(privateKey, publicKey, nistec.NewP224Point)
+	return ecdh(c, k, peer)
 }
 
-func ECDHP256(privateKey, publicKey []byte) ([]byte, error) {
-	fipsSelfTest()
-	fips140.RecordApproved()
-	return ecdh(privateKey, publicKey, nistec.NewP256Point)
-}
+func ecdh[P Point[P]](c *Curve[P], k *PrivateKey, peer *PublicKey) ([]byte, error) {
+	if c.curve != k.pub.curve {
+		return nil, errors.New("crypto/ecdh: mismatched curves")
+	}
+	if k.pub.curve != peer.curve {
+		return nil, errors.New("crypto/ecdh: mismatched curves")
+	}
 
-func ECDHP384(privateKey, publicKey []byte) ([]byte, error) {
-	fipsSelfTest()
-	fips140.RecordApproved()
-	return ecdh(privateKey, publicKey, nistec.NewP384Point)
-}
-
-func ECDHP521(privateKey, publicKey []byte) ([]byte, error) {
-	fipsSelfTest()
-	fips140.RecordApproved()
-	return ecdh(privateKey, publicKey, nistec.NewP521Point)
-}
-
-func ecdh[P point[P]](privateKey, publicKey []byte, newPoint func() P) ([]byte, error) {
 	// This applies the Shared Secret Computation of the Ephemeral Unified Model
 	// scheme specified in NIST SP 800-56A Rev. 3, Section 6.1.2.2.
 
 	// Per Section 5.6.2.3.4, Step 1, reject the identity element (0x00).
-	if len(publicKey) == 1 {
+	if len(k.pub.q) == 1 {
 		return nil, errors.New("crypto/ecdh: public key is the identity element")
 	}
 
 	// SetBytes checks that (x, y) are reduced modulo p, and that they are on
 	// the curve, performing Steps 2-3 of Section 5.6.2.3.4.
-	p, err := newPoint().SetBytes(publicKey)
+	p, err := c.newPoint().SetBytes(peer.q)
 	if err != nil {
 		return nil, err
 	}
 
 	// Compute P according to Section 5.7.1.2.
-	if _, err := p.ScalarMult(p, privateKey); err != nil {
+	if _, err := p.ScalarMult(p, k.d); err != nil {
 		return nil, err
 	}
 
@@ -300,34 +315,3 @@ func isLess(a, b []byte) bool {
 	// If there is a borrow at the end of the operation, then a < b.
 	return borrow == 1
 }
-
-var p224Order = []byte{
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x16, 0xa2,
-	0xe0, 0xb8, 0xf0, 0x3e, 0x13, 0xdd, 0x29, 0x45,
-	0x5c, 0x5c, 0x2a, 0x3d,
-}
-
-var p256Order = []byte{
-	0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17, 0x9e, 0x84,
-	0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51}
-
-var p384Order = []byte{
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	0xc7, 0x63, 0x4d, 0x81, 0xf4, 0x37, 0x2d, 0xdf,
-	0x58, 0x1a, 0x0d, 0xb2, 0x48, 0xb0, 0xa7, 0x7a,
-	0xec, 0xec, 0x19, 0x6a, 0xcc, 0xc5, 0x29, 0x73}
-
-var p521Order = []byte{0x01, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfa,
-	0x51, 0x86, 0x87, 0x83, 0xbf, 0x2f, 0x96, 0x6b,
-	0x7f, 0xcc, 0x01, 0x48, 0xf7, 0x09, 0xa5, 0xd0,
-	0x3b, 0xb5, 0xc9, 0xb8, 0x89, 0x9c, 0x47, 0xae,
-	0xbb, 0x6f, 0xb7, 0x1e, 0x91, 0x38, 0x64, 0x09}

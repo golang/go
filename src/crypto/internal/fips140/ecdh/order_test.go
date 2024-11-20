@@ -11,16 +11,16 @@ import (
 )
 
 func TestOrders(t *testing.T) {
-	if !bytes.Equal(elliptic.P224().Params().N.Bytes(), p224Order) {
+	if !bytes.Equal(elliptic.P224().Params().N.Bytes(), P224().N) {
 		t.Errorf("P-224 order mismatch")
 	}
-	if !bytes.Equal(elliptic.P256().Params().N.Bytes(), p256Order) {
+	if !bytes.Equal(elliptic.P256().Params().N.Bytes(), P256().N) {
 		t.Errorf("P-256 order mismatch")
 	}
-	if !bytes.Equal(elliptic.P384().Params().N.Bytes(), p384Order) {
+	if !bytes.Equal(elliptic.P384().Params().N.Bytes(), P384().N) {
 		t.Errorf("P-384 order mismatch")
 	}
-	if !bytes.Equal(elliptic.P521().Params().N.Bytes(), p521Order) {
+	if !bytes.Equal(elliptic.P521().Params().N.Bytes(), P521().N) {
 		t.Errorf("P-521 order mismatch")
 	}
 }

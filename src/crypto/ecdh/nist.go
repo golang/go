@@ -13,11 +13,11 @@ import (
 )
 
 type nistCurve struct {
-	name         string
-	generate     func(io.Reader) (privateKey, publicKey []byte, err error)
-	importKey    func([]byte) (publicKey []byte, err error)
-	checkPubkey  func(publicKey []byte) error
-	sharedSecret func(privateKey, publicKey []byte) (sharedSecret []byte, err error)
+	name          string
+	generate      func(io.Reader) (*ecdh.PrivateKey, error)
+	newPrivateKey func([]byte) (*ecdh.PrivateKey, error)
+	newPublicKey  func(publicKey []byte) (*ecdh.PublicKey, error)
+	sharedSecret  func(*ecdh.PrivateKey, *ecdh.PublicKey) (sharedSecret []byte, err error)
 }
 
 func (c *nistCurve) String() string {
@@ -43,15 +43,20 @@ func (c *nistCurve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
 		return k, nil
 	}
 
-	privateKey, publicKey, err := c.generate(rand)
+	privateKey, err := c.generate(rand)
 	if err != nil {
 		return nil, err
 	}
 
 	k := &PrivateKey{
 		curve:      c,
-		privateKey: privateKey,
-		publicKey:  &PublicKey{curve: c, publicKey: publicKey},
+		privateKey: privateKey.Bytes(),
+		fips:       privateKey,
+		publicKey: &PublicKey{
+			curve:     c,
+			publicKey: privateKey.PublicKey().Bytes(),
+			fips:      privateKey.PublicKey(),
+		},
 	}
 	if boring.Enabled {
 		bk, err := boring.NewPrivateKeyECDH(c.name, k.privateKey)
@@ -87,15 +92,19 @@ func (c *nistCurve) NewPrivateKey(key []byte) (*PrivateKey, error) {
 		return k, nil
 	}
 
-	publicKey, err := c.importKey(key)
+	fk, err := c.newPrivateKey(key)
 	if err != nil {
 		return nil, err
 	}
-
 	k := &PrivateKey{
 		curve:      c,
 		privateKey: bytes.Clone(key),
-		publicKey:  &PublicKey{curve: c, publicKey: publicKey},
+		fips:       fk,
+		publicKey: &PublicKey{
+			curve:     c,
+			publicKey: fk.PublicKey().Bytes(),
+			fips:      fk.PublicKey(),
+		},
 	}
 	return k, nil
 }
@@ -117,9 +126,11 @@ func (c *nistCurve) NewPublicKey(key []byte) (*PublicKey, error) {
 		}
 		k.boring = bk
 	} else {
-		if err := c.checkPubkey(k.publicKey); err != nil {
+		fk, err := c.newPublicKey(key)
+		if err != nil {
 			return nil, err
 		}
+		k.fips = fk
 	}
 	return k, nil
 }
@@ -135,7 +146,7 @@ func (c *nistCurve) ecdh(local *PrivateKey, remote *PublicKey) ([]byte, error) {
 	if boring.Enabled {
 		return boring.ECDH(local.boring, remote.boring)
 	}
-	return c.sharedSecret(local.privateKey, remote.publicKey)
+	return c.sharedSecret(local.fips, remote.fips)
 }
 
 // P256 returns a [Curve] which implements NIST P-256 (FIPS 186-3, section D.2.3),
@@ -146,11 +157,19 @@ func (c *nistCurve) ecdh(local *PrivateKey, remote *PublicKey) ([]byte, error) {
 func P256() Curve { return p256 }
 
 var p256 = &nistCurve{
-	name:         "P-256",
-	generate:     ecdh.GenerateKeyP256,
-	importKey:    ecdh.ImportKeyP256,
-	checkPubkey:  ecdh.CheckPublicKeyP256,
-	sharedSecret: ecdh.ECDHP256,
+	name: "P-256",
+	generate: func(r io.Reader) (*ecdh.PrivateKey, error) {
+		return ecdh.GenerateKey(ecdh.P256(), r)
+	},
+	newPrivateKey: func(b []byte) (*ecdh.PrivateKey, error) {
+		return ecdh.NewPrivateKey(ecdh.P256(), b)
+	},
+	newPublicKey: func(publicKey []byte) (*ecdh.PublicKey, error) {
+		return ecdh.NewPublicKey(ecdh.P256(), publicKey)
+	},
+	sharedSecret: func(priv *ecdh.PrivateKey, pub *ecdh.PublicKey) (sharedSecret []byte, err error) {
+		return ecdh.ECDH(ecdh.P256(), priv, pub)
+	},
 }
 
 // P384 returns a [Curve] which implements NIST P-384 (FIPS 186-3, section D.2.4),
@@ -161,11 +180,19 @@ var p256 = &nistCurve{
 func P384() Curve { return p384 }
 
 var p384 = &nistCurve{
-	name:         "P-384",
-	generate:     ecdh.GenerateKeyP384,
-	importKey:    ecdh.ImportKeyP384,
-	checkPubkey:  ecdh.CheckPublicKeyP384,
-	sharedSecret: ecdh.ECDHP384,
+	name: "P-384",
+	generate: func(r io.Reader) (*ecdh.PrivateKey, error) {
+		return ecdh.GenerateKey(ecdh.P384(), r)
+	},
+	newPrivateKey: func(b []byte) (*ecdh.PrivateKey, error) {
+		return ecdh.NewPrivateKey(ecdh.P384(), b)
+	},
+	newPublicKey: func(publicKey []byte) (*ecdh.PublicKey, error) {
+		return ecdh.NewPublicKey(ecdh.P384(), publicKey)
+	},
+	sharedSecret: func(priv *ecdh.PrivateKey, pub *ecdh.PublicKey) (sharedSecret []byte, err error) {
+		return ecdh.ECDH(ecdh.P384(), priv, pub)
+	},
 }
 
 // P521 returns a [Curve] which implements NIST P-521 (FIPS 186-3, section D.2.5),
@@ -176,9 +203,17 @@ var p384 = &nistCurve{
 func P521() Curve { return p521 }
 
 var p521 = &nistCurve{
-	name:         "P-521",
-	generate:     ecdh.GenerateKeyP521,
-	importKey:    ecdh.ImportKeyP521,
-	checkPubkey:  ecdh.CheckPublicKeyP521,
-	sharedSecret: ecdh.ECDHP521,
+	name: "P-521",
+	generate: func(r io.Reader) (*ecdh.PrivateKey, error) {
+		return ecdh.GenerateKey(ecdh.P521(), r)
+	},
+	newPrivateKey: func(b []byte) (*ecdh.PrivateKey, error) {
+		return ecdh.NewPrivateKey(ecdh.P521(), b)
+	},
+	newPublicKey: func(publicKey []byte) (*ecdh.PublicKey, error) {
+		return ecdh.NewPublicKey(ecdh.P521(), publicKey)
+	},
+	sharedSecret: func(priv *ecdh.PrivateKey, pub *ecdh.PublicKey) (sharedSecret []byte, err error) {
+		return ecdh.ECDH(ecdh.P521(), priv, pub)
+	},
 }

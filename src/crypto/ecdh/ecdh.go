@@ -9,6 +9,7 @@ package ecdh
 import (
 	"crypto"
 	"crypto/internal/boring"
+	"crypto/internal/fips140/ecdh"
 	"crypto/subtle"
 	"errors"
 	"io"
@@ -60,6 +61,7 @@ type PublicKey struct {
 	curve     Curve
 	publicKey []byte
 	boring    *boring.PublicKeyECDH
+	fips      *ecdh.PublicKey
 }
 
 // Bytes returns a copy of the encoding of the public key.
@@ -100,6 +102,7 @@ type PrivateKey struct {
 	privateKey []byte
 	publicKey  *PublicKey
 	boring     *boring.PrivateKeyECDH
+	fips       *ecdh.PrivateKey
 }
 
 // ECDH performs an ECDH exchange and returns the shared secret. The [PrivateKey]
