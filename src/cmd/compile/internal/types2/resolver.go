@@ -498,41 +498,11 @@ func (check *Checker) collectObjects() {
 		return
 	}
 
-	// lookupScope returns the file scope which contains the given name,
-	// or nil if the name is not found in any scope. The search does not
-	// step inside blocks (function bodies).
-	// This function is only used in conjuction with import "C", and even
-	// then only rarely. It doesn't have to be particularly fast.
-	lookupScope := func(name *syntax.Name) *Scope {
-		for i, file := range check.files {
-			found := false
-			syntax.Inspect(file, func(n syntax.Node) bool {
-				if found {
-					return false // we're done
-				}
-				switch n := n.(type) {
-				case *syntax.Name:
-					if n == name {
-						found = true
-						return false
-					}
-				case *syntax.BlockStmt:
-					return false // don't descend into function bodies
-				}
-				return true
-			})
-			if found {
-				return fileScopes[i]
-			}
-		}
-		return nil
-	}
-
 	check.methods = make(map[*TypeName][]*Func)
 	for i := range methods {
 		m := &methods[i]
 		// Determine the receiver base type and associate m with it.
-		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv, lookupScope)
+		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
 		if base != nil {
 			m.obj.hasPtrRecv_ = ptr
 			check.methods[base] = append(check.methods[base], m.obj)
@@ -585,107 +555,75 @@ func (check *Checker) unpackRecv(rtyp syntax.Expr, unpackParams bool) (ptr bool,
 	return
 }
 
-// resolveBaseTypeName returns the non-alias base type name for recvName, and whether
+// resolveBaseTypeName returns the non-alias base type name for the given name, and whether
 // there was a pointer indirection to get to it. The base type name must be declared
-// in package scope, and there can be at most one pointer indirection. If no such type
-// name exists, the returned base is nil.
-func (check *Checker) resolveBaseTypeName(recvHasPtr bool, recvName *syntax.Name, lookupScope func(*syntax.Name) *Scope) (ptr bool, base *TypeName) {
-	// Algorithm: Starting from a type expression, which may be a name,
+// in package scope, and there can be at most one pointer indirection. Traversals
+// through generic alias types are not permitted. If no such type name exists, the
+// returned base is nil.
+func (check *Checker) resolveBaseTypeName(ptr bool, name *syntax.Name) (ptr_ bool, base *TypeName) {
+	// Algorithm: Starting from name, which is expected to denote a type,
 	// we follow that type through non-generic alias declarations until
-	// we reach a non-alias type name. A single pointer indirection and
-	// references to cgo types are permitted.
-	ptr = recvHasPtr
-	var typ syntax.Expr = recvName
+	// we reach a non-alias type name.
 	var seen map[*TypeName]bool
-	for {
-		// The syntax parser strips unnecessary parentheses; calling Unparen is not needed.
-		// typ = syntax.Unparen(typ)
-
-		// check if we have a pointer type
-		// if pexpr, _ := typ.(*ast.StarExpr); pexpr != nil {
-		if pexpr, _ := typ.(*syntax.Operation); pexpr != nil && pexpr.Op == syntax.Mul && pexpr.Y == nil {
-			// if we've already seen a pointer, we're done
-			if ptr {
-				return false, nil
-			}
-			ptr = true
-			typ = syntax.Unparen(pexpr.X) // continue with pointer base type
-		}
-
-		// typ must be a name, or a C.name cgo selector.
-		var name string
-		switch typ := typ.(type) {
-		case *syntax.Name:
-			name = typ.Value
-		case *syntax.SelectorExpr:
-			// C.struct_foo is a valid type name for packages using cgo.
-			// See go.dev/issue/59944.
-			// TODO(gri) why is it possible to associate methods with C types?
-			//
-			// Detect this case, and adjust name so that the correct TypeName is
-			// resolved below.
-			if ident, _ := typ.X.(*syntax.Name); ident != nil && ident.Value == "C" {
-				// Check whether "C" actually resolves to an import of "C", by looking
-				// in the appropriate file scope.
-				obj := lookupScope(ident).Lookup(ident.Value) // the fileScope must always be found
-				// If Config.go115UsesCgo is set, the typechecker will resolve Cgo
-				// selectors to their cgo name. We must do the same here.
-				if pname, _ := obj.(*PkgName); pname != nil {
-					if pname.imported.cgo { // only set if Config.go115UsesCgo is set
-						name = "_Ctype_" + typ.Sel.Value
-					}
-				}
-			}
-			if name == "" {
-				return false, nil
-			}
-		// An instantiated type may appear on the RHS of an alias declaration.
-		// Defining new methods with receivers that are generic aliases (or
-		// which refer to generic aliases) is not permitted, so we're done.
-		// Treat like the default case.
-		// case *syntax.IndexExpr:
-		default:
-			return false, nil
-		}
-
+	for name != nil {
 		// name must denote an object found in the current package scope
 		// (note that dot-imported objects are not in the package scope!)
-		obj := check.pkg.scope.Lookup(name)
+		obj := check.pkg.scope.Lookup(name.Value)
 		if obj == nil {
-			return false, nil
+			break
 		}
 
 		// the object must be a type name...
 		tname, _ := obj.(*TypeName)
 		if tname == nil {
-			return false, nil
+			break
 		}
 
 		// ... which we have not seen before
 		if seen[tname] {
-			return false, nil
+			break
 		}
 
-		// we're done if tdecl defined tname as a new type
-		// (rather than an alias)
+		// we're done if tdecl describes a defined type (not an alias)
 		tdecl := check.objMap[tname].tdecl // must exist for objects in package scope
 		if !tdecl.Alias {
 			return ptr, tname
 		}
 
-		// we're done if tdecl defined a generic alias
+		// an alias must not be generic
 		// (importantly, we must not collect such methods - was https://go.dev/issue/70417)
 		if tdecl.TParamList != nil {
-			return false, nil
+			break
 		}
 
-		// otherwise, continue resolving
-		typ = tdecl.Type
+		// otherwise, remember this type name and continue resolving
 		if seen == nil {
 			seen = make(map[*TypeName]bool)
 		}
 		seen[tname] = true
+
+		// The syntax parser strips unnecessary parentheses; call Unparen for consistency with go/types.
+		typ := syntax.Unparen(tdecl.Type)
+
+		// dereference a pointer type
+		if pexpr, _ := typ.(*syntax.Operation); pexpr != nil && pexpr.Op == syntax.Mul && pexpr.Y == nil {
+			// if we've already seen a pointer, we're done
+			if ptr {
+				break
+			}
+			ptr = true
+			typ = syntax.Unparen(pexpr.X) // continue with pointer base type
+		}
+
+		// After dereferencing, typ must be a locally defined type name.
+		// Referring to other packages (qualified identifiers) or going
+		// through instantiated types (index expressions) is not permitted,
+		// so we can ignore those.
+		name, _ = typ.(*syntax.Name)
 	}
+
+	// no base type found
+	return false, nil
 }
 
 // packageObjects typechecks all package objects, but not function bodies.
