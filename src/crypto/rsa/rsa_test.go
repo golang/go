@@ -24,7 +24,7 @@ import (
 )
 
 func TestKeyGeneration(t *testing.T) {
-	for _, size := range []int{128, 1024, 2048, 3072} {
+	for _, size := range []int{128, 1024, 2048, 3072, 4096, 8192} {
 		priv, err := GenerateKey(rand.Reader, size)
 		if err != nil {
 			t.Errorf("GenerateKey(%d): %v", size, err)
