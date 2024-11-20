@@ -63,17 +63,12 @@ func (p *Process) pidWait() (*ProcessState, error) {
 	var (
 		status syscall.WaitStatus
 		rusage syscall.Rusage
-		pid1   int
-		e      error
 	)
-	for {
-		pid1, e = syscall.Wait4(p.Pid, &status, 0, &rusage)
-		if e != syscall.EINTR {
-			break
-		}
-	}
-	if e != nil {
-		return nil, NewSyscallError("wait", e)
+	pid1, err := ignoringEINTR2(func() (int, error) {
+		return syscall.Wait4(p.Pid, &status, 0, &rusage)
+	})
+	if err != nil {
+		return nil, NewSyscallError("wait", err)
 	}
 	p.pidDeactivate(statusDone)
 	return &ProcessState{
