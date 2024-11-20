@@ -22,6 +22,22 @@
 // Operations involving private keys are implemented using constant-time
 // algorithms, except for [GenerateKey], [PrivateKey.Precompute], and
 // [PrivateKey.Validate].
+//
+// # Minimum key size
+//
+// [GenerateKey] returns an error if a key of less than 1024 bits is requested,
+// and all Sign, Verify, Encrypt, and Decrypt methods return an error if used
+// with a key smaller than 1024 bits. Such keys are insecure and should not be
+// used.
+//
+// The `rsa1024min=0` GODEBUG setting suppresses this error, but we recommend
+// doing so only in tests, if necessary. Tests can use [testing.T.Setenv] or
+// include `//go:debug rsa1024min=0` in a `_test.go` source file to set it.
+//
+// Alternatively, see the [GenerateKey (TestKey)] example for a pregenerated
+// test-only 2048-bit key.
+//
+// [GenerateKey (TestKey)]: #example-GenerateKey-TestKey
 package rsa
 
 import (
@@ -34,6 +50,8 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"fmt"
+	"internal/godebug"
 	"io"
 	"math"
 	"math/big"
@@ -249,12 +267,42 @@ func (priv *PrivateKey) Validate() error {
 	return nil
 }
 
+// rsa1024min is a GODEBUG that re-enables weak RSA keys if set to "0".
+// See https://go.dev/issue/68762.
+var rsa1024min = godebug.New("rsa1024min")
+
+func checkKeySize(size int) error {
+	if size >= 1024 {
+		return nil
+	}
+	if rsa1024min.Value() == "0" {
+		rsa1024min.IncNonDefault()
+		return nil
+	}
+	return fmt.Errorf("crypto/rsa: %d-bit keys are insecure (see https://go.dev/pkg/crypto/rsa#hdr-Minimum_key_size)", size)
+}
+
+func checkPublicKeySize(k *PublicKey) error {
+	if k.N == nil {
+		return errors.New("crypto/rsa: missing public modulus")
+	}
+	return checkKeySize(k.N.BitLen())
+}
+
 // GenerateKey generates a random RSA private key of the given bit size.
+//
+// If bits is less than 1024, [GenerateKey] returns an error. See the "[Minimum
+// key size]" section for further details.
 //
 // Most applications should use [crypto/rand.Reader] as rand. Note that the
 // returned key does not depend deterministically on the bytes read from rand,
 // and may change between calls and/or between versions.
+//
+// [Minimum key size]: #hdr-Minimum_key_size
 func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+	if err := checkKeySize(bits); err != nil {
+		return nil, err
+	}
 	return GenerateMultiPrimeKey(random, 2, bits)
 }
 

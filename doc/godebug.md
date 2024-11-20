@@ -177,6 +177,10 @@ This behavior can be controlled with the `gotestjsonbuildtext` setting.
 Using `gotestjsonbuildtext=1` restores the 1.23 behavior.
 This setting will be removed in a future release, Go 1.28 at the earliest.
 
+Go 1.24 changed [`crypto/rsa`](/pkg/crypto/rsa) to require RSA keys to be at
+least 1024 bits. This behavior can be controlled with the `rsa1024min` setting.
+Using `rsa1024min=0` restores the Go 1.23 behavior.
+
 Go 1.24 introduced a mechanism for enabling platform specific Data Independent
 Timing (DIT) modes in the [`crypto/subtle`](/pkg/crypto/subtle) package. This
 mode can be enabled for an entire program with the `dataindependenttiming` setting.

@@ -315,6 +315,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the math/rand
 		package due to a non-default GODEBUG=randseednop=... setting.
 
+	/godebug/non-default-behavior/rsa1024min:events
+		The number of non-default behaviors executed by the crypto/rsa
+		package due to a non-default GODEBUG=rsa1024min=... setting.
+
 	/godebug/non-default-behavior/tarinsecurepath:events
 		The number of non-default behaviors executed by the archive/tar
 		package due to a non-default GODEBUG=tarinsecurepath=...

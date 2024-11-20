@@ -115,6 +115,8 @@ func TestPSSGolden(t *testing.T) {
 // TestPSSOpenSSL ensures that we can verify a PSS signature from OpenSSL with
 // the default options. OpenSSL sets the salt length to be maximal.
 func TestPSSOpenSSL(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
+
 	hash := crypto.SHA256
 	h := hash.New()
 	h.Write([]byte("testing"))
@@ -131,7 +133,7 @@ func TestPSSOpenSSL(t *testing.T) {
 		0x0a, 0x37, 0x9c, 0x69,
 	}
 
-	if err := VerifyPSS(&rsaPrivateKey.PublicKey, hash, hashed, sig, nil); err != nil {
+	if err := VerifyPSS(&test512Key.PublicKey, hash, hashed, sig, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -159,7 +161,7 @@ func TestPSSSigning(t *testing.T) {
 		{42, PSSSaltLengthAuto, true, true},
 		// In FIPS mode, PSSSaltLengthAuto is capped at PSSSaltLengthEqualsHash.
 		{PSSSaltLengthAuto, PSSSaltLengthEqualsHash, false, true},
-		{PSSSaltLengthAuto, 42, true, false},
+		{PSSSaltLengthAuto, 106, true, false},
 		{PSSSaltLengthAuto, 20, false, true},
 		{PSSSaltLengthAuto, -2, false, false},
 	}
@@ -194,6 +196,7 @@ func TestPSS513(t *testing.T) {
 	// See Issue 42741, and separately, RFC 8017: "Note that the octet length of
 	// EM will be one less than k if modBits - 1 is divisible by 8 and equal to
 	// k otherwise, where k is the length in octets of the RSA modulus n."
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	key, err := GenerateKey(rand.Reader, 513)
 	if err != nil {
 		t.Fatal(err)
@@ -237,6 +240,7 @@ func fromHex(hexStr string) []byte {
 }
 
 func TestInvalidPSSSaltLength(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	key, err := GenerateKey(rand.Reader, 245)
 	if err != nil {
 		t.Fatal(err)
@@ -260,20 +264,15 @@ func TestInvalidPSSSaltLength(t *testing.T) {
 }
 
 func TestHashOverride(t *testing.T) {
-	key, err := GenerateKey(rand.Reader, 1024)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	digest := sha512.Sum512([]byte("message"))
 	// opts.Hash overrides the passed hash argument.
-	sig, err := SignPSS(rand.Reader, key, crypto.SHA256, digest[:], &PSSOptions{Hash: crypto.SHA512})
+	sig, err := SignPSS(rand.Reader, test2048Key, crypto.SHA256, digest[:], &PSSOptions{Hash: crypto.SHA512})
 	if err != nil {
 		t.Fatalf("SignPSS unexpected error: got %v, want nil", err)
 	}
 
 	// VerifyPSS has the inverse behavior, opts.Hash is always ignored, check this is true.
-	if err := VerifyPSS(&key.PublicKey, crypto.SHA512, digest[:], sig, &PSSOptions{Hash: crypto.SHA256}); err != nil {
+	if err := VerifyPSS(&test2048Key.PublicKey, crypto.SHA512, digest[:], sig, &PSSOptions{Hash: crypto.SHA256}); err != nil {
 		t.Fatalf("VerifyPSS unexpected error: got %v, want nil", err)
 	}
 }

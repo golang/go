@@ -57,6 +57,10 @@ func (opts *PSSOptions) saltLength() int {
 // using bytes from rand. Most applications should use [crypto/rand.Reader] as
 // rand.
 func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
+	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
+		return nil, err
+	}
+
 	if opts != nil && opts.Hash != 0 {
 		hash = opts.Hash
 	}
@@ -106,6 +110,10 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 // The inputs are not considered confidential, and may leak through timing side
 // channels, or if an attacker has control of part of the inputs.
 func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts *PSSOptions) error {
+	if err := checkPublicKeySize(pub); err != nil {
+		return err
+	}
+
 	if boring.Enabled {
 		bkey, err := boringPublicKey(pub)
 		if err != nil {
@@ -152,6 +160,10 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 // The message must be no longer than the length of the public modulus minus
 // twice the hash length, minus a further 2.
 func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+	if err := checkPublicKeySize(pub); err != nil {
+		return nil, err
+	}
+
 	defer hash.Reset()
 
 	if boring.Enabled && random == boring.RandReader {
@@ -191,6 +203,10 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 }
 
 func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
+		return nil, err
+	}
+
 	if boring.Enabled {
 		k := priv.Size()
 		if len(ciphertext) > k ||
@@ -229,6 +245,10 @@ func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 // messages to signatures and identify the signed messages. As ever,
 // signatures provide authenticity, not confidentiality.
 func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
+	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
+		return nil, err
+	}
+
 	if boring.Enabled {
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
@@ -260,6 +280,10 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 // The inputs are not considered confidential, and may leak through timing side
 // channels, or if an attacker has control of part of the inputs.
 func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) error {
+	if err := checkPublicKeySize(pub); err != nil {
+		return err
+	}
+
 	if boring.Enabled {
 		bkey, err := boringPublicKey(pub)
 		if err != nil {

@@ -350,7 +350,7 @@ func TestFIPSCertAlgs(t *testing.T) {
 	// Set up some roots, intermediate CAs, and leaf certs with various algorithms.
 	// X_Y is X signed by Y.
 	R1 := fipsCert(t, "R1", fipsRSAKey(t, 2048), nil, fipsCertCA|fipsCertFIPSOK)
-	R2 := fipsCert(t, "R2", fipsRSAKey(t, 512), nil, fipsCertCA)
+	R2 := fipsCert(t, "R2", fipsRSAKey(t, 1024), nil, fipsCertCA)
 	R3 := fipsCert(t, "R3", fipsRSAKey(t, 4096), nil, fipsCertCA|fipsCertFIPSOK)
 
 	M1_R1 := fipsCert(t, "M1_R1", fipsECDSAKey(t, elliptic.P256()), R1, fipsCertCA|fipsCertFIPSOK)
