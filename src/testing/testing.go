@@ -424,6 +424,11 @@ import (
 
 var initRan bool
 
+var (
+	parallelStart atomic.Int64 // number of parallel tests started
+	parallelStop  atomic.Int64 // number of parallel tests stopped
+)
+
 // Init registers testing flags. These flags are automatically registered by
 // the "go test" command before running test functions, so Init is only needed
 // when calling functions such as Benchmark without using "go test".
@@ -1536,13 +1541,14 @@ func (t *T) Parallel() {
 	if t.denyParallel {
 		panic(parallelConflict)
 	}
-	t.isParallel = true
 	if t.parent.barrier == nil {
 		// T.Parallel has no effect when fuzzing.
 		// Multiple processes may run in parallel, but only one input can run at a
 		// time per process so we can attribute crashes to specific inputs.
 		return
 	}
+
+	t.isParallel = true
 
 	// We don't want to include the time we spend waiting for serial tests
 	// in the test duration. Record the elapsed time thus far and reset the
@@ -1572,6 +1578,7 @@ func (t *T) Parallel() {
 	t.signal <- true   // Release calling test.
 	<-t.parent.barrier // Wait for the parent test to complete.
 	t.tstate.waitParallel()
+	parallelStart.Add(1)
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
@@ -1707,6 +1714,9 @@ func tRunner(t *T, fn func(t *T)) {
 				panic(err)
 			}
 			running.Delete(t.name)
+			if t.isParallel {
+				parallelStop.Add(1)
+			}
 			t.signal <- signal
 		}()
 
