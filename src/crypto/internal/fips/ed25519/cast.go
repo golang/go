@@ -14,17 +14,23 @@ import (
 
 func fipsPCT(k *PrivateKey) error {
 	return fips.PCT("Ed25519 sign and verify PCT", func() error {
-		msg := []byte("PCT")
-		sig := Sign(k, msg)
-		// Note that this runs pub.a.SetBytes. If we wanted to make key generation
-		// in FIPS mode faster, we could reuse A from GenerateKey. But another thing
-		// that could make it faster is just _not doing a useless self-test_.
-		pub, err := NewPublicKey(k.PublicKey())
-		if err != nil {
-			return err
-		}
-		return Verify(pub, msg, sig)
+		return pairwiseTest(k)
 	})
+}
+
+// pairwiseTest needs to be a top-level function declaration to let the calls
+// inline and their allocations not escape.
+func pairwiseTest(k *PrivateKey) error {
+	msg := []byte("PCT")
+	sig := Sign(k, msg)
+	// Note that this runs pub.a.SetBytes. If we wanted to make key generation
+	// in FIPS mode faster, we could reuse A from GenerateKey. But another thing
+	// that could make it faster is just _not doing a useless self-test_.
+	pub, err := NewPublicKey(k.PublicKey())
+	if err != nil {
+		return err
+	}
+	return Verify(pub, msg, sig)
 }
 
 func signWithoutSelfTest(priv *PrivateKey, message []byte) []byte {
