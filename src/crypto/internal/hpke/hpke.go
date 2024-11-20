@@ -42,7 +42,7 @@ func (kdf *hkdfKDF) LabeledExpand(suiteID []byte, randomKey []byte, label string
 	labeledInfo = append(labeledInfo, suiteID...)
 	labeledInfo = append(labeledInfo, label...)
 	labeledInfo = append(labeledInfo, info...)
-	return hkdf.Expand(kdf.hash.New, randomKey, labeledInfo, int(length))
+	return hkdf.Expand(kdf.hash.New, randomKey, string(labeledInfo), int(length))
 }
 
 // dhKEM implements the KEM specified in RFC 9180, Section 4.1.

@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package fipstest_test
-
-// TODO(fips, #61477): move this to crypto/hkdf once it exists.
+package hkdf
 
 import (
 	"bytes"
 	"crypto/internal/boring"
 	"crypto/internal/fips140"
-	"crypto/internal/fips140/hkdf"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -301,19 +298,30 @@ var hkdfTests = []hkdfTest{
 
 func TestHKDF(t *testing.T) {
 	for i, tt := range hkdfTests {
-		prk := hkdf.Extract(tt.hash, tt.master, tt.salt)
+		prk, err := Extract(tt.hash, tt.master, tt.salt)
+		if err != nil {
+			t.Errorf("test %d: PRK extraction failed: %v", i, err)
+		}
 		if !bytes.Equal(prk, tt.prk) {
 			t.Errorf("test %d: incorrect PRK: have %v, need %v.", i, prk, tt.prk)
 		}
 
-		out := hkdf.Key(tt.hash, tt.master, tt.salt, tt.info, len(tt.out))
-		if !bytes.Equal(out, tt.out) {
-			t.Errorf("test %d: incorrect output: have %v, need %v.", i, out, tt.out)
+		key, err := Key(tt.hash, tt.master, tt.salt, string(tt.info), len(tt.out))
+		if err != nil {
+			t.Errorf("test %d: key derivation failed: %v", i, err)
 		}
 
-		out = hkdf.Expand(tt.hash, prk, tt.info, len(tt.out))
-		if !bytes.Equal(out, tt.out) {
-			t.Errorf("test %d: incorrect output from Expand: have %v, need %v.", i, out, tt.out)
+		if !bytes.Equal(key, tt.out) {
+			t.Errorf("test %d: incorrect output: have %v, need %v.", i, key, tt.out)
+		}
+
+		expanded, err := Expand(tt.hash, prk, string(tt.info), len(tt.out))
+		if err != nil {
+			t.Errorf("test %d: key expansion failed: %v", i, err)
+		}
+
+		if !bytes.Equal(expanded, tt.out) {
+			t.Errorf("test %d: incorrect output from Expand: have %v, need %v.", i, expanded, tt.out)
 		}
 	}
 }
@@ -321,19 +329,52 @@ func TestHKDF(t *testing.T) {
 func TestHKDFLimit(t *testing.T) {
 	hash := sha1.New
 	master := []byte{0x00, 0x01, 0x02, 0x03}
-	info := []byte{}
+	info := ""
+	limit := hash().Size() * 255
 
 	// The maximum output bytes should be extractable
-	limit := hash().Size() * 255
-	hkdf.Key(hash, master, nil, info, limit)
+	out, err := Key(hash, master, nil, info, limit)
+	if err != nil || len(out) != limit {
+		t.Errorf("key derivation failed: %v", err)
+	}
 
-	// Reading one more should panic
-	defer func() {
-		if err := recover(); err == nil {
-			t.Error("expected panic")
+	// Reading one more should return an error
+	_, err = Key(hash, master, nil, info, limit+1)
+	if err == nil {
+		t.Error("expected key derivation to fail, but it succeeded")
+	}
+}
+
+func Benchmark16ByteMD5Single(b *testing.B) {
+	benchmarkHKDF(md5.New, 16, b)
+}
+
+func Benchmark20ByteSHA1Single(b *testing.B) {
+	benchmarkHKDF(sha1.New, 20, b)
+}
+
+func Benchmark32ByteSHA256Single(b *testing.B) {
+	benchmarkHKDF(sha256.New, 32, b)
+}
+
+func Benchmark64ByteSHA512Single(b *testing.B) {
+	benchmarkHKDF(sha512.New, 64, b)
+}
+
+func benchmarkHKDF(hasher func() hash.Hash, block int, b *testing.B) {
+	master := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}
+	salt := []byte{0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17}
+	info := string([]byte{0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27})
+
+	b.SetBytes(int64(block))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err := Key(hasher, master, salt, info, hasher().Size())
+		if err != nil {
+			b.Errorf("failed to derive key: %v", err)
 		}
-	}()
-	hkdf.Key(hash, master, nil, info, limit+1)
+	}
 }
 
 func TestFIPSServiceIndicator(t *testing.T) {
@@ -342,51 +383,28 @@ func TestFIPSServiceIndicator(t *testing.T) {
 	}
 
 	fips140.ResetServiceIndicator()
-	hkdf.Key(sha256.New, []byte("YELLOW SUBMARINE"), nil, nil, 32)
+	_, err := Key(sha256.New, []byte("YELLOW SUBMARINE"), nil, "", 32)
+	if err != nil {
+		panic(err)
+	}
 	if !fips140.ServiceIndicator() {
 		t.Error("FIPS service indicator should be set")
 	}
 
 	// Key too short.
 	fips140.ResetServiceIndicator()
-	hkdf.Key(sha256.New, []byte("key"), nil, nil, 32)
+	_, err = Key(sha256.New, []byte("key"), nil, "", 32)
+	if err != nil {
+		panic(err)
+	}
 	if fips140.ServiceIndicator() {
 		t.Error("FIPS service indicator should not be set")
 	}
 
 	// Salt and info are short, which is ok, but translates to a short HMAC key.
 	fips140.ResetServiceIndicator()
-	hkdf.Key(sha256.New, []byte("YELLOW SUBMARINE"), []byte("salt"), []byte("info"), 32)
+	_, err = Key(sha256.New, []byte("YELLOW SUBMARINE"), []byte("salt"), "info", 32)
 	if !fips140.ServiceIndicator() {
 		t.Error("FIPS service indicator should be set")
-	}
-}
-
-func Benchmark16ByteMD5Single(b *testing.B) {
-	benchmarkHKDFSingle(md5.New, 16, b)
-}
-
-func Benchmark20ByteSHA1Single(b *testing.B) {
-	benchmarkHKDFSingle(sha1.New, 20, b)
-}
-
-func Benchmark32ByteSHA256Single(b *testing.B) {
-	benchmarkHKDFSingle(sha256.New, 32, b)
-}
-
-func Benchmark64ByteSHA512Single(b *testing.B) {
-	benchmarkHKDFSingle(sha512.New, 64, b)
-}
-
-func benchmarkHKDFSingle(hasher func() hash.Hash, block int, b *testing.B) {
-	master := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}
-	salt := []byte{0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17}
-	info := []byte{0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27}
-
-	b.SetBytes(int64(block))
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		hkdf.Key(hasher, master, salt, info, block)
 	}
 }

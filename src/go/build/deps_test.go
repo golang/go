@@ -511,7 +511,7 @@ var depsRules = `
 
 	crypto/boring
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
-	  crypto/sha1, crypto/sha256, crypto/sha512;
+	  crypto/sha1, crypto/sha256, crypto/sha512, crypto/hkdf;
 
 	crypto/boring, crypto/internal/fips140/edwards25519/field
 	< crypto/ecdh;
@@ -530,7 +530,8 @@ var depsRules = `
 	crypto/sha1,
 	crypto/sha256,
 	crypto/sha512,
-	golang.org/x/crypto/sha3
+	golang.org/x/crypto/sha3,
+	crypto/hkdf
 	< CRYPTO;
 
 	CGO, fmt, net !< CRYPTO;

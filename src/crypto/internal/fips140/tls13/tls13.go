@@ -36,7 +36,7 @@ func ExpandLabel[H fips140.Hash](hash func() H, secret []byte, label string, con
 	hkdfLabel = append(hkdfLabel, label...)
 	hkdfLabel = append(hkdfLabel, byte(len(context)))
 	hkdfLabel = append(hkdfLabel, context...)
-	return hkdf.Expand(hash, secret, hkdfLabel, length)
+	return hkdf.Expand(hash, secret, string(hkdfLabel), length)
 }
 
 func extract[H fips140.Hash](hash func() H, newSecret, currentSecret []byte) []byte {

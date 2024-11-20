@@ -24,7 +24,7 @@ func init() {
 			0xa6, 0xc1, 0xde, 0x42, 0x4f, 0x2c, 0x99, 0x60,
 			0x64, 0xdb, 0x66, 0x3e, 0xec, 0xa6, 0x37, 0xff,
 		}
-		got := Key(sha256.New, input, input, input, len(want))
+		got := Key(sha256.New, input, input, string(input), len(want))
 		if !bytes.Equal(got, want) {
 			return errors.New("unexpected result")
 		}
