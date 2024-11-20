@@ -65,7 +65,7 @@ func mkbuildcfg(file string) {
 	fmt.Fprintf(&buf, "const version = `%s`\n", findgoversion())
 	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
-	fmt.Fprintf(&buf, "const defaultGOFIPS140 = `%s`\n", gofips140)
+	fmt.Fprintf(&buf, "const DefaultGOFIPS140 = `%s`\n", gofips140)
 
 	writefile(buf.String(), file, writeSkipSame)
 }

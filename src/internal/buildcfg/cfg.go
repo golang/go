@@ -72,7 +72,7 @@ func goamd64() int {
 }
 
 func gofips140() string {
-	v := envOr("GOFIPS140", defaultGOFIPS140)
+	v := envOr("GOFIPS140", DefaultGOFIPS140)
 	switch v {
 	case "off", "latest", "inprocess", "certified":
 		return v
@@ -81,7 +81,7 @@ func gofips140() string {
 		return v
 	}
 	Error = fmt.Errorf("invalid GOFIPS140: must be off, latest, inprocess, certified, or vX.Y.Z")
-	return defaultGOFIPS140
+	return DefaultGOFIPS140
 }
 
 // isFIPSVersion reports whether v is a valid FIPS version,
