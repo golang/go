@@ -18,6 +18,7 @@ package ed25519
 import (
 	"crypto"
 	"crypto/internal/fips/ed25519"
+	cryptorand "crypto/rand"
 	"crypto/subtle"
 	"errors"
 	"io"
@@ -130,17 +131,17 @@ func (o *Options) HashFunc() crypto.Hash { return o.Hash }
 // The output of this function is deterministic, and equivalent to reading
 // [SeedSize] bytes from rand, and passing them to [NewKeyFromSeed].
 func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) {
-	k, err := ed25519.GenerateKey(rand)
-	if err != nil {
+	if rand == nil {
+		rand = cryptorand.Reader
+	}
+
+	seed := make([]byte, SeedSize)
+	if _, err := io.ReadFull(rand, seed); err != nil {
 		return nil, nil, err
 	}
 
-	privateKey := make([]byte, PrivateKeySize)
-	copy(privateKey, k.Bytes())
-
-	publicKey := make([]byte, PublicKeySize)
-	copy(publicKey, privateKey[32:])
-
+	privateKey := NewKeyFromSeed(seed)
+	publicKey := privateKey.Public().(PublicKey)
 	return publicKey, privateKey, nil
 }
 
