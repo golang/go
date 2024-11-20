@@ -124,3 +124,22 @@ func mayMoreStackMove() {
 		gp.stackguard0 = stackForceMove
 	}
 }
+
+// debugPinnerKeepUnpin is used to make runtime.(*Pinner).Unpin reachable.
+var debugPinnerKeepUnpin bool = false
+
+// debugPinnerV1 returns a new Pinner that pins itself. This function can be
+// used by debuggers to easily obtain a Pinner that will not be garbage
+// collected (or moved in memory) even if no references to it exist in the
+// target program. This pinner in turn can be used to extend this property
+// to other objects, which debuggers can use to simplify the evaluation of
+// expressions involving multiple call injections.
+func debugPinnerV1() *Pinner {
+	p := new(Pinner)
+	p.Pin(unsafe.Pointer(p))
+	if debugPinnerKeepUnpin {
+		// Make Unpin reachable.
+		p.Unpin()
+	}
+	return p
+}

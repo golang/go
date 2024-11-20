@@ -7,7 +7,6 @@
 package countertest
 
 import (
-	"path/filepath"
 	"sync"
 
 	"golang.org/x/telemetry/counter"
@@ -39,10 +38,11 @@ func Open(telemetryDir string) {
 	if opened {
 		panic("Open was called more than once")
 	}
-	telemetry.ModeFile = telemetry.ModeFilePath(filepath.Join(telemetryDir, "mode"))
-	telemetry.LocalDir = filepath.Join(telemetryDir, "local")
-	telemetry.UploadDir = filepath.Join(telemetryDir, "upload")
+	telemetry.Default = telemetry.NewDir(telemetryDir)
 
+	// TODO(rfindley): reinstate test coverage with counter rotation enabled.
+	// Before the [counter.Open] and [counter.OpenAndRotate] APIs were split,
+	// this called counter.Open (which rotated!).
 	counter.Open()
 	opened = true
 }

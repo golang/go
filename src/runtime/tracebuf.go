@@ -7,7 +7,7 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -24,12 +24,31 @@ const traceBytesPerNumber = 10
 // we can change it if it's deemed too error-prone.
 type traceWriter struct {
 	traceLocker
+	exp traceExperiment
 	*traceBuf
 }
 
-// write returns an a traceWriter that writes into the current M's stream.
+// writer returns an a traceWriter that writes into the current M's stream.
+//
+// Once this is called, the caller must guard against stack growth until
+// end is called on it. Therefore, it's highly recommended to use this
+// API in a "fluent" style, for example tl.writer().event(...).end().
+// Better yet, callers just looking to write events should use eventWriter
+// when possible, which is a much safer wrapper around this function.
+//
+// nosplit to allow for safe reentrant tracing from stack growth paths.
+//
+//go:nosplit
 func (tl traceLocker) writer() traceWriter {
-	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2]}
+	if debugTraceReentrancy {
+		// Checks that the invariants of this function are being upheld.
+		gp := getg()
+		if gp == gp.m.curg {
+			tl.mp.trace.oldthrowsplit = gp.throwsplit
+			gp.throwsplit = true
+		}
+	}
+	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2][traceNoExperiment]}
 }
 
 // unsafeTraceWriter produces a traceWriter that doesn't lock the trace.
@@ -38,24 +57,74 @@ func (tl traceLocker) writer() traceWriter {
 // - Another traceLocker is held.
 // - trace.gen is prevented from advancing.
 //
+// This does not have the same stack growth restrictions as traceLocker.writer.
+//
 // buf may be nil.
 func unsafeTraceWriter(gen uintptr, buf *traceBuf) traceWriter {
 	return traceWriter{traceLocker: traceLocker{gen: gen}, traceBuf: buf}
 }
 
+// event writes out the bytes of an event into the event stream.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
+func (w traceWriter) event(ev traceEv, args ...traceArg) traceWriter {
+	// N.B. Everything in this call must be nosplit to maintain
+	// the stack growth related invariants for writing events.
+
+	// Make sure we have room.
+	w, _ = w.ensure(1 + (len(args)+1)*traceBytesPerNumber)
+
+	// Compute the timestamp diff that we'll put in the trace.
+	ts := traceClockNow()
+	if ts <= w.traceBuf.lastTime {
+		ts = w.traceBuf.lastTime + 1
+	}
+	tsDiff := uint64(ts - w.traceBuf.lastTime)
+	w.traceBuf.lastTime = ts
+
+	// Write out event.
+	w.byte(byte(ev))
+	w.varint(tsDiff)
+	for _, arg := range args {
+		w.varint(uint64(arg))
+	}
+	return w
+}
+
 // end writes the buffer back into the m.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (w traceWriter) end() {
 	if w.mp == nil {
 		// Tolerate a nil mp. It makes code that creates traceWriters directly
 		// less error-prone.
 		return
 	}
-	w.mp.trace.buf[w.gen%2] = w.traceBuf
+	w.mp.trace.buf[w.gen%2][w.exp] = w.traceBuf
+	if debugTraceReentrancy {
+		// The writer is no longer live, we can drop throwsplit (if it wasn't
+		// already set upon entry).
+		gp := getg()
+		if gp == gp.m.curg {
+			gp.throwsplit = w.mp.trace.oldthrowsplit
+		}
+	}
 }
 
 // ensure makes sure that at least maxSize bytes are available to write.
 //
 // Returns whether the buffer was flushed.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (w traceWriter) ensure(maxSize int) (traceWriter, bool) {
 	refill := w.traceBuf == nil || !w.available(maxSize)
 	if refill {
@@ -65,6 +134,11 @@ func (w traceWriter) ensure(maxSize int) (traceWriter, bool) {
 }
 
 // flush puts w.traceBuf on the queue of full buffers.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (w traceWriter) flush() traceWriter {
 	systemstack(func() {
 		lock(&trace.lock)
@@ -112,7 +186,12 @@ func (w traceWriter) refill() traceWriter {
 	}
 
 	// Write the buffer's header.
-	w.byte(byte(traceEvEventBatch))
+	if w.exp == traceNoExperiment {
+		w.byte(byte(traceEvEventBatch))
+	} else {
+		w.byte(byte(traceEvExperimentalBatch))
+		w.byte(byte(w.exp))
+	}
 	w.varint(uint64(w.gen))
 	w.varint(uint64(mID))
 	w.varint(uint64(ts))
@@ -172,12 +251,22 @@ type traceBuf struct {
 }
 
 // byte appends v to buf.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (buf *traceBuf) byte(v byte) {
 	buf.arr[buf.pos] = v
 	buf.pos++
 }
 
 // varint appends v to buf in little-endian-base-128 encoding.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (buf *traceBuf) varint(v uint64) {
 	pos := buf.pos
 	arr := buf.arr[pos : pos+traceBytesPerNumber]
@@ -196,6 +285,11 @@ func (buf *traceBuf) varint(v uint64) {
 // varintReserve reserves enough space in buf to hold any varint.
 //
 // Space reserved this way can be filled in with the varintAt method.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (buf *traceBuf) varintReserve() int {
 	p := buf.pos
 	buf.pos += traceBytesPerNumber
@@ -203,10 +297,19 @@ func (buf *traceBuf) varintReserve() int {
 }
 
 // stringData appends s's data directly to buf.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (buf *traceBuf) stringData(s string) {
 	buf.pos += copy(buf.arr[buf.pos:], s)
 }
 
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (buf *traceBuf) available(size int) bool {
 	return len(buf.arr)-buf.pos >= size
 }
@@ -215,6 +318,11 @@ func (buf *traceBuf) available(size int) bool {
 // consumes traceBytesPerNumber bytes. This is intended for when the caller
 // needs to reserve space for a varint but can't populate it until later.
 // Use varintReserve to reserve this space.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (buf *traceBuf) varintAt(pos int, v uint64) {
 	for i := 0; i < traceBytesPerNumber; i++ {
 		if i < traceBytesPerNumber-1 {

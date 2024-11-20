@@ -77,3 +77,13 @@ func ignoringEINTR(fn func() error) error {
 		}
 	}
 }
+
+// ignoringEINTR2 is ignoringEINTR, but returning an additional value.
+func ignoringEINTR2[T any](fn func() (T, error)) (T, error) {
+	for {
+		v, err := fn()
+		if err != syscall.EINTR {
+			return v, err
+		}
+	}
+}

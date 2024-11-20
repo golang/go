@@ -167,11 +167,7 @@ PNOP
 func TestPfxAlign(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := os.MkdirTemp("", "testpfxalign")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	pgms := []struct {
 		text   []byte
@@ -188,7 +184,7 @@ func TestPfxAlign(t *testing.T) {
 
 	for _, pgm := range pgms {
 		tmpfile := filepath.Join(dir, "x.s")
-		err = os.WriteFile(tmpfile, pgm.text, 0644)
+		err := os.WriteFile(tmpfile, pgm.text, 0644)
 		if err != nil {
 			t.Fatalf("can't write output: %v\n", err)
 		}
@@ -217,11 +213,7 @@ func TestLarge(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := os.MkdirTemp("", "testlarge")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// A few interesting test cases for long conditional branch fixups
 	tests := []struct {
@@ -281,7 +273,7 @@ func TestLarge(t *testing.T) {
 		gen(buf, test.jmpinsn)
 
 		tmpfile := filepath.Join(dir, "x.s")
-		err = os.WriteFile(tmpfile, buf.Bytes(), 0644)
+		err := os.WriteFile(tmpfile, buf.Bytes(), 0644)
 		if err != nil {
 			t.Fatalf("can't write output: %v\n", err)
 		}
@@ -336,16 +328,12 @@ func TestPCalign(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := os.MkdirTemp("", "testpcalign")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// generate a test with valid uses of PCALIGN
 
 	tmpfile := filepath.Join(dir, "x.s")
-	err = os.WriteFile(tmpfile, []byte(validPCAlignSrc), 0644)
+	err := os.WriteFile(tmpfile, []byte(validPCAlignSrc), 0644)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}

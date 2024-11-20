@@ -67,7 +67,8 @@ func localGitURL(t testing.TB) string {
 		if localGitURLErr != nil {
 			return
 		}
-		_, localGitURLErr = Run(context.Background(), localGitRepo, "git", "config", "daemon.uploadarch", "true")
+		repo := gitRepo{dir: localGitRepo}
+		_, localGitURLErr = repo.runGit(context.Background(), "git", "config", "daemon.uploadarch", "true")
 	})
 
 	if localGitURLErr != nil {
@@ -171,7 +172,7 @@ func (w *testWriter) Write(p []byte) (int, error) {
 
 func testRepo(ctx context.Context, t *testing.T, remote string) (Repo, error) {
 	if remote == "localGitRepo" {
-		return LocalGitRepo(ctx, localGitURL(t))
+		return NewRepo(ctx, "git", localGitURL(t), false)
 	}
 	vcsName := "git"
 	for _, k := range []string{"hg"} {
@@ -186,7 +187,7 @@ func testRepo(ctx context.Context, t *testing.T, remote string) (Repo, error) {
 	if runtime.GOOS == "android" && strings.HasSuffix(testenv.Builder(), "-corellium") {
 		testenv.SkipFlaky(t, 59940)
 	}
-	return NewRepo(ctx, vcsName, remote)
+	return NewRepo(ctx, vcsName, remote, false)
 }
 
 func TestTags(t *testing.T) {

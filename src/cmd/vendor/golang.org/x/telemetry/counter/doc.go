@@ -48,4 +48,11 @@
 //     For example given two counters "gopls/completion/latency:<50ms" and
 //     "gopls/completion/latency:<100ms", the "<100ms" bucket counts events
 //     with latency in the half-open interval [50ms, 100ms).
+//
+// # Debugging
+//
+// The GODEBUG environment variable can enable printing of additional debug
+// information for counters. Adding GODEBUG=countertrace=1 to the environment
+// of a process using counters causes the x/telemetry/counter package to log
+// counter information to stderr.
 package counter

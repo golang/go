@@ -139,6 +139,9 @@ func osinit() {
 	physPageSize = getPageSize()
 }
 
+// TODO(#69781): set startupRand using the .openbsd.randomdata ELF section.
+// See SPECS.randomdata.
+
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit

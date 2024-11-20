@@ -10,6 +10,7 @@ import (
 	"html"
 	"internal/godebug"
 	"io"
+	"maps"
 	"regexp"
 	"text/template"
 	"text/template/parse"
@@ -145,7 +146,7 @@ func (e *escaper) escape(c context, n parse.Node) context {
 		return c
 	case *parse.ContinueNode:
 		c.n = n
-		e.rangeContext.continues = append(e.rangeContext.breaks, c)
+		e.rangeContext.continues = append(e.rangeContext.continues, c)
 		return context{state: stateDead}
 	case *parse.IfNode:
 		return e.escapeBranch(c, &n.BranchNode, "if")
@@ -588,22 +589,14 @@ func (e *escaper) escapeListConditionally(c context, n *parse.ListNode, filter f
 	e1 := makeEscaper(e.ns)
 	e1.rangeContext = e.rangeContext
 	// Make type inferences available to f.
-	for k, v := range e.output {
-		e1.output[k] = v
-	}
+	maps.Copy(e1.output, e.output)
 	c = e1.escapeList(c, n)
 	ok := filter != nil && filter(&e1, c)
 	if ok {
 		// Copy inferences and edits from e1 back into e.
-		for k, v := range e1.output {
-			e.output[k] = v
-		}
-		for k, v := range e1.derived {
-			e.derived[k] = v
-		}
-		for k, v := range e1.called {
-			e.called[k] = v
-		}
+		maps.Copy(e.output, e1.output)
+		maps.Copy(e.derived, e1.derived)
+		maps.Copy(e.called, e1.called)
 		for k, v := range e1.actionNodeEdits {
 			e.editActionNode(k, v)
 		}

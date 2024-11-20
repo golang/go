@@ -9,13 +9,15 @@
 // spends all of its time in the race runtime, which isn't a safe
 // point.
 
-//go:build (amd64 || arm64 || ppc64le) && linux && !race
+//go:build (amd64 || arm64 || loong64 || ppc64le) && linux && !race
 
 package runtime_test
 
 import (
 	"fmt"
 	"internal/abi"
+	"internal/asan"
+	"internal/msan"
 	"math"
 	"os"
 	"regexp"
@@ -31,6 +33,14 @@ func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
 	// depends on catching SIGTRAP, which is usually swallowed by
 	// a debugger.
 	skipUnderDebugger(t)
+
+	// asan/msan instrumentation interferes with tests since we might
+	// inject debugCallV2 while in the asan/msan runtime. This is a
+	// problem for doing things like running the GC or taking stack
+	// traces. Not sure why this is happening yet, but skip for now.
+	if msan.Enabled || asan.Enabled {
+		t.Skip("debugCallV2 is injected erroneously during asan/msan runtime calls; skipping")
+	}
 
 	// This can deadlock if there aren't enough threads or if a GC
 	// tries to interrupt an atomic loop (see issue #10958). Execute

@@ -7,7 +7,7 @@ package comment
 import (
 	"internal/diff"
 	"internal/testenv"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -24,7 +24,7 @@ func TestStd(t *testing.T) {
 			list = append(list, pkg)
 		}
 	}
-	sort.Strings(list)
+	slices.Sort(list)
 
 	have := strings.Join(stdPkgs, "\n") + "\n"
 	want := strings.Join(list, "\n") + "\n"

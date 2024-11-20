@@ -16,7 +16,7 @@ import (
 var pkgMap = make(map[string]*Pkg)
 
 type Pkg struct {
-	Path    string // string literal used in import statement, e.g. "runtime/internal/sys"
+	Path    string // string literal used in import statement, e.g. "internal/runtime/sys"
 	Name    string // package name, e.g. "sys"
 	Prefix  string // escaped path for use in symbol table
 	Syms    map[string]*Sym

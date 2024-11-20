@@ -6,7 +6,7 @@ package os_test
 
 import (
 	. "os"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -91,7 +91,7 @@ func TestConsistentEnviron(t *testing.T) {
 	e0 := Environ()
 	for i := 0; i < 10; i++ {
 		e1 := Environ()
-		if !reflect.DeepEqual(e0, e1) {
+		if !slices.Equal(e0, e1) {
 			t.Fatalf("environment changed")
 		}
 	}

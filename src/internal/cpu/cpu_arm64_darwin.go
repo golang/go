@@ -6,10 +6,13 @@
 
 package cpu
 
+import _ "unsafe" // for linkname
+
 func osInit() {
 	ARM64.HasATOMICS = sysctlEnabled([]byte("hw.optional.armv8_1_atomics\x00"))
 	ARM64.HasCRC32 = sysctlEnabled([]byte("hw.optional.armv8_crc32\x00"))
 	ARM64.HasSHA512 = sysctlEnabled([]byte("hw.optional.armv8_2_sha512\x00"))
+	ARM64.HasDIT = sysctlEnabled([]byte("hw.optional.arm.FEAT_DIT\x00"))
 
 	// There are no hw.optional sysctl values for the below features on Mac OS 11.0
 	// to detect their supported state dynamically. Assume the CPU features that
@@ -24,6 +27,16 @@ func osInit() {
 //go:noescape
 func getsysctlbyname(name []byte) (int32, int32)
 
+// sysctlEnabled should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//   - github.com/songzhibin97/gkit
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname sysctlEnabled
 func sysctlEnabled(name []byte) bool {
 	ret, value := getsysctlbyname(name)
 	if ret < 0 {

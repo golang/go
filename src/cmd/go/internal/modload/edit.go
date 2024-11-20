@@ -8,7 +8,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/mvs"
-	"cmd/go/internal/par"
+	"cmd/internal/par"
 	"context"
 	"errors"
 	"fmt"
@@ -681,7 +681,7 @@ type dqTracker struct {
 	// in the extended module graph.
 	extendedRootPruning map[module.Version]modPruning
 
-	// dqReason records whether and why each each encountered version is
+	// dqReason records whether and why each encountered version is
 	// disqualified in a pruned or unpruned context.
 	dqReason map[module.Version]perPruning[dqState]
 

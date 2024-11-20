@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/goexperiment"
 	"io"
 	"log"
 	"os"
@@ -91,8 +92,11 @@ type ProgRequest struct {
 	// ActionID is non-nil for get and puts.
 	ActionID []byte `json:",omitempty"` // or nil if not used
 
-	// ObjectID is set for Type "put" and "output-file".
-	ObjectID []byte `json:",omitempty"` // or nil if not used
+	// OutputID is set for Type "put".
+	//
+	// Prior to Go 1.24, when GOCACHEPROG was still an experiment, this was
+	// accidentally named ObjectID. It was renamed to OutputID in Go 1.24.
+	OutputID []byte `json:",omitempty"` // or nil if not used
 
 	// Body is the body for "put" requests. It's sent after the JSON object
 	// as a base64-encoded JSON string when BodySize is non-zero.
@@ -104,6 +108,14 @@ type ProgRequest struct {
 
 	// BodySize is the number of bytes of Body. If zero, the body isn't written.
 	BodySize int64 `json:",omitempty"`
+
+	// ObjectID is the accidental spelling of OutputID that was used prior to Go
+	// 1.24.
+	//
+	// Deprecated: use OutputID. This field is only populated temporarily for
+	// backwards compatibility with Go 1.23 and earlier when
+	// GOEXPERIMENT=gocacheprog is set. It will be removed in Go 1.25.
+	ObjectID []byte `json:",omitempty"`
 }
 
 // ProgResponse is the JSON response from the child process to cmd/go.
@@ -302,8 +314,8 @@ func (c *ProgCache) writeToChild(req *ProgRequest, resc chan<- *ProgResponse) (e
 			return nil
 		}
 		if wrote != req.BodySize {
-			return fmt.Errorf("short write writing body to GOCACHEPROG for action %x, object %x: wrote %v; expected %v",
-				req.ActionID, req.ObjectID, wrote, req.BodySize)
+			return fmt.Errorf("short write writing body to GOCACHEPROG for action %x, output %x: wrote %v; expected %v",
+				req.ActionID, req.OutputID, wrote, req.BodySize)
 		}
 		if _, err := c.bw.WriteString("\"\n"); err != nil {
 			return err
@@ -388,10 +400,18 @@ func (c *ProgCache) Put(a ActionID, file io.ReadSeeker) (_ OutputID, size int64,
 		return out, size, nil
 	}
 
+	// For compatibility with Go 1.23/1.24 GOEXPERIMENT=gocacheprog users, also
+	// populate the deprecated ObjectID field. This will be removed in Go 1.25.
+	var deprecatedValue []byte
+	if goexperiment.CacheProg {
+		deprecatedValue = out[:]
+	}
+
 	res, err := c.send(c.ctx, &ProgRequest{
 		Command:  cmdPut,
 		ActionID: a[:],
-		ObjectID: out[:],
+		OutputID: out[:],
+		ObjectID: deprecatedValue, // TODO(bradfitz): remove in Go 1.25
 		Body:     file,
 		BodySize: size,
 	})

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package maphash provides hash functions on byte sequences.
+// Package maphash provides hash functions on byte sequences and comparable values.
 // These hash functions are intended to be used to implement hash tables or
 // other data structures that need to map arbitrary strings or byte
 // sequences to a uniform distribution on unsigned 64-bit integers.
@@ -11,6 +11,13 @@
 // The hash functions are not cryptographically secure.
 // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
 package maphash
+
+import (
+	"internal/abi"
+	"internal/byteorder"
+	"math"
+	"reflect"
+)
 
 // A Seed is a random value that selects the specific hash function
 // computed by a [Hash]. If two Hashes use the same Seeds, they
@@ -275,3 +282,117 @@ func (h *Hash) Size() int { return 8 }
 
 // BlockSize returns h's block size.
 func (h *Hash) BlockSize() int { return len(h.buf) }
+
+// Comparable returns the hash of comparable value v with the given seed
+// such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.
+// If v != v, then the resulting hash is randomly distributed.
+func Comparable[T comparable](seed Seed, v T) uint64 {
+	comparableReady(v)
+	var h Hash
+	h.SetSeed(seed)
+	comparableF(&h, v)
+	return h.Sum64()
+}
+
+func comparableReady[T comparable](v T) {
+	// Force v to be on the heap.
+	// We cannot hash pointers to local variables,
+	// as the address of the local variable
+	// might change on stack growth.
+	abi.Escape(v)
+}
+
+// WriteComparable adds x to the data hashed by h.
+func WriteComparable[T comparable](h *Hash, x T) {
+	comparableReady(x)
+	comparableF(h, x)
+}
+
+// appendT hash a value,
+// when the value cannot be directly hash raw memory,
+// or when purego is used.
+func appendT(h *Hash, v reflect.Value) {
+	h.WriteString(v.Type().String())
+	switch v.Kind() {
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+		var buf [8]byte
+		byteorder.LePutUint64(buf[:], uint64(v.Int()))
+		h.Write(buf[:])
+		return
+	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
+		var buf [8]byte
+		byteorder.LePutUint64(buf[:], v.Uint())
+		h.Write(buf[:])
+		return
+	case reflect.Array:
+		var buf [8]byte
+		for i := range uint64(v.Len()) {
+			byteorder.LePutUint64(buf[:], i)
+			// do not want to hash to the same value,
+			// [2]string{"foo", ""} and [2]string{"", "foo"}.
+			h.Write(buf[:])
+			appendT(h, v.Index(int(i)))
+		}
+		return
+	case reflect.String:
+		h.WriteString(v.String())
+		return
+	case reflect.Struct:
+		var buf [8]byte
+		for i := range v.NumField() {
+			f := v.Field(i)
+			byteorder.LePutUint64(buf[:], uint64(i))
+			// do not want to hash to the same value,
+			// struct{a,b string}{"foo",""} and
+			// struct{a,b string}{"","foo"}.
+			h.Write(buf[:])
+			appendT(h, f)
+		}
+		return
+	case reflect.Complex64, reflect.Complex128:
+		c := v.Complex()
+		h.float64(real(c))
+		h.float64(imag(c))
+		return
+	case reflect.Float32, reflect.Float64:
+		h.float64(v.Float())
+		return
+	case reflect.Bool:
+		h.WriteByte(btoi(v.Bool()))
+		return
+	case reflect.UnsafePointer, reflect.Pointer:
+		var buf [8]byte
+		// because pointing to the abi.Escape call in comparableReady,
+		// So this is ok to hash pointer,
+		// this way because we know their target won't be moved.
+		byteorder.LePutUint64(buf[:], uint64(v.Pointer()))
+		h.Write(buf[:])
+		return
+	case reflect.Interface:
+		appendT(h, v.Elem())
+		return
+	}
+	panic("maphash: " + v.Type().String() + " not comparable")
+}
+
+func (h *Hash) float64(f float64) {
+	if f == 0 {
+		h.WriteByte(0)
+		return
+	}
+	var buf [8]byte
+	if f != f {
+		byteorder.LePutUint64(buf[:], randUint64())
+		h.Write(buf[:])
+		return
+	}
+	byteorder.LePutUint64(buf[:], math.Float64bits(f))
+	h.Write(buf[:])
+}
+
+func btoi(b bool) byte {
+	if b {
+		return 1
+	}
+	return 0
+}

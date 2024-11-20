@@ -200,7 +200,7 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
 				laddr = "127.0.0.1:0"
 			}
 			ln, err := net.Listen("tcp", laddr)
-			if err != nil {
+			if err == nil {
 				defer ln.Close() // yup, defer in a loop
 			}
 		}

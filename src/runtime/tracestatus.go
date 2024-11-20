@@ -46,6 +46,11 @@ const (
 )
 
 // writeGoStatus emits a GoStatus event as well as any active ranges on the goroutine.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (w traceWriter) writeGoStatus(goid uint64, mid int64, status traceGoStatus, markAssist bool, stackID uint64) traceWriter {
 	// The status should never be bad. Some invariant must have been violated.
 	if status == traceGoBad {
@@ -71,6 +76,11 @@ func (w traceWriter) writeGoStatus(goid uint64, mid int64, status traceGoStatus,
 //
 // The caller must fully own pp and it must be prevented from transitioning (e.g. this can be
 // called by a forEachP callback or from a STW).
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (w traceWriter) writeProcStatusForP(pp *p, inSTW bool) traceWriter {
 	if !pp.trace.acquireStatus(w.gen) {
 		return w
@@ -106,6 +116,11 @@ func (w traceWriter) writeProcStatusForP(pp *p, inSTW bool) traceWriter {
 //
 // The caller must have taken ownership of a P's status writing, and the P must be
 // prevented from transitioning.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (w traceWriter) writeProcStatus(pid uint64, status traceProcStatus, inSweep bool) traceWriter {
 	// The status should never be bad. Some invariant must have been violated.
 	if status == traceProcBad {
@@ -126,6 +141,11 @@ func (w traceWriter) writeProcStatus(pid uint64, status traceProcStatus, inSweep
 // goStatusToTraceGoStatus translates the internal status to tracGoStatus.
 //
 // status must not be _Gdead or any status whose name has the suffix "_unused."
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func goStatusToTraceGoStatus(status uint32, wr waitReason) traceGoStatus {
 	// N.B. Ignore the _Gscan bit. We don't model it in the tracer.
 	var tgs traceGoStatus
@@ -177,6 +197,11 @@ type traceSchedResourceState struct {
 }
 
 // acquireStatus acquires the right to emit a Status event for the scheduling resource.
+//
+// nosplit because it's part of writing an event for an M, which must not
+// have any stack growth.
+//
+//go:nosplit
 func (r *traceSchedResourceState) acquireStatus(gen uintptr) bool {
 	if !r.statusTraced[gen%3].CompareAndSwap(0, 1) {
 		return false

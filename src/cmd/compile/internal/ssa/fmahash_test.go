@@ -41,7 +41,7 @@ func TestFmaHash(t *testing.T) {
 	t.Logf("%v", cmd.Env)
 	b, e := cmd.CombinedOutput()
 	if e != nil {
-		t.Error(e)
+		t.Errorf("build failed: %v\n%s", e, b)
 	}
 	s := string(b) // Looking for "GOFMAHASH triggered main.main:24"
 	re := "fmahash(0?) triggered .*fma.go:29:..;.*fma.go:18:.."

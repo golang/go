@@ -367,8 +367,8 @@ func (b *profileBuilder) build() {
 		var labels func()
 		if e.tag != nil {
 			labels = func() {
-				for k, v := range *(*labelMap)(e.tag) {
-					b.pbLabel(tagSample_Label, k, v, 0)
+				for _, lbl := range (*labelMap)(e.tag).list {
+					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
 				}
 			}
 		}
@@ -404,6 +404,7 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 	b.deck.reset()
 
 	// The last frame might be truncated. Recover lost inline frames.
+	origStk := stk
 	stk = runtime_expandFinalInlineFrame(stk)
 
 	for len(stk) > 0 {
@@ -440,6 +441,9 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 			// Even if stk was truncated due to the stack depth
 			// limit, expandFinalInlineFrame above has already
 			// fixed the truncation, ensuring it is long enough.
+			if len(l.pcs) > len(stk) {
+				panic(fmt.Sprintf("stack too short to match cached location; stk = %#x, l.pcs = %#x, original stk = %#x", stk, l.pcs, origStk))
+			}
 			stk = stk[len(l.pcs):]
 			continue
 		}

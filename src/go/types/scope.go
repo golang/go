@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -58,7 +58,7 @@ func (s *Scope) Names() []string {
 		names[i] = name
 		i++
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -86,25 +86,6 @@ func (s *Scope) Lookup(name string) Object {
 	return obj
 }
 
-// LookupParent follows the parent chain of scopes starting with s until
-// it finds a scope where Lookup(name) returns a non-nil object, and then
-// returns that scope and object. If a valid position pos is provided,
-// only objects that were declared at or before pos are considered.
-// If no such scope and object exists, the result is (nil, nil).
-//
-// Note that obj.Parent() may be different from the returned scope if the
-// object was inserted into the scope and already had a parent at that
-// time (see Insert). This can only happen for dot-imported objects
-// whose scope is the scope of the package that exported them.
-func (s *Scope) LookupParent(name string, pos token.Pos) (*Scope, Object) {
-	for ; s != nil; s = s.parent {
-		if obj := s.Lookup(name); obj != nil && (!pos.IsValid() || cmpPos(obj.scopePos(), pos) <= 0) {
-			return s, obj
-		}
-	}
-	return nil, nil
-}
-
 // Insert attempts to insert an object obj into scope s.
 // If s already contains an alternative object alt with
 // the same name, Insert leaves s unchanged and returns alt.
@@ -116,6 +97,11 @@ func (s *Scope) Insert(obj Object) Object {
 		return alt
 	}
 	s.insert(name, obj)
+	// TODO(gri) Can we always set the parent to s (or is there
+	// a need to keep the original parent or some race condition)?
+	// If we can, than we may not need environment.lookupScope
+	// which is only there so that we get the correct scope for
+	// marking "used" dot-imported packages.
 	if obj.Parent() == nil {
 		obj.setParent(s)
 	}
@@ -142,82 +128,6 @@ func (s *Scope) insert(name string, obj Object) {
 		s.elems = make(map[string]Object)
 	}
 	s.elems[name] = obj
-}
-
-// Squash merges s with its parent scope p by adding all
-// objects of s to p, adding all children of s to the
-// children of p, and removing s from p's children.
-// The function f is called for each object obj in s which
-// has an object alt in p. s should be discarded after
-// having been squashed.
-func (s *Scope) squash(err func(obj, alt Object)) {
-	p := s.parent
-	assert(p != nil)
-	for name, obj := range s.elems {
-		obj = resolve(name, obj)
-		obj.setParent(nil)
-		if alt := p.Insert(obj); alt != nil {
-			err(obj, alt)
-		}
-	}
-
-	j := -1 // index of s in p.children
-	for i, ch := range p.children {
-		if ch == s {
-			j = i
-			break
-		}
-	}
-	assert(j >= 0)
-	k := len(p.children) - 1
-	p.children[j] = p.children[k]
-	p.children = p.children[:k]
-
-	p.children = append(p.children, s.children...)
-
-	s.children = nil
-	s.elems = nil
-}
-
-// Pos and End describe the scope's source code extent [pos, end).
-// The results are guaranteed to be valid only if the type-checked
-// AST has complete position information. The extent is undefined
-// for Universe and package scopes.
-func (s *Scope) Pos() token.Pos { return s.pos }
-func (s *Scope) End() token.Pos { return s.end }
-
-// Contains reports whether pos is within the scope's extent.
-// The result is guaranteed to be valid only if the type-checked
-// AST has complete position information.
-func (s *Scope) Contains(pos token.Pos) bool {
-	return cmpPos(s.pos, pos) <= 0 && cmpPos(pos, s.end) < 0
-}
-
-// Innermost returns the innermost (child) scope containing
-// pos. If pos is not within any scope, the result is nil.
-// The result is also nil for the Universe scope.
-// The result is guaranteed to be valid only if the type-checked
-// AST has complete position information.
-func (s *Scope) Innermost(pos token.Pos) *Scope {
-	// Package scopes do not have extents since they may be
-	// discontiguous, so iterate over the package's files.
-	if s.parent == Universe {
-		for _, s := range s.children {
-			if inner := s.Innermost(pos); inner != nil {
-				return inner
-			}
-		}
-	}
-
-	if s.Contains(pos) {
-		for _, s := range s.children {
-			if s.Contains(pos) {
-				return s.Innermost(pos)
-			}
-		}
-		return s
-	}
-	return nil
 }
 
 // WriteTo writes a string representation of the scope to w,

@@ -9,7 +9,9 @@ import (
 	"flag"
 	"fmt"
 	"internal/buildcfg"
+	"slices"
 	"sort"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -24,7 +26,7 @@ import (
 	"cmd/internal/src"
 )
 
-func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Scope, inlcalls dwarf.InlCalls) {
+func Info(ctxt *obj.Link, fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Scope, inlcalls dwarf.InlCalls) {
 	fn := curfn.(*ir.Func)
 
 	if fn.Nname != nil {
@@ -91,6 +93,9 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Sc
 			default:
 				continue
 			}
+			if !ssa.IsVarWantedForDebug(n) {
+				continue
+			}
 			apdecls = append(apdecls, n)
 			if n.Type().Kind() == types.TSSA {
 				// Can happen for TypeInt128 types. This only happens for
@@ -127,11 +132,11 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Sc
 	for t := range fnsym.Func().Autot {
 		typesyms = append(typesyms, t)
 	}
-	sort.Sort(obj.BySymName(typesyms))
+	slices.SortFunc(typesyms, func(a, b *obj.LSym) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 	for _, sym := range typesyms {
-		r := obj.Addrel(infosym)
-		r.Sym = sym
-		r.Type = objabi.R_USETYPE
+		infosym.AddRel(ctxt, obj.Reloc{Type: objabi.R_USETYPE, Sym: sym})
 	}
 	fnsym.Func().Autot = nil
 
@@ -194,6 +199,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		// DWARF-gen. See issue 48573 for more details.
 		debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
 		for _, n := range debugInfo.RegOutputParams {
+			if !ssa.IsVarWantedForDebug(n) {
+				continue
+			}
 			if n.Class != ir.PPARAMOUT || !n.IsOutputParamInRegisters() {
 				panic("invalid ir.Name on debugInfo.RegOutputParams list")
 			}

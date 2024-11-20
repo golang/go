@@ -355,7 +355,7 @@ func TestAddDataMethods(t *testing.T) {
 		name := fmt.Sprintf("new%d", k+1)
 		mi := ldr.LookupOrCreateSym(name, 0)
 		if mi == 0 {
-			t.Fatalf("LookupOrCreateSym failed for '" + name + "'")
+			t.Fatalf("LookupOrCreateSym failed for %q", name)
 		}
 		mi = tp.addDataFunc(ldr, mi, pmi)
 		if ldr.SymType(mi) != tp.expKind {

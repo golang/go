@@ -92,6 +92,8 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
 		return nil, err
 	}
 
+	file := fset.AddFile(filename, -1, len(text))
+
 	var p parser
 	defer func() {
 		if e := recover(); e != nil {
@@ -115,12 +117,17 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
 			}
 		}
 
+		// Ensure the start/end are consistent,
+		// whether parsing succeeded or not.
+		f.FileStart = token.Pos(file.Base())
+		f.FileEnd = token.Pos(file.Base() + file.Size())
+
 		p.errors.Sort()
 		err = p.errors.Err()
 	}()
 
 	// parse source
-	p.init(fset, filename, text, mode)
+	p.init(file, text, mode)
 	f = p.parseFile()
 
 	return
@@ -215,7 +222,8 @@ func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (ex
 	}()
 
 	// parse expr
-	p.init(fset, filename, text, mode)
+	file := fset.AddFile(filename, -1, len(text))
+	p.init(file, text, mode)
 	expr = p.parseRhs()
 
 	// If a semicolon was inserted, consume it;

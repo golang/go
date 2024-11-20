@@ -11,7 +11,7 @@ import (
 	"internal/goarch"
 	"internal/goos"
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -94,9 +94,9 @@ func Netpoll(delta int64) {
 	})
 }
 
-func GCMask(x any) (ret []byte) {
+func PointerMask(x any) (ret []byte) {
 	systemstack(func() {
-		ret = getgcmask(x)
+		ret = pointerMask(x)
 	})
 	return
 }
@@ -481,22 +481,6 @@ func (rw *RWMutex) Unlock() {
 	rw.rw.unlock()
 }
 
-const RuntimeHmapSize = unsafe.Sizeof(hmap{})
-
-func MapBucketsCount(m map[int]int) int {
-	h := *(**hmap)(unsafe.Pointer(&m))
-	return 1 << h.B
-}
-
-func MapBucketsPointerIsNil(m map[int]int) bool {
-	h := *(**hmap)(unsafe.Pointer(&m))
-	return h.buckets == nil
-}
-
-func OverLoadFactor(count int, B uint8) bool {
-	return overLoadFactor(count, B)
-}
-
 func LockOSCounts() (external, internal uint32) {
 	gp := getg()
 	if gp.m.lockedExt+gp.m.lockedInt == 0 {
@@ -514,7 +498,7 @@ func LockOSCounts() (external, internal uint32) {
 //go:noinline
 func TracebackSystemstack(stk []uintptr, i int) int {
 	if i == 0 {
-		pc, sp := getcallerpc(), getcallersp()
+		pc, sp := sys.GetCallerPC(), sys.GetCallerSP()
 		var u unwinder
 		u.initAt(pc, sp, 0, getg(), unwindJumpStack) // Don't ignore errors, for testing
 		return tracebackPCs(&u, 0, stk)
@@ -597,7 +581,7 @@ func unexportedPanicForTesting(b []byte, i int) byte {
 func G0StackOverflow() {
 	systemstack(func() {
 		g0 := getg()
-		sp := getcallersp()
+		sp := sys.GetCallerSP()
 		// The stack bounds for g0 stack is not always precise.
 		// Use an artificially small stack, to trigger a stack overflow
 		// without actually run out of the system stack (which may seg fault).
@@ -612,42 +596,6 @@ func G0StackOverflow() {
 func stackOverflow(x *byte) {
 	var buf [256]byte
 	stackOverflow(&buf[0])
-}
-
-func MapTombstoneCheck(m map[int]int) {
-	// Make sure emptyOne and emptyRest are distributed correctly.
-	// We should have a series of filled and emptyOne cells, followed by
-	// a series of emptyRest cells.
-	h := *(**hmap)(unsafe.Pointer(&m))
-	i := any(m)
-	t := *(**maptype)(unsafe.Pointer(&i))
-
-	for x := 0; x < 1<<h.B; x++ {
-		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.BucketSize)))
-		n := 0
-		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < abi.MapBucketCount; i++ {
-				if b.tophash[i] != emptyRest {
-					n++
-				}
-			}
-		}
-		k := 0
-		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < abi.MapBucketCount; i++ {
-				if k < n && b.tophash[i] == emptyRest {
-					panic("early emptyRest")
-				}
-				if k >= n && b.tophash[i] != emptyRest {
-					panic("late non-emptyRest")
-				}
-				if k == n-1 && b.tophash[i] == emptyOne {
-					panic("last non-emptyRest entry is emptyOne")
-				}
-				k++
-			}
-		}
-	}
 }
 
 func RunGetgThreadSwitchTest() {
@@ -1222,6 +1170,9 @@ func PageCachePagesLeaked() (leaked uintptr) {
 	startTheWorld(stw)
 	return
 }
+
+var ProcYield = procyield
+var OSYield = osyield
 
 type Mutex = mutex
 
@@ -1885,4 +1836,46 @@ func (m *TraceMap) PutString(s string) (uint64, bool) {
 
 func (m *TraceMap) Reset() {
 	m.traceMap.reset()
+}
+
+func SetSpinInGCMarkDone(spin bool) {
+	gcDebugMarkDone.spinAfterRaggedBarrier.Store(spin)
+}
+
+func GCMarkDoneRestarted() bool {
+	// Only read this outside of the GC. If we're running during a GC, just report false.
+	mp := acquirem()
+	if gcphase != _GCoff {
+		releasem(mp)
+		return false
+	}
+	restarted := gcDebugMarkDone.restartedDueTo27993
+	releasem(mp)
+	return restarted
+}
+
+func GCMarkDoneResetRestartFlag() {
+	mp := acquirem()
+	for gcphase != _GCoff {
+		releasem(mp)
+		Gosched()
+		mp = acquirem()
+	}
+	gcDebugMarkDone.restartedDueTo27993 = false
+	releasem(mp)
+}
+
+type BitCursor struct {
+	b bitCursor
+}
+
+func NewBitCursor(buf *byte) BitCursor {
+	return BitCursor{b: bitCursor{ptr: buf, n: 0}}
+}
+
+func (b BitCursor) Write(data *byte, cnt uintptr) {
+	b.b.write(data, cnt)
+}
+func (b BitCursor) Offset(cnt uintptr) BitCursor {
+	return BitCursor{b: b.b.offset(cnt)}
 }

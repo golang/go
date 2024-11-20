@@ -10,14 +10,18 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fips"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
+	"cmd/internal/pathcache"
 	"cmd/internal/quoted"
+	"cmd/internal/telemetry/counter"
 )
 
 // Build IDs
@@ -290,7 +294,7 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 		}
 		exe = fields[0]
 		if !strings.ContainsAny(exe, `/\`) {
-			if lp, err := cfg.LookPath(exe); err == nil {
+			if lp, err := pathcache.LookPath(exe); err == nil {
 				exe = lp
 			}
 		}
@@ -395,13 +399,20 @@ func (b *Builder) buildID(file string) string {
 
 // fileHash returns the content hash of the named file.
 func (b *Builder) fileHash(file string) string {
-	file, _ = fsys.OverlayPath(file)
-	sum, err := cache.FileHash(file)
+	sum, err := cache.FileHash(fsys.Actual(file))
 	if err != nil {
 		return ""
 	}
 	return buildid.HashToString(sum)
 }
+
+var (
+	counterCacheHit  = counter.New("go/buildcache/hit")
+	counterCacheMiss = counter.New("go/buildcache/miss")
+
+	stdlibRecompiled        = counter.New("go/buildcache/stdlib-recompiled")
+	stdlibRecompiledIncOnce = sync.OnceFunc(stdlibRecompiled.Inc)
+)
 
 // useCache tries to satisfy the action a, which has action ID actionHash,
 // by using a cached result from an earlier build. At the moment, the only
@@ -416,7 +427,7 @@ func (b *Builder) fileHash(file string) string {
 // during a's work. The caller should defer b.flushOutput(a), to make sure
 // that flushOutput is eventually called regardless of whether the action
 // succeeds. The flushOutput call must happen after updateBuildID.
-func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, printOutput bool) bool {
+func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, printOutput bool) (ok bool) {
 	// The second half of the build ID here is a placeholder for the content hash.
 	// It's important that the overall buildID be unlikely verging on impossible
 	// to appear in the output by chance, but that should be taken care of by
@@ -437,6 +448,19 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 		a.buildID = actionID + buildIDSeparator + mainpkg.buildID + buildIDSeparator + contentID
 	}
 
+	// In FIPS mode, we disable any link caching,
+	// so that we always leave fips.o in $WORK/b001.
+	// This makes sure that labs validating the FIPS
+	// implementation can always run 'go build -work'
+	// and then find fips.o in $WORK/b001/fips.o.
+	// We could instead also save the fips.o and restore it
+	// to $WORK/b001 from the cache,
+	// but we went years without caching binaries anyway,
+	// so not caching them for FIPS will be fine, at least to start.
+	if a.Mode == "link" && fips.Enabled() && a.Package != nil && !strings.HasSuffix(a.Package.ImportPath, ".test") {
+		return false
+	}
+
 	// If user requested -a, we force a rebuild, so don't use the cache.
 	if cfg.BuildA {
 		if p := a.Package; p != nil && !p.Stale {
@@ -447,6 +471,20 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 		a.output = []byte{}
 		return false
 	}
+
+	defer func() {
+		// Increment counters for cache hits and misses based on the return value
+		// of this function. Don't increment counters if we return early because of
+		// cfg.BuildA above because we don't even look at the cache in that case.
+		if ok {
+			counterCacheHit.Inc()
+		} else {
+			if a.Package != nil && a.Package.Standard {
+				stdlibRecompiledIncOnce()
+			}
+			counterCacheMiss.Inc()
+		}
+	}()
 
 	c := cache.Default()
 
@@ -482,7 +520,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 				oldBuildID := a.buildID
 				a.buildID = id[1] + buildIDSeparator + id[2]
 				linkID := buildid.HashToString(b.linkActionID(a.triggers[0]))
-				if id[0] == linkID {
+				if id[0] == linkID && !fips.Enabled() {
 					// Best effort attempt to display output from the compile and link steps.
 					// If it doesn't work, it doesn't work: reusing the cached binary is more
 					// important than reprinting diagnostic information.
@@ -593,7 +631,7 @@ func showStdout(b *Builder, c cache.Cache, a *Action, key string) error {
 			sh.ShowCmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
 		}
 		if !cfg.BuildN {
-			sh.Print(string(stdout))
+			sh.Printf("%s", stdout)
 		}
 	}
 	return nil
@@ -601,7 +639,7 @@ func showStdout(b *Builder, c cache.Cache, a *Action, key string) error {
 
 // flushOutput flushes the output being queued in a.
 func (b *Builder) flushOutput(a *Action) {
-	b.Shell(a).Print(string(a.output))
+	b.Shell(a).Printf("%s", a.output)
 	a.output = nil
 }
 

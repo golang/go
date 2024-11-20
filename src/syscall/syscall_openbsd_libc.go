@@ -79,7 +79,6 @@ func syscall9X(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, 
 //sysnb execve(path *byte, argv **byte, envp **byte) (err error)
 //sysnb exit(res int) (err error)
 //sys   ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
-//sysnb getentropy(p []byte) (err error)
 //sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
 //sys   unlinkat(fd int, path string, flags int) (err error)
 //sys   openat(fd int, path string, flags int, perm uint32) (fdret int, err error)

@@ -163,10 +163,14 @@ type in Go are instead represented by a uintptr.  See the Special
 cases section below.
 
 To access a struct, union, or enum type directly, prefix it with
-struct_, union_, or enum_, as in C.struct_stat.
-
-The size of any C type T is available as C.sizeof_T, as in
-C.sizeof_struct_stat.
+struct_, union_, or enum_, as in C.struct_stat. The size of any C type
+T is available as C.sizeof_T, as in C.sizeof_struct_stat. These
+special prefixes means that there is no way to directly reference a C
+identifier that starts with "struct_", "union_", "enum_", or
+"sizeof_", such as a function named "struct_function".
+A workaround is to use a "#define" in the preamble, as in
+"#define c_struct_function struct_function" and then in the
+Go code refer to "C.c_struct_function".
 
 A C function may be declared in the Go file with a parameter type of
 the special name _GoString_. This function may be called with an
@@ -204,6 +208,17 @@ function returns void). For example:
 	n, err = C.sqrt(-1)
 	_, err := C.voidFunc()
 	var n, err = C.sqrt(1)
+
+Note that the C errno value may be non-zero, and thus the err result may be
+non-nil, even if the function call is successful. Unlike normal Go conventions,
+you should first check whether the call succeeded before checking the error
+result. For example:
+
+	n, err := C.setenv(key, value, 1)
+	if n != 0 {
+		// we know the call failed, so it is now valid to use err
+		return err
+	}
 
 Calling C function pointers is currently not supported, however you can
 declare Go variables which hold C function pointers and pass them
@@ -343,12 +358,12 @@ determined by how the memory was allocated; it has nothing to do with
 the type of the pointer.
 
 Note that values of some Go types, other than the type's zero value,
-always include Go pointers. This is true of string, slice, interface,
-channel, map, and function types. A pointer type may hold a Go pointer
-or a C pointer. Array and struct types may or may not include Go
-pointers, depending on the element types. All the discussion below
-about Go pointers applies not just to pointer types, but also to other
-types that include Go pointers.
+always include Go pointers. This is true of interface, channel, map,
+and function types. A pointer type may hold a Go pointer or a C pointer.
+Array, slice, string, and struct types may or may not include Go pointers,
+depending on their type and how they are constructed. All the discussion
+below about Go pointers applies not just to pointer types,
+but also to other types that include Go pointers.
 
 All Go pointers passed to C must point to pinned Go memory. Go pointers
 passed as function arguments to C functions have the memory they point to
@@ -420,6 +435,30 @@ contents of the C memory appear to be a Go pointer. Therefore, avoid
 passing uninitialized C memory to Go code if the Go code is going to
 store pointer values in it. Zero out the memory in C before passing it
 to Go.
+
+# Optimizing calls of C code
+
+When passing a Go pointer to a C function the compiler normally ensures
+that the Go object lives on the heap. If the C function does not keep
+a copy of the Go pointer, and never passes the Go pointer back to Go code,
+then this is unnecessary. The #cgo noescape directive may be used to tell
+the compiler that no Go pointers escape via the named C function.
+If the noescape directive is used and the C function does not handle the
+pointer safely, the program may crash or see memory corruption.
+
+For example:
+
+	// #cgo noescape cFunctionName
+
+When a Go function calls a C function, it prepares for the C function to
+call back to a Go function. The #cgo nocallback directive may be used to
+tell the compiler that these preparations are not necessary.
+If the nocallback directive is used and the C function does call back into
+Go code, the program will panic.
+
+For example:
+
+	// #cgo nocallback cFunctionName
 
 # Special cases
 
@@ -506,15 +545,6 @@ The following options are available when running cgo directly:
 		If there are any exported functions, write the
 		generated export declarations to file.
 		C code can #include this to see the declarations.
-	-importpath string
-		The import path for the Go package. Optional; used for
-		nicer comments in the generated files.
-	-import_runtime_cgo
-		If set (which it is by default) import runtime/cgo in
-		generated output.
-	-import_syscall
-		If set (which it is by default) import syscall in
-		generated output.
 	-gccgo
 		Generate output for the gccgo compiler rather than the
 		gc compiler.
@@ -529,9 +559,25 @@ The following options are available when running cgo directly:
 		Write out input file in Go syntax replacing C package
 		names with real values. Used to generate files in the
 		syscall package when bootstrapping a new target.
+	-importpath string
+		The import path for the Go package. Optional; used for
+		nicer comments in the generated files.
+	-import_runtime_cgo
+		If set (which it is by default) import runtime/cgo in
+		generated output.
+	-import_syscall
+		If set (which it is by default) import syscall in
+		generated output.
+	-ldflags flags
+		Flags to pass to the C linker. The cmd/go tool uses
+		this to pass in the flags in the CGO_LDFLAGS variable.
 	-objdir directory
 		Put all generated files in directory.
 	-srcdir directory
+		Find the Go input files, listed on the command line,
+		in directory.
+	-trimpath rewrites
+		Apply trims and rewrites to source file paths.
 */
 package main
 

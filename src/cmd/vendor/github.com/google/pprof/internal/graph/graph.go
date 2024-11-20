@@ -444,7 +444,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 		}
 	}
 
-	nodes := make(Nodes, len(prof.Location))
+	nodes := make(Nodes, 0, len(prof.Location))
 	for _, nm := range parentNodeMap {
 		nodes = append(nodes, nm.nodes()...)
 	}

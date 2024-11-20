@@ -13,6 +13,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/pgo"
 	"cmd/internal/src"
+	"cmd/internal/sys"
 	"testing"
 )
 
@@ -23,8 +24,8 @@ func init() {
 	types.PtrSize = 8
 	types.RegSize = 8
 	types.MaxWidth = 1 << 50
+	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
 	typecheck.InitUniverse()
-	base.Ctxt = &obj.Link{}
 	base.Debug.PGODebug = 3
 }
 

@@ -7,6 +7,7 @@ package ssa
 import (
 	"bytes"
 	"cmd/internal/src"
+	"cmp"
 	"fmt"
 	"html"
 	"io"
@@ -827,19 +828,13 @@ type FuncLines struct {
 	Lines       []string
 }
 
-// ByTopo sorts topologically: target function is on top,
+// ByTopoCmp sorts topologically: target function is on top,
 // followed by inlined functions sorted by filename and line numbers.
-type ByTopo []*FuncLines
-
-func (x ByTopo) Len() int      { return len(x) }
-func (x ByTopo) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x ByTopo) Less(i, j int) bool {
-	a := x[i]
-	b := x[j]
-	if a.Filename == b.Filename {
-		return a.StartLineno < b.StartLineno
+func ByTopoCmp(a, b *FuncLines) int {
+	if r := strings.Compare(a.Filename, b.Filename); r != 0 {
+		return r
 	}
-	return a.Filename < b.Filename
+	return cmp.Compare(a.StartLineno, b.StartLineno)
 }
 
 // WriteSources writes lines as source code in a column headed by title.

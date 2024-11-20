@@ -82,6 +82,7 @@ package runtime
 //      8192    13         32768
 
 const (
+	minHeapAlign    = 8
 	_MaxSmallSize   = 32768
 	smallSizeDiv    = 8
 	smallSizeMax    = 1024

@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 )
 
 // pageBits is a bitmap representing one bit per page in a palloc chunk.
@@ -324,7 +324,6 @@ func (b *pallocBits) findLargeN(npages uintptr, searchIdx uint) (uint, uint) {
 		}
 		s := uint(sys.TrailingZeros64(x))
 		if s+size >= uint(npages) {
-			size += s
 			return start, newSearchIdx
 		}
 		if s < 64 {

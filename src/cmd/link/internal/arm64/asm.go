@@ -305,7 +305,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		return true
 
 	case objabi.R_ADDRARM64:
-		if targType == sym.SDYNIMPORT && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
+		if targType == sym.SDYNIMPORT && ldr.SymType(s).IsText() && target.IsDarwin() {
 			// Loading the address of a dynamic symbol. Rewrite to use GOT.
 			// turn MOVD $sym (adrp+add) into MOVD sym@GOT (adrp+ldr)
 			if r.Add() != 0 {
@@ -339,7 +339,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		}
 
 	case objabi.R_ADDR:
-		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
+		if ldr.SymType(s).IsText() && target.IsElf() {
 			// The code is asking for the address of an external
 			// function. We provide it with the address of the
 			// correspondent GOT symbol.
@@ -394,7 +394,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// linking, in which case the relocation will be
 			// prepared in the 'reloc' phase and passed to the
 			// external linker in the 'asmb' phase.
-			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
+			if t := ldr.SymType(s); !t.IsDATA() && !t.IsRODATA() {
 				break
 			}
 		}
@@ -1278,7 +1278,7 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 			continue
 		}
 		t := ldr.SymType(s)
-		if t == sym.STEXT {
+		if t.IsText() {
 			// Except for Duff's devices (handled above), we don't
 			// target the middle of a function.
 			continue

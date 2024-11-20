@@ -7,7 +7,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/runtime/sys"
 )
 
 // Event types in the trace, args are given in square brackets.
@@ -87,6 +88,9 @@ const (
 
 	// GoStatus with stack.
 	traceEvGoStatusStack // goroutine status at the start of a generation, with a stack [timestamp, goroutine ID, M ID, status, stack ID]
+
+	// Batch event for an experimental batch with a custom format.
+	traceEvExperimentalBatch // start of extra data [experiment ID, generation, M ID, timestamp, batch length, batch data...]
 )
 
 // traceArg is a simple wrapper type to help ensure that arguments passed
@@ -98,7 +102,7 @@ type traceArg uint64
 // See the comment on traceWriter about style for more details as to why
 // this type and its methods are structured the way they are.
 type traceEventWriter struct {
-	w traceWriter
+	tl traceLocker
 }
 
 // eventWriter creates a new traceEventWriter. It is the main entrypoint for writing trace events.
@@ -115,54 +119,18 @@ type traceEventWriter struct {
 //
 // In this case, the default status should be traceGoBad or traceProcBad to help identify bugs sooner.
 func (tl traceLocker) eventWriter(goStatus traceGoStatus, procStatus traceProcStatus) traceEventWriter {
-	w := tl.writer()
 	if pp := tl.mp.p.ptr(); pp != nil && !pp.trace.statusWasTraced(tl.gen) && pp.trace.acquireStatus(tl.gen) {
-		w = w.writeProcStatus(uint64(pp.id), procStatus, pp.trace.inSweep)
+		tl.writer().writeProcStatus(uint64(pp.id), procStatus, pp.trace.inSweep).end()
 	}
 	if gp := tl.mp.curg; gp != nil && !gp.trace.statusWasTraced(tl.gen) && gp.trace.acquireStatus(tl.gen) {
-		w = w.writeGoStatus(uint64(gp.goid), int64(tl.mp.procid), goStatus, gp.inMarkAssist, 0 /* no stack */)
+		tl.writer().writeGoStatus(uint64(gp.goid), int64(tl.mp.procid), goStatus, gp.inMarkAssist, 0 /* no stack */).end()
 	}
-	return traceEventWriter{w}
+	return traceEventWriter{tl}
 }
 
-// commit writes out a trace event and calls end. It's a helper to make the
-// common case of writing out a single event less error-prone.
-func (e traceEventWriter) commit(ev traceEv, args ...traceArg) {
-	e = e.write(ev, args...)
-	e.end()
-}
-
-// write writes an event into the trace.
-func (e traceEventWriter) write(ev traceEv, args ...traceArg) traceEventWriter {
-	e.w = e.w.event(ev, args...)
-	return e
-}
-
-// end finishes writing to the trace. The traceEventWriter must not be used after this call.
-func (e traceEventWriter) end() {
-	e.w.end()
-}
-
-// traceEventWrite is the part of traceEvent that actually writes the event.
-func (w traceWriter) event(ev traceEv, args ...traceArg) traceWriter {
-	// Make sure we have room.
-	w, _ = w.ensure(1 + (len(args)+1)*traceBytesPerNumber)
-
-	// Compute the timestamp diff that we'll put in the trace.
-	ts := traceClockNow()
-	if ts <= w.traceBuf.lastTime {
-		ts = w.traceBuf.lastTime + 1
-	}
-	tsDiff := uint64(ts - w.traceBuf.lastTime)
-	w.traceBuf.lastTime = ts
-
-	// Write out event.
-	w.byte(byte(ev))
-	w.varint(tsDiff)
-	for _, arg := range args {
-		w.varint(uint64(arg))
-	}
-	return w
+// event writes out a trace event.
+func (e traceEventWriter) event(ev traceEv, args ...traceArg) {
+	e.tl.writer().event(ev, args...).end()
 }
 
 // stack takes a stack trace skipping the provided number of frames.
@@ -197,4 +165,9 @@ func (tl traceLocker) string(s string) traceArg {
 // the trace eagerly.
 func (tl traceLocker) uniqueString(s string) traceArg {
 	return traceArg(trace.stringTab[tl.gen%2].emit(tl.gen, s))
+}
+
+// rtype returns a traceArg representing typ which may be passed to write.
+func (tl traceLocker) rtype(typ *abi.Type) traceArg {
+	return traceArg(trace.typeTab[tl.gen%2].put(typ))
 }

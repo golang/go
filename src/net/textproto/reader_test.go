@@ -11,6 +11,7 @@ import (
 	"net"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -95,13 +96,13 @@ func TestReadDotLines(t *testing.T) {
 	r := reader("dotlines\r\n.foo\r\n..bar\n...baz\nquux\r\n\r\n.\r\nanother\n")
 	s, err := r.ReadDotLines()
 	want := []string{"dotlines", "foo", ".bar", "..baz", "quux", ""}
-	if !reflect.DeepEqual(s, want) || err != nil {
+	if !slices.Equal(s, want) || err != nil {
 		t.Fatalf("ReadDotLines: %v, %v", s, err)
 	}
 
 	s, err = r.ReadDotLines()
 	want = []string{"another"}
-	if !reflect.DeepEqual(s, want) || err != io.ErrUnexpectedEOF {
+	if !slices.Equal(s, want) || err != io.ErrUnexpectedEOF {
 		t.Fatalf("ReadDotLines2: %v, %v", s, err)
 	}
 }
@@ -110,13 +111,13 @@ func TestReadDotBytes(t *testing.T) {
 	r := reader("dotlines\r\n.foo\r\n..bar\n...baz\nquux\r\n\r\n.\r\nanot.her\r\n")
 	b, err := r.ReadDotBytes()
 	want := []byte("dotlines\nfoo\n.bar\n..baz\nquux\n\n")
-	if !reflect.DeepEqual(b, want) || err != nil {
+	if !slices.Equal(b, want) || err != nil {
 		t.Fatalf("ReadDotBytes: %q, %v", b, err)
 	}
 
 	b, err = r.ReadDotBytes()
 	want = []byte("anot.her\n")
-	if !reflect.DeepEqual(b, want) || err != io.ErrUnexpectedEOF {
+	if !slices.Equal(b, want) || err != io.ErrUnexpectedEOF {
 		t.Fatalf("ReadDotBytes2: %q, %v", b, err)
 	}
 }

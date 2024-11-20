@@ -41,11 +41,6 @@ func decodetypeKind(arch *sys.Arch, p []byte) abi.Kind {
 	return abi.Kind(p[2*arch.PtrSize+7]) & abi.KindMask //  0x13 / 0x1f
 }
 
-// Type.commonType.kind
-func decodetypeUsegcprog(arch *sys.Arch, p []byte) bool {
-	return abi.Kind(p[2*arch.PtrSize+7])&abi.KindGCProg != 0 //  0x13 / 0x1f
-}
-
 // Type.commonType.size
 func decodetypeSize(arch *sys.Arch, p []byte) int64 {
 	return int64(decodeInuxi(arch, p, arch.PtrSize)) // 0x8 / 0x10
@@ -59,6 +54,11 @@ func decodetypePtrdata(arch *sys.Arch, p []byte) int64 {
 // Type.commonType.tflag
 func decodetypeHasUncommon(arch *sys.Arch, p []byte) bool {
 	return abi.TFlag(p[abi.TFlagOff(arch.PtrSize)])&abi.TFlagUncommon != 0
+}
+
+// Type.commonType.tflag
+func decodetypeGCMaskOnDemand(arch *sys.Arch, p []byte) bool {
+	return abi.TFlag(p[abi.TFlagOff(arch.PtrSize)])&abi.TFlagGCMaskOnDemand != 0
 }
 
 // Type.FuncType.dotdotdot
@@ -134,9 +134,8 @@ func decodetypeFuncOutType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym
 	return decodetypeFuncInType(ldr, arch, symIdx, relocs, i+decodetypeFuncInCount(arch, ldr.Data(symIdx)))
 }
 
-func decodetypeArrayElem(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
-	relocs := ldr.Relocs(symIdx)
-	return decodeRelocSym(ldr, symIdx, &relocs, int32(commonsize(arch))) // 0x1c / 0x30
+func decodetypeArrayElem(ctxt *Link, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
+	return decodeTargetSym(ctxt, arch, symIdx, int64(commonsize(arch))) // 0x1c / 0x30
 }
 
 func decodetypeArrayLen(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) int64 {
@@ -157,6 +156,11 @@ func decodetypeMapKey(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loa
 func decodetypeMapValue(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
 	relocs := ldr.Relocs(symIdx)
 	return decodeRelocSym(ldr, symIdx, &relocs, int32(commonsize(arch))+int32(arch.PtrSize)) // 0x20 / 0x38
+}
+
+func decodetypeMapSwissGroup(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
+	relocs := ldr.Relocs(symIdx)
+	return decodeRelocSym(ldr, symIdx, &relocs, int32(commonsize(arch))+2*int32(arch.PtrSize)) // 0x24 / 0x40
 }
 
 func decodetypePtrElem(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
@@ -185,10 +189,10 @@ func decodetypeStructFieldName(ldr *loader.Loader, arch *sys.Arch, symIdx loader
 	return decodetypeName(ldr, symIdx, &relocs, off)
 }
 
-func decodetypeStructFieldType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, i int) loader.Sym {
+func decodetypeStructFieldType(ctxt *Link, arch *sys.Arch, symIdx loader.Sym, i int) loader.Sym {
+	ldr := ctxt.loader
 	off := decodetypeStructFieldArrayOff(ldr, arch, symIdx, i)
-	relocs := ldr.Relocs(symIdx)
-	return decodeRelocSym(ldr, symIdx, &relocs, int32(off+arch.PtrSize))
+	return decodeTargetSym(ctxt, arch, symIdx, int64(off+arch.PtrSize))
 }
 
 func decodetypeStructFieldOffset(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, i int) int64 {
@@ -261,7 +265,7 @@ func decodetypeGcprog(ctxt *Link, s loader.Sym) []byte {
 			}
 			return append(progsize, progbytes...)
 		}
-		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
+		Exitf("cannot find gcprog for %s", ctxt.loader.SymName(s))
 		return nil
 	}
 	relocs := ctxt.loader.Relocs(s)
@@ -291,4 +295,37 @@ func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
 func decodeItabType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
 	relocs := ldr.Relocs(symIdx)
 	return decodeRelocSym(ldr, symIdx, &relocs, int32(abi.ITabTypeOff(arch.PtrSize)))
+}
+
+// decodeTargetSym finds the symbol pointed to by the pointer slot at offset off in s.
+func decodeTargetSym(ctxt *Link, arch *sys.Arch, s loader.Sym, off int64) loader.Sym {
+	ldr := ctxt.loader
+	if ldr.SymType(s) == sym.SDYNIMPORT {
+		// In this case, relocations are not associated with a
+		// particular symbol. Instead, they are all listed together
+		// in the containing shared library. Find the relocation
+		// in that shared library record.
+		name := ldr.SymName(s)
+		for _, sh := range ctxt.Shlibs {
+			addr, ok := sh.symAddr[name]
+			if !ok {
+				continue
+			}
+			addr += uint64(off)
+			target := sh.relocTarget[addr]
+			if target == "" {
+				Exitf("can't find relocation in %s at offset %d", name, off)
+			}
+			t := ldr.Lookup(target, 0)
+			if t == 0 {
+				Exitf("can't find target of relocation in %s at offset %d: %s", name, off, target)
+			}
+			return t
+		}
+	}
+
+	// For the normal case, just find the relocation within the symbol that
+	// lives at the requested offset.
+	relocs := ldr.Relocs(s)
+	return decodeRelocSym(ldr, s, &relocs, int32(off))
 }

@@ -14,7 +14,7 @@ import (
 	"go/token"
 	"internal/testenv"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -172,7 +172,7 @@ L7 uses var z int`
 		fact := fmt.Sprintf("L%d uses %s", fset.Position(id.Pos()).Line, obj)
 		facts = append(facts, fact)
 	}
-	sort.Strings(facts)
+	slices.Sort(facts)
 
 	got := strings.Join(facts, "\n")
 	if got != want {
@@ -266,11 +266,11 @@ func TestIssue22525(t *testing.T) {
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
 	typecheck(src, &conf, nil) // do not crash
 	want := "\n" +
-		"p:1:27: `a' declared and not used\n" +
-		"p:1:30: `b' declared and not used\n" +
-		"p:1:33: `c' declared and not used\n" +
-		"p:1:36: `d' declared and not used\n" +
-		"p:1:39: `e' declared and not used\n"
+		"p:1:27: declared and not used: a\n" +
+		"p:1:30: declared and not used: b\n" +
+		"p:1:33: declared and not used: c\n" +
+		"p:1:36: declared and not used: d\n" +
+		"p:1:39: declared and not used: e\n"
 	if got != want {
 		t.Errorf("got: %swant: %s", got, want)
 	}
@@ -737,7 +737,7 @@ var _ I0 = b.S{}
 type S struct{}
 func (S) M0(struct{ f string }) {}
 `,
-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I0 value in variable declaration: b[.]S does not implement I0 [(]wrong type for method M0[)]
+			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I0 value in variable declaration: b[.]S does not implement I0 [(]wrong type for method M0[)]
 .*have M0[(]struct{f string /[*] package b [*]/ }[)]
 .*want M0[(]struct{f string /[*] package main [*]/ }[)]`},
 
@@ -753,7 +753,7 @@ var _ I1 = b.S{}
 type S struct{}
 func (S) M1(struct{ string }) {}
 `,
-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I1 value in variable declaration: b[.]S does not implement I1 [(]wrong type for method M1[)]
+			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I1 value in variable declaration: b[.]S does not implement I1 [(]wrong type for method M1[)]
 .*have M1[(]struct{string /[*] package b [*]/ }[)]
 .*want M1[(]struct{string /[*] package main [*]/ }[)]`},
 
@@ -769,7 +769,7 @@ var _ I2 = b.S{}
 type S struct{}
 func (S) M2(struct{ f struct{ f string } }) {}
 `,
-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I2 value in variable declaration: b[.]S does not implement I2 [(]wrong type for method M2[)]
+			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I2 value in variable declaration: b[.]S does not implement I2 [(]wrong type for method M2[)]
 .*have M2[(]struct{f struct{f string} /[*] package b [*]/ }[)]
 .*want M2[(]struct{f struct{f string} /[*] package main [*]/ }[)]`},
 
@@ -785,7 +785,7 @@ var _ I3 = b.S{}
 type S struct{}
 func (S) M3(struct{ F struct{ f string } }) {}
 `,
-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I3 value in variable declaration: b[.]S does not implement I3 [(]wrong type for method M3[)]
+			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I3 value in variable declaration: b[.]S does not implement I3 [(]wrong type for method M3[)]
 .*have M3[(]struct{F struct{f string /[*] package b [*]/ }}[)]
 .*want M3[(]struct{F struct{f string /[*] package main [*]/ }}[)]`},
 
@@ -801,7 +801,7 @@ var _ I4 = b.S{}
 type S struct{}
 func (S) M4(struct { *string }) {}
 `,
-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I4 value in variable declaration: b[.]S does not implement I4 [(]wrong type for method M4[)]
+			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I4 value in variable declaration: b[.]S does not implement I4 [(]wrong type for method M4[)]
 .*have M4[(]struct{[*]string /[*] package b [*]/ }[)]
 .*want M4[(]struct{[*]string /[*] package main [*]/ }[)]`},
 
@@ -819,7 +819,7 @@ type S struct{}
 type t struct{ A int }
 func (S) M5(struct {S;t}) {}
 `,
-			`7:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I5 value in variable declaration: b[.]S does not implement I5 [(]wrong type for method M5[)]
+			`7:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I5 value in variable declaration: b[.]S does not implement I5 [(]wrong type for method M5[)]
 .*have M5[(]struct{b[.]S; b[.]t}[)]
 .*want M5[(]struct{b[.]S; t}[)]`},
 	}
@@ -1101,4 +1101,80 @@ func _() {
 	// even though the (module) Go version is set to go1.17.
 	conf := Config{GoVersion: "go1.17"}
 	mustTypecheck(src, &conf, nil)
+}
+
+func TestIssue68334(t *testing.T) {
+	const src = `
+package p
+
+func f(x int) {
+	for i, j := range x {
+		_, _ = i, j
+	}
+	var a, b int
+	for a, b = range x {
+		_, _ = a, b
+	}
+}
+`
+
+	got := ""
+	conf := Config{
+		GoVersion: "go1.21",                                      // #68334 requires GoVersion <= 1.21
+		Error:     func(err error) { got += err.Error() + "\n" }, // #68334 requires Error != nil
+	}
+	typecheck(src, &conf, nil) // do not crash
+
+	want := "p:5:20: cannot range over x (variable of type int): requires go1.22 or later\n" +
+		"p:9:19: cannot range over x (variable of type int): requires go1.22 or later\n"
+	if got != want {
+		t.Errorf("got: %s want: %s", got, want)
+	}
+}
+
+func TestIssue68877(t *testing.T) {
+	const src = `
+package p
+
+type (
+	S struct{}
+	A = S
+	T A
+)`
+
+	t.Setenv("GODEBUG", "gotypesalias=1")
+	pkg := mustTypecheck(src, nil, nil)
+	T := pkg.Scope().Lookup("T").(*TypeName)
+	got := T.String() // this must not panic (was issue)
+	const want = "type p.T struct{}"
+	if got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+}
+
+func TestIssue69092(t *testing.T) {
+	const src = `
+package p
+
+var _ = T{{x}}
+`
+
+	fset := token.NewFileSet()
+	file := mustParse(fset, src)
+	conf := Config{Error: func(err error) {}} // ignore errors
+	info := Info{Types: make(map[ast.Expr]TypeAndValue)}
+	conf.Check("p", fset, []*ast.File{file}, &info)
+
+	// look for {x} expression
+	outer := file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.CompositeLit) // T{{x}}
+	inner := outer.Elts[0]                                                                        // {x}
+
+	// type of {x} must have been recorded
+	tv, ok := info.Types[inner]
+	if !ok {
+		t.Fatal("no type found for {x}")
+	}
+	if tv.Type != Typ[Invalid] {
+		t.Fatalf("unexpected type for {x}: %s", tv.Type)
+	}
 }

@@ -477,9 +477,9 @@ var passes = [...]pass{
 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
 	{name: "sccp", fn: sccp},
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
-	{name: "check bce", fn: checkbce},
 	{name: "branchelim", fn: branchelim},
 	{name: "late fuse", fn: fuseLate},
+	{name: "check bce", fn: checkbce},
 	{name: "dse", fn: dse},
 	{name: "memcombine", fn: memcombine},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops

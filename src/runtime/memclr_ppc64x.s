@@ -19,7 +19,7 @@ check:
 	SRD   $3, R4, R6  // R6: double words to clear
 	CMP   R6, $0, CR1 // CR1[EQ] set if no double words
 
-	BC    12, 6, nozerolarge // only single bytes
+	BEQ   CR1, nozerolarge // only single bytes
 	CMP   R4, $512
 	BLT   under512           // special case for < 512
 	ANDCC $127, R3, R8       // check for 128 alignment of address
@@ -104,7 +104,7 @@ lt16gt8:
 #endif
 nozerolarge:
 	ANDCC $7, R4, R5 // any remaining bytes
-	BC    4, 1, LR   // ble lr
+	BLE    CR0, LR   // ble lr
 #ifdef GOPPC64_power10
 	XXLXOR  VS32, VS32, VS32 // clear VS32 (V0)
 	SLD	$56, R5, R7
@@ -124,7 +124,7 @@ next2:
 	ADD   $-2, R5
 next1:
 	CMP   R5, $0
-	BC    12, 2, LR      // beqlr
+	BEQ   CR0, LR      // beqlr
 	MOVB  R0, 0(R3)
 	RET
 #endif

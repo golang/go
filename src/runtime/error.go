@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/bytealg"
+	"internal/runtime/sys"
 )
 
 // The Error interface identifies a run time error.
@@ -211,11 +212,16 @@ type stringer interface {
 	String() string
 }
 
-// printany prints an argument passed to panic.
+// printpanicval prints an argument passed to panic.
 // If panic is called with a value that has a String or Error method,
 // it has already been converted into a string by preprintpanics.
-func printany(i any) {
-	switch v := i.(type) {
+//
+// To ensure that the traceback can be unambiguously parsed even when
+// the panic value contains "\ngoroutine" and other stack-like
+// strings, newlines in the string representation of v are replaced by
+// "\n\t".
+func printpanicval(v any) {
+	switch v := v.(type) {
 	case nil:
 		print("nil")
 	case bool:
@@ -251,19 +257,22 @@ func printany(i any) {
 	case complex128:
 		print(v)
 	case string:
-		print(v)
+		printindented(v)
 	default:
-		printanycustomtype(i)
+		printanycustomtype(v)
 	}
 }
 
+// Invariant: each newline in the string representation is followed by a tab.
 func printanycustomtype(i any) {
 	eface := efaceOf(&i)
 	typestring := toRType(eface._type).string()
 
 	switch eface._type.Kind_ {
 	case abi.String:
-		print(typestring, `("`, *(*string)(eface.data), `")`)
+		print(typestring, `("`)
+		printindented(*(*string)(eface.data))
+		print(`")`)
 	case abi.Bool:
 		print(typestring, "(", *(*bool)(eface.data), ")")
 	case abi.Int:
@@ -301,12 +310,27 @@ func printanycustomtype(i any) {
 	}
 }
 
+// printindented prints s, replacing "\n" with "\n\t".
+func printindented(s string) {
+	for {
+		i := bytealg.IndexByteString(s, '\n')
+		if i < 0 {
+			break
+		}
+		i += len("\n")
+		print(s[:i])
+		print("\t")
+		s = s[i:]
+	}
+	print(s)
+}
+
 // panicwrap generates a panic for a call to a wrapped value method
 // with a nil pointer receiver.
 //
 // It is called from the generated wrapper code.
 func panicwrap() {
-	pc := getcallerpc()
+	pc := sys.GetCallerPC()
 	name := funcNameForPrint(funcname(findfunc(pc)))
 	// name is something like "main.(*T).F".
 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").

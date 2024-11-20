@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestVMInfo(t *testing.T) {
@@ -56,18 +57,35 @@ func TestVMInfo(t *testing.T) {
 	}
 }
 
+type mapping struct {
+	hi, lo uint64
+	err    error
+}
+
 func useVMMapWithRetry(t *testing.T) (hi, lo uint64, err error) {
 	var retryable bool
-	for {
-		hi, lo, retryable, err = useVMMap(t)
-		if err == nil {
-			return hi, lo, nil
+	ch := make(chan mapping)
+	go func() {
+		for {
+			hi, lo, retryable, err = useVMMap(t)
+			if err == nil {
+				ch <- mapping{hi, lo, nil}
+				return
+			}
+			if !retryable {
+				ch <- mapping{0, 0, err}
+				return
+			}
+			t.Logf("retrying vmmap after error: %v", err)
 		}
-		if !retryable {
-			return 0, 0, err
-		}
-		t.Logf("retrying vmmap after error: %v", err)
+	}()
+	select {
+	case m := <-ch:
+		return m.hi, m.lo, m.err
+	case <-time.After(time.Minute):
+		t.Skip("vmmap taking too long")
 	}
+	return 0, 0, fmt.Errorf("unreachable")
 }
 
 func useVMMap(t *testing.T) (hi, lo uint64, retryable bool, err error) {

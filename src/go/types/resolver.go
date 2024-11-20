@@ -5,13 +5,13 @@
 package types
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/internal/typeparams"
 	"go/token"
 	. "internal/types/errors"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -20,6 +20,7 @@ import (
 // A declInfo describes a package-level const, type, var, or func declaration.
 type declInfo struct {
 	file      *Scope        // scope of file containing this declaration
+	version   goVersion     // Go version of file containing this declaration
 	lhs       []*Var        // lhs of n:1 variable declarations, or nil
 	vtyp      ast.Expr      // type, or nil (for const and var declarations only)
 	init      ast.Expr      // init/orig expression, or nil (for const and var declarations only)
@@ -232,8 +233,11 @@ func (check *Checker) collectObjects() {
 		recv *ast.Ident // receiver type name
 	}
 	var methods []methodInfo // collected methods with valid receivers and non-blank _ names
-	var fileScopes []*Scope
+
+	fileScopes := make([]*Scope, len(check.files)) // fileScopes[i] corresponds to check.files[i]
 	for fileNo, file := range check.files {
+		check.version = asGoVersion(check.versions[file])
+
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
 		check.recordDef(file.Name, nil)
@@ -246,7 +250,7 @@ func (check *Checker) collectObjects() {
 			pos, end = token.Pos(f.Base()), token.Pos(f.Base()+f.Size())
 		}
 		fileScope := NewScope(pkg.scope, pos, end, check.filename(fileNo))
-		fileScopes = append(fileScopes, fileScope)
+		fileScopes[fileNo] = fileScope
 		check.recordScope(file, fileScope)
 
 		// determine file directory, necessary to resolve imports
@@ -355,7 +359,7 @@ func (check *Checker) collectObjects() {
 						init = d.init[i]
 					}
 
-					d := &declInfo{file: fileScope, vtyp: d.typ, init: init, inherited: d.inherited}
+					d := &declInfo{file: fileScope, version: check.version, vtyp: d.typ, init: init, inherited: d.inherited}
 					check.declarePkgObj(name, obj, d)
 				}
 
@@ -370,7 +374,7 @@ func (check *Checker) collectObjects() {
 					// The lhs elements are only set up after the for loop below,
 					// but that's ok because declareVar only collects the declInfo
 					// for a later phase.
-					d1 = &declInfo{file: fileScope, lhs: lhs, vtyp: d.spec.Type, init: d.spec.Values[0]}
+					d1 = &declInfo{file: fileScope, version: check.version, lhs: lhs, vtyp: d.spec.Type, init: d.spec.Values[0]}
 				}
 
 				// declare all variables
@@ -385,14 +389,14 @@ func (check *Checker) collectObjects() {
 						if i < len(d.spec.Values) {
 							init = d.spec.Values[i]
 						}
-						di = &declInfo{file: fileScope, vtyp: d.spec.Type, init: init}
+						di = &declInfo{file: fileScope, version: check.version, vtyp: d.spec.Type, init: init}
 					}
 
 					check.declarePkgObj(name, obj, di)
 				}
 			case typeDecl:
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
-				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
+				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, version: check.version, tdecl: d.spec})
 			case funcDecl:
 				name := d.decl.Name.Name
 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil) // signature set later
@@ -437,17 +441,17 @@ func (check *Checker) collectObjects() {
 					//                when type checking the function type. Confirm that
 					//                we don't need to check tparams here.
 
-					ptr, recv, _ := check.unpackRecv(d.decl.Recv.List[0].Type, false)
+					ptr, base, _ := check.unpackRecv(d.decl.Recv.List[0].Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and
 					// methods with blank _ names are never found; no need to collect any
 					// of them. They will still be type-checked with all the other functions.)
-					if recv != nil && name != "_" {
+					if recv, _ := base.(*ast.Ident); recv != nil && name != "_" {
 						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
 					check.recordDef(d.decl.Name, obj)
 				}
 				_ = d.decl.Type.TypeParams.NumFields() != 0 && !hasTParamError && check.verifyVersionf(d.decl.Type.TypeParams.List[0], go1_18, "type parameter")
-				info := &declInfo{file: fileScope, fdecl: d.decl}
+				info := &declInfo{file: fileScope, version: check.version, fdecl: d.decl}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the
 				// receiver is invalid); also we need their fdecl info when associating
@@ -482,13 +486,44 @@ func (check *Checker) collectObjects() {
 	// Ignore methods that have an invalid receiver. They will be
 	// type-checked later, with regular functions.
 	if methods == nil {
-		return // nothing to do
+		return
 	}
+
+	// lookupScope returns the file scope which contains the given name,
+	// or nil if the name is not found in any scope. The search does not
+	// step inside blocks (function bodies).
+	// This function is only used in conjuction with import "C", and even
+	// then only rarely. It doesn't have to be particularly fast.
+	lookupScope := func(name *ast.Ident) *Scope {
+		for i, file := range check.files {
+			found := false
+			ast.Inspect(file, func(n ast.Node) bool {
+				if found {
+					return false // we're done
+				}
+				switch n := n.(type) {
+				case *ast.Ident:
+					if n == name {
+						found = true
+						return false
+					}
+				case *ast.BlockStmt:
+					return false // don't descend into function bodies
+				}
+				return true
+			})
+			if found {
+				return fileScopes[i]
+			}
+		}
+		return nil
+	}
+
 	check.methods = make(map[*TypeName][]*Func)
 	for i := range methods {
 		m := &methods[i]
 		// Determine the receiver base type and associate m with it.
-		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv, fileScopes)
+		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv, lookupScope)
 		if base != nil {
 			m.obj.hasPtrRecv_ = ptr
 			check.methods[base] = append(check.methods[base], m.obj)
@@ -496,35 +531,30 @@ func (check *Checker) collectObjects() {
 	}
 }
 
-// unpackRecv unpacks a receiver type and returns its components: ptr indicates whether
-// rtyp is a pointer receiver, rname is the receiver type name, and tparams are its
-// type parameters, if any. The type parameters are only unpacked if unpackParams is
-// set. If rname is nil, the receiver is unusable (i.e., the source has a bug which we
-// cannot easily work around).
-func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, rname *ast.Ident, tparams []*ast.Ident) {
-L: // unpack receiver type
-	// This accepts invalid receivers such as ***T and does not
-	// work for other invalid receivers, but we don't care. The
-	// validity of receiver expressions is checked elsewhere.
-	for {
-		switch t := rtyp.(type) {
-		case *ast.ParenExpr:
-			rtyp = t.X
-		case *ast.StarExpr:
-			ptr = true
-			rtyp = t.X
-		default:
-			break L
-		}
+// unpackRecv unpacks a receiver type expression and returns its components: ptr indicates
+// whether rtyp is a pointer receiver, base is the receiver base type expression stripped
+// of its type parameters (if any), and tparams are its type parameter names, if any. The
+// type parameters are only unpacked if unpackParams is set. For instance, given the rtyp
+//
+//	*T[A, _]
+//
+// ptr is true, base is T, and tparams is [A, _] (assuming unpackParams is set).
+// Note that base may not be a *ast.Ident for erroneous programs.
+func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, base ast.Expr, tparams []*ast.Ident) {
+	// unpack receiver type
+	base = ast.Unparen(rtyp)
+	if t, _ := base.(*ast.StarExpr); t != nil {
+		ptr = true
+		base = ast.Unparen(t.X)
 	}
 
 	// unpack type parameters, if any
-	switch rtyp.(type) {
+	switch base.(type) {
 	case *ast.IndexExpr, *ast.IndexListExpr:
-		ix := typeparams.UnpackIndexExpr(rtyp)
-		rtyp = ix.X
+		ix := unpackIndexedExpr(base)
+		base = ix.x
 		if unpackParams {
-			for _, arg := range ix.Indices {
+			for _, arg := range ix.indices {
 				var par *ast.Ident
 				switch arg := arg.(type) {
 				case *ast.Ident:
@@ -532,7 +562,7 @@ L: // unpack receiver type
 				case *ast.BadExpr:
 					// ignore - error already reported by parser
 				case nil:
-					check.error(ix.Orig, InvalidSyntaxTree, "parameterized receiver contains nil parameters")
+					check.error(ix.orig, InvalidSyntaxTree, "parameterized receiver contains nil parameters")
 				default:
 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
 				}
@@ -544,11 +574,6 @@ L: // unpack receiver type
 		}
 	}
 
-	// unpack receiver name
-	if name, _ := rtyp.(*ast.Ident); name != nil {
-		rname = name
-	}
-
 	return
 }
 
@@ -556,7 +581,7 @@ L: // unpack receiver type
 // there was a pointer indirection to get to it. The base type name must be declared
 // in package scope, and there can be at most one pointer indirection. If no such type
 // name exists, the returned base is nil.
-func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, fileScopes []*Scope) (ptr bool, base *TypeName) {
+func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, lookupScope func(*ast.Ident) *Scope) (ptr bool, base *TypeName) {
 	// Algorithm: Starting from a type expression, which may be a name,
 	// we follow that type through alias declarations until we reach a
 	// non-alias type name. If we encounter anything but pointer types or
@@ -586,18 +611,15 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, fileScopes
 			name = typ.Name
 		case *ast.SelectorExpr:
 			// C.struct_foo is a valid type name for packages using cgo.
+			// See go.dev/issue/59944.
+			// TODO(gri) why is it possible to associate methods with C types?
 			//
 			// Detect this case, and adjust name so that the correct TypeName is
 			// resolved below.
 			if ident, _ := typ.X.(*ast.Ident); ident != nil && ident.Name == "C" {
 				// Check whether "C" actually resolves to an import of "C", by looking
 				// in the appropriate file scope.
-				var obj Object
-				for _, scope := range fileScopes {
-					if scope.Contains(ident.Pos()) {
-						obj = scope.Lookup(ident.Name)
-					}
-				}
+				obj := lookupScope(ident).Lookup(ident.Name) // the fileScope must always be found
 				// If Config.go115UsesCgo is set, the typechecker will resolve Cgo
 				// selectors to their cgo name. We must do the same here.
 				if pname, _ := obj.(*PkgName); pname != nil {
@@ -656,7 +678,9 @@ func (check *Checker) packageObjects() {
 		objList[i] = obj
 		i++
 	}
-	sort.Sort(inSourceOrder(objList))
+	slices.SortFunc(objList, func(a, b Object) int {
+		return cmp.Compare(a.order(), b.order())
+	})
 
 	// add new methods to already type-checked types (from a prior Checker.Files call)
 	for _, obj := range objList {
@@ -665,8 +689,23 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	if check.conf._EnableAlias {
+	if false && check.conf._EnableAlias {
 		// With Alias nodes we can process declarations in any order.
+		//
+		// TODO(adonovan): unfortunately, Alias nodes
+		// (GODEBUG=gotypesalias=1) don't entirely resolve
+		// problems with cycles. For example, in
+		// GOROOT/test/typeparam/issue50259.go,
+		//
+		// 	type T[_ any] struct{}
+		// 	type A T[B]
+		// 	type B = T[A]
+		//
+		// TypeName A has Type Named during checking, but by
+		// the time the unified export data is written out,
+		// its Type is Invalid.
+		//
+		// Investigate and reenable this branch.
 		for _, obj := range objList {
 			check.objDecl(obj, nil)
 		}
@@ -706,13 +745,6 @@ func (check *Checker) packageObjects() {
 	// methods. We can now safely discard this map.
 	check.methods = nil
 }
-
-// inSourceOrder implements the sort.Sort interface.
-type inSourceOrder []Object
-
-func (a inSourceOrder) Len() int           { return len(a) }
-func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
-func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // unusedImports checks for unused imports.
 func (check *Checker) unusedImports() {

@@ -752,6 +752,17 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 		return nil, now
 	}
 
+	if c.dedicatedMarkWorkersNeeded.Load() <= 0 && c.fractionalUtilizationGoal == 0 {
+		// No current need for dedicated workers, and no need at all for
+		// fractional workers. Check before trying to acquire a worker; when
+		// GOMAXPROCS is large, that can be expensive and is often unnecessary.
+		//
+		// When a dedicated worker stops running, the gcBgMarkWorker loop notes
+		// the need for the worker before returning it to the pool. If we don't
+		// see the need now, we wouldn't have found it in the pool anyway.
+		return nil, now
+	}
+
 	// Grab a worker before we commit to running below.
 	node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
 	if node == nil {

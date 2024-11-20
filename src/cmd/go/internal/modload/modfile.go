@@ -20,8 +20,8 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/par"
 	"cmd/go/internal/trace"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -30,14 +30,17 @@ import (
 // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
 // overlay, locks the file while reading, and applies fix, if applicable.
 func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfile.File, err error) {
-	gomod = base.ShortPath(gomod) // use short path in any errors
-	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+	// The path used to open the file shows up in errors. Use ShortPathConservative
+	// so a more convenient path is displayed in the errors. ShortPath isn't used
+	// because it's meant only to be used in errors, not to open files.
+	gomod = base.ShortPathConservative(gomod)
+	if fsys.Replaced(gomod) {
 		// Don't lock go.mod if it's part of the overlay.
 		// On Plan 9, locking requires chmod, and we don't want to modify any file
 		// in the overlay. See #44700.
-		data, err = os.ReadFile(gomodActual)
+		data, err = os.ReadFile(fsys.Actual(gomod))
 	} else {
-		data, err = lockedfile.Read(gomodActual)
+		data, err = lockedfile.Read(gomod)
 	}
 	if err != nil {
 		return nil, nil, err
@@ -190,7 +193,7 @@ func CheckRetractions(ctx context.Context, m module.Version) (err error) {
 		return err
 	}
 	summary, err := rawGoModSummary(rm)
-	if err != nil {
+	if err != nil && !errors.Is(err, gover.ErrTooNew) {
 		return err
 	}
 
@@ -298,7 +301,7 @@ func CheckDeprecation(ctx context.Context, m module.Version) (deprecation string
 		return "", err
 	}
 	summary, err := rawGoModSummary(latest)
-	if err != nil {
+	if err != nil && !errors.Is(err, gover.ErrTooNew) {
 		return "", err
 	}
 	return summary.deprecated, nil
@@ -644,6 +647,8 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 // its dependencies.
 //
 // rawGoModSummary cannot be used on the main module outside of workspace mode.
+// The modFileSummary can still be used for retractions and deprecations
+// even if a TooNewError is returned.
 func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 	if gover.IsToolchain(m.Path) {
 		if m.Path == "go" && gover.Compare(m.Version, gover.GoStrictVersion) >= 0 {
@@ -698,12 +703,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 				summary.require = append(summary.require, req.Mod)
 			}
 		}
-		if summary.goVersion != "" && gover.Compare(summary.goVersion, gover.GoStrictVersion) >= 0 {
-			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
-				return nil, &gover.TooNewError{What: "module " + m.String(), GoVersion: summary.goVersion}
-			}
-			summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
-		}
+
 		if len(f.Retract) > 0 {
 			summary.retract = make([]retraction, 0, len(f.Retract))
 			for _, ret := range f.Retract {
@@ -711,6 +711,16 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 					VersionInterval: ret.VersionInterval,
 					Rationale:       ret.Rationale,
 				})
+			}
+		}
+
+		// This block must be kept at the end of the function because the summary may
+		// be used for reading retractions or deprecations even if a TooNewError is
+		// returned.
+		if summary.goVersion != "" && gover.Compare(summary.goVersion, gover.GoStrictVersion) >= 0 {
+			summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
+			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
+				return summary, &gover.TooNewError{What: "module " + m.String(), GoVersion: summary.goVersion}
 			}
 		}
 
@@ -739,13 +749,13 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
 			}
 		}
 		name = filepath.Join(dir, "go.mod")
-		if gomodActual, ok := fsys.OverlayPath(name); ok {
+		if fsys.Replaced(name) {
 			// Don't lock go.mod if it's part of the overlay.
 			// On Plan 9, locking requires chmod, and we don't want to modify any file
 			// in the overlay. See #44700.
-			data, err = os.ReadFile(gomodActual)
+			data, err = os.ReadFile(fsys.Actual(name))
 		} else {
-			data, err = lockedfile.Read(gomodActual)
+			data, err = lockedfile.Read(name)
 		}
 		if err != nil {
 			return "", nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(name), err))

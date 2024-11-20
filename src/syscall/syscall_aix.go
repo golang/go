@@ -119,11 +119,11 @@ func Getwd() (ret string, err error) {
 		b := make([]byte, len)
 		err := getcwd(&b[0], len)
 		if err == nil {
-			i := 0
-			for b[i] != 0 {
-				i++
+			n := clen(b[:])
+			if n < 1 {
+				return "", EINVAL
 			}
-			return string(b[0:i]), nil
+			return string(b[:n]), nil
 		}
 		if err != ERANGE {
 			return "", err
@@ -629,6 +629,7 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sysnb	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
 //sysnb	Setgid(gid int) (err error)
+//sysnb	Setuid(uid int) (err error)
 //sysnb	Setpgid(pid int, pgid int) (err error)
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)

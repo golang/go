@@ -366,6 +366,11 @@ func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
 		} else {
 			reverseLabels = append(reverseLabels, domain[i+1:])
 			domain = domain[:i]
+			if i == 0 { // domain == ""
+				// domain is prefixed with an empty label, append an empty
+				// string to reverseLabels to indicate this.
+				reverseLabels = append(reverseLabels, "")
+			}
 		}
 	}
 
@@ -977,6 +982,11 @@ func validHostname(host string, isPattern bool) bool {
 		host = strings.TrimSuffix(host, ".")
 	}
 	if len(host) == 0 {
+		return false
+	}
+	if host == "*" {
+		// Bare wildcards are not allowed, they are not valid DNS names,
+		// nor are they allowed per RFC 6125.
 		return false
 	}
 

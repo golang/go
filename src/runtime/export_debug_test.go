@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (amd64 || arm64 || ppc64le) && linux
+//go:build (amd64 || arm64 || loong64 || ppc64le) && linux
 
 package runtime
 
 import (
 	"internal/abi"
+	"internal/stringslite"
 	"unsafe"
 )
 
@@ -145,7 +146,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		return false
 	}
 	f := findfunc(ctxt.sigpc())
-	if !(hasPrefix(funcname(f), "runtime.debugCall") || hasPrefix(funcname(f), "debugCall")) {
+	if !(stringslite.HasPrefix(funcname(f), "runtime.debugCall") || stringslite.HasPrefix(funcname(f), "debugCall")) {
 		println("trap in unknown function", funcname(f))
 		return false
 	}

@@ -492,15 +492,6 @@ const (
 	BLKPG = 0x1269
 )
 
-type XDPUmemReg struct {
-	Addr     uint64
-	Len      uint64
-	Size     uint32
-	Headroom uint32
-	Flags    uint32
-	_        [4]byte
-}
-
 type CryptoUserAlg struct {
 	Name        [64]int8
 	Driver_name [64]int8

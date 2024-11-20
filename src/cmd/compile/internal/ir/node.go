@@ -9,7 +9,6 @@ package ir
 import (
 	"fmt"
 	"go/constant"
-	"sort"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
@@ -29,6 +28,7 @@ type Node interface {
 	copy() Node
 
 	doChildren(func(Node) bool) bool
+	doChildrenWithHidden(func(Node) bool) bool
 	editChildren(func(Node) Node)
 	editChildrenWithHidden(func(Node) Node)
 
@@ -303,8 +303,7 @@ const (
 	// arch-specific opcodes
 	OTAILCALL    // tail call to another function
 	OGETG        // runtime.getg() (read g pointer)
-	OGETCALLERPC // runtime.getcallerpc() (continuation PC in caller frame)
-	OGETCALLERSP // runtime.getcallersp() (stack pointer in caller frame)
+	OGETCALLERSP // internal/runtime/sys.GetCallerSP() (stack pointer in caller frame)
 
 	OEND
 )
@@ -426,16 +425,6 @@ func (s *NameSet) Add(n *Name) {
 		*s = make(map[*Name]struct{})
 	}
 	(*s)[n] = struct{}{}
-}
-
-// Sorted returns s sorted according to less.
-func (s NameSet) Sorted(less func(*Name, *Name) bool) []*Name {
-	var res []*Name
-	for n := range s {
-		res = append(res, n)
-	}
-	sort.Slice(res, func(i, j int) bool { return less(res[i], res[j]) })
-	return res
 }
 
 type PragmaFlag uint16

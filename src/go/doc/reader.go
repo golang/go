@@ -5,12 +5,13 @@
 package doc
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"internal/lazyregexp"
 	"path"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -663,7 +664,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
 		r.filenames[i] = filename
 		i++
 	}
-	sort.Strings(r.filenames)
+	slices.Sort(r.filenames)
 
 	// process files in sorted order
 	for _, filename := range r.filenames {
@@ -816,21 +817,6 @@ func (r *reader) cleanupTypes() {
 // ----------------------------------------------------------------------------
 // Sorting
 
-type data struct {
-	n    int
-	swap func(i, j int)
-	less func(i, j int) bool
-}
-
-func (d *data) Len() int           { return d.n }
-func (d *data) Swap(i, j int)      { d.swap(i, j) }
-func (d *data) Less(i, j int) bool { return d.less(i, j) }
-
-// sortBy is a helper function for sorting.
-func sortBy(less func(i, j int) bool, swap func(i, j int), n int) {
-	sort.Sort(&data{n, swap, less})
-}
-
 func sortedKeys(m map[string]int) []string {
 	list := make([]string, len(m))
 	i := 0
@@ -838,7 +824,7 @@ func sortedKeys(m map[string]int) []string {
 		list[i] = key
 		i++
 	}
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 
@@ -863,16 +849,13 @@ func sortedValues(m []*Value, tok token.Token) []*Value {
 	}
 	list = list[0:i]
 
-	sortBy(
-		func(i, j int) bool {
-			if ni, nj := sortingName(list[i].Decl), sortingName(list[j].Decl); ni != nj {
-				return ni < nj
-			}
-			return list[i].order < list[j].order
-		},
-		func(i, j int) { list[i], list[j] = list[j], list[i] },
-		len(list),
-	)
+	slices.SortFunc(list, func(a, b *Value) int {
+		r := strings.Compare(sortingName(a.Decl), sortingName(b.Decl))
+		if r != 0 {
+			return r
+		}
+		return cmp.Compare(a.order, b.order)
+	})
 
 	return list
 }
@@ -893,11 +876,9 @@ func sortedTypes(m map[string]*namedType, allMethods bool) []*Type {
 		i++
 	}
 
-	sortBy(
-		func(i, j int) bool { return list[i].Name < list[j].Name },
-		func(i, j int) { list[i], list[j] = list[j], list[i] },
-		len(list),
-	)
+	slices.SortFunc(list, func(a, b *Type) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	return list
 }
@@ -925,11 +906,9 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
 		}
 	}
 	list = list[0:i]
-	sortBy(
-		func(i, j int) bool { return list[i].Name < list[j].Name },
-		func(i, j int) { list[i], list[j] = list[j], list[i] },
-		len(list),
-	)
+	slices.SortFunc(list, func(a, b *Func) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 	return list
 }
 
@@ -979,6 +958,7 @@ var predeclaredTypes = map[string]bool{
 var predeclaredFuncs = map[string]bool{
 	"append":  true,
 	"cap":     true,
+	"clear":   true,
 	"close":   true,
 	"complex": true,
 	"copy":    true,
@@ -986,6 +966,8 @@ var predeclaredFuncs = map[string]bool{
 	"imag":    true,
 	"len":     true,
 	"make":    true,
+	"max":     true,
+	"min":     true,
 	"new":     true,
 	"panic":   true,
 	"print":   true,

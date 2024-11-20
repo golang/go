@@ -10,7 +10,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -40,11 +40,14 @@ const (
 	fingWake
 )
 
-var finlock mutex  // protects the following variables
-var fing *g        // goroutine that runs finalizers
-var finq *finblock // list of finalizers that are to be executed
-var finc *finblock // cache of free blocks
-var finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
+// This runs durring the GC sweep phase. Heap memory can't be allocated while sweep is running.
+var (
+	finlock    mutex     // protects the following variables
+	fing       *g        // goroutine that runs finalizers
+	finq       *finblock // list of finalizers that are to be executed
+	finc       *finblock // cache of free blocks
+	finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
+)
 
 var allfin *finblock // list of all blocks
 
@@ -172,7 +175,7 @@ func finalizercommit(gp *g, lock unsafe.Pointer) bool {
 	return true
 }
 
-// This is the goroutine that runs all of the finalizers.
+// This is the goroutine that runs all of the finalizers and cleanups.
 func runfinq() {
 	var (
 		frame    unsafe.Pointer
@@ -202,6 +205,22 @@ func runfinq() {
 			for i := fb.cnt; i > 0; i-- {
 				f := &fb.fin[i-1]
 
+				// arg will only be nil when a cleanup has been queued.
+				if f.arg == nil {
+					var cleanup func()
+					fn := unsafe.Pointer(f.fn)
+					cleanup = *(*func())(unsafe.Pointer(&fn))
+					fingStatus.Or(fingRunningFinalizer)
+					cleanup()
+					fingStatus.And(^fingRunningFinalizer)
+
+					f.fn = nil
+					f.arg = nil
+					f.ot = nil
+					atomic.Store(&fb.cnt, i-1)
+					continue
+				}
+
 				var regs abi.RegArgs
 				// The args may be passed in registers or on stack. Even for
 				// the register case, we still need the spill slots.
@@ -220,7 +239,8 @@ func runfinq() {
 					frame = mallocgc(framesz, nil, true)
 					framecap = framesz
 				}
-
+				// cleanups also have a nil fint. Cleanups should have been processed before
+				// reaching this point.
 				if f.fint == nil {
 					throw("missing type in runfinq")
 				}
@@ -377,9 +397,11 @@ func blockUntilEmptyFinalizerQueue(timeout int64) bool {
 // In order to use finalizers correctly, the program must ensure that
 // the object is reachable until it is no longer required.
 // Objects stored in global variables, or that can be found by tracing
-// pointers from a global variable, are reachable. For other objects,
-// pass the object to a call of the [KeepAlive] function to mark the
-// last point in the function where the object must be reachable.
+// pointers from a global variable, are reachable. A function argument or
+// receiver may become unreachable at the last point where the function
+// mentions it. To make an unreachable object reachable, pass the object
+// to a call of the [KeepAlive] function to mark the last point in the
+// function where the object must be reachable.
 //
 // For example, if p points to a struct, such as os.File, that contains
 // a file descriptor d, and p has a finalizer that closes that file
@@ -407,11 +429,6 @@ func blockUntilEmptyFinalizerQueue(timeout int64) bool {
 // need to use appropriate synchronization, such as mutexes or atomic updates,
 // to avoid read-write races.
 func SetFinalizer(obj any, finalizer any) {
-	if debug.sbrk != 0 {
-		// debug.sbrk never frees memory, so no finalizers run
-		// (and we don't have the data structures to record them).
-		return
-	}
 	e := efaceOf(&obj)
 	etyp := e._type
 	if etyp == nil {
@@ -424,10 +441,14 @@ func SetFinalizer(obj any, finalizer any) {
 	if ot.Elem == nil {
 		throw("nil elem type!")
 	}
-
 	if inUserArenaChunk(uintptr(e.data)) {
 		// Arena-allocated objects are not eligible for finalizers.
 		throw("runtime.SetFinalizer: first argument was allocated into an arena")
+	}
+	if debug.sbrk != 0 {
+		// debug.sbrk never frees memory, so no finalizers run
+		// (and we don't have the data structures to record them).
+		return
 	}
 
 	// find the containing object

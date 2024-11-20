@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -219,7 +220,12 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 //
 //	n.Left = o.addrTemp(n.Left)
 func (o *orderState) addrTemp(n ir.Node) ir.Node {
-	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
+	// Note: Avoid addrTemp with static assignment for literal strings
+	// when compiling FIPS packages.
+	// The problem is that panic("foo") ends up creating a static RODATA temp
+	// for the implicit conversion of "foo" to any, and we can't handle
+	// the relocations in that temp.
+	if n.Op() == ir.ONIL || (n.Op() == ir.OLITERAL && !base.Ctxt.IsFIPS()) {
 		// TODO: expand this to all static composite literal nodes?
 		n = typecheck.DefaultLit(n, nil)
 		types.CalcSize(n.Type())
@@ -926,7 +932,11 @@ func (o *orderState) stmt(n ir.Node) {
 
 			// n.Prealloc is the temp for the iterator.
 			// MapIterType contains pointers and needs to be zeroed.
-			n.Prealloc = o.newTemp(reflectdata.MapIterType(), true)
+			if buildcfg.Experiment.SwissMap {
+				n.Prealloc = o.newTemp(reflectdata.SwissMapIterType(), true)
+			} else {
+				n.Prealloc = o.newTemp(reflectdata.OldMapIterType(), true)
+			}
 		}
 		n.Key = o.exprInPlace(n.Key)
 		n.Value = o.exprInPlace(n.Value)

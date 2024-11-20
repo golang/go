@@ -345,7 +345,8 @@ For more about modules, see https://golang.org/ref/mod.
 
 func init() {
 	CmdList.Run = runList // break init cycle
-	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
+	// Omit build -json because list has its own -json
+	work.AddBuildFlags(CmdList, work.OmitJSONFlag)
 	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
 		work.AddCoverFlags(CmdList, nil)
 	}
@@ -389,7 +390,7 @@ func (v *jsonFlag) Set(s string) error {
 }
 
 func (v *jsonFlag) String() string {
-	var fields []string
+	fields := make([]string, 0, len(*v))
 	for f := range *v {
 		fields = append(fields, f)
 	}
@@ -642,7 +643,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		for _, p := range pkgs {
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
 				var pmain, ptest, pxtest *load.Package
-				var err error
 				if *listE {
 					sema.Acquire(ctx, 1)
 					wg.Add(1)
@@ -652,9 +652,10 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 					}
 					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, done, pkgOpts, p, nil)
 				} else {
-					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, pkgOpts, p, nil)
-					if err != nil {
-						base.Fatalf("go: can't load test package: %s", err)
+					var perr *load.Package
+					pmain, ptest, pxtest, perr = load.TestPackagesFor(ctx, pkgOpts, p, nil)
+					if perr != nil {
+						base.Fatalf("go: can't load test package: %s", perr.Error)
 					}
 				}
 				testPackages = append(testPackages, testPackageSet{p, pmain, ptest, pxtest})
@@ -967,7 +968,7 @@ func collectDepsErrors(p *load.Package) {
 			return false
 		}
 		pathi, pathj := stki[len(stki)-1], stkj[len(stkj)-1]
-		return pathi < pathj
+		return pathi.Pkg < pathj.Pkg
 	})
 }
 

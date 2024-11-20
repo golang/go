@@ -8,10 +8,32 @@ package runtime
 
 import "unsafe"
 
+const isSbrkPlatform = true
+
 const memDebug = false
 
-var bloc uintptr
-var blocMax uintptr
+// Memory management on sbrk systems (including the linear memory
+// on Wasm).
+
+// bloc is the runtime's sense of the break, which can go up or
+// down. blocMax is the system's break, also the high water mark
+// of bloc. The runtime uses memory up to bloc. The memory
+// between bloc and blocMax is allocated by the OS but not used
+// by the runtime.
+//
+// When the runtime needs to grow the heap address range, it
+// increases bloc. When it needs to grow beyond blocMax, it calls
+// the system sbrk to allocate more memory (and therefore
+// increase blocMax).
+//
+// When the runtime frees memory at the end of the address space,
+// it decreases bloc, but does not reduces the system break (as
+// the OS doesn't support it). When the runtime frees memory in
+// the middle of the address space, the memory goes to a free
+// list.
+
+var bloc uintptr    // The runtime's sense of break. Can go up or down.
+var blocMax uintptr // The break of the OS. Only increase.
 var memlock mutex
 
 type memHdr struct {
@@ -27,6 +49,13 @@ func (p memHdrPtr) ptr() *memHdr   { return (*memHdr)(unsafe.Pointer(p)) }
 func (p *memHdrPtr) set(x *memHdr) { *p = memHdrPtr(unsafe.Pointer(x)) }
 
 func memAlloc(n uintptr) unsafe.Pointer {
+	if p := memAllocNoGrow(n); p != nil {
+		return p
+	}
+	return sbrk(n)
+}
+
+func memAllocNoGrow(n uintptr) unsafe.Pointer {
 	n = memRound(n)
 	var prevp *memHdr
 	for p := memFreelist.ptr(); p != nil; p = p.next.ptr() {
@@ -46,7 +75,7 @@ func memAlloc(n uintptr) unsafe.Pointer {
 		}
 		prevp = p
 	}
-	return sbrk(n)
+	return nil
 }
 
 func memFree(ap unsafe.Pointer, n uintptr) {
@@ -186,4 +215,35 @@ func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	}
 	unlock(&memlock)
 	return p
+}
+
+func sysReserveAlignedSbrk(size, align uintptr) (unsafe.Pointer, uintptr) {
+	lock(&memlock)
+	if p := memAllocNoGrow(size + align); p != nil {
+		// We can satisfy the reservation from the free list.
+		// Trim off the unaligned parts.
+		pAligned := alignUp(uintptr(p), align)
+		if startLen := pAligned - uintptr(p); startLen > 0 {
+			memFree(p, startLen)
+		}
+		end := pAligned + size
+		if endLen := (uintptr(p) + size + align) - end; endLen > 0 {
+			memFree(unsafe.Pointer(end), endLen)
+		}
+		memCheck()
+		return unsafe.Pointer(pAligned), size
+	}
+
+	// Round up bloc to align, then allocate size.
+	p := alignUp(bloc, align)
+	r := sbrk(p + size - bloc)
+	if r == nil {
+		p, size = 0, 0
+	} else if l := p - uintptr(r); l > 0 {
+		// Free the area we skipped over for alignment.
+		memFree(r, l)
+		memCheck()
+	}
+	unlock(&memlock)
+	return unsafe.Pointer(p), size
 }

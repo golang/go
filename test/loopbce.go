@@ -27,7 +27,7 @@ func f0c(a []int) int {
 	x := 0
 	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		b := a[:i+1] // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
-		x += b[0]
+		x += b[0]    // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
 	}
 	return x
 }
@@ -168,7 +168,7 @@ func g2() int {
 func g3a() {
 	a := "this string has length 25"
 	for i := 0; i < len(a); i += 5 { // ERROR "Induction variable: limits \[0,20\], increment 5$"
-		useString(a[i:]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+		useString(a[i:])   // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useString(a[:i+3]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useString(a[:i+5]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useString(a[:i+6])
@@ -294,8 +294,10 @@ func k3neg2(a [100]int) [100]int {
 }
 
 func k4(a [100]int) [100]int {
-	min := (-1) << 63
-	for i := min; i < min+50; i++ { // ERROR "Induction variable: limits \[-9223372036854775808,-9223372036854775758\), increment 1$"
+	// Note: can't use (-1)<<63 here, because i-min doesn't get rewritten to i+(-min),
+	// and it isn't worth adding that special case to prove.
+	min := (-1)<<63 + 1
+	for i := min; i < min+50; i++ { // ERROR "Induction variable: limits \[-9223372036854775807,-9223372036854775757\), increment 1$"
 		a[i-min] = i // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
 	}
 	return a
@@ -314,7 +316,7 @@ func d1(a [100]int) [100]int {
 	for i := 0; i < 100; i++ { // ERROR "Induction variable: limits \[0,100\), increment 1$"
 		for j := 0; j < i; j++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 			a[j] = 0   // ERROR "Proved IsInBounds$"
-			a[j+1] = 0 // FIXME: this boundcheck should be eliminated
+			a[j+1] = 0 // ERROR "Proved IsInBounds$"
 			a[j+2] = 0
 		}
 	}
@@ -325,7 +327,7 @@ func d2(a [100]int) [100]int {
 	for i := 0; i < 100; i++ { // ERROR "Induction variable: limits \[0,100\), increment 1$"
 		for j := 0; i > j; j++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 			a[j] = 0   // ERROR "Proved IsInBounds$"
-			a[j+1] = 0 // FIXME: this boundcheck should be eliminated
+			a[j+1] = 0 // ERROR "Proved IsInBounds$"
 			a[j+2] = 0
 		}
 	}
@@ -419,12 +421,12 @@ func nobce2(a string) {
 	for i := int64(0); i < int64(len(a))-31337; i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		useString(a[i:]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 	}
-	for i := int64(0); i < int64(len(a))+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
-		useString(a[i:]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+	for i := int64(0); i < int64(len(a))+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Disproved Less64"
+		useString(a[i:])
 	}
 	j := int64(len(a)) - 123
-	for i := int64(0); i < j+123+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
-		useString(a[i:]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+	for i := int64(0); i < j+123+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Disproved Less64"
+		useString(a[i:])
 	}
 	for i := int64(0); i < j+122+int64(-1<<63); i++ { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		// len(a)-123+122+MinInt overflows when len(a) == 0, so a bound check is needed here

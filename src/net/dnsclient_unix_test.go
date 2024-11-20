@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -429,7 +430,7 @@ func TestUpdateResolvConf(t *testing.T) {
 			wg.Wait()
 		}
 		servers := conf.servers()
-		if !reflect.DeepEqual(servers, tt.servers) {
+		if !slices.Equal(servers, tt.servers) {
 			t.Errorf("#%d: got %v; want %v", i, servers, tt.servers)
 			continue
 		}
@@ -1154,7 +1155,7 @@ func testRotate(t *testing.T, rotate bool, nameservers, wantServers []string) {
 		}
 	}
 
-	if !reflect.DeepEqual(usedServers, wantServers) {
+	if !slices.Equal(usedServers, wantServers) {
 		t.Errorf("rotate=%t got used servers:\n%v\nwant:\n%v", rotate, usedServers, wantServers)
 	}
 }
@@ -1433,7 +1434,7 @@ func TestStrictErrorsLookupIP(t *testing.T) {
 					wantIPs[ip] = struct{}{}
 				}
 			}
-			if !reflect.DeepEqual(gotIPs, wantIPs) {
+			if !maps.Equal(gotIPs, wantIPs) {
 				t.Errorf("#%d (%s) strict=%v: got ips %v; want %v", i, tt.desc, strict, gotIPs, wantIPs)
 			}
 		}
@@ -1940,7 +1941,7 @@ func TestPTRandNonPTR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookupAddr: %v", err)
 	}
-	if want := []string{"golang.org."}; !reflect.DeepEqual(names, want) {
+	if want := []string{"golang.org."}; !slices.Equal(names, want) {
 		t.Errorf("names = %q; want %q", names, want)
 	}
 }
@@ -2207,14 +2208,14 @@ func TestCVE202133195(t *testing.T) {
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
 				}
-				if !reflect.DeepEqual(records, expected) {
+				if !slices.Equal(records, expected) {
 					t.Error("Unexpected record set")
 				}
 				records, err = LookupAddr("192.0.2.42")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
 				}
-				if !reflect.DeepEqual(records, expected) {
+				if !slices.Equal(records, expected) {
 					t.Error("Unexpected record set")
 				}
 			},
@@ -2382,19 +2383,34 @@ func testGoLookupIPCNAMEOrderHostsAliases(t *testing.T, mode hostLookupOrder, lo
 // This isn't a great test as it just tests the dnsmessage package
 // against itself.
 func TestDNSPacketSize(t *testing.T) {
+	t.Run("enabled", func(t *testing.T) {
+		testDNSPacketSize(t, false)
+	})
+	t.Run("disabled", func(t *testing.T) {
+		testDNSPacketSize(t, true)
+	})
+}
+
+func testDNSPacketSize(t *testing.T, disable bool) {
 	fake := fakeDNSServer{
 		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
-			if len(q.Additionals) == 0 {
-				t.Error("missing EDNS record")
-			} else if opt, ok := q.Additionals[0].Body.(*dnsmessage.OPTResource); !ok {
-				t.Errorf("additional record type %T, expected OPTResource", q.Additionals[0])
-			} else if len(opt.Options) != 0 {
-				t.Errorf("found %d Options, expected none", len(opt.Options))
+			if disable {
+				if len(q.Additionals) > 0 {
+					t.Error("unexpected additional record")
+				}
 			} else {
-				got := int(q.Additionals[0].Header.Class)
-				t.Logf("EDNS packet size == %d", got)
-				if got != maxDNSPacketSize {
-					t.Errorf("EDNS packet size == %d, want %d", got, maxDNSPacketSize)
+				if len(q.Additionals) == 0 {
+					t.Error("missing EDNS record")
+				} else if opt, ok := q.Additionals[0].Body.(*dnsmessage.OPTResource); !ok {
+					t.Errorf("additional record type %T, expected OPTResource", q.Additionals[0])
+				} else if len(opt.Options) != 0 {
+					t.Errorf("found %d Options, expected none", len(opt.Options))
+				} else {
+					got := int(q.Additionals[0].Header.Class)
+					t.Logf("EDNS packet size == %d", got)
+					if got != maxDNSPacketSize {
+						t.Errorf("EDNS packet size == %d, want %d", got, maxDNSPacketSize)
+					}
 				}
 			}
 
@@ -2425,6 +2441,10 @@ func TestDNSPacketSize(t *testing.T) {
 			}
 			return r, nil
 		},
+	}
+
+	if disable {
+		t.Setenv("GODEBUG", "netedns0=0")
 	}
 
 	r := &Resolver{PreferGo: true, Dial: fake.DialContext}

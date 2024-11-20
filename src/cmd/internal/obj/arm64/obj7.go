@@ -552,7 +552,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	var q *obj.Prog
 	var q1 *obj.Prog
-	var retjmp *obj.LSym
 	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
@@ -846,10 +845,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 
-			retjmp = p.To.Sym
+			retJMP, retReg := p.To.Sym, p.To.Reg
+			if retReg == 0 {
+				retReg = REGLINK
+			}
 			p.To = obj.Addr{}
+			aoffset := c.autosize
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
-				if c.autosize != 0 {
+				if aoffset != 0 {
 					// Restore frame pointer.
 					// ADD $framesize-8, RSP, R29
 					p.As = AADD
@@ -869,8 +872,32 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.To.Reg = REGSP
 					p.Spadj = -c.autosize
 				}
+			} else if aoffset <= 0xF0 {
+				// small frame, restore LR and update SP in a single MOVD.P instruction.
+				// There is no correctness issue to use a single LDP for LR and FP,
+				// but the instructions are not pattern matched with the prologue's
+				// MOVD.W and MOVD, which may cause performance issue in
+				// store-forwarding.
+
+				// MOVD -8(RSP), R29
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
+				p.From.Offset = -8
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REGFP
+				p = obj.Appendp(p, c.newprog)
+
+				// MOVD.P offset(RSP), R30
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_MEM
+				p.Scond = C_XPOST
+				p.From.Offset = int64(aoffset)
+				p.From.Reg = REGSP
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REGLINK
+				p.Spadj = -aoffset
 			} else {
-				aoffset := c.autosize
 				// LDP -8(RSP), (R29, R30)
 				p.As = ALDP
 				p.From.Type = obj.TYPE_MEM
@@ -924,10 +951,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = q
 			}
 
-			if retjmp != nil { // retjmp
+			if retJMP != nil {
 				p.As = AB
 				p.To.Type = obj.TYPE_BRANCH
-				p.To.Sym = retjmp
+				p.To.Sym = retJMP
 				p.Spadj = +c.autosize
 				break
 			}
@@ -935,7 +962,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.As = obj.ARET
 			p.To.Type = obj.TYPE_MEM
 			p.To.Offset = 0
-			p.To.Reg = REGLINK
+			p.To.Reg = retReg
 			p.Spadj = +c.autosize
 
 		case AADD, ASUB:

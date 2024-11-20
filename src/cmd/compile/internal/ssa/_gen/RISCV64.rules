@@ -62,7 +62,6 @@
 
 (Com(64|32|16|8) ...) => (NOT ...)
 
-
 (Sqrt ...) => (FSQRTD ...)
 (Sqrt32 ...) => (FSQRTS ...)
 
@@ -834,3 +833,18 @@
 (F(MADD|NMADD|MSUB|NMSUB)S x y neg:(FNEGS z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)S x y z)
 (F(MADD|NMADD|MSUB|NMSUB)D neg:(FNEGD x) y z) && neg.Uses == 1 => (F(NMSUB|MSUB|NMADD|MADD)D x y z)
 (F(MADD|NMADD|MSUB|NMSUB)D x y neg:(FNEGD z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)D x y z)
+
+//
+// Optimisations for rva22u64 and above.
+//
+
+// Combine left shift and addition.
+(ADD (SLLI [1] x) y) && buildcfg.GORISCV64 >= 22 => (SH1ADD x y)
+(ADD (SLLI [2] x) y) && buildcfg.GORISCV64 >= 22 => (SH2ADD x y)
+(ADD (SLLI [3] x) y) && buildcfg.GORISCV64 >= 22 => (SH3ADD x y)
+
+// Integer minimum and maximum.
+(Min64  x y) && buildcfg.GORISCV64 >= 22 => (MIN  x y)
+(Max64  x y) && buildcfg.GORISCV64 >= 22 => (MAX  x y)
+(Min64u x y) && buildcfg.GORISCV64 >= 22 => (MINU x y)
+(Max64u x y) && buildcfg.GORISCV64 >= 22 => (MAXU x y)

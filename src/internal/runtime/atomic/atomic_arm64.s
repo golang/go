@@ -120,6 +120,30 @@ TEXT ·Store64(SB), NOSPLIT, $0-16
 	STLR	R1, (R0)
 	RET
 
+// uint8 Xchg(ptr *uint8, new uint8)
+// Atomically:
+//	old := *ptr;
+//	*ptr = new;
+//	return old;
+TEXT ·Xchg8(SB), NOSPLIT, $0-17
+	MOVD	ptr+0(FP), R0
+	MOVB	new+8(FP), R1
+#ifndef GOARM64_LSE
+	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
+	CBZ 	R4, load_store_loop
+#endif
+	SWPALB	R1, (R0), R2
+	MOVB	R2, ret+16(FP)
+	RET
+#ifndef GOARM64_LSE
+load_store_loop:
+	LDAXRB	(R0), R2
+	STLXRB	R1, (R0), R3
+	CBNZ	R3, load_store_loop
+	MOVB	R2, ret+16(FP)
+	RET
+#endif
+
 // uint32 Xchg(ptr *uint32, new uint32)
 // Atomically:
 //	old := *ptr;

@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 )
@@ -34,23 +33,8 @@ func TestMain(m *testing.M) {
 
 // packPath returns the path to the "pack" binary to run.
 func packPath(t testing.TB) string {
-	t.Helper()
-	testenv.MustHaveExec(t)
-
-	packPathOnce.Do(func() {
-		packExePath, packPathErr = os.Executable()
-	})
-	if packPathErr != nil {
-		t.Fatal(packPathErr)
-	}
-	return packExePath
+	return testenv.Executable(t)
 }
-
-var (
-	packPathOnce sync.Once
-	packExePath  string
-	packPathErr  error
-)
 
 // testCreate creates an archive in the specified directory.
 func testCreate(t *testing.T, dir string) {
@@ -160,20 +144,7 @@ func TestExtract(t *testing.T) {
 	ar.addFile(goodbyeFile.Reset())
 	ar.a.File().Close()
 	// Now extract one file. We chdir to the directory of the archive for simplicity.
-	pwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("os.Getwd: ", err)
-	}
-	err = os.Chdir(dir)
-	if err != nil {
-		t.Fatal("os.Chdir: ", err)
-	}
-	defer func() {
-		err := os.Chdir(pwd)
-		if err != nil {
-			t.Fatal("os.Chdir: ", err)
-		}
-	}()
+	t.Chdir(dir)
 	ar = openArchive(name, os.O_RDONLY, []string{goodbyeFile.name})
 	ar.scan(ar.extractContents)
 	ar.a.File().Close()

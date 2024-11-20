@@ -8,7 +8,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -49,7 +49,8 @@ type Frame struct {
 	// File and Line are the file name and line number of the
 	// location in this frame. For non-leaf frames, this will be
 	// the location of a call. These may be the empty string and
-	// zero, respectively, if not known.
+	// zero, respectively, if not known. The file name uses
+	// forward slashes, even on Windows.
 	File string
 	Line int
 
@@ -196,6 +197,14 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 
 // runtime_FrameStartLine returns the start line of the function in a Frame.
 //
+// runtime_FrameStartLine should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/grafana/pyroscope-go/godeltaprof
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname runtime_FrameStartLine runtime/pprof.runtime_FrameStartLine
 func runtime_FrameStartLine(f *Frame) int {
 	return f.startLine
@@ -204,6 +213,14 @@ func runtime_FrameStartLine(f *Frame) int {
 // runtime_FrameSymbolName returns the full symbol name of the function in a Frame.
 // For generic functions this differs from f.Function in that this doesn't replace
 // the shape name to "...".
+//
+// runtime_FrameSymbolName should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/grafana/pyroscope-go/godeltaprof
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname runtime_FrameSymbolName runtime/pprof.runtime_FrameSymbolName
 func runtime_FrameSymbolName(f *Frame) string {
@@ -217,6 +234,15 @@ func runtime_FrameSymbolName(f *Frame) string {
 
 // runtime_expandFinalInlineFrame expands the final pc in stk to include all
 // "callers" if pc is inline.
+//
+// runtime_expandFinalInlineFrame should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/grafana/pyroscope-go/godeltaprof
+//   - github.com/pyroscope-io/godeltaprof
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname runtime_expandFinalInlineFrame runtime/pprof.runtime_expandFinalInlineFrame
 func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
@@ -439,6 +465,7 @@ var pinnedTypemaps []map[typeOff]*_type
 
 var firstmoduledata moduledata  // linker symbol
 var lastmoduledatap *moduledata // linker symbol
+
 var modulesSlice *[]*moduledata // see activeModules
 
 // activeModules returns a slice of active modules.
@@ -674,6 +701,16 @@ func (md *moduledata) funcName(nameOff int32) string {
 // If pc represents multiple functions because of inlining, it returns
 // the *Func describing the innermost function, but with an entry of
 // the outermost function.
+//
+// For completely unclear reasons, even though they can import runtime,
+// some widely used packages access this using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname FuncForPC
 func FuncForPC(pc uintptr) *Func {
 	f := findfunc(pc)
 	if !f.valid() {
@@ -784,16 +821,36 @@ func (f *_func) isInlined() bool {
 }
 
 // entry returns the entry PC for f.
+//
+// entry should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 func (f funcInfo) entry() uintptr {
 	return f.datap.textAddr(f.entryOff)
 }
+
+//go:linkname badFuncInfoEntry runtime.funcInfo.entry
+func badFuncInfoEntry(funcInfo) uintptr
 
 // findfunc looks up function metadata for a PC.
 //
 // It is nosplit because it's part of the isgoexception
 // implementation.
 //
+// findfunc should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:nosplit
+//go:linkname findfunc
 func findfunc(pc uintptr) funcInfo {
 	datap := findmoduledatap(pc)
 	if datap == nil {
@@ -839,12 +896,22 @@ func (f funcInfo) srcFunc() srcFunc {
 	return srcFunc{f.datap, f.nameOff, f.startLine, f.funcID}
 }
 
+// name should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 func (s srcFunc) name() string {
 	if s.datap == nil {
 		return ""
 	}
 	return s.datap.funcName(s.nameOff)
 }
+
+//go:linkname badSrcFuncName runtime.srcFunc.name
+func badSrcFuncName(srcFunc) string
 
 type pcvalueCache struct {
 	entries [2][8]pcvalueCacheEnt
@@ -1035,6 +1102,15 @@ func funcfile(f funcInfo, fileno int32) string {
 	return "?"
 }
 
+// funcline1 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname funcline1
 func funcline1(f funcInfo, targetpc uintptr, strict bool) (file string, line int32) {
 	datap := f.datap
 	if !f.valid() {

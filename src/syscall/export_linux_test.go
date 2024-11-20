@@ -11,6 +11,7 @@ import (
 var (
 	RawSyscallNoError = rawSyscallNoError
 	ForceClone3       = &forceClone3
+	Prlimit           = prlimit
 )
 
 const (

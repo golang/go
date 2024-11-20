@@ -26,6 +26,9 @@
 // itself followed by the tree of each of its children in turn
 // (pre-order, depth-first traversal).
 //
+// See https://go.dev/blog/go1.13-errors for a deeper discussion of the
+// philosophy of wrapping and when to wrap.
+//
 // [Is] examines the tree of its first argument looking for an error that
 // matches the second. It reports whether it finds a match. It should be
 // used in preference to simple equality checks:

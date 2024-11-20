@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/par"
+	"cmd/internal/par"
 )
 
 // Tool returns the path to the named tool (for example, "vet").

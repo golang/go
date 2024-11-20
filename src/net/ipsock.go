@@ -9,6 +9,7 @@ import (
 	"internal/bytealg"
 	"runtime"
 	"sync"
+	_ "unsafe" // for linkname
 )
 
 // BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
@@ -307,6 +308,17 @@ func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addr
 	return filterAddrList(filter, ips, inetaddr, host)
 }
 
+// loopbackIP should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/database64128/tfo-go/v2
+//   - github.com/metacubex/tfo-go
+//   - github.com/sagernet/tfo-go
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname loopbackIP
 func loopbackIP(net string) IP {
 	if net != "" && net[len(net)-1] == '6' {
 		return IPv6loopback

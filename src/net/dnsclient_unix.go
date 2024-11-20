@@ -16,7 +16,9 @@ import (
 	"context"
 	"errors"
 	"internal/bytealg"
+	"internal/godebug"
 	"internal/itoa"
+	"internal/stringslite"
 	"io"
 	"os"
 	"runtime"
@@ -51,6 +53,9 @@ var (
 	errServerTemporarilyMisbehaving = &temporaryError{"server misbehaving"}
 )
 
+// netedns0 controls whether we send an EDNS0 additional header.
+var netedns0 = godebug.New("netedns0")
+
 func newRequest(q dnsmessage.Question, ad bool) (id uint16, udpReq, tcpReq []byte, err error) {
 	id = uint16(randInt())
 	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true, AuthenticData: ad})
@@ -61,16 +66,20 @@ func newRequest(q dnsmessage.Question, ad bool) (id uint16, udpReq, tcpReq []byt
 		return 0, nil, nil, err
 	}
 
-	// Accept packets up to maxDNSPacketSize.  RFC 6891.
-	if err := b.StartAdditionals(); err != nil {
-		return 0, nil, nil, err
-	}
-	var rh dnsmessage.ResourceHeader
-	if err := rh.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false); err != nil {
-		return 0, nil, nil, err
-	}
-	if err := b.OPTResource(rh, dnsmessage.OPTResource{}); err != nil {
-		return 0, nil, nil, err
+	if netedns0.Value() == "0" {
+		netedns0.IncNonDefault()
+	} else {
+		// Accept packets up to maxDNSPacketSize.  RFC 6891.
+		if err := b.StartAdditionals(); err != nil {
+			return 0, nil, nil, err
+		}
+		var rh dnsmessage.ResourceHeader
+		if err := rh.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false); err != nil {
+			return 0, nil, nil, err
+		}
+		if err := b.OPTResource(rh, dnsmessage.OPTResource{}); err != nil {
+			return 0, nil, nil, err
+		}
 	}
 
 	tcpReq, err = b.Finish()
@@ -479,9 +488,7 @@ func avoidDNS(name string) bool {
 	if name == "" {
 		return true
 	}
-	if name[len(name)-1] == '.' {
-		name = name[:len(name)-1]
-	}
+	name = stringslite.TrimSuffix(name, ".")
 	return stringsHasSuffixFold(name, ".onion")
 }
 

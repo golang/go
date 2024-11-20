@@ -6,13 +6,14 @@
 package cookiejar
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/internal/ascii"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -210,15 +211,14 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 
 	// sort according to RFC 6265 section 5.4 point 2: by longest
 	// path and then by earliest creation time.
-	sort.Slice(selected, func(i, j int) bool {
-		s := selected
-		if len(s[i].Path) != len(s[j].Path) {
-			return len(s[i].Path) > len(s[j].Path)
+	slices.SortFunc(selected, func(a, b entry) int {
+		if r := cmp.Compare(b.Path, a.Path); r != 0 {
+			return r
 		}
-		if ret := s[i].Creation.Compare(s[j].Creation); ret != 0 {
-			return ret < 0
+		if r := a.Creation.Compare(b.Creation); r != 0 {
+			return r
 		}
-		return s[i].seqNum < s[j].seqNum
+		return cmp.Compare(a.seqNum, b.seqNum)
 	})
 	for _, e := range selected {
 		cookies = append(cookies, &http.Cookie{Name: e.Name, Value: e.Value, Quoted: e.Quoted})
@@ -500,9 +500,7 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 	// From here on: If the cookie is valid, it is a domain cookie (with
 	// the one exception of a public suffix below).
 	// See RFC 6265 section 5.2.3.
-	if domain[0] == '.' {
-		domain = domain[1:]
-	}
+	domain = strings.TrimPrefix(domain, ".")
 
 	if len(domain) == 0 || domain[0] == '.' {
 		// Received either "Domain=." or "Domain=..some.thing",

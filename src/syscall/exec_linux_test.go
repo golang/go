@@ -232,12 +232,7 @@ func TestUnshareMountNameSpace(t *testing.T) {
 		os.Exit(0)
 	}
 
-	testenv.MustHaveExec(t)
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	exe := testenv.Executable(t)
 	d := t.TempDir()
 	t.Cleanup(func() {
 		// If the subprocess fails to unshare the parent directory, force-unmount it
@@ -351,12 +346,7 @@ func TestUnshareUidGidMapping(t *testing.T) {
 		t.Skip("test exercises unprivileged user namespace, fails with privileges")
 	}
 
-	testenv.MustHaveExec(t)
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	exe := testenv.Executable(t)
 	cmd := testenv.Command(t, exe, "-test.run=^TestUnshareUidGidMapping$")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -434,8 +424,6 @@ func prepareCgroupFD(t *testing.T) (int, string) {
 }
 
 func TestUseCgroupFD(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		// Read and print own cgroup path.
 		selfCg, err := os.ReadFile("/proc/self/cgroup")
@@ -447,11 +435,7 @@ func TestUseCgroupFD(t *testing.T) {
 		os.Exit(0)
 	}
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	exe := testenv.Executable(t)
 	fd, suffix := prepareCgroupFD(t)
 
 	cmd := testenv.Command(t, exe, "-test.run=^TestUseCgroupFD$")
@@ -478,8 +462,6 @@ func TestUseCgroupFD(t *testing.T) {
 }
 
 func TestCloneTimeNamespace(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		timens, err := os.Readlink("/proc/self/ns/time")
 		if err != nil {
@@ -490,11 +472,7 @@ func TestCloneTimeNamespace(t *testing.T) {
 		os.Exit(0)
 	}
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	exe := testenv.Executable(t)
 	cmd := testenv.Command(t, exe, "-test.run=^TestCloneTimeNamespace$")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -524,18 +502,12 @@ func TestCloneTimeNamespace(t *testing.T) {
 }
 
 func testPidFD(t *testing.T, userns bool) error {
-	testenv.MustHaveExec(t)
-
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		// Child: wait for a signal.
 		time.Sleep(time.Hour)
 	}
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	exe := testenv.Executable(t)
 	var pidfd int
 	cmd := testenv.Command(t, exe, "-test.run=^TestPidFD$")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
@@ -568,7 +540,7 @@ func testPidFD(t *testing.T, userns bool) error {
 		t.Fatal("pidfd_send_signal syscall failed:", err)
 	}
 	// Check if the child received our signal.
-	err = cmd.Wait()
+	err := cmd.Wait()
 	if cmd.ProcessState == nil || cmd.ProcessState.Sys().(syscall.WaitStatus).Signal() != sig {
 		t.Fatal("unexpected child error:", err)
 	}
@@ -642,6 +614,10 @@ func TestAmbientCaps(t *testing.T) {
 }
 
 func TestAmbientCapsUserns(t *testing.T) {
+	b, err := os.ReadFile("/proc/sys/kernel/apparmor_restrict_unprivileged_userns")
+	if err == nil && strings.TrimSpace(string(b)) == "1" {
+		t.Skip("AppArmor restriction for unprivileged user namespaces is enabled")
+	}
 	testAmbientCaps(t, true)
 }
 
@@ -691,12 +667,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		os.Remove(f.Name())
 	})
 
-	testenv.MustHaveExec(t)
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	exe := testenv.Executable(t)
 	e, err := os.Open(exe)
 	if err != nil {
 		t.Fatal(err)

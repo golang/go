@@ -42,7 +42,26 @@ func lowerASCII(c byte) byte {
 	return c
 }
 
-var _cgo_setenv unsafe.Pointer   // pointer to C function
+// _cgo_setenv should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname _cgo_setenv
+var _cgo_setenv unsafe.Pointer // pointer to C function
+
+// _cgo_unsetenv should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname _cgo_unsetenv
 var _cgo_unsetenv unsafe.Pointer // pointer to C function
 
 // Update the C environment if cgo is loaded.

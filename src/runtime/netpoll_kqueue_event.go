@@ -12,7 +12,7 @@ package runtime
 // get printed somehow and they search for it.
 const kqIdent = 0xee1eb9f4
 
-func addWakeupEvent(_ int32) {
+func addWakeupEvent(kq int32) {
 	ev := keventt{
 		ident:  kqIdent,
 		filter: _EVFILT_USER,

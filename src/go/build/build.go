@@ -17,6 +17,7 @@ import (
 	"internal/goroot"
 	"internal/goversion"
 	"internal/platform"
+	"internal/syslist"
 	"io"
 	"io/fs"
 	"os"
@@ -24,11 +25,12 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+	_ "unsafe" // for linkname
 )
 
 // A Context specifies the supporting context for a build.
@@ -286,6 +288,7 @@ func (ctxt *Context) SrcDirs() []string {
 // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
 var Default Context = defaultContext()
 
+// Keep consistent with cmd/go/internal/cfg.defaultGOPATH.
 func defaultGOPATH() string {
 	env := "HOME"
 	if runtime.GOOS == "windows" {
@@ -305,7 +308,27 @@ func defaultGOPATH() string {
 	return ""
 }
 
-var defaultToolTags, defaultReleaseTags []string
+// defaultToolTags should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/gopherjs/gopherjs
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname defaultToolTags
+var defaultToolTags []string
+
+// defaultReleaseTags should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/gopherjs/gopherjs
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname defaultReleaseTags
+var defaultReleaseTags []string
 
 func defaultContext() Context {
 	var c Context
@@ -1029,7 +1052,7 @@ Found:
 	for tag := range allTags {
 		p.AllTags = append(p.AllTags, tag)
 	}
-	sort.Strings(p.AllTags)
+	slices.Sort(p.AllTags)
 
 	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)
 	p.TestEmbedPatterns, p.TestEmbedPatternPos = cleanDecls(testEmbedPos)
@@ -1044,10 +1067,10 @@ Found:
 	// The standard assemblers expect .s files.
 	if len(p.CgoFiles) > 0 {
 		p.SFiles = append(p.SFiles, Sfiles...)
-		sort.Strings(p.SFiles)
+		slices.Sort(p.SFiles)
 	} else {
 		p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, Sfiles...)
-		sort.Strings(p.IgnoredOtherFiles)
+		slices.Sort(p.IgnoredOtherFiles)
 	}
 
 	if badGoError != nil {
@@ -1089,7 +1112,7 @@ func uniq(list []string) []string {
 	}
 	out := make([]string, len(list))
 	copy(out, list)
-	sort.Strings(out)
+	slices.Sort(out)
 	uniq := out[:0]
 	for _, x := range out {
 		if len(uniq) == 0 || uniq[len(uniq)-1] != x {
@@ -1503,7 +1526,7 @@ func cleanDecls(m map[string][]token.Position) ([]string, map[string][]token.Pos
 	for path := range m {
 		all = append(all, path)
 	}
-	sort.Strings(all)
+	slices.Sort(all)
 	return all, m
 }
 
@@ -1604,6 +1627,15 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
 	return shouldBuild, sawBinaryOnly, nil
 }
 
+// parseFileHeader should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bazelbuild/bazel-gazelle
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname parseFileHeader
 func parseFileHeader(content []byte) (trimmed, goBuild []byte, sawBinaryOnly bool, err error) {
 	end := 0
 	p := content
@@ -1945,7 +1977,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	if ctxt.GOOS == "ios" && name == "darwin" {
 		return true
 	}
-	if name == "unix" && unixOS[ctxt.GOOS] {
+	if name == "unix" && syslist.UnixOS[ctxt.GOOS] {
 		return true
 	}
 	if name == "boringcrypto" {
@@ -2008,14 +2040,14 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 		l = l[:n-1]
 	}
 	n := len(l)
-	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
+	if n >= 2 && syslist.KnownOS[l[n-2]] && syslist.KnownArch[l[n-1]] {
 		if allTags != nil {
 			// In case we short-circuit on l[n-1].
 			allTags[l[n-2]] = true
 		}
 		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
 	}
-	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
+	if n >= 1 && (syslist.KnownOS[l[n-1]] || syslist.KnownArch[l[n-1]]) {
 		return ctxt.matchTag(l[n-1], allTags)
 	}
 	return true

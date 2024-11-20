@@ -358,30 +358,12 @@ func (r *Reader) skipFrame() error {
 		return nil
 	}
 
-	var skip []byte
-	const chunk = 1 << 20 // 1M
-	for size >= chunk {
-		if len(skip) == 0 {
-			skip = make([]byte, chunk)
-		}
-		if _, err := io.ReadFull(r.r, skip); err != nil {
-			return r.wrapNonEOFError(relativeOffset, err)
-		}
-		relativeOffset += chunk
-		size -= chunk
+	n, err := io.CopyN(io.Discard, r.r, int64(size))
+	relativeOffset += int(n)
+	if err != nil {
+		return r.wrapNonEOFError(relativeOffset, err)
 	}
-	if size > 0 {
-		if len(skip) == 0 {
-			skip = make([]byte, size)
-		}
-		if _, err := io.ReadFull(r.r, skip); err != nil {
-			return r.wrapNonEOFError(relativeOffset, err)
-		}
-		relativeOffset += int(size)
-	}
-
 	r.blockOffset += int64(relativeOffset)
-
 	return nil
 }
 

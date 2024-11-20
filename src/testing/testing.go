@@ -362,7 +362,7 @@
 //
 //	func TestMain(m *testing.M) {
 //		// call flag.Parse() here if TestMain uses flags
-//		os.Exit(m.Run())
+//		m.Run()
 //	}
 //
 // TestMain is a low-level primitive and should not be necessary for casual
@@ -371,6 +371,7 @@ package testing
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -379,11 +380,12 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"runtime/debug"
 	"runtime/trace"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -632,6 +634,9 @@ type common struct {
 	tempDir    string
 	tempDirErr error
 	tempDirSeq int32
+
+	ctx       context.Context
+	cancelCtx context.CancelFunc
 }
 
 // Short reports whether the -test.short flag is set.
@@ -891,11 +896,13 @@ type TB interface {
 	Logf(format string, args ...any)
 	Name() string
 	Setenv(key, value string)
+	Chdir(dir string)
 	Skip(args ...any)
 	SkipNow()
 	Skipf(format string, args ...any)
 	Skipped() bool
 	TempDir() string
+	Context() context.Context
 
 	// A private method to prevent users implementing the
 	// interface and so future additions to it will not
@@ -917,8 +924,8 @@ var _ TB = (*B)(nil)
 // may be called simultaneously from multiple goroutines.
 type T struct {
 	common
-	isEnvSet bool
-	context  *testContext // For running tests and subtests.
+	denyParallel bool
+	tstate       *testState // For running tests and subtests.
 }
 
 func (c *common) private() {}
@@ -1307,6 +1314,58 @@ func (c *common) Setenv(key, value string) {
 	}
 }
 
+// Chdir calls os.Chdir(dir) and uses Cleanup to restore the current
+// working directory to its original value after the test. On Unix, it
+// also sets PWD environment variable for the duration of the test.
+//
+// Because Chdir affects the whole process, it cannot be used
+// in parallel tests or tests with parallel ancestors.
+func (c *common) Chdir(dir string) {
+	c.checkFuzzFn("Chdir")
+	oldwd, err := os.Open(".")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		c.Fatal(err)
+	}
+	// On POSIX platforms, PWD represents “an absolute pathname of the
+	// current working directory.” Since we are changing the working
+	// directory, we should also set or update PWD to reflect that.
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		// Windows and Plan 9 do not use the PWD variable.
+	default:
+		if !filepath.IsAbs(dir) {
+			dir, err = os.Getwd()
+			if err != nil {
+				c.Fatal(err)
+			}
+		}
+		c.Setenv("PWD", dir)
+	}
+	c.Cleanup(func() {
+		err := oldwd.Chdir()
+		oldwd.Close()
+		if err != nil {
+			// It's not safe to continue with tests if we can't
+			// get back to the original working directory. Since
+			// we are holding a dirfd, this is highly unlikely.
+			panic("testing.Chdir: " + err.Error())
+		}
+	})
+}
+
+// Context returns a context that is canceled just before
+// [T.Cleanup]-registered functions are called.
+//
+// Cleanup functions can wait for any resources
+// that shut down on Context.Done before the test completes.
+func (c *common) Context() context.Context {
+	c.checkFuzzFn("Context")
+	return c.ctx
+}
+
 // panicHandling controls the panic handling used by runCleanup.
 type panicHandling int
 
@@ -1338,6 +1397,10 @@ func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 			c.runCleanup(normalPanic)
 		}
 	}()
+
+	if c.cancelCtx != nil {
+		c.cancelCtx()
+	}
 
 	for {
 		var cleanup func()
@@ -1436,6 +1499,8 @@ func pcToName(pc uintptr) string {
 	return frame.Function
 }
 
+const parallelConflict = `testing: test using t.Setenv or t.Chdir can not use t.Parallel`
+
 // Parallel signals that this test is to be run in parallel with (and only with)
 // other parallel tests. When a test is run multiple times due to use of
 // -test.count or -test.cpu, multiple instances of a single test never run in
@@ -1444,8 +1509,8 @@ func (t *T) Parallel() {
 	if t.isParallel {
 		panic("testing: t.Parallel called multiple times")
 	}
-	if t.isEnvSet {
-		panic("testing: t.Parallel called after t.Setenv; cannot set environment variables in parallel tests")
+	if t.denyParallel {
+		panic(parallelConflict)
 	}
 	t.isParallel = true
 	if t.parent.barrier == nil {
@@ -1482,7 +1547,7 @@ func (t *T) Parallel() {
 
 	t.signal <- true   // Release calling test.
 	<-t.parent.barrier // Wait for the parent test to complete.
-	t.context.waitParallel()
+	t.tstate.waitParallel()
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
@@ -1500,6 +1565,21 @@ func (t *T) Parallel() {
 	t.lastRaceErrors.Store(int64(race.Errors()))
 }
 
+func (t *T) checkParallel() {
+	// Non-parallel subtests that have parallel ancestors may still
+	// run in parallel with other tests: they are only non-parallel
+	// with respect to the other subtests of the same parent.
+	// Since calls like SetEnv or Chdir affects the whole process, we need
+	// to deny those if the current test or any parent is parallel.
+	for c := &t.common; c != nil; c = c.parent {
+		if c.isParallel {
+			panic(parallelConflict)
+		}
+	}
+
+	t.denyParallel = true
+}
+
 // Setenv calls os.Setenv(key, value) and uses Cleanup to
 // restore the environment variable to its original value
 // after the test.
@@ -1507,25 +1587,19 @@ func (t *T) Parallel() {
 // Because Setenv affects the whole process, it cannot be used
 // in parallel tests or tests with parallel ancestors.
 func (t *T) Setenv(key, value string) {
-	// Non-parallel subtests that have parallel ancestors may still
-	// run in parallel with other tests: they are only non-parallel
-	// with respect to the other subtests of the same parent.
-	// Since SetEnv affects the whole process, we need to disallow it
-	// if the current test or any parent is parallel.
-	isParallel := false
-	for c := &t.common; c != nil; c = c.parent {
-		if c.isParallel {
-			isParallel = true
-			break
-		}
-	}
-	if isParallel {
-		panic("testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests")
-	}
-
-	t.isEnvSet = true
-
+	t.checkParallel()
 	t.common.Setenv(key, value)
+}
+
+// Chdir calls os.Chdir(dir) and uses Cleanup to restore the current
+// working directory to its original value after the test. On Unix, it
+// also sets PWD environment variable for the duration of the test.
+//
+// Because Chdir affects the whole process, it cannot be used
+// in parallel tests or tests with parallel ancestors.
+func (t *T) Chdir(dir string) {
+	t.checkParallel()
+	t.common.Chdir(dir)
 }
 
 // InternalTest is an internal type but exported because it is cross-package;
@@ -1583,7 +1657,7 @@ func tRunner(t *T, fn func(t *T)) {
 			}
 		}
 
-		if err != nil && t.context.isFuzzing {
+		if err != nil && t.tstate.isFuzzing {
 			prefix := "panic: "
 			if err == errNilPanicOrGoexit {
 				prefix = ""
@@ -1641,7 +1715,7 @@ func tRunner(t *T, fn func(t *T)) {
 			// Run parallel subtests.
 
 			// Decrease the running count for this test and mark it as no longer running.
-			t.context.release()
+			t.tstate.release()
 			running.Delete(t.name)
 
 			// Release the parallel subtests.
@@ -1663,12 +1737,12 @@ func tRunner(t *T, fn func(t *T)) {
 			t.checkRaces()
 			if !t.isParallel {
 				// Reacquire the count for sequential tests. See comment in Run.
-				t.context.waitParallel()
+				t.tstate.waitParallel()
 			}
 		} else if t.isParallel {
 			// Only release the count for this test if it was run as a parallel
 			// test. See comment in Run method.
-			t.context.release()
+			t.tstate.release()
 		}
 		t.report() // Report after all subtests have finished.
 
@@ -1707,7 +1781,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	}
 
 	t.hasSub.Store(true)
-	testName, ok, _ := t.context.match.fullName(&t.common, name)
+	testName, ok, _ := t.tstate.match.fullName(&t.common, name)
 	if !ok || shouldFailFast() {
 		return true
 	}
@@ -1716,17 +1790,23 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	// continue walking the stack into the parent test.
 	var pc [maxStackLen]uintptr
 	n := runtime.Callers(2, pc[:])
+
+	// There's no reason to inherit this context from parent. The user's code can't observe
+	// the difference between the background context and the one from the parent test.
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	t = &T{
 		common: common{
-			barrier: make(chan bool),
-			signal:  make(chan bool, 1),
-			name:    testName,
-			parent:  &t.common,
-			level:   t.level + 1,
-			creator: pc[:n],
-			chatty:  t.chatty,
+			barrier:   make(chan bool),
+			signal:    make(chan bool, 1),
+			name:      testName,
+			parent:    &t.common,
+			level:     t.level + 1,
+			creator:   pc[:n],
+			chatty:    t.chatty,
+			ctx:       ctx,
+			cancelCtx: cancelCtx,
 		},
-		context: t.context,
+		tstate: t.tstate,
 	}
 	t.w = indenter{&t.common}
 
@@ -1765,17 +1845,17 @@ func (t *T) Run(name string, f func(t *T)) bool {
 //
 // The ok result is false if the -timeout flag indicates “no timeout” (0).
 func (t *T) Deadline() (deadline time.Time, ok bool) {
-	deadline = t.context.deadline
+	deadline = t.tstate.deadline
 	return deadline, !deadline.IsZero()
 }
 
-// testContext holds all fields that are common to all tests. This includes
+// testState holds all fields that are common to all tests. This includes
 // synchronization primitives to run at most *parallel tests.
-type testContext struct {
+type testState struct {
 	match    *matcher
 	deadline time.Time
 
-	// isFuzzing is true in the context used when generating random inputs
+	// isFuzzing is true in the state used when generating random inputs
 	// for fuzz targets. isFuzzing is false when running normal tests and
 	// when running fuzz tests as unit tests (without -fuzz or when -fuzz
 	// does not match).
@@ -1797,8 +1877,8 @@ type testContext struct {
 	maxParallel int
 }
 
-func newTestContext(maxParallel int, m *matcher) *testContext {
-	return &testContext{
+func newTestState(maxParallel int, m *matcher) *testState {
+	return &testState{
 		match:         m,
 		startParallel: make(chan bool),
 		maxParallel:   maxParallel,
@@ -1806,28 +1886,28 @@ func newTestContext(maxParallel int, m *matcher) *testContext {
 	}
 }
 
-func (c *testContext) waitParallel() {
-	c.mu.Lock()
-	if c.running < c.maxParallel {
-		c.running++
-		c.mu.Unlock()
+func (s *testState) waitParallel() {
+	s.mu.Lock()
+	if s.running < s.maxParallel {
+		s.running++
+		s.mu.Unlock()
 		return
 	}
-	c.numWaiting++
-	c.mu.Unlock()
-	<-c.startParallel
+	s.numWaiting++
+	s.mu.Unlock()
+	<-s.startParallel
 }
 
-func (c *testContext) release() {
-	c.mu.Lock()
-	if c.numWaiting == 0 {
-		c.running--
-		c.mu.Unlock()
+func (s *testState) release() {
+	s.mu.Lock()
+	if s.numWaiting == 0 {
+		s.running--
+		s.mu.Unlock()
 		return
 	}
-	c.numWaiting--
-	c.mu.Unlock()
-	c.startParallel <- true // Pick a waiting test to be run.
+	s.numWaiting--
+	s.mu.Unlock()
+	s.startParallel <- true // Pick a waiting test to be run.
 }
 
 // No one should be using func Main anymore.
@@ -1854,6 +1934,10 @@ func (f matchStringOnly) ReadCorpus(string, []reflect.Type) ([]corpusEntry, erro
 func (f matchStringOnly) CheckCorpus([]any, []reflect.Type) error { return nil }
 func (f matchStringOnly) ResetCoverage()                          {}
 func (f matchStringOnly) SnapshotCoverage()                       {}
+
+func (f matchStringOnly) InitRuntimeCoverage() (mode string, tearDown func(string, string) (string, error), snapcov func() float64) {
+	return
+}
 
 // Main is an internal function, part of the implementation of the "go test" command.
 // It was exported because it is cross-package and predates "internal" packages.
@@ -1902,12 +1986,14 @@ type testDeps interface {
 	CheckCorpus([]any, []reflect.Type) error
 	ResetCoverage()
 	SnapshotCoverage()
+	InitRuntimeCoverage() (mode string, tearDown func(coverprofile string, gocoverdir string) (string, error), snapcov func() float64)
 }
 
 // MainStart is meant for use by tests generated by 'go test'.
 // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
 // It may change signature from release to release.
 func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) *M {
+	registerCover2(deps.InitRuntimeCoverage())
 	Init()
 	return &M{
 		deps:        deps,
@@ -2144,15 +2230,18 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				// to keep trying.
 				break
 			}
-			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
-			ctx.deadline = deadline
+			ctx, cancelCtx := context.WithCancel(context.Background())
+			tstate := newTestState(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
+			tstate.deadline = deadline
 			t := &T{
 				common: common{
-					signal:  make(chan bool, 1),
-					barrier: make(chan bool),
-					w:       os.Stdout,
+					signal:    make(chan bool, 1),
+					barrier:   make(chan bool),
+					w:         os.Stdout,
+					ctx:       ctx,
+					cancelCtx: cancelCtx,
 				},
-				context: ctx,
+				tstate: tstate,
 			}
 			if Verbose() {
 				t.chatty = newChattyPrinter(t.w)
@@ -2376,7 +2465,7 @@ func runningList() []string {
 		list = append(list, fmt.Sprintf("%s (%v)", k.(string), highPrecisionTimeSince(v.(highPrecisionTime)).Round(time.Second)))
 		return true
 	})
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 

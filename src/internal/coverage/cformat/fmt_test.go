@@ -66,7 +66,7 @@ lit.go:99.0,100.0 1 0`)
 
 	// Percent output with no aggregation.
 	noCoverPkg := ""
-	if err := fm.EmitPercent(&b2, noCoverPkg, false, false); err != nil {
+	if err := fm.EmitPercent(&b2, nil, noCoverPkg, false, false); err != nil {
 		t.Fatalf("EmitPercent returned %v", err)
 	}
 	wantPercent := strings.Fields(`
@@ -81,7 +81,7 @@ lit.go:99.0,100.0 1 0`)
 
 	// Percent mode with aggregation.
 	withCoverPkg := " in ./..."
-	if err := fm.EmitPercent(&b3, withCoverPkg, false, true); err != nil {
+	if err := fm.EmitPercent(&b3, nil, withCoverPkg, false, true); err != nil {
 		t.Fatalf("EmitPercent returned %v", err)
 	}
 	wantPercent = strings.Fields(`
@@ -110,6 +110,24 @@ total		(statements)	62.5%`)
 		t.Logf("perc2 is %s\n", b3.String())
 		t.Logf("funcs is %s\n", b4.String())
 	}
+
+	// Percent output with specific packages selected.
+	{
+		var b strings.Builder
+		selpkgs := []string{"foo/bar", "my/pack1"}
+		if err := fm.EmitPercent(&b, selpkgs, noCoverPkg, false, false); err != nil {
+			t.Fatalf("EmitPercent returned %v", err)
+		}
+		wantPercent := strings.Fields(`
+       	my/pack1		coverage: 66.7% of statements
+`)
+		gotPercent := strings.Fields(b.String())
+		if !slices.Equal(wantPercent, gotPercent) {
+			t.Errorf("emit percent: got:\n%+v\nwant:\n%+v\n",
+				gotPercent, wantPercent)
+		}
+	}
+
 }
 
 func TestEmptyPackages(t *testing.T) {
@@ -122,7 +140,7 @@ func TestEmptyPackages(t *testing.T) {
 	{
 		var b strings.Builder
 		noCoverPkg := ""
-		if err := fm.EmitPercent(&b, noCoverPkg, true, false); err != nil {
+		if err := fm.EmitPercent(&b, nil, noCoverPkg, true, false); err != nil {
 			t.Fatalf("EmitPercent returned %v", err)
 		}
 		wantPercent := strings.Fields(`
@@ -140,7 +158,7 @@ func TestEmptyPackages(t *testing.T) {
 	{
 		var b strings.Builder
 		noCoverPkg := ""
-		if err := fm.EmitPercent(&b, noCoverPkg, true, true); err != nil {
+		if err := fm.EmitPercent(&b, nil, noCoverPkg, true, true); err != nil {
 			t.Fatalf("EmitPercent returned %v", err)
 		}
 		wantPercent := strings.Fields(`

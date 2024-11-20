@@ -62,6 +62,8 @@ const (
 //     string of length zero.
 //   - an anonymous struct field is handled as if the fields of its
 //     value were part of the outer struct.
+//   - an anonymous struct field of interface type is treated the same as having
+//     that type as its name, rather than being anonymous.
 //   - a field implementing [Marshaler] is written by calling its MarshalXML
 //     method.
 //   - a field implementing [encoding.TextMarshaler] is written by encoding the

@@ -8,6 +8,9 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goarch"
+	"internal/goexperiment"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -70,6 +73,180 @@ func (t rtype) pkgpath() string {
 		return it.PkgPath.Name()
 	}
 	return ""
+}
+
+// getGCMask returns the pointer/nonpointer bitmask for type t.
+//
+// nosplit because it is used during write barriers and must not be preempted.
+//
+//go:nosplit
+func getGCMask(t *_type) *byte {
+	if t.TFlag&abi.TFlagGCMaskOnDemand != 0 {
+		// Split the rest into getGCMaskOnDemand so getGCMask itself is inlineable.
+		return getGCMaskOnDemand(t)
+	}
+	return t.GCData
+}
+
+// inProgress is a byte whose address is a sentinel indicating that
+// some thread is currently building the GC bitmask for a type.
+var inProgress byte
+
+// nosplit because it is used during write barriers and must not be preempted.
+//
+//go:nosplit
+func getGCMaskOnDemand(t *_type) *byte {
+	// For large types, GCData doesn't point directly to a bitmask.
+	// Instead it points to a pointer to a bitmask, and the runtime
+	// is responsible for (on first use) creating the bitmask and
+	// storing a pointer to it in that slot.
+	// TODO: we could use &t.GCData as the slot, but types are
+	// in read-only memory currently.
+	addr := unsafe.Pointer(t.GCData)
+
+	for {
+		p := (*byte)(atomic.Loadp(addr))
+		switch p {
+		default: // Already built.
+			return p
+		case &inProgress: // Someone else is currently building it.
+			// Just wait until the builder is done.
+			// We can't block here, so spinning while having
+			// the OS thread yield is about the best we can do.
+			osyield()
+			continue
+		case nil: // Not built yet.
+			// Attempt to get exclusive access to build it.
+			if !atomic.Casp1((*unsafe.Pointer)(addr), nil, unsafe.Pointer(&inProgress)) {
+				continue
+			}
+
+			// Build gcmask for this type.
+			bytes := goarch.PtrSize * divRoundUp(t.PtrBytes/goarch.PtrSize, 8*goarch.PtrSize)
+			p = (*byte)(persistentalloc(bytes, goarch.PtrSize, &memstats.other_sys))
+			systemstack(func() {
+				buildGCMask(t, bitCursor{ptr: p, n: 0})
+			})
+
+			// Store the newly-built gcmask for future callers.
+			atomic.StorepNoWB(addr, unsafe.Pointer(p))
+			return p
+		}
+	}
+}
+
+// A bitCursor is a simple cursor to memory to which we
+// can write a set of bits.
+type bitCursor struct {
+	ptr *byte   // base of region
+	n   uintptr // cursor points to bit n of region
+}
+
+// Write to b cnt bits starting at bit 0 of data.
+// Requires cnt>0.
+func (b bitCursor) write(data *byte, cnt uintptr) {
+	// Starting byte for writing.
+	p := addb(b.ptr, b.n/8)
+
+	// Note: if we're starting halfway through a byte, we load the
+	// existing lower bits so we don't clobber them.
+	n := b.n % 8                    // # of valid bits in buf
+	buf := uintptr(*p) & (1<<n - 1) // buffered bits to start
+
+	// Work 8 bits at a time.
+	for cnt > 8 {
+		// Read 8 more bits, now buf has 8-15 valid bits in it.
+		buf |= uintptr(*data) << n
+		n += 8
+		data = addb(data, 1)
+		cnt -= 8
+		// Write 8 of the buffered bits out.
+		*p = byte(buf)
+		buf >>= 8
+		n -= 8
+		p = addb(p, 1)
+	}
+	// Read remaining bits.
+	buf |= (uintptr(*data) & (1<<cnt - 1)) << n
+	n += cnt
+
+	// Flush remaining bits.
+	if n > 8 {
+		*p = byte(buf)
+		buf >>= 8
+		n -= 8
+		p = addb(p, 1)
+	}
+	*p &^= 1<<n - 1
+	*p |= byte(buf)
+}
+
+func (b bitCursor) offset(cnt uintptr) bitCursor {
+	return bitCursor{ptr: b.ptr, n: b.n + cnt}
+}
+
+// buildGCMask writes the ptr/nonptr bitmap for t to dst.
+// t must have a pointer.
+func buildGCMask(t *_type, dst bitCursor) {
+	// Note: we want to avoid a situation where buildGCMask gets into a
+	// very deep recursion, because M stacks are fixed size and pretty small
+	// (16KB). We do that by ensuring that any recursive
+	// call operates on a type at most half the size of its parent.
+	// Thus, the recursive chain can be at most 64 calls deep (on a
+	// 64-bit machine).
+	// Recursion is avoided by using a "tail call" (jumping to the
+	// "top" label) for any recursive call with a large subtype.
+top:
+	if t.PtrBytes == 0 {
+		throw("pointerless type")
+	}
+	if t.TFlag&abi.TFlagGCMaskOnDemand == 0 {
+		// copy t.GCData to dst
+		dst.write(t.GCData, t.PtrBytes/goarch.PtrSize)
+		return
+	}
+	// The above case should handle all kinds except
+	// possibly arrays and structs.
+	switch t.Kind() {
+	case abi.Array:
+		a := t.ArrayType()
+		if a.Len == 1 {
+			// Avoid recursive call for element type that
+			// isn't smaller than the parent type.
+			t = a.Elem
+			goto top
+		}
+		e := a.Elem
+		for i := uintptr(0); i < a.Len; i++ {
+			buildGCMask(e, dst)
+			dst = dst.offset(e.Size_ / goarch.PtrSize)
+		}
+	case abi.Struct:
+		s := t.StructType()
+		var bigField abi.StructField
+		for _, f := range s.Fields {
+			ft := f.Typ
+			if !ft.Pointers() {
+				continue
+			}
+			if ft.Size_ > t.Size_/2 {
+				// Avoid recursive call for field type that
+				// is larger than half of the parent type.
+				// There can be only one.
+				bigField = f
+				continue
+			}
+			buildGCMask(ft, dst.offset(f.Offset/goarch.PtrSize))
+		}
+		if bigField.Typ != nil {
+			// Note: this case causes bits to be written out of order.
+			t = bigField.Typ
+			dst = dst.offset(bigField.Offset / goarch.PtrSize)
+			goto top
+		}
+	default:
+		throw("unexpected kind")
+	}
 }
 
 // reflectOffs holds type offsets defined at run time by the reflect package.
@@ -216,8 +393,6 @@ func (t rtype) textOff(off textOff) unsafe.Pointer {
 type uncommontype = abi.UncommonType
 
 type interfacetype = abi.InterfaceType
-
-type maptype = abi.MapType
 
 type arraytype = abi.ArrayType
 
@@ -421,8 +596,13 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 		}
 		return true
 	case abi.Map:
-		mt := (*maptype)(unsafe.Pointer(t))
-		mv := (*maptype)(unsafe.Pointer(v))
+		if goexperiment.SwissMap {
+			mt := (*abi.SwissMapType)(unsafe.Pointer(t))
+			mv := (*abi.SwissMapType)(unsafe.Pointer(v))
+			return typesEqual(mt.Key, mv.Key, seen) && typesEqual(mt.Elem, mv.Elem, seen)
+		}
+		mt := (*abi.OldMapType)(unsafe.Pointer(t))
+		mv := (*abi.OldMapType)(unsafe.Pointer(v))
 		return typesEqual(mt.Key, mv.Key, seen) && typesEqual(mt.Elem, mv.Elem, seen)
 	case abi.Pointer:
 		pt := (*ptrtype)(unsafe.Pointer(t))

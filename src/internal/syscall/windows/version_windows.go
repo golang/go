@@ -24,9 +24,9 @@ type _OSVERSIONINFOW struct {
 // According to documentation, RtlGetVersion function always succeeds.
 //sys	rtlGetVersion(info *_OSVERSIONINFOW) = ntdll.RtlGetVersion
 
-// version retrieves the major, minor, and build version numbers
+// Version retrieves the major, minor, and build version numbers
 // of the current Windows OS from the RtlGetVersion API.
-func version() (major, minor, build uint32) {
+func Version() (major, minor, build uint32) {
 	info := _OSVERSIONINFOW{}
 	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
 	rtlGetVersion(&info)
@@ -43,7 +43,7 @@ var initTCPKeepAlive = sync.OnceFunc(func() {
 	s, err := WSASocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP, nil, 0, WSA_FLAG_NO_HANDLE_INHERIT)
 	if err != nil {
 		// Fallback to checking the Windows version.
-		major, _, build := version()
+		major, _, build := Version()
 		supportTCPKeepAliveIdle = major >= 10 && build >= 16299
 		supportTCPKeepAliveInterval = major >= 10 && build >= 16299
 		supportTCPKeepAliveCount = major >= 10 && build >= 15063
@@ -85,7 +85,7 @@ func SupportTCPKeepAliveCount() bool {
 // Windows version supports the TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS.
 // The minimal requirement is Windows 10.0.16299.
 var SupportTCPInitialRTONoSYNRetransmissions = sync.OnceValue(func() bool {
-	major, _, build := version()
+	major, _, build := Version()
 	return major >= 10 && build >= 16299
 })
 

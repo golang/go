@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux || netbsd
+//go:build linux
 
 package os
 
@@ -19,8 +19,6 @@ func executable() (string, error) {
 		return "", errors.New("Executable not implemented for " + runtime.GOOS)
 	case "linux", "android":
 		procfn = "/proc/self/exe"
-	case "netbsd":
-		procfn = "/proc/curproc/exe"
 	}
 	path, err := Readlink(procfn)
 

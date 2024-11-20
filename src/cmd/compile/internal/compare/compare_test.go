@@ -23,8 +23,8 @@ func init() {
 	types.PtrSize = 8
 	types.RegSize = 8
 	types.MaxWidth = 1 << 50
-	typecheck.InitUniverse()
 	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
+	typecheck.InitUniverse()
 }
 
 func TestEqStructCost(t *testing.T) {

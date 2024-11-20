@@ -4,7 +4,8 @@
 
 // Package csv reads and writes comma-separated values (CSV) files.
 // There are many kinds of CSV files; this package supports the format
-// described in RFC 4180.
+// described in RFC 4180, except that [Writer] uses LF
+// instead of CRLF as newline character by default.
 //
 // A csv file contains zero or more records of one or more fields per record.
 // Each record is separated by the newline character. The final record may

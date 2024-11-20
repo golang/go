@@ -161,10 +161,7 @@ func TestNonPollable(t *testing.T) {
 
 // Issue 60211.
 func TestOpenFileNonBlocking(t *testing.T) {
-	exe, err := os.Executable()
-	if err != nil {
-		t.Skipf("can't find executable: %v", err)
-	}
+	exe := testenv.Executable(t)
 	f, err := os.OpenFile(exe, os.O_RDONLY|syscall.O_NONBLOCK, 0666)
 	if err != nil {
 		t.Fatal(err)

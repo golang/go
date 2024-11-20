@@ -61,6 +61,12 @@ const (
 	s7 = 0x44 // accept 4, size 4
 )
 
+const (
+	runeErrorByte0 = t3 | (RuneError >> 12)
+	runeErrorByte1 = tx | (RuneError>>6)&maskx
+	runeErrorByte2 = tx | RuneError&maskx
+)
+
 // first is information about the first byte in a UTF-8 sequence.
 var first = [256]uint8{
 	//   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
@@ -340,32 +346,41 @@ func RuneLen(r rune) int {
 // If the rune is out of range, it writes the encoding of [RuneError].
 // It returns the number of bytes written.
 func EncodeRune(p []byte, r rune) int {
-	// Negative values are erroneous. Making it unsigned addresses the problem.
-	switch i := uint32(r); {
-	case i <= rune1Max:
+	// This function is inlineable for fast handling of ASCII.
+	if uint32(r) <= rune1Max {
 		p[0] = byte(r)
 		return 1
+	}
+	return encodeRuneNonASCII(p, r)
+}
+
+func encodeRuneNonASCII(p []byte, r rune) int {
+	// Negative values are erroneous. Making it unsigned addresses the problem.
+	switch i := uint32(r); {
 	case i <= rune2Max:
 		_ = p[1] // eliminate bounds checks
 		p[0] = t2 | byte(r>>6)
 		p[1] = tx | byte(r)&maskx
 		return 2
-	case i > MaxRune, surrogateMin <= i && i <= surrogateMax:
-		r = RuneError
-		fallthrough
-	case i <= rune3Max:
+	case i < surrogateMin, surrogateMax < i && i <= rune3Max:
 		_ = p[2] // eliminate bounds checks
 		p[0] = t3 | byte(r>>12)
 		p[1] = tx | byte(r>>6)&maskx
 		p[2] = tx | byte(r)&maskx
 		return 3
-	default:
+	case i > rune3Max && i <= MaxRune:
 		_ = p[3] // eliminate bounds checks
 		p[0] = t4 | byte(r>>18)
 		p[1] = tx | byte(r>>12)&maskx
 		p[2] = tx | byte(r>>6)&maskx
 		p[3] = tx | byte(r)&maskx
 		return 4
+	default:
+		_ = p[2] // eliminate bounds checks
+		p[0] = runeErrorByte0
+		p[1] = runeErrorByte1
+		p[2] = runeErrorByte2
+		return 3
 	}
 }
 
@@ -385,13 +400,12 @@ func appendRuneNonASCII(p []byte, r rune) []byte {
 	switch i := uint32(r); {
 	case i <= rune2Max:
 		return append(p, t2|byte(r>>6), tx|byte(r)&maskx)
-	case i > MaxRune, surrogateMin <= i && i <= surrogateMax:
-		r = RuneError
-		fallthrough
-	case i <= rune3Max:
+	case i < surrogateMin, surrogateMax < i && i <= rune3Max:
 		return append(p, t3|byte(r>>12), tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
-	default:
+	case i > rune3Max && i <= MaxRune:
 		return append(p, t4|byte(r>>18), tx|byte(r>>12)&maskx, tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
+	default:
+		return append(p, runeErrorByte0, runeErrorByte1, runeErrorByte2)
 	}
 }
 
@@ -400,70 +414,19 @@ func appendRuneNonASCII(p []byte, r rune) []byte {
 func RuneCount(p []byte) int {
 	np := len(p)
 	var n int
-	for i := 0; i < np; {
-		n++
-		c := p[i]
-		if c < RuneSelf {
-			// ASCII fast path
-			i++
-			continue
+	for ; n < np; n++ {
+		if c := p[n]; c >= RuneSelf {
+			// non-ASCII slow path
+			return n + RuneCountInString(string(p[n:]))
 		}
-		x := first[c]
-		if x == xx {
-			i++ // invalid.
-			continue
-		}
-		size := int(x & 7)
-		if i+size > np {
-			i++ // Short or invalid.
-			continue
-		}
-		accept := acceptRanges[x>>4]
-		if c := p[i+1]; c < accept.lo || accept.hi < c {
-			size = 1
-		} else if size == 2 {
-		} else if c := p[i+2]; c < locb || hicb < c {
-			size = 1
-		} else if size == 3 {
-		} else if c := p[i+3]; c < locb || hicb < c {
-			size = 1
-		}
-		i += size
 	}
 	return n
 }
 
 // RuneCountInString is like [RuneCount] but its input is a string.
 func RuneCountInString(s string) (n int) {
-	ns := len(s)
-	for i := 0; i < ns; n++ {
-		c := s[i]
-		if c < RuneSelf {
-			// ASCII fast path
-			i++
-			continue
-		}
-		x := first[c]
-		if x == xx {
-			i++ // invalid.
-			continue
-		}
-		size := int(x & 7)
-		if i+size > ns {
-			i++ // Short or invalid.
-			continue
-		}
-		accept := acceptRanges[x>>4]
-		if c := s[i+1]; c < accept.lo || accept.hi < c {
-			size = 1
-		} else if size == 2 {
-		} else if c := s[i+2]; c < locb || hicb < c {
-			size = 1
-		} else if size == 3 {
-		} else if c := s[i+3]; c < locb || hicb < c {
-			size = 1
-		}
-		i += size
+	for range s {
+		n++
 	}
 	return n
 }

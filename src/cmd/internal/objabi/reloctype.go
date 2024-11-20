@@ -202,7 +202,7 @@ const (
 
 	// R_POWER_TLS marks an X-form instruction such as "ADD R3,R13,R4" as completing
 	// a sequence of GOT-relative relocations to compute a TLS address. This can be
-	// used by the system linker to to rewrite the GOT-relative TLS relocation into a
+	// used by the system linker to rewrite the GOT-relative TLS relocation into a
 	// simpler thread-pointer relative relocation. See table 3.26 and 3.28 in the
 	// ppc64 elfv2 1.4 ABI on this transformation.  Likewise, the second argument
 	// (usually called RB in X-form instructions) is assumed to be R13.
@@ -347,6 +347,17 @@ const (
 	// usually an pcalau12i followed by another ld or addi instruction.
 	R_LOONG64_GOT_HI
 	R_LOONG64_GOT_LO
+
+	// 64-bit in-place addition.
+	R_LOONG64_ADD64
+	// 64-bit in-place subtraction.
+	R_LOONG64_SUB64
+
+	// R_JMP16LOONG64 resolves to 18-bit PC-relative target address of a JMP instructions.
+	R_JMP16LOONG64
+
+	// R_JMP21LOONG64 resolves to 23-bit PC-relative target address of a JMP instructions.
+	R_JMP21LOONG64
 
 	// R_JMPLOONG64 resolves to non-PC-relative target address of a JMP instruction,
 	// by encoding the address into the instruction.

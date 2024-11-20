@@ -10,5 +10,5 @@
 package main
 
 func _() {
-	x := 7 // ERROR ".*x.* declared and not used"
+	x := 7 // ERROR "declared and not used"
 }

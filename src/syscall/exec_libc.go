@@ -314,6 +314,11 @@ childerror:
 	}
 }
 
+// forkAndExecFailureCleanup cleans up after an exec failure.
+func forkAndExecFailureCleanup(attr *ProcAttr, sys *SysProcAttr) {
+	// Nothing to do.
+}
+
 func ioctlPtr(fd, req uintptr, arg unsafe.Pointer) (err Errno) {
 	return ioctl(fd, req, uintptr(arg))
 }

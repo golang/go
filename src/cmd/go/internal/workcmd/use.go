@@ -42,8 +42,7 @@ thing that go work use does.
 
 The -r flag searches recursively for modules in the argument
 directories, and the use command operates as if each of the directories
-were specified as arguments: namely, use directives will be added for
-directories that exist, and removed for directories that do not exist.
+were specified as arguments.
 
 
 
@@ -103,7 +102,7 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
 	lookDir := func(dir string) {
 		absDir, dir := pathRel(workDir, dir)
 
-		file := base.ShortPath(filepath.Join(absDir, "go.mod"))
+		file := base.ShortPathConservative(filepath.Join(absDir, "go.mod"))
 		fi, err := fsys.Stat(file)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -127,17 +126,18 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
 
 	for _, useDir := range args {
 		absArg, _ := pathRel(workDir, useDir)
+		useDirShort := base.ShortPathConservative(absArg) // relative to the working directory rather than the workspace
 
-		info, err := fsys.Stat(base.ShortPath(absArg))
+		info, err := fsys.Stat(useDirShort)
 		if err != nil {
 			// Errors raised from os.Stat are formatted to be more user-friendly.
 			if os.IsNotExist(err) {
-				err = fmt.Errorf("directory %v does not exist", base.ShortPath(absArg))
+				err = fmt.Errorf("directory %v does not exist", useDirShort)
 			}
 			sw.Error(err)
 			continue
 		} else if !info.IsDir() {
-			sw.Error(fmt.Errorf("%s is not a directory", base.ShortPath(absArg)))
+			sw.Error(fmt.Errorf("%s is not a directory", useDirShort))
 			continue
 		}
 
@@ -150,15 +150,15 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
 		// If the root itself is a symlink to a directory,
 		// we want to follow it (see https://go.dev/issue/50807).
 		// Add a trailing separator to force that to happen.
-		fsys.Walk(str.WithFilePathSeparator(useDir), func(path string, info fs.FileInfo, err error) error {
+		fsys.WalkDir(str.WithFilePathSeparator(useDir), func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
 
-			if !info.IsDir() {
-				if info.Mode()&fs.ModeSymlink != 0 {
+			if !d.IsDir() {
+				if d.Type()&fs.ModeSymlink != 0 {
 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
-						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", base.ShortPath(path))
+						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", base.ShortPathConservative(path))
 					}
 				}
 				return nil
@@ -210,7 +210,7 @@ func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []st
 		} else {
 			abs = filepath.Join(workDir, use.Path)
 		}
-		_, mf, err := modload.ReadModFile(base.ShortPath(filepath.Join(abs, "go.mod")), nil)
+		_, mf, err := modload.ReadModFile(base.ShortPathConservative(filepath.Join(abs, "go.mod")), nil)
 		if err != nil {
 			sw.Error(err)
 			continue

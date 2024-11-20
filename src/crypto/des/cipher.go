@@ -6,8 +6,8 @@ package des
 
 import (
 	"crypto/cipher"
-	"crypto/internal/alias"
-	"encoding/binary"
+	"crypto/internal/fips/alias"
+	"internal/byteorder"
 	"strconv"
 )
 
@@ -95,7 +95,7 @@ func (c *tripleDESCipher) Encrypt(dst, src []byte) {
 		panic("crypto/des: invalid buffer overlap")
 	}
 
-	b := binary.BigEndian.Uint64(src)
+	b := byteorder.BeUint64(src)
 	b = permuteInitialBlock(b)
 	left, right := uint32(b>>32), uint32(b)
 
@@ -116,7 +116,7 @@ func (c *tripleDESCipher) Encrypt(dst, src []byte) {
 	right = (right << 31) | (right >> 1)
 
 	preOutput := (uint64(right) << 32) | uint64(left)
-	binary.BigEndian.PutUint64(dst, permuteFinalBlock(preOutput))
+	byteorder.BePutUint64(dst, permuteFinalBlock(preOutput))
 }
 
 func (c *tripleDESCipher) Decrypt(dst, src []byte) {
@@ -130,7 +130,7 @@ func (c *tripleDESCipher) Decrypt(dst, src []byte) {
 		panic("crypto/des: invalid buffer overlap")
 	}
 
-	b := binary.BigEndian.Uint64(src)
+	b := byteorder.BeUint64(src)
 	b = permuteInitialBlock(b)
 	left, right := uint32(b>>32), uint32(b)
 
@@ -151,5 +151,5 @@ func (c *tripleDESCipher) Decrypt(dst, src []byte) {
 	right = (right << 31) | (right >> 1)
 
 	preOutput := (uint64(right) << 32) | uint64(left)
-	binary.BigEndian.PutUint64(dst, permuteFinalBlock(preOutput))
+	byteorder.BePutUint64(dst, permuteFinalBlock(preOutput))
 }

@@ -7,7 +7,10 @@
 // Package sort provides primitives for sorting slices and user-defined collections.
 package sort
 
-import "math/bits"
+import (
+	"math/bits"
+	"slices"
+)
 
 // An implementation of Interface can be sorted by the routines in this package.
 // The methods refer to elements of the underlying collection by integer index.
@@ -64,8 +67,8 @@ type xorshift uint64
 
 func (r *xorshift) Next() uint64 {
 	*r ^= *r << 13
-	*r ^= *r >> 17
-	*r ^= *r << 5
+	*r ^= *r >> 7
+	*r ^= *r << 17
 	return uint64(*r)
 }
 
@@ -162,34 +165,34 @@ func (x StringSlice) Sort() { Sort(x) }
 // Ints sorts a slice of ints in increasing order.
 //
 // Note: as of Go 1.22, this function simply calls [slices.Sort].
-func Ints(x []int) { intsImpl(x) }
+func Ints(x []int) { slices.Sort(x) }
 
 // Float64s sorts a slice of float64s in increasing order.
 // Not-a-number (NaN) values are ordered before other values.
 //
 // Note: as of Go 1.22, this function simply calls [slices.Sort].
-func Float64s(x []float64) { float64sImpl(x) }
+func Float64s(x []float64) { slices.Sort(x) }
 
 // Strings sorts a slice of strings in increasing order.
 //
 // Note: as of Go 1.22, this function simply calls [slices.Sort].
-func Strings(x []string) { stringsImpl(x) }
+func Strings(x []string) { slices.Sort(x) }
 
 // IntsAreSorted reports whether the slice x is sorted in increasing order.
 //
 // Note: as of Go 1.22, this function simply calls [slices.IsSorted].
-func IntsAreSorted(x []int) bool { return intsAreSortedImpl(x) }
+func IntsAreSorted(x []int) bool { return slices.IsSorted(x) }
 
 // Float64sAreSorted reports whether the slice x is sorted in increasing order,
 // with not-a-number (NaN) values before any other values.
 //
 // Note: as of Go 1.22, this function simply calls [slices.IsSorted].
-func Float64sAreSorted(x []float64) bool { return float64sAreSortedImpl(x) }
+func Float64sAreSorted(x []float64) bool { return slices.IsSorted(x) }
 
 // StringsAreSorted reports whether the slice x is sorted in increasing order.
 //
 // Note: as of Go 1.22, this function simply calls [slices.IsSorted].
-func StringsAreSorted(x []string) bool { return stringsAreSortedImpl(x) }
+func StringsAreSorted(x []string) bool { return slices.IsSorted(x) }
 
 // Notes on stable sorting:
 // The used algorithms are simple and provable correct on all input and use

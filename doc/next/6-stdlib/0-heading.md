@@ -1,2 +1,2 @@
-## Core library {#library}
+## Standard library {#library}
 

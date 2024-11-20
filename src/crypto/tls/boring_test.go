@@ -25,48 +25,82 @@ import (
 	"time"
 )
 
+func allCipherSuitesIncludingTLS13() []uint16 {
+	s := allCipherSuites()
+	for _, suite := range cipherSuitesTLS13 {
+		s = append(s, suite.id)
+	}
+	return s
+}
+
+func isTLS13CipherSuite(id uint16) bool {
+	for _, suite := range cipherSuitesTLS13 {
+		if id == suite.id {
+			return true
+		}
+	}
+	return false
+}
+
+func generateKeyShare(group CurveID) keyShare {
+	key, err := generateECDHEKey(rand.Reader, group)
+	if err != nil {
+		panic(err)
+	}
+	return keyShare{group: group, data: key.PublicKey().Bytes()}
+}
+
 func TestBoringServerProtocolVersion(t *testing.T) {
-	test := func(name string, v uint16, msg string) {
+	test := func(t *testing.T, name string, v uint16, msg string) {
 		t.Run(name, func(t *testing.T) {
 			serverConfig := testConfig.Clone()
 			serverConfig.MinVersion = VersionSSL30
-			clientHello := &clientHelloMsg{
-				vers:               v,
-				random:             make([]byte, 32),
-				cipherSuites:       allCipherSuites(),
-				compressionMethods: []uint8{compressionNone},
-				supportedVersions:  []uint16{v},
+			clientConfig := testConfig.Clone()
+			clientConfig.MinVersion = v
+			clientConfig.MaxVersion = v
+			_, _, err := testHandshake(t, clientConfig, serverConfig)
+			if msg == "" {
+				if err != nil {
+					t.Fatalf("got error: %v, expected success", err)
+				}
+			} else {
+				if err == nil {
+					t.Fatalf("got success, expected error")
+				}
+				if !strings.Contains(err.Error(), msg) {
+					t.Fatalf("got error %v, expected %q", err, msg)
+				}
 			}
-			testClientHelloFailure(t, serverConfig, clientHello, msg)
 		})
 	}
 
-	test("VersionTLS10", VersionTLS10, "")
-	test("VersionTLS11", VersionTLS11, "")
-	test("VersionTLS12", VersionTLS12, "")
-	test("VersionTLS13", VersionTLS13, "")
+	test(t, "VersionTLS10", VersionTLS10, "")
+	test(t, "VersionTLS11", VersionTLS11, "")
+	test(t, "VersionTLS12", VersionTLS12, "")
+	test(t, "VersionTLS13", VersionTLS13, "")
 
-	fipstls.Force()
-	defer fipstls.Abandon()
-	test("VersionSSL30", VersionSSL30, "client offered only unsupported versions")
-	test("VersionTLS10", VersionTLS10, "client offered only unsupported versions")
-	test("VersionTLS11", VersionTLS11, "client offered only unsupported versions")
-	test("VersionTLS12", VersionTLS12, "")
-	test("VersionTLS13", VersionTLS13, "client offered only unsupported versions")
+	t.Run("fipstls", func(t *testing.T) {
+		fipstls.Force()
+		defer fipstls.Abandon()
+		test(t, "VersionTLS10", VersionTLS10, "supported versions")
+		test(t, "VersionTLS11", VersionTLS11, "supported versions")
+		test(t, "VersionTLS12", VersionTLS12, "")
+		test(t, "VersionTLS13", VersionTLS13, "")
+	})
 }
 
 func isBoringVersion(v uint16) bool {
-	return v == VersionTLS12
+	return v == VersionTLS12 || v == VersionTLS13
 }
 
 func isBoringCipherSuite(id uint16) bool {
 	switch id {
-	case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	case TLS_AES_128_GCM_SHA256,
+		TLS_AES_256_GCM_SHA384,
+		TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		TLS_RSA_WITH_AES_128_GCM_SHA256,
-		TLS_RSA_WITH_AES_256_GCM_SHA384:
+		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
 		return true
 	}
 	return false
@@ -74,7 +108,7 @@ func isBoringCipherSuite(id uint16) bool {
 
 func isBoringCurve(id CurveID) bool {
 	switch id {
-	case CurveP256, CurveP384, CurveP521:
+	case CurveP256, CurveP384:
 		return true
 	}
 	return false
@@ -86,7 +120,7 @@ func isECDSA(id uint16) bool {
 			return suite.flags&suiteECSign == suiteECSign
 		}
 	}
-	panic(fmt.Sprintf("unknown cipher suite %#x", id))
+	return false // TLS 1.3 cipher suites are not tied to the signature algorithm.
 }
 
 func isBoringSignatureScheme(alg SignatureScheme) bool {
@@ -98,7 +132,6 @@ func isBoringSignatureScheme(alg SignatureScheme) bool {
 		PKCS1WithSHA384,
 		ECDSAWithP384AndSHA384,
 		PKCS1WithSHA512,
-		ECDSAWithP521AndSHA512,
 		PSSWithSHA256,
 		PSSWithSHA384,
 		PSSWithSHA512:
@@ -109,10 +142,9 @@ func isBoringSignatureScheme(alg SignatureScheme) bool {
 
 func TestBoringServerCipherSuites(t *testing.T) {
 	serverConfig := testConfig.Clone()
-	serverConfig.CipherSuites = allCipherSuites()
 	serverConfig.Certificates = make([]Certificate, 1)
 
-	for _, id := range allCipherSuites() {
+	for _, id := range allCipherSuitesIncludingTLS13() {
 		if isECDSA(id) {
 			serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
 			serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
@@ -121,14 +153,20 @@ func TestBoringServerCipherSuites(t *testing.T) {
 			serverConfig.Certificates[0].PrivateKey = testRSAPrivateKey
 		}
 		serverConfig.BuildNameToCertificate()
-		t.Run(fmt.Sprintf("suite=%#x", id), func(t *testing.T) {
+		t.Run(fmt.Sprintf("suite=%s", CipherSuiteName(id)), func(t *testing.T) {
 			clientHello := &clientHelloMsg{
-				vers:               VersionTLS12,
-				random:             make([]byte, 32),
-				cipherSuites:       []uint16{id},
-				compressionMethods: []uint8{compressionNone},
-				supportedCurves:    defaultCurvePreferences,
-				supportedPoints:    []uint8{pointFormatUncompressed},
+				vers:                         VersionTLS12,
+				random:                       make([]byte, 32),
+				cipherSuites:                 []uint16{id},
+				compressionMethods:           []uint8{compressionNone},
+				supportedCurves:              defaultCurvePreferences(),
+				keyShares:                    []keyShare{generateKeyShare(CurveP256)},
+				supportedPoints:              []uint8{pointFormatUncompressed},
+				supportedVersions:            []uint16{VersionTLS12},
+				supportedSignatureAlgorithms: defaultSupportedSignatureAlgorithmsFIPS,
+			}
+			if isTLS13CipherSuite(id) {
+				clientHello.supportedVersions = []uint16{VersionTLS13}
 			}
 
 			testClientHello(t, serverConfig, clientHello)
@@ -147,33 +185,30 @@ func TestBoringServerCipherSuites(t *testing.T) {
 
 func TestBoringServerCurves(t *testing.T) {
 	serverConfig := testConfig.Clone()
-	serverConfig.Certificates = make([]Certificate, 1)
-	serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
-	serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
 	serverConfig.BuildNameToCertificate()
 
-	for _, curveid := range defaultCurvePreferences {
+	for _, curveid := range defaultCurvePreferences() {
 		t.Run(fmt.Sprintf("curve=%d", curveid), func(t *testing.T) {
-			clientHello := &clientHelloMsg{
-				vers:               VersionTLS12,
-				random:             make([]byte, 32),
-				cipherSuites:       []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
-				compressionMethods: []uint8{compressionNone},
-				supportedCurves:    []CurveID{curveid},
-				supportedPoints:    []uint8{pointFormatUncompressed},
+			clientConfig := testConfig.Clone()
+			clientConfig.CurvePreferences = []CurveID{curveid}
+			if curveid == x25519Kyber768Draft00 {
+				// x25519Kyber768Draft00 is not supported standalone.
+				clientConfig.CurvePreferences = append(clientConfig.CurvePreferences, X25519)
 			}
-
-			testClientHello(t, serverConfig, clientHello)
+			if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+				t.Fatalf("got error: %v, expected success", err)
+			}
 
 			// With fipstls forced, bad curves should be rejected.
 			t.Run("fipstls", func(t *testing.T) {
 				fipstls.Force()
 				defer fipstls.Abandon()
-				msg := ""
-				if !isBoringCurve(curveid) {
-					msg = "no cipher suite supported by both client and server"
+				_, _, err := testHandshake(t, clientConfig, serverConfig)
+				if err != nil && isBoringCurve(curveid) {
+					t.Fatalf("got error: %v, expected success", err)
+				} else if err == nil && !isBoringCurve(curveid) {
+					t.Fatalf("got success, expected error")
 				}
-				testClientHelloFailure(t, serverConfig, clientHello, msg)
 			})
 		})
 	}
@@ -265,7 +300,7 @@ func TestBoringClientHello(t *testing.T) {
 	clientConfig.MinVersion = VersionSSL30
 	clientConfig.MaxVersion = VersionTLS13
 	clientConfig.CipherSuites = allCipherSuites()
-	clientConfig.CurvePreferences = defaultCurvePreferences
+	clientConfig.CurvePreferences = defaultCurvePreferences()
 
 	go Client(c, clientConfig).Handshake()
 	srv := Server(s, testConfig)
@@ -279,7 +314,7 @@ func TestBoringClientHello(t *testing.T) {
 	}
 
 	if !isBoringVersion(hello.vers) {
-		t.Errorf("client vers=%#x, want %#x (TLS 1.2)", hello.vers, VersionTLS12)
+		t.Errorf("client vers=%#x", hello.vers)
 	}
 	for _, v := range hello.supportedVersions {
 		if !isBoringVersion(v) {

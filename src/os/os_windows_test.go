@@ -17,10 +17,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -34,28 +32,8 @@ var winreadlinkvolume = godebug.New("winreadlinkvolume")
 // For TestRawConnReadWrite.
 type syscallDescriptor = syscall.Handle
 
-// chdir changes the current working directory to the named directory,
-// and then restore the original working directory at the end of the test.
-func chdir(t *testing.T, dir string) {
-	olddir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir %s: %v", dir, err)
-	}
-
-	t.Cleanup(func() {
-		if err := os.Chdir(olddir); err != nil {
-			t.Errorf("chdir to original working directory %s: %v", olddir, err)
-			os.Exit(1)
-		}
-	})
-}
-
 func TestSameWindowsFile(t *testing.T) {
-	temp := t.TempDir()
-	chdir(t, temp)
+	t.Chdir(t.TempDir())
 
 	f, err := os.Create("a")
 	if err != nil {
@@ -101,7 +79,7 @@ type dirLinkTest struct {
 
 func testDirLinks(t *testing.T, tests []dirLinkTest) {
 	tmpdir := t.TempDir()
-	chdir(t, tmpdir)
+	t.Chdir(tmpdir)
 
 	dir := filepath.Join(tmpdir, "dir")
 	err := os.Mkdir(dir, 0777)
@@ -460,7 +438,7 @@ func TestNetworkSymbolicLink(t *testing.T) {
 	const _NERR_ServerNotStarted = syscall.Errno(2114)
 
 	dir := t.TempDir()
-	chdir(t, dir)
+	t.Chdir(dir)
 
 	pid := os.Getpid()
 	shareName := fmt.Sprintf("GoSymbolicLinkTestShare%d", pid)
@@ -563,8 +541,7 @@ func TestStatLxSymLink(t *testing.T) {
 		t.Skip("skipping: WSL not detected")
 	}
 
-	temp := t.TempDir()
-	chdir(t, temp)
+	t.Chdir(t.TempDir())
 
 	const target = "target"
 	const link = "link"
@@ -631,7 +608,7 @@ func TestBadNetPathError(t *testing.T) {
 }
 
 func TestStatDir(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 
 	f, err := os.Open(".")
 	if err != nil {
@@ -661,10 +638,10 @@ func TestStatDir(t *testing.T) {
 
 func TestOpenVolumeName(t *testing.T) {
 	tmpdir := t.TempDir()
-	chdir(t, tmpdir)
+	t.Chdir(tmpdir)
 
 	want := []string{"file1", "file2", "file3", "gopher.txt"}
-	sort.Strings(want)
+	slices.Sort(want)
 	for _, name := range want {
 		err := os.WriteFile(filepath.Join(tmpdir, name), nil, 0777)
 		if err != nil {
@@ -682,7 +659,7 @@ func TestOpenVolumeName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sort.Strings(have)
+	slices.Sort(have)
 
 	if strings.Join(want, "/") != strings.Join(have, "/") {
 		t.Fatalf("unexpected file list %q, want %q", have, want)
@@ -779,7 +756,7 @@ func TestReadStdin(t *testing.T) {
 					for len(want) < 5 {
 						want = append(want, "")
 					}
-					if !reflect.DeepEqual(all, want) {
+					if !slices.Equal(all, want) {
 						t.Errorf("reading %q:\nhave %x\nwant %x", s, all, want)
 					}
 				})
@@ -954,7 +931,9 @@ func findOneDriveDir() (string, error) {
 		return "", fmt.Errorf("reading UserFolder failed: %v", err)
 	}
 
-	if valtype == registry.EXPAND_SZ {
+	// REG_SZ values may also contain environment variables that need to be expanded.
+	// It's recommended but not required to use REG_EXPAND_SZ for paths that contain environment variables.
+	if valtype == registry.EXPAND_SZ || valtype == registry.SZ {
 		expanded, err := registry.ExpandString(path)
 		if err != nil {
 			return "", fmt.Errorf("expanding UserFolder failed: %v", err)
@@ -1013,6 +992,8 @@ func TestFileStatNUL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
+
 	fi, err := f.Stat()
 	if err != nil {
 		t.Fatal(err)
@@ -1038,8 +1019,8 @@ func TestStatNUL(t *testing.T) {
 // works on Windows when developer mode is active.
 // This is supported starting Windows 10 (1703, v10.0.14972).
 func TestSymlinkCreation(t *testing.T) {
-	if !testenv.HasSymlink() && !isWindowsDeveloperModeActive() {
-		t.Skip("Windows developer mode is not active")
+	if !testenv.HasSymlink() {
+		t.Skip("skipping test; no symlink support")
 	}
 	t.Parallel()
 
@@ -1053,23 +1034,6 @@ func TestSymlinkCreation(t *testing.T) {
 	if err := os.Symlink(dummyFile, linkFile); err != nil {
 		t.Fatal(err)
 	}
-}
-
-// isWindowsDeveloperModeActive checks whether or not the developer mode is active on Windows 10.
-// Returns false for prior Windows versions.
-// see https://docs.microsoft.com/en-us/windows/uwp/get-started/enable-your-device-for-development
-func isWindowsDeveloperModeActive() bool {
-	key, err := registry.OpenKey(registry.LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", registry.READ)
-	if err != nil {
-		return false
-	}
-
-	val, _, err := key.GetIntegerValue("AllowDevelopmentWithoutDevLicense")
-	if err != nil {
-		return false
-	}
-
-	return val != 0
 }
 
 // TestRootRelativeDirSymlink verifies that symlinks to paths relative to the
@@ -1131,14 +1095,7 @@ func TestWorkingDirectoryRelativeSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if err := os.Chdir(oldwd); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	if err := os.Chdir(temp); err != nil {
-		t.Fatal(err)
-	}
+	t.Chdir(temp)
 	t.Logf("Chdir(%#q)", temp)
 
 	wdRelDir := filepath.VolumeName(temp) + `dir\sub` // no backslash after volume.
@@ -1223,10 +1180,7 @@ func TestRootDirAsTemp(t *testing.T) {
 	testenv.MustHaveExec(t)
 	t.Parallel()
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
+	exe := testenv.Executable(t)
 
 	newtmp, err := findUnusedDriveLetter()
 	if err != nil {
@@ -1302,6 +1256,9 @@ func TestReadlink(t *testing.T) {
 		}
 
 		t.Run(name, func(t *testing.T) {
+			if !tt.junction {
+				testenv.MustHaveSymlink(t)
+			}
 			if !tt.relative {
 				t.Parallel()
 			}
@@ -1329,7 +1286,7 @@ func TestReadlink(t *testing.T) {
 				} else {
 					want = relTarget
 				}
-				chdir(t, tmpdir)
+				t.Chdir(tmpdir)
 				link = filepath.Base(link)
 				target = relTarget
 			} else {

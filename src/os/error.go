@@ -71,7 +71,7 @@ func NewSyscallError(syscall string, err error) error {
 	return &SyscallError{syscall, err}
 }
 
-// IsExist returns a boolean indicating whether the error is known to report
+// IsExist returns a boolean indicating whether its argument is known to report
 // that a file or directory already exists. It is satisfied by [ErrExist] as
 // well as some syscall errors.
 //
@@ -81,7 +81,7 @@ func IsExist(err error) bool {
 	return underlyingErrorIs(err, ErrExist)
 }
 
-// IsNotExist returns a boolean indicating whether the error is known to
+// IsNotExist returns a boolean indicating whether its argument is known to
 // report that a file or directory does not exist. It is satisfied by
 // [ErrNotExist] as well as some syscall errors.
 //
@@ -91,7 +91,7 @@ func IsNotExist(err error) bool {
 	return underlyingErrorIs(err, ErrNotExist)
 }
 
-// IsPermission returns a boolean indicating whether the error is known to
+// IsPermission returns a boolean indicating whether its argument is known to
 // report that permission is denied. It is satisfied by [ErrPermission] as well
 // as some syscall errors.
 //
@@ -101,7 +101,7 @@ func IsPermission(err error) bool {
 	return underlyingErrorIs(err, ErrPermission)
 }
 
-// IsTimeout returns a boolean indicating whether the error is known
+// IsTimeout returns a boolean indicating whether its argument is known
 // to report that a timeout occurred.
 //
 // This function predates [errors.Is], and the notion of whether an

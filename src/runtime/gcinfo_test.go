@@ -90,7 +90,7 @@ func TestGCInfo(t *testing.T) {
 }
 
 func verifyGCInfo(t *testing.T, name string, p any, mask0 []byte) {
-	mask := runtime.GCMask(p)
+	mask := runtime.PointerMask(p)
 	if bytes.HasPrefix(mask, mask0) {
 		// Just the prefix matching is OK.
 		//

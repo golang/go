@@ -14,7 +14,7 @@ package runtime
 
 import (
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 )
 
 // Central list of free objects of a given size.
@@ -260,6 +260,6 @@ func (c *mcentral) grow() *mspan {
 	// n := (npages << _PageShift) / size
 	n := s.divideByElemSize(npages << _PageShift)
 	s.limit = s.base() + size*n
-	s.initHeapBits(false)
+	s.initHeapBits()
 	return s
 }

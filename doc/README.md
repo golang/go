@@ -27,22 +27,49 @@ should have a corresponding file named `doc/next/6-stdlib/99-minor/net/http/1234
 At a minimum, that file should contain either a full sentence or a TODO,
 ideally referring to a person with the responsibility to complete the note.
 
+If your CL addresses an accepted proposal, mention the proposal issue number in
+your release note in the form `/issue/NUMBER`. A link to the issue in the text
+will have this form (see below). If you don't want to mention the issue in the
+text, add it as a comment:
+```
+<!-- go.dev/issue/12345 -->
+```
+If an accepted proposal is mentioned in a CL but not in the release notes, it will be
+flagged as a TODO by the automated tooling. That is true even for proposals that add API.
+
 Use the following forms in your markdown:
 
 	[http.Request]                     # symbol documentation; auto-linked as in Go doc strings
+	[Request]                          # short form, for symbols in the package being documented
+	[net/http]                         # package link
 	[#12345](/issue/12345)             # GitHub issues
 	[CL 6789](/cl/6789)                # Gerrit changelists
 
+To preview `next` content in merged form using a local instance of the website, run:
+
+```
+go run golang.org/x/website/cmd/golangorg@latest -goroot=..
+```
+
+Then open http://localhost:6060/doc/next. Refresh the page to see your latest edits.
+
 ## For the release team
 
-At the start of a release development cycle, the contents of `next` should be deleted
-and replaced with those of `initial`. From the repo root:
+The `relnote` tool, at `golang.org/x/build/cmd/relnote`, operates on the files
+in `doc/next`.
+
+As a release cycle nears completion, run `relnote todo` to get a list of
+unfinished release note work.
+
+To prepare the release notes for a release, run `relnote generate`.
+That will merge the `.md` files in `next` into a single file.
+Atomically (as close to it as possible) add that file to `_content/doc` directory
+of the website repository and remove the `doc/next` directory in this repository.
+
+To begin the next release development cycle, populate the contents of `next`
+with those of `initial`. From the repo root:
 
     > cd doc
-    > rm -r next/*
-    > cp -r initial/* next
+    > cp -R initial/ next
 
 Then edit `next/1-intro.md` to refer to the next version.
-
-To prepare the release notes for a release, run `golang.org/x/build/cmd/relnote generate`.
-That will merge the `.md` files in `next` into a single file.

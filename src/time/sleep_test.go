@@ -785,6 +785,119 @@ func TestAdjustTimers(t *testing.T) {
 	}
 }
 
+func TestStopResult(t *testing.T) {
+	testStopResetResult(t, true)
+}
+
+func TestResetResult(t *testing.T) {
+	testStopResetResult(t, false)
+}
+
+// Test that when racing between running a timer and stopping a timer Stop
+// consistently indicates whether a value can be read from the channel.
+// Issue #69312.
+func testStopResetResult(t *testing.T, testStop bool) {
+	for _, name := range []string{"0", "1", "2"} {
+		t.Run("asynctimerchan="+name, func(t *testing.T) {
+			testStopResetResultGODEBUG(t, testStop, name)
+		})
+	}
+}
+
+func testStopResetResultGODEBUG(t *testing.T, testStop bool, godebug string) {
+	t.Setenv("GODEBUG", "asynctimerchan="+godebug)
+
+	stopOrReset := func(timer *Timer) bool {
+		if testStop {
+			return timer.Stop()
+		} else {
+			return timer.Reset(1 * Hour)
+		}
+	}
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	const N = 1000
+	wg.Add(N)
+	for range N {
+		go func() {
+			defer wg.Done()
+			<-start
+			for j := 0; j < 100; j++ {
+				timer1 := NewTimer(1 * Millisecond)
+				timer2 := NewTimer(1 * Millisecond)
+				select {
+				case <-timer1.C:
+					if !stopOrReset(timer2) {
+						// The test fails if this
+						// channel read times out.
+						<-timer2.C
+					}
+				case <-timer2.C:
+					if !stopOrReset(timer1) {
+						// The test fails if this
+						// channel read times out.
+						<-timer1.C
+					}
+				}
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+}
+
+// Test having a large number of goroutines wake up a ticker simultaneously.
+// This used to trigger a crash when run under x/tools/cmd/stress.
+func TestMultiWakeupTicker(t *testing.T) {
+	if testing.Short() {
+		t.Skip("-short")
+	}
+
+	goroutines := runtime.GOMAXPROCS(0)
+	timer := NewTicker(Microsecond)
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for range 100000 {
+				select {
+				case <-timer.C:
+				case <-After(Millisecond):
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+// Test having a large number of goroutines wake up a timer simultaneously.
+// This used to trigger a crash when run under x/tools/cmd/stress.
+func TestMultiWakeupTimer(t *testing.T) {
+	if testing.Short() {
+		t.Skip("-short")
+	}
+
+	goroutines := runtime.GOMAXPROCS(0)
+	timer := NewTimer(Nanosecond)
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for range 10000 {
+				select {
+				case <-timer.C:
+				default:
+				}
+				timer.Reset(Nanosecond)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 // Benchmark timer latency when the thread that creates the timer is busy with
 // other work and the timers must be serviced by other threads.
 // https://golang.org/issue/38860

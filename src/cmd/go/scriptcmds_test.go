@@ -5,9 +5,9 @@
 package main_test
 
 import (
-	"cmd/go/internal/script"
-	"cmd/go/internal/script/scripttest"
 	"cmd/go/internal/work"
+	"cmd/internal/script"
+	"cmd/internal/script/scripttest"
 	"errors"
 	"fmt"
 	"os"

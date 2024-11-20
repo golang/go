@@ -266,27 +266,22 @@ func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
 		return
 	}
 
-	if line == "!<arch>\n" { // package archive
-		// package export block should be first
-		sz := int64(archive.ReadHeader(r.Reader, "__.PKGDEF"))
-		if sz <= 0 {
-			err = errors.New("not a package file")
-			return
-		}
-		end = r.Offset() + sz
-		line, err = r.ReadString('\n')
-		if err != nil {
-			return
-		}
-	} else {
-		// Not an archive; provide end of file instead.
-		// TODO(mdempsky): I don't think this happens anymore.
-		var fi os.FileInfo
-		fi, err = f.Stat()
-		if err != nil {
-			return
-		}
-		end = fi.Size()
+	// Is the first line an archive file signature?
+	if line != "!<arch>\n" {
+		err = fmt.Errorf("not the start of an archive file (%q)", line)
+		return
+	}
+
+	// package export block should be first
+	sz := int64(archive.ReadHeader(r.Reader, "__.PKGDEF"))
+	if sz <= 0 {
+		err = errors.New("not a package file")
+		return
+	}
+	end = r.Offset() + sz
+	line, err = r.ReadString('\n')
+	if err != nil {
+		return
 	}
 
 	if !strings.HasPrefix(line, "go object ") {
@@ -308,7 +303,7 @@ func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
 
 	// Expect $$B\n to signal binary import format.
 	if line != "$$B\n" {
-		err = errors.New("old export format no longer supported (recompile library)")
+		err = errors.New("old export format no longer supported (recompile package)")
 		return
 	}
 

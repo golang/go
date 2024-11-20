@@ -206,7 +206,7 @@ func (c *Client) Auth(a Auth) error {
 	}
 	resp64 := make([]byte, encoding.EncodedLen(len(resp)))
 	encoding.Encode(resp64, resp)
-	code, msg64, err := c.cmd(0, strings.TrimSpace(fmt.Sprintf("AUTH %s %s", mech, resp64)))
+	code, msg64, err := c.cmd(0, "%s", strings.TrimSpace(fmt.Sprintf("AUTH %s %s", mech, resp64)))
 	for err == nil {
 		var msg []byte
 		switch code {
@@ -232,7 +232,7 @@ func (c *Client) Auth(a Auth) error {
 		}
 		resp64 = make([]byte, encoding.EncodedLen(len(resp)))
 		encoding.Encode(resp64, resp)
-		code, msg64, err = c.cmd(0, string(resp64))
+		code, msg64, err = c.cmd(0, "%s", resp64)
 	}
 	return err
 }
@@ -413,9 +413,7 @@ func (c *Client) Noop() error {
 
 // Quit sends the QUIT command and closes the connection to the server.
 func (c *Client) Quit() error {
-	if err := c.hello(); err != nil {
-		return err
-	}
+	c.hello() // ignore error; we're quitting anyhow
 	_, _, err := c.cmd(221, "QUIT")
 	if err != nil {
 		return err

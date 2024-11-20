@@ -11,8 +11,10 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -92,14 +94,8 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-
 	path := filepath.Join(dir, "x")
-	argv := []string{"build", "-o", path, filepath.Join(wd, "testdata", "issue39256")}
+	argv := []string{"build", "-o", path, "./testdata/issue39256"}
 	out, err := testenv.Command(t, testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("Build failure: %s\n%s\n", err, string(out))
@@ -408,4 +404,199 @@ func TestElfBindNow(t *testing.T) {
 			}
 		})
 	}
+}
+
+// This program is intended to be just big/complicated enough that
+// we wind up with decent-sized .data.rel.ro.{typelink,itablink,gopclntab}
+// sections.
+const ifacecallsProg = `
+package main
+
+import "reflect"
+
+type A string
+type B int
+type C float64
+
+type describer interface{ What() string }
+type timer interface{ When() int }
+type rationale interface{ Why() error }
+
+func (a *A) What() string { return "string" }
+func (b *B) What() string { return "int" }
+func (b *B) When() int    { return int(*b) }
+func (b *B) Why() error   { return nil }
+func (c *C) What() string { return "float64" }
+
+func i_am_dead(c C) {
+	var d describer = &c
+	println(d.What())
+}
+
+func example(a A, b B) describer {
+	if b == 1 {
+		return &a
+	}
+	return &b
+}
+
+func ouch(a any, what string) string {
+	cv := reflect.ValueOf(a).MethodByName(what).Call(nil)
+	return cv[0].String()
+}
+
+func main() {
+	println(example("", 1).What())
+	println(ouch(example("", 1), "What"))
+}
+
+`
+
+func TestRelroSectionOverlapIssue67261(t *testing.T) {
+	t.Parallel()
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveBuildMode(t, "pie")
+	testenv.MustInternalLinkPIE(t)
+
+	// This test case inspired by issue 67261, in which the linker
+	// produces a set of sections for -buildmode=pie that confuse the
+	// "strip" command, due to overlapping extents. The test first
+	// verifies that we don't have any overlapping PROGBITS/DYNAMIC
+	// sections, then runs "strip" on the resulting binary.
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "e.go")
+	binFile := filepath.Join(dir, "e.exe")
+
+	if err := os.WriteFile(src, []byte(ifacecallsProg), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	cmdArgs := []string{"build", "-o", binFile, "-buildmode=pie", "-ldflags=linkmode=internal", src}
+	cmd := testenv.Command(t, testenv.GoToolPath(t), cmdArgs...)
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build %v: %v:\n%s", cmd.Args, err, out)
+	}
+
+	fi, err := os.Open(binFile)
+	if err != nil {
+		t.Fatalf("failed to open built file: %v", err)
+	}
+	defer fi.Close()
+
+	elfFile, err := elf.NewFile(fi)
+	if err != nil {
+		t.Skip("The system may not support ELF, skipped.")
+	}
+	defer elfFile.Close()
+
+	// List of interesting sections. Here "interesting" means progbits/dynamic
+	// and loadable (has an address), nonzero size.
+	secs := []*elf.Section{}
+	for _, s := range elfFile.Sections {
+		if s.Type != elf.SHT_PROGBITS && s.Type != elf.SHT_DYNAMIC {
+			continue
+		}
+		if s.Addr == 0 || s.Size == 0 {
+			continue
+		}
+		secs = append(secs, s)
+	}
+
+	secOverlaps := func(s1, s2 *elf.Section) bool {
+		st1 := s1.Addr
+		st2 := s2.Addr
+		en1 := s1.Addr + s1.Size
+		en2 := s2.Addr + s2.Size
+		return max(st1, st2) < min(en1, en2)
+	}
+
+	// Sort by address
+	sort.SliceStable(secs, func(i, j int) bool {
+		return secs[i].Addr < secs[j].Addr
+	})
+
+	// Check to make sure we don't have any overlaps.
+	foundOverlap := false
+	for i := 0; i < len(secs)-1; i++ {
+		for j := i + 1; j < len(secs); j++ {
+			s := secs[i]
+			sn := secs[j]
+			if secOverlaps(s, sn) {
+				t.Errorf("unexpected: section %d:%q (addr=%x size=%x) overlaps section %d:%q (addr=%x size=%x)", i, s.Name, s.Addr, s.Size, i+1, sn.Name, sn.Addr, sn.Size)
+				foundOverlap = true
+			}
+		}
+	}
+	if foundOverlap {
+		// Print some additional info for human inspection.
+		t.Logf("** section list follows\n")
+		for i := range secs {
+			s := secs[i]
+			fmt.Printf(" | %2d: ad=0x%08x en=0x%08x sz=0x%08x t=%s %q\n",
+				i, s.Addr, s.Addr+s.Size, s.Size, s.Type, s.Name)
+		}
+	}
+
+	// We need CGO / c-compiler for the next bit.
+	testenv.MustHaveCGO(t)
+
+	// Make sure that the resulting binary can be put through strip.
+	// Try both "strip" and "llvm-strip"; in each case ask out CC
+	// command where to find the tool with "-print-prog-name" (meaning
+	// that if CC is gcc, we typically won't be able to find llvm-strip).
+	//
+	// Interestingly, binutils version of strip will (unfortunately)
+	// print error messages if there is a problem but will not return
+	// a non-zero exit status (?why?), so we consider any output a
+	// failure here.
+	stripExecs := []string{}
+	ecmd := testenv.Command(t, testenv.GoToolPath(t), "env", "CC")
+	if out, err := ecmd.CombinedOutput(); err != nil {
+		t.Fatalf("go env CC failed: %v:\n%s", err, out)
+	} else {
+		ccprog := strings.TrimSpace(string(out))
+		tries := []string{"strip", "llvm-strip"}
+		for _, try := range tries {
+			cmd := testenv.Command(t, ccprog, "-print-prog-name="+try)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("print-prog-name failed: %+v %v:\n%s",
+					cmd.Args, err, out)
+			} else {
+				sprog := strings.TrimSpace(string(out))
+				stripExecs = append(stripExecs, sprog)
+			}
+		}
+	}
+
+	// Run strip on our Go PIE binary, making sure that the strip
+	// succeeds and we get no output from strip, then run the resulting
+	// stripped binary.
+	for k, sprog := range stripExecs {
+		if _, err := os.Stat(sprog); err != nil {
+			sp1, err := exec.LookPath(sprog)
+			if err != nil || sp1 == "" {
+				continue
+			}
+			sprog = sp1
+		}
+		targ := fmt.Sprintf("p%d.exe", k)
+		scmd := testenv.Command(t, sprog, "-o", targ, binFile)
+		scmd.Dir = dir
+		if sout, serr := scmd.CombinedOutput(); serr != nil {
+			t.Fatalf("failed to strip %v: %v:\n%s", scmd.Args, serr, sout)
+		} else {
+			// Non-empty output indicates failure, as mentioned above.
+			if len(string(sout)) != 0 {
+				t.Errorf("unexpected output from %s:\n%s\n", sprog, string(sout))
+			}
+		}
+		rcmd := testenv.Command(t, filepath.Join(dir, targ))
+		if out, err := rcmd.CombinedOutput(); err != nil {
+			t.Errorf("binary stripped by %s failed: %v:\n%s",
+				scmd.Args, err, string(out))
+		}
+	}
+
 }

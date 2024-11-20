@@ -14,10 +14,13 @@ import (
 	"internal/bytealg"
 	"runtime"
 	"syscall"
+	_ "unsafe" // for linkname
 )
 
 // registerLoadFromEmbeddedTZData is called by the time/tzdata package,
 // if it is imported.
+//
+//go:linkname registerLoadFromEmbeddedTZData
 func registerLoadFromEmbeddedTZData(f func(string) (string, error)) {
 	loadFromEmbeddedTZData = f
 }
@@ -317,7 +320,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 
 	// Fill in the cache with information about right now,
 	// since that will be the most common lookup.
-	sec, _, _ := now()
+	sec, _, _ := runtimeNow()
 	for i := range tx {
 		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
 			l.cacheStart = tx[i].when

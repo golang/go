@@ -10,7 +10,7 @@ stdout '^ok'
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Make sure that go test runs Example_Z before Example_A, preserving source order.
+// Make sure that go test runs Example_z before Example_a, preserving source order.
 
 package p
 
@@ -18,13 +18,13 @@ import "fmt"
 
 var n int
 
-func Example_Z() {
+func Example_z() {
 	n++
 	fmt.Println(n)
 	// Output: 1
 }
 
-func Example_A() {
+func Example_a() {
 	n++
 	fmt.Println(n)
 	// Output: 2

@@ -475,6 +475,12 @@ TEXT runtime·osinit_hack_trampoline(SB),NOSPLIT,$0
 	BL	libc_xpc_date_create_from_current(SB)
 	RET
 
+TEXT runtime·arc4random_buf_trampoline(SB),NOSPLIT,$0
+	MOVW	8(R0), R1	// arg 2 nbytes
+	MOVD	0(R0), R0	// arg 1 buf
+	BL	libc_arc4random_buf(SB)
+	RET
+
 // syscall calls a function in libc on behalf of the syscall package.
 // syscall takes a pointer to a struct like:
 // struct {

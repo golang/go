@@ -8,6 +8,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"io"
@@ -36,7 +37,8 @@ func TestTransportPersistConnReadLoopEOF(t *testing.T) {
 	tr := new(Transport)
 	req, _ := NewRequest("GET", "http://"+ln.Addr().String(), nil)
 	req = req.WithT(t)
-	treq := &transportRequest{Request: req}
+	ctx, cancel := context.WithCancelCause(context.Background())
+	treq := &transportRequest{Request: req, ctx: ctx, cancel: cancel}
 	cm := connectMethod{targetScheme: "http", targetAddr: ln.Addr().String()}
 	pc, err := tr.getConn(treq, cm)
 	if err != nil {

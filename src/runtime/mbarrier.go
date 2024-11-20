@@ -17,6 +17,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/goexperiment"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -91,19 +92,6 @@ import (
 // barriers, which will slow down both the mutator and the GC, we always grey
 // the ptr object regardless of the slot's color.
 //
-// Another place where we intentionally omit memory barriers is when
-// accessing mheap_.arena_used to check if a pointer points into the
-// heap. On relaxed memory machines, it's possible for a mutator to
-// extend the size of the heap by updating arena_used, allocate an
-// object from this new region, and publish a pointer to that object,
-// but for tracing running on another processor to observe the pointer
-// but use the old value of arena_used. In this case, tracing will not
-// mark the object, even though it's reachable. However, the mutator
-// is guaranteed to execute a write barrier when it publishes the
-// pointer, so it will take care of marking the object. A general
-// consequence of this is that the garbage collector may cache the
-// value of mheap_.arena_used. (See issue #9984.)
-//
 //
 // Stack writes:
 //
@@ -148,6 +136,16 @@ import (
 // TODO: Perfect for go:nosplitrec since we can't have a safe point
 // anywhere in the bulk barrier or memmove.
 //
+// typedmemmove should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/RomiChan/protobuf
+//   - github.com/segmentio/encoding
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname typedmemmove
 //go:nosplit
 func typedmemmove(typ *abi.Type, dst, src unsafe.Pointer) {
 	if dst == src {
@@ -199,11 +197,23 @@ func wbMove(typ *_type, dst, src unsafe.Pointer) {
 	bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.PtrBytes, typ)
 }
 
+// reflect_typedmemmove is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//   - github.com/goccy/json
+//   - github.com/modern-go/reflect2
+//   - github.com/ugorji/go/codec
+//   - github.com/v2pro/plz
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_typedmemmove reflect.typedmemmove
 func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if raceenabled {
-		raceWriteObjectPC(typ, dst, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
-		raceReadObjectPC(typ, src, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
+		raceWriteObjectPC(typ, dst, sys.GetCallerPC(), abi.FuncPCABIInternal(reflect_typedmemmove))
+		raceReadObjectPC(typ, src, sys.GetCallerPC(), abi.FuncPCABIInternal(reflect_typedmemmove))
 	}
 	if msanenabled {
 		msanwrite(dst, typ.Size_)
@@ -219,6 +229,11 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 //go:linkname reflectlite_typedmemmove internal/reflectlite.typedmemmove
 func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	reflect_typedmemmove(typ, dst, src)
+}
+
+//go:linkname maps_typedmemmove internal/runtime/maps.typedmemmove
+func maps_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	typedmemmove(typ, dst, src)
 }
 
 // reflectcallmove is invoked by reflectcall to copy the return values
@@ -248,6 +263,15 @@ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *ab
 	}
 }
 
+// typedslicecopy should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/segmentio/encoding
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname typedslicecopy
 //go:nosplit
 func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe.Pointer, srcLen int) int {
 	n := dstLen
@@ -263,7 +287,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 	// assignment operations, it's not instrumented in the calling
 	// code and needs its own instrumentation.
 	if raceenabled {
-		callerpc := getcallerpc()
+		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(slicecopy)
 		racewriterangepc(dstPtr, uintptr(n)*typ.Size_, callerpc, pc)
 		racereadrangepc(srcPtr, uintptr(n)*typ.Size_, callerpc, pc)
@@ -303,6 +327,18 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 	return n
 }
 
+// reflect_typedslicecopy is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//   - github.com/modern-go/reflect2
+//   - github.com/RomiChan/protobuf
+//   - github.com/segmentio/encoding
+//   - github.com/v2pro/plz
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_typedslicecopy reflect.typedslicecopy
 func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 	if !elemType.Pointers() {
@@ -332,8 +368,21 @@ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
 	memclrNoHeapPointers(ptr, typ.Size_)
 }
 
+// reflect_typedslicecopy is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_typedmemclr reflect.typedmemclr
 func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
+	typedmemclr(typ, ptr)
+}
+
+//go:linkname maps_typedmemclr internal/runtime/maps.typedmemclr
+func maps_typedmemclr(typ *_type, ptr unsafe.Pointer) {
 	typedmemclr(typ, ptr)
 }
 
@@ -365,6 +414,15 @@ func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
 // pointers, usually by checking typ.PtrBytes. However, ptr
 // does not have to point to the start of the allocation.
 //
+// memclrHasPointers should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname memclrHasPointers
 //go:nosplit
 func memclrHasPointers(ptr unsafe.Pointer, n uintptr) {
 	// Pass nil for the type since we don't have one here anyway.

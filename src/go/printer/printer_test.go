@@ -125,7 +125,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 	}
 
 	// formatted source and golden must be the same
-	if err := checkEqual(source, golden, res, gld); err != nil {
+	if err := checkEqual(fmt.Sprintf("format(%v)", source), golden, res, gld); err != nil {
 		t.Error(err)
 		return
 	}
@@ -668,7 +668,7 @@ func TestWriteErrors(t *testing.T) {
 	}
 }
 
-// TextX is a skeleton test that can be filled in for debugging one-off cases.
+// TestX is a skeleton test that can be filled in for debugging one-off cases.
 // Do not remove.
 func TestX(t *testing.T) {
 	const src = `

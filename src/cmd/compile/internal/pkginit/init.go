@@ -138,9 +138,7 @@ func MakeTask() {
 	// that this package depends on (and thus, all of the packages
 	// that need to be initialized before this one).
 	for _, d := range deps {
-		r := obj.Addrel(lsym)
-		r.Type = objabi.R_INITORDER
-		r.Sym = d
+		lsym.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_INITORDER, Sym: d})
 	}
 	// An initTask has pointers, but none into the Go heap.
 	// It's not quite read only, the state field must be modifiable.

@@ -310,7 +310,7 @@ func ExampleSortStableFunc() {
 		{"Bob", 24},
 		{"Alice", 55},
 	}
-	// Stable sort by name, keeping age ordering of Alices intact
+	// Stable sort by name, keeping age ordering of Alice intact
 	slices.SortStableFunc(people, func(a, b Person) int {
 		return strings.Compare(a.Name, b.Name)
 	})
@@ -325,9 +325,11 @@ func ExampleClone() {
 	fmt.Println(clone)
 	clone[2] = 10
 	fmt.Println(numbers)
+	fmt.Println(clone)
 	// Output:
 	// [0 42 -10 8]
 	// [0 42 -10 8]
+	// [0 42 10 8]
 }
 
 func ExampleGrow() {
@@ -383,4 +385,158 @@ func ExampleRepeat() {
 	fmt.Println(repeat)
 	// Output:
 	// [0 1 2 3 0 1 2 3]
+}
+
+func ExampleAll() {
+	names := []string{"Alice", "Bob", "Vera"}
+	for i, v := range slices.All(names) {
+		fmt.Println(i, ":", v)
+	}
+	// Output:
+	// 0 : Alice
+	// 1 : Bob
+	// 2 : Vera
+}
+
+func ExampleBackward() {
+	names := []string{"Alice", "Bob", "Vera"}
+	for i, v := range slices.Backward(names) {
+		fmt.Println(i, ":", v)
+	}
+	// Output:
+	// 2 : Vera
+	// 1 : Bob
+	// 0 : Alice
+}
+
+func ExampleValues() {
+	names := []string{"Alice", "Bob", "Vera"}
+	for v := range slices.Values(names) {
+		fmt.Println(v)
+	}
+	// Output:
+	// Alice
+	// Bob
+	// Vera
+}
+
+func ExampleAppendSeq() {
+	seq := func(yield func(int) bool) {
+		for i := 0; i < 10; i += 2 {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+
+	s := slices.AppendSeq([]int{1, 2}, seq)
+	fmt.Println(s)
+	// Output:
+	// [1 2 0 2 4 6 8]
+}
+
+func ExampleCollect() {
+	seq := func(yield func(int) bool) {
+		for i := 0; i < 10; i += 2 {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+
+	s := slices.Collect(seq)
+	fmt.Println(s)
+	// Output:
+	// [0 2 4 6 8]
+}
+
+func ExampleSorted() {
+	seq := func(yield func(int) bool) {
+		flag := -1
+		for i := 0; i < 10; i += 2 {
+			flag = -flag
+			if !yield(i * flag) {
+				return
+			}
+		}
+	}
+
+	s := slices.Sorted(seq)
+	fmt.Println(s)
+	fmt.Println(slices.IsSorted(s))
+	// Output:
+	// [-6 -2 0 4 8]
+	// true
+}
+
+func ExampleSortedFunc() {
+	seq := func(yield func(int) bool) {
+		flag := -1
+		for i := 0; i < 10; i += 2 {
+			flag = -flag
+			if !yield(i * flag) {
+				return
+			}
+		}
+	}
+
+	sortFunc := func(a, b int) int {
+		return cmp.Compare(b, a) // the comparison is being done in reverse
+	}
+
+	s := slices.SortedFunc(seq, sortFunc)
+	fmt.Println(s)
+	// Output:
+	// [8 4 0 -2 -6]
+}
+
+func ExampleSortedStableFunc() {
+	type Person struct {
+		Name string
+		Age  int
+	}
+
+	people := []Person{
+		{"Gopher", 13},
+		{"Alice", 20},
+		{"Bob", 5},
+		{"Vera", 24},
+		{"Zac", 20},
+	}
+
+	sortFunc := func(x, y Person) int {
+		return cmp.Compare(x.Age, y.Age)
+	}
+
+	s := slices.SortedStableFunc(slices.Values(people), sortFunc)
+	fmt.Println(s)
+	// Output:
+	// [{Bob 5} {Gopher 13} {Alice 20} {Zac 20} {Vera 24}]
+}
+
+func ExampleChunk() {
+	type Person struct {
+		Name string
+		Age  int
+	}
+
+	type People []Person
+
+	people := People{
+		{"Gopher", 13},
+		{"Alice", 20},
+		{"Bob", 5},
+		{"Vera", 24},
+		{"Zac", 15},
+	}
+
+	// Chunk people into []Person 2 elements at a time.
+	for c := range slices.Chunk(people, 2) {
+		fmt.Println(c)
+	}
+
+	// Output:
+	// [{Gopher 13} {Alice 20}]
+	// [{Bob 5} {Vera 24}]
+	// [{Zac 15}]
 }

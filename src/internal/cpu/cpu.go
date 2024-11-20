@@ -6,6 +6,8 @@
 // used by the Go standard library.
 package cpu
 
+import _ "unsafe" // for linkname
+
 // DebugOptions is set to true by the runtime if the OS supports reading
 // GODEBUG early in runtime startup.
 // This should not be changed after it is initialized.
@@ -35,6 +37,7 @@ var X86 struct {
 	HasBMI1      bool
 	HasBMI2      bool
 	HasERMS      bool
+	HasFSRM      bool
 	HasFMA       bool
 	HasOSXSAVE   bool
 	HasPCLMULQDQ bool
@@ -70,8 +73,20 @@ var ARM64 struct {
 	HasCRC32   bool
 	HasATOMICS bool
 	HasCPUID   bool
+	HasDIT     bool
 	IsNeoverse bool
 	_          CacheLinePad
+}
+
+// The booleans in Loong64 contain the correspondingly named cpu feature bit.
+// The struct is padded to avoid false sharing.
+var Loong64 struct {
+	_         CacheLinePad
+	HasLSX    bool // support 128-bit vector extension
+	HasCRC32  bool // support CRC instruction
+	HasLAMCAS bool // support AMCAS[_DB].{B/H/W/D}
+	HasLAM_BH bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
+	_         CacheLinePad
 }
 
 var MIPS64X struct {
@@ -120,6 +135,15 @@ var S390X struct {
 	HasEDDSA  bool // Edwards curves
 	_         CacheLinePad
 }
+
+// CPU feature variables are accessed by assembly code in various packages.
+//go:linkname X86
+//go:linkname ARM
+//go:linkname ARM64
+//go:linkname Loong64
+//go:linkname MIPS64X
+//go:linkname PPC64
+//go:linkname S390X
 
 // Initialize examines the processor and sets the relevant variables above.
 // This is called by the runtime package early in program initialization,

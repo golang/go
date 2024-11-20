@@ -387,7 +387,8 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 
 // Decode decodes src using the encoding enc. It writes at most
 // [Encoding.DecodedLen](len(src)) bytes to dst and returns the number of bytes
-// written. If src contains invalid base32 data, it will return the
+// written. The caller must ensure that dst is large enough to hold all
+// the decoded data. If src contains invalid base32 data, it will return the
 // number of bytes successfully written and [CorruptInputError].
 // Newline characters (\r and \n) are ignored.
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
@@ -467,7 +468,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	}
 
 	// Read a chunk.
-	nn := len(p) / 5 * 8
+	nn := (len(p) + 4) / 5 * 8
 	if nn < 8 {
 		nn = 8
 	}

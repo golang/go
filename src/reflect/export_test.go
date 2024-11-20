@@ -58,9 +58,6 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 		inReg = append(inReg, bool2byte(abid.inRegPtrs.Get(i)))
 		outReg = append(outReg, bool2byte(abid.outRegPtrs.Get(i)))
 	}
-	if ft.Kind_&abi.KindGCProg != 0 {
-		panic("can't handle gc programs")
-	}
 
 	// Expand frame type's GC bitmap into byte-map.
 	ptrs = ft.Pointers()
@@ -90,19 +87,6 @@ func TypeLinks() []string {
 var GCBits = gcbits
 
 func gcbits(any) []byte // provided by runtime
-
-func MapBucketOf(x, y Type) Type {
-	return toType(bucketOf(x.common(), y.common()))
-}
-
-func CachedBucketOf(m Type) Type {
-	t := m.(*rtype)
-	if Kind(t.t.Kind_&abi.KindMask) != Map {
-		panic("not map")
-	}
-	tt := (*mapType)(unsafe.Pointer(t))
-	return toType(tt.Bucket)
-}
 
 type EmbedWithUnexpMeth struct{}
 

@@ -10,6 +10,7 @@ package strings
 import (
 	"internal/bytealg"
 	"internal/stringslite"
+	"math/bits"
 	"unicode"
 	"unicode/utf8"
 )
@@ -121,9 +122,10 @@ func IndexByte(s string, c byte) int {
 
 // IndexRune returns the index of the first instance of the Unicode code point
 // r, or -1 if rune is not present in s.
-// If r is utf8.RuneError, it returns the first instance of any
+// If r is [utf8.RuneError], it returns the first instance of any
 // invalid UTF-8 byte sequence.
 func IndexRune(s string, r rune) int {
+	const haveFastIndex = bytealg.MaxBruteForce > 0
 	switch {
 	case 0 <= r && r < utf8.RuneSelf:
 		return IndexByte(s, byte(r))
@@ -137,7 +139,60 @@ func IndexRune(s string, r rune) int {
 	case !utf8.ValidRune(r):
 		return -1
 	default:
-		return Index(s, string(r))
+		// Search for rune r using the last byte of its UTF-8 encoded form.
+		// The distribution of the last byte is more uniform compared to the
+		// first byte which has a 78% chance of being [240, 243, 244].
+		rs := string(r)
+		last := len(rs) - 1
+		i := last
+		fails := 0
+		for i < len(s) {
+			if s[i] != rs[last] {
+				o := IndexByte(s[i+1:], rs[last])
+				if o < 0 {
+					return -1
+				}
+				i += o + 1
+			}
+			// Step backwards comparing bytes.
+			for j := 1; j < len(rs); j++ {
+				if s[i-j] != rs[last-j] {
+					goto next
+				}
+			}
+			return i - last
+		next:
+			fails++
+			i++
+			if (haveFastIndex && fails > bytealg.Cutover(i)) && i < len(s) ||
+				(!haveFastIndex && fails >= 4+i>>4 && i < len(s)) {
+				goto fallback
+			}
+		}
+		return -1
+
+	fallback:
+		// see comment in ../bytes/bytes.go
+		if haveFastIndex {
+			if j := bytealg.IndexString(s[i-last:], string(r)); j >= 0 {
+				return i + j - last
+			}
+		} else {
+			c0 := rs[last]
+			c1 := rs[last-1]
+		loop:
+			for ; i < len(s); i++ {
+				if s[i] == c0 && s[i-1] == c1 {
+					for k := 2; k < len(rs); k++ {
+						if s[i-k] != rs[last-k] {
+							continue loop
+						}
+					}
+					return i - last
+				}
+			}
+		}
+		return -1
 	}
 }
 
@@ -267,28 +322,26 @@ func genSplit(s, sep string, sepSave, n int) []string {
 // the substrings between those separators.
 //
 // The count determines the number of substrings to return:
-//
-//	n > 0: at most n substrings; the last substring will be the unsplit remainder.
-//	n == 0: the result is nil (zero substrings)
-//	n < 0: all substrings
+//   - n > 0: at most n substrings; the last substring will be the unsplit remainder;
+//   - n == 0: the result is nil (zero substrings);
+//   - n < 0: all substrings.
 //
 // Edge cases for s and sep (for example, empty strings) are handled
 // as described in the documentation for [Split].
 //
-// To split around the first instance of a separator, see Cut.
+// To split around the first instance of a separator, see [Cut].
 func SplitN(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
 
 // SplitAfterN slices s into substrings after each instance of sep and
 // returns a slice of those substrings.
 //
 // The count determines the number of substrings to return:
-//
-//	n > 0: at most n substrings; the last substring will be the unsplit remainder.
-//	n == 0: the result is nil (zero substrings)
-//	n < 0: all substrings
+//   - n > 0: at most n substrings; the last substring will be the unsplit remainder;
+//   - n == 0: the result is nil (zero substrings);
+//   - n < 0: all substrings.
 //
 // Edge cases for s and sep (for example, empty strings) are handled
-// as described in the documentation for SplitAfter.
+// as described in the documentation for [SplitAfter].
 func SplitAfterN(s, sep string, n int) []string {
 	return genSplit(s, sep, len(sep), n)
 }
@@ -304,7 +357,7 @@ func SplitAfterN(s, sep string, n int) []string {
 //
 // It is equivalent to [SplitN] with a count of -1.
 //
-// To split around the first instance of a separator, see Cut.
+// To split around the first instance of a separator, see [Cut].
 func Split(s, sep string) []string { return genSplit(s, sep, 0, -1) }
 
 // SplitAfter slices s into all substrings after each instance of sep and
@@ -324,7 +377,7 @@ func SplitAfter(s, sep string) []string {
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 // Fields splits the string s around each instance of one or more consecutive white space
-// characters, as defined by unicode.IsSpace, returning a slice of substrings of s or an
+// characters, as defined by [unicode.IsSpace], returning a slice of substrings of s or an
 // empty slice if s contains only white space.
 func Fields(s string) []string {
 	// First count the fields.
@@ -570,10 +623,11 @@ func Repeat(s string, count int) string {
 	if count < 0 {
 		panic("strings: negative Repeat count")
 	}
-	if len(s) > maxInt/count {
+	hi, lo := bits.Mul(uint(len(s)), uint(count))
+	if hi > 0 || lo > uint(maxInt) {
 		panic("strings: Repeat output length overflow")
 	}
-	n := len(s) * count
+	n := int(lo) // lo = len(s) * count
 
 	if len(s) == 0 {
 		return ""
@@ -619,13 +673,7 @@ func Repeat(s string, count int) string {
 	b.Grow(n)
 	b.WriteString(s)
 	for b.Len() < n {
-		chunk := n - b.Len()
-		if chunk > b.Len() {
-			chunk = b.Len()
-		}
-		if chunk > chunkMax {
-			chunk = chunkMax
-		}
+		chunk := min(n-b.Len(), b.Len(), chunkMax)
 		b.WriteString(b.String()[:chunk])
 	}
 	return b.String()

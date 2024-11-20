@@ -8,6 +8,7 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"reflect"
 	"sync"
@@ -538,7 +539,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 		idToTypeSlice[st.id()] = st
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
-			if !isSent(t, &f) {
+			if !isSent(&f) {
 				continue
 			}
 			typ := userType(f.Type).base
@@ -576,7 +577,7 @@ func isExported(name string) bool {
 // isSent reports whether this struct field is to be transmitted.
 // It will be transmitted only if it is exported and not a chan or func field
 // or pointer to chan or func.
-func isSent(struct_ reflect.Type, field *reflect.StructField) bool {
+func isSent(field *reflect.StructField) bool {
 	if !isExported(field.Name) {
 		return false
 	}
@@ -587,16 +588,6 @@ func isSent(struct_ reflect.Type, field *reflect.StructField) bool {
 		typ = typ.Elem()
 	}
 	if typ.Kind() == reflect.Chan || typ.Kind() == reflect.Func {
-		return false
-	}
-
-	// Special case for Go 1.22: the x509.Certificate.Policies
-	// field is unencodable but also unused by default.
-	// Ignore it, so that x509.Certificate continues to be encodeable.
-	// Go 1.23 will add the right methods so that gob can
-	// handle the Policies field, and then we can remove this check.
-	// See go.dev/issue/65633.
-	if field.Name == "Policies" && struct_.PkgPath() == "crypto/x509" && struct_.Name() == "Certificate" {
 		return false
 	}
 
@@ -789,10 +780,7 @@ func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
 
 	// Create new map with old contents plus new entry.
 	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
-	newm := make(map[reflect.Type]*typeInfo, len(m))
-	for k, v := range m {
-		newm[k] = v
-	}
+	newm := maps.Clone(m)
 	newm[rt] = info
 	typeInfoMap.Store(newm)
 	return info, nil

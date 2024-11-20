@@ -6,6 +6,7 @@ package slog
 
 import (
 	"fmt"
+	"internal/asan"
 	"reflect"
 	"strings"
 	"testing"
@@ -30,7 +31,10 @@ func TestValueEqual(t *testing.T) {
 		BoolValue(true),
 		BoolValue(false),
 		TimeValue(testTime),
+		TimeValue(time.Time{}),
 		TimeValue(time.Date(2001, 1, 2, 3, 4, 5, 0, time.UTC)),
+		TimeValue(time.Date(2300, 1, 1, 0, 0, 0, 0, time.UTC)),            // overflows nanoseconds
+		TimeValue(time.Date(1715, 6, 13, 0, 25, 26, 290448384, time.UTC)), // overflowed value
 		AnyValue(&x),
 		AnyValue(&y),
 		GroupValue(Bool("b", true), Int("i", 3)),
@@ -83,6 +87,10 @@ func TestValueString(t *testing.T) {
 }
 
 func TestValueNoAlloc(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
+
 	// Assign values just to make sure the compiler doesn't optimize away the statements.
 	var (
 		i  int64
@@ -229,11 +237,20 @@ func TestLogValue(t *testing.T) {
 	}
 }
 
-func TestZeroTime(t *testing.T) {
-	z := time.Time{}
-	got := TimeValue(z).Time()
-	if !got.IsZero() {
-		t.Errorf("got %s (%#[1]v), not zero time (%#v)", got, z)
+func TestValueTime(t *testing.T) {
+	// Validate that all representations of times work correctly.
+	for _, tm := range []time.Time{
+		time.Time{},
+		time.Unix(0, 1e15), // UnixNanos is defined
+		time.Date(2300, 1, 1, 0, 0, 0, 0, time.UTC), // overflows UnixNanos
+	} {
+		got := TimeValue(tm).Time()
+		if !got.Equal(tm) {
+			t.Errorf("got %s (%#[1]v), want %s (%#[2]v)", got, tm)
+		}
+		if g, w := got.Location(), tm.Location(); g != w {
+			t.Errorf("%s: location: got %v, want %v", tm, g, w)
+		}
 	}
 }
 

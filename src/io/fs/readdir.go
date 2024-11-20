@@ -6,7 +6,8 @@ package fs
 
 import (
 	"errors"
-	"sort"
+	"internal/bytealg"
+	"slices"
 )
 
 // ReadDirFS is the interface implemented by a file system
@@ -42,7 +43,9 @@ func ReadDir(fsys FS, name string) ([]DirEntry, error) {
 	}
 
 	list, err := dir.ReadDir(-1)
-	sort.Slice(list, func(i, j int) bool { return list[i].Name() < list[j].Name() })
+	slices.SortFunc(list, func(a, b DirEntry) int {
+		return bytealg.CompareString(a.Name(), b.Name())
+	})
 	return list, err
 }
 

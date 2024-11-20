@@ -13,7 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -286,7 +286,7 @@ func TestInterfacesWithNetsh(t *testing.T) {
 	for _, ifi := range ift {
 		have = append(have, toString(ifi.Name, ifi.Flags&FlagUp != 0))
 	}
-	sort.Strings(have)
+	slices.Sort(have)
 
 	ifaces := make(map[string]bool)
 	err = netshInterfaceIPShowInterface("ipv6", ifaces)
@@ -301,7 +301,7 @@ func TestInterfacesWithNetsh(t *testing.T) {
 	for name, isup := range ifaces {
 		want = append(want, toString(name, isup))
 	}
-	sort.Strings(want)
+	slices.Sort(want)
 
 	if strings.Join(want, "/") != strings.Join(have, "/") {
 		t.Fatalf("unexpected interface list %q, want %q", have, want)
@@ -483,12 +483,12 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
 				}
 			}
 		}
-		sort.Strings(have)
+		slices.Sort(have)
 
 		want := netshInterfaceIPv4ShowAddress(ifi.Name, outIPV4)
 		wantIPv6 := netshInterfaceIPv6ShowAddress(ifi.Name, outIPV6)
 		want = append(want, wantIPv6...)
-		sort.Strings(want)
+		slices.Sort(want)
 
 		if strings.Join(want, "/") != strings.Join(have, "/") {
 			t.Errorf("%s: unexpected addresses list %q, want %q", ifi.Name, have, want)

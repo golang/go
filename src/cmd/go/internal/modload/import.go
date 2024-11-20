@@ -21,9 +21,9 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modindex"
-	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 )
@@ -719,13 +719,13 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	haveGoFiles, err = haveGoFilesCache.Do(dir, func() (bool, error) {
 		// modindex.GetPackage will return ErrNotIndexed for any directories which
 		// are reached through a symlink, so that they will be handled by
-		// fsys.IsDirWithGoFiles below.
+		// fsys.IsGoDir below.
 		if ip, err := modindex.GetPackage(mdir, dir); err == nil {
-			return ip.IsDirWithGoFiles()
+			return ip.IsGoDir()
 		} else if !errors.Is(err, modindex.ErrNotIndexed) {
 			return false, err
 		}
-		return fsys.IsDirWithGoFiles(dir)
+		return fsys.IsGoDir(dir)
 	})
 
 	return dir, haveGoFiles, err

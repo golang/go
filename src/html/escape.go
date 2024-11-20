@@ -53,7 +53,7 @@ var replacementTable = [...]rune{
 // unescapeEntity reads an entity like "&lt;" from b[src:] and writes the
 // corresponding "<" to b[dst:], returning the incremented dst and src cursors.
 // Precondition: b[src] == '&' && dst <= src.
-func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
+func unescapeEntity(b []byte, dst, src int, entity map[string]rune, entity2 map[string][2]rune) (dst1, src1 int) {
 	const attribute = false
 
 	// http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
@@ -185,7 +185,6 @@ func EscapeString(s string) string {
 // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
 // always true.
 func UnescapeString(s string) string {
-	populateMapsOnce.Do(populateMaps)
 	i := strings.IndexByte(s, '&')
 
 	if i < 0 {
@@ -193,7 +192,8 @@ func UnescapeString(s string) string {
 	}
 
 	b := []byte(s)
-	dst, src := unescapeEntity(b, i, i)
+	entity, entity2 := entityMaps()
+	dst, src := unescapeEntity(b, i, i, entity, entity2)
 	for len(s[src:]) > 0 {
 		if s[src] == '&' {
 			i = 0
@@ -208,7 +208,7 @@ func UnescapeString(s string) string {
 		if i > 0 {
 			copy(b[dst:], s[src:src+i])
 		}
-		dst, src = unescapeEntity(b, dst+i, src+i)
+		dst, src = unescapeEntity(b, dst+i, src+i, entity, entity2)
 	}
 	return string(b[:dst])
 }

@@ -709,13 +709,13 @@
 (Select1 (MULVU x (MOVVconst [-1]))) => (NEGV x)
 (Select1 (MULVU _ (MOVVconst [0]))) => (MOVVconst [0])
 (Select1 (MULVU x (MOVVconst [1]))) => x
-(Select1 (MULVU x (MOVVconst [c]))) && isPowerOfTwo64(c) => (SLLVconst [log64(c)] x)
+(Select1 (MULVU x (MOVVconst [c]))) && isPowerOfTwo(c) => (SLLVconst [log64(c)] x)
 
 // div by constant
 (Select1 (DIVVU x (MOVVconst [1]))) => x
-(Select1 (DIVVU x (MOVVconst [c]))) && isPowerOfTwo64(c) => (SRLVconst [log64(c)] x)
+(Select1 (DIVVU x (MOVVconst [c]))) && isPowerOfTwo(c) => (SRLVconst [log64(c)] x)
 (Select0 (DIVVU _ (MOVVconst [1]))) => (MOVVconst [0])                       // mod
-(Select0 (DIVVU x (MOVVconst [c]))) && isPowerOfTwo64(c) => (ANDconst [c-1] x) // mod
+(Select0 (DIVVU x (MOVVconst [c]))) && isPowerOfTwo(c) => (ANDconst [c-1] x) // mod
 
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)

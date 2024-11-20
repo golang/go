@@ -12,50 +12,72 @@
 package telemetry
 
 import (
-	"flag"
 	"os"
 
+	"cmd/internal/telemetry/counter"
+
 	"golang.org/x/telemetry"
-	"golang.org/x/telemetry/counter"
 )
 
-// Start opens the counter files for writing if telemetry is supported
-// on the current platform (and does nothing otherwise).
-func Start() {
-	telemetry.Start(telemetry.Config{
-		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
-	})
-}
+var openCountersCalled, maybeChildCalled bool
 
-// StartWithUpload opens the counter files for writing if telemetry
-// is supported on the current platform and also enables a once a day
-// check to see if the weekly reports are ready to be uploaded.
-// It should only be called by cmd/go
-func StartWithUpload() {
+// MaybeParent does a once a day check to see if the weekly reports are
+// ready to be processed or uploaded, and if so, starts the telemetry child to
+// do so. It should only be called by cmd/go, and only after OpenCounters and MaybeChild
+// have already been called.
+func MaybeParent() {
+	if !counter.OpenCalled() || !maybeChildCalled {
+		panic("MaybeParent must be called after OpenCounters and MaybeChild")
+	}
 	telemetry.Start(telemetry.Config{
 		Upload:       true,
 		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
 	})
 }
 
-// Inc increments the counter with the given name.
-func Inc(name string) {
-	counter.Inc(name)
+// MaybeChild executes the telemetry child logic if the calling program is
+// the telemetry child process, and does nothing otherwise. It is meant to be
+// called as the first thing in a program that uses telemetry.OpenCounters but cannot
+// call telemetry.OpenCounters immediately when it starts.
+func MaybeChild() {
+	maybeChildCalled = true
+	telemetry.MaybeChild(telemetry.Config{
+		Upload:       true,
+		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
+	})
 }
 
-// NewCounter returns a counter with the given name.
-func NewCounter(name string) *counter.Counter {
-	return counter.New(name)
+// Mode returns the current telemetry mode.
+//
+// The telemetry mode is a global value that controls both the local collection
+// and uploading of telemetry data. Possible mode values are:
+//   - "on":    both collection and uploading is enabled
+//   - "local": collection is enabled, but uploading is disabled
+//   - "off":   both collection and uploading are disabled
+//
+// When mode is "on", or "local", telemetry data is written to the local file
+// system and may be inspected with the [gotelemetry] command.
+//
+// If an error occurs while reading the telemetry mode from the file system,
+// Mode returns the default value "local".
+//
+// [gotelemetry]: https://pkg.go.dev/golang.org/x/telemetry/cmd/gotelemetry
+func Mode() string {
+	return telemetry.Mode()
 }
 
-// NewStack returns a new stack counter with the given name and depth.
-func NewStackCounter(name string, depth int) *counter.StackCounter {
-	return counter.NewStack(name, depth)
+// SetMode sets the global telemetry mode to the given value.
+//
+// See the documentation of [Mode] for a description of the supported mode
+// values.
+//
+// An error is returned if the provided mode value is invalid, or if an error
+// occurs while persisting the mode value to the file system.
+func SetMode(mode string) error {
+	return telemetry.SetMode(mode)
 }
 
-// CountFlags creates a counter for every flag that is set
-// and increments the counter. The name of the counter is
-// the concatenation of prefix and the flag name.
-func CountFlags(prefix string, flagSet flag.FlagSet) {
-	counter.CountFlags(prefix, flagSet)
+// Dir returns the telemetry directory.
+func Dir() string {
+	return telemetry.Dir()
 }

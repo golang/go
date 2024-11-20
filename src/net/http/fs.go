@@ -9,6 +9,7 @@ package http
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"io/fs"
 	"mime"
@@ -171,6 +172,40 @@ func dirList(w ResponseWriter, r *Request, f File) {
 	fmt.Fprintf(w, "</pre>\n")
 }
 
+// GODEBUG=httpservecontentkeepheaders=1 restores the pre-1.23 behavior of not deleting
+// Cache-Control, Content-Encoding, Etag, or Last-Modified headers on ServeContent errors.
+var httpservecontentkeepheaders = godebug.New("httpservecontentkeepheaders")
+
+// serveError serves an error from ServeFile, ServeFileFS, and ServeContent.
+// Because those can all be configured by the caller by setting headers like
+// Etag, Last-Modified, and Cache-Control to send on a successful response,
+// the error path needs to clear them, since they may not be meant for errors.
+func serveError(w ResponseWriter, text string, code int) {
+	h := w.Header()
+
+	nonDefault := false
+	for _, k := range []string{
+		"Cache-Control",
+		"Content-Encoding",
+		"Etag",
+		"Last-Modified",
+	} {
+		if !h.has(k) {
+			continue
+		}
+		if httpservecontentkeepheaders.Value() == "1" {
+			nonDefault = true
+		} else {
+			h.Del(k)
+		}
+	}
+	if nonDefault {
+		httpservecontentkeepheaders.IncNonDefault()
+	}
+
+	Error(w, text, code)
+}
+
 // ServeContent replies to the request using the content in the
 // provided ReadSeeker. The main benefit of ServeContent over [io.Copy]
 // is that it handles Range requests properly, sets the MIME type, and
@@ -191,11 +226,17 @@ func dirList(w ResponseWriter, r *Request, f File) {
 //
 // The content's Seek method must work: ServeContent uses
 // a seek to the end of the content to determine its size.
+// Note that [*os.File] implements the [io.ReadSeeker] interface.
 //
 // If the caller has set w's ETag header formatted per RFC 7232, section 2.3,
 // ServeContent uses it to handle requests using If-Match, If-None-Match, or If-Range.
 //
-// Note that [*os.File] implements the [io.ReadSeeker] interface.
+// If an error occurs when serving the request (for example, when
+// handling an invalid range request), ServeContent responds with an
+// error message. By default, ServeContent strips the Cache-Control,
+// Content-Encoding, ETag, and Last-Modified headers from error responses.
+// The GODEBUG setting httpservecontentkeepheaders=1 causes ServeContent
+// to preserve these headers.
 func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
 	sizeFunc := func() (int64, error) {
 		size, err := content.Seek(0, io.SeekEnd)
@@ -247,7 +288,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 			ctype = DetectContentType(buf[:n])
 			_, err := content.Seek(0, io.SeekStart) // rewind to output whole file
 			if err != nil {
-				Error(w, "seeker can't seek", StatusInternalServerError)
+				serveError(w, "seeker can't seek", StatusInternalServerError)
 				return
 			}
 		}
@@ -258,12 +299,12 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 
 	size, err := sizeFunc()
 	if err != nil {
-		Error(w, err.Error(), StatusInternalServerError)
+		serveError(w, err.Error(), StatusInternalServerError)
 		return
 	}
 	if size < 0 {
 		// Should never happen but just to be sure
-		Error(w, "negative content size computed", StatusInternalServerError)
+		serveError(w, "negative content size computed", StatusInternalServerError)
 		return
 	}
 
@@ -285,7 +326,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", size))
 		fallthrough
 	default:
-		Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+		serveError(w, err.Error(), StatusRequestedRangeNotSatisfiable)
 		return
 	}
 
@@ -311,7 +352,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		// multipart responses."
 		ra := ranges[0]
 		if _, err := content.Seek(ra.start, io.SeekStart); err != nil {
-			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+			serveError(w, err.Error(), StatusRequestedRangeNotSatisfiable)
 			return
 		}
 		sendSize = ra.length
@@ -644,7 +685,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	f, err := fs.Open(name)
 	if err != nil {
 		msg, code := toHTTPError(err)
-		Error(w, msg, code)
+		serveError(w, msg, code)
 		return
 	}
 	defer f.Close()
@@ -652,7 +693,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	d, err := f.Stat()
 	if err != nil {
 		msg, code := toHTTPError(err)
-		Error(w, msg, code)
+		serveError(w, msg, code)
 		return
 	}
 
@@ -670,7 +711,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 			if base == "/" || base == "." {
 				// The FileSystem maps a path like "/" or "/./" to a file instead of a directory.
 				msg := "http: attempting to traverse a non-directory"
-				Error(w, msg, StatusInternalServerError)
+				serveError(w, msg, StatusInternalServerError)
 				return
 			}
 			localRedirect(w, r, "../"+base)
@@ -769,7 +810,7 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
 		// here and ".." may not be wanted.
 		// Note that name might not contain "..", for example if code (still
 		// incorrectly) used filepath.Join(myDir, r.URL.Path).
-		Error(w, "invalid URL path", StatusBadRequest)
+		serveError(w, "invalid URL path", StatusBadRequest)
 		return
 	}
 	dir, file := filepath.Split(name)
@@ -778,6 +819,7 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
 
 // ServeFileFS replies to the request with the contents
 // of the named file or directory from the file system fsys.
+// The files provided by fsys must implement [io.Seeker].
 //
 // If the provided name is constructed from user input, it should be
 // sanitized before calling [ServeFileFS].
@@ -802,7 +844,7 @@ func ServeFileFS(w ResponseWriter, r *Request, fsys fs.FS, name string) {
 		// here and ".." may not be wanted.
 		// Note that name might not contain "..", for example if code (still
 		// incorrectly) used filepath.Join(myDir, r.URL.Path).
-		Error(w, "invalid URL path", StatusBadRequest)
+		serveError(w, "invalid URL path", StatusBadRequest)
 		return
 	}
 	serveFile(w, r, FS(fsys), name, false)
@@ -924,6 +966,7 @@ func FileServer(root FileSystem) Handler {
 
 // FileServerFS returns a handler that serves HTTP requests
 // with the contents of the file system fsys.
+// The files provided by fsys must implement [io.Seeker].
 //
 // As a special case, the returned file server redirects any request
 // ending in "/index.html" to the same path, without the final

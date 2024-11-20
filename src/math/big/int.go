@@ -38,10 +38,9 @@ type Int struct {
 var intOne = &Int{false, natOne}
 
 // Sign returns:
-//
-//	-1 if x <  0
-//	 0 if x == 0
-//	+1 if x >  0
+//   - -1 if x < 0;
+//   - 0 if x == 0;
+//   - +1 if x > 0.
 func (x *Int) Sign() int {
 	// This function is used in cryptographic operations. It must not leak
 	// anything but the Int's sign and bit size through side-channels. Any
@@ -289,7 +288,7 @@ func (z *Int) Rem(x, y *Int) *Int {
 //	r = x - y*q
 //
 // (See Daan Leijen, “Division and Modulus for Computer Scientists”.)
-// See DivMod for Euclidean division and modulus (unlike Go).
+// See [Int.DivMod] for Euclidean division and modulus (unlike Go).
 func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
 	z.abs, r.abs = z.abs.div(r.abs, x.abs, y.abs)
 	z.neg, r.neg = len(z.abs) > 0 && x.neg != y.neg, len(r.abs) > 0 && x.neg // 0 has no sign
@@ -366,10 +365,9 @@ func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
 }
 
 // Cmp compares x and y and returns:
-//
-//	-1 if x <  y
-//	 0 if x == y
-//	+1 if x >  y
+//   - -1 if x < y;
+//   - 0 if x == y;
+//   - +1 if x > y.
 func (x *Int) Cmp(y *Int) (r int) {
 	// x cmp y == x cmp y
 	// x cmp (-y) == x
@@ -392,10 +390,9 @@ func (x *Int) Cmp(y *Int) (r int) {
 }
 
 // CmpAbs compares the absolute values of x and y and returns:
-//
-//	-1 if |x| <  |y|
-//	 0 if |x| == |y|
-//	+1 if |x| >  |y|
+//   - -1 if |x| < |y|;
+//   - 0 if |x| == |y|;
+//   - +1 if |x| > |y|.
 func (x *Int) CmpAbs(y *Int) int {
 	return x.abs.cmp(y.abs)
 }
@@ -1150,9 +1147,10 @@ func (x *Int) Bit(i int) uint {
 }
 
 // SetBit sets z to x, with x's i'th bit set to b (0 or 1).
-// That is, if b is 1 SetBit sets z = x | (1 << i);
-// if b is 0 SetBit sets z = x &^ (1 << i). If b is not 0 or 1,
-// SetBit will panic.
+// That is,
+//   - if b is 1, SetBit sets z = x | (1 << i);
+//   - if b is 0, SetBit sets z = x &^ (1 << i);
+//   - if b is not 0 or 1, SetBit will panic.
 func (z *Int) SetBit(x *Int, i int, b uint) *Int {
 	if i < 0 {
 		panic("negative bit index")

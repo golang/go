@@ -7,6 +7,7 @@ package maps_test
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 )
 
@@ -132,4 +133,61 @@ func ExampleEqualFunc() {
 	fmt.Println(eq)
 	// Output:
 	// true
+}
+
+func ExampleAll() {
+	m1 := map[string]int{
+		"one": 1,
+		"two": 2,
+	}
+	m2 := map[string]int{
+		"one": 10,
+	}
+	maps.Insert(m2, maps.All(m1))
+	fmt.Println("m2 is:", m2)
+	// Output:
+	// m2 is: map[one:1 two:2]
+}
+
+func ExampleKeys() {
+	m1 := map[int]string{
+		1:    "one",
+		10:   "Ten",
+		1000: "THOUSAND",
+	}
+	keys := slices.Sorted(maps.Keys(m1))
+	fmt.Println(keys)
+	// Output:
+	// [1 10 1000]
+}
+
+func ExampleValues() {
+	m1 := map[int]string{
+		1:    "one",
+		10:   "Ten",
+		1000: "THOUSAND",
+	}
+	values := slices.Sorted(maps.Values(m1))
+	fmt.Println(values)
+	// Output:
+	// [THOUSAND Ten one]
+}
+
+func ExampleInsert() {
+	m1 := map[int]string{
+		1000: "THOUSAND",
+	}
+	s1 := []string{"zero", "one", "two", "three"}
+	maps.Insert(m1, slices.All(s1))
+	fmt.Println("m1 is:", m1)
+	// Output:
+	// m1 is: map[0:zero 1:one 2:two 3:three 1000:THOUSAND]
+}
+
+func ExampleCollect() {
+	s1 := []string{"zero", "one", "two", "three"}
+	m1 := maps.Collect(slices.All(s1))
+	fmt.Println("m1 is:", m1)
+	// Output:
+	// m1 is: map[0:zero 1:one 2:two 3:three]
 }

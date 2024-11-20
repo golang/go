@@ -6,15 +6,8 @@
 
 package telemetry
 
-import "flag"
-
-type dummyCounter struct{}
-
-func (dc dummyCounter) Inc() {}
-
-func Start()                                              {}
-func StartWithUpload()                                    {}
-func Inc(name string)                                     {}
-func NewCounter(name string) dummyCounter                 { return dummyCounter{} }
-func NewStackCounter(name string, depth int) dummyCounter { return dummyCounter{} }
-func CountFlags(name string, flagSet flag.FlagSet)        {}
+func MaybeParent()              {}
+func MaybeChild()               {}
+func Mode() string              { return "" }
+func SetMode(mode string) error { return nil }
+func Dir() string               { return "" }

@@ -205,6 +205,7 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+	MOVW	$_INTERRUPT_TIME, R3
 loop:
 	MOVW	time_hi1(R3), R1
 	DMB	MB_ISH

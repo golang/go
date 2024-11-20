@@ -9,15 +9,13 @@
 // Usage:
 //
 //	go tool preprofile [-v] [-o output] -i input
-//
-//
-
 package main
 
 import (
 	"bufio"
 	"cmd/internal/objabi"
 	"cmd/internal/pgo"
+	"cmd/internal/telemetry/counter"
 	"flag"
 	"fmt"
 	"log"
@@ -31,8 +29,8 @@ func usage() {
 }
 
 var (
-	output  = flag.String("o", "", "output file path")
-	input   = flag.String("i", "", "input pprof file path")
+	output = flag.String("o", "", "output file path")
+	input  = flag.String("i", "", "input pprof file path")
 )
 
 func preprocess(profileFile string, outputFile string) error {
@@ -72,9 +70,12 @@ func main() {
 
 	log.SetFlags(0)
 	log.SetPrefix("preprofile: ")
+	counter.Open()
 
 	flag.Usage = usage
 	flag.Parse()
+	counter.Inc("preprofile/invocations")
+	counter.CountFlags("preprofile/flag:", *flag.CommandLine)
 	if *input == "" {
 		log.Print("Input pprof path required (-i)")
 		usage()

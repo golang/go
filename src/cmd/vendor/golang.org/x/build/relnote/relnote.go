@@ -204,7 +204,7 @@ func stdlibPackageHeading(pkg string, lastLine int) *md.Heading {
 			Position: pos,
 			Inline: []md.Inline{
 				&md.Link{
-					Inner: []md.Inline{&md.Plain{Text: pkg}},
+					Inner: []md.Inline{&md.Code{Text: pkg}},
 					URL:   "/pkg/" + pkg + "/",
 				},
 			},

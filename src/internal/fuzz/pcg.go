@@ -140,6 +140,6 @@ func (r *pcgRand) bool() bool {
 // for details.
 type noCopy struct{}
 
-// lock is a no-op used by -copylocks checker from `go vet`.
-func (*noCopy) lock()   {}
-func (*noCopy) unlock() {}
+// Lock is a no-op used by -copylocks checker from `go vet`.
+func (*noCopy) Lock()   {}
+func (*noCopy) Unlock() {}

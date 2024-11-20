@@ -92,6 +92,17 @@ import (
 // in its "lineage".
 
 // A Named represents a named (defined) type.
+//
+// A declaration such as:
+//
+//	type S struct { ... }
+//
+// creates a defined type whose underlying type is a struct,
+// and binds this type to the object S, a [TypeName].
+// Use [Named.Underlying] to access the underlying type.
+// Use [Named.Obj] to obtain the object S.
+//
+// Before type aliases (Go 1.9), the spec called defined types "named types".
 type Named struct {
 	check *Checker  // non-nil during type-checking; nil otherwise
 	obj   *TypeName // corresponding declared object for declared types; see above for instantiated types
@@ -282,7 +293,7 @@ func (t *Named) cleanup() {
 		if t.TypeArgs().Len() == 0 {
 			panic("nil underlying")
 		}
-	case *Named:
+	case *Named, *Alias:
 		t.under() // t.under may add entries to check.cleaners
 	}
 	t.check = nil
@@ -430,8 +441,8 @@ func (t *Named) expandMethod(i int) *Func {
 		rtyp = t
 	}
 
-	sig.recv = substVar(origSig.recv, rtyp)
-	return substFunc(origm, sig)
+	sig.recv = cloneVar(origSig.recv, rtyp)
+	return cloneFunc(origm, sig)
 }
 
 // SetUnderlying sets the underlying type and marks t as complete.
@@ -485,9 +496,17 @@ func (t *Named) methodIndex(name string, foldCase bool) int {
 	return -1
 }
 
-// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
-func (t *Named) Underlying() Type { return Unalias(t.resolve().underlying) }
-func (t *Named) String() string   { return TypeString(t, nil) }
+// Underlying returns the [underlying type] of the named type t, resolving all
+// forwarding declarations. Underlying types are never Named, TypeParam, or
+// Alias types.
+//
+// [underlying type]: https://go.dev/ref/spec#Underlying_types.
+func (t *Named) Underlying() Type {
+	// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
+	return Unalias(t.resolve().underlying)
+}
+
+func (t *Named) String() string { return TypeString(t, nil) }
 
 // ----------------------------------------------------------------------------
 // Implementation

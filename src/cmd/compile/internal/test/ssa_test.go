@@ -36,7 +36,7 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 	rungo := filepath.Join(t.TempDir(), "run.go")
 	ok := os.WriteFile(rungo, stdout.Bytes(), 0600)
 	if ok != nil {
-		t.Fatalf("Failed to create temporary file " + rungo)
+		t.Fatalf("Failed to create temporary file %s", rungo)
 	}
 
 	stdout.Reset()

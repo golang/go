@@ -9,6 +9,6 @@ import (
 )
 
 func f() {
-	int status // ERROR syntax error: unexpected `status' at end of statement
+	int status // ERROR syntax error: unexpected name status at end of statement
 	fmt.Println(status)
 }

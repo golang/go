@@ -16,6 +16,7 @@ var Debug DebugFlags
 // The -d option takes a comma-separated list of settings.
 // Each setting is name=value; for ints, name is short for name=1.
 type DebugFlags struct {
+	AlignHot              int    `help:"enable hot block alignment (currently requires -pgo)" concurrent:"ok"`
 	Append                int    `help:"print information about append compilation"`
 	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
 	Closure               int    `help:"print information about closure compilation"`
@@ -29,6 +30,7 @@ type DebugFlags struct {
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
 	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
 	Export                int    `help:"print export data"`
+	FIPSHash              string `help:"hash value for FIPS debugging" concurrent:"ok"`
 	Fmahash               string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
 	GCAdjust              int    `help:"log adjustments to GOGC" concurrent:"ok"`
 	GCCheck               int    `help:"check heap/gc use by compiler" concurrent:"ok"`
@@ -47,6 +49,7 @@ type DebugFlags struct {
 	MergeLocalsTrace      int    `help:"trace debug output for locals merging"`
 	MergeLocalsHTrace     int    `help:"hash-selected trace debug output for locals merging"`
 	Nil                   int    `help:"print information about nil checks"`
+	NoDeadLocals          int    `help:"disable deadlocals pass" concurrent:"ok"`
 	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`
 	NoRefName             int    `help:"do not include referenced symbol names in object file" concurrent:"ok"`
 	PCTab                 string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
@@ -57,6 +60,7 @@ type DebugFlags struct {
 	SoftFloat             int    `help:"force compiler to emit soft-float code" concurrent:"ok"`
 	StaticCopy            int    `help:"print information about missed static copies" concurrent:"ok"`
 	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data"`
+	TailCall              int    `help:"print information about tail calls"`
 	TypeAssert            int    `help:"print information about type assertion inlining"`
 	WB                    int    `help:"print information about write barriers"`
 	ABIWrap               int    `help:"print information about ABI wrapper generation"`

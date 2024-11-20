@@ -280,8 +280,8 @@ like
 	%!s(PANIC=bad)
 
 The %!s just shows the print verb in use when the failure
-occurred. If the panic is caused by a nil receiver to an Error
-or String method, however, the output is the undecorated
+occurred. If the panic is caused by a nil receiver to an Error,
+String, or GoString method, however, the output is the undecorated
 string, "<nil>".
 
 # Scanning

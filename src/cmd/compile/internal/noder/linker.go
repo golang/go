@@ -39,9 +39,9 @@ import (
 type linker struct {
 	pw pkgbits.PkgEncoder
 
-	pkgs   map[string]pkgbits.Index
-	decls  map[*types.Sym]pkgbits.Index
-	bodies map[*types.Sym]pkgbits.Index
+	pkgs   map[string]index
+	decls  map[*types.Sym]index
+	bodies map[*types.Sym]index
 }
 
 // relocAll ensures that all elements specified by pr and relocs are
@@ -58,7 +58,7 @@ func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.Re
 
 // relocIdx ensures a single element is copied into the output export
 // data file, and returns the corresponding index in the output.
-func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx pkgbits.Index) pkgbits.Index {
+func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx index) index {
 	assert(pr != nil)
 
 	absIdx := pr.AbsIdx(k, idx)
@@ -67,7 +67,7 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx pkgbits.Index)
 		return ^newidx
 	}
 
-	var newidx pkgbits.Index
+	var newidx index
 	switch k {
 	case pkgbits.RelocString:
 		newidx = l.relocString(pr, idx)
@@ -95,7 +95,7 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx pkgbits.Index)
 
 // relocString copies the specified string from pr into the output
 // export data file, deduplicating it against other strings.
-func (l *linker) relocString(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+func (l *linker) relocString(pr *pkgReader, idx index) index {
 	return l.pw.StringIdx(pr.StringIdx(idx))
 }
 
@@ -106,7 +106,7 @@ func (l *linker) relocString(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 // TODO(mdempsky): Since CL 391014, we already have the compilation
 // unit's import path, so there should be no need to rewrite packages
 // anymore.
-func (l *linker) relocPkg(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+func (l *linker) relocPkg(pr *pkgReader, idx index) index {
 	path := pr.PeekPkgPath(idx)
 
 	if newidx, ok := l.pkgs[path]; ok {
@@ -134,7 +134,7 @@ func (l *linker) relocPkg(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
 // relocObj copies the specified object from pr into the output export
 // data file, rewriting its compiler-private extension data (e.g.,
 // adding inlining cost and escape analysis results for functions).
-func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+func (l *linker) relocObj(pr *pkgReader, idx index) index {
 	path, name, tag := pr.PeekObj(idx)
 	sym := types.NewPkg(path, "").Lookup(name)
 
@@ -252,7 +252,7 @@ func (l *linker) exportBody(obj *ir.Name, local bool) {
 
 // relocCommon copies the specified element from pr into w,
 // recursively relocating any referenced elements as well.
-func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.RelocKind, idx pkgbits.Index) {
+func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.RelocKind, idx index) {
 	r := pr.NewDecoderRaw(k, idx)
 	w.Relocs = l.relocAll(pr, r.Relocs)
 	io.Copy(&w.Data, &r.Data)
@@ -276,6 +276,11 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
 			w.String(name.Func.WasmImport.Name)
 		} else {
 			w.String("")
+			w.String("")
+		}
+		if name.Func.WasmExport != nil {
+			w.String(name.Func.WasmExport.Name)
+		} else {
 			w.String("")
 		}
 	}

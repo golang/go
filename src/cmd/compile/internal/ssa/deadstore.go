@@ -29,10 +29,7 @@ func dse(f *Func) {
 		//  storeUse contains stores which are used by a subsequent store.
 		loadUse.clear()
 		storeUse.clear()
-		// TODO(deparker): use the 'clear' builtin once compiler bootstrap minimum version is raised to 1.21.
-		for k := range localAddrs {
-			delete(localAddrs, k)
-		}
+		clear(localAddrs)
 		stores = stores[:0]
 		for _, v := range b.Values {
 			if v.Op == OpPhi {
@@ -58,6 +55,10 @@ func dse(f *Func) {
 					} else {
 						continue
 					}
+				}
+				if v.Op == OpInlMark {
+					// Not really a use of the memory. See #67957.
+					continue
 				}
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {

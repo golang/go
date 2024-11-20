@@ -6,18 +6,22 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/asan"
+	"internal/testenv"
+	"math/bits"
 	"math/rand"
 	"os"
 	"reflect"
 	"runtime"
 	"runtime/debug"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
+	"weak"
 )
 
 func TestGcSys(t *testing.T) {
@@ -207,6 +211,9 @@ func TestGcZombieReporting(t *testing.T) {
 }
 
 func TestGCTestMoveStackOnNextCall(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("extra allocations with -asan causes this to fail; see #70079")
+	}
 	t.Parallel()
 	var onStack int
 	// GCTestMoveStackOnNextCall can fail in rare cases if there's
@@ -278,8 +285,17 @@ func TestGCTestIsReachable(t *testing.T) {
 	}
 
 	got := runtime.GCTestIsReachable(all...)
-	if want != got {
-		t.Fatalf("did not get expected reachable set; want %b, got %b", want, got)
+	if got&want != want {
+		// This is a serious bug - an object is live (due to the KeepAlive
+		// call below), but isn't reported as such.
+		t.Fatalf("live object not in reachable set; want %b, got %b", want, got)
+	}
+	if bits.OnesCount64(got&^want) > 1 {
+		// Note: we can occasionally have a value that is retained even though
+		// it isn't live, due to conservative scanning of stack frames.
+		// See issue 67204. For now, we allow a "slop" of 1 unintentionally
+		// retained object.
+		t.Fatalf("dead object in reachable set; want %b, got %b", want, got)
 	}
 	runtime.KeepAlive(half)
 }
@@ -288,6 +304,9 @@ var pointerClassBSS *int
 var pointerClassData = 42
 
 func TestGCTestPointerClass(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("extra allocations cause this test to fail; see #70079")
+	}
 	t.Parallel()
 	check := func(p unsafe.Pointer, want string) {
 		t.Helper()
@@ -548,9 +567,7 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
 	b.ReportMetric(0, "allocs/op")
 
 	// Sort latencies then report percentiles.
-	sort.Slice(latencies, func(i, j int) bool {
-		return latencies[i] < latencies[j]
-	})
+	slices.Sort(latencies)
 	b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
 	b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
 	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
@@ -726,7 +743,7 @@ func BenchmarkMSpanCountAlloc(b *testing.B) {
 	// always rounded up 8 bytes.
 	for _, n := range []int{8, 16, 32, 64, 128} {
 		b.Run(fmt.Sprintf("bits=%d", n*8), func(b *testing.B) {
-			// Initialize a new byte slice with pseduo-random data.
+			// Initialize a new byte slice with pseudo-random data.
 			bits := make([]byte, n)
 			rand.Read(bits)
 
@@ -778,4 +795,79 @@ func TestMemoryLimitNoGCPercent(t *testing.T) {
 
 func TestMyGenericFunc(t *testing.T) {
 	runtime.MyGenericFunc[int]()
+}
+
+func TestWeakToStrongMarkTermination(t *testing.T) {
+	testenv.MustHaveParallelism(t)
+
+	type T struct {
+		a *int
+		b int
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	w := make([]weak.Pointer[T], 2048)
+
+	// Make sure there's no out-standing GC from a previous test.
+	runtime.GC()
+
+	// Create many objects with a weak pointers to them.
+	for i := range w {
+		x := new(T)
+		x.a = new(int)
+		w[i] = weak.Make(x)
+	}
+
+	// Reset the restart flag.
+	runtime.GCMarkDoneResetRestartFlag()
+
+	// Prevent mark termination from completing.
+	runtime.SetSpinInGCMarkDone(true)
+
+	// Start a GC, and wait a little bit to get something spinning in mark termination.
+	// Simultaneously, fire off another goroutine to disable spinning. If everything's
+	// working correctly, then weak.Value will block, so we need to make sure something
+	// prevents the GC from continuing to spin.
+	done := make(chan struct{})
+	go func() {
+		runtime.GC()
+		done <- struct{}{}
+	}()
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+
+		// Let mark termination continue.
+		runtime.SetSpinInGCMarkDone(false)
+	}()
+	time.Sleep(10 * time.Millisecond)
+
+	// Perform many weak->strong conversions in the critical window.
+	var wg sync.WaitGroup
+	for _, wp := range w {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			wp.Value()
+		}()
+	}
+
+	// Make sure the GC completes.
+	<-done
+
+	// Make sure all the weak->strong conversions finish.
+	wg.Wait()
+
+	// The bug is triggered if there's still mark work after gcMarkDone stops the world.
+	//
+	// This can manifest in one of two ways today:
+	// - An exceedingly rare crash in mark termination.
+	// - gcMarkDone restarts, as if issue #27993 is at play.
+	//
+	// Check for the latter. This is a fairly controlled environment, so #27993 is very
+	// unlikely to happen (it's already rare to begin with) but we'll always _appear_ to
+	// trigger the same bug if weak->strong conversions aren't properly coordinated with
+	// mark termination.
+	if runtime.GCMarkDoneRestarted() {
+		t.Errorf("gcMarkDone restarted")
+	}
 }

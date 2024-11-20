@@ -54,17 +54,21 @@ for packages to be built with the go tool:
 
 - "main" denotes the top-level package in a stand-alone executable.
 
-- "all" expands to all packages found in all the GOPATH
-trees. For example, 'go list all' lists all the packages on the local
-system. When using modules, "all" expands to all packages in
-the main module and their dependencies, including dependencies
-needed by tests of any of those.
+- "all" expands to all packages in the main module (or workspace modules) and
+their dependencies, including dependencies needed by tests of any of those. In
+GOPATH mode, "all" expands to all packages found in all the GOPATH trees.
 
 - "std" is like all but expands to just the packages in the standard
 Go library.
 
 - "cmd" expands to the Go repository's commands and their
 internal libraries.
+
+Package names match against fully-qualified import paths or patterns that
+match against any number of import paths. For instance, "fmt" refers to the
+standard library's package fmt, but "http" alone for package http would not
+match the import path "net/http" from the standard library. Instead, the
+complete import path "net/http" must be used.
 
 Import paths beginning with "cmd/" only match source code in
 the Go repository.
@@ -95,7 +99,10 @@ By convention, this is arranged by starting each path with a
 unique prefix that belongs to you. For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
-such as 'github.com/user/repo'.
+such as 'github.com/user/repo'. Package patterns should include this prefix.
+For instance, a package called 'http' residing under 'github.com/user/repo',
+would be addressed with the fully-qualified pattern:
+'github.com/user/repo/http'.
 
 Packages in a program need not have unique package names,
 but there are two reserved package names with special meaning.
@@ -493,6 +500,9 @@ General-purpose environment variables:
 	GOARCH
 		The architecture, or processor, for which to compile code.
 		Examples are amd64, 386, arm, ppc64.
+	GOAUTH
+		Controls authentication for go-import and HTTPS module mirror interactions.
+		See 'go help goauth'.
 	GOBIN
 		The directory where 'go install' will install a command.
 	GOCACHE
@@ -629,7 +639,7 @@ Architecture-specific environment variables:
 	GORISCV64
 		For GOARCH=riscv64, the RISC-V user-mode application profile for which
 		to compile. Valid values are rva20u64 (default), rva22u64.
-		See https://github.com/riscv/riscv-profiles/blob/main/profiles.adoc
+		See https://github.com/riscv/riscv-profiles/blob/main/src/profiles.adoc
 	GOWASM
 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
 		Valid values are satconv, signext.
@@ -678,6 +688,11 @@ Additional information available from 'go env' but not read from the environment
 		If module-aware mode is enabled, but there is no go.mod, GOMOD will be
 		os.DevNull ("/dev/null" on Unix-like systems, "NUL" on Windows).
 		If module-aware mode is disabled, GOMOD will be the empty string.
+	GOTELEMETRY
+		The current Go telemetry mode ("off", "local", or "on").
+		See "go help telemetry" for more information.
+	GOTELEMETRYDIR
+		The directory Go telemetry data is written is written to.
 	GOTOOLDIR
 		The directory where the go tools (compile, cover, doc, etc...) are installed.
 	GOVERSION
@@ -835,6 +850,9 @@ line comment that begins
 
 	//go:build
 
+Build constraints can also be used to downgrade the language version
+used to compile a file.
+
 Constraints may appear in any kind of source file (not just Go), but
 they must appear near the top of the file, preceded
 only by blank lines and other comments. These rules mean that in Go
@@ -954,5 +972,121 @@ only when building the package for 32-bit x86.
 Go versions 1.16 and earlier used a different syntax for build constraints,
 with a "// +build" prefix. The gofmt command will add an equivalent //go:build
 constraint when encountering the older syntax.
+
+In modules with a Go version of 1.21 or later, if a file's build constraint
+has a term for a Go major release, the language version used when compiling
+the file will be the minimum version implied by the build constraint.
 `,
+}
+
+var HelpGoAuth = &base.Command{
+	UsageLine: "goauth",
+	Short:     "GOAUTH environment variable",
+	Long: `
+GOAUTH is a semicolon-separated list of authentication commands for go-import and
+HTTPS module mirror interactions. The default is netrc.
+
+The supported authentication commands are:
+
+off
+	Disables authentication.
+netrc
+	Uses credentials from NETRC or the .netrc file in your home directory.
+git dir
+	Runs 'git credential fill' in dir and uses its credentials. The
+	go command will run 'git credential approve/reject' to update
+	the credential helper's cache.
+command
+	Executes the given command (a space-separated argument list) and attaches
+	the provided headers to HTTPS requests.
+	The command must produce output in the following format:
+		Response      = { CredentialSet } .
+		CredentialSet = URLLine { URLLine } BlankLine { HeaderLine } BlankLine .
+		URLLine       = /* URL that starts with "https://" */ '\n' .
+		HeaderLine    = /* HTTP Request header */ '\n' .
+		BlankLine     = '\n' .
+
+	Example:
+		https://example.com/
+		https://example.net/api/
+
+		Authorization: Basic <token>
+
+		https://another-example.org/
+
+		Example: Data
+
+	If the server responds with any 4xx code, the go command will write the
+	following to the programs' stdin:
+		Response      = StatusLine { HeaderLine } BlankLine .
+		StatusLine    = Protocol Space Status '\n' .
+		Protocol      = /* HTTP protocol */ .
+		Space         = ' ' .
+		Status        = /* HTTP status code */ .
+		BlankLine     = '\n' .
+		HeaderLine    = /* HTTP Response's header */ '\n' .
+
+	Example:
+		HTTP/1.1 401 Unauthorized
+		Content-Length: 19
+		Content-Type: text/plain; charset=utf-8
+		Date: Thu, 07 Nov 2024 18:43:09 GMT
+
+	Note: at least for HTTP 1.1, the contents written to stdin can be parsed
+	as an HTTP response.
+
+Before the first HTTPS fetch, the go command will invoke each GOAUTH
+command in the list with no additional arguments and no input.
+If the server responds with any 4xx code, the go command will invoke the
+GOAUTH commands again with the URL as an additional command-line argument
+and the HTTP Response to the program's stdin.
+If the server responds with an error again, the fetch fails: a URL-specific
+GOAUTH will only be attempted once per fetch.
+`,
+}
+
+var HelpBuildJSON = &base.Command{
+	UsageLine: "buildjson",
+	Short:     "build -json encoding",
+	Long: `
+The 'go build', 'go install', and 'go test' commands take a -json flag that
+reports build output and failures as structured JSON output on standard
+output.
+
+The JSON stream is a newline-separated sequence of BuildEvent objects
+corresponding to the Go struct:
+
+	type BuildEvent struct {
+		ImportPath string
+		Action     string
+		Output     string
+	}
+
+The ImportPath field gives the package ID of the package being built.
+This matches the Package.ImportPath field of go list -json and the
+TestEvent.FailedBuild field of go test -json. Note that it does not
+match TestEvent.Package.
+
+The Action field is one of the following:
+
+	build-output - The toolchain printed output
+	build-fail - The build failed
+
+The Output field is set for Action == "build-output" and is a portion of
+the build's output. The concatenation of the Output fields of all output
+events is the exact output of the build. A single event may contain one
+or more lines of output and there may be more than one output event for
+a given ImportPath. This matches the definition of the TestEvent.Output
+field produced by go test -json.
+
+For go test -json, this struct is designed so that parsers can distinguish
+interleaved TestEvents and BuildEvents by inspecting the Action field.
+Furthermore, as with TestEvent, parsers can simply concatenate the Output
+fields of all events to reconstruct the text format output, as it would
+have appeared from go build without the -json flag.
+
+Note that there may also be non-JSON error text on stdnard error, even
+with the -json flag. Typically, this indicates an early, serious error.
+Consumers should be robust to this.
+	`,
 }

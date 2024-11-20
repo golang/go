@@ -5,8 +5,9 @@
 package token
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -305,7 +306,7 @@ func (f *File) Pos(offset int) Pos {
 // Offset returns the offset for the given file position p.
 //
 // If p is before the file's start position (or if p is NoPos),
-// the result is 0; if p is past the file's end position, the
+// the result is 0; if p is past the file's end position,
 // the result is the file size (see also go.dev/issue/57490).
 //
 // The following invariant, though not true for offset values
@@ -322,7 +323,15 @@ func (f *File) Line(p Pos) int {
 }
 
 func searchLineInfos(a []lineInfo, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i].Offset > x }) - 1
+	i, found := slices.BinarySearchFunc(a, x, func(a lineInfo, x int) int {
+		return cmp.Compare(a.Offset, x)
+	})
+	if !found {
+		// We want the lineInfo containing x, but if we didn't
+		// find x then i is the next one.
+		i--
+	}
+	return i
 }
 
 // unpack returns the filename and line and column number for a file offset.
@@ -494,7 +503,7 @@ func (s *FileSet) RemoveFile(file *File) {
 
 	if i := searchFiles(s.files, file.base); i >= 0 && s.files[i] == file {
 		last := &s.files[len(s.files)-1]
-		s.files = append(s.files[:i], s.files[i+1:]...)
+		s.files = slices.Delete(s.files, i, i+1)
 		*last = nil // don't prolong lifetime when popping last element
 	}
 }
@@ -516,7 +525,15 @@ func (s *FileSet) Iterate(f func(*File) bool) {
 }
 
 func searchFiles(a []*File, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i].base > x }) - 1
+	i, found := slices.BinarySearchFunc(a, x, func(a *File, x int) int {
+		return cmp.Compare(a.base, x)
+	})
+	if !found {
+		// We want the File containing x, but if we didn't
+		// find x then i is the next one.
+		i--
+	}
+	return i
 }
 
 func (s *FileSet) file(p Pos) *File {

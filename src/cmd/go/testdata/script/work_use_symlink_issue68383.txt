@@ -1,0 +1,23 @@
+# This is a test for #68383, where go work use is used in a CWD
+# one of whose parent directories is a symlink, trying to use
+# a directory that exists in a subdirectory of a parent of that
+# directory.
+
+[!symlink] skip 'tests an issue involving symlinks'
+
+symlink sym -> a/b
+cd sym/c/d
+
+go work use $WORK/gopath/src/x/y    # "crosses" the symlink at $WORK/sym
+cmpenv go.work go.work.want  # Check that the relative path is not used
+
+-- x/y/go.mod --
+module example.com/y
+
+go 1.24
+-- a/b/c/d/go.work --
+go 1.24
+-- a/b/c/d/go.work.want --
+go 1.24
+
+use $WORK${/}gopath${/}src${/}x${/}y

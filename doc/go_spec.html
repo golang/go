@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.22 (April 25, 2024)",
+	"Subtitle": "Language version go1.23 (Oct 1, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -1086,7 +1086,7 @@ A field declared with a type but no explicit field name is called an <i>embedded
 An embedded field must be specified as
 a type name <code>T</code> or as a pointer to a non-interface type name <code>*T</code>,
 and <code>T</code> itself may not be
-a pointer type. The unqualified type name acts as the field name.
+a pointer type or type parameter. The unqualified type name acts as the field name.
 </p>
 
 <pre>
@@ -1127,7 +1127,7 @@ of a struct except that they cannot be used as field names in
 </p>
 
 <p>
-Given a struct type <code>S</code> and a <a href="#Types">named type</a>
+Given a struct type <code>S</code> and a type name
 <code>T</code>, promoted methods are included in the method set of the struct as follows:
 </p>
 <ul>
@@ -1927,8 +1927,8 @@ components have identical types. In detail:
 	<li>Two slice types are identical if they have identical element types.</li>
 
 	<li>Two struct types are identical if they have the same sequence of fields,
-	    and if corresponding fields have the same names, and identical types,
-	    and identical tags.
+	    and if corresponding pairs of fields have the same names, identical types,
+	    and identical tags, and are either both embedded or both not embedded.
 	    <a href="#Exported_identifiers">Non-exported</a> field names from different
 	    packages are always different.</li>
 
@@ -2511,12 +2511,12 @@ An alias declaration binds an identifier to the given type
 </p>
 
 <pre class="ebnf">
-AliasDecl = identifier "=" Type .
+AliasDecl = identifier [ TypeParameters ] "=" Type .
 </pre>
 
 <p>
 Within the <a href="#Declarations_and_scope">scope</a> of
-the identifier, it serves as an <i>alias</i> for the type.
+the identifier, it serves as an <i>alias</i> for the given type.
 </p>
 
 <pre>
@@ -2526,6 +2526,24 @@ type (
 )
 </pre>
 
+<p>
+If the alias declaration specifies <a href="#Type_parameter_declarations">type parameters</a>
+[<a href="#Go_1.24">Go 1.24</a>], the type name denotes a <i>generic alias</i>.
+Generic aliases must be <a href="#Instantiations">instantiated</a> when they
+are used.
+</p>
+
+<pre>
+type set[P comparable] = map[P]bool
+</pre>
+
+<p>
+In an alias declaration the given type cannot be a type parameter.
+</p>
+
+<pre>
+type A[P any] = P    // illegal: P is a type parameter
+</pre>
 
 <h4 id="Type_definitions">Type definitions</h4>
 
@@ -6620,7 +6638,8 @@ In that case, the example above prints
 <p>
 A "for" statement with a "range" clause
 iterates through all entries of an array, slice, string or map, values received on
-a channel, or integer values from zero to an upper limit [<a href="#Go_1.22">Go 1.22</a>].
+a channel, integer values from zero to an upper limit [<a href="#Go_1.22">Go 1.22</a>],
+or values passed to an iterator function's yield function [<a href="#Go_1.23">Go 1.23</a>].
 For each entry it assigns <i>iteration values</i>
 to corresponding <i>iteration variables</i> if present and then executes the block.
 </p>
@@ -6633,11 +6652,15 @@ RangeClause = [ ExpressionList "=" | IdentifierList ":=" ] "range" Expression .
 The expression on the right in the "range" clause is called the <i>range expression</i>,
 its <a href="#Core_types">core type</a> must be
 an array, pointer to an array, slice, string, map, channel permitting
-<a href="#Receive_operator">receive operations</a>, or an integer.
+<a href="#Receive_operator">receive operations</a>, an integer, or
+a function with specific signature (see below).
 As with an assignment, if present the operands on the left must be
 <a href="#Address_operators">addressable</a> or map index expressions; they
-denote the iteration variables. If the range expression is a channel or integer,
-at most one iteration variable is permitted, otherwise there may be up to two.
+denote the iteration variables.
+If the range expression is a function, the maximum number of iteration variables depends on
+the function signature.
+If the range expression is a channel or integer, at most one iteration variable is permitted;
+otherwise there may be up to two.
 If the last iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
 the range clause is equivalent to the same clause without that identifier.
 </p>
@@ -6656,13 +6679,16 @@ if the respective iteration variables are present:
 </p>
 
 <pre class="grammar">
-Range expression                                   1st value                2nd value
+Range expression                                       1st value                2nd value
 
-array or slice  a  [n]E, *[n]E, or []E             index    i  int          a[i]       E
-string          s  string type                     index    i  int          see below  rune
-map             m  map[K]V                         key      k  K            m[k]       V
-channel         c  chan E, &lt;-chan E                element  e  E
-integer value   n  integer type, or untyped int    value    i  see below
+array or slice      a  [n]E, *[n]E, or []E             index    i  int          a[i]       E
+string              s  string type                     index    i  int          see below  rune
+map                 m  map[K]V                         key      k  K            m[k]       V
+channel             c  chan E, &lt;-chan E                element  e  E
+integer value       n  integer type, or untyped int    value    i  see below
+function, 0 values  f  func(func() bool)
+function, 1 value   f  func(func(V) bool)              value    v  V
+function, 2 values  f  func(func(K, V) bool)           key      k  K            v          V
 </pre>
 
 <ol>
@@ -6715,6 +6741,21 @@ variable, which must be of integer type.
 Otherwise, if the iteration variable is declared by the "range" clause or is absent,
 the type of the iteration values is the <a href="#Constants">default type</a> for <code>n</code>.
 If <code>n</code> &lt= 0, the loop does not run any iterations.
+</li>
+
+<li>
+For a function <code>f</code>, the iteration proceeds by calling <code>f</code>
+with a new, synthesized <code>yield</code> function as its argument.
+If <code>yield</code> is called before <code>f</code> returns,
+the arguments to <code>yield</code> become the iteration values
+for executing the loop body once.
+After each successive loop iteration, <code>yield</code> returns true
+and may be called again to continue the loop.
+As long as the loop body does not terminate, the "range" clause will continue
+to generate iteration values this way for each <code>yield</code> call until
+<code>f</code> returns.
+If the loop body terminates (such as by a <code>break</code> statement),
+<code>yield</code> returns false and must not be called again.
 </li>
 </ol>
 
@@ -6783,6 +6824,44 @@ for u = range 256 {
 
 // invalid: 1e3 is a floating-point constant
 for range 1e3 {
+}
+
+// fibo generates the Fibonacci sequence
+fibo := func(yield func(x int) bool) {
+	f0, f1 := 0, 1
+	for yield(f0) {
+		f0, f1 = f1, f0+f1
+	}
+}
+
+// print the Fibonacci numbers below 1000:
+for x := range fibo {
+	if x >= 1000 {
+		break
+	}
+	fmt.Printf("%d ", x)
+}
+// output: 0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987
+
+// iteration support for a recursive tree data structure
+type Tree[K cmp.Ordered, V any] struct {
+	left, right *Tree[K, V]
+	key         K
+	value       V
+}
+
+func (t *Tree[K, V]) walk(yield func(key K, val V) bool) bool {
+	return t == nil || t.left.walk(yield) && yield(t.key, t.value) && t.right.walk(yield)
+}
+
+func (t *Tree[K, V]) Walk(yield func(key K, val V) bool) {
+	t.walk(yield)
+}
+
+// walk tree t in-order
+var t Tree[string, int]
+for k, v := range t.Walk {
+	// process k, v
 }
 </pre>
 
@@ -8617,6 +8696,21 @@ variables rather than sharing the same variables in each iteration.
 <li>
 A "for" statement with <a href="#For_range">"range" clause</a> may iterate over
 integer values from zero to an upper limit.
+</li>
+</ul>
+
+<h4 id="Go_1.23">Go 1.23</h4>
+<ul>
+<li>A "for" statement with <a href="#For_range">"range" clause</a> accepts an iterator
+function as range expression.
+</li>
+</ul>
+
+<h4 id="Go_1.24">Go 1.24</h4>
+<ul>
+<li>
+An <a href="#Alias_declarations">alias declaration</a> may declare
+<a href="#Type_parameter_declarations">type parameters</a>.
 </li>
 </ul>
 

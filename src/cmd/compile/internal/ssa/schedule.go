@@ -7,7 +7,9 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmp"
 	"container/heap"
+	"slices"
 	"sort"
 )
 
@@ -260,8 +262,8 @@ func schedule(f *Func) {
 		}
 
 		// Sort all the edges by source Value ID.
-		sort.Slice(edges, func(i, j int) bool {
-			return edges[i].x.ID < edges[j].x.ID
+		slices.SortFunc(edges, func(a, b edge) int {
+			return cmp.Compare(a.x.ID, b.x.ID)
 		})
 		// Compute inEdges for values in this block.
 		for _, e := range edges {
@@ -525,13 +527,13 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 				}
 			} else {
 				if start != -1 {
-					sort.Sort(bySourcePos(order[start:i]))
+					slices.SortFunc(order[start:i], valuePosCmp)
 					start = -1
 				}
 			}
 		}
 		if start != -1 {
-			sort.Sort(bySourcePos(order[start:]))
+			slices.SortFunc(order[start:], valuePosCmp)
 		}
 	}
 
@@ -568,8 +570,12 @@ func (v *Value) hasFlagInput() bool {
 	return false
 }
 
-type bySourcePos []*Value
-
-func (s bySourcePos) Len() int           { return len(s) }
-func (s bySourcePos) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s bySourcePos) Less(i, j int) bool { return s[i].Pos.Before(s[j].Pos) }
+func valuePosCmp(a, b *Value) int {
+	if a.Pos.Before(b.Pos) {
+		return -1
+	}
+	if a.Pos.After(b.Pos) {
+		return +1
+	}
+	return 0
+}

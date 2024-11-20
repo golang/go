@@ -139,3 +139,24 @@ func ExampleRoundingMode() {
 	// -2.5             -2             -3      -2            -3             -3             -2
 	// -2.6             -3             -3      -2            -3             -3             -2
 }
+
+func ExampleFloat_Copy() {
+	var x, z big.Float
+
+	x.SetFloat64(1.23)
+	r := z.Copy(&x)
+	fmt.Printf("a) r = %g, z = %g, x = %g, r == z = %v\n", r, &z, &x, r == &z)
+
+	// changing z changes r since they are identical
+	z.SetInt64(42)
+	fmt.Printf("b) r = %g, z = %g, r == z = %v\n", r, &z, r == &z)
+
+	x.SetPrec(1)
+	z.Copy(&x)
+	fmt.Printf("c) z = %g, x = %g, z == x = %v\n", &z, &x, &z == &x)
+
+	// Output:
+	// a) r = 1.23, z = 1.23, x = 1.23, r == z = true
+	// b) r = 42, z = 42, r == z = true
+	// c) z = 1, x = 1, z == x = false
+}

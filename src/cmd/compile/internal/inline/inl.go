@@ -49,6 +49,7 @@ const (
 	inlineExtraAppendCost = 0
 	// default is to inline if there's at most one call. -l=4 overrides this by using 1 instead.
 	inlineExtraCallCost  = 57              // 57 was benchmarked to provided most benefit with no bad surprises; see https://github.com/golang/go/issues/19348#issuecomment-439370742
+	inlineParamCallCost  = 17              // calling a parameter only costs this much extra (inlining might expose a constant function)
 	inlineExtraPanicCost = 1               // do not penalize inlining panics.
 	inlineExtraThrowCost = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
 
@@ -60,6 +61,9 @@ var (
 	// List of all hot callee nodes.
 	// TODO(prattmic): Make this non-global.
 	candHotCalleeMap = make(map[*pgoir.IRNode]struct{})
+
+	// Set of functions that contain hot call sites.
+	hasHotCall = make(map[*ir.Func]struct{})
 
 	// List of all hot call sites. CallSiteInfo.Callee is always nil.
 	// TODO(prattmic): Make this non-global.
@@ -77,6 +81,22 @@ var (
 	// Budget increased due to hotness.
 	inlineHotMaxBudget int32 = 2000
 )
+
+func IsPgoHotFunc(fn *ir.Func, profile *pgoir.Profile) bool {
+	if profile == nil {
+		return false
+	}
+	if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
+		_, ok := candHotCalleeMap[n]
+		return ok
+	}
+	return false
+}
+
+func HasPgoHotInline(fn *ir.Func) bool {
+	_, has := hasHotCall[fn]
+	return has
+}
 
 // PGOInlinePrologue records the hot callsites from ir-graph.
 func PGOInlinePrologue(p *pgoir.Profile) {
@@ -167,57 +187,6 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
 	})
 }
 
-// GarbageCollectUnreferencedHiddenClosures makes a pass over all the
-// top-level (non-hidden-closure) functions looking for nested closure
-// functions that are reachable, then sweeps through the Target.Decls
-// list and marks any non-reachable hidden closure function as dead.
-// See issues #59404 and #59638 for more context.
-func GarbageCollectUnreferencedHiddenClosures() {
-
-	liveFuncs := make(map[*ir.Func]bool)
-
-	var markLiveFuncs func(fn *ir.Func)
-	markLiveFuncs = func(fn *ir.Func) {
-		if liveFuncs[fn] {
-			return
-		}
-		liveFuncs[fn] = true
-		ir.Visit(fn, func(n ir.Node) {
-			if clo, ok := n.(*ir.ClosureExpr); ok {
-				markLiveFuncs(clo.Func)
-			}
-		})
-	}
-
-	for i := 0; i < len(typecheck.Target.Funcs); i++ {
-		fn := typecheck.Target.Funcs[i]
-		if fn.IsHiddenClosure() {
-			continue
-		}
-		markLiveFuncs(fn)
-	}
-
-	for i := 0; i < len(typecheck.Target.Funcs); i++ {
-		fn := typecheck.Target.Funcs[i]
-		if !fn.IsHiddenClosure() {
-			continue
-		}
-		if fn.IsDeadcodeClosure() {
-			continue
-		}
-		if liveFuncs[fn] {
-			continue
-		}
-		fn.SetIsDeadcodeClosure(true)
-		if base.Flag.LowerM > 2 {
-			fmt.Printf("%v: unreferenced closure %v marked as dead\n", ir.Line(fn), fn)
-		}
-		if fn.Inl != nil && fn.LSym == nil {
-			ir.InitLSym(fn, true)
-		}
-	}
-}
-
 // inlineBudget determines the max budget for function 'fn' prior to
 // analyzing the hairiness of the body of 'fn'. We pass in the pgo
 // profile if available (which can change the budget), also a
@@ -228,18 +197,17 @@ func GarbageCollectUnreferencedHiddenClosures() {
 func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose bool) int32 {
 	// Update the budget for profile-guided inlining.
 	budget := int32(inlineMaxBudget)
-	if profile != nil {
-		if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
-			if _, ok := candHotCalleeMap[n]; ok {
-				budget = inlineHotMaxBudget
-				if verbose {
-					fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
-				}
-			}
+	if IsPgoHotFunc(fn, profile) {
+		budget = inlineHotMaxBudget
+		if verbose {
+			fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
 		}
 	}
 	if relaxed {
 		budget += inlheur.BudgetExpansion(inlineMaxBudget)
+	}
+	if fn.ClosureParent != nil {
+		budget *= 2
 	}
 	return budget
 }
@@ -478,29 +446,39 @@ opSwitch:
 	// Call is okay if inlinable and we have the budget for the body.
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
-		// Functions that call runtime.getcaller{pc,sp} can not be inlined
-		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
-		//
-		// runtime.throw is a "cheap call" like panic in normal code.
 		var cheap bool
 		if n.Fun.Op() == ir.ONAME {
 			name := n.Fun.(*ir.Name)
 			if name.Class == ir.PFUNC {
-				switch fn := types.RuntimeSymName(name.Sym()); fn {
-				case "getcallerpc", "getcallersp":
-					v.reason = "call to " + fn
-					return true
-				case "throw":
-					v.budget -= inlineExtraThrowCost
-					break opSwitch
-				case "panicrangeexit":
-					cheap = true
-				}
-				// Special case for reflect.noescape. It does just type
-				// conversions to appease the escape analysis, and doesn't
-				// generate code.
-				if types.ReflectSymName(name.Sym()) == "noescape" {
-					cheap = true
+				s := name.Sym()
+				fn := s.Name
+				switch s.Pkg.Path {
+				case "internal/abi":
+					switch fn {
+					case "NoEscape":
+						// Special case for internal/abi.NoEscape. It does just type
+						// conversions to appease the escape analysis, and doesn't
+						// generate code.
+						cheap = true
+					}
+				case "internal/runtime/sys":
+					switch fn {
+					case "GetCallerPC", "GetCallerSP":
+						// Functions that call GetCallerPC/SP can not be inlined
+						// because users expect the PC/SP of the logical caller,
+						// but GetCallerPC/SP returns the physical caller.
+						v.reason = "call to " + fn
+						return true
+					}
+				case "go.runtime":
+					switch fn {
+					case "throw":
+						// runtime.throw is a "cheap call" like panic in normal code.
+						v.budget -= inlineExtraThrowCost
+						break opSwitch
+					case "panicrangestate":
+						cheap = true
+					}
 				}
 			}
 			// Special case for coverage counter updates; although
@@ -545,6 +523,35 @@ opSwitch:
 				}
 			}
 		}
+
+		// A call to a parameter is optimistically a cheap call, if it's a constant function
+		// perhaps it will inline, it also can simplify escape analysis.
+		extraCost := v.extraCallCost
+
+		if n.Fun.Op() == ir.ONAME {
+			name := n.Fun.(*ir.Name)
+			if name.Class == ir.PFUNC {
+				// Special case: on architectures that can do unaligned loads,
+				// explicitly mark internal/byteorder methods as cheap,
+				// because in practice they are, even though our inlining
+				// budgeting system does not see that. See issue 42958.
+				if base.Ctxt.Arch.CanMergeLoads && name.Sym().Pkg.Path == "internal/byteorder" {
+					switch name.Sym().Name {
+					case "LeUint64", "LeUint32", "LeUint16",
+						"BeUint64", "BeUint32", "BeUint16",
+						"LePutUint64", "LePutUint32", "LePutUint16",
+						"BePutUint64", "BePutUint32", "BePutUint16",
+						"LeAppendUint64", "LeAppendUint32", "LeAppendUint16",
+						"BeAppendUint64", "BeAppendUint32", "BeAppendUint16":
+						cheap = true
+					}
+				}
+			}
+			if name.Class == ir.PPARAM || name.Class == ir.PAUTOHEAP && name.IsClosureVar() {
+				extraCost = min(extraCost, inlineParamCallCost)
+			}
+		}
+
 		if cheap {
 			break // treat like any other node, that is, cost of 1
 		}
@@ -558,7 +565,7 @@ opSwitch:
 			// Check whether we'd actually inline this call. Set
 			// log == false since we aren't actually doing inlining
 			// yet.
-			if ok, _ := canInlineCallExpr(v.curFunc, n, callee, v.isBigFunc, false); ok {
+			if ok, _, _ := canInlineCallExpr(v.curFunc, n, callee, v.isBigFunc, false); ok {
 				// mkinlcall would inline this call [1], so use
 				// the cost of the inline body as the cost of
 				// the call, as that is what will actually
@@ -576,7 +583,7 @@ opSwitch:
 		}
 
 		// Call cost for non-leaf inlining.
-		v.budget -= v.extraCallCost
+		v.budget -= extraCost
 
 	case ir.OCALLMETH:
 		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
@@ -851,11 +858,16 @@ var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInde
 // inlineCostOK returns true if call n from caller to callee is cheap enough to
 // inline. bigCaller indicates that caller is a big function.
 //
-// In addition to the "cost OK" boolean, it also returns the "max
-// cost" limit used to make the decision (which may differ depending
-// on func size), and the score assigned to this specific callsite.
-func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool, int32, int32) {
+// In addition to the "cost OK" boolean, it also returns
+//   - the "max cost" limit used to make the decision (which may differ depending on func size)
+//   - the score assigned to this specific callsite
+//   - whether the inlined function is "hot" according to PGO.
+func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool, int32, int32, bool) {
 	maxCost := int32(inlineMaxBudget)
+	if callee.ClosureParent != nil {
+		maxCost *= 2 // favor inlining closures
+	}
+
 	if bigCaller {
 		// We use this to restrict inlining into very big functions.
 		// See issue 26546 and 17566.
@@ -870,19 +882,21 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 		}
 	}
 
+	lineOffset := pgoir.NodeLineOffset(n, caller)
+	csi := pgoir.CallSiteInfo{LineOffset: lineOffset, Caller: caller}
+	_, hot := candHotEdgeMap[csi]
+
 	if metric <= maxCost {
 		// Simple case. Function is already cheap enough.
-		return true, 0, metric
+		return true, 0, metric, hot
 	}
 
 	// We'll also allow inlining of hot functions below inlineHotMaxBudget,
 	// but only in small functions.
 
-	lineOffset := pgoir.NodeLineOffset(n, caller)
-	csi := pgoir.CallSiteInfo{LineOffset: lineOffset, Caller: caller}
-	if _, ok := candHotEdgeMap[csi]; !ok {
+	if !hot {
 		// Cold
-		return false, maxCost, metric
+		return false, maxCost, metric, false
 	}
 
 	// Hot
@@ -891,49 +905,50 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 		if base.Debug.PGODebug > 0 {
 			fmt.Printf("hot-big check disallows inlining for call %s (cost %d) at %v in big function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
 		}
-		return false, maxCost, metric
+		return false, maxCost, metric, false
 	}
 
 	if metric > inlineHotMaxBudget {
-		return false, inlineHotMaxBudget, metric
+		return false, inlineHotMaxBudget, metric, false
 	}
 
 	if !base.PGOHash.MatchPosWithInfo(n.Pos(), "inline", nil) {
 		// De-selected by PGO Hash.
-		return false, maxCost, metric
+		return false, maxCost, metric, false
 	}
 
 	if base.Debug.PGODebug > 0 {
 		fmt.Printf("hot-budget check allows inlining for call %s (cost %d) at %v in function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
 	}
 
-	return true, 0, metric
+	return true, 0, metric, hot
 }
 
 // canInlineCallExpr returns true if the call n from caller to callee
-// can be inlined, plus the score computed for the call expr in
-// question. bigCaller indicates that caller is a big function. log
+// can be inlined, plus the score computed for the call expr in question,
+// and whether the callee is hot according to PGO.
+// bigCaller indicates that caller is a big function. log
 // indicates that the 'cannot inline' reason should be logged.
 //
 // Preconditions: CanInline(callee) has already been called.
-func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCaller bool, log bool) (bool, int32) {
+func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCaller bool, log bool) (bool, int32, bool) {
 	if callee.Inl == nil {
 		// callee is never inlinable.
 		if log && logopt.Enabled() {
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
 				fmt.Sprintf("%s cannot be inlined", ir.PkgFuncName(callee)))
 		}
-		return false, 0
+		return false, 0, false
 	}
 
-	ok, maxCost, callSiteScore := inlineCostOK(n, callerfn, callee, bigCaller)
+	ok, maxCost, callSiteScore, hot := inlineCostOK(n, callerfn, callee, bigCaller)
 	if !ok {
 		// callee cost too high for this call site.
 		if log && logopt.Enabled() {
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
 				fmt.Sprintf("cost %d of %s exceeds max caller cost %d", callee.Inl.Cost, ir.PkgFuncName(callee), maxCost))
 		}
-		return false, 0
+		return false, 0, false
 	}
 
 	if callee == callerfn {
@@ -941,7 +956,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 		if log && logopt.Enabled() {
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(callerfn)))
 		}
-		return false, 0
+		return false, 0, false
 	}
 
 	if base.Flag.Cfg.Instrumenting && types.IsNoInstrumentPkg(callee.Sym().Pkg) {
@@ -955,7 +970,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
 				fmt.Sprintf("call to runtime function %s in instrumented build", ir.PkgFuncName(callee)))
 		}
-		return false, 0
+		return false, 0, false
 	}
 
 	if base.Flag.Race && types.IsNoRacePkg(callee.Sym().Pkg) {
@@ -963,7 +978,16 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
 				fmt.Sprintf(`call to into "no-race" package function %s in race build`, ir.PkgFuncName(callee)))
 		}
-		return false, 0
+		return false, 0, false
+	}
+
+	if base.Debug.Checkptr != 0 && types.IsRuntimePkg(callee.Sym().Pkg) {
+		// We don't instrument runtime packages for checkptr (see base/flag.go).
+		if log && logopt.Enabled() {
+			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
+				fmt.Sprintf(`call to into runtime package function %s in -d=checkptr build`, ir.PkgFuncName(callee)))
+		}
+		return false, 0, false
 	}
 
 	// Check if we've already inlined this function at this particular
@@ -986,11 +1010,11 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 						fmt.Sprintf("repeated recursive cycle to %s", ir.PkgFuncName(callee)))
 				}
 			}
-			return false, 0
+			return false, 0, false
 		}
 	}
 
-	return true, callSiteScore
+	return true, callSiteScore, hot
 }
 
 // mkinlcall returns an OINLCALL node that can replace OCALLFUNC n, or
@@ -1001,9 +1025,12 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 //
 //	n.Left = mkinlcall(n.Left, fn, isddd)
 func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *ir.InlinedCallExpr {
-	ok, score := canInlineCallExpr(callerfn, n, fn, bigCaller, true)
+	ok, score, hot := canInlineCallExpr(callerfn, n, fn, bigCaller, true)
 	if !ok {
 		return nil
+	}
+	if hot {
+		hasHotCall[callerfn] = struct{}{}
 	}
 	typecheck.AssertFixedCall(n)
 
@@ -1018,7 +1045,7 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *
 		// typecheck.Target.Decls (ir.UseClosure adds all closures to
 		// Decls).
 		//
-		// However, non-trivial closures in Decls are ignored, and are
+		// However, closures in Decls are ignored, and are
 		// instead enqueued when walk of the calling function
 		// discovers them.
 		//
@@ -1043,8 +1070,8 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *
 		}
 
 		clo := n.Fun.(*ir.ClosureExpr)
-		if ir.IsTrivialClosure(clo) {
-			// enqueueFunc will handle trivial closures anyways.
+		if !clo.Func.IsClosure() {
+			// enqueueFunc will handle non closures anyways.
 			return
 		}
 

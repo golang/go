@@ -10,11 +10,12 @@ package dwarf
 import (
 	"bytes"
 	"cmd/internal/src"
+	"cmp"
 	"errors"
 	"fmt"
 	"internal/buildcfg"
 	"os/exec"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -30,7 +31,7 @@ const ConstInfoPrefix = "go:constinfo."
 // populate the DWARF compilation unit info entries.
 const CUInfoPrefix = "go:cuinfo."
 
-// Used to form the symbol name assigned to the DWARF 'abstract subprogram"
+// Used to form the symbol name assigned to the DWARF "abstract subprogram"
 // info entry for a function
 const AbstractFuncSuffix = "$abstract"
 
@@ -338,6 +339,7 @@ const (
 	DW_ABRV_LEXICAL_BLOCK_SIMPLE
 	DW_ABRV_STRUCTFIELD
 	DW_ABRV_FUNCTYPEPARAM
+	DW_ABRV_FUNCTYPEOUTPARAM
 	DW_ABRV_DOTDOTDOT
 	DW_ABRV_ARRAYRANGE
 	DW_ABRV_NULLTYPE
@@ -572,6 +574,8 @@ var abbrevs = []dwAbbrev{
 	{
 		DW_TAG_member,
 		DW_CHILDREN_no,
+		// This abbrev is special-cased by the linker (unlike other DIEs
+		// we don't want a loader.Sym created for this DIE).
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_data_member_location, DW_FORM_udata},
@@ -586,7 +590,23 @@ var abbrevs = []dwAbbrev{
 		DW_CHILDREN_no,
 
 		// No name!
+		// This abbrev is special-cased by the linker (unlike other DIEs
+		// we don't want a loader.Sym created for this DIE).
 		[]dwAttrForm{
+			{DW_AT_type, DW_FORM_ref_addr},
+		},
+	},
+
+	/* FUNCTYPEOUTPARAM */
+	{
+		DW_TAG_formal_parameter,
+		DW_CHILDREN_no,
+
+		// No name!
+		// This abbrev is special-cased by the linker (unlike other DIEs
+		// we don't want a loader.Sym created for this DIE).
+		[]dwAttrForm{
+			{DW_AT_variable_parameter, DW_FORM_flag},
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
@@ -595,6 +615,9 @@ var abbrevs = []dwAbbrev{
 	{
 		DW_TAG_unspecified_parameters,
 		DW_CHILDREN_no,
+		// No name.
+		// This abbrev is special-cased by the linker (unlike other DIEs
+		// we don't want a loader.Sym created for this DIE).
 		[]dwAttrForm{},
 	},
 
@@ -604,6 +627,8 @@ var abbrevs = []dwAbbrev{
 		DW_CHILDREN_no,
 
 		// No name!
+		// This abbrev is special-cased by the linker (unlike other DIEs
+		// we don't want a loader.Sym created for this DIE).
 		[]dwAttrForm{
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_count, DW_FORM_udata},
@@ -1088,7 +1113,7 @@ func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
 				pruned.Vars = append(pruned.Vars, s.Vars[i])
 			}
 		}
-		sort.Sort(byChildIndex(pruned.Vars))
+		slices.SortFunc(pruned.Vars, byChildIndexCmp)
 		scopes[k] = pruned
 	}
 
@@ -1157,7 +1182,7 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 			}
 		}
 		if len(flattened) > 0 {
-			sort.Sort(byChildIndex(flattened))
+			slices.SortFunc(flattened, byChildIndexCmp)
 
 			if logDwarf {
 				ctxt.Logf("putAbstractScope(%v): vars:", s.Info)
@@ -1221,7 +1246,7 @@ func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
 
 	// Variables associated with this inlined routine instance.
 	vars := ic.InlVars
-	sort.Sort(byChildIndex(vars))
+	slices.SortFunc(vars, byChildIndexCmp)
 	inlIndex := ic.InlIndex
 	var encbuf [20]byte
 	for _, v := range vars {
@@ -1538,12 +1563,8 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 	// Var has no children => no terminator
 }
 
-// byChildIndex implements sort.Interface for []*dwarf.Var by child index.
-type byChildIndex []*Var
-
-func (s byChildIndex) Len() int           { return len(s) }
-func (s byChildIndex) Less(i, j int) bool { return s[i].ChildIndex < s[j].ChildIndex }
-func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+// byChildIndexCmp compares two *dwarf.Var by child index.
+func byChildIndexCmp(a, b *Var) int { return cmp.Compare(a.ChildIndex, b.ChildIndex) }
 
 // IsDWARFEnabledOnAIXLd returns true if DWARF is possible on the
 // current extld.

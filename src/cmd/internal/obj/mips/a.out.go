@@ -275,6 +275,7 @@ const (
 	NSCHED = 20
 )
 
+//go:generate go run ../mkcnames.go -i a.out.go -o anames0.go -p mips
 const (
 	C_NONE = iota
 	C_REG

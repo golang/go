@@ -36,7 +36,7 @@ var abbrs = map[string]abbr{
 	"Central Standard Time":           {"CST", "CDT"},     // America/Chicago
 	"Central Brazilian Standard Time": {"-04", "-04"},     // America/Cuiaba
 	"Mountain Standard Time":          {"MST", "MDT"},     // America/Denver
-	"Greenland Standard Time":         {"-03", "-02"},     // America/Godthab
+	"Greenland Standard Time":         {"-02", "-01"},     // America/Godthab
 	"Turks And Caicos Standard Time":  {"EST", "EDT"},     // America/Grand_Turk
 	"Central America Standard Time":   {"CST", "CST"},     // America/Guatemala
 	"Atlantic Standard Time":          {"AST", "ADT"},     // America/Halifax
@@ -58,13 +58,13 @@ var abbrs = map[string]abbr{
 	"Newfoundland Standard Time":      {"NST", "NDT"},     // America/St_Johns
 	"Pacific Standard Time (Mexico)":  {"PST", "PDT"},     // America/Tijuana
 	"Yukon Standard Time":             {"MST", "MST"},     // America/Whitehorse
-	"Central Asia Standard Time":      {"+06", "+06"},     // Asia/Almaty
 	"Jordan Standard Time":            {"+03", "+03"},     // Asia/Amman
 	"Arabic Standard Time":            {"+03", "+03"},     // Asia/Baghdad
 	"Azerbaijan Standard Time":        {"+04", "+04"},     // Asia/Baku
 	"SE Asia Standard Time":           {"+07", "+07"},     // Asia/Bangkok
 	"Altai Standard Time":             {"+07", "+07"},     // Asia/Barnaul
 	"Middle East Standard Time":       {"EET", "EEST"},    // Asia/Beirut
+	"Central Asia Standard Time":      {"+06", "+06"},     // Asia/Bishkek
 	"India Standard Time":             {"IST", "IST"},     // Asia/Calcutta
 	"Transbaikal Standard Time":       {"+09", "+09"},     // Asia/Chita
 	"Sri Lanka Standard Time":         {"+0530", "+0530"}, // Asia/Colombo

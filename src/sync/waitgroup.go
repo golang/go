@@ -18,8 +18,10 @@ import (
 //
 // A WaitGroup must not be copied after first use.
 //
-// In the terminology of the Go memory model, a call to [WaitGroup.Done]
+// In the terminology of [the Go memory model], a call to [WaitGroup.Done]
 // “synchronizes before” the return of any Wait call that it unblocks.
+//
+// [the Go memory model]: https://go.dev/ref/mem
 type WaitGroup struct {
 	noCopy noCopy
 
@@ -113,7 +115,7 @@ func (wg *WaitGroup) Wait() {
 				// otherwise concurrent Waits will race with each other.
 				race.Write(unsafe.Pointer(&wg.sema))
 			}
-			runtime_Semacquire(&wg.sema)
+			runtime_SemacquireWaitGroup(&wg.sema)
 			if wg.state.Load() != 0 {
 				panic("sync: WaitGroup is reused before previous Wait has returned")
 			}

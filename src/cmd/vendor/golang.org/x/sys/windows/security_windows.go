@@ -68,6 +68,7 @@ type UserInfo10 struct {
 //sys	NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) = netapi32.NetUserGetInfo
 //sys	NetGetJoinInformation(server *uint16, name **uint16, bufType *uint32) (neterr error) = netapi32.NetGetJoinInformation
 //sys	NetApiBufferFree(buf *byte) (neterr error) = netapi32.NetApiBufferFree
+//sys   NetUserEnum(serverName *uint16, level uint32, filter uint32, buf **byte, prefMaxLen uint32, entriesRead *uint32, totalEntries *uint32, resumeHandle *uint32) (neterr error) = netapi32.NetUserEnum
 
 const (
 	// do not reorder
@@ -893,7 +894,7 @@ type ACL struct {
 	aclRevision byte
 	sbz1        byte
 	aclSize     uint16
-	aceCount    uint16
+	AceCount    uint16
 	sbz2        uint16
 }
 
@@ -1086,6 +1087,27 @@ type EXPLICIT_ACCESS struct {
 	Trustee           TRUSTEE
 }
 
+// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-ace_header
+type ACE_HEADER struct {
+	AceType  uint8
+	AceFlags uint8
+	AceSize  uint16
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-access_allowed_ace
+type ACCESS_ALLOWED_ACE struct {
+	Header   ACE_HEADER
+	Mask     ACCESS_MASK
+	SidStart uint32
+}
+
+const (
+	// Constants for AceType
+	// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-ace_header
+	ACCESS_ALLOWED_ACE_TYPE = 0
+	ACCESS_DENIED_ACE_TYPE  = 1
+)
+
 // This type is the union inside of TRUSTEE and must be created using one of the TrusteeValueFrom* functions.
 type TrusteeValue uintptr
 
@@ -1157,6 +1179,7 @@ type OBJECTS_AND_NAME struct {
 //sys	makeSelfRelativeSD(absoluteSD *SECURITY_DESCRIPTOR, selfRelativeSD *SECURITY_DESCRIPTOR, selfRelativeSDSize *uint32) (err error) = advapi32.MakeSelfRelativeSD
 
 //sys	setEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL *ACL, newACL **ACL) (ret error) = advapi32.SetEntriesInAclW
+//sys	GetAce(acl *ACL, aceIndex uint32, pAce **ACCESS_ALLOWED_ACE) (err error) = advapi32.GetAce
 
 // Control returns the security descriptor control bits.
 func (sd *SECURITY_DESCRIPTOR) Control() (control SECURITY_DESCRIPTOR_CONTROL, revision uint32, err error) {

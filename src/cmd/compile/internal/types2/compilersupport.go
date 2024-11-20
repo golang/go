@@ -28,3 +28,11 @@ func AsSignature(t Type) *Signature {
 func CoreType(t Type) Type {
 	return coreType(t)
 }
+
+// RangeKeyVal returns the key and value types for a range over typ.
+// It panics if range over typ is invalid.
+func RangeKeyVal(typ Type) (Type, Type) {
+	key, val, _, ok := rangeKeyVal(typ, nil)
+	assert(ok)
+	return key, val
+}

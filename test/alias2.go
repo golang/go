@@ -46,8 +46,8 @@ var _ A0 = T0{}
 var _ T0 = A0{}
 
 // But aliases and original types cannot be used with new types based on them.
-var _ N0 = T0{} // ERROR "cannot use T0{} \(value of type T0\) as N0 value in variable declaration"
-var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type T0\) as N0 value in variable declaration"
+var _ N0 = T0{} // ERROR "cannot use T0{} \(value of struct type T0\) as N0 value in variable declaration"
+var _ N0 = A0{} // ERROR "cannot use A0{} \(value of struct type A0\) as N0 value in variable declaration"
 
 var _ A5 = Value{}
 
@@ -82,20 +82,20 @@ func _() {
 	var _ A0 = T0{}
 	var _ T0 = A0{}
 
-	var _ N0 = T0{} // ERROR "cannot use T0{} \(value of type T0\) as N0 value in variable declaration"
-	var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type T0\) as N0 value in variable declaration"
+	var _ N0 = T0{} // ERROR "cannot use T0{} \(value of struct type T0\) as N0 value in variable declaration"
+	var _ N0 = A0{} // ERROR "cannot use A0{} \(value of struct type A0\) as N0 value in variable declaration"
 
-	var _ A5 = Value{} // ERROR "cannot use Value{} \(value of type reflect\.Value\) as A5 value in variable declaration"
+	var _ A5 = Value{} // ERROR "cannot use Value{} \(value of struct type reflect\.Value\) as A5 value in variable declaration"
 }
 
 // Invalid type alias declarations.
 
 type _ = reflect.ValueOf // ERROR "reflect.ValueOf .*is not a type|expected type"
 
-func (A1) m() {} // ERROR "cannot define new methods on non-local type int|may not define methods on non-local type"
+func (A1) m() {} // ERROR "cannot define new methods on non-local type|may not define methods on non-local type"
 func (A2) m() {} // ERROR "invalid receiver type"
-func (A3) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
-func (A4) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
+func (A3) m() {} // ERROR "cannot define new methods on non-local type|may not define methods on non-local type"
+func (A4) m() {} // ERROR "cannot define new methods on non-local type|may not define methods on non-local type"
 
 type B1 = struct{}
 

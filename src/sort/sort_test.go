@@ -13,13 +13,13 @@ import (
 	"slices"
 	. "sort"
 	"strconv"
-	stringspkg "strings"
+	"strings"
 	"testing"
 )
 
 var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
 var float64s = [...]float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN(), math.NaN(), math.Inf(-1), 9845.768, -959.7485, 905, 7.8, 7.8}
-var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
+var stringsData = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
 
 func TestSortIntSlice(t *testing.T) {
 	data := ints
@@ -56,11 +56,11 @@ func TestSortFloat64sCompareSlicesSort(t *testing.T) {
 }
 
 func TestSortStringSlice(t *testing.T) {
-	data := strings
+	data := stringsData
 	a := StringSlice(data[0:])
 	Sort(a)
 	if !IsSorted(a) {
-		t.Errorf("sorted %v", strings)
+		t.Errorf("sorted %v", stringsData)
 		t.Errorf("   got %v", data)
 	}
 }
@@ -84,21 +84,21 @@ func TestFloat64s(t *testing.T) {
 }
 
 func TestStrings(t *testing.T) {
-	data := strings
+	data := stringsData
 	Strings(data[0:])
 	if !StringsAreSorted(data[0:]) {
-		t.Errorf("sorted %v", strings)
+		t.Errorf("sorted %v", stringsData)
 		t.Errorf("   got %v", data)
 	}
 }
 
 func TestSlice(t *testing.T) {
-	data := strings
+	data := stringsData
 	Slice(data[:], func(i, j int) bool {
 		return data[i] < data[j]
 	})
 	if !SliceIsSorted(data[:], func(i, j int) bool { return data[i] < data[j] }) {
-		t.Errorf("sorted %v", strings)
+		t.Errorf("sorted %v", stringsData)
 		t.Errorf("   got %v", data)
 	}
 }
@@ -715,7 +715,7 @@ func TestCountStableOps(t *testing.T) { countOps(t, Stable, "Stable") }
 func TestCountSortOps(t *testing.T)   { countOps(t, Sort, "Sort  ") }
 
 func bench(b *testing.B, size int, algo func(Interface), name string) {
-	if stringspkg.HasSuffix(testenv.Builder(), "-race") && size > 1e4 {
+	if strings.HasSuffix(testenv.Builder(), "-race") && size > 1e4 {
 		b.Skip("skipping slow benchmark on race builder")
 	}
 	b.StopTimer()

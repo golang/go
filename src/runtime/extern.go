@@ -35,9 +35,6 @@ time.
 The GODEBUG variable controls debugging variables within the runtime.
 It is a comma-separated list of name=val pairs setting these named variables:
 
-	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
-	profiled and a stack trace printed on each object's allocation and free.
-
 	clobberfree: setting clobberfree=1 causes the garbage collector to
 	clobber the memory content of an object with bad content when it frees
 	the object.
@@ -144,6 +141,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
 	When set to 0 memory profiling is disabled.  Refer to the description of
 	MemProfileRate for the default value.
+
+	profstackdepth: profstackdepth=128 (the default) will set the maximum stack
+	depth used by all pprof profilers except for the CPU profiler to 128 frames.
+	Stack traces that exceed this limit will be truncated to the limit starting
+	from the leaf frame. Setting profstackdepth to any value above 1024 will
+	silently default to 1024. Future versions of Go may remove this limitation
+	and extend profstackdepth to apply to the CPU profiler and execution tracer.
 
 	pagetrace: setting pagetrace=/path/to/file will write out a trace of page events
 	that can be viewed, analyzed, and visualized using the x/debug/cmd/pagetrace tool.
@@ -290,10 +294,11 @@ import (
 
 // Caller reports file and line number information about function invocations on
 // the calling goroutine's stack. The argument skip is the number of stack frames
-// to ascend, with 0 identifying the caller of Caller.  (For historical reasons the
-// meaning of skip differs between Caller and [Callers].) The return values report the
-// program counter, file name, and line number within the file of the corresponding
-// call. The boolean ok is false if it was not possible to recover the information.
+// to ascend, with 0 identifying the caller of Caller. (For historical reasons the
+// meaning of skip differs between Caller and [Callers].) The return values report
+// the program counter, the file name (using forward slashes as path separator, even
+// on Windows), and the line number within the file of the corresponding call.
+// The boolean ok is false if it was not possible to recover the information.
 func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	rpc := make([]uintptr, 1)
 	n := callers(skip+1, rpc)
@@ -332,6 +337,11 @@ var defaultGOROOT string // set by cmd/link
 // GOROOT returns the root of the Go tree. It uses the
 // GOROOT environment variable, if set at process start,
 // or else the root used during the Go build.
+//
+// Deprecated: The root used during the Go build will not be
+// meaningful if the binary is copied to another machine.
+// Use the system path to locate the “go” binary, and use
+// “go env GOROOT” to find its GOROOT.
 func GOROOT() string {
 	s := gogetenv("GOROOT")
 	if s != "" {

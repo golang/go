@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
+	"fmt"
 	"log"
 )
 
@@ -254,4 +255,128 @@ func calculatePCAlignedReloc(t objabi.RelocType, tgt int64, pc int64) int64 {
 	}
 	// corresponding immediate field is 20 bits wide
 	return pageDelta & 0xfffff
+}
+
+// Convert the direct jump relocation r to refer to a trampoline if the target is too far.
+func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+	relocs := ldr.Relocs(s)
+	r := relocs.At(ri)
+	switch r.Type() {
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_B26):
+		// Host object relocations that will be turned into a PLT call.
+		// The PLT may be too far. Insert a trampoline for them.
+		fallthrough
+	case objabi.R_CALLLOONG64:
+		var t int64
+		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
+		// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
+		// in dependency order.
+		if ldr.SymValue(rs) != 0 {
+			t = ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+		}
+		if t >= 1<<27 || t < -1<<27 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && (ldr.SymPkg(s) == "" || ldr.SymPkg(s) != ldr.SymPkg(rs))) {
+			// direct call too far need to insert trampoline.
+			// look up existing trampolines first. if we found one within the range
+			// of direct call, we can reuse it. otherwise create a new one.
+			var tramp loader.Sym
+			for i := 0; ; i++ {
+				oName := ldr.SymName(rs)
+				name := oName + fmt.Sprintf("%+x-tramp%d", r.Add(), i)
+				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				ldr.SetAttrReachable(tramp, true)
+				if ldr.SymType(tramp) == sym.SDYNIMPORT {
+					// don't reuse trampoline defined in other module
+					continue
+				}
+				if oName == "runtime.deferreturn" {
+					ldr.SetIsDeferReturnTramp(tramp, true)
+				}
+				if ldr.SymValue(tramp) == 0 {
+					// either the trampoline does not exist -- we need to create one,
+					// or found one the address which is not assigned -- this will be
+					// laid down immediately after the current function. use this one.
+					break
+				}
+
+				t = ldr.SymValue(tramp) - (ldr.SymValue(s) + int64(r.Off()))
+				if t >= -1<<27 && t < 1<<27 {
+					// found an existing trampoline that is not too far
+					// we can just use it.
+					break
+				}
+			}
+			if ldr.SymType(tramp) == 0 {
+				// trampoline does not exist, create one
+				trampb := ldr.MakeSymbolUpdater(tramp)
+				ctxt.AddTramp(trampb)
+				if ldr.SymType(rs) == sym.SDYNIMPORT {
+					if r.Add() != 0 {
+						ctxt.Errorf(s, "nonzero addend for DYNIMPORT call: %v+%d", ldr.SymName(rs), r.Add())
+					}
+					gentrampgot(ctxt, ldr, trampb, rs)
+				} else {
+					gentramp(ctxt, ldr, trampb, rs, r.Add())
+				}
+			}
+			// modify reloc to point to tramp, which will be resolved later
+			sb := ldr.MakeSymbolUpdater(s)
+			relocs := sb.Relocs()
+			r := relocs.At(ri)
+			r.SetSym(tramp)
+			r.SetAdd(0) // clear the offset embedded in the instruction
+		}
+	default:
+		ctxt.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()))
+	}
+}
+
+// generate a trampoline to target+offset.
+func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
+	tramp.SetSize(12) // 3 instructions
+	P := make([]byte, tramp.Size())
+
+	o1 := uint32(0x1a00001e) // pcalau12i $r30, 0
+	ctxt.Arch.ByteOrder.PutUint32(P, o1)
+	r1, _ := tramp.AddRel(objabi.R_LOONG64_ADDR_HI)
+	r1.SetOff(0)
+	r1.SetSiz(4)
+	r1.SetSym(target)
+	r1.SetAdd(offset)
+
+	o2 := uint32(0x02c003de) // addi.d $r30, $r30, 0
+	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
+	r2, _ := tramp.AddRel(objabi.R_LOONG64_ADDR_LO)
+	r2.SetOff(4)
+	r2.SetSiz(4)
+	r2.SetSym(target)
+	r2.SetAdd(offset)
+
+	o3 := uint32(0x4c0003c0) // jirl $r0, $r30, 0
+	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
+
+	tramp.SetData(P)
+}
+
+func gentrampgot(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym) {
+	tramp.SetSize(12) // 3 instructions
+	P := make([]byte, tramp.Size())
+
+	o1 := uint32(0x1a00001e) // pcalau12i $r30, 0
+	ctxt.Arch.ByteOrder.PutUint32(P, o1)
+	r1, _ := tramp.AddRel(objabi.R_LOONG64_GOT_HI)
+	r1.SetOff(0)
+	r1.SetSiz(4)
+	r1.SetSym(target)
+
+	o2 := uint32(0x28c003de) // ld.d $r30, $r30, 0
+	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
+	r2, _ := tramp.AddRel(objabi.R_LOONG64_GOT_LO)
+	r2.SetOff(4)
+	r2.SetSiz(4)
+	r2.SetSym(target)
+
+	o3 := uint32(0x4c0003c0) // jirl $r0, $r30, 0
+	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
+
+	tramp.SetData(P)
 }

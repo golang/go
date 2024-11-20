@@ -29,8 +29,16 @@ type Type struct {
 	// (ptr to object A, ptr to object B) -> ==?
 	Equal func(unsafe.Pointer, unsafe.Pointer) bool
 	// GCData stores the GC type data for the garbage collector.
-	// If the KindGCProg bit is set in kind, GCData is a GC program.
-	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
+	// Normally, GCData points to a bitmask that describes the
+	// ptr/nonptr fields of the type. The bitmask will have at
+	// least PtrBytes/ptrSize bits.
+	// If the TFlagGCMaskOnDemand bit is set, GCData is instead a
+	// **byte and the pointer to the bitmask is one dereference away.
+	// The runtime will build the bitmask if needed.
+	// (See runtime/type.go:getGCMask.)
+	// Note: multiple types may have the same value of GCData,
+	// including when TFlagGCMaskOnDemand is set. The types will, of course,
+	// have the same pointer layout (but not necessarily the same size).
 	GCData    *byte
 	Str       NameOff // string form
 	PtrToThis TypeOff // type for pointer to this type, may be zero
@@ -73,7 +81,6 @@ const (
 const (
 	// TODO (khr, drchase) why aren't these in TFlag?  Investigate, fix if possible.
 	KindDirectIface Kind = 1 << 5
-	KindGCProg      Kind = 1 << 6 // Type.gc points to GC program
 	KindMask        Kind = (1 << 5) - 1
 )
 
@@ -112,11 +119,12 @@ const (
 	// this type as a single region of t.size bytes.
 	TFlagRegularMemory TFlag = 1 << 3
 
-	// TFlagUnrolledBitmap marks special types that are unrolled-bitmap
-	// versions of types with GC programs.
-	// These types need to be deallocated when the underlying object
-	// is freed.
-	TFlagUnrolledBitmap TFlag = 1 << 4
+	// TFlagGCMaskOnDemand means that the GC pointer bitmask will be
+	// computed on demand at runtime instead of being precomputed at
+	// compile time. If this flag is set, the GCData field effectively
+	// has type **byte instead of *byte. The runtime will store a
+	// pointer to the GC pointer bitmask in *GCData.
+	TFlagGCMaskOnDemand TFlag = 1 << 4
 )
 
 // NameOff is the offset to a name from moduledata.types.  See resolveNameOff in runtime.
@@ -177,6 +185,15 @@ func TypeOf(a any) *Type {
 	return (*Type)(NoEscape(unsafe.Pointer(eface.Type)))
 }
 
+// TypeFor returns the abi.Type for a type parameter.
+func TypeFor[T any]() *Type {
+	var v T
+	if t := TypeOf(v); t != nil {
+		return t // optimize for T being a non-interface kind
+	}
+	return TypeOf((*T)(nil)).Elem() // only for an interface kind
+}
+
 func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
 
 func (t *Type) HasName() bool {
@@ -197,6 +214,9 @@ func (t *Type) IsDirectIface() bool {
 }
 
 func (t *Type) GcSlice(begin, end uintptr) []byte {
+	if t.TFlag&TFlagGCMaskOnDemand != 0 {
+		panic("GcSlice can't handle on-demand gcdata types")
+	}
 	return unsafe.Slice(t.GCData, int(end))[begin:]
 }
 
@@ -341,7 +361,7 @@ func (t *Type) Uncommon() *UncommonType {
 		return &(*u)(unsafe.Pointer(t)).u
 	case Map:
 		type u struct {
-			MapType
+			mapType
 			u UncommonType
 		}
 		return &(*u)(unsafe.Pointer(t)).u
@@ -370,7 +390,7 @@ func (t *Type) Elem() *Type {
 		tt := (*ChanType)(unsafe.Pointer(t))
 		return tt.Elem
 	case Map:
-		tt := (*MapType)(unsafe.Pointer(t))
+		tt := (*mapType)(unsafe.Pointer(t))
 		return tt.Elem
 	case Pointer:
 		tt := (*PtrType)(unsafe.Pointer(t))
@@ -390,12 +410,12 @@ func (t *Type) StructType() *StructType {
 	return (*StructType)(unsafe.Pointer(t))
 }
 
-// MapType returns t cast to a *MapType, or nil if its tag does not match.
-func (t *Type) MapType() *MapType {
+// MapType returns t cast to a *OldMapType or *SwissMapType, or nil if its tag does not match.
+func (t *Type) MapType() *mapType {
 	if t.Kind() != Map {
 		return nil
 	}
-	return (*MapType)(unsafe.Pointer(t))
+	return (*mapType)(unsafe.Pointer(t))
 }
 
 // ArrayType returns t cast to a *ArrayType, or nil if its tag does not match.
@@ -455,40 +475,9 @@ func (t *Type) NumMethod() int {
 // NumMethod returns the number of interface methods in the type's method set.
 func (t *InterfaceType) NumMethod() int { return len(t.Methods) }
 
-type MapType struct {
-	Type
-	Key    *Type
-	Elem   *Type
-	Bucket *Type // internal type representing a hash bucket
-	// function for hashing keys (ptr to key, seed) -> hash
-	Hasher     func(unsafe.Pointer, uintptr) uintptr
-	KeySize    uint8  // size of key slot
-	ValueSize  uint8  // size of elem slot
-	BucketSize uint16 // size of bucket
-	Flags      uint32
-}
-
-// Note: flag values must match those used in the TMAP case
-// in ../cmd/compile/internal/reflectdata/reflect.go:writeType.
-func (mt *MapType) IndirectKey() bool { // store ptr to key instead of key itself
-	return mt.Flags&1 != 0
-}
-func (mt *MapType) IndirectElem() bool { // store ptr to elem instead of elem itself
-	return mt.Flags&2 != 0
-}
-func (mt *MapType) ReflexiveKey() bool { // true if k==k for all keys
-	return mt.Flags&4 != 0
-}
-func (mt *MapType) NeedKeyUpdate() bool { // true if we need to update key on an overwrite
-	return mt.Flags&8 != 0
-}
-func (mt *MapType) HashMightPanic() bool { // true if hash function might panic
-	return mt.Flags&16 != 0
-}
-
 func (t *Type) Key() *Type {
 	if t.Kind() == Map {
-		return (*MapType)(unsafe.Pointer(t)).Key
+		return (*mapType)(unsafe.Pointer(t)).Key
 	}
 	return nil
 }

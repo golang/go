@@ -8,9 +8,10 @@ import (
 	. "bytes"
 	"fmt"
 	"internal/testenv"
+	"iter"
 	"math"
 	"math/rand"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"unicode"
@@ -18,24 +19,43 @@ import (
 	"unsafe"
 )
 
-func eq(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func sliceOfString(s [][]byte) []string {
 	result := make([]string, len(s))
 	for i, v := range s {
 		result[i] = string(v)
 	}
 	return result
+}
+
+func collect(t *testing.T, seq iter.Seq[[]byte]) [][]byte {
+	out := slices.Collect(seq)
+	out1 := slices.Collect(seq)
+	if !slices.Equal(sliceOfString(out), sliceOfString(out1)) {
+		t.Fatalf("inconsistent seq:\n%s\n%s", out, out1)
+	}
+	return out
+}
+
+type LinesTest struct {
+	a string
+	b []string
+}
+
+var linesTests = []LinesTest{
+	{a: "abc\nabc\n", b: []string{"abc\n", "abc\n"}},
+	{a: "abc\r\nabc", b: []string{"abc\r\n", "abc"}},
+	{a: "abc\r\n", b: []string{"abc\r\n"}},
+	{a: "\nabc", b: []string{"\n", "abc"}},
+	{a: "\nabc\n\n", b: []string{"\n", "abc\n", "\n"}},
+}
+
+func TestLines(t *testing.T) {
+	for _, s := range linesTests {
+		result := sliceOfString(slices.Collect(Lines([]byte(s.a))))
+		if !slices.Equal(result, s.b) {
+			t.Errorf(`slices.Collect(Lines(%q)) = %q; want %q`, s.a, result, s.b)
+		}
+	}
 }
 
 // For ease of reading, the test cases use strings that are converted to byte
@@ -177,6 +197,11 @@ var indexTests = []BinOpTest{
 	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
 	// test fallback to Rabin-Karp.
 	{"000000000000000000000000000000000000000000000000000000000000000000000001", "0000000000000000000000000000000000000000000000000000000000000000001", 5},
+	// test fallback to IndexRune
+	{"oxoxoxoxoxoxoxoxoxoxox☺", "☺", 22},
+	// invalid UTF-8 byte sequence (must be longer than bytealg.MaxBruteForce to
+	// test that we don't use IndexRune)
+	{"xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx\xed\x9f\xc0", "\xed\x9f\xc0", 105},
 }
 
 var lastIndexTests = []BinOpTest{
@@ -425,6 +450,31 @@ func TestIndexRune(t *testing.T) {
 		{"some_text=some_value", '=', 9},
 		{"☺a", 'a', 3},
 		{"a☻☺b", '☺', 4},
+		{"𠀳𠀗𠀾𠁄𠀧𠁆𠁂𠀫𠀖𠀪𠀲𠀴𠁀𠀨𠀿", '𠀿', 56},
+
+		// 2 bytes
+		{"ӆ", 'ӆ', 0},
+		{"a", 'ӆ', -1},
+		{"  ӆ", 'ӆ', 2},
+		{"  a", 'ӆ', -1},
+		{strings.Repeat("ц", 64) + "ӆ", 'ӆ', 128}, // test cutover
+		{strings.Repeat("ц", 64), 'ӆ', -1},
+
+		// 3 bytes
+		{"Ꚁ", 'Ꚁ', 0},
+		{"a", 'Ꚁ', -1},
+		{"  Ꚁ", 'Ꚁ', 2},
+		{"  a", 'Ꚁ', -1},
+		{strings.Repeat("Ꙁ", 64) + "Ꚁ", 'Ꚁ', 192}, // test cutover
+		{strings.Repeat("Ꙁ", 64) + "Ꚁ", '䚀', -1},  // 'Ꚁ' and '䚀' share the same last two bytes
+
+		// 4 bytes
+		{"𡌀", '𡌀', 0},
+		{"a", '𡌀', -1},
+		{"  𡌀", '𡌀', 2},
+		{"  a", '𡌀', -1},
+		{strings.Repeat("𡋀", 64) + "𡌀", '𡌀', 256}, // test cutover
+		{strings.Repeat("𡋀", 64) + "𡌀", '𣌀', -1},  // '𡌀' and '𣌀' share the same last two bytes
 
 		// RuneError should match any invalid UTF-8 byte sequence.
 		{"�", '�', 0},
@@ -438,6 +488,13 @@ func TestIndexRune(t *testing.T) {
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", -1, -1},
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", 0xD800, -1}, // Surrogate pair
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", utf8.MaxRune + 1, -1},
+
+		// Test the cutover to bytealg.Index when it is triggered in
+		// the middle of rune that contains consecutive runs of equal bytes.
+		{"aaaaaKKKK\U000bc104", '\U000bc104', 17}, // cutover: (n + 16) / 8
+		{"aaaaaKKKK鄄", '鄄', 17},
+		{"aaKKKKKa\U000bc104", '\U000bc104', 18}, // cutover: 4 + n>>4
+		{"aaKKKKKa鄄", '鄄', 18},
 	}
 	for _, tt := range tests {
 		if got := IndexRune([]byte(tt.in), tt.rune); got != tt.want {
@@ -585,6 +642,21 @@ func BenchmarkIndexRuneASCII(b *testing.B) {
 	benchBytes(b, indexSizes, bmIndexRuneASCII(IndexRune))
 }
 
+func BenchmarkIndexRuneUnicode(b *testing.B) {
+	b.Run("Latin", func(b *testing.B) {
+		// Latin is mostly 1, 2, 3 byte runes.
+		benchBytes(b, indexSizes, bmIndexRuneUnicode(unicode.Latin, 'é'))
+	})
+	b.Run("Cyrillic", func(b *testing.B) {
+		// Cyrillic is mostly 2 and 3 byte runes.
+		benchBytes(b, indexSizes, bmIndexRuneUnicode(unicode.Cyrillic, 'Ꙁ'))
+	})
+	b.Run("Han", func(b *testing.B) {
+		// Han consists only of 3 and 4 byte runes.
+		benchBytes(b, indexSizes, bmIndexRuneUnicode(unicode.Han, '𠀿'))
+	})
+}
+
 func bmIndexRuneASCII(index func([]byte, rune) int) func(b *testing.B, n int) {
 	return func(b *testing.B, n int) {
 		buf := bmbuf[0:n]
@@ -612,6 +684,61 @@ func bmIndexRune(index func([]byte, rune) int) func(b *testing.B, n int) {
 		buf[n-3] = '\x00'
 		buf[n-2] = '\x00'
 		buf[n-1] = '\x00'
+	}
+}
+
+func bmIndexRuneUnicode(rt *unicode.RangeTable, needle rune) func(b *testing.B, n int) {
+	var rs []rune
+	for _, r16 := range rt.R16 {
+		for r := rune(r16.Lo); r <= rune(r16.Hi); r += rune(r16.Stride) {
+			if r != needle {
+				rs = append(rs, rune(r))
+			}
+		}
+	}
+	for _, r32 := range rt.R32 {
+		for r := rune(r32.Lo); r <= rune(r32.Hi); r += rune(r32.Stride) {
+			if r != needle {
+				rs = append(rs, rune(r))
+			}
+		}
+	}
+	// Shuffle the runes so that they are not in descending order.
+	// The sort is deterministic since this is used for benchmarks,
+	// which need to be repeatable.
+	rr := rand.New(rand.NewSource(1))
+	rr.Shuffle(len(rs), func(i, j int) {
+		rs[i], rs[j] = rs[j], rs[i]
+	})
+	uchars := string(rs)
+
+	return func(b *testing.B, n int) {
+		buf := bmbuf[0:n]
+		o := copy(buf, uchars)
+		for o < len(buf) {
+			o += copy(buf[o:], uchars)
+		}
+
+		// Make space for the needle rune at the end of buf.
+		m := utf8.RuneLen(needle)
+		for o := m; o > 0; {
+			_, sz := utf8.DecodeLastRune(buf)
+			copy(buf[len(buf)-sz:], "\x00\x00\x00\x00")
+			buf = buf[:len(buf)-sz]
+			o -= sz
+		}
+		buf = utf8.AppendRune(buf[:n-m], needle)
+
+		n -= m // adjust for rune len
+		for i := 0; i < b.N; i++ {
+			j := IndexRune(buf, needle)
+			if j != n {
+				b.Fatal("bad index", j)
+			}
+		}
+		for i := range buf {
+			buf[i] = '\x00'
+		}
 	}
 }
 
@@ -808,10 +935,18 @@ func TestSplit(t *testing.T) {
 		}
 
 		result := sliceOfString(a)
-		if !eq(result, tt.a) {
+		if !slices.Equal(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
 		}
+
+		if tt.n < 0 {
+			b := sliceOfString(slices.Collect(SplitSeq([]byte(tt.s), []byte(tt.sep))))
+			if !slices.Equal(b, tt.a) {
+				t.Errorf(`collect(SplitSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, b, tt.a)
+			}
+		}
+
 		if tt.n == 0 || len(a) == 0 {
 			continue
 		}
@@ -825,8 +960,8 @@ func TestSplit(t *testing.T) {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
 		if tt.n < 0 {
-			b := Split([]byte(tt.s), []byte(tt.sep))
-			if !reflect.DeepEqual(a, b) {
+			b := sliceOfString(Split([]byte(tt.s), []byte(tt.sep)))
+			if !slices.Equal(result, b) {
 				t.Errorf("Split disagrees withSplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
@@ -866,9 +1001,16 @@ func TestSplitAfter(t *testing.T) {
 		}
 
 		result := sliceOfString(a)
-		if !eq(result, tt.a) {
+		if !slices.Equal(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
 			continue
+		}
+
+		if tt.n < 0 {
+			b := sliceOfString(slices.Collect(SplitAfterSeq([]byte(tt.s), []byte(tt.sep))))
+			if !slices.Equal(b, tt.a) {
+				t.Errorf(`collect(SplitAfterSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, b, tt.a)
+			}
 		}
 
 		if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
@@ -880,8 +1022,8 @@ func TestSplitAfter(t *testing.T) {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
 		if tt.n < 0 {
-			b := SplitAfter([]byte(tt.s), []byte(tt.sep))
-			if !reflect.DeepEqual(a, b) {
+			b := sliceOfString(SplitAfter([]byte(tt.s), []byte(tt.sep)))
+			if !slices.Equal(result, b) {
 				t.Errorf("SplitAfter disagrees withSplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
@@ -919,9 +1061,14 @@ func TestFields(t *testing.T) {
 		}
 
 		result := sliceOfString(a)
-		if !eq(result, tt.a) {
+		if !slices.Equal(result, tt.a) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
 			continue
+		}
+
+		result2 := sliceOfString(collect(t, FieldsSeq([]byte(tt.s))))
+		if !slices.Equal(result2, tt.a) {
+			t.Errorf(`collect(FieldsSeq(%q)) = %v; want %v`, tt.s, result2, tt.a)
 		}
 
 		if string(b) != tt.s {
@@ -939,7 +1086,7 @@ func TestFieldsFunc(t *testing.T) {
 	for _, tt := range fieldstests {
 		a := FieldsFunc([]byte(tt.s), unicode.IsSpace)
 		result := sliceOfString(a)
-		if !eq(result, tt.a) {
+		if !slices.Equal(result, tt.a) {
 			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
 			continue
 		}
@@ -962,8 +1109,13 @@ func TestFieldsFunc(t *testing.T) {
 		}
 
 		result := sliceOfString(a)
-		if !eq(result, tt.a) {
+		if !slices.Equal(result, tt.a) {
 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+		}
+
+		result2 := sliceOfString(collect(t, FieldsFuncSeq([]byte(tt.s), pred)))
+		if !slices.Equal(result2, tt.a) {
+			t.Errorf(`collect(FieldsFuncSeq(%q)) = %v; want %v`, tt.s, result2, tt.a)
 		}
 
 		if string(b) != tt.s {
@@ -1286,18 +1438,6 @@ func TestRepeatCatchesOverflow(t *testing.T) {
 	})
 }
 
-func runesEqual(a, b []rune) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, r := range a {
-		if r != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 type RunesTest struct {
 	in    string
 	out   []rune
@@ -1318,7 +1458,7 @@ func TestRunes(t *testing.T) {
 	for _, tt := range RunesTests {
 		tin := []byte(tt.in)
 		a := Runes(tin)
-		if !runesEqual(a, tt.out) {
+		if !slices.Equal(a, tt.out) {
 			t.Errorf("Runes(%q) = %v; want %v", tin, a, tt.out)
 			continue
 		}
@@ -2044,6 +2184,11 @@ func makeBenchInputHard() []byte {
 var benchInputHard = makeBenchInputHard()
 
 func benchmarkIndexHard(b *testing.B, sep []byte) {
+	n := Index(benchInputHard, sep)
+	if n < 0 {
+		n = len(benchInputHard)
+	}
+	b.SetBytes(int64(n))
 	for i := 0; i < b.N; i++ {
 		Index(benchInputHard, sep)
 	}

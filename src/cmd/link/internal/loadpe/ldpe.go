@@ -558,7 +558,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		l.AddInteriorSym(sectsym, s)
 		bld.SetValue(int64(pesym.Value))
 		bld.SetSize(4)
-		if l.SymType(sectsym) == sym.STEXT {
+		if l.SymType(sectsym).IsText() {
 			if bld.External() && !bld.DuplicateOK() {
 				return nil, fmt.Errorf("%s: duplicate symbol definition", l.SymName(s))
 			}
@@ -583,7 +583,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		}
 		l.SortSub(s)
 		importSymsState.secSyms = append(importSymsState.secSyms, s)
-		if l.SymType(s) == sym.STEXT {
+		if l.SymType(s).IsText() {
 			for ; s != 0; s = l.SubSym(s) {
 				if l.AttrOnList(s) {
 					return nil, fmt.Errorf("symbol %s listed multiple times", l.SymName(s))
@@ -633,7 +633,7 @@ func PostProcessImports() error {
 	arch := importSymsState.arch
 	keeprelocneeded := make(map[loader.Sym]loader.Sym)
 	for _, s := range importSymsState.secSyms {
-		isText := ldr.SymType(s) == sym.STEXT
+		isText := ldr.SymType(s).IsText()
 		relocs := ldr.Relocs(s)
 		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At(i)

@@ -25,12 +25,12 @@ func f() {
 
 	switch {
 	case 0: f(); case 0:
-	case 0: f() case 0: // ERROR "unexpected case at end of statement"
+	case 0: f() case 0: // ERROR "unexpected keyword case at end of statement"
 	}
 
 	switch {
 	case 0: f(); default:
-	case 0: f() default: // ERROR "unexpected default at end of statement"
+	case 0: f() default: // ERROR "unexpected keyword default at end of statement"
 	}
 
 	switch {

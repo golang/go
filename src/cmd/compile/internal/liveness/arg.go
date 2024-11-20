@@ -132,7 +132,7 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
 	}
 
 	nargs := int32(len(lv.args))
-	bulk := bitvec.NewBulk(nargs, int32(len(f.Blocks)*2))
+	bulk := bitvec.NewBulk(nargs, int32(len(f.Blocks)*2), fn.Pos())
 	for _, b := range f.Blocks {
 		be := &lv.be[b.ID]
 		be.livein = bulk.Next()

@@ -14,7 +14,7 @@
 package big
 
 import (
-	"encoding/binary"
+	"internal/byteorder"
 	"math/bits"
 	"math/rand"
 	"sync"
@@ -1321,9 +1321,9 @@ func (z nat) bytes(buf []byte) (i int) {
 // bigEndianWord returns the contents of buf interpreted as a big-endian encoded Word value.
 func bigEndianWord(buf []byte) Word {
 	if _W == 64 {
-		return Word(binary.BigEndian.Uint64(buf))
+		return Word(byteorder.BeUint64(buf))
 	}
-	return Word(binary.BigEndian.Uint32(buf))
+	return Word(byteorder.BeUint32(buf))
 }
 
 // setBytes interprets buf as the bytes of a big-endian unsigned

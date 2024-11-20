@@ -69,11 +69,11 @@ func testCallbackCallersSEH(t *testing.T) {
 	want := []string{
 		"test._Cfunc_backtrace",
 		"test.testCallbackCallersSEH.func1.1",
-		"test.testCallbackCallersSEH.func1",
+		// "test.testCallbackCallersSEH.func1", // hidden by inlining
 		"test.goCallback",
 		"test._Cfunc_callback",
 		"test.nestedCall.func1",
-		"test.nestedCall",
+		// "test.nestedCall", // hidden by inlining
 		"test.testCallbackCallersSEH",
 		"test.TestCallbackCallersSEH",
 	}
@@ -84,6 +84,7 @@ func testCallbackCallersSEH(t *testing.T) {
 	})
 	got := make([]string, 0, n)
 	for i := 0; i < n; i++ {
+		// This test is brittle in the face of inliner changes
 		f := runtime.FuncForPC(pc[i] - 1)
 		if f == nil {
 			continue

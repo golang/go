@@ -7,6 +7,8 @@
 package maphash
 
 import (
+	"internal/abi"
+	"reflect"
 	"unsafe"
 )
 
@@ -40,4 +42,20 @@ func rthashString(s string, state uint64) uint64 {
 
 func randUint64() uint64 {
 	return runtime_rand()
+}
+
+func comparableF[T comparable](h *Hash, v T) {
+	t := abi.TypeFor[T]()
+	// We can only use the raw memory contents for the hash,
+	// if the raw memory contents are used for computing equality.
+	// That works for some types (int),
+	// but not others (float, string, structs with padding, etc.)
+	if t.TFlag&abi.TFlagRegularMemory != 0 {
+		ptr := unsafe.Pointer(&v)
+		l := t.Size()
+		h.Write(unsafe.Slice((*byte)(ptr), l))
+		return
+	}
+	vv := reflect.ValueOf(v)
+	appendT(h, vv)
 }

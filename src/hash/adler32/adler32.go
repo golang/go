@@ -16,6 +16,7 @@ package adler32
 import (
 	"errors"
 	"hash"
+	"internal/byteorder"
 )
 
 const (
@@ -56,11 +57,14 @@ const (
 	marshaledSize = len(magic) + 4
 )
 
-func (d *digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize)
+func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic...)
-	b = appendUint32(b, uint32(*d))
+	b = byteorder.BeAppendUint32(b, uint32(*d))
 	return b, nil
+}
+
+func (d *digest) MarshalBinary() ([]byte, error) {
+	return d.AppendBinary(make([]byte, 0, marshaledSize))
 }
 
 func (d *digest) UnmarshalBinary(b []byte) error {
@@ -70,26 +74,8 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize {
 		return errors.New("hash/adler32: invalid hash state size")
 	}
-	*d = digest(readUint32(b[len(magic):]))
+	*d = digest(byteorder.BeUint32(b[len(magic):]))
 	return nil
-}
-
-// appendUint32 is semantically the same as [binary.BigEndian.AppendUint32]
-// We copied this function because we can not import "encoding/binary" here.
-func appendUint32(b []byte, x uint32) []byte {
-	return append(b,
-		byte(x>>24),
-		byte(x>>16),
-		byte(x>>8),
-		byte(x),
-	)
-}
-
-// readUint32 is semantically the same as [binary.BigEndian.Uint32]
-// We copied this function because we can not import "encoding/binary" here.
-func readUint32(b []byte) uint32 {
-	_ = b[3]
-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
 }
 
 // Add p to the running checksum d.

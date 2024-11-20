@@ -36,9 +36,7 @@ func roundDownToPowerOf2(x int) int {
 }
 
 func TestTransform(t *testing.T) {
-	dir, remove := mustTempDir(t)
-	defer remove()
-	path := filepath.Join(dir, "blob.bin")
+	path := filepath.Join(t.TempDir(), "blob.bin")
 
 	const maxChunkWords = 8 << 10
 	buf := make([]byte, 2*maxChunkWords*8)

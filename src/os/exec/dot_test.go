@@ -38,8 +38,7 @@ func TestLookPath(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tmpDir, executable), []byte{1, 2, 3}, 0777); err != nil {
 		t.Fatal(err)
 	}
-	chdir(t, tmpDir)
-	t.Setenv("PWD", tmpDir)
+	t.Chdir(tmpDir)
 	t.Logf(". is %#q", tmpDir)
 
 	origPath := os.Getenv(pathVar)

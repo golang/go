@@ -7,9 +7,10 @@
 package runtime
 
 import (
+	"internal/byteorder"
 	"internal/chacha8rand"
 	"internal/goarch"
-	"runtime/internal/math"
+	"internal/runtime/math"
 	"unsafe"
 	_ "unsafe" // for go:linkname
 )
@@ -41,14 +42,15 @@ func randinit() {
 	}
 
 	seed := &globalRand.seed
-	if startupRand != nil {
+	if len(startupRand) >= 16 &&
+		// Check that at least the first two words of startupRand weren't
+		// cleared by any libc initialization.
+		!allZero(startupRand[:8]) && !allZero(startupRand[8:16]) {
 		for i, c := range startupRand {
 			seed[i%len(seed)] ^= c
 		}
-		clear(startupRand)
-		startupRand = nil
 	} else {
-		if readRandom(seed[:]) != len(seed) {
+		if readRandom(seed[:]) != len(seed) || allZero(seed[:]) {
 			// readRandom should never fail, but if it does we'd rather
 			// not make Go binaries completely unusable, so make up
 			// some random data based on the current time.
@@ -58,6 +60,25 @@ func randinit() {
 	}
 	globalRand.state.Init(*seed)
 	clear(seed[:])
+
+	if startupRand != nil {
+		// Overwrite startupRand instead of clearing it, in case cgo programs
+		// access it after we used it.
+		for len(startupRand) > 0 {
+			buf := make([]byte, 8)
+			for {
+				if x, ok := globalRand.state.Next(); ok {
+					byteorder.BePutUint64(buf, x)
+					break
+				}
+				globalRand.state.Refill()
+			}
+			n := copy(startupRand, buf)
+			startupRand = startupRand[n:]
+		}
+		startupRand = nil
+	}
+
 	globalRand.init = true
 	unlock(&globalRand.lock)
 }
@@ -86,6 +107,14 @@ func readTimeRandom(r []byte) {
 		r = r[size:]
 		v = v>>32 | v<<32
 	}
+}
+
+func allZero(b []byte) bool {
+	var acc byte
+	for _, x := range b {
+		acc |= x
+	}
+	return acc == 0
 }
 
 // bootstrapRand returns a random uint64 from the global random generator.
@@ -122,6 +151,8 @@ func rand32() uint32 {
 }
 
 // rand returns a random uint64 from the per-m chacha8 state.
+// This is called from compiler-generated code.
+//
 // Do not change signature: used via linkname from other packages.
 //
 //go:nosplit
@@ -146,6 +177,11 @@ func rand() uint64 {
 		c.Refill()
 		mp.locks--
 	}
+}
+
+//go:linkname maps_rand internal/runtime/maps.rand
+func maps_rand() uint64 {
+	return rand()
 }
 
 // mrandinit initializes the random state of an m.
@@ -178,6 +214,15 @@ func randn(n uint32) uint32 {
 // the rule is that other packages using runtime-provided
 // randomness must always use rand.
 //
+// cheaprand should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname cheaprand
 //go:nosplit
 func cheaprand() uint32 {
 	mp := getg().m
@@ -213,6 +258,15 @@ func cheaprand() uint32 {
 // the rule is that other packages using runtime-provided
 // randomness must always use rand.
 //
+// cheaprand64 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/zhangyunhao116/fastrand
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname cheaprand64
 //go:nosplit
 func cheaprand64() int64 {
 	return int64(cheaprand())<<31 ^ int64(cheaprand())
@@ -224,6 +278,15 @@ func cheaprand64() int64 {
 // the rule is that other packages using runtime-provided
 // randomness must always use randn.
 //
+// cheaprandn should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/phuslu/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname cheaprandn
 //go:nosplit
 func cheaprandn(n uint32) uint32 {
 	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/

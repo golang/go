@@ -15,25 +15,40 @@ import (
 	"testing"
 )
 
-func TestOpen_Dir(t *testing.T) {
-	dir := t.TempDir()
+func TestOpen(t *testing.T) {
+	t.Parallel()
 
-	h, err := syscall.Open(dir, syscall.O_RDONLY, 0)
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a")
+	f, err := os.Create(file)
 	if err != nil {
-		t.Fatalf("Open failed: %v", err)
+		t.Fatal(err)
 	}
-	syscall.CloseHandle(h)
-	h, err = syscall.Open(dir, syscall.O_RDONLY|syscall.O_TRUNC, 0)
-	if err == nil {
-		t.Error("Open should have failed")
-	} else {
-		syscall.CloseHandle(h)
+	f.Close()
+
+	tests := []struct {
+		path string
+		flag int
+		err  error
+	}{
+		{dir, syscall.O_RDONLY, nil},
+		{dir, syscall.O_CREAT, nil},
+		{dir, syscall.O_RDONLY | syscall.O_CREAT, nil},
+		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE, nil},
+		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE | os.O_TRUNC, nil},
+		{dir, syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
+		{dir, syscall.O_WRONLY | syscall.O_RDWR, syscall.EISDIR},
+		{dir, syscall.O_WRONLY, syscall.EISDIR},
+		{dir, syscall.O_RDWR, syscall.EISDIR},
 	}
-	h, err = syscall.Open(dir, syscall.O_RDONLY|syscall.O_CREAT, 0)
-	if err == nil {
-		t.Error("Open should have failed")
-	} else {
-		syscall.CloseHandle(h)
+	for i, tt := range tests {
+		h, err := syscall.Open(tt.path, tt.flag, 0o660)
+		if err == nil {
+			syscall.CloseHandle(h)
+		}
+		if err != tt.err {
+			t.Errorf("%d: Open got %q, want %q", i, err, tt.err)
+		}
 	}
 }
 
@@ -182,12 +197,14 @@ int main(int argc, char *argv[])
 
 func TestGetwd_DoesNotPanicWhenPathIsLong(t *testing.T) {
 	// Regression test for https://github.com/golang/go/issues/60051.
+	tmp := t.TempDir()
+	t.Chdir(tmp)
 
 	// The length of a filename is also limited, so we can't reproduce the
 	// crash by creating a single directory with a very long name; we need two
 	// layers.
 	a200 := strings.Repeat("a", 200)
-	dirname := filepath.Join(t.TempDir(), a200, a200)
+	dirname := filepath.Join(tmp, a200, a200)
 
 	err := os.MkdirAll(dirname, 0o700)
 	if err != nil {
@@ -197,9 +214,6 @@ func TestGetwd_DoesNotPanicWhenPathIsLong(t *testing.T) {
 	if err != nil {
 		t.Skipf("Chdir failed: %v", err)
 	}
-	// Change out of the temporary directory so that we don't inhibit its
-	// removal during test cleanup.
-	defer os.Chdir(`\`)
 
 	syscall.Getwd()
 }
@@ -211,6 +225,53 @@ func TestGetStartupInfo(t *testing.T) {
 		// see https://go.dev/issue/31316
 		t.Fatalf("GetStartupInfo: got error %v, want nil", err)
 	}
+}
+
+func TestSyscallAllocations(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+
+	t.Parallel()
+
+	// Test that syscall.SyscallN arguments do not escape.
+	// The function used (in this case GetVersion) doesn't matter
+	// as long as it is always available and doesn't panic.
+	h, err := syscall.LoadLibrary("kernel32.dll")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.FreeLibrary(h)
+	proc, err := syscall.GetProcAddress(h, "GetVersion")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testAllocs := func(t *testing.T, name string, fn func() error) {
+		t.Run(name, func(t *testing.T) {
+			n := int(testing.AllocsPerRun(10, func() {
+				if err := fn(); err != nil {
+					t.Fatalf("%s: %v", name, err)
+				}
+			}))
+			if n > 0 {
+				t.Errorf("allocs = %d, want 0", n)
+			}
+		})
+	}
+
+	testAllocs(t, "SyscallN", func() error {
+		r0, _, e1 := syscall.SyscallN(proc, 0, 0, 0)
+		if r0 == 0 {
+			return syscall.Errno(e1)
+		}
+		return nil
+	})
+	testAllocs(t, "Syscall", func() error {
+		r0, _, e1 := syscall.Syscall(proc, 3, 0, 0, 0)
+		if r0 == 0 {
+			return syscall.Errno(e1)
+		}
+		return nil
+	})
 }
 
 func FuzzUTF16FromString(f *testing.F) {

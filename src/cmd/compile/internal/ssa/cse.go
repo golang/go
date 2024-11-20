@@ -7,8 +7,9 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 )
 
 // cse does common-subexpression elimination on the Function.
@@ -86,7 +87,6 @@ func cse(f *Func) {
 	// non-equivalent arguments.  Repeat until we can't find any
 	// more splits.
 	var splitPoints []int
-	byArgClass := new(partitionByArgClass) // reusable partitionByArgClass to reduce allocations
 	for {
 		changed := false
 
@@ -105,9 +105,18 @@ func cse(f *Func) {
 			}
 
 			// Sort by eq class of arguments.
-			byArgClass.a = e
-			byArgClass.eqClass = valueEqClass
-			sort.Sort(byArgClass)
+			slices.SortFunc(e, func(v, w *Value) int {
+				for i, a := range v.Args {
+					b := w.Args[i]
+					if valueEqClass[a.ID] < valueEqClass[b.ID] {
+						return -1
+					}
+					if valueEqClass[a.ID] > valueEqClass[b.ID] {
+						return +1
+					}
+				}
+				return 0
+			})
 
 			// Find split points.
 			splitPoints = append(splitPoints[:0], 0)
@@ -164,11 +173,11 @@ func cse(f *Func) {
 	// if v and w are in the same equivalence class and v dominates w.
 	rewrite := f.Cache.allocValueSlice(f.NumValues())
 	defer f.Cache.freeValueSlice(rewrite)
-	byDom := new(partitionByDom) // reusable partitionByDom to reduce allocs
 	for _, e := range partition {
-		byDom.a = e
-		byDom.sdom = sdom
-		sort.Sort(byDom)
+		slices.SortFunc(e, func(v, w *Value) int {
+			return cmp.Compare(sdom.domorder(v.Block), sdom.domorder(w.Block))
+		})
+
 		for i := 0; i < len(e)-1; i++ {
 			// e is sorted by domorder, so a maximal dominant element is first in the slice
 			v := e[i]
@@ -253,7 +262,17 @@ type eqclass []*Value
 // backed by the same storage as the input slice.
 // Equivalence classes of size 1 are ignored.
 func partitionValues(a []*Value, auxIDs auxmap) []eqclass {
-	sort.Sort(sortvalues{a, auxIDs})
+	slices.SortFunc(a, func(v, w *Value) int {
+		switch cmpVal(v, w, auxIDs) {
+		case types.CMPlt:
+			return -1
+		case types.CMPgt:
+			return +1
+		default:
+			// Sort by value ID last to keep the sort result deterministic.
+			return cmp.Compare(v.ID, w.ID)
+		}
+	})
 
 	var partition []eqclass
 	for len(a) > 0 {
@@ -321,58 +340,4 @@ func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
 	}
 
 	return types.CMPeq
-}
-
-// Sort values to make the initial partition.
-type sortvalues struct {
-	a      []*Value // array of values
-	auxIDs auxmap   // aux -> aux ID map
-}
-
-func (sv sortvalues) Len() int      { return len(sv.a) }
-func (sv sortvalues) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
-func (sv sortvalues) Less(i, j int) bool {
-	v := sv.a[i]
-	w := sv.a[j]
-	if cmp := cmpVal(v, w, sv.auxIDs); cmp != types.CMPeq {
-		return cmp == types.CMPlt
-	}
-
-	// Sort by value ID last to keep the sort result deterministic.
-	return v.ID < w.ID
-}
-
-type partitionByDom struct {
-	a    []*Value // array of values
-	sdom SparseTree
-}
-
-func (sv partitionByDom) Len() int      { return len(sv.a) }
-func (sv partitionByDom) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
-func (sv partitionByDom) Less(i, j int) bool {
-	v := sv.a[i]
-	w := sv.a[j]
-	return sv.sdom.domorder(v.Block) < sv.sdom.domorder(w.Block)
-}
-
-type partitionByArgClass struct {
-	a       []*Value // array of values
-	eqClass []ID     // equivalence class IDs of values
-}
-
-func (sv partitionByArgClass) Len() int      { return len(sv.a) }
-func (sv partitionByArgClass) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
-func (sv partitionByArgClass) Less(i, j int) bool {
-	v := sv.a[i]
-	w := sv.a[j]
-	for i, a := range v.Args {
-		b := w.Args[i]
-		if sv.eqClass[a.ID] < sv.eqClass[b.ID] {
-			return true
-		}
-		if sv.eqClass[a.ID] > sv.eqClass[b.ID] {
-			return false
-		}
-	}
-	return false
 }

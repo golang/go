@@ -14,13 +14,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
-	"golang.org/x/mod/module"
 	"golang.org/x/telemetry/internal/mmap"
 	"golang.org/x/telemetry/internal/telemetry"
 )
@@ -34,11 +32,26 @@ type file struct {
 	counters atomic.Pointer[Counter] // head of list
 	end      Counter                 // list ends at &end instead of nil
 
-	mu         sync.Mutex
-	namePrefix string
-	err        error
-	meta       string
-	current    atomic.Pointer[mappedFile] // can be read without holding mu, but may be nil
+	mu                 sync.Mutex
+	buildInfo          *debug.BuildInfo
+	timeBegin, timeEnd time.Time
+	err                error
+	// current holds the current file mapping, which may change when the file is
+	// rotated or extended.
+	//
+	// current may be read without holding mu, but may be nil.
+	//
+	// The cleanup logic for file mappings is complicated, because invalidating
+	// counter pointers is reentrant: [file.invalidateCounters] may call
+	// [file.lookup], which acquires mu. Therefore, writing current must be done
+	// as follows:
+	//  1. record the previous value of current
+	//  2. Store a new value in current
+	//  3. unlock mu
+	//  4. call invalidateCounters
+	//  5. close the previous mapped value from (1)
+	// TODO(rfindley): simplify
+	current atomic.Pointer[mappedFile]
 }
 
 var defaultFile file
@@ -118,100 +131,23 @@ var (
 	errCorrupt     = errors.New("counter: corrupt counter file")
 )
 
-func (f *file) init(begin, end time.Time) {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		f.err = errNoBuildInfo
-		return
-	}
-	if mode, _ := telemetry.Mode(); mode == "off" {
-		f.err = ErrDisabled
-		return
-	}
-	dir := telemetry.LocalDir
-
-	if err := os.MkdirAll(dir, 0777); err != nil {
-		f.err = err
-		return
-	}
-
-	goVers, progPkgPath, prog, progVers := programInfo(info)
-	f.meta = fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
-		begin.Format(time.RFC3339), end.Format(time.RFC3339),
-		progPkgPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
-	if len(f.meta) > maxMetaLen { // should be impossible for our use
-		f.err = fmt.Errorf("metadata too long")
-		return
-	}
-	if progVers != "" {
-		progVers = "@" + progVers
-	}
-	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", prog, progVers, goVers, runtime.GOOS, runtime.GOARCH)
-	f.namePrefix = filepath.Join(dir, prefix)
-}
-
-func programInfo(info *debug.BuildInfo) (goVers, progPkgPath, prog, progVers string) {
-	goVers = info.GoVersion
-	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
-		goVers = "devel"
-	}
-	progPkgPath = info.Path
-	if progPkgPath == "" {
-		progPkgPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
-	}
-	prog = path.Base(progPkgPath)
-	progVers = info.Main.Version
-	if strings.Contains(progVers, "devel") || module.IsPseudoVersion(progVers) {
-		// we don't want to track pseudo versions, but may want to track prereleases.
-		progVers = "devel"
-	}
-	return goVers, progPkgPath, prog, progVers
-}
-
-// filename returns the name of the file to use for f,
-// given the current time now.
-// It also returns the time when that name will no longer be valid
-// and a new filename should be computed.
-func (f *file) filename(now time.Time) (name string, expire time.Time, err error) {
-	now = now.UTC()
-	year, month, day := now.Date()
-	begin := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
-	// files always begin today, but expire on the next day of the week
-	// from the 'weekends' file.
-	incr, err := fileValidity(now)
-	if err != nil {
-		return "", time.Time{}, err
-	}
-	end := time.Date(year, month, day+incr, 0, 0, 0, 0, time.UTC)
-	if f.namePrefix == "" && f.err == nil {
-		f.init(begin, end)
-		debugPrintf("init: %#q, %v", f.namePrefix, f.err)
-	}
-	// f.err != nil was set in f.init and means it is impossible to
-	// have a counter file
-	if f.err != nil {
-		return "", time.Time{}, f.err
-	}
-
-	name = f.namePrefix + now.Format("2006-01-02") + "." + FileVersion + ".count"
-	return name, end, nil
-}
-
-// fileValidity returns the number of days that a file is valid for.
-// It is the number of days to the next day of the week from the 'weekends' file.
-func fileValidity(now time.Time) (int, error) {
+// weekEnd returns the day of the week on which uploads occur (and therefore
+// counters expire).
+//
+// Reads the weekends file, creating one if none exists.
+func weekEnd() (time.Weekday, error) {
 	// If there is no 'weekends' file create it and initialize it
 	// to a random day of the week. There is a short interval for
 	// a race.
-	weekends := filepath.Join(telemetry.LocalDir, "weekends")
+	weekends := filepath.Join(telemetry.Default.LocalDir(), "weekends")
 	day := fmt.Sprintf("%d\n", rand.Intn(7))
 	if _, err := os.ReadFile(weekends); err != nil {
-		if err := os.MkdirAll(telemetry.LocalDir, 0777); err != nil {
-			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.LocalDir)
-			return 7, err
+		if err := os.MkdirAll(telemetry.Default.LocalDir(), 0777); err != nil {
+			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.Default.LocalDir())
+			return 0, err
 		}
 		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
-			return 7, err
+			return 0, err
 		}
 	}
 
@@ -220,24 +156,19 @@ func fileValidity(now time.Time) (int, error) {
 	// There is no reasonable way of recovering from errors
 	// so we just fail
 	if err != nil {
-		return 7, err
+		return 0, err
 	}
 	buf = bytes.TrimSpace(buf)
 	if len(buf) == 0 {
-		return 7, err
+		return 0, fmt.Errorf("empty weekends file")
 	}
-	dayofweek := time.Weekday(buf[0] - '0') // 0 is Sunday
+	weekend := time.Weekday(buf[0] - '0') // 0 is Sunday
 	// paranoia to make sure the value is legal
-	dayofweek %= 7
-	if dayofweek < 0 {
-		dayofweek += 7
+	weekend %= 7
+	if weekend < 0 {
+		weekend += 7
 	}
-	today := now.Weekday()
-	incr := dayofweek - today
-	if incr <= 0 {
-		incr += 7
-	}
-	return int(incr), nil
+	return weekend, nil
 }
 
 // rotate checks to see whether the file f needs to be rotated,
@@ -246,74 +177,149 @@ func fileValidity(now time.Time) (int, error) {
 // In general rotate should be called just once for each file.
 // rotate will arrange a timer to call itself again when necessary.
 func (f *file) rotate() {
-	expire, cleanup := f.rotate1()
-	cleanup()
-	if !expire.IsZero() {
+	expiry := f.rotate1()
+	if !expiry.IsZero() {
+		delay := time.Until(expiry)
+		// Some tests set CounterTime to a time in the past, causing delay to be
+		// negative. Avoid infinite loops by delaying at least a short interval.
+		//
+		// TODO(rfindley): instead, just also mock AfterFunc.
+		const minDelay = 1 * time.Minute
+		if delay < minDelay {
+			delay = minDelay
+		}
 		// TODO(rsc): Does this do the right thing for laptops closing?
-		time.AfterFunc(time.Until(expire), f.rotate)
+		time.AfterFunc(delay, f.rotate)
 	}
 }
 
 func nop() {}
 
-// counterTime returns the current UTC time.
+// CounterTime returns the current UTC time.
 // Mutable for testing.
-var counterTime = func() time.Time {
+var CounterTime = func() time.Time {
 	return time.Now().UTC()
 }
 
-func (f *file) rotate1() (expire time.Time, cleanup func()) {
+// counterSpan returns the current time span for a counter file, as determined
+// by [CounterTime] and the [weekEnd].
+func counterSpan() (begin, end time.Time, _ error) {
+	year, month, day := CounterTime().Date()
+	begin = time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	// files always begin today, but expire on the next day of the week
+	// from the 'weekends' file.
+	weekend, err := weekEnd()
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	incr := int(weekend - begin.Weekday())
+	if incr <= 0 {
+		incr += 7 // ensure that end is later than begin
+	}
+	end = time.Date(year, month, day+incr, 0, 0, 0, 0, time.UTC)
+	return begin, end, nil
+}
+
+// rotate1 rotates the current counter file, returning its expiry, or the zero
+// time if rotation failed.
+func (f *file) rotate1() time.Time {
+	// Cleanup must be performed while unlocked, since invalidateCounters may
+	// involve calls to f.lookup.
+	var previous *mappedFile // read below while holding the f.mu.
+	defer func() {
+		// Counters must be invalidated whenever the mapped file changes.
+		if next := f.current.Load(); next != previous {
+			f.invalidateCounters()
+			// Ensure that the previous counter mapped file is closed.
+			if previous != nil {
+				previous.close() // safe to call multiple times
+			}
+		}
+	}()
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	var previous *mappedFile
-	cleanup = func() {
-		// convert counters to new mapping (or nil)
-		// from old mapping (or nil)
-		f.invalidateCounters()
-		if previous == nil {
-			// no old mapping to worry about
-			return
-		}
-		// now it is safe to clean up the old mapping
-		// Quim Montel pointed out the previous coeanup was incomplete
-		previous.close()
-	}
-
-	name, expire, err := f.filename(counterTime())
-	if err != nil {
-		// This could be mode == "off" (when rotate is called for the first time)
-		ret := nop
-		if previous = f.current.Load(); previous != nil {
-			// or it could be some strange error
-			f.current.Store(nil)
-			ret = cleanup
-		}
-		debugPrintf("rotate: %v\n", err)
-		return time.Time{}, ret
-	}
-
 	previous = f.current.Load()
-	if previous != nil && name == previous.f.Name() {
-		// the existing file is fine
-		return expire, nop
+
+	if f.err != nil {
+		return time.Time{} // already in failed state; nothing to do
 	}
 
-	m, err := openMapped(name, f.meta, nil)
+	fail := func(err error) {
+		debugPrintf("rotate: %v", err)
+		f.err = err
+		f.current.Store(nil)
+	}
+
+	if mode, _ := telemetry.Default.Mode(); mode == "off" {
+		// TODO(rfindley): do we ever want to make ErrDisabled recoverable?
+		// Specifically, if f.err is ErrDisabled, should we check again during when
+		// rotating?
+		fail(ErrDisabled)
+		return time.Time{}
+	}
+
+	if f.buildInfo == nil {
+		bi, ok := debug.ReadBuildInfo()
+		if !ok {
+			fail(errNoBuildInfo)
+			return time.Time{}
+		}
+		f.buildInfo = bi
+	}
+
+	begin, end, err := counterSpan()
+	if err != nil {
+		fail(err)
+		return time.Time{}
+	}
+	if f.timeBegin.Equal(begin) && f.timeEnd.Equal(end) {
+		return f.timeEnd // nothing to do
+	}
+	f.timeBegin, f.timeEnd = begin, end
+
+	goVers, progPath, progVers := telemetry.ProgramInfo(f.buildInfo)
+	meta := fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
+		f.timeBegin.Format(time.RFC3339), f.timeEnd.Format(time.RFC3339),
+		progPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
+	if len(meta) > maxMetaLen { // should be impossible for our use
+		fail(fmt.Errorf("metadata too long"))
+		return time.Time{}
+	}
+
+	if progVers != "" {
+		progVers = "@" + progVers
+	}
+	baseName := fmt.Sprintf("%s%s-%s-%s-%s-%s.%s.count",
+		path.Base(progPath),
+		progVers,
+		goVers,
+		runtime.GOOS,
+		runtime.GOARCH,
+		f.timeBegin.Format(time.DateOnly),
+		FileVersion,
+	)
+	dir := telemetry.Default.LocalDir()
+	if err := os.MkdirAll(dir, 0777); err != nil {
+		fail(fmt.Errorf("making local dir: %v", err))
+		return time.Time{}
+	}
+	name := filepath.Join(dir, baseName)
+
+	m, err := openMapped(name, meta)
 	if err != nil {
 		// Mapping failed:
 		// If there used to be a mapped file, after cleanup
 		// incrementing counters will only change their internal state.
 		// (before cleanup the existing mapped file would be updated)
-		f.current.Store(nil) // invalidate the current mapping
-		debugPrintf("rotate: openMapped: %v\n", err)
-		return time.Time{}, cleanup
+		fail(fmt.Errorf("openMapped: %v", err))
+		return time.Time{}
 	}
 
 	debugPrintf("using %v", m.f.Name())
 	f.current.Store(m)
-
-	return expire, cleanup
+	return f.timeEnd
 }
 
 func (f *file) newCounter(name string) *atomic.Uint64 {
@@ -343,39 +349,98 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
 	cleanup = nop
 	if newM != nil {
 		f.current.Store(newM)
-		cleanup = f.invalidateCounters
+		cleanup = func() {
+			f.invalidateCounters()
+			current.close()
+		}
 	}
 	return v, cleanup
 }
+
+var (
+	openOnce sync.Once
+	// rotating reports whether the call to Open had rotate = true.
+	//
+	// In golang/go#68497, we observed that file rotation can break runtime
+	// deadlock detection. To minimize the fix for 1.23, we are splitting the
+	// Open API into one version that rotates the counter file, and another that
+	// does not. The rotating variable guards against use of both APIs from the
+	// same process.
+	rotating bool
+)
 
 // Open associates counting with the defaultFile.
 // The returned function is for testing only, and should
 // be called after all Inc()s are finished, but before
 // any reports are generated.
 // (Otherwise expired count files will not be deleted on Windows.)
-func Open() func() {
+func Open(rotate bool) func() {
 	if telemetry.DisabledOnPlatform {
 		return func() {}
 	}
-	if mode, _ := telemetry.Mode(); mode == "off" {
-		// Don't open the file when telemetry is off.
-		defaultFile.err = ErrDisabled
-		return func() {} // No need to clean up.
-	}
-	debugPrintf("Open")
-	defaultFile.rotate()
-	return func() {
-		// Once this has been called, the defaultFile is no longer usable.
-		mf := defaultFile.current.Load()
-		if mf == nil {
-			// telemetry might have been off
+	close := func() {}
+	openOnce.Do(func() {
+		rotating = rotate
+		if mode, _ := telemetry.Default.Mode(); mode == "off" {
+			// Don't open the file when telemetry is off.
+			defaultFile.err = ErrDisabled
+			// No need to clean up.
 			return
 		}
-		mf.close()
+		debugPrintf("Open(%v)", rotate)
+		if rotate {
+			defaultFile.rotate() // calls rotate1 and schedules a rotation
+		} else {
+			defaultFile.rotate1()
+		}
+		close = func() {
+			// Once this has been called, the defaultFile is no longer usable.
+			mf := defaultFile.current.Load()
+			if mf == nil {
+				// telemetry might have been off
+				return
+			}
+			mf.close()
+		}
+	})
+	if rotating != rotate {
+		panic("BUG: Open called with inconsistent values for 'rotate'")
 	}
+	return close
 }
 
+const (
+	FileVersion = "v1"
+	hdrPrefix   = "# telemetry/counter file " + FileVersion + "\n"
+	recordUnit  = 32
+	maxMetaLen  = 512
+	numHash     = 512 // 2kB for hash table
+	maxNameLen  = 4 * 1024
+	limitOff    = 0
+	hashOff     = 4
+	pageSize    = 16 * 1024
+	minFileLen  = 16 * 1024
+)
+
 // A mappedFile is a counter file mmapped into memory.
+//
+// The file layout for a mappedFile m is as follows:
+//
+//	offset, byte size:                 description
+//	------------------                 -----------
+//	0, hdrLen:                         header, containing metadata; see [mappedHeader]
+//	hdrLen+limitOff, 4:                uint32 allocation limit (byte offset of the end of counter records)
+//	hdrLen+hashOff, 4*numHash:         hash table, stores uint32 heads of a linked list of records, keyed by name hash
+//	hdrLen+hashOff+4*numHash to limit: counter records: see record syntax below
+//
+// The record layout is as follows:
+//
+//	offset, byte size: description
+//	------------------ -----------
+//	0, 8:              uint64 counter value
+//	8, 12:             uint32 name length
+//	12, 16:            uint32 offset of next record in linked list
+//	16, name length:   counter name
 type mappedFile struct {
 	meta      string
 	hdrLen    uint32
@@ -385,9 +450,16 @@ type mappedFile struct {
 	mapping   *mmap.Data
 }
 
+// openMapped opens and memory maps a file.
+//
+// name is the path to the file.
+//
+// meta is the file metadata, which must match the metadata of the file on disk
+// exactly.
+//
 // existing should be nil the first time this is called for a file,
 // and when remapping, should be the previous mappedFile.
-func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, err error) {
+func openMapped(name, meta string) (_ *mappedFile, err error) {
 	hdr, err := mappedHeader(meta)
 	if err != nil {
 		return nil, err
@@ -403,13 +475,13 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, 
 		f:    f,
 		meta: meta,
 	}
-	// without this files cannot be cleanedup on Windows (affects tests)
-	runtime.SetFinalizer(m, (*mappedFile).close)
+
 	defer func() {
 		if err != nil {
 			m.close()
 		}
 	}()
+
 	info, err := f.Stat()
 	if err != nil {
 		return nil, err
@@ -434,36 +506,20 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, 
 	}
 
 	// Map into memory.
-	var mapping mmap.Data
-	if existing != nil {
-		mapping, err = memmap(f, existing.mapping)
-	} else {
-		mapping, err = memmap(f, nil)
-	}
+	mapping, err := memmap(f)
 	if err != nil {
 		return nil, err
 	}
-	m.mapping = &mapping
+	m.mapping = mapping
 	if !bytes.HasPrefix(m.mapping.Data, hdr) {
+		// TODO(rfindley): we can and should do better here, reading the mapped
+		// header length and comparing headers exactly.
 		return nil, fmt.Errorf("counter: header mismatch")
 	}
 	m.hdrLen = uint32(len(hdr))
 
 	return m, nil
 }
-
-const (
-	FileVersion = "v1"
-	hdrPrefix   = "# telemetry/counter file " + FileVersion + "\n"
-	recordUnit  = 32
-	maxMetaLen  = 512
-	numHash     = 512 // 2kB for hash table
-	maxNameLen  = 4 * 1024
-	limitOff    = 0
-	hashOff     = 4
-	pageSize    = 16 * 1024
-	minFileLen  = 16 * 1024
-)
 
 func mappedHeader(meta string) ([]byte, error) {
 	if len(meta) > maxMetaLen {
@@ -485,6 +541,11 @@ func (m *mappedFile) place(limit uint32, name string) (start, end uint32) {
 	}
 	n := round(uint32(16+len(name)), recordUnit)
 	start = round(limit, recordUnit) // should already be rounded but just in case
+	// Note: Checking for crossing a page boundary would be
+	// start/pageSize != (start+n-1)/pageSize,
+	// but we are checking for reaching the page end, so no -1.
+	// The page end is reserved for use by extend.
+	// See the comment in m.extend.
 	if start/pageSize != (start+n)/pageSize {
 		// bump start to next page
 		start = round(limit, pageSize)
@@ -539,6 +600,9 @@ func (m *mappedFile) cas32(off, old, new uint32) bool {
 	return (*atomic.Uint32)(unsafe.Pointer(&m.mapping.Data[off])).CompareAndSwap(old, new)
 }
 
+// entryAt reads a counter record at the given byte offset.
+//
+// See the documentation for [mappedFile] for a description of the counter record layout.
 func (m *mappedFile) entryAt(off uint32) (name []byte, next uint32, v *atomic.Uint64, ok bool) {
 	if off < m.hdrLen+hashOff || int64(off)+16 > int64(len(m.mapping.Data)) {
 		return nil, 0, nil, false
@@ -553,7 +617,14 @@ func (m *mappedFile) entryAt(off uint32) (name []byte, next uint32, v *atomic.Ui
 	return name, next, v, true
 }
 
+// writeEntryAt writes a new counter record at the given offset.
+//
+// See the documentation for [mappedFile] for a description of the counter record layout.
+//
+// writeEntryAt only returns false in the presence of some form of corruption:
+// an offset outside the bounds of the record region in the mapped file.
 func (m *mappedFile) writeEntryAt(off uint32, name string) (next *atomic.Uint32, v *atomic.Uint64, ok bool) {
+	// TODO(rfindley): shouldn't this first condition be off < m.hdrLen+hashOff+4*numHash?
 	if off < m.hdrLen+hashOff || int64(off)+16+int64(len(name)) > int64(len(m.mapping.Data)) {
 		return nil, nil, false
 	}
@@ -564,6 +635,11 @@ func (m *mappedFile) writeEntryAt(off uint32, name string) (next *atomic.Uint32,
 	return next, v, true
 }
 
+// lookup searches the mapped file for a counter record with the given name, returning:
+//   - v: the mapped counter value
+//   - headOff: the offset of the head pointer (see [mappedFile])
+//   - head: the value of the head pointer
+//   - ok: whether lookup succeeded
 func (m *mappedFile) lookup(name string) (v *atomic.Uint64, headOff, head uint32, ok bool) {
 	h := hash(name)
 	headOff = m.hdrLen + hashOff + h*4
@@ -582,6 +658,9 @@ func (m *mappedFile) lookup(name string) (v *atomic.Uint64, headOff, head uint32
 	return nil, headOff, head, true
 }
 
+// newCounter allocates and writes a new counter record with the given name.
+//
+// If name is already recorded in the file, newCounter returns the existing counter.
 func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, err error) {
 	if len(name) > maxNameLen {
 		return nil, nil, fmt.Errorf("counter name too long")
@@ -598,19 +677,37 @@ func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, 
 	}()
 
 	v, headOff, head, ok := m.lookup(name)
-	for !ok {
+	for tries := 0; !ok; tries++ {
+		if tries >= 10 {
+			debugFatalf("corrupt: failed to remap after 10 tries")
+			return nil, nil, errCorrupt
+		}
 		// Lookup found an invalid pointer,
 		// perhaps because the file has grown larger than the mapping.
 		limit := m.load32(m.hdrLen + limitOff)
-		if int64(limit) <= int64(len(m.mapping.Data)) {
-			// Mapping doesn't need to grow, so lookup found actual corruption.
-			debugPrintf("corrupt1\n")
+		if limit, datalen := int64(limit), int64(len(m.mapping.Data)); limit <= datalen {
+			// Mapping doesn't need to grow, so lookup found actual corruption,
+			// in the form of an entry pointer that exceeds the recorded allocation
+			// limit. This should never happen, unless the actual file contents are
+			// corrupt.
+			debugFatalf("corrupt: limit %d is within mapping length %d", limit, datalen)
 			return nil, nil, errCorrupt
 		}
-		newM, err := openMapped(m.f.Name(), m.meta, m)
+		// That the recorded limit is greater than the mapped data indicates that
+		// an external process has extended the file. Re-map to pick up this extension.
+		newM, err := openMapped(m.f.Name(), m.meta)
 		if err != nil {
 			return nil, nil, err
 		}
+		if limit, datalen := int64(limit), int64(len(newM.mapping.Data)); limit > datalen {
+			// We've re-mapped, yet limit still exceeds the data length. This
+			// indicates that the underlying file was somehow truncated, or the
+			// recorded limit is corrupt.
+			debugFatalf("corrupt: limit %d exceeds file size %d", limit, datalen)
+			return nil, nil, errCorrupt
+		}
+		// If m != orig, this is at least the second time around the loop
+		// trying to open the mapping. Close the previous attempt.
 		if m != orig {
 			m.close()
 		}
@@ -651,7 +748,7 @@ func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, 
 	// Write record.
 	next, v, ok := m.writeEntryAt(start, name)
 	if !ok {
-		debugPrintf("corrupt2 %#x+%d vs %#x\n", start, len(name), len(m.mapping.Data))
+		debugFatalf("corrupt: failed to write entry: %#x+%d vs %#x\n", start, len(name), len(m.mapping.Data))
 		return nil, nil, errCorrupt // more likely our math is wrong
 	}
 
@@ -687,12 +784,26 @@ func (m *mappedFile) extend(end uint32) (*mappedFile, error) {
 		return nil, err
 	}
 	if info.Size() < int64(end) {
+		// Note: multiple processes could be calling extend at the same time,
+		// but this write only writes the last 4 bytes of the page.
+		// The last 4 bytes of the page are reserved for this purpose and hold no data.
+		// (In m.place, if a new record would extend to the very end of the page,
+		// it is placed in the next page instead.)
+		// So it is fine if multiple processes extend at the same time.
 		if _, err := m.f.WriteAt(m.zero[:], int64(end)-int64(len(m.zero))); err != nil {
 			return nil, err
 		}
 	}
-	newM, err := openMapped(m.f.Name(), m.meta, m)
-	m.f.Close()
+	newM, err := openMapped(m.f.Name(), m.meta)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(newM.mapping.Data)) < int64(end) {
+		// File system or logic bug: new file is somehow not extended.
+		// See go.dev/issue/68311, where this appears to have been happening.
+		newM.close()
+		return nil, errCorrupt
+	}
 	return newM, err
 }
 

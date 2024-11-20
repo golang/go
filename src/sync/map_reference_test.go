@@ -5,6 +5,7 @@
 package sync_test
 
 import (
+	isync "internal/sync"
 	"sync"
 	"sync/atomic"
 )
@@ -28,6 +29,7 @@ type mapInterface interface {
 var (
 	_ mapInterface = &RWMutexMap{}
 	_ mapInterface = &DeepCopyMap{}
+	_ mapInterface = &isync.HashTrieMap[any, any]{}
 )
 
 // RWMutexMap is an implementation of mapInterface using a sync.RWMutex.

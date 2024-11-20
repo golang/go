@@ -19,17 +19,16 @@
 // over the public key primitive, the PrivateKey type implements the
 // Decrypter and Signer interfaces from the crypto package.
 //
-// Operations in this package are implemented using constant-time algorithms,
-// except for [GenerateKey], [PrivateKey.Precompute], and [PrivateKey.Validate].
-// Every other operation only leaks the bit size of the involved values, which
-// all depend on the selected key size.
+// Operations involving private keys are implemented using constant-time
+// algorithms, except for [GenerateKey], [PrivateKey.Precompute], and
+// [PrivateKey.Validate].
 package rsa
 
 import (
 	"crypto"
-	"crypto/internal/bigmod"
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
+	"crypto/internal/fips/bigmod"
 	"crypto/internal/randutil"
 	"crypto/rand"
 	"crypto/subtle"
@@ -317,15 +316,15 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 			return nil, errors.New("crypto/rsa: generated key exponent too large")
 		}
 
-		mn, err := bigmod.NewModulusFromBig(N)
+		mn, err := bigmod.NewModulus(N.Bytes())
 		if err != nil {
 			return nil, err
 		}
-		mp, err := bigmod.NewModulusFromBig(P)
+		mp, err := bigmod.NewModulus(P.Bytes())
 		if err != nil {
 			return nil, err
 		}
-		mq, err := bigmod.NewModulusFromBig(Q)
+		mq, err := bigmod.NewModulus(Q.Bytes())
 		if err != nil {
 			return nil, err
 		}
@@ -482,7 +481,7 @@ var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key siz
 func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	boring.Unreachable()
 
-	N, err := bigmod.NewModulusFromBig(pub.N)
+	N, err := bigmod.NewModulus(pub.N.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -585,17 +584,17 @@ func (priv *PrivateKey) Precompute() {
 		// Precomputed values _should_ always be valid, but if they aren't
 		// just return. We could also panic.
 		var err error
-		priv.Precomputed.n, err = bigmod.NewModulusFromBig(priv.N)
+		priv.Precomputed.n, err = bigmod.NewModulus(priv.N.Bytes())
 		if err != nil {
 			return
 		}
-		priv.Precomputed.p, err = bigmod.NewModulusFromBig(priv.Primes[0])
+		priv.Precomputed.p, err = bigmod.NewModulus(priv.Primes[0].Bytes())
 		if err != nil {
 			// Unset previous values, so we either have everything or nothing
 			priv.Precomputed.n = nil
 			return
 		}
-		priv.Precomputed.q, err = bigmod.NewModulusFromBig(priv.Primes[1])
+		priv.Precomputed.q, err = bigmod.NewModulus(priv.Primes[1].Bytes())
 		if err != nil {
 			// Unset previous values, so we either have everything or nothing
 			priv.Precomputed.n, priv.Precomputed.p = nil, nil
@@ -650,7 +649,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 		t0   = bigmod.NewNat()
 	)
 	if priv.Precomputed.n == nil {
-		N, err = bigmod.NewModulusFromBig(priv.N)
+		N, err = bigmod.NewModulus(priv.N.Bytes())
 		if err != nil {
 			return nil, ErrDecryption
 		}

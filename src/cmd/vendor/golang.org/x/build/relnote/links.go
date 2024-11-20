@@ -55,17 +55,38 @@ func addSymbolLinksBlock(b md.Block, defaultPackage string) {
 // addSymbolLinksInlines looks for symbol links in the slice of inline markdown
 // elements. It returns a new slice of inline elements with links added.
 func addSymbolLinksInlines(ins []md.Inline, defaultPackage string) []md.Inline {
+	ins = splitAtBrackets(ins)
 	var res []md.Inline
-	for _, in := range ins {
-		switch in := in.(type) {
-		case *md.Plain:
-			res = append(res, addSymbolLinksText(in.Text, defaultPackage)...)
+	for i := 0; i < len(ins); i++ {
+		if txt := symbolLinkText(i, ins); txt != "" {
+			link, ok := symbolLink(txt, defaultPackage)
+			if ok {
+				res = append(res, link)
+				i += 2
+				continue
+			}
+		}
+
+		// Handle inline elements with nested content.
+		switch in := ins[i].(type) {
 		case *md.Strong:
-			res = append(res, addSymbolLinksInlines(in.Inner, defaultPackage)...)
+			res = append(res, &md.Strong{
+				Marker: in.Marker,
+				Inner:  addSymbolLinksInlines(in.Inner, defaultPackage),
+			})
+
 		case *md.Emph:
-			res = append(res, addSymbolLinksInlines(in.Inner, defaultPackage)...)
+			res = append(res, &md.Emph{
+				Marker: in.Marker,
+				Inner:  addSymbolLinksInlines(in.Inner, defaultPackage),
+			})
+		// Currently we don't support Del nodes because we don't enable the Strikethrough
+		// extension. But this can't hurt.
 		case *md.Del:
-			res = append(res, addSymbolLinksInlines(in.Inner, defaultPackage)...)
+			res = append(res, &md.Del{
+				Marker: in.Marker,
+				Inner:  addSymbolLinksInlines(in.Inner, defaultPackage),
+			})
 		// Don't look for links in anything else.
 		default:
 			res = append(res, in)
@@ -74,55 +95,109 @@ func addSymbolLinksInlines(ins []md.Inline, defaultPackage string) []md.Inline {
 	return res
 }
 
-// addSymbolLinksText converts symbol links in the text to markdown links.
-// The text comes from a single Plain inline element, which may be split
-// into multiple alternating Plain and Link elements.
-func addSymbolLinksText(text, defaultPackage string) []md.Inline {
+// splitAtBrackets rewrites ins so that every '[' and ']' is the only character
+// of its Plain.
+// For example, the element
+//
+//	[Plain("the [Buffer] is")]
+//
+// is rewritten to
+//
+//	[Plain("the "), Plain("["), Plain("Buffer"), Plain("]"), Plain(" is")]
+//
+// This transformation simplifies looking for symbol links.
+func splitAtBrackets(ins []md.Inline) []md.Inline {
 	var res []md.Inline
-	last := 0
-
-	appendPlain := func(j int) {
-		if j-last > 0 {
-			res = append(res, &md.Plain{Text: text[last:j]})
-		}
-	}
-
-	start := -1
-	for i := 0; i < len(text); i++ {
-		switch text[i] {
-		case '[':
-			start = i
-		case ']':
-			link, ok := symbolLink(text[start+1:i], text[:start], text[i+1:], defaultPackage)
-			if ok {
-				appendPlain(start)
-				res = append(res, link)
-				last = i + 1
+	for _, in := range ins {
+		if p, ok := in.(*md.Plain); ok {
+			text := p.Text
+			for len(text) > 0 {
+				i := strings.IndexAny(text, "[]")
+				// If there are no brackets, the remaining text is a single
+				// Plain and we are done.
+				if i < 0 {
+					res = append(res, &md.Plain{Text: text})
+					break
+				}
+				// There is a bracket; make Plains for it and the text before it (if any).
+				if i > 0 {
+					res = append(res, &md.Plain{Text: text[:i]})
+				}
+				res = append(res, &md.Plain{Text: text[i : i+1]})
+				text = text[i+1:]
 			}
-			start = -1
+		} else {
+			res = append(res, in)
 		}
-
 	}
-	appendPlain(len(text))
 	return res
 }
 
-// symbolLink convert s into a Link and returns it and true, or nil and false if
+// symbolLinkText returns the text of a possible symbol link.
+// It is given a slice of Inline elements and an index into the slice.
+// If the index refers to a sequence of elements
+//
+//	[Plain("["), Plain_or_Code(text), Plain("]")]
+//
+// and the brackets are adjacent to the right kind of runes for a link, then
+// symbolLinkText returns the text of the middle element.
+// Otherwise it returns the empty string.
+func symbolLinkText(i int, ins []md.Inline) string {
+	// plainText returns the text of ins[j] if it is a Plain element, or "" otherwise.
+	plainText := func(j int) string {
+		if j < 0 || j >= len(ins) {
+			return ""
+		}
+		if p, ok := ins[j].(*md.Plain); ok {
+			return p.Text
+		}
+		return ""
+	}
+
+	// ins[i] must be a "[".
+	if plainText(i) != "[" {
+		return ""
+	}
+	// The open bracket must be preceeded by a link-adjacent rune (or by nothing).
+	if t := plainText(i - 1); t != "" {
+		r, _ := utf8.DecodeLastRuneInString(t)
+		if !isLinkAdjacentRune(r) {
+			return ""
+		}
+	}
+	// The element after the next must be a ']'.
+	if plainText(i+2) != "]" {
+		return ""
+	}
+	// The ']' must be followed by a link-adjacent rune (or by nothing).
+	if t := plainText(i + 3); t != "" {
+		r, _ := utf8.DecodeRuneInString(t)
+		if !isLinkAdjacentRune(r) {
+			return ""
+		}
+	}
+
+	// ins[i+1] must be a Plain or a Code.
+	// Its text is the symbol to link to.
+	if i+1 >= len(ins) {
+		return ""
+	}
+	switch in := ins[i+1].(type) {
+	case *md.Plain:
+		return in.Text
+	case *md.Code:
+		return in.Text
+	default:
+		return ""
+	}
+}
+
+// symbolLink converts s into a Link and returns it and true, or nil and false if
 // s is not a valid link or is surrounded by runes that disqualify it from being
 // converted to a link.
-func symbolLink(s, before, after, defaultPackage string) (md.Inline, bool) {
-	if before != "" {
-		r, _ := utf8.DecodeLastRuneInString(before)
-		if !isLinkAdjacentRune(r) {
-			return nil, false
-		}
-	}
-	if after != "" {
-		r, _ := utf8.DecodeRuneInString(after)
-		if !isLinkAdjacentRune(r) {
-			return nil, false
-		}
-	}
+//
+// The argument s is the text between '[' and ']'.
+func symbolLink(s, defaultPackage string) (md.Inline, bool) {
 	pkg, sym, ok := splitRef(s)
 	if !ok {
 		return nil, false
@@ -137,7 +212,7 @@ func symbolLink(s, before, after, defaultPackage string) (md.Inline, bool) {
 		sym = "#" + sym
 	}
 	return &md.Link{
-		Inner: []md.Inline{&md.Plain{Text: s}},
+		Inner: []md.Inline{&md.Code{Text: s}},
 		URL:   fmt.Sprintf("/pkg/%s%s", pkg, sym),
 	}, true
 }

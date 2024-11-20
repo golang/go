@@ -19,6 +19,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -111,12 +112,11 @@ func Generate(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 		return printAssembly(w, rpt, obj)
 	case List:
 		return printSource(w, rpt)
-	case WebList:
-		return printWebSource(w, rpt, obj)
 	case Callgrind:
 		return printCallgrind(w, rpt)
 	}
-	return fmt.Errorf("unexpected output format")
+	// Note: WebList handling is in driver package.
+	return fmt.Errorf("unexpected output format %v", o.OutputFormat)
 }
 
 // newTrimmedGraph creates a graph for this report, trimmed according
@@ -782,7 +782,7 @@ type TextItem struct {
 func TextItems(rpt *Report) ([]TextItem, []string) {
 	g, origCount, droppedNodes, _ := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
-	labels := reportLabels(rpt, g, origCount, droppedNodes, 0, false)
+	labels := reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, 0, false)
 
 	var items []TextItem
 	var flatSum int64
@@ -1065,7 +1065,7 @@ func printTree(w io.Writer, rpt *Report) error {
 	g, origCount, droppedNodes, _ := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
 
-	fmt.Fprintln(w, strings.Join(reportLabels(rpt, g, origCount, droppedNodes, 0, false), "\n"))
+	fmt.Fprintln(w, strings.Join(reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, 0, false), "\n"))
 
 	fmt.Fprintln(w, separator)
 	fmt.Fprintln(w, legend)
@@ -1129,7 +1129,7 @@ func printTree(w io.Writer, rpt *Report) error {
 func GetDOT(rpt *Report) (*graph.Graph, *graph.DotConfig) {
 	g, origCount, droppedNodes, droppedEdges := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
-	labels := reportLabels(rpt, g, origCount, droppedNodes, droppedEdges, true)
+	labels := reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, droppedEdges, true)
 
 	c := &graph.DotConfig{
 		Title:       rpt.options.Title,
@@ -1169,8 +1169,11 @@ func ProfileLabels(rpt *Report) []string {
 	if o.SampleType != "" {
 		label = append(label, "Type: "+o.SampleType)
 	}
+	if url := prof.DocURL; url != "" {
+		label = append(label, "Doc: "+url)
+	}
 	if prof.TimeNanos != 0 {
-		const layout = "Jan 2, 2006 at 3:04pm (MST)"
+		const layout = "2006-01-02 15:04:05 MST"
 		label = append(label, "Time: "+time.Unix(0, prof.TimeNanos).Format(layout))
 	}
 	if prof.DurationNanos != 0 {
@@ -1185,12 +1188,19 @@ func ProfileLabels(rpt *Report) []string {
 	return label
 }
 
+func graphTotal(g *graph.Graph) int64 {
+	var total int64
+	for _, n := range g.Nodes {
+		total += n.FlatValue()
+	}
+	return total
+}
+
 // reportLabels returns printable labels for a report. Includes
 // profileLabels.
-func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedEdges int, fullHeaders bool) []string {
+func reportLabels(rpt *Report, shownTotal int64, nodeCount, origCount, droppedNodes, droppedEdges int, fullHeaders bool) []string {
 	nodeFraction := rpt.options.NodeFraction
 	edgeFraction := rpt.options.EdgeFraction
-	nodeCount := len(g.Nodes)
 
 	var label []string
 	if len(rpt.options.ProfileLabels) > 0 {
@@ -1199,17 +1209,12 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 		label = ProfileLabels(rpt)
 	}
 
-	var flatSum int64
-	for _, n := range g.Nodes {
-		flatSum = flatSum + n.FlatValue()
-	}
-
 	if len(rpt.options.ActiveFilters) > 0 {
 		activeFilters := legendActiveFilters(rpt.options.ActiveFilters)
 		label = append(label, activeFilters...)
 	}
 
-	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(flatSum), strings.TrimSpace(measurement.Percentage(flatSum, rpt.total)), rpt.formatValue(rpt.total)))
+	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(shownTotal), strings.TrimSpace(measurement.Percentage(shownTotal, rpt.total)), rpt.formatValue(rpt.total)))
 
 	if rpt.total != 0 {
 		if droppedNodes > 0 {
@@ -1326,6 +1331,25 @@ type Report struct {
 
 // Total returns the total number of samples in a report.
 func (rpt *Report) Total() int64 { return rpt.total }
+
+// OutputFormat returns the output format for the report.
+func (rpt *Report) OutputFormat() int { return rpt.options.OutputFormat }
+
+// DocURL returns the documentation URL for Report, or "" if not available.
+func (rpt *Report) DocURL() string {
+	u := rpt.prof.DocURL
+	if u == "" || !absoluteURL(u) {
+		return ""
+	}
+	return u
+}
+
+func absoluteURL(str string) bool {
+	// Avoid returning relative URLs to prevent unwanted local navigation
+	// within pprof server.
+	u, err := url.Parse(str)
+	return err == nil && (u.Scheme == "https" || u.Scheme == "http")
+}
 
 func abs64(i int64) int64 {
 	if i < 0 {

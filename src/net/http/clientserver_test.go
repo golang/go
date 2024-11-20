@@ -17,6 +17,7 @@ import (
 	"hash"
 	"io"
 	"log"
+	"maps"
 	"net"
 	. "net/http"
 	"net/http/httptest"
@@ -27,7 +28,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -274,7 +275,7 @@ func testChunkedResponseHeaders(t *testing.T, mode testMode) {
 	if mode == http2Mode {
 		wantTE = nil
 	}
-	if !reflect.DeepEqual(res.TransferEncoding, wantTE) {
+	if !slices.Equal(res.TransferEncoding, wantTE) {
 		t.Errorf("TransferEncoding = %v; want %v", res.TransferEncoding, wantTE)
 	}
 	if got, haveCL := res.Header["Content-Length"]; haveCL {
@@ -689,12 +690,6 @@ func testCancelRequestMidBody(t *testing.T, mode testMode) {
 func TestTrailersClientToServer(t *testing.T) { run(t, testTrailersClientToServer) }
 func testTrailersClientToServer(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		var decl []string
-		for k := range r.Trailer {
-			decl = append(decl, k)
-		}
-		sort.Strings(decl)
-
 		slurp, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("Server reading request body: %v", err)
@@ -705,6 +700,7 @@ func testTrailersClientToServer(t *testing.T, mode testMode) {
 		if r.Trailer == nil {
 			io.WriteString(w, "nil Trailer")
 		} else {
+			decl := slices.Sorted(maps.Keys(r.Trailer))
 			fmt.Fprintf(w, "decl: %v, vals: %s, %s",
 				decl,
 				r.Trailer.Get("Client-Trailer-A"),
@@ -1602,6 +1598,7 @@ func testBidiStreamReverseProxy(t *testing.T, mode testMode) {
 		_, err := io.CopyN(io.MultiWriter(h, pw), rand.Reader, size)
 		go pw.Close()
 		if err != nil {
+			t.Errorf("body copy: %v", err)
 			bodyRes <- err
 		} else {
 			bodyRes <- h

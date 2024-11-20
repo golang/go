@@ -7,8 +7,6 @@ package typeparams
 import (
 	"fmt"
 	"go/types"
-
-	"golang.org/x/tools/internal/aliases"
 )
 
 // CoreType returns the core type of T or nil if T does not have a core type.
@@ -20,7 +18,7 @@ func CoreType(T types.Type) types.Type {
 		return U // for non-interface types,
 	}
 
-	terms, err := _NormalTerms(U)
+	terms, err := NormalTerms(U)
 	if len(terms) == 0 || err != nil {
 		// len(terms) -> empty type set of interface.
 		// err != nil => U is invalid, exceeds complexity bounds, or has an empty type set.
@@ -66,7 +64,7 @@ func CoreType(T types.Type) types.Type {
 	return ch
 }
 
-// _NormalTerms returns a slice of terms representing the normalized structural
+// NormalTerms returns a slice of terms representing the normalized structural
 // type restrictions of a type, if any.
 //
 // For all types other than *types.TypeParam, *types.Interface, and
@@ -96,23 +94,23 @@ func CoreType(T types.Type) types.Type {
 // expands to ~string|~[]byte|int|string, which reduces to ~string|~[]byte|int,
 // which when intersected with C (~string|~int) yields ~string|int.
 //
-// _NormalTerms computes these expansions and reductions, producing a
+// NormalTerms computes these expansions and reductions, producing a
 // "normalized" form of the embeddings. A structural restriction is normalized
 // if it is a single union containing no interface terms, and is minimal in the
 // sense that removing any term changes the set of types satisfying the
 // constraint. It is left as a proof for the reader that, modulo sorting, there
 // is exactly one such normalized form.
 //
-// Because the minimal representation always takes this form, _NormalTerms
+// Because the minimal representation always takes this form, NormalTerms
 // returns a slice of tilde terms corresponding to the terms of the union in
 // the normalized structural restriction. An error is returned if the type is
 // invalid, exceeds complexity bounds, or has an empty type set. In the latter
-// case, _NormalTerms returns ErrEmptyTypeSet.
+// case, NormalTerms returns ErrEmptyTypeSet.
 //
-// _NormalTerms makes no guarantees about the order of terms, except that it
+// NormalTerms makes no guarantees about the order of terms, except that it
 // is deterministic.
-func _NormalTerms(typ types.Type) ([]*types.Term, error) {
-	switch typ := aliases.Unalias(typ).(type) {
+func NormalTerms(typ types.Type) ([]*types.Term, error) {
+	switch typ := typ.Underlying().(type) {
 	case *types.TypeParam:
 		return StructuralTerms(typ)
 	case *types.Union:

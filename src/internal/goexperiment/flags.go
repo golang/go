@@ -91,12 +91,6 @@ type Flags struct {
 	// to the outside world.
 	Arenas bool
 
-	// PageTrace enables GODEBUG=pagetrace=/path/to/result. This feature
-	// is a GOEXPERIMENT due to a security risk with setuid binaries:
-	// this compels the Go runtime to write to some arbitrary file, which
-	// may be exploited.
-	PageTrace bool
-
 	// CgoCheck2 enables an expensive cgo rule checker.
 	// When this experiment is enabled, cgo rule checks occur regardless
 	// of the GODEBUG=cgocheck setting provided at runtime.
@@ -116,4 +110,19 @@ type Flags struct {
 
 	// RangeFunc enables range over func.
 	RangeFunc bool
+
+	// AliasTypeParams enables type parameters for alias types.
+	// Requires that gotypesalias=1 is set with GODEBUG.
+	// This flag will be removed with Go 1.25.
+	AliasTypeParams bool
+
+	// SwissMap enables the SwissTable-based map implementation.
+	SwissMap bool
+
+	// SpinbitMutex enables the new "spinbit" mutex implementation on supported
+	// platforms. See https://go.dev/issue/68578.
+	SpinbitMutex bool
+
+	// SyncHashTrieMap enables the HashTrieMap sync.Map implementation.
+	SyncHashTrieMap bool
 }

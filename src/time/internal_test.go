@@ -47,7 +47,7 @@ func CheckRuntimeTimerPeriodOverflow() {
 	// We manually create a runtimeTimer with huge period, but that expires
 	// immediately. The public Timer interface would require waiting for
 	// the entire period before the first update.
-	t := (*Timer)(newTimer(runtimeNano(), 1<<63-1, empty, nil, nil))
+	t := newTimer(runtimeNano(), 1<<63-1, empty, nil, nil)
 	defer t.Stop()
 
 	// If this test fails, we will either throw (when siftdownTimer detects

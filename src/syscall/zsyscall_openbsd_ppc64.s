@@ -340,9 +340,6 @@ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
 TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
 	CALL	libc_ptrace(SB)
 	RET
-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
-	CALL	libc_getentropy(SB)
-	RET
 TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
 	CALL	libc_fstatat(SB)
 	RET

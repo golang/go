@@ -243,6 +243,10 @@ func TestValues(t *testing.T) {
 	c4 := WithValue(c3, k1, nil)
 	check(c4, "c4", "", "c2k2", "c3k3")
 
+	if got, want := fmt.Sprint(c4), `context.Background.WithValue(context_test.key1, c1k1).WithValue(context_test.key2(1), c2k2).WithValue(context_test.key2(3), c3k3).WithValue(context_test.key1, <nil>)`; got != want {
+		t.Errorf("c.String() = %q want %q", got, want)
+	}
+
 	o0 := otherContext{Background()}
 	check(o0, "o0", "", "", "")
 

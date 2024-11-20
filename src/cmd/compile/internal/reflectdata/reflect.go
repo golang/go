@@ -8,7 +8,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/abi"
-	"os"
+	"internal/buildcfg"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -23,7 +24,6 @@ import (
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/gcprog"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -67,242 +67,6 @@ func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 func makefield(name string, t *types.Type) *types.Field {
 	sym := (*types.Pkg)(nil).Lookup(name)
 	return types.NewField(src.NoXPos, sym, t)
-}
-
-// MapBucketType makes the map bucket type given the type of the map.
-func MapBucketType(t *types.Type) *types.Type {
-	// Builds a type representing a Bucket structure for
-	// the given map type. This type is not visible to users -
-	// we include only enough information to generate a correct GC
-	// program for it.
-	// Make sure this stays in sync with runtime/map.go.
-	//
-	//	A "bucket" is a "struct" {
-	//	      tophash [abi.MapBucketCount]uint8
-	//	      keys [abi.MapBucketCount]keyType
-	//	      elems [abi.MapBucketCount]elemType
-	//	      overflow *bucket
-	//	    }
-	if t.MapType().Bucket != nil {
-		return t.MapType().Bucket
-	}
-
-	keytype := t.Key()
-	elemtype := t.Elem()
-	types.CalcSize(keytype)
-	types.CalcSize(elemtype)
-	if keytype.Size() > abi.MapMaxKeyBytes {
-		keytype = types.NewPtr(keytype)
-	}
-	if elemtype.Size() > abi.MapMaxElemBytes {
-		elemtype = types.NewPtr(elemtype)
-	}
-
-	field := make([]*types.Field, 0, 5)
-
-	// The first field is: uint8 topbits[BUCKETSIZE].
-	arr := types.NewArray(types.Types[types.TUINT8], abi.MapBucketCount)
-	field = append(field, makefield("topbits", arr))
-
-	arr = types.NewArray(keytype, abi.MapBucketCount)
-	arr.SetNoalg(true)
-	keys := makefield("keys", arr)
-	field = append(field, keys)
-
-	arr = types.NewArray(elemtype, abi.MapBucketCount)
-	arr.SetNoalg(true)
-	elems := makefield("elems", arr)
-	field = append(field, elems)
-
-	// If keys and elems have no pointers, the map implementation
-	// can keep a list of overflow pointers on the side so that
-	// buckets can be marked as having no pointers.
-	// Arrange for the bucket to have no pointers by changing
-	// the type of the overflow field to uintptr in this case.
-	// See comment on hmap.overflow in runtime/map.go.
-	otyp := types.Types[types.TUNSAFEPTR]
-	if !elemtype.HasPointers() && !keytype.HasPointers() {
-		otyp = types.Types[types.TUINTPTR]
-	}
-	overflow := makefield("overflow", otyp)
-	field = append(field, overflow)
-
-	// link up fields
-	bucket := types.NewStruct(field[:])
-	bucket.SetNoalg(true)
-	types.CalcSize(bucket)
-
-	// Check invariants that map code depends on.
-	if !types.IsComparable(t.Key()) {
-		base.Fatalf("unsupported map key type for %v", t)
-	}
-	if abi.MapBucketCount < 8 {
-		base.Fatalf("bucket size %d too small for proper alignment %d", abi.MapBucketCount, 8)
-	}
-	if uint8(keytype.Alignment()) > abi.MapBucketCount {
-		base.Fatalf("key align too big for %v", t)
-	}
-	if uint8(elemtype.Alignment()) > abi.MapBucketCount {
-		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, abi.MapBucketCount)
-	}
-	if keytype.Size() > abi.MapMaxKeyBytes {
-		base.Fatalf("key size too large for %v", t)
-	}
-	if elemtype.Size() > abi.MapMaxElemBytes {
-		base.Fatalf("elem size too large for %v", t)
-	}
-	if t.Key().Size() > abi.MapMaxKeyBytes && !keytype.IsPtr() {
-		base.Fatalf("key indirect incorrect for %v", t)
-	}
-	if t.Elem().Size() > abi.MapMaxElemBytes && !elemtype.IsPtr() {
-		base.Fatalf("elem indirect incorrect for %v", t)
-	}
-	if keytype.Size()%keytype.Alignment() != 0 {
-		base.Fatalf("key size not a multiple of key align for %v", t)
-	}
-	if elemtype.Size()%elemtype.Alignment() != 0 {
-		base.Fatalf("elem size not a multiple of elem align for %v", t)
-	}
-	if uint8(bucket.Alignment())%uint8(keytype.Alignment()) != 0 {
-		base.Fatalf("bucket align not multiple of key align %v", t)
-	}
-	if uint8(bucket.Alignment())%uint8(elemtype.Alignment()) != 0 {
-		base.Fatalf("bucket align not multiple of elem align %v", t)
-	}
-	if keys.Offset%keytype.Alignment() != 0 {
-		base.Fatalf("bad alignment of keys in bmap for %v", t)
-	}
-	if elems.Offset%elemtype.Alignment() != 0 {
-		base.Fatalf("bad alignment of elems in bmap for %v", t)
-	}
-
-	// Double-check that overflow field is final memory in struct,
-	// with no padding at end.
-	if overflow.Offset != bucket.Size()-int64(types.PtrSize) {
-		base.Fatalf("bad offset of overflow in bmap for %v, overflow.Offset=%d, bucket.Size()-int64(types.PtrSize)=%d",
-			t, overflow.Offset, bucket.Size()-int64(types.PtrSize))
-	}
-
-	t.MapType().Bucket = bucket
-
-	bucket.StructType().Map = t
-	return bucket
-}
-
-var hmapType *types.Type
-
-// MapType returns a type interchangeable with runtime.hmap.
-// Make sure this stays in sync with runtime/map.go.
-func MapType() *types.Type {
-	if hmapType != nil {
-		return hmapType
-	}
-
-	// build a struct:
-	// type hmap struct {
-	//    count      int
-	//    flags      uint8
-	//    B          uint8
-	//    noverflow  uint16
-	//    hash0      uint32
-	//    buckets    unsafe.Pointer
-	//    oldbuckets unsafe.Pointer
-	//    nevacuate  uintptr
-	//    extra      unsafe.Pointer // *mapextra
-	// }
-	// must match runtime/map.go:hmap.
-	fields := []*types.Field{
-		makefield("count", types.Types[types.TINT]),
-		makefield("flags", types.Types[types.TUINT8]),
-		makefield("B", types.Types[types.TUINT8]),
-		makefield("noverflow", types.Types[types.TUINT16]),
-		makefield("hash0", types.Types[types.TUINT32]),      // Used in walk.go for OMAKEMAP.
-		makefield("buckets", types.Types[types.TUNSAFEPTR]), // Used in walk.go for OMAKEMAP.
-		makefield("oldbuckets", types.Types[types.TUNSAFEPTR]),
-		makefield("nevacuate", types.Types[types.TUINTPTR]),
-		makefield("extra", types.Types[types.TUNSAFEPTR]),
-	}
-
-	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.Runtime.Lookup("hmap"))
-	hmap := types.NewNamed(n)
-	n.SetType(hmap)
-	n.SetTypecheck(1)
-
-	hmap.SetUnderlying(types.NewStruct(fields))
-	types.CalcSize(hmap)
-
-	// The size of hmap should be 48 bytes on 64 bit
-	// and 28 bytes on 32 bit platforms.
-	if size := int64(8 + 5*types.PtrSize); hmap.Size() != size {
-		base.Fatalf("hmap size not correct: got %d, want %d", hmap.Size(), size)
-	}
-
-	hmapType = hmap
-	return hmap
-}
-
-var hiterType *types.Type
-
-// MapIterType returns a type interchangeable with runtime.hiter.
-// Make sure this stays in sync with runtime/map.go.
-func MapIterType() *types.Type {
-	if hiterType != nil {
-		return hiterType
-	}
-
-	hmap := MapType()
-
-	// build a struct:
-	// type hiter struct {
-	//    key         unsafe.Pointer // *Key
-	//    elem        unsafe.Pointer // *Elem
-	//    t           unsafe.Pointer // *MapType
-	//    h           *hmap
-	//    buckets     unsafe.Pointer
-	//    bptr        unsafe.Pointer // *bmap
-	//    overflow    unsafe.Pointer // *[]*bmap
-	//    oldoverflow unsafe.Pointer // *[]*bmap
-	//    startBucket uintptr
-	//    offset      uint8
-	//    wrapped     bool
-	//    B           uint8
-	//    i           uint8
-	//    bucket      uintptr
-	//    checkBucket uintptr
-	// }
-	// must match runtime/map.go:hiter.
-	fields := []*types.Field{
-		makefield("key", types.Types[types.TUNSAFEPTR]),  // Used in range.go for TMAP.
-		makefield("elem", types.Types[types.TUNSAFEPTR]), // Used in range.go for TMAP.
-		makefield("t", types.Types[types.TUNSAFEPTR]),
-		makefield("h", types.NewPtr(hmap)),
-		makefield("buckets", types.Types[types.TUNSAFEPTR]),
-		makefield("bptr", types.Types[types.TUNSAFEPTR]),
-		makefield("overflow", types.Types[types.TUNSAFEPTR]),
-		makefield("oldoverflow", types.Types[types.TUNSAFEPTR]),
-		makefield("startBucket", types.Types[types.TUINTPTR]),
-		makefield("offset", types.Types[types.TUINT8]),
-		makefield("wrapped", types.Types[types.TBOOL]),
-		makefield("B", types.Types[types.TUINT8]),
-		makefield("i", types.Types[types.TUINT8]),
-		makefield("bucket", types.Types[types.TUINTPTR]),
-		makefield("checkBucket", types.Types[types.TUINTPTR]),
-	}
-
-	// build iterator struct holding the above fields
-	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.Pkgs.Runtime.Lookup("hiter"))
-	hiter := types.NewNamed(n)
-	n.SetType(hiter)
-	n.SetTypecheck(1)
-
-	hiter.SetUnderlying(types.NewStruct(fields))
-	types.CalcSize(hiter)
-	if hiter.Size() != int64(12*types.PtrSize) {
-		base.Fatalf("hash_iter size not correct %d %d", hiter.Size(), 12*types.PtrSize)
-	}
-
-	hiterType = hiter
-	return hiter
 }
 
 // methods returns the methods of the non-interface type t, sorted by name.
@@ -379,7 +143,7 @@ func imethods(t *types.Type) []*typeSig {
 		}
 		if n := len(methods); n > 0 {
 			last := methods[n-1]
-			if !last.name.Less(f.Sym) {
+			if types.CompareSyms(last.name, f.Sym) >= 0 {
 				base.Fatalf("sigcmp vs sortinter %v %v", last.name, f.Sym)
 			}
 		}
@@ -619,9 +383,7 @@ func typePkg(t *types.Type) *types.Pkg {
 
 func dmethodptrOff(c rttype.Cursor, x *obj.LSym) {
 	c.WriteInt32(0)
-	r := c.Reloc()
-	r.Sym = x
-	r.Type = objabi.R_METHODOFF
+	c.Reloc(obj.Reloc{Type: objabi.R_METHODOFF, Sym: x})
 }
 
 var kinds = []abi.Kind{
@@ -673,8 +435,10 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 		sptr = writeType(tptr)
 	}
 
-	gcsym, useGCProg, ptrdata := dgcsym(t, true)
-	delete(gcsymset, t)
+	gcsym, onDemand, ptrdata := dgcsym(t, true, true)
+	if !onDemand {
+		delete(gcsymset, t)
+	}
 
 	// ../../../../reflect/type.go:/^type.rtype
 	// actual type structure
@@ -704,6 +468,9 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	}
 	if compare.IsRegularMemory(t) {
 		tflag |= abi.TFlagRegularMemory
+	}
+	if onDemand {
+		tflag |= abi.TFlagGCMaskOnDemand
 	}
 
 	exported := false
@@ -746,9 +513,6 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	kind := kinds[t.Kind()]
 	if types.IsDirectIface(t) {
 		kind |= abi.KindDirectIface
-	}
-	if useGCProg {
-		kind |= abi.KindGCProg
 	}
 	c.Field("Kind_").WriteUint8(uint8(kind))
 
@@ -1005,7 +769,11 @@ func writeType(t *types.Type) *obj.LSym {
 		rt = rttype.InterfaceType
 		dataAdd = len(imethods(t)) * int(rttype.IMethod.Size())
 	case types.TMAP:
-		rt = rttype.MapType
+		if buildcfg.Experiment.SwissMap {
+			rt = rttype.SwissMapType
+		} else {
+			rt = rttype.OldMapType
+		}
 	case types.TPTR:
 		rt = rttype.PtrType
 		// TODO: use rttype.Type for Elem() is ANY?
@@ -1105,52 +873,10 @@ func writeType(t *types.Type) *obj.LSym {
 		}
 
 	case types.TMAP:
-		// internal/abi.MapType
-		s1 := writeType(t.Key())
-		s2 := writeType(t.Elem())
-		s3 := writeType(MapBucketType(t))
-		hasher := genhash(t.Key())
-
-		c.Field("Key").WritePtr(s1)
-		c.Field("Elem").WritePtr(s2)
-		c.Field("Bucket").WritePtr(s3)
-		c.Field("Hasher").WritePtr(hasher)
-		var flags uint32
-		// Note: flags must match maptype accessors in ../../../../runtime/type.go
-		// and maptype builder in ../../../../reflect/type.go:MapOf.
-		if t.Key().Size() > abi.MapMaxKeyBytes {
-			c.Field("KeySize").WriteUint8(uint8(types.PtrSize))
-			flags |= 1 // indirect key
+		if buildcfg.Experiment.SwissMap {
+			writeSwissMapType(t, lsym, c)
 		} else {
-			c.Field("KeySize").WriteUint8(uint8(t.Key().Size()))
-		}
-
-		if t.Elem().Size() > abi.MapMaxElemBytes {
-			c.Field("ValueSize").WriteUint8(uint8(types.PtrSize))
-			flags |= 2 // indirect value
-		} else {
-			c.Field("ValueSize").WriteUint8(uint8(t.Elem().Size()))
-		}
-		c.Field("BucketSize").WriteUint16(uint16(MapBucketType(t).Size()))
-		if types.IsReflexive(t.Key()) {
-			flags |= 4 // reflexive key
-		}
-		if needkeyupdate(t.Key()) {
-			flags |= 8 // need key update
-		}
-		if hashMightPanic(t.Key()) {
-			flags |= 16 // hash might panic
-		}
-		c.Field("Flags").WriteUint32(flags)
-
-		if u := t.Underlying(); u != t {
-			// If t is a named map type, also keep the underlying map
-			// type live in the binary. This is important to make sure that
-			// a named map and that same map cast to its underlying type via
-			// reflection, use the same hash function. See issue 37716.
-			r := obj.Addrel(lsym)
-			r.Sym = writeType(u)
-			r.Type = objabi.R_KEEP
+			writeOldMapType(t, lsym, c)
 		}
 
 	case types.TPTR:
@@ -1264,7 +990,7 @@ func WriteRuntimeTypes() {
 	for len(signatslice) > 0 {
 		signats := signatslice
 		// Sort for reproducible builds.
-		sort.Sort(typesByString(signats))
+		slices.SortFunc(signats, typesStrCmp)
 		for _, ts := range signats {
 			t := ts.t
 			writeType(t)
@@ -1282,9 +1008,9 @@ func WriteGCSymbols() {
 	for t := range gcsymset {
 		gcsyms = append(gcsyms, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
 	}
-	sort.Sort(typesByString(gcsyms))
+	slices.SortFunc(gcsyms, typesStrCmp)
 	for _, ts := range gcsyms {
-		dgcsym(ts.t, true)
+		dgcsym(ts.t, true, false)
 	}
 }
 
@@ -1460,20 +1186,17 @@ type typeAndStr struct {
 	regular string
 }
 
-type typesByString []typeAndStr
-
-func (a typesByString) Len() int { return len(a) }
-func (a typesByString) Less(i, j int) bool {
+func typesStrCmp(a, b typeAndStr) int {
 	// put named types before unnamed types
-	if a[i].t.Sym() != nil && a[j].t.Sym() == nil {
-		return true
+	if a.t.Sym() != nil && b.t.Sym() == nil {
+		return -1
 	}
-	if a[i].t.Sym() == nil && a[j].t.Sym() != nil {
-		return false
+	if a.t.Sym() == nil && b.t.Sym() != nil {
+		return +1
 	}
 
-	if a[i].short != a[j].short {
-		return a[i].short < a[j].short
+	if r := strings.Compare(a.short, b.short); r != 0 {
+		return r
 	}
 	// When the only difference between the types is whether
 	// they refer to byte or uint8, such as **byte vs **uint8,
@@ -1484,26 +1207,27 @@ func (a typesByString) Less(i, j int) bool {
 	// avoid naming collisions, and there shouldn't be a reason to care
 	// about "byte" vs "uint8": they share the same runtime type
 	// descriptor anyway.
-	if a[i].regular != a[j].regular {
-		return a[i].regular < a[j].regular
+	if r := strings.Compare(a.regular, b.regular); r != 0 {
+		return r
 	}
 	// Identical anonymous interfaces defined in different locations
 	// will be equal for the above checks, but different in DWARF output.
 	// Sort by source position to ensure deterministic order.
 	// See issues 27013 and 30202.
-	if a[i].t.Kind() == types.TINTER && len(a[i].t.AllMethods()) > 0 {
-		return a[i].t.AllMethods()[0].Pos.Before(a[j].t.AllMethods()[0].Pos)
+	if a.t.Kind() == types.TINTER && len(a.t.AllMethods()) > 0 {
+		if a.t.AllMethods()[0].Pos.Before(b.t.AllMethods()[0].Pos) {
+			return -1
+		}
+		return +1
 	}
-	return false
+	return 0
 }
-func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
-// GCSym returns a data symbol containing GC information for type t, along
-// with a boolean reporting whether the UseGCProg bit should be set in the
-// type kind, and the ptrdata field to record in the reflect type information.
+// GCSym returns a data symbol containing GC information for type t.
+// GC information is always a bitmask, never a gc program.
 // GCSym may be called in concurrent backend, so it does not emit the symbol
 // content.
-func GCSym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
+func GCSym(t *types.Type) (lsym *obj.LSym, ptrdata int64) {
 	// Record that we need to emit the GC symbol.
 	gcsymmu.Lock()
 	if _, ok := gcsymset[t]; !ok {
@@ -1511,22 +1235,23 @@ func GCSym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
 	}
 	gcsymmu.Unlock()
 
-	return dgcsym(t, false)
+	lsym, _, ptrdata = dgcsym(t, false, false)
+	return
 }
 
 // dgcsym returns a data symbol containing GC information for type t, along
-// with a boolean reporting whether the UseGCProg bit should be set in the
-// type kind, and the ptrdata field to record in the reflect type information.
+// with a boolean reporting whether the gc mask should be computed on demand
+// at runtime, and the ptrdata field to record in the reflect type information.
 // When write is true, it writes the symbol data.
-func dgcsym(t *types.Type, write bool) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
+func dgcsym(t *types.Type, write, onDemandAllowed bool) (lsym *obj.LSym, onDemand bool, ptrdata int64) {
 	ptrdata = types.PtrDataSize(t)
-	if ptrdata/int64(types.PtrSize) <= abi.MaxPtrmaskBytes*8 {
+	if !onDemandAllowed || ptrdata/int64(types.PtrSize) <= abi.MaxPtrmaskBytes*8 {
 		lsym = dgcptrmask(t, write)
 		return
 	}
 
-	useGCProg = true
-	lsym, ptrdata = dgcprog(t, write)
+	onDemand = true
+	lsym = dgcptrmaskOnDemand(t, write)
 	return
 }
 
@@ -1573,120 +1298,17 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 	}
 }
 
-// dgcprog emits and returns the symbol containing a GC program for type t
-// along with the size of the data described by the program (in the range
-// [types.PtrDataSize(t), t.Width]).
-// In practice, the size is types.PtrDataSize(t) except for non-trivial arrays.
-// For non-trivial arrays, the program describes the full t.Width size.
-func dgcprog(t *types.Type, write bool) (*obj.LSym, int64) {
-	types.CalcSize(t)
-	if t.Size() == types.BADWIDTH {
-		base.Fatalf("dgcprog: %v badwidth", t)
+// dgcptrmaskOnDemand emits and returns the symbol that should be referenced by
+// the GCData field of a type, for large types.
+func dgcptrmaskOnDemand(t *types.Type, write bool) *obj.LSym {
+	lsym := TypeLinksymPrefix(".gcmask", t)
+	if write && !lsym.OnList() {
+		// Note: contains a pointer, but a pointer to a
+		// persistentalloc allocation. Starts with nil.
+		objw.Uintptr(lsym, 0, 0)
+		objw.Global(lsym, int32(types.PtrSize), obj.DUPOK|obj.NOPTR|obj.LOCAL) // TODO:bss?
 	}
-	lsym := TypeLinksymPrefix(".gcprog", t)
-	var p gcProg
-	p.init(lsym, write)
-	p.emit(t, 0)
-	offset := p.w.BitIndex() * int64(types.PtrSize)
-	p.end()
-	if ptrdata := types.PtrDataSize(t); offset < ptrdata || offset > t.Size() {
-		base.Fatalf("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Size())
-	}
-	return lsym, offset
-}
-
-type gcProg struct {
-	lsym   *obj.LSym
-	symoff int
-	w      gcprog.Writer
-	write  bool
-}
-
-func (p *gcProg) init(lsym *obj.LSym, write bool) {
-	p.lsym = lsym
-	p.write = write && !lsym.OnList()
-	p.symoff = 4 // first 4 bytes hold program length
-	if !write {
-		p.w.Init(func(byte) {})
-		return
-	}
-	p.w.Init(p.writeByte)
-	if base.Debug.GCProg > 0 {
-		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", lsym)
-		p.w.Debug(os.Stderr)
-	}
-}
-
-func (p *gcProg) writeByte(x byte) {
-	p.symoff = objw.Uint8(p.lsym, p.symoff, x)
-}
-
-func (p *gcProg) end() {
-	p.w.End()
-	if !p.write {
-		return
-	}
-	objw.Uint32(p.lsym, 0, uint32(p.symoff-4))
-	objw.Global(p.lsym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
-	p.lsym.Set(obj.AttrContentAddressable, true)
-	if base.Debug.GCProg > 0 {
-		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.lsym)
-	}
-}
-
-func (p *gcProg) emit(t *types.Type, offset int64) {
-	types.CalcSize(t)
-	if !t.HasPointers() {
-		return
-	}
-	if t.Size() == int64(types.PtrSize) {
-		p.w.Ptr(offset / int64(types.PtrSize))
-		return
-	}
-	switch t.Kind() {
-	default:
-		base.Fatalf("gcProg.emit: unexpected type %v", t)
-
-	case types.TSTRING:
-		p.w.Ptr(offset / int64(types.PtrSize))
-
-	case types.TINTER:
-		// Note: the first word isn't a pointer. See comment in typebits.Set
-		p.w.Ptr(offset/int64(types.PtrSize) + 1)
-
-	case types.TSLICE:
-		p.w.Ptr(offset / int64(types.PtrSize))
-
-	case types.TARRAY:
-		if t.NumElem() == 0 {
-			// should have been handled by haspointers check above
-			base.Fatalf("gcProg.emit: empty array")
-		}
-
-		// Flatten array-of-array-of-array to just a big array by multiplying counts.
-		count := t.NumElem()
-		elem := t.Elem()
-		for elem.IsArray() {
-			count *= elem.NumElem()
-			elem = elem.Elem()
-		}
-
-		if !p.w.ShouldRepeat(elem.Size()/int64(types.PtrSize), count) {
-			// Cheaper to just emit the bits.
-			for i := int64(0); i < count; i++ {
-				p.emit(elem, offset+i*elem.Size())
-			}
-			return
-		}
-		p.emit(elem, offset)
-		p.w.ZeroUntil((offset + elem.Size()) / int64(types.PtrSize))
-		p.w.Repeat(elem.Size()/int64(types.PtrSize), count-1)
-
-	case types.TSTRUCT:
-		for _, t1 := range t.Fields() {
-			p.emit(t1.Type, offset+t1.Offset)
-		}
-	}
+	return lsym
 }
 
 // ZeroAddr returns the address of a symbol with at least
@@ -1806,9 +1428,7 @@ func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
 func MarkTypeSymUsedInInterface(tsym *obj.LSym, from *obj.LSym) {
 	// Emit a marker relocation. The linker will know the type is converted
 	// to an interface if "from" is reachable.
-	r := obj.Addrel(from)
-	r.Sym = tsym
-	r.Type = objabi.R_USEIFACE
+	from.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_USEIFACE, Sym: tsym})
 }
 
 // MarkUsedIfaceMethod marks that an interface method is used in the current
@@ -1840,20 +1460,20 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 		// type, and the linker could do more complicated matching using
 		// some sort of fuzzy shape matching. For now, only use the name
 		// of the method for matching.
-		r := obj.Addrel(ir.CurFunc.LSym)
-		r.Sym = staticdata.StringSymNoCommon(dot.Sel.Name)
-		r.Type = objabi.R_USENAMEDMETHOD
+		ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
+			Type: objabi.R_USENAMEDMETHOD,
+			Sym:  staticdata.StringSymNoCommon(dot.Sel.Name),
+		})
 		return
 	}
 
-	tsym := TypeLinksym(ityp)
-	r := obj.Addrel(ir.CurFunc.LSym)
-	r.Sym = tsym
-	// dot.Offset() is the method index * PtrSize (the offset of code pointer
-	// in itab).
+	// dot.Offset() is the method index * PtrSize (the offset of code pointer in itab).
 	midx := dot.Offset() / int64(types.PtrSize)
-	r.Add = InterfaceMethodOffset(ityp, midx)
-	r.Type = objabi.R_USEIFACEMETHOD
+	ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
+		Type: objabi.R_USEIFACEMETHOD,
+		Sym:  TypeLinksym(ityp),
+		Add:  InterfaceMethodOffset(ityp, midx),
+	})
 }
 
 func deref(t *types.Type) *types.Type {

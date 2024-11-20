@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -71,7 +71,7 @@ func TestDirent(t *testing.T) {
 		}
 	}
 
-	sort.Strings(names)
+	slices.Sort(names)
 	t.Logf("names: %q", names)
 
 	if len(names) != 10 {
@@ -138,8 +138,8 @@ func TestDirentRepeat(t *testing.T) {
 	}
 
 	// Check results
-	sort.Strings(files)
-	sort.Strings(files2)
+	slices.Sort(files)
+	slices.Sort(files2)
 	if strings.Join(files, "|") != strings.Join(files2, "|") {
 		t.Errorf("bad file list: want\n%q\ngot\n%q", files, files2)
 	}

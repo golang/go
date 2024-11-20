@@ -104,6 +104,9 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fgo2, "var _Cgo_always_false bool\n")
 		fmt.Fprintf(fgo2, "//go:linkname _Cgo_use runtime.cgoUse\n")
 		fmt.Fprintf(fgo2, "func _Cgo_use(interface{})\n")
+		fmt.Fprintf(fgo2, "//go:linkname _Cgo_keepalive runtime.cgoKeepAlive\n")
+		fmt.Fprintf(fgo2, "//go:noescape\n")
+		fmt.Fprintf(fgo2, "func _Cgo_keepalive(interface{})\n")
 	}
 	fmt.Fprintf(fgo2, "//go:linkname _Cgo_no_callback runtime.cgoNoCallback\n")
 	fmt.Fprintf(fgo2, "func _Cgo_no_callback(bool)\n")
@@ -378,9 +381,7 @@ func dynimport(obj string) {
 		defer f.Close()
 		sym, _ := f.ImportedSymbols()
 		for _, s := range sym {
-			if len(s) > 0 && s[0] == '_' {
-				s = s[1:]
-			}
+			s = strings.TrimPrefix(s, "_")
 			checkImportSymName(s)
 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s, s, "")
 		}
@@ -446,7 +447,7 @@ func checkImportSymName(s string) {
 		}
 	}
 	if strings.Contains(s, "//") || strings.Contains(s, "/*") {
-		fatalf("dynamic symbol %q contains Go comment")
+		fatalf("dynamic symbol %q contains Go comment", s)
 	}
 }
 
@@ -641,17 +642,20 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(false)\n")
 	}
 
-	// skip _Cgo_use when noescape exist,
+	// Use _Cgo_keepalive instead of _Cgo_use when noescape & nocallback exist,
 	// so that the compiler won't force to escape them to heap.
-	if !p.noEscapes[n.C] {
-		fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
-		if d.Type.Params != nil {
-			for i := range d.Type.Params.List {
-				fmt.Fprintf(fgo2, "\t\t_Cgo_use(p%d)\n", i)
-			}
-		}
-		fmt.Fprintf(fgo2, "\t}\n")
+	// Instead, make the compiler keep them alive by using _Cgo_keepalive.
+	touchFunc := "_Cgo_use"
+	if p.noEscapes[n.C] && p.noCallbacks[n.C] {
+		touchFunc = "_Cgo_keepalive"
 	}
+	fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
+	if d.Type.Params != nil {
+		for _, name := range paramnames {
+			fmt.Fprintf(fgo2, "\t\t%s(%s)\n", touchFunc, name)
+		}
+	}
+	fmt.Fprintf(fgo2, "\t}\n")
 	fmt.Fprintf(fgo2, "\treturn\n")
 	fmt.Fprintf(fgo2, "}\n")
 }
@@ -1414,9 +1418,18 @@ var goTypes = map[string]*Type{
 
 // Map an ast type to a Type.
 func (p *Package) cgoType(e ast.Expr) *Type {
+	return p.doCgoType(e, make(map[ast.Expr]bool))
+}
+
+// Map an ast type to a Type, avoiding cycles.
+func (p *Package) doCgoType(e ast.Expr, m map[ast.Expr]bool) *Type {
+	if m[e] {
+		fatalf("%s: invalid recursive type", fset.Position(e.Pos()))
+	}
+	m[e] = true
 	switch t := e.(type) {
 	case *ast.StarExpr:
-		x := p.cgoType(t.X)
+		x := p.doCgoType(t.X, m)
 		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("%s*", x.C)}
 	case *ast.ArrayType:
 		if t.Len == nil {
@@ -1461,7 +1474,12 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 					continue
 				}
 				if ts.Name.Name == t.Name {
-					return p.cgoType(ts.Type)
+					// Give a better error than the one
+					// above if we detect a recursive type.
+					if m[ts.Type] {
+						fatalf("%s: invalid recursive type: %s refers to itself", fset.Position(e.Pos()), t.Name)
+					}
+					return p.doCgoType(ts.Type, m)
 				}
 			}
 		}

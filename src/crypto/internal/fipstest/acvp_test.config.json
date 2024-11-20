@@ -1,0 +1,25 @@
+[
+  {"Wrapper": "go", "In": "vectors/SHA2-224.bz2", "Out": "expected/SHA2-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA2-256.bz2", "Out": "expected/SHA2-256.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA2-384.bz2", "Out": "expected/SHA2-384.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA2-512.bz2", "Out": "expected/SHA2-512.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA2-512-224.bz2", "Out": "expected/SHA2-512-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA2-512-256.bz2", "Out": "expected/SHA2-512-256.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/SHA3-224.bz2", "Out": "expected/SHA3-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA3-256.bz2", "Out": "expected/SHA3-256.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA3-384.bz2", "Out": "expected/SHA3-384.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA3-512.bz2", "Out": "expected/SHA3-512.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-224.bz2", "Out": "expected/HMAC-SHA2-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-256.bz2", "Out": "expected/HMAC-SHA2-256.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-384.bz2", "Out": "expected/HMAC-SHA2-384.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-512.bz2", "Out": "expected/HMAC-SHA2-512.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-512-224.bz2", "Out": "expected/HMAC-SHA2-512-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-512-256.bz2", "Out": "expected/HMAC-SHA2-512-256.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA3-224.bz2", "Out": "expected/HMAC-SHA3-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA3-256.bz2", "Out": "expected/HMAC-SHA3-256.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA3-384.bz2", "Out": "expected/HMAC-SHA3-384.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA3-512.bz2", "Out": "expected/HMAC-SHA3-512.bz2"}
+]

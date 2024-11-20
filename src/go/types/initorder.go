@@ -8,10 +8,11 @@
 package types
 
 import (
+	"cmp"
 	"container/heap"
 	"fmt"
 	. "internal/types/errors"
-	"sort"
+	"slices"
 )
 
 // initOrder computes the Info.InitOrder for package variables.
@@ -165,13 +166,12 @@ func (check *Checker) reportCycle(cycle []Object) {
 
 	err := check.newError(InvalidInitCycle)
 	err.addf(obj, "initialization cycle for %s", obj.Name())
-	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
-	for i := len(cycle) - 1; i >= 0; i-- {
-		err.addf(obj, "%s refers to", obj.Name())
-		obj = cycle[i]
+	// "cycle[i] refers to cycle[j]" for (i,j) = (0,n-1), (n-1,n-2), ..., (1,0) for len(cycle) = n.
+	for j := len(cycle) - 1; j >= 0; j-- {
+		next := cycle[j]
+		err.addf(obj, "%s refers to %s", obj.Name(), next.Name())
+		obj = next
 	}
-	// print cycle[0] again to close the cycle
-	err.addf(obj, "%s", obj.Name())
 	err.report()
 }
 
@@ -260,8 +260,8 @@ func dependencyGraph(objMap map[Object]*declInfo) []*graphNode {
 	// throughout the function graph, the cost of removing a function at
 	// position X is proportional to cost * (len(funcG)-X). Therefore, we should
 	// remove high-cost functions last.
-	sort.Slice(funcG, func(i, j int) bool {
-		return funcG[i].cost() < funcG[j].cost()
+	slices.SortFunc(funcG, func(a, b *graphNode) int {
+		return cmp.Compare(a.cost(), b.cost())
 	})
 	for _, n := range funcG {
 		// connect each predecessor p of n with each successor s

@@ -18,7 +18,7 @@ import (
 // opposed to a new walk on every call).
 type ReassignOracle struct {
 	fn *Func
-	// maps candidate name to its defining assignment (or for
+	// maps candidate name to its defining assignment (or
 	// for params, defining func).
 	singleDef map[*Name]Node
 }

@@ -17,7 +17,7 @@ import (
 	"internal/filepathlite"
 	"io/fs"
 	"os"
-	"sort"
+	"slices"
 )
 
 const (
@@ -444,7 +444,7 @@ func readDirNames(dirname string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 

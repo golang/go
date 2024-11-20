@@ -23,7 +23,10 @@ import (
 
 	"golang.org/x/arch/arm/armasm"
 	"golang.org/x/arch/arm64/arm64asm"
+	"golang.org/x/arch/loong64/loong64asm"
 	"golang.org/x/arch/ppc64/ppc64asm"
+	"golang.org/x/arch/riscv64/riscv64asm"
+	"golang.org/x/arch/s390x/s390xasm"
 	"golang.org/x/arch/x86/x86asm"
 )
 
@@ -60,7 +63,7 @@ func (e *Entry) Disasm() (*Disasm, error) {
 	disasm := disasms[goarch]
 	byteOrder := byteOrders[goarch]
 	if disasm == nil || byteOrder == nil {
-		return nil, fmt.Errorf("unsupported architecture")
+		return nil, fmt.Errorf("unsupported architecture %q", goarch)
 	}
 
 	// Filter out section symbols, overwriting syms in place.
@@ -366,6 +369,19 @@ func disasm_arm64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
 	return text, 4
 }
 
+func disasm_loong64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder, gnuAsm bool) (string, int) {
+	inst, err := loong64asm.Decode(code)
+	var text string
+	if err != nil || inst.Op == 0 {
+		text = "?"
+	} else if gnuAsm {
+		text = fmt.Sprintf("%-36s // %s", loong64asm.GoSyntax(inst, pc, lookup), loong64asm.GNUSyntax(inst))
+	} else {
+		text = loong64asm.GoSyntax(inst, pc, lookup)
+	}
+	return text, 4
+}
+
 func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder, gnuAsm bool) (string, int) {
 	inst, err := ppc64asm.Decode(code, byteOrder)
 	var text string
@@ -383,13 +399,46 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
 	return text, size
 }
 
+func disasm_riscv64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder, gnuAsm bool) (string, int) {
+	inst, err := riscv64asm.Decode(code)
+	var text string
+	if err != nil || inst.Op == 0 {
+		text = "?"
+	} else if gnuAsm {
+		text = fmt.Sprintf("%-36s // %s", riscv64asm.GoSyntax(inst, pc, lookup, textReader{code, pc}), riscv64asm.GNUSyntax(inst))
+	} else {
+		text = riscv64asm.GoSyntax(inst, pc, lookup, textReader{code, pc})
+	}
+	return text, 4
+}
+
+func disasm_s390x(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {
+	inst, err := s390xasm.Decode(code)
+	var text string
+	size := inst.Len
+	if err != nil || size == 0 || inst.Op == 0 {
+		size = 2
+		text = "?"
+	} else {
+		if gnuAsm {
+			text = fmt.Sprintf("%-36s // %s", s390xasm.GoSyntax(inst, pc, lookup), s390xasm.GNUSyntax(inst, pc))
+		} else {
+			text = s390xasm.GoSyntax(inst, pc, lookup)
+		}
+	}
+	return text, size
+}
+
 var disasms = map[string]disasmFunc{
 	"386":     disasm_386,
 	"amd64":   disasm_amd64,
 	"arm":     disasm_arm,
 	"arm64":   disasm_arm64,
+	"loong64": disasm_loong64,
 	"ppc64":   disasm_ppc64,
 	"ppc64le": disasm_ppc64,
+	"riscv64": disasm_riscv64,
+	"s390x":   disasm_s390x,
 }
 
 var byteOrders = map[string]binary.ByteOrder{
@@ -397,8 +446,10 @@ var byteOrders = map[string]binary.ByteOrder{
 	"amd64":   binary.LittleEndian,
 	"arm":     binary.LittleEndian,
 	"arm64":   binary.LittleEndian,
+	"loong64": binary.LittleEndian,
 	"ppc64":   binary.BigEndian,
 	"ppc64le": binary.LittleEndian,
+	"riscv64": binary.LittleEndian,
 	"s390x":   binary.BigEndian,
 }
 

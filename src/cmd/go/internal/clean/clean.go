@@ -28,7 +28,7 @@ import (
 )
 
 var CmdClean = &base.Command{
-	UsageLine: "go clean [clean flags] [build flags] [packages]",
+	UsageLine: "go clean [-i] [-r] [-cache] [-testcache] [-modcache] [-fuzzcache] [build flags] [packages]",
 	Short:     "remove object files and cached files",
 	Long: `
 Clean removes object files from package source directories.
@@ -114,7 +114,7 @@ func init() {
 	// mentioned explicitly in the docs but they
 	// are part of the build flags.
 
-	work.AddBuildFlags(CmdClean, work.DefaultBuildFlags)
+	work.AddBuildFlags(CmdClean, work.OmitBuildOnlyFlags)
 }
 
 func runClean(ctx context.Context, cmd *base.Command, args []string) {
@@ -150,10 +150,10 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	sh := work.NewShell("", fmt.Print)
+	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
 
 	if cleanCache {
-		dir := cache.DefaultDir()
+		dir, _ := cache.DefaultDir()
 		if dir != "off" {
 			// Remove the cache subdirectories but not the top cache directory.
 			// The top cache directory may have been created with special permissions
@@ -180,7 +180,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		// Instead of walking through the entire cache looking for test results,
 		// we write a file to the cache indicating that all test results from before
 		// right now are to be ignored.
-		dir := cache.DefaultDir()
+		dir, _ := cache.DefaultDir()
 		if dir != "off" {
 			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
 			if err == nil {
@@ -269,7 +269,7 @@ func clean(p *load.Package) {
 		return
 	}
 
-	sh := work.NewShell("", fmt.Print)
+	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
 
 	packageFile := map[string]bool{}
 	if p.Name != "main" {

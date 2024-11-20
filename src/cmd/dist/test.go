@@ -349,6 +349,12 @@ type goTest struct {
 	testFlags []string // Additional flags accepted by this test
 }
 
+// compileOnly reports whether this test is only for compiling,
+// indicated by runTests being set to '^$' and bench being false.
+func (opts *goTest) compileOnly() bool {
+	return opts.runTests == "^$" && !opts.bench
+}
+
 // bgCommand returns a go test Cmd and a post-Run flush function. The result
 // will write its output to stdout and stderr. If stdout==stderr, bgCommand
 // ensures Writes are serialized. The caller should call flush() after Cmd exits.
@@ -357,13 +363,13 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) (cmd *exec.Cm
 
 	// Combine the flags.
 	args := append([]string{"test"}, build...)
-	if t.compileOnly {
+	if t.compileOnly || opts.compileOnly() {
 		args = append(args, "-c", "-o", os.DevNull)
 	} else {
 		args = append(args, run...)
 	}
 	args = append(args, pkgs...)
-	if !t.compileOnly {
+	if !t.compileOnly && !opts.compileOnly() {
 		args = append(args, testFlags...)
 	}
 
@@ -699,6 +705,16 @@ func (t *tester) registerTests() {
 		runTests: "^$", // only ensure they compile
 	})
 
+	// Check that all crypto packages compile with fips.
+	for _, version := range fipsVersions() {
+		t.registerTest("crypto with GOFIPS140", &goTest{
+			variant:  "gofips140-" + version,
+			pkg:      "crypto/...",
+			runTests: "^$", // only ensure they compile
+			env:      []string{"GOFIPS140=" + version, "GOMODCACHE=" + filepath.Join(workdir, "fips-"+version)},
+		})
+	}
+
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
 		t.registerTest("GOOS=ios on darwin/amd64",
@@ -708,17 +724,6 @@ func (t *tester) registerTests() {
 				runTests: "SystemRoots",
 				env:      []string{"GOOS=ios", "CGO_ENABLED=1"},
 				pkg:      "crypto/x509",
-			})
-	}
-
-	// GOEXPERIMENT=rangefunc tests
-	if !t.compileOnly {
-		t.registerTest("GOEXPERIMENT=rangefunc go test iter",
-			&goTest{
-				variant: "iter",
-				short:   t.short,
-				env:     []string{"GOEXPERIMENT=rangefunc"},
-				pkg:     "iter",
 			})
 	}
 
@@ -813,7 +818,7 @@ func (t *tester) registerTests() {
 
 	// Test internal linking of PIE binaries where it is supported.
 	if t.internalLinkPIE() && !disablePIE {
-		t.registerTest("internal linking of -buildmode=pie",
+		t.registerTest("internal linking, -buildmode=pie",
 			&goTest{
 				variant:   "pie_internal",
 				timeout:   60 * time.Second,
@@ -822,15 +827,47 @@ func (t *tester) registerTests() {
 				env:       []string{"CGO_ENABLED=0"},
 				pkg:       "reflect",
 			})
+		t.registerTest("internal linking, -buildmode=pie",
+			&goTest{
+				variant:   "pie_internal",
+				timeout:   60 * time.Second,
+				buildmode: "pie",
+				ldflags:   "-linkmode=internal",
+				env:       []string{"CGO_ENABLED=0"},
+				pkg:       "crypto/internal/fips/check",
+			})
 		// Also test a cgo package.
 		if t.cgoEnabled && t.internalLink() && !disablePIE {
-			t.registerTest("internal linking of -buildmode=pie",
+			t.registerTest("internal linking, -buildmode=pie",
 				&goTest{
 					variant:   "pie_internal",
 					timeout:   60 * time.Second,
 					buildmode: "pie",
 					ldflags:   "-linkmode=internal",
 					pkg:       "os/user",
+				})
+		}
+	}
+
+	if t.extLink() && !t.compileOnly {
+		t.registerTest("external linking, -buildmode=exe",
+			&goTest{
+				variant:   "exe_external",
+				timeout:   60 * time.Second,
+				buildmode: "exe",
+				ldflags:   "-linkmode=external",
+				env:       []string{"CGO_ENABLED=1"},
+				pkg:       "crypto/internal/fips/check",
+			})
+		if t.externalLinkPIE() && !disablePIE {
+			t.registerTest("external linking, -buildmode=pie",
+				&goTest{
+					variant:   "pie_external",
+					timeout:   60 * time.Second,
+					buildmode: "pie",
+					ldflags:   "-linkmode=external",
+					env:       []string{"CGO_ENABLED=1"},
+					pkg:       "crypto/internal/fips/check",
 				})
 		}
 	}
@@ -891,7 +928,8 @@ func (t *tester) registerTests() {
 		}
 	}
 
-	if t.raceDetectorSupported() {
+	if t.raceDetectorSupported() && !t.msan && !t.asan {
+		// N.B. -race is incompatible with -msan and -asan.
 		t.registerRaceTests()
 	}
 
@@ -1068,9 +1106,11 @@ func (t *tester) out(v string) {
 }
 
 // extLink reports whether the current goos/goarch supports
-// external linking. This should match the test in determineLinkMode
-// in cmd/link/internal/ld/config.go.
+// external linking.
 func (t *tester) extLink() bool {
+	if !cgoEnabled[goos+"/"+goarch] {
+		return false
+	}
 	if goarch == "ppc64" && goos != "aix" {
 		return false
 	}
@@ -1101,10 +1141,18 @@ func (t *tester) internalLink() bool {
 		// linkmode=internal isn't supported.
 		return false
 	}
+	if t.msan || t.asan {
+		// linkmode=internal isn't supported by msan or asan.
+		return false
+	}
 	return true
 }
 
 func (t *tester) internalLinkPIE() bool {
+	if t.msan || t.asan {
+		// linkmode=internal isn't supported by msan or asan.
+		return false
+	}
 	switch goos + "-" + goarch {
 	case "darwin-amd64", "darwin-arm64",
 		"linux-amd64", "linux-arm64", "linux-ppc64le",
@@ -1113,6 +1161,16 @@ func (t *tester) internalLinkPIE() bool {
 		return true
 	}
 	return false
+}
+
+func (t *tester) externalLinkPIE() bool {
+	// General rule is if -buildmode=pie and -linkmode=external both work, then they work together.
+	// Handle exceptions and then fall back to the general rule.
+	switch goos + "-" + goarch {
+	case "linux-s390x":
+		return true
+	}
+	return t.internalLinkPIE() && t.extLink()
 }
 
 // supportedBuildMode reports whether the given build mode is supported.
@@ -1243,18 +1301,22 @@ func (t *tester) registerCgoTests(heading string) {
 			}
 
 			// Static linking tests
-			if goos != "android" && p != "netbsd/arm" {
+			if goos != "android" && p != "netbsd/arm" && !t.msan && !t.asan {
 				// TODO(#56629): Why does this fail on netbsd-arm?
+				// TODO(#70080): Why does this fail with msan?
+				// asan doesn't support static linking (this is an explicit build error on the C side).
 				cgoTest("static", "testtls", "external", "static", staticCheck)
 			}
 			cgoTest("external", "testnocgo", "external", "", staticCheck)
-			if goos != "android" {
+			if goos != "android" && !t.msan && !t.asan {
+				// TODO(#70080): Why does this fail with msan?
+				// asan doesn't support static linking (this is an explicit build error on the C side).
 				cgoTest("static", "testnocgo", "external", "static", staticCheck)
 				cgoTest("static", "test", "external", "static", staticCheck)
 				// -static in CGO_LDFLAGS triggers a different code path
 				// than -static in -extldflags, so test both.
 				// See issue #16651.
-				if goarch != "loong64" {
+				if goarch != "loong64" && !t.msan && !t.asan {
 					// TODO(#56623): Why does this fail on loong64?
 					cgoTest("auto-static", "test", "auto", "static", staticCheck)
 				}
@@ -1636,7 +1698,8 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 			"android/amd64", "android/arm", "android/arm64", "android/386",
 			"freebsd/amd64",
 			"darwin/amd64", "darwin/arm64",
-			"windows/amd64", "windows/386", "windows/arm64":
+			"windows/amd64", "windows/386", "windows/arm64",
+			"wasip1/wasm":
 			return true
 		}
 		return false
@@ -1701,4 +1764,24 @@ func isEnvSet(evar string) bool {
 		}
 	}
 	return false
+}
+
+// fipsVersions returns the list of versions available in lib/fips140.
+func fipsVersions() []string {
+	var versions []string
+	zips, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.zip"))
+	if err != nil {
+		fatalf("%v", err)
+	}
+	for _, zip := range zips {
+		versions = append(versions, strings.TrimSuffix(filepath.Base(zip), ".zip"))
+	}
+	txts, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.txt"))
+	if err != nil {
+		fatalf("%v", err)
+	}
+	for _, txt := range txts {
+		versions = append(versions, strings.TrimSuffix(filepath.Base(txt), ".txt"))
+	}
+	return versions
 }

@@ -1599,6 +1599,14 @@ var nameConstraintsTests = []nameConstraintsTest{
 			cn:   "foo.bar",
 		},
 	},
+
+	// #85: .example.com is an invalid DNS name, it should not match the
+	// constraint example.com.
+	{
+		roots:         []constraintsSpec{{ok: []string{"dns:example.com"}}},
+		leaf:          leafSpec{sans: []string{"dns:.example.com"}},
+		expectedError: "cannot parse dnsName \".example.com\"",
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {

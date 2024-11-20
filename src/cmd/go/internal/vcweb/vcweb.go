@@ -31,7 +31,7 @@ package vcweb
 
 import (
 	"bufio"
-	"cmd/go/internal/script"
+	"cmd/internal/script"
 	"context"
 	"crypto/sha256"
 	"errors"

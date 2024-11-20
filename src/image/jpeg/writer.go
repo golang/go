@@ -50,8 +50,8 @@ const (
 
 // unscaledQuant are the unscaled quantization tables in zig-zag order. Each
 // encoder copies and scales the tables according to its quality parameter.
-// The values are derived from section K.1 after converting from natural to
-// zig-zag order.
+// The values are derived from section K.1 of the spec, after converting from
+// natural to zig-zag order.
 var unscaledQuant = [nQuantIndex][blockSize]byte{
 	// Luminance.
 	{
@@ -89,14 +89,22 @@ const (
 
 // huffmanSpec specifies a Huffman encoding.
 type huffmanSpec struct {
-	// count[i] is the number of codes of length i bits.
+	// count[i] is the number of codes of length i+1 bits.
 	count [16]byte
 	// value[i] is the decoded value of the i'th codeword.
 	value []byte
 }
 
 // theHuffmanSpec is the Huffman encoding specifications.
-// This encoder uses the same Huffman encoding for all images.
+//
+// This encoder uses the same Huffman encoding for all images. It is also the
+// same Huffman encoding used by section K.3 of the spec.
+//
+// The DC tables have 12 decoded values, called categories.
+//
+// The AC tables have 162 decoded values: bytes that pack a 4-bit Run and a
+// 4-bit Size. There are 16 valid Runs and 10 valid Sizes, plus two special R|S
+// cases: 0|0 (meaning EOB) and F|0 (meaning ZRL).
 var theHuffmanSpec = [nHuffIndex]huffmanSpec{
 	// Luminance DC.
 	{

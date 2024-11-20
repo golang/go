@@ -1,2 +1,0 @@
-pkg debug/elf, const PT_OPENBSD_NOBTCFI = 1705237480 #66054
-pkg debug/elf, const PT_OPENBSD_NOBTCFI ProgType #66054

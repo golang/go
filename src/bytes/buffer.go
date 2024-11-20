@@ -62,7 +62,7 @@ func (b *Buffer) AvailableBuffer() []byte { return b.buf[len(b.buf):] }
 // String returns the contents of the unread portion of the buffer
 // as a string. If the [Buffer] is a nil pointer, it returns "<nil>".
 //
-// To build strings more efficiently, see the strings.Builder type.
+// To build strings more efficiently, see the [strings.Builder] type.
 func (b *Buffer) String() string {
 	if b == nil {
 		// Special case, useful in debugging.
@@ -193,9 +193,9 @@ func (b *Buffer) WriteString(s string) (n int, err error) {
 	return copy(b.buf[m:], s), nil
 }
 
-// MinRead is the minimum slice size passed to a Read call by
+// MinRead is the minimum slice size passed to a [Buffer.Read] call by
 // [Buffer.ReadFrom]. As long as the [Buffer] has at least MinRead bytes beyond
-// what is required to hold the contents of r, ReadFrom will not grow the
+// what is required to hold the contents of r, [Buffer.ReadFrom] will not grow the
 // underlying buffer.
 const MinRead = 512
 
@@ -247,13 +247,13 @@ func growSlice(b []byte, n int) []byte {
 		c = 2 * cap(b)
 	}
 	b2 := append([]byte(nil), make([]byte, c)...)
-	copy(b2, b)
-	return b2[:len(b)]
+	i := copy(b2, b)
+	return b2[:i]
 }
 
 // WriteTo writes data to w until the buffer is drained or an error occurs.
 // The return value n is the number of bytes written; it always fits into an
-// int, but it is int64 to match the io.WriterTo interface. Any error
+// int, but it is int64 to match the [io.WriterTo] interface. Any error
 // encountered during the write is also returned.
 func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 	b.lastRead = opInvalid
@@ -313,7 +313,7 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
 
 // Read reads the next len(p) bytes from the buffer or until the buffer
 // is drained. The return value n is the number of bytes read. If the
-// buffer has no data to return, err is io.EOF (unless len(p) is zero);
+// buffer has no data to return, err is [io.EOF] (unless len(p) is zero);
 // otherwise it is nil.
 func (b *Buffer) Read(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
@@ -352,7 +352,7 @@ func (b *Buffer) Next(n int) []byte {
 }
 
 // ReadByte reads and returns the next byte from the buffer.
-// If no byte is available, it returns error io.EOF.
+// If no byte is available, it returns error [io.EOF].
 func (b *Buffer) ReadByte() (byte, error) {
 	if b.empty() {
 		// Buffer is empty, reset to recover space.
@@ -424,7 +424,7 @@ func (b *Buffer) UnreadByte() error {
 // ReadBytes reads until the first occurrence of delim in the input,
 // returning a slice containing the data up to and including the delimiter.
 // If ReadBytes encounters an error before finding a delimiter,
-// it returns the data read before the error and the error itself (often io.EOF).
+// it returns the data read before the error and the error itself (often [io.EOF]).
 // ReadBytes returns err != nil if and only if the returned data does not end in
 // delim.
 func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
@@ -452,7 +452,7 @@ func (b *Buffer) readSlice(delim byte) (line []byte, err error) {
 // ReadString reads until the first occurrence of delim in the input,
 // returning a string containing the data up to and including the delimiter.
 // If ReadString encounters an error before finding a delimiter,
-// it returns the data read before the error and the error itself (often io.EOF).
+// it returns the data read before the error and the error itself (often [io.EOF]).
 // ReadString returns err != nil if and only if the returned data does not end
 // in delim.
 func (b *Buffer) ReadString(delim byte) (line string, err error) {

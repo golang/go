@@ -612,12 +612,8 @@ func (d *compressor) reset(w io.Writer) {
 		d.bestSpeed.reset()
 	default:
 		d.chainHead = -1
-		for i := range d.hashHead {
-			d.hashHead[i] = 0
-		}
-		for i := range d.hashPrev {
-			d.hashPrev[i] = 0
-		}
+		clear(d.hashHead[:])
+		clear(d.hashPrev[:])
 		d.hashOffset = 1
 		d.index, d.windowEnd = 0, 0
 		d.blockStart, d.byteAvailable = 0, false

@@ -201,14 +201,14 @@ func (p *pp) Flag(b int) bool {
 	return false
 }
 
-// Implement Write so we can call [Fprintf] on a pp (through [State]), for
+// Write implements [io.Writer] so we can call [Fprintf] on a pp (through [State]), for
 // recursive use in custom verbs.
 func (p *pp) Write(b []byte) (ret int, err error) {
 	p.buf.write(b)
 	return len(b), nil
 }
 
-// Implement WriteString so that we can call [io.WriteString]
+// WriteString implements [io.StringWriter] so that we can call [io.WriteString]
 // on a pp (through state), for efficiency.
 func (p *pp) WriteString(s string) (ret int, err error) {
 	p.buf.writeString(s)
@@ -814,7 +814,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 			p.buf.writeString(mapString)
 		}
 		sorted := fmtsort.Sort(f)
-		for i, key := range sorted.Key {
+		for i, m := range sorted {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.writeString(commaSpaceString)
@@ -822,9 +822,9 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 					p.buf.writeByte(' ')
 				}
 			}
-			p.printValue(key, verb, depth+1)
+			p.printValue(m.Key, verb, depth+1)
 			p.buf.writeByte(':')
-			p.printValue(sorted.Value[i], verb, depth+1)
+			p.printValue(m.Value, verb, depth+1)
 		}
 		if p.fmt.sharpV {
 			p.buf.writeByte('}')

@@ -16,36 +16,44 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync/atomic"
 
 	"golang.org/x/telemetry/internal/telemetry"
 )
 
 const (
-	configModulePath = "golang.org/x/telemetry/config"
-	configFileName   = "config.json"
+	ModulePath     = "golang.org/x/telemetry/config"
+	configFileName = "config.json"
 )
 
-// DownloadOption is an option for Download.
-type DownloadOption struct {
-	// Env holds the environment variables used when downloading the configuration.
-	// If nil, the process's environment variables are used.
-	Env []string
+// needNoConsole is used on windows to set the windows.CREATE_NO_WINDOW
+// creation flag.
+var needNoConsole = func(cmd *exec.Cmd) {}
+
+var downloads int64
+
+// Downloads reports, for testing purposes, the number of times [Download] has
+// been called.
+func Downloads() int64 {
+	return atomic.LoadInt64(&downloads)
 }
 
-// Download fetches the requested telemetry UploadConfig using "go mod download".
+// Download fetches the requested telemetry UploadConfig using "go mod
+// download". If envOverlay is provided, it is appended to the environment used
+// for invoking the go command.
 //
 // The second result is the canonical version of the requested configuration.
-func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, string, error) {
+func Download(version string, envOverlay []string) (*telemetry.UploadConfig, string, error) {
+	atomic.AddInt64(&downloads, 1)
+
 	if version == "" {
 		version = "latest"
 	}
-	if opts == nil {
-		opts = &DownloadOption{}
-	}
-	modVer := configModulePath + "@" + version
+	modVer := ModulePath + "@" + version
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", "mod", "download", "-json", modVer)
-	cmd.Env = opts.Env
+	needNoConsole(cmd)
+	cmd.Env = append(os.Environ(), envOverlay...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -53,9 +61,9 @@ func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, str
 			Error string
 		}
 		if err := json.Unmarshal(stdout.Bytes(), &info); err == nil && info.Error != "" {
-			return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module: %v", info.Error)
+			return nil, "", fmt.Errorf("failed to download config module: %v", info.Error)
 		}
-		return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module: %w\n%s", err, &stderr)
+		return nil, "", fmt.Errorf("failed to download config module: %w\n%s", err, &stderr)
 	}
 
 	var info struct {
@@ -64,15 +72,15 @@ func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, str
 		Error   string
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &info); err != nil || info.Dir == "" {
-		return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module (invalid JSON): %w", err)
+		return nil, "", fmt.Errorf("failed to download config module (invalid JSON): %w", err)
 	}
 	data, err := os.ReadFile(filepath.Join(info.Dir, configFileName))
 	if err != nil {
-		return telemetry.UploadConfig{}, "", fmt.Errorf("invalid config module: %w", err)
+		return nil, "", fmt.Errorf("invalid config module: %w", err)
 	}
-	var cfg telemetry.UploadConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return telemetry.UploadConfig{}, "", fmt.Errorf("invalid config: %w", err)
+	cfg := new(telemetry.UploadConfig)
+	if err := json.Unmarshal(data, cfg); err != nil {
+		return nil, "", fmt.Errorf("invalid config: %w", err)
 	}
 	return cfg, info.Version, nil
 }

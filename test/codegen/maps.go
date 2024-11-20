@@ -4,6 +4,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(#54766): Temporarily disable for swissmap, which have fast variants
+// disabled. This test expects fast variants.
+//
+//go:build !goexperiment.swissmap
+
 package codegen
 
 // This file contains code generation tests related to the handling of

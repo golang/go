@@ -6,12 +6,80 @@ package tls
 
 import (
 	"bytes"
+	"crypto/internal/fips/mlkem"
+	"crypto/internal/fips/tls13"
+	"crypto/sha256"
 	"encoding/hex"
-	"hash"
 	"strings"
 	"testing"
 	"unicode"
 )
+
+func TestACVPVectors(t *testing.T) {
+	// https://github.com/usnistgov/ACVP-Server/blob/3a7333f63/gen-val/json-files/TLS-v1.3-KDF-RFC8446/prompt.json#L428-L436
+	psk := fromHex("56288B726C73829F7A3E47B103837C8139ACF552E7530C7A710B35ED41191698")
+	dhe := fromHex("EFFE9EC26AA29FD750DFA6A10B944D74071595B27EE88887D5E11C84590B5CC3")
+	helloClientRandom := fromHex("E9137679E582BA7C1DB41CF725F86C6D09C8C05F297BAD9A65B552EAF524FDE4")
+	helloServerRandom := fromHex("23ECCFD030790748C8F8D8A656FD98D717F1B62AF3712F97211D2070B499F98A")
+	finishedClientRandom := fromHex("62A62FA75563ED4FDCAA0BC16567B314871C304ACF06B0FFC3F08C1797594D43")
+	finishedServerRandom := fromHex("C750EDA6696CD101B142BD79E00E6AC8C5F2C0ABC78DD64F4D991326659E9299")
+
+	// https://github.com/usnistgov/ACVP-Server/blob/3a7333f63/gen-val/json-files/TLS-v1.3-KDF-RFC8446/expectedResults.json#L571-L581
+	clientEarlyTrafficSecret := fromHex("3272189698C3594D18F58EFA3F12B638A249515099BE7A2FA9836BABE74F0111")
+	earlyExporterMasterSecret := fromHex("88E078F562CDC930219F6A5E98A1CE8C6E5F3DAC5AC516459A96F2EF8F114C66")
+	clientHandshakeTrafficSecret := fromHex("B32306C3CE9932C460A1FE6C0F060593974842036B96FA45049B7352E71C2AD2")
+	serverHandshakeTrafficSecret := fromHex("22787F8CA269D34BC549AC8BA19F2040938A3AA370D7CC9D60F720882B88D01B")
+	clientApplicationTrafficSecret := fromHex("47D7EA08397B5871154B0FE85584BCC30A87C69E84D69B56007C5B21F76493BA")
+	serverApplicationTrafficSecret := fromHex("EFBDB0C873C0480DA57307083839A8984BE25B9A8545E4FCA029940FE2800565")
+	exporterMasterSecret := fromHex("8A43D787EE3804EAD4A2A5B32972F9896B696295645D7222E1FD081DDD939834")
+	resumptionMasterSecret := fromHex("5F4C961329C91044011ACBECB0B289282E0E3FED045CB3EA924DFFE5FE654B3D")
+
+	// The "Random" values are undocumented, but they are meant to be written to
+	// the hash in sequence to develop the transcript.
+	transcript := sha256.New()
+
+	es := tls13.NewEarlySecret(sha256.New, psk)
+
+	transcript.Write(helloClientRandom)
+
+	if got := es.ClientEarlyTrafficSecret(transcript); !bytes.Equal(got, clientEarlyTrafficSecret) {
+		t.Errorf("clientEarlyTrafficSecret = %x, want %x", got, clientEarlyTrafficSecret)
+	}
+	if got := tls13.TestingOnlyExporterSecret(es.EarlyExporterMasterSecret(transcript)); !bytes.Equal(got, earlyExporterMasterSecret) {
+		t.Errorf("earlyExporterMasterSecret = %x, want %x", got, earlyExporterMasterSecret)
+	}
+
+	hs := es.HandshakeSecret(dhe)
+
+	transcript.Write(helloServerRandom)
+
+	if got := hs.ClientHandshakeTrafficSecret(transcript); !bytes.Equal(got, clientHandshakeTrafficSecret) {
+		t.Errorf("clientHandshakeTrafficSecret = %x, want %x", got, clientHandshakeTrafficSecret)
+	}
+	if got := hs.ServerHandshakeTrafficSecret(transcript); !bytes.Equal(got, serverHandshakeTrafficSecret) {
+		t.Errorf("serverHandshakeTrafficSecret = %x, want %x", got, serverHandshakeTrafficSecret)
+	}
+
+	ms := hs.MasterSecret()
+
+	transcript.Write(finishedServerRandom)
+
+	if got := ms.ClientApplicationTrafficSecret(transcript); !bytes.Equal(got, clientApplicationTrafficSecret) {
+		t.Errorf("clientApplicationTrafficSecret = %x, want %x", got, clientApplicationTrafficSecret)
+	}
+	if got := ms.ServerApplicationTrafficSecret(transcript); !bytes.Equal(got, serverApplicationTrafficSecret) {
+		t.Errorf("serverApplicationTrafficSecret = %x, want %x", got, serverApplicationTrafficSecret)
+	}
+	if got := tls13.TestingOnlyExporterSecret(ms.ExporterMasterSecret(transcript)); !bytes.Equal(got, exporterMasterSecret) {
+		t.Errorf("exporterMasterSecret = %x, want %x", got, exporterMasterSecret)
+	}
+
+	transcript.Write(finishedClientRandom)
+
+	if got := ms.ResumptionMasterSecret(transcript); !bytes.Equal(got, resumptionMasterSecret) {
+		t.Errorf("resumptionMasterSecret = %x, want %x", got, resumptionMasterSecret)
+	}
+}
 
 // This file contains tests derived from draft-ietf-tls-tls13-vectors-07.
 
@@ -29,78 +97,6 @@ func parseVector(v string) []byte {
 		panic(err)
 	}
 	return res
-}
-
-func TestDeriveSecret(t *testing.T) {
-	chTranscript := cipherSuitesTLS13[0].hash.New()
-	chTranscript.Write(parseVector(`
-	payload (512 octets):  01 00 01 fc 03 03 1b c3 ce b6 bb e3 9c ff
-	93 83 55 b5 a5 0a db 6d b2 1b 7a 6a f6 49 d7 b4 bc 41 9d 78 76
-	48 7d 95 00 00 06 13 01 13 03 13 02 01 00 01 cd 00 00 00 0b 00
-	09 00 00 06 73 65 72 76 65 72 ff 01 00 01 00 00 0a 00 14 00 12
-	00 1d 00 17 00 18 00 19 01 00 01 01 01 02 01 03 01 04 00 33 00
-	26 00 24 00 1d 00 20 e4 ff b6 8a c0 5f 8d 96 c9 9d a2 66 98 34
-	6c 6b e1 64 82 ba dd da fe 05 1a 66 b4 f1 8d 66 8f 0b 00 2a 00
-	00 00 2b 00 03 02 03 04 00 0d 00 20 00 1e 04 03 05 03 06 03 02
-	03 08 04 08 05 08 06 04 01 05 01 06 01 02 01 04 02 05 02 06 02
-	02 02 00 2d 00 02 01 01 00 1c 00 02 40 01 00 15 00 57 00 00 00
-	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-	00 29 00 dd 00 b8 00 b2 2c 03 5d 82 93 59 ee 5f f7 af 4e c9 00
-	00 00 00 26 2a 64 94 dc 48 6d 2c 8a 34 cb 33 fa 90 bf 1b 00 70
-	ad 3c 49 88 83 c9 36 7c 09 a2 be 78 5a bc 55 cd 22 60 97 a3 a9
-	82 11 72 83 f8 2a 03 a1 43 ef d3 ff 5d d3 6d 64 e8 61 be 7f d6
-	1d 28 27 db 27 9c ce 14 50 77 d4 54 a3 66 4d 4e 6d a4 d2 9e e0
-	37 25 a6 a4 da fc d0 fc 67 d2 ae a7 05 29 51 3e 3d a2 67 7f a5
-	90 6c 5b 3f 7d 8f 92 f2 28 bd a4 0d da 72 14 70 f9 fb f2 97 b5
-	ae a6 17 64 6f ac 5c 03 27 2e 97 07 27 c6 21 a7 91 41 ef 5f 7d
-	e6 50 5e 5b fb c3 88 e9 33 43 69 40 93 93 4a e4 d3 57 fa d6 aa
-	cb 00 21 20 3a dd 4f b2 d8 fd f8 22 a0 ca 3c f7 67 8e f5 e8 8d
-	ae 99 01 41 c5 92 4d 57 bb 6f a3 1b 9e 5f 9d`))
-
-	type args struct {
-		secret     []byte
-		label      string
-		transcript hash.Hash
-	}
-	tests := []struct {
-		name string
-		args args
-		want []byte
-	}{
-		{
-			`derive secret for handshake "tls13 derived"`,
-			args{
-				parseVector(`PRK (32 octets):  33 ad 0a 1c 60 7e c0 3b 09 e6 cd 98 93 68 0c e2
-				10 ad f3 00 aa 1f 26 60 e1 b2 2e 10 f1 70 f9 2a`),
-				"derived",
-				nil,
-			},
-			parseVector(`expanded (32 octets):  6f 26 15 a1 08 c7 02 c5 67 8f 54 fc 9d ba
-			b6 97 16 c0 76 18 9c 48 25 0c eb ea c3 57 6c 36 11 ba`),
-		},
-		{
-			`derive secret "tls13 c e traffic"`,
-			args{
-				parseVector(`PRK (32 octets):  9b 21 88 e9 b2 fc 6d 64 d7 1d c3 29 90 0e 20 bb
-				41 91 50 00 f6 78 aa 83 9c bb 79 7c b7 d8 33 2c`),
-				"c e traffic",
-				chTranscript,
-			},
-			parseVector(`expanded (32 octets):  3f bb e6 a6 0d eb 66 c3 0a 32 79 5a ba 0e
-			ff 7e aa 10 10 55 86 e7 be 5c 09 67 8d 63 b6 ca ab 62`),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := cipherSuitesTLS13[0]
-			if got := c.deriveSecret(tt.args.secret, tt.args.label, tt.args.transcript); !bytes.Equal(got, tt.want) {
-				t.Errorf("cipherSuiteTLS13.deriveSecret() = % x, want % x", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestTrafficKey(t *testing.T) {
@@ -123,53 +119,20 @@ func TestTrafficKey(t *testing.T) {
 	}
 }
 
-func TestExtract(t *testing.T) {
-	type args struct {
-		newSecret     []byte
-		currentSecret []byte
+func TestKyberEncapsulate(t *testing.T) {
+	dk, err := mlkem.GenerateKey768()
+	if err != nil {
+		t.Fatal(err)
 	}
-	tests := []struct {
-		name string
-		args args
-		want []byte
-	}{
-		{
-			`extract secret "early"`,
-			args{
-				nil,
-				nil,
-			},
-			parseVector(`secret (32 octets):  33 ad 0a 1c 60 7e c0 3b 09 e6 cd 98 93 68 0c
-			e2 10 ad f3 00 aa 1f 26 60 e1 b2 2e 10 f1 70 f9 2a`),
-		},
-		{
-			`extract secret "master"`,
-			args{
-				nil,
-				parseVector(`salt (32 octets):  43 de 77 e0 c7 77 13 85 9a 94 4d b9 db 25 90 b5
-				31 90 a6 5b 3e e2 e4 f1 2d d7 a0 bb 7c e2 54 b4`),
-			},
-			parseVector(`secret (32 octets):  18 df 06 84 3d 13 a0 8b f2 a4 49 84 4c 5f 8a
-			47 80 01 bc 4d 4c 62 79 84 d5 a4 1d a8 d0 40 29 19`),
-		},
-		{
-			`extract secret "handshake"`,
-			args{
-				parseVector(`IKM (32 octets):  8b d4 05 4f b5 5b 9d 63 fd fb ac f9 f0 4b 9f 0d
-				35 e6 d6 3f 53 75 63 ef d4 62 72 90 0f 89 49 2d`),
-				parseVector(`salt (32 octets):  6f 26 15 a1 08 c7 02 c5 67 8f 54 fc 9d ba b6 97
-				16 c0 76 18 9c 48 25 0c eb ea c3 57 6c 36 11 ba`),
-			},
-			parseVector(`secret (32 octets):  1d c8 26 e9 36 06 aa 6f dc 0a ad c1 2f 74 1b
-			01 04 6a a6 b9 9f 69 1e d2 21 a9 f0 ca 04 3f be ac`),
-		},
+	ct, ss, err := kyberEncapsulate(dk.EncapsulationKey().Bytes())
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := cipherSuitesTLS13[0]
-			if got := c.extract(tt.args.newSecret, tt.args.currentSecret); !bytes.Equal(got, tt.want) {
-				t.Errorf("cipherSuiteTLS13.extract() = % x, want % x", got, tt.want)
-			}
-		})
+	dkSS, err := kyberDecapsulate(dk, ct)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(ss, dkSS) {
+		t.Fatalf("got %x, want %x", ss, dkSS)
 	}
 }

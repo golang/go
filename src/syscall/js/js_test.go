@@ -7,7 +7,7 @@
 // To run these tests:
 //
 // - Install Node
-// - Add /path/to/go/misc/wasm to your $PATH (so that "go test" can find
+// - Add /path/to/go/lib/wasm to your $PATH (so that "go test" can find
 //   "go_js_wasm_exec").
 // - GOOS=js GOARCH=wasm go test
 //
@@ -53,6 +53,51 @@ func TestWasmImport(t *testing.T) {
 	want := a + b
 	if got := testAdd(a, b); got != want {
 		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+// testCallExport is imported from host (wasm_exec.js), which calls testExport.
+//
+//go:wasmimport _gotest callExport
+func testCallExport(a int32, b int64) int64
+
+//go:wasmexport testExport
+func testExport(a int32, b int64) int64 {
+	testExportCalled = true
+	// test stack growth
+	growStack(1000)
+	// force a goroutine switch
+	ch := make(chan int64)
+	go func() {
+		ch <- int64(a)
+		ch <- b
+	}()
+	return <-ch + <-ch
+}
+
+//go:wasmexport testExport0
+func testExport0() { // no arg or result (see issue 69584)
+	runtime.GC()
+}
+
+var testExportCalled bool
+
+func growStack(n int64) {
+	if n > 0 {
+		growStack(n - 1)
+	}
+}
+
+func TestWasmExport(t *testing.T) {
+	testExportCalled = false
+	a := int32(123)
+	b := int64(456)
+	want := int64(a) + b
+	if got := testCallExport(a, b); got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if !testExportCalled {
+		t.Error("testExport not called")
 	}
 }
 
@@ -587,16 +632,16 @@ func TestGarbageCollection(t *testing.T) {
 // Note: All JavaScript functions return a JavaScript array, which will cause
 // one allocation to be created to track the Value.gcPtr for the Value finalizer.
 var allocTests = []struct {
-	argLen  int // The number of arguments to use for the syscall
+	argLen   int // The number of arguments to use for the syscall
 	expected int // The expected number of allocations
 }{
-	// For less than or equal to 16 arguments, we expect 1 alloction:
+	// For less than or equal to 16 arguments, we expect 1 allocation:
 	// - makeValue new(ref)
-	{0,  1},
-	{2,  1},
+	{0, 1},
+	{2, 1},
 	{15, 1},
 	{16, 1},
-	// For greater than 16 arguments, we expect 3 alloction:
+	// For greater than 16 arguments, we expect 3 allocation:
 	// - makeValue: new(ref)
 	// - makeArgSlices: argVals = make([]Value, size)
 	// - makeArgSlices: argRefs = make([]ref, size)
@@ -613,7 +658,7 @@ func TestCallAllocations(t *testing.T) {
 		tmpArray := js.Global().Get("Array").New(0)
 		numAllocs := testing.AllocsPerRun(100, func() {
 			tmpArray.Call("concat", args...)
-		});
+		})
 
 		if numAllocs != float64(test.expected) {
 			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
@@ -630,7 +675,7 @@ func TestInvokeAllocations(t *testing.T) {
 		concatFunc := tmpArray.Get("concat").Call("bind", tmpArray)
 		numAllocs := testing.AllocsPerRun(100, func() {
 			concatFunc.Invoke(args...)
-		});
+		})
 
 		if numAllocs != float64(test.expected) {
 			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
@@ -647,7 +692,7 @@ func TestNewAllocations(t *testing.T) {
 
 		numAllocs := testing.AllocsPerRun(100, func() {
 			arrayConstructor.New(args...)
-		});
+		})
 
 		if numAllocs != float64(test.expected) {
 			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)

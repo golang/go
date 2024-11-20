@@ -336,6 +336,23 @@ var parseTests = []ParseTest{
 	{"", "2006-002 15:04:05", "2010-035 21:00:57", false, false, 1, 0},
 	{"", "200600201 15:04:05", "201003502 21:00:57", false, false, 1, 0},
 	{"", "200600204 15:04:05", "201003504 21:00:57", false, false, 1, 0},
+
+	// Time zone offsets
+	{"", "2006-01-02T15:04:05Z07", "2010-02-04T21:00:57Z", false, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z07", "2010-02-04T21:00:57+08", false, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z07", "2010-02-04T21:00:57-08", true, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z0700", "2010-02-04T21:00:57Z", false, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z0700", "2010-02-04T21:00:57+0800", false, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z0700", "2010-02-04T21:00:57-0800", true, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z07:00", "2010-02-04T21:00:57Z", false, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z07:00", "2010-02-04T21:00:57+08:00", false, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z07:00", "2010-02-04T21:00:57-08:00", true, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z070000", "2010-02-04T21:00:57Z", false, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z070000", "2010-02-04T21:00:57+080000", false, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z070000", "2010-02-04T21:00:57-080000", true, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z07:00:00", "2010-02-04T21:00:57Z", false, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z07:00:00", "2010-02-04T21:00:57+08:00:00", false, false, 1, 0},
+	{"", "2006-01-02T15:04:05Z07:00:00", "2010-02-04T21:00:57-08:00:00", true, false, 1, 0},
 }
 
 func TestParse(t *testing.T) {
@@ -661,6 +678,16 @@ var parseErrorTests = []ParseErrorTest{
 	{"06-01-02", "a2-10-25", `parsing time "a2-10-25" as "06-01-02": cannot parse "a2-10-25" as "06"`},
 	{"03:04PM", "12:03pM", `parsing time "12:03pM" as "03:04PM": cannot parse "pM" as "PM"`},
 	{"03:04pm", "12:03pM", `parsing time "12:03pM" as "03:04pm": cannot parse "pM" as "pm"`},
+
+	// issue 67470
+	{"-07", "-25", "time zone offset hour out of range"},
+	{"-07:00", "+25:00", "time zone offset hour out of range"},
+	{"-07:00", "-23:61", "time zone offset minute out of range"},
+	{"-07:00:00", "+23:59:61", "time zone offset second out of range"},
+	{"Z07", "-25", "time zone offset hour out of range"},
+	{"Z07:00", "+25:00", "time zone offset hour out of range"},
+	{"Z07:00", "-23:61", "time zone offset minute out of range"},
+	{"Z07:00:00", "+23:59:61", "time zone offset second out of range"},
 }
 
 func TestParseErrors(t *testing.T) {

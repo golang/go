@@ -8,7 +8,6 @@ package types
 
 import (
 	"go/ast"
-	"go/internal/typeparams"
 	"go/token"
 	. "internal/types/errors"
 	"strings"
@@ -33,13 +32,13 @@ import (
 //
 // If an error (other than a version error) occurs in any case, it is reported
 // and x.mode is set to invalid.
-func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typeparams.IndexExpr, infer bool) ([]Type, []ast.Expr) {
+func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexedExpr, infer bool) ([]Type, []ast.Expr) {
 	assert(T != nil || ix != nil)
 
 	var instErrPos positioner
 	if ix != nil {
-		instErrPos = inNode(ix.Orig, ix.Lbrack)
-		x.expr = ix.Orig // if we don't have an index expression, keep the existing expression of x
+		instErrPos = inNode(ix.orig, ix.lbrack)
+		x.expr = ix.orig // if we don't have an index expression, keep the existing expression of x
 	} else {
 		instErrPos = atPos(pos)
 	}
@@ -49,7 +48,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
 	var targs []Type
 	var xlist []ast.Expr
 	if ix != nil {
-		xlist = ix.Indices
+		xlist = ix.indices
 		targs = check.typeList(xlist)
 		if targs == nil {
 			x.mode = invalid
@@ -65,7 +64,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
 	got, want := len(targs), sig.TypeParams().Len()
 	if got > want {
 		// Providing too many type arguments is always an error.
-		check.errorf(ix.Indices[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
+		check.errorf(ix.indices[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
 		return nil, nil
 	}
@@ -89,7 +88,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
 		var params []*Var
 		var reverse bool
 		if T != nil && sig.tparams != nil {
-			if !versionErr && !check.allowVersion(instErrPos, go1_21) {
+			if !versionErr && !check.allowVersion(go1_21) {
 				if ix != nil {
 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
 				} else {
@@ -152,6 +151,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Si
 	// verify instantiation lazily (was go.dev/issue/50450)
 	check.later(func() {
 		tparams := typ.TypeParams().list()
+		// check type constraints
 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
 			// best position for error reporting
 			pos := pos
@@ -168,7 +168,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Si
 }
 
 func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
-	ix := typeparams.UnpackIndexExpr(call.Fun)
+	ix := unpackIndexedExpr(call.Fun)
 	if ix != nil {
 		if check.indexExpr(x, ix) {
 			// Delay function instantiation to argument checking,
@@ -258,7 +258,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	var xlist []ast.Expr
 	var targs []Type
 	if ix != nil {
-		xlist = ix.Indices
+		xlist = ix.indices
 		targs = check.typeList(xlist)
 		if targs == nil {
 			check.use(call.Args...)
@@ -284,8 +284,8 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		// is an error checking its arguments (for example, if an incorrect number
 		// of arguments is supplied).
 		if got == want && want > 0 {
-			check.verifyVersionf(atPos(ix.Lbrack), go1_18, "function instantiation")
-			sig = check.instantiateSignature(ix.Pos(), ix.Orig, sig, targs, xlist)
+			check.verifyVersionf(atPos(ix.lbrack), go1_18, "function instantiation")
+			sig = check.instantiateSignature(ix.Pos(), ix.orig, sig, targs, xlist)
 			// targs have been consumed; proceed with checking arguments of the
 			// non-generic signature.
 			targs = nil
@@ -374,7 +374,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
 	infer := true // for -lang < go1.21
 	n := len(elist)
-	if n > 0 && check.allowVersion(elist[0], go1_21) {
+	if n > 0 && check.allowVersion(go1_21) {
 		infer = false
 	}
 
@@ -382,7 +382,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 		// single value (possibly a partially instantiated function), or a multi-valued expression
 		e := elist[0]
 		var x operand
-		if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
+		if ix := unpackIndexedExpr(e); ix != nil && check.indexExpr(&x, ix) {
 			// x is a generic function.
 			targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, infer)
 			if targs != nil {
@@ -390,7 +390,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 				targsList = [][]Type{targs}
 				xlistList = [][]ast.Expr{xlist}
 				// Update x.expr so that we can record the partially instantiated function.
-				x.expr = ix.Orig
+				x.expr = ix.orig
 			} else {
 				// x was instantiated: we must record it here because we didn't
 				// use the usual expression evaluators.
@@ -419,7 +419,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 		xlistList = make([][]ast.Expr, n)
 		for i, e := range elist {
 			var x operand
-			if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
+			if ix := unpackIndexedExpr(e); ix != nil && check.indexExpr(&x, ix) {
 				// x is a generic function.
 				targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, infer)
 				if targs != nil {
@@ -427,7 +427,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 					targsList[i] = targs
 					xlistList[i] = xlist
 					// Update x.expr so that we can record the partially instantiated function.
-					x.expr = ix.Orig
+					x.expr = ix.orig
 				} else {
 					// x was instantiated: we must record it here because we didn't
 					// use the usual expression evaluators.
@@ -530,7 +530,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 		}
 		err := check.newError(WrongArgCount)
 		err.addf(at, "%s arguments in call to %s", qualifier, call.Fun)
-		err.addf(noposn, "have %s", check.typesSummary(operandTypes(args), false))
+		err.addf(noposn, "have %s", check.typesSummary(operandTypes(args), ddd))
 		err.addf(noposn, "want %s", check.typesSummary(varTypes(params), sig.variadic))
 		err.report()
 		return
@@ -542,11 +542,11 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 	// collect type parameters of callee
 	n := sig.TypeParams().Len()
 	if n > 0 {
-		if !check.allowVersion(call, go1_18) {
+		if !check.allowVersion(go1_18) {
 			switch call.Fun.(type) {
 			case *ast.IndexExpr, *ast.IndexListExpr:
-				ix := typeparams.UnpackIndexExpr(call.Fun)
-				check.versionErrorf(inNode(call.Fun, ix.Lbrack), go1_18, "function instantiation")
+				ix := unpackIndexedExpr(call.Fun)
+				check.versionErrorf(inNode(call.Fun, ix.lbrack), go1_18, "function instantiation")
 			default:
 				check.versionErrorf(inNode(call, call.Lparen), go1_18, "implicit function instantiation")
 			}
@@ -703,26 +703,28 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 				for _, prefix := range cgoPrefixes {
 					// cgo objects are part of the current package (in file
 					// _cgo_gotypes.go). Use regular lookup.
-					_, exp = check.scope.LookupParent(prefix+sel, check.pos)
+					exp = check.lookup(prefix + sel)
 					if exp != nil {
 						break
 					}
 				}
 				if exp == nil {
-					check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e)) // cast to ast.Expr to silence vet
+					if isValidName(sel) {
+						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e)) // cast to ast.Expr to silence vet
+					}
 					goto Error
 				}
 				check.objDecl(exp, nil)
 			} else {
 				exp = pkg.scope.Lookup(sel)
 				if exp == nil {
-					if !pkg.fake {
+					if !pkg.fake && isValidName(sel) {
 						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e))
 					}
 					goto Error
 				}
 				if !exp.Exported() {
-					check.errorf(e.Sel, UnexportedName, "%s not exported by package %s", quote(sel), quote(pkg.name))
+					check.errorf(e.Sel, UnexportedName, "name %s not exported by package %s", sel, pkg.name)
 					// ok to continue
 				}
 			}
@@ -775,7 +777,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 		}
 	case builtin:
 		// types2 uses the position of '.' for the error
-		check.errorf(e.Sel, UncalledBuiltin, "cannot select on %s", x)
+		check.errorf(e.Sel, UncalledBuiltin, "invalid use of %s in selector expression", x)
 		goto Error
 	case invalid:
 		goto Error
@@ -1009,7 +1011,7 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 		var v *Var
 		var v_used bool
 		if lhs {
-			if _, obj := check.scope.LookupParent(n.Name, nopos); obj != nil {
+			if obj := check.lookup(n.Name); obj != nil {
 				// It's ok to mark non-local variables, but ignore variables
 				// from other packages to avoid potential race conditions with
 				// dot-imported variables.

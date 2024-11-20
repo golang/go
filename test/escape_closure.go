@@ -134,7 +134,7 @@ func ClosureCallArgs14() {
 func ClosureCallArgs15() {
 	x := 0 // ERROR "moved to heap: x"
 	p := &x
-	sink = func(p **int) *int { // ERROR "leaking param content: p" "func literal does not escape"
+	sink = func(p **int) *int { // ERROR "leaking param: p to result ~r0 level=1" "func literal does not escape"
 		return *p
 	}(&p)
 }

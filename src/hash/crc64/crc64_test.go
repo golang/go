@@ -88,8 +88,20 @@ func TestGoldenMarshal(t *testing.T) {
 				continue
 			}
 
+			stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+			if err != nil {
+				t.Errorf("could not marshal: %v", err)
+				continue
+			}
+			stateAppend = stateAppend[4:]
+
 			if string(state) != g.halfStateISO {
 				t.Errorf("ISO crc64(%q) state = %q, want %q", g.in, state, g.halfStateISO)
+				continue
+			}
+
+			if string(stateAppend) != g.halfStateISO {
+				t.Errorf("ISO crc64(%q) state = %q, want %q", g.in, stateAppend, g.halfStateISO)
 				continue
 			}
 
@@ -120,8 +132,20 @@ func TestGoldenMarshal(t *testing.T) {
 				continue
 			}
 
+			stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+			if err != nil {
+				t.Errorf("could not marshal: %v", err)
+				continue
+			}
+			stateAppend = stateAppend[4:]
+
 			if string(state) != g.halfStateECMA {
 				t.Errorf("ECMA crc64(%q) state = %q, want %q", g.in, state, g.halfStateECMA)
+				continue
+			}
+
+			if string(stateAppend) != g.halfStateECMA {
+				t.Errorf("ECMA crc64(%q) state = %q, want %q", g.in, stateAppend, g.halfStateECMA)
 				continue
 			}
 

@@ -1230,7 +1230,6 @@ func TestReorder(t *testing.T) {
 		s := Sprintf(tt.fmt, tt.val...)
 		if s != tt.out {
 			t.Errorf("Sprintf(%q, %v) = <%s> want <%s>", tt.fmt, tt.val, s, tt.out)
-		} else {
 		}
 	}
 }

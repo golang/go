@@ -7,14 +7,3 @@
 package tls
 
 func needFIPS() bool { return false }
-
-func supportedSignatureAlgorithms() []SignatureScheme {
-	return defaultSupportedSignatureAlgorithms
-}
-
-func fipsMinVersion(c *Config) uint16          { panic("fipsMinVersion") }
-func fipsMaxVersion(c *Config) uint16          { panic("fipsMaxVersion") }
-func fipsCurvePreferences(c *Config) []CurveID { panic("fipsCurvePreferences") }
-func fipsCipherSuites(c *Config) []uint16      { panic("fipsCipherSuites") }
-
-var fipsSupportedSignatureAlgorithms []SignatureScheme

@@ -237,6 +237,10 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		for err1 == EINTR {
 			_, err1 = Wait4(pid, &wstatus, 0, nil)
 		}
+
+		// OS-specific cleanup on failure.
+		forkAndExecFailureCleanup(attr, sys)
+
 		return 0, err
 	}
 

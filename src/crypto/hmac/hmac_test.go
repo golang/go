@@ -5,8 +5,8 @@
 package hmac
 
 import (
-	"bytes"
 	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -621,39 +621,14 @@ func TestEqual(t *testing.T) {
 	}
 }
 
-func TestWriteAfterSum(t *testing.T) {
-	h := New(sha1.New, nil)
-	h.Write([]byte("hello"))
-	sumHello := h.Sum(nil)
+func TestHMACHash(t *testing.T) {
+	for i, test := range hmacTests {
+		baseHash := test.hash
+		key := test.key
 
-	h = New(sha1.New, nil)
-	h.Write([]byte("hello world"))
-	sumHelloWorld := h.Sum(nil)
-
-	// Test that Sum has no effect on future Sum or Write operations.
-	// This is a bit unusual as far as usage, but it's allowed
-	// by the definition of Go hash.Hash, and some clients expect it to work.
-	h = New(sha1.New, nil)
-	h.Write([]byte("hello"))
-	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
-		t.Fatalf("1st Sum after hello = %x, want %x", sum, sumHello)
-	}
-	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
-		t.Fatalf("2nd Sum after hello = %x, want %x", sum, sumHello)
-	}
-
-	h.Write([]byte(" world"))
-	if sum := h.Sum(nil); !bytes.Equal(sum, sumHelloWorld) {
-		t.Fatalf("1st Sum after hello world = %x, want %x", sum, sumHelloWorld)
-	}
-	if sum := h.Sum(nil); !bytes.Equal(sum, sumHelloWorld) {
-		t.Fatalf("2nd Sum after hello world = %x, want %x", sum, sumHelloWorld)
-	}
-
-	h.Reset()
-	h.Write([]byte("hello"))
-	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
-		t.Fatalf("Sum after Reset + hello = %x, want %x", sum, sumHello)
+		t.Run(fmt.Sprintf("test-%d", i), func(t *testing.T) {
+			cryptotest.TestHash(t, func() hash.Hash { return New(baseHash, key) })
+		})
 	}
 }
 

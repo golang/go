@@ -6,7 +6,8 @@ package testing
 
 import (
 	"fmt"
-	"sort"
+	"runtime"
+	"slices"
 	"strings"
 	"time"
 )
@@ -47,7 +48,7 @@ func runExamples(matchString func(pat, str string) (bool, error), examples []Int
 
 func sortLines(output string) string {
 	lines := strings.Split(output, "\n")
-	sort.Strings(lines)
+	slices.Sort(lines)
 	return strings.Join(lines, "\n")
 }
 
@@ -66,6 +67,10 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
 	var fail string
 	got := strings.TrimSpace(stdout)
 	want := strings.TrimSpace(eg.Output)
+	if runtime.GOOS == "windows" {
+		got = strings.ReplaceAll(got, "\r\n", "\n")
+		want = strings.ReplaceAll(want, "\r\n", "\n")
+	}
 	if eg.Unordered {
 		if sortLines(got) != sortLines(want) && recovered == nil {
 			fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", stdout, eg.Output)

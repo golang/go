@@ -148,11 +148,11 @@ func fEqInterEqInter(a interface{}, f float64) bool {
 }
 
 func fEqInterNeqInter(a interface{}, f float64) bool {
-	return a == nil && f > Cf2 || a != nil && f < -Cf2
+	return a == nil && f > Cf2 || a != nil && f < -Cf2 // ERROR "Redirect IsNonNil based on IsNonNil"
 }
 
 func fNeqInterEqInter(a interface{}, f float64) bool {
-	return a != nil && f > Cf2 || a == nil && f < -Cf2
+	return a != nil && f > Cf2 || a == nil && f < -Cf2 // ERROR "Redirect IsNonNil based on IsNonNil"
 }
 
 func fNeqInterNeqInter(a interface{}, f float64) bool {
@@ -164,11 +164,11 @@ func fEqSliceEqSlice(a []int, f float64) bool {
 }
 
 func fEqSliceNeqSlice(a []int, f float64) bool {
-	return a == nil && f > Cf2 || a != nil && f < -Cf2
+	return a == nil && f > Cf2 || a != nil && f < -Cf2 // ERROR "Redirect IsNonNil based on IsNonNil"
 }
 
 func fNeqSliceEqSlice(a []int, f float64) bool {
-	return a != nil && f > Cf2 || a == nil && f < -Cf2
+	return a != nil && f > Cf2 || a == nil && f < -Cf2 // ERROR "Redirect IsNonNil based on IsNonNil"
 }
 
 func fNeqSliceNeqSlice(a []int, f float64) bool {

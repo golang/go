@@ -8,7 +8,7 @@ package runtime
 
 import (
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -31,7 +31,7 @@ import (
 //     poll without blocking. If delta > 0, block for up to delta nanoseconds.
 //     Return a list of goroutines built by calling netpollready,
 //     and a delta to add to netpollWaiters when all goroutines are ready.
-//     This will never return an empty list with a non-zero delta.
+//     This must never return an empty list with a non-zero delta.
 //
 // func netpollBreak()
 //     Wake up the network poller, assumed to be blocked in netpoll.
@@ -206,6 +206,9 @@ var (
 	pollcache      pollCache
 	netpollWaiters atomic.Uint32
 )
+
+// netpollWaiters is accessed in tests
+//go:linkname netpollWaiters
 
 //go:linkname poll_runtime_pollServerInit internal/poll.runtime_pollServerInit
 func poll_runtime_pollServerInit() {
@@ -711,7 +714,7 @@ func (c *pollCache) alloc() *pollDesc {
 // makeArg converts pd to an interface{}.
 // makeArg does not do any allocation. Normally, such
 // a conversion requires an allocation because pointers to
-// types which embed runtime/internal/sys.NotInHeap (which pollDesc is)
+// types which embed internal/runtime/sys.NotInHeap (which pollDesc is)
 // must be stored in interfaces indirectly. See issue 42076.
 func (pd *pollDesc) makeArg() (i any) {
 	x := (*eface)(unsafe.Pointer(&i))

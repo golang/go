@@ -7,7 +7,8 @@ package mime
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -33,13 +34,7 @@ func FormatMediaType(t string, param map[string]string) string {
 		b.WriteString(strings.ToLower(sub))
 	}
 
-	attrs := make([]string, 0, len(param))
-	for a := range param {
-		attrs = append(attrs, a)
-	}
-	sort.Strings(attrs)
-
-	for _, attribute := range attrs {
+	for _, attribute := range slices.Sorted(maps.Keys(param)) {
 		value := param[attribute]
 		b.WriteByte(';')
 		b.WriteByte(' ')

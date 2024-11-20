@@ -77,7 +77,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
 	actual := getStatsResults(samples)
 	err := actual.checkSimilarDistribution(expected)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 }
 
@@ -554,6 +554,42 @@ func TestUniformFactorial(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSeedNop(t *testing.T) {
+	// If the global Seed takes effect, then resetting it to a certain value
+	// should provide predictable output to functions using it.
+	t.Run("randseednop=0", func(t *testing.T) {
+		t.Setenv("GODEBUG", "randseednop=0")
+		Seed(1)
+		before := Int63()
+		Seed(1)
+		after := Int63()
+		if before != after {
+			t.Fatal("global Seed should take effect")
+		}
+	})
+	// If calls to the global Seed are no-op then functions using it should
+	// provide different output, even if it was reset to the same value.
+	t.Run("randseednop=1", func(t *testing.T) {
+		t.Setenv("GODEBUG", "randseednop=1")
+		Seed(1)
+		before := Int63()
+		Seed(1)
+		after := Int63()
+		if before == after {
+			t.Fatal("global Seed should be a no-op")
+		}
+	})
+	t.Run("GODEBUG unset", func(t *testing.T) {
+		Seed(1)
+		before := Int63()
+		Seed(1)
+		after := Int63()
+		if before == after {
+			t.Fatal("global Seed should default to being a no-op")
+		}
+	})
 }
 
 // Benchmarks

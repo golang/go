@@ -6,11 +6,14 @@
 package toolchain
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"go/build"
+	"internal/godebug"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -26,7 +29,8 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
 	"cmd/go/internal/work"
-	"cmd/internal/telemetry"
+	"cmd/internal/pathcache"
+	"cmd/internal/telemetry/counter"
 
 	"golang.org/x/mod/module"
 )
@@ -82,7 +86,8 @@ func FilterEnv(env []string) []string {
 	return out
 }
 
-var counterErrorsInvalidToolchainInFile = telemetry.NewCounter("go/errors:invalid-toolchain-in-file")
+var counterErrorsInvalidToolchainInFile = counter.New("go/errors:invalid-toolchain-in-file")
+var toolchainTrace = godebug.New("#toolchaintrace").Value() == "1"
 
 // Select invokes a different Go toolchain if directed by
 // the GOTOOLCHAIN environment variable or the user's configuration
@@ -136,6 +141,7 @@ func Select() {
 	minToolchain := gover.LocalToolchain()
 	minVers := gover.Local()
 	var mode string
+	var toolchainTraceBuffer bytes.Buffer
 	if gotoolchain == "auto" {
 		mode = "auto"
 	} else if gotoolchain == "path" {
@@ -157,6 +163,9 @@ func Select() {
 			base.Fatalf("invalid GOTOOLCHAIN %q: only version suffixes are +auto and +path", gotoolchain)
 		}
 		mode = suffix
+		if toolchainTrace {
+			fmt.Fprintf(&toolchainTraceBuffer, "go: default toolchain set to %s from GOTOOLCHAIN=%s\n", minToolchain, gotoolchain)
+		}
 	}
 
 	gotoolchain = minToolchain
@@ -189,6 +198,13 @@ func Select() {
 					base.Fatalf("invalid toolchain %q in %s", toolchain, base.ShortPath(file))
 				}
 				if gover.Compare(toolVers, minVers) > 0 {
+					if toolchainTrace {
+						modeFormat := mode
+						if strings.Contains(cfg.Getenv("GOTOOLCHAIN"), "+") { // go1.2.3+auto
+							modeFormat = fmt.Sprintf("<name>+%s", mode)
+						}
+						fmt.Fprintf(&toolchainTraceBuffer, "go: upgrading toolchain to %s (required by toolchain line in %s; upgrade allowed by GOTOOLCHAIN=%s)\n", toolchain, base.ShortPath(file), modeFormat)
+					}
 					gotoolchain = toolchain
 					minVers = toolVers
 					gover.Startup.AutoToolchain = toolchain
@@ -205,6 +221,13 @@ func Select() {
 				}
 				gover.Startup.AutoGoVersion = goVers
 				gover.Startup.AutoToolchain = "" // in case we are overriding it for being too old
+				if toolchainTrace {
+					modeFormat := mode
+					if strings.Contains(cfg.Getenv("GOTOOLCHAIN"), "+") { // go1.2.3+auto
+						modeFormat = fmt.Sprintf("<name>+%s", mode)
+					}
+					fmt.Fprintf(&toolchainTraceBuffer, "go: upgrading toolchain to %s (required by go line in %s; upgrade allowed by GOTOOLCHAIN=%s)\n", gotoolchain, base.ShortPath(file), modeFormat)
+				}
 			}
 		}
 	}
@@ -236,8 +259,16 @@ func Select() {
 		return
 	}
 
+	if toolchainTrace {
+		// Flush toolchain tracing buffer only in the parent process (targetEnv is unset).
+		io.Copy(os.Stderr, &toolchainTraceBuffer)
+	}
+
 	if gotoolchain == "local" || gotoolchain == gover.LocalToolchain() {
 		// Let the current binary handle the command.
+		if toolchainTrace {
+			fmt.Fprintf(os.Stderr, "go: using local toolchain %s\n", gover.LocalToolchain())
+		}
 		return
 	}
 
@@ -253,7 +284,7 @@ func Select() {
 	Exec(gotoolchain)
 }
 
-var counterSelectExec = telemetry.NewCounter("go/toolchain/select-exec")
+var counterSelectExec = counter.New("go/toolchain/select-exec")
 
 // TestVersionSwitch is set in the test go binary to the value in $TESTGO_VERSION_SWITCH.
 // Valid settings are:
@@ -308,7 +339,7 @@ func Exec(gotoolchain string) {
 	// Look in PATH for the toolchain before we download one.
 	// This allows custom toolchains as well as reuse of toolchains
 	// already installed using go install golang.org/dl/go1.2.3@latest.
-	if exe, err := cfg.LookPath(gotoolchain); err == nil {
+	if exe, err := pathcache.LookPath(gotoolchain); err == nil {
 		execGoToolchain(gotoolchain, "", exe)
 	}
 
@@ -352,13 +383,20 @@ func Exec(gotoolchain string) {
 			base.Fatalf("download %s: %v", gotoolchain, err)
 		}
 		if info.Mode()&0111 == 0 {
-			// allowExec sets the exec permission bits on all files found in dir.
-			allowExec := func(dir string) {
+			// allowExec sets the exec permission bits on all files found in dir if pattern is the empty string,
+			// or only those files that match the pattern if it's non-empty.
+			allowExec := func(dir, pattern string) {
 				err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 					if err != nil {
 						return err
 					}
 					if !d.IsDir() {
+						if pattern != "" {
+							if matched, _ := filepath.Match(pattern, d.Name()); !matched {
+								// Skip file.
+								return nil
+							}
+						}
 						info, err := os.Stat(path)
 						if err != nil {
 							return err
@@ -379,12 +417,13 @@ func Exec(gotoolchain string) {
 			// then the check of bin/go above might succeed, the other go command
 			// would skip its own mode-setting, and then the go command might
 			// try to run a tool before we get to setting the bits on pkg/tool.
-			// Setting pkg/tool before bin/go avoids that ordering problem.
+			// Setting pkg/tool and lib before bin/go avoids that ordering problem.
 			// The only other tool the go command invokes is gofmt,
 			// so we set that one explicitly before handling bin (which will include bin/go).
-			allowExec(filepath.Join(dir, "pkg/tool"))
-			allowExec(filepath.Join(dir, "bin/gofmt"))
-			allowExec(filepath.Join(dir, "bin"))
+			allowExec(filepath.Join(dir, "pkg/tool"), "")
+			allowExec(filepath.Join(dir, "lib"), "go_?*_?*_exec")
+			allowExec(filepath.Join(dir, "bin/gofmt"), "")
+			allowExec(filepath.Join(dir, "bin"), "")
 		}
 	}
 

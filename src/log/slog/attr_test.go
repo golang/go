@@ -5,12 +5,16 @@
 package slog
 
 import (
+	"internal/asan"
 	"internal/testenv"
 	"testing"
 	"time"
 )
 
 func TestAttrNoAlloc(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates with -asan")
+	}
 	testenv.SkipIfOptimizationOff(t)
 	// Assign values just to make sure the compiler doesn't optimize away the statements.
 	var (

@@ -1,0 +1,1 @@
+pkg crypto/subtle, func WithDataIndependentTiming(func()) #66450

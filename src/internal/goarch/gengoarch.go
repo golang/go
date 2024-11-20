@@ -17,11 +17,11 @@ import (
 var goarches []string
 
 func main() {
-	data, err := os.ReadFile("../../go/build/syslist.go")
+	data, err := os.ReadFile("../../internal/syslist/syslist.go")
 	if err != nil {
 		log.Fatal(err)
 	}
-	const goarchPrefix = `var knownArch = map[string]bool{`
+	const goarchPrefix = `var KnownArch = map[string]bool{`
 	inGOARCH := false
 	for _, line := range strings.Split(string(data), "\n") {
 		if strings.HasPrefix(line, goarchPrefix) {

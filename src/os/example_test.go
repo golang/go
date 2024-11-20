@@ -61,7 +61,7 @@ func ExampleFileMode() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("permissions: %#o\n", fi.Mode().Perm()) // 0400, 0777, etc.
+	fmt.Printf("permissions: %#o\n", fi.Mode().Perm()) // 0o400, 0o777, etc.
 	switch mode := fi.Mode(); {
 	case mode.IsRegular():
 		fmt.Println("regular file")

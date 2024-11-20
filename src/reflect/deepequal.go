@@ -41,7 +41,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		case Pointer:
 			if !v1.typ().Pointers() {
 				// not-in-heap pointers can't be cyclic.
-				// At least, all of our current uses of runtime/internal/sys.NotInHeap
+				// At least, all of our current uses of internal/runtime/sys.NotInHeap
 				// have that property. The runtime ones aren't cyclic (and we don't use
 				// DeepEqual on them anyway), and the cgo-generated ones are
 				// all empty structs.

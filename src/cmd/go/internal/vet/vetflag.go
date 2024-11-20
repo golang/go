@@ -38,7 +38,10 @@ import (
 var vetTool string // -vettool
 
 func init() {
-	work.AddBuildFlags(CmdVet, work.DefaultBuildFlags)
+	// For now, we omit the -json flag for vet because we could plausibly
+	// support -json specific to the vet command in the future (perhaps using
+	// the same format as build -json).
+	work.AddBuildFlags(CmdVet, work.OmitJSONFlag)
 	CmdVet.Flag.StringVar(&vetTool, "vettool", "", "")
 }
 

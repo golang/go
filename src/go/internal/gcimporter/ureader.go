@@ -9,7 +9,8 @@ import (
 	"go/types"
 	"internal/godebug"
 	"internal/pkgbits"
-	"sort"
+	"slices"
+	"strings"
 )
 
 // A pkgReader holds the shared state for reading a unified IR package
@@ -64,13 +65,17 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 
 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 	pkg := r.pkg()
-	r.Bool() // TODO(mdempsky): Remove; was "has init"
+	if r.Version().Has(pkgbits.HasInit) {
+		r.Bool()
+	}
 
 	for i, n := 0, r.Len(); i < n; i++ {
 		// As if r.obj(), but avoiding the Scope.Lookup call,
 		// to avoid eager loading of imports.
 		r.Sync(pkgbits.SyncObject)
-		assert(!r.Bool())
+		if r.Version().Has(pkgbits.DerivedFuncInstance) {
+			assert(!r.Bool())
+		}
 		r.p.objIdx(r.Reloc(pkgbits.RelocObj))
 		assert(r.Len() == 0)
 	}
@@ -92,7 +97,9 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 			imps = append(imps, imp)
 		}
 	}
-	sort.Sort(byPath(imps))
+	slices.SortFunc(imps, func(a, b *types.Package) int {
+		return strings.Compare(a.Path(), b.Path())
+	})
 	pkg.SetImports(imps)
 
 	pkg.MarkComplete()
@@ -425,7 +432,9 @@ func (r *reader) param() *types.Var {
 func (r *reader) obj() (types.Object, []types.Type) {
 	r.Sync(pkgbits.SyncObject)
 
-	assert(!r.Bool())
+	if r.Version().Has(pkgbits.DerivedFuncInstance) {
+		assert(!r.Bool())
+	}
 
 	pkg, name := r.p.objIdx(r.Reloc(pkgbits.RelocObj))
 	obj := pkgScope(pkg).Lookup(name)
@@ -479,8 +488,12 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 
 		case pkgbits.ObjAlias:
 			pos := r.pos()
+			var tparams []*types.TypeParam
+			if r.Version().Has(pkgbits.AliasTypeParamNames) {
+				tparams = r.typeParamNames()
+			}
 			typ := r.typ()
-			declare(newAliasTypeName(pos, objPkg, objName, typ))
+			declare(newAliasTypeName(pos, objPkg, objName, typ, tparams))
 
 		case pkgbits.ObjConst:
 			pos := r.pos()
@@ -562,7 +575,10 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
 		dict.derived = make([]derivedInfo, r.Len())
 		dict.derivedTypes = make([]types.Type, len(dict.derived))
 		for i := range dict.derived {
-			dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
+			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.RelocType)}
+			if r.Version().Has(pkgbits.DerivedInfoNeeded) {
+				assert(!r.Bool())
+			}
 		}
 
 		pr.retireReader(r)
@@ -658,14 +674,16 @@ func pkgScope(pkg *types.Package) *types.Scope {
 }
 
 // newAliasTypeName returns a new TypeName, with a materialized *types.Alias if supported.
-func newAliasTypeName(pos token.Pos, pkg *types.Package, name string, rhs types.Type) *types.TypeName {
+func newAliasTypeName(pos token.Pos, pkg *types.Package, name string, rhs types.Type, tparams []*types.TypeParam) *types.TypeName {
 	// When GODEBUG=gotypesalias=1 or unset, the Type() of the return value is a
 	// *types.Alias. Copied from x/tools/internal/aliases.NewAlias.
 	switch godebug.New("gotypesalias").Value() {
 	case "", "1":
 		tname := types.NewTypeName(pos, pkg, name, nil)
-		_ = types.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+		a := types.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+		a.SetTypeParams(tparams)
 		return tname
 	}
+	assert(len(tparams) == 0)
 	return types.NewTypeName(pos, pkg, name, rhs)
 }

@@ -21,7 +21,6 @@ type Free struct {
 
 // Has reports whether the specified type has a free type parameter.
 func (w *Free) Has(typ types.Type) (res bool) {
-
 	// detect cycles
 	if x, ok := w.seen[typ]; ok {
 		return x
@@ -83,7 +82,7 @@ func (w *Free) Has(typ types.Type) (res bool) {
 		}
 		terms, err := InterfaceTermSet(t)
 		if err != nil {
-			panic(err)
+			return false // ill typed
 		}
 		for _, term := range terms {
 			if w.Has(term.Type()) {

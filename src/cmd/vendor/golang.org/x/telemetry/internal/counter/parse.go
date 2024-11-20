@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
-	"time"
 	"unsafe"
 
 	"golang.org/x/telemetry/internal/mmap"
@@ -27,6 +26,7 @@ func Parse(filename string, data []byte) (*File, error) {
 		return nil, fmt.Errorf("%s: wrong hdr (not %q)", filename, hdrPrefix)
 	}
 	corrupt := func() (*File, error) {
+		// TODO(rfindley): return a useful error message.
 		return nil, fmt.Errorf("%s: corrupt counter file", filename)
 	}
 
@@ -59,21 +59,6 @@ func Parse(filename string, data []byte) (*File, error) {
 			return corrupt()
 		}
 		f.Meta[k] = v
-	}
-	if f.Meta["TimeBegin"] == "" {
-		// Infer from file name.
-		if !strings.HasSuffix(filename, ".v1.count") || len(filename) < len("-2022-11-19") {
-			return corrupt()
-		}
-		short := strings.TrimSuffix(filename, ".v1.count")
-		short = short[len(short)-len("2022-11-19"):]
-		t, err := time.ParseInLocation("2006-01-02", short, time.UTC)
-		if err != nil {
-			return nil, fmt.Errorf("%s: invalid counter file name", filename)
-		}
-		f.Meta["TimeBegin"] = t.Format(time.RFC3339)
-		// TODO(pjw): 1 isn't correct. 7?, but is this ever executed?
-		f.Meta["TimeEnd"] = t.AddDate(0, 0, 1).Format(time.RFC3339)
 	}
 
 	for i := uint32(0); i < numHash; i++ {

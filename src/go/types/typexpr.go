@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
-	"go/internal/typeparams"
 	. "internal/types/errors"
 	"strings"
 )
@@ -23,22 +22,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
 	x.mode = invalid
 	x.expr = e
 
-	// Note that we cannot use check.lookup here because the returned scope
-	// may be different from obj.Parent(). See also Scope.LookupParent doc.
-	scope, obj := check.scope.LookupParent(e.Name, check.pos)
+	scope, obj := check.lookupScope(e.Name)
 	switch obj {
 	case nil:
 		if e.Name == "_" {
-			// Blank identifiers are never declared, but the current identifier may
-			// be a placeholder for a receiver type parameter. In this case we can
-			// resolve its type and object from Checker.recvTParamMap.
-			if tpar := check.recvTParamMap[e]; tpar != nil {
-				x.mode = typexpr
-				x.typ = tpar
-			} else {
-				check.error(e, InvalidBlank, "cannot use _ as value or type")
-			}
-		} else {
+			check.error(e, InvalidBlank, "cannot use _ as value or type")
+		} else if isValidName(e.Name) {
 			check.errorf(e, UndeclaredName, "undefined: %s", e.Name)
 		}
 		return
@@ -73,13 +62,16 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
 	// Type-check the object.
 	// Only call Checker.objDecl if the object doesn't have a type yet
 	// (in which case we must actually determine it) or the object is a
-	// TypeName and we also want a type (in which case we might detect
-	// a cycle which needs to be reported). Otherwise we can skip the
-	// call and avoid a possible cycle error in favor of the more
-	// informative "not a type/value" error that this function's caller
-	// will issue (see go.dev/issue/25790).
+	// TypeName from the current package and we also want a type (in which case
+	// we might detect a cycle which needs to be reported). Otherwise we can skip
+	// the call and avoid a possible cycle error in favor of the more informative
+	// "not a type/value" error that this function's caller will issue (see
+	// go.dev/issue/25790).
+	//
+	// Note that it is important to avoid calling objDecl on objects from other
+	// packages, to avoid races: see issue #69912.
 	typ := obj.Type()
-	if typ == nil || gotType && wantType {
+	if typ == nil || (gotType && wantType && obj.Pkg() == check.pkg) {
 		check.objDecl(obj, def)
 		typ = obj.Type() // type must have been assigned by Checker.objDecl
 	}
@@ -95,7 +87,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
 
 	switch obj := obj.(type) {
 	case *PkgName:
-		check.errorf(e, InvalidPkgUse, "use of package %s not in selector", quote(obj.name))
+		check.errorf(e, InvalidPkgUse, "use of package %s not in selector", obj.name)
 		return
 
 	case *Const:
@@ -117,7 +109,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
 
 	case *TypeName:
 		if !check.conf._EnableAlias && check.isBrokenAlias(obj) {
-			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", quote(obj.name))
+			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", obj.name)
 			return
 		}
 		x.mode = typexpr
@@ -292,8 +284,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 		}
 
 	case *ast.IndexExpr, *ast.IndexListExpr:
-		ix := typeparams.UnpackIndexExpr(e)
-		check.verifyVersionf(inNode(e, ix.Lbrack), go1_18, "type instantiation")
+		ix := unpackIndexedExpr(e)
+		check.verifyVersionf(inNode(e, ix.lbrack), go1_18, "type instantiation")
 		return check.instantiatedType(ix, def)
 
 	case *ast.ParenExpr:
@@ -342,6 +334,13 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 		typ.base = Typ[Invalid] // avoid nil base in invalid recursive type declaration
 		setDefType(def, typ)
 		typ.base = check.varType(e.X)
+		// If typ.base is invalid, it's unlikely that *base is particularly
+		// useful - even a valid dereferenciation will lead to an invalid
+		// type again, and in some cases we get unexpected follow-on errors
+		// (e.g., go.dev/issue/49005). Return an invalid type instead.
+		if !isValid(typ.base) {
+			return Typ[Invalid]
+		}
 		return typ
 
 	case *ast.FuncType:
@@ -432,9 +431,9 @@ func setDefType(def *TypeName, typ Type) {
 	}
 }
 
-func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) (res Type) {
+func (check *Checker) instantiatedType(ix *indexedExpr, def *TypeName) (res Type) {
 	if check.conf._Trace {
-		check.trace(ix.Pos(), "-- instantiating type %s with %s", ix.X, ix.Indices)
+		check.trace(ix.Pos(), "-- instantiating type %s with %s", ix.x, ix.indices)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -443,56 +442,58 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) 
 		}()
 	}
 
-	var cause string
-	gtyp := check.genericType(ix.X, &cause)
-	if cause != "" {
-		check.errorf(ix.Orig, NotAGenericType, invalidOp+"%s (%s)", ix.Orig, cause)
-	}
-	if !isValid(gtyp) {
-		return gtyp // error already reported
-	}
+	defer func() {
+		setDefType(def, res)
+	}()
 
-	orig := asNamed(gtyp)
-	if orig == nil {
-		panic(fmt.Sprintf("%v: cannot instantiate %v", ix.Pos(), gtyp))
+	var cause string
+	typ := check.genericType(ix.x, &cause)
+	if cause != "" {
+		check.errorf(ix.orig, NotAGenericType, invalidOp+"%s (%s)", ix.orig, cause)
 	}
+	if !isValid(typ) {
+		return typ // error already reported
+	}
+	// typ must be a generic Alias or Named type (but not a *Signature)
+	if _, ok := typ.(*Signature); ok {
+		panic("unexpected generic signature")
+	}
+	gtyp := typ.(genericType)
 
 	// evaluate arguments
-	targs := check.typeList(ix.Indices)
+	targs := check.typeList(ix.indices)
 	if targs == nil {
-		setDefType(def, Typ[Invalid]) // avoid errors later due to lazy instantiation
 		return Typ[Invalid]
 	}
 
-	// create the instance
-	inst := asNamed(check.instance(ix.Pos(), orig, targs, nil, check.context()))
-	setDefType(def, inst)
+	// create instance
+	// The instance is not generic anymore as it has type arguments, but it still
+	// satisfies the genericType interface because it has type parameters, too.
+	inst := check.instance(ix.Pos(), gtyp, targs, nil, check.context()).(genericType)
 
-	// orig.tparams may not be set up, so we need to do expansion later.
+	// For Named types, orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {
 		// This is an instance from the source, not from recursive substitution,
 		// and so it must be resolved during type-checking so that we can report
 		// errors.
-		check.recordInstance(ix.Orig, inst.TypeArgs().list(), inst)
+		check.recordInstance(ix.orig, targs, inst)
 
-		if check.validateTArgLen(ix.Pos(), inst.obj.name, inst.TypeParams().Len(), inst.TypeArgs().Len()) {
-			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
+		name := inst.(interface{ Obj() *TypeName }).Obj().name
+		tparams := inst.TypeParams().list()
+		if check.validateTArgLen(ix.Pos(), name, len(tparams), len(targs)) {
+			// check type constraints
+			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), targs, check.context()); err != nil {
 				// best position for error reporting
 				pos := ix.Pos()
-				if i < len(ix.Indices) {
-					pos = ix.Indices[i].Pos()
+				if i < len(ix.indices) {
+					pos = ix.indices[i].Pos()
 				}
-				check.softErrorf(atPos(pos), InvalidTypeArg, err.Error())
+				check.softErrorf(atPos(pos), InvalidTypeArg, "%v", err)
 			} else {
-				check.mono.recordInstance(check.pkg, ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), ix.Indices)
+				check.mono.recordInstance(check.pkg, ix.Pos(), tparams, targs, ix.indices)
 			}
 		}
-
-		// TODO(rfindley): remove this call: we don't need to call validType here,
-		// as cycles can only occur for types used inside a Named type declaration,
-		// and so it suffices to call validType from declared types.
-		check.validType(inst)
-	}).describef(ix, "resolve instance %s", inst)
+	}).describef(ix, "verify instantiation %s", inst)
 
 	return inst
 }

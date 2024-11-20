@@ -7,6 +7,7 @@ package binary
 import (
 	"bytes"
 	"fmt"
+	"internal/asan"
 	"io"
 	"math"
 	"reflect"
@@ -115,6 +116,7 @@ var res = []int32{0x01020304, 0x05060708}
 var putbuf = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 
 func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, want any) {
+	t.Helper()
 	if err != nil {
 		t.Errorf("%v %v: %v", dir, order, err)
 		return
@@ -124,16 +126,83 @@ func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, wan
 	}
 }
 
+var encoders = []struct {
+	name string
+	fn   func(order ByteOrder, data any) ([]byte, error)
+}{
+	{
+		"Write",
+		func(order ByteOrder, data any) ([]byte, error) {
+			buf := new(bytes.Buffer)
+			err := Write(buf, order, data)
+			return buf.Bytes(), err
+		},
+	},
+	{
+		"Encode",
+		func(order ByteOrder, data any) ([]byte, error) {
+			size := Size(data)
+
+			var buf []byte
+			if size > 0 {
+				buf = make([]byte, Size(data))
+			}
+
+			n, err := Encode(buf, order, data)
+			if err == nil && n != size {
+				return nil, fmt.Errorf("returned size %d instead of %d", n, size)
+			}
+			return buf, err
+		},
+	}, {
+		"Append",
+		func(order ByteOrder, data any) ([]byte, error) {
+			return Append(nil, order, data)
+		},
+	},
+}
+
+var decoders = []struct {
+	name string
+	fn   func(order ByteOrder, data any, buf []byte) error
+}{
+	{
+		"Read",
+		func(order ByteOrder, data any, buf []byte) error {
+			return Read(bytes.NewReader(buf), order, data)
+		},
+	},
+	{
+		"Decode",
+		func(order ByteOrder, data any, buf []byte) error {
+			n, err := Decode(buf, order, data)
+			if err == nil && n != Size(data) {
+				return fmt.Errorf("returned size %d instead of %d", n, Size(data))
+			}
+			return err
+		},
+	},
+}
+
 func testRead(t *testing.T, order ByteOrder, b []byte, s1 any) {
-	var s2 Struct
-	err := Read(bytes.NewReader(b), order, &s2)
-	checkResult(t, "Read", order, err, s2, s1)
+	t.Helper()
+	for _, dec := range decoders {
+		t.Run(dec.name, func(t *testing.T) {
+			var s2 Struct
+			err := dec.fn(order, &s2, b)
+			checkResult(t, dec.name, order, err, s2, s1)
+		})
+	}
 }
 
 func testWrite(t *testing.T, order ByteOrder, b []byte, s1 any) {
-	buf := new(bytes.Buffer)
-	err := Write(buf, order, s1)
-	checkResult(t, "Write", order, err, buf.Bytes(), b)
+	t.Helper()
+	for _, enc := range encoders {
+		t.Run(enc.name, func(t *testing.T) {
+			buf, err := enc.fn(order, s1)
+			checkResult(t, enc.name, order, err, buf, b)
+		})
+	}
 }
 
 func TestLittleEndianRead(t *testing.T)     { testRead(t, LittleEndian, little, s) }
@@ -145,34 +214,49 @@ func TestBigEndianWrite(t *testing.T)    { testWrite(t, BigEndian, big, s) }
 func TestBigEndianPtrWrite(t *testing.T) { testWrite(t, BigEndian, big, &s) }
 
 func TestReadSlice(t *testing.T) {
-	slice := make([]int32, 2)
-	err := Read(bytes.NewReader(src), BigEndian, slice)
-	checkResult(t, "ReadSlice", BigEndian, err, slice, res)
+	t.Run("Read", func(t *testing.T) {
+		slice := make([]int32, 2)
+		err := Read(bytes.NewReader(src), BigEndian, slice)
+		checkResult(t, "ReadSlice", BigEndian, err, slice, res)
+	})
+
+	t.Run("Decode", func(t *testing.T) {
+		slice := make([]int32, 2)
+		_, err := Decode(src, BigEndian, slice)
+		checkResult(t, "ReadSlice", BigEndian, err, slice, res)
+	})
 }
 
 func TestWriteSlice(t *testing.T) {
-	buf := new(bytes.Buffer)
-	err := Write(buf, BigEndian, res)
-	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src)
+	testWrite(t, BigEndian, src, res)
 }
 
 func TestReadBool(t *testing.T) {
-	var res bool
-	var err error
-	err = Read(bytes.NewReader([]byte{0}), BigEndian, &res)
-	checkResult(t, "ReadBool", BigEndian, err, res, false)
-	res = false
-	err = Read(bytes.NewReader([]byte{1}), BigEndian, &res)
-	checkResult(t, "ReadBool", BigEndian, err, res, true)
-	res = false
-	err = Read(bytes.NewReader([]byte{2}), BigEndian, &res)
-	checkResult(t, "ReadBool", BigEndian, err, res, true)
+	for _, dec := range decoders {
+		t.Run(dec.name, func(t *testing.T) {
+			var res bool
+			var err error
+			err = dec.fn(BigEndian, &res, []byte{0})
+			checkResult(t, dec.name, BigEndian, err, res, false)
+			res = false
+			err = dec.fn(BigEndian, &res, []byte{1})
+			checkResult(t, dec.name, BigEndian, err, res, true)
+			res = false
+			err = dec.fn(BigEndian, &res, []byte{2})
+			checkResult(t, dec.name, BigEndian, err, res, true)
+		})
+	}
+
 }
 
 func TestReadBoolSlice(t *testing.T) {
-	slice := make([]bool, 4)
-	err := Read(bytes.NewReader([]byte{0, 1, 2, 255}), BigEndian, slice)
-	checkResult(t, "ReadBoolSlice", BigEndian, err, slice, []bool{false, true, true, true})
+	for _, dec := range decoders {
+		t.Run(dec.name, func(t *testing.T) {
+			slice := make([]bool, 4)
+			err := dec.fn(BigEndian, slice, []byte{0, 1, 2, 255})
+			checkResult(t, dec.name, BigEndian, err, slice, []bool{false, true, true, true})
+		})
+	}
 }
 
 // Addresses of arrays are easier to manipulate with reflection than are slices.
@@ -188,57 +272,67 @@ var intArrays = []any{
 }
 
 func TestSliceRoundTrip(t *testing.T) {
-	buf := new(bytes.Buffer)
-	for _, array := range intArrays {
-		src := reflect.ValueOf(array).Elem()
-		unsigned := false
-		switch src.Index(0).Kind() {
-		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			unsigned = true
-		}
-		for i := 0; i < src.Len(); i++ {
-			if unsigned {
-				src.Index(i).SetUint(uint64(i * 0x07654321))
-			} else {
-				src.Index(i).SetInt(int64(i * 0x07654321))
-			}
-		}
-		buf.Reset()
-		srcSlice := src.Slice(0, src.Len())
-		err := Write(buf, BigEndian, srcSlice.Interface())
-		if err != nil {
-			t.Fatal(err)
-		}
-		dst := reflect.New(src.Type()).Elem()
-		dstSlice := dst.Slice(0, dst.Len())
-		err = Read(buf, BigEndian, dstSlice.Interface())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(src.Interface(), dst.Interface()) {
-			t.Fatal(src)
+	for _, enc := range encoders {
+		for _, dec := range decoders {
+			t.Run(fmt.Sprintf("%s,%s", enc.name, dec.name), func(t *testing.T) {
+				for _, array := range intArrays {
+					src := reflect.ValueOf(array).Elem()
+					t.Run(src.Index(0).Type().Name(), func(t *testing.T) {
+						unsigned := false
+						switch src.Index(0).Kind() {
+						case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+							unsigned = true
+						}
+						for i := 0; i < src.Len(); i++ {
+							if unsigned {
+								src.Index(i).SetUint(uint64(i * 0x07654321))
+							} else {
+								src.Index(i).SetInt(int64(i * 0x07654321))
+							}
+						}
+						srcSlice := src.Slice(0, src.Len())
+						buf, err := enc.fn(BigEndian, srcSlice.Interface())
+						if err != nil {
+							t.Fatal(err)
+						}
+						dst := reflect.New(src.Type()).Elem()
+						dstSlice := dst.Slice(0, dst.Len())
+						err = dec.fn(BigEndian, dstSlice.Interface(), buf)
+						if err != nil {
+							t.Fatal(err)
+						}
+						if !reflect.DeepEqual(src.Interface(), dst.Interface()) {
+							t.Log(dst)
+							t.Fatal(src)
+						}
+					})
+				}
+			})
 		}
 	}
 }
 
 func TestWriteT(t *testing.T) {
-	buf := new(bytes.Buffer)
-	ts := T{}
-	if err := Write(buf, BigEndian, ts); err == nil {
-		t.Errorf("WriteT: have err == nil, want non-nil")
-	}
+	for _, enc := range encoders {
+		t.Run(enc.name, func(t *testing.T) {
+			ts := T{}
+			if _, err := enc.fn(BigEndian, ts); err == nil {
+				t.Errorf("WriteT: have err == nil, want non-nil")
+			}
 
-	tv := reflect.Indirect(reflect.ValueOf(ts))
-	for i, n := 0, tv.NumField(); i < n; i++ {
-		typ := tv.Field(i).Type().String()
-		if typ == "[4]int" {
-			typ = "int" // the problem is int, not the [4]
-		}
-		if err := Write(buf, BigEndian, tv.Field(i).Interface()); err == nil {
-			t.Errorf("WriteT.%v: have err == nil, want non-nil", tv.Field(i).Type())
-		} else if !strings.Contains(err.Error(), typ) {
-			t.Errorf("WriteT: have err == %q, want it to mention %s", err, typ)
-		}
+			tv := reflect.Indirect(reflect.ValueOf(ts))
+			for i, n := 0, tv.NumField(); i < n; i++ {
+				typ := tv.Field(i).Type().String()
+				if typ == "[4]int" {
+					typ = "int" // the problem is int, not the [4]
+				}
+				if _, err := enc.fn(BigEndian, tv.Field(i).Interface()); err == nil {
+					t.Errorf("WriteT.%v: have err == nil, want non-nil", tv.Field(i).Type())
+				} else if !strings.Contains(err.Error(), typ) {
+					t.Errorf("WriteT: have err == %q, want it to mention %s", err, typ)
+				}
+			}
+		})
 	}
 }
 
@@ -267,35 +361,40 @@ type BlankFieldsProbe struct {
 }
 
 func TestBlankFields(t *testing.T) {
-	buf := new(bytes.Buffer)
-	b1 := BlankFields{A: 1234567890, B: 2.718281828, C: 42}
-	if err := Write(buf, LittleEndian, &b1); err != nil {
-		t.Error(err)
-	}
+	for _, enc := range encoders {
+		t.Run(enc.name, func(t *testing.T) {
+			b1 := BlankFields{A: 1234567890, B: 2.718281828, C: 42}
+			buf, err := enc.fn(LittleEndian, &b1)
+			if err != nil {
+				t.Error(err)
+			}
 
-	// zero values must have been written for blank fields
-	var p BlankFieldsProbe
-	if err := Read(buf, LittleEndian, &p); err != nil {
-		t.Error(err)
-	}
+			// zero values must have been written for blank fields
+			var p BlankFieldsProbe
+			if err := Read(bytes.NewReader(buf), LittleEndian, &p); err != nil {
+				t.Error(err)
+			}
 
-	// quick test: only check first value of slices
-	if p.P0 != 0 || p.P1[0] != 0 || p.P2[0] != 0 || p.P3.F[0] != 0 {
-		t.Errorf("non-zero values for originally blank fields: %#v", p)
-	}
+			// quick test: only check first value of slices
+			if p.P0 != 0 || p.P1[0] != 0 || p.P2[0] != 0 || p.P3.F[0] != 0 {
+				t.Errorf("non-zero values for originally blank fields: %#v", p)
+			}
 
-	// write p and see if we can probe only some fields
-	if err := Write(buf, LittleEndian, &p); err != nil {
-		t.Error(err)
-	}
+			// write p and see if we can probe only some fields
+			buf, err = enc.fn(LittleEndian, &p)
+			if err != nil {
+				t.Error(err)
+			}
 
-	// read should ignore blank fields in b2
-	var b2 BlankFields
-	if err := Read(buf, LittleEndian, &b2); err != nil {
-		t.Error(err)
-	}
-	if b1.A != b2.A || b1.B != b2.B || b1.C != b2.C {
-		t.Errorf("%#v != %#v", b1, b2)
+			// read should ignore blank fields in b2
+			var b2 BlankFields
+			if err := Read(bytes.NewReader(buf), LittleEndian, &b2); err != nil {
+				t.Error(err)
+			}
+			if b1.A != b2.A || b1.B != b2.B || b1.C != b2.C {
+				t.Errorf("%#v != %#v", b1, b2)
+			}
+		})
 	}
 }
 
@@ -334,10 +433,14 @@ func TestSizeStructCache(t *testing.T) {
 		want int
 	}{
 		{new(foo), 1},
+		{new([1]foo), 0},
+		{make([]foo, 1), 0},
 		{new(bar), 1},
 		{new(bar), 0},
 		{new(struct{ A Struct }), 1},
 		{new(struct{ A Struct }), 0},
+		{new([1]struct{ A Struct }), 0},
+		{make([]struct{ A Struct }, 1), 0},
 	}
 
 	for _, tc := range testcases {
@@ -363,6 +466,18 @@ func TestSizeInvalid(t *testing.T) {
 		[]int(nil),
 		new([]int),
 		(*[]int)(nil),
+		(*int8)(nil),
+		(*uint8)(nil),
+		(*int16)(nil),
+		(*uint16)(nil),
+		(*int32)(nil),
+		(*uint32)(nil),
+		(*int64)(nil),
+		(*uint64)(nil),
+		(*float32)(nil),
+		(*float64)(nil),
+		(*complex64)(nil),
+		(*complex128)(nil),
 	}
 	for _, tc := range testcases {
 		if got := Size(tc); got != -1 {
@@ -386,33 +501,41 @@ func TestUnexportedRead(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer func() {
-		if recover() == nil {
-			t.Fatal("did not panic")
-		}
-	}()
-	var u2 Unexported
-	Read(&buf, LittleEndian, &u2)
+	for _, dec := range decoders {
+		t.Run(dec.name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("did not panic")
+				}
+			}()
+			var u2 Unexported
+			dec.fn(LittleEndian, &u2, buf.Bytes())
+		})
+	}
+
 }
 
 func TestReadErrorMsg(t *testing.T) {
-	var buf bytes.Buffer
-	read := func(data any) {
-		err := Read(&buf, LittleEndian, data)
-		want := "binary.Read: invalid type " + reflect.TypeOf(data).String()
-		if err == nil {
-			t.Errorf("%T: got no error; want %q", data, want)
-			return
-		}
-		if got := err.Error(); got != want {
-			t.Errorf("%T: got %q; want %q", data, got, want)
-		}
+	for _, dec := range decoders {
+		t.Run(dec.name, func(t *testing.T) {
+			read := func(data any) {
+				err := dec.fn(LittleEndian, data, nil)
+				want := fmt.Sprintf("binary.%s: invalid type %s", dec.name, reflect.TypeOf(data).String())
+				if err == nil {
+					t.Errorf("%T: got no error; want %q", data, want)
+					return
+				}
+				if got := err.Error(); got != want {
+					t.Errorf("%T: got %q; want %q", data, got, want)
+				}
+			}
+			read(0)
+			s := new(struct{})
+			read(&s)
+			p := &s
+			read(&p)
+		})
 	}
-	read(0)
-	s := new(struct{})
-	read(&s)
-	p := &s
-	read(&p)
 }
 
 func TestReadTruncated(t *testing.T) {
@@ -573,14 +696,74 @@ func TestNoFixedSize(t *testing.T) {
 		Height: 177.8,
 	}
 
-	buf := new(bytes.Buffer)
-	err := Write(buf, LittleEndian, &person)
-	if err == nil {
-		t.Fatal("binary.Write: unexpected success as size of type *binary.Person is not fixed")
+	for _, enc := range encoders {
+		t.Run(enc.name, func(t *testing.T) {
+			_, err := enc.fn(LittleEndian, &person)
+			if err == nil {
+				t.Fatalf("binary.%s: unexpected success as size of type *binary.Person is not fixed", enc.name)
+			}
+			errs := fmt.Sprintf("binary.%s: some values are not fixed-sized in type *binary.Person", enc.name)
+			if err.Error() != errs {
+				t.Fatalf("got %q, want %q", err, errs)
+			}
+		})
 	}
-	errs := "binary.Write: some values are not fixed-sized in type *binary.Person"
-	if err.Error() != errs {
-		t.Fatalf("got %q, want %q", err, errs)
+}
+
+func TestAppendAllocs(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
+	buf := make([]byte, 0, Size(&s))
+	var err error
+	allocs := testing.AllocsPerRun(1, func() {
+		_, err = Append(buf, LittleEndian, &s)
+	})
+	if err != nil {
+		t.Fatal("Append failed:", err)
+	}
+	if allocs != 0 {
+		t.Fatalf("Append allocated %v times instead of not allocating at all", allocs)
+	}
+}
+
+var sizableTypes = []any{
+	bool(false),
+	int8(0),
+	int16(0),
+	int32(0),
+	int64(0),
+	uint8(0),
+	uint16(0),
+	uint32(0),
+	uint64(0),
+	float32(0),
+	float64(0),
+	complex64(0),
+	complex128(0),
+	Struct{},
+	&Struct{},
+	[]Struct{},
+	([]Struct)(nil),
+	[1]Struct{},
+}
+
+func TestSizeAllocs(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
+	for _, data := range sizableTypes {
+		t.Run(fmt.Sprintf("%T", data), func(t *testing.T) {
+			// Size uses a sync.Map behind the scenes. The slow lookup path of
+			// that does allocate, so we need a couple of runs here to be
+			// allocation free.
+			allocs := testing.AllocsPerRun(10, func() {
+				_ = Size(data)
+			})
+			if allocs != 0 {
+				t.Fatalf("Expected no allocations, got %v", allocs)
+			}
+		})
 	}
 }
 
@@ -631,6 +814,16 @@ func BenchmarkWriteStruct(b *testing.B) {
 	}
 }
 
+func BenchmarkAppendStruct(b *testing.B) {
+	buf := make([]byte, 0, Size(&s))
+	b.SetBytes(int64(cap(buf)))
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		Encode(buf, BigEndian, &s)
+	}
+}
+
 func BenchmarkWriteSlice1000Structs(b *testing.B) {
 	slice := make([]Struct, 1000)
 	buf := new(bytes.Buffer)
@@ -640,6 +833,17 @@ func BenchmarkWriteSlice1000Structs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		Write(w, BigEndian, slice)
+	}
+	b.StopTimer()
+}
+
+func BenchmarkAppendSlice1000Structs(b *testing.B) {
+	slice := make([]Struct, 1000)
+	buf := make([]byte, 0, Size(slice))
+	b.SetBytes(int64(cap(buf)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Append(buf, BigEndian, slice)
 	}
 	b.StopTimer()
 }
@@ -709,6 +913,27 @@ func BenchmarkWriteInts(b *testing.B) {
 	}
 }
 
+func BenchmarkAppendInts(b *testing.B) {
+	buf := make([]byte, 0, 256)
+	b.SetBytes(2 * (1 + 2 + 4 + 8))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf = buf[:0]
+		buf, _ = Append(buf, BigEndian, s.Int8)
+		buf, _ = Append(buf, BigEndian, s.Int16)
+		buf, _ = Append(buf, BigEndian, s.Int32)
+		buf, _ = Append(buf, BigEndian, s.Int64)
+		buf, _ = Append(buf, BigEndian, s.Uint8)
+		buf, _ = Append(buf, BigEndian, s.Uint16)
+		buf, _ = Append(buf, BigEndian, s.Uint32)
+		buf, _ = Append(buf, BigEndian, s.Uint64)
+	}
+	b.StopTimer()
+	if b.N > 0 && !bytes.Equal(buf, big[:30]) {
+		b.Fatalf("first half doesn't match: %x %x", buf, big[:30])
+	}
+}
+
 func BenchmarkWriteSlice1000Int32s(b *testing.B) {
 	slice := make([]int32, 1000)
 	buf := new(bytes.Buffer)
@@ -718,6 +943,17 @@ func BenchmarkWriteSlice1000Int32s(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		Write(w, BigEndian, slice)
+	}
+	b.StopTimer()
+}
+
+func BenchmarkAppendSlice1000Int32s(b *testing.B) {
+	slice := make([]int32, 1000)
+	buf := make([]byte, 0, Size(slice))
+	b.SetBytes(int64(cap(buf)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Append(buf, BigEndian, slice)
 	}
 	b.StopTimer()
 }
@@ -899,6 +1135,16 @@ func BenchmarkWriteSlice1000Uint8s(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		Write(w, BigEndian, slice)
+	}
+}
+
+func BenchmarkSize(b *testing.B) {
+	for _, data := range sizableTypes {
+		b.Run(fmt.Sprintf("%T", data), func(b *testing.B) {
+			for range b.N {
+				_ = Size(data)
+			}
+		})
 	}
 }
 

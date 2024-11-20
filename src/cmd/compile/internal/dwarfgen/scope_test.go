@@ -5,6 +5,7 @@
 package dwarfgen
 
 import (
+	"cmp"
 	"debug/dwarf"
 	"fmt"
 	"internal/platform"
@@ -12,7 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -400,8 +401,8 @@ func readScope(ctxt *scopexplainContext, scope *lexblock, entry *dwarf.Entry) {
 		}
 		switch e.Tag {
 		case 0:
-			sort.Slice(scope.vars, func(i, j int) bool {
-				return scope.vars[i].expr < scope.vars[j].expr
+			slices.SortFunc(scope.vars, func(a, b variable) int {
+				return cmp.Compare(a.expr, b.expr)
 			})
 			return
 		case dwarf.TagFormalParameter:

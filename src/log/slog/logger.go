@@ -5,6 +5,7 @@
 package slog
 
 import (
+	"bytes"
 	"context"
 	"log"
 	loginternal "log/internal"
@@ -96,9 +97,7 @@ func (w *handlerWriter) Write(buf []byte) (int, error) {
 
 	// Remove final newline.
 	origLen := len(buf) // Report that the entire buf was written.
-	if len(buf) > 0 && buf[len(buf)-1] == '\n' {
-		buf = buf[:len(buf)-1]
-	}
+	buf = bytes.TrimSuffix(buf, []byte{'\n'})
 	r := NewRecord(time.Now(), level, string(buf), pc)
 	return origLen, w.h.Handle(context.Background(), r)
 }

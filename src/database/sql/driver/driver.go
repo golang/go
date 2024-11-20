@@ -415,7 +415,7 @@ type NamedValueChecker interface {
 type ColumnConverter interface {
 	// ColumnConverter returns a ValueConverter for the provided
 	// column index. If the type of a specific column isn't known
-	// or shouldn't be handled specially, DefaultValueConverter
+	// or shouldn't be handled specially, [DefaultParameterConverter]
 	// can be returned.
 	ColumnConverter(idx int) ValueConverter
 }

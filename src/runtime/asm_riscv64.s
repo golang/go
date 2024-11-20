@@ -80,12 +80,11 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 	RET
 
 // func cputicks() int64
-TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+TEXT runtime·cputicks<ABIInternal>(SB),NOSPLIT,$0-0
 	// RDTIME to emulate cpu ticks
 	// RDCYCLE reads counter that is per HART(core) based
 	// according to the riscv manual, see issue 46737
-	RDTIME	A0
-	MOV	A0, ret+0(FP)
+	RDTIME	X10
 	RET
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom

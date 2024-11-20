@@ -5,15 +5,17 @@
 package gc
 
 import (
+	"cmp"
 	"internal/race"
 	"math/rand"
-	"sort"
+	"slices"
 	"sync"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/types"
@@ -38,12 +40,7 @@ func enqueueFunc(fn *ir.Func) {
 		return
 	}
 
-	// Don't try compiling dead hidden closure.
-	if fn.IsDeadcodeClosure() {
-		return
-	}
-
-	if clo := fn.OClosure; clo != nil && !ir.IsTrivialClosure(clo) {
+	if fn.IsClosure() {
 		return // we'll get this as part of its enclosing function
 	}
 
@@ -57,8 +54,13 @@ func enqueueFunc(fn *ir.Func) {
 		types.CalcSize(fn.Type())
 		a := ssagen.AbiForBodylessFuncStackMap(fn)
 		abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
-		liveness.WriteFuncMap(fn, abiInfo)
 		if fn.ABI == obj.ABI0 {
+			// The current args_stackmap generation assumes the function
+			// is ABI0, and only ABI0 assembly function can have a FUNCDATA
+			// reference to args_stackmap (see cmd/internal/obj/plist.go:Flushplist).
+			// So avoid introducing an args_stackmap if the func is not ABI0.
+			liveness.WriteFuncMap(fn, abiInfo)
+
 			x := ssagen.EmitArgInfo(fn, abiInfo)
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
 		}
@@ -104,6 +106,11 @@ func prepareFunc(fn *ir.Func) {
 	// Calculate parameter offsets.
 	types.CalcSize(fn.Type())
 
+	// Generate wrappers between Go ABI and Wasm ABI, for a wasmexport
+	// function.
+	// Must be done after InitLSym and CalcSize.
+	ssagen.GenWasmExportWrapper(fn)
+
 	ir.CurFunc = fn
 	walk.Walk(fn)
 	ir.CurFunc = nil // enforce no further uses of CurFunc
@@ -112,7 +119,7 @@ func prepareFunc(fn *ir.Func) {
 // compileFunctions compiles all functions in compilequeue.
 // It fans out nBackendWorkers to do the work
 // and waits for them to complete.
-func compileFunctions() {
+func compileFunctions(profile *pgoir.Profile) {
 	if race.Enabled {
 		// Randomize compilation order to try to shake out races.
 		tmp := make([]*ir.Func, len(compilequeue))
@@ -125,8 +132,8 @@ func compileFunctions() {
 		// Compile the longest functions first,
 		// since they're most likely to be the slowest.
 		// This helps avoid stragglers.
-		sort.Slice(compilequeue, func(i, j int) bool {
-			return len(compilequeue[i].Body) > len(compilequeue[j].Body)
+		slices.SortFunc(compilequeue, func(a, b *ir.Func) int {
+			return cmp.Compare(len(b.Body), len(a.Body))
 		})
 	}
 
@@ -179,7 +186,7 @@ func compileFunctions() {
 		for _, fn := range fns {
 			fn := fn
 			queue(func(worker int) {
-				ssagen.Compile(fn, worker)
+				ssagen.Compile(fn, worker, profile)
 				compile(fn.Closures)
 				wg.Done()
 			})

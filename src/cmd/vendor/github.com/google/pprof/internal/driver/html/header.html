@@ -83,6 +83,12 @@
       {{range .Legend}}<div>{{.}}</div>{{end}}
     </div>
   </div>
+
+  {{if .DocURL}}
+     <div class="menu-item">
+       <div class="help menu-name"><a title="Profile documentation" href="{{.DocURL}}" target="_blank">Help&nbsp;⤇</a></div>
+     </div>
+  {{end}}
 </div>
 
 <div id="dialog-overlay"></div>

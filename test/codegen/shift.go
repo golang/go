@@ -453,7 +453,7 @@ func checkMergedShifts32(a [256]uint32, b [256]uint64, u uint32, v uint32) {
 	b[2] = b[v>>25]
 }
 
-func checkMergedShifts64(a [256]uint32, b [256]uint64, v uint64) {
+func checkMergedShifts64(a [256]uint32, b [256]uint64, c [256]byte, v uint64) {
 	// ppc64x: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
 	a[0] = a[uint8(v>>24)]
 	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
@@ -462,16 +462,35 @@ func checkMergedShifts64(a [256]uint32, b [256]uint64, v uint64) {
 	a[2] = a[v>>25&0x7F]
 	// ppc64x: -"CLRLSLDI", "RLWNM\t[$]3, R[0-9]+, [$]29, [$]29, R[0-9]+"
 	a[3] = a[(v>>31)&0x01]
-	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
-	a[4] = a[(v>>30)&0x07]
-	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
-	a[5] = a[(v>>32)&0x01]
-	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
-	a[5] = a[(v>>34)&0x03]
 	// ppc64x: -"CLRLSLDI", "RLWNM\t[$]12, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[0] = b[uint8(v>>23)]
 	// ppc64x: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[1] = b[(v>>20)&0xFF]
+	// ppc64x: "RLWNM", -"SLD"
+	b[2] = b[((uint64((uint32(v) >> 21)) & 0x3f) << 4)]
+	// ppc64x: "RLWNM\t[$]11, R[0-9]+, [$]10, [$]15"
+	c[0] = c[((v>>5)&0x3F)<<16]
+	// ppc64x: "ANDCC\t[$]8064,"
+	c[1] = c[((v>>7)&0x3F)<<7]
+}
+
+func checkShiftMask(a uint32, b uint64, z []uint32, y []uint64) {
+	_ = y[128]
+	_ = z[128]
+	// ppc64x: -"MOVBZ", -"SRW", "RLWNM"
+	z[0] = uint32(uint8(a >> 5))
+	// ppc64x: -"MOVBZ", -"SRW", "RLWNM"
+	z[1] = uint32(uint8((a >> 4) & 0x7e))
+	// ppc64x: "RLWNM\t[$]25, R[0-9]+, [$]27, [$]29, R[0-9]+"
+	z[2] = uint32(uint8(a>>7)) & 0x1c
+	// ppc64x: -"MOVWZ"
+	y[0] = uint64((a >> 6) & 0x1c)
+	// ppc64x: -"MOVWZ"
+	y[1] = uint64(uint32(b)<<6) + 1
+	// ppc64x: -"MOVHZ", -"MOVWZ"
+	y[2] = uint64((uint16(a) >> 9) & 0x1F)
+	// ppc64x: -"MOVHZ", -"MOVWZ", -"ANDCC"
+	y[3] = uint64(((uint16(a) & 0xFF0) >> 9) & 0x1F)
 }
 
 // 128 bit shifts
@@ -494,4 +513,21 @@ func checkShiftToMask(u []uint64, s []int64) {
 	s[0] = s[0] >> 5 << 5
 	// amd64:-"SHR",-"SHL","ANDQ"
 	u[1] = u[1] << 5 >> 5
+}
+
+//
+// Left shift with addition.
+//
+
+func checkLeftShiftWithAddition(a int64, b int64) int64 {
+	// riscv64/rva20u64: "SLLI","ADD"
+	// riscv64/rva22u64: "SH1ADD"
+	a = a + b<<1
+	// riscv64/rva20u64: "SLLI","ADD"
+	// riscv64/rva22u64: "SH2ADD"
+	a = a + b<<2
+	// riscv64/rva20u64: "SLLI","ADD"
+	// riscv64/rva22u64: "SH3ADD"
+	a = a + b<<3
+	return a
 }

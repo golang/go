@@ -306,6 +306,19 @@ type XVSockPgen struct {
 
 type _Socklen uint32
 
+type SaeAssocID uint32
+
+type SaeConnID uint32
+
+type SaEndpoints struct {
+	Srcif      uint32
+	Srcaddr    *RawSockaddr
+	Srcaddrlen uint32
+	Dstaddr    *RawSockaddr
+	Dstaddrlen uint32
+	_          [4]byte
+}
+
 type Xucred struct {
 	Version uint32
 	Uid     uint32

@@ -174,7 +174,7 @@ func hostArchive(ctxt *Link, name string) {
 			libar := sym.Library{Pkg: pkname}
 			h := ldobj(ctxt, f, &libar, l, pname, name)
 			if h.ld == nil {
-				Errorf(nil, "%s unrecognized object file at offset %d", name, off)
+				Errorf("%s unrecognized object file at offset %d", name, off)
 				continue
 			}
 			f.MustSeek(h.off, 0)

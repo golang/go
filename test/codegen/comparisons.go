@@ -233,9 +233,9 @@ func CmpToZero(a, b, d int32, e, f int64, deOptC0, deOptC1 bool) int32 {
 	// arm:`AND`,-`TST`
 	// 386:`ANDL`
 	c6 := a&d >= 0
-	// arm64:`TST\sR[0-9]+<<3,\sR[0-9]+`
+	// For arm64, could be TST+BGE or AND+TBZ
 	c7 := e&(f<<3) < 0
-	// arm64:`CMN\sR[0-9]+<<3,\sR[0-9]+`
+	// For arm64, could be CMN+BPL or ADD+TBZ
 	c8 := e+(f<<3) < 0
 	// arm64:`TST\sR[0-9],\sR[0-9]+`
 	c9 := e&(-19) < 0
@@ -268,7 +268,7 @@ func CmpToZero(a, b, d int32, e, f int64, deOptC0, deOptC1 bool) int32 {
 	}
 }
 
-func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
+func CmpLogicalToZero(a, b, c uint32, d, e, f, g uint64) uint64 {
 
 	// ppc64x:"ANDCC",-"CMPW"
 	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
@@ -289,7 +289,7 @@ func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
 	}
 	// ppc64x:"ORCC",-"CMP"
 	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
-	if d|e == 0 {
+	if f|g == 0 {
 		return 1
 	}
 

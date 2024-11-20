@@ -11,7 +11,7 @@ import (
 	"internal/testenv"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -77,7 +77,7 @@ func TestGolden(t *testing.T) {
 			t.Fatalf("opening golden.txt for package %q: %v", fi.Name(), err)
 		}
 		wanted := strings.Split(string(bs), "\n")
-		sort.Strings(wanted)
+		slices.Sort(wanted)
 		for _, feature := range wanted {
 			if feature == "" {
 				continue

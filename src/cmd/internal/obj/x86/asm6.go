@@ -2036,29 +2036,21 @@ type nopPad struct {
 	n int32     // Size of the pad
 }
 
-// Padding bytes to add to align code as requested.
-// Alignment is restricted to powers of 2 between 8 and 2048 inclusive.
+// requireAlignment ensures that the function alignment is at
+// least as high as a, which should be a power of two
+// and between 8 and 2048, inclusive.
 //
-// pc: current offset in function, in bytes
-// a: requested alignment, in bytes
-// cursym: current function being assembled
-// returns number of bytes of padding needed
-func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
+// the boolean result indicates whether the alignment meets those constraints
+func requireAlignment(a int64, ctxt *obj.Link, cursym *obj.LSym) bool {
 	if !((a&(a-1) == 0) && 8 <= a && a <= 2048) {
 		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", a)
-		return 0
+		return false
 	}
-
 	// By default function alignment is 32 bytes for amd64
 	if cursym.Func().Align < int32(a) {
 		cursym.Func().Align = int32(a)
 	}
-
-	if pc&(a-1) != 0 {
-		return int(a - (pc & (a - 1)))
-	}
-
-	return 0
+	return true
 }
 
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
@@ -2144,17 +2136,17 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			c0 := c
 			c = pjc.padJump(ctxt, s, p, c)
 
-			if p.As == obj.APCALIGN {
-				aln := p.From.Offset
-				v := addpad(int64(c), aln, ctxt, s)
+			if p.As == obj.APCALIGN || p.As == obj.APCALIGNMAX {
+				v := obj.AlignmentPadding(c, p, ctxt, s)
 				if v > 0 {
 					s.Grow(int64(c) + int64(v))
 					fillnop(s.P[c:], int(v))
 				}
-
+				p.Pc = int64(c)
 				c += int32(v)
 				pPrev = p
 				continue
+
 			}
 
 			if maxLoopPad > 0 && p.Back&branchLoopHead != 0 && c&(loopAlign-1) != 0 {
@@ -3514,7 +3506,7 @@ bas:
 	return
 
 bad:
-	ctxt.Diag("asmidx: bad address %d/%d/%d", scale, index, base)
+	ctxt.Diag("asmidx: bad address %d/%s/%s", scale, rconv(index), rconv(base))
 	ab.Put1(0)
 }
 
@@ -3526,9 +3518,8 @@ func (ab *AsmBuf) relput4(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj.
 		if rel.Siz != 4 {
 			ctxt.Diag("bad reloc")
 		}
-		r := obj.Addrel(cursym)
-		*r = rel
-		r.Off = int32(p.Pc + int64(ab.Len()))
+		rel.Off = int32(p.Pc + int64(ab.Len()))
+		cursym.AddRel(ctxt, rel)
 	}
 
 	ab.PutInt32(int32(v))
@@ -3787,9 +3778,8 @@ putrelv:
 			goto bad
 		}
 
-		r := obj.Addrel(cursym)
-		*r = rel
-		r.Off = int32(p.Pc + int64(ab.Len()))
+		rel.Off = int32(p.Pc + int64(ab.Len()))
+		cursym.AddRel(ctxt, rel)
 	}
 
 	ab.PutInt32(v)
@@ -4306,18 +4296,10 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	}
 
 	ft := int(p.Ft) * Ymax
-	var f3t int
 	tt := int(p.Tt) * Ymax
 
 	xo := obj.Bool2int(o.op[0] == 0x0f)
 	z := 0
-	var a *obj.Addr
-	var l int
-	var op int
-	var q *obj.Prog
-	var r *obj.Reloc
-	var rel obj.Reloc
-	var v int64
 
 	args := make([]int, 0, argListMax)
 	if ft != Ynone*Ymax {
@@ -4330,6 +4312,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 		args = append(args, tt)
 	}
 
+	var f3t int
 	for _, yt := range o.ytab {
 		// ytab matching is purely args-based,
 		// but AVX512 suffixes like "Z" or "RU_SAE" will
@@ -4448,7 +4431,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			if z >= len(o.op) {
 				log.Fatalf("asmins bad table %v", p)
 			}
-			op = int(o.op[z])
+			op := int(o.op[z])
 			if op == 0x0f {
 				ab.Put1(byte(op))
 				z++
@@ -4706,10 +4689,10 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				ab.asmando(ctxt, cursym, p, &p.To, int(o.op[z+1]))
 
 			case Zcallindreg:
-				r = obj.Addrel(cursym)
-				r.Off = int32(p.Pc)
-				r.Type = objabi.R_CALLIND
-				r.Siz = 0
+				cursym.AddRel(ctxt, obj.Reloc{
+					Type: objabi.R_CALLIND,
+					Off:  int32(p.Pc),
+				})
 				fallthrough
 
 			case Zo_m64:
@@ -4732,6 +4715,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				ab.Put1(byte(vaddr(ctxt, p, &p.From, nil)))
 
 			case Z_ib, Zib_:
+				var a *obj.Addr
 				if yt.zcase == Zib_ {
 					a = &p.From
 				} else {
@@ -4751,7 +4735,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				ab.rexflag |= regrex[p.To.Reg] & Rxb
 				ab.Put1(byte(op + reg[p.To.Reg]))
 				if o.prefix == Pe {
-					v = vaddr(ctxt, p, &p.From, nil)
+					v := vaddr(ctxt, p, &p.From, nil)
 					ab.PutInt16(int16(v))
 				} else {
 					ab.relput4(ctxt, cursym, p, &p.From)
@@ -4760,22 +4744,22 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			case Zo_iw:
 				ab.Put1(byte(op))
 				if p.From.Type != obj.TYPE_NONE {
-					v = vaddr(ctxt, p, &p.From, nil)
+					v := vaddr(ctxt, p, &p.From, nil)
 					ab.PutInt16(int16(v))
 				}
 
 			case Ziq_rp:
-				v = vaddr(ctxt, p, &p.From, &rel)
-				l = int(v >> 32)
+				var rel obj.Reloc
+				v := vaddr(ctxt, p, &p.From, &rel)
+				l := int(v >> 32)
 				if l == 0 && rel.Siz != 8 {
 					ab.rexflag &^= (0x40 | Rxw)
 
 					ab.rexflag |= regrex[p.To.Reg] & Rxb
 					ab.Put1(byte(0xb8 + reg[p.To.Reg]))
 					if rel.Type != 0 {
-						r = obj.Addrel(cursym)
-						*r = rel
-						r.Off = int32(p.Pc + int64(ab.Len()))
+						rel.Off = int32(p.Pc + int64(ab.Len()))
+						cursym.AddRel(ctxt, rel)
 					}
 
 					ab.PutInt32(int32(v))
@@ -4788,9 +4772,8 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					ab.rexflag |= regrex[p.To.Reg] & Rxb
 					ab.Put1(byte(op + reg[p.To.Reg]))
 					if rel.Type != 0 {
-						r = obj.Addrel(cursym)
-						*r = rel
-						r.Off = int32(p.Pc + int64(ab.Len()))
+						rel.Off = int32(p.Pc + int64(ab.Len()))
+						cursym.AddRel(ctxt, rel)
 					}
 
 					ab.PutInt64(v)
@@ -4802,6 +4785,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				ab.Put1(byte(vaddr(ctxt, p, &p.From, nil)))
 
 			case Z_il, Zil_:
+				var a *obj.Addr
 				if yt.zcase == Zil_ {
 					a = &p.From
 				} else {
@@ -4809,13 +4793,14 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				}
 				ab.Put1(byte(op))
 				if o.prefix == Pe {
-					v = vaddr(ctxt, p, a, nil)
+					v := vaddr(ctxt, p, a, nil)
 					ab.PutInt16(int16(v))
 				} else {
 					ab.relput4(ctxt, cursym, p, a)
 				}
 
 			case Zm_ilo, Zilo_m:
+				var a *obj.Addr
 				ab.Put1(byte(op))
 				if yt.zcase == Zilo_m {
 					a = &p.From
@@ -4826,7 +4811,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				}
 
 				if o.prefix == Pe {
-					v = vaddr(ctxt, p, a, nil)
+					v := vaddr(ctxt, p, a, nil)
 					ab.PutInt16(int16(v))
 				} else {
 					ab.relput4(ctxt, cursym, p, a)
@@ -4836,7 +4821,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				ab.Put1(byte(op))
 				ab.asmand(ctxt, cursym, p, &p.To, &p.To)
 				if o.prefix == Pe {
-					v = vaddr(ctxt, p, &p.From, nil)
+					v := vaddr(ctxt, p, &p.From, nil)
 					ab.PutInt16(int16(v))
 				} else {
 					ab.relput4(ctxt, cursym, p, &p.From)
@@ -4856,25 +4841,27 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				} else {
 					ab.Put1(o.op[z+1])
 				}
-				r = obj.Addrel(cursym)
-				r.Off = int32(p.Pc + int64(ab.Len()))
-				r.Type = objabi.R_PCREL
-				r.Siz = 4
-				r.Add = p.To.Offset
+				cursym.AddRel(ctxt, obj.Reloc{
+					Type: objabi.R_PCREL,
+					Off:  int32(p.Pc + int64(ab.Len())),
+					Siz:  4,
+					Add:  p.To.Offset,
+				})
 				ab.PutInt32(0)
 
 			case Zcallind:
 				ab.Put2(byte(op), o.op[z+1])
-				r = obj.Addrel(cursym)
-				r.Off = int32(p.Pc + int64(ab.Len()))
+				typ := objabi.R_ADDR
 				if ctxt.Arch.Family == sys.AMD64 {
-					r.Type = objabi.R_PCREL
-				} else {
-					r.Type = objabi.R_ADDR
+					typ = objabi.R_PCREL
 				}
-				r.Siz = 4
-				r.Add = p.To.Offset
-				r.Sym = p.To.Sym
+				cursym.AddRel(ctxt, obj.Reloc{
+					Type: typ,
+					Off:  int32(p.Pc + int64(ab.Len())),
+					Siz:  4,
+					Sym:  p.To.Sym,
+					Add:  p.To.Offset,
+				})
 				ab.PutInt32(0)
 
 			case Zcall, Zcallduff:
@@ -4899,12 +4886,13 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					ab.Put(bpduff1)
 				}
 				ab.Put1(byte(op))
-				r = obj.Addrel(cursym)
-				r.Off = int32(p.Pc + int64(ab.Len()))
-				r.Sym = p.To.Sym
-				r.Add = p.To.Offset
-				r.Type = objabi.R_CALL
-				r.Siz = 4
+				cursym.AddRel(ctxt, obj.Reloc{
+					Type: objabi.R_CALL,
+					Off:  int32(p.Pc + int64(ab.Len())),
+					Siz:  4,
+					Sym:  p.To.Sym,
+					Add:  p.To.Offset,
+				})
 				ab.PutInt32(0)
 
 				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
@@ -4926,13 +4914,14 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 					}
 
 					ab.Put1(o.op[z+1])
-					r = obj.Addrel(cursym)
-					r.Off = int32(p.Pc + int64(ab.Len()))
-					r.Sym = p.To.Sym
-					// Note: R_CALL instead of R_PCREL. R_CALL is more permissive in that
-					// it can point to a trampoline instead of the destination itself.
-					r.Type = objabi.R_CALL
-					r.Siz = 4
+					cursym.AddRel(ctxt, obj.Reloc{
+						// Note: R_CALL instead of R_PCREL. R_CALL is more permissive in that
+						// it can point to a trampoline instead of the destination itself.
+						Type: objabi.R_CALL,
+						Off:  int32(p.Pc + int64(ab.Len())),
+						Siz:  4,
+						Sym:  p.To.Sym,
+					})
 					ab.PutInt32(0)
 					break
 				}
@@ -4941,7 +4930,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				// TODO: Check in input, preserve in brchain.
 
 				// Fill in backward jump now.
-				q = p.To.Target()
+				q := p.To.Target()
 
 				if q == nil {
 					ctxt.Diag("jmp/branch/loop without target")
@@ -4950,7 +4939,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				}
 
 				if p.Back&branchBackwards != 0 {
-					v = q.Pc - (p.Pc + 2)
+					v := q.Pc - (p.Pc + 2)
 					if v >= -128 && p.As != AXBEGIN {
 						if p.As == AJCXZL {
 							ab.Put1(0x67)
@@ -4995,12 +4984,12 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 				}
 
 			case Zbyte:
-				v = vaddr(ctxt, p, &p.From, &rel)
+				var rel obj.Reloc
+				v := vaddr(ctxt, p, &p.From, &rel)
 				if rel.Siz != 0 {
 					rel.Siz = uint8(op)
-					r = obj.Addrel(cursym)
-					*r = rel
-					r.Off = int32(p.Pc + int64(ab.Len()))
+					rel.Off = int32(p.Pc + int64(ab.Len()))
+					cursym.AddRel(ctxt, rel)
 				}
 
 				ab.Put1(byte(v))
@@ -5146,19 +5135,21 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 								// instruction.
 								dst := p.To.Reg
 								ab.Put1(0xe8)
-								r = obj.Addrel(cursym)
-								r.Off = int32(p.Pc + int64(ab.Len()))
-								r.Type = objabi.R_CALL
-								r.Siz = 4
-								r.Sym = ctxt.Lookup("__x86.get_pc_thunk." + strings.ToLower(rconv(int(dst))))
+								cursym.AddRel(ctxt, obj.Reloc{
+									Type: objabi.R_CALL,
+									Off:  int32(p.Pc + int64(ab.Len())),
+									Siz:  4,
+									Sym:  ctxt.Lookup("__x86.get_pc_thunk." + strings.ToLower(rconv(int(dst)))),
+								})
 								ab.PutInt32(0)
 
 								ab.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
-								r = obj.Addrel(cursym)
-								r.Off = int32(p.Pc + int64(ab.Len()))
-								r.Type = objabi.R_TLS_IE
-								r.Siz = 4
-								r.Add = 2
+								cursym.AddRel(ctxt, obj.Reloc{
+									Type: objabi.R_TLS_IE,
+									Off:  int32(p.Pc + int64(ab.Len())),
+									Siz:  4,
+									Add:  2,
+								})
 								ab.PutInt32(0)
 							} else {
 								// ELF TLS base is 0(GS).
@@ -5206,11 +5197,12 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						ab.rexflag = Pw | (regrex[p.To.Reg] & Rxr)
 
 						ab.Put2(0x8B, byte(0x05|(reg[p.To.Reg]<<3)))
-						r = obj.Addrel(cursym)
-						r.Off = int32(p.Pc + int64(ab.Len()))
-						r.Type = objabi.R_TLS_IE
-						r.Siz = 4
-						r.Add = -4
+						cursym.AddRel(ctxt, obj.Reloc{
+							Type: objabi.R_TLS_IE,
+							Off:  int32(p.Pc + int64(ab.Len())),
+							Siz:  4,
+							Add:  -4,
+						})
 						ab.PutInt32(0)
 
 					case objabi.Hplan9:

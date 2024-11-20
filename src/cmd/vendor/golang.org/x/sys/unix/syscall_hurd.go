@@ -11,6 +11,7 @@ package unix
 int ioctl(int, unsigned long int, uintptr_t);
 */
 import "C"
+import "unsafe"
 
 func ioctl(fd int, req uint, arg uintptr) (err error) {
 	r0, er := C.ioctl(C.int(fd), C.ulong(req), C.uintptr_t(arg))

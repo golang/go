@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/coverage"
+	"cmd/compile/internal/deadlocals"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/inline"
@@ -30,6 +31,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"cmd/internal/telemetry/counter"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
@@ -58,6 +60,8 @@ func handlePanic() {
 // code, and finally writes the compiled package definition to disk.
 func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "init")
+	counter.Open()
+	counter.Inc("compile/invocations")
 
 	defer handlePanic()
 
@@ -100,6 +104,13 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	ir.Pkgs.Runtime = types.NewPkg("go.runtime", "runtime")
 	ir.Pkgs.Runtime.Prefix = "runtime"
 
+	if buildcfg.Experiment.SwissMap {
+		// Pseudo-package that contains the compiler's builtin
+		// declarations for maps.
+		ir.Pkgs.InternalMaps = types.NewPkg("go.internal/runtime/maps", "internal/runtime/maps")
+		ir.Pkgs.InternalMaps.Prefix = "internal/runtime/maps"
+	}
+
 	// pseudo-packages used in symbol tables
 	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
 	ir.Pkgs.Itab.Prefix = "go:itab"
@@ -129,7 +140,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 
 	if base.Flag.SmallFrames {
-		ir.MaxStackVarSize = 128 * 1024
+		ir.MaxStackVarSize = 64 * 1024
 		ir.MaxImplicitStackVarSize = 16 * 1024
 	}
 
@@ -244,6 +255,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// and doesn't benefit from dead-coding or inlining.
 	symABIs.GenABIWrappers()
 
+	deadlocals.Funcs(typecheck.Target.Funcs)
+
 	// Escape analysis.
 	// Required for moving heap allocations onto stack,
 	// which in turn is required by the closure implementation,
@@ -300,7 +313,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		// as late as possible to maximize how much work we can batch and
 		// process concurrently.
 		if len(compilequeue) != 0 {
-			compileFunctions()
+			compileFunctions(profile)
 			continue
 		}
 

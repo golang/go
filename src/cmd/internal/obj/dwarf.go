@@ -11,7 +11,8 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
-	"sort"
+	"slices"
+	"strings"
 	"sync"
 )
 
@@ -292,7 +293,7 @@ func isDwarf64(ctxt *Link) bool {
 }
 
 func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfDebugLines *LSym) {
-	if s.Type != objabi.STEXT {
+	if !s.Type.IsText() {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
 	fn := s.Func()
@@ -343,7 +344,7 @@ func (ctxt *Link) populateDWARF(curfn Func, s *LSym) {
 	var scopes []dwarf.Scope
 	var inlcalls dwarf.InlCalls
 	if ctxt.DebugInfo != nil {
-		scopes, inlcalls = ctxt.DebugInfo(s, info, curfn)
+		scopes, inlcalls = ctxt.DebugInfo(ctxt, s, info, curfn)
 	}
 	var err error
 	dwctxt := dwCtxt{ctxt}
@@ -420,7 +421,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn Func, s *LSym) {
 	if s.Func() == nil {
 		s.NewFuncInfo()
 	}
-	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
+	scopes, _ := ctxt.DebugInfo(ctxt, s, absfn, curfn)
 	dwctxt := dwCtxt{ctxt}
 	fnstate := dwarf.FnState{
 		Name:          s.Name,
@@ -665,7 +666,9 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 		fns[idx] = fn
 		idx++
 	}
-	sort.Sort(BySymName(fns))
+	slices.SortFunc(fns, func(a, b *LSym) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	// Should not be called during parallel portion of compilation.
 	if ft.ctxt.InParallel {
@@ -692,9 +695,3 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 		}
 	}
 }
-
-type BySymName []*LSym
-
-func (s BySymName) Len() int           { return len(s) }
-func (s BySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
-func (s BySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

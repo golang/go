@@ -53,9 +53,10 @@ func dumpregs(c *sigctxt) {
 //go:nowritebarrierrec
 func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
 
-func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
-func (c *sigctxt) siglr() uintptr { return uintptr(c.link()) }
-func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
+func (c *sigctxt) setsigpc(x uint64) { c.set_pc(x) }
+func (c *sigctxt) sigsp() uintptr    { return uintptr(c.sp()) }
+func (c *sigctxt) siglr() uintptr    { return uintptr(c.link()) }
+func (c *sigctxt) fault() uintptr    { return uintptr(c.sigaddr()) }
 
 // preparePanic sets up the stack to look like a call to sigpanic.
 func (c *sigctxt) preparePanic(sig uint32, gp *g) {

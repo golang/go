@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -21,8 +21,9 @@ type mcache struct {
 
 	// The following members are accessed on every malloc,
 	// so they are grouped here for better caching.
-	nextSample uintptr // trigger heap sample after allocating this many bytes
-	scanAlloc  uintptr // bytes of scannable heap allocated
+	nextSample  int64   // trigger heap sample after allocating this many bytes
+	memProfRate int     // cached mem profile rate, used to detect changes
+	scanAlloc   uintptr // bytes of scannable heap allocated
 
 	// Allocator cache for tiny objects w/o pointers.
 	// See "Tiny allocator" comment in malloc.go.
@@ -252,7 +253,7 @@ func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
 	// visible to the background sweeper.
 	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
 	s.limit = s.base() + size
-	s.initHeapBits(false)
+	s.initHeapBits()
 	return s
 }
 

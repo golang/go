@@ -260,13 +260,32 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XORIS $15, R3, R4               // 6c64000f
 	XOR   $983040, R3, R4           // 6c64000f
 
-	// TODO: the order of CR operands don't match
+	// TODO: cleanup inconsistency of printing CMPx opcodes with explicit CR arguments.
 	CMP R3, R4                      // 7c232000
+	CMP R3, R0                      // 7c230000
+	CMP R3, R0, CR1                 // CMP R3,CR1,R0   // 7ca30000
 	CMPU R3, R4                     // 7c232040
+	CMPU R3, R0                     // 7c230040
+	CMPU R3, R0, CR2                // CMPU R3,CR2,R0  // 7d230040
 	CMPW R3, R4                     // 7c032000
+	CMPW R3, R0                     // 7c030000
+	CMPW R3, R0, CR3                // CMPW R3,CR3,R0  // 7d830000
 	CMPWU R3, R4                    // 7c032040
-	CMPB R3,R4,R4                   // 7c6423f8
+	CMPWU R3, R0                    // 7c030040
+	CMPWU R3, R0, CR4               // CMPWU R3,CR4,R0 // 7e030040
+	CMP R3, $0                      // 2c230000
+	CMPU R3, $0                     // 28230000
+	CMPW R3, $0                     // 2c030000
+	CMPWU R3, $0                    // 28030000
+	CMP R3, $0, CR0                 // CMP R3,CR0,$0        // 2c230000
+	CMPU R3, $0, CR1                // CMPU R3,CR1,$0       // 28a30000
+	CMPW R3, $0, CR2                // CMPW R3,CR2,$0       // 2d030000
+	CMPW R3, $-32768, CR2           // CMPW R3,CR2,$-32768  // 2d038000
+	CMPWU R3, $0, CR3               // CMPWU R3,CR3,$0      // 29830000
+	CMPWU R3, $0x8008, CR3          // CMPWU R3,CR3,$32776  // 29838008
+
 	CMPEQB R3,R4,CR6                // 7f0321c0
+	CMPB R3,R4,R4                   // 7c6423f8
 
 	ADD R3, R4                      // 7c841a14
 	ADD R3, R4, R5                  // 7ca41a14
@@ -489,17 +508,26 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 
 	BEQ 0(PC)                       // 41820000
 	BEQ CR1,0(PC)                   // 41860000
+	BEQ CR0, LR                     // 4d820020
+	BEQ CR7, LR                     // 4d9e0020
 	BGE 0(PC)                       // 40800000
 	BGE CR2,0(PC)                   // 40880000
+	BGE CR6,LR                      // 4c980020
 	BGT 4(PC)                       // 41810010
 	BGT CR3,4(PC)                   // 418d0010
+	BGT CR6, LR                     // 4d990020
 	BLE 0(PC)                       // 40810000
 	BLE CR4,0(PC)                   // 40910000
+	BLE CR6, LR                     // 4c990020
 	BLT 0(PC)                       // 41800000
 	BLT CR5,0(PC)                   // 41940000
 	BNE 0(PC)                       // 40820000
+	BNE CR6, LR                     // 4c9a0020
 	BLT CR6,0(PC)                   // 41980000
+	BLT CR6, LR                     // 4d980020
 	BVC 0(PC)                       // 40830000
+	BVC CR6, LR                     // 4c9b0020
+	BVS CR6, LR                     // 4d9b0020
 	BVS 0(PC)                       // 41830000
 	JMP 8(PC)                       // 48000010
 
@@ -662,9 +690,13 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FMOVDCC F1, F2                  // fc400891
 	FADDS F1, F2                    // ec42082a
 	FADDS F1, F2, F3                // ec62082a
+	DADD F1, F2                     // ec420804
+	DADD F1, F2, F3                 // ec620804
 	FADDSCC F1, F2, F3              // ec62082b
 	FSUB F1, F2                     // fc420828
 	FSUB F1, F2, F3                 // fc620828
+	DSUB F1, F2                     // ec420c04
+        DSUB F1, F2, F3                 // ec620c04
 	FSUBCC F1, F2, F3               // fc620829
 	FSUBS F1, F2                    // ec420828
 	FSUBS F1, F2, F3                // ec620828
@@ -672,12 +704,16 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FSUBSCC F1, F2, F3              // ec620829
 	FMUL F1, F2                     // fc420072
 	FMUL F1, F2, F3                 // fc620072
+	DMUL F1, F2                     // ec420044
+        DMUL F1, F2, F3                 // ec620044
 	FMULCC F1, F2, F3               // fc620073
 	FMULS F1, F2                    // ec420072
 	FMULS F1, F2, F3                // ec620072
 	FMULSCC F1, F2, F3              // ec620073
 	FDIV F1, F2                     // fc420824
 	FDIV F1, F2, F3                 // fc620824
+	DDIV F1, F2                     // ec420c44
+        DDIV F1, F2, F3                 // ec620c44
 	FDIVCC F1, F2, F3               // fc620825
 	FDIVS F1, F2                    // ec420824
 	FDIVS F1, F2, F3                // ec620824
@@ -744,7 +780,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FCPSGN F1, F2                   // fc420810
 	FCPSGNCC F1, F2                 // fc420811
 	FCMPO F1, F2                    // fc011040
+	FCMPO F1, F2, CR0               // FCMPO F1,CR0,F2 // fc011040
 	FCMPU F1, F2                    // fc011000
+	FCMPU F1, F2, CR0               // FCMPU F1,CR0,F2 // fc011000
 	LVX (R3)(R4), V1                // 7c2418ce
 	LVX (R3)(R0), V1                // 7c2018ce
 	LVX (R3), V1                    // 7c2018ce
@@ -1134,6 +1172,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVD XER, 4(R1)                 // 7fe102a6fbe10004
 	MOVD 4(R1), SPR(3)              // ebe100047fe303a6
 	MOVD 4(R1), XER                 // ebe100047fe103a6
+	OR $0, R0, R0                   // 60000000
+
+	PCALIGN $16
 	PNOP                            // 0700000000000000
 
 	SETB CR1,R3                     // 7c640100

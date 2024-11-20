@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"math/big"
+	"math/rand/v2"
 
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
@@ -77,6 +78,19 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err error) {
 	c := priv.Curve
 
+	// A cheap version of hedged signatures, for the deprecated path.
+	var seed [32]byte
+	if _, err := io.ReadFull(csprng, seed[:]); err != nil {
+		return nil, err
+	}
+	for i, b := range priv.D.Bytes() {
+		seed[i%32] ^= b
+	}
+	for i, b := range hash {
+		seed[i%32] ^= b
+	}
+	csprng = rand.NewChaCha8(seed)
+
 	// SEC 1, Version 2.0, Section 4.1.3
 	N := c.Params().N
 	if N.Sign() == 0 {
@@ -115,6 +129,9 @@ func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, er
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid. Most applications should
 // use VerifyASN1 instead of dealing directly with r, s.
+//
+// The inputs are not considered confidential, and may leak through timing side
+// channels, or if an attacker has control of part of the inputs.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	if r.Sign() <= 0 || s.Sign() <= 0 {
 		return false
@@ -168,9 +185,6 @@ var one = new(big.Int).SetInt64(1)
 // randFieldElement returns a random element of the order of the given
 // curve using the procedure given in FIPS 186-4, Appendix B.5.2.
 func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) {
-	// See randomPoint for notes on the algorithm. This has to match, or s390x
-	// signatures will come out different from other architectures, which will
-	// break TLS recorded tests.
 	for {
 		N := c.Params().N
 		b := make([]byte, (N.BitLen()+7)/8)

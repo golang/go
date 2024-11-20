@@ -13,6 +13,7 @@
 //go:linkname Loadint32
 //go:linkname Loadint64
 //go:linkname Loaduintptr
+//go:linkname LoadAcquintptr
 //go:linkname Xadd
 //go:linkname Xaddint32
 //go:linkname Xaddint64
@@ -33,6 +34,7 @@
 //go:linkname Storeint32
 //go:linkname Storeint64
 //go:linkname Storeuintptr
+//go:linkname StoreReluintptr
 
 package atomic
 

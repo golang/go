@@ -6,8 +6,9 @@ package testing_test
 
 import (
 	"bytes"
+	"cmp"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -126,6 +127,22 @@ func TestRunParallelSkipNow(t *testing.T) {
 	})
 }
 
+func TestLoopEqualsRangeOverBN(t *testing.T) {
+	// Verify that b.N and the b.Loop() iteration count match.
+	var nIterated, nInfered int
+	testing.Benchmark(func(b *testing.B) {
+		i := 0
+		for b.Loop() {
+			i++
+		}
+		nIterated = i
+		nInfered = b.N
+	})
+	if nIterated != nInfered {
+		t.Fatalf("Iteration of the two different benchmark loop flavor differs, got %d iterations want %d", nIterated, nInfered)
+	}
+}
+
 func ExampleB_RunParallel() {
 	// Parallel benchmark for text/template.Template.Execute on a single object.
 	testing.Benchmark(func(b *testing.B) {
@@ -168,9 +185,9 @@ func ExampleB_ReportMetric() {
 		var compares int64
 		for i := 0; i < b.N; i++ {
 			s := []int{5, 4, 3, 2, 1}
-			sort.Slice(s, func(i, j int) bool {
+			slices.SortFunc(s, func(a, b int) int {
 				compares++
-				return s[i] < s[j]
+				return cmp.Compare(a, b)
 			})
 		}
 		// This metric is per-operation, so divide by b.N and
@@ -190,12 +207,12 @@ func ExampleB_ReportMetric_parallel() {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				s := []int{5, 4, 3, 2, 1}
-				sort.Slice(s, func(i, j int) bool {
+				slices.SortFunc(s, func(a, b int) int {
 					// Because RunParallel runs the function many
 					// times in parallel, we must increment the
 					// counter atomically to avoid racing writes.
 					compares.Add(1)
-					return s[i] < s[j]
+					return cmp.Compare(a, b)
 				})
 			}
 		})

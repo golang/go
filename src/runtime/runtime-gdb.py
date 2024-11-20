@@ -160,7 +160,118 @@ class MapTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		MapBucketCount = 8 # see internal/abi.go:MapBucketCount
+		fields = [f.name for f in self.val.type.strip_typedefs().target().fields()]
+		if 'buckets' in fields:
+			yield from self.old_map_children()
+		else:
+			yield from self.swiss_map_children()
+
+	def swiss_map_children(self):
+		SwissMapGroupSlots = 8 # see internal/abi:SwissMapGroupSlots
+
+		cnt = 0
+		# Yield keys and elements in group.
+		# group is a value of type *group[K,V]
+		def group_slots(group):
+			ctrl = group['ctrl']
+
+			for i in xrange(SwissMapGroupSlots):
+				c = (ctrl >> (8*i)) & 0xff
+				if (c & 0x80) != 0:
+					# Empty or deleted
+					continue
+
+				# Full
+				yield str(cnt), group['slots'][i]['key']
+				yield str(cnt+1), group['slots'][i]['elem']
+
+		# The linker DWARF generation
+		# (cmd/link/internal/ld.(*dwctxt).synthesizemaptypesSwiss) records
+		# dirPtr as a **table[K,V], but it may actually be two different types:
+		#
+		# For "full size" maps (dirLen > 0), dirPtr is actually a pointer to
+		# variable length array *[dirLen]*table[K,V]. In other words, dirPtr +
+		# dirLen are a deconstructed slice []*table[K,V].
+		#
+		# For "small" maps (dirLen <= 0), dirPtr is a pointer directly to a
+		# single group *group[K,V] containing the map slots.
+		#
+		# N.B. array() takes an _inclusive_ upper bound.
+
+		# table[K,V]
+		table_type = self.val['dirPtr'].type.target().target()
+
+		if self.val['dirLen'] <= 0:
+			# Small map
+
+			# We need to find the group type we'll cast to. Since dirPtr isn't
+			# actually **table[K,V], we can't use the nice API of
+			# obj['field'].type, as that actually wants to dereference obj.
+			# Instead, search only via the type API.
+			ptr_group_type = None
+			for tf in table_type.fields():
+				if tf.name != 'groups':
+					continue
+				groups_type = tf.type
+				for gf in groups_type.fields():
+					if gf.name != 'data':
+						continue
+					# *group[K,V]
+					ptr_group_type = gf.type
+
+			if ptr_group_type is None:
+				raise TypeError("unable to find table[K,V].groups.data")
+
+			# group = (*group[K,V])(dirPtr)
+			group = self.val['dirPtr'].cast(ptr_group_type)
+
+			yield from group_slots(group)
+
+			return
+
+		# Full size map.
+
+		# *table[K,V]
+		ptr_table_type = table_type.pointer()
+		# [dirLen]*table[K,V]
+		array_ptr_table_type = ptr_table_type.array(self.val['dirLen']-1)
+		# *[dirLen]*table[K,V]
+		ptr_array_ptr_table_type = array_ptr_table_type.pointer()
+		# tables = (*[dirLen]*table[K,V])(dirPtr)
+		tables = self.val['dirPtr'].cast(ptr_array_ptr_table_type)
+
+		cnt = 0
+		for t in xrange(self.val['dirLen']):
+			table = tables[t]
+			table = table.dereference()
+
+			groups = table['groups']['data']
+			length = table['groups']['lengthMask'] + 1
+
+			# The linker DWARF generation
+			# (cmd/link/internal/ld.(*dwctxt).synthesizemaptypesSwiss) records
+			# groups.data as a *group[K,V], but it is actually a pointer to
+			# variable length array *[length]group[K,V].
+			#
+			# N.B. array() takes an _inclusive_ upper bound.
+
+			# group[K,V]
+			group_type = groups.type.target()
+			# [length]group[K,V]
+			array_group_type = group_type.array(length-1)
+			# *[length]group[K,V]
+			ptr_array_group_type = array_group_type.pointer()
+			# groups = (*[length]group[K,V])(groups.data)
+			groups = groups.cast(ptr_array_group_type)
+			groups = groups.dereference()
+
+			for i in xrange(length):
+				group = groups[i]
+				yield from group_slots(group)
+
+
+	def old_map_children(self):
+		MapBucketCount = 8 # see internal/abi:OldMapBucketCount
 		B = self.val['B']
 		buckets = self.val['buckets']
 		oldbuckets = self.val['oldbuckets']
@@ -385,7 +496,7 @@ goobjfile.pretty_printers.append(ifacematcher)
 class GoLenFunc(gdb.Function):
 	"Length of strings, slices, maps or channels"
 
-	how = ((StringTypePrinter, 'len'), (SliceTypePrinter, 'len'), (MapTypePrinter, 'count'), (ChanTypePrinter, 'qcount'))
+	how = ((StringTypePrinter, 'len'), (SliceTypePrinter, 'len'), (MapTypePrinter, 'used'), (ChanTypePrinter, 'qcount'))
 
 	def __init__(self):
 		gdb.Function.__init__(self, "len")
@@ -394,6 +505,12 @@ class GoLenFunc(gdb.Function):
 		typename = str(obj.type)
 		for klass, fld in self.how:
 			if klass.pattern.match(typename) or paramtypematch(obj.type, klass.pattern):
+				if klass == MapTypePrinter:
+					fields = [f.name for f in self.val.type.strip_typedefs().target().fields()]
+					if 'buckets' in fields:
+						# Old maps.
+						fld = 'count'
+
 				return obj[fld]
 
 

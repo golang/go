@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -295,4 +296,30 @@ func setCrashFD(fd uintptr) uintptr {
 // It contains an even number of elements, (tag, value) pairs.
 var auxv []uintptr
 
-func getAuxv() []uintptr { return auxv } // accessed from x/sys/cpu; see issue 57336
+// golang.org/x/sys/cpu uses getAuxv via linkname.
+// Do not remove or change the type signature.
+// (See go.dev/issue/57336.)
+//
+// getAuxv should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/cilium/ebpf
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname getAuxv
+func getAuxv() []uintptr { return auxv }
+
+// zeroVal is used by reflect via linkname.
+//
+// zeroVal should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname zeroVal
+var zeroVal [abi.ZeroValSize]byte

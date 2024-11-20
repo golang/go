@@ -8,13 +8,17 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"os"
+	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -296,8 +300,8 @@ const maxStackSize = 1 << 30
 // uses it to generate a plist,
 // and flushes that plist to machine code.
 // worker indicates which of the backend workers is doing the processing.
-func Compile(fn *ir.Func, worker int) {
-	f := buildssa(fn, worker)
+func Compile(fn *ir.Func, worker int, profile *pgoir.Profile) {
+	f := buildssa(fn, worker, inline.IsPgoHotFunc(fn, profile) || inline.HasPgoHotInline(fn))
 	// Note: check arg size to fix issue 25507.
 	if f.Frontend().(*ssafn).stksize >= maxStackSize || f.OwnAux.ArgWidth() >= maxStackSize {
 		largeStackFramesMu.Lock()
@@ -412,11 +416,9 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
 	for sym := range tracked {
 		trackSyms = append(trackSyms, sym)
 	}
-	sort.Slice(trackSyms, func(i, j int) bool { return trackSyms[i].Name < trackSyms[j].Name })
+	slices.SortFunc(trackSyms, func(a, b *obj.LSym) int { return strings.Compare(a.Name, b.Name) })
 	for _, sym := range trackSyms {
-		r := obj.Addrel(fnsym)
-		r.Sym = sym
-		r.Type = objabi.R_USEFIELD
+		fnsym.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_USEFIELD, Sym: sym})
 	}
 }
 
