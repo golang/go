@@ -230,8 +230,6 @@ func TestGetStartupInfo(t *testing.T) {
 func TestSyscallAllocations(t *testing.T) {
 	testenv.SkipIfOptimizationOff(t)
 
-	t.Parallel()
-
 	// Test that syscall.SyscallN arguments do not escape.
 	// The function used (in this case GetVersion) doesn't matter
 	// as long as it is always available and doesn't panic.
