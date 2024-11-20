@@ -1,5 +1,11 @@
 ## Compiler {#compiler}
 
+<!-- go.dev/issue/60725, go.dev/issue/57926 -->
+The compiler already disallowed defining new methods with receiver types that were
+cgo-generated, but it was possible to circumvent that restriction via an alias type.
+Go 1.24 now always reports an error if a receiver denotes a cgo-generated type,
+whether directly or indirectly (through an alias type).
+
 ## Assembler {#assembler}
 
 ## Linker {#linker}
