@@ -852,7 +852,7 @@ import "C"
 
 type Layout = C.struct_layout
 
-func (l /* ERROR "cannot define new methods on non-local type Layout" */ *Layout) Binding() {}
+func (l *Layout /* ERROR "cannot define new methods on non-local type Layout" */ ) Binding() {}
 
 func _() {
 	_ = (*Layout).Binding

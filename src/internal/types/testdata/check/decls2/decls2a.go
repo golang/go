@@ -83,7 +83,7 @@ func (T5 /* ERROR "invalid receiver" */ ) m2() {}
 // Methods associated with a named pointer type.
 type ptr *int
 func (ptr /* ERROR "invalid receiver" */ ) _() {}
-func (* /* ERROR "invalid receiver" */ ptr) _() {}
+func (*ptr /* ERROR "invalid receiver" */ ) _() {}
 
 // Methods with zero or multiple receivers.
 func ( /* ERROR "method has no receiver" */ ) _() {}
@@ -96,13 +96,13 @@ func (a, b, c /* ERROR "method has multiple receivers" */ T3) _() {}
 func (int /* ERROR "cannot define new methods on non-local type int" */ ) m() {}
 func ([ /* ERROR "invalid receiver" */ ]int) m() {}
 func (time /* ERROR "cannot define new methods on non-local type time.Time" */ .Time) m() {}
-func (* /* ERROR "cannot define new methods on non-local type time.Time" */ time.Time) m() {}
-func (x /* ERROR "invalid receiver" */ interface{}) m() {}
+func (*time /* ERROR "cannot define new methods on non-local type time.Time" */ .Time) m() {}
+func (x any /* ERROR "invalid receiver" */ ) m() {}
 
 // Unsafe.Pointer is treated like a pointer when used as receiver type.
 type UP unsafe.Pointer
 func (UP /* ERROR "invalid" */ ) m1() {}
-func (* /* ERROR "invalid" */ UP) m2() {}
+func (*UP /* ERROR "invalid" */ ) m2() {}
 
 // Double declarations across package files
 const c_double = 0

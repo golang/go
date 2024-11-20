@@ -198,10 +198,7 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var, 
 		// parameters (wich may have the same name, see below).
 		var baseType *Named // nil if not valid
 		var cause string
-		if t := check.genericType(rbase, &cause); cause != "" {
-			check.errorf(rbase, InvalidRecv, "%s", cause)
-			// ok to continue
-		} else {
+		if t := check.genericType(rbase, &cause); isValid(t) {
 			switch t := t.(type) {
 			case *Named:
 				baseType = t
@@ -216,6 +213,11 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var, 
 			default:
 				panic("unreachable")
 			}
+		} else {
+			if cause != "" {
+				check.errorf(rbase, InvalidRecv, "%s", cause)
+			}
+			// Ok to continue but do not set baseType (see comment above).
 		}
 
 		// Collect the type parameters declared by the receiver (see also
@@ -299,7 +301,7 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var, 
 	// Delay validation of receiver type as it may cause premature expansion of types
 	// the receiver type is dependent on (see go.dev/issue/51232, go.dev/issue/51233).
 	check.later(func() {
-		check.validRecv(recv)
+		check.validRecv(rbase, recv)
 	}).describef(recv, "validRecv(%s)", recv)
 
 	return recv, recvTParamsList
@@ -420,7 +422,7 @@ func (check *Checker) declareParams(names []*ast.Ident, params []*Var, scopePos 
 
 // validRecv verifies that the receiver satisfies its respective spec requirements
 // and reports an error otherwise.
-func (check *Checker) validRecv(recv *Var) {
+func (check *Checker) validRecv(pos positioner, recv *Var) {
 	// spec: "The receiver type must be of the form T or *T where T is a type name."
 	rtyp, _ := deref(recv.typ)
 	atyp := Unalias(rtyp)
@@ -433,7 +435,7 @@ func (check *Checker) validRecv(recv *Var) {
 	switch T := atyp.(type) {
 	case *Named:
 		if T.obj.pkg != check.pkg || isCGoTypeObj(check.fset, T.obj) {
-			check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+			check.errorf(pos, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
 			break
 		}
 		var cause string
@@ -451,12 +453,12 @@ func (check *Checker) validRecv(recv *Var) {
 			panic("unreachable")
 		}
 		if cause != "" {
-			check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
+			check.errorf(pos, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
 		}
 	case *Basic:
-		check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+		check.errorf(pos, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
 	default:
-		check.errorf(recv, InvalidRecv, "invalid receiver type %s", recv.typ)
+		check.errorf(pos, InvalidRecv, "invalid receiver type %s", recv.typ)
 	}
 }
 
