@@ -45,23 +45,23 @@ var SigOIDtoName = map[OID]SigName{
 
 type PublicKey struct {
 	SigOID  OID
-	pqc     []byte
 	classic *ecdsa.PublicKey
+	pqc     []byte
 }
 
 type PrivateKey struct {
 	SigOID  OID
-	pqc     []byte
 	classic *ecdsa.PrivateKey
+	pqc     []byte
 	public  *PublicKey
 }
 
-func (pub *PublicKey) GetPublicKeys() (pqc []byte, classic *ecdsa.PublicKey) {
-	return pub.pqc, pub.classic
+func (pub *PublicKey) GetPublicKeys() (classic *ecdsa.PublicKey, pqc []byte) {
+	return pub.classic, pub.pqc
 }
 
-func (priv *PrivateKey) GetPrivateKeys() (pqc []byte, classic *ecdsa.PrivateKey) {
-	return priv.pqc, priv.classic
+func (priv *PrivateKey) GetPrivateKeys() (classic *ecdsa.PrivateKey, pqc []byte) {
+	return priv.classic, priv.pqc
 }
 
 func (priv *PrivateKey) ExportPublicKey() (pub PublicKey) {
@@ -70,6 +70,12 @@ func (priv *PrivateKey) ExportPublicKey() (pub PublicKey) {
 
 func GenerateKey(sigOID OID) (priv PrivateKey, err error) {
 	var pub PublicKey
+
+	// Classic NIST curves
+	if priv.classic, err = ecdsa.GenerateKey(SigOIDtoName[sigOID].classic, rand.Reader); err != nil {
+		return PrivateKey{}, err
+	}
+	pub.classic = &priv.classic.PublicKey
 
 	// Post-quantum LibOQS
 	pqcSigner := oqs.Signature{}
@@ -80,12 +86,6 @@ func GenerateKey(sigOID OID) (priv PrivateKey, err error) {
 		return PrivateKey{}, err
 	}
 	priv.pqc = pqcSigner.ExportSecretKey()
-
-	// Classic NIST curves
-	if priv.classic, err = ecdsa.GenerateKey(SigOIDtoName[sigOID].classic, rand.Reader); err != nil {
-		return PrivateKey{}, err
-	}
-	pub.classic = &priv.classic.PublicKey
 
 	pub.SigOID = sigOID
 	priv.SigOID = sigOID
@@ -99,6 +99,11 @@ func (priv *PrivateKey) Sign(message []byte) (signature []byte, err error) {
 	var pqcSig []byte
 	var classicSig []byte
 
+	// Classic NIST curves
+	if classicSig, err = ecdsa.SignASN1(rand.Reader, priv.classic, message); err != nil {
+		return nil, err
+	}
+
 	// Post-quantum LibOQS
 	pqcSigner := oqs.Signature{}
 	if err := pqcSigner.Init(SigOIDtoName[priv.SigOID].pqc, priv.pqc); err != nil {
@@ -108,16 +113,11 @@ func (priv *PrivateKey) Sign(message []byte) (signature []byte, err error) {
 		return nil, err
 	}
 
-	// Classic NIST curves
-	if classicSig, err = ecdsa.SignASN1(rand.Reader, priv.classic, message); err != nil {
-		return nil, err
-	}
-
 	// Concat both to make the hybrid signature
-	hybridSig.AddUint16(uint16(len(pqcSig)))
-	hybridSig.AddBytes(pqcSig)
 	hybridSig.AddUint16(uint16(len(classicSig)))
 	hybridSig.AddBytes(classicSig)
+	hybridSig.AddUint16(uint16(len(pqcSig)))
+	hybridSig.AddBytes(pqcSig)
 
 	return hybridSig.BytesOrPanic(), err
 }
@@ -145,27 +145,28 @@ func VerifyPQC(pub PublicKey, message []byte, signature []byte) bool {
 func Verify(option uint8, pub PublicKey, message []byte, signature []byte) bool {
 	var current uint16 = 0
 
-	pqcSize := binary.BigEndian.Uint16(signature[current : current+2])
-	current = current + 2
-	pqcSig := signature[current : current+pqcSize]
-	current = current + pqcSize
-
-	if option == PQC_SIGNATURE {
-		return VerifyPQC(pub, message, pqcSig)
-	}
-
 	classicSize := binary.BigEndian.Uint16(signature[current : current+2])
 	current = current + 2
 	classicSig := signature[current : current+classicSize]
 	current = current + classicSize
 
-	switch option {
-	case CLASSIC_SIGNATURE:
+	if option == CLASSIC_SIGNATURE {
 		return VerifyClassic(pub, message, classicSig)
-
-	default:
-		return VerifyPQC(pub, message, pqcSig) && VerifyClassic(pub, message, classicSig)
 	}
 
+	pqcSize := binary.BigEndian.Uint16(signature[current : current+2])
+	current = current + 2
+	pqcSig := signature[current : current+pqcSize]
+	current = current + pqcSize
+
+	switch option {
+	case PQC_SIGNATURE:
+		return VerifyPQC(pub, message, pqcSig)
+
+	default:
+		return VerifyClassic(pub, message, classicSig) && VerifyPQC(pub, message, pqcSig)
+	}
+
+	// UNREACHABLE
 	return false
 }
