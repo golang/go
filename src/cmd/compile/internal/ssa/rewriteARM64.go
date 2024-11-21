@@ -16606,7 +16606,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 	}
 	// match: (SUB a p:(ADDconst [c] m:(MUL _ _)))
 	// cond: p.Uses==1 && m.Uses==1
-	// result: (ADDconst [c] (SUB <v.Type> a m))
+	// result: (SUBconst [c] (SUB <v.Type> a m))
 	for {
 		a := v_0
 		p := v_1
@@ -16618,7 +16618,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 		if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1) {
 			break
 		}
-		v.reset(OpARM64ADDconst)
+		v.reset(OpARM64SUBconst)
 		v.AuxInt = int64ToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
 		v0.AddArg2(a, m)
@@ -16627,7 +16627,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 	}
 	// match: (SUB a p:(ADDconst [c] m:(MULW _ _)))
 	// cond: p.Uses==1 && m.Uses==1
-	// result: (ADDconst [c] (SUB <v.Type> a m))
+	// result: (SUBconst [c] (SUB <v.Type> a m))
 	for {
 		a := v_0
 		p := v_1
@@ -16639,7 +16639,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 		if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1) {
 			break
 		}
-		v.reset(OpARM64ADDconst)
+		v.reset(OpARM64SUBconst)
 		v.AuxInt = int64ToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
 		v0.AddArg2(a, m)
@@ -16648,7 +16648,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 	}
 	// match: (SUB a p:(ADDconst [c] m:(MNEG _ _)))
 	// cond: p.Uses==1 && m.Uses==1
-	// result: (ADDconst [c] (SUB <v.Type> a m))
+	// result: (SUBconst [c] (SUB <v.Type> a m))
 	for {
 		a := v_0
 		p := v_1
@@ -16660,7 +16660,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 		if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1) {
 			break
 		}
-		v.reset(OpARM64ADDconst)
+		v.reset(OpARM64SUBconst)
 		v.AuxInt = int64ToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
 		v0.AddArg2(a, m)
@@ -16669,7 +16669,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 	}
 	// match: (SUB a p:(ADDconst [c] m:(MNEGW _ _)))
 	// cond: p.Uses==1 && m.Uses==1
-	// result: (ADDconst [c] (SUB <v.Type> a m))
+	// result: (SUBconst [c] (SUB <v.Type> a m))
 	for {
 		a := v_0
 		p := v_1
@@ -16681,7 +16681,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 		if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1) {
 			break
 		}
-		v.reset(OpARM64ADDconst)
+		v.reset(OpARM64SUBconst)
 		v.AuxInt = int64ToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
 		v0.AddArg2(a, m)
@@ -16690,7 +16690,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 	}
 	// match: (SUB a p:(SUBconst [c] m:(MUL _ _)))
 	// cond: p.Uses==1 && m.Uses==1
-	// result: (SUBconst [c] (SUB <v.Type> a m))
+	// result: (ADDconst [c] (SUB <v.Type> a m))
 	for {
 		a := v_0
 		p := v_1
@@ -16702,7 +16702,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 		if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1) {
 			break
 		}
-		v.reset(OpARM64SUBconst)
+		v.reset(OpARM64ADDconst)
 		v.AuxInt = int64ToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
 		v0.AddArg2(a, m)
@@ -16711,7 +16711,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 	}
 	// match: (SUB a p:(SUBconst [c] m:(MULW _ _)))
 	// cond: p.Uses==1 && m.Uses==1
-	// result: (SUBconst [c] (SUB <v.Type> a m))
+	// result: (ADDconst [c] (SUB <v.Type> a m))
 	for {
 		a := v_0
 		p := v_1
@@ -16723,7 +16723,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 		if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1) {
 			break
 		}
-		v.reset(OpARM64SUBconst)
+		v.reset(OpARM64ADDconst)
 		v.AuxInt = int64ToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
 		v0.AddArg2(a, m)
@@ -16732,7 +16732,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 	}
 	// match: (SUB a p:(SUBconst [c] m:(MNEG _ _)))
 	// cond: p.Uses==1 && m.Uses==1
-	// result: (SUBconst [c] (SUB <v.Type> a m))
+	// result: (ADDconst [c] (SUB <v.Type> a m))
 	for {
 		a := v_0
 		p := v_1
@@ -16744,7 +16744,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 		if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1) {
 			break
 		}
-		v.reset(OpARM64SUBconst)
+		v.reset(OpARM64ADDconst)
 		v.AuxInt = int64ToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
 		v0.AddArg2(a, m)
@@ -16753,7 +16753,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 	}
 	// match: (SUB a p:(SUBconst [c] m:(MNEGW _ _)))
 	// cond: p.Uses==1 && m.Uses==1
-	// result: (SUBconst [c] (SUB <v.Type> a m))
+	// result: (ADDconst [c] (SUB <v.Type> a m))
 	for {
 		a := v_0
 		p := v_1
@@ -16765,7 +16765,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 		if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1) {
 			break
 		}
-		v.reset(OpARM64SUBconst)
+		v.reset(OpARM64ADDconst)
 		v.AuxInt = int64ToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
 		v0.AddArg2(a, m)

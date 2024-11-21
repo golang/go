@@ -1150,8 +1150,8 @@
 // madd/msub can't take constant arguments, so do a bit of reordering if a non-constant is available.
 (ADD a p:(ADDconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (ADDconst [c] (ADD <v.Type> a m))
 (ADD a p:(SUBconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (SUBconst [c] (ADD <v.Type> a m))
-(SUB a p:(ADDconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (ADDconst [c] (SUB <v.Type> a m))
-(SUB a p:(SUBconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (SUBconst [c] (SUB <v.Type> a m))
+(SUB a p:(ADDconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (SUBconst [c] (SUB <v.Type> a m))
+(SUB a p:(SUBconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (ADDconst [c] (SUB <v.Type> a m))
 
 // optimize ADCSflags, SBCSflags and friends
 (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c)))) => (ADCSflags x y c)
