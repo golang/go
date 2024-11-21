@@ -30,10 +30,6 @@ import (
 // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
 // overlay, locks the file while reading, and applies fix, if applicable.
 func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfile.File, err error) {
-	// The path used to open the file shows up in errors. Use ShortPathConservative
-	// so a more convenient path is displayed in the errors. ShortPath isn't used
-	// because it's meant only to be used in errors, not to open files.
-	gomod = base.ShortPathConservative(gomod)
 	if fsys.Replaced(gomod) {
 		// Don't lock go.mod if it's part of the overlay.
 		// On Plan 9, locking requires chmod, and we don't want to modify any file
@@ -49,21 +45,31 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 	f, err = modfile.Parse(gomod, data, fix)
 	if err != nil {
 		// Errors returned by modfile.Parse begin with file:line.
-		return nil, nil, fmt.Errorf("errors parsing %s:\n%w", gomod, err)
+		return nil, nil, fmt.Errorf("errors parsing %s:\n%w", base.ShortPath(gomod), shortPathErrorList(err))
 	}
 	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
 		toolchain := ""
 		if f.Toolchain != nil {
 			toolchain = f.Toolchain.Name
 		}
-		return nil, nil, &gover.TooNewError{What: gomod, GoVersion: f.Go.Version, Toolchain: toolchain}
+		return nil, nil, &gover.TooNewError{What: base.ShortPath(gomod), GoVersion: f.Go.Version, Toolchain: toolchain}
 	}
 	if f.Module == nil {
 		// No module declaration. Must add module path.
-		return nil, nil, fmt.Errorf("error reading %s: missing module declaration. To specify the module path:\n\tgo mod edit -module=example.com/mod", gomod)
+		return nil, nil, fmt.Errorf("error reading %s: missing module declaration. To specify the module path:\n\tgo mod edit -module=example.com/mod", base.ShortPath(gomod))
 	}
 
 	return data, f, err
+}
+
+func shortPathErrorList(err error) error {
+	var el modfile.ErrorList
+	if errors.As(err, &el) {
+		for i := range el {
+			el[i].Filename = base.ShortPath(el[i].Filename)
+		}
+	}
+	return err
 }
 
 // A modFileIndex is an index of data corresponding to a modFile
