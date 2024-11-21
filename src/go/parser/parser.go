@@ -931,7 +931,7 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 	// distribute parameter types (len(list) > 0)
 	if named == 0 {
 		// all unnamed => found names are type names
-		for i := 0; i < len(list); i++ {
+		for i := range list {
 			par := &list[i]
 			if typ := par.name; typ != nil {
 				par.typ = typ
@@ -959,8 +959,8 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 		// some named or we're in a type parameter list => all must be named
 		var errPos token.Pos // left-most error position (or invalid)
 		var typ ast.Expr     // current type (from right to left)
-		for i := len(list) - 1; i >= 0; i-- {
-			if par := &list[i]; par.typ != nil {
+		for i := range list {
+			if par := &list[len(list)-i-1]; par.typ != nil {
 				typ = par.typ
 				if par.name == nil {
 					errPos = typ.Pos()
@@ -1042,36 +1042,39 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 	return
 }
 
-func (p *parser) parseParameters(acceptTParams bool) (tparams, params *ast.FieldList) {
+func (p *parser) parseTypeParameters() *ast.FieldList {
+	if p.trace {
+		defer un(trace(p, "TypeParameters"))
+	}
+
+	lbrack := p.expect(token.LBRACK)
+	var list []*ast.Field
+	if p.tok != token.RBRACK {
+		list = p.parseParameterList(nil, nil, token.RBRACK)
+	}
+	rbrack := p.expect(token.RBRACK)
+
+	if len(list) == 0 {
+		p.error(rbrack, "empty type parameter list")
+		return nil // avoid follow-on errors
+	}
+
+	return &ast.FieldList{Opening: lbrack, List: list, Closing: rbrack}
+}
+
+func (p *parser) parseParameters() *ast.FieldList {
 	if p.trace {
 		defer un(trace(p, "Parameters"))
 	}
 
-	if acceptTParams && p.tok == token.LBRACK {
-		opening := p.pos
-		p.next()
-		// [T any](params) syntax
-		list := p.parseParameterList(nil, nil, token.RBRACK)
-		rbrack := p.expect(token.RBRACK)
-		tparams = &ast.FieldList{Opening: opening, List: list, Closing: rbrack}
-		// Type parameter lists must not be empty.
-		if tparams.NumFields() == 0 {
-			p.error(tparams.Closing, "empty type parameter list")
-			tparams = nil // avoid follow-on errors
-		}
-	}
-
-	opening := p.expect(token.LPAREN)
-
-	var fields []*ast.Field
+	lparen := p.expect(token.LPAREN)
+	var list []*ast.Field
 	if p.tok != token.RPAREN {
-		fields = p.parseParameterList(nil, nil, token.RPAREN)
+		list = p.parseParameterList(nil, nil, token.RPAREN)
 	}
-
 	rparen := p.expect(token.RPAREN)
-	params = &ast.FieldList{Opening: opening, List: fields, Closing: rparen}
 
-	return
+	return &ast.FieldList{Opening: lparen, List: list, Closing: rparen}
 }
 
 func (p *parser) parseResult() *ast.FieldList {
@@ -1080,8 +1083,7 @@ func (p *parser) parseResult() *ast.FieldList {
 	}
 
 	if p.tok == token.LPAREN {
-		_, results := p.parseParameters(false)
-		return results
+		return p.parseParameters()
 	}
 
 	typ := p.tryIdentOrType()
@@ -1100,10 +1102,14 @@ func (p *parser) parseFuncType() *ast.FuncType {
 	}
 
 	pos := p.expect(token.FUNC)
-	tparams, params := p.parseParameters(true)
-	if tparams != nil {
-		p.error(tparams.Pos(), "function type must have no type parameters")
+	// accept type parameters for more tolerant parsing but complain
+	if p.tok == token.LBRACK {
+		tparams := p.parseTypeParameters()
+		if tparams != nil {
+			p.error(tparams.Opening, "function type must have no type parameters")
+		}
 	}
+	params := p.parseParameters()
 	results := p.parseResult()
 
 	return &ast.FuncType{Func: pos, Params: params, Results: results}
@@ -1137,7 +1143,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 				p.error(lbrack, "interface method must have no type parameters")
 
 				// TODO(rfindley) refactor to share code with parseFuncType.
-				_, params := p.parseParameters(false)
+				params := p.parseParameters()
 				results := p.parseResult()
 				idents = []*ast.Ident{ident}
 				typ = &ast.FuncType{
@@ -1167,7 +1173,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 		case p.tok == token.LPAREN:
 			// ordinary method
 			// TODO(rfindley) refactor to share code with parseFuncType.
-			_, params := p.parseParameters(false)
+			params := p.parseParameters()
 			results := p.parseResult()
 			idents = []*ast.Ident{ident}
 			typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
@@ -2575,8 +2581,6 @@ func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *
 	list := p.parseParameterList(name0, typ0, token.RBRACK)
 	closePos := p.expect(token.RBRACK)
 	spec.TypeParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
-	// Let the type checker decide whether to accept type parameters on aliases:
-	// see go.dev/issue/46477.
 	if p.tok == token.ASSIGN {
 		// type alias
 		spec.Assign = p.pos
@@ -2771,18 +2775,22 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 
 	var recv *ast.FieldList
 	if p.tok == token.LPAREN {
-		_, recv = p.parseParameters(false)
+		recv = p.parseParameters()
 	}
 
 	ident := p.parseIdent()
 
-	tparams, params := p.parseParameters(true)
-	if recv != nil && tparams != nil {
-		// Method declarations do not have type parameters. We parse them for a
-		// better error message and improved error recovery.
-		p.error(tparams.Opening, "method must have no type parameters")
-		tparams = nil
+	var tparams *ast.FieldList
+	if p.tok == token.LBRACK {
+		tparams = p.parseTypeParameters()
+		if recv != nil && tparams != nil {
+			// Method declarations do not have type parameters. We parse them for a
+			// better error message and improved error recovery.
+			p.error(tparams.Opening, "method must have no type parameters")
+			tparams = nil
+		}
 	}
+	params := p.parseParameters()
 	results := p.parseResult()
 
 	var body *ast.BlockStmt
