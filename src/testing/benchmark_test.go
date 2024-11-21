@@ -127,22 +127,25 @@ func TestRunParallelSkipNow(t *testing.T) {
 	})
 }
 
-func TestLoopEqualsRangeOverBN(t *testing.T) {
+func TestBLoopHasResults(t *testing.T) {
 	// Verify that b.N and the b.Loop() iteration count match.
-	var nIterated, nInfered int
-	testing.Benchmark(func(b *testing.B) {
+	var nIterated int
+	bRet := testing.Benchmark(func(b *testing.B) {
 		i := 0
 		for b.Loop() {
 			i++
 		}
 		nIterated = i
-		nInfered = b.N
 	})
-	if nIterated != nInfered {
-		t.Fatalf("Iteration of the two different benchmark loop flavor differs, got %d iterations want %d", nIterated, nInfered)
-	}
 	if nIterated == 0 {
 		t.Fatalf("Iteration count zero")
+	}
+	if bRet.N != nIterated {
+		t.Fatalf("Benchmark result N incorrect, got %d want %d", bRet.N, nIterated)
+	}
+	// We only need to check duration to make sure benchmark result is written.
+	if bRet.T == 0 {
+		t.Fatalf("Benchmark result duration unset")
 	}
 }
 

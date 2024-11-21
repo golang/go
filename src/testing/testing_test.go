@@ -989,6 +989,11 @@ func TestBenchmarkBLoopIterationCorrect(t *testing.T) {
 	if c != want {
 		t.Errorf("got %d loop rampup; want %d", c, want)
 	}
+
+	re := regexp.MustCompile(`BenchmarkBLoopPrint-[0-9]+\s*2\s*[0-9]+\s*ns/op.*`)
+	if !re.Match(out) {
+		t.Errorf("Missing benchmark output")
+	}
 }
 
 func TestBenchmarkBNIterationCorrect(t *testing.T) {

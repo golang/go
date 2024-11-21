@@ -230,13 +230,12 @@ func (b *B) run1() bool {
 	b.mu.RLock()
 	finished := b.finished
 	b.mu.RUnlock()
-	// b.Loop() does its own ramp-up so we just need to run it once.
-	if b.hasSub.Load() || finished || b.loopN != 0 {
+	if b.hasSub.Load() || finished {
 		tag := "BENCH"
 		if b.skipped {
 			tag = "SKIP"
 		}
-		if b.chatty != nil && (len(b.output) > 0 || finished || b.loopN != 0) {
+		if b.chatty != nil && (len(b.output) > 0 || finished) {
 			b.trimOutput()
 			fmt.Fprintf(b.w, "%s--- %s: %s\n%s", b.chatty.prefix(), tag, b.name, b.output)
 		}
@@ -304,28 +303,32 @@ func (b *B) launch() {
 		b.signal <- true
 	}()
 
-	// Run the benchmark for at least the specified amount of time.
-	if b.benchTime.n > 0 {
-		// We already ran a single iteration in run1.
-		// If -benchtime=1x was requested, use that result.
-		// See https://golang.org/issue/32051.
-		if b.benchTime.n > 1 {
-			b.runN(b.benchTime.n)
-		}
-	} else {
-		d := b.benchTime.d
-		for n := int64(1); !b.failed && b.duration < d && n < 1e9; {
-			last := n
-			// Predict required iterations.
-			goalns := d.Nanoseconds()
-			prevIters := int64(b.N)
-			prevns := b.duration.Nanoseconds()
-			if prevns <= 0 {
-				// Round up, to avoid div by zero.
-				prevns = 1
+	// b.Loop does its own ramp-up logic so we just need to run it once.
+	// If b.loopN is non zero, it means b.Loop has already run.
+	if b.loopN == 0 {
+		// Run the benchmark for at least the specified amount of time.
+		if b.benchTime.n > 0 {
+			// We already ran a single iteration in run1.
+			// If -benchtime=1x was requested, use that result.
+			// See https://golang.org/issue/32051.
+			if b.benchTime.n > 1 {
+				b.runN(b.benchTime.n)
 			}
-			n = int64(predictN(goalns, prevIters, prevns, last))
-			b.runN(int(n))
+		} else {
+			d := b.benchTime.d
+			for n := int64(1); !b.failed && b.duration < d && n < 1e9; {
+				last := n
+				// Predict required iterations.
+				goalns := d.Nanoseconds()
+				prevIters := int64(b.N)
+				prevns := b.duration.Nanoseconds()
+				if prevns <= 0 {
+					// Round up, to avoid div by zero.
+					prevns = 1
+				}
+				n = int64(predictN(goalns, prevIters, prevns, last))
+				b.runN(int(n))
+			}
 		}
 	}
 	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}
