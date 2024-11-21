@@ -6309,6 +6309,32 @@ func TestMapOfGCKeys(t *testing.T) {
 	}
 }
 
+// Test assignment and access to a map with keys larger than word size.
+func TestMapOfGCBigKey(t *testing.T) {
+	type KV struct {
+		i int64
+		j int64
+	}
+
+	kvTyp := TypeFor[KV]()
+	mt := MapOf(kvTyp, kvTyp)
+
+	const n = 100
+	m := MakeMap(mt)
+	for i := 0; i < n; i++ {
+		kv := KV{int64(i), int64(i+1)}
+		m.SetMapIndex(ValueOf(kv), ValueOf(kv))
+	}
+
+	for i := 0; i < n; i++ {
+		kv := KV{int64(i), int64(i+1)}
+		elem := m.MapIndex(ValueOf(kv)).Interface().(KV)
+		if elem != kv {
+			t.Errorf("lost m[%v] = %v, want %v", kv, elem, kv)
+		}
+	}
+}
+
 func TestMapOfGCValues(t *testing.T) {
 	type T *uintptr
 	tt := TypeOf(T(nil))
