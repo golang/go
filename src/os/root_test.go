@@ -810,6 +810,10 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
 			if f := test.detailedErrorMismatch; f != nil {
 				detailedErrorMismatch = f(t)
 			}
+			if runtime.GOOS == "plan9" {
+				// Plan9 syscall errors aren't comparable.
+				detailedErrorMismatch = true
+			}
 			if !detailedErrorMismatch && e1.Err != e2.Err {
 				t.Errorf("with root:    err=%v", e1.Err)
 				t.Errorf("without root: err=%v", e2.Err)
@@ -1143,9 +1147,11 @@ func TestRootRaceRenameDir(t *testing.T) {
 		// and then rename a directory near the root.
 		time.Sleep(avg / 4)
 		if err := os.Rename(dir+"/base/a", dir+"/b"); err != nil {
-			// Windows won't let us rename a directory if we have
+			// Windows and Plan9 won't let us rename a directory if we have
 			// an open handle for it, so an error here is expected.
-			if runtime.GOOS != "windows" {
+			switch runtime.GOOS {
+			case "windows", "plan9":
+			default:
 				t.Fatal(err)
 			}
 		}
