@@ -24,6 +24,7 @@ import (
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/hmac"
+	"crypto/internal/fips140/pbkdf2"
 	"crypto/internal/fips140/sha256"
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140/sha512"
@@ -72,6 +73,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html#section-7.2
 	// HMAC algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-mac.html#section-7
+	// PBKDF2 algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-celi-acvp-pbkdf.html#section-7.3
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -113,6 +116,8 @@ var (
 		"HMAC-SHA3-256":     cmdHmacAft(func() fips140.Hash { return sha3.New256() }),
 		"HMAC-SHA3-384":     cmdHmacAft(func() fips140.Hash { return sha3.New384() }),
 		"HMAC-SHA3-512":     cmdHmacAft(func() fips140.Hash { return sha3.New512() }),
+
+		"PBKDF": cmdPbkdf(),
 	}
 )
 
@@ -343,14 +348,70 @@ func cmdHmacAft(h func() fips140.Hash) command {
 	}
 }
 
+func cmdPbkdf() command {
+	return command{
+		// Hash name, key length, salt, password, iteration count
+		requiredArgs: 5,
+		handler: func(args [][]byte) ([][]byte, error) {
+			h, err := lookupHash(string(args[0]))
+			if err != nil {
+				return nil, fmt.Errorf("PBKDF2 failed: %w", err)
+			}
+
+			keyLen := binary.LittleEndian.Uint32(args[1]) / 8
+			salt := args[2]
+			password := args[3]
+			iterationCount := binary.LittleEndian.Uint32(args[4])
+
+			derivedKey, err := pbkdf2.Key(h, string(password), salt, int(iterationCount), int(keyLen))
+			if err != nil {
+				return nil, fmt.Errorf("PBKDF2 failed: %w", err)
+			}
+
+			return [][]byte{derivedKey}, nil
+		},
+	}
+}
+
+func lookupHash(name string) (func() fips140.Hash, error) {
+	var h func() fips140.Hash
+
+	switch name {
+	case "SHA2-224":
+		h = func() fips140.Hash { return sha256.New224() }
+	case "SHA2-256":
+		h = func() fips140.Hash { return sha256.New() }
+	case "SHA2-384":
+		h = func() fips140.Hash { return sha512.New384() }
+	case "SHA2-512":
+		h = func() fips140.Hash { return sha512.New() }
+	case "SHA2-512/224":
+		h = func() fips140.Hash { return sha512.New512_224() }
+	case "SHA2-512/256":
+		h = func() fips140.Hash { return sha512.New512_256() }
+	case "SHA3-224":
+		h = func() fips140.Hash { return sha3.New224() }
+	case "SHA3-256":
+		h = func() fips140.Hash { return sha3.New256() }
+	case "SHA3-384":
+		h = func() fips140.Hash { return sha3.New384() }
+	case "SHA3-512":
+		h = func() fips140.Hash { return sha3.New512() }
+	default:
+		return nil, fmt.Errorf("unknown hash name: %q", name)
+	}
+
+	return h, nil
+}
+
 func TestACVP(t *testing.T) {
 	testenv.SkipIfShortAndSlow(t)
 
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
-		bsslVersion   = "v0.0.0-20241009223352-905c3903fd42"
+		bsslVersion   = "v0.0.0-20241015160643-2587c4974dbe"
 		goAcvpModule  = "github.com/cpu/go-acvp"
-		goAcvpVersion = "v0.0.0-20241009200939-159f4c69a90d"
+		goAcvpVersion = "v0.0.0-20241011151719-6e0509dcb7ce"
 	)
 
 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"
