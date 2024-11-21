@@ -39,9 +39,6 @@ func initDefaultCache() Cache {
 		base.Fatalf("build cache is required, but could not be located: %v", err)
 	}
 	if dir == "off" {
-		if defaultDirErr != nil {
-			base.Fatalf("build cache is required, but could not be located: %v", defaultDirErr)
-		}
 		base.Fatalf("build cache is disabled by GOCACHE=off, but required as of Go 1.12")
 	}
 	if err := os.MkdirAll(dir, 0o777); err != nil {
