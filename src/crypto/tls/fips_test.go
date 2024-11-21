@@ -9,7 +9,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/tls/internal/fips140tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -73,14 +72,14 @@ func TestFIPSServerProtocolVersion(t *testing.T) {
 		})
 	}
 
-	test(t, "VersionTLS10", VersionTLS10, "")
-	test(t, "VersionTLS11", VersionTLS11, "")
-	test(t, "VersionTLS12", VersionTLS12, "")
-	test(t, "VersionTLS13", VersionTLS13, "")
+	runWithFIPSDisabled(t, func(t *testing.T) {
+		test(t, "VersionTLS10", VersionTLS10, "")
+		test(t, "VersionTLS11", VersionTLS11, "")
+		test(t, "VersionTLS12", VersionTLS12, "")
+		test(t, "VersionTLS13", VersionTLS13, "")
+	})
 
-	t.Run("fips140tls", func(t *testing.T) {
-		fips140tls.Force()
-		defer fips140tls.TestingOnlyAbandon()
+	runWithFIPSEnabled(t, func(t *testing.T) {
 		test(t, "VersionTLS10", VersionTLS10, "supported versions")
 		test(t, "VersionTLS11", VersionTLS11, "supported versions")
 		test(t, "VersionTLS12", VersionTLS12, "")
@@ -168,10 +167,11 @@ func TestFIPSServerCipherSuites(t *testing.T) {
 				clientHello.supportedVersions = []uint16{VersionTLS13}
 			}
 
-			testClientHello(t, serverConfig, clientHello)
-			t.Run("fips140tls", func(t *testing.T) {
-				fips140tls.Force()
-				defer fips140tls.TestingOnlyAbandon()
+			runWithFIPSDisabled(t, func(t *testing.T) {
+				testClientHello(t, serverConfig, clientHello)
+			})
+
+			runWithFIPSEnabled(t, func(t *testing.T) {
 				msg := ""
 				if !isFIPSCipherSuite(id) {
 					msg = "no cipher suite supported by both client and server"
@@ -194,14 +194,15 @@ func TestFIPSServerCurves(t *testing.T) {
 				// x25519Kyber768Draft00 is not supported standalone.
 				clientConfig.CurvePreferences = append(clientConfig.CurvePreferences, X25519)
 			}
-			if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
-				t.Fatalf("got error: %v, expected success", err)
-			}
 
-			// With fips140tls forced, bad curves should be rejected.
-			t.Run("fips140tls", func(t *testing.T) {
-				fips140tls.Force()
-				defer fips140tls.TestingOnlyAbandon()
+			runWithFIPSDisabled(t, func(t *testing.T) {
+				if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+					t.Fatalf("got error: %v, expected success", err)
+				}
+			})
+
+			// With fipstls forced, bad curves should be rejected.
+			runWithFIPSEnabled(t, func(t *testing.T) {
 				_, _, err := testHandshake(t, clientConfig, serverConfig)
 				if err != nil && isFIPSCurve(curveid) {
 					t.Fatalf("got error: %v, expected success", err)
@@ -244,8 +245,8 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 			switch sigType {
 			case signaturePKCS1v15, signatureRSAPSS:
 				serverConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
-				serverConfig.Certificates[0].Certificate = [][]byte{testRSA2048Certificate}
-				serverConfig.Certificates[0].PrivateKey = testRSA2048PrivateKey
+				serverConfig.Certificates[0].Certificate = [][]byte{testRSAPSS2048Certificate}
+				serverConfig.Certificates[0].PrivateKey = testRSAPSS2048PrivateKey
 			case signatureEd25519:
 				serverConfig.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
 				serverConfig.Certificates[0].Certificate = [][]byte{testEd25519Certificate}
@@ -260,15 +261,15 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 			// 1.3, and the ECDSA ones bind to the curve used.
 			serverConfig.MaxVersion = VersionTLS12
 
-			clientErr, serverErr := fipsHandshake(t, testConfig, serverConfig)
-			if clientErr != nil {
-				t.Fatalf("expected handshake with %#x to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
-			}
+			runWithFIPSDisabled(t, func(t *testing.T) {
+				clientErr, serverErr := fipsHandshake(t, testConfig, serverConfig)
+				if clientErr != nil {
+					t.Fatalf("expected handshake with %#x to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
+				}
+			})
 
-			// With fips140tls forced, bad curves should be rejected.
-			t.Run("fips140tls", func(t *testing.T) {
-				fips140tls.Force()
-				defer fips140tls.TestingOnlyAbandon()
+			// With fipstls forced, bad curves should be rejected.
+			runWithFIPSEnabled(t, func(t *testing.T) {
 				clientErr, _ := fipsHandshake(t, testConfig, serverConfig)
 				if isFIPSSignatureScheme(sigHash) {
 					if clientErr != nil {
@@ -285,10 +286,12 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 }
 
 func TestFIPSClientHello(t *testing.T) {
+	runWithFIPSEnabled(t, testFIPSClientHello)
+}
+
+func testFIPSClientHello(t *testing.T) {
 	// Test that no matter what we put in the client config,
 	// the client does not offer non-FIPS configurations.
-	fips140tls.Force()
-	defer fips140tls.TestingOnlyAbandon()
 
 	c, s := net.Pipe()
 	defer c.Close()
@@ -423,12 +426,16 @@ func TestFIPSCertAlgs(t *testing.T) {
 	// exhaustive test with computed answers.
 	r1pool := x509.NewCertPool()
 	r1pool.AddCert(R1.cert)
-	testServerCert(t, "basic", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, true)
-	testClientCert(t, "basic (client cert)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, true)
-	fips140tls.Force()
-	testServerCert(t, "basic (fips)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, false)
-	testClientCert(t, "basic (fips, client cert)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, false)
-	fips140tls.TestingOnlyAbandon()
+
+	runWithFIPSDisabled(t, func(t *testing.T) {
+		testServerCert(t, "basic", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, true)
+		testClientCert(t, "basic (client cert)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, true)
+	})
+
+	runWithFIPSEnabled(t, func(t *testing.T) {
+		testServerCert(t, "basic (fips)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, false)
+		testClientCert(t, "basic (fips, client cert)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, false)
+	})
 
 	if t.Failed() {
 		t.Fatal("basic test failed, skipping exhaustive test")
@@ -488,12 +495,16 @@ func TestFIPSCertAlgs(t *testing.T) {
 				addRoot(r&1, R1)
 				addRoot(r&2, R2)
 				rootName = rootName[1:] // strip leading comma
-				testServerCert(t, listName+"->"+rootName[1:], pool, leaf.key, list, shouldVerify)
-				testClientCert(t, listName+"->"+rootName[1:]+"(client cert)", pool, leaf.key, list, shouldVerify)
-				fips140tls.Force()
-				testServerCert(t, listName+"->"+rootName[1:]+" (fips)", pool, leaf.key, list, shouldVerifyFIPS)
-				testClientCert(t, listName+"->"+rootName[1:]+" (fips, client cert)", pool, leaf.key, list, shouldVerifyFIPS)
-				fips140tls.TestingOnlyAbandon()
+
+				runWithFIPSDisabled(t, func(t *testing.T) {
+					testServerCert(t, listName+"->"+rootName[1:], pool, leaf.key, list, shouldVerify)
+					testClientCert(t, listName+"->"+rootName[1:]+"(client cert)", pool, leaf.key, list, shouldVerify)
+				})
+
+				runWithFIPSEnabled(t, func(t *testing.T) {
+					testServerCert(t, listName+"->"+rootName[1:]+" (fips)", pool, leaf.key, list, shouldVerifyFIPS)
+					testClientCert(t, listName+"->"+rootName[1:]+" (fips, client cert)", pool, leaf.key, list, shouldVerifyFIPS)
+				})
 			}
 		}
 	}
@@ -589,13 +600,12 @@ func fipsCert(t *testing.T, name string, key interface{}, parent *fipsCertificat
 		t.Fatal(err)
 	}
 
-	fips140tls.Force()
-	defer fips140tls.TestingOnlyAbandon()
-
 	fipsOK := mode&fipsCertFIPSOK != 0
-	if fipsAllowCert(cert) != fipsOK {
-		t.Errorf("fipsAllowCert(cert with %s key) = %v, want %v", desc, !fipsOK, fipsOK)
-	}
+	runWithFIPSEnabled(t, func(t *testing.T) {
+		if fipsAllowCert(cert) != fipsOK {
+			t.Errorf("fipsAllowCert(cert with %s key) = %v, want %v", desc, !fipsOK, fipsOK)
+		}
+	})
 
 	return &fipsCertificate{name, org, parentOrg, der, cert, key, fipsOK}
 }
@@ -603,8 +613,8 @@ func fipsCert(t *testing.T, name string, key interface{}, parent *fipsCertificat
 // A self-signed test certificate with an RSA key of size 2048, for testing
 // RSA-PSS with SHA512. SAN of example.golang.
 var (
-	testRSA2048Certificate []byte
-	testRSA2048PrivateKey  *rsa.PrivateKey
+	testRSAPSS2048Certificate []byte
+	testRSAPSS2048PrivateKey  *rsa.PrivateKey
 )
 
 func init() {
@@ -628,7 +638,7 @@ aEjosRZNJv1nDEl5qG9XN3FC9zb5FrGSFmTTUvR4f4tUHr7wifNSS2dtgQ6+jU6f
 m9o6fukaP7t5VyOXuV7FIO/Hdg2lqW+xU1LowZpVd6ANZ5rAZXtMhWe3+mjfFtju
 TAnR
 -----RAQ PREGVSVPNGR-----`)))
-	testRSA2048Certificate = block.Bytes
+	testRSAPSS2048Certificate = block.Bytes
 
 	block, _ = pem.Decode(obscuretestdata.Rot13([]byte(`
 -----ORTVA EFN CEVINGR XRL-----
@@ -659,7 +669,7 @@ bBegiZqey6hcl9Um4OWQ3SKjISvCSR7wdrAdv0S21ivYkOCZZQ3HBQS6YY5RlYvE
 9I4kIZF8XKkit7ekfhdmZCfpIvnJHY6JAIOufQ2+92qUkFKmm5RWXD==
 -----RAQ EFN CEVINGR XRL-----`)))
 	var err error
-	testRSA2048PrivateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	testRSAPSS2048PrivateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		panic(err)
 	}

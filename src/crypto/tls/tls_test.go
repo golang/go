@@ -13,6 +13,7 @@ import (
 	"crypto/elliptic"
 	"crypto/internal/hpke"
 	"crypto/rand"
+	"crypto/tls/internal/fips140tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -176,6 +177,40 @@ func newLocalListener(t testing.TB) net.Listener {
 		t.Fatal(err)
 	}
 	return ln
+}
+
+func runWithFIPSEnabled(t *testing.T, testFunc func(t *testing.T)) {
+	originalFIPS := fips140tls.Required()
+	defer func() {
+		if originalFIPS {
+			fips140tls.Force()
+		} else {
+			fips140tls.TestingOnlyAbandon()
+		}
+	}()
+
+	fips140tls.Force()
+	t.Run("fips140tls", testFunc)
+}
+
+func runWithFIPSDisabled(t *testing.T, testFunc func(t *testing.T)) {
+	originalFIPS := fips140tls.Required()
+	defer func() {
+		if originalFIPS {
+			fips140tls.Force()
+		} else {
+			fips140tls.TestingOnlyAbandon()
+		}
+	}()
+
+	fips140tls.TestingOnlyAbandon()
+	t.Run("no-fips140tls", testFunc)
+}
+
+func skipFIPS(t *testing.T) {
+	if fips140tls.Required() {
+		t.Skip("skipping test in FIPS mode")
+	}
 }
 
 func TestDialTimeout(t *testing.T) {
@@ -1114,6 +1149,8 @@ func TestConnectionStateMarshal(t *testing.T) {
 }
 
 func TestConnectionState(t *testing.T) {
+	skipFIPS(t) // Test certificates not FIPS compatible.
+
 	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
 	if err != nil {
 		panic(err)
@@ -1254,6 +1291,8 @@ func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
 
 func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
+	skipFIPS(t) // Test certificates not FIPS compatible.
+
 	rsaCert := &Certificate{
 		Certificate: [][]byte{testRSACertificate},
 		PrivateKey:  testRSAPrivateKey,
@@ -1703,6 +1742,8 @@ func TestPKCS1OnlyCert(t *testing.T) {
 }
 
 func TestVerifyCertificates(t *testing.T) {
+	skipFIPS(t) // Test certificates not FIPS compatible.
+
 	// See https://go.dev/issue/31641.
 	t.Run("TLSv12", func(t *testing.T) { testVerifyCertificates(t, VersionTLS12) })
 	t.Run("TLSv13", func(t *testing.T) { testVerifyCertificates(t, VersionTLS13) })
@@ -1847,6 +1888,8 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 }
 
 func TestHandshakeKyber(t *testing.T) {
+	skipFIPS(t) // No Kyber768 in FIPS
+
 	if x25519Kyber768Draft00.String() != "X25519Kyber768Draft00" {
 		t.Fatalf("unexpected CurveID string: %v", x25519Kyber768Draft00.String())
 	}

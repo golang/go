@@ -406,6 +406,7 @@ func TestBogoSuite(t *testing.T) {
 	if testenv.Builder() != "" && runtime.GOOS == "windows" {
 		t.Skip("#66913: windows network connections are flakey on builders")
 	}
+	skipFIPS(t)
 
 	// In order to make Go test caching work as expected, we stat the
 	// bogo_config.json file, so that the Go testing hooks know that it is
