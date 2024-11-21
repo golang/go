@@ -793,7 +793,7 @@ func (p *parser) parseParamDecl(name *ast.Ident, typeSetsOK bool) (f field) {
 	// TODO(rFindley) refactor to be more similar to paramDeclOrNil in the syntax
 	// package
 	if p.trace {
-		defer un(trace(p, "ParamDeclOrNil"))
+		defer un(trace(p, "ParamDecl"))
 	}
 
 	ptok := p.tok
