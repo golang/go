@@ -436,7 +436,7 @@ F6rgN3QiyCA9J/1FluUCQQC5nX+PTU1FXx+6Ri2ZCi6EjEKMHr7gHcABhMinZYOt
 N59pra9UdVQw9jxCU9G7eMyb0jJkNACAuEwakX3gi27b
 -----END RSA TESTING KEY-----`))
 
-var test2048Key = parseKey(testingKey(`-----BEGIN TESTING KEY-----
+var test2048KeyPEM = testingKey(`-----BEGIN TESTING KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDNoyFUYeDuqw+k
 iyv47iBy/udbWmQdpbUZ8JobHv8uQrvL7sQN6l83teHgNJsXqtiLF3MC+K+XI6Dq
 hxUWfQwLip8WEnv7Jx/+53S8yp/CS4Jw86Q1bQHbZjFDpcoqSuwAxlegw18HNZCY
@@ -463,7 +463,9 @@ mCSL4FGK02ImUNDsd0RVVFw51DRId4rmsuJYMK9NAoGAKlYdc4784ixTD2ZICIOC
 ZWPxPAyQUEA7EkuUhAX1bVNG6UJTYA8kmGcUCG4jPTgWzi00IyUUr8jK7efyU/zs
 qiJuVs1bia+flYIQpysMl1VzZh8gW1nkB4SVPm5l2wBvVJDIr9Mc6rueC/oVNkh2
 fLVGuFoTVIu2bF0cWAjNNMg=
------END TESTING KEY-----`))
+-----END TESTING KEY-----`)
+
+var test2048Key = parseKey(test2048KeyPEM)
 
 var test3072Key = parseKey(testingKey(`-----BEGIN TESTING KEY-----
 MIIG/gIBADANBgkqhkiG9w0BAQEFAASCBugwggbkAgEAAoIBgQDJrvevql7G07LM
@@ -707,6 +709,28 @@ func BenchmarkVerifyPSS(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			err := VerifyPSS(&test2048Key.PublicKey, crypto.SHA256, hashed[:], s, nil)
 			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+func BenchmarkGenerateKey(b *testing.B) {
+	b.Run("2048", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, err := GenerateKey(rand.Reader, 2048); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+func BenchmarkParsePKCS8PrivateKey(b *testing.B) {
+	b.Run("2048", func(b *testing.B) {
+		p, _ := pem.Decode([]byte(test2048KeyPEM))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err := x509.ParsePKCS8PrivateKey(p.Bytes); err != nil {
 				b.Fatal(err)
 			}
 		}
