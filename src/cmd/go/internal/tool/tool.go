@@ -287,6 +287,7 @@ func buildAndRunModtool(ctx context.Context, tool string, args []string) {
 	pkgOpts := load.PackageOpts{MainOnly: true}
 	p := load.PackagesAndErrors(ctx, pkgOpts, []string{tool})[0]
 	p.Internal.OmitDebug = true
+	p.Internal.ExeName = path.Base(p.ImportPath)
 
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
 	a1.CacheExecutable = true

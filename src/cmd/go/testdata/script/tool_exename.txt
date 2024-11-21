@@ -1,0 +1,32 @@
+[short] skip 'runs go build'
+
+# First run: executable for bar is not cached.
+# Make sure it's not called a.out
+go tool bar
+stdout 'my name is: bar'$GOEXE
+! stdout 'a.out'
+
+# Second run: executable is cached. Make sure it
+# has the right name.
+go tool bar
+stdout 'my name is: bar'$GOEXE
+! stdout 'a.out'
+
+-- go.mod --
+module example.com/foo
+
+go 1.24
+
+tool example.com/foo/bar
+-- bar/bar.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	fmt.Println("my name is:", filepath.Base(os.Args[0]))
+}
