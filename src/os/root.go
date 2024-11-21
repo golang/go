@@ -230,6 +230,10 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error) 
 		}
 		i = j
 	}
+	if len(suffix) > 0 && len(parts) > 0 && parts[len(parts)-1] == "." {
+		// Remove a trailing "." component if we're joining to a suffix.
+		parts = parts[:len(parts)-1]
+	}
 	parts = append(parts, suffix...)
 	return parts, nil
 }

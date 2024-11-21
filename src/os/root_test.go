@@ -243,6 +243,14 @@ var rootTestCases = []rootTest{{
 	open:   "b/../a/target",
 	target: "b/c/target",
 }, {
+	name: "symlink ends in dot",
+	fs: []string{
+		"a => b/.",
+		"b/",
+	},
+	open:   "a/target",
+	target: "b/target",
+}, {
 	name:        "directory does not exist",
 	fs:          []string{},
 	open:        "a/file",
