@@ -8,6 +8,7 @@ package maphash
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"internal/goexperiment"
 	"unsafe"
 )
@@ -27,7 +28,7 @@ func rthash(buf []byte, seed uint64) uint64 {
 	// The runtime hasher only works on uintptr. For 64-bit
 	// architectures, we use the hasher directly. Otherwise,
 	// we use two parallel hashers on the lower and upper 32 bits.
-	if unsafe.Sizeof(uintptr(0)) == 8 {
+	if goarch.PtrSize == 8 {
 		return uint64(runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed), uintptr(len)))
 	}
 	lo := runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed), uintptr(len))
@@ -54,7 +55,7 @@ func comparableHash[T comparable](v T, seed Seed) uint64 {
 	} else {
 		hasher = (*abi.OldMapType)(unsafe.Pointer(mTyp)).Hasher
 	}
-	if unsafe.Sizeof(uintptr(0)) == 8 {
+	if goarch.PtrSize == 8 {
 		return uint64(hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s)))
 	}
 	lo := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s))
