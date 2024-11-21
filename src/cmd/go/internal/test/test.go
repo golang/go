@@ -1387,6 +1387,27 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		return nil
 	}
 
+	// Stream test output (no buffering) when no package has
+	// been given on the command line (implicit current directory)
+	// or when benchmarking or fuzzing.
+	streamOutput := len(pkgArgs) == 0 || testBench != "" || testFuzz != ""
+
+	// If we're only running a single package under test or if parallelism is
+	// set to 1, and if we're displaying all output (testShowPass), we can
+	// hurry the output along, echoing it as soon as it comes in.
+	// We still have to copy to &buf for caching the result. This special
+	// case was introduced in Go 1.5 and is intentionally undocumented:
+	// the exact details of output buffering are up to the go command and
+	// subject to change. It would be nice to remove this special case
+	// entirely, but it is surely very helpful to see progress being made
+	// when tests are run on slow single-CPU ARM systems.
+	//
+	// If we're showing JSON output, then display output as soon as
+	// possible even when multiple tests are being run: the JSON output
+	// events are attributed to specific package tests, so interlacing them
+	// is OK.
+	streamAndCacheOutput := testShowPass() && (len(pkgs) == 1 || cfg.BuildP == 1) || testJSON
+
 	var stdout io.Writer = os.Stdout
 	var err error
 	var json *test2json.Converter
@@ -1397,6 +1418,17 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 			json.Close()
 		}()
 		stdout = json
+	}
+
+	var buf bytes.Buffer
+	if streamOutput {
+		// No change to stdout.
+	} else if streamAndCacheOutput {
+		// Write both to stdout and buf, for possible saving
+		// to cache, and for looking for the "no tests to run" message.
+		stdout = io.MultiWriter(stdout, &buf)
+	} else {
+		stdout = &buf
 	}
 
 	// Release next test to start (test2json.NewConverter writes the start event).
@@ -1412,6 +1444,9 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		// Tell the JSON converter that this was a failure, not a passing run.
 		err = errors.New("build failed")
 		base.SetExitStatus(1)
+		if stdout == &buf {
+			a.TestOutput = &buf
+		}
 		return nil
 	}
 
@@ -1452,37 +1487,10 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		if reportNoTestFiles {
 			fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", p.ImportPath)
 		}
-		return nil
-	}
-
-	var buf bytes.Buffer
-	if len(pkgArgs) == 0 || testBench != "" || testFuzz != "" {
-		// Stream test output (no buffering) when no package has
-		// been given on the command line (implicit current directory)
-		// or when benchmarking or fuzzing.
-		// No change to stdout.
-	} else {
-		// If we're only running a single package under test or if parallelism is
-		// set to 1, and if we're displaying all output (testShowPass), we can
-		// hurry the output along, echoing it as soon as it comes in.
-		// We still have to copy to &buf for caching the result. This special
-		// case was introduced in Go 1.5 and is intentionally undocumented:
-		// the exact details of output buffering are up to the go command and
-		// subject to change. It would be nice to remove this special case
-		// entirely, but it is surely very helpful to see progress being made
-		// when tests are run on slow single-CPU ARM systems.
-		//
-		// If we're showing JSON output, then display output as soon as
-		// possible even when multiple tests are being run: the JSON output
-		// events are attributed to specific package tests, so interlacing them
-		// is OK.
-		if testShowPass() && (len(pkgs) == 1 || cfg.BuildP == 1) || testJSON {
-			// Write both to stdout and buf, for possible saving
-			// to cache, and for looking for the "no tests to run" message.
-			stdout = io.MultiWriter(stdout, &buf)
-		} else {
-			stdout = &buf
+		if stdout == &buf {
+			a.TestOutput = &buf
 		}
+		return nil
 	}
 
 	if r.c.buf == nil {
@@ -2082,8 +2090,13 @@ func builderCleanTest(b *work.Builder, ctx context.Context, a *work.Action) erro
 
 // builderPrintTest is the action for printing a test result.
 func builderPrintTest(b *work.Builder, ctx context.Context, a *work.Action) error {
-	clean := a.Deps[0]
-	run := clean.Deps[0]
+	run := a.Deps[0]
+	if run.Mode == "test clean" {
+		run = run.Deps[0]
+	}
+	if run.Mode != "test run" {
+		base.Fatalf("internal error: cannot find test run to print")
+	}
 	if run.TestOutput != nil {
 		os.Stdout.Write(run.TestOutput.Bytes())
 		run.TestOutput = nil
