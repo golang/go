@@ -374,7 +374,7 @@ func checkApprovedHash(hash fips140.Hash) {
 // EncryptOAEP encrypts the given message with RSAES-OAEP.
 //
 // In FIPS mode, random is ignored and can be nil.
-func EncryptOAEP(hash fips140.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+func EncryptOAEP(hash, mgfHash fips140.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
 	// Note that while we don't commit to deterministic execution with respect
 	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
 	// Law it's probably relied upon by some. It's a tolerable promise because a
@@ -413,8 +413,8 @@ func EncryptOAEP(hash fips140.Hash, random io.Reader, pub *PublicKey, msg []byte
 		}
 	}
 
-	mgf1XOR(db, hash, seed)
-	mgf1XOR(seed, hash, db)
+	mgf1XOR(db, mgfHash, seed)
+	mgf1XOR(seed, mgfHash, db)
 
 	return encrypt(pub, em)
 }

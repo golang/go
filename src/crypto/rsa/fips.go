@@ -172,7 +172,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	if err != nil {
 		return nil, err
 	}
-	return fipsError2(rsa.EncryptOAEP(hash, random, k, msg, label))
+	return fipsError2(rsa.EncryptOAEP(hash, hash, random, k, msg, label))
 }
 
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
