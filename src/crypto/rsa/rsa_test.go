@@ -98,10 +98,10 @@ func TestNPrimeKeyGeneration(t *testing.T) {
 }
 
 func TestImpossibleKeyGeneration(t *testing.T) {
-	// This test ensures that trying to generate toy RSA keys doesn't enter
-	// an infinite loop.
+	// This test ensures that trying to generate or validate toy RSA keys
+	// doesn't enter an infinite loop or panic.
 	t.Setenv("GODEBUG", "rsa1024min=0")
-	for i := 0; i < 32; i++ {
+	for i := 0; i < 128; i++ {
 		GenerateKey(rand.Reader, i)
 		GenerateMultiPrimeKey(rand.Reader, 3, i)
 		GenerateMultiPrimeKey(rand.Reader, 4, i)
@@ -184,7 +184,7 @@ func TestEverything(t *testing.T) {
 	}
 
 	t.Setenv("GODEBUG", "rsa1024min=0")
-	min := 32
+	min := 128
 	max := 560 // any smaller than this and not all tests will run
 	if *allFlag {
 		max = 2048

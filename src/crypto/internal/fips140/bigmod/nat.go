@@ -202,6 +202,19 @@ func (x *Nat) setBytes(b []byte) error {
 	return nil
 }
 
+// SetUint assigns x = y, and returns an error if y >= m.
+//
+// The output will be resized to the size of m and overwritten.
+func (x *Nat) SetUint(y uint, m *Modulus) (*Nat, error) {
+	x.resetFor(m)
+	// Modulus is never zero, so always at least one limb.
+	x.limbs[0] = y
+	if x.cmpGeq(m.nat) == yes {
+		return nil, errors.New("input overflows the modulus")
+	}
+	return x, nil
+}
+
 // Equal returns 1 if x == y, and 0 otherwise.
 //
 // Both operands must have the same announced length.
