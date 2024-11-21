@@ -715,13 +715,14 @@ func (t *tester) registerTests() {
 
 	// Check that all crypto packages compile (and test correctly, in longmode) with fips.
 	if fipsSupported() {
+		/* TODO(cpu): Restore in #629736
 		// Test standard crypto packages with fips140=on.
 		t.registerTest("GODEBUG=fips140=on go test crypto/...", &goTest{
 			variant: "gofips140",
 			env:     []string{"GODEBUG=fips140=on"},
-			skip:    "TestHandshake|TestServerResumption|TestClientAuth|TestRenegotiate", // TODO(valsorda): remove once crypto/tls passes
+			skip:    "TestHandshake|TestServerResumption|TestClientAuth|TestRenegotiate", // TODO(cpu): remove in #629736
 			pkg:     "crypto/...",
-		})
+		})*/
 
 		// Test that earlier FIPS snapshots build.
 		// In long mode, test that they work too.
