@@ -10,6 +10,7 @@ import (
 	"hash"
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"unsafe"
 )
@@ -390,20 +391,33 @@ func TestComparableShouldPanic(t *testing.T) {
 	s := []byte("s")
 	a := any(s)
 	defer func() {
-		err := recover()
-		if err == nil {
-			t.Fatalf("hash any([]byte) should panic in maphash.appendT")
-		}
-		s, ok := err.(string)
+		e := recover()
+		err, ok := e.(error)
 		if !ok {
-			t.Fatalf("hash any([]byte) should panic in maphash.appendT")
+			t.Fatalf("Comaparable(any([]byte)) should panic")
 		}
-		want := "maphash: []uint8 not comparable"
-		if s != want {
+		want := "hash of unhashable type []uint8"
+		if s := err.Error(); !strings.Contains(s, want) {
 			t.Fatalf("want %s, got %s", want, s)
 		}
 	}()
 	Comparable(MakeSeed(), a)
+}
+
+func TestWriteComparableNoncommute(t *testing.T) {
+	seed := MakeSeed()
+	var h1, h2 Hash
+	h1.SetSeed(seed)
+	h2.SetSeed(seed)
+
+	h1.WriteString("abc")
+	WriteComparable(&h1, 123)
+	WriteComparable(&h2, 123)
+	h2.WriteString("abc")
+
+	if h1.Sum64() == h2.Sum64() {
+		t.Errorf("WriteComparable and WriteString unexpectedly commute")
+	}
 }
 
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
@@ -448,4 +462,35 @@ func BenchmarkHash(b *testing.B) {
 			benchmarkSize(b, size)
 		})
 	}
+}
+
+func benchmarkComparable[T comparable](b *testing.B, v T) {
+	b.Run(reflect.TypeFor[T]().String(), func(b *testing.B) {
+		seed := MakeSeed()
+		for i := 0; i < b.N; i++ {
+			Comparable(seed, v)
+		}
+	})
+}
+
+func BenchmarkComparable(b *testing.B) {
+	type testStruct struct {
+		i int
+		u uint
+		b bool
+		f float64
+		p *int
+		a any
+	}
+	benchmarkComparable(b, int64(2))
+	benchmarkComparable(b, uint64(8))
+	benchmarkComparable(b, uintptr(12))
+	benchmarkComparable(b, any("s"))
+	benchmarkComparable(b, "s")
+	benchmarkComparable(b, true)
+	benchmarkComparable(b, new(float64))
+	benchmarkComparable(b, float64(9))
+	benchmarkComparable(b, complex128(9i+1))
+	benchmarkComparable(b, struct{}{})
+	benchmarkComparable(b, testStruct{i: 9, u: 1, b: true, f: 9.9, p: new(int), a: 1})
 }
