@@ -49,6 +49,7 @@ func TestCopyright(t *testing.T) {
 			t.Error(err)
 			return nil
 		}
+		defer f.Close()
 		n, err := f.Read(buf)
 		if err != nil && err != io.EOF {
 			t.Error(err)
