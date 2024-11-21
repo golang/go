@@ -522,6 +522,8 @@ var depsRules = `
 
 	crypto/hmac < crypto/pbkdf2;
 
+	crypto/internal/fips140/mlkem < crypto/mlkem;
+
 	crypto/aes,
 	crypto/des,
 	crypto/ecdh,

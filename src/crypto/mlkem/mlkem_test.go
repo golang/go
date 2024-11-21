@@ -2,16 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package fipstest_test
-
-// TODO(fips, #70122): move this to crypto/mlkem once it exists.
+package mlkem
 
 import (
 	"bytes"
-	. "crypto/internal/fips140/mlkem"
+	"crypto/internal/fips140/mlkem"
 	"crypto/internal/fips140/sha3"
 	"crypto/rand"
-	_ "embed"
 	"encoding/hex"
 	"flag"
 	"testing"
@@ -192,7 +189,7 @@ func TestAccumulated(t *testing.T) {
 		o.Write(ek.Bytes())
 
 		s.Read(msg[:])
-		ct, k := ek.EncapsulateInternal(&msg)
+		ct, k := ek.key.EncapsulateInternal(&msg)
 		o.Write(ct)
 		o.Write(k)
 
@@ -226,7 +223,7 @@ func BenchmarkKeyGen(b *testing.B) {
 	rand.Read(z[:])
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		dk := GenerateKeyInternal768(&d, &z)
+		dk := mlkem.GenerateKeyInternal768(&d, &z)
 		sink ^= dk.EncapsulationKey().Bytes()[0]
 	}
 }
@@ -247,7 +244,7 @@ func BenchmarkEncaps(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		c, K := ek.EncapsulateInternal(&m)
+		c, K := ek.key.EncapsulateInternal(&m)
 		sink ^= c[0] ^ K[0]
 	}
 }
@@ -306,4 +303,31 @@ func BenchmarkRoundTrip(b *testing.B) {
 			sink ^= cS[0] ^ Ks[0]
 		}
 	})
+}
+
+// Test that the constants from the public API match the corresponding values from the internal API.
+func TestConstantSizes(t *testing.T) {
+	if SharedKeySize != mlkem.SharedKeySize {
+		t.Errorf("SharedKeySize mismatch: got %d, want %d", SharedKeySize, mlkem.SharedKeySize)
+	}
+
+	if SeedSize != mlkem.SeedSize {
+		t.Errorf("SeedSize mismatch: got %d, want %d", SeedSize, mlkem.SeedSize)
+	}
+
+	if CiphertextSize768 != mlkem.CiphertextSize768 {
+		t.Errorf("CiphertextSize768 mismatch: got %d, want %d", CiphertextSize768, mlkem.CiphertextSize768)
+	}
+
+	if EncapsulationKeySize768 != mlkem.EncapsulationKeySize768 {
+		t.Errorf("EncapsulationKeySize768 mismatch: got %d, want %d", EncapsulationKeySize768, mlkem.EncapsulationKeySize768)
+	}
+
+	if CiphertextSize1024 != mlkem.CiphertextSize1024 {
+		t.Errorf("CiphertextSize1024 mismatch: got %d, want %d", CiphertextSize1024, mlkem.CiphertextSize1024)
+	}
+
+	if EncapsulationKeySize1024 != mlkem.EncapsulationKeySize1024 {
+		t.Errorf("EncapsulationKeySize1024 mismatch: got %d, want %d", EncapsulationKeySize1024, mlkem.EncapsulationKeySize1024)
+	}
 }
