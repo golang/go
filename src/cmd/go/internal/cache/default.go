@@ -34,7 +34,10 @@ See golang.org to learn more about Go.
 // initDefaultCache does the work of finding the default cache
 // the first time Default is called.
 func initDefaultCache() Cache {
-	dir, _, _ := DefaultDir()
+	dir, _, err := DefaultDir()
+	if err != nil {
+		base.Fatalf("build cache is required, but could not be located: %v", err)
+	}
 	if dir == "off" {
 		if defaultDirErr != nil {
 			base.Fatalf("build cache is required, but could not be located: %v", defaultDirErr)
