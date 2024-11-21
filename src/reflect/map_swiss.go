@@ -71,6 +71,7 @@ func MapOf(key, elem Type) Type {
 	mt.Hasher = func(p unsafe.Pointer, seed uintptr) uintptr {
 		return typehash(ktyp, p, seed)
 	}
+	mt.GroupSize = mt.Group.Size()
 	mt.SlotSize = slot.Size()
 	mt.ElemOff = slot.Field(1).Offset
 	mt.Flags = 0
