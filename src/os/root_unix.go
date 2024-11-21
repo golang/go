@@ -61,7 +61,7 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
 	fd, err := doInRoot(r, name, func(parent int, name string) (fd int, err error) {
 		ignoringEINTR(func() error {
 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
-			if err == syscall.ELOOP || err == syscall.EMLINK {
+			if isNoFollowErr(err) {
 				err = checkSymlink(parent, name, err)
 			}
 			return err
@@ -79,7 +79,7 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
 	fd, err := doInRoot(root, name, func(parent int, name string) (fd int, err error) {
 		ignoringEINTR(func() error {
 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|flag, uint32(perm))
-			if err == syscall.ELOOP || err == syscall.ENOTDIR || err == syscall.EMLINK {
+			if isNoFollowErr(err) || err == syscall.ENOTDIR {
 				err = checkSymlink(parent, name, err)
 			}
 			return err
@@ -100,7 +100,7 @@ func rootOpenDir(parent int, name string) (int, error) {
 	)
 	ignoringEINTR(func() error {
 		fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|syscall.O_DIRECTORY, 0)
-		if err == syscall.ELOOP || err == syscall.ENOTDIR || err == syscall.EMLINK {
+		if isNoFollowErr(err) || err == syscall.ENOTDIR {
 			err = checkSymlink(parent, name, err)
 		} else if err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP {
 			// ENOTSUP and EOPNOTSUPP are often, but not always, the same errno.
