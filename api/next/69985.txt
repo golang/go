@@ -1,0 +1,2 @@
+pkg crypto/tls, const X25519MLKEM768 = 4588 #69985
+pkg crypto/tls, const X25519MLKEM768 CurveID #69985

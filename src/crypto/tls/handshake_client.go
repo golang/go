@@ -24,6 +24,7 @@ import (
 	"internal/godebug"
 	"io"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -156,7 +157,9 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 		}
 		curveID := hello.supportedCurves[0]
 		keyShareKeys = &keySharePrivateKeys{curveID: curveID}
-		if curveID == x25519Kyber768Draft00 {
+		// Note that if X25519MLKEM768 is supported, it will be first because
+		// the preference order is fixed.
+		if curveID == X25519MLKEM768 {
 			keyShareKeys.ecdhe, err = generateECDHEKey(config.rand(), X25519)
 			if err != nil {
 				return nil, nil, nil, err
@@ -165,18 +168,20 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 			if _, err := io.ReadFull(config.rand(), seed); err != nil {
 				return nil, nil, nil, err
 			}
-			keyShareKeys.kyber, err = mlkem.NewDecapsulationKey768(seed)
+			keyShareKeys.mlkem, err = mlkem.NewDecapsulationKey768(seed)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			// For draft-tls-westerbaan-xyber768d00-03, we send both a hybrid
-			// and a standard X25519 key share, since most servers will only
-			// support the latter. We reuse the same X25519 ephemeral key for
-			// both, as allowed by draft-ietf-tls-hybrid-design-09, Section 3.2.
+			mlkemEncapsulationKey := keyShareKeys.mlkem.EncapsulationKey().Bytes()
+			x25519EphemeralKey := keyShareKeys.ecdhe.PublicKey().Bytes()
 			hello.keyShares = []keyShare{
-				{group: x25519Kyber768Draft00, data: append(keyShareKeys.ecdhe.PublicKey().Bytes(),
-					keyShareKeys.kyber.EncapsulationKey().Bytes()...)},
-				{group: X25519, data: keyShareKeys.ecdhe.PublicKey().Bytes()},
+				{group: X25519MLKEM768, data: append(mlkemEncapsulationKey, x25519EphemeralKey...)},
+			}
+			// If both X25519MLKEM768 and X25519 are supported, we send both key
+			// shares (as a fallback) and we reuse the same X25519 ephemeral
+			// key, as allowed by draft-ietf-tls-hybrid-design-09, Section 3.2.
+			if slices.Contains(hello.supportedCurves, X25519) {
+				hello.keyShares = append(hello.keyShares, keyShare{group: X25519, data: x25519EphemeralKey})
 			}
 		} else {
 			if _, ok := curveForCurveID(curveID); !ok {
@@ -711,7 +716,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	if ok {
 		err = keyAgreement.processServerKeyExchange(c.config, hs.hello, hs.serverHello, c.peerCertificates[0], skx)
 		if err != nil {
-			c.sendAlert(alertUnexpectedMessage)
+			c.sendAlert(alertIllegalParameter)
 			return err
 		}
 		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {

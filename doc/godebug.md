@@ -203,6 +203,11 @@ than the
 [`Certificate.PolicyIdentifiers`](/pkg/crypto/x509/#Certificate.PolicyIdentifiers)
 field by default.
 
+Go 1.24 enabled the post-quantum key exchange mechanism
+X25519MLKEM768 by default. The default can be reverted using the
+[`tlsmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+Go 1.24 also removed X25519Kyber768Draft00 and the Go 1.23 `tlskyber` setting.
+
 ### Go 1.23
 
 Go 1.23 changed the channels created by package time to be unbuffered

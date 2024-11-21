@@ -420,7 +420,7 @@ func TestBogoSuite(t *testing.T) {
 	if *bogoLocalDir != "" {
 		bogoDir = *bogoLocalDir
 	} else {
-		const boringsslModVer = "v0.0.0-20240523173554-273a920f84e8"
+		const boringsslModVer = "v0.0.0-20241120195446-5cce3fbd23e1"
 		bogoDir = cryptotest.FetchModule(t, "boringssl.googlesource.com/boringssl.git", boringsslModVer)
 	}
 
@@ -473,11 +473,8 @@ func TestBogoSuite(t *testing.T) {
 	// are present in the output. They are only checked if -bogo-filter
 	// was not passed.
 	assertResults := map[string]string{
-		// TODO: these tests are temporarily disabled, since we don't expose the
-		// necessary curve ID, and it's currently not possible to correctly
-		// configure it.
-		// "CurveTest-Client-Kyber-TLS13": "PASS",
-		// "CurveTest-Server-Kyber-TLS13": "PASS",
+		"CurveTest-Client-MLKEM-TLS13": "PASS",
+		"CurveTest-Server-MLKEM-TLS13": "PASS",
 	}
 
 	for name, result := range results.Tests {

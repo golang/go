@@ -6,7 +6,6 @@ package tls
 
 import (
 	"bytes"
-	"crypto/internal/fips140/mlkem"
 	"crypto/internal/fips140/tls13"
 	"crypto/sha256"
 	"encoding/hex"
@@ -116,23 +115,5 @@ func TestTrafficKey(t *testing.T) {
 	}
 	if !bytes.Equal(gotIV, wantIV) {
 		t.Errorf("cipherSuiteTLS13.trafficKey() gotIV = % x, want % x", gotIV, wantIV)
-	}
-}
-
-func TestKyberEncapsulate(t *testing.T) {
-	dk, err := mlkem.GenerateKey768()
-	if err != nil {
-		t.Fatal(err)
-	}
-	ct, ss, err := kyberEncapsulate(dk.EncapsulationKey().Bytes())
-	if err != nil {
-		t.Fatal(err)
-	}
-	dkSS, err := kyberDecapsulate(dk, ct)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(ss, dkSS) {
-		t.Fatalf("got %x, want %x", ss, dkSS)
 	}
 }

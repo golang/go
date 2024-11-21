@@ -1887,26 +1887,21 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 	}
 }
 
-func TestHandshakeKyber(t *testing.T) {
-	skipFIPS(t) // No Kyber768 in FIPS
-
-	if x25519Kyber768Draft00.String() != "X25519Kyber768Draft00" {
-		t.Fatalf("unexpected CurveID string: %v", x25519Kyber768Draft00.String())
-	}
-
+func TestHandshakeMLKEM(t *testing.T) {
+	skipFIPS(t) // No X25519MLKEM768 in FIPS
 	var tests = []struct {
 		name                string
 		clientConfig        func(*Config)
 		serverConfig        func(*Config)
 		preparation         func(*testing.T)
 		expectClientSupport bool
-		expectKyber         bool
+		expectMLKEM         bool
 		expectHRR           bool
 	}{
 		{
 			name:                "Default",
 			expectClientSupport: true,
-			expectKyber:         true,
+			expectMLKEM:         true,
 			expectHRR:           false,
 		},
 		{
@@ -1922,7 +1917,7 @@ func TestHandshakeKyber(t *testing.T) {
 				config.CurvePreferences = []CurveID{X25519}
 			},
 			expectClientSupport: true,
-			expectKyber:         false,
+			expectMLKEM:         false,
 			expectHRR:           false,
 		},
 		{
@@ -1931,8 +1926,24 @@ func TestHandshakeKyber(t *testing.T) {
 				config.CurvePreferences = []CurveID{CurveP256}
 			},
 			expectClientSupport: true,
-			expectKyber:         false,
+			expectMLKEM:         false,
 			expectHRR:           true,
+		},
+		{
+			name: "ClientMLKEMOnly",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{X25519MLKEM768}
+			},
+			expectClientSupport: true,
+			expectMLKEM:         true,
+		},
+		{
+			name: "ClientSortedCurvePreferences",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{CurveP256, X25519MLKEM768}
+			},
+			expectClientSupport: true,
+			expectMLKEM:         true,
 		},
 		{
 			name: "ClientTLSv12",
@@ -1947,12 +1958,12 @@ func TestHandshakeKyber(t *testing.T) {
 				config.MaxVersion = VersionTLS12
 			},
 			expectClientSupport: true,
-			expectKyber:         false,
+			expectMLKEM:         false,
 		},
 		{
 			name: "GODEBUG",
 			preparation: func(t *testing.T) {
-				t.Setenv("GODEBUG", "tlskyber=0")
+				t.Setenv("GODEBUG", "tlsmlkem=0")
 			},
 			expectClientSupport: false,
 		},
@@ -1972,10 +1983,10 @@ func TestHandshakeKyber(t *testing.T) {
 				test.serverConfig(serverConfig)
 			}
 			serverConfig.GetConfigForClient = func(hello *ClientHelloInfo) (*Config, error) {
-				if !test.expectClientSupport && slices.Contains(hello.SupportedCurves, x25519Kyber768Draft00) {
-					return nil, errors.New("client supports Kyber768Draft00")
-				} else if test.expectClientSupport && !slices.Contains(hello.SupportedCurves, x25519Kyber768Draft00) {
-					return nil, errors.New("client does not support Kyber768Draft00")
+				if !test.expectClientSupport && slices.Contains(hello.SupportedCurves, X25519MLKEM768) {
+					return nil, errors.New("client supports X25519MLKEM768")
+				} else if test.expectClientSupport && !slices.Contains(hello.SupportedCurves, X25519MLKEM768) {
+					return nil, errors.New("client does not support X25519MLKEM768")
 				}
 				return nil, nil
 			}
@@ -1987,19 +1998,19 @@ func TestHandshakeKyber(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if test.expectKyber {
-				if ss.testingOnlyCurveID != x25519Kyber768Draft00 {
-					t.Errorf("got CurveID %v (server), expected %v", ss.testingOnlyCurveID, x25519Kyber768Draft00)
+			if test.expectMLKEM {
+				if ss.testingOnlyCurveID != X25519MLKEM768 {
+					t.Errorf("got CurveID %v (server), expected %v", ss.testingOnlyCurveID, X25519MLKEM768)
 				}
-				if cs.testingOnlyCurveID != x25519Kyber768Draft00 {
-					t.Errorf("got CurveID %v (client), expected %v", cs.testingOnlyCurveID, x25519Kyber768Draft00)
+				if cs.testingOnlyCurveID != X25519MLKEM768 {
+					t.Errorf("got CurveID %v (client), expected %v", cs.testingOnlyCurveID, X25519MLKEM768)
 				}
 			} else {
-				if ss.testingOnlyCurveID == x25519Kyber768Draft00 {
-					t.Errorf("got CurveID %v (server), expected not Kyber", ss.testingOnlyCurveID)
+				if ss.testingOnlyCurveID == X25519MLKEM768 {
+					t.Errorf("got CurveID %v (server), expected not X25519MLKEM768", ss.testingOnlyCurveID)
 				}
-				if cs.testingOnlyCurveID == x25519Kyber768Draft00 {
-					t.Errorf("got CurveID %v (client), expected not Kyber", cs.testingOnlyCurveID)
+				if cs.testingOnlyCurveID == X25519MLKEM768 {
+					t.Errorf("got CurveID %v (client), expected not X25519MLKEM768", cs.testingOnlyCurveID)
 				}
 			}
 			if test.expectHRR {

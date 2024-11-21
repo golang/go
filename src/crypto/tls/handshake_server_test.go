@@ -939,22 +939,6 @@ func TestHandshakeServerKeySharePreference(t *testing.T) {
 	runServerTestTLS13(t, test)
 }
 
-// TestHandshakeServerUnsupportedKeyShare tests a client that sends a key share
-// that's not in the supported groups list.
-func TestHandshakeServerUnsupportedKeyShare(t *testing.T) {
-	pk, _ := ecdh.P384().GenerateKey(rand.Reader)
-	clientHello := &clientHelloMsg{
-		vers:               VersionTLS12,
-		random:             make([]byte, 32),
-		supportedVersions:  []uint16{VersionTLS13},
-		cipherSuites:       []uint16{TLS_AES_128_GCM_SHA256},
-		compressionMethods: []uint8{compressionNone},
-		keyShares:          []keyShare{{group: CurveP384, data: pk.PublicKey().Bytes()}},
-		supportedCurves:    []CurveID{CurveP256},
-	}
-	testClientHelloFailure(t, testConfig, clientHello, "client sent key share for group it does not support")
-}
-
 func TestHandshakeServerALPN(t *testing.T) {
 	config := testConfig.Clone()
 	config.NextProtos = []string{"proto1", "proto2"}

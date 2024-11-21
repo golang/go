@@ -71,13 +71,13 @@ func _() {
 	_ = x[CurveP384-24]
 	_ = x[CurveP521-25]
 	_ = x[X25519-29]
-	_ = x[x25519Kyber768Draft00-25497]
+	_ = x[X25519MLKEM768-4588]
 }
 
 const (
 	_CurveID_name_0 = "CurveP256CurveP384CurveP521"
 	_CurveID_name_1 = "X25519"
-	_CurveID_name_2 = "X25519Kyber768Draft00"
+	_CurveID_name_2 = "X25519MLKEM768"
 )
 
 var (
@@ -91,7 +91,7 @@ func (i CurveID) String() string {
 		return _CurveID_name_0[_CurveID_index_0[i]:_CurveID_index_0[i+1]]
 	case i == 29:
 		return _CurveID_name_1
-	case i == 25497:
+	case i == 4588:
 		return _CurveID_name_2
 	default:
 		return "CurveID(" + strconv.FormatInt(int64(i), 10) + ")"

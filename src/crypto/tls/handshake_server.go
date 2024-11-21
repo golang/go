@@ -705,7 +705,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 
 	preMasterSecret, err := keyAgreement.processClientKeyExchange(c.config, hs.cert, ckx, c.vers)
 	if err != nil {
-		c.sendAlert(alertHandshakeFailure)
+		c.sendAlert(alertIllegalParameter)
 		return err
 	}
 	if hs.hello.extendedMasterSecret {

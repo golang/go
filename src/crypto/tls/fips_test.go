@@ -184,16 +184,13 @@ func TestFIPSServerCipherSuites(t *testing.T) {
 
 func TestFIPSServerCurves(t *testing.T) {
 	serverConfig := testConfig.Clone()
+	serverConfig.CurvePreferences = nil
 	serverConfig.BuildNameToCertificate()
 
 	for _, curveid := range defaultCurvePreferences() {
 		t.Run(fmt.Sprintf("curve=%d", curveid), func(t *testing.T) {
 			clientConfig := testConfig.Clone()
 			clientConfig.CurvePreferences = []CurveID{curveid}
-			if curveid == x25519Kyber768Draft00 {
-				// x25519Kyber768Draft00 is not supported standalone.
-				clientConfig.CurvePreferences = append(clientConfig.CurvePreferences, X25519)
-			}
 
 			runWithFIPSDisabled(t, func(t *testing.T) {
 				if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {

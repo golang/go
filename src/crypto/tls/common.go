@@ -145,16 +145,20 @@ const (
 type CurveID uint16
 
 const (
-	CurveP256 CurveID = 23
-	CurveP384 CurveID = 24
-	CurveP521 CurveID = 25
-	X25519    CurveID = 29
-
-	// Experimental codepoint for X25519Kyber768Draft00, specified in
-	// draft-tls-westerbaan-xyber768d00-03. Not exported, as support might be
-	// removed in the future.
-	x25519Kyber768Draft00 CurveID = 0x6399 // X25519Kyber768Draft00
+	CurveP256      CurveID = 23
+	CurveP384      CurveID = 24
+	CurveP521      CurveID = 25
+	X25519         CurveID = 29
+	X25519MLKEM768 CurveID = 4588
 )
+
+func isTLS13OnlyKeyExchange(curve CurveID) bool {
+	return curve == X25519MLKEM768
+}
+
+func isPQKeyExchange(curve CurveID) bool {
+	return curve == X25519MLKEM768
+}
 
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
 type keyShare struct {
@@ -419,9 +423,12 @@ type ClientHelloInfo struct {
 	// client is using SNI (see RFC 4366, Section 3.1).
 	ServerName string
 
-	// SupportedCurves lists the elliptic curves supported by the client.
-	// SupportedCurves is set only if the Supported Elliptic Curves
-	// Extension is being used (see RFC 4492, Section 5.1.1).
+	// SupportedCurves lists the key exchange mechanisms supported by the
+	// client. It was renamed to "supported groups" in TLS 1.3, see RFC 8446,
+	// Section 4.2.7 and [CurveID].
+	//
+	// SupportedCurves may be nil in TLS 1.2 and lower if the Supported Elliptic
+	// Curves Extension is not being used (see RFC 4492, Section 5.1.1).
 	SupportedCurves []CurveID
 
 	// SupportedPoints lists the point formats supported by the client.
@@ -761,14 +768,15 @@ type Config struct {
 	// which is currently TLS 1.3.
 	MaxVersion uint16
 
-	// CurvePreferences contains the elliptic curves that will be used in
-	// an ECDHE handshake, in preference order. If empty, the default will
-	// be used. The client will use the first preference as the type for
-	// its key share in TLS 1.3. This may change in the future.
+	// CurvePreferences contains a set of supported key exchange mechanisms.
+	// The name refers to elliptic curves for legacy reasons, see [CurveID].
+	// The order of the list is ignored, and key exchange mechanisms are chosen
+	// from this list using an internal preference order. If empty, the default
+	// will be used.
 	//
-	// From Go 1.23, the default includes the X25519Kyber768Draft00 hybrid
+	// From Go 1.24, the default includes the [X25519MLKEM768] hybrid
 	// post-quantum key exchange. To disable it, set CurvePreferences explicitly
-	// or use the GODEBUG=tlskyber=0 environment variable.
+	// or use the GODEBUG=tlsmlkem=0 environment variable.
 	CurvePreferences []CurveID
 
 	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.
@@ -1176,22 +1184,18 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
 
 func (c *Config) curvePreferences(version uint16) []CurveID {
 	var curvePreferences []CurveID
-	if c != nil && len(c.CurvePreferences) != 0 {
-		curvePreferences = slices.Clone(c.CurvePreferences)
-		if fips140tls.Required() {
-			return slices.DeleteFunc(curvePreferences, func(c CurveID) bool {
-				return !slices.Contains(defaultCurvePreferencesFIPS, c)
-			})
-		}
-	} else if fips140tls.Required() {
+	if fips140tls.Required() {
 		curvePreferences = slices.Clone(defaultCurvePreferencesFIPS)
 	} else {
 		curvePreferences = defaultCurvePreferences()
 	}
-	if version < VersionTLS13 {
-		return slices.DeleteFunc(curvePreferences, func(c CurveID) bool {
-			return c == x25519Kyber768Draft00
+	if c != nil && len(c.CurvePreferences) != 0 {
+		curvePreferences = slices.DeleteFunc(curvePreferences, func(x CurveID) bool {
+			return !slices.Contains(c.CurvePreferences, x)
 		})
+	}
+	if version < VersionTLS13 {
+		curvePreferences = slices.DeleteFunc(curvePreferences, isTLS13OnlyKeyExchange)
 	}
 	return curvePreferences
 }
