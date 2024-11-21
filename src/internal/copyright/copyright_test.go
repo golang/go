@@ -34,7 +34,7 @@ var permitted = [][]byte{
 func TestCopyright(t *testing.T) {
 	buf := make([]byte, 2048)
 	filepath.WalkDir(filepath.Join(testenv.GOROOT(t), "src"), func(path string, d fs.DirEntry, err error) error {
-		if d.Name() == "testdata" || d.Name() == "vendor" {
+		if d.IsDir() && (d.Name() == "testdata" || d.Name() == "vendor") {
 			return filepath.SkipDir
 		}
 		switch filepath.Ext(d.Name()) {
