@@ -491,6 +491,8 @@ var depsRules = `
 
 	FIPS, sync/atomic < crypto/tls/internal/fips140tls;
 
+	FIPS, internal/godebug < crypto/fips140;
+
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
 	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fips140tls;
 	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;

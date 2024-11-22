@@ -1,0 +1,1 @@
+pkg crypto/fips140, func Enabled() bool #70123
