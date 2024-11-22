@@ -18,6 +18,7 @@ package ed25519
 import (
 	"crypto"
 	"crypto/internal/fips140/ed25519"
+	"crypto/internal/fips140only"
 	cryptorand "crypto/rand"
 	"crypto/subtle"
 	"errors"
@@ -103,6 +104,9 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	case hash == crypto.SHA512: // Ed25519ph
 		return ed25519.SignPH(k, message, context)
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
+		if fips140only.Enabled {
+			return nil, errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
+		}
 		return ed25519.SignCtx(k, message, context)
 	case hash == crypto.Hash(0): // Ed25519
 		return ed25519.Sign(k, message), nil
@@ -219,6 +223,9 @@ func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) 
 	case opts.Hash == crypto.SHA512: // Ed25519ph
 		return ed25519.VerifyPH(k, message, sig, opts.Context)
 	case opts.Hash == crypto.Hash(0) && opts.Context != "": // Ed25519ctx
+		if fips140only.Enabled {
+			return errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
+		}
 		return ed25519.VerifyCtx(k, message, sig, opts.Context)
 	case opts.Hash == crypto.Hash(0): // Ed25519
 		return ed25519.Verify(k, message, sig)

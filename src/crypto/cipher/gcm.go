@@ -8,6 +8,7 @@ import (
 	"crypto/internal/fips140/aes"
 	"crypto/internal/fips140/aes/gcm"
 	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
 	"crypto/subtle"
 	"errors"
 	"internal/byteorder"
@@ -27,6 +28,9 @@ const (
 // An exception is when the underlying [Block] was created by aes.NewCipher
 // on systems with hardware support for AES. See the [crypto/aes] package documentation for details.
 func NewGCM(cipher Block) (AEAD, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
+	}
 	return newGCM(cipher, gcmStandardNonceSize, gcmTagSize)
 }
 
@@ -38,6 +42,9 @@ func NewGCM(cipher Block) (AEAD, error) {
 // cryptosystem that uses non-standard nonce lengths. All other users should use
 // [NewGCM], which is faster and more resistant to misuse.
 func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
+	}
 	return newGCM(cipher, size, gcmTagSize)
 }
 
@@ -50,12 +57,18 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
 // cryptosystem that uses non-standard tag lengths. All other users should use
 // [NewGCM], which is more resistant to misuse.
 func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
+	}
 	return newGCM(cipher, gcmStandardNonceSize, tagSize)
 }
 
 func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 	c, ok := cipher.(*aes.Block)
 	if !ok {
+		if fips140only.Enabled {
+			return nil, errors.New("crypto/cipher: use of GCM with non-AES ciphers is not allowed in FIPS 140-only mode")
+		}
 		return newGCMFallback(cipher, nonceSize, tagSize)
 	}
 	// We don't return gcm.New directly, because it would always return a non-nil

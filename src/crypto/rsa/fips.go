@@ -8,6 +8,7 @@ import (
 	"crypto"
 	"crypto/internal/boring"
 	"crypto/internal/fips140/rsa"
+	"crypto/internal/fips140only"
 	"errors"
 	"hash"
 	"io"
@@ -60,6 +61,12 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
 		return nil, err
 	}
+	if err := checkFIPS140OnlyPrivateKey(priv); err != nil {
+		return nil, err
+	}
+	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
+		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+	}
 
 	if opts != nil && opts.Hash != 0 {
 		hash = opts.Hash
@@ -81,6 +88,9 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 	h := hash.New()
 
 	saltLength := opts.saltLength()
+	if fips140only.Enabled && saltLength > hash.Size() {
+		return nil, errors.New("crypto/rsa: use of PSS salt longer than the hash is not allowed in FIPS 140-only mode")
+	}
 	switch saltLength {
 	case PSSSaltLengthAuto:
 		saltLength, err = rsa.PSSMaxSaltLength(k.PublicKey(), h)
@@ -113,6 +123,12 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 	if err := checkPublicKeySize(pub); err != nil {
 		return err
 	}
+	if err := checkFIPS140OnlyPublicKey(pub); err != nil {
+		return err
+	}
+	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
+		return errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+	}
 
 	if boring.Enabled {
 		bkey, err := boringPublicKey(pub)
@@ -131,6 +147,9 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 	}
 
 	saltLength := opts.saltLength()
+	if fips140only.Enabled && saltLength > hash.Size() {
+		return errors.New("crypto/rsa: use of PSS salt longer than the hash is not allowed in FIPS 140-only mode")
+	}
 	switch saltLength {
 	case PSSSaltLengthAuto:
 		return fipsError(rsa.VerifyPSS(k, hash.New(), digest, sig))
@@ -162,6 +181,12 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
 	if err := checkPublicKeySize(pub); err != nil {
 		return nil, err
+	}
+	if err := checkFIPS140OnlyPublicKey(pub); err != nil {
+		return nil, err
+	}
+	if fips140only.Enabled && !fips140only.ApprovedHash(hash) {
+		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 	}
 
 	defer hash.Reset()
@@ -206,6 +231,14 @@ func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
 		return nil, err
 	}
+	if err := checkFIPS140OnlyPrivateKey(priv); err != nil {
+		return nil, err
+	}
+	if fips140only.Enabled {
+		if !fips140only.ApprovedHash(hash) || !fips140only.ApprovedHash(mgfHash) {
+			return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+		}
+	}
 
 	if boring.Enabled {
 		k := priv.Size()
@@ -248,6 +281,12 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
 		return nil, err
 	}
+	if err := checkFIPS140OnlyPrivateKey(priv); err != nil {
+		return nil, err
+	}
+	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
+		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+	}
 
 	if boring.Enabled {
 		bkey, err := boringPrivateKey(priv)
@@ -282,6 +321,12 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) error {
 	if err := checkPublicKeySize(pub); err != nil {
 		return err
+	}
+	if err := checkFIPS140OnlyPublicKey(pub); err != nil {
+		return err
+	}
+	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
+		return errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 	}
 
 	if boring.Enabled {
@@ -323,4 +368,39 @@ func fipsError(err error) error {
 
 func fipsError2[T any](x T, err error) (T, error) {
 	return x, fipsError(err)
+}
+
+func checkFIPS140OnlyPublicKey(pub *PublicKey) error {
+	if !fips140only.Enabled {
+		return nil
+	}
+	if pub.N == nil {
+		return errors.New("crypto/rsa: public key missing N")
+	}
+	if pub.N.BitLen() < 2048 {
+		return errors.New("crypto/rsa: use of keys smaller than 2048 bits is not allowed in FIPS 140-only mode")
+	}
+	if pub.N.BitLen() > 16384 {
+		return errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
+	}
+	if pub.E <= 1<<16 {
+		return errors.New("crypto/rsa: use of public exponent <= 2¹⁶ is not allowed in FIPS 140-only mode")
+	}
+	if pub.E&1 == 0 {
+		return errors.New("crypto/rsa: use of even public exponent is not allowed in FIPS 140-only mode")
+	}
+	return nil
+}
+
+func checkFIPS140OnlyPrivateKey(priv *PrivateKey) error {
+	if !fips140only.Enabled {
+		return nil
+	}
+	if err := checkFIPS140OnlyPublicKey(&priv.PublicKey); err != nil {
+		return err
+	}
+	if len(priv.Primes) > 2 {
+		return errors.New("crypto/rsa: use of multi-prime keys is not allowed in FIPS 140-only mode")
+	}
+	return nil
 }

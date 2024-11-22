@@ -5,6 +5,7 @@
 package rand
 
 import (
+	"crypto/internal/fips140only"
 	"crypto/internal/randutil"
 	"errors"
 	"io"
@@ -14,6 +15,9 @@ import (
 // Prime returns a number of the given bit length that is prime with high probability.
 // Prime will return error for any error returned by rand.Read or if bits < 2.
 func Prime(rand io.Reader, bits int) (*big.Int, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/rand: use of Prime is not allowed in FIPS 140-only mode")
+	}
 	if bits < 2 {
 		return nil, errors.New("crypto/rand: prime size must be at least 2-bit")
 	}

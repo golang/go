@@ -6,6 +6,7 @@ package hkdf
 
 import (
 	"crypto/internal/fips140/hkdf"
+	"crypto/internal/fips140only"
 	"errors"
 	"hash"
 )
@@ -17,6 +18,9 @@ import (
 // Expand invocations and different context values. Most common scenarios,
 // including the generation of multiple keys, should use [Key] instead.
 func Extract[H hash.Hash](h func() H, secret, salt []byte) ([]byte, error) {
+	if err := checkFIPS140Only(h, secret); err != nil {
+		return nil, err
+	}
 	return hkdf.Extract(h, secret, salt), nil
 }
 
@@ -28,6 +32,10 @@ func Extract[H hash.Hash](h func() H, secret, salt []byte) ([]byte, error) {
 // random or pseudorandom cryptographically strong key. See RFC 5869, Section
 // 3.3. Most common scenarios will want to use [Key] instead.
 func Expand[H hash.Hash](h func() H, pseudorandomKey []byte, info string, keyLength int) ([]byte, error) {
+	if err := checkFIPS140Only(h, pseudorandomKey); err != nil {
+		return nil, err
+	}
+
 	limit := h().Size() * 255
 	if keyLength > limit {
 		return nil, errors.New("hkdf: requested key length too large")
@@ -40,10 +48,27 @@ func Expand[H hash.Hash](h func() H, pseudorandomKey []byte, info string, keyLen
 // returning a []byte of length keyLength that can be used as cryptographic key.
 // Salt and info can be nil.
 func Key[Hash hash.Hash](h func() Hash, secret, salt []byte, info string, keyLength int) ([]byte, error) {
+	if err := checkFIPS140Only(h, secret); err != nil {
+		return nil, err
+	}
+
 	limit := h().Size() * 255
 	if keyLength > limit {
 		return nil, errors.New("hkdf: requested key length too large")
 	}
 
 	return hkdf.Key(h, secret, salt, info, keyLength), nil
+}
+
+func checkFIPS140Only[H hash.Hash](h func() H, key []byte) error {
+	if !fips140only.Enabled {
+		return nil
+	}
+	if len(key) < 112/8 {
+		return errors.New("crypto/hkdf: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
+	}
+	if !fips140only.ApprovedHash(h()) {
+		return errors.New("crypto/hkdf: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+	}
+	return nil
 }

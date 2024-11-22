@@ -20,6 +20,8 @@ package pbkdf2
 
 import (
 	"crypto/internal/fips140/pbkdf2"
+	"crypto/internal/fips140only"
+	"errors"
 	"hash"
 )
 
@@ -40,5 +42,16 @@ import (
 // Using a higher iteration count will increase the cost of an exhaustive
 // search but will also make derivation proportionally slower.
 func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
+	if fips140only.Enabled {
+		if keyLength < 112/8 {
+			return nil, errors.New("crypto/pbkdf2: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
+		}
+		if len(salt) < 128/8 {
+			return nil, errors.New("crypto/pbkdf2: use of salts shorter than 128 bits is not allowed in FIPS 140-only mode")
+		}
+		if !fips140only.ApprovedHash(h()) {
+			return nil, errors.New("crypto/pbkdf2: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+		}
+	}
 	return pbkdf2.Key(h, password, salt, iter, keyLength)
 }

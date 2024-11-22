@@ -6,6 +6,7 @@ package ecdsa
 
 import (
 	"crypto/elliptic"
+	"crypto/internal/fips140only"
 	"errors"
 	"io"
 	"math/big"
@@ -19,6 +20,10 @@ import (
 // deprecated custom curves.
 
 func generateLegacy(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/ecdsa: use of custom curves is not allowed in FIPS 140-only mode")
+	}
+
 	k, err := randFieldElement(c, rand)
 	if err != nil {
 		return nil, err
@@ -76,6 +81,10 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 }
 
 func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/ecdsa: use of custom curves is not allowed in FIPS 140-only mode")
+	}
+
 	c := priv.Curve
 
 	// A cheap version of hedged signatures, for the deprecated path.
@@ -144,6 +153,10 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 }
 
 func verifyLegacy(pub *PublicKey, hash []byte, sig []byte) bool {
+	if fips140only.Enabled {
+		panic("crypto/ecdsa: use of custom curves is not allowed in FIPS 140-only mode")
+	}
+
 	rBytes, sBytes, err := parseSignature(sig)
 	if err != nil {
 		return false
