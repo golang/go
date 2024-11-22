@@ -27,6 +27,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	cryptorand "crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509/pkix"
@@ -1655,6 +1656,9 @@ var emptyASN1Subject = []byte{0x30, 0}
 // If SubjectKeyId from template is empty and the template is a CA, SubjectKeyId
 // will be generated from the hash of the public key.
 //
+// If template.SerialNumber is nil, a serial number will be generated which
+// conforms to RFC 5280, Section 4.1.2.2 using entropy from rand.
+//
 // The PolicyIdentifier and Policies fields can both be used to marshal certificate
 // policy OIDs. By default, only the Policies is marshaled, but if the
 // GODEBUG setting "x509usepolicies" has the value "0", the PolicyIdentifiers field will
@@ -1667,8 +1671,27 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return nil, errors.New("x509: certificate private key does not implement crypto.Signer")
 	}
 
-	if template.SerialNumber == nil {
-		return nil, errors.New("x509: no SerialNumber given")
+	serialNumber := template.SerialNumber
+	if serialNumber == nil {
+		// Generate a serial number following RFC 5280 Section 4.1.2.2 if one is not provided.
+		// Requirements:
+		//   - serial number must be positive
+		//   - at most 20 octets when encoded
+		maxSerial := big.NewInt(1).Lsh(big.NewInt(1), 20*8)
+		for {
+			var err error
+			serialNumber, err = cryptorand.Int(rand, maxSerial)
+			if err != nil {
+				return nil, err
+			}
+			// If the serial is exactly 20 octets, check if the high bit of the first byte is set.
+			// If so, generate a new serial, since it will be padded with a leading 0 byte during
+			// encoding so that the serial is not interpreted as a negative integer, making it
+			// 21 octets.
+			if serialBytes := serialNumber.Bytes(); len(serialBytes) > 0 && (len(serialBytes) < 20 || serialBytes[0]&0x80 == 0) {
+				break
+			}
+		}
 	}
 
 	// RFC 5280 Section 4.1.2.2: serial number must positive
@@ -1676,7 +1699,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	// We _should_ also restrict serials to <= 20 octets, but it turns out a lot of people
 	// get this wrong, in part because the encoding can itself alter the length of the
 	// serial. For now we accept these non-conformant serials.
-	if template.SerialNumber.Sign() == -1 {
+	if serialNumber.Sign() == -1 {
 		return nil, errors.New("x509: serial number must be positive")
 	}
 
@@ -1740,7 +1763,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
 	c := tbsCertificate{
 		Version:            2,
-		SerialNumber:       template.SerialNumber,
+		SerialNumber:       serialNumber,
 		SignatureAlgorithm: algorithmIdentifier,
 		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
 		Validity:           validity{template.NotBefore.UTC(), template.NotAfter.UTC()},

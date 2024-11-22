@@ -2323,6 +2323,37 @@ func TestAdditionFieldsInGeneralSubtree(t *testing.T) {
 	}
 }
 
+func TestEmptySerialNumber(t *testing.T) {
+	template := Certificate{
+		DNSNames: []string{"example.com"},
+	}
+
+	for range 100 {
+		derBytes, err := CreateCertificate(rand.Reader, &template, &template, &testPrivateKey.PublicKey, testPrivateKey)
+		if err != nil {
+			t.Fatalf("failed to create certificate: %s", err)
+		}
+
+		cert, err := ParseCertificate(derBytes)
+		if err != nil {
+			t.Fatalf("failed to parse certificate: %s", err)
+		}
+
+		if sign := cert.SerialNumber.Sign(); sign != 1 {
+			t.Fatalf("generated a non positive serial, sign: %d", sign)
+		}
+
+		b, err := asn1.Marshal(cert.SerialNumber)
+		if err != nil {
+			t.Fatalf("failed to marshal generated serial number: %s", err)
+		}
+		// subtract 2 for tag and length
+		if l := len(b) - 2; l > 20 {
+			t.Fatalf("generated serial number larger than 20 octets when encoded: %d", l)
+		}
+	}
+}
+
 func TestEmptySubject(t *testing.T) {
 	template := Certificate{
 		SerialNumber: big.NewInt(1),
