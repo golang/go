@@ -30,6 +30,7 @@ func ctrBlocks8(b *Block, dst, src *[8 * BlockSize]byte, ivlo, ivhi uint64) {
 func ctrBlocksS390x(b *Block, dst, src []byte, ivlo, ivhi uint64) {
 	if b.fallback != nil {
 		ctrBlocks(b, dst, src, ivlo, ivhi)
+		return
 	}
 
 	buf := make([]byte, len(src), 8*BlockSize)
