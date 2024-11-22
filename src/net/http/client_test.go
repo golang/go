@@ -1530,6 +1530,55 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 	}
 }
 
+// Issue #70530: Once we strip a header on a redirect to a different host,
+// the header should stay stripped across any further redirects.
+func TestClientStripHeadersOnRepeatedRedirect(t *testing.T) {
+	run(t, testClientStripHeadersOnRepeatedRedirect)
+}
+func testClientStripHeadersOnRepeatedRedirect(t *testing.T, mode testMode) {
+	var proto string
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Host+r.URL.Path != "a.example.com/" {
+			if h := r.Header.Get("Authorization"); h != "" {
+				t.Errorf("on request to %v%v, Authorization=%q, want no header", r.Host, r.URL.Path, h)
+			}
+		}
+		// Follow a chain of redirects from a to b and back to a.
+		// The Authorization header is stripped on the first redirect to b,
+		// and stays stripped even if we're sent back to a.
+		switch r.Host + r.URL.Path {
+		case "a.example.com/":
+			Redirect(w, r, proto+"://b.example.com/", StatusFound)
+		case "b.example.com/":
+			Redirect(w, r, proto+"://b.example.com/redirect", StatusFound)
+		case "b.example.com/redirect":
+			Redirect(w, r, proto+"://a.example.com/redirect", StatusFound)
+		case "a.example.com/redirect":
+			w.Header().Set("X-Done", "true")
+		default:
+			t.Errorf("unexpected request to %v", r.URL)
+		}
+	})).ts
+	proto, _, _ = strings.Cut(ts.URL, ":")
+
+	c := ts.Client()
+	c.Transport.(*Transport).Dial = func(_ string, _ string) (net.Conn, error) {
+		return net.Dial("tcp", ts.Listener.Addr().String())
+	}
+
+	req, _ := NewRequest("GET", proto+"://a.example.com/", nil)
+	req.Header.Add("Cookie", "foo=bar")
+	req.Header.Add("Authorization", "secretpassword")
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.Header.Get("X-Done") != "true" {
+		t.Fatalf("response missing expected header: X-Done=true")
+	}
+}
+
 // Issue 22233: copy host when Client follows a relative redirect.
 func TestClientCopyHostOnRedirect(t *testing.T) { run(t, testClientCopyHostOnRedirect) }
 func testClientCopyHostOnRedirect(t *testing.T, mode testMode) {
@@ -1696,43 +1745,39 @@ func testClientAltersCookiesOnRedirect(t *testing.T, mode testMode) {
 // Part of Issue 4800
 func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 	tests := []struct {
-		header     string
 		initialURL string
 		destURL    string
 		want       bool
 	}{
-		{"User-Agent", "http://foo.com/", "http://bar.com/", true},
-		{"X-Foo", "http://foo.com/", "http://bar.com/", true},
-
 		// Sensitive headers:
-		{"cookie", "http://foo.com/", "http://bar.com/", false},
-		{"cookie2", "http://foo.com/", "http://bar.com/", false},
-		{"authorization", "http://foo.com/", "http://bar.com/", false},
-		{"authorization", "http://foo.com/", "https://foo.com/", true},
-		{"authorization", "http://foo.com:1234/", "http://foo.com:4321/", true},
-		{"www-authenticate", "http://foo.com/", "http://bar.com/", false},
-		{"authorization", "http://foo.com/", "http://[::1%25.foo.com]/", false},
+		{"http://foo.com/", "http://bar.com/", false},
+		{"http://foo.com/", "http://bar.com/", false},
+		{"http://foo.com/", "http://bar.com/", false},
+		{"http://foo.com/", "https://foo.com/", true},
+		{"http://foo.com:1234/", "http://foo.com:4321/", true},
+		{"http://foo.com/", "http://bar.com/", false},
+		{"http://foo.com/", "http://[::1%25.foo.com]/", false},
 
 		// But subdomains should work:
-		{"www-authenticate", "http://foo.com/", "http://foo.com/", true},
-		{"www-authenticate", "http://foo.com/", "http://sub.foo.com/", true},
-		{"www-authenticate", "http://foo.com/", "http://notfoo.com/", false},
-		{"www-authenticate", "http://foo.com/", "https://foo.com/", true},
-		{"www-authenticate", "http://foo.com:80/", "http://foo.com/", true},
-		{"www-authenticate", "http://foo.com:80/", "http://sub.foo.com/", true},
-		{"www-authenticate", "http://foo.com:443/", "https://foo.com/", true},
-		{"www-authenticate", "http://foo.com:443/", "https://sub.foo.com/", true},
-		{"www-authenticate", "http://foo.com:1234/", "http://foo.com/", true},
+		{"http://foo.com/", "http://foo.com/", true},
+		{"http://foo.com/", "http://sub.foo.com/", true},
+		{"http://foo.com/", "http://notfoo.com/", false},
+		{"http://foo.com/", "https://foo.com/", true},
+		{"http://foo.com:80/", "http://foo.com/", true},
+		{"http://foo.com:80/", "http://sub.foo.com/", true},
+		{"http://foo.com:443/", "https://foo.com/", true},
+		{"http://foo.com:443/", "https://sub.foo.com/", true},
+		{"http://foo.com:1234/", "http://foo.com/", true},
 
-		{"authorization", "http://foo.com/", "http://foo.com/", true},
-		{"authorization", "http://foo.com/", "http://sub.foo.com/", true},
-		{"authorization", "http://foo.com/", "http://notfoo.com/", false},
-		{"authorization", "http://foo.com/", "https://foo.com/", true},
-		{"authorization", "http://foo.com:80/", "http://foo.com/", true},
-		{"authorization", "http://foo.com:80/", "http://sub.foo.com/", true},
-		{"authorization", "http://foo.com:443/", "https://foo.com/", true},
-		{"authorization", "http://foo.com:443/", "https://sub.foo.com/", true},
-		{"authorization", "http://foo.com:1234/", "http://foo.com/", true},
+		{"http://foo.com/", "http://foo.com/", true},
+		{"http://foo.com/", "http://sub.foo.com/", true},
+		{"http://foo.com/", "http://notfoo.com/", false},
+		{"http://foo.com/", "https://foo.com/", true},
+		{"http://foo.com:80/", "http://foo.com/", true},
+		{"http://foo.com:80/", "http://sub.foo.com/", true},
+		{"http://foo.com:443/", "https://foo.com/", true},
+		{"http://foo.com:443/", "https://sub.foo.com/", true},
+		{"http://foo.com:1234/", "http://foo.com/", true},
 	}
 	for i, tt := range tests {
 		u0, err := url.Parse(tt.initialURL)
@@ -1745,10 +1790,10 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 			t.Errorf("%d. dest URL %q parse error: %v", i, tt.destURL, err)
 			continue
 		}
-		got := Export_shouldCopyHeaderOnRedirect(tt.header, u0, u1)
+		got := Export_shouldCopyHeaderOnRedirect(u0, u1)
 		if got != tt.want {
-			t.Errorf("%d. shouldCopyHeaderOnRedirect(%q, %q => %q) = %v; want %v",
-				i, tt.header, tt.initialURL, tt.destURL, got, tt.want)
+			t.Errorf("%d. shouldCopyHeaderOnRedirect(%q => %q) = %v; want %v",
+				i, tt.initialURL, tt.destURL, got, tt.want)
 		}
 	}
 }

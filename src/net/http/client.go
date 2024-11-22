@@ -612,8 +612,9 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 		reqBodyClosed = false // have we closed the current req.Body?
 
 		// Redirect behavior:
-		redirectMethod string
-		includeBody    bool
+		redirectMethod        string
+		includeBody           = true
+		stripSensitiveHeaders = false
 	)
 	uerr := func(err error) error {
 		// the body may have been closed already by c.send()
@@ -680,7 +681,12 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			// in case the user set Referer on their first request.
 			// If they really want to override, they can do it in
 			// their CheckRedirect func.
-			copyHeaders(req)
+			if !stripSensitiveHeaders && reqs[0].URL.Host != req.URL.Host {
+				if !shouldCopyHeaderOnRedirect(reqs[0].URL, req.URL) {
+					stripSensitiveHeaders = true
+				}
+			}
+			copyHeaders(req, stripSensitiveHeaders)
 
 			// Add the Referer header from the most recent
 			// request URL to the new one, if it's not https->http:
@@ -746,7 +752,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 // makeHeadersCopier makes a function that copies headers from the
 // initial Request, ireq. For every redirect, this function must be called
 // so that it can copy headers into the upcoming Request.
-func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
+func (c *Client) makeHeadersCopier(ireq *Request) func(req *Request, stripSensitiveHeaders bool) {
 	// The headers to copy are from the very initial request.
 	// We use a closured callback to keep a reference to these original headers.
 	var (
@@ -760,8 +766,7 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 		}
 	}
 
-	preq := ireq // The previous request
-	return func(req *Request) {
+	return func(req *Request, stripSensitiveHeaders bool) {
 		// If Jar is present and there was some initial cookies provided
 		// via the request header, then we may need to alter the initial
 		// cookies as we follow redirects since each redirect may end up
@@ -798,12 +803,15 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 		// Copy the initial request's Header values
 		// (at least the safe ones).
 		for k, vv := range ireqhdr {
-			if shouldCopyHeaderOnRedirect(k, preq.URL, req.URL) {
+			sensitive := false
+			switch CanonicalHeaderKey(k) {
+			case "Authorization", "Www-Authenticate", "Cookie", "Cookie2":
+				sensitive = true
+			}
+			if !(sensitive && stripSensitiveHeaders) {
 				req.Header[k] = vv
 			}
 		}
-
-		preq = req // Update previous Request with the current request
 	}
 }
 
@@ -982,28 +990,23 @@ func (b *cancelTimerBody) Close() error {
 	return err
 }
 
-func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
-	switch CanonicalHeaderKey(headerKey) {
-	case "Authorization", "Www-Authenticate", "Cookie", "Cookie2":
-		// Permit sending auth/cookie headers from "foo.com"
-		// to "sub.foo.com".
+func shouldCopyHeaderOnRedirect(initial, dest *url.URL) bool {
+	// Permit sending auth/cookie headers from "foo.com"
+	// to "sub.foo.com".
 
-		// Note that we don't send all cookies to subdomains
-		// automatically. This function is only used for
-		// Cookies set explicitly on the initial outgoing
-		// client request. Cookies automatically added via the
-		// CookieJar mechanism continue to follow each
-		// cookie's scope as set by Set-Cookie. But for
-		// outgoing requests with the Cookie header set
-		// directly, we don't know their scope, so we assume
-		// it's for *.domain.com.
+	// Note that we don't send all cookies to subdomains
+	// automatically. This function is only used for
+	// Cookies set explicitly on the initial outgoing
+	// client request. Cookies automatically added via the
+	// CookieJar mechanism continue to follow each
+	// cookie's scope as set by Set-Cookie. But for
+	// outgoing requests with the Cookie header set
+	// directly, we don't know their scope, so we assume
+	// it's for *.domain.com.
 
-		ihost := idnaASCIIFromURL(initial)
-		dhost := idnaASCIIFromURL(dest)
-		return isDomainOrSubdomain(dhost, ihost)
-	}
-	// All other headers are copied:
-	return true
+	ihost := idnaASCIIFromURL(initial)
+	dhost := idnaASCIIFromURL(dest)
+	return isDomainOrSubdomain(dhost, ihost)
 }
 
 // isDomainOrSubdomain reports whether sub is a subdomain (or exact
