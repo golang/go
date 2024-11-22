@@ -1,0 +1,3 @@
+pkg crypto/cipher, func NewCFBDecrypter //deprecated #69445
+pkg crypto/cipher, func NewCFBEncrypter //deprecated #69445
+pkg crypto/cipher, func NewOFB //deprecated #69445
