@@ -41,7 +41,6 @@ func TestFIPSCheckVerify(t *testing.T) {
 	if asan.Enabled {
 		// Verification panics with asan; don't bother.
 		t.Skipf("skipping with -asan")
-		return
 	}
 
 	cmd := testenv.Command(t, os.Args[0], "-test.v", "-test.run=TestFIPSCheck")

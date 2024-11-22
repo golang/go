@@ -714,7 +714,7 @@ func (t *tester) registerTests() {
 	})
 
 	// Check that all crypto packages compile (and test correctly, in longmode) with fips.
-	if fipsSupported() {
+	if t.fipsSupported() {
 		// Test standard crypto packages with fips140=on.
 		t.registerTest("GODEBUG=fips140=on go test crypto/...", &goTest{
 			variant: "gofips140",
@@ -1794,7 +1794,7 @@ func isEnvSet(evar string) bool {
 	return false
 }
 
-func fipsSupported() bool {
+func (t *tester) fipsSupported() bool {
 	// Use GOFIPS140 or GOEXPERIMENT=boringcrypto, but not both.
 	if strings.Contains(goexperiment, "boringcrypto") {
 		return false
@@ -1811,6 +1811,13 @@ func fipsSupported() bool {
 		goos == "aix":
 		return false
 	}
+
+	// For now, FIPS+ASAN doesn't need to work.
+	// If this is made to work, also re-enable the test in check_test.go.
+	if t.asan {
+		return false
+	}
+
 	return true
 }
 

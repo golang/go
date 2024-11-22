@@ -83,7 +83,8 @@ func init() {
 		// crypto/internal/fips140deps and then call it to unpoison the range
 		// before reading it, but it is unclear whether that would then cause
 		// false negatives. For now, FIPS+ASAN doesn't need to work.
-		// If this is made to work, also re-enable the test in check_test.go.
+		// If this is made to work, also re-enable the test in check_test.go
+		// and in cmd/dist/test.go.
 		panic("fips140: cannot verify in asan mode")
 	}
 
