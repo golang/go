@@ -208,7 +208,7 @@ var ArchPPC64 = &Arch{
 	RegSize:       8,
 	MinLC:         4,
 	Alignment:     1,
-	CanMergeLoads: false,
+	CanMergeLoads: true,
 	HasLR:         true,
 	// PIC code on ppc64le requires 32 bytes of stack, and it's
 	// easier to just use that much stack always.
