@@ -305,7 +305,7 @@ func runBuiltTool(b *work.Builder, ctx context.Context, a *work.Action) error {
 
 	toolCmd := &exec.Cmd{
 		Path:   cmdline[0],
-		Args:   cmdline[1:],
+		Args:   cmdline,
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,

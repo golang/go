@@ -12,6 +12,12 @@ go tool bar
 stdout 'my name is: bar'$GOEXE
 ! stdout 'a.out'
 
+# Third run: with arguments
+# https://go.dev/issue/70509
+go tool bar --baz
+stdout 'my name is: bar'$GOEXE
+! stdout 'a.out'
+
 -- go.mod --
 module example.com/foo
 
