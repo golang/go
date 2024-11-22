@@ -124,7 +124,7 @@ func set(slice []string) map[string]bool {
 }
 
 // Expand takes a counter defined with buckets and expands it into distinct
-// strings for each bucket
+// strings for each bucket.
 func Expand(counter string) []string {
 	prefix, rest, hasBuckets := strings.Cut(counter, "{")
 	var counters []string

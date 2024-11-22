@@ -144,7 +144,7 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 			for _, res := range results {
 				tree.Add(fset, cfg.ID, res.a.Name, res.diagnostics, res.err)
 			}
-			tree.Print()
+			tree.Print(os.Stdout)
 		} else {
 			// plain text
 			exit := 0
@@ -156,7 +156,7 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
 			}
 			for _, res := range results {
 				for _, diag := range res.diagnostics {
-					analysisflags.PrintPlain(fset, diag)
+					analysisflags.PrintPlain(os.Stderr, fset, analysisflags.Context, diag)
 					exit = 1
 				}
 			}

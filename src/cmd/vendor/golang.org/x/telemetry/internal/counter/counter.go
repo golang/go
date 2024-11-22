@@ -341,7 +341,7 @@ func readFile(f *file) (*File, error) {
 		return nil, fmt.Errorf("counter has no mapped file")
 	}
 	name := current.f.Name()
-	data, err := os.ReadFile(name)
+	data, err := ReadMapped(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from file: %v", err)
 	}

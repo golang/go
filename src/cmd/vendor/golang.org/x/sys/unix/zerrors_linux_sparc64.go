@@ -112,6 +112,7 @@ const (
 	HIDIOCGRAWINFO                   = 0x40084803
 	HIDIOCGRDESC                     = 0x50044802
 	HIDIOCGRDESCSIZE                 = 0x40044801
+	HIDIOCREVOKE                     = 0x8004480d
 	HUPCL                            = 0x400
 	ICANON                           = 0x2
 	IEXTEN                           = 0x8000
@@ -350,6 +351,8 @@ const (
 	RTC_WIE_ON                       = 0x2000700f
 	RTC_WKALM_RD                     = 0x40287010
 	RTC_WKALM_SET                    = 0x8028700f
+	SCM_DEVMEM_DMABUF                = 0x58
+	SCM_DEVMEM_LINEAR                = 0x57
 	SCM_TIMESTAMPING                 = 0x23
 	SCM_TIMESTAMPING_OPT_STATS       = 0x38
 	SCM_TIMESTAMPING_PKTINFO         = 0x3c
@@ -436,6 +439,9 @@ const (
 	SO_CNX_ADVICE                    = 0x37
 	SO_COOKIE                        = 0x3b
 	SO_DETACH_REUSEPORT_BPF          = 0x47
+	SO_DEVMEM_DMABUF                 = 0x58
+	SO_DEVMEM_DONTNEED               = 0x59
+	SO_DEVMEM_LINEAR                 = 0x57
 	SO_DOMAIN                        = 0x1029
 	SO_DONTROUTE                     = 0x10
 	SO_ERROR                         = 0x1007

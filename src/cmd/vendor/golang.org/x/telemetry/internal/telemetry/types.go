@@ -26,7 +26,7 @@ type ProgramConfig struct {
 }
 
 type CounterConfig struct {
-	Name  string
+	Name  string  // The "collapsed" counter: <chart>:{<bucket1>,<bucket2>,...}
 	Rate  float64 // If X <= Rate, report this counter
 	Depth int     `json:",omitempty"` // for stack counters
 }

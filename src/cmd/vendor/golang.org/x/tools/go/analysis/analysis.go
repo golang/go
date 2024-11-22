@@ -50,7 +50,7 @@ type Analyzer struct {
 	// RunDespiteErrors allows the driver to invoke
 	// the Run method of this analyzer even on a
 	// package that contains parse or type errors.
-	// The Pass.TypeErrors field may consequently be non-empty.
+	// The [Pass.TypeErrors] field may consequently be non-empty.
 	RunDespiteErrors bool
 
 	// Requires is a set of analyzers that must run successfully

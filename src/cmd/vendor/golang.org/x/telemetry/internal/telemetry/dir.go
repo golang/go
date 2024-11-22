@@ -102,9 +102,9 @@ func (d Dir) SetModeAsOf(mode string, asofTime time.Time) error {
 		return fmt.Errorf("cannot create a telemetry mode file: %w", err)
 	}
 
-	asof := asofTime.UTC().Format(time.DateOnly)
+	asof := asofTime.UTC().Format(DateOnly)
 	// Defensively guarantee that we can parse the asof time.
-	if _, err := time.Parse(time.DateOnly, asof); err != nil {
+	if _, err := time.Parse(DateOnly, asof); err != nil {
 		return fmt.Errorf("internal error: invalid mode date %q: %v", asof, err)
 	}
 
@@ -136,7 +136,7 @@ func (d Dir) Mode() (string, time.Time) {
 	//
 	// If the modefile contains a date, return it.
 	if idx := strings.Index(mode, " "); idx >= 0 {
-		d, err := time.Parse(time.DateOnly, mode[idx+1:])
+		d, err := time.Parse(DateOnly, mode[idx+1:])
 		if err != nil {
 			d = time.Time{}
 		}

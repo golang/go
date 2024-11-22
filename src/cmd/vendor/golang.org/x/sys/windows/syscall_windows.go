@@ -168,6 +168,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	CreateNamedPipe(name *uint16, flags uint32, pipeMode uint32, maxInstances uint32, outSize uint32, inSize uint32, defaultTimeout uint32, sa *SecurityAttributes) (handle Handle, err error)  [failretval==InvalidHandle] = CreateNamedPipeW
 //sys	ConnectNamedPipe(pipe Handle, overlapped *Overlapped) (err error)
 //sys	DisconnectNamedPipe(pipe Handle) (err error)
+//sys   GetNamedPipeClientProcessId(pipe Handle, clientProcessID *uint32) (err error)
+//sys   GetNamedPipeServerProcessId(pipe Handle, serverProcessID *uint32) (err error)
 //sys	GetNamedPipeInfo(pipe Handle, flags *uint32, outSize *uint32, inSize *uint32, maxInstances *uint32) (err error)
 //sys	GetNamedPipeHandleState(pipe Handle, state *uint32, curInstances *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32, userName *uint16, maxUserNameSize uint32) (err error) = GetNamedPipeHandleStateW
 //sys	SetNamedPipeHandleState(pipe Handle, state *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32) (err error) = SetNamedPipeHandleState

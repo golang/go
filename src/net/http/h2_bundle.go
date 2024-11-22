@@ -3061,7 +3061,7 @@ func (mh *http2MetaHeadersFrame) checkPseudos() error {
 	pf := mh.PseudoFields()
 	for i, hf := range pf {
 		switch hf.Name {
-		case ":method", ":path", ":scheme", ":authority":
+		case ":method", ":path", ":scheme", ":authority", ":protocol":
 			isRequest = true
 		case ":status":
 			isResponse = true
@@ -3069,7 +3069,7 @@ func (mh *http2MetaHeadersFrame) checkPseudos() error {
 			return http2pseudoHeaderError(hf.Name)
 		}
 		// Check for duplicates.
-		// This would be a bad algorithm, but N is 4.
+		// This would be a bad algorithm, but N is 5.
 		// And this doesn't allocate.
 		for _, hf2 := range pf[:i] {
 			if hf.Name == hf2.Name {
@@ -3509,10 +3509,11 @@ func http2canonicalHeader(v string) string {
 }
 
 var (
-	http2VerboseLogs    bool
-	http2logFrameWrites bool
-	http2logFrameReads  bool
-	http2inTests        bool
+	http2VerboseLogs                    bool
+	http2logFrameWrites                 bool
+	http2logFrameReads                  bool
+	http2inTests                        bool
+	http2disableExtendedConnectProtocol bool
 )
 
 func init() {
@@ -3524,6 +3525,9 @@ func init() {
 		http2VerboseLogs = true
 		http2logFrameWrites = true
 		http2logFrameReads = true
+	}
+	if strings.Contains(e, "http2xconnect=0") {
+		http2disableExtendedConnectProtocol = true
 	}
 }
 
@@ -3616,6 +3620,10 @@ func (s http2Setting) Valid() error {
 		if s.Val < 16384 || s.Val > 1<<24-1 {
 			return http2ConnectionError(http2ErrCodeProtocol)
 		}
+	case http2SettingEnableConnectProtocol:
+		if s.Val != 1 && s.Val != 0 {
+			return http2ConnectionError(http2ErrCodeProtocol)
+		}
 	}
 	return nil
 }
@@ -3625,21 +3633,23 @@ func (s http2Setting) Valid() error {
 type http2SettingID uint16
 
 const (
-	http2SettingHeaderTableSize      http2SettingID = 0x1
-	http2SettingEnablePush           http2SettingID = 0x2
-	http2SettingMaxConcurrentStreams http2SettingID = 0x3
-	http2SettingInitialWindowSize    http2SettingID = 0x4
-	http2SettingMaxFrameSize         http2SettingID = 0x5
-	http2SettingMaxHeaderListSize    http2SettingID = 0x6
+	http2SettingHeaderTableSize       http2SettingID = 0x1
+	http2SettingEnablePush            http2SettingID = 0x2
+	http2SettingMaxConcurrentStreams  http2SettingID = 0x3
+	http2SettingInitialWindowSize     http2SettingID = 0x4
+	http2SettingMaxFrameSize          http2SettingID = 0x5
+	http2SettingMaxHeaderListSize     http2SettingID = 0x6
+	http2SettingEnableConnectProtocol http2SettingID = 0x8
 )
 
 var http2settingName = map[http2SettingID]string{
-	http2SettingHeaderTableSize:      "HEADER_TABLE_SIZE",
-	http2SettingEnablePush:           "ENABLE_PUSH",
-	http2SettingMaxConcurrentStreams: "MAX_CONCURRENT_STREAMS",
-	http2SettingInitialWindowSize:    "INITIAL_WINDOW_SIZE",
-	http2SettingMaxFrameSize:         "MAX_FRAME_SIZE",
-	http2SettingMaxHeaderListSize:    "MAX_HEADER_LIST_SIZE",
+	http2SettingHeaderTableSize:       "HEADER_TABLE_SIZE",
+	http2SettingEnablePush:            "ENABLE_PUSH",
+	http2SettingMaxConcurrentStreams:  "MAX_CONCURRENT_STREAMS",
+	http2SettingInitialWindowSize:     "INITIAL_WINDOW_SIZE",
+	http2SettingMaxFrameSize:          "MAX_FRAME_SIZE",
+	http2SettingMaxHeaderListSize:     "MAX_HEADER_LIST_SIZE",
+	http2SettingEnableConnectProtocol: "ENABLE_CONNECT_PROTOCOL",
 }
 
 func (s http2SettingID) String() string {
@@ -4965,14 +4975,18 @@ func (sc *http2serverConn) serve(conf http2http2Config) {
 		sc.vlogf("http2: server connection from %v on %p", sc.conn.RemoteAddr(), sc.hs)
 	}
 
+	settings := http2writeSettings{
+		{http2SettingMaxFrameSize, conf.MaxReadFrameSize},
+		{http2SettingMaxConcurrentStreams, sc.advMaxStreams},
+		{http2SettingMaxHeaderListSize, sc.maxHeaderListSize()},
+		{http2SettingHeaderTableSize, conf.MaxDecoderHeaderTableSize},
+		{http2SettingInitialWindowSize, uint32(sc.initialStreamRecvWindowSize)},
+	}
+	if !http2disableExtendedConnectProtocol {
+		settings = append(settings, http2Setting{http2SettingEnableConnectProtocol, 1})
+	}
 	sc.writeFrame(http2FrameWriteRequest{
-		write: http2writeSettings{
-			{http2SettingMaxFrameSize, conf.MaxReadFrameSize},
-			{http2SettingMaxConcurrentStreams, sc.advMaxStreams},
-			{http2SettingMaxHeaderListSize, sc.maxHeaderListSize()},
-			{http2SettingHeaderTableSize, conf.MaxDecoderHeaderTableSize},
-			{http2SettingInitialWindowSize, uint32(sc.initialStreamRecvWindowSize)},
-		},
+		write: settings,
 	})
 	sc.unackedSettings++
 
@@ -5837,6 +5851,9 @@ func (sc *http2serverConn) processSetting(s http2Setting) error {
 		sc.maxFrameSize = int32(s.Val) // the maximum valid s.Val is < 2^31
 	case http2SettingMaxHeaderListSize:
 		sc.peerMaxHeaderListSize = s.Val
+	case http2SettingEnableConnectProtocol:
+		// Receipt of this parameter by a server does not
+		// have any impact
 	default:
 		// Unknown setting: "An endpoint that receives a SETTINGS
 		// frame with any unknown or unsupported identifier MUST
@@ -6267,11 +6284,17 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 		scheme:    f.PseudoValue("scheme"),
 		authority: f.PseudoValue("authority"),
 		path:      f.PseudoValue("path"),
+		protocol:  f.PseudoValue("protocol"),
+	}
+
+	// extended connect is disabled, so we should not see :protocol
+	if http2disableExtendedConnectProtocol && rp.protocol != "" {
+		return nil, nil, sc.countError("bad_connect", http2streamError(f.StreamID, http2ErrCodeProtocol))
 	}
 
 	isConnect := rp.method == "CONNECT"
 	if isConnect {
-		if rp.path != "" || rp.scheme != "" || rp.authority == "" {
+		if rp.protocol == "" && (rp.path != "" || rp.scheme != "" || rp.authority == "") {
 			return nil, nil, sc.countError("bad_connect", http2streamError(f.StreamID, http2ErrCodeProtocol))
 		}
 	} else if rp.method == "" || rp.path == "" || (rp.scheme != "https" && rp.scheme != "http") {
@@ -6294,6 +6317,9 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 	}
 	if rp.authority == "" {
 		rp.authority = rp.header.Get("Host")
+	}
+	if rp.protocol != "" {
+		rp.header.Set(":protocol", rp.protocol)
 	}
 
 	rw, req, err := sc.newWriterAndRequestNoBody(st, rp)
@@ -6321,6 +6347,7 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 type http2requestParam struct {
 	method                  string
 	scheme, authority, path string
+	protocol                string
 	header                  Header
 }
 
@@ -6362,7 +6389,7 @@ func (sc *http2serverConn) newWriterAndRequestNoBody(st *http2stream, rp http2re
 
 	var url_ *url.URL
 	var requestURI string
-	if rp.method == "CONNECT" {
+	if rp.method == "CONNECT" && rp.protocol == "" {
 		url_ = &url.URL{Host: rp.authority}
 		requestURI = rp.authority // mimic HTTP/1 server behavior
 	} else {
@@ -7755,25 +7782,26 @@ type http2ClientConn struct {
 	idleTimeout time.Duration // or 0 for never
 	idleTimer   http2timer
 
-	mu              sync.Mutex   // guards following
-	cond            *sync.Cond   // hold mu; broadcast on flow/closed changes
-	flow            http2outflow // our conn-level flow control quota (cs.outflow is per stream)
-	inflow          http2inflow  // peer's conn-level flow control
-	doNotReuse      bool         // whether conn is marked to not be reused for any future requests
-	closing         bool
-	closed          bool
-	seenSettings    bool                          // true if we've seen a settings frame, false otherwise
-	wantSettingsAck bool                          // we sent a SETTINGS frame and haven't heard back
-	goAway          *http2GoAwayFrame             // if non-nil, the GoAwayFrame we received
-	goAwayDebug     string                        // goAway frame's debug data, retained as a string
-	streams         map[uint32]*http2clientStream // client-initiated
-	streamsReserved int                           // incr by ReserveNewRequest; decr on RoundTrip
-	nextStreamID    uint32
-	pendingRequests int                       // requests blocked and waiting to be sent because len(streams) == maxConcurrentStreams
-	pings           map[[8]byte]chan struct{} // in flight ping data to notification channel
-	br              *bufio.Reader
-	lastActive      time.Time
-	lastIdle        time.Time // time last idle
+	mu               sync.Mutex   // guards following
+	cond             *sync.Cond   // hold mu; broadcast on flow/closed changes
+	flow             http2outflow // our conn-level flow control quota (cs.outflow is per stream)
+	inflow           http2inflow  // peer's conn-level flow control
+	doNotReuse       bool         // whether conn is marked to not be reused for any future requests
+	closing          bool
+	closed           bool
+	seenSettings     bool                          // true if we've seen a settings frame, false otherwise
+	seenSettingsChan chan struct{}                 // closed when seenSettings is true or frame reading fails
+	wantSettingsAck  bool                          // we sent a SETTINGS frame and haven't heard back
+	goAway           *http2GoAwayFrame             // if non-nil, the GoAwayFrame we received
+	goAwayDebug      string                        // goAway frame's debug data, retained as a string
+	streams          map[uint32]*http2clientStream // client-initiated
+	streamsReserved  int                           // incr by ReserveNewRequest; decr on RoundTrip
+	nextStreamID     uint32
+	pendingRequests  int                       // requests blocked and waiting to be sent because len(streams) == maxConcurrentStreams
+	pings            map[[8]byte]chan struct{} // in flight ping data to notification channel
+	br               *bufio.Reader
+	lastActive       time.Time
+	lastIdle         time.Time // time last idle
 	// Settings from peer: (also guarded by wmu)
 	maxFrameSize                uint32
 	maxConcurrentStreams        uint32
@@ -7783,6 +7811,7 @@ type http2ClientConn struct {
 	initialStreamRecvWindowSize int32
 	readIdleTimeout             time.Duration
 	pingTimeout                 time.Duration
+	extendedConnectAllowed      bool
 
 	// pendingResets is the number of RST_STREAM frames we have sent to the peer,
 	// without confirming that the peer has received them. When we send a RST_STREAM,
@@ -8207,6 +8236,7 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 		peerMaxHeaderListSize:       0xffffffffffffffff,               // "infinite", per spec. Use 2^64-1 instead.
 		streams:                     make(map[uint32]*http2clientStream),
 		singleUse:                   singleUse,
+		seenSettingsChan:            make(chan struct{}),
 		wantSettingsAck:             true,
 		readIdleTimeout:             conf.SendPingTimeout,
 		pingTimeout:                 conf.PingTimeout,
@@ -8854,6 +8884,8 @@ func (cs *http2clientStream) doRequest(req *Request, streamf func(*http2clientSt
 	cs.cleanupWriteRequest(err)
 }
 
+var http2errExtendedConnectNotSupported = errors.New("net/http: extended connect not supported by peer")
+
 // writeRequest sends a request.
 //
 // It returns nil after the request is written, the response read,
@@ -8869,11 +8901,30 @@ func (cs *http2clientStream) writeRequest(req *Request, streamf func(*http2clien
 		return err
 	}
 
+	// wait for setting frames to be received, a server can change this value later,
+	// but we just wait for the first settings frame
+	var isExtendedConnect bool
+	if req.Method == "CONNECT" && req.Header.Get(":protocol") != "" {
+		isExtendedConnect = true
+	}
+
 	// Acquire the new-request lock by writing to reqHeaderMu.
 	// This lock guards the critical section covering allocating a new stream ID
 	// (requires mu) and creating the stream (requires wmu).
 	if cc.reqHeaderMu == nil {
 		panic("RoundTrip on uninitialized ClientConn") // for tests
+	}
+	if isExtendedConnect {
+		select {
+		case <-cs.reqCancel:
+			return http2errRequestCanceled
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-cc.seenSettingsChan:
+			if !cc.extendedConnectAllowed {
+				return http2errExtendedConnectNotSupported
+			}
+		}
 	}
 	select {
 	case cc.reqHeaderMu <- struct{}{}:
@@ -9419,7 +9470,7 @@ func (cs *http2clientStream) awaitFlowControl(maxBytes int) (taken int32, err er
 
 func http2validateHeaders(hdrs Header) string {
 	for k, vv := range hdrs {
-		if !httpguts.ValidHeaderFieldName(k) {
+		if !httpguts.ValidHeaderFieldName(k) && k != ":protocol" {
 			return fmt.Sprintf("name %q", k)
 		}
 		for _, v := range vv {
@@ -9434,6 +9485,10 @@ func http2validateHeaders(hdrs Header) string {
 }
 
 var http2errNilRequestURL = errors.New("http2: Request.URI is nil")
+
+func http2isNormalConnect(req *Request) bool {
+	return req.Method == "CONNECT" && req.Header.Get(":protocol") == ""
+}
 
 // requires cc.wmu be held.
 func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trailers string, contentLength int64) ([]byte, error) {
@@ -9455,7 +9510,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 	}
 
 	var path string
-	if req.Method != "CONNECT" {
+	if !http2isNormalConnect(req) {
 		path = req.URL.RequestURI()
 		if !http2validPseudoPath(path) {
 			orig := path
@@ -9492,7 +9547,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 			m = MethodGet
 		}
 		f(":method", m)
-		if req.Method != "CONNECT" {
+		if !http2isNormalConnect(req) {
 			f(":path", path)
 			f(":scheme", req.URL.Scheme)
 		}
@@ -9895,6 +9950,9 @@ func (rl *http2clientConnReadLoop) run() error {
 		if err != nil {
 			if http2VerboseLogs {
 				cc.vlogf("http2: Transport conn %p received error from processing frame %v: %v", cc, http2summarizeFrame(f), err)
+			}
+			if !cc.seenSettings {
+				close(cc.seenSettingsChan)
 			}
 			return err
 		}
@@ -10462,6 +10520,21 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
 		case http2SettingHeaderTableSize:
 			cc.henc.SetMaxDynamicTableSize(s.Val)
 			cc.peerMaxHeaderTableSize = s.Val
+		case http2SettingEnableConnectProtocol:
+			if err := s.Valid(); err != nil {
+				return err
+			}
+			// If the peer wants to send us SETTINGS_ENABLE_CONNECT_PROTOCOL,
+			// we require that it do so in the first SETTINGS frame.
+			//
+			// When we attempt to use extended CONNECT, we wait for the first
+			// SETTINGS frame to see if the server supports it. If we let the
+			// server enable the feature with a later SETTINGS frame, then
+			// users will see inconsistent results depending on whether we've
+			// seen that frame or not.
+			if !cc.seenSettings {
+				cc.extendedConnectAllowed = s.Val == 1
+			}
 		default:
 			cc.vlogf("Unhandled Setting: %v", s)
 		}
@@ -10479,6 +10552,7 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
 			// connection can establish to our default.
 			cc.maxConcurrentStreams = http2defaultMaxConcurrentStreams
 		}
+		close(cc.seenSettingsChan)
 		cc.seenSettings = true
 	}
 

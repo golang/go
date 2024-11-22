@@ -321,6 +321,9 @@ const (
 	AUDIT_INTEGRITY_STATUS                      = 0x70a
 	AUDIT_IPC                                   = 0x517
 	AUDIT_IPC_SET_PERM                          = 0x51f
+	AUDIT_IPE_ACCESS                            = 0x58c
+	AUDIT_IPE_CONFIG_CHANGE                     = 0x58d
+	AUDIT_IPE_POLICY_LOAD                       = 0x58e
 	AUDIT_KERNEL                                = 0x7d0
 	AUDIT_KERNEL_OTHER                          = 0x524
 	AUDIT_KERN_MODULE                           = 0x532
@@ -489,6 +492,7 @@ const (
 	BPF_F_ID                                    = 0x20
 	BPF_F_NETFILTER_IP_DEFRAG                   = 0x1
 	BPF_F_QUERY_EFFECTIVE                       = 0x1
+	BPF_F_REDIRECT_FLAGS                        = 0x19
 	BPF_F_REPLACE                               = 0x4
 	BPF_F_SLEEPABLE                             = 0x10
 	BPF_F_STRICT_ALIGNMENT                      = 0x1
@@ -1166,6 +1170,7 @@ const (
 	EXTA                                        = 0xe
 	EXTB                                        = 0xf
 	F2FS_SUPER_MAGIC                            = 0xf2f52010
+	FALLOC_FL_ALLOCATE_RANGE                    = 0x0
 	FALLOC_FL_COLLAPSE_RANGE                    = 0x8
 	FALLOC_FL_INSERT_RANGE                      = 0x20
 	FALLOC_FL_KEEP_SIZE                         = 0x1
@@ -1799,6 +1804,8 @@ const (
 	LANDLOCK_ACCESS_NET_BIND_TCP                = 0x1
 	LANDLOCK_ACCESS_NET_CONNECT_TCP             = 0x2
 	LANDLOCK_CREATE_RULESET_VERSION             = 0x1
+	LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET         = 0x1
+	LANDLOCK_SCOPE_SIGNAL                       = 0x2
 	LINUX_REBOOT_CMD_CAD_OFF                    = 0x0
 	LINUX_REBOOT_CMD_CAD_ON                     = 0x89abcdef
 	LINUX_REBOOT_CMD_HALT                       = 0xcdef0123
@@ -1924,6 +1931,7 @@ const (
 	MNT_FORCE                                   = 0x1
 	MNT_ID_REQ_SIZE_VER0                        = 0x18
 	MNT_ID_REQ_SIZE_VER1                        = 0x20
+	MNT_NS_INFO_SIZE_VER0                       = 0x10
 	MODULE_INIT_COMPRESSED_FILE                 = 0x4
 	MODULE_INIT_IGNORE_MODVERSIONS              = 0x1
 	MODULE_INIT_IGNORE_VERMAGIC                 = 0x2
@@ -2970,6 +2978,7 @@ const (
 	RWF_WRITE_LIFE_NOT_SET                      = 0x0
 	SCHED_BATCH                                 = 0x3
 	SCHED_DEADLINE                              = 0x6
+	SCHED_EXT                                   = 0x7
 	SCHED_FIFO                                  = 0x1
 	SCHED_FLAG_ALL                              = 0x7f
 	SCHED_FLAG_DL_OVERRUN                       = 0x4

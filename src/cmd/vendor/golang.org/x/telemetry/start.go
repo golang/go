@@ -271,6 +271,9 @@ func child(config Config) {
 	uploadStartTime := config.UploadStartTime
 	uploadURL := config.UploadURL
 
+	// The crashmonitor and/or upload process may themselves record counters.
+	counter.Open()
+
 	// Start crashmonitoring and uploading depending on what's requested
 	// and wait for the longer running child to complete before exiting:
 	// if we collected a crash before the upload finished, wait for the
