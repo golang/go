@@ -16,6 +16,7 @@ import (
 	"encoding"
 	"encoding/base64"
 	"fmt"
+	"internal/godebug"
 	"math"
 	"reflect"
 	"slices"
@@ -168,6 +169,13 @@ import (
 // JSON cannot represent cyclic data structures and Marshal does not
 // handle them. Passing cyclic structures to Marshal will result in
 // an error.
+//
+// Before Go 1.24, the marshaling was inconsistent: custom marshalers
+// (MarshalJSON and MarshalText methods) defined with pointer receivers
+// were not called for non-addressable values. As of Go 1.24, the marshaling is consistent.
+//
+// The GODEBUG setting jsoninconsistentmarshal=1 restores pre-Go 1.24
+// inconsistent marshaling.
 func Marshal(v any) ([]byte, error) {
 	e := newEncodeState()
 	defer encodeStatePool.Put(e)
@@ -462,7 +470,13 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
-	va := v.Addr()
+	var va reflect.Value
+	if v.CanAddr() {
+		va = v.Addr()
+	} else {
+		va = reflect.New(v.Type())
+		va.Elem().Set(v)
+	}
 	if va.IsNil() {
 		e.WriteString("null")
 		return
@@ -498,7 +512,13 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
-	va := v.Addr()
+	var va reflect.Value
+	if v.CanAddr() {
+		va = v.Addr()
+	} else {
+		va = reflect.New(v.Type())
+		va.Elem().Set(v)
+	}
 	if va.IsNil() {
 		e.WriteString("null")
 		return
@@ -909,10 +929,13 @@ type condAddrEncoder struct {
 	canAddrEnc, elseEnc encoderFunc
 }
 
+var jsoninconsistentmarshal = godebug.New("jsoninconsistentmarshal")
+
 func (ce condAddrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
-	if v.CanAddr() {
+	if v.CanAddr() || jsoninconsistentmarshal.Value() != "1" {
 		ce.canAddrEnc(e, v, opts)
 	} else {
+		jsoninconsistentmarshal.IncNonDefault()
 		ce.elseEnc(e, v, opts)
 	}
 }

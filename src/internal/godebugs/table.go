@@ -40,6 +40,7 @@ var All = []Info{
 	{Name: "httpmuxgo121", Package: "net/http", Changed: 22, Old: "1"},
 	{Name: "httpservecontentkeepheaders", Package: "net/http", Changed: 23, Old: "1"},
 	{Name: "installgoroot", Package: "go/build"},
+	{Name: "jsoninconsistentmarshal", Package: "encoding/json"},
 	{Name: "jstmpllitinterp", Package: "html/template", Opaque: true}, // bug #66217: remove Opaque
 	//{Name: "multipartfiles", Package: "mime/multipart"},
 	{Name: "multipartmaxheaders", Package: "mime/multipart"},
@@ -64,6 +65,7 @@ var All = []Info{
 	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
 	{Name: "x509usepolicies", Package: "crypto/x509"},
+	{Name: "xmlinconsistentmarshal", Package: "encoding/xml"},
 	{Name: "zipinsecurepath", Package: "archive/zip"},
 }
 

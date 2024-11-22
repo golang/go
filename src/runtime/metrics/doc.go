@@ -285,6 +285,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the go/build
 		package due to a non-default GODEBUG=installgoroot=... setting.
 
+	/godebug/non-default-behavior/jsoninconsistentmarshal:events
+		The number of non-default behaviors executed by
+		the encoding/json package due to a non-default
+		GODEBUG=jsoninconsistentmarshal=... setting.
+
 	/godebug/non-default-behavior/multipartmaxheaders:events
 		The number of non-default behaviors executed by
 		the mime/multipart package due to a non-default
@@ -370,6 +375,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/x509usepolicies:events
 		The number of non-default behaviors executed by the crypto/x509
 		package due to a non-default GODEBUG=x509usepolicies=...
+		setting.
+
+	/godebug/non-default-behavior/xmlinconsistentmarshal:events
+		The number of non-default behaviors executed by the encoding/xml
+		package due to a non-default GODEBUG=xmlinconsistentmarshal=...
 		setting.
 
 	/godebug/non-default-behavior/zipinsecurepath:events

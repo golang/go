@@ -152,6 +152,18 @@ see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
 ### Go 1.24
+Go 1.24 made JSON marshaling consistent: custom marshalers ([`MarshalJSON`](/pkg/encoding/json#Marshaler) and [`MarshalText`](/pkg/encoding#TextMarshaler))
+are now always called when appropriate no matter if their receivers are pointers or values
+even if the related data fields are non-addressable.
+This behavior can be reverted with the [`jsoninconsistentmarshal` setting](/pkg/encoding/json/#Marshal).
+
+Go 1.24 made XML marshaling consistent: custom marshalers ([`MarshalXML`](/pkg/encoding/xml#Marshaler),
+[`MarshalXMLAttr`](/pkg/encoding/xml#MarshalerAttr), [`MarshalText`](/pkg/encoding#TextMarshaler))
+are now always called when appropriate no matter if their receivers are pointers or values
+even if the related data fields are non-addressable. Also, [`MarshalXMLAttr`](/pkg/encoding/xml#MarshalerAttr)
+and [`MarshalText`](/pkg/encoding#TextMarshaler) are now called when appropriate for struct fields
+marked as attribute/CDATA/chardata even if the field type is an interface.
+This behavior can be reverted with the [`xmlinconsistentmarshal` setting](/pkg/encoding/xml/#Marshal).
 
 Go 1.24 changed the global [`math/rand.Seed`](/pkg/math/rand/#Seed) to be a
 no-op. This behavior is controlled by the `randseednop` setting.
