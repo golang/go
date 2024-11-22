@@ -11,6 +11,7 @@ package sha1
 import (
 	"crypto"
 	"crypto/internal/boring"
+	"crypto/internal/fips140only"
 	"errors"
 	"hash"
 	"internal/byteorder"
@@ -99,12 +100,16 @@ func (d *digest) Reset() {
 	d.len = 0
 }
 
-// New returns a new hash.Hash computing the SHA1 checksum. The Hash also
-// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
-// marshal and unmarshal the internal state of the hash.
+// New returns a new [hash.Hash] computing the SHA1 checksum. The Hash
+// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+// state of the hash.
 func New() hash.Hash {
 	if boring.Enabled {
 		return boring.NewSHA1()
+	}
+	if fips140only.Enabled {
+		panic("crypto/sha1: use of weak SHA-1 is not allowed in FIPS 140-only mode")
 	}
 	d := new(digest)
 	d.Reset()
@@ -252,6 +257,9 @@ func (d *digest) constSum() [Size]byte {
 func Sum(data []byte) [Size]byte {
 	if boring.Enabled {
 		return boring.SHA1(data)
+	}
+	if fips140only.Enabled {
+		panic("crypto/sha1: use of weak SHA-1 is not allowed in FIPS 140-only mode")
 	}
 	var d digest
 	d.Reset()

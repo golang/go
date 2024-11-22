@@ -7,7 +7,8 @@
 package cipher
 
 import (
-	"crypto/internal/alias"
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
 	"crypto/subtle"
 )
 
@@ -54,6 +55,9 @@ func (x *cfb) XORKeyStream(dst, src []byte) {
 // using the given [Block]. The iv must be the same length as the [Block]'s block
 // size.
 func NewCFBEncrypter(block Block, iv []byte) Stream {
+	if fips140only.Enabled {
+		panic("crypto/cipher: use of CFB is not allowed in FIPS 140-only mode")
+	}
 	return newCFB(block, iv, false)
 }
 
@@ -61,6 +65,9 @@ func NewCFBEncrypter(block Block, iv []byte) Stream {
 // using the given [Block]. The iv must be the same length as the [Block]'s block
 // size.
 func NewCFBDecrypter(block Block, iv []byte) Stream {
+	if fips140only.Enabled {
+		panic("crypto/cipher: use of CFB is not allowed in FIPS 140-only mode")
+	}
 	return newCFB(block, iv, true)
 }
 

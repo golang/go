@@ -5,7 +5,10 @@
 package cipher
 
 import (
-	"crypto/internal/alias"
+	"crypto/internal/fips140/aes"
+	"crypto/internal/fips140/aes/gcm"
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
 	"crypto/subtle"
 	"errors"
 	"internal/byteorder"
@@ -83,7 +86,10 @@ type gcm struct {
 // An exception is when the underlying [Block] was created by aes.NewCipher
 // on systems with hardware support for AES. See the [crypto/aes] package documentation for details.
 func NewGCM(cipher Block) (AEAD, error) {
-	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, gcmTagSize)
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
+	}
+	return newGCM(cipher, gcmStandardNonceSize, gcmTagSize)
 }
 
 // NewGCMWithNonceSize returns the given 128-bit, block cipher wrapped in Galois
@@ -94,7 +100,10 @@ func NewGCM(cipher Block) (AEAD, error) {
 // cryptosystem that uses non-standard nonce lengths. All other users should use
 // [NewGCM], which is faster and more resistant to misuse.
 func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
-	return newGCMWithNonceAndTagSize(cipher, size, gcmTagSize)
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
+	}
+	return newGCM(cipher, size, gcmTagSize)
 }
 
 // NewGCMWithTagSize returns the given 128-bit, block cipher wrapped in Galois
@@ -106,10 +115,154 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
 // cryptosystem that uses non-standard tag lengths. All other users should use
 // [NewGCM], which is more resistant to misuse.
 func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
-	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, tagSize)
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
+	}
+	return newGCM(cipher, gcmStandardNonceSize, tagSize)
 }
 
-func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, error) {
+func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
+	c, ok := cipher.(*aes.Block)
+	if !ok {
+		if fips140only.Enabled {
+			return nil, errors.New("crypto/cipher: use of GCM with non-AES ciphers is not allowed in FIPS 140-only mode")
+		}
+		return newGCMFallback(cipher, nonceSize, tagSize)
+	}
+	// We don't return gcm.New directly, because it would always return a non-nil
+	// AEAD interface value with type *gcm.GCM even if the *gcm.GCM is nil.
+	g, err := gcm.New(c, nonceSize, tagSize)
+	if err != nil {
+		return nil, err
+	}
+	return g, nil
+}
+
+// NewGCMWithRandomNonce returns the given cipher wrapped in Galois Counter
+// Mode, with randomly-generated nonces. The cipher must have been created by
+// [aes.NewCipher].
+//
+// It generates a random 96-bit nonce, which is prepended to the ciphertext by Seal,
+// and is extracted from the ciphertext by Open. The NonceSize of the AEAD is zero,
+// while the Overhead is 28 bytes (the combination of nonce size and tag size).
+//
+// A given key MUST NOT be used to encrypt more than 2^32 messages, to limit the
+// risk of a random nonce collision to negligible levels.
+func NewGCMWithRandomNonce(cipher Block) (AEAD, error) {
+	c, ok := cipher.(*aes.Block)
+	if !ok {
+		return nil, errors.New("cipher: NewGCMWithRandomNonce requires aes.Block")
+	}
+	g, err := gcm.New(c, gcmStandardNonceSize, gcmTagSize)
+	if err != nil {
+		return nil, err
+	}
+	return gcmWithRandomNonce{g}, nil
+}
+
+type gcmWithRandomNonce struct {
+	*gcm.GCM
+}
+
+func (g gcmWithRandomNonce) NonceSize() int {
+	return 0
+}
+
+func (g gcmWithRandomNonce) Overhead() int {
+	return gcmStandardNonceSize + gcmTagSize
+}
+
+func (g gcmWithRandomNonce) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
+	if len(nonce) != 0 {
+		panic("crypto/cipher: non-empty nonce passed to GCMWithRandomNonce")
+	}
+
+	ret, out := sliceForAppend(dst, gcmStandardNonceSize+len(plaintext)+gcmTagSize)
+	if alias.InexactOverlap(out, plaintext) {
+		panic("crypto/cipher: invalid buffer overlap of output and input")
+	}
+	if alias.AnyOverlap(out, additionalData) {
+		panic("crypto/cipher: invalid buffer overlap of output and additional data")
+	}
+	nonce = out[:gcmStandardNonceSize]
+	ciphertext := out[gcmStandardNonceSize:]
+
+	// The AEAD interface allows using plaintext[:0] or ciphertext[:0] as dst.
+	//
+	// This is kind of a problem when trying to prepend or trim a nonce, because the
+	// actual AES-GCTR blocks end up overlapping but not exactly.
+	//
+	// In Open, we write the output *before* the input, so unless we do something
+	// weird like working through a chunk of block backwards, it works out.
+	//
+	// In Seal, we could work through the input backwards or intentionally load
+	// ahead before writing.
+	//
+	// However, the crypto/internal/fips140/aes/gcm APIs also check for exact overlap,
+	// so for now we just do a memmove if we detect overlap.
+	//
+	//     ┌───────────────────────────┬ ─ ─
+	//     │PPPPPPPPPPPPPPPPPPPPPPPPPPP│    │
+	//     └▽─────────────────────────▲┴ ─ ─
+	//       ╲ Seal                    ╲
+	//        ╲                    Open ╲
+	//     ┌───▼─────────────────────────△──┐
+	//     │NN|CCCCCCCCCCCCCCCCCCCCCCCCCCC|T│
+	//     └────────────────────────────────┘
+	//
+	if alias.AnyOverlap(out, plaintext) {
+		copy(ciphertext, plaintext)
+		plaintext = ciphertext[:len(plaintext)]
+	}
+
+	gcm.SealWithRandomNonce(g.GCM, nonce, ciphertext, plaintext, additionalData)
+	return ret
+}
+
+func (g gcmWithRandomNonce) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
+	if len(nonce) != 0 {
+		panic("crypto/cipher: non-empty nonce passed to GCMWithRandomNonce")
+	}
+	if len(ciphertext) < gcmStandardNonceSize+gcmTagSize {
+		return nil, errOpen
+	}
+
+	ret, out := sliceForAppend(dst, len(ciphertext)-gcmStandardNonceSize-gcmTagSize)
+	if alias.InexactOverlap(out, ciphertext) {
+		panic("crypto/cipher: invalid buffer overlap of output and input")
+	}
+	if alias.AnyOverlap(out, additionalData) {
+		panic("crypto/cipher: invalid buffer overlap of output and additional data")
+	}
+	// See the discussion in Seal. Note that if there is any overlap at this
+	// point, it's because out = ciphertext, so out must have enough capacity
+	// even if we sliced the tag off. Also note how [AEAD] specifies that "the
+	// contents of dst, up to its capacity, may be overwritten".
+	if alias.AnyOverlap(out, ciphertext) {
+		nonce = make([]byte, gcmStandardNonceSize)
+		copy(nonce, ciphertext)
+		copy(out[:len(ciphertext)], ciphertext[gcmStandardNonceSize:])
+		ciphertext = out[:len(ciphertext)-gcmStandardNonceSize]
+	} else {
+		nonce = ciphertext[:gcmStandardNonceSize]
+		ciphertext = ciphertext[gcmStandardNonceSize:]
+	}
+
+	_, err := g.GCM.Open(out[:0], nonce, ciphertext, additionalData)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+// gcmAble is an interface implemented by ciphers that have a specific optimized
+// implementation of GCM. crypto/aes doesn't use this anymore, and we'd like to
+// eventually remove it.
+type gcmAble interface {
+	NewGCM(nonceSize, tagSize int) (AEAD, error)
+}
+
+func newGCMFallback(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 	if tagSize < gcmMinimumTagSize || tagSize > gcmBlockSize {
 		return nil, errors.New("cipher: incorrect tag size given to GCM")
 	}

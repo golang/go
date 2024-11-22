@@ -5,7 +5,9 @@
 package ecdh
 
 import (
-	"crypto/internal/edwards25519/field"
+	"bytes"
+	"crypto/internal/fips140/edwards25519/field"
+	"crypto/internal/fips140only"
 	"crypto/internal/randutil"
 	"errors"
 	"io"
@@ -33,6 +35,9 @@ func (c *x25519Curve) String() string {
 }
 
 func (c *x25519Curve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/ecdh: use of X25519 is not allowed in FIPS 140-only mode")
+	}
 	key := make([]byte, x25519PrivateKeySize)
 	randutil.MaybeReadByte(rand)
 	if _, err := io.ReadFull(rand, key); err != nil {
@@ -42,6 +47,9 @@ func (c *x25519Curve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
 }
 
 func (c *x25519Curve) NewPrivateKey(key []byte) (*PrivateKey, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/ecdh: use of X25519 is not allowed in FIPS 140-only mode")
+	}
 	if len(key) != x25519PrivateKeySize {
 		return nil, errors.New("crypto/ecdh: invalid private key size")
 	}
@@ -65,6 +73,9 @@ func (c *x25519Curve) privateKeyToPublicKey(key *PrivateKey) *PublicKey {
 }
 
 func (c *x25519Curve) NewPublicKey(key []byte) (*PublicKey, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/ecdh: use of X25519 is not allowed in FIPS 140-only mode")
+	}
 	if len(key) != x25519PublicKeySize {
 		return nil, errors.New("crypto/ecdh: invalid public key")
 	}

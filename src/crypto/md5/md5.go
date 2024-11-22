@@ -12,6 +12,7 @@ package md5
 
 import (
 	"crypto"
+	"crypto/internal/fips140only"
 	"errors"
 	"hash"
 	"internal/byteorder"
@@ -99,6 +100,9 @@ func consumeUint32(b []byte) ([]byte, uint32) {
 // implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
 // marshal and unmarshal the internal state of the hash.
 func New() hash.Hash {
+	if fips140only.Enabled {
+		panic("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
+	}
 	d := new(digest)
 	d.Reset()
 	return d
@@ -176,6 +180,9 @@ func (d *digest) checkSum() [Size]byte {
 
 // Sum returns the MD5 checksum of the data.
 func Sum(data []byte) [Size]byte {
+	if fips140only.Enabled {
+		panic("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
+	}
 	var d digest
 	d.Reset()
 	d.Write(data)

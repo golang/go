@@ -23,6 +23,8 @@ package hmac
 
 import (
 	"crypto/internal/boring"
+	"crypto/internal/fips140/hmac"
+	"crypto/internal/fips140only"
 	"crypto/subtle"
 	"hash"
 )
@@ -134,41 +136,15 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
 		}
 		// BoringCrypto did not recognize h, so fall through to standard Go code.
 	}
-	hm := new(hmac)
-	hm.outer = h()
-	hm.inner = h()
-	unique := true
-	func() {
-		defer func() {
-			// The comparison might panic if the underlying types are not comparable.
-			_ = recover()
-		}()
-		if hm.outer == hm.inner {
-			unique = false
+	if fips140only.Enabled {
+		if len(key) < 112/8 {
+			panic("crypto/hmac: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
 		}
-	}()
-	if !unique {
-		panic("crypto/hmac: hash generation function does not produce unique values")
+		if !fips140only.ApprovedHash(h()) {
+			panic("crypto/hmac: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+		}
 	}
-	blocksize := hm.inner.BlockSize()
-	hm.ipad = make([]byte, blocksize)
-	hm.opad = make([]byte, blocksize)
-	if len(key) > blocksize {
-		// If key is too big, hash it.
-		hm.outer.Write(key)
-		key = hm.outer.Sum(nil)
-	}
-	copy(hm.ipad, key)
-	copy(hm.opad, key)
-	for i := range hm.ipad {
-		hm.ipad[i] ^= 0x36
-	}
-	for i := range hm.opad {
-		hm.opad[i] ^= 0x5c
-	}
-	hm.inner.Write(hm.ipad)
-
-	return hm
+	return hmac.New(h, key)
 }
 
 // Equal compares two MACs for equality without leaking timing information.

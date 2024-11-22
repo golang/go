@@ -18,7 +18,8 @@ package ed25519
 import (
 	"bytes"
 	"crypto"
-	"crypto/internal/edwards25519"
+	"crypto/internal/fips140/ed25519"
+	"crypto/internal/fips140only"
 	cryptorand "crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
@@ -106,12 +107,10 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 		sign(signature, priv, message, domPrefixPh, context)
 		return signature, nil
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
-		if l := len(context); l > 255 {
-			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
+		if fips140only.Enabled {
+			return nil, errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
 		}
-		signature := make([]byte, SignatureSize)
-		sign(signature, priv, message, domPrefixCtx, context)
-		return signature, nil
+		return ed25519.SignCtx(k, message, context)
 	case hash == crypto.Hash(0): // Ed25519
 		return Sign(priv, message), nil
 	default:
@@ -293,13 +292,10 @@ func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) 
 		}
 		return nil
 	case opts.Hash == crypto.Hash(0) && opts.Context != "": // Ed25519ctx
-		if l := len(opts.Context); l > 255 {
-			return errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
+		if fips140only.Enabled {
+			return errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
 		}
-		if !verify(publicKey, message, sig, domPrefixCtx, opts.Context) {
-			return errors.New("ed25519: invalid signature")
-		}
-		return nil
+		return ed25519.VerifyCtx(k, message, sig, opts.Context)
 	case opts.Hash == crypto.Hash(0): // Ed25519
 		if !verify(publicKey, message, sig, domPrefixPure, "") {
 			return errors.New("ed25519: invalid signature")

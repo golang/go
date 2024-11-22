@@ -6,7 +6,9 @@ package des
 
 import (
 	"crypto/cipher"
-	"crypto/internal/alias"
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
+	"errors"
 	"internal/byteorder"
 	"strconv"
 )
@@ -27,6 +29,10 @@ type desCipher struct {
 
 // NewCipher creates and returns a new [cipher.Block].
 func NewCipher(key []byte) (cipher.Block, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/des: use of DES is not allowed in FIPS 140-only mode")
+	}
+
 	if len(key) != 8 {
 		return nil, KeySizeError(len(key))
 	}
@@ -71,6 +77,10 @@ type tripleDESCipher struct {
 
 // NewTripleDESCipher creates and returns a new [cipher.Block].
 func NewTripleDESCipher(key []byte) (cipher.Block, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/des: use of TripleDES is not allowed in FIPS 140-only mode")
+	}
+
 	if len(key) != 24 {
 		return nil, KeySizeError(len(key))
 	}

@@ -10,7 +10,13 @@
 package rc4
 
 import (
+<<<<<<< HEAD
 	"crypto/internal/alias"
+=======
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
+	"errors"
+>>>>>>> b299e9a44f2 (crypto: implement fips140=only mode)
 	"strconv"
 )
 
@@ -29,6 +35,9 @@ func (k KeySizeError) Error() string {
 // NewCipher creates and returns a new [Cipher]. The key argument should be the
 // RC4 key, at least 1 byte and at most 256 bytes.
 func NewCipher(key []byte) (*Cipher, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/rc4: use of RC4 is not allowed in FIPS 140-only mode")
+	}
 	k := len(key)
 	if k < 1 || k > 256 {
 		return nil, KeySizeError(k)

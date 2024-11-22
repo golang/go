@@ -7,7 +7,8 @@
 package cipher
 
 import (
-	"crypto/internal/alias"
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
 	"crypto/subtle"
 )
 
@@ -22,6 +23,10 @@ type ofb struct {
 // in output feedback mode. The initialization vector iv's length must be equal
 // to b's block size.
 func NewOFB(b Block, iv []byte) Stream {
+	if fips140only.Enabled {
+		panic("crypto/cipher: use of OFB is not allowed in FIPS 140-only mode")
+	}
+
 	blockSize := b.BlockSize()
 	if len(iv) != blockSize {
 		panic("cipher.NewOFB: IV length must equal block size")

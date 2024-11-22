@@ -441,11 +441,65 @@ var depsRules = `
 	NET, log
 	< net/mail;
 
+	io, math/rand/v2 < crypto/internal/randutil;
+
+	STR < crypto/internal/impl;
+
+	OS < crypto/internal/sysrand
+	< crypto/internal/entropy;
+
+	internal/byteorder < crypto/internal/fips140deps/byteorder;
+	internal/cpu, internal/goarch < crypto/internal/fips140deps/cpu;
+	internal/godebug < crypto/internal/fips140deps/godebug;
+
+	# FIPS is the FIPS 140 module.
+	# It must not depend on external crypto packages.
+	STR, crypto/internal/impl,
+	crypto/internal/entropy,
+	crypto/internal/randutil,
+	crypto/internal/fips140deps/byteorder,
+	crypto/internal/fips140deps/cpu,
+	crypto/internal/fips140deps/godebug
+	< crypto/internal/fips140
+	< crypto/internal/fips140/alias
+	< crypto/internal/fips140/subtle
+	< crypto/internal/fips140/sha256
+	< crypto/internal/fips140/sha512
+	< crypto/internal/fips140/sha3
+	< crypto/internal/fips140/hmac
+	< crypto/internal/fips140/check
+	< crypto/internal/fips140/pbkdf2
+	< crypto/internal/fips140/aes
+	< crypto/internal/fips140/drbg
+	< crypto/internal/fips140/aes/gcm
+	< crypto/internal/fips140/hkdf
+	< crypto/internal/fips140/mlkem
+	< crypto/internal/fips140/ssh
+	< crypto/internal/fips140/tls12
+	< crypto/internal/fips140/tls13
+	< crypto/internal/fips140/bigmod
+	< crypto/internal/fips140/nistec/fiat
+	< crypto/internal/fips140/nistec
+	< crypto/internal/fips140/ecdh
+	< crypto/internal/fips140/ecdsa
+	< crypto/internal/fips140/edwards25519/field
+	< crypto/internal/fips140/edwards25519
+	< crypto/internal/fips140/ed25519
+	< crypto/internal/fips140/rsa
+	< FIPS;
+
+	FIPS < crypto/internal/fips140/check/checktest;
+
+	FIPS, sync/atomic < crypto/tls/internal/fips140tls;
+
+	FIPS, internal/godebug, hash < crypto/fips140, crypto/internal/fips140only;
+
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
 	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+	FIPS, crypto/internal/fips140only,
 	crypto/internal/boring/sig,
 	crypto/internal/boring/syso,
 	golang.org/x/sys/cpu,
