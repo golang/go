@@ -18,11 +18,18 @@ type CTR struct {
 }
 
 func NewCTR(b *Block, iv []byte) *CTR {
+	// Allocate the CTR here, in an easily inlineable function, so
+	// the allocation can be done in the caller's stack frame
+	// instead of the heap.  See issue 70499.
+	c := newCTR(b, iv)
+	return &c
+}
+func newCTR(b *Block, iv []byte) CTR {
 	if len(iv) != BlockSize {
 		panic("bad IV length")
 	}
 
-	return &CTR{
+	return CTR{
 		b:      *b,
 		ivlo:   byteorder.BEUint64(iv[8:16]),
 		ivhi:   byteorder.BEUint64(iv[0:8]),
