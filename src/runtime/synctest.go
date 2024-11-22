@@ -270,3 +270,30 @@ func synctestwait_c(gp *g, _ unsafe.Pointer) bool {
 	unlock(&gp.syncGroup.mu)
 	return true
 }
+
+//go:linkname synctest_acquire internal/synctest.acquire
+func synctest_acquire() any {
+	if sg := getg().syncGroup; sg != nil {
+		sg.incActive()
+		return sg
+	}
+	return nil
+}
+
+//go:linkname synctest_release internal/synctest.release
+func synctest_release(sg any) {
+	sg.(*synctestGroup).decActive()
+}
+
+//go:linkname synctest_inBubble internal/synctest.inBubble
+func synctest_inBubble(sg any, f func()) {
+	gp := getg()
+	if gp.syncGroup != nil {
+		panic("goroutine is already bubbled")
+	}
+	gp.syncGroup = sg.(*synctestGroup)
+	defer func() {
+		gp.syncGroup = nil
+	}()
+	f()
+}
