@@ -2,15 +2,25 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build gc && !purego
+//go:build gc && !purego && (ppc64 || ppc64le)
 
 #include "textflag.h"
 
 // This was ported from the amd64 implementation.
 
+#ifdef GOARCH_ppc64le
+#define LE_MOVD MOVD
+#define LE_MOVWZ MOVWZ
+#define LE_MOVHZ MOVHZ
+#else
+#define LE_MOVD MOVDBR
+#define LE_MOVWZ MOVWBR
+#define LE_MOVHZ MOVHBR
+#endif
+
 #define POLY1305_ADD(msg, h0, h1, h2, t0, t1, t2) \
-	MOVD (msg), t0;  \
-	MOVD 8(msg), t1; \
+	LE_MOVD (msg)( R0), t0; \
+	LE_MOVD (msg)(R24), t1; \
 	MOVD $1, t2;     \
 	ADDC t0, h0, h0; \
 	ADDE t1, h1, h1; \
@@ -50,10 +60,6 @@
 	ADDE   t3, h1, h1;  \
 	ADDZE  h2
 
-DATA ·poly1305Mask<>+0x00(SB)/8, $0x0FFFFFFC0FFFFFFF
-DATA ·poly1305Mask<>+0x08(SB)/8, $0x0FFFFFFC0FFFFFFC
-GLOBL ·poly1305Mask<>(SB), RODATA, $16
-
 // func update(state *[7]uint64, msg []byte)
 TEXT ·update(SB), $0-32
 	MOVD state+0(FP), R3
@@ -65,6 +71,8 @@ TEXT ·update(SB), $0-32
 	MOVD 16(R3), R10 // h2
 	MOVD 24(R3), R11 // r0
 	MOVD 32(R3), R12 // r1
+
+	MOVD $8, R24
 
 	CMP R5, $16
 	BLT bytes_between_0_and_15
@@ -94,7 +102,7 @@ flush_buffer:
 
 	// Greater than 8 -- load the rightmost remaining bytes in msg
 	// and put into R17 (h1)
-	MOVD (R4)(R21), R17
+	LE_MOVD (R4)(R21), R17
 	MOVD $16, R22
 
 	// Find the offset to those bytes
@@ -118,7 +126,7 @@ just1:
 	BLT less8
 
 	// Exactly 8
-	MOVD (R4), R16
+	LE_MOVD (R4), R16
 
 	CMP R17, $0
 
@@ -133,7 +141,7 @@ less8:
 	MOVD  $0, R22   // shift count
 	CMP   R5, $4
 	BLT   less4
-	MOVWZ (R4), R16
+	LE_MOVWZ (R4), R16
 	ADD   $4, R4
 	ADD   $-4, R5
 	MOVD  $32, R22
@@ -141,7 +149,7 @@ less8:
 less4:
 	CMP   R5, $2
 	BLT   less2
-	MOVHZ (R4), R21
+	LE_MOVHZ (R4), R21
 	SLD   R22, R21, R21
 	OR    R16, R21, R16
 	ADD   $16, R22
