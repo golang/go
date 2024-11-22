@@ -682,7 +682,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 		}
 		if ldr.SymType(tramp) == 0 {
 			trampb := ldr.MakeSymbolUpdater(tramp)
-			ctxt.AddTramp(trampb)
+			ctxt.AddTramp(trampb, ldr.SymType(s))
 			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, int64(r.Add()))
 		}
 		sb := ldr.MakeSymbolUpdater(s)

@@ -129,7 +129,7 @@ func trampoline(ctxt *Link, s loader.Sym) {
 			// don't randomize the function order).
 			// Except that if SymPkg(s) == "", it is a host object symbol
 			// which may call an external symbol via PLT.
-			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) && *flagRandLayout == 0 {
+			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) && ldr.SymType(rs) == ldr.SymType(s) && *flagRandLayout == 0 {
 				// RISC-V is only able to reach +/-1MiB via a JAL instruction.
 				// We need to generate a trampoline when an address is
 				// currently unknown.
@@ -1643,7 +1643,7 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
 
 		st := state.symType(s)
 
-		if st <= sym.STEXT || st >= sym.SXREF {
+		if st <= sym.STEXTFIPSEND || st >= sym.SXREF {
 			continue
 		}
 		state.data[st] = append(state.data[st], s)
@@ -3127,8 +3127,8 @@ func (ctxt *Link) layout(order []*sym.Segment) uint64 {
 }
 
 // add a trampoline with symbol s (to be laid down after the current function)
-func (ctxt *Link) AddTramp(s *loader.SymbolBuilder) {
-	s.SetType(sym.STEXT)
+func (ctxt *Link) AddTramp(s *loader.SymbolBuilder, typ sym.SymKind) {
+	s.SetType(typ)
 	s.SetReachable(true)
 	s.SetOnList(true)
 	ctxt.tramps = append(ctxt.tramps, s.Sym())

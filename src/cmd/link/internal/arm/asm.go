@@ -455,7 +455,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			if ldr.SymType(tramp) == 0 {
 				// trampoline does not exist, create one
 				trampb := ldr.MakeSymbolUpdater(tramp)
-				ctxt.AddTramp(trampb)
+				ctxt.AddTramp(trampb, ldr.SymType(s))
 				if ctxt.DynlinkingGo() || ldr.SymType(rs) == sym.SDYNIMPORT {
 					if immrot(uint32(offset)) == 0 {
 						ctxt.Errorf(s, "odd offset in dynlink direct call: %v+%d", ldr.SymName(rs), offset)

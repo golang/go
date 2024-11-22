@@ -1189,9 +1189,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	}
 	switch r.Type() {
 	case objabi.R_CALLPOWER:
-
 		// If branch offset is too far then create a trampoline.
-
 		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
 			var tramp loader.Sym
 			for i := 0; ; i++ {
@@ -1229,7 +1227,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			}
 			if ldr.SymType(tramp) == 0 {
 				trampb := ldr.MakeSymbolUpdater(tramp)
-				ctxt.AddTramp(trampb)
+				ctxt.AddTramp(trampb, ldr.SymType(s))
 				gentramp(ctxt, ldr, trampb, rs, r.Add())
 			}
 			sb := ldr.MakeSymbolUpdater(s)

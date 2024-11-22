@@ -308,7 +308,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			if ldr.SymType(tramp) == 0 {
 				// trampoline does not exist, create one
 				trampb := ldr.MakeSymbolUpdater(tramp)
-				ctxt.AddTramp(trampb)
+				ctxt.AddTramp(trampb, ldr.SymType(s))
 				if ldr.SymType(rs) == sym.SDYNIMPORT {
 					if r.Add() != 0 {
 						ctxt.Errorf(s, "nonzero addend for DYNIMPORT call: %v+%d", ldr.SymName(rs), r.Add())

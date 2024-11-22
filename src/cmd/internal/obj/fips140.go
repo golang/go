@@ -238,27 +238,30 @@ func (s *LSym) setFIPSType(ctxt *Link) {
 
 	// Now we're at least handling a FIPS symbol.
 	// It's okay to be slower now, since this code only runs when compiling a few packages.
+	// Text symbols are always okay, since they can use PC-relative relocations,
+	// but some data symbols are not.
+	if s.Type != objabi.STEXT && s.Type != objabi.STEXTFIPS {
+		// Even in the crypto/internal/fips140 packages,
+		// we exclude various Go runtime metadata,
+		// so that it can be allowed to contain data relocations.
+		if strings.Contains(name, ".inittask") ||
+			strings.Contains(name, ".dict") ||
+			strings.Contains(name, ".typeAssert") ||
+			strings.HasSuffix(name, ".arginfo0") ||
+			strings.HasSuffix(name, ".arginfo1") ||
+			strings.HasSuffix(name, ".argliveinfo") ||
+			strings.HasSuffix(name, ".args_stackmap") ||
+			strings.HasSuffix(name, ".opendefer") ||
+			strings.HasSuffix(name, ".stkobj") ||
+			strings.HasSuffix(name, "·f") {
+			return
+		}
 
-	// Even in the crypto/internal/fips140 packages,
-	// we exclude various Go runtime metadata,
-	// so that it can be allowed to contain data relocations.
-	if strings.Contains(name, ".init") ||
-		strings.Contains(name, ".dict") ||
-		strings.Contains(name, ".typeAssert") ||
-		strings.HasSuffix(name, ".arginfo0") ||
-		strings.HasSuffix(name, ".arginfo1") ||
-		strings.HasSuffix(name, ".argliveinfo") ||
-		strings.HasSuffix(name, ".args_stackmap") ||
-		strings.HasSuffix(name, ".opendefer") ||
-		strings.HasSuffix(name, ".stkobj") ||
-		strings.HasSuffix(name, "·f") {
-		return
-	}
-
-	// This symbol is linknamed to go:fipsinfo,
-	// so we shouldn't see it, but skip it just in case.
-	if s.Name == "crypto/internal/fips140/check.linkinfo" {
-		return
+		// This symbol is linknamed to go:fipsinfo,
+		// so we shouldn't see it, but skip it just in case.
+		if s.Name == "crypto/internal/fips140/check.linkinfo" {
+			return
+		}
 	}
 
 	// This is a FIPS symbol! Convert its type to FIPS.
