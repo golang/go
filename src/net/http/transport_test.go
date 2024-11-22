@@ -7173,8 +7173,6 @@ func testValidateClientRequestTrailers(t *testing.T, mode testMode) {
 }
 
 func TestTransportServerProtocols(t *testing.T) {
-	t.Skip("https://go.dev/issue/67816: skip test until h2_bundle.go is updated")
-
 	CondSkipHTTP2(t)
 	DefaultTransport.(*Transport).CloseIdleConnections()
 
