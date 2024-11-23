@@ -1004,6 +1004,16 @@ func dwloadArg(a [2]int64) int64 {
 	return a[0] + a[1]
 }
 
+func dwloadResult1(p *string) string {
+	// arm64:"LDP\t\\(R0\\), \\(R0, R1\\)"
+	return *p
+}
+
+func dwloadResult2(p *[2]int64) (int64, int64) {
+	// arm64:"LDP\t\\(R0\\), \\(R1, R0\\)"
+	return p[1], p[0]
+}
+
 // ---------------------------------- //
 //    Arm64 double-register stores    //
 // ---------------------------------- //
