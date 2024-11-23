@@ -525,8 +525,7 @@ func (s *handleState) appendError(err error) {
 func (s *handleState) appendKey(key string) {
 	s.buf.WriteString(s.sep)
 	if s.prefix != nil && len(*s.prefix) > 0 {
-		// TODO: optimize by avoiding allocation.
-		s.appendString(string(*s.prefix) + key)
+		s.appendTwoStrings(string(*s.prefix), key)
 	} else {
 		s.appendString(key)
 	}
@@ -536,6 +535,24 @@ func (s *handleState) appendKey(key string) {
 		s.buf.WriteByte('=')
 	}
 	s.sep = s.h.attrSep()
+}
+
+// appendTwoStrings implements appendString(prefix + key), but faster.
+func (s *handleState) appendTwoStrings(x, y string) {
+	buf := *s.buf
+	switch {
+	case s.h.json:
+		buf.WriteByte('"')
+		buf = appendEscapedJSONString(buf, x)
+		buf = appendEscapedJSONString(buf, y)
+		buf.WriteByte('"')
+	case !needsQuoting(x) && !needsQuoting(y):
+		buf.WriteString(x)
+		buf.WriteString(y)
+	default:
+		buf = strconv.AppendQuote(buf, x+y)
+	}
+	*s.buf = buf
 }
 
 func (s *handleState) appendString(str string) {
