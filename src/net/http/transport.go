@@ -412,6 +412,10 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		}
 	}
 
+	if _, ok := t.TLSNextProto["h2"]; ok {
+		// There's an existing HTTP/2 implementation installed.
+		return
+	}
 	protocols := t.protocols()
 	if !protocols.HTTP2() && !protocols.UnencryptedHTTP2() {
 		return
