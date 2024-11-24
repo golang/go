@@ -1540,7 +1540,9 @@ type instructionData struct {
 // their encoding type. Entries are masked with obj.AMask to keep
 // indices small.
 var instructions = [ALAST & obj.AMask]instructionData{
+	//
 	// Unprivileged ISA
+	//
 
 	// 2.4: Integer Computational Instructions
 	AADDI & obj.AMask:  {enc: iIIEncoding, ternary: true},
@@ -1589,7 +1591,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	// 2.7: Memory Ordering
 	AFENCE & obj.AMask: {enc: iIIEncoding},
 
-	// 5.2: Integer Computational Instructions (RV64I)
+	// 4.2: Integer Computational Instructions (RV64I)
 	AADDIW & obj.AMask: {enc: iIIEncoding, ternary: true},
 	ASLLIW & obj.AMask: {enc: iIIEncoding, ternary: true},
 	ASRLIW & obj.AMask: {enc: iIIEncoding, ternary: true},
@@ -1600,14 +1602,14 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ASUBW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	ASRAW & obj.AMask:  {enc: rIIIEncoding, immForm: ASRAIW, ternary: true},
 
-	// 5.3: Load and Store Instructions (RV64I)
+	// 4.3: Load and Store Instructions (RV64I)
 	ALD & obj.AMask: {enc: iIIEncoding},
 	ASD & obj.AMask: {enc: sIEncoding},
 
 	// 7.1: CSR Instructions
 	ACSRRS & obj.AMask: {enc: iIIEncoding},
 
-	// 7.1: Multiplication Operations
+	// 13.1: Multiplication Operations
 	AMUL & obj.AMask:    {enc: rIIIEncoding, ternary: true},
 	AMULH & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	AMULHU & obj.AMask:  {enc: rIIIEncoding, ternary: true},
@@ -1622,13 +1624,13 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AREMW & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	AREMUW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 
-	// 8.2: Load-Reserved/Store-Conditional
+	// 14.2: Load-Reserved/Store-Conditional Instructions (Zalrsc)
 	ALRW & obj.AMask: {enc: rIIIEncoding},
 	ALRD & obj.AMask: {enc: rIIIEncoding},
 	ASCW & obj.AMask: {enc: rIIIEncoding},
 	ASCD & obj.AMask: {enc: rIIIEncoding},
 
-	// 8.3: Atomic Memory Operations
+	// 14.4: Atomic Memory Operations (Zaamo)
 	AAMOSWAPW & obj.AMask: {enc: rIIIEncoding},
 	AAMOSWAPD & obj.AMask: {enc: rIIIEncoding},
 	AAMOADDW & obj.AMask:  {enc: rIIIEncoding},
@@ -1648,11 +1650,11 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AAMOMINUW & obj.AMask: {enc: rIIIEncoding},
 	AAMOMINUD & obj.AMask: {enc: rIIIEncoding},
 
-	// 11.5: Single-Precision Load and Store Instructions
+	// 20.5: Single-Precision Load and Store Instructions
 	AFLW & obj.AMask: {enc: iFEncoding},
 	AFSW & obj.AMask: {enc: sFEncoding},
 
-	// 11.6: Single-Precision Floating-Point Computational Instructions
+	// 20.6: Single-Precision Floating-Point Computational Instructions
 	AFADDS & obj.AMask:   {enc: rFFFEncoding},
 	AFSUBS & obj.AMask:   {enc: rFFFEncoding},
 	AFMULS & obj.AMask:   {enc: rFFFEncoding},
@@ -1665,7 +1667,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AFNMSUBS & obj.AMask: {enc: rFFFFEncoding},
 	AFNMADDS & obj.AMask: {enc: rFFFFEncoding},
 
-	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
+	// 20.7: Single-Precision Floating-Point Conversion and Move Instructions
 	AFCVTWS & obj.AMask:  {enc: rFIEncoding},
 	AFCVTLS & obj.AMask:  {enc: rFIEncoding},
 	AFCVTSW & obj.AMask:  {enc: rIFEncoding},
@@ -1680,19 +1682,19 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AFMVXW & obj.AMask:   {enc: rFIEncoding},
 	AFMVWX & obj.AMask:   {enc: rIFEncoding},
 
-	// 11.8: Single-Precision Floating-Point Compare Instructions
+	// 20.8: Single-Precision Floating-Point Compare Instructions
 	AFEQS & obj.AMask: {enc: rFFIEncoding},
 	AFLTS & obj.AMask: {enc: rFFIEncoding},
 	AFLES & obj.AMask: {enc: rFFIEncoding},
 
-	// 11.9: Single-Precision Floating-Point Classify Instruction
+	// 20.9: Single-Precision Floating-Point Classify Instruction
 	AFCLASSS & obj.AMask: {enc: rFIEncoding},
 
 	// 12.3: Double-Precision Load and Store Instructions
 	AFLD & obj.AMask: {enc: iFEncoding},
 	AFSD & obj.AMask: {enc: sFEncoding},
 
-	// 12.4: Double-Precision Floating-Point Computational Instructions
+	// 21.4: Double-Precision Floating-Point Computational Instructions
 	AFADDD & obj.AMask:   {enc: rFFFEncoding},
 	AFSUBD & obj.AMask:   {enc: rFFFEncoding},
 	AFMULD & obj.AMask:   {enc: rFFFEncoding},
@@ -1705,7 +1707,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AFNMSUBD & obj.AMask: {enc: rFFFFEncoding},
 	AFNMADDD & obj.AMask: {enc: rFFFFEncoding},
 
-	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
+	// 21.5: Double-Precision Floating-Point Conversion and Move Instructions
 	AFCVTWD & obj.AMask:  {enc: rFIEncoding},
 	AFCVTLD & obj.AMask:  {enc: rFIEncoding},
 	AFCVTDW & obj.AMask:  {enc: rIFEncoding},
@@ -1722,25 +1724,19 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AFMVXD & obj.AMask:   {enc: rFIEncoding},
 	AFMVDX & obj.AMask:   {enc: rIFEncoding},
 
-	// 12.6: Double-Precision Floating-Point Compare Instructions
+	// 21.6: Double-Precision Floating-Point Compare Instructions
 	AFEQD & obj.AMask: {enc: rFFIEncoding},
 	AFLTD & obj.AMask: {enc: rFFIEncoding},
 	AFLED & obj.AMask: {enc: rFFIEncoding},
 
-	// 12.7: Double-Precision Floating-Point Classify Instruction
+	// 21.7: Double-Precision Floating-Point Classify Instruction
 	AFCLASSD & obj.AMask: {enc: rFIEncoding},
 
-	// Privileged ISA
-
-	// 3.2.1: Environment Call and Breakpoint
-	AECALL & obj.AMask:  {enc: iIIEncoding},
-	AEBREAK & obj.AMask: {enc: iIIEncoding},
-
 	//
-	// RISC-V Bit-Manipulation ISA-extensions (1.0)
+	// "B" Extension for Bit Manipulation, Version 1.0.0
 	//
 
-	// 1.1: Address Generation Instructions (Zba)
+	// 28.4.1: Address Generation Instructions (Zba)
 	AADDUW & obj.AMask:    {enc: rIIIEncoding, ternary: true},
 	ASH1ADD & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	ASH1ADDUW & obj.AMask: {enc: rIIIEncoding, ternary: true},
@@ -1750,7 +1746,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ASH3ADDUW & obj.AMask: {enc: rIIIEncoding, ternary: true},
 	ASLLIUW & obj.AMask:   {enc: iIIEncoding, ternary: true},
 
-	// 1.2: Basic Bit Manipulation (Zbb)
+	// 28.4.2: Basic Bit Manipulation (Zbb)
 	AANDN & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	ACLZ & obj.AMask:   {enc: rIIEncoding},
 	ACLZW & obj.AMask:  {enc: rIIEncoding},
@@ -1768,7 +1764,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AXNOR & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	AZEXTH & obj.AMask: {enc: rIIEncoding},
 
-	// 1.3: Bitwise Rotation (Zbb)
+	// 28.4.3: Bitwise Rotation (Zbb)
 	AROL & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	AROLW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	AROR & obj.AMask:   {enc: rIIIEncoding, immForm: ARORI, ternary: true},
@@ -1778,7 +1774,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AORCB & obj.AMask:  {enc: iIIEncoding},
 	AREV8 & obj.AMask:  {enc: iIIEncoding},
 
-	// 1.5: Single-bit Instructions (Zbs)
+	// 28.4.4: Single-bit Instructions (Zbs)
 	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},
 	ABCLRI & obj.AMask: {enc: iIIEncoding, ternary: true},
 	ABEXT & obj.AMask:  {enc: rIIIEncoding, immForm: ABEXTI, ternary: true},
@@ -1787,6 +1783,14 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ABINVI & obj.AMask: {enc: iIIEncoding, ternary: true},
 	ABSET & obj.AMask:  {enc: rIIIEncoding, immForm: ABSETI, ternary: true},
 	ABSETI & obj.AMask: {enc: iIIEncoding, ternary: true},
+
+	//
+	// Privileged ISA
+	//
+
+	// 3.3.1: Environment Call and Breakpoint
+	AECALL & obj.AMask:  {enc: iIIEncoding},
+	AEBREAK & obj.AMask: {enc: iIIEncoding},
 
 	// Escape hatch
 	AWORD & obj.AMask: {enc: rawEncoding},

@@ -363,6 +363,10 @@ start:
 	SLLIUW		$63, X17, X18			// 1b99f80b
 	SLLIUW		$1, X18, X19			// 9b191908
 
+	//
+	// "B" Extension for Bit Manipulation, Version 1.0.0
+	//
+
 	// 28.4.2: Basic Bit Manipulation (Zbb)
 	ANDN	X19, X20, X21				// b37a3a41 or 93caf9ffb37a5a01
 	ANDN	X19, X20				// 337a3a41 or 93cff9ff337afa01
