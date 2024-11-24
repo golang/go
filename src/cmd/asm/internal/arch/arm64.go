@@ -59,10 +59,10 @@ func jumpArm64(word string) bool {
 
 var arm64SpecialOperand map[string]arm64.SpecialOperand
 
-// GetARM64SpecialOperand returns the internal representation of a special operand.
-func GetARM64SpecialOperand(name string) arm64.SpecialOperand {
+// ARM64SpecialOperand returns the internal representation of a special operand.
+func ARM64SpecialOperand(name string) arm64.SpecialOperand {
 	if arm64SpecialOperand == nil {
-		// Generate the mapping automatically when the first time the function is called.
+		// Generate mapping when function is first called.
 		arm64SpecialOperand = map[string]arm64.SpecialOperand{}
 		for opd := arm64.SPOP_BEGIN; opd < arm64.SPOP_END; opd++ {
 			arm64SpecialOperand[opd.String()] = opd

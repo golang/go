@@ -1042,19 +1042,27 @@ func immEven(x int64) error {
 	return nil
 }
 
+func immFits(x int64, nbits uint, signed bool) error {
+	label := "unsigned"
+	min, max := int64(0), int64(1)<<nbits-1
+	if signed {
+		label = "signed"
+		sbits := nbits - 1
+		min, max = int64(-1)<<sbits, int64(1)<<sbits-1
+	}
+	if x < min || x > max {
+		if nbits <= 16 {
+			return fmt.Errorf("%s immediate %d must be in range [%d, %d] (%d bits)", label, x, min, max, nbits)
+		}
+		return fmt.Errorf("%s immediate %#x must be in range [%#x, %#x] (%d bits)", label, x, min, max, nbits)
+	}
+	return nil
+}
+
 // immIFits checks whether the immediate value x fits in nbits bits
 // as a signed integer. If it does not, an error is returned.
 func immIFits(x int64, nbits uint) error {
-	nbits--
-	min := int64(-1) << nbits
-	max := int64(1)<<nbits - 1
-	if x < min || x > max {
-		if nbits <= 16 {
-			return fmt.Errorf("signed immediate %d must be in range [%d, %d] (%d bits)", x, min, max, nbits)
-		}
-		return fmt.Errorf("signed immediate %#x must be in range [%#x, %#x] (%d bits)", x, min, max, nbits)
-	}
-	return nil
+	return immFits(x, nbits, true)
 }
 
 // immI extracts the signed integer of the specified size from an immediate.
@@ -1062,11 +1070,31 @@ func immI(as obj.As, imm int64, nbits uint) uint32 {
 	if err := immIFits(imm, nbits); err != nil {
 		panic(fmt.Sprintf("%v: %v", as, err))
 	}
-	return uint32(imm)
+	return uint32(imm) & ((1 << nbits) - 1)
 }
 
 func wantImmI(ctxt *obj.Link, ins *instruction, imm int64, nbits uint) {
 	if err := immIFits(imm, nbits); err != nil {
+		ctxt.Diag("%v: %v", ins, err)
+	}
+}
+
+// immUFits checks whether the immediate value x fits in nbits bits
+// as an unsigned integer. If it does not, an error is returned.
+func immUFits(x int64, nbits uint) error {
+	return immFits(x, nbits, false)
+}
+
+// immU extracts the unsigned integer of the specified size from an immediate.
+func immU(as obj.As, imm int64, nbits uint) uint32 {
+	if err := immUFits(imm, nbits); err != nil {
+		panic(fmt.Sprintf("%v: %v", as, err))
+	}
+	return uint32(imm) & ((1 << nbits) - 1)
+}
+
+func wantImmU(ctxt *obj.Link, ins *instruction, imm int64, nbits uint) {
+	if err := immUFits(imm, nbits); err != nil {
 		ctxt.Diag("%v: %v", ins, err)
 	}
 }
@@ -1224,6 +1252,29 @@ func validateJ(ctxt *obj.Link, ins *instruction) {
 	wantIntReg(ctxt, ins, "rd", ins.rd)
 	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
 	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+}
+
+func validateVsetvli(ctxt *obj.Link, ins *instruction) {
+	wantImmU(ctxt, ins, ins.imm, 11)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+}
+
+func validateVsetivli(ctxt *obj.Link, ins *instruction) {
+	wantImmU(ctxt, ins, ins.imm, 10)
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantImmU(ctxt, ins, int64(ins.rs1), 5)
+	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+}
+
+func validateVsetvl(ctxt *obj.Link, ins *instruction) {
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins, "rs2", ins.rs2)
 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
@@ -1415,6 +1466,29 @@ func encodeCJImmediate(imm uint32) uint32 {
 	return bits << 2
 }
 
+func encodeVset(as obj.As, rs1, rs2, rd uint32) uint32 {
+	enc := encode(as)
+	if enc == nil {
+		panic("encodeVset: could not encode instruction")
+	}
+	return enc.funct7<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | rd<<7 | enc.opcode
+}
+
+func encodeVsetvli(ins *instruction) uint32 {
+	vtype := immU(ins.as, ins.imm, 11)
+	return encodeVset(ins.as, regI(ins.rs1), vtype, regI(ins.rd))
+}
+
+func encodeVsetivli(ins *instruction) uint32 {
+	vtype := immU(ins.as, ins.imm, 10)
+	avl := immU(ins.as, int64(ins.rs1), 5)
+	return encodeVset(ins.as, avl, vtype, regI(ins.rd))
+}
+
+func encodeVsetvl(ins *instruction) uint32 {
+	return encodeVset(ins.as, regI(ins.rs1), regI(ins.rs2), regI(ins.rd))
+}
+
 func encodeRawIns(ins *instruction) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
@@ -1485,6 +1559,27 @@ func EncodeUImmediate(imm int64) (int64, error) {
 	return imm << 12, nil
 }
 
+func EncodeVectorType(vsew, vlmul, vtail, vmask int64) (int64, error) {
+	vsewSO := SpecialOperand(vsew)
+	if vsewSO < SPOP_E8 || vsewSO > SPOP_E64 {
+		return -1, fmt.Errorf("invalid vector selected element width %q", vsewSO)
+	}
+	vlmulSO := SpecialOperand(vlmul)
+	if vlmulSO < SPOP_M1 || vlmulSO > SPOP_MF8 {
+		return -1, fmt.Errorf("invalid vector register group multiplier %q", vlmulSO)
+	}
+	vtailSO := SpecialOperand(vtail)
+	if vtailSO != SPOP_TA && vtailSO != SPOP_TU {
+		return -1, fmt.Errorf("invalid vector tail policy %q", vtailSO)
+	}
+	vmaskSO := SpecialOperand(vmask)
+	if vmaskSO != SPOP_MA && vmaskSO != SPOP_MU {
+		return -1, fmt.Errorf("invalid vector mask policy %q", vmaskSO)
+	}
+	vtype := vmaskSO.encode()<<7 | vtailSO.encode()<<6 | vsewSO.encode()<<3 | vlmulSO.encode()
+	return int64(vtype), nil
+}
+
 type encoding struct {
 	encode   func(*instruction) uint32     // encode returns the machine code for an instruction
 	validate func(*obj.Link, *instruction) // validate validates an instruction
@@ -1521,6 +1616,11 @@ var (
 	bEncoding = encoding{encode: encodeB, validate: validateB, length: 4}
 	uEncoding = encoding{encode: encodeU, validate: validateU, length: 4}
 	jEncoding = encoding{encode: encodeJ, validate: validateJ, length: 4}
+
+	// Encodings for vector configuration setting instruction.
+	vsetvliEncoding  = encoding{encode: encodeVsetvli, validate: validateVsetvli, length: 4}
+	vsetivliEncoding = encoding{encode: encodeVsetivli, validate: validateVsetivli, length: 4}
+	vsetvlEncoding   = encoding{encode: encodeVsetvl, validate: validateVsetvl, length: 4}
 
 	// rawEncoding encodes a raw instruction byte sequence.
 	rawEncoding = encoding{encode: encodeRawIns, validate: validateRaw, length: 4}
@@ -1787,6 +1887,15 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ABINVI & obj.AMask: {enc: iIIEncoding, ternary: true},
 	ABSET & obj.AMask:  {enc: rIIIEncoding, immForm: ABSETI, ternary: true},
 	ABSETI & obj.AMask: {enc: iIIEncoding, ternary: true},
+
+	//
+	// "V" Standard Extension for Vector Operations, Version 1.0
+	//
+
+	// 31.6. Vector Configuration-Setting Instructions
+	AVSETVLI & obj.AMask:  {enc: vsetvliEncoding, immForm: AVSETIVLI},
+	AVSETIVLI & obj.AMask: {enc: vsetivliEncoding},
+	AVSETVL & obj.AMask:   {enc: vsetvlEncoding},
 
 	//
 	// Privileged ISA
@@ -2345,7 +2454,12 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 	ins := instructionForProg(p)
 	inss := []*instruction{ins}
 
-	if len(p.RestArgs) > 1 {
+	if ins.as == AVSETVLI || ins.as == AVSETIVLI {
+		if len(p.RestArgs) != 4 {
+			p.Ctxt.Diag("incorrect number of arguments for instruction")
+			return nil
+		}
+	} else if len(p.RestArgs) > 1 {
 		p.Ctxt.Diag("too many source registers")
 		return nil
 	}
@@ -2583,6 +2697,21 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		// XNOR -> (NOT (XOR x y))
 		ins.as = AXOR
 		inss = append(inss, &instruction{as: AXORI, rs1: ins.rd, rs2: obj.REG_NONE, rd: ins.rd, imm: -1})
+
+	case AVSETVLI, AVSETIVLI:
+		ins.rs1, ins.rs2 = ins.rs2, obj.REG_NONE
+		vtype, err := EncodeVectorType(p.RestArgs[0].Offset, p.RestArgs[1].Offset, p.RestArgs[2].Offset, p.RestArgs[3].Offset)
+		if err != nil {
+			p.Ctxt.Diag("%v: %v", p, err)
+		}
+		ins.imm = int64(vtype)
+		if ins.as == AVSETIVLI {
+			if p.From.Type != obj.TYPE_CONST {
+				p.Ctxt.Diag("%v: expected immediate value", p)
+			}
+			ins.rs1 = uint32(p.From.Offset)
+		}
+
 	}
 
 	for _, ins := range inss {

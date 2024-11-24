@@ -14,6 +14,7 @@ func init() {
 	obj.RegisterRegister(obj.RBaseRISCV, REG_END, RegName)
 	obj.RegisterOpcode(obj.ABaseRISCV, Anames)
 	obj.RegisterOpSuffix("riscv64", opSuffixString)
+	obj.RegisterSpecialOperands(int64(SPOP_BEGIN), int64(SPOP_END), specialOperandConv)
 }
 
 func RegName(r int) string {
@@ -48,4 +49,12 @@ func opSuffixString(s uint8) string {
 		return ss
 	}
 	return fmt.Sprintf(".%s", ss)
+}
+
+func specialOperandConv(a int64) string {
+	spc := SpecialOperand(a)
+	if spc >= SPOP_BEGIN && spc < SPOP_END {
+		return spc.String()
+	}
+	return "SPC_??"
 }

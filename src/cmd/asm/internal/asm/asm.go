@@ -915,6 +915,19 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.To = a[5]
 			break
 		}
+		if p.arch.Family == sys.RISCV64 && arch.IsRISCV64VTypeI(op) {
+			prog.From = a[0]
+			vsew := p.getSpecial(prog, op, &a[1])
+			vlmul := p.getSpecial(prog, op, &a[2])
+			vtail := p.getSpecial(prog, op, &a[3])
+			vmask := p.getSpecial(prog, op, &a[4])
+			if err := arch.RISCV64ValidateVectorType(vsew, vlmul, vtail, vmask); err != nil {
+				p.errorf("invalid vtype: %v", err)
+			}
+			prog.AddRestSourceArgs([]obj.Addr{a[1], a[2], a[3], a[4]})
+			prog.To = a[5]
+			break
+		}
 		fallthrough
 	default:
 		p.errorf("can't handle %s instruction with %d operands", op, len(a))
@@ -964,4 +977,12 @@ func (p *Parser) getRegister(prog *obj.Prog, op obj.As, addr *obj.Addr) int16 {
 		p.errorf("%s: expected register; found %s", op, obj.Dconv(prog, addr))
 	}
 	return addr.Reg
+}
+
+// getSpecial checks that addr represents a special operand and returns its value.
+func (p *Parser) getSpecial(prog *obj.Prog, op obj.As, addr *obj.Addr) int64 {
+	if addr.Type != obj.TYPE_SPECIAL || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
+		p.errorf("%s: expected special operand; found %s", op, obj.Dconv(prog, addr))
+	}
+	return addr.Offset
 }

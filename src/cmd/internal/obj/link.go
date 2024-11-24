@@ -98,7 +98,8 @@ import (
 //			val = string
 //
 //	<symbolic constant name>
-//		Special symbolic constants for ARM64, such as conditional flags, tlbi_op and so on.
+//		Special symbolic constants for ARM64 (such as conditional flags, tlbi_op and so on)
+//		and RISCV64 (such as names for vector configuration instruction arguments).
 //		Encoding:
 //			type = TYPE_SPECIAL
 //			offset = The constant value corresponding to this symbol
