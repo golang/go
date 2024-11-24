@@ -485,9 +485,6 @@
 			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
 				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
 
-(MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i+8] ptr mem)) && x.Uses == 1 && setPos(v, x.Pos) && clobber(x) => (MOVQstorezero {s} [i] ptr mem)
-(MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i-8] ptr mem)) && x.Uses == 1 && setPos(v, x.Pos) && clobber(x) => (MOVQstorezero {s} [i-8] ptr mem)
-
 // strip off fractional word move
 (Move [s] dst src mem) && s%16 != 0 && s%16 <= 8 && s > 16 =>
 	(Move [8]
@@ -817,21 +814,6 @@
 (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(FMOVDstore [off1+int32(off2)] {sym} ptr val mem)
-(MOVBstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOVBstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVHstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOVHstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVWstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOVWstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVDstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOVDstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVQstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOVQstorezero [off1+int32(off2)] {sym} ptr mem)
 
 // register indexed store
 (MOVDstore  [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil => (MOVDstoreidx ptr idx val mem)
@@ -947,70 +929,6 @@
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
-(MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVHstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVWstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVDstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVQstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
-	(MOVQstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-
-// store zero
-(MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
-(MOVHstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
-(MOVWstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
-(MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVDstorezero [off] {sym} ptr mem)
-(STP [off] {sym} ptr (MOVDconst [0]) (MOVDconst [0]) mem) => (MOVQstorezero [off] {sym} ptr mem)
-
-// register indexed store zero
-(MOVDstorezero [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil => (MOVDstorezeroidx ptr idx mem)
-(MOVWstorezero [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil => (MOVWstorezeroidx ptr idx mem)
-(MOVHstorezero [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil => (MOVHstorezeroidx ptr idx mem)
-(MOVBstorezero [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil => (MOVBstorezeroidx ptr idx mem)
-(MOVDstoreidx ptr idx (MOVDconst [0]) mem) => (MOVDstorezeroidx ptr idx mem)
-(MOVWstoreidx ptr idx (MOVDconst [0]) mem) => (MOVWstorezeroidx ptr idx mem)
-(MOVHstoreidx ptr idx (MOVDconst [0]) mem) => (MOVHstorezeroidx ptr idx mem)
-(MOVBstoreidx ptr idx (MOVDconst [0]) mem) => (MOVBstorezeroidx ptr idx mem)
-(MOVDstorezeroidx ptr (MOVDconst [c]) mem) && is32Bit(c) => (MOVDstorezero [int32(c)] ptr mem)
-(MOVDstorezeroidx (MOVDconst [c]) idx mem) && is32Bit(c) => (MOVDstorezero [int32(c)] idx mem)
-(MOVWstorezeroidx ptr (MOVDconst [c]) mem) && is32Bit(c) => (MOVWstorezero [int32(c)] ptr mem)
-(MOVWstorezeroidx (MOVDconst [c]) idx mem) && is32Bit(c) => (MOVWstorezero [int32(c)] idx mem)
-(MOVHstorezeroidx ptr (MOVDconst [c]) mem) && is32Bit(c) => (MOVHstorezero [int32(c)] ptr mem)
-(MOVHstorezeroidx (MOVDconst [c]) idx mem) && is32Bit(c) => (MOVHstorezero [int32(c)] idx mem)
-(MOVBstorezeroidx ptr (MOVDconst [c]) mem) && is32Bit(c) => (MOVBstorezero [int32(c)] ptr mem)
-(MOVBstorezeroidx (MOVDconst [c]) idx mem) && is32Bit(c) => (MOVBstorezero [int32(c)] idx mem)
-
-// shifted register indexed store zero
-(MOVDstorezero [off] {sym} (ADDshiftLL [3] ptr idx) mem) && off == 0 && sym == nil => (MOVDstorezeroidx8 ptr idx mem)
-(MOVWstorezero [off] {sym} (ADDshiftLL [2] ptr idx) mem) && off == 0 && sym == nil => (MOVWstorezeroidx4 ptr idx mem)
-(MOVHstorezero [off] {sym} (ADDshiftLL [1] ptr idx) mem) && off == 0 && sym == nil => (MOVHstorezeroidx2 ptr idx mem)
-(MOVDstorezeroidx ptr (SLLconst [3] idx) mem) => (MOVDstorezeroidx8 ptr idx mem)
-(MOVWstorezeroidx ptr (SLLconst [2] idx) mem) => (MOVWstorezeroidx4 ptr idx mem)
-(MOVHstorezeroidx ptr (SLLconst [1] idx) mem) => (MOVHstorezeroidx2 ptr idx mem)
-(MOVHstorezeroidx ptr (ADD      idx idx) mem) => (MOVHstorezeroidx2 ptr idx mem)
-(MOVDstorezeroidx (SLLconst [3] idx) ptr mem) => (MOVDstorezeroidx8 ptr idx mem)
-(MOVWstorezeroidx (SLLconst [2] idx) ptr mem) => (MOVWstorezeroidx4 ptr idx mem)
-(MOVHstorezeroidx (SLLconst [1] idx) ptr mem) => (MOVHstorezeroidx2 ptr idx mem)
-(MOVHstorezeroidx (ADD      idx idx) ptr mem) => (MOVHstorezeroidx2 ptr idx mem)
-(MOVDstoreidx8 ptr idx (MOVDconst [0]) mem) => (MOVDstorezeroidx8 ptr idx mem)
-(MOVWstoreidx4 ptr idx (MOVDconst [0]) mem) => (MOVWstorezeroidx4 ptr idx mem)
-(MOVHstoreidx2 ptr idx (MOVDconst [0]) mem) => (MOVHstorezeroidx2 ptr idx mem)
-(MOVDstorezeroidx8 ptr (MOVDconst [c]) mem) && is32Bit(c<<3) => (MOVDstorezero [int32(c<<3)] ptr mem)
-(MOVWstorezeroidx4 ptr (MOVDconst [c]) mem) && is32Bit(c<<2) => (MOVWstorezero [int32(c<<2)] ptr mem)
-(MOVHstorezeroidx2 ptr (MOVDconst [c]) mem) && is32Bit(c<<1) => (MOVHstorezero [int32(c<<1)] ptr mem)
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
 // these seem to have bad interaction with other rules, resulting in slower code
@@ -1024,35 +942,6 @@
 //(FMOVSload [off] {sym} ptr (FMOVSstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
 //(FMOVDload [off] {sym} ptr (FMOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
 //(LDP       [off] {sym} ptr (STP      [off2] {sym2} ptr2 x y _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x y
-
-(MOVBload  [off] {sym} ptr (MOVBstorezero [off2] {sym2} ptr2 _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVDconst [0])
-(MOVBUload [off] {sym} ptr (MOVBstorezero [off2] {sym2} ptr2 _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVDconst [0])
-(MOVHload  [off] {sym} ptr (MOVHstorezero [off2] {sym2} ptr2 _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVDconst [0])
-(MOVHUload [off] {sym} ptr (MOVHstorezero [off2] {sym2} ptr2 _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVDconst [0])
-(MOVWload  [off] {sym} ptr (MOVWstorezero [off2] {sym2} ptr2 _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVDconst [0])
-(MOVWUload [off] {sym} ptr (MOVWstorezero [off2] {sym2} ptr2 _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVDconst [0])
-(MOVDload  [off] {sym} ptr (MOVDstorezero [off2] {sym2} ptr2 _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVDconst [0])
-
-(MOVBloadidx ptr idx (MOVBstorezeroidx ptr2 idx2 _))
-	&& (isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) => (MOVDconst [0])
-(MOVBUloadidx ptr idx (MOVBstorezeroidx ptr2 idx2 _))
-	&& (isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) => (MOVDconst [0])
-(MOVHloadidx ptr idx (MOVHstorezeroidx ptr2 idx2 _))
-	&& (isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) => (MOVDconst [0])
-(MOVHUloadidx ptr idx (MOVHstorezeroidx ptr2 idx2 _))
-	&& (isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) => (MOVDconst [0])
-(MOVWloadidx ptr idx (MOVWstorezeroidx ptr2 idx2 _))
-	&& (isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) => (MOVDconst [0])
-(MOVWUloadidx ptr idx (MOVWstorezeroidx ptr2 idx2 _))
-	&& (isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) => (MOVDconst [0])
-(MOVDloadidx ptr idx (MOVDstorezeroidx ptr2 idx2 _))
-	&& (isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) => (MOVDconst [0])
-
-(MOVHloadidx2  ptr idx (MOVHstorezeroidx2 ptr2 idx2 _)) && isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) => (MOVDconst [0])
-(MOVHUloadidx2 ptr idx (MOVHstorezeroidx2 ptr2 idx2 _)) && isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) => (MOVDconst [0])
-(MOVWloadidx4  ptr idx (MOVWstorezeroidx4 ptr2 idx2 _)) && isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) => (MOVDconst [0])
-(MOVWUloadidx4 ptr idx (MOVWstorezeroidx4 ptr2 idx2 _)) && isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) => (MOVDconst [0])
-(MOVDloadidx8  ptr idx (MOVDstorezeroidx8 ptr2 idx2 _)) && isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) => (MOVDconst [0])
 
 // don't extend before store
 (MOVBstore [off] {sym} ptr (MOVBreg  x) mem) => (MOVBstore [off] {sym} ptr x mem)

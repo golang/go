@@ -147,13 +147,13 @@ func genIndexedOperand(op ssa.Op, base, idx int16) obj.Addr {
 	// Reg: base register, Index: (shifted) index register
 	mop := obj.Addr{Type: obj.TYPE_MEM, Reg: base}
 	switch op {
-	case ssa.OpARM64MOVDloadidx8, ssa.OpARM64MOVDstoreidx8, ssa.OpARM64MOVDstorezeroidx8,
+	case ssa.OpARM64MOVDloadidx8, ssa.OpARM64MOVDstoreidx8,
 		ssa.OpARM64FMOVDloadidx8, ssa.OpARM64FMOVDstoreidx8:
 		mop.Index = arm64.REG_LSL | 3<<5 | idx&31
-	case ssa.OpARM64MOVWloadidx4, ssa.OpARM64MOVWUloadidx4, ssa.OpARM64MOVWstoreidx4, ssa.OpARM64MOVWstorezeroidx4,
+	case ssa.OpARM64MOVWloadidx4, ssa.OpARM64MOVWUloadidx4, ssa.OpARM64MOVWstoreidx4,
 		ssa.OpARM64FMOVSloadidx4, ssa.OpARM64FMOVSstoreidx4:
 		mop.Index = arm64.REG_LSL | 2<<5 | idx&31
-	case ssa.OpARM64MOVHloadidx2, ssa.OpARM64MOVHUloadidx2, ssa.OpARM64MOVHstoreidx2, ssa.OpARM64MOVHstorezeroidx2:
+	case ssa.OpARM64MOVHloadidx2, ssa.OpARM64MOVHUloadidx2, ssa.OpARM64MOVHstoreidx2:
 		mop.Index = arm64.REG_LSL | 1<<5 | idx&31
 	default: // not shifted
 		mop.Index = idx
@@ -188,7 +188,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = x
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = y
-	case ssa.OpARM64MOVDnop:
+	case ssa.OpARM64MOVDnop, ssa.OpARM64ZERO:
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -588,35 +588,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REGREG
 		p.From.Reg = v.Args[1].Reg()
 		p.From.Offset = int64(v.Args[2].Reg())
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux(&p.To, v)
-	case ssa.OpARM64MOVBstorezero,
-		ssa.OpARM64MOVHstorezero,
-		ssa.OpARM64MOVWstorezero,
-		ssa.OpARM64MOVDstorezero:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = arm64.REGZERO
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux(&p.To, v)
-	case ssa.OpARM64MOVBstorezeroidx,
-		ssa.OpARM64MOVHstorezeroidx,
-		ssa.OpARM64MOVWstorezeroidx,
-		ssa.OpARM64MOVDstorezeroidx,
-		ssa.OpARM64MOVHstorezeroidx2,
-		ssa.OpARM64MOVWstorezeroidx4,
-		ssa.OpARM64MOVDstorezeroidx8:
-		p := s.Prog(v.Op.Asm())
-		p.To = genIndexedOperand(v.Op, v.Args[0].Reg(), v.Args[1].Reg())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = arm64.REGZERO
-	case ssa.OpARM64MOVQstorezero:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REGREG
-		p.From.Reg = arm64.REGZERO
-		p.From.Offset = int64(arm64.REGZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)

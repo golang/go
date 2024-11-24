@@ -181,6 +181,10 @@ func (m regMask) String() string {
 	return s
 }
 
+func (m regMask) contains(r register) bool {
+	return m>>r&1 != 0
+}
+
 func (s *regAllocState) RegMaskString(m regMask) string {
 	str := ""
 	for r := register(0); m != 0; r++ {
@@ -247,6 +251,7 @@ type regAllocState struct {
 	SPReg       register
 	SBReg       register
 	GReg        register
+	ZeroIntReg  register
 	allocatable regMask
 
 	// live values at the end of each block.  live[b.ID] is a list of value IDs
@@ -269,7 +274,8 @@ type regAllocState struct {
 	// preregalloc Value it was derived from.
 	orig []*Value
 
-	// current state of each register
+	// current state of each register.
+	// Includes only registers in allocatable.
 	regs []regState
 
 	// registers that contain values which can't be kicked out
@@ -348,6 +354,9 @@ type startReg struct {
 
 // freeReg frees up register r. Any current user of r is kicked out.
 func (s *regAllocState) freeReg(r register) {
+	if !s.allocatable.contains(r) && !s.isGReg(r) {
+		return
+	}
 	v := s.regs[r].v
 	if v == nil {
 		s.f.Fatalf("tried to free an already free register %d\n", r)
@@ -404,15 +413,19 @@ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
 	if s.f.pass.debug > regDebug {
 		fmt.Printf("assignReg %s %s/%s\n", &s.registers[r], v, c)
 	}
+	// Allocate v to r.
+	s.values[v.ID].regs |= regMask(1) << r
+	s.f.setHome(c, &s.registers[r])
+
+	// Allocate r to v.
+	if !s.allocatable.contains(r) && !s.isGReg(r) {
+		return
+	}
 	if s.regs[r].v != nil {
 		s.f.Fatalf("tried to assign register %d to %s/%s but it is already used by %s", r, v, c, s.regs[r].v)
 	}
-
-	// Update state.
 	s.regs[r] = regState{v, c}
-	s.values[v.ID].regs |= regMask(1) << r
 	s.used |= regMask(1) << r
-	s.f.setHome(c, &s.registers[r])
 }
 
 // allocReg chooses a register from the set of registers in mask.
@@ -549,6 +562,9 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	// Check if v is already in a requested register.
 	if mask&vi.regs != 0 {
 		r := pickReg(mask & vi.regs)
+		if !s.allocatable.contains(r) {
+			return v // v is in a fixed register
+		}
 		if s.regs[r].v != v || s.regs[r].c == nil {
 			panic("bad register state")
 		}
@@ -572,11 +588,17 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	if vi.regs != 0 {
 		// Copy from a register that v is already in.
 		r2 := pickReg(vi.regs)
-		if s.regs[r2].v != v {
-			panic("bad register state")
+		var current *Value
+		if !s.allocatable.contains(r2) {
+			current = v // v is in a fixed register
+		} else {
+			if s.regs[r2].v != v {
+				panic("bad register state")
+			}
+			current = s.regs[r2].c
 		}
 		s.usedSinceBlockStart |= regMask(1) << r2
-		c = s.curBlock.NewValue1(pos, OpCopy, v.Type, s.regs[r2].c)
+		c = s.curBlock.NewValue1(pos, OpCopy, v.Type, current)
 	} else if v.rematerializeable() {
 		// Rematerialize instead of loading from the spill location.
 		c = v.copyIntoWithXPos(s.curBlock, pos)
@@ -637,6 +659,7 @@ func (s *regAllocState) init(f *Func) {
 	s.SPReg = noRegister
 	s.SBReg = noRegister
 	s.GReg = noRegister
+	s.ZeroIntReg = noRegister
 	for r := register(0); r < s.numRegs; r++ {
 		switch s.registers[r].String() {
 		case "SP":
@@ -645,6 +668,8 @@ func (s *regAllocState) init(f *Func) {
 			s.SBReg = r
 		case "g":
 			s.GReg = r
+		case "ZERO": // TODO: arch-specific?
+			s.ZeroIntReg = r
 		}
 	}
 	// Make sure we found all required registers.
@@ -665,6 +690,9 @@ func (s *regAllocState) init(f *Func) {
 	s.allocatable &^= 1 << s.SBReg
 	if s.f.Config.hasGReg {
 		s.allocatable &^= 1 << s.GReg
+	}
+	if s.ZeroIntReg != noRegister {
+		s.allocatable &^= 1 << s.ZeroIntReg
 	}
 	if buildcfg.FramePointerEnabled && s.f.Config.FPReg >= 0 {
 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
@@ -818,7 +846,7 @@ func (s *regAllocState) advanceUses(v *Value) {
 		ai := &s.values[a.ID]
 		r := ai.uses
 		ai.uses = r.next
-		if r.next == nil || (a.Op != OpSP && a.Op != OpSB && r.next.dist > s.nextCall[s.curIdx]) {
+		if r.next == nil || (!opcodeTable[a.Op].fixedReg && r.next.dist > s.nextCall[s.curIdx]) {
 			// Value is dead (or is not used again until after a call), free all registers that hold it.
 			s.freeRegs(ai.regs)
 		}
@@ -836,7 +864,7 @@ func (s *regAllocState) dropIfUnused(v *Value) {
 	}
 	vi := &s.values[v.ID]
 	r := vi.uses
-	if r == nil || (v.Op != OpSP && v.Op != OpSB && r.dist > s.nextCall[s.curIdx]) {
+	if r == nil || (!opcodeTable[v.Op].fixedReg && r.dist > s.nextCall[s.curIdx]) {
 		s.freeRegs(vi.regs)
 	}
 }
@@ -1366,18 +1394,21 @@ func (s *regAllocState) regalloc(f *Func) {
 			if v.Op == OpPhi {
 				f.Fatalf("phi %s not at start of block", v)
 			}
-			if v.Op == OpSP {
-				s.assignReg(s.SPReg, v, v)
+			if opcodeTable[v.Op].fixedReg {
+				switch v.Op {
+				case OpSP:
+					s.assignReg(s.SPReg, v, v)
+					s.sp = v.ID
+				case OpSB:
+					s.assignReg(s.SBReg, v, v)
+					s.sb = v.ID
+				case OpARM64ZERO:
+					s.assignReg(s.ZeroIntReg, v, v)
+				default:
+					f.Fatalf("unknown fixed-register op %s", v)
+				}
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
-				s.sp = v.ID
-				continue
-			}
-			if v.Op == OpSB {
-				s.assignReg(s.SBReg, v, v)
-				b.Values = append(b.Values, v)
-				s.advanceUses(v)
-				s.sb = v.ID
 				continue
 			}
 			if v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN {
@@ -2414,15 +2445,20 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 		fmt.Printf("moving v%d to %s\n", vid, loc)
 		fmt.Printf("sources of v%d:", vid)
 	}
-	for _, w := range e.cache[vid] {
-		h := e.s.f.getHome(w.ID)
-		if e.s.f.pass.debug > regDebug {
-			fmt.Printf(" %s:%s", h, w)
-		}
-		_, isreg := h.(*Register)
-		if src == nil || isreg {
-			c = w
-			src = h
+	if opcodeTable[v.Op].fixedReg {
+		c = v
+		src = e.s.f.getHome(v.ID)
+	} else {
+		for _, w := range e.cache[vid] {
+			h := e.s.f.getHome(w.ID)
+			if e.s.f.pass.debug > regDebug {
+				fmt.Printf(" %s:%s", h, w)
+			}
+			_, isreg := h.(*Register)
+			if src == nil || isreg {
+				c = w
+				src = h
+			}
 		}
 	}
 	if e.s.f.pass.debug > regDebug {
@@ -2649,8 +2685,9 @@ func (v *Value) rematerializeable() bool {
 		return false
 	}
 	for _, a := range v.Args {
-		// SP and SB (generated by OpSP and OpSB) are always available.
-		if a.Op != OpSP && a.Op != OpSB {
+		// Fixed-register allocations (SP, SB, etc.) are always available.
+		// Any other argument of an opcode makes it not rematerializeable.
+		if !opcodeTable[a.Op].fixedReg {
 			return false
 		}
 	}

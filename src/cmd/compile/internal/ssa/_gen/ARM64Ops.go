@@ -47,7 +47,7 @@ var regNamesARM64 = []string{
 	"R15",
 	"R16",
 	"R17",
-	"R18", // platform register, not used
+	// R18 = platform register, not used
 	"R19",
 	"R20",
 	"R21",
@@ -57,10 +57,23 @@ var regNamesARM64 = []string{
 	"R25",
 	"R26",
 	// R27 = REGTMP not used in regalloc
-	"g",   // aka R28
-	"R29", // frame pointer, not used
-	"R30", // aka REGLINK
-	"SP",  // aka R31
+	"g",    // aka R28
+	"R29",  // frame pointer, not used
+	"R30",  // aka REGLINK
+	"ZERO", // zero register (aka R31)
+	"SP",   // stack pointer (aka R31)
+
+	// Note: both ZERO and SP are register number 31!
+	// What r31 means in a particular instruction depends on
+	// the instruction.  Generally, for arguments of instructions
+	// which are addresses to load or store from, r31 means SP.
+	// In other instructions, r31 means ZERO. But there are
+	// exceptions.
+	// See https://stackoverflow.com/questions/61532867
+	// This does not have much of an effect here, as the
+	// cmd/internal/obj/arm64 interface treats them as two
+	// different registers and picks the right instruction
+	// that encodes what r31 means. But see issue 71651.
 
 	"F0",
 	"F1",
@@ -125,16 +138,17 @@ func init() {
 	// Common individual register masks
 	var (
 		gp         = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30")
-		gpg        = gp | buildReg("g")
-		gpsp       = gp | buildReg("SP")
-		gpspg      = gpg | buildReg("SP")
-		gpspsbg    = gpspg | buildReg("SB")
+		gpg        = gp | buildReg("g") | buildReg("ZERO")
+		gpsp       = gp | buildReg("SP") | buildReg("ZERO")
+		gpspg      = gpg | buildReg("SP") | buildReg("ZERO")
+		gpspsbg    = gpspg | buildReg("SB") | buildReg("ZERO")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
 		r0         = buildReg("R0")
 		r1         = buildReg("R1")
 		r2         = buildReg("R2")
 		r3         = buildReg("R3")
+		rz         = buildReg("ZERO") // TODO: when 71651 is fixed, we might be able to remove uses of this
 	)
 	// Common regInfo
 	var (
@@ -151,15 +165,14 @@ func init() {
 		gp2flags       = regInfo{inputs: []regMask{gpg, gpg}}
 		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp, 0}}
-		gp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+		gp2load        = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg}, outputs: []regMask{gp}}
 		gp31           = regInfo{inputs: []regMask{gpg, gpg, gpg}, outputs: []regMask{gp}}
-		gpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
-		gpload2        = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gpg, gpg}}
-		gpstore        = regInfo{inputs: []regMask{gpspsbg, gpg}}
-		gpstore0       = regInfo{inputs: []regMask{gpspsbg}}
-		gpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
-		gpxchg         = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
-		gpcas          = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
+		gpload         = regInfo{inputs: []regMask{gpspsbg &^ rz}, outputs: []regMask{gp}}
+		gpload2        = regInfo{inputs: []regMask{gpspsbg &^ rz}, outputs: []regMask{gpg, gpg}}
+		gpstore        = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg}}
+		gpstore2       = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg, gpg}}
+		gpxchg         = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg}, outputs: []regMask{gp}}
+		gpcas          = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg, gpg}, outputs: []regMask{gp}}
 		fp01           = regInfo{inputs: nil, outputs: []regMask{fp}}
 		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
@@ -168,12 +181,12 @@ func init() {
 		fp31           = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
 		fp2flags       = regInfo{inputs: []regMask{fp, fp}}
 		fp1flags       = regInfo{inputs: []regMask{fp}}
-		fpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
-		fpload2        = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp, fp}}
-		fp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
-		fpstore        = regInfo{inputs: []regMask{gpspsbg, fp}}
-		fpstoreidx     = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
-		fpstore2       = regInfo{inputs: []regMask{gpspsbg, fp, fp}}
+		fpload         = regInfo{inputs: []regMask{gpspsbg &^ rz}, outputs: []regMask{fp}}
+		fpload2        = regInfo{inputs: []regMask{gpspsbg &^ rz}, outputs: []regMask{fp, fp}}
+		fp2load        = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg}, outputs: []regMask{fp}}
+		fpstore        = regInfo{inputs: []regMask{gpspsbg &^ rz, fp}}
+		fpstoreidx     = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg, fp}}
+		fpstore2       = regInfo{inputs: []regMask{gpspsbg &^ rz, fp, fp}}
 		readflags      = regInfo{inputs: nil, outputs: []regMask{gp}}
 		prefreg        = regInfo{inputs: []regMask{gpspsbg}}
 	)
@@ -445,23 +458,6 @@ func init() {
 		{name: "FMOVSstoreidx4", argLength: 4, reg: fpstoreidx, asm: "FMOVS", typ: "Mem"}, // store 32-bit float of arg2 to arg0 + arg1*4, arg3=mem.
 		{name: "FMOVDstoreidx8", argLength: 4, reg: fpstoreidx, asm: "FMOVD", typ: "Mem"}, // store 64-bit float of arg2 to arg0 + arg1*8, arg3=mem.
 
-		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 1 byte of zero to arg0 + auxInt + aux.  arg1=mem.
-		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
-		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
-		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
-		{name: "MOVQstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "STP", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // store 16 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
-
-		// register indexed store zero
-		{name: "MOVBstorezeroidx", argLength: 3, reg: gpstore, asm: "MOVB", typ: "Mem"}, // store 1 byte of zero to arg0 + arg1, arg2 = mem.
-		{name: "MOVHstorezeroidx", argLength: 3, reg: gpstore, asm: "MOVH", typ: "Mem"}, // store 2 bytes of zero to arg0 + arg1, arg2 = mem.
-		{name: "MOVWstorezeroidx", argLength: 3, reg: gpstore, asm: "MOVW", typ: "Mem"}, // store 4 bytes of zero to arg0 + arg1, arg2 = mem.
-		{name: "MOVDstorezeroidx", argLength: 3, reg: gpstore, asm: "MOVD", typ: "Mem"}, // store 8 bytes of zero to arg0 + arg1, arg2 = mem.
-
-		// shifted register indexed store zero
-		{name: "MOVHstorezeroidx2", argLength: 3, reg: gpstore, asm: "MOVH", typ: "Mem"}, // store 2 bytes of zero to arg0 + arg1*2, arg2 = mem.
-		{name: "MOVWstorezeroidx4", argLength: 3, reg: gpstore, asm: "MOVW", typ: "Mem"}, // store 4 bytes of zero to arg0 + arg1*4, arg2 = mem.
-		{name: "MOVDstorezeroidx8", argLength: 3, reg: gpstore, asm: "MOVD", typ: "Mem"}, // store 8 bytes of zero to arg0 + arg1*8, arg2 = mem.
-
 		{name: "FMOVDgpfp", argLength: 1, reg: gpfp, asm: "FMOVD"}, // move int64 to float64 (no conversion)
 		{name: "FMOVDfpgp", argLength: 1, reg: fpgp, asm: "FMOVD"}, // move float64 to int64 (no conversion)
 		{name: "FMOVSgpfp", argLength: 1, reg: gpfp, asm: "FMOVS"}, // move 32bits from int to float reg (no conversion)
@@ -520,7 +516,7 @@ func init() {
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
+		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg &^ rz}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
 
 		{name: "Equal", argLength: 1, reg: readflags},            // bool, true flags encode x==y false otherwise.
 		{name: "NotEqual", argLength: 1, reg: readflags},         // bool, true flags encode x!=y false otherwise.
@@ -777,6 +773,7 @@ func init() {
 
 		// Publication barrier
 		{name: "DMB", argLength: 1, aux: "Int64", asm: "DMB", hasSideEffects: true}, // Do data barrier. arg0=memory, aux=option.
+		{name: "ZERO", zeroWidth: true, fixedReg: true},                             // reads-as-zero register
 	}
 
 	blocks := []blockData{
