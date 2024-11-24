@@ -60,18 +60,18 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 		command = strings.TrimSpace(command)
 		words := strings.Fields(command)
 		if len(words) == 0 {
-			base.Fatalf("GOAUTH encountered an empty command (GOAUTH=%s)", cfg.GOAUTH)
+			base.Fatalf("go: GOAUTH encountered an empty command (GOAUTH=%s)", cfg.GOAUTH)
 		}
 		switch words[0] {
 		case "off":
 			if len(goAuthCmds) != 1 {
-				base.Fatalf("GOAUTH=off cannot be combined with other authentication commands (GOAUTH=%s)", cfg.GOAUTH)
+				base.Fatalf("go: GOAUTH=off cannot be combined with other authentication commands (GOAUTH=%s)", cfg.GOAUTH)
 			}
 			return
 		case "netrc":
 			lines, err := readNetrc()
 			if err != nil {
-				base.Fatalf("could not parse netrc (GOAUTH=%s): %v", cfg.GOAUTH, err)
+				base.Fatalf("go: could not parse netrc (GOAUTH=%s): %v", cfg.GOAUTH, err)
 			}
 			for _, l := range lines {
 				r := http.Request{Header: make(http.Header)}
@@ -80,18 +80,18 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 			}
 		case "git":
 			if len(words) != 2 {
-				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory")
+				base.Fatalf("go: GOAUTH=git dir method requires an absolute path to the git working directory")
 			}
 			dir := words[1]
 			if !filepath.IsAbs(dir) {
-				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory, dir is not absolute")
+				base.Fatalf("go: GOAUTH=git dir method requires an absolute path to the git working directory, dir is not absolute")
 			}
 			fs, err := os.Stat(dir)
 			if err != nil {
-				base.Fatalf("GOAUTH=git encountered an error; cannot stat %s: %v", dir, err)
+				base.Fatalf("go: GOAUTH=git encountered an error; cannot stat %s: %v", dir, err)
 			}
 			if !fs.IsDir() {
-				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory, dir is not a directory")
+				base.Fatalf("go: GOAUTH=git dir method requires an absolute path to the git working directory, dir is not a directory")
 			}
 
 			if url == "" {
