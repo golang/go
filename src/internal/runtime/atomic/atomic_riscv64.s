@@ -199,6 +199,27 @@ TEXT ·Xchg(SB), NOSPLIT, $0-20
 	MOVW	A1, ret+16(FP)
 	RET
 
+// func Xchg8(ptr *uint8, new uint8) uint8
+TEXT ·Xchg8(SB), NOSPLIT, $0-17
+	MOV	ptr+0(FP), A0
+	MOVBU	new+8(FP), A1
+	AND	$3, A0, A2
+	SLL	$3, A2
+	MOV	$255, A4
+	SLL	A2, A4
+	NOT	A4
+	AND	$~3, A0
+	SLL	A2, A1
+xchg8_again:
+	LRW	(A0), A5
+	AND	A4, A5, A3
+	OR	A1, A3
+	SCW	A3, (A0), A6
+	BNEZ	A6, xchg8_again
+	SRL	A2, A5
+	MOVB	A5, ret+16(FP)
+	RET
+
 // func Xchg64(ptr *uint64, new uint64) uint64
 TEXT ·Xchg64(SB), NOSPLIT, $0-24
 	MOV	ptr+0(FP), A0
