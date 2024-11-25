@@ -1006,9 +1006,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 		check.ident(x, e, nil, false)
 
 	case *ast.Ellipsis:
-		// ellipses are handled explicitly where they are legal
-		// (array composite literals and parameter lists)
-		check.error(e, BadDotDotDotSyntax, "invalid use of '...'")
+		// ellipses are handled explicitly where they are valid
+		check.error(e, InvalidSyntaxTree, "invalid use of ...")
 		goto Error
 
 	case *ast.BasicLit:

@@ -872,7 +872,7 @@ func (p *parser) parseParamDecl(name *ast.Ident, typeSetsOK bool) (f field) {
 	return
 }
 
-func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing token.Token) (params []*ast.Field) {
+func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing token.Token, dddok bool) (params []*ast.Field) {
 	if p.trace {
 		defer un(trace(p, "ParameterList"))
 	}
@@ -1006,6 +1006,26 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 		}
 	}
 
+	// check use of ...
+	first := true // only report first occurrence
+	for i, _ := range list {
+		f := &list[i]
+		if t, _ := f.typ.(*ast.Ellipsis); t != nil && (!dddok || i+1 < len(list)) {
+			if first {
+				first = false
+				if dddok {
+					p.error(t.Ellipsis, "can only use ... with final parameter")
+				} else {
+					p.error(t.Ellipsis, "invalid use of ...")
+				}
+			}
+			// use T instead of invalid ...T
+			// TODO(gri) would like to use `f.typ = t.Elt` but that causes problems
+			//           with the resolver in cases of reuse of the same identifier
+			f.typ = &ast.BadExpr{From: t.Pos(), To: t.End()}
+		}
+	}
+
 	// Convert list to []*ast.Field.
 	// If list contains types only, each type gets its own ast.Field.
 	if named == 0 {
@@ -1050,7 +1070,7 @@ func (p *parser) parseTypeParameters() *ast.FieldList {
 	lbrack := p.expect(token.LBRACK)
 	var list []*ast.Field
 	if p.tok != token.RBRACK {
-		list = p.parseParameterList(nil, nil, token.RBRACK)
+		list = p.parseParameterList(nil, nil, token.RBRACK, false)
 	}
 	rbrack := p.expect(token.RBRACK)
 
@@ -1062,32 +1082,22 @@ func (p *parser) parseTypeParameters() *ast.FieldList {
 	return &ast.FieldList{Opening: lbrack, List: list, Closing: rbrack}
 }
 
-func (p *parser) parseParameters() *ast.FieldList {
+func (p *parser) parseParameters(result bool) *ast.FieldList {
 	if p.trace {
 		defer un(trace(p, "Parameters"))
 	}
 
-	lparen := p.expect(token.LPAREN)
-	var list []*ast.Field
-	if p.tok != token.RPAREN {
-		list = p.parseParameterList(nil, nil, token.RPAREN)
-	}
-	rparen := p.expect(token.RPAREN)
-
-	return &ast.FieldList{Opening: lparen, List: list, Closing: rparen}
-}
-
-func (p *parser) parseResult() *ast.FieldList {
-	if p.trace {
-		defer un(trace(p, "Result"))
+	if !result || p.tok == token.LPAREN {
+		lparen := p.expect(token.LPAREN)
+		var list []*ast.Field
+		if p.tok != token.RPAREN {
+			list = p.parseParameterList(nil, nil, token.RPAREN, !result)
+		}
+		rparen := p.expect(token.RPAREN)
+		return &ast.FieldList{Opening: lparen, List: list, Closing: rparen}
 	}
 
-	if p.tok == token.LPAREN {
-		return p.parseParameters()
-	}
-
-	typ := p.tryIdentOrType()
-	if typ != nil {
+	if typ := p.tryIdentOrType(); typ != nil {
 		list := make([]*ast.Field, 1)
 		list[0] = &ast.Field{Type: typ}
 		return &ast.FieldList{List: list}
@@ -1109,8 +1119,8 @@ func (p *parser) parseFuncType() *ast.FuncType {
 			p.error(tparams.Opening, "function type must have no type parameters")
 		}
 	}
-	params := p.parseParameters()
-	results := p.parseResult()
+	params := p.parseParameters(false)
+	results := p.parseParameters(true)
 
 	return &ast.FuncType{Func: pos, Params: params, Results: results}
 }
@@ -1138,13 +1148,13 @@ func (p *parser) parseMethodSpec() *ast.Field {
 				//
 				// Interface methods do not have type parameters. We parse them for a
 				// better error message and improved error recovery.
-				_ = p.parseParameterList(name0, nil, token.RBRACK)
+				_ = p.parseParameterList(name0, nil, token.RBRACK, false)
 				_ = p.expect(token.RBRACK)
 				p.error(lbrack, "interface method must have no type parameters")
 
 				// TODO(rfindley) refactor to share code with parseFuncType.
-				params := p.parseParameters()
-				results := p.parseResult()
+				params := p.parseParameters(false)
+				results := p.parseParameters(true)
 				idents = []*ast.Ident{ident}
 				typ = &ast.FuncType{
 					Func:    token.NoPos,
@@ -1173,8 +1183,8 @@ func (p *parser) parseMethodSpec() *ast.Field {
 		case p.tok == token.LPAREN:
 			// ordinary method
 			// TODO(rfindley) refactor to share code with parseFuncType.
-			params := p.parseParameters()
-			results := p.parseResult()
+			params := p.parseParameters(false)
+			results := p.parseParameters(true)
 			idents = []*ast.Ident{ident}
 			typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
 		default:
@@ -2578,7 +2588,7 @@ func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *
 		defer un(trace(p, "parseGenericType"))
 	}
 
-	list := p.parseParameterList(name0, typ0, token.RBRACK)
+	list := p.parseParameterList(name0, typ0, token.RBRACK, false)
 	closePos := p.expect(token.RBRACK)
 	spec.TypeParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
 	if p.tok == token.ASSIGN {
@@ -2775,7 +2785,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 
 	var recv *ast.FieldList
 	if p.tok == token.LPAREN {
-		recv = p.parseParameters()
+		recv = p.parseParameters(false)
 	}
 
 	ident := p.parseIdent()
@@ -2790,8 +2800,8 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 			tparams = nil
 		}
 	}
-	params := p.parseParameters()
-	results := p.parseResult()
+	params := p.parseParameters(false)
+	results := p.parseParameters(true)
 
 	var body *ast.BlockStmt
 	switch p.tok {

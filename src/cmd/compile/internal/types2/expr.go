@@ -1016,9 +1016,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		check.ident(x, e, nil, false)
 
 	case *syntax.DotsType:
-		// dots are handled explicitly where they are legal
-		// (array composite literals and parameter lists)
-		check.error(e, BadDotDotDotSyntax, "invalid use of '...'")
+		// dots are handled explicitly where they are valid
+		check.error(e, InvalidSyntaxTree, "invalid use of ...")
 		goto Error
 
 	case *syntax.BasicLit:

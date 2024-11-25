@@ -321,10 +321,8 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 		return typ
 
 	case *syntax.DotsType:
-		// dots are handled explicitly where they are legal
-		// (array composite literals and parameter lists)
-		check.error(e, InvalidDotDotDot, "invalid use of '...'")
-		check.use(e.Elem)
+		// dots are handled explicitly where they are valid
+		check.error(e, InvalidSyntaxTree, "invalid use of ...")
 
 	case *syntax.StructType:
 		typ := new(Struct)

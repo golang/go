@@ -326,9 +326,9 @@ func issue28281b(a, b int, c ...int)
 func issue28281c(a, b, c ... /* ERROR "can only use ... with final parameter" */ int)
 func issue28281d(... /* ERROR "can only use ... with final parameter" */ int, int)
 func issue28281e(a, b, c  ... /* ERROR "can only use ... with final parameter" */ int, d int)
-func issue28281f(... /* ERROR "can only use ... with final parameter" */ int, ... /* ERROR "can only use ... with final parameter" */ int, int)
-func (... /* ERROR "invalid use of '...'" */ TT) f()
-func issue28281g() (... /* ERROR "can only use ... with final parameter" */ TT)
+func issue28281f(... /* ERROR "can only use ... with final parameter" */ int, ... int, int)
+func (... /* ERROR "invalid use of ..." */ TT) f()
+func issue28281g() (... /* ERROR "invalid use of ..." */ TT)
 
 // Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
 func issue26234a(f *syn.Prog) {

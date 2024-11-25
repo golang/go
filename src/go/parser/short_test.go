@@ -190,6 +190,14 @@ var invalids = []string{
 	`package p; func f() { if true {} else ; /* ERROR "expected if statement or block" */ }`,
 	`package p; func f() { if true {} else defer /* ERROR "expected if statement or block" */ f() }`,
 
+	// variadic parameter lists
+	`package p; func f(a, b ... /* ERROR "can only use ... with final parameter" */ int)`,
+	`package p; func f(a ... /* ERROR "can only use ... with final parameter" */ int, b int)`,
+	`package p; func f(... /* ERROR "can only use ... with final parameter" */ int, int)`,
+	`package p; func f() (... /* ERROR "invalid use of ..." */ int)`,
+	`package p; func f() (a, b ... /* ERROR "invalid use of ..." */ int)`,
+	`package p; func f[T ... /* ERROR "invalid use of ..." */ C]()() {}`,
+
 	// generic code
 	`package p; type _[_ any] int; var _ = T[] /* ERROR "expected operand" */ {}`,
 	`package p; var _ func[ /* ERROR "must have no type parameters" */ T any](T)`,
