@@ -19,9 +19,10 @@ import (
 
 func fakeNetListen() *fakeNetListener {
 	li := &fakeNetListener{
-		setc:   make(chan struct{}, 1),
-		unsetc: make(chan struct{}, 1),
-		addr:   net.TCPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:8000")),
+		setc:    make(chan struct{}, 1),
+		unsetc:  make(chan struct{}, 1),
+		addr:    netip.MustParseAddrPort("127.0.0.1:8000"),
+		locPort: 10000,
 	}
 	li.unsetc <- struct{}{}
 	return li
@@ -31,7 +32,13 @@ type fakeNetListener struct {
 	setc, unsetc chan struct{}
 	queue        []net.Conn
 	closed       bool
-	addr         net.Addr
+	addr         netip.AddrPort
+	locPort      uint16
+
+	onDial func() // called when making a new connection
+
+	trackConns bool // set this to record all created conns
+	conns      []*fakeNetConn
 }
 
 func (li *fakeNetListener) lock() {
@@ -50,10 +57,18 @@ func (li *fakeNetListener) unlock() {
 }
 
 func (li *fakeNetListener) connect() *fakeNetConn {
+	if li.onDial != nil {
+		li.onDial()
+	}
 	li.lock()
 	defer li.unlock()
-	c0, c1 := fakeNetPipe()
+	locAddr := netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), li.locPort)
+	li.locPort++
+	c0, c1 := fakeNetPipe(li.addr, locAddr)
 	li.queue = append(li.queue, c0)
+	if li.trackConns {
+		li.conns = append(li.conns, c0)
+	}
 	return c1
 }
 
@@ -76,7 +91,7 @@ func (li *fakeNetListener) Close() error {
 }
 
 func (li *fakeNetListener) Addr() net.Addr {
-	return li.addr
+	return net.TCPAddrFromAddrPort(li.addr)
 }
 
 // fakeNetPipe creates an in-memory, full duplex network connection.
@@ -84,13 +99,16 @@ func (li *fakeNetListener) Addr() net.Addr {
 // Unlike net.Pipe, the connection is not synchronous.
 // Writes are made to a buffer, and return immediately.
 // By default, the buffer size is unlimited.
-func fakeNetPipe() (r, w *fakeNetConn) {
-	s1addr := net.TCPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:8000"))
-	s2addr := net.TCPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:8001"))
+func fakeNetPipe(s1ap, s2ap netip.AddrPort) (r, w *fakeNetConn) {
+	s1addr := net.TCPAddrFromAddrPort(s1ap)
+	s2addr := net.TCPAddrFromAddrPort(s2ap)
 	s1 := newSynctestNetConnHalf(s1addr)
 	s2 := newSynctestNetConnHalf(s2addr)
-	return &fakeNetConn{loc: s1, rem: s2},
-		&fakeNetConn{loc: s2, rem: s1}
+	c1 := &fakeNetConn{loc: s1, rem: s2}
+	c2 := &fakeNetConn{loc: s2, rem: s1}
+	c1.peer = c2
+	c2.peer = c1
+	return c1, c2
 }
 
 // A fakeNetConn is one endpoint of the connection created by fakeNetPipe.
@@ -102,6 +120,11 @@ type fakeNetConn struct {
 
 	// When set, synctest.Wait is automatically called before reads and after writes.
 	autoWait bool
+
+	// peer is the other endpoint.
+	peer *fakeNetConn
+
+	onClose func() // called when closing
 }
 
 // Read reads data from the connection.
@@ -143,6 +166,9 @@ func (c *fakeNetConn) IsClosedByPeer() bool {
 
 // Close closes the connection.
 func (c *fakeNetConn) Close() error {
+	if c.onClose != nil {
+		c.onClose()
+	}
 	// Local half of the conn is now closed.
 	c.loc.lock()
 	c.loc.writeErr = net.ErrClosed

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"go/token"
 	"internal/nettrace"
+	"internal/synctest"
 	"io"
 	"log"
 	mrand "math/rand"
@@ -4219,53 +4220,175 @@ func TestTransportTraceGotConnH2IdleConns(t *testing.T) {
 	wantIdle("after round trip", 1)
 }
 
-func TestTransportRemovesH2ConnsAfterIdle(t *testing.T) {
-	run(t, testTransportRemovesH2ConnsAfterIdle, []testMode{http2Mode})
+// https://go.dev/issue/70515
+//
+// When the first request on a new connection fails, we do not retry the request.
+// If the first request on a connection races with IdleConnTimeout,
+// we should not fail the request.
+func TestTransportIdleConnRacesRequest(t *testing.T) {
+	// Use unencrypted HTTP/2, since the *tls.Conn interfers with our ability to
+	// block the connection closing.
+	runSynctest(t, testTransportIdleConnRacesRequest, []testMode{http1Mode, http2UnencryptedMode})
 }
-func testTransportRemovesH2ConnsAfterIdle(t *testing.T, mode testMode) {
+func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
+	if mode == http2UnencryptedMode {
+		t.Skip("remove skip when #70515 is fixed")
+	}
+	timeout := 1 * time.Millisecond
+	trFunc := func(tr *Transport) {
+		tr.IdleConnTimeout = timeout
+	}
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	}), trFunc, optFakeNet)
+	cst.li.trackConns = true
+
+	// We want to put a connection into the pool which has never had a request made on it.
+	//
+	// Make a request and cancel it before the dial completes.
+	// Then complete the dial.
+	dialc := make(chan struct{})
+	cst.li.onDial = func() {
+		<-dialc
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	req1c := make(chan error)
+	go func() {
+		req, _ := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+		resp, err := cst.c.Do(req)
+		if err == nil {
+			resp.Body.Close()
+		}
+		req1c <- err
+	}()
+	// Wait for the connection attempt to start.
+	synctest.Wait()
+	// Cancel the request.
+	cancel()
+	synctest.Wait()
+	if err := <-req1c; err == nil {
+		t.Fatal("expected request to fail, but it succeeded")
+	}
+	// Unblock the dial, placing a new, unused connection into the Transport's pool.
+	close(dialc)
+
+	// We want IdleConnTimeout to race with a new request.
+	//
+	// There's no perfect way to do this, but the following exercises the bug in #70515:
+	// Block net.Conn.Close, wait until IdleConnTimeout occurs, and make a request while
+	// the connection close is still blocked.
+	//
+	// First: Wait for IdleConnTimeout. The net.Conn.Close blocks.
+	synctest.Wait()
+	closec := make(chan struct{})
+	cst.li.conns[0].peer.onClose = func() {
+		<-closec
+	}
+	time.Sleep(timeout)
+	synctest.Wait()
+	// Make a request, which will use a new connection (since the existing one is closing).
+	req2c := make(chan error)
+	go func() {
+		resp, err := cst.c.Get(cst.ts.URL)
+		if err == nil {
+			resp.Body.Close()
+		}
+		req2c <- err
+	}()
+	// Don't synctest.Wait here: The HTTP/1 transport closes the idle conn
+	// with a mutex held, and we'll end up in a deadlock.
+	close(closec)
+	if err := <-req2c; err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+}
+
+func TestTransportRemovesConnsAfterIdle(t *testing.T) {
+	runSynctest(t, testTransportRemovesConnsAfterIdle)
+}
+func testTransportRemovesConnsAfterIdle(t testing.TB, mode testMode) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
 
-	timeout := 1 * time.Millisecond
-	retry := true
-	for retry {
-		trFunc := func(tr *Transport) {
-			tr.MaxConnsPerHost = 1
-			tr.MaxIdleConnsPerHost = 1
-			tr.IdleConnTimeout = timeout
-		}
-		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), trFunc)
+	timeout := 1 * time.Second
+	trFunc := func(tr *Transport) {
+		tr.MaxConnsPerHost = 1
+		tr.MaxIdleConnsPerHost = 1
+		tr.IdleConnTimeout = timeout
+	}
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("X-Addr", r.RemoteAddr)
+	}), trFunc, optFakeNet)
 
-		retry = false
-		tooShort := func(err error) bool {
-			if err == nil || !strings.Contains(err.Error(), "use of closed network connection") {
-				return false
-			}
-			if !retry {
-				t.Helper()
-				t.Logf("idle conn timeout %v may be too short; retrying with longer", timeout)
-				timeout *= 2
-				retry = true
-				cst.close()
-			}
-			return true
-		}
-
-		if _, err := cst.c.Get(cst.ts.URL); err != nil {
-			if tooShort(err) {
-				continue
-			}
+	// makeRequest returns the local address a request was made from
+	// (unique for each connection).
+	makeRequest := func() string {
+		resp, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
 			t.Fatalf("got error: %s", err)
 		}
+		resp.Body.Close()
+		return resp.Header.Get("X-Addr")
+	}
 
-		time.Sleep(10 * timeout)
-		if _, err := cst.c.Get(cst.ts.URL); err != nil {
-			if tooShort(err) {
-				continue
-			}
+	addr1 := makeRequest()
+
+	time.Sleep(timeout / 2)
+	synctest.Wait()
+	addr2 := makeRequest()
+	if addr1 != addr2 {
+		t.Fatalf("two requests made within IdleConnTimeout should have used the same conn, but used %v, %v", addr1, addr2)
+	}
+
+	time.Sleep(timeout)
+	synctest.Wait()
+	addr3 := makeRequest()
+	if addr1 == addr3 {
+		t.Fatalf("two requests made more than IdleConnTimeout apart should have used different conns, but used %v, %v", addr1, addr3)
+	}
+}
+
+func TestTransportRemovesConnsAfterBroken(t *testing.T) {
+	runSynctest(t, testTransportRemovesConnsAfterBroken)
+}
+func testTransportRemovesConnsAfterBroken(t testing.TB, mode testMode) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	trFunc := func(tr *Transport) {
+		tr.MaxConnsPerHost = 1
+		tr.MaxIdleConnsPerHost = 1
+	}
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("X-Addr", r.RemoteAddr)
+	}), trFunc, optFakeNet)
+	cst.li.trackConns = true
+
+	// makeRequest returns the local address a request was made from
+	// (unique for each connection).
+	makeRequest := func() string {
+		resp, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
 			t.Fatalf("got error: %s", err)
 		}
+		resp.Body.Close()
+		return resp.Header.Get("X-Addr")
+	}
+
+	addr1 := makeRequest()
+	addr2 := makeRequest()
+	if addr1 != addr2 {
+		t.Fatalf("successive requests should have used the same conn, but used %v, %v", addr1, addr2)
+	}
+
+	// The connection breaks.
+	synctest.Wait()
+	cst.li.conns[0].peer.Close()
+	synctest.Wait()
+	addr3 := makeRequest()
+	if addr1 == addr3 {
+		t.Fatalf("successive requests made with conn broken between should have used different conns, but used %v, %v", addr1, addr3)
 	}
 }
 
