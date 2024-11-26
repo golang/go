@@ -497,6 +497,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if c < 0 {
 		return nil, &FormatError{0, "too many sections", shnum}
 	}
+	if shnum > 0 && ((1<<64)-1)/uint64(shnum) < uint64(shentsize) {
+		return nil, &FormatError{0, "section header overflow", shnum}
+	}
 	f.Sections = make([]*Section, 0, c)
 	names := make([]uint32, 0, c)
 	shdata, err := saferio.ReadDataAt(sr, uint64(shnum)*uint64(shentsize), shoff)
