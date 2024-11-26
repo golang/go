@@ -1106,6 +1106,67 @@ func TestRSAPSSSelfSigned(t *testing.T) {
 	}
 }
 
+const x25519Certificate = `
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 6197312946105598768 (0x5601474a2a8dc330)
+        Signature Algorithm: ED25519
+        Issuer: CN=IETF Test Demo
+        Validity
+            Not Before: Aug  1 12:19:24 2016 GMT
+            Not After : Dec 31 23:59:59 2040 GMT
+        Subject: CN=IETF Test Demo
+        Subject Public Key Info:
+            Public Key Algorithm: X25519
+                X25519 Public-Key:
+                pub:
+                    85:20:f0:09:89:30:a7:54:74:8b:7d:dc:b4:3e:f7:
+                    5a:0d:bf:3a:0d:26:38:1a:f4:eb:a4:a9:8e:aa:9b:
+                    4e:6a
+        X509v3 extensions:
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Key Usage:
+                Key Agreement
+            X509v3 Subject Key Identifier:
+                9B:1F:5E:ED:ED:04:33:85:E4:F7:BC:62:3C:59:75:B9:0B:C8:BB:3B
+    Signature Algorithm: ED25519
+    Signature Value:
+        af:23:01:fe:dd:c9:e6:ff:c1:cc:a7:3d:74:d6:48:a4:39:80:
+        82:cd:db:69:b1:4e:4d:06:ec:f8:1a:25:ce:50:d4:c2:c3:eb:
+        74:6c:4e:dd:83:46:85:6e:c8:6f:3d:ce:1a:18:65:c5:7a:c2:
+        7b:50:a0:c3:50:07:f5:e7:d9:07
+-----BEGIN CERTIFICATE-----
+MIIBLDCB36ADAgECAghWAUdKKo3DMDAFBgMrZXAwGTEXMBUGA1UEAwwOSUVURiBU
+ZXN0IERlbW8wHhcNMTYwODAxMTIxOTI0WhcNNDAxMjMxMjM1OTU5WjAZMRcwFQYD
+VQQDDA5JRVRGIFRlc3QgRGVtbzAqMAUGAytlbgMhAIUg8AmJMKdUdIt93LQ+91oN
+vzoNJjga9OukqY6qm05qo0UwQzAPBgNVHRMBAf8EBTADAQEAMA4GA1UdDwEBAAQE
+AwIDCDAgBgNVHQ4BAQAEFgQUmx9e7e0EM4Xk97xiPFl1uQvIuzswBQYDK2VwA0EA
+ryMB/t3J5v/BzKc9dNZIpDmAgs3babFOTQbs+BolzlDUwsPrdGxO3YNGhW7Ibz3O
+GhhlxXrCe1Cgw1AH9efZBw==
+-----END CERTIFICATE-----`
+
+func TestX25519(t *testing.T) {
+	der, _ := pem.Decode([]byte(x25519Certificate))
+	if der == nil {
+		t.Fatalf("Failed to find PEM block")
+	}
+
+	cert, err := ParseCertificate(der.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse: %s", err)
+	}
+
+	if cert.PublicKeyAlgorithm != X25519 {
+		t.Fatalf("Parsed key algorithm was not X25519")
+	}
+	_, ok := cert.PublicKey.(*ecdh.PublicKey)
+	if !ok {
+		t.Fatalf("Parsed key was not an X25519 key: %s", err)
+	}
+}
+
 const ed25519Certificate = `
 Certificate:
     Data:

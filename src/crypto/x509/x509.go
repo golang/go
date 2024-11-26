@@ -267,6 +267,7 @@ const (
 	RSA
 	DSA // Only supported for parsing.
 	ECDSA
+	X25519
 	Ed25519
 )
 
@@ -274,6 +275,7 @@ var publicKeyAlgoName = [...]string{
 	RSA:     "RSA",
 	DSA:     "DSA",
 	ECDSA:   "ECDSA",
+	X25519:  "X25519",
 	Ed25519: "Ed25519",
 }
 
@@ -505,6 +507,8 @@ func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm 
 		return DSA
 	case oid.Equal(oidPublicKeyECDSA):
 		return ECDSA
+	case oid.Equal(oidPublicKeyX25519):
+		return X25519
 	case oid.Equal(oidPublicKeyEd25519):
 		return Ed25519
 	}
@@ -1645,9 +1649,9 @@ var emptyASN1Subject = []byte{0x30, 0}
 //
 // The returned slice is the certificate in DER encoding.
 //
-// The currently supported key types are *rsa.PublicKey, *ecdsa.PublicKey and
-// ed25519.PublicKey. pub must be a supported key type, and priv must be a
-// crypto.Signer with a supported public key.
+// The currently supported key types are *rsa.PublicKey, *ecdsa.PublicKey,
+// ed25519.PublicKey and *ecdh.PublicKey (for X25519). pub must be a supported
+// key type, and priv must be a crypto.Signer with a supported public key.
 //
 // The AuthorityKeyId will be taken from the SubjectKeyId of parent, if any,
 // unless the resulting certificate is self-signed. Otherwise the value from
