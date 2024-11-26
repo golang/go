@@ -28,8 +28,13 @@ tests, fuzzers, benchmarks, and examples in test packages, such as
 malformed names, incorrect signatures, or examples that document
 non-existent identifiers. Some of these mistakes may cause tests not
 to run.
-
 This analyzer is among the subset of analyzers that are run by `go test`.
+
+The existing `printf` analyzer now reports a diagnostic for calls of
+the form `fmt.Printf(s)`, where `s` is a non-constant format string,
+with no other arguments. Such calls are nearly always a mistake
+as the value of `s` may contain the `%` symbol; use `fmt.Print` instead.
+See [#60529](/issue/60529).
 
 ### GOCACHEPROG
 
