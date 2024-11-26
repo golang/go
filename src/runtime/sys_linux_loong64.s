@@ -57,10 +57,8 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOVV	wait+0(FP), R19
 	// We're done using the stack.
-	MOVW	$0, R11
-	DBAR
-	MOVW	R11, (R19)
-	DBAR
+	DBAR	$0x12	// StoreRelease barrier
+	MOVW	R0, (R19)
 	MOVW	$0, R4	// exit code
 	MOVV	$SYS_exit, R11
 	SYSCALL
