@@ -309,12 +309,18 @@ func runBuiltTool(b *work.Builder, ctx context.Context, a *work.Action) error {
 		return nil
 	}
 
+	// Use same environment go run uses to start the executable:
+	// the original environment with cfg.GOROOTbin added to the path.
+	env := slices.Clip(cfg.OrigEnv)
+	env = base.AppendPATH(env)
+
 	toolCmd := &exec.Cmd{
 		Path:   cmdline[0],
 		Args:   cmdline,
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
+		Env:    env,
 	}
 	err := toolCmd.Start()
 	if err == nil {
