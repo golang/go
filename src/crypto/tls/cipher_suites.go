@@ -235,7 +235,7 @@ var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
 //   - Anything else comes before CBC_SHA256
 //
 //     SHA-256 variants of the CBC ciphersuites don't implement any Lucky13
-//     countermeasures. See http://www.isg.rhul.ac.uk/tls/Lucky13.html and
+//     countermeasures. See https://www.isg.rhul.ac.uk/tls/Lucky13.html and
 //     https://www.imperialviolet.org/2013/02/04/luckythirteen.html.
 //
 //   - Anything else comes before 3DES
