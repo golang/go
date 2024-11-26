@@ -221,46 +221,54 @@ func (s *LSym) setFIPSType(ctxt *Link) {
 		return
 	}
 
-	// Name must begin with crypto/internal/fips140, then dot or slash.
-	// The quick check for 'c' before the string compare is probably overkill,
-	// but this function is called a fair amount, and we don't want to
-	// slow down all the non-FIPS compilations.
-	const prefix = "crypto/internal/fips140"
-	name := s.Name
-	if len(name) <= len(prefix) || (name[len(prefix)] != '.' && name[len(prefix)] != '/') || name[0] != 'c' || name[:len(prefix)] != prefix {
+	// External test packages are not in scope.
+	if strings.HasSuffix(ctxt.Pkgpath, "_test") {
 		return
 	}
 
-	if strings.Contains(name, "_test.") {
-		// External test packages are not in the scope.
-		return
-	}
-
-	// Now we're at least handling a FIPS symbol.
-	// It's okay to be slower now, since this code only runs when compiling a few packages.
-	// Text symbols are always okay, since they can use PC-relative relocations,
-	// but some data symbols are not.
-	if s.Type != objabi.STEXT && s.Type != objabi.STEXTFIPS {
-		// Even in the crypto/internal/fips140 packages,
-		// we exclude various Go runtime metadata,
-		// so that it can be allowed to contain data relocations.
-		if strings.Contains(name, ".inittask") ||
-			strings.Contains(name, ".dict") ||
-			strings.Contains(name, ".typeAssert") ||
-			strings.HasSuffix(name, ".arginfo0") ||
-			strings.HasSuffix(name, ".arginfo1") ||
-			strings.HasSuffix(name, ".argliveinfo") ||
-			strings.HasSuffix(name, ".args_stackmap") ||
-			strings.HasSuffix(name, ".opendefer") ||
-			strings.HasSuffix(name, ".stkobj") ||
-			strings.HasSuffix(name, "·f") {
+	if s.Attribute.Static() {
+		// Static (file-scoped) symbol does not have name prefix,
+		// but must be local to package; rely on whether package is FIPS.
+		if !ctxt.IsFIPS() {
+			return
+		}
+	} else {
+		// Name must begin with crypto/internal/fips140, then dot or slash.
+		// The quick check for 'c' before the string compare is probably overkill,
+		// but this function is called a fair amount, and we don't want to
+		// slow down all the non-FIPS compilations.
+		const prefix = "crypto/internal/fips140"
+		name := s.Name
+		if len(name) <= len(prefix) || (name[len(prefix)] != '.' && name[len(prefix)] != '/') || name[0] != 'c' || name[:len(prefix)] != prefix {
 			return
 		}
 
-		// This symbol is linknamed to go:fipsinfo,
-		// so we shouldn't see it, but skip it just in case.
-		if s.Name == "crypto/internal/fips140/check.linkinfo" {
-			return
+		// Now we're at least handling a FIPS symbol.
+		// It's okay to be slower now, since this code only runs when compiling a few packages.
+		// Text symbols are always okay, since they can use PC-relative relocations,
+		// but some data symbols are not.
+		if s.Type != objabi.STEXT && s.Type != objabi.STEXTFIPS {
+			// Even in the crypto/internal/fips140 packages,
+			// we exclude various Go runtime metadata,
+			// so that it can be allowed to contain data relocations.
+			if strings.Contains(name, ".inittask") ||
+				strings.Contains(name, ".dict") ||
+				strings.Contains(name, ".typeAssert") ||
+				strings.HasSuffix(name, ".arginfo0") ||
+				strings.HasSuffix(name, ".arginfo1") ||
+				strings.HasSuffix(name, ".argliveinfo") ||
+				strings.HasSuffix(name, ".args_stackmap") ||
+				strings.HasSuffix(name, ".opendefer") ||
+				strings.HasSuffix(name, ".stkobj") ||
+				strings.HasSuffix(name, "·f") {
+				return
+			}
+
+			// This symbol is linknamed to go:fipsinfo,
+			// so we shouldn't see it, but skip it just in case.
+			if s.Name == "crypto/internal/fips140/check.linkinfo" {
+				return
+			}
 		}
 	}
 

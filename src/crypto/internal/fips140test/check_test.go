@@ -80,6 +80,9 @@ func TestFIPSCheckInfo(t *testing.T) {
 	if checktest.BSS != nil {
 		t.Errorf("checktest.BSS = %p, want nil", checktest.BSS)
 	}
+	if p := checktest.PtrStaticData(); p != nil && *p != 10 {
+		t.Errorf("*checktest.PtrStaticData() = %d, want 10", *p)
+	}
 
 	// Check that the checktest symbols are in the right go:fipsinfo sections.
 	sect := func(i int, name string, p unsafe.Pointer) {
@@ -89,8 +92,14 @@ func TestFIPSCheckInfo(t *testing.T) {
 		}
 	}
 	sect(0, "TEXT", unsafe.Pointer(abi.FuncPCABIInternal(checktest.TEXT)))
+	if p := checktest.PtrStaticText(); p != nil {
+		sect(0, "StaticText", p)
+	}
 	sect(1, "RODATA", unsafe.Pointer(&checktest.RODATA))
 	sect(2, "NOPTRDATA", unsafe.Pointer(&checktest.NOPTRDATA))
+	if p := checktest.PtrStaticData(); p != nil {
+		sect(2, "StaticData", unsafe.Pointer(p))
+	}
 	sect(3, "DATA", unsafe.Pointer(&checktest.DATA))
 
 	// Check that some symbols are not in FIPS sections.
