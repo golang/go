@@ -257,6 +257,10 @@ func (gs *gState[R]) stop(ts trace.Time, stack trace.Stack, ctx *traceContext) {
 	if gs.lastStopStack != trace.NoStack {
 		stk = ctx.Stack(viewerFrames(gs.lastStopStack))
 	}
+	var endStk int
+	if stack != trace.NoStack {
+		endStk = ctx.Stack(viewerFrames(stack))
+	}
 	// Check invariants.
 	if gs.startRunningTime == 0 {
 		panic("silently broken trace or generator invariant (startRunningTime != 0) not held")
@@ -270,6 +274,7 @@ func (gs *gState[R]) stop(ts trace.Time, stack trace.Stack, ctx *traceContext) {
 		Dur:      ts.Sub(gs.startRunningTime),
 		Resource: uint64(gs.executing),
 		Stack:    stk,
+		EndStack: endStk,
 	})
 
 	// Flush completed ranges.
