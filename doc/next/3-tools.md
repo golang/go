@@ -2,6 +2,7 @@
 
 ### Go command {#go-command}
 
+<!-- go.dev/issue/62067 -->
 The `go build` and `go install` commands now accept a `-json` flag that reports
 build output and failures as structured JSON output on standard output.
 For details of the reporting format, see `go help buildjson`.
@@ -14,6 +15,7 @@ a test integration system, you can revert to the text build output by setting
 
 ### Cgo {#cgo}
 
+<!-- go.dev/issue/56378 -->
 Cgo supports new annotations for C functions to improve run time
 performance.
 `#cgo noescape cFunctionName` tells the compiler that memory passed to
@@ -22,6 +24,7 @@ the C function `cFunctionname` does not escape.
 `cFunctionName` does not call back to any Go functions.
 For more information, see [the cgo documentation](/pkg/cmd/cgo#hdr-Optimizing_calls_of_C_code).
 
+<!-- go.dev/issue/67699 -->
 Cgo currently refuses to compile calls to a C function which has multiple
 incompatible declarations. For instance, if `f` is declared as both `void f(int)`
 and `void f(double)`, cgo will report an error instead of possibly generating an
@@ -31,6 +34,7 @@ files. See [#67699](/issue/67699).
 
 ### Vet
 
+<!-- go.dev/issue/44251 -->
 The new `tests` analyzer reports common mistakes in declarations of
 tests, fuzzers, benchmarks, and examples in test packages, such as
 malformed names, incorrect signatures, or examples that document
@@ -38,6 +42,7 @@ non-existent identifiers. Some of these mistakes may cause tests not
 to run.
 This analyzer is among the subset of analyzers that are run by `go test`.
 
+<!-- go.dev/issue/60529 -->
 The existing `printf` analyzer now reports a diagnostic for calls of
 the form `fmt.Printf(s)`, where `s` is a non-constant format string,
 with no other arguments. Such calls are nearly always a mistake
@@ -46,6 +51,7 @@ See [#60529](/issue/60529).
 
 ### GOCACHEPROG
 
+<!-- go.dev/issue/64876 -->
 The `cmd/go` internal binary and test caching mechanism can now be implemented
 by child processes implementing a JSON protocol between the `cmd/go` tool
 and the child process named by the `GOCACHEPROG` environment variable.
