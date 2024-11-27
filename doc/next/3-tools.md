@@ -15,7 +15,7 @@ a test integration system, you can revert to the text build output by setting
 
 ### Cgo {#cgo}
 
-<!-- go.dev/issue/56378 -->
+<!-- go.dev/issue/56378, CL 579955 -->
 Cgo supports new annotations for C functions to improve run time
 performance.
 `#cgo noescape cFunctionName` tells the compiler that memory passed to
