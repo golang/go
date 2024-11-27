@@ -49,6 +49,13 @@ with no other arguments. Such calls are nearly always a mistake
 as the value of `s` may contain the `%` symbol; use `fmt.Print` instead.
 See [#60529](/issue/60529).
 
+<!-- go.dev/issue/64127 -->
+The existing `buildtag` analyzer now reports a diagnostic when
+there is an invalid Go [major version build constraint](/pkg/cmd/go#hdr-Build_constraints)
+within a `//go:build` directive. For example, `//go:build go1.23.1` refers to
+a point release; use `//go:build go1.23` instead.
+See [#64127](/issue/64127).
+
 <!-- go.dev/issue/66387 -->
 The existing `copylock` analyzer now reports a diagnostic when a
 variable declared in a 3-clause "for" loop such as
