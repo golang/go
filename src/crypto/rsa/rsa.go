@@ -243,10 +243,6 @@ func (priv *PrivateKey) Validate() error {
 	if err != nil {
 		return fmt.Errorf("crypto/rsa: invalid private exponent: %v", err)
 	}
-	one, err := bigmod.NewNat().SetUint(1, N)
-	if err != nil {
-		return fmt.Errorf("crypto/rsa: internal error: %v", err)
-	}
 
 	Π := bigmod.NewNat().ExpandFor(N)
 	for _, prime := range priv.Primes {
@@ -254,7 +250,7 @@ func (priv *PrivateKey) Validate() error {
 		if err != nil {
 			return fmt.Errorf("crypto/rsa: invalid prime: %v", err)
 		}
-		if p.IsZero() == 1 {
+		if p.IsZero() == 1 || p.IsOne() == 1 {
 			return errors.New("crypto/rsa: invalid prime")
 		}
 		Π.Mul(p, N)
@@ -265,11 +261,7 @@ func (priv *PrivateKey) Validate() error {
 		// exponent(ℤ/nℤ). It also implies that a^de ≡ a mod p as a^(p-1) ≡ 1
 		// mod p. Thus a^de ≡ a mod n for all a coprime to n, as required.
 
-		p.Sub(one, N)
-		if p.IsZero() == 1 {
-			return errors.New("crypto/rsa: invalid prime")
-		}
-		pMinus1, err := bigmod.NewModulus(p.Bytes(N))
+		pMinus1, err := bigmod.NewModulus(p.SubOne(N).Bytes(N))
 		if err != nil {
 			return fmt.Errorf("crypto/rsa: internal error: %v", err)
 		}
@@ -278,16 +270,11 @@ func (priv *PrivateKey) Validate() error {
 		if err != nil {
 			return fmt.Errorf("crypto/rsa: invalid public exponent: %v", err)
 		}
-		one, err := bigmod.NewNat().SetUint(1, pMinus1)
-		if err != nil {
-			return fmt.Errorf("crypto/rsa: internal error: %v", err)
-		}
 
 		de := bigmod.NewNat()
 		de.Mod(d, pMinus1)
 		de.Mul(e, pMinus1)
-		de.Sub(one, pMinus1)
-		if de.IsZero() != 1 {
+		if de.IsOne() != 1 {
 			return errors.New("crypto/rsa: invalid exponents")
 		}
 	}

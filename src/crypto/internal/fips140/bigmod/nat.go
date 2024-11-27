@@ -244,6 +244,56 @@ func (x *Nat) IsZero() choice {
 	return zero
 }
 
+// IsOne returns 1 if x == 1, and 0 otherwise.
+func (x *Nat) IsOne() choice {
+	// Eliminate bounds checks in the loop.
+	size := len(x.limbs)
+	xLimbs := x.limbs[:size]
+
+	if len(xLimbs) == 0 {
+		return no
+	}
+
+	one := ctEq(xLimbs[0], 1)
+	for i := 1; i < size; i++ {
+		one &= ctEq(xLimbs[i], 0)
+	}
+	return one
+}
+
+// IsMinusOne returns 1 if x == -1 mod m, and 0 otherwise.
+//
+// The length of x must be the same as the modulus. x must already be reduced
+// modulo m.
+func (x *Nat) IsMinusOne(m *Modulus) choice {
+	minusOne := m.Nat()
+	minusOne.SubOne(m)
+	return x.Equal(minusOne)
+}
+
+// IsOdd returns 1 if x is odd, and 0 otherwise.
+func (x *Nat) IsOdd() choice {
+	if len(x.limbs) == 0 {
+		return no
+	}
+	return choice(x.limbs[0] & 1)
+}
+
+// TrailingZeroBitsVarTime returns the number of trailing zero bits in x.
+func (x *Nat) TrailingZeroBitsVarTime() uint {
+	var t uint
+	limbs := x.limbs
+	for _, l := range limbs {
+		if l == 0 {
+			t += _W
+			continue
+		}
+		t += uint(bits.TrailingZeros(l))
+		break
+	}
+	return t
+}
+
 // cmpGeq returns 1 if x >= y, and 0 otherwise.
 //
 // Both operands must have the same announced length.
@@ -306,6 +356,37 @@ func (x *Nat) sub(y *Nat) (c uint) {
 		xLimbs[i], c = bits.Sub(xLimbs[i], yLimbs[i], c)
 	}
 	return
+}
+
+// ShiftRightVarTime sets x = x >> n.
+//
+// The announced length of x is unchanged.
+func (x *Nat) ShiftRightVarTime(n uint) *Nat {
+	// Eliminate bounds checks in the loop.
+	size := len(x.limbs)
+	xLimbs := x.limbs[:size]
+
+	shift := int(n % _W)
+	shiftLimbs := int(n / _W)
+
+	var shiftedLimbs []uint
+	if shiftLimbs < size {
+		shiftedLimbs = xLimbs[shiftLimbs:]
+	}
+
+	for i := range xLimbs {
+		if i >= len(shiftedLimbs) {
+			xLimbs[i] = 0
+			continue
+		}
+
+		xLimbs[i] = shiftedLimbs[i] >> shift
+		if i+1 < len(shiftedLimbs) {
+			xLimbs[i] |= shiftedLimbs[i+1] << (_W - shift)
+		}
+	}
+
+	return x
 }
 
 // Modulus is used for modular arithmetic, precomputing relevant constants.
@@ -403,7 +484,7 @@ func NewModulus(b []byte) (*Modulus, error) {
 		return nil, errors.New("modulus must be > 0")
 	}
 	m.leading = _W - bitLen(m.nat.limbs[len(m.nat.limbs)-1])
-	if m.nat.limbs[0]&1 == 1 {
+	if m.nat.IsOdd() == 1 {
 		m.odd = true
 		m.m0inv = minusInverseModW(m.nat.limbs[0])
 		m.rr = rr(m)
@@ -435,9 +516,13 @@ func (m *Modulus) BitLen() int {
 	return len(m.nat.limbs)*_W - int(m.leading)
 }
 
-// Nat returns m as a Nat. The return value must not be written to.
+// Nat returns m as a Nat.
 func (m *Modulus) Nat() *Nat {
-	return m.nat
+	// Make a copy so that the caller can't modify m.nat or alias it with
+	// another Nat in a modulus operation.
+	n := NewNat()
+	n.set(m.nat)
+	return n
 }
 
 // shiftIn calculates x = x << _W + y mod m.
@@ -551,6 +636,16 @@ func (x *Nat) Sub(y *Nat, m *Modulus) *Nat {
 	t.add(m.nat)
 	x.assign(choice(underflow), t)
 	return x
+}
+
+// SubOne computes x = x - 1 mod m.
+//
+// The length of x must be the same as the modulus. x must already be reduced
+// modulo m.
+func (x *Nat) SubOne(m *Modulus) *Nat {
+	one := NewNat().ExpandFor(m)
+	one.limbs[0] = 1
+	return x.Sub(one, m)
 }
 
 // Add computes x = x + y mod m.

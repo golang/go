@@ -31,6 +31,14 @@ func (x *Nat) setBig(n *big.Int) *Nat {
 	return x
 }
 
+func (n *Nat) asBig() *big.Int {
+	bits := make([]big.Word, len(n.limbs))
+	for i := range n.limbs {
+		bits[i] = big.Word(n.limbs[i])
+	}
+	return new(big.Int).SetBits(bits)
+}
+
 func (n *Nat) String() string {
 	var limbs []string
 	for i := range n.limbs {
@@ -401,6 +409,98 @@ func testMul(t *testing.T, n int) {
 
 	if !bytes.Equal(ABytes, nBigBytes) {
 		t.Errorf("got %x, want %x", ABytes, nBigBytes)
+	}
+}
+
+func TestIs(t *testing.T) {
+	checkYes := func(c choice, err string) {
+		t.Helper()
+		if c != yes {
+			t.Error(err)
+		}
+	}
+	checkNot := func(c choice, err string) {
+		t.Helper()
+		if c != no {
+			t.Error(err)
+		}
+	}
+
+	mFour := modulusFromBytes([]byte{4})
+	n, err := NewNat().SetBytes([]byte{3}, mFour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkYes(n.IsMinusOne(mFour), "3 is not -1 mod 4")
+	checkNot(n.IsZero(), "3 is zero")
+	checkNot(n.IsOne(), "3 is one")
+	checkYes(n.IsOdd(), "3 is not odd")
+	n.SubOne(mFour)
+	checkNot(n.IsMinusOne(mFour), "2 is -1 mod 4")
+	checkNot(n.IsZero(), "2 is zero")
+	checkNot(n.IsOne(), "2 is one")
+	checkNot(n.IsOdd(), "2 is odd")
+	n.SubOne(mFour)
+	checkNot(n.IsMinusOne(mFour), "1 is -1 mod 4")
+	checkNot(n.IsZero(), "1 is zero")
+	checkYes(n.IsOne(), "1 is not one")
+	checkYes(n.IsOdd(), "1 is not odd")
+	n.SubOne(mFour)
+	checkNot(n.IsMinusOne(mFour), "0 is -1 mod 4")
+	checkYes(n.IsZero(), "0 is not zero")
+	checkNot(n.IsOne(), "0 is one")
+	checkNot(n.IsOdd(), "0 is odd")
+	n.SubOne(mFour)
+	checkYes(n.IsMinusOne(mFour), "-1 is not -1 mod 4")
+	checkNot(n.IsZero(), "-1 is zero")
+	checkNot(n.IsOne(), "-1 is one")
+	checkYes(n.IsOdd(), "-1 mod 4 is not odd")
+
+	mTwoLimbs := maxModulus(2)
+	n, err = NewNat().SetBytes([]byte{0x01}, mTwoLimbs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n.IsOne() != 1 {
+		t.Errorf("1 is not one")
+	}
+}
+
+func TestTrailingZeroBits(t *testing.T) {
+	nb := new(big.Int).SetBytes([]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7e})
+	nb.Lsh(nb, 128)
+	expected := 129
+	for expected >= 0 {
+		n := NewNat().setBig(nb)
+		if n.TrailingZeroBitsVarTime() != uint(expected) {
+			t.Errorf("%d != %d", n.TrailingZeroBitsVarTime(), expected)
+		}
+		nb.Rsh(nb, 1)
+		expected--
+	}
+}
+
+func TestRightShift(t *testing.T) {
+	nb, err := cryptorand.Int(cryptorand.Reader, new(big.Int).Lsh(big.NewInt(1), 1024))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, shift := range []uint{1, 32, 64, 128, 1024 - 128, 1024 - 64, 1024 - 32, 1024 - 1} {
+		testShift := func(t *testing.T, shift uint) {
+			n := NewNat().setBig(nb)
+			oldLen := len(n.limbs)
+			n.ShiftRightVarTime(shift)
+			if len(n.limbs) != oldLen {
+				t.Errorf("len(n.limbs) = %d, want %d", len(n.limbs), oldLen)
+			}
+			exp := new(big.Int).Rsh(nb, shift)
+			if n.asBig().Cmp(exp) != 0 {
+				t.Errorf("%v != %v", n.asBig(), exp)
+			}
+		}
+		t.Run(fmt.Sprint(shift-1), func(t *testing.T) { testShift(t, shift-1) })
+		t.Run(fmt.Sprint(shift), func(t *testing.T) { testShift(t, shift) })
+		t.Run(fmt.Sprint(shift+1), func(t *testing.T) { testShift(t, shift+1) })
 	}
 }
 
