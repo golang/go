@@ -863,6 +863,12 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 		}
 		return base, offset
 	}
+
+	// Run types-based analysis
+	if disjointTypes(p1.Type, p2.Type) {
+		return true
+	}
+
 	p1, off1 := baseAndOffset(p1)
 	p2, off2 := baseAndOffset(p2)
 	if isSamePtr(p1, p2) {
@@ -885,6 +891,39 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 	case OpSP:
 		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpArgIntReg || p2.Op == OpSP
 	}
+	return false
+}
+
+// disjointTypes reports whether a memory region pointed to by a pointer of type
+// t1 does not overlap with a memory region pointed to by a pointer of type t2 --
+// based on type aliasing rules.
+func disjointTypes(t1 *types.Type, t2 *types.Type) bool {
+	// Unsafe pointer can alias with anything.
+	if t1.IsUnsafePtr() || t2.IsUnsafePtr() {
+		return false
+	}
+
+	if !t1.IsPtr() || !t2.IsPtr() {
+		panic("disjointTypes: one of arguments is not a pointer")
+	}
+
+	t1 = t1.Elem()
+	t2 = t2.Elem()
+
+	// Not-in-heap types are not supported -- they are rare and non-important; also,
+	// type.HasPointers check doesn't work for them correctly.
+	if t1.NotInHeap() || t2.NotInHeap() {
+		return false
+	}
+
+	isPtrShaped := func(t *types.Type) bool { return int(t.Size()) == types.PtrSize && t.HasPointers() }
+
+	// Pointers and non-pointers are disjoint (https://pkg.go.dev/unsafe#Pointer).
+	if (isPtrShaped(t1) && !t2.HasPointers()) ||
+		(isPtrShaped(t2) && !t1.HasPointers()) {
+		return true
+	}
+
 	return false
 }
 

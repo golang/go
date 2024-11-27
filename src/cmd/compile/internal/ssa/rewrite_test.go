@@ -4,7 +4,12 @@
 
 package ssa
 
-import "testing"
+import (
+	"cmd/compile/internal/rttype"
+	"reflect"
+	"testing"
+	"unsafe"
+)
 
 // We generate memmove for copy(x[1:], x[:]), however we may change it to OpMove,
 // because size is known. Check that OpMove is alias-safe, or we did call memmove.
@@ -216,5 +221,67 @@ func TestMergePPC64AndSrwi(t *testing.T) {
 		} else if r, _, _, m := DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
 			t.Errorf("mergePPC64AndSrwi(Test %d) got (%d,0x%x) expected (%d,0x%x)", i, r, m, v.rotate, v.mask)
 		}
+	}
+}
+
+func TestDisjointTypes(t *testing.T) {
+	tests := []struct {
+		v1, v2   any // two pointers to some types
+		expected bool
+	}{
+		{new(int8), new(int8), false},
+		{new(int8), new(float32), false},
+		{new(int8), new(*int8), true},
+		{new(*int8), new(*float32), false},
+		{new(*int8), new(chan<- int8), false},
+		{new(**int8), new(*int8), false},
+		{new(***int8), new(**int8), false},
+		{new(int8), new(chan<- int8), true},
+		{new(int), unsafe.Pointer(nil), false},
+		{new(byte), new(string), false},
+		{new(int), new(string), false},
+		{new(*int8), new(struct{ a, b int }), true},
+		{new(*int8), new(struct {
+			a *int
+			b int
+		}), false},
+		{new(*int8), new(struct {
+			a int
+			b *int
+		}), false}, // with more precise analysis it should be true
+		{new(*byte), new(string), false},
+		{new(int), new(struct {
+			a int
+			b *int
+		}), false},
+		{new(float64), new(complex128), false},
+		{new(*byte), new([]byte), false},
+		{new(int), new([]byte), false},
+		{new(int), new([2]*byte), false}, // with more recise analysis it should be true
+		{new([2]int), new(*byte), true},
+	}
+	for _, tst := range tests {
+		t1 := rttype.FromReflect(reflect.TypeOf(tst.v1))
+		t2 := rttype.FromReflect(reflect.TypeOf(tst.v2))
+		result := disjointTypes(t1, t2)
+		if result != tst.expected {
+			t.Errorf("disjointTypes(%s, %s) got %t expected %t", t1.String(), t2.String(), result, tst.expected)
+		}
+	}
+}
+
+//go:noinline
+func foo(p1 *int64, p2 *float64) int64 {
+	*p1 = 10
+	*p2 = 0 // disjointTypes shouldn't consider this and preceding stores as non-aliasing
+	return *p1
+}
+
+func TestDisjointTypesRun(t *testing.T) {
+	f := float64(0)
+	i := (*int64)(unsafe.Pointer(&f))
+	r := foo(i, &f)
+	if r != 0 {
+		t.Errorf("disjointTypes gives an incorrect answer that leads to an incorrect optimization.")
 	}
 }
