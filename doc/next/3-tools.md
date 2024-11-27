@@ -49,6 +49,15 @@ with no other arguments. Such calls are nearly always a mistake
 as the value of `s` may contain the `%` symbol; use `fmt.Print` instead.
 See [#60529](/issue/60529).
 
+<!-- go.dev/issue/66387 -->
+The existing `copylock` analyzer now reports a diagnostic when a
+variable declared in a 3-clause "for" loop such as
+`for i := iter(); done(i); i = next(i) { ... }` contains a `sync.Locker`,
+such as a `sync.Mutex`. [Go 1.22](/doc/go1.22#language) changed the behavior
+of these loops to create a new variable for each iteration, copying the
+value from the previous iteration; this copy operation is not safe for locks.
+See [#66387](/issue/66387).
+
 ### GOCACHEPROG
 
 <!-- go.dev/issue/64876 -->
