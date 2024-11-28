@@ -228,8 +228,14 @@ func (priv *PrivateKey) Validate() error {
 	if pub.N == nil {
 		return errors.New("crypto/rsa: missing public modulus")
 	}
+	if pub.N.Bit(0) == 0 {
+		return errors.New("crypto/rsa: public modulus is even")
+	}
 	if pub.E < 2 {
 		return errors.New("crypto/rsa: public exponent is less than 2")
+	}
+	if pub.E&1 == 0 {
+		return errors.New("crypto/rsa: public exponent is even")
 	}
 	if pub.E > 1<<31-1 {
 		return errors.New("crypto/rsa: public exponent too large")
@@ -543,9 +549,6 @@ func fipsPublicKey(pub *PublicKey) (*rsa.PublicKey, error) {
 	N, err := bigmod.NewModulus(pub.N.Bytes())
 	if err != nil {
 		return nil, err
-	}
-	if pub.E < 0 {
-		return nil, errors.New("crypto/rsa: negative public exponent")
 	}
 	return &rsa.PublicKey{N: N, E: pub.E}, nil
 }

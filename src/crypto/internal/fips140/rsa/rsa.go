@@ -115,15 +115,23 @@ func checkPublicKey(pub *PublicKey) error {
 	if pub.N == nil {
 		return errors.New("crypto/rsa: missing public modulus")
 	}
+	if pub.N.Nat().IsOdd() == 0 {
+		return errors.New("crypto/rsa: public modulus is even")
+	}
 	if pub.N.BitLen() < 2048 || pub.N.BitLen() > 16384 {
 		fips140.RecordNonApproved()
 	}
 	if pub.E < 2 {
 		return errors.New("crypto/rsa: public exponent too small or negative")
 	}
+	// e needs to be coprime with p-1 and q-1, since it must be invertible
+	// modulo λ(pq). Since p and q are prime, this means e needs to be odd.
+	if pub.E&1 == 0 {
+		return errors.New("crypto/rsa: public exponent is even")
+	}
 	// FIPS 186-5, Section 5.5(e): "The exponent e shall be an odd, positive
 	// integer such that 2¹⁶ < e < 2²⁵⁶."
-	if pub.E <= 1<<16 || pub.E&1 == 0 {
+	if pub.E <= 1<<16 {
 		fips140.RecordNonApproved()
 	}
 	// We require pub.E to fit into a 32-bit integer so that we
