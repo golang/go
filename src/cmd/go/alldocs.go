@@ -2338,8 +2338,9 @@
 //		external go command build cache.
 //		See 'go doc cmd/go/internal/cacheprog'.
 //	GODEBUG
-//		Enable various debugging facilities. See https://go.dev/doc/godebug
-//		for details.
+//		Enable various debugging facilities for programs built with Go,
+//		including the go command. Cannot be set using 'go env -w'.
+//		See https://go.dev/doc/godebug for details.
 //	GOENV
 //		The location of the Go environment configuration file.
 //		Cannot be set using 'go env -w'.
