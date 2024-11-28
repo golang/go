@@ -5,12 +5,15 @@
 package bigmod
 
 import (
+	"bufio"
 	"bytes"
 	cryptorand "crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"math/bits"
 	"math/rand"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -632,7 +635,7 @@ func BenchmarkExp(b *testing.B) {
 }
 
 func TestNewModulus(t *testing.T) {
-	expected := "modulus must be > 0"
+	expected := "modulus must be > 1"
 	_, err := NewModulus([]byte{})
 	if err == nil || err.Error() != expected {
 		t.Errorf("NewModulus(0) got %q, want %q", err, expected)
@@ -644,6 +647,14 @@ func TestNewModulus(t *testing.T) {
 	_, err = NewModulus([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 	if err == nil || err.Error() != expected {
 		t.Errorf("NewModulus(0) got %q, want %q", err, expected)
+	}
+	_, err = NewModulus([]byte{1})
+	if err == nil || err.Error() != expected {
+		t.Errorf("NewModulus(1) got %q, want %q", err, expected)
+	}
+	_, err = NewModulus([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
+	if err == nil || err.Error() != expected {
+		t.Errorf("NewModulus(1) got %q, want %q", err, expected)
 	}
 }
 
@@ -682,4 +693,72 @@ func TestAddMulVVWSized(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInverse(t *testing.T) {
+	f, err := os.Open("testdata/mod_inv_tests.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var ModInv, A, M string
+	var lineNum int
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Text()
+		if len(line) == 0 || line[0] == '#' {
+			continue
+		}
+
+		k, v, _ := strings.Cut(line, " = ")
+		switch k {
+		case "ModInv":
+			ModInv = v
+		case "A":
+			A = v
+		case "M":
+			M = v
+
+			t.Run(fmt.Sprintf("line %d", lineNum), func(t *testing.T) {
+				m, err := NewModulus(decodeHex(t, M))
+				if err != nil {
+					t.Skip("modulus <= 1")
+				}
+				a, err := NewNat().SetBytes(decodeHex(t, A), m)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				got, ok := NewNat().InverseVarTime(a, m)
+				if !ok {
+					t.Fatal("not invertible")
+				}
+				exp, err := NewNat().SetBytes(decodeHex(t, ModInv), m)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got.Equal(exp) != 1 {
+					t.Errorf("%v != %v", got, exp)
+				}
+			})
+		default:
+			t.Fatalf("unknown key %q on line %d", k, lineNum)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func decodeHex(t *testing.T, s string) []byte {
+	t.Helper()
+	if len(s)%2 != 0 {
+		s = "0" + s
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		t.Fatalf("failed to decode hex %q: %v", s, err)
+	}
+	return b
 }

@@ -473,15 +473,16 @@ func minusInverseModW(x uint) uint {
 	return -y
 }
 
-// NewModulus creates a new Modulus from a slice of big-endian bytes.
+// NewModulus creates a new Modulus from a slice of big-endian bytes. The
+// modulus must be greater than one.
 //
 // The number of significant bits and whether the modulus is even is leaked
 // through timing side-channels.
 func NewModulus(b []byte) (*Modulus, error) {
 	m := &Modulus{}
 	m.nat = NewNat().resetToBytes(b)
-	if len(m.nat.limbs) == 0 {
-		return nil, errors.New("modulus must be > 0")
+	if m.nat.IsZero() == yes || m.nat.IsOne() == yes {
+		return nil, errors.New("modulus must be > 1")
 	}
 	m.leading = _W - bitLen(m.nat.limbs[len(m.nat.limbs)-1])
 	if m.nat.IsOdd() == 1 {
@@ -962,4 +963,130 @@ func (out *Nat) ExpShortVarTime(x *Nat, e uint, m *Modulus) *Nat {
 		}
 	}
 	return out.montgomeryReduction(m)
+}
+
+// InverseVarTime calculates x = a⁻¹ mod m and returns (x, true) if a is
+// invertible. Otherwise, InverseVarTime returns (x, false) and x is not
+// modified.
+//
+// a must be reduced modulo m, but doesn't need to have the same size. The
+// output will be resized to the size of m and overwritten.
+func (x *Nat) InverseVarTime(a *Nat, m *Modulus) (*Nat, bool) {
+	// This is the extended binary GCD algorithm described in the Handbook of
+	// Applied Cryptography, Algorithm 14.61, adapted by BoringSSL to bound
+	// coefficients and avoid negative numbers. For more details and proof of
+	// correctness, see https://github.com/mit-plv/fiat-crypto/pull/333/files.
+	//
+	// Following the proof linked in the PR above, the changes are:
+	//
+	// 1. Negate [B] and [C] so they are positive. The invariant now involves a
+	//    subtraction.
+	// 2. If step 2 (both [x] and [y] are even) runs, abort immediately. This
+	//    algorithm only cares about [x] and [y] relatively prime.
+	// 3. Subtract copies of [x] and [y] as needed in step 6 (both [u] and [v]
+	//    are odd) so coefficients stay in bounds.
+	// 4. Replace the [u >= v] check with [u > v]. This changes the end
+	//    condition to [v = 0] rather than [u = 0]. This saves an extra
+	//    subtraction due to which coefficients were negated.
+	// 5. Rename x and y to a and n, to capture that one is a modulus.
+	// 6. Rearrange steps 4 through 6 slightly. Merge the loops in steps 4 and
+	//    5 into the main loop (step 7's goto), and move step 6 to the start of
+	//    the loop iteration, ensuring each loop iteration halves at least one
+	//    value.
+	//
+	// Note this algorithm does not handle either input being zero.
+
+	if a.IsZero() == yes {
+		return x, false
+	}
+	if a.IsOdd() == no && !m.odd {
+		// a and m are not coprime, as they are both even.
+		return x, false
+	}
+
+	u := NewNat().set(a).ExpandFor(m)
+	v := m.Nat()
+
+	A := NewNat().reset(len(m.nat.limbs))
+	A.limbs[0] = 1
+	B := NewNat().reset(len(a.limbs))
+	C := NewNat().reset(len(m.nat.limbs))
+	D := NewNat().reset(len(a.limbs))
+	D.limbs[0] = 1
+
+	// Before and after each loop iteration, the following hold:
+	//
+	//   u = A*a - B*m
+	//   v = D*m - C*a
+	//   0 < u <= a
+	//   0 <= v <= m
+	//   0 <= A < m
+	//   0 <= B <= a
+	//   0 <= C < m
+	//   0 <= D <= a
+	//
+	// After each loop iteration, u and v only get smaller, and at least one of
+	// them shrinks by at least a factor of two.
+	for {
+		// If both u and v are odd, subtract the smaller from the larger.
+		// If u = v, we need to subtract from v to hit the modified exit condition.
+		if u.IsOdd() == yes && v.IsOdd() == yes {
+			if v.cmpGeq(u) == no {
+				u.sub(v)
+				A.Add(C, m)
+				B.Add(D, &Modulus{nat: a})
+			} else {
+				v.sub(u)
+				C.Add(A, m)
+				D.Add(B, &Modulus{nat: a})
+			}
+		}
+
+		// Exactly one of u and v is now even.
+		if u.IsOdd() == v.IsOdd() {
+			panic("bigmod: internal error: u and v are not in the expected state")
+		}
+
+		// Halve the even one and adjust the corresponding coefficient.
+		if u.IsOdd() == no {
+			rshift1(u, 0)
+			if A.IsOdd() == yes || B.IsOdd() == yes {
+				rshift1(A, A.add(m.nat))
+				rshift1(B, B.add(a))
+			} else {
+				rshift1(A, 0)
+				rshift1(B, 0)
+			}
+		} else { // v.IsOdd() == no
+			rshift1(v, 0)
+			if C.IsOdd() == yes || D.IsOdd() == yes {
+				rshift1(C, C.add(m.nat))
+				rshift1(D, D.add(a))
+			} else {
+				rshift1(C, 0)
+				rshift1(D, 0)
+			}
+		}
+
+		if v.IsZero() == yes {
+			if u.IsOne() == no {
+				return x, false
+			}
+			return x.set(A), true
+		}
+	}
+}
+
+func rshift1(a *Nat, carry uint) {
+	size := len(a.limbs)
+	aLimbs := a.limbs[:size]
+
+	for i := range size {
+		aLimbs[i] >>= 1
+		if i+1 < size {
+			aLimbs[i] |= aLimbs[i+1] << (_W - 1)
+		} else {
+			aLimbs[i] |= carry << (_W - 1)
+		}
+	}
 }
