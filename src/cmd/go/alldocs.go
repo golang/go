@@ -669,7 +669,7 @@
 //
 // Usage:
 //
-//	go get [-t] [-u] [-v] [-tool] [build flags] [packages]
+//	go get [-t] [-u] [-tool] [build flags] [packages]
 //
 // Get resolves its command-line arguments to packages at specific module versions,
 // updates go.mod to require those versions, and downloads source code into the
