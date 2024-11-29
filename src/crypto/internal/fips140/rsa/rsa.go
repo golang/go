@@ -5,6 +5,7 @@
 package rsa
 
 import (
+	"bytes"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/bigmod"
 	"errors"
@@ -45,10 +46,7 @@ func (priv *PrivateKey) PublicKey() *PublicKey {
 //
 // All values are in big-endian byte slice format, and may have leading zeros
 // or be shorter if leading zeroes were trimmed.
-//
-// N, e, d, P, and Q are required. dP, dQ, and qInv can be nil and will be
-// precomputed if missing.
-func NewPrivateKey(N []byte, e int, d, P, Q, dP, dQ, qInv []byte) (*PrivateKey, error) {
+func NewPrivateKey(N []byte, e int, d, P, Q []byte) (*PrivateKey, error) {
 	n, err := bigmod.NewModulus(N)
 	if err != nil {
 		return nil, err
@@ -65,23 +63,42 @@ func NewPrivateKey(N []byte, e int, d, P, Q, dP, dQ, qInv []byte) (*PrivateKey, 
 	if err != nil {
 		return nil, err
 	}
-	// TODO(filippo): implement CRT computation. For now, NewPrivateKey is
-	// always called with CRT values.
-	if dP == nil || dQ == nil || qInv == nil {
-		panic("crypto/internal/fips140/rsa: internal error: missing CRT parameters")
-	}
-	qInvN, err := bigmod.NewNat().SetBytes(qInv, p)
+	return newPrivateKey(n, e, dN, p, q)
+}
+
+func newPrivateKey(n *bigmod.Modulus, e int, d *bigmod.Nat, p, q *bigmod.Modulus) (*PrivateKey, error) {
+	pMinusOne := p.Nat().SubOne(p)
+	pMinusOneMod, err := bigmod.NewModulus(pMinusOne.Bytes(p))
 	if err != nil {
 		return nil, err
 	}
+	dP := bigmod.NewNat().Mod(d, pMinusOneMod).Bytes(pMinusOneMod)
+
+	qMinusOne := q.Nat().SubOne(q)
+	qMinusOneMod, err := bigmod.NewModulus(qMinusOne.Bytes(q))
+	if err != nil {
+		return nil, err
+	}
+	dQ := bigmod.NewNat().Mod(d, qMinusOneMod).Bytes(qMinusOneMod)
+
+	// Constant-time modular inversion with prime modulus by Fermat's Little
+	// Theorem: qInv = q⁻¹ mod p = q^(p-2) mod p.
+	if p.Nat().IsOdd() == 0 {
+		// [bigmod.Nat.Exp] requires an odd modulus.
+		return nil, errors.New("crypto/rsa: p is even")
+	}
+	pMinusTwo := p.Nat().SubOne(p).SubOne(p).Bytes(p)
+	qInv := bigmod.NewNat().Mod(q.Nat(), p)
+	qInv.Exp(qInv, pMinusTwo, p)
+
 	pk := &PrivateKey{
 		pub: PublicKey{
 			N: n, E: e,
 		},
-		d: dN, p: p, q: q,
-		dP: dP, dQ: dQ, qInv: qInvN,
+		d: d, p: p, q: q,
+		dP: dP, dQ: dQ, qInv: qInv,
 	}
-	if err := checkPublicKey(&pk.pub); err != nil {
+	if err := checkPrivateKey(pk); err != nil {
 		return nil, err
 	}
 	return pk, nil
@@ -105,10 +122,75 @@ func NewPrivateKeyWithoutCRT(N []byte, e int, d []byte) (*PrivateKey, error) {
 		},
 		d: dN,
 	}
-	if err := checkPublicKey(&pk.pub); err != nil {
+	if err := checkPrivateKey(pk); err != nil {
 		return nil, err
 	}
 	return pk, nil
+}
+
+// Export returns the key parameters in big-endian byte slice format.
+//
+// P, Q, dP, dQ, and qInv may be nil if the key was created with
+// NewPrivateKeyWithoutCRT.
+func (priv *PrivateKey) Export() (N []byte, e int, d, P, Q, dP, dQ, qInv []byte) {
+	N = priv.pub.N.Nat().Bytes(priv.pub.N)
+	e = priv.pub.E
+	d = priv.d.Bytes(priv.pub.N)
+	if priv.dP == nil {
+		return
+	}
+	P = priv.p.Nat().Bytes(priv.p)
+	Q = priv.q.Nat().Bytes(priv.q)
+	dP = bytes.Clone(priv.dP)
+	dQ = bytes.Clone(priv.dQ)
+	qInv = priv.qInv.Bytes(priv.p)
+	return
+}
+
+func checkPrivateKey(priv *PrivateKey) error {
+	if err := checkPublicKey(&priv.pub); err != nil {
+		return err
+	}
+
+	if priv.dP == nil {
+		return nil
+	}
+
+	N := priv.pub.N
+	Π := bigmod.NewNat().ExpandFor(N)
+	for _, prime := range []*bigmod.Modulus{priv.p, priv.q} {
+		p := prime.Nat().ExpandFor(N)
+		if p.IsZero() == 1 || p.IsOne() == 1 {
+			return errors.New("crypto/rsa: invalid prime")
+		}
+		Π.Mul(p, N)
+
+		// Check that de ≡ 1 mod p-1, for each prime.
+		// This implies that e is coprime to each p-1 as e has a multiplicative
+		// inverse. Therefore e is coprime to lcm(p-1,q-1,r-1,...) =
+		// exponent(ℤ/nℤ). It also implies that a^de ≡ a mod p as a^(p-1) ≡ 1
+		// mod p. Thus a^de ≡ a mod n for all a coprime to n, as required.
+
+		pMinus1, err := bigmod.NewModulus(p.SubOne(N).Bytes(N))
+		if err != nil {
+			return errors.New("crypto/rsa: invalid prime")
+		}
+
+		e := bigmod.NewNat().SetUint(uint(priv.pub.E)).ExpandFor(pMinus1)
+
+		de := bigmod.NewNat()
+		de.Mod(priv.d, pMinus1)
+		de.Mul(e, pMinus1)
+		if de.IsOne() != 1 {
+			return errors.New("crypto/rsa: invalid exponents")
+		}
+	}
+	// Check that Πprimes == n.
+	if Π.IsZero() != 1 {
+		return errors.New("crypto/rsa: invalid modulus")
+	}
+
+	return nil
 }
 
 func checkPublicKey(pub *PublicKey) error {

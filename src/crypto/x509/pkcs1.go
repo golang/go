@@ -87,11 +87,10 @@ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
 		// them as needed.
 	}
 
-	err = key.Validate()
-	if err != nil {
+	key.Precompute()
+	if err := key.Validate(); err != nil {
 		return nil, err
 	}
-	key.Precompute()
 
 	return key, nil
 }
@@ -101,6 +100,10 @@ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
 // This kind of key is commonly encoded in PEM blocks of type "RSA PRIVATE KEY".
 // For a more flexible key format which is not [RSA] specific, use
 // [MarshalPKCS8PrivateKey].
+//
+// The key must have passed validation by calling [rsa.PrivateKey.Validate]
+// first. MarshalPKCS1PrivateKey calls [rsa.PrivateKey.Precompute], which may
+// modify the key if not already precomputed.
 func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
 	key.Precompute()
 

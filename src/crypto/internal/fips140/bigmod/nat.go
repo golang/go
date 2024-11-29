@@ -123,7 +123,7 @@ func (x *Nat) set(y *Nat) *Nat {
 // Bytes returns x as a zero-extended big-endian byte slice. The size of the
 // slice will match the size of m.
 //
-// x must have the same size as m and it must be reduced modulo m.
+// x must have the same size as m and it must be less than or equal to m.
 func (x *Nat) Bytes(m *Modulus) []byte {
 	i := m.Size()
 	bytes := make([]byte, i)
@@ -202,17 +202,13 @@ func (x *Nat) setBytes(b []byte) error {
 	return nil
 }
 
-// SetUint assigns x = y, and returns an error if y >= m.
+// SetUint assigns x = y.
 //
-// The output will be resized to the size of m and overwritten.
-func (x *Nat) SetUint(y uint, m *Modulus) (*Nat, error) {
-	x.resetFor(m)
-	// Modulus is never zero, so always at least one limb.
+// The output will be resized to a single limb and overwritten.
+func (x *Nat) SetUint(y uint) *Nat {
+	x.reset(1)
 	x.limbs[0] = y
-	if x.cmpGeq(m.nat) == yes {
-		return nil, errors.New("input overflows the modulus")
-	}
-	return x, nil
+	return x
 }
 
 // Equal returns 1 if x == y, and 0 otherwise.
@@ -641,11 +637,12 @@ func (x *Nat) Sub(y *Nat, m *Modulus) *Nat {
 
 // SubOne computes x = x - 1 mod m.
 //
-// The length of x must be the same as the modulus. x must already be reduced
-// modulo m.
+// The length of x must be the same as the modulus.
 func (x *Nat) SubOne(m *Modulus) *Nat {
 	one := NewNat().ExpandFor(m)
 	one.limbs[0] = 1
+	// Sub asks for x to be reduced modulo m, while SubOne doesn't, but when
+	// y = 1, it works, and this is an internal use.
 	return x.Sub(one, m)
 }
 

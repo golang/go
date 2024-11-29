@@ -251,7 +251,7 @@ func TestMarshalRSAPrivateKey(t *testing.T) {
 		priv.Primes[0].Cmp(priv2.Primes[0]) != 0 ||
 		priv.Primes[1].Cmp(priv2.Primes[1]) != 0 ||
 		priv.Primes[2].Cmp(priv2.Primes[2]) != 0 {
-		t.Errorf("got:%+v want:%+v", priv, priv2)
+		t.Errorf("wrong priv:\ngot  %+v\nwant %+v", priv2, priv)
 	}
 }
 

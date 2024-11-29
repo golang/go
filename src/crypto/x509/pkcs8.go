@@ -98,6 +98,8 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
 // Unsupported key types result in an error.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+//
+// MarshalPKCS8PrivateKey runs [rsa.PrivateKey.Precompute] on RSA keys.
 func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
 	var privKey pkcs8
 
@@ -106,6 +108,10 @@ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
 		privKey.Algo = pkix.AlgorithmIdentifier{
 			Algorithm:  oidPublicKeyRSA,
 			Parameters: asn1.NullRawValue,
+		}
+		k.Precompute()
+		if err := k.Validate(); err != nil {
+			return nil, err
 		}
 		privKey.PrivateKey = MarshalPKCS1PrivateKey(k)
 
