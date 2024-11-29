@@ -32,6 +32,9 @@ type pkcs8 struct {
 // in the future.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+//
+// Before Go 1.24, the CRT parameters of RSA keys were ignored and recomputed.
+// To restore the old behavior, use the GODEBUG=x509rsacrt=0 environment variable.
 func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
 	var privKey pkcs8
 	if _, err := asn1.Unmarshal(der, &privKey); err != nil {

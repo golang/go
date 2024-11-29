@@ -104,6 +104,43 @@ func newPrivateKey(n *bigmod.Modulus, e int, d *bigmod.Nat, p, q *bigmod.Modulus
 	return pk, nil
 }
 
+// NewPrivateKeyWithPrecomputation creates a new RSA private key from the given
+// parameters, which include precomputed CRT values.
+func NewPrivateKeyWithPrecomputation(N []byte, e int, d, P, Q, dP, dQ, qInv []byte) (*PrivateKey, error) {
+	n, err := bigmod.NewModulus(N)
+	if err != nil {
+		return nil, err
+	}
+	p, err := bigmod.NewModulus(P)
+	if err != nil {
+		return nil, err
+	}
+	q, err := bigmod.NewModulus(Q)
+	if err != nil {
+		return nil, err
+	}
+	dN, err := bigmod.NewNat().SetBytes(d, n)
+	if err != nil {
+		return nil, err
+	}
+	qInvNat, err := bigmod.NewNat().SetBytes(qInv, p)
+	if err != nil {
+		return nil, err
+	}
+
+	pk := &PrivateKey{
+		pub: PublicKey{
+			N: n, E: e,
+		},
+		d: dN, p: p, q: q,
+		dP: dP, dQ: dQ, qInv: qInvNat,
+	}
+	if err := checkPrivateKey(pk); err != nil {
+		return nil, err
+	}
+	return pk, nil
+}
+
 // NewPrivateKeyWithoutCRT creates a new RSA private key from the given parameters.
 //
 // This is meant for deprecated multi-prime keys, and is not FIPS 140 compliant.
@@ -157,37 +194,64 @@ func checkPrivateKey(priv *PrivateKey) error {
 	}
 
 	N := priv.pub.N
-	Π := bigmod.NewNat().ExpandFor(N)
-	for _, prime := range []*bigmod.Modulus{priv.p, priv.q} {
-		p := prime.Nat().ExpandFor(N)
-		if p.IsZero() == 1 || p.IsOne() == 1 {
-			return errors.New("crypto/rsa: invalid prime")
-		}
-		Π.Mul(p, N)
+	p := priv.p
+	q := priv.q
 
-		// Check that de ≡ 1 mod p-1, for each prime.
-		// This implies that e is coprime to each p-1 as e has a multiplicative
-		// inverse. Therefore e is coprime to lcm(p-1,q-1,r-1,...) =
-		// exponent(ℤ/nℤ). It also implies that a^de ≡ a mod p as a^(p-1) ≡ 1
-		// mod p. Thus a^de ≡ a mod n for all a coprime to n, as required.
-
-		pMinus1, err := bigmod.NewModulus(p.SubOne(N).Bytes(N))
-		if err != nil {
-			return errors.New("crypto/rsa: invalid prime")
-		}
-
-		e := bigmod.NewNat().SetUint(uint(priv.pub.E)).ExpandFor(pMinus1)
-
-		de := bigmod.NewNat()
-		de.Mod(priv.d, pMinus1)
-		de.Mul(e, pMinus1)
-		if de.IsOne() != 1 {
-			return errors.New("crypto/rsa: invalid exponents")
-		}
+	// Check that pq ≡ 1 mod N (and that pN < N and q < N).
+	pN := bigmod.NewNat().ExpandFor(N)
+	if _, err := pN.SetBytes(p.Nat().Bytes(p), N); err != nil {
+		return errors.New("crypto/rsa: invalid prime")
 	}
-	// Check that Πprimes == n.
-	if Π.IsZero() != 1 {
-		return errors.New("crypto/rsa: invalid modulus")
+	qN := bigmod.NewNat().ExpandFor(N)
+	if _, err := qN.SetBytes(q.Nat().Bytes(q), N); err != nil {
+		return errors.New("crypto/rsa: invalid prime")
+	}
+	if pN.Mul(qN, N).IsZero() != 1 {
+		return errors.New("crypto/rsa: p * q != n")
+	}
+
+	// Check that de ≡ 1 mod p-1, and de ≡ 1 mod q-1.
+	//
+	// This implies that e is coprime to each p-1 as e has a multiplicative
+	// inverse. Therefore e is coprime to lcm(p-1,q-1,r-1,...) = exponent(ℤ/nℤ).
+	// It also implies that a^de ≡ a mod p as a^(p-1) ≡ 1 mod p. Thus a^de ≡ a
+	// mod n for all a coprime to n, as required.
+	//
+	// This checks dP, dQ, and e. We don't check d because it is not actually
+	// used in the RSA private key operation.
+	pMinus1, err := bigmod.NewModulus(p.Nat().SubOne(p).Bytes(p))
+	if err != nil {
+		return errors.New("crypto/rsa: invalid prime")
+	}
+	dP, err := bigmod.NewNat().SetBytes(priv.dP, pMinus1)
+	if err != nil {
+		return errors.New("crypto/rsa: invalid CRT exponent")
+	}
+	de := bigmod.NewNat()
+	de.SetUint(uint(priv.pub.E)).ExpandFor(pMinus1)
+	de.Mul(dP, pMinus1)
+	if de.IsOne() != 1 {
+		return errors.New("crypto/rsa: invalid CRT exponent")
+	}
+
+	qMinus1, err := bigmod.NewModulus(q.Nat().SubOne(q).Bytes(q))
+	if err != nil {
+		return errors.New("crypto/rsa: invalid prime")
+	}
+	dQ, err := bigmod.NewNat().SetBytes(priv.dQ, qMinus1)
+	if err != nil {
+		return errors.New("crypto/rsa: invalid CRT exponent")
+	}
+	de.SetUint(uint(priv.pub.E)).ExpandFor(qMinus1)
+	de.Mul(dQ, qMinus1)
+	if de.IsOne() != 1 {
+		return errors.New("crypto/rsa: invalid CRT exponent")
+	}
+
+	// Check that qInv * q ≡ 1 mod p.
+	one := q.Nat().Mul(priv.qInv, p)
+	if one.IsOne() != 1 {
+		return errors.New("crypto/rsa: invalid CRT coefficient")
 	}
 
 	return nil

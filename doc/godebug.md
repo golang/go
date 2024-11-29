@@ -208,6 +208,11 @@ X25519MLKEM768 by default. The default can be reverted using the
 [`tlsmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
 Go 1.24 also removed X25519Kyber768Draft00 and the Go 1.23 `tlskyber` setting.
 
+Go 1.24 made [`ParsePKCS1PrivateKey`](/pkg/crypto/x509/#ParsePKCS1PrivateKey)
+use and validate the CRT parameters in the encoded private key. This behavior
+can be controlled with the `x509rsacrt` setting. Using `x509rsacrt=0` restores
+the Go 1.23 behavior.
+
 ### Go 1.23
 
 Go 1.23 changed the channels created by package time to be unbuffered

@@ -519,6 +519,20 @@ func (priv *PrivateKey) precompute() (PrecomputedValues, error) {
 		return precomputed, errors.New("crypto/rsa: prime Q is nil")
 	}
 
+	// If the CRT values are already set, use them.
+	if priv.Precomputed.Dp != nil && priv.Precomputed.Dq != nil && priv.Precomputed.Qinv != nil {
+		k, err := rsa.NewPrivateKeyWithPrecomputation(priv.N.Bytes(), priv.E, priv.D.Bytes(),
+			priv.Primes[0].Bytes(), priv.Primes[1].Bytes(),
+			priv.Precomputed.Dp.Bytes(), priv.Precomputed.Dq.Bytes(), priv.Precomputed.Qinv.Bytes())
+		if err != nil {
+			return precomputed, err
+		}
+		precomputed = priv.Precomputed
+		precomputed.fips = k
+		precomputed.CRTValues = make([]CRTValue, 0)
+		return precomputed, nil
+	}
+
 	k, err := rsa.NewPrivateKey(priv.N.Bytes(), priv.E, priv.D.Bytes(),
 		priv.Primes[0].Bytes(), priv.Primes[1].Bytes())
 	if err != nil {
