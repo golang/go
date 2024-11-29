@@ -128,6 +128,18 @@ func isPrime(w []byte) bool {
 		return false
 	}
 
+	primes, err := bigmod.NewNat().SetBytes(productOfPrimes, mr.w)
+	// If w is too small for productOfPrimes, key generation is
+	// going to be fast enough anyway.
+	if err == nil {
+		_, hasInverse := primes.InverseVarTime(primes, mr.w)
+		if !hasInverse {
+			// productOfPrimes doesn't have an inverse mod w,
+			// so w is divisible by at least one of the primes.
+			return false
+		}
+	}
+
 	// iterations is the number of Miller-Rabin rounds, each with a
 	// randomly-selected base.
 	//
@@ -181,6 +193,20 @@ func isPrime(w []byte) bool {
 			return true
 		}
 	}
+}
+
+// productOfPrimes is the product of the first 74 primes higher than 2.
+//
+// The number of primes was selected to be the highest such that the product fit
+// in 512 bits, so to be usable for 1024 bit RSA keys.
+//
+// Higher values cause fewer Miller-Rabin tests of composites (nothing can help
+// with the final test on the actual prime) but make InverseVarTime take longer.
+var productOfPrimes = []byte{
+	0x10, 0x6a, 0xa9, 0xfb, 0x76, 0x46, 0xfa, 0x6e, 0xb0, 0x81, 0x3c, 0x28, 0xc5, 0xd5, 0xf0, 0x9f,
+	0x07, 0x7e, 0xc3, 0xba, 0x23, 0x8b, 0xfb, 0x99, 0xc1, 0xb6, 0x31, 0xa2, 0x03, 0xe8, 0x11, 0x87,
+	0x23, 0x3d, 0xb1, 0x17, 0xcb, 0xc3, 0x84, 0x05, 0x6e, 0xf0, 0x46, 0x59, 0xa4, 0xa1, 0x1d, 0xe4,
+	0x9f, 0x7e, 0xcb, 0x29, 0xba, 0xda, 0x8f, 0x98, 0x0d, 0xec, 0xec, 0xe9, 0x2e, 0x30, 0xc4, 0x8f,
 }
 
 type millerRabin struct {
