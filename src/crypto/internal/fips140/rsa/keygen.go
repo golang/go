@@ -5,10 +5,114 @@
 package rsa
 
 import (
+	"crypto/internal/fips140"
 	"crypto/internal/fips140/bigmod"
 	"crypto/internal/fips140/drbg"
+	"crypto/internal/randutil"
 	"errors"
+	"io"
 )
+
+// GenerateKey generates a new RSA key pair of the given bit size.
+// bits must be at least 128.
+//
+// When operating in FIPS mode, rand is ignored.
+func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
+	if bits < 128 {
+		return nil, errors.New("rsa: key too small")
+	}
+	fips140.RecordApproved()
+	if bits < 2048 || bits > 16384 {
+		fips140.RecordNonApproved()
+	}
+
+	for {
+		p, err := randomPrime(rand, (bits+1)/2)
+		if err != nil {
+			return nil, err
+		}
+		q, err := randomPrime(rand, bits/2)
+		if err != nil {
+			return nil, err
+		}
+
+		P, err := bigmod.NewModulus(p)
+		if err != nil {
+			return nil, err
+		}
+		Q, err := bigmod.NewModulus(q)
+		if err != nil {
+			return nil, err
+		}
+
+		N, err := bigmod.NewModulusProduct(p, q)
+		if err != nil {
+			return nil, err
+		}
+		if N.BitLen() != bits {
+			return nil, errors.New("rsa: internal error: modulus size incorrect")
+		}
+
+		φ, err := bigmod.NewModulusProduct(P.Nat().SubOne(N).Bytes(N),
+			Q.Nat().SubOne(N).Bytes(N))
+		if err != nil {
+			return nil, err
+		}
+
+		e := bigmod.NewNat().SetUint(65537)
+		d, ok := bigmod.NewNat().InverseVarTime(e, φ)
+		if !ok {
+			continue
+		}
+
+		if e.ExpandFor(φ).Mul(d, φ).IsOne() == 0 {
+			return nil, errors.New("rsa: internal error: e*d != 1 mod φ(N)")
+		}
+
+		return newPrivateKey(N, 65537, d, P, Q)
+	}
+}
+
+// randomPrime returns a random prime number of the given bit size.
+// rand is ignored in FIPS mode.
+func randomPrime(rand io.Reader, bits int) ([]byte, error) {
+	if bits < 64 {
+		return nil, errors.New("rsa: prime size must be at least 32-bit")
+	}
+
+	b := make([]byte, (bits+7)/8)
+	for {
+		if fips140.Enabled {
+			drbg.Read(b)
+		} else {
+			randutil.MaybeReadByte(rand)
+			if _, err := io.ReadFull(rand, b); err != nil {
+				return nil, err
+			}
+		}
+		if excess := len(b)*8 - bits; excess != 0 {
+			b[0] >>= excess
+		}
+
+		// Don't let the value be too small: set the most significant two bits.
+		// Setting the top two bits, rather than just the top bit, means that
+		// when two of these values are multiplied together, the result isn't
+		// ever one bit short.
+		if excess := len(b)*8 - bits; excess < 7 {
+			b[0] |= 0b1100_0000 >> excess
+		} else {
+			b[0] |= 0b0000_0001
+			b[1] |= 0b1000_0000
+		}
+
+		// Make the value odd since an even number certainly isn't prime.
+		b[len(b)-1] |= 1
+
+		if isPrime(b) {
+			return b, nil
+		}
+	}
+}
 
 // isPrime runs the Miller-Rabin Probabilistic Primality Test from
 // FIPS 186-5, Appendix B.3.1.

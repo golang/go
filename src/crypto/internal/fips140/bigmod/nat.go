@@ -102,6 +102,11 @@ func (x *Nat) resetToBytes(b []byte) *Nat {
 	if err := x.setBytes(b); err != nil {
 		panic("bigmod: internal error: bad arithmetic")
 	}
+	return x.trim()
+}
+
+// trim reduces the size of x to match its value.
+func (x *Nat) trim() *Nat {
 	// Trim most significant (trailing in little-endian) zero limbs.
 	// We assume comparison with zero (but not the branch) is constant time.
 	for i := len(x.limbs) - 1; i >= 0; i-- {
@@ -475,8 +480,24 @@ func minusInverseModW(x uint) uint {
 // The number of significant bits and whether the modulus is even is leaked
 // through timing side-channels.
 func NewModulus(b []byte) (*Modulus, error) {
-	m := &Modulus{}
-	m.nat = NewNat().resetToBytes(b)
+	n := NewNat().resetToBytes(b)
+	return newModulus(n)
+}
+
+// NewModulusProduct creates a new Modulus from the product of two numbers
+// represented as big-endian byte slices. The result must be greater than one.
+func NewModulusProduct(a, b []byte) (*Modulus, error) {
+	x := NewNat().resetToBytes(a)
+	y := NewNat().resetToBytes(b)
+	n := NewNat().reset(len(x.limbs) + len(y.limbs))
+	for i := range y.limbs {
+		n.limbs[i+len(x.limbs)] = addMulVVW(n.limbs[i:i+len(x.limbs)], x.limbs, y.limbs[i])
+	}
+	return newModulus(n.trim())
+}
+
+func newModulus(n *Nat) (*Modulus, error) {
+	m := &Modulus{nat: n}
 	if m.nat.IsZero() == yes || m.nat.IsOne() == yes {
 		return nil, errors.New("modulus must be > 1")
 	}

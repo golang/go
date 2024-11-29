@@ -46,6 +46,7 @@ import (
 	"crypto/internal/boring/bbig"
 	"crypto/internal/fips140/bigmod"
 	"crypto/internal/fips140/rsa"
+	"crypto/internal/fips140only"
 	"crypto/internal/randutil"
 	"crypto/rand"
 	"crypto/subtle"
@@ -278,32 +279,8 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 	if err := checkKeySize(bits); err != nil {
 		return nil, err
 	}
-	return GenerateMultiPrimeKey(random, 2, bits)
-}
 
-// GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
-// size and the given random source.
-//
-// Table 1 in "[On the Security of Multi-prime RSA]" suggests maximum numbers of
-// primes for a given bit size.
-//
-// Although the public keys are compatible (actually, indistinguishable) from
-// the 2-prime case, the private keys are not. Thus it may not be possible to
-// export multi-prime private keys in certain formats or to subsequently import
-// them into other code.
-//
-// This package does not implement CRT optimizations for multi-prime RSA, so the
-// keys with more than two primes will have worse performance.
-//
-// Deprecated: The use of this function with a number of primes different from
-// two is not recommended for the above security, compatibility, and performance
-// reasons. Use [GenerateKey] instead.
-//
-// [On the Security of Multi-prime RSA]: http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
-func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
-	randutil.MaybeReadByte(random)
-
-	if boring.Enabled && random == boring.RandReader && nprimes == 2 &&
+	if boring.Enabled && random == boring.RandReader &&
 		(bits == 2048 || bits == 3072 || bits == 4096) {
 		bN, bE, bD, bP, bQ, bDp, bDq, bQinv, err := boring.GenerateKeyRSA(bits)
 		if err != nil {
@@ -338,6 +315,68 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 		}
 		return key, nil
 	}
+
+	if fips140only.Enabled && bits < 2048 {
+		return nil, errors.New("crypto/rsa: use of keys smaller than 2048 bits is not allowed in FIPS 140-only mode")
+	}
+	if fips140only.Enabled && bits > 16384 {
+		return nil, errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
+	}
+
+	k, err := rsa.GenerateKey(random, bits)
+	if err != nil {
+		return nil, err
+	}
+	N, e, d, p, q, dP, dQ, qInv := k.Export()
+	key := &PrivateKey{
+		PublicKey: PublicKey{
+			N: new(big.Int).SetBytes(N),
+			E: e,
+		},
+		D: new(big.Int).SetBytes(d),
+		Primes: []*big.Int{
+			new(big.Int).SetBytes(p),
+			new(big.Int).SetBytes(q),
+		},
+		Precomputed: PrecomputedValues{
+			fips:      k,
+			Dp:        new(big.Int).SetBytes(dP),
+			Dq:        new(big.Int).SetBytes(dQ),
+			Qinv:      new(big.Int).SetBytes(qInv),
+			CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
+		},
+	}
+	return key, nil
+}
+
+// GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
+// size and the given random source.
+//
+// Table 1 in "[On the Security of Multi-prime RSA]" suggests maximum numbers of
+// primes for a given bit size.
+//
+// Although the public keys are compatible (actually, indistinguishable) from
+// the 2-prime case, the private keys are not. Thus it may not be possible to
+// export multi-prime private keys in certain formats or to subsequently import
+// them into other code.
+//
+// This package does not implement CRT optimizations for multi-prime RSA, so the
+// keys with more than two primes will have worse performance.
+//
+// Deprecated: The use of this function with a number of primes different from
+// two is not recommended for the above security, compatibility, and performance
+// reasons. Use [GenerateKey] instead.
+//
+// [On the Security of Multi-prime RSA]: http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
+	if nprimes == 2 {
+		return GenerateKey(random, bits)
+	}
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/rsa: multi-prime RSA is not allowed in FIPS 140-only mode")
+	}
+
+	randutil.MaybeReadByte(random)
 
 	priv := new(PrivateKey)
 	priv.E = 65537

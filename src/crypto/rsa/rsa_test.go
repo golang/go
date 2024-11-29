@@ -195,7 +195,7 @@ func TestEverything(t *testing.T) {
 			t.Parallel()
 			priv, err := GenerateKey(rand.Reader, size)
 			if err != nil {
-				t.Errorf("GenerateKey(%d): %v", size, err)
+				t.Fatalf("GenerateKey(%d): %v", size, err)
 			}
 			if bits := priv.N.BitLen(); bits != size {
 				t.Errorf("key too short (%d vs %d)", bits, size)
