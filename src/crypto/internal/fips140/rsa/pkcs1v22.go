@@ -333,8 +333,10 @@ func verifyPSS(pub *PublicKey, hash fips140.Hash, digest []byte, sig []byte, sal
 	fipsSelfTest()
 	fips140.RecordApproved()
 	checkApprovedHash(hash)
-	if err := checkPublicKey(pub); err != nil {
+	if fipsApproved, err := checkPublicKey(pub); err != nil {
 		return err
+	} else if !fipsApproved {
+		fips140.RecordNonApproved()
 	}
 
 	if len(sig) != pub.Size() {
@@ -384,8 +386,10 @@ func EncryptOAEP(hash, mgfHash fips140.Hash, random io.Reader, pub *PublicKey, m
 	fipsSelfTest()
 	fips140.RecordApproved()
 	checkApprovedHash(hash)
-	if err := checkPublicKey(pub); err != nil {
+	if fipsApproved, err := checkPublicKey(pub); err != nil {
 		return nil, err
+	} else if !fipsApproved {
+		fips140.RecordNonApproved()
 	}
 	k := pub.Size()
 	if len(msg) > k-2*hash.Size()-2 {

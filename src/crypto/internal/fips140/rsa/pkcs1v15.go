@@ -99,8 +99,10 @@ func VerifyPKCS1v15(pub *PublicKey, hash string, hashed []byte, sig []byte) erro
 }
 
 func verifyPKCS1v15(pub *PublicKey, hash string, hashed []byte, sig []byte) error {
-	if err := checkPublicKey(pub); err != nil {
+	if fipsApproved, err := checkPublicKey(pub); err != nil {
 		return err
+	} else if !fipsApproved {
+		fips140.RecordNonApproved()
 	}
 
 	// RFC 8017 Section 8.2.2: If the length of the signature S is not k

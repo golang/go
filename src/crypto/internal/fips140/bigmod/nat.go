@@ -173,8 +173,10 @@ func (x *Nat) SetOverflowingBytes(b []byte, m *Modulus) (*Nat, error) {
 	if err := x.setBytes(b); err != nil {
 		return nil, err
 	}
-	leading := _W - bitLen(x.limbs[len(x.limbs)-1])
-	if leading < m.leading {
+	// setBytes would have returned an error if the input overflowed the limb
+	// size of the modulus, so now we only need to check if the most significant
+	// limb of x has more bits than the most significant limb of the modulus.
+	if bitLen(x.limbs[len(x.limbs)-1]) > bitLen(m.nat.limbs[len(m.nat.limbs)-1]) {
 		return nil, errors.New("input overflows the modulus size")
 	}
 	x.maybeSubtractModulus(no, m)
@@ -390,6 +392,37 @@ func (x *Nat) ShiftRightVarTime(n uint) *Nat {
 	return x
 }
 
+// BitLenVarTime returns the actual size of x in bits.
+//
+// The actual size of x (but nothing more) leaks through timing side-channels.
+// Note that this is ordinarily secret, as opposed to the announced size of x.
+func (x *Nat) BitLenVarTime() int {
+	// Eliminate bounds checks in the loop.
+	size := len(x.limbs)
+	xLimbs := x.limbs[:size]
+
+	for i := size - 1; i >= 0; i-- {
+		if xLimbs[i] != 0 {
+			return i*_W + bitLen(xLimbs[i])
+		}
+	}
+	return 0
+}
+
+// bitLen is a version of bits.Len that only leaks the bit length of n, but not
+// its value. bits.Len and bits.LeadingZeros use a lookup table for the
+// low-order bits on some architectures.
+func bitLen(n uint) int {
+	len := 0
+	// We assume, here and elsewhere, that comparison to zero is constant time
+	// with respect to different non-zero values.
+	for n != 0 {
+		len++
+		n >>= 1
+	}
+	return len
+}
+
 // Modulus is used for modular arithmetic, precomputing relevant constants.
 //
 // A Modulus can leak the exact number of bits needed to store its value
@@ -399,8 +432,7 @@ type Modulus struct {
 	//
 	// This will be stored without any padding, and shouldn't alias with any
 	// other natural number being used.
-	nat     *Nat
-	leading int // number of leading zeros in the modulus
+	nat *Nat
 
 	// If m is even, the following fields are not set.
 	odd   bool
@@ -501,27 +533,12 @@ func newModulus(n *Nat) (*Modulus, error) {
 	if m.nat.IsZero() == yes || m.nat.IsOne() == yes {
 		return nil, errors.New("modulus must be > 1")
 	}
-	m.leading = _W - bitLen(m.nat.limbs[len(m.nat.limbs)-1])
 	if m.nat.IsOdd() == 1 {
 		m.odd = true
 		m.m0inv = minusInverseModW(m.nat.limbs[0])
 		m.rr = rr(m)
 	}
 	return m, nil
-}
-
-// bitLen is a version of bits.Len that only leaks the bit length of n, but not
-// its value. bits.Len and bits.LeadingZeros use a lookup table for the
-// low-order bits on some architectures.
-func bitLen(n uint) int {
-	var len int
-	// We assume, here and elsewhere, that comparison to zero is constant time
-	// with respect to different non-zero values.
-	for n != 0 {
-		len++
-		n >>= 1
-	}
-	return len
 }
 
 // Size returns the size of m in bytes.
@@ -531,7 +548,7 @@ func (m *Modulus) Size() int {
 
 // BitLen returns the size of m in bits.
 func (m *Modulus) BitLen() int {
-	return len(m.nat.limbs)*_W - int(m.leading)
+	return m.nat.BitLenVarTime()
 }
 
 // Nat returns m as a Nat.
@@ -974,7 +991,7 @@ func (out *Nat) ExpShortVarTime(x *Nat, e uint, m *Modulus) *Nat {
 	// chain, skipping the initial run of zeroes.
 	xR := NewNat().set(x).montgomeryRepresentation(m)
 	out.set(xR)
-	for i := bits.UintSize - bitLen(e) + 1; i < bits.UintSize; i++ {
+	for i := bits.UintSize - bits.Len(e) + 1; i < bits.UintSize; i++ {
 		out.montgomeryMul(out, out, m)
 		if k := (e >> (bits.UintSize - i - 1)) & 1; k != 0 {
 			out.montgomeryMul(out, xR, m)

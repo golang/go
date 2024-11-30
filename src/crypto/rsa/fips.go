@@ -384,6 +384,9 @@ func checkFIPS140OnlyPublicKey(pub *PublicKey) error {
 	if pub.N.BitLen() > 16384 {
 		return errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
 	}
+	if pub.N.BitLen()%2 == 1 {
+		return errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
+	}
 	if pub.E <= 1<<16 {
 		return errors.New("crypto/rsa: use of public exponent <= 2¹⁶ is not allowed in FIPS 140-only mode")
 	}
@@ -400,8 +403,11 @@ func checkFIPS140OnlyPrivateKey(priv *PrivateKey) error {
 	if err := checkFIPS140OnlyPublicKey(&priv.PublicKey); err != nil {
 		return err
 	}
-	if len(priv.Primes) > 2 {
+	if len(priv.Primes) != 2 {
 		return errors.New("crypto/rsa: use of multi-prime keys is not allowed in FIPS 140-only mode")
+	}
+	if priv.Primes[0] == nil || priv.Primes[1] == nil || priv.Primes[0].BitLen() != priv.Primes[1].BitLen() {
+		return errors.New("crypto/rsa: use of primes of different sizes is not allowed in FIPS 140-only mode")
 	}
 	return nil
 }

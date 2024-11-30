@@ -22,7 +22,7 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 		return nil, errors.New("rsa: key too small")
 	}
 	fips140.RecordApproved()
-	if bits < 2048 || bits > 16384 {
+	if bits < 2048 || bits > 16384 || bits%2 == 1 {
 		fips140.RecordNonApproved()
 	}
 
@@ -53,8 +53,8 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 			return nil, errors.New("rsa: internal error: modulus size incorrect")
 		}
 
-		φ, err := bigmod.NewModulusProduct(P.Nat().SubOne(N).Bytes(N),
-			Q.Nat().SubOne(N).Bytes(N))
+		φ, err := bigmod.NewModulusProduct(P.Nat().SubOne(P).Bytes(P),
+			Q.Nat().SubOne(Q).Bytes(Q))
 		if err != nil {
 			return nil, err
 		}
@@ -62,6 +62,9 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 		e := bigmod.NewNat().SetUint(65537)
 		d, ok := bigmod.NewNat().InverseVarTime(e, φ)
 		if !ok {
+			// This checks that GCD(e, (p-1)(q-1)) = 1, which is equivalent
+			// to checking GCD(e, p-1) = 1 and GCD(e, q-1) = 1 separately in
+			// FIPS 186-5, Appendix A.1.3, steps 4.5 and 5.6.
 			continue
 		}
 
@@ -69,12 +72,25 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 			return nil, errors.New("rsa: internal error: e*d != 1 mod φ(N)")
 		}
 
+		// FIPS 186-5, A.1.1(3) requires checking that d > 2^(nlen / 2).
+		//
+		// The probability of this check failing when d is derived from
+		// (e, p, q) is roughly
+		//
+		//   2^(nlen/2) / 2^nlen = 2^(-nlen/2)
+		//
+		// so less than 2⁻¹²⁸ for keys larger than 256 bits.
+		//
+		// We still need to check to comply with FIPS 186-5, but knowing it has
+		// negligible chance of failure we can defer the check to the end of key
+		// generation and return an error if it fails. See [checkPrivateKey].
+
 		return newPrivateKey(N, 65537, d, P, Q)
 	}
 }
 
-// randomPrime returns a random prime number of the given bit size.
-// rand is ignored in FIPS mode.
+// randomPrime returns a random prime number of the given bit size following
+// the process in FIPS 186-5, Appendix A.1.3. rand is ignored in FIPS mode.
 func randomPrime(rand io.Reader, bits int) ([]byte, error) {
 	if bits < 64 {
 		return nil, errors.New("rsa: prime size must be at least 32-bit")
@@ -107,6 +123,22 @@ func randomPrime(rand io.Reader, bits int) ([]byte, error) {
 
 		// Make the value odd since an even number certainly isn't prime.
 		b[len(b)-1] |= 1
+
+		// We don't need to check for p >= √2 × 2^(bits-1) (steps 4.4 and 5.4)
+		// because we set the top two bits above, so
+		//
+		//   p > 2^(bits-1) + 2^(bits-2) = 3⁄2 × 2^(bits-1) > √2 × 2^(bits-1)
+		//
+
+		// Step 5.5 requires checking that |p - q| > 2^(nlen/2 - 100).
+		//
+		// The probability of |p - q| ≤ k where p and q are uniformly random in
+		// the range (a, b) is 1 - (b-a-k)^2 / (b-a)^2, so the probability of
+		// this check failing during key generation is 2⁻⁹⁷.
+		//
+		// We still need to check to comply with FIPS 186-5, but knowing it has
+		// negligible chance of failure we can defer the check to the end of key
+		// generation and return an error if it fails. See [checkPrivateKey].
 
 		if isPrime(b) {
 			return b, nil

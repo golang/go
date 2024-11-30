@@ -33,9 +33,12 @@ type PrivateKey struct {
 	p, q *bigmod.Modulus // p × q = n
 	// dP and dQ are used as exponents, so we store them as big-endian byte
 	// slices to be passed to [bigmod.Nat.Exp].
-	dP   []byte      // d mod (p – 1)
-	dQ   []byte      // d mod (q – 1)
+	dP   []byte      // d mod (p - 1)
+	dQ   []byte      // d mod (q - 1)
 	qInv *bigmod.Nat // qInv = q⁻¹ mod p
+	// fipsApproved is false if this key does not comply with FIPS 186-5 or
+	// SP 800-56B Rev. 2.
+	fipsApproved bool
 }
 
 func (priv *PrivateKey) PublicKey() *PublicKey {
@@ -184,12 +187,20 @@ func (priv *PrivateKey) Export() (N []byte, e int, d, P, Q, dP, dQ, qInv []byte)
 	return
 }
 
+// checkPrivateKey is called by the NewPrivateKey and GenerateKey functions, and
+// is allowed to modify priv.fipsApproved.
 func checkPrivateKey(priv *PrivateKey) error {
-	if err := checkPublicKey(&priv.pub); err != nil {
+	priv.fipsApproved = true
+
+	if fipsApproved, err := checkPublicKey(&priv.pub); err != nil {
 		return err
+	} else if !fipsApproved {
+		priv.fipsApproved = false
 	}
 
 	if priv.dP == nil {
+		// Legacy and deprecated multi-prime keys.
+		priv.fipsApproved = false
 		return nil
 	}
 
@@ -197,7 +208,12 @@ func checkPrivateKey(priv *PrivateKey) error {
 	p := priv.p
 	q := priv.q
 
-	// Check that pq ≡ 1 mod N (and that pN < N and q < N).
+	// FIPS 186-5, Section 5.1 requires "that p and q be of the same bit length."
+	if p.BitLen() != q.BitLen() {
+		priv.fipsApproved = false
+	}
+
+	// Check that pq ≡ 1 mod N (and that p < N and q < N).
 	pN := bigmod.NewNat().ExpandFor(N)
 	if _, err := pN.SetBytes(p.Nat().Bytes(p), N); err != nil {
 		return errors.New("crypto/rsa: invalid prime")
@@ -254,46 +270,89 @@ func checkPrivateKey(priv *PrivateKey) error {
 		return errors.New("crypto/rsa: invalid CRT coefficient")
 	}
 
+	// Check that |p - q| > 2^(nlen/2 - 100).
+	//
+	// If p and q are very close to each other, then N=pq can be trivially
+	// factored using Fermat's factorization method. Broken RSA implementations
+	// do generate such keys. See Hanno Böck, Fermat Factorization in the Wild,
+	// https://eprint.iacr.org/2023/026.pdf.
+	diff := bigmod.NewNat()
+	if qP, err := bigmod.NewNat().SetBytes(q.Nat().Bytes(q), p); err != nil {
+		// q > p
+		pQ, err := bigmod.NewNat().SetBytes(p.Nat().Bytes(p), q)
+		if err != nil {
+			return errors.New("crypto/rsa: p == q")
+		}
+		// diff = 0 - p mod q = q - p
+		diff.ExpandFor(q).Sub(pQ, q)
+	} else {
+		// p > q
+		// diff = 0 - q mod p = p - q
+		diff.ExpandFor(p).Sub(qP, p)
+	}
+	// A tiny bit of leakage is acceptable because it's not adaptive, an
+	// attacker only learns the magnitude of p - q.
+	if diff.BitLenVarTime() <= N.BitLen()/2-100 {
+		return errors.New("crypto/rsa: |p - q| too small")
+	}
+
+	// Check that d > 2^(nlen/2).
+	//
+	// See section 3 of https://crypto.stanford.edu/~dabo/papers/RSA-survey.pdf
+	// for more details about attacks on small d values.
+	//
+	// Likewise, the leakage of the magnitude of d is not adaptive.
+	if priv.d.BitLenVarTime() <= N.BitLen()/2 {
+		return errors.New("crypto/rsa: d too small")
+	}
+
 	return nil
 }
 
-func checkPublicKey(pub *PublicKey) error {
+func checkPublicKey(pub *PublicKey) (fipsApproved bool, err error) {
+	fipsApproved = true
 	if pub.N == nil {
-		return errors.New("crypto/rsa: missing public modulus")
+		return false, errors.New("crypto/rsa: missing public modulus")
 	}
 	if pub.N.Nat().IsOdd() == 0 {
-		return errors.New("crypto/rsa: public modulus is even")
+		return false, errors.New("crypto/rsa: public modulus is even")
 	}
+	// FIPS 186-5, Section 5.1: "This standard specifies the use of a modulus
+	// whose bit length is an even integer and greater than or equal to 2048
+	// bits."
 	if pub.N.BitLen() < 2048 || pub.N.BitLen() > 16384 {
-		fips140.RecordNonApproved()
+		fipsApproved = false
+	}
+	if pub.N.BitLen()%2 == 1 {
+		fipsApproved = false
 	}
 	if pub.E < 2 {
-		return errors.New("crypto/rsa: public exponent too small or negative")
+		return false, errors.New("crypto/rsa: public exponent too small or negative")
 	}
 	// e needs to be coprime with p-1 and q-1, since it must be invertible
 	// modulo λ(pq). Since p and q are prime, this means e needs to be odd.
 	if pub.E&1 == 0 {
-		return errors.New("crypto/rsa: public exponent is even")
+		return false, errors.New("crypto/rsa: public exponent is even")
 	}
 	// FIPS 186-5, Section 5.5(e): "The exponent e shall be an odd, positive
 	// integer such that 2¹⁶ < e < 2²⁵⁶."
 	if pub.E <= 1<<16 {
-		fips140.RecordNonApproved()
+		fipsApproved = false
 	}
 	// We require pub.E to fit into a 32-bit integer so that we
 	// do not have different behavior depending on whether
 	// int is 32 or 64 bits. See also
 	// https://www.imperialviolet.org/2012/03/16/rsae.html.
 	if pub.E > 1<<31-1 {
-		return errors.New("crypto/rsa: public exponent too large")
+		return false, errors.New("crypto/rsa: public exponent too large")
 	}
-	return nil
+	return fipsApproved, nil
 }
 
 // Encrypt performs the RSA public key operation.
 func Encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	fips140.RecordNonApproved()
-	if err := checkPublicKey(pub); err != nil {
+	if _, err := checkPublicKey(pub); err != nil {
 		return nil, err
 	}
 	return encrypt(pub, plaintext)
@@ -331,6 +390,10 @@ func DecryptWithCheck(priv *PrivateKey, ciphertext []byte) ([]byte, error) {
 // m^e is calculated and compared with ciphertext, in order to defend against
 // errors in the CRT computation.
 func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
+	if !priv.fipsApproved {
+		fips140.RecordNonApproved()
+	}
+
 	var m *bigmod.Nat
 	N, E := priv.pub.N, priv.pub.E
 

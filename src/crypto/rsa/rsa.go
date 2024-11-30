@@ -322,6 +322,9 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 	if fips140only.Enabled && bits > 16384 {
 		return nil, errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
 	}
+	if fips140only.Enabled && bits%2 == 1 {
+		return nil, errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
+	}
 
 	k, err := rsa.GenerateKey(random, bits)
 	if err != nil {
