@@ -381,9 +381,6 @@ func checkFIPS140OnlyPublicKey(pub *PublicKey) error {
 	if pub.N.BitLen() < 2048 {
 		return errors.New("crypto/rsa: use of keys smaller than 2048 bits is not allowed in FIPS 140-only mode")
 	}
-	if pub.N.BitLen() > 16384 {
-		return errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
-	}
 	if pub.N.BitLen()%2 == 1 {
 		return errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
 	}

@@ -320,7 +320,7 @@ func checkPublicKey(pub *PublicKey) (fipsApproved bool, err error) {
 	// FIPS 186-5, Section 5.1: "This standard specifies the use of a modulus
 	// whose bit length is an even integer and greater than or equal to 2048
 	// bits."
-	if pub.N.BitLen() < 2048 || pub.N.BitLen() > 16384 {
+	if pub.N.BitLen() < 2048 {
 		fipsApproved = false
 	}
 	if pub.N.BitLen()%2 == 1 {
