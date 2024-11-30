@@ -278,6 +278,14 @@ func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 // messages to signatures and identify the signed messages. As ever,
 // signatures provide authenticity, not confidentiality.
 func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
+	var hashName string
+	if hash != crypto.Hash(0) {
+		if len(hashed) != hash.Size() {
+			return nil, errors.New("crypto/rsa: input must be hashed message")
+		}
+		hashName = hash.String()
+	}
+
 	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
 		return nil, err
 	}
@@ -299,13 +307,6 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 	k, err := fipsPrivateKey(priv)
 	if err != nil {
 		return nil, err
-	}
-	var hashName string
-	if hash != crypto.Hash(0) {
-		if len(hashed) != hash.Size() {
-			return nil, errors.New("crypto/rsa: input must be hashed message")
-		}
-		hashName = hash.String()
 	}
 	return fipsError2(rsa.SignPKCS1v15(k, hashName, hashed))
 }

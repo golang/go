@@ -248,8 +248,14 @@ func testEverything(t *testing.T, priv *PrivateKey) {
 		}
 	}
 
+	const hashMsg = "crypto/rsa: input must be hashed message"
+	sig, err := SignPKCS1v15(nil, priv, crypto.SHA256, msg)
+	if err == nil || err.Error() != hashMsg {
+		t.Errorf("SignPKCS1v15 with bad hash: err = %q, want %q", err, hashMsg)
+	}
+
 	hash := sha256.Sum256(msg)
-	sig, err := SignPKCS1v15(nil, priv, crypto.SHA256, hash[:])
+	sig, err = SignPKCS1v15(nil, priv, crypto.SHA256, hash[:])
 	if err == ErrMessageTooLong {
 		t.Log("key too small for SignPKCS1v15")
 	} else if err != nil {
