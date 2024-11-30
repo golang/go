@@ -5,6 +5,7 @@ package hybrid
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 
@@ -23,11 +24,21 @@ const (
 	MAYO2_P256 OID = "0.1.2.2"
 	MAYO3_P384 OID = "0.1.3.3"
 	MAYO5_P521 OID = "0.1.5.4"
+
+	MAYO1_ED25519 OID = "0.1.1.5"
+	MAYO2_ED25519 OID = "0.1.2.5"
+	MAYO3_ED25519 OID = "0.1.3.5"
+	MAYO5_ED25519 OID = "0.1.5.5"
+
+	CROSS_128_SMALL_ED25519 OID = "0.2.1.5.S"
+	CROSS_128_FAST_ED25519  OID = "0.2.1.5.F"
+	CROSS_192_SMALL_ED25519 OID = "0.2.3.5.S"
+	CROSS_256_SMALL_ED25519 OID = "0.2.5.5.S"
 )
 
 type SigName struct {
 	pqc     string
-	classic elliptic.Curve
+	classic interface{}
 }
 
 var SigOIDtoName = map[OID]SigName{
@@ -35,29 +46,39 @@ var SigOIDtoName = map[OID]SigName{
 	MAYO2_P256: {"Mayo-2", elliptic.P256()},
 	MAYO3_P384: {"Mayo-3", elliptic.P384()},
 	MAYO5_P521: {"Mayo-5", elliptic.P521()},
+
+	MAYO1_ED25519: {"Mayo-1", ed25519.PrivateKey{}},
+	MAYO2_ED25519: {"Mayo-2", ed25519.PrivateKey{}},
+	MAYO3_ED25519: {"Mayo-3", ed25519.PrivateKey{}},
+	MAYO5_ED25519: {"Mayo-5", ed25519.PrivateKey{}},
+
+	CROSS_128_SMALL_ED25519: {"cross-rsdpg-128-small", ed25519.PrivateKey{}},
+	CROSS_128_FAST_ED25519:  {"cross-rsdpg-128-fast", ed25519.PrivateKey{}},
+	CROSS_192_SMALL_ED25519: {"cross-rsdpg-192-small", ed25519.PrivateKey{}},
+	CROSS_256_SMALL_ED25519: {"cross-rsdpg-256-small", ed25519.PrivateKey{}},
 }
 
 type PublicKey struct {
 	SigOID  OID
-	classic *ecdsa.PublicKey
+	classic *interface{}
 	pqc     []byte
 }
 
 type PrivateKey struct {
 	SigOID  OID
-	classic *ecdsa.PrivateKey
+	classic *interface{}
 	pqc     []byte
 	public  *PublicKey
 }
 
 // GetPublicKeys returns the classic and post-quantum private keys from a sig receiver.
 func (pub *PublicKey) GetPublicKeys() (classic *ecdsa.PublicKey, pqc []byte) {
-	return pub.classic, pub.pqc
+	return (*pub.classic).(*ecdsa.PublicKey), pub.pqc
 }
 
 // GetPrivateKeys returns the classic and post-quantum private keys from a sig receiver.
 func (priv *PrivateKey) GetPrivateKeys() (classic *ecdsa.PrivateKey, pqc []byte) {
-	return priv.classic, priv.pqc
+	return (*priv.classic).(*ecdsa.PrivateKey), priv.pqc
 }
 
 // ExportPublicKey exports the corresponding public hybrid key from the sig receiver.
@@ -71,10 +92,21 @@ func (priv *PrivateKey) ExportPublicKey() (pub PublicKey) {
 func GenerateKey(sigOID OID) (priv PrivateKey, err error) {
 	var pub PublicKey
 
-	if priv.classic, err = ecdsa.GenerateKey(SigOIDtoName[sigOID].classic, rand.Reader); err != nil {
-		return PrivateKey{}, err
+	pub.classic = new(interface{})
+	priv.classic = new(interface{})
+
+	switch classic := SigOIDtoName[sigOID].classic.(type) {
+	case elliptic.Curve:
+		if (*priv.classic), err = ecdsa.GenerateKey(classic, rand.Reader); err != nil {
+			return PrivateKey{}, err
+		}
+		*pub.classic = &((*priv.classic).(*ecdsa.PrivateKey)).PublicKey
+
+	case ed25519.PrivateKey:
+		if (*pub.classic), (*priv.classic), err = ed25519.GenerateKey(rand.Reader); err != nil {
+			return PrivateKey{}, err
+		}
 	}
-	pub.classic = &priv.classic.PublicKey
 
 	pqcSigner := oqs.Signature{}
 	if err = pqcSigner.Init(SigOIDtoName[sigOID].pqc, nil); err != nil {
@@ -99,8 +131,15 @@ func (priv *PrivateKey) Sign(hash []byte) (signature []byte, err error) {
 	var pqcSig []byte
 	var classicSig []byte
 
-	if classicSig, err = ecdsa.SignASN1(rand.Reader, priv.classic, hash); err != nil {
-		return nil, err
+	switch classic := (*priv.classic).(type) {
+	case elliptic.Curve:
+		if classicSig, err = ecdsa.SignASN1(rand.Reader, (*priv.classic).(*ecdsa.PrivateKey), hash); err != nil {
+			return nil, err
+		}
+	case ed25519.PrivateKey:
+		if classicSig = ed25519.Sign(classic, hash); err != nil {
+			return nil, err
+		}
 	}
 
 	pqcSigner := oqs.Signature{}
@@ -120,7 +159,14 @@ func (priv *PrivateKey) Sign(hash []byte) (signature []byte, err error) {
 }
 
 func verifyClassic(pub PublicKey, hash []byte, signature []byte) bool {
-	return ecdsa.VerifyASN1(pub.classic, hash, signature)
+	switch classic := (*pub.classic).(type) {
+	case elliptic.Curve:
+		return ecdsa.VerifyASN1((*pub.classic).(*ecdsa.PublicKey), hash, signature)
+	case ed25519.PublicKey:
+		return ed25519.Verify((*pub.classic).(ed25519.PublicKey), hash, signature)
+		_ = classic // UNREACHABLE
+	}
+	return false
 }
 
 func verifyPQC(pub PublicKey, hash []byte, signature []byte) bool {
