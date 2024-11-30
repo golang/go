@@ -191,6 +191,7 @@ func h2(h uintptr) uintptr {
 	return h & 0x7f
 }
 
+// Note: changes here must be reflected in cmd/compile/internal/reflectdata/map_swiss.go:SwissMapType.
 type Map struct {
 	// The number of filled slots (i.e. the number of elements in all
 	// tables). Excludes deleted slots.
@@ -234,6 +235,10 @@ type Map struct {
 	// multiple concurrent writers, then toggling increases the probability
 	// that both sides will detect the race.
 	writing uint8
+
+	// tombstonePossible is false if we know that no table in this map
+	// contains a tombstone.
+	tombstonePossible bool
 
 	// clearSeq is a sequence counter of calls to Clear. It is used to
 	// detect map clears during iteration.
@@ -657,7 +662,9 @@ func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
 		m.deleteSmall(typ, hash, key)
 	} else {
 		idx := m.directoryIndex(hash)
-		m.directoryAt(idx).Delete(typ, m, hash, key)
+		if m.directoryAt(idx).Delete(typ, m, hash, key) {
+			m.tombstonePossible = true
+		}
 	}
 
 	if m.used == 0 {
@@ -722,7 +729,7 @@ func (m *Map) deleteSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointe
 
 // Clear deletes all entries from the map resulting in an empty map.
 func (m *Map) Clear(typ *abi.SwissMapType) {
-	if m == nil || m.Used() == 0 {
+	if m == nil || m.Used() == 0 && !m.tombstonePossible {
 		return
 	}
 
@@ -744,9 +751,10 @@ func (m *Map) Clear(typ *abi.SwissMapType) {
 			lastTab = t
 		}
 		m.used = 0
-		m.clearSeq++
+		m.tombstonePossible = false
 		// TODO: shrink directory?
 	}
+	m.clearSeq++
 
 	// Reset the hash seed to make it more difficult for attackers to
 	// repeatedly trigger hash collisions. See https://go.dev/issue/25237.
@@ -767,7 +775,6 @@ func (m *Map) clearSmall(typ *abi.SwissMapType) {
 	g.ctrls().setEmpty()
 
 	m.used = 0
-	m.clearSeq++
 }
 
 func (m *Map) Clone(typ *abi.SwissMapType) *Map {

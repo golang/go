@@ -103,7 +103,7 @@ func (t *table) reset(typ *abi.SwissMapType, capacity uint16) {
 	groupCount := uint64(capacity) / abi.SwissMapGroupSlots
 	t.groups = newGroups(typ, groupCount)
 	t.capacity = capacity
-	t.resetGrowthLeft()
+	t.growthLeft = t.maxGrowthLeft()
 
 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
 		g := t.groups.group(typ, i)
@@ -111,9 +111,9 @@ func (t *table) reset(typ *abi.SwissMapType, capacity uint16) {
 	}
 }
 
-// Preconditions: table must be empty.
-func (t *table) resetGrowthLeft() {
-	var growthLeft uint16
+// maxGrowthLeft is the number of inserts we can do before
+// resizing, starting from an empty table.
+func (t *table) maxGrowthLeft() uint16 {
 	if t.capacity == 0 {
 		// No real reason to support zero capacity table, since an
 		// empty Map simply won't have a table.
@@ -125,15 +125,15 @@ func (t *table) resetGrowthLeft() {
 		//
 		// TODO(go.dev/issue/54766): With a special case in probing for
 		// single-group tables, we could fill all slots.
-		growthLeft = t.capacity - 1
+		return t.capacity - 1
 	} else {
 		if t.capacity*maxAvgGroupLoad < t.capacity {
 			// TODO(prattmic): Do something cleaner.
 			panic("overflow")
 		}
-		growthLeft = (t.capacity * maxAvgGroupLoad) / abi.SwissMapGroupSlots
+		return (t.capacity * maxAvgGroupLoad) / abi.SwissMapGroupSlots
 	}
-	t.growthLeft = growthLeft
+
 }
 
 func (t *table) Used() uint64 {
@@ -417,7 +417,8 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key, elem 
 	}
 }
 
-func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.Pointer) {
+// Delete returns true if it put a tombstone in t.
+func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.Pointer) bool {
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
 	for ; ; seq = seq.next() {
 		g := t.groups.group(typ, seq.offset)
@@ -466,15 +467,17 @@ func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.P
 				// full now, we can simply remove the element.
 				// Otherwise, we create a tombstone to mark the
 				// slot as deleted.
+				var tombstone bool
 				if g.ctrls().matchEmpty() != 0 {
 					g.ctrls().set(i, ctrlEmpty)
 					t.growthLeft++
 				} else {
 					g.ctrls().set(i, ctrlDeleted)
+					tombstone = true
 				}
 
 				t.checkInvariants(typ, m)
-				return
+				return tombstone
 			}
 			match = match.removeFirst()
 		}
@@ -483,7 +486,7 @@ func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.P
 		if match != 0 {
 			// Finding an empty slot means we've reached the end of
 			// the probe sequence.
-			return
+			return false
 		}
 	}
 }
@@ -593,14 +596,19 @@ func (t *table) tombstones() uint16 {
 
 // Clear deletes all entries from the map resulting in an empty map.
 func (t *table) Clear(typ *abi.SwissMapType) {
+	mgl := t.maxGrowthLeft()
+	if t.used == 0 && t.growthLeft == mgl { // no current entries and no tombstones
+		return
+	}
 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
 		g := t.groups.group(typ, i)
-		typedmemclr(typ.Group, g.data)
+		if g.ctrls().matchFull() != 0 {
+			typedmemclr(typ.Group, g.data)
+		}
 		g.ctrls().setEmpty()
 	}
-
 	t.used = 0
-	t.resetGrowthLeft()
+	t.growthLeft = mgl
 }
 
 type Iter struct {

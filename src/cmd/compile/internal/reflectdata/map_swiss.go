@@ -159,6 +159,7 @@ func SwissMapType() *types.Type {
 	//     globalShift uint8
 	//
 	//     writing uint8
+	//     tombstonePossible bool
 	//     // N.B Padding
 	//
 	//     clearSeq uint64
@@ -172,6 +173,7 @@ func SwissMapType() *types.Type {
 		makefield("globalDepth", types.Types[types.TUINT8]),
 		makefield("globalShift", types.Types[types.TUINT8]),
 		makefield("writing", types.Types[types.TUINT8]),
+		makefield("tombstonePossible", types.Types[types.TBOOL]),
 		makefield("clearSeq", types.Types[types.TUINT64]),
 	}
 
