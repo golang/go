@@ -66,6 +66,7 @@ func isGccgoTool(tool string) bool {
 
 func init() {
 	base.AddChdirFlag(&CmdTool.Flag)
+	base.AddModCommonFlags(&CmdTool.Flag)
 	CmdTool.Flag.BoolVar(&toolN, "n", false, "")
 }
 
