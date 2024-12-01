@@ -49,7 +49,7 @@ environment variable (For more details see: 'go help gopath').
 If no import paths are given, the action applies to the
 package in the current directory.
 
-There are four reserved names for paths that should not be used
+There are five reserved names for paths that should not be used
 for packages to be built with the go tool:
 
 - "main" denotes the top-level package in a stand-alone executable.
@@ -63,6 +63,8 @@ Go library.
 
 - "cmd" expands to the Go repository's commands and their
 internal libraries.
+
+- "tool" expands to the tools defined in the current module's go.mod file.
 
 Package names match against fully-qualified import paths or patterns that
 match against any number of import paths. For instance, "fmt" refers to the
