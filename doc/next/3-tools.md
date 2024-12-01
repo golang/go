@@ -2,7 +2,31 @@
 
 ### Go command {#go-command}
 
+<!-- go.dev/issue/48429 -->
+
+Go modules can now track executable dependencies using `tool` directives in
+go.mod. This removes the need for the previous workaround of adding tools as
+blank imports to a file conventionally named "tools.go". The `go tool`
+command can now run these tools in addition to tools shipped with the Go
+distribution. For more information see [the
+documentation](/doc/modules/managing-dependencies#tools).
+
+The new `-tool` flag for `go get` causes a tool directive to be added to the
+current module for named packages in addition to adding require directives.
+
+The new [`tool` meta-pattern](/cmd/go#hdr-Package_lists_and_patterns) refers to
+all tools in the current module. This can be used to upgrade them all with `go
+get -u tool` or to install them into your GOBIN directory with `go install
+tool`.
+
+<!-- go.dev/issue/69290 -->
+
+Executables created by `go run` and the new behavior for `go tool` are now
+cached in the Go build cache. This makes repeated executions faster at the
+expense of making the cache larger. See [#69290](/issue/69290).
+
 <!-- go.dev/issue/62067 -->
+
 The `go build` and `go install` commands now accept a `-json` flag that reports
 build output and failures as structured JSON output on standard output.
 For details of the reporting format, see `go help buildjson`.
