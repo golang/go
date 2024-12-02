@@ -265,8 +265,12 @@ func checkPrivateKey(priv *PrivateKey) error {
 	}
 
 	// Check that qInv * q ≡ 1 mod p.
-	one := q.Nat().Mul(priv.qInv, p)
-	if one.IsOne() != 1 {
+	qP, err := bigmod.NewNat().SetOverflowingBytes(q.Nat().Bytes(q), p)
+	if err != nil {
+		// q >= 2^⌈log2(p)⌉
+		qP = bigmod.NewNat().Mod(q.Nat(), p)
+	}
+	if qP.Mul(priv.qInv, p).IsOne() != 1 {
 		return errors.New("crypto/rsa: invalid CRT coefficient")
 	}
 

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto"
+	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
 	"crypto/rand"
@@ -351,6 +352,30 @@ func testEverything(t *testing.T, priv *PrivateKey) {
 	_, err = DecryptPKCS1v15(nil, priv, c)
 	if err == nil {
 		t.Errorf("DecryptPKCS1v15 accepted a long ciphertext")
+	}
+
+	der, err := x509.MarshalPKCS8PrivateKey(priv)
+	if err != nil {
+		t.Errorf("MarshalPKCS8PrivateKey: %v", err)
+	}
+	key, err := x509.ParsePKCS8PrivateKey(der)
+	if err != nil {
+		t.Errorf("ParsePKCS8PrivateKey: %v", err)
+	}
+	if !key.(*PrivateKey).Equal(priv) {
+		t.Errorf("private key mismatch")
+	}
+
+	der, err = x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	if err != nil {
+		t.Errorf("MarshalPKIXPublicKey: %v", err)
+	}
+	pub, err := x509.ParsePKIXPublicKey(der)
+	if err != nil {
+		t.Errorf("ParsePKIXPublicKey: %v", err)
+	}
+	if !pub.(*PublicKey).Equal(&priv.PublicKey) {
+		t.Errorf("public key mismatch")
 	}
 }
 
@@ -1014,4 +1039,22 @@ var testEncryptOAEPData = []testEncryptOAEPStruct{
 			},
 		},
 	},
+}
+
+func TestPSmallerThanQ(t *testing.T) {
+	// This key has a 256-bit P and a 257-bit Q.
+	k := parseKey(testingKey(`-----BEGIN RSA TESTING KEY-----
+MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu
+KUpRKfFLfRYC9AIKjbJTWit+CqvjWYzvQwECAwEAAQJAIJLixBy2qpFoS4DSmoEm
+o3qGy0t6z09AIJtH+5OeRV1be+N4cDYJKffGzDa88vQENZiRm0GRq6a+HPGQMd2k
+TQIhAKMSvzIBnni7ot/OSie2TmJLY4SwTQAevXysE2RbFDYdAiEBCUEaRQnMnbp7
+9mxDXDf6AU0cN/RPBjb9qSHDcWZHGzUCIG2Es59z8ugGrDY+pxLQnwfotadxd+Uy
+v/Ow5T0q5gIJAiEAyS4RaI9YG8EWx/2w0T67ZUVAw8eOMB6BIUg0Xcu+3okCIBOs
+/5OiPgoTdSy7bcF9IGpSE8ZgGKzgYQVZeN97YE00
+-----END RSA TESTING KEY-----`))
+	t.Setenv("GODEBUG", "rsa1024min=0")
+	if boring.Enabled {
+		t.Skip("BoringCrypto mode returns the wrong error from SignPSS")
+	}
+	testEverything(t, k)
 }
