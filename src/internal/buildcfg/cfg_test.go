@@ -32,6 +32,10 @@ func TestConfigFlags(t *testing.T) {
 	if goriscv64() != 22 {
 		t.Errorf("Wrong parsing of RISCV64=rva22u64")
 	}
+	os.Setenv("GORISCV64", "rva23u64")
+	if goriscv64() != 23 {
+		t.Errorf("Wrong parsing of RISCV64=rva23u64")
+	}
 	Error = nil
 	os.Setenv("GORISCV64", "rva22")
 	if _ = goriscv64(); Error == nil {
