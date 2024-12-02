@@ -1694,7 +1694,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		}
 	}
 
-	// RFC 5280 Section 4.1.2.2: serial number must positive
+	// RFC 5280 Section 4.1.2.2: serial number must be positive
 	//
 	// We _should_ also restrict serials to <= 20 octets, but it turns out a lot of people
 	// get this wrong, in part because the encoding can itself alter the length of the
