@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash"
+	"internal/asan"
 	"math"
 	"reflect"
 	"strings"
@@ -417,6 +418,36 @@ func TestWriteComparableNoncommute(t *testing.T) {
 
 	if h1.Sum64() == h2.Sum64() {
 		t.Errorf("WriteComparable and WriteString unexpectedly commute")
+	}
+}
+
+func TestComparableAllocations(t *testing.T) {
+	if purego {
+		t.Skip("skip allocation test in purego mode - reflect-based implementation allocates more")
+	}
+	if asan.Enabled {
+		t.Skip("skip allocation test under -asan")
+	}
+	seed := MakeSeed()
+	x := heapStr(t)
+	allocs := testing.AllocsPerRun(10, func() {
+		s := "s" + x
+		Comparable(seed, s)
+	})
+	if allocs > 0 {
+		t.Errorf("got %v allocs, want 0", allocs)
+	}
+
+	type S struct {
+		a int
+		b string
+	}
+	allocs = testing.AllocsPerRun(10, func() {
+		s := S{123, "s" + x}
+		Comparable(seed, s)
+	})
+	if allocs > 0 {
+		t.Errorf("got %v allocs, want 0", allocs)
 	}
 }
 

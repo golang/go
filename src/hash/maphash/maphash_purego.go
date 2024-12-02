@@ -14,6 +14,8 @@ import (
 	"reflect"
 )
 
+const purego = true
+
 var hashkey [4]uint64
 
 func init() {

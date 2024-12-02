@@ -31,6 +31,7 @@ import (
 	"go/constant"
 	"internal/buildcfg"
 	"strconv"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/inline/inlheur"
@@ -481,6 +482,12 @@ opSwitch:
 					case "panicrangestate":
 						cheap = true
 					}
+				case "hash/maphash":
+					if strings.HasPrefix(fn, "escapeForHash[") {
+						// hash/maphash.escapeForHash[T] is a compiler intrinsic
+						// implemented in the escape analysis phase.
+						cheap = true
+					}
 				}
 			}
 			// Special case for coverage counter updates; although
@@ -803,6 +810,14 @@ func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
 			}
 		}
 	}
+
+	// hash/maphash.escapeForHash[T] is a compiler intrinsic implemented
+	// in the escape analysis phase.
+	if fn := ir.StaticCalleeName(call.Fun); fn != nil && fn.Sym().Pkg.Path == "hash/maphash" &&
+		strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
+		return false, true
+	}
+
 	if ir.IsIntrinsicCall(call) {
 		return false, true
 	}

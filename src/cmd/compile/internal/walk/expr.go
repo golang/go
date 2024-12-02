@@ -582,6 +582,20 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		return walkExpr(n, init)
 	}
 
+	if n.Op() == ir.OCALLFUNC {
+		fn := ir.StaticCalleeName(n.Fun)
+		if fn != nil && fn.Sym().Pkg.Path == "hash/maphash" && strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
+			// hash/maphash.escapeForHash[T] is a compiler intrinsic
+			// for the escape analysis to escape its argument based on
+			// the type. The call itself is no-op. Just walk the
+			// argument.
+			ps := fn.Type().Params()
+			if len(ps) == 2 && ps[1].Type.IsShape() {
+				return walkExpr(n.Args[1], init)
+			}
+		}
+	}
+
 	if name, ok := n.Fun.(*ir.Name); ok {
 		sym := name.Sym()
 		if sym.Pkg.Path == "go.runtime" && sym.Name == "deferrangefunc" {

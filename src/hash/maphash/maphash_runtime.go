@@ -13,6 +13,8 @@ import (
 	"unsafe"
 )
 
+const purego = false
+
 //go:linkname runtime_rand runtime.rand
 func runtime_rand() uint64
 
