@@ -45,6 +45,10 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 			return nil, err
 		}
 
+		if Q.Nat().ExpandFor(P).Equal(P.Nat()) == 1 {
+			return nil, errors.New("rsa: generated p == q, random source is broken")
+		}
+
 		N, err := bigmod.NewModulusProduct(p, q)
 		if err != nil {
 			return nil, err
