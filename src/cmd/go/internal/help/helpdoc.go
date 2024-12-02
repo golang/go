@@ -809,6 +809,7 @@ var HelpCache = &base.Command{
 The go command caches build outputs for reuse in future builds.
 The default location for cache data is a subdirectory named go-build
 in the standard user cache directory for the current operating system.
+The cache is safe for concurrent invocations of the go command.
 Setting the GOCACHE environment variable overrides this default,
 and running 'go env GOCACHE' prints the current cache directory.
 
