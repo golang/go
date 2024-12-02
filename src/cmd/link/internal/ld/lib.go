@@ -632,6 +632,13 @@ func (ctxt *Link) loadlib() {
 			if *flagLibGCC == "" {
 				*flagLibGCC = ctxt.findLibPathCmd("--print-libgcc-file-name", "libgcc")
 			}
+			if runtime.GOOS == "freebsd" && strings.HasPrefix(filepath.Base(*flagLibGCC), "libclang_rt.builtins") {
+				// On newer versions of FreeBSD, libgcc is returned as something like
+				// /usr/lib/clang/18/lib/freebsd/libclang_rt.builtins-x86_64.a.
+				// Unfortunately this ends up missing a bunch of symbols we need from
+				// libcompiler_rt.
+				*flagLibGCC = ctxt.findLibPathCmd("--print-file-name=libcompiler_rt.a", "libcompiler_rt")
+			}
 			if runtime.GOOS == "openbsd" && *flagLibGCC == "libgcc.a" {
 				// On OpenBSD `clang --print-libgcc-file-name` returns "libgcc.a".
 				// In this case we fail to load libgcc.a and can encounter link
