@@ -217,13 +217,15 @@ func synctestRun(f func()) {
 
 func synctestidle_c(gp *g, _ unsafe.Pointer) bool {
 	lock(&gp.syncGroup.mu)
-	defer unlock(&gp.syncGroup.mu)
+	canIdle := true
 	if gp.syncGroup.running == 0 && gp.syncGroup.active == 1 {
 		// All goroutines in the group have blocked or exited.
-		return false
+		canIdle = false
+	} else {
+		gp.syncGroup.active--
 	}
-	gp.syncGroup.active--
-	return true
+	unlock(&gp.syncGroup.mu)
+	return canIdle
 }
 
 //go:linkname synctestWait internal/synctest.Wait
