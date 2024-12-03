@@ -314,8 +314,8 @@ func GetMmap(c Cache, id ActionID) ([]byte, Entry, error) {
 // OutputFile returns the name of the cache file storing output with the given OutputID.
 func (c *DiskCache) OutputFile(out OutputID) string {
 	file := c.fileName(out, "d")
-	isExecutable := c.markUsed(file)
-	if isExecutable {
+	isDir := c.markUsed(file)
+	if isDir { // => cached executable
 		entries, err := os.ReadDir(file)
 		if err != nil {
 			return fmt.Sprintf("DO NOT USE - missing binary cache entry: %v", err)
@@ -357,12 +357,14 @@ const (
 // while still keeping the mtimes useful for cache trimming.
 //
 // markUsed reports whether the file is a directory (an executable cache entry).
-func (c *DiskCache) markUsed(file string) (isExecutable bool) {
+func (c *DiskCache) markUsed(file string) (isDir bool) {
 	info, err := os.Stat(file)
-	if err == nil && c.now().Sub(info.ModTime()) < mtimeInterval {
-		return info.IsDir()
+	if err != nil {
+		return false
 	}
-	os.Chtimes(file, c.now(), c.now())
+	if now := c.now(); now.Sub(info.ModTime()) >= mtimeInterval {
+		os.Chtimes(file, now, now)
+	}
 	return info.IsDir()
 }
 
