@@ -30,6 +30,11 @@ const (
 	MAYO3_ED25519 OID = "0.1.3.5"
 	MAYO5_ED25519 OID = "0.1.5.5"
 
+	CROSS_128_SMALL_P256 OID = "0.2.1.1.S"
+	CROSS_128_FAST_P256  OID = "0.2.1.2.F"
+	CROSS_192_SMALL_P384 OID = "0.2.3.3.S"
+	CROSS_256_SMALL_P521 OID = "0.2.5.4.S"
+
 	CROSS_128_SMALL_ED25519 OID = "0.2.1.5.S"
 	CROSS_128_FAST_ED25519  OID = "0.2.1.5.F"
 	CROSS_192_SMALL_ED25519 OID = "0.2.3.5.S"
@@ -51,6 +56,11 @@ var SigOIDtoName = map[OID]SigName{
 	MAYO2_ED25519: {"Mayo-2", ed25519.PrivateKey{}},
 	MAYO3_ED25519: {"Mayo-3", ed25519.PrivateKey{}},
 	MAYO5_ED25519: {"Mayo-5", ed25519.PrivateKey{}},
+
+	CROSS_128_SMALL_P256: {"cross-rsdpg-128-small", elliptic.P256()},
+	CROSS_128_FAST_P256:  {"cross-rsdpg-128-fast", elliptic.P256()},
+	CROSS_192_SMALL_P384: {"cross-rsdpg-192-small", elliptic.P384()},
+	CROSS_256_SMALL_P521: {"cross-rsdpg-256-small", elliptic.P521()},
 
 	CROSS_128_SMALL_ED25519: {"cross-rsdpg-128-small", ed25519.PrivateKey{}},
 	CROSS_128_FAST_ED25519:  {"cross-rsdpg-128-fast", ed25519.PrivateKey{}},
