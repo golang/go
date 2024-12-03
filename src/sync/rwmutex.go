@@ -24,6 +24,8 @@ import (
 // the writer has acquired (and released) the lock, to ensure that
 // the lock eventually becomes available to the writer.
 // Note that this prohibits recursive read-locking.
+// A [RWMutex.RLock] cannot be upgraded into a [RWMutex.Lock],
+// nor can a [RWMutex.Lock] be downgraded into a [RWMutex.RLock].
 //
 // In the terminology of [the Go memory model],
 // the n'th call to [RWMutex.Unlock] “synchronizes before” the m'th call to Lock
