@@ -29,6 +29,9 @@ var (
 // Buffered input.
 
 // Reader implements buffering for an io.Reader object.
+// A new Reader is created by calling [NewReader] or [NewReaderSize];
+// alternatively the zero value of a Reader may be used after calling [Reset]
+// on it.
 type Reader struct {
 	buf          []byte
 	rd           io.Reader // reader provided by the client
