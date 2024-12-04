@@ -39,6 +39,12 @@ const (
 	CROSS_128_FAST_ED25519  OID = "0.2.1.5.F"
 	CROSS_192_SMALL_ED25519 OID = "0.2.3.5.S"
 	CROSS_256_SMALL_ED25519 OID = "0.2.5.5.S"
+
+	ML_DSA_44_P256 OID = "0.3.1.2"
+	ML_DSA_65_P384 OID = "0.3.1.3"
+	ML_DSA_87_P521 OID = "0.3.1.5"
+
+	ML_DSA_65_ED25519 OID = "0.3.2.2"
 )
 
 type SigName struct {
@@ -66,6 +72,12 @@ var SigOIDtoName = map[OID]SigName{
 	CROSS_128_FAST_ED25519:  {"cross-rsdpg-128-fast", ed25519.PrivateKey{}},
 	CROSS_192_SMALL_ED25519: {"cross-rsdpg-192-small", ed25519.PrivateKey{}},
 	CROSS_256_SMALL_ED25519: {"cross-rsdpg-256-small", ed25519.PrivateKey{}},
+
+	ML_DSA_44_P256: {"ML-DSA-44", elliptic.P256()},
+	ML_DSA_65_P384: {"ML-DSA-65", elliptic.P384()},
+	ML_DSA_87_P521: {"ML-DSA-87", elliptic.P521()},
+
+	ML_DSA_65_ED25519: {"ML-DSA-65", ed25519.PrivateKey{}},
 }
 
 type PublicKey struct {
@@ -82,13 +94,13 @@ type PrivateKey struct {
 }
 
 // GetPublicKeys returns the classic and post-quantum private keys from a sig receiver.
-func (pub *PublicKey) GetPublicKeys() (classic *ecdsa.PublicKey, pqc []byte) {
-	return (*pub.classic).(*ecdsa.PublicKey), pub.pqc
+func (pub *PublicKey) GetPublicKeys() (classic *interface{}, pqc []byte) {
+	return pub.classic, pub.pqc
 }
 
 // GetPrivateKeys returns the classic and post-quantum private keys from a sig receiver.
-func (priv *PrivateKey) GetPrivateKeys() (classic *ecdsa.PrivateKey, pqc []byte) {
-	return (*priv.classic).(*ecdsa.PrivateKey), priv.pqc
+func (priv *PrivateKey) GetPrivateKeys() (classic *interface{}, pqc []byte) {
+	return priv.classic, priv.pqc
 }
 
 // ExportPublicKey exports the corresponding public hybrid key from the sig receiver.
