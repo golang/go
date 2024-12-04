@@ -695,22 +695,24 @@ func (md *moduledata) funcName(nameOff int32) string {
 	return gostringnocopy(&md.funcnametab[nameOff])
 }
 
-// FuncForPC returns a *[Func] describing the function that contains the
-// given program counter address, or else nil.
-//
-// If pc represents multiple functions because of inlining, it returns
-// the *Func describing the innermost function, but with an entry of
-// the outermost function.
-//
-// For completely unclear reasons, even though they can import runtime,
-// some widely used packages access this using linkname.
+// Despite being an exported symbol,
+// FuncForPC is linknamed by widely used packages.
 // Notable members of the hall of shame include:
 //   - gitee.com/quant1x/gox
 //
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 //
+// Note that this comment is not part of the doc comment.
+//
 //go:linkname FuncForPC
+
+// FuncForPC returns a *[Func] describing the function that contains the
+// given program counter address, or else nil.
+//
+// If pc represents multiple functions because of inlining, it returns
+// the *Func describing the innermost function, but with an entry of
+// the outermost function.
 func FuncForPC(pc uintptr) *Func {
 	f := findfunc(pc)
 	if !f.valid() {
