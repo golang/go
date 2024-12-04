@@ -17,6 +17,13 @@ func AddUint64(x *uint64) { // ERROR "x does not escape$"
 	atomic.AddUint64(x, 42)
 }
 
+func AndInt64(x *int64) { // ERROR "x does not escape$"
+	atomic.AndInt64(x, 42)
+}
+func AndUint64(x *uint64) { // ERROR "x does not escape$"
+	atomic.AndUint64(x, 42)
+}
+
 func CompareAndSwapInt64(x *int64) { // ERROR "x does not escape$"
 	atomic.CompareAndSwapInt64(x, 42, 42)
 }
@@ -29,6 +36,13 @@ func LoadInt64(x *int64) { // ERROR "x does not escape$"
 }
 func LoadUint64(x *uint64) { // ERROR "x does not escape$"
 	atomic.LoadUint64(x)
+}
+
+func OrInt64(x *int64) { // ERROR "x does not escape$"
+	atomic.OrInt64(x, 42)
+}
+func OrUint64(x *uint64) { // ERROR "x does not escape$"
+	atomic.OrUint64(x, 42)
 }
 
 func StoreInt64(x *int64) { // ERROR "x does not escape$"

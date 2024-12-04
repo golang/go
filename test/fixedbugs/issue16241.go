@@ -18,6 +18,16 @@ func AddUintptr(x *uintptr) { // ERROR "x does not escape$"
 	atomic.AddUintptr(x, 42)
 }
 
+func AndInt32(x *int32) { // ERROR "x does not escape$"
+	atomic.AndInt32(x, 42)
+}
+func AndUint32(x *uint32) { // ERROR "x does not escape$"
+	atomic.AndUint32(x, 42)
+}
+func AndUintptr(x *uintptr) { // ERROR "x does not escape$"
+	atomic.AndUintptr(x, 42)
+}
+
 func CompareAndSwapInt32(x *int32) { // ERROR "x does not escape$"
 	atomic.CompareAndSwapInt32(x, 42, 42)
 }
@@ -36,6 +46,16 @@ func LoadUint32(x *uint32) { // ERROR "x does not escape$"
 }
 func LoadUintptr(x *uintptr) { // ERROR "x does not escape$"
 	atomic.LoadUintptr(x)
+}
+
+func OrInt32(x *int32) { // ERROR "x does not escape$"
+	atomic.OrInt32(x, 42)
+}
+func OrUint32(x *uint32) { // ERROR "x does not escape$"
+	atomic.OrUint32(x, 42)
+}
+func OrUintptr(x *uintptr) { // ERROR "x does not escape$"
+	atomic.OrUintptr(x, 42)
 }
 
 func StoreInt32(x *int32) { // ERROR "x does not escape$"
