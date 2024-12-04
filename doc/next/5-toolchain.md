@@ -10,6 +10,13 @@ whether directly or indirectly (through an alias type).
 
 ## Linker {#linker}
 
+<!-- go.dev/issue/68678, go.dev/issue/68652, CL 618598, CL 618601 -->
+The linker now generates a GNU build ID (the ELF `NT_GNU_BUILD_ID` note) on ELF platforms
+and a UUID (the Mach-O `LC_UUID` load command) on macOS by default.
+The build ID or UUID is derived from the Go build ID.
+It can be disabled by the `-B none` linker flag, or overridden by the `-B 0xNNNN` linker
+flag with a user-specified hexadecimal value.
+
 ## Bootstrap {#bootstrap}
 
 <!-- go.dev/issue/64751 -->
