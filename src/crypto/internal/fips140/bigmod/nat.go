@@ -18,6 +18,15 @@ const (
 	_S = _W / 8
 )
 
+// Note: These functions make many loops over all the words in a Nat.
+// These loops used to be in assembly, invisible to -race, -asan, and -msan,
+// but now they are in Go and incur significant overhead in those modes.
+// To bring the old performance back, we mark all functions that loop
+// over Nat words with //go:norace. Because //go:norace does not
+// propagate across inlining, we must also mark functions that inline
+// //go:norace functions - specifically, those that inline add, addMulVVW,
+// assign, cmpGeq, rshift1, and sub.
+
 // choice represents a constant-time boolean. The value of choice is always
 // either 1 or 0. We use an int instead of bool in order to make decisions in
 // constant time by turning it into a mask.
@@ -152,6 +161,8 @@ func (x *Nat) Bytes(m *Modulus) []byte {
 // SetBytes returns an error if b >= m.
 //
 // The output will be resized to the size of m and overwritten.
+//
+//go:norace
 func (x *Nat) SetBytes(b []byte, m *Modulus) (*Nat, error) {
 	x.resetFor(m)
 	if err := x.setBytes(b); err != nil {
@@ -283,8 +294,6 @@ func (x *Nat) IsMinusOne(m *Modulus) choice {
 }
 
 // IsOdd returns 1 if x is odd, and 0 otherwise.
-//
-//go:norace
 func (x *Nat) IsOdd() choice {
 	if len(x.limbs) == 0 {
 		return no
@@ -538,6 +547,8 @@ func NewModulus(b []byte) (*Modulus, error) {
 
 // NewModulusProduct creates a new Modulus from the product of two numbers
 // represented as big-endian byte slices. The result must be greater than one.
+//
+//go:norace
 func NewModulusProduct(a, b []byte) (*Modulus, error) {
 	x := NewNat().resetToBytes(a)
 	y := NewNat().resetToBytes(b)
@@ -624,6 +635,8 @@ func (x *Nat) shiftIn(y uint, m *Modulus) *Nat {
 // This works regardless how large the value of x is.
 //
 // The output will be resized to the size of m and overwritten.
+//
+//go:norace
 func (out *Nat) Mod(x *Nat, m *Modulus) *Nat {
 	out.resetFor(m)
 	// Working our way from the most significant to the least significant limb,
@@ -673,6 +686,8 @@ func (out *Nat) resetFor(m *Modulus) *Nat {
 // overflowed its size, meaning abstractly x > 2^_W*n > m even if x < m.
 //
 // x and m operands must have the same announced length.
+//
+//go:norace
 func (x *Nat) maybeSubtractModulus(always choice, m *Modulus) {
 	t := NewNat().set(x)
 	underflow := t.sub(m.nat)
@@ -686,6 +701,8 @@ func (x *Nat) maybeSubtractModulus(always choice, m *Modulus) {
 //
 // The length of both operands must be the same as the modulus. Both operands
 // must already be reduced modulo m.
+//
+//go:norace
 func (x *Nat) Sub(y *Nat, m *Modulus) *Nat {
 	underflow := x.sub(y)
 	// If the subtraction underflowed, add m.
@@ -710,6 +727,8 @@ func (x *Nat) SubOne(m *Modulus) *Nat {
 //
 // The length of both operands must be the same as the modulus. Both operands
 // must already be reduced modulo m.
+//
+//go:norace
 func (x *Nat) Add(y *Nat, m *Modulus) *Nat {
 	overflow := x.add(y)
 	x.maybeSubtractModulus(choice(overflow), m)
@@ -747,6 +766,8 @@ func (x *Nat) montgomeryReduction(m *Modulus) *Nat {
 //
 // All inputs should be the same length and already reduced modulo m.
 // x will be resized to the size of m and overwritten.
+//
+//go:norace
 func (x *Nat) montgomeryMul(a *Nat, b *Nat, m *Modulus) *Nat {
 	n := len(m.nat.limbs)
 	mLimbs := m.nat.limbs[:n]
@@ -890,6 +911,8 @@ func addMulVVW(z, x []uint, y uint) (carry uint) {
 //
 // The length of both operands must be the same as the modulus. Both operands
 // must already be reduced modulo m.
+//
+//go:norace
 func (x *Nat) Mul(y *Nat, m *Modulus) *Nat {
 	if m.odd {
 		// A Montgomery multiplication by a value out of the Montgomery domain
@@ -951,6 +974,8 @@ func (x *Nat) Mul(y *Nat, m *Modulus) *Nat {
 // to the size of m and overwritten. x must already be reduced modulo m.
 //
 // m must be odd, or Exp will panic.
+//
+//go:norace
 func (out *Nat) Exp(x *Nat, e []byte, m *Modulus) *Nat {
 	if !m.odd {
 		panic("bigmod: modulus for Exp must be odd")
@@ -1030,6 +1055,8 @@ func (out *Nat) ExpShortVarTime(x *Nat, e uint, m *Modulus) *Nat {
 //
 // a must be reduced modulo m, but doesn't need to have the same size. The
 // output will be resized to the size of m and overwritten.
+//
+//go:norace
 func (x *Nat) InverseVarTime(a *Nat, m *Modulus) (*Nat, bool) {
 	// This is the extended binary GCD algorithm described in the Handbook of
 	// Applied Cryptography, Algorithm 14.61, adapted by BoringSSL to bound
