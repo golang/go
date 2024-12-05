@@ -1,1 +1,0 @@
-pkg crypto/pbkdf2, func Key[$0 hash.Hash](func() $0, string, []uint8, int, int) ([]uint8, error) #69488

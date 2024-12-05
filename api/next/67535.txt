@@ -1,3 +1,0 @@
-pkg runtime, func AddCleanup[$0 interface{}, $1 interface{}](*$0, func($1), $1) Cleanup #67535
-pkg runtime, method (Cleanup) Stop() #67535
-pkg runtime, type Cleanup struct #67535

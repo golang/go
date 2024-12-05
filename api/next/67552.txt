@@ -1,3 +1,0 @@
-pkg weak, func Make[$0 interface{}](*$0) Pointer[$0] #67552
-pkg weak, method (Pointer[$0]) Value() *$0 #67552
-pkg weak, type Pointer[$0 interface{}] struct #67552

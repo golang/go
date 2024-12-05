@@ -1,4 +1,0 @@
-pkg testing, method (*B) Context() context.Context #36532
-pkg testing, method (*F) Context() context.Context #36532
-pkg testing, method (*T) Context() context.Context #36532
-pkg testing, type TB interface, Context() context.Context #36532

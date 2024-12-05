@@ -1,1 +1,0 @@
-pkg crypto/cipher, func NewGCMWithRandomNonce(Block) (AEAD, error) #69981

@@ -1,4 +1,0 @@
-pkg testing, method (*B) Chdir(string) #62516
-pkg testing, method (*F) Chdir(string) #62516
-pkg testing, method (*T) Chdir(string) #62516
-pkg testing, type TB interface, Chdir(string) #62516

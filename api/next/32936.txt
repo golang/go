@@ -1,1 +1,0 @@
-pkg crypto/tls, type ClientHelloInfo struct, Extensions []uint16 #32936
