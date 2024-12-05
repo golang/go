@@ -18,7 +18,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -250,13 +249,19 @@ func impersonateDistList(args []string) (handled bool) {
 	return true
 }
 
+func defaultExecName(importPath string) string {
+	var p load.Package
+	p.ImportPath = importPath
+	return p.DefaultExecName()
+}
+
 func loadModTool(ctx context.Context, name string) string {
 	modload.InitWorkfile()
 	modload.LoadModFile(ctx)
 
 	matches := []string{}
 	for tool := range modload.MainModules.Tools() {
-		if tool == name || path.Base(tool) == name {
+		if tool == name || defaultExecName(tool) == name {
 			matches = append(matches, tool)
 		}
 	}
@@ -288,7 +293,7 @@ func buildAndRunModtool(ctx context.Context, tool string, args []string) {
 	pkgOpts := load.PackageOpts{MainOnly: true}
 	p := load.PackagesAndErrors(ctx, pkgOpts, []string{tool})[0]
 	p.Internal.OmitDebug = true
-	p.Internal.ExeName = path.Base(p.ImportPath)
+	p.Internal.ExeName = p.DefaultExecName()
 
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
 	a1.CacheExecutable = true

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 	"sync"
 
@@ -768,7 +767,7 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 			}
 			name := a.Package.Internal.ExeName
 			if name == "" {
-				name = path.Base(a.Package.ImportPath)
+				name = a.Package.DefaultExecName()
 			}
 			outputID, _, err := c.PutExecutable(a.actionID, name+cfg.ExeSuffix, r)
 			r.Close()

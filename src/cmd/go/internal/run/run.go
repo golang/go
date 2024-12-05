@@ -8,7 +8,6 @@ package run
 import (
 	"context"
 	"go/build"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -166,7 +165,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		p.Internal.ExeName = src[:len(src)-len(".go")]
 	} else {
-		p.Internal.ExeName = path.Base(p.ImportPath)
+		p.Internal.ExeName = p.DefaultExecName()
 	}
 
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
