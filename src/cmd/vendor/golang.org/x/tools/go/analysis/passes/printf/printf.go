@@ -433,6 +433,9 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 		return nil, 0
 	}
 
+	// Facts are associated with generic declarations, not instantiations.
+	fn = fn.Origin()
+
 	_, ok := isPrint[fn.FullName()]
 	if !ok {
 		// Next look up just "printf", for use with -printf.funcs.

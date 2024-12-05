@@ -7813,6 +7813,16 @@ type http2ClientConn struct {
 	pingTimeout                 time.Duration
 	extendedConnectAllowed      bool
 
+	// rstStreamPingsBlocked works around an unfortunate gRPC behavior.
+	// gRPC strictly limits the number of PING frames that it will receive.
+	// The default is two pings per two hours, but the limit resets every time
+	// the gRPC endpoint sends a HEADERS or DATA frame. See golang/go#70575.
+	//
+	// rstStreamPingsBlocked is set after receiving a response to a PING frame
+	// bundled with an RST_STREAM (see pendingResets below), and cleared after
+	// receiving a HEADERS or DATA frame.
+	rstStreamPingsBlocked bool
+
 	// pendingResets is the number of RST_STREAM frames we have sent to the peer,
 	// without confirming that the peer has received them. When we send a RST_STREAM,
 	// we bundle it with a PING frame, unless a PING is already in flight. We count
@@ -9153,10 +9163,14 @@ func (cs *http2clientStream) cleanupWriteRequest(err error) {
 				ping := false
 				if !closeOnIdle {
 					cc.mu.Lock()
-					if cc.pendingResets == 0 {
-						ping = true
+					// rstStreamPingsBlocked works around a gRPC behavior:
+					// see comment on the field for details.
+					if !cc.rstStreamPingsBlocked {
+						if cc.pendingResets == 0 {
+							ping = true
+						}
+						cc.pendingResets++
 					}
-					cc.pendingResets++
 					cc.mu.Unlock()
 				}
 				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, ping, err)
@@ -9905,7 +9919,7 @@ func (rl *http2clientConnReadLoop) run() error {
 			cc.vlogf("http2: Transport readFrame error on conn %p: (%T) %v", cc, err, err)
 		}
 		if se, ok := err.(http2StreamError); ok {
-			if cs := rl.streamByID(se.StreamID); cs != nil {
+			if cs := rl.streamByID(se.StreamID, http2notHeaderOrDataFrame); cs != nil {
 				if se.Cause == nil {
 					se.Cause = cc.fr.errDetail
 				}
@@ -9960,7 +9974,7 @@ func (rl *http2clientConnReadLoop) run() error {
 }
 
 func (rl *http2clientConnReadLoop) processHeaders(f *http2MetaHeadersFrame) error {
-	cs := rl.streamByID(f.StreamID)
+	cs := rl.streamByID(f.StreamID, http2headerOrDataFrame)
 	if cs == nil {
 		// We'd get here if we canceled a request while the
 		// server had its response still in flight. So if this
@@ -10289,7 +10303,7 @@ func (b http2transportResponseBody) Close() error {
 
 func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 	cc := rl.cc
-	cs := rl.streamByID(f.StreamID)
+	cs := rl.streamByID(f.StreamID, http2headerOrDataFrame)
 	data := f.Data()
 	if cs == nil {
 		cc.mu.Lock()
@@ -10424,9 +10438,22 @@ func (rl *http2clientConnReadLoop) endStreamError(cs *http2clientStream, err err
 	cs.abortStream(err)
 }
 
-func (rl *http2clientConnReadLoop) streamByID(id uint32) *http2clientStream {
+// Constants passed to streamByID for documentation purposes.
+const (
+	http2headerOrDataFrame    = true
+	http2notHeaderOrDataFrame = false
+)
+
+// streamByID returns the stream with the given id, or nil if no stream has that id.
+// If headerOrData is true, it clears rst.StreamPingsBlocked.
+func (rl *http2clientConnReadLoop) streamByID(id uint32, headerOrData bool) *http2clientStream {
 	rl.cc.mu.Lock()
 	defer rl.cc.mu.Unlock()
+	if headerOrData {
+		// Work around an unfortunate gRPC behavior.
+		// See comment on ClientConn.rstStreamPingsBlocked for details.
+		rl.cc.rstStreamPingsBlocked = false
+	}
 	cs := rl.cc.streams[id]
 	if cs != nil && !cs.readAborted {
 		return cs
@@ -10561,7 +10588,7 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
 
 func (rl *http2clientConnReadLoop) processWindowUpdate(f *http2WindowUpdateFrame) error {
 	cc := rl.cc
-	cs := rl.streamByID(f.StreamID)
+	cs := rl.streamByID(f.StreamID, http2notHeaderOrDataFrame)
 	if f.StreamID != 0 && cs == nil {
 		return nil
 	}
@@ -10590,7 +10617,7 @@ func (rl *http2clientConnReadLoop) processWindowUpdate(f *http2WindowUpdateFrame
 }
 
 func (rl *http2clientConnReadLoop) processResetStream(f *http2RSTStreamFrame) error {
-	cs := rl.streamByID(f.StreamID)
+	cs := rl.streamByID(f.StreamID, http2notHeaderOrDataFrame)
 	if cs == nil {
 		// TODO: return error if server tries to RST_STREAM an idle stream
 		return nil
@@ -10668,6 +10695,7 @@ func (rl *http2clientConnReadLoop) processPing(f *http2PingFrame) error {
 		if cc.pendingResets > 0 {
 			// See clientStream.cleanupWriteRequest.
 			cc.pendingResets = 0
+			cc.rstStreamPingsBlocked = true
 			cc.cond.Broadcast()
 		}
 		return nil

@@ -176,7 +176,7 @@ func parseInetAddr(af int, b []byte) (Addr, error) {
 	)
 	switch af {
 	case syscall.AF_INET:
-		if len(b) < (off4+1) || len(b) < int(b[0]) {
+		if len(b) < (off4+1) || len(b) < int(b[0]) || b[0] == 0 {
 			return nil, errInvalidAddr
 		}
 		sockAddrLen := int(b[0])
@@ -188,7 +188,7 @@ func parseInetAddr(af int, b []byte) (Addr, error) {
 		copy(a.IP[:], b[off4:n])
 		return a, nil
 	case syscall.AF_INET6:
-		if len(b) < (off6+1) || len(b) < int(b[0]) {
+		if len(b) < (off6+1) || len(b) < int(b[0]) || b[0] == 0 {
 			return nil, errInvalidAddr
 		}
 		sockAddrLen := int(b[0])
@@ -404,12 +404,16 @@ func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) (
 				}
 				b = b[l:]
 			case syscall.AF_INET, syscall.AF_INET6:
-				af = int(b[1])
-				a, err := parseInetAddr(af, b)
-				if err != nil {
-					return nil, err
+				// #70528: if the sockaddrlen is 0, no address to parse inside,
+				// skip over the record.
+				if b[0] > 0 {
+					af = int(b[1])
+					a, err := parseInetAddr(af, b)
+					if err != nil {
+						return nil, err
+					}
+					as[i] = a
 				}
-				as[i] = a
 				l := roundup(int(b[0]))
 				if len(b) < l {
 					return nil, errMessageTooShort

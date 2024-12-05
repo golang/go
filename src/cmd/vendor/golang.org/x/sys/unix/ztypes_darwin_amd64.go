@@ -462,11 +462,14 @@ type FdSet struct {
 
 const (
 	SizeofIfMsghdr    = 0x70
+	SizeofIfMsghdr2   = 0xa0
 	SizeofIfData      = 0x60
+	SizeofIfData64    = 0x80
 	SizeofIfaMsghdr   = 0x14
 	SizeofIfmaMsghdr  = 0x10
 	SizeofIfmaMsghdr2 = 0x14
 	SizeofRtMsghdr    = 0x5c
+	SizeofRtMsghdr2   = 0x5c
 	SizeofRtMetrics   = 0x38
 )
 
@@ -478,6 +481,20 @@ type IfMsghdr struct {
 	Flags   int32
 	Index   uint16
 	Data    IfData
+}
+
+type IfMsghdr2 struct {
+	Msglen     uint16
+	Version    uint8
+	Type       uint8
+	Addrs      int32
+	Flags      int32
+	Index      uint16
+	Snd_len    int32
+	Snd_maxlen int32
+	Snd_drops  int32
+	Timer      int32
+	Data       IfData64
 }
 
 type IfData struct {
@@ -510,6 +527,34 @@ type IfData struct {
 	Hwassist   uint32
 	Reserved1  uint32
 	Reserved2  uint32
+}
+
+type IfData64 struct {
+	Type       uint8
+	Typelen    uint8
+	Physical   uint8
+	Addrlen    uint8
+	Hdrlen     uint8
+	Recvquota  uint8
+	Xmitquota  uint8
+	Unused1    uint8
+	Mtu        uint32
+	Metric     uint32
+	Baudrate   uint64
+	Ipackets   uint64
+	Ierrors    uint64
+	Opackets   uint64
+	Oerrors    uint64
+	Collisions uint64
+	Ibytes     uint64
+	Obytes     uint64
+	Imcasts    uint64
+	Omcasts    uint64
+	Iqdrops    uint64
+	Noproto    uint64
+	Recvtiming uint32
+	Xmittiming uint32
+	Lastchange Timeval32
 }
 
 type IfaMsghdr struct {
@@ -555,6 +600,21 @@ type RtMsghdr struct {
 	Use     int32
 	Inits   uint32
 	Rmx     RtMetrics
+}
+
+type RtMsghdr2 struct {
+	Msglen      uint16
+	Version     uint8
+	Type        uint8
+	Index       uint16
+	Flags       int32
+	Addrs       int32
+	Refcnt      int32
+	Parentflags int32
+	Reserved    int32
+	Use         int32
+	Inits       uint32
+	Rmx         RtMetrics
 }
 
 type RtMetrics struct {
