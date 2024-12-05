@@ -9,7 +9,7 @@ canonicalization maps (like the unique package), and for tying together
 the lifetimes of separate values (for example, through a map with weak
 keys).
 
-## Advice
+# Advice
 
 This package is intended to target niche use-cases like the unique
 package, and the structures inside are not intended to be general
