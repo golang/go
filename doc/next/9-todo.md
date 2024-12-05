@@ -4,7 +4,6 @@ accepted proposal https://go.dev/issue/26232 (from https://go.dev/cl/605256, htt
 accepted proposal https://go.dev/issue/48429 (from https://go.dev/cl/521958, https://go.dev/cl/521959, https://go.dev/cl/534817, https://go.dev/cl/563175, https://go.dev/cl/613095, https://go.dev/cl/614555, https://go.dev/cl/630695) - cmd/go support for tracking tool dependencies in go.mod is tracked in proposal 48429 itself as a release blocker
 accepted proposal https://go.dev/issue/50603 (from https://go.dev/cl/595376, https://go.dev/cl/596035, https://go.dev/cl/609155, https://go.dev/cl/611916, https://go.dev/cl/627295) - cmd/go support for stamping pseudo-version in go build is tracked in proposal 50603 itself as a release blocker
 accepted proposal https://go.dev/issue/64127 (from https://go.dev/cl/597576) - mentioning the new vet check to report invalid Go versions in build tags is tracked in proposal 64127 itself as a release blocker
-accepted proposal https://go.dev/issue/65199 (from CL 603055, https://go.dev/cl/603836, https://go.dev/cl/604316, https://go.dev/cl/604975, https://go.dev/cl/606855, https://go.dev/cl/611315) - the new go:wasmexport directive is now tracked in proposal 65199 itself as a release blocker
 accepted proposal https://go.dev/issue/66387 (from https://go.dev/cl/569955) - extending the copylock analyzer in cmd/vet is now tracked in proposal 66387 itself as a release blocker
 accepted proposal https://go.dev/issue/69290 (from https://go.dev/cl/613095) - cmd/go caching link output binaries is now tracked in proposal 69290 itself as a release blocker
 accepted proposal https://go.dev/issue/69393 (from https://go.dev/cl/630775) - automatic crypto/tls.CurvePreferences ordering is now tracked in proposal 69393 itself as a release blocker
@@ -13,7 +12,6 @@ accepted proposal https://go.dev/issue/69393 (from https://go.dev/cl/630775) - a
 <!-- Needs to be documented, but not currently tracked via a release-blocking issue.
 
 accepted proposal https://go.dev/issue/66821 (from https://go.dev/cl/602495, https://go.dev/cl/602497, https://go.dev/cl/608175, https://go.dev/cl/608435, https://go.dev/cl/621979, https://go.dev/cl/622115) - crashing the process on error reading randomness (which should not have a path to happen) might need to be mentioned; commented at https://go.dev/issues/66821#issuecomment-2502069725 for next steps; Ian sent out CL 632036
-accepted proposal https://go.dev/issue/66984 (from CL 626615, https://go.dev/cl/627059) - relaxation of wasm function import signature type constraints might be something to mention in Go 1.24 release notes; commented at https://go.dev/issue/66984#issuecomment-2502079735 for next steps; Cherry plans to document this along with other Wasm changes
 -->
 
 <!-- Maybe worth including or maybe fine not to include in Go 1.24 release notes. Someone more familiar with the change makes the call.
