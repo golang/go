@@ -1493,6 +1493,44 @@ func TestBadFuncNames(t *testing.T) {
 	}
 }
 
+func TestIsTrue(t *testing.T) {
+	var nil_ptr *int
+	var nil_chan chan int
+	tests := []struct{
+		v any
+		want bool
+	}{
+		{1, true},
+		{0, false},
+		{uint8(1), true},
+		{uint8(0), false},
+		{float64(1.0), true},
+		{float64(0.0), false},
+		{complex64(1.0), true},
+		{complex64(0.0), false},
+		{true, true},
+		{false, false},
+		{[2]int{1,2}, true},
+		{[0]int{}, false},
+		{[]byte("abc"), true},
+		{[]byte(""), false},
+		{map[string] int {"a": 1, "b": 2}, true},
+		{map[string] int {}, false},
+		{make(chan int), true},
+		{nil_chan, false},
+		{new(int), true},
+		{nil_ptr, false},
+		{unsafe.Pointer(new(int)), true},
+		{unsafe.Pointer(nil_ptr), false},
+	}
+	for _, test_case := range tests {
+		got, _ := IsTrue(test_case.v)
+		if got != test_case.want {
+			t.Fatalf("expect result %v for %v, got %v", test_case.want, test_case.v, got)
+		}
+	}
+}
+
 func testBadFuncName(name string, t *testing.T) {
 	t.Helper()
 	defer func() {
