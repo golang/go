@@ -769,7 +769,10 @@ are:
 		Build the listed main package, plus all packages it imports,
 		into a C shared library. The only callable symbols will
 		be those functions exported using a cgo //export comment.
-		Requires exactly one main package to be listed.
+		On wasip1, this mode builds it to a WASI reactor/library,
+		of which the callable symbols are those functions exported
+		using a //go:wasmexport directive. Requires exactly one
+		main package to be listed.
 
 	-buildmode=default
 		Listed main packages are built into executables and listed
