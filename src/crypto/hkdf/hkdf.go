@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package hkdf implements the HMAC-based Extract-and-Expand Key Derivation
+// Function (HKDF) as defined in RFC 5869.
+//
+// HKDF is a cryptographic key derivation function (KDF) with the goal of
+// expanding limited input keying material into one or more cryptographically
+// strong secret keys.
 package hkdf
 
 import (
