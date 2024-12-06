@@ -1852,6 +1852,12 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 
 	var modroot string
 	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg, ld.skipImportModFiles)
+	if MainModules.Tools()[pkg.path] {
+		// Tools declared by main modules are always in "all".
+		// We apply the package flags before returning so that missing
+		// tool dependencies report an error https://go.dev/issue/70582
+		ld.applyPkgFlags(ctx, pkg, pkgInAll)
+	}
 	if pkg.dir == "" {
 		return
 	}
@@ -1865,9 +1871,6 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 		// about (by reducing churn on the flag bits of dependencies), and costs
 		// essentially nothing (these atomic flag ops are essentially free compared
 		// to scanning source code for imports).
-		ld.applyPkgFlags(ctx, pkg, pkgInAll)
-	} else if MainModules.Tools()[pkg.path] {
-		// Tools declared by main modules are always in "all".
 		ld.applyPkgFlags(ctx, pkg, pkgInAll)
 	}
 	if ld.AllowPackage != nil {
