@@ -141,6 +141,7 @@ const (
 	SDWARFRANGE
 	SDWARFLOC
 	SDWARFLINES
+	SDWARFADDR
 
 	// SEH symbol types
 	SSEHUNWINDINFO
@@ -171,6 +172,7 @@ var AbiSymKindToSymKind = [...]SymKind{
 	objabi.SDWARFRANGE:             SDWARFRANGE,
 	objabi.SDWARFLOC:               SDWARFLOC,
 	objabi.SDWARFLINES:             SDWARFLINES,
+	objabi.SDWARFADDR:              SDWARFADDR,
 	objabi.SLIBFUZZER_8BIT_COUNTER: SLIBFUZZER_8BIT_COUNTER,
 	objabi.SCOVERAGE_COUNTER:       SCOVERAGE_COUNTER,
 	objabi.SCOVERAGE_AUXVAR:        SCOVERAGE_AUXVAR,
@@ -232,5 +234,5 @@ func (t SymKind) IsNOPTRDATA() bool {
 }
 
 func (t SymKind) IsDWARF() bool {
-	return SDWARFSECT <= t && t <= SDWARFLINES
+	return SDWARFSECT <= t && t <= SDWARFADDR
 }
