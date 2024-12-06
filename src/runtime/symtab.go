@@ -118,11 +118,16 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		}
 		f := funcInfo._Func()
 		entry := f.Entry()
+		// We store the pc of the start of the instruction following
+		// the instruction in question (the call or the inline mark).
+		// This is done for historical reasons, and to make FuncForPC
+		// work correctly for entries in the result of runtime.Callers.
+		// Decrement to get back to the instruction we care about.
+		//
+		// It is not possible to get pc == entry from runtime.Callers,
+		// but if the caller does provide one, provide best-effort
+		// results by avoiding backing out of the function entirely.
 		if pc > entry {
-			// We store the pc of the start of the instruction following
-			// the instruction in question (the call or the inline mark).
-			// This is done for historical reasons, and to make FuncForPC
-			// work correctly for entries in the result of runtime.Callers.
 			pc--
 		}
 		// It's important that interpret pc non-strictly as cgoTraceback may
