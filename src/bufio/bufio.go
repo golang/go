@@ -132,10 +132,11 @@ func (b *Reader) readErr() error {
 	return err
 }
 
-// Peek returns the next n bytes without advancing the reader. The bytes stop
-// being valid at the next read call. If Peek returns fewer than n bytes, it
-// also returns an error explaining why the read is short. The error is
-// [ErrBufferFull] if n is larger than b's buffer size.
+// Peek returns the next n bytes without advancing the reader. If b.Buffered() < n,
+// tries to read a new chunk into b's buffer. The bytes stop being valid at the
+// next read call. If Peek returns fewer than n bytes, it also returns an error
+// explaining why the read is short. The error is [ErrBufferFull] if n is larger
+// than b's buffer size.
 //
 // Calling Peek prevents a [Reader.UnreadByte] or [Reader.UnreadRune] call from succeeding
 // until the next read operation.
