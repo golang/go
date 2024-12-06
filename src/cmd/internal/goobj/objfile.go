@@ -55,6 +55,7 @@ import (
 //       Flag  uint8
 //       Flag2 uint8
 //       Size  uint32
+//       Align uint32
 //    }
 //    Hashed64Defs [...]struct { // short hashed (content-addressable) symbol definitions
 //       ... // same as SymbolDefs
