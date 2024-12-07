@@ -1182,9 +1182,12 @@ func BenchmarkMapSmallAccessHit(b *testing.B) {
 	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessHit[int32, int32]))
 	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessHit[int64, int64]))
 	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessHit[string, string]))
+	b.Run("Key=smallType/Elem=int32", smallBenchSizes(benchmarkMapAccessHit[smallType, int32]))
 }
+
 func BenchmarkMapSmallAccessMiss(b *testing.B) {
 	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[int32, int32]))
 	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessMiss[int64, int64]))
 	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessMiss[string, string]))
+	b.Run("Key=smallType/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[smallType, int32]))
 }

@@ -439,15 +439,10 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
 		data: m.dirPtr,
 	}
 
-	h2 := uint8(h2(hash))
-	ctrls := *g.ctrls()
+	match := g.ctrls().matchH2(h2(hash))
 
-	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
-		c := uint8(ctrls)
-		ctrls >>= 8
-		if c != h2 {
-			continue
-		}
+	for match != 0 {
+		i := match.first()
 
 		slotKey := g.key(typ, i)
 		if typ.IndirectKey() {
@@ -461,8 +456,12 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
 			}
 			return slotKey, slotElem, true
 		}
+
+		match = match.removeFirst()
 	}
 
+	// No match here means key is not in the map.
+	// (A single group means no need to probe or check for empty).
 	return nil, nil, false
 }
 
