@@ -222,6 +222,9 @@ func convertAssign(dest, src any) error {
 	return convertAssignRows(dest, src, nil)
 }
 
+// ignoreNullValues determines whether to ignore null values in SQL
+var ignoreNullValues = false
+
 // convertAssignRows copies to dest the value in src, converting it if possible.
 // An error is returned if the copy would result in loss of information.
 // dest should be a pointer type. If rows is passed in, the rows will
@@ -324,6 +327,10 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			}
 			*d = nil
 			return nil
+		default:
+			if ignoreNullValues {
+				return nil
+			}
 		}
 	// The driver is returning a cursor the client may iterate over.
 	case driver.Rows:
