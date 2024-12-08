@@ -393,3 +393,12 @@ func BenchmarkPoolExpensiveNew(b *testing.B) {
 	b.ReportMetric(float64(mstats2.NumGC-mstats1.NumGC)/float64(b.N), "GCs/op")
 	b.ReportMetric(float64(nNew)/float64(b.N), "New/op")
 }
+
+func BenchmarkPoolpinSlow(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var p Pool
+			p.Get()
+		}
+	})
+}
