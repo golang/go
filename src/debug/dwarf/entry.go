@@ -541,6 +541,8 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			} else if a.tag == TagCompileUnit {
 				delay = append(delay, delayed{i, off, formAddrx})
 				break
+			} else {
+				b.error("Can't adjust offset: compilation unit skipped")
 			}
 
 			var err error
@@ -692,6 +694,8 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			} else if a.tag == TagCompileUnit {
 				delay = append(delay, delayed{i, off, formStrx})
 				break
+			} else {
+				b.error("Can't adjust offset: compilation unit skipped")
 			}
 
 			val = resolveStrx(uint64(strBase), off)
@@ -752,6 +756,8 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			} else if a.tag == TagCompileUnit {
 				delay = append(delay, delayed{i, off, formRnglistx})
 				break
+			} else {
+				b.error("Can't adjust offset: compilation unit skipped")
 			}
 
 			val = resolveRnglistx(uint64(rnglistsBase), off)
@@ -854,6 +860,15 @@ func (r *Reader) Seek(off Offset) {
 	u := &d.unit[i]
 	r.unit = i
 	r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
+}
+
+// SeekAndSetCU positions the [Reader] at offset off in the encoded entry stream, and additionally sets the current
+// CU for the reader.
+func (r *Reader) SeekAndSetCU(off Offset) {
+	cuIdx := r.d.offsetToUnit(off)
+	r.Seek(r.d.unit[cuIdx].off)
+	r.Next()
+	r.Seek(off)
 }
 
 // maybeNextUnit advances to the next unit if this one is finished.
