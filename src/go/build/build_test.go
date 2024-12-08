@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -30,7 +32,7 @@ func TestMatch(t *testing.T) {
 		if !ctxt.matchAuto(tag, m) {
 			t.Errorf("%s context should match %s, does not", what, tag)
 		}
-		if !reflect.DeepEqual(m, want) {
+		if !maps.Equal(m, want) {
 			t.Errorf("%s tags = %v, want %v", tag, m, want)
 		}
 	}
@@ -40,7 +42,7 @@ func TestMatch(t *testing.T) {
 		if ctxt.matchAuto(tag, m) {
 			t.Errorf("%s context should NOT match %s, does", what, tag)
 		}
-		if !reflect.DeepEqual(m, want) {
+		if !maps.Equal(m, want) {
 			t.Errorf("%s tags = %v, want %v", tag, m, want)
 		}
 	}
@@ -121,11 +123,11 @@ func TestMultiplePackageImport(t *testing.T) {
 		t.Errorf("pkg.Name = %q; want %q", pkg.Name, wantName)
 	}
 
-	if wantGoFiles := []string{"file.go", "file_appengine.go"}; !reflect.DeepEqual(pkg.GoFiles, wantGoFiles) {
+	if wantGoFiles := []string{"file.go", "file_appengine.go"}; !slices.Equal(pkg.GoFiles, wantGoFiles) {
 		t.Errorf("pkg.GoFiles = %q; want %q", pkg.GoFiles, wantGoFiles)
 	}
 
-	if wantInvalidFiles := []string{"file_appengine.go"}; !reflect.DeepEqual(pkg.InvalidGoFiles, wantInvalidFiles) {
+	if wantInvalidFiles := []string{"file_appengine.go"}; !slices.Equal(pkg.InvalidGoFiles, wantInvalidFiles) {
 		t.Errorf("pkg.InvalidGoFiles = %q; want %q", pkg.InvalidGoFiles, wantInvalidFiles)
 	}
 }
@@ -345,7 +347,7 @@ func TestShouldBuild(t *testing.T) {
 			ctx := &Context{BuildTags: []string{"yes"}}
 			tags := map[string]bool{}
 			shouldBuild, binaryOnly, err := ctx.shouldBuild([]byte(tt.content), tags)
-			if shouldBuild != tt.shouldBuild || binaryOnly != tt.binaryOnly || !reflect.DeepEqual(tags, tt.tags) || err != tt.err {
+			if shouldBuild != tt.shouldBuild || binaryOnly != tt.binaryOnly || !maps.Equal(tags, tt.tags) || err != tt.err {
 				t.Errorf("mismatch:\n"+
 					"have shouldBuild=%v, binaryOnly=%v, tags=%v, err=%v\n"+
 					"want shouldBuild=%v, binaryOnly=%v, tags=%v, err=%v",
@@ -363,7 +365,7 @@ func TestGoodOSArchFile(t *testing.T) {
 	if !ctx.goodOSArchFile("hello_linux.go", m) {
 		t.Errorf("goodOSArchFile(hello_linux.go) = false, want true")
 	}
-	if !reflect.DeepEqual(m, want) {
+	if !maps.Equal(m, want) {
 		t.Errorf("goodOSArchFile(hello_linux.go) tags = %v, want %v", m, want)
 	}
 }
@@ -494,7 +496,7 @@ func TestShellSafety(t *testing.T) {
 // Want to get a "cannot find package" error when directory for package does not exist.
 // There should be valid partial information in the returned non-nil *Package.
 func TestImportDirNotExist(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // really must just have source
+	testenv.MustHaveGoBuild(t) // Need 'go list' internally.
 	ctxt := Default
 
 	emptyDir := t.TempDir()
@@ -548,7 +550,7 @@ func TestImportDirNotExist(t *testing.T) {
 }
 
 func TestImportVendor(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // really must just have source
+	testenv.MustHaveSource(t)
 
 	t.Setenv("GO111MODULE", "off")
 
@@ -569,7 +571,7 @@ func TestImportVendor(t *testing.T) {
 }
 
 func BenchmarkImportVendor(b *testing.B) {
-	testenv.MustHaveGoBuild(b) // really must just have source
+	testenv.MustHaveSource(b)
 
 	b.Setenv("GO111MODULE", "off")
 
@@ -590,7 +592,7 @@ func BenchmarkImportVendor(b *testing.B) {
 }
 
 func TestImportVendorFailure(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // really must just have source
+	testenv.MustHaveSource(t)
 
 	t.Setenv("GO111MODULE", "off")
 
@@ -612,7 +614,7 @@ func TestImportVendorFailure(t *testing.T) {
 }
 
 func TestImportVendorParentFailure(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // really must just have source
+	testenv.MustHaveSource(t)
 
 	t.Setenv("GO111MODULE", "off")
 
@@ -770,11 +772,11 @@ func TestAllTags(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"arm", "netbsd"}
-	if !reflect.DeepEqual(p.AllTags, want) {
+	if !slices.Equal(p.AllTags, want) {
 		t.Errorf("AllTags = %v, want %v", p.AllTags, want)
 	}
 	wantFiles := []string{"alltags.go", "x_netbsd_arm.go"}
-	if !reflect.DeepEqual(p.GoFiles, wantFiles) {
+	if !slices.Equal(p.GoFiles, wantFiles) {
 		t.Errorf("GoFiles = %v, want %v", p.GoFiles, wantFiles)
 	}
 
@@ -784,11 +786,11 @@ func TestAllTags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(p.AllTags, want) {
+	if !slices.Equal(p.AllTags, want) {
 		t.Errorf("AllTags = %v, want %v", p.AllTags, want)
 	}
 	wantFiles = []string{"alltags.go"}
-	if !reflect.DeepEqual(p.GoFiles, wantFiles) {
+	if !slices.Equal(p.GoFiles, wantFiles) {
 		t.Errorf("GoFiles = %v, want %v", p.GoFiles, wantFiles)
 	}
 }

@@ -8,11 +8,11 @@ package mvs
 
 import (
 	"fmt"
-	"reflect"
+	"slices"
 	"sort"
 	"sync"
 
-	"cmd/go/internal/par"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 )
@@ -171,7 +171,7 @@ func buildList(targets []module.Version, reqs Reqs, upgrade func(module.Version)
 
 	// The final list is the minimum version of each module found in the graph.
 	list := g.BuildList()
-	if vs := list[:len(targets)]; !reflect.DeepEqual(vs, targets) {
+	if vs := list[:len(targets)]; !slices.Equal(vs, targets) {
 		// target.Version will be "" for modload, the main client of MVS.
 		// "" denotes the main module, which has no version. However, MVS treats
 		// version strings as opaque, so "" is not a special value here.
@@ -438,7 +438,7 @@ List:
 	// requirements of other modules.
 	//
 	// If one of those requirements pulls the version back up above the version
-	// identified by reqs.Previous, then the transitive dependencies of that that
+	// identified by reqs.Previous, then the transitive dependencies of that
 	// initially-downgraded version should no longer matter — in particular, we
 	// should not add new dependencies on module paths that nothing else in the
 	// updated module graph even requires.

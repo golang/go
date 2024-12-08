@@ -286,7 +286,7 @@ func (x *expandState) rewriteCallArgs(v *Value, firstArg int) {
 	if v.Op == OpTailLECall {
 		// For tail call, we unwind the frame before the call so we'll use the caller's
 		// SP.
-		sp = x.f.Entry.NewValue1(src.NoXPos, OpGetCallerSP, x.typs.Uintptr, mem)
+		sp = v.Block.NewValue1(src.NoXPos, OpGetCallerSP, x.typs.Uintptr, mem)
 	}
 
 	for i, a := range argsWithoutMem { // skip leading non-parameter SSA Args and trailing mem SSA Arg.
@@ -411,7 +411,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		return mem
 
 	case types.TSLICE:
-		mem = x.decomposeOne(pos, b, a, mem, x.typs.BytePtr, OpSlicePtr, &rc)
+		mem = x.decomposeOne(pos, b, a, mem, at.Elem().PtrTo(), OpSlicePtr, &rc)
 		pos = pos.WithNotStmt()
 		mem = x.decomposeOne(pos, b, a, mem, x.typs.Int, OpSliceLen, &rc)
 		return x.decomposeOne(pos, b, a, mem, x.typs.Int, OpSliceCap, &rc)
@@ -425,7 +425,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		// Immediate interfaces cause so many headaches.
 		if a.Op == OpIMake {
 			data := a.Args[1]
-			for data.Op == OpStructMake1 || data.Op == OpArrayMake1 {
+			for data.Op == OpStructMake || data.Op == OpArrayMake1 {
 				data = data.Args[0]
 			}
 			return x.decomposeAsNecessary(pos, b, data, mem, rc.next(data.Type))
@@ -505,7 +505,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 			return makeOf(a, OpArrayMake0, nil)
 		}
 		if at.IsStruct() {
-			return makeOf(a, OpStructMake0, nil)
+			return makeOf(a, OpStructMake, nil)
 		}
 		return a
 	}
@@ -559,12 +559,12 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		if at.NumFields() > 4 {
 			panic(fmt.Errorf("Too many fields (%d, %d bytes), container=%s", at.NumFields(), at.Size(), container.LongString()))
 		}
-		a = makeOf(a, StructMakeOp(at.NumFields()), args)
+		a = makeOf(a, OpStructMake, args)
 		x.commonSelectors[sk] = a
 		return a
 
 	case types.TSLICE:
-		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.BytePtr, rc.next(x.typs.BytePtr)))
+		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, at.Elem().PtrTo(), rc.next(x.typs.BytePtr)))
 		pos = pos.WithNotStmt()
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Int, rc.next(x.typs.Int)))
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Int, rc.next(x.typs.Int)))
@@ -721,7 +721,7 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 		return m0
 
 	case types.TSLICE:
-		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, x.typs.BytePtr, rc.next(x.typs.BytePtr))
+		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, at.Elem().PtrTo(), rc.next(x.typs.BytePtr))
 		pos = pos.WithNotStmt()
 		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, x.typs.Int, rc.next(x.typs.Int))
 		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, x.typs.Int, rc.next(x.typs.Int))

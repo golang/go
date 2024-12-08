@@ -21,13 +21,14 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"cmp"
 	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
 	"log"
 	"path"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -286,7 +287,7 @@ func (d *dwctxt) newdie(parent *dwarf.DWDie, abbrev int, name string) *dwarf.DWD
 
 	var st sym.SymKind
 	switch abbrev {
-	case dwarf.DW_ABRV_FUNCTYPEPARAM, dwarf.DW_ABRV_DOTDOTDOT, dwarf.DW_ABRV_STRUCTFIELD, dwarf.DW_ABRV_ARRAYRANGE:
+	case dwarf.DW_ABRV_FUNCTYPEPARAM, dwarf.DW_ABRV_FUNCTYPEOUTPARAM, dwarf.DW_ABRV_DOTDOTDOT, dwarf.DW_ABRV_STRUCTFIELD, dwarf.DW_ABRV_ARRAYRANGE:
 		// There are no relocations against these dies, and their names
 		// are not unique, so don't create a symbol.
 		return die
@@ -479,7 +480,7 @@ func (d *dwctxt) dotypedef(parent *dwarf.DWDie, name string, def *dwarf.DWDie) *
 		return nil
 	}
 	if def == nil {
-		Errorf(nil, "dwarf: bad def in dotypedef")
+		Errorf("dwarf: bad def in dotypedef")
 	}
 
 	// Create a new loader symbol for the typedef. We no longer
@@ -543,47 +544,47 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 
 	var die, typedefdie *dwarf.DWDie
 	switch kind {
-	case objabi.KindBool:
+	case abi.Bool:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_boolean, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindInt,
-		objabi.KindInt8,
-		objabi.KindInt16,
-		objabi.KindInt32,
-		objabi.KindInt64:
+	case abi.Int,
+		abi.Int8,
+		abi.Int16,
+		abi.Int32,
+		abi.Int64:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_signed, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindUint,
-		objabi.KindUint8,
-		objabi.KindUint16,
-		objabi.KindUint32,
-		objabi.KindUint64,
-		objabi.KindUintptr:
+	case abi.Uint,
+		abi.Uint8,
+		abi.Uint16,
+		abi.Uint32,
+		abi.Uint64,
+		abi.Uintptr:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindFloat32,
-		objabi.KindFloat64:
+	case abi.Float32,
+		abi.Float64:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_float, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindComplex64,
-		objabi.KindComplex128:
+	case abi.Complex64,
+		abi.Complex128:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BASETYPE, name)
 		newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_complex_float, 0)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindArray:
+	case abi.Array:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_ARRAYTYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		s := decodetypeArrayElem(d.ldr, d.arch, gotype)
+		s := decodetypeArrayElem(d.linkctxt, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
 		fld := d.newdie(die, dwarf.DW_ABRV_ARRAYRANGE, "range")
 
@@ -592,7 +593,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 
 		d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
 
-	case objabi.KindChan:
+	case abi.Chan:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_CHANTYPE, name)
 		s := decodetypeChanElem(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_go_elem, d.defgotype(s))
@@ -600,7 +601,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		// but that would change the order of DIEs we output.
 		d.newrefattr(die, dwarf.DW_AT_type, s)
 
-	case objabi.KindFunc:
+	case abi.Func:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_FUNCTYPE, name)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
@@ -622,11 +623,12 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		for i := 0; i < nfields; i++ {
 			s := decodetypeFuncOutType(d.ldr, d.arch, gotype, &relocs, i)
 			sn := d.ldr.SymName(s)
-			fld := d.newdie(die, dwarf.DW_ABRV_FUNCTYPEPARAM, sn[5:])
-			d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.defgotype(s)))
+			fld := d.newdie(die, dwarf.DW_ABRV_FUNCTYPEOUTPARAM, sn[5:])
+			newattr(fld, dwarf.DW_AT_variable_parameter, dwarf.DW_CLS_FLAG, 1, 0)
+			d.newrefattr(fld, dwarf.DW_AT_type, d.defgotype(s))
 		}
 
-	case objabi.KindInterface:
+	case abi.Interface:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_IFACETYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		data := d.ldr.Data(gotype)
@@ -639,7 +641,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		}
 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
 
-	case objabi.KindMap:
+	case abi.Map:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_MAPTYPE, name)
 		s := decodetypeMapKey(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_go_key, d.defgotype(s))
@@ -649,32 +651,32 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 		// but that would change the order of the DIEs.
 		d.newrefattr(die, dwarf.DW_AT_type, gotype)
 
-	case objabi.KindPtr:
+	case abi.Pointer:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_PTRTYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		s := decodetypePtrElem(d.ldr, d.arch, gotype)
 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
 
-	case objabi.KindSlice:
+	case abi.Slice:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_SLICETYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
-		s := decodetypeArrayElem(d.ldr, d.arch, gotype)
+		s := decodetypeArrayElem(d.linkctxt, d.arch, gotype)
 		elem := d.defgotype(s)
 		d.newrefattr(die, dwarf.DW_AT_go_elem, elem)
 
-	case objabi.KindString:
+	case abi.String:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_STRINGTYPE, name)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 
-	case objabi.KindStruct:
+	case abi.Struct:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_STRUCTTYPE, name)
 		typedefdie = d.dotypedef(&dwtypes, name, die)
 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
 		nfields := decodetypeStructFieldCount(d.ldr, d.arch, gotype)
 		for i := 0; i < nfields; i++ {
 			f := decodetypeStructFieldName(d.ldr, d.arch, gotype, i)
-			s := decodetypeStructFieldType(d.ldr, d.arch, gotype, i)
+			s := decodetypeStructFieldType(d.linkctxt, d.arch, gotype, i)
 			if f == "" {
 				sn := d.ldr.SymName(s)
 				f = sn[5:] // skip "type:"
@@ -688,7 +690,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 			}
 		}
 
-	case objabi.KindUnsafePointer:
+	case abi.UnsafePointer:
 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_BARE_PTRTYPE, name)
 
 	default:
@@ -748,6 +750,7 @@ func (d *dwctxt) defptrto(dwtype loader.Sym) loader.Sym {
 	// pointers of slices. Link to the ones we can find.
 	gts := d.ldr.Lookup("type:"+ptrname, 0)
 	if gts != 0 && d.ldr.AttrReachable(gts) {
+		newattr(pdie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Pointer), 0)
 		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(gts))
 	}
 
@@ -849,13 +852,6 @@ func mkinternaltypename(base string, arg1 string, arg2 string) string {
 	return fmt.Sprintf("%s<%s,%s>", base, arg1, arg2)
 }
 
-// synthesizemaptypes is way too closely married to runtime/hashmap.c
-const (
-	MaxKeySize = abi.MapMaxKeyBytes
-	MaxValSize = abi.MapMaxElemBytes
-	BucketSize = abi.MapBucketCount
-)
-
 func (d *dwctxt) mkinternaltype(ctxt *Link, abbrev int, typename, keyname, valname string, f func(*dwarf.DWDie)) loader.Sym {
 	name := mkinternaltypename(typename, keyname, valname)
 	symname := dwarf.InfoPrefix + name
@@ -869,6 +865,76 @@ func (d *dwctxt) mkinternaltype(ctxt *Link, abbrev int, typename, keyname, valna
 }
 
 func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
+	if buildcfg.Experiment.SwissMap {
+		d.synthesizemaptypesSwiss(ctxt, die)
+	} else {
+		d.synthesizemaptypesOld(ctxt, die)
+	}
+}
+
+func (d *dwctxt) synthesizemaptypesSwiss(ctxt *Link, die *dwarf.DWDie) {
+	mapType := walktypedef(d.findprotodie(ctxt, "type:internal/runtime/maps.Map"))
+	tableType := walktypedef(d.findprotodie(ctxt, "type:internal/runtime/maps.table"))
+	groupsReferenceType := walktypedef(d.findprotodie(ctxt, "type:internal/runtime/maps.groupsReference"))
+
+	for ; die != nil; die = die.Link {
+		if die.Abbrev != dwarf.DW_ABRV_MAPTYPE {
+			continue
+		}
+		gotype := loader.Sym(getattr(die, dwarf.DW_AT_type).Data.(dwSym))
+
+		keyType := decodetypeMapKey(d.ldr, d.arch, gotype)
+		valType := decodetypeMapValue(d.ldr, d.arch, gotype)
+		groupType := decodetypeMapSwissGroup(d.ldr, d.arch, gotype)
+
+		keyType = d.walksymtypedef(d.defgotype(keyType))
+		valType = d.walksymtypedef(d.defgotype(valType))
+		groupType = d.walksymtypedef(d.defgotype(groupType))
+
+		keyName := d.nameFromDIESym(keyType)
+		valName := d.nameFromDIESym(valType)
+
+		// Construct groupsReference[K,V]
+		dwGroupsReference := d.mkinternaltype(ctxt, dwarf.DW_ABRV_STRUCTTYPE, "groupReference", keyName, valName, func(dwh *dwarf.DWDie) {
+			d.copychildren(ctxt, dwh, groupsReferenceType)
+			// data *group[K,V]
+			//
+			// This is actually a pointer to an array
+			// *[lengthMask+1]group[K,V], but the length is
+			// variable, so we can't statically record the length.
+			d.substitutetype(dwh, "data", d.defptrto(groupType))
+			newattr(dwh, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, getattr(groupsReferenceType, dwarf.DW_AT_byte_size).Value, nil)
+			newattr(dwh, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Struct), 0)
+		})
+
+		// Construct table[K,V]
+		dwTable := d.mkinternaltype(ctxt, dwarf.DW_ABRV_STRUCTTYPE, "table", keyName, valName, func(dwh *dwarf.DWDie) {
+			d.copychildren(ctxt, dwh, tableType)
+			d.substitutetype(dwh, "groups", dwGroupsReference)
+			newattr(dwh, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, getattr(tableType, dwarf.DW_AT_byte_size).Value, nil)
+			newattr(dwh, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Struct), 0)
+		})
+
+		// Construct map[K,V]
+		dwMap := d.mkinternaltype(ctxt, dwarf.DW_ABRV_STRUCTTYPE, "map", keyName, valName, func(dwh *dwarf.DWDie) {
+			d.copychildren(ctxt, dwh, mapType)
+			// dirPtr is a pointer to a variable-length array of
+			// *table[K,V], of length dirLen.
+			//
+			// Since we can't directly define a variable-length
+			// array, store this as **table[K,V]. i.e., pointer to
+			// the first entry in the array.
+			d.substitutetype(dwh, "dirPtr", d.defptrto(d.defptrto(dwTable)))
+			newattr(dwh, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, getattr(mapType, dwarf.DW_AT_byte_size).Value, nil)
+			newattr(dwh, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Struct), 0)
+		})
+
+		// make map type a pointer to map[K,V]
+		d.newrefattr(die, dwarf.DW_AT_type, d.defptrto(dwMap))
+	}
+}
+
+func (d *dwctxt) synthesizemaptypesOld(ctxt *Link, die *dwarf.DWDie) {
 	hash := walktypedef(d.findprotodie(ctxt, "type:runtime.hmap"))
 	bucket := walktypedef(d.findprotodie(ctxt, "type:runtime.bmap"))
 
@@ -890,11 +956,11 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 
 		// compute size info like hashmap.c does.
 		indirectKey, indirectVal := false, false
-		if keysize > MaxKeySize {
+		if keysize > abi.OldMapMaxKeyBytes {
 			keysize = int64(d.arch.PtrSize)
 			indirectKey = true
 		}
-		if valsize > MaxValSize {
+		if valsize > abi.OldMapMaxElemBytes {
 			valsize = int64(d.arch.PtrSize)
 			indirectVal = true
 		}
@@ -902,28 +968,28 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 		// Construct type to represent an array of BucketSize keys
 		keyname := d.nameFromDIESym(keytype)
 		dwhks := d.mkinternaltype(ctxt, dwarf.DW_ABRV_ARRAYTYPE, "[]key", keyname, "", func(dwhk *dwarf.DWDie) {
-			newattr(dwhk, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize*keysize, 0)
+			newattr(dwhk, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.OldMapBucketCount*keysize, 0)
 			t := keytype
 			if indirectKey {
 				t = d.defptrto(keytype)
 			}
 			d.newrefattr(dwhk, dwarf.DW_AT_type, t)
 			fld := d.newdie(dwhk, dwarf.DW_ABRV_ARRAYRANGE, "size")
-			newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, BucketSize, 0)
+			newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, abi.OldMapBucketCount, 0)
 			d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
 		})
 
 		// Construct type to represent an array of BucketSize values
 		valname := d.nameFromDIESym(valtype)
 		dwhvs := d.mkinternaltype(ctxt, dwarf.DW_ABRV_ARRAYTYPE, "[]val", valname, "", func(dwhv *dwarf.DWDie) {
-			newattr(dwhv, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize*valsize, 0)
+			newattr(dwhv, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.OldMapBucketCount*valsize, 0)
 			t := valtype
 			if indirectVal {
 				t = d.defptrto(valtype)
 			}
 			d.newrefattr(dwhv, dwarf.DW_AT_type, t)
 			fld := d.newdie(dwhv, dwarf.DW_ABRV_ARRAYRANGE, "size")
-			newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, BucketSize, 0)
+			newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, abi.OldMapBucketCount, 0)
 			d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
 		})
 
@@ -935,20 +1001,20 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 
 			fld := d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "keys")
 			d.newrefattr(fld, dwarf.DW_AT_type, dwhks)
-			newmemberoffsetattr(fld, BucketSize)
+			newmemberoffsetattr(fld, abi.OldMapBucketCount)
 			fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "values")
 			d.newrefattr(fld, dwarf.DW_AT_type, dwhvs)
-			newmemberoffsetattr(fld, BucketSize+BucketSize*int32(keysize))
+			newmemberoffsetattr(fld, abi.OldMapBucketCount+abi.OldMapBucketCount*int32(keysize))
 			fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "overflow")
 			d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.dtolsym(dwhb.Sym)))
-			newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize)))
+			newmemberoffsetattr(fld, abi.OldMapBucketCount+abi.OldMapBucketCount*(int32(keysize)+int32(valsize)))
 			if d.arch.RegSize > d.arch.PtrSize {
 				fld = d.newdie(dwhb, dwarf.DW_ABRV_STRUCTFIELD, "pad")
 				d.newrefattr(fld, dwarf.DW_AT_type, d.uintptrInfoSym)
-				newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(d.arch.PtrSize))
+				newmemberoffsetattr(fld, abi.OldMapBucketCount+abi.OldMapBucketCount*(int32(keysize)+int32(valsize))+int32(d.arch.PtrSize))
 			}
 
-			newattr(dwhb, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize+BucketSize*keysize+BucketSize*valsize+int64(d.arch.RegSize), 0)
+			newattr(dwhb, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, abi.OldMapBucketCount+abi.OldMapBucketCount*keysize+abi.OldMapBucketCount*valsize+int64(d.arch.RegSize), 0)
 		})
 
 		// Construct hash<K,V>
@@ -1140,9 +1206,7 @@ func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
 }
 
 func expandFile(fname string) string {
-	if strings.HasPrefix(fname, src.FileSymPrefix) {
-		fname = fname[len(src.FileSymPrefix):]
-	}
+	fname = strings.TrimPrefix(fname, src.FileSymPrefix)
 	return expandGoroot(fname)
 }
 
@@ -1762,12 +1826,13 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 
 	// Some types that must exist to define other ones (uintptr in particular
 	// is needed for array size)
-	d.mkBuiltinType(ctxt, dwarf.DW_ABRV_BARE_PTRTYPE, "unsafe.Pointer")
-	die := d.mkBuiltinType(ctxt, dwarf.DW_ABRV_BASETYPE, "uintptr")
-	newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
-	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(d.arch.PtrSize), 0)
-	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
-	newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_ADDRESS, 0, dwSym(d.lookupOrDiag("type:uintptr")))
+	unsafeptrDie := d.mkBuiltinType(ctxt, dwarf.DW_ABRV_BARE_PTRTYPE, "unsafe.Pointer")
+	newattr(unsafeptrDie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(d.lookupOrDiag("type:unsafe.Pointer")))
+	uintptrDie := d.mkBuiltinType(ctxt, dwarf.DW_ABRV_BASETYPE, "uintptr")
+	newattr(uintptrDie, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
+	newattr(uintptrDie, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(d.arch.PtrSize), 0)
+	newattr(uintptrDie, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(abi.Uintptr), 0)
+	newattr(uintptrDie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(d.lookupOrDiag("type:uintptr")))
 
 	d.uintptrInfoSym = d.mustFind("uintptr")
 
@@ -1775,11 +1840,17 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	prototypedies = map[string]*dwarf.DWDie{
 		"type:runtime.stringStructDWARF": nil,
 		"type:runtime.slice":             nil,
-		"type:runtime.hmap":              nil,
-		"type:runtime.bmap":              nil,
 		"type:runtime.sudog":             nil,
 		"type:runtime.waitq":             nil,
 		"type:runtime.hchan":             nil,
+	}
+	if buildcfg.Experiment.SwissMap {
+		prototypedies["type:internal/runtime/maps.Map"] = nil
+		prototypedies["type:internal/runtime/maps.table"] = nil
+		prototypedies["type:internal/runtime/maps.groupsReference"] = nil
+	} else {
+		prototypedies["type:runtime.hmap"] = nil
+		prototypedies["type:runtime.bmap"] = nil
 	}
 
 	// Needed by the prettyprinter code for interface inspection.
@@ -1788,14 +1859,18 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		"type:internal/abi.ArrayType",
 		"type:internal/abi.ChanType",
 		"type:internal/abi.FuncType",
-		"type:internal/abi.MapType",
 		"type:internal/abi.PtrType",
 		"type:internal/abi.SliceType",
 		"type:internal/abi.StructType",
 		"type:internal/abi.InterfaceType",
-		"type:runtime.itab",
+		"type:internal/abi.ITab",
 		"type:internal/abi.Imethod"} {
 		d.defgotype(d.lookupOrDiag(typ))
+	}
+	if buildcfg.Experiment.SwissMap {
+		d.defgotype(d.lookupOrDiag("type:internal/abi.SwissMapType"))
+	} else {
+		d.defgotype(d.lookupOrDiag("type:internal/abi.OldMapType"))
 	}
 
 	// fake root DIE for compile unit DIEs
@@ -1890,8 +1965,9 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			continue
 		}
 		t := d.ldr.SymType(idx)
-		switch t {
-		case sym.SRODATA, sym.SDATA, sym.SNOPTRDATA, sym.STYPE, sym.SBSS, sym.SNOPTRBSS, sym.STLSBSS:
+		switch {
+		case t.IsRODATA(), t.IsDATA(), t.IsNOPTRDATA(),
+			t == sym.STYPE, t == sym.SBSS, t == sym.SNOPTRBSS, t == sym.STLSBSS:
 			// ok
 		default:
 			continue
@@ -1988,7 +2064,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	abbrevSec := d.writeabbrev()
 	dwarfp = append(dwarfp, abbrevSec)
 	d.calcCompUnitRanges()
-	sort.Sort(compilationUnitByStartPC(d.linkctxt.compUnits))
+	slices.SortFunc(d.linkctxt.compUnits, compilationUnitByStartPCCmp)
 
 	// newdie adds DIEs to the *beginning* of the parent's DIE list.
 	// Now that we're done creating DIEs, reverse the trees so DIEs
@@ -2103,7 +2179,8 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	seen := loader.MakeBitmap(d.ldr.NSym())
 	for _, s := range infoSec.syms {
 		if seen.Has(s) {
-			log.Fatalf("symbol %s listed multiple times", d.ldr.SymName(s))
+			log.Fatalf("dwarf symbol %s listed multiple times",
+				d.ldr.SymName(s))
 		}
 		seen.Set(s)
 	}
@@ -2254,21 +2331,16 @@ func dwarfcompress(ctxt *Link) {
 	Segdwarf.Length = pos - Segdwarf.Vaddr
 }
 
-type compilationUnitByStartPC []*sym.CompilationUnit
-
-func (v compilationUnitByStartPC) Len() int      { return len(v) }
-func (v compilationUnitByStartPC) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
-
-func (v compilationUnitByStartPC) Less(i, j int) bool {
+func compilationUnitByStartPCCmp(a, b *sym.CompilationUnit) int {
 	switch {
-	case len(v[i].Textp) == 0 && len(v[j].Textp) == 0:
-		return v[i].Lib.Pkg < v[j].Lib.Pkg
-	case len(v[i].Textp) != 0 && len(v[j].Textp) == 0:
-		return true
-	case len(v[i].Textp) == 0 && len(v[j].Textp) != 0:
-		return false
+	case len(a.Textp) == 0 && len(b.Textp) == 0:
+		return strings.Compare(a.Lib.Pkg, b.Lib.Pkg)
+	case len(a.Textp) != 0 && len(b.Textp) == 0:
+		return -1
+	case len(a.Textp) == 0 && len(b.Textp) != 0:
+		return +1
 	default:
-		return v[i].PCs[0].Start < v[j].PCs[0].Start
+		return cmp.Compare(a.PCs[0].Start, b.PCs[0].Start)
 	}
 }
 

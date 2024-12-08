@@ -505,7 +505,7 @@ func TestNopCloserWriterToForwarding(t *testing.T) {
 func TestOffsetWriter_Seek(t *testing.T) {
 	tmpfilename := "TestOffsetWriter_Seek"
 	tmpfile, err := os.CreateTemp(t.TempDir(), tmpfilename)
-	if err != nil || tmpfile == nil {
+	if err != nil {
 		t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
 	}
 	defer tmpfile.Close()
@@ -564,15 +564,12 @@ func TestOffsetWriter_Seek(t *testing.T) {
 func TestOffsetWriter_WriteAt(t *testing.T) {
 	const content = "0123456789ABCDEF"
 	contentSize := int64(len(content))
-	tmpdir, err := os.MkdirTemp(t.TempDir(), "TestOffsetWriter_WriteAt")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmpdir := t.TempDir()
 
 	work := func(off, at int64) {
 		position := fmt.Sprintf("off_%d_at_%d", off, at)
 		tmpfile, err := os.CreateTemp(tmpdir, position)
-		if err != nil || tmpfile == nil {
+		if err != nil {
 			t.Fatalf("CreateTemp(%s) failed: %v", position, err)
 		}
 		defer tmpfile.Close()
@@ -642,7 +639,7 @@ func TestOffsetWriter_Write(t *testing.T) {
 	makeOffsetWriter := func(name string) (*OffsetWriter, *os.File) {
 		tmpfilename := "TestOffsetWriter_Write_" + name
 		tmpfile, err := os.CreateTemp(tmpdir, tmpfilename)
-		if err != nil || tmpfile == nil {
+		if err != nil {
 			t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
 		}
 		return NewOffsetWriter(tmpfile, 0), tmpfile

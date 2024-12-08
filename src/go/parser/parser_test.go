@@ -319,7 +319,7 @@ const pi = 3.1415
 /* 3a */ // 3b
 /* 3c */ const e = 2.7182
 
-// Example from issue 3139
+// Example from go.dev/issue/3139
 func ExampleCount() {
 	fmt.Println(strings.Count("cheese", "e"))
 	fmt.Println(strings.Count("five", "")) // before & after each rune
@@ -335,7 +335,7 @@ func ExampleCount() {
 		{"/* 1a */", "/* 1b */", "/* 1c */", "// 1d"},
 		{"/* 2a\n*/", "// 2b"},
 		{"/* 3a */", "// 3b", "/* 3c */"},
-		{"// Example from issue 3139"},
+		{"// Example from go.dev/issue/3139"},
 		{"// before & after each rune"},
 		{"// Output:", "// 3", "// 5"},
 	}
@@ -573,7 +573,7 @@ type x int // comment
 var parseDepthTests = []struct {
 	name   string
 	format string
-	// multiplier is used when a single statement may result in more than one
+	// parseMultiplier is used when a single statement may result in more than one
 	// change in the depth level, for instance "1+(..." produces a BinaryExpr
 	// followed by a UnaryExpr, which increments the depth twice. The test
 	// case comment explains which nodes are triggering the multiple depth
@@ -598,10 +598,11 @@ var parseDepthTests = []struct {
 	{name: "chan2", format: "package main; var x «<-chan »int"},
 	{name: "interface", format: "package main; var x «interface { M() «int» }»", scope: true, scopeMultiplier: 2}, // Scopes: InterfaceType, FuncType
 	{name: "map", format: "package main; var x «map[int]»int"},
-	{name: "slicelit", format: "package main; var x = «[]any{«»}»", parseMultiplier: 2},             // Parser nodes: UnaryExpr, CompositeLit
-	{name: "arraylit", format: "package main; var x = «[1]any{«nil»}»", parseMultiplier: 2},         // Parser nodes: UnaryExpr, CompositeLit
-	{name: "structlit", format: "package main; var x = «struct{x any}{«nil»}»", parseMultiplier: 2}, // Parser nodes: UnaryExpr, CompositeLit
-	{name: "maplit", format: "package main; var x = «map[int]any{1:«nil»}»", parseMultiplier: 2},    // Parser nodes: CompositeLit, KeyValueExpr
+	{name: "slicelit", format: "package main; var x = []any{«[]any{«»}»}", parseMultiplier: 3},      // Parser nodes: UnaryExpr, CompositeLit
+	{name: "arraylit", format: "package main; var x = «[1]any{«nil»}»", parseMultiplier: 3},         // Parser nodes: UnaryExpr, CompositeLit
+	{name: "structlit", format: "package main; var x = «struct{x any}{«nil»}»", parseMultiplier: 3}, // Parser nodes: UnaryExpr, CompositeLit
+	{name: "maplit", format: "package main; var x = «map[int]any{1:«nil»}»", parseMultiplier: 3},    // Parser nodes: CompositeLit, KeyValueExpr
+	{name: "element", format: "package main; var x = struct{x any}{x: «{«»}»}"},
 	{name: "dot", format: "package main; var x = «x.»x"},
 	{name: "index", format: "package main; var x = x«[1]»"},
 	{name: "slice", format: "package main; var x = x«[1:2]»"},
@@ -735,7 +736,7 @@ func TestScopeDepthLimit(t *testing.T) {
 	}
 }
 
-// proposal #50429
+// proposal go.dev/issue/50429
 func TestRangePos(t *testing.T) {
 	testcases := []string{
 		"package p; func _() { for range x {} }",
@@ -797,6 +798,63 @@ func TestGoVersion(t *testing.T) {
 			if f.GoVersion != want {
 				t.Errorf("%s: GoVersion = %q, want %q", fset.Position(f.Pos()), f.GoVersion, want)
 			}
+		}
+	}
+}
+
+func TestIssue57490(t *testing.T) {
+	src := `package p; func f() { var x struct` // program not correctly terminated
+	fset := token.NewFileSet()
+	file, err := ParseFile(fset, "", src, 0)
+	if err == nil {
+		t.Fatalf("syntax error expected, but no error reported")
+	}
+
+	// Because of the syntax error, the end position of the function declaration
+	// is past the end of the file's position range.
+	funcEnd := file.Decls[0].End()
+
+	// Offset(funcEnd) must not panic (to test panic, set debug=true in token package)
+	// (panic: offset 35 out of bounds [0, 34] (position 36 out of bounds [1, 35]))
+	tokFile := fset.File(file.Pos())
+	offset := tokFile.Offset(funcEnd)
+	if offset != tokFile.Size() {
+		t.Fatalf("offset = %d, want %d", offset, tokFile.Size())
+	}
+}
+
+func TestParseTypeParamsAsParenExpr(t *testing.T) {
+	const src = "package p; type X[A (B),] struct{}"
+
+	fset := token.NewFileSet()
+	f, err := ParseFile(fset, "test.go", src, ParseComments|SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	typeParam := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).TypeParams.List[0].Type
+	_, ok := typeParam.(*ast.ParenExpr)
+	if !ok {
+		t.Fatalf("typeParam is a %T; want: *ast.ParenExpr", typeParam)
+	}
+}
+
+// TestEmptyFileHasValidStartEnd is a regression test for #70162.
+func TestEmptyFileHasValidStartEnd(t *testing.T) {
+	for _, test := range []struct {
+		src  string
+		want string // "Pos() FileStart FileEnd"
+	}{
+		{src: "", want: "0 1 1"},
+		{src: "package ", want: "0 1 9"},
+		{src: "package p", want: "1 1 10"},
+		{src: "type T int", want: "0 1 11"},
+	} {
+		fset := token.NewFileSet()
+		f, _ := ParseFile(fset, "a.go", test.src, 0)
+		got := fmt.Sprintf("%d %d %d", f.Pos(), f.FileStart, f.FileEnd)
+		if got != test.want {
+			t.Fatalf("src = %q: got %s, want %s", test.src, got, test.want)
 		}
 	}
 }

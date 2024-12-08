@@ -1,7 +1,6 @@
 // errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
 
 //go:build goexperiment.newinliner
-// +build goexperiment.newinliner
 
 // Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -74,6 +73,7 @@ func l(x, y int) (int, int, error) { // ERROR "can inline l"
 		f := e
 		f(nil) // ERROR "inlining call to l.func1"
 	}
+	_ = e // prevent simple deadcode elimination
 	return y, x, nil
 }
 
@@ -110,6 +110,7 @@ func p() int { // ERROR "can inline p"
 
 func q(x int) int { // ERROR "can inline q"
 	foo := func() int { return x * 2 } // ERROR "can inline q.func1" "func literal does not escape"
+	_ = foo                            // prevent simple deadcode elimination
 	return foo()                       // ERROR "inlining call to q.func1"
 }
 
@@ -122,6 +123,8 @@ func r(z int) int { // ERROR "can inline r"
 			return 2*y + x*z
 		}(x) // ERROR "inlining call to r.func2.1"
 	}
+	_ = foo                  // prevent simple deadcode elimination
+	_ = bar                  // prevent simple deadcode elimination
 	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.r.func2.func3"
 }
 
@@ -129,7 +132,8 @@ func s0(x int) int { // ERROR "can inline s0"
 	foo := func() { // ERROR "can inline s0.func1" "func literal does not escape"
 		x = x + 1
 	}
-	foo() // ERROR "inlining call to s0.func1"
+	foo()   // ERROR "inlining call to s0.func1"
+	_ = foo // prevent simple deadcode elimination
 	return x
 }
 
@@ -138,6 +142,7 @@ func s1(x int) int { // ERROR "can inline s1"
 		return x
 	}
 	x = x + 1
+	_ = foo      // prevent simple deadcode elimination
 	return foo() // ERROR "inlining call to s1.func1"
 }
 
@@ -327,9 +332,9 @@ func ii() { // ERROR "can inline ii"
 // Issue #42194 - make sure that functions evaluated in
 // go and defer statements can be inlined.
 func gd1(int) {
-	defer gd1(gd2()) // ERROR "inlining call to gd2"
+	defer gd1(gd2()) // ERROR "inlining call to gd2" "can inline gd1.deferwrap1"
 	defer gd3()()    // ERROR "inlining call to gd3"
-	go gd1(gd2())    // ERROR "inlining call to gd2"
+	go gd1(gd2())    // ERROR "inlining call to gd2" "can inline gd1.gowrap2"
 	go gd3()()       // ERROR "inlining call to gd3"
 }
 

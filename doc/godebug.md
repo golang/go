@@ -34,6 +34,7 @@ For example, if a Go program is running in an environment that contains
 
 then that Go program will disable the use of HTTP/2 by default in both
 the HTTP client and the HTTP server.
+Unrecognized settings in the `GODEBUG` environment variable are ignored.
 It is also possible to set the default `GODEBUG` for a given program
 (discussed below).
 
@@ -88,14 +89,38 @@ Because this method of setting GODEBUG defaults was introduced only in Go 1.21,
 programs listing versions of Go earlier than Go 1.20 are configured to match Go 1.20,
 not the older version.
 
-To override these defaults, a main package's source files
+To override these defaults, starting in Go 1.23, the work module's `go.mod`
+or the workspace's `go.work` can list one or more `godebug` lines:
+
+	godebug (
+		default=go1.21
+		panicnil=1
+		asynctimerchan=0
+	)
+
+The special key `default` indicates a Go version to take unspecified
+settings from. This allows setting the GODEBUG defaults separately
+from the Go language version in the module.
+In this example, the program is asking for Go 1.21 semantics and
+then asking for the old pre-Go 1.21 `panic(nil)` behavior and the
+new Go 1.23 `asynctimerchan=0` behavior.
+
+Only the work module's `go.mod` is consulted for `godebug` directives.
+Any directives in required dependency modules are ignored.
+It is an error to list a `godebug` with an unrecognized setting.
+(Toolchains older than Go 1.23 reject all `godebug` lines, since they do not
+understand `godebug` at all.)
+
+The defaults from the `go` and `godebug` lines apply to all main
+packages that are built. For more fine-grained control,
+starting in Go 1.21, a main package's source files
 can include one or more `//go:debug` directives at the top of the file
 (preceding the `package` statement).
-Continuing the `panicnil` example, if the module or workspace is updated
-to say `go` `1.21`, the program can opt back into the old `panic(nil)`
-behavior by including this directive:
+The `godebug` lines in the previous example would be written:
 
+	//go:debug default=go1.21
 	//go:debug panicnil=1
+	//go:debug asynctimerchan=0
 
 Starting in Go 1.21, the Go toolchain treats a `//go:debug` directive
 with an unrecognized GODEBUG setting as an invalid program.
@@ -126,10 +151,131 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.24
+
+Go 1.24 changed the global [`math/rand.Seed`](/pkg/math/rand/#Seed) to be a
+no-op. This behavior is controlled by the `randseednop` setting.
+For Go 1.24 it defaults to `randseednop=1`.
+Using `randseednop=0` reverts to the pre-Go 1.24 behavior.
+
+Go 1.24 added new values for the `multipathtcp` setting.
+The possible values for `multipathtcp` are now:
+- "0": disable MPTCP on dialers and listeners by default
+- "1": enable MPTCP on dialers and listeners by default
+- "2": enable MPTCP on listeners only by default
+- "3": enable MPTCP on dialers only by default
+
+For Go 1.24, it now defaults to multipathtcp="2", thus
+enabled by default on listeners. Using multipathtcp="0" reverts to the
+pre-Go 1.24 behavior.
+
+Go 1.24 changed the behavior of `go test -json` to emit build errors as JSON
+instead of text.
+These new JSON events are distinguished by new `Action` values,
+but can still cause problems with CI systems that aren't robust to these events.
+This behavior can be controlled with the `gotestjsonbuildtext` setting.
+Using `gotestjsonbuildtext=1` restores the 1.23 behavior.
+This setting will be removed in a future release, Go 1.28 at the earliest.
+
+Go 1.24 changed [`crypto/rsa`](/pkg/crypto/rsa) to require RSA keys to be at
+least 1024 bits. This behavior can be controlled with the `rsa1024min` setting.
+Using `rsa1024min=0` restores the Go 1.23 behavior.
+
+Go 1.24 introduced a mechanism for enabling platform specific Data Independent
+Timing (DIT) modes in the [`crypto/subtle`](/pkg/crypto/subtle) package. This
+mode can be enabled for an entire program with the `dataindependenttiming` setting.
+For Go 1.24 it defaults to `dataindependenttiming=0`. There is no change in default
+behavior from Go 1.23 when `dataindependenttiming` is unset.
+Using `dataindependenttiming=1` enables the DIT mode for the entire Go program.
+When enabled, DIT will be enabled when calling into C from Go. When enabled,
+calling into Go code from C will enable DIT, and disable it before returning to
+C if it was not enabled when Go code was entered.
+This currently only affects arm64 programs. For all other platforms it is a no-op.
+
+Go 1.24 removed the `x509sha1` setting.  `crypto/x509` no longer supports verifying
+signatures on certificates that use SHA-1 based signature algorithms.
+
+Go 1.24 changes the default value of the [`x509usepolicies`
+setting.](/pkg/crypto/x509/#CreateCertificate) from `0` to `1`. When marshalling
+certificates, policies are now taken from the
+[`Certificate.Policies`](/pkg/crypto/x509/#Certificate.Policies) field rather
+than the
+[`Certificate.PolicyIdentifiers`](/pkg/crypto/x509/#Certificate.PolicyIdentifiers)
+field by default.
+
+Go 1.24 enabled the post-quantum key exchange mechanism
+X25519MLKEM768 by default. The default can be reverted using the
+[`tlsmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+Go 1.24 also removed X25519Kyber768Draft00 and the Go 1.23 `tlskyber` setting.
+
+Go 1.24 made [`ParsePKCS1PrivateKey`](/pkg/crypto/x509/#ParsePKCS1PrivateKey)
+use and validate the CRT parameters in the encoded private key. This behavior
+can be controlled with the `x509rsacrt` setting. Using `x509rsacrt=0` restores
+the Go 1.23 behavior.
+
+### Go 1.23
+
+Go 1.23 changed the channels created by package time to be unbuffered
+(synchronous), which makes correct use of the [`Timer.Stop`](/pkg/time/#Timer.Stop)
+and [`Timer.Reset`](/pkg/time/#Timer.Reset) method results much easier.
+The [`asynctimerchan` setting](/pkg/time/#NewTimer) disables this change.
+There are no runtime metrics for this change,
+This setting may be removed in a future release, Go 1.27 at the earliest.
+
+Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
+for reparse points, which can be controlled with the `winsymlink` setting.
+As of Go 1.23 (`winsymlink=1`), mount points no longer have [`os.ModeSymlink`](/pkg/os#ModeSymlink)
+set, and reparse points that are not symlinks, Unix sockets, or dedup files now
+always have [`os.ModeIrregular`](/pkg/os#ModeIrregular) set. As a result of these changes,
+[`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks) no longer evaluates
+mount points, which was a source of many inconsistencies and bugs.
+At previous versions (`winsymlink=0`), mount points are treated as symlinks,
+and other reparse points with non-default [`os.ModeType`](/pkg/os#ModeType) bits
+(such as [`os.ModeDir`](/pkg/os#ModeDir)) do not have the `ModeIrregular` bit set.
+
+Go 1.23 changed [`os.Readlink`](/pkg/os#Readlink) and [`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks)
+to avoid trying to normalize volumes to drive letters, which was not always even possible.
+This behavior is controlled by the `winreadlinkvolume` setting.
+For Go 1.23, it defaults to `winreadlinkvolume=1`.
+Previous versions default to `winreadlinkvolume=0`.
+
+Go 1.23 enabled the experimental post-quantum key exchange mechanism
+X25519Kyber768Draft00 by default. The default can be reverted using the
+[`tlskyber` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+
+Go 1.23 changed the behavior of
+[crypto/x509.ParseCertificate](/pkg/crypto/x509/#ParseCertificate) to reject
+serial numbers that are negative. This change can be reverted with
+the [`x509negativeserial` setting](/pkg/crypto/x509/#ParseCertificate).
+
+Go 1.23 re-enabled support in html/template for ECMAScript 6 template literals by default.
+The [`jstmpllitinterp` setting](/pkg/html/template#hdr-Security_Model) no longer has
+any effect.
+
+Go 1.23 changed the default TLS cipher suites used by clients and servers when
+not explicitly configured, removing 3DES cipher suites. The default can be reverted
+using the [`tls3des` setting](/pkg/crypto/tls/#Config.CipherSuites).
+
+Go 1.23 changed the behavior of [`tls.X509KeyPair`](/pkg/crypto/tls#X509KeyPair)
+and [`tls.LoadX509KeyPair`](/pkg/crypto/tls#LoadX509KeyPair) to populate the
+Leaf field of the returned [`tls.Certificate`](/pkg/crypto/tls#Certificate).
+This behavior is controlled by the `x509keypairleaf` setting. For Go 1.23, it
+defaults to `x509keypairleaf=1`. Previous versions default to
+`x509keypairleaf=0`.
+
+Go 1.23 changed
+[`net/http.ServeContent`](/pkg/net/http#ServeContent),
+[`net/http.ServeFile`](/pkg/net/http#ServeFile), and
+[`net/http.ServeFS`](/pkg/net/http#ServeFS) to
+remove Cache-Control, Content-Encoding, Etag, and Last-Modified headers
+when serving an error. This behavior is controlled by
+the [`httpservecontentkeepheaders` setting](/pkg/net/http#ServeContent).
+Using `httpservecontentkeepheaders=1` restores the pre-Go 1.23 behavior.
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
-that can be used in TLS handshakes, controlled by the [`tlsmaxrsasize`setting](/pkg/crypto/tls#Conn.Handshake).
+that can be used in TLS handshakes, controlled by the [`tlsmaxrsasize` setting](/pkg/crypto/tls#Conn.Handshake).
 The default is tlsmaxrsasize=8192, limiting RSA to 8192-bit keys. To avoid
 denial of service attacks, this setting and default was backported to Go
 1.19.13, Go 1.20.8, and Go 1.21.1.
@@ -142,6 +288,56 @@ Go 1.22 changed the behavior of ServeMux to accept extended
 patterns and unescape both patterns and request paths by segment.
 This behavior can be controlled by the
 [`httpmuxgo121` setting](/pkg/net/http/#ServeMux).
+
+Go 1.22 added the [Alias type](/pkg/go/types#Alias) to [go/types](/pkg/go/types)
+for the explicit representation of [type aliases](/ref/spec#Type_declarations).
+Whether the type checker produces `Alias` types or not is controlled by the
+[`gotypesalias` setting](/pkg/go/types#Alias).
+For Go 1.22 it defaults to `gotypesalias=0`.
+For Go 1.23, `gotypesalias=1` will become the default.
+This setting will be removed in a future release, Go 1.27 at the earliest.
+
+Go 1.22 changed the default minimum TLS version supported by both servers
+and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the
+[`tls10server` setting](/pkg/crypto/tls/#Config).
+
+Go 1.22 changed the default TLS cipher suites used by clients and servers when
+not explicitly configured, removing the cipher suites which used RSA based key
+exchange. The default can be reverted using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
+
+Go 1.22 disabled
+[`ConnectionState.ExportKeyingMaterial`](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial)
+when the connection supports neither TLS 1.3 nor Extended Master Secret
+(implemented in Go 1.21). It can be reenabled with the [`tlsunsafeekm`
+setting](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial).
+
+Go 1.22 changed how the runtime interacts with transparent huge pages on Linux.
+In particular, a common default Linux kernel configuration can result in
+significant memory overheads, and Go 1.22 no longer works around this default.
+To work around this issue without adjusting kernel settings, transparent huge
+pages can be disabled for Go memory with the
+[`disablethp` setting](/pkg/runtime#hdr-Environment_Variable).
+This behavior was backported to Go 1.21.1, but the setting is only available
+starting with Go 1.21.6.
+This setting may be removed in a future release, and users impacted by this issue
+should adjust their Linux configuration according to the recommendations in the
+[GC guide](/doc/gc-guide#Linux_transparent_huge_pages), or switch to a Linux
+distribution that disables transparent huge pages altogether.
+
+Go 1.22 added contention on runtime-internal locks to the [`mutex`
+profile](/pkg/runtime/pprof#Profile). Contention on these locks is always
+reported at `runtime._LostContendedRuntimeLock`. Complete stack traces of
+runtime locks can be enabled with the [`runtimecontentionstacks`
+setting](/pkg/runtime#hdr-Environment_Variable). These stack traces have
+non-standard semantics, see setting documentation for details.
+
+Go 1.22 added a new [`crypto/x509.Certificate`](/pkg/crypto/x509/#Certificate)
+field, [`Policies`](/pkg/crypto/x509/#Certificate.Policies), which supports
+certificate policy OIDs with components larger than 31 bits. By default this
+field is only used during parsing, when it is populated with policy OIDs, but
+not used during marshaling. It can be used to marshal these larger OIDs, instead
+of the existing PolicyIdentifiers field, by using the
+[`x509usepolicies` setting.](/pkg/crypto/x509/#CreateCertificate).
 
 
 ### Go 1.21
@@ -198,11 +394,18 @@ Go 1.19 made it an error for path lookups to resolve to binaries in the current 
 controlled by the [`execerrdot` setting](/pkg/os/exec#hdr-Executables_in_the_current_directory).
 There is no plan to remove this setting.
 
+Go 1.19 started sending EDNS0 additional headers on DNS requests.
+This can reportedly break the DNS server provided on some routers,
+such as CenturyLink Zyxel C3000Z.
+This can be changed by the [`netedns0` setting](/pkg/net#hdr-Name_Resolution).
+This setting is available in Go 1.21.12, Go 1.22.5, Go 1.23, and later.
+There is no plan to remove this setting.
+
 ### Go 1.18
 
 Go 1.18 removed support for SHA1 in most X.509 certificates,
 controlled by the [`x509sha1` setting](/pkg/crypto/x509#InsecureAlgorithmError).
-This setting will be removed in a future release, Go 1.22 at the earliest.
+This setting was removed in Go 1.24.
 
 ### Go 1.10
 

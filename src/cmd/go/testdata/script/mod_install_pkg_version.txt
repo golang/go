@@ -182,6 +182,19 @@ env GO111MODULE=
 # Verifies #43278.
 go install -mod=readonly example.com/cmd/a@v1.0.0
 
+
+# 'go install pkg@version' should show a deprecation message if the module is deprecated.
+env GO111MODULE=on
+go install example.com/deprecated/a/cmd/a@latest
+stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
+go install example.com/deprecated/a/cmd/a@v1.0.0
+stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
+
+# 'go install pkg@version' does not show a deprecation message if the module is no longer
+# deprecated in its latest version, even if the module is deprecated in its current version.
+go install example.com/undeprecated/cmd/a@v1.0.0
+! stderr 'module.*is deprecated'
+
 -- m/go.mod --
 module m
 

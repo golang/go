@@ -13,8 +13,8 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/atomic"
+	"internal/runtime/sys"
 )
 
 // Central list of free objects of a given size.
@@ -84,8 +84,10 @@ func (c *mcentral) cacheSpan() *mspan {
 	deductSweepCredit(spanBytes, 0)
 
 	traceDone := false
-	if traceEnabled() {
-		traceGCSweepStart()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCSweepStart()
+		traceRelease(trace)
 	}
 
 	// If we sweep spanBudget spans without finding any free
@@ -157,9 +159,11 @@ func (c *mcentral) cacheSpan() *mspan {
 		}
 		sweep.active.end(sl)
 	}
-	if traceEnabled() {
-		traceGCSweepDone()
+	trace = traceAcquire()
+	if trace.ok() {
+		trace.GCSweepDone()
 		traceDone = true
+		traceRelease(trace)
 	}
 
 	// We failed to get a span from the mcentral so get one from mheap.
@@ -170,8 +174,12 @@ func (c *mcentral) cacheSpan() *mspan {
 
 	// At this point s is a span that should have free slots.
 havespan:
-	if traceEnabled() && !traceDone {
-		traceGCSweepDone()
+	if !traceDone {
+		trace := traceAcquire()
+		if trace.ok() {
+			trace.GCSweepDone()
+			traceRelease(trace)
+		}
 	}
 	n := int(s.nelems) - int(s.allocCount)
 	if n == 0 || s.freeindex == s.nelems || s.allocCount == s.nelems {
@@ -252,6 +260,6 @@ func (c *mcentral) grow() *mspan {
 	// n := (npages << _PageShift) / size
 	n := s.divideByElemSize(npages << _PageShift)
 	s.limit = s.base() + size*n
-	s.initHeapBits(false)
+	s.initHeapBits()
 	return s
 }

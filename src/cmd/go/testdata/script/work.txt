@@ -41,7 +41,7 @@ env GOWORK=
 cp go.work go.work.backup
 cp go.work.dup go.work
 ! go run example.com/b
-stderr 'reading go.work: path .* appears multiple times in workspace'
+stderr 'go.work:6: path .* appears multiple times in workspace'
 cp go.work.backup go.work
 
 cp go.work.d go.work

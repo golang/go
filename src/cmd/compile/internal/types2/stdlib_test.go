@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -191,7 +192,7 @@ func firstComment(filename string) (first string) {
 		}
 		text = strings.TrimSpace(text[2:])
 
-		if strings.HasPrefix(text, "+build ") {
+		if strings.HasPrefix(text, "go:build ") {
 			panic("skip")
 		}
 		if first == "" {
@@ -311,11 +312,13 @@ func TestStdFixed(t *testing.T) {
 
 	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+		"bug398.go",      // types2 doesn't check for anonymous interface cycles (go.dev/issue/56103)
 		"issue6889.go",   // gc-specific test
 		"issue11362.go",  // canonical import path check
 		"issue16369.go",  // types2 handles this correctly - not an issue
 		"issue18459.go",  // types2 doesn't check validity of //go:xxx directives
 		"issue18882.go",  // types2 doesn't check validity of //go:xxx directives
+		"issue20027.go",  // types2 does not have constraints on channel element size
 		"issue20529.go",  // types2 does not have constraints on stack size
 		"issue22200.go",  // types2 does not have constraints on stack size
 		"issue22200b.go", // types2 does not have constraints on stack size
@@ -328,6 +331,7 @@ func TestStdFixed(t *testing.T) {
 		"issue49767.go",  // go/types does not have constraints on channel element size
 		"issue49814.go",  // go/types does not have constraints on array size
 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+		"issue52697.go",  // types2 does not have constraints on stack size
 
 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
 		// However, types2 does not know about build constraints.
@@ -350,11 +354,8 @@ func TestStdKen(t *testing.T) {
 
 // Package paths of excluded packages.
 var excluded = map[string]bool{
-	"builtin": true,
-
-	// go.dev/issue/46027: some imports are missing for this submodule.
-	"crypto/internal/edwards25519/field/_asm": true,
-	"crypto/internal/bigmod/_asm":             true,
+	"builtin":                       true,
+	"cmd/compile/internal/ssa/_gen": true,
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in
@@ -394,7 +395,8 @@ func typecheckFiles(path string, filenames []string, importer Importer) (*Packag
 		Error: func(err error) {
 			errs = append(errs, err)
 		},
-		Importer: importer,
+		Importer:    importer,
+		EnableAlias: true,
 	}
 	info := Info{Uses: make(map[*syntax.Name]Object)}
 	pkg, _ := conf.Check(path, files, &info)
@@ -434,6 +436,11 @@ func pkgFilenames(dir string, includeTest bool) ([]string, error) {
 		return nil, err
 	}
 	if excluded[pkg.ImportPath] {
+		return nil, nil
+	}
+	if slices.Contains(strings.Split(pkg.ImportPath, "/"), "_asm") {
+		// Submodules where not all dependencies are available.
+		// See go.dev/issue/46027.
 		return nil, nil
 	}
 	var filenames []string

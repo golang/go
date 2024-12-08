@@ -3,53 +3,56 @@
 // license that can be found in the LICENSE file.
 
 //go:build race
-// +build race
 
 package race
 
 import (
-	"runtime"
+	"internal/abi"
 	"unsafe"
 )
 
 const Enabled = true
 
-func Acquire(addr unsafe.Pointer) {
-	runtime.RaceAcquire(addr)
-}
+// Functions below pushed from runtime.
 
-func Release(addr unsafe.Pointer) {
-	runtime.RaceRelease(addr)
-}
+//go:linkname Acquire
+func Acquire(addr unsafe.Pointer)
 
-func ReleaseMerge(addr unsafe.Pointer) {
-	runtime.RaceReleaseMerge(addr)
-}
+//go:linkname Release
+func Release(addr unsafe.Pointer)
 
-func Disable() {
-	runtime.RaceDisable()
-}
+//go:linkname ReleaseMerge
+func ReleaseMerge(addr unsafe.Pointer)
 
-func Enable() {
-	runtime.RaceEnable()
-}
+//go:linkname Disable
+func Disable()
 
-func Read(addr unsafe.Pointer) {
-	runtime.RaceRead(addr)
-}
+//go:linkname Enable
+func Enable()
 
-func Write(addr unsafe.Pointer) {
-	runtime.RaceWrite(addr)
-}
+//go:linkname Read
+func Read(addr unsafe.Pointer)
 
-func ReadRange(addr unsafe.Pointer, len int) {
-	runtime.RaceReadRange(addr, len)
-}
+//go:linkname ReadPC
+func ReadPC(addr unsafe.Pointer, callerpc, pc uintptr)
 
-func WriteRange(addr unsafe.Pointer, len int) {
-	runtime.RaceWriteRange(addr, len)
-}
+//go:linkname ReadObjectPC
+func ReadObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr)
 
-func Errors() int {
-	return runtime.RaceErrors()
-}
+//go:linkname Write
+func Write(addr unsafe.Pointer)
+
+//go:linkname WritePC
+func WritePC(addr unsafe.Pointer, callerpc, pc uintptr)
+
+//go:linkname WriteObjectPC
+func WriteObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr)
+
+//go:linkname ReadRange
+func ReadRange(addr unsafe.Pointer, len int)
+
+//go:linkname WriteRange
+func WriteRange(addr unsafe.Pointer, len int)
+
+//go:linkname Errors
+func Errors() int

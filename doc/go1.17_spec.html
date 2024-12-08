@@ -1,14 +1,17 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Oct 15, 2021",
+	"Subtitle": "Language version go1.17 (Oct 15, 2021)",
 	"Path": "/ref/spec"
 }-->
 
 <h2 id="Introduction">Introduction</h2>
 
 <p>
-This is a reference manual for the Go programming language. For
-more information and other documents, see <a href="/">golang.org</a>.
+This is the reference manual for the Go programming language as it was for
+language version 1.17, in October 2021, before the introduction of generics.
+It is provided for historical interest.
+The current reference manual can be found <a href="/doc/go_spec.html">here</a>.
+For more information and other documents, see <a href="/">go.dev</a>.
 </p>
 
 <p>
@@ -653,7 +656,7 @@ and are discussed in that section.
 
 <p>
 Numeric constants represent exact values of arbitrary precision and do not overflow.
-Consequently, there are no constants denoting the IEEE-754 negative zero, infinity,
+Consequently, there are no constants denoting the IEEE 754 negative zero, infinity,
 and not-a-number values.
 </p>
 
@@ -879,8 +882,8 @@ int16       the set of all signed 16-bit integers (-32768 to 32767)
 int32       the set of all signed 32-bit integers (-2147483648 to 2147483647)
 int64       the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
 
-float32     the set of all IEEE-754 32-bit floating-point numbers
-float64     the set of all IEEE-754 64-bit floating-point numbers
+float32     the set of all IEEE 754 32-bit floating-point numbers
+float64     the set of all IEEE 754 64-bit floating-point numbers
 
 complex64   the set of all complex numbers with float32 real and imaginary parts
 complex128  the set of all complex numbers with float64 real and imaginary parts
@@ -3811,7 +3814,7 @@ For floating-point and complex numbers,
 <code>+x</code> is the same as <code>x</code>,
 while <code>-x</code> is the negation of <code>x</code>.
 The result of a floating-point or complex division by zero is not specified beyond the
-IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
+IEEE 754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
 occurs is implementation-specific.
 </p>
 
@@ -3901,7 +3904,7 @@ These terms and the result of the comparisons are defined as follows:
 
 	<li>
 	Floating-point values are comparable and ordered,
-	as defined by the IEEE-754 standard.
+	as defined by the IEEE 754 standard.
 	</li>
 
 	<li>
@@ -4249,7 +4252,7 @@ When converting an integer or floating-point number to a floating-point type,
 or a complex number to another complex type, the result value is rounded
 to the precision specified by the destination type.
 For instance, the value of a variable <code>x</code> of type <code>float32</code>
-may be stored using additional precision beyond that of an IEEE-754 32-bit number,
+may be stored using additional precision beyond that of an IEEE 754 32-bit number,
 but float32(x) represents the result of rounding <code>x</code>'s value to
 32-bit precision. Similarly, <code>x + 0.1</code> may use more than 32 bits
 of precision, but <code>float32(x + 0.1)</code> does not.

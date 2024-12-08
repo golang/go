@@ -8,7 +8,6 @@ package run
 import (
 	"context"
 	"go/build"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -128,7 +127,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go: no packages loaded from %s", arg)
 		}
 		if len(pkgs) > 1 {
-			var names []string
+			names := make([]string, 0, len(pkgs))
 			for _, p := range pkgs {
 				names = append(names, p.ImportPath)
 			}
@@ -166,10 +165,11 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		p.Internal.ExeName = src[:len(src)-len(".go")]
 	} else {
-		p.Internal.ExeName = path.Base(p.ImportPath)
+		p.Internal.ExeName = p.DefaultExecName()
 	}
 
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
+	a1.CacheExecutable = true
 	a := &work.Action{Mode: "go run", Actor: work.ActorFunc(buildRunProgram), Args: cmdArgs, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)
 }
@@ -199,9 +199,9 @@ func shouldUseOutsideModuleMode(args []string) bool {
 // buildRunProgram is the action for running a binary that has already
 // been compiled. We ignore exit status.
 func buildRunProgram(b *work.Builder, ctx context.Context, a *work.Action) error {
-	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
+	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].BuiltTarget(), a.Args)
 	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "%s", strings.Join(cmdline, " "))
+		b.Shell(a).ShowCmd("", "%s", strings.Join(cmdline, " "))
 		if cfg.BuildN {
 			return nil
 		}

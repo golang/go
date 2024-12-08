@@ -180,7 +180,6 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
-	"unsafe"
 )
 
 // New creates and returns a new Matcher implementing the given pattern.
@@ -311,22 +310,7 @@ type Matcher struct {
 	quiet   bool   // disables all reporting.  reset if verbose is true. use case is -d=fmahash=qn
 	enable  bool   // when true, list is for “enable and report” (when false, “disable and report”)
 	list    []cond // conditions; later ones win over earlier ones
-	dedup   atomicPointerDedup
-}
-
-// atomicPointerDedup is an atomic.Pointer[dedup],
-// but we are avoiding using Go 1.19's atomic.Pointer
-// until the bootstrap toolchain can be relied upon to have it.
-type atomicPointerDedup struct {
-	p unsafe.Pointer
-}
-
-func (p *atomicPointerDedup) Load() *dedup {
-	return (*dedup)(atomic.LoadPointer(&p.p))
-}
-
-func (p *atomicPointerDedup) CompareAndSwap(old, new *dedup) bool {
-	return atomic.CompareAndSwapPointer(&p.p, unsafe.Pointer(old), unsafe.Pointer(new))
+	dedup   atomic.Pointer[dedup]
 }
 
 // A cond is a single condition in the matcher.
@@ -482,7 +466,6 @@ func (m *Matcher) stack(w Writer) bool {
 		}
 	}
 	return m.ShouldEnable(h)
-
 }
 
 // Writer is the same interface as io.Writer.
@@ -513,7 +496,7 @@ func printStack(w Writer, h uint64, stk []uintptr) error {
 	for {
 		f, more := frames.Next()
 		buf = append(buf, prefix...)
-		buf = append(buf, f.Func.Name()...)
+		buf = append(buf, f.Function...)
 		buf = append(buf, "()\n"...)
 		buf = append(buf, prefix...)
 		buf = append(buf, '\t')

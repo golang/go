@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+const supportsSendfile = true
+
 // sendFile copies the contents of r to c using the sendfile
 // system call to minimize copies.
 //
@@ -18,7 +20,7 @@ import (
 //
 // if handled == false, sendFile performed no work.
 func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
-	var remain int64 = 1<<63 - 1 // by default, copy until EOF
+	var remain int64 = 0 // 0 indicates sending until EOF
 
 	lr, ok := r.(*io.LimitedReader)
 	if ok {

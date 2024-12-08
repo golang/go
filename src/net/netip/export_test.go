@@ -4,7 +4,7 @@
 
 package netip
 
-import "internal/intern"
+import "unique"
 
 var (
 	Z0    = z0
@@ -14,11 +14,17 @@ var (
 
 type Uint128 = uint128
 
+type AddrDetail = addrDetail
+
+func MakeAddrDetail(isV6 bool, zoneV6 string) AddrDetail {
+	return AddrDetail{isV6: isV6, zoneV6: zoneV6}
+}
+
 func Mk128(hi, lo uint64) Uint128 {
 	return uint128{hi, lo}
 }
 
-func MkAddr(u Uint128, z *intern.Value) Addr {
+func MkAddr(u Uint128, z unique.Handle[AddrDetail]) Addr {
 	return Addr{u, z}
 }
 
@@ -28,3 +34,5 @@ var TestAppendToMarshal = testAppendToMarshal
 
 func (a Addr) IsZero() bool   { return a.isZero() }
 func (p Prefix) IsZero() bool { return p.isZero() }
+
+func (p Prefix) Compare(p2 Prefix) int { return p.compare(p2) }

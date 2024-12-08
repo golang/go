@@ -14,6 +14,9 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/des"
+	"crypto/internal/cryptotest"
+	"fmt"
 	"testing"
 )
 
@@ -99,4 +102,38 @@ func TestOFB(t *testing.T) {
 			break
 		}
 	}
+}
+
+func TestOFBStream(t *testing.T) {
+
+	for _, keylen := range []int{128, 192, 256} {
+
+		t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
+			rng := newRandReader(t)
+
+			key := make([]byte, keylen/8)
+			rng.Read(key)
+
+			block, err := aes.NewCipher(key)
+			if err != nil {
+				panic(err)
+			}
+
+			cryptotest.TestStreamFromBlock(t, block, cipher.NewOFB)
+		})
+	}
+
+	t.Run("DES", func(t *testing.T) {
+		rng := newRandReader(t)
+
+		key := make([]byte, 8)
+		rng.Read(key)
+
+		block, err := des.NewCipher(key)
+		if err != nil {
+			panic(err)
+		}
+
+		cryptotest.TestStreamFromBlock(t, block, cipher.NewOFB)
+	})
 }

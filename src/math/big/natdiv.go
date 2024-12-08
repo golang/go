@@ -392,7 +392,7 @@ Proof that q ≤ q̂:
 	      ≥ (1/y)·((x₁ - y₁ + 1)·S - x)    [above: q̂·y₁ ≥ x₁ - y₁ + 1]
 	      = (1/y)·(x₁·S - y₁·S + S - x)    [distribute S]
 	      = (1/y)·(S - x₀ - y₁·S)          [-x = -x₁·S - x₀]
-	      > -y₁·S / y                      [x₀ < S, so S - x₀ < 0; drop it]
+	      > -y₁·S / y                      [x₀ < S, so S - x₀ > 0; drop it]
 	      ≥ -1                             [y₁·S ≤ y]
 
 	So q̂ - q > -1.
@@ -602,7 +602,7 @@ func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
 	v := *vp
 	shlVU(v, vIn, shift)
 	u = u.make(len(uIn) + 1)
-	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
+	u[len(uIn)] = shlVU(u[:len(uIn)], uIn, shift)
 
 	// The caller should not pass aliased z and u, since those are
 	// the two different outputs, but correct just in case.
@@ -642,15 +642,14 @@ func (q nat) divBasic(u, v nat) {
 	vn1 := v[n-1]
 	rec := reciprocalWord(vn1)
 
+	// Invent a leading 0 for u, for the first iteration.
+	// Invariant: ujn == u[j+n] in each iteration.
+	ujn := Word(0)
+
 	// Compute each digit of quotient.
 	for j := m; j >= 0; j-- {
 		// Compute the 2-by-1 guess q̂.
-		// The first iteration must invent a leading 0 for u.
 		qhat := Word(_M)
-		var ujn Word
-		if j+n < len(u) {
-			ujn = u[j+n]
-		}
 
 		// ujn ≤ vn1, or else q̂ would be more than one digit.
 		// For ujn == vn1, we set q̂ to the max digit M above.
@@ -699,6 +698,8 @@ func (q nat) divBasic(u, v nat) {
 			qhat--
 		}
 
+		ujn = u[j+n-1]
+
 		// Save quotient digit.
 		// Caller may know the top digit is zero and not leave room for it.
 		if j == m && m == len(q) && qhat == 0 {
@@ -734,7 +735,7 @@ func (z nat) divRecursive(u, v nat) {
 	tmp := getNat(3 * len(v))
 	temps := make([]*nat, recDepth)
 
-	z.clear()
+	clear(z)
 	z.divRecursiveStep(u, v, 0, tmp, temps)
 
 	// Free temporaries.
@@ -758,7 +759,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 	u = u.norm()
 	v = v.norm()
 	if len(u) == 0 {
-		z.clear()
+		clear(z)
 		return
 	}
 
@@ -816,7 +817,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 
 		// Compute the 2-by-1 guess q̂, leaving r̂ in uu[s:B+n].
 		qhat := *temps[depth]
-		qhat.clear()
+		clear(qhat)
 		qhat.divRecursiveStep(uu[s:B+n], v[s:], depth+1, tmp, temps)
 		qhat = qhat.norm()
 
@@ -833,7 +834,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 		// But we can do the subtraction directly, as in the comment above
 		// and in long division, because we know that q̂ is wrong by at most one.
 		qhatv := tmp.make(3 * n)
-		qhatv.clear()
+		clear(qhatv)
 		qhatv = qhatv.mul(qhat, v[:s])
 		for i := 0; i < 2; i++ {
 			e := qhatv.cmp(uu.norm())
@@ -864,11 +865,11 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 	// Choose shift = B-1 again.
 	s := B - 1
 	qhat := *temps[depth]
-	qhat.clear()
+	clear(qhat)
 	qhat.divRecursiveStep(u[s:].norm(), v[s:], depth+1, tmp, temps)
 	qhat = qhat.norm()
 	qhatv := tmp.make(3 * n)
-	qhatv.clear()
+	clear(qhatv)
 	qhatv = qhatv.mul(qhat, v[:s])
 	// Set the correct remainder as before.
 	for i := 0; i < 2; i++ {
@@ -884,7 +885,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 	if qhatv.cmp(u.norm()) > 0 {
 		panic("impossible")
 	}
-	c := subVV(u[0:len(qhatv)], u[0:len(qhatv)], qhatv)
+	c := subVV(u[:len(qhatv)], u[:len(qhatv)], qhatv)
 	if c > 0 {
 		c = subVW(u[len(qhatv):], u[len(qhatv):], c)
 	}

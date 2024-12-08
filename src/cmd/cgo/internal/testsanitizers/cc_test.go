@@ -16,8 +16,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -266,10 +268,26 @@ func compilerSupportsLocation() bool {
 	case "gcc":
 		return compiler.major >= 10
 	case "clang":
+		// TODO(65606): The clang toolchain on the LUCI builders is not built against
+		// zlib, the ASAN runtime can't actually symbolize its own stack trace. Once
+		// this is resolved, one way or another, switch this back to 'true'. We still
+		// have coverage from the 'gcc' case above.
+		if inLUCIBuild() {
+			return false
+		}
 		return true
 	default:
 		return false
 	}
+}
+
+// inLUCIBuild returns true if we're currently executing in a LUCI build.
+func inLUCIBuild() bool {
+	u, err := user.Current()
+	if err != nil {
+		return false
+	}
+	return testenv.Builder() != "" && u.Username == "swarming"
 }
 
 // compilerRequiredTsanVersion reports whether the compiler is the version required by Tsan.
@@ -545,12 +563,7 @@ func (d *tempDir) Join(name string) string {
 }
 
 func newTempDir(t *testing.T) *tempDir {
-	t.Helper()
-	dir, err := os.MkdirTemp("", filepath.Dir(t.Name()))
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	return &tempDir{base: dir}
+	return &tempDir{base: t.TempDir()}
 }
 
 // hangProneCmd returns an exec.Cmd for a command that is likely to hang.

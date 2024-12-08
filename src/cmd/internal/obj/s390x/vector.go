@@ -45,8 +45,14 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VAC, 0, 0
 	case AVACQ:
 		return op_VAC, 4, 0
-	case AVMSLG, AVMSLEG, AVMSLOG, AVMSLEOG:
+	case AVMSLG:
 		return op_VMSL, 3, 0
+	case AVMSLEG:
+		return op_VMSL, 3, 8
+	case AVMSLOG:
+		return op_VMSL, 3, 4
+	case AVMSLEOG:
+		return op_VMSL, 3, 12
 	case AVACCC:
 		return op_VACCC, 0, 0
 	case AVACCCQ:
@@ -1058,12 +1064,6 @@ func singleElementMask(as obj.As) uint32 {
 		AWFTCIDB,
 		AWFIDB:
 		return 8
-	case AVMSLEG:
-		return 8
-	case AVMSLOG:
-		return 4
-	case AVMSLEOG:
-		return 12
 	}
 	return 0
 }

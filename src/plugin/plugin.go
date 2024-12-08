@@ -29,6 +29,10 @@
 //     macOS, making them unsuitable for applications intended to be
 //     portable.
 //
+//   - Plugins are poorly supported by the Go race detector. Even simple
+//     race conditions may not be automatically detected. See
+//     https://go.dev/issue/24245 for more information.
+//
 //   - Applications that use plugins may require careful configuration
 //     to ensure that the various parts of the program be made available
 //     in the correct location in the file system (or container image).
@@ -74,7 +78,7 @@ type Plugin struct {
 }
 
 // Open opens a Go plugin.
-// If a path has already been opened, then the existing *Plugin is returned.
+// If a path has already been opened, then the existing *[Plugin] is returned.
 // It is safe for concurrent use by multiple goroutines.
 func Open(path string) (*Plugin, error) {
 	return open(path)
@@ -100,7 +104,7 @@ func (p *Plugin) Lookup(symName string) (Symbol, error) {
 //
 //	func F() { fmt.Printf("Hello, number %d\n", V) }
 //
-// may be loaded with the Open function and then the exported package
+// may be loaded with the [Open] function and then the exported package
 // symbols V and F can be accessed
 //
 //	p, err := plugin.Open("plugin_name.so")

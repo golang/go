@@ -57,7 +57,7 @@ func _() {
 	var x S[int]
 	g4(x)      // we can infer int for P
 	g4[int](x) // int is the correct type argument
-	g4[string](x /* ERROR "cannot use x (variable of type S[int]) as S[string] value in argument to g4[string]" */)
+	g4[string](x /* ERROR "cannot use x (variable of struct type S[int]) as S[string] value in argument to g4[string]" */)
 }
 
 // This is similar to the first example but here T1 is a component

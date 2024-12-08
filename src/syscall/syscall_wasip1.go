@@ -97,7 +97,7 @@ func (e Errno) Timeout() bool {
 }
 
 // A Signal is a number describing a process signal.
-// It implements the os.Signal interface.
+// It implements the [os.Signal] interface.
 type Signal uint8
 
 const (
@@ -216,12 +216,14 @@ const (
 	O_WRONLY = 1
 	O_RDWR   = 2
 
-	O_CREAT  = 0100
-	O_CREATE = O_CREAT
-	O_TRUNC  = 01000
-	O_APPEND = 02000
-	O_EXCL   = 0200
-	O_SYNC   = 010000
+	O_CREAT     = 0100
+	O_CREATE    = O_CREAT
+	O_TRUNC     = 01000
+	O_APPEND    = 02000
+	O_EXCL      = 0200
+	O_SYNC      = 010000
+	O_DIRECTORY = 020000
+	O_NOFOLLOW  = 0400
 
 	O_CLOEXEC = 0
 )
@@ -305,18 +307,18 @@ func (w WaitStatus) Continued() bool    { return false }
 func (w WaitStatus) StopSignal() Signal { return 0 }
 func (w WaitStatus) TrapCause() int     { return 0 }
 
-// Rusage is a placeholder to allow compilation of the os/exec package
+// Rusage is a placeholder to allow compilation of the [os/exec] package
 // because we need Go programs to be portable across platforms. WASI does
-// not have a mechanism to to spawn processes so there is no reason for an
+// not have a mechanism to spawn processes so there is no reason for an
 // application to take a dependency on this type.
 type Rusage struct {
 	Utime Timeval
 	Stime Timeval
 }
 
-// ProcAttr is a placeholder to allow compilation of the os/exec package
+// ProcAttr is a placeholder to allow compilation of the [os/exec] package
 // because we need Go programs to be portable across platforms. WASI does
-// not have a mechanism to to spawn processes so there is no reason for an
+// not have a mechanism to spawn processes so there is no reason for an
 // application to take a dependency on this type.
 type ProcAttr struct {
 	Dir   string
@@ -381,7 +383,7 @@ func Getppid() int {
 
 func Gettimeofday(tv *Timeval) error {
 	var time timestamp
-	if errno := clock_time_get(clockRealtime, 1e3, unsafe.Pointer(&time)); errno != 0 {
+	if errno := clock_time_get(clockRealtime, 1e3, &time); errno != 0 {
 		return errno
 	}
 	tv.setTimestamp(time)
@@ -463,7 +465,7 @@ const (
 
 //go:wasmimport wasi_snapshot_preview1 clock_time_get
 //go:noescape
-func clock_time_get(id clockid, precision timestamp, time unsafe.Pointer) Errno
+func clock_time_get(id clockid, precision timestamp, time *timestamp) Errno
 
 func SetNonblock(fd int, nonblocking bool) error {
 	flags, err := fd_fdstat_get_flags(fd)

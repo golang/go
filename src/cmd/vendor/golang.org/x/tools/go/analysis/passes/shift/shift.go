@@ -89,7 +89,8 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 	if v == nil {
 		return
 	}
-	amt, ok := constant.Int64Val(v)
+	u := constant.ToInt(v) // either an Int or Unknown
+	amt, ok := constant.Int64Val(u)
 	if !ok {
 		return
 	}
@@ -98,8 +99,8 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 		return
 	}
 	var structuralTypes []types.Type
-	switch t := t.(type) {
-	case *typeparams.TypeParam:
+	switch t := types.Unalias(t).(type) {
+	case *types.TypeParam:
 		terms, err := typeparams.StructuralTerms(t)
 		if err != nil {
 			return // invalid type

@@ -10,8 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/textproto"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -22,7 +23,7 @@ type Writer struct {
 	lastpart *part
 }
 
-// NewWriter returns a new multipart Writer with a random boundary,
+// NewWriter returns a new multipart [Writer] with a random boundary,
 // writing to w.
 func NewWriter(w io.Writer) *Writer {
 	return &Writer{
@@ -31,12 +32,12 @@ func NewWriter(w io.Writer) *Writer {
 	}
 }
 
-// Boundary returns the Writer's boundary.
+// Boundary returns the [Writer]'s boundary.
 func (w *Writer) Boundary() string {
 	return w.boundary
 }
 
-// SetBoundary overrides the Writer's default randomly-generated
+// SetBoundary overrides the [Writer]'s default randomly-generated
 // boundary separator with an explicit value.
 //
 // SetBoundary must be called before any parts are created, may only
@@ -70,7 +71,7 @@ func (w *Writer) SetBoundary(boundary string) error {
 }
 
 // FormDataContentType returns the Content-Type for an HTTP
-// multipart/form-data with this Writer's Boundary.
+// multipart/form-data with this [Writer]'s Boundary.
 func (w *Writer) FormDataContentType() string {
 	b := w.boundary
 	// We must quote the boundary if it contains any of the
@@ -92,7 +93,7 @@ func randomBoundary() string {
 
 // CreatePart creates a new multipart section with the provided
 // header. The body of the part should be written to the returned
-// Writer. After calling CreatePart, any previous part may no longer
+// [Writer]. After calling CreatePart, any previous part may no longer
 // be written to.
 func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	if w.lastpart != nil {
@@ -107,12 +108,7 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 		fmt.Fprintf(&b, "--%s\r\n", w.boundary)
 	}
 
-	keys := make([]string, 0, len(header))
-	for k := range header {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
+	for _, k := range slices.Sorted(maps.Keys(header)) {
 		for _, v := range header[k] {
 			fmt.Fprintf(&b, "%s: %s\r\n", k, v)
 		}
@@ -135,7 +131,7 @@ func escapeQuotes(s string) string {
 	return quoteEscaper.Replace(s)
 }
 
-// CreateFormFile is a convenience wrapper around CreatePart. It creates
+// CreateFormFile is a convenience wrapper around [Writer.CreatePart]. It creates
 // a new form-data header with the provided field name and file name.
 func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
@@ -146,7 +142,7 @@ func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, error) {
 	return w.CreatePart(h)
 }
 
-// CreateFormField calls CreatePart with a header using the
+// CreateFormField calls [Writer.CreatePart] with a header using the
 // given field name.
 func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
@@ -155,7 +151,7 @@ func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
 	return w.CreatePart(h)
 }
 
-// WriteField calls CreateFormField and then writes the given value.
+// WriteField calls [Writer.CreateFormField] and then writes the given value.
 func (w *Writer) WriteField(fieldname, value string) error {
 	p, err := w.CreateFormField(fieldname)
 	if err != nil {

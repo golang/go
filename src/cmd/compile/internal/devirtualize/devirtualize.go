@@ -18,39 +18,27 @@ import (
 	"cmd/compile/internal/types"
 )
 
-// Static devirtualizes calls within fn where possible when the concrete callee
+// StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
-func Static(fn *ir.Func) {
-	ir.CurFunc = fn
+func StaticCall(call *ir.CallExpr) {
+	// For promoted methods (including value-receiver methods promoted
+	// to pointer-receivers), the interface method wrapper may contain
+	// expressions that can panic (e.g., ODEREF, ODOTPTR,
+	// ODOTINTER). Devirtualization involves inlining these expressions
+	// (and possible panics) to the call site. This normally isn't a
+	// problem, but for go/defer statements it can move the panic from
+	// when/where the call executes to the go/defer statement itself,
+	// which is a visible change in semantics (e.g., #52072). To prevent
+	// this, we skip devirtualizing calls within go/defer statements
+	// altogether.
+	if call.GoDefer {
+		return
+	}
 
-	// For promoted methods (including value-receiver methods promoted to pointer-receivers),
-	// the interface method wrapper may contain expressions that can panic (e.g., ODEREF, ODOTPTR, ODOTINTER).
-	// Devirtualization involves inlining these expressions (and possible panics) to the call site.
-	// This normally isn't a problem, but for go/defer statements it can move the panic from when/where
-	// the call executes to the go/defer statement itself, which is a visible change in semantics (e.g., #52072).
-	// To prevent this, we skip devirtualizing calls within go/defer statements altogether.
-	goDeferCall := make(map[*ir.CallExpr]bool)
-	ir.VisitList(fn.Body, func(n ir.Node) {
-		switch n := n.(type) {
-		case *ir.GoDeferStmt:
-			if call, ok := n.Call.(*ir.CallExpr); ok {
-				goDeferCall[call] = true
-			}
-			return
-		case *ir.CallExpr:
-			if !goDeferCall[n] {
-				staticCall(n)
-			}
-		}
-	})
-}
-
-// staticCall devirtualizes the given call if possible when the concrete callee
-// is available statically.
-func staticCall(call *ir.CallExpr) {
 	if call.Op() != ir.OCALLINTER {
 		return
 	}
+
 	sel := call.Fun.(*ir.SelectorExpr)
 	r := ir.StaticValue(sel.X)
 	if r.Op() != ir.OCONVIFACE {
@@ -70,12 +58,12 @@ func staticCall(call *ir.CallExpr) {
 		return
 	}
 
-	// If typ *has* a shape type, then it's an shaped, instantiated
+	// If typ *has* a shape type, then it's a shaped, instantiated
 	// type like T[go.shape.int], and its methods (may) have an extra
 	// dictionary parameter. We could devirtualize this call if we
 	// could derive an appropriate dictionary argument.
 	//
-	// TODO(mdempsky): If typ has has a promoted non-generic method,
+	// TODO(mdempsky): If typ has a promoted non-generic method,
 	// then that method won't require a dictionary argument. We could
 	// still devirtualize those calls.
 	//

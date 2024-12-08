@@ -1,6 +1,6 @@
 // errorcheck -0 -d=nil
 
-// +build aix
+//go:build aix
 
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

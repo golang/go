@@ -7,7 +7,7 @@ package vcweb
 import (
 	"bufio"
 	"bytes"
-	"cmd/go/internal/script"
+	"cmd/internal/script"
 	"context"
 	"errors"
 	"fmt"

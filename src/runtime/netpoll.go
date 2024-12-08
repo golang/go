@@ -7,8 +7,8 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/atomic"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -31,7 +31,7 @@ import (
 //     poll without blocking. If delta > 0, block for up to delta nanoseconds.
 //     Return a list of goroutines built by calling netpollready,
 //     and a delta to add to netpollWaiters when all goroutines are ready.
-//     This will never return an empty list with a non-zero delta.
+//     This must never return an empty list with a non-zero delta.
 //
 // func netpollBreak()
 //     Wake up the network poller, assumed to be blocked in netpoll.
@@ -102,9 +102,11 @@ type pollDesc struct {
 
 	lock    mutex // protects the following fields
 	closing bool
+	rrun    bool      // whether rt is running
+	wrun    bool      // whether wt is running
 	user    uint32    // user settable cookie
 	rseq    uintptr   // protects from stale read timers
-	rt      timer     // read deadline timer (set if rt.f != nil)
+	rt      timer     // read deadline timer
 	rd      int64     // read deadline (a nanotime in the future, -1 when expired)
 	wseq    uintptr   // protects from stale write timers
 	wt      timer     // write deadline timer
@@ -205,6 +207,9 @@ var (
 	netpollWaiters atomic.Uint32
 )
 
+// netpollWaiters is accessed in tests
+//go:linkname netpollWaiters
+
 //go:linkname poll_runtime_pollServerInit internal/poll.runtime_pollServerInit
 func poll_runtime_pollServerInit() {
 	netpollGenericInit()
@@ -213,6 +218,7 @@ func poll_runtime_pollServerInit() {
 func netpollGenericInit() {
 	if netpollInited.Load() == 0 {
 		lockInit(&netpollInitLock, lockRankNetpollInit)
+		lockInit(&pollcache.lock, lockRankPollCache)
 		lock(&netpollInitLock)
 		if netpollInited.Load() == 0 {
 			netpollinit()
@@ -391,39 +397,35 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	if combo {
 		rtf = netpollDeadline
 	}
-	if pd.rt.f == nil {
+	if !pd.rrun {
 		if pd.rd > 0 {
-			pd.rt.f = rtf
 			// Copy current seq into the timer arg.
 			// Timer func will check the seq against current descriptor seq,
 			// if they differ the descriptor was reused or timers were reset.
-			pd.rt.arg = pd.makeArg()
-			pd.rt.seq = pd.rseq
-			resettimer(&pd.rt, pd.rd)
+			pd.rt.modify(pd.rd, 0, rtf, pd.makeArg(), pd.rseq)
+			pd.rrun = true
 		}
 	} else if pd.rd != rd0 || combo != combo0 {
 		pd.rseq++ // invalidate current timers
 		if pd.rd > 0 {
-			modtimer(&pd.rt, pd.rd, 0, rtf, pd.makeArg(), pd.rseq)
+			pd.rt.modify(pd.rd, 0, rtf, pd.makeArg(), pd.rseq)
 		} else {
-			deltimer(&pd.rt)
-			pd.rt.f = nil
+			pd.rt.stop()
+			pd.rrun = false
 		}
 	}
-	if pd.wt.f == nil {
+	if !pd.wrun {
 		if pd.wd > 0 && !combo {
-			pd.wt.f = netpollWriteDeadline
-			pd.wt.arg = pd.makeArg()
-			pd.wt.seq = pd.wseq
-			resettimer(&pd.wt, pd.wd)
+			pd.wt.modify(pd.wd, 0, netpollWriteDeadline, pd.makeArg(), pd.wseq)
+			pd.wrun = true
 		}
 	} else if pd.wd != wd0 || combo != combo0 {
 		pd.wseq++ // invalidate current timers
 		if pd.wd > 0 && !combo {
-			modtimer(&pd.wt, pd.wd, 0, netpollWriteDeadline, pd.makeArg(), pd.wseq)
+			pd.wt.modify(pd.wd, 0, netpollWriteDeadline, pd.makeArg(), pd.wseq)
 		} else {
-			deltimer(&pd.wt)
-			pd.wt.f = nil
+			pd.wt.stop()
+			pd.wrun = false
 		}
 	}
 	// If we set the new deadline in the past, unblock currently pending IO if any.
@@ -460,13 +462,13 @@ func poll_runtime_pollUnblock(pd *pollDesc) {
 	delta := int32(0)
 	rg = netpollunblock(pd, 'r', false, &delta)
 	wg = netpollunblock(pd, 'w', false, &delta)
-	if pd.rt.f != nil {
-		deltimer(&pd.rt)
-		pd.rt.f = nil
+	if pd.rrun {
+		pd.rt.stop()
+		pd.rrun = false
 	}
-	if pd.wt.f != nil {
-		deltimer(&pd.wt)
-		pd.wt.f = nil
+	if pd.wrun {
+		pd.wt.stop()
+		pd.wrun = false
 	}
 	unlock(&pd.lock)
 	if rg != nil {
@@ -633,7 +635,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	delta := int32(0)
 	var rg *g
 	if read {
-		if pd.rd <= 0 || pd.rt.f == nil {
+		if pd.rd <= 0 || !pd.rrun {
 			throw("runtime: inconsistent read deadline")
 		}
 		pd.rd = -1
@@ -642,7 +644,7 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	}
 	var wg *g
 	if write {
-		if pd.wd <= 0 || pd.wt.f == nil && !read {
+		if pd.wd <= 0 || !pd.wrun && !read {
 			throw("runtime: inconsistent write deadline")
 		}
 		pd.wd = -1
@@ -659,15 +661,15 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	netpollAdjustWaiters(delta)
 }
 
-func netpollDeadline(arg any, seq uintptr) {
+func netpollDeadline(arg any, seq uintptr, delta int64) {
 	netpolldeadlineimpl(arg.(*pollDesc), seq, true, true)
 }
 
-func netpollReadDeadline(arg any, seq uintptr) {
+func netpollReadDeadline(arg any, seq uintptr, delta int64) {
 	netpolldeadlineimpl(arg.(*pollDesc), seq, true, false)
 }
 
-func netpollWriteDeadline(arg any, seq uintptr) {
+func netpollWriteDeadline(arg any, seq uintptr, delta int64) {
 	netpolldeadlineimpl(arg.(*pollDesc), seq, false, true)
 }
 
@@ -696,13 +698,15 @@ func (c *pollCache) alloc() *pollDesc {
 		mem := persistentalloc(n*pdSize, 0, &memstats.other_sys)
 		for i := uintptr(0); i < n; i++ {
 			pd := (*pollDesc)(add(mem, i*pdSize))
+			lockInit(&pd.lock, lockRankPollDesc)
+			pd.rt.init(nil, nil)
+			pd.wt.init(nil, nil)
 			pd.link = c.first
 			c.first = pd
 		}
 	}
 	pd := c.first
 	c.first = pd.link
-	lockInit(&pd.lock, lockRankPollDesc)
 	unlock(&c.lock)
 	return pd
 }
@@ -710,7 +714,7 @@ func (c *pollCache) alloc() *pollDesc {
 // makeArg converts pd to an interface{}.
 // makeArg does not do any allocation. Normally, such
 // a conversion requires an allocation because pointers to
-// types which embed runtime/internal/sys.NotInHeap (which pollDesc is)
+// types which embed internal/runtime/sys.NotInHeap (which pollDesc is)
 // must be stored in interfaces indirectly. See issue 42076.
 func (pd *pollDesc) makeArg() (i any) {
 	x := (*eface)(unsafe.Pointer(&i))

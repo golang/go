@@ -267,7 +267,9 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
 	// determine token string
 	var tok string
 	switch p.tok {
-	case _Name, _Semi:
+	case _Name:
+		tok = "name " + p.lit
+	case _Semi:
 		tok = p.lit
 	case _Literal:
 		tok = "literal " + p.lit
@@ -298,7 +300,11 @@ func tokstring(tok token) string {
 	case _Semi:
 		return "semicolon or newline"
 	}
-	return tok.String()
+	s := tok.String()
+	if _Break <= tok && tok <= _Var {
+		return "keyword " + s
+	}
+	return s
 }
 
 // Convenience methods using the current token position.
@@ -719,8 +725,20 @@ func extractName(x Expr, force bool) (*Name, Expr) {
 	case *CallExpr:
 		if name, _ := x.Fun.(*Name); name != nil {
 			if len(x.ArgList) == 1 && !x.HasDots && (force || isTypeElem(x.ArgList[0])) {
-				// x = name "(" x.ArgList[0] ")"
-				return name, x.ArgList[0]
+				// The parser doesn't keep unnecessary parentheses.
+				// Set the flag below to keep them, for testing
+				// (see go.dev/issues/69206).
+				const keep_parens = false
+				if keep_parens {
+					// x = name (x.ArgList[0])
+					px := new(ParenExpr)
+					px.pos = x.pos // position of "(" in call
+					px.X = x.ArgList[0]
+					return name, px
+				} else {
+					// x = name x.ArgList[0]
+					return name, Unparen(x.ArgList[0])
+				}
 			}
 		}
 	}
@@ -798,6 +816,9 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 		f.Name = p.name()
 		f.TParamList, f.Type = p.funcType(context)
 	} else {
+		f.Name = NewName(p.pos(), "_")
+		f.Type = new(FuncType)
+		f.Type.pos = p.pos()
 		msg := "expected name or ("
 		if context != "" {
 			msg = "expected name"
@@ -1144,7 +1165,7 @@ loop:
 			}
 
 			// x[i:...
-			// For better error message, don't simply use p.want(_Colon) here (issue #47704).
+			// For better error message, don't simply use p.want(_Colon) here (go.dev/issue/47704).
 			if !p.got(_Colon) {
 				p.syntaxError("expected comma, : or ]")
 				p.advance(_Comma, _Colon, _Rbrack)
@@ -1393,6 +1414,16 @@ func (p *parser) typeOrNil() Expr {
 		p.next()
 		t := p.type_()
 		p.want(_Rparen)
+		// The parser doesn't keep unnecessary parentheses.
+		// Set the flag below to keep them, for testing
+		// (see e.g. tests for go.dev/issue/68639).
+		const keep_parens = false
+		if keep_parens {
+			px := new(ParenExpr)
+			px.pos = pos
+			px.X = t
+			t = px
+		}
 		return t
 	}
 
@@ -2018,7 +2049,7 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 
 	// distribute parameter types (len(list) > 0)
 	if named == 0 && !requireNames {
-		// all unnamed => found names are named types
+		// all unnamed and we're not in a type parameter list => found names are named types
 		for _, par := range list {
 			if typ := par.Name; typ != nil {
 				par.Type = typ
@@ -2026,40 +2057,55 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
 			}
 		}
 	} else if named != len(list) {
-		// some named => all must have names and types
-		var pos Pos  // left-most error position (or unknown)
-		var typ Expr // current type (from right to left)
+		// some named or we're in a type parameter list => all must be named
+		var errPos Pos // left-most error position (or unknown)
+		var typ Expr   // current type (from right to left)
 		for i := len(list) - 1; i >= 0; i-- {
 			par := list[i]
 			if par.Type != nil {
 				typ = par.Type
 				if par.Name == nil {
-					pos = StartPos(typ)
-					par.Name = NewName(pos, "_")
+					errPos = StartPos(typ)
+					par.Name = NewName(errPos, "_")
 				}
 			} else if typ != nil {
 				par.Type = typ
 			} else {
 				// par.Type == nil && typ == nil => we only have a par.Name
-				pos = par.Name.Pos()
+				errPos = par.Name.Pos()
 				t := p.badExpr()
-				t.pos = pos // correct position
+				t.pos = errPos // correct position
 				par.Type = t
 			}
 		}
-		if pos.IsKnown() {
+		if errPos.IsKnown() {
+			// Not all parameters are named because named != len(list).
+			// If named == typed, there must be parameters that have no types.
+			// They must be at the end of the parameter list, otherwise types
+			// would have been filled in by the right-to-left sweep above and
+			// there would be no error.
+			// If requireNames is set, the parameter list is a type parameter
+			// list.
 			var msg string
-			if requireNames {
-				if named == typed {
-					pos = end // position error at closing ]
+			if named == typed {
+				errPos = end // position error at closing token ) or ]
+				if requireNames {
 					msg = "missing type constraint"
 				} else {
-					msg = "type parameters must be named"
+					msg = "missing parameter type"
 				}
 			} else {
-				msg = "mixed named and unnamed parameters"
+				if requireNames {
+					msg = "missing type parameter name"
+					// go.dev/issue/60812
+					if len(list) == 1 {
+						msg += " or invalid array length"
+					}
+				} else {
+					msg = "missing parameter name"
+				}
 			}
-			p.syntaxErrorAt(pos, msg)
+			p.syntaxErrorAt(errPos, msg)
 		}
 	}
 
@@ -2295,7 +2341,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 	if p.tok != _Semi {
 		// accept potential varDecl but complain
 		if p.got(_Var) {
-			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", tokstring(keyword)))
+			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", keyword.String()))
 		}
 		init = p.simpleStmt(nil, keyword)
 		// If we have a range clause, we are done (can only happen for keyword == _For).
@@ -2319,7 +2365,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 			// asking for a '{' rather than a ';' here leads to a better error message
 			p.want(_Lbrace)
 			if p.tok != _Lbrace {
-				p.advance(_Lbrace, _Rbrace) // for better synchronization (e.g., issue #22581)
+				p.advance(_Lbrace, _Rbrace) // for better synchronization (e.g., go.dev/issue/22581)
 			}
 		}
 		if keyword == _For {

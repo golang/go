@@ -7,8 +7,12 @@ package unix
 //go:cgo_import_dynamic libc_fstatat fstatat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_openat openat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_readlinkat readlinkat "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_mkdirat mkdirat "libc.a/shr_64.o"
 
 const (
+	AT_EACCESS          = 0x1
+	AT_FDCWD            = -0x02
 	AT_REMOVEDIR        = 0x1
 	AT_SYMLINK_NOFOLLOW = 0x1
 	UTIME_OMIT          = -0x3

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build riscv64 && linux
-// +build riscv64,linux
 
 package unix
 
@@ -188,3 +187,5 @@ func RISCVHWProbe(pairs []RISCVHWProbePairs, set *CPUSet, flags uint) (err error
 	}
 	return riscvHWProbe(pairs, setSize, set, flags)
 }
+
+const SYS_FSTATAT = SYS_NEWFSTATAT

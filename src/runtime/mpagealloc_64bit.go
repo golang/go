@@ -209,23 +209,20 @@ func (s *scavengeIndex) sysGrow(base, limit uintptr, sysStat *sysMemStat) uintpt
 	haveMax := s.max.Load()
 	needMin := alignDown(uintptr(chunkIndex(base)), physPageSize/scSize)
 	needMax := alignUp(uintptr(chunkIndex(limit)), physPageSize/scSize)
-	// Extend the range down to what we have, if there's no overlap.
+
+	// We need a contiguous range, so extend the range if there's no overlap.
 	if needMax < haveMin {
 		needMax = haveMin
 	}
 	if haveMax != 0 && needMin > haveMax {
 		needMin = haveMax
 	}
-	have := makeAddrRange(
-		// Avoid a panic from indexing one past the last element.
-		uintptr(unsafe.Pointer(&s.chunks[0]))+haveMin*scSize,
-		uintptr(unsafe.Pointer(&s.chunks[0]))+haveMax*scSize,
-	)
-	need := makeAddrRange(
-		// Avoid a panic from indexing one past the last element.
-		uintptr(unsafe.Pointer(&s.chunks[0]))+needMin*scSize,
-		uintptr(unsafe.Pointer(&s.chunks[0]))+needMax*scSize,
-	)
+
+	// Avoid a panic from indexing one past the last element.
+	chunksBase := uintptr(unsafe.Pointer(&s.chunks[0]))
+	have := makeAddrRange(chunksBase+haveMin*scSize, chunksBase+haveMax*scSize)
+	need := makeAddrRange(chunksBase+needMin*scSize, chunksBase+needMax*scSize)
+
 	// Subtract any overlap from rounding. We can't re-map memory because
 	// it'll be zeroed.
 	need = need.subtract(have)
@@ -235,10 +232,10 @@ func (s *scavengeIndex) sysGrow(base, limit uintptr, sysStat *sysMemStat) uintpt
 		sysMap(unsafe.Pointer(need.base.addr()), need.size(), sysStat)
 		sysUsed(unsafe.Pointer(need.base.addr()), need.size(), need.size())
 		// Update the indices only after the new memory is valid.
-		if haveMin == 0 || needMin < haveMin {
+		if haveMax == 0 || needMin < haveMin {
 			s.min.Store(needMin)
 		}
-		if haveMax == 0 || needMax > haveMax {
+		if needMax > haveMax {
 			s.max.Store(needMax)
 		}
 	}

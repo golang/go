@@ -71,8 +71,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 		var structuralTypes []types.Type
-		switch typ := typ.(type) {
-		case *typeparams.TypeParam:
+		switch typ := types.Unalias(typ).(type) {
+		case *types.TypeParam:
 			terms, err := typeparams.StructuralTerms(typ)
 			if err != nil {
 				return // invalid type
@@ -83,9 +83,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		default:
 			structuralTypes = append(structuralTypes, typ)
 		}
+
 		for _, typ := range structuralTypes {
-			under := deref(typ.Underlying())
-			strct, ok := under.(*types.Struct)
+			strct, ok := typeparams.Deref(typ).Underlying().(*types.Struct)
 			if !ok {
 				// skip non-struct composite literals
 				continue
@@ -142,28 +142,17 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func deref(typ types.Type) types.Type {
-	for {
-		ptr, ok := typ.(*types.Pointer)
-		if !ok {
-			break
-		}
-		typ = ptr.Elem().Underlying()
-	}
-	return typ
-}
-
+// isLocalType reports whether typ belongs to the same package as pass.
+// TODO(adonovan): local means "internal to a function"; rename to isSamePackageType.
 func isLocalType(pass *analysis.Pass, typ types.Type) bool {
-	switch x := typ.(type) {
+	switch x := types.Unalias(typ).(type) {
 	case *types.Struct:
 		// struct literals are local types
 		return true
 	case *types.Pointer:
 		return isLocalType(pass, x.Elem())
-	case *types.Named:
+	case interface{ Obj() *types.TypeName }: // *Named or *TypeParam (aliases were removed already)
 		// names in package foo are local to foo_test too
-		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
-	case *typeparams.TypeParam:
 		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
 	}
 	return false

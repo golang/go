@@ -140,6 +140,41 @@ func main() {
 	//     61  }
 }
 
+func ExamplePreorder() {
+	src := `
+package p
+
+func f(x, y int) {
+	print(x + y)
+}
+`
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		panic(err)
+	}
+
+	// Print identifiers in order
+	for n := range ast.Preorder(f) {
+		id, ok := n.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		fmt.Println(id.Name)
+	}
+
+	// Output:
+	// p
+	// f
+	// x
+	// y
+	// int
+	// print
+	// x
+	// y
+}
+
 // This example illustrates how to remove a variable declaration
 // in a Go program while maintaining correct comment association
 // using an ast.CommentMap.

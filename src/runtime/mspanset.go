@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/cpu"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -284,7 +284,7 @@ func (s *atomicSpanSetSpinePointer) Load() spanSetSpinePointer {
 
 // Stores the spanSetSpinePointer.
 //
-// It has the same semantics as atomic.UnsafePointer.
+// It has the same semantics as [atomic.UnsafePointer].
 func (s *atomicSpanSetSpinePointer) StoreNoWB(p spanSetSpinePointer) {
 	s.a.StoreNoWB(p.p)
 }

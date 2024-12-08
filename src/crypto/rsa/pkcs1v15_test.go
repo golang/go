@@ -54,12 +54,14 @@ var decryptPKCS1v15Tests = []DecryptPKCS1v15Test{
 }
 
 func TestDecryptPKCS1v15(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
+
 	decryptionFuncs := []func([]byte) ([]byte, error){
 		func(ciphertext []byte) (plaintext []byte, err error) {
-			return DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
+			return DecryptPKCS1v15(nil, test512Key, ciphertext)
 		},
 		func(ciphertext []byte) (plaintext []byte, err error) {
-			return rsaPrivateKey.Decrypt(nil, ciphertext, nil)
+			return test512Key.Decrypt(nil, ciphertext, nil)
 		},
 	}
 
@@ -139,9 +141,10 @@ var decryptPKCS1v15SessionKeyTests = []DecryptPKCS1v15Test{
 }
 
 func TestEncryptPKCS1v15SessionKey(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	for i, test := range decryptPKCS1v15SessionKeyTests {
 		key := []byte("FAIL")
-		err := DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, decodeBase64(test.in), key)
+		err := DecryptPKCS1v15SessionKey(nil, test512Key, decodeBase64(test.in), key)
 		if err != nil {
 			t.Errorf("#%d error decrypting", i)
 		}
@@ -153,8 +156,9 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 }
 
 func TestEncryptPKCS1v15DecrypterSessionKey(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	for i, test := range decryptPKCS1v15SessionKeyTests {
-		plaintext, err := rsaPrivateKey.Decrypt(rand.Reader, decodeBase64(test.in), &PKCS1v15DecryptOptions{SessionKeyLen: 4})
+		plaintext, err := test512Key.Decrypt(rand.Reader, decodeBase64(test.in), &PKCS1v15DecryptOptions{SessionKeyLen: 4})
 		if err != nil {
 			t.Fatalf("#%d: error decrypting: %s", i, err)
 		}
@@ -196,12 +200,13 @@ var signPKCS1v15Tests = []signPKCS1v15Test{
 }
 
 func TestSignPKCS1v15(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	for i, test := range signPKCS1v15Tests {
 		h := sha1.New()
 		h.Write([]byte(test.in))
 		digest := h.Sum(nil)
 
-		s, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.SHA1, digest)
+		s, err := SignPKCS1v15(nil, test512Key, crypto.SHA1, digest)
 		if err != nil {
 			t.Errorf("#%d %s", i, err)
 		}
@@ -214,6 +219,7 @@ func TestSignPKCS1v15(t *testing.T) {
 }
 
 func TestVerifyPKCS1v15(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	for i, test := range signPKCS1v15Tests {
 		h := sha1.New()
 		h.Write([]byte(test.in))
@@ -221,7 +227,7 @@ func TestVerifyPKCS1v15(t *testing.T) {
 
 		sig, _ := hex.DecodeString(test.out)
 
-		err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.SHA1, digest, sig)
+		err := VerifyPKCS1v15(&test512Key.PublicKey, crypto.SHA1, digest, sig)
 		if err != nil {
 			t.Errorf("#%d %s", i, err)
 		}
@@ -229,14 +235,17 @@ func TestVerifyPKCS1v15(t *testing.T) {
 }
 
 func TestOverlongMessagePKCS1v15(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	ciphertext := decodeBase64("fjOVdirUzFoLlukv80dBllMLjXythIf22feqPrNo0YoIjzyzyoMFiLjAc/Y4krkeZ11XFThIrEvw\nkRiZcCq5ng==")
-	_, err := DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
+	_, err := DecryptPKCS1v15(nil, test512Key, ciphertext)
 	if err == nil {
 		t.Error("RSA decrypted a message that was too long.")
 	}
 }
 
 func TestUnpaddedSignature(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
+
 	msg := []byte("Thu Dec 19 18:06:16 EST 2013\n")
 	// This base64 value was generated with:
 	// % echo Thu Dec 19 18:06:16 EST 2013 > /tmp/msg
@@ -246,14 +255,14 @@ func TestUnpaddedSignature(t *testing.T) {
 	// file.
 	expectedSig := decodeBase64("pX4DR8azytjdQ1rtUiC040FjkepuQut5q2ZFX1pTjBrOVKNjgsCDyiJDGZTCNoh9qpXYbhl7iEym30BWWwuiZg==")
 
-	sig, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.Hash(0), msg)
+	sig, err := SignPKCS1v15(nil, test512Key, crypto.Hash(0), msg)
 	if err != nil {
 		t.Fatalf("SignPKCS1v15 failed: %s", err)
 	}
 	if !bytes.Equal(sig, expectedSig) {
 		t.Fatalf("signature is not expected value: got %x, want %x", sig, expectedSig)
 	}
-	if err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.Hash(0), msg, sig); err != nil {
+	if err := VerifyPKCS1v15(&test512Key.PublicKey, crypto.Hash(0), msg, sig); err != nil {
 		t.Fatalf("signature failed to verify: %s", err)
 	}
 }
@@ -277,16 +286,6 @@ func TestShortSessionKey(t *testing.T) {
 		}
 	}
 }
-
-var rsaPrivateKey = parseKey(testingKey(`-----BEGIN RSA TESTING KEY-----
-MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
-fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
-/ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
-RTUCIQDasvGASLqmjeffBNLTXV2A5g4t+kLVCpsEIZAycV5GswIhANEPLmax0ME/
-EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
-IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
-tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
------END RSA TESTING KEY-----`))
 
 func parsePublicKey(s string) *PublicKey {
 	p, _ := pem.Decode([]byte(s))

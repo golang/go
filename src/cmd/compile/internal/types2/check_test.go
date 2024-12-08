@@ -112,6 +112,8 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 
 // testFiles type-checks the package consisting of the given files, and
 // compares the resulting errors with the ERROR annotations in the source.
+// Except for manual tests, each package is type-checked twice, once without
+// use of Alias types, and once with Alias types.
 //
 // The srcs slice contains the file content for the files named in the
 // filenames slice. The colDelta parameter specifies the tolerance for position
@@ -120,36 +122,26 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
 //
 // If provided, opts may be used to mutate the Config before type-checking.
 func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
+	enableAlias := true
+	opts = append(opts, func(conf *Config) { conf.EnableAlias = enableAlias })
+	testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
+	if !manual {
+		enableAlias = false
+		testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
+	}
+}
+
+func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
 
-	var conf Config
-	var goexperiment string
-	flags := flag.NewFlagSet("", flag.PanicOnError)
-	flags.StringVar(&conf.GoVersion, "lang", "", "")
-	flags.StringVar(&goexperiment, "goexperiment", "", "")
-	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
-	if err := parseFlags(srcs[0], flags); err != nil {
-		t.Fatal(err)
-	}
-	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
-	if err != nil {
-		t.Fatal(err)
-	}
-	old := buildcfg.Experiment
-	defer func() {
-		buildcfg.Experiment = old
-	}()
-	buildcfg.Experiment = *exp
-
+	// parse files
 	files, errlist := parseFiles(t, filenames, srcs, 0)
-
 	pkgName := "<no package>"
 	if len(files) > 0 {
 		pkgName = files[0].PkgName.Value
 	}
-
 	listErrors := manual && !*verifyErrors
 	if listErrors && len(errlist) > 0 {
 		t.Errorf("--- %s:", pkgName)
@@ -158,7 +150,8 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
 		}
 	}
 
-	// typecheck and collect typechecker errors
+	// set up typechecker
+	var conf Config
 	conf.Trace = manual && testing.Verbose()
 	conf.Importer = defaultImporter()
 	conf.Error = func(err error) {
@@ -172,22 +165,46 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
 		errlist = append(errlist, err)
 	}
 
+	// apply custom configuration
 	for _, opt := range opts {
 		opt(&conf)
 	}
 
+	// apply flag setting (overrides custom configuration)
+	var goexperiment, gotypesalias string
+	flags := flag.NewFlagSet("", flag.PanicOnError)
+	flags.StringVar(&conf.GoVersion, "lang", "", "")
+	flags.StringVar(&goexperiment, "goexperiment", "", "")
+	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+	flags.StringVar(&gotypesalias, "gotypesalias", "", "")
+	if err := parseFlags(srcs[0], flags); err != nil {
+		t.Fatal(err)
+	}
+
+	if goexperiment != "" {
+		revert := setGOEXPERIMENT(goexperiment)
+		defer revert()
+	}
+
+	// By default, gotypesalias is not set.
+	if gotypesalias != "" {
+		conf.EnableAlias = gotypesalias != "0"
+	}
+
 	// Provide Config.Info with all maps so that info recording is tested.
 	info := Info{
-		Types:      make(map[syntax.Expr]TypeAndValue),
-		Instances:  make(map[*syntax.Name]Instance),
-		Defs:       make(map[*syntax.Name]Object),
-		Uses:       make(map[*syntax.Name]Object),
-		Implicits:  make(map[syntax.Node]Object),
-		Selections: make(map[*syntax.SelectorExpr]*Selection),
-		Scopes:     make(map[syntax.Node]*Scope),
+		Types:        make(map[syntax.Expr]TypeAndValue),
+		Instances:    make(map[*syntax.Name]Instance),
+		Defs:         make(map[*syntax.Name]Object),
+		Uses:         make(map[*syntax.Name]Object),
+		Implicits:    make(map[syntax.Node]Object),
+		Selections:   make(map[*syntax.SelectorExpr]*Selection),
+		Scopes:       make(map[syntax.Node]*Scope),
+		FileVersions: make(map[*syntax.PosBase]string),
 	}
-	conf.Check(pkgName, files, &info)
 
+	// typecheck
+	conf.Check(pkgName, files, &info)
 	if listErrors {
 		return
 	}
@@ -225,17 +242,17 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
 					panic("unreachable")
 				}
 			}
-			pattern, err := strconv.Unquote(strings.TrimSpace(pattern))
+			unquoted, err := strconv.Unquote(strings.TrimSpace(pattern))
 			if err != nil {
-				t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
+				t.Errorf("%s:%d:%d: invalid ERROR pattern (cannot unquote %s)", filename, line, want.Pos.Col(), pattern)
 				continue
 			}
 			if substr {
-				if !strings.Contains(gotMsg, pattern) {
+				if !strings.Contains(gotMsg, unquoted) {
 					continue
 				}
 			} else {
-				rx, err := regexp.Compile(pattern)
+				rx, err := regexp.Compile(unquoted)
 				if err != nil {
 					t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
 					continue
@@ -300,6 +317,20 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
 func boolFieldAddr(conf *Config, name string) *bool {
 	v := reflect.Indirect(reflect.ValueOf(conf))
 	return (*bool)(v.FieldByName(name).Addr().UnsafePointer())
+}
+
+// setGOEXPERIMENT overwrites the existing buildcfg.Experiment with a new one
+// based on the provided goexperiment string. Calling the result function
+// (typically via defer), reverts buildcfg.Experiment to the prior value.
+// For testing use, only.
+func setGOEXPERIMENT(goexperiment string) func() {
+	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
+	if err != nil {
+		panic(err)
+	}
+	old := buildcfg.Experiment
+	buildcfg.Experiment = *exp
+	return func() { buildcfg.Experiment = old }
 }
 
 // TestManual is for manual testing of a package - either provided
@@ -368,16 +399,16 @@ func TestIssue47243_TypedRHS(t *testing.T) {
 }
 
 func TestCheck(t *testing.T) {
-	old := buildcfg.Experiment.Range
+	old := buildcfg.Experiment.RangeFunc
 	defer func() {
-		buildcfg.Experiment.Range = old
+		buildcfg.Experiment.RangeFunc = old
 	}()
-	buildcfg.Experiment.Range = true
+	buildcfg.Experiment.RangeFunc = true
 
 	DefPredeclaredTestFuncs()
 	testDirFiles(t, "../../../../internal/types/testdata/check", 50, false) // TODO(gri) narrow column tolerance
 }
-func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 0, false) }
+func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 20, false) } // TODO(gri) narrow column tolerance
 func TestExamples(t *testing.T) {
 	testDirFiles(t, "../../../../internal/types/testdata/examples", 125, false)
 } // TODO(gri) narrow column tolerance

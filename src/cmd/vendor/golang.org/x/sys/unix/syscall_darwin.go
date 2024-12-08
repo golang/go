@@ -402,6 +402,18 @@ func IoctlSetIfreqMTU(fd int, ifreq *IfreqMTU) error {
 	return ioctlPtr(fd, SIOCSIFMTU, unsafe.Pointer(ifreq))
 }
 
+//sys	renamexNp(from string, to string, flag uint32) (err error)
+
+func RenamexNp(from string, to string, flag uint32) (err error) {
+	return renamexNp(from, to, flag)
+}
+
+//sys	renameatxNp(fromfd int, from string, tofd int, to string, flag uint32) (err error)
+
+func RenameatxNp(fromfd int, from string, tofd int, to string, flag uint32) (err error) {
+	return renameatxNp(fromfd, from, tofd, to, flag)
+}
+
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS_SYSCTL
 
 func Uname(uname *Utsname) error {
@@ -542,6 +554,55 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 	}
 }
 
+//sys	pthread_chdir_np(path string) (err error)
+
+func PthreadChdir(path string) (err error) {
+	return pthread_chdir_np(path)
+}
+
+//sys	pthread_fchdir_np(fd int) (err error)
+
+func PthreadFchdir(fd int) (err error) {
+	return pthread_fchdir_np(fd)
+}
+
+// Connectx calls connectx(2) to initiate a connection on a socket.
+//
+// srcIf, srcAddr, and dstAddr are filled into a [SaEndpoints] struct and passed as the endpoints argument.
+//
+//   - srcIf is the optional source interface index. 0 means unspecified.
+//   - srcAddr is the optional source address. nil means unspecified.
+//   - dstAddr is the destination address.
+//
+// On success, Connectx returns the number of bytes enqueued for transmission.
+func Connectx(fd int, srcIf uint32, srcAddr, dstAddr Sockaddr, associd SaeAssocID, flags uint32, iov []Iovec, connid *SaeConnID) (n uintptr, err error) {
+	endpoints := SaEndpoints{
+		Srcif: srcIf,
+	}
+
+	if srcAddr != nil {
+		addrp, addrlen, err := srcAddr.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+		endpoints.Srcaddr = (*RawSockaddr)(addrp)
+		endpoints.Srcaddrlen = uint32(addrlen)
+	}
+
+	if dstAddr != nil {
+		addrp, addrlen, err := dstAddr.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+		endpoints.Dstaddr = (*RawSockaddr)(addrp)
+		endpoints.Dstaddrlen = uint32(addrlen)
+	}
+
+	err = connectx(fd, &endpoints, associd, flags, iov, &n, connid)
+	return
+}
+
+//sys	connectx(fd int, endpoints *SaEndpoints, associd SaeAssocID, flags uint32, iov []Iovec, n *uintptr, connid *SaeConnID) (err error)
 //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
 
 //sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)

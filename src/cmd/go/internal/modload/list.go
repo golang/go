@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/search"
+	"cmd/internal/par"
 	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"
@@ -57,8 +58,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
 				}
 				return nil, fmt.Errorf("parsing %s: %v", reuseFile, err)
 			}
-			if m.Origin == nil || !m.Origin.Checkable() {
-				// Nothing to check to validate reuse.
+			if m.Origin == nil {
 				continue
 			}
 			m.Reuse = true
@@ -274,19 +274,29 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			continue
 		}
 
-		matched := false
+		var matches []module.Version
 		for _, m := range mg.BuildList() {
 			if match(m.Path) {
-				matched = true
 				if !matchedModule[m] {
 					matchedModule[m] = true
-					mods = append(mods, moduleInfo(ctx, rs, m, mode, reuse))
+					matches = append(matches, m)
 				}
 			}
 		}
-		if !matched {
+
+		if len(matches) == 0 {
 			fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
 		}
+
+		q := par.NewQueue(runtime.GOMAXPROCS(0))
+		fetchedMods := make([]*modinfo.ModulePublic, len(matches))
+		for i, m := range matches {
+			q.Add(func() {
+				fetchedMods[i] = moduleInfo(ctx, rs, m, mode, reuse)
+			})
+		}
+		<-q.Idle()
+		mods = append(mods, fetchedMods...)
 	}
 
 	return rs, mods, mgErr

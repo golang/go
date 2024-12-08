@@ -170,7 +170,7 @@ func smagicOK(n uint, c int64) bool {
 	return c&(c-1) != 0
 }
 
-// smagicOKn reports whether we should strength reduce an signed n-bit divide by c.
+// smagicOKn reports whether we should strength reduce a signed n-bit divide by c.
 func smagicOK8(c int8) bool   { return smagicOK(8, int64(c)) }
 func smagicOK16(c int16) bool { return smagicOK(16, int64(c)) }
 func smagicOK32(c int32) bool { return smagicOK(32, int64(c)) }
@@ -267,7 +267,7 @@ func smagic64(c int64) smagicData { return smagic(64, c) }
 //
 // Where d0*2^k was replaced by c on the right hand side.
 
-// udivisibleOK reports whether we should strength reduce an unsigned n-bit divisibilty check by c.
+// udivisibleOK reports whether we should strength reduce an unsigned n-bit divisibility check by c.
 func udivisibleOK(n uint, c int64) bool {
 	// Convert from ConstX auxint values to the real uint64 constant they represent.
 	d := uint64(c) << (64 - n) >> (64 - n)
@@ -369,7 +369,7 @@ func udivisible64(c int64) udivisibleData { return udivisible(64, c) }
 // Note that the calculation is performed using unsigned integers.
 // Since a' can have n-1 bits, 2a' may have n bits and there is no risk of overflow.
 
-// sdivisibleOK reports whether we should strength reduce a signed n-bit divisibilty check by c.
+// sdivisibleOK reports whether we should strength reduce a signed n-bit divisibility check by c.
 func sdivisibleOK(n uint, c int64) bool {
 	if c < 0 {
 		// Doesn't work for negative c.

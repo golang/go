@@ -249,9 +249,7 @@ func (p *parser) calcSize(re *Regexp, force bool) int64 {
 		size = int64(re.Max)*sub + int64(re.Max-re.Min)
 	}
 
-	if size < 1 {
-		size = 1
-	}
+	size = max(1, size)
 	p.size[re] = size
 	return size
 }
@@ -623,7 +621,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 		}
 
 		// Found end of a run with common leading literal string:
-		// sub[start:i] all begin with str[0:len(str)], but sub[i]
+		// sub[start:i] all begin with str[:len(str)], but sub[i]
 		// does not even begin with str[0].
 		//
 		// Factor out common string and append factored expression to out.
@@ -943,9 +941,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			p.op(opLeftParen).Cap = p.numCap
 			t = t[1:]
 		case '|':
-			if err = p.parseVerticalBar(); err != nil {
-				return nil, err
-			}
+			p.parseVerticalBar()
 			t = t[1:]
 		case ')':
 			if err = p.parseRightParen(); err != nil {
@@ -1330,7 +1326,7 @@ func matchRune(re *Regexp, r rune) bool {
 }
 
 // parseVerticalBar handles a | in the input.
-func (p *parser) parseVerticalBar() error {
+func (p *parser) parseVerticalBar() {
 	p.concat()
 
 	// The concatenation we just parsed is on top of the stack.
@@ -1340,8 +1336,6 @@ func (p *parser) parseVerticalBar() error {
 	if !p.swapVerticalBar() {
 		p.op(opVerticalBar)
 	}
-
-	return nil
 }
 
 // mergeCharClass makes dst = dst|src.
@@ -1581,6 +1575,8 @@ type charGroup struct {
 	sign  int
 	class []rune
 }
+
+//go:generate perl make_perl_groups.pl perl_groups.go
 
 // parsePerlClassEscape parses a leading Perl character class escape like \d
 // from the beginning of s. If one is present, it appends the characters to r

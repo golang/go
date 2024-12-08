@@ -26,6 +26,11 @@ func ToByteSlice() []byte { // Issue #24698
 	return []byte("foo")
 }
 
+func ConvertToByteSlice(a, b, c string) []byte {
+	// amd64:`.*runtime.concatbyte3`
+	return []byte(a + b + c)
+}
+
 // Loading from read-only symbols should get transformed into constants.
 func ConstantLoad() {
 	// 12592 = 0x3130

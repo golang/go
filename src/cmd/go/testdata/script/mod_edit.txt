@@ -61,6 +61,10 @@ go mod edit -replace=x.1=y.1/v2@v2.3.6
 cmpenv go.mod $WORK/go.mod.edit4
 go mod edit -dropreplace=x.1
 cmpenv go.mod $WORK/go.mod.edit5
+go mod edit -replace=x.1=../y.1/@v2
+cmpenv go.mod $WORK/go.mod.edit6
+! go mod edit -replace=x.1=y.1/@v2
+stderr '^go: -replace=x.1=y.1/@v2: invalid new path: malformed import path "y.1/": trailing slash$'
 
 # go mod edit -fmt
 cp $WORK/go.mod.badfmt go.mod
@@ -82,6 +86,26 @@ cd $WORK/local
 go mod init foo
 go mod edit -module local-only -require=other-local@v1.0.0 -replace other-local@v1.0.0=./other
 cmpenv go.mod go.mod.edit
+
+# go mod edit -godebug
+cd $WORK/g
+cp go.mod.start go.mod
+go mod edit -godebug key=value
+cmpenv go.mod go.mod.edit
+go mod edit -dropgodebug key2
+cmpenv go.mod go.mod.edit
+go mod edit -dropgodebug key
+cmpenv go.mod go.mod.start
+
+# go mod edit -tool
+cd $WORK/h
+cp go.mod.start go.mod
+go mod edit -tool example.com/tool
+cmpenv go.mod go.mod.edit
+go mod edit -droptool example.com/tool2
+cmpenv go.mod go.mod.edit
+go mod edit -droptool example.com/tool
+cmpenv go.mod go.mod.start
 
 -- x.go --
 package x
@@ -170,7 +194,8 @@ require x.3 v1.99.0
 			"Low": "v1.3.0",
 			"High": "v1.4.0"
 		}
-	]
+	],
+	"Tool": null
 }
 -- $WORK/go.mod.edit3 --
 module x.x/y/z
@@ -218,6 +243,21 @@ retract (
 )
 
 require x.3 v1.99.0
+-- $WORK/go.mod.edit6 --
+module x.x/y/z
+
+go $goversion
+
+exclude x.1 v1.2.0
+
+retract (
+	v1.6.0
+	[v1.3.0, v1.4.0]
+)
+
+require x.3 v1.99.0
+
+replace x.1 => ../y.1/@v2
 -- $WORK/local/go.mod.edit --
 module local-only
 
@@ -292,7 +332,8 @@ retract (
 			"High": "v1.0.2",
 			"Rationale": "c"
 		}
-	]
+	],
+	"Tool": null
 }
 -- $WORK/go.mod.deprecation --
 // Deprecated: and the new one is not ready yet
@@ -306,7 +347,8 @@ module m
 	"Require": null,
 	"Exclude": null,
 	"Replace": null,
-	"Retract": null
+	"Retract": null,
+	"Tool": null
 }
 -- $WORK/go.mod.empty --
 -- $WORK/go.mod.empty.json --
@@ -317,5 +359,26 @@ module m
 	"Require": null,
 	"Exclude": null,
 	"Replace": null,
-	"Retract": null
+	"Retract": null,
+	"Tool": null
 }
+-- $WORK/g/go.mod.start --
+module g
+
+go 1.10
+-- $WORK/g/go.mod.edit --
+module g
+
+go 1.10
+
+godebug key=value
+-- $WORK/h/go.mod.start --
+module g
+
+go 1.24
+-- $WORK/h/go.mod.edit --
+module g
+
+go 1.24
+
+tool example.com/tool

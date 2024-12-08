@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/bytealg"
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -307,41 +307,69 @@ type dbgVar struct {
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	cgocheck           int32
-	clobberfree        int32
-	dontfreezetheworld int32
-	efence             int32
-	gccheckmark        int32
-	gcpacertrace       int32
-	gcshrinkstackoff   int32
-	gcstoptheworld     int32
-	gctrace            int32
-	invalidptr         int32
-	madvdontneed       int32 // for Linux; issue 28466
-	scavtrace          int32
-	scheddetail        int32
-	schedtrace         int32
-	tracebackancestors int32
-	asyncpreemptoff    int32
-	harddecommit       int32
-	adaptivestackstart int32
-	tracefpunwindoff   int32
+	cgocheck                 int32
+	clobberfree              int32
+	disablethp               int32
+	dontfreezetheworld       int32
+	efence                   int32
+	gccheckmark              int32
+	gcpacertrace             int32
+	gcshrinkstackoff         int32
+	gcstoptheworld           int32
+	gctrace                  int32
+	invalidptr               int32
+	madvdontneed             int32 // for Linux; issue 28466
+	runtimeContentionStacks  atomic.Int32
+	scavtrace                int32
+	scheddetail              int32
+	schedtrace               int32
+	tracebackancestors       int32
+	asyncpreemptoff          int32
+	harddecommit             int32
+	adaptivestackstart       int32
+	tracefpunwindoff         int32
+	traceadvanceperiod       int32
+	traceCheckStackOwnership int32
+	profstackdepth           int32
+	dataindependenttiming    int32
 
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
 	// if any of the below debug options is != 0.
-	malloc         bool
-	allocfreetrace int32
-	inittrace      int32
-	sbrk           int32
+	malloc    bool
+	inittrace int32
+	sbrk      int32
+	// traceallocfree controls whether execution traces contain
+	// detailed trace data about memory allocation. This value
+	// affects debug.malloc only if it is != 0 and the execution
+	// tracer is enabled, in which case debug.malloc will be
+	// set to "true" if it isn't already while tracing is enabled.
+	// It will be set while the world is stopped, so it's safe.
+	// The value of traceallocfree can be changed any time in response
+	// to os.Setenv("GODEBUG").
+	traceallocfree atomic.Int32
 
 	panicnil atomic.Int32
+
+	// asynctimerchan controls whether timer channels
+	// behave asynchronously (as in Go 1.22 and earlier)
+	// instead of their Go 1.23+ synchronous behavior.
+	// The value can change at any time (in response to os.Setenv("GODEBUG"))
+	// and affects all extant timer channels immediately.
+	// Programs wouldn't normally change over an execution,
+	// but allowing it is convenient for testing and for programs
+	// that do an os.Setenv in main.init or main.main.
+	asynctimerchan atomic.Int32
 }
 
 var dbgvars = []*dbgVar{
-	{name: "allocfreetrace", value: &debug.allocfreetrace},
-	{name: "clobberfree", value: &debug.clobberfree},
+	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
+	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
+	{name: "asynctimerchan", atomic: &debug.asynctimerchan},
 	{name: "cgocheck", value: &debug.cgocheck},
+	{name: "clobberfree", value: &debug.clobberfree},
+	{name: "dataindependenttiming", value: &debug.dataindependenttiming},
+	{name: "disablethp", value: &debug.disablethp},
 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
 	{name: "efence", value: &debug.efence},
 	{name: "gccheckmark", value: &debug.gccheckmark},
@@ -349,19 +377,22 @@ var dbgvars = []*dbgVar{
 	{name: "gcshrinkstackoff", value: &debug.gcshrinkstackoff},
 	{name: "gcstoptheworld", value: &debug.gcstoptheworld},
 	{name: "gctrace", value: &debug.gctrace},
+	{name: "harddecommit", value: &debug.harddecommit},
+	{name: "inittrace", value: &debug.inittrace},
 	{name: "invalidptr", value: &debug.invalidptr},
 	{name: "madvdontneed", value: &debug.madvdontneed},
+	{name: "panicnil", atomic: &debug.panicnil},
+	{name: "profstackdepth", value: &debug.profstackdepth, def: 128},
+	{name: "runtimecontentionstacks", atomic: &debug.runtimeContentionStacks},
 	{name: "sbrk", value: &debug.sbrk},
 	{name: "scavtrace", value: &debug.scavtrace},
 	{name: "scheddetail", value: &debug.scheddetail},
 	{name: "schedtrace", value: &debug.schedtrace},
+	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
+	{name: "traceallocfree", atomic: &debug.traceallocfree},
+	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
 	{name: "tracebackancestors", value: &debug.tracebackancestors},
-	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
-	{name: "inittrace", value: &debug.inittrace},
-	{name: "harddecommit", value: &debug.harddecommit},
-	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
-	{name: "panicnil", atomic: &debug.panicnil},
 }
 
 func parsedebugvars() {
@@ -380,6 +411,7 @@ func parsedebugvars() {
 		// Hence, default to MADV_DONTNEED.
 		debug.madvdontneed = 1
 	}
+	debug.traceadvanceperiod = defaultTraceAdvancePeriod
 
 	godebug := gogetenv("GODEBUG")
 
@@ -405,7 +437,8 @@ func parsedebugvars() {
 	// apply environment settings
 	parsegodebug(godebug, nil)
 
-	debug.malloc = (debug.allocfreetrace | debug.inittrace | debug.sbrk) != 0
+	debug.malloc = (debug.inittrace | debug.sbrk) != 0
+	debug.profstackdepth = min(debug.profstackdepth, maxProfStackDepth)
 
 	setTraceback(gogetenv("GOTRACEBACK"))
 	traceback_env = traceback_cache
@@ -585,6 +618,20 @@ func releasem(mp *m) {
 	}
 }
 
+// reflect_typelinks is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//   - github.com/goccy/json
+//   - github.com/modern-go/reflect2
+//   - github.com/vmware/govmomi
+//   - github.com/pinpoint-apm/pinpoint-go-agent
+//   - github.com/timandy/routine
+//   - github.com/v2pro/plz
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_typelinks reflect.typelinks
 func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 	modules := activeModules()
@@ -599,12 +646,31 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 
 // reflect_resolveNameOff resolves a name offset from a base pointer.
 //
+// reflect_resolveNameOff is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/agiledragon/gomonkey/v2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_resolveNameOff reflect.resolveNameOff
 func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
 	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).Bytes)
 }
 
 // reflect_resolveTypeOff resolves an *rtype offset from a base type.
+//
+// reflect_resolveTypeOff is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//   - github.com/modern-go/reflect2
+//   - github.com/v2pro/plz
+//   - github.com/timandy/routine
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
 func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
@@ -613,10 +679,17 @@ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 
 // reflect_resolveTextOff resolves a function pointer offset from a base type.
 //
+// reflect_resolveTextOff is for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/agiledragon/gomonkey/v2
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_resolveTextOff reflect.resolveTextOff
 func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 	return toRType((*_type)(rtype)).textOff(textOff(off))
-
 }
 
 // reflectlite_resolveNameOff resolves a name offset from a base pointer.
@@ -652,4 +725,14 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
 	}
 	reflectOffsUnlock()
 	return id
+}
+
+//go:linkname fips_getIndicator crypto/internal/fips140.getIndicator
+func fips_getIndicator() uint8 {
+	return getg().fipsIndicator
+}
+
+//go:linkname fips_setIndicator crypto/internal/fips140.setIndicator
+func fips_setIndicator(indicator uint8) {
+	getg().fipsIndicator = indicator
 }

@@ -173,7 +173,7 @@ In summary,
 Atomics
 =======
 
-The runtime uses its own atomics package at `runtime/internal/atomic`.
+The runtime uses its own atomics package at `internal/runtime/atomic`.
 This corresponds to `sync/atomic`, but functions have different names
 for historical reasons and there are a few additional functions needed
 by the runtime.
@@ -235,7 +235,7 @@ There are three mechanisms for allocating unmanaged memory:
   objects of the same type.
 
 In general, types that are allocated using any of these should be
-marked as not in heap by embedding `runtime/internal/sys.NotInHeap`.
+marked as not in heap by embedding `internal/runtime/sys.NotInHeap`.
 
 Objects that are allocated in unmanaged memory **must not** contain
 heap pointers unless the following rules are also obeyed:

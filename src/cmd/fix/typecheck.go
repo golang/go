@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -272,9 +273,9 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[any]string, assign map[
 					if !copied {
 						copied = true
 						// Copy map lazily: it's time.
-						cfg1.Type = make(map[string]*Type)
-						for k, v := range cfg.Type {
-							cfg1.Type[k] = v
+						cfg1.Type = maps.Clone(cfg.Type)
+						if cfg1.Type == nil {
+							cfg1.Type = make(map[string]*Type)
 						}
 					}
 					t := &Type{Field: map[string]string{}}

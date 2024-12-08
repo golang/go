@@ -75,7 +75,7 @@ func Fixup() {
 		}
 		if strings.HasPrefix(s.Name, counterPrefix) {
 			ckTypSanity(nm, "countervar")
-			nm.SetCoverageCounter(true)
+			nm.SetCoverageAuxVar(true)
 			s := nm.Linksym()
 			s.Type = objabi.SCOVERAGE_COUNTER
 		}

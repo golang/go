@@ -27,11 +27,14 @@ type pkcs8 struct {
 
 // ParsePKCS8PrivateKey parses an unencrypted private key in PKCS #8, ASN.1 DER form.
 //
-// It returns a *rsa.PrivateKey, an *ecdsa.PrivateKey, an ed25519.PrivateKey (not
-// a pointer), or an *ecdh.PrivateKey (for X25519). More types might be supported
+// It returns a *[rsa.PrivateKey], an *[ecdsa.PrivateKey], an [ed25519.PrivateKey] (not
+// a pointer), or an *[ecdh.PrivateKey] (for X25519). More types might be supported
 // in the future.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+//
+// Before Go 1.24, the CRT parameters of RSA keys were ignored and recomputed.
+// To restore the old behavior, use the GODEBUG=x509rsacrt=0 environment variable.
 func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
 	var privKey pkcs8
 	if _, err := asn1.Unmarshal(der, &privKey); err != nil {
@@ -93,11 +96,13 @@ func ParsePKCS8PrivateKey(der []byte) (key any, err error) {
 
 // MarshalPKCS8PrivateKey converts a private key to PKCS #8, ASN.1 DER form.
 //
-// The following key types are currently supported: *rsa.PrivateKey,
-// *ecdsa.PrivateKey, ed25519.PrivateKey (not a pointer), and *ecdh.PrivateKey.
+// The following key types are currently supported: *[rsa.PrivateKey],
+// *[ecdsa.PrivateKey], [ed25519.PrivateKey] (not a pointer), and *[ecdh.PrivateKey].
 // Unsupported key types result in an error.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
+//
+// MarshalPKCS8PrivateKey runs [rsa.PrivateKey.Precompute] on RSA keys.
 func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
 	var privKey pkcs8
 
@@ -106,6 +111,10 @@ func MarshalPKCS8PrivateKey(key any) ([]byte, error) {
 		privKey.Algo = pkix.AlgorithmIdentifier{
 			Algorithm:  oidPublicKeyRSA,
 			Parameters: asn1.NullRawValue,
+		}
+		k.Precompute()
+		if err := k.Validate(); err != nil {
+			return nil, err
 		}
 		privKey.PrivateKey = MarshalPKCS1PrivateKey(k)
 

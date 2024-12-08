@@ -6,53 +6,57 @@
 
 package codegen
 
+import (
+	"math/bits"
+)
+
 // This file contains codegen tests related to boolean simplifications/optimizations.
 
 func convertNeq0B(x uint8, c bool) bool {
 	// amd64:"ANDL\t[$]1",-"SETNE"
-	// ppc64x:"ANDCC",-"CMPW",-"ISEL"
+	// ppc64x:"RLDICL",-"CMPW",-"ISEL"
 	b := x&1 != 0
 	return c && b
 }
 
 func convertNeq0W(x uint16, c bool) bool {
 	// amd64:"ANDL\t[$]1",-"SETNE"
-	// ppc64x:"ANDCC",-"CMPW",-"ISEL"
+	// ppc64x:"RLDICL",-"CMPW",-"ISEL"
 	b := x&1 != 0
 	return c && b
 }
 
 func convertNeq0L(x uint32, c bool) bool {
 	// amd64:"ANDL\t[$]1",-"SETB"
-	// ppc64x:"ANDCC",-"CMPW",-"ISEL"
+	// ppc64x:"RLDICL",-"CMPW",-"ISEL"
 	b := x&1 != 0
 	return c && b
 }
 
 func convertNeq0Q(x uint64, c bool) bool {
 	// amd64:"ANDL\t[$]1",-"SETB"
-	// ppc64x:"ANDCC",-"CMP",-"ISEL"
+	// ppc64x:"RLDICL",-"CMP",-"ISEL"
 	b := x&1 != 0
 	return c && b
 }
 
 func convertNeqBool32(x uint32) bool {
-	// ppc64x:"ANDCC",-"CMPW",-"ISEL"
+	// ppc64x:"RLDICL",-"CMPW",-"ISEL"
 	return x&1 != 0
 }
 
 func convertEqBool32(x uint32) bool {
-	// ppc64x:"ANDCC",-"CMPW","XOR",-"ISEL"
+	// ppc64x:"RLDICL",-"CMPW","XOR",-"ISEL"
 	return x&1 == 0
 }
 
 func convertNeqBool64(x uint64) bool {
-	// ppc64x:"ANDCC",-"CMP",-"ISEL"
+	// ppc64x:"RLDICL",-"CMP",-"ISEL"
 	return x&1 != 0
 }
 
 func convertEqBool64(x uint64) bool {
-	// ppc64x:"ANDCC","XOR",-"CMP",-"ISEL"
+	// ppc64x:"RLDICL","XOR",-"CMP",-"ISEL"
 	return x&1 == 0
 }
 
@@ -210,4 +214,76 @@ func TestSetInvGeFp64(x float64, y float64) bool {
 	// ppc64x/power8:"FCMP","ISEL",-"SETBC\tCR0LT"
 	b := !(x >= y)
 	return b
+}
+func TestLogicalCompareZero(x *[64]uint64) {
+	// ppc64x:"ANDCC",^"AND"
+	b := x[0] & 3
+	if b != 0 {
+		x[0] = b
+	}
+	// ppc64x:"ANDCC",^"AND"
+	b = x[1] & x[2]
+	if b != 0 {
+		x[1] = b
+	}
+	// ppc64x:"ANDNCC",^"ANDN"
+	b = x[1] &^ x[2]
+	if b != 0 {
+		x[1] = b
+	}
+	// ppc64x:"ORCC",^"OR"
+	b = x[3] | x[4]
+	if b != 0 {
+		x[3] = b
+	}
+	// ppc64x:"SUBCC",^"SUB"
+	b = x[5] - x[6]
+	if b != 0 {
+		x[5] = b
+	}
+	// ppc64x:"NORCC",^"NOR"
+	b = ^(x[5] | x[6])
+	if b != 0 {
+		x[5] = b
+	}
+	// ppc64x:"XORCC",^"XOR"
+	b = x[7] ^ x[8]
+	if b != 0 {
+		x[7] = b
+	}
+	// ppc64x:"ADDCC",^"ADD"
+	b = x[9] + x[10]
+	if b != 0 {
+		x[9] = b
+	}
+	// ppc64x:"NEGCC",^"NEG"
+	b = -x[11]
+	if b != 0 {
+		x[11] = b
+	}
+	// ppc64x:"CNTLZDCC",^"CNTLZD"
+	b = uint64(bits.LeadingZeros64(x[12]))
+	if b != 0 {
+		x[12] = b
+	}
+
+	// ppc64x:"ADDCCC\t[$]4,"
+	c := int64(x[12]) + 4
+	if c <= 0 {
+		x[12] = uint64(c)
+	}
+
+	// ppc64x:"MULHDUCC",^"MULHDU"
+	hi, _ := bits.Mul64(x[13], x[14])
+	if hi != 0 {
+		x[14] = hi
+	}
+
+}
+
+func constantWrite(b bool, p *bool) {
+	if b {
+		// amd64:`MOVB\t[$]1, \(`
+		*p = b
+	}
 }

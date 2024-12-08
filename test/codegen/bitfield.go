@@ -358,11 +358,15 @@ func rev16w(c uint32) (uint32, uint32, uint32) {
 
 func shift(x uint32, y uint16, z uint8) uint64 {
 	// arm64:-`MOVWU`,-`LSR\t[$]32`
+	// loong64:-`MOVWU`,-`SRLV\t[$]32`
 	a := uint64(x) >> 32
 	// arm64:-`MOVHU
+	// loong64:-`MOVHU`,-`SRLV\t[$]16`
 	b := uint64(y) >> 16
 	// arm64:-`MOVBU`
+	// loong64:-`MOVBU`,-`SRLV\t[$]8`
 	c := uint64(z) >> 8
 	// arm64:`MOVD\tZR`,-`ADD\tR[0-9]+>>16`,-`ADD\tR[0-9]+>>8`,
+	// loong64:`MOVV\t[$]0`,-`ADDVU`
 	return a + b + c
 }

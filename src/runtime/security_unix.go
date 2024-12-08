@@ -6,6 +6,10 @@
 
 package runtime
 
+import (
+	"internal/stringslite"
+)
+
 func secure() {
 	initSecureMode()
 
@@ -25,7 +29,7 @@ func secure() {
 func secureEnv() {
 	var hasTraceback bool
 	for i := 0; i < len(envs); i++ {
-		if hasPrefix(envs[i], "GOTRACEBACK=") {
+		if stringslite.HasPrefix(envs[i], "GOTRACEBACK=") {
 			hasTraceback = true
 			envs[i] = "GOTRACEBACK=none"
 		}

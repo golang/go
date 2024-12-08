@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -49,9 +49,8 @@ func sigresume()
 
 func initExceptionHandler() {
 	stdcall2(_AddVectoredExceptionHandler, 1, abi.FuncPCABI0(exceptiontramp))
-	if _AddVectoredContinueHandler == nil || GOARCH == "386" {
-		// use SetUnhandledExceptionFilter for windows-386 or
-		// if VectoredContinueHandler is unavailable.
+	if GOARCH == "386" {
+		// use SetUnhandledExceptionFilter for windows-386.
 		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
 		stdcall1(_SetUnhandledExceptionFilter, abi.FuncPCABI0(lastcontinuetramp))
 	} else {

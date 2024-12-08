@@ -295,5 +295,47 @@ The declaration of lower.f may also have a linkname directive with a
 single argument, f. This is optional, but helps alert the reader that
 the function is accessed from outside the package.
 
+	//go:wasmimport importmodule importname
+
+The //go:wasmimport directive is wasm-only and must be followed by a
+function declaration.
+It specifies that the function is provided by a wasm module identified
+by ``importmodule`` and ``importname``.
+
+	//go:wasmimport a_module f
+	func g()
+
+The types of parameters and return values to the Go function are translated to
+Wasm according to the following table:
+
+    Go types        Wasm types
+    bool            i32
+    int32, uint32   i32
+    int64, uint64   i64
+    float32         f32
+    float64         f64
+    unsafe.Pointer  i32
+    pointer         i32 (more restrictions below)
+    string          (i32, i32) (only permitted as a parameters, not a result)
+
+For a pointer type, its element type must be a bool, int8, uint8, int16, uint16,
+int32, uint32, int64, uint64, float32, float64, an array whose element type is
+a permitted pointer element type, or a struct, which, if non-empty, embeds
+structs.HostLayout, and contains only fields whose types are permitted pointer
+element types.
+
+Any other parameter types are disallowed by the compiler.
+
+	//go:wasmexport exportname
+
+The //go:wasmexport directive is wasm-only and must be followed by a
+function definition.
+It specifies that the function is exported to the wasm host as ``exportname``.
+
+	//go:wasmexport f
+	func g()
+
+The types of parameters and return values to the Go function are permitted and
+translated to Wasm in the same way as //go:wasmimport functions.
 */
 package main

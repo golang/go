@@ -89,3 +89,13 @@ type memoryBasicInformation struct {
 	protect           uint32
 	type_             uint32
 }
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfow
+type _OSVERSIONINFOW struct {
+	osVersionInfoSize uint32
+	majorVersion      uint32
+	minorVersion      uint32
+	buildNumber       uint32
+	platformId        uint32
+	csdVersion        [128]uint16
+}

@@ -8,9 +8,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"iter"
 	"math"
 	"math/rand"
-	"reflect"
+	"slices"
 	"strconv"
 	. "strings"
 	"testing"
@@ -19,16 +20,35 @@ import (
 	"unsafe"
 )
 
-func eq(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
+func collect(t *testing.T, seq iter.Seq[string]) []string {
+	out := slices.Collect(seq)
+	out1 := slices.Collect(seq)
+	if !slices.Equal(out, out1) {
+		t.Fatalf("inconsistent seq:\n%s\n%s", out, out1)
 	}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
+	return out
+}
+
+type LinesTest struct {
+	a string
+	b []string
+}
+
+var linesTests = []LinesTest{
+	{a: "abc\nabc\n", b: []string{"abc\n", "abc\n"}},
+	{a: "abc\r\nabc", b: []string{"abc\r\n", "abc"}},
+	{a: "abc\r\n", b: []string{"abc\r\n"}},
+	{a: "\nabc", b: []string{"\n", "abc"}},
+	{a: "\nabc\n\n", b: []string{"\n", "abc\n", "\n"}},
+}
+
+func TestLines(t *testing.T) {
+	for _, s := range linesTests {
+		result := slices.Collect(Lines(s.a))
+		if !slices.Equal(result, s.b) {
+			t.Errorf(`slices.Collect(Lines(%q)) = %q; want %q`, s.a, result, s.b)
 		}
 	}
-	return true
 }
 
 var abcd = "abcd"
@@ -135,6 +155,11 @@ var indexTests = []IndexTest{
 	// test fallback to Rabin-Karp.
 	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
 	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
+	// test fallback to IndexRune
+	{"oxoxoxoxoxoxoxoxoxoxox☺", "☺", 22},
+	// invalid UTF-8 byte sequence (must be longer than bytealg.MaxBruteForce to
+	// test that we don't use IndexRune)
+	{"xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx\xed\x9f\xc0", "\xed\x9f\xc0", 105},
 }
 
 var lastIndexTests = []IndexTest{
@@ -306,6 +331,37 @@ func TestIndexRune(t *testing.T) {
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", -1, -1},
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", 0xD800, -1}, // Surrogate pair
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", utf8.MaxRune + 1, -1},
+
+		// 2 bytes
+		{"ӆ", 'ӆ', 0},
+		{"a", 'ӆ', -1},
+		{"  ӆ", 'ӆ', 2},
+		{"  a", 'ӆ', -1},
+		{Repeat("ц", 64) + "ӆ", 'ӆ', 128}, // test cutover
+		{Repeat("Ꙁ", 64) + "Ꚁ", '䚀', -1},  // 'Ꚁ' and '䚀' share the same last two bytes
+
+		// 3 bytes
+		{"Ꚁ", 'Ꚁ', 0},
+		{"a", 'Ꚁ', -1},
+		{"  Ꚁ", 'Ꚁ', 2},
+		{"  a", 'Ꚁ', -1},
+		{Repeat("Ꙁ", 64) + "Ꚁ", 'Ꚁ', 192}, // test cutover
+		{Repeat("𡋀", 64) + "𡌀", '𣌀', -1},  // '𡌀' and '𣌀' share the same last two bytes
+
+		// 4 bytes
+		{"𡌀", '𡌀', 0},
+		{"a", '𡌀', -1},
+		{"  𡌀", '𡌀', 2},
+		{"  a", '𡌀', -1},
+		{Repeat("𡋀", 64) + "𡌀", '𡌀', 256}, // test cutover
+		{Repeat("𡋀", 64), '𡌀', -1},
+
+		// Test the cutover to bytealg.IndexString when it is triggered in
+		// the middle of rune that contains consecutive runs of equal bytes.
+		{"aaaaaKKKK\U000bc104", '\U000bc104', 17}, // cutover: (n + 16) / 8
+		{"aaaaaKKKK鄄", '鄄', 17},
+		{"aaKKKKKa\U000bc104", '\U000bc104', 18}, // cutover: 4 + n>>4
+		{"aaKKKKKa鄄", '鄄', 18},
 	}
 	for _, tt := range tests {
 		if got := IndexRune(tt.in, tt.rune); got != tt.want {
@@ -313,13 +369,14 @@ func TestIndexRune(t *testing.T) {
 		}
 	}
 
-	haystack := "test世界"
+	// Make sure we trigger the cutover and string(rune) conversion.
+	haystack := "test" + Repeat("𡋀", 32) + "𡌀"
 	allocs := testing.AllocsPerRun(1000, func() {
 		if i := IndexRune(haystack, 's'); i != 2 {
 			t.Fatalf("'s' at %d; want 2", i)
 		}
-		if i := IndexRune(haystack, '世'); i != 4 {
-			t.Fatalf("'世' at %d; want 4", i)
+		if i := IndexRune(haystack, '𡌀'); i != 132 {
+			t.Fatalf("'𡌀' at %d; want 4", i)
 		}
 	})
 	if allocs != 0 && testing.CoverMode() == "" {
@@ -418,9 +475,15 @@ var splittests = []SplitTest{
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
 		a := SplitN(tt.s, tt.sep, tt.n)
-		if !eq(a, tt.a) {
+		if !slices.Equal(a, tt.a) {
 			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a)
 			continue
+		}
+		if tt.n < 0 {
+			a2 := slices.Collect(SplitSeq(tt.s, tt.sep))
+			if !slices.Equal(a2, tt.a) {
+				t.Errorf(`collect(SplitSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, a2, tt.a)
+			}
 		}
 		if tt.n == 0 {
 			continue
@@ -431,7 +494,7 @@ func TestSplit(t *testing.T) {
 		}
 		if tt.n < 0 {
 			b := Split(tt.s, tt.sep)
-			if !reflect.DeepEqual(a, b) {
+			if !slices.Equal(a, b) {
 				t.Errorf("Split disagrees with SplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
@@ -457,9 +520,15 @@ var splitaftertests = []SplitTest{
 func TestSplitAfter(t *testing.T) {
 	for _, tt := range splitaftertests {
 		a := SplitAfterN(tt.s, tt.sep, tt.n)
-		if !eq(a, tt.a) {
+		if !slices.Equal(a, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a)
 			continue
+		}
+		if tt.n < 0 {
+			a2 := slices.Collect(SplitAfterSeq(tt.s, tt.sep))
+			if !slices.Equal(a2, tt.a) {
+				t.Errorf(`collect(SplitAfterSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, a2, tt.a)
+			}
 		}
 		s := Join(a, "")
 		if s != tt.s {
@@ -467,7 +536,7 @@ func TestSplitAfter(t *testing.T) {
 		}
 		if tt.n < 0 {
 			b := SplitAfter(tt.s, tt.sep)
-			if !reflect.DeepEqual(a, b) {
+			if !slices.Equal(a, b) {
 				t.Errorf("SplitAfter disagrees with SplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
@@ -500,9 +569,13 @@ var fieldstests = []FieldsTest{
 func TestFields(t *testing.T) {
 	for _, tt := range fieldstests {
 		a := Fields(tt.s)
-		if !eq(a, tt.a) {
+		if !slices.Equal(a, tt.a) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
 			continue
+		}
+		a2 := collect(t, FieldsSeq(tt.s))
+		if !slices.Equal(a2, tt.a) {
+			t.Errorf(`collect(FieldsSeq(%q)) = %v; want %v`, tt.s, a2, tt.a)
 		}
 	}
 }
@@ -517,7 +590,7 @@ var FieldsFuncTests = []FieldsTest{
 func TestFieldsFunc(t *testing.T) {
 	for _, tt := range fieldstests {
 		a := FieldsFunc(tt.s, unicode.IsSpace)
-		if !eq(a, tt.a) {
+		if !slices.Equal(a, tt.a) {
 			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
 			continue
 		}
@@ -525,8 +598,12 @@ func TestFieldsFunc(t *testing.T) {
 	pred := func(c rune) bool { return c == 'X' }
 	for _, tt := range FieldsFuncTests {
 		a := FieldsFunc(tt.s, pred)
-		if !eq(a, tt.a) {
+		if !slices.Equal(a, tt.a) {
 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+		}
+		a2 := collect(t, FieldsFuncSeq(tt.s, pred))
+		if !slices.Equal(a2, tt.a) {
+			t.Errorf(`collect(FieldsFuncSeq(%q)) = %v; want %v`, tt.s, a2, tt.a)
 		}
 	}
 }
@@ -1111,6 +1188,13 @@ func TestCaseConsistency(t *testing.T) {
 }
 
 var longString = "a" + string(make([]byte, 1<<16)) + "z"
+var longSpaces = func() string {
+	b := make([]byte, 200)
+	for i := range b {
+		b[i] = ' '
+	}
+	return string(b)
+}()
 
 var RepeatTests = []struct {
 	in, out string
@@ -1123,6 +1207,12 @@ var RepeatTests = []struct {
 	{"-", "-", 1},
 	{"-", "----------", 10},
 	{"abc ", "abc abc abc ", 3},
+	{" ", " ", 1},
+	{"--", "----", 2},
+	{"===", "======", 2},
+	{"000", "000000000", 3},
+	{"\t\t\t\t", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", 4},
+	{" ", longSpaces, len(longSpaces)},
 	// Tests for results over the chunkLimit
 	{string(rune(0)), string(make([]byte, 1<<16)), 1 << 16},
 	{longString, longString + longString, 2},
@@ -1157,33 +1247,48 @@ func repeat(s string, count int) (err error) {
 
 // See Issue golang.org/issue/16237
 func TestRepeatCatchesOverflow(t *testing.T) {
-	tests := [...]struct {
+	type testCase struct {
 		s      string
 		count  int
 		errStr string
-	}{
+	}
+
+	runTestCases := func(prefix string, tests []testCase) {
+		for i, tt := range tests {
+			err := repeat(tt.s, tt.count)
+			if tt.errStr == "" {
+				if err != nil {
+					t.Errorf("#%d panicked %v", i, err)
+				}
+				continue
+			}
+
+			if err == nil || !Contains(err.Error(), tt.errStr) {
+				t.Errorf("%s#%d got %q want %q", prefix, i, err, tt.errStr)
+			}
+		}
+	}
+
+	const maxInt = int(^uint(0) >> 1)
+
+	runTestCases("", []testCase{
 		0: {"--", -2147483647, "negative"},
-		1: {"", int(^uint(0) >> 1), ""},
+		1: {"", maxInt, ""},
 		2: {"-", 10, ""},
 		3: {"gopher", 0, ""},
 		4: {"-", -1, "negative"},
 		5: {"--", -102, "negative"},
 		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
+	})
+
+	const is64Bit = 1<<(^uintptr(0)>>63)/2 != 0
+	if !is64Bit {
+		return
 	}
 
-	for i, tt := range tests {
-		err := repeat(tt.s, tt.count)
-		if tt.errStr == "" {
-			if err != nil {
-				t.Errorf("#%d panicked %v", i, err)
-			}
-			continue
-		}
-
-		if err == nil || !Contains(err.Error(), tt.errStr) {
-			t.Errorf("#%d expected %q got %q", i, tt.errStr, err)
-		}
-	}
+	runTestCases("64-bit", []testCase{
+		0: {"-", maxInt, "out of range"},
+	})
 }
 
 func runesEqual(a, b []rune) bool {
@@ -1922,6 +2027,13 @@ func BenchmarkRepeatLarge(b *testing.B) {
 				b.SetBytes(int64(n * len(s)))
 			})
 		}
+	}
+}
+
+func BenchmarkRepeatSpaces(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		Repeat(" ", 2)
 	}
 }
 

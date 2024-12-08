@@ -7,42 +7,19 @@
 package sanitizers_test
 
 import (
+	"bytes"
 	"fmt"
 	"internal/platform"
 	"internal/testenv"
+	"os/exec"
 	"strings"
 	"testing"
 )
 
 func TestASAN(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-	testenv.MustHaveCGO(t)
-	goos, err := goEnv("GOOS")
-	if err != nil {
-		t.Fatal(err)
-	}
-	goarch, err := goEnv("GOARCH")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The asan tests require support for the -asan option.
-	if !platform.ASanSupported(goos, goarch) {
-		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
-	}
-	// The current implementation is only compatible with the ASan library from version
-	// v7 to v9 (See the description in src/runtime/asan/asan.go). Therefore, using the
-	// -asan option must use a compatible version of ASan library, which requires that
-	// the gcc version is not less than 7 and the clang version is not less than 9,
-	// otherwise a segmentation fault will occur.
-	if !compilerRequiredAsanVersion(goos, goarch) {
-		t.Skipf("skipping on %s/%s: too old version of compiler", goos, goarch)
-	}
+	config := mustHaveASAN(t)
 
 	t.Parallel()
-	requireOvercommit(t)
-	config := configure("address")
-	config.skipIfCSanitizerBroken(t)
-
 	mustRun(t, config.goCmd("build", "std"))
 
 	cases := []struct {
@@ -106,29 +83,10 @@ func TestASAN(t *testing.T) {
 }
 
 func TestASANLinkerX(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-	testenv.MustHaveCGO(t)
 	// Test ASAN with linker's -X flag (see issue 56175).
-	goos, err := goEnv("GOOS")
-	if err != nil {
-		t.Fatal(err)
-	}
-	goarch, err := goEnv("GOARCH")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The asan tests require support for the -asan option.
-	if !platform.ASanSupported(goos, goarch) {
-		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
-	}
-	if !compilerRequiredAsanVersion(goos, goarch) {
-		t.Skipf("skipping on %s/%s: too old version of compiler", goos, goarch)
-	}
+	config := mustHaveASAN(t)
 
 	t.Parallel()
-	requireOvercommit(t)
-	config := configure("address")
-	config.skipIfCSanitizerBroken(t)
 
 	dir := newTempDir(t)
 	defer dir.RemoveAll(t)
@@ -146,4 +104,67 @@ func TestASANLinkerX(t *testing.T) {
 
 	// run the binary
 	mustRun(t, hangProneCmd(outPath))
+}
+
+// Issue 66966.
+func TestASANFuzz(t *testing.T) {
+	config := mustHaveASAN(t)
+
+	t.Parallel()
+
+	dir := newTempDir(t)
+	defer dir.RemoveAll(t)
+
+	exe := dir.Join("asan_fuzz_test.exe")
+	cmd := config.goCmd("test", "-c", "-o", exe, srcPath("asan_fuzz_test.go"))
+	t.Logf("%v", cmd)
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(exe, "-test.fuzz=Fuzz", "-test.fuzzcachedir="+dir.Base())
+	cmd.Dir = dir.Base()
+	t.Logf("%v", cmd)
+	out, err = cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err == nil {
+		t.Error("expected fuzzing failure")
+	}
+	if bytes.Contains(out, []byte("AddressSanitizer")) {
+		t.Error(`output contains "AddressSanitizer", but should not`)
+	}
+}
+
+func mustHaveASAN(t *testing.T) *config {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	goos, err := goEnv("GOOS")
+	if err != nil {
+		t.Fatal(err)
+	}
+	goarch, err := goEnv("GOARCH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !platform.ASanSupported(goos, goarch) {
+		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
+	}
+
+	// The current implementation is only compatible with the ASan library from version
+	// v7 to v9 (See the description in src/runtime/asan/asan.go). Therefore, using the
+	// -asan option must use a compatible version of ASan library, which requires that
+	// the gcc version is not less than 7 and the clang version is not less than 9,
+	// otherwise a segmentation fault will occur.
+	if !compilerRequiredAsanVersion(goos, goarch) {
+		t.Skipf("skipping on %s/%s: too old version of compiler", goos, goarch)
+	}
+
+	requireOvercommit(t)
+
+	config := configure("address")
+	config.skipIfCSanitizerBroken(t)
+
+	return config
 }

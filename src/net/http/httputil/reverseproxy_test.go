@@ -22,7 +22,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -137,6 +137,7 @@ func TestReverseProxy(t *testing.T) {
 	if g, e := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != e {
 		t.Errorf("Trailer(X-Unannounced-Trailer) = %q ; want %q", g, e)
 	}
+	res.Body.Close()
 
 	// Test that a backend failing to be reached or one which doesn't return
 	// a response results in a StatusBadGateway.
@@ -202,10 +203,10 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 				}
 			}
 		}
-		sort.Strings(cf)
+		slices.Sort(cf)
 		expectedValues := []string{"Upgrade", someConnHeader, fakeConnectionToken}
-		sort.Strings(expectedValues)
-		if !reflect.DeepEqual(cf, expectedValues) {
+		slices.Sort(expectedValues)
+		if !slices.Equal(cf, expectedValues) {
 			t.Errorf("handler modified header %q = %q; want %q", "Connection", cf, expectedValues)
 		}
 	}))
@@ -328,6 +329,7 @@ func TestXForwardedFor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
+	defer res.Body.Close()
 	if g, e := res.StatusCode, backendStatus; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
@@ -765,7 +767,7 @@ func TestReverseProxyGetPutBuffer(t *testing.T) {
 	wantLog := []string{"getBuf", "putBuf-" + strconv.Itoa(size)}
 	mu.Lock()
 	defer mu.Unlock()
-	if !reflect.DeepEqual(log, wantLog) {
+	if !slices.Equal(log, wantLog) {
 		t.Errorf("Log events = %q; want %q", log, wantLog)
 	}
 }
@@ -801,6 +803,7 @@ func TestReverseProxy_Post(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Do: %v", err)
 	}
+	defer res.Body.Close()
 	if g, e := res.StatusCode, backendStatus; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
@@ -1571,7 +1574,7 @@ func TestUnannouncedTrailer(t *testing.T) {
 	}
 
 	io.ReadAll(res.Body)
-
+	res.Body.Close()
 	if g, w := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != w {
 		t.Errorf("Trailer(X-Unannounced-Trailer) = %q; want %q", g, w)
 	}
@@ -1684,6 +1687,47 @@ func TestReverseProxyRewriteReplacesOut(t *testing.T) {
 	body, _ := io.ReadAll(res.Body)
 	if got, want := string(body), content; got != want {
 		t.Errorf("got response %q, want %q", got, want)
+	}
+}
+
+func Test1xxHeadersNotModifiedAfterRoundTrip(t *testing.T) {
+	// https://go.dev/issue/65123: We use httptrace.Got1xxResponse to capture 1xx responses
+	// and proxy them. httptrace handlers can execute after RoundTrip returns, in particular
+	// after experiencing connection errors. When this happens, we shouldn't modify the
+	// ResponseWriter headers after ReverseProxy.ServeHTTP returns.
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for i := 0; i < 5; i++ {
+			w.WriteHeader(103)
+		}
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+
+	rw := &testResponseWriter{}
+	func() {
+		// Cancel the request (and cause RoundTrip to return) immediately upon
+		// seeing a 1xx response.
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+			Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+				cancel()
+				return nil
+			},
+		})
+
+		req, _ := http.NewRequestWithContext(ctx, "GET", "http://go.dev/", nil)
+		proxyHandler.ServeHTTP(rw, req)
+	}()
+	// Trigger data race while iterating over response headers.
+	// When run with -race, this causes the condition in https://go.dev/issue/65123 often
+	// enough to detect reliably.
+	for _ = range rw.Header() {
 	}
 }
 
@@ -1860,4 +1904,30 @@ func testReverseProxyQueryParameterSmuggling(t *testing.T, wantCleanQuery bool, 
 			t.Errorf("proxy forwarded raw query %q as %q, want %q", test.rawQuery, got, want)
 		}
 	}
+}
+
+type testResponseWriter struct {
+	h           http.Header
+	writeHeader func(int)
+	write       func([]byte) (int, error)
+}
+
+func (rw *testResponseWriter) Header() http.Header {
+	if rw.h == nil {
+		rw.h = make(http.Header)
+	}
+	return rw.h
+}
+
+func (rw *testResponseWriter) WriteHeader(statusCode int) {
+	if rw.writeHeader != nil {
+		rw.writeHeader(statusCode)
+	}
+}
+
+func (rw *testResponseWriter) Write(p []byte) (int, error) {
+	if rw.write != nil {
+		return rw.write(p)
+	}
+	return len(p), nil
 }

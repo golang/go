@@ -119,7 +119,7 @@
 //
 // Finally, a leading “v” in the pattern indicates that the reports will be shown
 // to the user of bisect to describe the changes involved in a failure.
-// At the API level, the leading “v” causes [Matcher.Visible] to return true.
+// At the API level, the leading “v” causes [Matcher.Verbose] to return true.
 // See the next section for details.
 //
 // # Match Reports
@@ -136,12 +136,12 @@
 // 0x1234 is the change ID in hexadecimal.
 // An alternate form is “[bisect-match 010101]”, giving the change ID in binary.
 //
-// When [Matcher.Visible] returns false, the match reports are only
+// When [Matcher.Verbose] returns false, the match reports are only
 // being processed by bisect to learn the set of enabled changes,
 // not shown to the user, meaning that each report can be a match
 // marker on a line by itself, eliding the usual textual description.
 // When the textual description is expensive to compute,
-// checking [Matcher.Visible] can help the avoid that expense
+// checking [Matcher.Verbose] can help the avoid that expense
 // in most runs.
 package bisect
 

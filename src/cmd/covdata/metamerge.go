@@ -9,8 +9,8 @@ package main
 // and "intersect" subcommands.
 
 import (
-	"crypto/md5"
 	"fmt"
+	"hash/fnv"
 	"internal/coverage"
 	"internal/coverage/calloc"
 	"internal/coverage/cmerge"
@@ -191,7 +191,7 @@ func (mm *metaMerge) endPod(pcombine bool) {
 		copyMetaDataFile(inpath, outpath)
 	}
 
-	// Emit acccumulated counter data for this pod.
+	// Emit accumulated counter data for this pod.
 	mm.emitCounters(*outdirflag, finalHash)
 
 	// Reset package state.
@@ -207,7 +207,8 @@ func (mm *metaMerge) endPod(pcombine bool) {
 // part of a merge operation, specifically a merge with the
 // "-pcombine" flag.
 func (mm *metaMerge) emitMeta(outdir string, pcombine bool) [16]byte {
-	fh := md5.New()
+	fh := fnv.New128a()
+	fhSum := fnv.New128a()
 	blobs := [][]byte{}
 	tlen := uint64(unsafe.Sizeof(coverage.MetaFileHeader{}))
 	for _, p := range mm.pkgs {
@@ -219,7 +220,9 @@ func (mm *metaMerge) emitMeta(outdir string, pcombine bool) [16]byte {
 		} else {
 			blob = p.mdblob
 		}
-		ph := md5.Sum(blob)
+		fhSum.Reset()
+		fhSum.Write(blob)
+		ph := fhSum.Sum(nil)
 		blobs = append(blobs, blob)
 		if _, err := fh.Write(ph[:]); err != nil {
 			panic(fmt.Sprintf("internal error: md5 sum failed: %v", err))

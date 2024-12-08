@@ -104,7 +104,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		s := l.LookupOrCreateSym(sx.Name, 0)
 
 		// Text symbol
-		if l.SymType(s) == sym.STEXT {
+		if l.SymType(s).IsText() {
 			if l.AttrOnList(s) {
 				return errorf("symbol %s listed multiple times", l.SymName(s))
 			}
@@ -155,7 +155,6 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		}
 	}
 	return textp, nil
-
 }
 
 // Convert symbol xcoff type to sym.SymKind

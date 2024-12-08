@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/par"
+	"cmd/internal/par"
 )
 
-// Tool returns the path to the named tool (for example, "vet").
+// Tool returns the path to the named builtin tool (for example, "vet").
 // If the tool cannot be found, Tool exits the process.
 func Tool(toolName string) string {
 	toolPath, err := ToolPath(toolName)
@@ -27,15 +27,29 @@ func Tool(toolName string) string {
 	return toolPath
 }
 
-// Tool returns the path at which we expect to find the named tool
+// ToolPath returns the path at which we expect to find the named tool
 // (for example, "vet"), and the error (if any) from statting that path.
 func ToolPath(toolName string) (string, error) {
+	if !validToolName(toolName) {
+		return "", fmt.Errorf("bad tool name: %q", toolName)
+	}
 	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
 	err := toolStatCache.Do(toolPath, func() error {
 		_, err := os.Stat(toolPath)
 		return err
 	})
 	return toolPath, err
+}
+
+func validToolName(toolName string) bool {
+	for _, c := range toolName {
+		switch {
+		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 var toolStatCache par.Cache[string, error]

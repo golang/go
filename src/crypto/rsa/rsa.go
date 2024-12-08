@@ -19,22 +19,40 @@
 // over the public key primitive, the PrivateKey type implements the
 // Decrypter and Signer interfaces from the crypto package.
 //
-// Operations in this package are implemented using constant-time algorithms,
-// except for [GenerateKey], [PrivateKey.Precompute], and [PrivateKey.Validate].
-// Every other operation only leaks the bit size of the involved values, which
-// all depend on the selected key size.
+// Operations involving private keys are implemented using constant-time
+// algorithms, except for [GenerateKey] and for some operations involving
+// deprecated multi-prime keys.
+//
+// # Minimum key size
+//
+// [GenerateKey] returns an error if a key of less than 1024 bits is requested,
+// and all Sign, Verify, Encrypt, and Decrypt methods return an error if used
+// with a key smaller than 1024 bits. Such keys are insecure and should not be
+// used.
+//
+// The `rsa1024min=0` GODEBUG setting suppresses this error, but we recommend
+// doing so only in tests, if necessary. Tests can use [testing.T.Setenv] or
+// include `//go:debug rsa1024min=0` in a `_test.go` source file to set it.
+//
+// Alternatively, see the [GenerateKey (TestKey)] example for a pregenerated
+// test-only 2048-bit key.
+//
+// [GenerateKey (TestKey)]: #example-GenerateKey-TestKey
 package rsa
 
 import (
 	"crypto"
-	"crypto/internal/bigmod"
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
+	"crypto/internal/fips140/bigmod"
+	"crypto/internal/fips140/rsa"
+	"crypto/internal/fips140only"
 	"crypto/internal/randutil"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
-	"hash"
+	"fmt"
+	"internal/godebug"
 	"io"
 	"math"
 	"math/big"
@@ -43,6 +61,10 @@ import (
 var bigOne = big.NewInt(1)
 
 // A PublicKey represents the public part of an RSA key.
+//
+// The value of the modulus N is considered secret by this library and protected
+// from leaking through timing side-channels. However, neither the value of the
+// exponent E nor the precise bit size of N are similarly protected.
 type PublicKey struct {
 	N *big.Int // modulus
 	E int      // public exponent
@@ -79,30 +101,6 @@ type OAEPOptions struct {
 	// Label is an arbitrary byte string that must be equal to the value
 	// used when encrypting.
 	Label []byte
-}
-
-var (
-	errPublicModulus       = errors.New("crypto/rsa: missing public modulus")
-	errPublicExponentSmall = errors.New("crypto/rsa: public exponent too small")
-	errPublicExponentLarge = errors.New("crypto/rsa: public exponent too large")
-)
-
-// checkPub sanity checks the public key before we use it.
-// We require pub.E to fit into a 32-bit integer so that we
-// do not have different behavior depending on whether
-// int is 32 or 64 bits. See also
-// https://www.imperialviolet.org/2012/03/16/rsae.html.
-func checkPub(pub *PublicKey) error {
-	if pub.N == nil {
-		return errPublicModulus
-	}
-	if pub.E < 2 {
-		return errPublicExponentSmall
-	}
-	if pub.E > 1<<31-1 {
-		return errPublicExponentLarge
-	}
-	return nil
 }
 
 // A PrivateKey represents an RSA key
@@ -150,11 +148,11 @@ func bigIntEqual(a, b *big.Int) bool {
 }
 
 // Sign signs digest with priv, reading randomness from rand. If opts is a
-// *PSSOptions then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
+// *[PSSOptions] then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
 // be used. digest must be the result of hashing the input message using
 // opts.HashFunc().
 //
-// This method implements crypto.Signer, which is an interface to support keys
+// This method implements [crypto.Signer], which is an interface to support keys
 // where the private part is kept in, for example, a hardware module. Common
 // uses should use the Sign* functions in this package directly.
 func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
@@ -166,8 +164,8 @@ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
 }
 
 // Decrypt decrypts ciphertext with priv. If opts is nil or of type
-// *PKCS1v15DecryptOptions then PKCS #1 v1.5 decryption is performed. Otherwise
-// opts must have type *OAEPOptions and OAEP decryption is done.
+// *[PKCS1v15DecryptOptions] then PKCS #1 v1.5 decryption is performed. Otherwise
+// opts must have type *[OAEPOptions] and OAEP decryption is done.
 func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
 	if opts == nil {
 		return DecryptPKCS1v15(rand, priv, ciphertext)
@@ -176,9 +174,9 @@ func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.D
 	switch opts := opts.(type) {
 	case *OAEPOptions:
 		if opts.MGFHash == 0 {
-			return decryptOAEP(opts.Hash.New(), opts.Hash.New(), rand, priv, ciphertext, opts.Label)
+			return decryptOAEP(opts.Hash.New(), opts.Hash.New(), priv, ciphertext, opts.Label)
 		} else {
-			return decryptOAEP(opts.Hash.New(), opts.MGFHash.New(), rand, priv, ciphertext, opts.Label)
+			return decryptOAEP(opts.Hash.New(), opts.MGFHash.New(), priv, ciphertext, opts.Label)
 		}
 
 	case *PKCS1v15DecryptOptions:
@@ -215,7 +213,7 @@ type PrecomputedValues struct {
 	// complexity.
 	CRTValues []CRTValue
 
-	n, p, q *bigmod.Modulus // moduli for CRT with Montgomery precomputed constants
+	fips *rsa.PrivateKey
 }
 
 // CRTValue contains the precomputed Chinese remainder theorem values.
@@ -227,74 +225,62 @@ type CRTValue struct {
 
 // Validate performs basic sanity checks on the key.
 // It returns nil if the key is valid, or else an error describing a problem.
+//
+// It runs faster on valid keys if run after [Precompute].
 func (priv *PrivateKey) Validate() error {
-	if err := checkPub(&priv.PublicKey); err != nil {
-		return err
+	// We can operate on keys based on d alone, but it isn't possible to encode
+	// with [crypto/x509.MarshalPKCS1PrivateKey], which unfortunately doesn't
+	// return an error.
+	if len(priv.Primes) < 2 {
+		return errors.New("crypto/rsa: missing primes")
 	}
+	// If Precomputed.fips is set, then the key has been validated by
+	// [rsa.NewPrivateKey] or [rsa.NewPrivateKeyWithoutCRT].
+	if priv.Precomputed.fips != nil {
+		return nil
+	}
+	_, err := priv.precompute()
+	return err
+}
 
-	// Check that Πprimes == n.
-	modulus := new(big.Int).Set(bigOne)
-	for _, prime := range priv.Primes {
-		// Any primes ≤ 1 will cause divide-by-zero panics later.
-		if prime.Cmp(bigOne) <= 0 {
-			return errors.New("crypto/rsa: invalid prime value")
-		}
-		modulus.Mul(modulus, prime)
-	}
-	if modulus.Cmp(priv.N) != 0 {
-		return errors.New("crypto/rsa: invalid modulus")
-	}
+// rsa1024min is a GODEBUG that re-enables weak RSA keys if set to "0".
+// See https://go.dev/issue/68762.
+var rsa1024min = godebug.New("rsa1024min")
 
-	// Check that de ≡ 1 mod p-1, for each prime.
-	// This implies that e is coprime to each p-1 as e has a multiplicative
-	// inverse. Therefore e is coprime to lcm(p-1,q-1,r-1,...) =
-	// exponent(ℤ/nℤ). It also implies that a^de ≡ a mod p as a^(p-1) ≡ 1
-	// mod p. Thus a^de ≡ a mod n for all a coprime to n, as required.
-	congruence := new(big.Int)
-	de := new(big.Int).SetInt64(int64(priv.E))
-	de.Mul(de, priv.D)
-	for _, prime := range priv.Primes {
-		pminus1 := new(big.Int).Sub(prime, bigOne)
-		congruence.Mod(de, pminus1)
-		if congruence.Cmp(bigOne) != 0 {
-			return errors.New("crypto/rsa: invalid exponents")
-		}
+func checkKeySize(size int) error {
+	if size >= 1024 {
+		return nil
 	}
-	return nil
+	if rsa1024min.Value() == "0" {
+		rsa1024min.IncNonDefault()
+		return nil
+	}
+	return fmt.Errorf("crypto/rsa: %d-bit keys are insecure (see https://go.dev/pkg/crypto/rsa#hdr-Minimum_key_size)", size)
+}
+
+func checkPublicKeySize(k *PublicKey) error {
+	if k.N == nil {
+		return errors.New("crypto/rsa: missing public modulus")
+	}
+	return checkKeySize(k.N.BitLen())
 }
 
 // GenerateKey generates a random RSA private key of the given bit size.
 //
+// If bits is less than 1024, [GenerateKey] returns an error. See the "[Minimum
+// key size]" section for further details.
+//
 // Most applications should use [crypto/rand.Reader] as rand. Note that the
 // returned key does not depend deterministically on the bytes read from rand,
 // and may change between calls and/or between versions.
+//
+// [Minimum key size]: #hdr-Minimum_key_size
 func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
-	return GenerateMultiPrimeKey(random, 2, bits)
-}
+	if err := checkKeySize(bits); err != nil {
+		return nil, err
+	}
 
-// GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
-// size and the given random source.
-//
-// Table 1 in "[On the Security of Multi-prime RSA]" suggests maximum numbers of
-// primes for a given bit size.
-//
-// Although the public keys are compatible (actually, indistinguishable) from
-// the 2-prime case, the private keys are not. Thus it may not be possible to
-// export multi-prime private keys in certain formats or to subsequently import
-// them into other code.
-//
-// This package does not implement CRT optimizations for multi-prime RSA, so the
-// keys with more than two primes will have worse performance.
-//
-// Deprecated: The use of this function with a number of primes different from
-// two is not recommended for the above security, compatibility, and performance
-// reasons. Use GenerateKey instead.
-//
-// [On the Security of Multi-prime RSA]: http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
-func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
-	randutil.MaybeReadByte(random)
-
-	if boring.Enabled && random == boring.RandReader && nprimes == 2 &&
+	if boring.Enabled && random == boring.RandReader &&
 		(bits == 2048 || bits == 3072 || bits == 4096) {
 		bN, bE, bD, bP, bQ, bDp, bDq, bQinv, err := boring.GenerateKeyRSA(bits)
 		if err != nil {
@@ -313,19 +299,6 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 			return nil, errors.New("crypto/rsa: generated key exponent too large")
 		}
 
-		mn, err := bigmod.NewModulusFromBig(N)
-		if err != nil {
-			return nil, err
-		}
-		mp, err := bigmod.NewModulusFromBig(P)
-		if err != nil {
-			return nil, err
-		}
-		mq, err := bigmod.NewModulusFromBig(Q)
-		if err != nil {
-			return nil, err
-		}
-
 		key := &PrivateKey{
 			PublicKey: PublicKey{
 				N: N,
@@ -338,13 +311,72 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
 				Dq:        Dq,
 				Qinv:      Qinv,
 				CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
-				n:         mn,
-				p:         mp,
-				q:         mq,
 			},
 		}
 		return key, nil
 	}
+
+	if fips140only.Enabled && bits < 2048 {
+		return nil, errors.New("crypto/rsa: use of keys smaller than 2048 bits is not allowed in FIPS 140-only mode")
+	}
+	if fips140only.Enabled && bits%2 == 1 {
+		return nil, errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
+	}
+
+	k, err := rsa.GenerateKey(random, bits)
+	if err != nil {
+		return nil, err
+	}
+	N, e, d, p, q, dP, dQ, qInv := k.Export()
+	key := &PrivateKey{
+		PublicKey: PublicKey{
+			N: new(big.Int).SetBytes(N),
+			E: e,
+		},
+		D: new(big.Int).SetBytes(d),
+		Primes: []*big.Int{
+			new(big.Int).SetBytes(p),
+			new(big.Int).SetBytes(q),
+		},
+		Precomputed: PrecomputedValues{
+			fips:      k,
+			Dp:        new(big.Int).SetBytes(dP),
+			Dq:        new(big.Int).SetBytes(dQ),
+			Qinv:      new(big.Int).SetBytes(qInv),
+			CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
+		},
+	}
+	return key, nil
+}
+
+// GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
+// size and the given random source.
+//
+// Table 1 in "[On the Security of Multi-prime RSA]" suggests maximum numbers of
+// primes for a given bit size.
+//
+// Although the public keys are compatible (actually, indistinguishable) from
+// the 2-prime case, the private keys are not. Thus it may not be possible to
+// export multi-prime private keys in certain formats or to subsequently import
+// them into other code.
+//
+// This package does not implement CRT optimizations for multi-prime RSA, so the
+// keys with more than two primes will have worse performance.
+//
+// Deprecated: The use of this function with a number of primes different from
+// two is not recommended for the above security, compatibility, and performance
+// reasons. Use [GenerateKey] instead.
+//
+// [On the Security of Multi-prime RSA]: http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
+	if nprimes == 2 {
+		return GenerateKey(random, bits)
+	}
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/rsa: multi-prime RSA is not allowed in FIPS 140-only mode")
+	}
+
+	randutil.MaybeReadByte(random)
 
 	priv := new(PrivateKey)
 	priv.E = 65537
@@ -432,143 +464,17 @@ NextSetOfPrimes:
 	}
 
 	priv.Precompute()
+	if err := priv.Validate(); err != nil {
+		return nil, err
+	}
+
 	return priv, nil
 }
 
-// incCounter increments a four byte, big-endian counter.
-func incCounter(c *[4]byte) {
-	if c[3]++; c[3] != 0 {
-		return
-	}
-	if c[2]++; c[2] != 0 {
-		return
-	}
-	if c[1]++; c[1] != 0 {
-		return
-	}
-	c[0]++
-}
-
-// mgf1XOR XORs the bytes in out with a mask generated using the MGF1 function
-// specified in PKCS #1 v2.1.
-func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
-	var counter [4]byte
-	var digest []byte
-
-	done := 0
-	for done < len(out) {
-		hash.Write(seed)
-		hash.Write(counter[0:4])
-		digest = hash.Sum(digest[:0])
-		hash.Reset()
-
-		for i := 0; i < len(digest) && done < len(out); i++ {
-			out[done] ^= digest[i]
-			done++
-		}
-		incCounter(&counter)
-	}
-}
-
 // ErrMessageTooLong is returned when attempting to encrypt or sign a message
-// which is too large for the size of the key. When using SignPSS, this can also
+// which is too large for the size of the key. When using [SignPSS], this can also
 // be returned if the size of the salt is too large.
 var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key size")
-
-func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
-	boring.Unreachable()
-
-	// Most of the CPU time for encryption and verification is spent in this
-	// NewModulusFromBig call, because PublicKey doesn't have a Precomputed
-	// field. If performance becomes an issue, consider placing a private
-	// sync.Once on PublicKey to compute this.
-	N, err := bigmod.NewModulusFromBig(pub.N)
-	if err != nil {
-		return nil, err
-	}
-	m, err := bigmod.NewNat().SetBytes(plaintext, N)
-	if err != nil {
-		return nil, err
-	}
-	e := uint(pub.E)
-
-	return bigmod.NewNat().ExpShort(m, e, N).Bytes(N), nil
-}
-
-// EncryptOAEP encrypts the given message with RSA-OAEP.
-//
-// OAEP is parameterised by a hash function that is used as a random oracle.
-// Encryption and decryption of a given message must use the same hash function
-// and sha256.New() is a reasonable choice.
-//
-// The random parameter is used as a source of entropy to ensure that
-// encrypting the same message twice doesn't result in the same ciphertext.
-// Most applications should use [crypto/rand.Reader] as random.
-//
-// The label parameter may contain arbitrary data that will not be encrypted,
-// but which gives important context to the message. For example, if a given
-// public key is used to encrypt two types of messages then distinct label
-// values could be used to ensure that a ciphertext for one purpose cannot be
-// used for another by an attacker. If not required it can be empty.
-//
-// The message must be no longer than the length of the public modulus minus
-// twice the hash length, minus a further 2.
-func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
-	// Note that while we don't commit to deterministic execution with respect
-	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
-	// Law it's probably relied upon by some. It's a tolerable promise because a
-	// well-specified number of random bytes is included in the ciphertext, in a
-	// well-specified way.
-
-	if err := checkPub(pub); err != nil {
-		return nil, err
-	}
-	hash.Reset()
-	k := pub.Size()
-	if len(msg) > k-2*hash.Size()-2 {
-		return nil, ErrMessageTooLong
-	}
-
-	if boring.Enabled && random == boring.RandReader {
-		bkey, err := boringPublicKey(pub)
-		if err != nil {
-			return nil, err
-		}
-		return boring.EncryptRSAOAEP(hash, hash, bkey, msg, label)
-	}
-	boring.UnreachableExceptTests()
-
-	hash.Write(label)
-	lHash := hash.Sum(nil)
-	hash.Reset()
-
-	em := make([]byte, k)
-	seed := em[1 : 1+hash.Size()]
-	db := em[1+hash.Size():]
-
-	copy(db[0:hash.Size()], lHash)
-	db[len(db)-len(msg)-1] = 1
-	copy(db[len(db)-len(msg):], msg)
-
-	_, err := io.ReadFull(random, seed)
-	if err != nil {
-		return nil, err
-	}
-
-	mgf1XOR(db, hash, seed)
-	mgf1XOR(seed, hash, db)
-
-	if boring.Enabled {
-		var bkey *boring.PublicKeyRSA
-		bkey, err = boringPublicKey(pub)
-		if err != nil {
-			return nil, err
-		}
-		return boring.EncryptRSANoPadding(bkey, em)
-	}
-
-	return encrypt(pub, em)
-}
 
 // ErrDecryption represents a failure to decrypt a message.
 // It is deliberately vague to avoid adaptive attacks.
@@ -579,203 +485,139 @@ var ErrDecryption = errors.New("crypto/rsa: decryption error")
 var ErrVerification = errors.New("crypto/rsa: verification error")
 
 // Precompute performs some calculations that speed up private key operations
-// in the future.
+// in the future. It is safe to run on non-validated private keys.
 func (priv *PrivateKey) Precompute() {
-	if priv.Precomputed.n == nil && len(priv.Primes) == 2 {
-		// Precomputed values _should_ always be valid, but if they aren't
-		// just return. We could also panic.
-		var err error
-		priv.Precomputed.n, err = bigmod.NewModulusFromBig(priv.N)
-		if err != nil {
-			return
-		}
-		priv.Precomputed.p, err = bigmod.NewModulusFromBig(priv.Primes[0])
-		if err != nil {
-			// Unset previous values, so we either have everything or nothing
-			priv.Precomputed.n = nil
-			return
-		}
-		priv.Precomputed.q, err = bigmod.NewModulusFromBig(priv.Primes[1])
-		if err != nil {
-			// Unset previous values, so we either have everything or nothing
-			priv.Precomputed.n, priv.Precomputed.p = nil, nil
-			return
-		}
-	}
-
-	// Fill in the backwards-compatibility *big.Int values.
-	if priv.Precomputed.Dp != nil {
+	if priv.Precomputed.fips != nil {
 		return
 	}
 
-	priv.Precomputed.Dp = new(big.Int).Sub(priv.Primes[0], bigOne)
-	priv.Precomputed.Dp.Mod(priv.D, priv.Precomputed.Dp)
+	precomputed, err := priv.precompute()
+	if err != nil {
+		// We don't have a way to report errors, so just leave the key
+		// unmodified. Validate will re-run precompute.
+		return
+	}
+	priv.Precomputed = precomputed
+}
 
-	priv.Precomputed.Dq = new(big.Int).Sub(priv.Primes[1], bigOne)
-	priv.Precomputed.Dq.Mod(priv.D, priv.Precomputed.Dq)
+func (priv *PrivateKey) precompute() (PrecomputedValues, error) {
+	var precomputed PrecomputedValues
 
-	priv.Precomputed.Qinv = new(big.Int).ModInverse(priv.Primes[1], priv.Primes[0])
+	if priv.N == nil {
+		return precomputed, errors.New("crypto/rsa: missing public modulus")
+	}
+	if priv.D == nil {
+		return precomputed, errors.New("crypto/rsa: missing private exponent")
+	}
+	if len(priv.Primes) != 2 {
+		return priv.precomputeLegacy()
+	}
+	if priv.Primes[0] == nil {
+		return precomputed, errors.New("crypto/rsa: prime P is nil")
+	}
+	if priv.Primes[1] == nil {
+		return precomputed, errors.New("crypto/rsa: prime Q is nil")
+	}
+
+	// If the CRT values are already set, use them.
+	if priv.Precomputed.Dp != nil && priv.Precomputed.Dq != nil && priv.Precomputed.Qinv != nil {
+		k, err := rsa.NewPrivateKeyWithPrecomputation(priv.N.Bytes(), priv.E, priv.D.Bytes(),
+			priv.Primes[0].Bytes(), priv.Primes[1].Bytes(),
+			priv.Precomputed.Dp.Bytes(), priv.Precomputed.Dq.Bytes(), priv.Precomputed.Qinv.Bytes())
+		if err != nil {
+			return precomputed, err
+		}
+		precomputed = priv.Precomputed
+		precomputed.fips = k
+		precomputed.CRTValues = make([]CRTValue, 0)
+		return precomputed, nil
+	}
+
+	k, err := rsa.NewPrivateKey(priv.N.Bytes(), priv.E, priv.D.Bytes(),
+		priv.Primes[0].Bytes(), priv.Primes[1].Bytes())
+	if err != nil {
+		return precomputed, err
+	}
+
+	precomputed.fips = k
+	_, _, _, _, _, dP, dQ, qInv := k.Export()
+	precomputed.Dp = new(big.Int).SetBytes(dP)
+	precomputed.Dq = new(big.Int).SetBytes(dQ)
+	precomputed.Qinv = new(big.Int).SetBytes(qInv)
+	precomputed.CRTValues = make([]CRTValue, 0)
+	return precomputed, nil
+}
+
+func (priv *PrivateKey) precomputeLegacy() (PrecomputedValues, error) {
+	var precomputed PrecomputedValues
+
+	k, err := rsa.NewPrivateKeyWithoutCRT(priv.N.Bytes(), priv.E, priv.D.Bytes())
+	if err != nil {
+		return precomputed, err
+	}
+	precomputed.fips = k
+
+	if len(priv.Primes) < 2 {
+		return precomputed, nil
+	}
+
+	// Ensure the Mod and ModInverse calls below don't panic.
+	for _, prime := range priv.Primes {
+		if prime == nil {
+			return precomputed, errors.New("crypto/rsa: prime factor is nil")
+		}
+		if prime.Cmp(bigOne) <= 0 {
+			return precomputed, errors.New("crypto/rsa: prime factor is <= 1")
+		}
+	}
+
+	precomputed.Dp = new(big.Int).Sub(priv.Primes[0], bigOne)
+	precomputed.Dp.Mod(priv.D, precomputed.Dp)
+
+	precomputed.Dq = new(big.Int).Sub(priv.Primes[1], bigOne)
+	precomputed.Dq.Mod(priv.D, precomputed.Dq)
+
+	precomputed.Qinv = new(big.Int).ModInverse(priv.Primes[1], priv.Primes[0])
+	if precomputed.Qinv == nil {
+		return precomputed, errors.New("crypto/rsa: prime factors are not relatively prime")
+	}
 
 	r := new(big.Int).Mul(priv.Primes[0], priv.Primes[1])
-	priv.Precomputed.CRTValues = make([]CRTValue, len(priv.Primes)-2)
+	precomputed.CRTValues = make([]CRTValue, len(priv.Primes)-2)
 	for i := 2; i < len(priv.Primes); i++ {
 		prime := priv.Primes[i]
-		values := &priv.Precomputed.CRTValues[i-2]
+		values := &precomputed.CRTValues[i-2]
 
 		values.Exp = new(big.Int).Sub(prime, bigOne)
 		values.Exp.Mod(priv.D, values.Exp)
 
 		values.R = new(big.Int).Set(r)
 		values.Coeff = new(big.Int).ModInverse(r, prime)
+		if values.Coeff == nil {
+			return precomputed, errors.New("crypto/rsa: prime factors are not relatively prime")
+		}
 
 		r.Mul(r, prime)
 	}
+
+	return precomputed, nil
 }
 
-const withCheck = true
-const noCheck = false
-
-// decrypt performs an RSA decryption of ciphertext into out. If check is true,
-// m^e is calculated and compared with ciphertext, in order to defend against
-// errors in the CRT computation.
-func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
-	if len(priv.Primes) <= 2 {
-		boring.Unreachable()
-	}
-
-	var (
-		err  error
-		m, c *bigmod.Nat
-		N    *bigmod.Modulus
-		t0   = bigmod.NewNat()
-	)
-	if priv.Precomputed.n == nil {
-		N, err = bigmod.NewModulusFromBig(priv.N)
-		if err != nil {
-			return nil, ErrDecryption
-		}
-		c, err = bigmod.NewNat().SetBytes(ciphertext, N)
-		if err != nil {
-			return nil, ErrDecryption
-		}
-		m = bigmod.NewNat().Exp(c, priv.D.Bytes(), N)
-	} else {
-		N = priv.Precomputed.n
-		P, Q := priv.Precomputed.p, priv.Precomputed.q
-		Qinv, err := bigmod.NewNat().SetBytes(priv.Precomputed.Qinv.Bytes(), P)
-		if err != nil {
-			return nil, ErrDecryption
-		}
-		c, err = bigmod.NewNat().SetBytes(ciphertext, N)
-		if err != nil {
-			return nil, ErrDecryption
-		}
-
-		// m = c ^ Dp mod p
-		m = bigmod.NewNat().Exp(t0.Mod(c, P), priv.Precomputed.Dp.Bytes(), P)
-		// m2 = c ^ Dq mod q
-		m2 := bigmod.NewNat().Exp(t0.Mod(c, Q), priv.Precomputed.Dq.Bytes(), Q)
-		// m = m - m2 mod p
-		m.Sub(t0.Mod(m2, P), P)
-		// m = m * Qinv mod p
-		m.Mul(Qinv, P)
-		// m = m * q mod N
-		m.ExpandFor(N).Mul(t0.Mod(Q.Nat(), N), N)
-		// m = m + m2 mod N
-		m.Add(m2.ExpandFor(N), N)
-	}
-
-	if check {
-		c1 := bigmod.NewNat().ExpShort(m, uint(priv.E), N)
-		if c1.Equal(c) != 1 {
-			return nil, ErrDecryption
-		}
-	}
-
-	return m.Bytes(N), nil
-}
-
-// DecryptOAEP decrypts ciphertext using RSA-OAEP.
-//
-// OAEP is parameterised by a hash function that is used as a random oracle.
-// Encryption and decryption of a given message must use the same hash function
-// and sha256.New() is a reasonable choice.
-//
-// The random parameter is legacy and ignored, and it can be nil.
-//
-// The label parameter must match the value given when encrypting. See
-// EncryptOAEP for details.
-func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
-	return decryptOAEP(hash, hash, random, priv, ciphertext, label)
-}
-
-func decryptOAEP(hash, mgfHash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
-	if err := checkPub(&priv.PublicKey); err != nil {
-		return nil, err
-	}
-	k := priv.Size()
-	if len(ciphertext) > k ||
-		k < hash.Size()*2+2 {
-		return nil, ErrDecryption
-	}
-
-	if boring.Enabled {
-		bkey, err := boringPrivateKey(priv)
-		if err != nil {
-			return nil, err
-		}
-		out, err := boring.DecryptRSAOAEP(hash, mgfHash, bkey, ciphertext, label)
-		if err != nil {
-			return nil, ErrDecryption
-		}
-		return out, nil
-	}
-
-	em, err := decrypt(priv, ciphertext, noCheck)
+func fipsPublicKey(pub *PublicKey) (*rsa.PublicKey, error) {
+	N, err := bigmod.NewModulus(pub.N.Bytes())
 	if err != nil {
 		return nil, err
 	}
+	return &rsa.PublicKey{N: N, E: pub.E}, nil
+}
 
-	hash.Write(label)
-	lHash := hash.Sum(nil)
-	hash.Reset()
-
-	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
-
-	seed := em[1 : hash.Size()+1]
-	db := em[hash.Size()+1:]
-
-	mgf1XOR(seed, mgfHash, db)
-	mgf1XOR(db, mgfHash, seed)
-
-	lHash2 := db[0:hash.Size()]
-
-	// We have to validate the plaintext in constant time in order to avoid
-	// attacks like: J. Manger. A Chosen Ciphertext Attack on RSA Optimal
-	// Asymmetric Encryption Padding (OAEP) as Standardized in PKCS #1
-	// v2.0. In J. Kilian, editor, Advances in Cryptology.
-	lHash2Good := subtle.ConstantTimeCompare(lHash, lHash2)
-
-	// The remainder of the plaintext must be zero or more 0x00, followed
-	// by 0x01, followed by the message.
-	//   lookingForIndex: 1 iff we are still looking for the 0x01
-	//   index: the offset of the first 0x01 byte
-	//   invalid: 1 iff we saw a non-zero byte before the 0x01.
-	var lookingForIndex, index, invalid int
-	lookingForIndex = 1
-	rest := db[hash.Size():]
-
-	for i := 0; i < len(rest); i++ {
-		equals0 := subtle.ConstantTimeByteEq(rest[i], 0)
-		equals1 := subtle.ConstantTimeByteEq(rest[i], 1)
-		index = subtle.ConstantTimeSelect(lookingForIndex&equals1, i, index)
-		lookingForIndex = subtle.ConstantTimeSelect(equals1, 0, lookingForIndex)
-		invalid = subtle.ConstantTimeSelect(lookingForIndex&^equals0, 1, invalid)
+func fipsPrivateKey(priv *PrivateKey) (*rsa.PrivateKey, error) {
+	if priv.Precomputed.fips != nil {
+		return priv.Precomputed.fips, nil
 	}
-
-	if firstByteIsZero&lHash2Good&^invalid&^lookingForIndex != 1 {
-		return nil, ErrDecryption
+	precomputed, err := priv.precompute()
+	if err != nil {
+		return nil, err
 	}
-
-	return rest[index+1:], nil
+	return precomputed.fips, nil
 }

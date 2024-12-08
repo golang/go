@@ -17,4 +17,6 @@ const (
 	unlinkatTrap       uintptr = syscall.SYS_UNLINKAT
 	openatTrap         uintptr = syscall.SYS_OPENAT
 	posixFallocateTrap uintptr = syscall.SYS_POSIX_FALLOCATE
+	readlinkatTrap     uintptr = syscall.SYS_READLINKAT
+	mkdiratTrap        uintptr = syscall.SYS_MKDIRAT
 )

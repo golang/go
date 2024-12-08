@@ -242,7 +242,7 @@ func TestRaceMapAssignMultipleReturn(t *testing.T) {
 }
 
 // BigKey and BigVal must be larger than 256 bytes,
-// so that compiler sets KindGCProg for them.
+// so that compiler stores them indirectly.
 type BigKey [1000]*int
 
 type BigVal struct {

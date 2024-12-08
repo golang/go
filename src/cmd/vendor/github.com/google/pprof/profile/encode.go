@@ -122,6 +122,7 @@ func (p *Profile) preEncode() {
 	}
 
 	p.defaultSampleTypeX = addString(strings, p.DefaultSampleType)
+	p.docURLX = addString(strings, p.DocURL)
 
 	p.stringTable = make([]string, len(strings))
 	for s, i := range strings {
@@ -156,6 +157,7 @@ func (p *Profile) encode(b *buffer) {
 	encodeInt64Opt(b, 12, p.Period)
 	encodeInt64s(b, 13, p.commentX)
 	encodeInt64(b, 14, p.defaultSampleTypeX)
+	encodeInt64Opt(b, 15, p.docURLX)
 }
 
 var profileDecoder = []decoder{
@@ -237,6 +239,8 @@ var profileDecoder = []decoder{
 	func(b *buffer, m message) error { return decodeInt64s(b, &m.(*Profile).commentX) },
 	// int64 defaultSampleType = 14
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).defaultSampleTypeX) },
+	// string doc_link = 15;
+	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).docURLX) },
 }
 
 // postDecode takes the unexported fields populated by decode (with
@@ -384,6 +388,7 @@ func (p *Profile) postDecode() error {
 
 	p.commentX = nil
 	p.DefaultSampleType, err = getString(p.stringTable, &p.defaultSampleTypeX, err)
+	p.DocURL, err = getString(p.stringTable, &p.docURLX, err)
 	p.stringTable = nil
 	return err
 }
@@ -530,6 +535,7 @@ func (p *Line) decoder() []decoder {
 func (p *Line) encode(b *buffer) {
 	encodeUint64Opt(b, 1, p.functionIDX)
 	encodeInt64Opt(b, 2, p.Line)
+	encodeInt64Opt(b, 3, p.Column)
 }
 
 var lineDecoder = []decoder{
@@ -538,6 +544,8 @@ var lineDecoder = []decoder{
 	func(b *buffer, m message) error { return decodeUint64(b, &m.(*Line).functionIDX) },
 	// optional int64 line = 2
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Line).Line) },
+	// optional int64 column = 3
+	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Line).Column) },
 }
 
 func (p *Function) decoder() []decoder {

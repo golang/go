@@ -14,8 +14,8 @@ package runtime
 
 import (
 	"internal/goarch"
-	"runtime/internal/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/atomic"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -52,9 +52,7 @@ func startCheckmarks() {
 			arena.checkmarks = bitmap
 		} else {
 			// Otherwise clear the existing bitmap.
-			for i := range bitmap.b {
-				bitmap.b[i] = 0
-			}
+			clear(bitmap.b[:])
 		}
 	}
 	// Enable checkmarking.

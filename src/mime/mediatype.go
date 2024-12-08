@@ -7,7 +7,8 @@ package mime
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -33,13 +34,7 @@ func FormatMediaType(t string, param map[string]string) string {
 		b.WriteString(strings.ToLower(sub))
 	}
 
-	attrs := make([]string, 0, len(param))
-	for a := range param {
-		attrs = append(attrs, a)
-	}
-	sort.Strings(attrs)
-
-	for _, attribute := range attrs {
+	for _, attribute := range slices.Sorted(maps.Keys(param)) {
 		value := param[attribute]
 		b.WriteByte(';')
 		b.WriteByte(' ')
@@ -121,7 +116,7 @@ func checkMediaTypeDisposition(s string) error {
 	return nil
 }
 
-// ErrInvalidMediaParameter is returned by ParseMediaType if
+// ErrInvalidMediaParameter is returned by [ParseMediaType] if
 // the media type value was found but there was an error parsing
 // the optional parameters
 var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
@@ -133,7 +128,7 @@ var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
 // to lowercase and trimmed of white space and a non-nil map.
 // If there is an error parsing the optional parameter,
 // the media type will be returned along with the error
-// ErrInvalidMediaParameter.
+// [ErrInvalidMediaParameter].
 // The returned map, params, maps from the lowercase
 // attribute to the attribute value with its case preserved.
 func ParseMediaType(v string) (mediatype string, params map[string]string, err error) {

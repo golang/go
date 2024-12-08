@@ -5,15 +5,20 @@
 package noder
 
 import (
+	"cmp"
+	"fmt"
+	"internal/buildcfg"
 	"internal/pkgbits"
+	"internal/types/errors"
 	"io"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
@@ -24,6 +29,121 @@ import (
 // package. It exists so the unified IR linker can refer back to it
 // later.
 var localPkgReader *pkgReader
+
+// LookupFunc returns the ir.Func for an arbitrary full symbol name if
+// that function exists in the set of available export data.
+//
+// This allows lookup of arbitrary functions and methods that aren't otherwise
+// referenced by the local package and thus haven't been read yet.
+//
+// TODO(prattmic): Does not handle instantiation of generic types. Currently
+// profiles don't contain the original type arguments, so we won't be able to
+// create the runtime dictionaries.
+//
+// TODO(prattmic): Hit rate of this function is usually fairly low, and errors
+// are only used when debug logging is enabled. Consider constructing cheaper
+// errors by default.
+func LookupFunc(fullName string) (*ir.Func, error) {
+	pkgPath, symName, err := ir.ParseLinkFuncName(fullName)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing symbol name %q: %v", fullName, err)
+	}
+
+	pkg, ok := types.PkgMap()[pkgPath]
+	if !ok {
+		return nil, fmt.Errorf("pkg %s doesn't exist in %v", pkgPath, types.PkgMap())
+	}
+
+	// Symbol naming is ambiguous. We can't necessarily distinguish between
+	// a method and a closure. e.g., is foo.Bar.func1 a closure defined in
+	// function Bar, or a method on type Bar? Thus we must simply attempt
+	// to lookup both.
+
+	fn, err := lookupFunction(pkg, symName)
+	if err == nil {
+		return fn, nil
+	}
+
+	fn, mErr := lookupMethod(pkg, symName)
+	if mErr == nil {
+		return fn, nil
+	}
+
+	return nil, fmt.Errorf("%s is not a function (%v) or method (%v)", fullName, err, mErr)
+}
+
+// PostLookupCleanup performs cleanup operations needed
+// after a series of calls to LookupFunc, specifically invoking
+// readBodies to post-process any funcs on the "todoBodies" list
+// that were added as a result of the lookup operations.
+func PostLookupCleanup() {
+	readBodies(typecheck.Target, false)
+}
+
+func lookupFunction(pkg *types.Pkg, symName string) (*ir.Func, error) {
+	sym := pkg.Lookup(symName)
+
+	// TODO(prattmic): Enclosed functions (e.g., foo.Bar.func1) are not
+	// present in objReader, only as OCLOSURE nodes in the enclosing
+	// function.
+	pri, ok := objReader[sym]
+	if !ok {
+		return nil, fmt.Errorf("func sym %v missing objReader", sym)
+	}
+
+	node, err := pri.pr.objIdxMayFail(pri.idx, nil, nil, false)
+	if err != nil {
+		return nil, fmt.Errorf("func sym %v lookup error: %w", sym, err)
+	}
+	name := node.(*ir.Name)
+	if name.Op() != ir.ONAME || name.Class != ir.PFUNC {
+		return nil, fmt.Errorf("func sym %v refers to non-function name: %v", sym, name)
+	}
+	return name.Func, nil
+}
+
+func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
+	// N.B. readPackage creates a Sym for every object in the package to
+	// initialize objReader and importBodyReader, even if the object isn't
+	// read.
+	//
+	// However, objReader is only initialized for top-level objects, so we
+	// must first lookup the type and use that to find the method rather
+	// than looking for the method directly.
+	typ, meth, err := ir.LookupMethodSelector(pkg, symName)
+	if err != nil {
+		return nil, fmt.Errorf("error looking up method symbol %q: %v", symName, err)
+	}
+
+	pri, ok := objReader[typ]
+	if !ok {
+		return nil, fmt.Errorf("type sym %v missing objReader", typ)
+	}
+
+	node, err := pri.pr.objIdxMayFail(pri.idx, nil, nil, false)
+	if err != nil {
+		return nil, fmt.Errorf("func sym %v lookup error: %w", typ, err)
+	}
+	name := node.(*ir.Name)
+	if name.Op() != ir.OTYPE {
+		return nil, fmt.Errorf("type sym %v refers to non-type name: %v", typ, name)
+	}
+	if name.Alias() {
+		return nil, fmt.Errorf("type sym %v refers to alias", typ)
+	}
+	if name.Type().IsInterface() {
+		return nil, fmt.Errorf("type sym %v refers to interface type", typ)
+	}
+
+	for _, m := range name.Type().Methods() {
+		if m.Sym == meth {
+			fn := m.Nname.(*ir.Name).Func
+			return fn, nil
+		}
+	}
+
+	return nil, fmt.Errorf("method %s missing from method set of %v", symName, typ)
+}
 
 // unified constructs the local package's Internal Representation (IR)
 // from its syntax tree (AST).
@@ -69,6 +189,8 @@ var localPkgReader *pkgReader
 func unified(m posMap, noders []*noder) {
 	inline.InlineCall = unifiedInlineCall
 	typecheck.HaveInlineBody = unifiedHaveInlineBody
+	pgoir.LookupFunc = LookupFunc
+	pgoir.PostLookupCleanup = PostLookupCleanup
 
 	data := writePkgStub(m, noders)
 
@@ -181,7 +303,7 @@ func readBodies(target *ir.Package, duringInlining bool) {
 
 		oldLowerM := base.Flag.LowerM
 		base.Flag.LowerM = 0
-		inline.InlineDecls(nil, inlDecls, false)
+		inline.CanInlineFuncs(inlDecls, nil)
 		base.Flag.LowerM = oldLowerM
 
 		for _, fn := range inlDecls {
@@ -194,9 +316,9 @@ func readBodies(target *ir.Package, duringInlining bool) {
 // writes an export data package stub representing them,
 // and returns the result.
 func writePkgStub(m posMap, noders []*noder) string {
-	pkg, info := checkFiles(m, noders)
+	pkg, info, otherInfo := checkFiles(m, noders)
 
-	pw := newPkgWriter(m, pkg, info)
+	pw := newPkgWriter(m, pkg, info, otherInfo)
 
 	pw.collectDecls(noders)
 
@@ -209,7 +331,10 @@ func writePkgStub(m posMap, noders []*noder) string {
 	{
 		w := publicRootWriter
 		w.pkg(pkg)
-		w.Bool(false) // TODO(mdempsky): Remove; was "has init"
+
+		if w.Version().Has(pkgbits.HasInit) {
+			w.Bool(false)
+		}
 
 		scope := pkg.Scope()
 		names := scope.Names()
@@ -284,13 +409,21 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
 		pkg := r.pkg()
-		base.Assertf(pkg == importpkg, "have package %q (%p), want package %q (%p)", pkg.Path, pkg, importpkg.Path, importpkg)
+		// This error can happen if "go tool compile" is called with wrong "-p" flag, see issue #54542.
+		if pkg != importpkg {
+			base.ErrorfAt(base.AutogeneratedPos, errors.BadImportPath, "mismatched import path, have %q (%p), want %q (%p)", pkg.Path, pkg, importpkg.Path, importpkg)
+			base.ErrorExit()
+		}
 
-		r.Bool() // TODO(mdempsky): Remove; was "has init"
+		if r.Version().Has(pkgbits.HasInit) {
+			r.Bool()
+		}
 
 		for i, n := 0, r.Len(); i < n; i++ {
 			r.Sync(pkgbits.SyncObject)
-			assert(!r.Bool())
+			if r.Version().Has(pkgbits.DerivedFuncInstance) {
+				assert(!r.Bool())
+			}
 			idx := r.Reloc(pkgbits.RelocObj)
 			assert(r.Len() == 0)
 
@@ -331,12 +464,17 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 // writeUnifiedExport writes to `out` the finalized, self-contained
 // Unified IR export data file for the current compilation unit.
 func writeUnifiedExport(out io.Writer) {
+	// Use V2 as the encoded version aliastypeparams GOEXPERIMENT is enabled.
+	version := pkgbits.V1
+	if buildcfg.Experiment.AliasTypeParams {
+		version = pkgbits.V2
+	}
 	l := linker{
-		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
+		pw: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
 
-		pkgs:   make(map[string]pkgbits.Index),
-		decls:  make(map[*types.Sym]pkgbits.Index),
-		bodies: make(map[*types.Sym]pkgbits.Index),
+		pkgs:   make(map[string]index),
+		decls:  make(map[*types.Sym]index),
+		bodies: make(map[*types.Sym]index),
 	}
 
 	publicRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
@@ -344,7 +482,7 @@ func writeUnifiedExport(out io.Writer) {
 	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
 	assert(privateRootWriter.Idx == pkgbits.PrivateRootIdx)
 
-	var selfPkgIdx pkgbits.Index
+	var selfPkgIdx index
 
 	{
 		pr := localPkgReader
@@ -353,11 +491,15 @@ func writeUnifiedExport(out io.Writer) {
 		r.Sync(pkgbits.SyncPkg)
 		selfPkgIdx = l.relocIdx(pr, pkgbits.RelocPkg, r.Reloc(pkgbits.RelocPkg))
 
-		r.Bool() // TODO(mdempsky): Remove; was "has init"
+		if r.Version().Has(pkgbits.HasInit) {
+			r.Bool()
+		}
 
 		for i, n := 0, r.Len(); i < n; i++ {
 			r.Sync(pkgbits.SyncObject)
-			assert(!r.Bool())
+			if r.Version().Has(pkgbits.DerivedFuncInstance) {
+				assert(!r.Bool())
+			}
 			idx := r.Reloc(pkgbits.RelocObj)
 			assert(r.Len() == 0)
 
@@ -374,22 +516,27 @@ func writeUnifiedExport(out io.Writer) {
 	}
 
 	{
-		var idxs []pkgbits.Index
+		var idxs []index
 		for _, idx := range l.decls {
 			idxs = append(idxs, idx)
 		}
-		sort.Slice(idxs, func(i, j int) bool { return idxs[i] < idxs[j] })
+		slices.Sort(idxs)
 
 		w := publicRootWriter
 
 		w.Sync(pkgbits.SyncPkg)
 		w.Reloc(pkgbits.RelocPkg, selfPkgIdx)
-		w.Bool(false) // TODO(mdempsky): Remove; was "has init"
+
+		if w.Version().Has(pkgbits.HasInit) {
+			w.Bool(false)
+		}
 
 		w.Len(len(idxs))
 		for _, idx := range idxs {
 			w.Sync(pkgbits.SyncObject)
-			w.Bool(false)
+			if w.Version().Has(pkgbits.DerivedFuncInstance) {
+				w.Bool(false)
+			}
 			w.Reloc(pkgbits.RelocObj, idx)
 			w.Len(0)
 		}
@@ -401,13 +548,13 @@ func writeUnifiedExport(out io.Writer) {
 	{
 		type symIdx struct {
 			sym *types.Sym
-			idx pkgbits.Index
+			idx index
 		}
 		var bodies []symIdx
 		for sym, idx := range l.bodies {
 			bodies = append(bodies, symIdx{sym, idx})
 		}
-		sort.Slice(bodies, func(i, j int) bool { return bodies[i].idx < bodies[j].idx })
+		slices.SortFunc(bodies, func(a, b symIdx) int { return cmp.Compare(a.idx, b.idx) })
 
 		w := privateRootWriter
 

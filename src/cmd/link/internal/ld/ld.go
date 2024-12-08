@@ -196,7 +196,7 @@ func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint
 		if strings.HasSuffix(shlib, ".shlibname") {
 			data, err := os.ReadFile(shlib)
 			if err != nil {
-				Errorf(nil, "cannot read %s: %v", shlib, err)
+				Errorf("cannot read %s: %v", shlib, err)
 			}
 			shlib = strings.TrimSpace(string(data))
 		}
@@ -221,7 +221,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 		return nil, 0
 	}
 	amd := ctxt.loader.LookupOrCreateSym("runtime.addmoduledata", 0)
-	if ctxt.loader.SymType(amd) == sym.STEXT && ctxt.BuildMode != BuildModePlugin {
+	if ctxt.loader.SymType(amd).IsText() && ctxt.BuildMode != BuildModePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return nil, 0

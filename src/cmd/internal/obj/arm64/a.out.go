@@ -1,5 +1,5 @@
 // cmd/7c/7.out.h  from Vita Nuova.
-// https://code.google.com/p/ken-cc/source/browse/src/cmd/7c/7.out.h
+// https://bitbucket.org/plan9-from-bell-labs/9-cc/src/master/src/cmd/7c/7.out.h
 //
 // 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -337,6 +337,7 @@ const (
 	NOSCHED
 )
 
+//go:generate go run ../mkcnames.go -i a.out.go -o anames7.go -p arm64
 const (
 	// optab is sorted based on the order of these constants
 	// and the first match is chosen.

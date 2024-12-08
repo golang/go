@@ -16,24 +16,6 @@ func IsPathSeparator(c uint8) bool {
 	return PathSeparator == c
 }
 
-// basename removes trailing slashes and the leading directory name from path name.
-func basename(name string) string {
-	i := len(name) - 1
-	// Remove trailing slashes
-	for ; i > 0 && name[i] == '/'; i-- {
-		name = name[:i]
-	}
-	// Remove leading directory name
-	for i--; i >= 0; i-- {
-		if name[i] == '/' {
-			name = name[i+1:]
-			break
-		}
-	}
-
-	return name
-}
-
 // splitPath returns the base name and parent directory.
 func splitPath(path string) (string, string) {
 	// if no better parent is found, the path is relative from "here"
@@ -68,8 +50,4 @@ func splitPath(path string) (string, string) {
 	}
 
 	return dirname, basename
-}
-
-func volumeName(p string) string {
-	return ""
 }

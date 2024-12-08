@@ -54,13 +54,13 @@ import (
 // The rules for which file descriptor-creating operations use the
 // ForkLock are as follows:
 //
-//   - Pipe. Use pipe2 if available. Otherwise, does not block,
+//   - [Pipe]. Use pipe2 if available. Otherwise, does not block,
 //     so use ForkLock.
-//   - Socket. Use SOCK_CLOEXEC if available. Otherwise, does not
+//   - [Socket]. Use SOCK_CLOEXEC if available. Otherwise, does not
 //     block, so use ForkLock.
-//   - Open. Use O_CLOEXEC if available. Otherwise, may block,
+//   - [Open]. Use [O_CLOEXEC] if available. Otherwise, may block,
 //     so live with the race.
-//   - Dup. Use F_DUPFD_CLOEXEC or dup3 if available. Otherwise,
+//   - [Dup]. Use [F_DUPFD_CLOEXEC] or dup3 if available. Otherwise,
 //     does not block, so use ForkLock.
 var ForkLock sync.RWMutex
 
@@ -68,7 +68,7 @@ var ForkLock sync.RWMutex
 // to NUL-terminated byte arrays. If any string contains a NUL byte
 // this function panics instead of returning an error.
 //
-// Deprecated: Use SlicePtrFromStrings instead.
+// Deprecated: Use [SlicePtrFromStrings] instead.
 func StringSlicePtr(ss []string) []*byte {
 	bb := make([]*byte, len(ss)+1)
 	for i := 0; i < len(ss); i++ {
@@ -80,7 +80,7 @@ func StringSlicePtr(ss []string) []*byte {
 
 // SlicePtrFromStrings converts a slice of strings to a slice of
 // pointers to NUL-terminated byte arrays. If any string contains
-// a NUL byte, it returns (nil, EINVAL).
+// a NUL byte, it returns (nil, [EINVAL]).
 func SlicePtrFromStrings(ss []string) ([]*byte, error) {
 	n := 0
 	for _, s := range ss {
@@ -120,7 +120,7 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 }
 
 // Credential holds user and group identities to be assumed
-// by a child process started by StartProcess.
+// by a child process started by [StartProcess].
 type Credential struct {
 	Uid         uint32   // User ID.
 	Gid         uint32   // Group ID.
@@ -129,7 +129,7 @@ type Credential struct {
 }
 
 // ProcAttr holds attributes that will be applied to a new process started
-// by StartProcess.
+// by [StartProcess].
 type ProcAttr struct {
 	Dir   string    // Current working directory.
 	Env   []string  // Environment.
@@ -237,6 +237,10 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		for err1 == EINTR {
 			_, err1 = Wait4(pid, &wstatus, 0, nil)
 		}
+
+		// OS-specific cleanup on failure.
+		forkAndExecFailureCleanup(attr, sys)
+
 		return 0, err
 	}
 
@@ -249,7 +253,7 @@ func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	return forkExec(argv0, argv, attr)
 }
 
-// StartProcess wraps ForkExec for package os.
+// StartProcess wraps [ForkExec] for package os.
 func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
 	pid, err = forkExec(argv0, argv, attr)
 	return pid, 0, err

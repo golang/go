@@ -16,7 +16,7 @@ import (
 var (
 	mptcpOnce      sync.Once
 	mptcpAvailable bool
-	hasSOLMPTCP    bool
+	hasSOLMPTCP    bool // only valid if mptcpAvailable is true
 )
 
 // These constants aren't in the syscall package, which is frozen
@@ -34,10 +34,17 @@ func supportsMultipathTCP() bool {
 // Check that MPTCP is supported by attempting to create an MPTCP socket and by
 // looking at the returned error if any.
 func initMPTCPavailable() {
-	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_STREAM, _IPPROTO_MPTCP)
+	family := syscall.AF_INET
+	if !supportsIPv4() {
+		family = syscall.AF_INET6
+	}
+	s, err := sysSocket(family, syscall.SOCK_STREAM, _IPPROTO_MPTCP)
+
 	switch {
 	case errors.Is(err, syscall.EPROTONOSUPPORT): // Not supported: >= v5.6
+		return
 	case errors.Is(err, syscall.EINVAL): // Not supported: < v5.6
+		return
 	case err == nil: // Supported and no error
 		poll.CloseFunc(s)
 		fallthrough
@@ -119,6 +126,10 @@ func isUsingMPTCPProto(fd *netFD) bool {
 // Please look at the description of hasFallenBack (kernel >=5.16) and
 // isUsingMPTCPProto methods for more details about what is being checked here.
 func isUsingMultipathTCP(fd *netFD) bool {
+	if !supportsMultipathTCP() {
+		return false
+	}
+
 	if hasSOLMPTCP {
 		return !hasFallenBack(fd)
 	}

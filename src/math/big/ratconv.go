@@ -299,12 +299,13 @@ func scanExponent(r io.ByteScanner, base2ok, sepOk bool) (exp int64, base int, e
 
 // String returns a string representation of x in the form "a/b" (even if b == 1).
 func (x *Rat) String() string {
-	return string(x.marshal())
+	return string(x.marshal(nil))
 }
 
-// marshal implements String returning a slice of bytes
-func (x *Rat) marshal() []byte {
-	var buf []byte
+// marshal implements [Rat.String] returning a slice of bytes.
+// It appends the string representation of x in the form "a/b" (even if b == 1) to buf,
+// and returns the extended buffer.
+func (x *Rat) marshal(buf []byte) []byte {
 	buf = x.a.Append(buf, 10)
 	buf = append(buf, '/')
 	if len(x.b.abs) != 0 {
@@ -377,4 +378,83 @@ func (x *Rat) FloatString(prec int) string {
 	}
 
 	return string(buf)
+}
+
+// Note: FloatPrec (below) is in this file rather than rat.go because
+//       its results are relevant for decimal representation/printing.
+
+// FloatPrec returns the number n of non-repeating digits immediately
+// following the decimal point of the decimal representation of x.
+// The boolean result indicates whether a decimal representation of x
+// with that many fractional digits is exact or rounded.
+//
+// Examples:
+//
+//	x      n    exact    decimal representation n fractional digits
+//	0      0    true     0
+//	1      0    true     1
+//	1/2    1    true     0.5
+//	1/3    0    false    0       (0.333... rounded)
+//	1/4    2    true     0.25
+//	1/6    1    false    0.2     (0.166... rounded)
+func (x *Rat) FloatPrec() (n int, exact bool) {
+	// Determine q and largest p2, p5 such that d = q·2^p2·5^p5.
+	// The results n, exact are:
+	//
+	//     n = max(p2, p5)
+	//     exact = q == 1
+	//
+	// For details see:
+	// https://en.wikipedia.org/wiki/Repeating_decimal#Reciprocals_of_integers_not_coprime_to_10
+	d := x.Denom().abs // d >= 1
+
+	// Determine p2 by counting factors of 2.
+	// p2 corresponds to the trailing zero bits in d.
+	// Do this first to reduce q as much as possible.
+	var q nat
+	p2 := d.trailingZeroBits()
+	q = q.shr(d, p2)
+
+	// Determine p5 by counting factors of 5.
+	// Build a table starting with an initial power of 5,
+	// and use repeated squaring until the factor doesn't
+	// divide q anymore. Then use the table to determine
+	// the power of 5 in q.
+	const fp = 13        // f == 5^fp
+	var tab []nat        // tab[i] == (5^fp)^(2^i) == 5^(fp·2^i)
+	f := nat{1220703125} // == 5^fp (must fit into a uint32 Word)
+	var t, r nat         // temporaries
+	for {
+		if _, r = t.div(r, q, f); len(r) != 0 {
+			break // f doesn't divide q evenly
+		}
+		tab = append(tab, f)
+		f = nat(nil).sqr(f) // nat(nil) to ensure a new f for each table entry
+	}
+
+	// Factor q using the table entries, if any.
+	// We start with the largest factor f = tab[len(tab)-1]
+	// that evenly divides q. It does so at most once because
+	// otherwise f·f would also divide q. That can't be true
+	// because f·f is the next higher table entry, contradicting
+	// how f was chosen in the first place.
+	// The same reasoning applies to the subsequent factors.
+	var p5 uint
+	for i := len(tab) - 1; i >= 0; i-- {
+		if t, r = t.div(r, q, tab[i]); len(r) == 0 {
+			p5 += fp * (1 << i) // tab[i] == 5^(fp·2^i)
+			q = q.set(t)
+		}
+	}
+
+	// If fp != 1, we may still have multiples of 5 left.
+	for {
+		if t, r = t.div(r, q, natFive); len(r) != 0 {
+			break
+		}
+		p5++
+		q = q.set(t)
+	}
+
+	return int(max(p2, p5)), q.cmp(natOne) == 0
 }

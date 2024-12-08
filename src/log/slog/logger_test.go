@@ -7,6 +7,8 @@ package slog
 import (
 	"bytes"
 	"context"
+	"internal/asan"
+	"internal/msan"
 	"internal/race"
 	"internal/testenv"
 	"io"
@@ -191,6 +193,7 @@ func TestCallDepth(t *testing.T) {
 		}
 	}
 
+	defer SetDefault(Default()) // restore
 	logger := New(h)
 	SetDefault(logger)
 
@@ -228,7 +231,7 @@ func TestCallDepth(t *testing.T) {
 
 func TestAlloc(t *testing.T) {
 	ctx := context.Background()
-	dl := New(discardHandler{})
+	dl := New(discardTestHandler{})
 	defer SetDefault(Default()) // restore
 	SetDefault(dl)
 
@@ -255,7 +258,7 @@ func TestAlloc(t *testing.T) {
 		})
 	})
 	t.Run("2 pairs disabled inline", func(t *testing.T) {
-		l := New(discardHandler{disabled: true})
+		l := New(DiscardHandler)
 		s := "abc"
 		i := 2000
 		wantAllocs(t, 2, func() {
@@ -266,7 +269,7 @@ func TestAlloc(t *testing.T) {
 		})
 	})
 	t.Run("2 pairs disabled", func(t *testing.T) {
-		l := New(discardHandler{disabled: true})
+		l := New(DiscardHandler)
 		s := "abc"
 		i := 2000
 		wantAllocs(t, 0, func() {
@@ -302,7 +305,7 @@ func TestAlloc(t *testing.T) {
 		})
 	})
 	t.Run("attrs3 disabled", func(t *testing.T) {
-		logger := New(discardHandler{disabled: true})
+		logger := New(DiscardHandler)
 		wantAllocs(t, 0, func() {
 			logger.LogAttrs(ctx, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
 		})
@@ -361,6 +364,71 @@ func TestSetDefault(t *testing.T) {
 	if err := ctx.Err(); err != context.Canceled {
 		t.Errorf("wanted canceled, got %v", err)
 	}
+}
+
+// Test defaultHandler minimum level without calling slog.SetDefault.
+func TestLogLoggerLevelForDefaultHandler(t *testing.T) {
+	// Revert any changes to the default logger, flags, and level of log and slog.
+	currentLogLoggerLevel := logLoggerLevel.Level()
+	currentLogWriter := log.Writer()
+	currentLogFlags := log.Flags()
+	t.Cleanup(func() {
+		logLoggerLevel.Set(currentLogLoggerLevel)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentLogFlags)
+	})
+
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+	log.SetFlags(0)
+
+	for _, test := range []struct {
+		logLevel Level
+		logFn    func(string, ...any)
+		want     string
+	}{
+		{LevelDebug, Debug, "DEBUG a"},
+		{LevelDebug, Info, "INFO a"},
+		{LevelInfo, Debug, ""},
+		{LevelInfo, Info, "INFO a"},
+	} {
+		SetLogLoggerLevel(test.logLevel)
+		test.logFn("a")
+		checkLogOutput(t, logBuf.String(), test.want)
+		logBuf.Reset()
+	}
+}
+
+// Test handlerWriter minimum level by calling slog.SetDefault.
+func TestLogLoggerLevelForHandlerWriter(t *testing.T) {
+	removeTime := func(_ []string, a Attr) Attr {
+		if a.Key == TimeKey {
+			return Attr{}
+		}
+		return a
+	}
+
+	// Revert any changes to the default logger. This is important because other
+	// tests might change the default logger using SetDefault. Also ensure we
+	// restore the default logger at the end of the test.
+	currentLogger := Default()
+	currentLogLoggerLevel := logLoggerLevel.Level()
+	currentLogWriter := log.Writer()
+	currentFlags := log.Flags()
+	t.Cleanup(func() {
+		SetDefault(currentLogger)
+		logLoggerLevel.Set(currentLogLoggerLevel)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentFlags)
+	})
+
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+	log.SetFlags(0)
+	SetLogLoggerLevel(LevelError)
+	SetDefault(New(NewTextHandler(&logBuf, &HandlerOptions{ReplaceAttr: removeTime})))
+	log.Print("error")
+	checkLogOutput(t, logBuf.String(), `level=ERROR msg=error`)
 }
 
 func TestLoggerError(t *testing.T) {
@@ -500,18 +568,17 @@ func (c *captureHandler) clear() {
 	c.r = Record{}
 }
 
-type discardHandler struct {
-	disabled bool
-	attrs    []Attr
+type discardTestHandler struct {
+	attrs []Attr
 }
 
-func (d discardHandler) Enabled(context.Context, Level) bool { return !d.disabled }
-func (discardHandler) Handle(context.Context, Record) error  { return nil }
-func (d discardHandler) WithAttrs(as []Attr) Handler {
+func (d discardTestHandler) Enabled(context.Context, Level) bool { return true }
+func (discardTestHandler) Handle(context.Context, Record) error  { return nil }
+func (d discardTestHandler) WithAttrs(as []Attr) Handler {
 	d.attrs = concat(d.attrs, as)
 	return d
 }
-func (h discardHandler) WithGroup(name string) Handler {
+func (h discardTestHandler) WithGroup(name string) Handler {
 	return h
 }
 
@@ -578,8 +645,8 @@ func callerPC(depth int) uintptr {
 }
 
 func wantAllocs(t *testing.T, want int, f func()) {
-	if race.Enabled {
-		t.Skip("skipping test in race mode")
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping test in race, asan, and msan modes")
 	}
 	testenv.SkipIfOptimizationOff(t)
 	t.Helper()

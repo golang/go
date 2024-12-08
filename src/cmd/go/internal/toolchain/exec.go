@@ -8,6 +8,7 @@ package toolchain
 
 import (
 	"cmd/go/internal/base"
+	"fmt"
 	"internal/godebug"
 	"os"
 	"os/exec"
@@ -25,6 +26,13 @@ func execGoToolchain(gotoolchain, dir, exe string) {
 		os.Unsetenv("GOROOT")
 	} else {
 		os.Setenv("GOROOT", dir)
+	}
+	if toolchainTrace {
+		if dir == "" {
+			fmt.Fprintf(os.Stderr, "go: using %s toolchain located in system PATH (%s)\n", gotoolchain, exe)
+		} else {
+			fmt.Fprintf(os.Stderr, "go: using %s toolchain from cache located at %s\n", gotoolchain, exe)
+		}
 	}
 
 	// On Windows, there is no syscall.Exec, so the best we can do

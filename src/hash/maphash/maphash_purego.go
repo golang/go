@@ -8,8 +8,21 @@ package maphash
 
 import (
 	"crypto/rand"
+	"errors"
+	"internal/byteorder"
 	"math/bits"
+	"reflect"
 )
+
+const purego = true
+
+var hashkey [4]uint64
+
+func init() {
+	for i := range hashkey {
+		hashkey[i] = randUint64()
+	}
+}
 
 func rthash(buf []byte, seed uint64) uint64 {
 	if len(buf) == 0 {
@@ -25,40 +38,34 @@ func rthashString(s string, state uint64) uint64 {
 func randUint64() uint64 {
 	buf := make([]byte, 8)
 	_, _ = rand.Read(buf)
-	return leUint64(buf)
+	return byteorder.LEUint64(buf)
 }
 
 // This is a port of wyhash implementation in runtime/hash64.go,
 // without using unsafe for purego.
 
-const (
-	m1 = 0xa0761d6478bd642f
-	m2 = 0xe7037ed1a0b428db
-	m3 = 0x8ebc6af09c88c6e3
-	m4 = 0x589965cc75374cc3
-	m5 = 0x1d8e4e27c47d124f
-)
+const m5 = 0x1d8e4e27c47d124f
 
 func wyhash(key []byte, seed, len uint64) uint64 {
 	p := key
 	i := len
 	var a, b uint64
-	seed ^= m1
+	seed ^= hashkey[0]
 
 	if i > 16 {
 		if i > 48 {
 			seed1 := seed
 			seed2 := seed
 			for ; i > 48; i -= 48 {
-				seed = mix(r8(p)^m2, r8(p[8:])^seed)
-				seed1 = mix(r8(p[16:])^m3, r8(p[24:])^seed1)
-				seed2 = mix(r8(p[32:])^m4, r8(p[40:])^seed2)
+				seed = mix(r8(p)^hashkey[1], r8(p[8:])^seed)
+				seed1 = mix(r8(p[16:])^hashkey[2], r8(p[24:])^seed1)
+				seed2 = mix(r8(p[32:])^hashkey[3], r8(p[40:])^seed2)
 				p = p[48:]
 			}
 			seed ^= seed1 ^ seed2
 		}
 		for ; i > 16; i -= 16 {
-			seed = mix(r8(p)^m2, r8(p[8:])^seed)
+			seed = mix(r8(p)^hashkey[1], r8(p[8:])^seed)
 			p = p[16:]
 		}
 	}
@@ -72,7 +79,7 @@ func wyhash(key []byte, seed, len uint64) uint64 {
 		a = r4(p)<<32 | r4(p[n:])
 		b = r4(p[i-4:])<<32 | r4(p[i-4-n:])
 	}
-	return mix(m5^len, mix(a^m2, b^seed))
+	return mix(m5^len, mix(a^hashkey[1], b^seed))
 }
 
 func r3(p []byte, k uint64) uint64 {
@@ -80,11 +87,11 @@ func r3(p []byte, k uint64) uint64 {
 }
 
 func r4(p []byte) uint64 {
-	return uint64(leUint32(p))
+	return uint64(byteorder.LEUint32(p))
 }
 
 func r8(p []byte) uint64 {
-	return leUint64(p)
+	return byteorder.LEUint64(p)
 }
 
 func mix(a, b uint64) uint64 {
@@ -92,13 +99,79 @@ func mix(a, b uint64) uint64 {
 	return hi ^ lo
 }
 
-func leUint32(b []byte) uint32 {
-	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+func comparableHash[T comparable](v T, seed Seed) uint64 {
+	var h Hash
+	h.SetSeed(seed)
+	writeComparable(&h, v)
+	return h.Sum64()
 }
 
-func leUint64(b []byte) uint64 {
-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
-	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
-		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
+func writeComparable[T comparable](h *Hash, v T) {
+	vv := reflect.ValueOf(v)
+	appendT(h, vv)
+}
+
+// appendT hash a value.
+func appendT(h *Hash, v reflect.Value) {
+	h.WriteString(v.Type().String())
+	switch v.Kind() {
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+		var buf [8]byte
+		byteorder.LEPutUint64(buf[:], uint64(v.Int()))
+		h.Write(buf[:])
+		return
+	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
+		var buf [8]byte
+		byteorder.LEPutUint64(buf[:], v.Uint())
+		h.Write(buf[:])
+		return
+	case reflect.Array:
+		var buf [8]byte
+		for i := range uint64(v.Len()) {
+			byteorder.LEPutUint64(buf[:], i)
+			// do not want to hash to the same value,
+			// [2]string{"foo", ""} and [2]string{"", "foo"}.
+			h.Write(buf[:])
+			appendT(h, v.Index(int(i)))
+		}
+		return
+	case reflect.String:
+		h.WriteString(v.String())
+		return
+	case reflect.Struct:
+		var buf [8]byte
+		for i := range v.NumField() {
+			f := v.Field(i)
+			byteorder.LEPutUint64(buf[:], uint64(i))
+			// do not want to hash to the same value,
+			// struct{a,b string}{"foo",""} and
+			// struct{a,b string}{"","foo"}.
+			h.Write(buf[:])
+			appendT(h, f)
+		}
+		return
+	case reflect.Complex64, reflect.Complex128:
+		c := v.Complex()
+		h.float64(real(c))
+		h.float64(imag(c))
+		return
+	case reflect.Float32, reflect.Float64:
+		h.float64(v.Float())
+		return
+	case reflect.Bool:
+		h.WriteByte(btoi(v.Bool()))
+		return
+	case reflect.UnsafePointer, reflect.Pointer:
+		var buf [8]byte
+		// because pointing to the abi.Escape call in comparableReady,
+		// So this is ok to hash pointer,
+		// this way because we know their target won't be moved.
+		byteorder.LEPutUint64(buf[:], uint64(v.Pointer()))
+		h.Write(buf[:])
+		return
+	case reflect.Interface:
+		appendT(h, v.Elem())
+		return
+	}
+	panic(errors.New("maphash: hash of unhashable type " + v.Type().String()))
 }

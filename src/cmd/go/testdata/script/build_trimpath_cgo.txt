@@ -121,6 +121,9 @@ func run(exePath string) ([]string, error) {
 				}
 				return nil, err
 			}
+			if le.EndSequence {
+			    continue
+			}
 			files[le.File.Name] = true
 		}
 	}

@@ -23,7 +23,8 @@ var (
 	universeIota       Object
 	universeByte       Type // uint8 alias, but has name "byte"
 	universeRune       Type // int32 alias, but has name "rune"
-	universeAny        Object
+	universeAnyNoAlias *TypeName
+	universeAnyAlias   *TypeName
 	universeError      Type
 	universeComparable Object
 )
@@ -65,7 +66,7 @@ var Typ = [...]*Basic{
 	UntypedNil:     {UntypedNil, IsUntyped, "untyped nil"},
 }
 
-var aliases = [...]*Basic{
+var basicAliases = [...]*Basic{
 	{Byte, IsInteger | IsUnsigned, "byte"},
 	{Rune, IsInteger, "rune"},
 }
@@ -74,15 +75,41 @@ func defPredeclaredTypes() {
 	for _, t := range Typ {
 		def(NewTypeName(nopos, nil, t.name, t))
 	}
-	for _, t := range aliases {
+	for _, t := range basicAliases {
 		def(NewTypeName(nopos, nil, t.name, t))
 	}
 
 	// type any = interface{}
-	// Note: don't use &emptyInterface for the type of any. Using a unique
-	// pointer allows us to detect any and format it as "any" rather than
-	// interface{}, which clarifies user-facing error messages significantly.
-	def(NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
+	//
+	// Implement two representations of any: one for the legacy gotypesalias=0,
+	// and one for gotypesalias=1. This is necessary for consistent
+	// representation of interface aliases during type checking, and is
+	// implemented via hijacking [Scope.Lookup] for the [Universe] scope.
+	//
+	// Both representations use the same distinguished pointer for their RHS
+	// interface type, allowing us to detect any (even with the legacy
+	// representation), and format it as "any" rather than interface{}, which
+	// clarifies user-facing error messages significantly.
+	//
+	// TODO(rfindley): once the gotypesalias GODEBUG variable is obsolete (and we
+	// consistently use the Alias node), we should be able to clarify user facing
+	// error messages without using a distinguished pointer for the any
+	// interface.
+	{
+		universeAnyNoAlias = NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet})
+		universeAnyNoAlias.setColor(black)
+		// ensure that the any TypeName reports a consistent Parent, after
+		// hijacking Universe.Lookup with gotypesalias=0.
+		universeAnyNoAlias.setParent(Universe)
+
+		// It shouldn't matter which representation of any is actually inserted
+		// into the Universe, but we lean toward the future and insert the Alias
+		// representation.
+		universeAnyAlias = NewTypeName(nopos, nil, "any", nil)
+		universeAnyAlias.setColor(black)
+		_ = NewAlias(universeAnyAlias, universeAnyNoAlias.Type().Underlying()) // Link TypeName and Alias
+		def(universeAnyAlias)
+	}
 
 	// type error interface{ Error() string }
 	{
@@ -250,7 +277,6 @@ func init() {
 	universeIota = Universe.Lookup("iota")
 	universeByte = Universe.Lookup("byte").Type()
 	universeRune = Universe.Lookup("rune").Type()
-	universeAny = Universe.Lookup("any")
 	universeError = Universe.Lookup("error").Type()
 	universeComparable = Universe.Lookup("comparable")
 }
@@ -279,7 +305,7 @@ func def(obj Object) {
 		case *Builtin:
 			obj.pkg = Unsafe
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 	if scope.Insert(obj) != nil {

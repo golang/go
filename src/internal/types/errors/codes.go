@@ -4,7 +4,7 @@
 
 package errors
 
-//go:generate stringer -type Code codes.go
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -type Code codes.go
 
 type Code int
 
@@ -1474,4 +1474,12 @@ const (
 	//  var s, t []byte
 	//  var _ = max(s, t)
 	InvalidMinMaxOperand
+
+	// TooNew indicates that, through build tags or a go.mod file,
+	// a source file requires a version of Go that is newer than
+	// the logic of the type checker. As a consequence, the type
+	// checker may produce spurious errors or fail to report real
+	// errors. The solution is to rebuild the application with a
+	// newer Go release.
+	TooNew
 )

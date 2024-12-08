@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // NOTE: If you change this file you must run "go generate"
+// in cmd/compile/internal/typecheck
 // to update builtin.go. This is not done automatically
 // to avoid depending on having a working compiler binary.
 
@@ -70,6 +71,12 @@ func concatstring4(*[32]byte, string, string, string, string) string
 func concatstring5(*[32]byte, string, string, string, string, string) string
 func concatstrings(*[32]byte, []string) string
 
+func concatbyte2(string, string) []byte
+func concatbyte3(string, string, string) []byte
+func concatbyte4(string, string, string, string) []byte
+func concatbyte5(string, string, string, string, string) []byte
+func concatbytes([]string) []byte
+
 func cmpstring(string, string) int
 func intstring(*[4]byte, int64) string
 func slicebytetostring(buf *[32]byte, ptr *byte, n int) string
@@ -116,10 +123,14 @@ func interfaceSwitch(s *byte, t *byte) (int, *byte)
 func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
 func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
 
+// panic for various rangefunc iterator errors
+func panicrangestate(state int)
+
 // defer in range over func
 func deferrangefunc() interface{}
 
-func fastrand() uint32
+func rand() uint64
+func rand32() uint32
 
 // *byte is really *runtime.Type
 func makemap64(mapType *byte, hint int64, mapbuf *any) (hmap map[any]any)
@@ -155,12 +166,13 @@ func makechan(chanType *byte, size int) (hchan chan any)
 func chanrecv1(hchan <-chan any, elem *any)
 func chanrecv2(hchan <-chan any, elem *any) bool
 func chansend1(hchan chan<- any, elem *any)
-func closechan(hchan any)
+func closechan(hchan chan<- any)
+func chanlen(hchan any) int
+func chancap(hchan any) int
 
 var writeBarrier struct {
 	enabled bool
 	pad     [3]byte
-	needed  bool
 	cgo     bool
 	alignme uint64
 }
@@ -238,9 +250,6 @@ func uint32tofloat64(uint32) float64
 
 func complex128div(num complex128, den complex128) (quo complex128)
 
-func getcallerpc() uintptr
-func getcallersp() uintptr
-
 // race detection
 func racefuncenter(uintptr)
 func racefuncexit()
@@ -280,5 +289,8 @@ var x86HasSSE41 bool
 var x86HasFMA bool
 var armHasVFPv4 bool
 var arm64HasATOMICS bool
+var loong64HasLAMCAS bool
+var loong64HasLAM_BH bool
+var loong64HasLSX bool
 
 func asanregisterglobals(unsafe.Pointer, uintptr)

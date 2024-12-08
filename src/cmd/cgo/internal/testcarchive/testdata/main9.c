@@ -6,19 +6,27 @@
 
 void use(int *x) { (*x)++; }
 
-void callGoFWithDeepStack() {
+void callGoFWithDeepStack(int p) {
 	int x[10000];
 
 	use(&x[0]);
 	use(&x[9999]);
 
-	GoF();
+	GoF(p);
 
 	use(&x[0]);
 	use(&x[9999]);
 }
 
+void callGoWithVariousStack(int p) {
+	GoF(0);                  // call GoF without using much stack
+	callGoFWithDeepStack(p); // call GoF with a deep stack
+	GoF(0);                  // again on a shallow stack
+}
+
 int main() {
-	GoF();                  // call GoF without using much stack
-	callGoFWithDeepStack(); // call GoF with a deep stack
+	callGoWithVariousStack(0);
+
+	callGoWithVariousStackAndGoFrame(0); // normal execution
+	callGoWithVariousStackAndGoFrame(1); // panic and recover
 }

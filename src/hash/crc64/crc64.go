@@ -10,6 +10,7 @@ package crc64
 import (
 	"errors"
 	"hash"
+	"internal/byteorder"
 	"sync"
 )
 
@@ -29,22 +30,19 @@ const (
 type Table [256]uint64
 
 var (
-	slicing8TablesBuildOnce sync.Once
-	slicing8TableISO        *[8]Table
-	slicing8TableECMA       *[8]Table
+	slicing8TableISO  *[8]Table
+	slicing8TableECMA *[8]Table
 )
 
-func buildSlicing8TablesOnce() {
-	slicing8TablesBuildOnce.Do(buildSlicing8Tables)
-}
+var buildSlicing8TablesOnce = sync.OnceFunc(buildSlicing8Tables)
 
 func buildSlicing8Tables() {
 	slicing8TableISO = makeSlicingBy8Table(makeTable(ISO))
 	slicing8TableECMA = makeSlicingBy8Table(makeTable(ECMA))
 }
 
-// MakeTable returns a Table constructed from the specified polynomial.
-// The contents of this Table must not be modified.
+// MakeTable returns a [Table] constructed from the specified polynomial.
+// The contents of this [Table] must not be modified.
 func MakeTable(poly uint64) *Table {
 	buildSlicing8TablesOnce()
 	switch poly {
@@ -93,9 +91,9 @@ type digest struct {
 }
 
 // New creates a new hash.Hash64 computing the CRC-64 checksum using the
-// polynomial represented by the Table. Its Sum method will lay the
+// polynomial represented by the [Table]. Its Sum method will lay the
 // value out in big-endian byte order. The returned Hash64 also
-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
+// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
 // marshal and unmarshal the internal state of the hash.
 func New(tab *Table) hash.Hash64 { return &digest{0, tab} }
 
@@ -110,12 +108,15 @@ const (
 	marshaledSize = len(magic) + 8 + 8
 )
 
-func (d *digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize)
+func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic...)
-	b = appendUint64(b, tableSum(d.tab))
-	b = appendUint64(b, d.crc)
+	b = byteorder.BEAppendUint64(b, tableSum(d.tab))
+	b = byteorder.BEAppendUint64(b, d.crc)
 	return b, nil
+}
+
+func (d *digest) MarshalBinary() ([]byte, error) {
+	return d.AppendBinary(make([]byte, 0, marshaledSize))
 }
 
 func (d *digest) UnmarshalBinary(b []byte) error {
@@ -125,31 +126,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize {
 		return errors.New("hash/crc64: invalid hash state size")
 	}
-	if tableSum(d.tab) != readUint64(b[4:]) {
+	if tableSum(d.tab) != byteorder.BEUint64(b[4:]) {
 		return errors.New("hash/crc64: tables do not match")
 	}
-	d.crc = readUint64(b[12:])
+	d.crc = byteorder.BEUint64(b[12:])
 	return nil
-}
-
-func appendUint64(b []byte, x uint64) []byte {
-	a := [8]byte{
-		byte(x >> 56),
-		byte(x >> 48),
-		byte(x >> 40),
-		byte(x >> 32),
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
-	return append(b, a[:]...)
-}
-
-func readUint64(b []byte) uint64 {
-	_ = b[7]
-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
 }
 
 func update(crc uint64, tab *Table, p []byte) uint64 {
@@ -172,8 +153,7 @@ func update(crc uint64, tab *Table, p []byte) uint64 {
 		}
 		// Update using slicing-by-8
 		for len(p) > 8 {
-			crc ^= uint64(p[0]) | uint64(p[1])<<8 | uint64(p[2])<<16 | uint64(p[3])<<24 |
-				uint64(p[4])<<32 | uint64(p[5])<<40 | uint64(p[6])<<48 | uint64(p[7])<<56
+			crc ^= byteorder.LEUint64(p)
 			crc = helperTable[7][crc&0xff] ^
 				helperTable[6][(crc>>8)&0xff] ^
 				helperTable[5][(crc>>16)&0xff] ^
@@ -210,7 +190,7 @@ func (d *digest) Sum(in []byte) []byte {
 }
 
 // Checksum returns the CRC-64 checksum of data
-// using the polynomial represented by the Table.
+// using the polynomial represented by the [Table].
 func Checksum(data []byte, tab *Table) uint64 { return update(0, tab, data) }
 
 // tableSum returns the ISO checksum of table t.
@@ -219,7 +199,7 @@ func tableSum(t *Table) uint64 {
 	b := a[:0]
 	if t != nil {
 		for _, x := range t {
-			b = appendUint64(b, x)
+			b = byteorder.BEAppendUint64(b, x)
 		}
 	}
 	return Checksum(b, MakeTable(ISO))

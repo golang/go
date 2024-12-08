@@ -69,6 +69,10 @@ func m1[
 	C1 interface{ chan int },
 	C2 interface{ chan int | chan string },
 ]() {
+	type m1S0 []int
+	type m1M0 map[string]int
+	type m1C0 chan int
+
 	_ = make([]int, 10)
 	_ = make(m1S0, 10)
 	_ = make(S1, 10)
@@ -84,10 +88,6 @@ func m1[
 	_ = make(C1)
 	_ = make(C1, 10)
 }
-// TODO: put these type declarations back inside m1 when issue 47631 is fixed.
-type m1S0 []int
-type m1M0 map[string]int
-type m1C0 chan int
 
 // len/cap
 

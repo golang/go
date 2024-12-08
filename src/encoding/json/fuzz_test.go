@@ -28,10 +28,10 @@ func FuzzUnmarshalJSON(f *testing.F) {
 }`))
 
 	f.Fuzz(func(t *testing.T, b []byte) {
-		for _, typ := range []func() interface{}{
-			func() interface{} { return new(interface{}) },
-			func() interface{} { return new(map[string]interface{}) },
-			func() interface{} { return new([]interface{}) },
+		for _, typ := range []func() any{
+			func() any { return new(any) },
+			func() any { return new(map[string]any) },
+			func() any { return new([]any) },
 		} {
 			i := typ()
 			if err := Unmarshal(b, i); err != nil {

@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"cmd/compile/internal/base"
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 )
 
 // BuiltinPkg is a fake package that declares the universe block.
@@ -474,8 +474,10 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
 			switch t {
-			case mt.Bucket:
+			case mt.OldBucket:
 				b.WriteString("map.bucket[")
+			case mt.SwissGroup:
+				b.WriteString("map.group[")
 			default:
 				base.Fatalf("unknown internal map type")
 			}
@@ -644,7 +646,7 @@ func SplitVargenSuffix(name string) (base, suffix string) {
 func TypeHash(t *Type) uint32 {
 	p := t.LinkString()
 
-	// Using SHA256 is overkill, but reduces accidental collisions.
-	h := notsha256.Sum256([]byte(p))
+	// Using 16 bytes hash is overkill, but reduces accidental collisions.
+	h := hash.Sum16([]byte(p))
 	return binary.LittleEndian.Uint32(h[:4])
 }

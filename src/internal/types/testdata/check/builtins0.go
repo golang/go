@@ -100,7 +100,10 @@ func cap1() {
 
 	var s [][]byte
 	_ = cap(s)
-	_ = cap(s... /* ERROR "invalid use of ..." */ )
+	_ = cap(s... /* ERROR "invalid use of ... with built-in cap" */ )
+
+	var x int
+	_ = cap(x /* ERROR "invalid argument: x (variable of type int) for built-in cap" */ )
 }
 
 func cap2() {
@@ -512,7 +515,7 @@ func max1() {
 	_ = max(s)
 	_ = max(x, x)
 	_ = max(x, x, x, x, x)
-	var _ int = max /* ERROR "cannot use max(m) (value of type myint) as int value" */ (m)
+	var _ int = max /* ERROR "cannot use max(m) (value of int type myint) as int value" */ (m)
 	_ = max(x, m /* ERROR "invalid argument: mismatched types int (previous argument) and myint (type of m)" */ , x)
 
 	_ = max(1, x)
@@ -566,7 +569,7 @@ func min1() {
 	_ = min(s)
 	_ = min(x, x)
 	_ = min(x, x, x, x, x)
-	var _ int = min /* ERROR "cannot use min(m) (value of type myint) as int value" */ (m)
+	var _ int = min /* ERROR "cannot use min(m) (value of int type myint) as int value" */ (m)
 	_ = min(x, m /* ERROR "invalid argument: mismatched types int (previous argument) and myint (type of m)" */ , x)
 
 	_ = min(1, x)

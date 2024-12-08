@@ -5,7 +5,6 @@
 package work
 
 import (
-	"fmt"
 	"internal/testenv"
 	"io/fs"
 	"os"
@@ -222,27 +221,19 @@ func pkgImportPath(pkgpath string) *load.Package {
 // directory.
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
-	var b Builder
-
 	// Check that `cp` is called instead of `mv` by looking at the output
-	// of `(*Builder).ShowCmd` afterwards as a sanity check.
+	// of `(*Shell).ShowCmd` afterwards as a sanity check.
 	cfg.BuildX = true
 	var cmdBuf strings.Builder
-	b.Print = func(a ...any) (int, error) {
-		return cmdBuf.WriteString(fmt.Sprint(a...))
-	}
+	sh := NewShell("", &load.TextPrinter{Writer: &cmdBuf})
 
-	setgiddir, err := os.MkdirTemp("", "SetGroupID")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(setgiddir)
+	setgiddir := t.TempDir()
 
 	// BSD mkdir(2) inherits the parent directory group, and other platforms
 	// can inherit the parent directory group via setgid. The test setup (chmod
 	// setgid) will fail if the process does not have the group permission to
 	// the new temporary directory.
-	err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
+	err := os.Chown(setgiddir, os.Getuid(), os.Getgid())
 	if err != nil {
 		if testenv.SyscallIsNotSupported(err) {
 			t.Skip("skipping: chown is not supported on " + runtime.GOOS)
@@ -271,12 +262,12 @@ func TestRespectSetgidDir(t *testing.T) {
 	defer pkgfile.Close()
 
 	dirGIDFile := filepath.Join(setgiddir, "setgid")
-	if err := b.moveOrCopyFile(dirGIDFile, pkgfile.Name(), 0666, true); err != nil {
+	if err := sh.moveOrCopyFile(dirGIDFile, pkgfile.Name(), 0666, true); err != nil {
 		t.Fatalf("moveOrCopyFile: %v", err)
 	}
 
 	got := strings.TrimSpace(cmdBuf.String())
-	want := b.fmtcmd("", "cp %s %s", pkgfile.Name(), dirGIDFile)
+	want := sh.fmtCmd("", "cp %s %s", pkgfile.Name(), dirGIDFile)
 	if got != want {
 		t.Fatalf("moveOrCopyFile(%q, %q): want %q, got %q", dirGIDFile, pkgfile.Name(), want, got)
 	}

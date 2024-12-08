@@ -15,7 +15,7 @@ import (
 // package.
 type Hash uint
 
-// HashFunc simply returns the value of h so that Hash implements SignerOpts.
+// HashFunc simply returns the value of h so that [Hash] implements [SignerOpts].
 func (h Hash) HashFunc() Hash {
 	return h
 }
@@ -171,7 +171,7 @@ type PublicKey any
 //	    Equal(x crypto.PrivateKey) bool
 //	}
 //
-// as well as purpose-specific interfaces such as Signer and Decrypter, which
+// as well as purpose-specific interfaces such as [Signer] and [Decrypter], which
 // can be used for increased type safety within applications.
 type PrivateKey any
 
@@ -198,7 +198,7 @@ type Signer interface {
 	Sign(rand io.Reader, digest []byte, opts SignerOpts) (signature []byte, err error)
 }
 
-// SignerOpts contains options for signing with a Signer.
+// SignerOpts contains options for signing with a [Signer].
 type SignerOpts interface {
 	// HashFunc returns an identifier for the hash function used to produce
 	// the message passed to Signer.Sign, or else zero to indicate that no

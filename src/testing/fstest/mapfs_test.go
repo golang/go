@@ -16,7 +16,7 @@ func TestMapFS(t *testing.T) {
 		"hello":             {Data: []byte("hello, world\n")},
 		"fortune/k/ken.txt": {Data: []byte("If a program is too slow, it must have a loop.\n")},
 	}
-	if err := TestFS(m, "hello", "fortune/k/ken.txt"); err != nil {
+	if err := TestFS(m, "hello", "fortune", "fortune/k", "fortune/k/ken.txt"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -37,11 +37,23 @@ func TestMapFSChmodDot(t *testing.T) {
 	})
 	want := `
 .: drwxrwxrwx
-a: d---------
+a: dr-xr-xr-x
 a/b.txt: -rw-rw-rw-
 `[1:]
 	got := buf.String()
 	if want != got {
 		t.Errorf("MapFS modes want:\n%s\ngot:\n%s\n", want, got)
+	}
+}
+
+func TestMapFSFileInfoName(t *testing.T) {
+	m := MapFS{
+		"path/to/b.txt": &MapFile{},
+	}
+	info, _ := m.Stat("path/to/b.txt")
+	want := "b.txt"
+	got := info.Name()
+	if want != got {
+		t.Errorf("MapFS FileInfo.Name want:\n%s\ngot:\n%s\n", want, got)
 	}
 }

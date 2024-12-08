@@ -14,7 +14,8 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"sort"
+	"slices"
+	"strings"
 )
 
 // ReadAll reads from r until an error or EOF and returns the data it read.
@@ -76,7 +77,9 @@ func ReadDir(dirname string) ([]fs.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(list, func(i, j int) bool { return list[i].Name() < list[j].Name() })
+	slices.SortFunc(list, func(a, b os.FileInfo) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
 	return list, nil
 }
 

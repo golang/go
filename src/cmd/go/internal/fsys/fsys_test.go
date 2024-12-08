@@ -5,7 +5,6 @@
 package fsys
 
 import (
-	"encoding/json"
 	"errors"
 	"internal/testenv"
 	"internal/txtar"
@@ -14,8 +13,18 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"slices"
+	"strings"
+	"sync"
 	"testing"
 )
+
+func resetForTesting() {
+	cwd = sync.OnceValue(cwdOnce)
+	overlay = nil
+	binds = nil
+}
 
 // initOverlay resets the overlay state to reflect the config.
 // config should be a text archive string. The comment is the overlay config
@@ -23,24 +32,10 @@ import (
 // that cwd is set to.
 func initOverlay(t *testing.T, config string) {
 	t.Helper()
-
-	// Create a temporary directory and chdir to it.
-	prevwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cwd = filepath.Join(t.TempDir(), "root")
-	if err := os.Mkdir(cwd, 0777); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(cwd); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chdir(prevwd); err != nil {
-			t.Fatal(err)
-		}
-	})
+	t.Chdir(t.TempDir())
+	resetForTesting()
+	t.Cleanup(resetForTesting)
+	cwd := cwd()
 
 	a := txtar.Parse([]byte(config))
 	for _, f := range a.Files {
@@ -53,15 +48,105 @@ func initOverlay(t *testing.T, config string) {
 		}
 	}
 
-	var overlayJSON OverlayJSON
-	if err := json.Unmarshal(a.Comment, &overlayJSON); err != nil {
-		t.Fatal("parsing overlay JSON:", err)
-	}
-
-	if err := initFromJSON(overlayJSON); err != nil {
+	if err := initFromJSON(a.Comment); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { overlay = nil })
+}
+
+var statInfoOverlay = `{"Replace": {
+	"x": "replace/x",
+	"a/b/c": "replace/c",
+	"d/e": ""
+}}`
+
+var statInfoTests = []struct {
+	path string
+	info info
+}{
+	{"foo", info{abs: "/tmp/foo", actual: "foo"}},
+	{"foo/bar/baz/quux", info{abs: "/tmp/foo/bar/baz/quux", actual: "foo/bar/baz/quux"}},
+	{"x", info{abs: "/tmp/x", replaced: true, file: true, actual: "/tmp/replace/x"}},
+	{"/tmp/x", info{abs: "/tmp/x", replaced: true, file: true, actual: "/tmp/replace/x"}},
+	{"x/y", info{abs: "/tmp/x/y", deleted: true}},
+	{"a", info{abs: "/tmp/a", replaced: true, dir: true, actual: "a"}},
+	{"a/b", info{abs: "/tmp/a/b", replaced: true, dir: true, actual: "a/b"}},
+	{"a/b/c", info{abs: "/tmp/a/b/c", replaced: true, file: true, actual: "/tmp/replace/c"}},
+	{"d/e", info{abs: "/tmp/d/e", deleted: true}},
+	{"d", info{abs: "/tmp/d", replaced: true, dir: true, actual: "d"}},
+}
+
+var statInfoChildrenTests = []struct {
+	path     string
+	children []info
+}{
+	{"foo", nil},
+	{"foo/bar", nil},
+	{"foo/bar/baz", nil},
+	{"x", nil},
+	{"x/y", nil},
+	{"a", []info{{abs: "/tmp/a/b", replaced: true, dir: true, actual: ""}}},
+	{"a/b", []info{{abs: "/tmp/a/b/c", replaced: true, actual: "/tmp/replace/c"}}},
+	{"d", []info{{abs: "/tmp/d/e", deleted: true}}},
+	{"d/e", nil},
+	{".", []info{
+		{abs: "/tmp/a", replaced: true, dir: true, actual: ""},
+		// {abs: "/tmp/d", replaced: true, dir: true, actual: ""},
+		{abs: "/tmp/x", replaced: true, actual: "/tmp/replace/x"},
+	}},
+}
+
+func TestStatInfo(t *testing.T) {
+	tmp := "/tmp"
+	if runtime.GOOS == "windows" {
+		tmp = `C:\tmp`
+	}
+	cwd = sync.OnceValue(func() string { return tmp })
+
+	winFix := func(s string) string {
+		if runtime.GOOS == "windows" {
+			s = strings.ReplaceAll(s, `/tmp`, tmp) // fix tmp
+			s = strings.ReplaceAll(s, `/`, `\`)    // use backslashes
+		}
+		return s
+	}
+
+	overlay := statInfoOverlay
+	overlay = winFix(overlay)
+	overlay = strings.ReplaceAll(overlay, `\`, `\\`) // JSON escaping
+	if err := initFromJSON([]byte(overlay)); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range statInfoTests {
+		tt.path = winFix(tt.path)
+		tt.info.abs = winFix(tt.info.abs)
+		tt.info.actual = winFix(tt.info.actual)
+		info := stat(tt.path)
+		if info != tt.info {
+			t.Errorf("stat(%#q):\nhave %+v\nwant %+v", tt.path, info, tt.info)
+		}
+	}
+
+	for _, tt := range statInfoChildrenTests {
+		tt.path = winFix(tt.path)
+		for i, info := range tt.children {
+			info.abs = winFix(info.abs)
+			info.actual = winFix(info.actual)
+			tt.children[i] = info
+		}
+		parent := stat(winFix(tt.path))
+		var children []info
+		for name, child := range parent.children() {
+			if name != filepath.Base(child.abs) {
+				t.Errorf("stat(%#q): child %#q has inconsistent abs %#q", tt.path, name, child.abs)
+			}
+			children = append(children, child)
+		}
+		slices.SortFunc(children, func(x, y info) int { return cmp(x.abs, y.abs) })
+		if !slices.Equal(children, tt.children) {
+			t.Errorf("stat(%#q) children:\nhave %+v\nwant %+v", tt.path, children, tt.children)
+		}
+	}
 }
 
 func TestIsDir(t *testing.T) {
@@ -91,6 +176,7 @@ x
 six
 `)
 
+	cwd := cwd()
 	testCases := []struct {
 		path          string
 		want, wantErr bool
@@ -316,18 +402,14 @@ func TestReadDir(t *testing.T) {
 		for len(infos) > 0 || len(want) > 0 {
 			switch {
 			case len(want) == 0 || len(infos) > 0 && infos[0].Name() < want[0].name:
-				t.Errorf("ReadDir(%q): unexpected entry: %s IsDir=%v Size=%v", dir, infos[0].Name(), infos[0].IsDir(), infos[0].Size())
+				t.Errorf("ReadDir(%q): unexpected entry: %s IsDir=%v", dir, infos[0].Name(), infos[0].IsDir())
 				infos = infos[1:]
 			case len(infos) == 0 || len(want) > 0 && want[0].name < infos[0].Name():
-				t.Errorf("ReadDir(%q): missing entry: %s IsDir=%v Size=%v", dir, want[0].name, want[0].isDir, want[0].size)
+				t.Errorf("ReadDir(%q): missing entry: %s IsDir=%v", dir, want[0].name, want[0].isDir)
 				want = want[1:]
 			default:
-				infoSize := infos[0].Size()
-				if want[0].isDir {
-					infoSize = 0
-				}
-				if infos[0].IsDir() != want[0].isDir || want[0].isDir && infoSize != want[0].size {
-					t.Errorf("ReadDir(%q): %s: IsDir=%v Size=%v, want IsDir=%v Size=%v", dir, want[0].name, infos[0].IsDir(), infoSize, want[0].isDir, want[0].size)
+				if infos[0].IsDir() != want[0].isDir {
+					t.Errorf("ReadDir(%q): %s: IsDir=%v, want IsDir=%v", dir, want[0].name, infos[0].IsDir(), want[0].isDir)
 				}
 				infos = infos[1:]
 				want = want[1:]
@@ -425,7 +507,7 @@ func TestGlob(t *testing.T) {
 	}
 }
 
-func TestOverlayPath(t *testing.T) {
+func TestActual(t *testing.T) {
 	initOverlay(t, `
 {
 	"Replace": {
@@ -449,16 +531,17 @@ file 2
 99999999
 `)
 
+	cwd := cwd()
 	testCases := []struct {
 		path     string
 		wantPath string
 		wantOK   bool
 	}{
 		{"subdir1/file1.txt", "subdir1/file1.txt", false},
-		// OverlayPath returns false for directories
+		// Actual returns false for directories
 		{"subdir2", "subdir2", false},
 		{"subdir2/file2.txt", filepath.Join(cwd, "overlayfiles/subdir2_file2.txt"), true},
-		// OverlayPath doesn't stat a file to see if it exists, so it happily returns
+		// Actual doesn't stat a file to see if it exists, so it happily returns
 		// the 'to' path and true even if the 'to' path doesn't exist on disk.
 		{"subdir3/doesntexist", filepath.Join(cwd, "this_file_doesnt_exist_anywhere"), true},
 		// Like the subdir2/file2.txt case above, but subdir4 exists on disk, but subdir2 does not.
@@ -468,10 +551,14 @@ file 2
 	}
 
 	for _, tc := range testCases {
-		gotPath, gotOK := OverlayPath(tc.path)
-		if gotPath != tc.wantPath || gotOK != tc.wantOK {
-			t.Errorf("OverlayPath(%q): got %v, %v; want %v, %v",
-				tc.path, gotPath, gotOK, tc.wantPath, tc.wantOK)
+		path := Actual(tc.path)
+		ok := Replaced(tc.path)
+
+		if path != tc.wantPath {
+			t.Errorf("Actual(%q) = %q, want %q", tc.path, path, tc.wantPath)
+		}
+		if ok != tc.wantOK {
+			t.Errorf("Replaced(%q) = %v, want %v", tc.path, ok, tc.wantOK)
 		}
 	}
 }
@@ -557,7 +644,7 @@ this can exist because the parent directory is deleted
 	}
 }
 
-func TestIsDirWithGoFiles(t *testing.T) {
+func TestIsGoDir(t *testing.T) {
 	initOverlay(t, `
 {
 	"Replace": {
@@ -596,18 +683,18 @@ contents don't matter for this test
 	}
 
 	for _, tc := range testCases {
-		got, gotErr := IsDirWithGoFiles(tc.dir)
+		got, gotErr := IsGoDir(tc.dir)
 		if tc.wantErr {
 			if gotErr == nil {
-				t.Errorf("IsDirWithGoFiles(%q): got %v, %v; want non-nil error", tc.dir, got, gotErr)
+				t.Errorf("IsGoDir(%q): got %v, %v; want non-nil error", tc.dir, got, gotErr)
 			}
 			continue
 		}
 		if gotErr != nil {
-			t.Errorf("IsDirWithGoFiles(%q): got %v, %v; want nil error", tc.dir, got, gotErr)
+			t.Errorf("IsGoDir(%q): got %v, %v; want nil error", tc.dir, got, gotErr)
 		}
 		if got != tc.want {
-			t.Errorf("IsDirWithGoFiles(%q) = %v; want %v", tc.dir, got, tc.want)
+			t.Errorf("IsGoDir(%q) = %v; want %v", tc.dir, got, tc.want)
 		}
 	}
 }
@@ -698,8 +785,21 @@ contents of other file
 			initOverlay(t, tc.overlay)
 
 			var got []file
-			Walk(tc.root, func(path string, info fs.FileInfo, err error) error {
-				got = append(got, file{path, info.Name(), info.Size(), info.Mode(), info.IsDir()})
+			WalkDir(tc.root, func(path string, d fs.DirEntry, err error) error {
+				info, err := d.Info()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if info.Name() != d.Name() {
+					t.Errorf("walk %s: d.Name() = %q, but info.Name() = %q", path, d.Name(), info.Name())
+				}
+				if info.IsDir() != d.IsDir() {
+					t.Errorf("walk %s: d.IsDir() = %v, but info.IsDir() = %v", path, d.IsDir(), info.IsDir())
+				}
+				if info.Mode().Type() != d.Type() {
+					t.Errorf("walk %s: d.Type() = %v, but info.Mode().Type() = %v", path, d.Type(), info.Mode().Type())
+				}
+				got = append(got, file{path, d.Name(), info.Size(), info.Mode(), d.IsDir()})
 				return nil
 			})
 
@@ -709,22 +809,16 @@ contents of other file
 			for i := 0; i < len(got) && i < len(tc.wantFiles); i++ {
 				wantPath := filepath.FromSlash(tc.wantFiles[i].path)
 				if got[i].path != wantPath {
-					t.Errorf("path of file #%v in walk, got %q, want %q", i, got[i].path, wantPath)
+					t.Errorf("walk #%d: path = %q, want %q", i, got[i].path, wantPath)
 				}
 				if got[i].name != tc.wantFiles[i].name {
-					t.Errorf("name of file #%v in walk, got %q, want %q", i, got[i].name, tc.wantFiles[i].name)
+					t.Errorf("walk %s: Name = %q, want %q", got[i].path, got[i].name, tc.wantFiles[i].name)
 				}
 				if got[i].mode&(fs.ModeDir|0700) != tc.wantFiles[i].mode {
-					t.Errorf("mode&(fs.ModeDir|0700) for mode of file #%v in walk, got %v, want %v", i, got[i].mode&(fs.ModeDir|0700), tc.wantFiles[i].mode)
+					t.Errorf("walk %s: Mode = %q, want %q", got[i].path, got[i].mode&(fs.ModeDir|0700), tc.wantFiles[i].mode)
 				}
 				if got[i].isDir != tc.wantFiles[i].isDir {
-					t.Errorf("isDir for file #%v in walk, got %v, want %v", i, got[i].isDir, tc.wantFiles[i].isDir)
-				}
-				if tc.wantFiles[i].isDir {
-					continue // don't check size for directories
-				}
-				if got[i].size != tc.wantFiles[i].size {
-					t.Errorf("size of file #%v in walk, got %v, want %v", i, got[i].size, tc.wantFiles[i].size)
+					t.Errorf("walk %s: IsDir = %v, want %v", got[i].path, got[i].isDir, tc.wantFiles[i].isDir)
 				}
 			}
 		})
@@ -744,9 +838,9 @@ func TestWalkSkipDir(t *testing.T) {
 `)
 
 	var seen []string
-	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+	WalkDir("dir", func(path string, d fs.DirEntry, err error) error {
 		seen = append(seen, filepath.ToSlash(path))
-		if info.Name() == "skip" {
+		if d.Name() == "skip" {
 			return filepath.SkipDir
 		}
 		return nil
@@ -780,9 +874,9 @@ func TestWalkSkipAll(t *testing.T) {
 `)
 
 	var seen []string
-	Walk("dir", func(path string, info fs.FileInfo, err error) error {
+	WalkDir("dir", func(path string, d fs.DirEntry, err error) error {
 		seen = append(seen, filepath.ToSlash(path))
-		if info.Name() == "foo2" {
+		if d.Name() == "foo2" {
 			return filepath.SkipAll
 		}
 		return nil
@@ -805,7 +899,7 @@ func TestWalkError(t *testing.T) {
 	initOverlay(t, "{}")
 
 	alreadyCalled := false
-	err := Walk("foo", func(path string, info fs.FileInfo, err error) error {
+	err := WalkDir("foo", func(path string, d fs.DirEntry, err error) error {
 		if alreadyCalled {
 			t.Fatal("expected walk function to be called exactly once, but it was called more than once")
 		}
@@ -857,7 +951,7 @@ func TestWalkSymlink(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var got []string
 
-			err := Walk(tc.dir, func(path string, info fs.FileInfo, err error) error {
+			err := WalkDir(tc.dir, func(path string, d fs.DirEntry, err error) error {
 				t.Logf("walk %q", path)
 				got = append(got, path)
 				if err != nil {
@@ -1136,5 +1230,108 @@ func TestStatSymlink(t *testing.T) {
 
 	if fi.Size() != 11 {
 		t.Errorf("Stat(%q).Size(): got %v, want 11", f, fi.Size())
+	}
+}
+
+func TestBindOverlay(t *testing.T) {
+	initOverlay(t, `{"Replace": {"mtpt/x.go": "xx.go"}}
+-- mtpt/x.go --
+mtpt/x.go
+-- mtpt/y.go --
+mtpt/y.go
+-- mtpt2/x.go --
+mtpt/x.go
+-- replaced/x.go --
+replaced/x.go
+-- replaced/x/y/z.go --
+replaced/x/y/z.go
+-- xx.go --
+xx.go
+`)
+
+	testReadFile(t, "mtpt/x.go", "xx.go\n")
+
+	Bind("replaced", "mtpt")
+	testReadFile(t, "mtpt/x.go", "replaced/x.go\n")
+	testReadDir(t, "mtpt/x", "y/")
+	testReadDir(t, "mtpt/x/y", "z.go")
+	testReadFile(t, "mtpt/x/y/z.go", "replaced/x/y/z.go\n")
+	testReadFile(t, "mtpt/y.go", "ERROR")
+
+	Bind("replaced", "mtpt2/a/b")
+	testReadDir(t, "mtpt2", "a/", "x.go")
+	testReadDir(t, "mtpt2/a", "b/")
+	testReadDir(t, "mtpt2/a/b", "x/", "x.go")
+	testReadFile(t, "mtpt2/a/b/x.go", "replaced/x.go\n")
+}
+
+var badOverlayTests = []struct {
+	json string
+	err  string
+}{
+	{`{`,
+		"parsing overlay JSON: unexpected end of JSON input"},
+	{`{"Replace": {"":"a"}}`,
+		"empty string key in overlay map"},
+	{`{"Replace": {"/tmp/x": "y", "x": "y"}}`,
+		`duplicate paths /tmp/x and x in overlay map`},
+	{`{"Replace": {"/tmp/x/z": "z", "x":"y"}}`,
+		`inconsistent files /tmp/x and /tmp/x/z in overlay map`},
+	{`{"Replace": {"/tmp/x/z/z2": "z", "x":"y"}}`,
+		`inconsistent files /tmp/x and /tmp/x/z/z2 in overlay map`},
+	{`{"Replace": {"/tmp/x": "y", "x/z/z2": "z"}}`,
+		`inconsistent files /tmp/x and /tmp/x/z/z2 in overlay map`},
+}
+
+func TestBadOverlay(t *testing.T) {
+	tmp := "/tmp"
+	if runtime.GOOS == "windows" {
+		tmp = `C:\tmp`
+	}
+	cwd = sync.OnceValue(func() string { return tmp })
+	defer resetForTesting()
+
+	for i, tt := range badOverlayTests {
+		if runtime.GOOS == "windows" {
+			tt.json = strings.ReplaceAll(tt.json, `/tmp`, tmp) // fix tmp
+			tt.json = strings.ReplaceAll(tt.json, `/`, `\`)    // use backslashes
+			tt.json = strings.ReplaceAll(tt.json, `\`, `\\`)   // JSON escaping
+			tt.err = strings.ReplaceAll(tt.err, `/tmp`, tmp)   // fix tmp
+			tt.err = strings.ReplaceAll(tt.err, `/`, `\`)      // use backslashes
+		}
+		err := initFromJSON([]byte(tt.json))
+		if err == nil || err.Error() != tt.err {
+			t.Errorf("#%d: err=%v, want %q", i, err, tt.err)
+		}
+	}
+}
+
+func testReadFile(t *testing.T, name string, want string) {
+	t.Helper()
+	data, err := ReadFile(name)
+	if want == "ERROR" {
+		if data != nil || err == nil {
+			t.Errorf("ReadFile(%q) = %q, %v, want nil, error", name, data, err)
+		}
+		return
+	}
+	if string(data) != want || err != nil {
+		t.Errorf("ReadFile(%q) = %q, %v, want %q, nil", name, data, err, want)
+	}
+}
+
+func testReadDir(t *testing.T, name string, want ...string) {
+	t.Helper()
+	dirs, err := ReadDir(name)
+	var names []string
+	for _, d := range dirs {
+		name := d.Name()
+		if d.IsDir() {
+			name += "/"
+		}
+		names = append(names, name)
+	}
+	if !slices.Equal(names, want) || err != nil {
+		t.Errorf("ReadDir(%q) = %q, %v, want %q, nil", name, names, err, want)
 	}
 }

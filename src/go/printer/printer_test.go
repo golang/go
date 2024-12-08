@@ -125,7 +125,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 	}
 
 	// formatted source and golden must be the same
-	if err := checkEqual(source, golden, res, gld); err != nil {
+	if err := checkEqual(fmt.Sprintf("format(%v)", source), golden, res, gld); err != nil {
 		t.Error(err)
 		return
 	}
@@ -668,7 +668,7 @@ func TestWriteErrors(t *testing.T) {
 	}
 }
 
-// TextX is a skeleton test that can be filled in for debugging one-off cases.
+// TestX is a skeleton test that can be filled in for debugging one-off cases.
 // Do not remove.
 func TestX(t *testing.T) {
 	const src = `
@@ -846,5 +846,20 @@ func TestSourcePosNewline(t *testing.T) {
 	}
 	if buf.Len() != 0 {
 		t.Errorf("unexpected Fprint output:\n%s", buf.Bytes())
+	}
+}
+
+// TestEmptyDecl tests that empty decls for const, var, import are printed with
+// valid syntax e.g "var ()" instead of just "var", which is invalid and cannot
+// be parsed.
+func TestEmptyDecl(t *testing.T) { // issue 63566
+	for _, tok := range []token.Token{token.IMPORT, token.CONST, token.TYPE, token.VAR} {
+		var buf bytes.Buffer
+		Fprint(&buf, token.NewFileSet(), &ast.GenDecl{Tok: tok})
+		got := buf.String()
+		want := tok.String() + " ()"
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
 	}
 }

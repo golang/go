@@ -1,0 +1,52 @@
+GO PREPROFILE V1
+example.com/pgo/devirtualize.ExerciseFuncConcrete
+example.com/pgo/devirtualize.AddFn
+48 103
+example.com/pgo/devirtualize.ExerciseFuncField
+example.com/pgo/devirtualize.AddFn
+23 101
+example.com/pgo/devirtualize.ExerciseFuncField
+example.com/pgo/devirtualize/mult%2epkg.MultFn
+23 94
+example.com/pgo/devirtualize.ExerciseFuncClosure
+example.com/pgo/devirtualize/mult%2epkg.MultClosure.func1
+18 93
+example.com/pgo/devirtualize.ExerciseFuncClosure
+example.com/pgo/devirtualize.Add.Add
+18 92
+example.com/pgo/devirtualize.ExerciseFuncConcrete
+example.com/pgo/devirtualize/mult%2epkg.MultFn
+48 91
+example.com/pgo/devirtualize.ExerciseIface
+example.com/pgo/devirtualize.Add.Add
+49 55
+example.com/pgo/devirtualize.ExerciseIface
+example.com/pgo/devirtualize/mult%2epkg.Mult.Multiply
+49 40
+example.com/pgo/devirtualize.ExerciseFuncClosure
+example.com/pgo/devirtualize.Sub.Add
+18 14
+example.com/pgo/devirtualize.ExerciseFuncField
+example.com/pgo/devirtualize.SubFn
+23 12
+example.com/pgo/devirtualize.ExerciseFuncClosure
+example.com/pgo/devirtualize/mult%2epkg.NegMultClosure.func1
+18 10
+example.com/pgo/devirtualize.ExerciseFuncConcrete
+example.com/pgo/devirtualize/mult%2epkg.NegMultFn
+48 8
+example.com/pgo/devirtualize.ExerciseFuncField
+example.com/pgo/devirtualize/mult%2epkg.NegMultFn
+23 8
+example.com/pgo/devirtualize.ExerciseIface
+example.com/pgo/devirtualize.Sub.Add
+49 7
+example.com/pgo/devirtualize.ExerciseFuncConcrete
+example.com/pgo/devirtualize.SubFn
+48 5
+example.com/pgo/devirtualize.ExerciseIface
+example.com/pgo/devirtualize/mult%2epkg.NegMult.Multiply
+49 4
+example.com/pgo/devirtualize.BenchmarkDevirtFuncConcrete
+example.com/pgo/devirtualize.ExerciseFuncConcrete
+1 2

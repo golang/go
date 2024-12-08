@@ -192,7 +192,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
 
 	// ... then data.
 	dat := sb2.Data()
-	if bytes.Compare(dat, d2) != 0 {
+	if !bytes.Equal(dat, d2) {
 		t.Errorf("expected es2 data %v, got %v", d2, dat)
 	}
 
@@ -355,14 +355,14 @@ func TestAddDataMethods(t *testing.T) {
 		name := fmt.Sprintf("new%d", k+1)
 		mi := ldr.LookupOrCreateSym(name, 0)
 		if mi == 0 {
-			t.Fatalf("LookupOrCreateSym failed for '" + name + "'")
+			t.Fatalf("LookupOrCreateSym failed for %q", name)
 		}
 		mi = tp.addDataFunc(ldr, mi, pmi)
 		if ldr.SymType(mi) != tp.expKind {
 			t.Errorf("testing Loader.%s: expected kind %s got %s",
 				tp.which, tp.expKind, ldr.SymType(mi))
 		}
-		if bytes.Compare(ldr.Data(mi), tp.expData) != 0 {
+		if !bytes.Equal(ldr.Data(mi), tp.expData) {
 			t.Errorf("testing Loader.%s: expected data %v got %v",
 				tp.which, tp.expData, ldr.Data(mi))
 		}

@@ -27,7 +27,7 @@ func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
 		{"panicCustomInt16", `panic: main.MyInt16(93)`},
 		{"panicCustomInt32", `panic: main.MyInt32(93)`},
 		{"panicCustomInt64", `panic: main.MyInt64(93)`},
-		{"panicCustomString", `panic: main.MyString("Panic")`},
+		{"panicCustomString", `panic: main.MyString("Panic` + "\n\t" + `line two")`},
 		{"panicCustomUint", `panic: main.MyUint(93)`},
 		{"panicCustomUint8", `panic: main.MyUint8(93)`},
 		{"panicCustomUint16", `panic: main.MyUint16(93)`},

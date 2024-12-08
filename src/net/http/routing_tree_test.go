@@ -7,7 +7,7 @@ package http
 import (
 	"fmt"
 	"io"
-	"sort"
+	"maps"
 	"strings"
 	"testing"
 
@@ -73,10 +73,10 @@ func TestRoutingAddPattern(t *testing.T) {
                 "/a/b"
                 "":
                     "/a/b/{y}"
-                "*":
-                    "/a/b/{x...}"
                 "/":
                     "/a/b/{$}"
+                MULTI:
+                    "/a/b/{x...}"
         "g":
             "":
                 "j":
@@ -173,6 +173,8 @@ func TestRoutingNodeMatch(t *testing.T) {
 			"HEAD /headwins", nil},
 		{"GET", "", "/path/to/file",
 			"/path/{p...}", []string{"to/file"}},
+		{"GET", "", "/path/*",
+			"/path/{p...}", []string{"*"}},
 	})
 
 	// A pattern ending in {$} should only match URLS with a trailing slash.
@@ -260,9 +262,7 @@ func TestMatchingMethods(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ms := map[string]bool{}
 			test.tree.matchingMethods(test.host, test.path, ms)
-			keys := mapKeys(ms)
-			sort.Strings(keys)
-			got := strings.Join(keys, ",")
+			got := strings.Join(slices.Sorted(maps.Keys(ms)), ",")
 			if got != test.want {
 				t.Errorf("got %s, want %s", got, test.want)
 			}
@@ -285,11 +285,16 @@ func (n *routingNode) print(w io.Writer, level int) {
 		keys = append(keys, k)
 		return true
 	})
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		fmt.Fprintf(w, "%s%q:\n", indent, k)
 		n, _ := n.children.find(k)
 		n.print(w, level+1)
+	}
+
+	if n.multiChild != nil {
+		fmt.Fprintf(w, "%sMULTI:\n", indent)
+		n.multiChild.print(w, level+1)
 	}
 }

@@ -1,3 +1,7 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main
 
 // TODO: should we share backing storage for similarly-shaped types?
@@ -42,14 +46,14 @@ func genAllocators() {
 			maxLog:   32,
 		},
 		{
-			name:     "Int64Slice",
-			typ:      "[]int64",
+			name:     "LimitSlice",
+			typ:      "[]limit", // the limit type is basically [4]uint64.
 			capacity: "cap(%s)",
-			mak:      "make([]int64, %s)",
+			mak:      "make([]limit, %s)",
 			resize:   "%s[:%s]",
-			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
-			minLog:   5,
-			maxLog:   32,
+			clear:    "for i := range %[1]s {\n%[1]s[i] = limit{}\n}",
+			minLog:   3,
+			maxLog:   30,
 		},
 		{
 			name:     "SparseSet",
@@ -89,29 +93,34 @@ func genAllocators() {
 			base: "ValueSlice",
 		},
 		{
+			name: "Int64",
+			typ:  "[]int64",
+			base: "LimitSlice",
+		},
+		{
 			name: "IntSlice",
 			typ:  "[]int",
-			base: "Int64Slice",
+			base: "LimitSlice",
 		},
 		{
 			name: "Int32Slice",
 			typ:  "[]int32",
-			base: "Int64Slice",
+			base: "LimitSlice",
 		},
 		{
 			name: "Int8Slice",
 			typ:  "[]int8",
-			base: "Int64Slice",
+			base: "LimitSlice",
 		},
 		{
 			name: "BoolSlice",
 			typ:  "[]bool",
-			base: "Int64Slice",
+			base: "LimitSlice",
 		},
 		{
 			name: "IDSlice",
 			typ:  "[]ID",
-			base: "Int64Slice",
+			base: "LimitSlice",
 		},
 	}
 

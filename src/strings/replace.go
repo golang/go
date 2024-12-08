@@ -23,7 +23,7 @@ type replacer interface {
 	WriteString(w io.Writer, s string) (n int, err error)
 }
 
-// NewReplacer returns a new Replacer from a list of old, new string
+// NewReplacer returns a new [Replacer] from a list of old, new string
 // pairs. Replacements are performed in the order they appear in the
 // target string, without overlapping matches. The old string
 // comparisons are done in argument order.
@@ -299,7 +299,7 @@ func makeGenericReplacer(oldnew []string) *genericReplacer {
 
 type appendSliceWriter []byte
 
-// Write writes to the buffer to satisfy io.Writer.
+// Write writes to the buffer to satisfy [io.Writer].
 func (w *appendSliceWriter) Write(p []byte) (int, error) {
 	*w = append(*w, p...)
 	return len(p), nil

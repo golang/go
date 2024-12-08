@@ -7,6 +7,7 @@ package ld
 import (
 	"bytes"
 	"cmd/internal/codesign"
+	imacho "cmd/internal/macho"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -128,62 +129,6 @@ const (
 )
 
 const (
-	LC_SEGMENT                  = 0x1
-	LC_SYMTAB                   = 0x2
-	LC_SYMSEG                   = 0x3
-	LC_THREAD                   = 0x4
-	LC_UNIXTHREAD               = 0x5
-	LC_LOADFVMLIB               = 0x6
-	LC_IDFVMLIB                 = 0x7
-	LC_IDENT                    = 0x8
-	LC_FVMFILE                  = 0x9
-	LC_PREPAGE                  = 0xa
-	LC_DYSYMTAB                 = 0xb
-	LC_LOAD_DYLIB               = 0xc
-	LC_ID_DYLIB                 = 0xd
-	LC_LOAD_DYLINKER            = 0xe
-	LC_ID_DYLINKER              = 0xf
-	LC_PREBOUND_DYLIB           = 0x10
-	LC_ROUTINES                 = 0x11
-	LC_SUB_FRAMEWORK            = 0x12
-	LC_SUB_UMBRELLA             = 0x13
-	LC_SUB_CLIENT               = 0x14
-	LC_SUB_LIBRARY              = 0x15
-	LC_TWOLEVEL_HINTS           = 0x16
-	LC_PREBIND_CKSUM            = 0x17
-	LC_LOAD_WEAK_DYLIB          = 0x80000018
-	LC_SEGMENT_64               = 0x19
-	LC_ROUTINES_64              = 0x1a
-	LC_UUID                     = 0x1b
-	LC_RPATH                    = 0x8000001c
-	LC_CODE_SIGNATURE           = 0x1d
-	LC_SEGMENT_SPLIT_INFO       = 0x1e
-	LC_REEXPORT_DYLIB           = 0x8000001f
-	LC_LAZY_LOAD_DYLIB          = 0x20
-	LC_ENCRYPTION_INFO          = 0x21
-	LC_DYLD_INFO                = 0x22
-	LC_DYLD_INFO_ONLY           = 0x80000022
-	LC_LOAD_UPWARD_DYLIB        = 0x80000023
-	LC_VERSION_MIN_MACOSX       = 0x24
-	LC_VERSION_MIN_IPHONEOS     = 0x25
-	LC_FUNCTION_STARTS          = 0x26
-	LC_DYLD_ENVIRONMENT         = 0x27
-	LC_MAIN                     = 0x80000028
-	LC_DATA_IN_CODE             = 0x29
-	LC_SOURCE_VERSION           = 0x2A
-	LC_DYLIB_CODE_SIGN_DRS      = 0x2B
-	LC_ENCRYPTION_INFO_64       = 0x2C
-	LC_LINKER_OPTION            = 0x2D
-	LC_LINKER_OPTIMIZATION_HINT = 0x2E
-	LC_VERSION_MIN_TVOS         = 0x2F
-	LC_VERSION_MIN_WATCHOS      = 0x30
-	LC_VERSION_NOTE             = 0x31
-	LC_BUILD_VERSION            = 0x32
-	LC_DYLD_EXPORTS_TRIE        = 0x80000033
-	LC_DYLD_CHAINED_FIXUPS      = 0x80000034
-)
-
-const (
 	S_REGULAR                  = 0x0
 	S_ZEROFILL                 = 0x1
 	S_NON_LAZY_SYMBOL_POINTERS = 0x6
@@ -195,11 +140,12 @@ const (
 )
 
 const (
-	PLATFORM_MACOS    MachoPlatform = 1
-	PLATFORM_IOS      MachoPlatform = 2
-	PLATFORM_TVOS     MachoPlatform = 3
-	PLATFORM_WATCHOS  MachoPlatform = 4
-	PLATFORM_BRIDGEOS MachoPlatform = 5
+	PLATFORM_MACOS       MachoPlatform = 1
+	PLATFORM_IOS         MachoPlatform = 2
+	PLATFORM_TVOS        MachoPlatform = 3
+	PLATFORM_WATCHOS     MachoPlatform = 4
+	PLATFORM_BRIDGEOS    MachoPlatform = 5
+	PLATFORM_MACCATALYST MachoPlatform = 6
 )
 
 // rebase table opcode
@@ -296,6 +242,8 @@ func getMachoHdr() *MachoHdr {
 	return &machohdr
 }
 
+// Create a new Mach-O load command. ndata is the number of 32-bit words for
+// the data (not including the load command header).
 func newMachoLoad(arch *sys.Arch, type_ uint32, ndata uint32) *MachoLoad {
 	if arch.PtrSize == 8 && (ndata&1 != 0) {
 		ndata++
@@ -384,7 +332,7 @@ func machowrite(ctxt *Link, arch *sys.Arch, out *OutBuf, linkmode LinkMode) int 
 	for i := 0; i < nseg; i++ {
 		s := &seg[i]
 		if arch.PtrSize == 8 {
-			out.Write32(LC_SEGMENT_64)
+			out.Write32(imacho.LC_SEGMENT_64)
 			out.Write32(72 + 80*s.nsect)
 			out.WriteStringN(s.name, 16)
 			out.Write64(s.vaddr)
@@ -396,7 +344,7 @@ func machowrite(ctxt *Link, arch *sys.Arch, out *OutBuf, linkmode LinkMode) int 
 			out.Write32(s.nsect)
 			out.Write32(s.flag)
 		} else {
-			out.Write32(LC_SEGMENT)
+			out.Write32(imacho.LC_SEGMENT)
 			out.Write32(56 + 68*s.nsect)
 			out.WriteStringN(s.name, 16)
 			out.Write32(uint32(s.vaddr))
@@ -478,16 +426,14 @@ func (ctxt *Link) domacho() {
 		if ctxt.LinkMode == LinkInternal && machoPlatform == PLATFORM_MACOS {
 			var version uint32
 			switch ctxt.Arch.Family {
-			case sys.AMD64:
+			case sys.ARM64, sys.AMD64:
 				// This must be fairly recent for Apple signing (go.dev/issue/30488).
 				// Having too old a version here was also implicated in some problems
 				// calling into macOS libraries (go.dev/issue/56784).
 				// In general this can be the most recent supported macOS version.
-				version = 10<<16 | 13<<8 | 0<<0 // 10.13.0
-			case sys.ARM64:
 				version = 11<<16 | 0<<8 | 0<<0 // 11.0.0
 			}
-			ml := newMachoLoad(ctxt.Arch, LC_BUILD_VERSION, 4)
+			ml := newMachoLoad(ctxt.Arch, imacho.LC_BUILD_VERSION, 4)
 			ml.data[0] = uint32(machoPlatform)
 			ml.data[1] = version // OS version
 			ml.data[2] = version // SDK version
@@ -613,7 +559,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 	if sect.Vaddr < sect.Seg.Vaddr+sect.Seg.Filelen {
 		// data in file
 		if sect.Length > sect.Seg.Vaddr+sect.Seg.Filelen-sect.Vaddr {
-			Errorf(nil, "macho cannot represent section %s crossing data and bss", sect.Name)
+			Errorf("macho cannot represent section %s crossing data and bss", sect.Name)
 		}
 		msect.off = uint32(sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr)
 	} else {
@@ -777,14 +723,14 @@ func asmbMacho(ctxt *Link) {
 			Exitf("unknown macho architecture: %v", ctxt.Arch.Family)
 
 		case sys.AMD64:
-			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 42+2)
+			ml := newMachoLoad(ctxt.Arch, imacho.LC_UNIXTHREAD, 42+2)
 			ml.data[0] = 4                           /* thread type */
 			ml.data[1] = 42                          /* word count */
 			ml.data[2+32] = uint32(Entryvalue(ctxt)) /* start pc */
 			ml.data[2+32+1] = uint32(Entryvalue(ctxt) >> 32)
 
 		case sys.ARM64:
-			ml := newMachoLoad(ctxt.Arch, LC_MAIN, 4)
+			ml := newMachoLoad(ctxt.Arch, imacho.LC_MAIN, 4)
 			ml.data[0] = uint32(uint64(Entryvalue(ctxt)) - (Segtext.Vaddr - uint64(HEADR)))
 			ml.data[1] = uint32((uint64(Entryvalue(ctxt)) - (Segtext.Vaddr - uint64(HEADR))) >> 32)
 		}
@@ -814,7 +760,7 @@ func asmbMacho(ctxt *Link) {
 		}
 
 		if ctxt.LinkMode != LinkExternal && ctxt.IsPIE() {
-			ml := newMachoLoad(ctxt.Arch, LC_DYLD_INFO_ONLY, 10)
+			ml := newMachoLoad(ctxt.Arch, imacho.LC_DYLD_INFO_ONLY, 10)
 			ml.data[0] = uint32(linkoff)      // rebase off
 			ml.data[1] = uint32(s1)           // rebase size
 			ml.data[2] = uint32(linkoff + s1) // bind off
@@ -827,7 +773,7 @@ func asmbMacho(ctxt *Link) {
 			ml.data[9] = 0                    // export size
 		}
 
-		ml := newMachoLoad(ctxt.Arch, LC_SYMTAB, 4)
+		ml := newMachoLoad(ctxt.Arch, imacho.LC_SYMTAB, 4)
 		ml.data[0] = uint32(linkoff + s1 + s2)                /* symoff */
 		ml.data[1] = uint32(nsortsym)                         /* nsyms */
 		ml.data[2] = uint32(linkoff + s1 + s2 + s3 + s4 + s5) /* stroff */
@@ -836,12 +782,12 @@ func asmbMacho(ctxt *Link) {
 		if ctxt.LinkMode != LinkExternal {
 			machodysymtab(ctxt, linkoff+s1+s2)
 
-			ml := newMachoLoad(ctxt.Arch, LC_LOAD_DYLINKER, 6)
+			ml := newMachoLoad(ctxt.Arch, imacho.LC_LOAD_DYLINKER, 6)
 			ml.data[0] = 12 /* offset to string */
 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
 
 			for _, lib := range dylib {
-				ml = newMachoLoad(ctxt.Arch, LC_LOAD_DYLIB, 4+(uint32(len(lib))+1+7)/8*2)
+				ml = newMachoLoad(ctxt.Arch, imacho.LC_LOAD_DYLIB, 4+(uint32(len(lib))+1+7)/8*2)
 				ml.data[0] = 24 /* offset of string from beginning of load */
 				ml.data[1] = 0  /* time stamp */
 				ml.data[2] = 0  /* version */
@@ -850,8 +796,22 @@ func asmbMacho(ctxt *Link) {
 			}
 		}
 
+		if ctxt.IsInternal() && len(buildinfo) > 0 {
+			ml := newMachoLoad(ctxt.Arch, imacho.LC_UUID, 4)
+			// Mach-O UUID is 16 bytes
+			if len(buildinfo) < 16 {
+				buildinfo = append(buildinfo, make([]byte, 16)...)
+			}
+			// By default, buildinfo is already in UUIDv3 format
+			// (see uuidFromGoBuildId).
+			ml.data[0] = ctxt.Arch.ByteOrder.Uint32(buildinfo)
+			ml.data[1] = ctxt.Arch.ByteOrder.Uint32(buildinfo[4:])
+			ml.data[2] = ctxt.Arch.ByteOrder.Uint32(buildinfo[8:])
+			ml.data[3] = ctxt.Arch.ByteOrder.Uint32(buildinfo[12:])
+		}
+
 		if ctxt.IsInternal() && ctxt.NeedCodeSign() {
-			ml := newMachoLoad(ctxt.Arch, LC_CODE_SIGNATURE, 2)
+			ml := newMachoLoad(ctxt.Arch, imacho.LC_CODE_SIGNATURE, 2)
 			ml.data[0] = uint32(codesigOff)
 			ml.data[1] = uint32(s7)
 		}
@@ -901,22 +861,26 @@ func collectmachosyms(ctxt *Link) {
 	// Add special runtime.text and runtime.etext symbols (which are local).
 	// We've already included this symbol in Textp on darwin if ctxt.DynlinkingGo().
 	// See data.go:/textaddress
+	// NOTE: runtime.text.N symbols (if we split text sections) are not added, though,
+	// so we handle them here.
 	if !*FlagS {
 		if !ctxt.DynlinkingGo() {
 			s := ldr.Lookup("runtime.text", 0)
-			if ldr.SymType(s) == sym.STEXT {
+			if ldr.SymType(s).IsText() {
 				addsym(s)
 			}
-			for n := range Segtext.Sections[1:] {
-				s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
-				if s != 0 {
-					addsym(s)
-				} else {
-					break
-				}
+		}
+		for n := range Segtext.Sections[1:] {
+			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
+			if s != 0 {
+				addsym(s)
+			} else {
+				break
 			}
-			s = ldr.Lookup("runtime.etext", 0)
-			if ldr.SymType(s) == sym.STEXT {
+		}
+		if !ctxt.DynlinkingGo() {
+			s := ldr.Lookup("runtime.etext", 0)
+			if ldr.SymType(s).IsText() {
 				addsym(s)
 			}
 		}
@@ -971,7 +935,7 @@ func collectmachosyms(ctxt *Link) {
 		// Some 64-bit functions have a "$INODE64" or "$INODE64$UNIX2003" suffix.
 		if t == sym.SDYNIMPORT && ldr.SymDynimplib(s) == "/usr/lib/libSystem.B.dylib" {
 			// But only on macOS.
-			if machoPlatform == PLATFORM_MACOS {
+			if machoPlatform == PLATFORM_MACOS || machoPlatform == PLATFORM_MACCATALYST {
 				switch n := ldr.SymExtname(s); n {
 				case "fdopendir":
 					switch buildcfg.GOARCH {
@@ -1107,7 +1071,7 @@ func machosymtab(ctxt *Link) {
 }
 
 func machodysymtab(ctxt *Link, base int64) {
-	ml := newMachoLoad(ctxt.Arch, LC_DYSYMTAB, 18)
+	ml := newMachoLoad(ctxt.Arch, imacho.LC_DYSYMTAB, 18)
 
 	n := 0
 	ml.data[0] = uint32(n)                   /* ilocalsym */
@@ -1320,15 +1284,15 @@ func peekMachoPlatform(m *macho.File) (*MachoPlatformLoad, error) {
 		data := raw[8:]
 		var p MachoPlatform
 		switch ml.type_ {
-		case LC_VERSION_MIN_IPHONEOS:
+		case imacho.LC_VERSION_MIN_IPHONEOS:
 			p = PLATFORM_IOS
-		case LC_VERSION_MIN_MACOSX:
+		case imacho.LC_VERSION_MIN_MACOSX:
 			p = PLATFORM_MACOS
-		case LC_VERSION_MIN_WATCHOS:
+		case imacho.LC_VERSION_MIN_WATCHOS:
 			p = PLATFORM_WATCHOS
-		case LC_VERSION_MIN_TVOS:
+		case imacho.LC_VERSION_MIN_TVOS:
 			p = PLATFORM_TVOS
-		case LC_BUILD_VERSION:
+		case imacho.LC_BUILD_VERSION:
 			p = MachoPlatform(m.ByteOrder.Uint32(data))
 		default:
 			continue
@@ -1517,7 +1481,7 @@ func machoCodeSign(ctxt *Link, fname string) error {
 	for _, l := range mf.Loads {
 		data := l.Raw()
 		cmd, sz := get32(data), get32(data[4:])
-		if cmd == LC_CODE_SIGNATURE {
+		if cmd == imacho.LC_CODE_SIGNATURE {
 			sigOff = int64(get32(data[8:]))
 			sigSz = int64(get32(data[12:]))
 			csCmdOff = loadOff

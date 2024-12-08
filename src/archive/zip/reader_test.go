@@ -13,8 +13,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -570,6 +570,14 @@ var tests = []ZipTest{
 			},
 		},
 	},
+	// Issue 66869: Don't skip over an EOCDR with a truncated comment.
+	// The test file sneakily hides a second EOCDR before the first one;
+	// previously we would extract one file ("file") from this archive,
+	// while most other tools would reject the file or extract a different one ("FILE").
+	{
+		Name:  "comment-truncated.zip",
+		Error: ErrFormat,
+	},
 }
 
 func TestReader(t *testing.T) {
@@ -904,9 +912,7 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
 //	type zeros struct{}
 //
 //	func (zeros) Read(b []byte) (int, error) {
-//		for i := range b {
-//			b[i] = 0
-//		}
+//		clear(b)
 //		return len(b), nil
 //	}
 //
@@ -1268,7 +1274,7 @@ func TestFSWalk(t *testing.T) {
 			} else if !test.wantErr && sawErr {
 				t.Error("unexpected error")
 			}
-			if test.want != nil && !reflect.DeepEqual(files, test.want) {
+			if test.want != nil && !slices.Equal(files, test.want) {
 				t.Errorf("got %v want %v", files, test.want)
 			}
 		})
@@ -1574,7 +1580,7 @@ func TestCVE202141772(t *testing.T) {
 			t.Errorf("Opening %q with fs.FS API succeeded", f.Name)
 		}
 	}
-	if !reflect.DeepEqual(names, entryNames) {
+	if !slices.Equal(names, entryNames) {
 		t.Errorf("Unexpected file entries: %q", names)
 	}
 	if _, err := r.Open(""); err == nil {
@@ -1687,7 +1693,7 @@ func TestInsecurePaths(t *testing.T) {
 		for _, f := range zr.File {
 			gotPaths = append(gotPaths, f.Name)
 		}
-		if !reflect.DeepEqual(gotPaths, []string{path}) {
+		if !slices.Equal(gotPaths, []string{path}) {
 			t.Errorf("NewReader for archive with file %q: got files %q", path, gotPaths)
 			continue
 		}
@@ -1712,7 +1718,7 @@ func TestDisableInsecurePathCheck(t *testing.T) {
 	for _, f := range zr.File {
 		gotPaths = append(gotPaths, f.Name)
 	}
-	if want := []string{name}; !reflect.DeepEqual(gotPaths, want) {
+	if want := []string{name}; !slices.Equal(gotPaths, want) {
 		t.Errorf("NewReader with zipinsecurepath=1: got files %q, want %q", gotPaths, want)
 	}
 }

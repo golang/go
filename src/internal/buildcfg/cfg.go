@@ -15,25 +15,27 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 )
 
 var (
-	GOROOT   = runtime.GOROOT() // cached for efficiency
-	GOARCH   = envOr("GOARCH", defaultGOARCH)
-	GOOS     = envOr("GOOS", defaultGOOS)
-	GO386    = envOr("GO386", defaultGO386)
-	GOAMD64  = goamd64()
-	GOARM    = goarm()
-	GOMIPS   = gomips()
-	GOMIPS64 = gomips64()
-	GOPPC64  = goppc64()
-	GOWASM   = gowasm()
-	ToolTags = toolTags()
-	GO_LDSO  = defaultGO_LDSO
-	Version  = version
+	GOROOT    = os.Getenv("GOROOT") // cached for efficiency
+	GOARCH    = envOr("GOARCH", defaultGOARCH)
+	GOOS      = envOr("GOOS", defaultGOOS)
+	GO386     = envOr("GO386", DefaultGO386)
+	GOAMD64   = goamd64()
+	GOARM     = goarm()
+	GOARM64   = goarm64()
+	GOMIPS    = gomips()
+	GOMIPS64  = gomips64()
+	GOPPC64   = goppc64()
+	GORISCV64 = goriscv64()
+	GOWASM    = gowasm()
+	ToolTags  = toolTags()
+	GO_LDSO   = defaultGO_LDSO
+	GOFIPS140 = gofips140()
+	Version   = version
 )
 
 // Error is one of the errors found (if any) in the build configuration.
@@ -55,7 +57,7 @@ func envOr(key, value string) string {
 }
 
 func goamd64() int {
-	switch v := envOr("GOAMD64", defaultGOAMD64); v {
+	switch v := envOr("GOAMD64", DefaultGOAMD64); v {
 	case "v1":
 		return 1
 	case "v2":
@@ -66,47 +68,228 @@ func goamd64() int {
 		return 4
 	}
 	Error = fmt.Errorf("invalid GOAMD64: must be v1, v2, v3, v4")
-	return int(defaultGOAMD64[len("v")] - '0')
+	return int(DefaultGOAMD64[len("v")] - '0')
 }
 
-func goarm() int {
-	def := defaultGOARM
+func gofips140() string {
+	v := envOr("GOFIPS140", DefaultGOFIPS140)
+	switch v {
+	case "off", "latest", "inprocess", "certified":
+		return v
+	}
+	if isFIPSVersion(v) {
+		return v
+	}
+	Error = fmt.Errorf("invalid GOFIPS140: must be off, latest, inprocess, certified, or vX.Y.Z")
+	return DefaultGOFIPS140
+}
+
+// isFIPSVersion reports whether v is a valid FIPS version,
+// of the form vX.Y.Z.
+func isFIPSVersion(v string) bool {
+	if !strings.HasPrefix(v, "v") {
+		return false
+	}
+	v, ok := skipNum(v[len("v"):])
+	if !ok || !strings.HasPrefix(v, ".") {
+		return false
+	}
+	v, ok = skipNum(v[len("."):])
+	if !ok || !strings.HasPrefix(v, ".") {
+		return false
+	}
+	v, ok = skipNum(v[len("."):])
+	return ok && v == ""
+}
+
+// skipNum skips the leading text matching [0-9]+
+// in s, returning the rest and whether such text was found.
+func skipNum(s string) (rest string, ok bool) {
+	i := 0
+	for i < len(s) && '0' <= s[i] && s[i] <= '9' {
+		i++
+	}
+	return s[i:], i > 0
+}
+
+type GoarmFeatures struct {
+	Version   int
+	SoftFloat bool
+}
+
+func (g GoarmFeatures) String() string {
+	armStr := strconv.Itoa(g.Version)
+	if g.SoftFloat {
+		armStr += ",softfloat"
+	} else {
+		armStr += ",hardfloat"
+	}
+	return armStr
+}
+
+func goarm() (g GoarmFeatures) {
+	const (
+		softFloatOpt = ",softfloat"
+		hardFloatOpt = ",hardfloat"
+	)
+	def := DefaultGOARM
 	if GOOS == "android" && GOARCH == "arm" {
 		// Android arm devices always support GOARM=7.
 		def = "7"
 	}
-	switch v := envOr("GOARM", def); v {
-	case "5":
-		return 5
-	case "6":
-		return 6
-	case "7":
-		return 7
+	v := envOr("GOARM", def)
+
+	floatSpecified := false
+	if strings.HasSuffix(v, softFloatOpt) {
+		g.SoftFloat = true
+		floatSpecified = true
+		v = v[:len(v)-len(softFloatOpt)]
 	}
-	Error = fmt.Errorf("invalid GOARM: must be 5, 6, 7")
-	return int(def[0] - '0')
+	if strings.HasSuffix(v, hardFloatOpt) {
+		floatSpecified = true
+		v = v[:len(v)-len(hardFloatOpt)]
+	}
+
+	switch v {
+	case "5":
+		g.Version = 5
+	case "6":
+		g.Version = 6
+	case "7":
+		g.Version = 7
+	default:
+		Error = fmt.Errorf("invalid GOARM: must start with 5, 6, or 7, and may optionally end in either %q or %q", hardFloatOpt, softFloatOpt)
+		g.Version = int(def[0] - '0')
+	}
+
+	// 5 defaults to softfloat. 6 and 7 default to hardfloat.
+	if !floatSpecified && g.Version == 5 {
+		g.SoftFloat = true
+	}
+	return
+}
+
+type Goarm64Features struct {
+	Version string
+	// Large Systems Extension
+	LSE bool
+	// ARM v8.0 Cryptographic Extension. It includes the following features:
+	// * FEAT_AES, which includes the AESD and AESE instructions.
+	// * FEAT_PMULL, which includes the PMULL, PMULL2 instructions.
+	// * FEAT_SHA1, which includes the SHA1* instructions.
+	// * FEAT_SHA256, which includes the SHA256* instructions.
+	Crypto bool
+}
+
+func (g Goarm64Features) String() string {
+	arm64Str := g.Version
+	if g.LSE {
+		arm64Str += ",lse"
+	}
+	if g.Crypto {
+		arm64Str += ",crypto"
+	}
+	return arm64Str
+}
+
+func ParseGoarm64(v string) (g Goarm64Features, e error) {
+	const (
+		lseOpt    = ",lse"
+		cryptoOpt = ",crypto"
+	)
+
+	g.LSE = false
+	g.Crypto = false
+	// We allow any combination of suffixes, in any order
+	for {
+		if strings.HasSuffix(v, lseOpt) {
+			g.LSE = true
+			v = v[:len(v)-len(lseOpt)]
+			continue
+		}
+
+		if strings.HasSuffix(v, cryptoOpt) {
+			g.Crypto = true
+			v = v[:len(v)-len(cryptoOpt)]
+			continue
+		}
+
+		break
+	}
+
+	switch v {
+	case "v8.0":
+		g.Version = v
+	case "v8.1", "v8.2", "v8.3", "v8.4", "v8.5", "v8.6", "v8.7", "v8.8", "v8.9",
+		"v9.0", "v9.1", "v9.2", "v9.3", "v9.4", "v9.5":
+		g.Version = v
+		// LSE extension is mandatory starting from 8.1
+		g.LSE = true
+	default:
+		e = fmt.Errorf("invalid GOARM64: must start with v8.{0-9} or v9.{0-5} and may optionally end in %q and/or %q",
+			lseOpt, cryptoOpt)
+		g.Version = DefaultGOARM64
+	}
+
+	return
+}
+
+func goarm64() (g Goarm64Features) {
+	g, Error = ParseGoarm64(envOr("GOARM64", DefaultGOARM64))
+	return
+}
+
+// Returns true if g supports giving ARM64 ISA
+// Note that this function doesn't accept / test suffixes (like ",lse" or ",crypto")
+func (g Goarm64Features) Supports(s string) bool {
+	// We only accept "v{8-9}.{0-9}. Everything else is malformed.
+	if len(s) != 4 {
+		return false
+	}
+
+	major := s[1]
+	minor := s[3]
+
+	// We only accept "v{8-9}.{0-9}. Everything else is malformed.
+	if major < '8' || major > '9' ||
+		minor < '0' || minor > '9' ||
+		s[0] != 'v' || s[2] != '.' {
+		return false
+	}
+
+	g_major := g.Version[1]
+	g_minor := g.Version[3]
+
+	if major == g_major {
+		return minor <= g_minor
+	} else if g_major == '9' {
+		// v9.0 diverged from v8.5. This means we should compare with g_minor increased by five.
+		return minor <= g_minor+5
+	} else {
+		return false
+	}
 }
 
 func gomips() string {
-	switch v := envOr("GOMIPS", defaultGOMIPS); v {
+	switch v := envOr("GOMIPS", DefaultGOMIPS); v {
 	case "hardfloat", "softfloat":
 		return v
 	}
 	Error = fmt.Errorf("invalid GOMIPS: must be hardfloat, softfloat")
-	return defaultGOMIPS
+	return DefaultGOMIPS
 }
 
 func gomips64() string {
-	switch v := envOr("GOMIPS64", defaultGOMIPS64); v {
+	switch v := envOr("GOMIPS64", DefaultGOMIPS64); v {
 	case "hardfloat", "softfloat":
 		return v
 	}
 	Error = fmt.Errorf("invalid GOMIPS64: must be hardfloat, softfloat")
-	return defaultGOMIPS64
+	return DefaultGOMIPS64
 }
 
 func goppc64() int {
-	switch v := envOr("GOPPC64", defaultGOPPC64); v {
+	switch v := envOr("GOPPC64", DefaultGOPPC64); v {
 	case "power8":
 		return 8
 	case "power9":
@@ -115,7 +298,23 @@ func goppc64() int {
 		return 10
 	}
 	Error = fmt.Errorf("invalid GOPPC64: must be power8, power9, power10")
-	return int(defaultGOPPC64[len("power")] - '0')
+	return int(DefaultGOPPC64[len("power")] - '0')
+}
+
+func goriscv64() int {
+	switch v := envOr("GORISCV64", DefaultGORISCV64); v {
+	case "rva20u64":
+		return 20
+	case "rva22u64":
+		return 22
+	}
+	Error = fmt.Errorf("invalid GORISCV64: must be rva20u64, rva22u64")
+	v := DefaultGORISCV64[len("rva"):]
+	i := strings.IndexFunc(v, func(r rune) bool {
+		return r < '0' || r > '9'
+	})
+	year, _ := strconv.Atoi(v[:i])
+	return year
 }
 
 type gowasmFeatures struct {
@@ -182,7 +381,9 @@ func GOGOARCH() (name, value string) {
 	case "amd64":
 		return "GOAMD64", fmt.Sprintf("v%d", GOAMD64)
 	case "arm":
-		return "GOARM", strconv.Itoa(GOARM)
+		return "GOARM", GOARM.String()
+	case "arm64":
+		return "GOARM64", GOARM64.String()
 	case "mips", "mipsle":
 		return "GOMIPS", GOMIPS
 	case "mips64", "mips64le":
@@ -207,8 +408,22 @@ func gogoarchTags() []string {
 		return list
 	case "arm":
 		var list []string
-		for i := 5; i <= GOARM; i++ {
+		for i := 5; i <= GOARM.Version; i++ {
 			list = append(list, fmt.Sprintf("%s.%d", GOARCH, i))
+		}
+		return list
+	case "arm64":
+		var list []string
+		major := int(GOARM64.Version[1] - '0')
+		minor := int(GOARM64.Version[3] - '0')
+		for i := 0; i <= minor; i++ {
+			list = append(list, fmt.Sprintf("%s.v%d.%d", GOARCH, major, i))
+		}
+		// ARM64 v9.x also includes support of v8.x+5 (i.e. v9.1 includes v8.(1+5) = v8.6).
+		if major == 9 {
+			for i := 0; i <= minor+5 && i <= 9; i++ {
+				list = append(list, fmt.Sprintf("%s.v%d.%d", GOARCH, 8, i))
+			}
 		}
 		return list
 	case "mips", "mipsle":
@@ -219,6 +434,12 @@ func gogoarchTags() []string {
 		var list []string
 		for i := 8; i <= GOPPC64; i++ {
 			list = append(list, fmt.Sprintf("%s.power%d", GOARCH, i))
+		}
+		return list
+	case "riscv64":
+		list := []string{GOARCH + "." + "rva20u64"}
+		if GORISCV64 >= 22 {
+			list = append(list, GOARCH+"."+"rva22u64")
 		}
 		return list
 	case "wasm":

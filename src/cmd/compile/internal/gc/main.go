@@ -9,15 +9,16 @@ import (
 	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/coverage"
-	"cmd/compile/internal/devirtualize"
+	"cmd/compile/internal/deadlocals"
 	"cmd/compile/internal/dwarfgen"
 	"cmd/compile/internal/escape"
 	"cmd/compile/internal/inline"
+	"cmd/compile/internal/inline/interleaved"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/loopvar"
 	"cmd/compile/internal/noder"
-	"cmd/compile/internal/pgo"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
@@ -30,6 +31,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"cmd/internal/telemetry/counter"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
@@ -58,6 +60,8 @@ func handlePanic() {
 // code, and finally writes the compiled package definition to disk.
 func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "init")
+	counter.Open()
+	counter.Inc("compile/invocations")
 
 	defer handlePanic()
 
@@ -100,6 +104,13 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	ir.Pkgs.Runtime = types.NewPkg("go.runtime", "runtime")
 	ir.Pkgs.Runtime.Prefix = "runtime"
 
+	if buildcfg.Experiment.SwissMap {
+		// Pseudo-package that contains the compiler's builtin
+		// declarations for maps.
+		ir.Pkgs.InternalMaps = types.NewPkg("go.internal/runtime/maps", "internal/runtime/maps")
+		ir.Pkgs.InternalMaps.Prefix = "internal/runtime/maps"
+	}
+
 	// pseudo-packages used in symbol tables
 	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
 	ir.Pkgs.Itab.Prefix = "go:itab"
@@ -129,7 +140,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 
 	if base.Flag.SmallFrames {
-		ir.MaxStackVarSize = 128 * 1024
+		ir.MaxStackVarSize = 64 * 1024
 		ir.MaxImplicitStackVarSize = 16 * 1024
 	}
 
@@ -215,39 +226,24 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// Read profile file and build profile-graph and weighted-call-graph.
 	base.Timer.Start("fe", "pgo-load-profile")
-	var profile *pgo.Profile
+	var profile *pgoir.Profile
 	if base.Flag.PgoProfile != "" {
 		var err error
-		profile, err = pgo.New(base.Flag.PgoProfile)
+		profile, err = pgoir.New(base.Flag.PgoProfile)
 		if err != nil {
 			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
 		}
 	}
 
-	base.Timer.Start("fe", "pgo-devirtualization")
-	if profile != nil && base.Debug.PGODevirtualize > 0 {
-		// TODO(prattmic): No need to use bottom-up visit order. This
-		// is mirroring the PGO IRGraph visit order, which also need
-		// not be bottom-up.
-		ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
-			for _, fn := range list {
-				devirtualize.ProfileGuided(fn, profile)
-			}
-		})
-		ir.CurFunc = nil
-	}
+	// Interleaved devirtualization and inlining.
+	base.Timer.Start("fe", "devirtualize-and-inline")
+	interleaved.DevirtualizeAndInlinePackage(typecheck.Target, profile)
 
-	// Inlining
-	base.Timer.Start("fe", "inlining")
-	if base.Flag.LowerL != 0 {
-		inline.InlinePackage(profile)
-	}
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 
-	// Devirtualize and get variable capture right in for loops
+	// Get variable capture right in for loops.
 	var transformed []loopvar.VarAndLoop
 	for _, fn := range typecheck.Target.Funcs {
-		devirtualize.Static(fn)
 		transformed = append(transformed, loopvar.ForCapture(fn)...)
 	}
 	ir.CurFunc = nil
@@ -258,6 +254,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Generate ABI wrappers. Must happen before escape analysis
 	// and doesn't benefit from dead-coding or inlining.
 	symABIs.GenABIWrappers()
+
+	deadlocals.Funcs(typecheck.Target.Funcs)
 
 	// Escape analysis.
 	// Required for moving heap allocations onto stack,
@@ -315,7 +313,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		// as late as possible to maximize how much work we can batch and
 		// process concurrently.
 		if len(compilequeue) != 0 {
-			compileFunctions()
+			compileFunctions(profile)
 			continue
 		}
 

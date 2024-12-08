@@ -130,7 +130,7 @@ type Logger interface {
 	// some logging calls account for more than a few heap allocations.
 	Log() bool
 
-	// Fatal reports a compiler error and exits.
+	// Fatalf reports a compiler error and exits.
 	Fatalf(pos src.XPos, msg string, args ...interface{})
 
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
@@ -283,6 +283,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.registers = registersLOONG64[:]
 		c.gpRegMask = gpRegMaskLOONG64
 		c.fpRegMask = fpRegMaskLOONG64
+		c.intParamRegs = paramIntRegLOONG64
+		c.floatParamRegs = paramFloatRegLOONG64
 		c.FPReg = framepointerRegLOONG64
 		c.LinkReg = linkRegLOONG64
 		c.hasGReg = true

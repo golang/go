@@ -217,7 +217,11 @@ func (p *PipeNode) writeTo(sb *strings.Builder) {
 			}
 			v.writeTo(sb)
 		}
-		sb.WriteString(" := ")
+		if p.IsAssign {
+			sb.WriteString(" = ")
+		} else {
+			sb.WriteString(" := ")
+		}
 	}
 	for i, c := range p.Cmds {
 		if i > 0 {
@@ -284,7 +288,6 @@ func (a *ActionNode) tree() *Tree {
 
 func (a *ActionNode) Copy() Node {
 	return a.tr.newAction(a.Pos, a.Line, a.Pipe.CopyPipe())
-
 }
 
 // CommandNode holds a command (a pipeline inside an evaluating action).
@@ -347,12 +350,12 @@ type IdentifierNode struct {
 	Ident string // The identifier's name.
 }
 
-// NewIdentifier returns a new IdentifierNode with the given identifier name.
+// NewIdentifier returns a new [IdentifierNode] with the given identifier name.
 func NewIdentifier(ident string) *IdentifierNode {
 	return &IdentifierNode{NodeType: NodeIdentifier, Ident: ident}
 }
 
-// SetPos sets the position. NewIdentifier is a public method so we can't modify its signature.
+// SetPos sets the position. [NewIdentifier] is a public method so we can't modify its signature.
 // Chained for convenience.
 // TODO: fix one day?
 func (i *IdentifierNode) SetPos(pos Pos) *IdentifierNode {
@@ -360,7 +363,7 @@ func (i *IdentifierNode) SetPos(pos Pos) *IdentifierNode {
 	return i
 }
 
-// SetTree sets the parent tree for the node. NewIdentifier is a public method so we can't modify its signature.
+// SetTree sets the parent tree for the node. [NewIdentifier] is a public method so we can't modify its signature.
 // Chained for convenience.
 // TODO: fix one day?
 func (i *IdentifierNode) SetTree(t *Tree) *IdentifierNode {

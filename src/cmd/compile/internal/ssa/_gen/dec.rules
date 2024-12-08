@@ -97,19 +97,10 @@
 // Helpers for expand calls
 // Some of these are copied from generic.rules
 
-(IMake _typ (StructMake1 val)) => (IMake _typ val)
+(IMake _typ (StructMake val)) => (IMake _typ val)
 (StructSelect [0] (IData x)) => (IData x)
 
-(StructSelect (StructMake1 x)) => x
-(StructSelect [0] (StructMake2 x _)) => x
-(StructSelect [1] (StructMake2 _ x)) => x
-(StructSelect [0] (StructMake3 x _ _)) => x
-(StructSelect [1] (StructMake3 _ x _)) => x
-(StructSelect [2] (StructMake3 _ _ x)) => x
-(StructSelect [0] (StructMake4 x _ _ _)) => x
-(StructSelect [1] (StructMake4 _ x _ _)) => x
-(StructSelect [2] (StructMake4 _ _ x _)) => x
-(StructSelect [3] (StructMake4 _ _ _ x)) => x
+(StructSelect [i] x:(StructMake ___)) => x.Args[i]
 
 // Special case coming from immediate interface rewriting
 // Typical case: (StructSelect [0] (IData (IMake typ dat)) rewrites to (StructSelect [0] dat)
@@ -118,45 +109,15 @@
 // More annoying case: (ArraySelect[0] (StructSelect[0] isAPtr))
 // There, result of the StructSelect is an Array (not a pointer) and
 // the pre-rewrite input to the ArraySelect is a struct, not a pointer.
-(StructSelect [0] x) && x.Type.IsPtr()  => x
-(ArraySelect [0] x) && x.Type.IsPtr()  => x
+(StructSelect [0] x) && x.Type.IsPtrShaped()  => x
+(ArraySelect [0] x) && x.Type.IsPtrShaped()  => x
 
 // These, too.  Bits is bits.
-(ArrayMake1 x) && x.Type.IsPtr() => x
-(StructMake1 x) && x.Type.IsPtr() => x
+(ArrayMake1 x) && x.Type.IsPtrShaped() => x
+(StructMake x) && x.Type.IsPtrShaped() => x
 
-(Store dst (StructMake1 <t> f0) mem) =>
-  (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
-(Store dst (StructMake2 <t> f0 f1) mem) =>
-  (Store {t.FieldType(1)}
-    (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)
-    f1
-    (Store {t.FieldType(0)}
-      (OffPtr <t.FieldType(0).PtrTo()> [0] dst)
-        f0 mem))
-(Store dst (StructMake3 <t> f0 f1 f2) mem) =>
-  (Store {t.FieldType(2)}
-    (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)
-    f2
-    (Store {t.FieldType(1)}
-      (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)
-      f1
-      (Store {t.FieldType(0)}
-        (OffPtr <t.FieldType(0).PtrTo()> [0] dst)
-          f0 mem)))
-(Store dst (StructMake4 <t> f0 f1 f2 f3) mem) =>
-  (Store {t.FieldType(3)}
-    (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst)
-    f3
-    (Store {t.FieldType(2)}
-      (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)
-      f2
-      (Store {t.FieldType(1)}
-        (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)
-        f1
-        (Store {t.FieldType(0)}
-          (OffPtr <t.FieldType(0).PtrTo()> [0] dst)
-            f0 mem))))
+
+(Store _ (StructMake ___) _) => rewriteStructStore(v)
 
 (ArraySelect (ArrayMake1 x)) => x
 (ArraySelect [0] (IData x)) => (IData x)

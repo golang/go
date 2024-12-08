@@ -13,7 +13,7 @@ type t struct {
 }
 type t interface {
 	t[a]
-	m /* ERROR method must have no type parameters */ [_ _, /* ERROR mixed */ _]()
+	m /* ERROR method must have no type parameters */ [_ _, _ /* ERROR missing parameter type */ ]()
 	t[a, b]
 }
 
@@ -23,7 +23,7 @@ func f[a t, b t, c /* ERROR missing type constraint */ ]()
 
 func f[a b,  /* ERROR expected ] */ 0] ()
 
-// issue #49482
+// go.dev/issue/49482
 type (
 	t[a *[]int] struct{}
 	t[a *t,] struct{}
@@ -35,7 +35,7 @@ type (
 	t[a *struct{}|~t] struct{}
 )
 
-// issue #51488
+// go.dev/issue/51488
 type (
 	t[a *t|t,] struct{}
 	t[a *t|t, b t] struct{}
@@ -43,4 +43,15 @@ type (
 	t[a *[]t|t] struct{}
 	t[a ([]t)] struct{}
 	t[a ([]t)|t] struct{}
+)
+
+// go.dev/issue/60812
+type (
+	t [t]struct{}
+	t [[]t]struct{}
+	t [[t]t]struct{}
+	t [/* ERROR missing type parameter name or invalid array length */ t[t]]struct{}
+	t [t t[t], /* ERROR missing type parameter name */ t[t]]struct{}
+	t [/* ERROR missing type parameter name */ t[t], t t[t]]struct{}
+	t [/* ERROR missing type parameter name */ t[t], t[t]]struct{} // report only first error
 )

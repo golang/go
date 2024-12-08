@@ -14,30 +14,24 @@ import (
 	"cmd/go/internal/gover"
 )
 
-// pathExts is a cached PATHEXT list.
-var pathExts struct {
-	once sync.Once
-	list []string
-}
-
-func initPathExts() {
-	var exts []string
+var pathExts = sync.OnceValue(func() []string {
 	x := os.Getenv(`PATHEXT`)
-	if x != "" {
-		for _, e := range strings.Split(strings.ToLower(x), `;`) {
-			if e == "" {
-				continue
-			}
-			if e[0] != '.' {
-				e = "." + e
-			}
-			exts = append(exts, e)
-		}
-	} else {
-		exts = []string{".com", ".exe", ".bat", ".cmd"}
+	if x == "" {
+		return []string{".com", ".exe", ".bat", ".cmd"}
 	}
-	pathExts.list = exts
-}
+
+	var exts []string
+	for _, e := range strings.Split(strings.ToLower(x), `;`) {
+		if e == "" {
+			continue
+		}
+		if e[0] != '.' {
+			e = "." + e
+		}
+		exts = append(exts, e)
+	}
+	return exts
+})
 
 // pathDirs returns the directories in the system search path.
 func pathDirs() []string {
@@ -48,8 +42,7 @@ func pathDirs() []string {
 // described by de and info in directory dir.
 // The analysis only uses the name itself; it does not run the program.
 func pathVersion(dir string, de fs.DirEntry, info fs.FileInfo) (string, bool) {
-	pathExts.once.Do(initPathExts)
-	name, _, ok := cutExt(de.Name(), pathExts.list)
+	name, _, ok := cutExt(de.Name(), pathExts())
 	if !ok {
 		return "", false
 	}

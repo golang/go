@@ -184,6 +184,7 @@ type sigcontext struct {
 	sc_pc         uint64
 	sc_regs       [32]uint64
 	sc_flags      uint32
+	sc_pad0       [1]uint32
 	sc_extcontext [0]uint64
 }
 

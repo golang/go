@@ -118,6 +118,7 @@ int add(int x, int y) {
 // escape vs noescape
 
 #cgo noescape handleGoStringPointerNoescape
+#cgo nocallback handleGoStringPointerNoescape
 void handleGoStringPointerNoescape(void *s) {}
 
 void handleGoStringPointerEscape(void *s) {}
@@ -932,12 +933,33 @@ typedef struct issue45451Undefined issue45451;
 extern void GoFunc49633(void*);
 void cfunc49633(void *context) { GoFunc49633(context); }
 
+// Issue 67517.
+typedef struct {
+	int a;
+	int* b;
+} issue67517struct;
+static void issue67517(issue67517struct* p) {}
+
+// Issue 69086.
+// GCC added the __int128 type in GCC 4.6, released in 2011.
+typedef struct {
+	int a;
+#ifdef __SIZEOF_INT128__
+	unsigned __int128 b;
+#else
+	uint64_t b;
+#endif
+	unsigned char c;
+} issue69086struct;
+static int issue690861(issue69086struct* p) { p->b = 1234; return p->c; }
+static int issue690862(unsigned long ul1, unsigned long ul2, unsigned int u, issue69086struct s) { return (int)(s.b); }
 */
 import "C"
 
 import (
 	"context"
 	"fmt"
+	"internal/asan"
 	"math"
 	"math/rand"
 	"os"
@@ -1752,6 +1774,9 @@ func issue8331a() C.issue8331 {
 // issue 10303
 
 func test10303(t *testing.T, n int) {
+	if asan.Enabled {
+		t.Skip("variable z is heap-allocated due to extra allocations with -asan; see #70079")
+	}
 	if runtime.Compiler == "gccgo" {
 		t.Skip("gccgo permits C pointers on the stack")
 	}
@@ -2320,3 +2345,45 @@ func test45451(t *testing.T) {
 func func52542[T ~[]C.int]() {}
 
 type type52542[T ~*C.float] struct{}
+
+// issue67517 is just a compilation test, there is no runtime test.
+func issue67517() {
+	C.issue67517(&C.issue67517struct{
+		a: 0,
+
+		b: nil,
+	})
+	C.issue67517(&C.issue67517struct{
+		a: 0,
+		// comment
+		b: nil,
+	})
+	C.issue67517(&C.issue67517struct{
+		a: 0 +
+			// comment
+			1,
+		// comment
+		b: nil,
+	})
+}
+
+// Issue 69086.
+func test69086(t *testing.T) {
+	var s C.issue69086struct
+
+	typ := reflect.TypeOf(s)
+	for i := 0; i < typ.NumField(); i++ {
+		f := typ.Field(i)
+		t.Logf("field %d: name %s size %d align %d offset %d", i, f.Name, f.Type.Size(), f.Type.Align(), f.Offset)
+	}
+
+	s.c = 1
+	got := C.issue690861(&s)
+	if got != 1 {
+		t.Errorf("field: got %d, want 1", got)
+	}
+	got = C.issue690862(1, 2, 3, s)
+	if got != 1234 {
+		t.Errorf("call: got %d, want 1234", got)
+	}
+}

@@ -645,7 +645,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if !l.AttrCgoExportDynamic(s) {
 			bld.SetDynimplib("") // satisfy dynimport
 		}
-		if l.SymType(outer) == sym.STEXT {
+		if l.SymType(outer).IsText() {
 			if bld.External() && !bld.DuplicateOK() {
 				return errorf("%v: duplicate symbol definition", s)
 			}
@@ -678,7 +678,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			}
 		}
 
-		if bld.Type() == sym.STEXT {
+		if bld.Type().IsText() {
 			if bld.OnList() {
 				return errorf("symbol %s listed multiple times", bld.Name())
 			}

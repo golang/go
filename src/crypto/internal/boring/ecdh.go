@@ -35,8 +35,8 @@ func (k *PrivateKeyECDH) finalize() {
 }
 
 func NewPublicKeyECDH(curve string, bytes []byte) (*PublicKeyECDH, error) {
-	if len(bytes) < 1 {
-		return nil, errors.New("NewPublicKeyECDH: missing key")
+	if len(bytes) != 1+2*curveSize(curve) {
+		return nil, errors.New("NewPublicKeyECDH: wrong key length")
 	}
 
 	nid, err := curveNID(curve)
@@ -71,6 +71,10 @@ func NewPublicKeyECDH(curve string, bytes []byte) (*PublicKeyECDH, error) {
 func (k *PublicKeyECDH) Bytes() []byte { return k.bytes }
 
 func NewPrivateKeyECDH(curve string, bytes []byte) (*PrivateKeyECDH, error) {
+	if len(bytes) != curveSize(curve) {
+		return nil, errors.New("NewPrivateKeyECDH: wrong key length")
+	}
+
 	nid, err := curveNID(curve)
 	if err != nil {
 		return nil, err

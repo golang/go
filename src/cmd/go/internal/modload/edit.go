@@ -8,7 +8,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/mvs"
-	"cmd/go/internal/par"
+	"cmd/internal/par"
 	"context"
 	"errors"
 	"fmt"
@@ -681,7 +681,7 @@ type dqTracker struct {
 	// in the extended module graph.
 	extendedRootPruning map[module.Version]modPruning
 
-	// dqReason records whether and why each each encountered version is
+	// dqReason records whether and why each encountered version is
 	// disqualified in a pruned or unpruned context.
 	dqReason map[module.Version]perPruning[dqState]
 
@@ -749,7 +749,7 @@ func (t *dqTracker) require(m, r module.Version) (ok bool) {
 		}
 	}
 
-	// Record that m is a dependant of r, so that if r is later disqualified
+	// Record that m is a dependent of r, so that if r is later disqualified
 	// m will be disqualified as well.
 	if t.requiring == nil {
 		t.requiring = make(map[module.Version][]module.Version)
@@ -842,6 +842,12 @@ func (t *dqTracker) check(m module.Version, pruning modPruning) dqState {
 // If m is not disqualified, path returns (nil, nil).
 func (t *dqTracker) path(m module.Version, pruning modPruning) (path []module.Version, err error) {
 	for {
+		if rootPruning, isRoot := t.extendedRootPruning[m]; isRoot && rootPruning == unpruned {
+			// Since m is a root, any other module that requires it would cause
+			// its full unpruned dependencies to be included in the module graph.
+			// Those dependencies must also be considered as part of the path to the conflict.
+			pruning = unpruned
+		}
 		dq := t.dqReason[m].from(pruning)
 		if !dq.isDisqualified() {
 			return path, nil

@@ -47,6 +47,7 @@ func SliceExtensionConst(s []int) []int {
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
 	// amd64:"MOVUPS\tX15"
+	// loong64:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
 	// ppc64x:-`.*runtime\.panicmakeslicelen`
@@ -58,6 +59,7 @@ func SliceExtensionConstInt64(s []int) []int {
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
 	// amd64:"MOVUPS\tX15"
+	// loong64:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
 	// ppc64x:-`.*runtime\.panicmakeslicelen`
@@ -69,6 +71,7 @@ func SliceExtensionConstUint64(s []int) []int {
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
 	// amd64:"MOVUPS\tX15"
+	// loong64:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
 	// ppc64x:-`.*runtime\.panicmakeslicelen`
@@ -80,16 +83,18 @@ func SliceExtensionConstUint(s []int) []int {
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
 	// amd64:"MOVUPS\tX15"
+	// loong64:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
 	// ppc64x:-`.*runtime\.panicmakeslicelen`
 	return append(s, make([]int, uint(1<<2))...)
 }
 
-// On ppc64x continue to use memclrNoHeapPointers
+// On ppc64x and loong64 continue to use memclrNoHeapPointers
 // for sizes >= 512.
 func SliceExtensionConst512(s []int) []int {
 	// amd64:-`.*runtime\.memclrNoHeapPointers`
+	// loong64:`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:`.*runtime\.memclrNoHeapPointers`
 	return append(s, make([]int, 1<<9)...)
 }

@@ -5,6 +5,7 @@
 package sync_test
 
 import (
+	isync "internal/sync"
 	"internal/testenv"
 	"math/rand"
 	"reflect"
@@ -26,6 +27,7 @@ const (
 	opSwap             = mapOp("Swap")
 	opCompareAndSwap   = mapOp("CompareAndSwap")
 	opCompareAndDelete = mapOp("CompareAndDelete")
+	opClear            = mapOp("Clear")
 )
 
 var mapOps = [...]mapOp{
@@ -37,6 +39,7 @@ var mapOps = [...]mapOp{
 	opSwap,
 	opCompareAndSwap,
 	opCompareAndDelete,
+	opClear,
 }
 
 // mapCall is a quick.Generator for calls on mapInterface.
@@ -73,6 +76,9 @@ func (c mapCall) apply(m mapInterface) (any, bool) {
 				return nil, true
 			}
 		}
+		return nil, false
+	case opClear:
+		m.Clear()
 		return nil, false
 	default:
 		panic("invalid mapOp")
@@ -128,6 +134,10 @@ func applyDeepCopyMap(calls []mapCall) ([]mapResult, map[any]any) {
 	return applyCalls(new(DeepCopyMap), calls)
 }
 
+func applyHashTrieMap(calls []mapCall) ([]mapResult, map[any]any) {
+	return applyCalls(new(isync.HashTrieMap[any, any]), calls)
+}
+
 func TestMapMatchesRWMutex(t *testing.T) {
 	if err := quick.CheckEqual(applyMap, applyRWMutexMap, nil); err != nil {
 		t.Error(err)
@@ -136,6 +146,12 @@ func TestMapMatchesRWMutex(t *testing.T) {
 
 func TestMapMatchesDeepCopy(t *testing.T) {
 	if err := quick.CheckEqual(applyMap, applyDeepCopyMap, nil); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMapMatchesHashTrieMap(t *testing.T) {
+	if err := quick.CheckEqual(applyMap, applyHashTrieMap, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -278,7 +294,7 @@ func TestCompareAndSwap_NonExistingKey(t *testing.T) {
 	m := &sync.Map{}
 	if m.CompareAndSwap(m, nil, 42) {
 		// See https://go.dev/issue/51972#issuecomment-1126408637.
-		t.Fatalf("CompareAndSwap on an non-existing key succeeded")
+		t.Fatalf("CompareAndSwap on a non-existing key succeeded")
 	}
 }
 
@@ -292,5 +308,63 @@ func TestMapRangeNoAllocations(t *testing.T) { // Issue 62404
 	})
 	if allocs > 0 {
 		t.Errorf("AllocsPerRun of m.Range = %v; want 0", allocs)
+	}
+}
+
+// TestConcurrentClear tests concurrent behavior of sync.Map properties to ensure no data races.
+// Checks for proper synchronization between Clear, Store, Load operations.
+func TestConcurrentClear(t *testing.T) {
+	var m sync.Map
+
+	wg := sync.WaitGroup{}
+	wg.Add(30) // 10 goroutines for writing, 10 goroutines for reading, 10 goroutines for waiting
+
+	// Writing data to the map concurrently
+	for i := 0; i < 10; i++ {
+		go func(k, v int) {
+			defer wg.Done()
+			m.Store(k, v)
+		}(i, i*10)
+	}
+
+	// Reading data from the map concurrently
+	for i := 0; i < 10; i++ {
+		go func(k int) {
+			defer wg.Done()
+			if value, ok := m.Load(k); ok {
+				t.Logf("Key: %v, Value: %v\n", k, value)
+			} else {
+				t.Logf("Key: %v not found\n", k)
+			}
+		}(i)
+	}
+
+	// Clearing data from the map concurrently
+	for i := 0; i < 10; i++ {
+		go func() {
+			defer wg.Done()
+			m.Clear()
+		}()
+	}
+
+	wg.Wait()
+
+	m.Clear()
+
+	m.Range(func(k, v any) bool {
+		t.Errorf("after Clear, Map contains (%v, %v); expected to be empty", k, v)
+
+		return true
+	})
+}
+
+func TestMapClearOneAllocation(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	var m sync.Map
+	allocs := testing.AllocsPerRun(10, func() {
+		m.Clear()
+	})
+	if allocs > 1 {
+		t.Errorf("AllocsPerRun of m.Clear = %v; want 1", allocs)
 	}
 }

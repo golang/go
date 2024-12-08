@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build 386 || amd64 || amd64p32
-// +build 386 amd64 amd64p32
 
 package cpu
 
@@ -93,10 +92,8 @@ func archInit() {
 		osSupportsAVX = isSet(1, eax) && isSet(2, eax)
 
 		if runtime.GOOS == "darwin" {
-			// Darwin doesn't save/restore AVX-512 mask registers correctly across signal handlers.
-			// Since users can't rely on mask register contents, let's not advertise AVX-512 support.
-			// See issue 49233.
-			osSupportsAVX512 = false
+			// Darwin requires special AVX512 checks, see cpu_darwin_x86.go
+			osSupportsAVX512 = osSupportsAVX && darwinSupportsAVX512()
 		} else {
 			// Check if OPMASK and ZMM registers have OS support.
 			osSupportsAVX512 = osSupportsAVX && isSet(5, eax) && isSet(6, eax) && isSet(7, eax)

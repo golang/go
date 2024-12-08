@@ -53,7 +53,7 @@ func (x *Float) Text(format byte, prec int) string {
 }
 
 // String formats x like x.Text('g', 10).
-// (String must be called explicitly, Float.Format does not support %s verb.)
+// (String must be called explicitly, [Float.Format] does not support %s verb.)
 func (x *Float) String() string {
 	return x.Text('g', 10)
 }
@@ -309,7 +309,7 @@ func fmtF(buf []byte, prec int, d decimal) []byte {
 }
 
 // fmtB appends the string of x in the format mantissa "p" exponent
-// with a decimal mantissa and a binary exponent, or 0" if x is zero,
+// with a decimal mantissa and a binary exponent, or "0" if x is zero,
 // and returns the extended buffer.
 // The mantissa is normalized such that is uses x.Prec() bits in binary
 // representation.
@@ -446,7 +446,7 @@ func (x *Float) fmtP(buf []byte) []byte {
 
 var _ fmt.Formatter = &floatZero // *Float must implement fmt.Formatter
 
-// Format implements fmt.Formatter. It accepts all the regular
+// Format implements [fmt.Formatter]. It accepts all the regular
 // formats for floating-point numbers ('b', 'e', 'E', 'f', 'F',
 // 'g', 'G', 'x') as well as 'p' and 'v'. See (*Float).Text for the
 // interpretation of 'p'. The 'v' format is handled like 'g'.

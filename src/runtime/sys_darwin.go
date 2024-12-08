@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -16,6 +16,10 @@ import (
 // and we need to know whether to check 32 or 64 bits of the result.
 // (Some libc functions that return 32 bits put junk in the upper 32 bits of AX.)
 
+// golang.org/x/sys linknames syscall_syscall
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscall syscall.syscall
 //go:nosplit
 func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
@@ -38,6 +42,17 @@ func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 }
 func syscallX()
 
+// golang.org/x/sys linknames syscall.syscall6
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
+// syscall.syscall6 is meant for package syscall (and x/sys),
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/tetratelabs/wazero
+//
+// See go.dev/issue/67401.
+//
 //go:linkname syscall_syscall6 syscall.syscall6
 //go:nosplit
 func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
@@ -49,6 +64,10 @@ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) 
 }
 func syscall6()
 
+// golang.org/x/sys linknames syscall.syscall9
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscall9 syscall.syscall9
 //go:nosplit
 //go:cgo_unsafe_args
@@ -71,6 +90,10 @@ func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 }
 func syscall6X()
 
+// golang.org/x/sys linknames syscall.syscallPtr
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_syscallPtr syscall.syscallPtr
 //go:nosplit
 func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
@@ -82,6 +105,10 @@ func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 }
 func syscallPtr()
 
+// golang.org/x/sys linknames syscall_rawSyscall
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_rawSyscall syscall.rawSyscall
 //go:nosplit
 func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
@@ -90,6 +117,10 @@ func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
 	return args.r1, args.r2, args.err
 }
 
+// golang.org/x/sys linknames syscall_rawSyscall6
+// (in addition to standard package syscall).
+// Do not remove or change the type signature.
+//
 //go:linkname syscall_rawSyscall6 syscall.rawSyscall6
 //go:nosplit
 func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
@@ -349,6 +380,15 @@ func nanotime1() int64 {
 }
 func nanotime_trampoline()
 
+// walltime should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname walltime
 //go:nosplit
 //go:cgo_unsafe_args
 func walltime() (int64, int32) {
@@ -531,6 +571,15 @@ func pthread_cond_signal(c *pthreadcond) int32 {
 }
 func pthread_cond_signal_trampoline()
 
+//go:nosplit
+//go:cgo_unsafe_args
+func arc4random_buf(p unsafe.Pointer, n int32) {
+	// arc4random_buf() never fails, per its man page, so it's safe to ignore the return value.
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(arc4random_buf_trampoline)), unsafe.Pointer(&p))
+	KeepAlive(p)
+}
+func arc4random_buf_trampoline()
+
 // Not used on Darwin, but must be defined.
 func exitThread(wait *atomic.Uint32) {
 	throw("exitThread")
@@ -651,6 +700,7 @@ func proc_regionfilename_trampoline()
 //go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_arc4random_buf arc4random_buf "/usr/lib/libSystem.B.dylib"
 
 //go:cgo_import_dynamic libc_notify_is_valid_token notify_is_valid_token "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_xpc_date_create_from_current xpc_date_create_from_current "/usr/lib/libSystem.B.dylib"

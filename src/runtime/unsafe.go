@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/math"
+	"internal/runtime/math"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -52,21 +53,21 @@ func panicunsafestringnilptr() {
 // Keep this code in sync with cmd/compile/internal/walk/builtin.go:walkUnsafeSlice
 func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
 	if len < 0 {
-		panicunsafeslicelen1(getcallerpc())
+		panicunsafeslicelen1(sys.GetCallerPC())
 	}
 
 	if et.Size_ == 0 {
 		if ptr == nil && len > 0 {
-			panicunsafeslicenilptr1(getcallerpc())
+			panicunsafeslicenilptr1(sys.GetCallerPC())
 		}
 	}
 
 	mem, overflow := math.MulUintptr(et.Size_, uintptr(len))
 	if overflow || mem > -uintptr(ptr) {
 		if ptr == nil {
-			panicunsafeslicenilptr1(getcallerpc())
+			panicunsafeslicenilptr1(sys.GetCallerPC())
 		}
-		panicunsafeslicelen1(getcallerpc())
+		panicunsafeslicelen1(sys.GetCallerPC())
 	}
 }
 
@@ -74,7 +75,7 @@ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
 func unsafeslice64(et *_type, ptr unsafe.Pointer, len64 int64) {
 	len := int(len64)
 	if int64(len) != len64 {
-		panicunsafeslicelen1(getcallerpc())
+		panicunsafeslicelen1(sys.GetCallerPC())
 	}
 	unsafeslice(et, ptr, len)
 }
@@ -92,7 +93,7 @@ func unsafeslicecheckptr(et *_type, ptr unsafe.Pointer, len64 int64) {
 func panicunsafeslicelen() {
 	// This is called only from compiler-generated code, so we can get the
 	// source of the panic.
-	panicunsafeslicelen1(getcallerpc())
+	panicunsafeslicelen1(sys.GetCallerPC())
 }
 
 //go:yeswritebarrierrec
@@ -104,11 +105,16 @@ func panicunsafeslicelen1(pc uintptr) {
 func panicunsafeslicenilptr() {
 	// This is called only from compiler-generated code, so we can get the
 	// source of the panic.
-	panicunsafeslicenilptr1(getcallerpc())
+	panicunsafeslicenilptr1(sys.GetCallerPC())
 }
 
 //go:yeswritebarrierrec
 func panicunsafeslicenilptr1(pc uintptr) {
 	panicCheck1(pc, "unsafe.Slice: ptr is nil and len is not zero")
 	panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+}
+
+//go:linkname reflect_unsafeslice reflect.unsafeslice
+func reflect_unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+	unsafeslice(et, ptr, len)
 }

@@ -11,11 +11,13 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
+	"maps"
 	"math"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -96,10 +98,6 @@ func (f *testFile) Seek(pos int64, whence int) (int64, error) {
 	f.pos += s
 	f.ops = f.ops[1:]
 	return f.pos, nil
-}
-
-func equalSparseEntries(x, y []sparseEntry) bool {
-	return (len(x) == 0 && len(y) == 0) || reflect.DeepEqual(x, y)
 }
 
 func TestSparseEntries(t *testing.T) {
@@ -198,11 +196,11 @@ func TestSparseEntries(t *testing.T) {
 			continue
 		}
 		gotAligned := alignSparseEntries(append([]sparseEntry{}, v.in...), v.size)
-		if !equalSparseEntries(gotAligned, v.wantAligned) {
+		if !slices.Equal(gotAligned, v.wantAligned) {
 			t.Errorf("test %d, alignSparseEntries():\ngot  %v\nwant %v", i, gotAligned, v.wantAligned)
 		}
 		gotInverted := invertSparseEntries(append([]sparseEntry{}, v.in...), v.size)
-		if !equalSparseEntries(gotInverted, v.wantInverted) {
+		if !slices.Equal(gotInverted, v.wantInverted) {
 			t.Errorf("test %d, inverseSparseEntries():\ngot  %v\nwant %v", i, gotInverted, v.wantInverted)
 		}
 	}
@@ -744,7 +742,7 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		if formats != v.formats {
 			t.Errorf("test %d, allowedFormats(): got %v, want %v", i, formats, v.formats)
 		}
-		if formats&FormatPAX > 0 && !reflect.DeepEqual(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
+		if formats&FormatPAX > 0 && !maps.Equal(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
 			t.Errorf("test %d, allowedFormats():\ngot  %v\nwant %s", i, paxHdrs, v.paxHdrs)
 		}
 		if (formats != FormatUnknown) && (err != nil) {
@@ -849,10 +847,7 @@ func Benchmark(b *testing.B) {
 
 }
 
-const (
-	testUid = 10
-	testGid = 20
-)
+var _ fileInfoNames = fileInfoNames{}
 
 type fileInfoNames struct{}
 
@@ -880,39 +875,24 @@ func (f *fileInfoNames) Sys() any {
 	return nil
 }
 
-func (f *fileInfoNames) Uname(uid int) (string, error) {
-	if uid == testUid {
-		return "Uname", nil
-	}
-	return "", nil
+func (f *fileInfoNames) Uname() (string, error) {
+	return "Uname", nil
 }
 
-func (f *fileInfoNames) Gname(gid int) (string, error) {
-	if gid == testGid {
-		return "Gname", nil
-	}
-	return "", nil
+func (f *fileInfoNames) Gname() (string, error) {
+	return "Gname", nil
 }
 
 func TestFileInfoHeaderUseFileInfoNames(t *testing.T) {
-	origLoadUidAndGid := loadUidAndGid
-	defer func() {
-		loadUidAndGid = origLoadUidAndGid
-	}()
-	loadUidAndGid = func(fi fs.FileInfo, uid, gid *int) {
-		*uid = testUid
-		*gid = testGid
-	}
-
 	info := &fileInfoNames{}
 	header, err := FileInfoHeader(info, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if header.Uname != "Uname" {
-		t.Fatalf("header.Uname: got %v, want %v", header.Uname, "Uname")
+		t.Fatalf("header.Uname: got %s, want %s", header.Uname, "Uname")
 	}
 	if header.Gname != "Gname" {
-		t.Fatalf("header.Gname: got %v, want %v", header.Gname, "Gname")
+		t.Fatalf("header.Gname: got %s, want %s", header.Gname, "Gname")
 	}
 }

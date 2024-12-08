@@ -4,6 +4,8 @@
 
 package strconv
 
+import "internal/stringslite"
+
 const fnParseComplex = "ParseComplex"
 
 // convErr splits an error returned by parseFloatPrefix
@@ -11,7 +13,7 @@ const fnParseComplex = "ParseComplex"
 func convErr(err error, s string) (syntax, range_ error) {
 	if x, ok := err.(*NumError); ok {
 		x.Func = fnParseComplex
-		x.Num = cloneString(s)
+		x.Num = stringslite.Clone(s)
 		if x.Err == ErrRange {
 			return nil, x
 		}
@@ -25,13 +27,13 @@ func convErr(err error, s string) (syntax, range_ error) {
 // convertible to complex64 without changing its value.
 //
 // The number represented by s must be of the form N, Ni, or N±Ni, where N stands
-// for a floating-point number as recognized by ParseFloat, and i is the imaginary
+// for a floating-point number as recognized by [ParseFloat], and i is the imaginary
 // component. If the second N is unsigned, a + sign is required between the two components
 // as indicated by the ±. If the second N is NaN, only a + sign is accepted.
 // The form may be parenthesized and cannot contain any spaces.
 // The resulting complex number consists of the two components converted by ParseFloat.
 //
-// The errors that ParseComplex returns have concrete type *NumError
+// The errors that ParseComplex returns have concrete type [*NumError]
 // and include err.Num = s.
 //
 // If s is not syntactically well-formed, ParseComplex returns err.Err = ErrSyntax.

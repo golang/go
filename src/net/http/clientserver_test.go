@@ -15,8 +15,10 @@ import (
 	"crypto/tls"
 	"fmt"
 	"hash"
+	"internal/synctest"
 	"io"
 	"log"
+	"maps"
 	"net"
 	. "net/http"
 	"net/http/httptest"
@@ -27,7 +29,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,9 +40,10 @@ import (
 type testMode string
 
 const (
-	http1Mode  = testMode("h1")     // HTTP/1.1
-	https1Mode = testMode("https1") // HTTPS/1.1
-	http2Mode  = testMode("h2")     // HTTP/2
+	http1Mode            = testMode("h1")            // HTTP/1.1
+	https1Mode           = testMode("https1")        // HTTPS/1.1
+	http2Mode            = testMode("h2")            // HTTP/2
+	http2UnencryptedMode = testMode("h2unencrypted") // HTTP/2
 )
 
 type testNotParallelOpt struct{}
@@ -92,6 +95,37 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 	}
 }
 
+// cleanupT wraps a testing.T and adds its own Cleanup method.
+// Used to execute cleanup functions within a synctest bubble.
+type cleanupT struct {
+	*testing.T
+	cleanups []func()
+}
+
+// Cleanup replaces T.Cleanup.
+func (t *cleanupT) Cleanup(f func()) {
+	t.cleanups = append(t.cleanups, f)
+}
+
+func (t *cleanupT) done() {
+	for _, f := range slices.Backward(t.cleanups) {
+		f()
+	}
+}
+
+// runSynctest is run combined with synctest.Run.
+//
+// The TB passed to f arranges for cleanup functions to be run in the synctest bubble.
+func runSynctest(t *testing.T, f func(t testing.TB, mode testMode), opts ...any) {
+	run(t, func(t *testing.T, mode testMode) {
+		synctest.Run(func() {
+			ct := &cleanupT{T: t}
+			defer ct.done()
+			f(ct, mode)
+		})
+	}, opts...)
+}
+
 type clientServerTest struct {
 	t  testing.TB
 	h2 bool
@@ -99,6 +133,7 @@ type clientServerTest struct {
 	ts *httptest.Server
 	tr *Transport
 	c  *Client
+	li *fakeNetListener
 }
 
 func (t *clientServerTest) close() {
@@ -136,6 +171,8 @@ func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
 	}
 }
 
+var optFakeNet = new(struct{})
+
 // newClientServerTest creates and starts an httptest.Server.
 //
 // The mode parameter selects the implementation to test:
@@ -147,6 +184,9 @@ func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
 //
 //	func(*httptest.Server) // run before starting the server
 //	func(*http.Transport)
+//
+// The optFakeNet option configures the server and client to use a fake network implementation,
+// suitable for use in testing/synctest tests.
 func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *clientServerTest {
 	if mode == http2Mode {
 		CondSkipHTTP2(t)
@@ -156,9 +196,31 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		h2: mode == http2Mode,
 		h:  h,
 	}
-	cst.ts = httptest.NewUnstartedServer(h)
 
 	var transportFuncs []func(*Transport)
+
+	if idx := slices.Index(opts, any(optFakeNet)); idx >= 0 {
+		opts = slices.Delete(opts, idx, idx+1)
+		cst.li = fakeNetListen()
+		cst.ts = &httptest.Server{
+			Config:   &Server{Handler: h},
+			Listener: cst.li,
+		}
+		transportFuncs = append(transportFuncs, func(tr *Transport) {
+			tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return cst.li.connect(), nil
+			}
+		})
+	} else {
+		cst.ts = httptest.NewUnstartedServer(h)
+	}
+
+	if mode == http2UnencryptedMode {
+		p := &Protocols{}
+		p.SetUnencryptedHTTP2(true)
+		cst.ts.Config.Protocols = p
+	}
+
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case func(*Transport):
@@ -179,6 +241,9 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		cst.ts.Start()
 	case https1Mode:
 		cst.ts.StartTLS()
+	case http2UnencryptedMode:
+		ExportHttp2ConfigureServer(cst.ts.Config, nil)
+		cst.ts.Start()
 	case http2Mode:
 		ExportHttp2ConfigureServer(cst.ts.Config, nil)
 		cst.ts.TLS = cst.ts.Config.TLSConfig
@@ -188,7 +253,7 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	}
 	cst.c = cst.ts.Client()
 	cst.tr = cst.c.Transport.(*Transport)
-	if mode == http2Mode {
+	if mode == http2Mode || mode == http2UnencryptedMode {
 		if err := ExportHttp2ConfigureTransport(cst.tr); err != nil {
 			t.Fatal(err)
 		}
@@ -196,6 +261,13 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	for _, f := range transportFuncs {
 		f(cst.tr)
 	}
+
+	if mode == http2UnencryptedMode {
+		p := &Protocols{}
+		p.SetUnencryptedHTTP2(true)
+		cst.tr.Protocols = p
+	}
+
 	t.Cleanup(func() {
 		cst.close()
 	})
@@ -213,9 +285,19 @@ func (w testLogWriter) Write(b []byte) (int, error) {
 
 // Testing the newClientServerTest helper itself.
 func TestNewClientServerTest(t *testing.T) {
-	run(t, testNewClientServerTest, []testMode{http1Mode, https1Mode, http2Mode})
+	modes := []testMode{http1Mode, https1Mode, http2Mode}
+	t.Run("realnet", func(t *testing.T) {
+		run(t, func(t *testing.T, mode testMode) {
+			testNewClientServerTest(t, mode)
+		}, modes)
+	})
+	t.Run("synctest", func(t *testing.T) {
+		runSynctest(t, func(t testing.TB, mode testMode) {
+			testNewClientServerTest(t, mode, optFakeNet)
+		}, modes)
+	})
 }
-func testNewClientServerTest(t *testing.T, mode testMode) {
+func testNewClientServerTest(t testing.TB, mode testMode, opts ...any) {
 	var got struct {
 		sync.Mutex
 		proto  string
@@ -227,7 +309,7 @@ func testNewClientServerTest(t *testing.T, mode testMode) {
 		got.proto = r.Proto
 		got.hasTLS = r.TLS != nil
 	})
-	cst := newClientServerTest(t, mode, h)
+	cst := newClientServerTest(t, mode, h, opts...)
 	if _, err := cst.c.Head(cst.ts.URL); err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +356,7 @@ func testChunkedResponseHeaders(t *testing.T, mode testMode) {
 	if mode == http2Mode {
 		wantTE = nil
 	}
-	if !reflect.DeepEqual(res.TransferEncoding, wantTE) {
+	if !slices.Equal(res.TransferEncoding, wantTE) {
 		t.Errorf("TransferEncoding = %v; want %v", res.TransferEncoding, wantTE)
 	}
 	if got, haveCL := res.Header["Content-Length"]; haveCL {
@@ -510,19 +592,35 @@ func TestH12_HandlerWritesTooLittle(t *testing.T) {
 // doesn't make it possible to send bogus data. For those tests, see
 // transport_test.go (for HTTP/1) or x/net/http2/transport_test.go
 // (for HTTP/2).
-func TestH12_HandlerWritesTooMuch(t *testing.T) {
-	h12Compare{
-		Handler: func(w ResponseWriter, r *Request) {
-			w.Header().Set("Content-Length", "3")
-			w.(Flusher).Flush()
-			io.WriteString(w, "123")
-			w.(Flusher).Flush()
-			n, err := io.WriteString(w, "x") // too many
-			if n > 0 || err == nil {
-				t.Errorf("for proto %q, final write = %v, %v; want 0, some error", r.Proto, n, err)
-			}
-		},
-	}.run(t)
+func TestHandlerWritesTooMuch(t *testing.T) { run(t, testHandlerWritesTooMuch) }
+func testHandlerWritesTooMuch(t *testing.T, mode testMode) {
+	wantBody := []byte("123")
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		rc := NewResponseController(w)
+		w.Header().Set("Content-Length", fmt.Sprintf("%v", len(wantBody)))
+		rc.Flush()
+		w.Write(wantBody)
+		rc.Flush()
+		n, err := io.WriteString(w, "x") // too many
+		if err == nil {
+			err = rc.Flush()
+		}
+		// TODO: Check that this is ErrContentLength, not just any error.
+		if err == nil {
+			t.Errorf("for proto %q, final write = %v, %v; want _, some error", r.Proto, n, err)
+		}
+	}))
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	gotBody, _ := io.ReadAll(res.Body)
+	if !bytes.Equal(gotBody, wantBody) {
+		t.Fatalf("got response body: %q; want %q", gotBody, wantBody)
+	}
 }
 
 // Verify that both our HTTP/1 and HTTP/2 request and auto-decompress gzip.
@@ -673,12 +771,6 @@ func testCancelRequestMidBody(t *testing.T, mode testMode) {
 func TestTrailersClientToServer(t *testing.T) { run(t, testTrailersClientToServer) }
 func testTrailersClientToServer(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		var decl []string
-		for k := range r.Trailer {
-			decl = append(decl, k)
-		}
-		sort.Strings(decl)
-
 		slurp, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("Server reading request body: %v", err)
@@ -689,6 +781,7 @@ func testTrailersClientToServer(t *testing.T, mode testMode) {
 		if r.Trailer == nil {
 			io.WriteString(w, "nil Trailer")
 		} else {
+			decl := slices.Sorted(maps.Keys(r.Trailer))
 			fmt.Fprintf(w, "decl: %v, vals: %s, %s",
 				decl,
 				r.Trailer.Get("Client-Trailer-A"),
@@ -1586,6 +1679,7 @@ func testBidiStreamReverseProxy(t *testing.T, mode testMode) {
 		_, err := io.CopyN(io.MultiWriter(h, pw), rand.Reader, size)
 		go pw.Close()
 		if err != nil {
+			t.Errorf("body copy: %v", err)
 			bodyRes <- err
 		} else {
 			bodyRes <- h

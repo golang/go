@@ -6,10 +6,13 @@ package sync_test
 
 import (
 	"bytes"
+	"math"
 	"runtime"
 	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"testing"
+	_ "unsafe"
 )
 
 // We assume that the Once.Do tests have already covered parallelism.
@@ -181,6 +184,53 @@ func TestOnceFuncPanicTraceback(t *testing.T) {
 func onceFuncPanic() {
 	panic("x")
 }
+
+func TestOnceXGC(t *testing.T) {
+	fns := map[string]func([]byte) func(){
+		"OnceFunc": func(buf []byte) func() {
+			return sync.OnceFunc(func() { buf[0] = 1 })
+		},
+		"OnceValue": func(buf []byte) func() {
+			f := sync.OnceValue(func() any { buf[0] = 1; return nil })
+			return func() { f() }
+		},
+		"OnceValues": func(buf []byte) func() {
+			f := sync.OnceValues(func() (any, any) { buf[0] = 1; return nil, nil })
+			return func() { f() }
+		},
+	}
+	for n, fn := range fns {
+		t.Run(n, func(t *testing.T) {
+			buf := make([]byte, 1024)
+			var gc atomic.Bool
+			runtime.SetFinalizer(&buf[0], func(_ *byte) {
+				gc.Store(true)
+			})
+			f := fn(buf)
+			gcwaitfin()
+			if gc.Load() != false {
+				t.Fatal("wrapped function garbage collected too early")
+			}
+			f()
+			gcwaitfin()
+			if gc.Load() != true {
+				// Even if f is still alive, the function passed to Once(Func|Value|Values)
+				// is not kept alive after the first call to f.
+				t.Fatal("wrapped function should be garbage collected, but still live")
+			}
+			f()
+		})
+	}
+}
+
+// gcwaitfin performs garbage collection and waits for all finalizers to run.
+func gcwaitfin() {
+	runtime.GC()
+	runtime_blockUntilEmptyFinalizerQueue(math.MaxInt64)
+}
+
+//go:linkname runtime_blockUntilEmptyFinalizerQueue runtime.blockUntilEmptyFinalizerQueue
+func runtime_blockUntilEmptyFinalizerQueue(int64) bool
 
 var (
 	onceFunc = sync.OnceFunc(func() {})

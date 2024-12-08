@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 const Doc = `check for mistakes using HTTP responses
@@ -116,7 +117,8 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
 	if res.Len() != 2 {
 		return false // the function called does not return two values.
 	}
-	if ptr, ok := res.At(0).Type().(*types.Pointer); !ok || !isNamedType(ptr.Elem(), "net/http", "Response") {
+	isPtr, named := typesinternal.ReceiverNamed(res.At(0))
+	if !isPtr || named == nil || !analysisutil.IsNamedType(named, "net/http", "Response") {
 		return false // the first return type is not *http.Response.
 	}
 
@@ -131,11 +133,11 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
 		return ok && id.Name == "http" // function in net/http package.
 	}
 
-	if isNamedType(typ, "net/http", "Client") {
+	if analysisutil.IsNamedType(typ, "net/http", "Client") {
 		return true // method on http.Client.
 	}
-	ptr, ok := typ.(*types.Pointer)
-	return ok && isNamedType(ptr.Elem(), "net/http", "Client") // method on *http.Client.
+	ptr, ok := types.Unalias(typ).(*types.Pointer)
+	return ok && analysisutil.IsNamedType(ptr.Elem(), "net/http", "Client") // method on *http.Client.
 }
 
 // restOfBlock, given a traversal stack, finds the innermost containing
@@ -170,14 +172,4 @@ func rootIdent(n ast.Node) *ast.Ident {
 	default:
 		return nil
 	}
-}
-
-// isNamedType reports whether t is the named type path.name.
-func isNamedType(t types.Type, path, name string) bool {
-	n, ok := t.(*types.Named)
-	if !ok {
-		return false
-	}
-	obj := n.Obj()
-	return obj.Name() == name && obj.Pkg() != nil && obj.Pkg().Path() == path
 }

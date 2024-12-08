@@ -323,29 +323,23 @@ func tJS(c context, s []byte) (context, int) {
 	case '{':
 		// We only care about tracking brace depth if we are inside of a
 		// template literal.
-		if c.jsTmplExprDepth == 0 {
+		if len(c.jsBraceDepth) == 0 {
 			return c, i + 1
 		}
-		c.jsBraceDepth++
+		c.jsBraceDepth[len(c.jsBraceDepth)-1]++
 	case '}':
-		if c.jsTmplExprDepth == 0 {
+		if len(c.jsBraceDepth) == 0 {
 			return c, i + 1
 		}
-		for j := 0; j <= i; j++ {
-			switch s[j] {
-			case '\\':
-				j++
-			case '{':
-				c.jsBraceDepth++
-			case '}':
-				c.jsBraceDepth--
-			}
-		}
-		if c.jsBraceDepth >= 0 {
+		// There are no cases where a brace can be escaped in the JS context
+		// that are not syntax errors, it seems. Because of this we can just
+		// count "\}" as "}" and move on, the script is already broken as
+		// fully fledged parsers will just fail anyway.
+		c.jsBraceDepth[len(c.jsBraceDepth)-1]--
+		if c.jsBraceDepth[len(c.jsBraceDepth)-1] >= 0 {
 			return c, i + 1
 		}
-		c.jsTmplExprDepth--
-		c.jsBraceDepth = 0
+		c.jsBraceDepth = c.jsBraceDepth[:len(c.jsBraceDepth)-1]
 		c.state = stateJSTmplLit
 	default:
 		panic("unreachable")
@@ -354,7 +348,6 @@ func tJS(c context, s []byte) (context, int) {
 }
 
 func tJSTmpl(c context, s []byte) (context, int) {
-	c.jsBraceDepth = 0
 	var k int
 	for {
 		i := k + bytes.IndexAny(s[k:], "`\\$")
@@ -372,8 +365,7 @@ func tJSTmpl(c context, s []byte) (context, int) {
 			}
 		case '$':
 			if len(s) >= i+2 && s[i+1] == '{' {
-				c.jsTmplExprDepth++
-				c.jsBraceDepth = 0
+				c.jsBraceDepth = append(c.jsBraceDepth, 0)
 				c.state = stateJS
 				return c, i + 2
 			}
@@ -422,7 +414,7 @@ func tJSDelimited(c context, s []byte) (context, int) {
 			// If "</script" appears in a regex literal, the '/' should not
 			// close the regex literal, and it will later be escaped to
 			// "\x3C/script" in escapeText.
-			if i > 0 && i+7 <= len(s) && bytes.Compare(bytes.ToLower(s[i-1:i+7]), []byte("</script")) == 0 {
+			if i > 0 && i+7 <= len(s) && bytes.Equal(bytes.ToLower(s[i-1:i+7]), []byte("</script")) {
 				i++
 			} else if !inCharset {
 				c.state, c.jsCtx = stateJS, jsCtxDivOp

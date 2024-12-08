@@ -9,7 +9,7 @@ import (
 	"io"
 	"log"
 	"net"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"sync"
 	"time"
 	_ "unsafe" // for go:linkname
@@ -18,6 +18,7 @@ import (
 // The bug is that netpollWaiters increases monotonically.
 // This doesn't cause a problem until it overflows.
 // Use linkname to see the value.
+//
 //go:linkname netpollWaiters runtime.netpollWaiters
 var netpollWaiters atomic.Uint32
 

@@ -6,7 +6,7 @@
 
 package runtime
 
-import "runtime/internal/atomic"
+import "internal/runtime/atomic"
 
 var netpollInited atomic.Uint32
 
@@ -32,7 +32,9 @@ func netpollBreak() {
 }
 
 // Polls for ready network connections.
-// Returns list of goroutines that become runnable.
+// Returns a list of goroutines that become runnable,
+// and a delta to add to netpollWaiters.
+// This must never return an empty list with a non-zero delta.
 func netpoll(delay int64) (gList, int32) {
 	// Implementation for platforms that do not support
 	// integrated network poller.

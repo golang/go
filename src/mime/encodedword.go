@@ -226,7 +226,7 @@ func (d *WordDecoder) Decode(word string) (string, error) {
 }
 
 // DecodeHeader decodes all encoded-words of the given string. It returns an
-// error if and only if CharsetReader of d returns an error.
+// error if and only if [WordDecoder.CharsetReader] of d returns an error.
 func (d *WordDecoder) DecodeHeader(header string) (string, error) {
 	// If there is no encoded-word, returns before creating a buffer.
 	i := strings.Index(header, "=?")

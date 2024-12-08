@@ -8,6 +8,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"sort"
+	"sync"
 )
 
 const debugDecode = false
@@ -111,6 +113,47 @@ const (
 	TypeLast                 // must be the last one
 )
 
+type InstMaskMap struct {
+	mask uint64
+	insn map[uint64]*instFormat
+}
+
+// Note, plxv/pstxv have a 5 bit opcode in the second instruction word. Only match the most significant 5 of 6 bits of the second primary opcode.
+const lookupOpcodeMask = uint64(0xFC000000F8000000)
+
+// Three level lookup for any instruction:
+//  1. Primary opcode map to a list of secondary opcode maps.
+//  2. A list of opcodes with distinct masks, sorted by largest to smallest mask.
+//  3. A map to a specific opcodes with a given mask.
+var getLookupMap = sync.OnceValue(func() map[uint64][]InstMaskMap {
+	lMap := make(map[uint64][]InstMaskMap)
+	for idx, _ := range instFormats {
+		i := &instFormats[idx]
+		pop := i.Value & lookupOpcodeMask
+		var me *InstMaskMap
+		masks := lMap[pop]
+		for im, m := range masks {
+			if m.mask == i.Mask {
+				me = &masks[im]
+				break
+			}
+		}
+		if me == nil {
+			me = &InstMaskMap{i.Mask, map[uint64]*instFormat{}}
+			masks = append(masks, *me)
+		}
+		me.insn[i.Value] = i
+		lMap[pop] = masks
+	}
+	// Reverse sort masks to ensure extended mnemonics match before more generic forms of an opcode (e.x nop over ori 0,0,0)
+	for _, v := range lMap {
+		sort.Slice(v, func(i, j int) bool {
+			return v[i].mask > v[j].mask
+		})
+	}
+	return lMap
+})
+
 func (t ArgType) String() string {
 	switch t {
 	default:
@@ -191,10 +234,13 @@ func Decode(src []byte, ord binary.ByteOrder) (inst Inst, err error) {
 		ui |= uint64(ui_extn[1])
 		inst.SuffixEnc = ui_extn[1]
 	}
-	for i, iform := range instFormats {
-		if ui&iform.Mask != iform.Value {
+
+	fmts := getLookupMap()[ui&lookupOpcodeMask]
+	for i, masks := range fmts {
+		if _, fnd := masks.insn[masks.mask&ui]; !fnd {
 			continue
 		}
+		iform := masks.insn[masks.mask&ui]
 		if ui&iform.DontCare != 0 {
 			if debugDecode {
 				log.Printf("Decode(%#x): unused bit is 1 for Op %s", ui, iform.Op)

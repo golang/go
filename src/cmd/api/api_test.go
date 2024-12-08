@@ -11,7 +11,7 @@ import (
 	"internal/testenv"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -77,7 +77,7 @@ func TestGolden(t *testing.T) {
 			t.Fatalf("opening golden.txt for package %q: %v", fi.Name(), err)
 		}
 		wanted := strings.Split(string(bs), "\n")
-		sort.Strings(wanted)
+		slices.Sort(wanted)
 		for _, feature := range wanted {
 			if feature == "" {
 				continue
@@ -282,6 +282,25 @@ func TestIssue41358(t *testing.T) {
 		if strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "golang.org/x/") {
 			t.Fatalf("stdPackages contains unexpected package %s", pkg)
 		}
+	}
+}
+
+func TestIssue64958(t *testing.T) {
+	defer func() {
+		if x := recover(); x != nil {
+			t.Errorf("expected no panic; recovered %v", x)
+		}
+	}()
+
+	testenv.MustHaveGoBuild(t)
+
+	for _, context := range contexts {
+		w := NewWalker(context, "testdata/src/issue64958")
+		pkg, err := w.importFrom("p", "", 0)
+		if err != nil {
+			t.Errorf("expected no error importing; got %T", err)
+		}
+		w.export(pkg)
 	}
 }
 

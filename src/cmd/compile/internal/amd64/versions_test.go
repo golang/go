@@ -78,7 +78,7 @@ func TestGoAMD64v1(t *testing.T) {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=%s", strings.Join(features, ",")))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("couldn't execute test: %s", err)
+		t.Fatalf("couldn't execute test: %s\n%s", err, out)
 	}
 	// Expect to see output of the form "PASS\n", unless the test binary
 	// was compiled for coverage (in which case there will be an extra line).

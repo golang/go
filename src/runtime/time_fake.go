@@ -31,6 +31,7 @@ var faketimeState struct {
 	lastfd uintptr
 }
 
+//go:linkname nanotime
 //go:nosplit
 func nanotime() int64 {
 	return faketime

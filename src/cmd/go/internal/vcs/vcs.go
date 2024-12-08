@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/web"
+	"cmd/internal/pathcache"
 
 	"golang.org/x/mod/module"
 )
@@ -36,6 +37,7 @@ import (
 type Cmd struct {
 	Name      string
 	Cmd       string     // name of binary to invoke command
+	Env       []string   // any environment values to set/override
 	RootNames []rootName // filename and mode indicating the root of a checkout directory
 
 	CreateCmd   []string // commands to download a fresh copy of a repository
@@ -153,6 +155,10 @@ func vcsByCmd(cmd string) *Cmd {
 var vcsHg = &Cmd{
 	Name: "Mercurial",
 	Cmd:  "hg",
+
+	// HGPLAIN=1 turns off additional output that a user may have enabled via
+	// config options or certain extensions.
+	Env: []string{"HGPLAIN=1"},
 	RootNames: []rootName{
 		{filename: ".hg", isDir: true},
 	},
@@ -188,12 +194,11 @@ func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
 
 func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
 	// Output changeset ID and seconds since epoch.
-	out, err := vcsHg.runOutputVerboseOnly(rootDir, `log -l1 -T {node}:{date|hgdate}`)
+	out, err := vcsHg.runOutputVerboseOnly(rootDir, `log -r. -T {node}:{date|hgdate}`)
 	if err != nil {
 		return Status{}, err
 	}
 
-	// Successful execution without output indicates an empty repo (no commits).
 	var rev string
 	var commitTime time.Time
 	if len(out) > 0 {
@@ -208,7 +213,7 @@ func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
 	}
 
 	// Also look for untracked files.
-	out, err = vcsHg.runOutputVerboseOnly(rootDir, "status")
+	out, err = vcsHg.runOutputVerboseOnly(rootDir, "status -S")
 	if err != nil {
 		return Status{}, err
 	}
@@ -331,12 +336,12 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
 	}
 	uncommitted := len(out) > 0
 
-	// "git status" works for empty repositories, but "git show" does not.
-	// Assume there are no commits in the repo when "git show" fails with
+	// "git status" works for empty repositories, but "git log" does not.
+	// Assume there are no commits in the repo when "git log" fails with
 	// uncommitted files and skip tagging revision / committime.
 	var rev string
 	var commitTime time.Time
-	out, err = vcsGit.runOutputVerboseOnly(rootDir, "-c log.showsignature=false show -s --format=%H:%ct")
+	out, err = vcsGit.runOutputVerboseOnly(rootDir, "-c log.showsignature=false log -1 --format=%H:%ct")
 	if err != nil && !uncommitted {
 		return Status{}, err
 	} else if err == nil {
@@ -678,7 +683,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 		args = args[2:]
 	}
 
-	_, err := cfg.LookPath(v.Cmd)
+	_, err := pathcache.LookPath(v.Cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
 			"go: missing %s command. See https://golang.org/s/gogetcmd\n",
@@ -688,6 +693,9 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 
 	cmd := exec.Command(v.Cmd, args...)
 	cmd.Dir = dir
+	if v.Env != nil {
+		cmd.Env = append(cmd.Environ(), v.Env...)
+	}
 	if cfg.BuildX {
 		fmt.Fprintf(os.Stderr, "cd %s\n", dir)
 		fmt.Fprintf(os.Stderr, "%s %s\n", v.Cmd, strings.Join(args, " "))
@@ -1171,18 +1179,31 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 			var ok bool
 			repoURL, ok = interceptVCSTest(repo, vcs, security)
 			if !ok {
-				scheme := vcs.Scheme[0] // default to first scheme
-				if vcs.PingCmd != "" {
-					// If we know how to test schemes, scan to find one.
+				scheme, err := func() (string, error) {
 					for _, s := range vcs.Scheme {
 						if security == web.SecureOnly && !vcs.isSecureScheme(s) {
 							continue
 						}
-						if vcs.Ping(s, repo) == nil {
-							scheme = s
-							break
+
+						// If we know how to ping URL schemes for this VCS,
+						// check that this repo works.
+						// Otherwise, default to the first scheme
+						// that meets the requested security level.
+						if vcs.PingCmd == "" {
+							return s, nil
+						}
+						if err := vcs.Ping(s, repo); err == nil {
+							return s, nil
 						}
 					}
+					securityFrag := ""
+					if security == web.SecureOnly {
+						securityFrag = "secure "
+					}
+					return "", fmt.Errorf("no %sprotocol found for repository", securityFrag)
+				}()
+				if err != nil {
+					return nil, err
 				}
 				repoURL = scheme + "://" + repo
 			}

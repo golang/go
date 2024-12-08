@@ -20,16 +20,20 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/telemetry/counter"
 )
 
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("asm: ")
+	counter.Open()
 
 	buildcfg.Check()
 	GOARCH := buildcfg.GOARCH
 
 	flags.Parse()
+	counter.Inc("asm/invocations")
+	counter.CountFlags("asm/flag:", *flag.CommandLine)
 
 	architecture := arch.Set(GOARCH, *flags.Shared || *flags.Dynlink)
 	if architecture == nil {

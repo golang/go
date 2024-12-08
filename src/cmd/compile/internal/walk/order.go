@@ -7,10 +7,12 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -218,7 +220,12 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 //
 //	n.Left = o.addrTemp(n.Left)
 func (o *orderState) addrTemp(n ir.Node) ir.Node {
-	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
+	// Note: Avoid addrTemp with static assignment for literal strings
+	// when compiling FIPS packages.
+	// The problem is that panic("foo") ends up creating a static RODATA temp
+	// for the implicit conversion of "foo" to any, and we can't handle
+	// the relocations in that temp.
+	if n.Op() == ir.ONIL || (n.Op() == ir.OLITERAL && !base.Ctxt.IsFIPS()) {
 		// TODO: expand this to all static composite literal nodes?
 		n = typecheck.DefaultLit(n, nil)
 		types.CalcSize(n.Type())
@@ -231,14 +238,29 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 		vstat = typecheck.Expr(vstat).(*ir.Name)
 		return vstat
 	}
+
+	// Prevent taking the address of an SSA-able local variable (#63332).
+	//
+	// TODO(mdempsky): Note that OuterValue unwraps OCONVNOPs, but
+	// IsAddressable does not. It should be possible to skip copying for
+	// at least some of these OCONVNOPs (e.g., reinsert them after the
+	// OADDR operation), but at least walkCompare needs to be fixed to
+	// support that (see trybot failures on go.dev/cl/541715, PS1).
 	if ir.IsAddressable(n) {
+		if name, ok := ir.OuterValue(n).(*ir.Name); ok && name.Op() == ir.ONAME {
+			if name.Class == ir.PAUTO && !name.Addrtaken() && ssa.CanSSA(name.Type()) {
+				goto Copy
+			}
+		}
+
 		return n
 	}
+
+Copy:
 	return o.copyExpr(n)
 }
 
 // mapKeyTemp prepares n to be a key in a map runtime call and returns n.
-// It should only be used for map runtime calls which have *_fast* versions.
 // The first parameter is the position of n's containing node, for use in case
 // that n's position is not unique (e.g., if n is an ONAME).
 func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.Node {
@@ -431,7 +453,7 @@ func (o *orderState) edge() {
 	// never 0.
 	// Another policy presented in the paper is the Saturated Counters policy which
 	// freezes the counter when it reaches the value of 255. However, a range
-	// of experiments showed that that decreases overall performance.
+	// of experiments showed that doing so decreases overall performance.
 	o.append(ir.NewIfStmt(base.Pos,
 		ir.NewBinaryExpr(base.Pos, ir.OEQ, counter, ir.NewInt(base.Pos, 0xff)),
 		[]ir.Node{ir.NewAssignStmt(base.Pos, counter, ir.NewInt(base.Pos, 1))},
@@ -538,7 +560,7 @@ func (o *orderState) call(nn ir.Node) {
 	n := nn.(*ir.CallExpr)
 	typecheck.AssertFixedCall(n)
 
-	if ir.IsFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
+	if ir.IsFuncPCIntrinsic(n) && ir.IsIfaceOfFunc(n.Args[0]) != nil {
 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
 		// do not introduce temporaries here, so it is easier to rewrite it
 		// to symbol address reference later in walk.
@@ -603,8 +625,43 @@ func (o *orderState) stmt(n ir.Node) {
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
 		t := o.markTemp()
+
+		// There's a delicate interaction here between two OINDEXMAP
+		// optimizations.
+		//
+		// First, we want to handle m[k] = append(m[k], ...) with a single
+		// runtime call to mapassign. This requires the m[k] expressions to
+		// satisfy ir.SameSafeExpr in walkAssign.
+		//
+		// But if k is a slow map key type that's passed by reference (e.g.,
+		// byte), then we want to avoid marking user variables as addrtaken,
+		// if that might prevent the compiler from keeping k in a register.
+		//
+		// TODO(mdempsky): It would be better if walk was responsible for
+		// inserting temporaries as needed.
+		mapAppend := n.X.Op() == ir.OINDEXMAP && n.Y.Op() == ir.OAPPEND &&
+			ir.SameSafeExpr(n.X, n.Y.(*ir.CallExpr).Args[0])
+
 		n.X = o.expr(n.X, nil)
-		n.Y = o.expr(n.Y, n.X)
+		if mapAppend {
+			indexLHS := n.X.(*ir.IndexExpr)
+			indexLHS.X = o.cheapExpr(indexLHS.X)
+			indexLHS.Index = o.cheapExpr(indexLHS.Index)
+
+			call := n.Y.(*ir.CallExpr)
+			arg0 := call.Args[0]
+			// ir.SameSafeExpr skips OCONVNOPs, so we must do the same here (#66096).
+			for arg0.Op() == ir.OCONVNOP {
+				arg0 = arg0.(*ir.ConvExpr).X
+			}
+			indexRHS := arg0.(*ir.IndexExpr)
+			indexRHS.X = indexLHS.X
+			indexRHS.Index = indexLHS.Index
+
+			o.exprList(call.Args[1:])
+		} else {
+			n.Y = o.expr(n.Y, n.X)
+		}
 		o.mapAssign(n)
 		o.popTemp(t)
 
@@ -875,7 +932,11 @@ func (o *orderState) stmt(n ir.Node) {
 
 			// n.Prealloc is the temp for the iterator.
 			// MapIterType contains pointers and needs to be zeroed.
-			n.Prealloc = o.newTemp(reflectdata.MapIterType(), true)
+			if buildcfg.Experiment.SwissMap {
+				n.Prealloc = o.newTemp(reflectdata.SwissMapIterType(), true)
+			} else {
+				n.Prealloc = o.newTemp(reflectdata.OldMapIterType(), true)
+			}
 		}
 		n.Key = o.exprInPlace(n.Key)
 		n.Value = o.exprInPlace(n.Value)
@@ -1158,7 +1219,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 			}
 		}
 
-		// key must be addressable
+		// key may need to be addressable
 		n.Index = o.mapKeyTemp(n.Pos(), n.X.Type(), n.Index)
 		if needCopy {
 			return o.copyExpr(n)
@@ -1501,9 +1562,4 @@ func (o *orderState) as2ok(n *ir.AssignListStmt) {
 
 	o.out = append(o.out, n)
 	o.stmt(typecheck.Stmt(as))
-}
-
-// isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.
-func isIfaceOfFunc(n ir.Node) bool {
-	return n.Op() == ir.OCONVIFACE && n.(*ir.ConvExpr).X.Op() == ir.ONAME && n.(*ir.ConvExpr).X.(*ir.Name).Class == ir.PFUNC
 }

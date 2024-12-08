@@ -325,7 +325,7 @@ func (d *dstate) Finish() {
 	// d.format maybe nil here if the specified input dir was empty.
 	if d.format != nil {
 		if d.cmd == percentMode {
-			d.format.EmitPercent(os.Stdout, "", false, false)
+			d.format.EmitPercent(os.Stdout, nil, "", false, false)
 		}
 		if d.cmd == funcMode {
 			d.format.EmitFuncs(os.Stdout)

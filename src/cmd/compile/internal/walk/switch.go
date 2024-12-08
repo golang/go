@@ -5,11 +5,14 @@
 package walk
 
 import (
+	"cmp"
 	"fmt"
 	"go/constant"
 	"go/token"
 	"math/bits"
+	"slices"
 	"sort"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -172,13 +175,13 @@ func (s *exprSwitch) flush() {
 		// much cheaper to compare lengths than values, and
 		// all we need here is consistency. We respect this
 		// sorting below.
-		sort.Slice(cc, func(i, j int) bool {
-			si := ir.StringVal(cc[i].lo)
-			sj := ir.StringVal(cc[j].lo)
+		slices.SortFunc(cc, func(a, b exprClause) int {
+			si := ir.StringVal(a.lo)
+			sj := ir.StringVal(b.lo)
 			if len(si) != len(sj) {
-				return len(si) < len(sj)
+				return cmp.Compare(len(si), len(sj))
 			}
-			return si < sj
+			return strings.Compare(si, sj)
 		})
 
 		// runLen returns the string length associated with a
@@ -437,6 +440,13 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 		// we're looking for is not a compile-time constant (typ.Type()
 		// will be its shape).
 		typ ir.Node
+
+		// For a single runtime known type with a case var, create a
+		// temporary variable to hold the value returned by the dynamic
+		// type assert expr, so that we do not need one more dynamic
+		// type assert expr later.
+		val ir.Node
+		idx int // index of the single runtime known type in sw.Cases
 	}
 	var cases []oneCase
 	var defaultGoto, nilGoto ir.Node
@@ -456,27 +466,19 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 				nilGoto = jmp
 				continue
 			}
-			if n1.Op() == ir.ODYNAMICTYPE {
-				// Convert dynamic to static, if the dynamic is actually static.
-				// TODO: why isn't this OTYPE to begin with?
-				dt := n1.(*ir.DynamicType)
-				if dt.RType != nil && dt.RType.Op() == ir.OADDR {
-					addr := dt.RType.(*ir.AddrExpr)
-					if addr.X.Op() == ir.OLINKSYMOFFSET {
-						n1 = ir.TypeNode(n1.Type())
-					}
-				}
-				if dt.ITab != nil && dt.ITab.Op() == ir.OADDR {
-					addr := dt.ITab.(*ir.AddrExpr)
-					if addr.X.Op() == ir.OLINKSYMOFFSET {
-						n1 = ir.TypeNode(n1.Type())
-					}
-				}
+			idx := -1
+			var val ir.Node
+			// for a single runtime known type with a case var, create the tmpVar
+			if len(ncase.List) == 1 && ncase.List[0].Op() == ir.ODYNAMICTYPE && ncase.Var != nil {
+				val = typecheck.TempAt(ncase.Pos(), ir.CurFunc, ncase.Var.Type())
+				idx = i
 			}
 			cases = append(cases, oneCase{
 				pos: ncase.Pos(),
 				typ: n1,
 				jmp: jmp,
+				val: val,
+				idx: idx,
 			})
 		}
 	}
@@ -527,16 +529,18 @@ func walkSwitchType(sw *ir.SwitchStmt) {
 			// Build an internal/abi.InterfaceSwitch descriptor to pass to the runtime.
 			lsym := types.LocalPkg.Lookup(fmt.Sprintf(".interfaceSwitch.%d", interfaceSwitchGen)).LinksymABI(obj.ABI0)
 			interfaceSwitchGen++
-			off := 0
-			off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyInterfaceSwitchCache"), 0)
-			off = objw.Uintptr(lsym, off, uint64(len(interfaceCases)))
-			for _, c := range interfaceCases {
-				off = objw.SymPtr(lsym, off, reflectdata.TypeSym(c.typ.Type()).Linksym(), 0)
+			c := rttype.NewCursor(lsym, 0, rttype.InterfaceSwitch)
+			c.Field("Cache").WritePtr(typecheck.LookupRuntimeVar("emptyInterfaceSwitchCache"))
+			c.Field("NCases").WriteInt(int64(len(interfaceCases)))
+			array, sizeDelta := c.Field("Cases").ModifyArray(len(interfaceCases))
+			for i, c := range interfaceCases {
+				array.Elem(i).WritePtr(reflectdata.TypeLinksym(c.typ.Type()))
 			}
-			objw.Global(lsym, int32(off), obj.LOCAL)
-			// Set the type to be just a single pointer, as the cache pointer is the
-			// only one that GC needs to see.
-			lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
+			objw.Global(lsym, int32(rttype.InterfaceSwitch.Size()+sizeDelta), obj.LOCAL)
+			// The GC only needs to see the first pointer in the structure (all the others
+			// are to static locations). So the InterfaceSwitch type itself is fine, even
+			// though it might not cover the whole array we wrote above.
+			lsym.Gotype = reflectdata.TypeLinksym(rttype.InterfaceSwitch)
 
 			// Call runtime to do switch
 			// case, itab = runtime.interfaceSwitch(&descriptor, typeof(arg))
@@ -582,6 +586,9 @@ caseLoop:
 
 			as := ir.NewAssignListStmt(c.pos, ir.OAS2, nil, nil)
 			as.Lhs = []ir.Node{ir.BlankNode, s.okName} // _, ok =
+			if c.val != nil {
+				as.Lhs[0] = c.val // tmpVar, ok =
+			}
 			as.Rhs = []ir.Node{dot}
 			typecheck.Stmt(as)
 
@@ -652,10 +659,18 @@ caseLoop:
 						val = ifaceData(ncase.Pos(), s.srcName, t)
 					}
 				} else if ncase.List[0].Op() == ir.ODYNAMICTYPE { // single runtime known type
-					dt := ncase.List[0].(*ir.DynamicType)
-					x := ir.NewDynamicTypeAssertExpr(ncase.Pos(), ir.ODYNAMICDOTTYPE, val, dt.RType)
-					x.ITab = dt.ITab
-					val = x
+					var found bool
+					for _, c := range cases {
+						if c.idx == i {
+							val = c.val
+							found = val != nil
+							break
+						}
+					}
+					// the tmpVar must always be found
+					if !found {
+						base.Fatalf("an error occurred when processing type switch case %v", ncase.List[0])
+					}
 				} else if ir.IsNil(ncase.List[0]) {
 				} else {
 					base.Fatalf("unhandled type switch case %v", ncase.List[0])
@@ -692,13 +707,13 @@ func typeHashFieldOf(pos src.XPos, itab *ir.UnaryExpr) *ir.SelectorExpr {
 	if itab.X.Type().IsEmptyInterface() {
 		// runtime._type's hash field
 		if rtypeHashField == nil {
-			rtypeHashField = runtimeField("hash", rttype.Type.Offset("Hash"), types.Types[types.TUINT32])
+			rtypeHashField = runtimeField("hash", rttype.Type.OffsetOf("Hash"), types.Types[types.TUINT32])
 		}
 		hashField = rtypeHashField
 	} else {
 		// runtime.itab's hash field
 		if itabHashField == nil {
-			itabHashField = runtimeField("hash", int64(2*types.PtrSize), types.Types[types.TUINT32])
+			itabHashField = runtimeField("hash", rttype.ITab.OffsetOf("Hash"), types.Types[types.TUINT32])
 		}
 		hashField = itabHashField
 	}
@@ -726,7 +741,7 @@ func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
 		return
 	}
 
-	sort.Slice(cc, func(i, j int) bool { return cc[i].hash < cc[j].hash })
+	slices.SortFunc(cc, func(a, b typeClause) int { return cmp.Compare(a.hash, b.hash) })
 
 	// Combine adjacent cases with the same hash.
 	merged := cc[:1]
@@ -781,9 +796,7 @@ func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
 				hashes = append(hashes, h)
 			}
 			// Order by increasing hash.
-			sort.Slice(hashes, func(j, k int) bool {
-				return hashes[j] < hashes[k]
-			})
+			slices.Sort(hashes)
 			for j := 1; j < len(hashes); j++ {
 				if hashes[j] == hashes[j-1] {
 					// There is a duplicate hash; try a different b/i pair.

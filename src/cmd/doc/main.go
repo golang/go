@@ -54,6 +54,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"cmd/internal/telemetry/counter"
 )
 
 var (
@@ -85,6 +87,7 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("doc: ")
+	counter.Open()
 	dirsInit()
 	err := do(os.Stdout, flag.CommandLine, os.Args[1:])
 	if err != nil {
@@ -105,6 +108,8 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	flagSet.BoolVar(&showSrc, "src", false, "show source code for symbol")
 	flagSet.BoolVar(&short, "short", false, "one-line representation for each symbol")
 	flagSet.Parse(args)
+	counter.Inc("doc/invocations")
+	counter.CountFlags("doc/flag:", *flag.CommandLine)
 	if chdir != "" {
 		if err := os.Chdir(chdir); err != nil {
 			return err

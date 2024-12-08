@@ -49,7 +49,7 @@ type Repo interface {
 	// "" for the root or "sub/dir" for a subdirectory (no trailing slash).
 	CheckReuse(ctx context.Context, old *Origin, subdir string) error
 
-	// List lists all tags with the given prefix.
+	// Tags lists all tags with the given prefix.
 	Tags(ctx context.Context, prefix string) (*Tags, error)
 
 	// Stat returns information about the revision rev.
@@ -95,6 +95,8 @@ type Origin struct {
 	URL    string `json:",omitempty"` // URL of repository
 	Subdir string `json:",omitempty"` // subdirectory in repo
 
+	Hash string `json:",omitempty"` // commit hash or ID
+
 	// If TagSum is non-empty, then the resolution of this module version
 	// depends on the set of tags present in the repo, specifically the tags
 	// of the form TagPrefix + a valid semver version.
@@ -111,29 +113,13 @@ type Origin struct {
 	// and the Hash is the Git object hash the ref maps to.
 	// Other VCS might choose differently, but the idea is that Ref is the name
 	// with a mutable meaning while Hash is a name with an immutable meaning.
-	Ref  string `json:",omitempty"`
-	Hash string `json:",omitempty"`
+	Ref string `json:",omitempty"`
 
 	// If RepoSum is non-empty, then the resolution of this module version
 	// failed due to the repo being available but the version not being present.
 	// This depends on the entire state of the repo, which RepoSum summarizes.
 	// For Git, this is a hash of all the refs and their hashes.
 	RepoSum string `json:",omitempty"`
-}
-
-// Checkable reports whether the Origin contains anything that can be checked.
-// If not, the Origin is purely informational and should fail a CheckReuse call.
-func (o *Origin) Checkable() bool {
-	return o.TagSum != "" || o.Ref != "" || o.Hash != "" || o.RepoSum != ""
-}
-
-// ClearCheckable clears the Origin enough to make Checkable return false.
-func (o *Origin) ClearCheckable() {
-	o.TagSum = ""
-	o.TagPrefix = ""
-	o.Ref = ""
-	o.Hash = ""
-	o.RepoSum = ""
 }
 
 // A Tags describes the available tags in a code repository.
@@ -310,39 +296,52 @@ func (e *RunError) Error() string {
 
 var dirLock sync.Map
 
+type RunArgs struct {
+	cmdline []any    // the command to run
+	dir     string   // the directory to run the command in
+	local   bool     // true if the VCS information is local
+	env     []string // environment variables for the command
+	stdin   io.Reader
+}
+
 // Run runs the command line in the given directory
 // (an empty dir means the current directory).
 // It returns the standard output and, for a non-zero exit,
 // a *RunError indicating the command, exit status, and standard error.
 // Standard error is unavailable for commands that exit successfully.
 func Run(ctx context.Context, dir string, cmdline ...any) ([]byte, error) {
-	return RunWithStdin(ctx, dir, nil, cmdline...)
+	return run(ctx, RunArgs{cmdline: cmdline, dir: dir})
+}
+
+// RunWithArgs is the same as Run but it also accepts additional arguments.
+func RunWithArgs(ctx context.Context, args RunArgs) ([]byte, error) {
+	return run(ctx, args)
 }
 
 // bashQuoter escapes characters that have special meaning in double-quoted strings in the bash shell.
 // See https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html.
 var bashQuoter = strings.NewReplacer(`"`, `\"`, `$`, `\$`, "`", "\\`", `\`, `\\`)
 
-func RunWithStdin(ctx context.Context, dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
-	if dir != "" {
-		muIface, ok := dirLock.Load(dir)
+func run(ctx context.Context, args RunArgs) ([]byte, error) {
+	if args.dir != "" {
+		muIface, ok := dirLock.Load(args.dir)
 		if !ok {
-			muIface, _ = dirLock.LoadOrStore(dir, new(sync.Mutex))
+			muIface, _ = dirLock.LoadOrStore(args.dir, new(sync.Mutex))
 		}
 		mu := muIface.(*sync.Mutex)
 		mu.Lock()
 		defer mu.Unlock()
 	}
 
-	cmd := str.StringList(cmdline...)
-	if os.Getenv("TESTGOVCS") == "panic" {
-		panic(fmt.Sprintf("use of vcs: %v", cmd))
+	cmd := str.StringList(args.cmdline...)
+	if os.Getenv("TESTGOVCSREMOTE") == "panic" && !args.local {
+		panic(fmt.Sprintf("use of remote vcs: %v", cmd))
 	}
 	if xLog, ok := cfg.BuildXWriter(ctx); ok {
 		text := new(strings.Builder)
-		if dir != "" {
+		if args.dir != "" {
 			text.WriteString("cd ")
-			text.WriteString(dir)
+			text.WriteString(args.dir)
 			text.WriteString("; ")
 		}
 		for i, arg := range cmd {
@@ -376,15 +375,14 @@ func RunWithStdin(ctx context.Context, dir string, stdin io.Reader, cmdline ...a
 	var stdout bytes.Buffer
 	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 	c.Cancel = func() error { return c.Process.Signal(os.Interrupt) }
-	c.Dir = dir
-	c.Stdin = stdin
+	c.Dir = args.dir
+	c.Stdin = args.stdin
 	c.Stderr = &stderr
 	c.Stdout = &stdout
-	// For Git commands, manually supply GIT_DIR so Git works with safe.bareRepository=explicit set. Noop for other commands.
-	c.Env = append(c.Environ(), "GIT_DIR="+dir)
+	c.Env = append(c.Environ(), args.env...)
 	err := c.Run()
 	if err != nil {
-		err = &RunError{Cmd: strings.Join(cmd, " ") + " in " + dir, Stderr: stderr.Bytes(), Err: err}
+		err = &RunError{Cmd: strings.Join(cmd, " ") + " in " + args.dir, Stderr: stderr.Bytes(), Err: err}
 	}
 	return stdout.Bytes(), err
 }

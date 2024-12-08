@@ -1,5 +1,6 @@
 [!buildmode:plugin] skip
 [short] skip
+[!cgo] skip '-buildmode=plugin requires external linking'
 
 go build -trimpath -buildvcs=false -buildmode=plugin -o a.so main.go
 go build -trimpath -buildvcs=false -buildmode=plugin -o b.so main.go

@@ -25,7 +25,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -36,9 +36,6 @@ type sweepdata struct {
 	lock   mutex
 	g      *g
 	parked bool
-
-	nbgsweep    uint32
-	npausesweep uint32
 
 	// active tracks outstanding sweepers and the sweep
 	// termination condition.
@@ -237,7 +234,6 @@ func finishsweep_m() {
 	// instantly. If GC was forced before the concurrent sweep
 	// finished, there may be spans to sweep.
 	for sweepone() != ^uintptr(0) {
-		sweep.npausesweep++
 	}
 
 	// Make sure there aren't any outstanding sweepers left.
@@ -299,7 +295,6 @@ func bgsweep(c chan int) {
 		const sweepBatchSize = 10
 		nSwept := 0
 		for sweepone() != ^uintptr(0) {
-			sweep.nbgsweep++
 			nSwept++
 			if nSwept%sweepBatchSize == 0 {
 				goschedIfBusy()
@@ -520,8 +515,10 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		throw("mspan.sweep: bad span state")
 	}
 
-	if traceEnabled() {
-		traceGCSweepSpan(s.npages * _PageSize)
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCSweepSpan(s.npages * _PageSize)
+		traceRelease(trace)
 	}
 
 	mheap_.pagesSwept.Add(int64(s.npages))
@@ -554,31 +551,44 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		mbits := s.markBitsForIndex(objIndex)
 		if !mbits.isMarked() {
 			// This object is not marked and has at least one special record.
-			// Pass 1: see if it has at least one finalizer.
-			hasFin := false
+			// Pass 1: see if it has a finalizer.
+			hasFinAndRevived := false
 			endOffset := p - s.base() + size
 			for tmp := siter.s; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
 				if tmp.kind == _KindSpecialFinalizer {
 					// Stop freeing of object if it has a finalizer.
 					mbits.setMarkedNonAtomic()
-					hasFin = true
+					hasFinAndRevived = true
 					break
 				}
 			}
-			// Pass 2: queue all finalizers _or_ handle profile record.
-			for siter.valid() && uintptr(siter.s.offset) < endOffset {
-				// Find the exact byte for which the special was setup
-				// (as opposed to object beginning).
-				special := siter.s
-				p := s.base() + uintptr(special.offset)
-				if special.kind == _KindSpecialFinalizer || !hasFin {
+			if hasFinAndRevived {
+				// Pass 2: queue all finalizers and clear any weak handles. Weak handles are cleared
+				// before finalization as specified by the weak package. See the documentation
+				// for that package for more details.
+				for siter.valid() && uintptr(siter.s.offset) < endOffset {
+					// Find the exact byte for which the special was setup
+					// (as opposed to object beginning).
+					special := siter.s
+					p := s.base() + uintptr(special.offset)
+					if special.kind == _KindSpecialFinalizer || special.kind == _KindSpecialWeakHandle {
+						siter.unlinkAndNext()
+						freeSpecial(special, unsafe.Pointer(p), size)
+					} else {
+						// All other specials only apply when an object is freed,
+						// so just keep the special record.
+						siter.next()
+					}
+				}
+			} else {
+				// Pass 2: the object is truly dead, free (and handle) all specials.
+				for siter.valid() && uintptr(siter.s.offset) < endOffset {
+					// Find the exact byte for which the special was setup
+					// (as opposed to object beginning).
+					special := siter.s
+					p := s.base() + uintptr(special.offset)
 					siter.unlinkAndNext()
 					freeSpecial(special, unsafe.Pointer(p), size)
-				} else {
-					// The object has finalizers, so we're keeping it alive.
-					// All other specials only apply when an object is freed,
-					// so just keep the special record.
-					siter.next()
 				}
 			}
 		} else {
@@ -597,16 +607,19 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		spanHasNoSpecials(s)
 	}
 
-	if debug.allocfreetrace != 0 || debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
-		// Find all newly freed objects. This doesn't have to
-		// efficient; allocfreetrace has massive overhead.
+	if traceAllocFreeEnabled() || debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
+		// Find all newly freed objects.
 		mbits := s.markBitsForBase()
 		abits := s.allocBitsForIndex(0)
 		for i := uintptr(0); i < uintptr(s.nelems); i++ {
 			if !mbits.isMarked() && (abits.index < uintptr(s.freeindex) || abits.isMarked()) {
 				x := s.base() + i*s.elemsize
-				if debug.allocfreetrace != 0 {
-					tracefree(unsafe.Pointer(x), size)
+				if traceAllocFreeEnabled() {
+					trace := traceAcquire()
+					if trace.ok() {
+						trace.HeapObjectFree(x)
+						traceRelease(trace)
+					}
 				}
 				if debug.clobberfree != 0 {
 					clobberfree(unsafe.Pointer(x), size)
@@ -771,6 +784,19 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		if nfreed != 0 {
 			// Free large object span to heap.
 
+			// Count the free in the consistent, external stats.
+			//
+			// Do this before freeSpan, which might update heapStats' inHeap
+			// value. If it does so, then metrics that subtract object footprint
+			// from inHeap might overflow. See #67019.
+			stats := memstats.heapStats.acquire()
+			atomic.Xadd64(&stats.largeFreeCount, 1)
+			atomic.Xadd64(&stats.largeFree, int64(size))
+			memstats.heapStats.release()
+
+			// Count the free in the inconsistent, internal stats.
+			gcController.totalFree.Add(int64(size))
+
 			// NOTE(rsc,dvyukov): The original implementation of efence
 			// in CL 22060046 used sysFree instead of sysFault, so that
 			// the operating system would eventually give the memory
@@ -791,16 +817,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
-
-			// Count the free in the consistent, external stats.
-			stats := memstats.heapStats.acquire()
-			atomic.Xadd64(&stats.largeFreeCount, 1)
-			atomic.Xadd64(&stats.largeFree, int64(size))
-			memstats.heapStats.release()
-
-			// Count the free in the inconsistent, internal stats.
-			gcController.totalFree.Add(int64(size))
-
 			return true
 		}
 
@@ -826,7 +842,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 // pointer to that object and marked it.
 func (s *mspan) reportZombies() {
 	printlock()
-	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer? try -d=checkptr)\n")
+	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer or having race conditions? try -d=checkptr or -race)\n")
 	mbits := s.markBitsForBase()
 	abits := s.allocBitsForIndex(0)
 	for i := uintptr(0); i < uintptr(s.nelems); i++ {
@@ -884,8 +900,10 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 		return
 	}
 
-	if traceEnabled() {
-		traceGCSweepStart()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCSweepStart()
+		traceRelease(trace)
 	}
 
 	// Fix debt if necessary.
@@ -924,8 +942,10 @@ retry:
 		}
 	}
 
-	if traceEnabled() {
-		traceGCSweepDone()
+	trace = traceAcquire()
+	if trace.ok() {
+		trace.GCSweepDone()
+		traceRelease(trace)
 	}
 }
 

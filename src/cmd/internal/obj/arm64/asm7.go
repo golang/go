@@ -1,5 +1,5 @@
 // cmd/7l/asm.c, cmd/7l/asmout.c, cmd/7l/optab.c, cmd/7l/span.c, cmd/ld/sub.c, cmd/ld/mod.c, from Vita Nuova.
-// https://code.google.com/p/ken-cc/source/browse/
+// https://bitbucket.org/plan9-from-bell-labs/9-cc/src/master/
 //
 // 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -33,10 +33,11 @@ package arm64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -889,9 +890,10 @@ var optab = []Optab{
 	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0}, // nop variants, see #40689
 	{obj.ANOP, C_ZREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
 	{obj.ANOP, C_VREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
-	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0}, // same as AB/ABL
-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0}, // same as AB/ABL
-	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},  // align code
+	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},   // same as AB/ABL
+	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},   // same as AB/ABL
+	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},    // align code
+	{obj.APCALIGNMAX, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0, 0}, // align code, conditional
 }
 
 // Valid pstate field values, and value to use in instruction.
@@ -1071,13 +1073,47 @@ func (o *Optab) size(ctxt *obj.Link, p *obj.Prog) int {
 		// 2-byte and 1-byte aligned addresses, so the address of load/store must be aligned.
 		// Also symbols with prefix of "go:string." are Go strings, which will go into
 		// the symbol table, their addresses are not necessary aligned, rule this out.
+		//
+		// Note that the code generation routines for these addressing forms call o.size
+		// to decide whether to use the unaligned/aligned forms, so o.size's result is always
+		// in sync with the code generation decisions, because it *is* the code generation decision.
 		align := int64(1 << sz)
-		if o.a1 == C_ADDR && p.From.Offset%align == 0 && !strings.HasPrefix(p.From.Sym.Name, "go:string.") ||
-			o.a4 == C_ADDR && p.To.Offset%align == 0 && !strings.HasPrefix(p.To.Sym.Name, "go:string.") {
+		if o.a1 == C_ADDR && p.From.Offset%align == 0 && symAlign(p.From.Sym) >= align ||
+			o.a4 == C_ADDR && p.To.Offset%align == 0 && symAlign(p.To.Sym) >= align {
 			return 8
 		}
 	}
 	return int(o.size_)
+}
+
+// symAlign returns the expected symbol alignment of the symbol s.
+// This must match the linker's own default alignment decisions.
+func symAlign(s *obj.LSym) int64 {
+	name := s.Name
+	switch {
+	case strings.HasPrefix(name, "go:string."),
+		strings.HasPrefix(name, "type:.namedata."),
+		strings.HasPrefix(name, "type:.importpath."),
+		strings.HasSuffix(name, ".opendefer"),
+		strings.HasSuffix(name, ".arginfo0"),
+		strings.HasSuffix(name, ".arginfo1"),
+		strings.HasSuffix(name, ".argliveinfo"):
+		// These are just bytes, or varints.
+		return 1
+	case strings.HasPrefix(name, "gclocals·"):
+		// It has 32-bit fields.
+		return 4
+	default:
+		switch {
+		case s.Size%8 == 0:
+			return 8
+		case s.Size%4 == 0:
+			return 4
+		case s.Size%2 == 0:
+			return 2
+		}
+	}
+	return 1
 }
 
 func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
@@ -1098,45 +1134,15 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	c := ctxt7{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset & 0xffffffff), extrasize: int32(p.To.Offset >> 32)}
 	p.To.Offset &= 0xffffffff // extrasize is no longer needed
 
-	bflag := 1
+	// Process literal pool and allocate initial program counter for each Prog, before
+	// generating branch veneers.
 	pc := int64(0)
 	p.Pc = pc
-	var m int
-	var o *Optab
 	for p = p.Link; p != nil; p = p.Link {
 		p.Pc = pc
-		o = c.oplook(p)
-		m = o.size(c.ctxt, p)
-		if m == 0 {
-			switch p.As {
-			case obj.APCALIGN:
-				alignedValue := p.From.Offset
-				m = pcAlignPadLength(ctxt, pc, alignedValue)
-				// Update the current text symbol alignment value.
-				if int32(alignedValue) > cursym.Func().Align {
-					cursym.Func().Align = int32(alignedValue)
-				}
-				break
-			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
-				continue
-			default:
-				c.ctxt.Diag("zero-width instruction\n%v", p)
-			}
-		}
-		pc += int64(m)
-
-		if o.flag&LFROM != 0 {
-			c.addpool(p, &p.From)
-		}
-		if o.flag&LTO != 0 {
-			c.addpool(p, &p.To)
-		}
-		if c.blitrl != nil {
-			c.checkpool(p)
-		}
+		c.addLiteralsToPool(p)
+		pc += int64(c.asmsizeBytes(p))
 	}
-
-	c.cursym.Size = pc
 
 	/*
 	 * if any procedure is large enough to
@@ -1144,94 +1150,41 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	 * generate extra passes putting branches
 	 * around jmps to fix. this is rare.
 	 */
-	for bflag != 0 {
-		bflag = 0
+	changed := true
+	for changed {
+		changed = false
 		pc = 0
 		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
 			p.Pc = pc
-			o = c.oplook(p)
-
-			/* very large branches */
-			if (o.flag&BRANCH14BITS != 0 || o.flag&BRANCH19BITS != 0) && p.To.Target() != nil {
-				otxt := p.To.Target().Pc - pc
-				var toofar bool
-				if o.flag&BRANCH14BITS != 0 { // branch instruction encodes 14 bits
-					toofar = otxt <= -(1<<15)+10 || otxt >= (1<<15)-10
-				} else if o.flag&BRANCH19BITS != 0 { // branch instruction encodes 19 bits
-					toofar = otxt <= -(1<<20)+10 || otxt >= (1<<20)-10
-				}
-				if toofar {
-					q := c.newprog()
-					q.Link = p.Link
-					p.Link = q
-					q.As = AB
-					q.To.Type = obj.TYPE_BRANCH
-					q.To.SetTarget(p.To.Target())
-					p.To.SetTarget(q)
-					q = c.newprog()
-					q.Link = p.Link
-					p.Link = q
-					q.As = AB
-					q.To.Type = obj.TYPE_BRANCH
-					q.To.SetTarget(q.Link.Link)
-					bflag = 1
-				}
-			}
-			m = o.size(c.ctxt, p)
-
-			if m == 0 {
-				switch p.As {
-				case obj.APCALIGN:
-					alignedValue := p.From.Offset
-					m = pcAlignPadLength(ctxt, pc, alignedValue)
-					break
-				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
-					continue
-				default:
-					c.ctxt.Diag("zero-width instruction\n%v", p)
-				}
-			}
-
-			pc += int64(m)
+			changed = changed || c.fixUpLongBranch(p)
+			pc += int64(c.asmsizeBytes(p))
 		}
 	}
-
-	pc += -pc & (funcAlign - 1)
-	c.cursym.Size = pc
 
 	/*
 	 * lay out the code, emitting code and data relocations.
 	 */
-	c.cursym.Grow(c.cursym.Size)
-	bp := c.cursym.P
-	psz := int32(0)
-	var i int
-	var out [6]uint32
+	buf := codeBuffer{&c.cursym.P}
+
 	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
-		o = c.oplook(p)
-		sz := o.size(c.ctxt, p)
-		if sz > 4*len(out) {
-			log.Fatalf("out array in span7 is too small, need at least %d for %v", sz/4, p)
-		}
-		if p.As == obj.APCALIGN {
-			alignedValue := p.From.Offset
-			v := pcAlignPadLength(c.ctxt, p.Pc, alignedValue)
-			for i = 0; i < int(v/4); i++ {
+		switch p.As {
+		case obj.APCALIGN, obj.APCALIGNMAX:
+			v := obj.AlignmentPaddingLength(int32(p.Pc), p, c.ctxt)
+			for i := 0; i < int(v/4); i++ {
 				// emit ANOOP instruction by the padding size
-				c.ctxt.Arch.ByteOrder.PutUint32(bp, OP_NOOP)
-				bp = bp[4:]
-				psz += 4
+				buf.emit(OP_NOOP)
 			}
-		} else {
-			c.asmout(p, o, out[:])
-			for i = 0; i < sz/4; i++ {
-				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
-				bp = bp[4:]
-				psz += 4
-			}
+		case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+			continue
+		default:
+			var out [6]uint32
+			count := c.asmout(p, out[:])
+			buf.emit(out[:count]...)
 		}
 	}
+	buf.finish()
+	c.cursym.Size = int64(len(c.cursym.P))
 
 	// Mark nonpreemptible instruction sequences.
 	// We use REGTMP as a scratch register during call injection,
@@ -1247,6 +1200,92 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// TODO: try using relative PCs.
 			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, cursym, p.Pc)
 		}
+	}
+}
+
+type codeBuffer struct {
+	data *[]byte
+}
+
+func (cb *codeBuffer) pc() int64 {
+	return int64(len(*cb.data))
+}
+
+// Write a sequence of opcodes into the code buffer.
+func (cb *codeBuffer) emit(op ...uint32) {
+	for _, o := range op {
+		*cb.data = binary.LittleEndian.AppendUint32(*cb.data, o)
+	}
+}
+
+// Completes the code buffer for the function by padding the buffer to function alignment
+// with zero values.
+func (cb *codeBuffer) finish() {
+	for len(*cb.data)%funcAlign > 0 {
+		*cb.data = append(*cb.data, 0)
+	}
+}
+
+// Return the size of the assembled Prog, in bytes.
+func (c *ctxt7) asmsizeBytes(p *obj.Prog) int {
+	switch p.As {
+	case obj.APCALIGN, obj.APCALIGNMAX:
+		return obj.AlignmentPadding(int32(p.Pc), p, c.ctxt, c.cursym)
+	case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+		return 0
+	default:
+		o := c.oplook(p)
+		return o.size(c.ctxt, p)
+	}
+}
+
+// Modify the Prog list if the Prog is a branch with a large offset that cannot be
+// encoded in the instruction. Return true if a modification was made, false if not.
+func (c *ctxt7) fixUpLongBranch(p *obj.Prog) bool {
+	var toofar bool
+
+	o := c.oplook(p)
+
+	/* very large branches */
+	if (o.flag&BRANCH14BITS != 0 || o.flag&BRANCH19BITS != 0) && p.To.Target() != nil {
+		otxt := p.To.Target().Pc - p.Pc
+		if o.flag&BRANCH14BITS != 0 { // branch instruction encodes 14 bits
+			toofar = otxt <= -(1<<15)+10 || otxt >= (1<<15)-10
+		} else if o.flag&BRANCH19BITS != 0 { // branch instruction encodes 19 bits
+			toofar = otxt <= -(1<<20)+10 || otxt >= (1<<20)-10
+		}
+		if toofar {
+			q := c.newprog()
+			q.Link = p.Link
+			p.Link = q
+			q.As = AB
+			q.To.Type = obj.TYPE_BRANCH
+			q.To.SetTarget(p.To.Target())
+			p.To.SetTarget(q)
+			q = c.newprog()
+			q.Link = p.Link
+			p.Link = q
+			q.As = AB
+			q.To.Type = obj.TYPE_BRANCH
+			q.To.SetTarget(q.Link.Link)
+		}
+	}
+
+	return toofar
+}
+
+// Adds literal values from the Prog into the literal pool if necessary.
+func (c *ctxt7) addLiteralsToPool(p *obj.Prog) {
+	o := c.oplook(p)
+
+	if o.flag&LFROM != 0 {
+		c.addpool(p, &p.From)
+	}
+	if o.flag&LTO != 0 {
+		c.addpool(p, &p.To)
+	}
+	if c.blitrl != nil {
+		c.checkpool(p)
 	}
 }
 
@@ -2706,38 +2745,26 @@ func cmp(a int, b int) bool {
 	return false
 }
 
-type ocmp []Optab
-
-func (x ocmp) Len() int {
-	return len(x)
-}
-
-func (x ocmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x ocmp) Less(i, j int) bool {
-	p1 := &x[i]
-	p2 := &x[j]
+func ocmp(p1, p2 Optab) int {
 	if p1.as != p2.as {
-		return p1.as < p2.as
+		return int(p1.as) - int(p2.as)
 	}
 	if p1.a1 != p2.a1 {
-		return p1.a1 < p2.a1
+		return int(p1.a1) - int(p2.a1)
 	}
 	if p1.a2 != p2.a2 {
-		return p1.a2 < p2.a2
+		return int(p1.a2) - int(p2.a2)
 	}
 	if p1.a3 != p2.a3 {
-		return p1.a3 < p2.a3
+		return int(p1.a3) - int(p2.a3)
 	}
 	if p1.a4 != p2.a4 {
-		return p1.a4 < p2.a4
+		return int(p1.a4) - int(p2.a4)
 	}
 	if p1.scond != p2.scond {
-		return p1.scond < p2.scond
+		return int(p1.scond) - int(p2.scond)
 	}
-	return false
+	return 0
 }
 
 func oprangeset(a obj.As, t []Optab) {
@@ -2760,7 +2787,7 @@ func buildop(ctxt *obj.Link) {
 		}
 	}
 
-	sort.Sort(ocmp(optab))
+	slices.SortFunc(optab, ocmp)
 	for i := 0; i < len(optab); i++ {
 		as, start := optab[i].as, i
 		for ; i < len(optab)-1; i++ {
@@ -3316,6 +3343,7 @@ func buildop(ctxt *obj.Link) {
 			obj.AUNDEF,
 			obj.AFUNCDATA,
 			obj.APCALIGN,
+			obj.APCALIGNMAX,
 			obj.APCDATA,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
@@ -3473,7 +3501,9 @@ func (c *ctxt7) checkShiftAmount(p *obj.Prog, a *obj.Addr) {
 	}
 }
 
-func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+	o := c.oplook(p)
+
 	var os [5]uint32
 	o1 := uint32(0)
 	o2 := uint32(0)
@@ -3584,21 +3614,22 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			break
 		}
 
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.To.Sym
-		rel.Add = p.To.Offset
-		rel.Type = objabi.R_CALLARM64
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_CALLARM64,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.To.Sym,
+			Add:  p.To.Offset,
+		})
 
 	case 6: /* b ,O(R); bl ,O(R) */
 		o1 = c.opbrr(p, p.As)
 		o1 |= uint32(p.To.Reg&31) << 5
 		if p.As == obj.ACALL {
-			rel := obj.Addrel(c.cursym)
-			rel.Off = int32(c.pc)
-			rel.Siz = 0
-			rel.Type = objabi.R_CALLIND
+			c.cursym.AddRel(c.ctxt, obj.Reloc{
+				Type: objabi.R_CALLIND,
+				Off:  int32(c.pc),
+			})
 		}
 
 	case 7: /* beq s */
@@ -3664,12 +3695,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = uint32(c.instoffset)
 		o2 = uint32(c.instoffset >> 32)
 		if p.To.Sym != nil {
-			rel := obj.Addrel(c.cursym)
-			rel.Off = int32(c.pc)
-			rel.Siz = 8
-			rel.Sym = p.To.Sym
-			rel.Add = p.To.Offset
-			rel.Type = objabi.R_ADDR
+			c.cursym.AddRel(c.ctxt, obj.Reloc{
+				Type: objabi.R_ADDR,
+				Off:  int32(c.pc),
+				Siz:  8,
+				Sym:  p.To.Sym,
+				Add:  p.To.Offset,
+			})
 			o2 = 0
 			o1 = o2
 		}
@@ -3740,13 +3772,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Sym != nil {
 			// This case happens with words generated
 			// in the PC stream as part of the literal pool.
-			rel := obj.Addrel(c.cursym)
-
-			rel.Off = int32(c.pc)
-			rel.Siz = 4
-			rel.Sym = p.To.Sym
-			rel.Add = p.To.Offset
-			rel.Type = objabi.R_ADDR
+			c.cursym.AddRel(c.ctxt, obj.Reloc{
+				Type: objabi.R_ADDR,
+				Off:  int32(c.pc),
+				Siz:  4,
+				Sym:  p.To.Sym,
+				Add:  p.To.Offset,
+			})
 			o1 = 0
 		}
 
@@ -4234,6 +4266,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		// PSTATEfield can be special registers and special operands.
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SPSel {
 			v = 0<<16 | 4<<12 | 5<<5
+		} else if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_DIT {
+			// op1 = 011 (3) op2 = 010 (2)
+			v = 3<<16 | 2<<5
 		} else if p.To.Type == obj.TYPE_SPECIAL {
 			opd := SpecialOperand(p.To.Offset)
 			for _, pf := range pstatefield {
@@ -4660,37 +4695,43 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
 		}
 		o1 = ADR(1, 0, REGTMP)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 8
-		rel.Sym = p.To.Sym
-		rel.Add = p.To.Offset
+		var typ objabi.RelocType
 		// For unaligned access, fall back to adrp + add + movT R, (REGTMP).
 		if o.size(c.ctxt, p) != 8 {
 			o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
 			o3 = c.olsr12u(p, c.opstr(p, p.As), 0, REGTMP, p.From.Reg)
-			rel.Type = objabi.R_ADDRARM64
-			break
+			typ = objabi.R_ADDRARM64
+		} else {
+			o2 = c.olsr12u(p, c.opstr(p, p.As), 0, REGTMP, p.From.Reg)
+			typ = c.addrRelocType(p)
 		}
-		o2 = c.olsr12u(p, c.opstr(p, p.As), 0, REGTMP, p.From.Reg)
-		rel.Type = c.addrRelocType(p)
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: typ,
+			Off:  int32(c.pc),
+			Siz:  8,
+			Sym:  p.To.Sym,
+			Add:  p.To.Offset,
+		})
 
 	case 65: /* movT addr,R -> adrp + movT (REGTMP), R */
 		o1 = ADR(1, 0, REGTMP)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 8
-		rel.Sym = p.From.Sym
-		rel.Add = p.From.Offset
+		var typ objabi.RelocType
 		// For unaligned access, fall back to adrp + add + movT (REGTMP), R.
 		if o.size(c.ctxt, p) != 8 {
 			o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
 			o3 = c.olsr12u(p, c.opldr(p, p.As), 0, REGTMP, p.To.Reg)
-			rel.Type = objabi.R_ADDRARM64
-			break
+			typ = objabi.R_ADDRARM64
+		} else {
+			o2 = c.olsr12u(p, c.opldr(p, p.As), 0, REGTMP, p.To.Reg)
+			typ = c.addrRelocType(p)
 		}
-		o2 = c.olsr12u(p, c.opldr(p, p.As), 0, REGTMP, p.To.Reg)
-		rel.Type = c.addrRelocType(p)
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: typ,
+			Off:  int32(c.pc),
+			Siz:  8,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
 
 	case 66: /* ldp O(R)!, (r1, r2); ldp (R)O!, (r1, r2) */
 		rf, rt1, rt2 := p.From.Reg, p.To.Reg, int16(p.To.Offset)
@@ -4722,21 +4763,23 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = ADR(1, 0, uint32(p.To.Reg))
 		o2 = c.opirr(p, AADD) | uint32(p.To.Reg&31)<<5 | uint32(p.To.Reg&31)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 8
-		rel.Sym = p.From.Sym
-		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRARM64
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRARM64,
+			Off:  int32(c.pc),
+			Siz:  8,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
 
 	case 69: /* LE model movd $tlsvar, reg -> movz reg, 0 + reloc */
 		o1 = c.opirr(p, AMOVZ)
 		o1 |= uint32(p.To.Reg & 31)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.From.Sym
-		rel.Type = objabi.R_ARM64_TLS_LE
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ARM64_TLS_LE,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.From.Sym,
+		})
 		if p.From.Offset != 0 {
 			c.ctxt.Diag("invalid offset on MOVW $tlsvar")
 		}
@@ -4744,12 +4787,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 70: /* IE model movd $tlsvar, reg -> adrp REGTMP, 0; ldr reg, [REGTMP, #0] + relocs */
 		o1 = ADR(1, 0, REGTMP)
 		o2 = c.olsr12u(p, c.opldr(p, AMOVD), 0, REGTMP, p.To.Reg)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 8
-		rel.Sym = p.From.Sym
-		rel.Add = 0
-		rel.Type = objabi.R_ARM64_TLS_IE
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ARM64_TLS_IE,
+			Off:  int32(c.pc),
+			Siz:  8,
+			Sym:  p.From.Sym,
+		})
 		if p.From.Offset != 0 {
 			c.ctxt.Diag("invalid offset on MOVW $tlsvar")
 		}
@@ -4757,12 +4800,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 71: /* movd sym@GOT, reg -> adrp REGTMP, #0; ldr reg, [REGTMP, #0] + relocs */
 		o1 = ADR(1, 0, REGTMP)
 		o2 = c.olsr12u(p, c.opldr(p, AMOVD), 0, REGTMP, p.To.Reg)
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 8
-		rel.Sym = p.From.Sym
-		rel.Add = 0
-		rel.Type = objabi.R_ARM64_GOTPCREL
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ARM64_GOTPCREL,
+			Off:  int32(c.pc),
+			Siz:  8,
+			Sym:  p.From.Sym,
+		})
 
 	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor/vfmla/vfmls/vbit/vbsl/vcmtst/vsub/vbif/vuzip1/vuzip2/vrax1 Vm.<T>, Vn.<T>, Vd.<T> */
 		af := int((p.From.Reg >> 5) & 15)
@@ -5296,24 +5339,26 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = ADR(1, 0, REGTMP)
 		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 8
-		rel.Sym = p.To.Sym
-		rel.Add = p.To.Offset
-		rel.Type = objabi.R_ADDRARM64
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRARM64,
+			Off:  int32(c.pc),
+			Siz:  8,
+			Sym:  p.To.Sym,
+			Add:  p.To.Offset,
+		})
 		o3 = c.opldpstp(p, o, 0, REGTMP, rf1, rf2, 0)
 
 	case 88: /* ldp addr(SB), (r,r) -> adrp + add + ldp */
 		rt1, rt2 := p.To.Reg, int16(p.To.Offset)
 		o1 = ADR(1, 0, REGTMP)
 		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 8
-		rel.Sym = p.From.Sym
-		rel.Add = p.From.Offset
-		rel.Type = objabi.R_ADDRARM64
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ADDRARM64,
+			Off:  int32(c.pc),
+			Siz:  8,
+			Sym:  p.From.Sym,
+			Add:  p.From.Offset,
+		})
 		o3 = c.opldpstp(p, o, 0, REGTMP, rt1, rt2, 1)
 
 	case 89: /* vadd/vsub Vm, Vn, Vd */
@@ -5340,10 +5385,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	// This is supposed to be something that stops execution.
 	// It's not supposed to be reached, ever, but if it is, we'd
 	// like to be able to tell how we got there. Assemble as
-	// 0xbea71700 which is guaranteed to raise undefined instruction
+	// UDF which is guaranteed to raise the undefined instruction
 	// exception.
 	case 90:
-		o1 = 0xbea71700
+		o1 = 0x0
 
 	case 91: /* prfm imm(Rn), <prfop | $imm5> */
 		imm := uint32(p.From.Offset)
@@ -5910,6 +5955,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[2] = o3
 	out[3] = o4
 	out[4] = o5
+
+	return int(o.size(c.ctxt, p) / 4)
 }
 
 func (c *ctxt7) addrRelocType(p *obj.Prog) objabi.RelocType {
@@ -7741,7 +7788,7 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh int16, l
 			c.ctxt.Diag("invalid register pair %v\n", p)
 		}
 	case ALDP, ALDPW, ALDPSW:
-		if rl < REG_R0 || REG_R30 < rl || rh < REG_R0 || REG_R30 < rh {
+		if rl < REG_R0 || REG_R31 < rl || rh < REG_R0 || REG_R31 < rh {
 			c.ctxt.Diag("invalid register pair %v\n", p)
 		}
 	case ASTP, ASTPW:

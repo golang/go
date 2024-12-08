@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/abi"
 	"internal/buildcfg"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -85,7 +87,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		base.Fatalf("walkExpr: switch 1 unknown op %+v", n.Op())
 		panic("unreachable")
 
-	case ir.OGETG, ir.OGETCALLERPC, ir.OGETCALLERSP:
+	case ir.OGETG, ir.OGETCALLERSP:
 		return n
 
 	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.OLINKSYMOFFSET:
@@ -271,7 +273,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		return walkNew(n, init)
 
 	case ir.OADDSTR:
-		return walkAddString(n.(*ir.AddStringExpr), init)
+		return walkAddString(n.Type(), n.(*ir.AddStringExpr), init)
 
 	case ir.OAPPEND:
 		// order should make sure we only see OAS(node, OAPPEND), which we handle above.
@@ -462,49 +464,64 @@ func copyExpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
 	return l
 }
 
-func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
+func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 	c := len(n.List)
 
 	if c < 2 {
 		base.Fatalf("walkAddString count %d too small", c)
 	}
 
-	buf := typecheck.NodNil()
-	if n.Esc() == ir.EscNone {
-		sz := int64(0)
-		for _, n1 := range n.List {
-			if n1.Op() == ir.OLITERAL {
-				sz += int64(len(ir.StringVal(n1)))
+	// list of string arguments
+	var args []ir.Node
+
+	var fn, fnsmall, fnbig string
+
+	switch {
+	default:
+		base.FatalfAt(n.Pos(), "unexpected type: %v", typ)
+	case typ.IsString():
+		buf := typecheck.NodNil()
+		if n.Esc() == ir.EscNone {
+			sz := int64(0)
+			for _, n1 := range n.List {
+				if n1.Op() == ir.OLITERAL {
+					sz += int64(len(ir.StringVal(n1)))
+				}
+			}
+
+			// Don't allocate the buffer if the result won't fit.
+			if sz < tmpstringbufsize {
+				// Create temporary buffer for result string on stack.
+				buf = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 			}
 		}
 
-		// Don't allocate the buffer if the result won't fit.
-		if sz < tmpstringbufsize {
-			// Create temporary buffer for result string on stack.
-			buf = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
-		}
+		args = []ir.Node{buf}
+		fnsmall, fnbig = "concatstring%d", "concatstrings"
+	case typ.IsSlice() && typ.Elem().IsKind(types.TUINT8): // Optimize []byte(str1+str2+...)
+		fnsmall, fnbig = "concatbyte%d", "concatbytes"
 	}
 
-	// build list of string arguments
-	args := []ir.Node{buf}
-	for _, n2 := range n.List {
-		args = append(args, typecheck.Conv(n2, types.Types[types.TSTRING]))
-	}
-
-	var fn string
 	if c <= 5 {
 		// small numbers of strings use direct runtime helpers.
 		// note: order.expr knows this cutoff too.
-		fn = fmt.Sprintf("concatstring%d", c)
+		fn = fmt.Sprintf(fnsmall, c)
+
+		for _, n2 := range n.List {
+			args = append(args, typecheck.Conv(n2, types.Types[types.TSTRING]))
+		}
 	} else {
 		// large numbers of strings are passed to the runtime as a slice.
-		fn = "concatstrings"
-
+		fn = fnbig
 		t := types.NewSlice(types.Types[types.TSTRING])
-		// args[1:] to skip buf arg
-		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, t, args[1:])
+
+		slargs := make([]ir.Node, len(n.List))
+		for i, n2 := range n.List {
+			slargs[i] = typecheck.Conv(n2, types.Types[types.TSTRING])
+		}
+		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, t, slargs)
 		slice.Prealloc = n.Prealloc
-		args = []ir.Node{buf, slice}
+		args = append(args, slice)
 		slice.SetEsc(ir.EscNone)
 	}
 
@@ -513,7 +530,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 	r.Args = args
 	r1 := typecheck.Expr(r)
 	r1 = walkExpr(r1, init)
-	r1.SetType(n.Type())
+	r1.SetType(typ)
 
 	return r1
 }
@@ -558,30 +575,25 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		case "FuncPCABIInternal":
 			wantABI = obj.ABIInternal
 		}
-		if isIfaceOfFunc(arg) {
-			fn := arg.(*ir.ConvExpr).X.(*ir.Name)
-			abi := fn.Func.ABI
-			if abi != wantABI {
-				base.ErrorfAt(n.Pos(), 0, "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
+		if n.Type() != types.Types[types.TUINTPTR] {
+			base.FatalfAt(n.Pos(), "FuncPC intrinsic should return uintptr, got %v", n.Type()) // as expected by typecheck.FuncPC.
+		}
+		n := ir.FuncPC(n.Pos(), arg, wantABI)
+		return walkExpr(n, init)
+	}
+
+	if n.Op() == ir.OCALLFUNC {
+		fn := ir.StaticCalleeName(n.Fun)
+		if fn != nil && fn.Sym().Pkg.Path == "hash/maphash" && strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
+			// hash/maphash.escapeForHash[T] is a compiler intrinsic
+			// for the escape analysis to escape its argument based on
+			// the type. The call itself is no-op. Just walk the
+			// argument.
+			ps := fn.Type().Params()
+			if len(ps) == 2 && ps[1].Type.IsShape() {
+				return walkExpr(n.Args[1], init)
 			}
-			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
-			e = ir.NewAddrExpr(n.Pos(), e)
-			e.SetType(types.Types[types.TUINTPTR].PtrTo())
-			return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e))
 		}
-		// fn is not a defined function. It must be ABIInternal.
-		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
-		if wantABI != obj.ABIInternal {
-			base.ErrorfAt(n.Pos(), 0, "internal/abi.%s does not accept func expression, which is ABIInternal", name)
-		}
-		arg = walkExpr(arg, init)
-		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
-		e.SetType(n.Type().PtrTo())
-		e.SetTypecheck(1)
-		e = ir.NewStarExpr(n.Pos(), e)
-		e.SetType(n.Type())
-		e.SetTypecheck(1)
-		return e
 	}
 
 	if name, ok := n.Fun.(*ir.Name); ok {
@@ -738,15 +750,12 @@ func makeTypeAssertDescriptor(target *types.Type, canFail bool) *obj.LSym {
 	// Allocate an internal/abi.TypeAssert descriptor for that call.
 	lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
 	typeAssertGen++
-	off := 0
-	off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyTypeAssertCache"), 0)
-	off = objw.SymPtr(lsym, off, reflectdata.TypeSym(target).Linksym(), 0)
-	off = objw.Bool(lsym, off, canFail)
-	off += types.PtrSize - 1
-	objw.Global(lsym, int32(off), obj.LOCAL)
-	// Set the type to be just a single pointer, as the cache pointer is the
-	// only one that GC needs to see.
-	lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
+	c := rttype.NewCursor(lsym, 0, rttype.TypeAssert)
+	c.Field("Cache").WritePtr(typecheck.LookupRuntimeVar("emptyTypeAssertCache"))
+	c.Field("Inter").WritePtr(reflectdata.TypeLinksym(target))
+	c.Field("CanFail").WriteBool(canFail)
+	objw.Global(lsym, int32(rttype.TypeAssert.Size()), obj.LOCAL)
+	lsym.Gotype = reflectdata.TypeLinksym(rttype.TypeAssert)
 	return lsym
 }
 
@@ -846,7 +855,7 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	switch {
 	case n.Assigned:
 		mapFn = mapfn(mapassign[fast], t, false)
-	case t.Elem().Size() > zeroValSize:
+	case t.Elem().Size() > abi.ZeroValSize:
 		args = append(args, reflectdata.ZeroAddr(t.Elem().Size()))
 		mapFn = mapfn("mapaccess1_fat", t, true)
 	default:
@@ -1067,10 +1076,10 @@ func usemethod(n *ir.CallExpr) {
 
 	if ir.IsConst(targetName, constant.String) {
 		name := constant.StringVal(targetName.Val())
-
-		r := obj.Addrel(ir.CurFunc.LSym)
-		r.Type = objabi.R_USENAMEDMETHOD
-		r.Sym = staticdata.StringSymNoCommon(name)
+		ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
+			Type: objabi.R_USENAMEDMETHOD,
+			Sym:  staticdata.StringSymNoCommon(name),
+		})
 	} else {
 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)
 	}

@@ -66,17 +66,17 @@
 
 // count trailing zero for ARMv5 and ARMv6
 // 32 - CLZ(x&-x - 1)
-(Ctz32 <t> x) && buildcfg.GOARM<=6 =>
+(Ctz32 <t> x) && buildcfg.GOARM.Version<=6 =>
 	(RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
-(Ctz16 <t> x) && buildcfg.GOARM<=6 =>
+(Ctz16 <t> x) && buildcfg.GOARM.Version<=6 =>
 	(RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x10000] x))) [1])))
-(Ctz8 <t> x) && buildcfg.GOARM<=6 =>
+(Ctz8 <t> x) && buildcfg.GOARM.Version<=6 =>
 	(RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x100] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x100] x))) [1])))
 
 // count trailing zero for ARMv7
-(Ctz32 <t> x) && buildcfg.GOARM==7 => (CLZ <t> (RBIT <t> x))
-(Ctz16 <t> x) && buildcfg.GOARM==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
-(Ctz8 <t> x) && buildcfg.GOARM==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
+(Ctz32 <t> x) && buildcfg.GOARM.Version==7 => (CLZ <t> (RBIT <t> x))
+(Ctz16 <t> x) && buildcfg.GOARM.Version==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
+(Ctz8 <t> x) && buildcfg.GOARM.Version==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
 
 // bit length
 (BitLen32 <t> x) => (RSBconst [32] (CLZ <t> x))
@@ -90,13 +90,13 @@
 // t5 = x right rotate 8 bits  -- (d,   a,   b,   c  )
 // result = t4 ^ t5            -- (d,   c,   b,   a  )
 // using shifted ops this can be done in 4 instructions.
-(Bswap32 <t> x) && buildcfg.GOARM==5 =>
+(Bswap32 <t> x) && buildcfg.GOARM.Version==5 =>
 	(XOR <t>
 		(SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8])
 		(SRRconst <t> x [8]))
 
 // byte swap for ARMv6 and above
-(Bswap32 x) && buildcfg.GOARM>=6 => (REV x)
+(Bswap32 x) && buildcfg.GOARM.Version>=6 => (REV x)
 
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB ...) => (AND ...)
@@ -559,63 +559,63 @@
 (MUL x (MOVWconst [c])) && int32(c) == -1 => (RSBconst [0] x)
 (MUL _ (MOVWconst [0])) => (MOVWconst [0])
 (MUL x (MOVWconst [1])) => x
-(MUL x (MOVWconst [c])) && isPowerOfTwo32(c) => (SLLconst [int32(log32(c))] x)
-(MUL x (MOVWconst [c])) && isPowerOfTwo32(c-1) && c >= 3 => (ADDshiftLL x x [int32(log32(c-1))])
-(MUL x (MOVWconst [c])) && isPowerOfTwo32(c+1) && c >= 7 => (RSBshiftLL x x [int32(log32(c+1))])
-(MUL x (MOVWconst [c])) && c%3 == 0 && isPowerOfTwo32(c/3) => (SLLconst [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1]))
-(MUL x (MOVWconst [c])) && c%5 == 0 && isPowerOfTwo32(c/5) => (SLLconst [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2]))
-(MUL x (MOVWconst [c])) && c%7 == 0 && isPowerOfTwo32(c/7) => (SLLconst [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3]))
-(MUL x (MOVWconst [c])) && c%9 == 0 && isPowerOfTwo32(c/9) => (SLLconst [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3]))
+(MUL x (MOVWconst [c])) && isPowerOfTwo(c) => (SLLconst [int32(log32(c))] x)
+(MUL x (MOVWconst [c])) && isPowerOfTwo(c-1) && c >= 3 => (ADDshiftLL x x [int32(log32(c-1))])
+(MUL x (MOVWconst [c])) && isPowerOfTwo(c+1) && c >= 7 => (RSBshiftLL x x [int32(log32(c+1))])
+(MUL x (MOVWconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) => (SLLconst [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1]))
+(MUL x (MOVWconst [c])) && c%5 == 0 && isPowerOfTwo(c/5) => (SLLconst [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2]))
+(MUL x (MOVWconst [c])) && c%7 == 0 && isPowerOfTwo(c/7) => (SLLconst [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3]))
+(MUL x (MOVWconst [c])) && c%9 == 0 && isPowerOfTwo(c/9) => (SLLconst [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3]))
 
 (MULA x (MOVWconst [c]) a) && c == -1 => (SUB a x)
 (MULA _ (MOVWconst [0]) a) => a
 (MULA x (MOVWconst [1]) a) => (ADD x a)
-(MULA x (MOVWconst [c]) a) && isPowerOfTwo32(c) => (ADD (SLLconst <x.Type> [int32(log32(c))] x) a)
-(MULA x (MOVWconst [c]) a) && isPowerOfTwo32(c-1) && c >= 3 => (ADD (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
-(MULA x (MOVWconst [c]) a) && isPowerOfTwo32(c+1) && c >= 7 => (ADD (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
-(MULA x (MOVWconst [c]) a) && c%3 == 0 && isPowerOfTwo32(c/3) => (ADD (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
-(MULA x (MOVWconst [c]) a) && c%5 == 0 && isPowerOfTwo32(c/5) => (ADD (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
-(MULA x (MOVWconst [c]) a) && c%7 == 0 && isPowerOfTwo32(c/7) => (ADD (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
-(MULA x (MOVWconst [c]) a) && c%9 == 0 && isPowerOfTwo32(c/9) => (ADD (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
+(MULA x (MOVWconst [c]) a) && isPowerOfTwo(c) => (ADD (SLLconst <x.Type> [int32(log32(c))] x) a)
+(MULA x (MOVWconst [c]) a) && isPowerOfTwo(c-1) && c >= 3 => (ADD (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
+(MULA x (MOVWconst [c]) a) && isPowerOfTwo(c+1) && c >= 7 => (ADD (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
+(MULA x (MOVWconst [c]) a) && c%3 == 0 && isPowerOfTwo(c/3) => (ADD (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
+(MULA x (MOVWconst [c]) a) && c%5 == 0 && isPowerOfTwo(c/5) => (ADD (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
+(MULA x (MOVWconst [c]) a) && c%7 == 0 && isPowerOfTwo(c/7) => (ADD (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
+(MULA x (MOVWconst [c]) a) && c%9 == 0 && isPowerOfTwo(c/9) => (ADD (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 
 (MULA (MOVWconst [c]) x a) && c == -1 => (SUB a x)
 (MULA (MOVWconst [0]) _ a) => a
 (MULA (MOVWconst [1]) x a) => (ADD x a)
-(MULA (MOVWconst [c]) x a) && isPowerOfTwo32(c) => (ADD (SLLconst <x.Type> [int32(log32(c))] x) a)
-(MULA (MOVWconst [c]) x a) && isPowerOfTwo32(c-1) && c >= 3 => (ADD (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
-(MULA (MOVWconst [c]) x a) && isPowerOfTwo32(c+1) && c >= 7 => (ADD (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
-(MULA (MOVWconst [c]) x a) && c%3 == 0 && isPowerOfTwo32(c/3) => (ADD (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
-(MULA (MOVWconst [c]) x a) && c%5 == 0 && isPowerOfTwo32(c/5) => (ADD (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
-(MULA (MOVWconst [c]) x a) && c%7 == 0 && isPowerOfTwo32(c/7) => (ADD (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
-(MULA (MOVWconst [c]) x a) && c%9 == 0 && isPowerOfTwo32(c/9) => (ADD (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
+(MULA (MOVWconst [c]) x a) && isPowerOfTwo(c) => (ADD (SLLconst <x.Type> [int32(log32(c))] x) a)
+(MULA (MOVWconst [c]) x a) && isPowerOfTwo(c-1) && c >= 3 => (ADD (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
+(MULA (MOVWconst [c]) x a) && isPowerOfTwo(c+1) && c >= 7 => (ADD (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
+(MULA (MOVWconst [c]) x a) && c%3 == 0 && isPowerOfTwo(c/3) => (ADD (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
+(MULA (MOVWconst [c]) x a) && c%5 == 0 && isPowerOfTwo(c/5) => (ADD (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
+(MULA (MOVWconst [c]) x a) && c%7 == 0 && isPowerOfTwo(c/7) => (ADD (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
+(MULA (MOVWconst [c]) x a) && c%9 == 0 && isPowerOfTwo(c/9) => (ADD (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 
 (MULS x (MOVWconst [c]) a) && c == -1 => (ADD a x)
 (MULS _ (MOVWconst [0]) a) => a
 (MULS x (MOVWconst [1]) a) => (RSB x a)
-(MULS x (MOVWconst [c]) a) && isPowerOfTwo32(c) => (RSB (SLLconst <x.Type> [int32(log32(c))] x) a)
-(MULS x (MOVWconst [c]) a) && isPowerOfTwo32(c-1) && c >= 3 => (RSB (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
-(MULS x (MOVWconst [c]) a) && isPowerOfTwo32(c+1) && c >= 7 => (RSB (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
-(MULS x (MOVWconst [c]) a) && c%3 == 0 && isPowerOfTwo32(c/3) => (RSB (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
-(MULS x (MOVWconst [c]) a) && c%5 == 0 && isPowerOfTwo32(c/5) => (RSB (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
-(MULS x (MOVWconst [c]) a) && c%7 == 0 && isPowerOfTwo32(c/7) => (RSB (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
-(MULS x (MOVWconst [c]) a) && c%9 == 0 && isPowerOfTwo32(c/9) => (RSB (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
+(MULS x (MOVWconst [c]) a) && isPowerOfTwo(c) => (RSB (SLLconst <x.Type> [int32(log32(c))] x) a)
+(MULS x (MOVWconst [c]) a) && isPowerOfTwo(c-1) && c >= 3 => (RSB (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
+(MULS x (MOVWconst [c]) a) && isPowerOfTwo(c+1) && c >= 7 => (RSB (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
+(MULS x (MOVWconst [c]) a) && c%3 == 0 && isPowerOfTwo(c/3) => (RSB (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
+(MULS x (MOVWconst [c]) a) && c%5 == 0 && isPowerOfTwo(c/5) => (RSB (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
+(MULS x (MOVWconst [c]) a) && c%7 == 0 && isPowerOfTwo(c/7) => (RSB (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
+(MULS x (MOVWconst [c]) a) && c%9 == 0 && isPowerOfTwo(c/9) => (RSB (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 
 (MULS (MOVWconst [c]) x a) && c == -1 => (ADD a x)
 (MULS (MOVWconst [0]) _ a) => a
 (MULS (MOVWconst [1]) x a) => (RSB x a)
-(MULS (MOVWconst [c]) x a) && isPowerOfTwo32(c) => (RSB (SLLconst <x.Type> [int32(log32(c))] x) a)
-(MULS (MOVWconst [c]) x a) && isPowerOfTwo32(c-1) && c >= 3 => (RSB (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
-(MULS (MOVWconst [c]) x a) && isPowerOfTwo32(c+1) && c >= 7 => (RSB (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
-(MULS (MOVWconst [c]) x a) && c%3 == 0 && isPowerOfTwo32(c/3) => (RSB (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
-(MULS (MOVWconst [c]) x a) && c%5 == 0 && isPowerOfTwo32(c/5) => (RSB (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
-(MULS (MOVWconst [c]) x a) && c%7 == 0 && isPowerOfTwo32(c/7) => (RSB (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
-(MULS (MOVWconst [c]) x a) && c%9 == 0 && isPowerOfTwo32(c/9) => (RSB (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
+(MULS (MOVWconst [c]) x a) && isPowerOfTwo(c) => (RSB (SLLconst <x.Type> [int32(log32(c))] x) a)
+(MULS (MOVWconst [c]) x a) && isPowerOfTwo(c-1) && c >= 3 => (RSB (ADDshiftLL <x.Type> x x [int32(log32(c-1))]) a)
+(MULS (MOVWconst [c]) x a) && isPowerOfTwo(c+1) && c >= 7 => (RSB (RSBshiftLL <x.Type> x x [int32(log32(c+1))]) a)
+(MULS (MOVWconst [c]) x a) && c%3 == 0 && isPowerOfTwo(c/3) => (RSB (SLLconst <x.Type> [int32(log32(c/3))] (ADDshiftLL <x.Type> x x [1])) a)
+(MULS (MOVWconst [c]) x a) && c%5 == 0 && isPowerOfTwo(c/5) => (RSB (SLLconst <x.Type> [int32(log32(c/5))] (ADDshiftLL <x.Type> x x [2])) a)
+(MULS (MOVWconst [c]) x a) && c%7 == 0 && isPowerOfTwo(c/7) => (RSB (SLLconst <x.Type> [int32(log32(c/7))] (RSBshiftLL <x.Type> x x [3])) a)
+(MULS (MOVWconst [c]) x a) && c%9 == 0 && isPowerOfTwo(c/9) => (RSB (SLLconst <x.Type> [int32(log32(c/9))] (ADDshiftLL <x.Type> x x [3])) a)
 
 // div by constant
 (Select0 (CALLudiv x (MOVWconst [1]))) => x
 (Select1 (CALLudiv _ (MOVWconst [1]))) => (MOVWconst [0])
-(Select0 (CALLudiv x (MOVWconst [c]))) && isPowerOfTwo32(c) => (SRLconst [int32(log32(c))] x)
-(Select1 (CALLudiv x (MOVWconst [c]))) && isPowerOfTwo32(c) => (ANDconst [c-1] x)
+(Select0 (CALLudiv x (MOVWconst [c]))) && isPowerOfTwo(c) => (SRLconst [int32(log32(c))] x)
+(Select1 (CALLudiv x (MOVWconst [c]))) && isPowerOfTwo(c) => (ANDconst [c-1] x)
 
 // constant comparisons
 (CMPconst (MOVWconst [x]) [y]) => (FlagConstant [subFlags32(x,y)])
@@ -741,10 +741,10 @@
 (SUBconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) => (ADDconst [-c] x)
 (ANDconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c)) => (BICconst [int32(^uint32(c))] x)
 (BICconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c)) => (ANDconst [int32(^uint32(c))] x)
-(ADDconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (SUBconst [-c] x)
-(SUBconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (ADDconst [-c] x)
-(ANDconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (BICconst [int32(^uint32(c))] x)
-(BICconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (ANDconst [int32(^uint32(c))] x)
+(ADDconst [c] x) && buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (SUBconst [-c] x)
+(SUBconst [c] x) && buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (ADDconst [-c] x)
+(ANDconst [c] x) && buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (BICconst [int32(^uint32(c))] x)
+(BICconst [c] x) && buildcfg.GOARM.Version==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (ANDconst [int32(^uint32(c))] x)
 (ADDconst [c] (MOVWconst [d])) => (MOVWconst [c+d])
 (ADDconst [c] (ADDconst [d] x)) => (ADDconst [c+d] x)
 (ADDconst [c] (SUBconst [d] x)) => (ADDconst [c-d] x)
@@ -1139,7 +1139,7 @@
 // UBFX instruction is supported by ARMv6T2, ARMv7 and above versions, REV16 is supported by
 // ARMv6 and above versions. So for ARMv6, we need to match SLLconst, SRLconst and ORshiftLL.
 ((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(armBFAuxInt(8, 8))] x) x) => (REV16 x)
-((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x) && buildcfg.GOARM>=6 => (REV16 x)
+((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x) && buildcfg.GOARM.Version>=6 => (REV16 x)
 
 // use indexed loads and stores
 (MOVWload [0] {sym} (ADD ptr idx) mem) && sym == nil => (MOVWloadidx ptr idx mem)
@@ -1209,25 +1209,25 @@
 (BIC x x) => (MOVWconst [0])
 
 (ADD (MUL x y) a) => (MULA x y a)
-(SUB a (MUL x y)) && buildcfg.GOARM == 7 => (MULS x y a)
-(RSB (MUL x y) a) && buildcfg.GOARM == 7 => (MULS x y a)
+(SUB a (MUL x y)) && buildcfg.GOARM.Version == 7 => (MULS x y a)
+(RSB (MUL x y) a) && buildcfg.GOARM.Version == 7 => (MULS x y a)
 
-(NEGF (MULF x y)) && buildcfg.GOARM >= 6 => (NMULF x y)
-(NEGD (MULD x y)) && buildcfg.GOARM >= 6 => (NMULD x y)
-(MULF (NEGF x) y) && buildcfg.GOARM >= 6 => (NMULF x y)
-(MULD (NEGD x) y) && buildcfg.GOARM >= 6 => (NMULD x y)
+(NEGF (MULF x y)) && buildcfg.GOARM.Version >= 6 => (NMULF x y)
+(NEGD (MULD x y)) && buildcfg.GOARM.Version >= 6 => (NMULD x y)
+(MULF (NEGF x) y) && buildcfg.GOARM.Version >= 6 => (NMULF x y)
+(MULD (NEGD x) y) && buildcfg.GOARM.Version >= 6 => (NMULD x y)
 (NMULF (NEGF x) y) => (MULF x y)
 (NMULD (NEGD x) y) => (MULD x y)
 
 // the result will overwrite the addend, since they are in the same register
-(ADDF a (MULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAF a x y)
-(ADDF a (NMULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSF a x y)
-(ADDD a (MULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAD a x y)
-(ADDD a (NMULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSD a x y)
-(SUBF a (MULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSF a x y)
-(SUBF a (NMULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAF a x y)
-(SUBD a (MULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSD a x y)
-(SUBD a (NMULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAD a x y)
+(ADDF a (MULF x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULAF a x y)
+(ADDF a (NMULF x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULSF a x y)
+(ADDD a (MULD x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULAD a x y)
+(ADDD a (NMULD x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULSD a x y)
+(SUBF a (MULF x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULSF a x y)
+(SUBF a (NMULF x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULAF a x y)
+(SUBD a (MULD x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULSD a x y)
+(SUBD a (NMULD x y)) && a.Uses == 1 && buildcfg.GOARM.Version >= 6 => (MULAD a x y)
 
 (AND x (MVN y)) => (BIC x y)
 
@@ -1259,8 +1259,8 @@
 (CMPD x (MOVDconst [0])) => (CMPD0 x)
 
 // bit extraction
-(SRAconst (SLLconst x [c]) [d]) && buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFX [(d-c)|(32-d)<<8] x)
-(SRLconst (SLLconst x [c]) [d]) && buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFXU [(d-c)|(32-d)<<8] x)
+(SRAconst (SLLconst x [c]) [d]) && buildcfg.GOARM.Version==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFX [(d-c)|(32-d)<<8] x)
+(SRLconst (SLLconst x [c]) [d]) && buildcfg.GOARM.Version==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFXU [(d-c)|(32-d)<<8] x)
 
 // comparison simplification
 ((EQ|NE) (CMP x (RSBconst [0] y))) => ((EQ|NE) (CMN x y)) // sense of carry bit not preserved; see also #50854

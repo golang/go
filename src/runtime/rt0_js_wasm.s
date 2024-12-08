@@ -53,12 +53,6 @@ TEXT wasm_export_getsp(SB),NOSPLIT,$0
 	Get SP
 	Return
 
-TEXT runtime·pause(SB), NOSPLIT, $0-8
-	MOVD newsp+0(FP), SP
-	I32Const $1
-	Set PAUSE
-	RETUNWIND
-
 TEXT runtime·exit(SB), NOSPLIT, $0-4
 	I32Const $0
 	Call runtime·wasmExit(SB)

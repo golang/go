@@ -6,6 +6,12 @@ import "internal/buildcfg"
 
 func rewriteValueAMD64latelower(v *Value) bool {
 	switch v.Op {
+	case OpAMD64MOVBQZX:
+		return rewriteValueAMD64latelower_OpAMD64MOVBQZX(v)
+	case OpAMD64MOVLQZX:
+		return rewriteValueAMD64latelower_OpAMD64MOVLQZX(v)
+	case OpAMD64MOVWQZX:
+		return rewriteValueAMD64latelower_OpAMD64MOVWQZX(v)
 	case OpAMD64SARL:
 		return rewriteValueAMD64latelower_OpAMD64SARL(v)
 	case OpAMD64SARQ:
@@ -18,6 +24,51 @@ func rewriteValueAMD64latelower(v *Value) bool {
 		return rewriteValueAMD64latelower_OpAMD64SHRL(v)
 	case OpAMD64SHRQ:
 		return rewriteValueAMD64latelower_OpAMD64SHRQ(v)
+	}
+	return false
+}
+func rewriteValueAMD64latelower_OpAMD64MOVBQZX(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVBQZX x)
+	// cond: zeroUpper56Bits(x,3)
+	// result: x
+	for {
+		x := v_0
+		if !(zeroUpper56Bits(x, 3)) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64latelower_OpAMD64MOVLQZX(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVLQZX x)
+	// cond: zeroUpper32Bits(x,3)
+	// result: x
+	for {
+		x := v_0
+		if !(zeroUpper32Bits(x, 3)) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64latelower_OpAMD64MOVWQZX(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVWQZX x)
+	// cond: zeroUpper48Bits(x,3)
+	// result: x
+	for {
+		x := v_0
+		if !(zeroUpper48Bits(x, 3)) {
+			break
+		}
+		v.copyOf(x)
+		return true
 	}
 	return false
 }

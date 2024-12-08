@@ -1,0 +1,12 @@
+-- .info --
+{"Version": "v1.1.0"}
+-- .mod --
+module example.com/tools
+-- cmd/hello/hello.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello v1.1")
+}

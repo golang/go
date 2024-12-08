@@ -83,9 +83,7 @@ func walkDir(t *testing.T, path string, endTime time.Time) (int, bool) {
 }
 
 func TestImportStdLib(t *testing.T) {
-	if !testenv.HasSrc() {
-		t.Skip("no source code available")
-	}
+	testenv.MustHaveSource(t)
 
 	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in -short mode")
@@ -109,9 +107,7 @@ var importedObjectTests = []struct {
 }
 
 func TestImportedTypes(t *testing.T) {
-	if !testenv.HasSrc() {
-		t.Skip("no source code available")
-	}
+	testenv.MustHaveSource(t)
 
 	for _, test := range importedObjectTests {
 		i := strings.LastIndex(test.name, ".")
@@ -179,9 +175,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 }
 
 func TestReimport(t *testing.T) {
-	if !testenv.HasSrc() {
-		t.Skip("no source code available")
-	}
+	testenv.MustHaveSource(t)
 
 	// Reimporting a partially imported (incomplete) package is not supported (see issue #19337).
 	// Make sure we recognize the situation and report an error.
@@ -195,9 +189,7 @@ func TestReimport(t *testing.T) {
 }
 
 func TestIssue20855(t *testing.T) {
-	if !testenv.HasSrc() {
-		t.Skip("no source code available")
-	}
+	testenv.MustHaveSource(t)
 
 	pkg, err := importer.ImportFrom("go/internal/srcimporter/testdata/issue20855", ".", 0)
 	if err == nil || !strings.Contains(err.Error(), "missing function body") {
@@ -209,9 +201,7 @@ func TestIssue20855(t *testing.T) {
 }
 
 func testImportPath(t *testing.T, pkgPath string) {
-	if !testenv.HasSrc() {
-		t.Skip("no source code available")
-	}
+	testenv.MustHaveSource(t)
 
 	pkgName := path.Base(pkgPath)
 

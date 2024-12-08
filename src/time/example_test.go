@@ -6,6 +6,7 @@ package time_test
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -99,13 +100,46 @@ func ExampleParseDuration() {
 	fmt.Println(complex)
 	fmt.Printf("There are %.0f seconds in %v.\n", complex.Seconds(), complex)
 	fmt.Printf("There are %d nanoseconds in %v.\n", micro.Nanoseconds(), micro)
-	fmt.Printf("There are %6.2e seconds in %v.\n", micro2.Seconds(), micro)
+	fmt.Printf("There are %6.2e seconds in %v.\n", micro2.Seconds(), micro2)
 	// Output:
 	// 10h0m0s
 	// 1h10m10s
 	// There are 4210 seconds in 1h10m10s.
 	// There are 1000 nanoseconds in 1µs.
 	// There are 1.00e-06 seconds in 1µs.
+}
+
+func ExampleSince() {
+	start := time.Now()
+	expensiveCall()
+	elapsed := time.Since(start)
+	fmt.Printf("The call took %v to run.\n", elapsed)
+}
+
+func ExampleUntil() {
+	futureTime := time.Now().Add(5 * time.Second)
+	durationUntil := time.Until(futureTime)
+	fmt.Printf("Duration until future time: %.0f seconds", math.Ceil(durationUntil.Seconds()))
+	// Output: Duration until future time: 5 seconds
+}
+
+func ExampleDuration_Abs() {
+	positiveDuration := 5 * time.Second
+	negativeDuration := -3 * time.Second
+	minInt64CaseDuration := time.Duration(math.MinInt64)
+
+	absPositive := positiveDuration.Abs()
+	absNegative := negativeDuration.Abs()
+	absSpecial := minInt64CaseDuration.Abs() == time.Duration(math.MaxInt64)
+
+	fmt.Printf("Absolute value of positive duration: %v\n", absPositive)
+	fmt.Printf("Absolute value of negative duration: %v\n", absNegative)
+	fmt.Printf("Absolute value of MinInt64 equal to MaxInt64: %t\n", absSpecial)
+
+	// Output:
+	// Absolute value of positive duration: 5s
+	// Absolute value of negative duration: 3s
+	// Absolute value of MinInt64 equal to MaxInt64: true
 }
 
 func ExampleDuration_Hours() {
@@ -295,8 +329,8 @@ func ExampleTime_Format() {
 	// default format: 2015-02-25 11:06:39 -0800 PST
 	// Unix format: Wed Feb 25 11:06:39 PST 2015
 	// Same, in UTC: Wed Feb 25 19:06:39 UTC 2015
-	//in Shanghai with seconds: 2015-02-26T03:06:39 +080000
-	//in Shanghai with colon seconds: 2015-02-26T03:06:39 +08:00:00
+	// in Shanghai with seconds: 2015-02-26T03:06:39 +080000
+	// in Shanghai with colon seconds: 2015-02-26T03:06:39 +08:00:00
 	//
 	// Formats:
 	//

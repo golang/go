@@ -1,6 +1,0 @@
-pkg encoding/base32, method (*Encoding) AppendDecode([]uint8, []uint8) ([]uint8, error) #53693
-pkg encoding/base32, method (*Encoding) AppendEncode([]uint8, []uint8) []uint8 #53693
-pkg encoding/base64, method (*Encoding) AppendDecode([]uint8, []uint8) ([]uint8, error) #53693
-pkg encoding/base64, method (*Encoding) AppendEncode([]uint8, []uint8) []uint8 #53693
-pkg encoding/hex, func AppendDecode([]uint8, []uint8) ([]uint8, error) #53693
-pkg encoding/hex, func AppendEncode([]uint8, []uint8) []uint8 #53693

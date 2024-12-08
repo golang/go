@@ -16,32 +16,60 @@ import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"fmt"
 	"internal/abi"
 	"reflect"
 )
 
-type RuntimeType struct {
-	// A *types.Type representing a type used at runtime.
-	t *types.Type
-	// components maps from component names to their location in the type.
-	components map[string]location
-}
+// The type structures shared with the runtime.
+var Type *types.Type
 
-type location struct {
-	offset int64
-	kind   types.Kind // Just used for bug detection
-}
+var ArrayType *types.Type
+var ChanType *types.Type
+var FuncType *types.Type
+var InterfaceType *types.Type
+var OldMapType *types.Type
+var SwissMapType *types.Type
+var PtrType *types.Type
+var SliceType *types.Type
+var StructType *types.Type
 
-// Types shared with the runtime via internal/abi.
-// TODO: add more
-var Type *RuntimeType
+// Types that are parts of the types above.
+var IMethod *types.Type
+var Method *types.Type
+var StructField *types.Type
+var UncommonType *types.Type
+
+// Type switches and asserts
+var InterfaceSwitch *types.Type
+var TypeAssert *types.Type
+
+// Interface tables (itabs)
+var ITab *types.Type
 
 func Init() {
 	// Note: this has to be called explicitly instead of being
 	// an init function so it runs after the types package has
 	// been properly initialized.
 	Type = fromReflect(reflect.TypeOf(abi.Type{}))
+	ArrayType = fromReflect(reflect.TypeOf(abi.ArrayType{}))
+	ChanType = fromReflect(reflect.TypeOf(abi.ChanType{}))
+	FuncType = fromReflect(reflect.TypeOf(abi.FuncType{}))
+	InterfaceType = fromReflect(reflect.TypeOf(abi.InterfaceType{}))
+	OldMapType = fromReflect(reflect.TypeOf(abi.OldMapType{}))
+	SwissMapType = fromReflect(reflect.TypeOf(abi.SwissMapType{}))
+	PtrType = fromReflect(reflect.TypeOf(abi.PtrType{}))
+	SliceType = fromReflect(reflect.TypeOf(abi.SliceType{}))
+	StructType = fromReflect(reflect.TypeOf(abi.StructType{}))
+
+	IMethod = fromReflect(reflect.TypeOf(abi.Imethod{}))
+	Method = fromReflect(reflect.TypeOf(abi.Method{}))
+	StructField = fromReflect(reflect.TypeOf(abi.StructField{}))
+	UncommonType = fromReflect(reflect.TypeOf(abi.UncommonType{}))
+
+	InterfaceSwitch = fromReflect(reflect.TypeOf(abi.InterfaceSwitch{}))
+	TypeAssert = fromReflect(reflect.TypeOf(abi.TypeAssert{}))
+
+	ITab = fromReflect(reflect.TypeOf(abi.ITab{}))
 
 	// Make sure abi functions are correct. These functions are used
 	// by the linker which doesn't have the ability to do type layout,
@@ -50,17 +78,25 @@ func Init() {
 	if got, want := int64(abi.CommonSize(ptrSize)), Type.Size(); got != want {
 		base.Fatalf("abi.CommonSize() == %d, want %d", got, want)
 	}
-	if got, want := int64(abi.TFlagOff(ptrSize)), Type.Offset("TFlag"); got != want {
+	if got, want := int64(abi.StructFieldSize(ptrSize)), StructField.Size(); got != want {
+		base.Fatalf("abi.StructFieldSize() == %d, want %d", got, want)
+	}
+	if got, want := int64(abi.UncommonSize()), UncommonType.Size(); got != want {
+		base.Fatalf("abi.UncommonSize() == %d, want %d", got, want)
+	}
+	if got, want := int64(abi.TFlagOff(ptrSize)), Type.OffsetOf("TFlag"); got != want {
 		base.Fatalf("abi.TFlagOff() == %d, want %d", got, want)
+	}
+	if got, want := int64(abi.ITabTypeOff(ptrSize)), ITab.OffsetOf("Type"); got != want {
+		base.Fatalf("abi.ITabTypeOff() == %d, want %d", got, want)
 	}
 }
 
-// fromReflect translates from a host type to the equivalent
-// target type.
-func fromReflect(rt reflect.Type) *RuntimeType {
+// fromReflect translates from a host type to the equivalent target type.
+func fromReflect(rt reflect.Type) *types.Type {
 	t := reflectToType(rt)
 	types.CalcSize(t)
-	return &RuntimeType{t: t, components: unpack(t)}
+	return t
 }
 
 // reflectToType converts from a reflect.Type (which is a compiler
@@ -86,6 +122,8 @@ func reflectToType(rt reflect.Type) *types.Type {
 		// TODO: there's no mechanism to distinguish different pointer types,
 		// so we treat them all as unsafe.Pointer.
 		return types.Types[types.TUNSAFEPTR]
+	case reflect.Slice:
+		return types.NewSlice(reflectToType(rt.Elem()))
 	case reflect.Array:
 		return types.NewArray(reflectToType(rt.Elem()), int64(rt.Len()))
 	case reflect.Struct:
@@ -102,91 +140,170 @@ func reflectToType(rt reflect.Type) *types.Type {
 	}
 }
 
-// Unpack generates a set of components of a *types.Type.
-// The type must have already been CalcSize'd.
-func unpack(t *types.Type) map[string]location {
-	components := map[string]location{}
-	switch t.Kind() {
-	default:
-		components[""] = location{0, t.Kind()}
-	case types.TARRAY:
-		// TODO: not used yet
-		elemSize := t.Elem().Size()
-		for name, loc := range unpack(t.Elem()) {
-			for i := int64(0); i < t.NumElem(); i++ {
-				components[fmt.Sprintf("[%d]%s", i, name)] = location{i*elemSize + loc.offset, loc.kind}
-			}
-		}
-	case types.TSTRUCT:
-		for _, f := range t.Fields() {
-			for name, loc := range unpack(f.Type) {
-				n := f.Sym.Name
-				if name != "" {
-					n += "." + name
-				}
-				components[n] = location{f.Offset + loc.offset, loc.kind}
-			}
-		}
-	}
-	return components
+// A Cursor represents a typed location inside a static variable where we
+// are going to write.
+type Cursor struct {
+	lsym   *obj.LSym
+	offset int64
+	typ    *types.Type
 }
 
-func (r *RuntimeType) Size() int64 {
-	return r.t.Size()
+// NewCursor returns a cursor starting at lsym+off and having type t.
+func NewCursor(lsym *obj.LSym, off int64, t *types.Type) Cursor {
+	return Cursor{lsym: lsym, offset: off, typ: t}
 }
 
-func (r *RuntimeType) Alignment() int64 {
-	return r.t.Alignment()
-}
-
-func (r *RuntimeType) Offset(name string) int64 {
-	return r.components[name].offset
-}
-
-// WritePtr writes a pointer "target" to the component named "name" in the
-// static object "lsym".
-func (r *RuntimeType) WritePtr(lsym *obj.LSym, name string, target *obj.LSym) {
-	loc := r.components[name]
-	if loc.kind != types.TUNSAFEPTR {
-		base.Fatalf("can't write ptr to field %s, it has kind %s", name, loc.kind)
+// WritePtr writes a pointer "target" to the component at the location specified by c.
+func (c Cursor) WritePtr(target *obj.LSym) {
+	if c.typ.Kind() != types.TUNSAFEPTR {
+		base.Fatalf("can't write ptr, it has kind %s", c.typ.Kind())
 	}
 	if target == nil {
-		objw.Uintptr(lsym, int(loc.offset), 0)
+		objw.Uintptr(c.lsym, int(c.offset), 0)
 	} else {
-		objw.SymPtr(lsym, int(loc.offset), target, 0)
+		objw.SymPtr(c.lsym, int(c.offset), target, 0)
 	}
 }
-func (r *RuntimeType) WriteUintptr(lsym *obj.LSym, name string, val uint64) {
-	loc := r.components[name]
-	if loc.kind != types.TUINTPTR {
-		base.Fatalf("can't write uintptr to field %s, it has kind %s", name, loc.kind)
+func (c Cursor) WritePtrWeak(target *obj.LSym) {
+	if c.typ.Kind() != types.TUINTPTR {
+		base.Fatalf("can't write ptr, it has kind %s", c.typ.Kind())
 	}
-	objw.Uintptr(lsym, int(loc.offset), val)
+	objw.SymPtrWeak(c.lsym, int(c.offset), target, 0)
 }
-func (r *RuntimeType) WriteUint32(lsym *obj.LSym, name string, val uint32) {
-	loc := r.components[name]
-	if loc.kind != types.TUINT32 {
-		base.Fatalf("can't write uint32 to field %s, it has kind %s", name, loc.kind)
+func (c Cursor) WriteUintptr(val uint64) {
+	if c.typ.Kind() != types.TUINTPTR {
+		base.Fatalf("can't write uintptr, it has kind %s", c.typ.Kind())
 	}
-	objw.Uint32(lsym, int(loc.offset), val)
+	objw.Uintptr(c.lsym, int(c.offset), val)
 }
-func (r *RuntimeType) WriteUint8(lsym *obj.LSym, name string, val uint8) {
-	loc := r.components[name]
-	if loc.kind != types.TUINT8 {
-		base.Fatalf("can't write uint8 to field %s, it has kind %s", name, loc.kind)
+func (c Cursor) WriteUint32(val uint32) {
+	if c.typ.Kind() != types.TUINT32 {
+		base.Fatalf("can't write uint32, it has kind %s", c.typ.Kind())
 	}
-	objw.Uint8(lsym, int(loc.offset), val)
+	objw.Uint32(c.lsym, int(c.offset), val)
 }
-func (r *RuntimeType) WriteSymPtrOff(lsym *obj.LSym, name string, target *obj.LSym, weak bool) {
-	loc := r.components[name]
-	if loc.kind != types.TINT32 {
-		base.Fatalf("can't write SymPtr to field %s, it has kind %s", name, loc.kind)
+func (c Cursor) WriteUint16(val uint16) {
+	if c.typ.Kind() != types.TUINT16 {
+		base.Fatalf("can't write uint16, it has kind %s", c.typ.Kind())
+	}
+	objw.Uint16(c.lsym, int(c.offset), val)
+}
+func (c Cursor) WriteUint8(val uint8) {
+	if c.typ.Kind() != types.TUINT8 {
+		base.Fatalf("can't write uint8, it has kind %s", c.typ.Kind())
+	}
+	objw.Uint8(c.lsym, int(c.offset), val)
+}
+func (c Cursor) WriteInt(val int64) {
+	if c.typ.Kind() != types.TINT {
+		base.Fatalf("can't write int, it has kind %s", c.typ.Kind())
+	}
+	objw.Uintptr(c.lsym, int(c.offset), uint64(val))
+}
+func (c Cursor) WriteInt32(val int32) {
+	if c.typ.Kind() != types.TINT32 {
+		base.Fatalf("can't write int32, it has kind %s", c.typ.Kind())
+	}
+	objw.Uint32(c.lsym, int(c.offset), uint32(val))
+}
+func (c Cursor) WriteBool(val bool) {
+	if c.typ.Kind() != types.TBOOL {
+		base.Fatalf("can't write bool, it has kind %s", c.typ.Kind())
+	}
+	objw.Bool(c.lsym, int(c.offset), val)
+}
+
+// WriteSymPtrOff writes a "pointer" to the given symbol. The symbol
+// is encoded as a uint32 offset from the start of the section.
+func (c Cursor) WriteSymPtrOff(target *obj.LSym, weak bool) {
+	if c.typ.Kind() != types.TINT32 && c.typ.Kind() != types.TUINT32 {
+		base.Fatalf("can't write SymPtr, it has kind %s", c.typ.Kind())
 	}
 	if target == nil {
-		objw.Uint32(lsym, int(loc.offset), 0)
+		objw.Uint32(c.lsym, int(c.offset), 0)
 	} else if weak {
-		objw.SymPtrWeakOff(lsym, int(loc.offset), target)
+		objw.SymPtrWeakOff(c.lsym, int(c.offset), target)
 	} else {
-		objw.SymPtrOff(lsym, int(loc.offset), target)
+		objw.SymPtrOff(c.lsym, int(c.offset), target)
 	}
+}
+
+// WriteSlice writes a slice header to c. The pointer is target+off, the len and cap fields are given.
+func (c Cursor) WriteSlice(target *obj.LSym, off, len, cap int64) {
+	if c.typ.Kind() != types.TSLICE {
+		base.Fatalf("can't write slice, it has kind %s", c.typ.Kind())
+	}
+	objw.SymPtr(c.lsym, int(c.offset), target, int(off))
+	objw.Uintptr(c.lsym, int(c.offset)+types.PtrSize, uint64(len))
+	objw.Uintptr(c.lsym, int(c.offset)+2*types.PtrSize, uint64(cap))
+	// TODO: ability to switch len&cap. Maybe not needed here, as every caller
+	// passes the same thing for both?
+	if len != cap {
+		base.Fatalf("len != cap (%d != %d)", len, cap)
+	}
+}
+
+// Reloc adds a relocation from the current cursor position.
+// Reloc fills in Off and Siz fields. Caller should fill in the rest (Type, others).
+func (c Cursor) Reloc(rel obj.Reloc) {
+	rel.Off = int32(c.offset)
+	rel.Siz = uint8(c.typ.Size())
+	c.lsym.AddRel(base.Ctxt, rel)
+}
+
+// Field selects the field with the given name from the struct pointed to by c.
+func (c Cursor) Field(name string) Cursor {
+	if c.typ.Kind() != types.TSTRUCT {
+		base.Fatalf("can't call Field on non-struct %v", c.typ)
+	}
+	for _, f := range c.typ.Fields() {
+		if f.Sym.Name == name {
+			return Cursor{lsym: c.lsym, offset: c.offset + f.Offset, typ: f.Type}
+		}
+	}
+	base.Fatalf("couldn't find field %s in %v", name, c.typ)
+	return Cursor{}
+}
+
+func (c Cursor) Elem(i int64) Cursor {
+	if c.typ.Kind() != types.TARRAY {
+		base.Fatalf("can't call Elem on non-array %v", c.typ)
+	}
+	if i < 0 || i >= c.typ.NumElem() {
+		base.Fatalf("element access out of bounds [%d] in [0:%d]", i, c.typ.NumElem())
+	}
+	elem := c.typ.Elem()
+	return Cursor{lsym: c.lsym, offset: c.offset + i*elem.Size(), typ: elem}
+}
+
+type ArrayCursor struct {
+	c Cursor // cursor pointing at first element
+	n int    // number of elements
+}
+
+// NewArrayCursor returns a cursor starting at lsym+off and having n copies of type t.
+func NewArrayCursor(lsym *obj.LSym, off int64, t *types.Type, n int) ArrayCursor {
+	return ArrayCursor{
+		c: NewCursor(lsym, off, t),
+		n: n,
+	}
+}
+
+// Elem selects element i of the array pointed to by c.
+func (a ArrayCursor) Elem(i int) Cursor {
+	if i < 0 || i >= a.n {
+		base.Fatalf("element index %d out of range [0:%d]", i, a.n)
+	}
+	return Cursor{lsym: a.c.lsym, offset: a.c.offset + int64(i)*a.c.typ.Size(), typ: a.c.typ}
+}
+
+// ModifyArray converts a cursor pointing at a type [k]T to a cursor pointing
+// at a type [n]T.
+// Also returns the size delta, aka (n-k)*sizeof(T).
+func (c Cursor) ModifyArray(n int) (ArrayCursor, int64) {
+	if c.typ.Kind() != types.TARRAY {
+		base.Fatalf("can't call ModifyArray on non-array %v", c.typ)
+	}
+	k := c.typ.NumElem()
+	return ArrayCursor{c: Cursor{lsym: c.lsym, offset: c.offset, typ: c.typ.Elem()}, n: n}, (int64(n) - k) * c.typ.Elem().Size()
 }

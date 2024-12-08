@@ -18,9 +18,6 @@ func xgetbv() (eax, edx uint32)
 func getGOAMD64level() int32
 
 const (
-	// edx bits
-	cpuid_SSE2 = 1 << 26
-
 	// ecx bits
 	cpuid_SSE3      = 1 << 0
 	cpuid_PCLMULQDQ = 1 << 1
@@ -34,13 +31,17 @@ const (
 	cpuid_AVX       = 1 << 28
 
 	// ebx bits
-	cpuid_BMI1 = 1 << 3
-	cpuid_AVX2 = 1 << 5
-	cpuid_BMI2 = 1 << 8
-	cpuid_ERMS = 1 << 9
-	cpuid_ADX  = 1 << 19
-	cpuid_SHA  = 1 << 29
-
+	cpuid_BMI1     = 1 << 3
+	cpuid_AVX2     = 1 << 5
+	cpuid_BMI2     = 1 << 8
+	cpuid_ERMS     = 1 << 9
+	cpuid_AVX512F  = 1 << 16
+	cpuid_ADX      = 1 << 19
+	cpuid_SHA      = 1 << 29
+	cpuid_AVX512BW = 1 << 30
+	cpuid_AVX512VL = 1 << 31
+	// edx bits
+	cpuid_FSRM = 1 << 4
 	// edx bits for CPUID 0x80000001
 	cpuid_RDTSCP = 1 << 27
 )
@@ -52,6 +53,7 @@ func doinit() {
 		{Name: "adx", Feature: &X86.HasADX},
 		{Name: "aes", Feature: &X86.HasAES},
 		{Name: "erms", Feature: &X86.HasERMS},
+		{Name: "fsrm", Feature: &X86.HasFSRM},
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
 		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
 		{Name: "sha", Feature: &X86.HasSHA},
@@ -76,6 +78,15 @@ func doinit() {
 			option{Name: "bmi1", Feature: &X86.HasBMI1},
 			option{Name: "bmi2", Feature: &X86.HasBMI2},
 			option{Name: "fma", Feature: &X86.HasFMA})
+	}
+	if level < 4 {
+		// These options are required at level 4. At lower levels
+		// they can be turned off.
+		options = append(options,
+			option{Name: "avx512f", Feature: &X86.HasAVX512F},
+			option{Name: "avx512bw", Feature: &X86.HasAVX512BW},
+			option{Name: "avx512vl", Feature: &X86.HasAVX512VL},
+		)
 	}
 
 	maxID, _, _, _ := cpuid(0, 0)
@@ -108,11 +119,18 @@ func doinit() {
 	X86.HasFMA = isSet(ecx1, cpuid_FMA) && X86.HasOSXSAVE
 
 	osSupportsAVX := false
+	osSupportsAVX512 := false
 	// For XGETBV, OSXSAVE bit is required and sufficient.
 	if X86.HasOSXSAVE {
 		eax, _ := xgetbv()
 		// Check if XMM and YMM registers have OS support.
 		osSupportsAVX = isSet(eax, 1<<1) && isSet(eax, 1<<2)
+
+		// AVX512 detection does not work on Darwin,
+		// see https://github.com/golang/go/issues/49233
+		//
+		// Check if opmask, ZMMhi256 and Hi16_ZMM have OS support.
+		osSupportsAVX512 = osSupportsAVX && isSet(eax, 1<<5) && isSet(eax, 1<<6) && isSet(eax, 1<<7)
 	}
 
 	X86.HasAVX = isSet(ecx1, cpuid_AVX) && osSupportsAVX
@@ -121,13 +139,21 @@ func doinit() {
 		return
 	}
 
-	_, ebx7, _, _ := cpuid(7, 0)
+	_, ebx7, _, edx7 := cpuid(7, 0)
 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
 	X86.HasSHA = isSet(ebx7, cpuid_SHA)
+
+	X86.HasAVX512F = isSet(ebx7, cpuid_AVX512F) && osSupportsAVX512
+	if X86.HasAVX512F {
+		X86.HasAVX512BW = isSet(ebx7, cpuid_AVX512BW)
+		X86.HasAVX512VL = isSet(ebx7, cpuid_AVX512VL)
+	}
+
+	X86.HasFSRM = isSet(edx7, cpuid_FSRM)
 
 	var maxExtendedInformation uint32
 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)

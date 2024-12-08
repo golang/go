@@ -7,13 +7,12 @@ package testing
 import (
 	"flag"
 	"fmt"
-	"internal/race"
 	"internal/sysinfo"
 	"io"
 	"math"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -78,7 +77,7 @@ type InternalBenchmark struct {
 	F    func(b *B)
 }
 
-// B is a type passed to Benchmark functions to manage benchmark
+// B is a type passed to [Benchmark] functions to manage benchmark
 // timing and to specify the number of iterations to run.
 //
 // A benchmark ends when its Benchmark function returns or calls any of the methods
@@ -94,7 +93,7 @@ type InternalBenchmark struct {
 type B struct {
 	common
 	importPath       string // import path of the package containing the benchmark
-	context          *benchContext
+	bstate           *benchState
 	N                int
 	previousN        int           // number of iterations in the previous run
 	previousDuration time.Duration // total duration of the previous run
@@ -114,17 +113,21 @@ type B struct {
 	netBytes  uint64
 	// Extra metrics collected by ReportMetric.
 	extra map[string]float64
+	// For Loop() to be executed in benchFunc.
+	// Loop() has its own control logic that skips the loop scaling.
+	// See issue #61515.
+	loopN int
 }
 
 // StartTimer starts timing a test. This function is called automatically
 // before a benchmark starts, but it can also be used to resume timing after
-// a call to StopTimer.
+// a call to [B.StopTimer].
 func (b *B) StartTimer() {
 	if !b.timerOn {
 		runtime.ReadMemStats(&memStats)
 		b.startAllocs = memStats.Mallocs
 		b.startBytes = memStats.TotalAlloc
-		b.start = time.Now()
+		b.start = highPrecisionTimeNow()
 		b.timerOn = true
 	}
 }
@@ -134,7 +137,7 @@ func (b *B) StartTimer() {
 // want to measure.
 func (b *B) StopTimer() {
 	if b.timerOn {
-		b.duration += time.Since(b.start)
+		b.duration += highPrecisionTimeSince(b.start)
 		runtime.ReadMemStats(&memStats)
 		b.netAllocs += memStats.Mallocs - b.startAllocs
 		b.netBytes += memStats.TotalAlloc - b.startBytes
@@ -157,7 +160,7 @@ func (b *B) ResetTimer() {
 		runtime.ReadMemStats(&memStats)
 		b.startAllocs = memStats.Mallocs
 		b.startBytes = memStats.TotalAlloc
-		b.start = time.Now()
+		b.start = highPrecisionTimeNow()
 	}
 	b.duration = 0
 	b.netAllocs = 0
@@ -179,12 +182,17 @@ func (b *B) ReportAllocs() {
 func (b *B) runN(n int) {
 	benchmarkLock.Lock()
 	defer benchmarkLock.Unlock()
-	defer b.runCleanup(normalPanic)
+	defer func() {
+		b.runCleanup(normalPanic)
+		b.checkRaces()
+	}()
 	// Try to get a comparable environment for each run
 	// by clearing garbage from previous runs.
 	runtime.GC()
-	b.raceErrors = -race.Errors()
+	b.resetRaces()
 	b.N = n
+	b.loopN = 0
+
 	b.parallelism = 1
 	b.ResetTimer()
 	b.StartTimer()
@@ -192,19 +200,15 @@ func (b *B) runN(n int) {
 	b.StopTimer()
 	b.previousN = n
 	b.previousDuration = b.duration
-	b.raceErrors += race.Errors()
-	if b.raceErrors > 0 {
-		b.Errorf("race detected during execution of benchmark")
-	}
 }
 
 // run1 runs the first iteration of benchFunc. It reports whether more
 // iterations of this benchmarks should be run.
 func (b *B) run1() bool {
-	if ctx := b.context; ctx != nil {
+	if bstate := b.bstate; bstate != nil {
 		// Extend maxLen, if needed.
-		if n := len(b.name) + ctx.extLen + 1; n > ctx.maxLen {
-			ctx.maxLen = n + 8 // Add additional slack to avoid too many jumps in size.
+		if n := len(b.name) + bstate.extLen + 1; n > bstate.maxLen {
+			bstate.maxLen = n + 8 // Add additional slack to avoid too many jumps in size.
 		}
 	}
 	go func() {
@@ -255,9 +259,9 @@ func (b *B) run() {
 			fmt.Fprintf(b.w, "cpu: %s\n", cpu)
 		}
 	})
-	if b.context != nil {
+	if b.bstate != nil {
 		// Running go test --test.bench
-		b.context.processBench(b) // Must call doBench.
+		b.bstate.processBench(b) // Must call doBench.
 	} else {
 		// Running func Benchmark.
 		b.doBench()
@@ -268,6 +272,29 @@ func (b *B) doBench() BenchmarkResult {
 	go b.launch()
 	<-b.signal
 	return b.result
+}
+
+func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
+	if prevns == 0 {
+		// Round up to dodge divide by zero. See https://go.dev/issue/70709.
+		prevns = 1
+	}
+
+	// Order of operations matters.
+	// For very fast benchmarks, prevIters ~= prevns.
+	// If you divide first, you get 0 or 1,
+	// which can hide an order of magnitude in execution time.
+	// So multiply first, then divide.
+	n := goalns * prevIters / prevns
+	// Run more iterations than we think we'll need (1.2x).
+	n += n / 5
+	// Don't grow too fast in case we had timing errors previously.
+	n = min(n, 100*last)
+	// Be sure to run at least one more than last time.
+	n = max(n, last+1)
+	// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
+	n = min(n, 1e9)
+	return int(n)
 }
 
 // launch launches the benchmark function. It gradually increases the number
@@ -281,41 +308,27 @@ func (b *B) launch() {
 		b.signal <- true
 	}()
 
-	// Run the benchmark for at least the specified amount of time.
-	if b.benchTime.n > 0 {
-		// We already ran a single iteration in run1.
-		// If -benchtime=1x was requested, use that result.
-		// See https://golang.org/issue/32051.
-		if b.benchTime.n > 1 {
-			b.runN(b.benchTime.n)
-		}
-	} else {
-		d := b.benchTime.d
-		for n := int64(1); !b.failed && b.duration < d && n < 1e9; {
-			last := n
-			// Predict required iterations.
-			goalns := d.Nanoseconds()
-			prevIters := int64(b.N)
-			prevns := b.duration.Nanoseconds()
-			if prevns <= 0 {
-				// Round up, to avoid div by zero.
-				prevns = 1
+	// b.Loop does its own ramp-up logic so we just need to run it once.
+	// If b.loopN is non zero, it means b.Loop has already run.
+	if b.loopN == 0 {
+		// Run the benchmark for at least the specified amount of time.
+		if b.benchTime.n > 0 {
+			// We already ran a single iteration in run1.
+			// If -benchtime=1x was requested, use that result.
+			// See https://golang.org/issue/32051.
+			if b.benchTime.n > 1 {
+				b.runN(b.benchTime.n)
 			}
-			// Order of operations matters.
-			// For very fast benchmarks, prevIters ~= prevns.
-			// If you divide first, you get 0 or 1,
-			// which can hide an order of magnitude in execution time.
-			// So multiply first, then divide.
-			n = goalns * prevIters / prevns
-			// Run more iterations than we think we'll need (1.2x).
-			n += n / 5
-			// Don't grow too fast in case we had timing errors previously.
-			n = min(n, 100*last)
-			// Be sure to run at least one more than last time.
-			n = max(n, last+1)
-			// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
-			n = min(n, 1e9)
-			b.runN(int(n))
+		} else {
+			d := b.benchTime.d
+			for n := int64(1); !b.failed && b.duration < d && n < 1e9; {
+				last := n
+				// Predict required iterations.
+				goalns := d.Nanoseconds()
+				prevIters := int64(b.N)
+				n = int64(predictN(goalns, prevIters, b.duration.Nanoseconds(), last))
+				b.runN(int(n))
+			}
 		}
 	}
 	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}
@@ -323,11 +336,11 @@ func (b *B) launch() {
 
 // Elapsed returns the measured elapsed time of the benchmark.
 // The duration reported by Elapsed matches the one measured by
-// StartTimer, StopTimer, and ResetTimer.
+// [B.StartTimer], [B.StopTimer], and [B.ResetTimer].
 func (b *B) Elapsed() time.Duration {
 	d := b.duration
 	if b.timerOn {
-		d += time.Since(b.start)
+		d += highPrecisionTimeSince(b.start)
 	}
 	return d
 }
@@ -349,6 +362,71 @@ func (b *B) ReportMetric(n float64, unit string) {
 		panic("metric unit must not contain whitespace")
 	}
 	b.extra[unit] = n
+}
+
+func (b *B) stopOrScaleBLoop() bool {
+	timeElapsed := highPrecisionTimeSince(b.start)
+	if timeElapsed >= b.benchTime.d {
+		return false
+	}
+	// Loop scaling
+	goalns := b.benchTime.d.Nanoseconds()
+	prevIters := int64(b.N)
+	b.N = predictN(goalns, prevIters, timeElapsed.Nanoseconds(), prevIters)
+	b.loopN++
+	return true
+}
+
+func (b *B) loopSlowPath() bool {
+	if b.loopN == 0 {
+		// If it's the first call to b.Loop() in the benchmark function.
+		// Allows more precise measurement of benchmark loop cost counts.
+		// Also initialize b.N to 1 to kick start loop scaling.
+		b.N = 1
+		b.loopN = 1
+		b.ResetTimer()
+		return true
+	}
+	// Handles fixed time case
+	if b.benchTime.n > 0 {
+		if b.N < b.benchTime.n {
+			b.N = b.benchTime.n
+			b.loopN++
+			return true
+		}
+		return false
+	}
+	// Handles fixed iteration count case
+	return b.stopOrScaleBLoop()
+}
+
+// Loop returns true until b.N calls has been made to it.
+//
+// A benchmark should either use Loop or contain an explicit loop from 0 to b.N, but not both.
+// After the benchmark finishes, b.N will contain the total number of calls to op, so the benchmark
+// may use b.N to compute other average metrics.
+//
+// The parameters and results of function calls inside the body of "for b.Loop() {...}" are guaranteed
+// not to be optimized away.
+// Also, the local loop scaling for b.Loop ensures the benchmark function containing the loop will only
+// be executed once, i.e. for such construct:
+//
+//	testing.Benchmark(func(b *testing.B) {
+//			...(setup)
+//			for b.Loop() {
+//				...(benchmark logic)
+//			}
+//			...(clean-up)
+//	}
+//
+// The ...(setup) and ...(clean-up) logic will only be executed once.
+// Also benchtime=Nx (N>1) will result in exactly N executions instead of N+1 for b.N style loops.
+func (b *B) Loop() bool {
+	if b.loopN != 0 && b.loopN < b.N {
+		b.loopN++
+		return true
+	}
+	return b.loopSlowPath()
 }
 
 // BenchmarkResult contains the results of a benchmark run.
@@ -415,7 +493,7 @@ func (r BenchmarkResult) AllocedBytesPerOp() int64 {
 // benchmark name.
 // Extra metrics override built-in metrics of the same name.
 // String does not include allocs/op or B/op, since those are reported
-// by MemString.
+// by [BenchmarkResult.MemString].
 func (r BenchmarkResult) String() string {
 	buf := new(strings.Builder)
 	fmt.Fprintf(buf, "%8d", r.N)
@@ -445,7 +523,7 @@ func (r BenchmarkResult) String() string {
 		}
 		extraKeys = append(extraKeys, k)
 	}
-	sort.Strings(extraKeys)
+	slices.Sort(extraKeys)
 	for _, k := range extraKeys {
 		buf.WriteByte('\t')
 		prettyPrint(buf, r.Extra[k], k)
@@ -494,7 +572,7 @@ func benchmarkName(name string, n int) string {
 	return name
 }
 
-type benchContext struct {
+type benchState struct {
 	match *matcher
 
 	maxLen int // The largest recorded benchmark name.
@@ -519,17 +597,17 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 			maxprocs = procs
 		}
 	}
-	ctx := &benchContext{
+	bstate := &benchState{
 		match:  newMatcher(matchString, *matchBenchmarks, "-test.bench", *skip),
 		extLen: len(benchmarkName("", maxprocs)),
 	}
 	var bs []InternalBenchmark
 	for _, Benchmark := range benchmarks {
-		if _, matched, _ := ctx.match.fullName(nil, Benchmark.Name); matched {
+		if _, matched, _ := bstate.match.fullName(nil, Benchmark.Name); matched {
 			bs = append(bs, Benchmark)
 			benchName := benchmarkName(Benchmark.Name, maxprocs)
-			if l := len(benchName) + ctx.extLen + 1; l > ctx.maxLen {
-				ctx.maxLen = l
+			if l := len(benchName) + bstate.extLen + 1; l > bstate.maxLen {
+				bstate.maxLen = l
 			}
 		}
 	}
@@ -546,7 +624,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 			}
 		},
 		benchTime: benchTime,
-		context:   ctx,
+		bstate:    bstate,
 	}
 	if Verbose() {
 		main.chatty = newChattyPrinter(main.w)
@@ -556,7 +634,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
 }
 
 // processBench runs bench b for the configured CPU counts and prints the results.
-func (ctx *benchContext) processBench(b *B) {
+func (s *benchState) processBench(b *B) {
 	for i, procs := range cpuList {
 		for j := uint(0); j < *count; j++ {
 			runtime.GOMAXPROCS(procs)
@@ -564,7 +642,7 @@ func (ctx *benchContext) processBench(b *B) {
 
 			// If it's chatty, we've already printed this information.
 			if b.chatty == nil {
-				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+				fmt.Fprintf(b.w, "%-*s\t", s.maxLen, benchName)
 			}
 			// Recompute the running time for all but the first iteration.
 			if i > 0 || j > 0 {
@@ -591,7 +669,7 @@ func (ctx *benchContext) processBench(b *B) {
 			}
 			results := r.String()
 			if b.chatty != nil {
-				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+				fmt.Fprintf(b.w, "%-*s\t", s.maxLen, benchName)
 			}
 			if *benchmarkMemory || b.showAllocResult {
 				results += "\t" + r.MemString()
@@ -631,8 +709,8 @@ func (b *B) Run(name string, f func(b *B)) bool {
 	defer benchmarkLock.Lock()
 
 	benchName, ok, partial := b.name, true, false
-	if b.context != nil {
-		benchName, ok, partial = b.context.match.fullName(&b.common, name)
+	if b.bstate != nil {
+		benchName, ok, partial = b.bstate.match.fullName(&b.common, name)
 	}
 	if !ok {
 		return true
@@ -653,7 +731,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		importPath: b.importPath,
 		benchFunc:  f,
 		benchTime:  b.benchTime,
-		context:    b.context,
+		bstate:     b.bstate,
 	}
 	if partial {
 		// Partial name match, like -bench=X/Y matching BenchmarkX.
@@ -729,16 +807,16 @@ func (b *B) trimOutput() {
 
 // A PB is used by RunParallel for running parallel benchmarks.
 type PB struct {
-	globalN *uint64 // shared between all worker goroutines iteration counter
-	grain   uint64  // acquire that many iterations from globalN at once
-	cache   uint64  // local cache of acquired iterations
-	bN      uint64  // total number of iterations to execute (b.N)
+	globalN *atomic.Uint64 // shared between all worker goroutines iteration counter
+	grain   uint64         // acquire that many iterations from globalN at once
+	cache   uint64         // local cache of acquired iterations
+	bN      uint64         // total number of iterations to execute (b.N)
 }
 
 // Next reports whether there are more iterations to execute.
 func (pb *PB) Next() bool {
 	if pb.cache == 0 {
-		n := atomic.AddUint64(pb.globalN, pb.grain)
+		n := pb.globalN.Add(pb.grain)
 		if n <= pb.bN {
 			pb.cache = pb.grain
 		} else if n < pb.bN+pb.grain {
@@ -754,13 +832,13 @@ func (pb *PB) Next() bool {
 // RunParallel runs a benchmark in parallel.
 // It creates multiple goroutines and distributes b.N iterations among them.
 // The number of goroutines defaults to GOMAXPROCS. To increase parallelism for
-// non-CPU-bound benchmarks, call SetParallelism before RunParallel.
+// non-CPU-bound benchmarks, call [B.SetParallelism] before RunParallel.
 // RunParallel is usually used with the go test -cpu flag.
 //
 // The body function will be run in each goroutine. It should set up any
 // goroutine-local state and then iterate until pb.Next returns false.
-// It should not use the StartTimer, StopTimer, or ResetTimer functions,
-// because they have global effect. It should also not call Run.
+// It should not use the [B.StartTimer], [B.StopTimer], or [B.ResetTimer] functions,
+// because they have global effect. It should also not call [B.Run].
 //
 // RunParallel reports ns/op values as wall time for the benchmark as a whole,
 // not the sum of wall time or CPU time over each parallel goroutine.
@@ -784,7 +862,7 @@ func (b *B) RunParallel(body func(*PB)) {
 		grain = 1e4
 	}
 
-	n := uint64(0)
+	var n atomic.Uint64
 	numProcs := b.parallelism * runtime.GOMAXPROCS(0)
 	var wg sync.WaitGroup
 	wg.Add(numProcs)
@@ -800,12 +878,12 @@ func (b *B) RunParallel(body func(*PB)) {
 		}()
 	}
 	wg.Wait()
-	if n <= uint64(b.N) && !b.Failed() {
+	if n.Load() <= uint64(b.N) && !b.Failed() {
 		b.Fatal("RunParallel: body exited without pb.Next() == false")
 	}
 }
 
-// SetParallelism sets the number of goroutines used by RunParallel to p*GOMAXPROCS.
+// SetParallelism sets the number of goroutines used by [B.RunParallel] to p*GOMAXPROCS.
 // There is usually no need to call SetParallelism for CPU-bound benchmarks.
 // If p is less than 1, this call will have no effect.
 func (b *B) SetParallelism(p int) {
@@ -817,8 +895,8 @@ func (b *B) SetParallelism(p int) {
 // Benchmark benchmarks a single function. It is useful for creating
 // custom benchmarks that do not use the "go test" command.
 //
-// If f depends on testing flags, then Init must be used to register
-// those flags before calling Benchmark and before calling flag.Parse.
+// If f depends on testing flags, then [Init] must be used to register
+// those flags before calling Benchmark and before calling [flag.Parse].
 //
 // If f calls Run, the result will be an estimate of running all its
 // subbenchmarks that don't call Run in sequence in a single benchmark.

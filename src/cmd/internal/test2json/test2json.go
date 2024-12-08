@@ -29,12 +29,13 @@ const (
 
 // event is the JSON struct we emit.
 type event struct {
-	Time    *time.Time `json:",omitempty"`
-	Action  string
-	Package string     `json:",omitempty"`
-	Test    string     `json:",omitempty"`
-	Elapsed *float64   `json:",omitempty"`
-	Output  *textBytes `json:",omitempty"`
+	Time        *time.Time `json:",omitempty"`
+	Action      string
+	Package     string     `json:",omitempty"`
+	Test        string     `json:",omitempty"`
+	Elapsed     *float64   `json:",omitempty"`
+	Output      *textBytes `json:",omitempty"`
+	FailedBuild string     `json:",omitempty"`
 }
 
 // textBytes is a hack to get JSON to emit a []byte as a string
@@ -59,6 +60,10 @@ type Converter struct {
 	input      lineBuffer // input buffer
 	output     lineBuffer // output buffer
 	needMarker bool       // require ^V marker to introduce test framing line
+
+	// failedBuild is set to the package ID of the cause of a build failure,
+	// if that's what caused this test to fail.
+	failedBuild string
 }
 
 // inBuffer and outBuffer are the input and output buffer sizes.
@@ -138,6 +143,13 @@ func (c *Converter) Exited(err error) {
 	} else {
 		c.result = "fail"
 	}
+}
+
+// SetFailedBuild sets the package ID that is the root cause of a build failure
+// for this test. This will be reported in the final "fail" event's FailedBuild
+// field.
+func (c *Converter) SetFailedBuild(pkgID string) {
+	c.failedBuild = pkgID
 }
 
 const marker = byte(0x16) // ^V
@@ -368,6 +380,9 @@ func (c *Converter) Close() error {
 		if c.mode&Timestamp != 0 {
 			dt := time.Since(c.start).Round(1 * time.Millisecond).Seconds()
 			e.Elapsed = &dt
+		}
+		if c.result == "fail" {
+			e.FailedBuild = c.failedBuild
 		}
 		c.writeEvent(e)
 	}

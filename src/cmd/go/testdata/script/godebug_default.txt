@@ -45,6 +45,35 @@ cp go.mod.21 go.mod
 stderr 'go: module . listed in go.work file requires go >= 1.21'
 rm go.work
 
+# Go 1.21 go.mod with godebug default=go1.20
+rm go.work
+cp go.mod.21 go.mod
+go mod edit -godebug default=go1.20 -godebug asynctimerchan=0
+go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
+stdout panicnil=1
+stdout asynctimerchan=0
+
+# Go 1.21 go.work with godebug default=go1.20
+cp go.work.21 go.work
+go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
+! stdout panicnil # go.work wins
+stdout asynctimerchan=1 # go.work wins
+go work edit -godebug default=go1.20 -godebug asynctimerchan=0
+go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
+stdout panicnil=1
+stdout asynctimerchan=0
+rm go.work
+
+# Go 1.21 go.mod with //go:debug default=go1.20 in program
+cp go.mod.21 go.mod
+go list -tags godebug -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
+stdout panicnil=1
+stdout asynctimerchan=0
+
+# Invalid //go:debug line should be diagnosed at build.
+! go build -tags godebugbad
+stderr 'invalid //go:debug: value contains space'
+
 [short] skip
 
 # Programs in Go 1.21 work module should trigger run-time error.
@@ -104,6 +133,19 @@ package main
 func main() {
 	panic(nil)
 }
+
+-- godebug.go --
+//go:build godebug
+//go:debug default=go1.20
+//go:debug asynctimerchan=0
+
+package main
+
+-- godebugbad.go --
+//go:build godebugbad
+//go:debug default=go1.20 asynctimerchan=0
+
+package main
 
 -- q/go.mod --
 go 1.20

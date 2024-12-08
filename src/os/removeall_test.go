@@ -159,40 +159,25 @@ func TestRemoveAllLongPath(t *testing.T) {
 		t.Skip("skipping for not implemented platforms")
 	}
 
-	prevDir, err := Getwd()
-	if err != nil {
-		t.Fatalf("Could not get wd: %s", err)
-	}
+	startPath := t.TempDir()
+	t.Chdir(startPath)
 
-	startPath, err := MkdirTemp("", "TestRemoveAllLongPath-")
-	if err != nil {
-		t.Fatalf("Could not create TempDir: %s", err)
-	}
-	defer RemoveAll(startPath)
-
-	err = Chdir(startPath)
-	if err != nil {
-		t.Fatalf("Could not chdir %s: %s", startPath, err)
-	}
-
-	// Removing paths with over 4096 chars commonly fails
+	// Removing paths with over 4096 chars commonly fails.
+	name := strings.Repeat("a", 100)
 	for i := 0; i < 41; i++ {
-		name := strings.Repeat("a", 100)
-
-		err = Mkdir(name, 0755)
-		if err != nil {
+		if err := Mkdir(name, 0755); err != nil {
 			t.Fatalf("Could not mkdir %s: %s", name, err)
 		}
-
-		err = Chdir(name)
-		if err != nil {
+		if err := Chdir(name); err != nil {
 			t.Fatalf("Could not chdir %s: %s", name, err)
 		}
 	}
 
-	err = Chdir(prevDir)
+	// Chdir out of startPath before attempting to remove it,
+	// otherwise RemoveAll fails on aix, illumos and solaris.
+	err := Chdir(filepath.Join(startPath, ".."))
 	if err != nil {
-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
+		t.Fatalf("Could not chdir: %s", err)
 	}
 
 	err = RemoveAll(startPath)
@@ -202,29 +187,10 @@ func TestRemoveAllLongPath(t *testing.T) {
 }
 
 func TestRemoveAllDot(t *testing.T) {
-	prevDir, err := Getwd()
-	if err != nil {
-		t.Fatalf("Could not get wd: %s", err)
-	}
-	tempDir, err := MkdirTemp("", "TestRemoveAllDot-")
-	if err != nil {
-		t.Fatalf("Could not create TempDir: %s", err)
-	}
-	defer RemoveAll(tempDir)
+	t.Chdir(t.TempDir())
 
-	err = Chdir(tempDir)
-	if err != nil {
-		t.Fatalf("Could not chdir to tempdir: %s", err)
-	}
-
-	err = RemoveAll(".")
-	if err == nil {
+	if err := RemoveAll("."); err == nil {
 		t.Errorf("RemoveAll succeed to remove .")
-	}
-
-	err = Chdir(prevDir)
-	if err != nil {
-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
 	}
 }
 
@@ -502,5 +468,22 @@ func TestRemoveAllNoFcntl(t *testing.T) {
 
 	if got := bytes.Count(out, []byte("fcntl")); got >= 100 {
 		t.Errorf("found %d fcntl calls, want < 100", got)
+	}
+}
+
+func BenchmarkRemoveAll(b *testing.B) {
+	tmpDir := filepath.Join(b.TempDir(), "target")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		err := CopyFS(tmpDir, DirFS("."))
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.StartTimer()
+		if err := RemoveAll(tmpDir); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

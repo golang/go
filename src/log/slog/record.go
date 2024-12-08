@@ -50,7 +50,7 @@ type Record struct {
 	back []Attr
 }
 
-// NewRecord creates a Record from the given arguments.
+// NewRecord creates a [Record] from the given arguments.
 // Use [Record.AddAttrs] to add attributes to the Record.
 //
 // NewRecord is intended for logging APIs that want to support a [Handler] as
@@ -72,12 +72,12 @@ func (r Record) Clone() Record {
 	return r
 }
 
-// NumAttrs returns the number of attributes in the Record.
+// NumAttrs returns the number of attributes in the [Record].
 func (r Record) NumAttrs() int {
 	return r.nFront + len(r.back)
 }
 
-// Attrs calls f on each Attr in the Record.
+// Attrs calls f on each Attr in the [Record].
 // Iteration stops if f returns false.
 func (r Record) Attrs(f func(Attr) bool) {
 	for i := 0; i < r.nFront; i++ {
@@ -92,7 +92,7 @@ func (r Record) Attrs(f func(Attr) bool) {
 	}
 }
 
-// AddAttrs appends the given Attrs to the Record's list of Attrs.
+// AddAttrs appends the given Attrs to the [Record]'s list of Attrs.
 // It omits empty groups.
 func (r *Record) AddAttrs(attrs ...Attr) {
 	var i int
@@ -124,7 +124,7 @@ func (r *Record) AddAttrs(attrs ...Attr) {
 }
 
 // Add converts the args to Attrs as described in [Logger.Log],
-// then appends the Attrs to the Record's list of Attrs.
+// then appends the Attrs to the [Record]'s list of Attrs.
 // It omits empty groups.
 func (r *Record) Add(args ...any) {
 	var a Attr
@@ -193,7 +193,7 @@ type Source struct {
 	Line int    `json:"line"`
 }
 
-// attrs returns the non-zero fields of s as a slice of attrs.
+// group returns the non-zero fields of s as a slice of attrs.
 // It is similar to a LogValue method, but we don't want Source
 // to implement LogValuer because it would be resolved before
 // the ReplaceAttr function was called.

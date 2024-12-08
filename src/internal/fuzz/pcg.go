@@ -30,7 +30,7 @@ type mutatorRand interface {
 // creation and use, no reproducibility, no concurrency safety, just the
 // necessary methods, optimized for speed.
 
-var globalInc uint64 // PCG stream
+var globalInc atomic.Uint64 // PCG stream
 
 const multiplier uint64 = 6364136223846793005
 
@@ -63,7 +63,7 @@ func newPcgRand() *pcgRand {
 	if seed := godebugSeed(); seed != nil {
 		now = uint64(*seed)
 	}
-	inc := atomic.AddUint64(&globalInc, 1)
+	inc := globalInc.Add(1)
 	r.state = now
 	r.inc = (inc << 1) | 1
 	r.step()
@@ -140,6 +140,6 @@ func (r *pcgRand) bool() bool {
 // for details.
 type noCopy struct{}
 
-// lock is a no-op used by -copylocks checker from `go vet`.
-func (*noCopy) lock()   {}
-func (*noCopy) unlock() {}
+// Lock is a no-op used by -copylocks checker from `go vet`.
+func (*noCopy) Lock()   {}
+func (*noCopy) Unlock() {}

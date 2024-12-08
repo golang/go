@@ -1,0 +1,79 @@
+# This test covers the HTTP authentication mechanism over GOAUTH by using a custom authenticator.
+# See golang.org/issue/26232
+
+env GOPROXY=direct
+env GOSUMDB=off
+
+# Use a custom authenticator to provide custom credentials
+mkdir $WORK/bin
+env PATH=$WORK/bin${:}$PATH
+cd auth
+go build -o $WORK/bin/my-auth$GOEXE .
+cd ..
+
+# Without credentials, downloading a module from a path that requires HTTPS
+# basic auth should fail.
+env GOAUTH=off
+cp go.mod.orig go.mod
+! go get vcs-test.golang.org/auth/or401
+stderr '^\tserver response: ACCESS DENIED, buddy$'
+# go imports should fail as well.
+! go mod tidy
+stderr '^\tserver response: ACCESS DENIED, buddy$'
+
+# With credentials from the my-auth binary, it should succeed.
+env GOAUTH='my-auth'$GOEXE' --arg1 "value with spaces"'
+cp go.mod.orig go.mod
+go get vcs-test.golang.org/auth/or401
+# go imports should resolve correctly as well.
+go mod tidy
+go list all
+stdout vcs-test.golang.org/auth/or401
+
+-- auth/main.go --
+package main
+
+import(
+	"bufio"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+)
+
+func main() {
+	arg1 := flag.String("arg1", "", "")
+	flag.Parse()
+	if *arg1 != "value with spaces" {
+		log.Fatal("argument with spaces does not work")
+	}
+	// wait for re-invocation
+	if !strings.HasPrefix(flag.Arg(0), "https://vcs-test.golang.org") {
+		return
+	}
+	input, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		log.Fatal("unexpected error while reading from stdin")
+	}
+	reader := bufio.NewReader(strings.NewReader(string(input)))
+	resp, err := http.ReadResponse(reader, nil)
+	if err != nil {
+		log.Fatal("could not parse HTTP response")
+	}
+	if resp.StatusCode != 401 {
+		log.Fatal("expected 401 error code")
+	}
+	fmt.Printf("https://vcs-test.golang.org\n\nAuthorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l\n\n")
+}
+
+-- auth/go.mod --
+module my-auth
+-- go.mod.orig --
+module private.example.com
+-- main.go --
+package useprivate
+
+import "vcs-test.golang.org/auth/or401"

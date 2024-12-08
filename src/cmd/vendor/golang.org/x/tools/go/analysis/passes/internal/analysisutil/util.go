@@ -13,6 +13,9 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/analysisinternal"
 )
 
 // Format returns a string representation of the expression.
@@ -55,25 +58,18 @@ func HasSideEffects(info *types.Info, e ast.Expr) bool {
 	return !safe
 }
 
-// Unparen returns e with any enclosing parentheses stripped.
-func Unparen(e ast.Expr) ast.Expr {
-	for {
-		p, ok := e.(*ast.ParenExpr)
-		if !ok {
-			return e
-		}
-		e = p.X
-	}
-}
-
 // ReadFile reads a file and adds it to the FileSet
 // so that we can report errors against it using lineStart.
-func ReadFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
-	content, err := os.ReadFile(filename)
+func ReadFile(pass *analysis.Pass, filename string) ([]byte, *token.File, error) {
+	readFile := pass.ReadFile
+	if readFile == nil {
+		readFile = os.ReadFile
+	}
+	content, err := readFile(filename)
 	if err != nil {
 		return nil, nil, err
 	}
-	tf := fset.AddFile(filename, -1, len(content))
+	tf := pass.Fset.AddFile(filename, -1, len(content))
 	tf.SetLinesForContent(content)
 	return content, tf, nil
 }
@@ -118,3 +114,48 @@ func Imports(pkg *types.Package, path string) bool {
 	}
 	return false
 }
+
+// IsNamedType reports whether t is the named type with the given package path
+// and one of the given names.
+// This function avoids allocating the concatenation of "pkg.Name",
+// which is important for the performance of syntax matching.
+func IsNamedType(t types.Type, pkgPath string, names ...string) bool {
+	n, ok := types.Unalias(t).(*types.Named)
+	if !ok {
+		return false
+	}
+	obj := n.Obj()
+	if obj == nil || obj.Pkg() == nil || obj.Pkg().Path() != pkgPath {
+		return false
+	}
+	name := obj.Name()
+	for _, n := range names {
+		if name == n {
+			return true
+		}
+	}
+	return false
+}
+
+// IsFunctionNamed reports whether f is a top-level function defined in the
+// given package and has one of the given names.
+// It returns false if f is nil or a method.
+func IsFunctionNamed(f *types.Func, pkgPath string, names ...string) bool {
+	if f == nil {
+		return false
+	}
+	if f.Pkg() == nil || f.Pkg().Path() != pkgPath {
+		return false
+	}
+	if f.Type().(*types.Signature).Recv() != nil {
+		return false
+	}
+	for _, n := range names {
+		if f.Name() == n {
+			return true
+		}
+	}
+	return false
+}
+
+var MustExtractDoc = analysisinternal.MustExtractDoc

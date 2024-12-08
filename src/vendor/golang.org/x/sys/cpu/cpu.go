@@ -103,7 +103,10 @@ var ARM64 struct {
 	HasASIMDDP  bool // Advanced SIMD double precision instruction set
 	HasSHA512   bool // SHA512 hardware implementation
 	HasSVE      bool // Scalable Vector Extensions
+	HasSVE2     bool // Scalable Vector Extensions 2
 	HasASIMDFHM bool // Advanced SIMD multiplication FP16 to FP32
+	HasDIT      bool // Data Independent Timing support
+	HasI8MM     bool // Advanced SIMD Int8 matrix multiplication instructions
 	_           CacheLinePad
 }
 
@@ -196,6 +199,25 @@ var S390X struct {
 	HasVX     bool // vector facility
 	HasVXE    bool // vector-enhancements facility 1
 	_         CacheLinePad
+}
+
+// RISCV64 contains the supported CPU features and performance characteristics for riscv64
+// platforms. The booleans in RISCV64, with the exception of HasFastMisaligned, indicate
+// the presence of RISC-V extensions.
+//
+// It is safe to assume that all the RV64G extensions are supported and so they are omitted from
+// this structure. As riscv64 Go programs require at least RV64G, the code that populates
+// this structure cannot run successfully if some of the RV64G extensions are missing.
+// The struct is padded to avoid false sharing.
+var RISCV64 struct {
+	_                 CacheLinePad
+	HasFastMisaligned bool // Fast misaligned accesses
+	HasC              bool // Compressed instruction-set extension
+	HasV              bool // Vector extension compatible with RVV 1.0
+	HasZba            bool // Address generation instructions extension
+	HasZbb            bool // Basic bit-manipulation extension
+	HasZbs            bool // Single-bit instructions extension
+	_                 CacheLinePad
 }
 
 func init() {

@@ -1,0 +1,77 @@
+! go get -v example.net/a@v0.1.0
+! stderr panic
+stderr 'example.net/d@v0.1.0 requires\n\texample.net/invalid'
+
+-- go.mod --
+module example
+
+replace (
+	example.net/a v0.1.0 => ./a
+	example.net/b v0.1.0 => ./b1
+	example.net/b v0.2.0 => ./b2
+	example.net/c v0.1.0 => ./c1
+	example.net/c v0.2.0 => ./c2
+	example.net/d v0.1.0 => ./d
+)
+
+require (
+	example.net/b v0.1.0
+)
+-- a/go.mod --
+module example.net/a
+
+go 1.18
+
+require example.net/b v0.2.0
+-- a/a.go --
+package a
+
+import _ "example.net/b"
+-- b1/go.mod --
+module example.net/b
+
+go 1.16
+-- b1/b.go --
+package b
+-- b2/go.mod --
+module example.net/b
+
+go 1.16
+
+require example.net/c v0.2.0
+-- b2/b.go --
+package b
+-- b2/b_test.go --
+package b_test
+
+import _ "example.net/c"
+-- c1/go.mod --
+module example.net/c
+
+go 1.18
+-- c1/c.go --
+package c
+-- c2/go.mod --
+module example.net/c
+
+go 1.18
+
+require example.net/d v0.1.0
+-- c2/c.go --
+package c
+-- c2/c_test.go --
+package c_test
+
+import _ "example.net/d"
+-- d/go.mod --
+module example.net/d
+
+go 1.18
+
+require example.net/invalid v0.1.0
+-- d/d.go --
+package d
+-- d/d_test.go --
+package d
+
+import _ "example.net/invalid"

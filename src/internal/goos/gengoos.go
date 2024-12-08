@@ -17,11 +17,11 @@ import (
 var gooses []string
 
 func main() {
-	data, err := os.ReadFile("../../go/build/syslist.go")
+	data, err := os.ReadFile("../../internal/syslist/syslist..go")
 	if err != nil {
 		log.Fatal(err)
 	}
-	const goosPrefix = `var knownOS = map[string]bool{`
+	const goosPrefix = `var KnownOS = map[string]bool{`
 	inGOOS := false
 	for _, line := range strings.Split(string(data), "\n") {
 		if strings.HasPrefix(line, goosPrefix) {

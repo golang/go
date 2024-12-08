@@ -10,7 +10,7 @@ import (
 	"net/internal/socktest"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -193,7 +193,7 @@ func runningGoroutines() []string {
 		}
 		gss = append(gss, stack)
 	}
-	sort.Strings(gss)
+	slices.Sort(gss)
 	return gss
 }
 

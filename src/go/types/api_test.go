@@ -11,10 +11,9 @@ import (
 	"go/importer"
 	"go/parser"
 	"go/token"
+	"internal/goversion"
 	"internal/testenv"
-	"reflect"
-	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -26,7 +25,7 @@ import (
 var nopos token.Pos
 
 func mustParse(fset *token.FileSet, src string) *ast.File {
-	f, err := parser.ParseFile(fset, pkgName(src), src, 0)
+	f, err := parser.ParseFile(fset, pkgName(src), src, parser.ParseComments)
 	if err != nil {
 		panic(err) // so we don't need to pass *testing.T
 	}
@@ -402,6 +401,123 @@ func TestTypesInfo(t *testing.T) {
 		{`package s8; func _() { f(g, h) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h`, `func(int, string)`},
 		{`package s9; func _() { f(g, h[int]) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
 		{`package s10; func _() { f(g, h[int]) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h[int]`, `func(int, string)`},
+
+		// go.dev/issue/68639
+		// parenthesized and pointer type expressions in various positions
+		// - as variable type, not generic
+		{`package qa1; type T int; var x T`, `T`, `qa1.T`},
+		{`package qa2; type T int; var x (T)`, `T`, `qa2.T`},
+		{`package qa3; type T int; var x (T)`, `(T)`, `qa3.T`},
+		{`package qa4; type T int; var x ((T))`, `T`, `qa4.T`},
+		{`package qa5; type T int; var x ((T))`, `(T)`, `qa5.T`},
+		{`package qa6; type T int; var x ((T))`, `((T))`, `qa6.T`},
+		{`package qa7; type T int; var x *T`, `T`, `qa7.T`},
+		{`package qa8; type T int; var x *T`, `*T`, `*qa8.T`},
+		{`package qa9; type T int; var x (*T)`, `T`, `qa9.T`},
+		{`package qa10; type T int; var x (*T)`, `*T`, `*qa10.T`},
+		{`package qa11; type T int; var x *(T)`, `T`, `qa11.T`},
+		{`package qa12; type T int; var x *(T)`, `(T)`, `qa12.T`},
+		{`package qa13; type T int; var x *(T)`, `*(T)`, `*qa13.T`},
+		{`package qa14; type T int; var x (*(T))`, `(T)`, `qa14.T`},
+		{`package qa15; type T int; var x (*(T))`, `*(T)`, `*qa15.T`},
+		{`package qa16; type T int; var x (*(T))`, `(*(T))`, `*qa16.T`},
+
+		// - as ordinary function parameter, not generic
+		{`package qb1; type T int; func _(T)`, `T`, `qb1.T`},
+		{`package qb2; type T int; func _((T))`, `T`, `qb2.T`},
+		{`package qb3; type T int; func _((T))`, `(T)`, `qb3.T`},
+		{`package qb4; type T int; func _(((T)))`, `T`, `qb4.T`},
+		{`package qb5; type T int; func _(((T)))`, `(T)`, `qb5.T`},
+		{`package qb6; type T int; func _(((T)))`, `((T))`, `qb6.T`},
+		{`package qb7; type T int; func _(*T)`, `T`, `qb7.T`},
+		{`package qb8; type T int; func _(*T)`, `*T`, `*qb8.T`},
+		{`package qb9; type T int; func _((*T))`, `T`, `qb9.T`},
+		{`package qb10; type T int; func _((*T))`, `*T`, `*qb10.T`},
+		{`package qb11; type T int; func _(*(T))`, `T`, `qb11.T`},
+		{`package qb12; type T int; func _(*(T))`, `(T)`, `qb12.T`},
+		{`package qb13; type T int; func _(*(T))`, `*(T)`, `*qb13.T`},
+		{`package qb14; type T int; func _((*(T)))`, `(T)`, `qb14.T`},
+		{`package qb15; type T int; func _((*(T)))`, `*(T)`, `*qb15.T`},
+		{`package qb16; type T int; func _((*(T)))`, `(*(T))`, `*qb16.T`},
+
+		// - as method receiver, not generic
+		{`package qc1; type T int; func (T) _() {}`, `T`, `qc1.T`},
+		{`package qc2; type T int; func ((T)) _() {}`, `T`, `qc2.T`},
+		{`package qc3; type T int; func ((T)) _() {}`, `(T)`, `qc3.T`},
+		{`package qc4; type T int; func (((T))) _() {}`, `T`, `qc4.T`},
+		{`package qc5; type T int; func (((T))) _() {}`, `(T)`, `qc5.T`},
+		{`package qc6; type T int; func (((T))) _() {}`, `((T))`, `qc6.T`},
+		{`package qc7; type T int; func (*T) _() {}`, `T`, `qc7.T`},
+		{`package qc8; type T int; func (*T) _() {}`, `*T`, `*qc8.T`},
+		{`package qc9; type T int; func ((*T)) _() {}`, `T`, `qc9.T`},
+		{`package qc10; type T int; func ((*T)) _() {}`, `*T`, `*qc10.T`},
+		{`package qc11; type T int; func (*(T)) _() {}`, `T`, `qc11.T`},
+		{`package qc12; type T int; func (*(T)) _() {}`, `(T)`, `qc12.T`},
+		{`package qc13; type T int; func (*(T)) _() {}`, `*(T)`, `*qc13.T`},
+		{`package qc14; type T int; func ((*(T))) _() {}`, `(T)`, `qc14.T`},
+		{`package qc15; type T int; func ((*(T))) _() {}`, `*(T)`, `*qc15.T`},
+		{`package qc16; type T int; func ((*(T))) _() {}`, `(*(T))`, `*qc16.T`},
+
+		// - as variable type, generic
+		{`package qd1; type T[_ any] int; var x T[int]`, `T`, `qd1.T[_ any]`},
+		{`package qd2; type T[_ any] int; var x (T[int])`, `T[int]`, `qd2.T[int]`},
+		{`package qd3; type T[_ any] int; var x (T[int])`, `(T[int])`, `qd3.T[int]`},
+		{`package qd4; type T[_ any] int; var x ((T[int]))`, `T`, `qd4.T[_ any]`},
+		{`package qd5; type T[_ any] int; var x ((T[int]))`, `(T[int])`, `qd5.T[int]`},
+		{`package qd6; type T[_ any] int; var x ((T[int]))`, `((T[int]))`, `qd6.T[int]`},
+		{`package qd7; type T[_ any] int; var x *T[int]`, `T`, `qd7.T[_ any]`},
+		{`package qd8; type T[_ any] int; var x *T[int]`, `*T[int]`, `*qd8.T[int]`},
+		{`package qd9; type T[_ any] int; var x (*T[int])`, `T`, `qd9.T[_ any]`},
+		{`package qd10; type T[_ any] int; var x (*T[int])`, `*T[int]`, `*qd10.T[int]`},
+		{`package qd11; type T[_ any] int; var x *(T[int])`, `T[int]`, `qd11.T[int]`},
+		{`package qd12; type T[_ any] int; var x *(T[int])`, `(T[int])`, `qd12.T[int]`},
+		{`package qd13; type T[_ any] int; var x *(T[int])`, `*(T[int])`, `*qd13.T[int]`},
+		{`package qd14; type T[_ any] int; var x (*(T[int]))`, `(T[int])`, `qd14.T[int]`},
+		{`package qd15; type T[_ any] int; var x (*(T[int]))`, `*(T[int])`, `*qd15.T[int]`},
+		{`package qd16; type T[_ any] int; var x (*(T[int]))`, `(*(T[int]))`, `*qd16.T[int]`},
+
+		// - as ordinary function parameter, generic
+		{`package qe1; type T[_ any] int; func _(T[int])`, `T`, `qe1.T[_ any]`},
+		{`package qe2; type T[_ any] int; func _((T[int]))`, `T[int]`, `qe2.T[int]`},
+		{`package qe3; type T[_ any] int; func _((T[int]))`, `(T[int])`, `qe3.T[int]`},
+		{`package qe4; type T[_ any] int; func _(((T[int])))`, `T`, `qe4.T[_ any]`},
+		{`package qe5; type T[_ any] int; func _(((T[int])))`, `(T[int])`, `qe5.T[int]`},
+		{`package qe6; type T[_ any] int; func _(((T[int])))`, `((T[int]))`, `qe6.T[int]`},
+		{`package qe7; type T[_ any] int; func _(*T[int])`, `T`, `qe7.T[_ any]`},
+		{`package qe8; type T[_ any] int; func _(*T[int])`, `*T[int]`, `*qe8.T[int]`},
+		{`package qe9; type T[_ any] int; func _((*T[int]))`, `T`, `qe9.T[_ any]`},
+		{`package qe10; type T[_ any] int; func _((*T[int]))`, `*T[int]`, `*qe10.T[int]`},
+		{`package qe11; type T[_ any] int; func _(*(T[int]))`, `T[int]`, `qe11.T[int]`},
+		{`package qe12; type T[_ any] int; func _(*(T[int]))`, `(T[int])`, `qe12.T[int]`},
+		{`package qe13; type T[_ any] int; func _(*(T[int]))`, `*(T[int])`, `*qe13.T[int]`},
+		{`package qe14; type T[_ any] int; func _((*(T[int])))`, `(T[int])`, `qe14.T[int]`},
+		{`package qe15; type T[_ any] int; func _((*(T[int])))`, `*(T[int])`, `*qe15.T[int]`},
+		{`package qe16; type T[_ any] int; func _((*(T[int])))`, `(*(T[int]))`, `*qe16.T[int]`},
+
+		// - as method receiver, generic
+		{`package qf1; type T[_ any] int; func (T[_]) _() {}`, `T`, `qf1.T[_ any]`},
+		{`package qf2; type T[_ any] int; func ((T[_])) _() {}`, `T[_]`, `qf2.T[_]`},
+		{`package qf3; type T[_ any] int; func ((T[_])) _() {}`, `(T[_])`, `qf3.T[_]`},
+		{`package qf4; type T[_ any] int; func (((T[_]))) _() {}`, `T`, `qf4.T[_ any]`},
+		{`package qf5; type T[_ any] int; func (((T[_]))) _() {}`, `(T[_])`, `qf5.T[_]`},
+		{`package qf6; type T[_ any] int; func (((T[_]))) _() {}`, `((T[_]))`, `qf6.T[_]`},
+		{`package qf7; type T[_ any] int; func (*T[_]) _() {}`, `T`, `qf7.T[_ any]`},
+		{`package qf8; type T[_ any] int; func (*T[_]) _() {}`, `*T[_]`, `*qf8.T[_]`},
+		{`package qf9; type T[_ any] int; func ((*T[_])) _() {}`, `T`, `qf9.T[_ any]`},
+		{`package qf10; type T[_ any] int; func ((*T[_])) _() {}`, `*T[_]`, `*qf10.T[_]`},
+		{`package qf11; type T[_ any] int; func (*(T[_])) _() {}`, `T[_]`, `qf11.T[_]`},
+		{`package qf12; type T[_ any] int; func (*(T[_])) _() {}`, `(T[_])`, `qf12.T[_]`},
+		{`package qf13; type T[_ any] int; func (*(T[_])) _() {}`, `*(T[_])`, `*qf13.T[_]`},
+		{`package qf14; type T[_ any] int; func ((*(T[_]))) _() {}`, `(T[_])`, `qf14.T[_]`},
+		{`package qf15; type T[_ any] int; func ((*(T[_]))) _() {}`, `*(T[_])`, `*qf15.T[_]`},
+		{`package qf16; type T[_ any] int; func ((*(T[_]))) _() {}`, `(*(T[_]))`, `*qf16.T[_]`},
+
+		// For historic reasons, type parameters in receiver type expressions
+		// are considered both definitions and uses and thus also show up in
+		// the Info.Types map (see go.dev/issue/68670).
+		{`package t1; type T[_ any] int; func (T[P]) _() {}`, `P`, `P`},
+		{`package t2; type T[_, _ any] int; func (T[P, Q]) _() {}`, `P`, `P`},
+		{`package t3; type T[_, _ any] int; func (T[P, Q]) _() {}`, `Q`, `Q`},
 	}
 
 	for _, test := range tests {
@@ -692,8 +808,8 @@ func sortedInstances(m map[*ast.Ident]Instance) (instances []recordedInstance) {
 	for id, inst := range m {
 		instances = append(instances, recordedInstance{id, inst})
 	}
-	sort.Slice(instances, func(i, j int) bool {
-		return CmpPos(instances[i].Ident.Pos(), instances[j].Ident.Pos()) < 0
+	slices.SortFunc(instances, func(a, b recordedInstance) int {
+		return CmpPos(a.Ident.Pos(), b.Ident.Pos())
 	})
 	return instances
 }
@@ -715,6 +831,11 @@ func TestDefsInfo(t *testing.T) {
 		{`package g0; type x[T any] int`, `x`, `type g0.x[T any] int`},
 		{`package g1; func f[T any]() {}`, `f`, `func g1.f[T any]()`},
 		{`package g2; type x[T any] int; func (*x[_]) m() {}`, `m`, `func (*g2.x[_]).m()`},
+
+		// Type parameters in receiver type expressions are definitions.
+		{`package r0; type T[_ any] int; func (T[P]) _() {}`, `P`, `type parameter P any`},
+		{`package r1; type T[_, _ any] int; func (T[P, Q]) _() {}`, `P`, `type parameter P any`},
+		{`package r2; type T[_, _ any] int; func (T[P, Q]) _() {}`, `Q`, `type parameter Q any`},
 	}
 
 	for _, test := range tests {
@@ -762,7 +883,7 @@ func TestUsesInfo(t *testing.T) {
 
 		// Uses of fields are instantiated.
 		{`package s1; type N[A any] struct{ a A }; var f = N[int]{}.a`, `a`, `field a int`},
-		{`package s1; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
+		{`package s2; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
 
 		// Uses of methods are uses of the instantiated method.
 		{`package m0; type N[A any] int; func (r N[B]) m() { r.n() }; func (N[C]) n() {}`, `n`, `func (m0.N[B]).n()`},
@@ -782,6 +903,12 @@ func TestUsesInfo(t *testing.T) {
 		},
 		{`package m11; type T[A any] interface{ m(); n() }; func _(t1 T[int], t2 T[string]) { t1.m(); t2.n() }`, `m`, `func (m11.T[int]).m()`},
 		{`package m12; type T[A any] interface{ m(); n() }; func _(t1 T[int], t2 T[string]) { t1.m(); t2.n() }`, `n`, `func (m12.T[string]).n()`},
+
+		// For historic reasons, type parameters in receiver type expressions
+		// are considered both definitions and uses (see go.dev/issue/68670).
+		{`package r0; type T[_ any] int; func (T[P]) _() {}`, `P`, `type parameter P any`},
+		{`package r1; type T[_, _ any] int; func (T[P, Q]) _() {}`, `P`, `type parameter P any`},
+		{`package r2; type T[_, _ any] int; func (T[P, Q]) _() {}`, `Q`, `type parameter Q any`},
 	}
 
 	for _, test := range tests {
@@ -957,6 +1084,81 @@ func TestImplicitsInfo(t *testing.T) {
 		if got != test.want {
 			t.Errorf("package %s: got %q; want %q", name, got, test.want)
 		}
+	}
+}
+
+func TestPkgNameOf(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	const src = `
+package p
+
+import (
+	. "os"
+	_ "io"
+	"math"
+	"path/filepath"
+	snort "sort"
+)
+
+// avoid imported and not used errors
+var (
+	_ = Open // os.Open
+	_ = math.Sin
+	_ = filepath.Abs
+	_ = snort.Ints
+)
+`
+
+	var tests = []struct {
+		path string // path string enclosed in "'s
+		want string
+	}{
+		{`"os"`, "."},
+		{`"io"`, "_"},
+		{`"math"`, "math"},
+		{`"path/filepath"`, "filepath"},
+		{`"sort"`, "snort"},
+	}
+
+	fset := token.NewFileSet()
+	f := mustParse(fset, src)
+	info := Info{
+		Defs:      make(map[*ast.Ident]Object),
+		Implicits: make(map[ast.Node]Object),
+	}
+	var conf Config
+	conf.Importer = importer.Default()
+	_, err := conf.Check("p", fset, []*ast.File{f}, &info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// map import paths to importDecl
+	imports := make(map[string]*ast.ImportSpec)
+	for _, s := range f.Decls[0].(*ast.GenDecl).Specs {
+		if imp, _ := s.(*ast.ImportSpec); imp != nil {
+			imports[imp.Path.Value] = imp
+		}
+	}
+
+	for _, test := range tests {
+		imp := imports[test.path]
+		if imp == nil {
+			t.Fatalf("invalid test case: import path %s not found", test.path)
+		}
+		got := info.PkgNameOf(imp)
+		if got == nil {
+			t.Fatalf("import %s: package name not found", test.path)
+		}
+		if got.Name() != test.want {
+			t.Errorf("import %s: got %s; want %s", test.path, got.Name(), test.want)
+		}
+	}
+
+	// test non-existing importDecl
+	if got := info.PkgNameOf(new(ast.ImportSpec)); got != nil {
+		t.Errorf("got %s for non-existing import declaration", got.Name())
 	}
 }
 
@@ -1184,14 +1386,7 @@ func TestScopesInfo(t *testing.T) {
 
 			// look for matching scope description
 			desc := kind + ":" + strings.Join(scope.Names(), " ")
-			found := false
-			for _, d := range test.scopes {
-				if desc == d {
-					found = true
-					break
-				}
-			}
-			if !found {
+			if !slices.Contains(test.scopes, desc) {
 				t.Errorf("package %s: no matching scope found for %s", name, desc)
 			}
 		}
@@ -1740,7 +1935,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
 				t.Errorf("%s: got object = %v; want none", test.src, f)
 			}
 		}
-		if !sameSlice(index, test.index) {
+		if !slices.Equal(index, test.index) {
 			t.Errorf("%s: got index = %v; want %v", test.src, index, test.index)
 		}
 		if indirect != test.indirect {
@@ -1776,140 +1971,6 @@ type Instance = *Tree[int]
 
 	T := pkg.Scope().Lookup("Instance").Type()
 	_, _, _ = LookupFieldOrMethod(T, false, pkg, "M") // verify that LookupFieldOrMethod terminates
-}
-
-func sameSlice(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, x := range a {
-		if x != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// TestScopeLookupParent ensures that (*Scope).LookupParent returns
-// the correct result at various positions with the source.
-func TestScopeLookupParent(t *testing.T) {
-	fset := token.NewFileSet()
-	imports := make(testImporter)
-	conf := Config{Importer: imports}
-	var info Info
-	makePkg := func(path string, files ...*ast.File) {
-		var err error
-		imports[path], err = conf.Check(path, fset, files, &info)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	makePkg("lib", mustParse(fset, "package lib; var X int"))
-	// Each /*name=kind:line*/ comment makes the test look up the
-	// name at that point and checks that it resolves to a decl of
-	// the specified kind and line number.  "undef" means undefined.
-	mainSrc := `
-/*lib=pkgname:5*/ /*X=var:1*/ /*Pi=const:8*/ /*T=typename:9*/ /*Y=var:10*/ /*F=func:12*/
-package main
-
-import "lib"
-import . "lib"
-
-const Pi = 3.1415
-type T struct{}
-var Y, _ = lib.X, X
-
-func F(){
-	const pi, e = 3.1415, /*pi=undef*/ 2.71828 /*pi=const:13*/ /*e=const:13*/
-	type /*t=undef*/ t /*t=typename:14*/ *t
-	print(Y) /*Y=var:10*/
-	x, Y := Y, /*x=undef*/ /*Y=var:10*/ Pi /*x=var:16*/ /*Y=var:16*/ ; _ = x; _ = Y
-	var F = /*F=func:12*/ F /*F=var:17*/ ; _ = F
-
-	var a []int
-	for i, x := range a /*i=undef*/ /*x=var:16*/ { _ = i; _ = x }
-
-	var i interface{}
-	switch y := i.(type) { /*y=undef*/
-	case /*y=undef*/ int /*y=var:23*/ :
-	case float32, /*y=undef*/ float64 /*y=var:23*/ :
-	default /*y=var:23*/:
-		println(y)
-	}
-	/*y=undef*/
-
-        switch int := i.(type) {
-        case /*int=typename:0*/ int /*int=var:31*/ :
-        	println(int)
-        default /*int=var:31*/ :
-        }
-}
-/*main=undef*/
-`
-
-	info.Uses = make(map[*ast.Ident]Object)
-	f := mustParse(fset, mainSrc)
-	makePkg("main", f)
-	mainScope := imports["main"].Scope()
-	rx := regexp.MustCompile(`^/\*(\w*)=([\w:]*)\*/$`)
-	for _, group := range f.Comments {
-		for _, comment := range group.List {
-			// Parse the assertion in the comment.
-			m := rx.FindStringSubmatch(comment.Text)
-			if m == nil {
-				t.Errorf("%s: bad comment: %s",
-					fset.Position(comment.Pos()), comment.Text)
-				continue
-			}
-			name, want := m[1], m[2]
-
-			// Look up the name in the innermost enclosing scope.
-			inner := mainScope.Innermost(comment.Pos())
-			if inner == nil {
-				t.Errorf("%s: at %s: can't find innermost scope",
-					fset.Position(comment.Pos()), comment.Text)
-				continue
-			}
-			got := "undef"
-			if _, obj := inner.LookupParent(name, comment.Pos()); obj != nil {
-				kind := strings.ToLower(strings.TrimPrefix(reflect.TypeOf(obj).String(), "*types."))
-				got = fmt.Sprintf("%s:%d", kind, fset.Position(obj.Pos()).Line)
-			}
-			if got != want {
-				t.Errorf("%s: at %s: %s resolved to %s, want %s",
-					fset.Position(comment.Pos()), comment.Text, name, got, want)
-			}
-		}
-	}
-
-	// Check that for each referring identifier,
-	// a lookup of its name on the innermost
-	// enclosing scope returns the correct object.
-
-	for id, wantObj := range info.Uses {
-		inner := mainScope.Innermost(id.Pos())
-		if inner == nil {
-			t.Errorf("%s: can't find innermost scope enclosing %q",
-				fset.Position(id.Pos()), id.Name)
-			continue
-		}
-
-		// Exclude selectors and qualified identifiers---lexical
-		// refs only.  (Ideally, we'd see if the AST parent is a
-		// SelectorExpr, but that requires PathEnclosingInterval
-		// from golang.org/x/tools/go/ast/astutil.)
-		if id.Name == "X" {
-			continue
-		}
-
-		_, gotObj := inner.LookupParent(id.Name, id.Pos())
-		if gotObj != wantObj {
-			t.Errorf("%s: got %v, want %v",
-				fset.Position(id.Pos()), gotObj, wantObj)
-			continue
-		}
-	}
 }
 
 // newDefined creates a new defined type named T with the given underlying type.
@@ -2095,6 +2156,12 @@ func TestIssue61737(t *testing.T) {
 	iface.Complete()
 }
 
+func TestNewAlias_Issue65455(t *testing.T) {
+	obj := NewTypeName(nopos, nil, "A", nil)
+	alias := NewAlias(obj, Typ[Int])
+	alias.Underlying() // must not panic
+}
+
 func TestIssue15305(t *testing.T) {
 	const src = "package p; func f() int16; var _ = f(undef)"
 	fset := token.NewFileSet()
@@ -2217,7 +2284,7 @@ func f(x int) { y := x; print(y) }
 				wantParent = false
 			}
 		case *Func:
-			if obj.Type().(*Signature).Recv() != nil { // method
+			if obj.Signature().Recv() != nil { // method
 				wantParent = false
 			}
 		}
@@ -2508,9 +2575,9 @@ func fn() {
 
 		// Methods and method fields
 		{"concreteMethod", lookup("t").(*Named).Method(0)},
-		{"recv", lookup("t").(*Named).Method(0).Type().(*Signature).Recv()},
-		{"mParam", lookup("t").(*Named).Method(0).Type().(*Signature).Params().At(0)},
-		{"mResult", lookup("t").(*Named).Method(0).Type().(*Signature).Results().At(0)},
+		{"recv", lookup("t").(*Named).Method(0).Signature().Recv()},
+		{"mParam", lookup("t").(*Named).Method(0).Signature().Params().At(0)},
+		{"mResult", lookup("t").(*Named).Method(0).Signature().Results().At(0)},
 
 		// Interface methods
 		{"interfaceMethod", lookup("i").Underlying().(*Interface).Method(0)},
@@ -2774,18 +2841,71 @@ var _ = f(1, 2)
 	}
 }
 
+func TestModuleVersion(t *testing.T) {
+	// version go1.dd must be able to typecheck go1.dd.0, go1.dd.1, etc.
+	goversion := fmt.Sprintf("go1.%d", goversion.Version)
+	for _, v := range []string{
+		goversion,
+		goversion + ".0",
+		goversion + ".1",
+		goversion + ".rc",
+	} {
+		conf := Config{GoVersion: v}
+		pkg := mustTypecheck("package p", &conf, nil)
+		if pkg.GoVersion() != conf.GoVersion {
+			t.Errorf("got %s; want %s", pkg.GoVersion(), conf.GoVersion)
+		}
+	}
+}
+
 func TestFileVersions(t *testing.T) {
 	for _, test := range []struct {
-		moduleVersion string
-		fileVersion   string
-		wantVersion   string
+		goVersion   string
+		fileVersion string
+		wantVersion string
 	}{
-		{"", "", ""},                   // no versions specified
-		{"go1.19", "", "go1.19"},       // module version specified
-		{"", "go1.20", ""},             // file upgrade ignored
-		{"go1.19", "go1.20", "go1.20"}, // file upgrade permitted
-		{"go1.20", "go1.19", "go1.20"}, // file downgrade not permitted
-		{"go1.21", "go1.19", "go1.19"}, // file downgrade permitted (module version is >= go1.21)
+		{"", "", ""},                    // no versions specified
+		{"go1.19", "", "go1.19"},        // module version specified
+		{"", "go1.20", "go1.21"},        // file version specified below minimum of 1.21
+		{"go1", "", "go1"},              // no file version specified
+		{"go1", "goo1.22", "go1"},       // invalid file version specified
+		{"go1", "go1.19", "go1.21"},     // file version specified below minimum of 1.21
+		{"go1", "go1.20", "go1.21"},     // file version specified below minimum of 1.21
+		{"go1", "go1.21", "go1.21"},     // file version specified at 1.21
+		{"go1", "go1.22", "go1.22"},     // file version specified above 1.21
+		{"go1.19", "", "go1.19"},        // no file version specified
+		{"go1.19", "goo1.22", "go1.19"}, // invalid file version specified
+		{"go1.19", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.19", "go1.21", "go1.21"},  // file version specified at 1.21
+		{"go1.19", "go1.22", "go1.22"},  // file version specified above 1.21
+		{"go1.20", "", "go1.20"},        // no file version specified
+		{"go1.20", "goo1.22", "go1.20"}, // invalid file version specified
+		{"go1.20", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.20", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.20", "go1.21", "go1.21"},  // file version specified at 1.21
+		{"go1.20", "go1.22", "go1.22"},  // file version specified above 1.21
+		{"go1.21", "", "go1.21"},        // no file version specified
+		{"go1.21", "goo1.22", "go1.21"}, // invalid file version specified
+		{"go1.21", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.21", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.21", "go1.21", "go1.21"},  // file version specified at 1.21
+		{"go1.21", "go1.22", "go1.22"},  // file version specified above 1.21
+		{"go1.22", "", "go1.22"},        // no file version specified
+		{"go1.22", "goo1.22", "go1.22"}, // invalid file version specified
+		{"go1.22", "go1.19", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.22", "go1.20", "go1.21"},  // file version specified below minimum of 1.21
+		{"go1.22", "go1.21", "go1.21"},  // file version specified at 1.21
+		{"go1.22", "go1.22", "go1.22"},  // file version specified above 1.21
+
+		// versions containing release numbers
+		// (file versions containing release numbers are considered invalid)
+		{"go1.19.0", "", "go1.19.0"},         // no file version specified
+		{"go1.20.1", "go1.19.1", "go1.20.1"}, // invalid file version
+		{"go1.20.1", "go1.21.1", "go1.20.1"}, // invalid file version
+		{"go1.21.1", "go1.19.1", "go1.21.1"}, // invalid file version
+		{"go1.21.1", "go1.21.1", "go1.21.1"}, // invalid file version
+		{"go1.22.1", "go1.19.1", "go1.22.1"}, // invalid file version
+		{"go1.22.1", "go1.21.1", "go1.22.1"}, // invalid file version
 	} {
 		var src string
 		if test.fileVersion != "" {
@@ -2793,10 +2913,10 @@ func TestFileVersions(t *testing.T) {
 		}
 		src += "package p"
 
-		conf := Config{GoVersion: test.moduleVersion}
+		conf := Config{GoVersion: test.goVersion}
 		versions := make(map[*ast.File]string)
 		var info Info
-		*_FileVersionsAddr(&info) = versions
+		info.FileVersions = versions
 		mustTypecheck(src, &conf, &info)
 
 		n := 0
@@ -2813,8 +2933,188 @@ func TestFileVersions(t *testing.T) {
 	}
 }
 
-// _FileVersionsAddr(conf) returns the address of the field info._FileVersions.
-func _FileVersionsAddr(info *Info) *map[*ast.File]string {
-	v := reflect.Indirect(reflect.ValueOf(info))
-	return (*map[*ast.File]string)(v.FieldByName("_FileVersions").Addr().UnsafePointer())
+// TestTooNew ensures that "too new" errors are emitted when the file
+// or module is tagged with a newer version of Go than this go/types.
+func TestTooNew(t *testing.T) {
+	for _, test := range []struct {
+		goVersion   string // package's Go version (as if derived from go.mod file)
+		fileVersion string // file's Go version (becomes a build tag)
+		wantErr     string // expected substring of concatenation of all errors
+	}{
+		{"go1.98", "", "package requires newer Go version go1.98"},
+		{"", "go1.99", "p:2:9: file requires newer Go version go1.99"},
+		{"go1.98", "go1.99", "package requires newer Go version go1.98"}, // (two
+		{"go1.98", "go1.99", "file requires newer Go version go1.99"},    // errors)
+	} {
+		var src string
+		if test.fileVersion != "" {
+			src = "//go:build " + test.fileVersion + "\n"
+		}
+		src += "package p; func f()"
+
+		var errs []error
+		conf := Config{
+			GoVersion: test.goVersion,
+			Error:     func(err error) { errs = append(errs, err) },
+		}
+		info := &Info{Defs: make(map[*ast.Ident]Object)}
+		typecheck(src, &conf, info)
+		got := fmt.Sprint(errs)
+		if !strings.Contains(got, test.wantErr) {
+			t.Errorf("%q: unexpected error: got %q, want substring %q",
+				src, got, test.wantErr)
+		}
+
+		// Assert that declarations were type checked nonetheless.
+		var gotObjs []string
+		for id, obj := range info.Defs {
+			if obj != nil {
+				objStr := strings.ReplaceAll(fmt.Sprintf("%s:%T", id.Name, obj), "types2", "types")
+				gotObjs = append(gotObjs, objStr)
+			}
+		}
+		wantObjs := "f:*types.Func"
+		if !strings.Contains(fmt.Sprint(gotObjs), wantObjs) {
+			t.Errorf("%q: got %s, want substring %q",
+				src, gotObjs, wantObjs)
+		}
+	}
+}
+
+// This is a regression test for #66704.
+func TestUnaliasTooSoonInCycle(t *testing.T) {
+	setGotypesalias(t, true)
+	const src = `package a
+
+var x T[B] // this appears to cause Unalias to be called on B while still Invalid
+
+type T[_ any] struct{}
+type A T[B]
+type B = T[A]
+`
+	pkg := mustTypecheck(src, nil, nil)
+	B := pkg.Scope().Lookup("B")
+
+	got, want := Unalias(B.Type()).String(), "a.T[a.A]"
+	if got != want {
+		t.Errorf("Unalias(type B = T[A]) = %q, want %q", got, want)
+	}
+}
+
+func TestAlias_Rhs(t *testing.T) {
+	setGotypesalias(t, true)
+	const src = `package p
+
+type A = B
+type B = C
+type C = int
+`
+
+	pkg := mustTypecheck(src, nil, nil)
+	A := pkg.Scope().Lookup("A")
+
+	got, want := A.Type().(*Alias).Rhs().String(), "p.B"
+	if got != want {
+		t.Errorf("A.Rhs = %s, want %s", got, want)
+	}
+}
+
+// Test the hijacking described of "any" described in golang/go#66921, for type
+// checking.
+func TestAnyHijacking_Check(t *testing.T) {
+	for _, enableAlias := range []bool{false, true} {
+		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
+			setGotypesalias(t, enableAlias)
+			var wg sync.WaitGroup
+			for i := 0; i < 10; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					pkg := mustTypecheck("package p; var x any", nil, nil)
+					x := pkg.Scope().Lookup("x")
+					if _, gotAlias := x.Type().(*Alias); gotAlias != enableAlias {
+						t.Errorf(`Lookup("x").Type() is %T: got Alias: %t, want %t`, x.Type(), gotAlias, enableAlias)
+					}
+				}()
+			}
+			wg.Wait()
+		})
+	}
+}
+
+// Test the hijacking described of "any" described in golang/go#66921, for
+// Scope.Lookup outside of type checking.
+func TestAnyHijacking_Lookup(t *testing.T) {
+	for _, enableAlias := range []bool{false, true} {
+		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
+			setGotypesalias(t, enableAlias)
+			a := Universe.Lookup("any")
+			if _, gotAlias := a.Type().(*Alias); gotAlias != enableAlias {
+				t.Errorf(`Lookup("x").Type() is %T: got Alias: %t, want %t`, a.Type(), gotAlias, enableAlias)
+			}
+		})
+	}
+}
+
+func setGotypesalias(t *testing.T, enable bool) {
+	if enable {
+		t.Setenv("GODEBUG", "gotypesalias=1")
+	} else {
+		t.Setenv("GODEBUG", "gotypesalias=0")
+	}
+}
+
+// TestVersionIssue69477 is a regression test for issue #69477,
+// in which the type checker would panic while attempting
+// to compute which file it is "in" based on syntax position.
+func TestVersionIssue69477(t *testing.T) {
+	fset := token.NewFileSet()
+	f, _ := parser.ParseFile(fset, "a.go", "package p; const k = 123", 0)
+
+	// Set an invalid Pos on the BasicLit.
+	ast.Inspect(f, func(n ast.Node) bool {
+		if lit, ok := n.(*ast.BasicLit); ok {
+			lit.ValuePos = 99999
+		}
+		return true
+	})
+
+	// Type check. The checker will consult the effective
+	// version for the BasicLit 123. This used to panic.
+	pkg := NewPackage("p", "p")
+	check := NewChecker(&Config{}, fset, pkg, nil)
+	if err := check.Files([]*ast.File{f}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestVersionWithoutPos is a regression test for issue #69477,
+// in which the type checker would use position information
+// to compute which file it is "in" based on syntax position.
+//
+// As a rule the type checker should not depend on position
+// information for correctness, only for error messages and
+// Object.Pos. (Scope.LookupParent was a mistake.)
+//
+// The Checker now holds the effective version in a state variable.
+func TestVersionWithoutPos(t *testing.T) {
+	fset := token.NewFileSet()
+	f, _ := parser.ParseFile(fset, "a.go", "//go:build go1.22\n\npackage p; var _ int", 0)
+
+	// Splice in a decl from another file. Its pos will be wrong.
+	f2, _ := parser.ParseFile(fset, "a.go", "package q; func _(s func(func() bool)) { for range s {} }", 0)
+	f.Decls[0] = f2.Decls[0]
+
+	// Type check. The checker will consult the effective
+	// version (1.22) for the for-range stmt to know whether
+	// range-over-func are permitted: they are not.
+	// (Previously, no error was reported.)
+	pkg := NewPackage("p", "p")
+	check := NewChecker(&Config{}, fset, pkg, nil)
+	err := check.Files([]*ast.File{f})
+	got := fmt.Sprint(err)
+	want := "range over s (variable of type func(func() bool)): requires go1.23"
+	if !strings.Contains(got, want) {
+		t.Errorf("check error was %q, want substring %q", got, want)
+	}
 }

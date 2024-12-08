@@ -13,8 +13,9 @@ import (
 	"internal/coverage/stringtab"
 	"internal/coverage/uleb128"
 	"io"
+	"maps"
 	"os"
-	"sort"
+	"slices"
 )
 
 // This package contains APIs and helpers for encoding initial portions
@@ -122,11 +123,7 @@ func (cfw *CoverageDataWriter) writeSegmentPreamble(args map[string]string, ws *
 	}
 	cfw.csh.StrTabLen = uint32(len(ws.BytesWritten())) - hdrsz
 
-	akeys := make([]string, 0, len(args))
-	for k := range args {
-		akeys = append(akeys, k)
-	}
-	sort.Strings(akeys)
+	akeys := slices.Sorted(maps.Keys(args))
 
 	wrULEB128 := func(v uint) error {
 		cfw.tmp = cfw.tmp[:0]

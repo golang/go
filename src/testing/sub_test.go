@@ -7,9 +7,9 @@ package testing
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -21,12 +21,11 @@ func init() {
 	benchTime.d = 100 * time.Millisecond
 }
 
-func TestTestContext(t *T) {
+func TestTestState(t *T) {
 	const (
 		add1 = 0
 		done = 1
 	)
-	// After each of the calls are applied to the context, the
 	type call struct {
 		typ int // run or done
 		// result from applying the call
@@ -72,7 +71,7 @@ func TestTestContext(t *T) {
 		},
 	}}
 	for i, tc := range testCases {
-		ctx := &testContext{
+		tstate := &testState{
 			startParallel: make(chan bool),
 			maxParallel:   tc.max,
 		}
@@ -88,18 +87,18 @@ func TestTestContext(t *T) {
 			started := false
 			switch call.typ {
 			case add1:
-				signal := doCall(ctx.waitParallel)
+				signal := doCall(tstate.waitParallel)
 				select {
 				case <-signal:
 					started = true
-				case ctx.startParallel <- true:
+				case tstate.startParallel <- true:
 					<-signal
 				}
 			case done:
-				signal := doCall(ctx.release)
+				signal := doCall(tstate.release)
 				select {
 				case <-signal:
-				case <-ctx.startParallel:
+				case <-tstate.startParallel:
 					started = true
 					<-signal
 				}
@@ -107,11 +106,11 @@ func TestTestContext(t *T) {
 			if started != call.started {
 				t.Errorf("%d:%d:started: got %v; want %v", i, j, started, call.started)
 			}
-			if ctx.running != call.running {
-				t.Errorf("%d:%d:running: got %v; want %v", i, j, ctx.running, call.running)
+			if tstate.running != call.running {
+				t.Errorf("%d:%d:running: got %v; want %v", i, j, tstate.running, call.running)
 			}
-			if ctx.numWaiting != call.waiting {
-				t.Errorf("%d:%d:waiting: got %v; want %v", i, j, ctx.numWaiting, call.waiting)
+			if tstate.numWaiting != call.waiting {
+				t.Errorf("%d:%d:waiting: got %v; want %v", i, j, tstate.numWaiting, call.waiting)
 			}
 		}
 	}
@@ -507,7 +506,7 @@ func TestTRun(t *T) {
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
-			ctx := newTestContext(tc.maxPar, allMatcher())
+			tstate := newTestState(tc.maxPar, allMatcher())
 			buf := &strings.Builder{}
 			root := &T{
 				common: common{
@@ -516,14 +515,14 @@ func TestTRun(t *T) {
 					name:    "",
 					w:       buf,
 				},
-				context: ctx,
+				tstate: tstate,
 			}
 			if tc.chatty {
 				root.chatty = newChattyPrinter(root.w)
 				root.chatty.json = tc.json
 			}
 			ok := root.Run(tc.desc, tc.f)
-			ctx.release()
+			tstate.release()
 
 			if ok != tc.ok {
 				t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, tc.ok)
@@ -531,8 +530,8 @@ func TestTRun(t *T) {
 			if ok != !root.Failed() {
 				t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
 			}
-			if ctx.running != 0 || ctx.numWaiting != 0 {
-				t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, ctx.running, ctx.numWaiting)
+			if tstate.running != 0 || tstate.numWaiting != 0 {
+				t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, tstate.running, tstate.numWaiting)
 			}
 			got := strings.TrimSpace(buf.String())
 			want := strings.TrimSpace(tc.output)
@@ -767,22 +766,6 @@ func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
 	})
 }
 
-func TestParallelSub(t *T) {
-	c := make(chan int)
-	block := make(chan int)
-	for i := 0; i < 10; i++ {
-		go func(i int) {
-			<-block
-			t.Run(fmt.Sprint(i), func(t *T) {})
-			c <- 1
-		}(i)
-	}
-	close(block)
-	for i := 0; i < 10; i++ {
-		<-c
-	}
-}
-
 type funcWriter struct {
 	write func([]byte) (int, error)
 }
@@ -806,8 +789,8 @@ func TestRacyOutput(t *T) {
 	}
 
 	root := &T{
-		common:  common{w: &funcWriter{raceDetector}},
-		context: newTestContext(1, allMatcher()),
+		common: common{w: &funcWriter{raceDetector}},
+		tstate: newTestState(1, allMatcher()),
 	}
 	root.chatty = newChattyPrinter(root.w)
 	root.Run("", func(t *T) {
@@ -831,7 +814,7 @@ func TestRacyOutput(t *T) {
 
 // The late log message did not include the test name.  Issue 29388.
 func TestLogAfterComplete(t *T) {
-	ctx := newTestContext(1, allMatcher())
+	tstate := newTestState(1, allMatcher())
 	var buf bytes.Buffer
 	t1 := &T{
 		common: common{
@@ -840,7 +823,7 @@ func TestLogAfterComplete(t *T) {
 			signal: make(chan bool, 1),
 			w:      &buf,
 		},
-		context: ctx,
+		tstate: tstate,
 	}
 
 	c1 := make(chan bool)
@@ -902,7 +885,7 @@ func TestCleanup(t *T) {
 		t.Cleanup(func() { cleanups = append(cleanups, 1) })
 		t.Cleanup(func() { cleanups = append(cleanups, 2) })
 	})
-	if got, want := cleanups, []int{2, 1}; !reflect.DeepEqual(got, want) {
+	if got, want := cleanups, []int{2, 1}; !slices.Equal(got, want) {
 		t.Errorf("unexpected cleanup record; got %v want %v", got, want)
 	}
 }
@@ -910,18 +893,22 @@ func TestCleanup(t *T) {
 func TestConcurrentCleanup(t *T) {
 	cleanups := 0
 	t.Run("test", func(t *T) {
-		done := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(2)
 		for i := 0; i < 2; i++ {
 			i := i
 			go func() {
 				t.Cleanup(func() {
+					// Although the calls to Cleanup are concurrent, the functions passed
+					// to Cleanup should be called sequentially, in some nondeterministic
+					// order based on when the Cleanup calls happened to be scheduled.
+					// So these assignments to the cleanups variable should not race.
 					cleanups |= 1 << i
 				})
-				done <- struct{}{}
+				wg.Done()
 			}()
 		}
-		<-done
-		<-done
+		wg.Wait()
 	})
 	if cleanups != 1|2 {
 		t.Errorf("unexpected cleanup; got %d want 3", cleanups)

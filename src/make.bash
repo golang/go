@@ -7,9 +7,6 @@
 
 # Environment variables that control make.bash:
 #
-# GOROOT_FINAL: The expected final Go root, baked into binaries.
-# The default is the location of the Go tree during the build.
-#
 # GOHOSTARCH: The architecture for host tools (compilers and
 # binaries).  Binaries of this type must be executable on the current
 # system, so the only common reason to set this is to set
@@ -67,14 +64,14 @@
 # timing information to this file. Useful for profiling where the
 # time goes when these scripts run.
 #
-# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.20.6 for bootstrap.
+# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.22.6 for bootstrap.
 # If $GOROOT_BOOTSTRAP/bin/go is missing, $(go env GOROOT) is
-# tried for all "go" in $PATH. By default, one of $HOME/go1.20.6,
-# $HOME/sdk/go1.20.6, or $HOME/go1.4, whichever exists, in that order.
+# tried for all "go" in $PATH. By default, one of $HOME/go1.22.6,
+# $HOME/sdk/go1.22.6, or $HOME/go1.4, whichever exists, in that order.
 # We still check $HOME/go1.4 to allow for build scripts that still hard-code
 # that name even though they put newer Go toolchains there.
 
-bootgo=1.20.6
+bootgo=1.22.6
 
 set -e
 
@@ -131,13 +128,6 @@ do
 	fi
 done
 
-# Test for debian/kFreeBSD.
-# cmd/dist will detect kFreeBSD as freebsd/$GOARCH, but we need to
-# disable cgo manually.
-if [[ "$(uname -s)" == "GNU/kFreeBSD" ]]; then
-	export CGO_ENABLED=0
-fi
-
 # Clean old generated file that will cause problems in the build.
 rm -f ./runtime/runtime_defs.go
 
@@ -162,14 +152,17 @@ if [[ -z "$GOROOT_BOOTSTRAP" ]]; then
 fi
 export GOROOT_BOOTSTRAP
 
-nogoenv() {
-	GO111MODULE=off GOENV=off GOOS= GOARCH= GOEXPERIMENT= GOFLAGS= "$@"
+bootstrapenv() {
+	GOROOT="$GOROOT_BOOTSTRAP" GO111MODULE=off GOENV=off GOOS= GOARCH= GOEXPERIMENT= GOFLAGS= "$@"
 }
 
 export GOROOT="$(cd .. && pwd)"
 IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [[ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]]; then
-		goroot=$(GOROOT= nogoenv "$go_exe" env GOROOT)
+		goroot_bootstrap=$GOROOT_BOOTSTRAP
+		GOROOT_BOOTSTRAP=""
+		goroot=$(bootstrapenv "$go_exe" env GOROOT)
+		GOROOT_BOOTSTRAP=$goroot_bootstrap
 		if [[ "$goroot" != "$GOROOT" ]]; then
 			if [[ "$goroot_bootstrap_set" == "true" ]]; then
 				printf 'WARNING: %s does not exist, found %s from env\n' "$GOROOT_BOOTSTRAP/bin/go" "$go_exe" >&2
@@ -187,7 +180,7 @@ fi
 # Get the exact bootstrap toolchain version to help with debugging.
 # We clear GOOS and GOARCH to avoid an ominous but harmless warning if
 # the bootstrap doesn't support them.
-GOROOT_BOOTSTRAP_VERSION=$(nogoenv "$GOROOT_BOOTSTRAP/bin/go" version | sed 's/go version //')
+GOROOT_BOOTSTRAP_VERSION=$(bootstrapenv "$GOROOT_BOOTSTRAP/bin/go" version | sed 's/go version //')
 echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
 if $verbose; then
 	echo cmd/dist
@@ -198,7 +191,7 @@ if [[ "$GOROOT_BOOTSTRAP" == "$GOROOT" ]]; then
 	exit 1
 fi
 rm -f cmd/dist/dist
-GOROOT="$GOROOT_BOOTSTRAP" nogoenv "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+bootstrapenv "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
 
 # -e doesn't propagate out of eval, so check success by hand.
 eval $(./cmd/dist/dist env -p || echo FAIL=true)

@@ -9,7 +9,6 @@
 // gccgo's libgo and thus must not used a CGo method.
 
 //go:build aix && gccgo
-// +build aix,gccgo
 
 package cpu
 

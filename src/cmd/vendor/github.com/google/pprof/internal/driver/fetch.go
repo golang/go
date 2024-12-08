@@ -492,17 +492,23 @@ mapping:
 func fetch(source string, duration, timeout time.Duration, ui plugin.UI, tr http.RoundTripper) (p *profile.Profile, src string, err error) {
 	var f io.ReadCloser
 
-	if sourceURL, timeout := adjustURL(source, duration, timeout); sourceURL != "" {
-		ui.Print("Fetching profile over HTTP from " + sourceURL)
-		if duration > 0 {
-			ui.Print(fmt.Sprintf("Please wait... (%v)", duration))
+	// First determine whether the source is a file, if not, it will be treated as a URL.
+	if _, err = os.Stat(source); err == nil {
+		if isPerfFile(source) {
+			f, err = convertPerfData(source, ui)
+		} else {
+			f, err = os.Open(source)
 		}
-		f, err = fetchURL(sourceURL, timeout, tr)
-		src = sourceURL
-	} else if isPerfFile(source) {
-		f, err = convertPerfData(source, ui)
 	} else {
-		f, err = os.Open(source)
+		sourceURL, timeout := adjustURL(source, duration, timeout)
+		if sourceURL != "" {
+			ui.Print("Fetching profile over HTTP from " + sourceURL)
+			if duration > 0 {
+				ui.Print(fmt.Sprintf("Please wait... (%v)", duration))
+			}
+			f, err = fetchURL(sourceURL, timeout, tr)
+			src = sourceURL
+		}
 	}
 	if err == nil {
 		defer f.Close()

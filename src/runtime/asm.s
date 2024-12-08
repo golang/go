@@ -12,3 +12,4 @@ TEXT ·sigpanic0(SB),NOSPLIT,$0-0
 // See map.go comment on the need for this routine.
 TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
 	RET
+

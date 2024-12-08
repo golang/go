@@ -28,6 +28,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
+	"cmd/internal/pathcache"
 )
 
 var CmdGenerate = &base.Command{
@@ -175,12 +176,14 @@ var (
 )
 
 func init() {
-	work.AddBuildFlags(CmdGenerate, work.DefaultBuildFlags)
+	work.AddBuildFlags(CmdGenerate, work.OmitBuildOnlyFlags)
 	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
 	CmdGenerate.Flag.StringVar(&generateSkipFlag, "skip", "", "")
 }
 
 func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if generateRunFlag != "" {
 		var err error
 		generateRunRE, err = regexp.Compile(generateRunFlag)
@@ -487,7 +490,7 @@ func (g *Generator) exec(words []string) {
 		// intends to use the same 'go' as 'go generate' itself.
 		// Prefer to resolve the binary from GOROOT/bin, and for consistency
 		// prefer to resolve any other commands there too.
-		gorootBinPath, err := cfg.LookPath(filepath.Join(cfg.GOROOTbin, path))
+		gorootBinPath, err := pathcache.LookPath(filepath.Join(cfg.GOROOTbin, path))
 		if err == nil {
 			path = gorootBinPath
 		}

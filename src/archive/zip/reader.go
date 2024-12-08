@@ -16,7 +16,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -48,15 +48,15 @@ type Reader struct {
 	fileList     []fileListEntry
 }
 
-// A ReadCloser is a Reader that must be closed when no longer needed.
+// A ReadCloser is a [Reader] that must be closed when no longer needed.
 type ReadCloser struct {
 	f *os.File
 	Reader
 }
 
 // A File is a single file in a ZIP archive.
-// The file information is in the embedded FileHeader.
-// The file content can be accessed by calling Open.
+// The file information is in the embedded [FileHeader].
+// The file content can be accessed by calling [File.Open].
 type File struct {
 	FileHeader
 	zip          *Reader
@@ -93,16 +93,16 @@ func OpenReader(name string) (*ReadCloser, error) {
 	return r, err
 }
 
-// NewReader returns a new Reader reading from r, which is assumed to
+// NewReader returns a new [Reader] reading from r, which is assumed to
 // have the given size in bytes.
 //
 // If any file inside the archive uses a non-local name
 // (as defined by [filepath.IsLocal]) or a name containing backslashes
 // and the GODEBUG environment variable contains `zipinsecurepath=0`,
-// NewReader returns the reader with an ErrInsecurePath error.
+// NewReader returns the reader with an [ErrInsecurePath] error.
 // A future version of Go may introduce this behavior by default.
 // Programs that want to accept non-local names can ignore
-// the ErrInsecurePath error and use the returned reader.
+// the [ErrInsecurePath] error and use the returned reader.
 func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	if size < 0 {
 		return nil, errors.New("zip: size cannot be negative")
@@ -178,7 +178,7 @@ func (r *Reader) init(rdr io.ReaderAt, size int64) error {
 
 // RegisterDecompressor registers or overrides a custom decompressor for a
 // specific method ID. If a decompressor for a given method is not found,
-// Reader will default to looking up the decompressor at the package level.
+// [Reader] will default to looking up the decompressor at the package level.
 func (r *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
 	if r.decompressors == nil {
 		r.decompressors = make(map[uint16]Decompressor)
@@ -202,7 +202,7 @@ func (rc *ReadCloser) Close() error {
 // DataOffset returns the offset of the file's possibly-compressed
 // data, relative to the beginning of the zip file.
 //
-// Most callers should instead use Open, which transparently
+// Most callers should instead use [File.Open], which transparently
 // decompresses data and verifies checksums.
 func (f *File) DataOffset() (offset int64, err error) {
 	bodyOffset, err := f.findBodyOffset()
@@ -212,7 +212,7 @@ func (f *File) DataOffset() (offset int64, err error) {
 	return f.headerOffset + bodyOffset, nil
 }
 
-// Open returns a ReadCloser that provides access to the File's contents.
+// Open returns a [ReadCloser] that provides access to the [File]'s contents.
 // Multiple files may be read concurrently.
 func (f *File) Open() (io.ReadCloser, error) {
 	bodyOffset, err := f.findBodyOffset()
@@ -255,7 +255,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 	return rc, nil
 }
 
-// OpenRaw returns a Reader that provides access to the File's contents without
+// OpenRaw returns a [Reader] that provides access to the [File]'s contents without
 // decompression.
 func (f *File) OpenRaw() (io.Reader, error) {
 	bodyOffset, err := f.findBodyOffset()
@@ -699,9 +699,13 @@ func findSignatureInBlock(b []byte) int {
 		if b[i] == 'P' && b[i+1] == 'K' && b[i+2] == 0x05 && b[i+3] == 0x06 {
 			// n is length of comment
 			n := int(b[i+directoryEndLen-2]) | int(b[i+directoryEndLen-1])<<8
-			if n+directoryEndLen+i <= len(b) {
-				return i
+			if n+directoryEndLen+i > len(b) {
+				// Truncated comment.
+				// Some parsers (such as Info-ZIP) ignore the truncated comment
+				// rather than treating it as a hard error.
+				return -1
 			}
+			return i
 		}
 	}
 	return -1
@@ -858,14 +862,19 @@ func (r *Reader) initFileList() {
 			}
 		}
 
-		sort.Slice(r.fileList, func(i, j int) bool { return fileEntryLess(r.fileList[i].name, r.fileList[j].name) })
+		slices.SortFunc(r.fileList, func(a, b fileListEntry) int {
+			return fileEntryCompare(a.name, b.name)
+		})
 	})
 }
 
-func fileEntryLess(x, y string) bool {
+func fileEntryCompare(x, y string) int {
 	xdir, xelem, _ := split(x)
 	ydir, yelem, _ := split(y)
-	return xdir < ydir || xdir == ydir && xelem < yelem
+	if xdir != ydir {
+		return strings.Compare(xdir, ydir)
+	}
+	return strings.Compare(xelem, yelem)
 }
 
 // Open opens the named file in the ZIP archive,
@@ -893,14 +902,8 @@ func (r *Reader) Open(name string) (fs.File, error) {
 }
 
 func split(name string) (dir, elem string, isDir bool) {
-	if len(name) > 0 && name[len(name)-1] == '/' {
-		isDir = true
-		name = name[:len(name)-1]
-	}
-	i := len(name) - 1
-	for i >= 0 && name[i] != '/' {
-		i--
-	}
+	name, isDir = strings.CutSuffix(name, "/")
+	i := strings.LastIndexByte(name, '/')
 	if i < 0 {
 		return ".", name, isDir
 	}
@@ -916,9 +919,12 @@ func (r *Reader) openLookup(name string) *fileListEntry {
 
 	dir, elem, _ := split(name)
 	files := r.fileList
-	i := sort.Search(len(files), func(i int) bool {
-		idir, ielem, _ := split(files[i].name)
-		return idir > dir || idir == dir && ielem >= elem
+	i, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) (ret int) {
+		idir, ielem, _ := split(a.name)
+		if dir != idir {
+			return strings.Compare(idir, dir)
+		}
+		return strings.Compare(ielem, elem)
 	})
 	if i < len(files) {
 		fname := files[i].name
@@ -931,13 +937,21 @@ func (r *Reader) openLookup(name string) *fileListEntry {
 
 func (r *Reader) openReadDir(dir string) []fileListEntry {
 	files := r.fileList
-	i := sort.Search(len(files), func(i int) bool {
-		idir, _, _ := split(files[i].name)
-		return idir >= dir
+	i, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) int {
+		idir, _, _ := split(a.name)
+		if dir != idir {
+			return strings.Compare(idir, dir)
+		}
+		// find the first entry with dir
+		return +1
 	})
-	j := sort.Search(len(files), func(j int) bool {
-		jdir, _, _ := split(files[j].name)
-		return jdir > dir
+	j, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) int {
+		jdir, _, _ := split(a.name)
+		if dir != jdir {
+			return strings.Compare(jdir, dir)
+		}
+		// find the last entry with dir
+		return -1
 	})
 	return files[i:j]
 }

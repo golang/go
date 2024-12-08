@@ -4,9 +4,6 @@
 
 :: Environment variables that control make.bat:
 ::
-:: GOROOT_FINAL: The expected final Go root, baked into binaries.
-:: The default is the location of the Go tree during the build.
-::
 :: GOHOSTARCH: The architecture for host tools (compilers and
 :: binaries).  Binaries of this type must be executable on the current
 :: system, so the only common reason to set this is to set
@@ -88,7 +85,7 @@ for /f "tokens=*" %%g in ('where go 2^>nul') do (
 	)
 )
 
-set bootgo=1.20.6
+set bootgo=1.22.6
 if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\go%bootgo%" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\go%bootgo%
 if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%
 if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4

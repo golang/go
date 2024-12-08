@@ -4,25 +4,29 @@
 
 // Package types declares the data types and implements
 // the algorithms for type-checking of Go packages. Use
-// Config.Check to invoke the type checker for a package.
-// Alternatively, create a new type checker with NewChecker
-// and invoke it incrementally by calling Checker.Files.
+// [Config.Check] to invoke the type checker for a package.
+// Alternatively, create a new type checker with [NewChecker]
+// and invoke it incrementally by calling [Checker.Files].
 //
 // Type-checking consists of several interdependent phases:
 //
-// Name resolution maps each identifier (ast.Ident) in the program to the
-// language object (Object) it denotes.
-// Use Info.{Defs,Uses,Implicits} for the results of name resolution.
+// Name resolution maps each identifier ([ast.Ident]) in the program
+// to the symbol ([Object]) it denotes. Use the Defs and Uses fields
+// of [Info] or the [Info.ObjectOf] method to find the symbol for an
+// identifier, and use the Implicits field of [Info] to find the
+// symbol for certain other kinds of syntax node.
 //
-// Constant folding computes the exact constant value (constant.Value)
-// for every expression (ast.Expr) that is a compile-time constant.
-// Use Info.Types[expr].Value for the results of constant folding.
+// Constant folding computes the exact constant value
+// ([constant.Value]) of every expression ([ast.Expr]) that is a
+// compile-time constant. Use the Types field of [Info] to find the
+// results of constant folding for an expression.
 //
-// Type inference computes the type (Type) of every expression (ast.Expr)
-// and checks for compliance with the language specification.
-// Use Info.Types[expr].Type for the results of type inference.
+// Type deduction computes the type ([Type]) of every expression
+// ([ast.Expr]) and checks for compliance with the language
+// specification. Use the Types field of [Info] for the results of
+// type deduction.
 //
-// For a tutorial, see https://golang.org/s/types-tutorial.
+// For a tutorial, see https://go.dev/s/types-tutorial.
 package types
 
 import (
@@ -32,6 +36,7 @@ import (
 	"go/constant"
 	"go/token"
 	. "internal/types/errors"
+	_ "unsafe" // for linkname
 )
 
 // An Error describes a type-checking error; it implements the error interface.
@@ -73,7 +78,7 @@ func (e *ArgumentError) Unwrap() error { return e.Err }
 //
 // CAUTION: This interface does not support the import of locally
 // vendored packages. See https://golang.org/s/go15vendor.
-// If possible, external implementations should implement ImporterFrom.
+// If possible, external implementations should implement [ImporterFrom].
 type Importer interface {
 	// Import returns the imported package for the given import path.
 	// The semantics is like for ImporterFrom.ImportFrom except that
@@ -176,7 +181,20 @@ type Config struct {
 	// of an error message. ErrorURL must be a format string containing
 	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
 	_ErrorURL string
+
+	// If EnableAlias is set, alias declarations produce an Alias type. Otherwise
+	// the alias information is only in the type name, which points directly to
+	// the actual (aliased) type.
+	//
+	// This setting must not differ among concurrent type-checking operations,
+	// since it affects the behavior of Universe.Lookup("any").
+	//
+	// This flag will eventually be removed (with Go 1.24 at the earliest).
+	_EnableAlias bool
 }
+
+// Linkname for use from srcimporter.
+//go:linkname srcimporter_setUsesCgo
 
 func srcimporter_setUsesCgo(conf *Config) {
 	conf.go115UsesCgo = true
@@ -263,6 +281,15 @@ type Info struct {
 	// scope, the function scopes are embedded in the file scope of the file
 	// containing the function declaration.
 	//
+	// The Scope of a function contains the declarations of any
+	// type parameters, parameters, and named results, plus any
+	// local declarations in the body block.
+	// It is coextensive with the complete extent of the
+	// function's syntax ([*ast.FuncDecl] or [*ast.FuncLit]).
+	// The Scopes mapping does not contain an entry for the
+	// function body ([*ast.BlockStmt]); the function's scope is
+	// associated with the [*ast.FuncType].
+	//
 	// The following node types may appear in Scopes:
 	//
 	//     *ast.File
@@ -286,11 +313,12 @@ type Info struct {
 	// appear in this list.
 	InitOrder []*Initializer
 
-	// _FileVersions maps a file to the file's Go version string.
-	// If the file doesn't specify a version and Config.GoVersion
-	// is not given, the reported version is the empty string.
-	// TODO(gri) should this be "go0.0" instead in that case?
-	_FileVersions map[*ast.File]string
+	// FileVersions maps a file to its Go version string.
+	// If the file doesn't specify a version, the reported
+	// string is Config.GoVersion.
+	// Version strings begin with “go”, like “go1.21”, and
+	// are suitable for use with the [go/version] package.
+	FileVersions map[*ast.File]string
 }
 
 func (info *Info) recordTypes() bool {
@@ -314,8 +342,8 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 // ObjectOf returns the object denoted by the specified id,
 // or nil if not found.
 //
-// If id is an embedded struct field, ObjectOf returns the field (*Var)
-// it defines, not the type (*TypeName) it uses.
+// If id is an embedded struct field, [Info.ObjectOf] returns the field (*[Var])
+// it defines, not the type (*[TypeName]) it uses.
 //
 // Precondition: the Uses and Defs maps are populated.
 func (info *Info) ObjectOf(id *ast.Ident) Object {
@@ -323,6 +351,23 @@ func (info *Info) ObjectOf(id *ast.Ident) Object {
 		return obj
 	}
 	return info.Uses[id]
+}
+
+// PkgNameOf returns the local package name defined by the import,
+// or nil if not found.
+//
+// For dot-imports, the package name is ".".
+//
+// Precondition: the Defs and Implicts maps are populated.
+func (info *Info) PkgNameOf(imp *ast.ImportSpec) *PkgName {
+	var obj Object
+	if imp.Name != nil {
+		obj = info.Defs[imp.Name]
+	} else {
+		obj = info.Implicits[imp]
+	}
+	pkgname, _ := obj.(*PkgName)
+	return pkgname
 }
 
 // TypeAndValue reports the type and value (for constants)
@@ -386,8 +431,8 @@ func (tv TypeAndValue) HasOk() bool {
 }
 
 // Instance reports the type arguments and instantiated type for type and
-// function instantiations. For type instantiations, Type will be of dynamic
-// type *Named. For function instantiations, Type will be of dynamic type
+// function instantiations. For type instantiations, [Type] will be of dynamic
+// type *[Named]. For function instantiations, [Type] will be of dynamic type
 // *Signature.
 type Instance struct {
 	TypeArgs *TypeList
@@ -417,10 +462,10 @@ func (init *Initializer) String() string {
 
 // Check type-checks a package and returns the resulting package object and
 // the first error if any. Additionally, if info != nil, Check populates each
-// of the non-nil maps in the Info struct.
+// of the non-nil maps in the [Info] struct.
 //
 // The package is marked as complete if no errors occurred, otherwise it is
-// incomplete. See Config.Error for controlling behavior in the presence of
+// incomplete. See [Config.Error] for controlling behavior in the presence of
 // errors.
 //
 // The package is specified by a list of *ast.Files and corresponding
@@ -429,81 +474,4 @@ func (init *Initializer) String() string {
 func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, info *Info) (*Package, error) {
 	pkg := NewPackage(path, "")
 	return pkg, NewChecker(conf, fset, pkg, info).Files(files)
-}
-
-// AssertableTo reports whether a value of type V can be asserted to have type T.
-//
-// The behavior of AssertableTo is unspecified in three cases:
-//   - if T is Typ[Invalid]
-//   - if V is a generalized interface; i.e., an interface that may only be used
-//     as a type constraint in Go code
-//   - if T is an uninstantiated generic type
-func AssertableTo(V *Interface, T Type) bool {
-	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
-	// handling here.
-	if !isValid(T.Underlying()) {
-		return false
-	}
-	return (*Checker)(nil).newAssertableTo(nopos, V, T, nil)
-}
-
-// AssignableTo reports whether a value of type V is assignable to a variable
-// of type T.
-//
-// The behavior of AssignableTo is unspecified if V or T is Typ[Invalid] or an
-// uninstantiated generic type.
-func AssignableTo(V, T Type) bool {
-	x := operand{mode: value, typ: V}
-	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
-	return ok
-}
-
-// ConvertibleTo reports whether a value of type V is convertible to a value of
-// type T.
-//
-// The behavior of ConvertibleTo is unspecified if V or T is Typ[Invalid] or an
-// uninstantiated generic type.
-func ConvertibleTo(V, T Type) bool {
-	x := operand{mode: value, typ: V}
-	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
-}
-
-// Implements reports whether type V implements interface T.
-//
-// The behavior of Implements is unspecified if V is Typ[Invalid] or an uninstantiated
-// generic type.
-func Implements(V Type, T *Interface) bool {
-	if T.Empty() {
-		// All types (even Typ[Invalid]) implement the empty interface.
-		return true
-	}
-	// Checker.implements suppresses errors for invalid types, so we need special
-	// handling here.
-	if !isValid(V.Underlying()) {
-		return false
-	}
-	return (*Checker)(nil).implements(0, V, T, false, nil)
-}
-
-// Satisfies reports whether type V satisfies the constraint T.
-//
-// The behavior of Satisfies is unspecified if V is Typ[Invalid] or an uninstantiated
-// generic type.
-func Satisfies(V Type, T *Interface) bool {
-	return (*Checker)(nil).implements(0, V, T, true, nil)
-}
-
-// Identical reports whether x and y are identical types.
-// Receivers of Signature types are ignored.
-func Identical(x, y Type) bool {
-	var c comparer
-	return c.identical(x, y, nil)
-}
-
-// IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
-// Receivers of Signature types are ignored.
-func IdenticalIgnoreTags(x, y Type) bool {
-	var c comparer
-	c.ignoreTags = true
-	return c.identical(x, y, nil)
 }

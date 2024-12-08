@@ -7,7 +7,8 @@ package facts
 import (
 	"go/types"
 
-	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/aliases"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 // importMap computes the import map for a package by traversing the
@@ -49,28 +50,39 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 		switch T := T.(type) {
 		case *types.Basic:
 			// nop
-		case *types.Named:
+		case typesinternal.NamedOrAlias: // *types.{Named,Alias}
+			// Add the type arguments if this is an instance.
+			if targs := typesinternal.TypeArgs(T); targs.Len() > 0 {
+				for i := 0; i < targs.Len(); i++ {
+					addType(targs.At(i))
+				}
+			}
+
 			// Remove infinite expansions of *types.Named by always looking at the origin.
 			// Some named types with type parameters [that will not type check] have
 			// infinite expansions:
 			//     type N[T any] struct { F *N[N[T]] }
 			// importMap() is called on such types when Analyzer.RunDespiteErrors is true.
-			T = typeparams.NamedTypeOrigin(T)
+			T = typesinternal.Origin(T)
 			if !typs[T] {
 				typs[T] = true
+
+				// common aspects
 				addObj(T.Obj())
-				addType(T.Underlying())
-				for i := 0; i < T.NumMethods(); i++ {
-					addObj(T.Method(i))
-				}
-				if tparams := typeparams.ForNamed(T); tparams != nil {
+				if tparams := typesinternal.TypeParams(T); tparams.Len() > 0 {
 					for i := 0; i < tparams.Len(); i++ {
 						addType(tparams.At(i))
 					}
 				}
-				if targs := typeparams.NamedTypeArgs(T); targs != nil {
-					for i := 0; i < targs.Len(); i++ {
-						addType(targs.At(i))
+
+				// variant aspects
+				switch T := T.(type) {
+				case *types.Alias:
+					addType(aliases.Rhs(T))
+				case *types.Named:
+					addType(T.Underlying())
+					for i := 0; i < T.NumMethods(); i++ {
+						addObj(T.Method(i))
 					}
 				}
 			}
@@ -88,7 +100,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 		case *types.Signature:
 			addType(T.Params())
 			addType(T.Results())
-			if tparams := typeparams.ForSignature(T); tparams != nil {
+			if tparams := T.TypeParams(); tparams != nil {
 				for i := 0; i < tparams.Len(); i++ {
 					addType(tparams.At(i))
 				}
@@ -108,11 +120,11 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 			for i := 0; i < T.NumEmbeddeds(); i++ {
 				addType(T.EmbeddedType(i)) // walk Embedded for implicits
 			}
-		case *typeparams.Union:
+		case *types.Union:
 			for i := 0; i < T.Len(); i++ {
 				addType(T.Term(i).Type())
 			}
-		case *typeparams.TypeParam:
+		case *types.TypeParam:
 			if !typs[T] {
 				typs[T] = true
 				addObj(T.Obj())

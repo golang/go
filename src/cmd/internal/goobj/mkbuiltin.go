@@ -3,9 +3,8 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
-// Generate builtinlist.go from cmd/compile/internal/typecheck/builtin/runtime.go.
+// Generate builtinlist.go from cmd/compile/internal/typecheck/_builtin/runtime.go.
 
 package main
 

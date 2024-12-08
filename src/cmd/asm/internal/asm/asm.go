@@ -16,6 +16,7 @@ import (
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
+	"cmd/internal/obj/riscv"
 	"cmd/internal/obj/x86"
 	"cmd/internal/sys"
 )
@@ -46,7 +47,11 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 				p.errorf("%v", err)
 				return
 			}
-
+		case sys.RISCV64:
+			if err := riscv.ParseSuffix(prog, cond); err != nil {
+				p.errorf("unrecognized suffix .%q", cond)
+				return
+			}
 		default:
 			p.errorf("unrecognized suffix .%q", cond)
 			return
@@ -348,6 +353,7 @@ func (p *Parser) asmPCAlign(operands [][]lex.Token) {
 	prog := &obj.Prog{
 		Ctxt: p.ctxt,
 		As:   obj.APCALIGN,
+		Pos:  p.pos(),
 		From: key,
 	}
 	p.append(prog, "", true)
@@ -637,12 +643,6 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				break
 			}
 		} else if p.arch.Family == sys.Loong64 {
-			if arch.IsLoong64CMP(op) {
-				prog.From = a[0]
-				prog.Reg = p.getRegister(prog, op, &a[1])
-				break
-			}
-
 			if arch.IsLoong64RDTIME(op) {
 				// The Loong64 RDTIME family of instructions is a bit special,
 				// in that both its register operands are outputs
@@ -664,9 +664,17 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
 		case sys.Loong64:
-			prog.From = a[0]
-			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.To = a[2]
+			switch {
+			// Loong64 atomic instructions with one input and two outputs.
+			case arch.IsLoong64AMO(op):
+				prog.From = a[0]
+				prog.To = a[1]
+				prog.RegTo2 = a[2].Reg
+			default:
+				prog.From = a[0]
+				prog.Reg = p.getRegister(prog, op, &a[1])
+				prog.To = a[2]
+			}
 		case sys.ARM:
 			// Special cases.
 			if arch.IsARMSTREX(op) {
@@ -809,6 +817,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			break
 		}
 		if p.arch.Family == sys.ARM64 {
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.AddRestSource(a[2])
+			prog.To = a[3]
+			break
+		}
+		if p.arch.Family == sys.Loong64 {
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.AddRestSource(a[2])

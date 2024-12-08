@@ -11,6 +11,7 @@ import (
 	"net"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -33,6 +34,18 @@ func TestReadLine(t *testing.T) {
 	s, err = r.ReadLine()
 	if s != "" || err != io.EOF {
 		t.Fatalf("EOF: %s, %v", s, err)
+	}
+}
+
+func TestReadLineLongLine(t *testing.T) {
+	line := strings.Repeat("12345", 10000)
+	r := reader(line + "\r\n")
+	s, err := r.ReadLine()
+	if err != nil {
+		t.Fatalf("Line 1: %v", err)
+	}
+	if s != line {
+		t.Fatalf("%v-byte line does not match expected %v-byte line", len(s), len(line))
 	}
 }
 
@@ -83,13 +96,13 @@ func TestReadDotLines(t *testing.T) {
 	r := reader("dotlines\r\n.foo\r\n..bar\n...baz\nquux\r\n\r\n.\r\nanother\n")
 	s, err := r.ReadDotLines()
 	want := []string{"dotlines", "foo", ".bar", "..baz", "quux", ""}
-	if !reflect.DeepEqual(s, want) || err != nil {
+	if !slices.Equal(s, want) || err != nil {
 		t.Fatalf("ReadDotLines: %v, %v", s, err)
 	}
 
 	s, err = r.ReadDotLines()
 	want = []string{"another"}
-	if !reflect.DeepEqual(s, want) || err != io.ErrUnexpectedEOF {
+	if !slices.Equal(s, want) || err != io.ErrUnexpectedEOF {
 		t.Fatalf("ReadDotLines2: %v, %v", s, err)
 	}
 }
@@ -98,13 +111,13 @@ func TestReadDotBytes(t *testing.T) {
 	r := reader("dotlines\r\n.foo\r\n..bar\n...baz\nquux\r\n\r\n.\r\nanot.her\r\n")
 	b, err := r.ReadDotBytes()
 	want := []byte("dotlines\nfoo\n.bar\n..baz\nquux\n\n")
-	if !reflect.DeepEqual(b, want) || err != nil {
+	if !slices.Equal(b, want) || err != nil {
 		t.Fatalf("ReadDotBytes: %q, %v", b, err)
 	}
 
 	b, err = r.ReadDotBytes()
 	want = []byte("anot.her\n")
-	if !reflect.DeepEqual(b, want) || err != io.ErrUnexpectedEOF {
+	if !slices.Equal(b, want) || err != io.ErrUnexpectedEOF {
 		t.Fatalf("ReadDotBytes2: %q, %v", b, err)
 	}
 }
@@ -169,8 +182,8 @@ func TestReaderUpcomingHeaderKeys(t *testing.T) {
 func TestReadMIMEHeaderNoKey(t *testing.T) {
 	r := reader(": bar\ntest-1: 1\n\n")
 	m, err := r.ReadMIMEHeader()
-	want := MIMEHeader{"Test-1": {"1"}}
-	if !reflect.DeepEqual(m, want) || err != nil {
+	want := MIMEHeader{}
+	if !reflect.DeepEqual(m, want) || err == nil {
 		t.Fatalf("ReadMIMEHeader: %v, %v; want %v", m, err, want)
 	}
 }
@@ -227,6 +240,7 @@ func TestReadMIMEHeaderMalformed(t *testing.T) {
 		"Foo\r\n\t: foo\r\n\r\n",
 		"Foo-\n\tBar",
 		"Foo \tBar: foo\r\n\r\n",
+		": empty key\r\n\r\n",
 	}
 	for _, input := range inputs {
 		r := reader(input)

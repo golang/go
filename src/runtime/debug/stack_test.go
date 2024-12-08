@@ -8,20 +8,36 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	. "runtime/debug"
 	"strings"
 	"testing"
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("GO_RUNTIME_DEBUG_TEST_DUMP_GOROOT") != "" {
+	switch os.Getenv("GO_RUNTIME_DEBUG_TEST_ENTRYPOINT") {
+	case "dumpgoroot":
 		fmt.Println(runtime.GOROOT())
 		os.Exit(0)
+
+	case "setcrashoutput":
+		f, err := os.Create(os.Getenv("CRASHOUTPUT"))
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := SetCrashOutput(f, debug.CrashOptions{}); err != nil {
+			log.Fatal(err) // e.g. EMFILE
+		}
+		println("hello")
+		panic("oops")
 	}
+
+	// default: run the tests.
 	os.Exit(m.Run())
 }
 
@@ -77,7 +93,7 @@ func TestStack(t *testing.T) {
 			t.Fatal(err)
 		}
 		cmd := exec.Command(exe)
-		cmd.Env = append(os.Environ(), "GOROOT=", "GO_RUNTIME_DEBUG_TEST_DUMP_GOROOT=1")
+		cmd.Env = append(os.Environ(), "GOROOT=", "GO_RUNTIME_DEBUG_TEST_ENTRYPOINT=dumpgoroot")
 		out, err := cmd.Output()
 		if err != nil {
 			t.Fatal(err)
@@ -118,4 +134,65 @@ func TestStack(t *testing.T) {
 	frame("runtime/debug/stack_test.go", "runtime/debug_test.T.method")
 	frame("runtime/debug/stack_test.go", "runtime/debug_test.TestStack")
 	frame("testing/testing.go", "")
+}
+
+func TestSetCrashOutput(t *testing.T) {
+	testenv.MustHaveExec(t)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	crashOutput := filepath.Join(t.TempDir(), "crash.out")
+
+	cmd := exec.Command(exe)
+	cmd.Stderr = new(strings.Builder)
+	cmd.Env = append(os.Environ(), "GO_RUNTIME_DEBUG_TEST_ENTRYPOINT=setcrashoutput", "CRASHOUTPUT="+crashOutput)
+	err = cmd.Run()
+	stderr := fmt.Sprint(cmd.Stderr)
+	if err == nil {
+		t.Fatalf("child process succeeded unexpectedly (stderr: %s)", stderr)
+	}
+	t.Logf("child process finished with error %v and stderr <<%s>>", err, stderr)
+
+	// Read the file the child process should have written.
+	// It should contain a crash report such as this:
+	//
+	// panic: oops
+	//
+	// goroutine 1 [running]:
+	// runtime/debug_test.TestMain(0x1400007e0a0)
+	// 	GOROOT/src/runtime/debug/stack_test.go:33 +0x18c
+	// main.main()
+	// 	_testmain.go:71 +0x170
+	data, err := os.ReadFile(crashOutput)
+	if err != nil {
+		t.Fatalf("child process failed to write crash report: %v", err)
+	}
+	crash := string(data)
+	t.Logf("crash = <<%s>>", crash)
+	t.Logf("stderr = <<%s>>", stderr)
+
+	// Check that the crash file and the stderr both contain the panic and stack trace.
+	for _, want := range []string{
+		"panic: oops",
+		"goroutine 1",
+		"debug_test.TestMain",
+	} {
+		if !strings.Contains(crash, want) {
+			t.Errorf("crash output does not contain %q", want)
+		}
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr output does not contain %q", want)
+		}
+	}
+
+	// Check that stderr, but not crash, contains the output of println().
+	printlnOnly := "hello"
+	if strings.Contains(crash, printlnOnly) {
+		t.Errorf("crash output contains %q, but should not", printlnOnly)
+	}
+	if !strings.Contains(stderr, printlnOnly) {
+		t.Errorf("stderr output does not contain %q, but should", printlnOnly)
+	}
 }

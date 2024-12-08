@@ -1,11 +1,11 @@
-// Copyright 2017 The Go Authors.  All rights reserved.
+// Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -367,10 +367,8 @@ func (b *profBuf) write(tagPtr *unsafe.Pointer, now int64, hdr []uint64, stk []u
 	data[0] = uint64(2 + b.hdrsize + uintptr(len(stk))) // length
 	data[1] = uint64(now)                               // time stamp
 	// header, zero-padded
-	i := uintptr(copy(data[2:2+b.hdrsize], hdr))
-	for ; i < b.hdrsize; i++ {
-		data[2+i] = 0
-	}
+	i := copy(data[2:2+b.hdrsize], hdr)
+	clear(data[2+i : 2+b.hdrsize])
 	for i, pc := range stk {
 		data[2+b.hdrsize+uintptr(i)] = uint64(pc)
 	}
@@ -469,9 +467,7 @@ Read:
 			dst := b.overflowBuf
 			dst[0] = uint64(2 + b.hdrsize + 1)
 			dst[1] = time
-			for i := uintptr(0); i < b.hdrsize; i++ {
-				dst[2+i] = 0
-			}
+			clear(dst[2 : 2+b.hdrsize])
 			dst[2+b.hdrsize] = uint64(count)
 			return dst[:2+b.hdrsize+1], overflowTag[:1], false
 		}

@@ -13,14 +13,16 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"go/version"
 	"internal/diff"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
-	"strconv"
+	"slices"
 	"strings"
+
+	"cmd/internal/telemetry/counter"
 )
 
 var (
@@ -37,10 +39,8 @@ var forceRewrites = flag.String("force", "",
 var allowed, force map[string]bool
 
 var (
-	doDiff       = flag.Bool("diff", false, "display diffs instead of rewriting files")
-	goVersionStr = flag.String("go", "", "go language version for files")
-
-	goVersion int // 115 for go1.15
+	doDiff    = flag.Bool("diff", false, "display diffs instead of rewriting files")
+	goVersion = flag.String("go", "", "go language version for files")
 )
 
 // enable for debugging fix failures
@@ -50,7 +50,9 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "usage: go tool fix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
 	flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
-	sort.Sort(byName(fixes))
+	slices.SortFunc(fixes, func(a, b fix) int {
+		return strings.Compare(a.name, b.name)
+	})
 	for _, f := range fixes {
 		if f.disabled {
 			fmt.Fprintf(os.Stderr, "\n%s (disabled)\n", f.name)
@@ -65,30 +67,20 @@ func usage() {
 }
 
 func main() {
+	counter.Open()
 	flag.Usage = usage
 	flag.Parse()
+	counter.Inc("fix/invocations")
+	counter.CountFlags("fix/flag:", *flag.CommandLine)
 
-	if *goVersionStr != "" {
-		if !strings.HasPrefix(*goVersionStr, "go") {
-			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
-			os.Exit(exitCode)
-		}
-		majorStr := (*goVersionStr)[len("go"):]
-		minorStr := "0"
-		if before, after, found := strings.Cut(majorStr, "."); found {
-			majorStr, minorStr = before, after
-		}
-		major, err1 := strconv.Atoi(majorStr)
-		minor, err2 := strconv.Atoi(minorStr)
-		if err1 != nil || err2 != nil || major < 0 || major >= 100 || minor < 0 || minor >= 100 {
-			report(fmt.Errorf("invalid -go=%s", *goVersionStr))
-			os.Exit(exitCode)
-		}
-
-		goVersion = major*100 + minor
+	if !version.IsValid(*goVersion) {
+		report(fmt.Errorf("invalid -go=%s", *goVersion))
+		os.Exit(exitCode)
 	}
 
-	sort.Sort(byDate(fixes))
+	slices.SortFunc(fixes, func(a, b fix) int {
+		return strings.Compare(a.date, b.date)
+	})
 
 	if *allowedRewrites != "" {
 		allowed = make(map[string]bool)

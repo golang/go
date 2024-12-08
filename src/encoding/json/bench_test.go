@@ -571,3 +571,14 @@ func BenchmarkNumberIsValidRegexp(b *testing.B) {
 		jsonNumberRegexp.MatchString(s)
 	}
 }
+
+func BenchmarkUnmarshalNumber(b *testing.B) {
+	b.ReportAllocs()
+	data := []byte(`"-61657.61667E+61673"`)
+	var number Number
+	for i := 0; i < b.N; i++ {
+		if err := Unmarshal(data, &number); err != nil {
+			b.Fatal("Unmarshal:", err)
+		}
+	}
+}

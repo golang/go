@@ -1,6 +1,6 @@
 // errorcheck
 
-// +build amd64
+//go:build amd64
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

@@ -205,7 +205,7 @@ func ExampleAfterFunc_connection() {
 		return n, err
 	}
 
-	listener, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		fmt.Println(err)
 		return

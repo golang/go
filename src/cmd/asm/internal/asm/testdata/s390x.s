@@ -419,9 +419,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	KMC	R2, R6                 // b92f0026
 	KLMD	R2, R8                 // b93f0028
 	KIMD	R0, R4                 // b93e0004
-	KDSA    R0, R8                 // b93a0008
-	KMA	R6, R2, R4		// b9296024
-	KMCTR	R6, R2, R4		// b92d6024
+	KDSA	R0, R8                 // b93a0008
+	KMA	R2, R6, R4              // b9296024
+	KMCTR   R2, R6, R4              // b92d6024
 
 	// vector add and sub instructions
 	VAB	V3, V4, V4              // e743400000f3
@@ -520,7 +520,20 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VSUMQF	V4, V5, V6              // e76450002067
 	VSUMQG	V19, V20, V21           // e75340003e67
 	VSUMB	V7, V8, V9              // e79780000064
-	VSUMH	V22, V23, V24           // e78670001e64
+	VSUMH	V22, V23, V24		// e78670001e64
+	VSTRC	V18, V20, V22, V24	// e78240006f8a
+	VSTRCB	V18, V20, V22, V24	// e78240006f8a
+	VSTRCH	V18, V20, V22, V24	// e78241006f8a
+	VSTRCF	V18, V20, V22, V24	// e78242006f8a
+	VSTRCBS V18, V20, V22, V24	// e78240106f8a
+	VSTRCHS V18, V20, V22, V24	// e78241106f8a
+	VSTRCFS V18, V20, V22, V24	// e78242106f8a
+	VSTRCZB V18, V20, V22, V24	// e78240206f8a
+	VSTRCZH V18, V20, V22, V24	// e78241206f8a
+	VSTRCZF V18, V20, V22, V24	// e78242206f8a
+	VSTRCZBS V18, V20, V22, V24	// e78240306f8a
+	VSTRCZHS V18, V20, V22, V24	// e78241306f8a
+	VSTRCZFS V18, V20, V22, V24	// e78242306f8a
 
 	RET
 	RET	foo(SB)

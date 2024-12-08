@@ -5,7 +5,7 @@
 // Package embed provides access to files embedded in the running Go program.
 //
 // Go source files that import "embed" can use the //go:embed directive
-// to initialize a variable of type string, []byte, or FS with the contents of
+// to initialize a variable of type string, []byte, or [FS] with the contents of
 // files read from the package directory or subdirectories at compile time.
 //
 // For example, here are three ways to embed a file named hello.txt
@@ -45,7 +45,7 @@
 // Only blank lines and ‘//’ line comments are permitted between the directive and the declaration.
 //
 // The type of the variable must be a string type, or a slice of a byte type,
-// or FS (or an alias of FS).
+// or [FS] (or an alias of [FS]).
 //
 // For example:
 //
@@ -90,7 +90,8 @@
 // depending on whether the package wants to make the data available to other packages.
 // It can only be used with variables at package scope, not with local variables.
 //
-// Patterns must not match files outside the package's module, such as ‘.git/*’ or symbolic links.
+// Patterns must not match files outside the package's module, such as ‘.git/*’, symbolic links,
+// 'vendor/', or any directories containing go.mod (these are separate modules).
 // Patterns must not match files whose names include the special punctuation characters  " * < > ? ` ' | / \ and :.
 // Matches for empty directories are ignored. After that, each pattern in a //go:embed line
 // must match at least one file or non-empty directory.
@@ -104,16 +105,16 @@
 // the contents of that file.
 //
 // The //go:embed directive requires importing "embed", even when using a string or []byte.
-// In source files that don't refer to embed.FS, use a blank import (import _ "embed").
+// In source files that don't refer to [embed.FS], use a blank import (import _ "embed").
 //
 // # File Systems
 //
 // For embedding a single file, a variable of type string or []byte is often best.
-// The FS type enables embedding a tree of files, such as a directory of static
+// The [FS] type enables embedding a tree of files, such as a directory of static
 // web server content, as in the example above.
 //
-// FS implements the io/fs package's FS interface, so it can be used with any package that
-// understands file systems, including net/http, text/template, and html/template.
+// FS implements the [io/fs] package's [FS] interface, so it can be used with any package that
+// understands file systems, including [net/http], [text/template], and [html/template].
 //
 // For example, given the content variable in the example above, we can write:
 //
@@ -130,6 +131,8 @@ package embed
 
 import (
 	"errors"
+	"internal/bytealg"
+	"internal/stringslite"
 	"io"
 	"io/fs"
 	"time"
@@ -168,7 +171,7 @@ type FS struct {
 	//
 	//	p       # dir=.    elem=p
 	//	q/      # dir=.    elem=q
-	//	w/      # dir=.    elem=w
+	//	w       # dir=.    elem=w
 	//	q/r     # dir=q    elem=r
 	//	q/s/    # dir=q    elem=s
 	//	q/v     # dir=q    elem=v
@@ -185,27 +188,12 @@ type FS struct {
 // comment in the FS struct above. isDir reports whether the
 // final trailing slash was present, indicating that name is a directory.
 func split(name string) (dir, elem string, isDir bool) {
-	if name[len(name)-1] == '/' {
-		isDir = true
-		name = name[:len(name)-1]
-	}
-	i := len(name) - 1
-	for i >= 0 && name[i] != '/' {
-		i--
-	}
+	name, isDir = stringslite.CutSuffix(name, "/")
+	i := bytealg.LastIndexByteString(name, '/')
 	if i < 0 {
 		return ".", name, isDir
 	}
 	return name[:i], name[i+1:], isDir
-}
-
-// trimSlash trims a trailing slash from name, if present,
-// returning the possibly shortened name.
-func trimSlash(name string) string {
-	if len(name) > 0 && name[len(name)-1] == '/' {
-		return name[:len(name)-1]
-	}
-	return name
 }
 
 var (
@@ -274,7 +262,7 @@ func (f FS) lookup(name string) *file {
 		idir, ielem, _ := split(files[i].name)
 		return idir > dir || idir == dir && ielem >= elem
 	})
-	if i < len(files) && trimSlash(files[i].name) == name {
+	if i < len(files) && stringslite.TrimSuffix(files[i].name, "/") == name {
 		return &files[i]
 	}
 	return nil
@@ -299,9 +287,9 @@ func (f FS) readDir(dir string) []file {
 	return files[i:j]
 }
 
-// Open opens the named file for reading and returns it as an fs.File.
+// Open opens the named file for reading and returns it as an [fs.File].
 //
-// The returned file implements io.Seeker and io.ReaderAt when the file is not a directory.
+// The returned file implements [io.Seeker] and [io.ReaderAt] when the file is not a directory.
 func (f FS) Open(name string) (fs.File, error) {
 	file := f.lookup(name)
 	if file == nil {

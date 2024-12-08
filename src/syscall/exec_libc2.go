@@ -289,3 +289,8 @@ childerror:
 		rawSyscall(abi.FuncPCABI0(libc_exit_trampoline), 253, 0, 0)
 	}
 }
+
+// forkAndExecFailureCleanup cleans up after an exec failure.
+func forkAndExecFailureCleanup(attr *ProcAttr, sys *SysProcAttr) {
+	// Nothing to do.
+}

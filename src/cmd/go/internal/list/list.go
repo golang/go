@@ -245,6 +245,8 @@ applied to a Go struct, but now a Module struct:
         Retracted  []string      // retraction information, if any (with -retracted or -u)
         Deprecated string        // deprecation message, if any (with -u)
         Error      *ModuleError  // error loading module
+        Sum        string        // checksum for path, version (as in go.sum)
+        GoModSum   string        // checksum for go.mod (as in go.sum)
         Origin     any           // provenance of module
         Reuse      bool          // reuse of old module info is safe
     }
@@ -343,7 +345,8 @@ For more about modules, see https://golang.org/ref/mod.
 
 func init() {
 	CmdList.Run = runList // break init cycle
-	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
+	// Omit build -json because list has its own -json
+	work.AddBuildFlags(CmdList, work.OmitJSONFlag)
 	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
 		work.AddCoverFlags(CmdList, nil)
 	}
@@ -387,7 +390,7 @@ func (v *jsonFlag) Set(s string) error {
 }
 
 func (v *jsonFlag) String() string {
-	var fields []string
+	fields := make([]string, 0, len(*v))
 	for f := range *v {
 		fields = append(fields, f)
 	}
@@ -449,13 +452,15 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if listJson {
 		do = func(x any) {
 			if !listJsonFields.needAll() {
-				v := reflect.ValueOf(x).Elem() // do is always called with a non-nil pointer.
-				// Clear all non-requested fields.
+				//  Set x to a copy of itself with all non-requested fields cleared.
+				v := reflect.New(reflect.TypeOf(x).Elem()).Elem() // do is always called with a non-nil pointer.
+				v.Set(reflect.ValueOf(x).Elem())
 				for i := 0; i < v.NumField(); i++ {
 					if !listJsonFields.needAny(v.Type().Field(i).Name) {
 						v.Field(i).SetZero()
 					}
 				}
+				x = v.Interface()
 			}
 			b, err := json.MarshalIndent(x, "", "\t")
 			if err != nil {
@@ -638,7 +643,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		for _, p := range pkgs {
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
 				var pmain, ptest, pxtest *load.Package
-				var err error
 				if *listE {
 					sema.Acquire(ctx, 1)
 					wg.Add(1)
@@ -648,9 +652,10 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 					}
 					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, done, pkgOpts, p, nil)
 				} else {
-					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, pkgOpts, p, nil)
-					if err != nil {
-						base.Fatalf("go: can't load test package: %s", err)
+					var perr *load.Package
+					pmain, ptest, pxtest, perr = load.TestPackagesFor(ctx, pkgOpts, p, nil)
+					if perr != nil {
+						base.Fatalf("go: can't load test package: %s", perr.Error)
 					}
 				}
 				testPackages = append(testPackages, testPackageSet{p, pmain, ptest, pxtest})
@@ -723,15 +728,15 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		b.IsCmdList = true
 		b.NeedExport = *listExport
 		b.NeedCompiledGoFiles = *listCompiled
+		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+			load.PrepareForCoverageBuild(pkgs)
+		}
 		a := &work.Action{}
 		// TODO: Use pkgsFilter?
 		for _, p := range pkgs {
 			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
 				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
 			}
-		}
-		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
-			load.PrepareForCoverageBuild(pkgs)
 		}
 		b.Do(ctx, a)
 	}
@@ -963,7 +968,7 @@ func collectDepsErrors(p *load.Package) {
 			return false
 		}
 		pathi, pathj := stki[len(stki)-1], stkj[len(stkj)-1]
-		return pathi < pathj
+		return pathi.Pkg < pathj.Pkg
 	})
 }
 

@@ -72,14 +72,15 @@
 // A sample benchmark function looks like this:
 //
 //	func BenchmarkRandInt(b *testing.B) {
-//	    for i := 0; i < b.N; i++ {
+//	    for range b.N {
 //	        rand.Int()
 //	    }
 //	}
 //
 // The benchmark function must run the target code b.N times.
-// During benchmark execution, b.N is adjusted until the benchmark function lasts
-// long enough to be timed reliably. The output
+// It is called multiple times with b.N adjusted until the
+// benchmark function lasts long enough to be timed reliably.
+// The output
 //
 //	BenchmarkRandInt-8   	68453040	        17.8 ns/op
 //
@@ -91,7 +92,7 @@
 //	func BenchmarkBigLen(b *testing.B) {
 //	    big := NewBig()
 //	    b.ResetTimer()
-//	    for i := 0; i < b.N; i++ {
+//	    for range b.N {
 //	        big.Len()
 //	    }
 //	}
@@ -361,7 +362,7 @@
 //
 //	func TestMain(m *testing.M) {
 //		// call flag.Parse() here if TestMain uses flags
-//		os.Exit(m.Run())
+//		m.Run()
 //	}
 //
 // TestMain is a low-level primitive and should not be necessary for casual
@@ -370,6 +371,7 @@ package testing
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -378,11 +380,12 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"runtime/debug"
 	"runtime/trace"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -611,24 +614,29 @@ type common struct {
 	bench          bool           // Whether the current test is a benchmark.
 	hasSub         atomic.Bool    // whether there are sub-benchmarks.
 	cleanupStarted atomic.Bool    // Registered cleanup callbacks have started to execute
-	raceErrors     int            // Number of races detected during test.
 	runner         string         // Function name of tRunner running the test.
 	isParallel     bool           // Whether the test is parallel.
 
 	parent   *common
-	level    int       // Nesting depth of test or benchmark.
-	creator  []uintptr // If level > 0, the stack trace at the point where the parent called t.Run.
-	name     string    // Name of test or benchmark.
-	start    time.Time // Time test or benchmark started
+	level    int               // Nesting depth of test or benchmark.
+	creator  []uintptr         // If level > 0, the stack trace at the point where the parent called t.Run.
+	name     string            // Name of test or benchmark.
+	start    highPrecisionTime // Time test or benchmark started
 	duration time.Duration
 	barrier  chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
 	signal   chan bool // To signal a test is done.
 	sub      []*T      // Queue of subtests to be run in parallel.
 
+	lastRaceErrors  atomic.Int64 // Max value of race.Errors seen during the test or its subtests.
+	raceErrorLogged atomic.Bool
+
 	tempDirMu  sync.Mutex
 	tempDir    string
 	tempDirErr error
 	tempDirSeq int32
+
+	ctx       context.Context
+	cancelCtx context.CancelFunc
 }
 
 // Short reports whether the -test.short flag is set.
@@ -888,11 +896,13 @@ type TB interface {
 	Logf(format string, args ...any)
 	Name() string
 	Setenv(key, value string)
+	Chdir(dir string)
 	Skip(args ...any)
 	SkipNow()
 	Skipf(format string, args ...any)
 	Skipped() bool
 	TempDir() string
+	Context() context.Context
 
 	// A private method to prevent users implementing the
 	// interface and so future additions to it will not
@@ -914,8 +924,8 @@ var _ TB = (*B)(nil)
 // may be called simultaneously from multiple goroutines.
 type T struct {
 	common
-	isEnvSet bool
-	context  *testContext // For running tests and subtests.
+	denyParallel bool
+	tstate       *testState // For running tests and subtests.
 }
 
 func (c *common) private() {}
@@ -955,9 +965,15 @@ func (c *common) Fail() {
 // Failed reports whether the function has failed.
 func (c *common) Failed() bool {
 	c.mu.RLock()
-	failed := c.failed
-	c.mu.RUnlock()
-	return failed || c.raceErrors+race.Errors() > 0
+	defer c.mu.RUnlock()
+
+	if !c.done && int64(race.Errors()) > c.lastRaceErrors.Load() {
+		c.mu.RUnlock()
+		c.checkRaces()
+		c.mu.RLock()
+	}
+
+	return c.failed
 }
 
 // FailNow marks the function as having failed and stops its execution
@@ -1096,7 +1112,7 @@ func (c *common) Skipf(format string, args ...any) {
 }
 
 // SkipNow marks the test as having been skipped and stops its execution
-// by calling runtime.Goexit.
+// by calling [runtime.Goexit].
 // If a test fails (see Error, Errorf, Fail) and is then skipped,
 // it is still considered to have failed.
 // Execution will continue at the next test or benchmark. See also FailNow.
@@ -1298,7 +1314,59 @@ func (c *common) Setenv(key, value string) {
 	}
 }
 
-// panicHanding is an argument to runCleanup.
+// Chdir calls os.Chdir(dir) and uses Cleanup to restore the current
+// working directory to its original value after the test. On Unix, it
+// also sets PWD environment variable for the duration of the test.
+//
+// Because Chdir affects the whole process, it cannot be used
+// in parallel tests or tests with parallel ancestors.
+func (c *common) Chdir(dir string) {
+	c.checkFuzzFn("Chdir")
+	oldwd, err := os.Open(".")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		c.Fatal(err)
+	}
+	// On POSIX platforms, PWD represents “an absolute pathname of the
+	// current working directory.” Since we are changing the working
+	// directory, we should also set or update PWD to reflect that.
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		// Windows and Plan 9 do not use the PWD variable.
+	default:
+		if !filepath.IsAbs(dir) {
+			dir, err = os.Getwd()
+			if err != nil {
+				c.Fatal(err)
+			}
+		}
+		c.Setenv("PWD", dir)
+	}
+	c.Cleanup(func() {
+		err := oldwd.Chdir()
+		oldwd.Close()
+		if err != nil {
+			// It's not safe to continue with tests if we can't
+			// get back to the original working directory. Since
+			// we are holding a dirfd, this is highly unlikely.
+			panic("testing.Chdir: " + err.Error())
+		}
+	})
+}
+
+// Context returns a context that is canceled just before
+// [T.Cleanup]-registered functions are called.
+//
+// Cleanup functions can wait for any resources
+// that shut down on Context.Done before the test completes.
+func (c *common) Context() context.Context {
+	c.checkFuzzFn("Context")
+	return c.ctx
+}
+
+// panicHandling controls the panic handling used by runCleanup.
 type panicHandling int
 
 const (
@@ -1307,8 +1375,8 @@ const (
 )
 
 // runCleanup is called at the end of the test.
-// If catchPanic is true, this will catch panics, and return the recovered
-// value if any.
+// If ph is recoverAndReturnPanic, it will catch panics, and return the
+// recovered value if any.
 func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 	c.cleanupStarted.Store(true)
 	defer c.cleanupStarted.Store(false)
@@ -1330,6 +1398,10 @@ func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 		}
 	}()
 
+	if c.cancelCtx != nil {
+		c.cancelCtx()
+	}
+
 	for {
 		var cleanup func()
 		c.mu.Lock()
@@ -1344,6 +1416,69 @@ func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 		}
 		cleanup()
 	}
+}
+
+// resetRaces updates c.parent's count of data race errors (or the global count,
+// if c has no parent), and updates c.lastRaceErrors to match.
+//
+// Any races that occurred prior to this call to resetRaces will
+// not be attributed to c.
+func (c *common) resetRaces() {
+	if c.parent == nil {
+		c.lastRaceErrors.Store(int64(race.Errors()))
+	} else {
+		c.lastRaceErrors.Store(c.parent.checkRaces())
+	}
+}
+
+// checkRaces checks whether the global count of data race errors has increased
+// since c's count was last reset.
+//
+// If so, it marks c as having failed due to those races (logging an error for
+// the first such race), and updates the race counts for the parents of c so
+// that if they are currently suspended (such as in a call to T.Run) they will
+// not log separate errors for the race(s).
+//
+// Note that multiple tests may be marked as failed due to the same race if they
+// are executing in parallel.
+func (c *common) checkRaces() (raceErrors int64) {
+	raceErrors = int64(race.Errors())
+	for {
+		last := c.lastRaceErrors.Load()
+		if raceErrors <= last {
+			// All races have already been reported.
+			return raceErrors
+		}
+		if c.lastRaceErrors.CompareAndSwap(last, raceErrors) {
+			break
+		}
+	}
+
+	if c.raceErrorLogged.CompareAndSwap(false, true) {
+		// This is the first race we've encountered for this test.
+		// Mark the test as failed, and log the reason why only once.
+		// (Note that the race detector itself will still write a goroutine
+		// dump for any further races it detects.)
+		c.Errorf("race detected during execution of test")
+	}
+
+	// Update the parent(s) of this test so that they don't re-report the race.
+	parent := c.parent
+	for parent != nil {
+		for {
+			last := parent.lastRaceErrors.Load()
+			if raceErrors <= last {
+				// This race was already reported by another (likely parallel) subtest.
+				return raceErrors
+			}
+			if parent.lastRaceErrors.CompareAndSwap(last, raceErrors) {
+				break
+			}
+		}
+		parent = parent.parent
+	}
+
+	return raceErrors
 }
 
 // callerName gives the function name (qualified with a package path)
@@ -1364,6 +1499,8 @@ func pcToName(pc uintptr) string {
 	return frame.Function
 }
 
+const parallelConflict = `testing: test using t.Setenv or t.Chdir can not use t.Parallel`
+
 // Parallel signals that this test is to be run in parallel with (and only with)
 // other parallel tests. When a test is run multiple times due to use of
 // -test.count or -test.cpu, multiple instances of a single test never run in
@@ -1372,8 +1509,8 @@ func (t *T) Parallel() {
 	if t.isParallel {
 		panic("testing: t.Parallel called multiple times")
 	}
-	if t.isEnvSet {
-		panic("testing: t.Parallel called after t.Setenv; cannot set environment variables in parallel tests")
+	if t.denyParallel {
+		panic(parallelConflict)
 	}
 	t.isParallel = true
 	if t.parent.barrier == nil {
@@ -1386,11 +1523,22 @@ func (t *T) Parallel() {
 	// We don't want to include the time we spend waiting for serial tests
 	// in the test duration. Record the elapsed time thus far and reset the
 	// timer afterwards.
-	t.duration += time.Since(t.start)
+	t.duration += highPrecisionTimeSince(t.start)
 
 	// Add to the list of tests to be released by the parent.
 	t.parent.sub = append(t.parent.sub, t)
-	t.raceErrors += race.Errors()
+
+	// Report any races during execution of this test up to this point.
+	//
+	// We will assume that any races that occur between here and the point where
+	// we unblock are not caused by this subtest. That assumption usually holds,
+	// although it can be wrong if the test spawns a goroutine that races in the
+	// background while the rest of the test is blocked on the call to Parallel.
+	// If that happens, we will misattribute the background race to some other
+	// test, or to no test at all — but that false-negative is so unlikely that it
+	// is not worth adding race-report noise for the common case where the test is
+	// completely suspended during the call to Parallel.
+	t.checkRaces()
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== PAUSE %s\n", t.name)
@@ -1399,15 +1547,37 @@ func (t *T) Parallel() {
 
 	t.signal <- true   // Release calling test.
 	<-t.parent.barrier // Wait for the parent test to complete.
-	t.context.waitParallel()
+	t.tstate.waitParallel()
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
 	}
-	running.Store(t.name, time.Now())
+	running.Store(t.name, highPrecisionTimeNow())
+	t.start = highPrecisionTimeNow()
 
-	t.start = time.Now()
-	t.raceErrors += -race.Errors()
+	// Reset the local race counter to ignore any races that happened while this
+	// goroutine was blocked, such as in the parent test or in other parallel
+	// subtests.
+	//
+	// (Note that we don't call parent.checkRaces here:
+	// if other parallel subtests have already introduced races, we want to
+	// let them report those races instead of attributing them to the parent.)
+	t.lastRaceErrors.Store(int64(race.Errors()))
+}
+
+func (t *T) checkParallel() {
+	// Non-parallel subtests that have parallel ancestors may still
+	// run in parallel with other tests: they are only non-parallel
+	// with respect to the other subtests of the same parent.
+	// Since calls like SetEnv or Chdir affects the whole process, we need
+	// to deny those if the current test or any parent is parallel.
+	for c := &t.common; c != nil; c = c.parent {
+		if c.isParallel {
+			panic(parallelConflict)
+		}
+	}
+
+	t.denyParallel = true
 }
 
 // Setenv calls os.Setenv(key, value) and uses Cleanup to
@@ -1417,25 +1587,19 @@ func (t *T) Parallel() {
 // Because Setenv affects the whole process, it cannot be used
 // in parallel tests or tests with parallel ancestors.
 func (t *T) Setenv(key, value string) {
-	// Non-parallel subtests that have parallel ancestors may still
-	// run in parallel with other tests: they are only non-parallel
-	// with respect to the other subtests of the same parent.
-	// Since SetEnv affects the whole process, we need to disallow it
-	// if the current test or any parent is parallel.
-	isParallel := false
-	for c := &t.common; c != nil; c = c.parent {
-		if c.isParallel {
-			isParallel = true
-			break
-		}
-	}
-	if isParallel {
-		panic("testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests")
-	}
-
-	t.isEnvSet = true
-
+	t.checkParallel()
 	t.common.Setenv(key, value)
+}
+
+// Chdir calls os.Chdir(dir) and uses Cleanup to restore the current
+// working directory to its original value after the test. On Unix, it
+// also sets PWD environment variable for the duration of the test.
+//
+// Because Chdir affects the whole process, it cannot be used
+// in parallel tests or tests with parallel ancestors.
+func (t *T) Chdir(dir string) {
+	t.checkParallel()
+	t.common.Chdir(dir)
 }
 
 // InternalTest is an internal type but exported because it is cross-package;
@@ -1455,12 +1619,11 @@ func tRunner(t *T, fn func(t *T)) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
+		t.checkRaces()
+
+		// TODO(#61034): This is the wrong place for this check.
 		if t.Failed() {
 			numFailed.Add(1)
-		}
-
-		if t.raceErrors+race.Errors() > 0 {
-			t.Errorf("race detected during execution of test")
 		}
 
 		// Check if the test panicked or Goexited inappropriately.
@@ -1494,7 +1657,7 @@ func tRunner(t *T, fn func(t *T)) {
 			}
 		}
 
-		if err != nil && t.context.isFuzzing {
+		if err != nil && t.tstate.isFuzzing {
 			prefix := "panic: "
 			if err == errNilPanicOrGoexit {
 				prefix = ""
@@ -1531,7 +1694,7 @@ func tRunner(t *T, fn func(t *T)) {
 			// Flush the output log up to the root before dying.
 			for root := &t.common; root.parent != nil; root = root.parent {
 				root.mu.Lock()
-				root.duration += time.Since(root.start)
+				root.duration += highPrecisionTimeSince(root.start)
 				d := root.duration
 				root.mu.Unlock()
 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
@@ -1546,32 +1709,40 @@ func tRunner(t *T, fn func(t *T)) {
 			doPanic(err)
 		}
 
-		t.duration += time.Since(t.start)
+		t.duration += highPrecisionTimeSince(t.start)
 
 		if len(t.sub) > 0 {
 			// Run parallel subtests.
-			// Decrease the running count for this test.
-			t.context.release()
+
+			// Decrease the running count for this test and mark it as no longer running.
+			t.tstate.release()
+			running.Delete(t.name)
+
 			// Release the parallel subtests.
 			close(t.barrier)
 			// Wait for subtests to complete.
 			for _, sub := range t.sub {
 				<-sub.signal
 			}
-			cleanupStart := time.Now()
+
+			// Run any cleanup callbacks, marking the test as running
+			// in case the cleanup hangs.
+			cleanupStart := highPrecisionTimeNow()
+			running.Store(t.name, cleanupStart)
 			err := t.runCleanup(recoverAndReturnPanic)
-			t.duration += time.Since(cleanupStart)
+			t.duration += highPrecisionTimeSince(cleanupStart)
 			if err != nil {
 				doPanic(err)
 			}
+			t.checkRaces()
 			if !t.isParallel {
 				// Reacquire the count for sequential tests. See comment in Run.
-				t.context.waitParallel()
+				t.tstate.waitParallel()
 			}
 		} else if t.isParallel {
 			// Only release the count for this test if it was run as a parallel
 			// test. See comment in Run method.
-			t.context.release()
+			t.tstate.release()
 		}
 		t.report() // Report after all subtests have finished.
 
@@ -1588,8 +1759,8 @@ func tRunner(t *T, fn func(t *T)) {
 		}
 	}()
 
-	t.start = time.Now()
-	t.raceErrors = -race.Errors()
+	t.start = highPrecisionTimeNow()
+	t.resetRaces()
 	fn(t)
 
 	// code beyond here will not be executed when FailNow is invoked
@@ -1610,7 +1781,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	}
 
 	t.hasSub.Store(true)
-	testName, ok, _ := t.context.match.fullName(&t.common, name)
+	testName, ok, _ := t.tstate.match.fullName(&t.common, name)
 	if !ok || shouldFailFast() {
 		return true
 	}
@@ -1619,24 +1790,30 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	// continue walking the stack into the parent test.
 	var pc [maxStackLen]uintptr
 	n := runtime.Callers(2, pc[:])
+
+	// There's no reason to inherit this context from parent. The user's code can't observe
+	// the difference between the background context and the one from the parent test.
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	t = &T{
 		common: common{
-			barrier: make(chan bool),
-			signal:  make(chan bool, 1),
-			name:    testName,
-			parent:  &t.common,
-			level:   t.level + 1,
-			creator: pc[:n],
-			chatty:  t.chatty,
+			barrier:   make(chan bool),
+			signal:    make(chan bool, 1),
+			name:      testName,
+			parent:    &t.common,
+			level:     t.level + 1,
+			creator:   pc[:n],
+			chatty:    t.chatty,
+			ctx:       ctx,
+			cancelCtx: cancelCtx,
 		},
-		context: t.context,
+		tstate: t.tstate,
 	}
 	t.w = indenter{&t.common}
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 	}
-	running.Store(t.name, time.Now())
+	running.Store(t.name, highPrecisionTimeNow())
 
 	// Instead of reducing the running count of this test before calling the
 	// tRunner and increasing it afterwards, we rely on tRunner keeping the
@@ -1644,11 +1821,19 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	// without being preempted, even when their parent is a parallel test. This
 	// may especially reduce surprises if *parallel == 1.
 	go tRunner(t, f)
+
+	// The parent goroutine will block until the subtest either finishes or calls
+	// Parallel, but in general we don't know whether the parent goroutine is the
+	// top-level test function or some other goroutine it has spawned.
+	// To avoid confusing false-negatives, we leave the parent in the running map
+	// even though in the typical case it is blocked.
+
 	if !<-t.signal {
 		// At this point, it is likely that FailNow was called on one of the
 		// parent tests by one of the subtests. Continue aborting up the chain.
 		runtime.Goexit()
 	}
+
 	if t.chatty != nil && t.chatty.json {
 		t.chatty.Updatef(t.parent.name, "=== NAME  %s\n", t.parent.name)
 	}
@@ -1660,17 +1845,17 @@ func (t *T) Run(name string, f func(t *T)) bool {
 //
 // The ok result is false if the -timeout flag indicates “no timeout” (0).
 func (t *T) Deadline() (deadline time.Time, ok bool) {
-	deadline = t.context.deadline
+	deadline = t.tstate.deadline
 	return deadline, !deadline.IsZero()
 }
 
-// testContext holds all fields that are common to all tests. This includes
+// testState holds all fields that are common to all tests. This includes
 // synchronization primitives to run at most *parallel tests.
-type testContext struct {
+type testState struct {
 	match    *matcher
 	deadline time.Time
 
-	// isFuzzing is true in the context used when generating random inputs
+	// isFuzzing is true in the state used when generating random inputs
 	// for fuzz targets. isFuzzing is false when running normal tests and
 	// when running fuzz tests as unit tests (without -fuzz or when -fuzz
 	// does not match).
@@ -1692,8 +1877,8 @@ type testContext struct {
 	maxParallel int
 }
 
-func newTestContext(maxParallel int, m *matcher) *testContext {
-	return &testContext{
+func newTestState(maxParallel int, m *matcher) *testState {
+	return &testState{
 		match:         m,
 		startParallel: make(chan bool),
 		maxParallel:   maxParallel,
@@ -1701,28 +1886,28 @@ func newTestContext(maxParallel int, m *matcher) *testContext {
 	}
 }
 
-func (c *testContext) waitParallel() {
-	c.mu.Lock()
-	if c.running < c.maxParallel {
-		c.running++
-		c.mu.Unlock()
+func (s *testState) waitParallel() {
+	s.mu.Lock()
+	if s.running < s.maxParallel {
+		s.running++
+		s.mu.Unlock()
 		return
 	}
-	c.numWaiting++
-	c.mu.Unlock()
-	<-c.startParallel
+	s.numWaiting++
+	s.mu.Unlock()
+	<-s.startParallel
 }
 
-func (c *testContext) release() {
-	c.mu.Lock()
-	if c.numWaiting == 0 {
-		c.running--
-		c.mu.Unlock()
+func (s *testState) release() {
+	s.mu.Lock()
+	if s.numWaiting == 0 {
+		s.running--
+		s.mu.Unlock()
 		return
 	}
-	c.numWaiting--
-	c.mu.Unlock()
-	c.startParallel <- true // Pick a waiting test to be run.
+	s.numWaiting--
+	s.mu.Unlock()
+	s.startParallel <- true // Pick a waiting test to be run.
 }
 
 // No one should be using func Main anymore.
@@ -1749,6 +1934,10 @@ func (f matchStringOnly) ReadCorpus(string, []reflect.Type) ([]corpusEntry, erro
 func (f matchStringOnly) CheckCorpus([]any, []reflect.Type) error { return nil }
 func (f matchStringOnly) ResetCoverage()                          {}
 func (f matchStringOnly) SnapshotCoverage()                       {}
+
+func (f matchStringOnly) InitRuntimeCoverage() (mode string, tearDown func(string, string) (string, error), snapcov func() float64) {
+	return
+}
 
 // Main is an internal function, part of the implementation of the "go test" command.
 // It was exported because it is cross-package and predates "internal" packages.
@@ -1797,12 +1986,14 @@ type testDeps interface {
 	CheckCorpus([]any, []reflect.Type) error
 	ResetCoverage()
 	SnapshotCoverage()
+	InitRuntimeCoverage() (mode string, tearDown func(coverprofile string, gocoverdir string) (string, error), snapcov func() float64)
 }
 
 // MainStart is meant for use by tests generated by 'go test'.
 // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
 // It may change signature from release to release.
 func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) *M {
+	registerCover2(deps.InitRuntimeCoverage())
 	Init()
 	return &M{
 		deps:        deps,
@@ -1936,7 +2127,12 @@ func (m *M) Run() (code int) {
 				testOk = false
 			}
 		}
-		if !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
+		anyFailed := !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks)
+		if !anyFailed && race.Errors() > 0 {
+			fmt.Print(chatty.prefix(), "testing: race detected outside of test execution\n")
+			anyFailed = true
+		}
+		if anyFailed {
 			fmt.Print(chatty.prefix(), "FAIL\n")
 			m.exitCode = 1
 			return
@@ -2034,15 +2230,18 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				// to keep trying.
 				break
 			}
-			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
-			ctx.deadline = deadline
+			ctx, cancelCtx := context.WithCancel(context.Background())
+			tstate := newTestState(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
+			tstate.deadline = deadline
 			t := &T{
 				common: common{
-					signal:  make(chan bool, 1),
-					barrier: make(chan bool),
-					w:       os.Stdout,
+					signal:    make(chan bool, 1),
+					barrier:   make(chan bool),
+					w:         os.Stdout,
+					ctx:       ctx,
+					cancelCtx: cancelCtx,
 				},
-				context: ctx,
+				tstate: tstate,
 			}
 			if Verbose() {
 				t.chatty = newChattyPrinter(t.w)
@@ -2263,10 +2462,10 @@ func (m *M) startAlarm() time.Time {
 func runningList() []string {
 	var list []string
 	running.Range(func(k, v any) bool {
-		list = append(list, fmt.Sprintf("%s (%v)", k.(string), time.Since(v.(time.Time)).Round(time.Second)))
+		list = append(list, fmt.Sprintf("%s (%v)", k.(string), highPrecisionTimeSince(v.(highPrecisionTime)).Round(time.Second)))
 		return true
 	})
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 

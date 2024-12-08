@@ -9,17 +9,17 @@ import (
 	"fmt"
 	"internal/testenv"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 	. "sort"
 	"strconv"
-	stringspkg "strings"
+	"strings"
 	"testing"
 )
 
 var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
 var float64s = [...]float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN(), math.NaN(), math.Inf(-1), 9845.768, -959.7485, 905, 7.8, 7.8}
-var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
+var stringsData = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
 
 func TestSortIntSlice(t *testing.T) {
 	data := ints
@@ -50,17 +50,17 @@ func TestSortFloat64sCompareSlicesSort(t *testing.T) {
 	slices.Sort(slice2)
 
 	// Compare for equality using cmp.Compare, which considers NaNs equal.
-	if !slices.EqualFunc(slice1, slice1, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
+	if !slices.EqualFunc(slice1, slice2, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
 		t.Errorf("mismatch between Sort and slices.Sort: got %v, want %v", slice1, slice2)
 	}
 }
 
 func TestSortStringSlice(t *testing.T) {
-	data := strings
+	data := stringsData
 	a := StringSlice(data[0:])
 	Sort(a)
 	if !IsSorted(a) {
-		t.Errorf("sorted %v", strings)
+		t.Errorf("sorted %v", stringsData)
 		t.Errorf("   got %v", data)
 	}
 }
@@ -84,21 +84,21 @@ func TestFloat64s(t *testing.T) {
 }
 
 func TestStrings(t *testing.T) {
-	data := strings
+	data := stringsData
 	Strings(data[0:])
 	if !StringsAreSorted(data[0:]) {
-		t.Errorf("sorted %v", strings)
+		t.Errorf("sorted %v", stringsData)
 		t.Errorf("   got %v", data)
 	}
 }
 
 func TestSlice(t *testing.T) {
-	data := strings
+	data := stringsData
 	Slice(data[:], func(i, j int) bool {
 		return data[i] < data[j]
 	})
 	if !SliceIsSorted(data[:], func(i, j int) bool { return data[i] < data[j] }) {
-		t.Errorf("sorted %v", strings)
+		t.Errorf("sorted %v", stringsData)
 		t.Errorf("   got %v", data)
 	}
 }
@@ -110,7 +110,7 @@ func TestSortLarge_Random(t *testing.T) {
 	}
 	data := make([]int, n)
 	for i := 0; i < len(data); i++ {
-		data[i] = rand.Intn(100)
+		data[i] = rand.IntN(100)
 	}
 	if IntsAreSorted(data) {
 		t.Fatalf("terrible rand.rand")
@@ -198,7 +198,7 @@ func TestNonDeterministicComparison(t *testing.T) {
 	}()
 
 	td := &nonDeterministicTestingData{
-		r: rand.New(rand.NewSource(0)),
+		r: rand.New(rand.NewPCG(0, 0)),
 	}
 
 	for i := 0; i < 10; i++ {
@@ -442,13 +442,13 @@ func testBentleyMcIlroy(t *testing.T, sort func(Interface), maxswap func(int) in
 					case _Sawtooth:
 						data[i] = i % m
 					case _Rand:
-						data[i] = rand.Intn(m)
+						data[i] = rand.IntN(m)
 					case _Stagger:
 						data[i] = (i*m + i) % n
 					case _Plateau:
 						data[i] = min(i, m)
 					case _Shuffle:
-						if rand.Intn(m) != 0 {
+						if rand.IntN(m) != 0 {
 							j += 2
 							data[i] = j
 						} else {
@@ -648,7 +648,7 @@ func TestStability(t *testing.T) {
 
 	// random distribution
 	for i := 0; i < len(data); i++ {
-		data[i].a = rand.Intn(m)
+		data[i].a = rand.IntN(m)
 	}
 	if IsSorted(data) {
 		t.Fatalf("terrible rand.rand")
@@ -704,7 +704,7 @@ func countOps(t *testing.T, algo func(Interface), name string) {
 			maxswap: 1<<31 - 1,
 		}
 		for i := 0; i < n; i++ {
-			td.data[i] = rand.Intn(n / 5)
+			td.data[i] = rand.IntN(n / 5)
 		}
 		algo(&td)
 		t.Logf("%s %8d elements: %11d Swap, %10d Less", name, n, td.nswap, td.ncmp)
@@ -715,7 +715,7 @@ func TestCountStableOps(t *testing.T) { countOps(t, Stable, "Stable") }
 func TestCountSortOps(t *testing.T)   { countOps(t, Sort, "Sort  ") }
 
 func bench(b *testing.B, size int, algo func(Interface), name string) {
-	if stringspkg.HasSuffix(testenv.Builder(), "-race") && size > 1e4 {
+	if strings.HasSuffix(testenv.Builder(), "-race") && size > 1e4 {
 		b.Skip("skipping slow benchmark on race builder")
 	}
 	b.StopTimer()

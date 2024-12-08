@@ -9,7 +9,7 @@ package vcstest
 import (
 	"cmd/go/internal/vcs"
 	"cmd/go/internal/vcweb"
-	"cmd/go/internal/web"
+	"cmd/go/internal/web/intercept"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -101,13 +101,13 @@ func NewServer() (srv *Server, err error) {
 	vcs.VCSTestRepoURL = srv.HTTP.URL
 	vcs.VCSTestHosts = Hosts
 
-	var interceptors []web.Interceptor
+	interceptors := make([]intercept.Interceptor, 0, 2*len(Hosts))
 	for _, host := range Hosts {
 		interceptors = append(interceptors,
-			web.Interceptor{Scheme: "http", FromHost: host, ToHost: httpURL.Host, Client: srv.HTTP.Client()},
-			web.Interceptor{Scheme: "https", FromHost: host, ToHost: httpsURL.Host, Client: srv.HTTPS.Client()})
+			intercept.Interceptor{Scheme: "http", FromHost: host, ToHost: httpURL.Host, Client: srv.HTTP.Client()},
+			intercept.Interceptor{Scheme: "https", FromHost: host, ToHost: httpsURL.Host, Client: srv.HTTPS.Client()})
 	}
-	web.EnableTestHooks(interceptors)
+	intercept.EnableTestHooks(interceptors)
 
 	fmt.Fprintln(os.Stderr, "vcs-test.golang.org rerouted to "+srv.HTTP.URL)
 	fmt.Fprintln(os.Stderr, "https://vcs-test.golang.org rerouted to "+srv.HTTPS.URL)
@@ -121,7 +121,7 @@ func (srv *Server) Close() error {
 	}
 	vcs.VCSTestRepoURL = ""
 	vcs.VCSTestHosts = nil
-	web.DisableTestHooks()
+	intercept.DisableTestHooks()
 
 	srv.HTTP.Close()
 	srv.HTTPS.Close()

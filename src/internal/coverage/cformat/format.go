@@ -23,7 +23,7 @@ package cformat
 //				}
 //			}
 //		}
-//		myformatter.EmitPercent(os.Stdout, "", true, true)
+//		myformatter.EmitPercent(os.Stdout, nil, "", true, true)
 //		myformatter.EmitTextual(somefile)
 //
 // These apis are linked into tests that are built with "-cover", and
@@ -31,11 +31,14 @@ package cformat
 // emit coverage percentages.
 
 import (
+	"cmp"
 	"fmt"
 	"internal/coverage"
 	"internal/coverage/cmerge"
 	"io"
-	"sort"
+	"maps"
+	"slices"
+	"strings"
 	"text/tabwriter"
 )
 
@@ -136,29 +139,27 @@ func (fm *Formatter) AddUnit(file string, fname string, isfnlit bool, unit cover
 // include function name as part of the sorting criteria, the thinking
 // being that is better to provide things in the original source order.
 func (p *pstate) sortUnits(units []extcu) {
-	sort.Slice(units, func(i, j int) bool {
-		ui := units[i]
-		uj := units[j]
+	slices.SortFunc(units, func(ui, uj extcu) int {
 		ifile := p.funcs[ui.fnfid].file
 		jfile := p.funcs[uj.fnfid].file
-		if ifile != jfile {
-			return ifile < jfile
+		if r := strings.Compare(ifile, jfile); r != 0 {
+			return r
 		}
 		// NB: not taking function literal flag into account here (no
 		// need, since other fields are guaranteed to be distinct).
-		if units[i].StLine != units[j].StLine {
-			return units[i].StLine < units[j].StLine
+		if r := cmp.Compare(ui.StLine, uj.StLine); r != 0 {
+			return r
 		}
-		if units[i].EnLine != units[j].EnLine {
-			return units[i].EnLine < units[j].EnLine
+		if r := cmp.Compare(ui.EnLine, uj.EnLine); r != 0 {
+			return r
 		}
-		if units[i].StCol != units[j].StCol {
-			return units[i].StCol < units[j].StCol
+		if r := cmp.Compare(ui.StCol, uj.StCol); r != 0 {
+			return r
 		}
-		if units[i].EnCol != units[j].EnCol {
-			return units[i].EnCol < units[j].EnCol
+		if r := cmp.Compare(ui.EnCol, uj.EnCol); r != 0 {
+			return r
 		}
-		return units[i].NxStmts < units[j].NxStmts
+		return cmp.Compare(ui.NxStmts, uj.NxStmts)
 	})
 }
 
@@ -174,12 +175,7 @@ func (fm *Formatter) EmitTextual(w io.Writer) error {
 	if _, err := fmt.Fprintf(w, "mode: %s\n", fm.cm.String()); err != nil {
 		return err
 	}
-	pkgs := make([]string, 0, len(fm.pm))
-	for importpath := range fm.pm {
-		pkgs = append(pkgs, importpath)
-	}
-	sort.Strings(pkgs)
-	for _, importpath := range pkgs {
+	for _, importpath := range slices.Sorted(maps.Keys(fm.pm)) {
 		p := fm.pm[importpath]
 		units := make([]extcu, 0, len(p.unitTable))
 		for u := range p.unitTable {
@@ -199,17 +195,21 @@ func (fm *Formatter) EmitTextual(w io.Writer) error {
 	return nil
 }
 
-// EmitPercent writes out a "percentage covered" string to the writer 'w'.
-func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool, aggregate bool) error {
-	pkgs := make([]string, 0, len(fm.pm))
-	for importpath := range fm.pm {
-		pkgs = append(pkgs, importpath)
+// EmitPercent writes out a "percentage covered" string to the writer
+// 'w', selecting the set of packages in 'pkgs' and suffixing the
+// printed string with 'inpkgs'.
+func (fm *Formatter) EmitPercent(w io.Writer, pkgs []string, inpkgs string, noteEmpty bool, aggregate bool) error {
+	if len(pkgs) == 0 {
+		pkgs = make([]string, 0, len(fm.pm))
+		for importpath := range fm.pm {
+			pkgs = append(pkgs, importpath)
+		}
 	}
 
 	rep := func(cov, tot uint64) error {
 		if tot != 0 {
 			if _, err := fmt.Fprintf(w, "coverage: %.1f%% of statements%s\n",
-				100.0*float64(cov)/float64(tot), covpkgs); err != nil {
+				100.0*float64(cov)/float64(tot), inpkgs); err != nil {
 				return err
 			}
 		} else if noteEmpty {
@@ -220,10 +220,13 @@ func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool, ag
 		return nil
 	}
 
-	sort.Strings(pkgs)
+	slices.Sort(pkgs)
 	var totalStmts, coveredStmts uint64
 	for _, importpath := range pkgs {
 		p := fm.pm[importpath]
+		if p == nil {
+			continue
+		}
 		if !aggregate {
 			totalStmts, coveredStmts = 0, 0
 		}
@@ -274,14 +277,8 @@ func (fm *Formatter) EmitFuncs(w io.Writer) error {
 	allStmts := uint64(0)
 	covStmts := uint64(0)
 
-	pkgs := make([]string, 0, len(fm.pm))
-	for importpath := range fm.pm {
-		pkgs = append(pkgs, importpath)
-	}
-	sort.Strings(pkgs)
-
 	// Emit functions for each package, sorted by import path.
-	for _, importpath := range pkgs {
+	for _, importpath := range slices.Sorted(maps.Keys(fm.pm)) {
 		p := fm.pm[importpath]
 		if len(p.unitTable) == 0 {
 			continue

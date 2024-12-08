@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 //go:embed doc.go
@@ -36,12 +37,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
-		if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "append" {
-			if _, ok := pass.TypesInfo.Uses[ident].(*types.Builtin); ok {
-				if len(call.Args) == 1 {
-					pass.ReportRangef(call, "append with no values")
-				}
-			}
+		b, ok := typeutil.Callee(pass.TypesInfo, call).(*types.Builtin)
+		if ok && b.Name() == "append" && len(call.Args) == 1 {
+			pass.ReportRangef(call, "append with no values")
 		}
 	})
 

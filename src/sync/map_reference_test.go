@@ -5,6 +5,7 @@
 package sync_test
 
 import (
+	isync "internal/sync"
 	"sync"
 	"sync/atomic"
 )
@@ -13,7 +14,7 @@ import (
 
 // mapInterface is the interface Map implements.
 type mapInterface interface {
-	Load(any) (any, bool)
+	Load(key any) (value any, ok bool)
 	Store(key, value any)
 	LoadOrStore(key, value any) (actual any, loaded bool)
 	LoadAndDelete(key any) (value any, loaded bool)
@@ -22,11 +23,13 @@ type mapInterface interface {
 	CompareAndSwap(key, old, new any) (swapped bool)
 	CompareAndDelete(key, old any) (deleted bool)
 	Range(func(key, value any) (shouldContinue bool))
+	Clear()
 }
 
 var (
 	_ mapInterface = &RWMutexMap{}
 	_ mapInterface = &DeepCopyMap{}
+	_ mapInterface = &isync.HashTrieMap[any, any]{}
 )
 
 // RWMutexMap is an implementation of mapInterface using a sync.RWMutex.
@@ -142,6 +145,13 @@ func (m *RWMutexMap) Range(f func(key, value any) (shouldContinue bool)) {
 			break
 		}
 	}
+}
+
+func (m *RWMutexMap) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	clear(m.dirty)
 }
 
 // DeepCopyMap is an implementation of mapInterface using a Mutex and
@@ -268,4 +278,11 @@ func (m *DeepCopyMap) dirty() map[any]any {
 		dirty[k] = v
 	}
 	return dirty
+}
+
+func (m *DeepCopyMap) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.clean.Store((map[any]any)(nil))
 }

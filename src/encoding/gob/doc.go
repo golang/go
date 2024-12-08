@@ -67,7 +67,7 @@ arbitrary precision unsigned integers. There is no int8, int16 etc.
 discrimination in the gob format; there are only signed and unsigned integers. As
 described below, the transmitter sends the value in a variable-length encoding;
 the receiver accepts the value and stores it in the destination variable.
-Floating-point numbers are always sent using IEEE-754 64-bit precision (see
+Floating-point numbers are always sent using IEEE 754 64-bit precision (see
 below).
 
 Signed integers may be received into any signed integer variable: int, int16, etc.;
@@ -193,14 +193,13 @@ pair (-type id, encoded-type) where encoded-type is the gob encoding of a wireTy
 description, constructed from these types:
 
 	type wireType struct {
-		ArrayT           *ArrayType
-		SliceT           *SliceType
-		StructT          *StructType
-		MapT             *MapType
+		ArrayT           *arrayType
+		SliceT           *sliceType
+		StructT          *structType
+		MapT             *mapType
 		GobEncoderT      *gobEncoderType
 		BinaryMarshalerT *gobEncoderType
 		TextMarshalerT   *gobEncoderType
-
 	}
 	type arrayType struct {
 		CommonType
@@ -217,7 +216,7 @@ description, constructed from these types:
 	}
 	type structType struct {
 		CommonType
-		Field []*fieldType // the fields of the struct.
+		Field []fieldType // the fields of the struct.
 	}
 	type fieldType struct {
 		Name string // the name of the field.

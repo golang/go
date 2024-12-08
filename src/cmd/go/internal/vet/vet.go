@@ -100,9 +100,9 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
 
 	root := &work.Action{Mode: "go vet"}
 	for _, p := range pkgs {
-		_, ptest, pxtest, err := load.TestPackagesFor(ctx, pkgOpts, p, nil)
-		if err != nil {
-			base.Errorf("%v", err)
+		_, ptest, pxtest, perr := load.TestPackagesFor(ctx, pkgOpts, p, nil)
+		if perr != nil {
+			base.Errorf("%v", perr.Error)
 			continue
 		}
 		if len(ptest.GoFiles) == 0 && len(ptest.CgoFiles) == 0 && pxtest == nil {

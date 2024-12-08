@@ -101,6 +101,7 @@ func quoteValue(value string) bool {
 	return strings.ContainsAny(value, " \t\r\n\"`")
 }
 
+// String returns a string representation of a [BuildInfo].
 func (bi *BuildInfo) String() string {
 	buf := new(strings.Builder)
 	if bi.GoVersion != "" {
@@ -146,6 +147,12 @@ func (bi *BuildInfo) String() string {
 	return buf.String()
 }
 
+// ParseBuildInfo parses the string returned by [*BuildInfo.String],
+// restoring the original BuildInfo,
+// except that the GoVersion field is not set.
+// Programs should normally not call this function,
+// but instead call [ReadBuildInfo], [debug/buildinfo.ReadFile],
+// or [debug/buildinfo.Read].
 func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 	lineNum := 1
 	defer func() {
@@ -154,7 +161,7 @@ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 		}
 	}()
 
-	var (
+	const (
 		pathLine  = "path\t"
 		modLine   = "mod\t"
 		depLine   = "dep\t"
@@ -195,7 +202,7 @@ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 		switch {
 		case strings.HasPrefix(line, pathLine):
 			elem := line[len(pathLine):]
-			bi.Path = string(elem)
+			bi.Path = elem
 		case strings.HasPrefix(line, modLine):
 			elem := strings.Split(line[len(modLine):], tab)
 			last = &bi.Main
@@ -220,9 +227,9 @@ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
 				return nil, fmt.Errorf("replacement with no module on previous line")
 			}
 			last.Replace = &Module{
-				Path:    string(elem[0]),
-				Version: string(elem[1]),
-				Sum:     string(elem[2]),
+				Path:    elem[0],
+				Version: elem[1],
+				Sum:     elem[2],
 			}
 			last = nil
 		case strings.HasPrefix(line, buildLine):

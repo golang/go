@@ -242,10 +242,6 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 // object, and the returned ehdrFlags contains what this Load function computes.
 // TODO: find a better place for this logic.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []loader.Sym, ehdrFlags uint32, err error) {
-	newSym := func(name string, version int) loader.Sym {
-		return l.CreateStaticSym(name)
-	}
-	lookup := l.LookupOrCreateCgoExport
 	errorf := func(str string, args ...interface{}) ([]loader.Sym, uint32, error) {
 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
 	}
@@ -515,7 +511,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 		sectsymNames[name] = true
 
-		sb := l.MakeSymbolUpdater(lookup(name, localSymVersion))
+		sb := l.MakeSymbolUpdater(l.LookupOrCreateCgoExport(name, localSymVersion))
 
 		switch sect.flags & (elf.SHF_ALLOC | elf.SHF_WRITE | elf.SHF_EXECINSTR) {
 		default:
@@ -556,7 +552,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 
 	for i := 1; i < elfobj.nsymtab; i++ {
 		var elfsym ElfSym
-		if err := readelfsym(newSym, lookup, l, arch, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
+		if err := readelfsym(l, arch, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
 			return errorf("%s: malformed elf file: %v", pn, err)
 		}
 		symbols[i] = elfsym.sym
@@ -640,7 +636,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 		sb.SetValue(int64(elfsym.value))
 		sb.SetSize(int64(elfsym.size))
-		if sectsb.Type() == sym.STEXT {
+		if sectsb.Type().IsText() {
 			if l.AttrExternal(s) && !l.AttrDuplicateOK(s) {
 				return errorf("%s: duplicate symbol definition", sb.Name())
 			}
@@ -678,7 +674,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if l.SubSym(s) != 0 {
 			sb.SortSub()
 		}
-		if sb.Type() == sym.STEXT {
+		if sb.Type().IsText() {
 			if l.AttrOnList(s) {
 				return errorf("symbol %s listed multiple times",
 					l.SymName(s))
@@ -770,7 +766,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				rSym = 0
 			} else {
 				var elfsym ElfSym
-				if err := readelfsym(newSym, lookup, l, arch, elfobj, int(symIdx), &elfsym, 0, 0); err != nil {
+				if err := readelfsym(l, arch, elfobj, int(symIdx), &elfsym, 0, 0); err != nil {
 					return errorf("malformed elf file: %v", err)
 				}
 				elfsym.sym = symbols[symIdx]
@@ -847,7 +843,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	return nil
 }
 
-func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
+func readelfsym(l *loader.Loader, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
 	if i >= elfobj.nsymtab || i < 0 {
 		err = fmt.Errorf("invalid elf symbol index")
 		return err
@@ -898,7 +894,7 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 		switch elfsym.bind {
 		case elf.STB_GLOBAL:
 			if needSym != 0 {
-				s = lookup(elfsym.name, 0)
+				s = l.LookupOrCreateCgoExport(elfsym.name, 0)
 
 				// for global scoped hidden symbols we should insert it into
 				// symbol hash table, but mark them as hidden.
@@ -927,7 +923,7 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 				// We need to be able to look this up,
 				// so put it in the hash table.
 				if needSym != 0 {
-					s = lookup(elfsym.name, localSymVersion)
+					s = l.LookupOrCreateCgoExport(elfsym.name, localSymVersion)
 					l.SetAttrVisibilityHidden(s, true)
 				}
 				break
@@ -940,13 +936,13 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 				// FIXME: pass empty string here for name? This would
 				// reduce mem use, but also (possibly) make it harder
 				// to debug problems.
-				s = newSym(elfsym.name, localSymVersion)
+				s = l.CreateStaticSym(elfsym.name)
 				l.SetAttrVisibilityHidden(s, true)
 			}
 
 		case elf.STB_WEAK:
 			if needSym != 0 {
-				s = lookup(elfsym.name, 0)
+				s = l.LookupOrCreateCgoExport(elfsym.name, 0)
 				if elfsym.other == 2 {
 					l.SetAttrVisibilityHidden(s, true)
 				}
@@ -1022,16 +1018,28 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		MIPS64 | uint32(elf.R_MIPS_PC32)<<16:
 		return 4, 4, nil
 
-	case LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_PCREL)<<16,
-		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_GPREL)<<16,
-		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_ABSOLUTE)<<16,
-		LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
-		LOONG64 | uint32(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2)<<16,
+	case LOONG64 | uint32(elf.R_LARCH_ADD8)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SUB8)<<16:
+		return 1, 1, nil
+
+	case LOONG64 | uint32(elf.R_LARCH_ADD16)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SUB16)<<16:
+		return 2, 2, nil
+
+	case LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
 		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16,
+		LOONG64 | uint32(elf.R_LARCH_ADD24)<<16,
+		LOONG64 | uint32(elf.R_LARCH_ADD32)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SUB24)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SUB32)<<16,
+		LOONG64 | uint32(elf.R_LARCH_B26)<<16,
 		LOONG64 | uint32(elf.R_LARCH_32_PCREL)<<16:
 		return 4, 4, nil
 
-	case LOONG64 | uint32(elf.R_LARCH_64)<<16:
+	case LOONG64 | uint32(elf.R_LARCH_64)<<16,
+		LOONG64 | uint32(elf.R_LARCH_ADD64)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SUB64)<<16,
+		LOONG64 | uint32(elf.R_LARCH_64_PCREL)<<16:
 		return 8, 8, nil
 
 	case S390X | uint32(elf.R_390_8)<<16:

@@ -190,7 +190,7 @@ linux_amd64)
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 linux_arm)
-	GOOSARCH_in="syscall_linux_arm.go syscall_linux_accept.go"
+	GOOSARCH_in="syscall_linux_arm.go"
 	mkerrors="$mkerrors"
 	mksyscall="./mksyscall.pl -l32 -arm"
 	mksysnum="curl -s 'http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/arch/arm/include/uapi/asm/unistd.h' | ./mksysnum_linux.pl -"
@@ -367,6 +367,7 @@ openbsd_ppc64)
 	# API consistent between platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	mkasm="go run mkasm.go"
+	;;
 openbsd_riscv64)
 	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m64"

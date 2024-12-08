@@ -129,6 +129,13 @@ func findIndVar(f *Func) []indVar {
 			less = false
 		}
 
+		if ind.Block != b {
+			// TODO: Could be extended to include disjointed loop headers.
+			// I don't think this is causing missed optimizations in real world code often.
+			// See https://go.dev/issue/63955
+			continue
+		}
+
 		// Expect the increment to be a nonzero constant.
 		if !inc.isGenericIntConst() {
 			continue

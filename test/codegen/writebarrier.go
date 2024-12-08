@@ -53,3 +53,13 @@ func combine4slice(p *[4][]byte, a, b, c, d []byte) {
 	// arm64:-`.*runtime[.]gcWriteBarrier`
 	p[3] = d
 }
+
+func trickyWriteNil(p *int, q **int) {
+	if p == nil {
+		// We change "= p" to "= 0" in the prove pass, which
+		// means we have one less pointer that needs to go
+		// into the write barrier buffer.
+		// amd64:`.*runtime[.]gcWriteBarrier1`
+		*q = p
+	}
+}

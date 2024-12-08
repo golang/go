@@ -32,11 +32,11 @@ var (
 
 var (
 	hexRe                 = regexp.MustCompile("0x[a-zA-Z0-9]+")
-	numRe                 = regexp.MustCompile("-?\\d+")
-	stringRe              = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
-	leadingDollarNumberRe = regexp.MustCompile("^[$]\\d+")
+	numRe                 = regexp.MustCompile(`-?\d+`)
+	stringRe              = regexp.MustCompile(`([^\"]|(\.))*`)
+	leadingDollarNumberRe = regexp.MustCompile(`^[$]\d+`)
 	optOutGdbRe           = regexp.MustCompile("[<]optimized out[>]")
-	numberColonRe         = regexp.MustCompile("^ *\\d+:")
+	numberColonRe         = regexp.MustCompile(`^ *\d+:`)
 )
 
 var gdb = "gdb"      // Might be "ggdb" on Darwin, because gdb no longer part of XCode
@@ -192,7 +192,7 @@ func skipSubTest(t *testing.T, tag string, basename string, gcflags string, coun
 		if *force {
 			testNexting(t, basename, tag, gcflags, count, moreargs...)
 		} else {
-			t.Skip("skipping flaky test becaused not forced (-f)")
+			t.Skip("skipping flaky test because not forced (-f)")
 		}
 	})
 }
@@ -591,7 +591,7 @@ func newGdb(t testing.TB, tag, executable string, args ...string) dbgr {
 	s := &gdbState{tagg: tag, cmd: cmd, args: args}
 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")
 	s.funcFileLinePCre = regexp.MustCompile(
-		"([^ ]+) [(][^)]*[)][ \\t\\n]+at ([^:]+):([0-9]+)")
+		`([^ ]+) [(][^)]*[)][ \t\n]+at ([^:]+):([0-9]+)`)
 	// runtime.main () at /Users/drchase/GoogleDrive/work/go/src/runtime/proc.go:201
 	//                                    function              file    line
 	// Thread 2 hit Breakpoint 1, main.main () at /Users/drchase/GoogleDrive/work/debug/hist.go:18

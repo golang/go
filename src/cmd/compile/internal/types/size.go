@@ -6,7 +6,7 @@ package types
 
 import (
 	"math"
-	"sort"
+	"slices"
 
 	"cmd/compile/internal/base"
 	"cmd/internal/src"
@@ -93,21 +93,21 @@ func expandiface(t *Type) {
 
 	{
 		methods := t.Methods()
-		sort.SliceStable(methods, func(i, j int) bool {
-			mi, mj := methods[i], methods[j]
-
+		slices.SortStableFunc(methods, func(a, b *Field) int {
 			// Sort embedded types by type name (if any).
-			if mi.Sym == nil && mj.Sym == nil {
-				return mi.Type.Sym().Less(mj.Type.Sym())
+			if a.Sym == nil && b.Sym == nil {
+				return CompareSyms(a.Type.Sym(), b.Type.Sym())
 			}
 
 			// Sort methods before embedded types.
-			if mi.Sym == nil || mj.Sym == nil {
-				return mi.Sym != nil
+			if a.Sym == nil {
+				return -1
+			} else if b.Sym == nil {
+				return +1
 			}
 
 			// Sort methods by symbol name.
-			return mi.Sym.Less(mj.Sym)
+			return CompareSyms(a.Sym, b.Sym)
 		})
 	}
 
@@ -146,7 +146,7 @@ func expandiface(t *Type) {
 		m.Pos = src.NoXPos
 	}
 
-	sort.Sort(MethodsByName(methods))
+	slices.SortFunc(methods, CompareFields)
 
 	if int64(len(methods)) >= MaxWidth/int64(PtrSize) {
 		base.ErrorfAt(typePos(t), 0, "interface too large")
@@ -199,10 +199,11 @@ func isAtomicStdPkg(p *Pkg) bool {
 	if p.Prefix == `""` {
 		panic("bad package prefix")
 	}
-	return p.Prefix == "sync/atomic" || p.Prefix == "runtime/internal/atomic"
+	return p.Prefix == "sync/atomic" || p.Prefix == "internal/runtime/atomic"
 }
 
-// CalcSize calculates and stores the size and alignment for t.
+// CalcSize calculates and stores the size, alignment, eq/hash algorithm,
+// and ptrBytes for t.
 // If CalcSizeDisabled is set, and the size/alignment
 // have not already been calculated, it calls Fatal.
 // This is used to prevent data races in the back end.
@@ -245,7 +246,12 @@ func CalcSize(t *Type) {
 	}
 
 	t.width = -2
-	t.align = 0 // 0 means use t.Width, below
+	t.align = 0  // 0 means use t.Width, below
+	t.alg = AMEM // default
+	// default t.ptrBytes is 0.
+	if t.Noalg() {
+		t.setAlg(ANOALG)
+	}
 
 	et := t.Kind()
 	switch et {
@@ -286,40 +292,53 @@ func CalcSize(t *Type) {
 	case TFLOAT32:
 		w = 4
 		t.floatRegs = 1
+		t.setAlg(AFLOAT32)
 
 	case TFLOAT64:
 		w = 8
 		t.align = uint8(RegSize)
 		t.floatRegs = 1
+		t.setAlg(AFLOAT64)
 
 	case TCOMPLEX64:
 		w = 8
 		t.align = 4
 		t.floatRegs = 2
+		t.setAlg(ACPLX64)
 
 	case TCOMPLEX128:
 		w = 16
 		t.align = uint8(RegSize)
 		t.floatRegs = 2
+		t.setAlg(ACPLX128)
 
 	case TPTR:
 		w = int64(PtrSize)
 		t.intRegs = 1
 		CheckSize(t.Elem())
+		t.ptrBytes = int64(PtrSize) // See PtrDataSize
 
 	case TUNSAFEPTR:
 		w = int64(PtrSize)
 		t.intRegs = 1
+		t.ptrBytes = int64(PtrSize)
 
 	case TINTER: // implemented as 2 pointers
 		w = 2 * int64(PtrSize)
 		t.align = uint8(PtrSize)
 		t.intRegs = 2
 		expandiface(t)
+		if len(t.allMethods.Slice()) == 0 {
+			t.setAlg(ANILINTER)
+		} else {
+			t.setAlg(AINTER)
+		}
+		t.ptrBytes = int64(2 * PtrSize)
 
 	case TCHAN: // implemented as pointer
 		w = int64(PtrSize)
 		t.intRegs = 1
+		t.ptrBytes = int64(PtrSize)
 
 		CheckSize(t.Elem())
 
@@ -346,6 +365,8 @@ func CalcSize(t *Type) {
 		t.intRegs = 1
 		CheckSize(t.Elem())
 		CheckSize(t.Key())
+		t.setAlg(ANOEQ)
+		t.ptrBytes = int64(PtrSize)
 
 	case TFORW: // should have been filled in
 		base.Fatalf("invalid recursive type %v", t)
@@ -360,6 +381,8 @@ func CalcSize(t *Type) {
 		w = StringSize
 		t.align = uint8(PtrSize)
 		t.intRegs = 2
+		t.setAlg(ASTRING)
+		t.ptrBytes = int64(PtrSize)
 
 	case TARRAY:
 		if t.Elem() == nil {
@@ -390,6 +413,27 @@ func CalcSize(t *Type) {
 			t.intRegs = math.MaxUint8
 			t.floatRegs = math.MaxUint8
 		}
+		switch a := t.Elem().alg; a {
+		case AMEM, ANOEQ, ANOALG:
+			t.setAlg(a)
+		default:
+			switch t.NumElem() {
+			case 0:
+				// We checked above that the element type is comparable.
+				t.setAlg(AMEM)
+			case 1:
+				// Single-element array is same as its lone element.
+				t.setAlg(a)
+			default:
+				t.setAlg(ASPECIAL)
+			}
+		}
+		if t.NumElem() > 0 {
+			x := PtrDataSize(t.Elem())
+			if x > 0 {
+				t.ptrBytes = t.Elem().width*(t.NumElem()-1) + x
+			}
+		}
 
 	case TSLICE:
 		if t.Elem() == nil {
@@ -399,6 +443,10 @@ func CalcSize(t *Type) {
 		CheckSize(t.Elem())
 		t.align = uint8(PtrSize)
 		t.intRegs = 3
+		t.setAlg(ANOEQ)
+		if !t.Elem().NotInHeap() {
+			t.ptrBytes = int64(PtrSize)
+		}
 
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
@@ -414,6 +462,8 @@ func CalcSize(t *Type) {
 		CheckSize(t1)
 		w = int64(PtrSize) // width of func type is pointer
 		t.intRegs = 1
+		t.setAlg(ANOEQ)
+		t.ptrBytes = int64(PtrSize)
 
 	// function is 3 cated structures;
 	// compute their widths as side-effect.
@@ -458,8 +508,6 @@ func CalcStructSize(t *Type) {
 		switch {
 		case sym.Name == "align64" && isAtomicStdPkg(sym.Pkg):
 			maxAlign = 8
-		case sym.Pkg.Path == "runtime/internal/sys" && sym.Name == "nih":
-			t.SetNotInHeap(true)
 		}
 	}
 
@@ -502,6 +550,40 @@ func CalcStructSize(t *Type) {
 	t.align = maxAlign
 	t.intRegs = uint8(intRegs)
 	t.floatRegs = uint8(floatRegs)
+
+	// Compute eq/hash algorithm type.
+	t.alg = AMEM // default
+	if t.Noalg() {
+		t.setAlg(ANOALG)
+	}
+	if len(fields) == 1 && !fields[0].Sym.IsBlank() {
+		// One-field struct is same as that one field alone.
+		t.setAlg(fields[0].Type.alg)
+	} else {
+		for i, f := range fields {
+			a := f.Type.alg
+			switch a {
+			case ANOEQ, ANOALG:
+			case AMEM:
+				// Blank fields and padded fields need a special compare.
+				if f.Sym.IsBlank() || IsPaddedField(t, i) {
+					a = ASPECIAL
+				}
+			default:
+				// Fields with non-memory equality need a special compare.
+				a = ASPECIAL
+			}
+			t.setAlg(a)
+		}
+	}
+	// Compute ptrBytes.
+	for i := len(fields) - 1; i >= 0; i-- {
+		f := fields[i]
+		if size := PtrDataSize(f.Type); size > 0 {
+			t.ptrBytes = f.Offset + size
+			break
+		}
+	}
 }
 
 func (t *Type) widthCalculated() bool {
@@ -572,67 +654,13 @@ func ResumeCheckSize() {
 // PtrDataSize is only defined for actual Go types. It's an error to
 // use it on compiler-internal types (e.g., TSSA, TRESULTS).
 func PtrDataSize(t *Type) int64 {
-	switch t.Kind() {
-	case TBOOL, TINT8, TUINT8, TINT16, TUINT16, TINT32,
-		TUINT32, TINT64, TUINT64, TINT, TUINT,
-		TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64:
-		return 0
-
-	case TPTR:
-		if t.Elem().NotInHeap() {
-			return 0
-		}
-		return int64(PtrSize)
-
-	case TUNSAFEPTR, TFUNC, TCHAN, TMAP:
-		return int64(PtrSize)
-
-	case TSTRING:
-		// struct { byte *str; intgo len; }
-		return int64(PtrSize)
-
-	case TINTER:
-		// struct { Itab *tab;	void *data; } or
-		// struct { Type *type; void *data; }
-		// Note: see comment in typebits.Set
-		return 2 * int64(PtrSize)
-
-	case TSLICE:
-		if t.Elem().NotInHeap() {
-			return 0
-		}
-		// struct { byte *array; uintgo len; uintgo cap; }
-		return int64(PtrSize)
-
-	case TARRAY:
-		if t.NumElem() == 0 {
-			return 0
-		}
-		// t.NumElem() > 0
-		size := PtrDataSize(t.Elem())
-		if size == 0 {
-			return 0
-		}
-		return (t.NumElem()-1)*t.Elem().Size() + size
-
-	case TSTRUCT:
-		// Find the last field that has pointers, if any.
-		fs := t.Fields()
-		for i := len(fs) - 1; i >= 0; i-- {
-			if size := PtrDataSize(fs[i].Type); size > 0 {
-				return fs[i].Offset + size
-			}
-		}
-		return 0
-
-	case TSSA:
-		if t != TypeInt128 {
-			base.Fatalf("PtrDataSize: unexpected ssa type %v", t)
-		}
-		return 0
-
-	default:
-		base.Fatalf("PtrDataSize: unexpected type, %v", t)
-		return 0
+	CalcSize(t)
+	x := t.ptrBytes
+	if t.Kind() == TPTR && t.Elem().NotInHeap() {
+		// Note: this is done here instead of when we're setting
+		// the ptrBytes field, because at that time (in NewPtr, usually)
+		// the NotInHeap bit of the element type might not be set yet.
+		x = 0
 	}
+	return x
 }

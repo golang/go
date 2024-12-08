@@ -52,17 +52,13 @@ func TestContentHash(t *testing.T) {
 		s.PkgIdx = goobj.PkgIdxHashed
 	}
 	// s3 references s0
-	r := Addrel(syms[3])
-	r.Sym = syms[0]
+	syms[3].R = []Reloc{{Sym: syms[0]}}
 	// s4 references s0
-	r = Addrel(syms[4])
-	r.Sym = syms[0]
+	syms[4].R = []Reloc{{Sym: syms[0]}}
 	// s5 references s1
-	r = Addrel(syms[5])
-	r.Sym = syms[1]
+	syms[5].R = []Reloc{{Sym: syms[1]}}
 	// s6 references s2
-	r = Addrel(syms[6])
-	r.Sym = syms[2]
+	syms[6].R = []Reloc{{Sym: syms[2]}}
 
 	// compute hashes
 	h := make([]goobj.HashType, len(syms))
@@ -98,14 +94,10 @@ func TestSymbolTooLarge(t *testing.T) { // Issue 42054
 		t.Skip("skip on 32-bit architectures")
 	}
 
-	tmpdir, err := os.MkdirTemp("", "TestSymbolTooLarge")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "p.go")
-	err = os.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
+	err := os.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v\n", err)
 	}

@@ -273,7 +273,6 @@ var (
 	errTooManyAdditionals = errors.New("too many Additionals to pack (>65535)")
 	errNonCanonicalName   = errors.New("name is not in canonical format (it must end with a .)")
 	errStringTooLong      = errors.New("character string exceeds maximum length (255)")
-	errCompressedSRV      = errors.New("compressed name in SRV resource data")
 )
 
 // Internal constants.
@@ -751,6 +750,9 @@ func (p *Parser) AllAnswers() ([]Resource, error) {
 }
 
 // SkipAnswer skips a single Answer Resource.
+//
+// It does not perform a complete validation of the resource header, which means
+// it may return a nil error when the [AnswerHeader] would actually return an error.
 func (p *Parser) SkipAnswer() error {
 	return p.skipResource(sectionAnswers)
 }
@@ -801,6 +803,9 @@ func (p *Parser) AllAuthorities() ([]Resource, error) {
 }
 
 // SkipAuthority skips a single Authority Resource.
+//
+// It does not perform a complete validation of the resource header, which means
+// it may return a nil error when the [AuthorityHeader] would actually return an error.
 func (p *Parser) SkipAuthority() error {
 	return p.skipResource(sectionAuthorities)
 }
@@ -851,6 +856,9 @@ func (p *Parser) AllAdditionals() ([]Resource, error) {
 }
 
 // SkipAdditional skips a single Additional Resource.
+//
+// It does not perform a complete validation of the resource header, which means
+// it may return a nil error when the [AdditionalHeader] would actually return an error.
 func (p *Parser) SkipAdditional() error {
 	return p.skipResource(sectionAdditionals)
 }
@@ -2019,10 +2027,6 @@ func (n *Name) pack(msg []byte, compression map[string]uint16, compressionOff in
 
 // unpack unpacks a domain name.
 func (n *Name) unpack(msg []byte, off int) (int, error) {
-	return n.unpackCompressed(msg, off, true /* allowCompression */)
-}
-
-func (n *Name) unpackCompressed(msg []byte, off int, allowCompression bool) (int, error) {
 	// currOff is the current working offset.
 	currOff := off
 
@@ -2067,9 +2071,6 @@ Loop:
 			name = append(name, '.')
 			currOff = endOff
 		case 0xC0: // Pointer
-			if !allowCompression {
-				return off, errCompressedSRV
-			}
 			if currOff >= len(msg) {
 				return off, errInvalidPtr
 			}
@@ -2540,7 +2541,7 @@ func unpackSRVResource(msg []byte, off int) (SRVResource, error) {
 		return SRVResource{}, &nestedError{"Port", err}
 	}
 	var target Name
-	if _, err := target.unpackCompressed(msg, off, false /* allowCompression */); err != nil {
+	if _, err := target.unpack(msg, off); err != nil {
 		return SRVResource{}, &nestedError{"Target", err}
 	}
 	return SRVResource{priority, weight, port, target}, nil

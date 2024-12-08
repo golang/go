@@ -42,6 +42,15 @@ cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
 ! go mod verify
 [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
 
+# Repeat part of the test with 'go tool'
+go mod edit -tool example.com/tools/cmd/hello -require example.com/tools@v1.0.0
+go mod download -modcacherw example.com/tools
+go clean -modcache
+go tool -modcacherw hello
+cp $WORK/extraneous.txt $GOPATH/pkg/mod/example.com/tools@v1.0.0/extraneous_file.go
+! go mod verify
+[!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/example.com/tools@v1.0.0/cmd/hello/hello.go
+
 
 -- $WORK/extraneous.txt --
 module oops

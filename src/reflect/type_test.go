@@ -57,3 +57,113 @@ func TestStructOfEmbeddedIfaceMethodCall(t *testing.T) {
 		_ = x.Name()
 	})
 }
+
+func TestIsRegularMemory(t *testing.T) {
+	type args struct {
+		t reflect.Type
+	}
+	type S struct {
+		int
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{"struct{i int}", args{reflect.TypeOf(struct{ i int }{})}, true},
+		{"struct{}", args{reflect.TypeOf(struct{}{})}, true},
+		{"struct{i int; s S}", args{reflect.TypeOf(struct {
+			i int
+			s S
+		}{})}, true},
+		{"map[int][int]", args{reflect.TypeOf(map[int]int{})}, false},
+		{"[4]chan int", args{reflect.TypeOf([4]chan int{})}, true},
+		{"[0]struct{_ S}", args{reflect.TypeOf([0]struct {
+			_ S
+		}{})}, true},
+		{"struct{i int; _ S}", args{reflect.TypeOf(struct {
+			i int
+			_ S
+		}{})}, false},
+		{"struct{a int16; b int32}", args{reflect.TypeOf(struct {
+			a int16
+			b int32
+		}{})}, false},
+		{"struct {x int32; y int16}", args{reflect.TypeOf(struct {
+			x int32
+			y int16
+		}{})}, false},
+		{"struct {_ int32 }", args{reflect.TypeOf(struct{ _ int32 }{})}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := reflect.IsRegularMemory(tt.args.t); got != tt.want {
+				t.Errorf("isRegularMemory() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+var sinkType reflect.Type
+
+func BenchmarkTypeForString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkType = reflect.TypeFor[string]()
+	}
+}
+
+func BenchmarkTypeForError(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkType = reflect.TypeFor[error]()
+	}
+}
+
+func TestType_CanSeq(t *testing.T) {
+	tests := []struct {
+		name string
+		tr   reflect.Type
+		want bool
+	}{
+		{"func(func(int) bool)", reflect.TypeOf(func(func(int) bool) {}), true},
+		{"func(func(int))", reflect.TypeOf(func(func(int)) {}), false},
+		{"int64", reflect.TypeOf(int64(1)), true},
+		{"uint64", reflect.TypeOf(uint64(1)), true},
+		{"*[4]int", reflect.TypeOf(&[4]int{}), true},
+		{"chan int64", reflect.TypeOf(make(chan int64)), true},
+		{"map[int]int", reflect.TypeOf(make(map[int]int)), true},
+		{"string", reflect.TypeOf(""), true},
+		{"[]int", reflect.TypeOf([]int{}), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.tr.CanSeq(); got != tt.want {
+				t.Errorf("Type.CanSeq() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestType_CanSeq2(t *testing.T) {
+	tests := []struct {
+		name string
+		tr   reflect.Type
+		want bool
+	}{
+		{"func(func(int, int) bool)", reflect.TypeOf(func(func(int, int) bool) {}), true},
+		{"func(func(int, int))", reflect.TypeOf(func(func(int, int)) {}), false},
+		{"int64", reflect.TypeOf(int64(1)), false},
+		{"uint64", reflect.TypeOf(uint64(1)), false},
+		{"*[4]int", reflect.TypeOf(&[4]int{}), true},
+		{"chan int64", reflect.TypeOf(make(chan int64)), false},
+		{"map[int]int", reflect.TypeOf(make(map[int]int)), true},
+		{"string", reflect.TypeOf(""), true},
+		{"[]int", reflect.TypeOf([]int{}), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.tr.CanSeq2(); got != tt.want {
+				t.Errorf("Type.CanSeq2() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

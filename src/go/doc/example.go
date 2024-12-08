@@ -7,11 +7,12 @@
 package doc
 
 import (
+	"cmp"
 	"go/ast"
 	"go/token"
 	"internal/lazyregexp"
 	"path"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -35,7 +36,7 @@ type Example struct {
 // Examples returns the examples found in testFiles, sorted by Name field.
 // The Order fields record the order in which the examples were encountered.
 // The Suffix field is not populated when Examples is called directly, it is
-// only populated by NewFromFiles for examples it finds in _test.go files.
+// only populated by [NewFromFiles] for examples it finds in _test.go files.
 //
 // Playable Examples must be in a package whose name ends in "_test".
 // An Example is "playable" (the Play field is non-nil) in either of these
@@ -104,8 +105,8 @@ func Examples(testFiles ...*ast.File) []*Example {
 		list = append(list, flist...)
 	}
 	// sort by name
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].Name < list[j].Name
+	slices.SortFunc(list, func(a, b *Example) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 	return list
 }
@@ -309,11 +310,11 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	decls = append(decls, depDecls...)
 	decls = append(decls, funcDecl)
 
-	sort.Slice(decls, func(i, j int) bool {
-		return decls[i].Pos() < decls[j].Pos()
+	slices.SortFunc(decls, func(a, b ast.Decl) int {
+		return cmp.Compare(a.Pos(), b.Pos())
 	})
-	sort.Slice(comments, func(i, j int) bool {
-		return comments[i].Pos() < comments[j].Pos()
+	slices.SortFunc(comments, func(a, b *ast.CommentGroup) int {
+		return cmp.Compare(a.Pos(), b.Pos())
 	})
 
 	// Synthesize file.
@@ -388,7 +389,7 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 	for i := 0; i < len(depDecls); i++ {
 		switch d := depDecls[i].(type) {
 		case *ast.FuncDecl:
-			// Inpect type parameters.
+			// Inspect type parameters.
 			inspectFieldList(d.Type.TypeParams)
 			// Inspect types of parameters and results. See #28492.
 			inspectFieldList(d.Type.Params)
@@ -520,7 +521,9 @@ func findImportGroupStarts1(origImps []*ast.ImportSpec) []*ast.ImportSpec {
 	imps := make([]*ast.ImportSpec, len(origImps))
 	copy(imps, origImps)
 	// Assume the imports are sorted by position.
-	sort.Slice(imps, func(i, j int) bool { return imps[i].Pos() < imps[j].Pos() })
+	slices.SortFunc(imps, func(a, b *ast.ImportSpec) int {
+		return cmp.Compare(a.Pos(), b.Pos())
+	})
 	// Assume gofmt has been applied, so there is a blank line between adjacent imps
 	// if and only if they are more than 2 positions apart (newline, tab).
 	var groupStarts []*ast.ImportSpec
@@ -675,8 +678,8 @@ func classifyExamples(p *Package, examples []*Example) {
 
 	// Sort list of example according to the user-specified suffix name.
 	for _, exs := range ids {
-		sort.Slice((*exs), func(i, j int) bool {
-			return (*exs)[i].Suffix < (*exs)[j].Suffix
+		slices.SortFunc(*exs, func(a, b *Example) int {
+			return cmp.Compare(a.Suffix, b.Suffix)
 		})
 	}
 }

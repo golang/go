@@ -6,10 +6,10 @@ package runtime_test
 
 import (
 	"internal/goarch"
+	"internal/runtime/atomic"
 	"reflect"
 	. "runtime"
 	"runtime/debug"
-	"runtime/internal/atomic"
 	"testing"
 	"time"
 	"unsafe"

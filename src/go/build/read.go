@@ -18,6 +18,7 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+	_ "unsafe" // for linkname
 )
 
 type importReader struct {
@@ -378,6 +379,16 @@ func (r *importReader) readImport() {
 
 // readComments is like io.ReadAll, except that it only reads the leading
 // block of comments in the file.
+//
+// readComments should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bazelbuild/bazel-gazelle
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname readComments
 func readComments(f io.Reader) ([]byte, error) {
 	r := newImportReader("", f)
 	r.peekByte(true)

@@ -14,6 +14,7 @@ package main
 
 /*
 #cgo noescape runCWithNoEscape
+#cgo nocallback runCWithNoEscape
 
 void runCWithNoEscape(void *p) {
 }

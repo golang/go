@@ -34,11 +34,7 @@ func TestDeathSignalSetuid(t *testing.T) {
 	//
 	// TODO(bcmills): Why do we believe that another users will be able to
 	// execute a binary in this directory? (It could be mounted noexec.)
-	tempDir, err := os.MkdirTemp("", "TestDeathSignal")
-	if err != nil {
-		t.Fatalf("cannot create temporary directory: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 	os.Chmod(tempDir, 0755)
 
 	tmpBinary := filepath.Join(tempDir, filepath.Base(os.Args[0]))

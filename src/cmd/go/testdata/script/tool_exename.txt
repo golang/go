@@ -1,0 +1,79 @@
+[short] skip 'runs go build'
+
+# First run: executable for bar is not cached.
+# Make sure it's not called a.out
+go tool bar
+stdout 'my name is: bar'$GOEXE
+! stdout 'a.out'
+
+# Second run: executable is cached. Make sure it
+# has the right name.
+go tool bar
+stdout 'my name is: bar'$GOEXE
+! stdout 'a.out'
+
+# Third run: with arguments
+# https://go.dev/issue/70509
+go tool bar --baz
+stdout 'my name is: bar'$GOEXE
+! stdout 'a.out'
+
+# Test tool package paths that end in v2
+# to ensure we use the second to last component.
+
+# Don't use v2 as the short name of the tool.
+! go tool v2
+stderr 'go: no such tool "v2"'
+
+# Use the second to last component as the short
+# name of the tool.
+go tool foo
+stdout 'my name is: foo'$GOEXE
+
+# go run should use the same name for the tool
+# We need to use a fresh cache, or we'd end up with an executable cache hit
+# from when we ran built the tool to run go tool above, and we'd just
+# reuse the name from the test case above.
+env GOCACHE=$WORK/cache2
+go run example.com/foo/v2
+stdout 'my name is: foo'$GOEXE
+
+-- go.mod --
+module example.com/foo
+
+go 1.24
+
+tool example.com/foo/bar
+tool example.com/foo/v2
+
+require example.com/foo/v2 v2.0.0
+
+replace example.com/foo/v2 => ./v2
+-- bar/bar.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	fmt.Println("my name is:", filepath.Base(os.Args[0]))
+}
+-- v2/go.mod --
+module example.com/foo/v2
+
+go 1.24
+-- v2/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	fmt.Println("my name is:", filepath.Base(os.Args[0]))
+}

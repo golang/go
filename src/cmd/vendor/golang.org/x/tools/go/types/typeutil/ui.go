@@ -6,7 +6,9 @@ package typeutil
 
 // This file defines utilities for user interfaces that display types.
 
-import "go/types"
+import (
+	"go/types"
+)
 
 // IntuitiveMethodSet returns the intuitive method set of a type T,
 // which is the set of methods you can call on an addressable value of
@@ -24,7 +26,7 @@ import "go/types"
 // The order of the result is as for types.MethodSet(T).
 func IntuitiveMethodSet(T types.Type, msets *MethodSetCache) []*types.Selection {
 	isPointerToConcrete := func(T types.Type) bool {
-		ptr, ok := T.(*types.Pointer)
+		ptr, ok := types.Unalias(T).(*types.Pointer)
 		return ok && !types.IsInterface(ptr.Elem())
 	}
 

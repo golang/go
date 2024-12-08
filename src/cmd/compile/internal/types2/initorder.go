@@ -5,10 +5,11 @@
 package types2
 
 import (
+	"cmp"
 	"container/heap"
 	"fmt"
 	. "internal/types/errors"
-	"sort"
+	"slices"
 )
 
 // initOrder computes the Info.InitOrder for package variables.
@@ -160,17 +161,15 @@ func (check *Checker) reportCycle(cycle []Object) {
 		return
 	}
 
-	var err error_
-	err.code = InvalidInitCycle
-	err.errorf(obj, "initialization cycle for %s", obj.Name())
-	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
-	for i := len(cycle) - 1; i >= 0; i-- {
-		err.errorf(obj, "%s refers to", obj.Name())
-		obj = cycle[i]
+	err := check.newError(InvalidInitCycle)
+	err.addf(obj, "initialization cycle for %s", obj.Name())
+	// "cycle[i] refers to cycle[j]" for (i,j) = (0,n-1), (n-1,n-2), ..., (1,0) for len(cycle) = n.
+	for j := len(cycle) - 1; j >= 0; j-- {
+		next := cycle[j]
+		err.addf(obj, "%s refers to %s", obj.Name(), next.Name())
+		obj = next
 	}
-	// print cycle[0] again to close the cycle
-	err.errorf(obj, "%s", obj.Name())
-	check.report(&err)
+	err.report()
 }
 
 // ----------------------------------------------------------------------------
@@ -258,8 +257,8 @@ func dependencyGraph(objMap map[Object]*declInfo) []*graphNode {
 	// throughout the function graph, the cost of removing a function at
 	// position X is proportional to cost * (len(funcG)-X). Therefore, we should
 	// remove high-cost functions last.
-	sort.Slice(funcG, func(i, j int) bool {
-		return funcG[i].cost() < funcG[j].cost()
+	slices.SortFunc(funcG, func(a, b *graphNode) int {
+		return cmp.Compare(a.cost(), b.cost())
 	})
 	for _, n := range funcG {
 		// connect each predecessor p of n with each successor s
@@ -310,16 +309,24 @@ func (a nodeQueue) Swap(i, j int) {
 
 func (a nodeQueue) Less(i, j int) bool {
 	x, y := a[i], a[j]
+
+	// Prioritize all constants before non-constants. See go.dev/issue/66575/.
+	_, xConst := x.obj.(*Const)
+	_, yConst := y.obj.(*Const)
+	if xConst != yConst {
+		return xConst
+	}
+
 	// nodes are prioritized by number of incoming dependencies (1st key)
 	// and source order (2nd key)
 	return x.ndeps < y.ndeps || x.ndeps == y.ndeps && x.obj.order() < y.obj.order()
 }
 
-func (a *nodeQueue) Push(x interface{}) {
+func (a *nodeQueue) Push(x any) {
 	panic("unreachable")
 }
 
-func (a *nodeQueue) Pop() interface{} {
+func (a *nodeQueue) Pop() any {
 	n := len(*a)
 	x := (*a)[n-1]
 	x.index = -1 // for safety

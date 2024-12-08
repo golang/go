@@ -39,7 +39,7 @@ type Trace struct {
 	// goroutines.
 	ConnectStart func(network, addr string)
 
-	// ConnectStart is called after a Dial with the results, excluding
+	// ConnectDone is called after a Dial with the results, excluding
 	// Dials made during DNS lookups. It may also be called multiple
 	// times, like ConnectStart.
 	ConnectDone func(network, addr string, err error)

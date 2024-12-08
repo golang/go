@@ -10,10 +10,10 @@ package encodemeta
 
 import (
 	"bytes"
-	"crypto/md5"
 	"encoding/binary"
 	"fmt"
 	"hash"
+	"hash/fnv"
 	"internal/coverage"
 	"internal/coverage/stringtab"
 	"internal/coverage/uleb128"
@@ -39,7 +39,7 @@ func NewCoverageMetaDataBuilder(pkgpath string, pkgname string, modulepath strin
 	}
 	x := &CoverageMetaDataBuilder{
 		tmp: make([]byte, 0, 256),
-		h:   md5.New(),
+		h:   fnv.New128a(),
 	}
 	x.stab.InitWriter()
 	x.stab.Lookup("")
@@ -54,7 +54,7 @@ func NewCoverageMetaDataBuilder(pkgpath string, pkgname string, modulepath strin
 
 func h32(x uint32, h hash.Hash, tmp []byte) {
 	tmp = tmp[:0]
-	tmp = append(tmp, []byte{0, 0, 0, 0}...)
+	tmp = append(tmp, 0, 0, 0, 0)
 	binary.LittleEndian.PutUint32(tmp, x)
 	h.Write(tmp)
 }
@@ -117,7 +117,7 @@ func (b *CoverageMetaDataBuilder) reportWriteError(err error) {
 
 func (b *CoverageMetaDataBuilder) wrUint32(w io.WriteSeeker, v uint32) {
 	b.tmp = b.tmp[:0]
-	b.tmp = append(b.tmp, []byte{0, 0, 0, 0}...)
+	b.tmp = append(b.tmp, 0, 0, 0, 0)
 	binary.LittleEndian.PutUint32(b.tmp, v)
 	if nw, err := w.Write(b.tmp); err != nil {
 		b.reportWriteError(err)
@@ -188,7 +188,7 @@ func (b *CoverageMetaDataBuilder) Emit(w io.WriteSeeker) ([16]byte, error) {
 // HashFuncDesc computes an md5 sum of a coverage.FuncDesc and returns
 // a digest for it.
 func HashFuncDesc(f *coverage.FuncDesc) [16]byte {
-	h := md5.New()
+	h := fnv.New128a()
 	tmp := make([]byte, 0, 32)
 	hashFuncDesc(h, f, tmp)
 	var r [16]byte

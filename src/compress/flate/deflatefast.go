@@ -286,9 +286,7 @@ func (e *deflateFast) reset() {
 func (e *deflateFast) shiftOffsets() {
 	if len(e.prev) == 0 {
 		// We have no history; just clear the table.
-		for i := range e.table[:] {
-			e.table[i] = tableEntry{}
-		}
+		clear(e.table[:])
 		e.cur = maxMatchOffset + 1
 		return
 	}

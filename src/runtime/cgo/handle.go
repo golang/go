@@ -61,8 +61,8 @@ import (
 //	}
 //
 // Some C functions accept a void* argument that points to an arbitrary
-// data value supplied by the caller. It is not safe to coerce a cgo.Handle
-// (an integer) to a Go unsafe.Pointer, but instead we can pass the address
+// data value supplied by the caller. It is not safe to coerce a [cgo.Handle]
+// (an integer) to a Go [unsafe.Pointer], but instead we can pass the address
 // of the cgo.Handle to the void* parameter, as in this variant of the
 // previous example:
 //

@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"strings"
 )
 
 // call evaluates a call expressions, including builtin calls. ks
@@ -80,6 +81,29 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		argumentParam := func(param *types.Field, arg ir.Node) {
 			e.rewriteArgument(arg, call, fn)
 			argument(e.tagHole(ks, fn, param), arg)
+		}
+
+		// hash/maphash.escapeForHash forces its argument to be on
+		// the heap, if it contains a non-string pointer. We cannot
+		// hash pointers to local variables, as the address of the
+		// local variable might change on stack growth.
+		// Strings are okay as the hash depends on only the content,
+		// not the pointer.
+		// The actual call we match is
+		//   hash/maphash.escapeForHash[go.shape.T](dict, go.shape.T)
+		if fn != nil && fn.Sym().Pkg.Path == "hash/maphash" && strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
+			ps := fntype.Params()
+			if len(ps) == 2 && ps[1].Type.IsShape() {
+				if !hasNonStringPointers(ps[1].Type) {
+					argumentParam = func(param *types.Field, arg ir.Node) {
+						argument(e.discardHole(), arg)
+					}
+				} else {
+					argumentParam = func(param *types.Field, arg ir.Node) {
+						argument(e.heapHole(), arg)
+					}
+				}
+			}
 		}
 
 		args := call.Args
@@ -155,10 +179,17 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		e.discard(call.X)
 		e.discard(call.Y)
 
-	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
+	case ir.ODELETE, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
 		call := call.(*ir.CallExpr)
-		for i := range call.Args {
-			e.discard(call.Args[i])
+		for _, arg := range call.Args {
+			e.discard(arg)
+		}
+		e.discard(call.RType)
+
+	case ir.OMIN, ir.OMAX:
+		call := call.(*ir.CallExpr)
+		for _, arg := range call.Args {
+			argument(ks[0], arg)
 		}
 		e.discard(call.RType)
 
@@ -351,4 +382,24 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
 	}
 
 	return e.teeHole(tagKs...)
+}
+
+func hasNonStringPointers(t *types.Type) bool {
+	if !t.HasPointers() {
+		return false
+	}
+	switch t.Kind() {
+	case types.TSTRING:
+		return false
+	case types.TSTRUCT:
+		for _, f := range t.Fields() {
+			if hasNonStringPointers(f.Type) {
+				return true
+			}
+		}
+		return false
+	case types.TARRAY:
+		return hasNonStringPointers(t.Elem())
+	}
+	return true
 }

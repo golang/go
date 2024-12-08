@@ -7,6 +7,7 @@ package ssa_test
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -15,7 +16,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -44,7 +45,7 @@ func testGoArch() string {
 
 func hasRegisterABI() bool {
 	switch testGoArch() {
-	case "amd64", "arm64", "ppc64", "ppc64le", "riscv":
+	case "amd64", "arm64", "loong64", "ppc64", "ppc64le", "riscv":
 		return true
 	}
 	return false
@@ -81,12 +82,8 @@ func TestDebugLinesPushback(t *testing.T) {
 	default:
 		t.Skip("skipped for many architectures")
 
-	case "arm64", "amd64": // register ABI
-		fn := "(*List[go.shape.int_0]).PushBack"
-		if true /* was buildcfg.Experiment.Unified */ {
-			// Unified mangles differently
-			fn = "(*List[go.shape.int]).PushBack"
-		}
+	case "arm64", "amd64", "loong64": // register ABI
+		fn := "(*List[go.shape.int]).PushBack"
 		testDebugLines(t, "-N -l", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
 	}
 }
@@ -98,12 +95,8 @@ func TestDebugLinesConvert(t *testing.T) {
 	default:
 		t.Skip("skipped for many architectures")
 
-	case "arm64", "amd64": // register ABI
-		fn := "G[go.shape.int_0]"
-		if true /* was buildcfg.Experiment.Unified */ {
-			// Unified mangles differently
-			fn = "G[go.shape.int]"
-		}
+	case "arm64", "amd64", "loong64": // register ABI
+		fn := "G[go.shape.int]"
 		testDebugLines(t, "-N -l", "convertline.go", fn, []int{9, 10, 11}, true)
 	}
 }
@@ -175,16 +168,16 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 }
 
 func sortInlineStacks(x [][]int) {
-	sort.Slice(x, func(i, j int) bool {
-		if len(x[i]) != len(x[j]) {
-			return len(x[i]) < len(x[j])
+	slices.SortFunc(x, func(a, b []int) int {
+		if len(a) != len(b) {
+			return cmp.Compare(len(a), len(b))
 		}
-		for k := range x[i] {
-			if x[i][k] != x[j][k] {
-				return x[i][k] < x[j][k]
+		for k := range a {
+			if a[k] != b[k] {
+				return cmp.Compare(a[k], b[k])
 			}
 		}
-		return false
+		return 0
 	})
 }
 

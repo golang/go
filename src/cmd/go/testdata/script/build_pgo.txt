@@ -3,13 +3,18 @@
 
 [short] skip 'compiles and links executables'
 
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
 # build without PGO
 go build triv.go
 
 # build with PGO, should trigger rebuild
 # starting with an empty profile (the compiler accepts it)
 go build -x -pgo=prof -o triv.exe triv.go
-stderr 'compile.*-pgoprofile=.*prof.*triv.go'
+stderr 'preprofile.*-i.*prof'
+stderr 'compile.*-pgoprofile=.*triv.go'
 
 # check that PGO appears in build info
 # N.B. we can't start the stdout check with -pgo because the script assumes that
@@ -33,9 +38,11 @@ cmp stdout list.out
 # overwrite the prof
 go run overwrite.go
 
-# build again, profile content changed, should trigger rebuild
+# build again, profile content changed, should trigger rebuild, including std
 go build -n -pgo=prof triv.go
-stderr 'compile.*-pgoprofile=.*prof.*p.go'
+stderr 'preprofile.*-i.*prof'
+stderr 'compile.*-pgoprofile=.*triv.go'
+stderr 'compile.*-p runtime.*-pgoprofile=.*'
 
 # check that the build ID is different
 go list -export -json=BuildID -pgo=prof triv.go
@@ -58,6 +65,7 @@ package main
 import (
 	"os"
 	"runtime/pprof"
+	"time"
 )
 
 func main() {
@@ -69,6 +77,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	// Spin to ensure we get some samples. If we get no samples, the result
+	// is equivalent to an empty profile.
+	start := time.Now()
+	for time.Since(start) < 100*time.Millisecond {}
 	pprof.StopCPUProfile()
 	f.Close()
 }

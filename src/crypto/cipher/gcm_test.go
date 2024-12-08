@@ -8,13 +8,55 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
+	"crypto/internal/fips140"
+	fipsaes "crypto/internal/fips140/aes"
+	"crypto/internal/fips140/aes/gcm"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"testing"
 )
+
+var _ cipher.Block = (*wrapper)(nil)
+
+type wrapper struct {
+	block cipher.Block
+}
+
+func (w *wrapper) BlockSize() int          { return w.block.BlockSize() }
+func (w *wrapper) Encrypt(dst, src []byte) { w.block.Encrypt(dst, src) }
+func (w *wrapper) Decrypt(dst, src []byte) { w.block.Decrypt(dst, src) }
+
+// wrap wraps the Block so that it does not type-asserts to *aes.Block.
+func wrap(b cipher.Block) cipher.Block {
+	return &wrapper{b}
+}
+
+func testAllImplementations(t *testing.T, f func(*testing.T, func([]byte) cipher.Block)) {
+	cryptotest.TestAllImplementations(t, "gcm", func(t *testing.T) {
+		f(t, func(b []byte) cipher.Block {
+			c, err := aes.NewCipher(b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return c
+		})
+	})
+	t.Run("Fallback", func(t *testing.T) {
+		f(t, func(b []byte) cipher.Block {
+			c, err := aes.NewCipher(b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return wrap(c)
+		})
+	})
+}
 
 var aesGCMTests = []struct {
 	key, nonce, plaintext, ad, result string
@@ -372,18 +414,20 @@ var aesGCMTests = []struct {
 }
 
 func TestAESGCM(t *testing.T) {
+	testAllImplementations(t, testAESGCM)
+}
+
+func testAESGCM(t *testing.T, newCipher func(key []byte) cipher.Block) {
 	for i, test := range aesGCMTests {
 		key, _ := hex.DecodeString(test.key)
-		aes, err := aes.NewCipher(key)
-		if err != nil {
-			t.Fatal(err)
-		}
+		aes := newCipher(key)
 
 		nonce, _ := hex.DecodeString(test.nonce)
 		plaintext, _ := hex.DecodeString(test.plaintext)
 		ad, _ := hex.DecodeString(test.ad)
 		tagSize := (len(test.result) - len(test.plaintext)) / 2
 
+		var err error
 		var aesgcm cipher.AEAD
 		switch {
 		// Handle non-standard tag sizes
@@ -455,19 +499,26 @@ func TestAESGCM(t *testing.T) {
 }
 
 func TestGCMInvalidTagSize(t *testing.T) {
-	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
+	testAllImplementations(t, testGCMInvalidTagSize)
+}
 
-	aes, _ := aes.NewCipher(key)
+func testGCMInvalidTagSize(t *testing.T, newCipher func(key []byte) cipher.Block) {
+	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
+	aes := newCipher(key)
 
 	for _, tagSize := range []int{0, 1, aes.BlockSize() + 1} {
 		aesgcm, err := cipher.NewGCMWithTagSize(aes, tagSize)
 		if aesgcm != nil || err == nil {
-			t.Fatalf("NewGCMWithNonceAndTagSize was successful with an invalid %d-byte tag size", tagSize)
+			t.Fatalf("NewGCMWithTagSize was successful with an invalid %d-byte tag size", tagSize)
 		}
 	}
 }
 
 func TestTagFailureOverwrite(t *testing.T) {
+	testAllImplementations(t, testTagFailureOverwrite)
+}
+
+func testTagFailureOverwrite(t *testing.T, newCipher func(key []byte) cipher.Block) {
 	// The AESNI GCM code decrypts and authenticates concurrently and so
 	// overwrites the output buffer before checking the authentication tag.
 	// In order to be consistent across platforms, all implementations
@@ -477,7 +528,7 @@ func TestTagFailureOverwrite(t *testing.T) {
 	nonce, _ := hex.DecodeString("54cc7dc2c37ec006bcc6d1db")
 	ciphertext, _ := hex.DecodeString("0e1bde206a07a9c2c1b65300f8c649972b4401346697138c7a4891ee59867d0c")
 
-	aes, _ := aes.NewCipher(key)
+	aes := newCipher(key)
 	aesgcm, _ := cipher.NewGCM(aes)
 
 	dst := make([]byte, len(ciphertext)-16)
@@ -502,6 +553,10 @@ func TestTagFailureOverwrite(t *testing.T) {
 }
 
 func TestGCMCounterWrap(t *testing.T) {
+	testAllImplementations(t, testGCMCounterWrap)
+}
+
+func testGCMCounterWrap(t *testing.T, newCipher func(key []byte) cipher.Block) {
 	// Test that the last 32-bits of the counter wrap correctly.
 	tests := []struct {
 		nonce, tag string
@@ -514,10 +569,7 @@ func TestGCMCounterWrap(t *testing.T) {
 		{"010ae3d486", "5405bb490b1f95d01e2ba735687154bc"}, // counter: e36c18e69406c49722808104fffffff8
 		{"01b1107a9d", "939a585f342e01e17844627492d44dbf"}, // counter: e6d56eaf9127912b6d62c6dcffffffff
 	}
-	key, err := aes.NewCipher(make([]byte, 16))
-	if err != nil {
-		t.Fatal(err)
-	}
+	key := newCipher(make([]byte, 16))
 	plaintext := make([]byte, 16*17+1)
 	for i, test := range tests {
 		nonce, _ := hex.DecodeString(test.nonce)
@@ -535,22 +587,6 @@ func TestGCMCounterWrap(t *testing.T) {
 			t.Errorf("test[%v]: authentication failed", i)
 		}
 	}
-}
-
-var _ cipher.Block = (*wrapper)(nil)
-
-type wrapper struct {
-	block cipher.Block
-}
-
-func (w *wrapper) BlockSize() int          { return w.block.BlockSize() }
-func (w *wrapper) Encrypt(dst, src []byte) { w.block.Encrypt(dst, src) }
-func (w *wrapper) Decrypt(dst, src []byte) { w.block.Decrypt(dst, src) }
-
-// wrap wraps the Block interface so that it does not fulfill
-// any optimizing interfaces such as gcmAble.
-func wrap(b cipher.Block) cipher.Block {
-	return &wrapper{b}
 }
 
 func TestGCMAsm(t *testing.T) {
@@ -653,4 +689,191 @@ func TestGCMAsm(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Test GCM against the general cipher.AEAD interface tester.
+func TestGCMAEAD(t *testing.T) {
+	testAllImplementations(t, testGCMAEAD)
+}
+
+func testGCMAEAD(t *testing.T, newCipher func(key []byte) cipher.Block) {
+	minTagSize := 12
+
+	for _, keySize := range []int{128, 192, 256} {
+		// Use AES as underlying block cipher at different key sizes for GCM.
+		t.Run(fmt.Sprintf("AES-%d", keySize), func(t *testing.T) {
+			rng := newRandReader(t)
+
+			key := make([]byte, keySize/8)
+			rng.Read(key)
+
+			block := newCipher(key)
+
+			// Test GCM with the current AES block with the standard nonce and tag
+			// sizes.
+			cryptotest.TestAEAD(t, func() (cipher.AEAD, error) { return cipher.NewGCM(block) })
+
+			// Test non-standard tag sizes.
+			t.Run("MinTagSize", func(t *testing.T) {
+				cryptotest.TestAEAD(t, func() (cipher.AEAD, error) { return cipher.NewGCMWithTagSize(block, minTagSize) })
+			})
+
+			// Test non-standard nonce sizes.
+			for _, nonceSize := range []int{1, 16, 100} {
+				t.Run(fmt.Sprintf("NonceSize-%d", nonceSize), func(t *testing.T) {
+					cryptotest.TestAEAD(t, func() (cipher.AEAD, error) { return cipher.NewGCMWithNonceSize(block, nonceSize) })
+				})
+			}
+
+			// Test NewGCMWithRandomNonce.
+			t.Run("GCMWithRandomNonce", func(t *testing.T) {
+				if _, ok := block.(*wrapper); ok || boring.Enabled {
+					t.Skip("NewGCMWithRandomNonce requires an AES block cipher")
+				}
+				cryptotest.TestAEAD(t, func() (cipher.AEAD, error) { return cipher.NewGCMWithRandomNonce(block) })
+			})
+		})
+	}
+}
+
+func TestFIPSServiceIndicator(t *testing.T) {
+	newGCM := func() cipher.AEAD {
+		key := make([]byte, 16)
+		block, _ := fipsaes.New(key)
+		aead, _ := gcm.NewGCMWithCounterNonce(block)
+		return aead
+	}
+	tryNonce := func(aead cipher.AEAD, nonce []byte) bool {
+		fips140.ResetServiceIndicator()
+		aead.Seal(nil, nonce, []byte("x"), nil)
+		return fips140.ServiceIndicator()
+	}
+	expectTrue := func(t *testing.T, aead cipher.AEAD, nonce []byte) {
+		t.Helper()
+		if !tryNonce(aead, nonce) {
+			t.Errorf("expected service indicator true for %x", nonce)
+		}
+	}
+	expectPanic := func(t *testing.T, aead cipher.AEAD, nonce []byte) {
+		t.Helper()
+		defer func() {
+			t.Helper()
+			if recover() == nil {
+				t.Errorf("expected panic for %x", nonce)
+			}
+		}()
+		tryNonce(aead, nonce)
+	}
+
+	g := newGCM()
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0})
+	expectTrue(t, g, []byte{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0})
+	// Changed name.
+	expectPanic(t, g, []byte{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0})
+
+	g = newGCM()
+	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
+	// Went down.
+	expectPanic(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+
+	g = newGCM()
+	expectTrue(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
+	expectTrue(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13})
+	// Did not increment.
+	expectPanic(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13})
+
+	g = newGCM()
+	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00})
+	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
+	// Wrap is ok as long as we don't run out of values.
+	expectTrue(t, g, []byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0})
+	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xfe})
+	// Run out of counters.
+	expectPanic(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xff})
+
+	g = newGCM()
+	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
+	// Wrap with overflow.
+	expectPanic(t, g, []byte{1, 2, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0})
+}
+
+func TestGCMForSSH(t *testing.T) {
+	// incIV from x/crypto/ssh/cipher.go.
+	incIV := func(iv []byte) {
+		for i := 4 + 7; i >= 4; i-- {
+			iv[i]++
+			if iv[i] != 0 {
+				break
+			}
+		}
+	}
+
+	expectOK := func(aead cipher.AEAD, iv []byte) {
+		aead.Seal(nil, iv, []byte("hello, world"), nil)
+	}
+
+	expectPanic := func(aead cipher.AEAD, iv []byte) {
+		defer func() {
+			if recover() == nil {
+				t.Errorf("expected panic")
+			}
+		}()
+		aead.Seal(nil, iv, []byte("hello, world"), nil)
+	}
+
+	key := make([]byte, 16)
+	block, _ := fipsaes.New(key)
+	aead, err := gcm.NewGCMForSSH(block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	iv := decodeHex(t, "11223344"+"0000000000000000")
+	expectOK(aead, iv)
+	incIV(iv)
+	expectOK(aead, iv)
+	iv = decodeHex(t, "11223344"+"fffffffffffffffe")
+	expectOK(aead, iv)
+	incIV(iv)
+	expectPanic(aead, iv)
+
+	aead, _ = gcm.NewGCMForSSH(block)
+	iv = decodeHex(t, "11223344"+"fffffffffffffffe")
+	expectOK(aead, iv)
+	incIV(iv)
+	expectOK(aead, iv)
+	incIV(iv)
+	expectOK(aead, iv)
+	incIV(iv)
+	expectOK(aead, iv)
+
+	aead, _ = gcm.NewGCMForSSH(block)
+	iv = decodeHex(t, "11223344"+"aaaaaaaaaaaaaaaa")
+	expectOK(aead, iv)
+	iv = decodeHex(t, "11223344"+"ffffffffffffffff")
+	expectOK(aead, iv)
+	incIV(iv)
+	expectOK(aead, iv)
+	iv = decodeHex(t, "11223344"+"aaaaaaaaaaaaaaa8")
+	expectOK(aead, iv)
+	incIV(iv)
+	expectPanic(aead, iv)
+	iv = decodeHex(t, "11223344"+"bbbbbbbbbbbbbbbb")
+	expectPanic(aead, iv)
+}
+
+func decodeHex(t *testing.T, s string) []byte {
+	t.Helper()
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }

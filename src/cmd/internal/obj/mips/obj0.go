@@ -40,7 +40,7 @@ import (
 )
 
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
-	c := ctxt0{ctxt: ctxt, newprog: newprog}
+	c := ctxt0{ctxt: ctxt}
 
 	p.From.Class = 0
 	p.To.Class = 0

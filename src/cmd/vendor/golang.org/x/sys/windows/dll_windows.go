@@ -65,7 +65,7 @@ func LoadDLL(name string) (dll *DLL, err error) {
 	return d, nil
 }
 
-// MustLoadDLL is like LoadDLL but panics if load operation failes.
+// MustLoadDLL is like LoadDLL but panics if load operation fails.
 func MustLoadDLL(name string) *DLL {
 	d, e := LoadDLL(name)
 	if e != nil {

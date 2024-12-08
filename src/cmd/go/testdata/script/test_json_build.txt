@@ -1,0 +1,100 @@
+[short] skip
+
+env GODEBUG=gotestjsonbuildtext=0
+
+# There are several places where paths appear in JSON in regexps here.
+# For the path separator we use (/|\\\\).
+# Unfortunately, we can't just use ${/} because, while script test automatically
+# escapes Windows-style \ in regexps, it doesn't know that it needs to escape
+# them *again* for JSON. If we ever teach script test about matching JSON,
+# we can probably fix this.
+
+# Test a build error directly in a test file.
+! go test -json -o=$devnull ./builderror
+stdout '"ImportPath":"m/builderror \[m/builderror\.test\]","Action":"build-output","Output":"# m/builderror \[m/builderror.test\]\\n"'
+stdout '"ImportPath":"m/builderror \[m/builderror\.test\]","Action":"build-output","Output":"builderror(/|\\\\)main_test.go:3:11: undefined: y\\n"'
+stdout '"ImportPath":"m/builderror \[m/builderror\.test\]","Action":"build-fail"'
+stdout '"Action":"start","Package":"m/builderror"'
+stdout '"Action":"output","Package":"m/builderror","Output":"FAIL\\tm/builderror \[build failed\]\\n"'
+stdout '"Action":"fail","Package":"m/builderror","Elapsed":.*,"FailedBuild":"m/builderror \[m/builderror\.test\]"'
+! stderr '.'
+
+# Test a build error in an imported package. Make sure it's attributed to the right package.
+! go test -json -o=$devnull ./builderror2
+stdout '"ImportPath":"m/builderror2/x","Action":"build-output","Output":"# m/builderror2/x\\n"'
+stdout '"ImportPath":"m/builderror2/x","Action":"build-output","Output":"builderror2(/|\\\\)x(/|\\\\)main.go:3:11: undefined: y\\n"'
+stdout '"ImportPath":"m/builderror2/x","Action":"build-fail"'
+stdout '"Action":"start","Package":"m/builderror2"'
+stdout '"Action":"output","Package":"m/builderror2","Output":"FAIL\\tm/builderror2 \[build failed\]\\n"'
+stdout '"Action":"fail","Package":"m/builderror2","Elapsed":.*,"FailedBuild":"m/builderror2/x"'
+! stderr '.'
+
+# Test a loading error in a test file
+# TODO(#65335): ImportPath attribution is weird
+! go test -json -o=$devnull ./loaderror
+stdout '"ImportPath":"x","Action":"build-output","Output":"# m/loaderror\\n"'
+stdout '"ImportPath":"x","Action":"build-output","Output":".*package x is not in std.*"'
+stdout '"ImportPath":"x","Action":"build-fail"'
+stdout '"Action":"start","Package":"m/loaderror"'
+stdout '"Action":"output","Package":"m/loaderror","Output":"FAIL\\tm/loaderror \[setup failed\]\\n"'
+stdout '"Action":"fail","Package":"m/loaderror","Elapsed":.*,"FailedBuild":"x"'
+! stderr '.'
+
+# Test a vet error
+! go test -json -o=$devnull ./veterror
+stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"# m/veterror\\n"'
+stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"# \[m/veterror\]\\n"'
+stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"veterror(/|\\\\)main_test.go:9:9: fmt.Printf format %s reads arg #1, but call has 0 args\\n"'
+stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-fail"'
+stdout '"Action":"start","Package":"m/veterror"'
+stdout '"Action":"output","Package":"m/veterror","Output":"FAIL\\tm/veterror \[build failed\]\\n"'
+stdout '"Action":"fail","Package":"m/veterror","Elapsed":.*,"FailedBuild":"m/veterror \[m/veterror.test\]"'
+! stderr '.'
+
+# Test that the GODEBUG fallback works.
+env GODEBUG=gotestjsonbuildtext=1
+! go test -json -o=$devnull ./builderror
+stderr '# m/builderror \[m/builderror.test\]\n'
+stderr 'builderror'${/}'main_test.go:3:11: undefined: y\n'
+stdout '"Action":"start","Package":"m/builderror"'
+stdout '"Action":"output","Package":"m/builderror","Output":"FAIL\\tm/builderror \[build failed\]\\n"'
+stdout '"Action":"fail","Package":"m/builderror","Elapsed":.*,"FailedBuild":"m/builderror \[m/builderror\.test\]"'
+
+
+-- go.mod --
+module m
+go 1.21
+-- builderror/main_test.go --
+package builderror
+
+const x = y
+-- builderror2/x/main.go --
+package x
+
+const x = y
+-- builderror2/main_test.go --
+package builderror2
+
+import _ "m/builderror2/x"
+-- loaderror/main_test.go --
+// A bad import causes a "[setup failed]" message from cmd/go because
+// it fails in package graph setup, before it can even get to the
+// build.
+//
+// "[setup failed]" can also occur with various low-level failures in
+// cmd/go, like failing to create a temporary directory.
+
+package loaderror
+
+import _ "x"
+-- veterror/main_test.go --
+package veterror
+
+import (
+        "fmt"
+        "testing"
+)
+
+func TestVetError(t *testing.T) {
+        fmt.Printf("%s")
+}

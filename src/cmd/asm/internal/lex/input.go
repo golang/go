@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -252,7 +253,7 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 					in.Error("bad syntax in definition for macro:", name)
 				}
 				arg := in.Stack.Text()
-				if i := lookup(args, arg); i >= 0 {
+				if slices.Contains(args, arg) {
 					in.Error("duplicate argument", arg, "in definition for macro:", name)
 				}
 				args = append(args, arg)
@@ -278,15 +279,6 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 		tok = in.Stack.Next()
 	}
 	return args, tokens
-}
-
-func lookup(args []string, arg string) int {
-	for i, a := range args {
-		if a == arg {
-			return i
-		}
-	}
-	return -1
 }
 
 // invokeMacro pushes onto the input Stack a Slice that holds the macro definition with the actual

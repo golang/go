@@ -66,10 +66,10 @@ func mustOpen(t *testing.T, name string) *os.File {
 
 	f, err := os.OpenFile(name, os.O_RDWR, 0)
 	if err != nil {
-		t.Fatalf("os.Open(%q) = %v", name, err)
+		t.Fatalf("os.OpenFile(%q) = %v", name, err)
 	}
 
-	t.Logf("fd %d = os.Open(%q)", f.Fd(), name)
+	t.Logf("fd %d = os.OpenFile(%q)", f.Fd(), name)
 	return f
 }
 

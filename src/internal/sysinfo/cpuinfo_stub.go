@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !linux
+//go:build !(darwin || freebsd || linux || netbsd || openbsd)
 
 package sysinfo
 
-func osCpuInfoName() string {
+func osCPUInfoName() string {
 	return ""
 }

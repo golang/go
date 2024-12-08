@@ -11,7 +11,7 @@ package sync_test
 import (
 	"runtime"
 	"runtime/debug"
-	"sort"
+	"slices"
 	. "sync"
 	"sync/atomic"
 	"testing"
@@ -338,7 +338,7 @@ func BenchmarkPoolSTW(b *testing.B) {
 	}
 
 	// Get pause time stats.
-	sort.Slice(pauses, func(i, j int) bool { return pauses[i] < pauses[j] })
+	slices.Sort(pauses)
 	var total uint64
 	for _, ns := range pauses {
 		total += ns

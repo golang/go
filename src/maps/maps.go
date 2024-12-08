@@ -3,7 +3,14 @@
 // license that can be found in the LICENSE file.
 
 // Package maps defines various functions useful with maps of any type.
+//
+// This package does not have any special handling for non-reflexive keys
+// (keys k where k != k), such as floating-point NaNs.
 package maps
+
+import (
+	_ "unsafe"
+)
 
 // Equal reports whether two maps contain the same key/value pairs.
 // Values are compared using ==.
@@ -34,6 +41,8 @@ func EqualFunc[M1 ~map[K]V1, M2 ~map[K]V2, K comparable, V1, V2 any](m1 M1, m2 M
 }
 
 // clone is implemented in the runtime package.
+//
+//go:linkname clone maps.clone
 func clone(m any) any
 
 // Clone returns a copy of m.  This is a shallow clone:

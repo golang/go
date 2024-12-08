@@ -5,6 +5,7 @@
 package walk
 
 import (
+	"internal/buildcfg"
 	"unicode/utf8"
 
 	"cmd/compile/internal/base"
@@ -242,8 +243,14 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		th := hit.Type()
 		// depends on layout of iterator struct.
 		// See cmd/compile/internal/reflectdata/reflect.go:MapIterType
-		keysym := th.Field(0).Sym
-		elemsym := th.Field(1).Sym // ditto
+		var keysym, elemsym *types.Sym
+		if buildcfg.Experiment.SwissMap {
+			keysym = th.Field(0).Sym
+			elemsym = th.Field(1).Sym // ditto
+		} else {
+			keysym = th.Field(0).Sym
+			elemsym = th.Field(1).Sym // ditto
+		}
 
 		fn := typecheck.LookupRuntime("mapiterinit", t.Key(), t.Elem(), th)
 		init = append(init, mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), ha, typecheck.NodAddr(hit)))

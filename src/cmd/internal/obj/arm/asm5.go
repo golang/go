@@ -37,7 +37,7 @@ import (
 	"internal/buildcfg"
 	"log"
 	"math"
-	"sort"
+	"slices"
 )
 
 // ctxt5 holds state while assembling a single function.
@@ -318,7 +318,9 @@ var optab = []Optab{
 	{AMOVW, C_REG, C_NONE, C_FREG, 88, 4, 0, 0, 0, 0},
 	{AMOVW, C_FREG, C_NONE, C_REG, 89, 4, 0, 0, 0, 0},
 	{ALDREXD, C_SOREG, C_NONE, C_REG, 91, 4, 0, 0, 0, 0},
+	{ALDREXB, C_SOREG, C_NONE, C_REG, 91, 4, 0, 0, 0, 0},
 	{ASTREXD, C_SOREG, C_REG, C_REG, 92, 4, 0, 0, 0, 0},
+	{ASTREXB, C_SOREG, C_REG, C_REG, 92, 4, 0, 0, 0, 0},
 	{APLD, C_SOREG, C_NONE, C_NONE, 95, 4, 0, 0, 0, 0},
 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 96, 4, 0, 0, 0, 0},
 	{ACLZ, C_REG, C_NONE, C_REG, 97, 4, 0, 0, 0, 0},
@@ -979,7 +981,7 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 			if immrot(^uint32(c.instoffset)) != 0 {
 				return C_NCON
 			}
-			if uint32(c.instoffset) <= 0xffff && buildcfg.GOARM == 7 {
+			if uint32(c.instoffset) <= 0xffff && buildcfg.GOARM.Version == 7 {
 				return C_SCON
 			}
 			if x, y := immrot2a(uint32(c.instoffset)); x != 0 && y != 0 {
@@ -1099,6 +1101,32 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
 	}
 
+	if (p.As == ASRL || p.As == ASRA) && p.From.Type == obj.TYPE_CONST && p.From.Offset == 0 {
+		// Right shifts are weird - a shift that looks like "shift by constant 0" actually
+		// means "shift by constant 32". Use left shift in this situation instead.
+		// See issue 64715.
+		// TODO: rotate by 0? Not currently supported, but if we ever do then include it here.
+		p.As = ASLL
+	}
+	if p.As != AMOVB && p.As != AMOVBS && p.As != AMOVBU && p.As != AMOVH && p.As != AMOVHS && p.As != AMOVHU && p.As != AXTAB && p.As != AXTABU && p.As != AXTAH && p.As != AXTAHU {
+		// Same here, but for shifts encoded in Addrs.
+		// Don't do it for the extension ops, which
+		// need to keep their RR shifts.
+		fixShift := func(a *obj.Addr) {
+			if a.Type == obj.TYPE_SHIFT {
+				typ := a.Offset & SHIFT_RR
+				isConst := a.Offset&(1<<4) == 0
+				amount := a.Offset >> 7 & 0x1f
+				if isConst && amount == 0 && (typ == SHIFT_LR || typ == SHIFT_AR || typ == SHIFT_RR) {
+					a.Offset -= typ
+					a.Offset += SHIFT_LL
+				}
+			}
+		}
+		fixShift(&p.From)
+		fixShift(&p.To)
+	}
+
 	ops := oprange[p.As&obj.AMask]
 	c1 := &xcmp[a1]
 	c3 := &xcmp[a3]
@@ -1177,36 +1205,20 @@ func cmp(a int, b int) bool {
 	return false
 }
 
-type ocmp []Optab
-
-func (x ocmp) Len() int {
-	return len(x)
-}
-
-func (x ocmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x ocmp) Less(i, j int) bool {
-	p1 := &x[i]
-	p2 := &x[j]
-	n := int(p1.as) - int(p2.as)
-	if n != 0 {
-		return n < 0
+func ocmp(a, b Optab) int {
+	if a.as != b.as {
+		return int(a.as) - int(b.as)
 	}
-	n = int(p1.a1) - int(p2.a1)
-	if n != 0 {
-		return n < 0
+	if a.a1 != b.a1 {
+		return int(a.a1) - int(b.a1)
 	}
-	n = int(p1.a2) - int(p2.a2)
-	if n != 0 {
-		return n < 0
+	if a.a2 != b.a2 {
+		return int(a.a2) - int(b.a2)
 	}
-	n = int(p1.a3) - int(p2.a3)
-	if n != 0 {
-		return n < 0
+	if a.a3 != b.a3 {
+		return int(a.a3) - int(b.a3)
 	}
-	return false
+	return 0
 }
 
 func opset(a, b0 obj.As) {
@@ -1245,7 +1257,7 @@ func buildop(ctxt *obj.Link) {
 		}
 	}
 
-	sort.Sort(ocmp(optab[:n]))
+	slices.SortFunc(optab[:n], ocmp)
 	for i := 0; i < n; i++ {
 		r := optab[i].as
 		r0 := r & obj.AMask
@@ -1422,7 +1434,9 @@ func buildop(ctxt *obj.Link) {
 		case ALDREX,
 			ASTREX,
 			ALDREXD,
+			ALDREXB,
 			ASTREXD,
+			ASTREXB,
 			ADMB,
 			APLD,
 			AAND,
@@ -1575,13 +1589,14 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		v := int32(-8)
 		if p.To.Sym != nil {
-			rel := obj.Addrel(c.cursym)
-			rel.Off = int32(c.pc)
-			rel.Siz = 4
-			rel.Sym = p.To.Sym
 			v += int32(p.To.Offset)
-			rel.Add = int64(o1) | (int64(v)>>2)&0xffffff
-			rel.Type = objabi.R_CALLARM
+			c.cursym.AddRel(c.ctxt, obj.Reloc{
+				Type: objabi.R_CALLARM,
+				Off:  int32(c.pc),
+				Siz:  4,
+				Sym:  p.To.Sym,
+				Add:  int64(o1) | (int64(v)>>2)&0xffffff,
+			})
 			break
 		}
 
@@ -1606,10 +1621,10 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = c.oprrr(p, ABL, int(p.Scond))
 		o1 |= (uint32(p.To.Reg) & 15) << 0
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 0
-		rel.Type = objabi.R_CALLIND
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_CALLIND,
+			Off:  int32(c.pc),
+		})
 
 	case 8: /* sll $c,[R],R -> mov (R<<$c),R */
 		c.aclass(&p.From)
@@ -1649,23 +1664,23 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Sym != nil {
 			// This case happens with words generated
 			// in the PC stream as part of the literal pool (c.pool).
-			rel := obj.Addrel(c.cursym)
-
-			rel.Off = int32(c.pc)
-			rel.Siz = 4
-			rel.Sym = p.To.Sym
-			rel.Add = p.To.Offset
-
+			typ := objabi.R_ADDR
+			add := p.To.Offset
 			if c.ctxt.Flag_shared {
 				if p.To.Name == obj.NAME_GOTREF {
-					rel.Type = objabi.R_GOTPCREL
+					typ = objabi.R_GOTPCREL
 				} else {
-					rel.Type = objabi.R_PCREL
+					typ = objabi.R_PCREL
 				}
-				rel.Add += c.pc - p.Rel.Pc - 8
-			} else {
-				rel.Type = objabi.R_ADDR
+				add += c.pc - p.Rel.Pc - 8
 			}
+			c.cursym.AddRel(c.ctxt, obj.Reloc{
+				Type: typ,
+				Off:  int32(c.pc),
+				Siz:  4,
+				Sym:  p.To.Sym,
+				Add:  add,
+			})
 			o1 = 0
 		}
 
@@ -2145,12 +2160,12 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		// This case happens with words generated in the PC stream as part of
 		// the literal c.pool.
-		rel := obj.Addrel(c.cursym)
-
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.To.Sym
-		rel.Type = objabi.R_TLS_LE
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_TLS_LE,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.To.Sym,
+		})
 		o1 = 0
 
 	case 104: /* word tlsvar, initial exec */
@@ -2160,12 +2175,13 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Offset != 0 {
 			c.ctxt.Diag("offset against tls var in %v", p)
 		}
-		rel := obj.Addrel(c.cursym)
-		rel.Off = int32(c.pc)
-		rel.Siz = 4
-		rel.Sym = p.To.Sym
-		rel.Type = objabi.R_TLS_IE
-		rel.Add = c.pc - p.Rel.Pc - 8 - int64(rel.Siz)
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_TLS_IE,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.To.Sym,
+			Add:  c.pc - p.Rel.Pc - 8 - 4,
+		})
 
 	case 68: /* floating point store -> ADDR */
 		o1 = c.omvl(p, &p.To, REGTMP)
@@ -2387,30 +2403,44 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(p.From.Reg) & 15) << 16
 		o1 |= (uint32(p.To.Reg) & 15) << 12
 
-	case 91: /* ldrexd oreg,reg */
+	case 91: /* ldrexd/ldrexb oreg,reg */
 		c.aclass(&p.From)
 
 		if c.instoffset != 0 {
 			c.ctxt.Diag("offset must be zero in LDREX")
 		}
-		o1 = 0x1b<<20 | 0xf9f
+
+		switch p.As {
+		case ALDREXD:
+			o1 = 0x1b << 20
+		case ALDREXB:
+			o1 = 0x1d << 20
+		}
+		o1 |= 0xf9f
 		o1 |= (uint32(p.From.Reg) & 15) << 16
 		o1 |= (uint32(p.To.Reg) & 15) << 12
 		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
 
-	case 92: /* strexd reg,oreg,reg */
+	case 92: /* strexd/strexb reg,oreg,reg */
 		c.aclass(&p.From)
 
 		if c.instoffset != 0 {
 			c.ctxt.Diag("offset must be zero in STREX")
 		}
-		if p.Reg&1 != 0 {
-			c.ctxt.Diag("source register must be even in STREXD: %v", p)
-		}
-		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg || p.To.Reg == p.Reg+1 {
+		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg || (p.As == ASTREXD && p.To.Reg == p.Reg+1) {
 			c.ctxt.Diag("cannot use same register as both source and destination: %v", p)
 		}
-		o1 = 0x1a<<20 | 0xf90
+
+		switch p.As {
+		case ASTREXD:
+			if p.Reg&1 != 0 {
+				c.ctxt.Diag("source register must be even in STREXD: %v", p)
+			}
+			o1 = 0x1a << 20
+		case ASTREXB:
+			o1 = 0x1c << 20
+		}
+		o1 |= 0xf90
 		o1 |= (uint32(p.From.Reg) & 15) << 16
 		o1 |= (uint32(p.Reg) & 15) << 0
 		o1 |= (uint32(p.To.Reg) & 15) << 12
@@ -3044,16 +3074,16 @@ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
 }
 
 func (c *ctxt5) chipzero5(e float64) int {
-	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if buildcfg.GOARM < 7 || math.Float64bits(e) != 0 {
+	// We use GOARM.Version=7 and !GOARM.SoftFloat to gate the use of VFPv3 vmov (imm) instructions.
+	if buildcfg.GOARM.Version < 7 || buildcfg.GOARM.SoftFloat || math.Float64bits(e) != 0 {
 		return -1
 	}
 	return 0
 }
 
 func (c *ctxt5) chipfloat5(e float64) int {
-	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if buildcfg.GOARM < 7 {
+	// We use GOARM.Version=7 and !GOARM.SoftFloat to gate the use of VFPv3 vmov (imm) instructions.
+	if buildcfg.GOARM.Version < 7 || buildcfg.GOARM.SoftFloat {
 		return -1
 	}
 

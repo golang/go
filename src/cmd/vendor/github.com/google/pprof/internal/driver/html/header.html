@@ -12,7 +12,6 @@
       <a title="{{.Help.top}}"  href="./top" id="topbtn">Top</a>
       <a title="{{.Help.graph}}" href="./" id="graphbtn">Graph</a>
       <a title="{{.Help.flamegraph}}" href="./flamegraph" id="flamegraph">Flame Graph</a>
-      <a title="{{.Help.flamegraphold}}" href="./flamegraphold" id="flamegraphold">Flame Graph (old)</a>
       <a title="{{.Help.peek}}" href="./peek" id="peek">Peek</a>
       <a title="{{.Help.list}}" href="./source" id="list">Source</a>
       <a title="{{.Help.disasm}}" href="./disasm" id="disasm">Disassemble</a>
@@ -84,6 +83,12 @@
       {{range .Legend}}<div>{{.}}</div>{{end}}
     </div>
   </div>
+
+  {{if .DocURL}}
+     <div class="menu-item">
+       <div class="help menu-name"><a title="Profile documentation" href="{{.DocURL}}" target="_blank">Help&nbsp;⤇</a></div>
+     </div>
+  {{end}}
 </div>
 
 <div id="dialog-overlay"></div>

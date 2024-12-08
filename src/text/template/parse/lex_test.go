@@ -545,6 +545,16 @@ var lexPosTests = []lexTest{
 		{itemRightDelim, 11, "}}", 2},
 		{itemEOF, 13, "", 2},
 	}},
+	{"longcomment", "{{/*\n*/}}\n{{undefinedFunction \"test\"}}", []item{
+		{itemComment, 2, "/*\n*/", 1},
+		{itemText, 9, "\n", 2},
+		{itemLeftDelim, 10, "{{", 3},
+		{itemIdentifier, 12, "undefinedFunction", 3},
+		{itemSpace, 29, " ", 3},
+		{itemString, 30, "\"test\"", 3},
+		{itemRightDelim, 36, "}}", 3},
+		{itemEOF, 38, "", 3},
+	}},
 }
 
 // The other tests don't check position, to make the test cases easier to construct.

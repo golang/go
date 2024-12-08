@@ -11,6 +11,7 @@ func run() { // ERROR "cannot inline run: recursive"
 		g() // ERROR "inlining call to g"
 	}
 	f() // ERROR "inlining call to run.func1" "inlining call to g"
+	_ = f
 	run()
 }
 

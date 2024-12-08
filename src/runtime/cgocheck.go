@@ -89,7 +89,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		return
 	}
 	if !cgoIsGoPointer(src) {
@@ -110,7 +110,7 @@ func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		return
 	}
 	if !cgoIsGoPointer(src) {
@@ -141,53 +141,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 		size = ptrdataSize
 	}
 
-	if typ.Kind_&kindGCProg == 0 {
-		cgoCheckBits(src, typ.GCData, off, size)
-		return
-	}
-
-	// The type has a GC program. Try to find GC bits somewhere else.
-	for _, datap := range activeModules() {
-		if cgoInRange(src, datap.data, datap.edata) {
-			doff := uintptr(src) - datap.data
-			cgoCheckBits(add(src, -doff), datap.gcdatamask.bytedata, off+doff, size)
-			return
-		}
-		if cgoInRange(src, datap.bss, datap.ebss) {
-			boff := uintptr(src) - datap.bss
-			cgoCheckBits(add(src, -boff), datap.gcbssmask.bytedata, off+boff, size)
-			return
-		}
-	}
-
-	s := spanOfUnchecked(uintptr(src))
-	if s.state.get() == mSpanManual {
-		// There are no heap bits for value stored on the stack.
-		// For a channel receive src might be on the stack of some
-		// other goroutine, so we can't unwind the stack even if
-		// we wanted to.
-		// We can't expand the GC program without extra storage
-		// space we can't easily get.
-		// Fortunately we have the type information.
-		systemstack(func() {
-			cgoCheckUsingType(typ, src, off, size)
-		})
-		return
-	}
-
-	// src must be in the regular heap.
-
-	hbits := heapBitsForAddr(uintptr(src), size)
-	for {
-		var addr uintptr
-		if hbits, addr = hbits.next(); addr == 0 {
-			break
-		}
-		v := *(*unsafe.Pointer)(unsafe.Pointer(addr))
-		if cgoIsGoPointer(v) && !isPinned(v) {
-			throw(cgoWriteBarrierFail)
-		}
-	}
+	cgoCheckBits(src, getGCMask(typ), off, size)
 }
 
 // cgoCheckBits checks the block of memory at src, for up to size
@@ -233,7 +187,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
 //go:nowritebarrier
 //go:systemstack
 func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
-	if typ.PtrBytes == 0 {
+	if !typ.Pointers() {
 		return
 	}
 
@@ -245,48 +199,5 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
 		size = ptrdataSize
 	}
 
-	if typ.Kind_&kindGCProg == 0 {
-		cgoCheckBits(src, typ.GCData, off, size)
-		return
-	}
-	switch typ.Kind_ & kindMask {
-	default:
-		throw("can't happen")
-	case kindArray:
-		at := (*arraytype)(unsafe.Pointer(typ))
-		for i := uintptr(0); i < at.Len; i++ {
-			if off < at.Elem.Size_ {
-				cgoCheckUsingType(at.Elem, src, off, size)
-			}
-			src = add(src, at.Elem.Size_)
-			skipped := off
-			if skipped > at.Elem.Size_ {
-				skipped = at.Elem.Size_
-			}
-			checked := at.Elem.Size_ - skipped
-			off -= skipped
-			if size <= checked {
-				return
-			}
-			size -= checked
-		}
-	case kindStruct:
-		st := (*structtype)(unsafe.Pointer(typ))
-		for _, f := range st.Fields {
-			if off < f.Typ.Size_ {
-				cgoCheckUsingType(f.Typ, src, off, size)
-			}
-			src = add(src, f.Typ.Size_)
-			skipped := off
-			if skipped > f.Typ.Size_ {
-				skipped = f.Typ.Size_
-			}
-			checked := f.Typ.Size_ - skipped
-			off -= skipped
-			if size <= checked {
-				return
-			}
-			size -= checked
-		}
-	}
+	cgoCheckBits(src, getGCMask(typ), off, size)
 }

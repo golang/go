@@ -5,26 +5,27 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/abi"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
 // A Pinner is a set of Go objects each pinned to a fixed location in memory. The
-// [Pin] method pins one object, while [Unpin] unpins all pinned objects. See their
-// comments for more information.
+// [Pinner.Pin] method pins one object, while [Pinner.Unpin] unpins all pinned
+// objects. See their comments for more information.
 type Pinner struct {
 	*pinner
 }
 
 // Pin pins a Go object, preventing it from being moved or freed by the garbage
-// collector until the Unpin method has been called.
+// collector until the [Pinner.Unpin] method has been called.
 //
 // A pointer to a pinned object can be directly stored in C memory or can be
 // contained in Go memory passed to C functions. If the pinned object itself
 // contains pointers to Go objects, these objects must be pinned separately if they
 // are going to be accessed from C code.
 //
-// The argument must be a pointer of any type or an unsafe.Pointer.
+// The argument must be a pointer of any type or an [unsafe.Pointer].
 // It's safe to call Pin on non-Go pointers, in which case Pin will do nothing.
 func (p *Pinner) Pin(pointer any) {
 	if p.pinner == nil {
@@ -61,7 +62,7 @@ func (p *Pinner) Pin(pointer any) {
 	}
 }
 
-// Unpin unpins all pinned objects of the Pinner.
+// Unpin unpins all pinned objects of the [Pinner].
 func (p *Pinner) Unpin() {
 	p.pinner.unpin()
 
@@ -107,7 +108,7 @@ func pinnerGetPtr(i *any) unsafe.Pointer {
 	if etyp == nil {
 		panic(errorString("runtime.Pinner: argument is nil"))
 	}
-	if kind := etyp.Kind_ & kindMask; kind != kindPtr && kind != kindUnsafePointer {
+	if kind := etyp.Kind_ & abi.KindMask; kind != abi.Pointer && kind != abi.UnsafePointer {
 		panic(errorString("runtime.Pinner: argument is not a pointer: " + toRType(etyp).string()))
 	}
 	if inUserArenaChunk(uintptr(e.data)) {
@@ -271,7 +272,7 @@ func (s *mspan) pinnerBitSize() uintptr {
 }
 
 // newPinnerBits returns a pointer to 8 byte aligned bytes to be used for this
-// span's pinner bits. newPinneBits is used to mark objects that are pinned.
+// span's pinner bits. newPinnerBits is used to mark objects that are pinned.
 // They are copied when the span is swept.
 func (s *mspan) newPinnerBits() *pinnerBits {
 	return (*pinnerBits)(newMarkBits(uintptr(s.nelems) * 2))

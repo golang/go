@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -50,8 +51,8 @@ func concatstrings(buf *tmpBuf, a []string) string {
 	}
 	s, b := rawstringtmp(buf, l)
 	for _, x := range a {
-		copy(b, x)
-		b = b[len(x):]
+		n := copy(b, x)
+		b = b[n:]
 	}
 	return s
 }
@@ -72,6 +73,49 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
 	return concatstrings(buf, []string{a0, a1, a2, a3, a4})
 }
 
+// concatbytes implements a Go string concatenation x+y+z+... returning a slice
+// of bytes.
+// The operands are passed in the slice a.
+func concatbytes(a []string) []byte {
+	l := 0
+	for _, x := range a {
+		n := len(x)
+		if l+n < l {
+			throw("string concatenation too long")
+		}
+		l += n
+	}
+	if l == 0 {
+		// This is to match the return type of the non-optimized concatenation.
+		return []byte{}
+	}
+
+	b := rawbyteslice(l)
+	offset := 0
+	for _, x := range a {
+		copy(b[offset:], x)
+		offset += len(x)
+	}
+
+	return b
+}
+
+func concatbyte2(a0, a1 string) []byte {
+	return concatbytes([]string{a0, a1})
+}
+
+func concatbyte3(a0, a1, a2 string) []byte {
+	return concatbytes([]string{a0, a1, a2})
+}
+
+func concatbyte4(a0, a1, a2, a3 string) []byte {
+	return concatbytes([]string{a0, a1, a2, a3})
+}
+
+func concatbyte5(a0, a1, a2, a3, a4 string) []byte {
+	return concatbytes([]string{a0, a1, a2, a3, a4})
+}
+
 // slicebytetostring converts a byte slice to a string.
 // It is inserted by the compiler into generated code.
 // ptr is a pointer to the first element of the slice;
@@ -88,7 +132,7 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) string {
 	if raceenabled {
 		racereadrangepc(unsafe.Pointer(ptr),
 			uintptr(n),
-			getcallerpc(),
+			sys.GetCallerPC(),
 			abi.FuncPCABIInternal(slicebytetostring))
 	}
 	if msanenabled {
@@ -151,7 +195,7 @@ func slicebytetostringtmp(ptr *byte, n int) string {
 	if raceenabled && n > 0 {
 		racereadrangepc(unsafe.Pointer(ptr),
 			uintptr(n),
-			getcallerpc(),
+			sys.GetCallerPC(),
 			abi.FuncPCABIInternal(slicebytetostringtmp))
 	}
 	if msanenabled && n > 0 {
@@ -203,7 +247,7 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
 	if raceenabled && len(a) > 0 {
 		racereadrangepc(unsafe.Pointer(&a[0]),
 			uintptr(len(a))*unsafe.Sizeof(a[0]),
-			getcallerpc(),
+			sys.GetCallerPC(),
 			abi.FuncPCABIInternal(slicerunetostring))
 	}
 	if msanenabled && len(a) > 0 {
@@ -270,7 +314,7 @@ func rawstring(size int) (s string, b []byte) {
 
 // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
 func rawbyteslice(size int) (b []byte) {
-	cap := roundupsize(uintptr(size))
+	cap := roundupsize(uintptr(size), true)
 	p := mallocgc(cap, nil, false)
 	if cap != uintptr(size) {
 		memclrNoHeapPointers(add(p, uintptr(size)), cap-uintptr(size))
@@ -285,7 +329,7 @@ func rawruneslice(size int) (b []rune) {
 	if uintptr(size) > maxAlloc/4 {
 		throw("out of memory")
 	}
-	mem := roundupsize(uintptr(size) * 4)
+	mem := roundupsize(uintptr(size)*4, true)
 	p := mallocgc(mem, nil, false)
 	if mem != uintptr(size)*4 {
 		memclrNoHeapPointers(add(p, uintptr(size)*4), mem-uintptr(size)*4)
@@ -312,7 +356,7 @@ func gobytes(p *byte, n int) (b []byte) {
 	return
 }
 
-// This is exported via linkname to assembly in syscall (for Plan9).
+// This is exported via linkname to assembly in syscall (for Plan9) and cgo.
 //
 //go:linkname gostring
 func gostring(p *byte) string {
@@ -339,14 +383,6 @@ func gostringn(p *byte, l int) string {
 	s, b := rawstring(l)
 	memmove(unsafe.Pointer(&b[0]), unsafe.Pointer(p), uintptr(l))
 	return s
-}
-
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
-}
-
-func hasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }
 
 const (

@@ -15,8 +15,6 @@ var Syms symsStruct
 type symsStruct struct {
 	AssertE2I         *obj.LSym
 	AssertE2I2        *obj.LSym
-	AssertI2I         *obj.LSym
-	AssertI2I2        *obj.LSym
 	Asanread          *obj.LSym
 	Asanwrite         *obj.LSym
 	CgoCheckMemmove   *obj.LSym
@@ -54,17 +52,20 @@ type symsStruct struct {
 	WBZero            *obj.LSym
 	WBMove            *obj.LSym
 	// Wasm
-	SigPanic        *obj.LSym
-	Staticuint64s   *obj.LSym
-	Typedmemmove    *obj.LSym
-	Udiv            *obj.LSym
-	WriteBarrier    *obj.LSym
-	Zerobase        *obj.LSym
-	ARM64HasATOMICS *obj.LSym
-	ARMHasVFPv4     *obj.LSym
-	X86HasFMA       *obj.LSym
-	X86HasPOPCNT    *obj.LSym
-	X86HasSSE41     *obj.LSym
+	SigPanic         *obj.LSym
+	Staticuint64s    *obj.LSym
+	Typedmemmove     *obj.LSym
+	Udiv             *obj.LSym
+	WriteBarrier     *obj.LSym
+	Zerobase         *obj.LSym
+	ARM64HasATOMICS  *obj.LSym
+	ARMHasVFPv4      *obj.LSym
+	Loong64HasLAMCAS *obj.LSym
+	Loong64HasLAM_BH *obj.LSym
+	Loong64HasLSX    *obj.LSym
+	X86HasFMA        *obj.LSym
+	X86HasPOPCNT     *obj.LSym
+	X86HasSSE41      *obj.LSym
 	// Wasm
 	WasmDiv *obj.LSym
 	// Wasm
@@ -75,8 +76,9 @@ type symsStruct struct {
 
 // Pkgs holds known packages.
 var Pkgs struct {
-	Go       *types.Pkg
-	Itab     *types.Pkg
-	Runtime  *types.Pkg
-	Coverage *types.Pkg
+	Go           *types.Pkg
+	Itab         *types.Pkg
+	Runtime      *types.Pkg
+	InternalMaps *types.Pkg
+	Coverage     *types.Pkg
 }

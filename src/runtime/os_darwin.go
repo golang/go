@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/stringslite"
 	"unsafe"
 )
 
@@ -191,14 +192,10 @@ func getPageSize() uintptr {
 	return 0
 }
 
-var urandom_dev = []byte("/dev/urandom\x00")
-
 //go:nosplit
-func getRandomData(r []byte) {
-	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
-	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	closefd(fd)
-	extendRandom(r, int(n))
+func readRandom(r []byte) int {
+	arc4random_buf(unsafe.Pointer(&r[0]), int32(len(r)))
+	return len(r)
 }
 
 func goenvs() {
@@ -465,10 +462,7 @@ func sysargs(argc int32, argv **byte) {
 	executablePath = gostringnocopy(argv_index(argv, n+1))
 
 	// strip "executable_path=" prefix if available, it's added after OS X 10.11.
-	const prefix = "executable_path="
-	if len(executablePath) > len(prefix) && executablePath[:len(prefix)] == prefix {
-		executablePath = executablePath[len(prefix):]
-	}
+	executablePath = stringslite.TrimPrefix(executablePath, "executable_path=")
 }
 
 func signalM(mp *m, sig int) {
