@@ -430,3 +430,39 @@ func TestConcurrentReconnect(t *testing.T) {
 		t.Error("timeout in concurrent reconnect")
 	}
 }
+
+func TestDialWhenConnectionIsBad(t *testing.T) {
+	var (
+		tr   = "unix"
+		addr = "127.0.0.1:12345"
+	)
+
+	if !testableNetwork(tr) {
+		t.Skipf("skipping on %s/%s; 'unix' is not supported", runtime.GOOS, runtime.GOARCH)
+	}
+
+	// connection is bad, but we don't know it yet
+	w, err := Dial(tr, addr, LOG_USER|LOG_ERR, "syslog_test")
+	if err != nil {
+		t.Fatalf("syslog.Dial() failed: %v", err)
+	}
+	defer w.Close()
+
+	if err := w.Info("test"); err == nil {
+		t.Error("expected error")
+	}
+
+	// connection is recovered
+	done := make(chan string, 1)
+	addr, sock, srvWG := startServer(t, tr, addr, done)
+	defer srvWG.Wait()
+	defer sock.Close()
+	defer os.Remove(addr)
+
+	msg := "Test Connection"
+	if err := w.Info(msg); err != nil {
+		t.Errorf("Info() failed: %v", err)
+	}
+
+	check(t, msg, <-done, tr)
+}
