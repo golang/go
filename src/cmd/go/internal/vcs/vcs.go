@@ -238,7 +238,7 @@ func parseRevTime(out []byte) (string, time.Time, error) {
 
 	secs, err := strconv.ParseInt(string(buf[i+1:]), 10, 64)
 	if err != nil {
-		return "", time.Time{}, fmt.Errorf("unrecognized VCS tool output: %v", err)
+		return "", time.Time{}, fmt.Errorf("unrecognized VCS tool output: %w", err)
 	}
 
 	return rev, time.Unix(secs, 0), nil
@@ -600,7 +600,7 @@ func fossilStatus(vcsFossil *Cmd, rootDir string) (Status, error) {
 
 	commitTime, err := time.ParseInLocation(time.DateTime, checkout[i+1:], time.UTC)
 	if err != nil {
-		return Status{}, fmt.Errorf("%v: %v", errFossilInfo, err)
+		return Status{}, fmt.Errorf("%v: %w", errFossilInfo, err)
 	}
 
 	// Also look for untracked changes.
@@ -1085,7 +1085,7 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
 	if err == errUnknownSite {
 		rr, err = repoRootForImportDynamic(importPath, mod, security)
 		if err != nil {
-			err = importErrorf(importPath, "unrecognized import path %q: %v", importPath, err)
+			err = importErrorf(importPath, "unrecognized import path %q: %w", importPath, err)
 		}
 	}
 	if err != nil {
@@ -1293,7 +1293,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 	}
 	resp, err := web.Get(security, url)
 	if err != nil {
-		msg := "https fetch: %v"
+		msg := "https fetch: %w"
 		if security == web.Insecure {
 			msg = "http/" + msg
 		}
@@ -1310,13 +1310,13 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("parsing %s: %v", importPath, err)
+		return nil, fmt.Errorf("parsing %s: %w", importPath, err)
 	}
 	// Find the matched meta import.
 	mmi, err := matchGoImport(imports, importPath)
 	if err != nil {
 		if _, ok := err.(ImportMismatchError); !ok {
-			return nil, fmt.Errorf("parse %s: %v", url, err)
+			return nil, fmt.Errorf("parse %s: %w", url, err)
 		}
 		return nil, fmt.Errorf("parse %s: no go-import meta tags (%s)", resp.URL, err)
 	}
@@ -1345,7 +1345,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 	}
 
 	if err := validateRepoRoot(mmi.RepoRoot); err != nil {
-		return nil, fmt.Errorf("%s: invalid repo root %q: %v", resp.URL, mmi.RepoRoot, err)
+		return nil, fmt.Errorf("%s: invalid repo root %q: %w", resp.URL, mmi.RepoRoot, err)
 	}
 	var vcs *Cmd
 	if mmi.VCS == "mod" {
@@ -1426,7 +1426,7 @@ func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.Secu
 		}
 		resp, err := web.Get(security, url)
 		if err != nil {
-			return setCache(fetchResult{url: url, err: fmt.Errorf("fetching %s: %v", importPrefix, err)})
+			return setCache(fetchResult{url: url, err: fmt.Errorf("fetching %s: %w", importPrefix, err)})
 		}
 		body := resp.Body
 		defer body.Close()
@@ -1439,7 +1439,7 @@ func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.Secu
 			}
 		}
 		if err != nil {
-			return setCache(fetchResult{url: url, err: fmt.Errorf("parsing %s: %v", resp.URL, err)})
+			return setCache(fetchResult{url: url, err: fmt.Errorf("parsing %s: %w", resp.URL, err)})
 		}
 		if len(imports) == 0 {
 			err = fmt.Errorf("fetching %s: no go-import meta tag found in %s", importPrefix, resp.URL)
