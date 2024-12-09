@@ -178,9 +178,20 @@ func Remove(name string) error {
 	if e == nil {
 		return nil
 	}
+
 	e1 := syscall.RemoveDirectory(p)
 	if e1 == nil {
 		return nil
+	} else {
+		//Empty directories with "read-only" attribute on Windows can cause issues so we have to try with chmod to remove it
+		a, e2 := syscall.GetFileAttributes(p)
+		if e2 == nil && a&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 && IsPermission(e1) {
+			if fs, err := Stat(fixLongPath(name)); err == nil {
+				if err = Chmod(fixLongPath(name), FileMode(0200|int(fs.Mode()))); err == nil {
+					e1 = syscall.RemoveDirectory(p)
+				}
+			}
+		}
 	}
 
 	// Both failed: figure out which error to return.
