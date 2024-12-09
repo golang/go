@@ -366,6 +366,11 @@ func (d Delim) String() string {
 // to mark the start and end of arrays and objects.
 // Commas and colons are elided.
 func (dec *Decoder) Token() (Token, error) {
+	dec.scan.inStream = true
+	defer func() {
+		dec.scan.inStream = false
+	}()
+
 	for {
 		c, err := dec.peek()
 		if err != nil {
