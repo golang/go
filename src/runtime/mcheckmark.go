@@ -92,23 +92,150 @@ func setCheckmark(obj, base, off uintptr, mbits markBits) bool {
 		getg().m.traceback = 2
 		throw("checkmark found unmarked object")
 	}
-
-	ai := arenaIndex(obj)
-	arena := mheap_.arenas[ai.l1()][ai.l2()]
-	if arena == nil {
-		// Non-heap pointer.
+	bytep, mask := getCheckmark(obj)
+	if bytep == nil {
 		return false
 	}
-	wordIdx := (obj - alignDown(obj, heapArenaBytes)) / goarch.PtrSize
-	arenaWord := wordIdx / 8
-	mask := byte(1 << (wordIdx % 8))
-	bytep := &arena.checkmarks.b[arenaWord]
-
 	if atomic.Load8(bytep)&mask != 0 {
 		// Already checkmarked.
 		return true
 	}
-
 	atomic.Or8(bytep, mask)
 	return false
+}
+
+func getCheckmark(obj uintptr) (bytep *byte, mask uint8) {
+	ai := arenaIndex(obj)
+	arena := mheap_.arenas[ai.l1()][ai.l2()]
+	if arena == nil {
+		// Non-heap pointer.
+		return nil, 0
+	}
+	wordIdx := (obj - alignDown(obj, heapArenaBytes)) / goarch.PtrSize
+	arenaWord := wordIdx / 8
+	mask = byte(1 << (wordIdx % 8))
+	bytep = &arena.checkmarks.b[arenaWord]
+	return bytep, mask
+}
+
+// runCheckmark runs a full non-parallel, stop-the-world mark using
+// checkmark bits, to check that we didn't forget to mark anything
+// during the concurrent mark process.
+//
+// The world must be stopped to call runCheckmark.
+func runCheckmark(prepareRootSet func(*gcWork)) {
+	assertWorldStopped()
+
+	// Turn off gcwaiting because that will force
+	// gcDrain to return early if this goroutine
+	// happens to have its preemption flag set.
+	// This is fine because the world is stopped.
+	// Restore it after we're done just to be safe.
+	sched.gcwaiting.Store(false)
+	startCheckmarks()
+	gcResetMarkState()
+	gcw := &getg().m.p.ptr().gcw
+	prepareRootSet(gcw)
+	gcDrain(gcw, 0)
+	wbBufFlush1(getg().m.p.ptr())
+	gcw.dispose()
+	endCheckmarks()
+	sched.gcwaiting.Store(true)
+}
+
+// checkFinalizersAndCleanups uses checkmarks to check for potential issues
+// with the program's use of cleanups and finalizers.
+func checkFinalizersAndCleanups() {
+	assertWorldStopped()
+
+	failed := false
+	forEachSpecial(func(p uintptr, s *mspan, sp *special) bool {
+		// We only care about finalizers and cleanups.
+		if sp.kind != _KindSpecialFinalizer && sp.kind != _KindSpecialCleanup {
+			return true
+		}
+
+		// Run a checkmark GC using this cleanup and/or finalizer as a root.
+		runCheckmark(func(gcw *gcWork) {
+			switch sp.kind {
+			case _KindSpecialFinalizer:
+				gcScanFinalizer((*specialfinalizer)(unsafe.Pointer(sp)), s, gcw)
+			case _KindSpecialCleanup:
+				gcScanCleanup((*specialCleanup)(unsafe.Pointer(sp)), gcw)
+			}
+		})
+
+		// Now check to see if the object the special is attached to was marked.
+		// The roots above do not directly mark p, so if it is marked, then p
+		// must be reachable from the finalizer and/or cleanup, preventing
+		// reclamation.
+		bytep, mask := getCheckmark(p)
+		if bytep == nil {
+			return true
+		}
+		if atomic.Load8(bytep)&mask != 0 {
+			if !failed {
+				println("runtime: found possibly unreclaimable objects:")
+			}
+			failed = true
+			kind := "cleanup"
+			if sp.kind == _KindSpecialFinalizer {
+				kind = "finalizer"
+			}
+			print("\t0x", hex(p), " leaked due to a ", kind)
+			if sp.kind == _KindSpecialFinalizer {
+				spf := (*specialfinalizer)(unsafe.Pointer(sp))
+				print(" (", (rtype{spf.fint}).string(), ")\n")
+			} else {
+				println()
+			}
+		}
+		return true
+	})
+	if failed {
+		throw("runtime: detected possible cleanup and/or finalizer leak")
+	}
+}
+
+// forEachSpecial is an iterator over all specials.
+//
+// Used by debug.checkfinalizers.
+//
+// The world must be stopped.
+func forEachSpecial(yield func(p uintptr, s *mspan, sp *special) bool) {
+	assertWorldStopped()
+
+	// Find the arena and page index into that arena for this shard.
+	for _, ai := range mheap_.markArenas {
+		ha := mheap_.arenas[ai.l1()][ai.l2()]
+
+		// Construct slice of bitmap which we'll iterate over.
+		for i := range ha.pageSpecials[:] {
+			// Find set bits, which correspond to spans with specials.
+			specials := atomic.Load8(&ha.pageSpecials[i])
+			if specials == 0 {
+				continue
+			}
+			for j := uint(0); j < 8; j++ {
+				if specials&(1<<j) == 0 {
+					continue
+				}
+				// Find the span for this bit.
+				//
+				// This value is guaranteed to be non-nil because having
+				// specials implies that the span is in-use, and since we're
+				// currently marking we can be sure that we don't have to worry
+				// about the span being freed and re-used.
+				s := ha.spans[uint(i)*8+j]
+
+				// Lock the specials to prevent a special from being
+				// removed from the list while we're traversing it.
+				for sp := s.specials; sp != nil; sp = sp.next {
+					if !yield(s.base()+sp.offset, s, sp) {
+						return
+					}
+				}
+			}
+		}
+	}
 }

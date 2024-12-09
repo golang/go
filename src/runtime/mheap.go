@@ -314,7 +314,7 @@ type heapArena struct {
 	pageUseSpanInlineMarkBits [pagesPerArena / 8]uint8
 
 	// checkmarks stores the debug.gccheckmark state. It is only
-	// used if debug.gccheckmark > 0.
+	// used if debug.gccheckmark > 0 or debug.checkfinalizers > 0.
 	checkmarks *checkmarksMap
 
 	// zeroedBase marks the first byte of the first page in this

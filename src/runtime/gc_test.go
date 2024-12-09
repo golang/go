@@ -1073,3 +1073,17 @@ func TestMSpanQueue(t *testing.T) {
 		expectMSpan(t, p.Pop(), nil, "pop")
 	})
 }
+
+func TestDetectFinalizerAndCleanupLeaks(t *testing.T) {
+	got := runTestProg(t, "testprog", "DetectFinalizerAndCleanupLeaks", "GODEBUG=checkfinalizers=1")
+	sp := strings.SplitN(got, "runtime: detected", 2)
+	if len(sp) != 2 {
+		t.Fatalf("expected the runtime to throw, got:\n%s", got)
+	}
+	if strings.Count(sp[0], "finalizer") != 1 {
+		t.Fatalf("expected exactly one leaked finalizer, got:\n%s", got)
+	}
+	if strings.Count(sp[0], "cleanup") != 1 {
+		t.Fatalf("expected exactly one leaked finalizer, got:\n%s", got)
+	}
+}

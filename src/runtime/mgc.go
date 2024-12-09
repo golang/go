@@ -370,13 +370,13 @@ type workType struct {
 	tstart int64
 	nwait  uint32
 
-	// Number of roots of various root types. Set by gcMarkRootPrepare.
+	// Number of roots of various root types. Set by gcPrepareMarkRoots.
 	//
 	// nStackRoots == len(stackRoots), but we have nStackRoots for
 	// consistency.
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
 
-	// Base indexes of each root type. Set by gcMarkRootPrepare.
+	// Base indexes of each root type. Set by gcPrepareMarkRoots.
 	baseData, baseBSS, baseSpans, baseStacks, baseEnd uint32
 
 	// stackRoots is a snapshot of all of the Gs that existed
@@ -788,7 +788,7 @@ func gcStart(trigger gcTrigger) {
 	setGCPhase(_GCmark)
 
 	gcBgMarkPrepare() // Must happen before assists are enabled.
-	gcMarkRootPrepare()
+	gcPrepareMarkRoots()
 
 	// Mark all active tinyalloc blocks. Since we're
 	// allocating from these, they need to be black like
@@ -1069,26 +1069,10 @@ func gcMarkTermination(stw worldStop) {
 	systemstack(func() {
 		work.heap2 = work.bytesMarked
 		if debug.gccheckmark > 0 {
-			// Run a full non-parallel, stop-the-world
-			// mark using checkmark bits, to check that we
-			// didn't forget to mark anything during the
-			// concurrent mark process.
-			//
-			// Turn off gcwaiting because that will force
-			// gcDrain to return early if this goroutine
-			// happens to have its preemption flag set.
-			// This is fine because the world is stopped.
-			// Restore it after we're done just to be safe.
-			sched.gcwaiting.Store(false)
-			startCheckmarks()
-			gcResetMarkState()
-			gcMarkRootPrepare()
-			gcw := &getg().m.p.ptr().gcw
-			gcDrain(gcw, 0)
-			wbBufFlush1(getg().m.p.ptr())
-			gcw.dispose()
-			endCheckmarks()
-			sched.gcwaiting.Store(true)
+			runCheckmark(func(_ *gcWork) { gcPrepareMarkRoots() })
+		}
+		if debug.checkfinalizers > 0 {
+			checkFinalizersAndCleanups()
 		}
 
 		// marking is complete so we can turn the write barrier off

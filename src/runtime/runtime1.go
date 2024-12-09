@@ -333,6 +333,7 @@ var debug struct {
 	traceCheckStackOwnership int32
 	profstackdepth           int32
 	dataindependenttiming    int32
+	checkfinalizers          int32
 
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
@@ -373,6 +374,7 @@ var dbgvars = []*dbgVar{
 	{name: "decoratemappings", value: &debug.decoratemappings, def: 1},
 	{name: "disablethp", value: &debug.disablethp},
 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
+	{name: "checkfinalizers", value: &debug.checkfinalizers},
 	{name: "efence", value: &debug.efence},
 	{name: "gccheckmark", value: &debug.gccheckmark},
 	{name: "gcpacertrace", value: &debug.gcpacertrace},
