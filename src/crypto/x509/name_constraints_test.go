@@ -1607,6 +1607,23 @@ var nameConstraintsTests = []nameConstraintsTest{
 		leaf:          leafSpec{sans: []string{"dns:.example.com"}},
 		expectedError: "cannot parse dnsName \".example.com\"",
 	},
+	// #86: URIs with IPv6 addresses with zones and ports are rejected
+	{
+		roots: []constraintsSpec{
+			{
+				ok: []string{"uri:example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"uri:http://[2006:abcd::1%25.example.com]:16/"},
+		},
+		expectedError: "URI with IP",
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
