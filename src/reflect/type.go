@@ -1435,6 +1435,9 @@ func implements(T, V *abi.Type) bool {
 	// See also ../runtime/iface.go.
 	if V.Kind() == abi.Interface {
 		v := (*interfaceType)(unsafe.Pointer(V))
+		if len(v.methods) < len(t.methods) {
+			return false
+		}
 		i := 0
 		for j := 0; j < len(v.Methods); j++ {
 			tm := &t.Methods[i]
