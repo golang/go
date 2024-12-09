@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"reflect"
 	"runtime"
@@ -429,8 +430,10 @@ func matchURIConstraint(uri *url.URL, constraint string) (bool, error) {
 		}
 	}
 
-	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") ||
-		net.ParseIP(host) != nil {
+	// netip.ParseAddr will reject the URI IPv6 literal form "[...]", so we
+	// check if _either_ the string parses as an IP, or if it is enclosed in
+	// square brackets.
+	if _, err := netip.ParseAddr(host); err == nil || (strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]")) {
 		return false, fmt.Errorf("URI with IP (%q) cannot be matched against constraints", uri.String())
 	}
 
