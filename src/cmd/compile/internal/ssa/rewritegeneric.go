@@ -20678,6 +20678,17 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 		v.copyOf(ptr)
 		return true
 	}
+	// match: (NilCheck ptr:(LocalAddr _ _) _)
+	// cond: warnRule(fe.Debug_checknil(), v, "removed nil check")
+	// result: ptr
+	for {
+		ptr := v_0
+		if ptr.Op != OpLocalAddr || !(warnRule(fe.Debug_checknil(), v, "removed nil check")) {
+			break
+		}
+		v.copyOf(ptr)
+		return true
+	}
 	// match: (NilCheck ptr:(NilCheck _ _) _ )
 	// result: ptr
 	for {
@@ -30294,6 +30305,48 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 		v0.Aux = symToAux(ir.Syms.Zerobase)
 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
 		v0.AddArg(v1)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	// match: (StaticLECall {f} typ_ x y mem)
+	// cond: isSameCall(f, "runtime.efaceeq") && isDirectType(typ_) && clobber(v)
+	// result: (MakeResult (EqPtr x y) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		f := auxToCall(v.Aux)
+		mem := v.Args[3]
+		typ_ := v.Args[0]
+		x := v.Args[1]
+		y := v.Args[2]
+		if !(isSameCall(f, "runtime.efaceeq") && isDirectType(typ_) && clobber(v)) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEqPtr, typ.Bool)
+		v0.AddArg2(x, y)
+		v.AddArg2(v0, mem)
+		return true
+	}
+	// match: (StaticLECall {f} itab x y mem)
+	// cond: isSameCall(f, "runtime.ifaceeq") && isDirectIface(itab) && clobber(v)
+	// result: (MakeResult (EqPtr x y) mem)
+	for {
+		if len(v.Args) != 4 {
+			break
+		}
+		f := auxToCall(v.Aux)
+		mem := v.Args[3]
+		itab := v.Args[0]
+		x := v.Args[1]
+		y := v.Args[2]
+		if !(isSameCall(f, "runtime.ifaceeq") && isDirectIface(itab) && clobber(v)) {
+			break
+		}
+		v.reset(OpMakeResult)
+		v0 := b.NewValue0(v.Pos, OpEqPtr, typ.Bool)
+		v0.AddArg2(x, y)
 		v.AddArg2(v0, mem)
 		return true
 	}

@@ -2072,6 +2072,11 @@
 (NilCheck          ptr:(Addr {_} (SB))    _) => ptr
 (NilCheck ptr:(Convert (Addr {_} (SB)) _) _) => ptr
 
+// Addresses of locals are always non-nil.
+(NilCheck ptr:(LocalAddr _ _) _)
+	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
+	=> ptr
+
 // Nil checks of nil checks are redundant.
 // See comment at the end of https://go-review.googlesource.com/c/go/+/537775.
 (NilCheck ptr:(NilCheck _ _) _ ) => ptr
@@ -2774,3 +2779,19 @@
 // If we don't use the result of cmpstring, might as well not call it.
 // Note that this could pretty easily generalize to any pure function.
 (SelectN [1] c:(StaticLECall {f} _ _ mem)) && c.Uses == 1 && isSameCall(f, "runtime.cmpstring") && clobber(c) => mem
+
+// We can easily compute the result of efaceeq if
+// we know the underlying type is pointer-ish.
+(StaticLECall {f} typ_ x y mem)
+	&& isSameCall(f, "runtime.efaceeq")
+	&& isDirectType(typ_)
+	&& clobber(v)
+	=> (MakeResult (EqPtr x y) mem)
+
+// We can easily compute the result of ifaceeq if
+// we know the underlying type is pointer-ish.
+(StaticLECall {f} itab x y mem)
+	&& isSameCall(f, "runtime.ifaceeq")
+	&& isDirectIface(itab)
+	&& clobber(v)
+	=> (MakeResult (EqPtr x y) mem)

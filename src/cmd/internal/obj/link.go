@@ -603,6 +603,22 @@ func (s *LSym) NewTypeInfo() *TypeInfo {
 	return t
 }
 
+// An ItabInfo contains information for a symbol
+// that contains a runtime.itab.
+type ItabInfo struct {
+	Type interface{} // a *cmd/compile/internal/types.Type
+}
+
+func (s *LSym) NewItabInfo() *ItabInfo {
+	if s.Extra != nil {
+		panic(fmt.Sprintf("invalid use of LSym - NewItabInfo with Extra of type %T", *s.Extra))
+	}
+	t := new(ItabInfo)
+	s.Extra = new(interface{})
+	*s.Extra = t
+	return t
+}
+
 // WasmImport represents a WebAssembly (WASM) imported function with
 // parameters and results translated into WASM types based on the Go function
 // declaration.

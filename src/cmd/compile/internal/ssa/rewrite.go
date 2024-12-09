@@ -2424,3 +2424,86 @@ func rewriteStructStore(v *Value) *Value {
 
 	return mem
 }
+
+// isDirectType reports whether v represents a type
+// (a *runtime._type) whose value is stored directly in an
+// interface (i.e., is pointer or pointer-like).
+func isDirectType(v *Value) bool {
+	return isDirectType1(v)
+}
+
+// v is a type
+func isDirectType1(v *Value) bool {
+	switch v.Op {
+	case OpITab:
+		return isDirectType2(v.Args[0])
+	case OpAddr:
+		lsym := v.Aux.(*obj.LSym)
+		if lsym.Extra == nil {
+			return false
+		}
+		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
+			return types.IsDirectIface(ti.Type.(*types.Type))
+		}
+	}
+	return false
+}
+
+// v is an empty interface
+func isDirectType2(v *Value) bool {
+	switch v.Op {
+	case OpIMake:
+		return isDirectType1(v.Args[0])
+	}
+	return false
+}
+
+// isDirectIface reports whether v represents an itab
+// (a *runtime._itab) for a type whose value is stored directly
+// in an interface (i.e., is pointer or pointer-like).
+func isDirectIface(v *Value) bool {
+	return isDirectIface1(v, 9)
+}
+
+// v is an itab
+func isDirectIface1(v *Value, depth int) bool {
+	if depth == 0 {
+		return false
+	}
+	switch v.Op {
+	case OpITab:
+		return isDirectIface2(v.Args[0], depth-1)
+	case OpAddr:
+		lsym := v.Aux.(*obj.LSym)
+		if lsym.Extra == nil {
+			return false
+		}
+		if ii, ok := (*lsym.Extra).(*obj.ItabInfo); ok {
+			return types.IsDirectIface(ii.Type.(*types.Type))
+		}
+	case OpConstNil:
+		// We can treat this as direct, because if the itab is
+		// nil, the data field must be nil also.
+		return true
+	}
+	return false
+}
+
+// v is an interface
+func isDirectIface2(v *Value, depth int) bool {
+	if depth == 0 {
+		return false
+	}
+	switch v.Op {
+	case OpIMake:
+		return isDirectIface1(v.Args[0], depth-1)
+	case OpPhi:
+		for _, a := range v.Args {
+			if !isDirectIface2(a, depth-1) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
