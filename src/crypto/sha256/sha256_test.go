@@ -200,6 +200,56 @@ func testGoldenMarshal(t *testing.T) {
 	}
 }
 
+func TestLarge(t *testing.T) {
+	const N = 10000
+	const offsets = 4
+	ok := "4c207598af7a20db0e3334dd044399a40e467cb81b37f7ba05a4f76dcbd8fd59" // sha256sum of "0123456789" * 1000
+	block := make([]byte, N+offsets)
+	c := New()
+	for offset := 0; offset < offsets; offset++ {
+		for i := 0; i < N; i++ {
+			block[offset+i] = '0' + byte(i%10)
+		}
+		for blockSize := 10; blockSize <= N; blockSize *= 10 {
+			blocks := N / blockSize
+			b := block[offset : offset+blockSize]
+			c.Reset()
+			for i := 0; i < blocks; i++ {
+				c.Write(b)
+			}
+			s := fmt.Sprintf("%x", c.Sum(nil))
+			if s != ok {
+				t.Fatalf("sha256 TestLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
+			}
+		}
+	}
+}
+
+func TestExtraLarge(t *testing.T) {
+	const N = 100000
+	const offsets = 4
+	ok := "aca9e593cc629cbaa94cd5a07dc029424aad93e5129e5d11f8dcd2f139c16cc0" // sha256sum of "0123456789" * 10000
+	block := make([]byte, N+offsets)
+	c := New()
+	for offset := 0; offset < offsets; offset++ {
+		for i := 0; i < N; i++ {
+			block[offset+i] = '0' + byte(i%10)
+		}
+		for blockSize := 10; blockSize <= N; blockSize *= 10 {
+			blocks := N / blockSize
+			b := block[offset : offset+blockSize]
+			c.Reset()
+			for i := 0; i < blocks; i++ {
+				c.Write(b)
+			}
+			s := fmt.Sprintf("%x", c.Sum(nil))
+			if s != ok {
+				t.Fatalf("sha256 TestExtraLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
+			}
+		}
+	}
+}
+
 func TestMarshalTypeMismatch(t *testing.T) {
 	h1 := New()
 	h2 := New224()
