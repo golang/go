@@ -489,6 +489,10 @@ func TestRISCVErrors(t *testing.T) {
 	testErrors(t, "riscv64", "riscv64error")
 }
 
+func TestRISCVValidation(t *testing.T) {
+	testErrors(t, "riscv64", "riscv64validation")
+}
+
 func TestS390XEndToEnd(t *testing.T) {
 	testEndToEnd(t, "s390x", "s390x")
 }

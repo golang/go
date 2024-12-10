@@ -833,6 +833,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 		}
 
+		// Return if errors have been detected up to this point. Continuing
+		// may lead to duplicate errors being output.
+		if ctxt.Errors > 0 {
+			return
+		}
 		if !rescan {
 			break
 		}
