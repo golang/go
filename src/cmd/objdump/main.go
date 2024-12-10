@@ -40,6 +40,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cmd/internal/disasm"
 	"cmd/internal/objfile"
 	"cmd/internal/telemetry/counter"
 )
@@ -82,7 +83,7 @@ func main() {
 	}
 	defer f.Close()
 
-	dis, err := f.Disasm()
+	dis, err := disasm.DisasmForFile(f)
 	if err != nil {
 		log.Fatalf("disassemble %s: %v", flag.Arg(0), err)
 	}

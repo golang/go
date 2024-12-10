@@ -119,10 +119,6 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	return f.entries[0].DWARF()
 }
 
-func (f *File) Disasm() (*Disasm, error) {
-	return f.entries[0].Disasm()
-}
-
 func (e *Entry) Name() string {
 	return e.name
 }
@@ -180,4 +176,10 @@ func (e *Entry) LoadAddress() (uint64, error) {
 // This is for cmd/pprof to locate cgo functions.
 func (e *Entry) DWARF() (*dwarf.Data, error) {
 	return e.raw.dwarf()
+}
+
+type Liner interface {
+	// Given a pc, returns the corresponding file, line, and function data.
+	// If unknown, returns "",0,nil.
+	PCToLine(uint64) (string, int, *gosym.Func)
 }
