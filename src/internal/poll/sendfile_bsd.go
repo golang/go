@@ -72,6 +72,6 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error, 
 	if err == syscall.EAGAIN {
 		err = nil
 	}
-	handled = written != 0 || (err != syscall.ENOSYS && err != syscall.EINVAL)
+	handled = written != 0 || (err != syscall.ENOSYS && err != syscall.EINVAL && err != syscall.EOPNOTSUPP && err != syscall.ENOTSUP)
 	return
 }

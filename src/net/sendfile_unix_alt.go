@@ -53,6 +53,9 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 		if err != nil {
 			return 0, err, false
 		}
+		if fi.Mode()&(fs.ModeSymlink|fs.ModeDevice|fs.ModeCharDevice|fs.ModeIrregular) != 0 {
+			return 0, nil, false
+		}
 
 		remain = fi.Size()
 	}
