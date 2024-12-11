@@ -59,7 +59,7 @@ func (p *Package) writeDefs() {
 
 	// Write C main file for using gcc to resolve imports.
 	fmt.Fprintf(fm, "#include <stddef.h>\n") // For size_t below.
-	fmt.Fprintf(fm, "int main() { return 0; }\n")
+	fmt.Fprintf(fm, "int main(int argc __attribute__((unused)), char **argv __attribute__((unused))) { return 0; }\n")
 	if *importRuntimeCgo {
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*) __attribute__((unused)), void *a __attribute__((unused)), int c __attribute__((unused)), size_t ctxt __attribute__((unused))) { }\n")
 		fmt.Fprintf(fm, "size_t _cgo_wait_runtime_init_done(void) { return 0; }\n")
