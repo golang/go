@@ -769,7 +769,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			switch p.As {
 			case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
 				if p.To.Type != obj.TYPE_BRANCH {
-					panic("assemble: instruction with branch-like opcode lacks destination")
+					ctxt.Diag("%v: instruction with branch-like opcode lacks destination", p)
+					break
 				}
 				offset := p.To.Target().Pc - p.Pc
 				if offset < -4096 || 4096 <= offset {
@@ -853,7 +854,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			case obj.TYPE_BRANCH:
 				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
 			case obj.TYPE_MEM:
-				panic("unhandled type")
+				if ctxt.Errors == 0 {
+					// An error should have already been reported for this instruction
+					panic("unhandled type")
+				}
 			}
 
 		case AJAL:

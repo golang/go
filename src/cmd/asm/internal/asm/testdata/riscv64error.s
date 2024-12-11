@@ -30,6 +30,8 @@ TEXT errors(SB),$0
 	SLLI	$64, X5, X6			// ERROR "immediate out of range 0 to 63"
 	SRLI	$64, X5, X6			// ERROR "immediate out of range 0 to 63"
 	SRAI	$64, X5, X6			// ERROR "immediate out of range 0 to 63"
+	BEQ	X5, X6, $1			// ERROR "instruction with branch-like opcode lacks destination"
+	BEQ	X5, X6, 31(X10)			// ERROR "instruction with branch-like opcode lacks destination"
 	RORI	$-1, X5, X6			// ERROR "immediate out of range 0 to 63"
 	SLLI	$-1, X5, X6			// ERROR "immediate out of range 0 to 63"
 	SRLI	$-1, X5, X6			// ERROR "immediate out of range 0 to 63"
