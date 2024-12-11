@@ -2072,7 +2072,8 @@ func (v Value) SetBool(x bool) {
 }
 
 // SetBytes sets v's underlying value.
-// It panics if v's underlying value is not a slice of bytes.
+// It panics if v's underlying value is not a slice of bytes
+// or if [Value.CanSet] returns false.
 func (v Value) SetBytes(x []byte) {
 	v.mustBeAssignable()
 	v.mustBe(Slice)
@@ -2083,7 +2084,8 @@ func (v Value) SetBytes(x []byte) {
 }
 
 // setRunes sets v's underlying value.
-// It panics if v's underlying value is not a slice of runes (int32s).
+// It panics if v's underlying value is not a slice of runes (int32s)
+// or if [Value.CanSet] returns false.
 func (v Value) setRunes(x []rune) {
 	v.mustBeAssignable()
 	v.mustBe(Slice)
@@ -2094,7 +2096,8 @@ func (v Value) setRunes(x []rune) {
 }
 
 // SetComplex sets v's underlying value to x.
-// It panics if v's Kind is not [Complex64] or [Complex128], or if [Value.CanSet] returns false.
+// It panics if v's Kind is not [Complex64] or [Complex128],
+// or if [Value.CanSet] returns false.
 func (v Value) SetComplex(x complex128) {
 	v.mustBeAssignable()
 	switch k := v.kind(); k {
@@ -2108,7 +2111,8 @@ func (v Value) SetComplex(x complex128) {
 }
 
 // SetFloat sets v's underlying value to x.
-// It panics if v's Kind is not [Float32] or [Float64], or if [Value.CanSet] returns false.
+// It panics if v's Kind is not [Float32] or [Float64],
+// or if [Value.CanSet] returns false.
 func (v Value) SetFloat(x float64) {
 	v.mustBeAssignable()
 	switch k := v.kind(); k {
@@ -2122,7 +2126,8 @@ func (v Value) SetFloat(x float64) {
 }
 
 // SetInt sets v's underlying value to x.
-// It panics if v's Kind is not [Int], [Int8], [Int16], [Int32], or [Int64], or if [Value.CanSet] returns false.
+// It panics if v's Kind is not [Int], [Int8], [Int16], [Int32], or [Int64],
+// or if [Value.CanSet] returns false.
 func (v Value) SetInt(x int64) {
 	v.mustBeAssignable()
 	switch k := v.kind(); k {
@@ -2142,8 +2147,9 @@ func (v Value) SetInt(x int64) {
 }
 
 // SetLen sets v's length to n.
-// It panics if v's Kind is not [Slice] or if n is negative or
-// greater than the capacity of the slice.
+// It panics if v's Kind is not [Slice], or if n is negative or
+// greater than the capacity of the slice,
+// or if [Value.CanSet] returns false.
 func (v Value) SetLen(n int) {
 	v.mustBeAssignable()
 	v.mustBe(Slice)
@@ -2155,8 +2161,9 @@ func (v Value) SetLen(n int) {
 }
 
 // SetCap sets v's capacity to n.
-// It panics if v's Kind is not [Slice] or if n is smaller than the length or
-// greater than the capacity of the slice.
+// It panics if v's Kind is not [Slice], or if n is smaller than the length or
+// greater than the capacity of the slice,
+// or if [Value.CanSet] returns false.
 func (v Value) SetCap(n int) {
 	v.mustBeAssignable()
 	v.mustBe(Slice)
@@ -2168,7 +2175,8 @@ func (v Value) SetCap(n int) {
 }
 
 // SetUint sets v's underlying value to x.
-// It panics if v's Kind is not [Uint], [Uintptr], [Uint8], [Uint16], [Uint32], or [Uint64], or if [Value.CanSet] returns false.
+// It panics if v's Kind is not [Uint], [Uintptr], [Uint8], [Uint16], [Uint32], or [Uint64],
+// or if [Value.CanSet] returns false.
 func (v Value) SetUint(x uint64) {
 	v.mustBeAssignable()
 	switch k := v.kind(); k {
@@ -2190,7 +2198,8 @@ func (v Value) SetUint(x uint64) {
 }
 
 // SetPointer sets the [unsafe.Pointer] value v to x.
-// It panics if v's Kind is not [UnsafePointer].
+// It panics if v's Kind is not [UnsafePointer]
+// or if [Value.CanSet] returns false.
 func (v Value) SetPointer(x unsafe.Pointer) {
 	v.mustBeAssignable()
 	v.mustBe(UnsafePointer)
@@ -2558,8 +2567,8 @@ func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Po
 // another n elements. After Grow(n), at least n elements can be appended
 // to the slice without another allocation.
 //
-// It panics if v's Kind is not a [Slice] or if n is negative or too large to
-// allocate the memory.
+// It panics if v's Kind is not a [Slice], or if n is negative or too large to
+// allocate the memory, or if [Value.CanSet] returns false.
 func (v Value) Grow(n int) {
 	v.mustBeAssignable()
 	v.mustBe(Slice)
@@ -2647,6 +2656,7 @@ func AppendSlice(s, t Value) Value {
 // It returns the number of elements copied.
 // Dst and src each must have kind [Slice] or [Array], and
 // dst and src must have the same element type.
+// It dst is an [Array], it panics if [Value.CanSet] returns false.
 //
 // As a special case, src can have kind [String] if the element type of dst is kind [Uint8].
 func Copy(dst, src Value) int {
