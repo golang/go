@@ -166,6 +166,12 @@ func (c dwctxt) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets []
 	panic("should be used only in the compiler")
 }
 
+func (c dwctxt) AddIndirectTextRef(s dwarf.Sym, t interface{}) {
+	// NB: at the moment unused in the linker; will be needed
+	// later on in a subsequent patch.
+	panic("should be used only in the compiler")
+}
+
 func isDwarf64(ctxt *Link) bool {
 	return ctxt.HeadType == objabi.Haix
 }
@@ -1673,11 +1679,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
  *  Walk DWarfDebugInfoEntries, and emit .debug_info
  */
 
-const (
-	COMPUNITHEADERSIZE = 4 + 2 + 4 + 1
-)
-
-func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, infoEpilog loader.Sym) []loader.Sym {
+func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, addrsym loader.Sym, infoEpilog loader.Sym) []loader.Sym {
 	syms := []loader.Sym{}
 	if len(u.Textp) == 0 && u.DWInfo.Child == nil && len(u.VarDIEs) == 0 {
 		return syms
@@ -1689,17 +1691,39 @@ func (d *dwctxt) writeUnitInfo(u *sym.CompilationUnit, abbrevsym loader.Sym, inf
 
 	// Write .debug_info Compilation Unit Header (sec 7.5.1)
 	// Fields marked with (*) must be changed for 64-bit dwarf
-	// This must match COMPUNITHEADERSIZE above.
 	d.createUnitLength(su, 0) // unit_length (*), will be filled in later.
-	su.AddUint16(d.arch, 4)   // dwarf version (appendix F)
+	dwver := 4
+	if buildcfg.Experiment.Dwarf5 {
+		dwver = 5
+	}
+	su.AddUint16(d.arch, uint16(dwver)) // dwarf version (appendix F)
 
-	// debug_abbrev_offset (*)
-	d.addDwarfAddrRef(su, abbrevsym)
-
-	su.AddUint8(uint8(d.arch.PtrSize)) // address_size
+	if buildcfg.Experiment.Dwarf5 {
+		// DWARF5 at this point requires
+		// 1. unit type
+		// 2. address size
+		// 3. abbrev offset
+		su.AddUint8(uint8(dwarf.DW_UT_compile))
+		su.AddUint8(uint8(d.arch.PtrSize))
+		d.addDwarfAddrRef(su, abbrevsym)
+	} else {
+		// DWARF4 requires
+		// 1. abbrev offset
+		// 2. address size
+		d.addDwarfAddrRef(su, abbrevsym)
+		su.AddUint8(uint8(d.arch.PtrSize))
+	}
 
 	ds := dwSym(s)
 	dwarf.Uleb128put(d, ds, int64(compunit.Abbrev))
+	if buildcfg.Experiment.Dwarf5 {
+		// If this CU has functions, update the DW_AT_addr_base
+		// attribute to point to the correct section symbol.
+		abattr := getattr(compunit, dwarf.DW_AT_addr_base)
+		if abattr != nil {
+			abattr.Data = dwSym(addrsym)
+		}
+	}
 	dwarf.PutAttrs(d, ds, compunit.Abbrev, compunit.Attr)
 
 	// This is an under-estimate; more will be needed for type DIEs.
@@ -1823,6 +1847,35 @@ func (d *dwctxt) mkBuiltinType(ctxt *Link, abrv int, tname string) *dwarf.DWDie 
 	d.tdmap[gotype] = ds
 
 	return die
+}
+
+// assignDebugAddrSlot assigns a slot (if needed) in the .debug_addr
+// section fragment of the specified unit for the function pointed to
+// by R_DWTXTADDR_* relocation r.  The slot index selected will be
+// filled in when the relocation is actually applied/resolved.
+func (d *dwctxt) assignDebugAddrSlot(unit *sym.CompilationUnit, fnsym loader.Sym, r loader.Reloc, sb *loader.SymbolBuilder) {
+	rsym := r.Sym()
+	if unit.Addrs == nil {
+		unit.Addrs = make(map[sym.LoaderSym]uint32)
+	}
+	if _, ok := unit.Addrs[sym.LoaderSym(rsym)]; ok {
+		// already present, no work needed
+	} else {
+		sl := len(unit.Addrs)
+		rt := r.Type()
+		lim, _ := rt.DwTxtAddrRelocParams()
+		if sl > lim {
+			log.Fatalf("internal error: %s relocation overflow on infosym for %s", rt.String(), d.ldr.SymName(fnsym))
+		}
+		unit.Addrs[sym.LoaderSym(rsym)] = uint32(sl)
+		sb.AddAddrPlus(d.arch, rsym, 0)
+		data := sb.Data()
+		if d.arch.PtrSize == 4 {
+			d.arch.ByteOrder.PutUint32(data[len(data)-4:], uint32(d.ldr.SymValue(rsym)))
+		} else {
+			d.arch.ByteOrder.PutUint64(data[len(data)-8:], uint64(d.ldr.SymValue(rsym)))
+		}
+	}
 }
 
 // dwarfVisitFunction takes a function (text) symbol and processes the
@@ -2035,6 +2088,16 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			}
 			newattr(unit.DWInfo, dwarf.DW_AT_go_package_name, dwarf.DW_CLS_STRING, int64(len(pkgname)), pkgname)
 
+			if buildcfg.Experiment.Dwarf5 && cuabrv == dwarf.DW_ABRV_COMPUNIT {
+				// For DWARF5, the CU die will have an attribute that
+				// points to the offset into the .debug_addr section
+				// that contains the compilation unit's
+				// contributions. Add this attribute now. Note that
+				// we'll later on update the Data field in this attr
+				// once we know the .debug_addr sym for the unit.
+				newattr(unit.DWInfo, dwarf.DW_AT_addr_base, dwarf.DW_CLS_REFERENCE, 0, 0)
+			}
+
 			// Scan all functions in this compilation unit, create
 			// DIEs for all referenced types, find all referenced
 			// abstract functions, visit range symbols. Note that
@@ -2117,7 +2180,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 
 // dwarfGenerateDebugSyms constructs debug_line, debug_frame, and
 // debug_loc. It also writes out the debug_info section using symbols
-// generated in dwarfGenerateDebugInfo2.
+// generated in dwarfGenerateDebugInfo.
 func dwarfGenerateDebugSyms(ctxt *Link) {
 	if !dwarfEnabled(ctxt) {
 		return
@@ -2144,21 +2207,66 @@ type dwUnitSyms struct {
 	infosyms   []loader.Sym
 	locsyms    []loader.Sym
 	rangessyms []loader.Sym
+	addrsym    loader.Sym
 }
 
-// dwUnitPortion assembles the DWARF content for a given compilation
-// unit: debug_info, debug_lines, debug_ranges, debug_loc (debug_frame
-// is handled elsewhere). Order is important; the calls to writelines
-// and writepcranges below make updates to the compilation unit DIE,
-// hence they have to happen before the call to writeUnitInfo.
+// dwUnitPortion assembles the DWARF content for a given comp unit:
+// debug_info, debug_lines, debug_ranges(V4) or debug_rnglists (V5),
+// debug_loc (V4) or debug_loclists (V5) and debug_addr (V5);
+// debug_frame is handled elsewhere. Order is important; the calls to
+// writelines and writepcranges below make updates to the compilation
+// unit DIE, hence they have to happen before the call to
+// writeUnitInfo.
 func (d *dwctxt) dwUnitPortion(u *sym.CompilationUnit, abbrevsym loader.Sym, us *dwUnitSyms) {
 	if u.DWInfo.Abbrev != dwarf.DW_ABRV_COMPUNIT_TEXTLESS {
 		us.linesyms = d.writelines(u, us.lineProlog)
 		base := loader.Sym(u.Textp[0])
 		us.rangessyms = d.writepcranges(u, base, u.PCs, us.rangeProlog)
+		if buildcfg.Experiment.Dwarf5 {
+			d.writedebugaddr(u, us.addrsym)
+		}
 		us.locsyms = d.collectUnitLocs(u)
 	}
-	us.infosyms = d.writeUnitInfo(u, abbrevsym, us.infoEpilog)
+	us.infosyms = d.writeUnitInfo(u, abbrevsym, us.addrsym, us.infoEpilog)
+}
+
+// writedebugaddr scans the symbols of interest in unit for
+// R_DWTXTADDR_R* relocations and converts these into the material
+// we'll need to generate the .debug_addr section for the unit. This
+// will create a map within the unit (as a side effect), mapping func
+// symbol to debug_addr slot.
+func (d *dwctxt) writedebugaddr(unit *sym.CompilationUnit, debugaddr loader.Sym) {
+	dasu := d.ldr.MakeSymbolUpdater(debugaddr)
+
+	for _, s := range unit.Textp {
+		fnSym := loader.Sym(s)
+		// NB: this looks at SDWARFFCN; it will need to also look
+		// at range and loc when they get there.
+		infosym, _, _, _ := d.ldr.GetFuncDwarfAuxSyms(fnSym)
+
+		// Walk the relocations of the subprogram DIE symbol to collect
+		// relocations corresponding to indirect function references
+		// via .debug_addr.
+		drelocs := d.ldr.Relocs(infosym)
+		for ri := 0; ri < drelocs.Count(); ri++ {
+			r := drelocs.At(ri)
+			if !r.Type().IsDwTxtAddr() {
+				continue
+			}
+			rsym := r.Sym()
+			rst := d.ldr.SymType(rsym)
+			// Do some consistency checks.
+			if !rst.IsText() {
+				// R_DWTXTADDR_* relocation should only refer to text
+				// symbols, so something apparently went wrong here.
+				log.Fatalf("internal error: R_DWTXTADDR_* relocation on dwinfosym for %s against non-function %s type:%s", d.ldr.SymName(fnSym), d.ldr.SymName(rsym), rst.String())
+			}
+			if runit := d.ldr.SymUnit(rsym); runit != unit {
+				log.Fatalf("internal error: R_DWTXTADDR_* relocation target text sym unit mismatch (want %q got %q)", unit.Lib.Pkg, runit.Lib.Pkg)
+			}
+			d.assignDebugAddrSlot(unit, fnSym, r, dasu)
+		}
+	}
 }
 
 func (d *dwctxt) dwarfGenerateDebugSyms() {
@@ -2182,6 +2290,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 		s.SetReachable(true)
 		return s.Sym()
 	}
+
 	mkAnonSym := func(kind sym.SymKind) loader.Sym {
 		s := d.ldr.MakeSymbolUpdater(d.ldr.CreateExtSym("", 0))
 		s.SetType(kind)
@@ -2195,6 +2304,10 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	lineSym := mkSecSym(".debug_line")
 	rangesSym := mkSecSym(".debug_ranges")
 	infoSym := mkSecSym(".debug_info")
+	var addrSym loader.Sym
+	if buildcfg.Experiment.Dwarf5 {
+		addrSym = mkSecSym(".debug_addr")
+	}
 
 	// Create the section objects
 	lineSec := dwarfSecInfo{syms: []loader.Sym{lineSym}}
@@ -2202,6 +2315,11 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	rangesSec := dwarfSecInfo{syms: []loader.Sym{rangesSym}}
 	frameSec := dwarfSecInfo{syms: []loader.Sym{frameSym}}
 	infoSec := dwarfSecInfo{syms: []loader.Sym{infoSym}}
+	var addrSec dwarfSecInfo
+	if buildcfg.Experiment.Dwarf5 {
+		addrHdr := d.writeDebugAddrHdr()
+		addrSec.syms = []loader.Sym{addrSym, addrHdr}
+	}
 
 	// Create any new symbols that will be needed during the
 	// parallel portion below.
@@ -2212,6 +2330,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 		us.lineProlog = mkAnonSym(sym.SDWARFLINES)
 		us.rangeProlog = mkAnonSym(sym.SDWARFRANGE)
 		us.infoEpilog = mkAnonSym(sym.SDWARFFCN)
+		us.addrsym = mkAnonSym(sym.SDWARFADDR)
 	}
 
 	var wg sync.WaitGroup
@@ -2253,6 +2372,29 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 		return syms
 	}
 
+	patchHdr := func(sec *dwarfSecInfo, len uint64) {
+		hdrsym := sec.syms[1]
+		len += uint64(d.ldr.SymSize(hdrsym))
+		su := d.ldr.MakeSymbolUpdater(hdrsym)
+		if isDwarf64(d.linkctxt) {
+			len -= 12                          // sub size of length field
+			su.SetUint(d.arch, 4, uint64(len)) // 4 because of 0XFFFFFFFF
+		} else {
+			len -= 4 // subtract size of length field
+			su.SetUint32(d.arch, 0, uint32(len))
+		}
+	}
+
+	if buildcfg.Experiment.Dwarf5 {
+		// Compute total size of the .debug_addr unit syms.
+		var addrtot uint64
+		for i := 0; i < ncu; i++ {
+			addrtot += uint64(d.ldr.SymSize(unitSyms[i].addrsym))
+		}
+		// Call a helper to patch the length field in the header.
+		patchHdr(&addrSec, addrtot)
+	}
+
 	// Stitch together the results.
 	for i := 0; i < ncu; i++ {
 		r := &unitSyms[i]
@@ -2260,6 +2402,9 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 		infoSec.syms = append(infoSec.syms, markReachable(r.infosyms)...)
 		locSec.syms = append(locSec.syms, markReachable(r.locsyms)...)
 		rangesSec.syms = append(rangesSec.syms, markReachable(r.rangessyms)...)
+		if buildcfg.Experiment.Dwarf5 && r.addrsym != 0 {
+			addrSec.syms = append(addrSec.syms, r.addrsym)
+		}
 	}
 	dwarfp = append(dwarfp, lineSec)
 	dwarfp = append(dwarfp, frameSec)
@@ -2272,6 +2417,9 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 		dwarfp = append(dwarfp, locSec)
 	}
 	dwarfp = append(dwarfp, rangesSec)
+	if buildcfg.Experiment.Dwarf5 {
+		dwarfp = append(dwarfp, addrSec)
+	}
 
 	// Check to make sure we haven't listed any symbols more than once
 	// in the info section. This used to be done by setting and
@@ -2315,6 +2463,9 @@ func dwarfaddshstrings(ctxt *Link, add func(string)) {
 	}
 
 	secs := []string{"abbrev", "frame", "info", "loc", "line", "gdb_scripts", "ranges"}
+	if buildcfg.Experiment.Dwarf5 {
+		secs = append(secs, "addr")
+	}
 	for _, sec := range secs {
 		add(".debug_" + sec)
 		if ctxt.IsExternal() {
@@ -2470,4 +2621,18 @@ func addDwsectCUSize(sname string, pkgname string, size uint64) {
 	dwsectCUSizeMu.Lock()
 	defer dwsectCUSizeMu.Unlock()
 	dwsectCUSize[sname+"."+pkgname] += size
+}
+
+// writeDebugAddrHdr creates a new symbol and writes the content
+// for the .debug_addr header payload to it, then returns the new sym.
+// Format of the header is described in DWARF5 spec section 7.27.
+func (d *dwctxt) writeDebugAddrHdr() loader.Sym {
+	su := d.ldr.MakeSymbolUpdater(d.ldr.CreateExtSym("", 0))
+	su.SetType(sym.SDWARFADDR)
+	su.SetReachable(true)
+	d.createUnitLength(su, 0)          // will be filled in later.
+	su.AddUint16(d.arch, 5)            // dwarf version (appendix F)
+	su.AddUint8(uint8(d.arch.PtrSize)) // address_size
+	su.AddUint8(0)
+	return su.Sym()
 }

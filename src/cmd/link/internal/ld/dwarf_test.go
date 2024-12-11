@@ -1435,9 +1435,15 @@ func TestIssue39757(t *testing.T) {
 
 	maindie := findSubprogramDIE(t, ex, "main.main")
 
-	// Collect the start/end PC for main.main
-	lowpc := maindie.Val(dwarf.AttrLowpc).(uint64)
-	highpc := maindie.Val(dwarf.AttrHighpc).(uint64)
+	// Collect the start/end PC for main.main. The format/class of the
+	// high PC attr may vary depending on which DWARF version we're generating;
+	// invoke a helper to handle the various possibilities.
+	// the low PC as opposed to an address; allow for both possibilities.
+	lowpc, highpc, perr := dwtest.SubprogLoAndHighPc(maindie)
+	if perr != nil {
+		t.Fatalf("main.main DIE malformed: %v", perr)
+	}
+	t.Logf("lo=0x%x hi=0x%x\n", lowpc, highpc)
 
 	// Now read the line table for the 'main' compilation unit.
 	mainIdx := ex.IdxFromOffset(maindie.Offset)
