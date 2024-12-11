@@ -1839,7 +1839,7 @@ const (
 type special struct {
 	_      sys.NotInHeap
 	next   *special // linked list in span
-	offset uint16   // span offset of object
+	offset uintptr  // span offset of object
 	kind   byte     // kind of special
 }
 
@@ -1886,7 +1886,7 @@ func addspecial(p unsafe.Pointer, s *special, force bool) bool {
 	iter, exists := span.specialFindSplicePoint(offset, kind)
 	if !exists || force {
 		// Splice in record, fill in offset.
-		s.offset = uint16(offset)
+		s.offset = offset
 		s.next = *iter
 		*iter = s
 		spanHasSpecials(span)

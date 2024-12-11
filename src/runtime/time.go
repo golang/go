@@ -1370,15 +1370,19 @@ func badTimer() {
 // to send a value to its associated channel. If so, it does.
 // The timer must not be locked.
 func (t *timer) maybeRunChan() {
-	if sg := getg().syncGroup; sg != nil || t.isFake {
+	if t.isFake {
 		t.lock()
 		var timerGroup *synctestGroup
 		if t.ts != nil {
 			timerGroup = t.ts.syncGroup
 		}
 		t.unlock()
-		if sg == nil || !t.isFake || sg != timerGroup {
-			panic(plainError("timer moved between synctest groups"))
+		sg := getg().syncGroup
+		if sg == nil {
+			panic(plainError("synctest timer accessed from outside bubble"))
+		}
+		if timerGroup != nil && sg != timerGroup {
+			panic(plainError("timer moved between synctest bubbles"))
 		}
 		// No need to do anything here.
 		// synctest.Run will run the timer when it advances its fake clock.

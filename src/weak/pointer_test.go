@@ -43,9 +43,11 @@ func TestPointer(t *testing.T) {
 func TestPointerEquality(t *testing.T) {
 	bt := make([]*T, 10)
 	wt := make([]weak.Pointer[T], 10)
+	wo := make([]weak.Pointer[int], 10)
 	for i := range bt {
 		bt[i] = new(T)
 		wt[i] = weak.Make(bt[i])
+		wo[i] = weak.Make(&bt[i].a)
 	}
 	for i := range bt {
 		st := wt[i].Value()
@@ -54,6 +56,9 @@ func TestPointerEquality(t *testing.T) {
 		}
 		if wp := weak.Make(st); wp != wt[i] {
 			t.Fatalf("new weak pointer not equal to existing weak pointer: %v vs. %v", wp, wt[i])
+		}
+		if wp := weak.Make(&st.a); wp != wo[i] {
+			t.Fatalf("new weak pointer not equal to existing weak pointer: %v vs. %v", wp, wo[i])
 		}
 		if i == 0 {
 			continue
@@ -71,6 +76,9 @@ func TestPointerEquality(t *testing.T) {
 		}
 		if wp := weak.Make(st); wp != wt[i] {
 			t.Fatalf("new weak pointer not equal to existing weak pointer: %v vs. %v", wp, wt[i])
+		}
+		if wp := weak.Make(&st.a); wp != wo[i] {
+			t.Fatalf("new weak pointer not equal to existing weak pointer: %v vs. %v", wp, wo[i])
 		}
 		if i == 0 {
 			continue
@@ -209,4 +217,13 @@ func TestIssue69210(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestIssue70739(t *testing.T) {
+	x := make([]*int, 4<<16)
+	wx1 := weak.Make(&x[1<<16])
+	wx2 := weak.Make(&x[1<<16])
+	if wx1 != wx2 {
+		t.Fatal("failed to look up special and made duplicate weak handle; see issue #70739")
+	}
 }

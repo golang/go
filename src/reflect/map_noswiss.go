@@ -289,6 +289,7 @@ func (iter *MapIter) Key() Value {
 // It is equivalent to v.Set(iter.Key()), but it avoids allocating a new Value.
 // As in Go, the key must be assignable to v's type and
 // must not be derived from an unexported field.
+// It panics if [Value.CanSet] returns false.
 func (v Value) SetIterKey(iter *MapIter) {
 	if !iter.hiter.initialized() {
 		panic("reflect: Value.SetIterKey called before Next")
@@ -332,6 +333,7 @@ func (iter *MapIter) Value() Value {
 // It is equivalent to v.Set(iter.Value()), but it avoids allocating a new Value.
 // As in Go, the value must be assignable to v's type and
 // must not be derived from an unexported field.
+// It panics if [Value.CanSet] returns false.
 func (v Value) SetIterValue(iter *MapIter) {
 	if !iter.hiter.initialized() {
 		panic("reflect: Value.SetIterValue called before Next")

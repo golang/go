@@ -264,8 +264,6 @@ func PSSMaxSaltLength(pub *PublicKey, hash fips140.Hash) (int, error) {
 }
 
 // SignPSS calculates the signature of hashed using RSASSA-PSS.
-//
-// In FIPS mode, rand is ignored and can be nil.
 func SignPSS(rand io.Reader, priv *PrivateKey, hash fips140.Hash, hashed []byte, saltLength int) ([]byte, error) {
 	fipsSelfTest()
 	fips140.RecordApproved()
@@ -286,12 +284,8 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash fips140.Hash, hashed []byte,
 		fips140.RecordNonApproved()
 	}
 	salt := make([]byte, saltLength)
-	if fips140.Enabled {
-		drbg.Read(salt)
-	} else {
-		if _, err := io.ReadFull(rand, salt); err != nil {
-			return nil, err
-		}
+	if err := drbg.ReadWithReaderDeterministic(rand, salt); err != nil {
+		return nil, err
 	}
 
 	emBits := priv.pub.N.BitLen() - 1
@@ -374,8 +368,6 @@ func checkApprovedHash(hash fips140.Hash) {
 }
 
 // EncryptOAEP encrypts the given message with RSAES-OAEP.
-//
-// In FIPS mode, random is ignored and can be nil.
 func EncryptOAEP(hash, mgfHash fips140.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
 	// Note that while we don't commit to deterministic execution with respect
 	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
@@ -408,13 +400,8 @@ func EncryptOAEP(hash, mgfHash fips140.Hash, random io.Reader, pub *PublicKey, m
 	db[len(db)-len(msg)-1] = 1
 	copy(db[len(db)-len(msg):], msg)
 
-	if fips140.Enabled {
-		drbg.Read(seed)
-	} else {
-		_, err := io.ReadFull(random, seed)
-		if err != nil {
-			return nil, err
-		}
+	if err := drbg.ReadWithReaderDeterministic(random, seed); err != nil {
+		return nil, err
 	}
 
 	mgf1XOR(db, mgfHash, seed)

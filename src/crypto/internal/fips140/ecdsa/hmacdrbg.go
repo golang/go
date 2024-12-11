@@ -160,4 +160,6 @@ func (d *hmacDRBG) Generate(out []byte) {
 	d.hK = d.newHMAC(K)
 	d.hK.Write(d.V)
 	d.V = d.hK.Sum(d.V[:0])
+
+	d.reseedCounter++
 }

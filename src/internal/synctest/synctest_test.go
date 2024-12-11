@@ -105,13 +105,48 @@ func TestMallocs(t *testing.T) {
 	}
 }
 
-func TestTimer(t *testing.T) {
+func TestTimerReadBeforeDeadline(t *testing.T) {
 	synctest.Run(func() {
 		start := time.Now()
 		tm := time.NewTimer(5 * time.Second)
 		<-tm.C
 		if got, want := time.Since(start), 5*time.Second; got != want {
 			t.Errorf("after sleep: time.Since(start) = %v, want %v", got, want)
+		}
+	})
+}
+
+func TestTimerReadAfterDeadline(t *testing.T) {
+	synctest.Run(func() {
+		delay := 1 * time.Second
+		want := time.Now().Add(delay)
+		tm := time.NewTimer(delay)
+		time.Sleep(2 * delay)
+		got := <-tm.C
+		if got != want {
+			t.Errorf("<-tm.C = %v, want %v", got, want)
+		}
+	})
+}
+
+func TestTimerReset(t *testing.T) {
+	synctest.Run(func() {
+		start := time.Now()
+		tm := time.NewTimer(1 * time.Second)
+		if got, want := <-tm.C, start.Add(1*time.Second); got != want {
+			t.Errorf("first sleep: <-tm.C = %v, want %v", got, want)
+		}
+
+		tm.Reset(2 * time.Second)
+		if got, want := <-tm.C, start.Add((1+2)*time.Second); got != want {
+			t.Errorf("second sleep: <-tm.C = %v, want %v", got, want)
+		}
+
+		tm.Reset(3 * time.Second)
+		time.Sleep(1 * time.Second)
+		tm.Reset(3 * time.Second)
+		if got, want := <-tm.C, start.Add((1+2+4)*time.Second); got != want {
+			t.Errorf("third sleep: <-tm.C = %v, want %v", got, want)
 		}
 	})
 }
@@ -138,9 +173,11 @@ func TestTimeAfter(t *testing.T) {
 func TestTimerFromOutsideBubble(t *testing.T) {
 	tm := time.NewTimer(10 * time.Millisecond)
 	synctest.Run(func() {
-		defer wantPanic(t, "timer moved between synctest groups")
 		<-tm.C
 	})
+	if tm.Stop() {
+		t.Errorf("synctest.Run unexpectedly returned before timer fired")
+	}
 }
 
 func TestChannelFromOutsideBubble(t *testing.T) {

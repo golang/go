@@ -331,7 +331,7 @@ func (span *mspan) incPinCounter(offset uintptr) {
 		rec = (*specialPinCounter)(mheap_.specialPinCounterAlloc.alloc())
 		unlock(&mheap_.speciallock)
 		// splice in record, fill in offset.
-		rec.special.offset = uint16(offset)
+		rec.special.offset = offset
 		rec.special.kind = _KindSpecialPinCounter
 		rec.special.next = *ref
 		*ref = (*special)(unsafe.Pointer(rec))

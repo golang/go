@@ -107,7 +107,7 @@ func TestNextJsCtx(t *testing.T) {
 type jsonErrType struct{}
 
 func (e *jsonErrType) MarshalJSON() ([]byte, error) {
-	return nil, errors.New("beep */ boop </script blip <!--")
+	return nil, errors.New("a */ b <script c </script d <!-- e <sCrIpT f </sCrIpT")
 }
 
 func TestJSValEscaper(t *testing.T) {
@@ -160,7 +160,7 @@ func TestJSValEscaper(t *testing.T) {
 		{"</script", `"\u003c/script"`, false},
 		{"\U0001D11E", "\"\U0001D11E\"", false}, // or "\uD834\uDD1E"
 		{nil, " null ", false},
-		{&jsonErrType{}, " /* json: error calling MarshalJSON for type *template.jsonErrType: beep * / boop \\x3C/script blip \\x3C!-- */null ", true},
+		{&jsonErrType{}, " /* json: error calling MarshalJSON for type *template.jsonErrType: a * / b \\x3Cscript c \\x3C/script d \\x3C!-- e \\x3Cscript f \\x3C/script */null ", true},
 	}
 
 	for _, test := range tests {

@@ -21,6 +21,7 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
 	"crypto/internal/fips140/ecdsa"
+	"crypto/internal/fips140only"
 	"crypto/internal/randutil"
 	"crypto/sha512"
 	"crypto/subtle"
@@ -182,6 +183,9 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
 }
 
 func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], rand io.Reader) (*PrivateKey, error) {
+	if fips140only.Enabled && fips140only.ApprovedRandomReader(rand) {
+		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
+	}
 	privateKey, err := ecdsa.GenerateKey(c, rand)
 	if err != nil {
 		return nil, err
@@ -228,6 +232,9 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 }
 
 func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, rand io.Reader, hash []byte) ([]byte, error) {
+	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
+		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
+	}
 	// privateKeyToFIPS is very slow in FIPS mode because it performs a
 	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
 	// it or attach it to the PrivateKey.
