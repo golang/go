@@ -8,15 +8,12 @@ import (
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/bigmod"
 	"crypto/internal/fips140/drbg"
-	"crypto/internal/randutil"
 	"errors"
 	"io"
 )
 
 // GenerateKey generates a new RSA key pair of the given bit size.
 // bits must be at least 128.
-//
-// When operating in FIPS mode, rand is ignored.
 func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 	if bits < 128 {
 		return nil, errors.New("rsa: key too small")
@@ -94,7 +91,7 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 }
 
 // randomPrime returns a random prime number of the given bit size following
-// the process in FIPS 186-5, Appendix A.1.3. rand is ignored in FIPS mode.
+// the process in FIPS 186-5, Appendix A.1.3.
 func randomPrime(rand io.Reader, bits int) ([]byte, error) {
 	if bits < 64 {
 		return nil, errors.New("rsa: prime size must be at least 32-bit")
@@ -102,13 +99,8 @@ func randomPrime(rand io.Reader, bits int) ([]byte, error) {
 
 	b := make([]byte, (bits+7)/8)
 	for {
-		if fips140.Enabled {
-			drbg.Read(b)
-		} else {
-			randutil.MaybeReadByte(rand)
-			if _, err := io.ReadFull(rand, b); err != nil {
-				return nil, err
-			}
+		if err := drbg.ReadWithReader(rand, b); err != nil {
+			return nil, err
 		}
 		if excess := len(b)*8 - bits; excess != 0 {
 			b[0] >>= excess

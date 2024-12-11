@@ -17,6 +17,9 @@ import (
 const (
 	// PSSSaltLengthAuto causes the salt in a PSS signature to be as large
 	// as possible when signing, and to be auto-detected when verifying.
+	//
+	// When signing in FIPS 140-3 mode, the salt length is capped at the length
+	// of the hash function used in the signature.
 	PSSSaltLengthAuto = 0
 	// PSSSaltLengthEqualsHash causes the salt length to equal the length
 	// of the hash used in the signature.
@@ -66,6 +69,9 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 	}
 	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
 		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+	}
+	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
+		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 
 	if opts != nil && opts.Hash != 0 {
@@ -187,6 +193,9 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	}
 	if fips140only.Enabled && !fips140only.ApprovedHash(hash) {
 		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+	}
+	if fips140only.Enabled && !fips140only.ApprovedRandomReader(random) {
+		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 
 	defer hash.Reset()

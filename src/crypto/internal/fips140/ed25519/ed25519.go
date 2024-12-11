@@ -11,7 +11,6 @@ import (
 	"crypto/internal/fips140/edwards25519"
 	"crypto/internal/fips140/sha512"
 	"errors"
-	"io"
 	"strconv"
 )
 
@@ -61,24 +60,14 @@ func (pub *PublicKey) Bytes() []byte {
 }
 
 // GenerateKey generates a new Ed25519 private key pair.
-//
-// In FIPS mode, rand is ignored. Otherwise, the output of this function is
-// deterministic, and equivalent to reading 32 bytes from rand, and passing them
-// to [NewKeyFromSeed].
-func GenerateKey(rand io.Reader) (*PrivateKey, error) {
+func GenerateKey() (*PrivateKey, error) {
 	priv := &PrivateKey{}
-	return generateKey(priv, rand)
+	return generateKey(priv)
 }
 
-func generateKey(priv *PrivateKey, rand io.Reader) (*PrivateKey, error) {
+func generateKey(priv *PrivateKey) (*PrivateKey, error) {
 	fips140.RecordApproved()
-	if fips140.Enabled {
-		drbg.Read(priv.seed[:])
-	} else {
-		if _, err := io.ReadFull(rand, priv.seed[:]); err != nil {
-			return nil, err
-		}
-	}
+	drbg.Read(priv.seed[:])
 	precomputePrivateKey(priv)
 	if err := fipsPCT(priv); err != nil {
 		// This clearly can't happen, but FIPS 140-3 requires that we check.

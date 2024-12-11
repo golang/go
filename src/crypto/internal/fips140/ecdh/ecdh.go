@@ -10,7 +10,6 @@ import (
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/nistec"
 	"crypto/internal/fips140deps/byteorder"
-	"crypto/internal/randutil"
 	"errors"
 	"io"
 	"math/bits"
@@ -137,8 +136,6 @@ var p521Order = []byte{0x01, 0xff,
 }
 
 // GenerateKey generates a new ECDSA private key pair for the specified curve.
-//
-// In FIPS mode, rand is ignored.
 func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
 	fips140.RecordApproved()
 	// This procedure is equivalent to Key Pair Generation by Testing
@@ -146,18 +143,13 @@ func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
 
 	for {
 		key := make([]byte, len(c.N))
-		if fips140.Enabled {
-			drbg.Read(key)
-		} else {
-			randutil.MaybeReadByte(rand)
-			if _, err := io.ReadFull(rand, key); err != nil {
-				return nil, err
-			}
-			// In tests, rand will return all zeros and NewPrivateKey will reject
-			// the zero key as it generates the identity as a public key. This also
-			// makes this function consistent with crypto/elliptic.GenerateKey.
-			key[1] ^= 0x42
+		if err := drbg.ReadWithReader(rand, key); err != nil {
+			return nil, err
 		}
+		// In tests, rand will return all zeros and NewPrivateKey will reject
+		// the zero key as it generates the identity as a public key. This also
+		// makes this function consistent with crypto/elliptic.GenerateKey.
+		key[1] ^= 0x42
 
 		// Mask off any excess bits if the size of the underlying field is not a
 		// whole number of bytes, which is only the case for P-521.

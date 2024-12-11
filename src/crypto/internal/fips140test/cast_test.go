@@ -85,7 +85,7 @@ func TestConditionals(t *testing.T) {
 		t.Fatal(err)
 	}
 	ecdsa.SignDeterministic(ecdsa.P256(), sha256.New, kDSA, make([]byte, 32))
-	k25519, err := ed25519.GenerateKey(rand.Reader)
+	k25519, err := ed25519.GenerateKey()
 	if err != nil {
 		t.Fatal(err)
 	}

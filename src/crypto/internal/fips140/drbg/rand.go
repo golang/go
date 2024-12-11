@@ -7,7 +7,9 @@ package drbg
 import (
 	"crypto/internal/entropy"
 	"crypto/internal/fips140"
+	"crypto/internal/randutil"
 	"crypto/internal/sysrand"
+	"io"
 	"sync"
 )
 
@@ -55,4 +57,39 @@ func Read(b []byte) {
 		}
 		b = b[size:]
 	}
+}
+
+// DefaultReader is a sentinel type, embedded in the default
+// [crypto/rand.Reader], used to recognize it when passed to
+// APIs that accept a rand io.Reader.
+type DefaultReader interface{ defaultReader() }
+
+// ReadWithReader uses Reader to fill b with cryptographically secure random
+// bytes. It is intended for use in APIs that expose a rand io.Reader.
+//
+// If Reader is not the default Reader from crypto/rand,
+// [randutil.MaybeReadByte] and [fips140.RecordNonApproved] are called.
+func ReadWithReader(r io.Reader, b []byte) error {
+	if _, ok := r.(DefaultReader); ok {
+		Read(b)
+		return nil
+	}
+
+	fips140.RecordNonApproved()
+	randutil.MaybeReadByte(r)
+	_, err := io.ReadFull(r, b)
+	return err
+}
+
+// ReadWithReaderDeterministic is like ReadWithReader, but it doesn't call
+// [randutil.MaybeReadByte] on non-default Readers.
+func ReadWithReaderDeterministic(r io.Reader, b []byte) error {
+	if _, ok := r.(DefaultReader); ok {
+		Read(b)
+		return nil
+	}
+
+	fips140.RecordNonApproved()
+	_, err := io.ReadFull(r, b)
+	return err
 }
