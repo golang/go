@@ -44,7 +44,7 @@ func set(t *types.Type, off int64, bv bitvec.BitVec, skip bool) {
 		if off&int64(types.PtrSize-1) != 0 {
 			base.Fatalf("typebits.Set: invalid alignment, %v", t)
 		}
-		bv.Set(int32(off / int64(types.PtrSize))) //pointer in first slot
+		bv.Set(int32(off / int64(types.PtrSize))) // pointer in first slot
 
 	case types.TINTER:
 		// struct { Itab *tab;	void *data; }
