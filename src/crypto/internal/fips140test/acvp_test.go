@@ -75,6 +75,13 @@ type command struct {
 	handler      commandHandler
 }
 
+type ecdsaSigType int
+
+const (
+	ecdsaSigTypeNormal ecdsaSigType = iota
+	ecdsaSigTypeDeterministic
+)
+
 var (
 	// SHA2 algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html#section-7.2
@@ -88,7 +95,7 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
 	// EDDSA algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-7
-	// ECDSA algorithm capabilities:
+	// ECDSA and DetECDSA algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-ecdsa.html#section-7
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
@@ -157,10 +164,11 @@ var (
 		"EDDSA/sigGen": cmdEddsaSigGenAftBft(),
 		"EDDSA/sigVer": cmdEddsaSigVerAft(),
 
-		"ECDSA/keyGen": cmdEcdsaKeyGenAft(),
-		"ECDSA/keyVer": cmdEcdsaKeyVerAft(),
-		"ECDSA/sigGen": cmdEcdsaSigGenAft(),
-		"ECDSA/sigVer": cmdEcdsaSigVerAft(),
+		"ECDSA/keyGen":    cmdEcdsaKeyGenAft(),
+		"ECDSA/keyVer":    cmdEcdsaKeyVerAft(),
+		"ECDSA/sigGen":    cmdEcdsaSigGenAft(ecdsaSigTypeNormal),
+		"ECDSA/sigVer":    cmdEcdsaSigVerAft(),
+		"DetECDSA/sigGen": cmdEcdsaSigGenAft(ecdsaSigTypeDeterministic),
 	}
 )
 
@@ -616,13 +624,21 @@ func pointFromAffine(curve elliptic.Curve, x, y *big.Int) ([]byte, error) {
 	return buf, nil
 }
 
-func signEcdsa[P ecdsa.Point[P], H fips140.Hash](c *ecdsa.Curve[P], h func() H, q []byte, sk []byte, digest []byte) (*ecdsa.Signature, error) {
+func signEcdsa[P ecdsa.Point[P], H fips140.Hash](c *ecdsa.Curve[P], h func() H, sigType ecdsaSigType, q []byte, sk []byte, digest []byte) (*ecdsa.Signature, error) {
 	priv, err := ecdsa.NewPrivateKey(c, sk, q)
 	if err != nil {
 		return nil, fmt.Errorf("invalid private key: %w", err)
 	}
 
-	sig, err := ecdsa.Sign(c, h, priv, rand.Reader, digest)
+	var sig *ecdsa.Signature
+	switch sigType {
+	case ecdsaSigTypeNormal:
+		sig, err = ecdsa.Sign(c, h, priv, rand.Reader, digest)
+	case ecdsaSigTypeDeterministic:
+		sig, err = ecdsa.SignDeterministic(c, h, priv, digest)
+	default:
+		return nil, fmt.Errorf("unsupported signature type: %v", sigType)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("signing failed: %w", err)
 	}
@@ -630,7 +646,7 @@ func signEcdsa[P ecdsa.Point[P], H fips140.Hash](c *ecdsa.Curve[P], h func() H, 
 	return sig, nil
 }
 
-func cmdEcdsaSigGenAft() command {
+func cmdEcdsaSigGenAft(sigType ecdsaSigType) command {
 	return command{
 		requiredArgs: 4, // Curve name, private key, hash name, message
 		handler: func(args [][]byte) ([][]byte, error) {
@@ -661,13 +677,13 @@ func cmdEcdsaSigGenAft() command {
 			var sig *ecdsa.Signature
 			switch curve.Params() {
 			case elliptic.P224().Params():
-				sig, err = signEcdsa(ecdsa.P224(), newH, q, sk, digest)
+				sig, err = signEcdsa(ecdsa.P224(), newH, sigType, q, sk, digest)
 			case elliptic.P256().Params():
-				sig, err = signEcdsa(ecdsa.P256(), newH, q, sk, digest)
+				sig, err = signEcdsa(ecdsa.P256(), newH, sigType, q, sk, digest)
 			case elliptic.P384().Params():
-				sig, err = signEcdsa(ecdsa.P384(), newH, q, sk, digest)
+				sig, err = signEcdsa(ecdsa.P384(), newH, sigType, q, sk, digest)
 			case elliptic.P521().Params():
-				sig, err = signEcdsa(ecdsa.P521(), newH, q, sk, digest)
+				sig, err = signEcdsa(ecdsa.P521(), newH, sigType, q, sk, digest)
 			default:
 				return nil, fmt.Errorf("unsupported curve: %v", curve)
 			}

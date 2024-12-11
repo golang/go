@@ -47,5 +47,6 @@
   {"algorithm":"ECDSA","mode":"keyGen","revision":"FIPS186-5","curve":["P-224","P-256","P-384","P-521"],"secretGenerationMode":["testing candidates"]},
   {"algorithm":"ECDSA","mode":"keyVer","revision":"FIPS186-5","curve":["P-224","P-256","P-384","P-521"]},
   {"algorithm":"ECDSA","mode":"sigGen","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]},
-  {"algorithm":"ECDSA","mode":"sigVer","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]}
+  {"algorithm":"ECDSA","mode":"sigVer","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]},
+  {"algorithm":"DetECDSA","mode":"sigGen","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]}
 ]
