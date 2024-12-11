@@ -106,33 +106,34 @@ pkg debug/elf, const VER_FLG_INFO = 4 #63952
 pkg debug/elf, const VER_FLG_INFO DynamicVersionFlag #63952
 pkg debug/elf, const VER_FLG_WEAK = 2 #63952
 pkg debug/elf, const VER_FLG_WEAK DynamicVersionFlag #63952
-pkg debug/elf, const VerFlagGlobal = 2 #63952
-pkg debug/elf, const VerFlagGlobal SymbolVersionFlag #63952
-pkg debug/elf, const VerFlagHidden = 4 #63952
-pkg debug/elf, const VerFlagHidden SymbolVersionFlag #63952
-pkg debug/elf, const VerFlagLocal = 1 #63952
-pkg debug/elf, const VerFlagLocal SymbolVersionFlag #63952
-pkg debug/elf, const VerFlagNone = 0 #63952
-pkg debug/elf, const VerFlagNone SymbolVersionFlag #63952
+pkg debug/elf, const VersionScopeGlobal = 2 #63952
+pkg debug/elf, const VersionScopeGlobal SymbolVersionScope #63952
+pkg debug/elf, const VersionScopeHidden = 4 #63952
+pkg debug/elf, const VersionScopeHidden SymbolVersionScope #63952
+pkg debug/elf, const VersionScopeLocal = 1 #63952
+pkg debug/elf, const VersionScopeLocal SymbolVersionScope #63952
+pkg debug/elf, const VersionScopeNone = 0 #63952
+pkg debug/elf, const VersionScopeNone SymbolVersionScope #63952
+pkg debug/elf, const VersionScopeSpecific = 3 #63952
+pkg debug/elf, const VersionScopeSpecific SymbolVersionScope #63952
 pkg debug/elf, method (*File) DynamicVersionNeeds() ([]DynamicVersionNeed, error) #63952
 pkg debug/elf, method (*File) DynamicVersions() ([]DynamicVersion, error) #63952
 pkg debug/elf, type DynamicVersion struct #63952
 pkg debug/elf, type DynamicVersion struct, Deps []string #63952
 pkg debug/elf, type DynamicVersion struct, Flags DynamicVersionFlag #63952
+pkg debug/elf, type DynamicVersion struct, Name string #63952
 pkg debug/elf, type DynamicVersion struct, Index uint16 #63952
-pkg debug/elf, type DynamicVersion struct, Version uint16 #63952
 pkg debug/elf, type DynamicVersionDep struct #63952
 pkg debug/elf, type DynamicVersionDep struct, Dep string #63952
 pkg debug/elf, type DynamicVersionDep struct, Flags DynamicVersionFlag #63952
-pkg debug/elf, type DynamicVersionDep struct, Other uint16 #63952
+pkg debug/elf, type DynamicVersionDep struct, Index uint16 #63952
 pkg debug/elf, type DynamicVersionFlag uint16 #63952
 pkg debug/elf, type DynamicVersionNeed struct #63952
 pkg debug/elf, type DynamicVersionNeed struct, Name string #63952
 pkg debug/elf, type DynamicVersionNeed struct, Needs []DynamicVersionDep #63952
-pkg debug/elf, type DynamicVersionNeed struct, Version uint16 #63952
-pkg debug/elf, type Symbol struct, VersionFlags SymbolVersionFlag #63952
+pkg debug/elf, type Symbol struct, VersionScope SymbolVersionScope #63952
 pkg debug/elf, type Symbol struct, VersionIndex int16 #63952
-pkg debug/elf, type SymbolVersionFlag uint8 #63952
+pkg debug/elf, type SymbolVersionScope uint8 #63952
 pkg encoding, type BinaryAppender interface { AppendBinary } #62384
 pkg encoding, type BinaryAppender interface, AppendBinary([]uint8) ([]uint8, error) #62384
 pkg encoding, type TextAppender interface { AppendText } #62384
