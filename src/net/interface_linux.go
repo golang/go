@@ -121,14 +121,6 @@ func linkFlags(rawFlags uint32) Flags {
 // network interfaces. Otherwise it returns addresses for a specific
 // interface.
 func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
-	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
-	if err != nil {
-		return nil, os.NewSyscallError("netlinkrib", err)
-	}
-	msgs, err := syscall.ParseNetlinkMessage(tab)
-	if err != nil {
-		return nil, os.NewSyscallError("parsenetlinkmessage", err)
-	}
 	var ift []Interface
 	if ifi == nil {
 		var err error
@@ -136,6 +128,14 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
+	if err != nil {
+		return nil, os.NewSyscallError("netlinkrib", err)
+	}
+	msgs, err := syscall.ParseNetlinkMessage(tab)
+	if err != nil {
+		return nil, os.NewSyscallError("parsenetlinkmessage", err)
 	}
 	ifat, err := addrTable(ift, ifi, msgs)
 	if err != nil {
@@ -158,7 +158,7 @@ loop:
 					var err error
 					ifi, err = interfaceByIndex(ift, int(ifam.Index))
 					if err != nil {
-						return nil, err
+						continue
 					}
 				}
 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
