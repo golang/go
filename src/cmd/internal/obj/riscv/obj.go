@@ -2094,8 +2094,8 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ARORI & obj.AMask:  {enc: iIIEncoding, ternary: true},
 	ARORIW & obj.AMask: {enc: iIIEncoding, ternary: true},
 	ARORW & obj.AMask:  {enc: rIIIEncoding, immForm: ARORIW, ternary: true},
-	AORCB & obj.AMask:  {enc: iIIEncoding},
-	AREV8 & obj.AMask:  {enc: iIIEncoding},
+	AORCB & obj.AMask:  {enc: rIIEncoding},
+	AREV8 & obj.AMask:  {enc: rIIEncoding},
 
 	// 28.4.4: Single-bit Instructions (Zbs)
 	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},
