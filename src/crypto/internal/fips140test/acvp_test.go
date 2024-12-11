@@ -24,6 +24,8 @@ import (
 	"crypto/elliptic"
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
+	"crypto/internal/fips140/aes"
+	"crypto/internal/fips140/aes/gcm"
 	"crypto/internal/fips140/ecdsa"
 	"crypto/internal/fips140/ed25519"
 	"crypto/internal/fips140/edwards25519"
@@ -82,6 +84,13 @@ const (
 	ecdsaSigTypeDeterministic
 )
 
+type aesDirection int
+
+const (
+	aesEncrypt aesDirection = iota
+	aesDecrypt
+)
+
 var (
 	// SHA2 algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html#section-7.2
@@ -97,6 +106,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-7
 	// ECDSA and DetECDSA algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-ecdsa.html#section-7
+	// AES algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-celi-acvp-symmetric.html#section-7.3
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -169,6 +180,15 @@ var (
 		"ECDSA/sigGen":    cmdEcdsaSigGenAft(ecdsaSigTypeNormal),
 		"ECDSA/sigVer":    cmdEcdsaSigVerAft(),
 		"DetECDSA/sigGen": cmdEcdsaSigGenAft(ecdsaSigTypeDeterministic),
+
+		"AES-CBC/encrypt":        cmdAesCbc(aesEncrypt),
+		"AES-CBC/decrypt":        cmdAesCbc(aesDecrypt),
+		"AES-CTR/encrypt":        cmdAesCtr(aesEncrypt),
+		"AES-CTR/decrypt":        cmdAesCtr(aesDecrypt),
+		"AES-GCM/seal":           cmdAesGcmSeal(false),
+		"AES-GCM/open":           cmdAesGcmOpen(false),
+		"AES-GCM-randnonce/seal": cmdAesGcmSeal(true),
+		"AES-GCM-randnonce/open": cmdAesGcmOpen(true),
 	}
 )
 
@@ -959,6 +979,179 @@ func lookupCurve(name string) (elliptic.Curve, error) {
 	}
 
 	return c, nil
+}
+
+func cmdAesCbc(direction aesDirection) command {
+	return command{
+		requiredArgs: 4, // Key, ciphertext or plaintext, IV, num iterations
+		handler: func(args [][]byte) ([][]byte, error) {
+			if direction != aesEncrypt && direction != aesDecrypt {
+				panic("invalid AES direction")
+			}
+
+			key := args[0]
+			input := args[1]
+			iv := args[2]
+			numIterations := binary.LittleEndian.Uint32(args[3])
+
+			blockCipher, err := aes.New(key)
+			if err != nil {
+				return nil, fmt.Errorf("creating AES block cipher with key len %d: %w", len(key), err)
+			}
+
+			if len(input)%blockCipher.BlockSize() != 0 || len(input) == 0 {
+				return nil, fmt.Errorf("invalid ciphertext/plaintext size %d: not a multiple of block size %d",
+					len(input), blockCipher.BlockSize())
+			}
+
+			if blockCipher.BlockSize() != len(iv) {
+				return nil, fmt.Errorf("invalid IV size: expected %d, got %d", blockCipher.BlockSize(), len(iv))
+			}
+
+			result := make([]byte, len(input))
+			prevResult := make([]byte, len(input))
+			prevInput := make([]byte, len(input))
+
+			for i := uint32(0); i < numIterations; i++ {
+				copy(prevResult, result)
+
+				if i > 0 {
+					if direction == aesEncrypt {
+						copy(iv, result)
+					} else {
+						copy(iv, prevInput)
+					}
+				}
+
+				if direction == aesEncrypt {
+					cbcEnc := aes.NewCBCEncrypter(blockCipher, [16]byte(iv))
+					cbcEnc.CryptBlocks(result, input)
+				} else {
+					cbcDec := aes.NewCBCDecrypter(blockCipher, [16]byte(iv))
+					cbcDec.CryptBlocks(result, input)
+				}
+
+				if direction == aesDecrypt {
+					copy(prevInput, input)
+				}
+
+				if i == 0 {
+					copy(input, iv)
+				} else {
+					copy(input, prevResult)
+				}
+			}
+
+			return [][]byte{result, prevResult}, nil
+		},
+	}
+}
+
+func cmdAesCtr(direction aesDirection) command {
+	return command{
+		requiredArgs: 4, // Key, ciphertext or plaintext, initial counter, num iterations (constant 1)
+		handler: func(args [][]byte) ([][]byte, error) {
+			if direction != aesEncrypt && direction != aesDecrypt {
+				panic("invalid AES direction")
+			}
+
+			key := args[0]
+			input := args[1]
+			iv := args[2]
+			numIterations := binary.LittleEndian.Uint32(args[3])
+			if numIterations != 1 {
+				return nil, fmt.Errorf("invalid num iterations: expected 1, got %d", numIterations)
+			}
+
+			if len(iv) != aes.BlockSize {
+				return nil, fmt.Errorf("invalid IV size: expected %d, got %d", aes.BlockSize, len(iv))
+			}
+
+			blockCipher, err := aes.New(key)
+			if err != nil {
+				return nil, fmt.Errorf("creating AES block cipher with key len %d: %w", len(key), err)
+			}
+
+			result := make([]byte, len(input))
+			stream := aes.NewCTR(blockCipher, iv)
+			stream.XORKeyStream(result, input)
+
+			return [][]byte{result}, nil
+		},
+	}
+}
+
+func cmdAesGcmSeal(randNonce bool) command {
+	return command{
+		requiredArgs: 5, // tag len, key, plaintext, nonce (empty for randNonce), additional data
+		handler: func(args [][]byte) ([][]byte, error) {
+			tagLen := binary.LittleEndian.Uint32(args[0])
+			key := args[1]
+			plaintext := args[2]
+			nonce := args[3]
+			additionalData := args[4]
+
+			blockCipher, err := aes.New(key)
+			if err != nil {
+				return nil, fmt.Errorf("creating AES block cipher with key len %d: %w", len(key), err)
+			}
+
+			aesGCM, err := gcm.New(blockCipher, 12, int(tagLen))
+			if err != nil {
+				return nil, fmt.Errorf("creating AES-GCM with tag len %d: %w", tagLen, err)
+			}
+
+			var ct []byte
+			if !randNonce {
+				ct = aesGCM.Seal(nil, nonce, plaintext, additionalData)
+			} else {
+				var internalNonce [12]byte
+				ct = make([]byte, len(plaintext)+16)
+				gcm.SealWithRandomNonce(aesGCM, internalNonce[:], ct, plaintext, additionalData)
+				// acvptool expects the internally generated nonce to be appended to the end of the ciphertext.
+				ct = append(ct, internalNonce[:]...)
+			}
+
+			return [][]byte{ct}, nil
+		},
+	}
+}
+
+func cmdAesGcmOpen(randNonce bool) command {
+	return command{
+		requiredArgs: 5, // tag len, key, ciphertext, nonce (empty for randNonce), additional data
+		handler: func(args [][]byte) ([][]byte, error) {
+
+			tagLen := binary.LittleEndian.Uint32(args[0])
+			key := args[1]
+			ciphertext := args[2]
+			nonce := args[3]
+			additionalData := args[4]
+
+			blockCipher, err := aes.New(key)
+			if err != nil {
+				return nil, fmt.Errorf("creating AES block cipher with key len %d: %w", len(key), err)
+			}
+
+			aesGCM, err := gcm.New(blockCipher, 12, int(tagLen))
+			if err != nil {
+				return nil, fmt.Errorf("creating AES-GCM with tag len %d: %w", tagLen, err)
+			}
+
+			if randNonce {
+				// for randNonce tests acvptool appends the nonce to the end of the ciphertext.
+				nonce = ciphertext[len(ciphertext)-12:]
+				ciphertext = ciphertext[:len(ciphertext)-12]
+			}
+
+			pt, err := aesGCM.Open(nil, nonce, ciphertext, additionalData)
+			if err != nil {
+				return [][]byte{{0}, nil}, nil
+			}
+
+			return [][]byte{{1}, pt}, nil
+		},
+	}
 }
 
 func TestACVP(t *testing.T) {

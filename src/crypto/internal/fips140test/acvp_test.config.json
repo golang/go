@@ -31,5 +31,9 @@
 
   {"Wrapper": "go", "In": "vectors/EDDSA.bz2", "Out": "expected/EDDSA.bz2"},
 
-  {"Wrapper": "go", "In": "vectors/ECDSA.bz2", "Out": "expected/ECDSA.bz2"}
+  {"Wrapper": "go", "In": "vectors/ECDSA.bz2", "Out": "expected/ECDSA.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/ACVP-AES-CBC.bz2", "Out": "expected/ACVP-AES-CBC.bz2"},
+  {"Wrapper": "go", "In": "vectors/ACVP-AES-CTR.bz2", "Out": "expected/ACVP-AES-CTR.bz2"},
+  {"Wrapper": "go", "In": "vectors/ACVP-AES-GCM.bz2", "Out": "expected/ACVP-AES-GCM.bz2"}
 ]
