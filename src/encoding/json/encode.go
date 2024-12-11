@@ -370,6 +370,7 @@ func typeEncoder(t reflect.Type) encoderFunc {
 		f(e, v, opts)
 	}))
 	if loaded {
+		wg.Done()
 		return fi.(encoderFunc)
 	}
 
