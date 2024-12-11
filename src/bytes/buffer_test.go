@@ -354,7 +354,7 @@ func TestWriteAppend(t *testing.T) {
 		got.Write(b)
 	}
 	if !Equal(got.Bytes(), want) {
-		t.Fatalf("Bytes() = %q, want %q", got, want)
+		t.Fatalf("Bytes() = %q, want %q", &got, want)
 	}
 
 	// With a sufficiently sized buffer, there should be no allocations.

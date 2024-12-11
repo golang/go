@@ -35,7 +35,7 @@ func TestReset(t *testing.T) {
 
 	for i, s := range ss {
 		if s != inflated[i].String() {
-			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, inflated[i], s)
+			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, &inflated[i], s)
 		}
 	}
 }
@@ -92,7 +92,7 @@ func TestResetDict(t *testing.T) {
 
 	for i, s := range ss {
 		if s != inflated[i].String() {
-			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, inflated[i], s)
+			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, &inflated[i], s)
 		}
 	}
 }

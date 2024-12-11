@@ -174,7 +174,7 @@ func (pw *pkgWriter) typeOf(expr syntax.Expr) types2.Type {
 type writer struct {
 	p *pkgWriter
 
-	pkgbits.Encoder
+	*pkgbits.Encoder
 
 	// sig holds the signature for the current function body, if any.
 	sig *types2.Signature

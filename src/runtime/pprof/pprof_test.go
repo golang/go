@@ -465,7 +465,7 @@ func testCPUProfile(t *testing.T, matches profileMatchFunc, f func(dur time.Dura
 		f(duration)
 		StopCPUProfile()
 
-		if p, ok := profileOk(t, matches, prof, duration); ok {
+		if p, ok := profileOk(t, matches, &prof, duration); ok {
 			return p
 		}
 
@@ -515,7 +515,7 @@ func stackContains(spec string, count uintptr, stk []*profile.Location, labels m
 
 type sampleMatchFunc func(spec string, count uintptr, stk []*profile.Location, labels map[string][]string) bool
 
-func profileOk(t *testing.T, matches profileMatchFunc, prof bytes.Buffer, duration time.Duration) (_ *profile.Profile, ok bool) {
+func profileOk(t *testing.T, matches profileMatchFunc, prof *bytes.Buffer, duration time.Duration) (_ *profile.Profile, ok bool) {
 	ok = true
 
 	var samples uintptr

@@ -121,7 +121,7 @@ func (pw *PkgEncoder) StringIdx(s string) RelIndex {
 // NewEncoder returns an Encoder for a new element within the given
 // section, and encodes the given SyncMarker as the start of the
 // element bitstream.
-func (pw *PkgEncoder) NewEncoder(k SectionKind, marker SyncMarker) Encoder {
+func (pw *PkgEncoder) NewEncoder(k SectionKind, marker SyncMarker) *Encoder {
 	e := pw.NewEncoderRaw(k)
 	e.Sync(marker)
 	return e
@@ -131,11 +131,11 @@ func (pw *PkgEncoder) NewEncoder(k SectionKind, marker SyncMarker) Encoder {
 // section.
 //
 // Most callers should use NewEncoder instead.
-func (pw *PkgEncoder) NewEncoderRaw(k SectionKind) Encoder {
+func (pw *PkgEncoder) NewEncoderRaw(k SectionKind) *Encoder {
 	idx := RelIndex(len(pw.elems[k]))
 	pw.elems[k] = append(pw.elems[k], "") // placeholder
 
-	return Encoder{
+	return &Encoder{
 		p:   pw,
 		k:   k,
 		Idx: idx,

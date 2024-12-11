@@ -84,7 +84,7 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.SectionKind, idx index) index
 		// if we do external relocations.
 
 		w := l.pw.NewEncoderRaw(k)
-		l.relocCommon(pr, &w, k, idx)
+		l.relocCommon(pr, w, k, idx)
 		newidx = w.Idx
 	}
 
@@ -168,9 +168,9 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
 	assert(wname.Idx == w.Idx)
 	assert(wdict.Idx == w.Idx)
 
-	l.relocCommon(pr, &w, pkgbits.SectionObj, idx)
-	l.relocCommon(pr, &wname, pkgbits.SectionName, idx)
-	l.relocCommon(pr, &wdict, pkgbits.SectionObjDict, idx)
+	l.relocCommon(pr, w, pkgbits.SectionObj, idx)
+	l.relocCommon(pr, wname, pkgbits.SectionName, idx)
+	l.relocCommon(pr, wdict, pkgbits.SectionObjDict, idx)
 
 	// Generic types and functions won't have definitions, and imported
 	// objects may not either.
@@ -181,15 +181,15 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
 		wext.Sync(pkgbits.SyncObject1)
 		switch tag {
 		case pkgbits.ObjFunc:
-			l.relocFuncExt(&wext, obj)
+			l.relocFuncExt(wext, obj)
 		case pkgbits.ObjType:
-			l.relocTypeExt(&wext, obj)
+			l.relocTypeExt(wext, obj)
 		case pkgbits.ObjVar:
-			l.relocVarExt(&wext, obj)
+			l.relocVarExt(wext, obj)
 		}
 		wext.Flush()
 	} else {
-		l.relocCommon(pr, &wext, pkgbits.SectionObjExt, idx)
+		l.relocCommon(pr, wext, pkgbits.SectionObjExt, idx)
 	}
 
 	// Check if we need to export the inline bodies for functions and
