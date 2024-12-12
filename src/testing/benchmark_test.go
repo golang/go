@@ -149,36 +149,6 @@ func TestBLoopHasResults(t *testing.T) {
 	}
 }
 
-func ExampleB_Loop() {
-	simpleFunc := func(i int) int {
-		return i + 1
-	}
-	n := 0
-	testing.Benchmark(func(b *testing.B) {
-		// Unlike "for i := range b.N {...}" style loops, this
-		// setup logic will only be executed once, so simpleFunc
-		// will always get argument 1.
-		n++
-		// It behaves just like "for i := range N {...}", except with keeping
-		// function call parameters and results alive.
-		for b.Loop() {
-			// This function call, if was in a normal loop, will be optimized away
-			// completely, first by inlining, then by dead code elimination.
-			// In a b.Loop loop, the compiler ensures that this function is not optimized away.
-			simpleFunc(n)
-		}
-		// This clean-up will only be executed once, so after the benchmark, the user
-		// will see n == 2.
-		n++
-		// Use b.ReportMetric as usual just like what a user may do after
-		// b.N loop.
-	})
-	// We can expect n == 2 here.
-
-	// The return value of the above Benchmark could be used just like
-	// a b.N loop benchmark as well.
-}
-
 func ExampleB_RunParallel() {
 	// Parallel benchmark for text/template.Template.Execute on a single object.
 	testing.Benchmark(func(b *testing.B) {
