@@ -104,8 +104,8 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 				break
 			}
 			if _, cr.err = io.ReadFull(cr.r, cr.buf[:2]); cr.err == nil {
-				if string(cr.buf[:]) != "\r\n" {
-					cr.err = errors.New("malformed chunked encoding")
+				if lb := string(cr.buf[:]); lb != "\r\n" {
+					cr.err = fmt.Errorf("malformed chunked encoding %q", lb)
 					break
 				}
 			} else {
