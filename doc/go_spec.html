@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.24 (Dec 16, 2024)",
+	"Subtitle": "Language version go1.24 (Dec 30, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -798,7 +798,6 @@ If a variable has not yet been assigned a value, its value is the
 <a href="#The_zero_value">zero value</a> for its type.
 </p>
 
-
 <h2 id="Types">Types</h2>
 
 <p>
@@ -1200,7 +1199,7 @@ type (
 <p>
 A pointer type denotes the set of all pointers to <a href="#Variables">variables</a> of a given
 type, called the <i>base type</i> of the pointer.
-The value of an uninitialized pointer is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized pointer is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1216,9 +1215,9 @@ BaseType    = Type .
 <h3 id="Function_types">Function types</h3>
 
 <p>
-A function type denotes the set of all functions with the same parameter
-and result types. The value of an uninitialized variable of function type
-is <code>nil</code>.
+A function type denotes the set of all functions with the same parameter and result types.
+The <a href="#Representation_of_values">value</a> of an uninitialized variable of function
+type is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1267,7 +1266,8 @@ An interface type defines a <i>type set</i>.
 A variable of interface type can store a value of any type that is in the type
 set of the interface. Such a type is said to
 <a href="#Implementing_an_interface">implement the interface</a>.
-The value of an uninitialized variable of interface type is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized variable of
+interface type is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1630,7 +1630,7 @@ implements the interface.
 A map is an unordered group of elements of one type, called the
 element type, indexed by a set of unique <i>keys</i> of another type,
 called the key type.
-The value of an uninitialized map is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized map is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1693,7 +1693,7 @@ to communicate by
 <a href="#Send_statements">sending</a> and
 <a href="#Receive_operator">receiving</a>
 values of a specified element type.
-The value of an uninitialized channel is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized channel is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1771,6 +1771,57 @@ received in the order sent.
 </p>
 
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
+
+<h3 id="Representation_of_values">Representation of values</h3>
+
+<p>
+Values of predeclared types (see below for the interfaces <code>any</code>
+and <code>error</code>), arrays, and structs are self-contained:
+Each such value contains a complete copy of all its data,
+and <a href="#Variables">variables</a> of such types store the entire value.
+For instance, an array variable provides the storage (the variables)
+for all elements of the array.
+The respective <a href="#The_zero_value">zero values</a> are specific to the
+value's types; they are never <code>nil</code>.
+</p>
+
+<p>
+Non-nil pointer, function, slice, map, and channel values contain references
+to underlying data which may be shared by multiple values:
+</p>
+
+<ul>
+<li>
+	A pointer value is a reference to the variable holding
+	the pointer base type value.
+</li>
+<li>
+	A function value contains references to the (possibly
+	<a href="#Function_literals">anonymous</a>) function
+	and enclosed variables.
+</li>
+<li>
+	A slice value contains the slice length, capacity, and
+	a reference to its <a href="#Slice_types">underlying array</a>.
+</li>
+<li>
+	A map or channel value is a reference to the implementation-specific
+	data structure of the map or channel.
+</li>
+</ul>
+
+<p>
+An interface value may be self-contained or contain references to underlying data
+depending on the interface's <a href="#Variables">dynamic type</a>.
+The predeclared identifier <code>nil</code> is the zero value for types whose values
+can contain references.
+</p>
+
+<p>
+When multiple values share underlying data, changing one value may change another.
+For instance, changing an element of a <a href="#Slice_types">slice</a> will change
+that element in the underlying array for all slices that share the array.
+</p>
 
 <h3 id="Underlying_types">Underlying types</h3>
 
@@ -2899,7 +2950,7 @@ initialization value in the assignment.
 If that value is an untyped constant, it is first implicitly
 <a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
 if it is an untyped boolean value, it is first implicitly converted to type <code>bool</code>.
-The predeclared value <code>nil</code> cannot be used to initialize a variable
+The predeclared identifier <code>nil</code> cannot be used to initialize a variable
 with no explicit type.
 </p>
 
@@ -6262,6 +6313,26 @@ to the type of the operand to which it is assigned, with the following special c
 	the blank identifier, it is first implicitly converted to type <code>bool</code>.
 </li>
 </ol>
+
+<p>
+When a value is assigned to a variable, only the data that is stored in the variable
+is replaced. If the value contains a <a href="#Representation_of_values">reference</a>,
+the assignment copies the reference but does not make a copy of the referenced data
+(such as the underlying array of a slice).
+</p>
+
+<pre>
+var s1 = []int{1, 2, 3}
+var s2 = s1                    // s2 stores the slice descriptor of s1
+s1 = s1[:1]                    // s1's length is 1 but it still shares its underlying array with s2
+s2[0] = 42                     // setting s2[0] changes s1[0] as well
+fmt.Println(s1, s2)            // prints [42] [42 2 3]
+
+var m1 = make(map[string]int)
+var m2 = m1                    // m2 stores the map descriptor of m1
+m1["foo"] = 42                 // setting m1["foo"] changes m2["foo"] as well
+fmt.Println(m2["foo"])         // prints 42
+</pre>
 
 <h3 id="If_statements">If statements</h3>
 
