@@ -188,7 +188,7 @@ func memequal(a, b unsafe.Pointer, size uintptr) bool
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
+	return unsafe.Pointer(x)
 }
 
 // noEscapePtr hides a pointer from escape analysis. See noescape.
