@@ -155,7 +155,7 @@ func ExampleB_Loop() {
 	}
 	n := 0
 	testing.Benchmark(func(b *testing.B) {
-		// Unlike "for i := range N {...}" style loops, this
+		// Unlike "for i := range b.N {...}" style loops, this
 		// setup logic will only be executed once, so simpleFunc
 		// will always get argument 1.
 		n++
@@ -219,7 +219,7 @@ func ExampleB_ReportMetric() {
 	// specific algorithm (in this case, sorting).
 	testing.Benchmark(func(b *testing.B) {
 		var compares int64
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			s := []int{5, 4, 3, 2, 1}
 			slices.SortFunc(s, func(a, b int) int {
 				compares++

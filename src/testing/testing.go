@@ -72,27 +72,24 @@
 // A sample benchmark function looks like this:
 //
 //	func BenchmarkRandInt(b *testing.B) {
-//	    for range b.N {
+//	    for b.Loop() {
 //	        rand.Int()
 //	    }
 //	}
 //
-// The benchmark function must run the target code b.N times.
-// It is called multiple times with b.N adjusted until the
-// benchmark function lasts long enough to be timed reliably.
 // The output
 //
 //	BenchmarkRandInt-8   	68453040	        17.8 ns/op
 //
-// means that the loop ran 68453040 times at a speed of 17.8 ns per loop.
+// means that the body of the loop ran 68453040 times at a speed of 17.8 ns per loop.
 //
-// If a benchmark needs some expensive setup before running, the timer
-// may be reset:
+// Only the body of the loop is timed, so benchmarks may do expensive
+// setup before calling b.Loop, which will not be counted toward the
+// benchmark measurement:
 //
 //	func BenchmarkBigLen(b *testing.B) {
 //	    big := NewBig()
-//	    b.ResetTimer()
-//	    for range b.N {
+//	    for b.Loop() {
 //	        big.Len()
 //	    }
 //	}
@@ -119,6 +116,37 @@
 // https://golang.org/x/perf/cmd.
 // In particular, https://golang.org/x/perf/cmd/benchstat performs
 // statistically robust A/B comparisons.
+//
+// # b.N-style benchmarks
+//
+// Prior to the introduction of [B.Loop], benchmarks were written in a
+// different style using [B.N]. For example:
+//
+//	func BenchmarkRandInt(b *testing.B) {
+//	    for range b.N {
+//	        rand.Int()
+//	    }
+//	}
+//
+// In this style of benchmark, the benchmark function must run
+// the target code b.N times. The benchmark function is called
+// multiple times with b.N adjusted until the benchmark function
+// lasts long enough to be timed reliably. This also means any setup
+// done before the loop may be run several times.
+//
+// If a benchmark needs some expensive setup before running, the timer
+// should be explicitly reset:
+//
+//	func BenchmarkBigLen(b *testing.B) {
+//	    big := NewBig()
+//	    b.ResetTimer()
+//	    for range b.N {
+//	        big.Len()
+//	    }
+//	}
+//
+// New benchmarks should prefer using [B.Loop], which is more robust
+// and more efficient.
 //
 // # Examples
 //
