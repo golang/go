@@ -829,6 +829,14 @@ func (c *Conn) readFromUntil(r io.Reader, n int) error {
 	// "predict" closeNotify alerts.
 	c.rawInput.Grow(needs + bytes.MinRead)
 	_, err := c.rawInput.ReadFrom(&atLeastReader{r, int64(needs)})
+
+	// Read timeout, and we do not get any data, connection is idle,
+	// we should replace rawInput buffer with a small one
+	if e, ok := err.(net.Error); ok && e.Timeout() &&
+		c.rawInput.Len() == 0 && c.rawInput.Cap() > 4*bytes.MinRead {
+		c.rawInput = *bytes.NewBuffer(make([]byte, 0, bytes.MinRead))
+	}
+
 	return err
 }
 
