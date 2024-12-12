@@ -1059,11 +1059,40 @@ func PutBasedRanges(ctxt Context, sym Sym, ranges []Range) {
 	ctxt.AddInt(sym, ps, 0)
 }
 
+// PutRngListRanges writes a DWARF5-style set of rangelist entries to sym,
+// using base as a starting/base address.
+func PutRngListRanges(ctxt Context, sym Sym, base Sym, ranges []Range) {
+	addULEB128 := func(v int64) {
+		b := sevenBitU(v)
+		if b == nil {
+			var encbuf [20]byte
+			b = AppendUleb128(encbuf[:0], uint64(v))
+		}
+		ctxt.AddBytes(sym, b)
+	}
+	// First entry is base address.
+	ctxt.AddInt(sym, 1, DW_RLE_base_addressx)
+	ctxt.AddIndirectTextRef(sym, base)
+	// Remaining entries are .debug_rnglist offset pairs
+	for _, r := range ranges {
+		ctxt.AddInt(sym, 1, DW_RLE_offset_pair)
+		addULEB128(r.Start)
+		addULEB128(r.End)
+	}
+	// Terminator to mark end of list
+	ctxt.AddInt(sym, 1, DW_RLE_end_of_list)
+}
+
 // PutRanges writes a range table to s.Ranges.
 // All addresses in ranges are relative to s.base.
 func (s *FnState) PutRanges(ctxt Context, ranges []Range) {
 	ps := ctxt.PtrSize()
 	sym, base := s.Ranges, s.StartPC
+
+	if buildcfg.Experiment.Dwarf5 {
+		PutRngListRanges(ctxt, sym, base, ranges)
+		return
+	}
 
 	if s.UseBASEntries {
 		// Using a Base Address Selection Entry reduces the number of relocations, but

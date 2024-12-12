@@ -148,6 +148,13 @@ func (c dwctxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64)
 	dsu.AddSymRef(c.arch, tds, ofs, objabi.R_DWARFSECREF, size)
 }
 
+func (c dwctxt) AddIndirectTextRef(s dwarf.Sym, t interface{}) {
+	ds := loader.Sym(s.(dwSym))
+	dsu := c.ldr.MakeSymbolUpdater(ds)
+	tds := loader.Sym(t.(dwSym))
+	dsu.AddSymRef(c.arch, tds, 0, objabi.R_DWTXTADDR_U4, 4)
+}
+
 func (c dwctxt) Logf(format string, args ...interface{}) {
 	c.linkctxt.Logf(format, args...)
 }
@@ -163,12 +170,6 @@ func (c dwctxt) RecordDclReference(s dwarf.Sym, t dwarf.Sym, dclIdx int, inlInde
 }
 
 func (c dwctxt) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets []int32) {
-	panic("should be used only in the compiler")
-}
-
-func (c dwctxt) AddIndirectTextRef(s dwarf.Sym, t interface{}) {
-	// NB: at the moment unused in the linker; will be needed
-	// later on in a subsequent patch.
 	panic("should be used only in the compiler")
 }
 
@@ -1470,7 +1471,7 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []
 // writepcranges generates the DW_AT_ranges table for compilation unit
 // "unit", and returns a collection of ranges symbols (one for the
 // compilation unit DIE itself and the remainder from functions in the unit).
-func (d *dwctxt) writepcranges(unit *sym.CompilationUnit, base loader.Sym, pcs []dwarf.Range, rangeProlog loader.Sym) []loader.Sym {
+func (d *dwctxt) writepcranges(unit *sym.CompilationUnit, base loader.Sym, pcs []dwarf.Range, rangeProlog loader.Sym, debugaddrsym loader.Sym) []loader.Sym {
 
 	syms := make([]loader.Sym, 0, len(unit.RangeSyms)+1)
 	syms = append(syms, rangeProlog)
@@ -1480,7 +1481,24 @@ func (d *dwctxt) writepcranges(unit *sym.CompilationUnit, base loader.Sym, pcs [
 	// Create PC ranges for the compilation unit DIE.
 	newattr(unit.DWInfo, dwarf.DW_AT_ranges, dwarf.DW_CLS_PTR, rsu.Size(), rDwSym)
 	newattr(unit.DWInfo, dwarf.DW_AT_low_pc, dwarf.DW_CLS_ADDRESS, 0, dwSym(base))
-	dwarf.PutBasedRanges(d, rDwSym, pcs)
+	if buildcfg.Experiment.Dwarf5 && debugaddrsym != 0 {
+		debugaddr := d.ldr.MakeSymbolUpdater(debugaddrsym)
+		// Write DWARF5-based ranges for the unit. This will introduce
+		// a series of new R_DWTXTADDR_* relocs, which we'll process
+		// in the loop immediately following this call.
+		dwarf.PutRngListRanges(d, rDwSym, dwSym(base), pcs)
+		drelocs := d.ldr.Relocs(rangeProlog)
+		for ri := 0; ri < drelocs.Count(); ri++ {
+			r := drelocs.At(ri)
+			if !r.Type().IsDwTxtAddr() {
+				continue
+			}
+			cusym := d.dtolsym(unit.DWInfo.Sym)
+			d.assignDebugAddrSlot(unit, cusym, r, debugaddr)
+		}
+	} else {
+		dwarf.PutBasedRanges(d, rDwSym, pcs)
+	}
 
 	// Collect up the ranges for functions in the unit.
 	rsize := uint64(rsu.Size())
@@ -2221,10 +2239,10 @@ func (d *dwctxt) dwUnitPortion(u *sym.CompilationUnit, abbrevsym loader.Sym, us 
 	if u.DWInfo.Abbrev != dwarf.DW_ABRV_COMPUNIT_TEXTLESS {
 		us.linesyms = d.writelines(u, us.lineProlog)
 		base := loader.Sym(u.Textp[0])
-		us.rangessyms = d.writepcranges(u, base, u.PCs, us.rangeProlog)
 		if buildcfg.Experiment.Dwarf5 {
 			d.writedebugaddr(u, us.addrsym)
 		}
+		us.rangessyms = d.writepcranges(u, base, u.PCs, us.rangeProlog, us.addrsym)
 		us.locsyms = d.collectUnitLocs(u)
 	}
 	us.infosyms = d.writeUnitInfo(u, abbrevsym, us.addrsym, us.infoEpilog)
@@ -2238,33 +2256,42 @@ func (d *dwctxt) dwUnitPortion(u *sym.CompilationUnit, abbrevsym loader.Sym, us 
 func (d *dwctxt) writedebugaddr(unit *sym.CompilationUnit, debugaddr loader.Sym) {
 	dasu := d.ldr.MakeSymbolUpdater(debugaddr)
 
+	var dsyms []loader.Sym
 	for _, s := range unit.Textp {
 		fnSym := loader.Sym(s)
 		// NB: this looks at SDWARFFCN; it will need to also look
 		// at range and loc when they get there.
-		infosym, _, _, _ := d.ldr.GetFuncDwarfAuxSyms(fnSym)
+		infosym, _, rangessym, _ := d.ldr.GetFuncDwarfAuxSyms(fnSym)
 
-		// Walk the relocations of the subprogram DIE symbol to collect
-		// relocations corresponding to indirect function references
-		// via .debug_addr.
-		drelocs := d.ldr.Relocs(infosym)
-		for ri := 0; ri < drelocs.Count(); ri++ {
-			r := drelocs.At(ri)
-			if !r.Type().IsDwTxtAddr() {
-				continue
+		// Walk the relocations of the various DWARF symbols to
+		// collect relocations corresponding to indirect function
+		// references via .debug_addr.
+		dsyms = dsyms[:0]
+		dsyms = append(dsyms, infosym)
+		if rangessym != 0 {
+			dsyms = append(dsyms, rangessym)
+		}
+		for _, dsym := range dsyms {
+			drelocs := d.ldr.Relocs(dsym)
+			for ri := 0; ri < drelocs.Count(); ri++ {
+				r := drelocs.At(ri)
+				if !r.Type().IsDwTxtAddr() {
+					continue
+				}
+				rsym := r.Sym()
+				rst := d.ldr.SymType(rsym)
+				// Do some consistency checks.
+				if !rst.IsText() {
+					// R_DWTXTADDR_* relocation should only refer to
+					// text symbols, so something apparently went
+					// wrong here.
+					log.Fatalf("internal error: R_DWTXTADDR_* relocation on dwinfosym for %s against non-function %s type:%s", d.ldr.SymName(fnSym), d.ldr.SymName(rsym), rst.String())
+				}
+				if runit := d.ldr.SymUnit(rsym); runit != unit {
+					log.Fatalf("internal error: R_DWTXTADDR_* relocation target text sym unit mismatch (want %q got %q)", unit.Lib.Pkg, runit.Lib.Pkg)
+				}
+				d.assignDebugAddrSlot(unit, fnSym, r, dasu)
 			}
-			rsym := r.Sym()
-			rst := d.ldr.SymType(rsym)
-			// Do some consistency checks.
-			if !rst.IsText() {
-				// R_DWTXTADDR_* relocation should only refer to text
-				// symbols, so something apparently went wrong here.
-				log.Fatalf("internal error: R_DWTXTADDR_* relocation on dwinfosym for %s against non-function %s type:%s", d.ldr.SymName(fnSym), d.ldr.SymName(rsym), rst.String())
-			}
-			if runit := d.ldr.SymUnit(rsym); runit != unit {
-				log.Fatalf("internal error: R_DWTXTADDR_* relocation target text sym unit mismatch (want %q got %q)", unit.Lib.Pkg, runit.Lib.Pkg)
-			}
-			d.assignDebugAddrSlot(unit, fnSym, r, dasu)
 		}
 	}
 }
@@ -2302,7 +2329,12 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	frameSym := mkSecSym(".debug_frame")
 	locSym := mkSecSym(".debug_loc")
 	lineSym := mkSecSym(".debug_line")
-	rangesSym := mkSecSym(".debug_ranges")
+	var rangesSym loader.Sym
+	if buildcfg.Experiment.Dwarf5 {
+		rangesSym = mkSecSym(".debug_rnglists")
+	} else {
+		rangesSym = mkSecSym(".debug_ranges")
+	}
 	infoSym := mkSecSym(".debug_info")
 	var addrSym loader.Sym
 	if buildcfg.Experiment.Dwarf5 {
@@ -2312,13 +2344,16 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	// Create the section objects
 	lineSec := dwarfSecInfo{syms: []loader.Sym{lineSym}}
 	locSec := dwarfSecInfo{syms: []loader.Sym{locSym}}
-	rangesSec := dwarfSecInfo{syms: []loader.Sym{rangesSym}}
 	frameSec := dwarfSecInfo{syms: []loader.Sym{frameSym}}
 	infoSec := dwarfSecInfo{syms: []loader.Sym{infoSym}}
-	var addrSec dwarfSecInfo
+	var addrSec, rangesSec dwarfSecInfo
 	if buildcfg.Experiment.Dwarf5 {
 		addrHdr := d.writeDebugAddrHdr()
 		addrSec.syms = []loader.Sym{addrSym, addrHdr}
+		rnglistsHdr := d.writeDebugRngListsHdr()
+		rangesSec.syms = []loader.Sym{rangesSym, rnglistsHdr}
+	} else {
+		rangesSec = dwarfSecInfo{syms: []loader.Sym{rangesSym}}
 	}
 
 	// Create any new symbols that will be needed during the
@@ -2386,13 +2421,19 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	}
 
 	if buildcfg.Experiment.Dwarf5 {
-		// Compute total size of the .debug_addr unit syms.
-		var addrtot uint64
+		// Compute total size of the DWARF5-specific .debug_* syms in
+		// each compilation unit.
+		var rltot, addrtot uint64
 		for i := 0; i < ncu; i++ {
 			addrtot += uint64(d.ldr.SymSize(unitSyms[i].addrsym))
+			rs := unitSyms[i].rangessyms
+			for _, s := range rs {
+				rltot += uint64(d.ldr.SymSize(s))
+			}
 		}
-		// Call a helper to patch the length field in the header.
+		// Call a helper to patch the length field in the headers.
 		patchHdr(&addrSec, addrtot)
+		patchHdr(&rangesSec, rltot)
 	}
 
 	// Stitch together the results.
@@ -2462,10 +2503,13 @@ func dwarfaddshstrings(ctxt *Link, add func(string)) {
 		return
 	}
 
-	secs := []string{"abbrev", "frame", "info", "loc", "line", "gdb_scripts", "ranges"}
+	secs := []string{"abbrev", "frame", "info", "loc", "line", "gdb_scripts"}
 	if buildcfg.Experiment.Dwarf5 {
-		secs = append(secs, "addr")
+		secs = append(secs, "addr", "rnglists")
+	} else {
+		secs = append(secs, "ranges")
 	}
+
 	for _, sec := range secs {
 		add(".debug_" + sec)
 		if ctxt.IsExternal() {
@@ -2621,6 +2665,20 @@ func addDwsectCUSize(sname string, pkgname string, size uint64) {
 	dwsectCUSizeMu.Lock()
 	defer dwsectCUSizeMu.Unlock()
 	dwsectCUSize[sname+"."+pkgname] += size
+}
+
+// writeDebugAddrHdr creates a new symbol and writes the content
+// for the .debug_rnglists header payload to it, then returns the new sym.
+// Format of the header is described in DWARF5 spec section 7.28.
+func (d *dwctxt) writeDebugRngListsHdr() loader.Sym {
+	su := d.ldr.MakeSymbolUpdater(d.ldr.CreateExtSym("", 0))
+	su.SetType(sym.SDWARFRANGE)
+	su.SetReachable(true)
+	d.createUnitLength(su, 0)          // will be filled in later.
+	su.AddUint16(d.arch, 5)            // dwarf version (appendix F)
+	su.AddUint8(uint8(d.arch.PtrSize)) // address_size
+	su.AddUint8(0)
+	return su.Sym()
 }
 
 // writeDebugAddrHdr creates a new symbol and writes the content
