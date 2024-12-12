@@ -1,0 +1,27 @@
+env GO111MODULE=off
+
+# Control case: in GOPATH mode,
+# a/a.go can import package "./b" using a relative path.
+go build a/a.go
+! stderr .
+
+# package "a" itself cannot import "./b": "a" has a non-local
+# import path, so its imports must also have non-local import paths.
+! go build a
+stderr '^a[/\\]a.go:3:8: local import "./b" in non-local package$'
+
+# package "c" imports itself, which is not allowed.
+! go build c
+stderr '^c[/\\]c.go:3:8: .: cannot import current directory$'
+
+
+-- a/a.go --
+package a
+
+import _ "./b"
+-- a/b/b.go --
+package b
+-- c/c.go --
+package c
+
+import _ "."
