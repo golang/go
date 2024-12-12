@@ -146,7 +146,7 @@ func aixBigArExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
 		}
 	}
 
-	return nil, fmt.Errorf(".go_export not found in this archive")
+	return nil, errors.New(".go_export not found in this archive")
 }
 
 // readerAtFromSeeker turns an io.ReadSeeker into an io.ReaderAt.
