@@ -6404,16 +6404,26 @@ func schedtrace(detailed bool) {
 			print(" runqsize=", t-h, " gfreecnt=", pp.gFree.n, " timerslen=", len(pp.timers.heap), "\n")
 		} else {
 			// In non-detailed mode format lengths of per-P run queues as:
-			// [len1 len2 len3 len4]
+			// [ len1 len2 len3 len4 ]
 			print(" ")
 			if i == 0 {
-				print("[")
+				print("[ ")
 			}
 			print(t - h)
 			if i == len(allp)-1 {
-				print("]\n")
+				print(" ]")
 			}
 		}
+	}
+
+	if !detailed {
+		// Format per-P schedticks as: schedticks=[ tick1 tick2 tick3 tick4 ].
+		print(" schedticks=[ ")
+		for _, pp := range allp {
+			print(pp.schedtick)
+			print(" ")
+		}
+		print("]\n")
 	}
 
 	if !detailed {
