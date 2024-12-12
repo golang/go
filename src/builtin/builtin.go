@@ -247,7 +247,7 @@ func imag(c ComplexType) FloatType
 // to the zero value of the respective element type. If the argument
 // type is a type parameter, the type parameter's type set must
 // contain only map or slice types, and clear performs the operation
-// implied by the type argument.
+// implied by the type argument. If t is nil, clear is a no-op.
 func clear[T ~[]Type | ~map[Type]Type1](t T)
 
 // The close built-in function closes a channel, which must be either
