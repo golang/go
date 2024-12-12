@@ -50,6 +50,7 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$200
 	MOV	m_g0(X10), g
 	CALL	runtime·save_g(SB)
 
+	CALL	runtime·stackcheck(SB)	// fault if stack check is wrong
 	CALL	runtime·mstart(SB)
 
 	// Restore callee-save registers.
