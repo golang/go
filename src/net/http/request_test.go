@@ -367,6 +367,14 @@ func TestSetBasicAuth(t *testing.T) {
 	}
 }
 
+func TestSetProxyBasicAuth(t *testing.T) {
+	r, _ := NewRequest("GET", "http://example.com/", nil)
+	r.SetProxyBasicAuth("Aladdin", "open sesame")
+	if g, e := r.Header.Get("Proxy-Authorization"), "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="; g != e {
+		t.Errorf("got header %q, want %q", g, e)
+	}
+}
+
 func TestMultipartRequest(t *testing.T) {
 	// Test that we can read the values and files of a
 	// multipart request with FormValue and FormFile,
@@ -734,6 +742,18 @@ func TestParseBasicAuth(t *testing.T) {
 		r, _ := NewRequest("GET", "http://example.com/", nil)
 		r.Header.Set("Authorization", tt.header)
 		username, password, ok := r.BasicAuth()
+		if ok != tt.ok || username != tt.username || password != tt.password {
+			t.Errorf("BasicAuth() = %#v, want %#v", getBasicAuthTest{username, password, ok},
+				getBasicAuthTest{tt.username, tt.password, tt.ok})
+		}
+	}
+}
+
+func TestParseProxyBasicAuth(t *testing.T) {
+	for _, tt := range parseBasicAuthTests {
+		r, _ := NewRequest("GET", "http://example.com/", nil)
+		r.Header.Set("Proxy-Authorization", tt.header)
+		username, password, ok := r.ProxyBasicAuth()
 		if ok != tt.ok || username != tt.username || password != tt.password {
 			t.Errorf("BasicAuth() = %#v, want %#v", getBasicAuthTest{username, password, ok},
 				getBasicAuthTest{tt.username, tt.password, tt.ok})
