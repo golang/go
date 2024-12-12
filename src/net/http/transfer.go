@@ -239,7 +239,7 @@ func (t *transferWriter) probeRequestBody() {
 		// assuming that this is ContentLength == -1
 		// (unknown), which means we'll send a
 		// "Transfer-Encoding: chunked" header.
-		t.Body = io.MultiReader(finishAsyncByteRead{t}, t.Body)
+		t.Body = io.MultiReader(&finishAsyncByteRead{tw: t}, t.Body)
 		// Request that Request.Write flush the headers to the
 		// network before writing the body, since our body may not
 		// become readable until it's seen the response headers.
@@ -1072,13 +1072,18 @@ func parseContentLength(clHeaders []string) (int64, error) {
 // finishAsyncByteRead finishes reading the 1-byte sniff
 // from the ContentLength==0, Body!=nil case.
 type finishAsyncByteRead struct {
-	tw *transferWriter
+	tw   *transferWriter
+	done bool
 }
 
-func (fr finishAsyncByteRead) Read(p []byte) (n int, err error) {
+func (fr *finishAsyncByteRead) Read(p []byte) (n int, err error) {
+	if fr.done {
+		return 0, io.EOF
+	}
 	if len(p) == 0 {
 		return
 	}
+	fr.done = true
 	rres := <-fr.tw.ByteReadCh
 	n, err = rres.n, rres.err
 	if n == 1 {
