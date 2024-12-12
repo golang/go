@@ -233,3 +233,72 @@ func (l *List) PushFrontList(other *List) {
 		l.insertValue(e.Value, &l.root)
 	}
 }
+
+// Sort sorts list l given the provided less function. The less function
+// receives the list element values and reports whether the first value stands
+// before the second.
+//
+// The runtime complexity is O(n*log(n)).
+func (l *List) Sort(less func(a, b interface{}) bool) {
+	if l.len <= 1 {
+		return
+	}
+	front := mergeSort(l.root.next, less)
+	// Fix prev pointers after shuffling the list.
+	var back *Element
+	for el := front; el != nil; back, el = el, el.Next() {
+		el.prev = back
+	}
+	// Fix prev and next pointers for the front and back elements.
+	front.prev = &l.root
+	back.next = &l.root
+
+	l.root = Element{
+		next: front,
+		prev: back,
+	}
+}
+
+func mergeSort(el *Element, less func(a, b interface{}) bool) *Element {
+	if el == nil || el.Next() == nil {
+		return el
+	}
+	lo, hi := split(el)
+	return merge(
+		mergeSort(lo, less),
+		mergeSort(hi, less),
+		less,
+	)
+}
+
+func split(el *Element) (lo, hi *Element) {
+	// Find out the middle element of the list.
+	var slow, fast *Element
+	for slow, fast = el, el.Next(); fast != nil && fast.Next() != nil; {
+		slow = slow.Next()
+		fast = fast.Next().Next()
+	}
+	lo = el
+	hi = slow.Next()
+	// Slow is the last element of the lo half, so mark its next pointer as nil
+	// temporarily. We will fix pointers later in the Sort().
+	slow.next = nil
+	return lo, hi
+}
+
+func merge(a, b *Element, less func(a, b interface{}) bool) (ret *Element) {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if less(a.Value, b.Value) {
+		a.next = merge(a.Next(), b, less)
+		ret = a
+	} else {
+		b.next = merge(a, b.Next(), less)
+		ret = b
+	}
+	return ret
+}
