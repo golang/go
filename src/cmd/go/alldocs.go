@@ -2336,7 +2336,7 @@
 //	GOBIN
 //		The directory where 'go install' will install a command.
 //	GOCACHE
-//		The absolute path to the directory where the go command will store cached
+//		The directory where the go command will store cached
 //		information for reuse in future builds. Must be an absolute path.
 //	GODEBUG
 //		Enable various debugging facilities. See https://go.dev/doc/godebug
