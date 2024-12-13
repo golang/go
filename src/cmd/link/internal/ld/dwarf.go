@@ -520,7 +520,7 @@ func (d *dwctxt) defgotype(gotype loader.Sym) loader.Sym {
 		d.linkctxt.Errorf(gotype, "dwarf: type name doesn't start with \"type:\"")
 		return d.mustFind("<unspecified>")
 	}
-	name := sn[5:] // could also decode from Type.string
+	name := sn[len("type:"):] // could also decode from Type.string
 
 	sdie := d.find(name)
 	if sdie != 0 {
@@ -534,7 +534,7 @@ func (d *dwctxt) defgotype(gotype loader.Sym) loader.Sym {
 
 func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
 	sn := d.ldr.SymName(gotype)
-	name := sn[5:] // could also decode from Type.string
+	name := sn[len("type:"):] // could also decode from Type.string
 	tdata := d.ldr.Data(gotype)
 	if len(tdata) == 0 {
 		d.linkctxt.Errorf(gotype, "missing type")
