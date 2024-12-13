@@ -3068,7 +3068,15 @@ func setPGOProfilePath(pkgs []*Package) {
 // CheckPackageErrors prints errors encountered loading pkgs and their
 // dependencies, then exits with a non-zero status if any errors were found.
 func CheckPackageErrors(pkgs []*Package) {
-	var anyIncomplete bool
+	PackageErrors(pkgs, func(p *Package) {
+		DefaultPrinter().Errorf(p, "%v", p.Error)
+	})
+	base.ExitIfErrors()
+}
+
+// PackageErrors calls report for errors encountered loading pkgs and their dependencies.
+func PackageErrors(pkgs []*Package, report func(*Package)) {
+	var anyIncomplete, anyErrors bool
 	for _, pkg := range pkgs {
 		if pkg.Incomplete {
 			anyIncomplete = true
@@ -3078,11 +3086,14 @@ func CheckPackageErrors(pkgs []*Package) {
 		all := PackageList(pkgs)
 		for _, p := range all {
 			if p.Error != nil {
-				DefaultPrinter().Errorf(p, "%v", p.Error)
+				report(p)
+				anyErrors = true
 			}
 		}
 	}
-	base.ExitIfErrors()
+	if anyErrors {
+		return
+	}
 
 	// Check for duplicate loads of the same package.
 	// That should be impossible, but if it does happen then
@@ -3105,7 +3116,9 @@ func CheckPackageErrors(pkgs []*Package) {
 		}
 		seen[key] = true
 	}
-	base.ExitIfErrors()
+	if len(reported) > 0 {
+		base.ExitIfErrors()
+	}
 }
 
 // mainPackagesOnly filters out non-main packages matched only by arguments
