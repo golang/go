@@ -1537,7 +1537,7 @@ func TestIsTrue(t *testing.T) {
 	for _, test_case := range tests {
 		got, _ := IsTrue(test_case.v)
 		if got != test_case.want {
-			t.Fatalf("expect result %v for %v, got %v", test_case.want, test_case.v, got)
+			t.Fatalf("expect result %v, got %v", test_case.want, got)
 		}
 	}
 }
