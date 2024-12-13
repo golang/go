@@ -58,8 +58,9 @@ stderr '# m/builderror \[m/builderror.test\]\n'
 stderr 'builderror'${/}'main_test.go:3:11: undefined: y\n'
 stdout '"Action":"start","Package":"m/builderror"'
 stdout '"Action":"output","Package":"m/builderror","Output":"FAIL\\tm/builderror \[build failed\]\\n"'
-stdout '"Action":"fail","Package":"m/builderror","Elapsed":.*,"FailedBuild":"m/builderror \[m/builderror\.test\]"'
-
+stdout '"Action":"fail","Package":"m/builderror","Elapsed":[0-9.]+\}'
+# FailedBuild should NOT appear in the output in this mode.
+! stdout '"FailedBuild"'
 
 -- go.mod --
 module m

@@ -1009,7 +1009,13 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 					json.Exited(err)
 					json.Close()
 				}()
-				json.SetFailedBuild(perr.Desc())
+				if gotestjsonbuildtext.Value() == "1" {
+					// While this flag is about go build -json, the other effect
+					// of that change was to include "FailedBuild" in the test JSON.
+					gotestjsonbuildtext.IncNonDefault()
+				} else {
+					json.SetFailedBuild(perr.Desc())
+				}
 				stdout = json
 			}
 			fmt.Fprintf(stdout, "FAIL\t%s [setup failed]\n", p.ImportPath)
@@ -1437,7 +1443,11 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	if a.Failed != nil {
 		// We were unable to build the binary.
 		if json != nil && a.Failed.Package != nil {
-			json.SetFailedBuild(a.Failed.Package.Desc())
+			if gotestjsonbuildtext.Value() == "1" {
+				gotestjsonbuildtext.IncNonDefault()
+			} else {
+				json.SetFailedBuild(a.Failed.Package.Desc())
+			}
 		}
 		a.Failed = nil
 		fmt.Fprintf(stdout, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
