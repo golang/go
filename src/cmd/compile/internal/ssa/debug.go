@@ -1486,8 +1486,67 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
 	state.lists[varID] = list
 }
 
-// PutLocationList adds list (a location list in its intermediate representation) to listSym.
+// PutLocationList adds list (a location list in its intermediate
+// representation) to listSym.
 func (debugInfo *FuncDebug) PutLocationList(list []byte, ctxt *obj.Link, listSym, startPC *obj.LSym) {
+	if buildcfg.Experiment.Dwarf5 {
+		debugInfo.PutLocationListDwarf5(list, ctxt, listSym, startPC)
+	} else {
+		debugInfo.PutLocationListDwarf4(list, ctxt, listSym, startPC)
+	}
+}
+
+// PutLocationListDwarf5 adds list (a location list in its intermediate
+// representation) to listSym in DWARF 5 format. NB: this is a somewhat
+// hacky implementation in that it actually reads a DWARF4 encoded
+// info from list (with all its DWARF4-specific quirks) then re-encodes
+// it in DWARF5. It would probably be better at some point to have
+// ssa/debug encode the list in a version-independent form and then
+// have this func (and PutLocationListDwarf4) intoduce the quirks.
+func (debugInfo *FuncDebug) PutLocationListDwarf5(list []byte, ctxt *obj.Link, listSym, startPC *obj.LSym) {
+	getPC := debugInfo.GetPC
+
+	// base address entry
+	listSym.WriteInt(ctxt, listSym.Size, 1, dwarf.DW_LLE_base_addressx)
+	listSym.WriteDwTxtAddrx(ctxt, listSym.Size, startPC, ctxt.DwTextCount*2)
+
+	var stbuf, enbuf [10]byte
+	stb, enb := stbuf[:], enbuf[:]
+	// Re-read list, translating its address from block/value ID to PC.
+	for i := 0; i < len(list); {
+		begin := getPC(decodeValue(ctxt, readPtr(ctxt, list[i:])))
+		end := getPC(decodeValue(ctxt, readPtr(ctxt, list[i+ctxt.Arch.PtrSize:])))
+
+		// Write LLE_offset_pair tag followed by payload (ULEB for start
+		// and then end).
+		listSym.WriteInt(ctxt, listSym.Size, 1, dwarf.DW_LLE_offset_pair)
+		stb, enb = stb[:0], enb[:0]
+		stb = dwarf.AppendUleb128(stb, uint64(begin))
+		enb = dwarf.AppendUleb128(enb, uint64(end))
+		listSym.WriteBytes(ctxt, listSym.Size, stb)
+		listSym.WriteBytes(ctxt, listSym.Size, enb)
+
+		// The encoded data in "list" is in DWARF4 format, which uses
+		// a 2-byte length; DWARF5 uses an LEB-encoded value for this
+		// length. Read the length and then re-encode it.
+		i += 2 * ctxt.Arch.PtrSize
+		datalen := int(ctxt.Arch.ByteOrder.Uint16(list[i:]))
+		i += 2
+		stb = stb[:0]
+		stb = dwarf.AppendUleb128(stb, uint64(datalen))
+		listSym.WriteBytes(ctxt, listSym.Size, stb)               // copy length
+		listSym.WriteBytes(ctxt, listSym.Size, list[i:i+datalen]) // loc desc
+
+		i += datalen
+	}
+
+	// Terminator
+	listSym.WriteInt(ctxt, listSym.Size, 1, dwarf.DW_LLE_end_of_list)
+}
+
+// PutLocationListDwarf4 adds list (a location list in its intermediate
+// representation) to listSym in DWARF 4 format.
+func (debugInfo *FuncDebug) PutLocationListDwarf4(list []byte, ctxt *obj.Link, listSym, startPC *obj.LSym) {
 	getPC := debugInfo.GetPC
 
 	if ctxt.UseBASEntries {
