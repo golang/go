@@ -35,6 +35,7 @@ import (
 	"crypto/internal/fips140/sha256"
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140/sha512"
+	"crypto/internal/fips140/subtle"
 	"crypto/rand"
 	_ "embed"
 	"encoding/binary"
@@ -189,6 +190,9 @@ var (
 		"AES-GCM/open":           cmdAesGcmOpen(false),
 		"AES-GCM-randnonce/seal": cmdAesGcmSeal(true),
 		"AES-GCM-randnonce/open": cmdAesGcmOpen(true),
+
+		"CMAC-AES":        cmdCmacAesAft(),
+		"CMAC-AES/verify": cmdCmacAesVerifyAft(),
 	}
 )
 
@@ -1150,6 +1154,57 @@ func cmdAesGcmOpen(randNonce bool) command {
 			}
 
 			return [][]byte{{1}, pt}, nil
+		},
+	}
+}
+
+func cmdCmacAesAft() command {
+	return command{
+		requiredArgs: 3, // Number of output bytes, key, message
+		handler: func(args [][]byte) ([][]byte, error) {
+			// safe to truncate to int based on our capabilities describing a max MAC output len of 128 bits.
+			outputLen := int(binary.LittleEndian.Uint32(args[0]))
+			key := args[1]
+			message := args[2]
+
+			blockCipher, err := aes.New(key)
+			if err != nil {
+				return nil, fmt.Errorf("creating AES block cipher with key len %d: %w", len(key), err)
+			}
+
+			cmac := gcm.NewCMAC(blockCipher)
+			tag := cmac.MAC(message)
+
+			if outputLen > len(tag) {
+				return nil, fmt.Errorf("invalid output length: expected %d, got %d", outputLen, len(tag))
+			}
+
+			return [][]byte{tag[:outputLen]}, nil
+		},
+	}
+}
+
+func cmdCmacAesVerifyAft() command {
+	return command{
+		requiredArgs: 3, // Key, message, claimed MAC
+		handler: func(args [][]byte) ([][]byte, error) {
+			key := args[0]
+			message := args[1]
+			claimedMAC := args[2]
+
+			blockCipher, err := aes.New(key)
+			if err != nil {
+				return nil, fmt.Errorf("creating AES block cipher with key len %d: %w", len(key), err)
+			}
+
+			cmac := gcm.NewCMAC(blockCipher)
+			tag := cmac.MAC(message)
+
+			if subtle.ConstantTimeCompare(tag[:len(claimedMAC)], claimedMAC) != 1 {
+				return [][]byte{{0}}, nil
+			}
+
+			return [][]byte{{1}}, nil
 		},
 	}
 }
