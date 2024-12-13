@@ -21,6 +21,8 @@
   {"Wrapper": "go", "In": "vectors/HMAC-SHA2-512-224.bz2", "Out": "expected/HMAC-SHA2-512-224.bz2"},
   {"Wrapper": "go", "In": "vectors/HMAC-SHA2-512-256.bz2", "Out": "expected/HMAC-SHA2-512-256.bz2"},
 
+  {"Wrapper": "go", "In": "vectors/KDA.bz2", "Out": "expected/KDA.bz2"},
+
   {"Wrapper": "go", "In": "vectors/HMAC-SHA3-224.bz2", "Out": "expected/HMAC-SHA3-224.bz2"},
   {"Wrapper": "go", "In": "vectors/HMAC-SHA3-256.bz2", "Out": "expected/HMAC-SHA3-256.bz2"},
   {"Wrapper": "go", "In": "vectors/HMAC-SHA3-384.bz2", "Out": "expected/HMAC-SHA3-384.bz2"},

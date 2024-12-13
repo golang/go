@@ -29,6 +29,7 @@ import (
 	"crypto/internal/fips140/ecdsa"
 	"crypto/internal/fips140/ed25519"
 	"crypto/internal/fips140/edwards25519"
+	"crypto/internal/fips140/hkdf"
 	"crypto/internal/fips140/hmac"
 	"crypto/internal/fips140/mlkem"
 	"crypto/internal/fips140/pbkdf2"
@@ -111,6 +112,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-ecdsa.html#section-7
 	// AES algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-symmetric.html#section-7.3
+	// HKDF KDA algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-hkdf.html#section-7.3
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -163,6 +166,17 @@ var (
 		"HMAC-SHA3-256":     cmdHmacAft(func() fips140.Hash { return sha3.New256() }),
 		"HMAC-SHA3-384":     cmdHmacAft(func() fips140.Hash { return sha3.New384() }),
 		"HMAC-SHA3-512":     cmdHmacAft(func() fips140.Hash { return sha3.New512() }),
+
+		"HKDF/SHA2-224":     cmdHkdfAft(func() fips140.Hash { return sha256.New224() }),
+		"HKDF/SHA2-256":     cmdHkdfAft(func() fips140.Hash { return sha256.New() }),
+		"HKDF/SHA2-384":     cmdHkdfAft(func() fips140.Hash { return sha512.New384() }),
+		"HKDF/SHA2-512":     cmdHkdfAft(func() fips140.Hash { return sha512.New() }),
+		"HKDF/SHA2-512/224": cmdHkdfAft(func() fips140.Hash { return sha512.New512_224() }),
+		"HKDF/SHA2-512/256": cmdHkdfAft(func() fips140.Hash { return sha512.New512_256() }),
+		"HKDF/SHA3-224":     cmdHkdfAft(func() fips140.Hash { return sha3.New224() }),
+		"HKDF/SHA3-256":     cmdHkdfAft(func() fips140.Hash { return sha3.New256() }),
+		"HKDF/SHA3-384":     cmdHkdfAft(func() fips140.Hash { return sha3.New384() }),
+		"HKDF/SHA3-512":     cmdHkdfAft(func() fips140.Hash { return sha3.New512() }),
 
 		"PBKDF": cmdPbkdf(),
 
@@ -496,6 +510,20 @@ func cmdHmacAft(h func() fips140.Hash) command {
 			mac := hmac.New(h, key)
 			mac.Write(msg)
 			return [][]byte{mac.Sum(nil)}, nil
+		},
+	}
+}
+
+func cmdHkdfAft(h func() fips140.Hash) command {
+	return command{
+		requiredArgs: 4, // Key, salt, info, length bytes
+		handler: func(args [][]byte) ([][]byte, error) {
+			key := args[0]
+			salt := args[1]
+			info := args[2]
+			keyLen := int(binary.LittleEndian.Uint32(args[3]))
+
+			return [][]byte{hkdf.Key(h, key, salt, string(info), keyLen)}, nil
 		},
 	}
 }
