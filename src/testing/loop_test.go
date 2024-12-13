@@ -8,6 +8,7 @@ func TestBenchmarkBLoop(t *T) {
 	var initialStart highPrecisionTime
 	var firstStart highPrecisionTime
 	var lastStart highPrecisionTime
+	var runningEnd bool
 	runs := 0
 	iters := 0
 	finalBN := 0
@@ -22,6 +23,7 @@ func TestBenchmarkBLoop(t *T) {
 			iters++
 		}
 		finalBN = b.N
+		runningEnd = b.timerOn
 	})
 	// Verify that a b.Loop benchmark is invoked just once.
 	if runs != 1 {
@@ -45,6 +47,10 @@ func TestBenchmarkBLoop(t *T) {
 	}
 	if lastStart != firstStart {
 		t.Errorf("timer was reset during iteration")
+	}
+	// Verify that it stopped the timer after the last loop.
+	if runningEnd {
+		t.Errorf("timer was still running after last iteration")
 	}
 }
 

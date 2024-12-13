@@ -366,6 +366,8 @@ func (b *B) ReportMetric(n float64, unit string) {
 func (b *B) stopOrScaleBLoop() bool {
 	timeElapsed := highPrecisionTimeSince(b.start)
 	if timeElapsed >= b.benchTime.d {
+		// Stop the timer so we don't count cleanup time
+		b.StopTimer()
 		return false
 	}
 	// Loop scaling
@@ -393,6 +395,7 @@ func (b *B) loopSlowPath() bool {
 			b.loopN++
 			return true
 		}
+		b.StopTimer()
 		return false
 	}
 	// Handles fixed time case
@@ -413,7 +416,8 @@ func (b *B) loopSlowPath() bool {
 //
 // Loop resets the benchmark timer the first time it is called in a benchmark,
 // so any setup performed prior to starting the benchmark loop does not count
-// toward the benchmark measurement.
+// toward the benchmark measurement. Likewise, when it returns false, it stops
+// the timer so cleanup code is not measured.
 //
 // The compiler never optimizes away calls to functions within the body of a
 // "for b.Loop() { ... }" loop. This prevents surprises that can otherwise occur
