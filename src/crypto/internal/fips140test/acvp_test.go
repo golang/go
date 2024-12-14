@@ -37,6 +37,7 @@ import (
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140/sha512"
 	"crypto/internal/fips140/subtle"
+	"crypto/internal/fips140/tls12"
 	"crypto/rand"
 	_ "embed"
 	"encoding/binary"
@@ -114,6 +115,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-symmetric.html#section-7.3
 	// HKDF KDA algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-hkdf.html#section-7.3
+	// TLS 1.2 KDF algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html#section-7.2
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -220,6 +223,12 @@ var (
 
 		"CMAC-AES":        cmdCmacAesAft(),
 		"CMAC-AES/verify": cmdCmacAesVerifyAft(),
+
+		// Note: Only SHA2-256, SHA2-384 and SHA2-512 are valid hash functions for TLSKDF.
+		// 		 See https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html#section-7.2.1
+		"TLSKDF/1.2/SHA2-256": cmdTlsKdf12Aft(func() fips140.Hash { return sha256.New() }),
+		"TLSKDF/1.2/SHA2-384": cmdTlsKdf12Aft(func() fips140.Hash { return sha512.New384() }),
+		"TLSKDF/1.2/SHA2-512": cmdTlsKdf12Aft(func() fips140.Hash { return sha512.New() }),
 	}
 )
 
@@ -1310,6 +1319,21 @@ func cmdCmacAesVerifyAft() command {
 			}
 
 			return [][]byte{{1}}, nil
+		},
+	}
+}
+
+func cmdTlsKdf12Aft(h func() fips140.Hash) command {
+	return command{
+		requiredArgs: 5, // Number output bytes, secret, label, seed1, seed2
+		handler: func(args [][]byte) ([][]byte, error) {
+			outputLen := binary.LittleEndian.Uint32(args[0])
+			secret := args[1]
+			label := string(args[2])
+			seed1 := args[3]
+			seed2 := args[4]
+
+			return [][]byte{tls12.PRF(h, secret, label, append(seed1, seed2...), int(outputLen))}, nil
 		},
 	}
 }

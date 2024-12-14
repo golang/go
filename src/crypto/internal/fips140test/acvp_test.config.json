@@ -42,5 +42,7 @@
   {"Wrapper": "go", "In": "vectors/ACVP-AES-CTR.bz2", "Out": "expected/ACVP-AES-CTR.bz2"},
   {"Wrapper": "go", "In": "vectors/ACVP-AES-GCM.bz2", "Out": "expected/ACVP-AES-GCM.bz2"},
 
-  {"Wrapper": "go", "In": "vectors/CMAC-AES.bz2", "Out": "expected/CMAC-AES.bz2"}
+  {"Wrapper": "go", "In": "vectors/CMAC-AES.bz2", "Out": "expected/CMAC-AES.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/TLS-v1.2.bz2", "Out": "expected/TLS-v1.2.bz2"}
 ]

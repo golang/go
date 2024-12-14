@@ -59,5 +59,7 @@
   {"algorithm":"ACVP-AES-CTR","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":8,"max":128,"increment":8}],"incrementalCounter":true,"overflowCounter":true,"performCounterTests":true,"revision":"1.0"},
   {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[96,104,112,120,128],"ivLen":[96],"ivGen":"external","revision":"1.0"},
   {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[128],"ivLen":[96],"ivGen":"internal","ivGenMode":"8.2.2","revision":"1.0"},
-  {"algorithm":"CMAC-AES","capabilities":[{"direction":["gen","ver"],"msgLen":[{"min":0,"max":524288,"increment":8}],"keyLen":[128,256],"macLen":[{"min":8,"max":128,"increment":8}]}],"revision":"1.0"}
+  {"algorithm":"CMAC-AES","capabilities":[{"direction":["gen","ver"],"msgLen":[{"min":0,"max":524288,"increment":8}],"keyLen":[128,256],"macLen":[{"min":8,"max":128,"increment":8}]}],"revision":"1.0"},
+
+  {"algorithm":"TLS-v1.2","mode":"KDF","revision":"RFC7627","hashAlg":["SHA2-256","SHA2-384","SHA2-512"]}
 ]
