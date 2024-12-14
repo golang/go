@@ -59,6 +59,7 @@ func newGitRepo(ctx context.Context, remote string, local bool) (Repo, error) {
 		}
 		r.dir = remote
 		r.mu.Path = r.dir + ".lock"
+		r.sha256Hashes = r.checkConfigSHA256(ctx)
 		return r, nil
 	}
 	// This is a remote path lookup.
@@ -81,7 +82,20 @@ func newGitRepo(ctx context.Context, remote string, local bool) (Repo, error) {
 	defer unlock()
 
 	if _, err := os.Stat(filepath.Join(r.dir, "objects")); err != nil {
-		if _, err := Run(ctx, r.dir, "git", "init", "--bare"); err != nil {
+		repoSha256Hash := false
+		if refs, lrErr := r.loadRefs(ctx); lrErr == nil {
+			// Check any ref's hash, it doesn't matter which; they won't be mixed
+			// between sha1 and sha256 for the moment.
+			for _, refHash := range refs {
+				repoSha256Hash = len(refHash) == (256 / 4)
+				break
+			}
+		}
+		objFormatFlag := []string{}
+		if repoSha256Hash {
+			objFormatFlag = []string{"--object-format=sha256"}
+		}
+		if _, err := Run(ctx, r.dir, "git", "init", "--bare", objFormatFlag); err != nil {
 			os.RemoveAll(r.dir)
 			return nil, err
 		}
@@ -109,6 +123,7 @@ func newGitRepo(ctx context.Context, remote string, local bool) (Repo, error) {
 			}
 		}
 	}
+	r.sha256Hashes = r.checkConfigSHA256(ctx)
 	r.remoteURL = r.remote
 	r.remote = "origin"
 	return r, nil
@@ -120,6 +135,9 @@ type gitRepo struct {
 	remote, remoteURL string
 	local             bool // local only lookups; no remote fetches
 	dir               string
+
+	// Repo uses the SHA256 for hashes, so expect the hashes to be 256/4 == 64-bytes in hex.
+	sha256Hashes bool
 
 	mu lockedfile.Mutex // protects fetchLevel and git repo state
 
@@ -386,6 +404,32 @@ func (r *gitRepo) findRef(ctx context.Context, hash string) (ref string, ok bool
 	return "", false
 }
 
+func (r *gitRepo) checkConfigSHA256(ctx context.Context) bool {
+	if hashType, sha256CfgErr := r.runGit(ctx, "git", "config", "extensions.objectformat"); sha256CfgErr == nil {
+		return "sha256" == strings.TrimSpace(string(hashType))
+	}
+	return false
+}
+
+func (r *gitRepo) hexHashLen() int {
+	if !r.sha256Hashes {
+		return 160 / 4
+	}
+	return 256 / 4
+}
+
+// shortenObjectHash shortens a SHA1 or SHA256 hash (40 or 64 hex digits) to
+// the canonical length used in pseudo-versions (12 hex digits).
+func (r *gitRepo) shortenObjectHash(rev string) string {
+	if !r.sha256Hashes {
+		return ShortenSHA1(rev)
+	}
+	if AllHex(rev) && len(rev) == 256/4 {
+		return rev[:12]
+	}
+	return rev
+}
+
 // minHashDigits is the minimum number of digits to require
 // before accepting a hex digit sequence as potentially identifying
 // a specific commit in a git repo. (Of course, users can always
@@ -399,7 +443,7 @@ const minHashDigits = 7
 func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err error) {
 	// Fast path: maybe rev is a hash we already have locally.
 	didStatLocal := false
-	if len(rev) >= minHashDigits && len(rev) <= 40 && AllHex(rev) {
+	if len(rev) >= minHashDigits && len(rev) <= r.hexHashLen() && AllHex(rev) {
 		if info, err := r.statLocal(ctx, rev, rev); err == nil {
 			return info, nil
 		}
@@ -415,7 +459,8 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 
 	// Maybe rev is the name of a tag or branch on the remote server.
 	// Or maybe it's the prefix of a hash of a named ref.
-	// Try to resolve to both a ref (git name) and full (40-hex-digit) commit hash.
+	// Try to resolve to both a ref (git name) and full (40-hex-digit for
+	// sha1 64 for sha256) commit hash.
 	refs, err := r.loadRefs(ctx)
 	if err != nil {
 		return nil, err
@@ -436,7 +481,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 		ref = "HEAD"
 		hash = refs[ref]
 		rev = hash // Replace rev, because meaning of HEAD can change.
-	} else if len(rev) >= minHashDigits && len(rev) <= 40 && AllHex(rev) {
+	} else if len(rev) >= minHashDigits && len(rev) <= r.hexHashLen() && AllHex(rev) {
 		// At the least, we have a hash prefix we can look up after the fetch below.
 		// Maybe we can map it to a full hash using the known refs.
 		prefix := rev
@@ -455,7 +500,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 				hash = h
 			}
 		}
-		if hash == "" && len(rev) == 40 { // Didn't find a ref, but rev is a full hash.
+		if hash == "" && len(rev) == r.hexHashLen() { // Didn't find a ref, but rev is a full hash.
 			hash = rev
 		}
 	} else {
@@ -631,7 +676,7 @@ func (r *gitRepo) statLocal(ctx context.Context, version, rev string) (*RevInfo,
 			Hash: hash,
 		},
 		Name:    hash,
-		Short:   ShortenSHA1(hash),
+		Short:   r.shortenObjectHash(hash),
 		Time:    time.Unix(t, 0).UTC(),
 		Version: hash,
 	}

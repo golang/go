@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 	}
 }
 
-var gitrepo1, hgrepo1, vgotest1 string
+var gitrepo1, gitsha256repo, hgrepo1, vgotest1 string
 
 var altRepos = func() []string {
 	return []string{
@@ -69,6 +69,7 @@ func localGitURL(t testing.TB) string {
 		}
 		repo := gitRepo{dir: localGitRepo}
 		_, localGitURLErr = repo.runGit(context.Background(), "git", "config", "daemon.uploadarch", "true")
+		// TODO(david.finkel): do the same with the git repo using sha256 object hashes
 	})
 
 	if localGitURLErr != nil {
@@ -103,6 +104,7 @@ func testMain(m *testing.M) (err error) {
 	}()
 
 	gitrepo1 = srv.HTTP.URL + "/git/gitrepo1"
+	gitsha256repo = srv.HTTP.URL + "/git/gitrepo-sha256"
 	hgrepo1 = srv.HTTP.URL + "/hg/hgrepo1"
 	vgotest1 = srv.HTTP.URL + "/git/vgotest1"
 
@@ -239,6 +241,26 @@ func TestTags(t *testing.T) {
 			{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
 		}},
 		{gitrepo1, "2", []Tag{}},
+		{gitsha256repo, "xxx", []Tag{}},
+		{gitsha256repo, "", []Tag{
+			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v2.0.1", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
+			{"v2.0.2", "1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82"},
+			{"v2.3", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
+		}},
+		{gitsha256repo, "v", []Tag{
+			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v2.0.1", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
+			{"v2.0.2", "1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82"},
+			{"v2.3", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
+		}},
+		{gitsha256repo, "v1", []Tag{
+			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+		}},
+		{gitsha256repo, "2", []Tag{}},
 	} {
 		t.Run(path.Base(tt.repo)+"/"+tt.prefix, runTest(tt))
 		if tt.repo == gitrepo1 {
@@ -299,6 +321,22 @@ func TestLatest(t *testing.T) {
 				Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
 				Short:   "ede458df7cd0",
 				Version: "ede458df7cd0fdca520df19a33158086a8a68e81",
+				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
+				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
+			},
+		},
+		{
+			gitsha256repo,
+			&RevInfo{
+				Origin: &Origin{
+					VCS:  "git",
+					URL:  gitsha256repo,
+					Ref:  "HEAD",
+					Hash: "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c",
+				},
+				Name:    "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c",
+				Short:   "47b8b51b2a2d",
+				Version: "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c",
 				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
 				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
 			},
@@ -387,6 +425,24 @@ func TestReadFile(t *testing.T) {
 		},
 		{
 			repo: gitrepo1,
+			rev:  "v2.3.4",
+			file: "another.txt",
+			err:  fs.ErrNotExist.Error(),
+		},
+		{
+			repo: gitsha256repo,
+			rev:  "latest",
+			file: "README",
+			data: "",
+		},
+		{
+			repo: gitsha256repo,
+			rev:  "v2",
+			file: "another.txt",
+			data: "another\n",
+		},
+		{
+			repo: gitsha256repo,
 			rev:  "v2.3.4",
 			file: "another.txt",
 			err:  fs.ErrNotExist.Error(),
@@ -482,6 +538,16 @@ func TestReadZip(t *testing.T) {
 			},
 		},
 		{
+			repo:   gitsha256repo,
+			rev:    "v2.3.4",
+			subdir: "",
+			files: map[string]uint64{
+				"prefix/":       0,
+				"prefix/README": 0,
+				"prefix/v2":     3,
+			},
+		},
+		{
 			repo:   hgrepo1,
 			rev:    "v2.3.4",
 			subdir: "",
@@ -494,6 +560,18 @@ func TestReadZip(t *testing.T) {
 
 		{
 			repo:   gitrepo1,
+			rev:    "v2",
+			subdir: "",
+			files: map[string]uint64{
+				"prefix/":            0,
+				"prefix/README":      0,
+				"prefix/v2":          3,
+				"prefix/another.txt": 8,
+				"prefix/foo.txt":     13,
+			},
+		},
+		{
+			repo:   gitsha256repo,
 			rev:    "v2",
 			subdir: "",
 			files: map[string]uint64{
@@ -531,6 +609,19 @@ func TestReadZip(t *testing.T) {
 			},
 		},
 		{
+			repo:   gitsha256repo,
+			rev:    "v3",
+			subdir: "",
+			files: map[string]uint64{
+				"prefix/":                    0,
+				"prefix/v3/":                 0,
+				"prefix/v3/sub/":             0,
+				"prefix/v3/sub/dir/":         0,
+				"prefix/v3/sub/dir/file.txt": 16,
+				"prefix/README":              0,
+			},
+		},
+		{
 			repo:   hgrepo1,
 			rev:    "v3",
 			subdir: "",
@@ -555,6 +646,18 @@ func TestReadZip(t *testing.T) {
 			},
 		},
 		{
+			repo:   gitsha256repo,
+			rev:    "v3",
+			subdir: "v3/sub/dir",
+			files: map[string]uint64{
+				"prefix/":                    0,
+				"prefix/v3/":                 0,
+				"prefix/v3/sub/":             0,
+				"prefix/v3/sub/dir/":         0,
+				"prefix/v3/sub/dir/file.txt": 16,
+			},
+		},
+		{
 			repo:   hgrepo1,
 			rev:    "v3",
 			subdir: "v3/sub/dir",
@@ -576,6 +679,18 @@ func TestReadZip(t *testing.T) {
 			},
 		},
 		{
+			repo:   gitsha256repo,
+			rev:    "v3",
+			subdir: "v3/sub",
+			files: map[string]uint64{
+				"prefix/":                    0,
+				"prefix/v3/":                 0,
+				"prefix/v3/sub/":             0,
+				"prefix/v3/sub/dir/":         0,
+				"prefix/v3/sub/dir/file.txt": 16,
+			},
+		},
+		{
 			repo:   hgrepo1,
 			rev:    "v3",
 			subdir: "v3/sub",
@@ -586,6 +701,12 @@ func TestReadZip(t *testing.T) {
 
 		{
 			repo:   gitrepo1,
+			rev:    "aaaaaaaaab",
+			subdir: "",
+			err:    "unknown revision",
+		},
+		{
+			repo:   gitsha256repo,
 			rev:    "aaaaaaaaab",
 			subdir: "",
 			err:    "unknown revision",
@@ -754,6 +875,98 @@ func TestStat(t *testing.T) {
 		},
 		{
 			repo: gitrepo1,
+			rev:  "aaaaaaaaab",
+			err:  "unknown revision",
+		},
+		{
+			repo: gitsha256repo,
+			rev:  "HEAD",
+			info: &RevInfo{
+				Name:    "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c",
+				Short:   "47b8b51b2a2d",
+				Version: "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c",
+				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
+				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
+			},
+		},
+		{
+			repo: gitsha256repo,
+			rev:  "v2", // branch
+			info: &RevInfo{
+				Name:    "1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82",
+				Short:   "1401e4e1fdb4",
+				Version: "1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82",
+				Time:    time.Date(2018, 4, 17, 20, 00, 32, 0, time.UTC),
+				Tags:    []string{"v2.0.2"},
+			},
+		},
+		{
+			repo: gitsha256repo,
+			rev:  "v2.3.4", // badly-named branch (semver should be a tag)
+			info: &RevInfo{
+				Name:    "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09",
+				Short:   "b7550fd9d212",
+				Version: "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09",
+				Time:    time.Date(2018, 4, 17, 19, 45, 48, 0, time.UTC),
+				Tags:    []string{"v2.0.1", "v2.3"},
+			},
+		},
+		{
+			repo: gitsha256repo,
+			rev:  "v2.3", // badly-named tag (we only respect full semver v2.3.0)
+			info: &RevInfo{
+				Name:    "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09",
+				Short:   "b7550fd9d212",
+				Version: "v2.3",
+				Time:    time.Date(2018, 4, 17, 19, 45, 48, 0, time.UTC),
+				Tags:    []string{"v2.0.1", "v2.3"},
+			},
+		},
+		{
+			repo: gitsha256repo,
+			rev:  "v1.2.3", // tag
+			info: &RevInfo{
+				Name:    "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c",
+				Short:   "47b8b51b2a2d",
+				Version: "v1.2.3",
+				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
+				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
+			},
+		},
+		{
+			repo: gitsha256repo,
+			rev:  "47b8b51b", // hash prefix in refs
+			info: &RevInfo{
+				Name:    "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c",
+				Short:   "47b8b51b2a2d",
+				Version: "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c",
+				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
+				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
+			},
+		},
+		{
+			repo: gitsha256repo,
+			rev:  "0be440b6", // hash prefix not in refs
+			info: &RevInfo{
+				Name:    "0be440b60b6c81be26c7256781d8e57112ec46c8cd1a9481a8e78a283f10570c",
+				Short:   "0be440b60b6c",
+				Version: "0be440b60b6c81be26c7256781d8e57112ec46c8cd1a9481a8e78a283f10570c",
+				Time:    time.Date(2018, 4, 17, 20, 0, 19, 0, time.UTC),
+			},
+		},
+		{
+			repo: gitsha256repo,
+			rev:  "v1.2.4-annotated", // annotated tag uses unwrapped commit hash
+			info: &RevInfo{
+				Name:    "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c",
+				Short:   "47b8b51b2a2d",
+				Version: "v1.2.4-annotated",
+				Time:    time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
+				Tags:    []string{"v1.2.3", "v1.2.4-annotated"},
+			},
+		},
+		{
+			repo: gitsha256repo,
 			rev:  "aaaaaaaaab",
 			err:  "unknown revision",
 		},

@@ -1,0 +1,69 @@
+handle git
+
+# This is a sha256 version of gitrepo1.txt (which uses sha1 hashes)
+env GIT_AUTHOR_NAME='David Finkel'
+env GIT_AUTHOR_EMAIL='david.finkel@gmail.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init --object-format=sha256
+
+at 2018-04-17T15:43:22-04:00
+unquote ''
+cp stdout README
+git add README
+git commit -a -m 'empty README'
+git branch -m main
+git tag v1.2.3
+
+at 2018-04-17T15:45:48-04:00
+git branch v2
+git checkout v2
+echo 'v2'
+cp stdout v2
+git add v2
+git commit -a -m 'v2'
+git tag v2.3
+git tag v2.0.1
+git branch v2.3.4
+
+at 2018-04-17T16:00:19-04:00
+echo 'intermediate'
+cp stdout foo.txt
+git add foo.txt
+git commit -a -m 'intermediate'
+
+at 2018-04-17T16:00:32-04:00
+echo 'another'
+cp stdout another.txt
+git add another.txt
+git commit -a -m 'another'
+git tag v2.0.2
+
+at 2018-04-17T16:16:52-04:00
+git checkout main
+git branch v3
+git checkout v3
+mkdir v3/sub/dir
+echo 'v3/sub/dir/file'
+cp stdout v3/sub/dir/file.txt
+git add v3
+git commit -a -m 'add v3/sub/dir/file.txt'
+
+at 2018-04-17T22:23:00-04:00
+git checkout main
+git tag -a v1.2.4-annotated -m 'v1.2.4-annotated'
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c refs/heads/main
+1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82 refs/heads/v2
+b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09 refs/heads/v2.3.4
+c2a5bbdbeb8b2c82e819a4af94ea59f7d67faeb6df7cb4907c3f0d70836a977b refs/heads/v3
+47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c refs/tags/v1.2.3
+f88263be2704531e0f664784b66c2f84dea6d0dc4231cf9c6be482af0400c607 refs/tags/v1.2.4-annotated
+b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09 refs/tags/v2.0.1
+1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82 refs/tags/v2.0.2
+b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09 refs/tags/v2.3

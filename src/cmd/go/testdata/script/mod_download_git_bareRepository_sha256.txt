@@ -1,0 +1,30 @@
+[short] skip
+[!git] skip
+
+# This is a git sha256-mode copy of mod_download_git_bareRepository
+
+# Redirect git to a test-specific .gitconfig.
+# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
+# For older git versions we also set $HOME.
+env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
+env HOME=$WORK${/}home${/}gopher
+exec git config --global --show-origin user.name
+stdout 'Go Gopher'
+
+env GOPRIVATE=vcs-test.golang.org
+
+go mod download -x
+
+-- go.mod --
+module test
+
+go 1.18
+
+require vcs-test.golang.org/git/gitrepo-sha256.git v1.2.3
+
+-- $WORK/home/gopher/.gitconfig --
+[user]
+	name = Go Gopher
+	email = gopher@golang.org
+[safe]
+	bareRepository = explicit
