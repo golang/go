@@ -61,5 +61,6 @@
   {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[128],"ivLen":[96],"ivGen":"internal","ivGenMode":"8.2.2","revision":"1.0"},
   {"algorithm":"CMAC-AES","capabilities":[{"direction":["gen","ver"],"msgLen":[{"min":0,"max":524288,"increment":8}],"keyLen":[128,256],"macLen":[{"min":8,"max":128,"increment":8}]}],"revision":"1.0"},
 
-  {"algorithm":"TLS-v1.2","mode":"KDF","revision":"RFC7627","hashAlg":["SHA2-256","SHA2-384","SHA2-512"]}
+  {"algorithm":"TLS-v1.2","mode":"KDF","revision":"RFC7627","hashAlg":["SHA2-256","SHA2-384","SHA2-512"]},
+  {"algorithm":"TLS-v1.3","mode":"KDF","revision":"RFC8446","hmacAlg":["SHA2-256","SHA2-384"],"runningMode":["DHE","PSK","PSK-DHE"]}
 ]

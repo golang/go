@@ -38,6 +38,7 @@ import (
 	"crypto/internal/fips140/sha512"
 	"crypto/internal/fips140/subtle"
 	"crypto/internal/fips140/tls12"
+	"crypto/internal/fips140/tls13"
 	"crypto/rand"
 	_ "embed"
 	"encoding/binary"
@@ -117,6 +118,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-hkdf.html#section-7.3
 	// TLS 1.2 KDF algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html#section-7.2
+	// TLS 1.3 KDF algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kdf-tls-v1.3.html#section-7.2
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -180,6 +183,11 @@ var (
 		"HKDF/SHA3-256":     cmdHkdfAft(func() fips140.Hash { return sha3.New256() }),
 		"HKDF/SHA3-384":     cmdHkdfAft(func() fips140.Hash { return sha3.New384() }),
 		"HKDF/SHA3-512":     cmdHkdfAft(func() fips140.Hash { return sha3.New512() }),
+
+		"HKDFExtract/SHA2-256":     cmdHkdfExtractAft(func() fips140.Hash { return sha256.New() }),
+		"HKDFExtract/SHA2-384":     cmdHkdfExtractAft(func() fips140.Hash { return sha512.New384() }),
+		"HKDFExpandLabel/SHA2-256": cmdHkdfExpandLabelAft(func() fips140.Hash { return sha256.New() }),
+		"HKDFExpandLabel/SHA2-384": cmdHkdfExpandLabelAft(func() fips140.Hash { return sha512.New384() }),
 
 		"PBKDF": cmdPbkdf(),
 
@@ -533,6 +541,32 @@ func cmdHkdfAft(h func() fips140.Hash) command {
 			keyLen := int(binary.LittleEndian.Uint32(args[3]))
 
 			return [][]byte{hkdf.Key(h, key, salt, string(info), keyLen)}, nil
+		},
+	}
+}
+
+func cmdHkdfExtractAft(h func() fips140.Hash) command {
+	return command{
+		requiredArgs: 2, // secret, salt
+		handler: func(args [][]byte) ([][]byte, error) {
+			secret := args[0]
+			salt := args[1]
+
+			return [][]byte{hkdf.Extract(h, secret, salt)}, nil
+		},
+	}
+}
+
+func cmdHkdfExpandLabelAft(h func() fips140.Hash) command {
+	return command{
+		requiredArgs: 4, // output length, secret, label, transcript hash
+		handler: func(args [][]byte) ([][]byte, error) {
+			keyLen := int(binary.LittleEndian.Uint32(args[0]))
+			secret := args[1]
+			label := args[2]
+			transcriptHash := args[3]
+
+			return [][]byte{tls13.ExpandLabel(h, secret, string(label), transcriptHash, keyLen)}, nil
 		},
 	}
 }
