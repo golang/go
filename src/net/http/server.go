@@ -59,6 +59,17 @@ var (
 	// anything in the net/http package. Callers should not
 	// compare errors against this variable.
 	ErrWriteAfterFlush = errors.New("unused")
+
+	// TODO: expose once proposal is accepted
+	// errConnectionClosed is used as a context Cause for contexts
+	// cancelled because the client closed their connection while
+	// a request was being handled.
+	errConnectionClosed = errors.New("connection closed")
+
+	// TODO: expose once proposal is accepted
+	// errConnectionHandled is used as a context Cause for contexts
+	// cancelled because the request handler returned.
+	errConnectionHandled = errors.New("connection handled")
 )
 
 // A Handler responds to an HTTP request.
@@ -257,7 +268,7 @@ type conn struct {
 	server *Server
 
 	// cancelCtx cancels the connection-level context.
-	cancelCtx context.CancelFunc
+	cancelCtx context.CancelCauseFunc
 
 	// rwc is the underlying network connection.
 	// This is never wrapped by other types and is the value given out
@@ -766,11 +777,14 @@ func (cr *connReader) hitReadLimit() bool        { return cr.remain <= 0 }
 // down its context.
 //
 // The caller must hold connReader.mu.
-func (cr *connReader) handleReadErrorLocked(_ error) {
+func (cr *connReader) handleReadErrorLocked(err error) {
 	if cr.conn == nil {
 		return
 	}
-	cr.conn.cancelCtx()
+	if errors.Is(err, io.EOF) {
+		err = errConnectionClosed
+	}
+	cr.conn.cancelCtx(err)
 	if res := cr.conn.curReq.Load(); res != nil {
 		res.closeNotify()
 	}
@@ -2009,9 +2023,9 @@ func (c *conn) serve(ctx context.Context) {
 		}
 	}
 
-	ctx, cancelCtx := context.WithCancel(ctx)
+	ctx, cancelCtx := context.WithCancelCause(ctx)
 	c.cancelCtx = cancelCtx
-	defer cancelCtx()
+	defer cancelCtx(errConnectionHandled)
 
 	c.r = &connReader{conn: c, rwc: c.rwc}
 	c.bufr = newBufioReader(c.r)
@@ -4073,7 +4087,7 @@ func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
 	n, err = w.c.rwc.Write(p)
 	if err != nil && w.c.werr == nil {
 		w.c.werr = err
-		w.c.cancelCtx()
+		w.c.cancelCtx(err)
 	}
 	return
 }
