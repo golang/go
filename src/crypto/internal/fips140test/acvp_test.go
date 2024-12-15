@@ -36,6 +36,7 @@ import (
 	"crypto/internal/fips140/sha256"
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140/sha512"
+	"crypto/internal/fips140/ssh"
 	"crypto/internal/fips140/subtle"
 	"crypto/internal/fips140/tls12"
 	"crypto/internal/fips140/tls13"
@@ -120,6 +121,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html#section-7.2
 	// TLS 1.3 KDF algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kdf-tls-v1.3.html#section-7.2
+	// SSH KDF algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-ssh.html#section-7.2
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -237,6 +240,17 @@ var (
 		"TLSKDF/1.2/SHA2-256": cmdTlsKdf12Aft(func() fips140.Hash { return sha256.New() }),
 		"TLSKDF/1.2/SHA2-384": cmdTlsKdf12Aft(func() fips140.Hash { return sha512.New384() }),
 		"TLSKDF/1.2/SHA2-512": cmdTlsKdf12Aft(func() fips140.Hash { return sha512.New() }),
+
+		// Note: only SHA2-224, SHA2-256, SHA2-384 and SHA2-512 are valid hash functions for SSHKDF.
+		// 		 See https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-ssh.html#section-7.2.1
+		"SSHKDF/SHA2-224/client": cmdSshKdfAft(func() fips140.Hash { return sha256.New224() }, ssh.ClientKeys),
+		"SSHKDF/SHA2-224/server": cmdSshKdfAft(func() fips140.Hash { return sha256.New224() }, ssh.ServerKeys),
+		"SSHKDF/SHA2-256/client": cmdSshKdfAft(func() fips140.Hash { return sha256.New() }, ssh.ClientKeys),
+		"SSHKDF/SHA2-256/server": cmdSshKdfAft(func() fips140.Hash { return sha256.New() }, ssh.ServerKeys),
+		"SSHKDF/SHA2-384/client": cmdSshKdfAft(func() fips140.Hash { return sha512.New384() }, ssh.ClientKeys),
+		"SSHKDF/SHA2-384/server": cmdSshKdfAft(func() fips140.Hash { return sha512.New384() }, ssh.ServerKeys),
+		"SSHKDF/SHA2-512/client": cmdSshKdfAft(func() fips140.Hash { return sha512.New() }, ssh.ClientKeys),
+		"SSHKDF/SHA2-512/server": cmdSshKdfAft(func() fips140.Hash { return sha512.New() }, ssh.ServerKeys),
 	}
 )
 
@@ -1372,12 +1386,39 @@ func cmdTlsKdf12Aft(h func() fips140.Hash) command {
 	}
 }
 
+func cmdSshKdfAft(hFunc func() fips140.Hash, direction ssh.Direction) command {
+	return command{
+		requiredArgs: 4, // K, H, SessionID, cipher
+		handler: func(args [][]byte) ([][]byte, error) {
+			k := args[0]
+			h := args[1]
+			sessionID := args[2]
+			cipher := string(args[3])
+
+			var keyLen int
+			switch cipher {
+			case "AES-128":
+				keyLen = 16
+			case "AES-192":
+				keyLen = 24
+			case "AES-256":
+				keyLen = 32
+			default:
+				return nil, fmt.Errorf("unsupported cipher: %q", cipher)
+			}
+
+			ivKey, encKey, intKey := ssh.Keys(hFunc, direction, k, h, sessionID, 16, keyLen, hFunc().Size())
+			return [][]byte{ivKey, encKey, intKey}, nil
+		},
+	}
+}
+
 func TestACVP(t *testing.T) {
 	testenv.SkipIfShortAndSlow(t)
 
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
-		bsslVersion   = "v0.0.0-20250108043213-d3f61eeacbf7"
+		bsslVersion   = "v0.0.0-20250116010235-21f54b2730ee"
 		goAcvpModule  = "github.com/cpu/go-acvp"
 		goAcvpVersion = "v0.0.0-20250102201911-6839fc40f9f8"
 	)

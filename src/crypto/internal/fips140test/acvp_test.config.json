@@ -45,5 +45,6 @@
   {"Wrapper": "go", "In": "vectors/CMAC-AES.bz2", "Out": "expected/CMAC-AES.bz2"},
 
   {"Wrapper": "go", "In": "vectors/TLS-v1.2.bz2", "Out": "expected/TLS-v1.2.bz2"},
-  {"Wrapper": "go", "In": "vectors/TLS-v1.3.bz2", "Out": "expected/TLS-v1.3.bz2"}
+  {"Wrapper": "go", "In": "vectors/TLS-v1.3.bz2", "Out": "expected/TLS-v1.3.bz2"},
+  {"Wrapper": "go", "In": "vectors/kdf-components.bz2", "Out": "expected/kdf-components.bz2"}
 ]
