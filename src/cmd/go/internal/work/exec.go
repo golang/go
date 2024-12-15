@@ -1028,7 +1028,7 @@ func (b *Builder) cacheObjdirFile(a *Action, c cache.Cache, name string) error {
 		return err
 	}
 	defer f.Close()
-	_, _, err = c.Put(cache.Subkey(a.actionID, name), f)
+	_, err = c.Put(cache.Subkey(a.actionID, name), f)
 	return err
 }
 

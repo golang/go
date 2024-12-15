@@ -378,26 +378,26 @@ func (c *ProgCache) OutputFile(o OutputID) string {
 	return c.outputFile[o]
 }
 
-func (c *ProgCache) Put(a ActionID, file io.ReadSeeker) (_ OutputID, size int64, _ error) {
+func (c *ProgCache) Put(a ActionID, file io.ReadSeeker) (OutputID, error) {
 	// Compute output ID.
 	h := sha256.New()
 	if _, err := file.Seek(0, 0); err != nil {
-		return OutputID{}, 0, err
+		return OutputID{}, err
 	}
 	size, err := io.Copy(h, file)
 	if err != nil {
-		return OutputID{}, 0, err
+		return OutputID{}, err
 	}
 	var out OutputID
 	h.Sum(out[:0])
 
 	if _, err := file.Seek(0, 0); err != nil {
-		return OutputID{}, 0, err
+		return OutputID{}, err
 	}
 
 	if !c.can[cmdPut] {
 		// Child is a read-only cache. Do nothing.
-		return out, size, nil
+		return out, nil
 	}
 
 	// For compatibility with Go 1.23/1.24 GOEXPERIMENT=gocacheprog users, also
@@ -416,13 +416,13 @@ func (c *ProgCache) Put(a ActionID, file io.ReadSeeker) (_ OutputID, size int64,
 		BodySize: size,
 	})
 	if err != nil {
-		return OutputID{}, 0, err
+		return OutputID{}, err
 	}
 	if res.DiskPath == "" {
-		return OutputID{}, 0, errors.New("GOCACHEPROG didn't return DiskPath in put response")
+		return OutputID{}, errors.New("GOCACHEPROG didn't return DiskPath in put response")
 	}
 	c.noteOutputFile(out, res.DiskPath)
-	return out, size, err
+	return out, err
 }
 
 func (c *ProgCache) Close() error {

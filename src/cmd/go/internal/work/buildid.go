@@ -746,7 +746,7 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 			if a.output == nil {
 				panic("internal error: a.output not set")
 			}
-			outputID, _, err := c.Put(a.actionID, r)
+			outputID, err := c.Put(a.actionID, r)
 			r.Close()
 			if err == nil && cfg.BuildX {
 				sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, c.OutputFile(outputID))))
@@ -770,7 +770,7 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 			if name == "" {
 				name = path.Base(a.Package.ImportPath)
 			}
-			outputID, _, err := c.PutExecutable(a.actionID, name+cfg.ExeSuffix, r)
+			outputID, err := c.PutExecutable(a.actionID, name+cfg.ExeSuffix, r)
 			r.Close()
 			if err == nil && cfg.BuildX {
 				sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, c.OutputFile(outputID))))

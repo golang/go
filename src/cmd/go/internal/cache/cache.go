@@ -50,9 +50,9 @@ type Cache interface {
 	// As a special case, if the ReadSeeker is of type noVerifyReadSeeker,
 	// the verification from GODEBUG=goverifycache=1 is skipped.
 	//
-	// After a success call to Get, OutputFile(Entry.OutputID) must
+	// After a success call to Put, OutputFile(Entry.OutputID) must
 	// exist on disk for until Close is called (at the end of the process).
-	Put(ActionID, io.ReadSeeker) (_ OutputID, size int64, _ error)
+	Put(ActionID, io.ReadSeeker) (OutputID, error)
 
 	// Close is called at the end of the go process. Implementations can do
 	// cache cleanup work at this phase, or wait for and report any errors from
@@ -504,7 +504,7 @@ type noVerifyReadSeeker struct {
 
 // Put stores the given output in the cache as the output for the action ID.
 // It may read file twice. The content of file must not change between the two passes.
-func (c *DiskCache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
+func (c *DiskCache) Put(id ActionID, file io.ReadSeeker) (OutputID, error) {
 	wrapper, isNoVerify := file.(noVerifyReadSeeker)
 	if isNoVerify {
 		file = wrapper.ReadSeeker
@@ -515,7 +515,7 @@ func (c *DiskCache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error
 // PutExecutable is used to store the output as the output for the action ID into a
 // file with the given base name, with the executable mode bit set.
 // It may read file twice. The content of file must not change between the two passes.
-func (c *DiskCache) PutExecutable(id ActionID, name string, file io.ReadSeeker) (OutputID, int64, error) {
+func (c *DiskCache) PutExecutable(id ActionID, name string, file io.ReadSeeker) (OutputID, error) {
 	if name == "" {
 		panic("PutExecutable called without a name")
 	}
@@ -530,19 +530,19 @@ func (c *DiskCache) PutExecutable(id ActionID, name string, file io.ReadSeeker) 
 // when GODEBUG=goverifycache=1 is set.
 // It is meant for data that is OK to cache but that we expect to vary slightly from run to run,
 // like test output containing times and the like.
-func PutNoVerify(c Cache, id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
+func PutNoVerify(c Cache, id ActionID, file io.ReadSeeker) (OutputID, error) {
 	return c.Put(id, noVerifyReadSeeker{file})
 }
 
-func (c *DiskCache) put(id ActionID, executableName string, file io.ReadSeeker, allowVerify bool) (OutputID, int64, error) {
+func (c *DiskCache) put(id ActionID, executableName string, file io.ReadSeeker, allowVerify bool) (OutputID, error) {
 	// Compute output ID.
 	h := sha256.New()
 	if _, err := file.Seek(0, 0); err != nil {
-		return OutputID{}, 0, err
+		return OutputID{}, err
 	}
 	size, err := io.Copy(h, file)
 	if err != nil {
-		return OutputID{}, 0, err
+		return OutputID{}, err
 	}
 	var out OutputID
 	h.Sum(out[:0])
@@ -553,16 +553,16 @@ func (c *DiskCache) put(id ActionID, executableName string, file io.ReadSeeker, 
 		fileMode = 0o777
 	}
 	if err := c.copyFile(file, executableName, out, size, fileMode); err != nil {
-		return out, size, err
+		return out, err
 	}
 
 	// Add to cache index.
-	return out, size, c.putIndexEntry(id, out, size, allowVerify)
+	return out, c.putIndexEntry(id, out, size, allowVerify)
 }
 
 // PutBytes stores the given bytes in the cache as the output for the action ID.
 func PutBytes(c Cache, id ActionID, data []byte) error {
-	_, _, err := c.Put(id, bytes.NewReader(data))
+	_, err := c.Put(id, bytes.NewReader(data))
 	return err
 }
 
