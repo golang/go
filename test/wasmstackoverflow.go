@@ -53,23 +53,18 @@ func main() {
 		return
 	}
 
-	// ensure ../lib/wasm/wasm_exec_node.js exist
-	_, err = os.Stat("../lib/wasm/wasm_exec_node.js")
-	if err != nil {
-		panic(err)
-	}
-	exec_node := "../lib/wasm/wasm_exec_node.js"
-	exec_node, err = filepath.Abs(exec_node)
+	p := "../lib/wasm/wasm_exec_node.js"
+	p, err = filepath.Abs(p)
 	if err != nil {
 		panic(err)
 	}
 
 	out := bytes.NewBuffer(nil)
-	cmd = exec.Command(node, exec_node, tmpDir+"/test.wasm")
+	cmd = exec.Command(node, p, tmpDir+"/test.wasm")
 	cmd.Stdout = out
 	cmd.Stderr = out
 	if err := cmd.Run(); err == nil {
-		panic("expected error, got nil")
+		panic("expected stackoverflow error, got nil")
 	}
 
 	if !bytes.Contains(out.Bytes(), []byte("Maximum call stack size exceeded")) {
