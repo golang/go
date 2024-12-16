@@ -93,6 +93,13 @@ func init() {
 		panic("fips140: verification mismatch")
 	}
 
+	// "The temporary value(s) generated during the integrity test of the
+	// module’s software or firmware shall [05.10] be zeroised from the module
+	// upon completion of the integrity test"
+	clear(sum)
+	clear(nbuf[:])
+	h.Reset()
+
 	if godebug.Value("#fips140") == "debug" {
 		println("fips140: verified code+data")
 	}
