@@ -50,6 +50,9 @@ Floating-point and complex constituents:
 	%x	hexadecimal notation (with decimal power of two exponent), e.g. -0x1.23abcp+20
 	%X	upper-case hexadecimal notation, e.g. -0X1.23ABCP+20
 
+	The exponent is always a decimal integer.
+	For formats other than %b the exponent is at least two digits.
+
 String and slice of bytes (treated equivalently with these verbs):
 
 	%s	the uninterpreted bytes of the string or slice
