@@ -498,7 +498,7 @@ var depsRules = `
 	FIPS, internal/godebug, hash < crypto/fips140, crypto/internal/fips140only;
 
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
-	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fips140tls;
+	sync/atomic < crypto/internal/boring/bcache;
 	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
