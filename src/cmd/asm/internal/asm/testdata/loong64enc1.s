@@ -107,8 +107,8 @@ lable2:
 	MOVV	$4(R4), R5		// 8510c002
 	MOVW	$-1, R4			// 04fcff02
 	MOVV	$-1, R4			// 04fcff02
-	MOVW	$1, R4			// 0404c002
-	MOVV	$1, R4			// 0404c002
+	MOVW	$1, R4			// 04048003
+	MOVV	$1, R4			// 04048003
 	ADD	$-1, R4, R5		// 85fcbf02
 	ADD	$-1, R4			// 84fcbf02
 	ADDV	$-1, R4, R5		// 85fcff02

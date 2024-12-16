@@ -184,48 +184,46 @@ var optab = []Optab{
 
 	{AMOVW, C_LACON, C_NONE, C_NONE, C_REG, C_NONE, 26, 12, REGSP, 0},
 	{AMOVV, C_LACON, C_NONE, C_NONE, C_REG, C_NONE, 26, 12, REGSP, 0},
-	{AMOVW, C_ADDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
-	{AMOVV, C_ADDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
-	{AMOVW, C_ANDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
-	{AMOVV, C_ANDCON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
+	{AMOVW, C_12CON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
+	{AMOVV, C_12CON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
 
-	{AMOVW, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 24, 4, 0, 0},
-	{AMOVV, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 24, 4, 0, 0},
-	{AMOVW, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 19, 8, 0, NOTUSETMP},
-	{AMOVV, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 19, 8, 0, NOTUSETMP},
+	{AMOVW, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 24, 4, 0, 0},
+	{AMOVV, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 24, 4, 0, 0},
+	{AMOVW, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 19, 8, 0, NOTUSETMP},
+	{AMOVV, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 19, 8, 0, NOTUSETMP},
 	{AMOVV, C_DCON12_0, C_NONE, C_NONE, C_REG, C_NONE, 67, 4, 0, NOTUSETMP},
 	{AMOVV, C_DCON12_20S, C_NONE, C_NONE, C_REG, C_NONE, 68, 8, 0, NOTUSETMP},
 	{AMOVV, C_DCON32_12S, C_NONE, C_NONE, C_REG, C_NONE, 69, 12, 0, NOTUSETMP},
 	{AMOVV, C_DCON, C_NONE, C_NONE, C_REG, C_NONE, 59, 16, 0, NOTUSETMP},
 
-	{AADD, C_ADD0CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
-	{AADD, C_ADD0CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
-	{AADD, C_ANDCON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
-	{AADD, C_ANDCON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
+	{AADD, C_US12CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADD, C_US12CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADD, C_U12CON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
+	{AADD, C_U12CON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 
-	{AADDV, C_ADD0CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
-	{AADDV, C_ADD0CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
-	{AADDV, C_ANDCON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
-	{AADDV, C_ANDCON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
+	{AADDV, C_US12CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADDV, C_US12CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AADDV, C_U12CON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
+	{AADDV, C_U12CON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 
-	{AAND, C_AND0CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
-	{AAND, C_AND0CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
-	{AAND, C_ADDCON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
-	{AAND, C_ADDCON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
+	{AAND, C_UU12CON, C_REG, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AAND, C_UU12CON, C_NONE, C_NONE, C_REG, C_NONE, 4, 4, 0, 0},
+	{AAND, C_S12CON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
+	{AAND, C_S12CON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 
-	{AADD, C_UCON, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
-	{AADD, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
-	{AADDV, C_UCON, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
-	{AADDV, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
-	{AAND, C_UCON, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
-	{AAND, C_UCON, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AADD, C_32CON20_0, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AADD, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AADDV, C_32CON20_0, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AADDV, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AAND, C_32CON20_0, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AAND, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
 
-	{AADD, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
-	{AADDV, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
-	{AAND, C_LCON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
-	{AADD, C_LCON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
-	{AADDV, C_LCON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
-	{AAND, C_LCON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AADD, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AADDV, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AAND, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AADD, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AADDV, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AAND, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
 
 	{AADDV, C_DCON, C_NONE, C_NONE, C_REG, C_NONE, 60, 20, 0, 0},
 	{AADDV, C_DCON, C_REG, C_NONE, C_REG, C_NONE, 60, 20, 0, 0},
@@ -244,18 +242,18 @@ var optab = []Optab{
 	{AAND, C_DCON32_12S, C_NONE, C_NONE, C_REG, C_NONE, 72, 16, 0, 0},
 	{AAND, C_DCON32_12S, C_REG, C_NONE, C_REG, C_NONE, 72, 16, 0, 0},
 
-	{ASLL, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
-	{ASLL, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
+	{ASLL, C_U5CON, C_REG, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
+	{ASLL, C_U5CON, C_NONE, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
 
-	{ASLLV, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
-	{ASLLV, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
+	{ASLLV, C_U6CON, C_REG, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
+	{ASLLV, C_U6CON, C_NONE, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
 
-	{ABSTRPICKW, C_SCON, C_REG, C_SCON, C_REG, C_NONE, 17, 4, 0, 0},
-	{ABSTRPICKW, C_SCON, C_REG, C_ZCON, C_REG, C_NONE, 17, 4, 0, 0},
+	{ABSTRPICKW, C_U6CON, C_REG, C_U6CON, C_REG, C_NONE, 17, 4, 0, 0},
+	{ABSTRPICKW, C_U6CON, C_REG, C_ZCON, C_REG, C_NONE, 17, 4, 0, 0},
 	{ABSTRPICKW, C_ZCON, C_REG, C_ZCON, C_REG, C_NONE, 17, 4, 0, 0},
 
 	{ASYSCALL, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
-	{ASYSCALL, C_ANDCON, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
+	{ASYSCALL, C_U15CON, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 
 	{ABEQ, C_REG, C_REG, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
 	{ABEQ, C_REG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
@@ -303,8 +301,7 @@ var optab = []Optab{
 	{AMOVV, C_FREG, C_NONE, C_NONE, C_FCCREG, C_NONE, 30, 4, 0, 0},
 	{AMOVV, C_FCCREG, C_NONE, C_NONE, C_FREG, C_NONE, 30, 4, 0, 0},
 
-	{AMOVW, C_ADDCON, C_NONE, C_NONE, C_FREG, C_NONE, 34, 8, 0, 0},
-	{AMOVW, C_ANDCON, C_NONE, C_NONE, C_FREG, C_NONE, 34, 8, 0, 0},
+	{AMOVW, C_12CON, C_NONE, C_NONE, C_FREG, C_NONE, 34, 8, 0, 0},
 
 	{AMOVB, C_REG, C_NONE, C_NONE, C_TLS_IE, C_NONE, 56, 16, 0, 0},
 	{AMOVW, C_REG, C_NONE, C_NONE, C_TLS_IE, C_NONE, 56, 16, 0, 0},
@@ -318,13 +315,13 @@ var optab = []Optab{
 	{AMOVBU, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
 	{AMOVWU, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
 
-	{AWORD, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0},
+	{AWORD, C_32CON, C_NONE, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0},
 	{AWORD, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 61, 4, 0, 0},
 
 	{AMOVV, C_GOTADDR, C_NONE, C_NONE, C_REG, C_NONE, 65, 8, 0, 0},
 
-	{ATEQ, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
-	{ATEQ, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
+	{ATEQ, C_US12CON, C_REG, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
+	{ATEQ, C_US12CON, C_NONE, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
 
 	{ARDTIMELW, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
 	{AAMSWAPW, C_REG, C_NONE, C_NONE, C_ZOREG, C_REG, 66, 4, 0, 0},
@@ -364,13 +361,13 @@ var optab = []Optab{
 
 	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 45, 4, 0, 0},
 
-	{obj.APCALIGN, C_SCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
-	{obj.APCDATA, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0},
+	{obj.APCALIGN, C_U12CON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+	{obj.APCDATA, C_32CON, C_NONE, C_NONE, C_32CON, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_DCON, C_NONE, C_NONE, C_DCON, C_NONE, 0, 0, 0, 0},
-	{obj.AFUNCDATA, C_SCON, C_NONE, C_NONE, C_ADDR, C_NONE, 0, 0, 0, 0},
+	{obj.AFUNCDATA, C_U12CON, C_NONE, C_NONE, C_ADDR, C_NONE, 0, 0, 0, 0},
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
-	{obj.ANOP, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0}, // nop variants, see #40689
-	{obj.ANOP, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0}, // nop variants, see #40689
+	{obj.ANOP, C_32CON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0}, // nop variants, see #40689
+	{obj.ANOP, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},  // nop variants, see #40689
 	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.ANOP, C_FREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
@@ -812,34 +809,45 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 		}
 
 		if c.instoffset >= 0 {
-			if c.instoffset == 0 {
-				return C_ZCON
+			sbits := bits.Len64(uint64(c.instoffset))
+			switch {
+			case sbits <= 8:
+				return C_ZCON + sbits
+			case sbits <= 12:
+				if c.instoffset <= 0x7ff {
+					return C_US12CON
+				}
+				return C_U12CON
+			case sbits <= 13:
+				if c.instoffset&0xfff == 0 {
+					return C_U13CON20_0
+				}
+				return C_U13CON
+			case sbits <= 15:
+				if c.instoffset&0xfff == 0 {
+					return C_U15CON20_0
+				}
+				return C_U15CON
 			}
-			if c.instoffset <= 0x7ff {
-				return C_SCON
+		} else {
+			sbits := bits.Len64(uint64(^c.instoffset))
+			switch {
+			case sbits < 5:
+				return C_S5CON
+			case sbits < 12:
+				return C_S12CON
+			case sbits < 13:
+				if c.instoffset&0xfff == 0 {
+					return C_S13CON20_0
+				}
+				return C_S13CON
 			}
-			if c.instoffset <= 0xfff {
-				return C_ANDCON
-			}
-			if c.instoffset&0xfff == 0 && isuint32(uint64(c.instoffset)) { // && ((instoffset & (1<<31)) == 0)
-				return C_UCON
-			}
-			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
-				return C_LCON
-			}
-			return C_LCON
 		}
 
-		if c.instoffset >= -0x800 {
-			return C_ADDCON
+		if c.instoffset&0xfff == 0 {
+			return C_32CON20_0
 		}
-		if c.instoffset&0xfff == 0 && isint32(c.instoffset) {
-			return C_UCON
-		}
-		if isint32(c.instoffset) {
-			return C_LCON
-		}
-		return C_LCON
+		return C_32CON
 
 	case obj.TYPE_BRANCH:
 		return C_BRAN
@@ -1085,10 +1093,11 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
 
 	ops := oprange[p.As&obj.AMask]
 	c1 := &xcmp[a1]
+	c3 := &xcmp[a3]
 	c4 := &xcmp[a4]
 	for i := range ops {
 		op := &ops[i]
-		if (int(op.reg) == a2) && int(op.from3) == a3 && c1[op.from1] && c4[op.to1] && (int(op.to2) == a5) {
+		if (int(op.reg) == a2) && c3[op.from3] && c1[op.from1] && c4[op.to1] && (int(op.to2) == a5) {
 			p.Optab = uint16(cap(optab) - cap(ops) + i + 1)
 			return op
 		}
@@ -1106,23 +1115,47 @@ func cmp(a int, b int) bool {
 	}
 	switch a {
 	case C_DCON:
-		if b == C_LCON || b == C_DCON32_0 ||
-			b == C_DCON12_0 || b == C_DCON20S_0 ||
-			b == C_DCON12_20S || b == C_DCON12_12S ||
-			b == C_DCON20S_20 || b == C_DCON32_20 ||
-			b == C_DCON20S_12S || b == C_DCON32_12S ||
-			b == C_DCON12_32S || b == C_DCON20S_32 ||
-			b == C_DCON12_12U || b == C_DCON20S_12U ||
-			b == C_DCON32_12U {
-			return true
-		}
-		fallthrough
-	case C_LCON:
-		if b == C_ZCON || b == C_SCON || b == C_UCON || b == C_ADDCON || b == C_ANDCON {
-			return true
-		}
-
-	case C_DCON12_0:
+		return cmp(C_32CON, b) || cmp(C_DCON12_20S, b) || cmp(C_DCON32_12S, b) || b == C_DCON12_0
+	case C_32CON:
+		return cmp(C_32CON20_0, b) || cmp(C_U15CON, b) || cmp(C_13CON, b) || cmp(C_12CON, b)
+	case C_32CON20_0:
+		return b == C_U15CON20_0 || b == C_U13CON20_0 || b == C_S13CON20_0 || b == C_ZCON
+	case C_U15CON:
+		return cmp(C_U12CON, b) || b == C_U15CON20_0 || b == C_U13CON20_0 || b == C_U13CON
+	case C_13CON:
+		return cmp(C_U13CON, b) || cmp(C_S13CON, b)
+	case C_U13CON:
+		return cmp(C_12CON, b) || b == C_U13CON20_0
+	case C_S13CON:
+		return cmp(C_12CON, b) || b == C_S13CON20_0
+	case C_12CON:
+		return cmp(C_U12CON, b) || cmp(C_S12CON, b)
+	case C_UU12CON:
+		return cmp(C_U12CON, b)
+	case C_U12CON:
+		return cmp(C_U8CON, b) || b == C_US12CON
+	case C_U8CON:
+		return cmp(C_U7CON, b)
+	case C_U7CON:
+		return cmp(C_U6CON, b)
+	case C_U6CON:
+		return cmp(C_U5CON, b)
+	case C_U5CON:
+		return cmp(C_U4CON, b)
+	case C_U4CON:
+		return cmp(C_U3CON, b)
+	case C_U3CON:
+		return cmp(C_U2CON, b)
+	case C_U2CON:
+		return cmp(C_U1CON, b)
+	case C_U1CON:
+		return cmp(C_ZCON, b)
+	case C_US12CON:
+		return cmp(C_S12CON, b)
+	case C_S12CON:
+		return cmp(C_S5CON, b) || cmp(C_U8CON, b) || b == C_US12CON
+	case C_S5CON:
+		return cmp(C_ZCON, b) || cmp(C_U4CON, b)
 
 	case C_DCON12_20S:
 		if b == C_DCON20S_20 || b == C_DCON12_12S ||
@@ -1138,62 +1171,20 @@ func cmp(a int, b int) bool {
 			return true
 		}
 
-	case C_ADD0CON:
-		if b == C_ADDCON {
-			return true
-		}
-		fallthrough
-
-	case C_ADDCON:
-		if b == C_ZCON || b == C_SCON {
-			return true
-		}
-
-	case C_AND0CON:
-		if b == C_ANDCON {
-			return true
-		}
-		fallthrough
-
-	case C_ANDCON:
-		if b == C_ZCON || b == C_SCON {
-			return true
-		}
-
-	case C_UCON:
-		if b == C_ZCON {
-			return true
-		}
-
-	case C_SCON:
-		if b == C_ZCON {
-			return true
-		}
-
 	case C_LACON:
-		if b == C_SACON {
-			return true
-		}
+		return b == C_SACON
 
 	case C_LAUTO:
-		if b == C_SAUTO {
-			return true
-		}
+		return b == C_SAUTO
 
 	case C_REG:
-		if b == C_ZCON {
-			return true
-		}
+		return b == C_ZCON
 
 	case C_LOREG:
-		if b == C_ZOREG || b == C_SOREG {
-			return true
-		}
+		return b == C_ZOREG || b == C_SOREG
 
 	case C_SOREG:
-		if b == C_ZOREG {
-			return true
-		}
+		return b == C_ZOREG
 	}
 
 	return false
@@ -1615,7 +1606,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		a := add
-		if o.from1 == C_ANDCON {
+		if o.from1 == C_12CON && v > 0 {
 			a = AOR
 		}
 
@@ -1891,7 +1882,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 34: // mov $con,fr
 		v := c.regoff(&p.From)
 		a := AADDU
-		if o.from1 == C_ANDCON {
+		if v > 0 {
 			a = AOR
 		}
 		a2 := c.specialFpMovInst(p.As, C_REG, oclass(&p.To))

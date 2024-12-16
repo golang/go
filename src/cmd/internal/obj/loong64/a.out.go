@@ -327,19 +327,31 @@ const (
 	C_XREG
 	C_ARNG // Vn.<T>
 	C_ELEM // Vn.<T>[index]
+
 	C_ZCON
-	C_SCON // 12 bit signed
-	C_UCON // 32 bit signed, low 12 bits 0
-
-	// When the immediate value is SCON, it can choose either the ADDCON implementation
-	// or the ANDCON implementation, using ADD0CON/AND0CON to distinguish them, so that
-	// the program can choose the implementation with fewer instructions.
-	C_ADD0CON
-	C_AND0CON
-
-	C_ADDCON // -0x800 <= v < 0
-	C_ANDCON // 0 < v <= 0xFFF
-	C_LCON   // other 32
+	C_U1CON      // 1 bit unsigned constant
+	C_U2CON      // 2 bit unsigned constant
+	C_U3CON      // 3 bit unsigned constant
+	C_U4CON      // 4 bit unsigned constant
+	C_U5CON      // 5 bit unsigned constant
+	C_U6CON      // 6 bit unsigned constant
+	C_U7CON      // 7 bit unsigned constant
+	C_U8CON      // 8 bit unsigned constant
+	C_S5CON      // 5 bit signed constant
+	C_US12CON    // same as C_S12CON, increase the priority of C_S12CON in special cases.
+	C_UU12CON    // same as C_U12CON, increase the priority of C_U12CON in special cases.
+	C_S12CON     // 12 bit signed constant, -0x800 < v <= 0x7ff
+	C_U12CON     // 12 bit unsigned constant, 0 < v <= 0xfff
+	C_12CON      // 12 bit signed constant, or 12 bit unsigned constant
+	C_S13CON20_0 // 13 bit signed constant, low 12 bits 0
+	C_S13CON     // 13 bit signed constant
+	C_U13CON20_0 // 13 bit unsigned constant, low 12 bits 0
+	C_U13CON     // 13 bit unsigned constant
+	C_13CON      // 13 bit signed constant, or 13 bit unsigned constant
+	C_U15CON     // 15 bit unsigned constant
+	C_U15CON20_0 // 15 bit unsigned constant, low 12 bits 0
+	C_32CON20_0  // 32 bit signed, low 12 bits 0
+	C_32CON      // other 32 bit signed
 
 	// 64 bit signed, lo32 bits 0, hi20 bits are not 0, hi12 bits can
 	// be obtained by sign extension of the hi20 bits.
