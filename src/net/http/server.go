@@ -1965,8 +1965,7 @@ func (c *conn) serve(ctx context.Context) {
 		tlsTO := c.server.tlsHandshakeTimeout()
 		if tlsTO > 0 {
 			dl := time.Now().Add(tlsTO)
-			c.rwc.SetReadDeadline(dl)
-			c.rwc.SetWriteDeadline(dl)
+			c.rwc.SetDeadline(dl)
 		}
 		if err := tlsConn.HandshakeContext(ctx); err != nil {
 			// If the handshake failed due to the client not speaking
@@ -1985,8 +1984,7 @@ func (c *conn) serve(ctx context.Context) {
 		}
 		// Restore Conn-level deadlines.
 		if tlsTO > 0 {
-			c.rwc.SetReadDeadline(time.Time{})
-			c.rwc.SetWriteDeadline(time.Time{})
+			c.rwc.SetDeadline(time.Time{})
 		}
 		c.tlsState = new(tls.ConnectionState)
 		*c.tlsState = tlsConn.ConnectionState()
