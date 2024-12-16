@@ -1555,6 +1555,18 @@ func buildop(ctxt *obj.Link) {
 			opset(AVILVHH, r0)
 			opset(AVILVHW, r0)
 			opset(AVILVHV, r0)
+			opset(AVMULB, r0)
+			opset(AVMULH, r0)
+			opset(AVMULW, r0)
+			opset(AVMULV, r0)
+			opset(AVMUHB, r0)
+			opset(AVMUHH, r0)
+			opset(AVMUHW, r0)
+			opset(AVMUHV, r0)
+			opset(AVMUHBU, r0)
+			opset(AVMUHHU, r0)
+			opset(AVMUHWU, r0)
+			opset(AVMUHVU, r0)
 
 		case AXVSEQB:
 			opset(AXVSEQH, r0)
@@ -1568,6 +1580,18 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVILVHH, r0)
 			opset(AXVILVHW, r0)
 			opset(AXVILVHV, r0)
+			opset(AXVMULB, r0)
+			opset(AXVMULH, r0)
+			opset(AXVMULW, r0)
+			opset(AXVMULV, r0)
+			opset(AXVMUHB, r0)
+			opset(AXVMUHH, r0)
+			opset(AXVMUHW, r0)
+			opset(AXVMUHV, r0)
+			opset(AXVMUHBU, r0)
+			opset(AXVMUHHU, r0)
+			opset(AXVMUHWU, r0)
+			opset(AXVMUHVU, r0)
 
 		case AVANDB:
 			opset(AVORB, r0)
@@ -2986,6 +3010,54 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0xea3a << 15 // xvilvh.w
 	case AXVILVHV:
 		return 0xea3b << 15 // xvilvh.d
+	case AVMULB:
+		return 0xe108 << 15 // vmul.b
+	case AVMULH:
+		return 0xe109 << 15 // vmul.h
+	case AVMULW:
+		return 0xe10a << 15 // vmul.w
+	case AVMULV:
+		return 0xe10b << 15 // vmul.d
+	case AVMUHB:
+		return 0xe10c << 15 // vmuh.b
+	case AVMUHH:
+		return 0xe10d << 15 // vmuh.h
+	case AVMUHW:
+		return 0xe10e << 15 // vmuh.w
+	case AVMUHV:
+		return 0xe10f << 15 // vmuh.d
+	case AVMUHBU:
+		return 0xe110 << 15 // vmuh.bu
+	case AVMUHHU:
+		return 0xe111 << 15 // vmuh.hu
+	case AVMUHWU:
+		return 0xe112 << 15 // vmuh.wu
+	case AVMUHVU:
+		return 0xe113 << 15 // vmuh.du
+	case AXVMULB:
+		return 0xe908 << 15 // xvmul.b
+	case AXVMULH:
+		return 0xe909 << 15 // xvmul.h
+	case AXVMULW:
+		return 0xe90a << 15 // xvmul.w
+	case AXVMULV:
+		return 0xe90b << 15 // xvmul.d
+	case AXVMUHB:
+		return 0xe90c << 15 // xvmuh.b
+	case AXVMUHH:
+		return 0xe90d << 15 // xvmuh.h
+	case AXVMUHW:
+		return 0xe90e << 15 // xvmuh.w
+	case AXVMUHV:
+		return 0xe90f << 15 // xvmuh.d
+	case AXVMUHBU:
+		return 0xe910 << 15 // xvmuh.bu
+	case AXVMUHHU:
+		return 0xe911 << 15 // xvmuh.hu
+	case AXVMUHWU:
+		return 0xe912 << 15 // xvmuh.wu
+	case AXVMUHVU:
+		return 0xe913 << 15 // xvmuh.du
 	}
 
 	if a < 0 {
