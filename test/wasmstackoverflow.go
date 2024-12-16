@@ -47,16 +47,6 @@ func main() {
 		panic(err)
 	}
 
-	//input, err := os.ReadFile(tmpDir + "/test.wasm")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//err = os.WriteFile("T:/wasm/test.wasm", input, 0666)
-	//if err != nil {
-	//	panic(err)
-	//}
-
 	node, err := exec.LookPath("node")
 	if err != nil {
 		// skip wasm stackoverflow test because node is not found
