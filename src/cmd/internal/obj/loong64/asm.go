@@ -1567,6 +1567,22 @@ func buildop(ctxt *obj.Link) {
 			opset(AVMUHHU, r0)
 			opset(AVMUHWU, r0)
 			opset(AVMUHVU, r0)
+			opset(AVDIVB, r0)
+			opset(AVDIVH, r0)
+			opset(AVDIVW, r0)
+			opset(AVDIVV, r0)
+			opset(AVMODB, r0)
+			opset(AVMODH, r0)
+			opset(AVMODW, r0)
+			opset(AVMODV, r0)
+			opset(AVDIVBU, r0)
+			opset(AVDIVHU, r0)
+			opset(AVDIVWU, r0)
+			opset(AVDIVVU, r0)
+			opset(AVMODBU, r0)
+			opset(AVMODHU, r0)
+			opset(AVMODWU, r0)
+			opset(AVMODVU, r0)
 
 		case AXVSEQB:
 			opset(AXVSEQH, r0)
@@ -1592,6 +1608,22 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVMUHHU, r0)
 			opset(AXVMUHWU, r0)
 			opset(AXVMUHVU, r0)
+			opset(AXVDIVB, r0)
+			opset(AXVDIVH, r0)
+			opset(AXVDIVW, r0)
+			opset(AXVDIVV, r0)
+			opset(AXVMODB, r0)
+			opset(AXVMODH, r0)
+			opset(AXVMODW, r0)
+			opset(AXVMODV, r0)
+			opset(AXVDIVBU, r0)
+			opset(AXVDIVHU, r0)
+			opset(AXVDIVWU, r0)
+			opset(AXVDIVVU, r0)
+			opset(AXVMODBU, r0)
+			opset(AXVMODHU, r0)
+			opset(AXVMODWU, r0)
+			opset(AXVMODVU, r0)
 
 		case AVANDB:
 			opset(AVORB, r0)
@@ -2874,6 +2906,70 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x0EA50 << 15 // xvandn.v
 	case AXVORNV:
 		return 0x0EA51 << 15 // xvorn.v
+	case AVDIVB:
+		return 0xe1c0 << 15 // vdiv.b
+	case AVDIVH:
+		return 0xe1c1 << 15 // vdiv.h
+	case AVDIVW:
+		return 0xe1c2 << 15 // vdiv.w
+	case AVDIVV:
+		return 0xe1c3 << 15 // vdiv.d
+	case AVMODB:
+		return 0xe1c4 << 15 // vmod.b
+	case AVMODH:
+		return 0xe1c5 << 15 // vmod.h
+	case AVMODW:
+		return 0xe1c6 << 15 // vmod.w
+	case AVMODV:
+		return 0xe1c7 << 15 // vmod.d
+	case AVDIVBU:
+		return 0xe1c8 << 15 // vdiv.bu
+	case AVDIVHU:
+		return 0xe1c9 << 15 // vdiv.hu
+	case AVDIVWU:
+		return 0xe1ca << 15 // vdiv.wu
+	case AVDIVVU:
+		return 0xe1cb << 15 // vdiv.du
+	case AVMODBU:
+		return 0xe1cc << 15 // vmod.bu
+	case AVMODHU:
+		return 0xe1cd << 15 // vmod.hu
+	case AVMODWU:
+		return 0xe1ce << 15 // vmod.wu
+	case AVMODVU:
+		return 0xe1cf << 15 // vmod.du
+	case AXVDIVB:
+		return 0xe9c0 << 15 // xvdiv.b
+	case AXVDIVH:
+		return 0xe9c1 << 15 // xvdiv.h
+	case AXVDIVW:
+		return 0xe9c2 << 15 // xvdiv.w
+	case AXVDIVV:
+		return 0xe9c3 << 15 // xvdiv.d
+	case AXVMODB:
+		return 0xe9c4 << 15 // xvmod.b
+	case AXVMODH:
+		return 0xe9c5 << 15 // xvmod.h
+	case AXVMODW:
+		return 0xe9c6 << 15 // xvmod.w
+	case AXVMODV:
+		return 0xe9c7 << 15 // xvmod.d
+	case AXVDIVBU:
+		return 0xe9c8 << 15 // xvdiv.bu
+	case AXVDIVHU:
+		return 0xe9c9 << 15 // xvdiv.hu
+	case AXVDIVWU:
+		return 0xe9ca << 15 // xvdiv.wu
+	case AXVDIVVU:
+		return 0xe9cb << 15 // xvdiv.du
+	case AXVMODBU:
+		return 0xe9cc << 15 // xvmod.bu
+	case AXVMODHU:
+		return 0xe9cd << 15 // xvmod.hu
+	case AXVMODWU:
+		return 0xe9ce << 15 // xvmod.wu
+	case AXVMODVU:
+		return 0xe9cf << 15 // xvmod.du
 	case AVSLLB:
 		return 0xe1d0 << 15 // vsll.b
 	case AVSLLH:
