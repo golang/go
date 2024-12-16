@@ -19,3 +19,11 @@ func init() {
 		debug = true
 	}
 }
+
+func Name() string {
+	return "Go Cryptographic Module"
+}
+
+func Version() string {
+	return "v1.0"
+}
