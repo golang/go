@@ -13,9 +13,9 @@ import (
 )
 
 // GenerateKey generates a new RSA key pair of the given bit size.
-// bits must be at least 128.
+// bits must be at least 32.
 func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
-	if bits < 128 {
+	if bits < 32 {
 		return nil, errors.New("rsa: key too small")
 	}
 	fips140.RecordApproved()
@@ -93,8 +93,8 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 // randomPrime returns a random prime number of the given bit size following
 // the process in FIPS 186-5, Appendix A.1.3.
 func randomPrime(rand io.Reader, bits int) ([]byte, error) {
-	if bits < 64 {
-		return nil, errors.New("rsa: prime size must be at least 32-bit")
+	if bits < 16 {
+		return nil, errors.New("rsa: prime size must be at least 16 bits")
 	}
 
 	b := make([]byte, (bits+7)/8)
