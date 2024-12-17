@@ -2250,7 +2250,7 @@
 //
 // The second is the SWIG program, which is a general tool for
 // interfacing between languages. For information on SWIG see
-// http://swig.org/. When running go build, any file with a .swig
+// https://swig.org/. When running go build, any file with a .swig
 // extension will be passed to SWIG. Any file with a .swigcxx extension
 // will be passed to SWIG with the -c++ option.
 //
