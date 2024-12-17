@@ -456,7 +456,7 @@ type ClientHelloInfo struct {
 	SupportedVersions []uint16
 
 	// Extensions lists the IDs of the extensions presented by the client
-	// in the client hello.
+	// in the ClientHello.
 	Extensions []uint16
 
 	// Conn is the underlying net.Conn for the connection. Do not read
@@ -821,7 +821,7 @@ type Config struct {
 
 	// EncryptedClientHelloRejectionVerify, if not nil, is called when ECH is
 	// rejected by the remote server, in order to verify the ECH provider
-	// certificate in the outer Client Hello. If it returns a non-nil error, the
+	// certificate in the outer ClientHello. If it returns a non-nil error, the
 	// handshake is aborted and that error results.
 	//
 	// On the server side this field is not used.
