@@ -51,7 +51,7 @@ go version -m example$GOEXE
 stdout '\s+mod\s+example\s+v1.0.1\s+'
 rm example$GOEXE
 
-# Use tag+dirty when there are uncomitted changes present.
+# Use tag+dirty when there are uncommitted changes present.
 cp $WORK/copy/README $WORK/repo/README
 go build
 go version -m example$GOEXE
@@ -82,7 +82,7 @@ go version -m example$GOEXE
 stdout '\s+mod\s+example\s+v1.0.3-0.20220719150702-deaeab06f7fe\s+'
 rm example$GOEXE
 
-# Use pseudo+dirty when uncomitted changes are present.
+# Use pseudo+dirty when uncommitted changes are present.
 mv README2 README3
 go build
 go version -m example$GOEXE
