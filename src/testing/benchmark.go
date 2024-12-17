@@ -5,6 +5,7 @@
 package testing
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"internal/sysinfo"
@@ -181,6 +182,7 @@ func (b *B) ReportAllocs() {
 func (b *B) runN(n int) {
 	benchmarkLock.Lock()
 	defer benchmarkLock.Unlock()
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	defer func() {
 		b.runCleanup(normalPanic)
 		b.checkRaces()
@@ -191,6 +193,8 @@ func (b *B) runN(n int) {
 	b.resetRaces()
 	b.N = n
 	b.loopN = 0
+	b.ctx = ctx
+	b.cancelCtx = cancelCtx
 
 	b.parallelism = 1
 	b.ResetTimer()

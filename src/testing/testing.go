@@ -1385,10 +1385,10 @@ func (c *common) Chdir(dir string) {
 }
 
 // Context returns a context that is canceled just before
-// [T.Cleanup]-registered functions are called.
+// Cleanup-registered functions are called.
 //
 // Cleanup functions can wait for any resources
-// that shut down on Context.Done before the test completes.
+// that shut down on Context.Done before the test or benchmark completes.
 func (c *common) Context() context.Context {
 	c.checkFuzzFn("Context")
 	return c.ctx
