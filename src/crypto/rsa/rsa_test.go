@@ -698,19 +698,48 @@ func BenchmarkEncryptOAEP(b *testing.B) {
 }
 
 func BenchmarkSignPKCS1v15(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
-		hashed := sha256.Sum256([]byte("testing"))
-
-		var sink byte
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			s, err := SignPKCS1v15(rand.Reader, test2048Key, crypto.SHA256, hashed[:])
-			if err != nil {
-				b.Fatal(err)
-			}
-			sink ^= s[0]
-		}
+	b.Run("2048", func(b *testing.B) { benchmarkSignPKCS1v15(b, test2048Key) })
+	b.Run("2048/noprecomp/OnlyD", func(b *testing.B) {
+		benchmarkSignPKCS1v15(b, &PrivateKey{
+			PublicKey: test2048Key.PublicKey,
+			D:         test2048Key.D,
+		})
 	})
+	b.Run("2048/noprecomp/Primes", func(b *testing.B) {
+		benchmarkSignPKCS1v15(b, &PrivateKey{
+			PublicKey: test2048Key.PublicKey,
+			D:         test2048Key.D,
+			Primes:    test2048Key.Primes,
+		})
+	})
+	// This is different from "2048" because it's only the public precomputed
+	// values, and not the crypto/internal/fips140/rsa.PrivateKey.
+	b.Run("2048/noprecomp/AllValues", func(b *testing.B) {
+		benchmarkSignPKCS1v15(b, &PrivateKey{
+			PublicKey: test2048Key.PublicKey,
+			D:         test2048Key.D,
+			Primes:    test2048Key.Primes,
+			Precomputed: PrecomputedValues{
+				Dp:   test2048Key.Precomputed.Dp,
+				Dq:   test2048Key.Precomputed.Dq,
+				Qinv: test2048Key.Precomputed.Qinv,
+			},
+		})
+	})
+}
+
+func benchmarkSignPKCS1v15(b *testing.B, k *PrivateKey) {
+	hashed := sha256.Sum256([]byte("testing"))
+
+	var sink byte
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s, err := SignPKCS1v15(rand.Reader, k, crypto.SHA256, hashed[:])
+		if err != nil {
+			b.Fatal(err)
+		}
+		sink ^= s[0]
+	}
 }
 
 func BenchmarkVerifyPKCS1v15(b *testing.B) {
