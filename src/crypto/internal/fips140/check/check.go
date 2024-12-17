@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package check implements the FIPS-140 load-time code+data verification.
+// Package check implements the FIPS 140 load-time code+data verification.
 // Every FIPS package providing cryptographic functionality except hmac and sha256
 // must import crypto/internal/fips140/check, so that the verification happens
 // before initialization of package global variables.
@@ -13,6 +13,7 @@
 package check
 
 import (
+	"crypto/internal/fips140"
 	"crypto/internal/fips140/hmac"
 	"crypto/internal/fips140/sha256"
 	"crypto/internal/fips140deps/byteorder"
@@ -22,15 +23,9 @@ import (
 	"unsafe"
 )
 
-// Enabled reports whether verification was enabled.
-// If Enabled returns true, then verification succeeded,
-// because if it failed the binary would have panicked at init time.
-func Enabled() bool {
-	return enabled
-}
-
-var enabled bool  // set when verification is enabled
-var Verified bool // set when verification succeeds, for testing
+// Verified is set when verification succeeded. It can be expected to always be
+// true when [fips140.Enabled] is true, or init would have panicked.
+var Verified bool
 
 // Supported reports whether the current GOOS/GOARCH is Supported at all.
 func Supported() bool {
@@ -71,9 +66,7 @@ const fipsMagic = " Go fipsinfo \xff\x00"
 var zeroSum [32]byte
 
 func init() {
-	v := godebug.Value("#fips140")
-	enabled = v != "" && v != "off"
-	if !enabled {
+	if !fips140.Enabled {
 		return
 	}
 
@@ -86,13 +79,6 @@ func init() {
 		// If this is made to work, also re-enable the test in check_test.go
 		// and in cmd/dist/test.go.
 		panic("fips140: cannot verify in asan mode")
-	}
-
-	switch v {
-	case "on", "only", "debug":
-		// ok
-	default:
-		panic("fips140: unknown GODEBUG setting fips140=" + v)
 	}
 
 	if !Supported() {
@@ -132,7 +118,7 @@ func init() {
 		panic("fips140: verification mismatch")
 	}
 
-	if v == "debug" {
+	if godebug.Value("#fips140") == "debug" {
 		println("fips140: verified code+data")
 	}
 

@@ -11,12 +11,16 @@ var Enabled bool
 var debug bool
 
 func init() {
-	switch godebug.Value("#fips140") {
+	v := godebug.Value("#fips140")
+	switch v {
 	case "on", "only":
 		Enabled = true
 	case "debug":
 		Enabled = true
 		debug = true
+	case "off", "":
+	default:
+		panic("fips140: unknown GODEBUG setting fips140=" + v)
 	}
 }
 
