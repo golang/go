@@ -5,6 +5,7 @@
 package fipstest
 
 import (
+	"crypto/internal/boring"
 	. "crypto/internal/fips140/check"
 	"crypto/internal/fips140/check/checktest"
 	"fmt"
@@ -22,6 +23,10 @@ import (
 const enableFIPSTest = true
 
 func TestFIPSCheckVerify(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("not testing fips140 with boringcrypto enabled")
+	}
+
 	if Verified {
 		t.Logf("verified")
 		return

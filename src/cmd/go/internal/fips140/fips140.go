@@ -119,6 +119,10 @@ func Init() {
 	if Snapshot() {
 		fsys.Bind(Dir(), filepath.Join(cfg.GOROOT, "src/crypto/internal/fips140"))
 	}
+
+	if cfg.Experiment.BoringCrypto && Enabled() {
+		base.Fatalf("go: cannot use GOFIPS140 with GOEXPERIMENT=boringcrypto")
+	}
 }
 
 var initDone bool

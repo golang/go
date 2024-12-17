@@ -1,3 +1,6 @@
+# Go+BoringCrypto conflicts with GOFIPS140.
+[GOEXPERIMENT:boringcrypto] skip
+
 # list with GOFIPS140=off
 env GOFIPS140=off
 go list -f '{{.DefaultGODEBUG}}'

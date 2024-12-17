@@ -7,6 +7,9 @@ env alias=inprocess
 skip 'no snapshots yet'
 env GOFIPS140=$snap
 
+# Go+BoringCrypto conflicts with GOFIPS140.
+[GOEXPERIMENT:boringcrypto] skip
+
 # default GODEBUG includes fips140=on
 go list -f '{{.DefaultGODEBUG}}'
 stdout fips140=on

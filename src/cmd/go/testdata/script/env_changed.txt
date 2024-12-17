@@ -1,5 +1,8 @@
 # Test query for non-defaults in the env
 
+# Go+BoringCrypto conflicts with GOFIPS140.
+[GOEXPERIMENT:boringcrypto] skip
+
 env GOROOT=./a
 env GOTOOLCHAIN=local
 env GOSUMDB=nodefault
