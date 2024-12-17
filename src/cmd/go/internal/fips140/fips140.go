@@ -40,14 +40,8 @@
 //
 //	GOFIPS140=latest go build -work my/binary
 //
-// will leave fips.o behind in $WORK/b001. Auditors like to be able to
-// see that file. Accordingly, when [Enabled] returns true,
-// [cmd/go/internal/work.Builder.useCache] arranges never to cache linker
-// output, so that the link step always runs, and fips.o is always left
-// behind in the link step. If this proves too slow, we could always
-// cache fips.o as an extra link output and then restore it when -work is
-// set, but we went a very long time never caching link steps at all, so
-// not caching them in FIPS mode seems perfectly fine.
+// will leave fips.o behind in $WORK/b001
+// (unless the build result is cached, of course).
 //
 // When GOFIPS140 is set to something besides off and latest, [Snapshot]
 // returns true, indicating that the build should replace the latest copy

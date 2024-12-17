@@ -20,12 +20,12 @@ go build -x -o x.exe
 go build -x -o x.exe
 ! stderr link
 
-# build with GOFIPS140=latest is NOT cached (need fipso)
+# build with GOFIPS140=latest is cached too
 env GOFIPS140=latest
 go build -x -o x.exe
 stderr link.*-fipso
 go build -x -o x.exe
-stderr link.*-fipso
+! stderr link.*-fipso
 
 # build test with GOFIPS140=off is cached
 env GOFIPS140=off
@@ -40,8 +40,6 @@ go test -x -c
 stderr link.*-fipso
 go test -x -c
 ! stderr link
-
-
 
 -- go.mod --
 module m

@@ -47,11 +47,11 @@ stdout crypto/internal/fips140/$snap/sha256
 
 [short] skip
 
-# build with GOFIPS140=snap is NOT cached (need fipso)
+# build with GOFIPS140=snap is cached
 go build -x -o x.exe
 stderr link.*-fipso
 go build -x -o x.exe
-stderr link.*-fipso
+! stderr link.*-fipso
 
 # build test with GOFIPS140=snap is cached
 go test -x -c
