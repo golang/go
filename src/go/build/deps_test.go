@@ -388,11 +388,13 @@ var depsRules = `
 
 	os
 	< golang.org/x/net/dns/dnsmessage,
-	  golang.org/x/net/lif,
-	  golang.org/x/net/route;
+	  golang.org/x/net/lif;
 
 	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
 	< net/netip;
+
+	os, net/netip
+	< internal/routebsd;
 
 	# net is unavoidable when doing any networking,
 	# so large dependencies must be kept out.
@@ -401,10 +403,10 @@ var depsRules = `
 	CGO,
 	golang.org/x/net/dns/dnsmessage,
 	golang.org/x/net/lif,
-	golang.org/x/net/route,
 	internal/godebug,
 	internal/nettrace,
 	internal/poll,
+	internal/routebsd,
 	internal/singleflight,
 	net/netip,
 	os,

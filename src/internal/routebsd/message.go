@@ -1,0 +1,72 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
+
+package routebsd
+
+// A Message represents a routing message.
+type Message interface {
+	// Sys returns operating system-specific information.
+	Sys() []Sys
+}
+
+// A Sys reprensents operating system-specific information.
+type Sys interface {
+	// SysType returns a type of operating system-specific
+	// information.
+	SysType() SysType
+}
+
+// A SysType represents a type of operating system-specific
+// information.
+type SysType int
+
+const (
+	SysMetrics SysType = iota
+	SysStats
+)
+
+// ParseRIB parses b as a routing information base and returns a list
+// of routing messages.
+func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
+	if !typ.parseable() {
+		return nil, errUnsupportedMessage
+	}
+	var msgs []Message
+	nmsgs, nskips := 0, 0
+	for len(b) > 4 {
+		nmsgs++
+		l := int(nativeEndian.Uint16(b[:2]))
+		if l == 0 {
+			return nil, errInvalidMessage
+		}
+		if len(b) < l {
+			return nil, errMessageTooShort
+		}
+		if b[2] != rtmVersion {
+			b = b[l:]
+			continue
+		}
+		if w, ok := wireFormats[int(b[3])]; !ok {
+			nskips++
+		} else {
+			m, err := w.parse(typ, b[:l])
+			if err != nil {
+				return nil, err
+			}
+			if m == nil {
+				nskips++
+			} else {
+				msgs = append(msgs, m)
+			}
+		}
+		b = b[l:]
+	}
+	// We failed to parse any of the messages - version mismatch?
+	if nmsgs != len(msgs)+nskips {
+		return nil, errMessageMismatch
+	}
+	return msgs, nil
+}

@@ -7,17 +7,16 @@
 package net
 
 import (
+	"internal/routebsd"
 	"syscall"
-
-	"golang.org/x/net/route"
 )
 
-func interfaceMessages(ifindex int) ([]route.Message, error) {
-	rib, err := route.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST, ifindex)
+func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
+	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST, ifindex)
 	if err != nil {
 		return nil, err
 	}
-	return route.ParseRIB(syscall.NET_RT_IFLIST, rib)
+	return routebsd.ParseRIB(syscall.NET_RT_IFLIST, rib)
 }
 
 // interfaceMulticastAddrTable returns addresses for a specific

@@ -5,42 +5,41 @@
 package net
 
 import (
+	"internal/routebsd"
 	"syscall"
-
-	"golang.org/x/net/route"
 )
 
-func interfaceMessages(ifindex int) ([]route.Message, error) {
-	rib, err := route.FetchRIB(syscall.AF_UNSPEC, route.RIBTypeInterface, ifindex)
+func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
+	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, routebsd.RIBTypeInterface, ifindex)
 	if err != nil {
 		return nil, err
 	}
-	return route.ParseRIB(route.RIBTypeInterface, rib)
+	return routebsd.ParseRIB(routebsd.RIBTypeInterface, rib)
 }
 
 // interfaceMulticastAddrTable returns addresses for a specific
 // interface.
 func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
-	rib, err := route.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFMALIST, ifi.Index)
+	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFMALIST, ifi.Index)
 	if err != nil {
 		return nil, err
 	}
-	msgs, err := route.ParseRIB(syscall.NET_RT_IFMALIST, rib)
+	msgs, err := routebsd.ParseRIB(syscall.NET_RT_IFMALIST, rib)
 	if err != nil {
 		return nil, err
 	}
 	ifmat := make([]Addr, 0, len(msgs))
 	for _, m := range msgs {
 		switch m := m.(type) {
-		case *route.InterfaceMulticastAddrMessage:
+		case *routebsd.InterfaceMulticastAddrMessage:
 			if ifi.Index != m.Index {
 				continue
 			}
 			var ip IP
 			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
-			case *route.Inet4Addr:
+			case *routebsd.Inet4Addr:
 				ip = IPv4(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
-			case *route.Inet6Addr:
+			case *routebsd.Inet6Addr:
 				ip = make(IP, IPv6len)
 				copy(ip, sa.IP[:])
 			}
