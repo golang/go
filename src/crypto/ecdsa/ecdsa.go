@@ -183,7 +183,7 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
 }
 
 func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], rand io.Reader) (*PrivateKey, error) {
-	if fips140only.Enabled && fips140only.ApprovedRandomReader(rand) {
+	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
 		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 	privateKey, err := ecdsa.GenerateKey(c, rand)
