@@ -5686,6 +5686,8 @@ myString([]myRune{0x1f30e})              // "\U0001f30e" == "🌎"
 <li>
 Converting a value of a string type to a slice of bytes type
 yields a non-nil slice whose successive elements are the bytes of the string.
+The <a href="#Length_and_capacity">capacity</a> of the resulting slice is
+implementation-specific and may be larger than the slice length.
 
 <pre>
 []byte("hellø")             // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
@@ -5701,6 +5703,8 @@ bytes("hellø")              // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
 <li>
 Converting a value of a string type to a slice of runes type
 yields a slice containing the individual Unicode code points of the string.
+The <a href="#Length_and_capacity">capacity</a> of the resulting slice is
+implementation-specific and may be larger than the slice length.
 
 <pre>
 []rune(myString("白鵬翔"))   // []rune{0x767d, 0x9d6c, 0x7fd4}
