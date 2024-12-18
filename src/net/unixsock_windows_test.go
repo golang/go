@@ -10,6 +10,7 @@ import (
 	"internal/syscall/windows"
 	"os"
 	"reflect"
+	"syscall"
 	"testing"
 )
 
@@ -67,6 +68,28 @@ func TestUnixConnLocalWindows(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestUnixAbstractLongNameNullStart(t *testing.T) {
+	if !windows.SupportUnixSocket() {
+		t.Skip("unix test")
+	}
+
+	addr := "\x00abstract_test"
+	rsu := syscall.RawSockaddrUnix{}
+	paddedAddr := make([]byte, len(rsu.Path))
+	copy(paddedAddr, "\x00abstract_test")
+	addr = string(paddedAddr)
+
+	la, err := ResolveUnixAddr("unix", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := ListenUnix("unix", la)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
 }
 
 func TestModeSocket(t *testing.T) {
