@@ -41,5 +41,5 @@ func roundup(l int) int {
 type wireFormat struct {
 	extOff  int // offset of header extension
 	bodyOff int // offset of message body
-	parse   func(RIBType, []byte) (Message, error)
+	parse   func([]byte) (Message, error)
 }

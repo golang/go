@@ -11,7 +11,7 @@ import (
 	"syscall"
 )
 
-func (w *wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error) {
+func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
 	if len(b) < w.bodyOff {
 		return nil, errMessageTooShort
 	}
@@ -41,7 +41,7 @@ func (w *wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error)
 	return m, nil
 }
 
-func (w *wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, error) {
+func (w *wireFormat) parseInterfaceAddrMessage(b []byte) (Message, error) {
 	if len(b) < w.bodyOff {
 		return nil, errMessageTooShort
 	}
@@ -61,7 +61,7 @@ func (w *wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, er
 		m.Index = int(nativeEndian.Uint16(b[12:14]))
 	}
 	var err error
-	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), parseKernelInetAddr, b[w.bodyOff:])
+	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), b[w.bodyOff:])
 	if err != nil {
 		return nil, err
 	}

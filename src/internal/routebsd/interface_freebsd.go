@@ -6,18 +6,9 @@ package routebsd
 
 import "syscall"
 
-func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, error) {
-	var extOff, bodyOff int
-	if typ == syscall.NET_RT_IFLISTL {
-		if len(b) < 20 {
-			return nil, errMessageTooShort
-		}
-		extOff = int(nativeEndian.Uint16(b[18:20]))
-		bodyOff = int(nativeEndian.Uint16(b[16:18]))
-	} else {
-		extOff = w.extOff
-		bodyOff = w.bodyOff
-	}
+func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
+	extOff := w.extOff
+	bodyOff := w.bodyOff
 	if len(b) < extOff || len(b) < bodyOff {
 		return nil, errInvalidMessage
 	}
@@ -47,16 +38,8 @@ func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, erro
 	return m, nil
 }
 
-func (w *wireFormat) parseInterfaceAddrMessage(typ RIBType, b []byte) (Message, error) {
-	var bodyOff int
-	if typ == syscall.NET_RT_IFLISTL {
-		if len(b) < 24 {
-			return nil, errMessageTooShort
-		}
-		bodyOff = int(nativeEndian.Uint16(b[16:18]))
-	} else {
-		bodyOff = w.bodyOff
-	}
+func (w *wireFormat) parseInterfaceAddrMessage(b []byte) (Message, error) {
+	bodyOff := w.bodyOff
 	if len(b) < bodyOff {
 		return nil, errInvalidMessage
 	}
@@ -72,7 +55,7 @@ func (w *wireFormat) parseInterfaceAddrMessage(typ RIBType, b []byte) (Message, 
 		raw:     b[:l],
 	}
 	var err error
-	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), parseKernelInetAddr, b[bodyOff:])
+	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), b[bodyOff:])
 	if err != nil {
 		return nil, err
 	}

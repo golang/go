@@ -8,32 +8,12 @@ package routebsd
 
 // A Message represents a routing message.
 type Message interface {
-	// Sys returns operating system-specific information.
-	Sys() []Sys
+	message()
 }
 
-// A Sys reprensents operating system-specific information.
-type Sys interface {
-	// SysType returns a type of operating system-specific
-	// information.
-	SysType() SysType
-}
-
-// A SysType represents a type of operating system-specific
-// information.
-type SysType int
-
-const (
-	SysMetrics SysType = iota
-	SysStats
-)
-
-// ParseRIB parses b as a routing information base and returns a list
+// parseRIB parses b as a routing information base and returns a list
 // of routing messages.
-func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
-	if !typ.parseable() {
-		return nil, errUnsupportedMessage
-	}
+func parseRIB(b []byte) ([]Message, error) {
 	var msgs []Message
 	nmsgs, nskips := 0, 0
 	for len(b) > 4 {
@@ -52,7 +32,7 @@ func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
 		if w, ok := wireFormats[int(b[3])]; !ok {
 			nskips++
 		} else {
-			m, err := w.parse(typ, b[:l])
+			m, err := w.parse(b[:l])
 			if err != nil {
 				return nil, err
 			}
@@ -64,6 +44,7 @@ func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
 		}
 		b = b[l:]
 	}
+
 	// We failed to parse any of the messages - version mismatch?
 	if nmsgs != len(msgs)+nskips {
 		return nil, errMessageMismatch

@@ -7,6 +7,7 @@
 package routebsd
 
 import (
+	"net/netip"
 	"runtime"
 	"syscall"
 )
@@ -26,39 +27,6 @@ type LinkAddr struct {
 
 // Family implements the Family method of Addr interface.
 func (a *LinkAddr) Family() int { return syscall.AF_LINK }
-
-func (a *LinkAddr) lenAndSpace() (int, int) {
-	l := 8 + len(a.Name) + len(a.Addr)
-	return l, roundup(l)
-}
-
-func (a *LinkAddr) marshal(b []byte) (int, error) {
-	l, ll := a.lenAndSpace()
-	if len(b) < ll {
-		return 0, errShortBuffer
-	}
-	nlen, alen := len(a.Name), len(a.Addr)
-	if nlen > 255 || alen > 255 {
-		return 0, errInvalidAddr
-	}
-	b[0] = byte(l)
-	b[1] = syscall.AF_LINK
-	if a.Index > 0 {
-		nativeEndian.PutUint16(b[2:4], uint16(a.Index))
-	}
-	data := b[8:]
-	if nlen > 0 {
-		b[5] = byte(nlen)
-		copy(data[:nlen], a.Name)
-		data = data[nlen:]
-	}
-	if alen > 0 {
-		b[6] = byte(alen)
-		copy(data[:alen], a.Addr)
-		data = data[alen:]
-	}
-	return ll, nil
-}
 
 func parseLinkAddr(b []byte) (Addr, error) {
 	if len(b) < 8 {
@@ -118,54 +86,17 @@ func parseKernelLinkAddr(_ int, b []byte) (int, Addr, error) {
 	return l, &LinkAddr{Name: name, Addr: addr}, nil
 }
 
-// An Inet4Addr represents an internet address for IPv4.
-type Inet4Addr struct {
-	IP [4]byte // IP address
+// An InetAddr represent an internet address using IPv4 or IPv6.
+type InetAddr struct {
+	IP netip.Addr
 }
 
-// Family implements the Family method of Addr interface.
-func (a *Inet4Addr) Family() int { return syscall.AF_INET }
-
-func (a *Inet4Addr) lenAndSpace() (int, int) {
-	return sizeofSockaddrInet, roundup(sizeofSockaddrInet)
-}
-
-func (a *Inet4Addr) marshal(b []byte) (int, error) {
-	l, ll := a.lenAndSpace()
-	if len(b) < ll {
-		return 0, errShortBuffer
+func (a *InetAddr) Family() int {
+	if a.IP.Is4() {
+		return syscall.AF_INET
+	} else {
+		return syscall.AF_INET6
 	}
-	b[0] = byte(l)
-	b[1] = syscall.AF_INET
-	copy(b[4:8], a.IP[:])
-	return ll, nil
-}
-
-// An Inet6Addr represents an internet address for IPv6.
-type Inet6Addr struct {
-	IP     [16]byte // IP address
-	ZoneID int      // zone identifier
-}
-
-// Family implements the Family method of Addr interface.
-func (a *Inet6Addr) Family() int { return syscall.AF_INET6 }
-
-func (a *Inet6Addr) lenAndSpace() (int, int) {
-	return sizeofSockaddrInet6, roundup(sizeofSockaddrInet6)
-}
-
-func (a *Inet6Addr) marshal(b []byte) (int, error) {
-	l, ll := a.lenAndSpace()
-	if len(b) < ll {
-		return 0, errShortBuffer
-	}
-	b[0] = byte(l)
-	b[1] = syscall.AF_INET6
-	copy(b[8:24], a.IP[:])
-	if a.ZoneID > 0 {
-		nativeEndian.PutUint32(b[24:28], uint32(a.ZoneID))
-	}
-	return ll, nil
 }
 
 // parseInetAddr parses b as an internet address for IPv4 or IPv6.
@@ -180,12 +111,15 @@ func parseInetAddr(af int, b []byte) (Addr, error) {
 			return nil, errInvalidAddr
 		}
 		sockAddrLen := int(b[0])
-		a := &Inet4Addr{}
+		var ip [4]byte
 		n := off4 + 4
 		if sockAddrLen < n {
 			n = sockAddrLen
 		}
-		copy(a.IP[:], b[off4:n])
+		copy(ip[:], b[off4:n])
+		a := &InetAddr{
+			IP: netip.AddrFrom4(ip),
+		}
 		return a, nil
 	case syscall.AF_INET6:
 		if len(b) < (off6+1) || len(b) < int(b[0]) || b[0] == 0 {
@@ -196,21 +130,22 @@ func parseInetAddr(af int, b []byte) (Addr, error) {
 		if sockAddrLen < n {
 			n = sockAddrLen
 		}
-		a := &Inet6Addr{}
-		if sockAddrLen == sizeofSockaddrInet6 {
-			a.ZoneID = int(nativeEndian.Uint32(b[24:28]))
-		}
-		copy(a.IP[:], b[off6:n])
-		if a.IP[0] == 0xfe && a.IP[1]&0xc0 == 0x80 || a.IP[0] == 0xff && (a.IP[1]&0x0f == 0x01 || a.IP[1]&0x0f == 0x02) {
+		var ip [16]byte
+		copy(ip[:], b[off6:n])
+		if ip[0] == 0xfe && ip[1]&0xc0 == 0x80 || ip[0] == 0xff && (ip[1]&0x0f == 0x01 || ip[1]&0x0f == 0x02) {
 			// KAME based IPv6 protocol stack usually
 			// embeds the interface index in the
 			// interface-local or link-local address as
 			// the kernel-internal form.
-			id := int(bigEndian.Uint16(a.IP[2:4]))
+			id := int(bigEndian.Uint16(ip[2:4]))
 			if id != 0 {
-				a.ZoneID = id
-				a.IP[2], a.IP[3] = 0, 0
+				ip[2], ip[3] = 0, 0
 			}
+		}
+		// The kernel can provide an integer zone ID.
+		// We ignore it.
+		a := &InetAddr{
+			IP: netip.AddrFrom16(ip),
 		}
 		return a, nil
 	default:
@@ -260,130 +195,42 @@ func parseKernelInetAddr(af int, b []byte) (int, Addr, error) {
 		off6 = 8 // offset of in6_addr
 	)
 	switch {
-	case b[0] == sizeofSockaddrInet6:
-		a := &Inet6Addr{}
-		copy(a.IP[:], b[off6:off6+16])
+	case b[0] == syscall.SizeofSockaddrInet6:
+		a := &InetAddr{
+			IP: netip.AddrFrom16([16]byte(b[off6:off6+16])),
+		}
 		return int(b[0]), a, nil
 	case af == syscall.AF_INET6:
-		a := &Inet6Addr{}
+		var ab[16]byte
 		if l-1 < off6 {
-			copy(a.IP[:], b[1:l])
+			copy(ab[:], b[1:l])
 		} else {
-			copy(a.IP[:], b[l-off6:l])
+			copy(ab[:], b[l-off6:l])
+		}
+		a := &InetAddr{
+			IP: netip.AddrFrom16(ab),
 		}
 		return int(b[0]), a, nil
-	case b[0] == sizeofSockaddrInet:
-		a := &Inet4Addr{}
-		copy(a.IP[:], b[off4:off4+4])
+	case b[0] == syscall.SizeofSockaddrInet4:
+		a := &InetAddr{
+			IP: netip.AddrFrom4([4]byte(b[off4:off4+4])),
+		}
 		return int(b[0]), a, nil
 	default: // an old fashion, AF_UNSPEC or unknown means AF_INET
-		a := &Inet4Addr{}
+		var ab [4]byte
 		if l-1 < off4 {
-			copy(a.IP[:], b[1:l])
+			copy(ab[:], b[1:l])
 		} else {
-			copy(a.IP[:], b[l-off4:l])
+			copy(ab[:], b[l-off4:l])
+		}
+		a := &InetAddr{
+			IP: netip.AddrFrom4(ab),
 		}
 		return int(b[0]), a, nil
 	}
 }
 
-// A DefaultAddr represents an address of various operating
-// system-specific features.
-type DefaultAddr struct {
-	af  int
-	Raw []byte // raw format of address
-}
-
-// Family implements the Family method of Addr interface.
-func (a *DefaultAddr) Family() int { return a.af }
-
-func (a *DefaultAddr) lenAndSpace() (int, int) {
-	l := len(a.Raw)
-	return l, roundup(l)
-}
-
-func (a *DefaultAddr) marshal(b []byte) (int, error) {
-	l, ll := a.lenAndSpace()
-	if len(b) < ll {
-		return 0, errShortBuffer
-	}
-	if l > 255 {
-		return 0, errInvalidAddr
-	}
-	b[1] = byte(l)
-	copy(b[:l], a.Raw)
-	return ll, nil
-}
-
-func parseDefaultAddr(b []byte) (Addr, error) {
-	if len(b) < 2 || len(b) < int(b[0]) {
-		return nil, errInvalidAddr
-	}
-	a := &DefaultAddr{af: int(b[1]), Raw: b[:b[0]]}
-	return a, nil
-}
-
-func addrsSpace(as []Addr) int {
-	var l int
-	for _, a := range as {
-		switch a := a.(type) {
-		case *LinkAddr:
-			_, ll := a.lenAndSpace()
-			l += ll
-		case *Inet4Addr:
-			_, ll := a.lenAndSpace()
-			l += ll
-		case *Inet6Addr:
-			_, ll := a.lenAndSpace()
-			l += ll
-		case *DefaultAddr:
-			_, ll := a.lenAndSpace()
-			l += ll
-		}
-	}
-	return l
-}
-
-// marshalAddrs marshals as and returns a bitmap indicating which
-// address is stored in b.
-func marshalAddrs(b []byte, as []Addr) (uint, error) {
-	var attrs uint
-	for i, a := range as {
-		switch a := a.(type) {
-		case *LinkAddr:
-			l, err := a.marshal(b)
-			if err != nil {
-				return 0, err
-			}
-			b = b[l:]
-			attrs |= 1 << uint(i)
-		case *Inet4Addr:
-			l, err := a.marshal(b)
-			if err != nil {
-				return 0, err
-			}
-			b = b[l:]
-			attrs |= 1 << uint(i)
-		case *Inet6Addr:
-			l, err := a.marshal(b)
-			if err != nil {
-				return 0, err
-			}
-			b = b[l:]
-			attrs |= 1 << uint(i)
-		case *DefaultAddr:
-			l, err := a.marshal(b)
-			if err != nil {
-				return 0, err
-			}
-			b = b[l:]
-			attrs |= 1 << uint(i)
-		}
-	}
-	return attrs, nil
-}
-
-func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) ([]Addr, error) {
+func parseAddrs(attrs uint, b []byte) ([]Addr, error) {
 	var as [syscall.RTAX_MAX]Addr
 	af := int(syscall.AF_UNSPEC)
 	for i := uint(0); i < syscall.RTAX_MAX && len(b) >= roundup(0); i++ {
@@ -420,7 +267,7 @@ func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) (
 				}
 				b = b[l:]
 			default:
-				l, a, err := fn(af, b)
+				l, a, err := parseKernelInetAddr(af, b)
 				if err != nil {
 					return nil, err
 				}
@@ -433,11 +280,7 @@ func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) (
 				}
 			}
 		} else {
-			a, err := parseDefaultAddr(b)
-			if err != nil {
-				return nil, err
-			}
-			as[i] = a
+			// Skip unknown addresses.
 			l := roundup(int(b[0]))
 			if len(b) < l {
 				return nil, errMessageTooShort

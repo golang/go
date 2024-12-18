@@ -10,21 +10,13 @@ import (
 )
 
 func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
-	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, routebsd.RIBTypeInterface, ifindex)
-	if err != nil {
-		return nil, err
-	}
-	return routebsd.ParseRIB(routebsd.RIBTypeInterface, rib)
+	return routebsd.FetchRIBMessages(syscall.NET_RT_IFLIST, ifindex)
 }
 
 // interfaceMulticastAddrTable returns addresses for a specific
 // interface.
 func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
-	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFMALIST, ifi.Index)
-	if err != nil {
-		return nil, err
-	}
-	msgs, err := routebsd.ParseRIB(syscall.NET_RT_IFMALIST, rib)
+	msgs, err := routebsd.FetchRIBMessages(syscall.NET_RT_IFMALIST, ifi.Index)
 	if err != nil {
 		return nil, err
 	}
@@ -37,11 +29,15 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
 			}
 			var ip IP
 			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
-			case *routebsd.Inet4Addr:
-				ip = IPv4(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
-			case *routebsd.Inet6Addr:
-				ip = make(IP, IPv6len)
-				copy(ip, sa.IP[:])
+			case *routebsd.InetAddr:
+				if sa.IP.Is4() {
+					a := sa.IP.As4()
+					ip = IPv4(a[0], a[1], a[2], a[3])
+				} else if sa.IP.Is6() {
+					a := sa.IP.As16()
+					ip = make(IP, IPv6len)
+					copy(ip, a[:])
+				}
 			}
 			if ip != nil {
 				ifmat = append(ifmat, &IPAddr{IP: ip})

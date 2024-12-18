@@ -12,11 +12,7 @@ import (
 )
 
 func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
-	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST, ifindex)
-	if err != nil {
-		return nil, err
-	}
-	return routebsd.ParseRIB(syscall.NET_RT_IFLIST, rib)
+	return routebsd.FetchRIBMessages(syscall.NET_RT_IFLIST, ifindex)
 }
 
 // interfaceMulticastAddrTable returns addresses for a specific

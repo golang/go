@@ -7,6 +7,7 @@
 package routebsd
 
 import (
+	"net/netip"
 	"reflect"
 	"syscall"
 	"testing"
@@ -14,7 +15,6 @@ import (
 
 type parseAddrsTest struct {
 	attrs uint
-	fn    func(int, []byte) (int, Addr, error)
 	b     []byte
 	as    []Addr
 }
@@ -22,7 +22,6 @@ type parseAddrsTest struct {
 var parseAddrsLittleEndianTests = []parseAddrsTest{
 	{
 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK | syscall.RTA_BRD,
-		parseKernelInetAddr,
 		[]byte{
 			0x38, 0x12, 0x0, 0x0, 0xff, 0xff, 0xff, 0x0,
 			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
@@ -49,17 +48,16 @@ var parseAddrsLittleEndianTests = []parseAddrsTest{
 		[]Addr{
 			&LinkAddr{Index: 0},
 			&LinkAddr{Index: 2, Name: "em1", Addr: []byte{0x00, 0x0c, 0x29, 0x66, 0x2c, 0xdc}},
-			&Inet4Addr{IP: [4]byte{172, 16, 220, 180}},
+			&InetAddr{IP: netip.AddrFrom4([4]byte{172, 16, 220, 180})},
 			nil,
 			nil,
 			nil,
 			nil,
-			&Inet4Addr{IP: [4]byte{172, 16, 220, 255}},
+			&InetAddr{IP: netip.AddrFrom4([4]byte{172, 16, 220, 255})},
 		},
 	},
 	{
 		syscall.RTA_NETMASK | syscall.RTA_IFP | syscall.RTA_IFA,
-		parseKernelInetAddr,
 		[]byte{
 			0x7, 0x0, 0x0, 0x0, 0xff, 0xff, 0xff, 0x0,
 
@@ -73,10 +71,10 @@ var parseAddrsLittleEndianTests = []parseAddrsTest{
 		[]Addr{
 			nil,
 			nil,
-			&Inet4Addr{IP: [4]byte{255, 255, 255, 0}},
+			&InetAddr{IP: netip.AddrFrom4([4]byte{255, 255, 255, 0})},
 			nil,
 			&LinkAddr{Index: 10, Name: "vlan5682"},
-			&Inet4Addr{IP: [4]byte{169, 254, 0, 1}},
+			&InetAddr{IP: netip.AddrFrom4([4]byte{169, 254, 0, 1})},
 			nil,
 			nil,
 		},
@@ -90,7 +88,7 @@ func TestParseAddrs(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		as, err := parseAddrs(tt.attrs, tt.fn, tt.b)
+		as, err := parseAddrs(tt.attrs, tt.b)
 		if err != nil {
 			t.Error(i, err)
 			continue

@@ -5,6 +5,7 @@
 package routebsd
 
 import (
+	"net/netip"
 	"reflect"
 	"syscall"
 	"testing"
@@ -12,7 +13,6 @@ import (
 
 type parseAddrsOnDarwinTest struct {
 	attrs uint
-	fn    func(int, []byte) (int, Addr, error)
 	b     []byte
 	as    []Addr
 }
@@ -20,7 +20,6 @@ type parseAddrsOnDarwinTest struct {
 var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
 	{
 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
-		parseKernelInetAddr,
 		[]byte{
 			0x10, 0x2, 0x0, 0x0, 0xc0, 0xa8, 0x56, 0x0,
 			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
@@ -32,9 +31,9 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
 			0x7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		},
 		[]Addr{
-			&Inet4Addr{IP: [4]byte{192, 168, 86, 0}},
+			&InetAddr{IP: netip.AddrFrom4([4]byte{192, 168, 86, 0})},
 			&LinkAddr{Index: 4},
-			&Inet4Addr{IP: [4]byte{255, 255, 255, 255}},
+			&InetAddr{IP: netip.AddrFrom4([4]byte{255, 255, 255, 255})},
 			nil,
 			nil,
 			nil,
@@ -44,7 +43,6 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
 	},
 	{
 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
-		parseKernelInetAddr,
 		[]byte{
 			0x10, 0x02, 0x00, 0x00, 0x64, 0x71, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -56,9 +54,9 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
 			0x06, 0x02, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00,
 		},
 		[]Addr{
-			&Inet4Addr{IP: [4]byte{100, 113, 0, 0}},
+			&InetAddr{IP: netip.AddrFrom4([4]byte{100, 113, 0, 0})},
 			&LinkAddr{Index: 33, Name: "utun4319"},
-			&Inet4Addr{IP: [4]byte{255, 255, 0, 0}},
+			&InetAddr{IP: netip.AddrFrom4([4]byte{255, 255, 0, 0})},
 			nil,
 			nil,
 			nil,
@@ -70,7 +68,6 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
 	// gw fe80:0000:0000:0000:f22f:4bff:fe09:3bff
 	{
 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
-		parseKernelInetAddr,
 		[]byte{
 			0x1c, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			0xfd, 0x84, 0x1b, 0x4e, 0x62, 0x81, 0x00, 0x00,
@@ -86,9 +83,9 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00,
 		},
 		[]Addr{
-			&Inet6Addr{IP: [16]byte{0xfd, 0x84, 0x1b, 0x4e, 0x62, 0x81}},
-			&Inet6Addr{IP: [16]byte{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff}, ZoneID: 33},
-			&Inet6Addr{IP: [16]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
+			&InetAddr{IP: netip.AddrFrom16([16]byte{0xfd, 0x84, 0x1b, 0x4e, 0x62, 0x81})},
+			&InetAddr{IP: netip.AddrFrom16([16]byte{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff})},
+			&InetAddr{IP: netip.AddrFrom16([16]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})},
 			nil,
 			nil,
 			nil,
@@ -99,7 +96,6 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
 	// golang/go#70528, the kernel can produce addresses of length 0
 	{
 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
-		parseKernelInetAddr,
 		[]byte{
 			0x00, 0x1e, 0x00, 0x00,
 
@@ -113,8 +109,8 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
 		},
 		[]Addr{
 			nil,
-			&Inet6Addr{IP: [16]byte{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff}, ZoneID: 33},
-			&Inet6Addr{IP: [16]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
+			&InetAddr{IP: netip.AddrFrom16([16]byte{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff})},
+			&InetAddr{IP: netip.AddrFrom16([16]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})},
 			nil,
 			nil,
 			nil,
@@ -125,7 +121,6 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
 	// Additional case: golang/go/issues/70528#issuecomment-2498692877
 	{
 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
-		parseKernelInetAddr,
 		[]byte{
 			0x84, 0x00, 0x05, 0x04, 0x01, 0x00, 0x00, 0x00, 0x03, 0x08, 0x00, 0x01, 0x15, 0x00, 0x00, 0x00,
 			0x1B, 0x01, 0x00, 0x00, 0xF5, 0x5A, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -138,7 +133,7 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
 			0x00, 0x00, 0x00, 0x00,
 		},
 		[]Addr{
-			&Inet4Addr{IP: [4]byte{0x0, 0x0, 0x0, 0x0}},
+			&InetAddr{IP: netip.AddrFrom4([4]byte{0x0, 0x0, 0x0, 0x0})},
 			nil,
 			nil,
 			nil,
@@ -157,7 +152,7 @@ func TestParseAddrsOnDarwin(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		as, err := parseAddrs(tt.attrs, tt.fn, tt.b)
+		as, err := parseAddrs(tt.attrs, tt.b)
 		if err != nil {
 			t.Error(i, err)
 			continue

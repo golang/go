@@ -9,20 +9,11 @@ import (
 	"testing"
 )
 
-func TestFetchAndParseRIBOnDarwin(t *testing.T) {
-	for _, typ := range []RIBType{syscall.NET_RT_FLAGS, syscall.NET_RT_DUMP2, syscall.NET_RT_IFLIST2} {
-		var lastErr error
-		var ms []Message
-		for _, af := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
-			rs, err := fetchAndParseRIB(af, typ)
-			if err != nil {
-				lastErr = err
-				continue
-			}
-			ms = append(ms, rs...)
-		}
-		if len(ms) == 0 && lastErr != nil {
-			t.Error(typ, lastErr)
+func TestFetchRIBMessagesOnDarwin(t *testing.T) {
+	for _, typ := range []int{syscall.NET_RT_FLAGS, syscall.NET_RT_DUMP2, syscall.NET_RT_IFLIST2} {
+		ms, err := FetchRIBMessages(typ, 0)
+		if err != nil {
+			t.Error(typ, err)
 			continue
 		}
 		ss, err := msgs(ms).validate()

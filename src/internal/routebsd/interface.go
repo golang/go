@@ -30,9 +30,6 @@ type InterfaceAddrMessage struct {
 	raw []byte // raw message
 }
 
-// Sys implements the Sys method of Message interface.
-func (m *InterfaceAddrMessage) Sys() []Sys { return nil }
-
 // An InterfaceMulticastAddrMessage represents an interface multicast
 // address message.
 type InterfaceMulticastAddrMessage struct {
@@ -45,20 +42,8 @@ type InterfaceMulticastAddrMessage struct {
 	raw []byte // raw message
 }
 
-// Sys implements the Sys method of Message interface.
-func (m *InterfaceMulticastAddrMessage) Sys() []Sys { return nil }
+// Implement the Message interface.
 
-// An InterfaceAnnounceMessage represents an interface announcement
-// message.
-type InterfaceAnnounceMessage struct {
-	Version int    // message version
-	Type    int    // message type
-	Index   int    // interface index
-	Name    string // interface name
-	What    int    // what type of announcement
-
-	raw []byte // raw message
-}
-
-// Sys implements the Sys method of Message interface.
-func (m *InterfaceAnnounceMessage) Sys() []Sys { return nil }
+func (InterfaceMessage) message() {}
+func (InterfaceAddrMessage) message() {}
+func (InterfaceMulticastAddrMessage) message() {}

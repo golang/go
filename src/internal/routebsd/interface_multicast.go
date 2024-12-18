@@ -6,7 +6,7 @@
 
 package routebsd
 
-func (w *wireFormat) parseInterfaceMulticastAddrMessage(_ RIBType, b []byte) (Message, error) {
+func (w *wireFormat) parseInterfaceMulticastAddrMessage(b []byte) (Message, error) {
 	if len(b) < w.bodyOff {
 		return nil, errMessageTooShort
 	}
@@ -22,7 +22,7 @@ func (w *wireFormat) parseInterfaceMulticastAddrMessage(_ RIBType, b []byte) (Me
 		raw:     b[:l],
 	}
 	var err error
-	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), parseKernelInetAddr, b[w.bodyOff:])
+	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), b[w.bodyOff:])
 	if err != nil {
 		return nil, err
 	}

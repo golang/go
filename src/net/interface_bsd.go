@@ -38,12 +38,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 				ift[n].HardwareAddr = make([]byte, len(sa.Addr))
 				copy(ift[n].HardwareAddr, sa.Addr)
 			}
-			for _, sys := range m.Sys() {
-				if imx, ok := sys.(*routebsd.InterfaceMetrics); ok {
-					ift[n].MTU = imx.MTU
-					break
-				}
-			}
+			ift[n].MTU = m.MTU()
 			n++
 			if ifindex == m.Index {
 				return ift[:n], nil
@@ -97,19 +92,27 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 			}
 			var mask IPMask
 			switch sa := m.Addrs[syscall.RTAX_NETMASK].(type) {
-			case *routebsd.Inet4Addr:
-				mask = IPv4Mask(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
-			case *routebsd.Inet6Addr:
-				mask = make(IPMask, IPv6len)
-				copy(mask, sa.IP[:])
+			case *routebsd.InetAddr:
+				if sa.IP.Is4() {
+					a := sa.IP.As4()
+					mask = IPv4Mask(a[0], a[1], a[2], a[3])
+				} else if sa.IP.Is6() {
+					a := sa.IP.As16()
+					mask = make(IPMask, IPv6len)
+					copy(mask, a[:])
+				}
 			}
 			var ip IP
 			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
-			case *routebsd.Inet4Addr:
-				ip = IPv4(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
-			case *routebsd.Inet6Addr:
-				ip = make(IP, IPv6len)
-				copy(ip, sa.IP[:])
+			case *routebsd.InetAddr:
+				if sa.IP.Is4() {
+					a := sa.IP.As4()
+					ip = IPv4(a[0], a[1], a[2], a[3])
+				} else if sa.IP.Is6() {
+					a := sa.IP.As16()
+					ip = make(IP, IPv6len)
+					copy(ip, a[:])
+				}
 			}
 			if ip != nil && mask != nil { // NetBSD may contain routebsd.LinkAddr
 				ifat = append(ifat, &IPNet{IP: ip, Mask: mask})

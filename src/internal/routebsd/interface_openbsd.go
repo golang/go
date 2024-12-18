@@ -6,7 +6,7 @@ package routebsd
 
 import "syscall"
 
-func (*wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error) {
+func (*wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
 	if len(b) < 32 {
 		return nil, errMessageTooShort
 	}
@@ -39,7 +39,7 @@ func (*wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error) {
 	return m, nil
 }
 
-func (*wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, error) {
+func (*wireFormat) parseInterfaceAddrMessage(b []byte) (Message, error) {
 	if len(b) < 24 {
 		return nil, errMessageTooShort
 	}
@@ -59,34 +59,9 @@ func (*wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, erro
 		raw:     b[:l],
 	}
 	var err error
-	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[12:16])), parseKernelInetAddr, b[bodyOff:])
+	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[12:16])), b[bodyOff:])
 	if err != nil {
 		return nil, err
-	}
-	return m, nil
-}
-
-func (*wireFormat) parseInterfaceAnnounceMessage(_ RIBType, b []byte) (Message, error) {
-	if len(b) < 26 {
-		return nil, errMessageTooShort
-	}
-	l := int(nativeEndian.Uint16(b[:2]))
-	if len(b) < l {
-		return nil, errInvalidMessage
-	}
-	m := &InterfaceAnnounceMessage{
-		Version: int(b[2]),
-		Type:    int(b[3]),
-		Index:   int(nativeEndian.Uint16(b[6:8])),
-		What:    int(nativeEndian.Uint16(b[8:10])),
-		raw:     b[:l],
-	}
-	for i := 0; i < 16; i++ {
-		if b[10+i] != 0 {
-			continue
-		}
-		m.Name = string(b[10 : 10+i])
-		break
 	}
 	return m, nil
 }

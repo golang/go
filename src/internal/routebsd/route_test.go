@@ -8,14 +8,9 @@ package routebsd
 
 import (
 	"fmt"
-	"os/exec"
 	"runtime"
 	"syscall"
 )
-
-func (m *RouteMessage) String() string {
-	return fmt.Sprintf("%s", addrAttrs(nativeEndian.Uint32(m.raw[12:16])))
-}
 
 func (m *InterfaceMessage) String() string {
 	var attrs addrAttrs
@@ -39,25 +34,6 @@ func (m *InterfaceAddrMessage) String() string {
 
 func (m *InterfaceMulticastAddrMessage) String() string {
 	return fmt.Sprintf("%s", addrAttrs(nativeEndian.Uint32(m.raw[4:8])))
-}
-
-func (m *InterfaceAnnounceMessage) String() string {
-	what := "<nil>"
-	switch m.What {
-	case 0:
-		what = "arrival"
-	case 1:
-		what = "departure"
-	}
-	return fmt.Sprintf("(%d %s %s)", m.Index, m.Name, what)
-}
-
-func (m *InterfaceMetrics) String() string {
-	return fmt.Sprintf("(type=%d mtu=%d)", m.Type, m.MTU)
-}
-
-func (m *RouteMetrics) String() string {
-	return fmt.Sprintf("(pmtu=%d)", m.PathMTU)
 }
 
 type addrAttrs uint
@@ -102,15 +78,6 @@ func (ms msgs) validate() ([]string, error) {
 	var ss []string
 	for _, m := range ms {
 		switch m := m.(type) {
-		case *RouteMessage:
-			if err := addrs(m.Addrs).match(addrAttrs(nativeEndian.Uint32(m.raw[12:16]))); err != nil {
-				return nil, err
-			}
-			sys := m.Sys()
-			if sys == nil {
-				return nil, fmt.Errorf("no sys for %s", m.String())
-			}
-			ss = append(ss, m.String()+" "+syss(sys).String()+" "+addrs(m.Addrs).String())
 		case *InterfaceMessage:
 			var attrs addrAttrs
 			if runtime.GOOS == "openbsd" {
@@ -121,11 +88,7 @@ func (ms msgs) validate() ([]string, error) {
 			if err := addrs(m.Addrs).match(attrs); err != nil {
 				return nil, err
 			}
-			sys := m.Sys()
-			if sys == nil {
-				return nil, fmt.Errorf("no sys for %s", m.String())
-			}
-			ss = append(ss, m.String()+" "+syss(sys).String()+" "+addrs(m.Addrs).String())
+			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
 		case *InterfaceAddrMessage:
 			var attrs addrAttrs
 			if runtime.GOOS == "openbsd" {
@@ -142,34 +105,11 @@ func (ms msgs) validate() ([]string, error) {
 				return nil, err
 			}
 			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
-		case *InterfaceAnnounceMessage:
-			ss = append(ss, m.String())
 		default:
 			ss = append(ss, fmt.Sprintf("%+v", m))
 		}
 	}
 	return ss, nil
-}
-
-type syss []Sys
-
-func (sys syss) String() string {
-	var s string
-	for _, sy := range sys {
-		switch sy := sy.(type) {
-		case *InterfaceMetrics:
-			if len(s) > 0 {
-				s += " "
-			}
-			s += sy.String()
-		case *RouteMetrics:
-			if len(s) > 0 {
-				s += " "
-			}
-			s += sy.String()
-		}
-	}
-	return s
 }
 
 type addrFamily int
@@ -239,16 +179,8 @@ func (a *LinkAddr) String() string {
 	return fmt.Sprintf("(%v %d %s %s)", addrFamily(a.Family()), a.Index, name, lla)
 }
 
-func (a *Inet4Addr) String() string {
-	return fmt.Sprintf("(%v %v)", addrFamily(a.Family()), ipAddr(a.IP[:]))
-}
-
-func (a *Inet6Addr) String() string {
-	return fmt.Sprintf("(%v %v %d)", addrFamily(a.Family()), ipAddr(a.IP[:]), a.ZoneID)
-}
-
-func (a *DefaultAddr) String() string {
-	return fmt.Sprintf("(%v %s)", addrFamily(a.Family()), ipAddr(a.Raw[2:]).String())
+func (a *InetAddr) String() string {
+	return fmt.Sprintf("(%v %v)", addrFamily(a.Family()), a.IP)
 }
 
 type addrs []Addr
@@ -265,11 +197,7 @@ func (as addrs) String() string {
 		switch a := a.(type) {
 		case *LinkAddr:
 			s += a.String()
-		case *Inet4Addr:
-			s += a.String()
-		case *Inet6Addr:
-			s += a.String()
-		case *DefaultAddr:
+		case *InetAddr:
 			s += a.String()
 		}
 	}
@@ -286,19 +214,20 @@ func (as addrs) match(attrs addrAttrs) error {
 		if as[i] != nil {
 			ts |= 1 << uint(i)
 		}
-		switch as[i].(type) {
-		case *Inet4Addr:
+		switch addr := as[i].(type) {
+		case *InetAddr:
+			got := 0
+			if addr.IP.Is4() {
+				got = syscall.AF_INET
+			} else if addr.IP.Is6() {
+				got = syscall.AF_INET6
+			}
 			if af == syscall.AF_UNSPEC {
-				af = syscall.AF_INET
+				if got != 0 {
+					af = got
+				}
 			}
-			if af != syscall.AF_INET {
-				return fmt.Errorf("got %v; want %v", addrs(as), addrFamily(af))
-			}
-		case *Inet6Addr:
-			if af == syscall.AF_UNSPEC {
-				af = syscall.AF_INET6
-			}
-			if af != syscall.AF_INET6 {
+			if got != 0 && af != got {
 				return fmt.Errorf("got %v; want %v", addrs(as), addrFamily(af))
 			}
 		}
@@ -306,77 +235,5 @@ func (as addrs) match(attrs addrAttrs) error {
 	if ts != attrs && ts > attrs {
 		return fmt.Errorf("%v not included in %v", ts, attrs)
 	}
-	return nil
-}
-
-func fetchAndParseRIB(af int, typ RIBType) ([]Message, error) {
-	b, err := FetchRIB(af, typ, 0)
-	if err != nil {
-		return nil, fmt.Errorf("%v %d %v", addrFamily(af), typ, err)
-	}
-	ms, err := ParseRIB(typ, b)
-	if err != nil {
-		return nil, fmt.Errorf("%v %d %v", addrFamily(af), typ, err)
-	}
-	return ms, nil
-}
-
-// propVirtual is a proprietary virtual network interface.
-type propVirtual struct {
-	name         string
-	addr, mask   string
-	setupCmds    []*exec.Cmd
-	teardownCmds []*exec.Cmd
-}
-
-func (pv *propVirtual) setup() error {
-	for _, cmd := range pv.setupCmds {
-		if err := cmd.Run(); err != nil {
-			pv.teardown()
-			return err
-		}
-	}
-	return nil
-}
-
-func (pv *propVirtual) teardown() error {
-	for _, cmd := range pv.teardownCmds {
-		if err := cmd.Run(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (pv *propVirtual) configure(suffix int) error {
-	if runtime.GOOS == "openbsd" {
-		pv.name = fmt.Sprintf("vether%d", suffix)
-	} else {
-		pv.name = fmt.Sprintf("vlan%d", suffix)
-	}
-	xname, err := exec.LookPath("ifconfig")
-	if err != nil {
-		return err
-	}
-	pv.setupCmds = append(pv.setupCmds, &exec.Cmd{
-		Path: xname,
-		Args: []string{"ifconfig", pv.name, "create"},
-	})
-	if runtime.GOOS == "netbsd" {
-		// NetBSD requires an underlying dot1Q-capable network
-		// interface.
-		pv.setupCmds = append(pv.setupCmds, &exec.Cmd{
-			Path: xname,
-			Args: []string{"ifconfig", pv.name, "vlan", fmt.Sprintf("%d", suffix&0xfff), "vlanif", "wm0"},
-		})
-	}
-	pv.setupCmds = append(pv.setupCmds, &exec.Cmd{
-		Path: xname,
-		Args: []string{"ifconfig", pv.name, "inet", pv.addr, "netmask", pv.mask},
-	})
-	pv.teardownCmds = append(pv.teardownCmds, &exec.Cmd{
-		Path: xname,
-		Args: []string{"ifconfig", pv.name, "destroy"},
-	})
 	return nil
 }
