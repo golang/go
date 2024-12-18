@@ -876,16 +876,18 @@ func (t *tester) registerTests() {
 	}
 
 	if t.extLink() && !t.compileOnly {
-		t.registerTest("external linking, -buildmode=exe",
-			&goTest{
-				variant:   "exe_external",
-				timeout:   60 * time.Second,
-				buildmode: "exe",
-				ldflags:   "-linkmode=external",
-				env:       []string{"CGO_ENABLED=1"},
-				pkg:       "crypto/internal/fips140test",
-				runTests:  "TestFIPSCheck",
-			})
+		if goos != "android" { // Android does not support non-PIE linking
+			t.registerTest("external linking, -buildmode=exe",
+				&goTest{
+					variant:   "exe_external",
+					timeout:   60 * time.Second,
+					buildmode: "exe",
+					ldflags:   "-linkmode=external",
+					env:       []string{"CGO_ENABLED=1"},
+					pkg:       "crypto/internal/fips140test",
+					runTests:  "TestFIPSCheck",
+				})
+		}
 		if t.externalLinkPIE() && !disablePIE {
 			t.registerTest("external linking, -buildmode=pie",
 				&goTest{
