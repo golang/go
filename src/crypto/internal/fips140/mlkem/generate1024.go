@@ -22,6 +22,7 @@ var replacements = map[string]string{
 
 	"CiphertextSize768":       "CiphertextSize1024",
 	"EncapsulationKeySize768": "EncapsulationKeySize1024",
+	"decapsulationKeySize768": "decapsulationKeySize1024",
 
 	"encryptionKey": "encryptionKey1024",
 	"decryptionKey": "decryptionKey1024",
@@ -33,9 +34,11 @@ var replacements = map[string]string{
 	"kemEncaps":  "kemEncaps1024",
 	"pkeEncrypt": "pkeEncrypt1024",
 
-	"DecapsulationKey768":    "DecapsulationKey1024",
-	"NewDecapsulationKey768": "NewDecapsulationKey1024",
-	"newKeyFromSeed":         "newKeyFromSeed1024",
+	"DecapsulationKey768":               "DecapsulationKey1024",
+	"NewDecapsulationKey768":            "NewDecapsulationKey1024",
+	"TestingOnlyNewDecapsulationKey768": "TestingOnlyNewDecapsulationKey1024",
+	"newKeyFromSeed":                    "newKeyFromSeed1024",
+	"TestingOnlyExpandedBytes768":       "TestingOnlyExpandedBytes1024",
 
 	"kemDecaps":  "kemDecaps1024",
 	"pkeDecrypt": "pkeDecrypt1024",

@@ -24,6 +24,7 @@ import (
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/hmac"
+	"crypto/internal/fips140/mlkem"
 	"crypto/internal/fips140/pbkdf2"
 	"crypto/internal/fips140/sha256"
 	"crypto/internal/fips140/sha3"
@@ -75,6 +76,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-mac.html#section-7
 	// PBKDF2 algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-pbkdf.html#section-7.3
+	// ML-KEM algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-celi-acvp-ml-kem.html#section-7.3
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -118,6 +121,13 @@ var (
 		"HMAC-SHA3-512":     cmdHmacAft(func() fips140.Hash { return sha3.New512() }),
 
 		"PBKDF": cmdPbkdf(),
+
+		"ML-KEM-768/keyGen":  cmdMlKem768KeyGenAft(),
+		"ML-KEM-768/encap":   cmdMlKem768EncapAft(),
+		"ML-KEM-768/decap":   cmdMlKem768DecapAft(),
+		"ML-KEM-1024/keyGen": cmdMlKem1024KeyGenAft(),
+		"ML-KEM-1024/encap":  cmdMlKem1024EncapAft(),
+		"ML-KEM-1024/decap":  cmdMlKem1024DecapAft(),
 	}
 )
 
@@ -404,14 +414,138 @@ func lookupHash(name string) (func() fips140.Hash, error) {
 	return h, nil
 }
 
+func cmdMlKem768KeyGenAft() command {
+	return command{
+		requiredArgs: 1, // Seed
+		handler: func(args [][]byte) ([][]byte, error) {
+			seed := args[0]
+
+			dk, err := mlkem.NewDecapsulationKey768(seed)
+			if err != nil {
+				return nil, fmt.Errorf("generating ML-KEM 768 decapsulation key: %w", err)
+			}
+
+			// Important: we must return the full encoding of dk, not the seed.
+			return [][]byte{dk.EncapsulationKey().Bytes(), mlkem.TestingOnlyExpandedBytes768(dk)}, nil
+		},
+	}
+}
+
+func cmdMlKem768EncapAft() command {
+	return command{
+		requiredArgs: 2, // Public key, entropy
+		handler: func(args [][]byte) ([][]byte, error) {
+			pk := args[0]
+			entropy := args[1]
+
+			ek, err := mlkem.NewEncapsulationKey768(pk)
+			if err != nil {
+				return nil, fmt.Errorf("generating ML-KEM 768 encapsulation key: %w", err)
+			}
+
+			if len(entropy) != 32 {
+				return nil, fmt.Errorf("wrong entropy length: got %d, want 32", len(entropy))
+			}
+
+			sharedKey, ct := ek.EncapsulateInternal((*[32]byte)(entropy[:32]))
+
+			return [][]byte{ct, sharedKey}, nil
+		},
+	}
+}
+
+func cmdMlKem768DecapAft() command {
+	return command{
+		requiredArgs: 2, // Private key, ciphertext
+		handler: func(args [][]byte) ([][]byte, error) {
+			pk := args[0]
+			ct := args[1]
+
+			dk, err := mlkem.TestingOnlyNewDecapsulationKey768(pk)
+			if err != nil {
+				return nil, fmt.Errorf("generating ML-KEM 768 decapsulation key: %w", err)
+			}
+
+			sharedKey, err := dk.Decapsulate(ct)
+			if err != nil {
+				return nil, fmt.Errorf("decapsulating ML-KEM 768 ciphertext: %w", err)
+			}
+
+			return [][]byte{sharedKey}, nil
+		},
+	}
+}
+
+func cmdMlKem1024KeyGenAft() command {
+	return command{
+		requiredArgs: 1, // Seed
+		handler: func(args [][]byte) ([][]byte, error) {
+			seed := args[0]
+
+			dk, err := mlkem.NewDecapsulationKey1024(seed)
+			if err != nil {
+				return nil, fmt.Errorf("generating ML-KEM 1024 decapsulation key: %w", err)
+			}
+
+			// Important: we must return the full encoding of dk, not the seed.
+			return [][]byte{dk.EncapsulationKey().Bytes(), mlkem.TestingOnlyExpandedBytes1024(dk)}, nil
+		},
+	}
+}
+
+func cmdMlKem1024EncapAft() command {
+	return command{
+		requiredArgs: 2, // Public key, entropy
+		handler: func(args [][]byte) ([][]byte, error) {
+			pk := args[0]
+			entropy := args[1]
+
+			ek, err := mlkem.NewEncapsulationKey1024(pk)
+			if err != nil {
+				return nil, fmt.Errorf("generating ML-KEM 1024 encapsulation key: %w", err)
+			}
+
+			if len(entropy) != 32 {
+				return nil, fmt.Errorf("wrong entropy length: got %d, want 32", len(entropy))
+			}
+
+			sharedKey, ct := ek.EncapsulateInternal((*[32]byte)(entropy[:32]))
+
+			return [][]byte{ct, sharedKey}, nil
+		},
+	}
+}
+
+func cmdMlKem1024DecapAft() command {
+	return command{
+		requiredArgs: 2, // Private key, ciphertext
+		handler: func(args [][]byte) ([][]byte, error) {
+			pk := args[0]
+			ct := args[1]
+
+			dk, err := mlkem.TestingOnlyNewDecapsulationKey1024(pk)
+			if err != nil {
+				return nil, fmt.Errorf("generating ML-KEM 1024 decapsulation key: %w", err)
+			}
+
+			sharedKey, err := dk.Decapsulate(ct)
+			if err != nil {
+				return nil, fmt.Errorf("decapsulating ML-KEM 1024 ciphertext: %w", err)
+			}
+
+			return [][]byte{sharedKey}, nil
+		},
+	}
+}
+
 func TestACVP(t *testing.T) {
 	testenv.SkipIfShortAndSlow(t)
 
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
-		bsslVersion   = "v0.0.0-20241015160643-2587c4974dbe"
+		bsslVersion   = "v0.0.0-20241218033850-ca3146c56300"
 		goAcvpModule  = "github.com/cpu/go-acvp"
-		goAcvpVersion = "v0.0.0-20241011151719-6e0509dcb7ce"
+		goAcvpVersion = "v0.0.0-20250102201911-6839fc40f9f8"
 	)
 
 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"
