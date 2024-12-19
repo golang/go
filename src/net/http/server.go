@@ -1933,6 +1933,10 @@ func isCommonNetReadError(err error) bool {
 	return false
 }
 
+type connectionStater interface {
+	ConnectionState() tls.ConnectionState
+}
+
 // Serve a new connection.
 func (c *conn) serve(ctx context.Context) {
 	if ra := c.rwc.RemoteAddr(); ra != nil {
@@ -2004,6 +2008,14 @@ func (c *conn) serve(ctx context.Context) {
 	}
 
 	// HTTP/1.x from here on.
+
+	// Set Request.TLS if the conn is not a *tls.Conn, but implements ConnectionState.
+	if c.tlsState == nil {
+		if tc, ok := c.rwc.(connectionStater); ok {
+			c.tlsState = new(tls.ConnectionState)
+			*c.tlsState = tc.ConnectionState()
+		}
+	}
 
 	ctx, cancelCtx := context.WithCancel(ctx)
 	c.cancelCtx = cancelCtx
