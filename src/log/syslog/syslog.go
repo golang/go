@@ -116,6 +116,22 @@ func New(priority Priority, tag string) (*Writer, error) {
 // Otherwise, see the documentation for net.Dial for valid values
 // of network and raddr.
 func Dial(network, raddr string, priority Priority, tag string) (*Writer, error) {
+	w, err := newWriter(network, raddr, priority, tag)
+	if err != nil {
+		return nil, err
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	err = w.connect()
+	if err != nil {
+		return nil, err
+	}
+	return w, err
+}
+
+func newWriter(network, raddr string, priority Priority, tag string) (*Writer, error) {
 	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
 		return nil, errors.New("log/syslog: invalid priority")
 	}
@@ -125,22 +141,26 @@ func Dial(network, raddr string, priority Priority, tag string) (*Writer, error)
 	}
 	hostname, _ := os.Hostname()
 
-	w := &Writer{
+	return &Writer{
 		priority: priority,
 		tag:      tag,
 		hostname: hostname,
 		network:  network,
 		raddr:    raddr,
-	}
+	}, nil
+}
 
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	err := w.connect()
+func Open(network, raddr string, priority Priority, tag string) (*Writer, error) {
+	w, err := newWriter(network, raddr, priority, tag)
 	if err != nil {
 		return nil, err
 	}
-	return w, err
+
+	return w, nil
+}
+
+func (w *Writer) Ping() error {
+	return w.Info("ping")
 }
 
 // connect makes a connection to the syslog server.
