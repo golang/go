@@ -232,7 +232,6 @@ type PackageInternal struct {
 	Cover             CoverSetup           // coverage mode and other setup info of -cover is being applied to this package
 	CoverVars         map[string]*CoverVar // variables created by coverage analysis
 	OmitDebug         bool                 // tell linker not to write debug information
-	GobinSubdir       bool                 // install target would be subdir of GOBIN
 	BuildInfo         *debug.BuildInfo     // add this info to package main
 	TestmainGo        *[]byte              // content for _testmain.go
 	Embed             map[string][]string  // //go:embed comment mapping
@@ -1846,10 +1845,9 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		if p.Internal.Build.BinDir != "" {
 			// Install to GOBIN or bin of GOPATH entry.
 			p.Target = filepath.Join(p.Internal.Build.BinDir, elem)
-			if !p.Goroot && strings.Contains(elem, string(filepath.Separator)) && cfg.GOBIN != "" {
-				// Do not create $GOBIN/goos_goarch/elem.
-				p.Target = ""
-				p.Internal.GobinSubdir = true
+			if cfg.GOBIN != "" {
+				// Do not create $GOBIN/goos_goarch/elem if GOBIN is set.
+				p.Target = filepath.Join(cfg.GOBIN, p.DefaultExecName()+cfg.ExeSuffix)
 			}
 		}
 		if InstallTargetDir(p) == ToTool {
