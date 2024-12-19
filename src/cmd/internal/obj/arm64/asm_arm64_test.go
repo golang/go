@@ -38,3 +38,17 @@ func TestMOVK(t *testing.T) {
 		t.Errorf("Got %x want %x\n", x, want)
 	}
 }
+
+func testcondbr19() uint64
+func testcondbr19_target() uint64 {
+	return 42
+}
+
+// TestCondBr19 makes sure that conditional branch on labels outside of *arm64.s file works fine
+func TestCondBr19(t *testing.T) {
+	x := testcondbr19()
+	want := uint64(42)
+	if x != want {
+		t.Errorf("Got %d want %d\n", x, want)
+	}
+}
