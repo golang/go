@@ -52,32 +52,32 @@ type SigName struct {
 	classic interface{}
 }
 
-var SigOIDtoName = map[OID]SigName{
+var sigOIDtoName = map[OID]SigName{
 	MAYO1_P256: {"Mayo-1", elliptic.P256()},
 	MAYO2_P256: {"Mayo-2", elliptic.P256()},
 	MAYO3_P384: {"Mayo-3", elliptic.P384()},
 	MAYO5_P521: {"Mayo-5", elliptic.P521()},
 
-	MAYO1_ED25519: {"Mayo-1", ed25519.PrivateKey{}},
-	MAYO2_ED25519: {"Mayo-2", ed25519.PrivateKey{}},
-	MAYO3_ED25519: {"Mayo-3", ed25519.PrivateKey{}},
-	MAYO5_ED25519: {"Mayo-5", ed25519.PrivateKey{}},
+	MAYO1_ED25519: {"Mayo-1", ed25519.PublicKey{}},
+	MAYO2_ED25519: {"Mayo-2", ed25519.PublicKey{}},
+	MAYO3_ED25519: {"Mayo-3", ed25519.PublicKey{}},
+	MAYO5_ED25519: {"Mayo-5", ed25519.PublicKey{}},
 
 	CROSS_128_SMALL_P256: {"cross-rsdpg-128-small", elliptic.P256()},
 	CROSS_128_FAST_P256:  {"cross-rsdpg-128-fast", elliptic.P256()},
 	CROSS_192_SMALL_P384: {"cross-rsdpg-192-small", elliptic.P384()},
 	CROSS_256_SMALL_P521: {"cross-rsdpg-256-small", elliptic.P521()},
 
-	CROSS_128_SMALL_ED25519: {"cross-rsdpg-128-small", ed25519.PrivateKey{}},
-	CROSS_128_FAST_ED25519:  {"cross-rsdpg-128-fast", ed25519.PrivateKey{}},
-	CROSS_192_SMALL_ED25519: {"cross-rsdpg-192-small", ed25519.PrivateKey{}},
-	CROSS_256_SMALL_ED25519: {"cross-rsdpg-256-small", ed25519.PrivateKey{}},
+	CROSS_128_SMALL_ED25519: {"cross-rsdpg-128-small", ed25519.PublicKey{}},
+	CROSS_128_FAST_ED25519:  {"cross-rsdpg-128-fast", ed25519.PublicKey{}},
+	CROSS_192_SMALL_ED25519: {"cross-rsdpg-192-small", ed25519.PublicKey{}},
+	CROSS_256_SMALL_ED25519: {"cross-rsdpg-256-small", ed25519.PublicKey{}},
 
 	ML_DSA_44_P256: {"ML-DSA-44", elliptic.P256()},
 	ML_DSA_65_P384: {"ML-DSA-65", elliptic.P384()},
 	ML_DSA_87_P521: {"ML-DSA-87", elliptic.P521()},
 
-	ML_DSA_65_ED25519: {"ML-DSA-65", ed25519.PrivateKey{}},
+	ML_DSA_65_ED25519: {"ML-DSA-65", ed25519.PublicKey{}},
 }
 
 type PublicKey struct {
@@ -117,21 +117,21 @@ func GenerateKey(sigOID OID) (priv PrivateKey, err error) {
 	pub.classic = new(interface{})
 	priv.classic = new(interface{})
 
-	switch classic := SigOIDtoName[sigOID].classic.(type) {
+	switch classic := sigOIDtoName[sigOID].classic.(type) {
 	case elliptic.Curve:
 		if (*priv.classic), err = ecdsa.GenerateKey(classic, rand.Reader); err != nil {
 			return PrivateKey{}, err
 		}
 		*pub.classic = &((*priv.classic).(*ecdsa.PrivateKey)).PublicKey
 
-	case ed25519.PrivateKey:
+	case ed25519.PublicKey:
 		if (*pub.classic), (*priv.classic), err = ed25519.GenerateKey(rand.Reader); err != nil {
 			return PrivateKey{}, err
 		}
 	}
 
 	pqcSigner := oqs.Signature{}
-	if err = pqcSigner.Init(SigOIDtoName[sigOID].pqc, nil); err != nil {
+	if err = pqcSigner.Init(sigOIDtoName[sigOID].pqc, nil); err != nil {
 		return PrivateKey{}, err
 	}
 	if pub.pqc, err = pqcSigner.GenerateKeyPair(); err != nil {
@@ -165,7 +165,7 @@ func (priv *PrivateKey) Sign(hash []byte) (signature []byte, err error) {
 	}
 
 	pqcSigner := oqs.Signature{}
-	if err := pqcSigner.Init(SigOIDtoName[priv.SigOID].pqc, priv.pqc); err != nil {
+	if err := pqcSigner.Init(sigOIDtoName[priv.SigOID].pqc, priv.pqc); err != nil {
 		return nil, err
 	}
 	if pqcSig, err = pqcSigner.Sign(hash); err != nil {
@@ -196,7 +196,7 @@ func verifyPQC(pub PublicKey, hash []byte, signature []byte) bool {
 	var err error
 
 	var verifier oqs.Signature
-	if err = verifier.Init(SigOIDtoName[pub.SigOID].pqc, nil); err != nil {
+	if err = verifier.Init(sigOIDtoName[pub.SigOID].pqc, nil); err != nil {
 		return false
 	}
 
