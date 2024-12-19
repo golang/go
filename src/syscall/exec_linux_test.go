@@ -723,3 +723,78 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		t.Fatal(err.Error())
 	}
 }
+
+// Test to ensure that ForkExec doesn't clobber file descriptors not included
+// in cmd.ExtraFiles. See https://golang.org/issue/61751.
+func TestExtraFilesNoClobber(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// Successfully managed to self-exec!
+		os.Exit(0)
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Grab a handle to our /proc/self/exe.
+	exeFileOriginal, err := os.Open(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer exeFileOriginal.Close()
+
+	// A  file we cannot execute.
+	devNullOriginal, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer devNullOriginal.Close()
+	if _, err := exec.LookPath(devNullOriginal.Name()); err == nil {
+		t.Skip("skipping test -- /dev/null is executable")
+	}
+
+	// Change the file descriptors such that devNull is a large descriptor and
+	// exeFile is one higher. Before https://golang.org/cl/515799, this would
+	// cause ForkExec to clobber the descriptor.
+	//
+	// Unfortunately we can't really have a generic test for clobbering because
+	// we can only detect the clobbering of a single file descriptor using this
+	// method. It might be possible use {Ptrace: true} to detect clobbering but
+	// the behaviour of F_DUPFD_CLOEXEC is not guaranteed (and you never know
+	// if some other test has opened a file, throwing off the fd calculations).
+	devNullFd := 9000
+	exeFileFd := devNullFd + 1
+
+	if err := syscall.Dup3(int(devNullOriginal.Fd()), devNullFd, syscall.O_CLOEXEC); err != nil {
+		t.Fatalf("dup %s to %d failed: %v", devNullOriginal.Name(), devNullFd, err)
+	}
+	devNull := os.NewFile(uintptr(devNullFd), "/dev/null (dup'd)")
+	defer devNull.Close()
+
+	if err := syscall.Dup3(int(exeFileOriginal.Fd()), exeFileFd, syscall.O_CLOEXEC); err != nil {
+		t.Fatalf("dup %s to %d failed: %v", exeFileOriginal.Name(), exeFileFd, err)
+	}
+	exeFile := os.NewFile(uintptr(exeFileFd), exeFileOriginal.Name()+" (dup'd)")
+	defer exeFile.Close()
+
+	// Try to run exeFile through /proc/self/fd/$n.
+	exePath := fmt.Sprintf("/proc/self/fd/%d", exeFile.Fd())
+	if _, err := os.Stat(exePath); err != nil {
+		t.Skipf("skipping test -- cannot resolve %s", exePath)
+	}
+	cmd := testenv.Command(t, exePath, "-test.run="+t.Name())
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.ExtraFiles = []*os.File{devNull}
+	if err := cmd.Run(); err != nil {
+		if errors.Is(err, os.ErrPermission) {
+			t.Fatalf("fd %d was clobbered during exec: execve %s: %v", exeFileFd, exePath, err)
+		}
+		t.Fatal(err)
+	}
+	runtime.KeepAlive(exeFile)
+}
