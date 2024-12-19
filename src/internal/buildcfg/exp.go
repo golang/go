@@ -73,6 +73,17 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		haveXchg8 = true
 	}
 
+	// Older versions (anything before V16) of dsymutil don't handle
+	// the .debug_rnglists section in DWARF5. See
+	// https://github.com/golang/go/issues/26379#issuecomment-2677068742
+	// for more context. This disables all DWARF5 on mac, which is not
+	// ideal (would be better to disable just for cases where we know
+	// the build will use external linking). In the GOOS=aix case, the
+	// XCOFF format (as far as can be determined) doesn't seem to
+	// support the necessary section subtypes for DWARF-specific
+	// things like .debug_addr (needed for DWARF 5).
+	dwarf5Supported := (goos != "dwarwin" && goos != "ios" && goos != "aix")
+
 	baseline := goexperiment.Flags{
 		RegabiWrappers:  regabiSupported,
 		RegabiArgs:      regabiSupported,
@@ -80,6 +91,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		SwissMap:        true,
 		SpinbitMutex:    haveXchg8,
 		SyncHashTrieMap: true,
+		Dwarf5:          dwarf5Supported,
 	}
 
 	// Start with the statically enabled set of experiments.
