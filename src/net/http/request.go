@@ -493,7 +493,8 @@ var multipartByReader = &multipart.Form{
 // MultipartReader returns a MIME multipart reader if this is a
 // multipart/form-data or a multipart/mixed POST request, else returns nil and an error.
 // Use this function instead of [Request.ParseMultipartForm] to
-// process the request body as a stream.
+// process the request body as a stream or to limit maximum MIME header size
+// using reader's field MaxMIMEHeaderSize.
 func (r *Request) MultipartReader() (*multipart.Reader, error) {
 	if r.MultipartForm == multipartByReader {
 		return nil, errors.New("http: MultipartReader called twice")
@@ -1367,6 +1368,7 @@ func (r *Request) ParseForm() error {
 // If ParseForm returns an error, ParseMultipartForm returns it but also
 // continues parsing the request body.
 // After one call to ParseMultipartForm, subsequent calls have no effect.
+// If you want to process the request body as a stream, use [MultipartReader].
 func (r *Request) ParseMultipartForm(maxMemory int64) error {
 	if r.MultipartForm == multipartByReader {
 		return errors.New("http: multipart handled by MultipartReader")
