@@ -673,7 +673,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 					h := cache.NewHash("testmain")
 					h.Write([]byte("testmain\n"))
 					h.Write(data)
-					out, _, err := c.Put(h.Sum(), bytes.NewReader(data))
+					out, err := c.Put(h.Sum(), bytes.NewReader(data))
 					if err != nil {
 						base.Fatalf("%s", err)
 					}
