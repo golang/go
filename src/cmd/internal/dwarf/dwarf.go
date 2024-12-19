@@ -473,6 +473,7 @@ var abbrevs = []dwAbbrev{
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_inline, DW_FORM_data1},
+			{DW_AT_decl_file, DW_FORM_data4},
 			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_external, DW_FORM_flag},
 		},
@@ -1150,7 +1151,7 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 	// DW_AT_inlined value
 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_data1, DW_CLS_CONSTANT, int64(DW_INL_inlined), nil)
 
-	// TODO(mdempsky): Shouldn't we write out StartPos.FileIndex() too?
+	putattr(ctxt, s.Absfn, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, int64(1+s.StartPos.FileIndex()), nil) // 1-based file index
 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartPos.RelLine()), nil)
 
 	var ev int64
