@@ -26,6 +26,7 @@ import (
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/aes"
 	"crypto/internal/fips140/aes/gcm"
+	"crypto/internal/fips140/ecdh"
 	"crypto/internal/fips140/ecdsa"
 	"crypto/internal/fips140/ed25519"
 	"crypto/internal/fips140/edwards25519"
@@ -123,6 +124,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kdf-tls-v1.3.html#section-7.2
 	// SSH KDF algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-ssh.html#section-7.2
+	// ECDH algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-ssc-ecc.html
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -251,6 +254,11 @@ var (
 		"SSHKDF/SHA2-384/server": cmdSshKdfAft(func() fips140.Hash { return sha512.New384() }, ssh.ServerKeys),
 		"SSHKDF/SHA2-512/client": cmdSshKdfAft(func() fips140.Hash { return sha512.New() }, ssh.ClientKeys),
 		"SSHKDF/SHA2-512/server": cmdSshKdfAft(func() fips140.Hash { return sha512.New() }, ssh.ServerKeys),
+
+		"ECDH/P-224": cmdEcdhAftVal(ecdh.P224()),
+		"ECDH/P-256": cmdEcdhAftVal(ecdh.P256()),
+		"ECDH/P-384": cmdEcdhAftVal(ecdh.P384()),
+		"ECDH/P-521": cmdEcdhAftVal(ecdh.P521()),
 	}
 )
 
@@ -1409,6 +1417,45 @@ func cmdSshKdfAft(hFunc func() fips140.Hash, direction ssh.Direction) command {
 
 			ivKey, encKey, intKey := ssh.Keys(hFunc, direction, k, h, sessionID, 16, keyLen, hFunc().Size())
 			return [][]byte{ivKey, encKey, intKey}, nil
+		},
+	}
+}
+
+func cmdEcdhAftVal[P ecdh.Point[P]](curve *ecdh.Curve[P]) command {
+	return command{
+		requiredArgs: 3, // X, Y, private key (empty for Val type tests)
+		handler: func(args [][]byte) ([][]byte, error) {
+			peerX := args[0]
+			peerY := args[1]
+			rawSk := args[2]
+
+			uncompressedPk := append([]byte{4}, append(peerX, peerY...)...) // 4 for uncompressed point format
+			pk, err := ecdh.NewPublicKey(curve, uncompressedPk)
+			if err != nil {
+				return nil, fmt.Errorf("invalid peer public key x,y: %v", err)
+			}
+
+			var sk *ecdh.PrivateKey
+			if len(rawSk) > 0 {
+				sk, err = ecdh.NewPrivateKey(curve, rawSk)
+			} else {
+				sk, err = ecdh.GenerateKey(curve, rand.Reader)
+			}
+			if err != nil {
+				return nil, fmt.Errorf("private key error: %v", err)
+			}
+
+			pubBytes := sk.PublicKey().Bytes()
+			coordLen := (len(pubBytes) - 1) / 2
+			x := pubBytes[1 : 1+coordLen]
+			y := pubBytes[1+coordLen:]
+
+			secret, err := ecdh.ECDH(curve, sk, pk)
+			if err != nil {
+				return nil, fmt.Errorf("key agreement failed: %v", err)
+			}
+
+			return [][]byte{x, y, secret}, nil
 		},
 	}
 }
