@@ -1,0 +1,14 @@
+-- .Play --
+package main
+
+import ()
+
+func main() {
+}
+-- .Output --
+Single newline:
+
+Double newline:
+
+
+Final text
