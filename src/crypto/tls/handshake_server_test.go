@@ -236,7 +236,6 @@ func TestRenegotiationExtension(t *testing.T) {
 		n, err := c.Read(buf)
 		if err != nil {
 			t.Errorf("Server read returned error: %s", err)
-			return
 		}
 		c.Close()
 		bufChan <- buf[:n]
