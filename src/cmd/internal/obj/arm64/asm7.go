@@ -2736,6 +2736,11 @@ func cmp(a int, b int) bool {
 			return true
 		}
 
+	case C_SBRA:
+		if b == C_ADDR {
+			return true
+		}
+
 	case C_LBRA:
 		if b == C_SBRA {
 			return true
@@ -4297,7 +4302,18 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		o1 = c.opirr(p, p.As)
 
 		o1 |= uint32(p.From.Reg & 31)
-		o1 |= uint32(c.brdist(p, 0, 19, 2) << 5)
+
+		if p.To.Sym == nil {
+			o1 |= uint32(c.brdist(p, 0, 19, 2) << 5)
+			break
+		}
+
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.To.Sym
+		rel.Add = p.To.Offset
+		rel.Type = objabi.R_AARCH64_CONDBR19
 
 	case 40: /* tbz */
 		o1 = c.opirr(p, p.As)
