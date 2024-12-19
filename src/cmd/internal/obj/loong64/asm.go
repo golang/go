@@ -89,6 +89,11 @@ var optab = []Optab{
 	{AVSEQB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AXVSEQB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
 
+	{AVADDB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AVADDB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AXVADDB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AXVADDB, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+
 	{AVSLLB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AVSLLB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AXVSLLB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
@@ -1550,6 +1555,28 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVPCNTW, r0)
 			opset(AXVPCNTV, r0)
 
+		case AVADDB:
+			opset(AVADDH, r0)
+			opset(AVADDW, r0)
+			opset(AVADDV, r0)
+			opset(AVADDQ, r0)
+			opset(AVSUBB, r0)
+			opset(AVSUBH, r0)
+			opset(AVSUBW, r0)
+			opset(AVSUBV, r0)
+			opset(AVSUBQ, r0)
+
+		case AXVADDB:
+			opset(AXVADDH, r0)
+			opset(AXVADDW, r0)
+			opset(AXVADDV, r0)
+			opset(AXVADDQ, r0)
+			opset(AXVSUBB, r0)
+			opset(AXVSUBH, r0)
+			opset(AXVSUBW, r0)
+			opset(AXVSUBV, r0)
+			opset(AXVSUBQ, r0)
+
 		case AVSLLB:
 			opset(AVSRLB, r0)
 			opset(AVSRAB, r0)
@@ -1574,11 +1601,27 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSRLW, r0)
 			opset(AVSRAW, r0)
 			opset(AVROTRW, r0)
+			opset(AVADDBU, r0)
+			opset(AVADDHU, r0)
+			opset(AVADDWU, r0)
+			opset(AVADDVU, r0)
+			opset(AVSUBBU, r0)
+			opset(AVSUBHU, r0)
+			opset(AVSUBWU, r0)
+			opset(AVSUBVU, r0)
 
 		case AXVSLLW:
 			opset(AXVSRLW, r0)
 			opset(AXVSRAW, r0)
 			opset(AXVROTRW, r0)
+			opset(AXVADDBU, r0)
+			opset(AXVADDHU, r0)
+			opset(AXVADDWU, r0)
+			opset(AXVADDVU, r0)
+			opset(AXVSUBBU, r0)
+			opset(AXVSUBHU, r0)
+			opset(AXVSUBWU, r0)
+			opset(AXVSUBVU, r0)
 
 		case AVSLLV:
 			opset(AVSRLV, r0)
@@ -2779,6 +2822,46 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0xe9de << 15 // xvrotr.w
 	case AXVROTRV:
 		return 0xe9df << 15 // xvrotr.d
+	case AVADDB:
+		return 0xe014 << 15 // vadd.b
+	case AVADDH:
+		return 0xe015 << 15 // vadd.h
+	case AVADDW:
+		return 0xe016 << 15 // vadd.w
+	case AVADDV:
+		return 0xe017 << 15 // vadd.d
+	case AVADDQ:
+		return 0xe25a << 15 // vadd.q
+	case AVSUBB:
+		return 0xe018 << 15 // vsub.b
+	case AVSUBH:
+		return 0xe019 << 15 // vsub.h
+	case AVSUBW:
+		return 0xe01a << 15 // vsub.w
+	case AVSUBV:
+		return 0xe01b << 15 // vsub.d
+	case AVSUBQ:
+		return 0xe25b << 15 // vsub.q
+	case AXVADDB:
+		return 0xe814 << 15 // xvadd.b
+	case AXVADDH:
+		return 0xe815 << 15 // xvadd.h
+	case AXVADDW:
+		return 0xe816 << 15 // xvadd.w
+	case AXVADDV:
+		return 0xe817 << 15 // xvadd.d
+	case AXVADDQ:
+		return 0xea5a << 15 // xvadd.q
+	case AXVSUBB:
+		return 0xe818 << 15 // xvsub.b
+	case AXVSUBH:
+		return 0xe819 << 15 // xvsub.h
+	case AXVSUBW:
+		return 0xe81a << 15 // xvsub.w
+	case AXVSUBV:
+		return 0xe81b << 15 // xvsub.d
+	case AXVSUBQ:
+		return 0xea5b << 15 // xvsub.q
 	}
 
 	if a < 0 {
@@ -3170,6 +3253,38 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x1dcd<<18 | 0x1<<15 // xvsrai.w
 	case AXVSRAV:
 		return 0x1dcd<<18 | 0x1<<16 // xvsrai.d
+	case AVADDBU:
+		return 0xe514 << 15 // vaddi.bu
+	case AVADDHU:
+		return 0xe515 << 15 // vaddi.hu
+	case AVADDWU:
+		return 0xe516 << 15 // vaddi.wu
+	case AVADDVU:
+		return 0xe517 << 15 // vaddi.du
+	case AVSUBBU:
+		return 0xe518 << 15 // vsubi.bu
+	case AVSUBHU:
+		return 0xe519 << 15 // vsubi.hu
+	case AVSUBWU:
+		return 0xe51a << 15 // vsubi.wu
+	case AVSUBVU:
+		return 0xe51b << 15 // vsubi.du
+	case AXVADDBU:
+		return 0xed14 << 15 // xvaddi.bu
+	case AXVADDHU:
+		return 0xed15 << 15 // xvaddi.hu
+	case AXVADDWU:
+		return 0xed16 << 15 // xvaddi.wu
+	case AXVADDVU:
+		return 0xed17 << 15 // xvaddi.du
+	case AXVSUBBU:
+		return 0xed18 << 15 // xvsubi.bu
+	case AXVSUBHU:
+		return 0xed19 << 15 // xvsubi.hu
+	case AXVSUBWU:
+		return 0xed1a << 15 // xvsubi.wu
+	case AXVSUBVU:
+		return 0xed1b << 15 // xvsubi.du
 	}
 
 	if a < 0 {
