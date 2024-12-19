@@ -516,7 +516,7 @@ func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
 		}
 
 		c := cache.Default()
-		outputID, _, err := c.Put(a.actionID, r)
+		outputID, err := c.Put(a.actionID, r)
 		r.Close()
 		if err != nil {
 			return fmt.Errorf("error adding target to cache: %w", err)
