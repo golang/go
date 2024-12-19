@@ -160,7 +160,9 @@ var parseTests = []parseTest{
 
 	// Test named captures
 	{`(?P<name>a)`, `cap{name:lit{a}}`},
+	{`(?P<中文>a)`, `cap{中文:lit{a}}`},
 	{`(?<name>a)`, `cap{name:lit{a}}`},
+	{`(?<中文>a)`, `cap{中文:lit{a}}`},
 
 	// Case-folded literals
 	{`[Aa]`, `litfold{A}`},
