@@ -89,6 +89,42 @@ var optab = []Optab{
 	{AVSEQB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AXVSEQB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
 
+	{AVSLLB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AVSLLB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AXVSLLB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AXVSLLB, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AVSLLB, C_U3CON, C_VREG, C_NONE, C_VREG, C_NONE, 13, 4, 0, 0},
+	{AXVSLLB, C_U3CON, C_XREG, C_NONE, C_XREG, C_NONE, 13, 4, 0, 0},
+	{AVSLLB, C_U3CON, C_NONE, C_NONE, C_VREG, C_NONE, 13, 4, 0, 0},
+	{AXVSLLB, C_U3CON, C_NONE, C_NONE, C_XREG, C_NONE, 13, 4, 0, 0},
+
+	{AVSLLH, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AVSLLH, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AXVSLLH, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AXVSLLH, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AVSLLH, C_U4CON, C_VREG, C_NONE, C_VREG, C_NONE, 14, 4, 0, 0},
+	{AXVSLLH, C_U4CON, C_XREG, C_NONE, C_XREG, C_NONE, 14, 4, 0, 0},
+	{AVSLLH, C_U4CON, C_NONE, C_NONE, C_VREG, C_NONE, 14, 4, 0, 0},
+	{AXVSLLH, C_U4CON, C_NONE, C_NONE, C_XREG, C_NONE, 14, 4, 0, 0},
+
+	{AVSLLW, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AVSLLW, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AXVSLLW, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AXVSLLW, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AVSLLW, C_U5CON, C_VREG, C_NONE, C_VREG, C_NONE, 31, 4, 0, 0},
+	{AXVSLLW, C_U5CON, C_XREG, C_NONE, C_XREG, C_NONE, 31, 4, 0, 0},
+	{AVSLLW, C_U5CON, C_NONE, C_NONE, C_VREG, C_NONE, 31, 4, 0, 0},
+	{AXVSLLW, C_U5CON, C_NONE, C_NONE, C_XREG, C_NONE, 31, 4, 0, 0},
+
+	{AVSLLV, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AVSLLV, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AXVSLLV, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AXVSLLV, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AVSLLV, C_U6CON, C_VREG, C_NONE, C_VREG, C_NONE, 32, 4, 0, 0},
+	{AXVSLLV, C_U6CON, C_XREG, C_NONE, C_XREG, C_NONE, 32, 4, 0, 0},
+	{AVSLLV, C_U6CON, C_NONE, C_NONE, C_VREG, C_NONE, 32, 4, 0, 0},
+	{AXVSLLV, C_U6CON, C_NONE, C_NONE, C_XREG, C_NONE, 32, 4, 0, 0},
+
 	{ACLOW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
 	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
 	{AMOVVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
@@ -1509,6 +1545,46 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVPCNTH, r0)
 			opset(AXVPCNTW, r0)
 			opset(AXVPCNTV, r0)
+
+		case AVSLLB:
+			opset(AVSRLB, r0)
+			opset(AVSRAB, r0)
+			opset(AVROTRB, r0)
+
+		case AXVSLLB:
+			opset(AXVSRLB, r0)
+			opset(AXVSRAB, r0)
+			opset(AXVROTRB, r0)
+
+		case AVSLLH:
+			opset(AVSRLH, r0)
+			opset(AVSRAH, r0)
+			opset(AVROTRH, r0)
+
+		case AXVSLLH:
+			opset(AXVSRLH, r0)
+			opset(AXVSRAH, r0)
+			opset(AXVROTRH, r0)
+
+		case AVSLLW:
+			opset(AVSRLW, r0)
+			opset(AVSRAW, r0)
+			opset(AVROTRW, r0)
+
+		case AXVSLLW:
+			opset(AXVSRLW, r0)
+			opset(AXVSRAW, r0)
+			opset(AXVROTRW, r0)
+
+		case AVSLLV:
+			opset(AVSRLV, r0)
+			opset(AVSRAV, r0)
+			opset(AVROTRV, r0)
+
+		case AXVSLLV:
+			opset(AXVSRLV, r0)
+			opset(AXVSRAV, r0)
+			opset(AXVROTRV, r0)
 		}
 	}
 }
@@ -1540,6 +1616,22 @@ func OP_16IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 
 func OP_12IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 	return op | (i&0xFFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
+func OP_6IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0x3F)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
+func OP_5IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0x1F)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
+func OP_4IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0xF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
+func OP_3IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0x7)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
 }
 
 func OP_IR(op uint32, i uint32, r2 uint32) uint32 {
@@ -1729,6 +1821,22 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("unexpected encoding\n%v", p)
 		}
 
+	case 13: // vsll $ui3, [vr1], vr2
+		v := c.regoff(&p.From)
+		r := int(p.Reg)
+		if r == 0 {
+			r = int(p.To.Reg)
+		}
+		o1 = OP_3IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+
+	case 14: // vsll $ui4, [vr1], vr2
+		v := c.regoff(&p.From)
+		r := int(p.Reg)
+		if r == 0 {
+			r = int(p.To.Reg)
+		}
+		o1 = OP_4IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+
 	case 15: // teq $c r,r
 		v := c.regoff(&p.From)
 		r := int(p.Reg)
@@ -1878,6 +1986,22 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 30: // mov gr/fr/fcc/fcsr, fr/fcc/fcsr/gr
 		a := c.specialFpMovInst(p.As, oclass(&p.From), oclass(&p.To))
 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
+
+	case 31: // vsll $ui5, [vr1], vr2
+		v := c.regoff(&p.From)
+		r := int(p.Reg)
+		if r == 0 {
+			r = int(p.To.Reg)
+		}
+		o1 = OP_5IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+
+	case 32: // vsll $ui6, [vr1], vr2
+		v := c.regoff(&p.From)
+		r := int(p.Reg)
+		if r == 0 {
+			r = int(p.To.Reg)
+		}
+		o1 = OP_6IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
 	case 34: // mov $con,fr
 		v := c.regoff(&p.From)
@@ -2579,6 +2703,70 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x0e003 << 15 // vseq.d
 	case AXVSEQV:
 		return 0x0e803 << 15 // xvseq.d
+	case AVSLLB:
+		return 0xe1d0 << 15 // vsll.b
+	case AVSLLH:
+		return 0xe1d1 << 15 // vsll.h
+	case AVSLLW:
+		return 0xe1d2 << 15 // vsll.w
+	case AVSLLV:
+		return 0xe1d3 << 15 // vsll.d
+	case AVSRLB:
+		return 0xe1d4 << 15 // vsrl.b
+	case AVSRLH:
+		return 0xe1d5 << 15 // vsrl.h
+	case AVSRLW:
+		return 0xe1d6 << 15 // vsrl.w
+	case AVSRLV:
+		return 0xe1d7 << 15 // vsrl.d
+	case AVSRAB:
+		return 0xe1d8 << 15 // vsra.b
+	case AVSRAH:
+		return 0xe1d9 << 15 // vsra.h
+	case AVSRAW:
+		return 0xe1da << 15 // vsra.w
+	case AVSRAV:
+		return 0xe1db << 15 // vsra.d
+	case AVROTRB:
+		return 0xe1dc << 15 // vrotr.b
+	case AVROTRH:
+		return 0xe1dd << 15 // vrotr.h
+	case AVROTRW:
+		return 0xe1de << 15 // vrotr.w
+	case AVROTRV:
+		return 0xe1df << 15 // vrotr.d
+	case AXVSLLB:
+		return 0xe9d0 << 15 // xvsll.b
+	case AXVSLLH:
+		return 0xe9d1 << 15 // xvsll.h
+	case AXVSLLW:
+		return 0xe9d2 << 15 // xvsll.w
+	case AXVSLLV:
+		return 0xe9d3 << 15 // xvsll.d
+	case AXVSRLB:
+		return 0xe9d4 << 15 // xvsrl.b
+	case AXVSRLH:
+		return 0xe9d5 << 15 // xvsrl.h
+	case AXVSRLW:
+		return 0xe9d6 << 15 // xvsrl.w
+	case AXVSRLV:
+		return 0xe9d7 << 15 // xvsrl.d
+	case AXVSRAB:
+		return 0xe9d8 << 15 // xvsra.b
+	case AXVSRAH:
+		return 0xe9d9 << 15 // xvsra.h
+	case AXVSRAW:
+		return 0xe9da << 15 // xvsra.w
+	case AXVSRAV:
+		return 0xe9db << 15 // xvsra.d
+	case AXVROTRB:
+		return 0xe9dc << 15 // xvrotr.b
+	case AXVROTRH:
+		return 0xe9dd << 15 // xvrotr.h
+	case AXVROTRW:
+		return 0xe9de << 15 // xvrotr.w
+	case AXVROTRV:
+		return 0xe9df << 15 // xvrotr.d
 	}
 
 	if a < 0 {
@@ -2906,6 +3094,70 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x021 << 24
 	case ASCV:
 		return 0x023 << 24
+	case AVROTRB:
+		return 0x1ca8<<18 | 0x1<<13 // vrotri.b
+	case AVROTRH:
+		return 0x1ca8<<18 | 0x1<<14 // vrotri.h
+	case AVROTRW:
+		return 0x1ca8<<18 | 0x1<<15 // vrotri.w
+	case AVROTRV:
+		return 0x1ca8<<18 | 0x1<<16 // vrotri.d
+	case AXVROTRB:
+		return 0x1da8<<18 | 0x1<<13 // xvrotri.b
+	case AXVROTRH:
+		return 0x1da8<<18 | 0x1<<14 // xvrotri.h
+	case AXVROTRW:
+		return 0x1da8<<18 | 0x1<<15 // xvrotri.w
+	case AXVROTRV:
+		return 0x1da8<<18 | 0x1<<16 // xvrotri.d
+	case AVSLLB:
+		return 0x1ccb<<18 | 0x1<<13 // vslli.b
+	case AVSLLH:
+		return 0x1ccb<<18 | 0x1<<14 // vslli.h
+	case AVSLLW:
+		return 0x1ccb<<18 | 0x1<<15 // vslli.w
+	case AVSLLV:
+		return 0x1ccb<<18 | 0x1<<16 // vslli.d
+	case AVSRLB:
+		return 0x1ccc<<18 | 0x1<<13 // vsrli.b
+	case AVSRLH:
+		return 0x1ccc<<18 | 0x1<<14 // vsrli.h
+	case AVSRLW:
+		return 0x1ccc<<18 | 0x1<<15 // vsrli.w
+	case AVSRLV:
+		return 0x1ccc<<18 | 0x1<<16 // vsrli.d
+	case AVSRAB:
+		return 0x1ccd<<18 | 0x1<<13 // vsrai.b
+	case AVSRAH:
+		return 0x1ccd<<18 | 0x1<<14 // vsrai.h
+	case AVSRAW:
+		return 0x1ccd<<18 | 0x1<<15 // vsrai.w
+	case AVSRAV:
+		return 0x1ccd<<18 | 0x1<<16 // vsrai.d
+	case AXVSLLB:
+		return 0x1dcb<<18 | 0x1<<13 // xvslli.b
+	case AXVSLLH:
+		return 0x1dcb<<18 | 0x1<<14 // xvslli.h
+	case AXVSLLW:
+		return 0x1dcb<<18 | 0x1<<15 // xvslli.w
+	case AXVSLLV:
+		return 0x1dcb<<18 | 0x1<<16 // xvslli.d
+	case AXVSRLB:
+		return 0x1dcc<<18 | 0x1<<13 // xvsrli.b
+	case AXVSRLH:
+		return 0x1dcc<<18 | 0x1<<14 // xvsrli.h
+	case AXVSRLW:
+		return 0x1dcc<<18 | 0x1<<15 // xvsrli.w
+	case AXVSRLV:
+		return 0x1dcc<<18 | 0x1<<16 // xvsrli.d
+	case AXVSRAB:
+		return 0x1dcd<<18 | 0x1<<13 // xvsrai.b
+	case AXVSRAH:
+		return 0x1dcd<<18 | 0x1<<14 // xvsrai.h
+	case AXVSRAW:
+		return 0x1dcd<<18 | 0x1<<15 // xvsrai.w
+	case AXVSRAV:
+		return 0x1dcd<<18 | 0x1<<16 // xvsrai.d
 	}
 
 	if a < 0 {
