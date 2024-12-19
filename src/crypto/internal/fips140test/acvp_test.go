@@ -129,6 +129,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-ssc-ecc.html#section-7.3
 	// HMAC DRBG and CTR DRBG algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
+	// KDF-Counter algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kbkdf.html#section-7.3
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -265,6 +267,8 @@ var (
 
 		"ctrDRBG/AES-256":        cmdCtrDrbgAft(),
 		"ctrDRBG-reseed/AES-256": cmdCtrDrbgReseedAft(),
+
+		"KDF-counter": cmdKdfCounterAft(),
 	}
 )
 
@@ -1577,6 +1581,57 @@ func require48Bytes(input []byte) (*[48]byte, error) {
 		return nil, fmt.Errorf("invalid length: %d", inputLen)
 	}
 	return (*[48]byte)(input), nil
+}
+
+func cmdKdfCounterAft() command {
+	return command{
+		requiredArgs: 5, // Number output bytes, PRF name, counter location string, key, number of counter bits
+		handler: func(args [][]byte) ([][]byte, error) {
+			outputBytes := binary.LittleEndian.Uint32(args[0])
+			prf := args[1]
+			counterLocation := args[2]
+			key := args[3]
+			counterBits := binary.LittleEndian.Uint32(args[4])
+
+			if outputBytes != 32 {
+				return nil, fmt.Errorf("KDF received unsupported output length %d bytes", outputBytes)
+			}
+			if !bytes.Equal(prf, []byte("CMAC-AES128")) && !bytes.Equal(prf, []byte("CMAC-AES192")) && !bytes.Equal(prf, []byte("CMAC-AES256")) {
+				return nil, fmt.Errorf("KDF received unsupported PRF %q", string(prf))
+			}
+			if !bytes.Equal(counterLocation, []byte("before fixed data")) {
+				return nil, fmt.Errorf("KDF received unsupported counter location %q", string(counterLocation))
+			}
+			// The spec doesn't describe the "deferred" property for a KDF counterMode test case.
+			// BoringSSL's acvptool sends an empty key when deferred=true, but with the capabilities
+			// we register all test cases ahve deferred=false and provide a key from the populated
+			// keyIn property.
+			if len(key) == 0 {
+				return nil, errors.New("deferred test cases are not supported")
+			}
+			if counterBits != 16 {
+				return nil, fmt.Errorf("KDF received unsupported counter length %d", counterBits)
+			}
+
+			block, err := aes.New(key)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create cipher: %v", err)
+			}
+			kdf := gcm.NewCounterKDF(block)
+
+			var label byte
+			var context [12]byte
+			rand.Reader.Read(context[:])
+
+			result := kdf.DeriveKey(label, context)
+
+			fixedData := make([]byte, 1+1+12) // 1 byte label, 1 null byte, 12 bytes context.
+			fixedData[0] = label
+			copy(fixedData[2:], context[:])
+
+			return [][]byte{key, fixedData, result[:]}, nil
+		},
+	}
 }
 
 func TestACVP(t *testing.T) {

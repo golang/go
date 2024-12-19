@@ -67,5 +67,7 @@
   {"algorithm":"TLS-v1.3","mode":"KDF","revision":"RFC8446","hmacAlg":["SHA2-256","SHA2-384"],"runningMode":["DHE","PSK","PSK-DHE"]},
   {"algorithm":"kdf-components","mode":"ssh","revision":"1.0","hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512"],"cipher":["AES-128","AES-192","AES-256"]},
 
-  {"algorithm":"KAS-ECC-SSC","revision":"Sp800-56Ar3","scheme":{"ephemeralUnified":{"kasRole":["initiator","responder"]},"staticUnified":{"kasRole":["initiator","responder"]}},"domainParameterGenerationMethods":["P-224","P-256","P-384","P-521"]}
+  {"algorithm":"KAS-ECC-SSC","revision":"Sp800-56Ar3","scheme":{"ephemeralUnified":{"kasRole":["initiator","responder"]},"staticUnified":{"kasRole":["initiator","responder"]}},"domainParameterGenerationMethods":["P-224","P-256","P-384","P-521"]},
+
+  {"algorithm":"KDF","revision":"1.0","capabilities":[{"kdfMode":"counter","macMode":["CMAC-AES128","CMAC-AES192","CMAC-AES256"],"supportedLengths":[256],"fixedDataOrder":["before fixed data"],"counterLength":[16]}]}
 ]
