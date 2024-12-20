@@ -80,8 +80,14 @@ const (
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
 func Marshal(v any) ([]byte, error) {
+	nametable := make(map[string]string)
+	return MarshalWithNametable(v, nametable)
+}
+
+func MarshalWithNametable(v any, nametable map[string]string) ([]byte, error) {
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
+	enc.p.nametable = nametable
 	if err := enc.Encode(v); err != nil {
 		return nil, err
 	}
@@ -130,9 +136,15 @@ type MarshalerAttr interface {
 // indented line that starts with prefix and is followed by one or more
 // copies of indent according to the nesting depth.
 func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
+	nametable := make(map[string]string)
+	return MarshalIndentWithNametable(v, nametable, prefix, indent)
+}
+
+func MarshalIndentWithNametable(v any, nametable map[string]string, prefix, indent string) ([]byte, error) {
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
 	enc.Indent(prefix, indent)
+	enc.p.nametable = nametable
 	if err := enc.Encode(v); err != nil {
 		return nil, err
 	}
@@ -264,6 +276,17 @@ func (enc *Encoder) EncodeToken(t Token) error {
 	return p.cachedWriteError()
 }
 
+func (enc *Encoder) SetNamespace(prefix, url string) {
+	if enc.p.nametable == nil {
+		enc.p.nametable = make(map[string]string)
+	}
+	enc.p.nametable[url] = prefix
+}
+
+func (enc *Encoder) SetNametable(nametable map[string]string) {
+	enc.p.nametable = nametable
+}
+
 // isValidDirective reports whether dir is a valid directive text,
 // meaning angle brackets are matched, ignoring comments and strings.
 func isValidDirective(dir Directive) bool {
@@ -318,27 +341,29 @@ func (enc *Encoder) Close() error {
 }
 
 type printer struct {
-	w          *bufio.Writer
-	encoder    *Encoder
-	seq        int
-	indent     string
-	prefix     string
-	depth      int
-	indentedIn bool
-	putNewline bool
-	attrNS     map[string]string // map prefix -> name space
-	attrPrefix map[string]string // map name space -> prefix
-	prefixes   []string
-	tags       []Name
-	closed     bool
-	err        error
+	w             *bufio.Writer
+	encoder       *Encoder
+	seq           int
+	indent        string
+	prefix        string
+	depth         int
+	indentedIn    bool
+	putNewline    bool
+	prefixes      []string
+	tags          []Name
+	closed        bool
+	err           error
+	elementNS     map[string]string // map prefix -> name space
+	elementPrefix map[string]string // map name space -> prefix
+	nametable     map[string]string
 }
 
-// createAttrPrefix finds the name space prefix attribute to use for the given name space,
-// defining a new prefix if necessary. It returns the prefix.
-func (p *printer) createAttrPrefix(url string) string {
-	if prefix := p.attrPrefix[url]; prefix != "" {
-		return prefix
+func (p *printer) createElementPrefix(url string) (string, bool) {
+	if url == "" {
+		return "", true
+	}
+	if prefix := p.elementPrefix[url]; prefix != "" {
+		return prefix, true
 	}
 
 	// The "http://www.w3.org/XML/1998/namespace" name space is predefined as "xml"
@@ -346,59 +371,71 @@ func (p *printer) createAttrPrefix(url string) string {
 	// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
 	// but users should not be trying to use that one directly - that's our job.)
 	if url == xmlURL {
-		return xmlPrefix
+		return xmlPrefix, true
 	}
 
 	// Need to define a new name space.
-	if p.attrPrefix == nil {
-		p.attrPrefix = make(map[string]string)
-		p.attrNS = make(map[string]string)
+	if p.elementPrefix == nil {
+		p.elementPrefix = make(map[string]string)
+		p.elementNS = make(map[string]string)
 	}
 
-	// Pick a name. We try to use the final element of the path
-	// but fall back to _.
-	prefix := strings.TrimRight(url, "/")
-	if i := strings.LastIndex(prefix, "/"); i >= 0 {
-		prefix = prefix[i+1:]
-	}
-	if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {
-		prefix = "_"
-	}
-	// xmlanything is reserved and any variant of it regardless of
-	// case should be matched, so:
-	//    (('X'|'x') ('M'|'m') ('L'|'l'))
-	// See Section 2.3 of https://www.w3.org/TR/REC-xml/
-	if len(prefix) >= 3 && strings.EqualFold(prefix[:3], "xml") {
-		prefix = "_" + prefix
-	}
-	if p.attrNS[prefix] != "" {
-		// Name is taken. Find a better one.
-		for p.seq++; ; p.seq++ {
-			if id := prefix + "_" + strconv.Itoa(p.seq); p.attrNS[id] == "" {
-				prefix = id
-				break
+	// Get the prefix from the nametable
+	prefix := p.nametable[url]
+	if prefix == "" {
+		// Pick a name. We try to use the final element of the path
+		// but fall back to _.
+		prefix = strings.TrimRight(url, "/")
+		if i := strings.LastIndex(prefix, "/"); i >= 0 {
+			prefix = prefix[i+1:]
+		}
+		if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {
+			prefix = "_"
+		}
+
+		// xmlanything is reserved and any variant of it regardless of
+		// case should be matched, so:
+		//    (('X'|'x') ('M'|'m') ('L'|'l'))
+		// See Section 2.3 of https://www.w3.org/TR/REC-xml/
+		if len(prefix) >= 3 && strings.EqualFold(prefix[:3], "xml") {
+			prefix = "_" + prefix
+		}
+		if p.elementNS[prefix] != "" {
+			for p.seq++; ; p.seq++ {
+				if id := prefix + "_" + strconv.Itoa(p.seq); p.elementNS[id] == "" {
+					prefix = id
+					break
+				}
 			}
 		}
 	}
 
-	p.attrPrefix[url] = prefix
-	p.attrNS[prefix] = url
-
-	p.WriteString(`xmlns:`)
-	p.WriteString(prefix)
-	p.WriteString(`="`)
-	EscapeText(p, []byte(url))
-	p.WriteString(`" `)
-
+	p.elementPrefix[url] = prefix
+	p.elementNS[prefix] = url
 	p.prefixes = append(p.prefixes, prefix)
 
-	return prefix
+	return prefix, false
 }
 
-// deleteAttrPrefix removes an attribute name space prefix.
-func (p *printer) deleteAttrPrefix(prefix string) {
-	delete(p.attrPrefix, p.attrNS[prefix])
-	delete(p.attrNS, prefix)
+func (p *printer) deleteElementPrefix(prefix string) {
+	delete(p.elementPrefix, p.elementNS[prefix])
+	delete(p.elementNS, prefix)
+}
+
+// createAttrPrefix finds the name space prefix attribute to use for the given name space,
+// defining a new prefix if necessary. It returns the prefix.
+func (p *printer) createAttrPrefix(url string) string {
+	prefix, found := p.createElementPrefix(url)
+
+	if !found {
+		p.WriteString(`xmlns:`)
+		p.WriteString(prefix)
+		p.WriteString(`="`)
+		EscapeText(p, []byte(url))
+		p.WriteString(`" `)
+	}
+
+	return prefix
 }
 
 func (p *printer) markPrefix() {
@@ -412,7 +449,7 @@ func (p *printer) popPrefix() {
 		if prefix == "" {
 			break
 		}
-		p.deleteAttrPrefix(prefix)
+		p.deleteElementPrefix(prefix)
 	}
 }
 
@@ -726,12 +763,24 @@ func (p *printer) writeStart(start *StartElement) error {
 	p.tags = append(p.tags, start.Name)
 	p.markPrefix()
 
+	prefix, prefixFound := p.createElementPrefix(start.Name.Space)
+
 	p.writeIndent(1)
 	p.WriteByte('<')
+	if prefix != "" {
+		p.WriteString(prefix)
+		p.WriteByte(':')
+	}
 	p.WriteString(start.Name.Local)
 
-	if start.Name.Space != "" {
-		p.WriteString(` xmlns="`)
+	if start.Name.Space != "" && !prefixFound {
+		p.WriteString(" xmlns")
+		if prefix != "" {
+			p.WriteByte(':')
+			p.WriteString(prefix)
+		}
+		p.WriteByte('=')
+		p.WriteByte('"')
 		p.EscapeString(start.Name.Space)
 		p.WriteByte('"')
 	}
@@ -771,9 +820,18 @@ func (p *printer) writeEnd(name Name) error {
 	}
 	p.tags = p.tags[:len(p.tags)-1]
 
+	prefix := ""
+	if name.Space != "" {
+		prefix = p.elementPrefix[name.Space]
+	}
+
 	p.writeIndent(-1)
 	p.WriteByte('<')
 	p.WriteByte('/')
+	if prefix != "" {
+		p.WriteString(prefix)
+		p.WriteByte(':')
+	}
 	p.WriteString(name.Local)
 	p.WriteByte('>')
 	p.popPrefix()
