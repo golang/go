@@ -182,6 +182,13 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,--pop-state"},
 	{"-Wl,--push-state,--as-needed"},
 	{"-Wl,--push-state,--no-as-needed,-Bstatic"},
+	{"-Wl,--just-symbols,."},
+	{"-Wl,-framework,."},
+	{"-Wl,-rpath,."},
+	{"-Wl,-rpath-link,."},
+	{"-Wl,-sectcreate,.,.,."},
+	{"-Wl,-syslibroot,."},
+	{"-Wl,-undefined,."},
 }
 
 var badLinkerFlags = [][]string{
