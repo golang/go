@@ -243,6 +243,11 @@ func TestMD5Hash(t *testing.T) {
 	cryptotest.TestHash(t, New)
 }
 
+func TestExtraMethods(t *testing.T) {
+	h := New()
+	cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+}
+
 var bench = New()
 var buf = make([]byte, 1024*1024*8+1)
 var sum = make([]byte, bench.Size())

@@ -249,6 +249,12 @@ func TestSHA1Hash(t *testing.T) {
 	cryptotest.TestHash(t, New)
 }
 
+func TestExtraMethods(t *testing.T) {
+	h := New()
+	cryptotest.NoExtraMethods(t, &h, "ConstantTimeSum",
+		"MarshalBinary", "UnmarshalBinary", "AppendBinary")
+}
+
 var bench = New()
 var buf = make([]byte, 8192)
 

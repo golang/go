@@ -51,6 +51,16 @@ func TestCBCBlockMode(t *testing.T) {
 	})
 }
 
+func TestCBCExtraMethods(t *testing.T) {
+	block, _ := aes.NewCipher(make([]byte, 16))
+	iv := make([]byte, block.BlockSize())
+	s := cipher.NewCBCEncrypter(block, iv)
+	cryptotest.NoExtraMethods(t, &s, "SetIV")
+
+	s = cipher.NewCBCDecrypter(block, iv)
+	cryptotest.NoExtraMethods(t, &s, "SetIV")
+}
+
 func newRandReader(t *testing.T) io.Reader {
 	seed := time.Now().UnixNano()
 	t.Logf("Deterministic RNG seed: 0x%x", seed)

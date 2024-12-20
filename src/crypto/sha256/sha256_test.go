@@ -350,6 +350,21 @@ func TestHash(t *testing.T) {
 	})
 }
 
+func TestExtraMethods(t *testing.T) {
+	t.Run("SHA-224", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
+			h := New224()
+			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+		})
+	})
+	t.Run("SHA-256", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
+			h := New()
+			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+		})
+	})
+}
+
 var bench = New()
 var buf = make([]byte, 8192)
 

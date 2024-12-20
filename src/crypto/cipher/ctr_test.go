@@ -91,3 +91,10 @@ func TestCTRStream(t *testing.T) {
 		cryptotest.TestStreamFromBlock(t, block, cipher.NewCTR)
 	})
 }
+
+func TestCTRExtraMethods(t *testing.T) {
+	block, _ := aes.NewCipher(make([]byte, 16))
+	iv := make([]byte, block.BlockSize())
+	s := cipher.NewCTR(block, iv)
+	cryptotest.NoExtraMethods(t, &s)
+}
