@@ -5,6 +5,7 @@
 package work
 
 import (
+	"internal/cfg"
 	"os"
 	"strings"
 	"testing"
@@ -238,7 +239,6 @@ var badLinkerFlags = [][]string{
 	{"-Wl,--hash-style=foo"},
 	{"-x", "--c"},
 	{"-x", "@obj"},
-	{"-Wl,-rpath,@foo"},
 	{"-Wl,-R,foo,bar"},
 	{"-Wl,-R,@foo"},
 	{"-Wl,--just-symbols,@foo"},
@@ -254,6 +254,17 @@ var badLinkerFlags = [][]string{
 	{"./-Wl,--push-state,-R.c"},
 }
 
+var goodLinkerFlagsOnDarwin = [][]string{
+	{"-Wl,-dylib_install_name,@rpath"},
+	{"-Wl,-install_name,@rpath"},
+	{"-Wl,-rpath,@executable_path"},
+	{"-Wl,-rpath,@loader_path"},
+}
+
+var badLinkerFlagsNotDarwin = [][]string{
+	{"-Wl,-rpath,@foo"},
+}
+
 func TestCheckLinkerFlags(t *testing.T) {
 	for _, f := range goodLinkerFlags {
 		if err := checkLinkerFlags("test", "test", f); err != nil {
@@ -265,6 +276,24 @@ func TestCheckLinkerFlags(t *testing.T) {
 			t.Errorf("missing error for %q", f)
 		}
 	}
+
+	goos := cfg.Goos
+
+	cfg.Goos = "darwin"
+	for _, f := range goodLinkerFlagsOnDarwin {
+		if err := checkLinkerFlags("test", "test", f); err != nil {
+			t.Errorf("unexpected error for %q: %v", f, err)
+		}
+	}
+
+	cfg.Goos = "linux"
+	for _, f := range badLinkerFlagsNotDarwin {
+		if err := checkLinkerFlags("test", "test", f); err == nil {
+			t.Errorf("missing error for %q", f)
+		}
+	}
+
+	goos = cfg.Goos
 }
 
 func TestCheckFlagAllowDisallow(t *testing.T) {
