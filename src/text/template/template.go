@@ -169,6 +169,8 @@ func (t *Template) Delims(left, right string) *Template {
 // It must be called before the template is parsed.
 // It panics if a value in the map is not a function with appropriate return
 // type or if the name cannot be used syntactically as a function in a template.
+// A valid function name is a sequence of letters, digits, and underscores,
+// starting with a letter or an underscore.
 // It is legal to overwrite elements of the map. The return value is the template,
 // so calls can be chained.
 func (t *Template) Funcs(funcMap FuncMap) *Template {
