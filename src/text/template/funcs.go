@@ -130,10 +130,10 @@ func goodName(name string) bool {
 	}
 	for i, r := range name {
 		switch {
-        case unicode.IsLetter(r):
+		case unicode.IsLetter(r):
 		case r == '_':
 		case i > 0 && unicode.IsDigit(r):
-        default:
+		default:
 			return false
 		}
 	}
