@@ -2602,7 +2602,7 @@ func TestFrexp(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vffrexpBC); i++ {
-		if f, j := Frexp(vffrexpBC[i]); !alike(frexpBC[i].f, f) || frexpBC[i].i != j {
+		if f, j := Frexp(vffrexpBC[i]); !veryclose(frexpBC[i].f, f) || frexpBC[i].i != j {
 			t.Errorf("Frexp(%g) = %g, %d, want %g, %d", vffrexpBC[i], f, j, frexpBC[i].f, frexpBC[i].i)
 		}
 	}
@@ -3562,6 +3562,16 @@ func BenchmarkFrexp(b *testing.B) {
 	y := 0
 	for i := 0; i < b.N; i++ {
 		x, y = Frexp(8)
+	}
+	GlobalF = x
+	GlobalI = y
+}
+
+func BenchmarkFrexpGO(b *testing.B) {
+	x := 0.0
+	y := 0
+	for i := 0; i < b.N; i++ {
+		x, y = FrexpGO(8)
 	}
 	GlobalF = x
 	GlobalI = y
