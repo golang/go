@@ -37,3 +37,8 @@ TEXT ·testmovk(SB), NOSPLIT, $0-8
 	MOVK	$(40000<<48), R0
 	MOVD	R0, ret+0(FP)
 	RET
+
+// testcondbr19() uint64
+TEXT ·testcondbr19(SB), NOSPLIT, $0-8
+	MOVD	$0, R0
+	CBZ R0, ·testcondbr19_target(SB)
