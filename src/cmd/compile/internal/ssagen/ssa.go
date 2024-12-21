@@ -5452,12 +5452,15 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 	if n.X.Type().IsChan() && n.Op() == ir.OCAP {
 		s.Fatalf("cannot inline cap(chan)") // must use runtime.chancap now
 	}
+	if n.X.Type().IsMap() && n.Op() == ir.OCAP {
+		s.Fatalf("cannot inline cap(map)") // cap(map) does not exist
+	}
 	// if n == nil {
 	//   return 0
 	// } else {
-	//   // len
-	//   return *((*int)n)
-	//   // cap
+	//   // len, the actual loadType depends
+	//   return int(*((*loadType)n))
+	//   // cap (chan only, not used for now)
 	//   return *(((*int)n)+1)
 	// }
 	lenType := n.Type()
@@ -5485,7 +5488,9 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 	case ir.OLEN:
 		if buildcfg.Experiment.SwissMap && n.X.Type().IsMap() {
 			// length is stored in the first word.
-			s.vars[n] = s.load(lenType, x)
+			loadType := reflectdata.SwissMapType().Field(0).Type // uint64
+			load := s.load(loadType, x)
+			s.vars[n] = s.conv(nil, load, loadType, lenType) // integer conversion doesn't need Node
 		} else {
 			// length is stored in the first word for map/chan
 			s.vars[n] = s.load(lenType, x)
