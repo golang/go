@@ -2337,7 +2337,7 @@
 //		The directory where 'go install' will install a command.
 //	GOCACHE
 //		The directory where the go command will store cached
-//		information for reuse in future builds.
+//		information for reuse in future builds. Must be an absolute path.
 //	GODEBUG
 //		Enable various debugging facilities. See https://go.dev/doc/godebug
 //		for details.
