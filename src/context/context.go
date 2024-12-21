@@ -96,7 +96,8 @@ type Context interface {
 	//  		select {
 	//  		case <-ctx.Done():
 	//  			return ctx.Err()
-	//  		case out <- v:
+	//  		default:
+	//  			out <- v
 	//  		}
 	//  	}
 	//  }
