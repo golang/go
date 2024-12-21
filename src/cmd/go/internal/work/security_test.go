@@ -239,6 +239,9 @@ var badLinkerFlags = [][]string{
 	{"-Wl,--hash-style=foo"},
 	{"-x", "--c"},
 	{"-x", "@obj"},
+	{"-Wl,-dylib_install_name,@foo"},
+	{"-Wl,-install_name,@foo"},
+	{"-Wl,-rpath,@foo"},
 	{"-Wl,-R,foo,bar"},
 	{"-Wl,-R,@foo"},
 	{"-Wl,--just-symbols,@foo"},
@@ -256,13 +259,17 @@ var badLinkerFlags = [][]string{
 
 var goodLinkerFlagsOnDarwin = [][]string{
 	{"-Wl,-dylib_install_name,@rpath"},
+	{"-Wl,-dylib_install_name,@rpath/"},
+	{"-Wl,-dylib_install_name,@rpath/foo"},
 	{"-Wl,-install_name,@rpath"},
+	{"-Wl,-install_name,@rpath/"},
+	{"-Wl,-install_name,@rpath/foo"},
 	{"-Wl,-rpath,@executable_path"},
+	{"-Wl,-rpath,@executable_path/"},
+	{"-Wl,-rpath,@executable_path/foo"},
 	{"-Wl,-rpath,@loader_path"},
-}
-
-var badLinkerFlagsNotDarwin = [][]string{
-	{"-Wl,-rpath,@foo"},
+	{"-Wl,-rpath,@loader_path/"},
+	{"-Wl,-rpath,@loader_path/foo"},
 }
 
 func TestCheckLinkerFlags(t *testing.T) {
@@ -287,7 +294,7 @@ func TestCheckLinkerFlags(t *testing.T) {
 	}
 
 	cfg.Goos = "linux"
-	for _, f := range badLinkerFlagsNotDarwin {
+	for _, f := range goodLinkerFlagsOnDarwin {
 		if err := checkLinkerFlags("test", "test", f); err == nil {
 			t.Errorf("missing error for %q", f)
 		}

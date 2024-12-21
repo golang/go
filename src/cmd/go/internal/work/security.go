@@ -237,9 +237,9 @@ var validLinkerFlagsOnDarwin = []*lazyregexp.Regexp{
 	// Since the GNU linker does not support Mach-O, targeting Darwin
 	// implies not using the GNU linker. Therefore, we allow @ in the linker
 	// flags if and only if cfg.GOOS == "darwin".
-	re(`-Wl,-dylib_install_name,[^,]+`),
-	re(`-Wl,-install_name,[^,]+`),
-	re(`-Wl,-rpath,[^,]+`),
+	re(`-Wl,-dylib_install_name,@rpath(/[^,]*)?`),
+	re(`-Wl,-install_name,@rpath(/[^,]*)?`),
+	re(`-Wl,-rpath,@(executable_path|loader_path)(/[^,]*)?`),
 }
 
 var validLinkerFlagsWithNextArg = []string{
