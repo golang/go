@@ -174,13 +174,13 @@ func x509_SecTrustSetVerifyDate_trampoline()
 
 //go:cgo_import_dynamic x509_SecTrustEvaluate SecTrustEvaluate "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
-func SecTrustEvaluate(trustObj CFRef) (CFRef, error) {
-	var result CFRef
+func SecTrustEvaluate(trustObj CFRef) (SecTrustResultType, error) {
+	var result SecTrustResultType = SecTrustResultInvalid
 	ret := syscall(abi.FuncPCABI0(x509_SecTrustEvaluate_trampoline), uintptr(trustObj), uintptr(unsafe.Pointer(&result)), 0, 0, 0, 0)
 	if int32(ret) != 0 {
 		return 0, OSStatus{"SecTrustEvaluate", int32(ret)}
 	}
-	return CFRef(result), nil
+	return result, nil
 }
 func x509_SecTrustEvaluate_trampoline()
 
