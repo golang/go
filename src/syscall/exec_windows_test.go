@@ -39,6 +39,7 @@ func TestEscapeArg(t *testing.T) {
 		{`\\.\C:\Windows\`, `\\.\C:\Windows\`},
 		{`\\server\share\file`, `\\server\share\file`},
 		{`\\newserver\tempshare\really.txt`, `\\newserver\tempshare\really.txt`},
+		{`http:\\www.xxx.com\?a=bb&c=dd&g=[]{}<>$%`, `"http:\\www.xxx.com\?a=bb&c=dd&g=[]{}<>$%"`},
 	}
 	for _, test := range tests {
 		if got := syscall.EscapeArg(test.input); got != test.output {
