@@ -33,7 +33,7 @@ type dnsConfig struct {
 	search        []string      // rooted suffixes to append to local name
 	ndots         int           // number of dots in name to trigger absolute lookup
 	timeout       time.Duration // wait before giving up on a query, including retries
-	attempts      int           // lost packets before giving up on server
+	attempts      int           // number of times a query is tried before giving up
 	rotate        bool          // round robin among servers
 	unknownOpt    bool          // anything unknown was encountered
 	lookup        []string      // OpenBSD top-level database "lookup" order
