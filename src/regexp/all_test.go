@@ -108,6 +108,11 @@ func matchFunctionTest(t *testing.T, test *FindTest) {
 	if m != (len(test.matches) > 0) {
 		t.Errorf("Match failure on %s: %t should be %t", test, m, len(test.matches) > 0)
 	}
+	// now try bytes
+	m, err = Match(test.pat, []byte(test.text))
+	if m != (len(test.matches) > 0) {
+		t.Errorf("Match failure on %s: %t should be %t", test, m, len(test.matches) > 0)
+	}
 }
 
 func TestMatchFunction(t *testing.T) {
