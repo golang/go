@@ -707,6 +707,17 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		// except go:buildid which is generated late and not used by the program.
 		addRef("go:buildid")
 	}
+	if ctxt.IsAIX() {
+		// On AIX, an R_ADDR relocation from an RODATA symbol to a DATA symbol
+		// does not work. See data.go:relocsym, case R_ADDR.
+		// Here we record the unrelocated address in aixStaticDataBase (it is
+		// unrelocated as it is in RODATA) so we can compute the delta at
+		// run time.
+		sb := ldr.CreateSymForUpdate("runtime.aixStaticDataBase", 0)
+		sb.SetSize(0)
+		sb.AddAddr(ctxt.Arch, ldr.Lookup("runtime.data", 0))
+		sb.SetType(sym.SRODATA)
+	}
 
 	// text section information
 	slice(textsectionmapSym, uint64(nsections))

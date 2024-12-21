@@ -424,6 +424,9 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				// FIXME: It should be forbidden to have R_ADDR from a
 				// symbol which isn't in .data. However, as .text has the
 				// same address once loaded, this is possible.
+				// TODO: .text (including rodata) to .data relocation
+				// doesn't work correctly, so we should really disallow it.
+				// See also aixStaticDataBase in symtab.go and in runtime.
 				if ldr.SymSect(s).Seg == &Segdata {
 					Xcoffadddynrel(target, ldr, syms, s, r, ri)
 				}
