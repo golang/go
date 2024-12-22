@@ -5,10 +5,11 @@
 package work
 
 import (
-	"internal/cfg"
 	"os"
 	"strings"
 	"testing"
+
+	"cmd/go/internal/cfg"
 )
 
 var goodCompilerFlags = [][]string{
@@ -300,7 +301,7 @@ func TestCheckLinkerFlags(t *testing.T) {
 		}
 	}
 
-	goos = cfg.Goos
+	cfg.Goos = goos
 }
 
 func TestCheckFlagAllowDisallow(t *testing.T) {
