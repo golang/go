@@ -79,6 +79,12 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 	// informative "not a type/value" error that this function's caller
 	// will issue (see go.dev/issue/25790).
 	typ := obj.Type()
+	// objJson, errJson := json.Marshal(obj)
+	// typJson, errTypJson := json.Marshal(typ)
+	// fmt.Printf("typ: e.Value=%s %T (%s, %v) type(obj)=%T (%s, %v)\n", e.Value, typ, typJson, errTypJson, obj, objJson, errJson)
+	// if e.Value == "Object" {
+	// 	fmt.Println(string(debugPkg.Stack()))
+	// }
 	if typ == nil || gotType && wantType {
 		check.objDecl(obj, def)
 		typ = obj.Type() // type must have been assigned by Checker.objDecl

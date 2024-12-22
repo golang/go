@@ -8,6 +8,7 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"encoding/json"
 	"fmt"
 	"go/constant"
 	"go/token"
@@ -1071,6 +1072,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 	x.mode = invalid
 	x.typ = Typ[Invalid]
 
+	// fmt.Printf("[exprInternal] %T %v\n", e, e)
 	switch e := e.(type) {
 	case nil:
 		panic("unreachable")
@@ -1079,7 +1081,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		goto Error // error was reported before
 
 	case *syntax.Name:
-		check.ident(x, e, nil, false)
+		check.ident(x, e, nil, false) // come here
 
 	case *syntax.DotsType:
 		// dots are handled explicitly where they are legal
@@ -1143,6 +1145,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 				}).describef(e, "func literal")
 			}
 			x.mode = value
+			fmt.Println("HAH1")
 			x.typ = sig
 		} else {
 			check.errorf(e, InvalidSyntaxTree, "invalid function literal %v", e)
@@ -1367,6 +1370,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		}
 
 		x.mode = value
+		fmt.Println("HAH2")
 		x.typ = typ
 
 	case *syntax.ParenExpr:
@@ -1419,6 +1423,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		}
 		check.typeAssertion(e, x, T, false)
 		x.mode = commaok
+		fmt.Println("HAH3")
 		x.typ = T
 
 	case *syntax.TypeSwitchGuard:
@@ -1485,6 +1490,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 						goto Error
 					}
 					x.mode = variable
+					fmt.Println("HAH4")
 					x.typ = base
 				}
 				break
@@ -1515,6 +1521,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 	case *syntax.ArrayType, *syntax.SliceType, *syntax.StructType, *syntax.FuncType,
 		*syntax.InterfaceType, *syntax.MapType, *syntax.ChanType:
 		x.mode = typexpr
+		fmt.Println("HAH5")
 		x.typ = check.typ(e)
 		// Note: rawExpr (caller of exprInternal) will call check.recordTypeAndValue
 		// even though check.typ has already called it. This is fine as both
@@ -1618,6 +1625,18 @@ func (check *Checker) genericExpr(x *operand, e syntax.Expr) {
 // If an error occurred, list[0] is not valid.
 func (check *Checker) multiExpr(e syntax.Expr, allowCommaOk bool) (list []*operand, commaOk bool) {
 	var x operand
+	callExpr, ok := e.(*syntax.CallExpr)
+	if ok {
+		funJson, errJson := json.Marshal(callExpr.Fun)
+		fmt.Printf("TOKEK %T %s %v", callExpr.Fun, funJson, errJson)
+		fmt.Println("len(args)=", len(callExpr.ArgList))
+		for _, arg := range callExpr.ArgList {
+			argJson, errJson := json.Marshal(arg)
+			fmt.Printf(" - %T %s %v\n", arg, argJson, errJson)
+		}
+
+	}
+	fmt.Printf("[multiExpr] %v %T\n", e, e)
 	check.rawExpr(nil, &x, e, nil, false)
 	check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
 

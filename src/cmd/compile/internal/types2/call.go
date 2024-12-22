@@ -8,6 +8,8 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"encoding/json"
+	"fmt"
 	. "internal/types/errors"
 	"strings"
 )
@@ -130,6 +132,11 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 }
 
 func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ *Signature, targs []Type, xlist []syntax.Expr) (res *Signature) {
+	fmt.Println("[instantiateSignature] KW1")
+	for _, tp := range typ.TypeParams().list() {
+		fmt.Printf(" - %T %v %s %t\n", tp, tp, tp.obj.name, tp.obj.isPointer)
+	}
+
 	assert(check != nil)
 	assert(len(targs) == typ.TypeParams().Len())
 
@@ -149,6 +156,11 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ
 
 	// verify instantiation lazily (was go.dev/issue/50450)
 	check.later(func() {
+		fmt.Println("[instantiateSignature] KW2")
+		for _, tp := range typ.TypeParams().list() {
+			fmt.Printf(" - %T %v %s %t\n", tp, tp, tp.obj.name, tp.obj.isPointer)
+		}
+
 		tparams := typ.TypeParams().list()
 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
 			// best position for error reporting
@@ -166,6 +178,10 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ
 }
 
 func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+	fmt.Printf(" - BEFORE: %T %v %T\n", x.typ, x.typ, call.Fun)
+	if cf, ok := call.Fun.(*syntax.Name); ok && cf != nil {
+		fmt.Println(cf.Value, "cf.IsPointer", cf.IsPointer)
+	}
 	var inst *syntax.IndexExpr // function instantiation, if any
 	if iexpr, _ := call.Fun.(*syntax.IndexExpr); iexpr != nil {
 		if check.indexExpr(x, iexpr) {
@@ -241,6 +257,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 
 	// a type parameter may be "called" if all types have the same signature
 	sig, _ := coreType(x.typ).(*Signature)
+	fmt.Println("[callExpr]")
+	fmt.Printf(" - AFTER: %T %v\n", x.typ, x.typ)
+	fmt.Printf(" - %T %v\n", sig, sig)
 	if sig == nil {
 		check.errorf(x, InvalidCall, invalidOp+"cannot call non-function %s", x)
 		x.mode = invalid
@@ -250,6 +269,10 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 
 	// Capture wasGeneric before sig is potentially instantiated below.
 	wasGeneric := sig.TypeParams().Len() > 0
+	fmt.Println("callExpr", wasGeneric)
+	for _, tp := range sig.TypeParams().list() {
+		fmt.Printf(" - %T %v %s %t\n", tp, tp, tp.obj.name, tp.obj.isPointer)
+	}
 
 	// evaluate type arguments, if any
 	var xlist []syntax.Expr
@@ -292,6 +315,12 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 
 	// evaluate arguments
 	args, atargs, atxlist := check.genericExprList(call.ArgList)
+
+	fmt.Println("callExpr-2", wasGeneric)
+	for _, tp := range sig.TypeParams().list() {
+		fmt.Printf(" - %T %v %s %t\n", tp, tp, tp.obj.name, tp.obj.isPointer)
+	}
+
 	sig = check.arguments(call, sig, targs, xlist, args, atargs, atxlist)
 
 	if wasGeneric && sig.TypeParams().Len() == 0 {
@@ -604,6 +633,13 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 
 	// infer missing type arguments of callee and function arguments
 	if len(tparams) > 0 {
+		// fmt.Println("Call:", string(debugPkg.Stack()))
+	}
+	for i, tparam := range tparams {
+		objJson, errJson := json.Marshal(tparam.obj)
+		fmt.Printf("tparams[%d].obj (%s,%v) %T %s-%t\n", i, objJson, errJson, tparam.obj, tparam.obj.name, tparam.obj.isPointer)
+	}
+	if len(tparams) > 0 {
 		err := check.newError(CannotInferTypeArgs)
 		targs = check.infer(call.Pos(), tparams, targs, sigParams, args, false, err)
 		if targs == nil {
@@ -612,7 +648,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 			//           Perhaps instantiate as much as we can, also for arguments.
 			//           This will require changes to how infer returns its results.
 			if !err.empty() {
-				check.errorf(err.pos(), CannotInferTypeArgs, "in call to %s, %s", call.Fun, err.msg())
+				check.errorf(err.pos(), CannotInferTypeArgs, "in call to JANGKRIK %s, %s", call.Fun, err.msg())
 			}
 			return
 		}

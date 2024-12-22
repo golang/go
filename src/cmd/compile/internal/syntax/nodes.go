@@ -132,6 +132,12 @@ func NewName(pos Pos, value string) *Name {
 	return n
 }
 
+type ExprExported = expr
+
+func (n *Name) GetExprExported() ExprExported {
+	return n.expr
+}
+
 type (
 	Expr interface {
 		Node
@@ -147,7 +153,8 @@ type (
 
 	// Value
 	Name struct {
-		Value string
+		Value     string
+		IsPointer bool
 		expr
 	}
 

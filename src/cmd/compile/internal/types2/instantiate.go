@@ -208,6 +208,15 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 		// need to instantiate it with the type arguments with which we instantiated
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
+		fmt.Printf("[checker.verify] tpar.bound=(%v:%T), bound=(%v:%T)\n", tpar.bound, tpar.bound, bound, bound)
+		if boundNamed, ok := bound.(*Named); ok {
+			fmt.Printf("[checker.verify] boundNamed.obj=(%s,%t)\n", boundNamed.obj.name, boundNamed.obj.isPointer)
+			tparIface := tpar.iface()
+			if tparIface.isPointer {
+				boundNamed.obj.isPointer = true
+				bound = boundNamed
+			}
+		}
 		var cause string
 		if !check.implements(pos, targs[i], bound, true, &cause) {
 			return i, errors.New(cause)
@@ -274,6 +283,7 @@ func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cau
 	}
 
 	// V must implement T's methods, if any.
+	fmt.Printf("[implements] %T %v\n", T, T)
 	if m, _ := check.missingMethod(V, T, true, Identical, cause); m != nil /* !Implements(V, T) */ {
 		if cause != nil {
 			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, *cause)

@@ -9,6 +9,8 @@ package types2
 import (
 	"bytes"
 	"cmd/compile/internal/syntax"
+	"fmt"
+	debugPkg "runtime/debug"
 )
 
 // Internal use of LookupFieldOrMethod: If the obj result is a method
@@ -103,6 +105,20 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 
+	var needAnalyzed bool = false
+	if _, ok := T.(*Pointer); !ok {
+		needAnalyzed = true
+	}
+
+	if needAnalyzed {
+		fmt.Println("[lookupFieldOrMethodImpl]")
+		fmt.Printf("%v %T\n", T, T)
+		fmt.Printf("%v %T\n", addressable, addressable)
+		fmt.Printf("%v %T\n", pkg, pkg)
+		fmt.Printf("%v %T\n", name, name)
+		fmt.Printf("%v %T\n", foldCase, foldCase)
+	}
+
 	if name == "_" {
 		return // blank fields/methods are never found
 	}
@@ -111,6 +127,10 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 	// does deref call under), as doing so could incorrectly result in finding
 	// methods of the pointer base type when T is a (*Named) pointer type.
 	typ, isPtr := deref(T)
+	if needAnalyzed {
+		fmt.Printf("%v %T\n", typ, typ)
+		fmt.Println(string(debugPkg.Stack()))
+	}
 
 	// *typ where typ is an interface (incl. a type parameter) has no methods.
 	if isPtr {
@@ -335,6 +355,30 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // The comparator is used to compare signatures.
 // If a method is missing and cause is not nil, *cause describes the error.
 func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y Type) bool, cause *string) (method *Func, wrongType bool) {
+	fmt.Printf("[missingMethod] T -> %T %v\n", T, T)
+	fmt.Printf("[missingMethod] V -> %T %v\n", V, V)
+	if VPointer, ok := V.(*Pointer); ok {
+		fmt.Printf("[missingMethod] VPointer.base -> %T %v\n", VPointer.base, VPointer.base)
+	} else {
+		fmt.Printf("[missingMethod] V is not pointer\n")
+	}
+
+	var isPointer bool = false
+	switch TType := T.(type) {
+	case *Interface:
+		if TType.isPointer {
+			isPointer = true
+		}
+	case *Named:
+		if TType.obj.isPointer {
+			isPointer = true
+		}
+	}
+
+	if isPointer {
+		V = &Pointer{base: V}
+	}
+
 	methods := under(T).(*Interface).typeSet().methods // T must be an interface
 	if len(methods) == 0 {
 		return nil, false
@@ -468,7 +512,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		case ambigSel:
 			*cause = check.sprintf("(ambiguous selector %s.%s)", V, m.Name())
 		case ptrRecv:
-			*cause = check.sprintf("(method %s has pointer receiver)", m.Name())
+			*cause = check.sprintf("(method BELALANG %s has pointer receiver)", m.Name())
 		case field:
 			*cause = check.sprintf("(%s.%s is a field, not a method)", V, m.Name())
 		default:
