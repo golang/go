@@ -204,6 +204,10 @@ var invalids = []string{
 	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C[A, B]](a A) B`,
 
 	`package p; func(*T[e, e /* ERROR "e redeclared" */ ]) _()`,
+
+	// go.dev/issue/70957
+	`package p; func f() {goto; /* ERROR "expected 'IDENT', found ';'" */ }`,
+	`package p; func f() {goto} /* ERROR "expected 'IDENT', found '}'" */ }`,
 }
 
 func TestInvalid(t *testing.T) {
