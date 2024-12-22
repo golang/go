@@ -2050,7 +2050,7 @@ func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
 
 	pos := p.expect(tok)
 	var label *ast.Ident
-	if tok != token.FALLTHROUGH && p.tok == token.IDENT {
+	if (tok != token.FALLTHROUGH && p.tok == token.IDENT) || tok == token.GOTO {
 		label = p.parseIdent()
 	}
 	p.expectSemi()
