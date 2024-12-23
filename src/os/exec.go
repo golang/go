@@ -17,6 +17,7 @@ import (
 // ErrProcessDone indicates a [Process] has finished.
 var ErrProcessDone = errors.New("os: process already finished")
 
+// processStatus describes the status of a [Process].
 type processStatus uint32
 
 const (
@@ -110,6 +111,7 @@ func (ph *processHandle) release() {
 	}
 }
 
+// newPIDProcess returns a [Process] for the given PID.
 func newPIDProcess(pid int) *Process {
 	p := &Process{
 		Pid: pid,
@@ -117,6 +119,7 @@ func newPIDProcess(pid int) *Process {
 	return p
 }
 
+// newHandleProcess returns a [Process] with the given PID and handle.
 func newHandleProcess(pid int, handle uintptr) *Process {
 	ph := &processHandle{
 		handle: handle,
@@ -136,6 +139,9 @@ func newHandleProcess(pid int, handle uintptr) *Process {
 	return p
 }
 
+// newDoneProcess returns a [Process] for the given PID
+// that is already marked as done. This is used on Unix systems
+// if the process is known to not exist.
 func newDoneProcess(pid int) *Process {
 	p := &Process{
 		Pid: pid,
@@ -144,6 +150,8 @@ func newDoneProcess(pid int) *Process {
 	return p
 }
 
+// handleTransientAcquire returns the process handle or,
+// if the process is not ready, the current status.
 func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
 	if p.handle == nil {
 		panic("handleTransientAcquire called in invalid mode")
@@ -169,6 +177,7 @@ func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
 	return 0, status
 }
 
+// handleTransientRelease releases a handle returned by handleTransientAcquire.
 func (p *Process) handleTransientRelease() {
 	if p.handle == nil {
 		panic("handleTransientRelease called in invalid mode")
@@ -176,6 +185,7 @@ func (p *Process) handleTransientRelease() {
 	p.handle.release()
 }
 
+// pidStatus returns the current process status.
 func (p *Process) pidStatus() processStatus {
 	if p.handle != nil {
 		panic("pidStatus called in invalid mode")
@@ -301,6 +311,10 @@ func (p *Process) doRelease(newStatus processStatus) processStatus {
 		// created in newHandleProcess.
 		if p.handle != nil {
 			// No need for more cleanup.
+			// We must stop the cleanup before calling release;
+			// otherwise the cleanup might run concurrently
+			// with the release, which would cause the reference
+			// counts to be invalid, causing a panic.
 			p.cleanup.Stop()
 
 			p.handle.release()

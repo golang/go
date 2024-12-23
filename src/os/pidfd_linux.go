@@ -66,6 +66,7 @@ func getPidfd(sysAttr *syscall.SysProcAttr, needDup bool) (uintptr, bool) {
 	return uintptr(h), true
 }
 
+// pidfdFind returns the process handle for pid.
 func pidfdFind(pid int) (uintptr, error) {
 	if !pidfdWorks() {
 		return 0, syscall.ENOSYS
@@ -78,6 +79,8 @@ func pidfdFind(pid int) (uintptr, error) {
 	return h, nil
 }
 
+// pidfdWait waits for the process to complete,
+// and updates the process status to done.
 func (p *Process) pidfdWait() (*ProcessState, error) {
 	// When pidfd is used, there is no wait/kill race (described in CL 23967)
 	// because the PID recycle issue doesn't exist (IOW, pidfd, unlike PID,
@@ -120,6 +123,7 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
 	}, nil
 }
 
+// pidfdSendSignal sends a signal to the process.
 func (p *Process) pidfdSendSignal(s syscall.Signal) error {
 	handle, status := p.handleTransientAcquire()
 	switch status {
@@ -133,10 +137,12 @@ func (p *Process) pidfdSendSignal(s syscall.Signal) error {
 	return convertESRCH(unix.PidFDSendSignal(handle, s))
 }
 
+// pidfdWorks returns whether we can use pidfd on this system.
 func pidfdWorks() bool {
 	return checkPidfdOnce() == nil
 }
 
+// checkPidfdOnce is used to only check whether pidfd works once.
 var checkPidfdOnce = sync.OnceValue(checkPidfd)
 
 // checkPidfd checks whether all required pidfd-related syscalls work. This
