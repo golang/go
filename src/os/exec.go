@@ -90,16 +90,66 @@ type Process struct {
 	// Used only in modePID.
 	sigMu sync.RWMutex // avoid race between wait and signal
 
-	// handle is the OS handle for process actions, used only in
-	// modeHandle.
+	// handle, if not nil, is a pointer to a struct
+	// that holds the OS-specific process handle.
+	// This pointer is set when Process is created,
+	// and never changed afterward.
+	// This is a pointer to a separate memory allocation
+	// so that we can use runtime.AddCleanup.
+	handle *processHandle
+}
+
+// processHandle holds an operating system handle to a process.
+// This is only used on systems that support that concept,
+// currently Linux and Windows.
+// This maintains a reference count to the handle,
+// and closes the handle when the reference drops to zero.
+type processHandle struct {
+	// The actual handle. This field should not be used directly.
+	// Instead, use the acquire and release methods.
 	//
-	// handle must be accessed only via the handleTransientAcquire method
-	// (or during closeHandle), not directly! handle is immutable.
-	//
-	// On Windows, it is a handle from OpenProcess.
-	// On Linux, it is a pidfd.
-	// It is unused on other GOOSes.
+	// On Windows this is a handle returned by OpenProcess.
+	// On Linux this is a pidfd.
 	handle uintptr
+
+	// Number of active references. When this drops to zero
+	// the handle is closed.
+	refs atomic.Int32
+}
+
+// acquire adds a reference and returns the handle.
+// The bool result reports whether acquire succeeded;
+// it fails if the handle is already closed.
+// Every successful call to acquire should be paired with a call to release.
+func (ph *processHandle) acquire() (uintptr, bool) {
+	for {
+		refs := ph.refs.Load()
+		if refs < 0 {
+			panic("internal error: negative process handle reference count")
+		}
+		if refs == 0 {
+			return 0, false
+		}
+		if ph.refs.CompareAndSwap(refs, refs+1) {
+			return ph.handle, true
+		}
+	}
+}
+
+// release releases a reference to the handle.
+func (ph *processHandle) release() {
+	for {
+		refs := ph.refs.Load()
+		if refs <= 0 {
+			panic("internal error: too many releases of process handle")
+		}
+		if ph.refs.CompareAndSwap(refs, refs-1) {
+			if refs == 1 {
+				ph.closeHandle()
+			}
+			return
+		}
+	}
 }
 
 func newPIDProcess(pid int) *Process {
@@ -112,10 +162,18 @@ func newPIDProcess(pid int) *Process {
 }
 
 func newHandleProcess(pid int, handle uintptr) *Process {
+	ph := &processHandle{
+		handle: handle,
+	}
+
+	// Start the reference count as 1,
+	// meaning the reference from the returned Process.
+	ph.refs.Store(1)
+
 	p := &Process{
 		Pid:    pid,
 		mode:   modeHandle,
-		handle: handle,
+		handle: ph,
 	}
 	p.state.Store(1) // 1 persistent reference
 	runtime.SetFinalizer(p, (*Process).Release)
@@ -125,9 +183,7 @@ func newHandleProcess(pid int, handle uintptr) *Process {
 func newDoneProcess(pid int) *Process {
 	p := &Process{
 		Pid:  pid,
-		mode: modeHandle,
-		// N.B Since we set statusDone, handle will never actually be
-		// used, so its value doesn't matter.
+		mode: modePID,
 	}
 	p.state.Store(uint64(statusDone)) // No persistent reference, as there is no handle.
 	runtime.SetFinalizer(p, (*Process).Release)
@@ -148,7 +204,11 @@ func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
 		if !p.state.CompareAndSwap(refs, new) {
 			continue
 		}
-		return p.handle, statusOK
+		h, ok := p.handle.acquire()
+		if !ok {
+			panic("inconsistent reference counts")
+		}
+		return h, statusOK
 	}
 }
 
@@ -179,9 +239,7 @@ func (p *Process) handleTransientRelease() {
 		if !p.state.CompareAndSwap(state, new) {
 			continue
 		}
-		if new&^processStatusMask == 0 {
-			p.closeHandle()
-		}
+		p.handle.release()
 		return
 	}
 }
@@ -216,9 +274,7 @@ func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
 		if !p.state.CompareAndSwap(refs, new) {
 			continue
 		}
-		if new&^processStatusMask == 0 {
-			p.closeHandle()
-		}
+		p.handle.release()
 		return status
 	}
 }

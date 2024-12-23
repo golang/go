@@ -88,8 +88,8 @@ func (p *Process) release() error {
 	return nil
 }
 
-func (p *Process) closeHandle() {
-	syscall.CloseHandle(syscall.Handle(p.handle))
+func (ph *processHandle) closeHandle() {
+	syscall.CloseHandle(syscall.Handle(ph.handle))
 }
 
 func findProcess(pid int) (p *Process, err error) {
