@@ -52,6 +52,9 @@ type Process struct {
 	// This is a pointer to a separate memory allocation
 	// so that we can use runtime.AddCleanup.
 	handle *processHandle
+
+	// cleanup is used to clean up the process handle.
+	cleanup runtime.Cleanup
 }
 
 // processHandle holds an operating system handle to a process.
@@ -111,7 +114,6 @@ func newPIDProcess(pid int) *Process {
 	p := &Process{
 		Pid: pid,
 	}
-	runtime.SetFinalizer(p, (*Process).Release)
 	return p
 }
 
@@ -128,7 +130,9 @@ func newHandleProcess(pid int, handle uintptr) *Process {
 		Pid:    pid,
 		handle: ph,
 	}
-	runtime.SetFinalizer(p, (*Process).Release)
+
+	p.cleanup = runtime.AddCleanup(p, (*processHandle).release, ph)
+
 	return p
 }
 
@@ -137,7 +141,6 @@ func newDoneProcess(pid int) *Process {
 		Pid: pid,
 	}
 	p.state.Store(uint32(statusDone)) // No persistent reference, as there is no handle.
-	runtime.SetFinalizer(p, (*Process).Release)
 	return p
 }
 
@@ -197,7 +200,12 @@ func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
 		if !p.state.CompareAndSwap(state, uint32(reason)) {
 			continue
 		}
+
+		// No need for more cleanup.
+		p.cleanup.Stop()
+
 		p.handle.release()
+
 		return status
 	}
 }

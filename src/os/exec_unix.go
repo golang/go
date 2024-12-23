@@ -8,7 +8,6 @@ package os
 
 import (
 	"errors"
-	"runtime"
 	"syscall"
 	"time"
 )
@@ -136,8 +135,7 @@ func (p *Process) release() error {
 		// Just mark the PID unusable.
 		p.pidDeactivate(statusReleased)
 	}
-	// no need for a finalizer anymore
-	runtime.SetFinalizer(p, nil)
+
 	return nil
 }
 

@@ -83,8 +83,6 @@ func (p *Process) release() error {
 		return syscall.EINVAL
 	}
 
-	// no need for a finalizer anymore
-	runtime.SetFinalizer(p, nil)
 	return nil
 }
 
