@@ -176,62 +176,12 @@ func (p *Process) handleTransientRelease() {
 	p.handle.release()
 }
 
-// Drop the Process' persistent reference on the handle, deactivating future
-// Wait/Signal calls with the passed reason.
-//
-// Returns the status prior to this call. If this is not statusOK, then the
-// reference was not dropped or status changed.
-func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
-	if p.handle == nil {
-		panic("handlePersistentRelease called in invalid mode")
-	}
-
-	for {
-		state := p.state.Load()
-		status := processStatus(state)
-		if status != statusOK {
-			// Both Release and successful Wait will drop the
-			// Process' persistent reference on the handle. We
-			// can't allow concurrent calls to drop the reference
-			// twice, so we use the status as a guard to ensure the
-			// reference is dropped exactly once.
-			return status
-		}
-		if !p.state.CompareAndSwap(state, uint32(reason)) {
-			continue
-		}
-
-		// No need for more cleanup.
-		p.cleanup.Stop()
-
-		p.handle.release()
-
-		return status
-	}
-}
-
 func (p *Process) pidStatus() processStatus {
 	if p.handle != nil {
 		panic("pidStatus called in invalid mode")
 	}
 
 	return processStatus(p.state.Load())
-}
-
-func (p *Process) pidDeactivate(reason processStatus) {
-	if p.handle != nil {
-		panic("pidDeactivate called in invalid mode")
-	}
-
-	// Both Release and successful Wait will deactivate the PID. Only one
-	// of those should win, so nothing left to do here if the compare
-	// fails.
-	//
-	// N.B. This means that results can be inconsistent. e.g., with a
-	// racing Release and Wait, Wait may successfully wait on the process,
-	// returning the wait status, while future calls error with "process
-	// released" rather than "process done".
-	p.state.CompareAndSwap(0, uint32(reason))
 }
 
 // ProcAttr holds the attributes that will be applied to a new process
@@ -310,23 +260,54 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (*Process, error) 
 // rendering it unusable in the future.
 // Release only needs to be called if [Process.Wait] is not.
 func (p *Process) Release() error {
-	// Note to future authors: the Release API is cursed.
-	//
-	// On Unix and Plan 9, Release sets p.Pid = -1. This is the only part of the
-	// Process API that is not thread-safe, but it can't be changed now.
-	//
-	// On Windows, Release does _not_ modify p.Pid.
-	//
-	// On Windows, Wait calls Release after successfully waiting to
-	// proactively clean up resources.
-	//
-	// On Unix and Plan 9, Wait also proactively cleans up resources, but
-	// can not call Release, as Wait does not set p.Pid = -1.
-	//
-	// On Unix and Plan 9, calling Release a second time has no effect.
-	//
-	// On Windows, calling Release a second time returns EINVAL.
-	return p.release()
+	// Unfortunately, for historical reasons, on systems other
+	// than Windows, Release sets the Pid field to -1.
+	// This causes the race detector to report a problem
+	// on concurrent calls to Release, but we can't change it now.
+	if runtime.GOOS != "windows" {
+		p.Pid = -1
+	}
+
+	oldStatus := p.doRelease(statusReleased)
+
+	// For backward compatibility, on Windows only,
+	// we return EINVAL on a second call to Release.
+	if runtime.GOOS == "windows" {
+		if oldStatus == statusReleased {
+			return syscall.EINVAL
+		}
+	}
+
+	return nil
+}
+
+// doRelease releases a [Process], setting the status to newStatus.
+// If the previous status is not statusOK, this does nothing.
+// It returns the previous status.
+func (p *Process) doRelease(newStatus processStatus) processStatus {
+	for {
+		state := p.state.Load()
+		oldStatus := processStatus(state)
+		if oldStatus != statusOK {
+			return oldStatus
+		}
+
+		if !p.state.CompareAndSwap(state, uint32(newStatus)) {
+			continue
+		}
+
+		// We have successfully released the Process.
+		// If it has a handle, release the reference we
+		// created in newHandleProcess.
+		if p.handle != nil {
+			// No need for more cleanup.
+			p.cleanup.Stop()
+
+			p.handle.release()
+		}
+
+		return statusOK
+	}
 }
 
 // Kill causes the [Process] to exit immediately. Kill does not wait until

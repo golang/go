@@ -44,7 +44,11 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	if e != nil {
 		return nil, NewSyscallError("GetProcessTimes", e)
 	}
-	defer p.Release()
+
+	// For compatibility we use statusReleased here rather
+	// than statusDone.
+	p.doRelease(statusReleased)
+
 	return &ProcessState{p.Pid, syscall.WaitStatus{ExitCode: ec}, &u}, nil
 }
 
@@ -71,19 +75,6 @@ func (p *Process) signal(sig Signal) error {
 	}
 	// TODO(rsc): Handle Interrupt too?
 	return syscall.Errno(syscall.EWINDOWS)
-}
-
-func (p *Process) release() error {
-	// Drop the Process' reference and mark handle unusable for
-	// future calls.
-	//
-	// The API on Windows expects EINVAL if Release is called multiple
-	// times.
-	if old := p.handlePersistentRelease(statusReleased); old == statusReleased {
-		return syscall.EINVAL
-	}
-
-	return nil
 }
 
 func (ph *processHandle) closeHandle() {

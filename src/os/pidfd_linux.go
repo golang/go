@@ -108,9 +108,11 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
 	if err != nil {
 		return nil, NewSyscallError("waitid", err)
 	}
-	// Release the Process' handle reference, in addition to the reference
-	// we took above.
-	p.handlePersistentRelease(statusDone)
+
+	// Update the Process status to statusDone.
+	// This also releases a reference to the handle.
+	p.doRelease(statusDone)
+
 	return &ProcessState{
 		pid:    int(info.Pid),
 		status: info.WaitStatus(),

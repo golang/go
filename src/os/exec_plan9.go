@@ -80,21 +80,12 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 		return nil, NewSyscallError("wait", err)
 	}
 
-	p.pidDeactivate(statusDone)
+	p.doRelease(statusDone)
 	ps = &ProcessState{
 		pid:    waitmsg.Pid,
 		status: &waitmsg,
 	}
 	return ps, nil
-}
-
-func (p *Process) release() error {
-	p.Pid = -1
-
-	// Just mark the PID unusable.
-	p.pidDeactivate(statusReleased)
-
-	return nil
 }
 
 func findProcess(pid int) (p *Process, err error) {
