@@ -52,7 +52,7 @@ import (
 // nil, even after an object is no longer referenced, the runtime is allowed to
 // perform a space-saving optimization that batches objects together in a single
 // allocation slot. The weak pointer for an unreferenced object in such an
-// allocation may never be called if it always exists in the same batch as a
+// allocation may never become nil if it always exists in the same batch as a
 // referenced object. Typically, this batching only happens for tiny
 // (on the order of 16 bytes or less) and pointer-free objects.
 type Pointer[T any] struct {
