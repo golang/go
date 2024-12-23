@@ -23,7 +23,7 @@ func fixLongPath(path string) string {
 
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
-// can overwrite this data, which could cause the finalizer
+// can overwrite this data, which could cause the cleanup
 // to close the wrong file descriptor.
 type file struct {
 	fdmu       poll.FDMutex
@@ -31,13 +31,14 @@ type file struct {
 	name       string
 	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
 	appendMode bool                    // whether file is opened for appending
+	cleanup    runtime.Cleanup         // cleanup closes the file when no longer referenced
 }
 
 // Fd returns the integer Plan 9 file descriptor referencing the open file.
 // If f is closed, the file descriptor becomes invalid.
-// If f is garbage collected, a finalizer may close the file descriptor,
-// making it invalid; see [runtime.SetFinalizer] for more information on when
-// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
+// If f is garbage collected, a cleanup may close the file descriptor,
+// making it invalid; see [runtime.AddCleanup] for more information on when
+// a cleanup might be run. On Unix systems this will cause the [File.SetDeadline]
 // methods to stop working.
 //
 // As an alternative, see the f.SyscallConn method.
@@ -57,7 +58,7 @@ func NewFile(fd uintptr, name string) *File {
 		return nil
 	}
 	f := &File{&file{fd: fdi, name: name}}
-	runtime.SetFinalizer(f.file, (*file).close)
+	f.cleanup = runtime.AddCleanup(f, func(f *file) { f.close() }, f.file)
 	return f
 }
 
@@ -168,8 +169,9 @@ func (file *file) close() error {
 
 	err := file.decref()
 
-	// no need for a finalizer anymore
-	runtime.SetFinalizer(file, nil)
+	// There is no need for a cleanup at this point. File must be alive at the point
+	// where cleanup.stop is called.
+	file.cleanup.Stop()
 	return err
 }
 

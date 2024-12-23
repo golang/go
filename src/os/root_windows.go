@@ -109,7 +109,7 @@ func newRoot(fd syscall.Handle, name string) (*Root, error) {
 		fd:   fd,
 		name: name,
 	}}
-	runtime.SetFinalizer(r.root, (*root).Close)
+	r.root.cleanup = runtime.AddCleanup(r, func(f *root) { f.Close() }, r.root)
 	return r, nil
 }
 
