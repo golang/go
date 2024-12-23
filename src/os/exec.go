@@ -17,26 +17,6 @@ import (
 // ErrProcessDone indicates a [Process] has finished.
 var ErrProcessDone = errors.New("os: process already finished")
 
-type processMode uint8
-
-const (
-	// modePID means that Process operations such use the raw PID from the
-	// Pid field. handle is not used.
-	//
-	// This may be due to the host not supporting handles, or because
-	// Process was created as a literal, leaving handle unset.
-	//
-	// This must be the zero value so Process literals get modePID.
-	modePID processMode = iota
-
-	// modeHandle means that Process operations use handle, which is
-	// initialized with an OS process handle.
-	//
-	// Note that Release and Wait will deactivate and eventually close the
-	// handle, so acquire may fail, indicating the reason.
-	modeHandle
-)
-
 type processStatus uint64
 
 const (
@@ -58,15 +38,13 @@ const (
 type Process struct {
 	Pid int
 
-	mode processMode
-
 	// State contains the atomic process state.
 	//
-	// In modePID, this consists only of the processStatus fields, which
-	// indicate if the process is done/released.
+	// If handle is nil, this consists only of the processStatus fields,
+	// which indicate if the process is done/released.
 	//
-	// In modeHandle, the lower bits also contain a reference count for the
-	// handle field.
+	// In handle is not nil, the lower bits also contain a reference
+	// count for the handle field.
 	//
 	// The Process itself initially holds 1 persistent reference. Any
 	// operation that uses the handle with a system call temporarily holds
@@ -87,7 +65,7 @@ type Process struct {
 	// errors returned by concurrent calls.
 	state atomic.Uint64
 
-	// Used only in modePID.
+	// Used only when handle is nil
 	sigMu sync.RWMutex // avoid race between wait and signal
 
 	// handle, if not nil, is a pointer to a struct
@@ -154,8 +132,7 @@ func (ph *processHandle) release() {
 
 func newPIDProcess(pid int) *Process {
 	p := &Process{
-		Pid:  pid,
-		mode: modePID,
+		Pid: pid,
 	}
 	runtime.SetFinalizer(p, (*Process).Release)
 	return p
@@ -172,7 +149,6 @@ func newHandleProcess(pid int, handle uintptr) *Process {
 
 	p := &Process{
 		Pid:    pid,
-		mode:   modeHandle,
 		handle: ph,
 	}
 	p.state.Store(1) // 1 persistent reference
@@ -182,8 +158,7 @@ func newHandleProcess(pid int, handle uintptr) *Process {
 
 func newDoneProcess(pid int) *Process {
 	p := &Process{
-		Pid:  pid,
-		mode: modePID,
+		Pid: pid,
 	}
 	p.state.Store(uint64(statusDone)) // No persistent reference, as there is no handle.
 	runtime.SetFinalizer(p, (*Process).Release)
@@ -191,7 +166,7 @@ func newDoneProcess(pid int) *Process {
 }
 
 func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
-	if p.mode != modeHandle {
+	if p.handle == nil {
 		panic("handleTransientAcquire called in invalid mode")
 	}
 
@@ -213,7 +188,7 @@ func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
 }
 
 func (p *Process) handleTransientRelease() {
-	if p.mode != modeHandle {
+	if p.handle == nil {
 		panic("handleTransientRelease called in invalid mode")
 	}
 
@@ -250,7 +225,7 @@ func (p *Process) handleTransientRelease() {
 // Returns the status prior to this call. If this is not statusOK, then the
 // reference was not dropped or status changed.
 func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
-	if p.mode != modeHandle {
+	if p.handle == nil {
 		panic("handlePersistentRelease called in invalid mode")
 	}
 
@@ -280,7 +255,7 @@ func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
 }
 
 func (p *Process) pidStatus() processStatus {
-	if p.mode != modePID {
+	if p.handle != nil {
 		panic("pidStatus called in invalid mode")
 	}
 
@@ -288,7 +263,7 @@ func (p *Process) pidStatus() processStatus {
 }
 
 func (p *Process) pidDeactivate(reason processStatus) {
-	if p.mode != modePID {
+	if p.handle != nil {
 		panic("pidDeactivate called in invalid mode")
 	}
 

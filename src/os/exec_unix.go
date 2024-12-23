@@ -21,15 +21,12 @@ const (
 
 func (p *Process) wait() (ps *ProcessState, err error) {
 	// Which type of Process do we have?
-	switch p.mode {
-	case modeHandle:
+	if p.handle != nil {
 		// pidfd
 		return p.pidfdWait()
-	case modePID:
+	} else {
 		// Regular PID
 		return p.pidWait()
-	default:
-		panic("unreachable")
 	}
 }
 
@@ -85,15 +82,12 @@ func (p *Process) signal(sig Signal) error {
 	}
 
 	// Which type of Process do we have?
-	switch p.mode {
-	case modeHandle:
+	if p.handle != nil {
 		// pidfd
 		return p.pidfdSendSignal(s)
-	case modePID:
+	} else {
 		// Regular PID
 		return p.pidSignal(s)
-	default:
-		panic("unreachable")
 	}
 }
 
@@ -131,15 +125,14 @@ func (p *Process) release() error {
 	// solely on statusReleased to determine that the Process is released.
 	p.Pid = pidReleased
 
-	switch p.mode {
-	case modeHandle:
+	if p.handle != nil {
 		// Drop the Process' reference and mark handle unusable for
 		// future calls.
 		//
 		// Ignore the return value: we don't care if this was a no-op
 		// racing with Wait, or a double Release.
 		p.handlePersistentRelease(statusReleased)
-	case modePID:
+	} else {
 		// Just mark the PID unusable.
 		p.pidDeactivate(statusReleased)
 	}

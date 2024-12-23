@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Note that Process.mode is always modeHandle because Windows always requires
+// Note that Process.handle is never nil because Windows always requires
 // a handle. A manually-created Process literal is not valid.
 
 func (p *Process) wait() (ps *ProcessState, err error) {
