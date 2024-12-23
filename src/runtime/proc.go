@@ -3762,23 +3762,23 @@ func injectglist(glist *gList) {
 	if glist.empty() {
 		return
 	}
-	trace := traceAcquire()
-	if trace.ok() {
-		for gp := glist.head.ptr(); gp != nil; gp = gp.schedlink.ptr() {
-			trace.GoUnpark(gp, 0)
-		}
-		traceRelease(trace)
-	}
 
 	// Mark all the goroutines as runnable before we put them
 	// on the run queues.
 	head := glist.head.ptr()
 	var tail *g
 	qsize := 0
+	trace := traceAcquire()
 	for gp := head; gp != nil; gp = gp.schedlink.ptr() {
 		tail = gp
 		qsize++
 		casgstatus(gp, _Gwaiting, _Grunnable)
+		if trace.ok() {
+			trace.GoUnpark(gp, 0)
+		}
+	}
+	if trace.ok() {
+		traceRelease(trace)
 	}
 
 	// Turn the gList into a gQueue.
