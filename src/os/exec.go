@@ -17,21 +17,19 @@ import (
 // ErrProcessDone indicates a [Process] has finished.
 var ErrProcessDone = errors.New("os: process already finished")
 
-type processStatus uint64
+type processStatus uint32
 
 const (
-	// PID/handle OK to use.
-	statusOK processStatus = 0
+	// statusOK means that the Process is ready to use.
+	statusOK processStatus = iota
 
 	// statusDone indicates that the PID/handle should not be used because
 	// the process is done (has been successfully Wait'd on).
-	statusDone processStatus = 1 << 62
+	statusDone
 
 	// statusReleased indicates that the PID/handle should not be used
 	// because the process is released.
-	statusReleased processStatus = 1 << 63
-
-	processStatusMask = 0x3 << 62
+	statusReleased
 )
 
 // Process stores the information about a process created by [StartProcess].
@@ -42,7 +40,7 @@ type Process struct {
 	//
 	// This consists of the processStatus fields,
 	// which indicate if the process is done/released.
-	state atomic.Uint64
+	state atomic.Uint32
 
 	// Used only when handle is nil
 	sigMu sync.RWMutex // avoid race between wait and signal
@@ -138,7 +136,7 @@ func newDoneProcess(pid int) *Process {
 	p := &Process{
 		Pid: pid,
 	}
-	p.state.Store(uint64(statusDone)) // No persistent reference, as there is no handle.
+	p.state.Store(uint32(statusDone)) // No persistent reference, as there is no handle.
 	runtime.SetFinalizer(p, (*Process).Release)
 	return p
 }
@@ -148,9 +146,9 @@ func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
 		panic("handleTransientAcquire called in invalid mode")
 	}
 
-	state := p.state.Load()
-	if state&processStatusMask != 0 {
-		return 0, processStatus(state & processStatusMask)
+	status := processStatus(p.state.Load())
+	if status != statusOK {
+		return 0, status
 	}
 	h, ok := p.handle.acquire()
 	if ok {
@@ -161,11 +159,11 @@ func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
 	// We always set the status to non-zero before closing the handle.
 	// If we get here the status must have been set non-zero after
 	// we just checked it above.
-	state = p.state.Load()
-	if state&processStatusMask == 0 {
+	status = processStatus(p.state.Load())
+	if status == statusOK {
 		panic("inconsistent process status")
 	}
-	return 0, processStatus(state & processStatusMask)
+	return 0, status
 }
 
 func (p *Process) handleTransientRelease() {
@@ -187,7 +185,7 @@ func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
 
 	for {
 		state := p.state.Load()
-		status := processStatus(state & processStatusMask)
+		status := processStatus(state)
 		if status != statusOK {
 			// Both Release and successful Wait will drop the
 			// Process' persistent reference on the handle. We
@@ -196,7 +194,7 @@ func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
 			// reference is dropped exactly once.
 			return status
 		}
-		if !p.state.CompareAndSwap(state, uint64(reason)) {
+		if !p.state.CompareAndSwap(state, uint32(reason)) {
 			continue
 		}
 		p.handle.release()
@@ -225,7 +223,7 @@ func (p *Process) pidDeactivate(reason processStatus) {
 	// racing Release and Wait, Wait may successfully wait on the process,
 	// returning the wait status, while future calls error with "process
 	// released" rather than "process done".
-	p.state.CompareAndSwap(0, uint64(reason))
+	p.state.CompareAndSwap(0, uint32(reason))
 }
 
 // ProcAttr holds the attributes that will be applied to a new process
