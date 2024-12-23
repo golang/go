@@ -11,7 +11,7 @@ outer:
 	}
 
 	for {
-		continue outer /* ERROR "invalid continue label outer" */
+		break outer /* ERROR "invalid break label outer" */
 	}
 }
 
