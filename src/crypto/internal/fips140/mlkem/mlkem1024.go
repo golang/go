@@ -189,7 +189,7 @@ func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) {
 // the first operational use (if not exported before the first use)."
 func kemPCT1024(dk *DecapsulationKey1024) error {
 	ek := dk.EncapsulationKey()
-	c, K := ek.Encapsulate()
+	K, c := ek.Encapsulate()
 	K1, err := dk.Decapsulate(c)
 	if err != nil {
 		return err
@@ -204,13 +204,13 @@ func kemPCT1024(dk *DecapsulationKey1024) error {
 // encapsulation key, drawing random bytes from a DRBG.
 //
 // The shared key must be kept secret.
-func (ek *EncapsulationKey1024) Encapsulate() (ciphertext, sharedKey []byte) {
+func (ek *EncapsulationKey1024) Encapsulate() (sharedKey, ciphertext []byte) {
 	// The actual logic is in a separate function to outline this allocation.
 	var cc [CiphertextSize1024]byte
 	return ek.encapsulate(&cc)
 }
 
-func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (ciphertext, sharedKey []byte) {
+func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (sharedKey, ciphertext []byte) {
 	var m [messageSize]byte
 	drbg.Read(m[:])
 	// Note that the modulus check (step 2 of the encapsulation key check from
@@ -221,7 +221,7 @@ func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (ciphe
 
 // EncapsulateInternal is a derandomized version of Encapsulate, exclusively for
 // use in tests.
-func (ek *EncapsulationKey1024) EncapsulateInternal(m *[32]byte) (ciphertext, sharedKey []byte) {
+func (ek *EncapsulationKey1024) EncapsulateInternal(m *[32]byte) (sharedKey, ciphertext []byte) {
 	cc := &[CiphertextSize1024]byte{}
 	return kemEncaps1024(cc, ek, m)
 }
@@ -229,14 +229,14 @@ func (ek *EncapsulationKey1024) EncapsulateInternal(m *[32]byte) (ciphertext, sh
 // kemEncaps1024 generates a shared key and an associated ciphertext.
 //
 // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
-func kemEncaps1024(cc *[CiphertextSize1024]byte, ek *EncapsulationKey1024, m *[messageSize]byte) (c, K []byte) {
+func kemEncaps1024(cc *[CiphertextSize1024]byte, ek *EncapsulationKey1024, m *[messageSize]byte) (K, c []byte) {
 	g := sha3.New512()
 	g.Write(m[:])
 	g.Write(ek.h[:])
 	G := g.Sum(nil)
 	K, r := G[:SharedKeySize], G[SharedKeySize:]
 	c = pkeEncrypt1024(cc, &ek.encryptionKey1024, m, r)
-	return c, K
+	return K, c
 }
 
 // NewEncapsulationKey1024 parses an encapsulation key from its encoded form.

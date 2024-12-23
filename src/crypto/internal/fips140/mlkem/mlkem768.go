@@ -246,7 +246,7 @@ func kemKeyGen(dk *DecapsulationKey768, d, z *[32]byte) {
 // the first operational use (if not exported before the first use)."
 func kemPCT(dk *DecapsulationKey768) error {
 	ek := dk.EncapsulationKey()
-	c, K := ek.Encapsulate()
+	K, c := ek.Encapsulate()
 	K1, err := dk.Decapsulate(c)
 	if err != nil {
 		return err
@@ -261,13 +261,13 @@ func kemPCT(dk *DecapsulationKey768) error {
 // encapsulation key, drawing random bytes from a DRBG.
 //
 // The shared key must be kept secret.
-func (ek *EncapsulationKey768) Encapsulate() (ciphertext, sharedKey []byte) {
+func (ek *EncapsulationKey768) Encapsulate() (sharedKey, ciphertext []byte) {
 	// The actual logic is in a separate function to outline this allocation.
 	var cc [CiphertextSize768]byte
 	return ek.encapsulate(&cc)
 }
 
-func (ek *EncapsulationKey768) encapsulate(cc *[CiphertextSize768]byte) (ciphertext, sharedKey []byte) {
+func (ek *EncapsulationKey768) encapsulate(cc *[CiphertextSize768]byte) (sharedKey, ciphertext []byte) {
 	var m [messageSize]byte
 	drbg.Read(m[:])
 	// Note that the modulus check (step 2 of the encapsulation key check from
@@ -278,7 +278,7 @@ func (ek *EncapsulationKey768) encapsulate(cc *[CiphertextSize768]byte) (ciphert
 
 // EncapsulateInternal is a derandomized version of Encapsulate, exclusively for
 // use in tests.
-func (ek *EncapsulationKey768) EncapsulateInternal(m *[32]byte) (ciphertext, sharedKey []byte) {
+func (ek *EncapsulationKey768) EncapsulateInternal(m *[32]byte) (sharedKey, ciphertext []byte) {
 	cc := &[CiphertextSize768]byte{}
 	return kemEncaps(cc, ek, m)
 }
@@ -286,14 +286,14 @@ func (ek *EncapsulationKey768) EncapsulateInternal(m *[32]byte) (ciphertext, sha
 // kemEncaps generates a shared key and an associated ciphertext.
 //
 // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
-func kemEncaps(cc *[CiphertextSize768]byte, ek *EncapsulationKey768, m *[messageSize]byte) (c, K []byte) {
+func kemEncaps(cc *[CiphertextSize768]byte, ek *EncapsulationKey768, m *[messageSize]byte) (K, c []byte) {
 	g := sha3.New512()
 	g.Write(m[:])
 	g.Write(ek.h[:])
 	G := g.Sum(nil)
 	K, r := G[:SharedKeySize], G[SharedKeySize:]
 	c = pkeEncrypt(cc, &ek.encryptionKey, m, r)
-	return c, K
+	return K, c
 }
 
 // NewEncapsulationKey768 parses an encapsulation key from its encoded form.
