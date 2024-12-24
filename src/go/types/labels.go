@@ -119,8 +119,8 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 		fwdJumps = append(fwdJumps, check.blockBranches(all, b, lstmt, list)...)
 	}
 
-	var stmtBranches func(ast.Stmt)
-	stmtBranches = func(s ast.Stmt) {
+	var stmtBranches func(*ast.LabeledStmt, ast.Stmt)
+	stmtBranches = func(lstmt *ast.LabeledStmt, s ast.Stmt) {
 		switch s := s.(type) {
 		case *ast.DeclStmt:
 			if d, _ := s.Decl.(*ast.GenDecl); d != nil && d.Tok == token.VAR {
@@ -168,7 +168,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 				fwdJumps = fwdJumps[:i]
 				lstmt = s
 			}
-			stmtBranches(s.Stmt)
+			stmtBranches(lstmt, s.Stmt)
 
 		case *ast.BranchStmt:
 			if s.Label == nil {
@@ -235,36 +235,36 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
 			blockBranches(lstmt, s.List)
 
 		case *ast.IfStmt:
-			stmtBranches(s.Body)
+			stmtBranches(lstmt, s.Body)
 			if s.Else != nil {
-				stmtBranches(s.Else)
+				stmtBranches(lstmt, s.Else)
 			}
 
 		case *ast.CaseClause:
 			blockBranches(nil, s.Body)
 
 		case *ast.SwitchStmt:
-			stmtBranches(s.Body)
+			stmtBranches(lstmt, s.Body)
 
 		case *ast.TypeSwitchStmt:
-			stmtBranches(s.Body)
+			stmtBranches(lstmt, s.Body)
 
 		case *ast.CommClause:
 			blockBranches(nil, s.Body)
 
 		case *ast.SelectStmt:
-			stmtBranches(s.Body)
+			stmtBranches(lstmt, s.Body)
 
 		case *ast.ForStmt:
-			stmtBranches(s.Body)
+			stmtBranches(lstmt, s.Body)
 
 		case *ast.RangeStmt:
-			stmtBranches(s.Body)
+			stmtBranches(lstmt, s.Body)
 		}
 	}
 
 	for _, s := range list {
-		stmtBranches(s)
+		stmtBranches(nil, s)
 	}
 
 	return fwdJumps
