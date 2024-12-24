@@ -185,9 +185,13 @@ func ExampleHasSuffix() {
 }
 
 func ExampleIndex() {
+	fmt.Println(strings.Index("go gopher", "go"))
+	fmt.Println(strings.Index("go gopher", ""))
 	fmt.Println(strings.Index("chicken", "ken"))
 	fmt.Println(strings.Index("chicken", "dmr"))
 	// Output:
+	// 0
+	// 0
 	// 4
 	// -1
 }
@@ -229,12 +233,12 @@ func ExampleIndexRune() {
 }
 
 func ExampleLastIndex() {
-	fmt.Println(strings.Index("go gopher", "go"))
 	fmt.Println(strings.LastIndex("go gopher", "go"))
+	fmt.Println(strings.LastIndex("go gopher", ""))
 	fmt.Println(strings.LastIndex("go gopher", "rodent"))
 	// Output:
-	// 0
 	// 3
+	// 9
 	// -1
 }
 
