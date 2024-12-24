@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"golang.org/x/telemetry/internal/counter"
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 // time and date handling
@@ -19,7 +20,7 @@ var distantPast = 21 * 24 * time.Hour
 
 // reports that are too old (21 days) are not uploaded
 func (u *uploader) tooOld(date string, uploadStartTime time.Time) bool {
-	t, err := time.Parse("2006-01-02", date)
+	t, err := time.Parse(telemetry.DateOnly, date)
 	if err != nil {
 		u.logger.Printf("tooOld: %v", err)
 		return false

@@ -9,7 +9,6 @@ import (
 	"crypto/rand"
 	. "crypto/subtle"
 	"fmt"
-	"io"
 	"testing"
 )
 
@@ -21,32 +20,50 @@ func TestXORBytes(t *testing.T) {
 		for alignP := 0; alignP < 8; alignP++ {
 			for alignQ := 0; alignQ < 8; alignQ++ {
 				for alignD := 0; alignD < 8; alignD++ {
-					p := make([]byte, alignP+n, alignP+n+10)[alignP:]
-					q := make([]byte, alignQ+n, alignQ+n+10)[alignQ:]
+					p := make([]byte, alignP+n, alignP+n+100)[alignP:]
+					q := make([]byte, alignQ+n, alignQ+n+100)[alignQ:]
 					if n&1 != 0 {
 						p = p[:n]
 					} else {
 						q = q[:n]
 					}
-					if _, err := io.ReadFull(rand.Reader, p); err != nil {
-						t.Fatal(err)
-					}
-					if _, err := io.ReadFull(rand.Reader, q); err != nil {
-						t.Fatal(err)
-					}
+					rand.Read(p)
+					rand.Read(q)
 
-					d := make([]byte, alignD+n, alignD+n+10)
-					for i := range d {
-						d[i] = 0xdd
-					}
-					want := make([]byte, len(d), cap(d))
-					copy(want[:cap(want)], d[:cap(d)])
-					for i := 0; i < n; i++ {
+					d := make([]byte, alignD+n+100)
+					rand.Read(d)
+
+					want := bytes.Clone(d)
+					for i := range n {
 						want[alignD+i] = p[i] ^ q[i]
 					}
 
-					if XORBytes(d[alignD:], p, q); !bytes.Equal(d, want) {
-						t.Fatalf("n=%d alignP=%d alignQ=%d alignD=%d:\n\tp = %x\n\tq = %x\n\td = %x\n\twant %x\n", n, alignP, alignQ, alignD, p, q, d, want)
+					if nn := XORBytes(d[alignD:], p, q); !bytes.Equal(d, want) {
+						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d:\n\tp = %x\n\tq = %x\n\td = %x\n\twant %x\n", n, alignP, alignQ, alignD, p, q, d, want)
+					} else if nn != n {
+						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %d, want %d", n, alignP, alignQ, alignD, nn, n)
+					}
+					p1 := bytes.Clone(p)
+					if nn := XORBytes(p, p, q); !bytes.Equal(p, want[alignD:alignD+n]) {
+						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d:\n\tp = %x\n\tq = %x\n\td = %x\n\twant %x\n", n, alignP, alignQ, alignD, p, q, d, want)
+					} else if nn != n {
+						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %d, want %d", n, alignP, alignQ, alignD, nn, n)
+					}
+					if nn := XORBytes(q, p1, q); !bytes.Equal(q, want[alignD:alignD+n]) {
+						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d:\n\tp = %x\n\tq = %x\n\td = %x\n\twant %x\n", n, alignP, alignQ, alignD, p, q, d, want)
+					} else if nn != n {
+						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %d, want %d", n, alignP, alignQ, alignD, nn, n)
+					}
+
+					if nn := XORBytes(p, p, p); !bytes.Equal(p, make([]byte, n)) {
+						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %x, want %x", n, alignP, alignQ, alignD, p, make([]byte, n))
+					} else if nn != n {
+						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %d, want %d", n, alignP, alignQ, alignD, nn, n)
+					}
+					if nn := XORBytes(p1, q, q); !bytes.Equal(p1, make([]byte, n)) {
+						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %x, want %x", n, alignP, alignQ, alignD, p1, make([]byte, n))
+					} else if nn != n {
+						t.Errorf("n=%d alignP=%d alignQ=%d alignD=%d: got %d, want %d", n, alignP, alignQ, alignD, nn, n)
 					}
 				}
 			}
@@ -60,6 +77,14 @@ func TestXorBytesPanic(t *testing.T) {
 	})
 	mustPanic(t, "subtle.XORBytes: dst too short", func() {
 		XORBytes(make([]byte, 1), make([]byte, 2), make([]byte, 3))
+	})
+	mustPanic(t, "subtle.XORBytes: invalid overlap", func() {
+		x := make([]byte, 3)
+		XORBytes(x, x[1:], make([]byte, 2))
+	})
+	mustPanic(t, "subtle.XORBytes: invalid overlap", func() {
+		x := make([]byte, 3)
+		XORBytes(x, make([]byte, 2), x[1:])
 	})
 }
 
@@ -83,6 +108,7 @@ func BenchmarkXORBytes(b *testing.B) {
 func mustPanic(t *testing.T, expected string, f func()) {
 	t.Helper()
 	defer func() {
+		t.Helper()
 		switch msg := recover().(type) {
 		case nil:
 			t.Errorf("expected panic(%q), but did not panic", expected)

@@ -10,6 +10,8 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"iter"
+	"maps"
 	"net"
 	"net/url"
 	"reflect"
@@ -56,6 +58,8 @@ const (
 	// CANotAuthorizedForExtKeyUsage results when an intermediate or root
 	// certificate does not permit a requested extended key usage.
 	CANotAuthorizedForExtKeyUsage
+	// NoValidChains results when there are no valid chains to return.
+	NoValidChains
 )
 
 // CertificateInvalidError results when an odd error occurs. Users of this
@@ -86,6 +90,12 @@ func (e CertificateInvalidError) Error() string {
 		return "x509: issuer has name constraints but leaf doesn't have a SAN extension"
 	case UnconstrainedName:
 		return "x509: issuer has name constraints but leaf contains unknown or unconstrained name: " + e.Detail
+	case NoValidChains:
+		s := "x509: no valid chains built"
+		if e.Detail != "" {
+			s = fmt.Sprintf("%s: %s", s, e.Detail)
+		}
+		return s
 	}
 	return "x509: unknown error"
 }
@@ -201,6 +211,27 @@ type VerifyOptions struct {
 	// certificates from consuming excessive amounts of CPU time when
 	// validating. It does not apply to the platform verifier.
 	MaxConstraintComparisions int
+
+	// CertificatePolicies specifies which certificate policy OIDs are
+	// acceptable during policy validation. An empty CertificatePolices
+	// field implies any valid policy is acceptable.
+	CertificatePolicies []OID
+
+	// The following policy fields are unexported, because we do not expect
+	// users to actually need to use them, but are useful for testing the
+	// policy validation code.
+
+	// inhibitPolicyMapping indicates if policy mapping should be allowed
+	// during path validation.
+	inhibitPolicyMapping bool
+
+	// requireExplicitPolicy indidicates if explicit policies must be present
+	// for each certificate being validated.
+	requireExplicitPolicy bool
+
+	// inhibitAnyPolicy indicates if the anyPolicy policy should be
+	// processed if present in a certificate being validated.
+	inhibitAnyPolicy bool
 }
 
 const (
@@ -708,13 +739,6 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		}
 	}
 
-	if !boringAllowCert(c) {
-		// IncompatibleUsage is not quite right here,
-		// but it's also the "no chains found" error
-		// and is close enough.
-		return CertificateInvalidError{c, IncompatibleUsage, ""}
-	}
-
 	return nil
 }
 
@@ -827,14 +851,31 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	}
 
 	chains = make([][]*Certificate, 0, len(candidateChains))
+	var incompatibleKeyUsageChains, invalidPoliciesChains int
 	for _, candidate := range candidateChains {
-		if checkChainForKeyUsage(candidate, opts.KeyUsages) {
-			chains = append(chains, candidate)
+		if !checkChainForKeyUsage(candidate, opts.KeyUsages) {
+			incompatibleKeyUsageChains++
+			continue
 		}
+		if !policiesValid(candidate, opts) {
+			invalidPoliciesChains++
+			continue
+		}
+		chains = append(chains, candidate)
 	}
-
 	if len(chains) == 0 {
-		return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
+		var details []string
+		if incompatibleKeyUsageChains > 0 {
+			if invalidPoliciesChains == 0 {
+				return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
+			}
+			details = append(details, fmt.Sprintf("%d chains with incompatible key usage", incompatibleKeyUsageChains))
+		}
+		if invalidPoliciesChains > 0 {
+			details = append(details, fmt.Sprintf("%d chains with invalid policies", invalidPoliciesChains))
+		}
+		err = CertificateInvalidError{c, NoValidChains, strings.Join(details, ", ")}
+		return nil, err
 	}
 
 	return chains, nil
@@ -982,6 +1023,11 @@ func validHostname(host string, isPattern bool) bool {
 		host = strings.TrimSuffix(host, ".")
 	}
 	if len(host) == 0 {
+		return false
+	}
+	if host == "*" {
+		// Bare wildcards are not allowed, they are not valid DNS names,
+		// nor are they allowed per RFC 6125.
 		return false
 	}
 
@@ -1185,6 +1231,372 @@ NextCert:
 				return false
 			}
 		}
+	}
+
+	return true
+}
+
+func mustNewOIDFromInts(ints []uint64) OID {
+	oid, err := OIDFromInts(ints)
+	if err != nil {
+		panic(fmt.Sprintf("OIDFromInts(%v) unexpected error: %v", ints, err))
+	}
+	return oid
+}
+
+type policyGraphNode struct {
+	validPolicy       OID
+	expectedPolicySet []OID
+	// we do not implement qualifiers, so we don't track qualifier_set
+
+	parents  map[*policyGraphNode]bool
+	children map[*policyGraphNode]bool
+}
+
+func newPolicyGraphNode(valid OID, parents []*policyGraphNode) *policyGraphNode {
+	n := &policyGraphNode{
+		validPolicy:       valid,
+		expectedPolicySet: []OID{valid},
+		children:          map[*policyGraphNode]bool{},
+		parents:           map[*policyGraphNode]bool{},
+	}
+	for _, p := range parents {
+		p.children[n] = true
+		n.parents[p] = true
+	}
+	return n
+}
+
+type policyGraph struct {
+	strata []map[string]*policyGraphNode
+	// map of OID -> nodes at strata[depth-1] with OID in their expectedPolicySet
+	parentIndex map[string][]*policyGraphNode
+	depth       int
+}
+
+var anyPolicyOID = mustNewOIDFromInts([]uint64{2, 5, 29, 32, 0})
+
+func newPolicyGraph() *policyGraph {
+	root := policyGraphNode{
+		validPolicy:       anyPolicyOID,
+		expectedPolicySet: []OID{anyPolicyOID},
+		children:          map[*policyGraphNode]bool{},
+		parents:           map[*policyGraphNode]bool{},
+	}
+	return &policyGraph{
+		depth:  0,
+		strata: []map[string]*policyGraphNode{{string(anyPolicyOID.der): &root}},
+	}
+}
+
+func (pg *policyGraph) insert(n *policyGraphNode) {
+	pg.strata[pg.depth][string(n.validPolicy.der)] = n
+}
+
+func (pg *policyGraph) parentsWithExpected(expected OID) []*policyGraphNode {
+	if pg.depth == 0 {
+		return nil
+	}
+	return pg.parentIndex[string(expected.der)]
+}
+
+func (pg *policyGraph) parentWithAnyPolicy() *policyGraphNode {
+	if pg.depth == 0 {
+		return nil
+	}
+	return pg.strata[pg.depth-1][string(anyPolicyOID.der)]
+}
+
+func (pg *policyGraph) parents() iter.Seq[*policyGraphNode] {
+	if pg.depth == 0 {
+		return nil
+	}
+	return maps.Values(pg.strata[pg.depth-1])
+}
+
+func (pg *policyGraph) leaves() map[string]*policyGraphNode {
+	return pg.strata[pg.depth]
+}
+
+func (pg *policyGraph) leafWithPolicy(policy OID) *policyGraphNode {
+	return pg.strata[pg.depth][string(policy.der)]
+}
+
+func (pg *policyGraph) deleteLeaf(policy OID) {
+	n := pg.strata[pg.depth][string(policy.der)]
+	if n == nil {
+		return
+	}
+	for p := range n.parents {
+		delete(p.children, n)
+	}
+	for c := range n.children {
+		delete(c.parents, n)
+	}
+	delete(pg.strata[pg.depth], string(policy.der))
+}
+
+func (pg *policyGraph) validPolicyNodes() []*policyGraphNode {
+	var validNodes []*policyGraphNode
+	for i := pg.depth; i >= 0; i-- {
+		for _, n := range pg.strata[i] {
+			if n.validPolicy.Equal(anyPolicyOID) {
+				continue
+			}
+
+			if len(n.parents) == 1 {
+				for p := range n.parents {
+					if p.validPolicy.Equal(anyPolicyOID) {
+						validNodes = append(validNodes, n)
+					}
+				}
+			}
+		}
+	}
+	return validNodes
+}
+
+func (pg *policyGraph) prune() {
+	for i := pg.depth - 1; i > 0; i-- {
+		for _, n := range pg.strata[i] {
+			if len(n.children) == 0 {
+				for p := range n.parents {
+					delete(p.children, n)
+				}
+				delete(pg.strata[i], string(n.validPolicy.der))
+			}
+		}
+	}
+}
+
+func (pg *policyGraph) incrDepth() {
+	pg.parentIndex = map[string][]*policyGraphNode{}
+	for _, n := range pg.strata[pg.depth] {
+		for _, e := range n.expectedPolicySet {
+			pg.parentIndex[string(e.der)] = append(pg.parentIndex[string(e.der)], n)
+		}
+	}
+
+	pg.depth++
+	pg.strata = append(pg.strata, map[string]*policyGraphNode{})
+}
+
+func policiesValid(chain []*Certificate, opts VerifyOptions) bool {
+	// The following code implements the policy verification algorithm as
+	// specified in RFC 5280 and updated by RFC 9618. In particular the
+	// following sections are replaced by RFC 9618:
+	//	* 6.1.2 (a)
+	//	* 6.1.3 (d)
+	//	* 6.1.3 (e)
+	//	* 6.1.3 (f)
+	//	* 6.1.4 (b)
+	//	* 6.1.5 (g)
+
+	if len(chain) == 1 {
+		return true
+	}
+
+	// n is the length of the chain minus the trust anchor
+	n := len(chain) - 1
+
+	pg := newPolicyGraph()
+	var inhibitAnyPolicy, explicitPolicy, policyMapping int
+	if !opts.inhibitAnyPolicy {
+		inhibitAnyPolicy = n + 1
+	}
+	if !opts.requireExplicitPolicy {
+		explicitPolicy = n + 1
+	}
+	if !opts.inhibitPolicyMapping {
+		policyMapping = n + 1
+	}
+
+	initialUserPolicySet := map[string]bool{}
+	for _, p := range opts.CertificatePolicies {
+		initialUserPolicySet[string(p.der)] = true
+	}
+	// If the user does not pass any policies, we consider
+	// that equivalent to passing anyPolicyOID.
+	if len(initialUserPolicySet) == 0 {
+		initialUserPolicySet[string(anyPolicyOID.der)] = true
+	}
+
+	for i := n - 1; i >= 0; i-- {
+		cert := chain[i]
+
+		isSelfSigned := bytes.Equal(cert.RawIssuer, cert.RawSubject)
+
+		// 6.1.3 (e) -- as updated by RFC 9618
+		if len(cert.Policies) == 0 {
+			pg = nil
+		}
+
+		// 6.1.3 (f) -- as updated by RFC 9618
+		if explicitPolicy == 0 && pg == nil {
+			return false
+		}
+
+		if pg != nil {
+			pg.incrDepth()
+
+			policies := map[string]bool{}
+
+			// 6.1.3 (d) (1) -- as updated by RFC 9618
+			for _, policy := range cert.Policies {
+				policies[string(policy.der)] = true
+
+				if policy.Equal(anyPolicyOID) {
+					continue
+				}
+
+				// 6.1.3 (d) (1) (i) -- as updated by RFC 9618
+				parents := pg.parentsWithExpected(policy)
+				if len(parents) == 0 {
+					// 6.1.3 (d) (1) (ii) -- as updated by RFC 9618
+					if anyParent := pg.parentWithAnyPolicy(); anyParent != nil {
+						parents = []*policyGraphNode{anyParent}
+					}
+				}
+				if len(parents) > 0 {
+					pg.insert(newPolicyGraphNode(policy, parents))
+				}
+			}
+
+			// 6.1.3 (d) (2) -- as updated by RFC 9618
+			// NOTE: in the check "n-i < n" our i is different from the i in the specification.
+			// In the specification chains go from the trust anchor to the leaf, whereas our
+			// chains go from the leaf to the trust anchor, so our i's our inverted. Our
+			// check here matches the check "i < n" in the specification.
+			if policies[string(anyPolicyOID.der)] && (inhibitAnyPolicy > 0 || (n-i < n && isSelfSigned)) {
+				missing := map[string][]*policyGraphNode{}
+				leaves := pg.leaves()
+				for p := range pg.parents() {
+					for _, expected := range p.expectedPolicySet {
+						if leaves[string(expected.der)] == nil {
+							missing[string(expected.der)] = append(missing[string(expected.der)], p)
+						}
+					}
+				}
+
+				for oidStr, parents := range missing {
+					pg.insert(newPolicyGraphNode(OID{der: []byte(oidStr)}, parents))
+				}
+			}
+
+			// 6.1.3 (d) (3) -- as updated by RFC 9618
+			pg.prune()
+
+			if i != 0 {
+				// 6.1.4 (b) -- as updated by RFC 9618
+				if len(cert.PolicyMappings) > 0 {
+					// collect map of issuer -> []subject
+					mappings := map[string][]OID{}
+
+					for _, mapping := range cert.PolicyMappings {
+						if policyMapping > 0 {
+							if mapping.IssuerDomainPolicy.Equal(anyPolicyOID) || mapping.SubjectDomainPolicy.Equal(anyPolicyOID) {
+								// Invalid mapping
+								return false
+							}
+							mappings[string(mapping.IssuerDomainPolicy.der)] = append(mappings[string(mapping.IssuerDomainPolicy.der)], mapping.SubjectDomainPolicy)
+						} else {
+							// 6.1.4 (b) (3) (i) -- as updated by RFC 9618
+							pg.deleteLeaf(mapping.IssuerDomainPolicy)
+
+							// 6.1.4 (b) (3) (ii) -- as updated by RFC 9618
+							pg.prune()
+						}
+					}
+
+					for issuerStr, subjectPolicies := range mappings {
+						// 6.1.4 (b) (1) -- as updated by RFC 9618
+						if matching := pg.leafWithPolicy(OID{der: []byte(issuerStr)}); matching != nil {
+							matching.expectedPolicySet = subjectPolicies
+						} else if matching := pg.leafWithPolicy(anyPolicyOID); matching != nil {
+							// 6.1.4 (b) (2) -- as updated by RFC 9618
+							n := newPolicyGraphNode(OID{der: []byte(issuerStr)}, []*policyGraphNode{matching})
+							n.expectedPolicySet = subjectPolicies
+							pg.insert(n)
+						}
+					}
+				}
+			}
+		}
+
+		if i != 0 {
+			// 6.1.4 (h)
+			if !isSelfSigned {
+				if explicitPolicy > 0 {
+					explicitPolicy--
+				}
+				if policyMapping > 0 {
+					policyMapping--
+				}
+				if inhibitAnyPolicy > 0 {
+					inhibitAnyPolicy--
+				}
+			}
+
+			// 6.1.4 (i)
+			if (cert.RequireExplicitPolicy > 0 || cert.RequireExplicitPolicyZero) && cert.RequireExplicitPolicy < explicitPolicy {
+				explicitPolicy = cert.RequireExplicitPolicy
+			}
+			if (cert.InhibitPolicyMapping > 0 || cert.InhibitPolicyMappingZero) && cert.InhibitPolicyMapping < policyMapping {
+				policyMapping = cert.InhibitPolicyMapping
+			}
+			// 6.1.4 (j)
+			if (cert.InhibitAnyPolicy > 0 || cert.InhibitAnyPolicyZero) && cert.InhibitAnyPolicy < inhibitAnyPolicy {
+				inhibitAnyPolicy = cert.InhibitAnyPolicy
+			}
+		}
+	}
+
+	// 6.1.5 (a)
+	if explicitPolicy > 0 {
+		explicitPolicy--
+	}
+
+	// 6.1.5 (b)
+	if chain[0].RequireExplicitPolicyZero {
+		explicitPolicy = 0
+	}
+
+	// 6.1.5 (g) (1) -- as updated by RFC 9618
+	var validPolicyNodeSet []*policyGraphNode
+	// 6.1.5 (g) (2) -- as updated by RFC 9618
+	if pg != nil {
+		validPolicyNodeSet = pg.validPolicyNodes()
+		// 6.1.5 (g) (3) -- as updated by RFC 9618
+		if currentAny := pg.leafWithPolicy(anyPolicyOID); currentAny != nil {
+			validPolicyNodeSet = append(validPolicyNodeSet, currentAny)
+		}
+	}
+
+	// 6.1.5 (g) (4) -- as updated by RFC 9618
+	authorityConstrainedPolicySet := map[string]bool{}
+	for _, n := range validPolicyNodeSet {
+		authorityConstrainedPolicySet[string(n.validPolicy.der)] = true
+	}
+	// 6.1.5 (g) (5) -- as updated by RFC 9618
+	userConstrainedPolicySet := maps.Clone(authorityConstrainedPolicySet)
+	// 6.1.5 (g) (6) -- as updated by RFC 9618
+	if len(initialUserPolicySet) != 1 || !initialUserPolicySet[string(anyPolicyOID.der)] {
+		// 6.1.5 (g) (6) (i) -- as updated by RFC 9618
+		for p := range userConstrainedPolicySet {
+			if !initialUserPolicySet[p] {
+				delete(userConstrainedPolicySet, p)
+			}
+		}
+		// 6.1.5 (g) (6) (ii) -- as updated by RFC 9618
+		if authorityConstrainedPolicySet[string(anyPolicyOID.der)] {
+			for policy := range initialUserPolicySet {
+				userConstrainedPolicySet[policy] = true
+			}
+		}
+	}
+
+	if explicitPolicy == 0 && len(userConstrainedPolicySet) == 0 {
+		return false
 	}
 
 	return true

@@ -22,7 +22,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -137,6 +137,7 @@ func TestReverseProxy(t *testing.T) {
 	if g, e := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != e {
 		t.Errorf("Trailer(X-Unannounced-Trailer) = %q ; want %q", g, e)
 	}
+	res.Body.Close()
 
 	// Test that a backend failing to be reached or one which doesn't return
 	// a response results in a StatusBadGateway.
@@ -202,10 +203,10 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 				}
 			}
 		}
-		sort.Strings(cf)
+		slices.Sort(cf)
 		expectedValues := []string{"Upgrade", someConnHeader, fakeConnectionToken}
-		sort.Strings(expectedValues)
-		if !reflect.DeepEqual(cf, expectedValues) {
+		slices.Sort(expectedValues)
+		if !slices.Equal(cf, expectedValues) {
 			t.Errorf("handler modified header %q = %q; want %q", "Connection", cf, expectedValues)
 		}
 	}))
@@ -328,6 +329,7 @@ func TestXForwardedFor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
+	defer res.Body.Close()
 	if g, e := res.StatusCode, backendStatus; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
@@ -765,7 +767,7 @@ func TestReverseProxyGetPutBuffer(t *testing.T) {
 	wantLog := []string{"getBuf", "putBuf-" + strconv.Itoa(size)}
 	mu.Lock()
 	defer mu.Unlock()
-	if !reflect.DeepEqual(log, wantLog) {
+	if !slices.Equal(log, wantLog) {
 		t.Errorf("Log events = %q; want %q", log, wantLog)
 	}
 }
@@ -801,6 +803,7 @@ func TestReverseProxy_Post(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Do: %v", err)
 	}
+	defer res.Body.Close()
 	if g, e := res.StatusCode, backendStatus; g != e {
 		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
@@ -1571,7 +1574,7 @@ func TestUnannouncedTrailer(t *testing.T) {
 	}
 
 	io.ReadAll(res.Body)
-
+	res.Body.Close()
 	if g, w := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != w {
 		t.Errorf("Trailer(X-Unannounced-Trailer) = %q; want %q", g, w)
 	}

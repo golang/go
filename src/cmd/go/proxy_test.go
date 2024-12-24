@@ -25,7 +25,7 @@ import (
 	"testing"
 
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/par"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"

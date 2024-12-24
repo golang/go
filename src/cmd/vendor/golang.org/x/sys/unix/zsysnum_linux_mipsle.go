@@ -441,4 +441,5 @@ const (
 	SYS_LSM_GET_SELF_ATTR            = 4459
 	SYS_LSM_SET_SELF_ATTR            = 4460
 	SYS_LSM_LIST_MODULES             = 4461
+	SYS_MSEAL                        = 4462
 )

@@ -493,7 +493,7 @@ func fetch(source string, duration, timeout time.Duration, ui plugin.UI, tr http
 	var f io.ReadCloser
 
 	// First determine whether the source is a file, if not, it will be treated as a URL.
-	if _, openErr := os.Stat(source); openErr == nil {
+	if _, err = os.Stat(source); err == nil {
 		if isPerfFile(source) {
 			f, err = convertPerfData(source, ui)
 		} else {

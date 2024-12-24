@@ -11,6 +11,15 @@ import (
 
 // Should be a built-in for unsafe.Pointer?
 //
+// add should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - fortio.org/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname add
 //go:nosplit
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
@@ -83,6 +92,18 @@ func badsystemstack() {
 //
 // The (CPU-specific) implementations of this function are in memclr_*.s.
 //
+// memclrNoHeapPointers should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//   - github.com/chenzhuoyu/iasm
+//   - github.com/dgraph-io/ristretto
+//   - github.com/outcaste-io/ristretto
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname memclrNoHeapPointers
 //go:noescape
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
@@ -103,12 +124,25 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 //
 // Implementations are in memmove_*.s.
 //
-//go:noescape
-func memmove(to, from unsafe.Pointer, n uintptr)
-
-// Outside assembly calls memmove. Make sure it has ABI wrappers.
+// Outside assembly calls memmove.
+//
+// memmove should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//   - github.com/cloudwego/dynamicgo
+//   - github.com/ebitengine/purego
+//   - github.com/tetratelabs/wazero
+//   - github.com/ugorji/go/codec
+//   - gvisor.dev/gvisor
+//   - github.com/sagernet/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname memmove
+//go:noescape
+func memmove(to, from unsafe.Pointer, n uintptr)
 
 //go:linkname reflect_memmove reflect.memmove
 func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
@@ -120,6 +154,15 @@ const hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
 
 // in internal/bytealg/equal_*.s
 //
+// memequal should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname memequal
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool
 
@@ -129,6 +172,19 @@ func memequal(a, b unsafe.Pointer, size uintptr) bool
 // compiles down to zero instructions.
 // USE CAREFULLY!
 //
+// noescape should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//   - github.com/ebitengine/purego
+//   - github.com/hamba/avro/v2
+//   - github.com/puzpuzpuz/xsync/v3
+//   - github.com/songzhibin97/gkit
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname noescape
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
@@ -207,6 +263,17 @@ func breakpoint()
 //go:noescape
 func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs)
 
+// procyield should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/sagernet/sing-tun
+//   - github.com/slackhq/nebula
+//   - golang.zx2c4.com/wireguard
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname procyield
 func procyield(cycles uint32)
 
 type neverCallThisFunction struct{}
@@ -240,62 +307,13 @@ func goexit(neverCallThisFunction)
 // data dependency ordering.
 func publicationBarrier()
 
-// getcallerpc returns the program counter (PC) of its caller's caller.
-// getcallersp returns the stack pointer (SP) of its caller's caller.
-// The implementation may be a compiler intrinsic; there is not
-// necessarily code implementing this on every platform.
-//
-// For example:
-//
-//	func f(arg1, arg2, arg3 int) {
-//		pc := getcallerpc()
-//		sp := getcallersp()
-//	}
-//
-// These two lines find the PC and SP immediately following
-// the call to f (where f will return).
-//
-// The call to getcallerpc and getcallersp must be done in the
-// frame being asked about.
-//
-// The result of getcallersp is correct at the time of the return,
-// but it may be invalidated by any subsequent call to a function
-// that might relocate the stack in order to grow or shrink it.
-// A general rule is that the result of getcallersp should be used
-// immediately and can only be passed to nosplit functions.
-
-//go:noescape
-func getcallerpc() uintptr
-
-//go:noescape
-func getcallersp() uintptr // implemented as an intrinsic on all platforms
-
-// getclosureptr returns the pointer to the current closure.
-// getclosureptr can only be used in an assignment statement
-// at the entry of a function. Moreover, go:nosplit directive
-// must be specified at the declaration of caller function,
-// so that the function prolog does not clobber the closure register.
-// for example:
-//
-//	//go:nosplit
-//	func f(arg1, arg2, arg3 int) {
-//		dx := getclosureptr()
-//	}
-//
-// The compiler rewrites calls to this function into instructions that fetch the
-// pointer from a well-known register (DX on x86 architecture, etc.) directly.
-//
-// WARNING: PGO-based devirtualization cannot detect that caller of
-// getclosureptr require closure context, and thus must maintain a list of
-// these functions, which is in
-// cmd/compile/internal/devirtualize/pgo.maybeDevirtualizeFunctionCall.
-func getclosureptr() uintptr
-
 //go:noescape
 func asmcgocall(fn, arg unsafe.Pointer) int32
 
 func morestack()
+
 func morestack_noctxt()
+
 func rt0_go()
 
 // return0 is a stub used to return 0 from deferproc.
@@ -353,6 +371,8 @@ func alignDown(n, a uintptr) uintptr {
 }
 
 // divRoundUp returns ceil(n / a).
+//
+//go:nosplit
 func divRoundUp(n, a uintptr) uintptr {
 	// a is generally a power of two. This will get inlined and
 	// the compiler will optimize the division.
@@ -380,7 +400,18 @@ func abort()
 
 // Called from compiled code; declared for vet; do NOT call from Go.
 func gcWriteBarrier1()
+
+// gcWriteBarrier2 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname gcWriteBarrier2
 func gcWriteBarrier2()
+
 func gcWriteBarrier3()
 func gcWriteBarrier4()
 func gcWriteBarrier5()

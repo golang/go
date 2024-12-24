@@ -38,7 +38,7 @@
 // //line directives that change line numbers in strange ways should be rare,
 // and failing PGO matching on these files is not too big of a loss.
 
-// Package pgoir assosciates a PGO profile with the IR of the current package
+// Package pgoir associates a PGO profile with the IR of the current package
 // compilation.
 package pgoir
 
@@ -50,6 +50,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/pgo"
 	"fmt"
+	"maps"
 	"os"
 )
 
@@ -267,7 +268,16 @@ func addIREdge(callerNode *IRNode, callerName string, call ir.Node, callee *ir.F
 // LookupFunc looks up a function or method in export data. It is expected to
 // be overridden by package noder, to break a dependency cycle.
 var LookupFunc = func(fullName string) (*ir.Func, error) {
-	base.Fatalf("pgo.LookupMethodFunc not overridden")
+	base.Fatalf("pgoir.LookupMethodFunc not overridden")
+	panic("unreachable")
+}
+
+// PostLookupCleanup performs any remaining cleanup operations needed
+// after a series of calls to LookupFunc, specifically reading in the
+// bodies of functions that may have been delayed due being encountered
+// in a stage where the reader's curfn state was not set up.
+var PostLookupCleanup = func() {
+	base.Fatalf("pgoir.PostLookupCleanup not overridden")
 	panic("unreachable")
 }
 
@@ -287,10 +297,7 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap pgo.NamedEdgeMap) {
 	// package build by VisitIR. We want to filter for local functions
 	// below, but we also add unknown callees to IRNodes as we go. So make
 	// an initial copy of IRNodes to recall just the local functions.
-	localNodes := make(map[string]*IRNode, len(g.IRNodes))
-	for k, v := range g.IRNodes {
-		localNodes[k] = v
-	}
+	localNodes := maps.Clone(g.IRNodes)
 
 	// N.B. We must consider edges in a stable order because export data
 	// lookup order (LookupMethodFunc, below) can impact the export data of
@@ -386,6 +393,8 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap pgo.NamedEdgeMap) {
 		}
 		callerNode.OutEdges[key] = edge
 	}
+
+	PostLookupCleanup()
 }
 
 // PrintWeightedCallGraphDOT prints IRGraph in DOT format.

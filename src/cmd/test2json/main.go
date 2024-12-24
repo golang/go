@@ -35,12 +35,13 @@
 // corresponding to the Go struct:
 //
 //	type TestEvent struct {
-//		Time    time.Time // encodes as an RFC3339-format string
-//		Action  string
-//		Package string
-//		Test    string
-//		Elapsed float64 // seconds
-//		Output  string
+//		Time        time.Time // encodes as an RFC3339-format string
+//		Action      string
+//		Package     string
+//		Test        string
+//		Elapsed     float64 // seconds
+//		Output      string
+//		FailedBuild string
 //	}
 //
 // The Time field holds the time the event happened.
@@ -79,6 +80,11 @@
 // the concatenation of the Output fields of all output events is the exact
 // output of the test execution.
 //
+// The FailedBuild field is set for Action == "fail" if the test failure was
+// caused by a build failure. It contains the package ID of the package that
+// failed to build. This matches the ImportPath field of the "go list" output,
+// as well as the BuildEvent.ImportPath field as emitted by "go build -json".
+//
 // When a benchmark runs, it typically produces a single line of output
 // giving timing results. That line is reported in an event with Action == "output"
 // and no Test field. If a benchmark logs output or reports a failure
@@ -96,7 +102,7 @@ import (
 	"os/exec"
 	"os/signal"
 
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 	"cmd/internal/test2json"
 )
 
@@ -116,12 +122,12 @@ func ignoreSignals() {
 }
 
 func main() {
-	telemetry.Start()
+	counter.Open()
 
 	flag.Usage = usage
 	flag.Parse()
-	telemetry.Inc("test2json/invocations")
-	telemetry.CountFlags("test2json/flag:", *flag.CommandLine)
+	counter.Inc("test2json/invocations")
+	counter.CountFlags("test2json/flag:", *flag.CommandLine)
 
 	var mode test2json.Mode
 	if *flagT {

@@ -153,11 +153,12 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 		s.Set(obj.AttrLocal, true)
 		s.Set(obj.AttrContentAddressable, true)
 		if exceptionHandler != nil {
-			r := obj.Addrel(s)
-			r.Off = int32(len(buf.data) - 4)
-			r.Siz = 4
-			r.Sym = exceptionHandler
-			r.Type = objabi.R_PEIMAGEOFF
+			s.AddRel(ctxt, obj.Reloc{
+				Type: objabi.R_PEIMAGEOFF,
+				Off:  int32(len(buf.data) - 4),
+				Siz:  4,
+				Sym:  exceptionHandler,
+			})
 		}
 		ctxt.SEHSyms = append(ctxt.SEHSyms, s)
 	})

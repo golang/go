@@ -5,7 +5,9 @@
 package ecdh
 
 import (
-	"crypto/internal/edwards25519/field"
+	"bytes"
+	"crypto/internal/fips140/edwards25519/field"
+	"crypto/internal/fips140only"
 	"crypto/internal/randutil"
 	"errors"
 	"io"
@@ -33,6 +35,9 @@ func (c *x25519Curve) String() string {
 }
 
 func (c *x25519Curve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/ecdh: use of X25519 is not allowed in FIPS 140-only mode")
+	}
 	key := make([]byte, x25519PrivateKeySize)
 	randutil.MaybeReadByte(rand)
 	if _, err := io.ReadFull(rand, key); err != nil {
@@ -42,35 +47,35 @@ func (c *x25519Curve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
 }
 
 func (c *x25519Curve) NewPrivateKey(key []byte) (*PrivateKey, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/ecdh: use of X25519 is not allowed in FIPS 140-only mode")
+	}
 	if len(key) != x25519PrivateKeySize {
 		return nil, errors.New("crypto/ecdh: invalid private key size")
 	}
+	publicKey := make([]byte, x25519PublicKeySize)
+	x25519Basepoint := [32]byte{9}
+	x25519ScalarMult(publicKey, key, x25519Basepoint[:])
+	// We don't check for the all-zero public key here because the scalar is
+	// never zero because of clamping, and the basepoint is not the identity in
+	// the prime-order subgroup(s).
 	return &PrivateKey{
 		curve:      c,
-		privateKey: append([]byte{}, key...),
+		privateKey: bytes.Clone(key),
+		publicKey:  &PublicKey{curve: c, publicKey: publicKey},
 	}, nil
 }
 
-func (c *x25519Curve) privateKeyToPublicKey(key *PrivateKey) *PublicKey {
-	if key.curve != c {
-		panic("crypto/ecdh: internal error: converting the wrong key type")
-	}
-	k := &PublicKey{
-		curve:     key.curve,
-		publicKey: make([]byte, x25519PublicKeySize),
-	}
-	x25519Basepoint := [32]byte{9}
-	x25519ScalarMult(k.publicKey, key.privateKey, x25519Basepoint[:])
-	return k
-}
-
 func (c *x25519Curve) NewPublicKey(key []byte) (*PublicKey, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/ecdh: use of X25519 is not allowed in FIPS 140-only mode")
+	}
 	if len(key) != x25519PublicKeySize {
 		return nil, errors.New("crypto/ecdh: invalid public key")
 	}
 	return &PublicKey{
 		curve:     c,
-		publicKey: append([]byte{}, key...),
+		publicKey: bytes.Clone(key),
 	}, nil
 }
 
@@ -133,4 +138,13 @@ func x25519ScalarMult(dst, scalar, point []byte) {
 	z2.Invert(&z2)
 	x2.Multiply(&x2, &z2)
 	copy(dst[:], x2.Bytes())
+}
+
+// isZero reports whether x is all zeroes in constant time.
+func isZero(x []byte) bool {
+	var acc byte
+	for _, b := range x {
+		acc |= b
+	}
+	return acc == 0
 }

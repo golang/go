@@ -23,17 +23,17 @@ import (
 // moduleWalkErr returns filepath.SkipDir if the directory isn't relevant
 // when indexing a module or generating a filehash, ErrNotIndexed,
 // if the module shouldn't be indexed, and nil otherwise.
-func moduleWalkErr(root string, path string, info fs.FileInfo, err error) error {
+func moduleWalkErr(root string, path string, d fs.DirEntry, err error) error {
 	if err != nil {
 		return ErrNotIndexed
 	}
 	// stop at module boundaries
-	if info.IsDir() && path != root {
-		if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+	if d.IsDir() && path != root {
+		if info, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !info.IsDir() {
 			return filepath.SkipDir
 		}
 	}
-	if info.Mode()&fs.ModeSymlink != 0 {
+	if d.Type()&fs.ModeSymlink != 0 {
 		if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 			// return an error to make the module hash invalid.
 			// Symlink directories in modules are tricky, so we won't index
@@ -57,12 +57,12 @@ func indexModule(modroot string) ([]byte, error) {
 	// we want to follow it (see https://go.dev/issue/50807).
 	// Add a trailing separator to force that to happen.
 	root := str.WithFilePathSeparator(modroot)
-	err := fsys.Walk(root, func(path string, info fs.FileInfo, err error) error {
-		if err := moduleWalkErr(root, path, info, err); err != nil {
+	err := fsys.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err := moduleWalkErr(root, path, d, err); err != nil {
 			return err
 		}
 
-		if !info.IsDir() {
+		if !d.IsDir() {
 			return nil
 		}
 		if !strings.HasPrefix(path, root) {
@@ -204,7 +204,7 @@ func importRaw(modroot, reldir string) *rawPackage {
 		if d.IsDir() {
 			continue
 		}
-		if d.Mode()&fs.ModeSymlink != 0 {
+		if d.Type()&fs.ModeSymlink != 0 {
 			if isDir(filepath.Join(absdir, d.Name())) {
 				// Symlinks to directories are not source files.
 				continue

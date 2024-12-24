@@ -107,6 +107,20 @@ func (s *Schedule) tryStaticInit(n ir.Node) bool {
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
 		lhs, rhs = []ir.Node{n.X}, n.Y
+	case ir.OAS2:
+		// Usually OAS2 has been rewritten to separate OASes by types2.
+		// What's left here is "var a, b = tmp1, tmp2" as a result from rewriting
+		// "var a, b = f()" that needs type conversion, which is not static.
+		n := n.(*ir.AssignListStmt)
+		for _, rhs := range n.Rhs {
+			for rhs.Op() == ir.OCONVNOP {
+				rhs = rhs.(*ir.ConvExpr).X
+			}
+			if name, ok := rhs.(*ir.Name); !ok || !name.AutoTemp() {
+				base.FatalfAt(n.Pos(), "unexpected rhs, not an autotmp: %+v", rhs)
+			}
+		}
+		return false
 	case ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 		n := n.(*ir.AssignListStmt)
 		if len(n.Lhs) < 2 || len(n.Rhs) != 1 {
@@ -265,6 +279,14 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 }
 
 func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
+	// If we're building for FIPS, avoid global data relocations
+	// by treating all address-of operations as non-static.
+	// See ../../../internal/obj/fips.go for more context.
+	// We do this even in non-PIE mode to avoid generating
+	// static temporaries that would go into SRODATAFIPS
+	// but need relocations. We can't handle that in the verification.
+	disableGlobalAddrs := base.Ctxt.IsFIPS()
+
 	if r == nil {
 		// No explicit initialization value. Either zero or supplied
 		// externally.
@@ -290,10 +312,16 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 
 	switch r.Op() {
 	case ir.ONAME:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.Name)
 		return s.staticcopy(l, loff, r, typ)
 
 	case ir.OMETHEXPR:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.SelectorExpr)
 		return s.staticcopy(l, loff, r.FuncName(), typ)
 
@@ -304,10 +332,16 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		if ir.IsZero(r) {
 			return true
 		}
+		if disableGlobalAddrs && r.Type().IsString() {
+			return false
+		}
 		staticdata.InitConst(l, loff, r, int(typ.Size()))
 		return true
 
 	case ir.OADDR:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.AddrExpr)
 		if name, offset, ok := StaticLoc(r.X); ok && name.Class == ir.PEXTERN {
 			staticdata.InitAddrOffset(l, loff, name.Linksym(), offset)
@@ -316,6 +350,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		fallthrough
 
 	case ir.OPTRLIT:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.AddrExpr)
 		switch r.X.Op() {
 		case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT:
@@ -332,6 +369,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		//dump("not static ptrlit", r);
 
 	case ir.OSTR2BYTES:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.ConvExpr)
 		if l.Class == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
 			sval := ir.StringVal(r.X)
@@ -340,6 +380,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		}
 
 	case ir.OSLICELIT:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.CompLitExpr)
 		s.initplan(r)
 		// Init slice.
@@ -360,7 +403,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		p := s.Plans[r]
 		for i := range p.E {
 			e := &p.E[i]
-			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
+			if e.Expr.Op() == ir.OLITERAL && !disableGlobalAddrs || e.Expr.Op() == ir.ONIL {
 				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Size()))
 				continue
 			}
@@ -374,17 +417,14 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		break
 
 	case ir.OCLOSURE:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.ClosureExpr)
-		if ir.IsTrivialClosure(r) {
+		if !r.Func.IsClosure() {
 			if base.Debug.Closure > 0 {
 				base.WarnfAt(r.Pos(), "closure converted to global")
 			}
-			// Issue 59680: if the closure we're looking at was produced
-			// by inlining, it could be marked as hidden, which we don't
-			// want (moving the func to a static init will effectively
-			// hide it from escape analysis). Mark as non-hidden here.
-			// so that it will participated in escape analysis.
-			r.Func.SetIsHiddenClosure(false)
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.
 			// TODO if roff != 0 { panic }
@@ -396,6 +436,10 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 	case ir.OCONVIFACE:
 		// This logic is mirrored in isStaticCompositeLiteral.
 		// If you change something here, change it there, and vice versa.
+
+		if disableGlobalAddrs {
+			return false
+		}
 
 		// Determine the underlying concrete type and value we are converting from.
 		r := r.(*ir.ConvExpr)
@@ -452,6 +496,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		return true
 
 	case ir.OINLCALL:
+		if disableGlobalAddrs {
+			return false
+		}
 		r := r.(*ir.InlinedCallExpr)
 		return s.staticAssignInlinedCall(l, loff, r, typ)
 	}
@@ -479,9 +526,6 @@ func (s *Schedule) initplan(n ir.Node) {
 			if a.Op() == ir.OKEY {
 				kv := a.(*ir.KeyExpr)
 				k = typecheck.IndexConst(kv.Key)
-				if k < 0 {
-					base.Fatalf("initplan arraylit: invalid index %v", kv.Key)
-				}
 				a = kv.Value
 			}
 			s.addvalue(p, k*n.Type().Elem().Size(), a)
@@ -660,7 +704,7 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 		count[x.(*ir.Name)] = 0
 	}
 
-	hasNonTrivialClosure := false
+	hasClosure := false
 	ir.Visit(as2body.Rhs[0], func(n ir.Node) {
 		if name, ok := n.(*ir.Name); ok {
 			if c, ok := count[name]; ok {
@@ -668,13 +712,13 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 			}
 		}
 		if clo, ok := n.(*ir.ClosureExpr); ok {
-			hasNonTrivialClosure = hasNonTrivialClosure || !ir.IsTrivialClosure(clo)
+			hasClosure = hasClosure || clo.Func.IsClosure()
 		}
 	})
 
-	// If there's a non-trivial closure, it has captured the param,
+	// If there's a closure, it has captured the param,
 	// so we can't substitute arg for param.
-	if hasNonTrivialClosure {
+	if hasClosure {
 		return false
 	}
 
@@ -723,10 +767,9 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 var statuniqgen int // name generator for static temps
 
 // StaticName returns a name backed by a (writable) static data symbol.
-// Use readonlystaticname for read-only node.
 func StaticName(t *types.Type) *ir.Name {
 	// Don't use LookupNum; it interns the resulting string, but these are all unique.
-	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen))
+	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePrefix, statuniqgen))
 	statuniqgen++
 
 	n := ir.NewNameAt(base.Pos, sym, t)
@@ -1184,9 +1227,7 @@ func AddKeepRelocations() {
 		if vs == nil {
 			base.Fatalf("bad: mapvar %v has no linksym", k)
 		}
-		r := obj.Addrel(vs)
-		r.Sym = fs
-		r.Type = objabi.R_KEEP
+		vs.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_KEEP, Sym: fs})
 		if base.Debug.WrapGlobalMapDbg > 1 {
 			fmt.Fprintf(os.Stderr, "=-= add R_KEEP relo from %s to %s\n",
 				vs.Name, fs.Name)

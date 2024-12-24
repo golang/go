@@ -199,6 +199,9 @@ func (q *query) validate() error {
 
 	if search.IsMetaPackage(q.pattern) && q.pattern != "all" {
 		if q.pattern != q.raw {
+			if q.pattern == "tool" {
+				return fmt.Errorf("can't request explicit version of \"tool\" pattern")
+			}
 			return fmt.Errorf("can't request explicit version of standard-library pattern %q", q.pattern)
 		}
 	}

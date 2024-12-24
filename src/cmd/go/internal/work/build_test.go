@@ -5,7 +5,6 @@
 package work
 
 import (
-	"fmt"
 	"internal/testenv"
 	"io/fs"
 	"os"
@@ -226,21 +225,15 @@ func TestRespectSetgidDir(t *testing.T) {
 	// of `(*Shell).ShowCmd` afterwards as a sanity check.
 	cfg.BuildX = true
 	var cmdBuf strings.Builder
-	sh := NewShell("", func(a ...any) (int, error) {
-		return cmdBuf.WriteString(fmt.Sprint(a...))
-	})
+	sh := NewShell("", &load.TextPrinter{Writer: &cmdBuf})
 
-	setgiddir, err := os.MkdirTemp("", "SetGroupID")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(setgiddir)
+	setgiddir := t.TempDir()
 
 	// BSD mkdir(2) inherits the parent directory group, and other platforms
 	// can inherit the parent directory group via setgid. The test setup (chmod
 	// setgid) will fail if the process does not have the group permission to
 	// the new temporary directory.
-	err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
+	err := os.Chown(setgiddir, os.Getuid(), os.Getgid())
 	if err != nil {
 		if testenv.SyscallIsNotSupported(err) {
 			t.Skip("skipping: chown is not supported on " + runtime.GOOS)

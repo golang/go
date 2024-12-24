@@ -63,15 +63,16 @@ var (
 	cgoEnabled   bool
 	goExperiment string
 	goDebug      string
+	tmpDir       string
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky", "arenas"}
+	dirs = []string{".", "ken", "chan", "interface", "internal/runtime/sys", "syntax", "dwarf", "fixedbugs", "codegen", "abi", "typeparam", "typeparam/mdempsky", "arenas"}
 )
 
 // Test is the main entrypoint that runs tests in the GOROOT/test directory.
 //
-// Each .go file test case in GOROOT/test is registered as a subtest with a
+// Each .go file test case in GOROOT/test is registered as a subtest with
 // a full name like "Test/fixedbugs/bug000.go" ('/'-separated relative path).
 func Test(t *testing.T) {
 	if *target != "" {
@@ -115,6 +116,7 @@ func Test(t *testing.T) {
 	cgoEnabled, _ = strconv.ParseBool(env.CGO_ENABLED)
 	goExperiment = env.GOEXPERIMENT
 	goDebug = env.GODEBUG
+	tmpDir = t.TempDir()
 
 	common := testCommon{
 		gorootTestDir: filepath.Join(testenv.GOROOT(t), "test"),
@@ -162,22 +164,17 @@ func shardMatch(name string) bool {
 }
 
 func goFiles(t *testing.T, dir string) []string {
-	f, err := os.Open(filepath.Join(testenv.GOROOT(t), "test", dir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	dirnames, err := f.Readdirnames(-1)
-	f.Close()
+	files, err := os.ReadDir(filepath.Join(testenv.GOROOT(t), "test", dir))
 	if err != nil {
 		t.Fatal(err)
 	}
 	names := []string{}
-	for _, name := range dirnames {
+	for _, file := range files {
+		name := file.Name()
 		if !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && shardMatch(name) {
 			names = append(names, name)
 		}
 	}
-	sort.Strings(names)
 	return names
 }
 
@@ -214,38 +211,27 @@ func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, p
 	return runcmd(cmd...)
 }
 
-var stdlibImportcfgStringOnce sync.Once // TODO(#56102): Use sync.OnceValue once available. Also below.
-var stdlibImportcfgString string
+var stdlibImportcfg = sync.OnceValue(func() string {
+	cmd := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std")
+	cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=")
+	output, err := cmd.Output()
+	if err, ok := err.(*exec.ExitError); ok && len(err.Stderr) != 0 {
+		log.Fatalf("'go list' failed: %v: %s", err, err.Stderr)
+	}
+	if err != nil {
+		log.Fatalf("'go list' failed: %v", err)
+	}
+	return string(output)
+})
 
-func stdlibImportcfg() string {
-	stdlibImportcfgStringOnce.Do(func() {
-		output, err := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std").Output()
-		if err != nil {
-			log.Fatal(err)
-		}
-		stdlibImportcfgString = string(output)
-	})
-	return stdlibImportcfgString
-}
-
-var stdlibImportcfgFilenameOnce sync.Once
-var stdlibImportcfgFilename string
-
-func stdlibImportcfgFile() string {
-	stdlibImportcfgFilenameOnce.Do(func() {
-		tmpdir, err := os.MkdirTemp("", "importcfg")
-		if err != nil {
-			log.Fatal(err)
-		}
-		filename := filepath.Join(tmpdir, "importcfg")
-		err = os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
-		if err != nil {
-			log.Fatal(err)
-		}
-		stdlibImportcfgFilename = filename
-	})
-	return stdlibImportcfgFilename
-}
+var stdlibImportcfgFile = sync.OnceValue(func() string {
+	filename := filepath.Join(tmpDir, "importcfg")
+	err := os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return filename
+})
 
 func linkFile(runcmd runCmd, goname string, importcfg string, ldflags []string) (err error) {
 	if importcfg == "" {
@@ -541,6 +527,7 @@ func (t test) run() error {
 
 	goexp := goExperiment
 	godebug := goDebug
+	gomodvers := ""
 
 	// collect flags
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
@@ -580,6 +567,10 @@ func (t test) run() error {
 			}
 			godebug += args[0]
 			runenv = append(runenv, "GODEBUG="+godebug)
+
+		case "-gomodversion": // set the GoVersion in generated go.mod files (just runindir ATM)
+			args = args[1:]
+			gomodvers = args[0]
 
 		default:
 			flags = append(flags, args[0])
@@ -898,7 +889,11 @@ func (t test) run() error {
 			t.Fatal(err)
 		}
 
-		modFile := fmt.Sprintf("module %s\ngo 1.14\n", modName)
+		modVersion := gomodvers
+		if modVersion == "" {
+			modVersion = "1.14"
+		}
+		modFile := fmt.Sprintf("module %s\ngo %s\n", modName, modVersion)
 		if err := os.WriteFile(filepath.Join(gopathSrcDir, "go.mod"), []byte(modFile), 0666); err != nil {
 			t.Fatal(err)
 		}
@@ -940,7 +935,6 @@ func (t test) run() error {
 			case ".s":
 				asms = append(asms, filepath.Join(longdir, file.Name()))
 			}
-
 		}
 		if len(asms) > 0 {
 			emptyHdrFile := filepath.Join(tempDir, "go_asm.h")
@@ -1126,19 +1120,15 @@ func (t test) run() error {
 	}
 }
 
-var execCmdOnce sync.Once
-var execCmd []string
-
-func findExecCmd() []string {
-	execCmdOnce.Do(func() {
-		if goos == runtime.GOOS && goarch == runtime.GOARCH {
-			// Do nothing.
-		} else if path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", goos, goarch)); err == nil {
-			execCmd = []string{path}
-		}
-	})
+var findExecCmd = sync.OnceValue(func() (execCmd []string) {
+	if goos == runtime.GOOS && goarch == runtime.GOARCH {
+		return nil
+	}
+	if path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", goos, goarch)); err == nil {
+		execCmd = []string{path}
+	}
 	return execCmd
-}
+})
 
 // checkExpectedOutput compares the output from compiling and/or running with the contents
 // of the corresponding reference output file, if any (replace ".go" with ".out").
@@ -1210,7 +1200,7 @@ func (t test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (err
 	for i := range out {
 		for j := 0; j < len(fullshort); j += 2 {
 			full, short := fullshort[j], fullshort[j+1]
-			out[i] = strings.Replace(out[i], full, short, -1)
+			out[i] = replacePrefix(out[i], full, short)
 		}
 	}
 
@@ -1289,9 +1279,16 @@ func (test) updateErrors(out, file string) {
 	// Parse new errors.
 	errors := make(map[int]map[string]bool)
 	tmpRe := regexp.MustCompile(`autotmp_\d+`)
+	fileRe := regexp.MustCompile(`(\.go):\d+:`)
 	for _, errStr := range splitOutput(out, false) {
-		errFile, rest, ok := strings.Cut(errStr, ":")
-		if !ok || errFile != file {
+		m := fileRe.FindStringSubmatchIndex(errStr)
+		if len(m) != 4 {
+			continue
+		}
+		// The end of the file is the end of the first and only submatch.
+		errFile := errStr[:m[3]]
+		rest := errStr[m[3]+1:]
+		if errFile != file {
 			continue
 		}
 		lineStr, msg, ok := strings.Cut(rest, ":")
@@ -1859,7 +1856,6 @@ var types2Failures = setOf(
 	"fixedbugs/issue20233.go", // types2 reports two instead of one error (preference: 1.17 compiler)
 	"fixedbugs/issue20245.go", // types2 reports two instead of one error (preference: 1.17 compiler)
 	"fixedbugs/issue31053.go", // types2 reports "unknown field" instead of "cannot refer to unexported field"
-	"fixedbugs/notinheap.go",  // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
 )
 
 var types2Failures32Bit = setOf(
@@ -1960,4 +1956,24 @@ func splitQuoted(s string) (r []string, err error) {
 		err = errors.New("unfinished escaping")
 	}
 	return args, err
+}
+
+// replacePrefix is like strings.ReplaceAll, but only replaces instances of old
+// that are preceded by ' ', '\t', or appear at the beginning of a line.
+//
+// This does the same kind of filename string replacement as cmd/go.
+// Pilfered from src/cmd/go/internal/work/shell.go .
+func replacePrefix(s, old, new string) string {
+	n := strings.Count(s, old)
+	if n == 0 {
+		return s
+	}
+
+	s = strings.ReplaceAll(s, " "+old, " "+new)
+	s = strings.ReplaceAll(s, "\n"+old, "\n"+new)
+	s = strings.ReplaceAll(s, "\n\t"+old, "\n\t"+new)
+	if strings.HasPrefix(s, old) {
+		s = new + s[len(old):]
+	}
+	return s
 }

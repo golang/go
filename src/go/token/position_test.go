@@ -7,7 +7,7 @@ package token
 import (
 	"fmt"
 	"math/rand"
-	"reflect"
+	"slices"
 	"sync"
 	"testing"
 )
@@ -130,7 +130,7 @@ func TestPositions(t *testing.T) {
 		if f.LineCount() != len(test.lines) {
 			t.Errorf("%s, SetLines: got line count %d; want %d", f.Name(), f.LineCount(), len(test.lines))
 		}
-		if !reflect.DeepEqual(f.Lines(), test.lines) {
+		if !slices.Equal(f.Lines(), test.lines) {
 			t.Errorf("%s, Lines after SetLines(v): got %v; want %v", f.Name(), f.Lines(), test.lines)
 		}
 		verifyPositions(t, fset, f, test.lines)
@@ -472,7 +472,7 @@ func TestFileAddLineColumnInfo(t *testing.T) {
 			for _, info := range test.infos {
 				f.AddLineColumnInfo(info.Offset, info.Filename, info.Line, info.Column)
 			}
-			if !reflect.DeepEqual(f.infos, test.want) {
+			if !slices.Equal(f.infos, test.want) {
 				t.Errorf("\ngot %+v, \nwant %+v", f.infos, test.want)
 			}
 		})

@@ -262,6 +262,11 @@ func fpTracebackPCs(fp unsafe.Pointer, pcBuf []uintptr) (i int) {
 	return i
 }
 
+//go:linkname pprof_fpunwindExpand
+func pprof_fpunwindExpand(dst, src []uintptr) int {
+	return fpunwindExpand(dst, src)
+}
+
 // fpunwindExpand expands a call stack from pcBuf into dst,
 // returning the number of PCs written to dst.
 // pcBuf and dst should not overlap.
@@ -272,7 +277,9 @@ func fpTracebackPCs(fp unsafe.Pointer, pcBuf []uintptr) (i int) {
 // sentinel. Physical frames are turned into logical frames via inline unwinding
 // and by applying the skip value that's stored in pcBuf[0].
 func fpunwindExpand(dst, pcBuf []uintptr) int {
-	if len(pcBuf) > 0 && pcBuf[0] == logicalStackSentinel {
+	if len(pcBuf) == 0 {
+		return 0
+	} else if len(pcBuf) > 0 && pcBuf[0] == logicalStackSentinel {
 		// pcBuf contains logical rather than inlined frames, skip has already been
 		// applied, just return it without the sentinel value in pcBuf[0].
 		return copy(dst, pcBuf[1:])

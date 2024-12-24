@@ -16,6 +16,7 @@ import "C"
 import (
 	"crypto/internal/boring/sig"
 	_ "crypto/internal/boring/syso"
+	"crypto/internal/fips140"
 	"internal/stringslite"
 	"math/bits"
 	"unsafe"
@@ -29,6 +30,12 @@ func init() {
 		panic("boringcrypto: not in FIPS mode")
 	}
 	sig.BoringCrypto()
+}
+
+func init() {
+	if fips140.Enabled {
+		panic("boringcrypto: cannot use GODEBUG=fips140 with GOEXPERIMENT=boringcrypto")
+	}
 }
 
 // Unreachable marks code that should be unreachable

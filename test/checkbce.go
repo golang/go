@@ -159,16 +159,14 @@ func decode1(data []byte) (x uint64) {
 }
 
 func decode2(data []byte) (x uint64) {
-	// TODO(rasky): this should behave like decode1 and compile to no
-	// boundchecks. We're currently not able to remove all of them.
 	for len(data) >= 32 {
 		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
-		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
-		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
-		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
 	}
 	return x

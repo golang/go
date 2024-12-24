@@ -38,7 +38,7 @@ func LeadingZeros64(x uint64) int { return 64 - Len64(x) }
 
 // --- TrailingZeros ---
 
-// See http://supertech.csail.mit.edu/papers/debruijn.pdf
+// See http://keithandkatie.com/keith/papers/debruijn.html
 const deBruijn32 = 0x077CB531
 
 var deBruijn32tab = [32]byte{

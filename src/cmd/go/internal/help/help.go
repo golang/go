@@ -16,10 +16,10 @@ import (
 	"unicode/utf8"
 
 	"cmd/go/internal/base"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 )
 
-var counterErrorsHelpUnknownTopic = telemetry.NewCounter("go/errors:help-unknown-topic")
+var counterErrorsHelpUnknownTopic = counter.New("go/errors:help-unknown-topic")
 
 // Help implements the 'help' command.
 func Help(w io.Writer, args []string) {

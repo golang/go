@@ -360,7 +360,7 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	var status _C_int
 	var r Pid_t
 	err = ERESTART
-	// AIX wait4 may return with ERESTART errno, while the processus is still
+	// AIX wait4 may return with ERESTART errno, while the process is still
 	// active.
 	for err == ERESTART {
 		r, err = wait4(Pid_t(pid), &status, options, rusage)

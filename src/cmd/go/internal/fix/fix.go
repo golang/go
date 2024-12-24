@@ -40,7 +40,7 @@ See also: go fmt, go vet.
 var fixes = CmdFix.Flag.String("fix", "", "comma-separated list of fixes to apply")
 
 func init() {
-	work.AddBuildFlags(CmdFix, work.DefaultBuildFlags)
+	work.AddBuildFlags(CmdFix, work.OmitBuildOnlyFlags)
 	CmdFix.Run = runFix // fix cycle
 }
 

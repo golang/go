@@ -122,17 +122,6 @@ func printSource(w io.Writer, rpt *Report) error {
 	return nil
 }
 
-// printWebSource prints an annotated source listing, include all
-// functions with samples that match the regexp rpt.options.symbol.
-func printWebSource(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
-	printHeader(w, rpt)
-	if err := PrintWebList(w, rpt, obj, -1); err != nil {
-		return err
-	}
-	printPageClosing(w)
-	return nil
-}
-
 // sourcePrinter holds state needed for generating source+asm HTML listing.
 type sourcePrinter struct {
 	reader     *sourceReader
@@ -198,24 +187,73 @@ type addressRange struct {
 	score      int64 // Used to order ranges for processing
 }
 
-// PrintWebList prints annotated source listing of rpt to w.
+// WebListData holds the data needed to generate HTML source code listing.
+type WebListData struct {
+	Total string
+	Files []WebListFile
+}
+
+// WebListFile holds the per-file information for HTML source code listing.
+type WebListFile struct {
+	Funcs []WebListFunc
+}
+
+// WebListFunc holds the per-function information for HTML source code listing.
+type WebListFunc struct {
+	Name       string
+	File       string
+	Flat       string
+	Cumulative string
+	Percent    string
+	Lines      []WebListLine
+}
+
+// WebListLine holds the per-source-line information for HTML source code listing.
+type WebListLine struct {
+	SrcLine      string
+	HTMLClass    string
+	Line         int
+	Flat         string
+	Cumulative   string
+	Instructions []WebListInstruction
+}
+
+// WebListInstruction holds the per-instruction information for HTML source code listing.
+type WebListInstruction struct {
+	NewBlock     bool // Insert marker that indicates separation from previous block
+	Flat         string
+	Cumulative   string
+	Synthetic    bool
+	Address      uint64
+	Disasm       string
+	FileLine     string
+	InlinedCalls []WebListCall
+}
+
+// WebListCall holds the per-inlined-call information for HTML source code listing.
+type WebListCall struct {
+	SrcLine  string
+	FileBase string
+	Line     int
+}
+
+// MakeWebList returns an annotated source listing of rpt.
 // rpt.prof should contain inlined call info.
-func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) error {
+func MakeWebList(rpt *Report, obj plugin.ObjTool, maxFiles int) (WebListData, error) {
 	sourcePath := rpt.options.SourcePath
 	if sourcePath == "" {
 		wd, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("could not stat current dir: %v", err)
+			return WebListData{}, fmt.Errorf("could not stat current dir: %v", err)
 		}
 		sourcePath = wd
 	}
 	sp := newSourcePrinter(rpt, obj, sourcePath)
 	if len(sp.interest) == 0 {
-		return fmt.Errorf("no matches found for regexp: %s", rpt.options.Symbol)
+		return WebListData{}, fmt.Errorf("no matches found for regexp: %s", rpt.options.Symbol)
 	}
-	sp.print(w, maxFiles, rpt)
-	sp.close()
-	return nil
+	defer sp.close()
+	return sp.generate(maxFiles, rpt), nil
 }
 
 func newSourcePrinter(rpt *Report, obj plugin.ObjTool, sourcePath string) *sourcePrinter {
@@ -566,7 +604,7 @@ func (sp *sourcePrinter) initSamples(flat, cum map[uint64]int64) {
 	}
 }
 
-func (sp *sourcePrinter) print(w io.Writer, maxFiles int, rpt *Report) {
+func (sp *sourcePrinter) generate(maxFiles int, rpt *Report) WebListData {
 	// Finalize per-file counts.
 	for _, file := range sp.files {
 		seen := map[uint64]bool{}
@@ -598,19 +636,31 @@ func (sp *sourcePrinter) print(w io.Writer, maxFiles int, rpt *Report) {
 		maxFiles = len(files)
 	}
 	sort.Slice(files, order)
+	result := WebListData{
+		Total: rpt.formatValue(rpt.total),
+	}
 	for i, f := range files {
 		if i < maxFiles {
-			sp.printFile(w, f, rpt)
+			result.Files = append(result.Files, sp.generateFile(f, rpt))
 		}
 	}
+	return result
 }
 
-func (sp *sourcePrinter) printFile(w io.Writer, f *sourceFile, rpt *Report) {
+func (sp *sourcePrinter) generateFile(f *sourceFile, rpt *Report) WebListFile {
+	var result WebListFile
 	for _, fn := range sp.functions(f) {
 		if fn.cum == 0 {
 			continue
 		}
-		printFunctionHeader(w, fn.name, f.fname, fn.flat, fn.cum, rpt)
+
+		listfn := WebListFunc{
+			Name:       fn.name,
+			File:       f.fname,
+			Flat:       rpt.formatValue(fn.flat),
+			Cumulative: rpt.formatValue(fn.cum),
+			Percent:    measurement.Percentage(fn.cum, rpt.total),
+		}
 		var asm []assemblyInstruction
 		for l := fn.begin; l < fn.end; l++ {
 			lineContents, ok := sp.reader.line(f.fname, l)
@@ -654,10 +704,12 @@ func (sp *sourcePrinter) printFile(w io.Writer, f *sourceFile, rpt *Report) {
 				})
 			}
 
-			printFunctionSourceLine(w, l, flatSum, cumSum, lineContents, asm, sp.reader, rpt)
+			listfn.Lines = append(listfn.Lines, makeWebListLine(l, flatSum, cumSum, lineContents, asm, sp.reader, rpt))
 		}
-		printFunctionClosing(w)
+
+		result.Funcs = append(result.Funcs, listfn)
 	}
+	return result
 }
 
 // functions splits apart the lines to show in a file into a list of per-function ranges.
@@ -752,89 +804,58 @@ func (sp *sourcePrinter) objectFile(m *profile.Mapping) plugin.ObjFile {
 	return object
 }
 
-// printHeader prints the page header for a weblist report.
-func printHeader(w io.Writer, rpt *Report) {
-	fmt.Fprintln(w, `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Pprof listing</title>`)
-	fmt.Fprintln(w, weblistPageCSS)
-	fmt.Fprintln(w, weblistPageScript)
-	fmt.Fprint(w, "</head>\n<body>\n\n")
-
-	var labels []string
-	for _, l := range ProfileLabels(rpt) {
-		labels = append(labels, template.HTMLEscapeString(l))
+// makeWebListLine returns the contents of a single line in a web listing. This includes
+// the source line and the corresponding assembly.
+func makeWebListLine(lineNo int, flat, cum int64, lineContents string,
+	assembly []assemblyInstruction, reader *sourceReader, rpt *Report) WebListLine {
+	line := WebListLine{
+		SrcLine:    lineContents,
+		Line:       lineNo,
+		Flat:       valueOrDot(flat, rpt),
+		Cumulative: valueOrDot(cum, rpt),
 	}
 
-	fmt.Fprintf(w, `<div class="legend">%s<br>Total: %s</div>`,
-		strings.Join(labels, "<br>\n"),
-		rpt.formatValue(rpt.total),
-	)
-}
-
-// printFunctionHeader prints a function header for a weblist report.
-func printFunctionHeader(w io.Writer, name, path string, flatSum, cumSum int64, rpt *Report) {
-	fmt.Fprintf(w, `<h2>%s</h2><p class="filename">%s</p>
-<pre onClick="pprof_toggle_asm(event)">
-  Total:  %10s %10s (flat, cum) %s
-`,
-		template.HTMLEscapeString(name), template.HTMLEscapeString(path),
-		rpt.formatValue(flatSum), rpt.formatValue(cumSum),
-		measurement.Percentage(cumSum, rpt.total))
-}
-
-// printFunctionSourceLine prints a source line and the corresponding assembly.
-func printFunctionSourceLine(w io.Writer, lineNo int, flat, cum int64, lineContents string,
-	assembly []assemblyInstruction, reader *sourceReader, rpt *Report) {
 	if len(assembly) == 0 {
-		fmt.Fprintf(w,
-			"<span class=line> %6d</span> <span class=nop>  %10s %10s %8s  %s </span>\n",
-			lineNo,
-			valueOrDot(flat, rpt), valueOrDot(cum, rpt),
-			"", template.HTMLEscapeString(lineContents))
-		return
+		line.HTMLClass = "nop"
+		return line
 	}
 
 	nestedInfo := false
-	cl := "deadsrc"
+	line.HTMLClass = "deadsrc"
 	for _, an := range assembly {
 		if len(an.inlineCalls) > 0 || an.instruction != synthAsm {
 			nestedInfo = true
-			cl = "livesrc"
+			line.HTMLClass = "livesrc"
 		}
 	}
 
-	fmt.Fprintf(w,
-		"<span class=line> %6d</span> <span class=%s>  %10s %10s %8s  %s </span>",
-		lineNo, cl,
-		valueOrDot(flat, rpt), valueOrDot(cum, rpt),
-		"", template.HTMLEscapeString(lineContents))
 	if nestedInfo {
 		srcIndent := indentation(lineContents)
-		printNested(w, srcIndent, assembly, reader, rpt)
+		line.Instructions = makeWebListInstructions(srcIndent, assembly, reader, rpt)
 	}
-	fmt.Fprintln(w)
+	return line
 }
 
-func printNested(w io.Writer, srcIndent int, assembly []assemblyInstruction, reader *sourceReader, rpt *Report) {
-	fmt.Fprint(w, "<span class=asm>")
+func makeWebListInstructions(srcIndent int, assembly []assemblyInstruction, reader *sourceReader, rpt *Report) []WebListInstruction {
+	var result []WebListInstruction
 	var curCalls []callID
 	for i, an := range assembly {
-		if an.startsBlock && i != 0 {
-			// Insert a separator between discontiguous blocks.
-			fmt.Fprintf(w, " %8s %28s\n", "", "⋮")
-		}
-
 		var fileline string
 		if an.file != "" {
 			fileline = fmt.Sprintf("%s:%d", template.HTMLEscapeString(filepath.Base(an.file)), an.line)
 		}
-		flat, cum := an.flat, an.cum
+		text := strings.Repeat(" ", srcIndent+4+4*len(an.inlineCalls)) + an.instruction
+		inst := WebListInstruction{
+			NewBlock:   (an.startsBlock && i != 0),
+			Flat:       valueOrDot(an.flat, rpt),
+			Cumulative: valueOrDot(an.cum, rpt),
+			Synthetic:  (an.instruction == synthAsm),
+			Address:    an.address,
+			Disasm:     rightPad(text, 80),
+			FileLine:   fileline,
+		}
 
-		// Print inlined call context.
+		// Add inlined call context.
 		for j, c := range an.inlineCalls {
 			if j < len(curCalls) && curCalls[j] == c {
 				// Skip if same as previous instruction.
@@ -845,36 +866,18 @@ func printNested(w io.Writer, srcIndent int, assembly []assemblyInstruction, rea
 			if !ok {
 				fline = ""
 			}
-			text := strings.Repeat(" ", srcIndent+4+4*j) + strings.TrimSpace(fline)
-			fmt.Fprintf(w, " %8s %10s %10s %8s  <span class=inlinesrc>%s</span> <span class=unimportant>%s:%d</span>\n",
-				"", "", "", "",
-				template.HTMLEscapeString(rightPad(text, 80)),
-				template.HTMLEscapeString(filepath.Base(c.file)), c.line)
+			srcCode := strings.Repeat(" ", srcIndent+4+4*j) + strings.TrimSpace(fline)
+			inst.InlinedCalls = append(inst.InlinedCalls, WebListCall{
+				SrcLine:  rightPad(srcCode, 80),
+				FileBase: filepath.Base(c.file),
+				Line:     c.line,
+			})
 		}
 		curCalls = an.inlineCalls
-		if an.instruction == synthAsm {
-			continue
-		}
-		text := strings.Repeat(" ", srcIndent+4+4*len(curCalls)) + an.instruction
-		fmt.Fprintf(w, " %8s %10s %10s %8x: %s <span class=unimportant>%s</span>\n",
-			"", valueOrDot(flat, rpt), valueOrDot(cum, rpt), an.address,
-			template.HTMLEscapeString(rightPad(text, 80)),
-			// fileline should not be escaped since it was formed by appending
-			// line number (just digits) to an escaped file name. Escaping here
-			// would cause double-escaping of file name.
-			fileline)
+
+		result = append(result, inst)
 	}
-	fmt.Fprint(w, "</span>")
-}
-
-// printFunctionClosing prints the end of a function in a weblist report.
-func printFunctionClosing(w io.Writer) {
-	fmt.Fprintln(w, "</pre>")
-}
-
-// printPageClosing prints the end of the page in a weblist report.
-func printPageClosing(w io.Writer) {
-	fmt.Fprintln(w, weblistPageClosing)
+	return result
 }
 
 // getSourceFromFile collects the sources of a function from a source

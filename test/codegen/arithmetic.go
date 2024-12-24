@@ -320,14 +320,14 @@ func Pow2DivisibleSigned(n1, n2 int) (bool, bool) {
 	// amd64:"TESTQ\t[$]63",-"DIVQ",-"SHRQ"
 	// arm:"AND\t[$]63",-".*udiv",-"SRA"
 	// arm64:"TST\t[$]63",-"UDIV",-"ASR",-"AND"
-	// ppc64x:"RLDICL",-"SRAD"
+	// ppc64x:"ANDCC",-"RLDICL",-"SRAD",-"CMP"
 	a := n1%64 == 0 // signed divisible
 
 	// 386:"TESTL\t[$]63",-"DIVL",-"SHRL"
 	// amd64:"TESTQ\t[$]63",-"DIVQ",-"SHRQ"
 	// arm:"AND\t[$]63",-".*udiv",-"SRA"
 	// arm64:"TST\t[$]63",-"UDIV",-"ASR",-"AND"
-	// ppc64x:"RLDICL",-"SRAD"
+	// ppc64x:"ANDCC",-"RLDICL",-"SRAD",-"CMP"
 	b := n2%64 != 0 // signed indivisible
 
 	return a, b
@@ -628,4 +628,40 @@ func constantFold3(i, j int) int {
 	// ppc64x:"MULLD\t[$]30","MULLD"
 	r := (5 * i) * (6 * j)
 	return r
+}
+
+// ----------------- //
+//  Integer Min/Max  //
+// ----------------- //
+
+func Int64Min(a, b int64) int64 {
+	// amd64: "CMPQ","CMOVQLT"
+	// arm64: "CMP","CSEL"
+	// riscv64/rva20u64:"BLT\t"
+	// riscv64/rva22u64:"MIN\t"
+	return min(a, b)
+}
+
+func Int64Max(a, b int64) int64 {
+	// amd64: "CMPQ","CMOVQGT"
+	// arm64: "CMP","CSEL"
+	// riscv64/rva20u64:"BLT\t"
+	// riscv64/rva22u64:"MAX\t"
+	return max(a, b)
+}
+
+func Uint64Min(a, b uint64) uint64 {
+	// amd64: "CMPQ","CMOVQCS"
+	// arm64: "CMP","CSEL"
+	// riscv64/rva20u64:"BLTU"
+	// riscv64/rva22u64:"MINU"
+	return min(a, b)
+}
+
+func Uint64Max(a, b uint64) uint64 {
+	// amd64: "CMPQ","CMOVQHI"
+	// arm64: "CMP","CSEL"
+	// riscv64/rva20u64:"BLTU"
+	// riscv64/rva22u64:"MAXU"
+	return max(a, b)
 }

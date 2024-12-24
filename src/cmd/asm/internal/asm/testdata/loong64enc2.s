@@ -5,8 +5,6 @@
 #include "../../../../../runtime/textflag.h"
 
 TEXT asmtest(SB),DUPOK|NOSPLIT,$0
-	MOVB	R4, R5			// 85e04000a5e04800
-	MOVWU	R4, R5			// 85804100a5804500
 	MOVW	$74565, R4		// 4402001484148d03
 	MOVW	$4097, R4		// 2400001484048003
 	MOVV	$74565, R4		// 4402001484148d03
@@ -59,7 +57,6 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XOR	$4096, R4		// 3e00001484f81500
 	XOR	$-1, R4, R5		// 1efcbf0285f81500
 	XOR	$-1, R4			// 1efcbf0284f81500
-	MOVH	R4, R5			// 85c04000a5c04800
 
 	// relocation instructions
 	MOVW	R4, name(SB)		// 1e00001ac4038029

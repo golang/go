@@ -127,6 +127,27 @@ func TestInvalidOID(t *testing.T) {
 	}
 }
 
+func TestOIDEqual(t *testing.T) {
+	var cases = []struct {
+		oid  OID
+		oid2 OID
+		eq   bool
+	}{
+		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: mustNewOIDFromInts([]uint64{1, 2, 3}), eq: true},
+		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: mustNewOIDFromInts([]uint64{1, 2, 4}), eq: false},
+		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: mustNewOIDFromInts([]uint64{1, 2, 3, 4}), eq: false},
+		{oid: mustNewOIDFromInts([]uint64{2, 33, 22}), oid2: mustNewOIDFromInts([]uint64{2, 33, 23}), eq: false},
+		{oid: OID{}, oid2: OID{}, eq: true},
+		{oid: OID{}, oid2: mustNewOIDFromInts([]uint64{2, 33, 23}), eq: false},
+	}
+
+	for _, tt := range cases {
+		if eq := tt.oid.Equal(tt.oid2); eq != tt.eq {
+			t.Errorf("(%v).Equal(%v) = %v, want %v", tt.oid, tt.oid2, eq, tt.eq)
+		}
+	}
+}
+
 var (
 	_ encoding.BinaryMarshaler   = OID{}
 	_ encoding.BinaryUnmarshaler = new(OID)
@@ -207,6 +228,14 @@ func TestOIDMarshal(t *testing.T) {
 			continue
 		}
 
+		textAppend := make([]byte, 4)
+		textAppend, err = o.AppendText(textAppend)
+		textAppend = textAppend[4:]
+		if string(textAppend) != tt.in || err != nil {
+			t.Errorf("(%#v).AppendText() = (%v, %v); want = (%v, nil)", o, string(textAppend), err, tt.in)
+			continue
+		}
+
 		binary, err := o.MarshalBinary()
 		if err != nil {
 			t.Errorf("(%#v).MarshalBinary() = %v; want = nil", o, err)
@@ -220,6 +249,67 @@ func TestOIDMarshal(t *testing.T) {
 		if !o3.Equal(tt.out) {
 			t.Errorf("(*OID).UnmarshalBinary(%v) = %v; want = %v", binary, o3, tt.out)
 			continue
+		}
+
+		binaryAppend := make([]byte, 4)
+		binaryAppend, err = o.AppendBinary(binaryAppend)
+		binaryAppend = binaryAppend[4:]
+		if err != nil {
+			t.Errorf("(%#v).AppendBinary() = %v; want = nil", o, err)
+		}
+
+		var o4 OID
+		if err := o4.UnmarshalBinary(binaryAppend); err != nil {
+			t.Errorf("(*OID).UnmarshalBinary(%v) = %v; want = nil", binaryAppend, err)
+		}
+
+		if !o4.Equal(tt.out) {
+			t.Errorf("(*OID).UnmarshalBinary(%v) = %v; want = %v", binaryAppend, o4, tt.out)
+			continue
+		}
+	}
+}
+
+func TestOIDEqualASN1OID(t *testing.T) {
+	maxInt32PlusOne := int64(math.MaxInt32) + 1
+	var cases = []struct {
+		oid  OID
+		oid2 asn1.ObjectIdentifier
+		eq   bool
+	}{
+		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 3}, eq: true},
+		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 4}, eq: false},
+		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 3, 4}, eq: false},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 22}), oid2: asn1.ObjectIdentifier{1, 33, 23}, eq: false},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 23}), oid2: asn1.ObjectIdentifier{1, 33, 22}, eq: false},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 127}), oid2: asn1.ObjectIdentifier{1, 33, 127}, eq: true},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 127}, eq: false},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 128}, eq: true},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 129}), oid2: asn1.ObjectIdentifier{1, 33, 129}, eq: true},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 129}, eq: false},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 129}), oid2: asn1.ObjectIdentifier{1, 33, 128}, eq: false},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 255}), oid2: asn1.ObjectIdentifier{1, 33, 255}, eq: true},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 256}), oid2: asn1.ObjectIdentifier{1, 33, 256}, eq: true},
+		{oid: mustNewOIDFromInts([]uint64{2, 33, 257}), oid2: asn1.ObjectIdentifier{2, 33, 256}, eq: false},
+		{oid: mustNewOIDFromInts([]uint64{2, 33, 256}), oid2: asn1.ObjectIdentifier{2, 33, 257}, eq: false},
+
+		{oid: mustNewOIDFromInts([]uint64{1, 33}), oid2: asn1.ObjectIdentifier{1, 33, math.MaxInt32}, eq: false},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, math.MaxInt32}), oid2: asn1.ObjectIdentifier{1, 33}, eq: false},
+		{oid: mustNewOIDFromInts([]uint64{1, 33, math.MaxInt32}), oid2: asn1.ObjectIdentifier{1, 33, math.MaxInt32}, eq: true},
+		{
+			oid:  mustNewOIDFromInts([]uint64{1, 33, math.MaxInt32 + 1}),
+			oid2: asn1.ObjectIdentifier{1, 33 /*convert to int, so that it compiles on 32bit*/, int(maxInt32PlusOne)},
+			eq:   false,
+		},
+
+		{oid: mustNewOIDFromInts([]uint64{1, 33, 256}), oid2: asn1.ObjectIdentifier{}, eq: false},
+		{oid: OID{}, oid2: asn1.ObjectIdentifier{1, 33, 256}, eq: false},
+		{oid: OID{}, oid2: asn1.ObjectIdentifier{}, eq: false},
+	}
+
+	for _, tt := range cases {
+		if eq := tt.oid.EqualASN1OID(tt.oid2); eq != tt.eq {
+			t.Errorf("(%v).EqualASN1OID(%v) = %v, want %v", tt.oid, tt.oid2, eq, tt.eq)
 		}
 	}
 }
@@ -241,7 +331,7 @@ func TestOIDUnmarshalBinary(t *testing.T) {
 }
 
 func BenchmarkOIDMarshalUnmarshalText(b *testing.B) {
-	oid := mustNewOIDFromInts(b, []uint64{1, 2, 3, 9999, 1024})
+	oid := mustNewOIDFromInts([]uint64{1, 2, 3, 9999, 1024})
 	for range b.N {
 		text, err := oid.MarshalText()
 		if err != nil {
@@ -252,12 +342,4 @@ func BenchmarkOIDMarshalUnmarshalText(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
-}
-
-func mustNewOIDFromInts(t testing.TB, ints []uint64) OID {
-	oid, err := OIDFromInts(ints)
-	if err != nil {
-		t.Fatalf("OIDFromInts(%v) unexpected error: %v", ints, err)
-	}
-	return oid
 }

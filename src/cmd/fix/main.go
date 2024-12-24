@@ -19,10 +19,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 )
 
 var (
@@ -50,7 +50,9 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "usage: go tool fix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
 	flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
-	sort.Sort(byName(fixes))
+	slices.SortFunc(fixes, func(a, b fix) int {
+		return strings.Compare(a.name, b.name)
+	})
 	for _, f := range fixes {
 		if f.disabled {
 			fmt.Fprintf(os.Stderr, "\n%s (disabled)\n", f.name)
@@ -65,18 +67,20 @@ func usage() {
 }
 
 func main() {
-	telemetry.Start()
+	counter.Open()
 	flag.Usage = usage
 	flag.Parse()
-	telemetry.Inc("fix/invocations")
-	telemetry.CountFlags("fix/flag:", *flag.CommandLine)
+	counter.Inc("fix/invocations")
+	counter.CountFlags("fix/flag:", *flag.CommandLine)
 
 	if !version.IsValid(*goVersion) {
 		report(fmt.Errorf("invalid -go=%s", *goVersion))
 		os.Exit(exitCode)
 	}
 
-	sort.Sort(byDate(fixes))
+	slices.SortFunc(fixes, func(a, b fix) int {
+		return strings.Compare(a.date, b.date)
+	})
 
 	if *allowedRewrites != "" {
 		allowed = make(map[string]bool)

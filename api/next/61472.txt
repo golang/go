@@ -1,1 +1,0 @@
-pkg net/http, method (*Request) CookiesNamed(string) []*Cookie #61472

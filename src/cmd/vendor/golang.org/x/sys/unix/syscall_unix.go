@@ -154,6 +154,15 @@ func Munmap(b []byte) (err error) {
 	return mapper.Munmap(b)
 }
 
+func MmapPtr(fd int, offset int64, addr unsafe.Pointer, length uintptr, prot int, flags int) (ret unsafe.Pointer, err error) {
+	xaddr, err := mapper.mmap(uintptr(addr), length, prot, flags, fd, offset)
+	return unsafe.Pointer(xaddr), err
+}
+
+func MunmapPtr(addr unsafe.Pointer, length uintptr) (err error) {
+	return mapper.munmap(uintptr(addr), length)
+}
+
 func Read(fd int, p []byte) (n int, err error) {
 	n, err = read(fd, p)
 	if raceenabled {

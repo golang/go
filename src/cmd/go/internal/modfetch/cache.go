@@ -24,9 +24,9 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/par"
-	"cmd/go/internal/robustio"
-	"cmd/internal/telemetry"
+	"cmd/internal/par"
+	"cmd/internal/robustio"
+	"cmd/internal/telemetry/counter"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -779,7 +779,7 @@ var (
 	statCacheOnce sync.Once
 	statCacheErr  error
 
-	counterErrorsGOMODCACHEEntryRelative = telemetry.NewCounter("go/errors:gomodcache-entry-relative")
+	counterErrorsGOMODCACHEEntryRelative = counter.New("go/errors:gomodcache-entry-relative")
 )
 
 // checkCacheDir checks if the directory specified by GOMODCACHE exists. An

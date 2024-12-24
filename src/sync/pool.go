@@ -42,10 +42,12 @@ import (
 //
 // A Pool must not be copied after first use.
 //
-// In the terminology of the Go memory model, a call to Put(x) “synchronizes before”
+// In the terminology of [the Go memory model], a call to Put(x) “synchronizes before”
 // a call to [Pool.Get] returning that same value x.
 // Similarly, a call to New returning x “synchronizes before”
 // a call to Get returning that same value x.
+//
+// [the Go memory model]: https://go.dev/ref/mem
 type Pool struct {
 	noCopy noCopy
 
@@ -242,6 +244,16 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
 	return &local[pid], pid
 }
 
+// poolCleanup should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//   - github.com/songzhibin97/gkit
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname poolCleanup
 func poolCleanup() {
 	// This function is called with the world stopped, at the beginning of a garbage collection.
 	// It must not allocate and probably should not call any runtime functions.

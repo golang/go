@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/runtime/atomic"
+	"internal/stringslite"
 	"unsafe"
 )
 
@@ -124,7 +125,7 @@ func indexNoFloat(s, t string) int {
 		return 0
 	}
 	for i := 0; i < len(s); i++ {
-		if s[i] == t[0] && hasPrefix(s[i:], t) {
+		if s[i] == t[0] && stringslite.HasPrefix(s[i:], t) {
 			return i
 		}
 	}
@@ -132,20 +133,20 @@ func indexNoFloat(s, t string) int {
 }
 
 func atolwhex(p string) int64 {
-	for hasPrefix(p, " ") || hasPrefix(p, "\t") {
+	for stringslite.HasPrefix(p, " ") || stringslite.HasPrefix(p, "\t") {
 		p = p[1:]
 	}
 	neg := false
-	if hasPrefix(p, "-") || hasPrefix(p, "+") {
+	if stringslite.HasPrefix(p, "-") || stringslite.HasPrefix(p, "+") {
 		neg = p[0] == '-'
 		p = p[1:]
-		for hasPrefix(p, " ") || hasPrefix(p, "\t") {
+		for stringslite.HasPrefix(p, " ") || stringslite.HasPrefix(p, "\t") {
 			p = p[1:]
 		}
 	}
 	var n int64
 	switch {
-	case hasPrefix(p, "0x"), hasPrefix(p, "0X"):
+	case stringslite.HasPrefix(p, "0x"), stringslite.HasPrefix(p, "0X"):
 		p = p[2:]
 		for ; len(p) > 0; p = p[1:] {
 			if '0' <= p[0] && p[0] <= '9' {
@@ -158,7 +159,7 @@ func atolwhex(p string) int64 {
 				break
 			}
 		}
-	case hasPrefix(p, "0"):
+	case stringslite.HasPrefix(p, "0"):
 		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '7'; p = p[1:] {
 			n = n*8 + int64(p[0]-'0')
 		}

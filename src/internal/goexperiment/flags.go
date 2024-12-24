@@ -110,4 +110,22 @@ type Flags struct {
 
 	// RangeFunc enables range over func.
 	RangeFunc bool
+
+	// AliasTypeParams enables type parameters for alias types.
+	// Requires that gotypesalias=1 is set with GODEBUG.
+	// This flag will be removed with Go 1.25.
+	AliasTypeParams bool
+
+	// SwissMap enables the SwissTable-based map implementation.
+	SwissMap bool
+
+	// SpinbitMutex enables the new "spinbit" mutex implementation on supported
+	// platforms. See https://go.dev/issue/68578.
+	SpinbitMutex bool
+
+	// SyncHashTrieMap enables the HashTrieMap sync.Map implementation.
+	SyncHashTrieMap bool
+
+	// Synctest enables the testing/synctest package.
+	Synctest bool
 }

@@ -41,8 +41,17 @@ Use the following forms in your markdown:
 
 	[http.Request]                     # symbol documentation; auto-linked as in Go doc strings
 	[Request]                          # short form, for symbols in the package being documented
+	[net/http]                         # package link
 	[#12345](/issue/12345)             # GitHub issues
 	[CL 6789](/cl/6789)                # Gerrit changelists
+
+To preview `next` content in merged form using a local instance of the website, run:
+
+```
+go run golang.org/x/website/cmd/golangorg@latest -goroot=..
+```
+
+Then open http://localhost:6060/doc/next. Refresh the page to see your latest edits.
 
 ## For the release team
 
@@ -54,12 +63,13 @@ unfinished release note work.
 
 To prepare the release notes for a release, run `relnote generate`.
 That will merge the `.md` files in `next` into a single file.
+Atomically (as close to it as possible) add that file to `_content/doc` directory
+of the website repository and remove the `doc/next` directory in this repository.
 
-To begin the next release development cycle, delete the contents of `next`
-and replace them with those of `initial`. From the repo root:
+To begin the next release development cycle, populate the contents of `next`
+with those of `initial`. From the repo root:
 
     > cd doc
-    > rm -r next/*
-    > cp -r initial/* next
+    > cp -R initial/ next
 
 Then edit `next/1-intro.md` to refer to the next version.

@@ -46,6 +46,25 @@ go env
 stdout 'GOTELEMETRY=''?on''?'
 stdout 'GOTELEMETRYDIR=''?'$userconfig'[\\/]go[\\/]telemetry''?'
 ! go env -w GOTELEMETRY=off
-stderr '^go: unknown go command variable GOTELEMETRY$'
+stderr '^go: GOTELEMETRY cannot be modified$'
 ! go env -w GOTELEMETRYDIR=foo
-stderr '^go: unknown go command variable GOTELEMETRYDIR$'
+stderr '^go: GOTELEMETRYDIR cannot be modified$'
+
+# Test issue #69269: 'go telemetry off' should not increment counters.
+# Establish that previous commands did write telemetry files.
+# Only check for the existence of telemetry data on supported platforms.
+[!GOOS:openbsd] [!GOOS:solaris] [!GOOS:android] [!GOOS:illumos] [!GOOS:js] [!GOOS:wasip1] [!GOOS:plan9] [!GOARCH:mips] [!GOARCH:mipsle] exists $userconfig/go/telemetry/local
+# Now check for go telemetry off behavior.
+rm $userconfig/go/telemetry/local
+go telemetry off
+! exists $userconfig/go/telemetry/local
+# Check for the behavior with -C, the only flag 'go telemetry off' can take.
+go telemetry local
+go -C $WORK telemetry off
+! exists $userconfig/go/telemetry/local
+go telemetry local
+go telemetry -C=$WORK off
+! exists $userconfig/go/telemetry/local
+go telemetry local
+go help telemetry
+[!GOOS:openbsd] [!GOOS:solaris] [!GOOS:android] [!GOOS:illumos] [!GOOS:js] [!GOOS:wasip1] [!GOOS:plan9] [!GOARCH:mips] [!GOARCH:mipsle] exists $userconfig/go/telemetry/local

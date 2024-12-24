@@ -134,6 +134,22 @@ func TestReadFile(t *testing.T) {
 		}
 	}
 
+	damageStringLen := func(t *testing.T, name string) {
+		data, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		i := bytes.Index(data, []byte("\xff Go buildinf:"))
+		if i < 0 {
+			t.Fatal("Go buildinf not found")
+		}
+		verLen := data[i+32:]
+		binary.PutUvarint(verLen, 16<<40) // 16TB ought to be enough for anyone.
+		if err := os.WriteFile(name, data, 0666); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	goVersionRe := regexp.MustCompile("(?m)^go\t.*\n")
 	buildRe := regexp.MustCompile("(?m)^build\t.*\n")
 	cleanOutputForComparison := func(got string) string {
@@ -194,6 +210,15 @@ func TestReadFile(t *testing.T) {
 			wantErr: "not a Go executable",
 		},
 		{
+			name: "invalid_str_len",
+			build: func(t *testing.T, goos, goarch, buildmode string) string {
+				name := buildWithModules(t, goos, goarch, buildmode)
+				damageStringLen(t, name)
+				return name
+			},
+			wantErr: "not a Go executable",
+		},
+		{
 			name:  "valid_gopath",
 			build: buildWithGOPATH,
 			want: "go\tGOVERSION\n" +
@@ -245,6 +270,62 @@ func TestReadFile(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+// Test117 verifies that parsing of the old, pre-1.18 format works.
+func Test117(t *testing.T) {
+	// go117 was generated for linux-amd64 with:
+	//
+	// main.go:
+	//
+	// package main
+	// func main() {}
+	//
+	// GOTOOLCHAIN=go1.17 go mod init example.com/go117
+	// GOTOOLCHAIN=go1.17 go build
+	//
+	// TODO(prattmic): Ideally this would be built on the fly to better
+	// cover all executable formats, but then we need a network connection
+	// to download an old Go toolchain.
+	info, err := buildinfo.ReadFile("testdata/go117")
+	if err != nil {
+		t.Fatalf("ReadFile got err %v, want nil", err)
+	}
+
+	if info.GoVersion != "go1.17" {
+		t.Errorf("GoVersion got %s want go1.17", info.GoVersion)
+	}
+	if info.Path != "example.com/go117" {
+		t.Errorf("Path got %s want example.com/go117", info.Path)
+	}
+	if info.Main.Path != "example.com/go117" {
+		t.Errorf("Main.Path got %s want example.com/go117", info.Main.Path)
+	}
+}
+
+// TestNotGo verifies that parsing of a non-Go binary returns the proper error.
+func TestNotGo(t *testing.T) {
+	// notgo was generated for linux-amd64 with:
+	//
+	// main.c:
+	//
+	// int main(void) { return 0; }
+	//
+	// cc -o notgo main.c
+	//
+	// TODO(prattmic): Ideally this would be built on the fly to better
+	// cover all executable formats, but then we need to encode the
+	// intricacies of calling each platform's C compiler.
+	_, err := buildinfo.ReadFile("testdata/notgo")
+	if err == nil {
+		t.Fatalf("ReadFile got nil err, want non-nil")
+	}
+
+	// The precise error text here isn't critical, but we want something
+	// like errNotGoExe rather than e.g., a file read error.
+	if !strings.Contains(err.Error(), "not a Go executable") {
+		t.Errorf("ReadFile got err %v want not a Go executable", err)
 	}
 }
 
@@ -326,4 +407,22 @@ func TestIssue54968(t *testing.T) {
 			}
 		})
 	}
+}
+
+func FuzzRead(f *testing.F) {
+	go117, err := os.ReadFile("testdata/go117")
+	if err != nil {
+		f.Errorf("Error reading go117: %v", err)
+	}
+	f.Add(go117)
+
+	notgo, err := os.ReadFile("testdata/notgo")
+	if err != nil {
+		f.Errorf("Error reading notgo: %v", err)
+	}
+	f.Add(notgo)
+
+	f.Fuzz(func(t *testing.T, in []byte) {
+		buildinfo.Read(bytes.NewReader(in))
+	})
 }

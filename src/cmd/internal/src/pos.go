@@ -127,7 +127,7 @@ func (p Pos) String() string {
 // Format formats a position as "filename:line" or "filename:line:column",
 // controlled by the showCol flag and if the column is known (!= 0).
 // For positions relative to line directives, the original position is
-// shown as well, as in "filename:line[origfile:origline:origcolumn] if
+// shown as well, as in "filename:line[origfile:origline:origcolumn]" if
 // showOrig is set.
 func (p Pos) Format(showCol, showOrig bool) string {
 	buf := new(bytes.Buffer)

@@ -15,20 +15,12 @@ import (
 	"strings"
 )
 
-// currentVersion is the current version number.
-//
-//   - v0: initial prototype
-//
-//   - v1: adds the flags uint32 word
-//
-// TODO(mdempsky): For the next version bump:
-//   - remove the legacy "has init" bool from the public root
-//   - remove obj's "derived func instance" bool
-const currentVersion uint32 = 1
-
 // A PkgEncoder provides methods for encoding a package's Unified IR
 // export data.
 type PkgEncoder struct {
+	// version of the bitstream.
+	version Version
+
 	// elems holds the bitstream for previously encoded elements.
 	elems [numRelocs][]string
 
@@ -52,8 +44,9 @@ func (pw *PkgEncoder) SyncMarkers() bool { return pw.syncFrames >= 0 }
 // export data files, but can help diagnosing desync errors in
 // higher-level Unified IR reader/writer code. If syncFrames is
 // negative, then sync markers are omitted entirely.
-func NewPkgEncoder(syncFrames int) PkgEncoder {
+func NewPkgEncoder(version Version, syncFrames int) PkgEncoder {
 	return PkgEncoder{
+		version:    version,
 		stringsIdx: make(map[string]Index),
 		syncFrames: syncFrames,
 	}
@@ -69,13 +62,15 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 		assert(binary.Write(out, binary.LittleEndian, x) == nil)
 	}
 
-	writeUint32(currentVersion)
+	writeUint32(uint32(pw.version))
 
-	var flags uint32
-	if pw.SyncMarkers() {
-		flags |= flagSyncMarkers
+	if pw.version.Has(Flags) {
+		var flags uint32
+		if pw.SyncMarkers() {
+			flags |= flagSyncMarkers
+		}
+		writeUint32(flags)
 	}
-	writeUint32(flags)
 
 	// Write elemEndsEnds.
 	var sum uint32
@@ -194,7 +189,7 @@ func (w *Encoder) Flush() Index {
 
 func (w *Encoder) checkErr(err error) {
 	if err != nil {
-		errorf("unexpected encoding error: %v", err)
+		panicf("unexpected encoding error: %v", err)
 	}
 }
 
@@ -298,7 +293,7 @@ func (w *Encoder) Len(x int) { assert(x >= 0); w.Uint64(uint64(x)) }
 // Int encodes and writes an int value into the element bitstream.
 func (w *Encoder) Int(x int) { w.Int64(int64(x)) }
 
-// Len encodes and writes a uint value into the element bitstream.
+// Uint encodes and writes a uint value into the element bitstream.
 func (w *Encoder) Uint(x uint) { w.Uint64(uint64(x)) }
 
 // Reloc encodes and writes a relocation for the given (section,
@@ -359,7 +354,7 @@ func (w *Encoder) Value(val constant.Value) {
 func (w *Encoder) scalar(val constant.Value) {
 	switch v := constant.Val(val).(type) {
 	default:
-		errorf("unhandled %v (%v)", val, val.Kind())
+		panicf("unhandled %v (%v)", val, val.Kind())
 	case bool:
 		w.Code(ValBool)
 		w.Bool(v)
@@ -392,3 +387,6 @@ func (w *Encoder) bigFloat(v *big.Float) {
 	b := v.Append(nil, 'p', -1)
 	w.String(string(b)) // TODO: More efficient encoding.
 }
+
+// Version reports the version of the bitstream.
+func (w *Encoder) Version() Version { return w.p.version }

@@ -87,7 +87,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		var params []*Var
 		var reverse bool
 		if T != nil && sig.tparams != nil {
-			if !versionErr && !check.allowVersion(instErrPos, go1_21) {
+			if !versionErr && !check.allowVersion(go1_21) {
 				if inst != nil {
 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
 				} else {
@@ -150,6 +150,7 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ
 	// verify instantiation lazily (was go.dev/issue/50450)
 	check.later(func() {
 		tparams := typ.TypeParams().list()
+		// check type constraints
 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
 			// best position for error reporting
 			pos := pos
@@ -371,7 +372,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
 	infer := true // for -lang < go1.21
 	n := len(elist)
-	if n > 0 && check.allowVersion(elist[0], go1_21) {
+	if n > 0 && check.allowVersion(go1_21) {
 		infer = false
 	}
 
@@ -529,8 +530,8 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		}
 		err := check.newError(WrongArgCount)
 		err.addf(at, "%s arguments in call to %s", qualifier, call.Fun)
-		err.addf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
-		err.addf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+		err.addf(nopos, "have %s", check.typesSummary(operandTypes(args), false, ddd))
+		err.addf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic, false))
 		err.report()
 		return
 	}
@@ -541,7 +542,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	// collect type parameters of callee
 	n := sig.TypeParams().Len()
 	if n > 0 {
-		if !check.allowVersion(call.Pos(), go1_18) {
+		if !check.allowVersion(go1_18) {
 			if iexpr, _ := call.Fun.(*syntax.IndexExpr); iexpr != nil {
 				check.versionErrorf(iexpr, go1_18, "function instantiation")
 			} else {
@@ -700,26 +701,28 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 				for _, prefix := range cgoPrefixes {
 					// cgo objects are part of the current package (in file
 					// _cgo_gotypes.go). Use regular lookup.
-					_, exp = check.scope.LookupParent(prefix+sel, check.pos)
+					exp = check.lookup(prefix + sel)
 					if exp != nil {
 						break
 					}
 				}
 				if exp == nil {
-					check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e)) // cast to syntax.Expr to silence vet
+					if isValidName(sel) {
+						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e)) // cast to syntax.Expr to silence vet
+					}
 					goto Error
 				}
 				check.objDecl(exp, nil)
 			} else {
 				exp = pkg.scope.Lookup(sel)
 				if exp == nil {
-					if !pkg.fake {
+					if !pkg.fake && isValidName(sel) {
 						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e))
 					}
 					goto Error
 				}
 				if !exp.Exported() {
-					check.errorf(e.Sel, UnexportedName, "%s not exported by package %s", quote(sel), quote(pkg.name))
+					check.errorf(e.Sel, UnexportedName, "name %s not exported by package %s", sel, pkg.name)
 					// ok to continue
 				}
 			}
@@ -771,7 +774,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 			goto Error
 		}
 	case builtin:
-		check.errorf(e.Pos(), UncalledBuiltin, "cannot select on %s", x)
+		check.errorf(e.Pos(), UncalledBuiltin, "invalid use of %s in selector expression", x)
 		goto Error
 	case invalid:
 		goto Error
@@ -960,7 +963,7 @@ func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
 		var v *Var
 		var v_used bool
 		if lhs {
-			if _, obj := check.scope.LookupParent(n.Value, nopos); obj != nil {
+			if obj := check.lookup(n.Value); obj != nil {
 				// It's ok to mark non-local variables, but ignore variables
 				// from other packages to avoid potential race conditions with
 				// dot-imported variables.

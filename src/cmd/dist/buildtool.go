@@ -13,6 +13,7 @@ package main
 
 import (
 	"fmt"
+	"go/version"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -44,7 +45,8 @@ var bootstrapDirs = []string{
 	"cmd/internal/edit",
 	"cmd/internal/gcprog",
 	"cmd/internal/goobj",
-	"cmd/internal/notsha256",
+	"cmd/internal/hash",
+	"cmd/internal/macho",
 	"cmd/internal/obj/...",
 	"cmd/internal/objabi",
 	"cmd/internal/pgo",
@@ -53,6 +55,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/src",
 	"cmd/internal/sys",
 	"cmd/internal/telemetry",
+	"cmd/internal/telemetry/counter",
 	"cmd/link",
 	"cmd/link/internal/...",
 	"compress/flate",
@@ -70,6 +73,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/cov/covcmd",
 	"internal/bisect",
 	"internal/buildcfg",
+	"internal/exportdata",
 	"internal/goarch",
 	"internal/godebugs",
 	"internal/goexperiment",
@@ -117,9 +121,11 @@ var ignoreSuffixes = []string{
 	"~",
 }
 
+const minBootstrap = "go1.22.6"
+
 var tryDirs = []string{
-	"sdk/go1.17",
-	"go1.17",
+	"sdk/" + minBootstrap,
+	minBootstrap,
 }
 
 func bootstrapBuildTools() {
@@ -133,6 +139,15 @@ func bootstrapBuildTools() {
 			}
 		}
 	}
+
+	// check bootstrap version.
+	ver := run(pathf("%s/bin", goroot_bootstrap), CheckExit, pathf("%s/bin/go", goroot_bootstrap), "env", "GOVERSION")
+	// go env GOVERSION output like "go1.22.6\n" or "devel go1.24-ffb3e574 Thu Aug 29 20:16:26 2024 +0000\n".
+	ver = ver[:len(ver)-1]
+	if version.Compare(ver, version.Lang(minBootstrap)) > 0 && version.Compare(ver, minBootstrap) < 0 {
+		fatalf("%s does not meet the minimum bootstrap requirement of %s or later", ver, minBootstrap)
+	}
+
 	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
 
 	mkbuildcfg(pathf("%s/src/internal/buildcfg/zbootstrap.go", goroot))
@@ -150,7 +165,8 @@ func bootstrapBuildTools() {
 	xmkdirall(base)
 
 	// Copy source code into $GOROOT/pkg/bootstrap and rewrite import paths.
-	writefile("module bootstrap\ngo 1.20\n", pathf("%s/%s", base, "go.mod"), 0)
+	minBootstrapVers := requiredBootstrapVersion(goModVersion()) // require the minimum required go version to build this go version in the go.mod file
+	writefile("module bootstrap\ngo "+minBootstrapVers+"\n", pathf("%s/%s", base, "go.mod"), 0)
 	for _, dir := range bootstrapDirs {
 		recurse := strings.HasSuffix(dir, "/...")
 		dir = strings.TrimSuffix(dir, "/...")
@@ -222,8 +238,7 @@ func bootstrapBuildTools() {
 	// Run Go bootstrap to build binaries.
 	// Use the math_big_pure_go build tag to disable the assembly in math/big
 	// which may contain unsupported instructions.
-	// Use the purego build tag to disable other assembly code,
-	// such as in cmd/internal/notsha256.
+	// Use the purego build tag to disable other assembly code.
 	cmd := []string{
 		pathf("%s/bin/go", goroot_bootstrap),
 		"install",
@@ -310,9 +325,6 @@ var (
 
 func bootstrapFixImports(srcFile string) string {
 	text := readfile(srcFile)
-	if !strings.Contains(srcFile, "/cmd/") && !strings.Contains(srcFile, `\cmd\`) {
-		text = regexp.MustCompile(`\bany\b`).ReplaceAllString(text, "interface{}")
-	}
 	lines := strings.SplitAfter(text, "\n")
 	inBlock := false
 	inComment := false

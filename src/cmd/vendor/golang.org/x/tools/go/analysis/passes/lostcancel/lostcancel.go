@@ -198,7 +198,9 @@ func isContextWithCancel(info *types.Info, n ast.Node) bool {
 		return false
 	}
 	switch sel.Sel.Name {
-	case "WithCancel", "WithTimeout", "WithDeadline":
+	case "WithCancel", "WithCancelCause",
+		"WithTimeout", "WithTimeoutCause",
+		"WithDeadline", "WithDeadlineCause":
 	default:
 		return false
 	}

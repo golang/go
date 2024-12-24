@@ -11,6 +11,8 @@
 //go:linkname Cas64
 //go:linkname Load64
 //go:linkname Store64
+//go:linkname Or64
+//go:linkname And64
 
 package atomic
 

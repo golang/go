@@ -15,15 +15,31 @@ import (
 	"sync/atomic"
 )
 
-// Note: not using internal/godebug, so that internal/godebug can use internal/counter.
-var debugCounter = strings.Contains(os.Getenv("GODEBUG"), "countertrace=1")
+var (
+	// Note: not using internal/godebug, so that internal/godebug can use
+	// internal/counter.
+	debugCounter = strings.Contains(os.Getenv("GODEBUG"), "countertrace=1")
+	CrashOnBugs  = false // for testing; if set, exit on fatal log messages
+)
 
-func debugPrintf(format string, args ...interface{}) {
+// debugPrintf formats a debug message if GODEBUG=countertrace=1.
+func debugPrintf(format string, args ...any) {
 	if debugCounter {
 		if len(format) == 0 || format[len(format)-1] != '\n' {
 			format += "\n"
 		}
 		fmt.Fprintf(os.Stderr, "counter: "+format, args...)
+	}
+}
+
+// debugFatalf logs a fatal error if GODEBUG=countertrace=1.
+func debugFatalf(format string, args ...any) {
+	if debugCounter || CrashOnBugs {
+		if len(format) == 0 || format[len(format)-1] != '\n' {
+			format += "\n"
+		}
+		fmt.Fprintf(os.Stderr, "counter bug: "+format, args...)
+		os.Exit(1)
 	}
 }
 
@@ -246,6 +262,7 @@ func (c *Counter) releaseLock(state counterStateBits) {
 	}
 }
 
+// add wraps the atomic.Uint64.Add operation to handle integer overflow.
 func (c *Counter) add(n uint64) uint64 {
 	count := c.ptr.count
 	for {
@@ -313,7 +330,9 @@ func readFile(f *file) (*File, error) {
 		return nil, fmt.Errorf("counter is not initialized - was Open called?")
 	}
 
-	f.rotate()
+	// Note: don't call f.rotate here as this will enqueue a follow-up rotation.
+	f.rotate1()
+
 	if f.err != nil {
 		return nil, fmt.Errorf("failed to rotate mapped file - %v", f.err)
 	}
@@ -322,7 +341,7 @@ func readFile(f *file) (*File, error) {
 		return nil, fmt.Errorf("counter has no mapped file")
 	}
 	name := current.f.Name()
-	data, err := os.ReadFile(name)
+	data, err := ReadMapped(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from file: %v", err)
 	}
@@ -334,11 +353,11 @@ func readFile(f *file) (*File, error) {
 }
 
 // ReadFile reads the counters and stack counters from the given file.
-// This is the implementation of x/telemetry/counter/countertest.Read
+// This is the implementation of x/telemetry/counter/countertest.ReadFile.
 func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) {
 	// TODO: Document the format of the stackCounters names.
 
-	data, err := os.ReadFile(name)
+	data, err := ReadMapped(name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read from file: %v", err)
 	}
@@ -356,4 +375,27 @@ func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) 
 		}
 	}
 	return counters, stackCounters, nil
+}
+
+// ReadMapped reads the contents of the given file by memory mapping.
+//
+// This avoids file synchronization issues.
+func ReadMapped(name string) ([]byte, error) {
+	f, err := os.OpenFile(name, os.O_RDWR, 0666)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	mapping, err := memmap(f)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]byte, fi.Size())
+	copy(data, mapping.Data)
+	munmap(mapping)
+	return data, nil
 }

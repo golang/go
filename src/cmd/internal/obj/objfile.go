@@ -10,9 +10,10 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"internal/abi"
@@ -20,6 +21,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -177,7 +179,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	h.Offsets[goobj.BlkReloc] = w.Offset()
 	for _, list := range lists {
 		for _, s := range list {
-			sort.Sort(relocByOff(s.R)) // some platforms (e.g. PE) requires relocations in address order
+			slices.SortFunc(s.R, relocByOffCmp) // some platforms (e.g. PE) requires relocations in address order
 			for i := range s.R {
 				w.Reloc(&s.R[i])
 			}
@@ -361,6 +363,9 @@ func (w *writer) Sym(s *LSym) {
 	if s.ABIWrapper() {
 		flag2 |= goobj.SymFlagABIWrapper
 	}
+	if s.Func() != nil && s.Func().WasmExport != nil {
+		flag2 |= goobj.SymFlagWasmExport
+	}
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
 	}
@@ -489,7 +494,7 @@ func contentHash64(s *LSym) goobj.Hash64Type {
 // For now, we assume there is no circular dependencies among
 // hashed symbols.
 func (w *writer) contentHash(s *LSym) goobj.HashType {
-	h := notsha256.New()
+	h := hash.New20()
 	var tmp [14]byte
 
 	// Include the size of the symbol in the hash.
@@ -621,11 +626,14 @@ func (w *writer) Aux(s *LSym) {
 		for _, pcSym := range fn.Pcln.Pcdata {
 			w.aux1(goobj.AuxPcdata, pcSym)
 		}
-		if fn.WasmImportSym != nil {
-			if fn.WasmImportSym.Size == 0 {
+		if fn.WasmImport != nil {
+			if fn.WasmImport.AuxSym.Size == 0 {
 				panic("wasmimport aux sym must have non-zero size")
 			}
-			w.aux1(goobj.AuxWasmImport, fn.WasmImportSym)
+			w.aux1(goobj.AuxWasmImport, fn.WasmImport.AuxSym)
+		}
+		if fn.WasmExport != nil {
+			w.aux1(goobj.AuxWasmType, fn.WasmExport.AuxSym)
 		}
 	} else if v := s.VarInfo(); v != nil {
 		if v.dwarfInfoSym != nil && v.dwarfInfoSym.Size != 0 {
@@ -732,9 +740,12 @@ func nAuxSym(s *LSym) int {
 		}
 		n += len(fn.Pcln.Pcdata)
 		if fn.WasmImport != nil {
-			if fn.WasmImportSym == nil || fn.WasmImportSym.Size == 0 {
+			if fn.WasmImport.AuxSym == nil || fn.WasmImport.AuxSym.Size == 0 {
 				panic("wasmimport aux sym must exist and have non-zero size")
 			}
+			n++
+		}
+		if fn.WasmExport != nil {
 			n++
 		}
 	} else if v := s.VarInfo(); v != nil {
@@ -797,7 +808,13 @@ func genFuncInfoSyms(ctxt *Link) {
 		fn.FuncInfoSym = isym
 		b.Reset()
 
-		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym}
+		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym}
+		if wi := fn.WasmImport; wi != nil {
+			auxsyms = append(auxsyms, wi.AuxSym)
+		}
+		if we := fn.WasmExport; we != nil {
+			auxsyms = append(auxsyms, we.AuxSym)
+		}
 		for _, s := range auxsyms {
 			if s == nil || s.Size == 0 {
 				continue
@@ -879,7 +896,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 		fmt.Fprintf(ctxt.Bso, "asm ")
 	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
-	if s.Type == objabi.STEXT {
+	if s.Type.IsText() {
 		fn := s.Func()
 		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x align=%#x", uint64(fn.Args), uint64(fn.Locals), uint64(fn.FuncID), uint64(fn.Align))
 		if s.Leaf() {
@@ -887,7 +904,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 		}
 	}
 	fmt.Fprintf(ctxt.Bso, "\n")
-	if s.Type == objabi.STEXT {
+	if s.Type.IsText() {
 		for p := s.Func().Text; p != nil; p = p.Link {
 			fmt.Fprintf(ctxt.Bso, "\t%#04x ", uint(int(p.Pc)))
 			if ctxt.Debugasm > 1 {
@@ -920,7 +937,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 		fmt.Fprintf(ctxt.Bso, "\n")
 	}
 
-	sort.Sort(relocByOff(s.R)) // generate stable output
+	slices.SortFunc(s.R, relocByOffCmp) // generate stable output
 	for _, r := range s.R {
 		name := ""
 		ver := ""
@@ -940,9 +957,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	}
 }
 
-// relocByOff sorts relocations by their offsets.
-type relocByOff []Reloc
-
-func (x relocByOff) Len() int           { return len(x) }
-func (x relocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
-func (x relocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+// relocByOffCmp compare relocations by their offsets.
+func relocByOffCmp(x, y Reloc) int {
+	return cmp.Compare(x.Off, y.Off)
+}

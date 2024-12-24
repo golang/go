@@ -9,6 +9,7 @@ package http
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"io/fs"
 	"mime"
@@ -171,15 +172,37 @@ func dirList(w ResponseWriter, r *Request, f File) {
 	fmt.Fprintf(w, "</pre>\n")
 }
 
+// GODEBUG=httpservecontentkeepheaders=1 restores the pre-1.23 behavior of not deleting
+// Cache-Control, Content-Encoding, Etag, or Last-Modified headers on ServeContent errors.
+var httpservecontentkeepheaders = godebug.New("httpservecontentkeepheaders")
+
 // serveError serves an error from ServeFile, ServeFileFS, and ServeContent.
 // Because those can all be configured by the caller by setting headers like
 // Etag, Last-Modified, and Cache-Control to send on a successful response,
 // the error path needs to clear them, since they may not be meant for errors.
 func serveError(w ResponseWriter, text string, code int) {
 	h := w.Header()
-	h.Del("Etag")
-	h.Del("Last-Modified")
-	h.Del("Cache-Control")
+
+	nonDefault := false
+	for _, k := range []string{
+		"Cache-Control",
+		"Content-Encoding",
+		"Etag",
+		"Last-Modified",
+	} {
+		if !h.has(k) {
+			continue
+		}
+		if httpservecontentkeepheaders.Value() == "1" {
+			nonDefault = true
+		} else {
+			h.Del(k)
+		}
+	}
+	if nonDefault {
+		httpservecontentkeepheaders.IncNonDefault()
+	}
+
 	Error(w, text, code)
 }
 
@@ -203,11 +226,17 @@ func serveError(w ResponseWriter, text string, code int) {
 //
 // The content's Seek method must work: ServeContent uses
 // a seek to the end of the content to determine its size.
+// Note that [*os.File] implements the [io.ReadSeeker] interface.
 //
 // If the caller has set w's ETag header formatted per RFC 7232, section 2.3,
 // ServeContent uses it to handle requests using If-Match, If-None-Match, or If-Range.
 //
-// Note that [*os.File] implements the [io.ReadSeeker] interface.
+// If an error occurs when serving the request (for example, when
+// handling an invalid range request), ServeContent responds with an
+// error message. By default, ServeContent strips the Cache-Control,
+// Content-Encoding, ETag, and Last-Modified headers from error responses.
+// The GODEBUG setting httpservecontentkeepheaders=1 causes ServeContent
+// to preserve these headers.
 func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
 	sizeFunc := func() (int64, error) {
 		size, err := content.Seek(0, io.SeekEnd)
@@ -790,6 +819,7 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
 
 // ServeFileFS replies to the request with the contents
 // of the named file or directory from the file system fsys.
+// The files provided by fsys must implement [io.Seeker].
 //
 // If the provided name is constructed from user input, it should be
 // sanitized before calling [ServeFileFS].
@@ -936,6 +966,7 @@ func FileServer(root FileSystem) Handler {
 
 // FileServerFS returns a handler that serves HTTP requests
 // with the contents of the file system fsys.
+// The files provided by fsys must implement [io.Seeker].
 //
 // As a special case, the returned file server redirects any request
 // ending in "/index.html" to the same path, without the final

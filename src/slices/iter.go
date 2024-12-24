@@ -9,8 +9,8 @@ import (
 	"iter"
 )
 
-// All returns an iterator over index-value pairs in the slice.
-// The indexes range in the usual order, from 0 through len(s)-1.
+// All returns an iterator over index-value pairs in the slice
+// in the usual order.
 func All[Slice ~[]E, E any](s Slice) iter.Seq2[int, E] {
 	return func(yield func(int, E) bool) {
 		for i, v := range s {
@@ -22,7 +22,7 @@ func All[Slice ~[]E, E any](s Slice) iter.Seq2[int, E] {
 }
 
 // Backward returns an iterator over index-value pairs in the slice,
-// traversing it backward. The indexes range from len(s)-1 down to 0.
+// traversing it backward with descending indices.
 func Backward[Slice ~[]E, E any](s Slice) iter.Seq2[int, E] {
 	return func(yield func(int, E) bool) {
 		for i := len(s) - 1; i >= 0; i-- {
@@ -33,8 +33,7 @@ func Backward[Slice ~[]E, E any](s Slice) iter.Seq2[int, E] {
 	}
 }
 
-// Values returns an iterator over the slice elements,
-// starting with s[0].
+// Values returns an iterator that yields the slice elements in order.
 func Values[Slice ~[]E, E any](s Slice) iter.Seq[E] {
 	return func(yield func(E) bool) {
 		for _, v := range s {

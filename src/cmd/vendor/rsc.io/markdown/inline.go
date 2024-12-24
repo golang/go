@@ -112,8 +112,7 @@ func (x *Escaped) printMarkdown(buf *bytes.Buffer) {
 }
 
 type Code struct {
-	Text     string
-	numTicks int
+	Text string
 }
 
 func (*Code) Inline() {}
@@ -123,10 +122,40 @@ func (x *Code) PrintHTML(buf *bytes.Buffer) {
 }
 
 func (x *Code) printMarkdown(buf *bytes.Buffer) {
-	ticks := strings.Repeat("`", x.numTicks)
+	if len(x.Text) == 0 {
+		return
+	}
+	// Use the fewest backticks we can, and add spaces as needed.
+	ticks := strings.Repeat("`", longestSequence(x.Text, '`')+1)
 	buf.WriteString(ticks)
+	if x.Text[0] == '`' {
+		buf.WriteByte(' ')
+	}
 	buf.WriteString(x.Text)
+	if x.Text[len(x.Text)-1] == '`' {
+		buf.WriteByte(' ')
+	}
 	buf.WriteString(ticks)
+}
+
+// longestSequence returns the length of the longest sequence of consecutive bytes b in s.
+func longestSequence(s string, b byte) int {
+	max := 0
+	cur := 0
+	for i := range s {
+		if s[i] == b {
+			cur++
+		} else {
+			if cur > max {
+				max = cur
+			}
+			cur = 0
+		}
+	}
+	if cur > max {
+		max = cur
+	}
+	return max
 }
 
 func (x *Code) PrintText(buf *bytes.Buffer) {
@@ -609,7 +638,7 @@ func (b *backtickParser) parseCodeSpan(p *parseState, s string, i int) (Inline, 
 				text = text[1 : len(text)-1]
 			}
 
-			return &Code{text, n}, start, end, true
+			return &Code{text}, start, end, true
 		}
 	}
 	b.scanned = true

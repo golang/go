@@ -1,2 +1,0 @@
-pkg runtime/debug, type CrashOptions struct #67182
-pkg runtime/debug, func SetCrashOutput(*os.File, CrashOptions) error #42888

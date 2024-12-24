@@ -197,6 +197,17 @@ go mod edit -go=1.501 -toolchain=none
 go version
 stdout go1.501
 
+# avoid two-step switch, first from install target requirement, then from GOTOOLCHAIN min
+# instead, just jump directly to GOTOOLCHAIN min
+env TESTGO_VERSION=go1.2.3
+env GODEBUG=toolchaintrace=1
+env GOTOOLCHAIN=go1.23.0+auto
+! go install rsc.io/fortune/nonexist@v0.0.1
+! stderr 'switching to go1.22.9'
+stderr 'using go1.23.0'
+env GODEBUG=
+env GOTOOLCHAIN=auto
+
 # go install m@v and go run m@v should ignore go.mod and use m@v
 env TESTGO_VERSION=go1.2.3
 go mod edit -go=1.999 -toolchain=go1.998

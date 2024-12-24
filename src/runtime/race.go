@@ -14,14 +14,47 @@ import (
 // Public race detection API, present iff build with -race.
 
 func RaceRead(addr unsafe.Pointer)
+
+//go:linkname race_Read internal/race.Read
+//go:nosplit
+func race_Read(addr unsafe.Pointer) {
+	RaceRead(addr)
+}
+
 func RaceWrite(addr unsafe.Pointer)
+
+//go:linkname race_Write internal/race.Write
+//go:nosplit
+func race_Write(addr unsafe.Pointer) {
+	RaceWrite(addr)
+}
+
 func RaceReadRange(addr unsafe.Pointer, len int)
+
+//go:linkname race_ReadRange internal/race.ReadRange
+//go:nosplit
+func race_ReadRange(addr unsafe.Pointer, len int) {
+	RaceReadRange(addr, len)
+}
+
 func RaceWriteRange(addr unsafe.Pointer, len int)
+
+//go:linkname race_WriteRange internal/race.WriteRange
+//go:nosplit
+func race_WriteRange(addr unsafe.Pointer, len int) {
+	RaceWriteRange(addr, len)
+}
 
 func RaceErrors() int {
 	var n uint64
 	racecall(&__tsan_report_count, uintptr(unsafe.Pointer(&n)), 0, 0, 0)
 	return int(n)
+}
+
+//go:linkname race_Errors internal/race.Errors
+//go:nosplit
+func race_Errors() int {
+	return RaceErrors()
 }
 
 // RaceAcquire/RaceRelease/RaceReleaseMerge establish happens-before relations
@@ -38,6 +71,12 @@ func RaceAcquire(addr unsafe.Pointer) {
 	raceacquire(addr)
 }
 
+//go:linkname race_Acquire internal/race.Acquire
+//go:nosplit
+func race_Acquire(addr unsafe.Pointer) {
+	RaceAcquire(addr)
+}
+
 // RaceRelease performs a release operation on addr that
 // can synchronize with a later RaceAcquire on addr.
 //
@@ -49,6 +88,12 @@ func RaceRelease(addr unsafe.Pointer) {
 	racerelease(addr)
 }
 
+//go:linkname race_Release internal/race.Release
+//go:nosplit
+func race_Release(addr unsafe.Pointer) {
+	RaceRelease(addr)
+}
+
 // RaceReleaseMerge is like RaceRelease, but also establishes a happens-before
 // relation with the preceding RaceRelease or RaceReleaseMerge on addr.
 //
@@ -58,6 +103,12 @@ func RaceRelease(addr unsafe.Pointer) {
 //go:nosplit
 func RaceReleaseMerge(addr unsafe.Pointer) {
 	racereleasemerge(addr)
+}
+
+//go:linkname race_ReleaseMerge internal/race.ReleaseMerge
+//go:nosplit
+func race_ReleaseMerge(addr unsafe.Pointer) {
+	RaceReleaseMerge(addr)
 }
 
 // RaceDisable disables handling of race synchronization events in the current goroutine.
@@ -74,6 +125,12 @@ func RaceDisable() {
 	gp.raceignore++
 }
 
+//go:linkname race_Disable internal/race.Disable
+//go:nosplit
+func race_Disable() {
+	RaceDisable()
+}
+
 // RaceEnable re-enables handling of race events in the current goroutine.
 //
 //go:nosplit
@@ -83,6 +140,12 @@ func RaceEnable() {
 	if gp.raceignore == 0 {
 		racecall(&__tsan_go_ignore_sync_end, gp.racectx, 0, 0, 0)
 	}
+}
+
+//go:linkname race_Enable internal/race.Enable
+//go:nosplit
+func race_Enable() {
+	RaceEnable()
 }
 
 // Private interface for the runtime.
@@ -105,6 +168,11 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 	}
 }
 
+//go:linkname race_ReadObjectPC internal/race.ReadObjectPC
+func race_ReadObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
+	raceReadObjectPC(t, addr, callerpc, pc)
+}
+
 func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 	kind := t.Kind_ & abi.KindMask
 	if kind == abi.Array || kind == abi.Struct {
@@ -118,11 +186,26 @@ func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 	}
 }
 
+//go:linkname race_WriteObjectPC internal/race.WriteObjectPC
+func race_WriteObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
+	raceWriteObjectPC(t, addr, callerpc, pc)
+}
+
 //go:noescape
 func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
 
 //go:noescape
 func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
+
+//go:linkname race_ReadPC internal/race.ReadPC
+func race_ReadPC(addr unsafe.Pointer, callerpc, pc uintptr) {
+	racereadpc(addr, callerpc, pc)
+}
+
+//go:linkname race_WritePC internal/race.WritePC
+func race_WritePC(addr unsafe.Pointer, callerpc, pc uintptr) {
+	racewritepc(addr, callerpc, pc)
+}
 
 type symbolizeCodeContext struct {
 	pc   uintptr
@@ -323,6 +406,10 @@ var __tsan_report_count byte
 //go:cgo_import_static __tsan_go_atomic64_exchange
 //go:cgo_import_static __tsan_go_atomic32_fetch_add
 //go:cgo_import_static __tsan_go_atomic64_fetch_add
+//go:cgo_import_static __tsan_go_atomic32_fetch_and
+//go:cgo_import_static __tsan_go_atomic64_fetch_and
+//go:cgo_import_static __tsan_go_atomic32_fetch_or
+//go:cgo_import_static __tsan_go_atomic64_fetch_or
 //go:cgo_import_static __tsan_go_atomic32_compare_exchange
 //go:cgo_import_static __tsan_go_atomic64_compare_exchange
 
@@ -641,6 +728,36 @@ func abigen_sync_atomic_AddUint64(addr *uint64, delta uint64) (new uint64)
 
 //go:linkname abigen_sync_atomic_AddUintptr sync/atomic.AddUintptr
 func abigen_sync_atomic_AddUintptr(addr *uintptr, delta uintptr) (new uintptr)
+
+//go:linkname abigen_sync_atomic_AndInt32 sync/atomic.AndInt32
+func abigen_sync_atomic_AndInt32(addr *int32, mask int32) (old int32)
+
+//go:linkname abigen_sync_atomic_AndUint32 sync/atomic.AndUint32
+func abigen_sync_atomic_AndUint32(addr *uint32, mask uint32) (old uint32)
+
+//go:linkname abigen_sync_atomic_AndInt64 sync/atomic.AndInt64
+func abigen_sync_atomic_AndInt64(addr *int64, mask int64) (old int64)
+
+//go:linkname abigen_sync_atomic_AndUint64 sync/atomic.AndUint64
+func abigen_sync_atomic_AndUint64(addr *uint64, mask uint64) (old uint64)
+
+//go:linkname abigen_sync_atomic_AndUintptr sync/atomic.AndUintptr
+func abigen_sync_atomic_AndUintptr(addr *uintptr, mask uintptr) (old uintptr)
+
+//go:linkname abigen_sync_atomic_OrInt32 sync/atomic.OrInt32
+func abigen_sync_atomic_OrInt32(addr *int32, mask int32) (old int32)
+
+//go:linkname abigen_sync_atomic_OrUint32 sync/atomic.OrUint32
+func abigen_sync_atomic_OrUint32(addr *uint32, mask uint32) (old uint32)
+
+//go:linkname abigen_sync_atomic_OrInt64 sync/atomic.OrInt64
+func abigen_sync_atomic_OrInt64(addr *int64, mask int64) (old int64)
+
+//go:linkname abigen_sync_atomic_OrUint64 sync/atomic.OrUint64
+func abigen_sync_atomic_OrUint64(addr *uint64, mask uint64) (old uint64)
+
+//go:linkname abigen_sync_atomic_OrUintptr sync/atomic.OrUintptr
+func abigen_sync_atomic_OrUintptr(addr *uintptr, mask uintptr) (old uintptr)
 
 //go:linkname abigen_sync_atomic_CompareAndSwapInt32 sync/atomic.CompareAndSwapInt32
 func abigen_sync_atomic_CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)

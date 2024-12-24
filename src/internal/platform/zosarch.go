@@ -111,6 +111,6 @@ var distInfo = map[OSArch]osArchInfo{
 	{"wasip1", "wasm"}:     {},
 	{"windows", "386"}:     {CgoSupported: true, FirstClass: true},
 	{"windows", "amd64"}:   {CgoSupported: true, FirstClass: true},
-	{"windows", "arm"}:     {},
+	{"windows", "arm"}:     {Broken: true},
 	{"windows", "arm64"}:   {CgoSupported: true},
 }

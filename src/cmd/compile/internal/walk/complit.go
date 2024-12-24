@@ -85,7 +85,9 @@ const (
 func getdyn(n ir.Node, top bool) initGenType {
 	switch n.Op() {
 	default:
-		if ir.IsConstNode(n) {
+		// Handle constants in linker, except that linker cannot do
+		// the relocations necessary for string constants in FIPS packages.
+		if ir.IsConstNode(n) && (!n.Type().IsString() || !base.Ctxt.IsFIPS()) {
 			return initConst
 		}
 		return initDynamic
@@ -153,7 +155,10 @@ func isStaticCompositeLiteral(n ir.Node) bool {
 	case ir.OLITERAL, ir.ONIL:
 		return true
 	case ir.OCONVIFACE:
-		// See staticassign's OCONVIFACE case for comments.
+		// See staticinit.Schedule.StaticAssign's OCONVIFACE case for comments.
+		if base.Ctxt.IsFIPS() && base.Ctxt.Flag_shared {
+			return false
+		}
 		n := n.(*ir.ConvExpr)
 		val := ir.Node(n)
 		for val.Op() == ir.OCONVIFACE {
@@ -199,9 +204,6 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 			if r.Op() == ir.OKEY {
 				kv := r.(*ir.KeyExpr)
 				k = typecheck.IndexConst(kv.Key)
-				if k < 0 {
-					base.Fatalf("fixedlit: invalid index %v", kv.Key)
-				}
 				r = kv.Value
 			}
 			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(base.Pos, k))
@@ -372,9 +374,6 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 		if value.Op() == ir.OKEY {
 			kv := value.(*ir.KeyExpr)
 			index = typecheck.IndexConst(kv.Key)
-			if index < 0 {
-				base.Fatalf("slicelit: invalid index %v", kv.Key)
-			}
 			value = kv.Value
 		}
 		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(base.Pos, index))

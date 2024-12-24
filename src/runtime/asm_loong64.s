@@ -69,6 +69,10 @@ nocgo:
 	// start this M
 	JAL	runtime·mstart(SB)
 
+	// Prevent dead-code elimination of debugCallV2, which is
+	// intended to be called by debuggers.
+	MOVV	$runtime·debugCallV2<ABIInternal>(SB), R0
+
 	MOVV	R0, 1(R0)
 	RET
 
@@ -87,9 +91,8 @@ TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
 	RET // not reached
 
 // func cputicks() int64
-TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+TEXT runtime·cputicks<ABIInternal>(SB),NOSPLIT,$0-8
 	RDTIMED	R0, R4
-	MOVV	R4, ret+0(FP)
 	RET
 
 /*
@@ -209,19 +212,19 @@ noswitch:
 	JMP	(R4)
 
 // func switchToCrashStack0(fn func())
-TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
-	MOVV	fn+0(FP), REGCTXT	// context register
-	MOVV	g_m(g), R4	// curm
+TEXT runtime·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-8
+	MOVV	R4, REGCTXT	// context register
+	MOVV	g_m(g), R5	// curm
 
 	// set g to gcrash
 	MOVV	$runtime·gcrash(SB), g	// g = &gcrash
 	JAL	runtime·save_g(SB)
-	MOVV	R4, g_m(g)	// g.m = curm
-	MOVV	g, m_g0(R4)	// curm.g0 = g
+	MOVV	R5, g_m(g)	// g.m = curm
+	MOVV	g, m_g0(R5)	// curm.g0 = g
 
 	// switch to crashstack
-	MOVV	(g_stack+stack_hi)(g), R4
-	ADDV	$(-4*8), R4, R3
+	MOVV	(g_stack+stack_hi)(g), R5
+	ADDV	$(-4*8), R5, R3
 
 	// call target function
 	MOVV	0(REGCTXT), R6
@@ -344,32 +347,65 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
 	MOVV	arg+16(FP), R4;			\
-	MOVWU	argsize+24(FP), R5;			\
-	MOVV	R3, R12;				\
+	MOVWU	argsize+24(FP), R5;		\
+	MOVV	R3, R12;			\
+	MOVV	$16, R13;			\
 	ADDV	$8, R12;			\
-	ADDV	R12, R5;				\
-	BEQ	R12, R5, 6(PC);				\
-	MOVBU	(R4), R6;			\
-	ADDV	$1, R4;			\
-	MOVBU	R6, (R12);			\
-	ADDV	$1, R12;			\
-	JMP	-5(PC);				\
+	BLT	R5, R13, check8;		\
+	/* copy 16 bytes a time */		\
+	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLSX(SB), R16;	\
+	BEQ	R16, copy16_again;		\
+loop16:;					\
+	VMOVQ	(R4), V0;			\
+	ADDV	$16, R4;			\
+	ADDV	$-16, R5;			\
+	VMOVQ	V0, (R12);			\
+	ADDV	$16, R12;			\
+	BGE	R5, R13, loop16;		\
+	JMP	check8;				\
+copy16_again:;					\
+	MOVV	(R4), R14;			\
+	MOVV	8(R4), R15;			\
+	ADDV	$16, R4;			\
+	ADDV	$-16, R5;			\
+	MOVV	R14, (R12);			\
+	MOVV	R15, 8(R12);			\
+	ADDV	$16, R12;			\
+	BGE	R5, R13, copy16_again;		\
+check8:;					\
+	/* R13 = 8 */;				\
+	SRLV	$1, R13;			\
+	BLT	R5, R13, 6(PC);			\
+	/* copy 8 bytes a time */		\
+	MOVV	(R4), R14;			\
+	ADDV	$8, R4;				\
+	ADDV	$-8, R5;			\
+	MOVV	R14, (R12);			\
+	ADDV	$8, R12;			\
+	BEQ     R5, R0, 7(PC);  		\
+	/* copy 1 byte a time for the rest */	\
+	MOVBU   (R4), R14;      		\
+	ADDV    $1, R4;         		\
+	ADDV    $-1, R5;        		\
+	MOVBU   R14, (R12);     		\
+	ADDV    $1, R12;        		\
+	JMP     -6(PC);         		\
 	/* set up argument registers */		\
 	MOVV	regArgs+40(FP), R25;		\
 	JAL	·unspillArgs(SB);		\
 	/* call function */			\
-	MOVV	f+8(FP), REGCTXT;			\
+	MOVV	f+8(FP), REGCTXT;		\
 	MOVV	(REGCTXT), R25;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	JAL	(R25);				\
 	/* copy return values back */		\
 	MOVV	regArgs+40(FP), R25;		\
-	JAL	·spillArgs(SB);		\
+	JAL	·spillArgs(SB);			\
 	MOVV	argtype+0(FP), R7;		\
 	MOVV	arg+16(FP), R4;			\
 	MOVWU	n+24(FP), R5;			\
 	MOVWU	retoffset+28(FP), R6;		\
-	ADDV	$8, R3, R12;				\
+	ADDV	$8, R3, R12;			\
 	ADDV	R6, R12; 			\
 	ADDV	R6, R4;				\
 	SUBVU	R6, R5;				\
@@ -881,6 +917,229 @@ TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
 TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
 	MOVV	$64, R29
 	JMP	gcWriteBarrier<>(SB)
+
+DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
+GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+
+// debugCallV2 is the entry point for debugger-injected function
+// calls on running goroutines. It informs the runtime that a
+// debug call has been injected and creates a call frame for the
+// debugger to fill in.
+//
+// To inject a function call, a debugger should:
+// 1. Check that the goroutine is in state _Grunning and that
+//    there are at least 280 bytes free on the stack.
+// 2. Set SP as SP-8.
+// 3. Store the current LR in (SP) (using the SP after step 2).
+// 4. Store the current PC in the LR register.
+// 5. Write the desired argument frame size at SP-8
+// 6. Save all machine registers so they can be restored later by the debugger.
+// 7. Set the PC to debugCallV2 and resume execution.
+//
+// If the goroutine is in state _Grunnable, then it's not generally
+// safe to inject a call because it may return out via other runtime
+// operations. Instead, the debugger should unwind the stack to find
+// the return to non-runtime code, add a temporary breakpoint there,
+// and inject the call once that breakpoint is hit.
+//
+// If the goroutine is in any other state, it's not safe to inject a call.
+//
+// This function communicates back to the debugger by setting R19 and
+// invoking BREAK to raise a breakpoint signal. Note that the signal PC of
+// the signal triggered by the BREAK instruction is the PC where the signal
+// is trapped, not the next PC, so to resume execution, the debugger needs
+// to set the signal PC to PC+4. See the comments in the implementation for
+// the protocol the debugger is expected to follow. InjectDebugCall in the
+// runtime tests demonstrates this protocol.
+//
+// The debugger must ensure that any pointers passed to the function
+// obey escape analysis requirements. Specifically, it must not pass
+// a stack pointer to an escaping argument. debugCallV2 cannot check
+// this invariant.
+//
+// This is ABIInternal because Go code injects its PC directly into new
+// goroutine stacks.
+TEXT runtime·debugCallV2<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+	MOVV    R1, -272(R3)
+	ADDV    $-272, R3
+
+	// We can't do anything that might clobber any of these
+	// registers before this.
+	MOVV    R2, (4*8)(R3)
+	MOVV    R4, (5*8)(R3)
+	MOVV    R5, (6*8)(R3)
+	MOVV    R6, (7*8)(R3)
+	MOVV    R7, (8*8)(R3)
+	MOVV    R8, (9*8)(R3)
+	MOVV    R9, (10*8)(R3)
+	MOVV    R10, (11*8)(R3)
+	MOVV    R11, (12*8)(R3)
+	MOVV    R12, (13*8)(R3)
+	MOVV    R13, (14*8)(R3)
+	MOVV    R14, (15*8)(R3)
+	MOVV    R15, (16*8)(R3)
+	MOVV    R16, (17*8)(R3)
+	MOVV    R17, (18*8)(R3)
+	MOVV    R18, (19*8)(R3)
+	MOVV    R19, (20*8)(R3)
+	MOVV    R20, (21*8)(R3)
+	MOVV    R21, (22*8)(R3)
+	MOVV    g, (23*8)(R3)
+	MOVV    R23, (24*8)(R3)
+	MOVV    R24, (25*8)(R3)
+	MOVV    R25, (26*8)(R3)
+	MOVV    R26, (27*8)(R3)
+	MOVV    R27, (28*8)(R3)
+	MOVV    R28, (29*8)(R3)
+	MOVV    R29, (30*8)(R3)
+	MOVV    R30, (31*8)(R3)
+	MOVV    R31, (32*8)(R3)
+
+	// Perform a safe-point check.
+	MOVV    R1, 8(R3)
+	CALL    runtime·debugCallCheck(SB)
+	MOVV    16(R3), R30
+	BEQ R30, good
+
+	// The safety check failed. Put the reason string at the top
+	// of the stack.
+	MOVV    R30, 8(R3)
+
+	MOVV    24(R3), R30
+	MOVV    R30, 16(R3)
+
+	MOVV    $8, R19
+	BREAK
+	JMP restore
+
+good:
+	// Registers are saved and it's safe to make a call.
+	// Open up a call frame, moving the stack if necessary.
+	//
+	// Once the frame is allocated, this will set R19 to 0 and
+	// invoke BREAK. The debugger should write the argument
+	// frame for the call at SP+8, set up argument registers,
+	// set the LR as the signal PC + 4, set the PC to the function
+	// to call, set R29 to point to the closure (if a closure call),
+	// and resume execution.
+	//
+	// If the function returns, this will set R19 to 1 and invoke
+	// BREAK. The debugger can then inspect any return value saved
+	// on the stack at SP+8 and in registers. To resume execution,
+	// the debugger should restore the LR from (SP).
+	//
+	// If the function panics, this will set R19 to 2 and invoke BREAK.
+	// The interface{} value of the panic will be at SP+8. The debugger
+	// can inspect the panic value and resume execution again.
+#define DEBUG_CALL_DISPATCH(NAME,MAXSIZE)	\
+	MOVV    $MAXSIZE, R27;         \
+	BLT R27, R30, 5(PC);            \
+	MOVV    $NAME(SB), R28;			\
+	MOVV    R28, 8(R3);			\
+	CALL    runtime·debugCallWrap(SB);	\
+	JMP restore
+
+	MOVV    264(R3), R30 // the argument frame size
+	DEBUG_CALL_DISPATCH(debugCall32<>, 32)
+	DEBUG_CALL_DISPATCH(debugCall64<>, 64)
+	DEBUG_CALL_DISPATCH(debugCall128<>, 128)
+	DEBUG_CALL_DISPATCH(debugCall256<>, 256)
+	DEBUG_CALL_DISPATCH(debugCall512<>, 512)
+	DEBUG_CALL_DISPATCH(debugCall1024<>, 1024)
+	DEBUG_CALL_DISPATCH(debugCall2048<>, 2048)
+	DEBUG_CALL_DISPATCH(debugCall4096<>, 4096)
+	DEBUG_CALL_DISPATCH(debugCall8192<>, 8192)
+	DEBUG_CALL_DISPATCH(debugCall16384<>, 16384)
+	DEBUG_CALL_DISPATCH(debugCall32768<>, 32768)
+	DEBUG_CALL_DISPATCH(debugCall65536<>, 65536)
+	// The frame size is too large. Report the error.
+	MOVV    $debugCallFrameTooLarge<>(SB), R30
+	MOVV    R30, 8(R3)
+	MOVV    $20, R30
+	MOVV    R30, 16(R3) // length of debugCallFrameTooLarge string
+	MOVV    $8, R19
+	BREAK
+	JMP restore
+
+restore:
+	// Calls and failures resume here.
+	//
+	// Set R19 to 16 and invoke BREAK. The debugger should restore
+	// all registers except for PC and SP and resume execution.
+	MOVV    $16, R19
+	BREAK
+	// We must not modify flags after this point.
+
+	// Restore pointer-containing registers, which may have been
+	// modified from the debugger's copy by stack copying.
+	MOVV    (4*8)(R3), R2
+	MOVV    (5*8)(R3), R4
+	MOVV    (6*8)(R3), R5
+	MOVV    (7*8)(R3), R6
+	MOVV    (8*8)(R3), R7
+	MOVV    (9*8)(R3), R8
+	MOVV    (10*8)(R3), R9
+	MOVV    (11*8)(R3), R10
+	MOVV    (12*8)(R3), R11
+	MOVV    (13*8)(R3), R12
+	MOVV    (14*8)(R3), R13
+	MOVV    (15*8)(R3), R14
+	MOVV    (16*8)(R3), R15
+	MOVV    (17*8)(R3), R16
+	MOVV    (18*8)(R3), R17
+	MOVV    (19*8)(R3), R18
+	MOVV    (20*8)(R3), R19
+	MOVV    (21*8)(R3), R20
+	MOVV    (22*8)(R3), R21
+	MOVV    (23*8)(R3), g
+	MOVV    (24*8)(R3), R23
+	MOVV    (25*8)(R3), R24
+	MOVV    (26*8)(R3), R25
+	MOVV    (27*8)(R3), R26
+	MOVV    (28*8)(R3), R27
+	MOVV    (29*8)(R3), R28
+	MOVV    (30*8)(R3), R29
+	MOVV    (31*8)(R3), R30
+	MOVV    (32*8)(R3), R31
+
+	MOVV    0(R3), R30
+	ADDV    $280, R3 // Add 8 more bytes, see saveSigContext
+	MOVV    -8(R3), R1
+	JMP (R30)
+
+// runtime.debugCallCheck assumes that functions defined with the
+// DEBUG_CALL_FN macro are safe points to inject calls.
+#define DEBUG_CALL_FN(NAME,MAXSIZE)		\
+TEXT NAME(SB),WRAPPER,$MAXSIZE-0;		\
+	NO_LOCAL_POINTERS;		\
+	MOVV    $0, R19;		\
+	BREAK;		\
+	MOVV    $1, R19;		\
+	BREAK;		\
+	RET
+DEBUG_CALL_FN(debugCall32<>, 32)
+DEBUG_CALL_FN(debugCall64<>, 64)
+DEBUG_CALL_FN(debugCall128<>, 128)
+DEBUG_CALL_FN(debugCall256<>, 256)
+DEBUG_CALL_FN(debugCall512<>, 512)
+DEBUG_CALL_FN(debugCall1024<>, 1024)
+DEBUG_CALL_FN(debugCall2048<>, 2048)
+DEBUG_CALL_FN(debugCall4096<>, 4096)
+DEBUG_CALL_FN(debugCall8192<>, 8192)
+DEBUG_CALL_FN(debugCall16384<>, 16384)
+DEBUG_CALL_FN(debugCall32768<>, 32768)
+DEBUG_CALL_FN(debugCall65536<>, 65536)
+
+// func debugCallPanicked(val interface{})
+TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
+	// Copy the panic value to the top of stack at SP+8.
+	MOVV    val_type+0(FP), R30
+	MOVV    R30, 8(R3)
+	MOVV    val_data+8(FP), R30
+	MOVV    R30, 16(R3)
+	MOVV    $2, R19
+	BREAK
+	RET
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers, but the space for those arguments are allocated

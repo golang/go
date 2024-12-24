@@ -6,9 +6,11 @@ package ecdsa
 
 import (
 	"crypto/elliptic"
+	"crypto/internal/fips140only"
 	"errors"
 	"io"
 	"math/big"
+	"math/rand/v2"
 
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
@@ -18,6 +20,10 @@ import (
 // deprecated custom curves.
 
 func generateLegacy(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/ecdsa: use of custom curves is not allowed in FIPS 140-only mode")
+	}
+
 	k, err := randFieldElement(c, rand)
 	if err != nil {
 		return nil, err
@@ -75,7 +81,24 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 }
 
 func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/ecdsa: use of custom curves is not allowed in FIPS 140-only mode")
+	}
+
 	c := priv.Curve
+
+	// A cheap version of hedged signatures, for the deprecated path.
+	var seed [32]byte
+	if _, err := io.ReadFull(csprng, seed[:]); err != nil {
+		return nil, err
+	}
+	for i, b := range priv.D.Bytes() {
+		seed[i%32] ^= b
+	}
+	for i, b := range hash {
+		seed[i%32] ^= b
+	}
+	csprng = rand.NewChaCha8(seed)
 
 	// SEC 1, Version 2.0, Section 4.1.3
 	N := c.Params().N
@@ -115,6 +138,9 @@ func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, er
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid. Most applications should
 // use VerifyASN1 instead of dealing directly with r, s.
+//
+// The inputs are not considered confidential, and may leak through timing side
+// channels, or if an attacker has control of part of the inputs.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	if r.Sign() <= 0 || s.Sign() <= 0 {
 		return false
@@ -127,6 +153,10 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 }
 
 func verifyLegacy(pub *PublicKey, hash []byte, sig []byte) bool {
+	if fips140only.Enabled {
+		panic("crypto/ecdsa: use of custom curves is not allowed in FIPS 140-only mode")
+	}
+
 	rBytes, sBytes, err := parseSignature(sig)
 	if err != nil {
 		return false
@@ -168,9 +198,6 @@ var one = new(big.Int).SetInt64(1)
 // randFieldElement returns a random element of the order of the given
 // curve using the procedure given in FIPS 186-4, Appendix B.5.2.
 func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) {
-	// See randomPoint for notes on the algorithm. This has to match, or s390x
-	// signatures will come out different from other architectures, which will
-	// break TLS recorded tests.
 	for {
 		N := c.Params().N
 		b := make([]byte, (N.BitLen()+7)/8)

@@ -33,6 +33,33 @@ func ExampleWriter_AvailableBuffer() {
 	// Output: 1 2 3 4
 }
 
+// ExampleWriter_ReadFrom demonstrates how to use the ReadFrom method of Writer.
+func ExampleWriter_ReadFrom() {
+	var buf bytes.Buffer
+	writer := bufio.NewWriter(&buf)
+
+	data := "Hello, world!\nThis is a ReadFrom example."
+	reader := strings.NewReader(data)
+
+	n, err := writer.ReadFrom(reader)
+	if err != nil {
+		fmt.Println("ReadFrom Error:", err)
+		return
+	}
+
+	if err = writer.Flush(); err != nil {
+		fmt.Println("Flush Error:", err)
+		return
+	}
+
+	fmt.Println("Bytes written:", n)
+	fmt.Println("Buffer contents:", buf.String())
+	// Output:
+	// Bytes written: 41
+	// Buffer contents: Hello, world!
+	// This is a ReadFrom example.
+}
+
 // The simplest use of a Scanner, to read standard input as a set of lines.
 func ExampleScanner_lines() {
 	scanner := bufio.NewScanner(os.Stdin)

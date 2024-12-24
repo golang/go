@@ -7,6 +7,7 @@ package sql
 import (
 	"database/sql/driver"
 	"fmt"
+	"internal/asan"
 	"reflect"
 	"runtime"
 	"strings"
@@ -352,6 +353,9 @@ func TestRawBytesAllocs(t *testing.T) {
 		{"float64", float64(64), "64"},
 		{"bool", false, "false"},
 		{"time", time.Unix(2, 5).UTC(), "1970-01-01T00:00:02.000000005Z"},
+	}
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
 	}
 
 	var buf RawBytes

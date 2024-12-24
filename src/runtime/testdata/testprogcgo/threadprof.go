@@ -36,10 +36,10 @@ __attribute__((constructor)) void issue9456() {
 	}
 }
 
-void **nullptr;
+void **nullpointer;
 
 void *crash(void *p) {
-	*nullptr = p;
+	*nullpointer = p;
 	return 0;
 }
 

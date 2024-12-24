@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	. "io"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -418,6 +418,24 @@ func sortBytesInGroups(b []byte, n int) []byte {
 		groups = append(groups, b[:n])
 		b = b[n:]
 	}
-	sort.Slice(groups, func(i, j int) bool { return bytes.Compare(groups[i], groups[j]) < 0 })
+	slices.SortFunc(groups, bytes.Compare)
 	return bytes.Join(groups, nil)
+}
+
+var (
+	rSink *PipeReader
+	wSink *PipeWriter
+)
+
+func TestPipeAllocations(t *testing.T) {
+	numAllocs := testing.AllocsPerRun(10, func() {
+		rSink, wSink = Pipe()
+	})
+
+	// go.dev/cl/473535 claimed Pipe() should only do 2 allocations,
+	// plus the 2 escaping to heap for simulating real world usages.
+	expectedAllocs := 4
+	if int(numAllocs) > expectedAllocs {
+		t.Fatalf("too many allocations for io.Pipe() call: %f", numAllocs)
+	}
 }

@@ -4,34 +4,25 @@
 
 package runtime
 
-// traceExpWriter is a wrapper around trace writer that produces traceEvExperimentalBatch
-// batches. This means that the data written to the writer need not conform to the standard
-// trace format.
-type traceExpWriter struct {
-	traceWriter
-	exp traceExperiment
+// expWriter returns a traceWriter that writes into the current M's stream for
+// the given experiment.
+func (tl traceLocker) expWriter(exp traceExperiment) traceWriter {
+	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2][exp], exp: exp}
 }
 
-// unsafeTraceExpWriter produces a traceExpWriter that doesn't lock the trace.
+// unsafeTraceExpWriter produces a traceWriter for experimental trace batches
+// that doesn't lock the trace. Data written to experimental batches need not
+// conform to the standard trace format.
 //
 // It should only be used in contexts where either:
 // - Another traceLocker is held.
 // - trace.gen is prevented from advancing.
 //
-// buf may be nil.
-func unsafeTraceExpWriter(gen uintptr, buf *traceBuf, exp traceExperiment) traceExpWriter {
-	return traceExpWriter{traceWriter{traceLocker: traceLocker{gen: gen}, traceBuf: buf}, exp}
-}
-
-// ensure makes sure that at least maxSize bytes are available to write.
+// This does not have the same stack growth restrictions as traceLocker.writer.
 //
-// Returns whether the buffer was flushed.
-func (w traceExpWriter) ensure(maxSize int) (traceExpWriter, bool) {
-	refill := w.traceBuf == nil || !w.available(maxSize)
-	if refill {
-		w.traceWriter = w.traceWriter.refill(w.exp)
-	}
-	return w, refill
+// buf may be nil.
+func unsafeTraceExpWriter(gen uintptr, buf *traceBuf, exp traceExperiment) traceWriter {
+	return traceWriter{traceLocker: traceLocker{gen: gen}, traceBuf: buf, exp: exp}
 }
 
 // traceExperiment is an enumeration of the different kinds of experiments supported for tracing.
@@ -43,6 +34,10 @@ const (
 
 	// traceExperimentAllocFree is an experiment to add alloc/free events to the trace.
 	traceExperimentAllocFree
+
+	// traceNumExperiments is the number of trace experiments (and 1 higher than
+	// the highest numbered experiment).
+	traceNumExperiments
 )
 
 // Experimental events.

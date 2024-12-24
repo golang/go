@@ -563,6 +563,7 @@
 (AtomicStorePtrNoWB ptr val mem) => (Select1 (XCHGQ <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
 
 // Atomic exchanges.
+(AtomicExchange8 ptr val mem) => (XCHGB val ptr mem)
 (AtomicExchange32 ptr val mem) => (XCHGL val ptr mem)
 (AtomicExchange64 ptr val mem) => (XCHGQ val ptr mem)
 
@@ -578,11 +579,14 @@
 (AtomicCompareAndSwap32 ptr old new_ mem) => (CMPXCHGLlock ptr old new_ mem)
 (AtomicCompareAndSwap64 ptr old new_ mem) => (CMPXCHGQlock ptr old new_ mem)
 
-// Atomic memory updates.
+// Atomic memory logical operations (old style).
 (AtomicAnd8  ptr val mem) => (ANDBlock ptr val mem)
 (AtomicAnd32 ptr val mem) => (ANDLlock ptr val mem)
 (AtomicOr8   ptr val mem) => (ORBlock  ptr val mem)
 (AtomicOr32  ptr val mem) => (ORLlock  ptr val mem)
+
+// Atomic memory logical operations (new style).
+(Atomic(And64|And32|Or64|Or32)value ptr val mem) => (LoweredAtomic(And64|And32|Or64|Or32) ptr val mem)
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
@@ -922,14 +926,14 @@
 (MUL(Q|L)const [73] x) => (LEA(Q|L)8 x (LEA(Q|L)8 <v.Type> x x))
 (MUL(Q|L)const [81] x) => (LEA(Q|L)8 (LEA(Q|L)8 <v.Type> x x) (LEA(Q|L)8 <v.Type> x x))
 
-(MUL(Q|L)const [c] x) && isPowerOfTwo64(int64(c)+1) && c >=  15 => (SUB(Q|L)  (SHL(Q|L)const <v.Type> [int8(log64(int64(c)+1))] x) x)
-(MUL(Q|L)const [c] x) && isPowerOfTwo32(c-1) && c >=  17 => (LEA(Q|L)1 (SHL(Q|L)const <v.Type> [int8(log32(c-1))] x) x)
-(MUL(Q|L)const [c] x) && isPowerOfTwo32(c-2) && c >=  34 => (LEA(Q|L)2 (SHL(Q|L)const <v.Type> [int8(log32(c-2))] x) x)
-(MUL(Q|L)const [c] x) && isPowerOfTwo32(c-4) && c >=  68 => (LEA(Q|L)4 (SHL(Q|L)const <v.Type> [int8(log32(c-4))] x) x)
-(MUL(Q|L)const [c] x) && isPowerOfTwo32(c-8) && c >= 136 => (LEA(Q|L)8 (SHL(Q|L)const <v.Type> [int8(log32(c-8))] x) x)
-(MUL(Q|L)const [c] x) && c%3 == 0 && isPowerOfTwo32(c/3) => (SHL(Q|L)const [int8(log32(c/3))] (LEA(Q|L)2 <v.Type> x x))
-(MUL(Q|L)const [c] x) && c%5 == 0 && isPowerOfTwo32(c/5) => (SHL(Q|L)const [int8(log32(c/5))] (LEA(Q|L)4 <v.Type> x x))
-(MUL(Q|L)const [c] x) && c%9 == 0 && isPowerOfTwo32(c/9) => (SHL(Q|L)const [int8(log32(c/9))] (LEA(Q|L)8 <v.Type> x x))
+(MUL(Q|L)const [c] x) && isPowerOfTwo(int64(c)+1) && c >=  15 => (SUB(Q|L)  (SHL(Q|L)const <v.Type> [int8(log64(int64(c)+1))] x) x)
+(MUL(Q|L)const [c] x) && isPowerOfTwo(c-1) && c >=  17 => (LEA(Q|L)1 (SHL(Q|L)const <v.Type> [int8(log32(c-1))] x) x)
+(MUL(Q|L)const [c] x) && isPowerOfTwo(c-2) && c >=  34 => (LEA(Q|L)2 (SHL(Q|L)const <v.Type> [int8(log32(c-2))] x) x)
+(MUL(Q|L)const [c] x) && isPowerOfTwo(c-4) && c >=  68 => (LEA(Q|L)4 (SHL(Q|L)const <v.Type> [int8(log32(c-4))] x) x)
+(MUL(Q|L)const [c] x) && isPowerOfTwo(c-8) && c >= 136 => (LEA(Q|L)8 (SHL(Q|L)const <v.Type> [int8(log32(c-8))] x) x)
+(MUL(Q|L)const [c] x) && c%3 == 0 && isPowerOfTwo(c/3) => (SHL(Q|L)const [int8(log32(c/3))] (LEA(Q|L)2 <v.Type> x x))
+(MUL(Q|L)const [c] x) && c%5 == 0 && isPowerOfTwo(c/5) => (SHL(Q|L)const [int8(log32(c/5))] (LEA(Q|L)4 <v.Type> x x))
+(MUL(Q|L)const [c] x) && c%9 == 0 && isPowerOfTwo(c/9) => (SHL(Q|L)const [int8(log32(c/9))] (LEA(Q|L)8 <v.Type> x x))
 
 // combine add/shift into LEAQ/LEAL
 (ADD(L|Q) x (SHL(L|Q)const [3] y)) => (LEA(L|Q)8 x y)
@@ -1583,6 +1587,9 @@
 (MOVSDstore [off] {sym} ptr (MOVQi2f val) mem) => (MOVQstore  [off] {sym} ptr val mem)
 (MOVSSstore [off] {sym} ptr (MOVLi2f val) mem) => (MOVLstore  [off] {sym} ptr val mem)
 
+(MOVSDstore [off] {sym} ptr (MOVSDconst [f]) mem) && f == f => (MOVQstore [off] {sym} ptr (MOVQconst [int64(math.Float64bits(f))]) mem)
+(MOVSSstore [off] {sym} ptr (MOVSSconst [f]) mem) && f == f => (MOVLstore [off] {sym} ptr (MOVLconst [int32(math.Float32bits(f))]) mem)
+
 // Load args directly into the register class where it will be used.
 // We do this by just modifying the type of the Arg.
 (MOVQf2i <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() => @b.Func.Entry (Arg <t> [off] {sym})
@@ -1694,3 +1701,6 @@
 ((SHL|SHR|SAR)XQload [off] {sym} ptr (MOVQconst [c]) mem) => ((SHL|SHR|SAR)Qconst [int8(c&63)] (MOVQload [off] {sym} ptr mem))
 ((SHL|SHR|SAR)XQload [off] {sym} ptr (MOVLconst [c]) mem) => ((SHL|SHR|SAR)Qconst [int8(c&63)] (MOVQload [off] {sym} ptr mem))
 ((SHL|SHR|SAR)XLload [off] {sym} ptr (MOVLconst [c]) mem) => ((SHL|SHR|SAR)Lconst [int8(c&31)] (MOVLload [off] {sym} ptr mem))
+
+// Convert atomic logical operations to easier ones if we don't use the result.
+(Select1 a:(LoweredAtomic(And64|And32|Or64|Or32) ptr val mem)) && a.Uses == 1 && clobber(a) => ((ANDQ|ANDL|ORQ|ORL)lock ptr val mem)

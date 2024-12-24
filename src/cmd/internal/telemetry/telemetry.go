@@ -12,66 +12,38 @@
 package telemetry
 
 import (
-	"flag"
 	"os"
 
+	"cmd/internal/telemetry/counter"
+
 	"golang.org/x/telemetry"
-	"golang.org/x/telemetry/counter"
 )
 
-// Start opens the counter files for writing if telemetry is supported
-// on the current platform (and does nothing otherwise).
-func Start() {
-	telemetry.Start(telemetry.Config{
-		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
-	})
-}
+var openCountersCalled, maybeChildCalled bool
 
-// StartWithUpload opens the counter files for writing if telemetry
-// is supported on the current platform and also enables a once a day
-// check to see if the weekly reports are ready to be uploaded.
-// It should only be called by cmd/go
-func StartWithUpload() {
+// MaybeParent does a once a day check to see if the weekly reports are
+// ready to be processed or uploaded, and if so, starts the telemetry child to
+// do so. It should only be called by cmd/go, and only after OpenCounters and MaybeChild
+// have already been called.
+func MaybeParent() {
+	if !counter.OpenCalled() || !maybeChildCalled {
+		panic("MaybeParent must be called after OpenCounters and MaybeChild")
+	}
 	telemetry.Start(telemetry.Config{
 		Upload:       true,
 		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
 	})
 }
 
-// Inc increments the counter with the given name.
-func Inc(name string) {
-	counter.Inc(name)
-}
-
-// NewCounter returns a counter with the given name.
-func NewCounter(name string) *counter.Counter {
-	return counter.New(name)
-}
-
-// NewStack returns a new stack counter with the given name and depth.
-func NewStackCounter(name string, depth int) *counter.StackCounter {
-	return counter.NewStack(name, depth)
-}
-
-// CountFlags creates a counter for every flag that is set
-// and increments the counter. The name of the counter is
-// the concatenation of prefix and the flag name.
-func CountFlags(prefix string, flagSet flag.FlagSet) {
-	counter.CountFlags(prefix, flagSet)
-}
-
-// CountFlagValue creates a counter for the flag value
-// if it is set and increments the counter. The name of the
-// counter is the concatenation of prefix, the flagName, ":",
-// and value.String() for the flag's value.
-func CountFlagValue(prefix string, flagSet flag.FlagSet, flagName string) {
-	// TODO(matloob): Maybe pass in a list of flagNames if we end up counting
-	// values for more than one?
-	// TODO(matloob): Add this to x/telemetry?
-	flagSet.Visit(func(f *flag.Flag) {
-		if f.Name == flagName {
-			counter.New(prefix + f.Name + ":" + f.Value.String()).Inc()
-		}
+// MaybeChild executes the telemetry child logic if the calling program is
+// the telemetry child process, and does nothing otherwise. It is meant to be
+// called as the first thing in a program that uses telemetry.OpenCounters but cannot
+// call telemetry.OpenCounters immediately when it starts.
+func MaybeChild() {
+	maybeChildCalled = true
+	telemetry.MaybeChild(telemetry.Config{
+		Upload:       true,
+		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
 	})
 }
 

@@ -617,3 +617,7 @@ func newRawConn(file *File) (*rawConn, error) {
 func ignoringEINTR(fn func() error) error {
 	return fn()
 }
+
+func ignoringEINTR2[T any](fn func() (T, error)) (T, error) {
+	return fn()
+}

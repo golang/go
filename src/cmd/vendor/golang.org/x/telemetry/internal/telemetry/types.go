@@ -26,14 +26,14 @@ type ProgramConfig struct {
 }
 
 type CounterConfig struct {
-	Name  string
+	Name  string  // The "collapsed" counter: <chart>:{<bucket1>,<bucket2>,...}
 	Rate  float64 // If X <= Rate, report this counter
 	Depth int     `json:",omitempty"` // for stack counters
 }
 
-// A Report is what's uploaded (or saved locally)
+// A Report is the weekly aggregate of counters.
 type Report struct {
-	Week     string  // first day this report covers (YYYY-MM-DD)
+	Week     string  // End day this report covers (YYYY-MM-DD)
 	LastWeek string  // Week field from latest previous report uploaded
 	X        float64 // A random probability used to determine which counters are uploaded
 	Programs []*ProgramReport
@@ -41,9 +41,9 @@ type Report struct {
 }
 
 type ProgramReport struct {
-	Program   string
-	Version   string
-	GoVersion string
+	Program   string // Package path of the program.
+	Version   string // Program version. Go version if the program is part of the go distribution. Module version, otherwise.
+	GoVersion string // Go version used to build the program.
 	GOOS      string
 	GOARCH    string
 	Counters  map[string]int64

@@ -8,12 +8,11 @@ package osinfo
 
 import (
 	"fmt"
-
-	"golang.org/x/sys/windows"
+	"internal/syscall/windows"
 )
 
 // Version returns the OS version name/number.
 func Version() (string, error) {
-	info := windows.RtlGetVersion()
-	return fmt.Sprintf("%d.%d.%d", info.MajorVersion, info.MinorVersion, info.BuildNumber), nil
+	major, minor, build := windows.Version()
+	return fmt.Sprintf("%d.%d.%d", major, minor, build), nil
 }

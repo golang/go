@@ -17,8 +17,10 @@ import (
 	"unsafe"
 )
 
-type Handle uintptr
-type HWND uintptr
+type (
+	Handle uintptr
+	HWND   uintptr
+)
 
 const (
 	InvalidHandle = ^Handle(0)
@@ -166,6 +168,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	CreateNamedPipe(name *uint16, flags uint32, pipeMode uint32, maxInstances uint32, outSize uint32, inSize uint32, defaultTimeout uint32, sa *SecurityAttributes) (handle Handle, err error)  [failretval==InvalidHandle] = CreateNamedPipeW
 //sys	ConnectNamedPipe(pipe Handle, overlapped *Overlapped) (err error)
 //sys	DisconnectNamedPipe(pipe Handle) (err error)
+//sys   GetNamedPipeClientProcessId(pipe Handle, clientProcessID *uint32) (err error)
+//sys   GetNamedPipeServerProcessId(pipe Handle, serverProcessID *uint32) (err error)
 //sys	GetNamedPipeInfo(pipe Handle, flags *uint32, outSize *uint32, inSize *uint32, maxInstances *uint32) (err error)
 //sys	GetNamedPipeHandleState(pipe Handle, state *uint32, curInstances *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32, userName *uint16, maxUserNameSize uint32) (err error) = GetNamedPipeHandleStateW
 //sys	SetNamedPipeHandleState(pipe Handle, state *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32) (err error) = SetNamedPipeHandleState
@@ -211,6 +215,10 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	OpenProcess(desiredAccess uint32, inheritHandle bool, processId uint32) (handle Handle, err error)
 //sys	ShellExecute(hwnd Handle, verb *uint16, file *uint16, args *uint16, cwd *uint16, showCmd int32) (err error) [failretval<=32] = shell32.ShellExecuteW
 //sys	GetWindowThreadProcessId(hwnd HWND, pid *uint32) (tid uint32, err error) = user32.GetWindowThreadProcessId
+//sys	LoadKeyboardLayout(name *uint16, flags uint32) (hkl Handle, err error) [failretval==0] = user32.LoadKeyboardLayoutW
+//sys	UnloadKeyboardLayout(hkl Handle) (err error) = user32.UnloadKeyboardLayout
+//sys	GetKeyboardLayout(tid uint32) (hkl Handle) = user32.GetKeyboardLayout
+//sys	ToUnicodeEx(vkey uint32, scancode uint32, keystate *byte, pwszBuff *uint16, cchBuff int32, flags uint32, hkl Handle) (ret int32) = user32.ToUnicodeEx
 //sys	GetShellWindow() (shellWindow HWND) = user32.GetShellWindow
 //sys	MessageBox(hwnd HWND, text *uint16, caption *uint16, boxtype uint32) (ret int32, err error) [failretval==0] = user32.MessageBoxW
 //sys	ExitWindowsEx(flags uint32, reason uint32) (err error) = user32.ExitWindowsEx
@@ -307,6 +315,10 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	SetConsoleMode(console Handle, mode uint32) (err error) = kernel32.SetConsoleMode
 //sys	GetConsoleScreenBufferInfo(console Handle, info *ConsoleScreenBufferInfo) (err error) = kernel32.GetConsoleScreenBufferInfo
 //sys	setConsoleCursorPosition(console Handle, position uint32) (err error) = kernel32.SetConsoleCursorPosition
+//sys	GetConsoleCP() (cp uint32, err error) = kernel32.GetConsoleCP
+//sys	GetConsoleOutputCP() (cp uint32, err error) = kernel32.GetConsoleOutputCP
+//sys	SetConsoleCP(cp uint32) (err error) = kernel32.SetConsoleCP
+//sys	SetConsoleOutputCP(cp uint32) (err error) = kernel32.SetConsoleOutputCP
 //sys	WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) = kernel32.WriteConsoleW
 //sys	ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) = kernel32.ReadConsoleW
 //sys	resizePseudoConsole(pconsole Handle, size uint32) (hr error) = kernel32.ResizePseudoConsole
@@ -715,20 +727,12 @@ func DurationSinceBoot() time.Duration {
 }
 
 func Ftruncate(fd Handle, length int64) (err error) {
-	curoffset, e := Seek(fd, 0, 1)
-	if e != nil {
-		return e
+	type _FILE_END_OF_FILE_INFO struct {
+		EndOfFile int64
 	}
-	defer Seek(fd, curoffset, 0)
-	_, e = Seek(fd, length, 0)
-	if e != nil {
-		return e
-	}
-	e = SetEndOfFile(fd)
-	if e != nil {
-		return e
-	}
-	return nil
+	var info _FILE_END_OF_FILE_INFO
+	info.EndOfFile = length
+	return SetFileInformationByHandle(fd, FileEndOfFileInfo, (*byte)(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)))
 }
 
 func Gettimeofday(tv *Timeval) (err error) {
@@ -884,6 +888,11 @@ const socket_error = uintptr(^uint32(0))
 //sys	GetACP() (acp uint32) = kernel32.GetACP
 //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
 //sys	getBestInterfaceEx(sockaddr unsafe.Pointer, pdwBestIfIndex *uint32) (errcode error) = iphlpapi.GetBestInterfaceEx
+//sys   GetIfEntry2Ex(level uint32, row *MibIfRow2) (errcode error) = iphlpapi.GetIfEntry2Ex
+//sys   GetUnicastIpAddressEntry(row *MibUnicastIpAddressRow) (errcode error) = iphlpapi.GetUnicastIpAddressEntry
+//sys   NotifyIpInterfaceChange(family uint16, callback uintptr, callerContext unsafe.Pointer, initialNotification bool, notificationHandle *Handle) (errcode error) = iphlpapi.NotifyIpInterfaceChange
+//sys   NotifyUnicastIpAddressChange(family uint16, callback uintptr, callerContext unsafe.Pointer, initialNotification bool, notificationHandle *Handle) (errcode error) = iphlpapi.NotifyUnicastIpAddressChange
+//sys   CancelMibChangeNotify2(notificationHandle Handle) (errcode error) = iphlpapi.CancelMibChangeNotify2
 
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.
@@ -1368,9 +1377,11 @@ func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) {
 func SetsockoptInet4Addr(fd Handle, level, opt int, value [4]byte) (err error) {
 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&value[0])), 4)
 }
+
 func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
 }
+
 func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) {
 	return syscall.EWINDOWS
 }
@@ -1673,13 +1684,16 @@ func (s NTStatus) Error() string {
 // do not use NTUnicodeString, and instead UTF16PtrFromString should be used for
 // the more common *uint16 string type.
 func NewNTUnicodeString(s string) (*NTUnicodeString, error) {
-	var u NTUnicodeString
-	s16, err := UTF16PtrFromString(s)
+	s16, err := UTF16FromString(s)
 	if err != nil {
 		return nil, err
 	}
-	RtlInitUnicodeString(&u, s16)
-	return &u, nil
+	n := uint16(len(s16) * 2)
+	return &NTUnicodeString{
+		Length:        n - 2, // subtract 2 bytes for the NULL terminator
+		MaximumLength: n,
+		Buffer:        &s16[0],
+	}, nil
 }
 
 // Slice returns a uint16 slice that aliases the data in the NTUnicodeString.

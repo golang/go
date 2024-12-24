@@ -13,6 +13,7 @@ const (
 	// From OpenBSD's machine/cpu.h.
 	_CPU_ID_AA64ISAR0 = 2
 	_CPU_ID_AA64ISAR1 = 3
+	_CPU_ID_AA64PFR0  = 8
 )
 
 //go:noescape
@@ -24,5 +25,11 @@ func osInit() {
 	if !ok {
 		return
 	}
-	parseARM64SystemRegisters(isar0)
+	// Get ID_AA64PFR0 from sysctl.
+	pfr0, ok := sysctlUint64([]uint32{_CTL_MACHDEP, _CPU_ID_AA64PFR0})
+	if !ok {
+		return
+	}
+
+	parseARM64SystemRegisters(isar0, pfr0)
 }

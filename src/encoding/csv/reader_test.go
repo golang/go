@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -470,7 +471,7 @@ func TestRead(t *testing.T) {
 					}
 					break
 				}
-				if got, want := rec, tt.Output[recNum]; !reflect.DeepEqual(got, want) {
+				if got, want := rec, tt.Output[recNum]; !slices.Equal(got, want) {
 					t.Errorf("Read vs ReadAll mismatch;\ngot %q\nwant %q", got, want)
 				}
 				pos := positions[recNum]

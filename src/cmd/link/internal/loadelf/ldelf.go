@@ -636,7 +636,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 		sb.SetValue(int64(elfsym.value))
 		sb.SetSize(int64(elfsym.size))
-		if sectsb.Type() == sym.STEXT {
+		if sectsb.Type().IsText() {
 			if l.AttrExternal(s) && !l.AttrDuplicateOK(s) {
 				return errorf("%s: duplicate symbol definition", sb.Name())
 			}
@@ -674,7 +674,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if l.SubSym(s) != 0 {
 			sb.SortSub()
 		}
-		if sb.Type() == sym.STEXT {
+		if sb.Type().IsText() {
 			if l.AttrOnList(s) {
 				return errorf("symbol %s listed multiple times",
 					l.SymName(s))
@@ -1026,11 +1026,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		LOONG64 | uint32(elf.R_LARCH_SUB16)<<16:
 		return 2, 2, nil
 
-	case LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_PCREL)<<16,
-		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_GPREL)<<16,
-		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_ABSOLUTE)<<16,
-		LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
-		LOONG64 | uint32(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2)<<16,
+	case LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
 		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16,
 		LOONG64 | uint32(elf.R_LARCH_ADD24)<<16,
 		LOONG64 | uint32(elf.R_LARCH_ADD32)<<16,

@@ -11,7 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	tracev2 "internal/trace/v2"
+	traceparse "internal/trace"
 	"io"
 	"log"
 	"os"
@@ -32,8 +32,11 @@ const entrypointVar = "RUNTIME_TEST_ENTRYPOINT"
 
 func TestMain(m *testing.M) {
 	switch entrypoint := os.Getenv(entrypointVar); entrypoint {
-	case "crash":
-		crash()
+	case "panic":
+		crashViaPanic()
+		panic("unreachable")
+	case "trap":
+		crashViaTrap()
 		panic("unreachable")
 	default:
 		log.Fatalf("invalid %s: %q", entrypointVar, entrypoint)
@@ -168,7 +171,23 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 		cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
 		t.Logf("running %v", cmd)
 		cmd.Dir = "testdata/" + binary
-		out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+		cmd = testenv.CleanCmdEnv(cmd)
+
+		// Add the rangefunc GOEXPERIMENT unconditionally since some tests depend on it.
+		// TODO(61405): Remove this once it's enabled by default.
+		edited := false
+		for i := range cmd.Env {
+			e := cmd.Env[i]
+			if _, vars, ok := strings.Cut(e, "GOEXPERIMENT="); ok {
+				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",rangefunc"
+				edited = true
+			}
+		}
+		if !edited {
+			cmd.Env = append(cmd.Env, "GOEXPERIMENT=rangefunc")
+		}
+
+		out, err := cmd.CombinedOutput()
 		if err != nil {
 			target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
 		} else {
@@ -605,8 +624,11 @@ func TestConcurrentMapWrites(t *testing.T) {
 	}
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapWrites")
-	want := "fatal error: concurrent map writes"
-	if !strings.HasPrefix(output, want) {
+	want := "fatal error: concurrent map writes\n"
+	// Concurrent writes can corrupt the map in a way that we
+	// detect with a separate throw.
+	want2 := "fatal error: small map with no empty slot (concurrent map writes?)\n"
+	if !strings.HasPrefix(output, want) && !strings.HasPrefix(output, want2) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
@@ -616,8 +638,11 @@ func TestConcurrentMapReadWrite(t *testing.T) {
 	}
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapReadWrite")
-	want := "fatal error: concurrent map read and map write"
-	if !strings.HasPrefix(output, want) {
+	want := "fatal error: concurrent map read and map write\n"
+	// Concurrent writes can corrupt the map in a way that we
+	// detect with a separate throw.
+	want2 := "fatal error: small map with no empty slot (concurrent map writes?)\n"
+	if !strings.HasPrefix(output, want) && !strings.HasPrefix(output, want2) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
@@ -627,9 +652,39 @@ func TestConcurrentMapIterateWrite(t *testing.T) {
 	}
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapIterateWrite")
-	want := "fatal error: concurrent map iteration and map write"
-	if !strings.HasPrefix(output, want) {
+	want := "fatal error: concurrent map iteration and map write\n"
+	// Concurrent writes can corrupt the map in a way that we
+	// detect with a separate throw.
+	want2 := "fatal error: small map with no empty slot (concurrent map writes?)\n"
+	if !strings.HasPrefix(output, want) && !strings.HasPrefix(output, want2) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+func TestConcurrentMapWritesIssue69447(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+	exe, err := buildTestProg(t, "testprog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 200; i++ {
+		output := runBuiltTestProg(t, exe, "concurrentMapWrites")
+		if output == "" {
+			// If we didn't detect an error, that's ok.
+			// This case makes this test not flaky like
+			// the other ones above.
+			// (More correctly, this case makes this test flaky
+			// in the other direction, in that it might not
+			// detect a problem even if there is one.)
+			continue
+		}
+		want := "fatal error: concurrent map writes\n"
+		// Concurrent writes can corrupt the map in a way that we
+		// detect with a separate throw.
+		want2 := "fatal error: small map with no empty slot (concurrent map writes?)\n"
+		if !strings.HasPrefix(output, want) && !strings.HasPrefix(output, want2) {
+			t.Fatalf("output does not start with %q:\n%s", want, output)
+		}
 	}
 }
 
@@ -900,7 +955,7 @@ func TestCrashWhileTracing(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("could not start subprocess: %v", err)
 	}
-	r, err := tracev2.NewReader(stdOut)
+	r, err := traceparse.NewReader(stdOut)
 	if err != nil {
 		t.Fatalf("could not create trace.NewReader: %v", err)
 	}
@@ -918,9 +973,9 @@ loop:
 			break loop
 		}
 		switch ev.Kind() {
-		case tracev2.EventSync:
+		case traceparse.EventSync:
 			seenSync = true
-		case tracev2.EventLog:
+		case traceparse.EventLog:
 			v := ev.Log()
 			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
 				// Should we already stop reading here? More events may come, but

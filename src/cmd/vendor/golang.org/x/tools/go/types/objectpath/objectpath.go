@@ -51,7 +51,7 @@ type Path string
 //
 //	PO package->object	Package.Scope.Lookup
 //	OT  object->type 	Object.Type
-//	TT    type->type 	Type.{Elem,Key,Params,Results,Underlying} [EKPRU]
+//	TT    type->type 	Type.{Elem,Key,{,{,Recv}Type}Params,Results,Underlying,Rhs} [EKPRUTrCa]
 //	TO   type->object	Type.{At,Field,Method,Obj} [AFMO]
 //
 // All valid paths start with a package and end at an object
@@ -63,8 +63,8 @@ type Path string
 //   - The only PO operator is Package.Scope.Lookup, which requires an identifier.
 //   - The only OT operator is Object.Type,
 //     which we encode as '.' because dot cannot appear in an identifier.
-//   - The TT operators are encoded as [EKPRUTC];
-//     one of these (TypeParam) requires an integer operand,
+//   - The TT operators are encoded as [EKPRUTrCa];
+//     two of these ({,Recv}TypeParams) require an integer operand,
 //     which is encoded as a string of decimal digits.
 //   - The TO operators are encoded as [AFMO];
 //     three of these (At,Field,Method) require an integer operand,
@@ -98,19 +98,21 @@ const (
 	opType = '.' // .Type()		  (Object)
 
 	// type->type operators
-	opElem       = 'E' // .Elem()		        (Pointer, Slice, Array, Chan, Map)
-	opKey        = 'K' // .Key()		        (Map)
-	opParams     = 'P' // .Params()		      (Signature)
-	opResults    = 'R' // .Results()	      (Signature)
-	opUnderlying = 'U' // .Underlying()	    (Named)
-	opTypeParam  = 'T' // .TypeParams.At(i) (Named, Signature)
-	opConstraint = 'C' // .Constraint()     (TypeParam)
+	opElem          = 'E' // .Elem()		(Pointer, Slice, Array, Chan, Map)
+	opKey           = 'K' // .Key()			(Map)
+	opParams        = 'P' // .Params()		(Signature)
+	opResults       = 'R' // .Results()		(Signature)
+	opUnderlying    = 'U' // .Underlying()		(Named)
+	opTypeParam     = 'T' // .TypeParams.At(i)	(Named, Signature)
+	opRecvTypeParam = 'r' // .RecvTypeParams.At(i)	(Signature)
+	opConstraint    = 'C' // .Constraint()		(TypeParam)
+	opRhs           = 'a' // .Rhs()			(Alias)
 
 	// type->object operators
-	opAt     = 'A' // .At(i)		 (Tuple)
-	opField  = 'F' // .Field(i)	 (Struct)
-	opMethod = 'M' // .Method(i) (Named or Interface; not Struct: "promoted" names are ignored)
-	opObj    = 'O' // .Obj()		 (Named, TypeParam)
+	opAt     = 'A' // .At(i)	(Tuple)
+	opField  = 'F' // .Field(i)	(Struct)
+	opMethod = 'M' // .Method(i)	(Named or Interface; not Struct: "promoted" names are ignored)
+	opObj    = 'O' // .Obj()	(Named, TypeParam)
 )
 
 // For is equivalent to new(Encoder).For(obj).
@@ -226,7 +228,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 	//    Reject obviously non-viable cases.
 	switch obj := obj.(type) {
 	case *types.TypeName:
-		if _, ok := aliases.Unalias(obj.Type()).(*types.TypeParam); !ok {
+		if _, ok := types.Unalias(obj.Type()).(*types.TypeParam); !ok {
 			// With the exception of type parameters, only package-level type names
 			// have a path.
 			return "", fmt.Errorf("no path for %v", obj)
@@ -278,21 +280,26 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 		path = append(path, opType)
 
 		T := o.Type()
-
-		if tname.IsAlias() {
-			// type alias
-			if r := find(obj, T, path, nil); r != nil {
+		if alias, ok := T.(*types.Alias); ok {
+			if r := findTypeParam(obj, aliases.TypeParams(alias), path, opTypeParam); r != nil {
 				return Path(r), nil
 			}
-		} else {
-			if named, _ := T.(*types.Named); named != nil {
-				if r := findTypeParam(obj, named.TypeParams(), path, nil); r != nil {
-					// generic named type
-					return Path(r), nil
-				}
+			if r := find(obj, aliases.Rhs(alias), append(path, opRhs)); r != nil {
+				return Path(r), nil
 			}
+
+		} else if tname.IsAlias() {
+			// legacy alias
+			if r := find(obj, T, path); r != nil {
+				return Path(r), nil
+			}
+
+		} else if named, ok := T.(*types.Named); ok {
 			// defined (named) type
-			if r := find(obj, T.Underlying(), append(path, opUnderlying), nil); r != nil {
+			if r := findTypeParam(obj, named.TypeParams(), path, opTypeParam); r != nil {
+				return Path(r), nil
+			}
+			if r := find(obj, named.Underlying(), append(path, opUnderlying)); r != nil {
 				return Path(r), nil
 			}
 		}
@@ -305,7 +312,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 		if _, ok := o.(*types.TypeName); !ok {
 			if o.Exported() {
 				// exported non-type (const, var, func)
-				if r := find(obj, o.Type(), append(path, opType), nil); r != nil {
+				if r := find(obj, o.Type(), append(path, opType)); r != nil {
 					return Path(r), nil
 				}
 			}
@@ -313,7 +320,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 		}
 
 		// Inspect declared methods of defined types.
-		if T, ok := aliases.Unalias(o.Type()).(*types.Named); ok {
+		if T, ok := types.Unalias(o.Type()).(*types.Named); ok {
 			path = append(path, opType)
 			// The method index here is always with respect
 			// to the underlying go/types data structures,
@@ -325,7 +332,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 				if m == obj {
 					return Path(path2), nil // found declared method
 				}
-				if r := find(obj, m.Type(), append(path2, opType), nil); r != nil {
+				if r := find(obj, m.Type(), append(path2, opType)); r != nil {
 					return Path(r), nil
 				}
 			}
@@ -440,43 +447,64 @@ func (enc *Encoder) concreteMethod(meth *types.Func) (Path, bool) {
 //
 // The seen map is used to short circuit cycles through type parameters. If
 // nil, it will be allocated as necessary.
-func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]bool) []byte {
+//
+// The seenMethods map is used internally to short circuit cycles through
+// interface methods, such as occur in the following example:
+//
+//	type I interface { f() interface{I} }
+//
+// See golang/go#68046 for details.
+func find(obj types.Object, T types.Type, path []byte) []byte {
+	return (&finder{obj: obj}).find(T, path)
+}
+
+// finder closes over search state for a call to find.
+type finder struct {
+	obj             types.Object             // the sought object
+	seenTParamNames map[*types.TypeName]bool // for cycle breaking through type parameters
+	seenMethods     map[*types.Func]bool     // for cycle breaking through recursive interfaces
+}
+
+func (f *finder) find(T types.Type, path []byte) []byte {
 	switch T := T.(type) {
-	case *aliases.Alias:
-		return find(obj, aliases.Unalias(T), path, seen)
+	case *types.Alias:
+		return f.find(types.Unalias(T), path)
 	case *types.Basic, *types.Named:
 		// Named types belonging to pkg were handled already,
 		// so T must belong to another package. No path.
 		return nil
 	case *types.Pointer:
-		return find(obj, T.Elem(), append(path, opElem), seen)
+		return f.find(T.Elem(), append(path, opElem))
 	case *types.Slice:
-		return find(obj, T.Elem(), append(path, opElem), seen)
+		return f.find(T.Elem(), append(path, opElem))
 	case *types.Array:
-		return find(obj, T.Elem(), append(path, opElem), seen)
+		return f.find(T.Elem(), append(path, opElem))
 	case *types.Chan:
-		return find(obj, T.Elem(), append(path, opElem), seen)
+		return f.find(T.Elem(), append(path, opElem))
 	case *types.Map:
-		if r := find(obj, T.Key(), append(path, opKey), seen); r != nil {
+		if r := f.find(T.Key(), append(path, opKey)); r != nil {
 			return r
 		}
-		return find(obj, T.Elem(), append(path, opElem), seen)
+		return f.find(T.Elem(), append(path, opElem))
 	case *types.Signature:
-		if r := findTypeParam(obj, T.TypeParams(), path, seen); r != nil {
+		if r := f.findTypeParam(T.RecvTypeParams(), path, opRecvTypeParam); r != nil {
 			return r
 		}
-		if r := find(obj, T.Params(), append(path, opParams), seen); r != nil {
+		if r := f.findTypeParam(T.TypeParams(), path, opTypeParam); r != nil {
 			return r
 		}
-		return find(obj, T.Results(), append(path, opResults), seen)
+		if r := f.find(T.Params(), append(path, opParams)); r != nil {
+			return r
+		}
+		return f.find(T.Results(), append(path, opResults))
 	case *types.Struct:
 		for i := 0; i < T.NumFields(); i++ {
 			fld := T.Field(i)
 			path2 := appendOpArg(path, opField, i)
-			if fld == obj {
+			if fld == f.obj {
 				return path2 // found field var
 			}
-			if r := find(obj, fld.Type(), append(path2, opType), seen); r != nil {
+			if r := f.find(fld.Type(), append(path2, opType)); r != nil {
 				return r
 			}
 		}
@@ -485,10 +513,10 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
 		for i := 0; i < T.Len(); i++ {
 			v := T.At(i)
 			path2 := appendOpArg(path, opAt, i)
-			if v == obj {
+			if v == f.obj {
 				return path2 // found param/result var
 			}
-			if r := find(obj, v.Type(), append(path2, opType), seen); r != nil {
+			if r := f.find(v.Type(), append(path2, opType)); r != nil {
 				return r
 			}
 		}
@@ -496,28 +524,35 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
 	case *types.Interface:
 		for i := 0; i < T.NumMethods(); i++ {
 			m := T.Method(i)
+			if f.seenMethods[m] {
+				return nil
+			}
 			path2 := appendOpArg(path, opMethod, i)
-			if m == obj {
+			if m == f.obj {
 				return path2 // found interface method
 			}
-			if r := find(obj, m.Type(), append(path2, opType), seen); r != nil {
+			if f.seenMethods == nil {
+				f.seenMethods = make(map[*types.Func]bool)
+			}
+			f.seenMethods[m] = true
+			if r := f.find(m.Type(), append(path2, opType)); r != nil {
 				return r
 			}
 		}
 		return nil
 	case *types.TypeParam:
 		name := T.Obj()
-		if name == obj {
-			return append(path, opObj)
-		}
-		if seen[name] {
+		if f.seenTParamNames[name] {
 			return nil
 		}
-		if seen == nil {
-			seen = make(map[*types.TypeName]bool)
+		if name == f.obj {
+			return append(path, opObj)
 		}
-		seen[name] = true
-		if r := find(obj, T.Constraint(), append(path, opConstraint), seen); r != nil {
+		if f.seenTParamNames == nil {
+			f.seenTParamNames = make(map[*types.TypeName]bool)
+		}
+		f.seenTParamNames[name] = true
+		if r := f.find(T.Constraint(), append(path, opConstraint)); r != nil {
 			return r
 		}
 		return nil
@@ -525,11 +560,15 @@ func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]
 	panic(T)
 }
 
-func findTypeParam(obj types.Object, list *types.TypeParamList, path []byte, seen map[*types.TypeName]bool) []byte {
+func findTypeParam(obj types.Object, list *types.TypeParamList, path []byte, op byte) []byte {
+	return (&finder{obj: obj}).findTypeParam(list, path, op)
+}
+
+func (f *finder) findTypeParam(list *types.TypeParamList, path []byte, op byte) []byte {
 	for i := 0; i < list.Len(); i++ {
 		tparam := list.At(i)
-		path2 := appendOpArg(path, opTypeParam, i)
-		if r := find(obj, tparam, path2, seen); r != nil {
+		path2 := appendOpArg(path, op, i)
+		if r := f.find(tparam, path2); r != nil {
 			return r
 		}
 	}
@@ -580,10 +619,10 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 		code := suffix[0]
 		suffix = suffix[1:]
 
-		// Codes [AFM] have an integer operand.
+		// Codes [AFMTr] have an integer operand.
 		var index int
 		switch code {
-		case opAt, opField, opMethod, opTypeParam:
+		case opAt, opField, opMethod, opTypeParam, opRecvTypeParam:
 			rest := strings.TrimLeft(suffix, "0123456789")
 			numerals := suffix[:len(suffix)-len(rest)]
 			suffix = rest
@@ -616,7 +655,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 
 		// Inv: t != nil, obj == nil
 
-		t = aliases.Unalias(t)
+		t = types.Unalias(t)
 		switch code {
 		case opElem:
 			hasElem, ok := t.(hasElem) // Pointer, Slice, Array, Chan, Map
@@ -653,6 +692,16 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 			}
 			t = named.Underlying()
 
+		case opRhs:
+			if alias, ok := t.(*types.Alias); ok {
+				t = aliases.Rhs(alias)
+			} else if false && aliases.Enabled() {
+				// The Enabled check is too expensive, so for now we
+				// simply assume that aliases are not enabled.
+				// TODO(adonovan): replace with "if true {" when go1.24 is assured.
+				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want alias)", code, t, t)
+			}
+
 		case opTypeParam:
 			hasTypeParams, ok := t.(hasTypeParams) // Named, Signature
 			if !ok {
@@ -663,6 +712,17 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 				return nil, fmt.Errorf("tuple index %d out of range [0-%d)", index, n)
 			}
 			t = tparams.At(index)
+
+		case opRecvTypeParam:
+			sig, ok := t.(*types.Signature) // Signature
+			if !ok {
+				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want signature)", code, t, t)
+			}
+			rtparams := sig.RecvTypeParams()
+			if n := rtparams.Len(); index >= n {
+				return nil, fmt.Errorf("tuple index %d out of range [0-%d)", index, n)
+			}
+			t = rtparams.At(index)
 
 		case opConstraint:
 			tparam, ok := t.(*types.TypeParam)
@@ -723,6 +783,10 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 		default:
 			return nil, fmt.Errorf("invalid path: unknown code %q", code)
 		}
+	}
+
+	if obj == nil {
+		panic(p) // path does not end in an object-valued operator
 	}
 
 	if obj.Pkg() != pkg {

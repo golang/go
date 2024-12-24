@@ -12,11 +12,11 @@ package runtime
 // get printed somehow and they search for it.
 const kqIdent = 0xee1eb9f4
 
-func addWakeupEvent(_ int32) {
+func addWakeupEvent(kq int32) {
 	ev := keventt{
 		ident:  kqIdent,
 		filter: _EVFILT_USER,
-		flags:  _EV_ADD,
+		flags:  _EV_ADD | _EV_CLEAR,
 	}
 	for {
 		n := kevent(kq, &ev, 1, nil, 0, nil)
@@ -38,7 +38,6 @@ func wakeNetpoll(kq int32) {
 	ev := keventt{
 		ident:  kqIdent,
 		filter: _EVFILT_USER,
-		flags:  _EV_ENABLE,
 		fflags: _NOTE_TRIGGER,
 	}
 	for {
@@ -66,13 +65,11 @@ func isWakeup(ev *keventt) bool {
 	return false
 }
 
-func drainWakeupEvent(kq int32) {
-	ev := keventt{
-		ident:  kqIdent,
-		filter: _EVFILT_USER,
-		flags:  _EV_DISABLE,
+func processWakeupEvent(kq int32, isBlocking bool) {
+	if !isBlocking {
+		// Got a wrong thread, relay
+		wakeNetpoll(kq)
 	}
-	kevent(kq, &ev, 1, nil, 0, nil)
 }
 
 func netpollIsPollDescriptor(fd uintptr) bool {

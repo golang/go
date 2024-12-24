@@ -10,7 +10,9 @@ import (
 	"internal/goarch"
 	"internal/goos"
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/exithook"
+	"internal/runtime/sys"
+	"internal/stringslite"
 	"unsafe"
 )
 
@@ -264,6 +266,17 @@ func main() {
 	if isarchive || islibrary {
 		// A program compiled with -buildmode=c-archive or c-shared
 		// has a main, but it is not executed.
+		if GOARCH == "wasm" {
+			// On Wasm, pause makes it return to the host.
+			// Unlike cgo callbacks where Ms are created on demand,
+			// on Wasm we have only one M. So we keep this M (and this
+			// G) for callbacks.
+			// Using the caller's SP unwinds this frame and backs to
+			// goexit. The -16 is: 8 for goexit's (fake) return PC,
+			// and pause's epilogue pops 8.
+			pause(sys.GetCallerSP() - 16) // should not return
+			panic("unreachable")
+		}
 		return
 	}
 	fn := main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
@@ -306,6 +319,16 @@ func os_beforeExit(exitCode int) {
 	if exitCode == 0 && raceenabled {
 		racefini()
 	}
+}
+
+func init() {
+	exithook.Gosched = Gosched
+	exithook.Goid = func() uint64 { return getg().goid }
+	exithook.Throw = throw
+}
+
+func runExitHooks(code int) {
+	exithook.Run(code)
 }
 
 // start forcegc helper goroutine
@@ -381,6 +404,17 @@ func goschedIfBusy() {
 // Reason explains why the goroutine has been parked. It is displayed in stack
 // traces and heap dumps. Reasons should be unique and descriptive. Do not
 // re-use reasons, add new ones.
+//
+// gopark should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//   - github.com/sagernet/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname gopark
 func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceReason traceBlockReason, traceskip int) {
 	if reason != waitReasonSleep {
 		checkTimeouts() // timeouts may expire while two goroutines keep the scheduler busy
@@ -407,6 +441,16 @@ func goparkunlock(lock *mutex, reason waitReason, traceReason traceBlockReason, 
 	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceReason, traceskip)
 }
 
+// goready should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//   - github.com/sagernet/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname goready
 func goready(gp *g, traceskip int) {
 	systemstack(func() {
 		ready(gp, traceskip, true)
@@ -706,6 +750,11 @@ func cpuinit(env string) {
 
 	case "arm64":
 		arm64HasATOMICS = cpu.ARM64.HasATOMICS
+
+	case "loong64":
+		loong64HasLAMCAS = cpu.Loong64.HasLAMCAS
+		loong64HasLAM_BH = cpu.Loong64.HasLAM_BH
+		loong64HasLSX = cpu.Loong64.HasLSX
 	}
 }
 
@@ -729,7 +778,7 @@ func getGodebugEarly() string {
 			p := argv_index(argv, argc+1+i)
 			s := unsafe.String(p, findnull(p))
 
-			if hasPrefix(s, prefix) {
+			if stringslite.HasPrefix(s, prefix) {
 				env = gostring(p)[len(prefix):]
 				break
 			}
@@ -765,6 +814,8 @@ func schedinit() {
 	// All of this lock's critical sections should be
 	// extremely short.
 	lockInit(&memstats.heapStats.noPLock, lockRankLeafRank)
+
+	lockVerifyMSize()
 
 	// raceinit must be the first call to race detector.
 	// In particular, it must be done before mallocinit below calls racemapshadow.
@@ -816,6 +867,9 @@ func schedinit() {
 	if disableMemoryProfiling {
 		MemProfileRate = 0
 	}
+
+	// mcommoninit runs before parsedebugvars, so init profstacks again.
+	mProfStackInit(gp.m)
 
 	lock(&sched.lock)
 	sched.lastpoll.Store(nanotime())
@@ -929,9 +983,34 @@ func mcommoninit(mp *m, id int64) {
 // malloc and runtime locks for mLockProfile.
 // TODO(mknyszek): Implement lazy allocation if this becomes a problem.
 func mProfStackInit(mp *m) {
-	mp.profStack = make([]uintptr, maxStack)
-	mp.mLockProfile.stack = make([]uintptr, maxStack)
+	if debug.profstackdepth == 0 {
+		// debug.profstack is set to 0 by the user, or we're being called from
+		// schedinit before parsedebugvars.
+		return
+	}
+	mp.profStack = makeProfStackFP()
+	mp.mLockProfile.stack = makeProfStackFP()
 }
+
+// makeProfStackFP creates a buffer large enough to hold a maximum-sized stack
+// trace as well as any additional frames needed for frame pointer unwinding
+// with delayed inline expansion.
+func makeProfStackFP() []uintptr {
+	// The "1" term is to account for the first stack entry being
+	// taken up by a "skip" sentinel value for profilers which
+	// defer inline frame expansion until the profile is reported.
+	// The "maxSkip" term is for frame pointer unwinding, where we
+	// want to end up with debug.profstackdebth frames but will discard
+	// some "physical" frames to account for skipping.
+	return make([]uintptr, 1+maxSkip+debug.profstackdepth)
+}
+
+// makeProfStack returns a buffer large enough to hold a maximum-sized stack
+// trace.
+func makeProfStack() []uintptr { return make([]uintptr, debug.profstackdepth) }
+
+//go:linkname pprof_makeProfStack
+func pprof_makeProfStack() []uintptr { return makeProfStack() }
 
 func (mp *m) becomeSpinning() {
 	mp.spinning = true
@@ -1150,6 +1229,12 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		}
 	}
 
+	if gp.syncGroup != nil {
+		systemstack(func() {
+			gp.syncGroup.changegstatus(gp, oldval, newval)
+		})
+	}
+
 	if oldval == _Grunning {
 		// Track every gTrackingPeriod time a goroutine transitions out of running.
 		if casgstatusAlwaysTrack || gp.trackingSeq%gTrackingPeriod == 0 {
@@ -1232,25 +1317,6 @@ func casGToWaitingForGC(gp *g, old uint32, reason waitReason) {
 	casGToWaiting(gp, old, reason)
 }
 
-// casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
-// Returns old status. Cannot call casgstatus directly, because we are racing with an
-// async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
-// it might have become Grunnable by the time we get to the cas. If we called casgstatus,
-// it would loop waiting for the status to go back to Gwaiting, which it never will.
-//
-//go:nosplit
-func casgcopystack(gp *g) uint32 {
-	for {
-		oldstatus := readgstatus(gp) &^ _Gscan
-		if oldstatus != _Gwaiting && oldstatus != _Grunnable {
-			throw("copystack: bad status, not Gwaiting or Grunnable")
-		}
-		if gp.atomicstatus.CompareAndSwap(oldstatus, _Gcopystack) {
-			return oldstatus
-		}
-	}
-}
-
 // casGToPreemptScan transitions gp from _Grunning to _Gscan|_Gpreempted.
 //
 // TODO(austin): This is the only status operation that both changes
@@ -1262,6 +1328,12 @@ func casGToPreemptScan(gp *g, old, new uint32) {
 	acquireLockRankAndM(lockRankGscan)
 	for !gp.atomicstatus.CompareAndSwap(_Grunning, _Gscan|_Gpreempted) {
 	}
+	// We never notify gp.syncGroup that the goroutine state has moved
+	// from _Grunning to _Gpreempted. We call syncGroup.changegstatus
+	// after status changes happen, but doing so here would violate the
+	// ordering between the gscan and synctest locks. syncGroup doesn't
+	// distinguish between _Grunning and _Gpreempted anyway, so not
+	// notifying it is fine.
 }
 
 // casGFromPreempted attempts to transition gp from _Gpreempted to
@@ -1272,7 +1344,13 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
 		throw("bad g transition")
 	}
 	gp.waitreason = waitReasonPreempted
-	return gp.atomicstatus.CompareAndSwap(_Gpreempted, _Gwaiting)
+	if !gp.atomicstatus.CompareAndSwap(_Gpreempted, _Gwaiting) {
+		return false
+	}
+	if sg := gp.syncGroup; sg != nil {
+		sg.changegstatus(gp, _Gpreempted, _Gwaiting)
+	}
+	return true
 }
 
 // stwReason is an enumeration of reasons the world is stopping.
@@ -1739,7 +1817,7 @@ func mstart0() {
 	mexit(osStack)
 }
 
-// The go:noinline is to guarantee the getcallerpc/getcallersp below are safe,
+// The go:noinline is to guarantee the sys.GetCallerPC/sys.GetCallerSP below are safe,
 // so that we can set up g0.sched to return to the call of mstart1 above.
 //
 //go:noinline
@@ -1757,8 +1835,8 @@ func mstart1() {
 	// And goexit0 does a gogo that needs to return from mstart1
 	// and let mstart0 exit the thread.
 	gp.sched.g = guintptr(unsafe.Pointer(gp))
-	gp.sched.pc = getcallerpc()
-	gp.sched.sp = getcallersp()
+	gp.sched.pc = sys.GetCallerPC()
+	gp.sched.sp = sys.GetCallerSP()
 
 	asminit()
 	minit()
@@ -1767,6 +1845,10 @@ func mstart1() {
 	// prepare the thread to be able to handle the signals.
 	if gp.m == &m0 {
 		mstartm0()
+	}
+
+	if debug.dataindependenttiming == 1 {
+		sys.EnableDIT()
 	}
 
 	if fn := gp.m.mstartfn; fn != nil {
@@ -2257,7 +2339,7 @@ func needm(signal bool) {
 	// Install g (= m->g0) and set the stack bounds
 	// to match the current stack.
 	setg(mp.g0)
-	sp := getcallersp()
+	sp := sys.GetCallerSP()
 	callbackUpdateSystemStack(mp, sp, signal)
 
 	// Should mark we are already in Go now.
@@ -2478,6 +2560,7 @@ func dropm() {
 	g0.stack.lo = 0
 	g0.stackguard0 = 0
 	g0.stackguard1 = 0
+	mp.g0StackAccurate = false
 
 	putExtraM(mp)
 
@@ -2518,6 +2601,16 @@ func cgoBindM() {
 }
 
 // A helper function for EnsureDropM.
+//
+// getm should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - fortio.org/log
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname getm
 func getm() uintptr {
 	return uintptr(unsafe.Pointer(getg().m))
 }
@@ -3005,6 +3098,16 @@ func handoffp(pp *p) {
 // Tries to add one more P to execute G's.
 // Called when a G is made runnable (newproc, ready).
 // Must be called with a P.
+//
+// wakep should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname wakep
 func wakep() {
 	// Be conservative about spinning threads, only start one if none exist
 	// already.
@@ -3131,7 +3234,7 @@ func execute(gp *g, inheritTime bool) {
 		// Make sure that gp has had its stack written out to the goroutine
 		// profile, exactly as it was when the goroutine profiler first stopped
 		// the world.
-		tryRecordGoroutineProfile(gp, osyield)
+		tryRecordGoroutineProfile(gp, nil, osyield)
 	}
 
 	// Assign gp.m before entering _Grunning so running Gs have an
@@ -3989,6 +4092,15 @@ func park_m(gp *g) {
 
 	trace := traceAcquire()
 
+	// If g is in a synctest group, we don't want to let the group
+	// become idle until after the waitunlockf (if any) has confirmed
+	// that the park is happening.
+	// We need to record gp.syncGroup here, since waitunlockf can change it.
+	sg := gp.syncGroup
+	if sg != nil {
+		sg.incActive()
+	}
+
 	if trace.ok() {
 		// Trace the event before the transition. It may take a
 		// stack trace, but we won't own the stack after the
@@ -4011,6 +4123,9 @@ func park_m(gp *g) {
 		if !ok {
 			trace := traceAcquire()
 			casgstatus(gp, _Gwaiting, _Grunnable)
+			if sg != nil {
+				sg.decActive()
+			}
 			if trace.ok() {
 				trace.GoUnpark(gp, 2)
 				traceRelease(trace)
@@ -4018,6 +4133,11 @@ func park_m(gp *g) {
 			execute(gp, true) // Schedule it back, never returns.
 		}
 	}
+
+	if sg != nil {
+		sg.decActive()
+	}
+
 	schedule()
 }
 
@@ -4134,6 +4254,17 @@ func preemptPark(gp *g) {
 // goyield is like Gosched, but it:
 // - emits a GoPreempt trace event instead of a GoSched trace event
 // - puts the current G on the runq of the current P instead of the globrunq
+//
+// goyield should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//   - github.com/sagernet/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname goyield
 func goyield() {
 	checkTimeouts()
 	mcall(goyield_m)
@@ -4160,6 +4291,9 @@ func goyield_m(gp *g) {
 // Finishes execution of the current goroutine.
 func goexit1() {
 	if raceenabled {
+		if gp := getg(); gp.syncGroup != nil {
+			racereleasemergeg(gp, gp.syncGroup.raceaddr())
+		}
 		racegoend()
 	}
 	trace := traceAcquire()
@@ -4198,6 +4332,7 @@ func gdestroy(gp *g) {
 	gp.param = nil
 	gp.labels = nil
 	gp.timer = nil
+	gp.syncGroup = nil
 
 	if gcBlackenEnabled != 0 && gp.gcAssistBytes > 0 {
 		// Flush assist credit to the global pool. This gives
@@ -4216,9 +4351,12 @@ func gdestroy(gp *g) {
 		return
 	}
 
-	if mp.lockedInt != 0 {
-		print("invalid m->lockedInt = ", mp.lockedInt, "\n")
-		throw("internal lockOSThread error")
+	if locked && mp.lockedInt != 0 {
+		print("runtime: mp.lockedInt = ", mp.lockedInt, "\n")
+		if mp.isextra {
+			throw("runtime.Goexit called in a thread that was not created by the Go runtime")
+		}
+		throw("exited a goroutine internally locked to the OS thread")
 	}
 	gfput(pp, gp)
 	if locked {
@@ -4323,7 +4461,13 @@ func reentersyscall(pc, sp, bp uintptr) {
 	}
 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
 		systemstack(func() {
-			print("entersyscall inconsistent ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
+			print("entersyscall inconsistent sp ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
+			throw("entersyscall")
+		})
+	}
+	if gp.syscallbp != 0 && gp.syscallbp < gp.stack.lo || gp.stack.hi < gp.syscallbp {
+		systemstack(func() {
+			print("entersyscall inconsistent bp ", hex(gp.syscallbp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
 			throw("entersyscall")
 		})
 	}
@@ -4368,6 +4512,14 @@ func reentersyscall(pc, sp, bp uintptr) {
 //
 // This is exported via linkname to assembly in the syscall package and x/sys.
 //
+// Other packages should not be accessing entersyscall directly,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:nosplit
 //go:linkname entersyscall
 func entersyscall() {
@@ -4376,7 +4528,7 @@ func entersyscall() {
 	// the stack. This results in exceeding the nosplit stack requirements
 	// on some platforms.
 	fp := getcallerfp()
-	reentersyscall(getcallerpc(), getcallersp(), fp)
+	reentersyscall(sys.GetCallerPC(), sys.GetCallerSP(), fp)
 }
 
 func entersyscall_sysmon() {
@@ -4420,7 +4572,16 @@ func entersyscall_gcwait() {
 }
 
 // The same as entersyscall(), but with a hint that the syscall is blocking.
+
+// entersyscallblock should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
 //
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname entersyscallblock
 //go:nosplit
 func entersyscallblock() {
 	gp := getg()
@@ -4432,8 +4593,8 @@ func entersyscallblock() {
 	gp.m.p.ptr().syscalltick++
 
 	// Leave SP around for GC and traceback.
-	pc := getcallerpc()
-	sp := getcallersp()
+	pc := sys.GetCallerPC()
+	sp := sys.GetCallerSP()
 	bp := getcallerfp()
 	save(pc, sp, bp)
 	gp.syscallsp = gp.sched.sp
@@ -4444,14 +4605,20 @@ func entersyscallblock() {
 		sp2 := gp.sched.sp
 		sp3 := gp.syscallsp
 		systemstack(func() {
-			print("entersyscallblock inconsistent ", hex(sp1), " ", hex(sp2), " ", hex(sp3), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
+			print("entersyscallblock inconsistent sp ", hex(sp1), " ", hex(sp2), " ", hex(sp3), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
 			throw("entersyscallblock")
 		})
 	}
 	casgstatus(gp, _Grunning, _Gsyscall)
 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
 		systemstack(func() {
-			print("entersyscallblock inconsistent ", hex(sp), " ", hex(gp.sched.sp), " ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
+			print("entersyscallblock inconsistent sp ", hex(sp), " ", hex(gp.sched.sp), " ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
+			throw("entersyscallblock")
+		})
+	}
+	if gp.syscallbp != 0 && gp.syscallbp < gp.stack.lo || gp.stack.hi < gp.syscallbp {
+		systemstack(func() {
+			print("entersyscallblock inconsistent bp ", hex(bp), " ", hex(gp.sched.bp), " ", hex(gp.syscallbp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
 			throw("entersyscallblock")
 		})
 	}
@@ -4459,7 +4626,7 @@ func entersyscallblock() {
 	systemstack(entersyscallblock_handoff)
 
 	// Resave for traceback during blocked call.
-	save(getcallerpc(), getcallersp(), getcallerfp())
+	save(sys.GetCallerPC(), sys.GetCallerSP(), getcallerfp())
 
 	gp.m.locks--
 }
@@ -4482,6 +4649,14 @@ func entersyscallblock_handoff() {
 //
 // This is exported via linkname to assembly in the syscall package.
 //
+// exitsyscall should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:nosplit
 //go:nowritebarrierrec
 //go:linkname exitsyscall
@@ -4489,7 +4664,7 @@ func exitsyscall() {
 	gp := getg()
 
 	gp.m.locks++ // see comment in entersyscall
-	if getcallersp() > gp.syscallsp {
+	if sys.GetCallerSP() > gp.syscallsp {
 		throw("exitsyscall: syscall frame is no longer valid")
 	}
 
@@ -4702,6 +4877,14 @@ func exitsyscall0(gp *g) {
 
 // Called from syscall package before fork.
 //
+// syscall_runtime_BeforeFork is for package syscall,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname syscall_runtime_BeforeFork syscall.runtime_BeforeFork
 //go:nosplit
 func syscall_runtime_BeforeFork() {
@@ -4722,6 +4905,14 @@ func syscall_runtime_BeforeFork() {
 }
 
 // Called from syscall package after fork in parent.
+//
+// syscall_runtime_AfterFork is for package syscall,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname syscall_runtime_AfterFork syscall.runtime_AfterFork
 //go:nosplit
@@ -4747,6 +4938,14 @@ var inForkedChild bool
 // Because this might be called during a vfork, and therefore may be
 // temporarily sharing address space with the parent process, this must
 // not change any global variables or calling into C code that may do so.
+//
+// syscall_runtime_AfterForkInChild is for package syscall,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
 //
 //go:linkname syscall_runtime_AfterForkInChild syscall.runtime_AfterForkInChild
 //go:nosplit
@@ -4817,7 +5016,7 @@ func malg(stacksize int32) *g {
 // The compiler turns a go statement into a call to this.
 func newproc(fn *funcval) {
 	gp := getg()
-	pc := getcallerpc()
+	pc := sys.GetCallerPC()
 	systemstack(func() {
 		newg := newproc1(fn, gp, pc, false, waitReasonZero)
 
@@ -4880,7 +5079,8 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 	if isSystemGoroutine(newg, false) {
 		sched.ngsys.Add(1)
 	} else {
-		// Only user goroutines inherit pprof labels.
+		// Only user goroutines inherit synctest groups and pprof labels.
+		newg.syncGroup = callergp.syncGroup
 		if mp.curg != nil {
 			newg.labels = mp.curg.labels
 		}
@@ -4907,7 +5107,6 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 		status = _Gwaiting
 		newg.waitreason = waitreason
 	}
-	casgstatus(newg, _Gdead, status)
 	if pp.goidcache == pp.goidcacheend {
 		// Sched.goidgen is the last allocated id,
 		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
@@ -4917,6 +5116,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 		pp.goidcacheend = pp.goidcache + _GoidCacheBatch
 	}
 	newg.goid = pp.goidcache
+	casgstatus(newg, _Gdead, status)
 	pp.goidcache++
 	newg.trace.reset()
 	if trace.ok() {
@@ -5268,7 +5468,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
 	if GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm" {
 		if f := findfunc(pc); f.valid() {
-			if hasPrefix(funcname(f), "internal/runtime/atomic") {
+			if stringslite.HasPrefix(funcname(f), "internal/runtime/atomic") {
 				cpuprof.lostAtomic++
 				return
 			}
@@ -5769,7 +5969,9 @@ func checkdead() {
 	// For -buildmode=c-shared or -buildmode=c-archive it's OK if
 	// there are no running goroutines. The calling program is
 	// assumed to be running.
-	if islibrary || isarchive {
+	// One exception is Wasm, which is single-threaded. If we are
+	// in Go and all goroutines are blocked, it deadlocks.
+	if (islibrary || isarchive) && GOARCH != "wasm" {
 		return
 	}
 
@@ -6915,6 +7117,17 @@ func setMaxThreads(in int) (out int) {
 	return
 }
 
+// procPin should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//   - github.com/choleraehyq/pid
+//   - github.com/songzhibin97/gkit
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname procPin
 //go:nosplit
 func procPin() int {
 	gp := getg()
@@ -6924,6 +7137,17 @@ func procPin() int {
 	return int(mp.p.ptr().id)
 }
 
+// procUnpin should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//   - github.com/choleraehyq/pid
+//   - github.com/songzhibin97/gkit
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname procUnpin
 //go:nosplit
 func procUnpin() {
 	gp := getg()
@@ -6956,9 +7180,9 @@ func sync_atomic_runtime_procUnpin() {
 
 // Active spinning for sync.Mutex.
 //
-//go:linkname sync_runtime_canSpin sync.runtime_canSpin
+//go:linkname internal_sync_runtime_canSpin internal/sync.runtime_canSpin
 //go:nosplit
-func sync_runtime_canSpin(i int) bool {
+func internal_sync_runtime_canSpin(i int) bool {
 	// sync.Mutex is cooperative, so we are conservative with spinning.
 	// Spin only few times and only if running on a multicore machine and
 	// GOMAXPROCS>1 and there is at least one other running P and local runq is empty.
@@ -6973,10 +7197,44 @@ func sync_runtime_canSpin(i int) bool {
 	return true
 }
 
+//go:linkname internal_sync_runtime_doSpin internal/sync.runtime_doSpin
+//go:nosplit
+func internal_sync_runtime_doSpin() {
+	procyield(active_spin_cnt)
+}
+
+// Active spinning for sync.Mutex.
+//
+// sync_runtime_canSpin should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/livekit/protocol
+//   - github.com/sagernet/gvisor
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname sync_runtime_canSpin sync.runtime_canSpin
+//go:nosplit
+func sync_runtime_canSpin(i int) bool {
+	return internal_sync_runtime_canSpin(i)
+}
+
+// sync_runtime_doSpin should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/livekit/protocol
+//   - github.com/sagernet/gvisor
+//   - gvisor.dev/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname sync_runtime_doSpin sync.runtime_doSpin
 //go:nosplit
 func sync_runtime_doSpin() {
-	procyield(active_spin_cnt)
+	internal_sync_runtime_doSpin()
 }
 
 var stealOrder randomOrder

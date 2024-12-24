@@ -10,13 +10,14 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
+	"slices"
 )
 
 // run runs the command argv, feeding in stdin on standard input.
 // It returns the output to standard output and standard error.
 // ok indicates whether the command exited successfully.
 func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
-	if i := find(argv, "-xc"); i >= 0 && argv[len(argv)-1] == "-" {
+	if i := slices.Index(argv, "-xc"); i >= 0 && argv[len(argv)-1] == "-" {
 		// Some compilers have trouble with standard input.
 		// Others have trouble with -xc.
 		// Avoid both problems by writing a file with a .c extension.
@@ -67,15 +68,6 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	ok = p.ProcessState.Success()
 	stdout, stderr = bout.Bytes(), berr.Bytes()
 	return
-}
-
-func find(argv []string, target string) int {
-	for i, arg := range argv {
-		if arg == target {
-			return i
-		}
-	}
-	return -1
 }
 
 func lineno(pos token.Pos) string {

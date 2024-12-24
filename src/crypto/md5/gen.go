@@ -219,7 +219,7 @@ func blockGeneric(dig *digest, p []byte) {
 
 		// load input block
 		{{range $i := seq 16 -}}
-			{{printf "x%x := byteorder.LeUint32(q[4*%#x:])" $i $i}}
+			{{printf "x%x := byteorder.LEUint32(q[4*%#x:])" $i $i}}
 		{{end}}
 
 		// round 1

@@ -7,6 +7,7 @@ package loong64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"internal/abi"
 	"log"
@@ -100,9 +101,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = ctxt.Lookup("runtime.duffzero")
+			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
 		} else {
-			sym = ctxt.Lookup("runtime.duffcopy")
+			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
 		}
 		offset := p.To.Offset
 		p.As = AMOVV
@@ -319,6 +320,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				autosize += int32(c.ctxt.Arch.FixedFrameSize)
 			}
 
+			if p.Mark&LEAF != 0 && autosize < abi.StackSmall {
+				// A leaf function with a small stack can be marked
+				// NOSPLIT, avoiding a stack check.
+				p.From.Sym.Set(obj.AttrNoSplit, true)
+			}
+
 			if autosize&4 != 0 {
 				autosize += 4
 			}
@@ -370,6 +377,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, newprog)
 				q.As = add
 				q.Pos = p.Pos
+				q.Pos = q.Pos.WithXlogue(src.PosPrologueEnd)
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = int64(-autosize)
 				q.To.Type = obj.TYPE_REG
@@ -409,7 +417,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				// The NOP is needed to give the jumps somewhere to land.
 				// It is a liblink NOP, not a hardware NOP: it encodes to 0 instruction bytes.
 				//
-				// We don't generate this for leafs because that means the wrapped
+				// We don't generate this for leaves because that means the wrapped
 				// function was inlined into the wrapper.
 
 				q = obj.Appendp(q, newprog)
@@ -718,7 +726,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	var q *obj.Prog
 	if framesize <= abi.StackSmall {
 		// small stack: SP < stackguard
-		//	AGTU	SP, stackguard, R20
+		//	SGTU	SP, stackguard, R20
 		p = obj.Appendp(p, c.newprog)
 
 		p.As = ASGTU
@@ -776,19 +784,41 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Reg = REG_R20
 	}
 
-	// q1: BNE	R20, done
+	// q1: BEQ	R20, morestack
 	p = obj.Appendp(p, c.newprog)
 	q1 := p
 
-	p.As = ABNE
+	p.As = ABEQ
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = REG_R20
 	p.To.Type = obj.TYPE_BRANCH
 	p.Mark |= BRANCH
 
-	// MOV	LINK, R31
-	p = obj.Appendp(p, c.newprog)
+	end := c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 
+	var last *obj.Prog
+	for last = c.cursym.Func().Text; last.Link != nil; last = last.Link {
+	}
+
+	// Now we are at the end of the function, but logically
+	// we are still in function prologue. We need to fix the
+	// SP data and PCDATA.
+	spfix := obj.Appendp(last, c.newprog)
+	spfix.As = obj.ANOP
+	spfix.Spadj = -framesize
+
+	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
+	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
+
+	if q != nil {
+		q.To.SetTarget(pcdata)
+	}
+	q1.To.SetTarget(pcdata)
+
+	p = c.cursym.Func().SpillRegisterArgs(pcdata, c.newprog)
+
+	// MOV  LINK, R31
+	p = obj.Appendp(p, c.newprog)
 	p.As = mov
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = REGLINK
@@ -799,45 +829,32 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.Mark |= LABEL
 	}
 
-	p = c.ctxt.EmitEntryStackMap(c.cursym, p, c.newprog)
+	// JAL runtime.morestack(SB)
+	call := obj.Appendp(p, c.newprog)
+	call.As = AJAL
+	call.To.Type = obj.TYPE_BRANCH
 
-	// Spill the register args that could be clobbered by the
-	// morestack code
-	p = c.cursym.Func().SpillRegisterArgs(p, c.newprog)
-
-	// JAL	runtime.morestack(SB)
-	p = obj.Appendp(p, c.newprog)
-
-	p.As = AJAL
-	p.To.Type = obj.TYPE_BRANCH
 	if c.cursym.CFunc() {
-		p.To.Sym = c.ctxt.Lookup("runtime.morestackc")
+		call.To.Sym = c.ctxt.Lookup("runtime.morestackc")
 	} else if !c.cursym.Func().Text.From.Sym.NeedCtxt() {
-		p.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt")
+		call.To.Sym = c.ctxt.Lookup("runtime.morestack_noctxt")
 	} else {
-		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
+		call.To.Sym = c.ctxt.Lookup("runtime.morestack")
 	}
-	p.Mark |= BRANCH
+	call.Mark |= BRANCH
 
-	p = c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
-	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+	// The instructions which unspill regs should be preemptible.
+	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
+	unspill := c.cursym.Func().UnspillRegisterArgs(pcdata, c.newprog)
 
-	// JMP	start
-	p = obj.Appendp(p, c.newprog)
+	// JMP start
+	jmp := obj.Appendp(unspill, c.newprog)
+	jmp.As = AJMP
+	jmp.To.Type = obj.TYPE_BRANCH
+	jmp.To.SetTarget(startPred.Link)
+	jmp.Spadj = +framesize
 
-	p.As = AJMP
-	p.To.Type = obj.TYPE_BRANCH
-	p.To.SetTarget(startPred.Link)
-	startPred.Link.Mark |= LABEL
-	p.Mark |= BRANCH
-
-	// placeholder for q1's jump target
-	p = obj.Appendp(p, c.newprog)
-
-	p.As = obj.ANOP // zero-width place holder
-	q1.To.SetTarget(p)
-
-	return p
+	return end
 }
 
 func (c *ctxt0) addnop(p *obj.Prog) {

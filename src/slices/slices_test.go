@@ -6,12 +6,15 @@ package slices_test
 
 import (
 	"cmp"
+	"internal/asan"
+	"internal/msan"
 	"internal/race"
 	"internal/testenv"
 	"math"
 	. "slices"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 var equalIntTests = []struct {
@@ -496,7 +499,7 @@ func TestInsert(t *testing.T) {
 		}
 	}
 
-	if !testenv.OptimizationOff() && !race.Enabled {
+	if !testenv.OptimizationOff() && !race.Enabled && !asan.Enabled && !msan.Enabled {
 		// Allocations should be amortized.
 		const count = 50
 		n := testing.AllocsPerRun(10, func() {
@@ -952,7 +955,7 @@ func TestGrow(t *testing.T) {
 	}
 	if n := testing.AllocsPerRun(100, func() { _ = Grow(s2, cap(s2)-len(s2)+1) }); n != 1 {
 		errorf := t.Errorf
-		if race.Enabled || testenv.OptimizationOff() {
+		if race.Enabled || msan.Enabled || asan.Enabled || testenv.OptimizationOff() {
 			errorf = t.Logf // this allocates multiple times in race detector mode
 		}
 		errorf("Grow should allocate once when given insufficient capacity; allocated %v times", n)
@@ -1009,7 +1012,7 @@ func TestReverse(t *testing.T) {
 	singleton := []string{"one"}
 	Reverse(singleton)
 	if want := []string{"one"}; !Equal(singleton, want) {
-		t.Errorf("Reverse(singeleton) = %v, want %v", singleton, want)
+		t.Errorf("Reverse(singleton) = %v, want %v", singleton, want)
 	}
 
 	Reverse[[]string](nil)
@@ -1313,7 +1316,7 @@ func TestConcat(t *testing.T) {
 		_ = sink
 		if allocs > 1 {
 			errorf := t.Errorf
-			if testenv.OptimizationOff() || race.Enabled {
+			if testenv.OptimizationOff() || race.Enabled || asan.Enabled || msan.Enabled {
 				errorf = t.Logf
 			}
 			errorf("Concat(%v) allocated %v times; want 1", tc.s, allocs)
@@ -1448,5 +1451,14 @@ func TestRepeatPanics(t *testing.T) {
 		if !panics(func() { _ = Repeat(test.x, test.count) }) {
 			t.Errorf("Repeat %s: got no panic, want panic", test.name)
 		}
+	}
+}
+
+func TestIssue68488(t *testing.T) {
+	s := make([]int, 3)
+	clone := Clone(s[1:1])
+	switch unsafe.SliceData(clone) {
+	case &s[0], &s[1], &s[2]:
+		t.Error("clone keeps alive s due to array overlap")
 	}
 }

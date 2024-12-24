@@ -965,6 +965,21 @@ func TestUnmarshalText(t *testing.T) {
 		if unmarshaled.String() != goodRe[i] {
 			t.Errorf("UnmarshalText returned unexpected value: %s", unmarshaled.String())
 		}
+
+		buf := make([]byte, 4, 32)
+		marshalAppend, err := re.AppendText(buf)
+		if err != nil {
+			t.Errorf("regexp %#q failed to marshal: %s", re, err)
+			continue
+		}
+		marshalAppend = marshalAppend[4:]
+		if err := unmarshaled.UnmarshalText(marshalAppend); err != nil {
+			t.Errorf("regexp %#q failed to unmarshal: %s", re, err)
+			continue
+		}
+		if unmarshaled.String() != goodRe[i] {
+			t.Errorf("UnmarshalText returned unexpected value: %s", unmarshaled.String())
+		}
 	}
 	t.Run("invalid pattern", func(t *testing.T) {
 		re := new(Regexp)

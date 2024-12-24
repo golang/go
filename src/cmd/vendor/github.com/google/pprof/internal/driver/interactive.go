@@ -206,6 +206,9 @@ func printCurrentOptions(p *profile.Profile, ui plugin.UI) {
 			// Add quotes for empty values.
 			v = `""`
 		}
+		if n == "granularity" && v == "" {
+			v = "(default)"
+		}
 		if comment != "" {
 			comment = commentStart + " " + comment
 		}

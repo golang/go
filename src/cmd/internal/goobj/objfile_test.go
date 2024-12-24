@@ -96,20 +96,16 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	tmpdir, err := os.MkdirTemp("", "lotsofrelocs")
-	if err != nil {
-		t.Fatalf("can't create temp directory: %v\n", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Emit testcase.
 	var w bytes.Buffer
-	fmt.Fprintf(&w, issue41621prolog)
+	w.WriteString(issue41621prolog)
 	for i := 0; i < 1048576+13; i++ {
 		fmt.Fprintf(&w, "\t\"%d\",\n", i)
 	}
-	fmt.Fprintf(&w, issue41621epilog)
-	err = os.WriteFile(tmpdir+"/large.go", w.Bytes(), 0666)
+	w.WriteString(issue41621epilog)
+	err := os.WriteFile(tmpdir+"/large.go", w.Bytes(), 0666)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}

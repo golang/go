@@ -1,8 +1,0 @@
-pkg slices, func All[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq2[int, $1] #61899
-pkg slices, func AppendSeq[$0 interface{ ~[]$1 }, $1 interface{}]($0, iter.Seq[$1]) $0 #61899
-pkg slices, func Backward[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq2[int, $1] #61899
-pkg slices, func Collect[$0 interface{}](iter.Seq[$0]) []$0 #61899
-pkg slices, func SortedFunc[$0 interface{}](iter.Seq[$0], func($0, $0) int) []$0 #61899
-pkg slices, func SortedStableFunc[$0 interface{}](iter.Seq[$0], func($0, $0) int) []$0 #61899
-pkg slices, func Sorted[$0 cmp.Ordered](iter.Seq[$0]) []$0 #61899
-pkg slices, func Values[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq[$1] #61899

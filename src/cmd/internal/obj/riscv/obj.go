@@ -23,6 +23,7 @@ package riscv
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
 	"internal/abi"
@@ -52,18 +53,14 @@ func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
 // progedit is called individually for each *obj.Prog. It normalizes instruction
 // formats and eliminates as many pseudo-instructions as possible.
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+	insData, err := instructionDataForAs(p.As)
+	if err != nil {
+		panic(fmt.Sprintf("failed to lookup instruction data for %v: %v", p.As, err))
+	}
 
 	// Expand binary instructions to ternary ones.
 	if p.Reg == obj.REG_NONE {
-		switch p.As {
-		case AADDI, ASLTI, ASLTIU, AANDI, AORI, AXORI, ASLLI, ASRLI, ASRAI,
-			AADDIW, ASLLIW, ASRLIW, ASRAIW, AADDW, ASUBW, ASLLW, ASRLW, ASRAW,
-			AADD, AAND, AOR, AXOR, ASLL, ASRL, ASUB, ASRA,
-			AMUL, AMULH, AMULHU, AMULHSU, AMULW, ADIV, ADIVU, ADIVW, ADIVUW,
-			AREM, AREMU, AREMW, AREMUW,
-			AADDUW, ASH1ADD, ASH1ADDUW, ASH2ADD, ASH2ADDUW, ASH3ADD, ASH3ADDUW, ASLLIUW,
-			AANDN, AORN, AXNOR, AMAX, AMAXU, AMIN, AMINU, AROL, AROLW, AROR, ARORW, ARORI, ARORIW,
-			ABCLR, ABCLRI, ABEXT, ABEXTI, ABINV, ABINVI, ABSET, ABSETI:
+		if insData.ternary {
 			p.Reg = p.To.Reg
 		}
 	}
@@ -72,48 +69,14 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// form of the instruction.
 	if p.From.Type == obj.TYPE_CONST {
 		switch p.As {
-		case AADD:
-			p.As = AADDI
 		case ASUB:
 			p.As, p.From.Offset = AADDI, -p.From.Offset
-		case ASLT:
-			p.As = ASLTI
-		case ASLTU:
-			p.As = ASLTIU
-		case AAND:
-			p.As = AANDI
-		case AOR:
-			p.As = AORI
-		case AXOR:
-			p.As = AXORI
-		case ASLL:
-			p.As = ASLLI
-		case ASRL:
-			p.As = ASRLI
-		case ASRA:
-			p.As = ASRAI
-		case AADDW:
-			p.As = AADDIW
 		case ASUBW:
 			p.As, p.From.Offset = AADDIW, -p.From.Offset
-		case ASLLW:
-			p.As = ASLLIW
-		case ASRLW:
-			p.As = ASRLIW
-		case ASRAW:
-			p.As = ASRAIW
-		case AROR:
-			p.As = ARORI
-		case ARORW:
-			p.As = ARORIW
-		case ABCLR:
-			p.As = ABCLRI
-		case ABEXT:
-			p.As = ABEXTI
-		case ABINV:
-			p.As = ABINVI
-		case ABSET:
-			p.As = ABSETI
+		default:
+			if insData.immForm != obj.AXXX {
+				p.As = insData.immForm
+			}
 		}
 	}
 
@@ -153,6 +116,14 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 	case obj.AUNDEF:
 		p.As = AEBREAK
+
+	case AFMVXS:
+		// FMVXS is the old name for FMVXW.
+		p.As = AFMVXW
+
+	case AFMVSX:
+		// FMVSX is the old name for FMVWX.
+		p.As = AFMVWX
 
 	case ASCALL:
 		// SCALL is the old name for ECALL.
@@ -427,18 +398,23 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		prologue = stacksplit(ctxt, prologue, cursym, newprog, stacksize) // emit split check
 	}
 
+	q := prologue
+
 	if stacksize != 0 {
 		prologue = ctxt.StartUnsafePoint(prologue, newprog)
 
 		// Actually save LR.
 		prologue = obj.Appendp(prologue, newprog)
 		prologue.As = AMOV
+		prologue.Pos = q.Pos
 		prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
 		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -stacksize}
 
 		// Insert stack adjustment.
 		prologue = obj.Appendp(prologue, newprog)
 		prologue.As = AADDI
+		prologue.Pos = q.Pos
+		prologue.Pos = prologue.Pos.WithXlogue(src.PosPrologueEnd)
 		prologue.From = obj.Addr{Type: obj.TYPE_CONST, Offset: -stacksize}
 		prologue.Reg = REG_SP
 		prologue.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
@@ -1030,6 +1006,11 @@ func regF(r uint32) uint32 {
 	return regVal(r, REG_F0, REG_F31)
 }
 
+// regV returns a vector register.
+func regV(r uint32) uint32 {
+	return regVal(r, REG_V0, REG_V31)
+}
+
 // regAddr extracts a register from an Addr.
 func regAddr(a obj.Addr, min, max uint32) uint32 {
 	if a.Type != obj.TYPE_REG {
@@ -1112,6 +1093,11 @@ func wantFloatReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
 	wantReg(ctxt, ins, pos, "float", r, REG_F0, REG_F31)
 }
 
+// wantVectorReg checks that r is a vector register.
+func wantVectorReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
+	wantReg(ctxt, ins, pos, "vector", r, REG_V0, REG_V31)
+}
+
 // wantEvenOffset checks that the offset is a multiple of two.
 func wantEvenOffset(ctxt *obj.Link, ins *instruction, offset int64) {
 	if err := immEven(offset); err != nil {
@@ -1175,7 +1161,7 @@ func validateRFF(ctxt *obj.Link, ins *instruction) {
 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
-func validateII(ctxt *obj.Link, ins *instruction) {
+func validateIII(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins, ins.imm, 12)
 	wantIntReg(ctxt, ins, "rd", ins.rd)
 	wantIntReg(ctxt, ins, "rs1", ins.rs1)
@@ -1321,7 +1307,7 @@ func encodeI(as obj.As, rs1, rd, imm uint32) uint32 {
 	return imm<<20 | rs1<<15 | enc.funct3<<12 | rd<<7 | enc.opcode
 }
 
-func encodeII(ins *instruction) uint32 {
+func encodeIII(ins *instruction) uint32 {
 	return encodeI(ins.as, regI(ins.rs1), regI(ins.rd), uint32(ins.imm))
 }
 
@@ -1522,8 +1508,8 @@ var (
 	rIFEncoding   = encoding{encode: encodeRIF, validate: validateRIF, length: 4}
 	rFFEncoding   = encoding{encode: encodeRFF, validate: validateRFF, length: 4}
 
-	iIEncoding = encoding{encode: encodeII, validate: validateII, length: 4}
-	iFEncoding = encoding{encode: encodeIF, validate: validateIF, length: 4}
+	iIIEncoding = encoding{encode: encodeIII, validate: validateIII, length: 4}
+	iFEncoding  = encoding{encode: encodeIF, validate: validateIF, length: 4}
 
 	sIEncoding = encoding{encode: encodeSI, validate: validateSI, length: 4}
 	sFEncoding = encoding{encode: encodeSF, validate: validateSF, length: 4}
@@ -1543,289 +1529,300 @@ var (
 	badEncoding = encoding{encode: func(*instruction) uint32 { return 0 }, validate: func(*obj.Link, *instruction) {}, length: 0}
 )
 
-// encodings contains the encodings for RISC-V instructions.
-// Instructions are masked with obj.AMask to keep indices small.
-var encodings = [ALAST & obj.AMask]encoding{
+// instructionData specifies details relating to a RISC-V instruction.
+type instructionData struct {
+	enc     encoding
+	immForm obj.As // immediate form of this instruction
+	ternary bool
+}
 
+// instructions contains details of RISC-V instructions, including
+// their encoding type. Entries are masked with obj.AMask to keep
+// indices small.
+var instructions = [ALAST & obj.AMask]instructionData{
 	// Unprivileged ISA
 
 	// 2.4: Integer Computational Instructions
-	AADDI & obj.AMask:  iIEncoding,
-	ASLTI & obj.AMask:  iIEncoding,
-	ASLTIU & obj.AMask: iIEncoding,
-	AANDI & obj.AMask:  iIEncoding,
-	AORI & obj.AMask:   iIEncoding,
-	AXORI & obj.AMask:  iIEncoding,
-	ASLLI & obj.AMask:  iIEncoding,
-	ASRLI & obj.AMask:  iIEncoding,
-	ASRAI & obj.AMask:  iIEncoding,
-	ALUI & obj.AMask:   uEncoding,
-	AAUIPC & obj.AMask: uEncoding,
-	AADD & obj.AMask:   rIIIEncoding,
-	ASLT & obj.AMask:   rIIIEncoding,
-	ASLTU & obj.AMask:  rIIIEncoding,
-	AAND & obj.AMask:   rIIIEncoding,
-	AOR & obj.AMask:    rIIIEncoding,
-	AXOR & obj.AMask:   rIIIEncoding,
-	ASLL & obj.AMask:   rIIIEncoding,
-	ASRL & obj.AMask:   rIIIEncoding,
-	ASUB & obj.AMask:   rIIIEncoding,
-	ASRA & obj.AMask:   rIIIEncoding,
+	AADDI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+	ASLTI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+	ASLTIU & obj.AMask: {enc: iIIEncoding, ternary: true},
+	AANDI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+	AORI & obj.AMask:   {enc: iIIEncoding, ternary: true},
+	AXORI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+	ASLLI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+	ASRLI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+	ASRAI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+	ALUI & obj.AMask:   {enc: uEncoding},
+	AAUIPC & obj.AMask: {enc: uEncoding},
+	AADD & obj.AMask:   {enc: rIIIEncoding, immForm: AADDI, ternary: true},
+	ASLT & obj.AMask:   {enc: rIIIEncoding, immForm: ASLTI, ternary: true},
+	ASLTU & obj.AMask:  {enc: rIIIEncoding, immForm: ASLTIU, ternary: true},
+	AAND & obj.AMask:   {enc: rIIIEncoding, immForm: AANDI, ternary: true},
+	AOR & obj.AMask:    {enc: rIIIEncoding, immForm: AORI, ternary: true},
+	AXOR & obj.AMask:   {enc: rIIIEncoding, immForm: AXORI, ternary: true},
+	ASLL & obj.AMask:   {enc: rIIIEncoding, immForm: ASLLI, ternary: true},
+	ASRL & obj.AMask:   {enc: rIIIEncoding, immForm: ASRLI, ternary: true},
+	ASUB & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	ASRA & obj.AMask:   {enc: rIIIEncoding, immForm: ASRAI, ternary: true},
 
 	// 2.5: Control Transfer Instructions
-	AJAL & obj.AMask:  jEncoding,
-	AJALR & obj.AMask: iIEncoding,
-	ABEQ & obj.AMask:  bEncoding,
-	ABNE & obj.AMask:  bEncoding,
-	ABLT & obj.AMask:  bEncoding,
-	ABLTU & obj.AMask: bEncoding,
-	ABGE & obj.AMask:  bEncoding,
-	ABGEU & obj.AMask: bEncoding,
+	AJAL & obj.AMask:  {enc: jEncoding},
+	AJALR & obj.AMask: {enc: iIIEncoding},
+	ABEQ & obj.AMask:  {enc: bEncoding},
+	ABNE & obj.AMask:  {enc: bEncoding},
+	ABLT & obj.AMask:  {enc: bEncoding},
+	ABLTU & obj.AMask: {enc: bEncoding},
+	ABGE & obj.AMask:  {enc: bEncoding},
+	ABGEU & obj.AMask: {enc: bEncoding},
 
 	// 2.6: Load and Store Instructions
-	ALW & obj.AMask:  iIEncoding,
-	ALWU & obj.AMask: iIEncoding,
-	ALH & obj.AMask:  iIEncoding,
-	ALHU & obj.AMask: iIEncoding,
-	ALB & obj.AMask:  iIEncoding,
-	ALBU & obj.AMask: iIEncoding,
-	ASW & obj.AMask:  sIEncoding,
-	ASH & obj.AMask:  sIEncoding,
-	ASB & obj.AMask:  sIEncoding,
+	ALW & obj.AMask:  {enc: iIIEncoding},
+	ALWU & obj.AMask: {enc: iIIEncoding},
+	ALH & obj.AMask:  {enc: iIIEncoding},
+	ALHU & obj.AMask: {enc: iIIEncoding},
+	ALB & obj.AMask:  {enc: iIIEncoding},
+	ALBU & obj.AMask: {enc: iIIEncoding},
+	ASW & obj.AMask:  {enc: sIEncoding},
+	ASH & obj.AMask:  {enc: sIEncoding},
+	ASB & obj.AMask:  {enc: sIEncoding},
 
 	// 2.7: Memory Ordering
-	AFENCE & obj.AMask: iIEncoding,
+	AFENCE & obj.AMask: {enc: iIIEncoding},
 
 	// 5.2: Integer Computational Instructions (RV64I)
-	AADDIW & obj.AMask: iIEncoding,
-	ASLLIW & obj.AMask: iIEncoding,
-	ASRLIW & obj.AMask: iIEncoding,
-	ASRAIW & obj.AMask: iIEncoding,
-	AADDW & obj.AMask:  rIIIEncoding,
-	ASLLW & obj.AMask:  rIIIEncoding,
-	ASRLW & obj.AMask:  rIIIEncoding,
-	ASUBW & obj.AMask:  rIIIEncoding,
-	ASRAW & obj.AMask:  rIIIEncoding,
+	AADDIW & obj.AMask: {enc: iIIEncoding, ternary: true},
+	ASLLIW & obj.AMask: {enc: iIIEncoding, ternary: true},
+	ASRLIW & obj.AMask: {enc: iIIEncoding, ternary: true},
+	ASRAIW & obj.AMask: {enc: iIIEncoding, ternary: true},
+	AADDW & obj.AMask:  {enc: rIIIEncoding, immForm: AADDIW, ternary: true},
+	ASLLW & obj.AMask:  {enc: rIIIEncoding, immForm: ASLLIW, ternary: true},
+	ASRLW & obj.AMask:  {enc: rIIIEncoding, immForm: ASRLIW, ternary: true},
+	ASUBW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	ASRAW & obj.AMask:  {enc: rIIIEncoding, immForm: ASRAIW, ternary: true},
 
 	// 5.3: Load and Store Instructions (RV64I)
-	ALD & obj.AMask: iIEncoding,
-	ASD & obj.AMask: sIEncoding,
+	ALD & obj.AMask: {enc: iIIEncoding},
+	ASD & obj.AMask: {enc: sIEncoding},
+
+	// 7.1: CSR Instructions
+	ACSRRS & obj.AMask: {enc: iIIEncoding},
 
 	// 7.1: Multiplication Operations
-	AMUL & obj.AMask:    rIIIEncoding,
-	AMULH & obj.AMask:   rIIIEncoding,
-	AMULHU & obj.AMask:  rIIIEncoding,
-	AMULHSU & obj.AMask: rIIIEncoding,
-	AMULW & obj.AMask:   rIIIEncoding,
-	ADIV & obj.AMask:    rIIIEncoding,
-	ADIVU & obj.AMask:   rIIIEncoding,
-	AREM & obj.AMask:    rIIIEncoding,
-	AREMU & obj.AMask:   rIIIEncoding,
-	ADIVW & obj.AMask:   rIIIEncoding,
-	ADIVUW & obj.AMask:  rIIIEncoding,
-	AREMW & obj.AMask:   rIIIEncoding,
-	AREMUW & obj.AMask:  rIIIEncoding,
+	AMUL & obj.AMask:    {enc: rIIIEncoding, ternary: true},
+	AMULH & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	AMULHU & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	AMULHSU & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	AMULW & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	ADIV & obj.AMask:    {enc: rIIIEncoding, ternary: true},
+	ADIVU & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	AREM & obj.AMask:    {enc: rIIIEncoding, ternary: true},
+	AREMU & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	ADIVW & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	ADIVUW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	AREMW & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	AREMUW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 
 	// 8.2: Load-Reserved/Store-Conditional
-	ALRW & obj.AMask: rIIIEncoding,
-	ALRD & obj.AMask: rIIIEncoding,
-	ASCW & obj.AMask: rIIIEncoding,
-	ASCD & obj.AMask: rIIIEncoding,
+	ALRW & obj.AMask: {enc: rIIIEncoding},
+	ALRD & obj.AMask: {enc: rIIIEncoding},
+	ASCW & obj.AMask: {enc: rIIIEncoding},
+	ASCD & obj.AMask: {enc: rIIIEncoding},
 
 	// 8.3: Atomic Memory Operations
-	AAMOSWAPW & obj.AMask: rIIIEncoding,
-	AAMOSWAPD & obj.AMask: rIIIEncoding,
-	AAMOADDW & obj.AMask:  rIIIEncoding,
-	AAMOADDD & obj.AMask:  rIIIEncoding,
-	AAMOANDW & obj.AMask:  rIIIEncoding,
-	AAMOANDD & obj.AMask:  rIIIEncoding,
-	AAMOORW & obj.AMask:   rIIIEncoding,
-	AAMOORD & obj.AMask:   rIIIEncoding,
-	AAMOXORW & obj.AMask:  rIIIEncoding,
-	AAMOXORD & obj.AMask:  rIIIEncoding,
-	AAMOMAXW & obj.AMask:  rIIIEncoding,
-	AAMOMAXD & obj.AMask:  rIIIEncoding,
-	AAMOMAXUW & obj.AMask: rIIIEncoding,
-	AAMOMAXUD & obj.AMask: rIIIEncoding,
-	AAMOMINW & obj.AMask:  rIIIEncoding,
-	AAMOMIND & obj.AMask:  rIIIEncoding,
-	AAMOMINUW & obj.AMask: rIIIEncoding,
-	AAMOMINUD & obj.AMask: rIIIEncoding,
-
-	// 10.1: Base Counters and Timers
-	ARDCYCLE & obj.AMask:   iIEncoding,
-	ARDTIME & obj.AMask:    iIEncoding,
-	ARDINSTRET & obj.AMask: iIEncoding,
+	AAMOSWAPW & obj.AMask: {enc: rIIIEncoding},
+	AAMOSWAPD & obj.AMask: {enc: rIIIEncoding},
+	AAMOADDW & obj.AMask:  {enc: rIIIEncoding},
+	AAMOADDD & obj.AMask:  {enc: rIIIEncoding},
+	AAMOANDW & obj.AMask:  {enc: rIIIEncoding},
+	AAMOANDD & obj.AMask:  {enc: rIIIEncoding},
+	AAMOORW & obj.AMask:   {enc: rIIIEncoding},
+	AAMOORD & obj.AMask:   {enc: rIIIEncoding},
+	AAMOXORW & obj.AMask:  {enc: rIIIEncoding},
+	AAMOXORD & obj.AMask:  {enc: rIIIEncoding},
+	AAMOMAXW & obj.AMask:  {enc: rIIIEncoding},
+	AAMOMAXD & obj.AMask:  {enc: rIIIEncoding},
+	AAMOMAXUW & obj.AMask: {enc: rIIIEncoding},
+	AAMOMAXUD & obj.AMask: {enc: rIIIEncoding},
+	AAMOMINW & obj.AMask:  {enc: rIIIEncoding},
+	AAMOMIND & obj.AMask:  {enc: rIIIEncoding},
+	AAMOMINUW & obj.AMask: {enc: rIIIEncoding},
+	AAMOMINUD & obj.AMask: {enc: rIIIEncoding},
 
 	// 11.5: Single-Precision Load and Store Instructions
-	AFLW & obj.AMask: iFEncoding,
-	AFSW & obj.AMask: sFEncoding,
+	AFLW & obj.AMask: {enc: iFEncoding},
+	AFSW & obj.AMask: {enc: sFEncoding},
 
 	// 11.6: Single-Precision Floating-Point Computational Instructions
-	AFADDS & obj.AMask:   rFFFEncoding,
-	AFSUBS & obj.AMask:   rFFFEncoding,
-	AFMULS & obj.AMask:   rFFFEncoding,
-	AFDIVS & obj.AMask:   rFFFEncoding,
-	AFMINS & obj.AMask:   rFFFEncoding,
-	AFMAXS & obj.AMask:   rFFFEncoding,
-	AFSQRTS & obj.AMask:  rFFFEncoding,
-	AFMADDS & obj.AMask:  rFFFFEncoding,
-	AFMSUBS & obj.AMask:  rFFFFEncoding,
-	AFNMSUBS & obj.AMask: rFFFFEncoding,
-	AFNMADDS & obj.AMask: rFFFFEncoding,
+	AFADDS & obj.AMask:   {enc: rFFFEncoding},
+	AFSUBS & obj.AMask:   {enc: rFFFEncoding},
+	AFMULS & obj.AMask:   {enc: rFFFEncoding},
+	AFDIVS & obj.AMask:   {enc: rFFFEncoding},
+	AFMINS & obj.AMask:   {enc: rFFFEncoding},
+	AFMAXS & obj.AMask:   {enc: rFFFEncoding},
+	AFSQRTS & obj.AMask:  {enc: rFFFEncoding},
+	AFMADDS & obj.AMask:  {enc: rFFFFEncoding},
+	AFMSUBS & obj.AMask:  {enc: rFFFFEncoding},
+	AFNMSUBS & obj.AMask: {enc: rFFFFEncoding},
+	AFNMADDS & obj.AMask: {enc: rFFFFEncoding},
 
 	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
-	AFCVTWS & obj.AMask:  rFIEncoding,
-	AFCVTLS & obj.AMask:  rFIEncoding,
-	AFCVTSW & obj.AMask:  rIFEncoding,
-	AFCVTSL & obj.AMask:  rIFEncoding,
-	AFCVTWUS & obj.AMask: rFIEncoding,
-	AFCVTLUS & obj.AMask: rFIEncoding,
-	AFCVTSWU & obj.AMask: rIFEncoding,
-	AFCVTSLU & obj.AMask: rIFEncoding,
-	AFSGNJS & obj.AMask:  rFFFEncoding,
-	AFSGNJNS & obj.AMask: rFFFEncoding,
-	AFSGNJXS & obj.AMask: rFFFEncoding,
-	AFMVXS & obj.AMask:   rFIEncoding,
-	AFMVSX & obj.AMask:   rIFEncoding,
-	AFMVXW & obj.AMask:   rFIEncoding,
-	AFMVWX & obj.AMask:   rIFEncoding,
+	AFCVTWS & obj.AMask:  {enc: rFIEncoding},
+	AFCVTLS & obj.AMask:  {enc: rFIEncoding},
+	AFCVTSW & obj.AMask:  {enc: rIFEncoding},
+	AFCVTSL & obj.AMask:  {enc: rIFEncoding},
+	AFCVTWUS & obj.AMask: {enc: rFIEncoding},
+	AFCVTLUS & obj.AMask: {enc: rFIEncoding},
+	AFCVTSWU & obj.AMask: {enc: rIFEncoding},
+	AFCVTSLU & obj.AMask: {enc: rIFEncoding},
+	AFSGNJS & obj.AMask:  {enc: rFFFEncoding},
+	AFSGNJNS & obj.AMask: {enc: rFFFEncoding},
+	AFSGNJXS & obj.AMask: {enc: rFFFEncoding},
+	AFMVXW & obj.AMask:   {enc: rFIEncoding},
+	AFMVWX & obj.AMask:   {enc: rIFEncoding},
 
 	// 11.8: Single-Precision Floating-Point Compare Instructions
-	AFEQS & obj.AMask: rFFIEncoding,
-	AFLTS & obj.AMask: rFFIEncoding,
-	AFLES & obj.AMask: rFFIEncoding,
+	AFEQS & obj.AMask: {enc: rFFIEncoding},
+	AFLTS & obj.AMask: {enc: rFFIEncoding},
+	AFLES & obj.AMask: {enc: rFFIEncoding},
 
 	// 11.9: Single-Precision Floating-Point Classify Instruction
-	AFCLASSS & obj.AMask: rFIEncoding,
+	AFCLASSS & obj.AMask: {enc: rFIEncoding},
 
 	// 12.3: Double-Precision Load and Store Instructions
-	AFLD & obj.AMask: iFEncoding,
-	AFSD & obj.AMask: sFEncoding,
+	AFLD & obj.AMask: {enc: iFEncoding},
+	AFSD & obj.AMask: {enc: sFEncoding},
 
 	// 12.4: Double-Precision Floating-Point Computational Instructions
-	AFADDD & obj.AMask:   rFFFEncoding,
-	AFSUBD & obj.AMask:   rFFFEncoding,
-	AFMULD & obj.AMask:   rFFFEncoding,
-	AFDIVD & obj.AMask:   rFFFEncoding,
-	AFMIND & obj.AMask:   rFFFEncoding,
-	AFMAXD & obj.AMask:   rFFFEncoding,
-	AFSQRTD & obj.AMask:  rFFFEncoding,
-	AFMADDD & obj.AMask:  rFFFFEncoding,
-	AFMSUBD & obj.AMask:  rFFFFEncoding,
-	AFNMSUBD & obj.AMask: rFFFFEncoding,
-	AFNMADDD & obj.AMask: rFFFFEncoding,
+	AFADDD & obj.AMask:   {enc: rFFFEncoding},
+	AFSUBD & obj.AMask:   {enc: rFFFEncoding},
+	AFMULD & obj.AMask:   {enc: rFFFEncoding},
+	AFDIVD & obj.AMask:   {enc: rFFFEncoding},
+	AFMIND & obj.AMask:   {enc: rFFFEncoding},
+	AFMAXD & obj.AMask:   {enc: rFFFEncoding},
+	AFSQRTD & obj.AMask:  {enc: rFFFEncoding},
+	AFMADDD & obj.AMask:  {enc: rFFFFEncoding},
+	AFMSUBD & obj.AMask:  {enc: rFFFFEncoding},
+	AFNMSUBD & obj.AMask: {enc: rFFFFEncoding},
+	AFNMADDD & obj.AMask: {enc: rFFFFEncoding},
 
 	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
-	AFCVTWD & obj.AMask:  rFIEncoding,
-	AFCVTLD & obj.AMask:  rFIEncoding,
-	AFCVTDW & obj.AMask:  rIFEncoding,
-	AFCVTDL & obj.AMask:  rIFEncoding,
-	AFCVTWUD & obj.AMask: rFIEncoding,
-	AFCVTLUD & obj.AMask: rFIEncoding,
-	AFCVTDWU & obj.AMask: rIFEncoding,
-	AFCVTDLU & obj.AMask: rIFEncoding,
-	AFCVTSD & obj.AMask:  rFFEncoding,
-	AFCVTDS & obj.AMask:  rFFEncoding,
-	AFSGNJD & obj.AMask:  rFFFEncoding,
-	AFSGNJND & obj.AMask: rFFFEncoding,
-	AFSGNJXD & obj.AMask: rFFFEncoding,
-	AFMVXD & obj.AMask:   rFIEncoding,
-	AFMVDX & obj.AMask:   rIFEncoding,
+	AFCVTWD & obj.AMask:  {enc: rFIEncoding},
+	AFCVTLD & obj.AMask:  {enc: rFIEncoding},
+	AFCVTDW & obj.AMask:  {enc: rIFEncoding},
+	AFCVTDL & obj.AMask:  {enc: rIFEncoding},
+	AFCVTWUD & obj.AMask: {enc: rFIEncoding},
+	AFCVTLUD & obj.AMask: {enc: rFIEncoding},
+	AFCVTDWU & obj.AMask: {enc: rIFEncoding},
+	AFCVTDLU & obj.AMask: {enc: rIFEncoding},
+	AFCVTSD & obj.AMask:  {enc: rFFEncoding},
+	AFCVTDS & obj.AMask:  {enc: rFFEncoding},
+	AFSGNJD & obj.AMask:  {enc: rFFFEncoding},
+	AFSGNJND & obj.AMask: {enc: rFFFEncoding},
+	AFSGNJXD & obj.AMask: {enc: rFFFEncoding},
+	AFMVXD & obj.AMask:   {enc: rFIEncoding},
+	AFMVDX & obj.AMask:   {enc: rIFEncoding},
 
 	// 12.6: Double-Precision Floating-Point Compare Instructions
-	AFEQD & obj.AMask: rFFIEncoding,
-	AFLTD & obj.AMask: rFFIEncoding,
-	AFLED & obj.AMask: rFFIEncoding,
+	AFEQD & obj.AMask: {enc: rFFIEncoding},
+	AFLTD & obj.AMask: {enc: rFFIEncoding},
+	AFLED & obj.AMask: {enc: rFFIEncoding},
 
 	// 12.7: Double-Precision Floating-Point Classify Instruction
-	AFCLASSD & obj.AMask: rFIEncoding,
+	AFCLASSD & obj.AMask: {enc: rFIEncoding},
 
 	// Privileged ISA
 
 	// 3.2.1: Environment Call and Breakpoint
-	AECALL & obj.AMask:  iIEncoding,
-	AEBREAK & obj.AMask: iIEncoding,
+	AECALL & obj.AMask:  {enc: iIIEncoding},
+	AEBREAK & obj.AMask: {enc: iIIEncoding},
 
 	//
 	// RISC-V Bit-Manipulation ISA-extensions (1.0)
 	//
 
 	// 1.1: Address Generation Instructions (Zba)
-	AADDUW & obj.AMask:    rIIIEncoding,
-	ASH1ADD & obj.AMask:   rIIIEncoding,
-	ASH1ADDUW & obj.AMask: rIIIEncoding,
-	ASH2ADD & obj.AMask:   rIIIEncoding,
-	ASH2ADDUW & obj.AMask: rIIIEncoding,
-	ASH3ADD & obj.AMask:   rIIIEncoding,
-	ASH3ADDUW & obj.AMask: rIIIEncoding,
-	ASLLIUW & obj.AMask:   iIEncoding,
+	AADDUW & obj.AMask:    {enc: rIIIEncoding, ternary: true},
+	ASH1ADD & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	ASH1ADDUW & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	ASH2ADD & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	ASH2ADDUW & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	ASH3ADD & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	ASH3ADDUW & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	ASLLIUW & obj.AMask:   {enc: iIIEncoding, ternary: true},
 
 	// 1.2: Basic Bit Manipulation (Zbb)
-	AANDN & obj.AMask:  rIIIEncoding,
-	ACLZ & obj.AMask:   rIIEncoding,
-	ACLZW & obj.AMask:  rIIEncoding,
-	ACPOP & obj.AMask:  rIIEncoding,
-	ACPOPW & obj.AMask: rIIEncoding,
-	ACTZ & obj.AMask:   rIIEncoding,
-	ACTZW & obj.AMask:  rIIEncoding,
-	AMAX & obj.AMask:   rIIIEncoding,
-	AMAXU & obj.AMask:  rIIIEncoding,
-	AMIN & obj.AMask:   rIIIEncoding,
-	AMINU & obj.AMask:  rIIIEncoding,
-	AORN & obj.AMask:   rIIIEncoding,
-	ASEXTB & obj.AMask: rIIEncoding,
-	ASEXTH & obj.AMask: rIIEncoding,
-	AXNOR & obj.AMask:  rIIIEncoding,
-	AZEXTH & obj.AMask: rIIEncoding,
+	AANDN & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	ACLZ & obj.AMask:   {enc: rIIEncoding},
+	ACLZW & obj.AMask:  {enc: rIIEncoding},
+	ACPOP & obj.AMask:  {enc: rIIEncoding},
+	ACPOPW & obj.AMask: {enc: rIIEncoding},
+	ACTZ & obj.AMask:   {enc: rIIEncoding},
+	ACTZW & obj.AMask:  {enc: rIIEncoding},
+	AMAX & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	AMAXU & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	AMIN & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	AMINU & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	AORN & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	ASEXTB & obj.AMask: {enc: rIIEncoding},
+	ASEXTH & obj.AMask: {enc: rIIEncoding},
+	AXNOR & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	AZEXTH & obj.AMask: {enc: rIIEncoding},
 
 	// 1.3: Bitwise Rotation (Zbb)
-	AROL & obj.AMask:   rIIIEncoding,
-	AROLW & obj.AMask:  rIIIEncoding,
-	AROR & obj.AMask:   rIIIEncoding,
-	ARORI & obj.AMask:  iIEncoding,
-	ARORIW & obj.AMask: iIEncoding,
-	ARORW & obj.AMask:  rIIIEncoding,
-	AORCB & obj.AMask:  iIEncoding,
-	AREV8 & obj.AMask:  iIEncoding,
+	AROL & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+	AROLW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	AROR & obj.AMask:   {enc: rIIIEncoding, immForm: ARORI, ternary: true},
+	ARORI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+	ARORIW & obj.AMask: {enc: iIIEncoding, ternary: true},
+	ARORW & obj.AMask:  {enc: rIIIEncoding, immForm: ARORIW, ternary: true},
+	AORCB & obj.AMask:  {enc: iIIEncoding},
+	AREV8 & obj.AMask:  {enc: iIIEncoding},
 
 	// 1.5: Single-bit Instructions (Zbs)
-	ABCLR & obj.AMask:  rIIIEncoding,
-	ABCLRI & obj.AMask: iIEncoding,
-	ABEXT & obj.AMask:  rIIIEncoding,
-	ABEXTI & obj.AMask: iIEncoding,
-	ABINV & obj.AMask:  rIIIEncoding,
-	ABINVI & obj.AMask: iIEncoding,
-	ABSET & obj.AMask:  rIIIEncoding,
-	ABSETI & obj.AMask: iIEncoding,
+	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},
+	ABCLRI & obj.AMask: {enc: iIIEncoding, ternary: true},
+	ABEXT & obj.AMask:  {enc: rIIIEncoding, immForm: ABEXTI, ternary: true},
+	ABEXTI & obj.AMask: {enc: iIIEncoding, ternary: true},
+	ABINV & obj.AMask:  {enc: rIIIEncoding, immForm: ABINVI, ternary: true},
+	ABINVI & obj.AMask: {enc: iIIEncoding, ternary: true},
+	ABSET & obj.AMask:  {enc: rIIIEncoding, immForm: ABSETI, ternary: true},
+	ABSETI & obj.AMask: {enc: iIIEncoding, ternary: true},
 
 	// Escape hatch
-	AWORD & obj.AMask: rawEncoding,
+	AWORD & obj.AMask: {enc: rawEncoding},
 
 	// Pseudo-operations
-	obj.AFUNCDATA: pseudoOpEncoding,
-	obj.APCDATA:   pseudoOpEncoding,
-	obj.ATEXT:     pseudoOpEncoding,
-	obj.ANOP:      pseudoOpEncoding,
-	obj.ADUFFZERO: pseudoOpEncoding,
-	obj.ADUFFCOPY: pseudoOpEncoding,
-	obj.APCALIGN:  pseudoOpEncoding,
+	obj.AFUNCDATA: {enc: pseudoOpEncoding},
+	obj.APCDATA:   {enc: pseudoOpEncoding},
+	obj.ATEXT:     {enc: pseudoOpEncoding},
+	obj.ANOP:      {enc: pseudoOpEncoding},
+	obj.ADUFFZERO: {enc: pseudoOpEncoding},
+	obj.ADUFFCOPY: {enc: pseudoOpEncoding},
+	obj.APCALIGN:  {enc: pseudoOpEncoding},
+}
+
+// instructionDataForAs returns the instruction data for an obj.As.
+func instructionDataForAs(as obj.As) (*instructionData, error) {
+	if base := as &^ obj.AMask; base != obj.ABaseRISCV && base != 0 {
+		return nil, fmt.Errorf("%v is not a RISC-V instruction", as)
+	}
+	asi := as & obj.AMask
+	if int(asi) >= len(instructions) {
+		return nil, fmt.Errorf("bad RISC-V instruction %v", as)
+	}
+	return &instructions[asi], nil
 }
 
 // encodingForAs returns the encoding for an obj.As.
-func encodingForAs(as obj.As) (encoding, error) {
-	if base := as &^ obj.AMask; base != obj.ABaseRISCV && base != 0 {
-		return badEncoding, fmt.Errorf("encodingForAs: not a RISC-V instruction %s", as)
+func encodingForAs(as obj.As) (*encoding, error) {
+	insData, err := instructionDataForAs(as)
+	if err != nil {
+		return &badEncoding, err
 	}
-	asi := as & obj.AMask
-	if int(asi) >= len(encodings) {
-		return badEncoding, fmt.Errorf("encodingForAs: bad RISC-V instruction %s", as)
+	if insData.enc.validate == nil {
+		return &badEncoding, fmt.Errorf("no encoding for instruction %s", as)
 	}
-	enc := encodings[asi]
-	if enc.validate == nil {
-		return badEncoding, fmt.Errorf("encodingForAs: no encoding for instruction %s", as)
-	}
-	return enc, nil
+	return &insData.enc, nil
 }
 
 type instruction struct {
@@ -2403,13 +2400,28 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.funct7 = 3
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
 
-	case AECALL, AEBREAK, ARDCYCLE, ARDTIME, ARDINSTRET:
+	case AECALL, AEBREAK:
 		insEnc := encode(p.As)
 		if p.To.Type == obj.TYPE_NONE {
 			ins.rd = REG_ZERO
 		}
 		ins.rs1 = REG_ZERO
 		ins.imm = insEnc.csr
+
+	case ARDCYCLE, ARDTIME, ARDINSTRET:
+		ins.as = ACSRRS
+		if p.To.Type == obj.TYPE_NONE {
+			ins.rd = REG_ZERO
+		}
+		ins.rs1 = REG_ZERO
+		switch p.As {
+		case ARDCYCLE:
+			ins.imm = -1024
+		case ARDTIME:
+			ins.imm = -1023
+		case ARDINSTRET:
+			ins.imm = -1022
+		}
 
 	case AFENCE:
 		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
@@ -2535,6 +2547,34 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 
 	case AORCB, AREV8:
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), obj.REG_NONE
+
+	case AANDN, AORN:
+		if buildcfg.GORISCV64 >= 22 {
+			// ANDN and ORN instructions are supported natively.
+			break
+		}
+		// ANDN -> (AND (NOT x) y)
+		// ORN  -> (OR  (NOT x) y)
+		bitwiseOp, notReg := AAND, ins.rd
+		if ins.as == AORN {
+			bitwiseOp = AOR
+		}
+		if ins.rs1 == notReg {
+			notReg = REG_TMP
+		}
+		inss = []*instruction{
+			&instruction{as: AXORI, rs1: ins.rs2, rs2: obj.REG_NONE, rd: notReg, imm: -1},
+			&instruction{as: bitwiseOp, rs1: ins.rs1, rs2: notReg, rd: ins.rd},
+		}
+
+	case AXNOR:
+		if buildcfg.GORISCV64 >= 22 {
+			// XNOR instruction is supported natively.
+			break
+		}
+		// XNOR -> (NOT (XOR x y))
+		ins.as = AXOR
+		inss = append(inss, &instruction{as: AXORI, rs1: ins.rd, rs2: obj.REG_NONE, rd: ins.rd, imm: -1})
 	}
 
 	for _, ins := range inss {
@@ -2562,12 +2602,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		switch p.As {
 		case AJAL:
 			if p.Mark&NEED_JAL_RELOC == NEED_JAL_RELOC {
-				rel := obj.Addrel(cursym)
-				rel.Off = int32(p.Pc)
-				rel.Siz = 4
-				rel.Sym = p.To.Sym
-				rel.Add = p.To.Offset
-				rel.Type = objabi.R_RISCV_JAL
+				cursym.AddRel(ctxt, obj.Reloc{
+					Type: objabi.R_RISCV_JAL,
+					Off:  int32(p.Pc),
+					Siz:  4,
+					Sym:  p.To.Sym,
+					Add:  p.To.Offset,
+				})
 			}
 		case AJALR:
 			if p.To.Sym != nil {
@@ -2608,12 +2649,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-			rel := obj.Addrel(cursym)
-			rel.Off = int32(p.Pc)
-			rel.Siz = 8
-			rel.Sym = addr.Sym
-			rel.Add = addr.Offset
-			rel.Type = rt
+			cursym.AddRel(ctxt, obj.Reloc{
+				Type: rt,
+				Off:  int32(p.Pc),
+				Siz:  8,
+				Sym:  addr.Sym,
+				Add:  addr.Offset,
+			})
 
 		case obj.APCALIGN:
 			alignedValue := p.From.Offset

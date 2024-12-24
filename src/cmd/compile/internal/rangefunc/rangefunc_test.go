@@ -2,18 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.rangefunc
-
 package rangefunc_test
 
 import (
+	"fmt"
+	"regexp"
 	"slices"
 	"testing"
 )
 
+type Seq[T any] func(yield func(T) bool)
 type Seq2[T1, T2 any] func(yield func(T1, T2) bool)
 
-// OfSliceIndex returns a Seq over the elements of s. It is equivalent
+// OfSliceIndex returns a Seq2 over the elements of s. It is equivalent
 // to range s.
 func OfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
 	return func(yield func(int, T) bool) {
@@ -54,6 +55,39 @@ func VeryBadOfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
 	}
 }
 
+// SwallowPanicOfSliceIndex hides panics and converts them to normal return
+func SwallowPanicOfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
+	return func(yield func(int, T) bool) {
+		for i, v := range s {
+			done := false
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						done = true
+					}
+				}()
+				done = !yield(i, v)
+			}()
+			if done {
+				return
+			}
+		}
+		return
+	}
+}
+
+// PanickyOfSliceIndex iterates the slice but panics if it exits the loop early
+func PanickyOfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
+	return func(yield func(int, T) bool) {
+		for i, v := range s {
+			if !yield(i, v) {
+				panic(fmt.Errorf("Panicky iterator panicking"))
+			}
+		}
+		return
+	}
+}
+
 // CooperativeBadOfSliceIndex calls the loop body from a goroutine after
 // a ping on a channel, and returns recover()on that same channel.
 func CooperativeBadOfSliceIndex[T any, S ~[]T](s S, proceed chan any) Seq2[int, T] {
@@ -80,6 +114,22 @@ func CooperativeBadOfSliceIndex[T any, S ~[]T](s S, proceed chan any) Seq2[int, 
 // closure; this might be relevant to future checking/optimization.
 type TrickyIterator struct {
 	yield func(int, int) bool
+}
+
+func (ti *TrickyIterator) iterEcho(s []int) Seq2[int, int] {
+	return func(yield func(int, int) bool) {
+		for i, v := range s {
+			if !yield(i, v) {
+				ti.yield = yield
+				return
+			}
+			if ti.yield != nil && !ti.yield(i, v) {
+				return
+			}
+		}
+		ti.yield = yield
+		return
+	}
 }
 
 func (ti *TrickyIterator) iterAll(s []int) Seq2[int, int] {
@@ -118,23 +168,142 @@ func (ti *TrickyIterator) fail() {
 	}
 }
 
-// Check wraps the function body passed to iterator forall
+const DONE = 0      // body of loop has exited in a non-panic way
+const READY = 1     // body of loop has not exited yet, is not running
+const PANIC = 2     // body of loop is either currently running, or has panicked
+const EXHAUSTED = 3 // iterator function return, i.e., sequence is "exhausted"
+
+const MISSING_PANIC = 4 // overload "READY" for panic call
+
+// Check2 wraps the function body passed to iterator forall
 // in code that ensures that it cannot (successfully) be called
 // either after body return false (control flow out of loop) or
 // forall itself returns (the iteration is now done).
 //
 // Note that this can catch errors before the inserted checks.
-func Check[U, V any](forall Seq2[U, V]) Seq2[U, V] {
+func Check2[U, V any](forall Seq2[U, V]) Seq2[U, V] {
 	return func(body func(U, V) bool) {
-		ret := true
+		state := READY
 		forall(func(u U, v V) bool {
-			if !ret {
-				panic("Checked iterator access after exit")
+			tmp := state
+			state = PANIC
+			if tmp != READY {
+				panic(fail[tmp])
 			}
-			ret = body(u, v)
+			ret := body(u, v)
+			if ret {
+				state = READY
+			} else {
+				state = DONE
+			}
 			return ret
 		})
-		ret = false
+		if state == PANIC {
+			panic(fail[MISSING_PANIC])
+		}
+		state = EXHAUSTED
+	}
+}
+
+func Check[U any](forall Seq[U]) Seq[U] {
+	return func(body func(U) bool) {
+		state := READY
+		forall(func(u U) bool {
+			tmp := state
+			state = PANIC
+			if tmp != READY {
+				panic(fail[tmp])
+			}
+			ret := body(u)
+			if ret {
+				state = READY
+			} else {
+				state = DONE
+			}
+			return ret
+		})
+		if state == PANIC {
+			panic(fail[MISSING_PANIC])
+		}
+		state = EXHAUSTED
+	}
+}
+
+func matchError(r any, x string) bool {
+	if r == nil {
+		return false
+	}
+	if x == "" {
+		return true
+	}
+	if p, ok := r.(errorString); ok {
+		return p.Error() == x
+	}
+	if p, ok := r.(error); ok {
+		e, err := regexp.Compile(x)
+		if err != nil {
+			panic(fmt.Errorf("Bad regexp '%s' passed to matchError", x))
+		}
+		return e.MatchString(p.Error())
+	}
+	return false
+}
+
+func matchErrorHelper(t *testing.T, r any, x string) {
+	if matchError(r, x) {
+		t.Logf("Saw expected panic '%v'", r)
+	} else {
+		t.Errorf("Saw wrong panic '%v', expected '%s'", r, x)
+	}
+}
+
+// An errorString represents a runtime error described by a single string.
+type errorString string
+
+func (e errorString) Error() string {
+	return string(e)
+}
+
+const (
+	// RERR_ is for runtime error, and may be regexps/substrings, to simplify use of tests with tools
+	RERR_DONE      = "runtime error: range function continued iteration after function for loop body returned false"
+	RERR_PANIC     = "runtime error: range function continued iteration after loop body panic"
+	RERR_EXHAUSTED = "runtime error: range function continued iteration after whole loop exit"
+	RERR_MISSING   = "runtime error: range function recovered a loop body panic and did not resume panicking"
+
+	// CERR_ is for checked errors in the Check combinator defined above, and should be literal strings
+	CERR_PFX       = "checked rangefunc error: "
+	CERR_DONE      = CERR_PFX + "loop iteration after body done"
+	CERR_PANIC     = CERR_PFX + "loop iteration after panic"
+	CERR_EXHAUSTED = CERR_PFX + "loop iteration after iterator exit"
+	CERR_MISSING   = CERR_PFX + "loop iterator swallowed panic"
+)
+
+var fail []error = []error{
+	errorString(CERR_DONE),
+	errorString(CERR_PFX + "loop iterator, unexpected error"),
+	errorString(CERR_PANIC),
+	errorString(CERR_EXHAUSTED),
+	errorString(CERR_MISSING),
+}
+
+// TestNoVars ensures that versions of rangefunc that use zero or one
+// iteration variable (instead of two) run the proper number of times
+// and in the one variable case supply the proper values.
+// For #65236.
+func TestNoVars(t *testing.T) {
+	i, k := 0, 0
+	for range Check2(OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
+		i++
+	}
+	for j := range Check2(OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
+		k += j
+	}
+	if i != 10 {
+		t.Errorf("Expected 10, got %d", i)
+	}
+	if k != 45 {
+		t.Errorf("Expected 45, got %d", k)
 	}
 }
 
@@ -142,12 +311,16 @@ func TestCheck(t *testing.T) {
 	i := 0
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, CERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 		} else {
 			t.Error("Wanted to see a failure")
 		}
 	}()
-	for _, x := range Check(BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
+	for _, x := range Check2(BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
 		i += x
 		if i > 4*9 {
 			break
@@ -166,7 +339,11 @@ func TestCooperativeBadOfSliceIndex(t *testing.T) {
 	}
 	proceed <- true
 	if r := <-proceed; r != nil {
-		t.Logf("Saw expected panic '%v'", r)
+		if matchError(r, RERR_EXHAUSTED) {
+			t.Logf("Saw expected panic '%v'", r)
+		} else {
+			t.Errorf("Saw wrong panic '%v'", r)
+		}
 	} else {
 		t.Error("Wanted to see a failure")
 	}
@@ -177,10 +354,10 @@ func TestCooperativeBadOfSliceIndex(t *testing.T) {
 	}
 }
 
-func TestCheckCooperativeBadOfSliceIndex(t *testing.T) {
+func TestCooperativeBadOfSliceIndexCheck(t *testing.T) {
 	i := 0
 	proceed := make(chan any)
-	for _, x := range Check(CooperativeBadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, proceed)) {
+	for _, x := range Check2(CooperativeBadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, proceed)) {
 		i += x
 		if i >= 36 {
 			break
@@ -188,7 +365,12 @@ func TestCheckCooperativeBadOfSliceIndex(t *testing.T) {
 	}
 	proceed <- true
 	if r := <-proceed; r != nil {
-		t.Logf("Saw expected panic '%v'", r)
+		if matchError(r, CERR_EXHAUSTED) {
+			t.Logf("Saw expected panic '%v'", r)
+		} else {
+			t.Errorf("Saw wrong panic '%v'", r)
+		}
+
 	} else {
 		t.Error("Wanted to see a failure")
 	}
@@ -217,7 +399,11 @@ func TestTrickyIterAll(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_EXHAUSTED) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 		} else {
 			t.Error("Wanted to see a failure")
 		}
@@ -241,7 +427,11 @@ func TestTrickyIterOne(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_EXHAUSTED) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 		} else {
 			t.Error("Wanted to see a failure")
 		}
@@ -265,7 +455,11 @@ func TestTrickyIterZero(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_EXHAUSTED) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 		} else {
 			t.Error("Wanted to see a failure")
 		}
@@ -274,10 +468,10 @@ func TestTrickyIterZero(t *testing.T) {
 	trickItZero.fail()
 }
 
-func TestCheckTrickyIterZero(t *testing.T) {
+func TestTrickyIterZeroCheck(t *testing.T) {
 	trickItZero := TrickyIterator{}
 	i := 0
-	for _, x := range Check(trickItZero.iterZero([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
+	for _, x := range Check2(trickItZero.iterZero([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
 		i += x
 		if i >= 36 {
 			break
@@ -289,13 +483,89 @@ func TestCheckTrickyIterZero(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, CERR_EXHAUSTED) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 		} else {
 			t.Error("Wanted to see a failure")
 		}
 	}()
 
 	trickItZero.fail()
+}
+
+func TestTrickyIterEcho(t *testing.T) {
+	trickItAll := TrickyIterator{}
+	i := 0
+	for _, x := range trickItAll.iterAll([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
+		t.Logf("first loop i=%d", i)
+		i += x
+		if i >= 10 {
+			break
+		}
+	}
+
+	if i != 10 {
+		t.Errorf("Expected i == 10, saw %d instead", i)
+	} else {
+		t.Logf("i = %d", i)
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, RERR_EXHAUSTED) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+		} else {
+			t.Error("Wanted to see a failure")
+		}
+	}()
+
+	i = 0
+	for _, x := range trickItAll.iterEcho([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
+		t.Logf("second loop i=%d", i)
+		if x >= 5 {
+			break
+		}
+	}
+
+}
+
+func TestTrickyIterEcho2(t *testing.T) {
+	trickItAll := TrickyIterator{}
+	var i int
+
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, RERR_EXHAUSTED) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+		} else {
+			t.Error("Wanted to see a failure")
+		}
+	}()
+
+	for k := range 2 {
+		i = 0
+		for _, x := range trickItAll.iterEcho([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
+			t.Logf("k,x,i=%d,%d,%d", k, x, i)
+			i += x
+			if i >= 10 {
+				break
+			}
+		}
+		t.Logf("i = %d", i)
+
+		if i != 10 {
+			t.Errorf("Expected i == 10, saw %d instead", i)
+		}
+	}
 }
 
 // TestBreak1 should just work, with well-behaved iterators.
@@ -412,7 +682,11 @@ func TestBreak1BadA(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 			if !slices.Equal(expect, result) {
 				t.Errorf("Expected %v, got %v", expect, result)
 			}
@@ -443,7 +717,11 @@ func TestBreak1BadB(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 			if !slices.Equal(expect, result) {
 				t.Errorf("Expected %v, got %v", expect, result)
 			}
@@ -507,7 +785,11 @@ func TestMultiCont1(t *testing.T) {
 	var expect = []int{1000, 10, 2, 4}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 			if !slices.Equal(expect, result) {
 				t.Errorf("Expected %v, got %v", expect, result)
 			}
@@ -551,7 +833,11 @@ func TestMultiCont2(t *testing.T) {
 	var expect = []int{1000, 10, 2, 4}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 			if !slices.Equal(expect, result) {
 				t.Errorf("Expected %v, got %v", expect, result)
 			}
@@ -595,7 +881,11 @@ func TestMultiCont3(t *testing.T) {
 	var expect = []int{1000, 10, 2, 4}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 			if !slices.Equal(expect, result) {
 				t.Errorf("Expected %v, got %v", expect, result)
 			}
@@ -639,7 +929,11 @@ func TestMultiBreak0(t *testing.T) {
 	var expect = []int{1000, 10, 2, 4}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 			if !slices.Equal(expect, result) {
 				t.Errorf("Expected %v, got %v", expect, result)
 			}
@@ -683,7 +977,11 @@ func TestMultiBreak1(t *testing.T) {
 	var expect = []int{1000, 10, 2, 4}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 			if !slices.Equal(expect, result) {
 				t.Errorf("Expected %v, got %v", expect, result)
 			}
@@ -727,7 +1025,11 @@ func TestMultiBreak2(t *testing.T) {
 	var expect = []int{1000, 10, 2, 4}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 			if !slices.Equal(expect, result) {
 				t.Errorf("Expected %v, got %v", expect, result)
 			}
@@ -771,7 +1073,11 @@ func TestMultiBreak3(t *testing.T) {
 	var expect = []int{1000, 10, 2, 4}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 			if !slices.Equal(expect, result) {
 				t.Errorf("Expected %v, got %v", expect, result)
 			}
@@ -808,6 +1114,245 @@ W:
 	}
 }
 
+func TestPanickyIterator1(t *testing.T) {
+	var result []int
+	var expect = []int{1, 2, 3, 4}
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, "Panicky iterator panicking") {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a failure, result was %v", result)
+		}
+	}()
+	for _, z := range PanickyOfSliceIndex([]int{1, 2, 3, 4}) {
+		result = append(result, z)
+		if z == 4 {
+			break
+		}
+	}
+}
+
+func TestPanickyIterator1Check(t *testing.T) {
+	var result []int
+	var expect = []int{1, 2, 3, 4}
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, "Panicky iterator panicking") {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a failure, result was %v", result)
+		}
+	}()
+	for _, z := range Check2(PanickyOfSliceIndex([]int{1, 2, 3, 4})) {
+		result = append(result, z)
+		if z == 4 {
+			break
+		}
+	}
+}
+
+func TestPanickyIterator2(t *testing.T) {
+	var result []int
+	var expect = []int{100, 10, 1, 2}
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, RERR_MISSING) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a failure, result was %v", result)
+		}
+	}()
+	for _, x := range OfSliceIndex([]int{100, 200}) {
+		result = append(result, x)
+	Y:
+		// swallows panics and iterates to end BUT `break Y` disables the body, so--> 10, 1, 2
+		for _, y := range VeryBadOfSliceIndex([]int{10, 20}) {
+			result = append(result, y)
+
+			// converts early exit into a panic --> 1, 2
+			for k, z := range PanickyOfSliceIndex([]int{1, 2}) { // iterator panics
+				result = append(result, z)
+				if k == 1 {
+					break Y
+				}
+			}
+		}
+	}
+}
+
+func TestPanickyIterator2Check(t *testing.T) {
+	var result []int
+	var expect = []int{100, 10, 1, 2}
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, CERR_MISSING) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a panic, result was %v", result)
+		}
+	}()
+	for _, x := range Check2(OfSliceIndex([]int{100, 200})) {
+		result = append(result, x)
+	Y:
+		// swallows panics and iterates to end BUT `break Y` disables the body, so--> 10, 1, 2
+		for _, y := range Check2(VeryBadOfSliceIndex([]int{10, 20})) {
+			result = append(result, y)
+
+			// converts early exit into a panic --> 1, 2
+			for k, z := range Check2(PanickyOfSliceIndex([]int{1, 2})) { // iterator panics
+				result = append(result, z)
+				if k == 1 {
+					break Y
+				}
+			}
+		}
+	}
+}
+
+func TestPanickyIterator3(t *testing.T) {
+	var result []int
+	var expect = []int{100, 10, 1, 2}
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, RERR_MISSING) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a panic, result was %v", result)
+		}
+	}()
+	for _, x := range OfSliceIndex([]int{100, 200}) {
+		result = append(result, x)
+	Y:
+		// swallows panics and iterates to end BUT `break Y` disables the body, so--> 10, 1, 2
+		// This is cross-checked against the checked iterator below; the combinator should behave the same.
+		for _, y := range VeryBadOfSliceIndex([]int{10, 20}) {
+			result = append(result, y)
+
+			for k, z := range OfSliceIndex([]int{1, 2}) { // iterator does not panic
+				result = append(result, z)
+				if k == 1 {
+					break Y
+				}
+			}
+		}
+	}
+}
+func TestPanickyIterator3Check(t *testing.T) {
+	var result []int
+	var expect = []int{100, 10, 1, 2}
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, CERR_MISSING) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a panic, result was %v", result)
+		}
+	}()
+	for _, x := range Check2(OfSliceIndex([]int{100, 200})) {
+		result = append(result, x)
+	Y:
+		// swallows panics and iterates to end BUT `break Y` disables the body, so--> 10, 1, 2
+		for _, y := range Check2(VeryBadOfSliceIndex([]int{10, 20})) {
+			result = append(result, y)
+
+			for k, z := range Check2(OfSliceIndex([]int{1, 2})) { // iterator does not panic
+				result = append(result, z)
+				if k == 1 {
+					break Y
+				}
+			}
+		}
+	}
+}
+
+func TestPanickyIterator4(t *testing.T) {
+	var result []int
+	var expect = []int{1, 2, 3}
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, RERR_MISSING) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a panic, result was %v", result)
+		}
+	}()
+	for _, x := range SwallowPanicOfSliceIndex([]int{1, 2, 3, 4}) {
+		result = append(result, x)
+		if x == 3 {
+			panic("x is 3")
+		}
+	}
+
+}
+func TestPanickyIterator4Check(t *testing.T) {
+	var result []int
+	var expect = []int{1, 2, 3}
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, CERR_MISSING) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+			if !slices.Equal(expect, result) {
+				t.Errorf("Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Errorf("Wanted to see a panic, result was %v", result)
+		}
+	}()
+	for _, x := range Check2(SwallowPanicOfSliceIndex([]int{1, 2, 3, 4})) {
+		result = append(result, x)
+		if x == 3 {
+			panic("x is 3")
+		}
+	}
+
+}
+
 // veryBad tests that a loop nest behaves sensibly in the face of a
 // "very bad" iterator.  In this case, "sensibly" means that the
 // break out of X still occurs after the very bad iterator finally
@@ -833,17 +1378,17 @@ X:
 	return result
 }
 
-// checkVeryBad wraps a "very bad" iterator with Check,
+// veryBadCheck wraps a "very bad" iterator with Check,
 // demonstrating that the very bad iterator also hides panics
 // thrown by Check.
-func checkVeryBad(s []int) []int {
+func veryBadCheck(s []int) []int {
 	var result []int
 X:
 	for _, x := range OfSliceIndex([]int{1, 2, 3}) {
 
 		result = append(result, x)
 
-		for _, y := range Check(VeryBadOfSliceIndex(s)) {
+		for _, y := range Check2(VeryBadOfSliceIndex(s)) {
 			result = append(result, y)
 			break X
 		}
@@ -882,33 +1427,76 @@ X:
 
 // TestVeryBad1 checks the behavior of an extremely poorly behaved iterator.
 func TestVeryBad1(t *testing.T) {
-	result := veryBad([]int{10, 20, 30, 40, 50}) // odd length
-	expect := []int{1, 10}
+	expect := []int{} // assignment does not happen
+	var result []int
 
-	if !slices.Equal(expect, result) {
-		t.Errorf("Expected %v, got %v", expect, result)
+	defer func() {
+		if r := recover(); r != nil {
+			expectPanic(t, r, RERR_MISSING)
+			if !slices.Equal(expect, result) {
+				t.Errorf("(Inner) Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Error("Wanted to see a failure")
+		}
+	}()
+
+	result = veryBad([]int{10, 20, 30, 40, 50}) // odd length
+
+}
+
+func expectPanic(t *testing.T, r any, s string) {
+	if matchError(r, s) {
+		t.Logf("Saw expected panic '%v'", r)
+	} else {
+		t.Errorf("Saw wrong panic '%v'", r)
+	}
+}
+
+func expectError(t *testing.T, err any, s string) {
+	if matchError(err, s) {
+		t.Logf("Saw expected error '%v'", err)
+	} else {
+		t.Errorf("Saw wrong error '%v'", err)
 	}
 }
 
 // TestVeryBad2 checks the behavior of an extremely poorly behaved iterator.
 func TestVeryBad2(t *testing.T) {
-	result := veryBad([]int{10, 20, 30, 40}) // even length
-	expect := []int{1, 10}
+	result := []int{}
+	expect := []int{}
 
-	if !slices.Equal(expect, result) {
-		t.Errorf("Expected %v, got %v", expect, result)
-	}
+	defer func() {
+		if r := recover(); r != nil {
+			expectPanic(t, r, RERR_MISSING)
+			if !slices.Equal(expect, result) {
+				t.Errorf("(Inner) Expected %v, got %v", expect, result)
+			}
+		} else {
+			t.Error("Wanted to see a failure")
+		}
+	}()
+
+	result = veryBad([]int{10, 20, 30, 40}) // even length
+
 }
 
-// TestCheckVeryBad checks the behavior of an extremely poorly behaved iterator,
+// TestVeryBadCheck checks the behavior of an extremely poorly behaved iterator,
 // which also suppresses the exceptions from "Check"
-func TestCheckVeryBad(t *testing.T) {
-	result := checkVeryBad([]int{10, 20, 30, 40}) // even length
-	expect := []int{1, 10}
+func TestVeryBadCheck(t *testing.T) {
+	expect := []int{}
+	var result []int
+	defer func() {
+		if r := recover(); r != nil {
+			expectPanic(t, r, CERR_MISSING)
+		}
+		if !slices.Equal(expect, result) {
+			t.Errorf("Expected %v, got %v", expect, result)
+		}
+	}()
 
-	if !slices.Equal(expect, result) {
-		t.Errorf("Expected %v, got %v", expect, result)
-	}
+	result = veryBadCheck([]int{10, 20, 30, 40}) // even length
+
 }
 
 // TestOk is the nice version of the very bad iterator.
@@ -929,7 +1517,11 @@ func testBreak1BadDefer(t *testing.T) (result []int) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			t.Logf("Saw expected panic '%v'", r)
+			if matchError(r, RERR_DONE) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
 			if !slices.Equal(expect, result) {
 				t.Errorf("(Inner) Expected %v, got %v", expect, result)
 			}
@@ -1036,11 +1628,40 @@ func testReturn3(t *testing.T) (result []int, err any) {
 	return
 }
 
+// testReturn4 has no bad iterators, but exercises  return variable rewriting
+// differs from testReturn1 because deferred append to "result" does not change
+// the return value in this case.
+func testReturn4(t *testing.T) (_ []int, _ []int, err any) {
+	var result []int
+	defer func() {
+		err = recover()
+	}()
+	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4, -5}) {
+		result = append(result, x)
+		if x == -4 {
+			break
+		}
+		defer func() {
+			result = append(result, x*10)
+		}()
+		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
+			if y == 3 {
+				return result, result, nil
+			}
+			result = append(result, y)
+		}
+		result = append(result, x)
+	}
+	return
+}
+
 // TestReturns checks that returns through bad iterators behave properly,
 // for inner and outer bad iterators.
 func TestReturns(t *testing.T) {
 	var result []int
+	var result2 []int
 	var expect = []int{-1, 1, 2, -10}
+	var expect2 = []int{-1, 1, 2}
 	var err any
 
 	result, err = testReturn1(t)
@@ -1058,7 +1679,11 @@ func TestReturns(t *testing.T) {
 	if err == nil {
 		t.Errorf("Missing expected error")
 	} else {
-		t.Logf("Saw expected panic '%v'", err)
+		if matchError(err, RERR_DONE) {
+			t.Logf("Saw expected panic '%v'", err)
+		} else {
+			t.Errorf("Saw wrong panic '%v'", err)
+		}
 	}
 
 	result, err = testReturn3(t)
@@ -1068,9 +1693,23 @@ func TestReturns(t *testing.T) {
 	if err == nil {
 		t.Errorf("Missing expected error")
 	} else {
-		t.Logf("Saw expected panic '%v'", err)
+		if matchError(err, RERR_DONE) {
+			t.Logf("Saw expected panic '%v'", err)
+		} else {
+			t.Errorf("Saw wrong panic '%v'", err)
+		}
 	}
 
+	result, result2, err = testReturn4(t)
+	if !slices.Equal(expect2, result) {
+		t.Errorf("Expected %v, got %v", expect2, result)
+	}
+	if !slices.Equal(expect2, result2) {
+		t.Errorf("Expected %v, got %v", expect2, result2)
+	}
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
 }
 
 // testGotoA1 tests loop-nest-internal goto, no bad iterators.
@@ -1169,7 +1808,11 @@ func TestGotoA(t *testing.T) {
 	if err == nil {
 		t.Errorf("Missing expected error")
 	} else {
-		t.Logf("Saw expected panic '%v'", err)
+		if matchError(err, RERR_DONE) {
+			t.Logf("Saw expected panic '%v'", err)
+		} else {
+			t.Errorf("Saw wrong panic '%v'", err)
+		}
 	}
 
 	result, err = testGotoA3(t)
@@ -1179,7 +1822,11 @@ func TestGotoA(t *testing.T) {
 	if err == nil {
 		t.Errorf("Missing expected error")
 	} else {
-		t.Logf("Saw expected panic '%v'", err)
+		if matchError(err, RERR_DONE) {
+			t.Logf("Saw expected panic '%v'", err)
+		} else {
+			t.Errorf("Saw wrong panic '%v'", err)
+		}
 	}
 }
 
@@ -1282,7 +1929,11 @@ func TestGotoB(t *testing.T) {
 	if err == nil {
 		t.Errorf("Missing expected error")
 	} else {
-		t.Logf("Saw expected panic '%v'", err)
+		if matchError(err, RERR_DONE) {
+			t.Logf("Saw expected panic '%v'", err)
+		} else {
+			t.Errorf("Saw wrong panic '%v'", err)
+		}
 	}
 
 	result, err = testGotoB3(t)
@@ -1292,6 +1943,264 @@ func TestGotoB(t *testing.T) {
 	if err == nil {
 		t.Errorf("Missing expected error")
 	} else {
-		t.Logf("Saw expected panic '%v'", err)
+		matchErrorHelper(t, err, RERR_DONE)
+	}
+}
+
+// once returns an iterator that runs its loop body once with the supplied value
+func once[T any](x T) Seq[T] {
+	return func(yield func(T) bool) {
+		yield(x)
+	}
+}
+
+// terrify converts an iterator into one that panics with the supplied string
+// if/when the loop body terminates early (returns false, for break, goto, outer
+// continue, or return).
+func terrify[T any](s string, forall Seq[T]) Seq[T] {
+	return func(yield func(T) bool) {
+		forall(func(v T) bool {
+			if !yield(v) {
+				panic(s)
+			}
+			return true
+		})
+	}
+}
+
+func use[T any](T) {
+}
+
+// f runs a not-rangefunc iterator that recovers from a panic that follows execution of a return.
+// what does f return?
+func f() string {
+	defer func() { recover() }()
+	defer panic("f panic")
+	for _, s := range []string{"f return"} {
+		return s
+	}
+	return "f not reached"
+}
+
+// g runs a rangefunc iterator that recovers from a panic that follows execution of a return.
+// what does g return?
+func g() string {
+	defer func() { recover() }()
+	for s := range terrify("g panic", once("g return")) {
+		return s
+	}
+	return "g not reached"
+}
+
+// h runs a rangefunc iterator that recovers from a panic that follows execution of a return.
+// the panic occurs in the rangefunc iterator itself.
+// what does h return?
+func h() (hashS string) {
+	defer func() { recover() }()
+	for s := range terrify("h panic", once("h return")) {
+		hashS := s
+		use(hashS)
+		return s
+	}
+	return "h not reached"
+}
+
+func j() (hashS string) {
+	defer func() { recover() }()
+	for s := range terrify("j panic", once("j return")) {
+		hashS = s
+		return
+	}
+	return "j not reached"
+}
+
+// k runs a rangefunc iterator that recovers from a panic that follows execution of a return.
+// the panic occurs in the rangefunc iterator itself.
+// k includes an additional mechanism to for making the return happen
+// what does k return?
+func k() (hashS string) {
+	_return := func(s string) { hashS = s }
+
+	defer func() { recover() }()
+	for s := range terrify("k panic", once("k return")) {
+		_return(s)
+		return
+	}
+	return "k not reached"
+}
+
+func m() (hashS string) {
+	_return := func(s string) { hashS = s }
+
+	defer func() { recover() }()
+	for s := range terrify("m panic", once("m return")) {
+		defer _return(s)
+		return s + ", but should be replaced in a defer"
+	}
+	return "m not reached"
+}
+
+func n() string {
+	defer func() { recover() }()
+	for s := range terrify("n panic", once("n return")) {
+		return s + func(s string) string {
+			defer func() { recover() }()
+			for s := range terrify("n closure panic", once(s)) {
+				return s
+			}
+			return "n closure not reached"
+		}(" and n closure return")
+	}
+	return "n not reached"
+}
+
+type terrifyTestCase struct {
+	f func() string
+	e string
+}
+
+func TestPanicReturns(t *testing.T) {
+	tcs := []terrifyTestCase{
+		{f, "f return"},
+		{g, "g return"},
+		{h, "h return"},
+		{k, "k return"},
+		{j, "j return"},
+		{m, "m return"},
+		{n, "n return and n closure return"},
+	}
+
+	for _, tc := range tcs {
+		got := tc.f()
+		if got != tc.e {
+			t.Errorf("Got %s expected %s", got, tc.e)
+		} else {
+			t.Logf("Got expected %s", got)
+		}
+	}
+}
+
+// twice calls yield twice, the first time defer-recover-saving any panic,
+// for re-panicking later if the second call to yield does not also panic.
+// If the first call panicked, the second call ought to also panic because
+// it was called after a panic-termination of the loop body.
+func twice[T any](x, y T) Seq[T] {
+	return func(yield func(T) bool) {
+		var p any
+		done := false
+		func() {
+			defer func() {
+				p = recover()
+			}()
+			done = !yield(x)
+		}()
+		if done {
+			return
+		}
+		yield(y)
+		if p != nil {
+			// do not swallow the panic
+			panic(p)
+		}
+	}
+}
+
+func TestRunBodyAfterPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, RERR_PANIC) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+		} else {
+			t.Errorf("Wanted to see a failure, result")
+		}
+	}()
+	for x := range twice(0, 1) {
+		if x == 0 {
+			panic("x is zero")
+		}
+	}
+}
+
+func TestRunBodyAfterPanicCheck(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			if matchError(r, CERR_PANIC) {
+				t.Logf("Saw expected panic '%v'", r)
+			} else {
+				t.Errorf("Saw wrong panic '%v'", r)
+			}
+		} else {
+			t.Errorf("Wanted to see a failure, result")
+		}
+	}()
+	for x := range Check(twice(0, 1)) {
+		if x == 0 {
+			panic("x is zero")
+		}
+	}
+}
+
+func TestTwoLevelReturn(t *testing.T) {
+	f := func() int {
+		for a := range twice(0, 1) {
+			for b := range twice(0, 2) {
+				x := a + b
+				t.Logf("x=%d", x)
+				if x == 3 {
+					return x
+				}
+			}
+		}
+		return -1
+	}
+	y := f()
+	if y != 3 {
+		t.Errorf("Expected y=3, got y=%d\n", y)
+	}
+}
+
+func TestTwoLevelReturnCheck(t *testing.T) {
+	f := func() int {
+		for a := range Check(twice(0, 1)) {
+			for b := range Check(twice(0, 2)) {
+				x := a + b
+				t.Logf("a=%d, b=%d, x=%d", a, b, x)
+				if x == 3 {
+					return x
+				}
+			}
+		}
+		return -1
+	}
+	y := f()
+	if y != 3 {
+		t.Errorf("Expected y=3, got y=%d\n", y)
+	}
+}
+
+func Bug70035(s1, s2, s3 []string) string {
+	var c1 string
+	for v1 := range slices.Values(s1) {
+		var c2 string
+		for v2 := range slices.Values(s2) {
+			var c3 string
+			for v3 := range slices.Values(s3) {
+				c3 = c3 + v3
+			}
+			c2 = c2 + v2 + c3
+		}
+		c1 = c1 + v1 + c2
+	}
+	return c1
+}
+
+func Test70035(t *testing.T) {
+	got := Bug70035([]string{"1", "2", "3"}, []string{"a", "b", "c"}, []string{"A", "B", "C"})
+	want := "1aABCbABCcABC2aABCbABCcABC3aABCbABCcABC"
+	if got != want {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }

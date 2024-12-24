@@ -306,6 +306,9 @@ var parseTests = []parseTest{
 	{"bug1a", "{{$x:=.}}{{$x!2}}", hasError, ""},                     // ! is just illegal here.
 	{"bug1b", "{{$x:=.}}{{$x+2}}", hasError, ""},                     // $x+2 should not parse as ($x) (+2).
 	{"bug1c", "{{$x:=.}}{{$x +2}}", noError, "{{$x := .}}{{$x +2}}"}, // It's OK with a space.
+	// Check the range handles assignment vs. declaration properly.
+	{"bug2a", "{{range $x := 0}}{{$x}}{{end}}", noError, "{{range $x := 0}}{{$x}}{{end}}"},
+	{"bug2b", "{{range $x = 0}}{{$x}}{{end}}", noError, "{{range $x = 0}}{{$x}}{{end}}"},
 	// dot following a literal value
 	{"dot after integer", "{{1.E}}", hasError, ""},
 	{"dot after float", "{{0.1.E}}", hasError, ""},

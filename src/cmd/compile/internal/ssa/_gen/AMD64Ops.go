@@ -152,6 +152,7 @@ func init() {
 		gpstoreconstidx = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}}
 		gpstorexchg     = regInfo{inputs: []regMask{gp, gpspsbg, 0}, outputs: []regMask{gp}}
 		cmpxchg         = regInfo{inputs: []regMask{gp, ax, gp, 0}, outputs: []regMask{gp, 0}, clobbers: ax}
+		atomicLogic     = regInfo{inputs: []regMask{gp &^ ax, gp &^ ax, 0}, outputs: []regMask{ax, 0}}
 
 		fp01        = regInfo{inputs: nil, outputs: fponly}
 		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
@@ -959,7 +960,7 @@ func init() {
 		// use of DX (the closure pointer)
 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}, zeroWidth: true},
 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
-		// I.e., if f calls g "calls" getcallerpc,
+		// I.e., if f calls g "calls" sys.GetCallerPC,
 		// the result should be the PC within f that g will return to.
 		// See runtime/stubs.go for a more detailed discussion.
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
@@ -1040,11 +1041,22 @@ func init() {
 		{name: "CMPXCHGLlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
 		{name: "CMPXCHGQlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGQ", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
 
-		// Atomic memory updates.
+		// Atomic memory updates using logical operations.
+		// Old style that just returns the memory state.
 		{name: "ANDBlock", argLength: 3, reg: gpstore, asm: "ANDB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"}, // *(arg0+auxint+aux) &= arg1
 		{name: "ANDLlock", argLength: 3, reg: gpstore, asm: "ANDL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"}, // *(arg0+auxint+aux) &= arg1
+		{name: "ANDQlock", argLength: 3, reg: gpstore, asm: "ANDQ", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"}, // *(arg0+auxint+aux) &= arg1
 		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
 		{name: "ORLlock", argLength: 3, reg: gpstore, asm: "ORL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
+		{name: "ORQlock", argLength: 3, reg: gpstore, asm: "ORQ", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
+
+		// Atomic memory updates using logical operations.
+		// *(arg0+auxint+aux) op= arg1. arg2=mem.
+		// New style that returns a tuple of <old contents of *(arg0+auxint+aux), memory>.
+		{name: "LoweredAtomicAnd64", argLength: 3, reg: atomicLogic, resultNotInArgs: true, asm: "ANDQ", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr", unsafePoint: true, needIntTemp: true},
+		{name: "LoweredAtomicAnd32", argLength: 3, reg: atomicLogic, resultNotInArgs: true, asm: "ANDL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr", unsafePoint: true, needIntTemp: true},
+		{name: "LoweredAtomicOr64", argLength: 3, reg: atomicLogic, resultNotInArgs: true, asm: "ORQ", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr", unsafePoint: true, needIntTemp: true},
+		{name: "LoweredAtomicOr32", argLength: 3, reg: atomicLogic, resultNotInArgs: true, asm: "ORL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr", unsafePoint: true, needIntTemp: true},
 
 		// Prefetch instructions
 		// Do prefetch arg0 address. arg0=addr, arg1=memory. Instruction variant selects locality hint
@@ -1122,6 +1134,60 @@ func init() {
 		{name: "SHRXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHRXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
 		{name: "SHRXQloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHRXQ", scale: 1, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
 		{name: "SHRXQloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHRXQ", scale: 8, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
+
+		// Unpack bytes, low 64-bits.
+		//
+		// Input/output registers treated as [8]uint8.
+		//
+		// output = {in1[0], in2[0], in1[1], in2[1], in1[2], in2[2], in1[3], in2[3]}
+		{name: "PUNPCKLBW", argLength: 2, reg: fp21, resultInArg0: true, asm: "PUNPCKLBW"},
+
+		// Shuffle 16-bit words, low 64-bits.
+		//
+		// Input/output registers treated as [4]uint16.
+		// aux=source word index for each destination word, 2 bits per index.
+		//
+		// output[i] = input[(aux>>2*i)&3].
+		{name: "PSHUFLW", argLength: 1, reg: fp11, aux: "Int8", asm: "PSHUFLW"},
+
+		// Broadcast input byte.
+		//
+		// Input treated as uint8, output treated as [16]uint8.
+		//
+		// output[i] = input.
+		{name: "PSHUFBbroadcast", argLength: 1, reg: fp11, resultInArg0: true, asm: "PSHUFB"}, // PSHUFB with mask zero, (GOAMD64=v1)
+		{name: "VPBROADCASTB", argLength: 1, reg: gpfp, asm: "VPBROADCASTB"}, // Broadcast input byte from gp (GOAMD64=v3)
+
+		// Byte negate/zero/preserve (GOAMD64=v2).
+		//
+		// Input/output registers treated as [16]uint8.
+		//
+		// if in2[i] > 0 {
+		//   output[i] = in1[i]
+		// } else if in2[i] == 0 {
+		//   output[i] = 0
+		// } else {
+		//   output[i] = -1 * in1[i]
+		// }
+		{name: "PSIGNB", argLength: 2, reg: fp21, resultInArg0: true, asm: "PSIGNB"},
+
+		// Byte compare.
+		//
+		// Input/output registers treated as [16]uint8.
+		//
+		// if in1[i] == in2[i] {
+		//   output[i] = 0xff
+		// } else {
+		//   output[i] = 0
+		// }
+		{name: "PCMPEQB", argLength: 2, reg: fp21, resultInArg0: true, asm: "PCMPEQB"},
+
+		// Byte sign mask. Output is a bitmap of sign bits from each input byte.
+		//
+		// Input treated as [16]uint8. Output is [16]bit (uint16 bitmap).
+		//
+		// output[i] = (input[i] >> 7) & 1
+		{name: "PMOVMSKB", argLength: 1, reg: fpgp, asm: "PMOVMSKB"},
 	}
 
 	var AMD64blocks = []blockData{

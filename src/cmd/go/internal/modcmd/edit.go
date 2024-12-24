@@ -87,9 +87,12 @@ retraction on the given version. The version may be a single version
 like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
 -retract=version is a no-op if that retraction already exists.
 
+The -tool=path and -droptool=path flags add and drop a tool declaration
+for the given path.
+
 The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
--replace, -dropreplace, -retract, and -dropretract editing flags may be
-repeated, and the changes are applied in the order given.
+-replace, -dropreplace, -retract, -dropretract, -tool, and -droptool editing
+flags may be repeated, and the changes are applied in the order given.
 
 The -print flag prints the final go.mod in its text format instead of
 writing it back to go.mod.
@@ -140,6 +143,10 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		Rationale string
 	}
 
+	type Tool struct {
+		Path string
+	}
+
 Retract entries representing a single version (not an interval) will have
 the "Low" and "High" fields set to the same value.
 
@@ -181,6 +188,8 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagDropReplace), "dropreplace", "")
 	cmdEdit.Flag.Var(flagFunc(flagRetract), "retract", "")
 	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
+	cmdEdit.Flag.Var(flagFunc(flagTool), "tool", "")
+	cmdEdit.Flag.Var(flagFunc(flagDropTool), "droptool", "")
 
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
 	base.AddChdirFlag(&cmdEdit.Flag)
@@ -517,6 +526,26 @@ func flagDropRetract(arg string) {
 	})
 }
 
+// flagTool implements the -tool flag.
+func flagTool(arg string) {
+	path := parsePath("tool", arg)
+	edits = append(edits, func(f *modfile.File) {
+		if err := f.AddTool(path); err != nil {
+			base.Fatalf("go: -tool=%s: %v", arg, err)
+		}
+	})
+}
+
+// flagDropTool implements the -droptool flag.
+func flagDropTool(arg string) {
+	path := parsePath("droptool", arg)
+	edits = append(edits, func(f *modfile.File) {
+		if err := f.DropTool(path); err != nil {
+			base.Fatalf("go: -droptool=%s: %v", arg, err)
+		}
+	})
+}
+
 // fileJSON is the -json output data structure.
 type fileJSON struct {
 	Module    editModuleJSON
@@ -526,6 +555,7 @@ type fileJSON struct {
 	Exclude   []module.Version
 	Replace   []replaceJSON
 	Retract   []retractJSON
+	Tool      []toolJSON
 }
 
 type editModuleJSON struct {
@@ -548,6 +578,10 @@ type retractJSON struct {
 	Low       string `json:",omitempty"`
 	High      string `json:",omitempty"`
 	Rationale string `json:",omitempty"`
+}
+
+type toolJSON struct {
+	Path string
 }
 
 // editPrintJSON prints the -json output.
@@ -576,6 +610,9 @@ func editPrintJSON(modFile *modfile.File) {
 	}
 	for _, r := range modFile.Retract {
 		f.Retract = append(f.Retract, retractJSON{r.Low, r.High, r.Rationale})
+	}
+	for _, t := range modFile.Tool {
+		f.Tool = append(f.Tool, toolJSON{t.Path})
 	}
 	data, err := json.MarshalIndent(&f, "", "\t")
 	if err != nil {

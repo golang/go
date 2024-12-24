@@ -316,15 +316,22 @@ var vetLegacyFlags = map[string]string{
 }
 
 // ---- output helpers common to all drivers ----
+//
+// These functions should not depend on global state (flags)!
+// Really they belong in a different package.
 
-// PrintPlain prints a diagnostic in plain text form,
-// with context specified by the -c flag.
-func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
+// TODO(adonovan): don't accept an io.Writer if we don't report errors.
+// Either accept a bytes.Buffer (infallible), or return a []byte.
+
+// PrintPlain prints a diagnostic in plain text form.
+// If contextLines is nonnegative, it also prints the
+// offending line plus this many lines of context.
+func PrintPlain(out io.Writer, fset *token.FileSet, contextLines int, diag analysis.Diagnostic) {
 	posn := fset.Position(diag.Pos)
-	fmt.Fprintf(os.Stderr, "%s: %s\n", posn, diag.Message)
+	fmt.Fprintf(out, "%s: %s\n", posn, diag.Message)
 
-	// -c=N: show offending line plus N lines of context.
-	if Context >= 0 {
+	// show offending line plus N lines of context.
+	if contextLines >= 0 {
 		posn := fset.Position(diag.Pos)
 		end := fset.Position(diag.End)
 		if !end.IsValid() {
@@ -332,9 +339,9 @@ func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
 		}
 		data, _ := os.ReadFile(posn.Filename)
 		lines := strings.Split(string(data), "\n")
-		for i := posn.Line - Context; i <= end.Line+Context; i++ {
+		for i := posn.Line - contextLines; i <= end.Line+contextLines; i++ {
 			if 1 <= i && i <= len(lines) {
-				fmt.Fprintf(os.Stderr, "%d\t%s\n", i, lines[i-1])
+				fmt.Fprintf(out, "%d\t%s\n", i, lines[i-1])
 			}
 		}
 	}
@@ -438,10 +445,11 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
 	}
 }
 
-func (tree JSONTree) Print() {
+func (tree JSONTree) Print(out io.Writer) error {
 	data, err := json.MarshalIndent(tree, "", "\t")
 	if err != nil {
 		log.Panicf("internal error: JSON marshaling failed: %v", err)
 	}
-	fmt.Printf("%s\n", data)
+	_, err = fmt.Fprintf(out, "%s\n", data)
+	return err
 }

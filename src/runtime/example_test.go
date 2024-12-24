@@ -32,15 +32,14 @@ func ExampleFrames() {
 		for {
 			frame, more := frames.Next()
 
-			// Process this frame.
-			//
-			// To keep this example's output stable
-			// even if there are changes in the testing package,
-			// stop unwinding when we leave package runtime.
-			if !strings.Contains(frame.File, "runtime/") {
+			// Canonicalize function name and skip callers of this function
+			// for predictable example output.
+			// You probably don't need this in your own code.
+			function := strings.ReplaceAll(frame.Function, "main.main", "runtime_test.ExampleFrames")
+			fmt.Printf("- more:%v | %s\n", more, function)
+			if function == "runtime_test.ExampleFrames" {
 				break
 			}
-			fmt.Printf("- more:%v | %s\n", more, frame.Function)
 
 			// Check whether there are more frames to process after this one.
 			if !more {

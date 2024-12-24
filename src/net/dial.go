@@ -25,46 +25,93 @@ const (
 	// defaultTCPKeepAliveCount is a default constant value for TCP_KEEPCNT.
 	defaultTCPKeepAliveCount = 9
 
-	// For the moment, MultiPath TCP is not used by default
+	// For the moment, MultiPath TCP is used by default with listeners, if
+	// available, but not with dialers.
 	// See go.dev/issue/56539
-	defaultMPTCPEnabled = false
+	defaultMPTCPEnabledListen = true
+	defaultMPTCPEnabledDial   = false
 )
 
+// The type of service offered
+//
+//	0 == MPTCP disabled
+//	1 == MPTCP enabled
+//	2 == MPTCP enabled on listeners only
+//	3 == MPTCP enabled on dialers only
 var multipathtcp = godebug.New("multipathtcp")
 
-// mptcpStatus is a tristate for Multipath TCP, see go.dev/issue/56539
-type mptcpStatus uint8
+// mptcpStatusDial is a tristate for Multipath TCP on clients,
+// see go.dev/issue/56539
+type mptcpStatusDial uint8
 
 const (
-	// The value 0 is the system default, linked to defaultMPTCPEnabled
-	mptcpUseDefault mptcpStatus = iota
-	mptcpEnabled
-	mptcpDisabled
+	// The value 0 is the system default, linked to defaultMPTCPEnabledDial
+	mptcpUseDefaultDial mptcpStatusDial = iota
+	mptcpEnabledDial
+	mptcpDisabledDial
 )
 
-func (m *mptcpStatus) get() bool {
+func (m *mptcpStatusDial) get() bool {
 	switch *m {
-	case mptcpEnabled:
+	case mptcpEnabledDial:
 		return true
-	case mptcpDisabled:
+	case mptcpDisabledDial:
 		return false
 	}
 
 	// If MPTCP is forced via GODEBUG=multipathtcp=1
-	if multipathtcp.Value() == "1" {
+	if multipathtcp.Value() == "1" || multipathtcp.Value() == "3" {
 		multipathtcp.IncNonDefault()
 
 		return true
 	}
 
-	return defaultMPTCPEnabled
+	return defaultMPTCPEnabledDial
 }
 
-func (m *mptcpStatus) set(use bool) {
+func (m *mptcpStatusDial) set(use bool) {
 	if use {
-		*m = mptcpEnabled
+		*m = mptcpEnabledDial
 	} else {
-		*m = mptcpDisabled
+		*m = mptcpDisabledDial
+	}
+}
+
+// mptcpStatusListen is a tristate for Multipath TCP on servers,
+// see go.dev/issue/56539
+type mptcpStatusListen uint8
+
+const (
+	// The value 0 is the system default, linked to defaultMPTCPEnabledListen
+	mptcpUseDefaultListen mptcpStatusListen = iota
+	mptcpEnabledListen
+	mptcpDisabledListen
+)
+
+func (m *mptcpStatusListen) get() bool {
+	switch *m {
+	case mptcpEnabledListen:
+		return true
+	case mptcpDisabledListen:
+		return false
+	}
+
+	// If MPTCP is disabled via GODEBUG=multipathtcp=0 or only
+	// enabled on dialers, but not on listeners.
+	if multipathtcp.Value() == "0" || multipathtcp.Value() == "3" {
+		multipathtcp.IncNonDefault()
+
+		return false
+	}
+
+	return defaultMPTCPEnabledListen
+}
+
+func (m *mptcpStatusListen) set(use bool) {
+	if use {
+		*m = mptcpEnabledListen
+	} else {
+		*m = mptcpDisabledListen
 	}
 }
 
@@ -156,8 +203,10 @@ type Dialer struct {
 	// connection but before actually dialing.
 	//
 	// Network and address parameters passed to Control function are not
-	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
-	// will cause the Control function to be called with "tcp4" or "tcp6".
+	// necessarily the ones passed to Dial. Calling Dial with TCP networks
+	// will cause the Control function to be called with "tcp4" or "tcp6",
+	// UDP networks become "udp4" or "udp6", IP networks become "ip4" or "ip6",
+	// and other known networks are passed as-is.
 	//
 	// Control is ignored if ControlContext is not nil.
 	Control func(network, address string, c syscall.RawConn) error
@@ -166,8 +215,10 @@ type Dialer struct {
 	// connection but before actually dialing.
 	//
 	// Network and address parameters passed to ControlContext function are not
-	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
-	// will cause the ControlContext function to be called with "tcp4" or "tcp6".
+	// necessarily the ones passed to Dial. Calling Dial with TCP networks
+	// will cause the ControlContext function to be called with "tcp4" or "tcp6",
+	// UDP networks become "udp4" or "udp6", IP networks become "ip4" or "ip6",
+	// and other known networks are passed as-is.
 	//
 	// If ControlContext is not nil, Control is ignored.
 	ControlContext func(ctx context.Context, network, address string, c syscall.RawConn) error
@@ -175,7 +226,7 @@ type Dialer struct {
 	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
 	// used, any call to Dial with "tcp(4|6)" as network will use MPTCP if
 	// supported by the operating system.
-	mptcpStatus mptcpStatus
+	mptcpStatus mptcpStatusDial
 }
 
 func (d *Dialer) dualStack() bool { return d.FallbackDelay >= 0 }
@@ -692,9 +743,11 @@ type ListenConfig struct {
 	// If Control is not nil, it is called after creating the network
 	// connection but before binding it to the operating system.
 	//
-	// Network and address parameters passed to Control method are not
-	// necessarily the ones passed to Listen. For example, passing "tcp" to
-	// Listen will cause the Control function to be called with "tcp4" or "tcp6".
+	// Network and address parameters passed to Control function are not
+	// necessarily the ones passed to Listen. Calling Listen with TCP networks
+	// will cause the Control function to be called with "tcp4" or "tcp6",
+	// UDP networks become "udp4" or "udp6", IP networks become "ip4" or "ip6",
+	// and other known networks are passed as-is.
 	Control func(network, address string, c syscall.RawConn) error
 
 	// KeepAlive specifies the keep-alive period for network
@@ -720,7 +773,7 @@ type ListenConfig struct {
 	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
 	// used, any call to Listen with "tcp(4|6)" as network will use MPTCP if
 	// supported by the operating system.
-	mptcpStatus mptcpStatus
+	mptcpStatus mptcpStatusListen
 }
 
 // MultipathTCP reports whether MPTCP will be used.
@@ -745,6 +798,9 @@ func (lc *ListenConfig) SetMultipathTCP(use bool) {
 //
 // See func Listen for a description of the network and address
 // parameters.
+//
+// The ctx argument is used while resolving the address on which to listen;
+// it does not affect the returned Listener.
 func (lc *ListenConfig) Listen(ctx context.Context, network, address string) (Listener, error) {
 	addrs, err := DefaultResolver.resolveAddrList(ctx, "listen", network, address, nil)
 	if err != nil {
@@ -779,6 +835,9 @@ func (lc *ListenConfig) Listen(ctx context.Context, network, address string) (Li
 //
 // See func ListenPacket for a description of the network and address
 // parameters.
+//
+// The ctx argument is used while resolving the address on which to listen;
+// it does not affect the returned Listener.
 func (lc *ListenConfig) ListenPacket(ctx context.Context, network, address string) (PacketConn, error) {
 	addrs, err := DefaultResolver.resolveAddrList(ctx, "listen", network, address, nil)
 	if err != nil {

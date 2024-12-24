@@ -5,10 +5,11 @@
 package os
 
 import (
+	"internal/bytealg"
 	"internal/filepathlite"
 	"io"
 	"io/fs"
-	"sort"
+	"slices"
 )
 
 type readdirMode int
@@ -122,22 +123,27 @@ func ReadDir(name string) ([]DirEntry, error) {
 	defer f.Close()
 
 	dirs, err := f.ReadDir(-1)
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
+	slices.SortFunc(dirs, func(a, b DirEntry) int {
+		return bytealg.CompareString(a.Name(), b.Name())
+	})
 	return dirs, err
 }
 
 // CopyFS copies the file system fsys into the directory dir,
 // creating dir if necessary.
 //
-// Newly created directories and files have their default modes
-// where any bits from the file in fsys that are not part of the
-// standard read, write, and execute permissions will be zeroed
-// out, and standard read and write permissions are set for owner,
-// group, and others while retaining any existing execute bits from
-// the file in fsys.
+// Files are created with mode 0o666 plus any execute permissions
+// from the source, and directories are created with mode 0o777
+// (before umask).
 //
-// Symbolic links in fsys are not supported, a *PathError with Err set
-// to ErrInvalid is returned on symlink.
+// CopyFS will not overwrite existing files. If a file name in fsys
+// already exists in the destination, CopyFS will return an error
+// such that errors.Is(err, fs.ErrExist) will be true.
+//
+// Symbolic links in fsys are not supported. A *PathError with Err set
+// to ErrInvalid is returned when copying from a symbolic link.
+//
+// Symbolic links in dir are followed.
 //
 // Copying stops at and returns the first error encountered.
 func CopyFS(dir string, fsys fs.FS) error {
@@ -171,7 +177,7 @@ func CopyFS(dir string, fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
-		w, err := OpenFile(newPath, O_CREATE|O_TRUNC|O_WRONLY, 0666|info.Mode()&0777)
+		w, err := OpenFile(newPath, O_CREATE|O_EXCL|O_WRONLY, 0666|info.Mode()&0777)
 		if err != nil {
 			return err
 		}

@@ -14,13 +14,16 @@ import (
 	"internal/buildcfg"
 	"internal/cfg"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/go/internal/fsys"
+	"cmd/internal/pathcache"
 )
 
 // Global build parameters (used during package load)
@@ -64,31 +67,34 @@ func ToolExeSuffix() string {
 
 // These are general "build flags" used by build and other commands.
 var (
-	BuildA             bool     // -a flag
-	BuildBuildmode     string   // -buildmode flag
-	BuildBuildvcs      = "auto" // -buildvcs flag: "true", "false", or "auto"
-	BuildContext       = defaultContext()
-	BuildMod           string                  // -mod flag
-	BuildModExplicit   bool                    // whether -mod was set explicitly
-	BuildModReason     string                  // reason -mod was set, if set by default
-	BuildLinkshared    bool                    // -linkshared flag
-	BuildMSan          bool                    // -msan flag
-	BuildASan          bool                    // -asan flag
-	BuildCover         bool                    // -cover flag
-	BuildCoverMode     string                  // -covermode flag
-	BuildCoverPkg      []string                // -coverpkg flag
-	BuildN             bool                    // -n flag
-	BuildO             string                  // -o flag
-	BuildP             = runtime.GOMAXPROCS(0) // -p flag
-	BuildPGO           string                  // -pgo flag
-	BuildPkgdir        string                  // -pkgdir flag
-	BuildRace          bool                    // -race flag
-	BuildToolexec      []string                // -toolexec flag
-	BuildToolchainName string
-	BuildTrimpath      bool // -trimpath flag
-	BuildV             bool // -v flag
-	BuildWork          bool // -work flag
-	BuildX             bool // -x flag
+	BuildA                 bool     // -a flag
+	BuildBuildmode         string   // -buildmode flag
+	BuildBuildvcs          = "auto" // -buildvcs flag: "true", "false", or "auto"
+	BuildContext           = defaultContext()
+	BuildMod               string                  // -mod flag
+	BuildModExplicit       bool                    // whether -mod was set explicitly
+	BuildModReason         string                  // reason -mod was set, if set by default
+	BuildLinkshared        bool                    // -linkshared flag
+	BuildMSan              bool                    // -msan flag
+	BuildASan              bool                    // -asan flag
+	BuildCover             bool                    // -cover flag
+	BuildCoverMode         string                  // -covermode flag
+	BuildCoverPkg          []string                // -coverpkg flag
+	BuildJSON              bool                    // -json flag
+	BuildN                 bool                    // -n flag
+	BuildO                 string                  // -o flag
+	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
+	BuildPGO               string                  // -pgo flag
+	BuildPkgdir            string                  // -pkgdir flag
+	BuildRace              bool                    // -race flag
+	BuildToolexec          []string                // -toolexec flag
+	BuildToolchainName     string
+	BuildToolchainCompiler func() string
+	BuildToolchainLinker   func() string
+	BuildTrimpath          bool // -trimpath flag
+	BuildV                 bool // -v flag
+	BuildWork              bool // -work flag
+	BuildX                 bool // -x flag
 
 	ModCacheRW bool   // -modcacherw flag
 	ModFile    string // -modfile flag
@@ -162,7 +168,7 @@ func defaultContext() build.Context {
 		if ctxt.CgoEnabled {
 			if os.Getenv("CC") == "" {
 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
-				if _, err := LookPath(cc); err != nil {
+				if _, err := pathcache.LookPath(cc); err != nil {
 					defaultCgoEnabled = false
 				}
 			}
@@ -177,7 +183,15 @@ func defaultContext() build.Context {
 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
 		return fsys.Open(path)
 	}
-	ctxt.ReadDir = fsys.ReadDir
+	ctxt.ReadDir = func(path string) ([]fs.FileInfo, error) {
+		// Convert []fs.DirEntry to []fs.FileInfo using dirInfo.
+		dirs, err := fsys.ReadDir(path)
+		infos := make([]fs.FileInfo, len(dirs))
+		for i, dir := range dirs {
+			infos[i] = &dirInfo{dir}
+		}
+		return infos, err
+	}
 	ctxt.IsDir = func(path string) bool {
 		isDir, err := fsys.IsDir(path)
 		return err == nil && isDir
@@ -285,8 +299,9 @@ var OrigEnv []string
 var CmdEnv []EnvVar
 
 var envCache struct {
-	once sync.Once
-	m    map[string]string
+	once   sync.Once
+	m      map[string]string
+	goroot map[string]string
 }
 
 // EnvFile returns the name of the Go environment configuration file,
@@ -310,6 +325,7 @@ func EnvFile() (string, bool, error) {
 
 func initEnvCache() {
 	envCache.m = make(map[string]string)
+	envCache.goroot = make(map[string]string)
 	if file, _, _ := EnvFile(); file != "" {
 		readEnvFile(file, "user")
 	}
@@ -357,6 +373,7 @@ func readEnvFile(file string, source string) {
 		key, val := line[:i], line[i+1:]
 
 		if source == "GOROOT" {
+			envCache.goroot[string(key)] = string(val)
 			// In the GOROOT/go.env file, do not overwrite fields loaded from the user's go/env file.
 			if _, ok := envCache.m[string(key)]; ok {
 				continue
@@ -412,16 +429,17 @@ var (
 	GOMODCACHE, GOMODCACHEChanged = EnvOrAndChanged("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
-	GOARM64, goARM64Changed     = EnvOrAndChanged("GOARM64", fmt.Sprint(buildcfg.GOARM64))
-	GOARM, goARMChanged         = EnvOrAndChanged("GOARM", fmt.Sprint(buildcfg.GOARM))
-	GO386, go386Changed         = EnvOrAndChanged("GO386", buildcfg.GO386)
-	GOAMD64, goAMD64Changed     = EnvOrAndChanged("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
-	GOMIPS, goMIPSChanged       = EnvOrAndChanged("GOMIPS", buildcfg.GOMIPS)
-	GOMIPS64, goMIPS64Changed   = EnvOrAndChanged("GOMIPS64", buildcfg.GOMIPS64)
-	GOPPC64, goPPC64Changed     = EnvOrAndChanged("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
-	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
+	GOARM64, goARM64Changed     = EnvOrAndChanged("GOARM64", buildcfg.DefaultGOARM64)
+	GOARM, goARMChanged         = EnvOrAndChanged("GOARM", buildcfg.DefaultGOARM)
+	GO386, go386Changed         = EnvOrAndChanged("GO386", buildcfg.DefaultGO386)
+	GOAMD64, goAMD64Changed     = EnvOrAndChanged("GOAMD64", buildcfg.DefaultGOAMD64)
+	GOMIPS, goMIPSChanged       = EnvOrAndChanged("GOMIPS", buildcfg.DefaultGOMIPS)
+	GOMIPS64, goMIPS64Changed   = EnvOrAndChanged("GOMIPS64", buildcfg.DefaultGOMIPS64)
+	GOPPC64, goPPC64Changed     = EnvOrAndChanged("GOPPC64", buildcfg.DefaultGOPPC64)
+	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", buildcfg.DefaultGORISCV64)
 	GOWASM, goWASMChanged       = EnvOrAndChanged("GOWASM", fmt.Sprint(buildcfg.GOWASM))
 
+	GOFIPS140, GOFIPS140Changed = EnvOrAndChanged("GOFIPS140", buildcfg.DefaultGOFIPS140)
 	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", "")
 	GOSUMDB, GOSUMDBChanged     = EnvOrAndChanged("GOSUMDB", "")
 	GOPRIVATE                   = Getenv("GOPRIVATE")
@@ -429,14 +447,21 @@ var (
 	GONOSUMDB, GONOSUMDBChanged = EnvOrAndChanged("GONOSUMDB", GOPRIVATE)
 	GOINSECURE                  = Getenv("GOINSECURE")
 	GOVCS                       = Getenv("GOVCS")
+	GOAUTH, GOAUTHChanged       = EnvOrAndChanged("GOAUTH", "netrc")
 )
 
 // EnvOrAndChanged returns the environment variable value
 // and reports whether it differs from the default value.
-func EnvOrAndChanged(name, def string) (string, bool) {
+func EnvOrAndChanged(name, def string) (v string, changed bool) {
 	val := Getenv(name)
 	if val != "" {
-		return val, val != def
+		v = val
+		if g, ok := envCache.goroot[name]; ok {
+			changed = val != g
+		} else {
+			changed = val != def
+		}
+		return v, changed
 	}
 	return def, false
 }
@@ -627,3 +652,18 @@ func BuildXWriter(ctx context.Context) (io.Writer, bool) {
 	}
 	return os.Stderr, true
 }
+
+// A dirInfo implements fs.FileInfo from fs.DirEntry.
+// We know that go/build doesn't use the non-DirEntry parts,
+// so we can panic instead of doing difficult work.
+type dirInfo struct {
+	dir fs.DirEntry
+}
+
+func (d *dirInfo) Name() string      { return d.dir.Name() }
+func (d *dirInfo) IsDir() bool       { return d.dir.IsDir() }
+func (d *dirInfo) Mode() fs.FileMode { return d.dir.Type() }
+
+func (d *dirInfo) Size() int64        { panic("dirInfo.Size") }
+func (d *dirInfo) ModTime() time.Time { panic("dirInfo.ModTime") }
+func (d *dirInfo) Sys() any           { panic("dirInfo.Sys") }

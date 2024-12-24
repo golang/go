@@ -7,209 +7,260 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"html/template"
 	"internal/trace"
+	"internal/trace/traceviewer"
 	"log"
 	"net/http"
-	"reflect"
+	"slices"
 	"sort"
-	"strconv"
-	"sync"
+	"strings"
 	"time"
 )
 
-func init() {
-	http.HandleFunc("/goroutines", httpGoroutines)
-	http.HandleFunc("/goroutine", httpGoroutine)
-}
-
-// gtype describes a group of goroutines grouped by start PC.
-type gtype struct {
-	ID       uint64 // Unique identifier (PC).
-	Name     string // Start function.
-	N        int    // Total number of goroutines in this group.
-	ExecTime int64  // Total execution time of all goroutines in this group.
-}
-
-var (
-	gsInit sync.Once
-	gs     map[uint64]*trace.GDesc
-)
-
-// analyzeGoroutines generates statistics about execution of all goroutines and stores them in gs.
-func analyzeGoroutines(events []*trace.Event) {
-	gsInit.Do(func() {
-		gs = trace.GoroutineStats(events)
-	})
-}
-
-// httpGoroutines serves list of goroutine groups.
-func httpGoroutines(w http.ResponseWriter, r *http.Request) {
-	events, err := parseEvents()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	analyzeGoroutines(events)
-	gss := make(map[uint64]gtype)
-	for _, g := range gs {
-		gs1 := gss[g.PC]
-		gs1.ID = g.PC
-		gs1.Name = g.Name
-		gs1.N++
-		gs1.ExecTime += g.ExecTime
-		gss[g.PC] = gs1
-	}
-	var glist []gtype
-	for k, v := range gss {
-		v.ID = k
-		// If goroutine didn't run during the trace (no sampled PC),
-		// the v.ID and v.Name will be zero value.
-		if v.ID == 0 && v.Name == "" {
-			v.Name = "(Inactive, no stack trace sampled)"
+// GoroutinesHandlerFunc returns a HandlerFunc that serves list of goroutine groups.
+func GoroutinesHandlerFunc(summaries map[trace.GoID]*trace.GoroutineSummary) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// goroutineGroup describes a group of goroutines grouped by name.
+		type goroutineGroup struct {
+			Name     string        // Start function.
+			N        int           // Total number of goroutines in this group.
+			ExecTime time.Duration // Total execution time of all goroutines in this group.
 		}
-		glist = append(glist, v)
-	}
-	sort.Slice(glist, func(i, j int) bool { return glist[i].ExecTime > glist[j].ExecTime })
-	w.Header().Set("Content-Type", "text/html;charset=utf-8")
-	if err := templGoroutines.Execute(w, glist); err != nil {
-		log.Printf("failed to execute template: %v", err)
-		return
+		// Accumulate groups by Name.
+		groupsByName := make(map[string]goroutineGroup)
+		for _, summary := range summaries {
+			group := groupsByName[summary.Name]
+			group.Name = summary.Name
+			group.N++
+			group.ExecTime += summary.ExecTime
+			groupsByName[summary.Name] = group
+		}
+		var groups []goroutineGroup
+		for _, group := range groupsByName {
+			groups = append(groups, group)
+		}
+		slices.SortFunc(groups, func(a, b goroutineGroup) int {
+			return cmp.Compare(b.ExecTime, a.ExecTime)
+		})
+		w.Header().Set("Content-Type", "text/html;charset=utf-8")
+		if err := templGoroutines.Execute(w, groups); err != nil {
+			log.Printf("failed to execute template: %v", err)
+			return
+		}
 	}
 }
 
 var templGoroutines = template.Must(template.New("").Parse(`
 <html>
+<style>` + traceviewer.CommonStyle + `
+table {
+  border-collapse: collapse;
+}
+td,
+th {
+  border: 1px solid black;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+</style>
 <body>
-Goroutines: <br>
+<h1>Goroutines</h1>
+Below is a table of all goroutines in the trace grouped by start location and sorted by the total execution time of the group.<br>
+<br>
+Click a start location to view more details about that group.<br>
+<br>
+<table>
+  <tr>
+    <th>Start location</th>
+	<th>Count</th>
+	<th>Total execution time</th>
+  </tr>
 {{range $}}
-  <a href="/goroutine?id={{.ID}}">{{.Name}}</a> N={{.N}} <br>
+  <tr>
+    <td><code><a href="/goroutine?name={{.Name}}">{{or .Name "(Inactive, no stack trace sampled)"}}</a></code></td>
+	<td>{{.N}}</td>
+	<td>{{.ExecTime}}</td>
+  </tr>
 {{end}}
+</table>
 </body>
 </html>
 `))
 
-// httpGoroutine serves list of goroutines in a particular group.
-func httpGoroutine(w http.ResponseWriter, r *http.Request) {
-	// TODO(hyangah): support format=csv (raw data)
+// GoroutineHandler creates a handler that serves information about
+// goroutines in a particular group.
+func GoroutineHandler(summaries map[trace.GoID]*trace.GoroutineSummary) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		goroutineName := r.FormValue("name")
 
-	events, err := parseEvents()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	pc, err := strconv.ParseUint(r.FormValue("id"), 10, 64)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to parse id parameter '%v': %v", r.FormValue("id"), err), http.StatusInternalServerError)
-		return
-	}
-	analyzeGoroutines(events)
-	var (
-		glist                   []*trace.GDesc
-		name                    string
-		totalExecTime, execTime int64
-		maxTotalTime            int64
-	)
-
-	for _, g := range gs {
-		totalExecTime += g.ExecTime
-
-		if g.PC != pc {
-			continue
+		type goroutine struct {
+			*trace.GoroutineSummary
+			NonOverlappingStats map[string]time.Duration
+			HasRangeTime        bool
 		}
-		glist = append(glist, g)
-		name = g.Name
-		execTime += g.ExecTime
-		if maxTotalTime < g.TotalTime {
-			maxTotalTime = g.TotalTime
+
+		// Collect all the goroutines in the group.
+		var (
+			goroutines              []goroutine
+			name                    string
+			totalExecTime, execTime time.Duration
+			maxTotalTime            time.Duration
+		)
+		validNonOverlappingStats := make(map[string]struct{})
+		validRangeStats := make(map[string]struct{})
+		for _, summary := range summaries {
+			totalExecTime += summary.ExecTime
+
+			if summary.Name != goroutineName {
+				continue
+			}
+			nonOverlappingStats := summary.NonOverlappingStats()
+			for name := range nonOverlappingStats {
+				validNonOverlappingStats[name] = struct{}{}
+			}
+			var totalRangeTime time.Duration
+			for name, dt := range summary.RangeTime {
+				validRangeStats[name] = struct{}{}
+				totalRangeTime += dt
+			}
+			goroutines = append(goroutines, goroutine{
+				GoroutineSummary:    summary,
+				NonOverlappingStats: nonOverlappingStats,
+				HasRangeTime:        totalRangeTime != 0,
+			})
+			name = summary.Name
+			execTime += summary.ExecTime
+			if maxTotalTime < summary.TotalTime {
+				maxTotalTime = summary.TotalTime
+			}
 		}
-	}
 
-	execTimePercent := ""
-	if totalExecTime > 0 {
-		execTimePercent = fmt.Sprintf("%.2f%%", float64(execTime)/float64(totalExecTime)*100)
-	}
+		// Compute the percent of total execution time these goroutines represent.
+		execTimePercent := ""
+		if totalExecTime > 0 {
+			execTimePercent = fmt.Sprintf("%.2f%%", float64(execTime)/float64(totalExecTime)*100)
+		}
 
-	sortby := r.FormValue("sortby")
-	_, ok := reflect.TypeOf(trace.GDesc{}).FieldByNameFunc(func(s string) bool {
-		return s == sortby
-	})
-	if !ok {
-		sortby = "TotalTime"
-	}
+		// Sort.
+		sortBy := r.FormValue("sortby")
+		if _, ok := validNonOverlappingStats[sortBy]; ok {
+			slices.SortFunc(goroutines, func(a, b goroutine) int {
+				return cmp.Compare(b.NonOverlappingStats[sortBy], a.NonOverlappingStats[sortBy])
+			})
+		} else {
+			// Sort by total time by default.
+			slices.SortFunc(goroutines, func(a, b goroutine) int {
+				return cmp.Compare(b.TotalTime, a.TotalTime)
+			})
+		}
 
-	sort.Slice(glist, func(i, j int) bool {
-		ival := reflect.ValueOf(glist[i]).Elem().FieldByName(sortby).Int()
-		jval := reflect.ValueOf(glist[j]).Elem().FieldByName(sortby).Int()
-		return ival > jval
-	})
+		// Write down all the non-overlapping stats and sort them.
+		allNonOverlappingStats := make([]string, 0, len(validNonOverlappingStats))
+		for name := range validNonOverlappingStats {
+			allNonOverlappingStats = append(allNonOverlappingStats, name)
+		}
+		slices.SortFunc(allNonOverlappingStats, func(a, b string) int {
+			if a == b {
+				return 0
+			}
+			if a == "Execution time" {
+				return -1
+			}
+			if b == "Execution time" {
+				return 1
+			}
+			return cmp.Compare(a, b)
+		})
 
-	err = templGoroutine.Execute(w, struct {
-		Name            string
-		PC              uint64
-		N               int
-		ExecTimePercent string
-		MaxTotal        int64
-		GList           []*trace.GDesc
-	}{
-		Name:            name,
-		PC:              pc,
-		N:               len(glist),
-		ExecTimePercent: execTimePercent,
-		MaxTotal:        maxTotalTime,
-		GList:           glist})
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
-		return
+		// Write down all the range stats and sort them.
+		allRangeStats := make([]string, 0, len(validRangeStats))
+		for name := range validRangeStats {
+			allRangeStats = append(allRangeStats, name)
+		}
+		sort.Strings(allRangeStats)
+
+		err := templGoroutine.Execute(w, struct {
+			Name                string
+			N                   int
+			ExecTimePercent     string
+			MaxTotal            time.Duration
+			Goroutines          []goroutine
+			NonOverlappingStats []string
+			RangeStats          []string
+		}{
+			Name:                name,
+			N:                   len(goroutines),
+			ExecTimePercent:     execTimePercent,
+			MaxTotal:            maxTotalTime,
+			Goroutines:          goroutines,
+			NonOverlappingStats: allNonOverlappingStats,
+			RangeStats:          allRangeStats,
+		})
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
+func stat2Color(statName string) string {
+	color := "#636363"
+	if strings.HasPrefix(statName, "Block time") {
+		color = "#d01c8b"
+	}
+	switch statName {
+	case "Sched wait time":
+		color = "#2c7bb6"
+	case "Syscall execution time":
+		color = "#7b3294"
+	case "Execution time":
+		color = "#d7191c"
+	}
+	return color
+}
+
 var templGoroutine = template.Must(template.New("").Funcs(template.FuncMap{
-	"prettyDuration": func(nsec int64) template.HTML {
-		d := time.Duration(nsec) * time.Nanosecond
-		return template.HTML(d.String())
-	},
-	"percent": func(dividend, divisor int64) template.HTML {
+	"percent": func(dividend, divisor time.Duration) template.HTML {
 		if divisor == 0 {
 			return ""
 		}
 		return template.HTML(fmt.Sprintf("(%.1f%%)", float64(dividend)/float64(divisor)*100))
 	},
-	"barLen": func(dividend, divisor int64) template.HTML {
-		if divisor == 0 {
-			return "0"
-		}
-		return template.HTML(fmt.Sprintf("%.2f%%", float64(dividend)/float64(divisor)*100))
+	"headerStyle": func(statName string) template.HTMLAttr {
+		return template.HTMLAttr(fmt.Sprintf("style=\"background-color: %s;\"", stat2Color(statName)))
 	},
-	"unknownTime": func(desc *trace.GDesc) int64 {
-		sum := desc.ExecTime + desc.IOTime + desc.BlockTime + desc.SyscallTime + desc.SchedWaitTime
-		if sum < desc.TotalTime {
-			return desc.TotalTime - sum
+	"barStyle": func(statName string, dividend, divisor time.Duration) template.HTMLAttr {
+		width := "0"
+		if divisor != 0 {
+			width = fmt.Sprintf("%.2f%%", float64(dividend)/float64(divisor)*100)
 		}
-		return 0
+		return template.HTMLAttr(fmt.Sprintf("style=\"width: %s; background-color: %s;\"", width, stat2Color(statName)))
 	},
 }).Parse(`
 <!DOCTYPE html>
-<title>Goroutine {{.Name}}</title>
-<style>
+<title>Goroutines: {{.Name}}</title>
+<style>` + traceviewer.CommonStyle + `
 th {
   background-color: #050505;
   color: #fff;
 }
-th.total-time,
-th.exec-time,
-th.io-time,
-th.block-time,
-th.syscall-time,
-th.sched-time,
-th.sweep-time,
-th.pause-time {
+th.link {
   cursor: pointer;
 }
 table {
   border-collapse: collapse;
+}
+td,
+th {
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 .details tr:hover {
   background-color: #f2f2f2;
@@ -236,12 +287,6 @@ table {
   float: left;
   padding: 0;
 }
-.unknown-time { background-color: #636363; }
-.exec-time { background-color: #d7191c; }
-.io-time { background-color: #fdae61; }
-.block-time { background-color: #d01c8b; }
-.syscall-time { background-color: #7b3294; }
-.sched-time { background-color: #2c7bb6; }
 </style>
 
 <script>
@@ -252,51 +297,123 @@ function reloadTable(key, value) {
 }
 </script>
 
+<h1>Goroutines</h1>
+
+Table of contents
+<ul>
+	<li><a href="#summary">Summary</a></li>
+	<li><a href="#breakdown">Breakdown</a></li>
+	<li><a href="#ranges">Special ranges</a></li>
+</ul>
+
+<h3 id="summary">Summary</h3>
+
 <table class="summary">
-	<tr><td>Goroutine Name:</td><td>{{.Name}}</td></tr>
-	<tr><td>Number of Goroutines:</td><td>{{.N}}</td></tr>
-	<tr><td>Execution Time:</td><td>{{.ExecTimePercent}} of total program execution time </td> </tr>
-	<tr><td>Network Wait Time:</td><td> <a href="/io?id={{.PC}}">graph</a><a href="/io?id={{.PC}}&raw=1" download="io.profile">(download)</a></td></tr>
-	<tr><td>Sync Block Time:</td><td> <a href="/block?id={{.PC}}">graph</a><a href="/block?id={{.PC}}&raw=1" download="block.profile">(download)</a></td></tr>
-	<tr><td>Blocking Syscall Time:</td><td> <a href="/syscall?id={{.PC}}">graph</a><a href="/syscall?id={{.PC}}&raw=1" download="syscall.profile">(download)</a></td></tr>
-	<tr><td>Scheduler Wait Time:</td><td> <a href="/sched?id={{.PC}}">graph</a><a href="/sched?id={{.PC}}&raw=1" download="sched.profile">(download)</a></td></tr>
+	<tr>
+		<td>Goroutine start location:</td>
+		<td><code>{{.Name}}</code></td>
+	</tr>
+	<tr>
+		<td>Count:</td>
+		<td>{{.N}}</td>
+	</tr>
+	<tr>
+		<td>Execution Time:</td>
+		<td>{{.ExecTimePercent}} of total program execution time </td>
+	</tr>
+	<tr>
+		<td>Network wait profile:</td>
+		<td> <a href="/io?name={{.Name}}">graph</a> <a href="/io?name={{.Name}}&raw=1" download="io.profile">(download)</a></td>
+	</tr>
+	<tr>
+		<td>Sync block profile:</td>
+		<td> <a href="/block?name={{.Name}}">graph</a> <a href="/block?name={{.Name}}&raw=1" download="block.profile">(download)</a></td>
+	</tr>
+	<tr>
+		<td>Syscall profile:</td>
+		<td> <a href="/syscall?name={{.Name}}">graph</a> <a href="/syscall?name={{.Name}}&raw=1" download="syscall.profile">(download)</a></td>
+		</tr>
+	<tr>
+		<td>Scheduler wait profile:</td>
+		<td> <a href="/sched?name={{.Name}}">graph</a> <a href="/sched?name={{.Name}}&raw=1" download="sched.profile">(download)</a></td>
+	</tr>
 </table>
-<p>
+
+<h3 id="breakdown">Breakdown</h3>
+
+The table below breaks down where each goroutine is spent its time during the
+traced period.
+All of the columns except total time are non-overlapping.
+<br>
+<br>
+
 <table class="details">
 <tr>
 <th> Goroutine</th>
-<th onclick="reloadTable('sortby', 'TotalTime')" class="total-time"> Total</th>
+<th class="link" onclick="reloadTable('sortby', 'Total time')"> Total</th>
 <th></th>
-<th onclick="reloadTable('sortby', 'ExecTime')" class="exec-time"> Execution</th>
-<th onclick="reloadTable('sortby', 'IOTime')" class="io-time"> Network wait</th>
-<th onclick="reloadTable('sortby', 'BlockTime')" class="block-time"> Sync block </th>
-<th onclick="reloadTable('sortby', 'SyscallTime')" class="syscall-time"> Blocking syscall</th>
-<th onclick="reloadTable('sortby', 'SchedWaitTime')" class="sched-time"> Scheduler wait</th>
-<th onclick="reloadTable('sortby', 'SweepTime')" class="sweep-time"> GC sweeping</th>
-<th onclick="reloadTable('sortby', 'GCTime')" class="pause-time"> GC pause</th>
+{{range $.NonOverlappingStats}}
+<th class="link" onclick="reloadTable('sortby', '{{.}}')" {{headerStyle .}}> {{.}}</th>
+{{end}}
 </tr>
-{{range .GList}}
-  <tr>
-    <td> <a href="/trace?goid={{.ID}}">{{.ID}}</a> </td>
-    <td> {{prettyDuration .TotalTime}} </td>
-    <td>
-	<div class="stacked-bar-graph">
-	  {{if unknownTime .}}<span style="width:{{barLen (unknownTime .) $.MaxTotal}}" class="unknown-time">&nbsp;</span>{{end}}
-          {{if .ExecTime}}<span style="width:{{barLen .ExecTime $.MaxTotal}}" class="exec-time">&nbsp;</span>{{end}}
-          {{if .IOTime}}<span style="width:{{barLen .IOTime $.MaxTotal}}" class="io-time">&nbsp;</span>{{end}}
-          {{if .BlockTime}}<span style="width:{{barLen .BlockTime $.MaxTotal}}" class="block-time">&nbsp;</span>{{end}}
-          {{if .SyscallTime}}<span style="width:{{barLen .SyscallTime $.MaxTotal}}" class="syscall-time">&nbsp;</span>{{end}}
-          {{if .SchedWaitTime}}<span style="width:{{barLen .SchedWaitTime $.MaxTotal}}" class="sched-time">&nbsp;</span>{{end}}
-        </div>
-    </td>
-    <td> {{prettyDuration .ExecTime}}</td>
-    <td> {{prettyDuration .IOTime}}</td>
-    <td> {{prettyDuration .BlockTime}}</td>
-    <td> {{prettyDuration .SyscallTime}}</td>
-    <td> {{prettyDuration .SchedWaitTime}}</td>
-    <td> {{prettyDuration .SweepTime}} {{percent .SweepTime .TotalTime}}</td>
-    <td> {{prettyDuration .GCTime}} {{percent .GCTime .TotalTime}}</td>
-  </tr>
+{{range .Goroutines}}
+	<tr>
+		<td> <a href="/trace?goid={{.ID}}">{{.ID}}</a> </td>
+		<td> {{ .TotalTime.String }} </td>
+		<td>
+			<div class="stacked-bar-graph">
+			{{$Goroutine := .}}
+			{{range $.NonOverlappingStats}}
+				{{$Time := index $Goroutine.NonOverlappingStats .}}
+				{{if $Time}}
+					<span {{barStyle . $Time $.MaxTotal}}>&nbsp;</span>
+				{{end}}
+			{{end}}
+			</div>
+		</td>
+		{{$Goroutine := .}}
+		{{range $.NonOverlappingStats}}
+			{{$Time := index $Goroutine.NonOverlappingStats .}}
+			<td> {{$Time.String}}</td>
+		{{end}}
+	</tr>
+{{end}}
+</table>
+
+<h3 id="ranges">Special ranges</h3>
+
+The table below describes how much of the traced period each goroutine spent in
+certain special time ranges.
+If a goroutine has spent no time in any special time ranges, it is excluded from
+the table.
+For example, how much time it spent helping the GC. Note that these times do
+overlap with the times from the first table.
+In general the goroutine may not be executing in these special time ranges.
+For example, it may have blocked while trying to help the GC.
+This must be taken into account when interpreting the data.
+<br>
+<br>
+
+<table class="details">
+<tr>
+<th> Goroutine</th>
+<th> Total</th>
+{{range $.RangeStats}}
+<th {{headerStyle .}}> {{.}}</th>
+{{end}}
+</tr>
+{{range .Goroutines}}
+	{{if .HasRangeTime}}
+		<tr>
+			<td> <a href="/trace?goid={{.ID}}">{{.ID}}</a> </td>
+			<td> {{ .TotalTime.String }} </td>
+			{{$Goroutine := .}}
+			{{range $.RangeStats}}
+				{{$Time := index $Goroutine.RangeTime .}}
+				<td> {{$Time.String}}</td>
+			{{end}}
+		</tr>
+	{{end}}
 {{end}}
 </table>
 `))

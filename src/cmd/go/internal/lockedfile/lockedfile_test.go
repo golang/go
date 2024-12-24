@@ -19,16 +19,6 @@ import (
 	"cmd/go/internal/lockedfile"
 )
 
-func mustTempDir(t *testing.T) (dir string, remove func()) {
-	t.Helper()
-
-	dir, err := os.MkdirTemp("", filepath.Base(t.Name()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return dir, func() { os.RemoveAll(dir) }
-}
-
 const (
 	quiescent            = 10 * time.Millisecond
 	probablyStillBlocked = 10 * time.Second
@@ -76,11 +66,7 @@ func mustBlock(t *testing.T, desc string, f func()) (wait func(*testing.T)) {
 func TestMutexExcludes(t *testing.T) {
 	t.Parallel()
 
-	dir, remove := mustTempDir(t)
-	defer remove()
-
-	path := filepath.Join(dir, "lock")
-
+	path := filepath.Join(t.TempDir(), "lock")
 	mu := lockedfile.MutexAt(path)
 	t.Logf("mu := MutexAt(_)")
 
@@ -112,11 +98,7 @@ func TestMutexExcludes(t *testing.T) {
 func TestReadWaitsForLock(t *testing.T) {
 	t.Parallel()
 
-	dir, remove := mustTempDir(t)
-	defer remove()
-
-	path := filepath.Join(dir, "timestamp.txt")
-
+	path := filepath.Join(t.TempDir(), "timestamp.txt")
 	f, err := lockedfile.Create(path)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -163,10 +145,7 @@ func TestReadWaitsForLock(t *testing.T) {
 func TestCanLockExistingFile(t *testing.T) {
 	t.Parallel()
 
-	dir, remove := mustTempDir(t)
-	defer remove()
-	path := filepath.Join(dir, "existing.txt")
-
+	path := filepath.Join(t.TempDir(), "existing.txt")
 	if err := os.WriteFile(path, []byte("ok"), 0777); err != nil {
 		t.Fatalf("os.WriteFile: %v", err)
 	}
@@ -229,8 +208,7 @@ func TestSpuriousEDEADLK(t *testing.T) {
 		return
 	}
 
-	dir, remove := mustTempDir(t)
-	defer remove()
+	dir := t.TempDir()
 
 	// P.1 locks file A.
 	a, err := lockedfile.Edit(filepath.Join(dir, "A"))

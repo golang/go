@@ -25,6 +25,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -224,16 +225,7 @@ type ObjectIdentifier []int
 
 // Equal reports whether oi and other represent the same identifier.
 func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
-	if len(oi) != len(other) {
-		return false
-	}
-	for i := 0; i < len(oi); i++ {
-		if oi[i] != other[i] {
-			return false
-		}
-	}
-
-	return true
+	return slices.Equal(oi, other)
 }
 
 func (oi ObjectIdentifier) String() string {
@@ -702,6 +694,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		if !t.isCompound && t.class == ClassUniversal {
 			innerBytes := bytes[offset : offset+t.length]
 			switch t.tag {
+			case TagBoolean:
+				result, err = parseBool(innerBytes)
 			case TagPrintableString:
 				result, err = parsePrintableString(innerBytes)
 			case TagNumericString:

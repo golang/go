@@ -4,7 +4,7 @@
 
 // Package asn1 contains supporting types for parsing and building ASN.1
 // messages with the cryptobyte package.
-package asn1 // import "golang.org/x/crypto/cryptobyte/asn1"
+package asn1
 
 // Tag represents an ASN.1 identifier octet, consisting of a tag number
 // (indicating a type) and class (such as context-specific or constructed).

@@ -27,9 +27,9 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
-	"cmd/go/internal/script"
-	"cmd/go/internal/script/scripttest"
 	"cmd/go/internal/vcweb/vcstest"
+	"cmd/internal/script"
+	"cmd/internal/script/scripttest"
 
 	"golang.org/x/telemetry/counter/countertest"
 )
@@ -40,6 +40,10 @@ var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set
 func TestScript(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.SkipIfShortAndSlow(t)
+
+	if testing.Short() && runtime.GOOS == "plan9" {
+		t.Skipf("skipping test in -short mode on %s", runtime.GOOS)
+	}
 
 	srv, err := vcstest.NewServer()
 	if err != nil {
@@ -89,7 +93,7 @@ func TestScript(t *testing.T) {
 		t.Fatal(err)
 	}
 	engine := &script.Engine{
-		Conds: scriptConditions(),
+		Conds: scriptConditions(t),
 		Cmds:  scriptCommands(quitSignal(), gracePeriod),
 		Quiet: !testing.Verbose(),
 	}
@@ -263,10 +267,10 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 	if testing.Short() {
 		// VCS commands are always somewhat slow: they either require access to external hosts,
 		// or they require our intercepted vcs-test.golang.org to regenerate the repository.
-		// Require all tests that use VCS commands to be skipped in short mode.
-		env = append(env, "TESTGOVCS=panic")
+		// Require all tests that use VCS commands which require remote lookups to be skipped in
+		// short mode.
+		env = append(env, "TESTGOVCSREMOTE=panic")
 	}
-
 	if os.Getenv("CGO_ENABLED") != "" || runtime.GOOS != goHostOS || runtime.GOARCH != goHostArch {
 		// If the actual CGO_ENABLED might not match the cmd/go default, set it
 		// explicitly in the environment. Otherwise, leave it unset so that we also

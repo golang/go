@@ -24,9 +24,9 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -516,7 +516,7 @@ func testServeFileContentType(t *testing.T, mode testMode) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if h := resp.Header["Content-Type"]; !reflect.DeepEqual(h, want) {
+		if h := resp.Header["Content-Type"]; !slices.Equal(h, want) {
 			t.Errorf("Content-Type mismatch: got %v, want %v", h, want)
 		}
 		resp.Body.Close()
@@ -1223,8 +1223,20 @@ type issue12991File struct{ File }
 func (issue12991File) Stat() (fs.FileInfo, error) { return nil, fs.ErrPermission }
 func (issue12991File) Close() error               { return nil }
 
-func TestFileServerErrorMessages(t *testing.T) { run(t, testFileServerErrorMessages) }
-func testFileServerErrorMessages(t *testing.T, mode testMode) {
+func TestFileServerErrorMessages(t *testing.T) {
+	run(t, func(t *testing.T, mode testMode) {
+		t.Run("keepheaders=0", func(t *testing.T) {
+			testFileServerErrorMessages(t, mode, false)
+		})
+		t.Run("keepheaders=1", func(t *testing.T) {
+			testFileServerErrorMessages(t, mode, true)
+		})
+	}, testNotParallel)
+}
+func testFileServerErrorMessages(t *testing.T, mode testMode, keepHeaders bool) {
+	if keepHeaders {
+		t.Setenv("GODEBUG", "httpservecontentkeepheaders=1")
+	}
 	fs := fakeFS{
 		"/500": &fakeFileInfo{
 			err: errors.New("random error"),
@@ -1254,8 +1266,12 @@ func testFileServerErrorMessages(t *testing.T, mode testMode) {
 			t.Errorf("GET /%d: StatusCode = %d; want %d", code, res.StatusCode, code)
 		}
 		for _, hdr := range []string{"Etag", "Last-Modified", "Cache-Control"} {
-			if v, ok := res.Header[hdr]; ok {
-				t.Errorf("GET /%d: Header[%q] = %q, want not present", code, hdr, v)
+			if v, got := res.Header[hdr]; got != keepHeaders {
+				want := "not present"
+				if keepHeaders {
+					want = "present"
+				}
+				t.Errorf("GET /%d: Header[%q] = %q, want %v", code, hdr, v, want)
 			}
 		}
 	}
@@ -1432,7 +1448,7 @@ func TestFileServerCleanPath(t *testing.T) {
 		rr := httptest.NewRecorder()
 		req, _ := NewRequest("GET", "http://foo.localhost"+tt.path, nil)
 		FileServer(fileServerCleanPathDir{&log}).ServeHTTP(rr, req)
-		if !reflect.DeepEqual(log, tt.wantOpen) {
+		if !slices.Equal(log, tt.wantOpen) {
 			t.Logf("For %s: Opens = %q; want %q", tt.path, log, tt.wantOpen)
 		}
 		if rr.Code != tt.wantCode {
@@ -1710,6 +1726,17 @@ func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
 }
 
 func TestServeContentHeadersWithError(t *testing.T) {
+	t.Run("keepheaders=0", func(t *testing.T) {
+		testServeContentHeadersWithError(t, false)
+	})
+	t.Run("keepheaders=1", func(t *testing.T) {
+		testServeContentHeadersWithError(t, true)
+	})
+}
+func testServeContentHeadersWithError(t *testing.T, keepHeaders bool) {
+	if keepHeaders {
+		t.Setenv("GODEBUG", "httpservecontentkeepheaders=1")
+	}
 	contents := []byte("content")
 	ts := newClientServerTest(t, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -1738,6 +1765,12 @@ func TestServeContentHeadersWithError(t *testing.T) {
 	out, _ := io.ReadAll(res.Body)
 	res.Body.Close()
 
+	ifKept := func(s string) string {
+		if keepHeaders {
+			return s
+		}
+		return ""
+	}
 	if g, e := res.StatusCode, 416; g != e {
 		t.Errorf("got status = %d; want %d", g, e)
 	}
@@ -1750,16 +1783,16 @@ func TestServeContentHeadersWithError(t *testing.T) {
 	if g, e := res.Header.Get("Content-Length"), strconv.Itoa(len(out)); g != e {
 		t.Errorf("got content-length = %q, want %q", g, e)
 	}
-	if g, e := res.Header.Get("Content-Encoding"), ""; g != e {
+	if g, e := res.Header.Get("Content-Encoding"), ifKept("gzip"); g != e {
 		t.Errorf("got content-encoding = %q, want %q", g, e)
 	}
-	if g, e := res.Header.Get("Etag"), ""; g != e {
+	if g, e := res.Header.Get("Etag"), ifKept(`"abcdefgh"`); g != e {
 		t.Errorf("got etag = %q, want %q", g, e)
 	}
-	if g, e := res.Header.Get("Last-Modified"), ""; g != e {
+	if g, e := res.Header.Get("Last-Modified"), ifKept("Wed, 21 Oct 2015 07:28:00 GMT"); g != e {
 		t.Errorf("got last-modified = %q, want %q", g, e)
 	}
-	if g, e := res.Header.Get("Cache-Control"), ""; g != e {
+	if g, e := res.Header.Get("Cache-Control"), ifKept("immutable"); g != e {
 		t.Errorf("got cache-control = %q, want %q", g, e)
 	}
 	if g, e := res.Header.Get("Content-Range"), "bytes */7"; g != e {

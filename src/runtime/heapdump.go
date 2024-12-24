@@ -205,7 +205,7 @@ func dumptype(t *_type) {
 		dwritebyte('.')
 		dwrite(unsafe.Pointer(unsafe.StringData(name)), uintptr(len(name)))
 	}
-	dumpbool(t.Kind_&abi.KindDirectIface == 0 || t.PtrBytes != 0)
+	dumpbool(t.Kind_&abi.KindDirectIface == 0 || t.Pointers())
 }
 
 // dump an object.

@@ -24,11 +24,7 @@ func TestLargeBranch(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := os.MkdirTemp("", "testlargebranch")
-	if err != nil {
-		t.Fatalf("Could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Generate a very large function.
 	buf := bytes.NewBuffer(make([]byte, 0, 7000000))
@@ -67,11 +63,7 @@ func TestLargeCall(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := os.MkdirTemp("", "testlargecall")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module largecall"), 0644); err != nil {
 		t.Fatalf("Failed to write file: %v\n", err)
@@ -196,11 +188,7 @@ func genLargeJump(buf *bytes.Buffer) {
 
 // Issue 20348.
 func TestNoRet(t *testing.T) {
-	dir, err := os.MkdirTemp("", "testnoret")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	tmpfile := filepath.Join(dir, "x.s")
 	if err := os.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
 		t.Fatal(err)
@@ -213,11 +201,7 @@ func TestNoRet(t *testing.T) {
 }
 
 func TestImmediateSplitting(t *testing.T) {
-	dir, err := os.MkdirTemp("", "testimmsplit")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	tmpfile := filepath.Join(dir, "x.s")
 	asm := `
 TEXT _stub(SB),$0-0

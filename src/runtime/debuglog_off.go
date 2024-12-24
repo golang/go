@@ -8,12 +8,18 @@ package runtime
 
 const dlogEnabled = false
 
+type dlogger = dloggerFake
+
+func dlog1() dloggerFake {
+	return dlogFake()
+}
+
 type dlogPerM struct{}
 
-func getCachedDlogger() *dlogger {
+func getCachedDlogger() *dloggerImpl {
 	return nil
 }
 
-func putCachedDlogger(l *dlogger) bool {
+func putCachedDlogger(l *dloggerImpl) bool {
 	return false
 }

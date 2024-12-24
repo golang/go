@@ -16,9 +16,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -510,7 +510,7 @@ func TestRemoveLeadingDuplicates(t *testing.T) {
 	}
 	for _, tt := range tests {
 		got := removeLeadingDuplicates(tt.env)
-		if !reflect.DeepEqual(got, tt.want) {
+		if !slices.Equal(got, tt.want) {
 			t.Errorf("removeLeadingDuplicates(%q) = %q; want %q", tt.env, got, tt.want)
 		}
 	}

@@ -7,8 +7,13 @@
 package maphash
 
 import (
+	"internal/abi"
+	"internal/goarch"
+	"internal/goexperiment"
 	"unsafe"
 )
+
+const purego = false
 
 //go:linkname runtime_rand runtime.rand
 func runtime_rand() uint64
@@ -25,7 +30,7 @@ func rthash(buf []byte, seed uint64) uint64 {
 	// The runtime hasher only works on uintptr. For 64-bit
 	// architectures, we use the hasher directly. Otherwise,
 	// we use two parallel hashers on the lower and upper 32 bits.
-	if unsafe.Sizeof(uintptr(0)) == 8 {
+	if goarch.PtrSize == 8 {
 		return uint64(runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed), uintptr(len)))
 	}
 	lo := runtime_memhash(unsafe.Pointer(&buf[0]), uintptr(seed), uintptr(len))
@@ -40,4 +45,26 @@ func rthashString(s string, state uint64) uint64 {
 
 func randUint64() uint64 {
 	return runtime_rand()
+}
+
+func comparableHash[T comparable](v T, seed Seed) uint64 {
+	s := seed.s
+	var m map[T]struct{}
+	mTyp := abi.TypeOf(m)
+	var hasher func(unsafe.Pointer, uintptr) uintptr
+	if goexperiment.SwissMap {
+		hasher = (*abi.SwissMapType)(unsafe.Pointer(mTyp)).Hasher
+	} else {
+		hasher = (*abi.OldMapType)(unsafe.Pointer(mTyp)).Hasher
+	}
+	if goarch.PtrSize == 8 {
+		return uint64(hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s)))
+	}
+	lo := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s))
+	hi := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s>>32))
+	return uint64(hi)<<32 | uint64(lo)
+}
+
+func writeComparable[T comparable](h *Hash, v T) {
+	h.state.s = comparableHash(v, h.state)
 }

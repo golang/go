@@ -12,7 +12,6 @@ import (
 	"cmd/link/internal/ld"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
-	"encoding/binary"
 	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
@@ -61,66 +60,21 @@ type wasmFuncType struct {
 }
 
 func readWasmImport(ldr *loader.Loader, s loader.Sym) obj.WasmImport {
-	reportError := func(err error) { panic(fmt.Sprintf("failed to read WASM import in sym %v: %v", s, err)) }
-
-	data := ldr.Data(s)
-
-	readUint32 := func() (v uint32) {
-		v = binary.LittleEndian.Uint32(data)
-		data = data[4:]
-		return
-	}
-
-	readUint64 := func() (v uint64) {
-		v = binary.LittleEndian.Uint64(data)
-		data = data[8:]
-		return
-	}
-
-	readByte := func() byte {
-		if len(data) == 0 {
-			reportError(io.EOF)
-		}
-
-		b := data[0]
-		data = data[1:]
-		return b
-	}
-
-	readString := func() string {
-		n := readUint32()
-
-		s := string(data[:n])
-
-		data = data[n:]
-
-		return s
-	}
-
 	var wi obj.WasmImport
-	wi.Module = readString()
-	wi.Name = readString()
-	wi.Params = make([]obj.WasmField, readUint32())
-	for i := range wi.Params {
-		wi.Params[i].Type = obj.WasmFieldType(readByte())
-		wi.Params[i].Offset = int64(readUint64())
-	}
-	wi.Results = make([]obj.WasmField, readUint32())
-	for i := range wi.Results {
-		wi.Results[i].Type = obj.WasmFieldType(readByte())
-		wi.Results[i].Offset = int64(readUint64())
-	}
+	wi.Read(ldr.Data(s))
 	return wi
 }
 
 var wasmFuncTypes = map[string]*wasmFuncType{
 	"_rt0_wasm_js":            {Params: []byte{}},                                         //
 	"_rt0_wasm_wasip1":        {Params: []byte{}},                                         //
+	"_rt0_wasm_wasip1_lib":    {Params: []byte{}},                                         //
 	"wasm_export__start":      {},                                                         //
 	"wasm_export_run":         {Params: []byte{I32, I32}},                                 // argc, argv
 	"wasm_export_resume":      {Params: []byte{}},                                         //
 	"wasm_export_getsp":       {Results: []byte{I32}},                                     // sp
 	"wasm_pc_f_loop":          {Params: []byte{}},                                         //
+	"wasm_pc_f_loop_export":   {Params: []byte{I32}},                                      // pc_f
 	"runtime.wasmDiv":         {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
 	"runtime.wasmTruncS":      {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
 	"runtime.wasmTruncU":      {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
@@ -207,8 +161,8 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
 			if r.Type() == objabi.R_WASMIMPORT {
-				if lsym, ok := ldr.WasmImportSym(fn); ok {
-					wi := readWasmImport(ldr, lsym)
+				if wsym := ldr.WasmImportSym(fn); wsym != 0 {
+					wi := readWasmImport(ldr, wsym)
 					hostImportMap[fn] = int64(len(hostImports))
 					hostImports = append(hostImports, &wasmFunc{
 						Module: wi.Module,
@@ -266,6 +220,15 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 		typ := uint32(0)
 		if sig, ok := wasmFuncTypes[ldr.SymName(fn)]; ok {
 			typ = lookupType(sig, &types)
+		}
+		if s := ldr.WasmTypeSym(fn); s != 0 {
+			var o obj.WasmFuncType
+			o.Read(ldr.Data(s))
+			t := &wasmFuncType{
+				Params:  fieldsToTypes(o.Params),
+				Results: fieldsToTypes(o.Results),
+			}
+			typ = lookupType(t, &types)
 		}
 
 		name := nameRegexp.ReplaceAllString(ldr.SymName(fn), "_")
@@ -402,9 +365,8 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
 func writeMemorySec(ctxt *ld.Link, ldr *loader.Loader) {
 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
 
-	dataSection := ldr.SymSect(ldr.Lookup("runtime.data", 0))
-	dataEnd := dataSection.Vaddr + dataSection.Length
-	var initialSize = dataEnd + 16<<20 // 16MB, enough for runtime init without growing
+	dataEnd := uint64(ldr.SymValue(ldr.Lookup("runtime.end", 0)))
+	var initialSize = dataEnd + 1<<20 // 1 MB, for runtime init allocating a few pages
 
 	const wasmPageSize = 64 << 10 // 64KB
 
@@ -455,21 +417,48 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
 
 	switch buildcfg.GOOS {
 	case "wasip1":
-		writeUleb128(ctxt.Out, 2) // number of exports
-		s := ldr.Lookup("_rt0_wasm_wasip1", 0)
+		writeUleb128(ctxt.Out, uint64(2+len(ldr.WasmExports))) // number of exports
+		var entry, entryExpName string
+		switch ctxt.BuildMode {
+		case ld.BuildModeExe:
+			entry = "_rt0_wasm_wasip1"
+			entryExpName = "_start"
+		case ld.BuildModeCShared:
+			entry = "_rt0_wasm_wasip1_lib"
+			entryExpName = "_initialize"
+		}
+		s := ldr.Lookup(entry, 0)
+		if s == 0 {
+			ld.Errorf("export symbol %s not defined", entry)
+		}
 		idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
-		writeName(ctxt.Out, "_start")       // the wasi entrypoint
+		writeName(ctxt.Out, entryExpName)   // the wasi entrypoint
 		ctxt.Out.WriteByte(0x00)            // func export
 		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
-		writeName(ctxt.Out, "memory")       // memory in wasi
-		ctxt.Out.WriteByte(0x02)            // mem export
-		writeUleb128(ctxt.Out, 0)           // memidx
+		for _, s := range ldr.WasmExports {
+			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+			writeName(ctxt.Out, ldr.SymName(s))
+			ctxt.Out.WriteByte(0x00)            // func export
+			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+		}
+		writeName(ctxt.Out, "memory") // memory in wasi
+		ctxt.Out.WriteByte(0x02)      // mem export
+		writeUleb128(ctxt.Out, 0)     // memidx
 	case "js":
-		writeUleb128(ctxt.Out, 4) // number of exports
+		writeUleb128(ctxt.Out, uint64(4+len(ldr.WasmExports))) // number of exports
 		for _, name := range []string{"run", "resume", "getsp"} {
 			s := ldr.Lookup("wasm_export_"+name, 0)
+			if s == 0 {
+				ld.Errorf("export symbol %s not defined", "wasm_export_"+name)
+			}
 			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
 			writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
+			ctxt.Out.WriteByte(0x00)            // func export
+			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+		}
+		for _, s := range ldr.WasmExports {
+			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+			writeName(ctxt.Out, ldr.SymName(s))
 			ctxt.Out.WriteByte(0x00)            // func export
 			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
 		}
@@ -700,7 +689,7 @@ func fieldsToTypes(fields []obj.WasmField) []byte {
 	b := make([]byte, len(fields))
 	for i, f := range fields {
 		switch f.Type {
-		case obj.WasmI32, obj.WasmPtr:
+		case obj.WasmI32, obj.WasmPtr, obj.WasmBool:
 			b[i] = I32
 		case obj.WasmI64:
 			b[i] = I64

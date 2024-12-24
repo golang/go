@@ -10,7 +10,7 @@
 package runtime
 
 import (
-	"runtime/internal/math"
+	"internal/runtime/math"
 	"unsafe"
 )
 

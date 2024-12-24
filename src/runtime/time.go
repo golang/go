@@ -9,9 +9,28 @@ package runtime
 import (
 	"internal/abi"
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
+
+//go:linkname time_runtimeNow time.runtimeNow
+func time_runtimeNow() (sec int64, nsec int32, mono int64) {
+	if sg := getg().syncGroup; sg != nil {
+		sec = sg.now / (1000 * 1000 * 1000)
+		nsec = int32(sg.now % (1000 * 1000 * 1000))
+		return sec, nsec, sg.now
+	}
+	return time_now()
+}
+
+//go:linkname time_runtimeNano time.runtimeNano
+func time_runtimeNano() int64 {
+	gp := getg()
+	if gp.syncGroup != nil {
+		return gp.syncGroup.now
+	}
+	return nanotime()
+}
 
 // A timer is a potentially repeating trigger for calling t.f(t.arg, t.seq).
 // Timers are allocated by client code, often as part of other data structures.
@@ -26,10 +45,12 @@ type timer struct {
 	// mu protects reads and writes to all fields, with exceptions noted below.
 	mu mutex
 
-	astate  atomic.Uint8 // atomic copy of state bits at last unlock
-	state   uint8        // state bits
-	isChan  bool         // timer has a channel; immutable; can be read without lock
-	blocked uint32       // number of goroutines blocked on timer's channel
+	astate atomic.Uint8 // atomic copy of state bits at last unlock
+	state  uint8        // state bits
+	isChan bool         // timer has a channel; immutable; can be read without lock
+	isFake bool         // timer is using fake time; immutable; can be read without lock
+
+	blocked uint32 // number of goroutines blocked on timer's channel
 
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
 	// each time calling f(arg, seq, delay) in the timer goroutine, so f must be
@@ -38,7 +59,7 @@ type timer struct {
 	// The arg and seq are client-specified opaque arguments passed back to f.
 	// When used from netpoll, arg and seq have meanings defined by netpoll
 	// and are completely opaque to this code; in that context, seq is a sequence
-	// number to recognize and squech stale function invocations.
+	// number to recognize and squelch stale function invocations.
 	// When used from package time, arg is a channel (for After, NewTicker)
 	// or the function to call (for AfterFunc) and seq is unused (0).
 	//
@@ -68,6 +89,20 @@ type timer struct {
 	// sendLock protects sends on the timer's channel.
 	// Not used for async (pre-Go 1.23) behavior when debug.asynctimerchan.Load() != 0.
 	sendLock mutex
+
+	// isSending is used to handle races between running a
+	// channel timer and stopping or resetting the timer.
+	// It is used only for channel timers (t.isChan == true).
+	// It is not used for tickers.
+	// The value is incremented when about to send a value on the channel,
+	// and decremented after sending the value.
+	// The stop/reset code uses this to detect whether it
+	// stopped the channel send.
+	//
+	// isSending is incremented only when t.mu is held.
+	// isSending is decremented only when t.sendLock is held.
+	// isSending is read only when both t.mu and t.sendLock are held.
+	isSending atomic.Int32
 }
 
 // init initializes a newly allocated timer t.
@@ -110,6 +145,8 @@ type timers struct {
 	// heap[i].when over timers with the timerModified bit set.
 	// If minWhenModified = 0, it means there are no timerModified timers in the heap.
 	minWhenModified atomic.Int64
+
+	syncGroup *synctestGroup
 }
 
 type timerWhen struct {
@@ -275,14 +312,31 @@ func timeSleep(ns int64) {
 	if t == nil {
 		t = new(timer)
 		t.init(goroutineReady, gp)
+		if gp.syncGroup != nil {
+			t.isFake = true
+		}
 		gp.timer = t
 	}
-	when := nanotime() + ns
+	var now int64
+	if sg := gp.syncGroup; sg != nil {
+		now = sg.now
+	} else {
+		now = nanotime()
+	}
+	when := now + ns
 	if when < 0 { // check for overflow.
 		when = maxWhen
 	}
 	gp.sleepWhen = when
-	gopark(resetForSleep, nil, waitReasonSleep, traceBlockSleep, 1)
+	if t.isFake {
+		// Call timer.reset in this goroutine, since it's the one in a syncGroup.
+		// We don't need to worry about the timer function running before the goroutine
+		// is parked, because time won't advance until we park.
+		resetForSleep(gp, nil)
+		gopark(nil, nil, waitReasonSleep, traceBlockSleep, 1)
+	} else {
+		gopark(resetForSleep, nil, waitReasonSleep, traceBlockSleep, 1)
+	}
 }
 
 // resetForSleep is called after the goroutine is parked for timeSleep.
@@ -322,6 +376,9 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
 			throw("invalid timer channel: no capacity")
 		}
 	}
+	if gr := getg().syncGroup; gr != nil {
+		t.isFake = true
+	}
 	t.modify(when, period, f, arg, 0)
 	t.init = true
 	return t
@@ -332,6 +389,9 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
 //
 //go:linkname stopTimer time.stopTimer
 func stopTimer(t *timeTimer) bool {
+	if t.isFake && getg().syncGroup == nil {
+		panic("stop of synctest timer from outside bubble")
+	}
 	return t.stop()
 }
 
@@ -343,6 +403,9 @@ func stopTimer(t *timeTimer) bool {
 func resetTimer(t *timeTimer, when, period int64) bool {
 	if raceenabled {
 		racerelease(unsafe.Pointer(&t.timer))
+	}
+	if t.isFake && getg().syncGroup == nil {
+		panic("reset of synctest timer from outside bubble")
 	}
 	return t.reset(when, period)
 }
@@ -431,6 +494,15 @@ func (t *timer) stop() bool {
 		// Stop any future sends with stale values.
 		// See timer.unlockAndRun.
 		t.seq++
+
+		// If there is currently a send in progress,
+		// incrementing seq is going to prevent that
+		// send from actually happening. That means
+		// that we should return true: the timer was
+		// stopped, even though t.when may be zero.
+		if t.period == 0 && t.isSending.Load() > 0 {
+			pending = true
+		}
 	}
 	t.unlock()
 	if !async && t.isChan {
@@ -490,6 +562,7 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		t.maybeRunAsync()
 	}
 	t.trace("modify")
+	oldPeriod := t.period
 	t.period = period
 	if f != nil {
 		t.f = f
@@ -525,6 +598,15 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		// Stop any future sends with stale values.
 		// See timer.unlockAndRun.
 		t.seq++
+
+		// If there is currently a send in progress,
+		// incrementing seq is going to prevent that
+		// send from actually happening. That means
+		// that we should return true: the timer was
+		// stopped, even though t.when may be zero.
+		if oldPeriod == 0 && t.isSending.Load() > 0 {
+			pending = true
+		}
 	}
 	t.unlock()
 	if !async && t.isChan {
@@ -548,7 +630,7 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 // t must be locked.
 func (t *timer) needsAdd() bool {
 	assertLockHeld(&t.mu)
-	need := t.state&timerHeaped == 0 && t.when > 0 && (!t.isChan || t.blocked > 0)
+	need := t.state&timerHeaped == 0 && t.when > 0 && (!t.isChan || t.isFake || t.blocked > 0)
 	if need {
 		t.trace("needsAdd+")
 	} else {
@@ -586,7 +668,16 @@ func (t *timer) maybeAdd() {
 	// Calling acquirem instead of using getg().m makes sure that
 	// we end up locking and inserting into the current P's timers.
 	mp := acquirem()
-	ts := &mp.p.ptr().timers
+	var ts *timers
+	if t.isFake {
+		sg := getg().syncGroup
+		if sg == nil {
+			throw("invalid timer: fake time but no syncgroup")
+		}
+		ts = &sg.timers
+	} else {
+		ts = &mp.p.ptr().timers
+	}
 	ts.lock()
 	ts.cleanHead()
 	t.lock()
@@ -1013,6 +1104,15 @@ func (t *timer) unlockAndRun(now int64) {
 		}
 		t.updateHeap()
 	}
+
+	async := debug.asynctimerchan.Load() != 0
+	if !async && t.isChan && t.period == 0 {
+		// Tell Stop/Reset that we are sending a value.
+		if t.isSending.Add(1) < 0 {
+			throw("too many concurrent timer firings")
+		}
+	}
+
 	t.unlock()
 
 	if raceenabled {
@@ -1028,7 +1128,16 @@ func (t *timer) unlockAndRun(now int64) {
 		ts.unlock()
 	}
 
-	async := debug.asynctimerchan.Load() != 0
+	if ts != nil && ts.syncGroup != nil {
+		// Temporarily use the timer's synctest group for the G running this timer.
+		gp := getg()
+		if gp.syncGroup != nil {
+			throw("unexpected syncgroup set")
+		}
+		gp.syncGroup = ts.syncGroup
+		ts.syncGroup.changegstatus(gp, _Gdead, _Grunning)
+	}
+
 	if !async && t.isChan {
 		// For a timer channel, we want to make sure that no stale sends
 		// happen after a t.stop or t.modify, but we cannot hold t.mu
@@ -1044,7 +1153,21 @@ func (t *timer) unlockAndRun(now int64) {
 		// and double-check that t.seq is still the seq value we saw above.
 		// If not, the timer has been updated and we should skip the send.
 		// We skip the send by reassigning f to a no-op function.
+		//
+		// The isSending field tells t.stop or t.modify that we have
+		// started to send the value. That lets them correctly return
+		// true meaning that no value was sent.
 		lock(&t.sendLock)
+
+		if t.period == 0 {
+			// We are committed to possibly sending a value
+			// based on seq, so no need to keep telling
+			// stop/modify that we are sending.
+			if t.isSending.Add(-1) < 0 {
+				throw("mismatched isSending updates")
+			}
+		}
+
 		if t.seq != seq {
 			f = func(any, uintptr, int64) {}
 		}
@@ -1054,6 +1177,12 @@ func (t *timer) unlockAndRun(now int64) {
 
 	if !async && t.isChan {
 		unlock(&t.sendLock)
+	}
+
+	if ts != nil && ts.syncGroup != nil {
+		gp := getg()
+		ts.syncGroup.changegstatus(gp, _Grunning, _Gdead)
+		gp.syncGroup = nil
 	}
 
 	if ts != nil {
@@ -1241,6 +1370,24 @@ func badTimer() {
 // to send a value to its associated channel. If so, it does.
 // The timer must not be locked.
 func (t *timer) maybeRunChan() {
+	if t.isFake {
+		t.lock()
+		var timerGroup *synctestGroup
+		if t.ts != nil {
+			timerGroup = t.ts.syncGroup
+		}
+		t.unlock()
+		sg := getg().syncGroup
+		if sg == nil {
+			panic(plainError("synctest timer accessed from outside bubble"))
+		}
+		if timerGroup != nil && sg != timerGroup {
+			panic(plainError("timer moved between synctest bubbles"))
+		}
+		// No need to do anything here.
+		// synctest.Run will run the timer when it advances its fake clock.
+		return
+	}
 	if t.astate.Load()&timerHeaped != 0 {
 		// If the timer is in the heap, the ordinary timer code
 		// is in charge of sending when appropriate.
@@ -1267,6 +1414,9 @@ func (t *timer) maybeRunChan() {
 // adding it if needed.
 func blockTimerChan(c *hchan) {
 	t := c.timer
+	if t.isFake {
+		return
+	}
 	t.lock()
 	t.trace("blockTimerChan")
 	if !t.isChan {
@@ -1304,6 +1454,9 @@ func blockTimerChan(c *hchan) {
 // blocked on it anymore.
 func unblockTimerChan(c *hchan) {
 	t := c.timer
+	if t.isFake {
+		return
+	}
 	t.lock()
 	t.trace("unblockTimerChan")
 	if !t.isChan || t.blocked == 0 {

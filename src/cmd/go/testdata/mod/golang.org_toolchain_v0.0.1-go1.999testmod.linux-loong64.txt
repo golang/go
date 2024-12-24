@@ -12,3 +12,4 @@ echo go1.999testmod here!
 -- bin/gofmt --
 echo i am unused
 -- pkg/tool/fake --
+-- lib/wasm/go_js_wasm_exec --

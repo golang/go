@@ -299,12 +299,13 @@ func scanExponent(r io.ByteScanner, base2ok, sepOk bool) (exp int64, base int, e
 
 // String returns a string representation of x in the form "a/b" (even if b == 1).
 func (x *Rat) String() string {
-	return string(x.marshal())
+	return string(x.marshal(nil))
 }
 
-// marshal implements String returning a slice of bytes
-func (x *Rat) marshal() []byte {
-	var buf []byte
+// marshal implements [Rat.String] returning a slice of bytes.
+// It appends the string representation of x in the form "a/b" (even if b == 1) to buf,
+// and returns the extended buffer.
+func (x *Rat) marshal(buf []byte) []byte {
 	buf = x.a.Append(buf, 10)
 	buf = append(buf, '/')
 	if len(x.b.abs) != 0 {

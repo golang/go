@@ -40,8 +40,9 @@ import (
 	"strconv"
 	"strings"
 
+	"cmd/internal/disasm"
 	"cmd/internal/objfile"
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 )
 
 var printCode = flag.Bool("S", false, "print Go code alongside assembly")
@@ -58,12 +59,12 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("objdump: ")
-	telemetry.Start()
+	counter.Open()
 
 	flag.Usage = usage
 	flag.Parse()
-	telemetry.Inc("objdump/invocations")
-	telemetry.CountFlags("objdump/flag:", *flag.CommandLine)
+	counter.Inc("objdump/invocations")
+	counter.CountFlags("objdump/flag:", *flag.CommandLine)
 	if flag.NArg() != 1 && flag.NArg() != 3 {
 		usage()
 	}
@@ -82,7 +83,7 @@ func main() {
 	}
 	defer f.Close()
 
-	dis, err := f.Disasm()
+	dis, err := disasm.DisasmForFile(f)
 	if err != nil {
 		log.Fatalf("disassemble %s: %v", flag.Arg(0), err)
 	}

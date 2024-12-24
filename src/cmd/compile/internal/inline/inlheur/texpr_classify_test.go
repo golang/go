@@ -5,10 +5,13 @@
 package inlheur
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
+	"cmd/internal/sys"
 	"go/constant"
 	"testing"
 )
@@ -21,6 +24,8 @@ func init() {
 	types.PtrSize = 8
 	types.RegSize = 8
 	types.MaxWidth = 1 << 50
+	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
+
 	typecheck.InitUniverse()
 	local = types.NewPkg("", "")
 	fsym := &types.Sym{

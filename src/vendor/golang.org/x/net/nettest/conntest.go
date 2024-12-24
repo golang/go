@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"runtime"
@@ -173,7 +172,7 @@ func testRacyRead(t *testing.T, c1, c2 net.Conn) {
 // testRacyWrite tests that it is safe to mutate the input Write buffer
 // immediately after cancelation has occurred.
 func testRacyWrite(t *testing.T, c1, c2 net.Conn) {
-	go chunkedCopy(ioutil.Discard, c2)
+	go chunkedCopy(io.Discard, c2)
 
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -200,7 +199,7 @@ func testRacyWrite(t *testing.T, c1, c2 net.Conn) {
 
 // testReadTimeout tests that Read timeouts do not affect Write.
 func testReadTimeout(t *testing.T, c1, c2 net.Conn) {
-	go chunkedCopy(ioutil.Discard, c2)
+	go chunkedCopy(io.Discard, c2)
 
 	c1.SetReadDeadline(aLongTimeAgo)
 	_, err := c1.Read(make([]byte, 1024))

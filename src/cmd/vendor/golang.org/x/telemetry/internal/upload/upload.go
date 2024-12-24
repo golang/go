@@ -12,11 +12,13 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"golang.org/x/telemetry/internal/telemetry"
 )
 
 var (
 	dateRE     = regexp.MustCompile(`(\d\d\d\d-\d\d-\d\d)[.]json$`)
-	dateFormat = "2006-01-02"
+	dateFormat = telemetry.DateOnly
 	// TODO(rfindley): use dateFormat throughout.
 )
 
@@ -41,7 +43,7 @@ func (u *uploader) uploadReport(fname string) {
 	// TODO(rfindley): use uploadReportDate here, once we've done a gopls release.
 
 	// first make sure it is not in the future
-	today := thisInstant.Format("2006-01-02")
+	today := thisInstant.Format(telemetry.DateOnly)
 	match := dateRE.FindStringSubmatch(fname)
 	if match == nil || len(match) < 2 {
 		u.logger.Printf("Report name %q missing date", filepath.Base(fname))
@@ -61,11 +63,33 @@ func (u *uploader) uploadReport(fname string) {
 
 // try to upload the report, 'true' if successful
 func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
-	b := bytes.NewReader(buf)
 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
-	fdate = fdate[len(fdate)-len("2006-01-02"):]
-	endpoint := u.uploadServerURL + "/" + fdate
+	fdate = fdate[len(fdate)-len(telemetry.DateOnly):]
 
+	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
+
+	// Lock the upload, to prevent duplicate uploads.
+	{
+		lockname := newname + ".lock"
+		lockfile, err := os.OpenFile(lockname, os.O_CREATE|os.O_EXCL, 0666)
+		if err != nil {
+			u.logger.Printf("Failed to acquire lock %s: %v", lockname, err)
+			return false
+		}
+		_ = lockfile.Close()
+		defer os.Remove(lockname)
+	}
+
+	if _, err := os.Stat(newname); err == nil {
+		// Another process uploaded but failed to clean up (or hasn't yet cleaned
+		// up). Ensure that cleanup occurs.
+		u.logger.Printf("After acquire: report already uploaded")
+		_ = os.Remove(fname)
+		return false
+	}
+
+	endpoint := u.uploadServerURL + "/" + fdate
+	b := bytes.NewReader(buf)
 	resp, err := http.Post(endpoint, "application/json", b)
 	if err != nil {
 		u.logger.Printf("Error upload %s to %s: %v", filepath.Base(fname), endpoint, err)
@@ -85,7 +109,6 @@ func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
 		return false
 	}
 	// Store a copy of the uploaded report in the uploaded directory.
-	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
 	if err := os.WriteFile(newname, buf, 0644); err == nil {
 		os.Remove(fname) // if it exists
 	}

@@ -176,6 +176,7 @@ const (
 	WAIT_FAILED    = 0xFFFFFFFF
 
 	// Access rights for process.
+	PROCESS_ALL_ACCESS                = 0xFFFF
 	PROCESS_CREATE_PROCESS            = 0x0080
 	PROCESS_CREATE_THREAD             = 0x0002
 	PROCESS_DUP_HANDLE                = 0x0040
@@ -1060,6 +1061,7 @@ const (
 	SIO_GET_EXTENSION_FUNCTION_POINTER = IOC_INOUT | IOC_WS2 | 6
 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
+	SIO_UDP_NETRESET                   = IOC_IN | IOC_VENDOR | 15
 
 	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
 
@@ -2003,7 +2005,21 @@ const (
 	MOVEFILE_FAIL_IF_NOT_TRACKABLE = 0x20
 )
 
-const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+// Flags for GetAdaptersAddresses, see
+// https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getadaptersaddresses.
+const (
+	GAA_FLAG_SKIP_UNICAST                = 0x1
+	GAA_FLAG_SKIP_ANYCAST                = 0x2
+	GAA_FLAG_SKIP_MULTICAST              = 0x4
+	GAA_FLAG_SKIP_DNS_SERVER             = 0x8
+	GAA_FLAG_INCLUDE_PREFIX              = 0x10
+	GAA_FLAG_SKIP_FRIENDLY_NAME          = 0x20
+	GAA_FLAG_INCLUDE_WINS_INFO           = 0x40
+	GAA_FLAG_INCLUDE_GATEWAYS            = 0x80
+	GAA_FLAG_INCLUDE_ALL_INTERFACES      = 0x100
+	GAA_FLAG_INCLUDE_ALL_COMPARTMENTS    = 0x200
+	GAA_FLAG_INCLUDE_TUNNEL_BINDINGORDER = 0x400
+)
 
 const (
 	IF_TYPE_OTHER              = 1
@@ -2015,6 +2031,50 @@ const (
 	IF_TYPE_IEEE80211          = 71
 	IF_TYPE_TUNNEL             = 131
 	IF_TYPE_IEEE1394           = 144
+)
+
+// Enum NL_PREFIX_ORIGIN for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_prefix_origin
+const (
+	IpPrefixOriginOther               = 0
+	IpPrefixOriginManual              = 1
+	IpPrefixOriginWellKnown           = 2
+	IpPrefixOriginDhcp                = 3
+	IpPrefixOriginRouterAdvertisement = 4
+	IpPrefixOriginUnchanged           = 1 << 4
+)
+
+// Enum NL_SUFFIX_ORIGIN for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_suffix_origin
+const (
+	NlsoOther                      = 0
+	NlsoManual                     = 1
+	NlsoWellKnown                  = 2
+	NlsoDhcp                       = 3
+	NlsoLinkLayerAddress           = 4
+	NlsoRandom                     = 5
+	IpSuffixOriginOther            = 0
+	IpSuffixOriginManual           = 1
+	IpSuffixOriginWellKnown        = 2
+	IpSuffixOriginDhcp             = 3
+	IpSuffixOriginLinkLayerAddress = 4
+	IpSuffixOriginRandom           = 5
+	IpSuffixOriginUnchanged        = 1 << 4
+)
+
+// Enum NL_DAD_STATE for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_dad_state
+const (
+	NldsInvalid          = 0
+	NldsTentative        = 1
+	NldsDuplicate        = 2
+	NldsDeprecated       = 3
+	NldsPreferred        = 4
+	IpDadStateInvalid    = 0
+	IpDadStateTentative  = 1
+	IpDadStateDuplicate  = 2
+	IpDadStateDeprecated = 3
+	IpDadStatePreferred  = 4
 )
 
 type SocketAddress struct {
@@ -2143,6 +2203,132 @@ const (
 	IfOperStatusNotPresent     = 6
 	IfOperStatusLowerLayerDown = 7
 )
+
+const (
+	IF_MAX_PHYS_ADDRESS_LENGTH = 32
+	IF_MAX_STRING_SIZE         = 256
+)
+
+// MIB_IF_ENTRY_LEVEL enumeration from netioapi.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/nf-netioapi-getifentry2ex.
+const (
+	MibIfEntryNormal                  = 0
+	MibIfEntryNormalWithoutStatistics = 2
+)
+
+// MIB_NOTIFICATION_TYPE enumeration from netioapi.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ne-netioapi-mib_notification_type.
+const (
+	MibParameterNotification = 0
+	MibAddInstance           = 1
+	MibDeleteInstance        = 2
+	MibInitialNotification   = 3
+)
+
+// MibIfRow2 stores information about a particular interface. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_row2.
+type MibIfRow2 struct {
+	InterfaceLuid               uint64
+	InterfaceIndex              uint32
+	InterfaceGuid               GUID
+	Alias                       [IF_MAX_STRING_SIZE + 1]uint16
+	Description                 [IF_MAX_STRING_SIZE + 1]uint16
+	PhysicalAddressLength       uint32
+	PhysicalAddress             [IF_MAX_PHYS_ADDRESS_LENGTH]uint8
+	PermanentPhysicalAddress    [IF_MAX_PHYS_ADDRESS_LENGTH]uint8
+	Mtu                         uint32
+	Type                        uint32
+	TunnelType                  uint32
+	MediaType                   uint32
+	PhysicalMediumType          uint32
+	AccessType                  uint32
+	DirectionType               uint32
+	InterfaceAndOperStatusFlags uint8
+	OperStatus                  uint32
+	AdminStatus                 uint32
+	MediaConnectState           uint32
+	NetworkGuid                 GUID
+	ConnectionType              uint32
+	TransmitLinkSpeed           uint64
+	ReceiveLinkSpeed            uint64
+	InOctets                    uint64
+	InUcastPkts                 uint64
+	InNUcastPkts                uint64
+	InDiscards                  uint64
+	InErrors                    uint64
+	InUnknownProtos             uint64
+	InUcastOctets               uint64
+	InMulticastOctets           uint64
+	InBroadcastOctets           uint64
+	OutOctets                   uint64
+	OutUcastPkts                uint64
+	OutNUcastPkts               uint64
+	OutDiscards                 uint64
+	OutErrors                   uint64
+	OutUcastOctets              uint64
+	OutMulticastOctets          uint64
+	OutBroadcastOctets          uint64
+	OutQLen                     uint64
+}
+
+// MIB_UNICASTIPADDRESS_ROW stores information about a unicast IP address. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_unicastipaddress_row.
+type MibUnicastIpAddressRow struct {
+	Address            RawSockaddrInet6 // SOCKADDR_INET union
+	InterfaceLuid      uint64
+	InterfaceIndex     uint32
+	PrefixOrigin       uint32
+	SuffixOrigin       uint32
+	ValidLifetime      uint32
+	PreferredLifetime  uint32
+	OnLinkPrefixLength uint8
+	SkipAsSource       uint8
+	DadState           uint32
+	ScopeId            uint32
+	CreationTimeStamp  Filetime
+}
+
+const ScopeLevelCount = 16
+
+// MIB_IPINTERFACE_ROW stores interface management information for a particular IP address family on a network interface.
+// See https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipinterface_row.
+type MibIpInterfaceRow struct {
+	Family                               uint16
+	InterfaceLuid                        uint64
+	InterfaceIndex                       uint32
+	MaxReassemblySize                    uint32
+	InterfaceIdentifier                  uint64
+	MinRouterAdvertisementInterval       uint32
+	MaxRouterAdvertisementInterval       uint32
+	AdvertisingEnabled                   uint8
+	ForwardingEnabled                    uint8
+	WeakHostSend                         uint8
+	WeakHostReceive                      uint8
+	UseAutomaticMetric                   uint8
+	UseNeighborUnreachabilityDetection   uint8
+	ManagedAddressConfigurationSupported uint8
+	OtherStatefulConfigurationSupported  uint8
+	AdvertiseDefaultRoute                uint8
+	RouterDiscoveryBehavior              uint32
+	DadTransmits                         uint32
+	BaseReachableTime                    uint32
+	RetransmitTime                       uint32
+	PathMtuDiscoveryTimeout              uint32
+	LinkLocalAddressBehavior             uint32
+	LinkLocalAddressTimeout              uint32
+	ZoneIndices                          [ScopeLevelCount]uint32
+	SitePrefixLength                     uint32
+	Metric                               uint32
+	NlMtu                                uint32
+	Connected                            uint8
+	SupportsWakeUpPatterns               uint8
+	SupportsNeighborDiscovery            uint8
+	SupportsRouterDiscovery              uint8
+	ReachableTime                        uint32
+	TransmitOffload                      uint32
+	ReceiveOffload                       uint32
+	DisableDefaultRoutes                 uint8
+}
 
 // Console related constants used for the mode parameter to SetConsoleMode. See
 // https://docs.microsoft.com/en-us/windows/console/setconsolemode for details.
@@ -3404,3 +3590,14 @@ type DCB struct {
 	EvtChar    byte
 	wReserved1 uint16
 }
+
+// Keyboard Layout Flags.
+// See https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayoutw
+const (
+	KLF_ACTIVATE      = 0x00000001
+	KLF_SUBSTITUTE_OK = 0x00000002
+	KLF_REORDER       = 0x00000008
+	KLF_REPLACELANG   = 0x00000010
+	KLF_NOTELLSHELL   = 0x00000080
+	KLF_SETFORPROCESS = 0x00000100
+)

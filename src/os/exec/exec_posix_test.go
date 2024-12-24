@@ -13,8 +13,8 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"reflect"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -184,7 +184,7 @@ func TestImplicitPWD(t *testing.T) {
 					wantPWDs = nil
 				}
 			}
-			if !reflect.DeepEqual(pwds, wantPWDs) {
+			if !slices.Equal(pwds, wantPWDs) {
 				t.Errorf("PWD entries in cmd.Environ():\n\t%s\nwant:\n\t%s", strings.Join(pwds, "\n\t"), strings.Join(wantPWDs, "\n\t"))
 			}
 
@@ -257,7 +257,7 @@ func TestExplicitPWD(t *testing.T) {
 			}
 
 			wantPWDs := []string{tc.pwd}
-			if !reflect.DeepEqual(pwds, wantPWDs) {
+			if !slices.Equal(pwds, wantPWDs) {
 				t.Errorf("PWD entries in cmd.Environ():\n\t%s\nwant:\n\t%s", strings.Join(pwds, "\n\t"), strings.Join(wantPWDs, "\n\t"))
 			}
 

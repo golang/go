@@ -299,6 +299,18 @@ type (
 	}
 
 	// A BasicLit node represents a literal of basic type.
+	//
+	// Note that for the CHAR and STRING kinds, the literal is stored
+	// with its quotes. For example, for a double-quoted STRING, the
+	// first and the last rune in the Value field will be ". The
+	// [strconv.Unquote] and [strconv.UnquoteChar] functions can be
+	// used to unquote STRING and CHAR values, respectively.
+	//
+	// For raw string literals (Kind == token.STRING && Value[0] == '`'),
+	// the Value field contains the string text without carriage returns (\r) that
+	// may have been present in the source. Because the end position is
+	// computed using len(Value), the position reported by [BasicLit.End] does not match the
+	// true source end position for raw string literals containing carriage returns.
 	BasicLit struct {
 		ValuePos token.Pos   // literal position
 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
@@ -1053,11 +1065,15 @@ type File struct {
 }
 
 // Pos returns the position of the package declaration.
-// (Use FileStart for the start of the entire file.)
+// It may be invalid, for example in an empty file.
+//
+// (Use FileStart for the start of the entire file. It is always valid.)
 func (f *File) Pos() token.Pos { return f.Package }
 
 // End returns the end of the last declaration in the file.
-// (Use FileEnd for the end of the entire file.)
+// It may be invalid, for example in an empty file.
+//
+// (Use FileEnd for the end of the entire file. It is always valid.)
 func (f *File) End() token.Pos {
 	if n := len(f.Decls); n > 0 {
 		return f.Decls[n-1].End()

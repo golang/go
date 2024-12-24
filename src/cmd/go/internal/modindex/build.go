@@ -17,6 +17,7 @@ import (
 	"go/build"
 	"go/build/constraint"
 	"go/token"
+	"internal/syslist"
 	"io"
 	"io/fs"
 	"path/filepath"
@@ -878,7 +879,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	if ctxt.GOOS == "ios" && name == "darwin" {
 		return true
 	}
-	if name == "unix" && unixOS[ctxt.GOOS] {
+	if name == "unix" && syslist.UnixOS[ctxt.GOOS] {
 		return true
 	}
 	if name == "boringcrypto" {
@@ -941,14 +942,14 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 		l = l[:n-1]
 	}
 	n := len(l)
-	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
+	if n >= 2 && syslist.KnownOS[l[n-2]] && syslist.KnownArch[l[n-1]] {
 		if allTags != nil {
 			// In case we short-circuit on l[n-1].
 			allTags[l[n-2]] = true
 		}
 		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
 	}
-	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
+	if n >= 1 && (syslist.KnownOS[l[n-1]] || syslist.KnownArch[l[n-1]]) {
 		return ctxt.matchTag(l[n-1], allTags)
 	}
 	return true

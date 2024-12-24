@@ -9,6 +9,7 @@ import (
 	"internal/itoa"
 	"sync"
 	"time"
+	_ "unsafe"
 )
 
 // BUG(mikio): On JS, methods and functions related to
@@ -16,6 +17,16 @@ import (
 
 // BUG(mikio): On AIX, DragonFly BSD, NetBSD, OpenBSD, Plan 9 and
 // Solaris, the MulticastAddrs method of Interface is not implemented.
+
+// errNoSuchInterface should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/sagernet/sing
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname errNoSuchInterface
 
 var (
 	errInvalidInterface         = errors.New("invalid network interface")

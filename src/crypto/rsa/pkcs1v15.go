@@ -5,8 +5,9 @@
 package rsa
 
 import (
-	"crypto"
 	"crypto/internal/boring"
+	"crypto/internal/fips140/rsa"
+	"crypto/internal/fips140only"
 	"crypto/internal/randutil"
 	"crypto/subtle"
 	"errors"
@@ -39,11 +40,16 @@ type PKCS1v15DecryptOptions struct {
 // WARNING: use of this function to encrypt plaintexts other than
 // session keys is dangerous. Use RSA OAEP in new protocols.
 func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
-	randutil.MaybeReadByte(random)
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/rsa: use of PKCS#1 v1.5 encryption is not allowed in FIPS 140-only mode")
+	}
 
-	if err := checkPub(pub); err != nil {
+	if err := checkPublicKeySize(pub); err != nil {
 		return nil, err
 	}
+
+	randutil.MaybeReadByte(random)
+
 	k := pub.Size()
 	if len(msg) > k-11 {
 		return nil, ErrMessageTooLong
@@ -78,7 +84,11 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
 		return boring.EncryptRSANoPadding(bkey, em)
 	}
 
-	return encrypt(pub, em)
+	fk, err := fipsPublicKey(pub)
+	if err != nil {
+		return nil, err
+	}
+	return rsa.Encrypt(fk, em)
 }
 
 // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS #1 v1.5.
@@ -90,7 +100,7 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
 // forge signatures as if they had the private key. See
 // DecryptPKCS1v15SessionKey for a way of solving this problem.
 func DecryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) ([]byte, error) {
-	if err := checkPub(&priv.PublicKey); err != nil {
+	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
 		return nil, err
 	}
 
@@ -151,9 +161,10 @@ func DecryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) ([]b
 //   - [1] RFC 3218, Preventing the Million Message Attack on CMS,
 //     https://www.rfc-editor.org/rfc/rfc3218.html
 func DecryptPKCS1v15SessionKey(random io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) error {
-	if err := checkPub(&priv.PublicKey); err != nil {
+	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
 		return err
 	}
+
 	k := priv.Size()
 	if k-(len(key)+3+8) < 0 {
 		return ErrDecryption
@@ -182,26 +193,34 @@ func DecryptPKCS1v15SessionKey(random io.Reader, priv *PrivateKey, ciphertext []
 // access patterns. If the plaintext was valid then index contains the index of
 // the original message in em, to allow constant time padding removal.
 func decryptPKCS1v15(priv *PrivateKey, ciphertext []byte) (valid int, em []byte, index int, err error) {
+	if fips140only.Enabled {
+		return 0, nil, 0, errors.New("crypto/rsa: use of PKCS#1 v1.5 encryption is not allowed in FIPS 140-only mode")
+	}
+
 	k := priv.Size()
 	if k < 11 {
 		err = ErrDecryption
-		return
+		return 0, nil, 0, err
 	}
 
 	if boring.Enabled {
 		var bkey *boring.PrivateKeyRSA
 		bkey, err = boringPrivateKey(priv)
 		if err != nil {
-			return
+			return 0, nil, 0, err
 		}
 		em, err = boring.DecryptRSANoPadding(bkey, ciphertext)
 		if err != nil {
-			return
+			return 0, nil, 0, ErrDecryption
 		}
 	} else {
-		em, err = decrypt(priv, ciphertext, noCheck)
+		fk, err := fipsPrivateKey(priv)
 		if err != nil {
-			return
+			return 0, nil, 0, err
+		}
+		em, err = rsa.DecryptWithoutCheck(fk, ciphertext)
+		if err != nil {
+			return 0, nil, 0, ErrDecryption
 		}
 	}
 
@@ -248,146 +267,5 @@ func nonZeroRandomBytes(s []byte, random io.Reader) (err error) {
 		}
 	}
 
-	return
-}
-
-// These are ASN1 DER structures:
-//
-//	DigestInfo ::= SEQUENCE {
-//	  digestAlgorithm AlgorithmIdentifier,
-//	  digest OCTET STRING
-//	}
-//
-// For performance, we don't use the generic ASN1 encoder. Rather, we
-// precompute a prefix of the digest value that makes a valid ASN1 DER string
-// with the correct contents.
-var hashPrefixes = map[crypto.Hash][]byte{
-	crypto.MD5:       {0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10},
-	crypto.SHA1:      {0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14},
-	crypto.SHA224:    {0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04, 0x1c},
-	crypto.SHA256:    {0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20},
-	crypto.SHA384:    {0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30},
-	crypto.SHA512:    {0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40},
-	crypto.MD5SHA1:   {}, // A special TLS case which doesn't use an ASN1 prefix.
-	crypto.RIPEMD160: {0x30, 0x20, 0x30, 0x08, 0x06, 0x06, 0x28, 0xcf, 0x06, 0x03, 0x00, 0x31, 0x04, 0x14},
-}
-
-// SignPKCS1v15 calculates the signature of hashed using
-// RSASSA-PKCS1-V1_5-SIGN from RSA PKCS #1 v1.5.  Note that hashed must
-// be the result of hashing the input message using the given hash
-// function. If hash is zero, hashed is signed directly. This isn't
-// advisable except for interoperability.
-//
-// The random parameter is legacy and ignored, and it can be nil.
-//
-// This function is deterministic. Thus, if the set of possible
-// messages is small, an attacker may be able to build a map from
-// messages to signatures and identify the signed messages. As ever,
-// signatures provide authenticity, not confidentiality.
-func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
-	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
-	if err != nil {
-		return nil, err
-	}
-
-	tLen := len(prefix) + hashLen
-	k := priv.Size()
-	if k < tLen+11 {
-		return nil, ErrMessageTooLong
-	}
-
-	if boring.Enabled {
-		bkey, err := boringPrivateKey(priv)
-		if err != nil {
-			return nil, err
-		}
-		return boring.SignRSAPKCS1v15(bkey, hash, hashed)
-	}
-
-	// EM = 0x00 || 0x01 || PS || 0x00 || T
-	em := make([]byte, k)
-	em[1] = 1
-	for i := 2; i < k-tLen-1; i++ {
-		em[i] = 0xff
-	}
-	copy(em[k-tLen:k-hashLen], prefix)
-	copy(em[k-hashLen:k], hashed)
-
-	return decrypt(priv, em, withCheck)
-}
-
-// VerifyPKCS1v15 verifies an RSA PKCS #1 v1.5 signature.
-// hashed is the result of hashing the input message using the given hash
-// function and sig is the signature. A valid signature is indicated by
-// returning a nil error. If hash is zero then hashed is used directly. This
-// isn't advisable except for interoperability.
-func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) error {
-	if boring.Enabled {
-		bkey, err := boringPublicKey(pub)
-		if err != nil {
-			return err
-		}
-		if err := boring.VerifyRSAPKCS1v15(bkey, hash, hashed, sig); err != nil {
-			return ErrVerification
-		}
-		return nil
-	}
-
-	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
-	if err != nil {
-		return err
-	}
-
-	tLen := len(prefix) + hashLen
-	k := pub.Size()
-	if k < tLen+11 {
-		return ErrVerification
-	}
-
-	// RFC 8017 Section 8.2.2: If the length of the signature S is not k
-	// octets (where k is the length in octets of the RSA modulus n), output
-	// "invalid signature" and stop.
-	if k != len(sig) {
-		return ErrVerification
-	}
-
-	em, err := encrypt(pub, sig)
-	if err != nil {
-		return ErrVerification
-	}
-	// EM = 0x00 || 0x01 || PS || 0x00 || T
-
-	ok := subtle.ConstantTimeByteEq(em[0], 0)
-	ok &= subtle.ConstantTimeByteEq(em[1], 1)
-	ok &= subtle.ConstantTimeCompare(em[k-hashLen:k], hashed)
-	ok &= subtle.ConstantTimeCompare(em[k-tLen:k-hashLen], prefix)
-	ok &= subtle.ConstantTimeByteEq(em[k-tLen-1], 0)
-
-	for i := 2; i < k-tLen-1; i++ {
-		ok &= subtle.ConstantTimeByteEq(em[i], 0xff)
-	}
-
-	if ok != 1 {
-		return ErrVerification
-	}
-
-	return nil
-}
-
-func pkcs1v15HashInfo(hash crypto.Hash, inLen int) (hashLen int, prefix []byte, err error) {
-	// Special case: crypto.Hash(0) is used to indicate that the data is
-	// signed directly.
-	if hash == 0 {
-		return inLen, nil, nil
-	}
-
-	hashLen = hash.Size()
-	if inLen != hashLen {
-		return 0, nil, errors.New("crypto/rsa: input must be hashed message")
-	}
-	prefix, ok := hashPrefixes[hash]
-	if !ok {
-		return 0, nil, errors.New("crypto/rsa: unsupported hash function")
-	}
 	return
 }

@@ -173,7 +173,8 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 			"android/amd64", "android/arm", "android/arm64", "android/386",
 			"freebsd/amd64",
 			"darwin/amd64", "darwin/arm64",
-			"windows/amd64", "windows/386", "windows/arm64":
+			"windows/amd64", "windows/386", "windows/arm64",
+			"wasip1/wasm":
 			return true
 		}
 		return false
@@ -280,7 +281,7 @@ func FirstClass(goos, goarch string) bool {
 	return distInfo[OSArch{goos, goarch}].FirstClass
 }
 
-// Broken reportsr whether goos/goarch is considered a broken port.
+// Broken reports whether goos/goarch is considered a broken port.
 // (See https://go.dev/wiki/PortingPolicy#broken-ports.)
 func Broken(goos, goarch string) bool {
 	return distInfo[OSArch{goos, goarch}].Broken

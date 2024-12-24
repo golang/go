@@ -1,0 +1,7 @@
+# Issue 67953: test to make sure that the go commands static coverage
+# meta-data handling code handles pseudo-packages (ex: "unsafe") properly.
+
+[short] skip
+
+cd $GOROOT/src
+go test -vet=off -p=1 -n -coverpkg=internal/coverage/decodecounter internal/coverage/decodecounter sync unsafe

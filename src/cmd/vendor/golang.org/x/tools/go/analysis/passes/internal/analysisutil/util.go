@@ -15,7 +15,6 @@ import (
 	"os"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/analysisinternal"
 )
 
@@ -121,7 +120,7 @@ func Imports(pkg *types.Package, path string) bool {
 // This function avoids allocating the concatenation of "pkg.Name",
 // which is important for the performance of syntax matching.
 func IsNamedType(t types.Type, pkgPath string, names ...string) bool {
-	n, ok := aliases.Unalias(t).(*types.Named)
+	n, ok := types.Unalias(t).(*types.Named)
 	if !ok {
 		return false
 	}

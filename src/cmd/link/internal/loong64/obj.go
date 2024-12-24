@@ -19,6 +19,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Minalign:         minAlign,
 		Dwarfregsp:       dwarfRegSP,
 		Dwarfreglr:       dwarfRegLR,
+		TrampLimit:       0x7c00000,                      // 26-bit signed offset * 4, leave room for PLT etc.
 		CodePad:          []byte{0x00, 0x00, 0x2a, 0x00}, // BREAK 0
 		Adddynrel:        adddynrel,
 		Archinit:         archinit,
@@ -27,10 +28,11 @@ func Init() (*sys.Arch, ld.Arch) {
 		Extreloc:         extreloc,
 		Machoreloc1:      machoreloc1,
 		Gentext:          gentext,
+		Trampoline:       trampoline,
 
 		ELF: ld.ELFArch{
 			Linuxdynld:     "/lib64/ld-linux-loongarch-lp64d.so.1",
-			LinuxdynldMusl: "/lib64/ld-musl-loongarch.so.1",
+			LinuxdynldMusl: "/lib/ld-musl-loongarch64.so.1",
 			Freebsddynld:   "XXX",
 			Openbsddynld:   "XXX",
 			Netbsddynld:    "XXX",

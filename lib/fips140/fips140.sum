@@ -1,0 +1,11 @@
+# SHA256 checksums of snapshot zip files in this directory.
+# These checksums are included in the FIPS security policy
+# (validation instructions sent to the lab) and MUST NOT CHANGE.
+# That is, the zip files themselves must not change.
+#
+# It is okay to add new zip files to the list, and it is okay to
+# remove zip files from the list when they are removed from
+# this directory. To update this file:
+#
+#	go test cmd/go/internal/fips140 -update
+#

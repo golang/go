@@ -29,6 +29,9 @@ var (
 // Buffered input.
 
 // Reader implements buffering for an io.Reader object.
+// A new Reader is created by calling [NewReader] or [NewReaderSize];
+// alternatively the zero value of a Reader may be used after calling [Reset]
+// on it.
 type Reader struct {
 	buf          []byte
 	rd           io.Reader // reader provided by the client
@@ -130,9 +133,10 @@ func (b *Reader) readErr() error {
 }
 
 // Peek returns the next n bytes without advancing the reader. The bytes stop
-// being valid at the next read call. If Peek returns fewer than n bytes, it
-// also returns an error explaining why the read is short. The error is
-// [ErrBufferFull] if n is larger than b's buffer size.
+// being valid at the next read call. If necessary, Peek will read more bytes
+// into the buffer in order to make n bytes available. If Peek returns fewer
+// than n bytes, it also returns an error explaining why the read is short.
+// The error is [ErrBufferFull] if n is larger than b's buffer size.
 //
 // Calling Peek prevents a [Reader.UnreadByte] or [Reader.UnreadRune] call from succeeding
 // until the next read operation.

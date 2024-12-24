@@ -152,7 +152,7 @@ const (
 	kindSock
 	// kindNoPoll means that we should not put the descriptor into
 	// non-blocking mode, because we know it is not a pipe or FIFO.
-	// Used by openFdAt and openDirNolog for directories.
+	// Used by openDirAt and openDirNolog for directories.
 	kindNoPoll
 )
 
@@ -260,7 +260,7 @@ func epipecheck(file *File, e error) {
 const DevNull = "/dev/null"
 
 // openFileNolog is the Unix implementation of OpenFile.
-// Changes here should be reflected in openFdAt and openDirNolog, if relevant.
+// Changes here should be reflected in openDirAt and openDirNolog, if relevant.
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	setSticky := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
@@ -306,7 +306,7 @@ func openDirNolog(name string) (*File, error) {
 		e error
 	)
 	ignoringEINTR(func() error {
-		r, s, e = open(name, O_RDONLY|syscall.O_CLOEXEC, 0)
+		r, s, e = open(name, O_RDONLY|syscall.O_CLOEXEC|syscall.O_DIRECTORY, 0)
 		return e
 	})
 	if e != nil {
@@ -446,22 +446,15 @@ func Symlink(oldname, newname string) error {
 func readlink(name string) (string, error) {
 	for len := 128; ; len *= 2 {
 		b := make([]byte, len)
-		var (
-			n int
-			e error
-		)
-		for {
-			n, e = fixCount(syscall.Readlink(name, b))
-			if e != syscall.EINTR {
-				break
-			}
-		}
+		n, err := ignoringEINTR2(func() (int, error) {
+			return fixCount(syscall.Readlink(name, b))
+		})
 		// buffer too small
-		if (runtime.GOOS == "aix" || runtime.GOOS == "wasip1") && e == syscall.ERANGE {
+		if (runtime.GOOS == "aix" || runtime.GOOS == "wasip1") && err == syscall.ERANGE {
 			continue
 		}
-		if e != nil {
-			return "", &PathError{Op: "readlink", Path: name, Err: e}
+		if err != nil {
+			return "", &PathError{Op: "readlink", Path: name, Err: err}
 		}
 		if n < len {
 			return string(b[0:n]), nil

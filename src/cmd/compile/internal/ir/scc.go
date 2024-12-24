@@ -14,10 +14,10 @@ package ir
 // The algorithm (known as Tarjan's algorithm) for doing that is taken from
 // Sedgewick, Algorithms, Second Edition, p. 482, with two adaptations.
 //
-// First, a hidden closure function (n.Func.IsHiddenClosure()) cannot be the
-// root of a connected component. Refusing to use it as a root
-// forces it into the component of the function in which it appears.
-// This is more convenient for escape analysis.
+// First, a closure function (fn.IsClosure()) cannot be
+// the root of a connected component. Refusing to use it as a root forces
+// it into the component of the function in which it appears.  This is
+// more convenient for escape analysis.
 //
 // Second, each function becomes two virtual nodes in the graph,
 // with numbers n and n+1. We record the function's node number as n
@@ -54,7 +54,7 @@ func VisitFuncsBottomUp(list []*Func, analyze func(list []*Func, recursive bool)
 	v.analyze = analyze
 	v.nodeID = make(map[*Func]uint32)
 	for _, n := range list {
-		if !n.IsHiddenClosure() {
+		if !n.IsClosure() {
 			v.visit(n)
 		}
 	}
@@ -97,7 +97,7 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
 		}
 	})
 
-	if (min == id || min == id+1) && !n.IsHiddenClosure() {
+	if (min == id || min == id+1) && !n.IsClosure() {
 		// This node is the root of a strongly connected component.
 
 		// The original min was id+1. If the bottomUpVisitor found its way

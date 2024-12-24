@@ -81,6 +81,10 @@ var writeSetCookiesTests = []struct {
 		&Cookie{Name: "cookie-15", Value: "samesite-none", SameSite: SameSiteNoneMode},
 		"cookie-15=samesite-none; SameSite=None",
 	},
+	{
+		&Cookie{Name: "cookie-16", Value: "partitioned", SameSite: SameSiteNoneMode, Secure: true, Path: "/", Partitioned: true},
+		"cookie-16=partitioned; Path=/; Secure; SameSite=None; Partitioned",
+	},
 	// The "special" cookies have values containing commas or spaces which
 	// are disallowed by RFC 6265 but are common in the wild.
 	{
@@ -570,12 +574,14 @@ func TestCookieValid(t *testing.T) {
 		{&Cookie{Name: ""}, false},
 		{&Cookie{Name: "invalid-value", Value: "foo\"bar"}, false},
 		{&Cookie{Name: "invalid-path", Path: "/foo;bar/"}, false},
+		{&Cookie{Name: "invalid-secure-for-partitioned", Value: "foo", Path: "/", Secure: false, Partitioned: true}, false},
 		{&Cookie{Name: "invalid-domain", Domain: "example.com:80"}, false},
 		{&Cookie{Name: "invalid-expiry", Value: "", Expires: time.Date(1600, 1, 1, 1, 1, 1, 1, time.UTC)}, false},
 		{&Cookie{Name: "valid-empty"}, true},
 		{&Cookie{Name: "valid-expires", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0)}, true},
 		{&Cookie{Name: "valid-max-age", Value: "foo", Path: "/bar", Domain: "example.com", MaxAge: 60}, true},
 		{&Cookie{Name: "valid-all-fields", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0), MaxAge: 0}, true},
+		{&Cookie{Name: "valid-partitioned", Value: "foo", Path: "/", Secure: true, Partitioned: true}, true},
 	}
 
 	for _, tt := range tests {

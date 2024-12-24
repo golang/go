@@ -10,7 +10,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/runtime/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -178,6 +178,8 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 	case i == fixedRootFinalizers:
 		for fb := allfin; fb != nil; fb = fb.alllink {
 			cnt := uintptr(atomic.Load(&fb.cnt))
+			// Finalizers that contain cleanups only have fn set. None of the other
+			// fields are necessary.
 			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw, nil)
 		}
 
@@ -401,6 +403,10 @@ func markrootSpans(gcw *gcWork, shard int) {
 					// The special itself is a root.
 					spw := (*specialWeakHandle)(unsafe.Pointer(sp))
 					scanblock(uintptr(unsafe.Pointer(&spw.handle)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+				case _KindSpecialCleanup:
+					spc := (*specialCleanup)(unsafe.Pointer(sp))
+					// The special itself is a root.
+					scanblock(uintptr(unsafe.Pointer(&spc.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
 				}
 			}
 			unlock(&s.speciallock)
@@ -420,6 +426,17 @@ func gcAssistAlloc(gp *g) {
 	}
 	if mp := getg().m; mp.locks > 0 || mp.preemptoff != "" {
 		return
+	}
+
+	if gp := getg(); gp.syncGroup != nil {
+		// Disassociate the G from its synctest bubble while allocating.
+		// This is less elegant than incrementing the group's active count,
+		// but avoids any contamination between GC assist and synctest.
+		sg := gp.syncGroup
+		gp.syncGroup = nil
+		defer func() {
+			gp.syncGroup = sg
+		}()
 	}
 
 	// This extremely verbose boolean indicates whether we've
@@ -945,31 +962,12 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 			println()
 			printunlock()
 		}
-		gcdata := r.gcdata()
-		var s *mspan
-		if r.useGCProg() {
-			// This path is pretty unlikely, an object large enough
-			// to have a GC program allocated on the stack.
-			// We need some space to unpack the program into a straight
-			// bitmask, which we allocate/free here.
-			// TODO: it would be nice if there were a way to run a GC
-			// program without having to store all its bits. We'd have
-			// to change from a Lempel-Ziv style program to something else.
-			// Or we can forbid putting objects on stacks if they require
-			// a gc program (see issue 27447).
-			s = materializeGCProg(r.ptrdata(), gcdata)
-			gcdata = (*byte)(unsafe.Pointer(s.startAddr))
-		}
-
+		ptrBytes, gcData := r.gcdata()
 		b := state.stack.lo + uintptr(obj.off)
 		if conservative {
-			scanConservative(b, r.ptrdata(), gcdata, gcw, &state)
+			scanConservative(b, ptrBytes, gcData, gcw, &state)
 		} else {
-			scanblock(b, r.ptrdata(), gcdata, gcw, &state)
-		}
-
-		if s != nil {
-			dematerializeGCProg(s)
+			scanblock(b, ptrBytes, gcData, gcw, &state)
 		}
 	}
 
@@ -1693,6 +1691,10 @@ func gcDumpObject(label string, obj, off uintptr) {
 func gcmarknewobject(span *mspan, obj uintptr) {
 	if useCheckmark { // The world should be stopped so this should not happen.
 		throw("gcmarknewobject called while doing checkmark")
+	}
+	if gcphase == _GCmarktermination {
+		// Check this here instead of on the hot path.
+		throw("mallocgc called with gcphase == _GCmarktermination")
 	}
 
 	// Mark object.

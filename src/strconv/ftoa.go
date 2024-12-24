@@ -28,14 +28,14 @@ var float64info = floatInfo{52, 11, -1023}
 // value of bitSize bits (32 for float32, 64 for float64).
 //
 // The format fmt is one of
-// 'b' (-ddddp±ddd, a binary exponent),
-// 'e' (-d.dddde±dd, a decimal exponent),
-// 'E' (-d.ddddE±dd, a decimal exponent),
-// 'f' (-ddd.dddd, no exponent),
-// 'g' ('e' for large exponents, 'f' otherwise),
-// 'G' ('E' for large exponents, 'f' otherwise),
-// 'x' (-0xd.ddddp±ddd, a hexadecimal fraction and binary exponent), or
-// 'X' (-0Xd.ddddP±ddd, a hexadecimal fraction and binary exponent).
+//   - 'b' (-ddddp±ddd, a binary exponent),
+//   - 'e' (-d.dddde±dd, a decimal exponent),
+//   - 'E' (-d.ddddE±dd, a decimal exponent),
+//   - 'f' (-ddd.dddd, no exponent),
+//   - 'g' ('e' for large exponents, 'f' otherwise),
+//   - 'G' ('E' for large exponents, 'f' otherwise),
+//   - 'x' (-0xd.ddddp±ddd, a hexadecimal fraction and binary exponent), or
+//   - 'X' (-0Xd.ddddP±ddd, a hexadecimal fraction and binary exponent).
 //
 // The precision prec controls the number of digits (excluding the exponent)
 // printed by the 'e', 'E', 'f', 'g', 'G', 'x', and 'X' formats.
@@ -44,6 +44,8 @@ var float64info = floatInfo{52, 11, -1023}
 // zeros are removed).
 // The special precision -1 uses the smallest number of digits
 // necessary such that ParseFloat will return f exactly.
+// The exponent is written as a decimal integer;
+// for all formats other than 'b', it will be at least two digits.
 func FormatFloat(f float64, fmt byte, prec, bitSize int) string {
 	return string(genericFtoa(make([]byte, 0, max(prec+4, 24)), f, fmt, prec, bitSize))
 }

@@ -5,8 +5,9 @@
 package trace
 
 import (
+	"cmp"
 	"math"
-	"sort"
+	"slices"
 )
 
 // mud is an updatable mutator utilization distribution.
@@ -166,8 +167,8 @@ func (d *mud) invCumulativeSum(y float64) (float64, bool) {
 
 	// Sort edges.
 	edges := d.unsorted
-	sort.Slice(edges, func(i, j int) bool {
-		return edges[i].x < edges[j].x
+	slices.SortFunc(edges, func(a, b edge) int {
+		return cmp.Compare(a.x, b.x)
 	})
 	// Merge with sorted edges.
 	d.unsorted = nil

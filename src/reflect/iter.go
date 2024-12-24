@@ -6,7 +6,9 @@ package reflect
 
 import "iter"
 
-func rangeNum[T int8 | int16 | int32 | int64 | int | uint8 | uint16 | uint32 | uint64 | uint | uintptr, N int64 | uint64](v N) iter.Seq[Value] {
+func rangeNum[T int8 | int16 | int32 | int64 | int |
+	uint8 | uint16 | uint32 | uint64 | uint |
+	uintptr, N int64 | uint64](v N) iter.Seq[Value] {
 	return func(yield func(v Value) bool) {
 		// cannot use range T(v) because no core type.
 		for i := T(0); i < T(v); i++ {
@@ -21,7 +23,8 @@ func rangeNum[T int8 | int16 | int32 | int64 | int | uint8 | uint16 | uint32 | u
 // If v's kind is Func, it must be a function that has no results and
 // that takes a single argument of type func(T) bool for some type T.
 // If v's kind is Pointer, the pointer element type must have kind Array.
-// Otherwise v's kind must be Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr,
+// Otherwise v's kind must be Int, Int8, Int16, Int32, Int64,
+// Uint, Uint8, Uint16, Uint32, Uint64, Uintptr,
 // Array, Chan, Map, Slice, or String.
 func (v Value) Seq() iter.Seq[Value] {
 	if canRangeFunc(v.typ()) {

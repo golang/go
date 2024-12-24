@@ -409,6 +409,7 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 // AppendDecode appends the base64 decoded src to dst
 // and returns the extended buffer.
 // If the input is malformed, it returns the partially decoded src and an error.
+// New line characters (\r and \n) are ignored.
 func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
 	// Compute the output size without padding to avoid over allocating.
 	n := len(src)
@@ -423,6 +424,8 @@ func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
 }
 
 // DecodeString returns the bytes represented by the base64 string s.
+// If the input is malformed, it returns the partially decoded data and
+// [CorruptInputError]. New line characters (\r and \n) are ignored.
 func (enc *Encoding) DecodeString(s string) ([]byte, error) {
 	dbuf := make([]byte, enc.DecodedLen(len(s)))
 	n, err := enc.Decode(dbuf, []byte(s))
@@ -508,7 +511,8 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 
 // Decode decodes src using the encoding enc. It writes at most
 // [Encoding.DecodedLen](len(src)) bytes to dst and returns the number of bytes
-// written. If src contains invalid base64 data, it will return the
+// written. The caller must ensure that dst is large enough to hold all
+// the decoded data. If src contains invalid base64 data, it will return the
 // number of bytes successfully written and [CorruptInputError].
 // New line characters (\r and \n) are ignored.
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {

@@ -423,7 +423,8 @@ package main
 import "crypto/ecdh"
 import "crypto/rand"
 func main() {
-	curve := ecdh.P384()
+	// Use P-256, since that's what the always-enabled CAST uses.
+	curve := ecdh.P256()
 	key, err := curve.GenerateKey(rand.Reader)
 	if err != nil { panic(err) }
 	_, err = curve.NewPublicKey(key.PublicKey().Bytes())
@@ -469,20 +470,20 @@ func TestLinker(t *testing.T) {
 	}
 
 	// List all text symbols under crypto/... and make sure there are some for
-	// P384, but none for the other curves.
+	// P256, but none for the other curves.
 	var consistent bool
 	nm := run(goBin, "tool", "nm", "hello.exe")
 	for _, match := range regexp.MustCompile(`(?m)T (crypto/.*)$`).FindAllStringSubmatch(nm, -1) {
 		symbol := strings.ToLower(match[1])
-		if strings.Contains(symbol, "p384") {
+		if strings.Contains(symbol, "p256") {
 			consistent = true
 		}
-		if strings.Contains(symbol, "p224") || strings.Contains(symbol, "p256") || strings.Contains(symbol, "p521") {
-			t.Errorf("unexpected symbol in program using only ecdh.P384: %s", match[1])
+		if strings.Contains(symbol, "p224") || strings.Contains(symbol, "p384") || strings.Contains(symbol, "p521") {
+			t.Errorf("unexpected symbol in program using only ecdh.P256: %s", match[1])
 		}
 	}
 	if !consistent {
-		t.Error("no P384 symbols found in program using ecdh.P384, test is broken")
+		t.Error("no P256 symbols found in program using ecdh.P256, test is broken")
 	}
 }
 

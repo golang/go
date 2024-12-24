@@ -23,6 +23,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
 	"cmd/go/internal/trace"
+	"cmd/internal/pathcache"
 )
 
 var CmdBuild = &base.Command{
@@ -103,10 +104,11 @@ and test commands:
 		Sets -cover.
 	-coverpkg pattern1,pattern2,pattern3
 		For a build that targets package 'main' (e.g. building a Go
-		executable), apply coverage analysis to each package matching
-		the patterns. The default is to apply coverage analysis to
-		packages in the main Go module. See 'go help packages' for a
-		description of package patterns.  Sets -cover.
+		executable), apply coverage analysis to each package whose
+		import path matches the patterns. The default is to apply
+		coverage analysis to packages in the main Go module. See
+		'go help packages' for a description of package patterns.
+		Sets -cover.
 	-v
 		print the names of packages as they are compiled.
 	-work
@@ -139,6 +141,9 @@ and test commands:
 		or, if set explicitly, has _race appended to it. Likewise for the -msan
 		and -asan flags. Using a -buildmode option that requires non-default compile
 		flags has a similar effect.
+	-json
+		Emit build output in JSON suitable for automated processing.
+		See 'go help buildjson' for the encoding details.
 	-ldflags '[pattern=]arg list'
 		arguments to pass on each go tool link invocation.
 	-linkshared
@@ -298,6 +303,8 @@ const (
 	OmitModFlag       BuildFlagMask = 1 << iota
 	OmitModCommonFlags
 	OmitVFlag
+	OmitBuildOnlyFlags // Omit flags that only affect building packages
+	OmitJSONFlag
 )
 
 // AddBuildFlags adds the flags common to the build, clean, get,
@@ -311,9 +318,11 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 		cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	}
 
+	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "")
 	cmd.Flag.Var(&load.BuildAsmflags, "asmflags", "")
 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
+	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
 	if mask&OmitModFlag == 0 {
@@ -328,23 +337,28 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 		cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
 	}
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+	if mask&(OmitBuildOnlyFlags|OmitJSONFlag) == 0 {
+		// TODO(#62250): OmitBuildOnlyFlags should apply to many more flags
+		// here, but we let a bunch of flags slip in before we realized that
+		// many of them don't make sense for most subcommands. We might even
+		// want to separate "AddBuildFlags" and "AddSelectionFlags".
+		cmd.Flag.BoolVar(&cfg.BuildJSON, "json", false, "")
+	}
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
+	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
 	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "auto", "")
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
-	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
-	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "")
 	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
-	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
-	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
 	cmd.Flag.StringVar(&cfg.DebugRuntimeTrace, "debug-runtime-trace", "", "")
+	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
 }
 
 // AddCoverFlags adds coverage-related flags to "cmd". If the
@@ -901,7 +915,7 @@ func FindExecCmd() []string {
 	if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH {
 		return ExecCmd
 	}
-	path, err := cfg.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
+	path, err := pathcache.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
 	if err == nil {
 		ExecCmd = []string{path}
 	}

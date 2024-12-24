@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/hex"
@@ -41,14 +42,17 @@ import (
 // reference connection will always change.
 
 var (
-	update     = flag.Bool("update", false, "update golden files on failure")
-	fast       = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
-	keyFile    = flag.String("keylog", "", "destination file for KeyLogWriter")
-	bogoMode   = flag.Bool("bogo-mode", false, "Enabled bogo shim mode, ignore everything else")
-	bogoFilter = flag.String("bogo-filter", "", "BoGo test filter")
+	update       = flag.Bool("update", false, "update golden files on failure")
+	keyFile      = flag.String("keylog", "", "destination file for KeyLogWriter")
+	bogoMode     = flag.Bool("bogo-mode", false, "Enabled bogo shim mode, ignore everything else")
+	bogoFilter   = flag.String("bogo-filter", "", "BoGo test filter")
+	bogoLocalDir = flag.String("bogo-local-dir", "", "Local BoGo to use, instead of fetching from source")
 )
 
 func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, update bool), wait bool) {
+	// FIPS mode is non-deterministic and so isn't suited for testing against static test transcripts.
+	skipFIPS(t)
+
 	success := t.Run(name, func(t *testing.T) {
 		if !*update && !wait {
 			t.Parallel()
@@ -222,6 +226,76 @@ func parseTestData(r io.Reader) (flows [][]byte, err error) {
 	return flows, nil
 }
 
+// replayingConn is a net.Conn that replays flows recorded by recordingConn.
+type replayingConn struct {
+	t testing.TB
+	sync.Mutex
+	flows   [][]byte
+	reading bool
+}
+
+var _ net.Conn = (*replayingConn)(nil)
+
+func (r *replayingConn) Read(b []byte) (n int, err error) {
+	r.Lock()
+	defer r.Unlock()
+
+	if !r.reading {
+		r.t.Errorf("expected write, got read")
+		return 0, fmt.Errorf("recording expected write, got read")
+	}
+
+	n = copy(b, r.flows[0])
+	r.flows[0] = r.flows[0][n:]
+	if len(r.flows[0]) == 0 {
+		r.flows = r.flows[1:]
+		if len(r.flows) == 0 {
+			return n, io.EOF
+		} else {
+			r.reading = false
+		}
+	}
+	return n, nil
+}
+
+func (r *replayingConn) Write(b []byte) (n int, err error) {
+	r.Lock()
+	defer r.Unlock()
+
+	if r.reading {
+		r.t.Errorf("expected read, got write")
+		return 0, fmt.Errorf("recording expected read, got write")
+	}
+
+	if !bytes.HasPrefix(r.flows[0], b) {
+		r.t.Errorf("write mismatch: expected %x, got %x", r.flows[0], b)
+		return 0, fmt.Errorf("write mismatch")
+	}
+	r.flows[0] = r.flows[0][len(b):]
+	if len(r.flows[0]) == 0 {
+		r.flows = r.flows[1:]
+		r.reading = true
+	}
+	return len(b), nil
+}
+
+func (r *replayingConn) Close() error {
+	r.Lock()
+	defer r.Unlock()
+
+	if len(r.flows) > 0 {
+		r.t.Errorf("closed with unfinished flows")
+		return fmt.Errorf("unexpected close")
+	}
+	return nil
+}
+
+func (r *replayingConn) LocalAddr() net.Addr                { return nil }
+func (r *replayingConn) RemoteAddr() net.Addr               { return nil }
+func (r *replayingConn) SetDeadline(t time.Time) error      { return nil }
+func (r *replayingConn) SetReadDeadline(t time.Time) error  { return nil }
+func (r *replayingConn) SetWriteDeadline(t time.Time) error { return nil }
+
 // tempFile creates a temp file containing contents and returns its path.
 func tempFile(contents string) string {
 	file, err := os.CreateTemp("", "go-tls-test")
@@ -296,6 +370,8 @@ Dialing:
 
 			case c2 := <-localListener.ch:
 				if c2.RemoteAddr().String() == c1.LocalAddr().String() {
+					t.Cleanup(func() { c1.Close() })
+					t.Cleanup(func() { c2.Close() })
 					return c1, c2
 				}
 				t.Logf("localPipe: unexpected connection: %v != %v", c2.RemoteAddr(), c1.LocalAddr())
@@ -376,6 +452,7 @@ func runMain(m *testing.M) int {
 		Certificates:       make([]Certificate, 2),
 		InsecureSkipVerify: true,
 		CipherSuites:       allCipherSuites(),
+		CurvePreferences:   []CurveID{X25519, CurveP256, CurveP384, CurveP521},
 		MinVersion:         VersionTLS10,
 		MaxVersion:         VersionTLS13,
 	}
@@ -399,7 +476,7 @@ func runMain(m *testing.M) int {
 func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverState, clientState ConnectionState, err error) {
 	const sentinel = "SENTINEL\n"
 	c, s := localPipe(t)
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		cli := Client(c, clientConfig)
 		err := cli.Handshake()
@@ -408,7 +485,7 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
 			c.Close()
 			return
 		}
-		defer cli.Close()
+		defer func() { errChan <- nil }()
 		clientState = cli.ConnectionState()
 		buf, err := io.ReadAll(cli)
 		if err != nil {
@@ -417,7 +494,10 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
 		if got := string(buf); got != sentinel {
 			t.Errorf("read %q from TLS connection, but expected %q", got, sentinel)
 		}
-		errChan <- nil
+		// We discard the error because after ReadAll returns the server must
+		// have already closed the connection. Sending data (the closeNotify
+		// alert) can cause a reset, that will make Close return an error.
+		cli.Close()
 	}()
 	server := Server(s, serverConfig)
 	err = server.Handshake()
@@ -429,11 +509,11 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
 		if err := server.Close(); err != nil {
 			t.Errorf("failed to call server.Close: %v", err)
 		}
-		err = <-errChan
 	} else {
+		err = fmt.Errorf("server: %v", err)
 		s.Close()
-		<-errChan
 	}
+	err = errors.Join(err, <-errChan)
 	return
 }
 
@@ -445,6 +525,12 @@ func fromHex(s string) []byte {
 var testRSACertificate = fromHex("3082024b308201b4a003020102020900e8f09d3fe25beaa6300d06092a864886f70d01010b0500301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f74301e170d3136303130313030303030305a170d3235303130313030303030305a301a310b3009060355040a1302476f310b300906035504031302476f30819f300d06092a864886f70d010101050003818d0030818902818100db467d932e12270648bc062821ab7ec4b6a25dfe1e5245887a3647a5080d92425bc281c0be97799840fb4f6d14fd2b138bc2a52e67d8d4099ed62238b74a0b74732bc234f1d193e596d9747bf3589f6c613cc0b041d4d92b2b2423775b1c3bbd755dce2054cfa163871d1e24c4f31d1a508baab61443ed97a77562f414c852d70203010001a38193308190300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030106082b06010505070302300c0603551d130101ff0402300030190603551d0e041204109f91161f43433e49a6de6db680d79f60301b0603551d230414301280104813494d137e1631bba301d5acab6e7b30190603551d1104123010820e6578616d706c652e676f6c616e67300d06092a864886f70d01010b0500038181009d30cc402b5b50a061cbbae55358e1ed8328a9581aa938a495a1ac315a1a84663d43d32dd90bf297dfd320643892243a00bccf9c7db74020015faad3166109a276fd13c3cce10c5ceeb18782f16c04ed73bbb343778d0c1cf10fa1d8408361c94c722b9daedb4606064df4c1b33ec0d1bd42d4dbfe3d1360845c21d33be9fae7")
 
 var testRSACertificateIssuer = fromHex("3082021930820182a003020102020900ca5e4e811a965964300d06092a864886f70d01010b0500301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f74301e170d3136303130313030303030305a170d3235303130313030303030305a301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f7430819f300d06092a864886f70d010101050003818d0030818902818100d667b378bb22f34143b6cd2008236abefaf2852adf3ab05e01329e2c14834f5105df3f3073f99dab5442d45ee5f8f57b0111c8cb682fbb719a86944eebfffef3406206d898b8c1b1887797c9c5006547bb8f00e694b7a063f10839f269f2c34fff7a1f4b21fbcd6bfdfb13ac792d1d11f277b5c5b48600992203059f2a8f8cc50203010001a35d305b300e0603551d0f0101ff040403020204301d0603551d250416301406082b0601050507030106082b06010505070302300f0603551d130101ff040530030101ff30190603551d0e041204104813494d137e1631bba301d5acab6e7b300d06092a864886f70d01010b050003818100c1154b4bab5266221f293766ae4138899bd4c5e36b13cee670ceeaa4cbdf4f6679017e2fe649765af545749fe4249418a56bd38a04b81e261f5ce86b8d5c65413156a50d12449554748c59a30c515bc36a59d38bddf51173e899820b282e40aa78c806526fd184fb6b4cf186ec728edffa585440d2b3225325f7ab580e87dd76")
+
+var testRSA2048Certificate = fromHex("30820316308201fea003020102020900e8f09d3fe25beaa6300d06092a864886f70d01010b0500301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f74301e170d3136303130313030303030305a170d3338303130313030303030305a301a310b3009060355040a1302476f310b300906035504031302476f30820122300d06092a864886f70d01010105000382010f003082010a0282010100e0ac47db9ba1b7f98a996c62dc1d248d4ee570544136fe4e911e22fccc0fe2b20982f3c4cdd8f4065c5068c873ca0a768b80dc915edc66541a5f26cdea44e56e411221e2f9927bf4e009fee76dbe0e118dcc13392efd6f42d8eb2fd5bc8f63ac77800c84d3be90c20c321273254b9137ef61f825dad1ec2c5e75aa4be6d3104899bd5ac400da7ab942b4227a3870ae5bb97870aa09a1082fb8e78b944cd7fd1b0c6fb1cce03b5430b12ef9ce2d95e01821766e998df0cc99202a57cf030577bd2dc0ec85a49f203511bb6f0e9f43398ead0958f8d7534c61e81daf4501faaa68d9cbc725b58401900fa48a3e2333b15c88cf0c5cc8f33fb9464f9d5f5768b8f10203010001a35a3058300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030106082b06010505070302300c0603551d130101ff0402300030190603551d1104123010820e6578616d706c652e676f6c616e67300d06092a864886f70d01010b050003820101009e83f835e2da08204ee6f8bdca793cf83c7aec175349c1642dfbe9f4d0dcfb1aedb4d0122e16c2ad92e63dd31cce10ca5dd04be48cded0fdc8fea49e891d9d93e778a67d54b619ac167ce7bb0f6000ca00c5677d09df3eb10080134ba32bfe4132d33954dc479cb266288d53d3f43af9c78c0ca59d396498bdc56d4966dc6b7e49081f7f2ae1d704bb9f9effed93c57d3b738da02edff3999e3f1a5dce2b093951947d233d9c6b6a12b4b1611826aa02544980089eebbcf22a1a96bd35a3ddf638578989334a93d5081fab442b4383ba6213b7cdd74110582244a2abd937828b311d8dd69178756db7874293b9810c5c2e833f91d49d283a62caaf359141997f")
+
+var testRSA2048CertificateIssuer = fromHex("308203223082020aa003020102020900ca5e4e811a965964300d06092a864886f70d01010b0500301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f74301e170d3136303130313030303030305a170d3235303130313030303030305a301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f7430820122300d06092a864886f70d01010105000382010f003082010a0282010100b308c1720c7054abe66e1be6f8a11246808215a810e8936e47601f7ec1afeb02ad69a5000959d4e08ebc4455ef90b39616f380b8ff2e76f29942d7e009cf010824fe56f69140ac39b761595255ec2aa35155ca2eea884f57b25f8a52f41f56f65b0197cb6c637f9adfa97d8ac27565449f64e67f8b918646ffd630601b0badd8d38aea421fe413ee94f10ea5874c2fd6d8c1b9febaa5ca0ce759993a232c9c48e52230bbf58777b0c30e07e9e0914133730d844b9887b950d5a17c779ac69de2d9c65d26f1ea46c7dd7ac636af6d77df7c9218f78c7b5f08b025867f343ac66cd43a657ac44bfd7e9d07e95a22ff9a0babf72dcffc66eba0a1d90731f67e3bbd0203010001a361305f300e0603551d0f0101ff040403020204301d0603551d250416301406082b0601050507030106082b06010505070302300f0603551d130101ff040530030101ff301d0603551d0e0416041460145a6ce2e8a15b1b68db9a4752ce8684d6ba2d300d06092a864886f70d01010b050003820101001d342fe0b50a25d57a8b13bc14d0abb1eea7431ee752aa423e1306654183e44e9d48bbf592cd32ce77310fdc4e8bbcd724fc43d2723f454bfe605ff90d38d8c6fe60b36c6f4d2d7e4e79bceeb2484f0565274b0d0c4a8562370677624a4c133e332a9e63d4b47544c14e4908ee8685dd0760ae6f4ab089ede2b0cdc595ecefbee7d8be80d57b2d4e4510b6ceda54d1a5980540214191d81cc89a983da43d4043f8efe97a2e231c5153bded520acce87ec8c64a3408f0eb4c742c4a877e8b5b7b7f72497734a41a95994a7a103262ea6d598d03fd5cb0579ed4702424da8893334c58215bc655d49656aedcd02d18676f45d6b9469ae04b89abe9b358391cce99")
+
+var testRSA2048PrivateKey, _ = x509.ParsePKCS1PrivateKey(fromHex("308204a40201000282010100e0ac47db9ba1b7f98a996c62dc1d248d4ee570544136fe4e911e22fccc0fe2b20982f3c4cdd8f4065c5068c873ca0a768b80dc915edc66541a5f26cdea44e56e411221e2f9927bf4e009fee76dbe0e118dcc13392efd6f42d8eb2fd5bc8f63ac77800c84d3be90c20c321273254b9137ef61f825dad1ec2c5e75aa4be6d3104899bd5ac400da7ab942b4227a3870ae5bb97870aa09a1082fb8e78b944cd7fd1b0c6fb1cce03b5430b12ef9ce2d95e01821766e998df0cc99202a57cf030577bd2dc0ec85a49f203511bb6f0e9f43398ead0958f8d7534c61e81daf4501faaa68d9cbc725b58401900fa48a3e2333b15c88cf0c5cc8f33fb9464f9d5f5768b8f10203010001028201007aac96efca229b199e1bf79a63256677e1c455792bc2a348b2e409a68ea57dda486740430d4290bb885c3f5a741eb567d4f41f7b2098a726f4df4f88cf899edc7c9b31f584dffedece15a7212642c7dbbdd8d806392a183e1fc30af36169c9bab9e528f0bdcd27ad4c8b6a97849da6452c6809de61848db80c3ba3289e785042cdfd46fbfee5f78adcba2927fcd8cbe9dcaa97190457eaa45d77adbe0db820aff0c8511d837ab5b307bad5f85afd2cc70d9659ec58045d97ced1eb7950670ac559449c0305fddefda1bac88d36629a177f65abad182c6470830b39e7f6dbdef4df813ccaef01d5a42d37213b2b9647e2ff56a63e6b6a4b6e8a1567bbfd77042102818100eb66f205e8507c78f7167dbef3ddf02fde6a67bd15152609e9296576e28c79678177145ae98e0a2fee58fdb3d626fb6beae3e0ae0b76bc47d16fcdeb16f0caca8a0902779979382609705ae84514de480c2fb2ddda3049347cc1bde9f1a359747079ef3dce020a3c186c90e63bc20b5489a40d768b1c1c35c679edc5662e18c702818100f454ffff95b126b55cb13b68a3841600fc0bc69ff4064f7ceb122495fa972fdb05ca2fa1c6e2e84432f81c96875ab12226e8ce92ba808c4f6325f27ce058791f05db96e623687d3cfc198e748a07521a8c7ee9e7e8faf95b0985be82b867a49f7d5d50fac3881d2c39dedfdbca3ebe847b859c9864cf7a543e4688f5a60118870281806cee737ac65950704daeebbb8c701c709a54d4f28baa00b33f6137a1bf0e5033d4963d2620c3e8f4eb2fe51eee2f95d3079c31e1784e96ac093fdaa33a376d3032961ebd27990fa192669abab715041385082196461c6813d0d37ac5a25afbcf452937cb7ae438c63c6b28d651bae6b1550c446aa1cefd42e9388d0df6cdc80b02818100cac172c33504923bb494fad8e5c0a9c5dd63244bfe63f238969632b82700a95cd71c2694d887d9f92656d0da75ae640a1441e392cda3f94bb3da7cb4f6335527d2639c809467946e34423cfe26c0d6786398ba20922d1b1a59f79bd5bc937d8040b75c890c13fb298548977a3c05ff71cf535c54f66b5a77684a7e4363a3cb2702818100a4d782f35d5a07f9c1f8f9c378564b220387d1e481cc856b631de7637d8bb77c851db070122050ac230dc6e45edf4523471c717c1cb86a36b2fd3358fae349d51be54d71d7dbeaa6af668323e2b51933f0b8488aa12723e0f32207068b4aa64ed54bcef4acbbbe35b92802faba7ed45ae52bef8313d9ef4393ccc5cf868ddbf8"))
 
 // testRSAPSSCertificate has signatureAlgorithm rsassaPss, but subjectPublicKeyInfo
 // algorithm rsaEncryption, for use with the rsa_pss_rsae_* SignatureSchemes.

@@ -45,7 +45,7 @@ import (
 	"strings"
 	"time"
 
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 )
 
 func usage() {
@@ -69,11 +69,11 @@ var (
 func main() {
 	log.SetPrefix("distpack: ")
 	log.SetFlags(0)
-	telemetry.Start()
+	counter.Open()
 	flag.Usage = usage
 	flag.Parse()
-	telemetry.Inc("distpack/invocations")
-	telemetry.CountFlags("distpack/flag:", *flag.CommandLine)
+	counter.Inc("distpack/invocations")
+	counter.CountFlags("distpack/flag:", *flag.CommandLine)
 	if flag.NArg() != 0 {
 		usage()
 	}
@@ -132,7 +132,7 @@ func main() {
 		// Generated during cmd/dist. See ../dist/build.go:/gentab.
 		"src/cmd/go/internal/cfg/zdefaultcc.go",
 		"src/go/build/zcgo.go",
-		"src/runtime/internal/sys/zversion.go",
+		"src/internal/runtime/sys/zversion.go",
 		"src/time/tzdata/zzipdata.go",
 
 		// Generated during cmd/dist by bootstrapBuildTools.

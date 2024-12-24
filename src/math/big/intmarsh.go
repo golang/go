@@ -45,12 +45,14 @@ func (z *Int) GobDecode(buf []byte) error {
 	return nil
 }
 
+// AppendText implements the [encoding.TextAppender] interface.
+func (x *Int) AppendText(b []byte) (text []byte, err error) {
+	return x.Append(b, 10), nil
+}
+
 // MarshalText implements the [encoding.TextMarshaler] interface.
 func (x *Int) MarshalText() (text []byte, err error) {
-	if x == nil {
-		return []byte("<nil>"), nil
-	}
-	return x.abs.itoa(x.neg, 10), nil
+	return x.AppendText(nil)
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.

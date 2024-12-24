@@ -30,14 +30,11 @@ const (
 type Table [256]uint64
 
 var (
-	slicing8TablesBuildOnce sync.Once
-	slicing8TableISO        *[8]Table
-	slicing8TableECMA       *[8]Table
+	slicing8TableISO  *[8]Table
+	slicing8TableECMA *[8]Table
 )
 
-func buildSlicing8TablesOnce() {
-	slicing8TablesBuildOnce.Do(buildSlicing8Tables)
-}
+var buildSlicing8TablesOnce = sync.OnceFunc(buildSlicing8Tables)
 
 func buildSlicing8Tables() {
 	slicing8TableISO = makeSlicingBy8Table(makeTable(ISO))
@@ -111,12 +108,15 @@ const (
 	marshaledSize = len(magic) + 8 + 8
 )
 
-func (d *digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize)
+func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic...)
-	b = byteorder.BeAppendUint64(b, tableSum(d.tab))
-	b = byteorder.BeAppendUint64(b, d.crc)
+	b = byteorder.BEAppendUint64(b, tableSum(d.tab))
+	b = byteorder.BEAppendUint64(b, d.crc)
 	return b, nil
+}
+
+func (d *digest) MarshalBinary() ([]byte, error) {
+	return d.AppendBinary(make([]byte, 0, marshaledSize))
 }
 
 func (d *digest) UnmarshalBinary(b []byte) error {
@@ -126,10 +126,10 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize {
 		return errors.New("hash/crc64: invalid hash state size")
 	}
-	if tableSum(d.tab) != byteorder.BeUint64(b[4:]) {
+	if tableSum(d.tab) != byteorder.BEUint64(b[4:]) {
 		return errors.New("hash/crc64: tables do not match")
 	}
-	d.crc = byteorder.BeUint64(b[12:])
+	d.crc = byteorder.BEUint64(b[12:])
 	return nil
 }
 
@@ -153,8 +153,7 @@ func update(crc uint64, tab *Table, p []byte) uint64 {
 		}
 		// Update using slicing-by-8
 		for len(p) > 8 {
-			crc ^= uint64(p[0]) | uint64(p[1])<<8 | uint64(p[2])<<16 | uint64(p[3])<<24 |
-				uint64(p[4])<<32 | uint64(p[5])<<40 | uint64(p[6])<<48 | uint64(p[7])<<56
+			crc ^= byteorder.LEUint64(p)
 			crc = helperTable[7][crc&0xff] ^
 				helperTable[6][(crc>>8)&0xff] ^
 				helperTable[5][(crc>>16)&0xff] ^
@@ -200,7 +199,7 @@ func tableSum(t *Table) uint64 {
 	b := a[:0]
 	if t != nil {
 		for _, x := range t {
-			b = byteorder.BeAppendUint64(b, x)
+			b = byteorder.BEAppendUint64(b, x)
 		}
 	}
 	return Checksum(b, MakeTable(ISO))

@@ -29,8 +29,8 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
-	"cmd/go/internal/par"
 	"cmd/go/internal/str"
+	"cmd/internal/par"
 )
 
 // enabled is used to flag off the behavior of the module index on tip.
@@ -86,18 +86,18 @@ func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
 	h := cache.NewHash("moduleIndex")
 	fmt.Fprintf(h, "modroot %s\n", modroot)
 	fmt.Fprintf(h, "package %s %s %v\n", runtime.Version(), indexVersion, pkgdir)
-	entries, err := fsys.ReadDir(pkgdir)
+	dirs, err := fsys.ReadDir(pkgdir)
 	if err != nil {
 		// pkgdir might not be a directory. give up on hashing.
 		return cache.ActionID{}, ErrNotIndexed
 	}
 	cutoff := time.Now().Add(-modTimeCutoff)
-	for _, info := range entries {
-		if info.IsDir() {
+	for _, d := range dirs {
+		if d.IsDir() {
 			continue
 		}
 
-		if !info.Mode().IsRegular() {
+		if !d.Type().IsRegular() {
 			return cache.ActionID{}, ErrNotIndexed
 		}
 		// To avoid problems for very recent files where a new
@@ -108,6 +108,10 @@ func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
 		// This is the same strategy used for hashing test inputs.
 		// See hashOpen in cmd/go/internal/test/test.go for the
 		// corresponding code.
+		info, err := d.Info()
+		if err != nil {
+			return cache.ActionID{}, ErrNotIndexed
+		}
 		if info.ModTime().After(cutoff) {
 			return cache.ActionID{}, ErrNotIndexed
 		}
@@ -671,7 +675,7 @@ func IsStandardPackage(goroot_, compiler, path string) bool {
 		modroot = filepath.Join(modroot, "cmd")
 	}
 	if pkg, err := GetPackage(modroot, filepath.Join(modroot, reldir)); err == nil {
-		hasGo, err := pkg.IsDirWithGoFiles()
+		hasGo, err := pkg.IsGoDir()
 		return err == nil && hasGo
 	} else if errors.Is(err, ErrNotIndexed) {
 		// Fall back because package isn't indexable. (Probably because
@@ -681,8 +685,8 @@ func IsStandardPackage(goroot_, compiler, path string) bool {
 	return false
 }
 
-// IsDirWithGoFiles is the equivalent of fsys.IsDirWithGoFiles using the information in the index.
-func (rp *IndexPackage) IsDirWithGoFiles() (_ bool, err error) {
+// IsGoDir is the equivalent of fsys.IsGoDir using the information in the index.
+func (rp *IndexPackage) IsGoDir() (_ bool, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("error reading module index: %v", e)

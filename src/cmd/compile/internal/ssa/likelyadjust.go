@@ -73,20 +73,6 @@ type loopnest struct {
 	initializedChildren, initializedDepth, initializedExits bool
 }
 
-func min8(a, b int8) int8 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max8(a, b int8) int8 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 const (
 	blDEFAULT = 0
 	blMin     = blDEFAULT
@@ -143,7 +129,7 @@ func likelyadjust(f *Func) {
 			// and less influential than inferences from loop structure.
 		case BlockDefer:
 			local[b.ID] = blCALL
-			certain[b.ID] = max8(blCALL, certain[b.Succs[0].b.ID])
+			certain[b.ID] = max(blCALL, certain[b.Succs[0].b.ID])
 
 		default:
 			if len(b.Succs) == 1 {
@@ -157,7 +143,7 @@ func likelyadjust(f *Func) {
 				// tagged with call cost. Net effect is that loop entry is favored.
 				b0 := b.Succs[0].b.ID
 				b1 := b.Succs[1].b.ID
-				certain[b.ID] = min8(certain[b0], certain[b1])
+				certain[b.ID] = min(certain[b0], certain[b1])
 
 				l := b2l[b.ID]
 				l0 := b2l[b0]
@@ -223,7 +209,7 @@ func likelyadjust(f *Func) {
 			for _, v := range b.Values {
 				if opcodeTable[v.Op].call {
 					local[b.ID] = blCALL
-					certain[b.ID] = max8(blCALL, certain[b.Succs[0].b.ID])
+					certain[b.ID] = max(blCALL, certain[b.Succs[0].b.ID])
 					break
 				}
 			}

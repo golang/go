@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync/atomic"
 
 	"golang.org/x/telemetry/internal/telemetry"
 )
@@ -25,18 +26,33 @@ const (
 	configFileName = "config.json"
 )
 
+// needNoConsole is used on windows to set the windows.CREATE_NO_WINDOW
+// creation flag.
+var needNoConsole = func(cmd *exec.Cmd) {}
+
+var downloads int64
+
+// Downloads reports, for testing purposes, the number of times [Download] has
+// been called.
+func Downloads() int64 {
+	return atomic.LoadInt64(&downloads)
+}
+
 // Download fetches the requested telemetry UploadConfig using "go mod
 // download". If envOverlay is provided, it is appended to the environment used
 // for invoking the go command.
 //
 // The second result is the canonical version of the requested configuration.
 func Download(version string, envOverlay []string) (*telemetry.UploadConfig, string, error) {
+	atomic.AddInt64(&downloads, 1)
+
 	if version == "" {
 		version = "latest"
 	}
 	modVer := ModulePath + "@" + version
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", "mod", "download", "-json", modVer)
+	needNoConsole(cmd)
 	cmd.Env = append(os.Environ(), envOverlay...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

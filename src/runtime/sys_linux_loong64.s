@@ -431,12 +431,9 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	JAL	(R20)
 	RET
 
+// Called from c-abi, R4: sig, R5: info, R6: cxt
 // func sigtramp(signo, ureg, ctxt unsafe.Pointer)
 TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$168
-	MOVW	R4, (1*8)(R3)
-	MOVV	R5, (2*8)(R3)
-	MOVV	R6, (3*8)(R3)
-
 	// Save callee-save registers in the case of signal forwarding.
 	// Please refer to https://golang.org/issue/31827 .
 	SAVE_R22_TO_R31((4*8))
@@ -444,12 +441,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$168
 
 	// this might be called in external code context,
 	// where g is not set.
-	MOVB	runtime·iscgo(SB), R4
-	BEQ	R4, 2(PC)
+	MOVB	runtime·iscgo(SB), R7
+	BEQ	R7, 2(PC)
 	JAL	runtime·load_g(SB)
 
-	MOVV	$runtime·sigtrampgo(SB), R4
-	JAL	(R4)
+	// R5 and R6 already contain info and ctx, respectively.
+	MOVV	$runtime·sigtrampgo<ABIInternal>(SB), R7
+	JAL	(R7)
 
 	// Restore callee-save registers.
 	RESTORE_R22_TO_R31((4*8))
@@ -656,4 +654,47 @@ TEXT runtime·connect(SB),$0-28
 TEXT runtime·socket(SB),$0-20
 	MOVV	R0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
 	MOVW	R0, ret+16(FP) // for vet
+	RET
+
+// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
+	MOVV	R3, R23
+
+	MOVV	runtime·vdsoGetrandomSym(SB), R12
+
+	MOVV	g_m(g), R24
+
+	MOVV	m_vdsoPC(R24), R13
+	MOVV	R13, 8(R3)
+	MOVV	m_vdsoSP(R24), R13
+	MOVV	R13, 16(R3)
+	MOVV	R1, m_vdsoPC(R24)
+	MOVV    $buf-8(FP), R13
+	MOVV	R13, m_vdsoSP(R24)
+
+	AND	$~15, R3
+
+	MOVBU	runtime·iscgo(SB), R13
+	BNE	R13, nosaveg
+	MOVV	m_gsignal(R24), R13
+	BEQ	R13, nosaveg
+	BEQ	g, R13, nosaveg
+	MOVV	(g_stack+stack_lo)(R13), R25
+	MOVV	g, (R25)
+
+	JAL	(R12)
+
+	MOVV	R0, (R25)
+	JMP	restore
+
+nosaveg:
+	JAL	(R12)
+
+restore:
+	MOVV	R23, R3
+	MOVV	16(R3), R25
+	MOVV	R25, m_vdsoSP(R24)
+	MOVV	8(R3), R25
+	MOVV	R25, m_vdsoPC(R24)
+	NOP	R4 // Satisfy go vet, since the return value comes from the vDSO function.
 	RET

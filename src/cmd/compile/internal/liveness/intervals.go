@@ -49,6 +49,7 @@ package liveness
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -131,11 +132,7 @@ func (c *IntervalsBuilder) setLast(x int) {
 
 func (c *IntervalsBuilder) Finish() (Intervals, error) {
 	// Reverse intervals list and check.
-	// FIXME: replace with slices.Reverse once the
-	// bootstrap version supports it.
-	for i, j := 0, len(c.s)-1; i < j; i, j = i+1, j-1 {
-		c.s[i], c.s[j] = c.s[j], c.s[i]
-	}
+	slices.Reverse(c.s)
 	if err := check(c.s); err != nil {
 		return Intervals{}, err
 	}
@@ -168,7 +165,7 @@ func (c *IntervalsBuilder) Live(pos int) error {
 }
 
 // Kill method should be invoked on instruction at position p if instr
-// should be treated as as having a kill (lifetime end) for the
+// should be treated as having a kill (lifetime end) for the
 // resource. See the example in the comment at the beginning of this
 // file for an example. Note that if we see a kill at position K for a
 // resource currently live since J, this will result in a lifetime

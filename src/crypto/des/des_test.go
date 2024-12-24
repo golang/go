@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/cipher"
 	"crypto/des"
+	"crypto/internal/cryptotest"
 	"testing"
 )
 
@@ -1504,6 +1505,17 @@ func TestSubstitutionTableKnownAnswerDecrypt(t *testing.T) {
 			t.Errorf("#%d: result: %x want: %x", i, out, tt.in)
 		}
 	}
+}
+
+// Test DES against the general cipher.Block interface tester
+func TestDESBlock(t *testing.T) {
+	t.Run("DES", func(t *testing.T) {
+		cryptotest.TestBlock(t, 8, des.NewCipher)
+	})
+
+	t.Run("TripleDES", func(t *testing.T) {
+		cryptotest.TestBlock(t, 24, des.NewTripleDESCipher)
+	})
 }
 
 func BenchmarkEncrypt(b *testing.B) {

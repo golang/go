@@ -50,6 +50,7 @@ NONE < defer;
 NONE <
   sweepWaiters,
   assistQueue,
+  strongFromWeakQueue,
   sweep;
 
 # Test only
@@ -66,6 +67,7 @@ assistQueue,
   hchan,
   pollDesc, # pollDesc can interact with timers, which can lock sched.
   scavenge,
+  strongFromWeakQueue,
   sweep,
   sweepWaiters,
   testR,
@@ -92,6 +94,9 @@ NONE < root;
 NONE
 < itab
 < reflectOffs;
+
+# Synctest
+hchan, root, timers, timer, notifyList, reflectOffs < synctest;
 
 # User arena state
 NONE < userArenaState;
@@ -143,6 +148,7 @@ gcBitsArenas,
   profInsert,
   profMemFuture,
   spanSetSpine,
+  synctest,
   fin,
   root
 # Anything that can grow the stack can acquire STACKGROW.

@@ -6,7 +6,10 @@
 
 package runtime
 
-import "internal/goarch"
+import (
+	"internal/goarch"
+	_ "unsafe"
+)
 
 // Timestamps in trace are produced through either nanotime or cputicks
 // and divided by traceTimeDiv. nanotime is used everywhere except on
@@ -44,8 +47,12 @@ type traceTime uint64
 // the timestamp from is specific to tracing, and shouldn't be mixed with other
 // clock sources.
 //
-// nosplit because it's called from exitsyscall, which is nosplit.
+// nosplit because it's called from exitsyscall and various trace writing functions,
+// which are nosplit.
 //
+// traceClockNow is called by golang.org/x/exp/trace using linkname.
+//
+//go:linkname traceClockNow
 //go:nosplit
 func traceClockNow() traceTime {
 	if osHasLowResClock {

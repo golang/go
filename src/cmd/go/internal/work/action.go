@@ -26,10 +26,10 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
-	"cmd/go/internal/robustio"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/buildid"
+	"cmd/internal/robustio"
 )
 
 // A Builder holds global state about a build.
@@ -92,6 +92,8 @@ type Action struct {
 
 	TryCache func(*Builder, *Action) bool // callback for cache bypass
 
+	CacheExecutable bool // Whether to cache executables produced by link steps
+
 	// Generated files, directories.
 	Objdir   string         // directory for intermediate objects
 	Target   string         // goal of the action: the created package or executable
@@ -110,7 +112,7 @@ type Action struct {
 	// Execution state.
 	pending      int               // number of deps yet to complete
 	priority     int               // relative execution priority
-	Failed       bool              // whether the action failed
+	Failed       *Action           // set to root cause if the action failed
 	json         *actionJSON       // action graph information
 	nonGoOverlay map[string]string // map from non-.go source files to copied files in objdir. Nil if no overlay is used.
 	traceSpan    *trace.Span
@@ -208,7 +210,7 @@ func actionGraphJSON(a *Action) string {
 		}
 	}
 
-	var list []*actionJSON
+	list := make([]*actionJSON, 0, len(workq))
 	for id, a := range workq {
 		if a.json == nil {
 			a.json = &actionJSON{
@@ -218,7 +220,7 @@ func actionGraphJSON(a *Action) string {
 				Args:       a.Args,
 				Objdir:     a.Objdir,
 				Target:     a.Target,
-				Failed:     a.Failed,
+				Failed:     a.Failed != nil,
 				Priority:   a.priority,
 				Built:      a.built,
 				VetxOnly:   a.VetxOnly,
@@ -269,6 +271,7 @@ func NewBuilder(workDir string) *Builder {
 	b.toolIDCache = make(map[string]string)
 	b.buildIDCache = make(map[string]string)
 
+	printWorkDir := false
 	if workDir != "" {
 		b.WorkDir = workDir
 	} else if cfg.BuildN {
@@ -291,12 +294,14 @@ func NewBuilder(workDir string) *Builder {
 		}
 		b.WorkDir = tmp
 		builderWorkDirs.Store(b, b.WorkDir)
-		if cfg.BuildX || cfg.BuildWork {
-			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
-		}
+		printWorkDir = cfg.BuildX || cfg.BuildWork
 	}
 
 	b.backgroundSh = NewShell(b.WorkDir, nil)
+
+	if printWorkDir {
+		b.BackgroundShell().Printf("WORK=%s\n", b.WorkDir)
+	}
 
 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
 		fmt.Fprintf(os.Stderr, "go: %v\n", err)
@@ -560,9 +565,9 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		if p.Internal.PGOProfile != "" {
 			pgoAction := b.cacheAction("preprocess PGO profile "+p.Internal.PGOProfile, nil, func() *Action {
 				a := &Action{
-					Mode:    "preprocess PGO profile",
-					Actor:   &pgoActor{input: p.Internal.PGOProfile},
-					Objdir:  b.NewObjdir(),
+					Mode:   "preprocess PGO profile",
+					Actor:  &pgoActor{input: p.Internal.PGOProfile},
+					Objdir: b.NewObjdir(),
 				}
 				a.Target = filepath.Join(a.Objdir, "pgo.preprofile")
 
@@ -631,7 +636,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 
 		// vet expects to be able to import "fmt".
 		var stk load.ImportStack
-		stk.Push("vet")
+		stk.Push(load.NewImportInfo("vet", nil))
 		p1, err := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
 		if err != nil {
 			base.Fatalf("unexpected error loading fmt package from package %s: %v", p.ImportPath, err)

@@ -102,9 +102,9 @@ func (d Dir) SetModeAsOf(mode string, asofTime time.Time) error {
 		return fmt.Errorf("cannot create a telemetry mode file: %w", err)
 	}
 
-	asof := asofTime.UTC().Format("2006-01-02")
+	asof := asofTime.UTC().Format(DateOnly)
 	// Defensively guarantee that we can parse the asof time.
-	if _, err := time.Parse("2006-01-02", asof); err != nil {
+	if _, err := time.Parse(DateOnly, asof); err != nil {
 		return fmt.Errorf("internal error: invalid mode date %q: %v", asof, err)
 	}
 
@@ -136,7 +136,7 @@ func (d Dir) Mode() (string, time.Time) {
 	//
 	// If the modefile contains a date, return it.
 	if idx := strings.Index(mode, " "); idx >= 0 {
-		d, err := time.Parse("2006-01-02", mode[idx+1:])
+		d, err := time.Parse(DateOnly, mode[idx+1:])
 		if err != nil {
 			d = time.Time{}
 		}
@@ -148,6 +148,8 @@ func (d Dir) Mode() (string, time.Time) {
 
 // DisabledOnPlatform indicates whether telemetry is disabled
 // due to bugs in the current platform.
+//
+// TODO(rfindley): move to a more appropriate file.
 const DisabledOnPlatform = false ||
 	// The following platforms could potentially be supported in the future:
 	runtime.GOOS == "openbsd" || // #60614
@@ -157,4 +159,5 @@ const DisabledOnPlatform = false ||
 	// These platforms fundamentally can't be supported:
 	runtime.GOOS == "js" || // #60971
 	runtime.GOOS == "wasip1" || // #60971
-	runtime.GOOS == "plan9" // https://github.com/golang/go/issues/57540#issuecomment-1470766639
+	runtime.GOOS == "plan9" || // https://github.com/golang/go/issues/57540#issuecomment-1470766639
+	runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" // mips lacks cross-process 64-bit atomics

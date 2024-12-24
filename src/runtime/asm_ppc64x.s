@@ -40,7 +40,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 
 	// If there is a _cgo_init, call it using the gcc ABI.
 	MOVD	_cgo_init(SB), R12
-	CMP	R0, R12
+	CMP	R12, $0
 	BEQ	nocgo
 
 #ifdef GO_PPC64X_HAS_FUNCDESC
@@ -466,7 +466,7 @@ callfn: \
 #ifdef GOOS_aix				\
 	/* AIX won't trigger a SIGSEGV if R11 = nil */	\
 	/* So it manually triggers it */	\
-	CMP	R0, R11				\
+	CMP	R11, $0				\
 	BNE	2(PC)				\
 	MOVD	R0, 0(R0)			\
 #endif						\
@@ -564,7 +564,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R0, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVD	(g_sched+gobuf_ctxt)(g), R31
-	CMP	R0, R31
+	CMP	R31, $0
 	BEQ	2(PC)
 	BL	runtime·abort(SB)
 	RET
@@ -1235,7 +1235,7 @@ TEXT runtime·debugCallV2<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
 	CALL	runtime·debugCallCheck(SB)
 	MOVD	40(R1), R22
 	XOR	R0, R0
-	CMP	R22, R0
+	CMP	R22, $0
 	BEQ	good
 	MOVD	48(R1), R22
 	MOVD	$8, R20

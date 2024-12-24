@@ -6,8 +6,6 @@ package types
 
 import (
 	"fmt"
-	"go/ast"
-	"go/token"
 	"go/version"
 	"internal/goversion"
 )
@@ -50,52 +48,19 @@ var (
 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
 )
 
-// allowVersion reports whether the current package at the given position
-// is allowed to use version v. If the position is unknown, the specified
-// module version (Config.GoVersion) is used. If that version is invalid,
-// allowVersion returns true.
-func (check *Checker) allowVersion(at positioner, v goVersion) bool {
-	fileVersion := check.conf.GoVersion
-	if pos := at.Pos(); pos.IsValid() {
-		fileVersion = check.versions[check.fileFor(pos)]
-	}
-
-	// We need asGoVersion (which calls version.Lang) below
-	// because fileVersion may be the (unaltered) Config.GoVersion
-	// string which may contain dot-release information.
-	version := asGoVersion(fileVersion)
-
-	return !version.isValid() || version.cmp(v) >= 0
+// allowVersion reports whether the current effective Go version
+// (which may vary from one file to another) is allowed to use the
+// feature version (want).
+func (check *Checker) allowVersion(want goVersion) bool {
+	return !check.version.isValid() || check.version.cmp(want) >= 0
 }
 
 // verifyVersionf is like allowVersion but also accepts a format string and arguments
-// which are used to report a version error if allowVersion returns false. It uses the
-// current package.
+// which are used to report a version error if allowVersion returns false.
 func (check *Checker) verifyVersionf(at positioner, v goVersion, format string, args ...interface{}) bool {
-	if !check.allowVersion(at, v) {
+	if !check.allowVersion(v) {
 		check.versionErrorf(at, v, format, args...)
 		return false
 	}
 	return true
-}
-
-// TODO(gri) Consider a more direct (position-independent) mechanism
-//           to identify which file we're in so that version checks
-//           work correctly in the absence of correct position info.
-
-// fileFor returns the *ast.File which contains the position pos.
-// If there are no files, the result is nil.
-// The position must be valid.
-func (check *Checker) fileFor(pos token.Pos) *ast.File {
-	assert(pos.IsValid())
-	// Eval and CheckExpr tests may not have any source files.
-	if len(check.files) == 0 {
-		return nil
-	}
-	for _, file := range check.files {
-		if file.FileStart <= pos && pos < file.FileEnd {
-			return file
-		}
-	}
-	panic(check.sprintf("file not found for pos = %d (%s)", int(pos), check.fset.Position(pos)))
 }

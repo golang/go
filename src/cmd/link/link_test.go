@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	imacho "cmd/internal/macho"
 	"cmd/internal/sys"
 )
 
@@ -386,7 +387,6 @@ func TestMachOBuildVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	found := false
-	const LC_BUILD_VERSION = 0x32
 	checkMin := func(ver uint32) {
 		major, minor, patch := (ver>>16)&0xff, (ver>>8)&0xff, (ver>>0)&0xff
 		if major < 11 {
@@ -396,7 +396,7 @@ func TestMachOBuildVersion(t *testing.T) {
 	for _, cmd := range exem.Loads {
 		raw := cmd.Raw()
 		type_ := exem.ByteOrder.Uint32(raw)
-		if type_ != LC_BUILD_VERSION {
+		if type_ != imacho.LC_BUILD_VERSION {
 			continue
 		}
 		osVer := exem.ByteOrder.Uint32(raw[12:])
@@ -408,6 +408,78 @@ func TestMachOBuildVersion(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("no LC_BUILD_VERSION load command found")
+	}
+}
+
+func TestMachOUUID(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	if runtime.GOOS != "darwin" {
+		t.Skip("this is only for darwin")
+	}
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	src := filepath.Join(tmpdir, "main.go")
+	err := os.WriteFile(src, []byte(trivialSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	extractUUID := func(exe string) string {
+		exem, err := macho.Open(exe)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer exem.Close()
+		for _, cmd := range exem.Loads {
+			raw := cmd.Raw()
+			type_ := exem.ByteOrder.Uint32(raw)
+			if type_ != imacho.LC_UUID {
+				continue
+			}
+			return string(raw[8:24])
+		}
+		return ""
+	}
+
+	tests := []struct{ name, ldflags, expect string }{
+		{"default", "", "gobuildid"},
+		{"gobuildid", "-B=gobuildid", "gobuildid"},
+		{"specific", "-B=0x0123456789ABCDEF0123456789ABCDEF", "\x01\x23\x45\x67\x89\xAB\xCD\xEF\x01\x23\x45\x67\x89\xAB\xCD\xEF"},
+		{"none", "-B=none", ""},
+	}
+	if testenv.HasCGO() {
+		for _, test := range tests {
+			t1 := test
+			t1.name += "_external"
+			t1.ldflags += " -linkmode=external"
+			tests = append(tests, t1)
+		}
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			exe := filepath.Join(tmpdir, test.name)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags="+test.ldflags, "-o", exe, src)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+			}
+			uuid := extractUUID(exe)
+			if test.expect == "gobuildid" {
+				// Go buildid is not known in source code. Check UUID is present,
+				// and satisfies UUIDv3.
+				if uuid == "" {
+					t.Fatal("expect nonempty UUID, got empty")
+				}
+				// The version number is the high 4 bits of byte 6.
+				if uuid[6]>>4 != 3 {
+					t.Errorf("expect v3 UUID, got %X (version %d)", uuid, uuid[6]>>4)
+				}
+			} else if uuid != test.expect {
+				t.Errorf("UUID mismatch: got %X, want %X", uuid, test.expect)
+			}
+		})
 	}
 }
 
@@ -671,7 +743,7 @@ func TestTrampoline(t *testing.T) {
 	// calls will use trampolines.
 	buildmodes := []string{"default"}
 	switch runtime.GOARCH {
-	case "arm", "arm64", "ppc64":
+	case "arm", "arm64", "ppc64", "loong64":
 	case "ppc64le":
 		// Trampolines are generated differently when internal linking PIE, test them too.
 		buildmodes = append(buildmodes, "pie")
@@ -706,6 +778,14 @@ func TestTrampoline(t *testing.T) {
 		if string(out) != "hello\n" {
 			t.Errorf("unexpected output (%s):\n%s", mode, out)
 		}
+
+		out, err = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe).CombinedOutput()
+		if err != nil {
+			t.Errorf("nm failure: %s\n%s\n", err, string(out))
+		}
+		if ok, _ := regexp.Match("T runtime.deferreturn(\\+0)?-tramp0", out); !ok {
+			t.Errorf("Trampoline T runtime.deferreturn(+0)?-tramp0 is missing")
+		}
 	}
 }
 
@@ -728,7 +808,7 @@ func TestTrampolineCgo(t *testing.T) {
 	// calls will use trampolines.
 	buildmodes := []string{"default"}
 	switch runtime.GOARCH {
-	case "arm", "arm64", "ppc64":
+	case "arm", "arm64", "ppc64", "loong64":
 	case "ppc64le":
 		// Trampolines are generated differently when internal linking PIE, test them too.
 		buildmodes = append(buildmodes, "pie")
@@ -1397,17 +1477,17 @@ func TestRandLayout(t *testing.T) {
 		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-randlayout="+seed, "-o", exe, src)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("build failed: %v\n%s", err, out)
+			t.Fatalf("seed=%v: build failed: %v\n%s", seed, err, out)
 		}
 		cmd = testenv.Command(t, exe)
 		err = cmd.Run()
 		if err != nil {
-			t.Fatalf("executable failed to run: %v\n%s", err, out)
+			t.Fatalf("seed=%v: executable failed to run: %v\n%s", seed, err, out)
 		}
 		cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("fail to run \"go tool nm\": %v\n%s", err, out)
+			t.Fatalf("seed=%v: fail to run \"go tool nm\": %v\n%s", seed, err, out)
 		}
 		syms[i] = string(out)
 	}
@@ -1438,8 +1518,11 @@ func TestCheckLinkname(t *testing.T) {
 		{"coro_asm", false},
 		// pull-only linkname is not ok
 		{"coro2.go", false},
+		// pull linkname of a builtin symbol is not ok
+		{"builtin.go", false},
 		// legacy bad linkname is ok, for now
 		{"fastrand.go", true},
+		{"badlinkname.go", true},
 	}
 	for _, test := range tests {
 		test := test
@@ -1447,7 +1530,7 @@ func TestCheckLinkname(t *testing.T) {
 			t.Parallel()
 			src := filepath.Join("testdata", "linkname", test.src)
 			exe := filepath.Join(tmpdir, test.src+".exe")
-			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-checklinkname=1", "-o", exe, src)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src)
 			out, err := cmd.CombinedOutput()
 			if test.ok && err != nil {
 				t.Errorf("build failed unexpectedly: %v:\n%s", err, out)

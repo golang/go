@@ -7,6 +7,7 @@ package http
 import (
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 	"testing"
 
@@ -261,9 +262,7 @@ func TestMatchingMethods(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ms := map[string]bool{}
 			test.tree.matchingMethods(test.host, test.path, ms)
-			keys := mapKeys(ms)
-			slices.Sort(keys)
-			got := strings.Join(keys, ",")
+			got := strings.Join(slices.Sorted(maps.Keys(ms)), ",")
 			if got != test.want {
 				t.Errorf("got %s, want %s", got, test.want)
 			}

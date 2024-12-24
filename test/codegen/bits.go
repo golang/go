@@ -366,6 +366,7 @@ func issue48467(x, y uint64) uint64 {
 
 func foldConst(x, y uint64) uint64 {
 	// arm64: "ADDS\t[$]7",-"MOVD\t[$]7"
+	// ppc64x: "ADDC\t[$]7,"
 	d, b := bits.Add64(x, 7, 0)
 	return b & d
 }
@@ -394,7 +395,7 @@ func zeroextendAndMask8to64(a int8, b int16) (x, y uint64) {
 }
 
 // Verify rotate and mask instructions, and further simplified instructions for small types
-func bitRotateAndMask(io64 [4]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]uint8) {
+func bitRotateAndMask(io64 [8]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]uint8) {
 	// ppc64x: "RLDICR\t[$]0, R[0-9]*, [$]47, R"
 	io64[0] = io64[0] & 0xFFFFFFFFFFFF0000
 	// ppc64x: "RLDICL\t[$]0, R[0-9]*, [$]16, R"
@@ -403,6 +404,9 @@ func bitRotateAndMask(io64 [4]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]uin
 	io64[2] = (io64[2] >> 4) & 0x0000FFFFFFFFFFFF
 	// ppc64x: -"SRD", -"AND", "RLDICL\t[$]36, R[0-9]*, [$]28, R"
 	io64[3] = (io64[3] >> 28) & 0x0000FFFFFFFFFFFF
+
+	// ppc64x: "MOVWZ", "RLWNM\t[$]1, R[0-9]*, [$]28, [$]3, R"
+	io64[4] = uint64(bits.RotateLeft32(io32[0], 1) & 0xF000000F)
 
 	// ppc64x: "RLWNM\t[$]0, R[0-9]*, [$]4, [$]19, R"
 	io32[0] = io32[0] & 0x0FFFF000

@@ -13,10 +13,12 @@ package url
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
+	_ "unsafe" // for linkname
 )
 
 // Error reports an error and the operation and URL that caused it.
@@ -677,6 +679,16 @@ func parseHost(host string) (string, error) {
 // - setPath("/foo%2fbar") will set Path="/foo/bar" and RawPath="/foo%2fbar"
 // setPath will return an error only if the provided path contains an invalid
 // escaping.
+//
+// setPath should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/sagernet/sing
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname badSetPath net/url.(*URL).setPath
 func (u *URL) setPath(p string) error {
 	path, err := unescape(p, encodePath)
 	if err != nil {
@@ -691,6 +703,9 @@ func (u *URL) setPath(p string) error {
 	}
 	return nil
 }
+
+// for linkname because we cannot linkname methods directly
+func badSetPath(*URL, string) error
 
 // EscapedPath returns the escaped form of u.Path.
 // In general there are multiple possible escaped forms of any path.
@@ -990,12 +1005,7 @@ func (v Values) Encode() string {
 		return ""
 	}
 	var buf strings.Builder
-	keys := make([]string, 0, len(v))
-	for k := range v {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
+	for _, k := range slices.Sorted(maps.Keys(v)) {
 		vs := v[k]
 		keyEscaped := QueryEscape(k)
 		for _, v := range vs {
@@ -1124,6 +1134,13 @@ func (u *URL) ResolveReference(ref *URL) *URL {
 			url.RawFragment = u.RawFragment
 		}
 	}
+	if ref.Path == "" && u.Opaque != "" {
+		url.Opaque = u.Opaque
+		url.User = nil
+		url.Host = ""
+		url.Path = ""
+		return &url
+	}
 	// The "abs_path" or "rel_path" cases.
 	url.Host = u.Host
 	url.User = u.User
@@ -1198,7 +1215,11 @@ func splitHostPort(hostPort string) (host, port string) {
 // Would like to implement MarshalText/UnmarshalText but that will change the JSON representation of URLs.
 
 func (u *URL) MarshalBinary() (text []byte, err error) {
-	return []byte(u.String()), nil
+	return u.AppendBinary(nil)
+}
+
+func (u *URL) AppendBinary(b []byte) ([]byte, error) {
+	return append(b, u.String()...), nil
 }
 
 func (u *URL) UnmarshalBinary(text []byte) error {

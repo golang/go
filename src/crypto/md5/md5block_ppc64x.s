@@ -200,7 +200,7 @@ loop:
 	ADD	R16, R4
 	ADD	R17, R5
 	ADD	$64, R6
-	BC	16, 0, loop // bdnz
+	BDNZ	loop
 
 end:
 	MOVD	dig+0(FP), R10

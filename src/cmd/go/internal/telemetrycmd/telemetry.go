@@ -41,6 +41,11 @@ To disable telemetry uploading, but keep local data collection, run
 To enable both collection and uploading, run “go telemetry on”.
 To disable both collection and uploading, run "go telemetry off".
 
+The current telemetry mode is also available as the value of the
+non-settable "GOTELEMETRY" go env variable. The directory in the
+local file system that telemetry data is written to is available
+as the value of the non-settable "GOTELEMETRYDIR" go env variable.
+
 See https://go.dev/doc/telemetry for more information on telemetry.
 `,
 	Run: runTelemetry,

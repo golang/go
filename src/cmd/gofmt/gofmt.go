@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 
-	"cmd/internal/telemetry"
+	"cmd/internal/telemetry/counter"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -374,11 +374,11 @@ func main() {
 }
 
 func gofmtMain(s *sequencer) {
-	telemetry.Start()
+	counter.Open()
 	flag.Usage = usage
 	flag.Parse()
-	telemetry.Inc("gofmt/invocations")
-	telemetry.CountFlags("gofmt/flag:", *flag.CommandLine)
+	counter.Inc("gofmt/invocations")
+	counter.CountFlags("gofmt/flag:", *flag.CommandLine)
 
 	if *cpuprofile != "" {
 		fdSem <- true

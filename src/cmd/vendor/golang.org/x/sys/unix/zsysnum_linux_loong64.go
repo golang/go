@@ -84,6 +84,8 @@ const (
 	SYS_SPLICE                  = 76
 	SYS_TEE                     = 77
 	SYS_READLINKAT              = 78
+	SYS_NEWFSTATAT              = 79
+	SYS_FSTAT                   = 80
 	SYS_SYNC                    = 81
 	SYS_FSYNC                   = 82
 	SYS_FDATASYNC               = 83
@@ -318,4 +320,5 @@ const (
 	SYS_LSM_GET_SELF_ATTR       = 459
 	SYS_LSM_SET_SELF_ATTR       = 460
 	SYS_LSM_LIST_MODULES        = 461
+	SYS_MSEAL                   = 462
 )

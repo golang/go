@@ -14,4 +14,4 @@ type Slice []byte
 type Array [8]byte
 
 var s Slice
-var p = (Array)(s /* ERROR "requires go1.20 or later" */)
+var p = (Array)(s /* ok because file versions below go1.21 set the language version to go1.21 */)

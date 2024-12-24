@@ -100,7 +100,7 @@ func generate(t *testing.T, filename string, write bool) {
 type action func(in *ast.File)
 
 var filemap = map[string]action{
-	"alias.go": nil,
+	"alias.go": fixTokenPos,
 	"assignments.go": func(f *ast.File) {
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f, "syntax.Name->ast.Ident", "ident.Value->ident.Name", "ast.Pos->token.Pos") // must happen before renaming identifiers
@@ -136,9 +136,18 @@ var filemap = map[string]action{
 	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
 	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
-	"lookup.go":           func(f *ast.File) { fixTokenPos(f) },
-	"main_test.go":        nil,
-	"map.go":              nil,
+	"literals.go": func(f *ast.File) {
+		insertImportPath(f, `"go/token"`)
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+		renameSelectorExprs(f,
+			"syntax.IntLit->token.INT", "syntax.FloatLit->token.FLOAT", "syntax.ImagLit->token.IMAG",
+			"syntax.Name->ast.Ident", "key.Value->key.Name", "atyp.Elem->atyp.Elt") // must happen before renaming identifiers
+		renameIdents(f, "syntax->ast")
+		renameSelectors(f, "ElemList->Elts")
+	},
+	"lookup.go":    func(f *ast.File) { fixTokenPos(f) },
+	"main_test.go": nil,
+	"map.go":       nil,
 	"mono.go": func(f *ast.File) {
 		fixTokenPos(f)
 		insertImportPath(f, `"go/ast"`)
@@ -159,10 +168,16 @@ var filemap = map[string]action{
 			"syntax.StringLit->token.STRING") // must happen before renaming identifiers
 		renameIdents(f, "syntax->ast")
 	},
-	"package.go":       nil,
-	"pointer.go":       nil,
-	"predicates.go":    nil,
-	"scope.go":         func(f *ast.File) { fixTokenPos(f); renameIdents(f, "Squash->squash", "InsertLazy->_InsertLazy") },
+	"package.go":    nil,
+	"pointer.go":    nil,
+	"predicates.go": nil,
+	"recording.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+		renameSelectorExprs(f, "syntax.Name->ast.Ident") // must happen before renaming identifiers
+		renameIdents(f, "syntax->ast")
+		fixAtPosCall(f)
+	},
+	"scope.go":         func(f *ast.File) { fixTokenPos(f); renameIdents(f, "InsertLazy->_InsertLazy") },
 	"selection.go":     nil,
 	"sizes.go":         func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
 	"slice.go":         nil,

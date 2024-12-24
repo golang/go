@@ -11,5 +11,7 @@ import _ "unsafe"
 // used by internal/syscall/unix
 //go:linkname ioctlPtr
 
-// used by x/net/route
+// golang.org/x/net linknames sysctl.
+// Do not remove or change the type signature.
+//
 //go:linkname sysctl

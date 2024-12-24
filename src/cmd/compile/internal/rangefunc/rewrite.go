@@ -99,47 +99,31 @@ The return false breaks the loop. Then when f returns, the "check
 
 which causes the return we want.
 
-Return with arguments is more involved. We need somewhere to store the
-arguments while we break out of f, so we add them to the var
-declaration, like:
+Return with arguments is more involved, and has to deal with
+corner cases involving panic, defer, and recover.  The results
+of the enclosing function or closure are rewritten to give them
+names if they don't have them already, and the names are assigned
+at the return site.
 
-	{
-		var (
-			#next int
-			#r1 type1
-			#r2 type2
-		)
-		f(func(x T1) bool {
-			...
-			{
-				// return a, b
-				#r1, #r2 = a, b
-				#next = -2
-				return false
-			}
-			...
-			return true
-		})
-		if #next == -2 { return #r1, #r2 }
-	}
+	  func foo() (#rv1 A, #rv2 B) {
 
-TODO: What about:
-
-	func f() (x bool) {
-		for range g(&x) {
-			return true
+		{
+			var (
+				#next int
+			)
+			f(func(x T1) bool {
+				...
+				{
+					// return a, b
+					#rv1, #rv2 = a, b
+					#next = -1
+					return false
+				}
+				...
+				return true
+			})
+			if #next == -1 { return }
 		}
-	}
-
-	func g(p *bool) func(func() bool) {
-		return func(yield func() bool) {
-			yield()
-			// Is *p true or false here?
-		}
-	}
-
-With this rewrite the "return true" is not visible after yield returns,
-but maybe it should be?
 
 # Checking
 
@@ -147,8 +131,45 @@ To permit checking that an iterator is well-behaved -- that is, that
 it does not call the loop body again after it has returned false or
 after the entire loop has exited (it might retain a copy of the body
 function, or pass it to another goroutine) -- each generated loop has
-its own #exitK flag that is checked before each iteration, and set both
-at any early exit and after the iteration completes.
+its own #stateK variable that is used to check for permitted call
+patterns to the yield function for a loop body.
+
+The state values are:
+
+abi.RF_DONE = 0      // body of loop has exited in a non-panic way
+abi.RF_READY = 1     // body of loop has not exited yet, is not running
+abi.RF_PANIC = 2     // body of loop is either currently running, or has panicked
+abi.RF_EXHAUSTED = 3 // iterator function call, e.g. f(func(x t){...}), returned so the sequence is "exhausted".
+
+abi.RF_MISSING_PANIC = 4 // used to report errors.
+
+The value of #stateK transitions
+(1) before calling the iterator function,
+
+	var #stateN = abi.RF_READY
+
+(2) after the iterator function call returns,
+
+	if #stateN == abi.RF_PANIC {
+		panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
+	}
+	#stateN = abi.RF_EXHAUSTED
+
+(3) at the beginning of the iteration of the loop body,
+
+	if #stateN != abi.RF_READY { #stateN = abi.RF_PANIC ; runtime.panicrangestate(#stateN) }
+	#stateN = abi.RF_PANIC
+	// This is slightly rearranged below for better code generation.
+
+(4) when loop iteration continues,
+
+	#stateN = abi.RF_READY
+	[return true]
+
+(5) when control flow exits the loop body.
+
+	#stateN = abi.RF_DONE
+	[return false]
 
 For example:
 
@@ -160,17 +181,23 @@ For example:
 
 becomes
 
-	{
-		var #exit1 bool
-		f(func(x T1) bool {
-			if #exit1 { runtime.panicrangeexit() }
-			...
-			if ... { #exit1 = true ; return false }
-			...
-			return true
-		})
-		#exit1 = true
-	}
+		{
+			var #state1 = abi.RF_READY
+			f(func(x T1) bool {
+				if #state1 != abi.RF_READY { #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
+				#state1 = abi.RF_PANIC
+				...
+				if ... { #state1 = abi.RF_DONE ; return false }
+				...
+				#state1 = abi.RF_READY
+				return true
+			})
+	        if #state1 == abi.RF_PANIC {
+	        	// the code for the loop body did not return normally
+	        	panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
+	        }
+			#state1 = abi.RF_EXHAUSTED
+		}
 
 # Nested Loops
 
@@ -203,65 +230,83 @@ becomes
 	{
 		var (
 			#next int
-			#r1 type1
-			#r2 type2
 		)
-		var #exit1 bool
-		f(func() {
-			if #exit1 { runtime.panicrangeexit() }
-			var #exit2 bool
-			g(func() {
-				if #exit2 { runtime.panicrangeexit() }
+		var #state1 = abi.RF_READY
+		f(func() bool {
+			if #state1 != abi.RF_READY { #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
+			#state1 = abi.RF_PANIC
+			var #state2 = abi.RF_READY
+			g(func() bool {
+				if #state2 != abi.RF_READY { #state2 = abi.RF_PANIC; runtime.panicrangestate(#state2) }
 				...
 				{
 					// return a, b
-					#r1, #r2 = a, b
-					#next = -2
-					#exit1, #exit2 = true, true
+					#rv1, #rv2 = a, b
+					#next = -1
+					#state2 = abi.RF_DONE
 					return false
 				}
 				...
+				#state2 = abi.RF_READY
 				return true
 			})
-			#exit2 = true
+	        if #state2 == abi.RF_PANIC {
+	        	panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
+	        }
+			#state2 = abi.RF_EXHAUSTED
 			if #next < 0 {
+				#state1 = abi.RF_DONE
 				return false
 			}
+			#state1 = abi.RF_READY
 			return true
 		})
-		#exit1 = true
-		if #next == -2 {
-			return #r1, #r2
+	    if #state1 == abi.RF_PANIC {
+	       	panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
+	    }
+		#state1 = abi.RF_EXHAUSTED
+		if #next == -1 {
+			return
 		}
 	}
-
-Note that the #next < 0 after the inner loop handles both kinds of
-return with a single check.
 
 # Labeled break/continue of range-over-func loops
 
 For a labeled break or continue of an outer range-over-func, we
-use positive #next values. Any such labeled break or continue
+use positive #next values.
+
+Any such labeled break or continue
 really means "do N breaks" or "do N breaks and 1 continue".
-We encode that as perLoopStep*N or perLoopStep*N+1 respectively.
+
+The positive #next value tells which level of loop N to target
+with a break or continue, where perLoopStep*N means break out of
+level N and perLoopStep*N-1 means continue into level N.  The
+outermost loop has level 1, therefore #next == perLoopStep means
+to break from the outermost loop, and #next == perLoopStep-1 means
+to continue the outermost loop.
 
 Loops that might need to propagate a labeled break or continue
 add one or both of these to the #next checks:
 
-	if #next >= 2 {
-		#next -= 2
-		return false
-	}
+	    // N == depth of this loop, one less than the one just exited.
+		if #next != 0 {
+		  if #next >= perLoopStep*N-1 { // break or continue this loop
+		  	if #next >= perLoopStep*N+1 { // error checking
+		  	   // TODO reason about what exactly can appear
+		  	   // here given full  or partial checking.
+	           runtime.panicrangestate(abi.RF_DONE)
+		  	}
+		  	rv := #next & 1 == 1 // code generates into #next&1
+			#next = 0
+			return rv
+		  }
+		  return false // or handle returns and gotos
+		}
 
-	if #next == 1 {
-		#next = 0
-		return true
-	}
+For example (with perLoopStep == 2)
 
-For example
-
-	F: for range f {
-		for range g {
+	F: for range f { // 1, 2
+		for range g { // 3, 4
 			for range h {
 				...
 				break F
@@ -278,52 +323,68 @@ becomes
 
 	{
 		var #next int
-		var #exit1 bool
-		f(func() {
-			if #exit1 { runtime.panicrangeexit() }
-			var #exit2 bool
-			g(func() {
-				if #exit2 { runtime.panicrangeexit() }
-				var #exit3 bool
-				h(func() {
-					if #exit3 { runtime.panicrangeexit() }
+		var #state1 = abi.RF_READY
+		f(func() { // 1,2
+			if #state1 != abi.RF_READY { #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
+			#state1 = abi.RF_PANIC
+			var #state2 = abi.RF_READY
+			g(func() { // 3,4
+				if #state2 != abi.RF_READY { #state2 = abi.RF_PANIC; runtime.panicrangestate(#state2) }
+				#state2 = abi.RF_PANIC
+				var #state3 = abi.RF_READY
+				h(func() { // 5,6
+					if #state3 != abi.RF_READY { #state3 = abi.RF_PANIC; runtime.panicrangestate(#state3) }
+					#state3 = abi.RF_PANIC
 					...
 					{
 						// break F
-						#next = 4
-						#exit1, #exit2, #exit3 = true, true, true
+						#next = 2
+						#state3 = abi.RF_DONE
 						return false
 					}
 					...
 					{
 						// continue F
-						#next = 3
-						#exit2, #exit3 = true, true
+						#next = 1
+						#state3 = abi.RF_DONE
 						return false
 					}
 					...
+					#state3 = abi.RF_READY
 					return true
 				})
-				#exit3 = true
-				if #next >= 2 {
-					#next -= 2
+				if #state3 == abi.RF_PANIC {
+					panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
+				}
+				#state3 = abi.RF_EXHAUSTED
+				if #next != 0 {
+					// no breaks or continues targeting this loop
+					#state2 = abi.RF_DONE
 					return false
 				}
 				return true
 			})
-			#exit2 = true
-			if #next >= 2 {
-				#next -= 2
+	    	if #state2 == abi.RF_PANIC {
+	       		panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
+	   		}
+			#state2 = abi.RF_EXHAUSTED
+			if #next != 0 { // just exited g, test for break/continue applied to f/F
+				if #next >= 1 {
+					if #next >= 3 { runtime.panicrangestate(abi.RF_DONE) } // error
+					rv := #next&1 == 1
+					#next = 0
+					return rv
+				}
+				#state1 = abi.RF_DONE
 				return false
-			}
-			if #next == 1 {
-				#next = 0
-				return true
 			}
 			...
 			return true
 		})
-		#exit1 = true
+	    if #state1 == abi.RF_PANIC {
+	       	panic(runtime.panicrangestate(abi.RF_MISSING_PANIC))
+	    }
+		#state1 = abi.RF_EXHAUSTED
 	}
 
 Note that the post-h checks only consider a break,
@@ -332,13 +393,13 @@ since no generated code tries to continue g.
 # Gotos and other labeled break/continue
 
 The final control flow translations are goto and break/continue of a
-non-range-over-func statement. In both cases, we may need to break out
-of one or more range-over-func loops before we can do the actual
+non-range-over-func statement. In both cases, we may need to break
+out of one or more range-over-func loops before we can do the actual
 control flow statement. Each such break/continue/goto L statement is
-assigned a unique negative #next value (below -2, since -1 and -2 are
-for the two kinds of return). Then the post-checks for a given loop
-test for the specific codes that refer to labels directly targetable
-from that block. Otherwise, the generic
+assigned a unique negative #next value (since -1 is return). Then
+the post-checks for a given loop test for the specific codes that
+refer to labels directly targetable from that block. Otherwise, the
+generic
 
 	if #next < 0 { return false }
 
@@ -363,39 +424,50 @@ becomes
 	Top: print("start\n")
 	{
 		var #next int
-		var #exit1 bool
+		var #state1 = abi.RF_READY
 		f(func() {
-			if #exit1 { runtime.panicrangeexit() }
-			var #exit2 bool
+			if #state1 != abi.RF_READY{ #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
+			#state1 = abi.RF_PANIC
+			var #state2 = abi.RF_READY
 			g(func() {
-				if #exit2 { runtime.panicrangeexit() }
+				if #state2 != abi.RF_READY { #state2 = abi.RF_PANIC; runtime.panicrangestate(#state2) }
+				#state2 = abi.RF_PANIC
 				...
-				var #exit3 bool
+				var #state3 bool = abi.RF_READY
 				h(func() {
-				if #exit3 { runtime.panicrangeexit() }
+					if #state3 != abi.RF_READY { #state3 = abi.RF_PANIC; runtime.panicrangestate(#state3) }
+					#state3 = abi.RF_PANIC
 					...
 					{
 						// goto Top
 						#next = -3
-						#exit1, #exit2, #exit3 = true, true, true
+						#state3 = abi.RF_DONE
 						return false
 					}
 					...
+					#state3 = abi.RF_READY
 					return true
 				})
-				#exit3 = true
+				if #state3 == abi.RF_PANIC {runtime.panicrangestate(abi.RF_MISSING_PANIC)}
+				#state3 = abi.RF_EXHAUSTED
 				if #next < 0 {
+					#state2 = abi.RF_DONE
 					return false
 				}
+				#state2 = abi.RF_READY
 				return true
 			})
-			#exit2 = true
+			if #state2 == abi.RF_PANIC {runtime.panicrangestate(abi.RF_MISSING_PANIC)}
+			#state2 = abi.RF_EXHAUSTED
 			if #next < 0 {
+				#state1 = abi.RF_DONE
 				return false
 			}
+			#state1 = abi.RF_READY
 			return true
 		})
-		#exit1 = true
+		if #state1 == abi.RF_PANIC {runtime.panicrangestate(abi.RF_MISSING_PANIC)}
+		#state1 = abi.RF_EXHAUSTED
 		if #next == -3 {
 			#next = 0
 			goto Top
@@ -462,6 +534,7 @@ import (
 	"cmd/compile/internal/types2"
 	"fmt"
 	"go/constant"
+	"internal/abi"
 	"os"
 )
 
@@ -472,6 +545,7 @@ var nopos syntax.Pos
 type rewriter struct {
 	pkg   *types2.Package
 	info  *types2.Info
+	sig   *types2.Signature
 	outer *syntax.FuncType
 	body  *syntax.BlockStmt
 
@@ -493,11 +567,13 @@ type rewriter struct {
 	rewritten map[*syntax.ForStmt]syntax.Stmt
 
 	// Declared variables in generated code for outermost loop.
-	declStmt     *syntax.DeclStmt
-	nextVar      types2.Object
-	retVars      []types2.Object
-	defers       types2.Object
-	exitVarCount int // exitvars are referenced from their respective loops
+	declStmt         *syntax.DeclStmt
+	nextVar          types2.Object
+	defers           types2.Object
+	stateVarCount    int // stateVars are referenced from their respective loops
+	bodyClosureCount int // to help the debugger, the closures generated for loop bodies get names
+
+	rangefuncBodyClosures map[*syntax.FuncLit]bool
 }
 
 // A branch is a single labeled branch.
@@ -509,44 +585,58 @@ type branch struct {
 // A forLoop describes a single range-over-func loop being processed.
 type forLoop struct {
 	nfor         *syntax.ForStmt // actual syntax
-	exitFlag     *types2.Var     // #exit variable for this loop
-	exitFlagDecl *syntax.VarDecl
+	stateVar     *types2.Var     // #state variable for this loop
+	stateVarDecl *syntax.VarDecl
+	depth        int // outermost loop has depth 1, otherwise depth = depth(parent)+1
 
 	checkRet      bool     // add check for "return" after loop
-	checkRetArgs  bool     // add check for "return args" after loop
 	checkBreak    bool     // add check for "break" after loop
 	checkContinue bool     // add check for "continue" after loop
 	checkBranch   []branch // add check for labeled branch after loop
 }
 
+type State int
+
 // Rewrite rewrites all the range-over-funcs in the files.
-func Rewrite(pkg *types2.Package, info *types2.Info, files []*syntax.File) {
+// It returns the set of function literals generated from rangefunc loop bodies.
+// This allows for rangefunc loop bodies to be distinguished by debuggers.
+func Rewrite(pkg *types2.Package, info *types2.Info, files []*syntax.File) map[*syntax.FuncLit]bool {
+	ri := make(map[*syntax.FuncLit]bool)
 	for _, file := range files {
 		syntax.Inspect(file, func(n syntax.Node) bool {
 			switch n := n.(type) {
 			case *syntax.FuncDecl:
-				rewriteFunc(pkg, info, n.Type, n.Body)
+				sig, _ := info.Defs[n.Name].Type().(*types2.Signature)
+				rewriteFunc(pkg, info, n.Type, n.Body, sig, ri)
 				return false
 			case *syntax.FuncLit:
-				rewriteFunc(pkg, info, n.Type, n.Body)
+				sig, _ := info.Types[n].Type.(*types2.Signature)
+				if sig == nil {
+					tv := n.GetTypeInfo()
+					sig = tv.Type.(*types2.Signature)
+				}
+				rewriteFunc(pkg, info, n.Type, n.Body, sig, ri)
 				return false
 			}
 			return true
 		})
 	}
+	return ri
 }
 
 // rewriteFunc rewrites all the range-over-funcs in a single function (a top-level func or a func literal).
 // The typ and body are the function's type and body.
-func rewriteFunc(pkg *types2.Package, info *types2.Info, typ *syntax.FuncType, body *syntax.BlockStmt) {
+func rewriteFunc(pkg *types2.Package, info *types2.Info, typ *syntax.FuncType, body *syntax.BlockStmt, sig *types2.Signature, ri map[*syntax.FuncLit]bool) {
 	if body == nil {
 		return
 	}
 	r := &rewriter{
-		pkg:   pkg,
-		info:  info,
-		outer: typ,
-		body:  body,
+		pkg:                   pkg,
+		info:                  info,
+		outer:                 typ,
+		body:                  body,
+		sig:                   sig,
+		rangefuncBodyClosures: ri,
 	}
 	syntax.Inspect(body, r.inspect)
 	if (base.Flag.W != 0) && r.forStack != nil {
@@ -566,14 +656,19 @@ func (r *rewriter) checkFuncMisuse() bool {
 func (r *rewriter) inspect(n syntax.Node) bool {
 	switch n := n.(type) {
 	case *syntax.FuncLit:
-		rewriteFunc(r.pkg, r.info, n.Type, n.Body)
+		sig, _ := r.info.Types[n].Type.(*types2.Signature)
+		if sig == nil {
+			tv := n.GetTypeInfo()
+			sig = tv.Type.(*types2.Signature)
+		}
+		rewriteFunc(r.pkg, r.info, n.Type, n.Body, sig, r.rangefuncBodyClosures)
 		return false
 
 	default:
 		// Push n onto stack.
 		r.stack = append(r.stack, n)
 		if nfor, ok := forRangeFunc(n); ok {
-			loop := &forLoop{nfor: nfor}
+			loop := &forLoop{nfor: nfor, depth: 1 + len(r.forStack)}
 			r.forStack = append(r.forStack, loop)
 			r.startLoop(loop)
 		}
@@ -627,8 +722,8 @@ func (r *rewriter) startLoop(loop *forLoop) {
 		r.rewritten = make(map[*syntax.ForStmt]syntax.Stmt)
 	}
 	if r.checkFuncMisuse() {
-		// declare the exit flag for this loop's body
-		loop.exitFlag, loop.exitFlagDecl = r.exitVar(loop.nfor.Pos())
+		// declare the state flag for this loop's body
+		loop.stateVar, loop.stateVarDecl = r.stateVar(loop.nfor.Pos())
 	}
 }
 
@@ -670,65 +765,67 @@ func (r *rewriter) editDefer(x *syntax.CallStmt) syntax.Stmt {
 		tv := syntax.TypeAndValue{Type: r.any.Type()}
 		tv.SetIsValue()
 		init.SetTypeInfo(tv)
-		r.defers = r.declVar("#defers", r.any.Type(), init)
+		r.defers = r.declOuterVar("#defers", r.any.Type(), init)
 	}
 
 	// Attach the token as an "extra" argument to the defer.
-	x.DeferAt = r.useVar(r.defers)
+	x.DeferAt = r.useObj(r.defers)
 	setPos(x.DeferAt, x.Pos())
 	return x
 }
 
-func (r *rewriter) exitVar(pos syntax.Pos) (*types2.Var, *syntax.VarDecl) {
-	r.exitVarCount++
+func (r *rewriter) stateVar(pos syntax.Pos) (*types2.Var, *syntax.VarDecl) {
+	r.stateVarCount++
 
-	name := fmt.Sprintf("#exit%d", r.exitVarCount)
-	typ := r.bool.Type()
+	name := fmt.Sprintf("#state%d", r.stateVarCount)
+	typ := r.int.Type()
 	obj := types2.NewVar(pos, r.pkg, name, typ)
 	n := syntax.NewName(pos, name)
 	setValueType(n, typ)
 	r.info.Defs[n] = obj
 
-	return obj, &syntax.VarDecl{NameList: []*syntax.Name{n}}
+	return obj, &syntax.VarDecl{NameList: []*syntax.Name{n}, Values: r.stateConst(abi.RF_READY)}
 }
 
 // editReturn returns the replacement for the return statement x.
 // See the "Return" section in the package doc comment above for more context.
 func (r *rewriter) editReturn(x *syntax.ReturnStmt) syntax.Stmt {
-	// #next = -1 is return with no arguments; -2 is return with arguments.
-	var next int
-	if x.Results == nil {
-		next = -1
-		r.forStack[0].checkRet = true
-	} else {
-		next = -2
-		r.forStack[0].checkRetArgs = true
+	bl := &syntax.BlockStmt{}
+
+	if x.Results != nil {
+		// rewrite "return val" into "assign to named result; return"
+		if len(r.outer.ResultList) > 0 {
+			// Make sure that result parameters all have names
+			for i, a := range r.outer.ResultList {
+				if a.Name == nil || a.Name.Value == "_" {
+					r.generateParamName(r.outer.ResultList, i) // updates a.Name
+				}
+			}
+		}
+		// Assign to named results
+		results := []types2.Object{}
+		for _, a := range r.outer.ResultList {
+			results = append(results, r.info.Defs[a.Name])
+		}
+		bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.useList(results), Rhs: x.Results})
+		x.Results = nil
 	}
 
+	next := -1 // return
+
 	// Tell the loops along the way to check for a return.
-	for _, loop := range r.forStack[1:] {
+	for _, loop := range r.forStack {
 		loop.checkRet = true
 	}
 
-	// Assign results, set #next, and return false.
-	bl := &syntax.BlockStmt{}
-	if x.Results != nil {
-		if r.retVars == nil {
-			for i, a := range r.outer.ResultList {
-				obj := r.declVar(fmt.Sprintf("#r%d", i+1), a.Type.GetTypeInfo().Type, nil)
-				r.retVars = append(r.retVars, obj)
-			}
-		}
-		bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.useList(r.retVars), Rhs: x.Results})
-	}
+	// Set #next, and return false.
+
 	bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.next(), Rhs: r.intConst(next)})
 	if r.checkFuncMisuse() {
-		// mark all enclosing loop bodies as exited
-		for i := 0; i < len(r.forStack); i++ {
-			bl.List = append(bl.List, r.setExitedAt(i))
-		}
+		// mark this loop as exited, the others (which will be exited if iterators do not interfere) have not, yet.
+		bl.List = append(bl.List, r.setState(abi.RF_DONE, x.Pos()))
 	}
-	bl.List = append(bl.List, &syntax.ReturnStmt{Results: r.useVar(r.false)})
+	bl.List = append(bl.List, &syntax.ReturnStmt{Results: r.useObj(r.false)})
 	setPos(bl, x.Pos())
 	return bl
 }
@@ -769,7 +866,7 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 	var ret *syntax.ReturnStmt
 	if x.Tok == syntax.Goto || i < 0 {
 		// goto Label
-		// or break/continue of labeled non-range-over-func loop.
+		// or break/continue of labeled non-range-over-func loop (x.Label != nil).
 		// We may be able to leave it alone, or we may have to break
 		// out of one or more nested loops and then use #next to signal
 		// to complete the break/continue/goto.
@@ -794,37 +891,34 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 		exitFrom = i + 1
 
 		// Mark loop we exit to get to targ to check for that branch.
-		// When i==-1 that's the outermost func body
-		top := r.forStack[i+1]
+		// When i==-1 / exitFrom == 0 that's the outermost func body.
+		top := r.forStack[exitFrom]
 		top.checkBranch = append(top.checkBranch, branch{x.Tok, label})
 
 		// Mark loops along the way to check for a plain return, so they break.
-		for j := i + 2; j < len(r.forStack); j++ {
+		for j := exitFrom + 1; j < len(r.forStack); j++ {
 			r.forStack[j].checkRet = true
 		}
 
 		// In the innermost loop, use a plain "return false".
-		ret = &syntax.ReturnStmt{Results: r.useVar(r.false)}
+		ret = &syntax.ReturnStmt{Results: r.useObj(r.false)}
 	} else {
 		// break/continue of labeled range-over-func loop.
-		depth := len(r.forStack) - 1 - i
-
-		// For continue of innermost loop, use "return true".
-		// Otherwise we are breaking the innermost loop, so "return false".
-
-		if depth == 0 && x.Tok == syntax.Continue {
-			ret = &syntax.ReturnStmt{Results: r.useVar(r.true)}
-			setPos(ret, x.Pos())
-			return ret
-		}
-		ret = &syntax.ReturnStmt{Results: r.useVar(r.false)}
-
-		// If this is a simple break, mark this loop as exited and return false.
-		// No adjustments to #next.
-		if depth == 0 {
+		if exitFrom == len(r.forStack) {
+			// Simple break or continue.
+			// Continue returns true, break returns false, optionally both adjust state,
+			// neither modifies #next.
+			var state abi.RF_State
+			if x.Tok == syntax.Continue {
+				ret = &syntax.ReturnStmt{Results: r.useObj(r.true)}
+				state = abi.RF_READY
+			} else {
+				ret = &syntax.ReturnStmt{Results: r.useObj(r.false)}
+				state = abi.RF_DONE
+			}
 			var stmts []syntax.Stmt
 			if r.checkFuncMisuse() {
-				stmts = []syntax.Stmt{r.setExited(), ret}
+				stmts = []syntax.Stmt{r.setState(state, x.Pos()), ret}
 			} else {
 				stmts = []syntax.Stmt{ret}
 			}
@@ -835,12 +929,14 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 			return bl
 		}
 
+		ret = &syntax.ReturnStmt{Results: r.useObj(r.false)}
+
 		// The loop inside the one we are break/continue-ing
 		// needs to make that happen when we break out of it.
 		if x.Tok == syntax.Continue {
 			r.forStack[exitFrom].checkContinue = true
 		} else {
-			exitFrom = i
+			exitFrom = i // exitFrom--
 			r.forStack[exitFrom].checkBreak = true
 		}
 
@@ -851,7 +947,7 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 
 		// Set next to break the appropriate number of times;
 		// the final time may be a continue, not a break.
-		next = perLoopStep * depth
+		next = perLoopStep * (i + 1)
 		if x.Tok == syntax.Continue {
 			next--
 		}
@@ -864,10 +960,9 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
 	}
 
 	if r.checkFuncMisuse() {
-		// Set #exitK for this loop and those exited by the control flow.
-		for i := exitFrom; i < len(r.forStack); i++ {
-			bl.List = append(bl.List, r.setExitedAt(i))
-		}
+		// Set #stateK for this loop.
+		// The exterior loops have not exited yet, and the iterator might interfere.
+		bl.List = append(bl.List, r.setState(abi.RF_DONE, x.Pos()))
 	}
 
 	bl.List = append(bl.List, ret)
@@ -912,7 +1007,7 @@ func (r *rewriter) computeBranchNext() {
 	})
 
 	// Assign numbers to all the labels we observed.
-	used := -2
+	used := -1 // returns use -1
 	for _, l := range labels {
 		used -= 3
 		r.branchNext[branch{syntax.Break, l}] = used
@@ -939,12 +1034,18 @@ func (r *rewriter) endLoop(loop *forLoop) {
 		base.Fatalf("invalid typecheck of range func")
 	}
 
+	// Give the closure generated for the body a name, to help the debugger connect it to its frame, if active.
+	r.bodyClosureCount++
+	clo := r.bodyFunc(nfor.Body.List, syntax.UnpackListExpr(rclause.Lhs), rclause.Def, ftyp, start, end)
+	cloDecl, cloVar := r.declSingleVar(fmt.Sprintf("#yield%d", r.bodyClosureCount), clo.GetTypeInfo().Type, clo)
+	setPos(cloDecl, start)
+
 	// Build X(bodyFunc)
 	call := &syntax.ExprStmt{
 		X: &syntax.CallExpr{
 			Fun: rclause.X,
 			ArgList: []syntax.Expr{
-				r.bodyFunc(nfor.Body.List, syntax.UnpackListExpr(rclause.Lhs), rclause.Def, ftyp, start, end),
+				r.useObj(cloVar),
 			},
 		},
 	}
@@ -971,40 +1072,58 @@ func (r *rewriter) endLoop(loop *forLoop) {
 		block.List = append(block.List, r.declStmt)
 	}
 
-	// declare the exitFlag here so it has proper scope and zeroing
+	// declare the state variable here so it has proper scope and initialization
 	if r.checkFuncMisuse() {
-		exitFlagDecl := &syntax.DeclStmt{DeclList: []syntax.Decl{loop.exitFlagDecl}}
-		block.List = append(block.List, exitFlagDecl)
+		stateVarDecl := &syntax.DeclStmt{DeclList: []syntax.Decl{loop.stateVarDecl}}
+		setPos(stateVarDecl, start)
+		block.List = append(block.List, stateVarDecl)
 	}
 
 	// iteratorFunc(bodyFunc)
-	block.List = append(block.List, call)
+	block.List = append(block.List, cloDecl, call)
 
 	if r.checkFuncMisuse() {
-		// iteratorFunc has exited, mark the exit flag for the body
-		block.List = append(block.List, r.setExited())
+		// iteratorFunc has exited, check for swallowed panic, and set body state to abi.RF_EXHAUSTED
+		nif := &syntax.IfStmt{
+			Cond: r.cond(syntax.Eql, r.useObj(loop.stateVar), r.stateConst(abi.RF_PANIC)),
+			Then: &syntax.BlockStmt{
+				List: []syntax.Stmt{r.callPanic(start, r.stateConst(abi.RF_MISSING_PANIC))},
+			},
+		}
+		setPos(nif, end)
+		block.List = append(block.List, nif)
+		block.List = append(block.List, r.setState(abi.RF_EXHAUSTED, end))
 	}
 	block.List = append(block.List, checks...)
 
 	if len(r.forStack) == 1 { // ending an outermost loop
 		r.declStmt = nil
 		r.nextVar = nil
-		r.retVars = nil
 		r.defers = nil
 	}
 
 	r.rewritten[nfor] = block
 }
 
-func (r *rewriter) setExited() *syntax.AssignStmt {
-	return r.setExitedAt(len(r.forStack) - 1)
+func (r *rewriter) cond(op syntax.Operator, x, y syntax.Expr) *syntax.Operation {
+	cond := &syntax.Operation{Op: op, X: x, Y: y}
+	tv := syntax.TypeAndValue{Type: r.bool.Type()}
+	tv.SetIsValue()
+	cond.SetTypeInfo(tv)
+	return cond
 }
 
-func (r *rewriter) setExitedAt(index int) *syntax.AssignStmt {
+func (r *rewriter) setState(val abi.RF_State, pos syntax.Pos) *syntax.AssignStmt {
+	ss := r.setStateAt(len(r.forStack)-1, val)
+	setPos(ss, pos)
+	return ss
+}
+
+func (r *rewriter) setStateAt(index int, stateVal abi.RF_State) *syntax.AssignStmt {
 	loop := r.forStack[index]
 	return &syntax.AssignStmt{
-		Lhs: r.useVar(loop.exitFlag),
-		Rhs: r.useVar(r.true),
+		Lhs: r.useObj(loop.stateVar),
+		Rhs: r.stateConst(stateVal),
 	}
 }
 
@@ -1019,7 +1138,7 @@ func (r *rewriter) setExitedAt(index int) *syntax.AssignStmt {
 func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, ftyp *types2.Signature, start, end syntax.Pos) *syntax.FuncLit {
 	// Starting X(bodyFunc); build up bodyFunc first.
 	var params, results []*types2.Var
-	results = append(results, types2.NewVar(start, nil, "", r.bool.Type()))
+	results = append(results, types2.NewVar(start, nil, "#r", r.bool.Type()))
 	bodyFunc := &syntax.FuncLit{
 		// Note: Type is ignored but needs to be non-nil to avoid panic in syntax.Inspect.
 		Type: &syntax.FuncType{},
@@ -1028,6 +1147,7 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
 			Rbrace: end,
 		},
 	}
+	r.rangefuncBodyClosures[bodyFunc] = true
 	setPos(bodyFunc, start)
 
 	for i := 0; i < ftyp.Params().Len(); i++ {
@@ -1042,7 +1162,7 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
 			paramVar = types2.NewVar(start, r.pkg, fmt.Sprintf("#p%d", 1+i), typ)
 			if i < len(lhs) {
 				x := lhs[i]
-				as := &syntax.AssignStmt{Lhs: x, Rhs: r.useVar(paramVar)}
+				as := &syntax.AssignStmt{Lhs: x, Rhs: r.useObj(paramVar)}
 				as.SetPos(x.Pos())
 				setPos(as.Rhs, x.Pos())
 				bodyFunc.Body.List = append(bodyFunc.Body.List, as)
@@ -1063,14 +1183,35 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
 	loop := r.forStack[len(r.forStack)-1]
 
 	if r.checkFuncMisuse() {
-		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertNotExited(start, loop))
+		// #tmpState := #stateVarN
+		// #stateVarN = abi.RF_PANIC
+		// if #tmpState != abi.RF_READY {
+		//    runtime.panicrangestate(#tmpState)
+		// }
+		//
+		// That is a slightly code-size-optimized version of
+		//
+		// if #stateVarN != abi.RF_READY {
+		//	  #stateVarN = abi.RF_PANIC // If we ever need to specially detect "iterator swallowed checking panic" we put a different value here.
+		//    runtime.panicrangestate(#tmpState)
+		// }
+		// #stateVarN = abi.RF_PANIC
+		//
+
+		tmpDecl, tmpState := r.declSingleVar("#tmpState", r.int.Type(), r.useObj(loop.stateVar))
+		bodyFunc.Body.List = append(bodyFunc.Body.List, tmpDecl)
+		bodyFunc.Body.List = append(bodyFunc.Body.List, r.setState(abi.RF_PANIC, start))
+		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertReady(start, tmpState))
 	}
 
 	// Original loop body (already rewritten by editStmt during inspect).
 	bodyFunc.Body.List = append(bodyFunc.Body.List, body...)
 
-	// return true to continue at end of loop body
-	ret := &syntax.ReturnStmt{Results: r.useVar(r.true)}
+	// end of loop body, set state to abi.RF_READY and return true to continue iteration
+	if r.checkFuncMisuse() {
+		bodyFunc.Body.List = append(bodyFunc.Body.List, r.setState(abi.RF_READY, end))
+	}
+	ret := &syntax.ReturnStmt{Results: r.useObj(r.true)}
 	ret.SetPos(end)
 	bodyFunc.Body.List = append(bodyFunc.Body.List, ret)
 
@@ -1088,27 +1229,75 @@ func (r *rewriter) checks(loop *forLoop, pos syntax.Pos) []syntax.Stmt {
 			}
 			did[br] = true
 			doBranch := &syntax.BranchStmt{Tok: br.tok, Label: &syntax.Name{Value: br.label}}
-			list = append(list, r.ifNext(syntax.Eql, r.branchNext[br], doBranch))
+			list = append(list, r.ifNext(syntax.Eql, r.branchNext[br], true, doBranch))
 		}
 	}
+
+	curLoop := loop.depth - 1
+	curLoopIndex := curLoop - 1
+
 	if len(r.forStack) == 1 {
-		if loop.checkRetArgs {
-			list = append(list, r.ifNext(syntax.Eql, -2, retStmt(r.useList(r.retVars))))
-		}
 		if loop.checkRet {
-			list = append(list, r.ifNext(syntax.Eql, -1, retStmt(nil)))
+			list = append(list, r.ifNext(syntax.Eql, -1, false, retStmt(nil)))
 		}
 	} else {
-		if loop.checkRetArgs || loop.checkRet {
+
+		// Idealized check, implemented more simply for now.
+
+		//	// N == depth of this loop, one less than the one just exited.
+		//	if #next != 0 {
+		//		if #next >= perLoopStep*N-1 { // this loop
+		//			if #next >= perLoopStep*N+1 { // error checking
+		//      		runtime.panicrangestate(abi.RF_DONE)
+		//   		}
+		//			rv := #next & 1 == 1 // code generates into #next&1
+		//			#next = 0
+		//			return rv
+		//		}
+		// 		return false // or handle returns and gotos
+		//	}
+
+		if loop.checkRet {
 			// Note: next < 0 also handles gotos handled by outer loops.
 			// We set checkRet in that case to trigger this check.
-			list = append(list, r.ifNext(syntax.Lss, 0, retStmt(r.useVar(r.false))))
+			if r.checkFuncMisuse() {
+				list = append(list, r.ifNext(syntax.Lss, 0, false, r.setStateAt(curLoopIndex, abi.RF_DONE), retStmt(r.useObj(r.false))))
+			} else {
+				list = append(list, r.ifNext(syntax.Lss, 0, false, retStmt(r.useObj(r.false))))
+			}
 		}
-		if loop.checkBreak {
-			list = append(list, r.ifNext(syntax.Geq, perLoopStep, retStmt(r.useVar(r.false))))
+
+		depthStep := perLoopStep * (curLoop)
+
+		if r.checkFuncMisuse() {
+			list = append(list, r.ifNext(syntax.Gtr, depthStep, false, r.callPanic(pos, r.stateConst(abi.RF_DONE))))
+		} else {
+			list = append(list, r.ifNext(syntax.Gtr, depthStep, true))
 		}
-		if loop.checkContinue {
-			list = append(list, r.ifNext(syntax.Eql, perLoopStep-1, retStmt(r.useVar(r.true))))
+
+		if r.checkFuncMisuse() {
+			if loop.checkContinue {
+				list = append(list, r.ifNext(syntax.Eql, depthStep-1, true, r.setStateAt(curLoopIndex, abi.RF_READY), retStmt(r.useObj(r.true))))
+			}
+
+			if loop.checkBreak {
+				list = append(list, r.ifNext(syntax.Eql, depthStep, true, r.setStateAt(curLoopIndex, abi.RF_DONE), retStmt(r.useObj(r.false))))
+			}
+
+			if loop.checkContinue || loop.checkBreak {
+				list = append(list, r.ifNext(syntax.Gtr, 0, false, r.setStateAt(curLoopIndex, abi.RF_DONE), retStmt(r.useObj(r.false))))
+			}
+
+		} else {
+			if loop.checkContinue {
+				list = append(list, r.ifNext(syntax.Eql, depthStep-1, true, retStmt(r.useObj(r.true))))
+			}
+			if loop.checkBreak {
+				list = append(list, r.ifNext(syntax.Eql, depthStep, true, retStmt(r.useObj(r.false))))
+			}
+			if loop.checkContinue || loop.checkBreak {
+				list = append(list, r.ifNext(syntax.Gtr, 0, false, retStmt(r.useObj(r.false))))
+			}
 		}
 	}
 
@@ -1125,38 +1314,25 @@ func retStmt(results syntax.Expr) *syntax.ReturnStmt {
 
 // ifNext returns the statement:
 //
-//	if #next op c { adjust; then }
-//
-// When op is >=, adjust is #next -= c.
-// When op is == and c is not -1 or -2, adjust is #next = 0.
-// Otherwise adjust is omitted.
-func (r *rewriter) ifNext(op syntax.Operator, c int, then syntax.Stmt) syntax.Stmt {
-	nif := &syntax.IfStmt{
-		Cond: &syntax.Operation{Op: op, X: r.next(), Y: r.intConst(c)},
-		Then: &syntax.BlockStmt{
-			List: []syntax.Stmt{then},
-		},
-	}
-	tv := syntax.TypeAndValue{Type: r.bool.Type()}
-	tv.SetIsValue()
-	nif.Cond.SetTypeInfo(tv)
-
-	if op == syntax.Geq {
-		sub := &syntax.AssignStmt{
-			Op:  syntax.Sub,
-			Lhs: r.next(),
-			Rhs: r.intConst(c),
-		}
-		nif.Then.List = []syntax.Stmt{sub, then}
-	}
-	if op == syntax.Eql && c != -1 && c != -2 {
+//	if #next op c { [#next = 0;] thens... }
+func (r *rewriter) ifNext(op syntax.Operator, c int, zeroNext bool, thens ...syntax.Stmt) syntax.Stmt {
+	var thenList []syntax.Stmt
+	if zeroNext {
 		clr := &syntax.AssignStmt{
 			Lhs: r.next(),
 			Rhs: r.intConst(0),
 		}
-		nif.Then.List = []syntax.Stmt{clr, then}
+		thenList = append(thenList, clr)
 	}
-
+	for _, then := range thens {
+		thenList = append(thenList, then)
+	}
+	nif := &syntax.IfStmt{
+		Cond: r.cond(op, r.next(), r.intConst(c)),
+		Then: &syntax.BlockStmt{
+			List: thenList,
+		},
+	}
 	return nif
 }
 
@@ -1167,35 +1343,37 @@ func setValueType(x syntax.Expr, typ syntax.Type) {
 	x.SetTypeInfo(tv)
 }
 
-// assertNotExited returns the statement:
+// assertReady returns the statement:
 //
-//	if #exitK { runtime.panicrangeexit() }
-//
-// where #exitK is the exit guard for loop.
-func (r *rewriter) assertNotExited(start syntax.Pos, loop *forLoop) syntax.Stmt {
-	callPanicExpr := &syntax.CallExpr{
-		Fun: runtimeSym(r.info, "panicrangeexit"),
-	}
-	setValueType(callPanicExpr, nil) // no result type
-
-	callPanic := &syntax.ExprStmt{X: callPanicExpr}
+//	if #tmpState != abi.RF_READY { runtime.panicrangestate(#tmpState) }
+func (r *rewriter) assertReady(start syntax.Pos, tmpState *types2.Var) syntax.Stmt {
 
 	nif := &syntax.IfStmt{
-		Cond: r.useVar(loop.exitFlag),
+		Cond: r.cond(syntax.Neq, r.useObj(tmpState), r.stateConst(abi.RF_READY)),
 		Then: &syntax.BlockStmt{
-			List: []syntax.Stmt{callPanic},
+			List: []syntax.Stmt{
+				r.callPanic(start, r.useObj(tmpState))},
 		},
 	}
 	setPos(nif, start)
 	return nif
 }
 
+func (r *rewriter) callPanic(start syntax.Pos, arg syntax.Expr) syntax.Stmt {
+	callPanicExpr := &syntax.CallExpr{
+		Fun:     runtimeSym(r.info, "panicrangestate"),
+		ArgList: []syntax.Expr{arg},
+	}
+	setValueType(callPanicExpr, nil) // no result type
+	return &syntax.ExprStmt{X: callPanicExpr}
+}
+
 // next returns a reference to the #next variable.
 func (r *rewriter) next() *syntax.Name {
 	if r.nextVar == nil {
-		r.nextVar = r.declVar("#next", r.int.Type(), nil)
+		r.nextVar = r.declOuterVar("#next", r.int.Type(), nil)
 	}
-	return r.useVar(r.nextVar)
+	return r.useObj(r.nextVar)
 }
 
 // forRangeFunc checks whether n is a range-over-func.
@@ -1229,8 +1407,12 @@ func (r *rewriter) intConst(c int) *syntax.BasicLit {
 	return lit
 }
 
-// useVar returns syntax for a reference to decl, which should be its declaration.
-func (r *rewriter) useVar(obj types2.Object) *syntax.Name {
+func (r *rewriter) stateConst(s abi.RF_State) *syntax.BasicLit {
+	return r.intConst(int(s))
+}
+
+// useObj returns syntax for a reference to decl, which should be its declaration.
+func (r *rewriter) useObj(obj types2.Object) *syntax.Name {
 	n := syntax.NewName(nopos, obj.Name())
 	tv := syntax.TypeAndValue{Type: obj.Type()}
 	tv.SetIsValue()
@@ -1243,7 +1425,7 @@ func (r *rewriter) useVar(obj types2.Object) *syntax.Name {
 func (r *rewriter) useList(vars []types2.Object) syntax.Expr {
 	var new []syntax.Expr
 	for _, obj := range vars {
-		new = append(new, r.useVar(obj))
+		new = append(new, r.useObj(obj))
 	}
 	if len(new) == 1 {
 		return new[0]
@@ -1251,18 +1433,29 @@ func (r *rewriter) useList(vars []types2.Object) syntax.Expr {
 	return &syntax.ListExpr{ElemList: new}
 }
 
-// declVar declares a variable with a given name type and initializer value.
-func (r *rewriter) declVar(name string, typ types2.Type, init syntax.Expr) *types2.Var {
-	if r.declStmt == nil {
-		r.declStmt = &syntax.DeclStmt{}
-	}
-	stmt := r.declStmt
-	obj := types2.NewVar(stmt.Pos(), r.pkg, name, typ)
-	n := syntax.NewName(stmt.Pos(), name)
+func (r *rewriter) makeVarName(pos syntax.Pos, name string, typ types2.Type) (*types2.Var, *syntax.Name) {
+	obj := types2.NewVar(pos, r.pkg, name, typ)
+	n := syntax.NewName(pos, name)
 	tv := syntax.TypeAndValue{Type: typ}
 	tv.SetIsValue()
 	n.SetTypeInfo(tv)
 	r.info.Defs[n] = obj
+	return obj, n
+}
+
+func (r *rewriter) generateParamName(results []*syntax.Field, i int) {
+	obj, n := r.sig.RenameResult(results, i)
+	r.info.Defs[n] = obj
+}
+
+// declOuterVar declares a variable with a given name, type, and initializer value,
+// in the same scope as the outermost loop in a loop nest.
+func (r *rewriter) declOuterVar(name string, typ types2.Type, init syntax.Expr) *types2.Var {
+	if r.declStmt == nil {
+		r.declStmt = &syntax.DeclStmt{}
+	}
+	stmt := r.declStmt
+	obj, n := r.makeVarName(stmt.Pos(), name, typ)
 	stmt.DeclList = append(stmt.DeclList, &syntax.VarDecl{
 		NameList: []*syntax.Name{n},
 		// Note: Type is ignored
@@ -1271,12 +1464,18 @@ func (r *rewriter) declVar(name string, typ types2.Type, init syntax.Expr) *type
 	return obj
 }
 
-// declType declares a type with the given name and type.
-// This is more like "type name = typ" than "type name typ".
-func declType(pos syntax.Pos, name string, typ types2.Type) *syntax.Name {
-	n := syntax.NewName(pos, name)
-	n.SetTypeInfo(syntax.TypeAndValue{Type: typ})
-	return n
+// declSingleVar declares a variable with a given name, type, and initializer value,
+// and returns both the declaration and variable, so that the declaration can be placed
+// in a specific scope.
+func (r *rewriter) declSingleVar(name string, typ types2.Type, init syntax.Expr) (*syntax.DeclStmt, *types2.Var) {
+	stmt := &syntax.DeclStmt{}
+	obj, n := r.makeVarName(stmt.Pos(), name, typ)
+	stmt.DeclList = append(stmt.DeclList, &syntax.VarDecl{
+		NameList: []*syntax.Name{n},
+		// Note: Type is ignored
+		Values: init,
+	})
+	return stmt, obj
 }
 
 // runtimePkg is a fake runtime package that contains what we need to refer to in package runtime.
@@ -1284,13 +1483,14 @@ var runtimePkg = func() *types2.Package {
 	var nopos syntax.Pos
 	pkg := types2.NewPackage("runtime", "runtime")
 	anyType := types2.Universe.Lookup("any").Type()
+	intType := types2.Universe.Lookup("int").Type()
 
 	// func deferrangefunc() unsafe.Pointer
 	obj := types2.NewFunc(nopos, pkg, "deferrangefunc", types2.NewSignatureType(nil, nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "extra", anyType)), false))
 	pkg.Scope().Insert(obj)
 
-	// func panicrangeexit()
-	obj = types2.NewFunc(nopos, pkg, "panicrangeexit", types2.NewSignatureType(nil, nil, nil, nil, nil, false))
+	// func panicrangestate()
+	obj = types2.NewFunc(nopos, pkg, "panicrangestate", types2.NewSignatureType(nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "state", intType)), nil, false))
 	pkg.Scope().Insert(obj)
 
 	return pkg

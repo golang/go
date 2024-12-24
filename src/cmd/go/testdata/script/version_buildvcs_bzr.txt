@@ -14,6 +14,7 @@ exec bzr whoami 'J.R. Gopher <gopher@golang.org>'
 go install
 go version -m $GOBIN/a$GOEXE
 ! stdout bzrrevision
+stdout '^\tmod\texample.com/a\t\(devel\)'
 rm $GOBIN/a$GOEXE
 
 # If there is a repository, but it can't be used for some reason,
@@ -52,6 +53,23 @@ stdout '^\tbuild\tvcs=bzr$'
 stdout '^\tbuild\tvcs.revision='
 stdout '^\tbuild\tvcs.time='
 stdout '^\tbuild\tvcs.modified=false$'
+stdout '^\tmod\texample.com/a\tv0.0.0-\d+-\d+\t+'
+rm $GOBIN/a$GOEXE
+
+# Tag is reflected in the version.
+cd ..
+cp README README2
+exec bzr add a README2
+exec bzr commit -m 'second commit'
+exec bzr tag v1.2.3
+cd a
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs=bzr$'
+stdout '^\tbuild\tvcs.revision='
+stdout '^\tbuild\tvcs.time='
+stdout '^\tbuild\tvcs.modified=false$'
+stdout '^\tmod\texample.com/a\tv1.2.3\t+'
 rm $GOBIN/a$GOEXE
 
 # Building an earlier commit should still build clean.

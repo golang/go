@@ -5,7 +5,7 @@
 package dag
 
 import (
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -26,7 +26,7 @@ func TestTopo(t *testing.T) {
 	//
 	// "a" is a leaf.
 	wantNodes := strings.Fields("d c b a")
-	if !reflect.DeepEqual(wantNodes, got) {
+	if !slices.Equal(wantNodes, got) {
 		t.Fatalf("want topo sort %v, got %v", wantNodes, got)
 	}
 }

@@ -8,13 +8,14 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"internal/buildcfg"
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -349,11 +350,11 @@ func dumpFnPreamble(w io.Writer, funcInlHeur *fnInlHeur, ecst encodedCallSiteTab
 // sortFnInlHeurSlice sorts a slice of fnInlHeur based on
 // the starting line of the function definition, then by name.
 func sortFnInlHeurSlice(sl []fnInlHeur) []fnInlHeur {
-	sort.SliceStable(sl, func(i, j int) bool {
-		if sl[i].line != sl[j].line {
-			return sl[i].line < sl[j].line
+	slices.SortStableFunc(sl, func(a, b fnInlHeur) int {
+		if a.line != b.line {
+			return cmp.Compare(a.line, b.line)
 		}
-		return sl[i].fname < sl[j].fname
+		return strings.Compare(a.fname, b.fname)
 	})
 	return sl
 }

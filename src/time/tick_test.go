@@ -179,7 +179,7 @@ func TestLongAdjustTimers(t *testing.T) {
 	done := make(chan bool)
 	AfterFunc(60*Second, func() { close(done) })
 
-	// Set up a queing goroutine to ping pong through the scheduler.
+	// Set up a queuing goroutine to ping pong through the scheduler.
 	inQ := make(chan func())
 	outQ := make(chan func())
 
@@ -462,7 +462,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
 		tim.Reset(1)
 		Sleep(sched)
 		if l, c := len(C), cap(C); l != 0 || c != 0 {
-			//t.Fatalf("len(C), cap(C) = %d, %d, want 0, 0", l, c)
+			// t.Fatalf("len(C), cap(C) = %d, %d, want 0, 0", l, c)
 		}
 		assertTick()
 	} else {

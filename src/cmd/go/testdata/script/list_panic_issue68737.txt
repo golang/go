@@ -1,0 +1,7 @@
+# Issue #68737: Don't panic if the import path string doesn't appear
+# in the import error. The string may not appear because it may be
+# escaped when quoted as part of the error message.
+
+! go run '' # Quote contains 0x01 byte
+! stderr panic
+stderr 'malformed import path "\\x01": invalid char ''\\x01'''

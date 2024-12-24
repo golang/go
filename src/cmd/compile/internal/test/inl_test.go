@@ -39,15 +39,14 @@ func TestIntendedInlining(t *testing.T) {
 			"adjustpointer",
 			"alignDown",
 			"alignUp",
-			"bucketMask",
-			"bucketShift",
 			"chanbuf",
-			"evacuated",
 			"fastlog2",
 			"float64bits",
 			"funcspdelta",
 			"getm",
 			"getMCache",
+			"heapSetTypeNoHeader",
+			"heapSetTypeSmallHeader",
 			"isDirectIface",
 			"itabHashFunc",
 			"nextslicecap",
@@ -62,9 +61,6 @@ func TestIntendedInlining(t *testing.T) {
 			"stringStructOf",
 			"subtract1",
 			"subtractb",
-			"tophash",
-			"(*bmap).keys",
-			"(*bmap).overflow",
 			"(*waitq).enqueue",
 			"funcInfo.entry",
 
@@ -97,10 +93,6 @@ func TestIntendedInlining(t *testing.T) {
 			"traceLocker.ok",
 			"traceEnabled",
 		},
-		"runtime/internal/sys": {},
-		"runtime/internal/math": {
-			"MulUintptr",
-		},
 		"bytes": {
 			"(*Buffer).Bytes",
 			"(*Buffer).Cap",
@@ -117,6 +109,10 @@ func TestIntendedInlining(t *testing.T) {
 		"internal/abi": {
 			"UseInterfaceSwitchCache",
 		},
+		"internal/runtime/math": {
+			"MulUintptr",
+		},
+		"internal/runtime/sys": {},
 		"compress/flate": {
 			"byLiteral.Len",
 			"byLiteral.Less",
@@ -236,6 +232,15 @@ func TestIntendedInlining(t *testing.T) {
 		},
 	}
 
+	if !goexperiment.SwissMap {
+		// Maps
+		want["runtime"] = append(want["runtime"], "bucketMask")
+		want["runtime"] = append(want["runtime"], "bucketShift")
+		want["runtime"] = append(want["runtime"], "evacuated")
+		want["runtime"] = append(want["runtime"], "tophash")
+		want["runtime"] = append(want["runtime"], "(*bmap).keys")
+		want["runtime"] = append(want["runtime"], "(*bmap).overflow")
+	}
 	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
 		// nextFreeFast calls sys.TrailingZeros64, which on 386 is implemented in asm and is not inlinable.
 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
@@ -246,9 +251,9 @@ func TestIntendedInlining(t *testing.T) {
 	if runtime.GOARCH != "386" {
 		// As explained above, TrailingZeros64 and TrailingZeros32 are not Go code on 386.
 		// The same applies to Bswap32.
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros64")
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros32")
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
+		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "TrailingZeros64")
+		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "TrailingZeros32")
+		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "Bswap32")
 	}
 	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" || runtime.GOARCH == "loong64" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "riscv64" || runtime.GOARCH == "s390x" {
 		// internal/runtime/atomic.Loaduintptr is only intrinsified on these platforms.

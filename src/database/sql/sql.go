@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math/rand/v2"
 	"reflect"
 	"runtime"
@@ -29,12 +30,22 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	_ "unsafe"
 )
 
-var (
-	driversMu sync.RWMutex
-	drivers   = make(map[string]driver.Driver)
-)
+var driversMu sync.RWMutex
+
+// drivers should be an internal detail,
+// but widely used packages access it using linkname.
+// (It is extra wrong that they linkname drivers but not driversMu.)
+// Notable members of the hall of shame include:
+//   - github.com/instana/go-sensor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname drivers
+var drivers = make(map[string]driver.Driver)
 
 // nowFunc returns the current time; it's overridden in tests.
 var nowFunc = time.Now
@@ -65,12 +76,7 @@ func unregisterAllDrivers() {
 func Drivers() []string {
 	driversMu.RLock()
 	defer driversMu.RUnlock()
-	list := make([]string, 0, len(drivers))
-	for name := range drivers {
-		list = append(list, name)
-	}
-	slices.Sort(list)
-	return list
+	return slices.Sorted(maps.Keys(drivers))
 }
 
 // A NamedArg is a named argument. NamedArg values may be used as
@@ -404,6 +410,8 @@ func (n NullTime) Value() (driver.Value, error) {
 //	} else {
 //	   // NULL value
 //	}
+//
+// T should be one of the types accepted by [driver.Value].
 type Null[T any] struct {
 	V     T
 	Valid bool
@@ -422,7 +430,17 @@ func (n Null[T]) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
 	}
-	return n.V, nil
+	v := any(n.V)
+	// See issue 69728.
+	if valuer, ok := v.(driver.Valuer); ok {
+		val, err := callValuerValue(valuer)
+		if err != nil {
+			return val, err
+		}
+		v = val
+	}
+	// See issue 69837.
+	return driver.DefaultParameterConverter.ConvertValue(v)
 }
 
 // Scanner is an interface used by [Rows.Scan].
@@ -1358,8 +1376,8 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 
 			db.waitDuration.Add(int64(time.Since(waitStart)))
 
-			// If we failed to delete it, that means something else
-			// grabbed it and is about to send on it.
+			// If we failed to delete it, that means either the DB was closed or
+			// something else grabbed it and is about to send on it.
 			if !deleted {
 				// TODO(bradfitz): rather than this best effort select, we
 				// should probably start a goroutine to read from req. This best
@@ -3584,6 +3602,7 @@ type connRequestAndIndex struct {
 // and clears the set.
 func (s *connRequestSet) CloseAndRemoveAll() {
 	for _, v := range s.s {
+		*v.curIdx = -1
 		close(v.req)
 	}
 	s.s = nil

@@ -309,7 +309,7 @@ func parseLogPath(destination string) (string, string) {
 func checkLogPath(destination string) string {
 	path, complaint := parseLogPath(destination)
 	if complaint != "" {
-		log.Fatalf(complaint)
+		log.Fatal(complaint)
 	}
 	err := os.MkdirAll(path, 0755)
 	if err != nil {

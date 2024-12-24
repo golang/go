@@ -171,6 +171,7 @@ type pragmas struct {
 	Pos        []pragmaPos   // position of each individual flag
 	Embeds     []pragmaEmbed
 	WasmImport *WasmImport
+	WasmExport *WasmExport
 }
 
 // WasmImport stores metadata associated with the //go:wasmimport pragma
@@ -178,6 +179,12 @@ type WasmImport struct {
 	Pos    syntax.Pos
 	Module string
 	Name   string
+}
+
+// WasmExport stores metadata associated with the //go:wasmexport pragma
+type WasmExport struct {
+	Pos  syntax.Pos
+	Name string
 }
 
 type pragmaPos struct {
@@ -203,6 +210,9 @@ func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
 	}
 	if pragma.WasmImport != nil {
 		p.error(syntax.Error{Pos: pragma.WasmImport.Pos, Msg: "misplaced go:wasmimport directive"})
+	}
+	if pragma.WasmExport != nil {
+		p.error(syntax.Error{Pos: pragma.WasmExport.Pos, Msg: "misplaced go:wasmexport directive"})
 	}
 }
 
@@ -246,6 +256,23 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 				Name:   f[2],
 			}
 		}
+
+	case strings.HasPrefix(text, "go:wasmexport "):
+		f := strings.Fields(text)
+		if len(f) != 2 {
+			// TODO: maybe make the name optional? It was once mentioned on proposal 65199.
+			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:wasmexport exportname"})
+			break
+		}
+
+		if buildcfg.GOARCH == "wasm" {
+			// Only actually use them if we're compiling to WASM though.
+			pragma.WasmExport = &WasmExport{
+				Pos:  pos,
+				Name: f[1],
+			}
+		}
+
 	case strings.HasPrefix(text, "go:linkname "):
 		f := strings.Fields(text)
 		if !(2 <= len(f) && len(f) <= 3) {

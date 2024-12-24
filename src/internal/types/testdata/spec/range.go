@@ -24,7 +24,7 @@ func f7(func(int) MyBool)             {}
 func f8(func(MyInt, MyString) MyBool) {}
 
 func test() {
-	// TODO: Would be nice to 'for range T.M' and 'for range (*T).PM' directly,
+	// TODO: Would be nice to test 'for range T.M' and 'for range (*T).PM' directly,
 	// but there is no gofmt-friendly way to write the error pattern in the right place.
 	m1 := T.M
 	for range m1 /* ERROR "cannot range over m1 (variable of type func(T)): func must be func(yield func(...) bool): argument is not func" */ {
@@ -36,7 +36,7 @@ func test() {
 	}
 	for range f2 /* ERROR "cannot range over f2 (value of type func(func())): func must be func(yield func(...) bool): yield func does not return bool" */ {
 	}
-	for range f4 /* ERROR "range over f4 (value of type func(func(int) bool)) must have one iteration variable" */ {
+	for range f4 {
 	}
 	for _ = range f4 {
 	}
@@ -102,11 +102,11 @@ func test() {
 	for mi, ms := range f8 {
 		_, _ = mi, ms
 	}
-	for i /* ERROR "cannot use i (value of type MyInt) as int value in assignment" */, s /* ERROR "cannot use s (value of type MyString) as string value in assignment" */ = range f8 {
+	for i /* ERROR "cannot use i (value of int32 type MyInt) as int value in assignment" */, s /* ERROR "cannot use s (value of string type MyString) as string value in assignment" */ = range f8 {
 		_, _ = mi, ms
 	}
 	for mi, ms := range f8 {
-		i, s = mi /* ERROR "cannot use mi (variable of type MyInt) as int value in assignment" */, ms /* ERROR "cannot use ms (variable of type MyString) as string value in assignment" */
+		i, s = mi /* ERROR "cannot use mi (variable of int32 type MyInt) as int value in assignment" */, ms /* ERROR "cannot use ms (variable of string type MyString) as string value in assignment" */
 	}
 	for mi, ms = range f8 {
 		_, _ = mi, ms
@@ -151,5 +151,35 @@ func _[T any](x func(func(T) bool)) {
 
 func _[T ~func(func(int) bool)](x T) {
 	for _ = range x { // ok
+	}
+}
+
+// go.dev/issue/65236
+
+func seq0(func() bool) {}
+func seq1(func(int) bool) {}
+func seq2(func(int, int) bool) {}
+
+func _() {
+	for range seq0 {
+	}
+	for _ /* ERROR "range over seq0 (value of type func(func() bool)) permits no iteration variables" */ = range seq0 {
+	}
+
+	for range seq1 {
+	}
+	for _ = range seq1 {
+	}
+	for _, _ /* ERROR "range over seq1 (value of type func(func(int) bool)) permits only one iteration variable" */ = range seq1 {
+	}
+
+	for range seq2 {
+	}
+	for _ = range seq2 {
+	}
+	for _, _ = range seq2 {
+	}
+	// Note: go/types reports a parser error in this case, hence the different error messages.
+	for _, _, _ /* ERRORx "(range clause permits at most two iteration variables|expected at most 2 expressions)" */ = range seq2 {
 	}
 }

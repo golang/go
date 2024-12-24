@@ -68,11 +68,22 @@ GODEBUG environment variable (see package runtime) to go or cgo, as in:
 
 The decision can also be forced while building the Go source tree
 by setting the netgo or netcgo build tag.
+The netgo build tag disables entirely the use of the native (CGO) resolver,
+meaning the Go resolver is the only one that can be used.
+With the netcgo build tag the native and the pure Go resolver are compiled into the binary,
+but the native (CGO) resolver is preferred over the Go resolver.
+With netcgo, the Go resolver can still be forced at runtime with GODEBUG=netdns=go.
 
 A numeric netdns setting, as in GODEBUG=netdns=1, causes the resolver
 to print debugging information about its decisions.
 To force a particular resolver while also printing debugging information,
 join the two settings by a plus sign, as in GODEBUG=netdns=go+1.
+
+The Go resolver will send an EDNS0 additional header with a DNS request,
+to signal a willingness to accept a larger DNS packet size.
+This can reportedly cause sporadic failures with the DNS server run
+by some modems and routers. Setting GODEBUG=netedns0=0 will disable
+sending the additional header.
 
 On macOS, if Go code that uses the net package is built with
 -buildmode=c-archive, linking the resulting archive into a C program
@@ -94,6 +105,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	_ "unsafe" // for linkname
 )
 
 // Addr represents a network end point address.
@@ -372,6 +384,18 @@ var listenerBacklogCache struct {
 }
 
 // listenerBacklog is a caching wrapper around maxListenerBacklog.
+//
+// listenerBacklog should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/database64128/tfo-go/v2
+//   - github.com/metacubex/tfo-go
+//   - github.com/sagernet/tfo-go
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname listenerBacklog
 func listenerBacklog() int {
 	listenerBacklogCache.Do(func() { listenerBacklogCache.val = maxListenerBacklog() })
 	return listenerBacklogCache.val

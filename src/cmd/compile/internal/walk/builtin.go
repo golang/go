@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.walk/bui
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -9,6 +9,7 @@ import (
 	"go/constant"
 	"go/token"
 	"internal/abi"
+	"internal/buildcfg"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -311,8 +312,124 @@ func walkMakeChan(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 // walkMakeMap walks an OMAKEMAP node.
 func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+	if buildcfg.Experiment.SwissMap {
+		return walkMakeSwissMap(n, init)
+	}
+	return walkMakeOldMap(n, init)
+}
+
+func walkMakeSwissMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	t := n.Type()
-	hmapType := reflectdata.MapType()
+	mapType := reflectdata.SwissMapType()
+	hint := n.Len
+
+	// var m *Map
+	var m ir.Node
+	if n.Esc() == ir.EscNone {
+		// Allocate hmap on stack.
+
+		// var mv Map
+		// m = &mv
+		m = stackTempAddr(init, mapType)
+
+		// Allocate one group pointed to by m.dirPtr on stack if hint
+		// is not larger than SwissMapGroupSlots. In case hint is
+		// larger, runtime.makemap will allocate on the heap.
+		// Maximum key and elem size is 128 bytes, larger objects
+		// are stored with an indirection. So max bucket size is 2048+eps.
+		if !ir.IsConst(hint, constant.Int) ||
+			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.SwissMapGroupSlots)) {
+
+			// In case hint is larger than SwissMapGroupSlots
+			// runtime.makemap will allocate on the heap, see
+			// #20184
+			//
+			// if hint <= abi.SwissMapGroupSlots {
+			//     var gv group
+			//     g = &gv
+			//     g.ctrl = abi.SwissMapCtrlEmpty
+			//     m.dirPtr = g
+			// }
+
+			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, abi.SwissMapGroupSlots)), nil, nil)
+			nif.Likely = true
+
+			groupType := reflectdata.SwissMapGroupType(t)
+
+			// var gv group
+			// g = &gv
+			g := stackTempAddr(&nif.Body, groupType)
+
+			// Can't use ir.NewInt because bit 63 is set, which
+			// makes conversion to uint64 upset.
+			empty := ir.NewBasicLit(base.Pos, types.UntypedInt, constant.MakeUint64(abi.SwissMapCtrlEmpty))
+
+			// g.ctrl = abi.SwissMapCtrlEmpty
+			csym := groupType.Field(0).Sym // g.ctrl see reflectdata/map_swiss.go
+			ca := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, g, csym), empty)
+			nif.Body.Append(ca)
+
+			// m.dirPtr = g
+			dsym := mapType.Field(2).Sym // m.dirPtr see reflectdata/map_swiss.go
+			na := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, m, dsym), typecheck.ConvNop(g, types.Types[types.TUNSAFEPTR]))
+			nif.Body.Append(na)
+			appendWalkStmt(init, nif)
+		}
+	}
+
+	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.SwissMapGroupSlots)) {
+		// Handling make(map[any]any) and
+		// make(map[any]any, hint) where hint <= abi.SwissMapGroupSlots
+		// specially allows for faster map initialization and
+		// improves binary size by using calls with fewer arguments.
+		// For hint <= abi.SwissMapGroupSlots no groups will be
+		// allocated by makemap. Therefore, no groups need to be
+		// allocated in this code path.
+		if n.Esc() == ir.EscNone {
+			// Only need to initialize m.seed since
+			// m map has been allocated on the stack already.
+			// m.seed = uintptr(rand())
+			rand := mkcall("rand", types.Types[types.TUINT64], init)
+			seedSym := mapType.Field(1).Sym // m.seed see reflectdata/map_swiss.go
+			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, m, seedSym), typecheck.Conv(rand, types.Types[types.TUINTPTR])))
+			return typecheck.ConvNop(m, t)
+		}
+		// Call runtime.makemap_small to allocate a
+		// map on the heap and initialize the map's seed field.
+		fn := typecheck.LookupRuntime("makemap_small", t.Key(), t.Elem())
+		return mkcall1(fn, n.Type(), init)
+	}
+
+	if n.Esc() != ir.EscNone {
+		m = typecheck.NodNil()
+	}
+
+	// Map initialization with a variable or large hint is
+	// more complicated. We therefore generate a call to
+	// runtime.makemap to initialize hmap and allocate the
+	// map buckets.
+
+	// When hint fits into int, use makemap instead of
+	// makemap64, which is faster and shorter on 32 bit platforms.
+	fnname := "makemap64"
+	argtype := types.Types[types.TINT64]
+
+	// Type checking guarantees that TIDEAL hint is positive and fits in an int.
+	// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
+	// The case of hint overflow when converting TUINT or TUINTPTR to TINT
+	// will be handled by the negative range checks in makemap during runtime.
+	if hint.Type().IsKind(types.TIDEAL) || hint.Type().Size() <= types.Types[types.TUINT].Size() {
+		fnname = "makemap"
+		argtype = types.Types[types.TINT]
+	}
+
+	fn := typecheck.LookupRuntime(fnname, mapType, t.Key(), t.Elem())
+	return mkcall1(fn, n.Type(), init, reflectdata.MakeMapRType(base.Pos, n), typecheck.Conv(hint, argtype), m)
+}
+
+func walkMakeOldMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+	t := n.Type()
+	hmapType := reflectdata.OldMapType()
 	hint := n.Len
 
 	// var h *hmap
@@ -330,7 +447,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// Maximum key and elem size is 128 bytes, larger objects
 		// are stored with an indirection. So max bucket size is 2048+eps.
 		if !ir.IsConst(hint, constant.Int) ||
-			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.MapBucketCount)) {
+			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.OldMapBucketCount)) {
 
 			// In case hint is larger than BUCKETSIZE runtime.makemap
 			// will allocate the buckets on the heap, see #20184
@@ -341,12 +458,12 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			//     h.buckets = b
 			// }
 
-			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, abi.MapBucketCount)), nil, nil)
+			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, abi.OldMapBucketCount)), nil, nil)
 			nif.Likely = true
 
 			// var bv bmap
 			// b = &bv
-			b := stackTempAddr(&nif.Body, reflectdata.MapBucketType(t))
+			b := stackTempAddr(&nif.Body, reflectdata.OldMapBucketType(t))
 
 			// h.buckets = b
 			bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
@@ -356,7 +473,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		}
 	}
 
-	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.MapBucketCount)) {
+	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.OldMapBucketCount)) {
 		// Handling make(map[any]any) and
 		// make(map[any]any, hint) where hint <= BUCKETSIZE
 		// special allows for faster map initialization and
@@ -373,7 +490,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, h, hashsym), rand))
 			return typecheck.ConvNop(h, t)
 		}
-		// Call runtime.makehmap to allocate an
+		// Call runtime.makemap_small to allocate an
 		// hmap on the heap and initialize hmap's hash0 field.
 		fn := typecheck.LookupRuntime("makemap_small", t.Key(), t.Elem())
 		return mkcall1(fn, n.Type(), init)
@@ -424,9 +541,6 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// var arr [r]T
 		// n = arr[:l]
 		i := typecheck.IndexConst(r)
-		if i < 0 {
-			base.Fatalf("walkExpr: invalid index %v", r)
-		}
 
 		// cap is constrained to [0,2^31) or [0,2^63) depending on whether
 		// we're in 32-bit or 64-bit systems. So it's safe to do:
@@ -799,7 +913,7 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	return walkExpr(typecheck.Expr(h), init)
 }
 
-var math_MulUintptr = &types.Sym{Pkg: types.NewPkg("runtime/internal/math", "math"), Name: "MulUintptr"}
+var math_MulUintptr = &types.Sym{Pkg: types.NewPkg("internal/runtime/math", "math"), Name: "MulUintptr"}
 
 func walkUnsafeString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	ptr := safeExpr(n.X, init)

@@ -28,7 +28,7 @@ import (
 )
 
 var CmdClean = &base.Command{
-	UsageLine: "go clean [clean flags] [build flags] [packages]",
+	UsageLine: "go clean [-i] [-r] [-cache] [-testcache] [-modcache] [-fuzzcache] [build flags] [packages]",
 	Short:     "remove object files and cached files",
 	Long: `
 Clean removes object files from package source directories.
@@ -114,7 +114,7 @@ func init() {
 	// mentioned explicitly in the docs but they
 	// are part of the build flags.
 
-	work.AddBuildFlags(CmdClean, work.DefaultBuildFlags)
+	work.AddBuildFlags(CmdClean, work.OmitBuildOnlyFlags)
 }
 
 func runClean(ctx context.Context, cmd *base.Command, args []string) {
@@ -150,7 +150,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	sh := work.NewShell("", fmt.Print)
+	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
 
 	if cleanCache {
 		dir, _ := cache.DefaultDir()
@@ -269,7 +269,7 @@ func clean(p *load.Package) {
 		return
 	}
 
-	sh := work.NewShell("", fmt.Print)
+	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
 
 	packageFile := map[string]bool{}
 	if p.Name != "main" {

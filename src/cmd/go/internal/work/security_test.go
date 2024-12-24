@@ -47,11 +47,14 @@ var goodCompilerFlags = [][]string{
 	{"-fstack-xxx"},
 	{"-fno-stack-xxx"},
 	{"-fsanitize=hands"},
+	{"-ftls-model=local-dynamic"},
 	{"-g"},
 	{"-ggdb"},
 	{"-march=souza"},
+	{"-mcmodel=medium"},
 	{"-mcpu=123"},
 	{"-mfpu=123"},
+	{"-mlarge-data-threshold=16"},
 	{"-mtune=happybirthday"},
 	{"-mstack-overflow"},
 	{"-mno-stack-overflow"},
@@ -92,6 +95,8 @@ var badCompilerFlags = [][]string{
 	{"-g-gdb"},
 	{"-march=@dawn"},
 	{"-march=-dawn"},
+	{"-mcmodel=@model"},
+	{"-mlarge-data-threshold=@12"},
 	{"-std=@c99"},
 	{"-std=-c99"},
 	{"-x@c"},
@@ -173,6 +178,17 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,-z,noexecstack"},
 	{"libcgotbdtest.tbd"},
 	{"./libcgotbdtest.tbd"},
+	{"-Wl,--push-state"},
+	{"-Wl,--pop-state"},
+	{"-Wl,--push-state,--as-needed"},
+	{"-Wl,--push-state,--no-as-needed,-Bstatic"},
+	{"-Wl,--just-symbols,."},
+	{"-Wl,-framework,."},
+	{"-Wl,-rpath,."},
+	{"-Wl,-rpath-link,."},
+	{"-Wl,-sectcreate,.,.,."},
+	{"-Wl,-syslibroot,."},
+	{"-Wl,-undefined,."},
 }
 
 var badLinkerFlags = [][]string{
@@ -239,6 +255,10 @@ var badLinkerFlags = [][]string{
 	{"-Wl,-e="},
 	{"-Wl,-e,"},
 	{"-Wl,-R,-flag"},
+	{"-Wl,--push-state,"},
+	{"-Wl,--push-state,@foo"},
+	{"-fplugin=./-Wl,--push-state,-R.so"},
+	{"./-Wl,--push-state,-R.c"},
 }
 
 func TestCheckLinkerFlags(t *testing.T) {

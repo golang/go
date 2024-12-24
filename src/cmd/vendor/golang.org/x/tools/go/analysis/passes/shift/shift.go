@@ -21,7 +21,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -100,7 +99,7 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 		return
 	}
 	var structuralTypes []types.Type
-	switch t := aliases.Unalias(t).(type) {
+	switch t := types.Unalias(t).(type) {
 	case *types.TypeParam:
 		terms, err := typeparams.StructuralTerms(t)
 		if err != nil {

@@ -67,6 +67,9 @@ type Func struct {
 	RegArgs []Spill
 	// OwnAux describes parameters and results for this function.
 	OwnAux *AuxCall
+	// CloSlot holds the compiler-synthesized name (".closureptr")
+	// where we spill the closure pointer for range func bodies.
+	CloSlot *ir.Name
 
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
@@ -793,7 +796,7 @@ func (f *Func) invalidateCFG() {
 //	base.DebugHashMatch(this function's package.name)
 //
 // for use in bug isolation.  The return value is true unless
-// environment variable GOSSAHASH is set, in which case "it depends".
+// environment variable GOCOMPILEDEBUG=gossahash=X is set, in which case "it depends on X".
 // See [base.DebugHashMatch] for more information.
 func (f *Func) DebugHashMatch() bool {
 	if !base.HasDebugHash() {

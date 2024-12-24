@@ -12,7 +12,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -274,7 +274,7 @@ func Encode(out io.Writer, b *Block) error {
 			}
 		}
 		// For consistency of output, write other headers sorted by key.
-		sort.Strings(h)
+		slices.Sort(h)
 		for _, k := range h {
 			if err := writeHeader(out, k, b.Headers[k]); err != nil {
 				return err

@@ -49,6 +49,13 @@ type QUICConn struct {
 // A QUICConfig configures a [QUICConn].
 type QUICConfig struct {
 	TLSConfig *Config
+
+	// EnableSessionEvents may be set to true to enable the
+	// [QUICStoreSession] and [QUICResumeSession] events for client connections.
+	// When this event is enabled, sessions are not automatically
+	// stored in the client session cache.
+	// The application should use [QUICConn.StoreSession] to store sessions.
+	EnableSessionEvents bool
 }
 
 // A QUICEventKind is a type of operation on a QUIC connection.
@@ -87,10 +94,29 @@ const (
 	// QUICRejectedEarlyData indicates that the server rejected 0-RTT data even
 	// if we offered it. It's returned before QUICEncryptionLevelApplication
 	// keys are returned.
+	// This event only occurs on client connections.
 	QUICRejectedEarlyData
 
 	// QUICHandshakeDone indicates that the TLS handshake has completed.
 	QUICHandshakeDone
+
+	// QUICResumeSession indicates that a client is attempting to resume a previous session.
+	// [QUICEvent.SessionState] is set.
+	//
+	// For client connections, this event occurs when the session ticket is selected.
+	// For server connections, this event occurs when receiving the client's session ticket.
+	//
+	// The application may set [QUICEvent.SessionState.EarlyData] to false before the
+	// next call to [QUICConn.NextEvent] to decline 0-RTT even if the session supports it.
+	QUICResumeSession
+
+	// QUICStoreSession indicates that the server has provided state permitting
+	// the client to resume the session.
+	// [QUICEvent.SessionState] is set.
+	// The application should use [QUICConn.StoreSession] session to store the [SessionState].
+	// The application may modify the [SessionState] before storing it.
+	// This event only occurs on client connections.
+	QUICStoreSession
 )
 
 // A QUICEvent is an event occurring on a QUIC connection.
@@ -109,6 +135,9 @@ type QUICEvent struct {
 
 	// Set for QUICSetReadSecret and QUICSetWriteSecret.
 	Suite uint16
+
+	// Set for QUICResumeSession and QUICStoreSession.
+	SessionState *SessionState
 }
 
 type quicState struct {
@@ -127,12 +156,16 @@ type quicState struct {
 	cancelc  <-chan struct{} // handshake has been canceled
 	cancel   context.CancelFunc
 
+	waitingForDrain bool
+
 	// readbuf is shared between HandleData and the handshake goroutine.
 	// HandshakeCryptoData passes ownership to the handshake goroutine by
 	// reading from signalc, and reclaims ownership by reading from blockedc.
 	readbuf []byte
 
 	transportParams []byte // to send to the peer
+
+	enableSessionEvents bool
 }
 
 // QUICClient returns a new TLS client side connection using QUICTransport as the
@@ -140,7 +173,7 @@ type quicState struct {
 //
 // The config's MinVersion must be at least TLS 1.3.
 func QUICClient(config *QUICConfig) *QUICConn {
-	return newQUICConn(Client(nil, config.TLSConfig))
+	return newQUICConn(Client(nil, config.TLSConfig), config)
 }
 
 // QUICServer returns a new TLS server side connection using QUICTransport as the
@@ -148,13 +181,14 @@ func QUICClient(config *QUICConfig) *QUICConn {
 //
 // The config's MinVersion must be at least TLS 1.3.
 func QUICServer(config *QUICConfig) *QUICConn {
-	return newQUICConn(Server(nil, config.TLSConfig))
+	return newQUICConn(Server(nil, config.TLSConfig), config)
 }
 
-func newQUICConn(conn *Conn) *QUICConn {
+func newQUICConn(conn *Conn, config *QUICConfig) *QUICConn {
 	conn.quic = &quicState{
-		signalc:  make(chan struct{}),
-		blockedc: make(chan struct{}),
+		signalc:             make(chan struct{}),
+		blockedc:            make(chan struct{}),
+		enableSessionEvents: config.EnableSessionEvents,
 	}
 	conn.quic.events = conn.quic.eventArr[:0]
 	return &QUICConn{
@@ -172,7 +206,7 @@ func (q *QUICConn) Start(ctx context.Context) error {
 	}
 	q.conn.quic.started = true
 	if q.conn.config.MinVersion < VersionTLS13 {
-		return quicError(errors.New("tls: Config MinVersion must be at least TLS 1.13"))
+		return quicError(errors.New("tls: Config MinVersion must be at least TLS 1.3"))
 	}
 	go q.conn.HandshakeContext(ctx)
 	if _, ok := <-q.conn.quic.blockedc; !ok {
@@ -189,6 +223,11 @@ func (q *QUICConn) NextEvent() QUICEvent {
 		// Write over some of the previous event's data,
 		// to catch callers erroniously retaining it.
 		qs.events[last].Data[0] = 0
+	}
+	if qs.nextEvent >= len(qs.events) && qs.waitingForDrain {
+		qs.waitingForDrain = false
+		<-qs.signalc
+		<-qs.blockedc
 	}
 	if qs.nextEvent >= len(qs.events) {
 		qs.events = qs.events[:0]
@@ -255,6 +294,7 @@ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
 type QUICSessionTicketOptions struct {
 	// EarlyData specifies whether the ticket may be used for 0-RTT.
 	EarlyData bool
+	Extra     [][]byte
 }
 
 // SendSessionTicket sends a session ticket to the client.
@@ -272,7 +312,25 @@ func (q *QUICConn) SendSessionTicket(opts QUICSessionTicketOptions) error {
 		return quicError(errors.New("tls: SendSessionTicket called multiple times"))
 	}
 	q.sessionTicketSent = true
-	return quicError(c.sendSessionTicket(opts.EarlyData))
+	return quicError(c.sendSessionTicket(opts.EarlyData, opts.Extra))
+}
+
+// StoreSession stores a session previously received in a QUICStoreSession event
+// in the ClientSessionCache.
+// The application may process additional events or modify the SessionState
+// before storing the session.
+func (q *QUICConn) StoreSession(session *SessionState) error {
+	c := q.conn
+	if !c.isClient {
+		return quicError(errors.New("tls: StoreSessionTicket called on the server"))
+	}
+	cacheKey := c.clientSessionCacheKey()
+	if cacheKey == "" {
+		return nil
+	}
+	cs := &ClientSessionState{session: session}
+	c.config.ClientSessionCache.Put(cacheKey, cs)
+	return nil
 }
 
 // ConnectionState returns basic TLS details about the connection.
@@ -354,6 +412,27 @@ func (c *Conn) quicWriteCryptoData(level QUICEncryptionLevel, data []byte) {
 		last = &c.quic.events[len(c.quic.events)-1]
 	}
 	last.Data = append(last.Data, data...)
+}
+
+func (c *Conn) quicResumeSession(session *SessionState) error {
+	c.quic.events = append(c.quic.events, QUICEvent{
+		Kind:         QUICResumeSession,
+		SessionState: session,
+	})
+	c.quic.waitingForDrain = true
+	for c.quic.waitingForDrain {
+		if err := c.quicWaitForSignal(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Conn) quicStoreSession(session *SessionState) {
+	c.quic.events = append(c.quic.events, QUICEvent{
+		Kind:         QUICStoreSession,
+		SessionState: session,
+	})
 }
 
 func (c *Conn) quicSetTransportParameters(params []byte) {

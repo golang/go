@@ -96,7 +96,7 @@ func loadZoneDataPlan9(s string) (l *Location, err error) {
 
 	// Fill in the cache with information about right now,
 	// since that will be the most common lookup.
-	sec, _, _ := now()
+	sec, _, _ := runtimeNow()
 	for i := range tx {
 		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
 			l.cacheStart = tx[i].when

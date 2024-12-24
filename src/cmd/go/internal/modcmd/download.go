@@ -187,7 +187,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	infos, infosErr := modload.ListModules(ctx, args, 0, *downloadReuse)
 
 	// There is a bit of a chicken-and-egg problem here: ideally we need to know
-	// which Go version to switch to to download the requested modules, but if we
+	// which Go version to switch to download the requested modules, but if we
 	// haven't downloaded the module's go.mod file yet the GoVersion field of its
 	// info struct is not yet populated.
 	//

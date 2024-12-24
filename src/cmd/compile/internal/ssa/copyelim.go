@@ -106,7 +106,7 @@ func phielim(f *Func) {
 				// Rewrite all 0-sized Go values to remove accessors, dereferences, loads, etc.
 				if t := v.Type; (t.IsStruct() || t.IsArray()) && t.Size() == 0 {
 					if t.IsStruct() {
-						v.reset(OpStructMake0)
+						v.reset(OpStructMake)
 					} else {
 						v.reset(OpArrayMake0)
 					}

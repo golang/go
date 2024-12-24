@@ -89,6 +89,19 @@ func TestLevelMarshalText(t *testing.T) {
 	}
 }
 
+func TestLevelAppendText(t *testing.T) {
+	buf := make([]byte, 4, 16)
+	want := LevelWarn - 3
+	wantData := []byte("\x00\x00\x00\x00INFO+1")
+	data, err := want.AppendText(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(data, wantData) {
+		t.Errorf("got %s, want %s", string(data), string(wantData))
+	}
+}
+
 func TestLevelParse(t *testing.T) {
 	for _, test := range []struct {
 		in   string
@@ -155,6 +168,23 @@ func TestLevelVarMarshalText(t *testing.T) {
 	}
 	var v2 LevelVar
 	if err := v2.UnmarshalText(data); err != nil {
+		t.Fatal(err)
+	}
+	if g, w := v2.Level(), LevelWarn; g != w {
+		t.Errorf("got %s, want %s", g, w)
+	}
+}
+
+func TestLevelVarAppendText(t *testing.T) {
+	var v LevelVar
+	v.Set(LevelWarn)
+	buf := make([]byte, 4, 16)
+	data, err := v.AppendText(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v2 LevelVar
+	if err := v2.UnmarshalText(data[4:]); err != nil {
 		t.Fatal(err)
 	}
 	if g, w := v2.Level(), LevelWarn; g != w {

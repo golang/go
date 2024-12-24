@@ -94,6 +94,18 @@ func DoChildren(n Node, do func(Node) bool) bool {
 	return n.doChildren(do)
 }
 
+// DoChildrenWithHidden is like DoChildren, but also visits
+// Node-typed fields tagged with `mknode:"-"`.
+//
+// TODO(mdempsky): Remove the `mknode:"-"` tags so this function can
+// go away.
+func DoChildrenWithHidden(n Node, do func(Node) bool) bool {
+	if n == nil {
+		return false
+	}
+	return n.doChildrenWithHidden(do)
+}
+
 // Visit visits each non-nil node x in the IR tree rooted at n
 // in a depth-first preorder traversal, calling visit on each node visited.
 func Visit(n Node, visit func(Node)) {

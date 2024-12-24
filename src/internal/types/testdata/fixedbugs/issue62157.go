@@ -90,7 +90,7 @@ func _() {
 	B = f(B, b, a)
 
 	// verify type error
-	A = f /* ERROR "cannot use f(B, b, a) (value of type namedB) as namedA value in assignment" */ (B, b, a)
+	A = f /* ERROR "cannot use f(B, b, a) (value of chan type namedB) as namedA value in assignment" */ (B, b, a)
 }
 
 // Test case 4: some more combinations

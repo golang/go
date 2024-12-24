@@ -9,7 +9,6 @@ import (
 	"internal/testenv"
 	"os"
 	. "path/filepath"
-	"reflect"
 	"runtime"
 	"slices"
 	"strings"
@@ -327,20 +326,7 @@ func TestWindowsGlob(t *testing.T) {
 	}
 
 	// test relative paths
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		err := os.Chdir(wd)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
+	t.Chdir(tmpDir)
 	for _, test := range tests {
 		err := test.globRel("")
 		if err != nil {
@@ -367,7 +353,7 @@ func TestNonWindowsGlobEscape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Glob error for %q: %s", pattern, err)
 	}
-	if !reflect.DeepEqual(matches, want) {
+	if !slices.Equal(matches, want) {
 		t.Fatalf("Glob(%#q) = %v want %v", pattern, matches, want)
 	}
 }

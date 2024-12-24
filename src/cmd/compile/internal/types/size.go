@@ -6,7 +6,7 @@ package types
 
 import (
 	"math"
-	"sort"
+	"slices"
 
 	"cmd/compile/internal/base"
 	"cmd/internal/src"
@@ -93,21 +93,21 @@ func expandiface(t *Type) {
 
 	{
 		methods := t.Methods()
-		sort.SliceStable(methods, func(i, j int) bool {
-			mi, mj := methods[i], methods[j]
-
+		slices.SortStableFunc(methods, func(a, b *Field) int {
 			// Sort embedded types by type name (if any).
-			if mi.Sym == nil && mj.Sym == nil {
-				return mi.Type.Sym().Less(mj.Type.Sym())
+			if a.Sym == nil && b.Sym == nil {
+				return CompareSyms(a.Type.Sym(), b.Type.Sym())
 			}
 
 			// Sort methods before embedded types.
-			if mi.Sym == nil || mj.Sym == nil {
-				return mi.Sym != nil
+			if a.Sym == nil {
+				return -1
+			} else if b.Sym == nil {
+				return +1
 			}
 
 			// Sort methods by symbol name.
-			return mi.Sym.Less(mj.Sym)
+			return CompareSyms(a.Sym, b.Sym)
 		})
 	}
 
@@ -146,7 +146,7 @@ func expandiface(t *Type) {
 		m.Pos = src.NoXPos
 	}
 
-	sort.Sort(MethodsByName(methods))
+	slices.SortFunc(methods, CompareFields)
 
 	if int64(len(methods)) >= MaxWidth/int64(PtrSize) {
 		base.ErrorfAt(typePos(t), 0, "interface too large")

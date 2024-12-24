@@ -33,7 +33,17 @@ func hasDots(call *ast.CallExpr) bool { return call.Ellipsis.IsValid() }
 // dddErrPos returns the positioner for reporting an invalid ... use in a call.
 func dddErrPos(call *ast.CallExpr) positioner { return atPos(call.Ellipsis) }
 
-// argErrPos returns positioner for reportign an invalid argument count.
+// isdddArray reports whether atyp is of the form [...]E.
+func isdddArray(atyp *ast.ArrayType) bool {
+	if atyp.Len != nil {
+		if ddd, _ := atyp.Len.(*ast.Ellipsis); ddd != nil && ddd.Elt == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// argErrPos returns positioner for reporting an invalid argument count.
 func argErrPos(call *ast.CallExpr) positioner { return inNode(call, call.Rparen) }
 
 // startPos returns the start position of node n.

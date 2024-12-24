@@ -7,6 +7,7 @@ package net
 import (
 	"errors"
 	"fmt"
+	"internal/asan"
 	"internal/testenv"
 	"net/netip"
 	"os"
@@ -340,7 +341,7 @@ func TestUDPZeroBytePayload(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
-	case "darwin", "ios":
+	case "ios":
 		testenv.SkipFlaky(t, 29225)
 	}
 	if !testableNetwork("udp") {
@@ -492,6 +493,9 @@ func TestAllocs(t *testing.T) {
 	}
 	if !testableNetwork("udp4") {
 		t.Skipf("skipping: udp4 not available")
+	}
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
 	}
 
 	// Optimizations are required to remove the allocs.

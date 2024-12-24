@@ -174,7 +174,7 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
 				r.Type() != objabi.R_RISCV_PCREL_STYPE && r.Type() != objabi.R_RISCV_TLS_IE {
 				continue
 			}
-			if r.Off() == 0 && ldr.SymType(s) == sym.STEXT {
+			if r.Off() == 0 && ldr.SymType(s).IsText() {
 				// Use the symbol for the function instead of creating
 				// an overlapping symbol.
 				continue
@@ -206,7 +206,7 @@ func findHI20Symbol(ctxt *ld.Link, ldr *loader.Loader, val int64) loader.Sym {
 	if idx >= len(ctxt.Textp) {
 		return 0
 	}
-	if s := ctxt.Textp[idx]; ldr.SymValue(s) == val && ldr.SymType(s) == sym.STEXT {
+	if s := ctxt.Textp[idx]; ldr.SymValue(s) == val && ldr.SymType(s).IsText() {
 		return s
 	}
 	return 0
@@ -223,7 +223,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		case 8:
 			out.Write64(uint64(elf.R_RISCV_64) | uint64(elfsym)<<32)
 		default:
-			ld.Errorf(nil, "unknown size %d for %v relocation", r.Size, r.Type)
+			ld.Errorf("unknown size %d for %v relocation", r.Size, r.Type)
 			return false
 		}
 		out.Write64(uint64(r.Xadd))
@@ -240,7 +240,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		offset := int64(relocs.At(ri).Off())
 		hi20Sym := findHI20Symbol(ctxt, ldr, ldr.SymValue(s)+offset)
 		if hi20Sym == 0 {
-			ld.Errorf(nil, "failed to find text symbol for HI20 relocation at %d (%x)", sectoff, ldr.SymValue(s)+offset)
+			ld.Errorf("failed to find text symbol for HI20 relocation at %d (%x)", sectoff, ldr.SymValue(s)+offset)
 			return false
 		}
 		hi20ElfSym := ld.ElfSymForReloc(ctxt, hi20Sym)
@@ -682,7 +682,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 		}
 		if ldr.SymType(tramp) == 0 {
 			trampb := ldr.MakeSymbolUpdater(tramp)
-			ctxt.AddTramp(trampb)
+			ctxt.AddTramp(trampb, ldr.SymType(s))
 			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, int64(r.Add()))
 		}
 		sb := ldr.MakeSymbolUpdater(s)

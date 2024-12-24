@@ -17,9 +17,15 @@ import (
 	"unicode/utf8"
 )
 
-// An Object describes a named language entity such as a package,
-// constant, type, variable, function (incl. methods), or label.
-// All objects implement the Object interface.
+// An Object is a named language entity.
+// An Object may be a constant ([Const]), type name ([TypeName]),
+// variable or struct field ([Var]), function or method ([Func]),
+// imported package ([PkgName]), label ([Label]),
+// built-in function ([Builtin]),
+// or the predeclared identifier 'nil' ([Nil]).
+//
+// The environment, which is structured as a tree of Scopes,
+// maps each name to the unique Object that it denotes.
 type Object interface {
 	Parent() *Scope // scope in which this object is declared; nil for methods and struct fields
 	Pos() token.Pos // position of object identifier in declaration
@@ -30,6 +36,7 @@ type Object interface {
 	Id() string     // object name if exported, qualified name if not exported (see func Id)
 
 	// String returns a human-readable string of the object.
+	// Use [ObjectString] to control how package names are formatted in the string.
 	String() string
 
 	// order reflects a package-level object's source order: if object
@@ -189,40 +196,48 @@ func (obj *object) sameId(pkg *Package, name string, foldCase bool) bool {
 	return samePkg(obj.pkg, pkg)
 }
 
-// less reports whether object a is ordered before object b.
+// cmp reports whether object a is ordered before object b.
+// cmp returns:
+//
+//	-1 if a is before b
+//	 0 if a is equivalent to b
+//	+1 if a is behind b
 //
 // Objects are ordered nil before non-nil, exported before
 // non-exported, then by name, and finally (for non-exported
 // functions) by package path.
-func (a *object) less(b *object) bool {
+func (a *object) cmp(b *object) int {
 	if a == b {
-		return false
+		return 0
 	}
 
 	// Nil before non-nil.
 	if a == nil {
-		return true
+		return -1
 	}
 	if b == nil {
-		return false
+		return +1
 	}
 
 	// Exported functions before non-exported.
 	ea := isExported(a.name)
 	eb := isExported(b.name)
 	if ea != eb {
-		return ea
+		if ea {
+			return -1
+		}
+		return +1
 	}
 
 	// Order by name and then (for non-exported names) by package.
 	if a.name != b.name {
-		return a.name < b.name
+		return strings.Compare(a.name, b.name)
 	}
 	if !ea {
-		return a.pkg.path < b.pkg.path
+		return strings.Compare(a.pkg.path, b.pkg.path)
 	}
 
-	return false
+	return 0
 }
 
 // A PkgName represents an imported Go package.
@@ -260,7 +275,11 @@ func (obj *Const) Val() constant.Value { return obj.val }
 
 func (*Const) isDependency() {} // a constant may be a dependency of an initialization expression
 
-// A TypeName represents a name for a (defined or alias) type.
+// A TypeName is an [Object] that represents a type with a name:
+// a defined type ([Named]),
+// an alias type ([Alias]),
+// a type parameter ([TypeParam]),
+// or a predeclared type such as int or error.
 type TypeName struct {
 	object
 }
@@ -558,7 +577,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 			// Don't print anything more for basic types since there's
 			// no more information.
 			return
-		case *Named:
+		case genericType:
 			if t.TypeParams().Len() > 0 {
 				newTypeWriter(buf, qf).tParamList(t.TypeParams().list())
 			}

@@ -33,6 +33,7 @@ my $arm = 0; # 64-bit value should use (even, odd)-pair
 my $libc = 0;
 my $tags = "";  # build tags
 my $newtags = ""; # new style build tags
+my $stdimports = 'import "unsafe"';
 my $extraimports = "";
 
 if($ARGV[0] eq "-b32") {
@@ -390,6 +391,10 @@ if($errors) {
 	exit 1;
 }
 
+if($extraimports ne "") {
+    $stdimports .= "\n$extraimports";
+}
+
 # TODO: this assumes tags are just simply comma separated. For now this is all the uses.
 $newtags = $tags =~ s/,/ && /r;
 
@@ -401,8 +406,7 @@ print <<EOF;
 
 package syscall
 
-import "unsafe"
-$extraimports
+$stdimports
 
 $text
 EOF

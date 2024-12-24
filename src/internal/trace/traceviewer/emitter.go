@@ -614,7 +614,7 @@ func (e *Emitter) tsWithinRange(ts time.Duration) bool {
 	return e.rangeStart <= ts && ts <= e.rangeEnd
 }
 
-// OptionalEvent emits ev if it's within the time range of of the consumer, i.e.
+// OptionalEvent emits ev if it's within the time range of the consumer, i.e.
 // the selected trace split range.
 func (e *Emitter) OptionalEvent(ev *format.Event) {
 	e.c.ConsumeViewerEvent(ev, false)

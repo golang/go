@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// package importer implements package reading for gc-generated object files.
 package importer
 
 import (
@@ -28,11 +29,9 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
 	pr := pkgReader{
 		PkgDecoder: input,
 
-		ctxt:    ctxt,
-		imports: imports,
-		// Currently, the compiler panics when using Alias types.
-		// TODO(gri) set to true once this is fixed (issue #66873)
-		enableAlias: false,
+		ctxt:        ctxt,
+		imports:     imports,
+		enableAlias: true,
 
 		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.RelocPosBase)),
 		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.RelocPkg)),
@@ -41,13 +40,18 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
 
 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 	pkg := r.pkg()
-	r.Bool() // TODO(mdempsky): Remove; was "has init"
+
+	if r.Version().Has(pkgbits.HasInit) {
+		r.Bool()
+	}
 
 	for i, n := 0, r.Len(); i < n; i++ {
 		// As if r.obj(), but avoiding the Scope.Lookup call,
 		// to avoid eager loading of imports.
 		r.Sync(pkgbits.SyncObject)
-		assert(!r.Bool())
+		if r.Version().Has(pkgbits.DerivedFuncInstance) {
+			assert(!r.Bool())
+		}
 		r.p.objIdx(r.Reloc(pkgbits.RelocObj))
 		assert(r.Len() == 0)
 	}
@@ -368,7 +372,9 @@ func (r *reader) param() *types2.Var {
 func (r *reader) obj() (types2.Object, []types2.Type) {
 	r.Sync(pkgbits.SyncObject)
 
-	assert(!r.Bool())
+	if r.Version().Has(pkgbits.DerivedFuncInstance) {
+		assert(!r.Bool())
+	}
 
 	pkg, name := r.p.objIdx(r.Reloc(pkgbits.RelocObj))
 	obj := pkg.Scope().Lookup(name)
@@ -412,8 +418,12 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 
 		case pkgbits.ObjAlias:
 			pos := r.pos()
+			var tparams []*types2.TypeParam
+			if r.Version().Has(pkgbits.AliasTypeParamNames) {
+				tparams = r.typeParamNames()
+			}
 			typ := r.typ()
-			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ)
+			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ, tparams)
 
 		case pkgbits.ObjConst:
 			pos := r.pos()
@@ -474,7 +484,10 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
 		dict.derived = make([]derivedInfo, r.Len())
 		dict.derivedTypes = make([]types2.Type, len(dict.derived))
 		for i := range dict.derived {
-			dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
+			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.RelocType)}
+			if r.Version().Has(pkgbits.DerivedInfoNeeded) {
+				assert(!r.Bool())
+			}
 		}
 
 		pr.retireReader(r)
@@ -539,13 +552,15 @@ func (r *reader) ident(marker pkgbits.SyncMarker) (*types2.Package, string) {
 }
 
 // newAliasTypeName returns a new TypeName, with a materialized *types2.Alias if supported.
-func newAliasTypeName(aliases bool, pos syntax.Pos, pkg *types2.Package, name string, rhs types2.Type) *types2.TypeName {
+func newAliasTypeName(aliases bool, pos syntax.Pos, pkg *types2.Package, name string, rhs types2.Type, tparams []*types2.TypeParam) *types2.TypeName {
 	// Copied from x/tools/internal/aliases.NewAlias via
 	// GOROOT/src/go/internal/gcimporter/ureader.go.
 	if aliases {
 		tname := types2.NewTypeName(pos, pkg, name, nil)
-		_ = types2.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+		a := types2.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+		a.SetTypeParams(tparams)
 		return tname
 	}
+	assert(len(tparams) == 0)
 	return types2.NewTypeName(pos, pkg, name, rhs)
 }

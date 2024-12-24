@@ -124,7 +124,7 @@ func Setenv(key, value string) error {
 }
 
 func Clearenv() {
-	envOnce.Do(copyenv) // prevent copyenv in Getenv/Setenv
+	envOnce.Do(copyenv)
 
 	envLock.Lock()
 	defer envLock.Unlock()

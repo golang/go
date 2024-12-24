@@ -768,6 +768,15 @@ func Munmap(b []byte) (err error) {
 	return mapper.Munmap(b)
 }
 
+func MmapPtr(fd int, offset int64, addr unsafe.Pointer, length uintptr, prot int, flags int) (ret unsafe.Pointer, err error) {
+	xaddr, err := mapper.mmap(uintptr(addr), length, prot, flags, fd, offset)
+	return unsafe.Pointer(xaddr), err
+}
+
+func MunmapPtr(addr unsafe.Pointer, length uintptr) (err error) {
+	return mapper.munmap(uintptr(addr), length)
+}
+
 //sys   Gethostname(buf []byte) (err error) = SYS___GETHOSTNAME_A
 //sysnb	Getgid() (gid int)
 //sysnb	Getpid() (pid int)
@@ -816,10 +825,10 @@ func Lstat(path string, stat *Stat_t) (err error) {
 // for checking symlinks begins with $VERSION/ $SYSNAME/ $SYSSYMR/ $SYSSYMA/
 func isSpecialPath(path []byte) (v bool) {
 	var special = [4][8]byte{
-		[8]byte{'V', 'E', 'R', 'S', 'I', 'O', 'N', '/'},
-		[8]byte{'S', 'Y', 'S', 'N', 'A', 'M', 'E', '/'},
-		[8]byte{'S', 'Y', 'S', 'S', 'Y', 'M', 'R', '/'},
-		[8]byte{'S', 'Y', 'S', 'S', 'Y', 'M', 'A', '/'}}
+		{'V', 'E', 'R', 'S', 'I', 'O', 'N', '/'},
+		{'S', 'Y', 'S', 'N', 'A', 'M', 'E', '/'},
+		{'S', 'Y', 'S', 'S', 'Y', 'M', 'R', '/'},
+		{'S', 'Y', 'S', 'S', 'Y', 'M', 'A', '/'}}
 
 	var i, j int
 	for i = 0; i < len(special); i++ {
@@ -3115,3 +3124,90 @@ func legacy_Mkfifoat(dirfd int, path string, mode uint32) (err error) {
 //sys	Posix_openpt(oflag int) (fd int, err error) = SYS_POSIX_OPENPT
 //sys	Grantpt(fildes int) (rc int, err error) = SYS_GRANTPT
 //sys	Unlockpt(fildes int) (rc int, err error) = SYS_UNLOCKPT
+
+func fcntlAsIs(fd uintptr, cmd int, arg uintptr) (val int, err error) {
+	runtime.EnterSyscall()
+	r0, e2, e1 := CallLeFuncWithErr(GetZosLibVec()+SYS_FCNTL<<4, uintptr(fd), uintptr(cmd), arg)
+	runtime.ExitSyscall()
+	val = int(r0)
+	if int64(r0) == -1 {
+		err = errnoErr2(e1, e2)
+	}
+	return
+}
+
+func Fcntl(fd uintptr, cmd int, op interface{}) (ret int, err error) {
+	switch op.(type) {
+	case *Flock_t:
+		err = FcntlFlock(fd, cmd, op.(*Flock_t))
+		if err != nil {
+			ret = -1
+		}
+		return
+	case int:
+		return FcntlInt(fd, cmd, op.(int))
+	case *F_cnvrt:
+		return fcntlAsIs(fd, cmd, uintptr(unsafe.Pointer(op.(*F_cnvrt))))
+	case unsafe.Pointer:
+		return fcntlAsIs(fd, cmd, uintptr(op.(unsafe.Pointer)))
+	default:
+		return -1, EINVAL
+	}
+	return
+}
+
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	return sendfile(outfd, infd, offset, count)
+}
+
+func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+	// TODO: use LE call instead if the call is implemented
+	originalOffset, err := Seek(infd, 0, SEEK_CUR)
+	if err != nil {
+		return -1, err
+	}
+	//start reading data from in_fd
+	if offset != nil {
+		_, err := Seek(infd, *offset, SEEK_SET)
+		if err != nil {
+			return -1, err
+		}
+	}
+
+	buf := make([]byte, count)
+	readBuf := make([]byte, 0)
+	var n int = 0
+	for i := 0; i < count; i += n {
+		n, err := Read(infd, buf)
+		if n == 0 {
+			if err != nil {
+				return -1, err
+			} else { // EOF
+				break
+			}
+		}
+		readBuf = append(readBuf, buf...)
+		buf = buf[0:0]
+	}
+
+	n2, err := Write(outfd, readBuf)
+	if err != nil {
+		return -1, err
+	}
+
+	//When sendfile() returns, this variable will be set to the
+	// offset of the byte following the last byte that was read.
+	if offset != nil {
+		*offset = *offset + int64(n)
+		// If offset is not NULL, then sendfile() does not modify the file
+		// offset of in_fd
+		_, err := Seek(infd, originalOffset, SEEK_SET)
+		if err != nil {
+			return -1, err
+		}
+	}
+	return n2, nil
+}

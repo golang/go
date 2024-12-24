@@ -7,6 +7,7 @@ package types
 import (
 	"cmd/compile/internal/base"
 	"cmd/internal/obj"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -92,39 +93,43 @@ func (sym *Sym) LinksymABI(abi obj.ABI) *obj.LSym {
 	return base.PkgLinksym(sym.Pkg.Prefix, sym.Name, abi)
 }
 
-// Less reports whether symbol a is ordered before symbol b.
+// CompareSyms return the ordering of a and b, as for [cmp.Compare].
 //
 // Symbols are ordered exported before non-exported, then by name, and
 // finally (for non-exported symbols) by package path.
-func (a *Sym) Less(b *Sym) bool {
+func CompareSyms(a, b *Sym) int {
 	if a == b {
-		return false
+		return 0
 	}
 
 	// Nil before non-nil.
 	if a == nil {
-		return true
+		return -1
 	}
 	if b == nil {
-		return false
+		return +1
 	}
 
 	// Exported symbols before non-exported.
 	ea := IsExported(a.Name)
 	eb := IsExported(b.Name)
 	if ea != eb {
-		return ea
+		if ea {
+			return -1
+		} else {
+			return +1
+		}
 	}
 
 	// Order by name and then (for non-exported names) by package
 	// height and path.
-	if a.Name != b.Name {
-		return a.Name < b.Name
+	if r := strings.Compare(a.Name, b.Name); r != 0 {
+		return r
 	}
 	if !ea {
-		return a.Pkg.Path < b.Pkg.Path
+		return strings.Compare(a.Pkg.Path, b.Pkg.Path)
 	}
-	return false
+	return 0
 }
 
 // IsExported reports whether name is an exported Go symbol (that is,

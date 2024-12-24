@@ -28,13 +28,15 @@ func doinit() {
 
 func getisar0() uint64
 
+func getpfr0() uint64
+
 func getMIDR() uint64
 
 func extractBits(data uint64, start, end uint) uint {
 	return (uint)(data>>start) & ((1 << (end - start + 1)) - 1)
 }
 
-func parseARM64SystemRegisters(isar0 uint64) {
+func parseARM64SystemRegisters(isar0, pfr0 uint64) {
 	// ID_AA64ISAR0_EL1
 	switch extractBits(isar0, 4, 7) {
 	case 1:
@@ -65,5 +67,10 @@ func parseARM64SystemRegisters(isar0 uint64) {
 	switch extractBits(isar0, 20, 23) {
 	case 2:
 		ARM64.HasATOMICS = true
+	}
+
+	switch extractBits(pfr0, 48, 51) {
+	case 1:
+		ARM64.HasDIT = true
 	}
 }

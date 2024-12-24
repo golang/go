@@ -25,7 +25,6 @@
 package runtime
 
 import (
-	"internal/abi"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -565,7 +564,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			}
 			if hasFinAndRevived {
 				// Pass 2: queue all finalizers and clear any weak handles. Weak handles are cleared
-				// before finalization as specified by the internal/weak package. See the documentation
+				// before finalization as specified by the weak package. See the documentation
 				// for that package for more details.
 				for siter.valid() && uintptr(siter.s.offset) < endOffset {
 					// Find the exact byte for which the special was setup
@@ -818,18 +817,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			} else {
 				mheap_.freeSpan(s)
 			}
-			if s.largeType != nil && s.largeType.TFlag&abi.TFlagUnrolledBitmap != 0 {
-				// The unrolled GCProg bitmap is allocated separately.
-				// Free the space for the unrolled bitmap.
-				systemstack(func() {
-					s := spanOf(uintptr(unsafe.Pointer(s.largeType)))
-					mheap_.freeManual(s, spanAllocPtrScalarBits)
-				})
-				// Make sure to zero this pointer without putting the old
-				// value in a write buffer, as the old value might be an
-				// invalid pointer. See arena.go:(*mheap).allocUserArenaChunk.
-				*(*uintptr)(unsafe.Pointer(&s.largeType)) = 0
-			}
 			return true
 		}
 
@@ -855,7 +842,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 // pointer to that object and marked it.
 func (s *mspan) reportZombies() {
 	printlock()
-	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer? try -d=checkptr)\n")
+	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer or having race conditions? try -d=checkptr or -race)\n")
 	mbits := s.markBitsForBase()
 	abits := s.allocBitsForIndex(0)
 	for i := uintptr(0); i < uintptr(s.nelems); i++ {

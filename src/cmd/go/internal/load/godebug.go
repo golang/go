@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"go/build"
 	"internal/godebugs"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
 
+	"cmd/go/internal/fips140"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
 )
@@ -60,12 +62,25 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 	}
 
 	var m map[string]string
+
+	// If GOFIPS140 is set to anything but "off",
+	// default to GODEBUG=fips140=on.
+	if fips140.Enabled() {
+		if m == nil {
+			m = make(map[string]string)
+		}
+		m["fips140"] = "on"
+	}
+
+	// Add directives from main module go.mod.
 	for _, g := range modload.MainModules.Godebugs() {
 		if m == nil {
 			m = make(map[string]string)
 		}
 		m[g.Key] = g.Value
 	}
+
+	// Add directives from packages.
 	for _, list := range [][]build.Directive{p.Internal.Build.Directives, directives, testDirectives, xtestDirectives} {
 		for _, d := range list {
 			k, v, err := ParseGoDebug(d.Text)
@@ -89,13 +104,11 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 	defaults := godebugForGoVersion(goVersion)
 	if defaults != nil {
 		// Apply m on top of defaults.
-		for k, v := range m {
-			defaults[k] = v
-		}
+		maps.Copy(defaults, m)
 		m = defaults
 	}
 
-	var keys []string
+	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}

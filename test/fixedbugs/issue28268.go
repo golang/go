@@ -16,8 +16,8 @@ type T struct {
 
 type E struct{}
 
-func (T) b()  {} // ERROR "field and method named b|redeclares struct field name|field and method with the same name `b'"
-func (*T) E() {} // ERROR "field and method named E|redeclares struct field name|field and method with the same name `E'"
+func (T) b()  {} // ERROR "field and method named b|redeclares struct field name|field and method with the same name b"
+func (*T) E() {} // ERROR "field and method named E|redeclares struct field name|field and method with the same name E"
 
 func _() {
 	var x T

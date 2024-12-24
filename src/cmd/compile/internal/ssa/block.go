@@ -366,6 +366,15 @@ func (b *Block) removePhiArg(phi *Value, i int) {
 	phielimValue(phi)
 }
 
+// uniquePred returns the predecessor of b, if there is exactly one.
+// Returns nil otherwise.
+func (b *Block) uniquePred() *Block {
+	if len(b.Preds) != 1 {
+		return nil
+	}
+	return b.Preds[0].b
+}
+
 // LackingPos indicates whether b is a block whose position should be inherited
 // from its successors.  This is true if all the values within it have unreliable positions
 // and if it is "plain", meaning that there is no control flow that is also very likely

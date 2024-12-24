@@ -60,11 +60,11 @@ mcopy:
 
 	SUB	SRC, TGT, TMP	// dest - src
 	CMPU	TMP, LEN, CR2	// < len?
-	BC	12, 8, backward // BLT CR2 backward
+	BLT	CR2, backward
 
 	// Copying forward if no overlap.
 
-	BC	12, 6, checkbytes	// BEQ CR1, checkbytes
+	BEQ	CR1, checkbytes
 	SRDCC	$3, DWORDS, OCTWORDS	// 64 byte chunks?
 	MOVD	$16, IDX16
 	BEQ	lt64gt8			// < 64 bytes
@@ -132,7 +132,7 @@ lt16:	// Move 8 bytes if possible
 	MOVD    TMP, 0(TGT)
 	ADD     $8, TGT
 checkbytes:
-	BC	12, 14, LR		// BEQ lr
+	BEQ	CR3, LR
 #ifdef GOPPC64_power10
 	SLD	$56, BYTES, TMP
 	LXVL	SRC, TMP, V0
@@ -157,7 +157,7 @@ lt4:	// Move halfword if possible
 	ADD $2, TGT
 lt2:	// Move last byte if 1 left
 	CMP BYTES, $1
-	BC 12, 0, LR	// ble lr
+	BLT CR0, LR
 	MOVBZ 0(SRC), TMP
 	MOVBZ TMP, 0(TGT)
 	RET
@@ -182,7 +182,7 @@ backwardtailloop:
 	BDNZ	backwardtailloop
 
 nobackwardtail:
-	BC	4, 5, LR		// blelr cr1, return if DWORDS == 0
+	BLE	CR1, LR                 // return if DWORDS == 0
 	SRDCC	$2,DWORDS,QWORDS	// Compute number of 32B blocks and compare to 0
 	BNE	backward32setup		// If QWORDS != 0, start the 32B copy loop.
 
@@ -190,16 +190,16 @@ backward24:
 	// DWORDS is a value between 1-3.
 	CMP	DWORDS, $2
 
-	MOVD 	-8(SRC), TMP
-	MOVD 	TMP, -8(TGT)
-	BC	12, 0, LR		// bltlr, return if DWORDS == 1
+	MOVD	-8(SRC), TMP
+	MOVD	TMP, -8(TGT)
+	BLT	CR0, LR                 // return if DWORDS == 1
 
-	MOVD 	-16(SRC), TMP
-	MOVD 	TMP, -16(TGT)
-	BC	12, 2, LR		// beqlr, return if DWORDS == 2
+	MOVD	-16(SRC), TMP
+	MOVD	TMP, -16(TGT)
+	BEQ	CR0, LR                 // return if DWORDS == 2
 
-	MOVD 	-24(SRC), TMP
-	MOVD 	TMP, -24(TGT)
+	MOVD	-24(SRC), TMP
+	MOVD	TMP, -24(TGT)
 	RET
 
 backward32setup:
@@ -216,5 +216,5 @@ backward32loop:
 	STXVD2X	VS32, (R0)(TGT)		// store 16x2 bytes
 	STXVD2X	VS33, (IDX16)(TGT)
 	BDNZ	backward32loop
-	BC	12, 2, LR		// beqlr, return if DWORDS == 0
+	BEQ	CR0, LR                 // return if DWORDS == 0
 	BR	backward24

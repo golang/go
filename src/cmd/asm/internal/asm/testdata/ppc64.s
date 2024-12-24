@@ -508,17 +508,26 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 
 	BEQ 0(PC)                       // 41820000
 	BEQ CR1,0(PC)                   // 41860000
+	BEQ CR0, LR                     // 4d820020
+	BEQ CR7, LR                     // 4d9e0020
 	BGE 0(PC)                       // 40800000
 	BGE CR2,0(PC)                   // 40880000
+	BGE CR6,LR                      // 4c980020
 	BGT 4(PC)                       // 41810010
 	BGT CR3,4(PC)                   // 418d0010
+	BGT CR6, LR                     // 4d990020
 	BLE 0(PC)                       // 40810000
 	BLE CR4,0(PC)                   // 40910000
+	BLE CR6, LR                     // 4c990020
 	BLT 0(PC)                       // 41800000
 	BLT CR5,0(PC)                   // 41940000
 	BNE 0(PC)                       // 40820000
+	BNE CR6, LR                     // 4c9a0020
 	BLT CR6,0(PC)                   // 41980000
+	BLT CR6, LR                     // 4d980020
 	BVC 0(PC)                       // 40830000
+	BVC CR6, LR                     // 4c9b0020
+	BVS CR6, LR                     // 4d9b0020
 	BVS 0(PC)                       // 41830000
 	JMP 8(PC)                       // 48000010
 
@@ -681,9 +690,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FMOVDCC F1, F2                  // fc400891
 	FADDS F1, F2                    // ec42082a
 	FADDS F1, F2, F3                // ec62082a
+	DADD F1, F2                     // ec420804
+	DADD F1, F2, F3                 // ec620804
+	DADDQ F2, F4                    // fc841004
+	DADDQ F2, F4, F6                // fcc41004
 	FADDSCC F1, F2, F3              // ec62082b
 	FSUB F1, F2                     // fc420828
 	FSUB F1, F2, F3                 // fc620828
+	DSUB F1, F2                     // ec420c04
+	DSUB F1, F2, F3                 // ec620c04
+	DSUBQ F2, F4                    // fc841404
+	DSUBQ F2, F4, F6                // fcc41404
 	FSUBCC F1, F2, F3               // fc620829
 	FSUBS F1, F2                    // ec420828
 	FSUBS F1, F2, F3                // ec620828
@@ -691,12 +708,20 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FSUBSCC F1, F2, F3              // ec620829
 	FMUL F1, F2                     // fc420072
 	FMUL F1, F2, F3                 // fc620072
+	DMUL F1, F2                     // ec420044
+	DMUL F1, F2, F3                 // ec620044
+	DMULQ F2, F4                    // fc8400c4
+	DMULQ F2, F4, F6                // fcc400c4
 	FMULCC F1, F2, F3               // fc620073
 	FMULS F1, F2                    // ec420072
 	FMULS F1, F2, F3                // ec620072
 	FMULSCC F1, F2, F3              // ec620073
 	FDIV F1, F2                     // fc420824
 	FDIV F1, F2, F3                 // fc620824
+	DDIV F1, F2                     // ec420c44
+	DDIV F1, F2, F3                 // ec620c44
+	DDIVQ F2, F4                    // fc841444
+	DDIVQ F2, F4, F6                // fcc41444
 	FDIVCC F1, F2, F3               // fc620825
 	FDIVS F1, F2                    // ec420824
 	FDIVS F1, F2, F3                // ec620824
@@ -763,7 +788,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	FCPSGN F1, F2                   // fc420810
 	FCPSGNCC F1, F2                 // fc420811
 	FCMPO F1, F2                    // fc011040
+	FCMPO F1, F2, CR0               // FCMPO F1,CR0,F2  // fc011040
 	FCMPU F1, F2                    // fc011000
+	FCMPU F1, F2, CR0               // FCMPU F1,CR0,F2  // fc011000
+	DCMPO F1, F2                    // ec011104
+	DCMPO F1, F2, CR0               // DCMPO F1,CR0,F2  // ec011104
+	DCMPOQ F2, F4                   // fc022104
+	DCMPOQ F2,F4, CR0               // DCMPOQ F2,CR0,F4 // fc022104
+	DCMPU F1, F2                    // ec011504
+	DCMPU F1, F2, CR0               // DCMPU F1,CR0,F2  // ec011504
+	DCMPUQ F2, F4                   // fc022504
+	DCMPUQ F2,F4, CR0               // DCMPUQ F2,CR0,F4 // fc022504
 	LVX (R3)(R4), V1                // 7c2418ce
 	LVX (R3)(R0), V1                // 7c2018ce
 	LVX (R3), V1                    // 7c2018ce
@@ -1153,6 +1188,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVD XER, 4(R1)                 // 7fe102a6fbe10004
 	MOVD 4(R1), SPR(3)              // ebe100047fe303a6
 	MOVD 4(R1), XER                 // ebe100047fe103a6
+	OR $0, R0, R0                   // 60000000
+
+	PCALIGN $16
 	PNOP                            // 0700000000000000
 
 	SETB CR1,R3                     // 7c640100

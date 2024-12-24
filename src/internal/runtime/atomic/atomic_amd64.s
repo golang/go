@@ -117,6 +117,18 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
 	JMP	·Xadd64(SB)
 
+// uint8 Xchg(ptr *uint8, new uint8)
+// Atomically:
+//	old := *ptr;
+//	*ptr = new;
+//	return old;
+TEXT ·Xchg8(SB), NOSPLIT, $0-17
+	MOVQ	ptr+0(FP), BX
+	MOVB	new+8(FP), AX
+	XCHGB	AX, 0(BX)
+	MOVB	AX, ret+16(FP)
+	RET
+
 // uint32 Xchg(ptr *uint32, new uint32)
 // Atomically:
 //	old := *ptr;

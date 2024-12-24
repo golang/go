@@ -39,6 +39,7 @@ var stdPkgs = []string{
 	"sort",
 	"strconv",
 	"strings",
+	"structs",
 	"sync",
 	"syscall",
 	"testing",
@@ -46,4 +47,5 @@ var stdPkgs = []string{
 	"unicode",
 	"unique",
 	"unsafe",
+	"weak",
 }

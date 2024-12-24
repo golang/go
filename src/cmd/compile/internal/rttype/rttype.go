@@ -27,7 +27,8 @@ var ArrayType *types.Type
 var ChanType *types.Type
 var FuncType *types.Type
 var InterfaceType *types.Type
-var MapType *types.Type
+var OldMapType *types.Type
+var SwissMapType *types.Type
 var PtrType *types.Type
 var SliceType *types.Type
 var StructType *types.Type
@@ -54,7 +55,8 @@ func Init() {
 	ChanType = fromReflect(reflect.TypeOf(abi.ChanType{}))
 	FuncType = fromReflect(reflect.TypeOf(abi.FuncType{}))
 	InterfaceType = fromReflect(reflect.TypeOf(abi.InterfaceType{}))
-	MapType = fromReflect(reflect.TypeOf(abi.MapType{}))
+	OldMapType = fromReflect(reflect.TypeOf(abi.OldMapType{}))
+	SwissMapType = fromReflect(reflect.TypeOf(abi.SwissMapType{}))
 	PtrType = fromReflect(reflect.TypeOf(abi.PtrType{}))
 	SliceType = fromReflect(reflect.TypeOf(abi.SliceType{}))
 	StructType = fromReflect(reflect.TypeOf(abi.StructType{}))
@@ -243,11 +245,10 @@ func (c Cursor) WriteSlice(target *obj.LSym, off, len, cap int64) {
 
 // Reloc adds a relocation from the current cursor position.
 // Reloc fills in Off and Siz fields. Caller should fill in the rest (Type, others).
-func (c Cursor) Reloc() *obj.Reloc {
-	r := obj.Addrel(c.lsym)
-	r.Off = int32(c.offset)
-	r.Siz = uint8(c.typ.Size())
-	return r
+func (c Cursor) Reloc(rel obj.Reloc) {
+	rel.Off = int32(c.offset)
+	rel.Siz = uint8(c.typ.Size())
+	c.lsym.AddRel(base.Ctxt, rel)
 }
 
 // Field selects the field with the given name from the struct pointed to by c.

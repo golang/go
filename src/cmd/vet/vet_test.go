@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -35,23 +34,8 @@ func TestMain(m *testing.M) {
 
 // vetPath returns the path to the "vet" binary to run.
 func vetPath(t testing.TB) string {
-	t.Helper()
-	testenv.MustHaveExec(t)
-
-	vetPathOnce.Do(func() {
-		vetExePath, vetPathErr = os.Executable()
-	})
-	if vetPathErr != nil {
-		t.Fatal(vetPathErr)
-	}
-	return vetExePath
+	return testenv.Executable(t)
 }
-
-var (
-	vetPathOnce sync.Once
-	vetExePath  string
-	vetPathErr  error
-)
 
 func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), arg, path.Join("cmd/vet/testdata", pkg))
@@ -124,7 +108,7 @@ func TestVet(t *testing.T) {
 	// is a no-op for files whose version >= go1.22, so we use a
 	// go.mod file in the rangeloop directory to "downgrade".
 	//
-	// TOOD(adonovan): delete when go1.21 goes away.
+	// TODO(adonovan): delete when go1.21 goes away.
 	t.Run("loopclosure", func(t *testing.T) {
 		cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
 		cmd.Env = append(os.Environ(), "GOWORK=off")

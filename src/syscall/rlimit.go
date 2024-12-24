@@ -29,21 +29,28 @@ var origRlimitNofile atomic.Pointer[Rlimit]
 // which Go of course has no choice but to respect.
 func init() {
 	var lim Rlimit
-	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
+	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Max > 0 && lim.Cur < lim.Max-1 {
 		origRlimitNofile.Store(&lim)
 		nlim := lim
-		nlim.Cur = nlim.Max
+
+		// We set Cur to Max - 1 so that we are more likely to
+		// detect cases where another process uses prlimit
+		// to change our resource limits. The theory is that
+		// using prlimit to change to Cur == Max is more likely
+		// than using prlimit to change to Cur == Max - 1.
+		// The place we check for this is in exec_linux.go.
+		nlim.Cur = nlim.Max - 1
+
 		adjustFileLimit(&nlim)
 		setrlimit(RLIMIT_NOFILE, &nlim)
 	}
 }
 
 func Setrlimit(resource int, rlim *Rlimit) error {
-	err := setrlimit(resource, rlim)
-	if err == nil && resource == RLIMIT_NOFILE {
+	if resource == RLIMIT_NOFILE {
 		// Store nil in origRlimitNofile to tell StartProcess
 		// to not adjust the rlimit in the child process.
 		origRlimitNofile.Store(nil)
 	}
-	return err
+	return setrlimit(resource, rlim)
 }

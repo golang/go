@@ -29,7 +29,7 @@ func (x *Rat) GobEncode() ([]byte, error) {
 		// this should never happen
 		return nil, errors.New("Rat.GobEncode: numerator too large")
 	}
-	byteorder.BePutUint32(buf[j-4:j], uint32(n))
+	byteorder.BEPutUint32(buf[j-4:j], uint32(n))
 	j -= 1 + 4
 	b := ratGobVersion << 1 // make space for sign bit
 	if x.a.neg {
@@ -54,7 +54,7 @@ func (z *Rat) GobDecode(buf []byte) error {
 		return fmt.Errorf("Rat.GobDecode: encoding version %d not supported", b>>1)
 	}
 	const j = 1 + 4
-	ln := byteorder.BeUint32(buf[j-4 : j])
+	ln := byteorder.BEUint32(buf[j-4 : j])
 	if uint64(ln) > math.MaxInt-j {
 		return errors.New("Rat.GobDecode: invalid length")
 	}
@@ -68,12 +68,17 @@ func (z *Rat) GobDecode(buf []byte) error {
 	return nil
 }
 
+// AppendText implements the [encoding.TextAppender] interface.
+func (x *Rat) AppendText(b []byte) ([]byte, error) {
+	if x.IsInt() {
+		return x.a.AppendText(b)
+	}
+	return x.marshal(b), nil
+}
+
 // MarshalText implements the [encoding.TextMarshaler] interface.
 func (x *Rat) MarshalText() (text []byte, err error) {
-	if x.IsInt() {
-		return x.a.MarshalText()
-	}
-	return x.marshal(), nil
+	return x.AppendText(nil)
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.

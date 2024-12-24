@@ -25,7 +25,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -232,8 +232,8 @@ func compareAPI(w io.Writer, features, required, exception []string) (ok bool) {
 	featureSet := set(features)
 	exceptionSet := set(exception)
 
-	sort.Strings(features)
-	sort.Strings(required)
+	slices.Sort(features)
+	slices.Sort(required)
 
 	take := func(sl *[]string) string {
 		s := (*sl)[0]
@@ -378,7 +378,7 @@ func (w *Walker) Features() (fs []string) {
 	for f := range w.features {
 		fs = append(fs, f)
 	}
-	sort.Strings(fs)
+	slices.Sort(fs)
 	return
 }
 
@@ -431,7 +431,7 @@ func tagKey(dir string, context *build.Context, tags []string) string {
 	// an indirect imported package. See https://github.com/golang/go/issues/21181
 	// for more detail.
 	tags = append(tags, context.GOOS, context.GOARCH)
-	sort.Strings(tags)
+	slices.Sort(tags)
 
 	for _, tag := range tags {
 		if ctags[tag] {
@@ -535,7 +535,7 @@ func (w *Walker) loadImports() {
 			}
 		}
 
-		sort.Strings(stdPackages)
+		slices.Sort(stdPackages)
 		imports = listImports{
 			stdPackages: stdPackages,
 			importMap:   importMap,
@@ -717,7 +717,7 @@ func sortedMethodNames(typ *types.Interface) []string {
 	for i := range list {
 		list[i] = typ.Method(i).Name()
 	}
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 
@@ -747,7 +747,7 @@ func (w *Walker) sortedEmbeddeds(typ *types.Interface) []string {
 			list = append(list, buf.String())
 		}
 	}
-	sort.Strings(list)
+	slices.Sort(list)
 	return list
 }
 
@@ -1019,7 +1019,7 @@ func (w *Walker) emitType(obj *types.TypeName) {
 
 func (w *Walker) emitStructType(name string, typ *types.Struct) {
 	typeStruct := fmt.Sprintf("type %s struct", name)
-	w.emitf(typeStruct)
+	w.emitf("%s", typeStruct)
 	defer w.pushScope(typeStruct)()
 
 	for i := 0; i < typ.NumFields(); i++ {
@@ -1083,7 +1083,7 @@ func (w *Walker) emitIfaceType(name string, typ *types.Interface) {
 		return
 	}
 
-	sort.Strings(methodNames)
+	slices.Sort(methodNames)
 	w.emitf("type %s interface { %s }", name, strings.Join(methodNames, ", "))
 }
 

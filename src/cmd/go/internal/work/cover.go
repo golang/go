@@ -44,6 +44,9 @@ func BuildActionCoverMetaFile(runAct *Action) (string, error) {
 		}
 		if pred.Package.ImportPath == p.ImportPath {
 			metaFile := pred.Objdir + covcmd.MetaFileForPackage(p.ImportPath)
+			if cfg.BuildN {
+				return metaFile, nil
+			}
 			f, err := os.Open(metaFile)
 			if err != nil {
 				return "", err

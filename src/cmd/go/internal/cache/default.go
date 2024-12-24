@@ -12,20 +12,15 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"internal/goexperiment"
 )
 
 // Default returns the default cache to use.
 // It never returns nil.
 func Default() Cache {
-	defaultOnce.Do(initDefaultCache)
-	return defaultCache
+	return initDefaultCacheOnce()
 }
 
-var (
-	defaultOnce  sync.Once
-	defaultCache Cache
-)
+var initDefaultCacheOnce = sync.OnceValue(initDefaultCache)
 
 // cacheREADME is a message stored in a README in the cache directory.
 // Because the cache lives outside the normal Go trees, we leave the
@@ -38,7 +33,7 @@ See golang.org to learn more about Go.
 
 // initDefaultCache does the work of finding the default cache
 // the first time Default is called.
-func initDefaultCache() {
+func initDefaultCache() Cache {
 	dir, _ := DefaultDir()
 	if dir == "off" {
 		if defaultDirErr != nil {
@@ -46,7 +41,7 @@ func initDefaultCache() {
 		}
 		base.Fatalf("build cache is disabled by GOCACHE=off, but required as of Go 1.12")
 	}
-	if err := os.MkdirAll(dir, 0777); err != nil {
+	if err := os.MkdirAll(dir, 0o777); err != nil {
 		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "README")); err != nil {
@@ -59,11 +54,11 @@ func initDefaultCache() {
 		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
 	}
 
-	if v := cfg.Getenv("GOCACHEPROG"); v != "" && goexperiment.CacheProg {
-		defaultCache = startCacheProg(v, diskCache)
-	} else {
-		defaultCache = diskCache
+	if v := cfg.Getenv("GOCACHEPROG"); v != "" {
+		return startCacheProg(v, diskCache)
 	}
+
+	return diskCache
 }
 
 var (

@@ -169,7 +169,7 @@ func (r Rectangle) Intersect(s Rectangle) Rectangle {
 	//
 	// if max(r0.Min.X, s0.Min.X) >= min(r0.Max.X, s0.Max.X) || likewiseForY { etc }
 	if r.Empty() {
-		return ZR
+		return Rectangle{}
 	}
 	return r
 }

@@ -399,6 +399,7 @@ const (
 	C_COND_SO        // 3 summary overflow or FP compare w/ NaN
 )
 
+//go:generate go run ../mkcnames.go -i a.out.go -o anames9.go -p ppc64
 const (
 	C_NONE     = iota
 	C_REGP     /* An even numbered gpr which can be used a gpr pair argument */
@@ -504,6 +505,14 @@ const (
 	ACROR
 	ACRORN
 	ACRXOR
+	ADADD
+	ADADDQ
+	ADCMPO
+	ADCMPOQ
+	ADCMPU
+	ADCMPUQ
+	ADDIV
+	ADDIVQ
 	ADIVW
 	ADIVWCC
 	ADIVWVCC
@@ -512,6 +521,10 @@ const (
 	ADIVWUCC
 	ADIVWUVCC
 	ADIVWUV
+	ADMUL
+	ADMULQ
+	ADSUB
+	ADSUBQ
 	AMODUD
 	AMODUW
 	AMODSD

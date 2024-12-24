@@ -1,11 +1,16 @@
 # Test query for non-defaults in the env
 
+# Go+BoringCrypto conflicts with GOFIPS140.
+[GOEXPERIMENT:boringcrypto] skip
+
+env GOROOT=./a
 env GOTOOLCHAIN=local
 env GOSUMDB=nodefault
 env GOPROXY=nodefault
 env GO111MODULE=auto
 env CGO_CFLAGS=nodefault
 env CGO_CPPFLAGS=nodefault
+env GOFIPS140=latest
 
 go env -changed
 # linux output like GOTOOLCHAIN='local'
@@ -16,6 +21,7 @@ stdout 'GOPROXY=''?nodefault''?'
 stdout 'GO111MODULE=''?auto''?'
 stdout 'CGO_CFLAGS=''?nodefault''?'
 stdout 'CGO_CPPFLAGS=''?nodefault''?'
+stdout 'GOFIPS140=''?latest''?'
 
 go env -changed -json
 stdout '"GOTOOLCHAIN": "local"'
@@ -24,6 +30,7 @@ stdout '"GOPROXY": "nodefault"'
 stdout '"GO111MODULE": "auto"'
 stdout '"CGO_CFLAGS": "nodefault"'
 stdout '"CGO_CPPFLAGS": "nodefault"'
+stdout '"GOFIPS140": "latest"'
 
 [GOOS:windows] env GOOS=linux
 [!GOOS:windows] env GOOS=windows
@@ -43,3 +50,27 @@ go env -changed -json GOOS
 go env -changed -json GOARCH
 [GOARCH:amd64] stdout '"GOARCH": "arm64"'
 [!GOARCH:amd64] stdout '"GOARCH": "amd64"'
+
+env GOARCH=amd64
+env GOAMD64=v3
+go env -changed
+stdout 'GOAMD64=''?v3''?'
+
+env GOPROXY=s
+go env -changed GOPROXY
+! stdout 'GOPROXY'
+env GOPROXY=s2
+go env -changed GOPROXY
+stdout 'GOPROXY=''?s2''?'
+
+env GOROOT=./b
+go env -changed
+! stdout 'GOTOOLCHAIN=''?local''?'
+
+--  a/go.env --
+GOPROXY=s
+GOAMD64=v1
+GOFIPS140=off
+
+--  b/go.env --
+GOTOOLCHAIN=local

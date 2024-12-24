@@ -10,8 +10,8 @@ import (
 	"unicode/utf8"
 )
 
-// A Reader implements the io.Reader, io.ReaderAt, io.WriterTo, io.Seeker,
-// io.ByteScanner, and io.RuneScanner interfaces by reading from
+// A Reader implements the [io.Reader], [io.ReaderAt], [io.WriterTo], [io.Seeker],
+// [io.ByteScanner], and [io.RuneScanner] interfaces by reading from
 // a byte slice.
 // Unlike a [Buffer], a Reader is read-only and supports seeking.
 // The zero value for Reader operates like a Reader of an empty slice.

@@ -32,6 +32,7 @@ package obj
 
 import (
 	"bufio"
+	"bytes"
 	"cmd/internal/dwarf"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
@@ -179,14 +180,16 @@ import (
 //			offset = ((reg&31) << 16) | (exttype << 13) | (amount<<10)
 //
 //	reg.<T>
-//		Register arrangement for ARM64 SIMD register
-//		e.g.: V1.S4, V2.S2, V7.D2, V2.H4, V6.B16
+//		Register arrangement for ARM64 and Loong64 SIMD register
+//		e.g.:
+//			On ARM64: V1.S4, V2.S2, V7.D2, V2.H4, V6.B16
+//			On Loong64: X1.B32, X1.H16, X1.W8, X2.V4, X1.Q1, V1.B16, V1.H8, V1.W4, V1.V2
 //		Encoding:
 //			type = TYPE_REG
 //			reg = REG_ARNG + register + arrangement
 //
 //	reg.<T>[index]
-//		Register element for ARM64
+//		Register element for ARM64 and Loong64
 //		Encoding:
 //			type = TYPE_REG
 //			reg = REG_ELEM + register + arrangement
@@ -496,9 +499,10 @@ type FuncInfo struct {
 	WrapInfo           *LSym // for wrapper, info of wrapped function
 	JumpTables         []JumpTable
 
-	FuncInfoSym   *LSym
-	WasmImportSym *LSym
-	WasmImport    *WasmImport
+	FuncInfoSym *LSym
+
+	WasmImport *WasmImport
+	WasmExport *WasmExport
 
 	sehUnwindInfoSym *LSym
 }
@@ -609,45 +613,139 @@ type WasmImport struct {
 	// Name holds the WASM imported function name specified by the
 	// //go:wasmimport directive.
 	Name string
-	// Params holds the imported function parameter fields.
-	Params []WasmField
-	// Results holds the imported function result fields.
-	Results []WasmField
+
+	WasmFuncType // type of the imported function
+
+	// aux symbol to pass metadata to the linker, serialization of
+	// the fields above.
+	AuxSym *LSym
 }
 
-func (wi *WasmImport) CreateSym(ctxt *Link) *LSym {
-	var sym LSym
-
-	var b [8]byte
-	writeByte := func(x byte) {
-		sym.WriteBytes(ctxt, sym.Size, []byte{x})
+func (wi *WasmImport) CreateAuxSym() {
+	var b bytes.Buffer
+	wi.Write(&b)
+	p := b.Bytes()
+	wi.AuxSym = &LSym{
+		Type: objabi.SDATA, // doesn't really matter
+		P:    append([]byte(nil), p...),
+		Size: int64(len(p)),
 	}
+}
+
+func (wi *WasmImport) Write(w *bytes.Buffer) {
+	var b [8]byte
 	writeUint32 := func(x uint32) {
 		binary.LittleEndian.PutUint32(b[:], x)
-		sym.WriteBytes(ctxt, sym.Size, b[:4])
-	}
-	writeInt64 := func(x int64) {
-		binary.LittleEndian.PutUint64(b[:], uint64(x))
-		sym.WriteBytes(ctxt, sym.Size, b[:])
+		w.Write(b[:4])
 	}
 	writeString := func(s string) {
 		writeUint32(uint32(len(s)))
-		sym.WriteString(ctxt, sym.Size, len(s), s)
+		w.WriteString(s)
 	}
 	writeString(wi.Module)
 	writeString(wi.Name)
-	writeUint32(uint32(len(wi.Params)))
-	for _, f := range wi.Params {
-		writeByte(byte(f.Type))
-		writeInt64(f.Offset)
-	}
-	writeUint32(uint32(len(wi.Results)))
-	for _, f := range wi.Results {
-		writeByte(byte(f.Type))
-		writeInt64(f.Offset)
-	}
+	wi.WasmFuncType.Write(w)
+}
 
-	return &sym
+func (wi *WasmImport) Read(b []byte) {
+	readUint32 := func() uint32 {
+		x := binary.LittleEndian.Uint32(b)
+		b = b[4:]
+		return x
+	}
+	readString := func() string {
+		n := readUint32()
+		s := string(b[:n])
+		b = b[n:]
+		return s
+	}
+	wi.Module = readString()
+	wi.Name = readString()
+	wi.WasmFuncType.Read(b)
+}
+
+// WasmFuncType represents a WebAssembly (WASM) function type with
+// parameters and results translated into WASM types based on the Go function
+// declaration.
+type WasmFuncType struct {
+	// Params holds the function parameter fields.
+	Params []WasmField
+	// Results holds the function result fields.
+	Results []WasmField
+}
+
+func (ft *WasmFuncType) Write(w *bytes.Buffer) {
+	var b [8]byte
+	writeByte := func(x byte) {
+		w.WriteByte(x)
+	}
+	writeUint32 := func(x uint32) {
+		binary.LittleEndian.PutUint32(b[:], x)
+		w.Write(b[:4])
+	}
+	writeInt64 := func(x int64) {
+		binary.LittleEndian.PutUint64(b[:], uint64(x))
+		w.Write(b[:])
+	}
+	writeUint32(uint32(len(ft.Params)))
+	for _, f := range ft.Params {
+		writeByte(byte(f.Type))
+		writeInt64(f.Offset)
+	}
+	writeUint32(uint32(len(ft.Results)))
+	for _, f := range ft.Results {
+		writeByte(byte(f.Type))
+		writeInt64(f.Offset)
+	}
+}
+
+func (ft *WasmFuncType) Read(b []byte) {
+	readByte := func() byte {
+		x := b[0]
+		b = b[1:]
+		return x
+	}
+	readUint32 := func() uint32 {
+		x := binary.LittleEndian.Uint32(b)
+		b = b[4:]
+		return x
+	}
+	readInt64 := func() int64 {
+		x := binary.LittleEndian.Uint64(b)
+		b = b[8:]
+		return int64(x)
+	}
+	ft.Params = make([]WasmField, readUint32())
+	for i := range ft.Params {
+		ft.Params[i].Type = WasmFieldType(readByte())
+		ft.Params[i].Offset = int64(readInt64())
+	}
+	ft.Results = make([]WasmField, readUint32())
+	for i := range ft.Results {
+		ft.Results[i].Type = WasmFieldType(readByte())
+		ft.Results[i].Offset = int64(readInt64())
+	}
+}
+
+// WasmExport represents a WebAssembly (WASM) exported function with
+// parameters and results translated into WASM types based on the Go function
+// declaration.
+type WasmExport struct {
+	WasmFuncType
+
+	WrappedSym *LSym // the wrapped Go function
+	AuxSym     *LSym // aux symbol to pass metadata to the linker
+}
+
+func (we *WasmExport) CreateAuxSym() {
+	var b bytes.Buffer
+	we.WasmFuncType.Write(&b)
+	p := b.Bytes()
+	we.AuxSym = &LSym{
+		Type: objabi.SDATA, // doesn't really matter
+		P:    append([]byte(nil), p...),
+		Size: int64(len(p)),
+	}
 }
 
 type WasmField struct {
@@ -666,6 +764,10 @@ const (
 	WasmF32
 	WasmF64
 	WasmPtr
+
+	// bool is not really a wasm type, but we allow it on wasmimport/wasmexport
+	// function parameters/results. 32-bit on Wasm side, 8-bit on Go side.
+	WasmBool
 )
 
 type InlMark struct {
@@ -1004,6 +1106,7 @@ type Auto struct {
 type RegSpill struct {
 	Addr           Addr
 	Reg            int16
+	Reg2           int16 // If not 0, a second register to spill at Addr+regSize. Only for some archs.
 	Spill, Unspill As
 }
 
@@ -1041,7 +1144,7 @@ type Link struct {
 	Imports            []goobj.ImportedPkg
 	DiagFunc           func(string, ...interface{})
 	DiagFlush          func()
-	DebugInfo          func(fn *LSym, info *LSym, curfn Func) ([]dwarf.Scope, dwarf.InlCalls)
+	DebugInfo          func(ctxt *Link, fn *LSym, info *LSym, curfn Func) ([]dwarf.Scope, dwarf.InlCalls)
 	GenAbstractFunc    func(fn *LSym)
 	Errors             int
 
@@ -1096,6 +1199,10 @@ func (fi *FuncInfo) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 		spill.As = ra.Spill
 		spill.From.Type = TYPE_REG
 		spill.From.Reg = ra.Reg
+		if ra.Reg2 != 0 {
+			spill.From.Type = TYPE_REGREG
+			spill.From.Offset = int64(ra.Reg2)
+		}
 		spill.To = ra.Addr
 		last = spill
 	}
@@ -1112,6 +1219,10 @@ func (fi *FuncInfo) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 		unspill.From = ra.Addr
 		unspill.To.Type = TYPE_REG
 		unspill.To.Reg = ra.Reg
+		if ra.Reg2 != 0 {
+			unspill.To.Type = TYPE_REGREG
+			unspill.To.Offset = int64(ra.Reg2)
+		}
 		last = unspill
 	}
 	return last

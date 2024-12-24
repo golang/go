@@ -7,6 +7,7 @@ package signal
 import (
 	"context"
 	"os"
+	"slices"
 	"sync"
 )
 
@@ -217,7 +218,7 @@ func Stop(c chan<- os.Signal) {
 
 	for i, s := range handlers.stopping {
 		if s.c == c {
-			handlers.stopping = append(handlers.stopping[:i], handlers.stopping[i+1:]...)
+			handlers.stopping = slices.Delete(handlers.stopping, i, i+1)
 			break
 		}
 	}

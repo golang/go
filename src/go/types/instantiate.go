@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"internal/buildcfg"
 	. "internal/types/errors"
 )
 
@@ -24,11 +25,13 @@ type genericType interface {
 }
 
 // Instantiate instantiates the type orig with the given type arguments targs.
-// orig must be a *Named or a *Signature type. If there is no error, the
-// resulting Type is an instantiated type of the same kind (either a *Named or
-// a *Signature). Methods attached to a *Named type are also instantiated, and
-// associated with a new *Func that has the same position as the original
-// method, but nil function scope.
+// orig must be an *Alias, *Named, or *Signature type. If there is no error,
+// the resulting Type is an instantiated type of the same kind (*Alias, *Named
+// or *Signature, respectively).
+//
+// Methods attached to a *Named type are also instantiated, and associated with
+// a new *Func that has the same position as the original method, but nil function
+// scope.
 //
 // If ctxt is non-nil, it may be used to de-duplicate the instance against
 // previous instances with the same identity. As a special case, generic
@@ -38,10 +41,10 @@ type genericType interface {
 // not guarantee that identical instances are deduplicated in all cases.
 //
 // If validate is set, Instantiate verifies that the number of type arguments
-// and parameters match, and that the type arguments satisfy their
-// corresponding type constraints. If verification fails, the resulting error
-// may wrap an *ArgumentError indicating which type argument did not satisfy
-// its corresponding type parameter constraint, and why.
+// and parameters match, and that the type arguments satisfy their respective
+// type constraints. If verification fails, the resulting error may wrap an
+// *ArgumentError indicating which type argument did not satisfy its type parameter
+// constraint, and why.
 //
 // If validate is not set, Instantiate does not verify the type argument count
 // or whether the type arguments satisfy their constraints. Instantiate is
@@ -82,6 +85,8 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 // must be non-nil.
 //
 // For Named types the resulting instance may be unexpanded.
+//
+// check may be nil (when not type-checking syntax); pos is used only only if check is non-nil.
 func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
 	// The order of the contexts below matters: we always prefer instances in the
 	// expanding instance context in order to preserve reference cycles.
@@ -104,8 +109,9 @@ func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, ex
 		hashes[i] = ctxt.instanceHash(orig, targs)
 	}
 
-	// If local is non-nil, updateContexts return the type recorded in
-	// local.
+	// Record the result in all contexts.
+	// Prefer to re-use existing types from expanding context, if it exists, to reduce
+	// the memory pinned by the Named type.
 	updateContexts := func(res Type) Type {
 		for i := len(ctxts) - 1; i >= 0; i-- {
 			res = ctxts[i].update(hashes[i], orig, targs, res)
@@ -124,6 +130,22 @@ func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, ex
 	switch orig := orig.(type) {
 	case *Named:
 		res = check.newNamedInstance(pos, orig, targs, expanding) // substituted lazily
+
+	case *Alias:
+		if !buildcfg.Experiment.AliasTypeParams {
+			assert(expanding == nil) // Alias instances cannot be reached from Named types
+		}
+
+		tparams := orig.TypeParams()
+		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
+		if !check.validateTArgLen(pos, orig.String(), tparams.Len(), len(targs)) {
+			return Typ[Invalid]
+		}
+		if tparams.Len() == 0 {
+			return orig // nothing to do (minor optimization)
+		}
+
+		res = check.newAliasInstance(pos, orig, targs, expanding, ctxt)
 
 	case *Signature:
 		assert(expanding == nil) // function instances cannot be reached from Named types
@@ -181,6 +203,7 @@ func (check *Checker) validateTArgLen(pos token.Pos, name string, want, got int)
 	panic(fmt.Sprintf("%v: %s", pos, msg))
 }
 
+// check may be nil; pos is used only if check is non-nil.
 func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
 	smap := makeSubstMap(tparams, targs)
 	for i, tpar := range tparams {
@@ -192,7 +215,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, 
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
 		var cause string
-		if !check.implements(pos, targs[i], bound, true, &cause) {
+		if !check.implements(targs[i], bound, true, &cause) {
 			return i, errors.New(cause)
 		}
 	}
@@ -205,7 +228,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, 
 //
 // If the provided cause is non-nil, it may be set to an error string
 // explaining why V does not implement (or satisfy, for constraints) T.
-func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, cause *string) bool {
+func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
 	Vu := under(V)
 	Tu := under(T)
 	if !isValid(Vu) || !isValid(Tu) {
@@ -257,7 +280,7 @@ func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, caus
 	}
 
 	// V must implement T's methods, if any.
-	if m, _ := check.missingMethod(V, T, true, Identical, cause); m != nil /* !Implements(V, T) */ {
+	if !check.hasAllMethods(V, T, true, Identical, cause) /* !Implements(V, T) */ {
 		if cause != nil {
 			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, *cause)
 		}
@@ -271,14 +294,14 @@ func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, caus
 		}
 		// If T is comparable, V must be comparable.
 		// If V is strictly comparable, we're done.
-		if comparable(V, false /* strict comparability */, nil, nil) {
+		if comparableType(V, false /* strict comparability */, nil, nil) {
 			return true
 		}
 		// For constraint satisfaction, use dynamic (spec) comparability
 		// so that ordinary, non-type parameter interfaces implement comparable.
-		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
+		if constraint && comparableType(V, true /* spec comparability */, nil, nil) {
 			// V is comparable if we are at Go 1.20 or higher.
-			if check == nil || check.allowVersion(atPos(pos), go1_20) { // atPos needed so that go/types generate passes
+			if check == nil || check.allowVersion(go1_20) {
 				return true
 			}
 			if cause != nil {

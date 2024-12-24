@@ -15,18 +15,18 @@ import (
 // succeed immediately, and reports whether it has done so.
 // It does not actually call p.Wait.
 func (p *Process) blockUntilWaitable() (bool, error) {
-	var errno syscall.Errno
-	for {
-		_, errno = wait6(_P_PID, p.Pid, syscall.WEXITED|syscall.WNOWAIT)
-		if errno != syscall.EINTR {
-			break
+	err := ignoringEINTR(func() error {
+		_, errno := wait6(_P_PID, p.Pid, syscall.WEXITED|syscall.WNOWAIT)
+		if errno != 0 {
+			return errno
 		}
-	}
+		return nil
+	})
 	runtime.KeepAlive(p)
-	if errno == syscall.ENOSYS {
+	if err == syscall.ENOSYS {
 		return false, nil
-	} else if errno != 0 {
-		return false, NewSyscallError("wait6", errno)
+	} else if err != nil {
+		return false, NewSyscallError("wait6", err)
 	}
 	return true, nil
 }

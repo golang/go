@@ -42,13 +42,6 @@ func vconst(i int) int {
 	return 1000 + 128 + i
 }
 
-func vconst2(i int) int {
-	if i < -128 || i >= 128 {
-		panic("invalid const")
-	}
-	return 1000 + 256 + i
-}
-
 func testPosetOps(t *testing.T, unsigned bool, ops []posetTestOp) {
 	var v [1512]*Value
 	for i := range v {
@@ -57,10 +50,6 @@ func testPosetOps(t *testing.T, unsigned bool, ops []posetTestOp) {
 		if i >= 1000 && i < 1256 {
 			v[i].Op = OpConst64
 			v[i].AuxInt = int64(i - 1000 - 128)
-		}
-		if i >= 1256 && i < 1512 {
-			v[i].Op = OpConst64
-			v[i].AuxInt = int64(i - 1000 - 256)
 		}
 	}
 
@@ -478,7 +467,6 @@ func TestPosetCollapse(t *testing.T) {
 		{Equal, 10, 18},
 		{Equal, 10, 19},
 		{Equal, 10, vconst(20)},
-		{Equal, 10, vconst2(20)},
 		{Equal, 10, 25},
 
 		{Equal, 12, 15},
@@ -487,7 +475,6 @@ func TestPosetCollapse(t *testing.T) {
 		{Equal, 12, 18},
 		{Equal, 12, 19},
 		{Equal, 12, vconst(20)},
-		{Equal, 12, vconst2(20)},
 		{Equal, 12, 25},
 
 		{Equal, 15, 16},
@@ -495,35 +482,27 @@ func TestPosetCollapse(t *testing.T) {
 		{Equal, 15, 18},
 		{Equal, 15, 19},
 		{Equal, 15, vconst(20)},
-		{Equal, 15, vconst2(20)},
 		{Equal, 15, 25},
 
 		{Equal, 16, 17},
 		{Equal, 16, 18},
 		{Equal, 16, 19},
 		{Equal, 16, vconst(20)},
-		{Equal, 16, vconst2(20)},
 		{Equal, 16, 25},
 
 		{Equal, 17, 18},
 		{Equal, 17, 19},
 		{Equal, 17, vconst(20)},
-		{Equal, 17, vconst2(20)},
 		{Equal, 17, 25},
 
 		{Equal, 18, 19},
 		{Equal, 18, vconst(20)},
-		{Equal, 18, vconst2(20)},
 		{Equal, 18, 25},
 
 		{Equal, 19, vconst(20)},
-		{Equal, 19, vconst2(20)},
 		{Equal, 19, 25},
 
-		{Equal, vconst(20), vconst2(20)},
 		{Equal, vconst(20), 25},
-
-		{Equal, vconst2(20), 25},
 
 		// ... but not 11/26/100/101/102, which were on a different path
 		{Equal_Fail, 10, 11},
@@ -628,117 +607,6 @@ func TestPosetSetEqual(t *testing.T) {
 		{Ordered, 30, 110},
 		{Undo, 0, 0},
 
-		{Undo, 0, 0},
-	})
-}
-
-func TestPosetConst(t *testing.T) {
-	testPosetOps(t, false, []posetTestOp{
-		{Checkpoint, 0, 0},
-		{SetOrder, 1, vconst(15)},
-		{SetOrderOrEqual, 100, vconst(120)},
-		{Ordered, 1, vconst(15)},
-		{Ordered, 1, vconst(120)},
-		{OrderedOrEqual, 1, vconst(120)},
-		{OrderedOrEqual, 100, vconst(120)},
-		{Ordered_Fail, 100, vconst(15)},
-		{Ordered_Fail, vconst(15), 100},
-
-		{Checkpoint, 0, 0},
-		{SetOrderOrEqual, 1, 5},
-		{SetOrderOrEqual, 5, 25},
-		{SetEqual, 20, vconst(20)},
-		{SetEqual, 25, vconst(25)},
-		{Ordered, 1, 20},
-		{Ordered, 1, vconst(30)},
-		{Undo, 0, 0},
-
-		{Checkpoint, 0, 0},
-		{SetOrderOrEqual, 1, 5},
-		{SetOrderOrEqual, 5, 25},
-		{SetEqual, vconst(-20), 5},
-		{SetEqual, vconst(-25), 1},
-		{Ordered, 1, 5},
-		{Ordered, vconst(-30), 1},
-		{Undo, 0, 0},
-
-		{Checkpoint, 0, 0},
-		{SetNonEqual, 1, vconst(4)},
-		{SetNonEqual, 1, vconst(6)},
-		{NonEqual, 1, vconst(4)},
-		{NonEqual_Fail, 1, vconst(5)},
-		{NonEqual, 1, vconst(6)},
-		{Equal_Fail, 1, vconst(4)},
-		{Equal_Fail, 1, vconst(5)},
-		{Equal_Fail, 1, vconst(6)},
-		{Equal_Fail, 1, vconst(7)},
-		{Undo, 0, 0},
-
-		{Undo, 0, 0},
-	})
-
-	testPosetOps(t, true, []posetTestOp{
-		{Checkpoint, 0, 0},
-		{SetOrder, 1, vconst(15)},
-		{SetOrderOrEqual, 100, vconst(-5)}, // -5 is a very big number in unsigned
-		{Ordered, 1, vconst(15)},
-		{Ordered, 1, vconst(-5)},
-		{OrderedOrEqual, 1, vconst(-5)},
-		{OrderedOrEqual, 100, vconst(-5)},
-		{Ordered_Fail, 100, vconst(15)},
-		{Ordered_Fail, vconst(15), 100},
-
-		{Undo, 0, 0},
-	})
-
-	testPosetOps(t, false, []posetTestOp{
-		{Checkpoint, 0, 0},
-		{SetOrderOrEqual, 1, vconst(3)},
-		{SetNonEqual, 1, vconst(0)},
-		{Ordered_Fail, 1, vconst(0)},
-		{Undo, 0, 0},
-	})
-
-	testPosetOps(t, false, []posetTestOp{
-		// Check relations of a constant with itself
-		{Checkpoint, 0, 0},
-		{SetOrderOrEqual, vconst(3), vconst2(3)},
-		{Undo, 0, 0},
-		{Checkpoint, 0, 0},
-		{SetEqual, vconst(3), vconst2(3)},
-		{Undo, 0, 0},
-		{Checkpoint, 0, 0},
-		{SetNonEqual_Fail, vconst(3), vconst2(3)},
-		{Undo, 0, 0},
-		{Checkpoint, 0, 0},
-		{SetOrder_Fail, vconst(3), vconst2(3)},
-		{Undo, 0, 0},
-
-		// Check relations of two constants among them, using
-		// different instances of the same constant
-		{Checkpoint, 0, 0},
-		{SetOrderOrEqual, vconst(3), vconst(4)},
-		{OrderedOrEqual, vconst(3), vconst2(4)},
-		{Undo, 0, 0},
-		{Checkpoint, 0, 0},
-		{SetOrder, vconst(3), vconst(4)},
-		{Ordered, vconst(3), vconst2(4)},
-		{Undo, 0, 0},
-		{Checkpoint, 0, 0},
-		{SetEqual_Fail, vconst(3), vconst(4)},
-		{SetEqual_Fail, vconst(3), vconst2(4)},
-		{Undo, 0, 0},
-		{Checkpoint, 0, 0},
-		{NonEqual, vconst(3), vconst(4)},
-		{NonEqual, vconst(3), vconst2(4)},
-		{Undo, 0, 0},
-		{Checkpoint, 0, 0},
-		{Equal_Fail, vconst(3), vconst(4)},
-		{Equal_Fail, vconst(3), vconst2(4)},
-		{Undo, 0, 0},
-		{Checkpoint, 0, 0},
-		{SetNonEqual, vconst(3), vconst(4)},
-		{SetNonEqual, vconst(3), vconst2(4)},
 		{Undo, 0, 0},
 	})
 }

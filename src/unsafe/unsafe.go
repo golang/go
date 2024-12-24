@@ -110,7 +110,7 @@ type IntegerType int
 //	u := unsafe.Pointer(nil)
 //	p := unsafe.Pointer(uintptr(u) + offset)
 //
-// (4) Conversion of a Pointer to a uintptr when calling [syscall.Syscall].
+// (4) Conversion of a Pointer to a uintptr when calling functions like [syscall.Syscall].
 //
 // The Syscall functions in package syscall pass their uintptr arguments directly
 // to the operating system, which then may, depending on the details of the call,
@@ -187,7 +187,9 @@ type Pointer *ArbitraryType
 // of a hypothetical variable v as if v was declared via var v = x.
 // The size does not include any memory possibly referenced by x.
 // For instance, if x is a slice, Sizeof returns the size of the slice
-// descriptor, not the size of the memory referenced by the slice.
+// descriptor, not the size of the memory referenced by the slice;
+// if x is an interface, Sizeof returns the size of the interface value itself,
+// not the size of the value stored in the interface.
 // For a struct, the size includes any padding introduced by field alignment.
 // The return value of Sizeof is a Go constant if the type of the argument x
 // does not have variable size.
@@ -258,7 +260,7 @@ func SliceData(slice []ArbitraryType) *ArbitraryType
 // a run-time panic occurs.
 //
 // Since Go strings are immutable, the bytes passed to String
-// must not be modified afterwards.
+// must not be modified as long as the returned string value exists.
 func String(ptr *byte, len IntegerType) string
 
 // StringData returns a pointer to the underlying bytes of str.

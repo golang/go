@@ -563,12 +563,7 @@ func (d *tempDir) Join(name string) string {
 }
 
 func newTempDir(t *testing.T) *tempDir {
-	t.Helper()
-	dir, err := os.MkdirTemp("", filepath.Dir(t.Name()))
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	return &tempDir{base: dir}
+	return &tempDir{base: t.TempDir()}
 }
 
 // hangProneCmd returns an exec.Cmd for a command that is likely to hang.

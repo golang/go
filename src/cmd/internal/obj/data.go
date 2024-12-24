@@ -71,8 +71,10 @@ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
 	switch s.Type {
 	case objabi.Sxxx, objabi.SBSS:
 		s.Type = objabi.SDATA
+		s.setFIPSType(ctxt)
 	case objabi.SNOPTRBSS:
 		s.Type = objabi.SNOPTRDATA
+		s.setFIPSType(ctxt)
 	case objabi.STLSBSS:
 		ctxt.Diag("cannot supply data for %v var %v", s.Type, s.Name)
 	}
@@ -118,15 +120,16 @@ func (s *LSym) writeAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64,
 		ctxt.Diag("WriteAddr: bad address size %d in %s", siz, s.Name)
 	}
 	s.prepwrite(ctxt, off, siz)
-	r := Addrel(s)
-	r.Off = int32(off)
-	if int64(r.Off) != off {
+	if int64(int32(off)) != off {
 		ctxt.Diag("WriteAddr: off overflow %d in %s", off, s.Name)
 	}
-	r.Siz = uint8(siz)
-	r.Sym = rsym
-	r.Type = rtype
-	r.Add = roff
+	s.AddRel(ctxt, Reloc{
+		Type: rtype,
+		Off:  int32(off),
+		Siz:  uint8(siz),
+		Sym:  rsym,
+		Add:  roff,
+	})
 }
 
 // WriteAddr writes an address of size siz into s at offset off.
@@ -155,15 +158,16 @@ func (s *LSym) WriteCURelativeAddr(ctxt *Link, off int64, rsym *LSym, roff int64
 // rsym+roff-(start of section that s is in).
 func (s *LSym) WriteOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
 	s.prepwrite(ctxt, off, 4)
-	r := Addrel(s)
-	r.Off = int32(off)
-	if int64(r.Off) != off {
+	if int64(int32(off)) != off {
 		ctxt.Diag("WriteOff: off overflow %d in %s", off, s.Name)
 	}
-	r.Siz = 4
-	r.Sym = rsym
-	r.Type = objabi.R_ADDROFF
-	r.Add = roff
+	s.AddRel(ctxt, Reloc{
+		Type: objabi.R_ADDROFF,
+		Off:  int32(off),
+		Siz:  4,
+		Sym:  rsym,
+		Add:  roff,
+	})
 }
 
 // WriteWeakOff writes a weak 4 byte offset to rsym+roff into s at offset off.
@@ -171,15 +175,16 @@ func (s *LSym) WriteOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
 // rsym+roff-(start of section that s is in).
 func (s *LSym) WriteWeakOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
 	s.prepwrite(ctxt, off, 4)
-	r := Addrel(s)
-	r.Off = int32(off)
-	if int64(r.Off) != off {
-		ctxt.Diag("WriteOff: off overflow %d in %s", off, s.Name)
+	if int64(int32(off)) != off {
+		ctxt.Diag("WriteWeakOff: off overflow %d in %s", off, s.Name)
 	}
-	r.Siz = 4
-	r.Sym = rsym
-	r.Type = objabi.R_WEAKADDROFF
-	r.Add = roff
+	s.AddRel(ctxt, Reloc{
+		Type: objabi.R_WEAKADDROFF,
+		Off:  int32(off),
+		Siz:  4,
+		Sym:  rsym,
+		Add:  roff,
+	})
 }
 
 // WriteString writes a string of size siz into s at offset off.
@@ -198,10 +203,10 @@ func (s *LSym) WriteBytes(ctxt *Link, off int64, b []byte) int64 {
 	return off + int64(len(b))
 }
 
-func Addrel(s *LSym) *Reloc {
-	if s.R == nil {
-		s.R = make([]Reloc, 0, 4)
+// AddRel adds the relocation rel to s.
+func (s *LSym) AddRel(ctxt *Link, rel Reloc) {
+	if s.Type.IsFIPS() {
+		s.checkFIPSReloc(ctxt, rel)
 	}
-	s.R = append(s.R, Reloc{})
-	return &s.R[len(s.R)-1]
+	s.R = append(s.R, rel)
 }

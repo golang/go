@@ -13,29 +13,29 @@ import (
 	"syscall"
 )
 
-func mmapFile(f *os.File, _ *Data) (Data, error) {
+func mmapFile(f *os.File) (*Data, error) {
 	st, err := f.Stat()
 	if err != nil {
-		return Data{}, err
+		return nil, err
 	}
 	size := st.Size()
 	pagesize := int64(os.Getpagesize())
 	if int64(int(size+(pagesize-1))) != size+(pagesize-1) {
-		return Data{}, fmt.Errorf("%s: too large for mmap", f.Name())
+		return nil, fmt.Errorf("%s: too large for mmap", f.Name())
 	}
 	n := int(size)
 	if n == 0 {
-		return Data{f, nil, nil}, nil
+		return &Data{f, nil, nil}, nil
 	}
 	mmapLength := int(((size + pagesize - 1) / pagesize) * pagesize) // round up to page size
 	data, err := syscall.Mmap(int(f.Fd()), 0, mmapLength, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
-		return Data{}, &fs.PathError{Op: "mmap", Path: f.Name(), Err: err}
+		return nil, &fs.PathError{Op: "mmap", Path: f.Name(), Err: err}
 	}
-	return Data{f, data[:n], nil}, nil
+	return &Data{f, data[:n], nil}, nil
 }
 
-func munmapFile(d Data) error {
+func munmapFile(d *Data) error {
 	if len(d.Data) == 0 {
 		return nil
 	}

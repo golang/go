@@ -70,11 +70,7 @@ func checkGoFile(pass *analysis.Pass, f *ast.File) {
 	check := newChecker(pass, pass.Fset.File(f.Package).Name(), f)
 
 	for _, group := range f.Comments {
-		// A +build comment is ignored after or adjoining the package declaration.
-		if group.End()+1 >= f.Package {
-			check.inHeader = false
-		}
-		// A //go:build comment is ignored after the package declaration
+		// A //go:build or a //go:debug comment is ignored after the package declaration
 		// (but adjoining it is OK, in contrast to +build comments).
 		if group.Pos() >= f.Package {
 			check.inHeader = false
@@ -104,8 +100,7 @@ type checker struct {
 	pass     *analysis.Pass
 	filename string
 	file     *ast.File // nil for non-Go file
-	inHeader bool      // in file header (before package declaration)
-	inStar   bool      // currently in a /* */ comment
+	inHeader bool      // in file header (before or adjoining package declaration)
 }
 
 func newChecker(pass *analysis.Pass, filename string, file *ast.File) *checker {

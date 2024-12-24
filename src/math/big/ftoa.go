@@ -309,7 +309,7 @@ func fmtF(buf []byte, prec int, d decimal) []byte {
 }
 
 // fmtB appends the string of x in the format mantissa "p" exponent
-// with a decimal mantissa and a binary exponent, or 0" if x is zero,
+// with a decimal mantissa and a binary exponent, or "0" if x is zero,
 // and returns the extended buffer.
 // The mantissa is normalized such that is uses x.Prec() bits in binary
 // representation.

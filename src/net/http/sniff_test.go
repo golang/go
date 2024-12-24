@@ -10,7 +10,7 @@ import (
 	"io"
 	"log"
 	. "net/http"
-	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -144,7 +144,7 @@ func testServerIssue5953(t *testing.T, mode testMode) {
 
 	got := resp.Header["Content-Type"]
 	want := []string{""}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("Content-Type = %q; want %q", got, want)
 	}
 	resp.Body.Close()
