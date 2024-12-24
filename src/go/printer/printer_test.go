@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -860,6 +861,80 @@ func TestEmptyDecl(t *testing.T) { // issue 63566
 		want := tok.String() + " ()"
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
+		}
+	}
+}
+
+func TestIssue70978(t *testing.T) {
+	cases := []struct {
+		src     string
+		want    string
+		newName string
+	}{
+		{
+			newName: "someotherfmtpackage",
+			src: `package main
+
+func main() {
+	// comment
+
+	fmt.Println() // Comment
+}
+`,
+			want: `package main
+
+func main() {
+	// comment
+
+	someotherfmtpackage.Println() // Comment
+}
+`,
+		},
+		{
+			newName: "someotherfmtpkg",
+			src: `package main
+
+func main() {
+	// comment
+
+	fmt.Println() // Comment
+}
+`,
+			want: `package main
+
+func main() {
+	// comment
+
+	someotherfmtpkg.Println() // Comment
+}
+`,
+		},
+	}
+
+	for _, tt := range cases {
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, "test.go", tt.src, parser.SkipObjectResolution|parser.ParseComments)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ast.Inspect(f, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.SelectorExpr:
+				switch x := n.X.(type) {
+				case *ast.Ident:
+					x.Name = tt.newName
+				}
+			}
+			return true
+		})
+
+		var b strings.Builder
+		config := Config{Mode: UseSpaces | TabIndent, Tabwidth: 8}
+		config.Fprint(&b, fset, f)
+		got := b.String()
+		if got != tt.want {
+			t.Errorf("unexpected Fprint output:\n%s\nwant:\n%s", got, tt.want)
 		}
 	}
 }
