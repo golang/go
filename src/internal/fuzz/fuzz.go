@@ -963,9 +963,9 @@ type MalformedCorpusError struct {
 }
 
 func (e *MalformedCorpusError) Error() string {
-	var msgs []string
-	for _, s := range e.errs {
-		msgs = append(msgs, s.Error())
+	msgs := make([]string, len(e.errs))
+	for i, s := range e.errs {
+		msgs[i] = s.Error()
 	}
 	return strings.Join(msgs, "\n")
 }
