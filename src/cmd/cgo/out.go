@@ -942,7 +942,9 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		// just have to agree. The gcc struct will be compiled
 		// with __attribute__((packed)) so all padding must be
 		// accounted for explicitly.
-		ctype := "struct {\n"
+		var ctype strings.Builder
+		const start = "struct {\n"
+		ctype.WriteString(start)
 		gotype := new(bytes.Buffer)
 		fmt.Fprintf(gotype, "struct {\n")
 		off := int64(0)
@@ -952,11 +954,11 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			t := p.cgoType(typ)
 			if off%t.Align != 0 {
 				pad := t.Align - off%t.Align
-				ctype += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+				fmt.Fprintf(&ctype, "\t\tchar __pad%d[%d];\n", npad, pad)
 				off += pad
 				npad++
 			}
-			ctype += fmt.Sprintf("\t\t%s %s;\n", t.C, name)
+			fmt.Fprintf(&ctype, "\t\t%s %s;\n", t.C, name)
 			fmt.Fprintf(gotype, "\t\t%s ", name)
 			noSourceConf.Fprint(gotype, fset, typ)
 			fmt.Fprintf(gotype, "\n")
@@ -974,10 +976,10 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			func(i int, aname string, atype ast.Expr) {
 				argField(atype, "r%d", i)
 			})
-		if ctype == "struct {\n" {
-			ctype += "\t\tchar unused;\n" // avoid empty struct
+		if ctype.Len() == len(start) {
+			ctype.WriteString("\t\tchar unused;\n") // avoid empty struct
 		}
-		ctype += "\t}"
+		ctype.WriteString("\t}")
 		fmt.Fprintf(gotype, "\t}")
 
 		// Get the return type of the wrapper function
@@ -1007,19 +1009,20 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		if goos == "windows" {
 			gccExport = "__declspec(dllexport) "
 		}
-		s := fmt.Sprintf("%s%s %s(", gccExport, gccResult, exp.ExpName)
+		var s strings.Builder
+		fmt.Fprintf(&s, "%s%s %s(", gccExport, gccResult, exp.ExpName)
 		if fn.Recv != nil {
-			s += p.cgoType(fn.Recv.List[0].Type).C.String()
-			s += " recv"
+			s.WriteString(p.cgoType(fn.Recv.List[0].Type).C.String())
+			s.WriteString(" recv")
 		}
 		forFieldList(fntype.Params,
 			func(i int, aname string, atype ast.Expr) {
 				if i > 0 || fn.Recv != nil {
-					s += ", "
+					s.WriteString(", ")
 				}
-				s += fmt.Sprintf("%s %s", p.cgoType(atype).C, exportParamName(aname, i))
+				fmt.Fprintf(&s, "%s %s", p.cgoType(atype).C, exportParamName(aname, i))
 			})
-		s += ")"
+		s.WriteByte(')')
 
 		if len(exp.Doc) > 0 {
 			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
@@ -1027,11 +1030,11 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 				fmt.Fprint(fgcch, "\n")
 			}
 		}
-		fmt.Fprintf(fgcch, "extern %s;\n", s)
+		fmt.Fprintf(fgcch, "extern %s;\n", s.String())
 
 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\nCGO_NO_SANITIZE_THREAD")
-		fmt.Fprintf(fgcc, "\n%s\n", s)
+		fmt.Fprintf(fgcc, "\n%s\n", s.String())
 		fmt.Fprintf(fgcc, "{\n")
 		fmt.Fprintf(fgcc, "\tsize_t _cgo_ctxt = _cgo_wait_runtime_init_done();\n")
 		// The results part of the argument structure must be
@@ -1043,7 +1046,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		// string.h for memset, and is also robust to C++
 		// types with constructors. Both GCC and LLVM optimize
 		// this into just zeroing _cgo_a.
-		fmt.Fprintf(fgcc, "\ttypedef %s %v _cgo_argtype;\n", ctype, p.packedAttribute())
+		fmt.Fprintf(fgcc, "\ttypedef %s %v _cgo_argtype;\n", ctype.String(), p.packedAttribute())
 		fmt.Fprintf(fgcc, "\tstatic _cgo_argtype _cgo_zero;\n")
 		fmt.Fprintf(fgcc, "\t_cgo_argtype _cgo_a = _cgo_zero;\n")
 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
