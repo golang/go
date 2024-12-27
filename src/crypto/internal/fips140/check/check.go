@@ -19,26 +19,12 @@ import (
 	"crypto/internal/fips140deps/byteorder"
 	"crypto/internal/fips140deps/godebug"
 	"io"
-	"runtime"
 	"unsafe"
 )
 
 // Verified is set when verification succeeded. It can be expected to always be
 // true when [fips140.Enabled] is true, or init would have panicked.
 var Verified bool
-
-// Supported reports whether the current GOOS/GOARCH is Supported at all.
-func Supported() bool {
-	// See cmd/internal/obj/fips.go's EnableFIPS for commentary.
-	switch {
-	case runtime.GOARCH == "wasm",
-		runtime.GOOS == "windows" && runtime.GOARCH == "386",
-		runtime.GOOS == "windows" && runtime.GOARCH == "arm",
-		runtime.GOOS == "aix":
-		return false
-	}
-	return true
-}
 
 // Linkinfo holds the go:fipsinfo symbol prepared by the linker.
 // See cmd/link/internal/ld/fips.go for details.
@@ -70,19 +56,8 @@ func init() {
 		return
 	}
 
-	if asanEnabled {
-		// ASAN disapproves of reading swaths of global memory below.
-		// One option would be to expose runtime.asanunpoison through
-		// crypto/internal/fips140deps and then call it to unpoison the range
-		// before reading it, but it is unclear whether that would then cause
-		// false negatives. For now, FIPS+ASAN doesn't need to work.
-		// If this is made to work, also re-enable the test in check_test.go
-		// and in cmd/dist/test.go.
-		panic("fips140: cannot verify in asan mode")
-	}
-
-	if !Supported() {
-		panic("fips140: unavailable on " + runtime.GOOS + "-" + runtime.GOARCH)
+	if err := fips140.Supported(); err != nil {
+		panic("fips140: " + err.Error())
 	}
 
 	if Linkinfo.Magic[0] != 0xff || string(Linkinfo.Magic[1:]) != fipsMagic || Linkinfo.Sum == zeroSum {
