@@ -294,6 +294,13 @@ func TestCheckLinkerFlags(t *testing.T) {
 		}
 	}
 
+	cfg.Goos = "ios"
+	for _, f := range goodLinkerFlagsOnDarwin {
+		if err := checkLinkerFlags("test", "test", f); err != nil {
+			t.Errorf("unexpected error for %q: %v", f, err)
+		}
+	}
+
 	cfg.Goos = "linux"
 	for _, f := range goodLinkerFlagsOnDarwin {
 		if err := checkLinkerFlags("test", "test", f); err == nil {

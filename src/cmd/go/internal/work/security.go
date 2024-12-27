@@ -236,7 +236,7 @@ var validLinkerFlagsOnDarwin = []*lazyregexp.Regexp{
 	// conjunction with the `-install_name` and `-rpath` linker flags.
 	// Since the GNU linker does not support Mach-O, targeting Darwin
 	// implies not using the GNU linker. Therefore, we allow @ in the linker
-	// flags if and only if cfg.Goos == "darwin".
+	// flags if and only if cfg.Goos == "darwin" || cfg.Goos == "ios".
 	re(`-Wl,-dylib_install_name,@rpath(/[^,]*)?`),
 	re(`-Wl,-install_name,@rpath(/[^,]*)?`),
 	re(`-Wl,-rpath,@(executable_path|loader_path)(/[^,]*)?`),
@@ -265,7 +265,7 @@ func checkCompilerFlags(name, source string, list []string) error {
 
 func checkLinkerFlags(name, source string, list []string) error {
 	validLinkerFlagsForPlatform := validLinkerFlags
-	if cfg.Goos == "darwin" {
+	if cfg.Goos == "darwin" || cfg.Goos == "ios" {
 		validLinkerFlagsForPlatform = append(validLinkerFlags, validLinkerFlagsOnDarwin...)
 	}
 
