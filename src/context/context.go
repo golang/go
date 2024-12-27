@@ -10,21 +10,21 @@
 // calls to servers should accept a Context. The chain of function
 // calls between them must propagate the Context, optionally replacing
 // it with a derived Context created using [WithCancel], [WithDeadline],
-// [WithTimeout], or [WithValue]. When a Context is canceled, all
-// Contexts derived from it are also canceled.
+// [WithTimeout], or [WithValue]. When a Context is canceled or its deadline passes,
+// all Contexts derived from it are also considered done (canceled or timed out, respectively).
+// This applies to derived Contexts regardless of wheter they were created with their own deadline or not.
 //
 // The [WithCancel], [WithDeadline], and [WithTimeout] functions take a
 // Context (the parent) and return a derived Context (the child) and a
 // [CancelFunc]. Calling the CancelFunc cancels the child and its
 // children, removes the parent's reference to the child, and stops
 // any associated timers. Failing to call the CancelFunc leaks the
-// child and its children until the parent is canceled or the timer
-// fires. The go vet tool checks that CancelFuncs are used on all
-// control-flow paths.
+// child and its children until the parent is canceled or its deadline passes.
+// The go vet tool checks that CancelFuncs are used on all control-flow paths.
 //
 // The [WithCancelCause] function returns a [CancelCauseFunc], which
 // takes an error and records it as the cancellation cause. Calling
-// [Cause] on the canceled context or any of its children retrieves
+// [Cause] on a done Context (canceled or timed out) or any of its children retrieves
 // the cause. If no cause is specified, Cause(ctx) returns the same
 // value as ctx.Err().
 //
