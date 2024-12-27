@@ -12,7 +12,7 @@
 // it with a derived Context created using [WithCancel], [WithDeadline],
 // [WithTimeout], or [WithValue]. When a Context is canceled or its deadline passes,
 // all Contexts derived from it are also considered done (canceled or timed out, respectively).
-// This applies to derived Contexts regardless of wheter they were created with their own deadline or not.
+// This applies to derived Contexts regardless of whether they were created with their own deadline or not.
 //
 // The [WithCancel], [WithDeadline], and [WithTimeout] functions take a
 // Context (the parent) and return a derived Context (the child) and a
