@@ -39,7 +39,7 @@ type ProgCache struct {
 
 	// can are the commands that the child process declared that it supports.
 	// This is effectively the versioning mechanism.
-	can map[cacheprog.ProgCmd]bool
+	can map[cacheprog.Cmd]bool
 
 	// fuzzDirCache is another Cache implementation to use for the FuzzDir
 	// method. In practice this is the default GOCACHE disk-based
@@ -56,7 +56,7 @@ type ProgCache struct {
 
 	mu         sync.Mutex // guards following fields
 	nextID     int64
-	inFlight   map[int64]chan<- *cacheprog.ProgResponse
+	inFlight   map[int64]chan<- *cacheprog.Response
 	outputFile map[OutputID]string // object => abs path on disk
 
 	// writeMu serializes writing to the child process.
@@ -111,14 +111,14 @@ func startCacheProg(progAndArgs string, fuzzDirCache Cache) Cache {
 		stdout:       out,
 		stdin:        in,
 		bw:           bufio.NewWriter(in),
-		inFlight:     make(map[int64]chan<- *cacheprog.ProgResponse),
+		inFlight:     make(map[int64]chan<- *cacheprog.Response),
 		outputFile:   make(map[OutputID]string),
 		readLoopDone: make(chan struct{}),
 	}
 
 	// Register our interest in the initial protocol message from the child to
 	// us, saying what it can do.
-	capResc := make(chan *cacheprog.ProgResponse, 1)
+	capResc := make(chan *cacheprog.Response, 1)
 	pc.inFlight[0] = capResc
 
 	pc.jenc = json.NewEncoder(pc.bw)
@@ -133,7 +133,7 @@ func startCacheProg(progAndArgs string, fuzzDirCache Cache) Cache {
 		case <-timer.C:
 			log.Printf("# still waiting for GOCACHEPROG %v ...", prog)
 		case capRes := <-capResc:
-			can := map[cacheprog.ProgCmd]bool{}
+			can := map[cacheprog.Cmd]bool{}
 			for _, cmd := range capRes.KnownCommands {
 				can[cmd] = true
 			}
@@ -150,7 +150,7 @@ func (c *ProgCache) readLoop(readLoopDone chan<- struct{}) {
 	defer close(readLoopDone)
 	jd := json.NewDecoder(c.stdout)
 	for {
-		res := new(cacheprog.ProgResponse)
+		res := new(cacheprog.Response)
 		if err := jd.Decode(res); err != nil {
 			if c.closing.Load() {
 				return // quietly
@@ -175,8 +175,8 @@ func (c *ProgCache) readLoop(readLoopDone chan<- struct{}) {
 	}
 }
 
-func (c *ProgCache) send(ctx context.Context, req *cacheprog.ProgRequest) (*cacheprog.ProgResponse, error) {
-	resc := make(chan *cacheprog.ProgResponse, 1)
+func (c *ProgCache) send(ctx context.Context, req *cacheprog.Request) (*cacheprog.Response, error) {
+	resc := make(chan *cacheprog.Response, 1)
 	if err := c.writeToChild(req, resc); err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func (c *ProgCache) send(ctx context.Context, req *cacheprog.ProgRequest) (*cach
 	}
 }
 
-func (c *ProgCache) writeToChild(req *cacheprog.ProgRequest, resc chan<- *cacheprog.ProgResponse) (err error) {
+func (c *ProgCache) writeToChild(req *cacheprog.Request, resc chan<- *cacheprog.Response) (err error) {
 	c.mu.Lock()
 	c.nextID++
 	req.ID = c.nextID
@@ -252,7 +252,7 @@ func (c *ProgCache) Get(a ActionID) (Entry, error) {
 		// error types on the Cache interface.
 		return Entry{}, &entryNotFoundError{}
 	}
-	res, err := c.send(c.ctx, &cacheprog.ProgRequest{
+	res, err := c.send(c.ctx, &cacheprog.Request{
 		Command:  cacheprog.CmdGet,
 		ActionID: a[:],
 	})
@@ -321,7 +321,7 @@ func (c *ProgCache) Put(a ActionID, file io.ReadSeeker) (_ OutputID, size int64,
 		deprecatedValue = out[:]
 	}
 
-	res, err := c.send(c.ctx, &cacheprog.ProgRequest{
+	res, err := c.send(c.ctx, &cacheprog.Request{
 		Command:  cacheprog.CmdPut,
 		ActionID: a[:],
 		OutputID: out[:],
@@ -347,7 +347,7 @@ func (c *ProgCache) Close() error {
 	// and clean up if it wants. Only after that exchange do we cancel
 	// the context that kills the process.
 	if c.can[cacheprog.CmdClose] {
-		_, err = c.send(c.ctx, &cacheprog.ProgRequest{Command: cacheprog.CmdClose})
+		_, err = c.send(c.ctx, &cacheprog.Request{Command: cacheprog.CmdClose})
 	}
 	// Cancel the context, which will close the helper's stdin.
 	c.ctxCancel()
