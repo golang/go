@@ -63,36 +63,74 @@ type ProgCache struct {
 	writeMu sync.Mutex
 }
 
+// The following types define the protocol for a GOCACHEPROG program.
+//
+// By default, the go command manages a build cache stored in the file system
+// itself. GOCACHEPROG can be set to the name of a command (with optional
+// space-separated flags) that implements the go command build cache externally.
+// This permits defining a different cache policy.
+//
+// The go command will start the GOCACHEPROG as a subprocess and communicate
+// with it via JSON messages over stdin/stdout. The subprocess's stderr will be
+// connected to the go command's stderr.
+//
+// The subprocess should immediately send a [ProgResponse] with its capabilities.
+// After that, the go command will send a stream of [ProgRequest] messages and the
+// subprocess should reply to each [ProgRequest] with a [ProgResponse] message.
+
 // ProgCmd is a command that can be issued to a child process.
 //
-// If the interface needs to grow, we can add new commands or new versioned
-// commands like "get2".
+// If the interface needs to grow, the go command can add new commands or new
+// versioned commands like "get2" in the future. The initial [ProgResponse] from
+// the child process indicates which commands it supports.
 type ProgCmd string
 
 const (
-	cmdGet   = ProgCmd("get")
-	cmdPut   = ProgCmd("put")
+	// cmdPut tells the cache program to store an object in the cache.
+	//
+	// [ProgRequest.ActionID] is the cache key of this object. The cache should
+	// store [ProgRequest.OutputID] and [ProgRequest.Body] under this key for a
+	// later "get" request. It must also store the Body in a file in the local
+	// file system and return the path to that file in [ProgResponse.DiskPath],
+	// which must exist at least until a "close" request.
+	cmdPut = ProgCmd("put")
+
+	// cmdGet tells the cache program to retrieve an object from the cache.
+	//
+	// [ProgRequest.ActionID] specifies the key of the object to get. If the
+	// cache does not contain this object, it should set [ProgResponse.Miss] to
+	// true. Otherwise, it should populate the fields of [ProgResponse],
+	// including setting [ProgResponse.OutputID] to the OutputID of the original
+	// "put" request and [ProgResponse.DiskPath] to the path of a local file
+	// containing the Body of the original "put" request. That file must
+	// continue to exist at least until a "close" request.
+	cmdGet = ProgCmd("get")
+
+	// cmdClose requests that the cache program exit gracefully.
+	//
+	// The cache program should reply to this request and then exit
+	// (thus closing its stdout).
 	cmdClose = ProgCmd("close")
 )
 
-// ProgRequest is the JSON-encoded message that's sent from cmd/go to
-// the GOCACHEPROG child process over stdin. Each JSON object is on its
-// own line. A ProgRequest of Type "put" with BodySize > 0 will be followed
-// by a line containing a base64-encoded JSON string literal of the body.
+// ProgRequest is the JSON-encoded message that's sent from the go command to
+// the GOCACHEPROG child process over stdin. Each JSON object is on its own
+// line. A ProgRequest of Type "put" with BodySize > 0 will be followed by a
+// line containing a base64-encoded JSON string literal of the body.
 type ProgRequest struct {
 	// ID is a unique number per process across all requests.
 	// It must be echoed in the ProgResponse from the child.
 	ID int64
 
 	// Command is the type of request.
-	// The cmd/go tool will only send commands that were declared
+	// The go command will only send commands that were declared
 	// as supported by the child.
 	Command ProgCmd
 
-	// ActionID is non-nil for get and puts.
+	// ActionID is the cache key for "put" and "get" requests.
 	ActionID []byte `json:",omitempty"` // or nil if not used
 
-	// OutputID is set for Type "put".
+	// OutputID is stored with the body for "put" requests.
 	//
 	// Prior to Go 1.24, when GOCACHEPROG was still an experiment, this was
 	// accidentally named ObjectID. It was renamed to OutputID in Go 1.24.
@@ -118,11 +156,11 @@ type ProgRequest struct {
 	ObjectID []byte `json:",omitempty"`
 }
 
-// ProgResponse is the JSON response from the child process to cmd/go.
+// ProgResponse is the JSON response from the child process to the go command.
 //
 // With the exception of the first protocol message that the child writes to its
 // stdout with ID==0 and KnownCommands populated, these are only sent in
-// response to a ProgRequest from cmd/go.
+// response to a ProgRequest from the go command.
 //
 // ProgResponses can be sent in any order. The ID must match the request they're
 // replying to.
@@ -134,21 +172,22 @@ type ProgResponse struct {
 	// writes to stdout on startup (with ID==0). It includes the
 	// ProgRequest.Command types that are supported by the program.
 	//
-	// This lets us extend the protocol gracefully over time (adding "get2",
-	// etc), or fail gracefully when needed. It also lets us verify the program
-	// wants to be a cache helper.
+	// This lets the go command extend the protocol gracefully over time (adding
+	// "get2", etc), or fail gracefully when needed. It also lets the go command
+	// verify the program wants to be a cache helper.
 	KnownCommands []ProgCmd `json:",omitempty"`
 
-	// For Get requests.
+	// For "get" requests.
 
 	Miss     bool       `json:",omitempty"` // cache miss
-	OutputID []byte     `json:",omitempty"`
-	Size     int64      `json:",omitempty"` // in bytes
-	Time     *time.Time `json:",omitempty"` // an Entry.Time; when the object was added to the docs
+	OutputID []byte     `json:",omitempty"` // the ObjectID stored with the body
+	Size     int64      `json:",omitempty"` // body size in bytes
+	Time     *time.Time `json:",omitempty"` // when the object was put in the cache (optional; used for cache expiration)
 
-	// DiskPath is the absolute path on disk of the ObjectID corresponding
-	// a "get" request's ActionID (on cache hit) or a "put" request's
-	// provided ObjectID.
+	// For "get" and "put" requests.
+
+	// DiskPath is the absolute path on disk of the body corresponding to a
+	// "get" (on cache hit) or "put" request's ActionID.
 	DiskPath string `json:",omitempty"`
 }
 
@@ -183,6 +222,8 @@ func startCacheProg(progAndArgs string, fuzzDirCache Cache) Cache {
 		base.Fatalf("StdinPipe to GOCACHEPROG: %v", err)
 	}
 	cmd.Stderr = os.Stderr
+	// On close, we cancel the context. Rather than killing the helper,
+	// close its stdin.
 	cmd.Cancel = in.Close
 
 	if err := cmd.Start(); err != nil {
@@ -435,7 +476,9 @@ func (c *ProgCache) Close() error {
 	if c.can[cmdClose] {
 		_, err = c.send(c.ctx, &ProgRequest{Command: cmdClose})
 	}
+	// Cancel the context, which will close the helper's stdin.
 	c.ctxCancel()
+	// Wait until the helper closes its stdout.
 	<-c.readLoopDone
 	return err
 }
