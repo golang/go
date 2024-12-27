@@ -17,7 +17,7 @@ var (
 	mimeTypesLower sync.Map // map[string]string; ".z" => "application/x-compress"
 
 	// extensions maps from MIME type to list of lowercase file
-	// extensions: "image/jpeg" => [".jpg", ".jpeg"]
+	// extensions: "image/jpeg" => [".jfif", ".jpg", ".jpeg", ".pjp", ".pjpeg"]
 	extensionsMu sync.Mutex // Guards stores (but not loads) on extensions.
 	extensions   sync.Map   // map[string][]string; slice values are append-only.
 )

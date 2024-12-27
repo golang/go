@@ -204,7 +204,7 @@ func TestExtensionsByType2(t *testing.T) {
 		typ  string
 		want []string
 	}{
-		{typ: "image/jpeg", want: []string{".jpeg", ".jpg"}},
+		{typ: "image/jpeg", want: []string{".jfif", ".jpeg", ".jpg", ".pjp", ".pjpeg"}},
 	}
 
 	for _, tt := range tests {
