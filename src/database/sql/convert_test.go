@@ -32,7 +32,7 @@ type conversionTest struct {
 	wantint    int64
 	wantuint   uint64
 	wantstr    string
-	wantbytes  []byte
+	wantbytes  []byte 
 	wantraw    RawBytes
 	wantf32    float32
 	wantf64    float64
@@ -67,7 +67,7 @@ func conversionTests() []conversionTest {
 	return []conversionTest{
 		// Exact conversions (destination pointer type matches source type)
 		{s: "foo", d: &scanstr, wantstr: "foo"},
-		{s: 123, d: &scanint, wantint: 123},
+		{s: 123, d: &scanint, wantint: 123}, 
 		{s: someTime, d: &scantime, wanttime: someTime},
 
 		// To strings
