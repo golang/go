@@ -506,6 +506,10 @@ General-purpose environment variables:
 	GOCACHE
 		The directory where the go command will store cached
 		information for reuse in future builds.
+	GOCACHEPROG
+		A command (with optional space-separated flags) that implements an
+		external go command build cache.
+		See 'go doc cmd/go/internal/cacheprog'.
 	GODEBUG
 		Enable various debugging facilities. See https://go.dev/doc/godebug
 		for details.
