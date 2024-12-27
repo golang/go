@@ -227,6 +227,21 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`\./.*\.(a|o|obj|dll|dylib|so|tbd)`),
 }
 
+var validLinkerFlagsOnDarwin = []*lazyregexp.Regexp{
+	// The GNU linker interprets `@file` as "read command-line options from
+	// file". Thus, we forbid values starting with `@` on linker flags.
+	// However, this causes a problem when targeting Darwin.
+	// `@executable_path`, `@loader_path`, and `@rpath` are special values
+	// used in Mach-O to change the library search path and can be used in
+	// conjunction with the `-install_name` and `-rpath` linker flags.
+	// Since the GNU linker does not support Mach-O, targeting Darwin
+	// implies not using the GNU linker. Therefore, we allow @ in the linker
+	// flags if and only if cfg.Goos == "darwin" || cfg.Goos == "ios".
+	re(`-Wl,-dylib_install_name,@rpath(/[^,]*)?`),
+	re(`-Wl,-install_name,@rpath(/[^,]*)?`),
+	re(`-Wl,-rpath,@(executable_path|loader_path)(/[^,]*)?`),
+}
+
 var validLinkerFlagsWithNextArg = []string{
 	"-arch",
 	"-F",
@@ -249,8 +264,13 @@ func checkCompilerFlags(name, source string, list []string) error {
 }
 
 func checkLinkerFlags(name, source string, list []string) error {
+	validLinkerFlagsForPlatform := validLinkerFlags
+	if cfg.Goos == "darwin" || cfg.Goos == "ios" {
+		validLinkerFlagsForPlatform = append(validLinkerFlags, validLinkerFlagsOnDarwin...)
+	}
+
 	checkOverrides := true
-	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
+	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlagsForPlatform, validLinkerFlagsWithNextArg, checkOverrides)
 }
 
 // checkCompilerFlagsForInternalLink returns an error if 'list'
