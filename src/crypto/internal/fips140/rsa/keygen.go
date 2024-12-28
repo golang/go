@@ -167,15 +167,17 @@ func randomPrime(rand io.Reader, bits int) ([]byte, error) {
 		if err := drbg.ReadWithReader(rand, b); err != nil {
 			return nil, err
 		}
-		if excess := len(b)*8 - bits; excess != 0 {
-			b[0] >>= excess
-		}
+		// Clear the most significant bits to reach the desired size. We use a
+		// mask rather than right-shifting b[0] to make it easier to inject test
+		// candidates, which can be represented as simple big-endian integers.
+		excess := len(b)*8 - bits
+		b[0] &= 0b1111_1111 >> excess
 
 		// Don't let the value be too small: set the most significant two bits.
 		// Setting the top two bits, rather than just the top bit, means that
 		// when two of these values are multiplied together, the result isn't
 		// ever one bit short.
-		if excess := len(b)*8 - bits; excess < 7 {
+		if excess < 7 {
 			b[0] |= 0b1100_0000 >> excess
 		} else {
 			b[0] |= 0b0000_0001
@@ -270,9 +272,8 @@ func isPrime(w []byte) bool {
 	b := make([]byte, (bits+7)/8)
 	for {
 		drbg.Read(b)
-		if excess := len(b)*8 - bits; excess != 0 {
-			b[0] >>= excess
-		}
+		excess := len(b)*8 - bits
+		b[0] &= 0b1111_1111 >> excess
 		result, err := millerRabinIteration(mr, b)
 		if err != nil {
 			// b was rejected.
@@ -295,6 +296,8 @@ func isPrime(w []byte) bool {
 //
 // Higher values cause fewer Miller-Rabin tests of composites (nothing can help
 // with the final test on the actual prime) but make InverseVarTime take longer.
+// There are diminishing returns: including the 75th prime would increase the
+// success rate of trial division by 0.05%.
 var productOfPrimes = []byte{
 	0x10, 0x6a, 0xa9, 0xfb, 0x76, 0x46, 0xfa, 0x6e, 0xb0, 0x81, 0x3c, 0x28, 0xc5, 0xd5, 0xf0, 0x9f,
 	0x07, 0x7e, 0xc3, 0xba, 0x23, 0x8b, 0xfb, 0x99, 0xc1, 0xb6, 0x31, 0xa2, 0x03, 0xe8, 0x11, 0x87,

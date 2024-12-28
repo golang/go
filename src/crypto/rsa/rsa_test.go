@@ -16,10 +16,13 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"io"
 	"math/big"
+	"os"
 	"strings"
 	"testing"
 )
@@ -762,16 +765,6 @@ func BenchmarkVerifyPSS(b *testing.B) {
 	})
 }
 
-func BenchmarkGenerateKey(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			if _, err := GenerateKey(rand.Reader, 2048); err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
-}
-
 func BenchmarkParsePKCS8PrivateKey(b *testing.B) {
 	b.Run("2048", func(b *testing.B) {
 		p, _ := pem.Decode([]byte(test2048KeyPEM))
@@ -782,6 +775,58 @@ func BenchmarkParsePKCS8PrivateKey(b *testing.B) {
 			}
 		}
 	})
+}
+
+func BenchmarkGenerateKey(b *testing.B) {
+	b.Run("2048", func(b *testing.B) {
+		primes, err := os.ReadFile("testdata/keygen2048.txt")
+		if err != nil {
+			b.Fatal(err)
+		}
+		for b.Loop() {
+			r := &testPrimeReader{primes: string(primes)}
+			if _, err := GenerateKey(r, 2048); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+// testPrimeReader feeds prime candidates from a text file,
+// one per line in hex, to GenerateKey.
+type testPrimeReader struct {
+	primes string
+}
+
+func (r *testPrimeReader) Read(p []byte) (n int, err error) {
+	// Neutralize randutil.MaybeReadByte.
+	//
+	// DO NOT COPY this. We *will* break you. We can do this because we're
+	// in the standard library, and can update this along with the
+	// GenerateKey implementation if necessary.
+	//
+	// You have been warned.
+	if len(p) == 1 {
+		return 1, nil
+	}
+
+	var line string
+	for line == "" || line[0] == '#' {
+		var ok bool
+		line, r.primes, ok = strings.Cut(r.primes, "\n")
+		if !ok {
+			return 0, io.EOF
+		}
+	}
+	b, err := hex.DecodeString(line)
+	if err != nil {
+		return 0, err
+	}
+	if len(p) != len(b) {
+		return 0, fmt.Errorf("unexpected read length: %d", len(p))
+	}
+	copy(p, b)
+	return len(p), nil
 }
 
 type testEncryptOAEPMessage struct {
