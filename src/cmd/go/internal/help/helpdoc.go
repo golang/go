@@ -270,11 +270,7 @@ the go tool will verify that https://example.org/?go-get=1 contains the
 same meta tag and then git clone https://code.org/r/p/exproj into
 GOPATH/src/example.org.
 
-When using GOPATH, downloaded packages are written to the first directory
-listed in the GOPATH environment variable.
-(See 'go help gopath-get' and 'go help gopath'.)
-
-When using modules, downloaded packages are stored in the module cache.
+Downloaded packages are stored in the module cache.
 See https://golang.org/ref/mod#module-cache.
 
 When using modules, an additional variant of the go-import meta tag is
