@@ -145,6 +145,9 @@ func ReadDir(name string) ([]DirEntry, error) {
 //
 // Symbolic links in dir are followed.
 //
+// New files added to fsys (including if dir is a subdirectory of fsys)
+// while CopyFS is running are not guaranteed to be copied.
+//
 // Copying stops at and returns the first error encountered.
 func CopyFS(dir string, fsys fs.FS) error {
 	return fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
