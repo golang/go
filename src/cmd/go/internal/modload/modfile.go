@@ -44,6 +44,17 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 
 	f, err = modfile.Parse(gomod, data, fix)
 	if err != nil {
+		f, laxErr := modfile.ParseLax(gomod, data, fix)
+		if laxErr == nil {
+			if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
+				toolchain := ""
+				if f.Toolchain != nil {
+					toolchain = f.Toolchain.Name
+				}
+				return nil, nil, &gover.TooNewError{What: base.ShortPath(gomod), GoVersion: f.Go.Version, Toolchain: toolchain}
+			}
+		}
+
 		// Errors returned by modfile.Parse begin with file:line.
 		return nil, nil, fmt.Errorf("errors parsing %s:\n%w", base.ShortPath(gomod), shortPathErrorList(err))
 	}
