@@ -97,7 +97,7 @@ type clientHelloMsg struct {
 	pskBinders                       [][]byte
 	quicTransportParameters          []byte
 	encryptedClientHello             []byte
-	// extensions are only populated on the servers-ide of a handshake
+	// extensions are only populated on the server-side of a handshake
 	extensions []uint16
 }
 
