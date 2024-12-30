@@ -2448,6 +2448,11 @@
 //	GOARM
 //		For GOARCH=arm, the ARM architecture for which to compile.
 //		Valid values are 5, 6, 7.
+//		When the Go tools are built on an arm system,
+//		the default value is set based on what the build system supports.
+//		When the Go tools are not built on an arm system
+//		(that is, when building a cross-compiler),
+//		the default value is 7.
 //		The value can be followed by an option specifying how to implement floating point instructions.
 //		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
 //	GOARM64
