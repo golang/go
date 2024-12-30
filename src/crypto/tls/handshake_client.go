@@ -260,6 +260,7 @@ type echClientContext struct {
 	kdfID           uint16
 	aeadID          uint16
 	echRejected     bool
+	retryConfigs    []byte
 }
 
 func (c *Conn) clientHandshake(ctx context.Context) (err error) {
