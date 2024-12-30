@@ -1362,6 +1362,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AFCOPYSGD, r0)
 			opset(AFSCALEBF, r0)
 			opset(AFSCALEBD, r0)
+			opset(AFMAXAF, r0)
+			opset(AFMAXAD, r0)
+			opset(AFMINAF, r0)
+			opset(AFMINAD, r0)
 
 		case AFMADDF:
 			opset(AFMADDD, r0)
@@ -2641,6 +2645,14 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x211 << 15 // fmax.s
 	case AFMAXD:
 		return 0x212 << 15 // fmax.d
+	case AFMAXAF:
+		return 0x219 << 15 // fmaxa.s
+	case AFMAXAD:
+		return 0x21a << 15 // fmaxa.d
+	case AFMINAF:
+		return 0x21d << 15 // fmina.s
+	case AFMINAD:
+		return 0x21e << 15 // fmina.d
 	case AFSCALEBF:
 		return 0x221 << 15 // fscaleb.s
 	case AFSCALEBD:
