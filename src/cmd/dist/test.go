@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -280,12 +281,7 @@ func (t *tester) shouldRunTest(name string) bool {
 	if len(t.runNames) == 0 {
 		return true
 	}
-	for _, runName := range t.runNames {
-		if runName == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(t.runNames, name)
 }
 
 func (t *tester) maybeLogMetadata() error {
