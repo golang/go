@@ -1812,6 +1812,7 @@ func (t *tester) fipsSupported() bool {
 	case goarch == "wasm",
 		goos == "windows" && goarch == "386",
 		goos == "windows" && goarch == "arm",
+		goos == "openbsd",
 		goos == "aix":
 		return false
 	}
