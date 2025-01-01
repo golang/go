@@ -854,7 +854,7 @@ func containsDotDot(v string) bool {
 	if !strings.Contains(v, "..") {
 		return false
 	}
-	for _, ent := range strings.FieldsFunc(v, isSlashRune) {
+	for ent := range strings.FieldsFuncSeq(v, isSlashRune) {
 		if ent == ".." {
 			return true
 		}
