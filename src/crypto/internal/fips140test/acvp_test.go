@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
+	"crypto/internal/fips140/ecdsa"
 	"crypto/internal/fips140/hmac"
 	"crypto/internal/fips140/mlkem"
 	"crypto/internal/fips140/pbkdf2"
@@ -78,6 +79,8 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-pbkdf.html#section-7.3
 	// ML-KEM algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-ml-kem.html#section-7.3
+	// HMAC DRBG algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -128,6 +131,17 @@ var (
 		"ML-KEM-1024/keyGen": cmdMlKem1024KeyGenAft(),
 		"ML-KEM-1024/encap":  cmdMlKem1024EncapAft(),
 		"ML-KEM-1024/decap":  cmdMlKem1024DecapAft(),
+
+		"hmacDRBG/SHA2-224":     cmdHmacDrbgAft(func() fips140.Hash { return sha256.New224() }),
+		"hmacDRBG/SHA2-256":     cmdHmacDrbgAft(func() fips140.Hash { return sha256.New() }),
+		"hmacDRBG/SHA2-384":     cmdHmacDrbgAft(func() fips140.Hash { return sha512.New384() }),
+		"hmacDRBG/SHA2-512":     cmdHmacDrbgAft(func() fips140.Hash { return sha512.New() }),
+		"hmacDRBG/SHA2-512/224": cmdHmacDrbgAft(func() fips140.Hash { return sha512.New512_224() }),
+		"hmacDRBG/SHA2-512/256": cmdHmacDrbgAft(func() fips140.Hash { return sha512.New512_256() }),
+		"hmacDRBG/SHA3-224":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New224() }),
+		"hmacDRBG/SHA3-256":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New256() }),
+		"hmacDRBG/SHA3-384":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New384() }),
+		"hmacDRBG/SHA3-512":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New512() }),
 	}
 )
 
@@ -538,12 +552,45 @@ func cmdMlKem1024DecapAft() command {
 	}
 }
 
+func cmdHmacDrbgAft(h func() fips140.Hash) command {
+	return command{
+		requiredArgs: 6, // Output length, entropy, personalization, ad1, ad2, nonce
+		handler: func(args [][]byte) ([][]byte, error) {
+			outLen := binary.LittleEndian.Uint32(args[0])
+			entropy := args[1]
+			personalization := args[2]
+			ad1 := args[3]
+			ad2 := args[4]
+			nonce := args[5]
+
+			// Our capabilities describe no additional data support.
+			if len(ad1) != 0 || len(ad2) != 0 {
+				return nil, errors.New("additional data not supported")
+			}
+
+			// Our capabilities describe no prediction resistance (requires reseed) and no reseed.
+			// So the test procedure is:
+			//   * Instantiate DRBG
+			//   * Generate but don't output
+			//   * Generate output
+			//   * Uninstantiate
+			// See Table 7 in draft-vassilev-acvp-drbg
+			out := make([]byte, outLen)
+			drbg := ecdsa.TestingOnlyNewDRBG(h, entropy, nonce, personalization)
+			drbg.Generate(out)
+			drbg.Generate(out)
+
+			return [][]byte{out}, nil
+		},
+	}
+}
+
 func TestACVP(t *testing.T) {
 	testenv.SkipIfShortAndSlow(t)
 
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
-		bsslVersion   = "v0.0.0-20241218033850-ca3146c56300"
+		bsslVersion   = "v0.0.0-20250108043213-d3f61eeacbf7"
 		goAcvpModule  = "github.com/cpu/go-acvp"
 		goAcvpVersion = "v0.0.0-20250102201911-6839fc40f9f8"
 	)
