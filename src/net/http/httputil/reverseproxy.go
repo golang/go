@@ -793,7 +793,15 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	spc := switchProtocolCopier{user: conn, backend: backConn}
 	go spc.copyToBackend(errc)
 	go spc.copyFromBackend(errc)
-	<-errc
+
+	// wait until both copy functions have sent on the error channel
+	err := <-errc
+	if err == nil {
+		err = <-errc
+	}
+	if err != nil {
+		p.getErrorHandler()(rw, req, fmt.Errorf("can't copy: %v", err))
+	}
 }
 
 // switchProtocolCopier exists so goroutines proxying data back and
@@ -803,13 +811,33 @@ type switchProtocolCopier struct {
 }
 
 func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
-	_, err := io.Copy(c.user, c.backend)
-	errc <- err
+	if _, err := io.Copy(c.user, c.backend); err != nil {
+		errc <- err
+		return
+	}
+
+	// backend conn has reached EOF so propogate close write to user conn
+	if wc, ok := c.user.(interface{ CloseWrite() error }); ok {
+		errc <- wc.CloseWrite()
+		return
+	}
+
+	errc <- nil
 }
 
 func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
-	_, err := io.Copy(c.backend, c.user)
-	errc <- err
+	if _, err := io.Copy(c.backend, c.user); err != nil {
+		errc <- err
+		return
+	}
+
+	// user conn has reached EOF so propogate close write to backend conn
+	if wc, ok := c.backend.(interface{ CloseWrite() error }); ok {
+		errc <- wc.CloseWrite()
+		return
+	}
+
+	errc <- nil
 }
 
 func cleanQueryParams(s string) string {
