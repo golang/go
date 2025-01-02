@@ -85,6 +85,7 @@ func ReadUnified(r *bufio.Reader) (data []byte, err error) {
 
 	if n < 0 {
 		err = fmt.Errorf("invalid size (%d) in the archive file: %d bytes remain without section headers (recompile package)", size, n)
+		return
 	}
 
 	// Read n bytes from buf.
