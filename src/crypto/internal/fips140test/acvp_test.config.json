@@ -34,6 +34,8 @@
 
   {"Wrapper": "go", "In": "vectors/hmacDRBG.bz2", "Out": "expected/hmacDRBG.bz2"},
 
+  {"Wrapper": "go", "In": "vectors/ctrDRBG.bz2", "Out": "expected/ctrDRBG.bz2"},
+
   {"Wrapper": "go", "In": "vectors/EDDSA.bz2", "Out": "expected/EDDSA.bz2"},
 
   {"Wrapper": "go", "In": "vectors/ECDSA.bz2", "Out": "expected/ECDSA.bz2"},
@@ -46,5 +48,6 @@
 
   {"Wrapper": "go", "In": "vectors/TLS-v1.2.bz2", "Out": "expected/TLS-v1.2.bz2"},
   {"Wrapper": "go", "In": "vectors/TLS-v1.3.bz2", "Out": "expected/TLS-v1.3.bz2"},
+
   {"Wrapper": "go", "In": "vectors/kdf-components.bz2", "Out": "expected/kdf-components.bz2"}
 ]

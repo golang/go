@@ -26,6 +26,7 @@ import (
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/aes"
 	"crypto/internal/fips140/aes/gcm"
+	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/ecdh"
 	"crypto/internal/fips140/ecdsa"
 	"crypto/internal/fips140/ed25519"
@@ -125,7 +126,9 @@ var (
 	// SSH KDF algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-ssh.html#section-7.2
 	// ECDH algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-ssc-ecc.html
+	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-ssc-ecc.html#section-7.3
+	// HMAC DRBG and CTR DRBG algorithm capabilities:
+	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
 	//go:embed acvp_capabilities.json
 	capabilitiesJson []byte
 
@@ -259,6 +262,9 @@ var (
 		"ECDH/P-256": cmdEcdhAftVal(ecdh.P256()),
 		"ECDH/P-384": cmdEcdhAftVal(ecdh.P384()),
 		"ECDH/P-521": cmdEcdhAftVal(ecdh.P521()),
+
+		"ctrDRBG/AES-256":        cmdCtrDrbgAft(),
+		"ctrDRBG-reseed/AES-256": cmdCtrDrbgReseedAft(),
 	}
 )
 
@@ -1103,39 +1109,6 @@ func cmdMlKem1024DecapAft() command {
 	}
 }
 
-func cmdHmacDrbgAft(h func() fips140.Hash) command {
-	return command{
-		requiredArgs: 6, // Output length, entropy, personalization, ad1, ad2, nonce
-		handler: func(args [][]byte) ([][]byte, error) {
-			outLen := binary.LittleEndian.Uint32(args[0])
-			entropy := args[1]
-			personalization := args[2]
-			ad1 := args[3]
-			ad2 := args[4]
-			nonce := args[5]
-
-			// Our capabilities describe no additional data support.
-			if len(ad1) != 0 || len(ad2) != 0 {
-				return nil, errors.New("additional data not supported")
-			}
-
-			// Our capabilities describe no prediction resistance (requires reseed) and no reseed.
-			// So the test procedure is:
-			//   * Instantiate DRBG
-			//   * Generate but don't output
-			//   * Generate output
-			//   * Uninstantiate
-			// See Table 7 in draft-vassilev-acvp-drbg
-			out := make([]byte, outLen)
-			drbg := ecdsa.TestingOnlyNewDRBG(h, entropy, nonce, personalization)
-			drbg.Generate(out)
-			drbg.Generate(out)
-
-			return [][]byte{out}, nil
-		},
-	}
-}
-
 func lookupCurve(name string) (elliptic.Curve, error) {
 	var c elliptic.Curve
 
@@ -1458,6 +1431,152 @@ func cmdEcdhAftVal[P ecdh.Point[P]](curve *ecdh.Curve[P]) command {
 			return [][]byte{x, y, secret}, nil
 		},
 	}
+}
+
+func cmdHmacDrbgAft(h func() fips140.Hash) command {
+	return command{
+		requiredArgs: 6, // Output length, entropy, personalization, ad1, ad2, nonce
+		handler: func(args [][]byte) ([][]byte, error) {
+			outLen := binary.LittleEndian.Uint32(args[0])
+			entropy := args[1]
+			personalization := args[2]
+			ad1 := args[3]
+			ad2 := args[4]
+			nonce := args[5]
+
+			// Our capabilities describe no additional data support.
+			if len(ad1) != 0 || len(ad2) != 0 {
+				return nil, errors.New("additional data not supported")
+			}
+
+			// Our capabilities describe no prediction resistance (requires reseed) and no reseed.
+			// So the test procedure is:
+			//   * Instantiate DRBG
+			//   * Generate but don't output
+			//   * Generate output
+			//   * Uninstantiate
+			// See Table 7 in draft-vassilev-acvp-drbg
+			out := make([]byte, outLen)
+			drbg := ecdsa.TestingOnlyNewDRBG(h, entropy, nonce, personalization)
+			drbg.Generate(out)
+			drbg.Generate(out)
+
+			return [][]byte{out}, nil
+		},
+	}
+}
+
+func cmdCtrDrbgAft() command {
+	return command{
+		requiredArgs: 6, // Output length, entropy, personalization, ad1, ad2, nonce
+		handler: func(args [][]byte) ([][]byte, error) {
+			return acvpCtrDrbg{
+				outLen:          binary.LittleEndian.Uint32(args[0]),
+				entropy:         args[1],
+				personalization: args[2],
+				ad1:             args[3],
+				ad2:             args[4],
+				nonce:           args[5],
+			}.process()
+		},
+	}
+}
+
+func cmdCtrDrbgReseedAft() command {
+	return command{
+		requiredArgs: 8, // Output length, entropy, personalization, reseedAD, reseedEntropy, ad1, ad2, nonce
+		handler: func(args [][]byte) ([][]byte, error) {
+			return acvpCtrDrbg{
+				outLen:          binary.LittleEndian.Uint32(args[0]),
+				entropy:         args[1],
+				personalization: args[2],
+				reseedAd:        args[3],
+				reseedEntropy:   args[4],
+				ad1:             args[5],
+				ad2:             args[6],
+				nonce:           args[7],
+			}.process()
+		},
+	}
+}
+
+type acvpCtrDrbg struct {
+	outLen          uint32
+	entropy         []byte
+	personalization []byte
+	ad1             []byte
+	ad2             []byte
+	nonce           []byte
+	reseedAd        []byte // May be empty for no reseed
+	reseedEntropy   []byte // May be empty for no reseed
+}
+
+func (args acvpCtrDrbg) process() ([][]byte, error) {
+	// Our capability describes no personalization support.
+	if len(args.personalization) > 0 {
+		return nil, errors.New("personalization string not supported")
+	}
+
+	// Our capability describes no derivation function support, so the nonce
+	// should be empty.
+	if len(args.nonce) > 0 {
+		return nil, errors.New("unexpected nonce value")
+	}
+
+	// Our capability describes entropy input len of 384 bits.
+	entropy, err := require48Bytes(args.entropy)
+	if err != nil {
+		return nil, fmt.Errorf("entropy: %w", err)
+	}
+
+	// Our capability describes additional input len of 384 bits.
+	ad1, err := require48Bytes(args.ad1)
+	if err != nil {
+		return nil, fmt.Errorf("AD1: %w", err)
+	}
+	ad2, err := require48Bytes(args.ad2)
+	if err != nil {
+		return nil, fmt.Errorf("AD2: %w", err)
+	}
+
+	withReseed := len(args.reseedAd) > 0
+	var reseedAd, reseedEntropy *[48]byte
+	if withReseed {
+		// Ditto RE: entropy and additional data lengths for reseeding.
+		if reseedAd, err = require48Bytes(args.reseedAd); err != nil {
+			return nil, fmt.Errorf("reseed AD: %w", err)
+		}
+		if reseedEntropy, err = require48Bytes(args.reseedEntropy); err != nil {
+			return nil, fmt.Errorf("reseed entropy: %w", err)
+		}
+	}
+
+	// Our capabilities describe no prediction resistance and allow both
+	// reseed and no reseed, so the test procedure is:
+	//   * Instantiate DRBG
+	//   * Reseed (if enabled)
+	//   * Generate but don't output
+	//   * Generate output
+	//   * Uninstantiate
+	// See Table 7 in draft-vassilev-acvp-drbg
+	out := make([]byte, args.outLen)
+	ctrDrbg := drbg.NewCounter(entropy)
+	if withReseed {
+		ctrDrbg.Reseed(reseedEntropy, reseedAd)
+	}
+	ctrDrbg.Generate(out, ad1)
+	ctrDrbg.Generate(out, ad2)
+
+	return [][]byte{out}, nil
+}
+
+// Verify input is 48 byte slice, and cast it to a pointer to a fixed-size array
+// of 48 bytes, or return an error.
+func require48Bytes(input []byte) (*[48]byte, error) {
+	if inputLen := len(input); inputLen != 48 {
+		return nil, fmt.Errorf("invalid length: %d", inputLen)
+	}
+	return (*[48]byte)(input), nil
 }
 
 func TestACVP(t *testing.T) {

@@ -44,6 +44,8 @@
   {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-384","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":384}]},
   {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-512","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":512}]},
 
+  {"algorithm":"ctrDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":true,"capabilities":[{"mode":"AES-256","derFuncEnabled":false,"entropyInputLen":[384],"nonceLen":[0],"persoStringLen":[0],"additionalInputLen":[384],"returnedBitsLen":128}]},
+
   {"algorithm":"EDDSA","mode":"keyGen","revision":"1.0","curve":["ED-25519"]},
   {"algorithm":"EDDSA","mode":"keyVer","revision":"1.0","curve":["ED-25519"]},
   {"algorithm":"EDDSA","mode":"sigGen","revision":"1.0","pure":true,"preHash":true,"contextLength":[{"min":0,"max":255,"increment":1}],"curve":["ED-25519"]},
