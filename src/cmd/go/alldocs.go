@@ -2186,7 +2186,7 @@
 // fields of all events to reconstruct the text format output, as it would
 // have appeared from go build without the -json flag.
 //
-// Note that there may also be non-JSON error text on stdnard error, even
+// Note that there may also be non-JSON error text on standard error, even
 // with the -json flag. Typically, this indicates an early, serious error.
 // Consumers should be robust to this.
 //
@@ -2617,7 +2617,7 @@
 //		Example: Data
 //
 //	If the server responds with any 4xx code, the go command will write the
-//	following to the programs' stdin:
+//	following to the program's stdin:
 //		Response      = StatusLine { HeaderLine } BlankLine .
 //		StatusLine    = Protocol Space Status '\n' .
 //		Protocol      = /* HTTP protocol */ .
