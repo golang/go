@@ -343,6 +343,10 @@ type MarshalerStruct struct {
 	Foo MyMarshalerAttrTest `xml:",attr"`
 }
 
+type IMarshalerStruct struct {
+	Foo interface{} `xml:",attr"`
+}
+
 type InnerStruct struct {
 	XMLName Name `xml:"testns outer"`
 }
@@ -1251,6 +1255,11 @@ var marshalTests = []struct {
 	{
 		ExpectXML: `<MarshalerStruct Foo="hello world"></MarshalerStruct>`,
 		Value:     &MarshalerStruct{},
+	},
+	{
+		ExpectXML:   `<IMarshalerStruct Foo="hello world"></IMarshalerStruct>`,
+		Value:       &IMarshalerStruct{Foo: &MyMarshalerAttrTest{}},
+		MarshalOnly: true,
 	},
 	{
 		ExpectXML: `<outer xmlns="testns" int="10"></outer>`,
