@@ -239,6 +239,10 @@ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 func generate(absFile string) bool {
 	src, err := os.ReadFile(absFile)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// Disappeared during generation - ignore file.
+			return true
+		}
 		log.Fatalf("generate: %s", err)
 	}
 
