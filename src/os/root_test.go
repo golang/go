@@ -1077,6 +1077,10 @@ func TestRootConcurrentClose(t *testing.T) {
 				first = false
 			}
 			f.Close()
+			if runtime.GOARCH == "wasm" {
+				// TODO(go.dev/issue/71134) can lead to goroutine starvation.
+				runtime.Gosched()
+			}
 		}
 	}()
 	if err := <-ch; err != nil {
