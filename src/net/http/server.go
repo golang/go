@@ -31,6 +31,7 @@ import (
 	"sync/atomic"
 	"time"
 	_ "unsafe" // for linkname
+	"weak"
 
 	"golang.org/x/net/http/httpguts"
 )
@@ -261,7 +262,7 @@ type conn struct {
 
 	// rwc is the underlying network connection.
 	// This is never wrapped by other types and is the value given out
-	// to CloseNotifier callers. It is usually of type *net.TCPConn or
+	// to [Hijacker] callers. It is usually of type *net.TCPConn or
 	// *tls.Conn.
 	rwc net.Conn
 
@@ -314,7 +315,7 @@ func (c *conn) hijacked() bool {
 }
 
 // c.mu must be held.
-func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
+func (c *conn) hijackLocked(w *response) (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	if c.hijackedv {
 		return nil, nil, ErrHijacked
 	}
@@ -324,12 +325,19 @@ func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	rwc = c.rwc
 	rwc.SetDeadline(time.Time{})
 
-	buf = bufio.NewReadWriter(c.bufr, bufio.NewWriter(rwc))
 	if c.r.hasByte {
 		if _, err := c.bufr.Peek(c.bufr.Buffered() + 1); err != nil {
 			return nil, nil, fmt.Errorf("unexpected Peek failure reading buffered byte: %v", err)
 		}
 	}
+
+	ccn := &connCloseNotify{rwc: rwc, weakResponse: weak.Make(w)}
+	if err := ccn.attach(c.bufr); err != nil {
+		return nil, nil, fmt.Errorf("unexpected Peek failure while reattaching buffer: %v", err)
+	}
+	c.bufw.Reset(rwc)
+	buf = bufio.NewReadWriter(c.bufr, c.bufw)
+
 	c.setState(rwc, StateHijacked, runHooks)
 	return
 }
@@ -473,6 +481,9 @@ type response struct {
 	// input from it.
 	requestBodyLimitHit bool
 
+	// closeNotifyTriggered tracks prior closeNotify calls.
+	closeNotifyTriggered bool
+
 	// trailers are the headers to be sent after the handler
 	// finishes writing the body. This field is initialized from
 	// the Trailer response header when the response header is
@@ -486,11 +497,10 @@ type response struct {
 	clenBuf   [10]byte
 	statusBuf [3]byte
 
+	// lazyCloseNotifyMu protects closeNotifyCh and closeNotifyTriggered.
+	lazyCloseNotifyMu sync.Mutex
 	// closeNotifyCh is the channel returned by CloseNotify.
-	// TODO(bradfitz): this is currently (for Go 1.8) always
-	// non-nil. Make this lazily-created again as it used to be?
-	closeNotifyCh  chan bool
-	didCloseNotify atomic.Bool // atomic (only false->true winner should send)
+	closeNotifyCh chan bool
 }
 
 func (c *response) SetReadDeadline(deadline time.Time) error {
@@ -646,6 +656,50 @@ type readResult struct {
 	b   byte // byte read, if n == 1
 }
 
+// connCloseNotify is a minimal version of [connReader] for use by [Hijacker]
+// to notify any [CloseNotifier] on read errors before the handler exists. It
+// allows the hijacked [conn], [response] and [Request] to get garbage
+// collected after the handler exits.
+type connCloseNotify struct {
+	// rwc is the underlying network connection.
+	rwc net.Conn
+	// weakResponse points at the [response] until the handler exits.
+	weakResponse weak.Pointer[response]
+	// previousBufferContents holds on to previously buffered bytes of the read buffer.
+	previousBufferContents []byte
+}
+
+func (c *connCloseNotify) Read(p []byte) (n int, err error) {
+	if c.previousBufferContents != nil {
+		n = copy(p, c.previousBufferContents)
+		c.previousBufferContents = nil
+		return
+	}
+	n, err = c.rwc.Read(p)
+	if err != nil {
+		if w := c.weakResponse.Value(); w != nil {
+			w.cancelCtx()
+			w.closeNotify()
+		}
+	}
+	return
+}
+
+// attach preserves the buffered bytes while attaching to the given reader.
+func (c *connCloseNotify) attach(r *bufio.Reader) (err error) {
+	n := r.Buffered()
+	if n != 0 {
+		if c.previousBufferContents, err = r.Peek(n); err != nil {
+			return
+		}
+	}
+	r.Reset(c)
+	if n != 0 {
+		_, err = r.Peek(n)
+	}
+	return
+}
+
 // connReader is the io.Reader wrapper used by *conn. It combines a
 // selectively-activated io.LimitedReader (to bound request header
 // read sizes) with support for selectively keeping an io.Reader.Read
@@ -762,8 +816,8 @@ func (cr *connReader) handleReadError(_ error) {
 // may be called from multiple goroutines.
 func (cr *connReader) closeNotify() {
 	res := cr.conn.curReq.Load()
-	if res != nil && !res.didCloseNotify.Swap(true) {
-		res.closeNotifyCh <- true
+	if res != nil {
+		res.closeNotify()
 	}
 }
 
@@ -1100,7 +1154,6 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		reqBody:       req.Body,
 		handlerHeader: make(Header),
 		contentLength: -1,
-		closeNotifyCh: make(chan bool, 1),
 
 		// We populate these ahead of time so we're not
 		// reading from req.Header after their Handler starts
@@ -2241,7 +2294,7 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 
 	// Release the bufioWriter that writes to the chunk writer, it is not
 	// used after a connection has been hijacked.
-	rwc, buf, err = c.hijackLocked()
+	rwc, buf, err = c.hijackLocked(w)
 	if err == nil {
 		putBufioWriter(w.w)
 		w.w = nil
@@ -2250,10 +2303,30 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 }
 
 func (w *response) CloseNotify() <-chan bool {
+	w.lazyCloseNotifyMu.Lock()
+	defer w.lazyCloseNotifyMu.Unlock()
 	if w.handlerDone.Load() {
 		panic("net/http: CloseNotify called after ServeHTTP finished")
 	}
+	if w.closeNotifyCh == nil {
+		w.closeNotifyCh = make(chan bool, 1)
+		if w.closeNotifyTriggered {
+			w.closeNotifyCh <- true // action prior closeNotify call
+		}
+	}
 	return w.closeNotifyCh
+}
+
+func (w *response) closeNotify() {
+	w.lazyCloseNotifyMu.Lock()
+	defer w.lazyCloseNotifyMu.Unlock()
+	if w.closeNotifyTriggered {
+		return // already triggered
+	}
+	w.closeNotifyTriggered = true
+	if w.closeNotifyCh != nil {
+		w.closeNotifyCh <- true
+	}
 }
 
 func registerOnHitEOF(rc io.ReadCloser, fn func()) {
