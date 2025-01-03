@@ -50,28 +50,34 @@ func appendEscapeArg(b []byte, s string) []byte {
 	}
 
 	needsBackslash := false
-	hasSpace := false
+	needsQuote := false
 	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '"', '\\':
-			needsBackslash = true
-		case ' ', '\t':
-			hasSpace = true
+		if !needsBackslash{
+			switch s[i] {
+			case '"', '\\':
+				needsBackslash = true
+			}
+		}
+		if !needsQuote{
+			switch s[i] {
+			case ' ', '\t', '!','&', '(', ')', '[', ']', '{', '}', ';', '<', '>', '|':
+				needsQuote = true
+			}
 		}
 	}
 
-	if !needsBackslash && !hasSpace {
+	if !needsBackslash && !needsQuote {
 		// No special handling required; normal case.
 		return append(b, s...)
 	}
 	if !needsBackslash {
-		// hasSpace is true, so we need to quote the string.
+		// needsQuote is true, so we need to quote the string.
 		b = append(b, '"')
 		b = append(b, s...)
 		return append(b, '"')
 	}
 
-	if hasSpace {
+	if needsQuote {
 		b = append(b, '"')
 	}
 	slashes := 0
@@ -90,7 +96,7 @@ func appendEscapeArg(b []byte, s string) []byte {
 		}
 		b = append(b, c)
 	}
-	if hasSpace {
+	if needsQuote {
 		for ; slashes > 0; slashes-- {
 			b = append(b, '\\')
 		}
