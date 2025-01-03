@@ -1,0 +1,17 @@
+! go build
+stderr 'main.go:4:2: local import "./foo" not supported in module mode$'
+
+-- foo/foo.go --
+package foo
+-- go.mod --
+module example.com/m
+
+go 1.17
+-- main.go --
+package main
+
+import (
+	_ "./foo"
+)
+
+func main() {}
