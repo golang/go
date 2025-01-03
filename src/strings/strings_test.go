@@ -1803,6 +1803,39 @@ func TestCutSuffix(t *testing.T) {
 	}
 }
 
+func TestStringPointerFrom(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "valid string",
+			args: args{
+				s: "test",
+			},
+			want: "test",
+		},
+		{
+			name: "empty string",
+			args: args{
+				s: "",
+			},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StringPointerFrom(tt.args.s); *got != tt.want {
+				t.Errorf("StringPointerFrom() = %v, want %v", *got, tt.want)
+			}
+		})
+	}
+}
+
 func makeBenchInputHard() string {
 	tokens := [...]string{
 		"<a>", "<p>", "<b>", "<strong>",
