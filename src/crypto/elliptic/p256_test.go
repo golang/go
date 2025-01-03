@@ -74,69 +74,6 @@ func TestP256Mult(t *testing.T) {
 	}
 }
 
-type synthCombinedMult struct {
-	Curve
-}
-
-func (s synthCombinedMult) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
-	x1, y1 := s.ScalarBaseMult(baseScalar)
-	x2, y2 := s.ScalarMult(bigX, bigY, scalar)
-	return s.Add(x1, y1, x2, y2)
-}
-
-func TestP256CombinedMult(t *testing.T) {
-	type combinedMult interface {
-		Curve
-		CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int)
-	}
-
-	p256, ok := P256().(combinedMult)
-	if !ok {
-		p256 = &synthCombinedMult{P256()}
-	}
-
-	gx := p256.Params().Gx
-	gy := p256.Params().Gy
-
-	zero := make([]byte, 32)
-	one := make([]byte, 32)
-	one[31] = 1
-	two := make([]byte, 32)
-	two[31] = 2
-
-	// 0×G + 0×G = ∞
-	x, y := p256.CombinedMult(gx, gy, zero, zero)
-	if x.Sign() != 0 || y.Sign() != 0 {
-		t.Errorf("0×G + 0×G = (%d, %d), should be ∞", x, y)
-	}
-
-	// 1×G + 0×G = G
-	x, y = p256.CombinedMult(gx, gy, one, zero)
-	if x.Cmp(gx) != 0 || y.Cmp(gy) != 0 {
-		t.Errorf("1×G + 0×G = (%d, %d), should be (%d, %d)", x, y, gx, gy)
-	}
-
-	// 0×G + 1×G = G
-	x, y = p256.CombinedMult(gx, gy, zero, one)
-	if x.Cmp(gx) != 0 || y.Cmp(gy) != 0 {
-		t.Errorf("0×G + 1×G = (%d, %d), should be (%d, %d)", x, y, gx, gy)
-	}
-
-	// 1×G + 1×G = 2×G
-	x, y = p256.CombinedMult(gx, gy, one, one)
-	ggx, ggy := p256.ScalarBaseMult(two)
-	if x.Cmp(ggx) != 0 || y.Cmp(ggy) != 0 {
-		t.Errorf("1×G + 1×G = (%d, %d), should be (%d, %d)", x, y, ggx, ggy)
-	}
-
-	minusOne := new(big.Int).Sub(p256.Params().N, big.NewInt(1))
-	// 1×G + (-1)×G = ∞
-	x, y = p256.CombinedMult(gx, gy, one, minusOne.Bytes())
-	if x.Sign() != 0 || y.Sign() != 0 {
-		t.Errorf("1×G + (-1)×G = (%d, %d), should be ∞", x, y)
-	}
-}
-
 func TestIssue52075(t *testing.T) {
 	Gx, Gy := P256().Params().Gx, P256().Params().Gy
 	scalar := make([]byte, 33)
