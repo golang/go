@@ -209,7 +209,7 @@ func TestEvalPos(t *testing.T) {
 }
 
 // gotypesalias controls the use of Alias types.
-var gotypesalias = godebug.New("#gotypesalias")
+var gotypesalias = godebug.New("gotypesalias")
 
 // split splits string s at the first occurrence of s, trimming spaces.
 func split(s, sep string) (string, string) {
