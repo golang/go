@@ -146,8 +146,8 @@ func ExampleAfterFunc_cond() {
 		defer stopf()
 
 		// Since the wakeups are using Broadcast instead of Signal, this call to
-		// Wait may unblock due to some other goroutine's context becoming done,
-		// so to be sure that ctx is actually done we need to check it in a loop.
+		// Wait may unblock due to some other goroutine's context being canceled,
+		// so to be sure that ctx is actually canceled we need to check it in a loop.
 		for !conditionMet() {
 			cond.Wait()
 			if ctx.Err() != nil {
