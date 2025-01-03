@@ -131,7 +131,7 @@ var (
 	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-ssc-ecc.html#section-7.3
 	// HMAC DRBG and CTR DRBG algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
-	// KDF-Counter algorithm capabilities:
+	// KDF-Counter and KDF-Feedback algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kbkdf.html#section-7.3
 	// RSA algorithm capabilities:
 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-rsa.html#section-7.3
@@ -272,8 +272,6 @@ var (
 		"ctrDRBG/AES-256":        cmdCtrDrbgAft(),
 		"ctrDRBG-reseed/AES-256": cmdCtrDrbgReseedAft(),
 
-		"KDF-counter": cmdKdfCounterAft(),
-
 		"RSA/keyGen": cmdRsaKeyGenAft(),
 
 		"RSA/sigGen/SHA2-224/pkcs1v1.5": cmdRsaSigGenAft(func() fips140.Hash { return sha256.New224() }, "SHA-224", false),
@@ -293,6 +291,9 @@ var (
 		"RSA/sigVer/SHA2-256/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha256.New() }, "SHA-256", true),
 		"RSA/sigVer/SHA2-384/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha512.New384() }, "SHA-384", true),
 		"RSA/sigVer/SHA2-512/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha512.New() }, "SHA-512", true),
+
+		"KDF-counter":  cmdKdfCounterAft(),
+		"KDF-feedback": cmdKdfFeedbackAft(),
 	}
 )
 
@@ -1658,6 +1659,57 @@ func cmdKdfCounterAft() command {
 	}
 }
 
+func cmdKdfFeedbackAft() command {
+	return command{
+		requiredArgs: 5, // Number output bytes, PRF name, counter location string, key, number of counter bits, IV
+		handler: func(args [][]byte) ([][]byte, error) {
+			// The max supported output len for the KDF algorithm type is 4096 bits, making an int cast
+			// here safe.
+			// See https://pages.nist.gov/ACVP/draft-celi-acvp-kbkdf.html#section-7.3.2
+			outputBytes := int(binary.LittleEndian.Uint32(args[0]))
+			prf := string(args[1])
+			counterLocation := args[2]
+			key := args[3]
+			counterBits := binary.LittleEndian.Uint32(args[4])
+
+			if !strings.HasPrefix(prf, "HMAC-") {
+				return nil, fmt.Errorf("feedback KDF received unsupported PRF %q", prf)
+			}
+			prf = prf[len("HMAC-"):]
+
+			h, err := lookupHash(prf)
+			if err != nil {
+				return nil, fmt.Errorf("feedback KDF received unsupported PRF %q: %w", prf, err)
+			}
+
+			if !bytes.Equal(counterLocation, []byte("after fixed data")) {
+				return nil, fmt.Errorf("feedback KDF received unsupported counter location %q", string(counterLocation))
+			}
+
+			// The spec doesn't describe the "deferred" property for a KDF counterMode test case.
+			// BoringSSL's acvptool sends an empty key when deferred=true, but with the capabilities
+			// we register all test cases have deferred=false and provide a key from the populated
+			// keyIn property.
+			if len(key) == 0 {
+				return nil, errors.New("deferred test cases are not supported")
+			}
+
+			if counterBits != 8 {
+				return nil, fmt.Errorf("feedback KDF received unsupported counter length %d", counterBits)
+			}
+
+			var context [12]byte
+			rand.Reader.Read(context[:])
+			fixedData := make([]byte, 1+1+12) // 1 byte label (we pick null), 1 null byte, 12 bytes context.
+			copy(fixedData[2:], context[:])
+
+			result := hkdf.Expand(h, key, string(fixedData[:]), outputBytes)
+
+			return [][]byte{key, fixedData[:], result[:]}, nil
+		},
+	}
+}
+
 func cmdRsaKeyGenAft() command {
 	return command{
 		requiredArgs: 1, // Modulus bit-size
@@ -1782,7 +1834,7 @@ func TestACVP(t *testing.T) {
 
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
-		bsslVersion   = "v0.0.0-20250116010235-21f54b2730ee"
+		bsslVersion   = "v0.0.0-20250123161947-ba24bde161f7"
 		goAcvpModule  = "github.com/cpu/go-acvp"
 		goAcvpVersion = "v0.0.0-20250110181646-e47fea3b5d7d"
 	)
