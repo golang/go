@@ -628,6 +628,21 @@
 // x & 1 == 0 -> (x & 1) ^ 1
 (SETAE (BT(L|Q)const [0] x)) => (XORLconst [1] (ANDLconst <typ.Bool> [1] x))
 
+// Shorten compare by rewriting x < 128 as x <= 127, which can be encoded in a single-byte immediate on x86.
+(SETL c:(CMP(Q|L)const [128] x)) && c.Uses == 1 => (SETLE (CMP(Q|L)const [127] x))
+(SETB c:(CMP(Q|L)const [128] x)) && c.Uses == 1 => (SETBE (CMP(Q|L)const [127] x))
+
+// x >= 128 -> x > 127
+(SETGE c:(CMP(Q|L)const [128] x)) && c.Uses == 1 => (SETG (CMP(Q|L)const [127] x))
+(SETAE c:(CMP(Q|L)const [128] x)) && c.Uses == 1 => (SETA (CMP(Q|L)const [127] x))
+
+(CMOVQLT x y c:(CMP(Q|L)const [128] z)) && c.Uses == 1 => (CMOVQLE x y (CMP(Q|L)const [127] z))
+(CMOVLLT x y c:(CMP(Q|L)const [128] z)) && c.Uses == 1 => (CMOVLLE x y (CMP(Q|L)const [127] z))
+(LT          c:(CMP(Q|L)const [128] z) yes no) && c.Uses == 1 => (LE (CMP(Q|L)const [127] z) yes no)
+(CMOVQGE x y c:(CMP(Q|L)const [128] z)) && c.Uses == 1 => (CMOVQGT x y (CMP(Q|L)const [127] z))
+(CMOVLGE x y c:(CMP(Q|L)const [128] z)) && c.Uses == 1 => (CMOVLGT x y (CMP(Q|L)const [127] z))
+(GE          c:(CMP(Q|L)const [128] z) yes no) && c.Uses == 1 => (GT (CMP(Q|L)const [127] z)  yes no)
+
 // Recognize bit tests: a&(1<<b) != 0 for b suitably bounded
 // Note that BTx instructions use the carry bit, so we need to convert tests for zero flag
 // into tests for carry flags.
