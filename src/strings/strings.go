@@ -522,6 +522,11 @@ func HasSuffix(s, suffix string) bool {
 	return stringslite.HasSuffix(s, suffix)
 }
 
+// HasPrefixSuffix eports whether the string s begins with prefix and ends with suffix.
+func HasPrefixSuffix(s, prefix, suffix string) bool {
+	return stringslite.HasPrefix(s, prefix) && stringslite.HasSuffix(s, suffix)
+}
+
 // Map returns a copy of the string s with all its characters modified
 // according to the mapping function. If mapping returns a negative value, the character is
 // dropped from the string with no replacement.
