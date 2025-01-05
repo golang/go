@@ -404,11 +404,7 @@
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
 // Adjust zeros to be a multiple of 16 bytes.
-(Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 > 8 && config.useSSE =>
-	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
-		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
-
-(Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 <= 8 && config.useSSE =>
+(Zero [s] destptr mem) && s%16 != 0 && s > 16 && config.useSSE =>
 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
 		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
 
