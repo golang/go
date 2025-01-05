@@ -863,6 +863,80 @@ start:
 	VMVVX		X10, V3				// d741055e
 	VMVVI		$15, V3				// d7b1075e
 
+	// 31.12.1: Vector Single-Width Saturating Add and Subtract
+	VSADDUVV	V1, V2, V3			// d7812082
+	VSADDUVV	V1, V2, V0, V3			// d7812080
+	VSADDUVX	X10, V2, V3			// d7412582
+	VSADDUVX	X10, V2, V0, V3			// d7412580
+	VSADDUVI	$15, V2, V3			// d7b12782
+	VSADDUVI	$15, V2, V0, V3			// d7b12780
+	VSADDVV		V1, V2, V3			// d7812086
+	VSADDVV		V1, V2, V0, V3			// d7812084
+	VSADDVX		X10, V2, V3			// d7412586
+	VSADDVX		X10, V2, V0, V3			// d7412584
+	VSADDVI		$15, V2, V3			// d7b12786
+	VSADDVI		$15, V2, V0, V3			// d7b12784
+	VSSUBUVV	V1, V2, V3			// d781208a
+	VSSUBUVV	V1, V2, V0, V3			// d7812088
+	VSSUBUVX	X10, V2, V3			// d741258a
+	VSSUBUVX	X10, V2, V0, V3			// d7412588
+	VSSUBVV		V1, V2, V3			// d781208e
+	VSSUBVV		V1, V2, V0, V3			// d781208c
+	VSSUBVX		X10, V2, V3			// d741258e
+	VSSUBVX		X10, V2, V0, V3			// d741258c
+
+	// 31.12.2: Vector Single-Width Averaging Add and Subtract
+	VAADDUVV	V1, V2, V3			// d7a12022
+	VAADDUVV	V1, V2, V0, V3			// d7a12020
+	VAADDUVX	X10, V2, V3			// d7612522
+	VAADDUVX	X10, V2, V0, V3			// d7612520
+	VAADDVV		V1, V2, V3			// d7a12026
+	VAADDVV		V1, V2, V0, V3			// d7a12024
+	VAADDVX		X10, V2, V3			// d7612526
+	VAADDVX		X10, V2, V0, V3			// d7612524
+	VASUBUVV	V1, V2, V3			// d7a1202a
+	VASUBUVV	V1, V2, V0, V3			// d7a12028
+	VASUBUVX	X10, V2, V3			// d761252a
+	VASUBUVX	X10, V2, V0, V3			// d7612528
+	VASUBVV		V1, V2, V3			// d7a1202e
+	VASUBVV		V1, V2, V0, V3			// d7a1202c
+	VASUBVX		X10, V2, V3			// d761252e
+	VASUBVX		X10, V2, V0, V3			// d761252c
+
+	// 31.12.3: Vector Single-Width Fractional Multiply with Rounding and Saturation
+	VSMULVV		V1, V2, V3			// d781209e
+	VSMULVV		V1, V2, V0, V3			// d781209c
+	VSMULVX		X10, V2, V3			// d741259e
+	VSMULVX		X10, V2, V0, V3			// d741259c
+
+	// 31.12.4: Vector Single-Width Scaling Shift Instructions
+	VSSRLVV		V1, V2, V3			// d78120aa
+	VSSRLVV		V1, V2, V0, V3			// d78120a8
+	VSSRLVX		X10, V2, V3			// d74125aa
+	VSSRLVX		X10, V2, V0, V3			// d74125a8
+	VSSRLVI		$15, V2, V3			// d7b127aa
+	VSSRLVI		$15, V2, V0, V3			// d7b127a8
+	VSSRAVV		V1, V2, V3			// d78120ae
+	VSSRAVV		V1, V2, V0, V3			// d78120ac
+	VSSRAVX		X10, V2, V3			// d74125ae
+	VSSRAVX		X10, V2, V0, V3			// d74125ac
+	VSSRAVI		$16, V2, V3			// d73128ae
+	VSSRAVI		$16, V2, V0, V3			// d73128ac
+
+	// 31.12.5: Vector Narrowing Fixed-Point Clip Instructions
+	VNCLIPUWV	V1, V2, V3			// d78120ba
+	VNCLIPUWV	V1, V2, V0, V3			// d78120b8
+	VNCLIPUWX	X10, V2, V3			// d74125ba
+	VNCLIPUWX	X10, V2, V0, V3			// d74125b8
+	VNCLIPUWI	$16, V2, V3			// d73128ba
+	VNCLIPUWI	$16, V2, V0, V3			// d73128b8
+	VNCLIPWV	V1, V2, V3			// d78120be
+	VNCLIPWV	V1, V2, V0, V3			// d78120bc
+	VNCLIPWX	X10, V2, V3			// d74125be
+	VNCLIPWX	X10, V2, V0, V3			// d74125bc
+	VNCLIPWI	$16, V2, V3			// d73128be
+	VNCLIPWI	$16, V2, V0, V3			// d73128bc
+
 	//
 	// Privileged ISA
 	//

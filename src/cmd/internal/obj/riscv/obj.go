@@ -2412,6 +2412,48 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVMVVX & obj.AMask: {enc: rVIVEncoding},
 	AVMVVI & obj.AMask: {enc: rVViEncoding},
 
+	// 31.12.1: Vector Single-Width Saturating Add and Subtract
+	AVSADDUVV & obj.AMask: {enc: rVVVEncoding},
+	AVSADDUVX & obj.AMask: {enc: rVIVEncoding},
+	AVSADDUVI & obj.AMask: {enc: rVViEncoding},
+	AVSADDVV & obj.AMask:  {enc: rVVVEncoding},
+	AVSADDVX & obj.AMask:  {enc: rVIVEncoding},
+	AVSADDVI & obj.AMask:  {enc: rVViEncoding},
+	AVSSUBUVV & obj.AMask: {enc: rVVVEncoding},
+	AVSSUBUVX & obj.AMask: {enc: rVIVEncoding},
+	AVSSUBVV & obj.AMask:  {enc: rVVVEncoding},
+	AVSSUBVX & obj.AMask:  {enc: rVIVEncoding},
+
+	// 31.12.2: Vector Single-Width Averaging Add and Subtract
+	AVAADDUVV & obj.AMask: {enc: rVVVEncoding},
+	AVAADDUVX & obj.AMask: {enc: rVIVEncoding},
+	AVAADDVV & obj.AMask:  {enc: rVVVEncoding},
+	AVAADDVX & obj.AMask:  {enc: rVIVEncoding},
+	AVASUBUVV & obj.AMask: {enc: rVVVEncoding},
+	AVASUBUVX & obj.AMask: {enc: rVIVEncoding},
+	AVASUBVV & obj.AMask:  {enc: rVVVEncoding},
+	AVASUBVX & obj.AMask:  {enc: rVIVEncoding},
+
+	// 31.12.3: Vector Single-Width Fractional Multiply with Rounding and Saturation
+	AVSMULVV & obj.AMask: {enc: rVVVEncoding},
+	AVSMULVX & obj.AMask: {enc: rVIVEncoding},
+
+	// 31.12.4: Vector Single-Width Scaling Shift Instructions
+	AVSSRLVV & obj.AMask: {enc: rVVVEncoding},
+	AVSSRLVX & obj.AMask: {enc: rVIVEncoding},
+	AVSSRLVI & obj.AMask: {enc: rVVuEncoding},
+	AVSSRAVV & obj.AMask: {enc: rVVVEncoding},
+	AVSSRAVX & obj.AMask: {enc: rVIVEncoding},
+	AVSSRAVI & obj.AMask: {enc: rVVuEncoding},
+
+	// 31.12.5: Vector Narrowing Fixed-Point Clip Instructions
+	AVNCLIPUWV & obj.AMask: {enc: rVVVEncoding},
+	AVNCLIPUWX & obj.AMask: {enc: rVIVEncoding},
+	AVNCLIPUWI & obj.AMask: {enc: rVVuEncoding},
+	AVNCLIPWV & obj.AMask:  {enc: rVVVEncoding},
+	AVNCLIPWX & obj.AMask:  {enc: rVIVEncoding},
+	AVNCLIPWI & obj.AMask:  {enc: rVVuEncoding},
+
 	//
 	// Privileged ISA
 	//
@@ -3393,10 +3435,13 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		AVMINUVV, AVMINUVX, AVMINVV, AVMINVX, AVMAXUVV, AVMAXUVX, AVMAXVV, AVMAXVX,
 		AVMULVV, AVMULVX, AVMULHVV, AVMULHVX, AVMULHUVV, AVMULHUVX, AVMULHSUVV, AVMULHSUVX,
 		AVDIVUVV, AVDIVUVX, AVDIVVV, AVDIVVX, AVREMUVV, AVREMUVX, AVREMVV, AVREMVX,
-		AVWMULVV, AVWMULVX, AVWMULUVV, AVWMULUVX, AVWMULSUVV, AVWMULSUVX,
-		AVNSRLWV, AVNSRLWX, AVNSRAWV, AVNSRAWX,
+		AVWMULVV, AVWMULVX, AVWMULUVV, AVWMULUVX, AVWMULSUVV, AVWMULSUVX, AVNSRLWV, AVNSRLWX, AVNSRAWV, AVNSRAWX,
 		AVMACCVV, AVMACCVX, AVNMSACVV, AVNMSACVX, AVMADDVV, AVMADDVX, AVNMSUBVV, AVNMSUBVX,
-		AVWMACCUVV, AVWMACCUVX, AVWMACCVV, AVWMACCVX, AVWMACCSUVV, AVWMACCSUVX, AVWMACCUSVX:
+		AVWMACCUVV, AVWMACCUVX, AVWMACCVV, AVWMACCVX, AVWMACCSUVV, AVWMACCSUVX, AVWMACCUSVX,
+		AVSADDUVV, AVSADDUVX, AVSADDUVI, AVSADDVV, AVSADDVX, AVSADDVI, AVSSUBUVV, AVSSUBUVX, AVSSUBVV, AVSSUBVX,
+		AVAADDUVV, AVAADDUVX, AVAADDVV, AVAADDVX, AVASUBUVV, AVASUBUVX, AVASUBVV, AVASUBVX,
+		AVSMULVV, AVSMULVX, AVSSRLVV, AVSSRLVX, AVSSRLVI, AVSSRAVV, AVSSRAVX, AVSSRAVI,
+		AVNCLIPUWV, AVNCLIPUWX, AVNCLIPUWI, AVNCLIPWV, AVNCLIPWX, AVNCLIPWI:
 		// Set mask bit
 		switch {
 		case ins.rs3 == obj.REG_NONE:
