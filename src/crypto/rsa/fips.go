@@ -67,15 +67,16 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, 
 	if err := checkFIPS140OnlyPrivateKey(priv); err != nil {
 		return nil, err
 	}
+
+	if opts != nil && opts.Hash != 0 {
+		hash = opts.Hash
+	}
+
 	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
 		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 	}
 	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
 		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
-	}
-
-	if opts != nil && opts.Hash != 0 {
-		hash = opts.Hash
 	}
 
 	if boring.Enabled && rand == boring.RandReader {
