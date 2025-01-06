@@ -296,19 +296,19 @@ func GetBytes(c Cache, id ActionID) ([]byte, Entry, error) {
 // GetMmap looks up the action ID in the cache and returns
 // the corresponding output bytes.
 // GetMmap should only be used for data that can be expected to fit in memory.
-func GetMmap(c Cache, id ActionID) ([]byte, Entry, error) {
+func GetMmap(c Cache, id ActionID) ([]byte, Entry, bool, error) {
 	entry, err := c.Get(id)
 	if err != nil {
-		return nil, entry, err
+		return nil, entry, false, err
 	}
-	md, err := mmap.Mmap(c.OutputFile(entry.OutputID))
+	md, opened, err := mmap.Mmap(c.OutputFile(entry.OutputID))
 	if err != nil {
-		return nil, Entry{}, err
+		return nil, Entry{}, opened, err
 	}
 	if int64(len(md.Data)) != entry.Size {
-		return nil, Entry{}, &entryNotFoundError{Err: errors.New("file incomplete")}
+		return nil, Entry{}, true, &entryNotFoundError{Err: errors.New("file incomplete")}
 	}
-	return md.Data, entry, nil
+	return md.Data, entry, true, nil
 }
 
 // OutputFile returns the name of the cache file storing output with the given OutputID.
