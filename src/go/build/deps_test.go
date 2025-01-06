@@ -510,6 +510,8 @@ var depsRules = `
 	< crypto/internal/fips140only
 	< crypto
 	< crypto/subtle
+	< crypto/sha3
+	< crypto/internal/fips140hash
 	< crypto/cipher
 	< crypto/internal/boring
 	< crypto/boring
@@ -520,7 +522,6 @@ var depsRules = `
 	  crypto/sha1,
 	  crypto/sha256,
 	  crypto/sha512,
-	  crypto/sha3,
 	  crypto/hmac,
 	  crypto/hkdf,
 	  crypto/pbkdf2,

@@ -24,6 +24,7 @@ package hmac
 import (
 	"crypto/internal/boring"
 	"crypto/internal/fips140/hmac"
+	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
 	"crypto/subtle"
 	"hash"
@@ -43,6 +44,7 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
 		}
 		// BoringCrypto did not recognize h, so fall through to standard Go code.
 	}
+	h = fips140hash.UnwrapNew(h)
 	if fips140only.Enabled {
 		if len(key) < 112/8 {
 			panic("crypto/hmac: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
