@@ -109,12 +109,10 @@ loop:
 		if try == 1 && testing.Short() {
 			break
 		}
-		var fin, fin1 uint32
+		var cln, cln1 uint32
 		for i := 0; i < N; i++ {
 			v := new(string)
-			runtime.SetFinalizer(v, func(vv *string) {
-				atomic.AddUint32(&fin, 1)
-			})
+			runtime.AddCleanup(v, func(f *uint32) { atomic.AddUint32(f, 1) }, &cln)
 			p.Put(v)
 		}
 		if drain {
@@ -126,11 +124,11 @@ loop:
 			runtime.GC()
 			time.Sleep(time.Duration(i*100+10) * time.Millisecond)
 			// 1 pointer can remain on stack or elsewhere
-			if fin1 = atomic.LoadUint32(&fin); fin1 >= N-1 {
+			if cln1 = atomic.LoadUint32(&cln); cln1 >= N-1 {
 				continue loop
 			}
 		}
-		t.Fatalf("only %v out of %v resources are finalized on try %v", fin1, N, try)
+		t.Fatalf("only %v out of %v resources are cleaned up on try %v", cln1, N, try)
 	}
 }
 
