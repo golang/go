@@ -153,6 +153,12 @@ func (c *ProgCache) readLoop(readLoopDone chan<- struct{}) {
 		res := new(cacheprog.Response)
 		if err := jd.Decode(res); err != nil {
 			if c.closing.Load() {
+				c.mu.Lock()
+				for _, ch := range c.inFlight {
+					close(ch)
+				}
+				c.inFlight = nil
+				c.mu.Unlock()
 				return // quietly
 			}
 			if err == io.EOF {
@@ -175,6 +181,8 @@ func (c *ProgCache) readLoop(readLoopDone chan<- struct{}) {
 	}
 }
 
+var errCacheprogClosed = errors.New("GOCACHEPROG program closed unexpectedly")
+
 func (c *ProgCache) send(ctx context.Context, req *cacheprog.Request) (*cacheprog.Response, error) {
 	resc := make(chan *cacheprog.Response, 1)
 	if err := c.writeToChild(req, resc); err != nil {
@@ -182,6 +190,9 @@ func (c *ProgCache) send(ctx context.Context, req *cacheprog.Request) (*cachepro
 	}
 	select {
 	case res := <-resc:
+		if res == nil {
+			return nil, errCacheprogClosed
+		}
 		if res.Err != "" {
 			return nil, errors.New(res.Err)
 		}
@@ -193,6 +204,9 @@ func (c *ProgCache) send(ctx context.Context, req *cacheprog.Request) (*cachepro
 
 func (c *ProgCache) writeToChild(req *cacheprog.Request, resc chan<- *cacheprog.Response) (err error) {
 	c.mu.Lock()
+	if c.inFlight == nil {
+		return errCacheprogClosed
+	}
 	c.nextID++
 	req.ID = c.nextID
 	c.inFlight[req.ID] = resc
@@ -201,7 +215,9 @@ func (c *ProgCache) writeToChild(req *cacheprog.Request, resc chan<- *cacheprog.
 	defer func() {
 		if err != nil {
 			c.mu.Lock()
-			delete(c.inFlight, req.ID)
+			if c.inFlight != nil {
+				delete(c.inFlight, req.ID)
+			}
 			c.mu.Unlock()
 		}
 	}()
@@ -348,6 +364,10 @@ func (c *ProgCache) Close() error {
 	// the context that kills the process.
 	if c.can[cacheprog.CmdClose] {
 		_, err = c.send(c.ctx, &cacheprog.Request{Command: cacheprog.CmdClose})
+		if errors.Is(err, errCacheprogClosed) {
+			// Allow the child to quit without responding to close.
+			err = nil
+		}
 	}
 	// Cancel the context, which will close the helper's stdin.
 	c.ctxCancel()
