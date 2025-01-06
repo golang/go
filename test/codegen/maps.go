@@ -66,6 +66,28 @@ func LookupStringConversionKeyedArrayLit(m map[[2]string]int, bytes []byte) int 
 	return m[[2]string{0: string(bytes)}]
 }
 
+func LookupStringConversion1(m map[string]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	s := string(bytes)
+	return m[s]
+}
+func LookupStringConversion2(m *map[string]int, bytes []byte) int {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	s := string(bytes)
+	return (*m)[s]
+}
+func LookupStringConversion3(m map[string]int, bytes []byte) (int, bool) {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	s := string(bytes)
+	r, ok := m[s]
+	return r, ok
+}
+func DeleteStringConversion(m map[string]int, bytes []byte) {
+	// amd64:-`.*runtime\.slicebytetostring\(`
+	s := string(bytes)
+	delete(m, s)
+}
+
 // ------------------- //
 //     Map Clear       //
 // ------------------- //

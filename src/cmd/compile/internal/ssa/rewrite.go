@@ -964,6 +964,14 @@ func clobber(vv ...*Value) bool {
 	return true
 }
 
+// resetCopy resets v to be a copy of arg.
+// Always returns true.
+func resetCopy(v *Value, arg *Value) bool {
+	v.reset(OpCopy)
+	v.AddArg(arg)
+	return true
+}
+
 // clobberIfDead resets v when use count is 1. Returns true.
 // clobberIfDead is used by rewrite rules to decrement
 // use counts of v's args when v is dead and never used.
