@@ -568,7 +568,7 @@ var depsRules = `
 
 	# crypto-aware packages
 
-	DEBUG, go/build, go/types, text/scanner, crypto/md5
+	DEBUG, go/build, go/types, text/scanner, crypto/sha256
 	< internal/pkgbits, internal/exportdata
 	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
 	< go/importer;

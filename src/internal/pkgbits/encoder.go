@@ -6,7 +6,7 @@ package pkgbits
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/binary"
 	"go/constant"
 	"io"
@@ -55,7 +55,7 @@ func NewPkgEncoder(version Version, syncFrames int) PkgEncoder {
 // DumpTo writes the package's encoded data to out0 and returns the
 // package fingerprint.
 func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
-	h := md5.New()
+	h := sha256.New()
 	out := io.MultiWriter(out0, h)
 
 	writeUint32 := func(x uint32) {
