@@ -78,6 +78,9 @@ func Make[T any](ptr *T) Pointer[T] {
 // If a weak pointer points to an object with a finalizer, then Value will
 // return nil as soon as the object's finalizer is queued for execution.
 func (p Pointer[T]) Value() *T {
+	if p.u == nil {
+		return nil
+	}
 	return (*T)(runtime_makeStrongFromWeak(p.u))
 }
 
