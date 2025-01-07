@@ -106,6 +106,12 @@ func bitsetShiftOutLowest(b bitset) bitset {
 	return b >> 8
 }
 
+// count returns the number of bits set in b.
+func (b bitset) count() int {
+	// Note: works for both bitset representations (AMD64 and generic)
+	return sys.OnesCount64(uint64(b))
+}
+
 // Each slot in the hash table has a control byte which can have one of three
 // states: empty, deleted, and full. They have the following bit patterns:
 //

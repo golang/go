@@ -326,6 +326,11 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
 			t.growthLeft++ // will be decremented below to become a no-op.
 		}
 
+		// If we have no space left, first try to remove some tombstones.
+		if t.growthLeft == 0 {
+			t.pruneTombstones(typ, m)
+		}
+
 		// If there is room left to grow, just insert the new entry.
 		if t.growthLeft > 0 {
 			slotKey := g.key(typ, i)
@@ -480,6 +485,102 @@ func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.P
 			// the probe sequence.
 			return
 		}
+	}
+}
+
+// pruneTombstones goes through the table and tries to remove
+// tombstones that are no longer needed. Best effort.
+// Note that it only removes tombstones, it does not move elements.
+// Moving elements would do a better job but is infeasbile due to
+// iterator semantics.
+//
+// Pruning should only succeed if it can remove O(n) tombstones.
+// It would be bad if we did O(n) work to find 1 tombstone to remove.
+// Then the next insert would spend another O(n) work to find 1 more
+// tombstone to remove, etc.
+//
+// We really need to remove O(n) tombstones so we can pay for the cost
+// of finding them. If we can't, then we need to grow (which is also O(n),
+// but guarantees O(n) subsequent inserts can happen in constant time).
+func (t *table) pruneTombstones(typ *abi.SwissMapType, m *Map) {
+	if t.tombstones()*10 < t.capacity { // 10% of capacity
+		// Not enough tombstones to be worth the effort.
+		return
+	}
+
+	// Bit set marking all the groups whose tombstones are needed.
+	var needed [(maxTableCapacity/abi.SwissMapGroupSlots + 31) / 32]uint32
+
+	// Trace the probe sequence of every full entry.
+	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+		g := t.groups.group(typ, i)
+		match := g.ctrls().matchFull()
+		for match != 0 {
+			j := match.first()
+			match = match.removeFirst()
+			key := g.key(typ, j)
+			if typ.IndirectKey() {
+				key = *((*unsafe.Pointer)(key))
+			}
+			if !typ.Key.Equal(key, key) {
+				// Key not equal to itself. We never have to find these
+				// keys on lookup (only on iteration), so we can break
+				// their probe sequences at will.
+				continue
+			}
+			// Walk probe sequence for this key.
+			// Each tombstone group we need to walk past is marked required.
+			hash := typ.Hasher(key, m.seed)
+			for seq := makeProbeSeq(h1(hash), t.groups.lengthMask); ; seq = seq.next() {
+				if seq.offset == i {
+					break // reached group of element in probe sequence
+				}
+				g := t.groups.group(typ, seq.offset)
+				m := g.ctrls().matchEmptyOrDeleted()
+				if m != 0 { // must be deleted, not empty, as we haven't found our key yet
+					// Mark this group's tombstone as required.
+					needed[seq.offset/32] |= 1 << (seq.offset % 32)
+				}
+			}
+		}
+		if g.ctrls().matchEmpty() != 0 {
+			// Also mark non-tombstone-containing groups, so we don't try
+			// to remove tombstones from them below.
+			needed[i/32] |= 1 << (i % 32)
+		}
+	}
+
+	// First, see if we can remove enough tombstones to restore capacity.
+	// This function is O(n), so only remove tombstones if we can remove
+	// enough of them to justify the O(n) cost.
+	cnt := 0
+	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+		if needed[i/32]>>(i%32)&1 != 0 {
+			continue
+		}
+		g := t.groups.group(typ, i)
+		m := g.ctrls().matchEmptyOrDeleted() // must be deleted
+		cnt += m.count()
+	}
+	if cnt*10 < int(t.capacity) { // Can we restore 10% of capacity?
+		return // don't bother removing tombstones. Caller will grow instead.
+	}
+
+	// Prune unneeded tombstones.
+	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+		if needed[i/32]>>(i%32)&1 != 0 {
+			continue
+		}
+		g := t.groups.group(typ, i)
+		m := g.ctrls().matchEmptyOrDeleted() // must be deleted
+		for m != 0 {
+			k := m.first()
+			m = m.removeFirst()
+			g.ctrls().set(k, ctrlEmpty)
+			t.growthLeft++
+		}
+		// TODO: maybe we could convert all slots at once
+		// using some bitvector trickery.
 	}
 }
 
