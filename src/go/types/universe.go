@@ -24,6 +24,7 @@ var Unsafe *Package
 
 var (
 	universeIota       Object
+	universeBool       Type
 	universeByte       Type // uint8 alias, but has name "byte"
 	universeRune       Type // int32 alias, but has name "rune"
 	universeAnyNoAlias *TypeName
@@ -278,6 +279,7 @@ func init() {
 	defPredeclaredFuncs()
 
 	universeIota = Universe.Lookup("iota")
+	universeBool = Universe.Lookup("bool").Type()
 	universeByte = Universe.Lookup("byte").Type()
 	universeRune = Universe.Lookup("rune").Type()
 	universeError = Universe.Lookup("error").Type()
