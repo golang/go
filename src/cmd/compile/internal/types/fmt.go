@@ -646,7 +646,7 @@ func SplitVargenSuffix(name string) (base, suffix string) {
 func TypeHash(t *Type) uint32 {
 	p := t.LinkString()
 
-	// Using 16 bytes hash is overkill, but reduces accidental collisions.
-	h := hash.Sum16([]byte(p))
+	// Using a cryptographic hash is overkill but minimizes accidental collisions.
+	h := hash.Sum32([]byte(p))
 	return binary.LittleEndian.Uint32(h[:4])
 }
