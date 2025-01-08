@@ -5,6 +5,7 @@
 package syntax
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/build/constraint"
 	"io"
@@ -1867,7 +1868,10 @@ func (p *parser) embeddedTerm() Expr {
 }
 
 // ParameterDecl = [ IdentifierList ] [ "..." ] Type .
-func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
+func (p *parser) paramDeclOrNil(name *Name, follow token) (f *Field) {
+	if follow == _Rbrack {
+		fmt.Println("KADAL", name, follow)
+	}
 	if trace {
 		defer p.trace("paramDeclOrNil")()
 	}
@@ -1883,14 +1887,44 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 		return p.embeddedElem(nil)
 	}
 
-	f := new(Field)
+	f = new(Field)
 	f.pos = pos
 
+	var isPointer bool = false
+	if follow == _Rbrack {
+		fmt.Println("CLURUT", p.tok, p.op == Mul)
+	}
+	if follow == _Rbrack && p.tok == _Star && p.op == Mul {
+		isPointer = true
+		defer func() {
+			if f == nil {
+				return
+			}
+			nameType, ok := f.Type.(*Name)
+			if !ok {
+				return
+			}
+			nameType.IsPointer = isPointer
+			f.Type = nameType
+			return
+		}()
+		p.next()
+		fmt.Println("TIKUS", p.tok, p.op)
+	}
+
+	if follow == _Rbrack {
+		fmt.Println("KADAL1", name, follow, p.tok, _Name, name)
+	}
+
 	if p.tok == _Name || name != nil {
+		if follow == _Rbrack {
+			fmt.Println("KADAL2", name, follow)
+		}
 		// name
 		if name == nil {
 			name = p.name()
 		}
+		name.IsPointer = isPointer
 
 		if p.tok == _Lbrack {
 			// name "[" ...
@@ -1970,6 +2004,21 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 // If typ != nil, name must be != nil, and (name, typ) is the first field in the list.
 // In the result list, either all fields have a name, or no field has a name.
 func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool) (list []*Field) {
+	isGenericFuncDecl := false
+	if name == nil && typ == nil && close == _Rbrack && requireNames {
+		isGenericFuncDecl = true
+	}
+
+	defer func() {
+		if !isGenericFuncDecl {
+			return
+		}
+
+		for _, field := range list {
+			res, err := json.Marshal(field)
+			fmt.Printf("- parse: %T %s %v\n", field.Type, res, err)
+		}
+	}()
 	if trace {
 		defer p.trace("paramList")()
 	}
