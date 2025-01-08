@@ -25,7 +25,29 @@ func TestCredentialCache(t *testing.T) {
 		got := &http.Request{Header: make(http.Header)}
 		ok := loadCredential(got, tc.machine)
 		if !ok || !reflect.DeepEqual(got.Header, want.Header) {
-			t.Errorf("loadCredential:\nhave %q\nwant %q", got.Header, want.Header)
+			t.Errorf("loadCredential(%q):\nhave %q\nwant %q", tc.machine, got.Header, want.Header)
+		}
+	}
+
+	// Having stored those credentials, we should be able to look up longer URLs too.
+	extraCases := []netrcLine{
+		{"https://api.github.com/foo", "user", "pwd"},
+		{"https://api.github.com/foo/bar/baz", "user", "pwd"},
+		{"https://example.com/abc", "", ""},
+		{"https://example.com/?/../api.github.com/", "", ""},
+		{"https://example.com/?/../api.github.com", "", ""},
+		{"https://example.com/../api.github.com/", "", ""},
+		{"https://example.com/../api.github.com", "", ""},
+	}
+	for _, tc := range extraCases {
+		want := http.Request{Header: make(http.Header)}
+		if tc.login != "" {
+			want.SetBasicAuth(tc.login, tc.password)
+		}
+		got := &http.Request{Header: make(http.Header)}
+		loadCredential(got, tc.machine)
+		if !reflect.DeepEqual(got.Header, want.Header) {
+			t.Errorf("loadCredential(%q):\nhave %q\nwant %q", tc.machine, got.Header, want.Header)
 		}
 	}
 }
