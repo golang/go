@@ -24,7 +24,7 @@ go env -changed
 stdout 'GOCACHEPROG=''?'$GOCACHEPROG'''?'
 
 go env -changed -json
-stdout '"GOCACHEPROG": "'$GOCACHEPROG'"'
+stdout '"GOCACHEPROG": ".*cacheprog'$GOEXE'"'
 
 -- cacheprog.go --
 // This is a minimal GOCACHEPROG program that can't actually do anything but exit.
