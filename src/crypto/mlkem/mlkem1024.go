@@ -7,12 +7,10 @@ package mlkem
 import "crypto/internal/fips140/mlkem"
 
 const (
-	// CiphertextSize1024 is the size of a ciphertext produced by the 1024-bit
-	// variant of ML-KEM.
+	// CiphertextSize1024 is the size of a ciphertext produced by ML-KEM-1024.
 	CiphertextSize1024 = 1568
 
-	// EncapsulationKeySize1024 is the size of an encapsulation key for the
-	// 1024-bit variant of ML-KEM.
+	// EncapsulationKeySize1024 is the size of an ML-KEM-1024 encapsulation key.
 	EncapsulationKeySize1024 = 1568
 )
 
@@ -23,7 +21,7 @@ type DecapsulationKey1024 struct {
 }
 
 // GenerateKey1024 generates a new decapsulation key, drawing random bytes from
-// crypto/rand. The decapsulation key must be kept secret.
+// the default crypto/rand source. The decapsulation key must be kept secret.
 func GenerateKey1024() (*DecapsulationKey1024, error) {
 	key, err := mlkem.GenerateKey1024()
 	if err != nil {
@@ -33,7 +31,7 @@ func GenerateKey1024() (*DecapsulationKey1024, error) {
 	return &DecapsulationKey1024{key}, nil
 }
 
-// NewDecapsulationKey1024 parses a decapsulation key from a 64-byte seed in the
+// NewDecapsulationKey1024 expands a decapsulation key from a 64-byte seed in the
 // "d || z" form. The seed must be uniformly random.
 func NewDecapsulationKey1024(seed []byte) (*DecapsulationKey1024, error) {
 	key, err := mlkem.NewDecapsulationKey1024(seed)
@@ -88,7 +86,7 @@ func (ek *EncapsulationKey1024) Bytes() []byte {
 }
 
 // Encapsulate generates a shared key and an associated ciphertext from an
-// encapsulation key, drawing random bytes from crypto/rand.
+// encapsulation key, drawing random bytes from the default crypto/rand source.
 //
 // The shared key must be kept secret.
 func (ek *EncapsulationKey1024) Encapsulate() (sharedKey, ciphertext []byte) {

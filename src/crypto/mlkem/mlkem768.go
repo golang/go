@@ -5,6 +5,9 @@
 // Package mlkem implements the quantum-resistant key encapsulation method
 // ML-KEM (formerly known as Kyber), as specified in [NIST FIPS 203].
 //
+// Most applications should use the ML-KEM-768 parameter set, as implemented by
+// [DecapsulationKey768] and [EncapsulationKey768].
+//
 // [NIST FIPS 203]: https://doi.org/10.6028/NIST.FIPS.203
 package mlkem
 
@@ -17,12 +20,10 @@ const (
 	// SeedSize is the size of a seed used to generate a decapsulation key.
 	SeedSize = 64
 
-	// CiphertextSize768 is the size of a ciphertext produced by the 768-bit
-	// variant of ML-KEM.
+	// CiphertextSize768 is the size of a ciphertext produced by ML-KEM-768.
 	CiphertextSize768 = 1088
 
-	// EncapsulationKeySize768 is the size of an encapsulation key for the
-	// 768-bit variant of ML-KEM.
+	// EncapsulationKeySize768 is the size of an ML-KEM-768 encapsulation key.
 	EncapsulationKeySize768 = 1184
 )
 
@@ -33,7 +34,7 @@ type DecapsulationKey768 struct {
 }
 
 // GenerateKey768 generates a new decapsulation key, drawing random bytes from
-// crypto/rand. The decapsulation key must be kept secret.
+// the default crypto/rand source. The decapsulation key must be kept secret.
 func GenerateKey768() (*DecapsulationKey768, error) {
 	key, err := mlkem.GenerateKey768()
 	if err != nil {
@@ -43,7 +44,7 @@ func GenerateKey768() (*DecapsulationKey768, error) {
 	return &DecapsulationKey768{key}, nil
 }
 
-// NewDecapsulationKey768 parses a decapsulation key from a 64-byte seed in the
+// NewDecapsulationKey768 expands a decapsulation key from a 64-byte seed in the
 // "d || z" form. The seed must be uniformly random.
 func NewDecapsulationKey768(seed []byte) (*DecapsulationKey768, error) {
 	key, err := mlkem.NewDecapsulationKey768(seed)
@@ -98,7 +99,7 @@ func (ek *EncapsulationKey768) Bytes() []byte {
 }
 
 // Encapsulate generates a shared key and an associated ciphertext from an
-// encapsulation key, drawing random bytes from crypto/rand.
+// encapsulation key, drawing random bytes from the default crypto/rand source.
 //
 // The shared key must be kept secret.
 func (ek *EncapsulationKey768) Encapsulate() (sharedKey, ciphertext []byte) {
