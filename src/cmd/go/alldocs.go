@@ -1259,9 +1259,13 @@
 // The -tool=path and -droptool=path flags add and drop a tool declaration
 // for the given path.
 //
+// The -ignore=path and -dropignore=path flags add and drop a ignore declaration
+// for the given path.
+//
 // The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
-// -replace, -dropreplace, -retract, -dropretract, -tool, and -droptool editing
-// flags may be repeated, and the changes are applied in the order given.
+// -replace, -dropreplace, -retract, -dropretract, -tool, -droptool, -ignore,
+// and -dropignore editing flags may be repeated, and the changes are applied
+// in the order given.
 //
 // The -print flag prints the final go.mod in its text format instead of
 // writing it back to go.mod.
@@ -1313,6 +1317,10 @@
 //	}
 //
 //	type Tool struct {
+//		Path string
+//	}
+//
+//	type Ignore struct {
 //		Path string
 //	}
 //

@@ -74,7 +74,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 	)
 
 	q := par.NewQueue(runtime.GOMAXPROCS(0))
-
+	ignorePatternsMap := parseIgnorePatterns(ctx, treeCanMatch, modules)
 	walkPkgs := func(root, importPathRoot string, prune pruning) {
 		_, span := trace.StartSpan(ctx, "walkPkgs "+root)
 		defer span.Done()
@@ -82,7 +82,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 		// If the root itself is a symlink to a directory,
 		// we want to follow it (see https://go.dev/issue/50807).
 		// Add a trailing separator to force that to happen.
-		root = str.WithFilePathSeparator(filepath.Clean(root))
+		cleanRoot := filepath.Clean(root)
+		root = str.WithFilePathSeparator(cleanRoot)
 		err := fsys.WalkDir(root, func(pkgDir string, d fs.DirEntry, err error) error {
 			if err != nil {
 				m.AddError(err)
@@ -91,6 +92,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 
 			want := true
 			elem := ""
+			relPkgDir := filepath.ToSlash(pkgDir[len(root):])
 
 			// Don't use GOROOT/src but do walk down into it.
 			if pkgDir == root {
@@ -102,10 +104,15 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 				_, elem = filepath.Split(pkgDir)
 				if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
 					want = false
+				} else if ignorePatternsMap[cleanRoot] != nil && ignorePatternsMap[cleanRoot].ShouldIgnore(relPkgDir) {
+					if cfg.BuildX {
+						fmt.Fprintf(os.Stderr, "# ignoring directory %s\n", pkgDir)
+					}
+					want = false
 				}
 			}
 
-			name := path.Join(importPathRoot, filepath.ToSlash(pkgDir[len(root):]))
+			name := path.Join(importPathRoot, relPkgDir)
 			if !treeCanMatch(name) {
 				want = false
 			}
@@ -302,4 +309,44 @@ func MatchInModule(ctx context.Context, pattern string, m module.Version, tags m
 		}
 	}
 	return match
+}
+
+// parseIgnorePatterns collects all ignore patterns associated with the
+// provided list of modules.
+// It returns a map of module root -> *search.IgnorePatterns.
+func parseIgnorePatterns(ctx context.Context, treeCanMatch func(string) bool, modules []module.Version) map[string]*search.IgnorePatterns {
+	ignorePatternsMap := make(map[string]*search.IgnorePatterns)
+	for _, mod := range modules {
+		if gover.IsToolchain(mod.Path) || !treeCanMatch(mod.Path) {
+			continue
+		}
+		var modRoot string
+		var ignorePatterns []string
+		if MainModules.Contains(mod.Path) {
+			modRoot = MainModules.ModRoot(mod)
+			if modRoot == "" {
+				continue
+			}
+			modIndex := MainModules.Index(mod)
+			if modIndex == nil {
+				continue
+			}
+			ignorePatterns = modIndex.ignore
+		} else if cfg.BuildMod != "vendor" {
+			// Skip getting ignore patterns for vendored modules because they
+			// do not have go.mod files.
+			var err error
+			modRoot, _, err = fetch(ctx, mod)
+			if err != nil {
+				continue
+			}
+			summary, err := goModSummary(mod)
+			if err != nil {
+				continue
+			}
+			ignorePatterns = summary.ignore
+		}
+		ignorePatternsMap[modRoot] = search.NewIgnorePatterns(ignorePatterns)
+	}
+	return ignorePatternsMap
 }

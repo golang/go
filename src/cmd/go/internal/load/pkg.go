@@ -2927,8 +2927,7 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 		}
 		matches, _ = modload.LoadPackages(ctx, modOpts, patterns...)
 	} else {
-		noModRoots := []string{}
-		matches = search.ImportPaths(patterns, noModRoots)
+		matches = search.ImportPaths(patterns)
 	}
 
 	var (

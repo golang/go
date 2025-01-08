@@ -90,9 +90,13 @@ like "v1.2.3" or a closed interval like "[v1.1.0,v1.1.9]". Note that
 The -tool=path and -droptool=path flags add and drop a tool declaration
 for the given path.
 
+The -ignore=path and -dropignore=path flags add and drop a ignore declaration
+for the given path.
+
 The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
--replace, -dropreplace, -retract, -dropretract, -tool, and -droptool editing
-flags may be repeated, and the changes are applied in the order given.
+-replace, -dropreplace, -retract, -dropretract, -tool, -droptool, -ignore,
+and -dropignore editing flags may be repeated, and the changes are applied
+in the order given.
 
 The -print flag prints the final go.mod in its text format instead of
 writing it back to go.mod.
@@ -147,6 +151,10 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		Path string
 	}
 
+	type Ignore struct {
+		Path string
+	}
+
 Retract entries representing a single version (not an interval) will have
 the "Low" and "High" fields set to the same value.
 
@@ -190,6 +198,8 @@ func init() {
 	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
 	cmdEdit.Flag.Var(flagFunc(flagTool), "tool", "")
 	cmdEdit.Flag.Var(flagFunc(flagDropTool), "droptool", "")
+	cmdEdit.Flag.Var(flagFunc(flagIgnore), "ignore", "")
+	cmdEdit.Flag.Var(flagFunc(flagDropIgnore), "dropignore", "")
 
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
 	base.AddChdirFlag(&cmdEdit.Flag)
@@ -546,6 +556,24 @@ func flagDropTool(arg string) {
 	})
 }
 
+// flagIgnore implements the -ignore flag.
+func flagIgnore(arg string) {
+	edits = append(edits, func(f *modfile.File) {
+		if err := f.AddIgnore(arg); err != nil {
+			base.Fatalf("go: -ignore=%s: %v", arg, err)
+		}
+	})
+}
+
+// flagDropIgnore implements the -dropignore flag.
+func flagDropIgnore(arg string) {
+	edits = append(edits, func(f *modfile.File) {
+		if err := f.DropIgnore(arg); err != nil {
+			base.Fatalf("go: -dropignore=%s: %v", arg, err)
+		}
+	})
+}
+
 // fileJSON is the -json output data structure.
 type fileJSON struct {
 	Module    editModuleJSON
@@ -556,6 +584,7 @@ type fileJSON struct {
 	Replace   []replaceJSON
 	Retract   []retractJSON
 	Tool      []toolJSON
+	Ignore    []ignoreJSON
 }
 
 type editModuleJSON struct {
@@ -581,6 +610,10 @@ type retractJSON struct {
 }
 
 type toolJSON struct {
+	Path string
+}
+
+type ignoreJSON struct {
 	Path string
 }
 
@@ -613,6 +646,9 @@ func editPrintJSON(modFile *modfile.File) {
 	}
 	for _, t := range modFile.Tool {
 		f.Tool = append(f.Tool, toolJSON{t.Path})
+	}
+	for _, i := range modFile.Ignore {
+		f.Ignore = append(f.Ignore, ignoreJSON{i.Path})
 	}
 	data, err := json.MarshalIndent(&f, "", "\t")
 	if err != nil {

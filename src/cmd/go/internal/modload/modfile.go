@@ -94,6 +94,7 @@ type modFileIndex struct {
 	require      map[module.Version]requireMeta
 	replace      map[module.Version]module.Version
 	exclude      map[module.Version]bool
+	ignore       []string
 }
 
 type requireMeta struct {
@@ -455,7 +456,11 @@ func indexModFile(data []byte, modFile *modfile.File, mod module.Version, needsF
 	for _, x := range modFile.Exclude {
 		i.exclude[x.Mod] = true
 	}
-
+	if modFile.Ignore != nil {
+		for _, x := range modFile.Ignore {
+			i.ignore = append(i.ignore, x.Path)
+		}
+	}
 	return i
 }
 
@@ -539,6 +544,7 @@ type modFileSummary struct {
 	module     module.Version
 	goVersion  string
 	toolchain  string
+	ignore     []string
 	pruning    modPruning
 	require    []module.Version
 	retract    []retraction
@@ -713,6 +719,11 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		}
 		if f.Toolchain != nil {
 			summary.toolchain = f.Toolchain.Name
+		}
+		if f.Ignore != nil {
+			for _, i := range f.Ignore {
+				summary.ignore = append(summary.ignore, i.Path)
+			}
 		}
 		if len(f.Require) > 0 {
 			summary.require = make([]module.Version, 0, len(f.Require)+1)

@@ -107,6 +107,16 @@ cmpenv go.mod go.mod.edit
 go mod edit -droptool example.com/tool
 cmpenv go.mod go.mod.start
 
+# go mod edit -ignore
+cd $WORK/i
+cp go.mod.start go.mod
+go mod edit -ignore example.com/ignore
+cmpenv go.mod go.mod.edit
+go mod edit -dropignore example.com/ignore2
+cmpenv go.mod go.mod.edit
+go mod edit -dropignore example.com/ignore
+cmpenv go.mod go.mod.start
+
 -- x.go --
 package x
 
@@ -195,7 +205,8 @@ require x.3 v1.99.0
 			"High": "v1.4.0"
 		}
 	],
-	"Tool": null
+	"Tool": null,
+	"Ignore": null
 }
 -- $WORK/go.mod.edit3 --
 module x.x/y/z
@@ -333,7 +344,8 @@ retract (
 			"Rationale": "c"
 		}
 	],
-	"Tool": null
+	"Tool": null,
+	"Ignore": null
 }
 -- $WORK/go.mod.deprecation --
 // Deprecated: and the new one is not ready yet
@@ -348,7 +360,8 @@ module m
 	"Exclude": null,
 	"Replace": null,
 	"Retract": null,
-	"Tool": null
+	"Tool": null,
+	"Ignore": null
 }
 -- $WORK/go.mod.empty --
 -- $WORK/go.mod.empty.json --
@@ -360,7 +373,8 @@ module m
 	"Exclude": null,
 	"Replace": null,
 	"Retract": null,
-	"Tool": null
+	"Tool": null,
+	"Ignore": null
 }
 -- $WORK/g/go.mod.start --
 module g
@@ -382,3 +396,13 @@ module g
 go 1.24
 
 tool example.com/tool
+-- $WORK/i/go.mod.start --
+module g
+
+go 1.24
+-- $WORK/i/go.mod.edit --
+module g
+
+go 1.24
+
+ignore example.com/ignore
