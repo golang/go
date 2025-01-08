@@ -1068,6 +1068,49 @@ var unmarshalTests = []struct {
 		ptr:      new(map[string]Number),
 		err:      fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
 	},
+
+	{
+		CaseName: Name(""),
+		in:       `5`,
+		ptr:      new(Number),
+		out:      Number("5"),
+	},
+	{
+		CaseName: Name(""),
+		in:       `"5"`,
+		ptr:      new(Number),
+		out:      Number("5"),
+	},
+	{
+		CaseName: Name(""),
+		in:       `{"N":5}`,
+		ptr:      new(struct{ N Number }),
+		out:      struct{ N Number }{"5"},
+	},
+	{
+		CaseName: Name(""),
+		in:       `{"N":"5"}`,
+		ptr:      new(struct{ N Number }),
+		out:      struct{ N Number }{"5"},
+	},
+	{
+		CaseName: Name(""),
+		in:       `{"N":5}`,
+		ptr: new(struct {
+			N Number `json:",string"`
+		}),
+		err: fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal unquoted value into json.Number"),
+	},
+	{
+		CaseName: Name(""),
+		in:       `{"N":"5"}`,
+		ptr: new(struct {
+			N Number `json:",string"`
+		}),
+		out: struct {
+			N Number `json:",string"`
+		}{"5"},
+	},
 }
 
 func TestMarshal(t *testing.T) {
