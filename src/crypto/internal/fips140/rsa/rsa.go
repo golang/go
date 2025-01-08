@@ -229,7 +229,7 @@ func checkPrivateKey(priv *PrivateKey) error {
 	// Check that de ≡ 1 mod p-1, and de ≡ 1 mod q-1.
 	//
 	// This implies that e is coprime to each p-1 as e has a multiplicative
-	// inverse. Therefore e is coprime to lcm(p-1,q-1,r-1,...) = exponent(ℤ/nℤ).
+	// inverse. Therefore e is coprime to lcm(p-1,q-1) = λ(N).
 	// It also implies that a^de ≡ a mod p as a^(p-1) ≡ 1 mod p. Thus a^de ≡ a
 	// mod n for all a coprime to n, as required.
 	//

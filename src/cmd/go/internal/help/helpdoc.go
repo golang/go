@@ -17,7 +17,7 @@ information on how to use it see the cgo documentation (go doc cmd/cgo).
 
 The second is the SWIG program, which is a general tool for
 interfacing between languages. For information on SWIG see
-http://swig.org/. When running go build, any file with a .swig
+https://swig.org/. When running go build, any file with a .swig
 extension will be passed to SWIG. Any file with a .swigcxx extension
 will be passed to SWIG with the -c++ option.
 
@@ -270,11 +270,7 @@ the go tool will verify that https://example.org/?go-get=1 contains the
 same meta tag and then git clone https://code.org/r/p/exproj into
 GOPATH/src/example.org.
 
-When using GOPATH, downloaded packages are written to the first directory
-listed in the GOPATH environment variable.
-(See 'go help gopath-get' and 'go help gopath'.)
-
-When using modules, downloaded packages are stored in the module cache.
+Downloaded packages are stored in the module cache.
 See https://golang.org/ref/mod#module-cache.
 
 When using modules, an additional variant of the go-import meta tag is
@@ -510,6 +506,10 @@ General-purpose environment variables:
 	GOCACHE
 		The directory where the go command will store cached
 		information for reuse in future builds.
+	GOCACHEPROG
+		A command (with optional space-separated flags) that implements an
+		external go command build cache.
+		See 'go doc cmd/go/internal/cacheprog'.
 	GODEBUG
 		Enable various debugging facilities. See https://go.dev/doc/godebug
 		for details.
@@ -620,6 +620,11 @@ Architecture-specific environment variables:
 	GOARM
 		For GOARCH=arm, the ARM architecture for which to compile.
 		Valid values are 5, 6, 7.
+		When the Go tools are built on an arm system,
+		the default value is set based on what the build system supports.
+		When the Go tools are not built on an arm system
+		(that is, when building a cross-compiler),
+		the default value is 7.
 		The value can be followed by an option specifying how to implement floating point instructions.
 		Valid options are ,softfloat (default for 5) and ,hardfloat (default for 6 and 7).
 	GOARM64
@@ -1029,7 +1034,7 @@ command
 		Example: Data
 
 	If the server responds with any 4xx code, the go command will write the
-	following to the programs' stdin:
+	following to the program's stdin:
 		Response      = StatusLine { HeaderLine } BlankLine .
 		StatusLine    = Protocol Space Status '\n' .
 		Protocol      = /* HTTP protocol */ .
@@ -1097,7 +1102,7 @@ Furthermore, as with TestEvent, parsers can simply concatenate the Output
 fields of all events to reconstruct the text format output, as it would
 have appeared from go build without the -json flag.
 
-Note that there may also be non-JSON error text on stdnard error, even
+Note that there may also be non-JSON error text on standard error, even
 with the -json flag. Typically, this indicates an early, serious error.
 Consumers should be robust to this.
 	`,

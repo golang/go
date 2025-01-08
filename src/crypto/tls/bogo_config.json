@@ -246,5 +246,8 @@
         25,
         29,
         4588
-    ]
+    ],
+    "ErrorMap": {
+        ":ECH_REJECTED:": "tls: server rejected ECH"
+    }
 }

@@ -85,7 +85,6 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 		}
 	}
 
-	var echRetryConfigList []byte
 	if hs.echContext != nil {
 		confTranscript := cloneHash(hs.echContext.innerTranscript, hs.suite.hash)
 		confTranscript.Write(hs.serverHello.original[:30])
@@ -114,9 +113,6 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 			}
 		} else {
 			hs.echContext.echRejected = true
-			// If the server sent us retry configs, we'll return these to
-			// the user so they can update their Config.
-			echRetryConfigList = hs.serverHello.encryptedClientHello
 		}
 	}
 
@@ -155,7 +151,7 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 
 	if hs.echContext != nil && hs.echContext.echRejected {
 		c.sendAlert(alertECHRequired)
-		return &ECHRejectionError{echRetryConfigList}
+		return &ECHRejectionError{hs.echContext.retryConfigs}
 	}
 
 	c.isHandshakeComplete.Store(true)
@@ -601,9 +597,13 @@ func (hs *clientHandshakeStateTLS13) readServerParameters() error {
 			return errors.New("tls: server accepted 0-RTT with the wrong ALPN")
 		}
 	}
-	if hs.echContext != nil && !hs.echContext.echRejected && encryptedExtensions.echRetryConfigs != nil {
-		c.sendAlert(alertUnsupportedExtension)
-		return errors.New("tls: server sent encrypted client hello retry configs after accepting encrypted client hello")
+	if hs.echContext != nil {
+		if hs.echContext.echRejected {
+			hs.echContext.retryConfigs = encryptedExtensions.echRetryConfigs
+		} else if encryptedExtensions.echRetryConfigs != nil {
+			c.sendAlert(alertUnsupportedExtension)
+			return errors.New("tls: server sent encrypted client hello retry configs after accepting encrypted client hello")
+		}
 	}
 
 	return nil

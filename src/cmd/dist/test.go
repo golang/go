@@ -876,16 +876,18 @@ func (t *tester) registerTests() {
 	}
 
 	if t.extLink() && !t.compileOnly {
-		t.registerTest("external linking, -buildmode=exe",
-			&goTest{
-				variant:   "exe_external",
-				timeout:   60 * time.Second,
-				buildmode: "exe",
-				ldflags:   "-linkmode=external",
-				env:       []string{"CGO_ENABLED=1"},
-				pkg:       "crypto/internal/fips140test",
-				runTests:  "TestFIPSCheck",
-			})
+		if goos != "android" { // Android does not support non-PIE linking
+			t.registerTest("external linking, -buildmode=exe",
+				&goTest{
+					variant:   "exe_external",
+					timeout:   60 * time.Second,
+					buildmode: "exe",
+					ldflags:   "-linkmode=external",
+					env:       []string{"CGO_ENABLED=1"},
+					pkg:       "crypto/internal/fips140test",
+					runTests:  "TestFIPSCheck",
+				})
+		}
 		if t.externalLinkPIE() && !disablePIE {
 			t.registerTest("external linking, -buildmode=pie",
 				&goTest{
@@ -1795,6 +1797,8 @@ func isEnvSet(evar string) bool {
 }
 
 func (t *tester) fipsSupported() bool {
+	// Keep this in sync with [crypto/internal/fips140.Supported].
+
 	// Use GOFIPS140 or GOEXPERIMENT=boringcrypto, but not both.
 	if strings.Contains(goexperiment, "boringcrypto") {
 		return false
@@ -1808,6 +1812,7 @@ func (t *tester) fipsSupported() bool {
 	case goarch == "wasm",
 		goos == "windows" && goarch == "386",
 		goos == "windows" && goarch == "arm",
+		goos == "openbsd",
 		goos == "aix":
 		return false
 	}

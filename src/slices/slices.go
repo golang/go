@@ -414,6 +414,7 @@ func Grow[S ~[]E, E any](s S, n int) S {
 		panic("cannot be negative")
 	}
 	if n -= cap(s) - len(s); n > 0 {
+		// This expression allocates only once (see test).
 		s = append(s[:cap(s)], make([]E, n)...)[:len(s)]
 	}
 	return s
@@ -483,6 +484,9 @@ func Concat[S ~[]E, E any](slices ...S) S {
 			panic("len out of range")
 		}
 	}
+	// Use Grow, not make, to round up to the size class:
+	// the extra space is otherwise unused and helps
+	// callers that append a few elements to the result.
 	newslice := Grow[S](nil, size)
 	for _, s := range slices {
 		newslice = append(newslice, s...)

@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.24 (Nov 20, 2024)",
+	"Subtitle": "Language version go1.24 (Dec 30, 2024)",
 	"Path": "/ref/spec"
 }-->
 
@@ -798,7 +798,6 @@ If a variable has not yet been assigned a value, its value is the
 <a href="#The_zero_value">zero value</a> for its type.
 </p>
 
-
 <h2 id="Types">Types</h2>
 
 <p>
@@ -810,12 +809,12 @@ from existing types.
 </p>
 
 <pre class="ebnf">
-Type      = TypeName [ TypeArgs ] | TypeLit | "(" Type ")" .
-TypeName  = identifier | QualifiedIdent .
-TypeArgs  = "[" TypeList [ "," ] "]" .
-TypeList  = Type { "," Type } .
-TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
-            SliceType | MapType | ChannelType .
+Type     = TypeName [ TypeArgs ] | TypeLit | "(" Type ")" .
+TypeName = identifier | QualifiedIdent .
+TypeArgs = "[" TypeList [ "," ] "]" .
+TypeList = Type { "," Type } .
+TypeLit  = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
+           SliceType | MapType | ChannelType .
 </pre>
 
 <p>
@@ -1200,7 +1199,7 @@ type (
 <p>
 A pointer type denotes the set of all pointers to <a href="#Variables">variables</a> of a given
 type, called the <i>base type</i> of the pointer.
-The value of an uninitialized pointer is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized pointer is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1216,18 +1215,18 @@ BaseType    = Type .
 <h3 id="Function_types">Function types</h3>
 
 <p>
-A function type denotes the set of all functions with the same parameter
-and result types. The value of an uninitialized variable of function type
-is <code>nil</code>.
+A function type denotes the set of all functions with the same parameter and result types.
+The <a href="#Representation_of_values">value</a> of an uninitialized variable of function
+type is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
-FunctionType   = "func" Signature .
-Signature      = Parameters [ Result ] .
-Result         = Parameters | Type .
-Parameters     = "(" [ ParameterList [ "," ] ] ")" .
-ParameterList  = ParameterDecl { "," ParameterDecl } .
-ParameterDecl  = [ IdentifierList ] [ "..." ] Type .
+FunctionType  = "func" Signature .
+Signature     = Parameters [ Result ] .
+Result        = Parameters | Type .
+Parameters    = "(" [ ParameterList [ "," ] ] ")" .
+ParameterList = ParameterDecl { "," ParameterDecl } .
+ParameterDecl = [ IdentifierList ] [ "..." ] Type .
 </pre>
 
 <p>
@@ -1267,7 +1266,8 @@ An interface type defines a <i>type set</i>.
 A variable of interface type can store a value of any type that is in the type
 set of the interface. Such a type is said to
 <a href="#Implementing_an_interface">implement the interface</a>.
-The value of an uninitialized variable of interface type is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized variable of
+interface type is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1630,12 +1630,12 @@ implements the interface.
 A map is an unordered group of elements of one type, called the
 element type, indexed by a set of unique <i>keys</i> of another type,
 called the key type.
-The value of an uninitialized map is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized map is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
-MapType     = "map" "[" KeyType "]" ElementType .
-KeyType     = Type .
+MapType = "map" "[" KeyType "]" ElementType .
+KeyType = Type .
 </pre>
 
 <p>
@@ -1693,7 +1693,7 @@ to communicate by
 <a href="#Send_statements">sending</a> and
 <a href="#Receive_operator">receiving</a>
 values of a specified element type.
-The value of an uninitialized channel is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized channel is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1771,6 +1771,57 @@ received in the order sent.
 </p>
 
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
+
+<h3 id="Representation_of_values">Representation of values</h3>
+
+<p>
+Values of predeclared types (see below for the interfaces <code>any</code>
+and <code>error</code>), arrays, and structs are self-contained:
+Each such value contains a complete copy of all its data,
+and <a href="#Variables">variables</a> of such types store the entire value.
+For instance, an array variable provides the storage (the variables)
+for all elements of the array.
+The respective <a href="#The_zero_value">zero values</a> are specific to the
+value's types; they are never <code>nil</code>.
+</p>
+
+<p>
+Non-nil pointer, function, slice, map, and channel values contain references
+to underlying data which may be shared by multiple values:
+</p>
+
+<ul>
+<li>
+	A pointer value is a reference to the variable holding
+	the pointer base type value.
+</li>
+<li>
+	A function value contains references to the (possibly
+	<a href="#Function_literals">anonymous</a>) function
+	and enclosed variables.
+</li>
+<li>
+	A slice value contains the slice length, capacity, and
+	a reference to its <a href="#Slice_types">underlying array</a>.
+</li>
+<li>
+	A map or channel value is a reference to the implementation-specific
+	data structure of the map or channel.
+</li>
+</ul>
+
+<p>
+An interface value may be self-contained or contain references to underlying data
+depending on the interface's <a href="#Variables">dynamic type</a>.
+The predeclared identifier <code>nil</code> is the zero value for types whose values
+can contain references.
+</p>
+
+<p>
+When multiple values share underlying data, changing one value may change another.
+For instance, changing an element of a <a href="#Slice_types">slice</a> will change
+that element in the underlying array for all slices that share the array.
+</p>
 
 <h3 id="Underlying_types">Underlying types</h3>
 
@@ -2176,7 +2227,7 @@ within matching brace brackets.
 </p>
 
 <pre class="ebnf">
-Block = "{" StatementList "}" .
+Block         = "{" StatementList "}" .
 StatementList = { Statement ";" } .
 </pre>
 
@@ -2233,8 +2284,8 @@ and like the blank identifier it does not introduce a new binding.
 </p>
 
 <pre class="ebnf">
-Declaration   = ConstDecl | TypeDecl | VarDecl .
-TopLevelDecl  = Declaration | FunctionDecl | MethodDecl .
+Declaration  = ConstDecl | TypeDecl | VarDecl .
+TopLevelDecl = Declaration | FunctionDecl | MethodDecl .
 </pre>
 
 <p>
@@ -2679,9 +2730,9 @@ in square brackets rather than parentheses
 </p>
 
 <pre class="ebnf">
-TypeParameters  = "[" TypeParamList [ "," ] "]" .
-TypeParamList   = TypeParamDecl { "," TypeParamDecl } .
-TypeParamDecl   = IdentifierList TypeConstraint .
+TypeParameters = "[" TypeParamList [ "," ] "]" .
+TypeParamList  = TypeParamDecl { "," TypeParamDecl } .
+TypeParamDecl  = IdentifierList TypeConstraint .
 </pre>
 
 <p>
@@ -2819,7 +2870,7 @@ values or variables, or components of other, non-interface types.
 
 <p>
 A type argument <code>T</code><i> satisfies</i> a type constraint <code>C</code>
-if <code>T</code> is an element of the type set defined by <code>C</code>; i.e.,
+if <code>T</code> is an element of the type set defined by <code>C</code>; in other words,
 if <code>T</code> <a href="#Implementing_an_interface">implements</a> <code>C</code>.
 As an exception, a <a href="#Comparison_operators">strictly comparable</a>
 type constraint may also be satisfied by a <a href="#Comparison_operators">comparable</a>
@@ -2869,8 +2920,8 @@ binds corresponding identifiers to them, and gives each a type and an initial va
 </p>
 
 <pre class="ebnf">
-VarDecl     = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
-VarSpec     = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
+VarDecl = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
+VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
 </pre>
 
 <pre>
@@ -2899,7 +2950,7 @@ initialization value in the assignment.
 If that value is an untyped constant, it is first implicitly
 <a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
 if it is an untyped boolean value, it is first implicitly converted to type <code>bool</code>.
-The predeclared value <code>nil</code> cannot be used to initialize a variable
+The predeclared identifier <code>nil</code> cannot be used to initialize a variable
 with no explicit type.
 </p>
 
@@ -3210,15 +3261,15 @@ Each element may optionally be preceded by a corresponding key.
 </p>
 
 <pre class="ebnf">
-CompositeLit  = LiteralType LiteralValue .
-LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
-                SliceType | MapType | TypeName [ TypeArgs ] .
-LiteralValue  = "{" [ ElementList [ "," ] ] "}" .
-ElementList   = KeyedElement { "," KeyedElement } .
-KeyedElement  = [ Key ":" ] Element .
-Key           = FieldName | Expression | LiteralValue .
-FieldName     = identifier .
-Element       = Expression | LiteralValue .
+CompositeLit = LiteralType LiteralValue .
+LiteralType  = StructType | ArrayType | "[" "..." "]" ElementType |
+               SliceType | MapType | TypeName [ TypeArgs ] .
+LiteralValue = "{" [ ElementList [ "," ] ] "}" .
+ElementList  = KeyedElement { "," KeyedElement } .
+KeyedElement = [ Key ":" ] Element .
+Key          = FieldName | Expression | LiteralValue .
+FieldName    = identifier .
+Element      = Expression | LiteralValue .
 </pre>
 
 <p>
@@ -3450,22 +3501,21 @@ Primary expressions are the operands for unary and binary expressions.
 </p>
 
 <pre class="ebnf">
-PrimaryExpr =
-	Operand |
-	Conversion |
-	MethodExpr |
-	PrimaryExpr Selector |
-	PrimaryExpr Index |
-	PrimaryExpr Slice |
-	PrimaryExpr TypeAssertion |
-	PrimaryExpr Arguments .
+PrimaryExpr   = Operand |
+                Conversion |
+                MethodExpr |
+                PrimaryExpr Selector |
+                PrimaryExpr Index |
+                PrimaryExpr Slice |
+                PrimaryExpr TypeAssertion |
+                PrimaryExpr Arguments .
 
-Selector       = "." identifier .
-Index          = "[" Expression [ "," ] "]" .
-Slice          = "[" [ Expression ] ":" [ Expression ] "]" |
-                 "[" [ Expression ] ":" Expression ":" Expression "]" .
-TypeAssertion  = "." "(" Type ")" .
-Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
+Selector      = "." identifier .
+Index         = "[" Expression [ "," ] "]" .
+Slice         = "[" [ Expression ] ":" [ Expression ] "]" |
+                "[" [ Expression ] ":" Expression ":" Expression "]" .
+TypeAssertion = "." "(" Type ")" .
+Arguments     = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
 </pre>
 
 
@@ -3638,8 +3688,8 @@ argument that is the receiver of the method.
 </p>
 
 <pre class="ebnf">
-MethodExpr    = ReceiverType "." MethodName .
-ReceiverType  = Type .
+MethodExpr   = ReceiverType "." MethodName .
+ReceiverType = Type .
 </pre>
 
 <p>
@@ -4230,8 +4280,7 @@ calls <code>f</code> with arguments <code>a1, a2, … an</code>.
 Except for one special case, arguments must be single-valued expressions
 <a href="#Assignability">assignable</a> to the parameter types of
 <code>F</code> and are evaluated before the function is called.
-The type of the expression is the result type
-of <code>F</code>.
+The type of the expression is the result type of <code>F</code>.
 A method invocation is similar but the method itself
 is specified as a selector upon a value of the receiver type for
 the method.
@@ -4252,9 +4301,14 @@ or used as a function value.
 <p>
 In a function call, the function value and arguments are evaluated in
 <a href="#Order_of_evaluation">the usual order</a>.
-After they are evaluated, the parameters of the call are passed by value to the function
+After they are evaluated, new storage is allocated for the function's
+<a href="#Variables">variables</a>, which includes its parameters
+and results.
+Then, the arguments of the call are <i>passed</i> to the function,
+which means that they are <a href="#Assignment_statements">assigned</a>
+to their corresponding function parameters,
 and the called function begins execution.
-The return parameters of the function are passed by value
+The return parameters of the function are passed
 back to the caller when the function returns.
 </p>
 
@@ -4268,9 +4322,9 @@ As a special case, if the return values of a function or method
 <code>g</code> are equal in number and individually
 assignable to the parameters of another function or method
 <code>f</code>, then the call <code>f(g(<i>parameters_of_g</i>))</code>
-will invoke <code>f</code> after binding the return values of
-<code>g</code> to the parameters of <code>f</code> in order.  The call
-of <code>f</code> must contain no parameters other than the call of <code>g</code>,
+will invoke <code>f</code> after passing the return values of
+<code>g</code> to the parameters of <code>f</code> in order.
+The call of <code>f</code> must contain no parameters other than the call of <code>g</code>,
 and <code>g</code> must have at least one return value.
 If <code>f</code> has a final <code>...</code> parameter, it is
 assigned the return values of <code>g</code> that remain after
@@ -4316,7 +4370,7 @@ If <code>f</code> is <a href="#Function_types">variadic</a> with a final
 parameter <code>p</code> of type <code>...T</code>, then within <code>f</code>
 the type of <code>p</code> is equivalent to type <code>[]T</code>.
 If <code>f</code> is invoked with no actual arguments for <code>p</code>,
-the value passed to <code>p</code> is <code>nil</code>.
+the value <a href="#Calls">passed</a> to <code>p</code> is <code>nil</code>.
 Otherwise, the value passed is a new slice
 of type <code>[]T</code> with a new underlying array whose successive elements
 are the actual arguments, which all must be <a href="#Assignability">assignable</a>
@@ -5632,6 +5686,8 @@ myString([]myRune{0x1f30e})              // "\U0001f30e" == "🌎"
 <li>
 Converting a value of a string type to a slice of bytes type
 yields a non-nil slice whose successive elements are the bytes of the string.
+The <a href="#Length_and_capacity">capacity</a> of the resulting slice is
+implementation-specific and may be larger than the slice length.
 
 <pre>
 []byte("hellø")             // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
@@ -5647,6 +5703,8 @@ bytes("hellø")              // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
 <li>
 Converting a value of a string type to a slice of runes type
 yields a slice containing the individual Unicode code points of the string.
+The <a href="#Length_and_capacity">capacity</a> of the resulting slice is
+implementation-specific and may be larger than the slice length.
 
 <pre>
 []rune(myString("白鵬翔"))   // []rune{0x767d, 0x9d6c, 0x7fd4}
@@ -5848,7 +5906,7 @@ Otherwise, when evaluating the <a href="#Operands">operands</a> of an
 expression, assignment, or
 <a href="#Return_statements">return statement</a>,
 all function calls, method calls,
-<a href="#Receive operator">receive operations</a>,
+<a href="#Receive_operator">receive operations</a>,
 and <a href="#Logical_operators">binary logical operations</a>
 are evaluated in lexical left-to-right order.
 </p>
@@ -5916,11 +5974,10 @@ Statements control execution.
 </p>
 
 <pre class="ebnf">
-Statement =
-	Declaration | LabeledStmt | SimpleStmt |
-	GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
-	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
-	DeferStmt .
+Statement  = Declaration | LabeledStmt | SimpleStmt |
+             GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
+             FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
+             DeferStmt .
 
 SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
 </pre>
@@ -6132,7 +6189,7 @@ matching number of variables.
 <pre class="ebnf">
 Assignment = ExpressionList assign_op ExpressionList .
 
-assign_op = [ add_op | mul_op ] "=" .
+assign_op  = [ add_op | mul_op ] "=" .
 </pre>
 
 <p>
@@ -6260,6 +6317,26 @@ to the type of the operand to which it is assigned, with the following special c
 	the blank identifier, it is first implicitly converted to type <code>bool</code>.
 </li>
 </ol>
+
+<p>
+When a value is assigned to a variable, only the data that is stored in the variable
+is replaced. If the value contains a <a href="#Representation_of_values">reference</a>,
+the assignment copies the reference but does not make a copy of the referenced data
+(such as the underlying array of a slice).
+</p>
+
+<pre>
+var s1 = []int{1, 2, 3}
+var s2 = s1                    // s2 stores the slice descriptor of s1
+s1 = s1[:1]                    // s1's length is 1 but it still shares its underlying array with s2
+s2[0] = 42                     // setting s2[0] changes s1[0] as well
+fmt.Println(s1, s2)            // prints [42] [42 2 3]
+
+var m1 = make(map[string]int)
+var m2 = m1                    // m2 stores the map descriptor of m1
+m1["foo"] = 42                 // setting m1["foo"] changes m2["foo"] as well
+fmt.Println(m2["foo"])         // prints 42
+</pre>
 
 <h3 id="If_statements">If statements</h3>
 
@@ -6548,7 +6625,7 @@ The iteration may be controlled by a single condition, a "for" clause, or a "ran
 </p>
 
 <pre class="ebnf">
-ForStmt = "for" [ Condition | ForClause | RangeClause ] Block .
+ForStmt   = "for" [ Condition | ForClause | RangeClause ] Block .
 Condition = Expression .
 </pre>
 
@@ -6580,8 +6657,8 @@ an increment or decrement statement. The init statement may be a
 
 <pre class="ebnf">
 ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .
-InitStmt = SimpleStmt .
-PostStmt = SimpleStmt .
+InitStmt  = SimpleStmt .
+PostStmt  = SimpleStmt .
 </pre>
 
 <pre>
@@ -7909,7 +7986,7 @@ types, variables, and constants.
 </p>
 
 <pre class="ebnf">
-SourceFile       = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } .
+SourceFile = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } .
 </pre>
 
 <h3 id="Package_clause">Package clause</h3>
@@ -7920,8 +7997,8 @@ to which the file belongs.
 </p>
 
 <pre class="ebnf">
-PackageClause  = "package" PackageName .
-PackageName    = identifier .
+PackageClause = "package" PackageName .
+PackageName   = identifier .
 </pre>
 
 <p>
@@ -7950,9 +8027,9 @@ that specifies the package to be imported.
 </p>
 
 <pre class="ebnf">
-ImportDecl       = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
-ImportSpec       = [ "." | PackageName ] ImportPath .
-ImportPath       = string_lit .
+ImportDecl = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
+ImportSpec = [ "." | PackageName ] ImportPath .
+ImportPath = string_lit .
 </pre>
 
 <p>

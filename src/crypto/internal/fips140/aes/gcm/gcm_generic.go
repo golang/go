@@ -12,7 +12,7 @@ import (
 
 func sealGeneric(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
 	var H, counter, tagMask [gcmBlockSize]byte
-	g.cipher.Encrypt(H[:], H[:])
+	aes.EncryptBlockInternal(&g.cipher, H[:], H[:])
 	deriveCounterGeneric(&H, &counter, nonce)
 	gcmCounterCryptGeneric(&g.cipher, tagMask[:], tagMask[:], &counter)
 
@@ -25,7 +25,7 @@ func sealGeneric(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
 
 func openGeneric(out []byte, g *GCM, nonce, ciphertext, additionalData []byte) error {
 	var H, counter, tagMask [gcmBlockSize]byte
-	g.cipher.Encrypt(H[:], H[:])
+	aes.EncryptBlockInternal(&g.cipher, H[:], H[:])
 	deriveCounterGeneric(&H, &counter, nonce)
 	gcmCounterCryptGeneric(&g.cipher, tagMask[:], tagMask[:], &counter)
 
@@ -70,7 +70,7 @@ func gcmCounterCryptGeneric(b *aes.Block, out, src []byte, counter *[gcmBlockSiz
 	var mask [gcmBlockSize]byte
 
 	for len(src) >= gcmBlockSize {
-		b.Encrypt(mask[:], counter[:])
+		aes.EncryptBlockInternal(b, mask[:], counter[:])
 		gcmInc32(counter)
 
 		subtle.XORBytes(out, src, mask[:])
@@ -79,7 +79,7 @@ func gcmCounterCryptGeneric(b *aes.Block, out, src []byte, counter *[gcmBlockSiz
 	}
 
 	if len(src) > 0 {
-		b.Encrypt(mask[:], counter[:])
+		aes.EncryptBlockInternal(b, mask[:], counter[:])
 		gcmInc32(counter)
 		subtle.XORBytes(out, src, mask[:])
 	}

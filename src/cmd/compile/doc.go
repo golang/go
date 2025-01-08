@@ -15,7 +15,7 @@ the package and about types used by symbols imported by the package from
 other packages. It is therefore not necessary when compiling client C of
 package P to read the files of P's dependencies, only the compiled output of P.
 
-Command Line
+# Command Line
 
 Usage:
 
@@ -150,14 +150,21 @@ Flags to debug the compiler itself:
 	-w
 		Debug type checking.
 
-Compiler Directives
+# Compiler Directives
 
 The compiler accepts directives in the form of comments.
-To distinguish them from non-directive comments, directives
-require no space between the comment opening and the name of the directive. However, since
-they are comments, tools unaware of the directive convention or of a particular
+Each directive must be placed its own line, with only leading spaces and tabs
+allowed before the comment, and there must be no space between the comment
+opening and the name of the directive, to distinguish it from a regular comment.
+Tools unaware of the directive convention or of a particular
 directive can skip over a directive like any other comment.
+
+Other than the line directive, which is a historical special case;
+all other compiler directives are of the form
+//go:name, indicating that they are defined by the Go toolchain.
 */
+// # Line Directives
+//
 // Line directives come in several forms:
 //
 // 	//line :line
@@ -197,12 +204,9 @@ directive can skip over a directive like any other comment.
 // Line directives typically appear in machine-generated code, so that compilers and debuggers
 // will report positions in the original input to the generator.
 /*
-The line directive is a historical special case; all other directives are of the form
-//go:name, indicating that they are defined by the Go toolchain.
-Each directive must be placed its own line, with only leading spaces and tabs
-allowed before the comment.
-Each directive applies to the Go code that immediately follows it,
-which typically must be a declaration.
+# Function Directives
+
+A function directive applies to the Go function that immediately follows it.
 
 	//go:noescape
 
@@ -244,6 +248,8 @@ The //go:nosplit directive must be followed by a function declaration.
 It specifies that the function must omit its usual stack overflow check.
 This is most commonly used by low-level runtime code invoked
 at times when it is unsafe for the calling goroutine to be preempted.
+
+# Linkname Directive
 
 	//go:linkname localname [importpath.name]
 
@@ -295,17 +301,34 @@ The declaration of lower.f may also have a linkname directive with a
 single argument, f. This is optional, but helps alert the reader that
 the function is accessed from outside the package.
 
+# WebAssembly Directives
+
 	//go:wasmimport importmodule importname
 
 The //go:wasmimport directive is wasm-only and must be followed by a
-function declaration.
+function declaration with no body.
 It specifies that the function is provided by a wasm module identified
-by ``importmodule`` and ``importname``.
+by ``importmodule'' and ``importname''. For example,
 
 	//go:wasmimport a_module f
 	func g()
 
-The types of parameters and return values to the Go function are translated to
+causes g to refer to the WebAssembly function f from module a_module.
+
+	//go:wasmexport exportname
+
+The //go:wasmexport directive is wasm-only and must be followed by a
+function definition.
+It specifies that the function is exported to the wasm host as ``exportname''.
+For example,
+
+	//go:wasmexport h
+	func hWasm() { ... }
+
+make Go function hWasm available outside this WebAssembly module as h.
+
+For both go:wasmimport and go:wasmexport,
+the types of parameters and return values to the Go function are translated to
 Wasm according to the following table:
 
     Go types        Wasm types
@@ -318,24 +341,12 @@ Wasm according to the following table:
     pointer         i32 (more restrictions below)
     string          (i32, i32) (only permitted as a parameters, not a result)
 
+Any other parameter types are disallowed by the compiler.
+
 For a pointer type, its element type must be a bool, int8, uint8, int16, uint16,
 int32, uint32, int64, uint64, float32, float64, an array whose element type is
 a permitted pointer element type, or a struct, which, if non-empty, embeds
-structs.HostLayout, and contains only fields whose types are permitted pointer
+[structs.HostLayout], and contains only fields whose types are permitted pointer
 element types.
-
-Any other parameter types are disallowed by the compiler.
-
-	//go:wasmexport exportname
-
-The //go:wasmexport directive is wasm-only and must be followed by a
-function definition.
-It specifies that the function is exported to the wasm host as ``exportname``.
-
-	//go:wasmexport f
-	func g()
-
-The types of parameters and return values to the Go function are permitted and
-translated to Wasm in the same way as //go:wasmimport functions.
 */
 package main

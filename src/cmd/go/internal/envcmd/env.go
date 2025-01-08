@@ -85,6 +85,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOAUTH", Value: cfg.GOAUTH, Changed: cfg.GOAUTHChanged},
 		{Name: "GOBIN", Value: cfg.GOBIN},
 		{Name: "GOCACHE"},
+		{Name: "GOCACHEPROG", Value: cfg.GOCACHEPROG, Changed: cfg.GOCACHEPROGChanged},
 		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
 		{Name: "GOENV", Value: envFile, Changed: envFileChanged},
 		{Name: "GOEXE", Value: cfg.ExeSuffix},

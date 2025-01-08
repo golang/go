@@ -5,15 +5,14 @@
 package fipstest
 
 import (
+	"crypto/internal/fips140"
 	. "crypto/internal/fips140/check"
 	"crypto/internal/fips140/check/checktest"
 	"fmt"
 	"internal/abi"
-	"internal/asan"
 	"internal/godebug"
 	"internal/testenv"
 	"os"
-	"runtime"
 	"testing"
 	"unicode"
 	"unsafe"
@@ -35,12 +34,8 @@ func TestFIPSCheckVerify(t *testing.T) {
 		return
 	}
 
-	if !Supported() {
-		t.Skipf("skipping on %s-%s", runtime.GOOS, runtime.GOARCH)
-	}
-	if asan.Enabled {
-		// Verification panics with asan; don't bother.
-		t.Skipf("skipping with -asan")
+	if err := fips140.Supported(); err != nil {
+		t.Skipf("skipping: %v", err)
 	}
 
 	cmd := testenv.Command(t, os.Args[0], "-test.v", "-test.run=TestFIPSCheck")
@@ -57,8 +52,8 @@ func TestFIPSCheckInfo(t *testing.T) {
 		return
 	}
 
-	if !Supported() {
-		t.Skipf("skipping on %s-%s", runtime.GOOS, runtime.GOARCH)
+	if err := fips140.Supported(); err != nil {
+		t.Skipf("skipping: %v", err)
 	}
 
 	// Check that the checktest symbols are initialized properly.

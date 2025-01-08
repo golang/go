@@ -21,6 +21,15 @@ type T struct {
 }
 
 func TestPointer(t *testing.T) {
+	var zero weak.Pointer[T]
+	if zero.Value() != nil {
+		t.Error("Value of zero value of weak.Pointer is not nil")
+	}
+	zeroNil := weak.Make[T](nil)
+	if zeroNil.Value() != nil {
+		t.Error("Value of weak.Make[T](nil) is not nil")
+	}
+
 	bt := new(T)
 	wt := weak.Make(bt)
 	if st := wt.Value(); st != bt {
@@ -41,6 +50,12 @@ func TestPointer(t *testing.T) {
 }
 
 func TestPointerEquality(t *testing.T) {
+	var zero weak.Pointer[T]
+	zeroNil := weak.Make[T](nil)
+	if zero != zeroNil {
+		t.Error("weak.Make[T](nil) != zero value of weak.Pointer[T]")
+	}
+
 	bt := make([]*T, 10)
 	wt := make([]weak.Pointer[T], 10)
 	wo := make([]weak.Pointer[int], 10)

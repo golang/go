@@ -7,6 +7,8 @@ package testing_test
 import (
 	"bytes"
 	"cmp"
+	"context"
+	"errors"
 	"runtime"
 	"slices"
 	"strings"
@@ -127,56 +129,32 @@ func TestRunParallelSkipNow(t *testing.T) {
 	})
 }
 
-func TestBLoopHasResults(t *testing.T) {
-	// Verify that b.N and the b.Loop() iteration count match.
-	var nIterated int
-	bRet := testing.Benchmark(func(b *testing.B) {
-		i := 0
-		for b.Loop() {
-			i++
-		}
-		nIterated = i
-	})
-	if nIterated == 0 {
-		t.Fatalf("Iteration count zero")
-	}
-	if bRet.N != nIterated {
-		t.Fatalf("Benchmark result N incorrect, got %d want %d", bRet.N, nIterated)
-	}
-	// We only need to check duration to make sure benchmark result is written.
-	if bRet.T == 0 {
-		t.Fatalf("Benchmark result duration unset")
-	}
-}
-
-func ExampleB_Loop() {
-	simpleFunc := func(i int) int {
-		return i + 1
-	}
-	n := 0
+func TestBenchmarkContext(t *testing.T) {
 	testing.Benchmark(func(b *testing.B) {
-		// Unlike "for i := range N {...}" style loops, this
-		// setup logic will only be executed once, so simpleFunc
-		// will always get argument 1.
-		n++
-		// It behaves just like "for i := range N {...}", except with keeping
-		// function call parameters and results alive.
-		for b.Loop() {
-			// This function call, if was in a normal loop, will be optimized away
-			// completely, first by inlining, then by dead code elimination.
-			// In a b.Loop loop, the compiler ensures that this function is not optimized away.
-			simpleFunc(n)
+		ctx := b.Context()
+		if err := ctx.Err(); err != nil {
+			b.Fatalf("expected non-canceled context, got %v", err)
 		}
-		// This clean-up will only be executed once, so after the benchmark, the user
-		// will see n == 2.
-		n++
-		// Use b.ReportMetric as usual just like what a user may do after
-		// b.N loop.
-	})
-	// We can expect n == 2 here.
 
-	// The return value of the above Benchmark could be used just like
-	// a b.N loop benchmark as well.
+		var innerCtx context.Context
+		b.Run("inner", func(b *testing.B) {
+			innerCtx = b.Context()
+			if err := innerCtx.Err(); err != nil {
+				b.Fatalf("expected inner benchmark to not inherit canceled context, got %v", err)
+			}
+		})
+		b.Run("inner2", func(b *testing.B) {
+			if !errors.Is(innerCtx.Err(), context.Canceled) {
+				t.Fatal("expected context of sibling benchmark to be canceled after its test function finished")
+			}
+		})
+
+		t.Cleanup(func() {
+			if !errors.Is(ctx.Err(), context.Canceled) {
+				t.Fatal("expected context canceled before cleanup")
+			}
+		})
+	})
 }
 
 func ExampleB_RunParallel() {
@@ -219,7 +197,7 @@ func ExampleB_ReportMetric() {
 	// specific algorithm (in this case, sorting).
 	testing.Benchmark(func(b *testing.B) {
 		var compares int64
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			s := []int{5, 4, 3, 2, 1}
 			slices.SortFunc(s, func(a, b int) int {
 				compares++

@@ -1797,19 +1797,12 @@ func TestNullString(t *testing.T) {
 	}
 }
 
-func intp(x int) *int {
-	p := new(int)
-	*p = x
-	return p
-}
-
-func intpp(x *int) **int {
-	pp := new(*int)
-	*pp = x
-	return pp
+func addr[T any](v T) *T {
+	return &v
 }
 
 func TestInterfaceSet(t *testing.T) {
+	errUnmarshal := &UnmarshalTypeError{Value: "object", Offset: 6, Type: reflect.TypeFor[int](), Field: "X"}
 	tests := []struct {
 		CaseName
 		pre  any
@@ -1820,21 +1813,55 @@ func TestInterfaceSet(t *testing.T) {
 		{Name(""), "foo", `2`, 2.0},
 		{Name(""), "foo", `true`, true},
 		{Name(""), "foo", `null`, nil},
+		{Name(""), map[string]any{}, `true`, true},
+		{Name(""), []string{}, `true`, true},
 
-		{Name(""), nil, `null`, nil},
-		{Name(""), new(int), `null`, nil},
-		{Name(""), (*int)(nil), `null`, nil},
-		{Name(""), new(*int), `null`, new(*int)},
-		{Name(""), (**int)(nil), `null`, nil},
-		{Name(""), intp(1), `null`, nil},
-		{Name(""), intpp(nil), `null`, intpp(nil)},
-		{Name(""), intpp(intp(1)), `null`, intpp(nil)},
+		{Name(""), any(nil), `null`, any(nil)},
+		{Name(""), (*int)(nil), `null`, any(nil)},
+		{Name(""), (*int)(addr(0)), `null`, any(nil)},
+		{Name(""), (*int)(addr(1)), `null`, any(nil)},
+		{Name(""), (**int)(nil), `null`, any(nil)},
+		{Name(""), (**int)(addr[*int](nil)), `null`, (**int)(addr[*int](nil))},
+		{Name(""), (**int)(addr(addr(1))), `null`, (**int)(addr[*int](nil))},
+		{Name(""), (***int)(nil), `null`, any(nil)},
+		{Name(""), (***int)(addr[**int](nil)), `null`, (***int)(addr[**int](nil))},
+		{Name(""), (***int)(addr(addr[*int](nil))), `null`, (***int)(addr[**int](nil))},
+		{Name(""), (***int)(addr(addr(addr(1)))), `null`, (***int)(addr[**int](nil))},
+
+		{Name(""), any(nil), `2`, float64(2)},
+		{Name(""), (int)(1), `2`, float64(2)},
+		{Name(""), (*int)(nil), `2`, float64(2)},
+		{Name(""), (*int)(addr(0)), `2`, (*int)(addr(2))},
+		{Name(""), (*int)(addr(1)), `2`, (*int)(addr(2))},
+		{Name(""), (**int)(nil), `2`, float64(2)},
+		{Name(""), (**int)(addr[*int](nil)), `2`, (**int)(addr(addr(2)))},
+		{Name(""), (**int)(addr(addr(1))), `2`, (**int)(addr(addr(2)))},
+		{Name(""), (***int)(nil), `2`, float64(2)},
+		{Name(""), (***int)(addr[**int](nil)), `2`, (***int)(addr(addr(addr(2))))},
+		{Name(""), (***int)(addr(addr[*int](nil))), `2`, (***int)(addr(addr(addr(2))))},
+		{Name(""), (***int)(addr(addr(addr(1)))), `2`, (***int)(addr(addr(addr(2))))},
+
+		{Name(""), any(nil), `{}`, map[string]any{}},
+		{Name(""), (int)(1), `{}`, map[string]any{}},
+		{Name(""), (*int)(nil), `{}`, map[string]any{}},
+		{Name(""), (*int)(addr(0)), `{}`, errUnmarshal},
+		{Name(""), (*int)(addr(1)), `{}`, errUnmarshal},
+		{Name(""), (**int)(nil), `{}`, map[string]any{}},
+		{Name(""), (**int)(addr[*int](nil)), `{}`, errUnmarshal},
+		{Name(""), (**int)(addr(addr(1))), `{}`, errUnmarshal},
+		{Name(""), (***int)(nil), `{}`, map[string]any{}},
+		{Name(""), (***int)(addr[**int](nil)), `{}`, errUnmarshal},
+		{Name(""), (***int)(addr(addr[*int](nil))), `{}`, errUnmarshal},
+		{Name(""), (***int)(addr(addr(addr(1)))), `{}`, errUnmarshal},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			b := struct{ X any }{tt.pre}
 			blob := `{"X":` + tt.json + `}`
 			if err := Unmarshal([]byte(blob), &b); err != nil {
+				if wantErr, _ := tt.post.(error); equalError(err, wantErr) {
+					return
+				}
 				t.Fatalf("%s: Unmarshal(%#q) error: %v", tt.Where, blob, err)
 			}
 			if !reflect.DeepEqual(b.X, tt.post) {

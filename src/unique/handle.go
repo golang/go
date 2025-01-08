@@ -89,7 +89,7 @@ func Make[T comparable](value T) Handle[T] {
 }
 
 var (
-	// uniqueMaps is an index of type-specific sync maps used for unique.Make.
+	// uniqueMaps is an index of type-specific concurrent maps used for unique.Make.
 	//
 	// The two-level map might seem odd at first since the HashTrieMap could have "any"
 	// as its key type, but the issue is escape analysis. We do not want to force lookups

@@ -425,8 +425,9 @@ var (
 	GOROOTpkg string
 	GOROOTsrc string
 
-	GOBIN                         = Getenv("GOBIN")
-	GOMODCACHE, GOMODCACHEChanged = EnvOrAndChanged("GOMODCACHE", gopathDir("pkg/mod"))
+	GOBIN                           = Getenv("GOBIN")
+	GOCACHEPROG, GOCACHEPROGChanged = EnvOrAndChanged("GOCACHEPROG", "")
+	GOMODCACHE, GOMODCACHEChanged   = EnvOrAndChanged("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
 	GOARM64, goARM64Changed     = EnvOrAndChanged("GOARM64", buildcfg.DefaultGOARM64)

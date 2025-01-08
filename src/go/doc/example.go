@@ -192,13 +192,6 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	// Find unresolved identifiers and uses of top-level declarations.
 	depDecls, unresolved := findDeclsAndUnresolved(body, topDecls, typMethods)
 
-	// Remove predeclared identifiers from unresolved list.
-	for n := range unresolved {
-		if predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
-			delete(unresolved, n)
-		}
-	}
-
 	// Use unresolved identifiers to determine the imports used by this
 	// example. The heuristic assumes package names match base import
 	// paths for imports w/o renames (should be good enough most of the time).
@@ -247,6 +240,13 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			spec.Path = &path
 			spec.Path.ValuePos = groupStart(&spec)
 			namedImports = append(namedImports, &spec)
+			delete(unresolved, n)
+		}
+	}
+
+	// Remove predeclared identifiers from unresolved list.
+	for n := range unresolved {
+		if predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
 			delete(unresolved, n)
 		}
 	}

@@ -81,7 +81,7 @@ func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
 		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
 	}
 
-	g.cipher.Encrypt(tagMask[:], counter[:])
+	aes.EncryptBlockInternal(&g.cipher, tagMask[:], counter[:])
 
 	var tagOut [gcmTagSize]byte
 	gcmAesData(&g.productTable, data, &tagOut)
@@ -114,7 +114,7 @@ func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
 		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
 	}
 
-	g.cipher.Encrypt(tagMask[:], counter[:])
+	aes.EncryptBlockInternal(&g.cipher, tagMask[:], counter[:])
 
 	var expectedTag [gcmTagSize]byte
 	gcmAesData(&g.productTable, data, &expectedTag)

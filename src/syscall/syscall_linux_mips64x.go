@@ -16,7 +16,6 @@ const (
 //sys	Dup2(oldfd int, newfd int) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
-//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
 //sys	Ftruncate(fd int, length int64) (err error)
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (euid int)
@@ -126,9 +125,21 @@ type stat_t struct {
 	Blocks     int64
 }
 
+//sys	fstatatInternal(dirfd int, path string, stat *stat_t, flags int) (err error) = SYS_NEWFSTATAT
 //sys	fstat(fd int, st *stat_t) (err error)
 //sys	lstat(path string, st *stat_t) (err error)
 //sys	stat(path string, st *stat_t) (err error)
+
+func fstatat(fd int, path string, s *Stat_t, flags int) (err error) {
+	st := &stat_t{}
+	err = fstatatInternal(fd, path, st, flags)
+	fillStat_t(s, st)
+	return
+}
+
+func Fstatat(fd int, path string, s *Stat_t, flags int) (err error) {
+	return fstatat(fd, path, s, flags)
+}
 
 func Fstat(fd int, s *Stat_t) (err error) {
 	st := &stat_t{}

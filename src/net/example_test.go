@@ -334,7 +334,7 @@ func ExampleIP_To16() {
 	// 10.255.0.0
 }
 
-func ExampleIP_to4() {
+func ExampleIP_To4() {
 	ipv6 := net.IP{0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	ipv4 := net.IPv4(10, 255, 0, 0)
 

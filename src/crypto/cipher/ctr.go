@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"crypto/internal/fips140/aes"
 	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
 	"crypto/subtle"
 )
 
@@ -40,6 +41,9 @@ type ctrAble interface {
 func NewCTR(block Block, iv []byte) Stream {
 	if block, ok := block.(*aes.Block); ok {
 		return aesCtrWrapper{aes.NewCTR(block, iv)}
+	}
+	if fips140only.Enabled {
+		panic("crypto/cipher: use of CTR with non-AES ciphers is not allowed in FIPS 140-only mode")
 	}
 	if ctr, ok := block.(ctrAble); ok {
 		return ctr.NewCTR(iv)

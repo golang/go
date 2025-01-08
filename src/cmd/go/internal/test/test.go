@@ -994,14 +994,15 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
-		buildTest, runTest, printTest, perr, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
-		if err != nil {
+		reportErr := func(perr *load.Package, err error) {
 			str := err.Error()
 			if p.ImportPath != "" {
 				load.DefaultPrinter().Errorf(perr, "# %s\n%s", p.ImportPath, str)
 			} else {
 				load.DefaultPrinter().Errorf(perr, "%s", str)
 			}
+		}
+		reportSetupFailed := func(perr *load.Package, err error) {
 			var stdout io.Writer = os.Stdout
 			if testJSON {
 				json := test2json.NewConverter(stdout, p.ImportPath, test2json.Timestamp)
@@ -1009,11 +1010,34 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 					json.Exited(err)
 					json.Close()
 				}()
-				json.SetFailedBuild(perr.Desc())
+				if gotestjsonbuildtext.Value() == "1" {
+					// While this flag is about go build -json, the other effect
+					// of that change was to include "FailedBuild" in the test JSON.
+					gotestjsonbuildtext.IncNonDefault()
+				} else {
+					json.SetFailedBuild(perr.Desc())
+				}
 				stdout = json
 			}
 			fmt.Fprintf(stdout, "FAIL\t%s [setup failed]\n", p.ImportPath)
 			base.SetExitStatus(1)
+		}
+
+		var firstErrPkg *load.Package // arbitrarily report setup failed error for first error pkg reached in DFS
+		load.PackageErrors([]*load.Package{p}, func(p *load.Package) {
+			reportErr(p, p.Error)
+			if firstErrPkg == nil {
+				firstErrPkg = p
+			}
+		})
+		if firstErrPkg != nil {
+			reportSetupFailed(firstErrPkg, firstErrPkg.Error)
+			continue
+		}
+		buildTest, runTest, printTest, perr, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
+		if err != nil {
+			reportErr(perr, err)
+			reportSetupFailed(perr, err)
 			continue
 		}
 		builds = append(builds, buildTest)
@@ -1437,7 +1461,11 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	if a.Failed != nil {
 		// We were unable to build the binary.
 		if json != nil && a.Failed.Package != nil {
-			json.SetFailedBuild(a.Failed.Package.Desc())
+			if gotestjsonbuildtext.Value() == "1" {
+				gotestjsonbuildtext.IncNonDefault()
+			} else {
+				json.SetFailedBuild(a.Failed.Package.Desc())
+			}
 		}
 		a.Failed = nil
 		fmt.Fprintf(stdout, "FAIL\t%s [build failed]\n", a.Package.ImportPath)

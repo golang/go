@@ -65,17 +65,20 @@ var BigEndian bigEndian
 
 type littleEndian struct{}
 
+// Uint16 returns the uint16 representation of b[0:2].
 func (littleEndian) Uint16(b []byte) uint16 {
 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint16(b[0]) | uint16(b[1])<<8
 }
 
+// PutUint16 stores v into b[0:2].
 func (littleEndian) PutUint16(b []byte, v uint16) {
 	_ = b[1] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 }
 
+// AppendUint16 appends the bytes of v to b and returns the appended slice.
 func (littleEndian) AppendUint16(b []byte, v uint16) []byte {
 	return append(b,
 		byte(v),
@@ -83,11 +86,13 @@ func (littleEndian) AppendUint16(b []byte, v uint16) []byte {
 	)
 }
 
+// Uint32 returns the uint32 representation of b[0:4].
 func (littleEndian) Uint32(b []byte) uint32 {
 	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
 
+// PutUint32 stores v into b[0:4].
 func (littleEndian) PutUint32(b []byte, v uint32) {
 	_ = b[3] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
@@ -96,6 +101,7 @@ func (littleEndian) PutUint32(b []byte, v uint32) {
 	b[3] = byte(v >> 24)
 }
 
+// AppendUint32 appends the bytes of v to b and returns the appended slice.
 func (littleEndian) AppendUint32(b []byte, v uint32) []byte {
 	return append(b,
 		byte(v),
@@ -105,12 +111,14 @@ func (littleEndian) AppendUint32(b []byte, v uint32) []byte {
 	)
 }
 
+// Uint64 returns the uint64 representation of b[0:8].
 func (littleEndian) Uint64(b []byte) uint64 {
 	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
 		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
 }
 
+// PutUint64 stores v into b[0:8].
 func (littleEndian) PutUint64(b []byte, v uint64) {
 	_ = b[7] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
@@ -123,6 +131,7 @@ func (littleEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v >> 56)
 }
 
+// AppendUint64 appends the bytes of v to b and returns the appended slice.
 func (littleEndian) AppendUint64(b []byte, v uint64) []byte {
 	return append(b,
 		byte(v),
@@ -142,17 +151,20 @@ func (littleEndian) GoString() string { return "binary.LittleEndian" }
 
 type bigEndian struct{}
 
+// Uint16 returns the uint16 representation of b[0:2].
 func (bigEndian) Uint16(b []byte) uint16 {
 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint16(b[1]) | uint16(b[0])<<8
 }
 
+// PutUint16 stores v into b[0:2].
 func (bigEndian) PutUint16(b []byte, v uint16) {
 	_ = b[1] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 8)
 	b[1] = byte(v)
 }
 
+// AppendUint16 appends the bytes of v to b and returns the appended slice.
 func (bigEndian) AppendUint16(b []byte, v uint16) []byte {
 	return append(b,
 		byte(v>>8),
@@ -160,11 +172,13 @@ func (bigEndian) AppendUint16(b []byte, v uint16) []byte {
 	)
 }
 
+// Uint32 returns the uint32 representation of b[0:4].
 func (bigEndian) Uint32(b []byte) uint32 {
 	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
 }
 
+// PutUint32 stores v into b[0:4].
 func (bigEndian) PutUint32(b []byte, v uint32) {
 	_ = b[3] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 24)
@@ -173,6 +187,7 @@ func (bigEndian) PutUint32(b []byte, v uint32) {
 	b[3] = byte(v)
 }
 
+// AppendUint32 appends the bytes of v to b and returns the appended slice.
 func (bigEndian) AppendUint32(b []byte, v uint32) []byte {
 	return append(b,
 		byte(v>>24),
@@ -182,12 +197,14 @@ func (bigEndian) AppendUint32(b []byte, v uint32) []byte {
 	)
 }
 
+// Uint64 returns the uint64 representation of b[0:8].
 func (bigEndian) Uint64(b []byte) uint64 {
 	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
 		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
 }
 
+// PutUint64 stores v into b[0:8].
 func (bigEndian) PutUint64(b []byte, v uint64) {
 	_ = b[7] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 56)
@@ -200,6 +217,7 @@ func (bigEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v)
 }
 
+// AppendUint64 appends the bytes of v to b and returns the appended slice.
 func (bigEndian) AppendUint64(b []byte, v uint64) []byte {
 	return append(b,
 		byte(v>>56),

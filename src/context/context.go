@@ -10,23 +10,25 @@
 // calls to servers should accept a Context. The chain of function
 // calls between them must propagate the Context, optionally replacing
 // it with a derived Context created using [WithCancel], [WithDeadline],
-// [WithTimeout], or [WithValue]. When a Context is canceled, all
-// Contexts derived from it are also canceled.
+// [WithTimeout], or [WithValue].
+//
+// A Context may be canceled to indicate that work done on its behalf should stop.
+// A Context with a deadline is canceled after the deadline passes.
+// When a Context is canceled, all Contexts derived from it are also canceled.
 //
 // The [WithCancel], [WithDeadline], and [WithTimeout] functions take a
 // Context (the parent) and return a derived Context (the child) and a
-// [CancelFunc]. Calling the CancelFunc cancels the child and its
+// [CancelFunc]. Calling the CancelFunc directly cancels the child and its
 // children, removes the parent's reference to the child, and stops
 // any associated timers. Failing to call the CancelFunc leaks the
-// child and its children until the parent is canceled or the timer
-// fires. The go vet tool checks that CancelFuncs are used on all
-// control-flow paths.
+// child and its children until the parent is canceled. The go vet tool
+// checks that CancelFuncs are used on all control-flow paths.
 //
-// The [WithCancelCause] function returns a [CancelCauseFunc], which
-// takes an error and records it as the cancellation cause. Calling
-// [Cause] on the canceled context or any of its children retrieves
-// the cause. If no cause is specified, Cause(ctx) returns the same
-// value as ctx.Err().
+// The [WithCancelCause], [WithDeadlineCause], and [WithTimeoutCause] functions
+// return a [CancelCauseFunc], which takes an error and records it as
+// the cancellation cause. Calling [Cause] on the canceled context
+// or any of its children retrieves the cause. If no cause is specified,
+// Cause(ctx) returns the same value as ctx.Err().
 //
 // Programs that use Contexts should follow these rules to keep interfaces
 // consistent across packages and enable static analysis tools to check context
@@ -107,8 +109,8 @@ type Context interface {
 
 	// If Done is not yet closed, Err returns nil.
 	// If Done is closed, Err returns a non-nil error explaining why:
-	// Canceled if the context was canceled
-	// or DeadlineExceeded if the context's deadline passed.
+	// DeadlineExceeded if the context's deadline passed,
+	// or Canceled if the context was canceled for some other reason.
 	// After Err returns a non-nil error, successive calls to Err return the same error.
 	Err() error
 
@@ -160,11 +162,12 @@ type Context interface {
 	Value(key any) any
 }
 
-// Canceled is the error returned by [Context.Err] when the context is canceled.
+// Canceled is the error returned by [Context.Err] when the context is canceled
+// for some reason other than its deadline passing.
 var Canceled = errors.New("context canceled")
 
-// DeadlineExceeded is the error returned by [Context.Err] when the context's
-// deadline passes.
+// DeadlineExceeded is the error returned by [Context.Err] when the context is canceled
+// due to its deadline passing.
 var DeadlineExceeded error = deadlineExceededError{}
 
 type deadlineExceededError struct{}
@@ -296,9 +299,8 @@ func Cause(c Context) error {
 	return c.Err()
 }
 
-// AfterFunc arranges to call f in its own goroutine after ctx is done
-// (canceled or timed out).
-// If ctx is already done, AfterFunc calls f immediately in its own goroutine.
+// AfterFunc arranges to call f in its own goroutine after ctx is canceled.
+// If ctx is already canceled, AfterFunc calls f immediately in its own goroutine.
 //
 // Multiple calls to AfterFunc on a context operate independently;
 // one does not replace another.
@@ -306,7 +308,7 @@ func Cause(c Context) error {
 // Calling the returned stop function stops the association of ctx with f.
 // It returns true if the call stopped f from being run.
 // If stop returns false,
-// either the context is done and f has been started in its own goroutine;
+// either the context is canceled and f has been started in its own goroutine;
 // or f was already stopped.
 // The stop function does not wait for f to complete before returning.
 // If the caller needs to know whether f is completed,

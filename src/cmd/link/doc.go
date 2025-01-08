@@ -118,6 +118,7 @@ Flags:
 		Link with race detection libraries.
 	-s
 		Omit the symbol table and debug information.
+		Implies the -w flag, which can be negated with -w=0.
 	-tmpdir dir
 		Write temporary files to dir.
 		Temporary files are only used in external linking mode.

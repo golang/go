@@ -1,0 +1,16 @@
+-- .Play --
+package main
+
+import (
+	"fmt"
+
+	"example.com/error"
+)
+
+func Print(s string) {
+	fmt.Println(s)
+}
+
+func main() {
+	Print(error.Hello)
+}

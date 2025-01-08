@@ -104,6 +104,10 @@ func getGCMaskOnDemand(t *_type) *byte {
 	// in read-only memory currently.
 	addr := unsafe.Pointer(t.GCData)
 
+	if GOOS == "aix" {
+		addr = add(addr, firstmoduledata.data-aixStaticDataBase)
+	}
+
 	for {
 		p := (*byte)(atomic.Loadp(addr))
 		switch p {

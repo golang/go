@@ -1374,6 +1374,7 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
 	fmt.Fprintf(h, "buildmode %s goos %s goarch %s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
+	fmt.Fprintf(h, "defaultgodebug %q\n", p.DefaultGODEBUG)
 	if cfg.BuildTrimpath {
 		fmt.Fprintln(h, "trimpath")
 	}

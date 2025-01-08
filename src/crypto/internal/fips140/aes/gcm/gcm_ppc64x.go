@@ -51,7 +51,7 @@ func initGCM(g *GCM) {
 	}
 
 	hle := make([]byte, gcmBlockSize)
-	g.cipher.Encrypt(hle, hle)
+	aes.EncryptBlockInternal(&g.cipher, hle, hle)
 
 	// Reverse the bytes in each 8 byte chunk
 	// Load little endian, store big endian
@@ -133,7 +133,7 @@ func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
 	var counter, tagMask [gcmBlockSize]byte
 	deriveCounter(&counter, nonce, &g.productTable)
 
-	g.cipher.Encrypt(tagMask[:], counter[:])
+	aes.EncryptBlockInternal(&g.cipher, tagMask[:], counter[:])
 	gcmInc32(&counter)
 
 	counterCrypt(&g.cipher, out, plaintext, &counter)
@@ -151,7 +151,7 @@ func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
 	var counter, tagMask [gcmBlockSize]byte
 	deriveCounter(&counter, nonce, &g.productTable)
 
-	g.cipher.Encrypt(tagMask[:], counter[:])
+	aes.EncryptBlockInternal(&g.cipher, tagMask[:], counter[:])
 	gcmInc32(&counter)
 
 	var expectedTag [gcmTagSize]byte

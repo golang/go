@@ -54,8 +54,8 @@ func initDefaultCache() Cache {
 		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
 	}
 
-	if v := cfg.Getenv("GOCACHEPROG"); v != "" {
-		return startCacheProg(v, diskCache)
+	if cfg.GOCACHEPROG != "" {
+		return startCacheProg(cfg.GOCACHEPROG, diskCache)
 	}
 
 	return diskCache

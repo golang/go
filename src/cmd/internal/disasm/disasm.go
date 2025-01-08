@@ -410,14 +410,16 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
 func disasm_riscv64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder, gnuAsm bool) (string, int) {
 	inst, err := riscv64asm.Decode(code)
 	var text string
+	size := inst.Len
 	if err != nil || inst.Op == 0 {
+		size = 2
 		text = "?"
 	} else if gnuAsm {
 		text = fmt.Sprintf("%-36s // %s", riscv64asm.GoSyntax(inst, pc, lookup, textReader{code, pc}), riscv64asm.GNUSyntax(inst))
 	} else {
 		text = riscv64asm.GoSyntax(inst, pc, lookup, textReader{code, pc})
 	}
-	return text, 4
+	return text, size
 }
 
 func disasm_s390x(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {

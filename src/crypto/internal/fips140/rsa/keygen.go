@@ -13,9 +13,9 @@ import (
 )
 
 // GenerateKey generates a new RSA key pair of the given bit size.
-// bits must be at least 128.
+// bits must be at least 32.
 func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
-	if bits < 128 {
+	if bits < 32 {
 		return nil, errors.New("rsa: key too small")
 	}
 	fips140.RecordApproved()
@@ -54,23 +54,42 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 			return nil, errors.New("rsa: internal error: modulus size incorrect")
 		}
 
-		φ, err := bigmod.NewModulusProduct(P.Nat().SubOne(P).Bytes(P),
-			Q.Nat().SubOne(Q).Bytes(Q))
+		// d can be safely computed as e⁻¹ mod φ(N) where φ(N) = (p-1)(q-1), and
+		// indeed that's what both the original RSA paper and the pre-FIPS
+		// crypto/rsa implementation did.
+		//
+		// However, FIPS 186-5, A.1.1(3) requires computing it as e⁻¹ mod λ(N)
+		// where λ(N) = lcm(p-1, q-1).
+		//
+		// This makes d smaller by 1.5 bits on average, which is irrelevant both
+		// because we exclusively use the CRT for private operations and because
+		// we use constant time windowed exponentiation. On the other hand, it
+		// requires computing a GCD of two values that are not coprime, and then
+		// a division, both complex variable-time operations.
+		λ, err := totient(P, Q)
+		if err == errDivisorTooLarge {
+			// The divisor is too large, try again with different primes.
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
 
 		e := bigmod.NewNat().SetUint(65537)
-		d, ok := bigmod.NewNat().InverseVarTime(e, φ)
+		d, ok := bigmod.NewNat().InverseVarTime(e, λ)
 		if !ok {
-			// This checks that GCD(e, (p-1)(q-1)) = 1, which is equivalent
+			// This checks that GCD(e, lcm(p-1, q-1)) = 1, which is equivalent
 			// to checking GCD(e, p-1) = 1 and GCD(e, q-1) = 1 separately in
 			// FIPS 186-5, Appendix A.1.3, steps 4.5 and 5.6.
+			//
+			// We waste a prime by retrying the whole process, since 65537 is
+			// probably only a factor of one of p-1 or q-1, but the probability
+			// of this check failing is only 1/65537, so it doesn't matter.
 			continue
 		}
 
-		if e.ExpandFor(φ).Mul(d, φ).IsOne() == 0 {
-			return nil, errors.New("rsa: internal error: e*d != 1 mod φ(N)")
+		if e.ExpandFor(λ).Mul(d, λ).IsOne() == 0 {
+			return nil, errors.New("rsa: internal error: e*d != 1 mod λ(N)")
 		}
 
 		// FIPS 186-5, A.1.1(3) requires checking that d > 2^(nlen / 2).
@@ -90,11 +109,57 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 	}
 }
 
+// errDivisorTooLarge is returned by [totient] when gcd(p-1, q-1) is too large.
+var errDivisorTooLarge = errors.New("divisor too large")
+
+// totient computes the Carmichael totient function λ(N) = lcm(p-1, q-1).
+func totient(p, q *bigmod.Modulus) (*bigmod.Modulus, error) {
+	a, b := p.Nat().SubOne(p), q.Nat().SubOne(q)
+
+	// lcm(a, b) = a×b / gcd(a, b) = a × (b / gcd(a, b))
+
+	// Our GCD requires at least one of the numbers to be odd. For LCM we only
+	// need to preserve the larger prime power of each prime factor, so we can
+	// right-shift the number with the fewest trailing zeros until it's odd.
+	// For odd a, b and m >= n, lcm(a×2ᵐ, b×2ⁿ) = lcm(a×2ᵐ, b).
+	az, bz := a.TrailingZeroBitsVarTime(), b.TrailingZeroBitsVarTime()
+	if az < bz {
+		a = a.ShiftRightVarTime(az)
+	} else {
+		b = b.ShiftRightVarTime(bz)
+	}
+
+	gcd, err := bigmod.NewNat().GCDVarTime(a, b)
+	if err != nil {
+		return nil, err
+	}
+	if gcd.IsOdd() == 0 {
+		return nil, errors.New("rsa: internal error: gcd(a, b) is even")
+	}
+
+	// To avoid implementing multiple-precision division, we just try again if
+	// the divisor doesn't fit in a single word. This would have a chance of
+	// 2⁻⁶⁴ on 64-bit platforms, and 2⁻³² on 32-bit platforms, but testing 2⁻⁶⁴
+	// edge cases is impractical, and we'd rather not behave differently on
+	// different platforms, so we reject divisors above 2³²-1.
+	if gcd.BitLenVarTime() > 32 {
+		return nil, errDivisorTooLarge
+	}
+	if gcd.IsZero() == 1 || gcd.Bits()[0] == 0 {
+		return nil, errors.New("rsa: internal error: gcd(a, b) is zero")
+	}
+	if rem := b.DivShortVarTime(gcd.Bits()[0]); rem != 0 {
+		return nil, errors.New("rsa: internal error: b is not divisible by gcd(a, b)")
+	}
+
+	return bigmod.NewModulusProduct(a.Bytes(p), b.Bytes(q))
+}
+
 // randomPrime returns a random prime number of the given bit size following
 // the process in FIPS 186-5, Appendix A.1.3.
 func randomPrime(rand io.Reader, bits int) ([]byte, error) {
-	if bits < 64 {
-		return nil, errors.New("rsa: prime size must be at least 32-bit")
+	if bits < 16 {
+		return nil, errors.New("rsa: prime size must be at least 16 bits")
 	}
 
 	b := make([]byte, (bits+7)/8)

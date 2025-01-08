@@ -195,7 +195,7 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var, 
 	} else {
 		// If there are type parameters, rbase must denote a generic base type.
 		// Important: rbase must be resolved before declaring any receiver type
-		// parameters (wich may have the same name, see below).
+		// parameters (which may have the same name, see below).
 		var baseType *Named // nil if not valid
 		var cause string
 		if t := check.genericType(rbase, &cause); isValid(t) {

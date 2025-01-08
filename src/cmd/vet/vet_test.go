@@ -108,7 +108,7 @@ func TestVet(t *testing.T) {
 	// is a no-op for files whose version >= go1.22, so we use a
 	// go.mod file in the rangeloop directory to "downgrade".
 	//
-	// TOOD(adonovan): delete when go1.21 goes away.
+	// TODO(adonovan): delete when go1.21 goes away.
 	t.Run("loopclosure", func(t *testing.T) {
 		cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
 		cmd.Env = append(os.Environ(), "GOWORK=off")

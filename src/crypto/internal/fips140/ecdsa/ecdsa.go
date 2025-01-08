@@ -21,7 +21,7 @@ import (
 
 type PrivateKey struct {
 	pub PublicKey
-	d   []byte // bigmod.(*Nat).Bytes output (fixed length)
+	d   []byte // bigmod.(*Nat).Bytes output (same length as the curve order)
 }
 
 func (priv *PrivateKey) Bytes() []byte {
@@ -262,7 +262,7 @@ func randomPoint[P Point[P]](c *Curve[P], generate func([]byte) error) (k *bigmo
 var testingOnlyRejectionSamplingLooped func()
 
 // Signature is an ECDSA signature, where r and s are represented as big-endian
-// fixed-length byte slices.
+// byte slices of the same length as the curve order.
 type Signature struct {
 	R, S []byte
 }

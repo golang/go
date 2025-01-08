@@ -320,7 +320,7 @@ func (ctxt *Link) NumberSyms() {
 			// Assign special index for builtin symbols.
 			// Don't do it when linking against shared libraries, as the runtime
 			// may be in a different library.
-			if i := goobj.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 {
+			if i := goobj.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 && !rs.IsLinkname() {
 				rs.PkgIdx = goobj.PkgIdxBuiltin
 				rs.SymIdx = int32(i)
 				rs.Set(AttrIndexed, true)

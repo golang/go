@@ -3,4 +3,4 @@ env GO111MODULE=on
 # go help get shows usage for get
 go help get
 stdout 'usage: go get'
-stdout 'get using modules to manage source'
+stdout 'updates go.mod to require those versions'

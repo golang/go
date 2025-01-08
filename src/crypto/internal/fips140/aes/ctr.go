@@ -132,7 +132,7 @@ func ctrBlocks(b *Block, dst, src []byte, ivlo, ivhi uint64) {
 		byteorder.BEPutUint64(buf[i:], ivhi)
 		byteorder.BEPutUint64(buf[i+8:], ivlo)
 		ivlo, ivhi = add128(ivlo, ivhi, 1)
-		b.Encrypt(buf[i:], buf[i:])
+		encryptBlock(b, buf[i:], buf[i:])
 	}
 	// XOR into buf first, in case src and dst overlap (see above).
 	subtle.XORBytes(buf, src, buf)

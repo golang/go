@@ -873,9 +873,9 @@ func NewRequest(method, url string, body io.Reader) (*Request, error) {
 //
 // NewRequestWithContext returns a Request suitable for use with
 // [Client.Do] or [Transport.RoundTrip]. To create a request for use with
-// testing a Server Handler, either use the [NewRequest] function in the
-// net/http/httptest package, use [ReadRequest], or manually update the
-// Request fields. For an outgoing client request, the context
+// testing a Server Handler, either use the [net/http/httptest.NewRequest] function,
+// use [ReadRequest], or manually update the Request fields.
+// For an outgoing client request, the context
 // controls the entire lifetime of a request and its response:
 // obtaining a connection, sending the request, and reading the
 // response headers and body. See the Request type's documentation for

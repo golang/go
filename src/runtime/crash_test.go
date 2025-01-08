@@ -32,8 +32,11 @@ const entrypointVar = "RUNTIME_TEST_ENTRYPOINT"
 
 func TestMain(m *testing.M) {
 	switch entrypoint := os.Getenv(entrypointVar); entrypoint {
-	case "crash":
-		crash()
+	case "panic":
+		crashViaPanic()
+		panic("unreachable")
+	case "trap":
+		crashViaTrap()
 		panic("unreachable")
 	default:
 		log.Fatalf("invalid %s: %q", entrypointVar, entrypoint)

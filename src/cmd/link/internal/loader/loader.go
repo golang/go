@@ -2338,6 +2338,45 @@ var blockedLinknames = map[string][]string{
 	"runtime.newcoro":    {"iter"},
 	// fips info
 	"go:fipsinfo": {"crypto/internal/fips140/check"},
+	// New internal linknames in Go 1.24
+	// Pushed from runtime
+	"crypto/internal/fips140.fatal":         {"crypto/internal/fips140"},
+	"crypto/internal/fips140.getIndicator":  {"crypto/internal/fips140"},
+	"crypto/internal/fips140.setIndicator":  {"crypto/internal/fips140"},
+	"crypto/internal/sysrand.fatal":         {"crypto/internal/sysrand"},
+	"crypto/rand.fatal":                     {"crypto/rand"},
+	"internal/runtime/maps.errNilAssign":    {"internal/runtime/maps"},
+	"internal/runtime/maps.fatal":           {"internal/runtime/maps"},
+	"internal/runtime/maps.mapKeyError":     {"internal/runtime/maps"},
+	"internal/runtime/maps.newarray":        {"internal/runtime/maps"},
+	"internal/runtime/maps.newobject":       {"internal/runtime/maps"},
+	"internal/runtime/maps.typedmemclr":     {"internal/runtime/maps"},
+	"internal/runtime/maps.typedmemmove":    {"internal/runtime/maps"},
+	"internal/sync.fatal":                   {"internal/sync"},
+	"internal/sync.runtime_canSpin":         {"internal/sync"},
+	"internal/sync.runtime_doSpin":          {"internal/sync"},
+	"internal/sync.runtime_nanotime":        {"internal/sync"},
+	"internal/sync.runtime_Semrelease":      {"internal/sync"},
+	"internal/sync.runtime_SemacquireMutex": {"internal/sync"},
+	"internal/sync.throw":                   {"internal/sync"},
+	"internal/synctest.Run":                 {"internal/synctest"},
+	"internal/synctest.Wait":                {"internal/synctest"},
+	"internal/synctest.acquire":             {"internal/synctest"},
+	"internal/synctest.release":             {"internal/synctest"},
+	"internal/synctest.inBubble":            {"internal/synctest"},
+	"runtime.getStaticuint64s":              {"reflect"},
+	"sync.runtime_SemacquireWaitGroup":      {"sync"},
+	"time.runtimeNow":                       {"time"},
+	"time.runtimeNano":                      {"time"},
+	// Pushed to runtime from internal/runtime/maps
+	// (other map functions are already linknamed in Go 1.23)
+	"runtime.mapaccess1":         {"runtime"},
+	"runtime.mapaccess1_fast32":  {"runtime"},
+	"runtime.mapaccess1_fast64":  {"runtime"},
+	"runtime.mapaccess1_faststr": {"runtime"},
+	"runtime.mapdelete_fast32":   {"runtime"},
+	"runtime.mapdelete_fast64":   {"runtime"},
+	"runtime.mapdelete_faststr":  {"runtime"},
 }
 
 // check if a linkname reference to symbol s from pkg is allowed

@@ -33,10 +33,23 @@ stderr '# m/t2/p\n.*package x is not in std'
 stdout 'FAIL	m/t2/p \[setup failed\]'
 stdout 'ok  	m/t'
 
-# Finally, this one is a build error, but produced by cmd/go directly
+# Test that an import cycle error is reported. Test for #70820
+! go test -o=$devnull ./cycle/p ./t
+stderr '# m/cycle/p\n.*package m/cycle/p\n\timports m/cycle/p from p\.go: import cycle not allowed'
+stdout 'FAIL	m/cycle/p \[setup failed\]'
+stdout 'ok  	m/t'
+
+# Test that multiple errors for the same package under test are reported.
+! go test -o=$devnull ./cycle/q ./t
+stderr '# m/cycle/q\n.*package m/cycle/q\n\timports m/cycle/p from q\.go\n\timports m/cycle/p from p\.go: import cycle not allowed'
+stdout 'FAIL	m/cycle/q \[setup failed\]'
+stdout 'ok  	m/t'
+
+# Finally, this one is a non-import-cycle load error that
+# is produced for the package under test.
 ! go test -o=$devnull . ./t
-stderr '^\.: no Go files in '$PWD'$'
-stdout 'FAIL	. \[build failed\]'
+stderr '# \.\n.*no Go files in '$PWD'$'
+stdout 'FAIL	. \[setup failed\]'
 stdout 'ok  	m/t'
 
 -- go.mod --
@@ -68,6 +81,17 @@ package p
 package p
 
 import "m/bad"
+-- cycle/p/p.go --
+package p
+
+import "m/cycle/p"
+-- cycle/q/q.go --
+package q
+
+import (
+	"m/bad"
+	"m/cycle/p"
+)
 -- bad/bad.go --
 package bad
 

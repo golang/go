@@ -40,6 +40,18 @@ stdout '"Action":"output","Package":"m/loaderror","Output":"FAIL\\tm/loaderror \
 stdout '"Action":"fail","Package":"m/loaderror","Elapsed":.*,"FailedBuild":"x"'
 ! stderr '.'
 
+# Test an import cycle loading error in a non test file. (#70820)
+! go test -json -o=$devnull ./cycle/p
+stdout '"ImportPath":"m/cycle/q","Action":"build-output","Output":"# m/cycle/p\\n"'
+stdout '"ImportPath":"m/cycle/q","Action":"build-output","Output":"package m/cycle/p\\n"'
+stdout '"ImportPath":"m/cycle/q","Action":"build-output","Output":"\\timports m/cycle/q from p.go\\n"'
+stdout '"ImportPath":"m/cycle/q","Action":"build-output","Output":"\\timports m/cycle/q from q.go: import cycle not allowed\\n"'
+stdout '"ImportPath":"m/cycle/q","Action":"build-fail"'
+stdout '"Action":"start","Package":"m/cycle/p"'
+stdout '"Action":"output","Package":"m/cycle/p","Output":"FAIL\\tm/cycle/p \[setup failed\]\\n"'
+stdout '"Action":"fail","Package":"m/cycle/p","Elapsed":.*,"FailedBuild":"m/cycle/q"'
+! stderr '.'
+
 # Test a vet error
 ! go test -json -o=$devnull ./veterror
 stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"# m/veterror\\n"'
@@ -58,8 +70,9 @@ stderr '# m/builderror \[m/builderror.test\]\n'
 stderr 'builderror'${/}'main_test.go:3:11: undefined: y\n'
 stdout '"Action":"start","Package":"m/builderror"'
 stdout '"Action":"output","Package":"m/builderror","Output":"FAIL\\tm/builderror \[build failed\]\\n"'
-stdout '"Action":"fail","Package":"m/builderror","Elapsed":.*,"FailedBuild":"m/builderror \[m/builderror\.test\]"'
-
+stdout '"Action":"fail","Package":"m/builderror","Elapsed":[0-9.]+\}'
+# FailedBuild should NOT appear in the output in this mode.
+! stdout '"FailedBuild"'
 
 -- go.mod --
 module m
@@ -98,3 +111,13 @@ import (
 func TestVetError(t *testing.T) {
         fmt.Printf("%s")
 }
+-- cycle/p/p.go --
+package p
+
+import "m/cycle/q"
+-- cycle/q/q.go --
+package q
+
+import (
+	"m/cycle/q"
+)

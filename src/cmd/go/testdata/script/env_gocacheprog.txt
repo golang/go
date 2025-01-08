@@ -1,0 +1,42 @@
+# GOCACHEPROG unset
+env GOCACHEPROG=
+
+go env
+stdout 'GOCACHEPROG=''?''?'
+
+go env -changed
+! stdout 'GOCACHEPROG'
+
+go env -changed -json
+! stdout 'GOCACHEPROG'
+
+# GOCACHEPROG set
+[short] skip 'compiles and runs a go program'
+
+go build -o cacheprog$GOEXE cacheprog.go
+
+env GOCACHEPROG=$GOPATH/src/cacheprog$GOEXE
+
+go env
+stdout 'GOCACHEPROG=''?'$GOCACHEPROG'''?'
+
+go env -changed
+stdout 'GOCACHEPROG=''?'$GOCACHEPROG'''?'
+
+go env -changed -json
+stdout '"GOCACHEPROG": ".*cacheprog'$GOEXE'"'
+
+-- cacheprog.go --
+// This is a minimal GOCACHEPROG program that can't actually do anything but exit.
+package main
+
+import (
+    "encoding/json"
+    "os"
+)
+
+func main() {
+    json.NewEncoder(os.Stdout).Encode(map[string][]string{"KnownCommands": {"close"}})
+    var res struct{}
+    json.NewDecoder(os.Stdin).Decode(&res)
+}

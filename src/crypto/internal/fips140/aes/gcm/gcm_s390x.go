@@ -55,7 +55,7 @@ func initGCM(g *GCM) {
 		return
 	}
 	// Note that hashKey is also used in the KMA codepath to hash large nonces.
-	g.cipher.Encrypt(g.hashKey[:], g.hashKey[:])
+	aes.EncryptBlockInternal(&g.cipher, g.hashKey[:], g.hashKey[:])
 }
 
 // ghashAsm uses the GHASH algorithm to hash data with the given key. The initial
@@ -115,7 +115,7 @@ func counterCrypt(g *GCM, dst, src []byte, cnt *[gcmBlockSize]byte) {
 	}
 	if len(src) > 0 {
 		var x [16]byte
-		g.cipher.Encrypt(x[:], cnt[:])
+		aes.EncryptBlockInternal(&g.cipher, x[:], cnt[:])
 		for i := range src {
 			dst[i] = src[i] ^ x[i]
 		}
