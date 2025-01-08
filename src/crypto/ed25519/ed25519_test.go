@@ -369,10 +369,10 @@ func TestMalleability(t *testing.T) {
 
 func TestAllocations(t *testing.T) {
 	cryptotest.SkipTestAllocations(t)
+	seed := make([]byte, SeedSize)
+	priv := NewKeyFromSeed(seed)
 	if allocs := testing.AllocsPerRun(100, func() {
-		seed := make([]byte, SeedSize)
 		message := []byte("Hello, world!")
-		priv := NewKeyFromSeed(seed)
 		pub := priv.Public().(PublicKey)
 		signature := Sign(priv, message)
 		if !Verify(pub, message, signature) {

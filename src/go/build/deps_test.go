@@ -560,6 +560,7 @@ var depsRules = `
 
 	CRYPTO, FMT, math/big
 	< crypto/internal/boring/bbig
+	< crypto/internal/fips140cache
 	< crypto/rand
 	< crypto/ed25519 # depends on crypto/rand.Reader
 	< encoding/asn1

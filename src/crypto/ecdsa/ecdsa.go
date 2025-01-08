@@ -23,6 +23,7 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
 	"crypto/internal/fips140/ecdsa"
+	"crypto/internal/fips140cache"
 	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
 	"crypto/internal/randutil"
@@ -238,9 +239,6 @@ func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, rand io.Rea
 	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
 		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
-	// privateKeyToFIPS is very slow in FIPS mode because it performs a
-	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
-	// it or attach it to the PrivateKey.
 	k, err := privateKeyToFIPS(c, priv)
 	if err != nil {
 		return nil, err
@@ -401,12 +399,32 @@ func publicKeyToFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], pub *PublicKey) (*ecds
 	return ecdsa.NewPublicKey(c, Q)
 }
 
+var privateKeyCache fips140cache.Cache[PrivateKey, ecdsa.PrivateKey]
+
 func privateKeyToFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey) (*ecdsa.PrivateKey, error) {
 	Q, err := pointFromAffine(priv.Curve, priv.X, priv.Y)
 	if err != nil {
 		return nil, err
 	}
-	return ecdsa.NewPrivateKey(c, priv.D.Bytes(), Q)
+	return privateKeyCache.Get(priv, func() (*ecdsa.PrivateKey, error) {
+		return ecdsa.NewPrivateKey(c, priv.D.Bytes(), Q)
+	}, func(k *ecdsa.PrivateKey) bool {
+		return subtle.ConstantTimeCompare(k.PublicKey().Bytes(), Q) == 1 &&
+			leftPadBytesEqual(k.Bytes(), priv.D.Bytes())
+	})
+}
+
+func leftPadBytesEqual(a, b []byte) bool {
+	if len(a) < len(b) {
+		a, b = b, a
+	}
+	if len(a) > len(b) {
+		x := make([]byte, 0, 66 /* enough for a P-521 private key */)
+		x = append(x, make([]byte, len(a)-len(b))...)
+		x = append(x, b...)
+		b = x
+	}
+	return subtle.ConstantTimeCompare(a, b) == 1
 }
 
 // pointFromAffine is used to convert the PublicKey to a nistec SetBytes input.
