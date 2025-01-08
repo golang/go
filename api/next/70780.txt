@@ -1,0 +1,3 @@
+pkg unicode, var CategoryAliases map[string]string #70780
+pkg unicode, var Cn *RangeTable #70780
+pkg unicode, var LC *RangeTable #70780
