@@ -20,9 +20,7 @@ func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
 		return nil, errInvalidMessage
 	}
 	attrs := uint(nativeEndian.Uint32(b[4:8]))
-	if attrs&syscall.RTA_IFP == 0 {
-		return nil, nil
-	}
+
 	m := &InterfaceMessage{
 		Version: int(b[2]),
 		Type:    int(b[3]),
@@ -32,12 +30,19 @@ func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
 		extOff:  w.extOff,
 		raw:     b[:l],
 	}
-	a, err := parseLinkAddr(b[w.bodyOff:])
-	if err != nil {
-		return nil, err
+
+	// We used to require that RTA_IFP always be set.
+	// It turns out that on darwin messages about the
+	// utun interface may not include a name. Issue #71064.
+	if attrs&syscall.RTA_IFP != 0 {
+		a, err := parseLinkAddr(b[w.bodyOff:])
+		if err != nil {
+			return nil, err
+		}
+		m.Addrs[syscall.RTAX_IFP] = a
+		m.Name = a.(*LinkAddr).Name
 	}
-	m.Addrs[syscall.RTAX_IFP] = a
-	m.Name = a.(*LinkAddr).Name
+
 	return m, nil
 }
 
