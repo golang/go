@@ -8,7 +8,7 @@ import "testing"
 
 func TestPanicEvent(t *testing.T) {
 	// Use a sync event for this because it doesn't have any extra metadata.
-	ev := syncEvent(nil, 0)
+	ev := syncEvent(nil, 0, 0)
 
 	mustPanic(t, func() {
 		_ = ev.Range()

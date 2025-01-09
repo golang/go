@@ -17,16 +17,21 @@ import (
 )
 
 // Reader reads a byte stream, validates it, and produces trace events.
+//
+// Provided the trace is non-empty the Reader always produces a Sync
+// event as the first event, and a Sync event as the last event.
+// (There may also be any number of Sync events in the middle, too.)
 type Reader struct {
-	r           *bufio.Reader
-	lastTs      Time
-	gen         *generation
-	spill       *spilledBatch
-	spillErr    error // error from reading spill
-	frontier    []*batchCursor
-	cpuSamples  []cpuSample
-	order       ordering
-	emittedSync bool
+	r          *bufio.Reader
+	lastTs     Time
+	gen        *generation
+	spill      *spilledBatch
+	spillErr   error // error from reading spill
+	frontier   []*batchCursor
+	cpuSamples []cpuSample
+	order      ordering
+	syncs      int
+	done       bool
 
 	go121Events *oldTraceConverter
 }
@@ -56,8 +61,6 @@ func NewReader(r io.Reader) (*Reader, error) {
 				gStates:     make(map[GoID]*gState),
 				activeTasks: make(map[TaskID]taskState),
 			},
-			// Don't emit a sync event when we first go to emit events.
-			emittedSync: true,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown or unsupported version go 1.%d", v)
@@ -66,13 +69,30 @@ func NewReader(r io.Reader) (*Reader, error) {
 
 // ReadEvent reads a single event from the stream.
 //
-// If the stream has been exhausted, it returns an invalid
-// event and io.EOF.
+// If the stream has been exhausted, it returns an invalid event and io.EOF.
 func (r *Reader) ReadEvent() (e Event, err error) {
+	// Return only io.EOF if we're done.
+	if r.done {
+		return Event{}, io.EOF
+	}
+
+	// Handle old execution traces.
 	if r.go121Events != nil {
+		if r.syncs == 0 {
+			// Always emit a sync event first, if we have any events at all.
+			ev, ok := r.go121Events.events.Peek()
+			if ok {
+				r.syncs++
+				return syncEvent(r.go121Events.evt, Time(ev.Ts-1), r.syncs), nil
+			}
+		}
 		ev, err := r.go121Events.next()
-		if err != nil {
-			// XXX do we have to emit an EventSync when the trace is done?
+		if err == io.EOF {
+			// Always emit a sync event at the end.
+			r.done = true
+			r.syncs++
+			return syncEvent(nil, r.go121Events.lastTs+1, r.syncs), nil
+		} else if err != nil {
 			return Event{}, err
 		}
 		return ev, nil
@@ -115,10 +135,6 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 
 	// Check if we need to refresh the generation.
 	if len(r.frontier) == 0 && len(r.cpuSamples) == 0 {
-		if !r.emittedSync {
-			r.emittedSync = true
-			return syncEvent(r.gen.evTable, r.lastTs), nil
-		}
 		if r.spillErr != nil {
 			return Event{}, r.spillErr
 		}
@@ -127,8 +143,10 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 			// and there's nothing left in the frontier, and
 			// there's no spilled batch, indicating that there's
 			// no further generation, it means we're done.
-			// Return io.EOF.
-			return Event{}, io.EOF
+			// Emit the final sync event.
+			r.done = true
+			r.syncs++
+			return syncEvent(nil, r.lastTs, r.syncs), nil
 		}
 		// Read the next generation.
 		var err error
@@ -155,9 +173,12 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 			}
 			r.frontier = heapInsert(r.frontier, bc)
 		}
-
-		// Reset emittedSync.
-		r.emittedSync = false
+		r.syncs++
+		if r.lastTs == 0 {
+			r.lastTs = r.gen.freq.mul(r.gen.minTs)
+		}
+		// Always emit a sync event at the beginning of the generation.
+		return syncEvent(r.gen.evTable, r.lastTs, r.syncs), nil
 	}
 	tryAdvance := func(i int) (bool, error) {
 		bc := r.frontier[i]

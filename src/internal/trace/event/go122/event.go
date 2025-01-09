@@ -86,6 +86,14 @@ const (
 	AllocFree event.Experiment = 1 + iota
 )
 
+func Experiments() []string {
+	return experiments[:]
+}
+
+var experiments = [...]string{
+	AllocFree: "AllocFree",
+}
+
 // Experimental events.
 const (
 	_ event.Type = 127 + iota

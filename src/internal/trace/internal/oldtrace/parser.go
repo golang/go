@@ -343,6 +343,14 @@ func (l *Events) Pop() (*Event, bool) {
 	return ptr, true
 }
 
+func (l *Events) Peek() (*Event, bool) {
+	if l.off == l.n {
+		return nil, false
+	}
+	a, b := l.index(l.off)
+	return &l.buckets[a][b], true
+}
+
 func (l *Events) All() func(yield func(ev *Event) bool) {
 	return func(yield func(ev *Event) bool) {
 		for i := 0; i < l.Len(); i++ {

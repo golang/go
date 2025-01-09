@@ -313,26 +313,15 @@ type ExperimentalEvent struct {
 	// Name is the name of the event.
 	Name string
 
+	// Experiment is the name of the experiment this event is a part of.
+	Experiment string
+
 	// ArgNames is the names of the event's arguments in order.
 	// This may refer to a globally shared slice. Copy before mutating.
 	ArgNames []string
 
 	// Args contains the event's arguments.
 	Args []uint64
-
-	// Data is additional unparsed data that is associated with the experimental event.
-	// Data is likely to be shared across many ExperimentalEvents, so callers that parse
-	// Data are encouraged to cache the parse result and look it up by the value of Data.
-	Data *ExperimentalData
-}
-
-// ExperimentalData represents some raw and unparsed sidecar data present in the trace that is
-// associated with certain kinds of experimental events. For example, this data may contain
-// tables needed to interpret ExperimentalEvent arguments, or the ExperimentEvent could just be
-// a placeholder for a differently encoded event that's actually present in the experimental data.
-type ExperimentalData struct {
-	// Batches contain the actual experimental data, along with metadata about each batch.
-	Batches []ExperimentalBatch
 }
 
 // ExperimentalBatch represents a packet of unparsed data along with metadata about that packet.
@@ -658,6 +647,35 @@ func (e Event) StateTransition() StateTransition {
 	return s
 }
 
+// Sync returns details that are relevant for the following events, up to but excluding the
+// next EventSync event.
+func (e Event) Sync() Sync {
+	if e.Kind() != EventSync {
+		panic("Sync called on non-Sync event")
+	}
+	var expBatches map[string][]ExperimentalBatch
+	if e.table != nil {
+		expBatches = make(map[string][]ExperimentalBatch)
+		for exp, batches := range e.table.expBatches {
+			expBatches[go122.Experiments()[exp]] = batches
+		}
+	}
+	return Sync{
+		N:                   int(e.base.args[0]),
+		ExperimentalBatches: expBatches,
+	}
+}
+
+// Sync contains details potentially relevant to all the following events, up to but excluding
+// the next EventSync event.
+type Sync struct {
+	// N indicates that this is the Nth sync event in the trace.
+	N int
+
+	// ExperimentalBatches contain all the unparsed batches of data for a given experiment.
+	ExperimentalBatches map[string][]ExperimentalBatch
+}
+
 // Experimental returns a view of the raw event for an experimental event.
 //
 // Panics if Kind != EventExperimental.
@@ -668,10 +686,10 @@ func (e Event) Experimental() ExperimentalEvent {
 	spec := go122.Specs()[e.base.typ]
 	argNames := spec.Args[1:] // Skip timestamp; already handled.
 	return ExperimentalEvent{
-		Name:     spec.Name,
-		ArgNames: argNames,
-		Args:     e.base.args[:len(argNames)],
-		Data:     e.table.expData[spec.Experiment],
+		Name:       spec.Name,
+		Experiment: go122.Experiments()[spec.Experiment],
+		ArgNames:   argNames,
+		Args:       e.base.args[:len(argNames)],
 	}
 }
 
@@ -848,8 +866,8 @@ func (e Event) validateTableIDs() error {
 	return nil
 }
 
-func syncEvent(table *evTable, ts Time) Event {
-	return Event{
+func syncEvent(table *evTable, ts Time, n int) Event {
+	ev := Event{
 		table: table,
 		ctx: schedCtx{
 			G: NoGoroutine,
@@ -861,4 +879,6 @@ func syncEvent(table *evTable, ts Time) Event {
 			time: ts,
 		},
 	}
+	ev.base.args[0] = uint64(n)
+	return ev
 }

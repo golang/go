@@ -990,7 +990,8 @@ func TestCrashWhileTracing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not create trace.NewReader: %v", err)
 	}
-	var seen, seenSync bool
+	var seen bool
+	nSync := 0
 	i := 1
 loop:
 	for ; ; i++ {
@@ -1005,7 +1006,7 @@ loop:
 		}
 		switch ev.Kind() {
 		case traceparse.EventSync:
-			seenSync = true
+			nSync = ev.Sync().N
 		case traceparse.EventLog:
 			v := ev.Log()
 			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
@@ -1019,7 +1020,7 @@ loop:
 	if err := cmd.Wait(); err == nil {
 		t.Error("the process should have panicked")
 	}
-	if !seenSync {
+	if nSync <= 1 {
 		t.Errorf("expected at least one full generation to have been emitted before the trace was considered broken")
 	}
 	if !seen {

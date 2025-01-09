@@ -27,6 +27,7 @@ type generation struct {
 	batches    map[ThreadID][]batch
 	batchMs    []ThreadID
 	cpuSamples []cpuSample
+	minTs      timestamp
 	*evTable
 }
 
@@ -100,6 +101,9 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 			// problem as soon as we see it.
 			return nil, nil, fmt.Errorf("generations out of order")
 		}
+		if g.minTs == 0 || b.time < g.minTs {
+			g.minTs = b.time
+		}
 		if err := processBatch(g, b); err != nil {
 			return nil, nil, err
 		}
@@ -163,10 +167,10 @@ func processBatch(g *generation, b batch) error {
 		}
 		g.freq = freq
 	case b.exp != event.NoExperiment:
-		if g.expData == nil {
-			g.expData = make(map[event.Experiment]*ExperimentalData)
+		if g.expBatches == nil {
+			g.expBatches = make(map[event.Experiment][]ExperimentalBatch)
 		}
-		if err := addExperimentalData(g.expData, b); err != nil {
+		if err := addExperimentalBatch(g.expBatches, b); err != nil {
 			return err
 		}
 	default:
@@ -435,18 +439,13 @@ func parseFreq(b batch) (frequency, error) {
 	return frequency(1.0 / (float64(f) / 1e9)), nil
 }
 
-// addExperimentalData takes an experimental batch and adds it to the ExperimentalData
-// for the experiment its a part of.
-func addExperimentalData(expData map[event.Experiment]*ExperimentalData, b batch) error {
+// addExperimentalBatch takes an experimental batch and adds it to the list of experimental
+// batches for the experiment its a part of.
+func addExperimentalBatch(expBatches map[event.Experiment][]ExperimentalBatch, b batch) error {
 	if b.exp == event.NoExperiment {
-		return fmt.Errorf("internal error: addExperimentalData called on non-experimental batch")
+		return fmt.Errorf("internal error: addExperimentalBatch called on non-experimental batch")
 	}
-	ed, ok := expData[b.exp]
-	if !ok {
-		ed = new(ExperimentalData)
-		expData[b.exp] = ed
-	}
-	ed.Batches = append(ed.Batches, ExperimentalBatch{
+	expBatches[b.exp] = append(expBatches[b.exp], ExperimentalBatch{
 		Thread: b.m,
 		Data:   b.data,
 	})
