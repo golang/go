@@ -475,9 +475,14 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
 	}
 
 	// create instance
-	// The instance is not generic anymore as it has type arguments, but it still
-	// satisfies the genericType interface because it has type parameters, too.
-	inst := check.instance(x.Pos(), gtyp, targs, nil, check.context()).(genericType)
+	// The instance is not generic anymore as it has type arguments, but unless
+	// instantiation failed, it still satisfies the genericType interface because
+	// it has type parameters, too.
+	ityp := check.instance(x.Pos(), gtyp, targs, nil, check.context())
+	inst, _ := ityp.(genericType)
+	if inst == nil {
+		return Typ[Invalid]
+	}
 
 	// For Named types, orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {
