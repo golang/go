@@ -244,17 +244,17 @@ var depsRules = `
 	# encodings
 	# core ones do not use fmt.
 	io, strconv, slices
-	< encoding;
+	< encoding, encoding/base32, encoding/base64;
 
 	encoding, reflect
-	< encoding/binary
-	< encoding/base32, encoding/base64;
+	< encoding/binary;
 
 	FMT, encoding < flag;
 
 	fmt !< encoding/base32, encoding/base64;
 
-	FMT, encoding/base32, encoding/base64, internal/saferio
+	FMT, encoding, encoding/base32, encoding/base64, encoding/binary,
+	internal/saferio
 	< encoding/ascii85, encoding/csv, encoding/gob, encoding/hex,
 	  encoding/json, encoding/pem, encoding/xml, mime;
 
@@ -662,7 +662,8 @@ var depsRules = `
 	log/slog, testing
 	< testing/slogtest;
 
-	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token,
+	FMT, crypto/sha256, encoding/binary, encoding/json,
+	go/ast, go/parser, go/token,
 	internal/godebug, math/rand, encoding/hex
 	< internal/fuzz;
 
