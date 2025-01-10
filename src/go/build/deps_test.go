@@ -552,7 +552,7 @@ var depsRules = `
 
 	# TLS, Prince of Dependencies.
 
-	FIPS, sync/atomic < crypto/tls/internal/fips140tls;
+	crypto/fips140, sync/atomic < crypto/tls/internal/fips140tls;
 
 	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;
 
