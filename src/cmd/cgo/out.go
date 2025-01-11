@@ -1094,7 +1094,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		// This unpacks the argument struct above and calls the Go function.
 		fmt.Fprintf(fgo2, "func _cgoexp%s_%s(a *%s) {\n", cPrefix, exp.ExpName, gotype)
 
-		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p){}\n", cPrefix, exp.ExpName)
+		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p __attribute__((unused))){}\n", cPrefix, exp.ExpName)
 
 		fmt.Fprintf(fgo2, "\t")
 
