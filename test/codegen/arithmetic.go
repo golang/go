@@ -185,6 +185,15 @@ func Pow2Muls(n1, n2 int) (int, int) {
 	return a, b
 }
 
+func Mul_2(n1 int32, n2 int64) (int32, int64) {
+	// amd64:"ADDL", -"SHLL"
+	a := n1 * 2
+	// amd64:"ADDQ", -"SHLQ"
+	b := n2 * 2
+
+	return a, b
+}
+
 func Mul_96(n int) int {
 	// amd64:`SHLQ\t[$]5`,`LEAQ\t\(.*\)\(.*\*2\),`,-`IMULQ`
 	// 386:`SHLL\t[$]5`,`LEAL\t\(.*\)\(.*\*2\),`,-`IMULL`
