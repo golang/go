@@ -252,6 +252,7 @@ func writebarrier(f *Func) {
 		var start, end int
 		var nonPtrStores int
 		values := b.Values
+		hasMove := false
 	FindSeq:
 		for i := len(values) - 1; i >= 0; i-- {
 			w := values[i]
@@ -263,6 +264,9 @@ func writebarrier(f *Func) {
 					end = i + 1
 				}
 				nonPtrStores = 0
+				if w.Op == OpMoveWB {
+					hasMove = true
+				}
 			case OpVarDef, OpVarLive:
 				continue
 			case OpStore:
@@ -271,6 +275,17 @@ func writebarrier(f *Func) {
 				}
 				nonPtrStores++
 				if nonPtrStores > 2 {
+					break FindSeq
+				}
+				if hasMove {
+					// We need to ensure that this store happens
+					// before we issue a wbMove, as the wbMove might
+					// use the result of this store as its source.
+					// Even though this store is not write-barrier
+					// eligible, it might nevertheless be the store
+					// of a pointer to the stack, which is then the
+					// source of the move.
+					// See issue 71228.
 					break FindSeq
 				}
 			default:

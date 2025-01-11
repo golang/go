@@ -53,3 +53,28 @@ func combine4slice(p *[4][]byte, a, b, c, d []byte) {
 	// arm64:-`.*runtime[.]gcWriteBarrier`
 	p[3] = d
 }
+
+type S struct {
+	a, b string
+	c    *int
+}
+
+var g1, g2 *int
+
+func issue71228(dst *S, ptr *int) {
+	// Make sure that the non-write-barrier write.
+	// "sp.c = ptr" happens before the large write
+	// barrier "*dst = *sp". We approximate testing
+	// that by ensuring that two global variable write
+	// barriers aren't combined.
+	_ = *dst
+	var s S
+	sp := &s
+	//amd64:`.*runtime[.]gcWriteBarrier1`
+	g1 = nil
+	sp.c = ptr // outside of any write barrier
+	//amd64:`.*runtime[.]gcWriteBarrier1`
+	g2 = nil
+	//amd64:`.*runtime[.]wbMove`
+	*dst = *sp
+}
