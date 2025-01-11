@@ -353,6 +353,10 @@
   (Add64 (Const64 <t> [c*d]) (Mul64 <t> (Const64 <t> [c]) x))
 (Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x)) =>
   (Add32 (Const32 <t> [c*d]) (Mul32 <t> (Const32 <t> [c]) x))
+(Mul16 (Const16 <t> [c]) (Add16 <t> (Const16 <t> [d]) x)) =>
+  (Add16 (Const16 <t> [c*d]) (Mul16 <t> (Const16 <t> [c]) x))
+(Mul8 (Const8 <t> [c]) (Add8 <t> (Const8 <t> [d]) x)) =>
+  (Add8 (Const8 <t> [c*d]) (Mul8 <t> (Const8 <t> [c]) x))
 
 // Rewrite x*y ± x*z  to  x*(y±z)
 (Add(64|32|16|8) <t> (Mul(64|32|16|8) x y) (Mul(64|32|16|8) x z))

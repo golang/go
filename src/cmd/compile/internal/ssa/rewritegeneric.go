@@ -18194,6 +18194,40 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 		}
 		break
 	}
+	// match: (Mul16 (Const16 <t> [c]) (Add16 <t> (Const16 <t> [d]) x))
+	// result: (Add16 (Const16 <t> [c*d]) (Mul16 <t> (Const16 <t> [c]) x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst16 {
+				continue
+			}
+			t := v_0.Type
+			c := auxIntToInt16(v_0.AuxInt)
+			if v_1.Op != OpAdd16 || v_1.Type != t {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
+				if v_1_0.Op != OpConst16 || v_1_0.Type != t {
+					continue
+				}
+				d := auxIntToInt16(v_1_0.AuxInt)
+				x := v_1_1
+				v.reset(OpAdd16)
+				v0 := b.NewValue0(v.Pos, OpConst16, t)
+				v0.AuxInt = int16ToAuxInt(c * d)
+				v1 := b.NewValue0(v.Pos, OpMul16, t)
+				v2 := b.NewValue0(v.Pos, OpConst16, t)
+				v2.AuxInt = int16ToAuxInt(c)
+				v1.AddArg2(v2, x)
+				v.AddArg2(v0, v1)
+				return true
+			}
+		}
+		break
+	}
 	// match: (Mul16 (Const16 [0]) _)
 	// result: (Const16 [0])
 	for {
@@ -18914,6 +18948,40 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 			v0.AddArg2(n, v1)
 			v.AddArg(v0)
 			return true
+		}
+		break
+	}
+	// match: (Mul8 (Const8 <t> [c]) (Add8 <t> (Const8 <t> [d]) x))
+	// result: (Add8 (Const8 <t> [c*d]) (Mul8 <t> (Const8 <t> [c]) x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst8 {
+				continue
+			}
+			t := v_0.Type
+			c := auxIntToInt8(v_0.AuxInt)
+			if v_1.Op != OpAdd8 || v_1.Type != t {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
+				if v_1_0.Op != OpConst8 || v_1_0.Type != t {
+					continue
+				}
+				d := auxIntToInt8(v_1_0.AuxInt)
+				x := v_1_1
+				v.reset(OpAdd8)
+				v0 := b.NewValue0(v.Pos, OpConst8, t)
+				v0.AuxInt = int8ToAuxInt(c * d)
+				v1 := b.NewValue0(v.Pos, OpMul8, t)
+				v2 := b.NewValue0(v.Pos, OpConst8, t)
+				v2.AuxInt = int8ToAuxInt(c)
+				v1.AddArg2(v2, x)
+				v.AddArg2(v0, v1)
+				return true
+			}
 		}
 		break
 	}
