@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/pem"
+	"os"
 	"sync"
 )
 
@@ -208,6 +209,19 @@ func (s *CertPool) addCertFunc(rawSum224 sum224, rawSubject string, getCert func
 		constraint: constraint,
 	})
 	s.byName[rawSubject] = append(s.byName[rawSubject], len(s.lazyCerts)-1)
+}
+
+// AppendCertsFromFile attempts to parse a series of File certificates.
+// It appends any certificates found to s and reports whether any certificates
+// were successfully parsed.
+// If an error occurs while reading the file, an error will be returned.
+func (s *CertPool) AppendCertsFromFile(path string) (bool, error) {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+
+	return s.AppendCertsFromPEM(file), nil
 }
 
 // AppendCertsFromPEM attempts to parse a series of PEM encoded certificates.

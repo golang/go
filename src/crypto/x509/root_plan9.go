@@ -23,9 +23,8 @@ func loadSystemRoots() (*CertPool, error) {
 	roots := NewCertPool()
 	var bestErr error
 	for _, file := range certFiles {
-		data, err := os.ReadFile(file)
+		_, err := roots.AppendCertsFromFile(file)
 		if err == nil {
-			roots.AppendCertsFromPEM(data)
 			return roots, nil
 		}
 		if bestErr == nil || (os.IsNotExist(bestErr) && !os.IsNotExist(err)) {
