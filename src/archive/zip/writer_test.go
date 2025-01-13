@@ -642,6 +642,9 @@ func TestWriterAddFS(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, wt := range tests {
+		if wt.Mode.IsDir() {
+			wt.Name += "/"
+		}
 		testReadFile(t, r.File[i], &wt)
 	}
 }
