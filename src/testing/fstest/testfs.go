@@ -570,7 +570,7 @@ func (t *fsTester) checkFileRead(file, desc string, data1, data2 []byte) {
 	}
 }
 
-// checkBadPath checks that various invalid forms of file's name cannot be opened using t.fsys.Open.
+// checkOpen validates file opening behavior by attempting to open and then close the given file path.
 func (t *fsTester) checkOpen(file string) {
 	t.checkBadPath(file, "Open", func(file string) error {
 		f, err := t.fsys.Open(file)
