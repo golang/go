@@ -41,6 +41,16 @@ func RegisterFormat(name, magic string, decode func(io.Reader) (Image, error), d
 	formatsMu.Unlock()
 }
 
+// ListFormats returns a list of registered format names.
+func ListFormats() []string {
+	formats, _ := atomicFormats.Load().([]format)
+	var list []string
+	for _, f := range formats {
+		list = append(list, f.name)
+	}
+	return list
+}
+
 // A reader is an io.Reader that can also peek ahead.
 type reader interface {
 	io.Reader
