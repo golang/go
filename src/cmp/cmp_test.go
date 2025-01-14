@@ -176,3 +176,30 @@ func ExampleOr_sort() {
 	// bar carol 1.00
 	// baz carol 4.00
 }
+
+func TestCompareBy(t *testing.T) {
+	type Person struct {
+		Name string
+		Age  int
+	}
+
+	// Key function to extract age for comparison
+	byAge := cmp.CompareBy(func(p Person) int {
+		return p.Age
+	})
+
+	// Test data
+	alice := Person{Name: "Alice", Age: 30}
+	bob := Person{Name: "Bob", Age: 25}
+
+	// Test comparisons
+	if got := byAge(alice, bob); got <= 0 {
+		t.Errorf("expected Alice > Bob by age, got %d", got)
+	}
+	if got := byAge(bob, alice); got >= 0 {
+		t.Errorf("expected Bob < Alice by age, got %d", got)
+	}
+	if got := byAge(alice, alice); got != 0 {
+		t.Errorf("expected Alice == Alice by age, got %d", got)
+	}
+}

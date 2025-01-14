@@ -75,3 +75,22 @@ func Or[T comparable](vals ...T) T {
 	}
 	return zero
 }
+
+// CompareBy returns a comparison function for values of type V.
+// The comparison is based on a key function that transforms each value
+// of type V into a comparable type K (which must satisfy the Ordered constraint).
+// The resulting comparison function can be used in sorting or other comparisons.
+//
+// This is similar to Python's key functions and integrates well with
+// other proposed features like Reverse (#65632).
+//
+// Example usage:
+//
+//	people := []Person{{"Alice", 30}, {"Bob", 25}}
+//	sort.Slice(people, cmp.CompareBy(func(p Person) int { return p.Age }))
+func CompareBy[K Ordered, V any](key func(V) K) func(V, V) int {
+	return func(a, b V) int {
+		// Compare the transformed values using the Compare function
+		return Compare(key(a), key(b))
+	}
+}
