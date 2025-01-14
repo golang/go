@@ -139,10 +139,20 @@ func findPath(objMap map[Object]*declInfo, from, to Object, seen map[Object]bool
 	}
 	seen[from] = true
 
+	if objMap[from].deps[to] {
+		return []Object{to}
+	}
+
+	// sort deps for deterministic result
+	var deps []Object
 	for d := range objMap[from].deps {
-		if d == to {
-			return []Object{d}
-		}
+		deps = append(deps, d)
+	}
+	slices.SortFunc(deps, func(x, y Object) int {
+		return cmp.Compare(x.order(), y.order())
+	})
+
+	for _, d := range deps {
 		if P := findPath(objMap, d, to, seen); P != nil {
 			return append(P, d)
 		}
