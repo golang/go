@@ -43,6 +43,7 @@ type Interface struct {
 	Index        int          // positive integer that starts at one, zero is never used
 	MTU          int          // maximum transmission unit
 	Name         string       // e.g., "en0", "lo0", "eth0.100"
+	Description  string       // e.g., "Software Loopback Interface 1", "Intel(R) 82574L Gigabit Network Connection"
 	HardwareAddr HardwareAddr // IEEE MAC-48, EUI-48 and EUI-64 form
 	Flags        Flags        // e.g., FlagUp, FlagLoopback, FlagMulticast
 }
