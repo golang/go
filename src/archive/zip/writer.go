@@ -526,6 +526,7 @@ func (w *Writer) AddFS(fsys fs.FS) error {
 			return err
 		}
 		if d.IsDir() {
+			h.Name += "/"
 			return nil
 		}
 		f, err := fsys.Open(name)
