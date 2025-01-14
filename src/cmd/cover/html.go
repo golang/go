@@ -82,9 +82,8 @@ func htmlOutput(profile, outfile string) error {
 	}
 
 	if outfile == "" {
-		if !browser.Open("file://" + out.Name()) {
-			fmt.Fprintf(os.Stderr, "HTML output written to %s\n", out.Name())
-		}
+		fmt.Fprintf(os.Stderr, "HTML output written to %s\n", out.Name())
+		browser.Open("file://" + out.Name())
 	}
 
 	return nil
