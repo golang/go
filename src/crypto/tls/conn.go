@@ -749,7 +749,7 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 		// 5, a server can send a ChangeCipherSpec before its ServerHello, when
 		// c.vers is still unset. That's not useful though and suspicious if the
 		// server then selects a lower protocol version, so don't allow that.
-		if c.vers == VersionTLS13 {
+		if c.vers == VersionTLS13 && !handshakeComplete {
 			return c.retryReadRecord(expectChangeCipherSpec)
 		}
 		if !expectChangeCipherSpec {
