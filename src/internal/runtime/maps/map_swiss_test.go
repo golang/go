@@ -50,7 +50,6 @@ func TestTableGroupCount(t *testing.T) {
 	var testCases = []struct {
 		n      int     // n is the number of map elements
 		escape mapCase // expected values for escaping map
-		// TODO(go.dev/issue/54766): implement stack allocated maps
 	}{
 		{
 			n: -(1 << 30),
