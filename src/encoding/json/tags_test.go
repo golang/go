@@ -4,9 +4,7 @@
 
 package json
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestTagParsing(t *testing.T) {
 	name, opts := parseTag("field,foobar,foo")

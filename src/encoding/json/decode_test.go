@@ -1321,7 +1321,7 @@ func TestUnmarshal(t *testing.T) {
 			var scan scanner
 			if err := checkValid(in, &scan); err != nil {
 				if !equalError(err, tt.err) {
-					t.Fatalf("%s: checkValid error: %#v", tt.Where, err)
+					t.Fatalf("%s: checkValid error:\n\tgot  %#v\n\twant %#v", tt.Where, err, tt.err)
 				}
 			}
 			if tt.ptr == nil {
@@ -1355,7 +1355,7 @@ func TestUnmarshal(t *testing.T) {
 				dec.DisallowUnknownFields()
 			}
 			if err := dec.Decode(v.Interface()); !equalError(err, tt.err) {
-				t.Fatalf("%s: Decode error:\n\tgot:  %#v\n\twant: %#v", tt.Where, err, tt.err)
+				t.Fatalf("%s: Decode error:\n\tgot:  %v\n\twant: %v\n\n\tgot:  %#v\n\twant: %#v", tt.Where, err, tt.err, err, tt.err)
 			} else if err != nil && tt.out == nil {
 				// Initialize tt.out during an error where there are no mutations,
 				// so the output is just the zero value of the input type.
