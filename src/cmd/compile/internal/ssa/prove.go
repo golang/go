@@ -1362,11 +1362,11 @@ func prove(f *Func) {
 			start, end = end, start
 		}
 
-		if !(start.Op == OpConst8 || start.Op == OpConst16 || start.Op == OpConst32 || start.Op == OpConst64) {
+		if !start.isGenericIntConst() {
 			// if start is not a constant we would be winning nothing from inverting the loop
 			continue
 		}
-		if end.Op == OpConst8 || end.Op == OpConst16 || end.Op == OpConst32 || end.Op == OpConst64 {
+		if end.isGenericIntConst() {
 			// TODO: if both start and end are constants we should rewrite such that the comparison
 			// is against zero and nxt is ++ or -- operation
 			// That means:
