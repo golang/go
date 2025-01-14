@@ -201,7 +201,10 @@ func BenchmarkAll(b *testing.B) {
 		for _, context := range contexts {
 			w := NewWalker(context, filepath.Join(testenv.GOROOT(b), "src"))
 			for _, name := range w.stdPackages {
-				pkg, _ := w.import_(name)
+				pkg, err := w.import_(name)
+				if _, nogo := err.(*build.NoGoError); nogo {
+					continue
+				}
 				w.export(pkg)
 			}
 			w.Features()
