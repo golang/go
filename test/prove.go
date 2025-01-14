@@ -1712,6 +1712,24 @@ func clampedIdx2(x []int, i int) int {
 	return x[max(min(i, len(x)-1), 0)] // TODO: can't get rid of this bounds check yet
 }
 
+func cvtBoolToUint8Disprove(b bool) byte {
+	var c byte
+	if b {
+		c = 1
+	}
+	if c == 2 { // ERROR "Disproved Eq8"
+		c = 3
+	}
+	return c
+}
+func cvtBoolToUint8BCE(b bool, a [2]int64) int64 {
+	c := byte(0)
+	if b {
+		c = 1
+	}
+	return a[c] // ERROR "Proved IsInBounds$"
+}
+
 //go:noinline
 func useInt(a int) {
 }

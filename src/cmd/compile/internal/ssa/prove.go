@@ -1653,6 +1653,10 @@ func initLimit(v *Value) limit {
 	case OpCtz8, OpBitLen8:
 		lim = lim.unsignedMax(8)
 
+	// bool to uint8 conversion
+	case OpCvtBoolToUint8:
+		lim = lim.unsignedMax(1)
+
 	// length operations
 	case OpStringLen, OpSliceLen, OpSliceCap:
 		lim = lim.signedMin(0)
