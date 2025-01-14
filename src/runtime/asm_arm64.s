@@ -1036,13 +1036,60 @@ aesloop:
 	VMOV	V0.D[0], R0
 	RET
 
+// The Arm architecture provides a user space accessible counter-timer which
+// is incremented at a fixed but machine-specific rate. Software can (spin)
+// wait until the counter-timer reaches some desired value.
+//
+// Armv8.7-A introduced the WFET (FEAT_WFxT) instruction, which allows the
+// processor to enter a low power state for a set time, or until an event is
+// received.
+//
+// However, WFET is not used here because it is only available on newer hardware,
+// and we aim to maintain compatibility with older Armv8-A platforms that do not
+// support this feature.
+//
+// As a fallback, we can instead use the ISB instruction to decrease processor
+// activity and thus power consumption between checks of the counter-timer.
+// Note that we do not depend on the latency of the ISB instruction which is
+// implementation specific. Actual delay comes from comparing against a fresh
+// read of the counter-timer value.
+//
+// Read more in this Arm blog post:
+// https://community.arm.com/arm-community-blogs/b/architectures-and-processors-blog/posts/multi-threaded-applications-arm
+
 TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
 	MOVWU	cycles+0(FP), R0
-	CBZ	R0, done
-again:
-	YIELD
-	SUBW	$1, R0
-	CBNZ	R0, again
+	CBZ	 R0, done
+	//Prevent speculation of subsequent counter/timer reads and memory accesses.
+	ISB     $15
+	// If the delay is very short, just return.
+	// Hardcode 18ns as the first ISB delay.
+	CMP     $18, R0
+	BLS     done
+	// Adjust for overhead of initial ISB.
+	SUB     $18, R0, R0
+	// Convert the delay from nanoseconds to counter/timer ticks.
+	// Read the counter/timer frequency.
+	// delay_ticks = (delay * CNTFRQ_EL0) / 1e9
+	// With the below simplifications and adjustments,
+	// we are usually within 2% of the correct value:
+	// delay_ticks = (delay + delay / 16) * CNTFRQ_EL0 >> 30
+	MRS     CNTFRQ_EL0, R1
+	ADD     R0>>4, R0, R0
+	MUL     R1, R0, R0
+	LSR     $30, R0, R0
+	CBZ     R0, done
+	// start = current counter/timer value
+	MRS     CNTVCT_EL0, R2
+delay:
+	// Delay using ISB for all ticks.
+	ISB     $15
+	// Substract and compare to handle counter roll-over.
+	// counter_read() - start < delay_ticks
+	MRS     CNTVCT_EL0, R1
+	SUB     R2, R1, R1
+	CMP     R0, R1
+	BCC     delay
 done:
 	RET
 
