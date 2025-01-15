@@ -104,7 +104,7 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/cpu/classes/scavenge/assist:cpu-seconds
 		Estimated total CPU time spent returning unused memory to the
-		underlying platform in response eagerly in response to memory
+		underlying platform in response eagerly to memory
 		pressure. This metric is an overestimate, and not directly
 		comparable to system CPU time measurements. Compare only with
 		other /cpu/classes metrics.
