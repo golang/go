@@ -14,6 +14,7 @@ import (
 	"go/build"
 	"go/scanner"
 	"go/token"
+	"internal/godebug"
 	"internal/platform"
 	"io/fs"
 	"os"
@@ -2110,6 +2111,8 @@ func ResolveEmbed(dir string, patterns []string) ([]string, error) {
 	return files, err
 }
 
+var embedfollowsymlinks = godebug.New("embedfollowsymlinks")
+
 // resolveEmbed resolves //go:embed patterns to precise file lists.
 // It sets files to the list of unique files matched (for go list),
 // and it sets pmap to the more precise mapping from
@@ -2190,6 +2193,24 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 
 			case info.Mode().IsRegular():
 				if have[rel] != pid {
+					have[rel] = pid
+					list = append(list, rel)
+				}
+
+			// If the embedfollowsymlinks GODEBUG is set to 1, allow the leaf file to be a
+			// symlink (#59924). We don't allow directories to be symlinks and have already
+			// checked that none of the parent directories of the file are symlinks in the
+			// loop above. The file pointed to by the symlink must be a regular file.
+			case embedfollowsymlinks.Value() == "1" && info.Mode()&fs.ModeType == fs.ModeSymlink:
+				info, err := fsys.Stat(file)
+				if err != nil {
+					return nil, nil, err
+				}
+				if !info.Mode().IsRegular() {
+					return nil, nil, fmt.Errorf("cannot embed irregular file %s", rel)
+				}
+				if have[rel] != pid {
+					embedfollowsymlinks.IncNonDefault()
 					have[rel] = pid
 					list = append(list, rel)
 				}

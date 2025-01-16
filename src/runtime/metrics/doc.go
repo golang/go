@@ -234,6 +234,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the time package
 		due to a non-default GODEBUG=asynctimerchan=... setting.
 
+	/godebug/non-default-behavior/embedfollowsymlinks:events
+		The number of non-default behaviors executed by the cmd/go
+		package due to a non-default GODEBUG=embedfollowsymlinks=...
+		setting.
+
 	/godebug/non-default-behavior/execerrdot:events
 		The number of non-default behaviors executed by the os/exec
 		package due to a non-default GODEBUG=execerrdot=... setting.

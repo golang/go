@@ -31,11 +31,16 @@ cp x.txt .git
 stderr '^x.go:5:12: pattern [*]t: cannot embed file [.]git: invalid name [.]git$'
 rm .git
 
-# build rejects symlinks
+# build rejects symlinks by default
 [symlink] symlink x.tzt -> x.txt
 [symlink] ! go build -x
 [symlink] stderr 'pattern [*]t: cannot embed irregular file x.tzt'
+# with GODEBUG embedfollowsymlinks=1, build allows symlinks of leaf files
+[symlink] env 'GODEBUG=embedfollowsymlinks=1'
+[symlink] go build -x
+[symlink] stderr 'x.tzt'
 [symlink] rm x.tzt
+[symlink] env 'GODEBUG='
 
 # build rejects empty directories
 mkdir t
@@ -71,6 +76,24 @@ go build -x
 rm t/.x.txt
 cp x.txt t/_x.txt
 go build -x
+
+# build disallows symlinks of directories
+[symlink] symlink symdir -> symdirdst
+[symlink] cp x.go4 x.go
+[symlink] ! go build -x
+[symlink] stderr 'x.go:5:12: pattern symdir/[*]: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
+[symlink] cp x.go5 x.go
+[symlink] ! go build -x
+[symlink] stderr 'x.go:5:12: pattern symdir/x.txt: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
+# even with GODEBUG=embedfollowsymlinks=1
+[symlink] env 'GODEBUG=embedfollowsymlinks=1'
+[symlink] cp x.go4 x.go
+[symlink] ! go build -x
+[symlink] stderr 'x.go:5:12: pattern symdir/[*]: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
+[symlink] cp x.go5 x.go
+[symlink] ! go build -x
+[symlink] stderr 'x.go:5:12: pattern symdir/x.txt: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
+[symlink] env 'GODEBUG='
 
 -- x.go --
 package p
@@ -112,6 +135,20 @@ import "embed"
 //go:embed all:t
 var X embed.FS
 
+-- x.go4 --
+package p
+
+import "embed"
+
+//go:embed symdir/*
+var X embed.FS
+-- x.go5 --
+package p
+
+import "embed"
+
+//go:embed symdir/x.txt
+var Z string
 -- x.txt --
 hello
 
@@ -124,6 +161,7 @@ not hello
 package use
 
 import _ "m"
+-- symdirdst/x.txt --
 -- go.mod --
 module m
 

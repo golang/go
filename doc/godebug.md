@@ -164,6 +164,11 @@ reverts to the pre-Go 1.25 behavior. This setting is fixed at program startup
 time, and can't be modified by changing the `GODEBUG` environment variable
 after the program starts.
 
+Go 1.25 added a new `embedfollowsymlinks` setting that controls whether the
+Go command will follow symlinks to regular files embedding files.
+The default value `embedfollowsymlinks=0` does not allow following
+symlinks. `embedfollowsymlinks=1` will allow following symlinks.
+
 ### Go 1.24
 
 Go 1.24 added a new `fips140` setting that controls whether the Go

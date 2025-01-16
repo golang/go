@@ -28,6 +28,7 @@ var All = []Info{
 	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
 	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
 	{Name: "decoratemappings", Package: "runtime", Opaque: true, Changed: 25, Old: "0"},
+	{Name: "embedfollowsymlinks", Package: "cmd/go"},
 	{Name: "execerrdot", Package: "os/exec"},
 	{Name: "fips140", Package: "crypto/fips140", Opaque: true},
 	{Name: "gocachehash", Package: "cmd/go"},
