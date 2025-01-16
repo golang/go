@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
 	"cmd/internal/pkgpattern"
 )
@@ -45,11 +46,23 @@ func MatchPackage(pattern, cwd string) func(*Package) bool {
 			return matchPath(rel)
 		}
 	case pattern == "all":
+		// This is slightly inaccurate: it matches every package, which isn't the same
+		// as matching the "all" package pattern.
+		// TODO(matloob): Should we make this more accurate? Does anyone depend on this behavior?
 		return func(p *Package) bool { return true }
 	case pattern == "std":
 		return func(p *Package) bool { return p.Standard }
 	case pattern == "cmd":
 		return func(p *Package) bool { return p.Standard && strings.HasPrefix(p.ImportPath, "cmd/") }
+	case pattern == "tool" && modload.Enabled():
+		return func(p *Package) bool {
+			return modload.MainModules.Tools()[p.ImportPath]
+		}
+	case pattern == "work" && modload.Enabled():
+		return func(p *Package) bool {
+			return p.Module != nil && modload.MainModules.Contains(p.Module.Path)
+		}
+
 	default:
 		matchPath := pkgpattern.MatchPattern(pattern)
 		return func(p *Package) bool { return matchPath(p.ImportPath) }

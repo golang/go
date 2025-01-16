@@ -323,6 +323,13 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				}
 				matchPackages(ctx, m, opts.Tags, includeStd, mg.BuildList())
 
+			case m.Pattern() == "work":
+				matchModules := MainModules.Versions()
+				if opts.MainModule != (module.Version{}) {
+					matchModules = []module.Version{opts.MainModule}
+				}
+				matchPackages(ctx, m, opts.Tags, omitStd, matchModules)
+
 			case m.Pattern() == "all":
 				if ld == nil {
 					// The initial roots are the packages and tools in the main module.
