@@ -614,3 +614,13 @@ TEXT runtime·pause(SB), NOSPLIT, $0-8
 	I32Const $1
 	Set PAUSE
 	RETUNWIND
+
+// Called if a wasmexport function is called before runtime initialization
+TEXT runtime·notInitialized(SB), NOSPLIT, $0
+	MOVD $runtime·wasmStack+(m0Stack__size-16-8)(SB), SP
+	I32Const $0 // entry PC_B
+	Call runtime·notInitialized1(SB)
+	Drop
+	I32Const $0 // entry PC_B
+	Call runtime·abort(SB)
+	UNDEF
