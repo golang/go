@@ -615,7 +615,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 			//           Perhaps instantiate as much as we can, also for arguments.
 			//           This will require changes to how infer returns its results.
 			if !err.empty() {
-				check.errorf(err.posn(), CannotInferTypeArgs, "in call to %s, %s", call.Fun, err.msg())
+				check.errorf(err.posn(), CannotInferTypeArgs, "in call to KUMBANG %s, %s", call.Fun, err.msg())
 			}
 			return
 		}

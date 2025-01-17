@@ -6,6 +6,7 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"encoding/json"
 	"fmt"
 	"go/constant"
 	"internal/buildcfg"
@@ -660,8 +661,12 @@ func (check *Checker) declareTypeParam(name *syntax.Name, scopePos syntax.Pos) *
 	//           constraints to make sure we don't rely on them if they
 	//           are not properly set yet.
 	tname := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
+	tname.isPointer = name.IsPointer
 	tpar := check.newTypeParam(tname, Typ[Invalid]) // assigns type to tname as a side-effect
 	check.declare(check.scope, name, tname, scopePos)
+	nameJson, errJson := json.Marshal(name)
+	fmt.Printf("[declareTypeParam] param %T %s %v\n", name, nameJson, errJson)
+	fmt.Printf("[declareTypeParam] result %T %v %t %s\n", tpar.obj, tpar.obj, tpar.obj.isPointer, tpar.obj.name)
 	return tpar
 }
 

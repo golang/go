@@ -142,6 +142,8 @@ func (t *TypeParam) iface() *Interface {
 		computeInterfaceTypeSet(t.check, pos, ityp)
 	}
 
+	ityp.isPointer = t.obj.isPointer
+
 	return ityp
 }
 

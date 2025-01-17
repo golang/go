@@ -22,6 +22,8 @@ type Interface struct {
 	complete  bool          // indicates that all fields (except for tset) are set up
 
 	tset *_TypeSet // type set described by this interface, computed lazily
+
+	isPointer bool
 }
 
 // typeSet returns the type set for interface t.
