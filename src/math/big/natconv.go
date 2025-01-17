@@ -321,17 +321,20 @@ func (x nat) itoa(neg bool, base int) []byte {
 		}
 
 	} else {
+		stk := getStack()
+		defer stk.free()
+
 		bb, ndigits := maxPow(b)
 
 		// construct table of successive squares of bb*leafSize to use in subdivisions
 		// result (table != nil) <=> (len(x) > leafSize > 0)
-		table := divisors(len(x), b, ndigits, bb)
+		table := divisors(stk, len(x), b, ndigits, bb)
 
 		// preserve x, create local copy for use by convertWords
 		q := nat(nil).set(x)
 
 		// convert q to string s in base b
-		q.convertWords(s, b, ndigits, bb, table)
+		q.convertWords(stk, s, b, ndigits, bb, table)
 
 		// strip leading zeros
 		// (x != 0; thus s must contain at least one non-zero digit
@@ -365,7 +368,7 @@ func (x nat) itoa(neg bool, base int) []byte {
 // range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and
 // ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
 // specific hardware.
-func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []divisor) {
+func (q nat) convertWords(stk *stack, s []byte, b Word, ndigits int, bb Word, table []divisor) {
 	// split larger blocks recursively
 	if table != nil {
 		// len(q) > leafSize > 0
@@ -386,12 +389,12 @@ func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []diviso
 			}
 
 			// split q into the two digit number (q'*bbb + r) to form independent subblocks
-			q, r = q.div(r, q, table[index].bbb)
+			q, r = q.div(stk, r, q, table[index].bbb)
 
 			// convert subblocks and collect results in s[:h] and s[h:]
 			h := len(s) - table[index].ndigits
-			r.convertWords(s[h:], b, ndigits, bb, table[0:index])
-			s = s[:h] // == q.convertWords(s, b, ndigits, bb, table[0:index+1])
+			r.convertWords(stk, s[h:], b, ndigits, bb, table[0:index])
+			s = s[:h] // == q.convertWords(stk, s, b, ndigits, bb, table[0:index+1])
 		}
 	}
 
@@ -451,12 +454,12 @@ var cacheBase10 struct {
 }
 
 // expWW computes x**y
-func (z nat) expWW(x, y Word) nat {
-	return z.expNN(nat(nil).setWord(x), nat(nil).setWord(y), nil, false)
+func (z nat) expWW(stk *stack, x, y Word) nat {
+	return z.expNN(stk, nat(nil).setWord(x), nat(nil).setWord(y), nil, false)
 }
 
 // construct table of powers of bb*leafSize to use in subdivisions.
-func divisors(m int, b Word, ndigits int, bb Word) []divisor {
+func divisors(stk *stack, m int, b Word, ndigits int, bb Word) []divisor {
 	// only compute table when recursive conversion is enabled and x is large
 	if leafSize == 0 || m <= leafSize {
 		return nil
@@ -484,10 +487,10 @@ func divisors(m int, b Word, ndigits int, bb Word) []divisor {
 		for i := 0; i < k; i++ {
 			if table[i].ndigits == 0 {
 				if i == 0 {
-					table[0].bbb = nat(nil).expWW(bb, Word(leafSize))
+					table[0].bbb = nat(nil).expWW(stk, bb, Word(leafSize))
 					table[0].ndigits = ndigits * leafSize
 				} else {
-					table[i].bbb = nat(nil).sqr(table[i-1].bbb)
+					table[i].bbb = nat(nil).sqr(stk, table[i-1].bbb)
 					table[i].ndigits = 2 * table[i-1].ndigits
 				}
 

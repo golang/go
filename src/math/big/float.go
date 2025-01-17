@@ -1327,9 +1327,9 @@ func (z *Float) umul(x, y *Float) {
 
 	e := int64(x.exp) + int64(y.exp)
 	if x == y {
-		z.mant = z.mant.sqr(x.mant)
+		z.mant = z.mant.sqr(nil, x.mant)
 	} else {
-		z.mant = z.mant.mul(x.mant, y.mant)
+		z.mant = z.mant.mul(nil, x.mant, y.mant)
 	}
 	z.setExpAndRound(e-fnorm(z.mant), 0)
 }
@@ -1363,8 +1363,10 @@ func (z *Float) uquo(x, y *Float) {
 	d := len(xadj) - len(y.mant)
 
 	// divide
+	stk := getStack()
+	defer stk.free()
 	var r nat
-	z.mant, r = z.mant.div(nil, xadj, y.mant)
+	z.mant, r = z.mant.div(stk, nil, xadj, y.mant)
 	e := int64(x.exp) - int64(y.exp) - int64(d-len(z.mant))*_W
 
 	// The result is long enough to include (at least) the rounding bit.

@@ -17,6 +17,7 @@ import (
 	"internal/byteorder"
 	"math/bits"
 	"math/rand"
+	"slices"
 	"sync"
 )
 
@@ -262,9 +263,9 @@ var karatsubaThreshold = 40 // computed by calibrate_test.go
 
 // karatsuba multiplies x and y and leaves the result in z.
 // Both x and y must have the same length n and n must be a
-// power of 2. The result vector z must have len(z) >= 6*n.
-// The (non-normalized) result is placed in z[0 : 2*n].
-func karatsuba(z, x, y nat) {
+// power of 2. The result vector z must have len(z) == len(x)+len(y).
+// The (non-normalized) result is placed in z.
+func karatsuba(stk *stack, z, x, y nat) {
 	n := len(y)
 
 	// Switch to basic multiplication if numbers are odd or small.
@@ -304,29 +305,19 @@ func karatsuba(z, x, y nat) {
 	x1, x0 := x[n2:], x[0:n2] // x = x1*b + y0
 	y1, y0 := y[n2:], y[0:n2] // y = y1*b + y0
 
-	// z is used for the result and temporary storage:
-	//
-	//   6*n     5*n     4*n     3*n     2*n     1*n     0*n
-	// z = [z2 copy|z0 copy| xd*yd | yd:xd | x1*y1 | x0*y0 ]
-	//
-	// For each recursive call of karatsuba, an unused slice of
-	// z is passed in that has (at least) half the length of the
-	// caller's z.
-
 	// compute z0 and z2 with the result "in place" in z
-	karatsuba(z, x0, y0)     // z0 = x0*y0
-	karatsuba(z[n:], x1, y1) // z2 = x1*y1
+	karatsuba(stk, z, x0, y0)     // z0 = x0*y0
+	karatsuba(stk, z[n:], x1, y1) // z2 = x1*y1
 
-	// compute xd (or the negative value if underflow occurs)
+	// compute xd, yd (or the negative value if underflow occurs)
 	s := 1 // sign of product xd*yd
-	xd := z[2*n : 2*n+n2]
+	defer stk.restore(stk.save())
+	xd := stk.nat(n2)
+	yd := stk.nat(n2)
 	if subVV(xd, x1, x0) != 0 { // x1-x0
 		s = -s
 		subVV(xd, x0, x1) // x0-x1
 	}
-
-	// compute yd (or the negative value if underflow occurs)
-	yd := z[2*n+n2 : 3*n]
 	if subVV(yd, y0, y1) != 0 { // y0-y1
 		s = -s
 		subVV(yd, y1, y0) // y1-y0
@@ -334,12 +325,12 @@ func karatsuba(z, x, y nat) {
 
 	// p = (x1-x0)*(y0-y1) == x1*y0 - x1*y1 - x0*y0 + x0*y1 for s > 0
 	// p = (x0-x1)*(y0-y1) == x0*y0 - x0*y1 - x1*y0 + x1*y1 for s < 0
-	p := z[n*3:]
-	karatsuba(p, xd, yd)
+	p := stk.nat(2 * n2)
+	karatsuba(stk, p, xd, yd)
 
 	// save original z2:z0
 	// (ok to use upper half of z since we're done recurring)
-	r := z[n*4:]
+	r := stk.nat(n * 2)
 	copy(r, z[:n*2])
 
 	// add up all partial products
@@ -396,13 +387,15 @@ func karatsubaLen(n, threshold int) int {
 	return n << i
 }
 
-func (z nat) mul(x, y nat) nat {
+// mul sets z = x*y, using stk for temporary storage.
+// The caller may pass stk == nil to request that mul obtain and release one itself.
+func (z nat) mul(stk *stack, x, y nat) nat {
 	m := len(x)
 	n := len(y)
 
 	switch {
 	case m < n:
-		return z.mul(y, x)
+		return z.mul(stk, y, x)
 	case m == 0 || n == 0:
 		return z[:0]
 	case n == 1:
@@ -432,12 +425,16 @@ func (z nat) mul(x, y nat) nat {
 	k := karatsubaLen(n, karatsubaThreshold)
 	// k <= n
 
+	if stk == nil {
+		stk = getStack()
+		defer stk.free()
+	}
+
 	// multiply x0 and y0 via Karatsuba
-	x0 := x[0:k]              // x0 is not normalized
-	y0 := y[0:k]              // y0 is not normalized
-	z = z.make(max(6*k, m+n)) // enough space for karatsuba of x0*y0 and full result of x*y
-	karatsuba(z, x0, y0)
-	z = z[0 : m+n] // z has final length but may be incomplete
+	x0 := x[0:k]      // x0 is not normalized
+	y0 := y[0:k]      // y0 is not normalized
+	z = z.make(m + n) // enough space for full result of x*y
+	karatsuba(stk, z, x0, y0)
 	clear(z[2*k:]) // upper portion of z is garbage (and 2*k <= m+n since k <= n <= m)
 
 	// If xh != 0 or yh != 0, add the missing terms to z. For
@@ -454,13 +451,13 @@ func (z nat) mul(x, y nat) nat {
 	// be a larger valid threshold contradicting the assumption about k.
 	//
 	if k < n || m != n {
-		tp := getNat(3 * k)
-		t := *tp
+		defer stk.restore(stk.save())
+		t := stk.nat(3 * k)
 
 		// add x0*y1*b
 		x0 := x0.norm()
-		y1 := y[k:]       // y1 is normalized because y is
-		t = t.mul(x0, y1) // update t so we don't lose t's underlying array
+		y1 := y[k:]            // y1 is normalized because y is
+		t = t.mul(stk, x0, y1) // update t so we don't lose t's underlying array
 		addAt(z, t, k)
 
 		// add xi*y0<<i, xi*y1*b<<(i+k)
@@ -471,13 +468,11 @@ func (z nat) mul(x, y nat) nat {
 				xi = xi[:k]
 			}
 			xi = xi.norm()
-			t = t.mul(xi, y0)
+			t = t.mul(stk, xi, y0)
 			addAt(z, t, i)
-			t = t.mul(xi, y1)
+			t = t.mul(stk, xi, y1)
 			addAt(z, t, i+k)
 		}
-
-		putNat(tp)
 	}
 
 	return z.norm()
@@ -487,10 +482,10 @@ func (z nat) mul(x, y nat) nat {
 // by about a factor of 2, but slower for small arguments due to overhead.
 // Requirements: len(x) > 0, len(z) == 2*len(x)
 // The (non-normalized) result is placed in z.
-func basicSqr(z, x nat) {
+func basicSqr(stk *stack, z, x nat) {
 	n := len(x)
-	tp := getNat(2 * n)
-	t := *tp // temporary variable to hold the products
+	defer stk.restore(stk.save())
+	t := stk.nat(2 * n)
 	clear(t)
 	z[1], z[0] = mulWW(x[0], x[0]) // the initial square
 	for i := 1; i < n; i++ {
@@ -502,38 +497,37 @@ func basicSqr(z, x nat) {
 	}
 	t[2*n-1] = shlVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
 	addVV(z, z, t)                              // combine the result
-	putNat(tp)
 }
 
 // karatsubaSqr squares x and leaves the result in z.
-// len(x) must be a power of 2 and len(z) >= 6*len(x).
-// The (non-normalized) result is placed in z[0 : 2*len(x)].
+// len(x) must be a power of 2 and len(z) == 2*len(x).
+// The (non-normalized) result is placed in z.
 //
 // The algorithm and the layout of z are the same as for karatsuba.
-func karatsubaSqr(z, x nat) {
+func karatsubaSqr(stk *stack, z, x nat) {
 	n := len(x)
 
 	if n&1 != 0 || n < karatsubaSqrThreshold || n < 2 {
-		basicSqr(z[:2*n], x)
+		basicSqr(stk, z[:2*n], x)
 		return
 	}
 
 	n2 := n >> 1
 	x1, x0 := x[n2:], x[0:n2]
 
-	karatsubaSqr(z, x0)
-	karatsubaSqr(z[n:], x1)
+	karatsubaSqr(stk, z, x0)
+	karatsubaSqr(stk, z[n:], x1)
 
 	// s = sign(xd*yd) == -1 for xd != 0; s == 1 for xd == 0
-	xd := z[2*n : 2*n+n2]
+	defer stk.restore(stk.save())
+	p := stk.nat(2 * n2)
+	r := stk.nat(n * 2)
+	xd := r[:n2]
 	if subVV(xd, x1, x0) != 0 {
 		subVV(xd, x0, x1)
 	}
 
-	p := z[n*3:]
-	karatsubaSqr(p, xd)
-
-	r := z[n*4:]
+	karatsubaSqr(stk, p, xd)
 	copy(r, z[:n*2])
 
 	karatsubaAdd(z[n2:], r, n)
@@ -547,8 +541,9 @@ func karatsubaSqr(z, x nat) {
 var basicSqrThreshold = 20      // computed by calibrate_test.go
 var karatsubaSqrThreshold = 260 // computed by calibrate_test.go
 
-// z = x*x
-func (z nat) sqr(x nat) nat {
+// sqr sets z = x*x, using stk for temporary storage.
+// The caller may pass stk == nil to request that sqr obtain and release one itself.
+func (z nat) sqr(stk *stack, x nat) nat {
 	n := len(x)
 	switch {
 	case n == 0:
@@ -563,15 +558,20 @@ func (z nat) sqr(x nat) nat {
 	if alias(z, x) {
 		z = nil // z is an alias for x - cannot reuse
 	}
+	z = z.make(2 * n)
 
 	if n < basicSqrThreshold {
-		z = z.make(2 * n)
 		basicMul(z, x, x)
 		return z.norm()
 	}
+
+	if stk == nil {
+		stk = getStack()
+		defer stk.free()
+	}
+
 	if n < karatsubaSqrThreshold {
-		z = z.make(2 * n)
-		basicSqr(z, x)
+		basicSqr(stk, z, x)
 		return z.norm()
 	}
 
@@ -583,22 +583,18 @@ func (z nat) sqr(x nat) nat {
 	k := karatsubaLen(n, karatsubaSqrThreshold)
 
 	x0 := x[0:k]
-	z = z.make(max(6*k, 2*n))
-	karatsubaSqr(z, x0) // z = x0^2
-	z = z[0 : 2*n]
+	karatsubaSqr(stk, z, x0) // z = x0^2
 	clear(z[2*k:])
 
 	if k < n {
-		tp := getNat(2 * k)
-		t := *tp
+		t := stk.nat(2 * k)
 		x0 := x0.norm()
 		x1 := x[k:]
-		t = t.mul(x0, x1)
+		t = t.mul(stk, x0, x1)
 		addAt(z, t, k)
 		addAt(z, t, k) // z = 2*x1*x0*b + x0^2
-		t = t.sqr(x1)
+		t = t.sqr(stk, x1)
 		addAt(z, t, 2*k) // z = x1^2*b^2 + 2*x1*x0*b + x0^2
-		putNat(tp)
 	}
 
 	return z.norm()
@@ -606,7 +602,8 @@ func (z nat) sqr(x nat) nat {
 
 // mulRange computes the product of all the unsigned integers in the
 // range [a, b] inclusively. If a > b (empty range), the result is 1.
-func (z nat) mulRange(a, b uint64) nat {
+// The caller may pass stk == nil to request that mulRange obtain and release one itself.
+func (z nat) mulRange(stk *stack, a, b uint64) nat {
 	switch {
 	case a == 0:
 		// cut long ranges short (optimization)
@@ -616,34 +613,79 @@ func (z nat) mulRange(a, b uint64) nat {
 	case a == b:
 		return z.setUint64(a)
 	case a+1 == b:
-		return z.mul(nat(nil).setUint64(a), nat(nil).setUint64(b))
+		return z.mul(stk, nat(nil).setUint64(a), nat(nil).setUint64(b))
 	}
+
+	if stk == nil {
+		stk = getStack()
+		defer stk.free()
+	}
+
 	m := a + (b-a)/2 // avoid overflow
-	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
+	return z.mul(stk, nat(nil).mulRange(stk, a, m), nat(nil).mulRange(stk, m+1, b))
 }
 
-// getNat returns a *nat of len n. The contents may not be zero.
-// The pool holds *nat to avoid allocation when converting to interface{}.
-func getNat(n int) *nat {
-	var z *nat
-	if v := natPool.Get(); v != nil {
-		z = v.(*nat)
+// A stack provides temporary storage for complex calculations
+// such as multiplication and division.
+// The stack is a simple slice of words, extended as needed
+// to hold all the temporary storage for a calculation.
+// In general, if a function takes a *stack, it expects a non-nil *stack.
+// However, certain functions may allow passing a nil *stack instead,
+// so that they can handle trivial stack-free cases without forcing the
+// caller to obtain and free a stack that will be unused. These functions
+// document that they accept a nil *stack in their doc comments.
+type stack struct {
+	w []Word
+}
+
+var stackPool sync.Pool
+
+// getStack returns a temporary stack.
+// The caller must call [stack.free] to give up use of the stack when finished.
+func getStack() *stack {
+	s, _ := stackPool.Get().(*stack)
+	if s == nil {
+		s = new(stack)
 	}
-	if z == nil {
-		z = new(nat)
-	}
-	*z = z.make(n)
+	return s
+}
+
+// free returns the stack for use by another calculation.
+func (s *stack) free() {
+	s.w = s.w[:0]
+	stackPool.Put(s)
+}
+
+// save returns the current stack pointer.
+// A future call to restore with the same value
+// frees any temporaries allocated on the stack after the call to save.
+func (s *stack) save() int {
+	return len(s.w)
+}
+
+// restore restores the stack pointer to n.
+// It is almost always invoked as
+//
+//	defer stk.restore(stk.save())
+//
+// which makes sure to pop any temporaries allocated in the current function
+// from the stack before returning.
+func (s *stack) restore(n int) {
+	s.w = s.w[:n]
+}
+
+// nat returns a nat of n words, allocated on the stack.
+func (s *stack) nat(n int) nat {
+	nr := (n + 3) &^ 3 // round up to multiple of 4
+	off := len(s.w)
+	s.w = slices.Grow(s.w, nr)
+	s.w = s.w[:off+nr]
+	x := s.w[off : off+n : off+n]
 	if n > 0 {
-		(*z)[0] = 0xfedcb // break code expecting zero
+		x[0] = 0xfedcb
 	}
-	return z
+	return x
 }
-
-func putNat(x *nat) {
-	natPool.Put(x)
-}
-
-var natPool sync.Pool
 
 // bitLen returns the length of x in bits.
 // Unlike most methods, it works even if x is not normalized.
@@ -930,7 +972,8 @@ func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
 
 // If m != 0 (i.e., len(m) != 0), expNN sets z to x**y mod m;
 // otherwise it sets z to x**y. The result is the value of z.
-func (z nat) expNN(x, y, m nat, slow bool) nat {
+// The caller may pass stk == nil to request that expNN obtain and release one itself.
+func (z nat) expNN(stk *stack, x, y, m nat, slow bool) nat {
 	if alias(z, x) || alias(z, y) {
 		// We cannot allow in-place modification of x or y.
 		z = nil
@@ -961,12 +1004,17 @@ func (z nat) expNN(x, y, m nat, slow bool) nat {
 	// x > 1
 
 	// x**1 == x
-	if len(y) == 1 && y[0] == 1 {
-		if len(m) != 0 {
-			return z.rem(x, m)
-		}
+	if len(y) == 1 && y[0] == 1 && len(m) == 0 {
 		return z.set(x)
 	}
+	if stk == nil {
+		stk = getStack()
+		defer stk.free()
+	}
+	if len(y) == 1 && y[0] == 1 { // len(m) > 0
+		return z.rem(stk, x, m)
+	}
+
 	// y > 1
 
 	if len(m) != 0 {
@@ -980,12 +1028,12 @@ func (z nat) expNN(x, y, m nat, slow bool) nat {
 		// instance of each of the first two cases).
 		if len(y) > 1 && !slow {
 			if m[0]&1 == 1 {
-				return z.expNNMontgomery(x, y, m)
+				return z.expNNMontgomery(stk, x, y, m)
 			}
 			if logM, ok := m.isPow2(); ok {
-				return z.expNNWindowed(x, y, logM)
+				return z.expNNWindowed(stk, x, y, logM)
 			}
-			return z.expNNMontgomeryEven(x, y, m)
+			return z.expNNMontgomeryEven(stk, x, y, m)
 		}
 	}
 
@@ -1006,16 +1054,16 @@ func (z nat) expNN(x, y, m nat, slow bool) nat {
 	// otherwise the arguments would alias.
 	var zz, r nat
 	for j := 0; j < w; j++ {
-		zz = zz.sqr(z)
+		zz = zz.sqr(stk, z)
 		zz, z = z, zz
 
 		if v&mask != 0 {
-			zz = zz.mul(z, x)
+			zz = zz.mul(stk, z, x)
 			zz, z = z, zz
 		}
 
 		if len(m) != 0 {
-			zz, r = zz.div(r, z, m)
+			zz, r = zz.div(stk, r, z, m)
 			zz, r, q, z = q, z, zz, r
 		}
 
@@ -1026,16 +1074,16 @@ func (z nat) expNN(x, y, m nat, slow bool) nat {
 		v = y[i]
 
 		for j := 0; j < _W; j++ {
-			zz = zz.sqr(z)
+			zz = zz.sqr(stk, z)
 			zz, z = z, zz
 
 			if v&mask != 0 {
-				zz = zz.mul(z, x)
+				zz = zz.mul(stk, z, x)
 				zz, z = z, zz
 			}
 
 			if len(m) != 0 {
-				zz, r = zz.div(r, z, m)
+				zz, r = zz.div(stk, r, z, m)
 				zz, r, q, z = q, z, zz, r
 			}
 
@@ -1054,7 +1102,7 @@ func (z nat) expNN(x, y, m nat, slow bool) nat {
 // For more details, see Ç. K. Koç, “Montgomery Reduction with Even Modulus”,
 // IEE Proceedings: Computers and Digital Techniques, 141(5) 314-316, September 1994.
 // http://www.people.vcu.edu/~jwang3/CMSC691/j34monex.pdf
-func (z nat) expNNMontgomeryEven(x, y, m nat) nat {
+func (z nat) expNNMontgomeryEven(stk *stack, x, y, m nat) nat {
 	// Split m = m₁ × m₂ where m₁ = 2ⁿ
 	n := m.trailingZeroBits()
 	m1 := nat(nil).shl(natOne, n)
@@ -1066,8 +1114,8 @@ func (z nat) expNNMontgomeryEven(x, y, m nat) nat {
 	// (We are using the math/big convention for names here,
 	// where the computation is z = x**y mod m, so its parts are z1 and z2.
 	// The paper is computing x = a**e mod n; it refers to these as x2 and z1.)
-	z1 := nat(nil).expNN(x, y, m1, false)
-	z2 := nat(nil).expNN(x, y, m2, false)
+	z1 := nat(nil).expNN(stk, x, y, m1, false)
+	z2 := nat(nil).expNN(stk, x, y, m2, false)
 
 	// Reconstruct z from z₁, z₂ using CRT, using algorithm from paper,
 	// which uses only a single modInverse (and an easy one at that).
@@ -1086,18 +1134,18 @@ func (z nat) expNNMontgomeryEven(x, y, m nat) nat {
 
 	// Reuse z2 for p = (z₁ - z₂) [in z1] * m2⁻¹ (mod m₁ [= 2ⁿ]).
 	m2inv := nat(nil).modInverse(m2, m1)
-	z2 = z2.mul(z1, m2inv)
+	z2 = z2.mul(stk, z1, m2inv)
 	z2 = z2.trunc(z2, n)
 
 	// Reuse z1 for p * m2.
-	z = z.add(z, z1.mul(z2, m2))
+	z = z.add(z, z1.mul(stk, z2, m2))
 
 	return z
 }
 
 // expNNWindowed calculates x**y mod m using a fixed, 4-bit window,
 // where m = 2**logM.
-func (z nat) expNNWindowed(x, y nat, logM uint) nat {
+func (z nat) expNNWindowed(stk *stack, x, y nat, logM uint) nat {
 	if len(y) <= 1 {
 		panic("big: misuse of expNNWindowed")
 	}
@@ -1112,23 +1160,23 @@ func (z nat) expNNWindowed(x, y nat, logM uint) nat {
 
 	// zz is used to avoid allocating in mul as otherwise
 	// the arguments would alias.
+	defer stk.restore(stk.save())
 	w := int((logM + _W - 1) / _W)
-	zzp := getNat(w)
-	zz := *zzp
+	zz := stk.nat(w)
 
 	const n = 4
 	// powers[i] contains x^i.
-	var powers [1 << n]*nat
+	var powers [1 << n]nat
 	for i := range powers {
-		powers[i] = getNat(w)
+		powers[i] = stk.nat(w)
 	}
-	*powers[0] = powers[0].set(natOne)
-	*powers[1] = powers[1].trunc(x, logM)
+	powers[0] = powers[0].set(natOne)
+	powers[1] = powers[1].trunc(x, logM)
 	for i := 2; i < 1<<n; i += 2 {
-		p2, p, p1 := powers[i/2], powers[i], powers[i+1]
-		*p = p.sqr(*p2)
+		p2, p, p1 := &powers[i/2], &powers[i], &powers[i+1]
+		*p = p.sqr(stk, *p2)
 		*p = p.trunc(*p, logM)
-		*p1 = p1.mul(*p, x)
+		*p1 = p1.mul(stk, *p, x)
 		*p1 = p1.trunc(*p1, logM)
 	}
 
@@ -1159,24 +1207,24 @@ func (z nat) expNNWindowed(x, y nat, logM uint) nat {
 				// Unrolled loop for significant performance
 				// gain. Use go test -bench=".*" in crypto/rsa
 				// to check performance before making changes.
-				zz = zz.sqr(z)
+				zz = zz.sqr(stk, z)
 				zz, z = z, zz
 				z = z.trunc(z, logM)
 
-				zz = zz.sqr(z)
+				zz = zz.sqr(stk, z)
 				zz, z = z, zz
 				z = z.trunc(z, logM)
 
-				zz = zz.sqr(z)
+				zz = zz.sqr(stk, z)
 				zz, z = z, zz
 				z = z.trunc(z, logM)
 
-				zz = zz.sqr(z)
+				zz = zz.sqr(stk, z)
 				zz, z = z, zz
 				z = z.trunc(z, logM)
 			}
 
-			zz = zz.mul(z, *powers[yi>>(_W-n)])
+			zz = zz.mul(stk, z, powers[yi>>(_W-n)])
 			zz, z = z, zz
 			z = z.trunc(z, logM)
 
@@ -1185,24 +1233,18 @@ func (z nat) expNNWindowed(x, y nat, logM uint) nat {
 		}
 	}
 
-	*zzp = zz
-	putNat(zzp)
-	for i := range powers {
-		putNat(powers[i])
-	}
-
 	return z.norm()
 }
 
 // expNNMontgomery calculates x**y mod m using a fixed, 4-bit window.
 // Uses Montgomery representation.
-func (z nat) expNNMontgomery(x, y, m nat) nat {
+func (z nat) expNNMontgomery(stk *stack, x, y, m nat) nat {
 	numWords := len(m)
 
 	// We want the lengths of x and m to be equal.
 	// It is OK if x >= m as long as len(x) == len(m).
 	if len(x) > numWords {
-		_, x = nat(nil).div(nil, x, m)
+		_, x = nat(nil).div(stk, nil, x, m)
 		// Note: now len(x) <= numWords, not guaranteed ==.
 	}
 	if len(x) < numWords {
@@ -1225,7 +1267,7 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 	// RR = 2**(2*_W*len(m)) mod m
 	RR := nat(nil).setWord(1)
 	zz := nat(nil).shl(RR, uint(2*numWords*_W))
-	_, RR = nat(nil).div(RR, zz, m)
+	_, RR = nat(nil).div(stk, RR, zz, m)
 	if len(RR) < numWords {
 		zz = zz.make(numWords)
 		copy(zz, RR)
@@ -1280,7 +1322,7 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 		// The div is not expected to be reached.
 		zz = zz.sub(zz, m)
 		if zz.cmp(m) >= 0 {
-			_, zz = nat(nil).div(nil, zz, m)
+			_, zz = nat(nil).div(stk, nil, zz, m)
 		}
 	}
 
@@ -1349,12 +1391,18 @@ func (z nat) setBytes(buf []byte) nat {
 }
 
 // sqrt sets z = ⌊√x⌋
-func (z nat) sqrt(x nat) nat {
+// The caller may pass stk == nil to request that sqrt obtain and release one itself.
+func (z nat) sqrt(stk *stack, x nat) nat {
 	if x.cmp(natOne) <= 0 {
 		return z.set(x)
 	}
 	if alias(z, x) {
 		z = nil
+	}
+
+	if stk == nil {
+		stk = getStack()
+		defer stk.free()
 	}
 
 	// Start with value known to be too large and repeat "z = ⌊(z + ⌊x/z⌋)/2⌋" until it stops getting smaller.
@@ -1367,7 +1415,7 @@ func (z nat) sqrt(x nat) nat {
 	z1 = z1.setUint64(1)
 	z1 = z1.shl(z1, uint(x.bitLen()+1)/2) // must be ≥ √x
 	for n := 0; ; n++ {
-		z2, _ = z2.div(nil, x, z1)
+		z2, _ = z2.div(stk, nil, x, z1)
 		z2 = z2.add(z2, z1)
 		z2 = z2.shr(z2, 1)
 		if z2.cmp(z1) >= 0 {

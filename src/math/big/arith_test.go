@@ -368,9 +368,12 @@ func TestShiftOverlap(t *testing.T) {
 }
 
 func TestIssue31084(t *testing.T) {
+	stk := getStack()
+	defer stk.free()
+
 	// compute 10^n via 5^n << n.
 	const n = 165
-	p := nat(nil).expNN(nat{5}, nat{n}, nil, false)
+	p := nat(nil).expNN(stk, nat{5}, nat{n}, nil, false)
 	p = p.shl(p, n)
 	got := string(p.utoa(10))
 	want := "1" + strings.Repeat("0", n)

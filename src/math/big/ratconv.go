@@ -163,6 +163,9 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 	// exp consumed - not needed anymore
 
+	stk := getStack()
+	defer stk.free()
+
 	// apply exp5 contributions
 	// (start with exp5 so the numbers to multiply are smaller)
 	if exp5 != 0 {
@@ -178,9 +181,9 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		if n > 1e6 {
 			return nil, false // avoid excessively large exponents
 		}
-		pow5 := z.b.abs.expNN(natFive, nat(nil).setWord(Word(n)), nil, false) // use underlying array of z.b.abs
+		pow5 := z.b.abs.expNN(stk, natFive, nat(nil).setWord(Word(n)), nil, false) // use underlying array of z.b.abs
 		if exp5 > 0 {
-			z.a.abs = z.a.abs.mul(z.a.abs, pow5)
+			z.a.abs = z.a.abs.mul(stk, z.a.abs, pow5)
 			z.b.abs = z.b.abs.setWord(1)
 		} else {
 			z.b.abs = pow5
@@ -343,15 +346,17 @@ func (x *Rat) FloatString(prec int) string {
 	}
 	// x.b.abs != 0
 
-	q, r := nat(nil).div(nat(nil), x.a.abs, x.b.abs)
+	stk := getStack()
+	defer stk.free()
+	q, r := nat(nil).div(stk, nat(nil), x.a.abs, x.b.abs)
 
 	p := natOne
 	if prec > 0 {
-		p = nat(nil).expNN(natTen, nat(nil).setUint64(uint64(prec)), nil, false)
+		p = nat(nil).expNN(stk, natTen, nat(nil).setUint64(uint64(prec)), nil, false)
 	}
 
-	r = r.mul(r, p)
-	r, r2 := r.div(nat(nil), r, x.b.abs)
+	r = r.mul(stk, r, p)
+	r, r2 := r.div(stk, nat(nil), r, x.b.abs)
 
 	// see if we need to round up
 	r2 = r2.add(r2, r2)
@@ -398,6 +403,9 @@ func (x *Rat) FloatString(prec int) string {
 //	1/4    2    true     0.25
 //	1/6    1    false    0.2     (0.166... rounded)
 func (x *Rat) FloatPrec() (n int, exact bool) {
+	stk := getStack()
+	defer stk.free()
+
 	// Determine q and largest p2, p5 such that d = q·2^p2·5^p5.
 	// The results n, exact are:
 	//
@@ -425,11 +433,11 @@ func (x *Rat) FloatPrec() (n int, exact bool) {
 	f := nat{1220703125} // == 5^fp (must fit into a uint32 Word)
 	var t, r nat         // temporaries
 	for {
-		if _, r = t.div(r, q, f); len(r) != 0 {
+		if _, r = t.div(stk, r, q, f); len(r) != 0 {
 			break // f doesn't divide q evenly
 		}
 		tab = append(tab, f)
-		f = nat(nil).sqr(f) // nat(nil) to ensure a new f for each table entry
+		f = nat(nil).sqr(stk, f) // nat(nil) to ensure a new f for each table entry
 	}
 
 	// Factor q using the table entries, if any.
@@ -441,7 +449,7 @@ func (x *Rat) FloatPrec() (n int, exact bool) {
 	// The same reasoning applies to the subsequent factors.
 	var p5 uint
 	for i := len(tab) - 1; i >= 0; i-- {
-		if t, r = t.div(r, q, tab[i]); len(r) == 0 {
+		if t, r = t.div(stk, r, q, tab[i]); len(r) == 0 {
 			p5 += fp * (1 << i) // tab[i] == 5^(fp·2^i)
 			q = q.set(t)
 		}
@@ -449,7 +457,7 @@ func (x *Rat) FloatPrec() (n int, exact bool) {
 
 	// If fp != 1, we may still have multiples of 5 left.
 	for {
-		if t, r = t.div(r, q, natFive); len(r) != 0 {
+		if t, r = t.div(stk, r, q, natFive); len(r) != 0 {
 			break
 		}
 		p5++

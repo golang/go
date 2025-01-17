@@ -502,28 +502,22 @@ import "math/bits"
 
 // rem returns r such that r = u%v.
 // It uses z as the storage for r.
-func (z nat) rem(u, v nat) (r nat) {
+func (z nat) rem(stk *stack, u, v nat) (r nat) {
 	if alias(z, u) {
 		z = nil
 	}
-	qp := getNat(0)
-	q, r := qp.div(z, u, v)
-	*qp = q
-	putNat(qp)
+	defer stk.restore(stk.save())
+	q := stk.nat(len(u) - (len(v) - 1))
+	_, r = q.div(stk, z, u, v)
 	return r
 }
 
 // div returns q, r such that q = ⌊u/v⌋ and r = u%v = u - q·v.
 // It uses z and z2 as the storage for q and r.
-func (z nat) div(z2, u, v nat) (q, r nat) {
+// The caller may pass stk == nil to request that div obtain and release one itself.
+func (z nat) div(stk *stack, z2, u, v nat) (q, r nat) {
 	if len(v) == 0 {
 		panic("division by zero")
-	}
-
-	if u.cmp(v) < 0 {
-		q = z[:0]
-		r = z2.set(u)
-		return
 	}
 
 	if len(v) == 1 {
@@ -535,7 +529,18 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
 		return
 	}
 
-	q, r = z.divLarge(z2, u, v)
+	if u.cmp(v) < 0 {
+		q = z[:0]
+		r = z2.set(u)
+		return
+	}
+
+	if stk == nil {
+		stk = getStack()
+		defer stk.free()
+	}
+
+	q, r = z.divLarge(stk, z2, u, v)
 	return
 }
 
@@ -589,7 +594,7 @@ func divWVW(z []Word, xn Word, x []Word, y Word) (r Word) {
 // It uses z and u as the storage for q and r.
 // The caller must ensure that len(vIn) ≥ 2 (use divW otherwise)
 // and that len(uIn) ≥ len(vIn) (the answer is 0, uIn otherwise).
-func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
+func (z nat) divLarge(stk *stack, u, uIn, vIn nat) (q, r nat) {
 	n := len(vIn)
 	m := len(uIn) - n
 
@@ -597,9 +602,9 @@ func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
 	// vIn is treated as a read-only input (it may be in use by another
 	// goroutine), so we must make a copy.
 	// uIn is copied to u.
+	defer stk.restore(stk.save())
 	shift := nlz(vIn[n-1])
-	vp := getNat(n)
-	v := *vp
+	v := stk.nat(n)
 	shlVU(v, vIn, shift)
 	u = u.make(len(uIn) + 1)
 	u[len(uIn)] = shlVU(u[:len(uIn)], uIn, shift)
@@ -613,11 +618,10 @@ func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
 
 	// Use basic or recursive long division depending on size.
 	if n < divRecursiveThreshold {
-		q.divBasic(u, v)
+		q.divBasic(stk, u, v)
 	} else {
-		q.divRecursive(u, v)
+		q.divRecursive(stk, u, v)
 	}
-	putNat(vp)
 
 	q = q.norm()
 
@@ -631,12 +635,12 @@ func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
 // divBasic implements long division as described above.
 // It overwrites q with ⌊u/v⌋ and overwrites u with the remainder r.
 // q must be large enough to hold ⌊u/v⌋.
-func (q nat) divBasic(u, v nat) {
+func (q nat) divBasic(stk *stack, u, v nat) {
 	n := len(v)
 	m := len(u) - n
 
-	qhatvp := getNat(n + 1)
-	qhatv := *qhatvp
+	defer stk.restore(stk.save())
+	qhatv := stk.nat(n + 1)
 
 	// Set up for divWW below, precomputing reciprocal argument.
 	vn1 := v[n-1]
@@ -707,8 +711,6 @@ func (q nat) divBasic(u, v nat) {
 		}
 		q[j] = qhat
 	}
-
-	putNat(qhatvp)
 }
 
 // greaterThan reports whether the two digit numbers x1 x2 > y1 y2.
@@ -727,24 +729,9 @@ const divRecursiveThreshold = 100
 // z must be large enough to hold ⌊u/v⌋.
 // This function is just for allocating and freeing temporaries
 // around divRecursiveStep, the real implementation.
-func (z nat) divRecursive(u, v nat) {
-	// Recursion depth is (much) less than 2 log₂(len(v)).
-	// Allocate a slice of temporaries to be reused across recursion,
-	// plus one extra temporary not live across the recursion.
-	recDepth := 2 * bits.Len(uint(len(v)))
-	tmp := getNat(3 * len(v))
-	temps := make([]*nat, recDepth)
-
+func (z nat) divRecursive(stk *stack, u, v nat) {
 	clear(z)
-	z.divRecursiveStep(u, v, 0, tmp, temps)
-
-	// Free temporaries.
-	for _, n := range temps {
-		if n != nil {
-			putNat(n)
-		}
-	}
-	putNat(tmp)
+	z.divRecursiveStep(stk, u, v, 0)
 }
 
 // divRecursiveStep is the actual implementation of recursive division.
@@ -752,7 +739,7 @@ func (z nat) divRecursive(u, v nat) {
 // z must be large enough to hold ⌊u/v⌋.
 // It uses temps[depth] (allocating if needed) as a temporary live across
 // the recursive call. It also uses tmp, but not live across the recursion.
-func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
+func (z nat) divRecursiveStep(stk *stack, u, v nat, depth int) {
 	// u is a subsection of the original and may have leading zeros.
 	// TODO(rsc): The v = v.norm() is useless and should be removed.
 	// We know (and require) that v's top digit is ≥ B/2.
@@ -766,7 +753,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 	// Fall back to basic division if the problem is now small enough.
 	n := len(v)
 	if n < divRecursiveThreshold {
-		z.divBasic(u, v)
+		z.divBasic(stk, u, v)
 		return
 	}
 
@@ -785,11 +772,8 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 	B := n / 2
 
 	// Allocate a nat for qhat below.
-	if temps[depth] == nil {
-		temps[depth] = getNat(n) // TODO(rsc): Can be just B+1.
-	} else {
-		*temps[depth] = temps[depth].make(B + 1)
-	}
+	defer stk.restore(stk.save())
+	qhat0 := stk.nat(B + 1)
 
 	// Compute each wide digit of the quotient.
 	//
@@ -816,9 +800,9 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 		uu := u[j-B:]
 
 		// Compute the 2-by-1 guess q̂, leaving r̂ in uu[s:B+n].
-		qhat := *temps[depth]
+		qhat := qhat0
 		clear(qhat)
-		qhat.divRecursiveStep(uu[s:B+n], v[s:], depth+1, tmp, temps)
+		qhat.divRecursiveStep(stk, uu[s:B+n], v[s:], depth+1)
 		qhat = qhat.norm()
 
 		// Extend to a 3-by-2 quotient and remainder.
@@ -833,9 +817,10 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 		// q̂·vₙ₋₂ and decrementing q̂ until that product is ≤ u.
 		// But we can do the subtraction directly, as in the comment above
 		// and in long division, because we know that q̂ is wrong by at most one.
-		qhatv := tmp.make(3 * n)
+		mark := stk.save()
+		qhatv := stk.nat(3 * n)
 		clear(qhatv)
-		qhatv = qhatv.mul(qhat, v[:s])
+		qhatv = qhatv.mul(stk, qhat, v[:s])
 		for i := 0; i < 2; i++ {
 			e := qhatv.cmp(uu.norm())
 			if e <= 0 {
@@ -857,6 +842,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 		}
 		addAt(z, qhat, j-B)
 		j -= B
+		stk.restore(mark)
 	}
 
 	// TODO(rsc): Rewrite loop as described above and delete all this code.
@@ -864,13 +850,13 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 	// Now u < (v<<B), compute lower bits in the same way.
 	// Choose shift = B-1 again.
 	s := B - 1
-	qhat := *temps[depth]
+	qhat := qhat0
 	clear(qhat)
-	qhat.divRecursiveStep(u[s:].norm(), v[s:], depth+1, tmp, temps)
+	qhat.divRecursiveStep(stk, u[s:].norm(), v[s:], depth+1)
 	qhat = qhat.norm()
-	qhatv := tmp.make(3 * n)
+	qhatv := stk.nat(3 * n)
 	clear(qhatv)
-	qhatv = qhatv.mul(qhat, v[:s])
+	qhatv = qhatv.mul(stk, qhat, v[:s])
 	// Set the correct remainder as before.
 	for i := 0; i < 2; i++ {
 		if e := qhatv.cmp(u.norm()); e > 0 {
