@@ -380,6 +380,9 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 	v7 := tr.blk.toV7()
 	hdr.Typeflag = v7.typeFlag()[0]
 	hdr.Name = p.parseString(v7.name())
+	if hdr.FileInfo().IsDir() && !strings.HasSuffix(hdr.Name, "/") {
+		hdr.Name += "/"
+	}
 	hdr.Linkname = p.parseString(v7.linkName())
 	hdr.Size = p.parseNumeric(v7.size())
 	hdr.Mode = p.parseNumeric(v7.mode())

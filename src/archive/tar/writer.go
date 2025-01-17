@@ -424,9 +424,6 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
 			return err
 		}
 		h.Name = name
-		if d.IsDir() {
-			h.Name += "/"
-		}
 		if err := tw.WriteHeader(h); err != nil {
 			return err
 		}
