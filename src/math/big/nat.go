@@ -227,15 +227,14 @@ func alias(x, y nat) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
 
-// addAt implements z += x<<(_W*i); z must be long enough.
+// addTo implements z += x; z must be long enough.
 // (we don't use nat.add because we need z to stay the same
 // slice, and we don't need to normalize z after each addition)
-func addAt(z, x nat, i int) {
+func addTo(z, x nat) {
 	if n := len(x); n > 0 {
-		if c := addVV(z[i:i+n], z[i:], x); c != 0 {
-			j := i + n
-			if j < len(z) {
-				addVW(z[j:], z[j:], c)
+		if c := addVV(z[:n], z, x); c != 0 {
+			if n < len(z) {
+				addVW(z[n:], z[n:], c)
 			}
 		}
 	}

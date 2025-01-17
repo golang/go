@@ -7,6 +7,8 @@ package big
 import (
 	"fmt"
 	"math"
+	"math/bits"
+	"math/rand/v2"
 	"runtime"
 	"strings"
 	"testing"
@@ -56,12 +58,84 @@ var sumNN = []argNN{
 	{nat{0, 0, 0, 1}, nat{0, 0, _M}, nat{0, 0, 1}},
 }
 
-var prodNN = []argNN{
-	{},
-	{nil, nil, nil},
+var prodNN = append(prodTests(), prodNNExtra...)
+
+func permute[E any](x []E) {
+	out := make([]E, len(x))
+	for i, j := range rand.Perm(len(x)) {
+		out[i] = x[j]
+	}
+	copy(x, out)
+}
+
+// testMul returns the product of x and y using the grade-school algorithm,
+// as a reference implementation.
+func testMul(x, y nat) nat {
+	z := make(nat, len(x)+len(y))
+	for i, xi := range x {
+		for j, yj := range y {
+			hi, lo := bits.Mul(uint(xi), uint(yj))
+			k := i + j
+			s, c := bits.Add(uint(z[k]), lo, 0)
+			z[k] = Word(s)
+			k++
+			for hi != 0 || c != 0 {
+				s, c = bits.Add(uint(z[k]), hi, c)
+				hi = 0
+				z[k] = Word(s)
+				k++
+			}
+		}
+	}
+	return z.norm()
+}
+
+func prodTests() []argNN {
+	var tests []argNN
+	for size := range 10 {
+		var x, y nat
+		for i := range size {
+			x = append(x, Word(i+1))
+			y = append(y, Word(i+1+size))
+		}
+		permute(x)
+		permute(y)
+		x = x.norm()
+		y = y.norm()
+		tests = append(tests, argNN{testMul(x, y), x, y})
+	}
+
+	words := []Word{0, 1, 2, 3, 4, ^Word(0), ^Word(1), ^Word(2), ^Word(3)}
+	for size := range 10 {
+		if size == 0 {
+			continue // already tested the only 0-length possibility above
+		}
+		for range 10 {
+			x := make(nat, size)
+			y := make(nat, size)
+			for i := range size {
+				x[i] = words[rand.N(len(words))]
+				y[i] = words[rand.N(len(words))]
+			}
+			x = x.norm()
+			y = y.norm()
+			tests = append(tests, argNN{testMul(x, y), x, y})
+		}
+	}
+	return tests
+}
+
+var prodNNExtra = []argNN{
 	{nil, nat{991}, nil},
 	{nat{991}, nat{991}, nat{1}},
 	{nat{991 * 991}, nat{991}, nat{991}},
+	{nat{8, 22, 15}, nat{2, 3}, nat{4, 5}},
+	{nat{10, 27, 52, 45, 28}, nat{2, 3, 4}, nat{5, 6, 7}},
+	{nat{12, 32, 61, 100, 94, 76, 45}, nat{2, 3, 4, 5}, nat{6, 7, 8, 9}},
+	{nat{12, 32, 61, 100, 94, 76, 45}, nat{2, 3, 4, 5}, nat{6, 7, 8, 9}},
+	{nat{14, 37, 70, 114, 170, 166, 148, 115, 66}, nat{2, 3, 4, 5, 6}, nat{7, 8, 9, 10, 11}},
+	{nat{991 * 991, 991 * 2, 1}, nat{991, 1}, nat{991, 1}},
+	{nat{991 * 991, 991 * 777 * 2, 777 * 777}, nat{991, 777}, nat{991, 777}},
 	{nat{0, 0, 991 * 991}, nat{0, 991}, nat{0, 991}},
 	{nat{1 * 991, 2 * 991, 3 * 991, 4 * 991}, nat{1, 2, 3, 4}, nat{991}},
 	{nat{4, 11, 20, 30, 20, 11, 4}, nat{1, 2, 3, 4}, nat{4, 3, 2, 1}},
@@ -114,36 +188,111 @@ func testFunNN(t *testing.T, msg string, f funNN, a argNN) {
 }
 
 func testFunSNN(t *testing.T, msg string, f funSNN, a argNN) {
+	t.Helper()
 	stk := getStack()
 	defer stk.free()
 	z := f(nil, stk, a.x, a.y)
 	if z.cmp(a.z) != 0 {
-		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, z, a.z)
+		t.Fatalf("%s%+v\n\tgot z = %v; want %v", msg, a, z, a.z)
 	}
 }
 
-func TestFunNN(t *testing.T) {
+func setDuringTest[V any](t *testing.T, p *V, v V) {
+	old := *p
+	*p = v
+	t.Cleanup(func() { *p = old })
+}
+
+func TestAdd(t *testing.T) {
 	for _, a := range sumNN {
-		arg := a
-		testFunNN(t, "add", nat.add, arg)
-
-		arg = argNN{a.z, a.y, a.x}
-		testFunNN(t, "add symmetric", nat.add, arg)
-
-		arg = argNN{a.x, a.z, a.y}
-		testFunNN(t, "sub", nat.sub, arg)
-
-		arg = argNN{a.y, a.z, a.x}
-		testFunNN(t, "sub symmetric", nat.sub, arg)
+		testFunNN(t, "add", nat.add, a)
+		a.x, a.y = a.y, a.x
+		testFunNN(t, "add", nat.add, a)
 	}
+}
 
-	for _, a := range prodNN {
-		arg := a
-		testFunSNN(t, "mul", nat.mul, arg)
+func TestSub(t *testing.T) {
+	for _, a := range sumNN {
+		a.x, a.z = a.z, a.x
+		testFunNN(t, "sub", nat.sub, a)
 
-		arg = argNN{a.z, a.y, a.x}
-		testFunSNN(t, "mul symmetric", nat.mul, arg)
+		a.y, a.z = a.z, a.y
+		testFunNN(t, "sub", nat.sub, a)
 	}
+}
+
+func TestNatMul(t *testing.T) {
+	t.Run("Basic", func(t *testing.T) {
+		setDuringTest(t, &karatsubaThreshold, 1e9)
+		for _, a := range prodNN {
+			if len(a.z) >= 100 {
+				continue
+			}
+			testFunSNN(t, "mul", nat.mul, a)
+			a.x, a.y = a.y, a.x
+			testFunSNN(t, "mul", nat.mul, a)
+		}
+	})
+	t.Run("Karatsuba", func(t *testing.T) {
+		setDuringTest(t, &karatsubaThreshold, 2)
+		for _, a := range prodNN {
+			testFunSNN(t, "mul", nat.mul, a)
+			a.x, a.y = a.y, a.x
+			testFunSNN(t, "mul", nat.mul, a)
+		}
+	})
+
+	t.Run("Mul", func(t *testing.T) {
+		for _, a := range prodNN {
+			testFunSNN(t, "mul", nat.mul, a)
+			a.x, a.y = a.y, a.x
+			testFunSNN(t, "mul", nat.mul, a)
+		}
+	})
+}
+
+func testSqr(t *testing.T, x nat) {
+	stk := getStack()
+	defer stk.free()
+
+	got := make(nat, 2*len(x))
+	want := make(nat, 2*len(x))
+	got = got.sqr(stk, x)
+	want = want.mul(stk, x, x)
+	if got.cmp(want) != 0 {
+		t.Errorf("basicSqr(%v), got %v, want %v", x, got, want)
+	}
+}
+
+func TestNatSqr(t *testing.T) {
+	t.Run("Basic", func(t *testing.T) {
+		setDuringTest(t, &basicSqrThreshold, 0)
+		setDuringTest(t, &karatsubaSqrThreshold, 1e9)
+		for _, a := range prodNN {
+			if len(a.z) >= 100 {
+				continue
+			}
+			testSqr(t, a.x)
+			testSqr(t, a.y)
+			testSqr(t, a.z)
+		}
+	})
+	t.Run("Karatsuba", func(t *testing.T) {
+		setDuringTest(t, &basicSqrThreshold, 2)
+		setDuringTest(t, &karatsubaSqrThreshold, 2)
+		for _, a := range prodNN {
+			testSqr(t, a.x)
+			testSqr(t, a.y)
+			testSqr(t, a.z)
+		}
+	})
+	t.Run("Sqr", func(t *testing.T) {
+		for _, a := range prodNN {
+			testSqr(t, a.x)
+			testSqr(t, a.y)
+			testSqr(t, a.z)
+		}
+	})
 }
 
 var mulRangesN = []struct {
@@ -735,33 +884,6 @@ func TestSticky(t *testing.T) {
 					t.Errorf("#%d: %s.sticky(%d) = %v; want %v", i, test.x, test.i+d, got, 1)
 				}
 			}
-		}
-	}
-}
-
-func testSqr(t *testing.T, x nat) {
-	stk := getStack()
-	defer stk.free()
-
-	got := make(nat, 2*len(x))
-	want := make(nat, 2*len(x))
-	got = got.sqr(stk, x)
-	want = want.mul(stk, x, x)
-	if got.cmp(want) != 0 {
-		t.Errorf("basicSqr(%v), got %v, want %v", x, got, want)
-	}
-}
-
-func TestSqr(t *testing.T) {
-	for _, a := range prodNN {
-		if a.x != nil {
-			testSqr(t, a.x)
-		}
-		if a.y != nil {
-			testSqr(t, a.y)
-		}
-		if a.z != nil {
-			testSqr(t, a.z)
 		}
 	}
 }

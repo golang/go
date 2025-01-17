@@ -181,10 +181,14 @@ func (z *Int) Sub(x, y *Int) *Int {
 
 // Mul sets z to the product x*y and returns z.
 func (z *Int) Mul(x, y *Int) *Int {
-	return z.mul(nil, x, y)
+	z.mul(nil, x, y)
+	return z
 }
 
-func (z *Int) mul(stk *stack, x, y *Int) *Int {
+// mul is like Mul but takes an explicit stack to use, for internal use.
+// It does not return a *Int because doing so makes the stack-allocated Ints
+// used in natmul.go escape to the heap (even though the result is unused).
+func (z *Int) mul(stk *stack, x, y *Int) {
 	// x * y == x * y
 	// x * (-y) == -(x * y)
 	// (-x) * y == -(x * y)
@@ -192,11 +196,10 @@ func (z *Int) mul(stk *stack, x, y *Int) *Int {
 	if x == y {
 		z.abs = z.abs.sqr(stk, x.abs)
 		z.neg = false
-		return z
+		return
 	}
 	z.abs = z.abs.mul(stk, x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
-	return z
 }
 
 // MulRange sets z to the product of all integers
