@@ -419,11 +419,6 @@ func setDefType(def *TypeName, typ Type) {
 	if def != nil {
 		switch t := def.typ.(type) {
 		case *Alias:
-			// t.fromRHS should always be set, either to an invalid type
-			// in the beginning, or to typ in certain cyclic declarations.
-			if t.fromRHS != Typ[Invalid] && t.fromRHS != typ {
-				panic(sprintf(nil, nil, true, "t.fromRHS = %s, typ = %s\n", t.fromRHS, typ))
-			}
 			t.fromRHS = typ
 		case *Basic:
 			assert(t == Typ[Invalid])
