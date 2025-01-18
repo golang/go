@@ -378,19 +378,6 @@ func rndNat1(n int) nat {
 	return x
 }
 
-func BenchmarkMul(b *testing.B) {
-	stk := getStack()
-	defer stk.free()
-
-	mulx := rndNat(1e4)
-	muly := rndNat(1e4)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var z nat
-		z.mul(stk, mulx, muly)
-	}
-}
-
 func benchmarkNatMul(b *testing.B, nwords int) {
 	x := rndNat(nwords)
 	y := rndNat(nwords)

@@ -722,7 +722,7 @@ func greaterThan(x1, x2, y1, y2 Word) bool {
 
 // divRecursiveThreshold is the number of divisor digits
 // at which point divRecursive is faster than divBasic.
-const divRecursiveThreshold = 100
+var divRecursiveThreshold = 40 // see calibrate_test.go
 
 // divRecursive implements recursive division as described above.
 // It overwrites z with ⌊u/v⌋ and overwrites u with the remainder r.

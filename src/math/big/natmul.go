@@ -9,7 +9,7 @@ package big
 // Operands that are shorter than karatsubaThreshold are multiplied using
 // "grade school" multiplication; for longer operands the Karatsuba algorithm
 // is used.
-var karatsubaThreshold = 40 // computed by calibrate_test.go
+var karatsubaThreshold = 40 // see calibrate_test.go
 
 // mul sets z = x*y, using stk for temporary storage.
 // The caller may pass stk == nil to request that mul obtain and release one itself.
@@ -65,8 +65,8 @@ func (z nat) mul(stk *stack, x, y nat) nat {
 // Operands that are shorter than basicSqrThreshold are squared using
 // "grade school" multiplication; for operands longer than karatsubaSqrThreshold
 // we use the Karatsuba algorithm optimized for x == y.
-var basicSqrThreshold = 20      // computed by calibrate_test.go
-var karatsubaSqrThreshold = 260 // computed by calibrate_test.go
+var basicSqrThreshold = 12     // see calibrate_test.go
+var karatsubaSqrThreshold = 80 // see calibrate_test.go
 
 // sqr sets z = x*x, using stk for temporary storage.
 // The caller may pass stk == nil to request that sqr obtain and release one itself.
@@ -87,7 +87,7 @@ func (z nat) sqr(stk *stack, x nat) nat {
 	}
 	z = z.make(2 * n)
 
-	if n < basicSqrThreshold {
+	if n < basicSqrThreshold && n < karatsubaSqrThreshold {
 		basicMul(z, x, x)
 		return z.norm()
 	}
@@ -112,6 +112,11 @@ func (z nat) sqr(stk *stack, x nat) nat {
 // The (non-normalized) result is placed in z.
 func basicSqr(stk *stack, z, x nat) {
 	n := len(x)
+	if n < basicSqrThreshold {
+		basicMul(z, x, x)
+		return
+	}
+
 	defer stk.restore(stk.save())
 	t := stk.nat(2 * n)
 	clear(t)
