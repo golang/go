@@ -353,7 +353,7 @@ func BenchmarkScan(b *testing.B) {
 	stk := getStack()
 	defer stk.free()
 
-	const x = 10
+	const x = 9 // avoid tested bases, in case runs of 0s are handled specially
 	for _, base := range []int{2, 8, 10, 16} {
 		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
 			if isRaceBuilder && y > 1000 {
