@@ -14,9 +14,6 @@ import (
 	"sync"
 )
 
-// coverMerge manages the state for merging test coverage profiles.
-// It ensures thread-safe operations on a single coverage profile file
-// across multiple test runs and packages.
 var coverMerge struct {
 	f          *os.File
 	sync.Mutex // for f.Write
