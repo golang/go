@@ -3049,3 +3049,212 @@ DATA BSWAP_SHUFB_CTL<>+20(SB)/4, $0x04050607
 DATA BSWAP_SHUFB_CTL<>+24(SB)/4, $0x08090a0b
 DATA BSWAP_SHUFB_CTL<>+28(SB)/4, $0x0c0d0e0f
 GLOBL BSWAP_SHUFB_CTL<>(SB), RODATA, $32
+
+// func blockSHANI(dig *digest, p []byte)
+// Requires: AVX, SHA, SSE2, SSE4.1, SSSE3
+TEXT ·blockSHANI(SB), $48-32
+	MOVQ dig+0(FP), DI
+	MOVQ p_base+8(FP), SI
+	MOVQ p_len+16(FP), DX
+	CMPQ DX, $0x00
+	JEQ  done
+	ADDQ SI, DX
+
+	// Allocate space on the stack for saving ABCD and E0, and align it to 16 bytes
+	LEAQ 15(SP), AX
+	MOVQ $0x000000000000000f, CX
+	NOTQ CX
+	ANDQ CX, AX
+
+	// Load initial hash state
+	PINSRD  $0x03, 16(DI), X5
+	VMOVDQU (DI), X0
+	PAND    upper_mask<>+0(SB), X5
+	PSHUFD  $0x1b, X0, X0
+	VMOVDQA shuffle_mask<>+0(SB), X7
+
+loop:
+	// Save ABCD and E working values
+	VMOVDQA X5, (AX)
+	VMOVDQA X0, 16(AX)
+
+	// Rounds 0-3
+	VMOVDQU   (SI), X1
+	PSHUFB    X7, X1
+	PADDD     X1, X5
+	VMOVDQA   X0, X6
+	SHA1RNDS4 $0x00, X5, X0
+
+	// Rounds 4-7
+	VMOVDQU   16(SI), X2
+	PSHUFB    X7, X2
+	SHA1NEXTE X2, X6
+	VMOVDQA   X0, X5
+	SHA1RNDS4 $0x00, X6, X0
+	SHA1MSG1  X2, X1
+
+	// Rounds 8-11
+	VMOVDQU   32(SI), X3
+	PSHUFB    X7, X3
+	SHA1NEXTE X3, X5
+	VMOVDQA   X0, X6
+	SHA1RNDS4 $0x00, X5, X0
+	SHA1MSG1  X3, X2
+	PXOR      X3, X1
+
+	// Rounds 12-15
+	VMOVDQU   48(SI), X4
+	PSHUFB    X7, X4
+	SHA1NEXTE X4, X6
+	VMOVDQA   X0, X5
+	SHA1MSG2  X4, X1
+	SHA1RNDS4 $0x00, X6, X0
+	SHA1MSG1  X4, X3
+	PXOR      X4, X2
+
+	// Rounds 16-19
+	SHA1NEXTE X1, X5
+	VMOVDQA   X0, X6
+	SHA1MSG2  X1, X2
+	SHA1RNDS4 $0x00, X5, X0
+	SHA1MSG1  X1, X4
+	PXOR      X1, X3
+
+	// Rounds 20-23
+	SHA1NEXTE X2, X6
+	VMOVDQA   X0, X5
+	SHA1MSG2  X2, X3
+	SHA1RNDS4 $0x01, X6, X0
+	SHA1MSG1  X2, X1
+	PXOR      X2, X4
+
+	// Rounds 24-27
+	SHA1NEXTE X3, X5
+	VMOVDQA   X0, X6
+	SHA1MSG2  X3, X4
+	SHA1RNDS4 $0x01, X5, X0
+	SHA1MSG1  X3, X2
+	PXOR      X3, X1
+
+	// Rounds 28-31
+	SHA1NEXTE X4, X6
+	VMOVDQA   X0, X5
+	SHA1MSG2  X4, X1
+	SHA1RNDS4 $0x01, X6, X0
+	SHA1MSG1  X4, X3
+	PXOR      X4, X2
+
+	// Rounds 32-35
+	SHA1NEXTE X1, X5
+	VMOVDQA   X0, X6
+	SHA1MSG2  X1, X2
+	SHA1RNDS4 $0x01, X5, X0
+	SHA1MSG1  X1, X4
+	PXOR      X1, X3
+
+	// Rounds 36-39
+	SHA1NEXTE X2, X6
+	VMOVDQA   X0, X5
+	SHA1MSG2  X2, X3
+	SHA1RNDS4 $0x01, X6, X0
+	SHA1MSG1  X2, X1
+	PXOR      X2, X4
+
+	// Rounds 40-43
+	SHA1NEXTE X3, X5
+	VMOVDQA   X0, X6
+	SHA1MSG2  X3, X4
+	SHA1RNDS4 $0x02, X5, X0
+	SHA1MSG1  X3, X2
+	PXOR      X3, X1
+
+	// Rounds 44-47
+	SHA1NEXTE X4, X6
+	VMOVDQA   X0, X5
+	SHA1MSG2  X4, X1
+	SHA1RNDS4 $0x02, X6, X0
+	SHA1MSG1  X4, X3
+	PXOR      X4, X2
+
+	// Rounds 48-51
+	SHA1NEXTE X1, X5
+	VMOVDQA   X0, X6
+	SHA1MSG2  X1, X2
+	SHA1RNDS4 $0x02, X5, X0
+	SHA1MSG1  X1, X4
+	PXOR      X1, X3
+
+	// Rounds 52-55
+	SHA1NEXTE X2, X6
+	VMOVDQA   X0, X5
+	SHA1MSG2  X2, X3
+	SHA1RNDS4 $0x02, X6, X0
+	SHA1MSG1  X2, X1
+	PXOR      X2, X4
+
+	// Rounds 56-59
+	SHA1NEXTE X3, X5
+	VMOVDQA   X0, X6
+	SHA1MSG2  X3, X4
+	SHA1RNDS4 $0x02, X5, X0
+	SHA1MSG1  X3, X2
+	PXOR      X3, X1
+
+	// Rounds 60-63
+	SHA1NEXTE X4, X6
+	VMOVDQA   X0, X5
+	SHA1MSG2  X4, X1
+	SHA1RNDS4 $0x03, X6, X0
+	SHA1MSG1  X4, X3
+	PXOR      X4, X2
+
+	// Rounds 64-67
+	SHA1NEXTE X1, X5
+	VMOVDQA   X0, X6
+	SHA1MSG2  X1, X2
+	SHA1RNDS4 $0x03, X5, X0
+	SHA1MSG1  X1, X4
+	PXOR      X1, X3
+
+	// Rounds 68-71
+	SHA1NEXTE X2, X6
+	VMOVDQA   X0, X5
+	SHA1MSG2  X2, X3
+	SHA1RNDS4 $0x03, X6, X0
+	PXOR      X2, X4
+
+	// Rounds 72-75
+	SHA1NEXTE X3, X5
+	VMOVDQA   X0, X6
+	SHA1MSG2  X3, X4
+	SHA1RNDS4 $0x03, X5, X0
+
+	// Rounds 76-79
+	SHA1NEXTE X4, X6
+	VMOVDQA   X0, X5
+	SHA1RNDS4 $0x03, X6, X0
+
+	// Add saved E and ABCD
+	SHA1NEXTE (AX), X5
+	PADDD     16(AX), X0
+
+	// Check if we are done, if not return to the loop
+	ADDQ $0x40, SI
+	CMPQ SI, DX
+	JNE  loop
+
+	// Write the hash state back to digest
+	PSHUFD  $0x1b, X0, X0
+	VMOVDQU X0, (DI)
+	PEXTRD  $0x03, X5, 16(DI)
+
+done:
+	RET
+
+DATA upper_mask<>+0(SB)/8, $0x0000000000000000
+DATA upper_mask<>+8(SB)/8, $0xffffffff00000000
+GLOBL upper_mask<>(SB), RODATA, $16
+
+DATA shuffle_mask<>+0(SB)/8, $0x08090a0b0c0d0e0f
+DATA shuffle_mask<>+8(SB)/8, $0x0001020304050607
+GLOBL shuffle_mask<>(SB), RODATA, $16

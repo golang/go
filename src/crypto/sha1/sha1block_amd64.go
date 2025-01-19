@@ -14,10 +14,16 @@ func blockAVX2(dig *digest, p []byte)
 //go:noescape
 func blockAMD64(dig *digest, p []byte)
 
+//go:noescape
+func blockSHANI(dig *digest, p []byte)
+
 var useAVX2 = cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+var useSHANI = cpu.X86.HasAVX && cpu.X86.HasSHA && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3
 
 func block(dig *digest, p []byte) {
-	if useAVX2 && len(p) >= 256 {
+	if useSHANI {
+		blockSHANI(dig, p)
+	} else if useAVX2 && len(p) >= 256 {
 		// blockAVX2 calculates sha1 for 2 block per iteration
 		// it also interleaves precalculation for next block.
 		// So it may read up-to 192 bytes past end of p

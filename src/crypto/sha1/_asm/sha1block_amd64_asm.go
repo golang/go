@@ -25,6 +25,7 @@ func main() {
 	ConstraintExpr("!purego")
 	blockAMD64()
 	blockAVX2()
+	blockSHANI()
 	Generate()
 }
 
