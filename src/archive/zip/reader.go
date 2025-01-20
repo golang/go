@@ -384,10 +384,6 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 		return err
 	}
 	f.Name = string(d[:filenameLen])
-	if f.FileInfo().IsDir() && !strings.HasSuffix(f.Name, "/") {
-		f.Name += "/"
-	}
-
 	f.Extra = d[filenameLen : filenameLen+extraLen]
 	f.Comment = string(d[filenameLen+extraLen:])
 
