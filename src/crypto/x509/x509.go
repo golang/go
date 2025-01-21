@@ -621,6 +621,7 @@ var (
 	oidExtKeyUsageNetscapeServerGatedCrypto      = asn1.ObjectIdentifier{2, 16, 840, 1, 113730, 4, 1}
 	oidExtKeyUsageMicrosoftCommercialCodeSigning = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 2, 1, 22}
 	oidExtKeyUsageMicrosoftKernelCodeSigning     = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 61, 1, 1}
+	oidExtKeyUsageEkCertificate                  = asn1.ObjectIdentifier{2, 23, 133, 8, 1}
 )
 
 // ExtKeyUsage represents an extended set of actions that are valid for a given key.
@@ -642,6 +643,7 @@ const (
 	ExtKeyUsageNetscapeServerGatedCrypto
 	ExtKeyUsageMicrosoftCommercialCodeSigning
 	ExtKeyUsageMicrosoftKernelCodeSigning
+	ExtKeyUsageEkCertificate
 )
 
 // extKeyUsageOIDs contains the mapping between an ExtKeyUsage and its OID.
@@ -663,6 +665,7 @@ var extKeyUsageOIDs = []struct {
 	{ExtKeyUsageNetscapeServerGatedCrypto, oidExtKeyUsageNetscapeServerGatedCrypto},
 	{ExtKeyUsageMicrosoftCommercialCodeSigning, oidExtKeyUsageMicrosoftCommercialCodeSigning},
 	{ExtKeyUsageMicrosoftKernelCodeSigning, oidExtKeyUsageMicrosoftKernelCodeSigning},
+	{ExtKeyUsageEkCertificate, oidExtKeyUsageEkCertificate},
 }
 
 func extKeyUsageFromOID(oid asn1.ObjectIdentifier) (eku ExtKeyUsage, ok bool) {
