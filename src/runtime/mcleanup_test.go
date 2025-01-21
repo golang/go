@@ -269,3 +269,30 @@ func TestCleanupStopAfterCleanupRuns(t *testing.T) {
 	<-ch
 	stop()
 }
+
+func TestCleanupPointerEqualsArg(t *testing.T) {
+	// See go.dev/issue/71316
+	defer func() {
+		want := "runtime.AddCleanup: ptr is equal to arg, cleanup will never run"
+		if r := recover(); r == nil {
+			t.Error("want panic, test did not panic")
+		} else if r == want {
+			// do nothing
+		} else {
+			t.Errorf("wrong panic: want=%q, got=%q", want, r)
+		}
+	}()
+
+	// allocate struct with pointer to avoid hitting tinyalloc.
+	// Otherwise we can't be sure when the allocation will
+	// be freed.
+	type T struct {
+		v int
+		p unsafe.Pointer
+	}
+	v := &new(T).v
+	*v = 97531
+	runtime.AddCleanup(v, func(x *int) {}, v)
+	v = nil
+	runtime.GC()
+}
