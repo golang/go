@@ -3509,11 +3509,19 @@ func http2canonicalHeader(v string) string {
 }
 
 var (
-	http2VerboseLogs                    bool
-	http2logFrameWrites                 bool
-	http2logFrameReads                  bool
-	http2inTests                        bool
-	http2disableExtendedConnectProtocol bool
+	http2VerboseLogs    bool
+	http2logFrameWrites bool
+	http2logFrameReads  bool
+	http2inTests        bool
+
+	// Enabling extended CONNECT by causes browsers to attempt to use
+	// WebSockets-over-HTTP/2. This results in problems when the server's websocket
+	// package doesn't support extended CONNECT.
+	//
+	// Disable extended CONNECT by default for now.
+	//
+	// Issue #71128.
+	http2disableExtendedConnectProtocol = true
 )
 
 func init() {
@@ -3526,8 +3534,8 @@ func init() {
 		http2logFrameWrites = true
 		http2logFrameReads = true
 	}
-	if strings.Contains(e, "http2xconnect=0") {
-		http2disableExtendedConnectProtocol = true
+	if strings.Contains(e, "http2xconnect=1") {
+		http2disableExtendedConnectProtocol = false
 	}
 }
 
@@ -9500,10 +9508,6 @@ func http2validateHeaders(hdrs Header) string {
 
 var http2errNilRequestURL = errors.New("http2: Request.URI is nil")
 
-func http2isNormalConnect(req *Request) bool {
-	return req.Method == "CONNECT" && req.Header.Get(":protocol") == ""
-}
-
 // requires cc.wmu be held.
 func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trailers string, contentLength int64) ([]byte, error) {
 	cc.hbuf.Reset()
@@ -9523,8 +9527,17 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 		return nil, errors.New("http2: invalid Host header")
 	}
 
+	// isNormalConnect is true if this is a non-extended CONNECT request.
+	isNormalConnect := false
+	protocol := req.Header.Get(":protocol")
+	if req.Method == "CONNECT" && protocol == "" {
+		isNormalConnect = true
+	} else if protocol != "" && req.Method != "CONNECT" {
+		return nil, errors.New("http2: invalid :protocol header in non-CONNECT request")
+	}
+
 	var path string
-	if !http2isNormalConnect(req) {
+	if !isNormalConnect {
 		path = req.URL.RequestURI()
 		if !http2validPseudoPath(path) {
 			orig := path
@@ -9561,9 +9574,12 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 			m = MethodGet
 		}
 		f(":method", m)
-		if !http2isNormalConnect(req) {
+		if !isNormalConnect {
 			f(":path", path)
 			f(":scheme", req.URL.Scheme)
+		}
+		if protocol != "" {
+			f(":protocol", protocol)
 		}
 		if trailers != "" {
 			f("trailer", trailers)
@@ -9620,6 +9636,9 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 						f("cookie", v)
 					}
 				}
+				continue
+			} else if k == ":protocol" {
+				// :protocol pseudo-header was already sent above.
 				continue
 			}
 
