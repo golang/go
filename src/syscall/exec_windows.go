@@ -249,6 +249,7 @@ type SysProcAttr struct {
 	NoInheritHandles           bool                // if set, no handles are inherited by the new process, not even the standard handles, contained in ProcAttr.Files, nor the ones contained in AdditionalInheritedHandles
 	AdditionalInheritedHandles []Handle            // a list of additional handles, already marked as inheritable, that will be inherited by the new process
 	ParentProcess              Handle              // if non-zero, the new process regards the process given by this handle as its parent process, and AdditionalInheritedHandles, if set, should exist in this parent process
+	PseudoConsole              Handle              // if non-zero, the new process will be attached to the console represented by this handle, any AdditionalInheritedHandles will be ignored, this implies NoInheritHandles
 }
 
 var zeroProcAttr ProcAttr
@@ -350,9 +351,13 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 			return 0, 0, err
 		}
 	}
-	si.StdInput = fd[0]
-	si.StdOutput = fd[1]
-	si.StdErr = fd[2]
+
+	// If a PseudoConsole is specified, then there is nothing we need to do with the handles since the process will inherit the other end of the PseudoConsole.
+	if sys.PseudoConsole == 0 {
+		si.StdInput = fd[0]
+		si.StdOutput = fd[1]
+		si.StdErr = fd[2]
+	}
 
 	fd = append(fd, sys.AdditionalInheritedHandles...)
 
@@ -367,11 +372,18 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	}
 	fd = fd[:j]
 
-	willInheritHandles := len(fd) > 0 && !sys.NoInheritHandles
+	willInheritHandles := len(fd) > 0 && !sys.NoInheritHandles && sys.PseudoConsole == 0
 
 	// Do not accidentally inherit more than these handles.
 	if willInheritHandles {
 		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]), nil, nil)
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
+	if sys.PseudoConsole != 0 {
+		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, unsafe.Pointer(sys.PseudoConsole), unsafe.Sizeof(sys.PseudoConsole), nil, nil)
 		if err != nil {
 			return 0, 0, err
 		}
