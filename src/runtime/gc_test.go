@@ -7,6 +7,8 @@ package runtime_test
 import (
 	"fmt"
 	"internal/asan"
+	"internal/msan"
+	"internal/race"
 	"internal/testenv"
 	"math/bits"
 	"math/rand"
@@ -199,6 +201,9 @@ func TestPeriodicGC(t *testing.T) {
 }
 
 func TestGcZombieReporting(t *testing.T) {
+	if asan.Enabled || msan.Enabled || race.Enabled {
+		t.Skip("skipped test: checkptr mode catches the issue before getting to zombie reporting")
+	}
 	// This test is somewhat sensitive to how the allocator works.
 	// Pointers in zombies slice may cross-span, thus we
 	// add invalidptr=0 for avoiding the badPointer check.

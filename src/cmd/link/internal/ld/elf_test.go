@@ -278,7 +278,8 @@ func TestElfBindNow(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if test.mustInternalLink {
-				testenv.MustInternalLink(t, test.mustHaveCGO)
+				// N.B. none of the tests pass -asan/-msan/-asan.
+				testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: test.mustHaveCGO})
 			}
 			if test.mustHaveCGO {
 				testenv.MustHaveCGO(t)

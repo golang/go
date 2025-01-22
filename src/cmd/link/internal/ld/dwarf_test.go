@@ -287,7 +287,10 @@ func TestSizes(t *testing.T) {
 	mustHaveDWARF(t)
 
 	// External linking may bring in C symbols with unknown size. Skip.
-	testenv.MustInternalLink(t, false)
+	//
+	// N.B. go build below explictly doesn't pass through
+	// -asan/-msan/-race, so we don't care about those.
+	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
 	t.Parallel()
 
@@ -861,7 +864,9 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
 
 func TestRuntimeTypeAttrInternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	testenv.MustInternalLink(t, false)
+	// N.B. go build below explictly doesn't pass through
+	// -asan/-msan/-race, so we don't care about those.
+	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
 	mustHaveDWARF(t)
 
@@ -1491,7 +1496,11 @@ func TestIssue39757(t *testing.T) {
 
 func TestIssue42484(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	testenv.MustInternalLink(t, false) // Avoid spurious failures from external linkers.
+	// Avoid spurious failures from external linkers.
+	//
+	// N.B. go build below explictly doesn't pass through
+	// -asan/-msan/-race, so we don't care about those.
+	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
 	mustHaveDWARF(t)
 

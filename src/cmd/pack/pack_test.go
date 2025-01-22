@@ -163,7 +163,9 @@ func TestExtract(t *testing.T) {
 // Test that pack-created archives can be understood by the tools.
 func TestHello(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	testenv.MustInternalLink(t, false)
+	// N.B. the build below explictly doesn't pass through
+	// -asan/-msan/-race, so we don't care about those.
+	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
 	dir := t.TempDir()
 	hello := filepath.Join(dir, "hello.go")

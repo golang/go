@@ -10,7 +10,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/asan"
+	"internal/msan"
 	"internal/profile"
+	"internal/race"
 	"internal/testenv"
 	traceparse "internal/trace"
 	"io"
@@ -166,6 +169,16 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 		// Don't get confused if testenv.GoToolPath calls t.Skip.
 		target.err = errors.New("building test called t.Skip")
 
+		if asan.Enabled {
+			flags = append(flags, "-asan")
+		}
+		if msan.Enabled {
+			flags = append(flags, "-msan")
+		}
+		if race.Enabled {
+			flags = append(flags, "-race")
+		}
+
 		exe := filepath.Join(dir, name+".exe")
 
 		start := time.Now()
@@ -230,9 +243,17 @@ func TestCrashHandler(t *testing.T) {
 	testCrashHandler(t, false)
 }
 
+var deadlockBuildTypes = testenv.SpecialBuildTypes{
+	// External linking brings in cgo, causing deadlock detection not working.
+	Cgo:  false,
+	Asan: asan.Enabled,
+	Msan: msan.Enabled,
+	Race: race.Enabled,
+}
+
 func testDeadlock(t *testing.T, name string) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t, false)
+	testenv.MustInternalLink(t, deadlockBuildTypes)
 
 	output := runTestProg(t, "testprog", name)
 	want := "fatal error: all goroutines are asleep - deadlock!\n"
@@ -259,7 +280,7 @@ func TestLockedDeadlock2(t *testing.T) {
 
 func TestGoexitDeadlock(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t, false)
+	testenv.MustInternalLink(t, deadlockBuildTypes)
 
 	output := runTestProg(t, "testprog", "GoexitDeadlock")
 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
@@ -390,7 +411,7 @@ func TestRepanickedPanicSandwich(t *testing.T) {
 
 func TestGoexitCrash(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t, false)
+	testenv.MustInternalLink(t, deadlockBuildTypes)
 
 	output := runTestProg(t, "testprog", "GoexitExit")
 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
@@ -451,7 +472,7 @@ func TestBreakpoint(t *testing.T) {
 
 func TestGoexitInPanic(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t, false)
+	testenv.MustInternalLink(t, deadlockBuildTypes)
 
 	// see issue 8774: this code used to trigger an infinite recursion
 	output := runTestProg(t, "testprog", "GoexitInPanic")
@@ -518,7 +539,7 @@ func TestPanicAfterGoexit(t *testing.T) {
 
 func TestRecoveredPanicAfterGoexit(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t, false)
+	testenv.MustInternalLink(t, deadlockBuildTypes)
 
 	output := runTestProg(t, "testprog", "RecoveredPanicAfterGoexit")
 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
@@ -529,7 +550,7 @@ func TestRecoveredPanicAfterGoexit(t *testing.T) {
 
 func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t, false)
+	testenv.MustInternalLink(t, deadlockBuildTypes)
 
 	t.Parallel()
 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit")
@@ -541,7 +562,7 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 
 func TestRecoverBeforePanicAfterGoexit2(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t, false)
+	testenv.MustInternalLink(t, deadlockBuildTypes)
 
 	t.Parallel()
 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit2")
@@ -654,6 +675,9 @@ func TestConcurrentMapWrites(t *testing.T) {
 	if !*concurrentMapTest {
 		t.Skip("skipping without -run_concurrent_map_tests")
 	}
+	if race.Enabled {
+		t.Skip("skipping test: -race will catch the race, this test is for the built-in race detection")
+	}
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapWrites")
 	want := "fatal error: concurrent map writes\n"
@@ -667,6 +691,9 @@ func TestConcurrentMapWrites(t *testing.T) {
 func TestConcurrentMapReadWrite(t *testing.T) {
 	if !*concurrentMapTest {
 		t.Skip("skipping without -run_concurrent_map_tests")
+	}
+	if race.Enabled {
+		t.Skip("skipping test: -race will catch the race, this test is for the built-in race detection")
 	}
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapReadWrite")
@@ -682,6 +709,9 @@ func TestConcurrentMapIterateWrite(t *testing.T) {
 	if !*concurrentMapTest {
 		t.Skip("skipping without -run_concurrent_map_tests")
 	}
+	if race.Enabled {
+		t.Skip("skipping test: -race will catch the race, this test is for the built-in race detection")
+	}
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapIterateWrite")
 	want := "fatal error: concurrent map iteration and map write\n"
@@ -695,6 +725,9 @@ func TestConcurrentMapIterateWrite(t *testing.T) {
 
 func TestConcurrentMapWritesIssue69447(t *testing.T) {
 	testenv.MustHaveGoRun(t)
+	if race.Enabled {
+		t.Skip("skipping test: -race will catch the race, this test is for the built-in race detection")
+	}
 	exe, err := buildTestProg(t, "testprog")
 	if err != nil {
 		t.Fatal(err)
@@ -795,6 +828,9 @@ retry:
 }
 
 func TestBadTraceback(t *testing.T) {
+	if asan.Enabled || msan.Enabled || race.Enabled {
+		t.Skip("skipped test: checkptr mode catches the corruption")
+	}
 	output := runTestProg(t, "testprog", "BadTraceback")
 	for _, want := range []string{
 		"unexpected return pc",
@@ -1087,7 +1123,9 @@ func TestPanicWhilePanicking(t *testing.T) {
 
 func TestPanicOnUnsafeSlice(t *testing.T) {
 	output := runTestProg(t, "testprog", "panicOnNilAndEleSizeIsZero")
-	want := "panic: runtime error: unsafe.Slice: ptr is nil and len is not zero"
+	// Note: This is normally a panic, but is a throw when checkptr is
+	// enabled.
+	want := "unsafe.Slice: ptr is nil and len is not zero"
 	if !strings.Contains(output, want) {
 		t.Errorf("output does not contain %q:\n%s", want, output)
 	}

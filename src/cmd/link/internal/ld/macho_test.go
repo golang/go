@@ -66,7 +66,7 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if test.mustInternalLink {
-				testenv.MustInternalLink(t, test.mustHaveCGO)
+				testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: test.mustHaveCGO})
 			}
 			if test.mustHaveCGO {
 				testenv.MustHaveCGO(t)

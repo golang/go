@@ -335,13 +335,27 @@ func CanInternalLink(withCgo bool) bool {
 	return !platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, withCgo)
 }
 
+// SpecialBuildTypes are interesting build types that may affect linking.
+type SpecialBuildTypes struct {
+	Cgo  bool
+	Asan bool
+	Msan bool
+	Race bool
+}
+
+// NoSpecialBuildTypes indicates a standard, no cgo go build.
+var NoSpecialBuildTypes SpecialBuildTypes
+
 // MustInternalLink checks that the current system can link programs with internal
 // linking.
 // If not, MustInternalLink calls t.Skip with an explanation.
-func MustInternalLink(t testing.TB, withCgo bool) {
-	if !CanInternalLink(withCgo) {
+func MustInternalLink(t testing.TB, with SpecialBuildTypes) {
+	if with.Asan || with.Msan || with.Race {
+		t.Skipf("skipping test: internal linking with sanitizers is not supported")
+	}
+	if !CanInternalLink(with.Cgo) {
 		t.Helper()
-		if withCgo && CanInternalLink(false) {
+		if with.Cgo && CanInternalLink(false) {
 			t.Skipf("skipping test: internal linking on %s/%s is not supported with cgo", runtime.GOOS, runtime.GOARCH)
 		}
 		t.Skipf("skipping test: internal linking on %s/%s is not supported", runtime.GOOS, runtime.GOARCH)

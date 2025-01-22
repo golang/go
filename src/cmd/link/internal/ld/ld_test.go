@@ -21,7 +21,10 @@ func TestUndefinedRelocErrors(t *testing.T) {
 
 	// When external linking, symbols may be defined externally, so we allow
 	// undefined symbols and let external linker resolve. Skip the test.
-	testenv.MustInternalLink(t, false)
+	//
+	// N.B. go build below explictly doesn't pass through
+	// -asan/-msan/-race, so we don't care about those.
+	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
 	t.Parallel()
 

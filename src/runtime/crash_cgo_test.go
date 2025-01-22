@@ -8,8 +8,10 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/asan"
 	"internal/goos"
-	"internal/platform"
+	"internal/msan"
+	"internal/race"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -259,10 +261,13 @@ func TestCgoCrashTraceback(t *testing.T) {
 	default:
 		t.Skipf("not yet supported on %s", platform)
 	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
+	}
 	got := runTestProg(t, "testprogcgo", "CrashTraceback")
 	for i := 1; i <= 3; i++ {
 		if !strings.Contains(got, fmt.Sprintf("cgo symbolizer:%d", i)) {
-			t.Errorf("missing cgo symbolizer:%d", i)
+			t.Errorf("missing cgo symbolizer:%d in %s", i, got)
 		}
 	}
 }
@@ -312,7 +317,11 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	}
 	testenv.MustHaveGoRun(t)
 
-	exe, err := buildTestProg(t, "testprogcgo", buildArg)
+	var args []string
+	if buildArg != "" {
+		args = append(args, buildArg)
+	}
+	exe, err := buildTestProg(t, "testprogcgo", args...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,6 +382,9 @@ func TestCgoPprof(t *testing.T) {
 }
 
 func TestCgoPprofPIE(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping test: -race + PIE not supported")
+	}
 	testCgoPprof(t, "-buildmode=pie", "CgoPprof", "cpuHog", "runtime.main")
 }
 
@@ -385,8 +397,8 @@ func TestCgoPprofThreadNoTraceback(t *testing.T) {
 }
 
 func TestRaceProf(t *testing.T) {
-	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
-		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
+	if !race.Enabled {
+		t.Skip("skipping: race detector not enabled")
 	}
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping: test requires pthread support")
@@ -395,13 +407,7 @@ func TestRaceProf(t *testing.T) {
 
 	testenv.MustHaveGoRun(t)
 
-	// This test requires building various packages with -race, so
-	// it's somewhat slow.
-	if testing.Short() {
-		t.Skip("skipping test in -short mode")
-	}
-
-	exe, err := buildTestProg(t, "testprogcgo", "-race")
+	exe, err := buildTestProg(t, "testprogcgo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -417,8 +423,8 @@ func TestRaceProf(t *testing.T) {
 }
 
 func TestRaceSignal(t *testing.T) {
-	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
-		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
+	if !race.Enabled {
+		t.Skip("skipping: race detector not enabled")
 	}
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping: test requires pthread support")
@@ -432,13 +438,7 @@ func TestRaceSignal(t *testing.T) {
 
 	testenv.MustHaveGoRun(t)
 
-	// This test requires building various packages with -race, so
-	// it's somewhat slow.
-	if testing.Short() {
-		t.Skip("skipping test in -short mode")
-	}
-
-	exe, err := buildTestProg(t, "testprogcgo", "-race")
+	exe, err := buildTestProg(t, "testprogcgo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -545,6 +545,9 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 		// than injecting a sigpanic.
 		t.Skip("no sigpanic in C on windows")
 	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
+	}
 	if runtime.GOOS == "ios" {
 		testenv.SkipFlaky(t, 59912)
 	}
@@ -646,6 +649,9 @@ func TestSegv(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
 	}
 
 	for _, test := range []string{"Segv", "SegvInCgo", "TgkillSegv", "TgkillSegvInCgo"} {
@@ -776,6 +782,9 @@ func TestCgoNoCallback(t *testing.T) {
 }
 
 func TestCgoNoEscape(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("skipping test: ASAN forces extra heap allocations")
+	}
 	got := runTestProg(t, "testprogcgo", "CgoNoEscape")
 	want := "OK\n"
 	if got != want {
@@ -820,34 +829,6 @@ func TestDestructorCallback(t *testing.T) {
 	}
 }
 
-func TestDestructorCallbackRace(t *testing.T) {
-	// This test requires building with -race,
-	// so it's somewhat slow.
-	if testing.Short() {
-		t.Skip("skipping test in -short mode")
-	}
-
-	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
-		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
-	}
-
-	t.Parallel()
-
-	exe, err := buildTestProg(t, "testprogcgo", "-race")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "DestructorCallback")).CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if want := "OK\n"; string(got) != want {
-		t.Errorf("expected %q, but got:\n%s", want, got)
-	}
-}
-
 func TestEnsureBindM(t *testing.T) {
 	t.Parallel()
 	switch runtime.GOOS {
@@ -866,6 +847,10 @@ func TestStackSwitchCallback(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows", "plan9", "android", "ios", "openbsd": // no getcontext
 		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+	if asan.Enabled {
+		// ASAN prints this as a warning.
+		t.Skip("skipping test on ASAN because ASAN doesn't fully support makecontext/swapcontext functions")
 	}
 	got := runTestProg(t, "testprogcgo", "StackSwitchCallback")
 	skip := "SKIP\n"
