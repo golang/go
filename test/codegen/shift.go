@@ -531,3 +531,26 @@ func checkLeftShiftWithAddition(a int64, b int64) int64 {
 	a = a + b<<3
 	return a
 }
+
+//
+// Multiplication by some constants
+//
+
+func checkMulByConsts(a int64, b int64, c int64, d int64, e int64) (int64, int64, int64, int64, int64) {
+	// riscv64/rva20u64: "MUL"
+	// riscv64/rva22u64: "SH1ADD"
+	a = a * 3
+	// riscv64/rva20u64: "MUL"
+	// riscv64/rva22u64: "SH2ADD"
+	b = b * 5
+	// riscv64/rva20u64: "MUL"
+	// riscv64/rva22u64: "SH2ADD", "SH1ADD"
+	c = c * 13
+	// riscv64/rva20u64: "MUL"
+	// riscv64/rva22u64: "SH1ADD", "SH3ADD"
+	d = d * 27
+	// riscv64/rva20u64: "MUL"
+	// riscv64/rva22u64: "SH3ADD", "SH3ADD"
+	e = e * 73
+	return a, b, c, d, e
+}
