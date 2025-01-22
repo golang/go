@@ -1185,9 +1185,13 @@ func ReplaceAll(s, old, new string) string {
 // are equal under simple Unicode case-folding, which is a more general
 // form of case-insensitivity.
 func EqualFold(s, t string) bool {
+	if len(s) != len(t) {
+		return false
+	}
+
 	// ASCII fast path
 	i := 0
-	for ; i < len(s) && i < len(t); i++ {
+	for ; i < len(s); i++ {
 		sr := s[i]
 		tr := t[i]
 		if sr|tr >= utf8.RuneSelf {
@@ -1205,22 +1209,15 @@ func EqualFold(s, t string) bool {
 		}
 		// ASCII only, sr/tr must be upper/lower case
 		if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
-			continue
+			return false
 		}
-		return false
 	}
-	// Check if we've exhausted both strings.
-	return len(s) == len(t)
+	return true
 
 hasUnicode:
 	s = s[i:]
 	t = t[i:]
 	for _, sr := range s {
-		// If t is exhausted the strings are not equal.
-		if len(t) == 0 {
-			return false
-		}
-
 		// Extract first rune from second string.
 		var tr rune
 		if t[0] < utf8.RuneSelf {
@@ -1256,14 +1253,12 @@ hasUnicode:
 		for r != sr && r < tr {
 			r = unicode.SimpleFold(r)
 		}
-		if r == tr {
-			continue
+		if r != tr {
+			return false
 		}
-		return false
 	}
 
-	// First string is empty, so check if the second one is also empty.
-	return len(t) == 0
+	return true
 }
 
 // Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
