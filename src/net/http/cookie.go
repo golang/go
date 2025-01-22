@@ -483,25 +483,22 @@ func validCookiePathByte(b byte) bool {
 }
 
 func sanitizeOrWarn(fieldName string, valid func(byte) bool, v string) string {
-	ok := true
 	for i := 0; i < len(v); i++ {
 		if valid(v[i]) {
 			continue
 		}
 		log.Printf("net/http: invalid byte %q in %s; dropping invalid bytes", v[i], fieldName)
-		ok = false
-		break
-	}
-	if ok {
-		return v
-	}
-	buf := make([]byte, 0, len(v))
-	for i := 0; i < len(v); i++ {
-		if b := v[i]; valid(b) {
-			buf = append(buf, b)
+		buf := make([]byte, 0, len(v))
+		buf = append(buf, v[:i]...)
+		i++
+		for ; i < len(v); i++ {
+			if b := v[i]; valid(b) {
+				buf = append(buf, b)
+			}
 		}
+		return string(buf)
 	}
-	return string(buf)
+	return v
 }
 
 // parseCookieValue parses a cookie value according to RFC 6265.
