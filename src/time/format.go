@@ -116,8 +116,8 @@ const (
 	RFC850      = "Monday, 02-Jan-06 15:04:05 MST"
 	RFC1123     = "Mon, 02 Jan 2006 15:04:05 MST"
 	RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
-	RFC3339     = "2006-01-02T15:04:05Z07:00"
-	RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
+	RFC3339     = "2006-01-02T15:04:05-07:00"
+	RFC3339Nano = "2006-01-02T15:04:05.999999999-07:00"
 	Kitchen     = "3:04PM"
 	// Handy time stamps.
 	Stamp      = "Jan _2 15:04:05"

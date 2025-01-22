@@ -272,6 +272,8 @@ var parseTests = []ParseTest{
 	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 22:00:57 PDT", true, true, 1, 0},
 	{"RFC1123Z", RFC1123Z, "Thu, 04 Feb 2010 21:00:57 -0800", true, true, 1, 0},
 	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1, 0},
+	{"RFC3339", RFC3339, RFC3339, true, false, 1, 0},
+	{"RFC3339Nano", RFC3339Nano, RFC3339Nano, true, false, 1, 9},
 	{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1, 0},
 	// Optional fractional seconds.
 	{"ANSIC", ANSIC, "Thu Feb  4 21:00:57.0 2010", false, true, 1, 1},
