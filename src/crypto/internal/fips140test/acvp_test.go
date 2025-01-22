@@ -307,6 +307,27 @@ var (
 		"OneStepNoCounter/HMAC-SHA3-256":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New256() }),
 		"OneStepNoCounter/HMAC-SHA3-384":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New384() }),
 		"OneStepNoCounter/HMAC-SHA3-512":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New512() }),
+
+		"KTS-IFC/SHA2-224/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha256.New224() }),
+		"KTS-IFC/SHA2-224/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha256.New224() }),
+		"KTS-IFC/SHA2-256/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha256.New() }),
+		"KTS-IFC/SHA2-256/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha256.New() }),
+		"KTS-IFC/SHA2-384/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha512.New384() }),
+		"KTS-IFC/SHA2-384/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha512.New384() }),
+		"KTS-IFC/SHA2-512/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha512.New() }),
+		"KTS-IFC/SHA2-512/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha512.New() }),
+		"KTS-IFC/SHA2-512/224/initiator": cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha512.New512_224() }),
+		"KTS-IFC/SHA2-512/224/responder": cmdKtsIfcResponderAft(func() fips140.Hash { return sha512.New512_224() }),
+		"KTS-IFC/SHA2-512/256/initiator": cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha512.New512_256() }),
+		"KTS-IFC/SHA2-512/256/responder": cmdKtsIfcResponderAft(func() fips140.Hash { return sha512.New512_256() }),
+		"KTS-IFC/SHA3-224/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha3.New224() }),
+		"KTS-IFC/SHA3-224/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha3.New224() }),
+		"KTS-IFC/SHA3-256/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha3.New256() }),
+		"KTS-IFC/SHA3-256/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha3.New256() }),
+		"KTS-IFC/SHA3-384/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha3.New384() }),
+		"KTS-IFC/SHA3-384/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha3.New384() }),
+		"KTS-IFC/SHA3-512/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha3.New512() }),
+		"KTS-IFC/SHA3-512/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha3.New512() }),
 	}
 )
 
@@ -1866,6 +1887,81 @@ func cmdOneStepNoCounterHmacAft(h func() fips140.Hash) command {
 			out := mac.Sum(nil)
 
 			return [][]byte{out}, nil
+		},
+	}
+}
+
+func cmdKtsIfcInitiatorAft(h func() fips140.Hash) command {
+	return command{
+		requiredArgs: 3, // output bytes, n bytes, e bytes
+		handler: func(args [][]byte) ([][]byte, error) {
+			outputBytes := binary.LittleEndian.Uint32(args[0])
+			nBytes := args[1]
+			eBytes := args[2]
+
+			n, err := bigmod.NewModulus(nBytes)
+			if err != nil {
+				return nil, fmt.Errorf("invalid RSA modulus: %w", err)
+			}
+
+			paddedE := make([]byte, 4)
+			copy(paddedE[4-len(eBytes):], eBytes)
+			e := int(binary.BigEndian.Uint32(paddedE))
+			if e != 0x10001 {
+				return nil, errors.New("e must be 0x10001")
+			}
+
+			pub := &rsa.PublicKey{
+				N: n,
+				E: e,
+			}
+
+			dkm := make([]byte, outputBytes)
+			if _, err := rand.Read(dkm); err != nil {
+				return nil, fmt.Errorf("failed to generate random DKM: %v", err)
+			}
+
+			iutC, err := rsa.EncryptOAEP(h(), h(), rand.Reader, pub, dkm, nil)
+			if err != nil {
+				return nil, fmt.Errorf("OAEP encryption failed: %v", err)
+			}
+
+			return [][]byte{iutC, dkm}, nil
+		},
+	}
+}
+
+func cmdKtsIfcResponderAft(h func() fips140.Hash) command {
+	return command{
+		requiredArgs: 6, // n bytes, e bytes, p bytes, q bytes, d bytes, c bytes
+		handler: func(args [][]byte) ([][]byte, error) {
+			nBytes := args[0]
+			eBytes := args[1]
+
+			pBytes := args[2]
+			qBytes := args[3]
+			dBytes := args[4]
+
+			cBytes := args[5]
+
+			paddedE := make([]byte, 4)
+			copy(paddedE[4-len(eBytes):], eBytes)
+			e := int(binary.BigEndian.Uint32(paddedE))
+			if e != 0x10001 {
+				return nil, errors.New("e must be 0x10001")
+			}
+
+			priv, err := rsa.NewPrivateKey(nBytes, int(e), dBytes, pBytes, qBytes)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create private key: %v", err)
+			}
+
+			dkm, err := rsa.DecryptOAEP(h(), h(), priv, cBytes, nil)
+			if err != nil {
+				return nil, fmt.Errorf("OAEP decryption failed: %v", err)
+			}
+
+			return [][]byte{dkm}, nil
 		},
 	}
 }
