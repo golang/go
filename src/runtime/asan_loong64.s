@@ -83,15 +83,20 @@ TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
 // Switches SP to g0 stack and calls (FARG). Arguments already set.
 TEXT	asancall<>(SB), NOSPLIT, $0-0
 	MOVV	R3, R23         // callee-saved
-	BEQ	g, g0stack      // no g, still on a system stack
+	BEQ	g, call         // no g, still on a system stack
 	MOVV	g_m(g), R14
+
+	// Switch to g0 stack if we aren't already on g0 or gsignal.
+	MOVV	m_gsignal(R14), R15
+	BEQ	R15, g, call
+
 	MOVV	m_g0(R14), R15
-	BEQ	R15, g, g0stack
+	BEQ	R15, g, call
 
 	MOVV	(g_sched+gobuf_sp)(R15), R9
 	MOVV	R9, R3
 
-g0stack:
+call:
 	JAL	(FARG)
 	MOVV	R23, R3
 	RET

@@ -484,9 +484,16 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 	MOVD    0(R10), g
 	MOVD	g_m(g), R7		// m for g
 	MOVD	R1, R16			// callee-saved, preserved across C call
-	MOVD	m_g0(R7), R10		// g0 for m
-	CMP	R10, g			// same g0?
-	BEQ	call			// already on g0
+
+	// Switch to g0 stack if we aren't already on g0 or gsignal.
+	MOVD	m_gsignal(R7), R10
+	CMP	R10, g
+	BEQ	call
+
+	MOVD	m_g0(R7), R10
+	CMP	R10, g
+	BEQ	call
+
 	MOVD	(g_sched+gobuf_sp)(R10), R1 // switch R1
 call:
 	// prepare frame for C ABI
