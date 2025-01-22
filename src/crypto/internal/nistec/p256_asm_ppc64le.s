@@ -124,14 +124,23 @@ GLOBL p256mul<>(SB), 8, $160
 #define PH    V31
 
 #define CAR1  V6
+
+#define SEL    V8
+#define ZER    V9
+
 // func p256NegCond(val *p256Point, cond int)
 TEXT ·p256NegCond(SB), NOSPLIT, $0-16
 	MOVD val+0(FP), P1ptr
 	MOVD $16, R16
 
-	MOVD cond+8(FP), R6
-	CMP  $0, R6
-	BC   12, 2, LR      // just return if cond == 0
+	// Copy cond into SEL (cond is R1 + 8 (cond offset) + 32)
+	MOVD $40, R17
+	LXVDSX (R1)(R17), SEL
+	// Zeroize ZER
+	VSPLTISB $0, ZER
+	// SEL controls whether to return the original value (Y1H/Y1L)
+	// or the negated value (T1H/T1L).
+	VCMPEQUD SEL, ZER, SEL
 
 	MOVD $p256mul<>+0x00(SB), CPOOL
 
@@ -147,6 +156,9 @@ TEXT ·p256NegCond(SB), NOSPLIT, $0-16
 	VSUBCUQ  PL, Y1L, CAR1      // subtract part2 giving carry
 	VSUBUQM  PL, Y1L, T1L       // subtract part2 giving result
 	VSUBEUQM PH, Y1H, CAR1, T1H // subtract part1 using carry from part2
+
+	VSEL T1H, Y1H, SEL, T1H
+	VSEL T1L, Y1L, SEL, T1L
 
 	XXPERMDI T1H, T1H, $2, T1H
 	XXPERMDI T1L, T1L, $2, T1L
@@ -164,6 +176,8 @@ TEXT ·p256NegCond(SB), NOSPLIT, $0-16
 #undef PL
 #undef PH
 #undef CAR1
+#undef SEL
+#undef ZER
 
 #define P3ptr   R3
 #define P1ptr   R4
