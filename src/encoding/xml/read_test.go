@@ -538,14 +538,14 @@ var tableAttrs = []struct {
 		tab: TableAttrs{TAttr{HTable: "hello", FTable: "world"}},
 	},
 	{
-		// Default space does not apply to attribute names.
+		// Default namespace does not apply to attribute names.
 		xml: `<TableAttrs xmlns="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
 			`h:table="hello" table="world" ` +
 			`/></TableAttrs>`,
 		tab: TableAttrs{TAttr{HTable: "hello", FTable: ""}},
 	},
 	{
-		// Default space does not apply to attribute names.
+		// Default namespace does not apply to attribute names.
 		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture"><TAttr xmlns="http://www.w3.org/TR/html4/" ` +
 			`table="hello" f:table="world" ` +
 			`/></TableAttrs>`,
@@ -558,7 +558,7 @@ var tableAttrs = []struct {
 		tab: TableAttrs{},
 	},
 	{
-		// Default space does not apply to attribute names.
+		// Default namespace does not apply to attribute names.
 		xml: `<TableAttrs xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
 			`h:table="hello" table="world" ` +
 			`/></TableAttrs>`,
@@ -566,7 +566,7 @@ var tableAttrs = []struct {
 		ns:  "http://www.w3schools.com/furniture",
 	},
 	{
-		// Default space does not apply to attribute names.
+		// Default namespace does not apply to attribute names.
 		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture"><TAttr ` +
 			`table="hello" f:table="world" ` +
 			`/></TableAttrs>`,
