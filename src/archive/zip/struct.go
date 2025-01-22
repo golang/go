@@ -201,7 +201,6 @@ func (fi headerFileInfo) String() string {
 // of the returned header to provide the full path name of the file.
 // If compression is desired, callers should set the FileHeader.Method
 // field; it is unset by default.
-// If fi describes a directory, a slash is appended to the name.
 func FileInfoHeader(fi fs.FileInfo) (*FileHeader, error) {
 	size := fi.Size()
 	fh := &FileHeader{
@@ -214,9 +213,6 @@ func FileInfoHeader(fi fs.FileInfo) (*FileHeader, error) {
 		fh.UncompressedSize = uint32max
 	} else {
 		fh.UncompressedSize = uint32(fh.UncompressedSize64)
-	}
-	if fi.IsDir() {
-		fh.Name = fh.Name + "/"
 	}
 	return fh, nil
 }

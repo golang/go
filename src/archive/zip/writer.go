@@ -519,7 +519,10 @@ func (w *Writer) AddFS(fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
-		h.Name = strings.TrimSuffix(name, info.Name()) + h.Name
+		h.Name = name
+		if d.IsDir() {
+			h.Name += "/"
+		}
 		h.Method = Deflate
 		fw, err := w.CreateHeader(h)
 		if err != nil {
