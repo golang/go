@@ -813,6 +813,10 @@ func MatchPrefixPatterns(globs, target string) bool {
 			continue
 		}
 
+		// Remove the trailing slash in glob
+		if glob[len(glob)-1] == '/' {
+			glob = glob[:len(glob)-1]
+		}
 		// A glob with N+1 path elements (N slashes) needs to be matched
 		// against the first N+1 path elements of target,
 		// which end just before the N+1'th slash.
