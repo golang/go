@@ -4,7 +4,10 @@
 
 package list
 
-import "testing"
+import (
+	"strconv"
+	"testing"
+)
 
 func checkListLen(t *testing.T, l *List, len int) bool {
 	if n := l.Len(); n != len {
@@ -339,4 +342,57 @@ func TestMoveUnknownMark(t *testing.T) {
 	l1.MoveBefore(e1, e2)
 	checkList(t, &l1, []any{1})
 	checkList(t, &l2, []any{2})
+}
+
+func TestSort(t *testing.T) {
+	for _, size := range []int{
+		1, 2, 3, 4, 5, 6, 7, 8,
+	} {
+		t.Run(strconv.Itoa(size), func(t *testing.T) {
+			sorted := make([]int, size)
+			for i := range sorted {
+				sorted[i] = i
+			}
+			values := make([]interface{}, size)
+			for i, x := range sorted {
+				values[i] = x
+			}
+			for _, xs := range perm(sorted) {
+				l := New()
+				expPtr := make([]*Element, len(xs))
+				for _, x := range xs {
+					// x is the same here as an index in the sorted slice.
+					// That is, x holds index at which element should be after
+					// l.Sort().
+					expPtr[x] = l.PushBack(x)
+				}
+				l.Sort(func(a, b interface{}) bool {
+					return a.(int) < b.(int)
+				})
+				checkList(t, l, values)
+				checkListPointers(t, l, expPtr)
+			}
+		})
+	}
+}
+
+func perm(xs []int) [][]int {
+	var f func(int, []int) [][]int
+	f = func(head int, tail []int) (ret [][]int) {
+		if len(tail) == 0 {
+			return [][]int{{head}}
+		}
+		for _, xs := range f(tail[0], tail[1:]) {
+			h := len(xs)
+			xs = append(xs, head)
+			ret = append(ret, xs) // one with head at highest index.
+			for i := 0; i < h; i++ {
+				cp := append(([]int)(nil), xs...)
+				cp[i], cp[h] = cp[h], cp[i]
+				ret = append(ret, cp)
+			}
+		}
+		return ret
+	}
+	return f(xs[0], xs[1:])
 }
