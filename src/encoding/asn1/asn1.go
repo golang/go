@@ -33,6 +33,9 @@ import (
 	"unicode/utf8"
 )
 
+// ignoreCN disables interpreting PrintableString as ASN.1 See issue 21339
+var ignoreCN = !strings.Contains(os.Getenv("GODEBUG"), "x509ignoreCN=0")
+
 // A StructuralError suggests that the ASN.1 data is valid, but the Go type
 // which is receiving it doesn't match.
 type StructuralError struct {
@@ -399,7 +402,7 @@ func isNumeric(b byte) bool {
 // array and returns it.
 func parsePrintableString(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
-		if !isPrintable(b, allowAsterisk, allowAmpersand) {
+		if !ignoreCN && !isPrintable(b, allowAsterisk, allowAmpersand) {
 			err = SyntaxError{"PrintableString contains invalid character"}
 			return
 		}
