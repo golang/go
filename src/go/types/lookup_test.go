@@ -5,7 +5,6 @@
 package types_test
 
 import (
-	"go/importer"
 	"go/token"
 	"path/filepath"
 	"runtime"
@@ -28,7 +27,7 @@ func BenchmarkLookupFieldOrMethod(b *testing.B) {
 	}
 
 	conf := Config{
-		Importer: importer.Default(),
+		Importer: defaultImporter(fset),
 	}
 
 	pkg, err := conf.Check("http", fset, files, nil)

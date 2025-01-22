@@ -8,7 +8,7 @@ package types_test
 
 import (
 	"go/ast"
-	"go/importer"
+	"go/token"
 	"go/types"
 	"internal/testenv"
 	"testing"
@@ -87,7 +87,8 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 `
 	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
 	conf := types.Config{
-		Importer: importer.Default(),
+		// TODO(adonovan): use same FileSet as mustTypecheck.
+		Importer: defaultImporter(token.NewFileSet()),
 		Sizes:    &types.StdSizes{WordSize: 8, MaxAlign: 8},
 	}
 	mustTypecheck(src, &conf, &info)
@@ -117,7 +118,8 @@ var s struct {
 	for _, arch := range []string{"386", "amd64"} {
 		t.Run(arch, func(t *testing.T) {
 			conf := types.Config{
-				Importer: importer.Default(),
+				// TODO(adonovan): use same FileSet as findStructTypeConfig.
+				Importer: defaultImporter(token.NewFileSet()),
 				Sizes:    types.SizesFor("gc", arch),
 			}
 			ts := findStructTypeConfig(t, src, &conf)
@@ -188,7 +190,11 @@ func TestGCSizes(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			conf := types.Config{Importer: importer.Default(), Sizes: types.SizesFor("gc", "amd64")}
+			conf := types.Config{
+				// TODO(adonovan): use same FileSet as mustTypecheck.
+				Importer: defaultImporter(token.NewFileSet()),
+				Sizes:    types.SizesFor("gc", "amd64"),
+			}
 			mustTypecheck(tc.src, &conf, nil)
 		})
 	}

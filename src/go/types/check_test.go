@@ -34,7 +34,6 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -164,7 +163,7 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool,
 	// set up typechecker
 	var conf Config
 	*boolFieldAddr(&conf, "_Trace") = manual && testing.Verbose()
-	conf.Importer = importer.Default()
+	conf.Importer = defaultImporter(fset)
 	conf.Error = func(err error) {
 		if *haltOnError {
 			defer panic(err)
