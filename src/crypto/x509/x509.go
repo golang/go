@@ -27,7 +27,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
-	cryptorand "crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509/pkix"
@@ -1673,25 +1672,19 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 
 	serialNumber := template.SerialNumber
 	if serialNumber == nil {
-		// Generate a serial number following RFC 5280 Section 4.1.2.2 if one is not provided.
-		// Requirements:
-		//   - serial number must be positive
-		//   - at most 20 octets when encoded
-		maxSerial := big.NewInt(1).Lsh(big.NewInt(1), 20*8)
-		for {
-			var err error
-			serialNumber, err = cryptorand.Int(rand, maxSerial)
-			if err != nil {
-				return nil, err
-			}
-			// If the serial is exactly 20 octets, check if the high bit of the first byte is set.
-			// If so, generate a new serial, since it will be padded with a leading 0 byte during
-			// encoding so that the serial is not interpreted as a negative integer, making it
-			// 21 octets.
-			if serialBytes := serialNumber.Bytes(); len(serialBytes) > 0 && (len(serialBytes) < 20 || serialBytes[0]&0x80 == 0) {
-				break
-			}
+		// Generate a serial number following RFC 5280, Section 4.1.2.2 if one
+		// is not provided. The serial number must be positive and at most 20
+		// octets *when encoded*.
+		serialBytes := make([]byte, 20)
+		if _, err := io.ReadFull(rand, serialBytes); err != nil {
+			return nil, err
 		}
+		// If the top bit is set, the serial will be padded with a leading zero
+		// byte during encoding, so that it's not interpreted as a negative
+		// integer. This padding would make the serial 21 octets so we clear the
+		// top bit to ensure the correct length in all cases.
+		serialBytes[0] &= 0b0111_1111
+		serialNumber = new(big.Int).SetBytes(serialBytes)
 	}
 
 	// RFC 5280 Section 4.1.2.2: serial number must be positive
