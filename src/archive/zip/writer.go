@@ -520,6 +520,9 @@ func (w *Writer) AddFS(fsys fs.FS) error {
 			return err
 		}
 		h.Name = name
+		if d.IsDir() {
+			h.Name += "/"
+		}
 		h.Method = Deflate
 		fw, err := w.CreateHeader(h)
 		if err != nil {

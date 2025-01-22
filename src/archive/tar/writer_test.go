@@ -1382,7 +1382,11 @@ func TestWriterAddFS(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if hdr.Name != name {
+		tmpName := name
+		if entryInfo.IsDir() {
+			tmpName += "/"
+		}
+		if hdr.Name != tmpName {
 			t.Errorf("test fs has filename %v; archive header has %v",
 				name, hdr.Name)
 		}

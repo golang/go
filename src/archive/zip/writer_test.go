@@ -633,7 +633,7 @@ func TestWriterAddFS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Add subfolder into fsys to match what we'll read from the tar.
+	// Add subfolder into fsys to match what we'll read from the zip.
 	tests = append(tests[:2:2], WriteTest{Name: "subfolder", Mode: 0o555 | os.ModeDir}, tests[2])
 
 	// read it back
@@ -642,6 +642,9 @@ func TestWriterAddFS(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, wt := range tests {
+		if wt.Mode.IsDir() {
+			wt.Name += "/"
+		}
 		testReadFile(t, r.File[i], &wt)
 	}
 }
