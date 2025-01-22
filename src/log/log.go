@@ -191,8 +191,7 @@ func putBuffer(p *[]byte) {
 // provided for generality, although at the moment on all pre-defined
 // paths it will be 2.
 func (l *Logger) Output(calldepth int, s string) error {
-	calldepth++ // +1 for this frame.
-	return l.output(0, calldepth, func(b []byte) []byte {
+	return l.output(0, calldepth+1, func(b []byte) []byte { // +1 for this frame.
 		return append(b, s...)
 	})
 }
@@ -280,40 +279,52 @@ func (l *Logger) Println(v ...any) {
 
 // Fatal is equivalent to l.Print() followed by a call to [os.Exit](1).
 func (l *Logger) Fatal(v ...any) {
-	l.Output(2, fmt.Sprint(v...))
+	l.output(0, 2, func(b []byte) []byte {
+		return fmt.Append(b, v...)
+	})
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to l.Printf() followed by a call to [os.Exit](1).
 func (l *Logger) Fatalf(format string, v ...any) {
-	l.Output(2, fmt.Sprintf(format, v...))
+	l.output(0, 2, func(b []byte) []byte {
+		return fmt.Appendf(b, format, v...)
+	})
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to l.Println() followed by a call to [os.Exit](1).
 func (l *Logger) Fatalln(v ...any) {
-	l.Output(2, fmt.Sprintln(v...))
+	l.output(0, 2, func(b []byte) []byte {
+		return fmt.Appendln(b, v...)
+	})
 	os.Exit(1)
 }
 
 // Panic is equivalent to l.Print() followed by a call to panic().
 func (l *Logger) Panic(v ...any) {
 	s := fmt.Sprint(v...)
-	l.Output(2, s)
+	l.output(0, 2, func(b []byte) []byte {
+		return append(b, s...)
+	})
 	panic(s)
 }
 
 // Panicf is equivalent to l.Printf() followed by a call to panic().
 func (l *Logger) Panicf(format string, v ...any) {
 	s := fmt.Sprintf(format, v...)
-	l.Output(2, s)
+	l.output(0, 2, func(b []byte) []byte {
+		return append(b, s...)
+	})
 	panic(s)
 }
 
 // Panicln is equivalent to l.Println() followed by a call to panic().
 func (l *Logger) Panicln(v ...any) {
 	s := fmt.Sprintln(v...)
-	l.Output(2, s)
+	l.output(0, 2, func(b []byte) []byte {
+		return append(b, s...)
+	})
 	panic(s)
 }
 
@@ -409,40 +420,52 @@ func Println(v ...any) {
 
 // Fatal is equivalent to [Print] followed by a call to [os.Exit](1).
 func Fatal(v ...any) {
-	std.Output(2, fmt.Sprint(v...))
+	std.output(0, 2, func(b []byte) []byte {
+		return fmt.Append(b, v...)
+	})
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to [Printf] followed by a call to [os.Exit](1).
 func Fatalf(format string, v ...any) {
-	std.Output(2, fmt.Sprintf(format, v...))
+	std.output(0, 2, func(b []byte) []byte {
+		return fmt.Appendf(b, format, v...)
+	})
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to [Println] followed by a call to [os.Exit](1).
 func Fatalln(v ...any) {
-	std.Output(2, fmt.Sprintln(v...))
+	std.output(0, 2, func(b []byte) []byte {
+		return fmt.Appendln(b, v...)
+	})
 	os.Exit(1)
 }
 
 // Panic is equivalent to [Print] followed by a call to panic().
 func Panic(v ...any) {
 	s := fmt.Sprint(v...)
-	std.Output(2, s)
+	std.output(0, 2, func(b []byte) []byte {
+		return append(b, s...)
+	})
 	panic(s)
 }
 
 // Panicf is equivalent to [Printf] followed by a call to panic().
 func Panicf(format string, v ...any) {
 	s := fmt.Sprintf(format, v...)
-	std.Output(2, s)
+	std.output(0, 2, func(b []byte) []byte {
+		return append(b, s...)
+	})
 	panic(s)
 }
 
 // Panicln is equivalent to [Println] followed by a call to panic().
 func Panicln(v ...any) {
 	s := fmt.Sprintln(v...)
-	std.Output(2, s)
+	std.output(0, 2, func(b []byte) []byte {
+		return append(b, s...)
+	})
 	panic(s)
 }
 
@@ -454,5 +477,7 @@ func Panicln(v ...any) {
 // if [Llongfile] or [Lshortfile] is set; a value of 1 will print the details
 // for the caller of Output.
 func Output(calldepth int, s string) error {
-	return std.Output(calldepth+1, s) // +1 for this frame.
+	return std.output(0, calldepth+1, func(b []byte) []byte { // +1 for this frame.
+		return append(b, s...)
+	})
 }
