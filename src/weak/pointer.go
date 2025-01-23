@@ -23,13 +23,15 @@ import (
 // the lifetimes of separate values (for example, through a map with weak
 // keys).
 //
-// Two Pointer values always compare equal if the pointers from which they were
-// created compare equal. This property is retained even after the
-// object referenced by the pointer used to create a weak reference is
-// reclaimed.
+// Two Pointer values compare equal if and only if the pointers from which they
+// were created compare equal.
+// This property is maintained even after the object referenced by the pointer
+// used to create a weak reference is reclaimed.
 // If multiple weak pointers are made to different offsets within the same object
 // (for example, pointers to different fields of the same struct), those pointers
 // will not compare equal.
+// In other words, weak pointers map to objects and offsets within those
+// objects, not plain addresses.
 // If a weak pointer is created from an object that becomes unreachable, but is
 // then resurrected due to a finalizer, that weak pointer will not compare equal
 // with weak pointers created after the resurrection.
