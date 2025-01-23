@@ -53,6 +53,19 @@ go get vcs-test.golang.org/auth/or401
 env NETRC=$WORK/missing
 ! go get vcs-test.golang.org/auth/or401
 stderr '^\tserver response: ACCESS DENIED, buddy$'
+
+[short] skip 'requires a remote vcs lookup'
+[!git] skip
+# An unset home directory should warn the user but not cause a failure.
+env NETRC=
+env HOME=
+env USERPROFILE=
+env home=
+go get -x vcs-test.golang.org/git/emptytest.git
+[!GOOS:windows] [!GOOS:plan9] stderr 'GOAUTH=netrc: \$HOME is not defined'
+[GOOS:windows] stderr 'GOAUTH=netrc: \%userprofile\% is not defined'
+[GOOS:plan9] stderr 'GOAUTH=netrc: \$home is not defined'
+
 -- go.mod --
 module private.example.com
 -- $WORK/empty --
