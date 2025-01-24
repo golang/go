@@ -456,14 +456,14 @@ func f28(b bool) {
 
 func f29(b bool) {
 	if b {
-		for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ (runtime.hiter|internal/runtime/maps.Iter)$"
+		for k := range m { // ERROR "live at call to (mapiterinit|mapIterStart): .autotmp_[0-9]+$" "live at call to (mapiternext|mapIterNext): .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ (runtime.hiter|internal/runtime/maps.Iter)$"
 			printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 		}
 	}
-	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
+	for k := range m { // ERROR "live at call to (mapiterinit|mapIterStart): .autotmp_[0-9]+$" "live at call to (mapiternext|mapIterNext): .autotmp_[0-9]+$"
 		printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 	}
-	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
+	for k := range m { // ERROR "live at call to (mapiterinit|mapIterStart): .autotmp_[0-9]+$" "live at call to (mapiternext|mapIterNext): .autotmp_[0-9]+$"
 		printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 	}
 }

@@ -176,11 +176,21 @@ func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 //
-//go:linkname mapiterinit
+// TODO go:linkname mapiterinit
 func mapiterinit(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
+	// N.B. This is required by the builtin list in internal/goobj because
+	// it is a builtin for old maps.
+	throw("unreachable")
+}
+
+// mapIterStart initializes the Iter struct used for ranging over maps and
+// performs the first step of iteration. The Iter struct pointed to by 'it' is
+// allocated on the stack by the compilers order pass or on the heap by
+// reflect. Both need to have zeroed it since the struct contains pointers.
+func mapIterStart(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
 	if raceenabled && m != nil {
 		callerpc := sys.GetCallerPC()
-		racereadpc(unsafe.Pointer(m), callerpc, abi.FuncPCABIInternal(mapiterinit))
+		racereadpc(unsafe.Pointer(m), callerpc, abi.FuncPCABIInternal(mapIterStart))
 	}
 
 	it.Init(t, m)
@@ -199,11 +209,19 @@ func mapiterinit(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 //
-//go:linkname mapiternext
+// TODO go:linkname mapiternext
 func mapiternext(it *maps.Iter) {
+	// N.B. This is required by the builtin list in internal/goobj because
+	// it is a builtin for old maps.
+	throw("unreachable")
+}
+
+// mapIterNext performs the next step of iteration. Afterwards, the next
+// key/elem are in it.Key()/it.Elem().
+func mapIterNext(it *maps.Iter) {
 	if raceenabled {
 		callerpc := sys.GetCallerPC()
-		racereadpc(unsafe.Pointer(it.Map()), callerpc, abi.FuncPCABIInternal(mapiternext))
+		racereadpc(unsafe.Pointer(it.Map()), callerpc, abi.FuncPCABIInternal(mapIterNext))
 	}
 
 	it.Next()
@@ -317,10 +335,10 @@ func reflect_mapdelete_faststr(t *abi.SwissMapType, m *maps.Map, key string) {
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 //
-//go:linkname reflect_mapiterinit reflect.mapiterinit
-func reflect_mapiterinit(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
-	mapiterinit(t, m, it)
-}
+// TODO go:linkname reflect_mapiterinit reflect.mapiterinit
+//func reflect_mapiterinit(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
+//	mapiterinit(t, m, it)
+//}
 
 // reflect_mapiternext is for package reflect,
 // but widely used packages access it using linkname.
@@ -334,10 +352,10 @@ func reflect_mapiterinit(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 //
-//go:linkname reflect_mapiternext reflect.mapiternext
-func reflect_mapiternext(it *maps.Iter) {
-	mapiternext(it)
-}
+// TODO go:linkname reflect_mapiternext reflect.mapiternext
+//func reflect_mapiternext(it *maps.Iter) {
+//	mapiternext(it)
+//}
 
 // reflect_mapiterkey was for package reflect,
 // but widely used packages access it using linkname.
@@ -348,10 +366,10 @@ func reflect_mapiternext(it *maps.Iter) {
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 //
-//go:linkname reflect_mapiterkey reflect.mapiterkey
-func reflect_mapiterkey(it *maps.Iter) unsafe.Pointer {
-	return it.Key()
-}
+// TODO go:linkname reflect_mapiterkey reflect.mapiterkey
+//func reflect_mapiterkey(it *maps.Iter) unsafe.Pointer {
+//	return it.Key()
+//}
 
 // reflect_mapiterelem was for package reflect,
 // but widely used packages access it using linkname.
@@ -362,10 +380,10 @@ func reflect_mapiterkey(it *maps.Iter) unsafe.Pointer {
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 //
-//go:linkname reflect_mapiterelem reflect.mapiterelem
-func reflect_mapiterelem(it *maps.Iter) unsafe.Pointer {
-	return it.Elem()
-}
+// TODO go:linkname reflect_mapiterelem reflect.mapiterelem
+//func reflect_mapiterelem(it *maps.Iter) unsafe.Pointer {
+//	return it.Elem()
+//}
 
 // reflect_maplen is for package reflect,
 // but widely used packages access it using linkname.
