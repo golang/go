@@ -553,7 +553,7 @@ func lt(arg1, arg2 reflect.Value) (bool, error) {
 		case k1 == uintKind && k2 == intKind:
 			truth = arg2.Int() >= 0 && arg1.Uint() < uint64(arg2.Int())
 		default:
-			return false, errBadComparison
+			return false, fmt.Errorf("incompatible types for comparison: %v and %v", arg1.Type(), arg2.Type())
 		}
 	} else {
 		switch k1 {
