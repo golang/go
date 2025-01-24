@@ -158,31 +158,6 @@ func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
 	m.Delete(t, key)
 }
 
-// mapiterinit initializes the Iter struct used for ranging over maps.
-// The Iter struct pointed to by 'it' is allocated on the stack
-// by the compilers order pass or on the heap by reflect_mapiterinit.
-// Both need to have zeroed hiter since the struct contains pointers.
-//
-// mapiterinit should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/bytedance/sonic
-//   - github.com/goccy/go-json
-//   - github.com/RomiChan/protobuf
-//   - github.com/segmentio/encoding
-//   - github.com/ugorji/go/codec
-//   - github.com/wI2L/jettison
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-// TODO go:linkname mapiterinit
-func mapiterinit(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
-	// N.B. This is required by the builtin list in internal/goobj because
-	// it is a builtin for old maps.
-	throw("unreachable")
-}
-
 // mapIterStart initializes the Iter struct used for ranging over maps and
 // performs the first step of iteration. The Iter struct pointed to by 'it' is
 // allocated on the stack by the compilers order pass or on the heap by
@@ -195,25 +170,6 @@ func mapIterStart(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
 
 	it.Init(t, m)
 	it.Next()
-}
-
-// mapiternext should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/bytedance/sonic
-//   - github.com/RomiChan/protobuf
-//   - github.com/segmentio/encoding
-//   - github.com/ugorji/go/codec
-//   - gonum.org/v1/gonum
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-// TODO go:linkname mapiternext
-func mapiternext(it *maps.Iter) {
-	// N.B. This is required by the builtin list in internal/goobj because
-	// it is a builtin for old maps.
-	throw("unreachable")
 }
 
 // mapIterNext performs the next step of iteration. Afterwards, the next
@@ -323,67 +279,6 @@ func reflect_mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
 func reflect_mapdelete_faststr(t *abi.SwissMapType, m *maps.Map, key string) {
 	mapdelete_faststr(t, m, key)
 }
-
-// reflect_mapiterinit is for package reflect,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/modern-go/reflect2
-//   - gitee.com/quant1x/gox
-//   - github.com/v2pro/plz
-//   - github.com/wI2L/jettison
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-// TODO go:linkname reflect_mapiterinit reflect.mapiterinit
-//func reflect_mapiterinit(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
-//	mapiterinit(t, m, it)
-//}
-
-// reflect_mapiternext is for package reflect,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - gitee.com/quant1x/gox
-//   - github.com/modern-go/reflect2
-//   - github.com/goccy/go-json
-//   - github.com/v2pro/plz
-//   - github.com/wI2L/jettison
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-// TODO go:linkname reflect_mapiternext reflect.mapiternext
-//func reflect_mapiternext(it *maps.Iter) {
-//	mapiternext(it)
-//}
-
-// reflect_mapiterkey was for package reflect,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/goccy/go-json
-//   - gonum.org/v1/gonum
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-// TODO go:linkname reflect_mapiterkey reflect.mapiterkey
-//func reflect_mapiterkey(it *maps.Iter) unsafe.Pointer {
-//	return it.Key()
-//}
-
-// reflect_mapiterelem was for package reflect,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/goccy/go-json
-//   - gonum.org/v1/gonum
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-// TODO go:linkname reflect_mapiterelem reflect.mapiterelem
-//func reflect_mapiterelem(it *maps.Iter) unsafe.Pointer {
-//	return it.Elem()
-//}
 
 // reflect_maplen is for package reflect,
 // but widely used packages access it using linkname.
