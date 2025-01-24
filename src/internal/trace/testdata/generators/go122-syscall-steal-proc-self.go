@@ -14,10 +14,11 @@ import (
 	"internal/trace"
 	"internal/trace/internal/testgen"
 	"internal/trace/tracev2"
+	"internal/trace/version"
 )
 
 func main() {
-	testgen.Main(gen)
+	testgen.Main(version.Go122, gen)
 }
 
 func gen(t *testgen.Trace) {

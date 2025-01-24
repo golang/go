@@ -20,7 +20,7 @@ import (
 	"internal/txtar"
 )
 
-func Main(f func(*Trace)) {
+func Main(ver version.Version, f func(*Trace)) {
 	// Create an output file.
 	out, err := os.Create(os.Args[1])
 	if err != nil {
@@ -29,7 +29,7 @@ func Main(f func(*Trace)) {
 	defer out.Close()
 
 	// Create a new trace.
-	trace := NewTrace()
+	trace := NewTrace(ver)
 
 	// Call the generator.
 	f(trace)
@@ -63,8 +63,7 @@ type Trace struct {
 }
 
 // NewTrace creates a new trace.
-func NewTrace() *Trace {
-	ver := version.Go122
+func NewTrace(ver version.Version) *Trace {
 	return &Trace{
 		names:           event.Names(ver.Specs()),
 		specs:           ver.Specs(),
