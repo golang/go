@@ -463,7 +463,11 @@ func (ctxt *Link) domacho() {
 
 		s = ctxt.loader.LookupOrCreateSym(".got", 0) // will be __nl_symbol_ptr
 		sb = ctxt.loader.MakeSymbolUpdater(s)
-		sb.SetType(sym.SMACHOGOT)
+		if ctxt.UseRelro() {
+			sb.SetType(sym.SMACHORELROSECT)
+		} else {
+			sb.SetType(sym.SMACHOGOT)
+		}
 		sb.SetReachable(true)
 		sb.SetAlign(4)
 

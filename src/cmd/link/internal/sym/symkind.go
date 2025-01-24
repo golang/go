@@ -85,6 +85,7 @@ const (
 	SRODATARELRO
 	SFUNCTABRELRO
 	SELFRELROSECT
+	SMACHORELROSECT
 
 	// Part of .data.rel.ro if it exists, otherwise part of .rodata.
 	STYPELINK

@@ -1920,7 +1920,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		sym.SFIPSINFO,
 		sym.SELFSECT,
 		sym.SMACHO,
-		sym.SMACHOGOT,
 		sym.SWINDOWS,
 	}
 	for _, symn := range writable {
@@ -1931,6 +1930,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	// writable .got (note that for PIE binaries .got goes in relro)
 	if len(state.data[sym.SELFGOT]) > 0 {
 		state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
+	}
+	if len(state.data[sym.SMACHOGOT]) > 0 {
+		state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SMACHOGOT, sym.SDATA, 06)
 	}
 
 	/* pointer-free data */
@@ -2203,6 +2205,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		sect.Length = uint64(state.datsize) - sect.Vaddr
 
 		state.allocateSingleSymSections(segrelro, sym.SELFRELROSECT, sym.SRODATA, relroSecPerm)
+		state.allocateSingleSymSections(segrelro, sym.SMACHORELROSECT, sym.SRODATA, relroSecPerm)
 	}
 
 	/* typelink */
