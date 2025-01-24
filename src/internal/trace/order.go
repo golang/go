@@ -246,7 +246,7 @@ func (o *ordering) advanceProcStart(ev *baseEvent, evt *evTable, m ThreadID, gen
 	// We can advance this P. Check some invariants.
 	//
 	// We might have a goroutine if a goroutine is exiting a syscall.
-	reqs := event.SchedReqs{Thread: event.MustHave, Proc: event.MustNotHave, Goroutine: event.MayHave}
+	reqs := schedReqs{M: mustHave, P: mustNotHave, G: mayHave}
 	if err := validateCtx(curCtx, reqs); err != nil {
 		return curCtx, false, err
 	}
@@ -275,7 +275,7 @@ func (o *ordering) advanceProcStop(ev *baseEvent, evt *evTable, m ThreadID, gen 
 	if state.status != go122.ProcRunning && state.status != go122.ProcSyscall {
 		return curCtx, false, fmt.Errorf("%s event for proc that's not %s or %s", go122.EventString(ev.typ), go122.ProcRunning, go122.ProcSyscall)
 	}
-	reqs := event.SchedReqs{Thread: event.MustHave, Proc: event.MustHave, Goroutine: event.MayHave}
+	reqs := schedReqs{M: mustHave, P: mustHave, G: mayHave}
 	if err := validateCtx(curCtx, reqs); err != nil {
 		return curCtx, false, err
 	}
@@ -297,7 +297,7 @@ func (o *ordering) advanceProcSteal(ev *baseEvent, evt *evTable, m ThreadID, gen
 		return curCtx, false, nil
 	}
 	// We can advance this P. Check some invariants.
-	reqs := event.SchedReqs{Thread: event.MustHave, Proc: event.MayHave, Goroutine: event.MayHave}
+	reqs := schedReqs{M: mustHave, P: mayHave, G: mayHave}
 	if err := validateCtx(curCtx, reqs); err != nil {
 		return curCtx, false, err
 	}
@@ -437,7 +437,7 @@ func (o *ordering) advanceGoStatus(ev *baseEvent, evt *evTable, m ThreadID, gen 
 func (o *ordering) advanceGoCreate(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
 	// Goroutines must be created on a running P, but may or may not be created
 	// by a running goroutine.
-	reqs := event.SchedReqs{Thread: event.MustHave, Proc: event.MustHave, Goroutine: event.MayHave}
+	reqs := schedReqs{M: mustHave, P: mustHave, G: mayHave}
 	if err := validateCtx(curCtx, reqs); err != nil {
 		return curCtx, false, err
 	}
@@ -463,7 +463,7 @@ func (o *ordering) advanceGoStopExec(ev *baseEvent, evt *evTable, m ThreadID, ge
 	// These are goroutine events that all require an active running
 	// goroutine on some thread. They must *always* be advance-able,
 	// since running goroutines are bound to their M.
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	state, ok := o.gStates[curCtx.G]
@@ -505,7 +505,7 @@ func (o *ordering) advanceGoStart(ev *baseEvent, evt *evTable, m ThreadID, gen u
 		return curCtx, false, nil
 	}
 	// We can advance this goroutine. Check some invariants.
-	reqs := event.SchedReqs{Thread: event.MustHave, Proc: event.MustHave, Goroutine: event.MustNotHave}
+	reqs := schedReqs{M: mustHave, P: mustHave, G: mustNotHave}
 	if err := validateCtx(curCtx, reqs); err != nil {
 		return curCtx, false, err
 	}
@@ -546,7 +546,7 @@ func (o *ordering) advanceGoSwitch(ev *baseEvent, evt *evTable, m ThreadID, gen 
 	// only advance it if the sequence numbers line up.
 	//
 	// The current goroutine on the thread must be actively running.
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	curGState, ok := o.gStates[curCtx.G]
@@ -601,7 +601,7 @@ func (o *ordering) advanceGoSwitch(ev *baseEvent, evt *evTable, m ThreadID, gen 
 func (o *ordering) advanceGoSyscallBegin(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
 	// Entering a syscall requires an active running goroutine with a
 	// proc on some thread. It is always advancable.
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	state, ok := o.gStates[curCtx.G]
@@ -642,7 +642,7 @@ func (o *ordering) advanceGoSyscallEnd(ev *baseEvent, evt *evTable, m ThreadID, 
 	// This event is always advance-able because it happens on the same
 	// thread that EvGoSyscallStart happened, and the goroutine can't leave
 	// that thread until its done.
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	state, ok := o.gStates[curCtx.G]
@@ -689,7 +689,7 @@ func (o *ordering) advanceGoSyscallEndBlocked(ev *baseEvent, evt *evTable, m Thr
 	}
 	// As mentioned above, we may have a P here if we ProcStart
 	// before this event.
-	if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MayHave, Goroutine: event.MustHave}); err != nil {
+	if err := validateCtx(curCtx, schedReqs{M: mustHave, P: mayHave, G: mustHave}); err != nil {
 		return curCtx, false, err
 	}
 	state, ok := o.gStates[curCtx.G]
@@ -710,7 +710,7 @@ func (o *ordering) advanceGoCreateSyscall(ev *baseEvent, evt *evTable, m ThreadI
 	// This event indicates that a goroutine is effectively
 	// being created out of a cgo callback. Such a goroutine
 	// is 'created' in the syscall state.
-	if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MayHave, Goroutine: event.MustNotHave}); err != nil {
+	if err := validateCtx(curCtx, schedReqs{M: mustHave, P: mayHave, G: mustNotHave}); err != nil {
 		return curCtx, false, err
 	}
 	// This goroutine is effectively being created. Add a state for it.
@@ -743,7 +743,7 @@ func (o *ordering) advanceGoDestroySyscall(ev *baseEvent, evt *evTable, m Thread
 	// Note: we might have a P here. The P might not be released
 	// eagerly by the runtime, and it might get stolen back later
 	// (or never again, if the program is going to exit).
-	if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MayHave, Goroutine: event.MustHave}); err != nil {
+	if err := validateCtx(curCtx, schedReqs{M: mustHave, P: mayHave, G: mustHave}); err != nil {
 		return curCtx, false, err
 	}
 	// Check to make sure the goroutine exists in the right state.
@@ -812,7 +812,7 @@ func (o *ordering) advanceUserTaskBegin(ev *baseEvent, evt *evTable, m ThreadID,
 		return curCtx, false, fmt.Errorf("invalid string ID %v for %v event", nameID, ev.typ)
 	}
 	o.activeTasks[id] = taskState{name: name, parentID: parentID}
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
@@ -833,7 +833,7 @@ func (o *ordering) advanceUserTaskEnd(ev *baseEvent, evt *evTable, m ThreadID, g
 		ev.extra(version.Go122)[0] = uint64(NoTask)
 		ev.extra(version.Go122)[1] = uint64(evt.addExtraString(""))
 	}
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
@@ -841,7 +841,7 @@ func (o *ordering) advanceUserTaskEnd(ev *baseEvent, evt *evTable, m ThreadID, g
 }
 
 func (o *ordering) advanceUserRegionBegin(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	tid := TaskID(ev.args[0])
@@ -862,7 +862,7 @@ func (o *ordering) advanceUserRegionBegin(ev *baseEvent, evt *evTable, m ThreadI
 }
 
 func (o *ordering) advanceUserRegionEnd(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	tid := TaskID(ev.args[0])
@@ -908,7 +908,7 @@ func (o *ordering) advanceGCActive(ev *baseEvent, evt *evTable, m ThreadID, gen 
 		return curCtx, false, fmt.Errorf("encountered GCActive while GC was not in progress")
 	}
 	o.gcSeq = seq
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
@@ -932,7 +932,7 @@ func (o *ordering) advanceGCBegin(ev *baseEvent, evt *evTable, m ThreadID, gen u
 	}
 	o.gcSeq = seq
 	o.gcState = gcRunning
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
@@ -953,7 +953,7 @@ func (o *ordering) advanceGCEnd(ev *baseEvent, evt *evTable, m ThreadID, gen uin
 	}
 	o.gcSeq = seq
 	o.gcState = gcNotRunning
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
@@ -962,7 +962,7 @@ func (o *ordering) advanceGCEnd(ev *baseEvent, evt *evTable, m ThreadID, gen uin
 
 func (o *ordering) advanceAnnotation(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
 	// Handle simple instantaneous events that require a G.
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
@@ -971,7 +971,7 @@ func (o *ordering) advanceAnnotation(ev *baseEvent, evt *evTable, m ThreadID, ge
 
 func (o *ordering) advanceHeapMetric(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
 	// Handle allocation metrics, which don't require a G.
-	if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MustHave, Goroutine: event.MayHave}); err != nil {
+	if err := validateCtx(curCtx, schedReqs{M: mustHave, P: mustHave, G: mayHave}); err != nil {
 		return curCtx, false, err
 	}
 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
@@ -980,7 +980,7 @@ func (o *ordering) advanceHeapMetric(ev *baseEvent, evt *evTable, m ThreadID, ge
 
 func (o *ordering) advanceGCSweepBegin(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
 	// Handle sweep, which is bound to a P and doesn't require a G.
-	if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MustHave, Goroutine: event.MayHave}); err != nil {
+	if err := validateCtx(curCtx, schedReqs{M: mustHave, P: mustHave, G: mayHave}); err != nil {
 		return curCtx, false, err
 	}
 	if err := o.pStates[curCtx.P].beginRange(makeRangeType(ev.typ, 0)); err != nil {
@@ -1008,7 +1008,7 @@ func (o *ordering) advanceGCSweepActive(ev *baseEvent, evt *evTable, m ThreadID,
 }
 
 func (o *ordering) advanceGCSweepEnd(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
-	if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MustHave, Goroutine: event.MayHave}); err != nil {
+	if err := validateCtx(curCtx, schedReqs{M: mustHave, P: mustHave, G: mayHave}); err != nil {
 		return curCtx, false, err
 	}
 	_, err := o.pStates[curCtx.P].endRange(ev.typ)
@@ -1021,7 +1021,7 @@ func (o *ordering) advanceGCSweepEnd(ev *baseEvent, evt *evTable, m ThreadID, ge
 
 func (o *ordering) advanceGoRangeBegin(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
 	// Handle special goroutine-bound event ranges.
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	desc := stringID(0)
@@ -1056,7 +1056,7 @@ func (o *ordering) advanceGoRangeActive(ev *baseEvent, evt *evTable, m ThreadID,
 }
 
 func (o *ordering) advanceGoRangeEnd(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
-	if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+	if err := validateCtx(curCtx, userGoReqs); err != nil {
 		return curCtx, false, err
 	}
 	gState, ok := o.gStates[curCtx.G]
@@ -1078,7 +1078,7 @@ func (o *ordering) advanceGoRangeEnd(ev *baseEvent, evt *evTable, m ThreadID, ge
 
 func (o *ordering) advanceAllocFree(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
 	// Handle simple instantaneous events that may or may not have a P.
-	if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MayHave, Goroutine: event.MayHave}); err != nil {
+	if err := validateCtx(curCtx, schedReqs{M: mustHave, P: mayHave, G: mayHave}); err != nil {
 		return curCtx, false, err
 	}
 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
@@ -1099,25 +1099,25 @@ type schedCtx struct {
 
 // validateCtx ensures that ctx conforms to some reqs, returning an error if
 // it doesn't.
-func validateCtx(ctx schedCtx, reqs event.SchedReqs) error {
+func validateCtx(ctx schedCtx, reqs schedReqs) error {
 	// Check thread requirements.
-	if reqs.Thread == event.MustHave && ctx.M == NoThread {
+	if reqs.M == mustHave && ctx.M == NoThread {
 		return fmt.Errorf("expected a thread but didn't have one")
-	} else if reqs.Thread == event.MustNotHave && ctx.M != NoThread {
+	} else if reqs.M == mustNotHave && ctx.M != NoThread {
 		return fmt.Errorf("expected no thread but had one")
 	}
 
 	// Check proc requirements.
-	if reqs.Proc == event.MustHave && ctx.P == NoProc {
+	if reqs.P == mustHave && ctx.P == NoProc {
 		return fmt.Errorf("expected a proc but didn't have one")
-	} else if reqs.Proc == event.MustNotHave && ctx.P != NoProc {
+	} else if reqs.P == mustNotHave && ctx.P != NoProc {
 		return fmt.Errorf("expected no proc but had one")
 	}
 
 	// Check goroutine requirements.
-	if reqs.Goroutine == event.MustHave && ctx.G == NoGoroutine {
+	if reqs.G == mustHave && ctx.G == NoGoroutine {
 		return fmt.Errorf("expected a goroutine but didn't have one")
-	} else if reqs.Goroutine == event.MustNotHave && ctx.G != NoGoroutine {
+	} else if reqs.G == mustNotHave && ctx.G != NoGoroutine {
 		return fmt.Errorf("expected no goroutine but had one")
 	}
 	return nil
@@ -1393,3 +1393,24 @@ func makeEvent(table *evTable, ctx schedCtx, typ event.Type, time Time, args ...
 	copy(ev.base.args[:], args)
 	return ev
 }
+
+// schedReqs is a set of constraints on what the scheduling
+// context must look like.
+type schedReqs struct {
+	M constraint
+	P constraint
+	G constraint
+}
+
+// constraint represents a various presence requirements.
+type constraint uint8
+
+const (
+	mustNotHave constraint = iota
+	mayHave
+	mustHave
+)
+
+// userGoReqs is a common requirement among events that are running
+// or are close to running user code.
+var userGoReqs = schedReqs{M: mustHave, P: mustHave, G: mustHave}
