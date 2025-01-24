@@ -25,8 +25,8 @@ package main
 
 import (
 	"internal/trace"
-	"internal/trace/event/go122"
-	testgen "internal/trace/internal/testgen/go122"
+	"internal/trace/internal/testgen"
+	"internal/trace/tracev2"
 )
 
 func main() {
@@ -41,9 +41,9 @@ func gen(t *testgen.Trace) {
 	b0 := g.Batch(trace.ThreadID(0), 0)
 	b0.Event("GoCreateSyscall", trace.GoID(4))
 	b0.Event("GoSyscallEndBlocked")
-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcIdle)
+	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcIdle)
 	b0.Event("ProcStart", trace.ProcID(0), testgen.Seq(1))
-	b0.Event("GoStatus", trace.GoID(4), trace.NoThread, go122.GoRunnable)
+	b0.Event("GoStatus", trace.GoID(4), trace.NoThread, tracev2.GoRunnable)
 	b0.Event("GoStart", trace.GoID(4), testgen.Seq(1))
 	b0.Event("GoSyscallBegin", testgen.Seq(2), testgen.NoStack)
 	b0.Event("GoDestroySyscall")
@@ -55,7 +55,7 @@ func gen(t *testgen.Trace) {
 	// have a self-steal here potentially that doesn't make
 	// sense.
 	b1 := g.Batch(trace.ThreadID(0), 0)
-	b1.Event("ProcStatus", trace.ProcID(1), go122.ProcIdle)
+	b1.Event("ProcStatus", trace.ProcID(1), tracev2.ProcIdle)
 	b1.Event("ProcStart", trace.ProcID(1), testgen.Seq(1))
 	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(3), trace.ThreadID(0))
 }

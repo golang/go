@@ -17,7 +17,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"internal/trace/event"
+	"internal/trace/tracev2/event"
 	"internal/trace/version"
 	"io"
 	"math"

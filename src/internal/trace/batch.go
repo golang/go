@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"io"
 
-	"internal/trace/event"
-	"internal/trace/event/go122"
+	"internal/trace/tracev2"
+	"internal/trace/tracev2/event"
 )
 
 // timestamp is an unprocessed timestamp.
@@ -27,19 +27,19 @@ type batch struct {
 }
 
 func (b *batch) isStringsBatch() bool {
-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStrings
+	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvStrings
 }
 
 func (b *batch) isStacksBatch() bool {
-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStacks
+	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvStacks
 }
 
 func (b *batch) isCPUSamplesBatch() bool {
-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvCPUSamples
+	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvCPUSamples
 }
 
 func (b *batch) isFreqBatch() bool {
-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvFrequency
+	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvFrequency
 }
 
 // readBatch reads the next full batch from r.
@@ -52,13 +52,13 @@ func readBatch(r interface {
 	if err != nil {
 		return batch{}, 0, err
 	}
-	if typ := event.Type(b); typ != go122.EvEventBatch && typ != go122.EvExperimentalBatch {
-		return batch{}, 0, fmt.Errorf("expected batch event, got %s", go122.EventString(typ))
+	if typ := event.Type(b); typ != tracev2.EvEventBatch && typ != tracev2.EvExperimentalBatch {
+		return batch{}, 0, fmt.Errorf("expected batch event, got %s", tracev2.EventString(typ))
 	}
 
 	// Read the experiment of we have one.
 	exp := event.NoExperiment
-	if event.Type(b) == go122.EvExperimentalBatch {
+	if event.Type(b) == tracev2.EvExperimentalBatch {
 		e, err := r.ReadByte()
 		if err != nil {
 			return batch{}, 0, err
@@ -86,8 +86,8 @@ func readBatch(r interface {
 	if err != nil {
 		return batch{}, gen, fmt.Errorf("error reading batch size: %w", err)
 	}
-	if size > go122.MaxBatchSize {
-		return batch{}, gen, fmt.Errorf("invalid batch size %d, maximum is %d", size, go122.MaxBatchSize)
+	if size > tracev2.MaxBatchSize {
+		return batch{}, gen, fmt.Errorf("invalid batch size %d, maximum is %d", size, tracev2.MaxBatchSize)
 	}
 
 	// Copy out the batch for later processing.

@@ -30,9 +30,9 @@ package trace
 import (
 	"errors"
 	"fmt"
-	"internal/trace/event"
-	"internal/trace/event/go122"
 	"internal/trace/internal/tracev1"
+	"internal/trace/tracev2"
+	"internal/trace/tracev2/event"
 	"io"
 )
 
@@ -259,7 +259,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 
 	switch ev.Type {
 	case tracev1.EvGomaxprocs:
-		mappedType = go122.EvProcsChange
+		mappedType = tracev2.EvProcsChange
 		if it.preInit {
 			// The first EvGomaxprocs signals the end of trace initialization. At this point we've seen
 			// all goroutines that already existed at trace begin.
@@ -277,9 +277,9 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 					},
 					table: it.evt,
 					base: baseEvent{
-						typ:  go122.EvGoStatus,
+						typ:  tracev2.EvGoStatus,
 						time: Time(ev.Ts),
-						args: timedEventArgs{uint64(gid), ^uint64(0), uint64(go122.GoRunnable)},
+						args: timedEventArgs{uint64(gid), ^uint64(0), uint64(tracev2.GoRunnable)},
 					},
 				})
 			}
@@ -289,51 +289,51 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 	case tracev1.EvProcStart:
 		it.procMs[ProcID(ev.P)] = ThreadID(ev.Args[0])
 		if _, ok := it.seenProcs[ProcID(ev.P)]; ok {
-			mappedType = go122.EvProcStart
+			mappedType = tracev2.EvProcStart
 			mappedArgs = timedEventArgs{uint64(ev.P)}
 		} else {
 			it.seenProcs[ProcID(ev.P)] = struct{}{}
-			mappedType = go122.EvProcStatus
-			mappedArgs = timedEventArgs{uint64(ev.P), uint64(go122.ProcRunning)}
+			mappedType = tracev2.EvProcStatus
+			mappedArgs = timedEventArgs{uint64(ev.P), uint64(tracev2.ProcRunning)}
 		}
 	case tracev1.EvProcStop:
 		if _, ok := it.seenProcs[ProcID(ev.P)]; ok {
-			mappedType = go122.EvProcStop
+			mappedType = tracev2.EvProcStop
 			mappedArgs = timedEventArgs{uint64(ev.P)}
 		} else {
 			it.seenProcs[ProcID(ev.P)] = struct{}{}
-			mappedType = go122.EvProcStatus
-			mappedArgs = timedEventArgs{uint64(ev.P), uint64(go122.ProcIdle)}
+			mappedType = tracev2.EvProcStatus
+			mappedArgs = timedEventArgs{uint64(ev.P), uint64(tracev2.ProcIdle)}
 		}
 	case tracev1.EvGCStart:
-		mappedType = go122.EvGCBegin
+		mappedType = tracev2.EvGCBegin
 	case tracev1.EvGCDone:
-		mappedType = go122.EvGCEnd
+		mappedType = tracev2.EvGCEnd
 	case tracev1.EvSTWStart:
 		sid := it.builtinToStringID[sSTWUnknown+it.trace.STWReason(ev.Args[0])]
 		it.lastStwReason = sid
-		mappedType = go122.EvSTWBegin
+		mappedType = tracev2.EvSTWBegin
 		mappedArgs = timedEventArgs{uint64(sid)}
 	case tracev1.EvSTWDone:
-		mappedType = go122.EvSTWEnd
+		mappedType = tracev2.EvSTWEnd
 		mappedArgs = timedEventArgs{it.lastStwReason}
 	case tracev1.EvGCSweepStart:
-		mappedType = go122.EvGCSweepBegin
+		mappedType = tracev2.EvGCSweepBegin
 	case tracev1.EvGCSweepDone:
-		mappedType = go122.EvGCSweepEnd
+		mappedType = tracev2.EvGCSweepEnd
 	case tracev1.EvGoCreate:
 		if it.preInit {
 			it.createdPreInit[GoID(ev.Args[0])] = struct{}{}
 			return Event{}, errSkip
 		}
-		mappedType = go122.EvGoCreate
+		mappedType = tracev2.EvGoCreate
 	case tracev1.EvGoStart:
 		if it.preInit {
-			mappedType = go122.EvGoStatus
-			mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoRunning)}
+			mappedType = tracev2.EvGoStatus
+			mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(tracev2.GoRunning)}
 			delete(it.createdPreInit, GoID(ev.Args[0]))
 		} else {
-			mappedType = go122.EvGoStart
+			mappedType = tracev2.EvGoStart
 		}
 	case tracev1.EvGoStartLabel:
 		it.extra = []Event{{
@@ -344,7 +344,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 			},
 			table: it.evt,
 			base: baseEvent{
-				typ:  go122.EvGoLabel,
+				typ:  tracev2.EvGoLabel,
 				time: Time(ev.Ts),
 				args: timedEventArgs{ev.Args[2]},
 			},
@@ -357,50 +357,50 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 			},
 			table: it.evt,
 			base: baseEvent{
-				typ:  go122.EvGoStart,
+				typ:  tracev2.EvGoStart,
 				time: Time(ev.Ts),
 				args: mappedArgs,
 			},
 		}, nil
 	case tracev1.EvGoEnd:
-		mappedType = go122.EvGoDestroy
+		mappedType = tracev2.EvGoDestroy
 	case tracev1.EvGoStop:
-		mappedType = go122.EvGoBlock
+		mappedType = tracev2.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sForever]), uint64(ev.StkID)}
 	case tracev1.EvGoSched:
-		mappedType = go122.EvGoStop
+		mappedType = tracev2.EvGoStop
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sGosched]), uint64(ev.StkID)}
 	case tracev1.EvGoPreempt:
-		mappedType = go122.EvGoStop
+		mappedType = tracev2.EvGoStop
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sPreempted]), uint64(ev.StkID)}
 	case tracev1.EvGoSleep:
-		mappedType = go122.EvGoBlock
+		mappedType = tracev2.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSleep]), uint64(ev.StkID)}
 	case tracev1.EvGoBlock:
-		mappedType = go122.EvGoBlock
+		mappedType = tracev2.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sEmpty]), uint64(ev.StkID)}
 	case tracev1.EvGoUnblock:
-		mappedType = go122.EvGoUnblock
+		mappedType = tracev2.EvGoUnblock
 	case tracev1.EvGoBlockSend:
-		mappedType = go122.EvGoBlock
+		mappedType = tracev2.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sChanSend]), uint64(ev.StkID)}
 	case tracev1.EvGoBlockRecv:
-		mappedType = go122.EvGoBlock
+		mappedType = tracev2.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sChanRecv]), uint64(ev.StkID)}
 	case tracev1.EvGoBlockSelect:
-		mappedType = go122.EvGoBlock
+		mappedType = tracev2.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSelect]), uint64(ev.StkID)}
 	case tracev1.EvGoBlockSync:
-		mappedType = go122.EvGoBlock
+		mappedType = tracev2.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSync]), uint64(ev.StkID)}
 	case tracev1.EvGoBlockCond:
-		mappedType = go122.EvGoBlock
+		mappedType = tracev2.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSyncCond]), uint64(ev.StkID)}
 	case tracev1.EvGoBlockNet:
-		mappedType = go122.EvGoBlock
+		mappedType = tracev2.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sNetwork]), uint64(ev.StkID)}
 	case tracev1.EvGoBlockGC:
-		mappedType = go122.EvGoBlock
+		mappedType = tracev2.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sMarkAssistWait]), uint64(ev.StkID)}
 	case tracev1.EvGoSysCall:
 		// Look for the next event for the same G to determine if the syscall
@@ -419,7 +419,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 			return false
 		})
 		if blocked {
-			mappedType = go122.EvGoSyscallBegin
+			mappedType = tracev2.EvGoSyscallBegin
 			mappedArgs = timedEventArgs{1: uint64(ev.StkID)}
 		} else {
 			// Convert the old instantaneous syscall event to a pair of syscall
@@ -433,7 +433,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 				},
 				table: it.evt,
 				base: baseEvent{
-					typ:  go122.EvGoSyscallBegin,
+					typ:  tracev2.EvGoSyscallBegin,
 					time: Time(ev.Ts),
 					args: timedEventArgs{1: uint64(ev.StkID)},
 				},
@@ -443,7 +443,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 				ctx:   out1.ctx,
 				table: it.evt,
 				base: baseEvent{
-					typ:  go122.EvGoSyscallEnd,
+					typ:  tracev2.EvGoSyscallEnd,
 					time: Time(ev.Ts + 1),
 					args: timedEventArgs{},
 				},
@@ -454,30 +454,30 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 		}
 
 	case tracev1.EvGoSysExit:
-		mappedType = go122.EvGoSyscallEndBlocked
+		mappedType = tracev2.EvGoSyscallEndBlocked
 	case tracev1.EvGoSysBlock:
 		return Event{}, errSkip
 	case tracev1.EvGoWaiting:
-		mappedType = go122.EvGoStatus
-		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoWaiting)}
+		mappedType = tracev2.EvGoStatus
+		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(tracev2.GoWaiting)}
 		delete(it.createdPreInit, GoID(ev.Args[0]))
 	case tracev1.EvGoInSyscall:
-		mappedType = go122.EvGoStatus
+		mappedType = tracev2.EvGoStatus
 		// In the new tracer, GoStatus with GoSyscall knows what thread the
 		// syscall is on. In trace v1, EvGoInSyscall doesn't contain that
 		// information and all we can do here is specify NoThread.
-		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoSyscall)}
+		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(tracev2.GoSyscall)}
 		delete(it.createdPreInit, GoID(ev.Args[0]))
 	case tracev1.EvHeapAlloc:
-		mappedType = go122.EvHeapAlloc
+		mappedType = tracev2.EvHeapAlloc
 	case tracev1.EvHeapGoal:
-		mappedType = go122.EvHeapGoal
+		mappedType = tracev2.EvHeapGoal
 	case tracev1.EvGCMarkAssistStart:
-		mappedType = go122.EvGCMarkAssistBegin
+		mappedType = tracev2.EvGCMarkAssistBegin
 	case tracev1.EvGCMarkAssistDone:
-		mappedType = go122.EvGCMarkAssistEnd
+		mappedType = tracev2.EvGCMarkAssistEnd
 	case tracev1.EvUserTaskCreate:
-		mappedType = go122.EvUserTaskBegin
+		mappedType = tracev2.EvUserTaskBegin
 		parent := ev.Args[1]
 		if parent == 0 {
 			parent = uint64(NoTask)
@@ -486,7 +486,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 		name, _ := it.evt.strings.get(stringID(ev.Args[2]))
 		it.tasks[TaskID(ev.Args[0])] = taskState{name: name, parentID: TaskID(ev.Args[1])}
 	case tracev1.EvUserTaskEnd:
-		mappedType = go122.EvUserTaskEnd
+		mappedType = tracev2.EvUserTaskEnd
 		// Event.Task expects the parent and name to be smuggled in extra args
 		// and as extra strings.
 		ts, ok := it.tasks[TaskID(ev.Args[0])]
@@ -504,16 +504,16 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 	case tracev1.EvUserRegion:
 		switch ev.Args[1] {
 		case 0: // start
-			mappedType = go122.EvUserRegionBegin
+			mappedType = tracev2.EvUserRegionBegin
 		case 1: // end
-			mappedType = go122.EvUserRegionEnd
+			mappedType = tracev2.EvUserRegionEnd
 		}
 		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[2], uint64(ev.StkID)}
 	case tracev1.EvUserLog:
-		mappedType = go122.EvUserLog
+		mappedType = tracev2.EvUserLog
 		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[1], it.inlineToStringID[ev.Args[3]], uint64(ev.StkID)}
 	case tracev1.EvCPUSample:
-		mappedType = go122.EvCPUSample
+		mappedType = tracev2.EvCPUSample
 		// When emitted by the Go 1.22 tracer, CPU samples have 5 arguments:
 		// timestamp, M, P, G, stack. However, after they get turned into Event,
 		// they have the arguments stack, M, P, G.
@@ -525,7 +525,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 	}
 
 	if tracev1.EventDescriptions[ev.Type].Stack {
-		if stackIDs := go122.Specs()[mappedType].StackIDs; len(stackIDs) > 0 {
+		if stackIDs := tracev2.Specs()[mappedType].StackIDs; len(stackIDs) > 0 {
 			mappedArgs[stackIDs[0]-1] = uint64(ev.StkID)
 		}
 	}

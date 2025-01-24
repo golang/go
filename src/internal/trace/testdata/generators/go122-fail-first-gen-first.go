@@ -19,8 +19,8 @@
 package main
 
 import (
-	"internal/trace/event/go122"
-	testgen "internal/trace/internal/testgen/go122"
+	"internal/trace/internal/testgen"
+	"internal/trace/tracev2"
 )
 
 func main() {
@@ -29,15 +29,15 @@ func main() {
 
 func gen(t *testgen.Trace) {
 	// A running goroutine emits a task begin.
-	t.RawEvent(go122.EvEventBatch, nil, 1 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 5 /*batch length*/)
-	t.RawEvent(go122.EvFrequency, nil, 15625000)
+	t.RawEvent(tracev2.EvEventBatch, nil, 1 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 5 /*batch length*/)
+	t.RawEvent(tracev2.EvFrequency, nil, 15625000)
 
 	// A running goroutine emits a task begin.
-	t.RawEvent(go122.EvEventBatch, nil, 1 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 5 /*batch length*/)
-	t.RawEvent(go122.EvGoCreate, nil, 0 /*timestamp delta*/, 1 /*go ID*/, 0, 0)
+	t.RawEvent(tracev2.EvEventBatch, nil, 1 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 5 /*batch length*/)
+	t.RawEvent(tracev2.EvGoCreate, nil, 0 /*timestamp delta*/, 1 /*go ID*/, 0, 0)
 
 	// Write an invalid batch event for the next generation.
-	t.RawEvent(go122.EvEventBatch, nil, 2 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 50 /*batch length (invalid)*/)
+	t.RawEvent(tracev2.EvEventBatch, nil, 2 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 50 /*batch length (invalid)*/)
 
 	// We should fail at the first issue, not the second one.
 	t.ExpectFailure("expected a proc but didn't have one")

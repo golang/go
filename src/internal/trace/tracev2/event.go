@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package go122
+package tracev2
 
 import (
 	"fmt"
-	"internal/trace/event"
+	"internal/trace/tracev2/event"
 )
 
 const (

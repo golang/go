@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 
-	"internal/trace/event"
-	"internal/trace/event/go122"
+	"internal/trace/tracev2"
+	"internal/trace/tracev2/event"
 )
 
 // Version represents the version of a trace file.
@@ -31,11 +31,11 @@ var versions = map[Version][]event.Spec{
 	Go119: nil,
 	Go121: nil,
 
-	Go122: go122.Specs(),
+	Go122: tracev2.Specs(),
 	// Go 1.23 adds backwards-incompatible events, but
 	// traces produced by Go 1.22 are also always valid
 	// Go 1.23 traces.
-	Go123: go122.Specs(),
+	Go123: tracev2.Specs(),
 }
 
 // Specs returns the set of event.Specs for this version.

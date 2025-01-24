@@ -12,8 +12,8 @@ package main
 
 import (
 	"internal/trace"
-	"internal/trace/event/go122"
-	testgen "internal/trace/internal/testgen/go122"
+	"internal/trace/internal/testgen"
+	"internal/trace/tracev2"
 )
 
 func main() {
@@ -28,8 +28,8 @@ func gen(t *testgen.Trace) {
 	// A goroutine execute a syscall and steals its own P, then starts running
 	// on that P.
 	b0 := g.Batch(trace.ThreadID(0), 0)
-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
+	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
+	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunning)
 	b0.Event("GoSyscallBegin", testgen.Seq(1), testgen.NoStack)
 	b0.Event("ProcSteal", trace.ProcID(0), testgen.Seq(2), trace.ThreadID(0))
 	b0.Event("ProcStart", trace.ProcID(0), testgen.Seq(3))

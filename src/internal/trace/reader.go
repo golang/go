@@ -11,8 +11,8 @@ import (
 	"slices"
 	"strings"
 
-	"internal/trace/event/go122"
 	"internal/trace/internal/tracev1"
+	"internal/trace/tracev2"
 	"internal/trace/version"
 )
 
@@ -248,7 +248,7 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 func dumpFrontier(frontier []*batchCursor) string {
 	var sb strings.Builder
 	for _, bc := range frontier {
-		spec := go122.Specs()[bc.ev.typ]
+		spec := tracev2.Specs()[bc.ev.typ]
 		fmt.Fprintf(&sb, "M %d [%s time=%d", bc.m, spec.Name, bc.ev.time)
 		for i, arg := range spec.Args[1:] {
 			fmt.Fprintf(&sb, " %s=%d", arg, bc.ev.args[i])

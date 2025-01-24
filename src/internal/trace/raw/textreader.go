@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode"
 
-	"internal/trace/event"
+	"internal/trace/tracev2/event"
 	"internal/trace/version"
 )
 

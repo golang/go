@@ -12,8 +12,8 @@ import (
 	"math"
 	"strings"
 
-	"internal/trace/event"
-	"internal/trace/event/go122"
+	"internal/trace/tracev2"
+	"internal/trace/tracev2/event"
 	"internal/trace/version"
 )
 
@@ -38,7 +38,7 @@ type baseEvent struct {
 func (e *baseEvent) extra(v version.Version) []uint64 {
 	switch v {
 	case version.Go122:
-		return e.args[len(go122.Specs()[e.typ].Args)-1:]
+		return e.args[len(tracev2.Specs()[e.typ].Args)-1:]
 	}
 	panic(fmt.Sprintf("unsupported version: go 1.%d", v))
 }
@@ -239,7 +239,7 @@ func (s cpuSample) asEvent(table *evTable) Event {
 		table: table,
 		ctx:   s.schedCtx,
 		base: baseEvent{
-			typ:  go122.EvCPUSample,
+			typ:  tracev2.EvCPUSample,
 			time: s.time,
 		},
 	}
