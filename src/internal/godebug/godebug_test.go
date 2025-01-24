@@ -109,6 +109,9 @@ func TestCmdBisect(t *testing.T) {
 
 	var want []string
 	src, err := os.ReadFile("godebug_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i, line := range strings.Split(string(src), "\n") {
 		if strings.Contains(line, "BISECT"+" "+"BUG") {
 			want = append(want, fmt.Sprintf("godebug_test.go:%d", i+1))
