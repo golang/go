@@ -16,11 +16,11 @@ import (
 type Version uint32
 
 const (
-	Go111   Version = 11
-	Go119   Version = 19
-	Go121   Version = 21
-	Go122   Version = 22
-	Go123   Version = 23
+	Go111   Version = 11 // v1
+	Go119   Version = 19 // v1
+	Go121   Version = 21 // v1
+	Go122   Version = 22 // v2
+	Go123   Version = 23 // v2
 	Current         = Go123
 )
 
@@ -31,16 +31,29 @@ var versions = map[Version][]event.Spec{
 	Go119: nil,
 	Go121: nil,
 
-	Go122: tracev2.Specs(),
-	// Go 1.23 adds backwards-incompatible events, but
-	// traces produced by Go 1.22 are also always valid
-	// Go 1.23 traces.
+	Go122: tracev2.Specs()[:tracev2.EvUserLog+1], // All events after are Go 1.23+.
 	Go123: tracev2.Specs(),
 }
 
 // Specs returns the set of event.Specs for this version.
 func (v Version) Specs() []event.Spec {
 	return versions[v]
+}
+
+// EventName returns a string name of a wire format event
+// for a particular trace version.
+func (v Version) EventName(typ event.Type) string {
+	if !v.Valid() {
+		return "<invalid trace version>"
+	}
+	s := v.Specs()
+	if len(s) == 0 {
+		return "<v1 trace event type>"
+	}
+	if int(typ) < len(s) && s[typ].Name != "" {
+		return s[typ].Name
+	}
+	return fmt.Sprintf("Invalid(%d)", typ)
 }
 
 func (v Version) Valid() bool {

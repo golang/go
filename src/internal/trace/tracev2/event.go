@@ -5,7 +5,6 @@
 package tracev2
 
 import (
-	"fmt"
 	"internal/trace/tracev2/event"
 )
 
@@ -115,14 +114,6 @@ const (
 	EvGoroutineStackAlloc // stack alloc [timestamp, id, order]
 	EvGoroutineStackFree  // stack free [timestamp, id]
 )
-
-// EventString returns the name of a Go 1.22 event.
-func EventString(typ event.Type) string {
-	if int(typ) < len(specs) {
-		return specs[typ].Name
-	}
-	return fmt.Sprintf("Invalid(%d)", typ)
-}
 
 func Specs() []event.Spec {
 	return specs[:]

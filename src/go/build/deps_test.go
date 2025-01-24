@@ -58,6 +58,7 @@ var depsRules = `
 	  internal/platform,
 	  internal/profilerecord,
 	  internal/syslist,
+	  internal/trace/tracev2/event,
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  math/bits,
@@ -698,9 +699,6 @@ var depsRules = `
 	< crypto/internal/fips140/check/checktest;
 
 	# v2 execution trace parser.
-	FMT
-	< internal/trace/tracev2/event;
-
 	internal/trace/tracev2/event
 	< internal/trace/tracev2;
 

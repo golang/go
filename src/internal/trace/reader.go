@@ -22,6 +22,7 @@ import (
 // event as the first event, and a Sync event as the last event.
 // (There may also be any number of Sync events in the middle, too.)
 type Reader struct {
+	version    version.Version
 	r          *bufio.Reader
 	lastTs     Time
 	gen        *generation
@@ -54,8 +55,10 @@ func NewReader(r io.Reader) (*Reader, error) {
 		}, nil
 	case version.Go122, version.Go123:
 		return &Reader{
-			r: br,
+			version: v,
+			r:       br,
 			order: ordering{
+				traceVer:    v,
 				mStates:     make(map[ThreadID]*mState),
 				pStates:     make(map[ProcID]*pState),
 				gStates:     make(map[GoID]*gState),

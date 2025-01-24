@@ -53,7 +53,7 @@ func readBatch(r interface {
 		return batch{}, 0, err
 	}
 	if typ := event.Type(b); typ != tracev2.EvEventBatch && typ != tracev2.EvExperimentalBatch {
-		return batch{}, 0, fmt.Errorf("expected batch event, got %s", tracev2.EventString(typ))
+		return batch{}, 0, fmt.Errorf("expected batch event, got event %d", typ)
 	}
 
 	// Read the experiment of we have one.

@@ -430,7 +430,7 @@ func (e Event) Metric() Metric {
 		m.Name = "/gc/heap/goal:bytes"
 		m.Value = Value{kind: ValueUint64, scalar: e.base.args[0]}
 	default:
-		panic(fmt.Sprintf("internal error: unexpected event type for Metric kind: %s", tracev2.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Metric kind: %d", e.base.typ))
 	}
 	return m
 }
@@ -443,7 +443,7 @@ func (e Event) Label() Label {
 		panic("Label called on non-Label event")
 	}
 	if e.base.typ != tracev2.EvGoLabel {
-		panic(fmt.Sprintf("internal error: unexpected event type for Label kind: %s", tracev2.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Label kind: %d", e.base.typ))
 	}
 	return Label{
 		Label:    e.table.strings.mustGet(stringID(e.base.args[0])),
@@ -486,7 +486,7 @@ func (e Event) Range() Range {
 			r.Scope.id = int64(e.Goroutine())
 		}
 	default:
-		panic(fmt.Sprintf("internal error: unexpected event type for Range kind: %s", tracev2.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-event type for Range kind: %d", e.base.typ))
 	}
 	return r
 }
@@ -530,7 +530,7 @@ func (e Event) Task() Task {
 		parentID = TaskID(e.base.extra(version.Go122)[0])
 		typ = e.table.getExtraString(extraStringID(e.base.extra(version.Go122)[1]))
 	default:
-		panic(fmt.Sprintf("internal error: unexpected event type for Task kind: %s", tracev2.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Task kind: %d", e.base.typ))
 	}
 	return Task{
 		ID:     TaskID(e.base.args[0]),
@@ -547,7 +547,7 @@ func (e Event) Region() Region {
 		panic("Region called on non-Region event")
 	}
 	if e.base.typ != tracev2.EvUserRegionBegin && e.base.typ != tracev2.EvUserRegionEnd {
-		panic(fmt.Sprintf("internal error: unexpected event type for Region kind: %s", tracev2.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Region kind: %d", e.base.typ))
 	}
 	return Region{
 		Task: TaskID(e.base.args[0]),
@@ -563,7 +563,7 @@ func (e Event) Log() Log {
 		panic("Log called on non-Log event")
 	}
 	if e.base.typ != tracev2.EvUserLog {
-		panic(fmt.Sprintf("internal error: unexpected event type for Log kind: %s", tracev2.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Log kind: %d", e.base.typ))
 	}
 	return Log{
 		Task:     TaskID(e.base.args[0]),
@@ -642,7 +642,7 @@ func (e Event) StateTransition() StateTransition {
 		from, to := packedStatus>>32, packedStatus&((1<<32)-1)
 		s = goStateTransition(GoID(e.base.args[0]), GoState(from), tracev2GoStatus2GoState[to])
 	default:
-		panic(fmt.Sprintf("internal error: unexpected event type for StateTransition kind: %s", tracev2.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for StateTransition kind: %d", e.base.typ))
 	}
 	return s
 }
