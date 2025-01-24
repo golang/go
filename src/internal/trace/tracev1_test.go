@@ -13,15 +13,15 @@ import (
 	"testing"
 )
 
-func TestOldtrace(t *testing.T) {
-	traces, err := filepath.Glob("./internal/oldtrace/testdata/*_good")
+func TestTraceV1(t *testing.T) {
+	traces, err := filepath.Glob("./internal/tracev1/testdata/*_good")
 	if err != nil {
 		t.Fatalf("failed to glob for tests: %s", err)
 	}
 	var testedUserRegions bool
 	for _, p := range traces {
 		p := p
-		testName, err := filepath.Rel("./internal/oldtrace/testdata", p)
+		testName, err := filepath.Rel("./internal/tracev1/testdata", p)
 		if err != nil {
 			t.Fatalf("failed to relativize testdata path: %s", err)
 		}

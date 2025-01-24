@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package oldtrace implements a parser for Go execution traces from versions
+// Package tracev1 implements a parser for Go execution traces from versions
 // 1.11–1.21.
 //
 // The package started as a copy of Go 1.19's internal/trace, but has been
 // optimized to be faster while using less memory and fewer allocations. It has
 // been further modified for the specific purpose of converting traces to the
 // new 1.22+ format.
-package oldtrace
+package tracev1
 
 import (
 	"bytes"

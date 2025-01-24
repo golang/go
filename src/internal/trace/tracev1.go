@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements conversion from old (Go 1.11–Go 1.21) traces to the Go
-// 1.22 format.
+// This file implements conversion from v1 (Go 1.11–Go 1.21) traces to the v2
+// format (Go 1.22+).
 //
-// Most events have direct equivalents in 1.22, at worst requiring arguments to
+// Most events have direct equivalents in v2, at worst requiring arguments to
 // be reordered. Some events, such as GoWaiting need to look ahead for follow-up
 // events to determine the correct translation. GoSyscall, which is an
 // instantaneous event, gets turned into a 1 ns long pair of
@@ -13,11 +13,11 @@
 // emit a GoSyscallStart+GoSyscallEndBlocked pair with the correct duration
 // (i.e. starting at the original GoSyscall).
 //
-// The resulting trace treats the old trace as a single, large generation,
+// The resulting trace treats the trace v1 as a single, large generation,
 // sharing a single evTable for all events.
 //
 // We use a new (compared to what was used for 'go tool trace' in earlier
-// versions of Go) parser for old traces that is optimized for speed, low memory
+// versions of Go) parser for v1 traces that is optimized for speed, low memory
 // usage, and minimal GC pressure. It allocates events in batches so that even
 // though we have to load the entire trace into memory, the conversion process
 // shouldn't result in a doubling of memory usage, even if all converted events
@@ -32,16 +32,16 @@ import (
 	"fmt"
 	"internal/trace/event"
 	"internal/trace/event/go122"
-	"internal/trace/internal/oldtrace"
+	"internal/trace/internal/tracev1"
 	"io"
 )
 
-type oldTraceConverter struct {
-	trace          oldtrace.Trace
+type traceV1Converter struct {
+	trace          tracev1.Trace
 	evt            *evTable
 	preInit        bool
 	createdPreInit map[GoID]struct{}
-	events         oldtrace.Events
+	events         tracev1.Events
 	extra          []Event
 	extraArr       [3]Event
 	tasks          map[TaskID]taskState
@@ -91,7 +91,7 @@ const (
 	sLast
 )
 
-func (it *oldTraceConverter) init(pr oldtrace.Trace) error {
+func (it *traceV1Converter) init(pr tracev1.Trace) error {
 	it.trace = pr
 	it.preInit = true
 	it.createdPreInit = make(map[GoID]struct{})
@@ -105,7 +105,7 @@ func (it *oldTraceConverter) init(pr oldtrace.Trace) error {
 
 	evt := it.evt
 
-	// Convert from oldtracer's Strings map to our dataTable.
+	// Convert from trace v1's Strings map to our dataTable.
 	var max uint64
 	for id, s := range pr.Strings {
 		evt.strings.insert(stringID(id), s)
@@ -115,7 +115,7 @@ func (it *oldTraceConverter) init(pr oldtrace.Trace) error {
 	}
 	pr.Strings = nil
 
-	// Add all strings used for UserLog. In the old trace format, these were
+	// Add all strings used for UserLog. In the trace v1 format, these were
 	// stored inline and didn't have IDs. We generate IDs for them.
 	if max+uint64(len(pr.InlineStrings)) < max {
 		return errors.New("trace contains too many strings")
@@ -187,7 +187,7 @@ func (it *oldTraceConverter) init(pr oldtrace.Trace) error {
 	}
 
 	// OPT(dh): if we could share the frame type between this package and
-	// oldtrace we wouldn't have to copy the map.
+	// tracev1 we wouldn't have to copy the map.
 	for pc, f := range pr.PCs {
 		evt.pcs[pc] = frame{
 			pc:     pc,
@@ -204,7 +204,7 @@ func (it *oldTraceConverter) init(pr oldtrace.Trace) error {
 
 // next returns the next event, io.EOF if there are no more events, or a
 // descriptive error for invalid events.
-func (it *oldTraceConverter) next() (Event, error) {
+func (it *traceV1Converter) next() (Event, error) {
 	if len(it.extra) > 0 {
 		ev := it.extra[0]
 		it.extra = it.extra[1:]
@@ -245,20 +245,20 @@ func (it *oldTraceConverter) next() (Event, error) {
 
 var errSkip = errors.New("skip event")
 
-// convertEvent converts an event from the old trace format to zero or more
+// convertEvent converts an event from the trace v1 format to zero or more
 // events in the new format. Most events translate 1 to 1. Some events don't
 // result in an event right away, in which case convertEvent returns errSkip.
 // Some events result in more than one new event; in this case, convertEvent
 // returns the first event and stores additional events in it.extra. When
-// encountering events that oldtrace shouldn't be able to emit, ocnvertEvent
+// encountering events that tracev1 shouldn't be able to emit, ocnvertEvent
 // returns a descriptive error.
-func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR error) {
+func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR error) {
 	var mappedType event.Type
 	var mappedArgs timedEventArgs
 	copy(mappedArgs[:], ev.Args[:])
 
 	switch ev.Type {
-	case oldtrace.EvGomaxprocs:
+	case tracev1.EvGomaxprocs:
 		mappedType = go122.EvProcsChange
 		if it.preInit {
 			// The first EvGomaxprocs signals the end of trace initialization. At this point we've seen
@@ -286,7 +286,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 			it.createdPreInit = nil
 			return Event{}, errSkip
 		}
-	case oldtrace.EvProcStart:
+	case tracev1.EvProcStart:
 		it.procMs[ProcID(ev.P)] = ThreadID(ev.Args[0])
 		if _, ok := it.seenProcs[ProcID(ev.P)]; ok {
 			mappedType = go122.EvProcStart
@@ -296,7 +296,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 			mappedType = go122.EvProcStatus
 			mappedArgs = timedEventArgs{uint64(ev.P), uint64(go122.ProcRunning)}
 		}
-	case oldtrace.EvProcStop:
+	case tracev1.EvProcStop:
 		if _, ok := it.seenProcs[ProcID(ev.P)]; ok {
 			mappedType = go122.EvProcStop
 			mappedArgs = timedEventArgs{uint64(ev.P)}
@@ -305,29 +305,29 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 			mappedType = go122.EvProcStatus
 			mappedArgs = timedEventArgs{uint64(ev.P), uint64(go122.ProcIdle)}
 		}
-	case oldtrace.EvGCStart:
+	case tracev1.EvGCStart:
 		mappedType = go122.EvGCBegin
-	case oldtrace.EvGCDone:
+	case tracev1.EvGCDone:
 		mappedType = go122.EvGCEnd
-	case oldtrace.EvSTWStart:
+	case tracev1.EvSTWStart:
 		sid := it.builtinToStringID[sSTWUnknown+it.trace.STWReason(ev.Args[0])]
 		it.lastStwReason = sid
 		mappedType = go122.EvSTWBegin
 		mappedArgs = timedEventArgs{uint64(sid)}
-	case oldtrace.EvSTWDone:
+	case tracev1.EvSTWDone:
 		mappedType = go122.EvSTWEnd
 		mappedArgs = timedEventArgs{it.lastStwReason}
-	case oldtrace.EvGCSweepStart:
+	case tracev1.EvGCSweepStart:
 		mappedType = go122.EvGCSweepBegin
-	case oldtrace.EvGCSweepDone:
+	case tracev1.EvGCSweepDone:
 		mappedType = go122.EvGCSweepEnd
-	case oldtrace.EvGoCreate:
+	case tracev1.EvGoCreate:
 		if it.preInit {
 			it.createdPreInit[GoID(ev.Args[0])] = struct{}{}
 			return Event{}, errSkip
 		}
 		mappedType = go122.EvGoCreate
-	case oldtrace.EvGoStart:
+	case tracev1.EvGoStart:
 		if it.preInit {
 			mappedType = go122.EvGoStatus
 			mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoRunning)}
@@ -335,7 +335,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		} else {
 			mappedType = go122.EvGoStart
 		}
-	case oldtrace.EvGoStartLabel:
+	case tracev1.EvGoStartLabel:
 		it.extra = []Event{{
 			ctx: schedCtx{
 				G: GoID(ev.G),
@@ -362,58 +362,58 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 				args: mappedArgs,
 			},
 		}, nil
-	case oldtrace.EvGoEnd:
+	case tracev1.EvGoEnd:
 		mappedType = go122.EvGoDestroy
-	case oldtrace.EvGoStop:
+	case tracev1.EvGoStop:
 		mappedType = go122.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sForever]), uint64(ev.StkID)}
-	case oldtrace.EvGoSched:
+	case tracev1.EvGoSched:
 		mappedType = go122.EvGoStop
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sGosched]), uint64(ev.StkID)}
-	case oldtrace.EvGoPreempt:
+	case tracev1.EvGoPreempt:
 		mappedType = go122.EvGoStop
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sPreempted]), uint64(ev.StkID)}
-	case oldtrace.EvGoSleep:
+	case tracev1.EvGoSleep:
 		mappedType = go122.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSleep]), uint64(ev.StkID)}
-	case oldtrace.EvGoBlock:
+	case tracev1.EvGoBlock:
 		mappedType = go122.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sEmpty]), uint64(ev.StkID)}
-	case oldtrace.EvGoUnblock:
+	case tracev1.EvGoUnblock:
 		mappedType = go122.EvGoUnblock
-	case oldtrace.EvGoBlockSend:
+	case tracev1.EvGoBlockSend:
 		mappedType = go122.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sChanSend]), uint64(ev.StkID)}
-	case oldtrace.EvGoBlockRecv:
+	case tracev1.EvGoBlockRecv:
 		mappedType = go122.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sChanRecv]), uint64(ev.StkID)}
-	case oldtrace.EvGoBlockSelect:
+	case tracev1.EvGoBlockSelect:
 		mappedType = go122.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSelect]), uint64(ev.StkID)}
-	case oldtrace.EvGoBlockSync:
+	case tracev1.EvGoBlockSync:
 		mappedType = go122.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSync]), uint64(ev.StkID)}
-	case oldtrace.EvGoBlockCond:
+	case tracev1.EvGoBlockCond:
 		mappedType = go122.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSyncCond]), uint64(ev.StkID)}
-	case oldtrace.EvGoBlockNet:
+	case tracev1.EvGoBlockNet:
 		mappedType = go122.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sNetwork]), uint64(ev.StkID)}
-	case oldtrace.EvGoBlockGC:
+	case tracev1.EvGoBlockGC:
 		mappedType = go122.EvGoBlock
 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sMarkAssistWait]), uint64(ev.StkID)}
-	case oldtrace.EvGoSysCall:
+	case tracev1.EvGoSysCall:
 		// Look for the next event for the same G to determine if the syscall
 		// blocked.
 		blocked := false
-		it.events.All()(func(nev *oldtrace.Event) bool {
+		it.events.All()(func(nev *tracev1.Event) bool {
 			if nev.G != ev.G {
 				return true
 			}
 			// After an EvGoSysCall, the next event on the same G will either be
 			// EvGoSysBlock to denote a blocking syscall, or some other event
 			// (or the end of the trace) if the syscall didn't block.
-			if nev.Type == oldtrace.EvGoSysBlock {
+			if nev.Type == tracev1.EvGoSysBlock {
 				blocked = true
 			}
 			return false
@@ -453,30 +453,30 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 			return out1, nil
 		}
 
-	case oldtrace.EvGoSysExit:
+	case tracev1.EvGoSysExit:
 		mappedType = go122.EvGoSyscallEndBlocked
-	case oldtrace.EvGoSysBlock:
+	case tracev1.EvGoSysBlock:
 		return Event{}, errSkip
-	case oldtrace.EvGoWaiting:
+	case tracev1.EvGoWaiting:
 		mappedType = go122.EvGoStatus
 		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoWaiting)}
 		delete(it.createdPreInit, GoID(ev.Args[0]))
-	case oldtrace.EvGoInSyscall:
+	case tracev1.EvGoInSyscall:
 		mappedType = go122.EvGoStatus
 		// In the new tracer, GoStatus with GoSyscall knows what thread the
-		// syscall is on. In the old tracer, EvGoInSyscall doesn't contain that
+		// syscall is on. In trace v1, EvGoInSyscall doesn't contain that
 		// information and all we can do here is specify NoThread.
 		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoSyscall)}
 		delete(it.createdPreInit, GoID(ev.Args[0]))
-	case oldtrace.EvHeapAlloc:
+	case tracev1.EvHeapAlloc:
 		mappedType = go122.EvHeapAlloc
-	case oldtrace.EvHeapGoal:
+	case tracev1.EvHeapGoal:
 		mappedType = go122.EvHeapGoal
-	case oldtrace.EvGCMarkAssistStart:
+	case tracev1.EvGCMarkAssistStart:
 		mappedType = go122.EvGCMarkAssistBegin
-	case oldtrace.EvGCMarkAssistDone:
+	case tracev1.EvGCMarkAssistDone:
 		mappedType = go122.EvGCMarkAssistEnd
-	case oldtrace.EvUserTaskCreate:
+	case tracev1.EvUserTaskCreate:
 		mappedType = go122.EvUserTaskBegin
 		parent := ev.Args[1]
 		if parent == 0 {
@@ -485,7 +485,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		mappedArgs = timedEventArgs{ev.Args[0], parent, ev.Args[2], uint64(ev.StkID)}
 		name, _ := it.evt.strings.get(stringID(ev.Args[2]))
 		it.tasks[TaskID(ev.Args[0])] = taskState{name: name, parentID: TaskID(ev.Args[1])}
-	case oldtrace.EvUserTaskEnd:
+	case tracev1.EvUserTaskEnd:
 		mappedType = go122.EvUserTaskEnd
 		// Event.Task expects the parent and name to be smuggled in extra args
 		// and as extra strings.
@@ -501,7 +501,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		} else {
 			mappedArgs = timedEventArgs{ev.Args[0], ev.Args[1], uint64(NoTask), uint64(it.evt.addExtraString(""))}
 		}
-	case oldtrace.EvUserRegion:
+	case tracev1.EvUserRegion:
 		switch ev.Args[1] {
 		case 0: // start
 			mappedType = go122.EvUserRegionBegin
@@ -509,10 +509,10 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 			mappedType = go122.EvUserRegionEnd
 		}
 		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[2], uint64(ev.StkID)}
-	case oldtrace.EvUserLog:
+	case tracev1.EvUserLog:
 		mappedType = go122.EvUserLog
 		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[1], it.inlineToStringID[ev.Args[3]], uint64(ev.StkID)}
-	case oldtrace.EvCPUSample:
+	case tracev1.EvCPUSample:
 		mappedType = go122.EvCPUSample
 		// When emitted by the Go 1.22 tracer, CPU samples have 5 arguments:
 		// timestamp, M, P, G, stack. However, after they get turned into Event,
@@ -524,19 +524,19 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 		return Event{}, fmt.Errorf("unexpected event type %v", ev.Type)
 	}
 
-	if oldtrace.EventDescriptions[ev.Type].Stack {
+	if tracev1.EventDescriptions[ev.Type].Stack {
 		if stackIDs := go122.Specs()[mappedType].StackIDs; len(stackIDs) > 0 {
 			mappedArgs[stackIDs[0]-1] = uint64(ev.StkID)
 		}
 	}
 
 	m := NoThread
-	if ev.P != -1 && ev.Type != oldtrace.EvCPUSample {
+	if ev.P != -1 && ev.Type != tracev1.EvCPUSample {
 		if t, ok := it.procMs[ProcID(ev.P)]; ok {
 			m = ThreadID(t)
 		}
 	}
-	if ev.Type == oldtrace.EvProcStop {
+	if ev.Type == tracev1.EvProcStop {
 		delete(it.procMs, ProcID(ev.P))
 	}
 	g := GoID(ev.G)
@@ -559,10 +559,10 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
 	return out, nil
 }
 
-// convertOldFormat takes a fully loaded trace in the old trace format and
+// convertV1Trace takes a fully loaded trace in the v1 trace format and
 // returns an iterator over events in the new format.
-func convertOldFormat(pr oldtrace.Trace) *oldTraceConverter {
-	it := &oldTraceConverter{}
+func convertV1Trace(pr tracev1.Trace) *traceV1Converter {
+	it := &traceV1Converter{}
 	it.init(pr)
 	return it
 }

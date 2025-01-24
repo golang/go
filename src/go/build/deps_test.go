@@ -711,9 +711,9 @@ var depsRules = `
 	< internal/trace/raw;
 
 	FMT, internal/trace/event, internal/trace/version, io, sort, encoding/binary
-	< internal/trace/internal/oldtrace;
+	< internal/trace/internal/tracev1;
 
-	FMT, encoding/binary, internal/trace/version, internal/trace/internal/oldtrace, container/heap, math/rand
+	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand
 	< internal/trace;
 
 	regexp, internal/trace, internal/trace/raw, internal/txtar

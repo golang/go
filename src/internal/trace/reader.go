@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"internal/trace/event/go122"
-	"internal/trace/internal/oldtrace"
+	"internal/trace/internal/tracev1"
 	"internal/trace/version"
 )
 
@@ -33,7 +33,7 @@ type Reader struct {
 	syncs      int
 	done       bool
 
-	go121Events *oldTraceConverter
+	v1Events *traceV1Converter
 }
 
 // NewReader creates a new trace reader.
@@ -45,12 +45,12 @@ func NewReader(r io.Reader) (*Reader, error) {
 	}
 	switch v {
 	case version.Go111, version.Go119, version.Go121:
-		tr, err := oldtrace.Parse(br, v)
+		tr, err := tracev1.Parse(br, v)
 		if err != nil {
 			return nil, err
 		}
 		return &Reader{
-			go121Events: convertOldFormat(tr),
+			v1Events: convertV1Trace(tr),
 		}, nil
 	case version.Go122, version.Go123:
 		return &Reader{
@@ -76,29 +76,29 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		return Event{}, io.EOF
 	}
 
-	// Handle old execution traces.
-	if r.go121Events != nil {
+	// Handle v1 execution traces.
+	if r.v1Events != nil {
 		if r.syncs == 0 {
 			// Always emit a sync event first, if we have any events at all.
-			ev, ok := r.go121Events.events.Peek()
+			ev, ok := r.v1Events.events.Peek()
 			if ok {
 				r.syncs++
-				return syncEvent(r.go121Events.evt, Time(ev.Ts-1), r.syncs), nil
+				return syncEvent(r.v1Events.evt, Time(ev.Ts-1), r.syncs), nil
 			}
 		}
-		ev, err := r.go121Events.next()
+		ev, err := r.v1Events.next()
 		if err == io.EOF {
 			// Always emit a sync event at the end.
 			r.done = true
 			r.syncs++
-			return syncEvent(nil, r.go121Events.lastTs+1, r.syncs), nil
+			return syncEvent(nil, r.v1Events.lastTs+1, r.syncs), nil
 		} else if err != nil {
 			return Event{}, err
 		}
 		return ev, nil
 	}
 
-	// Go 1.22+ trace parsing algorithm.
+	// Trace v2 parsing algorithm.
 	//
 	// (1) Read in all the batches for the next generation from the stream.
 	//   (a) Use the size field in the header to quickly find all batches.
