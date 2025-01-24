@@ -7,15 +7,33 @@ package pbkdf2
 import (
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/hmac"
+	"errors"
 )
+
+// divRoundUp divides x+y-1 by y, rounding up if the result is not whole.
+// This function casts x and y to int64 in order to avoid cases where
+// x+y would overflow int on systems where int is an int32. The result
+// is an int, which is safe as (x+y-1)/y should always fit, regardless
+// of the integer size.
+func divRoundUp(x, y int) int {
+	return int((int64(x) + int64(y) - 1) / int64(y))
+}
 
 func Key[Hash fips140.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
 	setServiceIndicator(salt, keyLength)
 
+	if keyLength <= 0 {
+		return nil, errors.New("pkbdf2: keyLength must be larger than 0")
+	}
+
 	prf := hmac.New(h, []byte(password))
 	hmac.MarkAsUsedInKDF(prf)
 	hashLen := prf.Size()
-	numBlocks := (keyLength + hashLen - 1) / hashLen
+	numBlocks := divRoundUp(keyLength, hashLen)
+	const maxBlocks = int64(1<<32 - 1)
+	if keyLength+hashLen < keyLength || int64(numBlocks) > maxBlocks {
+		return nil, errors.New("pbkdf2: keyLength too long")
+	}
 
 	var buf [4]byte
 	dk := make([]byte, 0, numBlocks*hashLen)

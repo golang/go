@@ -221,3 +221,33 @@ func TestPBKDF2ServiceIndicator(t *testing.T) {
 		t.Error("FIPS service indicator should not be set")
 	}
 }
+
+func TestMaxKeyLength(t *testing.T) {
+	// This error cannot be triggered on platforms where int is 31 bits (i.e.
+	// 32-bit platforms), since the max value for keyLength is 1<<31-1 and
+	// 1<<31-1 * hLen will always be less than 1<<32-1 * hLen.
+	keySize := int64(1<<63 - 1)
+	if int64(int(keySize)) != keySize {
+		t.Skip("cannot be replicated on platforms where int is 31 bits")
+	}
+	_, err := pbkdf2.Key(sha256.New, "password", []byte("salt"), 1, int(keySize))
+	if err == nil {
+		t.Fatal("expected pbkdf2.Key to fail with extremely large keyLength")
+	}
+	keySize = int64(1<<32-1) * (sha256.Size + 1)
+	_, err = pbkdf2.Key(sha256.New, "password", []byte("salt"), 1, int(keySize))
+	if err == nil {
+		t.Fatal("expected pbkdf2.Key to fail with extremely large keyLength")
+	}
+}
+
+func TestZeroKeyLength(t *testing.T) {
+	_, err := pbkdf2.Key(sha256.New, "password", []byte("salt"), 1, 0)
+	if err == nil {
+		t.Fatal("expected pbkdf2.Key to fail with zero keyLength")
+	}
+	_, err = pbkdf2.Key(sha256.New, "password", []byte("salt"), 1, -1)
+	if err == nil {
+		t.Fatal("expected pbkdf2.Key to fail with negative keyLength")
+	}
+}
