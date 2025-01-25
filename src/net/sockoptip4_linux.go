@@ -9,6 +9,16 @@ import (
 	"syscall"
 )
 
+func joinIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
+	mreq := &syscall.IPMreqn{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
+	if ifi != nil {
+		mreq.Ifindex = int32(ifi.Index)
+	}
+	err := fd.pfd.SetsockoptIPMreqn(syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq)
+	runtime.KeepAlive(fd)
+	return wrapSyscallError("setsockopt", err)
+}
+
 func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
 	var v int32
 	if ifi != nil {
