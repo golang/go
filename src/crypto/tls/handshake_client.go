@@ -956,7 +956,6 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 	hs.masterSecret = hs.session.secret
 	c.extMasterSecret = hs.session.extMasterSecret
 	c.peerCertificates = hs.session.peerCertificates
-	c.activeCertHandles = hs.c.activeCertHandles
 	c.verifiedChains = hs.session.verifiedChains
 	c.ocspResponse = hs.session.ocspResponse
 	// Let the ServerHello SCTs override the session SCTs from the original
@@ -1107,7 +1106,6 @@ func checkKeySize(n int) (max int, ok bool) {
 // verifyServerCertificate parses and verifies the provided chain, setting
 // c.verifiedChains and c.peerCertificates or sending the appropriate alert.
 func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
-	activeHandles := make([]*activeCert, len(certificates))
 	certs := make([]*x509.Certificate, len(certificates))
 	for i, asn1Data := range certificates {
 		cert, err := globalCertCache.newCert(asn1Data)
@@ -1115,15 +1113,14 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 			c.sendAlert(alertDecodeError)
 			return errors.New("tls: failed to parse certificate from server: " + err.Error())
 		}
-		if cert.cert.PublicKeyAlgorithm == x509.RSA {
-			n := cert.cert.PublicKey.(*rsa.PublicKey).N.BitLen()
+		if cert.PublicKeyAlgorithm == x509.RSA {
+			n := cert.PublicKey.(*rsa.PublicKey).N.BitLen()
 			if max, ok := checkKeySize(n); !ok {
 				c.sendAlert(alertBadCertificate)
 				return fmt.Errorf("tls: server sent certificate containing RSA key larger than %d bits", max)
 			}
 		}
-		activeHandles[i] = cert
-		certs[i] = cert.cert
+		certs[i] = cert
 	}
 
 	echRejected := c.config.EncryptedClientHelloConfigList != nil && !c.echAccepted
@@ -1188,7 +1185,6 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 		return fmt.Errorf("tls: server's certificate contains an unsupported type of public key: %T", certs[0].PublicKey)
 	}
 
-	c.activeCertHandles = activeHandles
 	c.peerCertificates = certs
 
 	if c.config.VerifyPeerCertificate != nil && !echRejected {

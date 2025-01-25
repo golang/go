@@ -72,10 +72,6 @@ func TestMarshalUnmarshal(t *testing.T) {
 					break
 				}
 
-				if m, ok := m.(*SessionState); ok {
-					m.activeCertHandles = nil
-				}
-
 				if ch, ok := m.(*clientHelloMsg); ok {
 					// extensions is special cased, as it is only populated by the
 					// server-side of a handshake and is not expected to roundtrip
