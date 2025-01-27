@@ -242,22 +242,16 @@ func testSpliceToTTY(t *testing.T, proto string, size int64) {
 }
 
 var (
-	copyFileTests = []copyFileTestFunc{newCopyFileRangeTest, newSendfileOverCopyFileRangeTest}
-	copyFileHooks = []copyFileTestHook{hookCopyFileRange, hookSendFileOverCopyFileRange}
+	copyFileTests = []copyFileTestFunc{newCopyFileRangeTest}
+	copyFileHooks = []copyFileTestHook{hookCopyFileRange}
 )
 
 func testCopyFiles(t *testing.T, size, limit int64) {
 	testCopyFileRange(t, size, limit)
-	testSendfileOverCopyFileRange(t, size, limit)
 }
 
 func testCopyFileRange(t *testing.T, size int64, limit int64) {
 	dst, src, data, hook, name := newCopyFileRangeTest(t, size)
-	testCopyFile(t, dst, src, data, hook, limit, name)
-}
-
-func testSendfileOverCopyFileRange(t *testing.T, size int64, limit int64) {
-	dst, src, data, hook, name := newSendfileOverCopyFileRangeTest(t, size)
 	testCopyFile(t, dst, src, data, hook, limit, name)
 }
 
@@ -272,20 +266,6 @@ func newCopyFileRangeTest(t *testing.T, size int64) (dst, src *File, data []byte
 
 	dst, src, data = newCopyFileTest(t, size)
 	hook, _ = hookCopyFileRange(t)
-
-	return
-}
-
-// newSendfileOverCopyFileRangeTest initializes a new test for sendfile over copy_file_range.
-// It hooks package os' call to poll.SendFile and returns the hook,
-// so it can be inspected.
-func newSendfileOverCopyFileRangeTest(t *testing.T, size int64) (dst, src *File, data []byte, hook *copyFileHook, name string) {
-	t.Helper()
-
-	name = "newSendfileOverCopyFileRangeTest"
-
-	dst, src, data = newCopyFileTest(t, size)
-	hook, _ = hookSendFileOverCopyFileRange(t)
 
 	return
 }
@@ -340,34 +320,6 @@ func hookCopyFileRange(t *testing.T) (hook *copyFileHook, name string) {
 		return hook.written, hook.handled, hook.err
 	}
 	return
-}
-
-func hookSendFileOverCopyFileRange(t *testing.T) (*copyFileHook, string) {
-	return hookSendFileTB(t), "hookSendFileOverCopyFileRange"
-}
-
-func hookSendFileTB(tb testing.TB) *copyFileHook {
-	// Disable poll.CopyFileRange to force the fallback to poll.SendFile.
-	originalCopyFileRange := *PollCopyFileRangeP
-	*PollCopyFileRangeP = func(dst, src *poll.FD, remain int64) (written int64, handled bool, err error) {
-		return 0, false, nil
-	}
-
-	hook := new(copyFileHook)
-	orig := poll.TestHookDidSendFile
-	tb.Cleanup(func() {
-		*PollCopyFileRangeP = originalCopyFileRange
-		poll.TestHookDidSendFile = orig
-	})
-	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
-		hook.called = true
-		hook.dstfd = dstFD.Sysfd
-		hook.srcfd = src
-		hook.written = written
-		hook.err = err
-		hook.handled = handled
-	}
-	return hook
 }
 
 func hookSpliceFile(t *testing.T) *spliceFileHook {
