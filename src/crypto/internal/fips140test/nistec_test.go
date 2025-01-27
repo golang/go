@@ -251,10 +251,3 @@ func testScalarMult[P nistPoint[P]](t *testing.T, newPoint func() P, c elliptic.
 		})
 	}
 }
-
-func fatalIfErr(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
