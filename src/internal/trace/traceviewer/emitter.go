@@ -683,12 +683,12 @@ func (e *Emitter) processMeta(sectionID uint64, name string, priority int) {
 
 // Stack emits the given frames and returns a unique id for the stack. No
 // pointers to the given data are being retained beyond the call to Stack.
-func (e *Emitter) Stack(stk []*trace.Frame) int {
+func (e *Emitter) Stack(stk []trace.StackFrame) int {
 	return e.buildBranch(e.frameTree, stk)
 }
 
 // buildBranch builds one branch in the prefix tree rooted at ctx.frameTree.
-func (e *Emitter) buildBranch(parent frameNode, stk []*trace.Frame) int {
+func (e *Emitter) buildBranch(parent frameNode, stk []trace.StackFrame) int {
 	if len(stk) == 0 {
 		return parent.id
 	}
@@ -702,7 +702,7 @@ func (e *Emitter) buildBranch(parent frameNode, stk []*trace.Frame) int {
 		node.id = e.frameSeq
 		node.children = make(map[uint64]frameNode)
 		parent.children[frame.PC] = node
-		e.c.ConsumeViewerFrame(strconv.Itoa(node.id), format.Frame{Name: fmt.Sprintf("%v:%v", frame.Fn, frame.Line), Parent: parent.id})
+		e.c.ConsumeViewerFrame(strconv.Itoa(node.id), format.Frame{Name: fmt.Sprintf("%v:%v", frame.Func, frame.Line), Parent: parent.id})
 	}
 	return e.buildBranch(node, stk)
 }
