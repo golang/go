@@ -59,6 +59,25 @@ func hashToBytes[P Point[P]](c *Curve[P], hash []byte) []byte {
 	return e.Bytes(c.N)
 }
 
+// randomScalar is a copy of [randomPoint] that doesn't call ScalarBaseMult.
+func randomScalar[P Point[P]](c *Curve[P], generate func([]byte) error) (k *bigmod.Nat, err error) {
+	for {
+		b := make([]byte, c.N.Size())
+		if err := generate(b); err != nil {
+			return nil, err
+		}
+		if excess := len(b)*8 - c.N.BitLen(); excess > 0 {
+			if c.curve != p521 {
+				panic("ecdsa: internal error: unexpectedly masking off bits")
+			}
+			b = rightShift(b, excess)
+		}
+		if k, err := bigmod.NewNat().SetBytes(b, c.N); err == nil && k.IsZero() == 0 {
+			return k, nil
+		}
+	}
+}
+
 func appendBlock(p []byte, blocksize int, b []byte) []byte {
 	if len(b) > blocksize {
 		panic("ecdsa: internal error: appendBlock input larger than block")
@@ -83,7 +102,7 @@ func sign[P Point[P]](c *Curve[P], priv *PrivateKey, drbg *hmacDRBG, hash []byte
 		return signGeneric(c, priv, drbg, hash)
 	}
 	for {
-		k, _, err := randomPoint(c, func(b []byte) error {
+		k, err := randomScalar(c, func(b []byte) error {
 			drbg.Generate(b)
 			return nil
 		})
