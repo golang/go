@@ -248,7 +248,7 @@ func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *trace.Event) {
 				Name:     r.Name,
 				Ts:       ctx.elapsed(ar.time),
 				Dur:      ev.Time().Sub(ar.time),
-				Resource: trace.GCP,
+				Resource: traceviewer.GCP,
 				Stack:    ctx.Stack(viewerFrames(ar.stack)),
 				EndStack: ctx.Stack(viewerFrames(ev.Stack())),
 			})
@@ -267,7 +267,7 @@ func (g *globalRangeGenerator) Finish(ctx *traceContext) {
 			Name:     name,
 			Ts:       ctx.elapsed(ar.time),
 			Dur:      ctx.endTime.Sub(ar.time),
-			Resource: trace.GCP,
+			Resource: traceviewer.GCP,
 			Stack:    ctx.Stack(viewerFrames(ar.stack)),
 		})
 	}

@@ -632,10 +632,10 @@ func (e *Emitter) Flush() {
 
 	e.processMeta(format.ProcsSection, e.resourceType, 2)
 
-	e.threadMeta(format.ProcsSection, trace.GCP, "GC", -6)
-	e.threadMeta(format.ProcsSection, trace.NetpollP, "Network", -5)
-	e.threadMeta(format.ProcsSection, trace.TimerP, "Timers", -4)
-	e.threadMeta(format.ProcsSection, trace.SyscallP, "Syscalls", -3)
+	e.threadMeta(format.ProcsSection, GCP, "GC", -6)
+	e.threadMeta(format.ProcsSection, NetpollP, "Network", -5)
+	e.threadMeta(format.ProcsSection, TimerP, "Timers", -4)
+	e.threadMeta(format.ProcsSection, SyscallP, "Syscalls", -3)
 
 	for id, name := range e.resources {
 		priority := int(id)

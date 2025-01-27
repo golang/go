@@ -202,13 +202,13 @@ func (gs *gState[R]) syscallEnd(ts trace.Time, blocked bool, ctx *traceContext) 
 // to emit a flow event from, indicating explicitly that this goroutine was unblocked by the system.
 func (gs *gState[R]) blockedSyscallEnd(ts trace.Time, stack trace.Stack, ctx *traceContext) {
 	name := "exit blocked syscall"
-	gs.setStartCause(ts, name, trace.SyscallP, stack)
+	gs.setStartCause(ts, name, traceviewer.SyscallP, stack)
 
 	// Emit an syscall exit instant event for the "Syscall" lane.
 	ctx.Instant(traceviewer.InstantEvent{
 		Name:     name,
 		Ts:       ctx.elapsed(ts),
-		Resource: trace.SyscallP,
+		Resource: traceviewer.SyscallP,
 		Stack:    ctx.Stack(viewerFrames(stack)),
 	})
 }
@@ -228,7 +228,7 @@ func (gs *gState[R]) unblock(ts trace.Time, stack trace.Stack, resource R, ctx *
 		// TODO(mknyszek): Handle this invalidness in a more general way.
 		if _, ok := any(resource).(trace.ThreadID); !ok {
 			// Emit an unblock instant event for the "Network" lane.
-			viewerResource = trace.NetpollP
+			viewerResource = traceviewer.NetpollP
 		}
 		ctx.Instant(traceviewer.InstantEvent{
 			Name:     name,
