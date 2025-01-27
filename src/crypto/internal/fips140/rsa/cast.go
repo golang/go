@@ -171,6 +171,7 @@ func testPrivateKey() *PrivateKey {
 			N: N, E: 65537,
 		},
 		d: d, p: p, q: q, qInv: qInv, dP: dP, dQ: dQ,
+		fipsApproved: true,
 	}
 
 }
