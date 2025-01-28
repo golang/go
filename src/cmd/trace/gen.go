@@ -282,11 +282,11 @@ func (g *globalMetricGenerator) GlobalMetric(ctx *traceContext, ev *trace.Event)
 	m := ev.Metric()
 	switch m.Name {
 	case "/memory/classes/heap/objects:bytes":
-		ctx.HeapAlloc(ctx.elapsed(ev.Time()), m.Value.Uint64())
+		ctx.HeapAlloc(ctx.elapsed(ev.Time()), m.Value.ToUint64())
 	case "/gc/heap/goal:bytes":
-		ctx.HeapGoal(ctx.elapsed(ev.Time()), m.Value.Uint64())
+		ctx.HeapGoal(ctx.elapsed(ev.Time()), m.Value.ToUint64())
 	case "/sched/gomaxprocs:threads":
-		ctx.Gomaxprocs(m.Value.Uint64())
+		ctx.Gomaxprocs(m.Value.ToUint64())
 	}
 }
 

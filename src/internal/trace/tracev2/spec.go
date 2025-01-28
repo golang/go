@@ -19,7 +19,9 @@ type EventSpec struct {
 	// Its length determines the number of arguments an event has.
 	//
 	// Argument names follow a certain structure and this structure
-	// is relied on by the testing framework to type-check arguments.
+	// is relied on by the testing framework to type-check arguments
+	// and to produce Values for experimental events.
+	//
 	// The structure is:
 	//
 	//     (?P<name>[A-Za-z]+)(_(?P<type>[A-Za-z]+))?

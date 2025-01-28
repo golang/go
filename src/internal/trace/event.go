@@ -315,12 +315,25 @@ type ExperimentalEvent struct {
 	// Experiment is the name of the experiment this event is a part of.
 	Experiment string
 
-	// ArgNames is the names of the event's arguments in order.
-	// This may refer to a globally shared slice. Copy before mutating.
-	ArgNames []string
+	// Args lists the names of the event's arguments in order.
+	Args []string
 
-	// Args contains the event's arguments.
-	Args []uint64
+	// argValues contains the raw integer arguments which are interpreted
+	// by ArgValue using table.
+	table     *evTable
+	argValues []uint64
+}
+
+// ArgValue returns a typed Value for the i'th argument in the experimental event.
+func (e ExperimentalEvent) ArgValue(i int) Value {
+	if i < 0 || i >= len(e.Args) {
+		panic(fmt.Sprintf("experimental event argument index %d out of bounds [0, %d)", i, len(e.Args)))
+	}
+	if strings.HasSuffix(e.Args[i], "string") {
+		s := e.table.strings.mustGet(stringID(e.argValues[i]))
+		return stringValue(s)
+	}
+	return uint64Value(e.argValues[i])
 }
 
 // ExperimentalBatch represents a packet of unparsed data along with metadata about that packet.
@@ -421,13 +434,13 @@ func (e Event) Metric() Metric {
 	switch e.base.typ {
 	case tracev2.EvProcsChange:
 		m.Name = "/sched/gomaxprocs:threads"
-		m.Value = Value{kind: ValueUint64, scalar: e.base.args[0]}
+		m.Value = uint64Value(e.base.args[0])
 	case tracev2.EvHeapAlloc:
 		m.Name = "/memory/classes/heap/objects:bytes"
-		m.Value = Value{kind: ValueUint64, scalar: e.base.args[0]}
+		m.Value = uint64Value(e.base.args[0])
 	case tracev2.EvHeapGoal:
 		m.Name = "/gc/heap/goal:bytes"
-		m.Value = Value{kind: ValueUint64, scalar: e.base.args[0]}
+		m.Value = uint64Value(e.base.args[0])
 	default:
 		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Metric kind: %d", e.base.typ))
 	}
@@ -503,11 +516,11 @@ func (e Event) RangeAttributes() []RangeAttribute {
 	return []RangeAttribute{
 		{
 			Name:  "bytes swept",
-			Value: Value{kind: ValueUint64, scalar: e.base.args[0]},
+			Value: uint64Value(e.base.args[0]),
 		},
 		{
 			Name:  "bytes reclaimed",
-			Value: Value{kind: ValueUint64, scalar: e.base.args[1]},
+			Value: uint64Value(e.base.args[1]),
 		},
 	}
 }
@@ -687,8 +700,9 @@ func (e Event) Experimental() ExperimentalEvent {
 	return ExperimentalEvent{
 		Name:       spec.Name,
 		Experiment: tracev2.Experiments()[spec.Experiment],
-		ArgNames:   argNames,
-		Args:       e.base.args[:len(argNames)],
+		Args:       argNames,
+		table:      e.table,
+		argValues:  e.base.args[:len(argNames)],
 	}
 }
 
@@ -773,7 +787,7 @@ func (e Event) String() string {
 	switch kind := e.Kind(); kind {
 	case EventMetric:
 		m := e.Metric()
-		fmt.Fprintf(&sb, " Name=%q Value=%s", m.Name, valueAsString(m.Value))
+		fmt.Fprintf(&sb, " Name=%q Value=%s", m.Name, m.Value)
 	case EventLabel:
 		l := e.Label()
 		fmt.Fprintf(&sb, " Label=%q Resource=%s", l.Label, l.Resource)
@@ -786,7 +800,7 @@ func (e Event) String() string {
 				if i != 0 {
 					fmt.Fprintf(&sb, " ")
 				}
-				fmt.Fprintf(&sb, "%q=%s", attr.Name, valueAsString(attr.Value))
+				fmt.Fprintf(&sb, "%q=%s", attr.Name, attr.Value)
 			}
 			fmt.Fprintf(&sb, "]")
 		}
@@ -822,7 +836,14 @@ func (e Event) String() string {
 		}
 	case EventExperimental:
 		r := e.Experimental()
-		fmt.Fprintf(&sb, " Name=%s ArgNames=%v Args=%v", r.Name, r.ArgNames, r.Args)
+		fmt.Fprintf(&sb, " Name=%s Args=[", r.Name)
+		for i, arg := range r.Args {
+			if i != 0 {
+				fmt.Fprintf(&sb, ", ")
+			}
+			fmt.Fprintf(&sb, "%s=%s", arg, r.ArgValue(i).String())
+		}
+		fmt.Fprintf(&sb, "]")
 	}
 	if stk := e.Stack(); stk != NoStack {
 		fmt.Fprintln(&sb)

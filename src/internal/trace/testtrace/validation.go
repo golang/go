@@ -91,7 +91,7 @@ func (v *Validator) Event(ev trace.Event) error {
 		switch m.Value.Kind() {
 		case trace.ValueUint64:
 			// Just make sure it doesn't panic.
-			_ = m.Value.Uint64()
+			_ = m.Value.ToUint64()
 		}
 	case trace.EventLabel:
 		l := ev.Label()
