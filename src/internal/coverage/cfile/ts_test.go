@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"flag"
 	"internal/coverage"
-	"internal/goexperiment"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -32,9 +31,6 @@ func testGoCoverDir(t *testing.T) string {
 // relying on other test paths will provide a better signal when
 // running "go test -cover" for this package).
 func TestTestSupport(t *testing.T) {
-	if !goexperiment.CoverageRedesign {
-		return
-	}
 	if testing.CoverMode() == "" {
 		return
 	}
@@ -128,9 +124,6 @@ func genAuxMeta(t *testing.T, dstdir string) (string, string) {
 }
 
 func TestAuxMetaDataFiles(t *testing.T) {
-	if !goexperiment.CoverageRedesign {
-		return
-	}
 	if testing.CoverMode() == "" {
 		return
 	}

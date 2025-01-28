@@ -5,7 +5,6 @@
 # do not, some have tests and some do not.
 
 [short] skip
-[!GOEXPERIMENT:coverageredesign] skip
 
 # Verify correct statements percentages. We have a total of 10
 # statements in the packages matched by "./..."; package "a" (for

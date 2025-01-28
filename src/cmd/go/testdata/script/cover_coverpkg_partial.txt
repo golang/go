@@ -16,7 +16,6 @@
 #
 
 [short] skip
-[!GOEXPERIMENT:coverageredesign] skip
 
 # Test all packages with -coverpkg=./...
 go test -coverprofile=cov.p -coverpkg=./... ./...
