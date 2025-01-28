@@ -2632,8 +2632,7 @@
 //		Content-Type: text/plain; charset=utf-8
 //		Date: Thu, 07 Nov 2024 18:43:09 GMT
 //
-//	Note: at least for HTTP 1.1, the contents written to stdin can be parsed
-//	as an HTTP response.
+//	Note: it is safe to use net/http.ReadResponse to parse this input.
 //
 // Before the first HTTPS fetch, the go command will invoke each GOAUTH
 // command in the list with no additional arguments and no input.
