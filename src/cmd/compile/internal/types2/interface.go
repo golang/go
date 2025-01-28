@@ -42,7 +42,7 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	typ := (*Checker)(nil).newInterface()
 	for _, m := range methods {
 		if sig := m.typ.(*Signature); sig.recv == nil {
-			sig.recv = NewVar(m.pos, m.pkg, "", typ)
+			sig.recv = newVar(RecvVar, m.pos, m.pkg, "", typ)
 		}
 	}
 
@@ -158,7 +158,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 				recvTyp = named
 			}
 		}
-		sig.recv = NewVar(f.Name.Pos(), check.pkg, "", recvTyp)
+		sig.recv = newVar(RecvVar, f.Name.Pos(), check.pkg, "", recvTyp)
 
 		m := NewFunc(f.Name.Pos(), check.pkg, name, sig)
 		check.recordDef(f.Name, m)

@@ -95,7 +95,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 				}
 			}
 			gsig := NewSignatureType(nil, nil, nil, sig.params, sig.results, sig.variadic)
-			params = []*Var{NewVar(x.Pos(), check.pkg, "", gsig)}
+			params = []*Var{NewParam(x.Pos(), check.pkg, "", gsig)}
 			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
 			// or the result type in a return statement. Create a pseudo-expression for that operand
 			// that makes sense when reported in error messages from infer, below.
@@ -878,7 +878,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 				name = "_"
 			}
 		}
-		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
+		params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
 		x.mode = value
 		x.typ = &Signature{
 			tparams:  sig.tparams,

@@ -399,32 +399,34 @@ func (r *reader) interfaceType() *types.Interface {
 func (r *reader) signature(recv *types.Var, rtparams, tparams []*types.TypeParam) *types.Signature {
 	r.Sync(pkgbits.SyncSignature)
 
-	params := r.params()
-	results := r.params()
+	params := r.params(types.ParamVar)
+	results := r.params(types.ResultVar)
 	variadic := r.Bool()
 
 	return types.NewSignatureType(recv, rtparams, tparams, params, results, variadic)
 }
 
-func (r *reader) params() *types.Tuple {
+func (r *reader) params(kind types.VarKind) *types.Tuple {
 	r.Sync(pkgbits.SyncParams)
 
 	params := make([]*types.Var, r.Len())
 	for i := range params {
-		params[i] = r.param()
+		params[i] = r.param(kind)
 	}
 
 	return types.NewTuple(params...)
 }
 
-func (r *reader) param() *types.Var {
+func (r *reader) param(kind types.VarKind) *types.Var {
 	r.Sync(pkgbits.SyncParam)
 
 	pos := r.pos()
 	pkg, name := r.localIdent()
 	typ := r.typ()
 
-	return types.NewParam(pos, pkg, name, typ)
+	param := types.NewParam(pos, pkg, name, typ)
+	param.SetKind(kind) // ∈ {Recv,Param,Result}Var
+	return param
 }
 
 // @@@ Objects
@@ -528,6 +530,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 					sig := fn.Signature()
 
 					recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
+					recv.SetKind(types.RecvVar)
 					methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
 				}
 
@@ -647,7 +650,7 @@ func (r *reader) method() *types.Func {
 	pkg, name := r.selector()
 
 	rparams := r.typeParamNames()
-	sig := r.signature(r.param(), rparams, nil)
+	sig := r.signature(r.param(types.RecvVar), rparams, nil)
 
 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
 	return types.NewFunc(pos, pkg, name, sig)

@@ -38,7 +38,7 @@ func TestContextHashCollisions(t *testing.T) {
 	{
 		// type unaryP = func[P any](_ P)
 		tparam := NewTypeParam(NewTypeName(nopos, nil, "P", nil), &emptyInterface)
-		params := NewTuple(NewVar(nopos, nil, "_", tparam))
+		params := NewTuple(NewParam(nopos, nil, "_", tparam))
 		unaryP = NewSignatureType(nil, nil, []*TypeParam{tparam}, params, nil, false)
 	}
 

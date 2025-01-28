@@ -566,7 +566,7 @@ func (check *Checker) shortVarDecl(pos poser, lhs, rhs []syntax.Expr) {
 		}
 
 		// declare new variable
-		obj := NewVar(ident.Pos(), check.pkg, name, nil)
+		obj := newVar(LocalVar, ident.Pos(), check.pkg, name, nil)
 		lhsVars[i] = obj
 		if name != "_" {
 			newVars = append(newVars, obj)
@@ -577,7 +577,7 @@ func (check *Checker) shortVarDecl(pos poser, lhs, rhs []syntax.Expr) {
 	// create dummy variables where the lhs is invalid
 	for i, obj := range lhsVars {
 		if obj == nil {
-			lhsVars[i] = NewVar(lhs[i].Pos(), check.pkg, "_", nil)
+			lhsVars[i] = newVar(LocalVar, lhs[i].Pos(), check.pkg, "_", nil)
 		}
 	}
 

@@ -334,28 +334,81 @@ func (obj *TypeName) IsAlias() bool {
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object
+	kind     VarKind
 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
-	isField  bool // var is struct field
 	used     bool // set if the variable was used
 	origin   *Var // if non-nil, the Var from which this one was instantiated
 }
 
+// A VarKind discriminates the various kinds of variables.
+type VarKind uint8
+
+const (
+	_          VarKind = iota // (not meaningful)
+	PackageVar                // a package-level variable
+	LocalVar                  // a local variable
+	RecvVar                   // a method receiver variable
+	ParamVar                  // a function parameter variable
+	ResultVar                 // a function result variable
+	FieldVar                  // a struct field
+)
+
+var varKindNames = [...]string{
+	0:          "VarKind(0)",
+	PackageVar: "PackageVar",
+	LocalVar:   "LocalVar",
+	RecvVar:    "RecvVar",
+	ParamVar:   "ParamVar",
+	ResultVar:  "ResultVar",
+	FieldVar:   "FieldVar",
+}
+
+func (kind VarKind) String() string {
+	if 0 <= kind && int(kind) < len(varKindNames) {
+		return varKindNames[kind]
+	}
+	return fmt.Sprintf("VarKind(%d)", kind)
+}
+
+// Kind reports what kind of variable v is.
+func (v *Var) Kind() VarKind { return v.kind }
+
+// SetKind sets the kind of the variable.
+// It should be used only immediately after [NewVar] or [NewParam].
+func (v *Var) SetKind(kind VarKind) { v.kind = kind }
+
 // NewVar returns a new variable.
 // The arguments set the attributes found with all Objects.
+//
+// The caller must subsequently call [Var.SetKind]
+// if the desired Var is not of kind [PackageVar].
 func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}}
+	return newVar(PackageVar, pos, pkg, name, typ)
 }
 
 // NewParam returns a new variable representing a function parameter.
+//
+// The caller must subsequently call [Var.SetKind] if the desired Var
+// is not of kind [ParamVar]: for example, [RecvVar] or [ResultVar].
 func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, used: true} // parameters are always 'used'
+	return newVar(ParamVar, pos, pkg, name, typ)
 }
 
 // NewField returns a new variable representing a struct field.
 // For embedded fields, the name is the unqualified type name
 // under which the field is accessible.
 func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, embedded: embedded, isField: true}
+	v := newVar(FieldVar, pos, pkg, name, typ)
+	v.embedded = embedded
+	return v
+}
+
+// newVar returns a new variable.
+// The arguments set the attributes found with all Objects.
+func newVar(kind VarKind, pos token.Pos, pkg *Package, name string, typ Type) *Var {
+	// Function parameters are always 'used'.
+	used := kind == RecvVar || kind == ParamVar || kind == ResultVar
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, kind: kind, used: used}
 }
 
 // Anonymous reports whether the variable is an embedded field.
@@ -366,7 +419,7 @@ func (obj *Var) Anonymous() bool { return obj.embedded }
 func (obj *Var) Embedded() bool { return obj.embedded }
 
 // IsField reports whether the variable is a struct field.
-func (obj *Var) IsField() bool { return obj.isField }
+func (obj *Var) IsField() bool { return obj.kind == FieldVar }
 
 // Origin returns the canonical Var for its receiver, i.e. the Var object
 // recorded in Info.Defs.
@@ -529,7 +582,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		}
 
 	case *Var:
-		if obj.isField {
+		if obj.IsField() {
 			buf.WriteString("field")
 		} else {
 			buf.WriteString("var")

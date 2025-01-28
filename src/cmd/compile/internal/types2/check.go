@@ -568,8 +568,8 @@ func (check *Checker) recordCommaOkTypesInSyntax(x syntax.Expr, t0, t1 Type) {
 			assert(tv.Type != nil) // should have been recorded already
 			pos := x.Pos()
 			tv.Type = NewTuple(
-				NewVar(pos, check.pkg, "", t0),
-				NewVar(pos, check.pkg, "", t1),
+				NewParam(pos, check.pkg, "", t0),
+				NewParam(pos, check.pkg, "", t1),
 			)
 			x.SetTypeInfo(tv)
 			p, _ := x.(*syntax.ParenExpr)

@@ -379,7 +379,7 @@ func (check *Checker) collectObjects() {
 
 				// declare all variables
 				for i, name := range d.spec.Names {
-					obj := NewVar(name.Pos(), pkg, name.Name, nil)
+					obj := newVar(PackageVar, name.Pos(), pkg, name.Name, nil)
 					lhs[i] = obj
 
 					di := d1

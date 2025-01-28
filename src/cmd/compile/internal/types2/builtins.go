@@ -1032,13 +1032,13 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 func makeSig(res Type, args ...Type) *Signature {
 	list := make([]*Var, len(args))
 	for i, param := range args {
-		list[i] = NewVar(nopos, nil, "", Default(param))
+		list[i] = NewParam(nopos, nil, "", Default(param))
 	}
 	params := NewTuple(list...)
 	var result *Tuple
 	if res != nil {
 		assert(!isUntyped(res))
-		result = NewTuple(NewVar(nopos, nil, "", res))
+		result = NewTuple(newVar(ResultVar, nopos, nil, "", res))
 	}
 	return &Signature{params: params, results: result}
 }

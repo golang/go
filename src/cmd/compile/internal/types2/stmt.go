@@ -793,7 +793,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		check.openScope(clause, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {
-			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
+			obj := newVar(LocalVar, lhs.Pos(), check.pkg, lhs.Value, T)
 			check.declare(check.scope, nil, obj, clause.Colon)
 			check.recordImplicit(clause, obj)
 			// For the "declared and not used" error, all lhs variables act as
@@ -904,7 +904,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 			if ident, _ := lhs.(*identType); ident != nil {
 				// declare new variable
 				name := identName(ident)
-				obj = NewVar(ident.Pos(), check.pkg, name, nil)
+				obj = newVar(LocalVar, ident.Pos(), check.pkg, name, nil)
 				check.recordDef(ident, obj)
 				// _ variables don't count as new variables
 				if name != "_" {
@@ -912,7 +912,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 				}
 			} else {
 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
-				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+				obj = newVar(LocalVar, lhs.Pos(), check.pkg, "_", nil) // dummy variable
 			}
 			assert(obj.typ == nil)
 

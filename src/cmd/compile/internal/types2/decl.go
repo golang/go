@@ -844,7 +844,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 
 			lhs0 := make([]*Var, len(s.NameList))
 			for i, name := range s.NameList {
-				lhs0[i] = NewVar(name.Pos(), pkg, name.Value, nil)
+				lhs0[i] = newVar(LocalVar, name.Pos(), pkg, name.Value, nil)
 			}
 
 			// initialize all variables
