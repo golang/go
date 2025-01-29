@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode"
 
-	"internal/trace/tracev2/event"
+	"internal/trace/tracev2"
 	"internal/trace/version"
 )
 
@@ -20,8 +20,8 @@ import (
 // into an event stream.
 type TextReader struct {
 	v     version.Version
-	specs []event.Spec
-	names map[string]event.Type
+	specs []tracev2.EventSpec
+	names map[string]tracev2.EventType
 	s     *bufio.Scanner
 }
 
@@ -50,7 +50,7 @@ func NewTextReader(r io.Reader) (*TextReader, error) {
 	}
 	tr.v = v
 	tr.specs = v.Specs()
-	tr.names = event.Names(tr.specs)
+	tr.names = tracev2.EventNames(tr.specs)
 	for _, r := range line {
 		if !unicode.IsSpace(r) {
 			return nil, fmt.Errorf("encountered unexpected non-space at the end of the header: %q", line)

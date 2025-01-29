@@ -58,7 +58,7 @@ var depsRules = `
 	  internal/platform,
 	  internal/profilerecord,
 	  internal/syslist,
-	  internal/trace/tracev2/event,
+	  internal/trace/tracev2,
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  math/bits,
@@ -80,6 +80,7 @@ var depsRules = `
 	internal/goexperiment,
 	internal/goos,
 	internal/profilerecord,
+	internal/trace/tracev2,
 	math/bits,
 	structs
 	< internal/bytealg
@@ -699,16 +700,13 @@ var depsRules = `
 	< crypto/internal/fips140/check/checktest;
 
 	# v2 execution trace parser.
-	internal/trace/tracev2/event
-	< internal/trace/tracev2;
-
 	FMT, io, internal/trace/tracev2
 	< internal/trace/version;
 
 	FMT, encoding/binary, internal/trace/version
 	< internal/trace/raw;
 
-	FMT, internal/trace/tracev2/event, internal/trace/version, io, sort, encoding/binary
+	FMT, internal/trace/version, io, sort, encoding/binary
 	< internal/trace/internal/tracev1;
 
 	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand

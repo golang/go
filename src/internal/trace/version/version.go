@@ -9,7 +9,6 @@ import (
 	"io"
 
 	"internal/trace/tracev2"
-	"internal/trace/tracev2/event"
 )
 
 // Version represents the version of a trace file.
@@ -24,7 +23,7 @@ const (
 	Current         = Go123
 )
 
-var versions = map[Version][]event.Spec{
+var versions = map[Version][]tracev2.EventSpec{
 	// Go 1.11–1.21 use a different parser and are only set here for the sake of
 	// Version.Valid.
 	Go111: nil,
@@ -36,13 +35,13 @@ var versions = map[Version][]event.Spec{
 }
 
 // Specs returns the set of event.Specs for this version.
-func (v Version) Specs() []event.Spec {
+func (v Version) Specs() []tracev2.EventSpec {
 	return versions[v]
 }
 
 // EventName returns a string name of a wire format event
 // for a particular trace version.
-func (v Version) EventName(typ event.Type) string {
+func (v Version) EventName(typ tracev2.EventType) string {
 	if !v.Valid() {
 		return "<invalid trace version>"
 	}

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"internal/trace/tracev2"
-	"internal/trace/tracev2/event"
 	"internal/trace/version"
 )
 
@@ -693,7 +692,7 @@ func (e Event) Experimental() ExperimentalEvent {
 	}
 }
 
-const evSync = ^event.Type(0)
+const evSync = ^tracev2.EventType(0)
 
 var tracev2Type2Kind = [...]EventKind{
 	tracev2.EvCPUSample:           EventStackSample,

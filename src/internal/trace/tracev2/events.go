@@ -4,12 +4,17 @@
 
 package tracev2
 
-import (
-	"internal/trace/tracev2/event"
-)
-
+// Event types in the trace, args are given in square brackets.
+//
+// Naming scheme:
+//   - Time range event pairs have suffixes "Begin" and "End".
+//   - "Start", "Stop", "Create", "Destroy", "Block", "Unblock"
+//     are suffixes reserved for scheduling resources.
+//
+// NOTE: If you add an event type, make sure you also update all
+// tables in this file!
 const (
-	EvNone event.Type = iota // unused
+	EvNone EventType = iota // unused
 
 	// Structural events.
 	EvEventBatch // start of per-M batch of events [generation, M ID, timestamp, batch length]
@@ -82,7 +87,9 @@ const (
 // Experiments.
 const (
 	// AllocFree is the alloc-free events experiment.
-	AllocFree event.Experiment = 1 + iota
+	AllocFree Experiment = 1 + iota
+
+	NumExperiments
 )
 
 func Experiments() []string {
@@ -90,12 +97,13 @@ func Experiments() []string {
 }
 
 var experiments = [...]string{
-	AllocFree: "AllocFree",
+	NoExperiment: "None",
+	AllocFree:    "AllocFree",
 }
 
 // Experimental events.
 const (
-	_ event.Type = 127 + iota
+	_ EventType = 127 + iota
 
 	// Experimental events for AllocFree.
 
@@ -115,11 +123,11 @@ const (
 	EvGoroutineStackFree  // stack free [timestamp, id]
 )
 
-func Specs() []event.Spec {
+func Specs() []EventSpec {
 	return specs[:]
 }
 
-var specs = [...]event.Spec{
+var specs = [...]EventSpec{
 	// "Structural" Events.
 	EvEventBatch: {
 		Name: "EventBatch",
@@ -456,6 +464,9 @@ var specs = [...]event.Spec{
 	},
 }
 
+// GoStatus is the status of a goroutine.
+//
+// They correspond directly to the various goroutine states.
 type GoStatus uint8
 
 const (
@@ -480,6 +491,9 @@ func (s GoStatus) String() string {
 	return "Bad"
 }
 
+// ProcStatus is the status of a P.
+//
+// They mostly correspond to the various P states.
 type ProcStatus uint8
 
 const (
@@ -487,6 +501,16 @@ const (
 	ProcRunning
 	ProcIdle
 	ProcSyscall
+
+	// ProcSyscallAbandoned is a special case of
+	// ProcSyscall. It's used in the very specific case
+	// where the first a P is mentioned in a generation is
+	// part of a ProcSteal event. If that's the first time
+	// it's mentioned, then there's no GoSyscallBegin to
+	// connect the P stealing back to at that point. This
+	// special state indicates this to the parser, so it
+	// doesn't try to find a GoSyscallEndBlocked that
+	// corresponds with the ProcSteal.
 	ProcSyscallAbandoned
 )
 
@@ -503,8 +527,30 @@ func (s ProcStatus) String() string {
 }
 
 const (
-	// Various format-specific constants.
-	MaxBatchSize      = 64 << 10
+	// MaxBatchSize sets the maximum size that a batch can be.
+	//
+	// Directly controls the trace batch size in the runtime.
+	//
+	// NOTE: If this number decreases, the trace format version must change.
+	MaxBatchSize = 64 << 10
+
+	// Maximum number of PCs in a single stack trace.
+	//
+	// Since events contain only stack ID rather than whole stack trace,
+	// we can allow quite large values here.
+	//
+	// Directly controls the maximum number of frames per stack
+	// in the runtime.
+	//
+	// NOTE: If this number decreases, the trace format version must change.
 	MaxFramesPerStack = 128
-	MaxStringSize     = 1 << 10
+
+	// MaxEventTrailerDataSize controls the amount of trailer data that
+	// an event can have in bytes. Must be smaller than MaxBatchSize.
+	// Controls the maximum string size in the trace.
+	//
+	// Directly controls the maximum such value in the runtime.
+	//
+	// NOTE: If this number decreases, the trace format version must change.
+	MaxEventTrailerDataSize = 1 << 10
 )

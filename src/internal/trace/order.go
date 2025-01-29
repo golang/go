@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"internal/trace/tracev2"
-	"internal/trace/tracev2/event"
 	"internal/trace/version"
 )
 
@@ -89,7 +88,7 @@ func (o *ordering) Advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64) 
 	return ok, err
 }
 
-func (o *ordering) evName(typ event.Type) string {
+func (o *ordering) evName(typ tracev2.EventType) string {
 	return o.traceVer.EventName(typ)
 }
 
@@ -1167,12 +1166,12 @@ type userRegion struct {
 // they may have an optional subtype that describes the range
 // in more detail.
 type rangeType struct {
-	typ  event.Type // "Begin" event.
-	desc stringID   // Optional subtype.
+	typ  tracev2.EventType // "Begin" event.
+	desc stringID          // Optional subtype.
 }
 
 // makeRangeType constructs a new rangeType.
-func makeRangeType(typ event.Type, desc stringID) rangeType {
+func makeRangeType(typ tracev2.EventType, desc stringID) rangeType {
 	if styp := tracev2.Specs()[typ].StartEv; styp != tracev2.EvNone {
 		typ = styp
 	}
@@ -1266,7 +1265,7 @@ func (s *rangeState) hasRange(typ rangeType) bool {
 // endRange ends a special range in time on the goroutine.
 //
 // This must line up with the start event type  of the range the goroutine is currently in.
-func (s *rangeState) endRange(typ event.Type) (stringID, error) {
+func (s *rangeState) endRange(typ tracev2.EventType) (stringID, error) {
 	st := tracev2.Specs()[typ].StartEv
 	idx := -1
 	for i, r := range s.inFlight {
@@ -1386,7 +1385,7 @@ func (q *queue[T]) pop() (T, bool) {
 // It's just a convenience function; it's always OK to construct
 // an Event manually if this isn't quite the right way to express
 // the contents of the event.
-func makeEvent(table *evTable, ctx schedCtx, typ event.Type, time Time, args ...uint64) Event {
+func makeEvent(table *evTable, ctx schedCtx, typ tracev2.EventType, time Time, args ...uint64) Event {
 	ev := Event{
 		table: table,
 		ctx:   ctx,

@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"internal/trace/tracev2"
-	"internal/trace/tracev2/event"
 )
 
 // generation contains all the trace data for a single
@@ -166,9 +165,9 @@ func processBatch(g *generation, b batch) error {
 			return fmt.Errorf("found multiple frequency events")
 		}
 		g.freq = freq
-	case b.exp != event.NoExperiment:
+	case b.exp != tracev2.NoExperiment:
 		if g.expBatches == nil {
-			g.expBatches = make(map[event.Experiment][]ExperimentalBatch)
+			g.expBatches = make(map[tracev2.Experiment][]ExperimentalBatch)
 		}
 		if err := addExperimentalBatch(g.expBatches, b); err != nil {
 			return err
@@ -222,7 +221,7 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvStrings byte.
-	if err != nil || event.Type(hdr) != tracev2.EvStrings {
+	if err != nil || tracev2.EventType(hdr) != tracev2.EvStrings {
 		return fmt.Errorf("missing strings batch header")
 	}
 
@@ -233,7 +232,7 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
 		if err != nil {
 			return err
 		}
-		if event.Type(ev) != tracev2.EvString {
+		if tracev2.EventType(ev) != tracev2.EvString {
 			return fmt.Errorf("expected string event, got %d", ev)
 		}
 
@@ -248,8 +247,8 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
 		if err != nil {
 			return err
 		}
-		if len > tracev2.MaxStringSize {
-			return fmt.Errorf("invalid string size %d, maximum is %d", len, tracev2.MaxStringSize)
+		if len > tracev2.MaxEventTrailerDataSize {
+			return fmt.Errorf("invalid string size %d, maximum is %d", len, tracev2.MaxEventTrailerDataSize)
 		}
 
 		// Copy out the string.
@@ -280,7 +279,7 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvStacks byte.
-	if err != nil || event.Type(hdr) != tracev2.EvStacks {
+	if err != nil || tracev2.EventType(hdr) != tracev2.EvStacks {
 		return fmt.Errorf("missing stacks batch header")
 	}
 
@@ -290,7 +289,7 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
 		if err != nil {
 			return err
 		}
-		if event.Type(ev) != tracev2.EvStack {
+		if tracev2.EventType(ev) != tracev2.EvStack {
 			return fmt.Errorf("expected stack event, got %d", ev)
 		}
 
@@ -358,7 +357,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvCPUSamples byte.
-	if err != nil || event.Type(hdr) != tracev2.EvCPUSamples {
+	if err != nil || tracev2.EventType(hdr) != tracev2.EvCPUSamples {
 		return nil, fmt.Errorf("missing CPU samples batch header")
 	}
 
@@ -368,7 +367,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 		if err != nil {
 			return nil, err
 		}
-		if event.Type(ev) != tracev2.EvCPUSample {
+		if tracev2.EventType(ev) != tracev2.EvCPUSample {
 			return nil, fmt.Errorf("expected CPU sample event, got %d", ev)
 		}
 
@@ -441,8 +440,8 @@ func parseFreq(b batch) (frequency, error) {
 
 // addExperimentalBatch takes an experimental batch and adds it to the list of experimental
 // batches for the experiment its a part of.
-func addExperimentalBatch(expBatches map[event.Experiment][]ExperimentalBatch, b batch) error {
-	if b.exp == event.NoExperiment {
+func addExperimentalBatch(expBatches map[tracev2.Experiment][]ExperimentalBatch, b batch) error {
+	if b.exp == tracev2.NoExperiment {
 		return fmt.Errorf("internal error: addExperimentalBatch called on non-experimental batch")
 	}
 	expBatches[b.exp] = append(expBatches[b.exp], ExperimentalBatch{

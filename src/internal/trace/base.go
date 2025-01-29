@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"internal/trace/tracev2"
-	"internal/trace/tracev2/event"
 	"internal/trace/version"
 )
 
@@ -28,7 +27,7 @@ type timedEventArgs [maxArgs - 1]uint64
 // baseEvent is the basic unprocessed event. This serves as a common
 // fundamental data structure across.
 type baseEvent struct {
-	typ  event.Type
+	typ  tracev2.EventType
 	time Time
 	args timedEventArgs
 }
@@ -59,7 +58,7 @@ type evTable struct {
 	nextExtra      extraStringID
 
 	// expBatches contains extra unparsed data relevant to a specific experiment.
-	expBatches map[event.Experiment][]ExperimentalBatch
+	expBatches map[tracev2.Experiment][]ExperimentalBatch
 }
 
 // addExtraString adds an extra string to the evTable and returns

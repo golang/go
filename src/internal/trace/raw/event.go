@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"internal/trace/tracev2/event"
+	"internal/trace/tracev2"
 	"internal/trace/version"
 )
 
@@ -20,7 +20,7 @@ import (
 // trace format's framing. (But not interpreted.)
 type Event struct {
 	Version version.Version
-	Ev      event.Type
+	Ev      tracev2.EventType
 	Args    []uint64
 	Data    []byte
 }

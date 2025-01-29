@@ -32,7 +32,6 @@ import (
 	"fmt"
 	"internal/trace/internal/tracev1"
 	"internal/trace/tracev2"
-	"internal/trace/tracev2/event"
 	"io"
 )
 
@@ -253,7 +252,7 @@ var errSkip = errors.New("skip event")
 // encountering events that tracev1 shouldn't be able to emit, ocnvertEvent
 // returns a descriptive error.
 func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR error) {
-	var mappedType event.Type
+	var mappedType tracev2.EventType
 	var mappedArgs timedEventArgs
 	copy(mappedArgs[:], ev.Args[:])
 

@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package event
+package tracev2
 
-// Type indicates an event's type from which its arguments and semantics can be
+// EventType indicates an event's type from which its arguments and semantics can be
 // derived. Its representation matches the wire format's representation of the event
 // types that precede all event data.
-type Type uint8
+type EventType uint8
 
-// Spec is a specification for a trace event. It contains sufficient information
+// EventSpec is a specification for a trace event. It contains sufficient information
 // to perform basic parsing of any trace event for any version of Go.
-type Spec struct {
+type EventSpec struct {
 	// Name is the human-readable name of the trace event.
 	Name string
 
@@ -42,7 +42,7 @@ type Spec struct {
 	// StartEv indicates the event type of the corresponding "start"
 	// event, if this event is an "end," for a pair of events that
 	// represent a time range.
-	StartEv Type
+	StartEv EventType
 
 	// IsTimedEvent indicates whether this is an event that both
 	// appears in the main event stream and is surfaced to the
@@ -72,10 +72,10 @@ type Spec struct {
 	Experiment Experiment
 }
 
-// ArgTypes is a list of valid argument types for use in Args.
+// EventArgTypes is a list of valid argument types for use in Args.
 //
 // See the documentation of Args for more details.
-var ArgTypes = [...]string{
+var EventArgTypes = [...]string{
 	"seq",     // sequence number
 	"pstatus", // P status
 	"gstatus", // G status
@@ -88,11 +88,11 @@ var ArgTypes = [...]string{
 	"task",    // trace.TaskID
 }
 
-// Names is a helper that produces a mapping of event names to event types.
-func Names(specs []Spec) map[string]Type {
-	nameToType := make(map[string]Type)
+// EventNames is a helper that produces a mapping of event names to event types.
+func EventNames(specs []EventSpec) map[string]EventType {
+	nameToType := make(map[string]EventType)
 	for i, spec := range specs {
-		nameToType[spec.Name] = Type(byte(i))
+		nameToType[spec.Name] = EventType(byte(i))
 	}
 	return nameToType
 }
