@@ -1553,7 +1553,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 		// We'll releasem after this point and thus this P may run
 		// something else. We must clear the worker mode to avoid
 		// attributing the mode to a different (non-worker) G in
-		// traceGoStart.
+		// tracev2.GoStart.
 		pp.gcMarkWorkerMode = gcMarkWorkerNotWorker
 
 		// If this worker reached a background mark completion

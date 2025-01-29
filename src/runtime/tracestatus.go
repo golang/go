@@ -6,43 +6,9 @@
 
 package runtime
 
-import "internal/runtime/atomic"
-
-// traceGoStatus is the status of a goroutine.
-//
-// They correspond directly to the various goroutine
-// statuses.
-type traceGoStatus uint8
-
-const (
-	traceGoBad traceGoStatus = iota
-	traceGoRunnable
-	traceGoRunning
-	traceGoSyscall
-	traceGoWaiting
-)
-
-// traceProcStatus is the status of a P.
-//
-// They mostly correspond to the various P statuses.
-type traceProcStatus uint8
-
-const (
-	traceProcBad traceProcStatus = iota
-	traceProcRunning
-	traceProcIdle
-	traceProcSyscall
-
-	// traceProcSyscallAbandoned is a special case of
-	// traceProcSyscall. It's used in the very specific case
-	// where the first a P is mentioned in a generation is
-	// part of a ProcSteal event. If that's the first time
-	// it's mentioned, then there's no GoSyscallBegin to
-	// connect the P stealing back to at that point. This
-	// special state indicates this to the parser, so it
-	// doesn't try to find a GoSyscallEndBlocked that
-	// corresponds with the ProcSteal.
-	traceProcSyscallAbandoned
+import (
+	"internal/runtime/atomic"
+	"internal/trace/tracev2"
 )
 
 // writeGoStatus emits a GoStatus event as well as any active ranges on the goroutine.
@@ -51,23 +17,23 @@ const (
 // have any stack growth.
 //
 //go:nosplit
-func (w traceWriter) writeGoStatus(goid uint64, mid int64, status traceGoStatus, markAssist bool, stackID uint64) traceWriter {
+func (w traceWriter) writeGoStatus(goid uint64, mid int64, status tracev2.GoStatus, markAssist bool, stackID uint64) traceWriter {
 	// The status should never be bad. Some invariant must have been violated.
-	if status == traceGoBad {
+	if status == tracev2.GoBad {
 		print("runtime: goid=", goid, "\n")
 		throw("attempted to trace a bad status for a goroutine")
 	}
 
 	// Trace the status.
 	if stackID == 0 {
-		w = w.event(traceEvGoStatus, traceArg(goid), traceArg(uint64(mid)), traceArg(status))
+		w = w.event(tracev2.EvGoStatus, traceArg(goid), traceArg(uint64(mid)), traceArg(status))
 	} else {
-		w = w.event(traceEvGoStatusStack, traceArg(goid), traceArg(uint64(mid)), traceArg(status), traceArg(stackID))
+		w = w.event(tracev2.EvGoStatusStack, traceArg(goid), traceArg(uint64(mid)), traceArg(status), traceArg(stackID))
 	}
 
 	// Trace any special ranges that are in-progress.
 	if markAssist {
-		w = w.event(traceEvGCMarkAssistActive, traceArg(goid))
+		w = w.event(tracev2.EvGCMarkAssistActive, traceArg(goid))
 	}
 	return w
 }
@@ -85,26 +51,26 @@ func (w traceWriter) writeProcStatusForP(pp *p, inSTW bool) traceWriter {
 	if !pp.trace.acquireStatus(w.gen) {
 		return w
 	}
-	var status traceProcStatus
+	var status tracev2.ProcStatus
 	switch pp.status {
 	case _Pidle, _Pgcstop:
-		status = traceProcIdle
+		status = tracev2.ProcIdle
 		if pp.status == _Pgcstop && inSTW {
 			// N.B. a P that is running and currently has the world stopped will be
 			// in _Pgcstop, but we model it as running in the tracer.
-			status = traceProcRunning
+			status = tracev2.ProcRunning
 		}
 	case _Prunning:
-		status = traceProcRunning
+		status = tracev2.ProcRunning
 		// There's a short window wherein the goroutine may have entered _Gsyscall
 		// but it still owns the P (it's not in _Psyscall yet). The goroutine entering
 		// _Gsyscall is the tracer's signal that the P its bound to is also in a syscall,
 		// so we need to emit a status that matches. See #64318.
 		if w.mp.p.ptr() == pp && w.mp.curg != nil && readgstatus(w.mp.curg)&^_Gscan == _Gsyscall {
-			status = traceProcSyscall
+			status = tracev2.ProcSyscall
 		}
 	case _Psyscall:
-		status = traceProcSyscall
+		status = tracev2.ProcSyscall
 	default:
 		throw("attempt to trace invalid or unsupported P status")
 	}
@@ -121,19 +87,19 @@ func (w traceWriter) writeProcStatusForP(pp *p, inSTW bool) traceWriter {
 // have any stack growth.
 //
 //go:nosplit
-func (w traceWriter) writeProcStatus(pid uint64, status traceProcStatus, inSweep bool) traceWriter {
+func (w traceWriter) writeProcStatus(pid uint64, status tracev2.ProcStatus, inSweep bool) traceWriter {
 	// The status should never be bad. Some invariant must have been violated.
-	if status == traceProcBad {
+	if status == tracev2.ProcBad {
 		print("runtime: pid=", pid, "\n")
 		throw("attempted to trace a bad status for a proc")
 	}
 
 	// Trace the status.
-	w = w.event(traceEvProcStatus, traceArg(pid), traceArg(status))
+	w = w.event(tracev2.EvProcStatus, traceArg(pid), traceArg(status))
 
 	// Trace any special ranges that are in-progress.
 	if inSweep {
-		w = w.event(traceEvGCSweepActive, traceArg(pid))
+		w = w.event(tracev2.EvGCSweepActive, traceArg(pid))
 	}
 	return w
 }
@@ -146,16 +112,16 @@ func (w traceWriter) writeProcStatus(pid uint64, status traceProcStatus, inSweep
 // have any stack growth.
 //
 //go:nosplit
-func goStatusToTraceGoStatus(status uint32, wr waitReason) traceGoStatus {
+func goStatusToTraceGoStatus(status uint32, wr waitReason) tracev2.GoStatus {
 	// N.B. Ignore the _Gscan bit. We don't model it in the tracer.
-	var tgs traceGoStatus
+	var tgs tracev2.GoStatus
 	switch status &^ _Gscan {
 	case _Grunnable:
-		tgs = traceGoRunnable
+		tgs = tracev2.GoRunnable
 	case _Grunning, _Gcopystack:
-		tgs = traceGoRunning
+		tgs = tracev2.GoRunning
 	case _Gsyscall:
-		tgs = traceGoSyscall
+		tgs = tracev2.GoSyscall
 	case _Gwaiting, _Gpreempted:
 		// There are a number of cases where a G might end up in
 		// _Gwaiting but it's actually running in a non-preemptive
@@ -163,9 +129,9 @@ func goStatusToTraceGoStatus(status uint32, wr waitReason) traceGoStatus {
 		// garbage collector. In these cases, we're not going to
 		// emit an event, and we want these goroutines to appear in
 		// the final trace as if they're running, not blocked.
-		tgs = traceGoWaiting
+		tgs = tracev2.GoWaiting
 		if status == _Gwaiting && wr.isWaitingForGC() {
-			tgs = traceGoRunning
+			tgs = tracev2.GoRunning
 		}
 	case _Gdead:
 		throw("tried to trace dead goroutine")

@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/goarch"
+	"internal/trace/tracev2"
 	_ "unsafe"
 )
 
@@ -80,10 +81,10 @@ func traceFrequency(gen uintptr) {
 	w := unsafeTraceWriter(gen, nil)
 
 	// Ensure we have a place to write to.
-	w, _ = w.ensure(1 + traceBytesPerNumber /* traceEvFrequency + frequency */)
+	w, _ = w.ensure(1 + traceBytesPerNumber /* tracev2.EvFrequency + frequency */)
 
 	// Write out the string.
-	w.byte(byte(traceEvFrequency))
+	w.byte(byte(tracev2.EvFrequency))
 	w.varint(traceClockUnitsPerSecond())
 
 	// Immediately flush the buffer.
