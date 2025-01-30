@@ -19,4 +19,5 @@ const (
 	posixFallocateTrap uintptr = syscall.SYS_POSIX_FALLOCATE
 	readlinkatTrap     uintptr = syscall.SYS_READLINKAT
 	mkdiratTrap        uintptr = syscall.SYS_MKDIRAT
+	fchmodatTrap       uintptr = syscall.SYS_FCHMODAT
 )

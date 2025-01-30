@@ -134,7 +134,7 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
 }
 
 func openat(dirfd syscall.Handle, name string, flag int, perm FileMode) (syscall.Handle, error) {
-	h, err := windows.Openat(dirfd, name, flag|syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY, syscallMode(perm))
+	h, err := windows.Openat(dirfd, name, uint64(flag)|syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY, syscallMode(perm))
 	if err == syscall.ELOOP || err == syscall.ENOTDIR {
 		if link, err := readReparseLinkAt(dirfd, name); err == nil {
 			return syscall.InvalidHandle, errSymlink(link)
@@ -230,6 +230,50 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 		return nil, &PathError{Op: "statat", Path: name, Err: err}
 	}
 	return fi, nil
+}
+
+func chmodat(parent syscall.Handle, name string, mode FileMode) error {
+	// Currently, on Windows os.Chmod("symlink") will act on "symlink",
+	// not on any file it points to.
+	//
+	// This may or may not be the desired behavior: https://go.dev/issue/71492
+	//
+	// For now, be consistent with os.Symlink.
+	// Passing O_OPEN_REPARSE causes us to open the named file itself,
+	// not any file that it links to.
+	//
+	// If we want to change this in the future, pass O_NOFOLLOW_ANY instead
+	// and return errSymlink when encountering a symlink:
+	//
+	//     if err == syscall.ELOOP || err == syscall.ENOTDIR {
+	//         if link, err := readReparseLinkAt(parent, name); err == nil {
+	//                 return errSymlink(link)
+	//         }
+	//     }
+	h, err := windows.Openat(parent, name, syscall.O_CLOEXEC|windows.O_OPEN_REPARSE|windows.O_WRITE_ATTRS, 0)
+	if err != nil {
+		return err
+	}
+	defer syscall.CloseHandle(h)
+
+	var d syscall.ByHandleFileInformation
+	if err := syscall.GetFileInformationByHandle(h, &d); err != nil {
+		return err
+	}
+	attrs := d.FileAttributes
+
+	if mode&syscall.S_IWRITE != 0 {
+		attrs &^= syscall.FILE_ATTRIBUTE_READONLY
+	} else {
+		attrs |= syscall.FILE_ATTRIBUTE_READONLY
+	}
+	if attrs == d.FileAttributes {
+		return nil
+	}
+
+	var fbi windows.FILE_BASIC_INFO
+	fbi.FileAttributes = attrs
+	return windows.SetFileInformationByHandle(h, windows.FileBasicInfo, unsafe.Pointer(&fbi), uint32(unsafe.Sizeof(fbi)))
 }
 
 func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {

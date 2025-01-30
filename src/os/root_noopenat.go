@@ -95,6 +95,16 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 	return fi, nil
 }
 
+func rootChmod(r *Root, name string, mode FileMode) error {
+	if err := checkPathEscapes(r, name); err != nil {
+		return &PathError{Op: "chmodat", Path: name, Err: err}
+	}
+	if err := Chmod(joinPath(r.root.name, name), mode); err != nil {
+		return &PathError{Op: "chmodat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
 func rootMkdir(r *Root, name string, perm FileMode) error {
 	if err := checkPathEscapes(r, name); err != nil {
 		return &PathError{Op: "mkdirat", Path: name, Err: err}

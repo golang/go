@@ -131,6 +131,32 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 	return fi, nil
 }
 
+// On systems which use fchmodat, fchownat, etc., we have a race condition:
+// When "name" is a symlink, Root.Chmod("name") should act on the target of that link.
+// However, fchmodat doesn't allow us to chmod a file only if it is not a symlink;
+// the AT_SYMLINK_NOFOLLOW parameter causes the operation to act on the symlink itself.
+//
+// We do the best we can by first checking to see if the target of the operation is a symlink,
+// and only attempting the fchmodat if it is not. If the target is replaced between the check
+// and the fchmodat, we will chmod the symlink rather than following it.
+//
+// This race condition is unfortunate, but does not permit escaping a root:
+// We may act on the wrong file, but that file will be contained within the root.
+func afterResolvingSymlink(parent int, name string, f func() error) error {
+	if err := checkSymlink(parent, name, nil); err != nil {
+		return err
+	}
+	return f()
+}
+
+func chmodat(parent int, name string, mode FileMode) error {
+	return afterResolvingSymlink(parent, name, func() error {
+		return ignoringEINTR(func() error {
+			return unix.Fchmodat(parent, name, syscallMode(mode), unix.AT_SYMLINK_NOFOLLOW)
+		})
+	})
+}
+
 func mkdirat(fd int, name string, perm FileMode) error {
 	return ignoringEINTR(func() error {
 		return unix.Mkdirat(fd, name, syscallMode(perm))

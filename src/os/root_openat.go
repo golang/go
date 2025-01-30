@@ -64,6 +64,16 @@ func (r *root) Name() string {
 	return r.name
 }
 
+func rootChmod(r *Root, name string, mode FileMode) error {
+	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
+		return struct{}{}, chmodat(parent, name, mode)
+	})
+	if err != nil {
+		return &PathError{Op: "chmodat", Path: name, Err: err}
+	}
+	return err
+}
+
 func rootMkdir(r *Root, name string, perm FileMode) error {
 	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
 		return struct{}{}, mkdirat(parent, name, perm)

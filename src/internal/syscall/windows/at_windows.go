@@ -20,9 +20,10 @@ const (
 	O_DIRECTORY    = 0x100000   // target must be a directory
 	O_NOFOLLOW_ANY = 0x20000000 // disallow symlinks anywhere in the path
 	O_OPEN_REPARSE = 0x40000000 // FILE_OPEN_REPARSE_POINT, used by Lstat
+	O_WRITE_ATTRS  = 0x80000000 // FILE_WRITE_ATTRIBUTES, used by Chmod
 )
 
-func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall.Handle, e1 error) {
+func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ syscall.Handle, e1 error) {
 	if len(name) == 0 {
 		return syscall.InvalidHandle, syscall.ERROR_FILE_NOT_FOUND
 	}
@@ -60,6 +61,9 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
 	}
 	if flag&syscall.O_SYNC != 0 {
 		options |= FILE_WRITE_THROUGH
+	}
+	if flag&O_WRITE_ATTRS != 0 {
+		access |= FILE_WRITE_ATTRIBUTES
 	}
 	// Allow File.Stat.
 	access |= STANDARD_RIGHTS_READ | FILE_READ_ATTRIBUTES | FILE_READ_EA
@@ -129,7 +133,7 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
 }
 
 // ntCreateFileError maps error returns from NTCreateFile to user-visible errors.
-func ntCreateFileError(err error, flag int) error {
+func ntCreateFileError(err error, flag uint64) error {
 	s, ok := err.(NTStatus)
 	if !ok {
 		// Shouldn't really be possible, NtCreateFile always returns NTStatus.
