@@ -133,7 +133,7 @@ func (ctxt *Context) isAbsPath(path string) bool {
 	return filepath.IsAbs(path)
 }
 
-// isDir calls ctxt.IsDir (if not nil) or else uses fsys.Stat.
+// isDir reports whether path is a directory.
 func isDir(path string) bool {
 	fi, err := fsys.Stat(path)
 	return err == nil && fi.IsDir()
