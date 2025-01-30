@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.25 (Feb 3, 2025)",
+	"Subtitle": "Language version go1.25 (Feb 25, 2025)",
 	"Path": "/ref/spec"
 }-->
 
@@ -1856,110 +1856,10 @@ The underlying type of <code>[]B1</code>, <code>B3</code>, and <code>B4</code> i
 The underlying type of <code>P</code> is <code>interface{}</code>.
 </p>
 
-<h3 id="Core_types">Core types</h3>
-
-<p>
-Each non-interface type <code>T</code> has a <i>core type</i>, which is the same as the
-<a href="#Underlying_types">underlying type</a> of <code>T</code>.
-</p>
-
-<p>
-An interface <code>T</code> has a core type if one of the following
-conditions is satisfied:
-</p>
-
-<ol>
-<li>
-There is a single type <code>U</code> which is the <a href="#Underlying_types">underlying type</a>
-of all types in the <a href="#Interface_types">type set</a> of <code>T</code>; or
-</li>
-<li>
-the type set of <code>T</code> contains only <a href="#Channel_types">channel types</a>
-with identical element type <code>E</code>, and all directional channels have the same
-direction.
-</li>
-</ol>
-
-<p>
-No other interfaces have a core type.
-</p>
-
-<p>
-The core type of an interface is, depending on the condition that is satisfied, either:
-</p>
-
-<ol>
-<li>
-the type <code>U</code>; or
-</li>
-<li>
-the type <code>chan E</code> if <code>T</code> contains only bidirectional
-channels, or the type <code>chan&lt;- E</code> or <code>&lt;-chan E</code>
-depending on the direction of the directional channels present.
-</li>
-</ol>
-
-<p>
-By definition, a core type is never a <a href="#Type_definitions">defined type</a>,
-<a href="#Type_parameter_declarations">type parameter</a>, or
-<a href="#Interface_types">interface type</a>.
-</p>
-
-<p>
-Examples of interfaces with core types:
-</p>
-
-<pre>
-type Celsius float32
-type Kelvin  float32
-
-interface{ int }                          // int
-interface{ Celsius|Kelvin }               // float32
-interface{ ~chan int }                    // chan int
-interface{ ~chan int|~chan&lt;- int }        // chan&lt;- int
-interface{ ~[]*data; String() string }    // []*data
-</pre>
-
-<p>
-Examples of interfaces without core types:
-</p>
-
-<pre>
-interface{}                               // no single underlying type
-interface{ Celsius|float64 }              // no single underlying type
-interface{ chan int | chan&lt;- string }     // channels have different element types
-interface{ &lt;-chan int | chan&lt;- int }      // directional channels have different directions
-</pre>
-
-<p>
-Some operations (<a href="#Slice_expressions">slice expressions</a>,
-<a href="#Appending_and_copying_slices"><code>append</code> and <code>copy</code></a>)
-rely on a slightly more loose form of core types which accept byte slices and strings.
-Specifically, if there are exactly two types, <code>[]byte</code> and <code>string</code>,
-which are the underlying types of all types in the type set of interface <code>T</code>,
-the core type of <code>T</code> is called <code>bytestring</code>.
-</p>
-
-<p>
-Examples of interfaces with <code>bytestring</code> core types:
-</p>
-
-<pre>
-interface{ int }                          // int (same as ordinary core type)
-interface{ []byte | string }              // bytestring
-interface{ ~[]byte | myString }           // bytestring
-</pre>
-
-<p>
-Note that <code>bytestring</code> is not a real type; it cannot be used to declare
-variables or compose other types. It exists solely to describe the behavior of some
-operations that read from a sequence of bytes, which may be a byte slice or a string.
-</p>
-
 <h3 id="Type_identity">Type identity</h3>
 
 <p>
-Two types are either <i>identical</i> or <i>different</i>.
+Two types are either <i>identical</i> ("the same") or <i>different</i>.
 </p>
 
 <p>
@@ -3253,7 +3153,8 @@ math.Sin // denotes the Sin function in package math
 <h3 id="Composite_literals">Composite literals</h3>
 
 <p>
-Composite literals construct new composite values each time they are evaluated.
+Composite literals construct new values for structs, arrays, slices, and maps
+each time they are evaluated.
 They consist of the type of the literal followed by a brace-bound list of elements.
 Each element may optionally be preceded by a corresponding key.
 </p>
@@ -3271,10 +3172,14 @@ Element      = Expression | LiteralValue .
 </pre>
 
 <p>
-The LiteralType's <a href="#Core_types">core type</a> <code>T</code>
+Unless the LiteralType is a type parameter,
+its <a href="#Underlying_types">underlying type
 must be a struct, array, slice, or map type
 (the syntax enforces this constraint except when the type is given
 as a TypeName).
+If the LiteralType is a type parameter, all types in its type set
+must have the same underlying type which must be
+a valid composite literal type.
 The types of the elements and keys must be <a href="#Assignability">assignable</a>
 to the respective field, element, and key types of type <code>T</code>;
 there is no additional conversion.
@@ -3458,7 +3363,6 @@ noteFrequency := map[string]float32{
 	"G0": 24.50, "A0": 27.50, "B0": 30.87,
 }
 </pre>
-
 
 <h3 id="Function_literals">Function literals</h3>
 
@@ -3932,11 +3836,12 @@ The following rules apply:
 </p>
 
 <p>
-If <code>a</code> is neither a map nor a type parameter:
+If <code>a</code> is neither a map nor a <a href="#Type_parameter_declarations">type parameter</a>:
 </p>
 <ul>
-	<li>the index <code>x</code> must be an untyped constant or its
-	    <a href="#Core_types">core type</a> must be an <a href="#Numeric_types">integer</a></li>
+	<li>the index <code>x</code> must be an untyped constant, or its type must be
+	    an <a href="#Numeric_types">integer</a> or a type parameter whose type set
+	    contains only integer types</li>
 	<li>a constant index must be non-negative and
 	    <a href="#Representability">representable</a> by a value of type <code>int</code></li>
 	<li>a constant index that is untyped is given type <code>int</code></li>
@@ -4050,14 +3955,26 @@ Assigning to an element of a <code>nil</code> map causes a
 
 <p>
 Slice expressions construct a substring or slice from a string, array, pointer
-to array, or slice. There are two variants: a simple form that specifies a low
+to array, or slice operand.
+There are two variants: a simple form that specifies a low
 and high bound, and a full form that also specifies a bound on the capacity.
+</p>
+
+<p>
+If the operand type is a <a href="#Type_parameter_declarations">type parameter</a>,
+unless its type set contains string types,
+all types in the type set must have the same underlying type, and the slice expression
+must be valid for an operand of that type.
+If the type set contains string types it may also contain byte slices with underlying
+type <code>[]byte</code>.
+In this case, the slice expression must be valid for an operand of <code>string</code>
+type.
 </p>
 
 <h4>Simple slice expressions</h4>
 
 <p>
-The primary expression
+For a string, array, pointer to array, or slice <code>a</code>, the primary expression
 </p>
 
 <pre>
@@ -4065,9 +3982,7 @@ a[low : high]
 </pre>
 
 <p>
-constructs a substring or slice. The <a href="#Core_types">core type</a> of
-<code>a</code> must be a string, array, pointer to array, slice, or a
-<a href="#Core_types"><code>bytestring</code></a>.
+constructs a substring or slice.
 The <i>indices</i> <code>low</code> and
 <code>high</code> select which elements of operand <code>a</code> appear
 in the result. The result has indices starting at 0 and length equal to
@@ -4147,7 +4062,7 @@ s3 := s[:0]    // s3 == nil
 <h4>Full slice expressions</h4>
 
 <p>
-The primary expression
+For an array, pointer to array, or slice <code>a</code> (but not a string), the primary expression
 </p>
 
 <pre>
@@ -4158,8 +4073,6 @@ a[low : high : max]
 constructs a slice of the same type, and with the same length and elements as the simple slice
 expression <code>a[low : high]</code>. Additionally, it controls the resulting slice's capacity
 by setting it to <code>max - low</code>. Only the first index may be omitted; it defaults to 0.
-The <a href="#Core_types">core type</a> of <code>a</code> must be an array, pointer to array,
-or slice (but not a string).
 After slicing the array <code>a</code>
 </p>
 
@@ -4265,8 +4178,8 @@ No <a href="#Run_time_panics">run-time panic</a> occurs in this case.
 <h3 id="Calls">Calls</h3>
 
 <p>
-Given an expression <code>f</code> with a <a href="#Core_types">core type</a>
-<code>F</code> of <a href="#Function_types">function type</a>,
+Given an expression <code>f</code> of <a href="#Function_types">function type</a>
+<code>F</code>,
 </p>
 
 <pre>
@@ -4294,6 +4207,12 @@ pt.Scale(3.5)     // method call with receiver pt
 If <code>f</code> denotes a generic function, it must be
 <a href="#Instantiations">instantiated</a> before it can be called
 or used as a function value.
+</p>
+
+<p>
+If the type of <code>f</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must have the same underlying type, which must be a function type,
+and the function call must be valid for that type.
 </p>
 
 <p>
@@ -4809,17 +4728,28 @@ more complicated:
 
 <ul>
 <li>
-	If <code>C</code> has a <a href="#Core_types">core type</a>
-	<code>core(C)</code>
+	If all types in <code>C</code>'s type set have the same
+	underlying type <code>U</code>,
 	and <code>P</code> has a known type argument <code>A</code>,
-	<code>core(C)</code> and <code>A</code> must unify loosely.
+	<code>U</code> and <code>A</code> must unify loosely.
+</li>
+<li>
+	Similarly, if all types in <code>C</code>'s type set are
+	channel types with the same element type and non-conflicting
+	channel directions,
+	and <code>P</code> has a known type argument <code>A</code>,
+	the most restrictive channel type in <code>C</code>'s type
+	set and <code>A</code> must unify loosely.
+</li>
+<li>
 	If <code>P</code> does not have a known type argument
 	and <code>C</code> contains exactly one type term <code>T</code>
 	that is not an underlying (tilde) type, unification adds the
 	mapping <code>P ➞ T</code> to the map.
 </li>
 <li>
-	If <code>C</code> does not have a core type
+	If <code>C</code> does not have a type <code>U</code>
+	as described above
 	and <code>P</code> has a known type argument <code>A</code>,
 	<code>A</code> must have all methods of <code>C</code>, if any,
 	and corresponding method types must unify exactly.
@@ -5370,10 +5300,10 @@ var x *int = nil
 <h3 id="Receive_operator">Receive operator</h3>
 
 <p>
-For an operand <code>ch</code> whose <a href="#Core_types">core type</a> is a
-<a href="#Channel_types">channel</a>,
+For an operand <code>ch</code> of <a href="#Channel_types">channel type</a>,
 the value of the receive operation <code>&lt;-ch</code> is the value received
-from the channel <code>ch</code>. The channel direction must permit receive operations,
+from the channel <code>ch</code>.
+The channel direction must permit receive operations,
 and the type of the receive operation is the element type of the channel.
 The expression blocks until a value is available.
 Receiving from a <code>nil</code> channel blocks forever.
@@ -5388,6 +5318,12 @@ v2 = &lt;-ch
 f(&lt;-ch)
 &lt;-strobe  // wait until clock pulse and discard received value
 </pre>
+
+<p>
+If the operand type is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must be channel types that permit receive operations, and
+they must all have the same element type, which is the type of the receive operation.
+</p>
 
 <p>
 A receive expression used in an <a href="#Assignment_statements">assignment statement</a> or initialization of the special form
@@ -6124,8 +6060,7 @@ len("foo")  // illegal if len is the built-in function
 
 <p>
 A send statement sends a value on a channel.
-The channel expression's <a href="#Core_types">core type</a>
-must be a <a href="#Channel_types">channel</a>,
+The channel expression must be of <a href="#Channel_types">channel type</a>,
 the channel direction must permit send operations,
 and the type of the value to be sent must be <a href="#Assignability">assignable</a>
 to the channel's element type.
@@ -6149,6 +6084,13 @@ A send on a <code>nil</code> channel blocks forever.
 ch &lt;- 3  // send value 3 to channel ch
 </pre>
 
+<p>
+If the type of the channel expression is a
+<a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must be channel types that permit send operations,
+they must all have the same element type,
+and the type of the value to be sent must be assignable to that element type.
+</p>
 
 <h3 id="IncDec_statements">IncDec statements</h3>
 
@@ -6741,8 +6683,7 @@ RangeClause = [ ExpressionList "=" | IdentifierList ":=" ] "range" Expression .
 
 <p>
 The expression on the right in the "range" clause is called the <i>range expression</i>,
-its <a href="#Core_types">core type</a> must be
-an array, pointer to an array, slice, string, map, channel permitting
+which may be an array, pointer to an array, slice, string, map, channel permitting
 <a href="#Receive_operator">receive operations</a>, an integer, or
 a function with specific signature (see below).
 As with an assignment, if present the operands on the left must be
@@ -6956,6 +6897,12 @@ for k, v := range t.Walk {
 }
 </pre>
 
+<p>
+If the type of the range expression is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must have the same underlying type and the range expression must be valid
+for that type, or, if the type set contains channel types, it must only contain channel types with
+identical element types, and all channel types must permit receive operations.
+</p>
 
 <h3 id="Go_statements">Go statements</h3>
 
@@ -7429,22 +7376,27 @@ by the arguments overlaps.
 
 <p>
 The <a href="#Function_types">variadic</a> function <code>append</code>
-appends zero or more values <code>x</code> to a slice <code>s</code>
-and returns the resulting slice of the same type as <code>s</code>.
-The <a href="#Core_types">core type</a> of <code>s</code> must be a slice
-of type <code>[]E</code>.
+appends zero or more values <code>x</code> to a slice <code>s</code> of
+type <code>S</code> and returns the resulting slice, also of type
+<code>S</code>.
 The values <code>x</code> are passed to a parameter of type <code>...E</code>
+where <code>E</code> is the element type of <code>S</code>
 and the respective <a href="#Passing_arguments_to_..._parameters">parameter
 passing rules</a> apply.
-As a special case, if the core type of <code>s</code> is <code>[]byte</code>,
-<code>append</code> also accepts a second argument with core type
-<a href="#Core_types"><code>bytestring</code></a> followed by <code>...</code>.
-This form appends the bytes of the byte slice or string.
+As a special case, <code>append</code> also accepts a first argument assignable
+to type <code>[]byte</code> with a second argument of string type followed by
+<code>...</code>.
+This form appends the bytes of the string.
 </p>
 
 <pre class="grammar">
-append(s S, x ...E) S  // core type of S is []E
+append(s S, x ...E) S  // E is the element type of S
 </pre>
+
+<p>
+If <code>S</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must have the same underlying slice type <code>[]E</code>.
+</p>
 
 <p>
 If the capacity of <code>s</code> is not large enough to fit the additional
@@ -7471,20 +7423,25 @@ b = append(b, "bar"...)            // append string contents      b is []byte{'b
 The function <code>copy</code> copies slice elements from
 a source <code>src</code> to a destination <code>dst</code> and returns the
 number of elements copied.
-The <a href="#Core_types">core types</a> of both arguments must be slices
-with <a href="#Type_identity">identical</a> element type.
+Both arguments must have <a href="#Type_identity">identical</a> element type
+<code>E</code> and must be assignable to a slice of type <code>[]E</code>.
 The number of elements copied is the minimum of
 <code>len(src)</code> and <code>len(dst)</code>.
-As a special case, if the destination's core type is <code>[]byte</code>,
-<code>copy</code> also accepts a source argument with core type
-<a href="#Core_types"><code>bytestring</code></a>.
-This form copies the bytes from the byte slice or string into the byte slice.
+As a special case, <code>copy</code> also accepts a destination argument
+assignable to type <code>[]byte</code> with a source argument of a
+<code>string</code> type.
+This form copies the bytes from the string into the byte slice.
 </p>
 
 <pre class="grammar">
 copy(dst, src []T) int
 copy(dst []byte, src string) int
 </pre>
+
+<p>
+If the type of one or both arguments is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in their respective type sets must have the same underlying slice type <code>[]E</code>.
+</p>
 
 <p>
 Examples:
@@ -7536,8 +7493,7 @@ If the map or slice is <code>nil</code>, <code>clear</code> is a no-op.
 <h3 id="Close">Close</h3>
 
 <p>
-For an argument <code>ch</code> with a <a href="#Core_types">core type</a>
-that is a <a href="#Channel_types">channel</a>, the built-in function <code>close</code>
+For a channel <code>ch</code>, the built-in function <code>close(ch)</code>
 records that no more values will be sent on the channel.
 It is an error if <code>ch</code> is a receive-only channel.
 Sending to or closing a closed channel causes a <a href="#Run_time_panics">run-time panic</a>.
@@ -7549,6 +7505,12 @@ The multi-valued <a href="#Receive_operator">receive operation</a>
 returns a received value along with an indication of whether the channel is closed.
 </p>
 
+<p>
+If the type of the argument to <code>close</code> is a
+<a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must be channels with the same element type.
+It is an error if any of those channels is a receive-only channel.
+</p>
 
 <h3 id="Complex_numbers">Manipulating complex numbers</h3>
 
@@ -7718,26 +7680,35 @@ var z complex128
 
 <p>
 The built-in function <code>make</code> takes a type <code>T</code>,
+which must be a slice, map or channel type, or a type parameter,
 optionally followed by a type-specific list of expressions.
-The <a href="#Core_types">core type</a> of <code>T</code> must
-be a slice, map or channel.
 It returns a value of type <code>T</code> (not <code>*T</code>).
 The memory is initialized as described in the section on
 <a href="#The_zero_value">initial values</a>.
 </p>
 
 <pre class="grammar">
-Call             Core type    Result
+Call             Type T            Result
 
-make(T, n)       slice        slice of type T with length n and capacity n
-make(T, n, m)    slice        slice of type T with length n and capacity m
+make(T, n)       slice             slice of type T with length n and capacity n
+make(T, n, m)    slice             slice of type T with length n and capacity m
 
-make(T)          map          map of type T
-make(T, n)       map          map of type T with initial space for approximately n elements
+make(T)          map               map of type T
+make(T, n)       map               map of type T with initial space for approximately n elements
 
-make(T)          channel      unbuffered channel of type T
-make(T, n)       channel      buffered channel of type T, buffer size n
+make(T)          channel           unbuffered channel of type T
+make(T, n)       channel           buffered channel of type T, buffer size n
+
+make(T, n)       type parameter    see below
+make(T, n, m)    type parameter    see below
 </pre>
+
+<p>
+If the first argument is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must have the same underlying type, which must be a slice
+or map type, or, if there are channel types, there must only be channel types, they
+must all have the same element type, and the channel directions must not conflict.
+</p>
 
 <p>
 Each of the size arguments <code>n</code> and <code>m</code> must be of <a href="#Numeric_types">integer type</a>,
@@ -8481,17 +8452,14 @@ func String(ptr *byte, len IntegerType) string
 func StringData(str string) *byte
 </pre>
 
-<!--
-These conversions also apply to type parameters with suitable core types.
-Determine if we can simply use core type instead of underlying type here,
-of if the general conversion rules take care of this.
--->
-
 <p>
 A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
 value may not be <a href="#Address_operators">dereferenced</a>.
-Any pointer or value of <a href="#Core_types">core type</a> <code>uintptr</code> can be
-<a href="#Conversions">converted</a> to a type of core type <code>Pointer</code> and vice versa.
+Any pointer or value of <a href="#Underlying_types">underlying type</a> <code>uintptr</code> can be
+<a href="#Conversions">converted</a> to a type of underlying type <code>Pointer</code> and vice versa.
+If the respective types are <a href="#Type_parameter_declarations">type parameters</a>, all types in
+their respective type sets must have the same underlying type, which must be <code>uintptr</code> and
+<code>Pointer</code>, respectively.
 The effect of converting between <code>Pointer</code> and <code>uintptr</code> is implementation-defined.
 </p>
 
@@ -8845,9 +8813,9 @@ following conditions is true:
 </li>
 <li>
 	Exactly one type is an <a href="#Type_inference">unbound</a>
-	type parameter with a <a href="#Core_types">core type</a>,
-	and that core type unifies with the other type per the
-	unification rules for <code>≡<sub>A</sub></code>
+	type parameter, and all the types in its type set unify with
+	the other type
+	per the unification rules for <code>≡<sub>A</sub></code>
 	(loose unification at the top level and exact unification
 	for element types).
 </li>
