@@ -467,21 +467,21 @@ var unmarshalTests = []struct {
 	{CaseName: Name(""), in: `{"alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
 
 	// syntax errors
-	{CaseName: Name(""), in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
-	{CaseName: Name(""), in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
-	{CaseName: Name(""), in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
+	{CaseName: Name(""), in: `{"X": "foo", "Y"}`, err: &SyntaxError{invalidChar: '}', invalidCharContext: "after object key", Offset: 17}},
+	{CaseName: Name(""), in: `[1, 2, 3+]`, err: &SyntaxError{invalidChar: '+', invalidCharContext: "after array element", Offset: 9}},
+	{CaseName: Name(""), in: `{"X":12x}`, err: &SyntaxError{invalidChar: 'x', invalidCharContext: "after object key:value pair", Offset: 8}, useNumber: true},
 	{CaseName: Name(""), in: `[2, 3`, err: &SyntaxError{msg: "unexpected end of JSON input", Offset: 5}},
-	{CaseName: Name(""), in: `{"F3": -}`, ptr: new(V), err: &SyntaxError{msg: "invalid character '}' in numeric literal", Offset: 9}},
+	{CaseName: Name(""), in: `{"F3": -}`, ptr: new(V), err: &SyntaxError{invalidChar: '}', invalidCharContext: "in numeric literal", Offset: 9}},
 
 	// raw value errors
-	{CaseName: Name(""), in: "\x01 42", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
-	{CaseName: Name(""), in: " 42 \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 5}},
-	{CaseName: Name(""), in: "\x01 true", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
-	{CaseName: Name(""), in: " false \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 8}},
-	{CaseName: Name(""), in: "\x01 1.2", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
-	{CaseName: Name(""), in: " 3.4 \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 6}},
-	{CaseName: Name(""), in: "\x01 \"string\"", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
-	{CaseName: Name(""), in: " \"string\" \x01", err: &SyntaxError{"invalid character '\\x01' after top-level value", 11}},
+	{CaseName: Name(""), in: "\x01 42", err: &SyntaxError{invalidChar: '\x01', invalidCharContext: "looking for beginning of value", Offset: 1}},
+	{CaseName: Name(""), in: " 42 \x01", err: &SyntaxError{invalidChar: '\x01', invalidCharContext: "after top-level value", Offset: 5}},
+	{CaseName: Name(""), in: "\x01 true", err: &SyntaxError{invalidChar: '\x01', invalidCharContext: "looking for beginning of value", Offset: 1}},
+	{CaseName: Name(""), in: " false \x01", err: &SyntaxError{invalidChar: '\x01', invalidCharContext: "after top-level value", Offset: 8}},
+	{CaseName: Name(""), in: "\x01 1.2", err: &SyntaxError{invalidChar: '\x01', invalidCharContext: "looking for beginning of value", Offset: 1}},
+	{CaseName: Name(""), in: " 3.4 \x01", err: &SyntaxError{invalidChar: '\x01', invalidCharContext: "after top-level value", Offset: 6}},
+	{CaseName: Name(""), in: "\x01 \"string\"", err: &SyntaxError{invalidChar: '\x01', invalidCharContext: "looking for beginning of value", Offset: 1}},
+	{CaseName: Name(""), in: " \"string\" \x01", err: &SyntaxError{invalidChar: '\x01', invalidCharContext: "after top-level value", Offset: 11}},
 
 	// array tests
 	{CaseName: Name(""), in: `[1, 2, 3]`, ptr: new([3]int), out: [3]int{1, 2, 3}},
@@ -1096,8 +1096,9 @@ var unmarshalTests = []struct {
 		in:       `invalid`,
 		ptr:      new(Number),
 		err: &SyntaxError{
-			msg:    "invalid character 'i' looking for beginning of value",
-			Offset: 1,
+			invalidChar:        'i',
+			invalidCharContext: "looking for beginning of value",
+			Offset:             1,
 		},
 	},
 	{
@@ -1178,7 +1179,7 @@ var unmarshalTests = []struct {
 		CaseName: Name(""),
 		in:       `[1,2,true,4,5}`,
 		ptr:      new([]int),
-		err:      &SyntaxError{msg: "invalid character '}' after array element", Offset: 14},
+		err:      &SyntaxError{invalidChar: '}', invalidCharContext: "after array element", Offset: 14},
 	},
 	{
 		CaseName: Name(""),
@@ -2589,23 +2590,23 @@ func TestUnmarshalErrorAfterMultipleJSON(t *testing.T) {
 	}{{
 		CaseName: Name(""),
 		in:       `1 false null :`,
-		err:      &SyntaxError{"invalid character ':' looking for beginning of value", 14},
+		err:      &SyntaxError{invalidChar: ':', invalidCharContext: "looking for beginning of value", Offset: 14},
 	}, {
 		CaseName: Name(""),
 		in:       `1 [] [,]`,
-		err:      &SyntaxError{"invalid character ',' looking for beginning of value", 7},
+		err:      &SyntaxError{invalidChar: ',', invalidCharContext: "looking for beginning of value", Offset: 7},
 	}, {
 		CaseName: Name(""),
 		in:       `1 [] [true:]`,
-		err:      &SyntaxError{"invalid character ':' after array element", 11},
+		err:      &SyntaxError{invalidChar: ':', invalidCharContext: "after array element", Offset: 11},
 	}, {
 		CaseName: Name(""),
 		in:       `1  {}    {"x"=}`,
-		err:      &SyntaxError{"invalid character '=' after object key", 14},
+		err:      &SyntaxError{invalidChar: '=', invalidCharContext: "after object key", Offset: 14},
 	}, {
 		CaseName: Name(""),
 		in:       `falsetruenul#`,
-		err:      &SyntaxError{"invalid character '#' in literal null (expecting 'l')", 13},
+		err:      &SyntaxError{invalidChar: '#', invalidCharContext: "in literal null (expecting 'l')", Offset: 13},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
