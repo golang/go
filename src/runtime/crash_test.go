@@ -356,6 +356,37 @@ panic: third panic
 
 }
 
+func TestReraisedPanic(t *testing.T) {
+	output := runTestProg(t, "testprog", "ReraisedPanic")
+	want := `panic: message [recovered, reraised]
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+func TestReraisedMiddlePanic(t *testing.T) {
+	output := runTestProg(t, "testprog", "ReraisedMiddlePanic")
+	want := `panic: inner [recovered]
+	panic: middle [recovered, reraised]
+	panic: outer
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+func TestReraisedPanicSandwich(t *testing.T) {
+	output := runTestProg(t, "testprog", "ReraisedPanicSandwich")
+	want := `panic: outer [recovered]
+	panic: inner [recovered]
+	panic: outer
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
 func TestGoexitCrash(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
 	testenv.MustInternalLink(t, false)
