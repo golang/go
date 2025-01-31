@@ -409,7 +409,6 @@ func not(arg reflect.Value) bool {
 
 var (
 	errBadComparisonType = errors.New("invalid type for comparison")
-	errBadComparison     = errors.New("incompatible types for comparison")
 	errNoComparison      = errors.New("missing argument for comparison")
 )
 
