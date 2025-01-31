@@ -25,6 +25,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/versions"
 )
 
 func init() {
@@ -108,12 +109,12 @@ func (f *isWrapper) String() string {
 	}
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	res := &Result{
 		funcs: make(map[*types.Func]Kind),
 	}
 	findPrintfLike(pass, res)
-	checkCall(pass)
+	checkCalls(pass)
 	return res, nil
 }
 
@@ -182,7 +183,7 @@ func maybePrintfWrapper(info *types.Info, decl ast.Decl) *printfWrapper {
 }
 
 // findPrintfLike scans the entire package to find printf-like functions.
-func findPrintfLike(pass *analysis.Pass, res *Result) (interface{}, error) {
+func findPrintfLike(pass *analysis.Pass, res *Result) (any, error) {
 	// Gather potential wrappers and call graph between them.
 	byObj := make(map[*types.Func]*printfWrapper)
 	var wrappers []*printfWrapper
@@ -409,20 +410,29 @@ func stringConstantExpr(pass *analysis.Pass, expr ast.Expr) (string, bool) {
 	return "", false
 }
 
-// checkCall triggers the print-specific checks if the call invokes a print function.
-func checkCall(pass *analysis.Pass) {
+// checkCalls triggers the print-specific checks for calls that invoke a print
+// function.
+func checkCalls(pass *analysis.Pass) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{
+		(*ast.File)(nil),
 		(*ast.CallExpr)(nil),
 	}
+
+	var fileVersion string // for selectively suppressing checks; "" if unknown.
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		call := n.(*ast.CallExpr)
-		fn, kind := printfNameAndKind(pass, call)
-		switch kind {
-		case KindPrintf, KindErrorf:
-			checkPrintf(pass, kind, call, fn)
-		case KindPrint:
-			checkPrint(pass, call, fn)
+		switch n := n.(type) {
+		case *ast.File:
+			fileVersion = versions.Lang(versions.FileVersion(pass.TypesInfo, n))
+
+		case *ast.CallExpr:
+			fn, kind := printfNameAndKind(pass, n)
+			switch kind {
+			case KindPrintf, KindErrorf:
+				checkPrintf(pass, fileVersion, kind, n, fn)
+			case KindPrint:
+				checkPrint(pass, n, fn)
+			}
 		}
 	})
 }
@@ -503,7 +513,7 @@ type formatState struct {
 }
 
 // checkPrintf checks a call to a formatted print routine such as Printf.
-func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.Func) {
+func checkPrintf(pass *analysis.Pass, fileVersion string, kind Kind, call *ast.CallExpr, fn *types.Func) {
 	idx := formatStringIndex(pass, call)
 	if idx < 0 || idx >= len(call.Args) {
 		return
@@ -517,7 +527,17 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 		// non-constant format string and no arguments:
 		// if msg contains "%", misformatting occurs.
 		// Report the problem and suggest a fix: fmt.Printf("%s", msg).
-		if !suppressNonconstants && idx == len(call.Args)-1 {
+		//
+		// However, as described in golang/go#71485, this analysis can produce a
+		// significant number of diagnostics in existing code, and the bugs it
+		// finds are sometimes unlikely or inconsequential, and may not be worth
+		// fixing for some users. Gating on language version allows us to avoid
+		// breaking existing tests and CI scripts.
+		if !suppressNonconstants &&
+			idx == len(call.Args)-1 &&
+			fileVersion != "" && // fail open
+			versions.AtLeast(fileVersion, "go1.24") {
+
 			pass.Report(analysis.Diagnostic{
 				Pos: formatArg.Pos(),
 				End: formatArg.End(),
