@@ -126,4 +126,7 @@ type Flags struct {
 
 	// JSONv2 enables the json/v2 package.
 	JSONv2 bool
+
+	// GreenTeaGC enables the Green Tea GC implementation.
+	GreenTeaGC bool
 }
