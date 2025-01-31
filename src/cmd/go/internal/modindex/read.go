@@ -33,10 +33,7 @@ import (
 	"cmd/internal/par"
 )
 
-// enabled is used to flag off the behavior of the module index on tip.
-// It will be removed before the release.
-// TODO(matloob): Remove enabled once we have more confidence on the
-// module index.
+// enabled is used to flag off the behavior of the module index on tip, for debugging.
 var enabled = godebug.New("#goindex").Value() != "0"
 
 // Module represents and encoded module index file. It is used to
@@ -126,6 +123,7 @@ var ErrNotIndexed = errors.New("not in module index")
 var (
 	errDisabled           = fmt.Errorf("%w: module indexing disabled", ErrNotIndexed)
 	errNotFromModuleCache = fmt.Errorf("%w: not from module cache", ErrNotIndexed)
+	errFIPS140            = fmt.Errorf("%w: fips140 snapshots not indexed", ErrNotIndexed)
 )
 
 // GetPackage returns the IndexPackage for the directory at the given path.
@@ -142,6 +140,11 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 	}
 	if cfg.BuildContext.Compiler == "gccgo" && str.HasPathPrefix(modroot, cfg.GOROOTsrc) {
 		return nil, err // gccgo has no sources for GOROOT packages.
+	}
+	// The pkgdir for fips140 has been replaced in the fsys overlay,
+	// but the module index does not see that. Do not try to use the module index.
+	if strings.Contains(filepath.ToSlash(pkgdir), "internal/fips140/v") {
+		return nil, errFIPS140
 	}
 	return openIndexPackage(modroot, pkgdir)
 }

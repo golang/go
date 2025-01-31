@@ -1075,8 +1075,13 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 			return bad("func must be func(yield func(...) bool): argument is not func")
 		case cb.Params().Len() > 2:
 			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
-		case cb.Results().Len() != 1 || !isBoolean(cb.Results().At(0).Type()):
-			return bad("func must be func(yield func(...) bool): yield func does not return bool")
+		case cb.Results().Len() != 1 || !Identical(cb.Results().At(0).Type(), universeBool):
+			// see go.dev/issues/71131, go.dev/issues/71164
+			if cb.Results().Len() == 1 && isBoolean(cb.Results().At(0).Type()) {
+				return bad("func must be func(yield func(...) bool): yield func returns user-defined boolean, not bool")
+			} else {
+				return bad("func must be func(yield func(...) bool): yield func does not return bool")
+			}
 		}
 		assert(cb.Recv() == nil)
 		// determine key and value types, if any

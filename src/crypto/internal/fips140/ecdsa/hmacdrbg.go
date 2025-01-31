@@ -116,6 +116,15 @@ func newDRBG[H fips140.Hash](hash func() H, entropy, nonce []byte, s personaliza
 	return d
 }
 
+// TestingOnlyNewDRBG creates an SP 800-90A Rev. 1 HMAC_DRBG with a plain
+// personalization string.
+//
+// This should only be used for ACVP testing. hmacDRBG is not intended to be
+// used directly.
+func TestingOnlyNewDRBG(hash func() fips140.Hash, entropy, nonce []byte, s []byte) *hmacDRBG {
+	return newDRBG(hash, entropy, nonce, plainPersonalizationString(s))
+}
+
 func pad000(h *hmac.HMAC, writtenSoFar int) {
 	blockSize := h.BlockSize()
 	if rem := writtenSoFar % blockSize; rem != 0 {

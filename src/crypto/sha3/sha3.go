@@ -10,6 +10,7 @@ import (
 	"crypto"
 	"crypto/internal/fips140/sha3"
 	"hash"
+	_ "unsafe"
 )
 
 func init() {
@@ -98,6 +99,11 @@ func sumSHAKE256(out, data []byte, length int) []byte {
 // SHA3 is an instance of a SHA-3 hash. It implements [hash.Hash].
 type SHA3 struct {
 	s sha3.Digest
+}
+
+//go:linkname fips140hash_sha3Unwrap crypto/internal/fips140hash.sha3Unwrap
+func fips140hash_sha3Unwrap(sha3 *SHA3) *sha3.Digest {
+	return &sha3.s
 }
 
 // New224 creates a new SHA3-224 hash.

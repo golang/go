@@ -138,6 +138,15 @@ func pointBytesECDH(curve string, group *C.GO_EC_GROUP, pt *C.GO_EC_POINT) ([]by
 }
 
 func ECDH(priv *PrivateKeyECDH, pub *PublicKeyECDH) ([]byte, error) {
+	// Make sure priv and pub are not garbage collected while we are in a cgo
+	// call.
+	//
+	// The call to xCoordBytesECDH should prevent priv from being collected, but
+	// include this in case the code is reordered and there is a subsequent call
+	// cgo call after that point.
+	defer runtime.KeepAlive(priv)
+	defer runtime.KeepAlive(pub)
+
 	group := C._goboringcrypto_EC_KEY_get0_group(priv.key)
 	if group == nil {
 		return nil, fail("EC_KEY_get0_group")

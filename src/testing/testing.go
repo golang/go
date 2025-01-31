@@ -120,7 +120,7 @@
 // # b.N-style benchmarks
 //
 // Prior to the introduction of [B.Loop], benchmarks were written in a
-// different style using [B.N]. For example:
+// different style using B.N. For example:
 //
 //	func BenchmarkRandInt(b *testing.B) {
 //	    for range b.N {

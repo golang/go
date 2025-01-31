@@ -404,6 +404,9 @@ func TestFIPSServiceIndicator(t *testing.T) {
 	// Salt and info are short, which is ok, but translates to a short HMAC key.
 	fips140.ResetServiceIndicator()
 	_, err = Key(sha256.New, []byte("YELLOW SUBMARINE"), []byte("salt"), "info", 32)
+	if err != nil {
+		panic(err)
+	}
 	if !fips140.ServiceIndicator() {
 		t.Error("FIPS service indicator should be set")
 	}

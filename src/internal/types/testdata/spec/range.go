@@ -5,7 +5,7 @@
 package p
 
 type MyInt int32
-type MyBool bool
+type MyBool = bool // TODO(gri) remove alias declaration - see go.dev/issues/71131, go.dev/issues/71164
 type MyString string
 type MyFunc1 func(func(int) bool)
 type MyFunc2 func(int) bool

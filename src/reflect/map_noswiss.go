@@ -17,6 +17,14 @@ type mapType struct {
 	abi.OldMapType
 }
 
+// Pushed from runtime.
+
+//go:noescape
+func mapiterinit(t *abi.Type, m unsafe.Pointer, it *hiter)
+
+//go:noescape
+func mapiternext(it *hiter)
+
 func (t *rtype) Key() Type {
 	if t.Kind() != Map {
 		panic("reflect: Key of non-map type " + t.String())

@@ -1068,9 +1068,6 @@ func internal_sync_fatal(s string) {
 // throw should be used for runtime-internal fatal errors where Go itself,
 // rather than user code, may be at fault for the failure.
 //
-// NOTE: temporarily marked "go:noinline" pending investigation/fix of
-// issue #67274, so as to fix longtest builders.
-//
 // throw should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:

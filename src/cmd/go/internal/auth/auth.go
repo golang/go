@@ -70,7 +70,8 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 		case "netrc":
 			lines, err := readNetrc()
 			if err != nil {
-				base.Fatalf("go: could not parse netrc (GOAUTH=%s): %v", cfg.GOAUTH, err)
+				cmdErrs = append(cmdErrs, fmt.Errorf("GOAUTH=%s: %v", command, err))
+				continue
 			}
 			// Process lines in reverse so that if the same machine is listed
 			// multiple times, we end up saving the earlier one

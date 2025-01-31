@@ -6,14 +6,11 @@
 package auth
 
 import (
-	"bufio"
-	"bytes"
 	"cmd/internal/quoted"
 	"fmt"
-	"io"
 	"maps"
 	"net/http"
-	"net/textproto"
+	"net/url"
 	"os/exec"
 	"strings"
 )
@@ -42,7 +39,7 @@ func runAuthCommand(command string, url string, res *http.Response) (map[string]
 	if err != nil {
 		return nil, fmt.Errorf("could not run command %s: %v\n%s", command, err, cmd.Stderr)
 	}
-	credentials, err := parseUserAuth(bytes.NewReader(out))
+	credentials, err := parseUserAuth(string(out))
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse output of GOAUTH command %s: %v", command, err)
 	}
@@ -54,53 +51,47 @@ func runAuthCommand(command string, url string, res *http.Response) (map[string]
 // or an error if the data does not follow the expected format.
 // Returns an nil error and an empty map if the data is empty.
 // See the expected format in 'go help goauth'.
-func parseUserAuth(data io.Reader) (map[string]http.Header, error) {
+func parseUserAuth(data string) (map[string]http.Header, error) {
 	credentials := make(map[string]http.Header)
-	reader := textproto.NewReader(bufio.NewReader(data))
-	for {
-		// Return the processed credentials if the reader is at EOF.
-		if _, err := reader.R.Peek(1); err == io.EOF {
-			return credentials, nil
+	for data != "" {
+		var line string
+		var ok bool
+		var urls []string
+		// Parse URLS first.
+		for {
+			line, data, ok = strings.Cut(data, "\n")
+			if !ok {
+				return nil, fmt.Errorf("invalid format: missing empty line after URLs")
+			}
+			if line == "" {
+				break
+			}
+			u, err := url.ParseRequestURI(line)
+			if err != nil {
+				return nil, fmt.Errorf("could not parse URL %s: %v", line, err)
+			}
+			urls = append(urls, u.String())
 		}
-		urls, err := readURLs(reader)
-		if err != nil {
-			return nil, err
+		// Parse Headers second.
+		header := make(http.Header)
+		for {
+			line, data, ok = strings.Cut(data, "\n")
+			if !ok {
+				return nil, fmt.Errorf("invalid format: missing empty line after headers")
+			}
+			if line == "" {
+				break
+			}
+			name, value, ok := strings.Cut(line, ": ")
+			value = strings.TrimSpace(value)
+			if !ok || !validHeaderFieldName(name) || !validHeaderFieldValue(value) {
+				return nil, fmt.Errorf("invalid format: invalid header line")
+			}
+			header.Add(name, value)
 		}
-		if len(urls) == 0 {
-			return nil, fmt.Errorf("invalid format: expected url prefix")
-		}
-		mimeHeader, err := reader.ReadMIMEHeader()
-		if err != nil {
-			return nil, err
-		}
-		header := http.Header(mimeHeader)
-		// Process the block (urls and headers).
-		credentialMap := mapHeadersToPrefixes(urls, header)
-		maps.Copy(credentials, credentialMap)
+		maps.Copy(credentials, mapHeadersToPrefixes(urls, header))
 	}
-}
-
-// readURLs reads URL prefixes from the given reader until an empty line
-// is encountered or an error occurs. It returns the list of URLs or an error
-// if the format is invalid.
-func readURLs(reader *textproto.Reader) (urls []string, err error) {
-	for {
-		line, err := reader.ReadLine()
-		if err != nil {
-			return nil, err
-		}
-		trimmedLine := strings.TrimSpace(line)
-		if trimmedLine != line {
-			return nil, fmt.Errorf("invalid format: leading or trailing white space")
-		}
-		if strings.HasPrefix(line, "https://") {
-			urls = append(urls, line)
-		} else if line == "" {
-			return urls, nil
-		} else {
-			return nil, fmt.Errorf("invalid format: expected url prefix or empty line")
-		}
-	}
+	return credentials, nil
 }
 
 // mapHeadersToPrefixes returns a mapping of prefix → http.Header without
@@ -127,8 +118,8 @@ func buildCommand(command string) (*exec.Cmd, error) {
 func writeResponseToStdin(cmd *exec.Cmd, res *http.Response) error {
 	var output strings.Builder
 	output.WriteString(res.Proto + " " + res.Status + "\n")
-	if err := res.Header.Write(&output); err != nil {
-		return err
+	for k, v := range res.Header {
+		output.WriteString(k + ": " + strings.Join(v, ", ") + "\n")
 	}
 	output.WriteString("\n")
 	cmd.Stdin = strings.NewReader(output.String())

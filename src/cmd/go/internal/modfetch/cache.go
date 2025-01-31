@@ -113,6 +113,13 @@ func DownloadDir(ctx context.Context, m module.Version) (string, error) {
 		return dir, err
 	}
 
+	// Special case: ziphash is not required for the golang.org/fips140 module,
+	// because it is unpacked from a file in GOROOT, not downloaded.
+	// We've already checked that it's not a partial unpacking, so we're happy.
+	if m.Path == "golang.org/fips140" {
+		return dir, nil
+	}
+
 	// Check if a .ziphash file exists. It should be created before the
 	// zip is extracted, but if it was deleted (by another program?), we need
 	// to re-calculate it. Note that checkMod will repopulate the ziphash

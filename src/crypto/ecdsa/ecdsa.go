@@ -23,6 +23,7 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/boring/bbig"
 	"crypto/internal/fips140/ecdsa"
+	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
 	"crypto/internal/randutil"
 	"crypto/sha512"
@@ -281,7 +282,11 @@ func signFIPSDeterministic[P ecdsa.Point[P]](c *ecdsa.Curve[P], hashFunc crypto.
 	if err != nil {
 		return nil, err
 	}
-	sig, err := ecdsa.SignDeterministic(c, hashFunc.New, k, hash)
+	h := fips140hash.UnwrapNew(hashFunc.New)
+	if fips140only.Enabled && !fips140only.ApprovedHash(h()) {
+		return nil, errors.New("crypto/ecdsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+	}
+	sig, err := ecdsa.SignDeterministic(c, h, k, hash)
 	if err != nil {
 		return nil, err
 	}

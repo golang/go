@@ -4,11 +4,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(#54766): Temporarily disable for swissmap, which have fast variants
-// disabled. This test expects fast variants.
-//
-//go:build !goexperiment.swissmap
-
 package codegen
 
 // This file contains code generation tests related to the handling of
@@ -79,7 +74,7 @@ func LookupStringConversionKeyedArrayLit(m map[[2]string]int, bytes []byte) int 
 
 func MapClearReflexive(m map[int]int) {
 	// amd64:`.*runtime\.mapclear`
-	// amd64:-`.*runtime\.mapiterinit`
+	// amd64:-`.*runtime\.(mapiterinit|mapIterStart)`
 	for k := range m {
 		delete(m, k)
 	}
@@ -88,7 +83,7 @@ func MapClearReflexive(m map[int]int) {
 func MapClearIndirect(m map[int]int) {
 	s := struct{ m map[int]int }{m: m}
 	// amd64:`.*runtime\.mapclear`
-	// amd64:-`.*runtime\.mapiterinit`
+	// amd64:-`.*runtime\.(mapiterinit|mapIterStart)`
 	for k := range s.m {
 		delete(s.m, k)
 	}
@@ -96,14 +91,14 @@ func MapClearIndirect(m map[int]int) {
 
 func MapClearPointer(m map[*byte]int) {
 	// amd64:`.*runtime\.mapclear`
-	// amd64:-`.*runtime\.mapiterinit`
+	// amd64:-`.*runtime\.(mapiterinit|mapIterStart)`
 	for k := range m {
 		delete(m, k)
 	}
 }
 
 func MapClearNotReflexive(m map[float64]int) {
-	// amd64:`.*runtime\.mapiterinit`
+	// amd64:`.*runtime\.(mapiterinit|mapIterStart)`
 	// amd64:-`.*runtime\.mapclear`
 	for k := range m {
 		delete(m, k)
@@ -111,7 +106,7 @@ func MapClearNotReflexive(m map[float64]int) {
 }
 
 func MapClearInterface(m map[interface{}]int) {
-	// amd64:`.*runtime\.mapiterinit`
+	// amd64:`.*runtime\.(mapiterinit|mapIterStart)`
 	// amd64:-`.*runtime\.mapclear`
 	for k := range m {
 		delete(m, k)
@@ -120,7 +115,7 @@ func MapClearInterface(m map[interface{}]int) {
 
 func MapClearSideEffect(m map[int]int) int {
 	k := 0
-	// amd64:`.*runtime\.mapiterinit`
+	// amd64:`.*runtime\.(mapiterinit|mapIterStart)`
 	// amd64:-`.*runtime\.mapclear`
 	for k = range m {
 		delete(m, k)

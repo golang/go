@@ -87,6 +87,7 @@ var wasmFuncTypes = map[string]*wasmFuncType{
 	"runtime.gcWriteBarrier6": {Results: []byte{I64}},                                     // -> bufptr
 	"runtime.gcWriteBarrier7": {Results: []byte{I64}},                                     // -> bufptr
 	"runtime.gcWriteBarrier8": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.notInitialized":  {},                                                         //
 	"cmpbody":                 {Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
 	"memeqbody":               {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
 	"memcmp":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0

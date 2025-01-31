@@ -70,19 +70,19 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 
 	// The pointer to the object must be valid.
 	if ptr == nil {
-		throw("runtime.AddCleanup: ptr is nil")
+		panic("runtime.AddCleanup: ptr is nil")
 	}
 	usptr := uintptr(unsafe.Pointer(ptr))
 
 	// Check that arg is not equal to ptr.
-	// TODO(67535) this does not cover the case where T and *S are the same
-	// type and ptr and arg are equal.
-	if unsafe.Pointer(&arg) == unsafe.Pointer(ptr) {
-		throw("runtime.AddCleanup: ptr is equal to arg, cleanup will never run")
+	if kind := abi.TypeOf(arg).Kind(); kind == abi.Pointer || kind == abi.UnsafePointer {
+		if unsafe.Pointer(ptr) == *((*unsafe.Pointer)(unsafe.Pointer(&arg))) {
+			panic("runtime.AddCleanup: ptr is equal to arg, cleanup will never run")
+		}
 	}
 	if inUserArenaChunk(usptr) {
 		// Arena-allocated objects are not eligible for cleanup.
-		throw("runtime.AddCleanup: ptr is arena-allocated")
+		panic("runtime.AddCleanup: ptr is arena-allocated")
 	}
 	if debug.sbrk != 0 {
 		// debug.sbrk never frees memory, so no cleanup will ever run
@@ -105,7 +105,7 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 			// Cleanup is a noop.
 			return Cleanup{}
 		}
-		throw("runtime.AddCleanup: ptr not in allocated block")
+		panic("runtime.AddCleanup: ptr not in allocated block")
 	}
 
 	// Ensure we have a finalizer processing goroutine running.

@@ -3,6 +3,7 @@
 package mlkem
 
 import (
+	"bytes"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/sha3"
@@ -31,6 +32,32 @@ func (dk *DecapsulationKey1024) Bytes() []byte {
 	copy(b[:], dk.d[:])
 	copy(b[32:], dk.z[:])
 	return b[:]
+}
+
+// TestingOnlyExpandedBytes1024 returns the decapsulation key as a byte slice
+// using the full expanded NIST encoding.
+//
+// This should only be used for ACVP testing. For all other purposes prefer
+// the Bytes method that returns the (much smaller) seed.
+func TestingOnlyExpandedBytes1024(dk *DecapsulationKey1024) []byte {
+	b := make([]byte, 0, decapsulationKeySize1024)
+
+	// ByteEncode₁₂(s)
+	for i := range dk.s {
+		b = polyByteEncode(b, dk.s[i])
+	}
+
+	// ByteEncode₁₂(t) || ρ
+	for i := range dk.t {
+		b = polyByteEncode(b, dk.t[i])
+	}
+	b = append(b, dk.ρ[:]...)
+
+	// H(ek) || z
+	b = append(b, dk.h[:]...)
+	b = append(b, dk.z[:]...)
+
+	return b
 }
 
 // EncapsulationKey returns the public encapsulation key necessary to produce
@@ -127,6 +154,53 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
 		panic(err)
 	}
 	fips140.RecordApproved()
+	return dk, nil
+}
+
+// TestingOnlyNewDecapsulationKey1024 parses a decapsulation key from its expanded NIST format.
+//
+// Bytes() must not be called on the returned key, as it will not produce the
+// original seed.
+//
+// This function should only be used for ACVP testing. Prefer NewDecapsulationKey1024 for all
+// other purposes.
+func TestingOnlyNewDecapsulationKey1024(b []byte) (*DecapsulationKey1024, error) {
+	if len(b) != decapsulationKeySize1024 {
+		return nil, errors.New("mlkem: invalid NIST decapsulation key length")
+	}
+
+	dk := &DecapsulationKey1024{}
+	for i := range dk.s {
+		var err error
+		dk.s[i], err = polyByteDecode[nttElement](b[:encodingSize12])
+		if err != nil {
+			return nil, errors.New("mlkem: invalid secret key encoding")
+		}
+		b = b[encodingSize12:]
+	}
+
+	ek, err := NewEncapsulationKey1024(b[:EncapsulationKeySize1024])
+	if err != nil {
+		return nil, err
+	}
+	dk.ρ = ek.ρ
+	dk.h = ek.h
+	dk.encryptionKey1024 = ek.encryptionKey1024
+	b = b[EncapsulationKeySize1024:]
+
+	if !bytes.Equal(dk.h[:], b[:32]) {
+		return nil, errors.New("mlkem: inconsistent H(ek) in encoded bytes")
+	}
+	b = b[32:]
+
+	copy(dk.z[:], b)
+
+	// Generate a random d value for use in Bytes(). This is a safety mechanism
+	// that avoids returning a broken key vs a random key if this function is
+	// called in contravention of the TestingOnlyNewDecapsulationKey1024 function
+	// comment advising against it.
+	drbg.Read(dk.d[:])
+
 	return dk, nil
 }
 
