@@ -6,6 +6,7 @@
 //
 // See https://git-scm.com/docs/gitcredentials or run 'man gitcredentials' for
 // information on how to configure 'git credential'.
+
 package auth
 
 import (

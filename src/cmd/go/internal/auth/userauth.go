@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package auth provides access to user-provided authentication credentials.
 package auth
 
 import (
