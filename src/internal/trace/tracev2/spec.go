@@ -22,10 +22,11 @@ type EventSpec struct {
 	// is relied on by the testing framework to type-check arguments.
 	// The structure is:
 	//
-	//     (?P<name>[A-Za-z]+_)?(?P<type>[A-Za-z]+)
+	//     (?P<name>[A-Za-z]+)(_(?P<type>[A-Za-z]+))?
 	//
-	// In sum, it's an optional name followed by a type. If the name
-	// is present, it is separated from the type with an underscore.
+	// In sum, it's a name followed by an optional type.
+	// If the type is present, it is preceded with an underscore.
+	// Arguments without types will be interpreted as just raw uint64s.
 	// The valid argument types and the Go types they map to are listed
 	// in the ArgTypes variable.
 	Args []string

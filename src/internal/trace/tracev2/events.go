@@ -82,7 +82,13 @@ const (
 
 	// Batch event for an experimental batch with a custom format. Added in Go 1.23.
 	EvExperimentalBatch // start of extra data [experiment ID, generation, M ID, timestamp, batch length, batch data...]
+
+	NumEvents
 )
+
+func (ev EventType) Experimental() bool {
+	return ev > MaxEvent && ev < MaxExperimentalEvent
+}
 
 // Experiments.
 const (
@@ -103,7 +109,7 @@ var experiments = [...]string{
 
 // Experimental events.
 const (
-	_ EventType = 127 + iota
+	MaxEvent EventType = 127 + iota
 
 	// Experimental events for AllocFree.
 
@@ -121,7 +127,11 @@ const (
 	EvGoroutineStack      // stack exists [timestamp, id, order]
 	EvGoroutineStackAlloc // stack alloc [timestamp, id, order]
 	EvGoroutineStackFree  // stack free [timestamp, id]
+
+	MaxExperimentalEvent
 )
+
+const NumExperimentalEvents = MaxExperimentalEvent - MaxEvent
 
 func Specs() []EventSpec {
 	return specs[:]
@@ -158,6 +168,7 @@ var specs = [...]EventSpec{
 		// N.B. There's clearly a timestamp here, but these Events
 		// are special in that they don't appear in the regular
 		// M streams.
+		StackIDs: []int{4},
 	},
 	EvFrequency: {
 		Name: "Frequency",
