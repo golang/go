@@ -727,7 +727,7 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 			sysFree(unsafe.Pointer(&tmpbuf[0]), uintptr(len(tmpbuf)), &memstats.other_sys)
 		}
 		n := nptr/8 + 1
-		p := sysAlloc(n, &memstats.other_sys)
+		p := sysAlloc(n, &memstats.other_sys, "heapdump")
 		if p == nil {
 			throw("heapdump: out of memory")
 		}

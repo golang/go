@@ -12,7 +12,7 @@ import (
 // prevents us from allocating more stack.
 //
 //go:nosplit
-func sysAllocOS(n uintptr) unsafe.Pointer {
+func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		if err == _EACCES {
@@ -56,7 +56,7 @@ func sysFaultOS(v unsafe.Pointer, n uintptr) {
 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
 }
 
-func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		return nil
@@ -64,7 +64,7 @@ func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	return p
 }
 
-func sysMapOS(v unsafe.Pointer, n uintptr) {
+func sysMapOS(v unsafe.Pointer, n uintptr, _ string) {
 	// AIX does not allow mapping a range that is already mapped.
 	// So, call mprotect to change permissions.
 	// Note that sysMap is always called with a non-nil pointer

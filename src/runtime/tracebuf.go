@@ -165,7 +165,7 @@ func (w traceWriter) refill() traceWriter {
 			unlock(&trace.lock)
 		} else {
 			unlock(&trace.lock)
-			w.traceBuf = (*traceBuf)(sysAlloc(unsafe.Sizeof(traceBuf{}), &memstats.other_sys))
+			w.traceBuf = (*traceBuf)(sysAlloc(unsafe.Sizeof(traceBuf{}), &memstats.other_sys, "trace buffer"))
 			if w.traceBuf == nil {
 				throw("trace: out of memory")
 			}

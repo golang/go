@@ -157,7 +157,7 @@ func initBloc() {
 	blocMax = bloc
 }
 
-func sysAllocOS(n uintptr) unsafe.Pointer {
+func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
 	lock(&memlock)
 	p := memAlloc(n)
 	memCheck()
@@ -195,13 +195,13 @@ func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
 func sysHugePageCollapseOS(v unsafe.Pointer, n uintptr) {
 }
 
-func sysMapOS(v unsafe.Pointer, n uintptr) {
+func sysMapOS(v unsafe.Pointer, n uintptr, _ string) {
 }
 
 func sysFaultOS(v unsafe.Pointer, n uintptr) {
 }
 
-func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 	lock(&memlock)
 	var p unsafe.Pointer
 	if uintptr(v) == bloc {

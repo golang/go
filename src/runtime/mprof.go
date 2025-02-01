@@ -279,7 +279,7 @@ func stkbucket(typ bucketType, size uintptr, stk []uintptr, alloc bool) *bucket 
 		// check again under the lock
 		bh = (*buckhashArray)(buckhash.Load())
 		if bh == nil {
-			bh = (*buckhashArray)(sysAlloc(unsafe.Sizeof(buckhashArray{}), &memstats.buckhash_sys))
+			bh = (*buckhashArray)(sysAlloc(unsafe.Sizeof(buckhashArray{}), &memstats.buckhash_sys, "profiler hash buckets"))
 			if bh == nil {
 				throw("runtime: cannot allocate memory")
 			}

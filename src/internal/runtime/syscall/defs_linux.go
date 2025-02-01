@@ -16,4 +16,7 @@ const (
 	EPOLL_CTL_DEL = 0x2
 	EPOLL_CTL_MOD = 0x3
 	EFD_CLOEXEC   = 0x80000
+
+	PR_SET_VMA           = 0x53564d41
+	PR_SET_VMA_ANON_NAME = 0
 )

@@ -46,10 +46,10 @@ import "unsafe"
 // which prevents us from allocating more stack.
 //
 //go:nosplit
-func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+func sysAlloc(n uintptr, sysStat *sysMemStat, vmaName string) unsafe.Pointer {
 	sysStat.add(int64(n))
 	gcController.mappedReady.Add(int64(n))
-	return sysAllocOS(n)
+	return sysAllocOS(n, vmaName)
 }
 
 // sysUnused transitions a memory region from Ready to Prepared. It notifies the
@@ -142,15 +142,15 @@ func sysFault(v unsafe.Pointer, n uintptr) {
 // NOTE: sysReserve returns OS-aligned memory, but the heap allocator
 // may use larger alignment, so the caller must be careful to realign the
 // memory obtained by sysReserve.
-func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
-	return sysReserveOS(v, n)
+func sysReserve(v unsafe.Pointer, n uintptr, vmaName string) unsafe.Pointer {
+	return sysReserveOS(v, n, vmaName)
 }
 
 // sysMap transitions a memory region from Reserved to Prepared. It ensures the
 // memory region can be efficiently transitioned to Ready.
 //
 // sysStat must be non-nil.
-func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat, vmaName string) {
 	sysStat.add(int64(n))
-	sysMapOS(v, n)
+	sysMapOS(v, n, vmaName)
 }

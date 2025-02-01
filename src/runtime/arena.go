@@ -1041,7 +1041,7 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 	//
 	// Unlike (*mheap).grow, just map in everything that we
 	// asked for. We're likely going to use it all.
-	sysMap(unsafe.Pointer(base), userArenaChunkBytes, &gcController.heapReleased)
+	sysMap(unsafe.Pointer(base), userArenaChunkBytes, &gcController.heapReleased, "user arena chunk")
 	sysUsed(unsafe.Pointer(base), userArenaChunkBytes, userArenaChunkBytes)
 
 	// Model the user arena as a heap span for a large object.
