@@ -133,6 +133,9 @@ const (
 
 const NumExperimentalEvents = MaxExperimentalEvent - MaxEvent
 
+// MaxTimedEventArgs is the maximum number of arguments for timed events.
+const MaxTimedEventArgs = 5
+
 func Specs() []EventSpec {
 	return specs[:]
 }

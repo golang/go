@@ -16,13 +16,9 @@ import (
 	"internal/trace/version"
 )
 
-// maxArgs is the maximum number of arguments for "plain" events,
-// i.e. anything that could reasonably be represented as a baseEvent.
-const maxArgs = 5
-
 // timedEventArgs is an array that is able to hold the arguments for any
 // timed event.
-type timedEventArgs [maxArgs - 1]uint64
+type timedEventArgs [tracev2.MaxTimedEventArgs - 1]uint64
 
 // baseEvent is the basic unprocessed event. This serves as a common
 // fundamental data structure across.

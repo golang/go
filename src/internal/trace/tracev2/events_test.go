@@ -38,6 +38,9 @@ func TestSpecs(t *testing.T) {
 		if spec.IsStack && spec.Name != "Stack" {
 			t.Errorf("%s listed as being a stack, but is not the Stack event (unsupported)", spec.Name)
 		}
+		if spec.IsTimedEvent && len(spec.Args) > tracev2.MaxTimedEventArgs {
+			t.Errorf("%s has too many timed event args: have %d, want %d at most", spec.Name, len(spec.Args), tracev2.MaxTimedEventArgs)
+		}
 		if ev.Experimental() && spec.Experiment == tracev2.NoExperiment {
 			t.Errorf("experimental event %s must have an experiment", spec.Name)
 		}
