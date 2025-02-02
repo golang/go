@@ -362,5 +362,11 @@ TEXT errors(SB),$0
 	VFREDMAXVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
 	VFREDMINVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
 	VFWREDOSUMVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
+	VCPOPM		V2, V4, X10			// ERROR "invalid vector mask register"
+	VFIRSTM		V2, V4, X10			// ERROR "invalid vector mask register"
+	VMSBFM		V2, V4, V3			// ERROR "invalid vector mask register"
+	VMSIFM		V2, V4, V3			// ERROR "invalid vector mask register"
+	VMSOFM		V2, V4, V3			// ERROR "invalid vector mask register"
+	VIOTAM		V2, V4, V3			// ERROR "invalid vector mask register"
 
 	RET

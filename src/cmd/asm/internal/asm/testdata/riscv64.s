@@ -1201,6 +1201,34 @@ start:
 	VFWREDUSUMVS	V1, V2, V3			// d79120c6
 	VFWREDUSUMVS	V1, V2, V0, V3			// d79120c4
 
+	// 31.15: Vector Mask Instructions
+	VMANDMM		V1, V2, V3			// d7a12066
+	VMNANDMM	V1, V2, V3			// d7a12076
+	VMANDNMM	V1, V2, V3			// d7a12062
+	VMXORMM		V1, V2, V3			// d7a1206e
+	VMORMM		V1, V2, V3			// d7a1206a
+	VMNORMM		V1, V2, V3			// d7a1207a
+	VMORNMM		V1, V2, V3			// d7a12072
+	VMXNORMM	V1, V2, V3			// d7a1207e
+	VMMVM		V2, V3				// d7212166
+	VMCLRM		V3				// d7a1316e
+	VMSETM		V3				// d7a1317e
+	VMNOTM		V2, V3				// d7212176
+	VCPOPM		V2, X10				// 57252842
+	VCPOPM		V2, V0, X10			// 57252840
+	VFIRSTM		V2, X10				// 57a52842
+	VFIRSTM		V2, V0, X10			// 57a52840
+	VMSBFM		V2, V3				// d7a12052
+	VMSBFM		V2, V0, V3			// d7a12050
+	VMSIFM		V2, V3				// d7a12152
+	VMSIFM		V2, V0, V3			// d7a12150
+	VMSOFM		V2, V3				// d7212152
+	VMSOFM		V2, V0, V3			// d7212150
+	VIOTAM		V2, V3				// d7212852
+	VIOTAM		V2, V0, V3			// d7212850
+	VIDV		V3				// d7a10852
+	VIDV		V0, V3				// d7a10850
+
 	//
 	// Privileged ISA
 	//

@@ -1328,6 +1328,13 @@ func validateRVFV(ctxt *obj.Link, ins *instruction) {
 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
 }
 
+func validateRVI(ctxt *obj.Link, ins *instruction) {
+	wantIntReg(ctxt, ins, "rd", ins.rd)
+	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
+	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+}
+
 func validateRVIV(ctxt *obj.Link, ins *instruction) {
 	wantVectorReg(ctxt, ins, "vd", ins.rd)
 	wantIntReg(ctxt, ins, "rs1", ins.rs1)
@@ -1575,6 +1582,10 @@ func encodeRIF(ins *instruction) uint32 {
 
 func encodeRVFV(ins *instruction) uint32 {
 	return encodeR(ins.as, regF(ins.rs1), regV(ins.rs2), regV(ins.rd), ins.funct3, ins.funct7)
+}
+
+func encodeRVI(ins *instruction) uint32 {
+	return encodeR(ins.as, 0, regV(ins.rs2), regI(ins.rd), ins.funct3, ins.funct7)
 }
 
 func encodeRVIV(ins *instruction) uint32 {
@@ -1881,6 +1892,7 @@ var (
 	rIFEncoding   = encoding{encode: encodeRIF, validate: validateRIF, length: 4}
 	rFFEncoding   = encoding{encode: encodeRFF, validate: validateRFF, length: 4}
 	rVFVEncoding  = encoding{encode: encodeRVFV, validate: validateRVFV, length: 4}
+	rVIEncoding   = encoding{encode: encodeRVI, validate: validateRVI, length: 4}
 	rVIVEncoding  = encoding{encode: encodeRVIV, validate: validateRVIV, length: 4}
 	rVVEncoding   = encoding{encode: encodeRVV, validate: validateRVV, length: 4}
 	rVViEncoding  = encoding{encode: encodeRVVi, validate: validateRVVi, length: 4}
@@ -2608,6 +2620,23 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	// 31.14.4: Vector Widening Floating-Point Reduction Instructions
 	AVFWREDOSUMVS & obj.AMask: {enc: rVVVEncoding},
 	AVFWREDUSUMVS & obj.AMask: {enc: rVVVEncoding},
+
+	// 31.15: Vector Mask Instructions
+	AVMANDMM & obj.AMask:  {enc: rVVVEncoding},
+	AVMNANDMM & obj.AMask: {enc: rVVVEncoding},
+	AVMANDNMM & obj.AMask: {enc: rVVVEncoding},
+	AVMXORMM & obj.AMask:  {enc: rVVVEncoding},
+	AVMORMM & obj.AMask:   {enc: rVVVEncoding},
+	AVMNORMM & obj.AMask:  {enc: rVVVEncoding},
+	AVMORNMM & obj.AMask:  {enc: rVVVEncoding},
+	AVMXNORMM & obj.AMask: {enc: rVVVEncoding},
+	AVCPOPM & obj.AMask:   {enc: rVIEncoding},
+	AVFIRSTM & obj.AMask:  {enc: rVIEncoding},
+	AVMSBFM & obj.AMask:   {enc: rVVEncoding},
+	AVMSIFM & obj.AMask:   {enc: rVVEncoding},
+	AVMSOFM & obj.AMask:   {enc: rVVEncoding},
+	AVIOTAM & obj.AMask:   {enc: rVVEncoding},
+	AVIDV & obj.AMask:     {enc: rVVEncoding},
 
 	//
 	// Privileged ISA
@@ -3765,6 +3794,47 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 			ins.as = AVFSGNJNVV
 		}
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.From.Reg)
+
+	case AVMANDMM, AVMNANDMM, AVMANDNMM, AVMXORMM, AVMORMM, AVMNORMM, AVMORNMM, AVMXNORMM, AVMMVM, AVMNOTM:
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg)
+		switch ins.as {
+		case AVMMVM:
+			ins.as, ins.rs2 = AVMANDMM, ins.rs1
+		case AVMNOTM:
+			ins.as, ins.rs2 = AVMNANDMM, ins.rs1
+		}
+
+	case AVMCLRM, AVMSETM:
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.From.Reg), uint32(p.From.Reg), uint32(p.From.Reg)
+		switch ins.as {
+		case AVMCLRM:
+			ins.as = AVMXORMM
+		case AVMSETM:
+			ins.as = AVMXNORMM
+		}
+
+	case AVCPOPM, AVFIRSTM, AVMSBFM, AVMSIFM, AVMSOFM, AVIOTAM:
+		// Set mask bit
+		switch {
+		case ins.rs1 == obj.REG_NONE:
+			ins.funct7 |= 1 // unmasked
+		case ins.rs1 != REG_V0:
+			p.Ctxt.Diag("%v: invalid vector mask register", p)
+		}
+		ins.rs1 = obj.REG_NONE
+
+	case AVIDV:
+		// Set mask bit
+		switch {
+		case ins.rd == obj.REG_NONE:
+			ins.funct7 |= 1 // unmasked
+		case ins.rd != obj.REG_NONE && ins.rs2 != REG_V0:
+			p.Ctxt.Diag("%v: invalid vector mask register", p)
+		}
+		if ins.rd == obj.REG_NONE {
+			ins.rd = uint32(p.From.Reg)
+		}
+		ins.rs1, ins.rs2 = obj.REG_NONE, REG_V0
 	}
 
 	for _, ins := range inss {
