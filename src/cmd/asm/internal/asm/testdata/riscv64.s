@@ -1161,6 +1161,46 @@ start:
 	VFNCVTRODFFW	V2, V3				// d7912a4a
 	VFNCVTRODFFW	V2, V0, V3			// d7912a48
 
+	// 31.14.1: Vector Single-Width Integer Reduction Instructions
+	VREDSUMVS	V1, V2, V3			// d7a12002
+	VREDSUMVS	V1, V2, V0, V3			// d7a12000
+	VREDMAXUVS	V1, V2, V3			// d7a1201a
+	VREDMAXUVS	V1, V2, V0, V3			// d7a12018
+	VREDMAXVS	V1, V2, V3			// d7a1201e
+	VREDMAXVS	V1, V2, V0, V3			// d7a1201c
+	VREDMINUVS	V1, V2, V3			// d7a12012
+	VREDMINUVS	V1, V2, V0, V3			// d7a12010
+	VREDMINVS	V1, V2, V3			// d7a12016
+	VREDMINVS	V1, V2, V0, V3			// d7a12014
+	VREDANDVS	V1, V2, V3			// d7a12006
+	VREDANDVS	V1, V2, V0, V3			// d7a12004
+	VREDORVS	V1, V2, V3			// d7a1200a
+	VREDORVS	V1, V2, V0, V3			// d7a12008
+	VREDXORVS	V1, V2, V3			// d7a1200e
+	VREDXORVS	V1, V2, V0, V3			// d7a1200c
+
+	// 31.14.2: Vector Widening Integer Reduction Instructions
+	VWREDSUMUVS	V1, V2, V3			// d78120c2
+	VWREDSUMUVS	V1, V2, V0, V3			// d78120c0
+	VWREDSUMVS	V1, V2, V3			// d78120c6
+	VWREDSUMVS	V1, V2, V0, V3			// d78120c4
+
+	// 31.14.3: Vector Single-Width Floating-Point Reduction Instructions
+	VFREDOSUMVS	V1, V2, V3			// d791200e
+	VFREDOSUMVS	V1, V2, V0, V3			// d791200c
+	VFREDUSUMVS	V1, V2, V3			// d7912006
+	VFREDUSUMVS	V1, V2, V0, V3			// d7912004
+	VFREDMAXVS	V1, V2, V3			// d791201e
+	VFREDMAXVS	V1, V2, V0, V3			// d791201c
+	VFREDMINVS	V1, V2, V3			// d7912016
+	VFREDMINVS	V1, V2, V0, V3			// d7912014
+
+	// 31.14.4: Vector Widening Floating-Point Reduction Instructions
+	VFWREDOSUMVS	V1, V2, V3			// d79120ce
+	VFWREDOSUMVS	V1, V2, V0, V3			// d79120cc
+	VFWREDUSUMVS	V1, V2, V3			// d79120c6
+	VFWREDUSUMVS	V1, V2, V0, V3			// d79120c4
+
 	//
 	// Privileged ISA
 	//

@@ -2585,6 +2585,30 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVFNCVTFFW & obj.AMask:     {enc: rVVEncoding},
 	AVFNCVTRODFFW & obj.AMask:  {enc: rVVEncoding},
 
+	// 31.14.1: Vector Single-Width Integer Reduction Instructions
+	AVREDSUMVS & obj.AMask:  {enc: rVVVEncoding},
+	AVREDMAXUVS & obj.AMask: {enc: rVVVEncoding},
+	AVREDMAXVS & obj.AMask:  {enc: rVVVEncoding},
+	AVREDMINUVS & obj.AMask: {enc: rVVVEncoding},
+	AVREDMINVS & obj.AMask:  {enc: rVVVEncoding},
+	AVREDANDVS & obj.AMask:  {enc: rVVVEncoding},
+	AVREDORVS & obj.AMask:   {enc: rVVVEncoding},
+	AVREDXORVS & obj.AMask:  {enc: rVVVEncoding},
+
+	// 31.14.2: Vector Widening Integer Reduction Instructions
+	AVWREDSUMUVS & obj.AMask: {enc: rVVVEncoding},
+	AVWREDSUMVS & obj.AMask:  {enc: rVVVEncoding},
+
+	// 31.14.3: Vector Single-Width Floating-Point Reduction Instructions
+	AVFREDOSUMVS & obj.AMask: {enc: rVVVEncoding},
+	AVFREDUSUMVS & obj.AMask: {enc: rVVVEncoding},
+	AVFREDMAXVS & obj.AMask:  {enc: rVVVEncoding},
+	AVFREDMINVS & obj.AMask:  {enc: rVVVEncoding},
+
+	// 31.14.4: Vector Widening Floating-Point Reduction Instructions
+	AVFWREDOSUMVS & obj.AMask: {enc: rVVVEncoding},
+	AVFWREDUSUMVS & obj.AMask: {enc: rVVVEncoding},
+
 	//
 	// Privileged ISA
 	//
@@ -3578,7 +3602,9 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		AVFMULVV, AVFMULVF, AVFDIVVV, AVFDIVVF, AVFRDIVVF, AVFWMULVV, AVFWMULVF,
 		AVFMINVV, AVFMINVF, AVFMAXVV, AVFMAXVF,
 		AVFSGNJVV, AVFSGNJVF, AVFSGNJNVV, AVFSGNJNVF, AVFSGNJXVV, AVFSGNJXVF,
-		AVMFEQVV, AVMFEQVF, AVMFNEVV, AVMFNEVF, AVMFLTVV, AVMFLTVF, AVMFLEVV, AVMFLEVF, AVMFGTVF, AVMFGEVF:
+		AVMFEQVV, AVMFEQVF, AVMFNEVV, AVMFNEVF, AVMFLTVV, AVMFLTVF, AVMFLEVV, AVMFLEVF, AVMFGTVF, AVMFGEVF,
+		AVREDSUMVS, AVREDMAXUVS, AVREDMAXVS, AVREDMINUVS, AVREDMINVS, AVREDANDVS, AVREDORVS, AVREDXORVS,
+		AVWREDSUMUVS, AVWREDSUMVS, AVFREDOSUMVS, AVFREDUSUMVS, AVFREDMAXVS, AVFREDMINVS, AVFWREDOSUMVS, AVFWREDUSUMVS:
 		// Set mask bit
 		switch {
 		case ins.rs3 == obj.REG_NONE:
