@@ -1535,7 +1535,18 @@ func doRecordGoroutineProfile(gp1 *g, pcbuf []uintptr) {
 		// everything else, we just don't record the stack in the profile.
 		return
 	}
-	if readgstatus(gp1) == _Grunning {
+	// Double-check that we didn't make a grave mistake. If the G is running then in
+	// general, we cannot safely read its stack.
+	//
+	// However, there is one case where it's OK. There's a small window of time in
+	// exitsyscall where a goroutine could be in _Grunning as it's exiting a syscall.
+	// This is OK because goroutine will not exit the syscall until it passes through
+	// a call to tryRecordGoroutineProfile. (An explicit one on the fast path, an
+	// implicit one via the scheduler on the slow path.)
+	//
+	// This is also why it's safe to check syscallsp here. The syscall path mutates
+	// syscallsp only after passing through tryRecordGoroutineProfile.
+	if readgstatus(gp1) == _Grunning && gp1.syscallsp == 0 {
 		print("doRecordGoroutineProfile gp1=", gp1.goid, "\n")
 		throw("cannot read stack of running goroutine")
 	}

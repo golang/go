@@ -191,8 +191,8 @@ type mOS struct {
 	// complete.
 	//
 	// TODO(austin): We may not need this if preemption were more
-	// tightly synchronized on the G/P status and preemption
-	// blocked transition into _Gsyscall/_Psyscall.
+	// tightly synchronized on the G status and preemption
+	// blocked transition into _Gsyscall.
 	preemptExtLock uint32
 }
 

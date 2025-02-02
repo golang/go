@@ -788,6 +788,9 @@ func TestPanicInlined(t *testing.T) {
 // Test for issues #3934 and #20018.
 // We want to delay exiting until a panic print is complete.
 func TestPanicRace(t *testing.T) {
+	if race.Enabled {
+		t.Skip("racefini exits program before main can delay exiting")
+	}
 	testenv.MustHaveGoRun(t)
 
 	exe, err := buildTestProg(t, "testprog")

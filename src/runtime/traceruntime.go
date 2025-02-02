@@ -534,10 +534,8 @@ func (tl traceLocker) GoSysExit(lostP bool) {
 
 // ProcSteal indicates that our current M stole a P from another M.
 //
-// inSyscall indicates that we're stealing the P from a syscall context.
-//
 // The caller must have ownership of pp.
-func (tl traceLocker) ProcSteal(pp *p, inSyscall bool) {
+func (tl traceLocker) ProcSteal(pp *p) {
 	// Grab the M ID we stole from.
 	mStolenFrom := pp.trace.mSyscallID
 	pp.trace.mSyscallID = -1
@@ -561,7 +559,7 @@ func (tl traceLocker) ProcSteal(pp *p, inSyscall bool) {
 	// In the latter, we're a goroutine in a syscall.
 	goStatus := tracev2.GoRunning
 	procStatus := tracev2.ProcRunning
-	if inSyscall {
+	if tl.mp.curg != nil && tl.mp.curg.syscallsp != 0 {
 		goStatus = tracev2.GoSyscall
 		procStatus = tracev2.ProcSyscallAbandoned
 	}
@@ -595,19 +593,27 @@ func (tl traceLocker) GoCreateSyscall(gp *g) {
 	// N.B. We should never trace a status for this goroutine (which we're currently running on),
 	// since we want this to appear like goroutine creation.
 	gp.trace.setStatusTraced(tl.gen)
-	tl.eventWriter(tracev2.GoBad, tracev2.ProcBad).event(tracev2.EvGoCreateSyscall, traceArg(gp.goid))
+
+	// We might have a P left over on the thread from the last cgo callback,
+	// but in a syscall context, it is NOT ours. Act as if we do not have a P,
+	// and don't record a status.
+	tl.rawEventWriter().event(tracev2.EvGoCreateSyscall, traceArg(gp.goid))
 }
 
 // GoDestroySyscall indicates that a goroutine has transitioned from GoSyscall to dead.
 //
-// Must not have a P.
-//
 // This occurs when Go code returns back to C. On pthread platforms it occurs only when
 // the C thread is destroyed.
 func (tl traceLocker) GoDestroySyscall() {
-	// N.B. If we trace a status here, we must never have a P, and we must be on a goroutine
-	// that is in the syscall state.
-	tl.eventWriter(tracev2.GoSyscall, tracev2.ProcBad).event(tracev2.EvGoDestroySyscall)
+	// Write the status for the goroutine if necessary.
+	if gp := tl.mp.curg; gp != nil && !gp.trace.statusWasTraced(tl.gen) && gp.trace.acquireStatus(tl.gen) {
+		tl.writer().writeGoStatus(gp.goid, int64(tl.mp.procid), tracev2.GoSyscall, false, 0 /* no stack */).end()
+	}
+
+	// We might have a P left over on the thread from the last cgo callback,
+	// but in a syscall context, it is NOT ours. Act as if we do not have a P,
+	// and don't record a status.
+	tl.rawEventWriter().event(tracev2.EvGoDestroySyscall)
 }
 
 // To access runtime functions from runtime/trace.
