@@ -170,7 +170,7 @@
 (Cvt32Fto64F ...) => (CVTSS2SD ...)
 (Cvt64Fto32F ...) => (CVTSD2SS ...)
 
-(Round(32|64)F ...) => (Copy ...)
+(Round(32|64)F ...) => (LoweredRound(32|64)F ...)
 
 // Floating-point min is tricky, as the hardware op isn't right for various special
 // cases (-0 and NaN). We use two hardware ops organized just right to make the
@@ -1588,6 +1588,9 @@
 (SUBSSload x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) => (SUBSS x (MOVLi2f y))
 (MULSDload x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) => (MULSD x (MOVQi2f y))
 (MULSSload x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) => (MULSS x (MOVLi2f y))
+
+// Detect FMA
+(ADDS(S|D) (MULS(S|D) x y) z) && buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v) => (VFMADD231S(S|D) z x y)
 
 // Redirect stores to use the other register set.
 (MOVQstore  [off] {sym} ptr (MOVQf2i val) mem) => (MOVSDstore [off] {sym} ptr val mem)

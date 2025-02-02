@@ -692,9 +692,15 @@ func init() {
 		// ROUNDSD instruction is only guaraneteed to be available if GOAMD64>=v2.
 		// For GOAMD64<v2, any use must be preceded by a successful check of runtime.x86HasSSE41.
 		{name: "ROUNDSD", argLength: 1, reg: fp11, aux: "Int8", asm: "ROUNDSD"},
+		// See why we need those in issue #71204
+		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 
-		// VFMADD231SD only exists on platforms with the FMA3 instruction set.
-		// Any use must be preceded by a successful check of runtime.support_fma.
+		// VFMADD231Sx only exist on platforms with the FMA3 instruction set.
+		// Any use must be preceded by a successful check of runtime.x86HasFMA or a check of GOAMD64>=v3.
+		// x==S for float32, x==D for float64
+		// arg0 + arg1*arg2, with no intermediate rounding.
+		{name: "VFMADD231SS", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SS"},
 		{name: "VFMADD231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SD"},
 
 		// Note that these operations don't exactly match the semantics of Go's
