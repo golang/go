@@ -13,8 +13,9 @@ exists $GOPATH/bin/linux_$GOARCH/mycmd
 
 # cross-compile install with explicit GOBIN cannot make subdirectory
 env GOBIN=$WORK/bin
-! go install mycmd
+go install mycmd
 ! exists $GOBIN/linux_$GOARCH
+exists $GOBIN/mycmd
 
 # The install directory for a cross-compiled standard command should include GOARCH.
 go list -f '{{.Target}}'  cmd/pack
