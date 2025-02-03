@@ -1454,7 +1454,7 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels 
 		// were collecting the profile. But probably better to return a
 		// truncated profile than to crash the whole process.
 		//
-		// For instance, needm moves a goroutine out of the _Gdead state and so
+		// For instance, needm moves a goroutine out of the _Gdeadextra state and so
 		// might be able to change the goroutine count without interacting with
 		// the scheduler. For code like that, the race windows are small and the
 		// combination of features is uncommon, so it's hard to be (and remain)
@@ -1480,7 +1480,7 @@ func tryRecordGoroutineProfileWB(gp1 *g) {
 // in the current goroutine profile: either that it should not be profiled, or
 // that a snapshot of its call stack and labels are now in the profile.
 func tryRecordGoroutineProfile(gp1 *g, pcbuf []uintptr, yield func()) {
-	if readgstatus(gp1) == _Gdead {
+	if status := readgstatus(gp1); status == _Gdead || status == _Gdeadextra {
 		// Dead goroutines should not appear in the profile. Goroutines that
 		// start while profile collection is active will get goroutineProfiled
 		// set to goroutineProfileSatisfied before transitioning out of _Gdead,
@@ -1570,7 +1570,16 @@ func goroutineProfileWithLabelsSync(p []profilerecord.StackRecord, labels []unsa
 	isOK := func(gp1 *g) bool {
 		// Checking isSystemGoroutine here makes GoroutineProfile
 		// consistent with both NumGoroutine and Stack.
-		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1, false)
+		if gp1 == gp {
+			return false
+		}
+		if status := readgstatus(gp1); status == _Gdead || status == _Gdeadextra {
+			return false
+		}
+		if isSystemGoroutine(gp1, false) {
+			return false
+		}
+		return true
 	}
 
 	pcbuf := makeProfStack() // see saveg() for explanation

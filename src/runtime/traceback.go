@@ -1208,6 +1208,7 @@ var gStatusStrings = [...]string{
 	_Gcopystack: "copystack",
 	_Gleaked:    "leaked",
 	_Gpreempted: "preempted",
+	_Gdeadextra: "waiting for cgo callback",
 }
 
 func goroutineheader(gp *g) {
@@ -1295,7 +1296,16 @@ func tracebacksomeothers(me *g, showf func(*g) bool) {
 	// against concurrent creation of new Gs, but even with allglock we may
 	// miss Gs created after this loop.
 	forEachGRace(func(gp *g) {
-		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || !showf(gp) || (isSystemGoroutine(gp, false) && level < 2) {
+		if gp == me || gp == curgp {
+			return
+		}
+		if status := readgstatus(gp); status == _Gdead || status == _Gdeadextra {
+			return
+		}
+		if !showf(gp) {
+			return
+		}
+		if isSystemGoroutine(gp, false) && level < 2 {
 			return
 		}
 		print("\n")

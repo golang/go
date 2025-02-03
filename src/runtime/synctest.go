@@ -52,7 +52,7 @@ func (bubble *synctestBubble) changegstatus(gp *g, oldval, newval uint32) {
 	totalDelta := 0
 	wasRunning := true
 	switch oldval {
-	case _Gdead:
+	case _Gdead, _Gdeadextra:
 		wasRunning = false
 		totalDelta++
 	case _Gwaiting:
@@ -62,7 +62,7 @@ func (bubble *synctestBubble) changegstatus(gp *g, oldval, newval uint32) {
 	}
 	isRunning := true
 	switch newval {
-	case _Gdead:
+	case _Gdead, _Gdeadextra:
 		isRunning = false
 		totalDelta--
 		if gp == bubble.main {
@@ -86,7 +86,7 @@ func (bubble *synctestBubble) changegstatus(gp *g, oldval, newval uint32) {
 			bubble.running++
 		} else {
 			bubble.running--
-			if raceenabled && newval != _Gdead {
+			if raceenabled && newval != _Gdead && newval != _Gdeadextra {
 				// Record that this goroutine parking happens before
 				// any subsequent Wait.
 				racereleasemergeg(gp, bubble.raceaddr())
