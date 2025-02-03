@@ -14,7 +14,7 @@ package main
 #include <stdio.h>
 
 static void CFn(_GoString_ gostr) {
-	printf("%.*s\n", _GoStringLen(gostr), _GoStringPtr(gostr));
+	printf("%.*s\n", (int)(_GoStringLen(gostr)), _GoStringPtr(gostr));
 }
 */
 import "C"
