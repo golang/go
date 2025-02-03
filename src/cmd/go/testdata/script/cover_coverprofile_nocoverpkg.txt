@@ -13,13 +13,7 @@ go test -vet=off -count=1 -coverprofile=cov.p ./...
 # Generate a function profile.
 go tool cover -func=cov.p
 
-# Prior to GOEXPERIMENT=coverageredesign we should see no output at all for
-# pkg1 (since it has no tests).
-[!GOEXPERIMENT:coverageredesign] ! stdout 'pkg1'
-
-# With GOEXPERIMENT=coverageredesign enabled we should see zero percent
-# coverage for pkg1's DoSomething, not 100% (as in the bug).
-[GOEXPERIMENT:coverageredesign] stdout 'cov/pkg1/file.go:3:\s+DoSomething\s+0.0%'
+stdout 'cov/pkg1/file.go:3:\s+DoSomething\s+0.0%'
 
 -- go.mod --
 module cov
