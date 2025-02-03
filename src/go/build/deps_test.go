@@ -796,6 +796,7 @@ var depsRules = `
 	FMT < math/big/internal/asmgen;
 
 	FMT, testing < internal/cgrouptest;
+	C, CGO < internal/runtime/cgobench;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".
