@@ -1316,8 +1316,9 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		})
 	}
 
-	if oldval == _Grunning {
-		// Track every gTrackingPeriod time a goroutine transitions out of running.
+	if (oldval == _Grunning || oldval == _Gsyscall) && (newval != _Grunning && newval != _Gsyscall) {
+		// Track every gTrackingPeriod time a goroutine transitions out of _Grunning or _Gsyscall.
+		// Do not track _Grunning <-> _Gsyscall transitions, since they're two very similar states.
 		if casgstatusAlwaysTrack || gp.trackingSeq%gTrackingPeriod == 0 {
 			gp.tracking = true
 		}
