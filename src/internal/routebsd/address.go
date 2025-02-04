@@ -102,44 +102,52 @@ func (a *InetAddr) Family() int {
 // parseInetAddr parses b as an internet address for IPv4 or IPv6.
 func parseInetAddr(af int, b []byte) (Addr, error) {
 	const (
-		off4 = 4 // offset of in_addr
-		off6 = 8 // offset of in6_addr
+		off4    = 4  // offset of in_addr
+		off6    = 8  // offset of in6_addr
+		ipv4Len = 4  // length of IPv4 address in bytes
+		ipv6Len = 16 // length of IPv6 address in bytes
 	)
 	switch af {
 	case syscall.AF_INET:
-		if len(b) < (off4+1) || len(b) < int(b[0]) || b[0] == 0 {
+		if len(b) < (off4+1) || len(b) < int(b[0]) {
 			return nil, errInvalidAddr
 		}
 		sockAddrLen := int(b[0])
-		var ip [4]byte
-		n := off4 + 4
-		if sockAddrLen < n {
-			n = sockAddrLen
+		var ip [ipv4Len]byte
+		if sockAddrLen != 0 {
+			// Calculate how many bytes of the address to copy:
+			// either full IPv4 length or the available length.
+			n := off4 + ipv4Len
+			if sockAddrLen < n {
+				n = sockAddrLen
+			}
+			copy(ip[:], b[off4:n])
 		}
-		copy(ip[:], b[off4:n])
 		a := &InetAddr{
 			IP: netip.AddrFrom4(ip),
 		}
 		return a, nil
 	case syscall.AF_INET6:
-		if len(b) < (off6+1) || len(b) < int(b[0]) || b[0] == 0 {
+		if len(b) < (off6+1) || len(b) < int(b[0]) {
 			return nil, errInvalidAddr
 		}
+		var ip [ipv6Len]byte
 		sockAddrLen := int(b[0])
-		n := off6 + 16
-		if sockAddrLen < n {
-			n = sockAddrLen
-		}
-		var ip [16]byte
-		copy(ip[:], b[off6:n])
-		if ip[0] == 0xfe && ip[1]&0xc0 == 0x80 || ip[0] == 0xff && (ip[1]&0x0f == 0x01 || ip[1]&0x0f == 0x02) {
-			// KAME based IPv6 protocol stack usually
-			// embeds the interface index in the
-			// interface-local or link-local address as
-			// the kernel-internal form.
-			id := int(bigEndian.Uint16(ip[2:4]))
-			if id != 0 {
-				ip[2], ip[3] = 0, 0
+		if sockaddrLen != 0 {
+			n := off6 + ipv6Len
+			if sockAddrLen < n {
+				n = sockAddrLen
+			}
+			copy(ip[:], b[off6:n])
+			if ip[0] == 0xfe && ip[1]&0xc0 == 0x80 || ip[0] == 0xff && (ip[1]&0x0f == 0x01 || ip[1]&0x0f == 0x02) {
+				// KAME based IPv6 protocol stack usually
+				// embeds the interface index in the
+				// interface-local or link-local address as
+				// the kernel-internal form.
+				id := int(bigEndian.Uint16(ip[2:4]))
+				if id != 0 {
+					ip[2], ip[3] = 0, 0
+				}
 			}
 		}
 		// The kernel can provide an integer zone ID.
@@ -197,11 +205,11 @@ func parseKernelInetAddr(af int, b []byte) (int, Addr, error) {
 	switch {
 	case b[0] == syscall.SizeofSockaddrInet6:
 		a := &InetAddr{
-			IP: netip.AddrFrom16([16]byte(b[off6:off6+16])),
+			IP: netip.AddrFrom16([16]byte(b[off6 : off6+16])),
 		}
 		return int(b[0]), a, nil
 	case af == syscall.AF_INET6:
-		var ab[16]byte
+		var ab [16]byte
 		if l-1 < off6 {
 			copy(ab[:], b[1:l])
 		} else {
@@ -213,7 +221,7 @@ func parseKernelInetAddr(af int, b []byte) (int, Addr, error) {
 		return int(b[0]), a, nil
 	case b[0] == syscall.SizeofSockaddrInet4:
 		a := &InetAddr{
-			IP: netip.AddrFrom4([4]byte(b[off4:off4+4])),
+			IP: netip.AddrFrom4([4]byte(b[off4 : off4+4])),
 		}
 		return int(b[0]), a, nil
 	default: // an old fashion, AF_UNSPEC or unknown means AF_INET
@@ -251,16 +259,12 @@ func parseAddrs(attrs uint, b []byte) ([]Addr, error) {
 				}
 				b = b[l:]
 			case syscall.AF_INET, syscall.AF_INET6:
-				// #70528: if the sockaddrlen is 0, no address to parse inside,
-				// skip over the record.
-				if b[0] > 0 {
-					af = int(b[1])
-					a, err := parseInetAddr(af, b)
-					if err != nil {
-						return nil, err
-					}
-					as[i] = a
+				af = int(b[1])
+				a, err := parseInetAddr(af, b)
+				if err != nil {
+					return nil, err
 				}
+				as[i] = a
 				l := roundup(int(b[0]))
 				if len(b) < l {
 					return nil, errMessageTooShort
