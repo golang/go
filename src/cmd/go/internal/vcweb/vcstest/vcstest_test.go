@@ -158,6 +158,13 @@ func TestScripts(t *testing.T) {
 				if notInstalled := (vcweb.ServerNotInstalledError{}); errors.As(err, &notInstalled) || errors.Is(err, exec.ErrNotFound) {
 					t.Skip(err)
 				}
+
+				// For issue #71504 ignore an error about
+				// bzr not being able to find dependencies.
+				if strings.Contains(buf.String(), "brz: ERROR: Couldn't import breezy and dependencies.") {
+					t.Skip("skipping test due to bzr installation problem")
+				}
+
 				t.Error(err)
 			}
 		})
