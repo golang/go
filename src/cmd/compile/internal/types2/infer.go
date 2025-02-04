@@ -278,6 +278,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 					//           a failure cause which allows for a better error message.
 					//           Eventually, unify should return an error with cause.
 					var cause string
+					fmt.Printf("[infer] %s %t\n", tpar.obj.name, tpar.obj.isPointer)
 					constraint := tpar.iface()
 					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
 						// TODO(gri) better error message (see TODO above)
@@ -498,6 +499,7 @@ func (check *Checker) renameTParams(pos syntax.Pos, tparams []*TypeParam, typ Ty
 	renameMap := makeRenameMap(tparams, tparams2)
 	for i, tparam := range tparams {
 		tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
+		tparams2[i].obj.isPointer = tparams[i].obj.isPointer
 	}
 
 	return tparams2, check.subst(pos, typ, renameMap, nil, check.context())

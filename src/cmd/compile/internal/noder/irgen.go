@@ -92,7 +92,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 		base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
 	}
 
-	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info) /*HERE MAN*/
 	base.ExitIfErrors()
 	if err != nil {
 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
