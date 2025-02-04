@@ -41,6 +41,12 @@ func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
 		}
 		m.Addrs[syscall.RTAX_IFP] = a
 		m.Name = a.(*LinkAddr).Name
+	} else {
+		// DragonFly seems to have unnamed interfaces
+		// that we can't look up again. Just skip them.
+		if runtime.GOOS == "dragonfly" {
+			return nil, nil
+		}
 	}
 
 	return m, nil
