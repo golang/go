@@ -197,7 +197,7 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 		c := r.Header["Connection"]
 		var cf []string
 		for _, f := range c {
-			for _, sf := range strings.Split(f, ",") {
+			for sf := range strings.SplitSeq(f, ",") {
 				if sf = strings.TrimSpace(sf); sf != "" {
 					cf = append(cf, sf)
 				}
