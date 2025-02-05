@@ -133,7 +133,7 @@ func parseInetAddr(af int, b []byte) (Addr, error) {
 		}
 		var ip [ipv6Len]byte
 		sockAddrLen := int(b[0])
-		if sockaddrLen != 0 {
+		if sockAddrLen != 0 {
 			n := off6 + ipv6Len
 			if sockAddrLen < n {
 				n = sockAddrLen
