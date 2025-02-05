@@ -44,6 +44,7 @@ import (
 	"crypto/internal/fips140/subtle"
 	"crypto/internal/fips140/tls12"
 	"crypto/internal/fips140/tls13"
+	"crypto/internal/impl"
 	"crypto/rand"
 	_ "embed"
 	"encoding/binary"
@@ -58,7 +59,14 @@ import (
 	"testing"
 )
 
+var noPAAPAI = os.Getenv("GONOPAAPAI") == "1"
+
 func TestMain(m *testing.M) {
+	if noPAAPAI {
+		for _, p := range impl.Packages() {
+			impl.Select(p, "")
+		}
+	}
 	if os.Getenv("ACVP_WRAPPER") == "1" {
 		wrapperMain()
 	} else {

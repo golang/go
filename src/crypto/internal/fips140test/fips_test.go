@@ -50,6 +50,12 @@ func moduleStatus(t *testing.T) {
 	t.Logf("Module name: %s", fips140.Name())
 	t.Logf("Module version: %s", fips140.Version())
 
+	if noPAAPAI {
+		t.Log("PAA/PAI disabled")
+	} else {
+		t.Log("PAA/PAI enabled")
+	}
+
 	if check.Verified {
 		t.Log("FIPS 140-3 integrity self-check succeeded")
 	} else {
