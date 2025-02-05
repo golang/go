@@ -797,44 +797,6 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 	return firstFrame
 }
 
-// decorate prefixes the string with the file and line of the call site
-// and inserts the final newline if needed and indentation spaces for formatting.
-// This function must be called with c.mu held.
-func (c *common) decorate(s string, skip int) string {
-	frame := c.frameSkip(skip)
-	file := frame.File
-	line := frame.Line
-	if file != "" {
-		if *fullPath {
-			// If relative path, truncate file name at last file name separator.
-		} else if index := strings.LastIndexAny(file, `/\`); index >= 0 {
-			file = file[index+1:]
-		}
-	} else {
-		file = "???"
-	}
-	if line == 0 {
-		line = 1
-	}
-	buf := new(strings.Builder)
-	// Every line is indented at least 4 spaces.
-	buf.WriteString("    ")
-	fmt.Fprintf(buf, "%s:%d: ", file, line)
-	lines := strings.Split(s, "\n")
-	if l := len(lines); l > 1 && lines[l-1] == "" {
-		lines = lines[:l-1]
-	}
-	for i, line := range lines {
-		if i > 0 {
-			// Second and subsequent lines are indented an additional 4 spaces.
-			buf.WriteString("\n        ")
-		}
-		buf.WriteString(line)
-	}
-	buf.WriteByte('\n')
-	return buf.String()
-}
-
 // flushToParent writes c.output to the parent after first writing the header
 // with the given format and arguments.
 func (c *common) flushToParent(testName, format string, args ...any) {
@@ -1041,40 +1003,122 @@ func (c *common) FailNow() {
 	runtime.Goexit()
 }
 
-// log generates the output. It's always at the same stack depth.
+// log generates the output. It is always at the same stack depth. It inserts
+// the final newline if necessary.
 func (c *common) log(s string) {
-	c.logDepth(s, 3) // logDepth + log + public function
+	if l := len(s); l > 0 && (string(s[l-1]) != "\n") {
+		s += "\n"
+	}
+	cs := c.getCallSite(3) // getCallSite + log + public function
+	c.newOutputWriter(cs).Write([]byte(s))
 }
 
-// logDepth generates the output at an arbitrary stack depth.
-func (c *common) logDepth(s string, depth int) {
+// getCallSite retrieves and formats the file and line of the call site.
+func (c *common) getCallSite(skip int) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.done {
+
+	frame := c.frameSkip(skip)
+	file := frame.File
+	line := frame.Line
+	if file != "" {
+		if *fullPath {
+			// If relative path, truncate file name at last file name separator.
+		} else if index := strings.LastIndexAny(file, `/\`); index >= 0 {
+			file = file[index+1:]
+		}
+	} else {
+		file = "???"
+	}
+	if line == 0 {
+		line = 1
+	}
+
+	return fmt.Sprintf("%s:%d: ", file, line)
+}
+
+// newOutputWriter initialises a new outputWriter with the provided call site.
+func (c *common) newOutputWriter(cs string) io.Writer {
+	b := make([]byte, 0)
+	return &outputWriter{c, b, cs}
+}
+
+// outputWriter buffers, formats and writes input.
+type outputWriter struct {
+	c  *common
+	b  []byte // Stores incomplete input between writes.
+	cs string // Call site.
+}
+
+// Write generates the output. It prefixes the string with the file and line of
+// the call site if provided. It inserts indentation spaces for formatting. It
+// stores input for later if it is not terminated by a newline.
+func (o *outputWriter) Write(p []byte) (int, error) {
+	o.b = append(o.b, p...)
+
+	o.c.mu.Lock()
+	defer o.c.mu.Unlock()
+
+	lines := strings.Split(string(o.b), "\n")
+
+	for i, line := range lines {
+		l := len(lines)
+		// If the last line is not empty, store it in the buffer.
+		if i == (l-1) && line != "" {
+			o.b = []byte(line)
+			if i > 0 {
+				o.writeLine("\n", p)
+			}
+			break
+		}
+
+		buf := new(strings.Builder)
+		// The first line is indented 4 spaces. Subsequent lines are
+		// indented 8 spaces unless a line is the final one and
+		// is empty.
+		if i == 0 {
+			buf.WriteString("    ")
+			buf.WriteString(o.cs)
+		} else if i < l-1 {
+			buf.WriteString("\n        ")
+		} else {
+			// The final line must be empty otherwise the loop would have
+			// terminated earlier.
+			buf.WriteString("\n")
+		}
+		buf.WriteString(line)
+
+		o.writeLine(buf.String(), p)
+	}
+	return len(p), nil
+}
+
+// writeLine generates the output for a given line.
+func (o *outputWriter) writeLine(s string, p []byte) {
+	if o.c.done {
 		// This test has already finished. Try and log this message
 		// with our parent. If we don't have a parent, panic.
-		for parent := c.parent; parent != nil; parent = parent.parent {
+		for parent := o.c.parent; parent != nil; parent = parent.parent {
 			parent.mu.Lock()
 			defer parent.mu.Unlock()
 			if !parent.done {
-				parent.output = append(parent.output, parent.decorate(s, depth+1)...)
+				parent.output = append(parent.output, s...)
 				return
 			}
 		}
-		panic("Log in goroutine after " + c.name + " has completed: " + s)
+		panic("Log in goroutine after " + o.c.name + " has completed: " + string(p))
 	} else {
-		if c.chatty != nil {
-			if c.bench {
+		if o.c.chatty != nil {
+			if o.c.bench {
 				// Benchmarks don't print === CONT, so we should skip the test
 				// printer and just print straight to stdout.
-				fmt.Print(c.decorate(s, depth+1))
+				fmt.Print(s)
 			} else {
-				c.chatty.Printf(c.name, "%s", c.decorate(s, depth+1))
+				o.c.chatty.Printf(o.c.name, "%s", s)
 			}
-
-			return
+		} else {
+			o.c.output = append(o.c.output, s...)
 		}
-		c.output = append(c.output, c.decorate(s, depth+1)...)
 	}
 }
 
