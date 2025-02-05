@@ -894,7 +894,7 @@ func TestRunningTestsInCleanup(t *testing.T) {
 
 func parseRunningTests(out []byte) (runningTests []string, ok bool) {
 	inRunningTests := false
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		if inRunningTests {
 			// Package testing adds one tab, the panic printer adds another.
 			if trimmed, ok := strings.CutPrefix(line, "\t\t"); ok {

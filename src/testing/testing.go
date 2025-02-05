@@ -2501,7 +2501,7 @@ func (m *M) stopAlarm() {
 }
 
 func parseCpuList() {
-	for _, val := range strings.Split(*cpuListStr, ",") {
+	for val := range strings.SplitSeq(*cpuListStr, ",") {
 		val = strings.TrimSpace(val)
 		if val == "" {
 			continue
