@@ -377,6 +377,8 @@ The available conditions are:
 	GOOS/GOARCH supports -asan
 [buildmode:*]
 	go supports -buildmode=<suffix>
+[bzr]
+	the 'bzr' executable exists and provides the standard CLI
 [case-sensitive]
 	$WORK filesystem is case-sensitive
 [cc:*]

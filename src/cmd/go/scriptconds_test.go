@@ -37,6 +37,7 @@ func scriptConditions(t *testing.T) map[string]script.Cond {
 	}
 
 	add("abscc", script.Condition("default $CC path is absolute and exists", defaultCCIsAbsolute))
+	add("bzr", lazyBool("the 'bzr' executable exists and provides the standard CLI", hasWorkingBzr))
 	add("case-sensitive", script.OnceCondition("$WORK filesystem is case-sensitive", isCaseSensitive))
 	add("cc", script.PrefixCondition("go env CC = <suffix> (ignoring the go/env file)", ccIs))
 	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
@@ -149,5 +150,16 @@ func hasWorkingGit() bool {
 		return false
 	}
 	_, err := exec.LookPath("git")
+	return err == nil
+}
+
+func hasWorkingBzr() bool {
+	bzr, err := exec.LookPath("bzr")
+	if err != nil {
+		return false
+	}
+	// Check that 'bzr help' exits with code 0.
+	// See go.dev/issue/71504 for an example where 'bzr' exists in PATH but doesn't work.
+	err = exec.Command(bzr, "help").Run()
 	return err == nil
 }

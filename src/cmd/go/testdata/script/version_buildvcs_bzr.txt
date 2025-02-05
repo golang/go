@@ -2,8 +2,8 @@
 # controlled with -buildvcs. This test focuses on Bazaar specifics.
 # The Git test covers common functionality.
 
-[!exec:bzr] skip
 [short] skip
+[!bzr] skip 'requires a working bzr client'
 env GOBIN=$WORK/gopath/bin
 env oldpath=$PATH
 env HOME=$WORK
