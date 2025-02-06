@@ -13,16 +13,6 @@ import (
 )
 
 // Validate the constants redefined from unicode.
-func init() {
-	if MaxRune != unicode.MaxRune {
-		panic("utf8.MaxRune is wrong")
-	}
-	if RuneError != unicode.ReplacementChar {
-		panic("utf8.RuneError is wrong")
-	}
-}
-
-// Validate the constants redefined from unicode.
 func TestConstants(t *testing.T) {
 	if MaxRune != unicode.MaxRune {
 		t.Errorf("utf8.MaxRune is wrong: %x should be %x", MaxRune, unicode.MaxRune)
