@@ -28,15 +28,11 @@ TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
 // X11 length of a
 // X12 points to start of b
 // X13 length of b
-// for non-regabi X14 points to the address to store the return value (-1/0/1)
-// for regabi the return value in X10
+// return value in X10 (-1/0/1)
 TEXT compare<>(SB),NOSPLIT|NOFRAME,$0
 	BEQ	X10, X12, cmp_len
 
-	MOV	X11, X5
-	BGE	X13, X5, use_a_len // X5 = min(len(a), len(b))
-	MOV	X13, X5
-use_a_len:
+	MIN	X11, X13, X5
 	BEQZ	X5, cmp_len
 
 	MOV	$32, X6

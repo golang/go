@@ -264,6 +264,20 @@ func TestBranch(t *testing.T) {
 	}
 }
 
+func TestMinMax(t *testing.T) {
+	if runtime.GOARCH != "riscv64" {
+		t.Skip("Requires riscv64 to run")
+	}
+
+	testenv.MustHaveGoBuild(t)
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test")
+	cmd.Dir = "testdata/testminmax"
+	if out, err := testenv.CleanCmdEnv(cmd).CombinedOutput(); err != nil {
+		t.Errorf("Min max test failed: %v\n%s", err, out)
+	}
+}
+
 func TestPCAlign(t *testing.T) {
 	dir := t.TempDir()
 	tmpfile := filepath.Join(dir, "x.s")

@@ -376,14 +376,14 @@ start:
 	CPOPW	X23, X24				// 1b9c2b60
 	CTZ	X24, X25				// 931c1c60
 	CTZW	X25, X26				// 1b9d1c60
-	MAX	X26, X28, X29				// b36eae0b
-	MAX	X26, X28				// 336eae0b
-	MAXU	X28, X29, X30				// 33ffce0b
-	MAXU	X28, X29				// b3fece0b
-	MIN	X29, X30, X5				// b342df0b
-	MIN	X29, X30				// 334fdf0b
-	MINU	X30, X5, X6				// 33d3e20b
-	MINU	X30, X5					// b3d2e20b
+	MAX	X26, X28, X29				// b36eae0b or b32fae01b30ff041b34eae01b3fedf01b34ede01
+	MAX	X26, X28				// 336eae0b or b32fcd01b30ff041334ecd0133fecf01334ecd01
+	MAXU	X28, X29, X30				// 33ffce0b or b3bfce01b30ff04133cfce0133ffef0133cfee01
+	MAXU	X28, X29				// b3fece0b or b33fde01b30ff041b34ede01b3fedf01b34ede01
+	MIN	X29, X30, X5				// b342df0b or b3afee01b30ff041b342df01b3f25f00b3425f00
+	MIN	X29, X30				// 334fdf0b or b32fdf01b30ff04133cfee0133ffef0133cfee01
+	MINU	X30, X5, X6				// 33d3e20b or b33f5f00b30ff04133c3e20133f36f0033c36200
+	MINU	X30, X5					// b3d2e20b or b3bfe201b30ff041b3425f00b3f25f00b3425f00
 	ORN	X6, X7, X8				// 33e46340 or 1344f3ff33e48300
 	ORN	X6, X7					// b3e36340 or 934ff3ffb3e3f301
 	SEXTB	X16, X17				// 93184860

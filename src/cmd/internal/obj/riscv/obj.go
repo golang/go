@@ -2785,6 +2785,47 @@ func instructionsForRotate(p *obj.Prog, ins *instruction) []*instruction {
 	}
 }
 
+// instructionsForMinMax returns the machine instructions for an integer minimum or maximum.
+func instructionsForMinMax(p *obj.Prog, ins *instruction) []*instruction {
+	if buildcfg.GORISCV64 >= 22 {
+		// Minimum and maximum instructions are supported natively.
+		return []*instruction{ins}
+	}
+
+	// Generate a move for identical inputs.
+	if ins.rs1 == ins.rs2 {
+		ins.as, ins.rs2, ins.imm = AADDI, obj.REG_NONE, 0
+		return []*instruction{ins}
+	}
+
+	// Ensure that if one of the source registers is the same as the destination,
+	// it is processed first.
+	if ins.rs1 == ins.rd {
+		ins.rs1, ins.rs2 = ins.rs2, ins.rs1
+	}
+	sltReg1, sltReg2 := ins.rs2, ins.rs1
+
+	// MIN -> SLT/SUB/XOR/AND/XOR
+	// MAX -> SLT/SUB/XOR/AND/XOR with swapped inputs to SLT
+	switch ins.as {
+	case AMIN:
+		ins.as = ASLT
+	case AMAX:
+		ins.as, sltReg1, sltReg2 = ASLT, sltReg2, sltReg1
+	case AMINU:
+		ins.as = ASLTU
+	case AMAXU:
+		ins.as, sltReg1, sltReg2 = ASLTU, sltReg2, sltReg1
+	}
+	return []*instruction{
+		&instruction{as: ins.as, rs1: sltReg1, rs2: sltReg2, rd: REG_TMP},
+		&instruction{as: ASUB, rs1: REG_ZERO, rs2: REG_TMP, rd: REG_TMP},
+		&instruction{as: AXOR, rs1: ins.rs1, rs2: ins.rs2, rd: ins.rd},
+		&instruction{as: AAND, rs1: REG_TMP, rs2: ins.rd, rd: ins.rd},
+		&instruction{as: AXOR, rs1: ins.rs1, rs2: ins.rd, rd: ins.rd},
+	}
+}
+
 // instructionsForProg returns the machine instructions for an *obj.Prog.
 func instructionsForProg(p *obj.Prog) []*instruction {
 	ins := instructionForProg(p)
@@ -3033,6 +3074,9 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		// XNOR -> (NOT (XOR x y))
 		ins.as = AXOR
 		inss = append(inss, &instruction{as: AXORI, rs1: ins.rd, rs2: obj.REG_NONE, rd: ins.rd, imm: -1})
+
+	case AMIN, AMAX, AMINU, AMAXU:
+		inss = instructionsForMinMax(p, ins)
 
 	case AVSETVLI, AVSETIVLI:
 		ins.rs1, ins.rs2 = ins.rs2, obj.REG_NONE
