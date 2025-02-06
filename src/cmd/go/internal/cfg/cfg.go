@@ -207,6 +207,32 @@ func init() {
 	SetGOROOT(Getenv("GOROOT"), false)
 }
 
+// ForceHost forces GOOS and GOARCH to runtime.GOOS and runtime.GOARCH.
+// This is used by go tool to build tools for the go command's own
+// GOOS and GOARCH.
+func ForceHost() {
+	Goos = runtime.GOOS
+	Goarch = runtime.GOARCH
+	ExeSuffix = exeSuffix()
+	GO386 = buildcfg.DefaultGO386
+	GOAMD64 = buildcfg.DefaultGOAMD64
+	GOARM = buildcfg.DefaultGOARM
+	GOARM64 = buildcfg.DefaultGOARM64
+	GOMIPS = buildcfg.DefaultGOMIPS
+	GOMIPS64 = buildcfg.DefaultGOMIPS64
+	GOPPC64 = buildcfg.DefaultGOPPC64
+	GORISCV64 = buildcfg.DefaultGORISCV64
+	GOWASM = ""
+
+	// Recompute the build context using Goos and Goarch to
+	// set the correct value for ctx.CgoEnabled.
+	BuildContext = defaultContext()
+	// Recompute experiments: the settings determined depend on GOOS and GOARCH.
+	// This will also update the BuildContext's tool tags to include the new
+	// experiment tags.
+	computeExperiment()
+}
+
 // SetGOROOT sets GOROOT and associated variables to the given values.
 //
 // If isTestGo is true, build.ToolDir is set based on the TESTGO_GOHOSTOS and
@@ -269,6 +295,10 @@ var (
 )
 
 func init() {
+	computeExperiment()
+}
+
+func computeExperiment() {
 	Experiment, ExperimentErr = buildcfg.ParseGOEXPERIMENT(Goos, Goarch, RawGOEXPERIMENT)
 	if ExperimentErr != nil {
 		return

@@ -2758,6 +2758,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	// consists of the original $CGO_LDFLAGS (unchecked) and all the
 	// flags put together from source code (checked).
 	cgoenv := b.cCompilerEnv()
+	cgoenv = append(cgoenv, cfgChangedEnv...)
 	var ldflagsOption []string
 	if len(cgoLDFLAGS) > 0 {
 		flags := make([]string, len(cgoLDFLAGS))

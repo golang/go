@@ -18,7 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -26,6 +26,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modindex"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
@@ -101,9 +102,20 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 
+		// See if tool can be a builtin tool. If so, try to build and run it.
+		// buildAndRunBuiltinTool will fail if the install target of the loaded package is not
+		// the tool directory.
+		if tool := loadBuiltinTool(toolName); tool != "" {
+			// Increment a counter for the tool subcommand with the tool name.
+			counter.Inc("go/subcommand:tool-" + toolName)
+			buildAndRunBuiltinTool(ctx, toolName, tool, args[1:])
+			return
+		}
+
+		// Try to build and run mod tool.
 		tool := loadModTool(ctx, toolName)
 		if tool != "" {
-			buildAndRunModtool(ctx, tool, args[1:])
+			buildAndRunModtool(ctx, toolName, tool, args[1:])
 			return
 		}
 
@@ -116,47 +128,7 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 		counter.Inc("go/subcommand:tool-" + toolName)
 	}
 
-	if toolN {
-		cmd := toolPath
-		if len(args) > 1 {
-			cmd += " " + strings.Join(args[1:], " ")
-		}
-		fmt.Printf("%s\n", cmd)
-		return
-	}
-	args[0] = toolPath // in case the tool wants to re-exec itself, e.g. cmd/dist
-	toolCmd := &exec.Cmd{
-		Path:   toolPath,
-		Args:   args,
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}
-	err = toolCmd.Start()
-	if err == nil {
-		c := make(chan os.Signal, 100)
-		signal.Notify(c)
-		go func() {
-			for sig := range c {
-				toolCmd.Process.Signal(sig)
-			}
-		}()
-		err = toolCmd.Wait()
-		signal.Stop(c)
-		close(c)
-	}
-	if err != nil {
-		// Only print about the exit status if the command
-		// didn't even run (not an ExitError) or it didn't exit cleanly
-		// or we're printing command lines too (-x mode).
-		// Assume if command exited cleanly (even with non-zero status)
-		// it printed any messages it wanted to print.
-		if e, ok := err.(*exec.ExitError); !ok || !e.Exited() || cfg.BuildX {
-			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
-		}
-		base.SetExitStatus(1)
-		return
-	}
+	runBuiltTool(toolName, nil, append([]string{toolPath}, args[1:]...))
 }
 
 // listTools prints a list of the available tools in the tools directory.
@@ -262,6 +234,23 @@ func defaultExecName(importPath string) string {
 	return p.DefaultExecName()
 }
 
+func loadBuiltinTool(toolName string) string {
+	if !base.ValidToolName(toolName) {
+		return ""
+	}
+	cmdTool := path.Join("cmd", toolName)
+	if !modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, cmdTool) {
+		return ""
+	}
+	// Create a fake package and check to see if it would be installed to the tool directory.
+	// If not, it's not a builtin tool.
+	p := &load.Package{PackagePublic: load.PackagePublic{Name: "main", ImportPath: cmdTool, Goroot: true}}
+	if load.InstallTargetDir(p) != load.ToTool {
+		return ""
+	}
+	return cmdTool
+}
+
 func loadModTool(ctx context.Context, name string) string {
 	modload.InitWorkfile()
 	modload.LoadModFile(ctx)
@@ -288,7 +277,42 @@ func loadModTool(ctx context.Context, name string) string {
 	return ""
 }
 
-func buildAndRunModtool(ctx context.Context, tool string, args []string) {
+func buildAndRunBuiltinTool(ctx context.Context, toolName, tool string, args []string) {
+	// Override GOOS and GOARCH for the build to build the tool using
+	// the same GOOS and GOARCH as this go command.
+	cfg.ForceHost()
+
+	// Ignore go.mod and go.work: we don't need them, and we want to be able
+	// to run the tool even if there's an issue with the module or workspace the
+	// user happens to be in.
+	modload.RootMode = modload.NoRoot
+
+	runFunc := func(b *work.Builder, ctx context.Context, a *work.Action) error {
+		cmdline := str.StringList(a.Deps[0].BuiltTarget(), a.Args)
+		return runBuiltTool(toolName, nil, cmdline)
+	}
+
+	buildAndRunTool(ctx, tool, args, runFunc)
+}
+
+func buildAndRunModtool(ctx context.Context, toolName, tool string, args []string) {
+	runFunc := func(b *work.Builder, ctx context.Context, a *work.Action) error {
+		// Use the ExecCmd to run the binary, as go run does. ExecCmd allows users
+		// to provide a runner to run the binary, for example a simulator for binaries
+		// that are cross-compiled to a different platform.
+		cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].BuiltTarget(), a.Args)
+		// Use same environment go run uses to start the executable:
+		// the original environment with cfg.GOROOTbin added to the path.
+		env := slices.Clip(cfg.OrigEnv)
+		env = base.AppendPATH(env)
+
+		return runBuiltTool(toolName, env, cmdline)
+	}
+
+	buildAndRunTool(ctx, tool, args, runFunc)
+}
+
+func buildAndRunTool(ctx context.Context, tool string, args []string, runTool work.ActorFunc) {
 	work.BuildInit()
 	b := work.NewBuilder("")
 	defer func() {
@@ -304,22 +328,15 @@ func buildAndRunModtool(ctx context.Context, tool string, args []string) {
 
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
 	a1.CacheExecutable = true
-	a := &work.Action{Mode: "go tool", Actor: work.ActorFunc(runBuiltTool), Args: args, Deps: []*work.Action{a1}}
+	a := &work.Action{Mode: "go tool", Actor: runTool, Args: args, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)
 }
 
-func runBuiltTool(b *work.Builder, ctx context.Context, a *work.Action) error {
-	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].BuiltTarget(), a.Args)
-
+func runBuiltTool(toolName string, env, cmdline []string) error {
 	if toolN {
 		fmt.Println(strings.Join(cmdline, " "))
 		return nil
 	}
-
-	// Use same environment go run uses to start the executable:
-	// the original environment with cfg.GOROOTbin added to the path.
-	env := slices.Clip(cfg.OrigEnv)
-	env = base.AppendPATH(env)
 
 	toolCmd := &exec.Cmd{
 		Path:   cmdline[0],
@@ -344,13 +361,17 @@ func runBuiltTool(b *work.Builder, ctx context.Context, a *work.Action) error {
 	}
 	if err != nil {
 		// Only print about the exit status if the command
-		// didn't even run (not an ExitError)
+		// didn't even run (not an ExitError) or if it didn't exit cleanly
+		// or we're printing command lines too (-x mode).
 		// Assume if command exited cleanly (even with non-zero status)
 		// it printed any messages it wanted to print.
-		if e, ok := err.(*exec.ExitError); ok {
+		e, ok := err.(*exec.ExitError)
+		if !ok || !e.Exited() || cfg.BuildX {
+			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
+		}
+		if ok {
 			base.SetExitStatus(e.ExitCode())
 		} else {
-			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", filepath.Base(a.Deps[0].Target), err)
 			base.SetExitStatus(1)
 		}
 	}

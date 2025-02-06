@@ -30,7 +30,7 @@ func Tool(toolName string) string {
 // ToolPath returns the path at which we expect to find the named tool
 // (for example, "vet"), and the error (if any) from statting that path.
 func ToolPath(toolName string) (string, error) {
-	if !validToolName(toolName) {
+	if !ValidToolName(toolName) {
 		return "", fmt.Errorf("bad tool name: %q", toolName)
 	}
 	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
@@ -41,7 +41,7 @@ func ToolPath(toolName string) (string, error) {
 	return toolPath, err
 }
 
-func validToolName(toolName string) bool {
+func ValidToolName(toolName string) bool {
 	for _, c := range toolName {
 		switch {
 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
