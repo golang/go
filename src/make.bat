@@ -101,11 +101,9 @@ echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%. (%GOROOT_BOOTSTRAP_VERSION%)
 if x%vflag==x-v echo cmd/dist
 set GOROOT=%GOROOT_BOOTSTRAP%
 set GOBIN=
-"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
+"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist || goto fail
 endlocal
-if errorlevel 1 goto fail
-.\cmd\dist\dist.exe env -w -p >env.bat
-if errorlevel 1 goto fail
+.\cmd\dist\dist.exe env -w -p >env.bat || goto fail
 call .\env.bat
 del env.bat
 if x%vflag==x-v echo.
@@ -148,8 +146,7 @@ if x%4==x--distpack set bootstrapflags=%bootstrapflags% -distpack
 :: Run dist bootstrap to complete make.bash.
 :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
 :: Throw ours, built with the bootstrap toolchain, away after bootstrap.
-.\cmd\dist\dist.exe bootstrap -a %vflag% %bootstrapflags%
-if errorlevel 1 goto fail
+.\cmd\dist\dist.exe bootstrap -a %vflag% %bootstrapflags% || goto fail
 del .\cmd\dist\dist.exe
 goto :eof
 

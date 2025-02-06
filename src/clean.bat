@@ -6,8 +6,7 @@
 
 setlocal
 
-go tool dist env -w -p >env.bat
-if errorlevel 1 goto fail
+go tool dist env -w -p >env.bat || goto fail
 call .\env.bat
 del env.bat
 echo.

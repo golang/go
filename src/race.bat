@@ -15,10 +15,8 @@ exit /b 1
 :ok
 
 set GOROOT=%CD%\..
-call .\make.bat --dist-tool >NUL
-if errorlevel 1 goto fail
-.\cmd\dist\dist.exe env -w -p >env.bat
-if errorlevel 1 goto fail
+call .\make.bat --dist-tool >NUL || goto fail
+.\cmd\dist\dist.exe env -w -p >env.bat || goto fail
 call .\env.bat
 del env.bat
 
@@ -27,15 +25,11 @@ echo Race detector is only supported on windows/amd64.
 goto fail
 
 :continue
-call .\make.bat --no-banner --no-local
-if errorlevel 1 goto fail
+call .\make.bat --no-banner --no-local || goto fail
 echo # go install -race std
-go install -race std
-if errorlevel 1 goto fail
+go install -race std || goto fail
+go tool dist test -race || goto fail
 
-go tool dist test -race
-
-if errorlevel 1 goto fail
 echo All tests passed.
 goto :eof
 

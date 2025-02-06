@@ -12,14 +12,12 @@ goto fail
 setlocal
 
 set GOENV=off
-..\bin\go tool dist env > env.bat
-if errorlevel 1 goto fail
+..\bin\go tool dist env > env.bat || goto fail
 call .\env.bat
 del env.bat
 
 set GOPATH=c:\nonexist-gopath
-..\bin\go tool dist test --rebuild %*
-if errorlevel 1 goto fail
+..\bin\go tool dist test --rebuild %* || goto fail
 goto :eof
 
 :fail
