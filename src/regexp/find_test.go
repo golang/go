@@ -99,6 +99,11 @@ var findTests = []FindTest{
 	{`\B`, "xx yy", build(2, 1, 1, 4, 4)},
 	{`(|a)*`, "aa", build(3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2)},
 
+	// Multibyte characters -- verify that we don't try to match in the middle
+	// of a character.
+	{"[a-c]*", "\u65e5", build(2, 0, 0, 3, 3)},
+	{"[^\u65e5]", "abc\u65e5def", build(6, 0, 1, 1, 2, 2, 3, 6, 7, 7, 8, 8, 9)},
+
 	// RE2 tests
 	{`[^\S\s]`, "abcd", nil},
 	{`[^\S[:space:]]`, "abcd", nil},
