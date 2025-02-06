@@ -11,9 +11,9 @@ echo all.bat must be run from go\src
 exit /b 1
 :ok
 
-call .\make.bat --no-banner --no-local || goto fail
+call .\make.bat --no-banner || goto fail
 call .\run.bat --no-rebuild || goto fail
-"%GOTOOLDIR%/dist" banner
+..\bin\go tool dist banner
 goto :eof
 
 :fail

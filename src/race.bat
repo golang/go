@@ -25,7 +25,7 @@ echo Race detector is only supported on windows/amd64.
 goto fail
 
 :continue
-call .\make.bat --no-banner --no-local || goto fail
+call .\make.bat --no-banner || goto fail
 echo # go install -race std
 go install -race std || goto fail
 go tool dist test -race || goto fail
