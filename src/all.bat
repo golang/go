@@ -13,7 +13,7 @@ exit /b 1
 
 call .\make.bat --no-banner --no-local
 if errorlevel 1 goto fail
-call .\run.bat --no-rebuild --no-local
+call .\run.bat --no-rebuild
 if errorlevel 1 goto fail
 "%GOTOOLDIR%/dist" banner
 goto :eof
