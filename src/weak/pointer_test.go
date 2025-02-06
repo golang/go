@@ -6,10 +6,12 @@ package weak_test
 
 import (
 	"context"
+	"internal/goarch"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 	"weak"
 )
 
@@ -152,6 +154,14 @@ func TestPointerFinalizer(t *testing.T) {
 	runtime.GC()
 	if wt.Value() != nil {
 		t.Errorf("weak pointer is non-nil even after finalization: %v", wt)
+	}
+}
+
+func TestPointerSize(t *testing.T) {
+	var p weak.Pointer[T]
+	size := unsafe.Sizeof(p)
+	if size != goarch.PtrSize {
+		t.Errorf("weak.Pointer[T] size = %d, want %d", size, goarch.PtrSize)
 	}
 }
 
