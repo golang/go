@@ -16,8 +16,6 @@ if x%2==x--no-local goto nolocal
 setlocal
 :nolocal
 
-set GOBUILDFAIL=0
-
 set GOENV=off
 ..\bin\go tool dist env > env.bat
 if errorlevel 1 goto fail
@@ -29,14 +27,12 @@ set GOPATH=c:\nonexist-gopath
 if x%1==x--no-rebuild goto norebuild
 ..\bin\go tool dist test --rebuild
 if errorlevel 1 goto fail
-goto end
+goto :eof
 
 :norebuild
 ..\bin\go tool dist test
 if errorlevel 1 goto fail
-goto end
+goto :eof
 
 :fail
-set GOBUILDFAIL=1
-
-:end
+exit /b 1
