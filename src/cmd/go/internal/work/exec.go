@@ -2208,7 +2208,7 @@ func (b *Builder) gccld(a *Action, objdir, outfile string, flags []string, objs 
 	}
 
 	cmdargs := []any{cmd, "-o", outfile, objs, flags}
-	out, err := sh.runOut(base.Cwd(), b.cCompilerEnv(), cmdargs...)
+	_, err := sh.runOut(base.Cwd(), b.cCompilerEnv(), cmdargs...)
 
 	// Note that failure is an expected outcome here, so we report output only
 	// in debug mode and don't report the error.
@@ -2217,7 +2217,7 @@ func (b *Builder) gccld(a *Action, objdir, outfile string, flags []string, objs 
 		if err != nil {
 			saw = "failed"
 		}
-		sh.ShowCmd("", "%s # test for internal linking errors (%s)\n%s", joinUnambiguously(str.StringList(cmdargs...)), saw, out)
+		sh.ShowCmd("", "%s # test for internal linking errors (%s)", joinUnambiguously(str.StringList(cmdargs...)), saw)
 	}
 
 	return err
