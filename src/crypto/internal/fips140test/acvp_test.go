@@ -75,6 +75,10 @@ func TestMain(m *testing.M) {
 }
 
 func wrapperMain() {
+	if !fips140.Enabled {
+		fmt.Fprintln(os.Stderr, "ACVP wrapper must be run with GODEBUG=fips140=on")
+		os.Exit(2)
+	}
 	if err := processingLoop(bufio.NewReader(os.Stdin), os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "processing error: %v\n", err)
 		os.Exit(1)
@@ -2129,6 +2133,7 @@ func TestACVP(t *testing.T) {
 	cmd = testenv.Command(t, goTool, args...)
 	cmd.Dir = dataDir
 	cmd.Env = append(os.Environ(), "ACVP_WRAPPER=1")
+	cmd.Env = append(os.Environ(), "GODEBUG=fips140=on")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run acvp tests: %s\n%s", err, string(output))
