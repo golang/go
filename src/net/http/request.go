@@ -978,6 +978,17 @@ func (r *Request) BasicAuth() (username, password string, ok bool) {
 	return parseBasicAuth(auth)
 }
 
+// ProxyBasicAuth returns the username and password provided in the request's
+// Proxy-Authorization header, if the request uses HTTP Basic Authentication.
+// See RFC 2068, Section 14.
+func (r *Request) ProxyBasicAuth() (username, password string, ok bool) {
+	auth := r.Header.Get("Proxy-Authorization")
+	if auth == "" {
+		return "", "", false
+	}
+	return parseBasicAuth(auth)
+}
+
 // parseBasicAuth parses an HTTP Basic Authentication string.
 // "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==" returns ("Aladdin", "open sesame", true).
 //
@@ -1021,6 +1032,10 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 // be URL encoded first with [url.QueryEscape].
 func (r *Request) SetBasicAuth(username, password string) {
 	r.Header.Set("Authorization", "Basic "+basicAuth(username, password))
+}
+
+func (r *Request) SetProxyBasicAuth(username, password string) {
+	r.Header.Set("Proxy-Authorization", "Basic "+basicAuth(username, password))
 }
 
 // parseRequestLine parses "GET /foo HTTP/1.1" into its three parts.
