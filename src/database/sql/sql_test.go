@@ -1493,6 +1493,7 @@ func TestCursorFake(t *testing.T) {
 }
 
 func TestInvalidNilValues(t *testing.T) {
+
 	var date1 time.Time
 	var date2 int
 
@@ -1533,6 +1534,91 @@ func TestInvalidNilValues(t *testing.T) {
 			}
 			if err.Error() != tt.expectedError {
 				t.Fatalf("Expected error: %s\nReceived: %s", tt.expectedError, err.Error())
+			}
+
+			err = conn.PingContext(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestValidNilValues(t *testing.T) {
+	ignoreNullValues = true
+	defer func() { ignoreNullValues = false }()
+
+	var date1 time.Time
+	var int1 int
+	var float1 float64
+	var uint1 uint
+	var string1 string
+	var bool1 bool
+	type testStruct struct {
+		name string
+	}
+	var struct1 testStruct
+	var int2 int
+	int2 = 17
+
+	tests := []struct {
+		name  string
+		input any
+	}{
+		{
+			name:  "date",
+			input: &date1,
+		},
+		{
+			name:  "int",
+			input: &int1,
+		},
+		{
+			name:  "initialized int",
+			input: &int2,
+		},
+		{
+			name:  "float",
+			input: &float1,
+		},
+		{
+			name:  "uint",
+			input: &uint1,
+		},
+		{
+			name:  "string",
+			input: &string1,
+		},
+		{
+			name:  "bool",
+			input: &bool1,
+		},
+		{
+			name:  "struct",
+			input: &struct1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := newTestDB(t, "people")
+			defer closeDB(t, db)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			conn, err := db.Conn(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn.dc.ci.(*fakeConn).skipDirtySession = true
+			defer conn.Close()
+
+			originalValue := tt.input
+			err = conn.QueryRowContext(ctx, "SELECT|people|bdate|age=?", 1).Scan(tt.input)
+			if err != nil {
+				t.Fatalf("expected no error when querying nil column, but get %s", err.Error())
+			} else if tt.input != originalValue {
+				t.Fatalf("expected null scan to preserve original value %v, but got %v", originalValue, tt.input)
 			}
 
 			err = conn.PingContext(ctx)
