@@ -504,7 +504,7 @@ General-purpose environment variables:
 	GOBIN
 		The directory where 'go install' will install a command.
 	GOCACHE
-		The directory where the go command will store cached
+		The absolute path to the directory where the go command will store cached
 		information for reuse in future builds.
 	GOCACHEPROG
 		A command (with optional space-separated flags) that implements an
