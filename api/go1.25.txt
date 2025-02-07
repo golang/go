@@ -10,6 +10,7 @@ pkg go/types, const RecvVar = 3 #70250
 pkg go/types, const RecvVar VarKind #70250
 pkg go/types, const ResultVar = 5 #70250
 pkg go/types, const ResultVar VarKind #70250
+pkg go/types, func LookupSelection(Type, bool, *Package, string) (Selection, bool) #70737
 pkg go/types, method (*Var) Kind() VarKind #70250
 pkg go/types, method (*Var) SetKind(VarKind) #70250
 pkg go/types, method (VarKind) String() string #70250

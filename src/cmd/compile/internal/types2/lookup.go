@@ -8,6 +8,45 @@ package types2
 
 import "bytes"
 
+// LookupSelection selects the field or method whose ID is Id(pkg,
+// name), on a value of type T. If addressable is set, T is the type
+// of an addressable variable (this matters only for method lookups).
+// T must not be nil.
+//
+// If the selection is valid:
+//
+//   - [Selection.Obj] returns the field ([Var]) or method ([Func]);
+//   - [Selection.Indirect] reports whether there were any pointer
+//     indirections on the path to the field or method.
+//   - [Selection.Index] returns the index sequence, defined below.
+//
+// The last index entry is the field or method index in the (possibly
+// embedded) type where the entry was found, either:
+//
+//  1. the list of declared methods of a named type; or
+//  2. the list of all methods (method set) of an interface type; or
+//  3. the list of fields of a struct type.
+//
+// The earlier index entries are the indices of the embedded struct
+// fields traversed to get to the found entry, starting at depth 0.
+//
+// See also [LookupFieldOrMethod], which returns the components separately.
+func LookupSelection(T Type, addressable bool, pkg *Package, name string) (Selection, bool) {
+	obj, index, indirect := LookupFieldOrMethod(T, addressable, pkg, name)
+	var kind SelectionKind
+	switch obj.(type) {
+	case nil:
+		return Selection{}, false
+	case *Func:
+		kind = MethodVal
+	case *Var:
+		kind = FieldVal
+	default:
+		panic(obj) // can't happen
+	}
+	return Selection{kind, T, obj, index, indirect}, true
+}
+
 // Internal use of LookupFieldOrMethod: If the obj result is a method
 // associated with a concrete (non-interface) type, the method's signature
 // may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
@@ -38,6 +77,8 @@ import "bytes"
 //   - If indirect is set, a method with a pointer receiver type was found
 //     but there was no pointer on the path from the actual receiver type to
 //     the method's formal receiver base type, nor was the receiver addressable.
+//
+// See also [LookupSelection], which returns the result as a [Selection].
 func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	if T == nil {
 		panic("LookupFieldOrMethod on nil type")

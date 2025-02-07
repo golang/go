@@ -632,14 +632,14 @@ func TestIssue13898(t *testing.T) {
 	}
 
 	// lookup go/types.Object.Pkg method
-	m, index, indirect := types.LookupFieldOrMethod(typ, false, nil, "Pkg")
-	if m == nil {
-		t.Fatalf("go/types.Object.Pkg not found (index = %v, indirect = %v)", index, indirect)
+	sel, ok := types.LookupSelection(typ, false, nil, "Pkg")
+	if !ok {
+		t.Fatalf("go/types.Object.Pkg not found")
 	}
 
 	// the method must belong to go/types
-	if m.Pkg().Path() != "go/types" {
-		t.Fatalf("found %v; want go/types", m.Pkg())
+	if sel.Obj().Pkg().Path() != "go/types" {
+		t.Fatalf("found %v; want go/types", sel.Obj().Pkg())
 	}
 }
 
@@ -699,8 +699,8 @@ func TestIssue20046(t *testing.T) {
 	// "./issue20046".V.M must exist
 	pkg := compileAndImportPkg(t, "issue20046")
 	obj := lookupObj(t, pkg.Scope(), "V")
-	if m, index, indirect := types.LookupFieldOrMethod(obj.Type(), false, nil, "M"); m == nil {
-		t.Fatalf("V.M not found (index = %v, indirect = %v)", index, indirect)
+	if _, ok := types.LookupSelection(obj.Type(), false, nil, "M"); !ok {
+		t.Fatalf("V.M not found")
 	}
 }
 func TestIssue25301(t *testing.T) {
