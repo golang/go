@@ -128,7 +128,8 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 	// If no GOAUTH command provided a credential for the given url
 	// and an error occurred, log the error.
 	if cfg.BuildX && url != "" {
-		if ok := loadCredential(&http.Request{}, url); !ok && len(cmdErrs) > 0 {
+		req := &http.Request{Header: make(http.Header)}
+		if ok := loadCredential(req, url); !ok && len(cmdErrs) > 0 {
 			log.Printf("GOAUTH encountered errors for %s:", url)
 			for _, err := range cmdErrs {
 				log.Printf("  %v", err)
