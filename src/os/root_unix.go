@@ -48,11 +48,11 @@ func newRoot(fd int, name string) (*Root, error) {
 		syscall.CloseOnExec(fd)
 	}
 
-	r := &Root{root{
+	r := &Root{&root{
 		fd:   fd,
 		name: name,
 	}}
-	runtime.SetFinalizer(&r.root, (*root).Close)
+	runtime.SetFinalizer(r.root, (*root).Close)
 	return r, nil
 }
 

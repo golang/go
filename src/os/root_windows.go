@@ -105,11 +105,11 @@ func newRoot(fd syscall.Handle, name string) (*Root, error) {
 		return nil, &PathError{Op: "open", Path: name, Err: errors.New("not a directory")}
 	}
 
-	r := &Root{root{
+	r := &Root{&root{
 		fd:   fd,
 		name: name,
 	}}
-	runtime.SetFinalizer(&r.root, (*root).Close)
+	runtime.SetFinalizer(r.root, (*root).Close)
 	return r, nil
 }
 

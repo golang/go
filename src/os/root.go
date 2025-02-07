@@ -60,7 +60,7 @@ func OpenInRoot(dir, name string) (*File, error) {
 //   - When GOOS=plan9 or GOOS=js, Root does not track directories across renames.
 //     On these platforms, a Root references a directory name, not a file descriptor.
 type Root struct {
-	root root
+	root *root
 }
 
 const (
