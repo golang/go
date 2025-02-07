@@ -49,7 +49,7 @@ func newRoot(name string) (*Root, error) {
 	if !fi.IsDir() {
 		return nil, errors.New("not a directory")
 	}
-	return &Root{root{name: name}}, nil
+	return &Root{&root{name: name}}, nil
 }
 
 func (r *root) Close() error {
