@@ -491,6 +491,9 @@ type response struct {
 	// non-nil. Make this lazily-created again as it used to be?
 	closeNotifyCh  chan bool
 	didCloseNotify atomic.Bool // atomic (only false->true winner should send)
+
+	// Option for opt-in sorting headers by defined order in a special header.
+	enableOrderHeaders bool
 }
 
 func (c *response) SetReadDeadline(deadline time.Time) error {
@@ -1191,6 +1194,11 @@ func relevantCaller() runtime.Frame {
 }
 
 func (w *response) WriteHeader(code int) {
+	// Check if the order headers option has been disabled.
+	if _, ok := w.handlerHeader[HeaderOrderKey]; ok && !w.enableOrderHeaders {
+		delete(w.handlerHeader, HeaderOrderKey)
+	}
+
 	if w.conn.hijacked() {
 		caller := relevantCaller()
 		w.conn.server.logf("http: response.WriteHeader on hijacked connection from %s (%s:%d)", caller.Function, path.Base(caller.File), caller.Line)

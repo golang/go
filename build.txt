@@ -1,0 +1,51 @@
+
+- make sure go is already installed
+apt-get update && apt-get install -y golang
+
+git checkout master
+
+cd src
+./all.bash
+
+
+sudo apt-get remove golang-go golang-1.23 golang-1.23-doc golang-1.23-go  golang-1.23-src golang-src
+
+
+export PATH="${PATH}:/home/rebase/haze/golang/re_go/bin"
+export GOROOT="/home/rebase/haze/golang/re_go"
+
+
+RUN echo "export PATH=\"${PATH}:/home/rebase/haze/golang/re_go/bin\"" >> ~/.bashrc
+RUN echo "export GOROOT=\"/home/rebase/haze/golang/re_go/\"" >> ~/.bashrc
+RUN echo "export GOBIN=\"/home/rebase/go/bin/\"" >> ~/.bashrc
+
+go install -v github.com/go-delve/delve/cmd/dlv@latest
+
+
+
+vscode settings
+
+
+    "terminal.integrated.profiles.linux": {
+
+        "bash": {
+            "path": "bash",
+            "icon": "terminal-bash",
+            "args": [
+                "-l"
+            ]            
+        },
+
+
+needs restart
+
+
+
+
+
+sudo apt-get install -y golang
+
+cd /home/rebase/haze/golang/re_go/src
+./all.bash
+
+sudo apt-get remove -y golang-go golang-1.23 golang-1.23-doc golang-1.23-go  golang-1.23-src golang-src

@@ -98,7 +98,7 @@ func badStringError(what, val string) error { return fmt.Errorf("%s %q", what, v
 // Headers that Request.Write handles itself and should be skipped.
 var reqWriteExcludeHeader = map[string]bool{
 	"Host":              true, // not in Header map anyway
-	"User-Agent":        true,
+	"User-Agent":        false,
 	"Content-Length":    true,
 	"Transfer-Encoding": true,
 	"Trailer":           true,
@@ -690,7 +690,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	if r.Header.has("User-Agent") {
 		userAgent = r.Header.Get("User-Agent")
 	}
-	if userAgent != "" {
+	if userAgent == defaultUserAgent {
 		userAgent = headerNewlineToSpace.Replace(userAgent)
 		userAgent = textproto.TrimString(userAgent)
 		_, err = fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)

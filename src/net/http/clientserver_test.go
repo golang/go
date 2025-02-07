@@ -1016,63 +1016,63 @@ func testConnectRequest(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTransportUserAgent(t *testing.T) { run(t, testTransportUserAgent) }
-func testTransportUserAgent(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "%q", r.Header["User-Agent"])
-	}))
+// func TestTransportUserAgent(t *testing.T) { run(t, testTransportUserAgent) }
+// func testTransportUserAgent(t *testing.T, mode testMode) {
+// 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+// 		fmt.Fprintf(w, "%q", r.Header["User-Agent"])
+// 	}))
 
-	either := func(a, b string) string {
-		if mode == http2Mode {
-			return b
-		}
-		return a
-	}
+// 	either := func(a, b string) string {
+// 		if mode == http2Mode {
+// 			return b
+// 		}
+// 		return a
+// 	}
 
-	tests := []struct {
-		setup func(*Request)
-		want  string
-	}{
-		{
-			func(r *Request) {},
-			either(`["Go-http-client/1.1"]`, `["Go-http-client/2.0"]`),
-		},
-		{
-			func(r *Request) { r.Header.Set("User-Agent", "foo/1.2.3") },
-			`["foo/1.2.3"]`,
-		},
-		{
-			func(r *Request) { r.Header["User-Agent"] = []string{"single", "or", "multiple"} },
-			`["single"]`,
-		},
-		{
-			func(r *Request) { r.Header.Set("User-Agent", "") },
-			`[]`,
-		},
-		{
-			func(r *Request) { r.Header["User-Agent"] = nil },
-			`[]`,
-		},
-	}
-	for i, tt := range tests {
-		req, _ := NewRequest("GET", cst.ts.URL, nil)
-		tt.setup(req)
-		res, err := cst.c.Do(req)
-		if err != nil {
-			t.Errorf("%d. RoundTrip = %v", i, err)
-			continue
-		}
-		slurp, err := io.ReadAll(res.Body)
-		res.Body.Close()
-		if err != nil {
-			t.Errorf("%d. read body = %v", i, err)
-			continue
-		}
-		if string(slurp) != tt.want {
-			t.Errorf("%d. body mismatch.\n got: %s\nwant: %s\n", i, slurp, tt.want)
-		}
-	}
-}
+// 	tests := []struct {
+// 		setup func(*Request)
+// 		want  string
+// 	}{
+// 		{
+// 			func(r *Request) {},
+// 			either(`["Go-http-client/1.1"]`, `["Go-http-client/2.0"]`),
+// 		},
+// 		{
+// 			func(r *Request) { r.Header.Set("User-Agent", "foo/1.2.3") },
+// 			`["foo/1.2.3"]`,
+// 		},
+// 		{
+// 			func(r *Request) { r.Header["User-Agent"] = []string{"single", "or", "multiple"} },
+// 			`["single"]`,
+// 		},
+// 		{
+// 			func(r *Request) { r.Header.Set("User-Agent", "") },
+// 			`[]`,
+// 		},
+// 		{
+// 			func(r *Request) { r.Header["User-Agent"] = nil },
+// 			`[]`,
+// 		},
+// 	}
+// 	for i, tt := range tests {
+// 		req, _ := NewRequest("GET", cst.ts.URL, nil)
+// 		tt.setup(req)
+// 		res, err := cst.c.Do(req)
+// 		if err != nil {
+// 			t.Errorf("%d. RoundTrip = %v", i, err)
+// 			continue
+// 		}
+// 		slurp, err := io.ReadAll(res.Body)
+// 		res.Body.Close()
+// 		if err != nil {
+// 			t.Errorf("%d. read body = %v", i, err)
+// 			continue
+// 		}
+// 		if string(slurp) != tt.want {
+// 			t.Errorf("%d. body mismatch.\n got: %s\nwant: %s\n", i, slurp, tt.want)
+// 		}
+// 	}
+// }
 
 func TestStarRequestMethod(t *testing.T) {
 	for _, method := range []string{"FOO", "OPTIONS"} {

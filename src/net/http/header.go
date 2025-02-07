@@ -10,6 +10,7 @@ import (
 	"net/http/internal/ascii"
 	"net/textproto"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +23,8 @@ import (
 // The keys should be in canonical form, as returned by
 // [CanonicalHeaderKey].
 type Header map[string][]string
+
+const HeaderOrderKey = "Header-Order"
 
 // Add adds the key, value pair to the header.
 // It appends to any existing values associated with key.
@@ -154,7 +157,27 @@ type keyValues struct {
 
 // headerSorter contains a slice of keyValues sorted by keyValues.key.
 type headerSorter struct {
-	kvs []keyValues
+	kvs   []keyValues
+	order map[string]int
+}
+
+func (s *headerSorter) Len() int      { return len(s.kvs) }
+func (s *headerSorter) Swap(i, j int) { s.kvs[i], s.kvs[j] = s.kvs[j], s.kvs[i] }
+func (s *headerSorter) Less(i, j int) bool {
+	// If the order isn't defined, sort lexicographically.
+	if s.order == nil {
+		return s.kvs[i].key < s.kvs[j].key
+	}
+	idxi, iok := s.order[strings.ToLower(s.kvs[i].key)]
+	idxj, jok := s.order[strings.ToLower(s.kvs[j].key)]
+	if !iok && !jok {
+		return s.kvs[i].key < s.kvs[j].key
+	} else if !iok && jok {
+		return false
+	} else if iok && !jok {
+		return true
+	}
+	return idxi < idxj
 }
 
 var headerSorterPool = sync.Pool{
@@ -180,6 +203,23 @@ func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *h
 	return kvs, hs
 }
 
+func (h Header) sortedKeyValuesBy(order map[string]int, exclude map[string]bool) (kvs []keyValues, hs *headerSorter) {
+	hs = headerSorterPool.Get().(*headerSorter)
+	if cap(hs.kvs) < len(h) {
+		hs.kvs = make([]keyValues, 0, len(h))
+	}
+	kvs = hs.kvs[:0]
+	for k, vv := range h {
+		if !exclude[k] {
+			kvs = append(kvs, keyValues{k, vv})
+		}
+	}
+	hs.kvs = kvs
+	hs.order = order
+	sort.Sort(hs)
+	return kvs, hs
+}
+
 // WriteSubset writes a header in wire format.
 // If exclude is not nil, keys where exclude[key] == true are not written.
 // Keys are not canonicalized before checking the exclude map.
@@ -192,7 +232,25 @@ func (h Header) writeSubset(w io.Writer, exclude map[string]bool, trace *httptra
 	if !ok {
 		ws = stringWriter{w}
 	}
-	kvs, sorter := h.sortedKeyValues(exclude)
+
+	var kvs []keyValues
+	var sorter *headerSorter
+	// Check if the HeaderOrder is defined.
+	if headerOrder, ok := h[HeaderOrderKey]; ok {
+		order := make(map[string]int)
+		orderStrings := strings.Split(strings.ToLower(string(headerOrder[0])), ",")
+		for i, v := range orderStrings {
+			order[v] = i
+		}
+		if exclude == nil {
+			exclude = make(map[string]bool)
+		}
+		exclude[HeaderOrderKey] = true
+		kvs, sorter = h.sortedKeyValuesBy(order, exclude)
+	} else {
+		kvs, sorter = h.sortedKeyValues(exclude)
+	}
+
 	var formattedVals []string
 	for _, kv := range kvs {
 		if !httpguts.ValidHeaderFieldName(kv.key) {
