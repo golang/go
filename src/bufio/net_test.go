@@ -30,7 +30,7 @@ func TestCopyUnixpacket(t *testing.T) {
 	}
 	server, err := net.ListenUnix("unixpacket", addr)
 	if err != nil {
-		t.Fatal(err)
+		t.Skipf("skipping test because opening a unixpacket socket failed: %v", err)
 	}
 
 	// Start a goroutine for the server to accept one connection
