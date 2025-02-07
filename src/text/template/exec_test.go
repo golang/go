@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unsafe"
 )
 
 var debug = flag.Bool("debug", false, "show the errors produced by the tests")
