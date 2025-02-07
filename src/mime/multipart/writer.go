@@ -156,13 +156,6 @@ func FileContentDisposition(fieldname, filename string) string {
 		escapeQuotes(fieldname), escapeQuotes(filename))
 }
 
-// FieldContentDisposition returns the value of a Content-Disposition header
-// with the provided field name.
-func FieldContentDisposition(fieldname string) string {
-	return fmt.Sprintf(`form-data; name="%s"`,
-		escapeQuotes(fieldname))
-}
-
 // WriteField calls [Writer.CreateFormField] and then writes the given value.
 func (w *Writer) WriteField(fieldname, value string) error {
 	p, err := w.CreateFormField(fieldname)
