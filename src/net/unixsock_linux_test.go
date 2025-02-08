@@ -50,6 +50,8 @@ func TestUnixAutobindClose(t *testing.T) {
 }
 
 func TestUnixAbstractLongNameNullStart(t *testing.T) {
+	// Create an abstract socket name that starts with a null byte ("\x00")
+	// whose length is the maximum of RawSockaddrUnix Path len
 	paddedAddr := make([]byte, len(syscall.RawSockaddrUnix{}.Path))
 	copy(paddedAddr, "\x00abstract_test")
 
