@@ -57,7 +57,7 @@ func dumpobj1(outfile string, mode int) {
 		fmt.Printf("can't create %s: %v\n", outfile, err)
 		base.ErrorExit()
 	}
-	defer bout.Close()
+
 	bout.WriteString("!<arch>\n")
 
 	if mode&modeCompilerObj != 0 {
@@ -69,6 +69,12 @@ func dumpobj1(outfile string, mode int) {
 		start := startArchiveEntry(bout)
 		dumpLinkerObj(bout)
 		finishArchiveEntry(bout, start, "_go_.o")
+	}
+
+	if err := bout.Close(); err != nil {
+		base.FlushErrors()
+		fmt.Printf("error while writing to file %s: %v\n", outfile, err)
+		base.ErrorExit()
 	}
 }
 
