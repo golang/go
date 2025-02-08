@@ -15414,6 +15414,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "PCMPEQB",
 		argLen:       2,
+		commutative:  true,
 		resultInArg0: true,
 		asm:          x86.APCMPEQB,
 		reg: regInfo{
