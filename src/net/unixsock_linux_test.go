@@ -49,14 +49,11 @@ func TestUnixAutobindClose(t *testing.T) {
 	ln.Close()
 }
 
-func TestUnixAbstractLongNameeNullStart(t *testing.T) {
-	addr := "\x00abstract_test"
-	rsu := syscall.RawSockaddrUnix{}
-	paddedAddr := make([]byte, len(rsu.Path))
+func TestUnixAbstractLongNameNullStart(t *testing.T) {
+	paddedAddr := make([]byte, len(syscall.RawSockaddrUnix{}.Path))
 	copy(paddedAddr, "\x00abstract_test")
-	addr = string(paddedAddr)
 
-	la, err := ResolveUnixAddr("unix", addr)
+	la, err := ResolveUnixAddr("unix", string(paddedAddr))
 	if err != nil {
 		t.Fatal(err)
 	}
