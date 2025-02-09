@@ -991,28 +991,6 @@ func (ecr *expectContinueReader) Close() error {
 // For parsing this time format, see [ParseTime].
 const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
 
-// appendTime is a non-allocating version of []byte(t.UTC().Format(TimeFormat))
-func appendTime(b []byte, t time.Time) []byte {
-	const days = "SunMonTueWedThuFriSat"
-	const months = "JanFebMarAprMayJunJulAugSepOctNovDec"
-
-	t = t.UTC()
-	yy, mm, dd := t.Date()
-	hh, mn, ss := t.Clock()
-	day := days[3*t.Weekday():]
-	mon := months[3*(mm-1):]
-
-	return append(b,
-		day[0], day[1], day[2], ',', ' ',
-		byte('0'+dd/10), byte('0'+dd%10), ' ',
-		mon[0], mon[1], mon[2], ' ',
-		byte('0'+yy/1000), byte('0'+(yy/100)%10), byte('0'+(yy/10)%10), byte('0'+yy%10), ' ',
-		byte('0'+hh/10), byte('0'+hh%10), ':',
-		byte('0'+mn/10), byte('0'+mn%10), ':',
-		byte('0'+ss/10), byte('0'+ss%10), ' ',
-		'G', 'M', 'T')
-}
-
 var errTooLarge = errors.New("http: request too large")
 
 // Read next request from connection.
@@ -1506,7 +1484,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	}
 
 	if !header.has("Date") {
-		setHeader.date = appendTime(cw.res.dateBuf[:0], time.Now())
+		setHeader.date = time.Now().UTC().AppendFormat(cw.res.dateBuf[:0], TimeFormat)
 	}
 
 	if hasCL && hasTE && te != "identity" {

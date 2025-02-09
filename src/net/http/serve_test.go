@@ -4302,19 +4302,6 @@ func TestResponseWriterWriteString(t *testing.T) {
 	}
 }
 
-func TestAppendTime(t *testing.T) {
-	var b [len(TimeFormat)]byte
-	t1 := time.Date(2013, 9, 21, 15, 41, 0, 0, time.FixedZone("CEST", 2*60*60))
-	res := ExportAppendTime(b[:0], t1)
-	t2, err := ParseTime(string(res))
-	if err != nil {
-		t.Fatalf("Error parsing time: %s", err)
-	}
-	if !t1.Equal(t2) {
-		t.Fatalf("Times differ; expected: %v, got %v (%s)", t1, t2, string(res))
-	}
-}
-
 func TestServerConnState(t *testing.T) { run(t, testServerConnState, []testMode{http1Mode}) }
 func testServerConnState(t *testing.T, mode testMode) {
 	handler := map[string]func(w ResponseWriter, r *Request){
