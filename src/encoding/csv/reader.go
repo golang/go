@@ -204,6 +204,11 @@ func (r *Reader) Read() (record []string, err error) {
 	return record, err
 }
 
+// CurrentNumLine returns the current line being read in the CSV file.
+func (r Reader) CurrentNumLine() int {
+	return r.numLine
+}
+
 // FieldPos returns the line and column corresponding to
 // the start of the field with the given index in the slice most recently
 // returned by [Reader.Read]. Numbering of lines and columns starts at 1;
