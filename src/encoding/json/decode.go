@@ -735,7 +735,7 @@ func (d *decodeState) object(v reflect.Value) error {
 			} else if d.disallowUnknownFields {
 				errMsg := fmt.Sprintf("json: unknown field %q", key)
 				if d.errorContext != nil && len(d.errorContext.FieldStack) > 0 {
-					errMsg += fmt.Sprintf(" in context %q", strings.Join(d.errorContext.FieldStack, "."))
+					errMsg += fmt.Sprintf(" within %q", strings.Join(d.errorContext.FieldStack, "."))
 				}
 				d.saveError(errors.New(errMsg))
 			}

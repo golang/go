@@ -1031,7 +1031,7 @@ var unmarshalTests = []struct {
 			Embed0q: Embed0q{Point: Point{Z: 17}},
 			embed:   embed{Q: 18},
 		},
-		err:                   fmt.Errorf("json: unknown field \"extra\" in context \"e\""),
+		err:                   fmt.Errorf("json: unknown field \"extra\" within \"e\""),
 		disallowUnknownFields: true,
 	},
 	{
@@ -1039,7 +1039,7 @@ var unmarshalTests = []struct {
 		in:                    `{"PP": {"T": {"Y": 1, "ZZZ": 1}}}`,
 		ptr:                   new(P),
 		out:                   P{PP: PP{T: T{Y: 1}}},
-		err:                   fmt.Errorf("json: unknown field \"ZZZ\" in context \"PP.T\""),
+		err:                   fmt.Errorf("json: unknown field \"ZZZ\" within \"PP.T\""),
 		disallowUnknownFields: true,
 	},
 	{
@@ -1047,7 +1047,7 @@ var unmarshalTests = []struct {
 		in:                    `{"PP": {"Ts": [{"Y": 1, "ZZZ": 1}]}}`,
 		ptr:                   new(P),
 		out:                   P{PP: PP{Ts: []T{{Y: 1}}}},
-		err:                   fmt.Errorf("json: unknown field \"ZZZ\" in context \"PP.Ts\""),
+		err:                   fmt.Errorf("json: unknown field \"ZZZ\" within \"PP.Ts\""),
 		disallowUnknownFields: true,
 	},
 	// issue 26444
