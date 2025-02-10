@@ -381,8 +381,16 @@ func decodeInnerClientHello(outer *clientHelloMsg, encoded []byte) (*clientHello
 		return nil, errInvalidECHExt
 	}
 
-	if len(inner.supportedVersions) != 1 || (len(inner.supportedVersions) >= 1 && inner.supportedVersions[0] != VersionTLS13) {
-		return nil, errors.New("tls: client sent encrypted_client_hello extension and offered incompatible versions")
+	hasTLS13 := false
+	for _, v := range inner.supportedVersions {
+		if v == VersionTLS13 {
+			hasTLS13 = true
+			break
+		}
+	}
+
+	if !hasTLS13 {
+		return nil, errors.New("tls: client sent encrypted_client_hello extension but did not offer TLS 1.3")
 	}
 
 	return inner, nil
