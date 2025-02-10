@@ -301,12 +301,16 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		// compiler changes we rebuild the package.
 		if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
 			fmt.Fprintf(h, "CC ID=%q\n", ccID)
+		} else {
+			fmt.Fprintf(h, "CC ID ERROR=%q\n", err)
 		}
 		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
 			cxxExe := b.cxxExe()
 			fmt.Fprintf(h, "CXX=%q %q\n", cxxExe, cxxflags)
 			if cxxID, _, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
 				fmt.Fprintf(h, "CXX ID=%q\n", cxxID)
+			} else {
+				fmt.Fprintf(h, "CXX ID ERROR=%q\n", err)
 			}
 		}
 		if len(p.FFiles) > 0 {
@@ -314,6 +318,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 			fmt.Fprintf(h, "FC=%q %q\n", fcExe, fflags)
 			if fcID, _, err := b.gccToolID(fcExe[0], "f95"); err == nil {
 				fmt.Fprintf(h, "FC ID=%q\n", fcID)
+			} else {
+				fmt.Fprintf(h, "FC ID ERROR=%q\n", err)
 			}
 		}
 		// TODO(rsc): Should we include the SWIG version?
