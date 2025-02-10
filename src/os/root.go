@@ -151,6 +151,12 @@ func (r *Root) Mkdir(name string, perm FileMode) error {
 	return rootMkdir(r, name, perm)
 }
 
+// Chown changes the numeric uid and gid of the named file in the root.
+// See [Chown] for more details.
+func (r *Root) Chown(name string, uid, gid int) error {
+	return rootChown(r, name, uid, gid)
+}
+
 // Remove removes the named file or (empty) directory in the root.
 // See [Remove] for more details.
 func (r *Root) Remove(name string) error {

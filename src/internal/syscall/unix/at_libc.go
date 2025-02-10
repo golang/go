@@ -17,6 +17,7 @@ import (
 //go:linkname procReadlinkat libc_readlinkat
 //go:linkname procMkdirat libc_mkdirat
 //go:linkname procFchmodat libc_fchmodat
+//go:linkname procFchownat libc_chownat
 
 var (
 	procFstatat,
@@ -24,7 +25,8 @@ var (
 	procUnlinkat,
 	procReadlinkat,
 	procMkdirat,
-	procFchmodat uintptr
+	procFchmodat,
+	procFchownat uintptr
 )
 
 func Unlinkat(dirfd int, path string, flags int) error {
@@ -121,6 +123,24 @@ func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
 		uintptr(mode),
 		uintptr(flags),
 		0, 0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
+func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+	p, err := syscall.BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFchownat)), 4,
+		uintptr(dirfd),
+		uintptr(unsafe.Pointer(p)),
+		uintptr(uid),
+		uintptr(gid),
+		uintptr(flags),
+		0)
 	if errno != 0 {
 		return errno
 	}

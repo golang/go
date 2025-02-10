@@ -105,6 +105,16 @@ func rootChmod(r *Root, name string, mode FileMode) error {
 	return nil
 }
 
+func rootChown(r *Root, name string, uid, gid int) error {
+	if err := checkPathEscapes(r, name); err != nil {
+		return &PathError{Op: "chownat", Path: name, Err: err}
+	}
+	if err := Chown(joinPath(r.root.name, name), uid, gid); err != nil {
+		return &PathError{Op: "chownat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
 func rootMkdir(r *Root, name string, perm FileMode) error {
 	if err := checkPathEscapes(r, name); err != nil {
 		return &PathError{Op: "mkdirat", Path: name, Err: err}

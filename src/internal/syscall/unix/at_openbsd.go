@@ -71,3 +71,25 @@ func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
 	}
 	return nil
 }
+
+//go:cgo_import_dynamic libc_fchownat fchownat "libc.so"
+
+func libc_fchownat_trampoline()
+
+func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+	p, err := syscall.BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchmodat_trampoline),
+		uintptr(dirfd),
+		uintptr(unsafe.Pointer(p)),
+		uintptr(uid),
+		uintptr(gid),
+		uintptr(flags),
+		0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}

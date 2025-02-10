@@ -276,6 +276,10 @@ func chmodat(parent syscall.Handle, name string, mode FileMode) error {
 	return windows.SetFileInformationByHandle(h, windows.FileBasicInfo, unsafe.Pointer(&fbi), uint32(unsafe.Sizeof(fbi)))
 }
 
+func chownat(parent syscall.Handle, name string, uid, gid int) error {
+	return syscall.EWINDOWS // matches syscall.Chown
+}
+
 func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
 	return windows.Mkdirat(dirfd, name, syscallMode(perm))
 }

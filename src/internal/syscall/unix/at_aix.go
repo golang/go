@@ -5,6 +5,7 @@
 package unix
 
 //go:cgo_import_dynamic libc_fchmodat fchmodat "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_fchownat fchownat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_fstatat fstatat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_openat openat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.a/shr_64.o"

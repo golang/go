@@ -157,6 +157,14 @@ func chmodat(parent int, name string, mode FileMode) error {
 	})
 }
 
+func chownat(parent int, name string, uid, gid int) error {
+	return afterResolvingSymlink(parent, name, func() error {
+		return ignoringEINTR(func() error {
+			return unix.Fchownat(parent, name, uid, gid, unix.AT_SYMLINK_NOFOLLOW)
+		})
+	})
+}
+
 func mkdirat(fd int, name string, perm FileMode) error {
 	return ignoringEINTR(func() error {
 		return unix.Mkdirat(fd, name, syscallMode(perm))

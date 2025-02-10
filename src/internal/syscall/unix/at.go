@@ -96,3 +96,21 @@ func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
 	}
 	return nil
 }
+
+func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+	p, err := syscall.BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+	_, _, errno := syscall.Syscall6(fchownatTrap,
+		uintptr(dirfd),
+		uintptr(unsafe.Pointer(p)),
+		uintptr(uid),
+		uintptr(gid),
+		uintptr(flags),
+		0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}

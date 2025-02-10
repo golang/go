@@ -77,6 +77,16 @@ func rootChmod(r *Root, name string, mode FileMode) error {
 	return nil
 }
 
+func rootChown(r *Root, name string, uid, gid int) error {
+	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
+		return struct{}{}, chownat(parent, name, uid, gid)
+	})
+	if err != nil {
+		return &PathError{Op: "chownat", Path: name, Err: err}
+	}
+	return err
+}
+
 func rootMkdir(r *Root, name string, perm FileMode) error {
 	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
 		return struct{}{}, mkdirat(parent, name, perm)
