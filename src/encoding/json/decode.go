@@ -10,6 +10,7 @@ package json
 import (
 	"encoding"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -732,7 +733,11 @@ func (d *decodeState) object(v reflect.Value) error {
 				d.errorContext.Struct = t
 				d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
 			} else if d.disallowUnknownFields {
-				d.saveError(fmt.Errorf("json: unknown field %q", key))
+				errMsg := fmt.Sprintf("json: unknown field %q", key)
+				if d.errorContext != nil && len(d.errorContext.FieldStack) > 0 {
+					errMsg += fmt.Sprintf(" in context %q", strings.Join(d.errorContext.FieldStack, "."))
+				}
+				d.saveError(errors.New(errMsg))
 			}
 		}
 
