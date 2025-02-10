@@ -154,6 +154,7 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		// Read the next generation.
 		r.gen, r.spill, r.spillErr = readGeneration(r.r, r.spill)
 		if r.gen == nil {
+			r.syncs++
 			return syncEvent(nil, r.lastTs, r.syncs), nil
 		}
 
