@@ -142,7 +142,7 @@ L2:
 	BYTE	$0x10
 	BYTE	$0x1F
 	MOVD	·logxl2<>+0(SB), R1
-	WORD	$0xB3130001	//lcdbr	%f0,%f1
+	LCDBR	F1, F0
 	LDGR	R1, F4
 	WFMADB	V0, V4, V2, V0
 L1:

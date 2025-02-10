@@ -114,7 +114,7 @@ TEXT	·log1pAsm(SB), NOSPLIT, $0-16
 	MOVD	$·log1pxzero<>+0(SB), R1
 	FMOVD	0(R1), F2
 	BVS	LEXITTAGlog1p
-	WORD	$0xB3130044	// lcdbr %f4,%f4
+	LCDBR	F4, F4
 	WFCEDBS	V2, V4, V6
 	BEQ	L9
 	WFCHDBS	V4, V2, V2
@@ -129,7 +129,7 @@ L8:
 	FSUB	F4, F3
 	FMADD	F2, F4, F1
 	MOVD	$·log1pc4<>+0(SB), R2
-	WORD	$0xB3130041	// lcdbr %f4,%f1
+	LCDBR	F1, F4
 	FMOVD	0(R2), F7
 	FSUB	F3, F0
 	MOVD	$·log1pc3<>+0(SB), R2

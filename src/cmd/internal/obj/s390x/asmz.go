@@ -969,6 +969,7 @@ func buildop(ctxt *obj.Link) {
 			opset(ALNDFR, r)
 			opset(AFNEG, r)
 			opset(AFNEGS, r)
+			opset(ALCDBR, r)
 			opset(ALEDBR, r)
 			opset(ALDEBR, r)
 			opset(AFSQRT, r)
@@ -3373,6 +3374,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			opcode = op_LCDFR
 		case AFNEGS:
 			opcode = op_LCEBR
+		case ALCDBR:
+			opcode = op_LCDBR
 		case ALEDBR:
 			opcode = op_LEDBR
 		case ALDEBR:

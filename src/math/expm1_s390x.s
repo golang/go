@@ -100,14 +100,14 @@ L2:
 	FMOVD	16(R5), F6
 	WFMADB	V0, V2, V6, V2
 	RISBGZ	$57, $60, $3, R1, R3
-	WORD	$0xB3130022	//lcdbr	%f2,%f2
+	LCDBR	F2, F2
 	MOVD	$·expm1tab<>+0(SB), R2
 	WORD	$0x68432000	//ld	%f4,0(%r3,%r2)
 	FMADD	F4, F0, F0
 	SLD	$48, R1, R2
 	WFMSDB	V2, V0, V4, V0
 	LDGR	R2, F4
-	WORD	$0xB3130000	//lcdbr	%f0,%f0
+	LCDBR   F0, F0
 	FSUB	F4, F6
 	WFMSDB	V0, V4, V6, V0
 	FMOVD	F0, ret+8(FP)
@@ -126,7 +126,7 @@ L16:
 	FMOVD	F0, ret+8(FP)
 	RET
 L20:
-	WORD	$0xB3130020	//lcdbr	%f2,%f0
+	LCDBR   F0, F2
 	BR	L2
 L6:
 	MOVD	$·expm1xaddexp<>+0(SB), R1
@@ -154,13 +154,13 @@ L6:
 	FMOVD	16(R5), F6
 	FMADD	F4, F1, F6
 	LGDR	F5, R1
-	WORD	$0xB3130066	//lcdbr	%f6,%f6
+	LCDBR   F6, F6
 	RISBGZ	$57, $60, $3, R1, R3
 	WORD	$0x68432000	//ld	%f4,0(%r3,%r2)
 	FMADD	F4, F1, F1
 	MOVD	$0x4086000000000000, R2
 	FMSUB	F1, F6, F4
-	WORD	$0xB3130044	//lcdbr	%f4,%f4
+	LCDBR   F4, F4
 	WFCHDBS	V2, V0, V0
 	BEQ	L21
 	ADDW	$0xF000, R1
