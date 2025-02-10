@@ -392,8 +392,28 @@ func decodeInnerClientHello(outer *clientHelloMsg, encoded []byte) (*clientHello
 		return nil, errInvalidECHExt
 	}
 
-	if len(inner.supportedVersions) != 1 || (len(inner.supportedVersions) >= 1 && inner.supportedVersions[0] != VersionTLS13) {
-		return nil, errors.New("tls: client sent encrypted_client_hello extension and offered incompatible versions")
+	hasTLS13 := false
+	for _, v := range inner.supportedVersions {
+		// Skip GREASE values (values of the form 0x?A0A).
+		// GREASE (Generate Random Extensions And Sustain Extensibility) is a mechanism used by
+		// browsers like Chrome to ensure TLS implementations correctly ignore unknown values.
+		// GREASE values follow a specific pattern: 0x?A0A, where ? can be any hex digit.
+		// These values should be ignored when processing supported TLS versions.
+		if v&0x0F0F == 0x0A0A && v&0xff == v>>8 {
+			continue
+		}
+
+		// Ensure at least TLS 1.3 is offered.
+		if v == VersionTLS13 {
+			hasTLS13 = true
+		} else if v < VersionTLS13 {
+			// Reject if any non-GREASE value is below TLS 1.3, as ECH requires TLS 1.3+.
+			return nil, errors.New("tls: client sent encrypted_client_hello extension with unsupported versions")
+		}
+	}
+
+	if !hasTLS13 {
+		return nil, errors.New("tls: client sent encrypted_client_hello extension but did not offer TLS 1.3")
 	}
 
 	return inner, nil
