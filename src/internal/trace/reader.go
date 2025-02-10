@@ -152,12 +152,10 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 			return syncEvent(nil, r.lastTs, r.syncs), nil
 		}
 		// Read the next generation.
-		var err error
-		r.gen, r.spill, err = readGeneration(r.r, r.spill)
+		r.gen, r.spill, r.spillErr = readGeneration(r.r, r.spill)
 		if r.gen == nil {
-			return Event{}, err
+			return syncEvent(nil, r.lastTs, r.syncs), nil
 		}
-		r.spillErr = err
 
 		// Reset CPU samples cursor.
 		r.cpuSamples = r.gen.cpuSamples
