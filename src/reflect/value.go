@@ -1513,6 +1513,37 @@ func valueInterface(v Value, safe bool) any {
 	return packEface(v)
 }
 
+// TypeAssert is semantically equivalent to:
+//
+//	v2, ok := v.Interface().(T)
+func TypeAssert[T any](v Value) (T, bool) {
+	if v.flag == 0 {
+		panic(&ValueError{"reflect.TypeAssert", Invalid})
+	}
+
+	if v.flag&flagRO != 0 {
+		// Do not allow access to unexported values via Interface,
+		// because they might be pointers that should not be
+		// writable or methods or function that should not be callable.
+		panic("reflect.TypeAssert: cannot return value obtained from unexported field or method")
+	}
+
+	if v.flag&flagMethod != 0 {
+		v = makeMethodValue("TypeAssert", v)
+	}
+
+	if abi.TypeFor[T]() != v.typ_ {
+		var zero T
+		return zero, false
+	}
+
+	if v.typ_.IsDirectIface() {
+		return *(*T)(unsafe.Pointer(&v.ptr)), true
+	}
+
+	return *(*T)(v.ptr), true
+}
+
 // InterfaceData returns a pair of unspecified uintptr values.
 // It panics if v's Kind is not Interface.
 //
