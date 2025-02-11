@@ -2612,7 +2612,7 @@ func ArrayOf(length int, elem Type) Type {
 	var iarray any = [1]unsafe.Pointer{}
 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
 	array := *prototype
-	array.TFlag = typ.TFlag&abi.TFlagRegularMemory | abi.TFlagHasElem
+	array.TFlag = (typ.TFlag & abi.TFlagRegularMemory) | abi.TFlagHasElem
 	array.Str = resolveReflectName(newName(s, "", false, false))
 	array.Hash = fnv1(typ.Hash, '[')
 	for n := uint32(length); n > 0; n >>= 8 {
