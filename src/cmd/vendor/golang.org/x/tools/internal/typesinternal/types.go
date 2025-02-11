@@ -82,6 +82,7 @@ func NameRelativeTo(pkg *types.Package) types.Qualifier {
 type NamedOrAlias interface {
 	types.Type
 	Obj() *types.TypeName
+	// TODO(hxjiang): add method TypeArgs() *types.TypeList after stop supporting go1.22.
 }
 
 // TypeParams is a light shim around t.TypeParams().
@@ -118,4 +119,9 @@ func Origin(t NamedOrAlias) NamedOrAlias {
 		return t.Origin()
 	}
 	return t
+}
+
+// IsPackageLevel reports whether obj is a package-level symbol.
+func IsPackageLevel(obj types.Object) bool {
+	return obj.Pkg() != nil && obj.Parent() == obj.Pkg().Scope()
 }

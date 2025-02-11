@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/analysisinternal"
 )
 
 //go:embed doc.go
@@ -104,7 +105,7 @@ func isSafeUintptr(info *types.Info, x ast.Expr) bool {
 		}
 		switch sel.Sel.Name {
 		case "Pointer", "UnsafeAddr":
-			if analysisutil.IsNamedType(info.Types[sel.X].Type, "reflect", "Value") {
+			if analysisinternal.IsTypeNamed(info.Types[sel.X].Type, "reflect", "Value") {
 				return true
 			}
 		}
@@ -152,5 +153,5 @@ func hasBasicType(info *types.Info, x ast.Expr, kind types.BasicKind) bool {
 
 // isReflectHeader reports whether t is reflect.SliceHeader or reflect.StringHeader.
 func isReflectHeader(t types.Type) bool {
-	return analysisutil.IsNamedType(t, "reflect", "SliceHeader", "StringHeader")
+	return analysisinternal.IsTypeNamed(t, "reflect", "SliceHeader", "StringHeader")
 }

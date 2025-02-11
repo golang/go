@@ -7,9 +7,7 @@
 package analysisutil
 
 import (
-	"bytes"
 	"go/ast"
-	"go/printer"
 	"go/token"
 	"go/types"
 	"os"
@@ -17,13 +15,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/analysisinternal"
 )
-
-// Format returns a string representation of the expression.
-func Format(fset *token.FileSet, x ast.Expr) string {
-	var b bytes.Buffer
-	printer.Fprint(&b, fset, x)
-	return b.String()
-}
 
 // HasSideEffects reports whether evaluation of e has side effects.
 func HasSideEffects(info *types.Info, e ast.Expr) bool {
@@ -103,59 +94,6 @@ func LineStart(f *token.File, line int) token.Pos {
 			max = offset
 		}
 	}
-}
-
-// Imports returns true if path is imported by pkg.
-func Imports(pkg *types.Package, path string) bool {
-	for _, imp := range pkg.Imports() {
-		if imp.Path() == path {
-			return true
-		}
-	}
-	return false
-}
-
-// IsNamedType reports whether t is the named type with the given package path
-// and one of the given names.
-// This function avoids allocating the concatenation of "pkg.Name",
-// which is important for the performance of syntax matching.
-func IsNamedType(t types.Type, pkgPath string, names ...string) bool {
-	n, ok := types.Unalias(t).(*types.Named)
-	if !ok {
-		return false
-	}
-	obj := n.Obj()
-	if obj == nil || obj.Pkg() == nil || obj.Pkg().Path() != pkgPath {
-		return false
-	}
-	name := obj.Name()
-	for _, n := range names {
-		if name == n {
-			return true
-		}
-	}
-	return false
-}
-
-// IsFunctionNamed reports whether f is a top-level function defined in the
-// given package and has one of the given names.
-// It returns false if f is nil or a method.
-func IsFunctionNamed(f *types.Func, pkgPath string, names ...string) bool {
-	if f == nil {
-		return false
-	}
-	if f.Pkg() == nil || f.Pkg().Path() != pkgPath {
-		return false
-	}
-	if f.Type().(*types.Signature).Recv() != nil {
-		return false
-	}
-	for _, n := range names {
-		if f.Name() == n {
-			return true
-		}
-	}
-	return false
 }
 
 var MustExtractDoc = analysisinternal.MustExtractDoc

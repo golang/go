@@ -367,17 +367,26 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 			}
 
 			pass := &analysis.Pass{
-				Analyzer:          a,
-				Fset:              fset,
-				Files:             files,
-				OtherFiles:        cfg.NonGoFiles,
-				IgnoredFiles:      cfg.IgnoredFiles,
-				Pkg:               pkg,
-				TypesInfo:         info,
-				TypesSizes:        tc.Sizes,
-				TypeErrors:        nil, // unitchecker doesn't RunDespiteErrors
-				ResultOf:          inputs,
-				Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
+				Analyzer:     a,
+				Fset:         fset,
+				Files:        files,
+				OtherFiles:   cfg.NonGoFiles,
+				IgnoredFiles: cfg.IgnoredFiles,
+				Pkg:          pkg,
+				TypesInfo:    info,
+				TypesSizes:   tc.Sizes,
+				TypeErrors:   nil, // unitchecker doesn't RunDespiteErrors
+				ResultOf:     inputs,
+				Report: func(d analysis.Diagnostic) {
+					// Unitchecker doesn't apply fixes, but it does report them in the JSON output.
+					if err := analysisinternal.ValidateFixes(fset, a, d.SuggestedFixes); err != nil {
+						// Since we have diagnostics, the exit code will be nonzero,
+						// so logging these errors is sufficient.
+						log.Println(err)
+						d.SuggestedFixes = nil
+					}
+					act.diagnostics = append(act.diagnostics, d)
+				},
 				ImportObjectFact:  facts.ImportObjectFact,
 				ExportObjectFact:  facts.ExportObjectFact,
 				AllObjectFacts:    func() []analysis.ObjectFact { return facts.AllObjectFacts(factFilter) },
@@ -386,7 +395,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				AllPackageFacts:   func() []analysis.PackageFact { return facts.AllPackageFacts(factFilter) },
 				Module:            module,
 			}
-			pass.ReadFile = analysisinternal.MakeReadFile(pass)
+			pass.ReadFile = analysisinternal.CheckedReadFile(pass, os.ReadFile)
 
 			t0 := time.Now()
 			act.result, act.err = a.Run(pass)

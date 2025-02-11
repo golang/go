@@ -9,62 +9,97 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strconv"
 	"strings"
 )
 
-// ZeroString returns the string representation of the "zero" value of the type t.
-// This string can be used on the right-hand side of an assignment where the
-// left-hand side has that explicit type.
-// Exception: This does not apply to tuples. Their string representation is
-// informational only and cannot be used in an assignment.
+// ZeroString returns the string representation of the zero value for any type t.
+// The boolean result indicates whether the type is or contains an invalid type
+// or a non-basic (constraint) interface type.
+//
+// Even for invalid input types, ZeroString may return a partially correct
+// string representation. The caller should use the returned isValid boolean
+// to determine the validity of the expression.
+//
 // When assigning to a wider type (such as 'any'), it's the caller's
 // responsibility to handle any necessary type conversions.
+//
+// This string can be used on the right-hand side of an assignment where the
+// left-hand side has that explicit type.
+// References to named types are qualified by an appropriate (optional)
+// qualifier function.
+// Exception: This does not apply to tuples. Their string representation is
+// informational only and cannot be used in an assignment.
+//
 // See [ZeroExpr] for a variant that returns an [ast.Expr].
-func ZeroString(t types.Type, qf types.Qualifier) string {
+func ZeroString(t types.Type, qual types.Qualifier) (_ string, isValid bool) {
 	switch t := t.(type) {
 	case *types.Basic:
 		switch {
 		case t.Info()&types.IsBoolean != 0:
-			return "false"
+			return "false", true
 		case t.Info()&types.IsNumeric != 0:
-			return "0"
+			return "0", true
 		case t.Info()&types.IsString != 0:
-			return `""`
+			return `""`, true
 		case t.Kind() == types.UnsafePointer:
 			fallthrough
 		case t.Kind() == types.UntypedNil:
-			return "nil"
+			return "nil", true
+		case t.Kind() == types.Invalid:
+			return "invalid", false
 		default:
-			panic(fmt.Sprint("ZeroString for unexpected type:", t))
+			panic(fmt.Sprintf("ZeroString for unexpected type %v", t))
 		}
 
-	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
-		return "nil"
+	case *types.Pointer, *types.Slice, *types.Chan, *types.Map, *types.Signature:
+		return "nil", true
 
-	case *types.Named, *types.Alias:
+	case *types.Interface:
+		if !t.IsMethodSet() {
+			return "invalid", false
+		}
+		return "nil", true
+
+	case *types.Named:
 		switch under := t.Underlying().(type) {
 		case *types.Struct, *types.Array:
-			return types.TypeString(t, qf) + "{}"
+			return types.TypeString(t, qual) + "{}", true
 		default:
-			return ZeroString(under, qf)
+			return ZeroString(under, qual)
+		}
+
+	case *types.Alias:
+		switch t.Underlying().(type) {
+		case *types.Struct, *types.Array:
+			return types.TypeString(t, qual) + "{}", true
+		default:
+			// A type parameter can have alias but alias type's underlying type
+			// can never be a type parameter.
+			// Use types.Unalias to preserve the info of type parameter instead
+			// of call Underlying() going right through and get the underlying
+			// type of the type parameter which is always an interface.
+			return ZeroString(types.Unalias(t), qual)
 		}
 
 	case *types.Array, *types.Struct:
-		return types.TypeString(t, qf) + "{}"
+		return types.TypeString(t, qual) + "{}", true
 
 	case *types.TypeParam:
 		// Assumes func new is not shadowed.
-		return "*new(" + types.TypeString(t, qf) + ")"
+		return "*new(" + types.TypeString(t, qual) + ")", true
 
 	case *types.Tuple:
 		// Tuples are not normal values.
 		// We are currently format as "(t[0], ..., t[n])". Could be something else.
+		isValid := true
 		components := make([]string, t.Len())
 		for i := 0; i < t.Len(); i++ {
-			components[i] = ZeroString(t.At(i).Type(), qf)
+			comp, ok := ZeroString(t.At(i).Type(), qual)
+
+			components[i] = comp
+			isValid = isValid && ok
 		}
-		return "(" + strings.Join(components, ", ") + ")"
+		return "(" + strings.Join(components, ", ") + ")", isValid
 
 	case *types.Union:
 		// Variables of these types cannot be created, so it makes
@@ -76,45 +111,72 @@ func ZeroString(t types.Type, qf types.Qualifier) string {
 	}
 }
 
-// ZeroExpr returns the ast.Expr representation of the "zero" value of the type t.
-// ZeroExpr is defined for types that are suitable for variables.
-// It may panic for other types such as Tuple or Union.
+// ZeroExpr returns the ast.Expr representation of the zero value for any type t.
+// The boolean result indicates whether the type is or contains an invalid type
+// or a non-basic (constraint) interface type.
+//
+// Even for invalid input types, ZeroExpr may return a partially correct ast.Expr
+// representation. The caller should use the returned isValid boolean to determine
+// the validity of the expression.
+//
+// This function is designed for types suitable for variables and should not be
+// used with Tuple or Union types.References to named types are qualified by an
+// appropriate (optional) qualifier function.
+//
 // See [ZeroString] for a variant that returns a string.
-func ZeroExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
-	switch t := typ.(type) {
+func ZeroExpr(t types.Type, qual types.Qualifier) (_ ast.Expr, isValid bool) {
+	switch t := t.(type) {
 	case *types.Basic:
 		switch {
 		case t.Info()&types.IsBoolean != 0:
-			return &ast.Ident{Name: "false"}
+			return &ast.Ident{Name: "false"}, true
 		case t.Info()&types.IsNumeric != 0:
-			return &ast.BasicLit{Kind: token.INT, Value: "0"}
+			return &ast.BasicLit{Kind: token.INT, Value: "0"}, true
 		case t.Info()&types.IsString != 0:
-			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
+			return &ast.BasicLit{Kind: token.STRING, Value: `""`}, true
 		case t.Kind() == types.UnsafePointer:
 			fallthrough
 		case t.Kind() == types.UntypedNil:
-			return ast.NewIdent("nil")
+			return ast.NewIdent("nil"), true
+		case t.Kind() == types.Invalid:
+			return &ast.BasicLit{Kind: token.STRING, Value: `"invalid"`}, false
 		default:
-			panic(fmt.Sprint("ZeroExpr for unexpected type:", t))
+			panic(fmt.Sprintf("ZeroExpr for unexpected type %v", t))
 		}
 
-	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
-		return ast.NewIdent("nil")
+	case *types.Pointer, *types.Slice, *types.Chan, *types.Map, *types.Signature:
+		return ast.NewIdent("nil"), true
 
-	case *types.Named, *types.Alias:
+	case *types.Interface:
+		if !t.IsMethodSet() {
+			return &ast.BasicLit{Kind: token.STRING, Value: `"invalid"`}, false
+		}
+		return ast.NewIdent("nil"), true
+
+	case *types.Named:
 		switch under := t.Underlying().(type) {
 		case *types.Struct, *types.Array:
 			return &ast.CompositeLit{
-				Type: TypeExpr(f, pkg, typ),
-			}
+				Type: TypeExpr(t, qual),
+			}, true
 		default:
-			return ZeroExpr(f, pkg, under)
+			return ZeroExpr(under, qual)
+		}
+
+	case *types.Alias:
+		switch t.Underlying().(type) {
+		case *types.Struct, *types.Array:
+			return &ast.CompositeLit{
+				Type: TypeExpr(t, qual),
+			}, true
+		default:
+			return ZeroExpr(types.Unalias(t), qual)
 		}
 
 	case *types.Array, *types.Struct:
 		return &ast.CompositeLit{
-			Type: TypeExpr(f, pkg, typ),
-		}
+			Type: TypeExpr(t, qual),
+		}, true
 
 	case *types.TypeParam:
 		return &ast.StarExpr{ // *new(T)
@@ -125,7 +187,7 @@ func ZeroExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 					ast.NewIdent(t.Obj().Name()),
 				},
 			},
-		}
+		}, true
 
 	case *types.Tuple:
 		// Unlike ZeroString, there is no ast.Expr can express tuple by
@@ -157,16 +219,14 @@ func IsZeroExpr(expr ast.Expr) bool {
 }
 
 // TypeExpr returns syntax for the specified type. References to named types
-// from packages other than pkg are qualified by an appropriate package name, as
-// defined by the import environment of file.
+// are qualified by an appropriate (optional) qualifier function.
 // It may panic for types such as Tuple or Union.
-func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
-	switch t := typ.(type) {
+func TypeExpr(t types.Type, qual types.Qualifier) ast.Expr {
+	switch t := t.(type) {
 	case *types.Basic:
 		switch t.Kind() {
 		case types.UnsafePointer:
-			// TODO(hxjiang): replace the implementation with types.Qualifier.
-			return &ast.SelectorExpr{X: ast.NewIdent("unsafe"), Sel: ast.NewIdent("Pointer")}
+			return &ast.SelectorExpr{X: ast.NewIdent(qual(types.NewPackage("unsafe", "unsafe"))), Sel: ast.NewIdent("Pointer")}
 		default:
 			return ast.NewIdent(t.Name())
 		}
@@ -174,7 +234,7 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 	case *types.Pointer:
 		return &ast.UnaryExpr{
 			Op: token.MUL,
-			X:  TypeExpr(f, pkg, t.Elem()),
+			X:  TypeExpr(t.Elem(), qual),
 		}
 
 	case *types.Array:
@@ -183,18 +243,18 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 				Kind:  token.INT,
 				Value: fmt.Sprintf("%d", t.Len()),
 			},
-			Elt: TypeExpr(f, pkg, t.Elem()),
+			Elt: TypeExpr(t.Elem(), qual),
 		}
 
 	case *types.Slice:
 		return &ast.ArrayType{
-			Elt: TypeExpr(f, pkg, t.Elem()),
+			Elt: TypeExpr(t.Elem(), qual),
 		}
 
 	case *types.Map:
 		return &ast.MapType{
-			Key:   TypeExpr(f, pkg, t.Key()),
-			Value: TypeExpr(f, pkg, t.Elem()),
+			Key:   TypeExpr(t.Key(), qual),
+			Value: TypeExpr(t.Elem(), qual),
 		}
 
 	case *types.Chan:
@@ -204,14 +264,14 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 		}
 		return &ast.ChanType{
 			Dir:   dir,
-			Value: TypeExpr(f, pkg, t.Elem()),
+			Value: TypeExpr(t.Elem(), qual),
 		}
 
 	case *types.Signature:
 		var params []*ast.Field
 		for i := 0; i < t.Params().Len(); i++ {
 			params = append(params, &ast.Field{
-				Type: TypeExpr(f, pkg, t.Params().At(i).Type()),
+				Type: TypeExpr(t.Params().At(i).Type(), qual),
 				Names: []*ast.Ident{
 					{
 						Name: t.Params().At(i).Name(),
@@ -226,7 +286,7 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 		var returns []*ast.Field
 		for i := 0; i < t.Results().Len(); i++ {
 			returns = append(returns, &ast.Field{
-				Type: TypeExpr(f, pkg, t.Results().At(i).Type()),
+				Type: TypeExpr(t.Results().At(i).Type(), qual),
 			})
 		}
 		return &ast.FuncType{
@@ -238,29 +298,45 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 			},
 		}
 
-	case interface{ Obj() *types.TypeName }: // *types.{Alias,Named,TypeParam}
-		switch t.Obj().Pkg() {
-		case pkg, nil:
-			return ast.NewIdent(t.Obj().Name())
-		}
-		pkgName := t.Obj().Pkg().Name()
-
-		// TODO(hxjiang): replace the implementation with types.Qualifier.
-		// If the file already imports the package under another name, use that.
-		for _, cand := range f.Imports {
-			if path, _ := strconv.Unquote(cand.Path.Value); path == t.Obj().Pkg().Path() {
-				if cand.Name != nil && cand.Name.Name != "" {
-					pkgName = cand.Name.Name
-				}
-			}
-		}
-		if pkgName == "." {
+	case *types.TypeParam:
+		pkgName := qual(t.Obj().Pkg())
+		if pkgName == "" || t.Obj().Pkg() == nil {
 			return ast.NewIdent(t.Obj().Name())
 		}
 		return &ast.SelectorExpr{
 			X:   ast.NewIdent(pkgName),
 			Sel: ast.NewIdent(t.Obj().Name()),
 		}
+
+	// types.TypeParam also implements interface NamedOrAlias. To differentiate,
+	// case TypeParam need to be present before case NamedOrAlias.
+	// TODO(hxjiang): remove this comment once TypeArgs() is added to interface
+	// NamedOrAlias.
+	case NamedOrAlias:
+		var expr ast.Expr = ast.NewIdent(t.Obj().Name())
+		if pkgName := qual(t.Obj().Pkg()); pkgName != "." && pkgName != "" {
+			expr = &ast.SelectorExpr{
+				X:   ast.NewIdent(pkgName),
+				Sel: expr.(*ast.Ident),
+			}
+		}
+
+		// TODO(hxjiang): call t.TypeArgs after adding method TypeArgs() to
+		// typesinternal.NamedOrAlias.
+		if hasTypeArgs, ok := t.(interface{ TypeArgs() *types.TypeList }); ok {
+			if typeArgs := hasTypeArgs.TypeArgs(); typeArgs != nil && typeArgs.Len() > 0 {
+				var indices []ast.Expr
+				for i := range typeArgs.Len() {
+					indices = append(indices, TypeExpr(typeArgs.At(i), qual))
+				}
+				expr = &ast.IndexListExpr{
+					X:       expr,
+					Indices: indices,
+				}
+			}
+		}
+
+		return expr
 
 	case *types.Struct:
 		return ast.NewIdent(t.String())
@@ -269,9 +345,43 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
 		return ast.NewIdent(t.String())
 
 	case *types.Union:
-		// TODO(hxjiang): handle the union through syntax (~A | ... | ~Z).
-		// Remove nil check when calling typesinternal.TypeExpr.
-		return nil
+		if t.Len() == 0 {
+			panic("Union type should have at least one term")
+		}
+		// Same as go/ast, the return expression will put last term in the
+		// Y field at topmost level of BinaryExpr.
+		// For union of type "float32 | float64 | int64", the structure looks
+		// similar to:
+		// {
+		// 	X: {
+		// 		X: float32,
+		// 		Op: |
+		// 		Y: float64,
+		// 	}
+		// 	Op: |,
+		// 	Y: int64,
+		// }
+		var union ast.Expr
+		for i := range t.Len() {
+			term := t.Term(i)
+			termExpr := TypeExpr(term.Type(), qual)
+			if term.Tilde() {
+				termExpr = &ast.UnaryExpr{
+					Op: token.TILDE,
+					X:  termExpr,
+				}
+			}
+			if i == 0 {
+				union = termExpr
+			} else {
+				union = &ast.BinaryExpr{
+					X:  union,
+					Op: token.OR,
+					Y:  termExpr,
+				}
+			}
+		}
+		return union
 
 	case *types.Tuple:
 		panic("invalid input type types.Tuple")

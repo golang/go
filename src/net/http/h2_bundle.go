@@ -1085,7 +1085,7 @@ func http2configFromServer(h1 *Server, h2 *http2Server) http2http2Config {
 	return conf
 }
 
-// configFromServer merges configuration settings from h2 and h2.t1.HTTP2
+// configFromTransport merges configuration settings from h2 and h2.t1.HTTP2
 // (the net/http Transport).
 func http2configFromTransport(h2 *http2Transport) http2http2Config {
 	conf := http2http2Config{
@@ -1151,7 +1151,7 @@ func http2fillNetHTTPServerConfig(conf *http2http2Config, srv *Server) {
 	http2fillNetHTTPConfig(conf, srv.HTTP2)
 }
 
-// fillNetHTTPServerConfig sets fields in conf from tr.HTTP2.
+// fillNetHTTPTransportConfig sets fields in conf from tr.HTTP2.
 func http2fillNetHTTPTransportConfig(conf *http2http2Config, tr *Transport) {
 	http2fillNetHTTPConfig(conf, tr.HTTP2)
 }
@@ -7797,6 +7797,7 @@ type http2ClientConn struct {
 	doNotReuse       bool         // whether conn is marked to not be reused for any future requests
 	closing          bool
 	closed           bool
+	closedOnIdle     bool                          // true if conn was closed for idleness
 	seenSettings     bool                          // true if we've seen a settings frame, false otherwise
 	seenSettingsChan chan struct{}                 // closed when seenSettings is true or frame reading fails
 	wantSettingsAck  bool                          // we sent a SETTINGS frame and haven't heard back
@@ -8512,10 +8513,12 @@ func (cc *http2ClientConn) idleStateLocked() (st http2clientConnIdleState) {
 
 	// If this connection has never been used for a request and is closed,
 	// then let it take a request (which will fail).
+	// If the conn was closed for idleness, we're racing the idle timer;
+	// don't try to use the conn. (Issue #70515.)
 	//
 	// This avoids a situation where an error early in a connection's lifetime
 	// goes unreported.
-	if cc.nextStreamID == 1 && cc.streamsReserved == 0 && cc.closed {
+	if cc.nextStreamID == 1 && cc.streamsReserved == 0 && cc.closed && !cc.closedOnIdle {
 		st.canTakeNewRequest = true
 	}
 
@@ -8578,6 +8581,7 @@ func (cc *http2ClientConn) closeIfIdle() {
 		return
 	}
 	cc.closed = true
+	cc.closedOnIdle = true
 	nextID := cc.nextStreamID
 	// TODO: do clients send GOAWAY too? maybe? Just Close:
 	cc.mu.Unlock()
@@ -9869,9 +9873,12 @@ func (rl *http2clientConnReadLoop) cleanup() {
 	// This avoids a situation where new connections are constantly created,
 	// added to the pool, fail, and are removed from the pool, without any error
 	// being surfaced to the user.
-	const unusedWaitTime = 5 * time.Second
+	unusedWaitTime := 5 * time.Second
+	if cc.idleTimeout > 0 && unusedWaitTime > cc.idleTimeout {
+		unusedWaitTime = cc.idleTimeout
+	}
 	idleTime := cc.t.now().Sub(cc.lastActive)
-	if atomic.LoadUint32(&cc.atomicReused) == 0 && idleTime < unusedWaitTime {
+	if atomic.LoadUint32(&cc.atomicReused) == 0 && idleTime < unusedWaitTime && !cc.closedOnIdle {
 		cc.idleTimer = cc.t.afterFunc(unusedWaitTime-idleTime, func() {
 			cc.t.connPool().MarkDead(cc)
 		})

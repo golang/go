@@ -200,8 +200,8 @@ func PrintfTests() {
 	// Bad argument reorderings.
 	Printf("%[xd", 3)                      // ERROR "Printf format %\[xd is missing closing \]"
 	Printf("%[x]d x", 3)                   // ERROR "Printf format has invalid argument index \[x\]"
-	Printf("%[3]*s x", "hi", 2)            // ERROR "Printf format has invalid argument index \[3\]"
-	_ = fmt.Sprintf("%[3]d x", 2)          // ERROR "Sprintf format has invalid argument index \[3\]"
+	Printf("%[3]*s x", "hi", 2)            // ERROR "Printf format %\[3\]\*s reads arg #3, but call has 2 args"
+	_ = fmt.Sprintf("%[3]d x", 2)          // ERROR "Sprintf format %\[3\]d reads arg #3, but call has 1 arg"
 	Printf("%[2]*.[1]*[3]d x", 2, "hi", 4) // ERROR "Printf format %\[2]\*\.\[1\]\*\[3\]d uses non-int \x22hi\x22 as argument of \*"
 	Printf("%[0]s x", "arg1")              // ERROR "Printf format has invalid argument index \[0\]"
 	Printf("%[0]d x", 1)                   // ERROR "Printf format has invalid argument index \[0\]"

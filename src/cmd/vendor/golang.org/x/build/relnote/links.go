@@ -158,7 +158,7 @@ func symbolLinkText(i int, ins []md.Inline) string {
 	if plainText(i) != "[" {
 		return ""
 	}
-	// The open bracket must be preceeded by a link-adjacent rune (or by nothing).
+	// The open bracket must be preceded by a link-adjacent rune (or by nothing).
 	if t := plainText(i - 1); t != "" {
 		r, _ := utf8.DecodeLastRuneInString(t)
 		if !isLinkAdjacentRune(r) {

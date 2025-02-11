@@ -170,6 +170,35 @@ func telemetryCounterName(crash []byte) (string, error) {
 // there is no possibility of strings from the crash report (which may
 // contain PII) leaking into the telemetry system.
 func parseStackPCs(crash string) ([]uintptr, error) {
+	// getSymbol parses the symbol name out of a line of the form:
+	// SYMBOL(ARGS)
+	//
+	// Note: SYMBOL may contain parens "pkg.(*T).method". However, type
+	// parameters are always replaced with ..., so they cannot introduce
+	// more parens. e.g., "pkg.(*T[...]).method".
+	//
+	// ARGS can contain parens. We want the first paren that is not
+	// immediately preceded by a ".".
+	//
+	// TODO(prattmic): This is mildly complicated and is only used to find
+	// runtime.sigpanic, so perhaps simplify this by checking explicitly
+	// for sigpanic.
+	getSymbol := func(line string) (string, error) {
+		var prev rune
+		for i, c := range line {
+			if line[i] != '(' {
+				prev = c
+				continue
+			}
+			if prev == '.' {
+				prev = c
+				continue
+			}
+			return line[:i], nil
+		}
+		return "", fmt.Errorf("no symbol for stack frame: %s", line)
+	}
+
 	// getPC parses the PC out of a line of the form:
 	//     \tFILE:LINE +0xRELPC sp=... fp=... pc=...
 	getPC := func(line string) (uint64, error) {
@@ -186,6 +215,9 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 		childSentinel  = sentinel()
 		on             = false // are we in the first running goroutine?
 		lines          = strings.Split(crash, "\n")
+		symLine        = true // within a goroutine, every other line is a symbol or file/line/pc location, starting with symbol.
+		currSymbol     string
+		prevSymbol     string // symbol of the most recent previous frame with a PC.
 	)
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
@@ -228,21 +260,76 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 		// Note: SYMBOL may contain parens "pkg.(*T).method"
 		// The RELPC is sometimes missing.
 
-		// Skip the symbol(args) line.
-		i++
-		if i == len(lines) {
-			break
-		}
-		line = lines[i]
+		if symLine {
+			var err error
+			currSymbol, err = getSymbol(line)
+			if err != nil {
+				return nil, fmt.Errorf("error extracting symbol: %v", err)
+			}
 
-		// Parse the PC, and correct for the parent and child's
-		// different mappings of the text section.
-		pc, err := getPC(line)
-		if err != nil {
-			// Inlined frame, perhaps; skip it.
-			continue
+			symLine = false // Next line is FILE:LINE.
+		} else {
+			// Parse the PC, and correct for the parent and child's
+			// different mappings of the text section.
+			pc, err := getPC(line)
+			if err != nil {
+				// Inlined frame, perhaps; skip it.
+
+				// Done with this frame. Next line is a new frame.
+				//
+				// Don't update prevSymbol; we only want to
+				// track frames with a PC.
+				currSymbol = ""
+				symLine = true
+				continue
+			}
+
+			pc = pc-parentSentinel+childSentinel
+
+			// If the previous frame was sigpanic, then this frame
+			// was a trap (e.g., SIGSEGV).
+			//
+			// Typically all middle frames are calls, and report
+			// the "return PC". That is, the instruction following
+			// the CALL where the callee will eventually return to.
+			//
+			// runtime.CallersFrames is aware of this property and
+			// will decrement each PC by 1 to "back up" to the
+			// location of the CALL, which is the actual line
+			// number the user expects.
+			//
+			// This does not work for traps, as a trap is not a
+			// call, so the reported PC is not the return PC, but
+			// the actual PC of the trap.
+			//
+			// runtime.Callers is aware of this and will
+			// intentionally increment trap PCs in order to correct
+			// for the decrement performed by
+			// runtime.CallersFrames. See runtime.tracebackPCs and
+			// runtume.(*unwinder).symPC.
+			//
+			// We must emulate the same behavior, otherwise we will
+			// report the location of the instruction immediately
+			// prior to the trap, which may be on a different line,
+			// or even a different inlined functions.
+			//
+			// TODO(prattmic): The runtime applies the same trap
+			// behavior for other "injected calls", see injectCall
+			// in runtime.(*unwinder).next. Do we want to handle
+			// those as well? I don't believe we'd ever see
+			// runtime.asyncPreempt or runtime.debugCallV2 in a
+			// typical crash.
+			if prevSymbol == "runtime.sigpanic" {
+				pc++
+			}
+
+			pcs = append(pcs, uintptr(pc))
+
+			// Done with this frame. Next line is a new frame.
+			prevSymbol = currSymbol
+			currSymbol = ""
+			symLine = true
 		}
-		pcs = append(pcs, uintptr(pc-parentSentinel+childSentinel))
 	}
 	return pcs, nil
 }

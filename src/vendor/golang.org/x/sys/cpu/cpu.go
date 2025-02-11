@@ -72,6 +72,9 @@ var X86 struct {
 	HasSSSE3            bool // Supplemental streaming SIMD extension 3
 	HasSSE41            bool // Streaming SIMD extension 4 and 4.1
 	HasSSE42            bool // Streaming SIMD extension 4 and 4.2
+	HasAVXIFMA          bool // Advanced vector extension Integer Fused Multiply Add
+	HasAVXVNNI          bool // Advanced vector extension Vector Neural Network Instructions
+	HasAVXVNNIInt8      bool // Advanced vector extension Vector Neural Network Int8 instructions
 	_                   CacheLinePad
 }
 

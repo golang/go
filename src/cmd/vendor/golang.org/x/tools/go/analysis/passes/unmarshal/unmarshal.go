@@ -28,7 +28,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	switch pass.Pkg.Path() {
 	case "encoding/gob", "encoding/json", "encoding/xml", "encoding/asn1":
 		// These packages know how to use their own APIs.

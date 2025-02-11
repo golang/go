@@ -12,6 +12,8 @@ package inspector
 import (
 	"go/ast"
 	"math"
+
+	_ "unsafe"
 )
 
 const (
@@ -215,8 +217,9 @@ func typeOf(n ast.Node) uint64 {
 	return 0
 }
 
+//go:linkname maskOf
 func maskOf(nodes []ast.Node) uint64 {
-	if nodes == nil {
+	if len(nodes) == 0 {
 		return math.MaxUint64 // match all node types
 	}
 	var mask uint64
