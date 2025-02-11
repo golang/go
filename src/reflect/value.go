@@ -1534,7 +1534,7 @@ func TypeAssert[T any](v Value) (T, bool) {
 	if abi.TypeFor[T]() != v.typ() {
 		// TypeAssert[T] should work the same way as v.Interface().(T), thus we need
 		// to handle following case properly: TypeAssert[any](ValueOf(1)).
-		// Note that we will not hit here is such case: TypeAssert[any](ValueOf(any(1))).
+		// Note that we will not hit here is such case: TypeAssert[any](ValueOf(new(any)).Elem()).
 		if abi.TypeFor[T]().Kind() == abi.Interface {
 			v, ok := packEface(v).(T)
 			return v, ok
