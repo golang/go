@@ -1364,12 +1364,6 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R22
 
-	// Mark the stack bound check and morestack call async nonpreemptible.
-	// If we get preempted here, when resumed the preemption request is
-	// cleared, but we'll still call morestack, which will double the stack
-	// unnecessarily. See issue #35470.
-	p = c.ctxt.StartUnsafePoint(p, c.newprog)
-
 	var q *obj.Prog
 	if framesize <= abi.StackSmall {
 		// small stack: SP < stackguard
@@ -1556,8 +1550,6 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Reg = REG_R2
 	}
 
-	// The instructions which unspill regs should be preemptible.
-	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 	unspill := c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
 
 	// BR	start

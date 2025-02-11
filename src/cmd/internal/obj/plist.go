@@ -262,16 +262,8 @@ func (ctxt *Link) GloblPos(s *LSym, size int64, flag int, pos src.XPos) {
 	s.setFIPSType(ctxt)
 }
 
-// EmitEntryLiveness generates PCDATA Progs after p to switch to the
-// liveness map active at the entry of function s. It returns the last
-// Prog generated.
-func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
-	pcdata := ctxt.EmitEntryStackMap(s, p, newprog)
-	pcdata = ctxt.EmitEntryUnsafePoint(s, pcdata, newprog)
-	return pcdata
-}
-
-// Similar to EmitEntryLiveness, but just emit stack map.
+// EmitEntryStackMap generates PCDATA Progs after p to switch to the
+// liveness map active at the entry of function s.
 func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
 	pcdata.Pos = s.Func().Text.Pos
@@ -280,19 +272,6 @@ func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata.From.Offset = abi.PCDATA_StackMapIndex
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
-
-	return pcdata
-}
-
-// Similar to EmitEntryLiveness, but just emit unsafe point map.
-func (ctxt *Link) EmitEntryUnsafePoint(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
-	pcdata := Appendp(p, newprog)
-	pcdata.Pos = s.Func().Text.Pos
-	pcdata.As = APCDATA
-	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = abi.PCDATA_UnsafePoint
-	pcdata.To.Type = TYPE_CONST
-	pcdata.To.Offset = -1
 
 	return pcdata
 }

@@ -1075,6 +1075,29 @@ func newstack() {
 		gopreempt_m(gp) // never return
 	}
 
+	if stackguard0 == gp.stack.lo+stackGuard && gp.preemptRecent {
+		// The case happens because of an interaction between synchronous
+		// and asynchronous preemption. First, we set the cooperative
+		// preemption signal (g.stackguard0 = stackPreempt), and as a
+		// result the function fails the stack check and enters its
+		// morestack path. If it gets suspended at that point, we might
+		// give up waiting for it and send an async preempt. That async
+		// preempt gets processed and clears the cooperative preemption
+		// signal (g.stackguard0 = g.stack.lo+stackGuard) and resumes
+		// the function. But even though the cooperative preemption
+		// signal is cleared, we're already on the morestack path and
+		// can't avoid calling morestack. See issue 35470.
+		//
+		// To avoid this problem, if we've been preempted recently,
+		// clear the "preempted recently" flag and resume the G.
+		// If we really did need more stack, the morestack check will
+		// immediately fail and we'll get back here to try again (with
+		// preemptRecent==false, so we don't take this case the
+		// second time).
+		gp.preemptRecent = false
+		gogo(&gp.sched) // never return
+	}
+
 	// Allocate a bigger segment and move the stack.
 	oldsize := gp.stack.hi - gp.stack.lo
 	newsize := oldsize * 2
