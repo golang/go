@@ -415,6 +415,14 @@ var kinds = []abi.Kind{
 	types.TUNSAFEPTR:  abi.UnsafePointer,
 }
 
+var elemKinds = []abi.Kind{
+	abi.Array,
+	abi.Chan,
+	abi.Map,
+	abi.Pointer,
+	abi.Slice,
+}
+
 var (
 	memhashvarlen  *obj.LSym
 	memequalvarlen *obj.LSym
@@ -473,6 +481,11 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 		tflag |= abi.TFlagGCMaskOnDemand
 	}
 
+	kind := kinds[t.Kind()]
+	if slices.Contains(elemKinds, kind) {
+		tflag |= abi.TFlagHasElem
+	}
+
 	exported := false
 	p := t.NameString()
 	// If we're writing out type T,
@@ -510,7 +523,6 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("Align_").WriteUint8(uint8(t.Alignment()))
 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
 
-	kind := kinds[t.Kind()]
 	if types.IsDirectIface(t) {
 		kind |= abi.KindDirectIface
 	}

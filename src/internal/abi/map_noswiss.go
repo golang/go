@@ -24,8 +24,8 @@ const (
 
 type OldMapType struct {
 	Type
-	Key    *Type
 	Elem   *Type
+	Key    *Type
 	Bucket *Type // internal type representing a hash bucket
 	// function for hashing keys (ptr to key, seed) -> hash
 	Hasher     func(unsafe.Pointer, uintptr) uintptr

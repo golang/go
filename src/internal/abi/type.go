@@ -125,6 +125,9 @@ const (
 	// has type **byte instead of *byte. The runtime will store a
 	// pointer to the GC pointer bitmask in *GCData.
 	TFlagGCMaskOnDemand TFlag = 1 << 4
+
+	// TFlagHasElem signals that the a Type has an Elem.
+	TFlagHasElem TFlag = 1 << 5
 )
 
 // NameOff is the offset to a name from moduledata.types.  See resolveNameOff in runtime.
@@ -187,11 +190,7 @@ func TypeOf(a any) *Type {
 
 // TypeFor returns the abi.Type for a type parameter.
 func TypeFor[T any]() *Type {
-	var v T
-	if t := TypeOf(v); t != nil {
-		return t // optimize for T being a non-interface kind
-	}
-	return TypeOf((*T)(nil)).Elem() // only for an interface kind
+	return TypeOf((*T)(nil)).Elem()
 }
 
 func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
@@ -380,24 +379,22 @@ func (t *Type) Uncommon() *UncommonType {
 	}
 }
 
+// Compile time asserts for (*Type).Elem() (below), makes sure that Elem field
+// is at the same offset in all types and that the type of Elem is a *Type.
+func _() {
+	const _, _ = unsafe.Offsetof(ChanType{}.Elem) - elemOffset, elemOffset - unsafe.Offsetof(ChanType{}.Elem)
+	const _, _ = unsafe.Offsetof(mapType{}.Elem) - elemOffset, elemOffset - unsafe.Offsetof(mapType{}.Elem)
+	const _, _ = unsafe.Offsetof(PtrType{}.Elem) - elemOffset, elemOffset - unsafe.Offsetof(PtrType{}.Elem)
+	const _, _ = unsafe.Offsetof(SliceType{}.Elem) - elemOffset, elemOffset - unsafe.Offsetof(SliceType{}.Elem)
+	var _, _, _, _, _ *Type = ArrayType{}.Elem, ChanType{}.Elem, mapType{}.Elem, PtrType{}.Elem, SliceType{}.Elem
+}
+
+const elemOffset = unsafe.Offsetof(ArrayType{}.Elem)
+
 // Elem returns the element type for t if t is an array, channel, map, pointer, or slice, otherwise nil.
-func (t *Type) Elem() *Type {
-	switch t.Kind() {
-	case Array:
-		tt := (*ArrayType)(unsafe.Pointer(t))
-		return tt.Elem
-	case Chan:
-		tt := (*ChanType)(unsafe.Pointer(t))
-		return tt.Elem
-	case Map:
-		tt := (*mapType)(unsafe.Pointer(t))
-		return tt.Elem
-	case Pointer:
-		tt := (*PtrType)(unsafe.Pointer(t))
-		return tt.Elem
-	case Slice:
-		tt := (*SliceType)(unsafe.Pointer(t))
-		return tt.Elem
+func (t *Type) Elem() (out *Type) {
+	if t.TFlag&TFlagHasElem != 0 {
+		return *(**Type)(unsafe.Add(unsafe.Pointer(t), elemOffset))
 	}
 	return nil
 }

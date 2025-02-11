@@ -31,8 +31,8 @@ const (
 
 type SwissMapType struct {
 	Type
-	Key   *Type
 	Elem  *Type
+	Key   *Type
 	Group *Type // internal type representing a slot group
 	// function for hashing keys (ptr to key, seed) -> hash
 	Hasher    func(unsafe.Pointer, uintptr) uintptr

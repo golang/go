@@ -1303,6 +1303,11 @@ func TypeOf(i any) Type {
 	return toType(abi.TypeOf(i))
 }
 
+// TypeFor returns the [Type] that represents the type argument T.
+func TypeFor[T any]() Type {
+	return toType(abi.TypeFor[T]())
+}
+
 // rtypeOf directly extracts the *rtype of the provided value.
 func rtypeOf(i any) *abi.Type {
 	return abi.TypeOf(i)
@@ -1356,6 +1361,7 @@ func (t *rtype) ptrTo() *abi.Type {
 
 	pp.Str = resolveReflectName(newName(s, "", false, false))
 	pp.PtrToThis = 0
+	pp.TFlag = abi.TFlagHasElem
 
 	// For the type structures linked into the binary, the
 	// compiler provides a good hash of the string.
@@ -2080,7 +2086,7 @@ func SliceOf(t Type) Type {
 	var islice any = ([]unsafe.Pointer)(nil)
 	prototype := *(**sliceType)(unsafe.Pointer(&islice))
 	slice := *prototype
-	slice.TFlag = 0
+	slice.TFlag = abi.TFlagHasElem
 	slice.Str = resolveReflectName(newName(s, "", false, false))
 	slice.Hash = fnv1(typ.Hash, '[')
 	slice.Elem = typ
@@ -2466,9 +2472,9 @@ func StructOf(fields []StructField) Type {
 
 	typ.Str = resolveReflectName(newName(str, "", false, false))
 	if isRegularMemory(toType(&typ.Type)) {
-		typ.TFlag = abi.TFlagRegularMemory
+		typ.TFlag = abi.TFlagRegularMemory & abi.TFlagHasElem
 	} else {
-		typ.TFlag = 0
+		typ.TFlag = abi.TFlagHasElem
 	}
 	typ.Hash = hash
 	typ.Size_ = size
@@ -2606,7 +2612,7 @@ func ArrayOf(length int, elem Type) Type {
 	var iarray any = [1]unsafe.Pointer{}
 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
 	array := *prototype
-	array.TFlag = typ.TFlag & abi.TFlagRegularMemory
+	array.TFlag = typ.TFlag&abi.TFlagRegularMemory | abi.TFlagHasElem
 	array.Str = resolveReflectName(newName(s, "", false, false))
 	array.Hash = fnv1(typ.Hash, '[')
 	for n := uint32(length); n > 0; n >>= 8 {
@@ -2849,13 +2855,4 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 			addTypeBits(bv, offset+f.Offset, f.Typ)
 		}
 	}
-}
-
-// TypeFor returns the [Type] that represents the type argument T.
-func TypeFor[T any]() Type {
-	var v T
-	if t := TypeOf(v); t != nil {
-		return t // optimize for T being a non-interface kind
-	}
-	return TypeOf((*T)(nil)).Elem() // only for an interface kind
 }
