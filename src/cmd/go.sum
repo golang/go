@@ -1,7 +1,7 @@
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
-github.com/google/pprof v0.0.0-20241101162523-b92577c0c142 h1:sAGdeJj0bnMgUNVeUpp6AYlVdCt3/GdI3pGRqsNSQLs=
-github.com/google/pprof v0.0.0-20241101162523-b92577c0c142/go.mod h1:vavhavw2zAxS5dIdcRluK6cSGGPlZynqzFM8NdvU144=
+github.com/google/pprof v0.0.0-20250208200701-d0013a598941 h1:43XjGa6toxLpeksjcxs1jIoIyr+vUfOqY2c6HB4bpoc=
+github.com/google/pprof v0.0.0-20250208200701-d0013a598941/go.mod h1:vavhavw2zAxS5dIdcRluK6cSGGPlZynqzFM8NdvU144=
 github.com/ianlancetaylor/demangle v0.0.0-20240912202439-0a2b6291aafd h1:EVX1s+XNss9jkRW9K6XGJn2jL2lB1h5H804oKPsxOec=
 github.com/ianlancetaylor/demangle v0.0.0-20240912202439-0a2b6291aafd/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
 github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
