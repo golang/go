@@ -9,6 +9,7 @@ package os
 import (
 	"errors"
 	"sync/atomic"
+	"time"
 )
 
 // root implementation for platforms with no openat.
@@ -111,6 +112,16 @@ func rootChown(r *Root, name string, uid, gid int) error {
 	}
 	if err := Chown(joinPath(r.root.name, name), uid, gid); err != nil {
 		return &PathError{Op: "chownat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
+func rootChtimes(r *Root, name string, atime time.Time, mtime time.Time) error {
+	if err := checkPathEscapes(r, name); err != nil {
+		return &PathError{Op: "chtimesat", Path: name, Err: err}
+	}
+	if err := Chtimes(joinPath(r.root.name, name), atime, mtime); err != nil {
+		return &PathError{Op: "chtimesat", Path: name, Err: underlyingError(err)}
 	}
 	return nil
 }

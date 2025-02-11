@@ -13,6 +13,7 @@ import (
 	"internal/syscall/windows"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -286,4 +287,26 @@ func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
 
 func removeat(dirfd syscall.Handle, name string) error {
 	return windows.Deleteat(dirfd, name)
+}
+
+func chtimesat(dirfd syscall.Handle, name string, atime time.Time, mtime time.Time) error {
+	h, err := windows.Openat(dirfd, name, syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY|windows.O_WRITE_ATTRS, 0)
+	if err == syscall.ELOOP || err == syscall.ENOTDIR {
+		if link, err := readReparseLinkAt(dirfd, name); err == nil {
+			return errSymlink(link)
+		}
+	}
+	if err != nil {
+		return err
+	}
+	defer syscall.CloseHandle(h)
+	a := syscall.Filetime{}
+	w := syscall.Filetime{}
+	if !atime.IsZero() {
+		a = syscall.NsecToFiletime(atime.UnixNano())
+	}
+	if !mtime.IsZero() {
+		w = syscall.NsecToFiletime(mtime.UnixNano())
+	}
+	return syscall.SetFileTime(h, nil, &a, &w)
 }

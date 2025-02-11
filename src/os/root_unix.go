@@ -11,6 +11,7 @@ import (
 	"internal/syscall/unix"
 	"runtime"
 	"syscall"
+	"time"
 )
 
 type sysfdType = int
@@ -161,6 +162,15 @@ func chownat(parent int, name string, uid, gid int) error {
 	return afterResolvingSymlink(parent, name, func() error {
 		return ignoringEINTR(func() error {
 			return unix.Fchownat(parent, name, uid, gid, unix.AT_SYMLINK_NOFOLLOW)
+		})
+	})
+}
+
+func chtimesat(parent int, name string, atime time.Time, mtime time.Time) error {
+	return afterResolvingSymlink(parent, name, func() error {
+		return ignoringEINTR(func() error {
+			utimes := chtimesUtimes(atime, mtime)
+			return unix.Utimensat(parent, name, &utimes, unix.AT_SYMLINK_NOFOLLOW)
 		})
 	})
 }

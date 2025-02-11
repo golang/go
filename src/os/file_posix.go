@@ -177,6 +177,14 @@ func (f *File) Sync() error {
 // less precise time unit.
 // If there is an error, it will be of type [*PathError].
 func Chtimes(name string, atime time.Time, mtime time.Time) error {
+	utimes := chtimesUtimes(atime, mtime)
+	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
+		return &PathError{Op: "chtimes", Path: name, Err: e}
+	}
+	return nil
+}
+
+func chtimesUtimes(atime, mtime time.Time) [2]syscall.Timespec {
 	var utimes [2]syscall.Timespec
 	set := func(i int, t time.Time) {
 		if t.IsZero() {
@@ -187,10 +195,7 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	}
 	set(0, atime)
 	set(1, mtime)
-	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
-		return &PathError{Op: "chtimes", Path: name, Err: e}
-	}
-	return nil
+	return utimes
 }
 
 // Chdir changes the current working directory to the file,

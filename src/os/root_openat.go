@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sync"
 	"syscall"
+	"time"
 )
 
 // root implementation for platforms with a function to open a file
@@ -85,6 +86,16 @@ func rootChown(r *Root, name string, uid, gid int) error {
 		return &PathError{Op: "chownat", Path: name, Err: err}
 	}
 	return nil
+}
+
+func rootChtimes(r *Root, name string, atime time.Time, mtime time.Time) error {
+	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
+		return struct{}{}, chtimesat(parent, name, atime, mtime)
+	})
+	if err != nil {
+		return &PathError{Op: "chtimesat", Path: name, Err: err}
+	}
+	return err
 }
 
 func rootMkdir(r *Root, name string, perm FileMode) error {
