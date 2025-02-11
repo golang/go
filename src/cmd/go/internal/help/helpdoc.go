@@ -214,12 +214,12 @@ For example,
 	import "example.org/user/foo.hg"
 
 denotes the root directory of the Mercurial repository at
-example.org/user/foo or foo.hg, and
+example.org/user/foo, and
 
 	import "example.org/repo.git/foo/bar"
 
 denotes the foo/bar directory of the Git repository at
-example.org/repo or repo.git.
+example.org/repo.
 
 When a version control system supports multiple protocols,
 each is tried in turn when downloading. For example, a Git
