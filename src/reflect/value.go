@@ -1539,14 +1539,29 @@ func TypeAssert[T any](v Value) (T, bool) {
 			v, ok := packEface(v).(T)
 			return v, ok
 		}
+
+		// Special case: match the element inside the interface.
+		// TypeAssert[int](ValueOf(newPtr(any(0))).Elem()
+		if v.kind() == Interface {
+			// Empty interface has one layout, all interfaces with
+			// methods have a second layout.
+			if v.NumMethod() == 0 {
+				v, ok := (*(*any)(v.ptr)).(T)
+				return v, ok
+			}
+			v, ok := any(*(*interface {
+				M()
+			})(v.ptr)).(T)
+			return v, ok
+		}
+
 		var zero T
 		return zero, false
 	}
 
-	if v.typ().IsDirectIface() {
+	if v.flag&flagIndir == 0 {
 		return *(*T)(unsafe.Pointer(&v.ptr)), true
 	}
-
 	return *(*T)(v.ptr), true
 }
 
