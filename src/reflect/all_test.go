@@ -8701,7 +8701,7 @@ func newPtr[T any](t T) *T {
 	return &t
 }
 
-func TestTypeAssert(t *testing.T) {
+func TestTypeAssertConcreteTypes(t *testing.T) {
 	testTypeAssert(t, int(1111))
 	testTypeAssert(t, int(111111111))
 	testTypeAssert(t, int(-111111111))
@@ -8714,11 +8714,39 @@ func TestTypeAssert(t *testing.T) {
 	testTypeAssert(t, newPtr(111111111))
 	testTypeAssert(t, newPtr(-111111111))
 	testTypeAssert(t, newPtr([2]int{-111111111, -22222222}))
-
+	testTypeAssert(t, [2]*int{newPtr(-111111111), newPtr(-22222222)})
 	testTypeAssert(t, newPtr(time.Now()))
 
 	testTypeAssertDifferentType[uint](t, int(111111111))
 	testTypeAssertDifferentType[uint](t, int(-111111111))
+}
+
+func TestTypeAssertInterfaceTypes(t *testing.T) {
+	v, ok := TypeAssert[any](ValueOf(1))
+	if v != any(1) || !ok {
+		t.Errorf("TypeAssert[any](1) = (%v, %v); want = (1, true)", v, ok)
+	}
+
+	v, ok = TypeAssert[fmt.Stringer](ValueOf(1))
+	if v != nil || ok {
+		t.Errorf("TypeAssert[fmt.Stringer](1) = (%v, %v); want = (1, false)", v, ok)
+	}
+
+	v, ok = TypeAssert[any](ValueOf(testTypeWithMethod{"test"}))
+	if v != any(testTypeWithMethod{"test"}) || !ok {
+		t.Errorf(`TypeAssert[any](testTypeWithMethod{"test"}) = (%v, %v); want = (testTypeWithMethod{"test"}, true)`, v, ok)
+	}
+
+	v, ok = TypeAssert[fmt.Stringer](ValueOf(testTypeWithMethod{"test"}))
+	if v != fmt.Stringer(testTypeWithMethod{"test"}) || !ok {
+		t.Errorf(`TypeAssert[fmt.Stringer](testTypeWithMethod{"test"}) = (%v, %v); want = (testTypeWithMethod{"test"}, true)`, v, ok)
+	}
+
+	val := &testTypeWithMethod{"test"}
+	v, ok = TypeAssert[fmt.Stringer](ValueOf(val))
+	if v != fmt.Stringer(val) || !ok {
+		t.Errorf(`TypeAssert[fmt.Stringer](&testTypeWithMethod{"test"}) = (%v, %v); want = (&testTypeWithMethod{"test"}, true)`, v, ok)
+	}
 }
 
 type testTypeWithMethod struct {
