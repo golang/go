@@ -1520,7 +1520,6 @@ func TypeAssert[T any](v Value) (T, bool) {
 	if v.flag == 0 {
 		panic(&ValueError{"reflect.TypeAssert", Invalid})
 	}
-
 	if v.flag&flagRO != 0 {
 		// Do not allow access to unexported values via Interface,
 		// because they might be pointers that should not be
@@ -1532,12 +1531,19 @@ func TypeAssert[T any](v Value) (T, bool) {
 		v = makeMethodValue("TypeAssert", v)
 	}
 
-	if abi.TypeFor[T]() != v.typ_ {
+	if abi.TypeFor[T]() != v.typ() {
+		// TypeAssert[T] should work the same way as v.Interface().(T), thus we need
+		// to handle following case properly: TypeAssert[any](ValueOf(1)).
+		// Note that we will not hit here is such case: TypeAssert[any](ValueOf(any(1))).
+		if abi.TypeFor[T]().Kind() == abi.Interface {
+			v, ok := packEface(v).(T)
+			return v, ok
+		}
 		var zero T
 		return zero, false
 	}
 
-	if v.typ_.IsDirectIface() {
+	if v.typ().IsDirectIface() {
 		return *(*T)(unsafe.Pointer(&v.ptr)), true
 	}
 
