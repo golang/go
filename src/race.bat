@@ -14,13 +14,7 @@ if not exist make.bat (
     exit /b 1
 )
 
-set GOROOT=%CD%\..
-call .\make.bat --dist-tool >NUL || exit /b 1
-.\cmd\dist\dist.exe env -w -p >env.bat || exit /b 1
-call .\env.bat
-del env.bat
-
-if not %GOHOSTARCH% == amd64 (
+if not "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
     echo Race detector is only supported on windows/amd64.
     exit /b 1
 )

@@ -101,14 +101,14 @@ call .\env.bat
 del env.bat
 if x%vflag==x-v echo.
 
-if x%1==x-dist-tool goto copydist
-if x%2==x-dist-tool goto copydist
-if x%3==x-dist-tool goto copydist
-if x%4==x-dist-tool goto copydist
-if x%1==x--dist-tool goto copydist
-if x%2==x--dist-tool goto copydist
-if x%3==x--dist-tool goto copydist
-if x%4==x--dist-tool goto copydist
+if x%1==x--dist-tool (
+	mkdir "%GOTOOLDIR%" 2>NUL
+	if not x%2==x (
+		copy cmd\dist\dist.exe "%2"
+	)
+	move cmd\dist\dist.exe "%GOTOOLDIR%\dist.exe"
+	goto :eof
+)
 
 :: Run dist bootstrap to complete make.bash.
 :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
@@ -122,11 +122,6 @@ goto :eof
 :: If something must be added, add it to cmd/dist's cmdbootstrap,
 :: to avoid needing three copies in three different shell languages
 :: (make.bash, make.bat, make.rc).
-
-:copydist
-mkdir "%GOTOOLDIR%" 2>NUL
-copy cmd\dist\dist.exe "%GOTOOLDIR%\"
-goto :eof
 
 :nogoenv
 set GO111MODULE=off
