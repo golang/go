@@ -194,7 +194,7 @@ func TypeOf(a any) *Type {
 
 // TypeFor returns the abi.Type for a type parameter.
 func TypeFor[T any]() *Type {
-	return TypeOf((*T)(nil)).Elem()
+	return (*PtrType)(unsafe.Pointer(TypeOf((*T)(nil)))).Elem
 }
 
 func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
