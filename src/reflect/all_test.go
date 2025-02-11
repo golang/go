@@ -8747,6 +8747,14 @@ func TestTypeAssertInterfaceTypes(t *testing.T) {
 	if v != fmt.Stringer(val) || !ok {
 		t.Errorf(`TypeAssert[fmt.Stringer](&testTypeWithMethod{"test"}) = (%v, %v); want = (&testTypeWithMethod{"test"}, true)`, v, ok)
 	}
+
+	if v, ok := TypeAssert[int](ValueOf(newPtr(any(1))).Elem()); v != 1 || !ok {
+		t.Errorf(`TypeAssert[int](ValueOf(newPtr(any(1))).Elem()) = (%v, %v); want = (1, true)`, v, ok)
+	}
+
+	if v, ok := TypeAssert[testTypeWithMethod](ValueOf(newPtr(fmt.Stringer(testTypeWithMethod{"test"}))).Elem()); v.val != "test" || !ok {
+		t.Errorf(`TypeAssert[testTypeWithMethod](newPtr(fmt.Stringer(testTypeWithMethod{"test"}))) = (%v, %v); want = (testTypeWithMethod{"test"}, true)`, v, ok)
+	}
 }
 
 type testTypeWithMethod struct {
@@ -8787,5 +8795,12 @@ func TestTypeAssertAllocs(t *testing.T) {
 	})
 	if allocs != 0 {
 		t.Errorf("unexpected amount of allocations = %v; want = 0", allocs)
+	}
+}
+
+func BenchmarkTypeAssertTime(b *testing.B) {
+	val := ValueOf(time.Now())
+	for b.Loop() {
+		TypeAssert[time.Time](val)
 	}
 }
