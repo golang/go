@@ -484,6 +484,9 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	kind := kinds[t.Kind()]
 	if slices.Contains(elemKinds, kind) {
 		tflag |= abi.TFlagHasElem
+		if kind == abi.Map {
+			tflag |= abi.TFlagHasElemSecond
+		}
 	}
 
 	exported := false

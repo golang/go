@@ -276,9 +276,8 @@ func writeSwissMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
 		base.Fatalf("runtime assumes elemOff for string keys is %d, got %d", 2*types.PtrSize, elemOff)
 	}
 
-	c.Field("Elem").WritePtr(s2)
 	c.Field("Key").WritePtr(s1)
-
+	c.Field("Elem").WritePtr(s2)
 	c.Field("Group").WritePtr(s3)
 	c.Field("Hasher").WritePtr(hasher)
 	c.Field("GroupSize").WriteUintptr(uint64(gtyp.Size()))

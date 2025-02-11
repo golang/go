@@ -222,8 +222,8 @@ func OldMapIterType() *types.Type {
 	// }
 	// must match runtime/map.go:hiter.
 	fields := []*types.Field{
-		makefield("elem", types.Types[types.TUNSAFEPTR]), // Used in range.go for TMAP.
 		makefield("key", types.Types[types.TUNSAFEPTR]),  // Used in range.go for TMAP.
+		makefield("elem", types.Types[types.TUNSAFEPTR]), // Used in range.go for TMAP.
 		makefield("t", types.Types[types.TUNSAFEPTR]),
 		makefield("h", types.NewPtr(hmap)),
 		makefield("buckets", types.Types[types.TUNSAFEPTR]),
@@ -263,9 +263,8 @@ func writeOldMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
 	s3 := writeType(OldMapBucketType(t))
 	hasher := genhash(t.Key())
 
-	c.Field("Elem").WritePtr(s2)
 	c.Field("Key").WritePtr(s1)
-
+	c.Field("Elem").WritePtr(s2)
 	c.Field("Bucket").WritePtr(s3)
 	c.Field("Hasher").WritePtr(hasher)
 	var flags uint32

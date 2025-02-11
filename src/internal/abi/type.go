@@ -5,6 +5,7 @@
 package abi
 
 import (
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -126,8 +127,11 @@ const (
 	// pointer to the GC pointer bitmask in *GCData.
 	TFlagGCMaskOnDemand TFlag = 1 << 4
 
-	// TFlagHasElem signals that the a Type has an Elem.
+	// TFlagHasElem signals that the Type has an Elem.
 	TFlagHasElem TFlag = 1 << 5
+
+	// TFlagHasElem signals that the Type has an Elem, but at an PtrBytes higher offset.
+	TFlagHasElemSecond TFlag = 1 << 6
 )
 
 // NameOff is the offset to a name from moduledata.types.  See resolveNameOff in runtime.
@@ -379,22 +383,25 @@ func (t *Type) Uncommon() *UncommonType {
 	}
 }
 
-// Compile time asserts for (*Type).Elem() (below), makes sure that Elem field
-// is at the same offset in all types and that the type of Elem is a *Type.
+// Compile time asserts for (*Type).Elem().
 func _() {
-	const _, _ = unsafe.Offsetof(ChanType{}.Elem) - elemOffset, elemOffset - unsafe.Offsetof(ChanType{}.Elem)
-	const _, _ = unsafe.Offsetof(mapType{}.Elem) - elemOffset, elemOffset - unsafe.Offsetof(mapType{}.Elem)
-	const _, _ = unsafe.Offsetof(PtrType{}.Elem) - elemOffset, elemOffset - unsafe.Offsetof(PtrType{}.Elem)
-	const _, _ = unsafe.Offsetof(SliceType{}.Elem) - elemOffset, elemOffset - unsafe.Offsetof(SliceType{}.Elem)
+	const _, _ = unsafe.Offsetof(ChanType{}.Elem) - baseElemOffset, baseElemOffset - unsafe.Offsetof(ChanType{}.Elem)
+	const _, _ = unsafe.Offsetof(mapType{}.Elem) - baseElemOffset + goarch.PtrSize, baseElemOffset + goarch.PtrSize - unsafe.Offsetof(mapType{}.Elem)
+	const _, _ = unsafe.Offsetof(PtrType{}.Elem) - baseElemOffset, baseElemOffset - unsafe.Offsetof(PtrType{}.Elem)
+	const _, _ = unsafe.Offsetof(SliceType{}.Elem) - baseElemOffset, baseElemOffset - unsafe.Offsetof(SliceType{}.Elem)
 	var _, _, _, _, _ *Type = ArrayType{}.Elem, ChanType{}.Elem, mapType{}.Elem, PtrType{}.Elem, SliceType{}.Elem
 }
 
-const elemOffset = unsafe.Offsetof(ArrayType{}.Elem)
+const baseElemOffset = unsafe.Offsetof(ArrayType{}.Elem)
 
 // Elem returns the element type for t if t is an array, channel, map, pointer, or slice, otherwise nil.
-func (t *Type) Elem() (out *Type) {
+func (t *Type) Elem() *Type {
 	if t.TFlag&TFlagHasElem != 0 {
-		return *(**Type)(unsafe.Add(unsafe.Pointer(t), elemOffset))
+		// Unfortunately, the mapType does not have the Elem field at the same offset as other
+		// types do, it is PtrBytes ahead. So we have to calculate the offset based on TFlagHasElemSecond flag.
+		// Currently we can't really change the definition of mapType to reorder these fields,
+		// because mapType is referenced with linknames from other modules (non-std).
+		return *(**Type)(unsafe.Add(unsafe.Pointer(t), baseElemOffset+(goarch.PtrSize*uintptr((t.TFlag&TFlagHasElemSecond)>>6))))
 	}
 	return nil
 }
