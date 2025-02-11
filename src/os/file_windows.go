@@ -32,13 +32,8 @@ type file struct {
 	cleanup    runtime.Cleanup         // cleanup closes the file when no longer referenced
 }
 
-// Fd returns the Windows handle referencing the open file.
-// If f is closed, the file descriptor becomes invalid.
-// If f is garbage collected, a cleanup may close the file descriptor,
-// making it invalid; see [runtime.AddCleanup] for more information on when
-// a cleanup might be run. On Unix systems this will cause the [File.SetDeadline]
-// methods to stop working.
-func (file *File) Fd() uintptr {
+// fd is the Windows implementation of Fd.
+func (file *File) fd() uintptr {
 	if file == nil {
 		return uintptr(syscall.InvalidHandle)
 	}
