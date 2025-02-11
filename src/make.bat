@@ -36,10 +36,10 @@
 
 setlocal
 
-if exist make.bat goto ok
-echo Must run make.bat from Go src directory.
-goto fail
-:ok
+if not exist make.bat (
+	echo Must run make.bat from Go src directory.
+	exit /b 1
+)
 
 :: Clean old generated file that will cause problems in the build.
 del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
@@ -78,7 +78,11 @@ if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%" se
 if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
 
 :bootstrapset
-if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
+if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" (
+	echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
+	echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go %bootgo%.
+	exit /b 1
+)
 set GOROOT=%GOROOT_TEMP%
 set GOROOT_TEMP=
 
@@ -90,9 +94,9 @@ echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%. (%GOROOT_BOOTSTRAP_VERSION%)
 if x%vflag==x-v echo cmd/dist
 set GOROOT=%GOROOT_BOOTSTRAP%
 set GOBIN=
-"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist || goto fail
+"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist || exit /b 1
 endlocal
-.\cmd\dist\dist.exe env -w -p >env.bat || goto fail
+.\cmd\dist\dist.exe env -w -p >env.bat || exit /b 1
 call .\env.bat
 del env.bat
 if x%vflag==x-v echo.
@@ -109,7 +113,7 @@ if x%4==x--dist-tool goto copydist
 :: Run dist bootstrap to complete make.bash.
 :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
 :: Throw ours, built with the bootstrap toolchain, away after bootstrap.
-.\cmd\dist\dist.exe bootstrap -a %* || goto fail
+.\cmd\dist\dist.exe bootstrap -a %* || exit /b 1
 del .\cmd\dist\dist.exe
 goto :eof
 
@@ -131,11 +135,3 @@ set GOOS=
 set GOARCH=
 set GOEXPERIMENT=
 set GOFLAGS=
-goto :eof
-
-:bootstrapfail
-echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
-echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go %bootgo%.
-
-:fail
-exit /b 1

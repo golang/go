@@ -4,21 +4,17 @@
 
 @echo off
 
-if exist ..\bin\go.exe goto ok
-echo Must run run.bat from Go src directory after installing cmd/go.
-goto fail
-:ok
+if not exist ..\bin\go.exe (
+    echo Must run run.bat from Go src directory after installing cmd/go.
+    exit /b 1
+)
 
 setlocal
 
 set GOENV=off
-..\bin\go tool dist env > env.bat || goto fail
+..\bin\go tool dist env > env.bat || exit /b 1
 call .\env.bat
 del env.bat
 
 set GOPATH=c:\nonexist-gopath
-..\bin\go tool dist test --rebuild %* || goto fail
-goto :eof
-
-:fail
-exit /b 1
+..\bin\go tool dist test --rebuild %* || exit /b 1
