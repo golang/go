@@ -531,8 +531,11 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 	if n == nil || fn == nil {
 		return
 	}
-	if n.Op() != ir.OMAKESLICE {
-		// TODO(thepudds): we handle more cases later in our CL stack.
+	if n.Op() != ir.OMAKESLICE && n.Op() != ir.OCONVIFACE {
+		return
+	}
+	if base.Flag.Cfg.CoverageInfo != nil {
+		// Avoid altering coverage results.
 		return
 	}
 
@@ -560,6 +563,21 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 			}
 			if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
 				*r = lit
+			}
+		}
+	case ir.OCONVIFACE:
+		// Check if we can replace a non-constant expression in an interface conversion with
+		// a literal to avoid heap allocating the underlying interface value.
+		conv := n.(*ir.ConvExpr)
+		if conv.X.Op() != ir.OLITERAL && !conv.X.Type().IsInterface() {
+			v := ro.StaticValue(conv.X)
+			if v != nil && v.Op() == ir.OLITERAL && ir.ValidTypeForConst(conv.X.Type(), v.Val()) {
+				if base.Debug.EscapeDebug >= 3 {
+					base.WarnfAt(n.Pos(), "rewriting OCONVIFACE value from %v (%v) to %v (%v)", conv.X, conv.X.Type(), v, v.Type())
+				}
+				v := v.(*ir.BasicLit)
+				conv.X = ir.NewBasicLit(conv.X.Pos(), conv.X.Type(), v.Val())
+				typecheck.Expr(conv)
 			}
 		}
 	}

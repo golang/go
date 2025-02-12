@@ -1495,11 +1495,15 @@ var mallocTest = []struct {
 	{1, `Sprintf("%x %x")`, func() { _ = Sprintf("%x %x", 7, 112) }},
 	{1, `Sprintf("%g")`, func() { _ = Sprintf("%g", float32(3.14159)) }},
 	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); s := "hello"; Fprintf(&mallocBuf, "%s", s) }},
+	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); s := "hello"; Fprintf(&mallocBuf, "%s", noliteral(s)) }},
 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 7) }},
 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 1<<16) }},
-	{1, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", i) }}, // not constant
+	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", i) }},
+	{1, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", noliteral(i)) }},
 	{4, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); s := []int{1, 2}; Fprintf(&mallocBuf, "%v", s) }},
 	{1, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", P{1, 2}) }},
+	{1, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", noliteral(P{1, 2})) }},
 	{2, `Fprintf(buf, "%80000s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%80000s", "hello") }}, // large buffer (>64KB)
 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
 	{0, `Fprintf(buf, "%x %x %x")`, func() {
@@ -1519,8 +1523,8 @@ func TestCountMallocs(t *testing.T) {
 	}
 	for _, mt := range mallocTest {
 		mallocs := testing.AllocsPerRun(100, mt.fn)
-		if got, max := mallocs, float64(mt.count); got > max {
-			t.Errorf("%s: got %v allocs, want <=%v", mt.desc, got, max)
+		if got, max := mallocs, float64(mt.count); got != max {
+			t.Errorf("%s: got %v allocs, want %v", mt.desc, got, max)
 		}
 	}
 }
@@ -2009,4 +2013,11 @@ func TestAppendln(t *testing.T) {
 	if &b[0] != &got[0] {
 		t.Fatalf("Appendln allocated a new slice")
 	}
+}
+
+// noliteral prevents escape analysis from recognizing a literal value.
+//
+//go:noinline
+func noliteral[T any](t T) T {
+	return t
 }

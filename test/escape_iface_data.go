@@ -17,7 +17,7 @@ func string1() {
 
 func string2() {
 	v := "abc"
-	sink = v
+	sink = v // ERROR "using global for interface value"
 }
 
 func string3() {
@@ -26,7 +26,7 @@ func string3() {
 
 func string4() {
 	v := ""
-	sink = v
+	sink = v // ERROR "using global for interface value"
 }
 
 func string5() {
@@ -36,8 +36,8 @@ func string5() {
 
 func string6() {
 	var a any
-	v := "abc" // ERROR "using stack temporary for interface value"
-	a = v
+	v := "abc"
+	a = v // ERROR "using global for interface value"
 	_ = a
 }
 
@@ -49,7 +49,7 @@ func string7(v string) {
 func string8() {
 	v0 := "abc"
 	v := v0
-	string7(v)
+	string7(v) // ERROR "using global for interface value"
 }
 
 func string9() {
@@ -58,7 +58,7 @@ func string9() {
 	f := func() {
 		string7(v)
 	}
-	f()
+	f() // ERROR "using global for interface value"
 }
 
 func string10() {
@@ -70,14 +70,14 @@ func string10() {
 		}
 		f2()
 	}
-	f()
+	f() // ERROR "using global for interface value"
 }
 
 func string11() {
 	v0 := "abc"
 	v := v0
 	defer func() {
-		string7(v)
+		string7(v) // ERROR "using global for interface value"
 	}()
 }
 
@@ -87,7 +87,7 @@ func integer1() {
 
 func integer2() {
 	v := 42
-	sink = v
+	sink = v // ERROR "using global for interface value"
 }
 
 func integer3() {
@@ -96,7 +96,7 @@ func integer3() {
 
 func integer4a() {
 	v := 0
-	sink = v
+	sink = v // ERROR "using global for interface value"
 }
 
 func integer4b() {
@@ -111,8 +111,8 @@ func integer5() {
 
 func integer6() {
 	var a any
-	v := 42 // ERROR "using stack temporary for interface value"
-	a = v
+	v := 42
+	a = v // ERROR "using global for interface value"
 	_ = a
 }
 
@@ -140,24 +140,22 @@ func named1b() {
 
 func named2a() {
 	v := MyInt(0)
-	sink = v
+	sink = v // ERROR "using global for interface value"
 }
 
 func named2b() {
 	v := MyInt(42)
-	escapes(v)
+	escapes(v) // ERROR "using global for interface value"
 }
 
-// Unfortunate: we currently require matching types, which we could relax.
 func named2c() {
 	v := 42
-	sink = MyInt(v)
+	sink = MyInt(v) // ERROR "using global for interface value"
 }
 
-// Unfortunate: we currently require matching types, which we could relax.
 func named2d() {
 	v := 42
-	escapes(MyInt(v))
+	escapes(MyInt(v)) // ERROR "using global for interface value"
 }
 func named3a() {
 	sink = MyInt(42) // ERROR "using global for interface value"
@@ -169,22 +167,22 @@ func named3b() {
 
 func named4a() {
 	v := MyInt(0)
-	sink = v
+	sink = v // ERROR "using global for interface value"
 }
 
 func named4b() {
 	v := MyInt(0)
-	escapes(v)
+	escapes(v) // ERROR "using global for interface value"
 }
 
 func named4c() {
 	v := 0
-	sink = MyInt(v)
+	sink = MyInt(v) // ERROR "using global for interface value"
 }
 
 func named4d() {
 	v := 0
-	escapes(MyInt(v))
+	escapes(MyInt(v)) // ERROR "using global for interface value"
 }
 
 func named5() {
@@ -194,8 +192,8 @@ func named5() {
 
 func named6() {
 	var a any
-	v := MyInt(42) // ERROR "using stack temporary for interface value"
-	a = v
+	v := MyInt(42)
+	a = v // ERROR "using global for interface value"
 	_ = a
 }
 
@@ -254,4 +252,46 @@ func emptyStruct2() {
 
 func emptyStruct3(v struct{}) { // ERROR "using global for zero-sized interface value"
 	sink = v
+}
+
+// Some light emulation of conditional debug printing (such as in #53465).
+
+func Printf(format string, args ...any) {
+	for _, arg := range args {
+		sink = arg
+	}
+}
+
+var enabled = true
+
+func debugf(format string, args ...interface{}) {
+	if enabled {
+		Printf(format, args...)
+	}
+}
+
+//go:noinline
+func debugf2(format string, args ...interface{}) {
+	if enabled {
+		Printf(format, args...)
+	}
+}
+
+func f1() {
+	v := 1000
+	debugf("hello %d", v) // ERROR "using global for interface value"
+}
+
+func f2() {
+	v := 1000
+	debugf2("hello %d", v) // ERROR "using global for interface value"
+}
+
+//go:noinline
+func f3(i int) {
+	debugf("hello %d", i)
+}
+
+func f4() {
+	f3(1000)
 }
