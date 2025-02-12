@@ -6,6 +6,8 @@ package escape
 
 import (
 	"fmt"
+	"go/constant"
+	"go/token"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -119,6 +121,36 @@ type escape struct {
 }
 
 func Funcs(all []*ir.Func) {
+	// Try to determine static values of make() calls, to avoid allocating them on the heap.
+	// We are doing this in escape analysis, so that it happens after inlining and devirtualization.
+	for _, v := range all {
+		ir.VisitList(v.Body, func(n ir.Node) {
+			if n, ok := n.(*ir.MakeExpr); ok {
+				if n.Cap != nil {
+					if s := ir.StaticValue(n.Cap); s.Op() == ir.OLITERAL {
+						if v, ok := s.(*ir.BasicLit); !ok || v.Val().Kind() != constant.Int {
+							base.Fatalf("unexpected BasicLit Kind")
+						}
+						n.Cap = s
+					}
+				}
+				if n.Len != nil {
+					if s := ir.StaticValue(n.Len); s.Op() == ir.OLITERAL {
+						len, ok := s.(*ir.BasicLit)
+						if !ok || len.Val().Kind() != constant.Int {
+							base.Fatalf("unexpected BasicLit Kind")
+						}
+
+						cap, ok := n.Cap.(*ir.BasicLit)
+						if n.Cap == nil || (ok && constant.Compare(cap.Val(), token.GEQ, len.Val())) {
+							n.Len = s
+						}
+					}
+				}
+			}
+		})
+	}
+
 	ir.VisitFuncsBottomUp(all, Batch)
 }
 
