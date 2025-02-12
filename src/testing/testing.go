@@ -1009,12 +1009,12 @@ func (c *common) log(s string) {
 	if l := len(s); l > 0 && (string(s[l-1]) != "\n") {
 		s += "\n"
 	}
-	cs := c.getCallSite(3) // getCallSite + log + public function
+	cs := c.callSite(3) // callSite + log + public function
 	c.newOutputWriter(cs).Write([]byte(s))
 }
 
-// getCallSite retrieves and formats the file and line of the call site.
-func (c *common) getCallSite(skip int) string {
+// callSite retrieves and formats the file and line of the call site.
+func (c *common) callSite(skip int) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -1039,8 +1039,7 @@ func (c *common) getCallSite(skip int) string {
 
 // newOutputWriter initialises a new outputWriter with the provided call site.
 func (c *common) newOutputWriter(cs string) io.Writer {
-	b := make([]byte, 0)
-	return &outputWriter{c, b, cs}
+	return &outputWriter{c, nil, cs}
 }
 
 // outputWriter buffers, formats and writes input.
