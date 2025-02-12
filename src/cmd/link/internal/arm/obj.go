@@ -105,9 +105,5 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
 		}
-
-	case objabi.Hwindows: /* PE executable */
-		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
-		return
 	}
 }

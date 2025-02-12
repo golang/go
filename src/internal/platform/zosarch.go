@@ -57,7 +57,6 @@ var List = []OSArch{
 	{"wasip1", "wasm"},
 	{"windows", "386"},
 	{"windows", "amd64"},
-	{"windows", "arm"},
 	{"windows", "arm64"},
 }
 
@@ -111,6 +110,5 @@ var distInfo = map[OSArch]osArchInfo{
 	{"wasip1", "wasm"}:     {},
 	{"windows", "386"}:     {CgoSupported: true, FirstClass: true},
 	{"windows", "amd64"}:   {CgoSupported: true, FirstClass: true},
-	{"windows", "arm"}:     {Broken: true},
 	{"windows", "arm64"}:   {CgoSupported: true},
 }

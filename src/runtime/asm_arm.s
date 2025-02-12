@@ -794,9 +794,6 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	R0, g
 
 	// Save g to thread-local storage.
-#ifdef GOOS_windows
-	B	runtime·save_g(SB)
-#else
 #ifdef GOOS_openbsd
 	B	runtime·save_g(SB)
 #else
@@ -807,7 +804,6 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 
 	MOVW	g, R0
 	RET
-#endif
 #endif
 
 TEXT runtime·emptyfunc(SB),0,$0-0
