@@ -368,5 +368,17 @@ TEXT errors(SB),$0
 	VMSIFM		V2, V4, V3			// ERROR "invalid vector mask register"
 	VMSOFM		V2, V4, V3			// ERROR "invalid vector mask register"
 	VIOTAM		V2, V4, V3			// ERROR "invalid vector mask register"
+	VSLIDEUPVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
+	VSLIDEUPVI	$16, V2, V4, V3			// ERROR "invalid vector mask register"
+	VSLIDEDOWNVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
+	VSLIDEDOWNVI	$16, V2, V4, V3			// ERROR "invalid vector mask register"
+	VSLIDE1UPVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
+	VFSLIDE1UPVF	F10, V2, V4, V3			// ERROR "invalid vector mask register"
+	VSLIDE1DOWNVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
+	VFSLIDE1DOWNVF	F10, V2, V4, V3			// ERROR "invalid vector mask register"
+	VRGATHERVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
+	VRGATHEREI16VV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
+	VRGATHERVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
+	VRGATHERVI	$16, V2, V4, V3			// ERROR "invalid vector mask register"
 
 	RET
