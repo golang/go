@@ -1303,6 +1303,11 @@ func TypeOf(i any) Type {
 	return toType(abi.TypeOf(i))
 }
 
+// TypeFor returns the [Type] that represents the type argument T.
+func TypeFor[T any]() Type {
+	return toType(abi.TypeFor[T]())
+}
+
 // rtypeOf directly extracts the *rtype of the provided value.
 func rtypeOf(i any) *abi.Type {
 	return abi.TypeOf(i)
@@ -2849,13 +2854,4 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 			addTypeBits(bv, offset+f.Offset, f.Typ)
 		}
 	}
-}
-
-// TypeFor returns the [Type] that represents the type argument T.
-func TypeFor[T any]() Type {
-	var v T
-	if t := TypeOf(v); t != nil {
-		return t // optimize for T being a non-interface kind
-	}
-	return TypeOf((*T)(nil)).Elem() // only for an interface kind
 }
