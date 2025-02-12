@@ -29,6 +29,7 @@ type DebugFlags struct {
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
 	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
+	EscapeDebug           int    `help:"print information about escape analysis and resulting optimizations" concurrent:"ok"`
 	Export                int    `help:"print export data"`
 	FIPSHash              string `help:"hash value for FIPS debugging" concurrent:"ok"`
 	Fmahash               string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
