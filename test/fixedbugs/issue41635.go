@@ -12,6 +12,6 @@ func f() { // ERROR ""
 	_ = make([]byte, 100, 1<<17) // ERROR "too large for stack" ""
 	_ = make([]byte, n, 1<<17)   // ERROR "too large for stack" ""
 
-	_ = make([]byte, n)      // ERROR "non-constant size" ""
-	_ = make([]byte, 100, m) // ERROR "non-constant size" ""
+	_ = make([]byte, n)      // ERROR "does not escape"
+	_ = make([]byte, 100, m) // ERROR "does not escape"
 }
