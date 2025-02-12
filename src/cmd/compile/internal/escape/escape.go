@@ -128,10 +128,13 @@ func Funcs(all []*ir.Func) {
 			if n, ok := n.(*ir.MakeExpr); ok {
 				if n.Cap != nil {
 					if s := ir.StaticValue(n.Cap); s.Op() == ir.OLITERAL {
-						if v, ok := s.(*ir.BasicLit); !ok || v.Val().Kind() != constant.Int {
+						cap, ok := s.(*ir.BasicLit)
+						if !ok || cap.Val().Kind() != constant.Int {
 							base.Fatalf("unexpected BasicLit Kind")
 						}
-						n.Cap = s
+						if constant.Compare(cap.Val(), token.GEQ, constant.MakeInt64(0)) {
+							n.Cap = s
+						}
 					}
 				}
 				if n.Len != nil {
@@ -141,9 +144,11 @@ func Funcs(all []*ir.Func) {
 							base.Fatalf("unexpected BasicLit Kind")
 						}
 
-						cap, ok := n.Cap.(*ir.BasicLit)
-						if n.Cap == nil || (ok && constant.Compare(cap.Val(), token.GEQ, len.Val())) {
-							n.Len = s
+						if constant.Compare(len.Val(), token.GEQ, constant.MakeInt64(0)) {
+							cap, ok := n.Cap.(*ir.BasicLit)
+							if n.Cap == nil || (ok && constant.Compare(cap.Val(), token.GEQ, len.Val())) {
+								n.Len = s
+							}
 						}
 					}
 				}
