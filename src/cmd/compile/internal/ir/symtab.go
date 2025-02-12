@@ -30,6 +30,7 @@ type symsStruct struct {
 	Goschedguarded    *obj.LSym
 	Growslice         *obj.LSym
 	InterfaceSwitch   *obj.LSym
+	MallocGC          *obj.LSym
 	Memmove           *obj.LSym
 	Msanread          *obj.LSym
 	Msanwrite         *obj.LSym
