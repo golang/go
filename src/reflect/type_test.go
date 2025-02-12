@@ -118,13 +118,6 @@ func BenchmarkTypeForError(b *testing.B) {
 	}
 }
 
-func BenchmarkSliceTypeElem(b *testing.B) {
-	slice := reflect.TypeFor[[]int]()
-	for i := 0; i < b.N; i++ {
-		sinkType = slice.Elem()
-	}
-}
-
 func TestType_CanSeq(t *testing.T) {
 	tests := []struct {
 		name string

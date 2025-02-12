@@ -1361,7 +1361,6 @@ func (t *rtype) ptrTo() *abi.Type {
 
 	pp.Str = resolveReflectName(newName(s, "", false, false))
 	pp.PtrToThis = 0
-	pp.TFlag = abi.TFlagHasElem
 
 	// For the type structures linked into the binary, the
 	// compiler provides a good hash of the string.
@@ -2086,7 +2085,7 @@ func SliceOf(t Type) Type {
 	var islice any = ([]unsafe.Pointer)(nil)
 	prototype := *(**sliceType)(unsafe.Pointer(&islice))
 	slice := *prototype
-	slice.TFlag = abi.TFlagHasElem
+	slice.TFlag = 0
 	slice.Str = resolveReflectName(newName(s, "", false, false))
 	slice.Hash = fnv1(typ.Hash, '[')
 	slice.Elem = typ
@@ -2472,9 +2471,9 @@ func StructOf(fields []StructField) Type {
 
 	typ.Str = resolveReflectName(newName(str, "", false, false))
 	if isRegularMemory(toType(&typ.Type)) {
-		typ.TFlag = abi.TFlagRegularMemory & abi.TFlagHasElem
+		typ.TFlag = abi.TFlagRegularMemory
 	} else {
-		typ.TFlag = abi.TFlagHasElem
+		typ.TFlag = 0
 	}
 	typ.Hash = hash
 	typ.Size_ = size
@@ -2612,7 +2611,7 @@ func ArrayOf(length int, elem Type) Type {
 	var iarray any = [1]unsafe.Pointer{}
 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
 	array := *prototype
-	array.TFlag = (typ.TFlag & abi.TFlagRegularMemory) | abi.TFlagHasElem
+	array.TFlag = typ.TFlag & abi.TFlagRegularMemory
 	array.Str = resolveReflectName(newName(s, "", false, false))
 	array.Hash = fnv1(typ.Hash, '[')
 	for n := uint32(length); n > 0; n >>= 8 {
