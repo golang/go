@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/abi"
 	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
@@ -240,19 +241,26 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 		return vstat
 	}
 
-	// Check now for a composite literal to possibly store
-	// in the read-only data section.
+	// Check now for a composite literal to possibly store in the read-only data section.
 	v := staticValue(n)
 	if v == nil {
 		v = n
 	}
-	if (v.Op() == ir.OSTRUCTLIT || v.Op() == ir.OARRAYLIT) && isStaticCompositeLiteral(v) && !base.Ctxt.IsFIPS() {
-		// v can be directly represented in the read-only data section.
-		lit := v.(*ir.CompLitExpr)
-		vstat := readonlystaticname(lit.Type())
-		fixedlit(inInitFunction, initKindStatic, lit, vstat, nil) // nil init
-		vstat = typecheck.Expr(vstat).(*ir.Name)
-		return vstat
+	if (v.Op() == ir.OSTRUCTLIT || v.Op() == ir.OARRAYLIT) && !base.Ctxt.IsFIPS() {
+		if ir.IsZero(v) && 0 < v.Type().Size() && v.Type().Size() <= abi.ZeroValSize {
+			// This zero value can be represented by the read-only zeroVal.
+			zeroVal := ir.NewLinksymExpr(v.Pos(), ir.Syms.ZeroVal, v.Type())
+			vstat := typecheck.Expr(zeroVal).(*ir.LinksymOffsetExpr)
+			return vstat
+		}
+		if isStaticCompositeLiteral(v) {
+			// v can be directly represented in the read-only data section.
+			lit := v.(*ir.CompLitExpr)
+			vstat := readonlystaticname(lit.Type())
+			fixedlit(inInitFunction, initKindStatic, lit, vstat, nil) // nil init
+			vstat = typecheck.Expr(vstat).(*ir.Name)
+			return vstat
+		}
 	}
 
 	// Prevent taking the address of an SSA-able local variable (#63332).

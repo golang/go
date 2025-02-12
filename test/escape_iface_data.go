@@ -217,12 +217,12 @@ func struct2() {
 }
 
 func struct3() {
-	sink = S{} // ERROR "using global for interface value"
+	sink = S{} // ERROR "using global for zero value interface value"
 }
 
 func struct4() {
 	v := S{}
-	sink = v // ERROR "using global for interface value"
+	sink = v // ERROR "using global for zero value interface value"
 }
 
 func struct5() {

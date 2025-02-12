@@ -175,6 +175,11 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		xe := ir.NewIndexExpr(base.Pos, staticuint64s, index)
 		xe.SetBounded(true)
 		value = xe
+	case n.Op() == ir.OLINKSYMOFFSET && n.(*ir.LinksymOffsetExpr).Linksym == ir.Syms.ZeroVal && n.(*ir.LinksymOffsetExpr).Offset_ == 0:
+		// n is using zeroVal, so we can use n directly.
+		// (Note that n does not have a proper pos in this case, so using conv for the diagnostic instead.)
+		diagnose("using global for zero value interface value", conv)
+		value = n
 	case n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PEXTERN && n.(*ir.Name).Readonly():
 		// n is a readonly global; use it directly.
 		diagnose("using global for interface value", n)
