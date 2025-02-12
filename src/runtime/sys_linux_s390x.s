@@ -112,9 +112,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	MOVW	$1000000, R3
 	DIVD	R3, R2
 	MOVD	R2, 8(R15)
-	MOVW	$1000, R3
-	MULLD	R2, R3
+	MULLD	R2, R3		// Convert sec to usec and subtract
 	SUB	R3, R4
+	MOVW	$1000, R3
+	MULLD	R3, R4		// Convert remaining usec into nsec.
 	MOVD	R4, 16(R15)
 
 	// nanosleep(&ts, 0)
