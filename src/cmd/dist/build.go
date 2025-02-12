@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -104,16 +105,6 @@ var okgoos = []string{
 	"aix",
 }
 
-// find reports the first index of p in l[0:n], or else -1.
-func find(p string, l []string) int {
-	for i, s := range l {
-		if p == s {
-			return i
-		}
-	}
-	return -1
-}
-
 // xinit handles initialization of the various global state, like goroot and goarch.
 func xinit() {
 	b := os.Getenv("GOROOT")
@@ -134,7 +125,7 @@ func xinit() {
 		b = gohostos
 	}
 	goos = b
-	if find(goos, okgoos) < 0 {
+	if slices.Index(okgoos, goos) < 0 {
 		fatalf("unknown $GOOS %s", goos)
 	}
 
@@ -202,7 +193,7 @@ func xinit() {
 	if b != "" {
 		gohostarch = b
 	}
-	if find(gohostarch, okgoarch) < 0 {
+	if slices.Index(okgoarch, gohostarch) < 0 {
 		fatalf("unknown $GOHOSTARCH %s", gohostarch)
 	}
 
@@ -211,7 +202,7 @@ func xinit() {
 		b = gohostarch
 	}
 	goarch = b
-	if find(goarch, okgoarch) < 0 {
+	if slices.Index(okgoarch, goarch) < 0 {
 		fatalf("unknown $GOARCH %s", goarch)
 	}
 
