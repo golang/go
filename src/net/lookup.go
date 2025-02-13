@@ -265,9 +265,11 @@ func (r *Resolver) LookupNetIP(ctx context.Context, network, host string) ([]net
 	}
 	ret := make([]netip.Addr, 0, len(ips))
 	for _, ip := range ips {
-		if a, ok := netip.AddrFromSlice(ip); ok {
-			ret = append(ret, a)
+		a, err := netip.ParseAddr(ip.String())
+		if err != nil {
+			continue
 		}
+		ret = append(ret, a)
 	}
 	return ret, nil
 }
