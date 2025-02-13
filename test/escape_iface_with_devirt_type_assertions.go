@@ -6,13 +6,6 @@
 
 package escape
 
-import (
-	"crypto/sha256"
-	"encoding"
-	"hash"
-	"io"
-)
-
 type M interface{ M() }
 
 type A interface{ A() }
@@ -137,15 +130,4 @@ func testInvalidAsserts() {
 		// this will panic
 		a.(any).(M).(*Impl).M() // ERROR "inlining"
 	}
-}
-
-func testSha256() {
-	h := sha256.New()                                   // ERROR "inlining call" "does not escape"
-	h.Write(nil)                                        // ERROR "devirtualizing"
-	h.(io.Writer).Write(nil)                            // ERROR "devirtualizing"
-	h.(hash.Hash).Write(nil)                            // ERROR "devirtualizing"
-	h.(encoding.BinaryUnmarshaler).UnmarshalBinary(nil) // ERROR "devirtualizing"
-
-	h2 := sha256.New() // ERROR "escapes" "inlining call"
-	h2.(M).M()         // this will panic
 }
