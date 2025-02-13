@@ -840,6 +840,37 @@ func IsAddressable(n Node) bool {
 	return false
 }
 
+var Implements = func(t, iface *types.Type) bool {
+	panic("unreachable")
+}
+
+// StaticType is like StaticValue but for types.
+func StaticType(n Node) *types.Type {
+	out, typs := staticValue(n, true)
+
+	if out.Op() != OCONVIFACE {
+		return nil
+	}
+
+	recv := out.(*ConvExpr)
+
+	typ := recv.X.Type()
+	if typ.IsInterface() {
+		return nil
+	}
+
+	// Make sure that every type assertion that involves interfaes is satisfied.
+	for _, t := range typs {
+		if t.IsInterface() {
+			if !Implements(typ, t) {
+				return nil
+			}
+		}
+	}
+
+	return typ
+}
+
 // StaticValue analyzes n to find the earliest expression that always
 // evaluates to the same value as n, which might be from an enclosing
 // function.
@@ -855,6 +886,16 @@ func IsAddressable(n Node) bool {
 // calling StaticValue on the "int(y)" expression returns the outer
 // "g()" expression.
 func StaticValue(n Node) Node {
+	v, t := staticValue(n, false)
+	if len(t) != 0 {
+		base.Fatalf("len(t) != 0; len(t) = %v", len(t))
+	}
+	return v
+
+}
+
+func staticValue(n Node, forDevirt bool) (Node, []*types.Type) {
+	typeAssertTypes := []*types.Type{}
 	for {
 		switch n1 := n.(type) {
 		case *ConvExpr:
@@ -870,11 +911,17 @@ func StaticValue(n Node) Node {
 		case *ParenExpr:
 			n = n1.X
 			continue
+		case *TypeAssertExpr:
+			if forDevirt && n1.Op() == ODOTTYPE {
+				typeAssertTypes = append(typeAssertTypes, n1.Type())
+				n = n1.X
+				continue
+			}
 		}
 
 		n1 := staticValue1(n)
 		if n1 == nil {
-			return n
+			return n, typeAssertTypes
 		}
 		n = n1
 	}
