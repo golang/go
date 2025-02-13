@@ -923,8 +923,8 @@ func TestResetIgnore(t *testing.T) {
 	}
 
 	sigs := []syscall.Signal{
-		syscall.SIGINT,
 		syscall.SIGHUP,
+		syscall.SIGINT,
 		syscall.SIGUSR1,
 		syscall.SIGTERM,
 		syscall.SIGCHLD,
@@ -934,6 +934,10 @@ func TestResetIgnore(t *testing.T) {
 	for _, notify := range []bool{false, true} {
 		for _, sig := range sigs {
 			t.Run(fmt.Sprintf("%s[notify=%t]", sig, notify), func(t *testing.T) {
+				if Ignored(sig) {
+					t.Fatalf("expected %q to not be ignored initially", sig)
+				}
+
 				Ignore(sig)
 				if notify {
 					c := make(chan os.Signal, 1)
@@ -948,9 +952,7 @@ func TestResetIgnore(t *testing.T) {
 
 				// Child processes inherit the ignored status of signals, so verify that it
 				// is indeed not ignored.
-				testenv.MustHaveExec(t)
-
-				cmd := testenv.Command(t, os.Args[0], "-test.run=^TestResetIgnore$")
+				cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestResetIgnore$")
 				cmd.Env = append(os.Environ(), "GO_TEST_RESET_IGNORE="+strconv.Itoa(int(sig)))
 				err := cmd.Run()
 				if _, ok := err.(*exec.ExitError); ok {
@@ -965,6 +967,57 @@ func TestResetIgnore(t *testing.T) {
 
 func resetIgnoreTestProgram(t *testing.T, sig os.Signal) {
 	if Ignored(sig) {
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+// #46321 test Reset correctly undoes the effect of Ignore when the child
+// process is started with a signal ignored.
+func TestInitiallyIgnoredResetIgnore(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_TEST_INITIALLY_IGNORED_RESET_IGNORE") != "" {
+		s, err := strconv.Atoi(os.Getenv("GO_TEST_INITIALLY_IGNORED_RESET_IGNORE"))
+		if err != nil {
+			t.Fatalf("failed to parse signal: %v", err)
+		}
+		initiallyIgnoredResetIgnoreTestProgram(t, syscall.Signal(s))
+	}
+
+	sigs := []syscall.Signal{
+		syscall.SIGINT,
+		syscall.SIGHUP,
+	}
+
+	for _, sig := range sigs {
+		t.Run(fmt.Sprint(sig), func(t *testing.T) {
+			Ignore(sig)
+			defer Reset(sig)
+
+			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestInitiallyIgnoredResetIgnore$")
+			cmd.Env = append(os.Environ(), "GO_TEST_INITIALLY_IGNORED_RESET_IGNORE="+strconv.Itoa(int(sig)))
+			err := cmd.Run()
+			if _, ok := err.(*exec.ExitError); ok {
+				t.Fatalf("expected %q to be ignored in child process", sig)
+			} else if err != nil {
+				t.Fatalf("child process failed to launch: %v", err)
+			}
+		})
+	}
+}
+
+func initiallyIgnoredResetIgnoreTestProgram(t *testing.T, sig os.Signal) {
+	if !Ignored(sig) {
+		os.Exit(1)
+	}
+	Reset(sig)
+	if !Ignored(sig) {
+		os.Exit(1)
+	}
+	Ignore(sig)
+	Reset(sig)
+	if !Ignored(sig) {
 		os.Exit(1)
 	}
 	os.Exit(0)
