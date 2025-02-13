@@ -16,6 +16,11 @@ import (
 // between each string.
 //
 // A non-nil error returned by Join implements the Unwrap() []error method.
+//
+// Calling Join on an error that was previously returned by Join wraps
+// the error again. Consequently, calling Unwrap() []error on the result
+// of Join(Join(err1, err2), err3) returns a slice with 2 items, of which
+// the first one implements Unwrap() []error too.
 func Join(errs ...error) error {
 	n := 0
 	for _, err := range errs {
