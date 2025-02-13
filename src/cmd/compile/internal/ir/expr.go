@@ -848,13 +848,7 @@ var Implements = func(t, iface *types.Type) bool {
 func StaticType(n Node) *types.Type {
 	out, typs := staticValue(n, true)
 
-	if out.Op() != OCONVIFACE {
-		return nil
-	}
-
-	recv := out.(*ConvExpr)
-
-	typ := recv.X.Type()
+	typ := out.Type()
 	if typ.IsInterface() {
 		return nil
 	}
@@ -900,6 +894,11 @@ func staticValue(n Node, forDevirt bool) (Node, []*types.Type) {
 		switch n1 := n.(type) {
 		case *ConvExpr:
 			if n1.Op() == OCONVNOP {
+				n = n1.X
+				continue
+			}
+			if forDevirt && n1.Op() == OCONVIFACE {
+				typeAssertTypes = append(typeAssertTypes, n1.Type())
 				n = n1.X
 				continue
 			}

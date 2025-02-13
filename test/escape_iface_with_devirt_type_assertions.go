@@ -48,6 +48,14 @@ func t() {
 	a.(M).(A).(*Impl).A() // ERROR "inlining call"
 	a.(A).(M).(*Impl).M() // ERROR "inlining call"
 
+	any(a).(M).M()           // ERROR "devirtualizing" "inlining call"
+	any(a).(A).A()           // ERROR "devirtualizing" "inlining call"
+	any(a).(M).(any).(A).A() // ERROR "devirtualizing" "inlining call"
+
+	c := any(a)
+	c.(A).A() // ERROR "devirtualizing" "inlining call"
+	c.(M).M() // ERROR "devirtualizing" "inlining call"
+
 	{
 		var a C = &CImpl{}   // ERROR "does not escape"
 		a.(any).(C).C()      // ERROR "devirtualizing" "inlining"
