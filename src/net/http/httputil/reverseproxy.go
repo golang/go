@@ -7,10 +7,12 @@
 package httputil
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"mime"
 	"net"
@@ -197,6 +199,10 @@ type ReverseProxy struct {
 	// If nil, the default is to log the provided error and return
 	// a 502 Status Bad Gateway response.
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
+
+	// if SmallBodyMaxLength > 0, optimize network when send small
+	// body(body length <= SmallBodyMaxLength).
+	SmallBodyMaxLength int64
 }
 
 // A BufferPool is an interface for getting and returning temporary
@@ -448,6 +454,25 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// without the following code, The write IO operate is twice (write header and body).
+	// It is found that : becase of tcp nagle and delay ack, it will cause double PPS
+	// when in the too much small package environment, resulting the QPS reduce half, and
+	// double client response times.
+	if outreq.Body != nil && outreq.Body != http.NoBody && outreq.ContentLength > 0 && outreq.ContentLength <= p.SmallBodyMaxLength {
+		datas := make([]byte, outreq.ContentLength)
+		reader := io.LimitReader(outreq.Body, outreq.ContentLength)
+		for i := int64(0); i < outreq.ContentLength; {
+			nr, er := reader.Read(datas[i:])
+			if er != nil && er != io.EOF {
+				p.logf("proxy read request body error: %v", er)
+				return
+			}
+			i += int64(nr)
+		}
+		buf := bytes.NewBuffer(datas)
+		outreq.Body = ioutil.NopCloser(buf)
+	}
+
 	if _, ok := outreq.Header["User-Agent"]; !ok {
 		// If the outbound request doesn't have a User-Agent header set,
 		// don't send the default Go HTTP client User-Agent.
@@ -477,6 +502,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		},
 	}
 	outreq = outreq.WithContext(httptrace.WithClientTrace(outreq.Context(), trace))
+
 
 	res, err := transport.RoundTrip(outreq)
 	roundTripMutex.Lock()
