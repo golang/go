@@ -135,6 +135,16 @@ func lookup(p *Plugin, symName string) (Symbol, error) {
 }
 
 var (
+	// pluginsMu should be an internal detail,
+	// but widely used packages access it using linkname.
+	// Notable members of the hall of shame include:
+	//   - github.com/bytedance/sonic
+	//
+	// Do not remove or change the type signature.
+	// See go.dev/issues/67401.
+	// See go.dev/issues/71672.
+	//
+	//go:linkname pluginsMu
 	pluginsMu sync.Mutex
 	plugins   map[string]*Plugin
 )
