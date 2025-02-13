@@ -217,9 +217,7 @@ func testCancel(t *testing.T, ignore bool) {
 	// Either way, this should undo both calls to Notify above.
 	if ignore {
 		Ignore(syscall.SIGWINCH, syscall.SIGHUP)
-		// Don't bother deferring a call to Reset: it is documented to undo Notify,
-		// but its documentation says nothing about Ignore, and (as of the time of
-		// writing) it empirically does not undo an Ignore.
+		defer Reset(syscall.SIGWINCH, syscall.SIGHUP)
 	} else {
 		Reset(syscall.SIGWINCH, syscall.SIGHUP)
 	}
@@ -349,6 +347,8 @@ func TestStop(t *testing.T) {
 	for _, sig := range sigs {
 		sig := sig
 		t.Run(fmt.Sprint(sig), func(t *testing.T) {
+			defer Reset(sig)
+
 			// When calling Notify with a specific signal,
 			// independent signals should not interfere with each other,
 			// and we end up needing to wait for signals to quiesce a lot.
@@ -912,4 +912,115 @@ func TestSignalTrace(t *testing.T) {
 	}
 	close(quit)
 	<-done
+}
+
+// #46321 test Reset actually undoes the effect of Ignore.
+func TestResetIgnore(t *testing.T) {
+	if os.Getenv("GO_TEST_RESET_IGNORE") != "" {
+		s, err := strconv.Atoi(os.Getenv("GO_TEST_RESET_IGNORE"))
+		if err != nil {
+			t.Fatalf("failed to parse signal: %v", err)
+		}
+		resetIgnoreTestProgram(syscall.Signal(s))
+	}
+
+	sigs := []syscall.Signal{
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGUSR1,
+		syscall.SIGTERM,
+		syscall.SIGCHLD,
+		syscall.SIGWINCH,
+	}
+
+	for _, notify := range []bool{false, true} {
+		for _, sig := range sigs {
+			t.Run(fmt.Sprintf("%s[notify=%t]", sig, notify), func(t *testing.T) {
+				if Ignored(sig) {
+					t.Fatalf("expected %q to not be ignored initially", sig)
+				}
+
+				Ignore(sig)
+				if notify {
+					c := make(chan os.Signal, 1)
+					Notify(c, sig)
+					defer Stop(c)
+				}
+				Reset(sig)
+
+				if Ignored(sig) {
+					t.Fatalf("expected %q to not be ignored", sig)
+				}
+
+				// Child processes inherit the ignored status of signals, so verify that it
+				// is indeed not ignored.
+				cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestResetIgnore$")
+				cmd.Env = append(os.Environ(), "GO_TEST_RESET_IGNORE="+strconv.Itoa(int(sig)))
+				err := cmd.Run()
+				if _, ok := err.(*exec.ExitError); ok {
+					t.Fatalf("expected %q to not be ignored in child process", sig)
+				} else if err != nil {
+					t.Fatalf("child process failed to launch: %v", err)
+				}
+			})
+		}
+	}
+}
+
+func resetIgnoreTestProgram(sig os.Signal) {
+	if Ignored(sig) {
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+// #46321 test Reset correctly undoes the effect of Ignore when the child
+// process is started with a signal ignored.
+func TestInitiallyIgnoredResetIgnore(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_TEST_INITIALLY_IGNORED_RESET_IGNORE") != "" {
+		s, err := strconv.Atoi(os.Getenv("GO_TEST_INITIALLY_IGNORED_RESET_IGNORE"))
+		if err != nil {
+			t.Fatalf("failed to parse signal: %v", err)
+		}
+		initiallyIgnoredResetIgnoreTestProgram(syscall.Signal(s))
+	}
+
+	sigs := []syscall.Signal{
+		syscall.SIGINT,
+		syscall.SIGHUP,
+	}
+
+	for _, sig := range sigs {
+		t.Run(fmt.Sprint(sig), func(t *testing.T) {
+			Ignore(sig)
+			defer Reset(sig)
+
+			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestInitiallyIgnoredResetIgnore$")
+			cmd.Env = append(os.Environ(), "GO_TEST_INITIALLY_IGNORED_RESET_IGNORE="+strconv.Itoa(int(sig)))
+			err := cmd.Run()
+			if _, ok := err.(*exec.ExitError); ok {
+				t.Fatalf("expected %q to be ignored in child process", sig)
+			} else if err != nil {
+				t.Fatalf("child process failed to launch: %v", err)
+			}
+		})
+	}
+}
+
+func initiallyIgnoredResetIgnoreTestProgram(sig os.Signal) {
+	if !Ignored(sig) {
+		os.Exit(1)
+	}
+	Reset(sig)
+	if !Ignored(sig) {
+		os.Exit(1)
+	}
+	Ignore(sig)
+	Reset(sig)
+	if !Ignored(sig) {
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
