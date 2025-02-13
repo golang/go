@@ -1648,8 +1648,13 @@
 
 (MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read8(sym, int64(off)))])
 (MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
-(MOVLload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVLload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVQload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBQSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(int8(read8(sym, int64(off))))])
+(MOVWQSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])
+(MOVLQSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder)))])
+
+
 (MOVOstore [dstOff] {dstSym} ptr (MOVOload [srcOff] {srcSym} (SB) _) mem) && symIsRO(srcSym) =>
   (MOVQstore [dstOff+8] {dstSym} ptr (MOVQconst [int64(read64(srcSym, int64(srcOff)+8, config.ctxt.Arch.ByteOrder))])
     (MOVQstore [dstOff] {dstSym} ptr (MOVQconst [int64(read64(srcSym, int64(srcOff), config.ctxt.Arch.ByteOrder))]) mem))
