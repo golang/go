@@ -27,7 +27,7 @@ func TestIntegrityCheck(t *testing.T) {
 		return
 	}
 
-	if godebug.New("#fips140").Value() == "on" {
+	if godebug.New("fips140").Value() == "on" {
 		t.Fatalf("GODEBUG=fips140=on but verification did not run")
 	}
 
