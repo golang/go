@@ -16,7 +16,7 @@ import (
 
 // Enabled reports whether FIPS 140-only mode is enabled, in which non-approved
 // cryptography returns an error or panics.
-var Enabled = godebug.New("#fips140").Value() == "only"
+var Enabled = godebug.New("fips140").Value() == "only"
 
 func ApprovedHash(h hash.Hash) bool {
 	switch h.(type) {
