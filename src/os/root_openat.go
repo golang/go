@@ -74,7 +74,7 @@ func rootChmod(r *Root, name string, mode FileMode) error {
 	if err != nil {
 		return &PathError{Op: "chmodat", Path: name, Err: err}
 	}
-	return err
+	return nil
 }
 
 func rootMkdir(r *Root, name string, perm FileMode) error {
@@ -84,7 +84,7 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 	if err != nil {
 		return &PathError{Op: "mkdirat", Path: name, Err: err}
 	}
-	return err
+	return nil
 }
 
 func rootRemove(r *Root, name string) error {
@@ -94,7 +94,7 @@ func rootRemove(r *Root, name string) error {
 	if err != nil {
 		return &PathError{Op: "removeat", Path: name, Err: err}
 	}
-	return err
+	return nil
 }
 
 // doInRoot performs an operation on a path in a Root.
