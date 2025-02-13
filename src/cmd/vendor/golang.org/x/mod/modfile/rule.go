@@ -1466,7 +1466,7 @@ func (f *File) DropRequire(path string) error {
 	return nil
 }
 
-// AddExclude adds a exclude statement to the mod file. Errors if the provided
+// AddExclude adds an exclude statement to the mod file. Errors if the provided
 // version is not a canonical version string
 func (f *File) AddExclude(path, vers string) error {
 	if err := checkCanonicalVersion(path, vers); err != nil {
