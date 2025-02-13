@@ -612,6 +612,10 @@ func Implements(t, iface *types.Type) bool {
 	return implements(t, iface, &missing, &have, &ptr)
 }
 
+func init() {
+	ir.Implements = Implements
+}
+
 // ImplementsExplain reports whether t implements the interface iface. t can be
 // an interface, a type parameter, or a concrete type. If t does not implement
 // iface, a non-empty string is returned explaining why.
