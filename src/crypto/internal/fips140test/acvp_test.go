@@ -2132,8 +2132,10 @@ func TestACVP(t *testing.T) {
 	}
 	cmd = testenv.Command(t, goTool, args...)
 	cmd.Dir = dataDir
-	cmd.Env = append(os.Environ(), "ACVP_WRAPPER=1")
-	cmd.Env = append(os.Environ(), "GODEBUG=fips140=on")
+	cmd.Env = append(os.Environ(),
+		"ACVP_WRAPPER=1",
+		"GODEBUG=fips140=on",
+	)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run acvp tests: %s\n%s", err, string(output))
