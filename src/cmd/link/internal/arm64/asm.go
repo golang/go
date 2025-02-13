@@ -968,6 +968,18 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		}
 		return val | ((t >> 2) & 0x03ffffff), noExtReloc, true
 
+	case objabi.R_AARCH64_CONDBR19:
+		var t int64
+		if ldr.SymType(rs) == sym.SDYNIMPORT {
+			t = (ldr.SymAddr(syms.PLT) + r.Add()) - (ldr.SymValue(s) + int64(r.Off()))
+		} else {
+			t = (ldr.SymAddr(rs) + r.Add()) - (ldr.SymValue(s) + int64(r.Off()))
+		}
+		if t >= 1<<20 || t < -1<<20 {
+			ldr.Errorf(s, "program too large, call relocation distance = %d", t)
+		}
+		return val | (((t >> 2) & 0x7ffff) << 5), noExtReloc, true
+
 	case objabi.R_ARM64_GOT:
 		if (val>>24)&0x9f == 0x90 {
 			// R_AARCH64_ADR_GOT_PAGE
