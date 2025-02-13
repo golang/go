@@ -1,0 +1,1027 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "govulncheck/vex:3b201b22f53c186d14f2f4ae4b7aca6b7fcc491231718a543d0f32d2dde23f5d",
+  "author": "Unknown Author",
+  "timestamp": "2025-02-13T18:05:50.54527284Z",
+  "version": 1,
+  "tooling": "https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck",
+  "statements": [
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2022-0969",
+        "name": "GO-2022-0969",
+        "description": "Denial of service in net/http and golang.org/x/net/http2",
+        "aliases": [
+          "CVE-2022-27664",
+          "GHSA-69cg-p879-7622"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2022-1037",
+        "name": "GO-2022-1037",
+        "description": "Unbounded memory consumption when reading headers in archive/tar",
+        "aliases": [
+          "CVE-2022-2879"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2022-1038",
+        "name": "GO-2022-1038",
+        "description": "Incorrect sanitization of forwarded query parameters in net/http/httputil",
+        "aliases": [
+          "CVE-2022-2880"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2022-1039",
+        "name": "GO-2022-1039",
+        "description": "Memory exhaustion when compiling regular expressions in regexp/syntax",
+        "aliases": [
+          "CVE-2022-41715"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2022-1095",
+        "name": "GO-2022-1095",
+        "description": "Unsanitized NUL in environment variables on Windows in syscall and os/exec",
+        "aliases": [
+          "CVE-2022-41716"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2022-1143",
+        "name": "GO-2022-1143",
+        "description": "Restricted file access on Windows in os and net/http",
+        "aliases": [
+          "CVE-2022-41720"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2022-1144",
+        "name": "GO-2022-1144",
+        "description": "Excessive memory growth in net/http and golang.org/x/net/http2",
+        "aliases": [
+          "CVE-2022-41717",
+          "GHSA-xrjj-mj9h-534m"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1568",
+        "name": "GO-2023-1568",
+        "description": "Path traversal on Windows in path/filepath",
+        "aliases": [
+          "CVE-2022-41722"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1569",
+        "name": "GO-2023-1569",
+        "description": "Excessive resource consumption in mime/multipart",
+        "aliases": [
+          "CVE-2022-41725"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1570",
+        "name": "GO-2023-1570",
+        "description": "Panic on large handshake records in crypto/tls",
+        "aliases": [
+          "CVE-2022-41724"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1571",
+        "name": "GO-2023-1571",
+        "description": "Denial of service via crafted HTTP/2 stream in net/http and golang.org/x/net",
+        "aliases": [
+          "CVE-2022-41723",
+          "GHSA-vvpx-j8f3-3w6h"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1621",
+        "name": "GO-2023-1621",
+        "description": "Incorrect calculation on P256 curves in crypto/internal/nistec",
+        "aliases": [
+          "CVE-2023-24532"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1702",
+        "name": "GO-2023-1702",
+        "description": "Infinite loop in parsing in go/scanner",
+        "aliases": [
+          "CVE-2023-24537"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1703",
+        "name": "GO-2023-1703",
+        "description": "Backticks not treated as string delimiters in html/template",
+        "aliases": [
+          "CVE-2023-24538"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1704",
+        "name": "GO-2023-1704",
+        "description": "Excessive memory allocation in net/http and net/textproto",
+        "aliases": [
+          "CVE-2023-24534"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1705",
+        "name": "GO-2023-1705",
+        "description": "Excessive resource consumption in net/http, net/textproto and mime/multipart",
+        "aliases": [
+          "CVE-2023-24536"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1751",
+        "name": "GO-2023-1751",
+        "description": "Improper sanitization of CSS values in html/template",
+        "aliases": [
+          "CVE-2023-24539"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1752",
+        "name": "GO-2023-1752",
+        "description": "Improper handling of JavaScript whitespace in html/template",
+        "aliases": [
+          "CVE-2023-24540"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1753",
+        "name": "GO-2023-1753",
+        "description": "Improper handling of empty HTML attributes in html/template",
+        "aliases": [
+          "CVE-2023-29400"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1840",
+        "name": "GO-2023-1840",
+        "description": "Unsafe behavior in setuid/setgid binaries in runtime",
+        "aliases": [
+          "CVE-2023-29403"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1878",
+        "name": "GO-2023-1878",
+        "description": "Insufficient sanitization of Host header in net/http",
+        "aliases": [
+          "CVE-2023-29406"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-1987",
+        "name": "GO-2023-1987",
+        "description": "Large RSA keys can cause high CPU usage in crypto/tls",
+        "aliases": [
+          "CVE-2023-29409"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-2041",
+        "name": "GO-2023-2041",
+        "description": "Improper handling of HTML-like comments in script contexts in html/template",
+        "aliases": [
+          "CVE-2023-39318"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-2043",
+        "name": "GO-2023-2043",
+        "description": "Improper handling of special tags within script contexts in html/template",
+        "aliases": [
+          "CVE-2023-39319"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-2102",
+        "name": "GO-2023-2102",
+        "description": "HTTP/2 rapid reset can cause excessive work in net/http",
+        "aliases": [
+          "CVE-2023-39325",
+          "GHSA-4374-p667-p6c8"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-2185",
+        "name": "GO-2023-2185",
+        "description": "Insecure parsing of Windows paths with a \\??\\ prefix in path/filepath",
+        "aliases": [
+          "CVE-2023-45283"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-2186",
+        "name": "GO-2023-2186",
+        "description": "Incorrect detection of reserved device names on Windows in path/filepath",
+        "aliases": [
+          "CVE-2023-45284"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-2375",
+        "name": "GO-2023-2375",
+        "description": "Before Go 1.20, the RSA based key exchange methods in crypto/tls may exhibit a timing side channel",
+        "aliases": [
+          "CVE-2023-45287"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2023-2382",
+        "name": "GO-2023-2382",
+        "description": "Denial of service via chunk extensions in net/http",
+        "aliases": [
+          "CVE-2023-39326"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-2598",
+        "name": "GO-2024-2598",
+        "description": "Verify panics on certificates with an unknown public key algorithm in crypto/x509",
+        "aliases": [
+          "CVE-2024-24783"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-2599",
+        "name": "GO-2024-2599",
+        "description": "Memory exhaustion in multipart form parsing in net/textproto and net/http",
+        "aliases": [
+          "CVE-2023-45290"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-2600",
+        "name": "GO-2024-2600",
+        "description": "Incorrect forwarding of sensitive headers and cookies on HTTP redirect in net/http",
+        "aliases": [
+          "CVE-2023-45289"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-2609",
+        "name": "GO-2024-2609",
+        "description": "Comments in display names are incorrectly handled in net/mail",
+        "aliases": [
+          "CVE-2024-24784"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-2610",
+        "name": "GO-2024-2610",
+        "description": "Errors returned from JSON marshaling may break template escaping in html/template",
+        "aliases": [
+          "CVE-2024-24785"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-2687",
+        "name": "GO-2024-2687",
+        "description": "HTTP/2 CONTINUATION flood in net/http",
+        "aliases": [
+          "CVE-2023-45288",
+          "GHSA-4v7x-pqxf-cx7m"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-2887",
+        "name": "GO-2024-2887",
+        "description": "Unexpected behavior from Is methods for IPv4-mapped IPv6 addresses in net/netip",
+        "aliases": [
+          "CVE-2024-24790"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-2888",
+        "name": "GO-2024-2888",
+        "description": "Mishandling of corrupt central directory record in archive/zip",
+        "aliases": [
+          "CVE-2024-24789"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-2963",
+        "name": "GO-2024-2963",
+        "description": "Denial of service due to improper 100-continue handling in net/http",
+        "aliases": [
+          "CVE-2024-24791"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-3105",
+        "name": "GO-2024-3105",
+        "description": "Stack exhaustion in all Parse functions in go/parser",
+        "aliases": [
+          "CVE-2024-34155"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-3106",
+        "name": "GO-2024-3106",
+        "description": "Stack exhaustion in Decoder.Decode in encoding/gob",
+        "aliases": [
+          "CVE-2024-34156"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2024-3107",
+        "name": "GO-2024-3107",
+        "description": "Stack exhaustion in Parse in go/build/constraint",
+        "aliases": [
+          "CVE-2024-34158"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2025-3373",
+        "name": "GO-2025-3373",
+        "description": "Usage of IPv6 zone IDs can bypass URI name constraints in crypto/x509",
+        "aliases": [
+          "CVE-2024-45341"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2025-3420",
+        "name": "GO-2025-3420",
+        "description": "Sensitive headers incorrectly sent after cross-domain redirect in net/http",
+        "aliases": [
+          "CVE-2024-45336"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    },
+    {
+      "vulnerability": {
+        "@id": "https://pkg.go.dev/vuln/GO-2025-3447",
+        "name": "GO-2025-3447",
+        "description": "Timing sidechannel for P-256 on ppc64le in crypto/internal/nistec",
+        "aliases": [
+          "CVE-2025-22866"
+        ]
+      },
+      "products": [
+        {
+          "@id": "Unknown Product",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib@v1.17.13"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Govulncheck determined that the vulnerable code isn't called"
+    }
+  ]
+}
