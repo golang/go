@@ -202,7 +202,7 @@ func sigenable(sig uint32) {
 		enableSigChan <- sig
 		<-maskUpdatedChan
 		if atomic.Cas(&handlingSig[sig], 0, 1) {
-			atomic.Storeuintptr(&fwdSig[sig], getsig(sig))
+			// atomic.Storeuintptr(&fwdSig[sig], getsig(sig))
 			setsig(sig, abi.FuncPCABIInternal(sighandler))
 		}
 	}
@@ -232,7 +232,7 @@ func sigdisable(sig uint32) bool {
 		// we should remove the one we installed.
 		if sigInstallGoHandler(sig) {
 			if atomic.Cas(&handlingSig[sig], 0, 1) {
-				atomic.Storeuintptr(&fwdSig[sig], getsig(sig))
+				// atomic.Storeuintptr(&fwdSig[sig], getsig(sig))
 				setsig(sig, abi.FuncPCABIInternal(sighandler))
 			}
 			return false
