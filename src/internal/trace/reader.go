@@ -22,17 +22,18 @@ import (
 // event as the first event, and a Sync event as the last event.
 // (There may also be any number of Sync events in the middle, too.)
 type Reader struct {
-	version    version.Version
-	r          *bufio.Reader
-	lastTs     Time
-	gen        *generation
-	spill      *spilledBatch
-	spillErr   error // error from reading spill
-	frontier   []*batchCursor
-	cpuSamples []cpuSample
-	order      ordering
-	syncs      int
-	done       bool
+	version      version.Version
+	r            *bufio.Reader
+	lastTs       Time
+	gen          *generation
+	spill        *spilledBatch
+	spillErr     error // error from reading spill
+	spillErrSync bool  // whether we emitted a Sync before reporting spillErr
+	frontier     []*batchCursor
+	cpuSamples   []cpuSample
+	order        ordering
+	syncs        int
+	done         bool
 
 	v1Events *traceV1Converter
 }
@@ -139,7 +140,12 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 	// Check if we need to refresh the generation.
 	if len(r.frontier) == 0 && len(r.cpuSamples) == 0 {
 		if r.spillErr != nil {
-			return Event{}, r.spillErr
+			if r.spillErrSync {
+				return Event{}, r.spillErr
+			}
+			r.spillErrSync = true
+			r.syncs++
+			return syncEvent(nil, r.lastTs, r.syncs), nil
 		}
 		if r.gen != nil && r.spill == nil {
 			// If we have a generation from the last read,
@@ -154,6 +160,7 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		// Read the next generation.
 		r.gen, r.spill, r.spillErr = readGeneration(r.r, r.spill)
 		if r.gen == nil {
+			r.spillErrSync = true
 			r.syncs++
 			return syncEvent(nil, r.lastTs, r.syncs), nil
 		}
