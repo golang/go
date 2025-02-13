@@ -491,7 +491,7 @@ var firstmoduledata moduledata // linker symbol
 // See go.dev/issues/67401.
 // See go.dev/issues/71672.
 //
-//go:linkname lastmoduledatap runtime.lastmoduledatap
+//go:linkname lastmoduledatap
 var lastmoduledatap *moduledata // linker symbol
 
 var modulesSlice *[]*moduledata // see activeModules
@@ -602,6 +602,16 @@ func moduledataverify() {
 
 const debugPcln = false
 
+// moduledataverify1 should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issues/67401.
+// See go.dev/issues/71672.
+//
+//go:linkname moduledataverify1
 func moduledataverify1(datap *moduledata) {
 	// Check that the pclntab's format is valid.
 	hdr := datap.pcHeader
