@@ -252,6 +252,8 @@ var (
 
 // A conn represents the server side of an HTTP connection.
 type conn struct {
+	curState atomic.Uint64 // packed (unixtime<<8|uint8(ConnState))
+
 	// server is the server on which the connection arrived.
 	// Immutable; never nil.
 	server *Server
@@ -295,8 +297,6 @@ type conn struct {
 	lastMethod string
 
 	curReq atomic.Pointer[response] // (which has a Request in it)
-
-	curState atomic.Uint64 // packed (unixtime<<8|uint8(ConnState))
 
 	// mu guards hijackedv
 	mu sync.Mutex
