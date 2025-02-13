@@ -347,6 +347,8 @@ func TestStop(t *testing.T) {
 	for _, sig := range sigs {
 		sig := sig
 		t.Run(fmt.Sprint(sig), func(t *testing.T) {
+			defer Reset(sig)
+
 			// When calling Notify with a specific signal,
 			// independent signals should not interfere with each other,
 			// and we end up needing to wait for signals to quiesce a lot.

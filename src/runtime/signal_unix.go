@@ -211,14 +211,14 @@ func sigenable(sig uint32) {
 // sigdisable disables the Go signal handler for the signal sig.
 // It is only called while holding the os/signal.handlers lock,
 // via os/signal.disableSignal and signal_disable.
-func sigdisable(sig uint32) {
+func sigdisable(sig uint32) bool {
 	if sig >= uint32(len(sigtable)) {
-		return
+		return false
 	}
 
 	// SIGPROF is handled specially for profiling.
 	if sig == _SIGPROF {
-		return
+		return false
 	}
 
 	t := &sigtable[sig]
@@ -230,11 +230,20 @@ func sigdisable(sig uint32) {
 		// If initsig does not install a signal handler for a
 		// signal, then to go back to the state before Notify
 		// we should remove the one we installed.
-		if !sigInstallGoHandler(sig) {
+		if sigInstallGoHandler(sig) {
+			if atomic.Cas(&handlingSig[sig], 0, 1) {
+				atomic.Storeuintptr(&fwdSig[sig], getsig(sig))
+				setsig(sig, abi.FuncPCABIInternal(sighandler))
+			}
+			return false
+		} else {
 			atomic.Store(&handlingSig[sig], 0)
-			setsig(sig, atomic.Loaduintptr(&fwdSig[sig]))
+			fs := atomic.Loaduintptr(&fwdSig[sig])
+			setsig(sig, fs)
+			return fs == _SIG_IGN
 		}
 	}
+	return false
 }
 
 // sigignore ignores the signal sig.
