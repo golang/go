@@ -5,9 +5,12 @@
 package escape
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"go/constant"
+	"go/token"
 )
 
 func isSliceSelfAssign(dst, src ir.Node) bool {
@@ -206,6 +209,36 @@ func HeapAllocReason(n ir.Node) string {
 
 	if n.Op() == ir.OMAKESLICE {
 		n := n.(*ir.MakeExpr)
+
+		// Try to determine static values of make() calls, to avoid allocating them on the heap.
+		// We are doing this in escape analysis, so that it happens after inlining and devirtualization.
+		if n.Cap != nil {
+			if s := ir.StaticValue(n.Cap); s.Op() == ir.OLITERAL {
+				cap, ok := s.(*ir.BasicLit)
+				if !ok || cap.Val().Kind() != constant.Int {
+					base.Fatalf("unexpected BasicLit Kind")
+				}
+				if constant.Compare(cap.Val(), token.GEQ, constant.MakeInt64(0)) {
+					n.Cap = s
+				}
+			}
+		}
+		if n.Len != nil {
+			if s := ir.StaticValue(n.Len); s.Op() == ir.OLITERAL {
+				len, ok := s.(*ir.BasicLit)
+				if !ok || len.Val().Kind() != constant.Int {
+					base.Fatalf("unexpected BasicLit Kind")
+				}
+
+				if constant.Compare(len.Val(), token.GEQ, constant.MakeInt64(0)) {
+					cap, ok := n.Cap.(*ir.BasicLit)
+					if n.Cap == nil || (ok && constant.Compare(cap.Val(), token.GEQ, len.Val())) {
+						n.Len = s
+					}
+				}
+			}
+		}
+
 		r := n.Cap
 		if r == nil {
 			r = n.Len
