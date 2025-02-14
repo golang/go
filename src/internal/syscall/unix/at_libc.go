@@ -17,7 +17,7 @@ import (
 //go:linkname procReadlinkat libc_readlinkat
 //go:linkname procMkdirat libc_mkdirat
 //go:linkname procFchmodat libc_fchmodat
-//go:linkname procFchownat libc_chownat
+//go:linkname procFchownat libc_fchownat
 
 var (
 	procFstatat,
