@@ -73,6 +73,9 @@ type scanner struct {
 	// Reached end of top-level value.
 	endTop bool
 
+	// The scanner is used in streaming mode (i.e. by the Token API)
+	inStream bool
+
 	// Stack of what we're in the middle of - array values, object keys, object values.
 	parseState []int
 
@@ -280,6 +283,15 @@ func stateEndValue(s *scanner, c byte) int {
 	n := len(s.parseState)
 	if n == 0 {
 		// Completed top-level before the current byte.
+		if s.inStream {
+			// If used in streaming mode (i.e. by the Token API) do not allocate and set s.err in case the next
+			// character is non-space (which stateEndTop() would do). The error would be discarded anyway at the next
+			// call to readValue().
+			if s.err != nil {
+				return scanError
+			}
+			return scanEnd
+		}
 		s.step = stateEndTop
 		s.endTop = true
 		return stateEndTop(s, c)
