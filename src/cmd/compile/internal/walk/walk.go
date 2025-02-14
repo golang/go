@@ -24,6 +24,13 @@ const tmpstringbufsize = 32
 
 func Walk(fn *ir.Func) {
 	ir.CurFunc = fn
+
+	// Set and then clear a package-level cache of static values for this fn.
+	// (At some point, it might be worthwhile to have a walkState structure
+	// that gets passed everywhere where things like this can go.)
+	staticValues = findStaticValues(fn)
+	defer func() { staticValues = nil }()
+
 	errorsBefore := base.Errors()
 	order(fn)
 	if base.Errors() > errorsBefore {
@@ -421,4 +428,44 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
 	ind.SetTypecheck(1)
 	ind.SetBounded(true)
 	return ind
+}
+
+// staticValue returns the earliest expression it can find that always
+// evaluates to n, with similar semantics to [ir.StaticValue].
+//
+// It only returns results for the ir.CurFunc being processed in [Walk],
+// including its closures, and uses a cache to reduce duplicative work.
+// It can return n or nil if it does not find an earlier expression.
+//
+// The current use case is reducing OCONVIFACE allocations, and hence
+// staticValue is currently only useful when given an *ir.ConvExpr.X as n.
+func staticValue(n ir.Node) ir.Node {
+	if staticValues == nil {
+		base.Fatalf("staticValues is nil. staticValue called outside of walk.Walk?")
+	}
+	return staticValues[n]
+}
+
+// staticValues is a cache of static values for use by staticValue.
+var staticValues map[ir.Node]ir.Node
+
+// findStaticValues returns a map of static values for fn.
+func findStaticValues(fn *ir.Func) map[ir.Node]ir.Node {
+	// We can't use an ir.ReassignOracle or ir.StaticValue in the
+	// middle of walk because they don't currently handle
+	// transformed assignments (e.g., will complain about 'RHS == nil').
+	// So we instead build this map to use in walk.
+	ro := &ir.ReassignOracle{}
+	ro.Init(fn)
+	m := make(map[ir.Node]ir.Node)
+	ir.Visit(fn, func(n ir.Node) {
+		if n.Op() == ir.OCONVIFACE {
+			x := n.(*ir.ConvExpr).X
+			v := ro.StaticValue(x)
+			if v != nil && v != x {
+				m[x] = v
+			}
+		}
+	})
+	return m
 }

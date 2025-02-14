@@ -208,32 +208,32 @@ func named7b(v MyInt) {
 type S struct{ a, b int64 }
 
 func struct1() {
-	sink = S{1, 1}
+	sink = S{1, 1} // ERROR "using global for interface value"
 }
 
 func struct2() {
 	v := S{1, 1}
-	sink = v
+	sink = v // ERROR "using global for interface value"
 }
 
 func struct3() {
-	sink = S{}
+	sink = S{} // ERROR "using global for interface value"
 }
 
 func struct4() {
 	v := S{}
-	sink = v
+	sink = v // ERROR "using global for interface value"
 }
 
 func struct5() {
-	var a any = S{1, 1} // ERROR "using stack temporary for interface value"
+	var a any = S{1, 1} // ERROR "using global for interface value"
 	_ = a
 }
 
 func struct6() {
 	var a any
 	v := S{1, 1}
-	a = v // ERROR "using stack temporary for interface value"
+	a = v // ERROR "using global for interface value"
 	_ = a
 }
 
