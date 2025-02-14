@@ -8,6 +8,7 @@ package ast
 
 import (
 	"go/token"
+	"runtime"
 	"strings"
 )
 
@@ -86,6 +87,27 @@ func stripTrailingWhitespace(s string) string {
 		i--
 	}
 	return s[0:i]
+}
+
+// Raw returns the raw (original) text of the comment.
+// It includes the comment markers (//, /*, and */).
+// It adds a newline at the end of the comment.
+func (g *CommentGroup) Raw() string {
+	if g == nil {
+		return ""
+	}
+	var (
+		b  strings.Builder
+		ls = "\n"
+	)
+	if runtime.GOOS == "windows" {
+		ls = "\r\n"
+	}
+
+	for _, c := range g.List {
+		b.WriteString(c.Text + ls)
+	}
+	return b.String()
 }
 
 // Text returns the text of the comment.
