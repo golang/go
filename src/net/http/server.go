@@ -261,7 +261,7 @@ type conn struct {
 
 	// rwc is the underlying network connection.
 	// This is never wrapped by other types and is the value given out
-	// to CloseNotifier callers. It is usually of type *net.TCPConn or
+	// to [Hijacker] callers. It is usually of type *net.TCPConn or
 	// *tls.Conn.
 	rwc net.Conn
 
@@ -486,11 +486,12 @@ type response struct {
 	clenBuf   [10]byte
 	statusBuf [3]byte
 
+	// lazyCloseNotifyMu protects closeNotifyCh and closeNotifyTriggered.
+	lazyCloseNotifyMu sync.Mutex
 	// closeNotifyCh is the channel returned by CloseNotify.
-	// TODO(bradfitz): this is currently (for Go 1.8) always
-	// non-nil. Make this lazily-created again as it used to be?
-	closeNotifyCh  chan bool
-	didCloseNotify atomic.Bool // atomic (only false->true winner should send)
+	closeNotifyCh chan bool
+	// closeNotifyTriggered tracks prior closeNotify calls.
+	closeNotifyTriggered bool
 }
 
 func (c *response) SetReadDeadline(deadline time.Time) error {
@@ -761,9 +762,8 @@ func (cr *connReader) handleReadError(_ error) {
 
 // may be called from multiple goroutines.
 func (cr *connReader) closeNotify() {
-	res := cr.conn.curReq.Load()
-	if res != nil && !res.didCloseNotify.Swap(true) {
-		res.closeNotifyCh <- true
+	if res := cr.conn.curReq.Load(); res != nil {
+		res.closeNotify()
 	}
 }
 
@@ -1078,7 +1078,6 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		reqBody:       req.Body,
 		handlerHeader: make(Header),
 		contentLength: -1,
-		closeNotifyCh: make(chan bool, 1),
 
 		// We populate these ahead of time so we're not
 		// reading from req.Header after their Handler starts
@@ -2228,10 +2227,30 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 }
 
 func (w *response) CloseNotify() <-chan bool {
+	w.lazyCloseNotifyMu.Lock()
+	defer w.lazyCloseNotifyMu.Unlock()
 	if w.handlerDone.Load() {
 		panic("net/http: CloseNotify called after ServeHTTP finished")
 	}
+	if w.closeNotifyCh == nil {
+		w.closeNotifyCh = make(chan bool, 1)
+		if w.closeNotifyTriggered {
+			w.closeNotifyCh <- true // action prior closeNotify call
+		}
+	}
 	return w.closeNotifyCh
+}
+
+func (w *response) closeNotify() {
+	w.lazyCloseNotifyMu.Lock()
+	defer w.lazyCloseNotifyMu.Unlock()
+	if w.closeNotifyTriggered {
+		return // already triggered
+	}
+	w.closeNotifyTriggered = true
+	if w.closeNotifyCh != nil {
+		w.closeNotifyCh <- true
+	}
 }
 
 func registerOnHitEOF(rc io.ReadCloser, fn func()) {
