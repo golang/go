@@ -162,7 +162,7 @@ func quotToFloat32(a, b nat) (f float32, exact bool) {
 	mantissa >>= 1 // discard rounding bit.  Mantissa now scaled by 1<<Msize1.
 
 	f = float32(math.Ldexp(float64(mantissa), exp-Msize1))
-	if math.IsInf(float64(f), 0) {
+	if math.IsInf(float64(f), 0) || f == 0 {
 		exact = false
 	}
 	return
@@ -260,7 +260,7 @@ func quotToFloat64(a, b nat) (f float64, exact bool) {
 	mantissa >>= 1 // discard rounding bit.  Mantissa now scaled by 1<<Msize1.
 
 	f = math.Ldexp(float64(mantissa), exp-Msize1)
-	if math.IsInf(f, 0) {
+	if math.IsInf(f, 0) || f == 0 {
 		exact = false
 	}
 	return
