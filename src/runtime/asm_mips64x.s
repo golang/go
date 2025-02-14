@@ -648,6 +648,19 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R1
 	RET
 
+// check that SP is in range [g->stack.lo, g->stack.hi)
+TEXT runtime·stackcheck(SB), NOSPLIT|NOFRAME, $0-0
+	MOVV	(g_stack+stack_hi)(g), R4
+	SGT	R4, R29, R4
+	BEQ	R4, 2(PC)
+	JAL	runtime·abort(SB)
+
+	MOVV	(g_stack+stack_lo)(g), R4
+	SGT	R29, R4, R4
+	BEQ	R4, 2(PC)
+	JAL	runtime·abort(SB)
+	RET
+
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
 TEXT _cgo_topofstack(SB),NOSPLIT,$16
@@ -871,3 +884,4 @@ TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
 	MOVV	R3, x+0(FP)
 	MOVV	R4, y+8(FP)
 	JMP	runtime·goPanicSliceConvert(SB)
+
