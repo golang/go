@@ -7128,10 +7128,6 @@ func testHeadBody(t *testing.T, mode testMode, chunked bool, method string) {
 // or disabled when the header is set to nil.
 func TestDisableContentLength(t *testing.T) { run(t, testDisableContentLength) }
 func testDisableContentLength(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("skipping until h2_bundle.go is updated; see https://go-review.googlesource.com/c/net/+/471535")
-	}
-
 	noCL := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header()["Content-Length"] = nil // disable the default Content-Length response
 		fmt.Fprintf(w, "OK")
