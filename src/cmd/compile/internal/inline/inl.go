@@ -1009,6 +1009,38 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 		return false, 0, false
 	}
 
+	isClosureParent := func(closure, parent *ir.Func) bool {
+		for p := closure.ClosureParent; p != nil; p = p.ClosureParent {
+			if p == parent {
+				return true
+			}
+		}
+		return false
+	}
+	if isClosureParent(callerfn, callee) {
+		// Can't recursively inline a parent of the closure into itself.
+		if log && logopt.Enabled() {
+			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to closure parent: %s, %s", ir.FuncName(callerfn), ir.FuncName(callee)))
+		}
+		return false, 0, false
+	}
+	if isClosureParent(callee, callerfn) {
+		// Can't recursively inline a closure if there's a call to the parent in closure body.
+		if ir.Any(callee, func(node ir.Node) bool {
+			if call, ok := node.(*ir.CallExpr); ok {
+				if name, ok := call.Fun.(*ir.Name); ok && isClosureParent(callerfn, name.Func) {
+					return true
+				}
+			}
+			return false
+		}) {
+			if log && logopt.Enabled() {
+				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to closure parent: %s, %s", ir.FuncName(callerfn), ir.FuncName(callee)))
+			}
+			return false, 0, false
+		}
+	}
+
 	if base.Flag.Cfg.Instrumenting && types.IsNoInstrumentPkg(callee.Sym().Pkg) {
 		// Runtime package must not be instrumented.
 		// Instrument skips runtime package. However, some runtime code can be
