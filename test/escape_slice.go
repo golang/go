@@ -96,7 +96,7 @@ func slice10() []*int {
 func slice11() {
 	i := 2
 	s := make([]int, 2, 3) // ERROR "make\(\[\]int, 2, 3\) does not escape"
-	s = make([]int, i, 3)  // ERROR "make\(\[\]int, i, 3\) does not escape"
+	s = make([]int, i, 3)  // ERROR "make\(\[\]int, 2, 3\) does not escape"
 	s = make([]int, i, 1)  // ERROR "make\(\[\]int, i, 1\) does not escape"
 	_ = s
 }
