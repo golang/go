@@ -892,21 +892,22 @@ func staticValue(n Node, forDevirt bool) Node {
 			n = n1.X
 			continue
 		case *TypeAssertExpr:
-			if forDevirt && n1.Op() == ODOTTYPE {
+			if forDevirt {
 				n = n1.X
 				continue
 			}
 		}
 
-		n1 := staticValue1(n)
+		n1 := staticValue1(n, forDevirt)
 		if n1 == nil {
 			return n
 		}
+
 		n = n1
 	}
 }
 
-func staticValue1(nn Node) Node {
+func staticValue1(nn Node, forDevirt bool) Node {
 	if nn.Op() != ONAME {
 		return nil
 	}
@@ -935,6 +936,14 @@ FindRHS:
 			}
 		}
 		base.Fatalf("%v missing from LHS of %v", n, defn)
+	case OAS2DOTTYPE:
+		if !forDevirt {
+			return nil
+		}
+		defn := defn.(*AssignListStmt)
+		if defn.Lhs[0] == n {
+			rhs = defn.Rhs[0]
+		}
 	default:
 		return nil
 	}

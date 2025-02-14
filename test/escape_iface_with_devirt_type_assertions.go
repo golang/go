@@ -63,32 +63,31 @@ func t() {
 	}
 }
 
-// TODO: these type assertions could also be devirtualized.
 func t2() {
 	{
-		var a M = &Impl{} // ERROR "&Impl{} escapes to heap"
+		var a M = &Impl{} // ERROR "does not escape"
 		if v, ok := a.(M); ok {
-			v.M()
+			v.M() // ERROR "devirtualizing" "inlining call"
 		}
 	}
 	{
-		var a M = &Impl{} // ERROR "&Impl{} escapes to heap"
+		var a M = &Impl{} // ERROR "does not escape"
 		if v, ok := a.(A); ok {
-			v.A()
+			v.A() // ERROR "devirtualizing" "inlining call"
 		}
 	}
 	{
-		var a M = &Impl{} // ERROR "&Impl{} escapes to heap"
+		var a M = &Impl{} // ERROR "does not escape"
 		v, ok := a.(M)
 		if ok {
-			v.M()
+			v.M() // ERROR "devirtualizing" "inlining call"
 		}
 	}
 	{
-		var a M = &Impl{} // ERROR "&Impl{} escapes to heap"
+		var a M = &Impl{} // ERROR "does not escape"
 		v, ok := a.(A)
 		if ok {
-			v.A()
+			v.A() // ERROR "devirtualizing" "inlining call"
 		}
 	}
 	{
@@ -100,20 +99,39 @@ func t2() {
 		}
 	}
 	{
-		var a M = &Impl{} // ERROR "&Impl{} escapes to heap"
+		var a M = &Impl{} // ERROR "does not escape"
 		v, _ := a.(M)
-		v.M()
+		v.M() // ERROR "devirtualizing" "inlining call"
 	}
 	{
-		var a M = &Impl{} // ERROR "&Impl{} escapes to heap"
+		var a M = &Impl{} // ERROR "does not escape"
 		v, _ := a.(A)
-		v.A()
+		v.A() // ERROR "devirtualizing" "inlining call"
 	}
 	{
 		var a M = &Impl{} // ERROR "does not escape"
 		v, _ := a.(*Impl)
 		v.A() // ERROR "inlining"
 		v.M() // ERROR "inlining"
+	}
+	{
+		a := newM() // ERROR "does not escape" "inlining call"
+		callA(a)    // ERROR "devirtualizing" "inlining call"
+		callIfA(a)  // ERROR "devirtualizing" "inlining call"
+	}
+}
+
+func newM() M { // ERROR "can inline"
+	return &Impl{} // ERROR "escapes"
+}
+
+func callA(m M) { // ERROR "can inline" "leaking param"
+	m.(A).A()
+}
+
+func callIfA(m M) { // ERROR "can inline" "leaking param"
+	if v, ok := m.(A); ok {
+		v.A()
 	}
 }
 
